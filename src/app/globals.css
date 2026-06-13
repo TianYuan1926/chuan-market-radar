@@ -234,6 +234,85 @@ p {
   font-size: 10px;
 }
 
+.live-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: center;
+  justify-items: end;
+  margin-top: 6px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--line);
+}
+
+.live-console > .mono:first-child {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 10px;
+}
+
+.live-console > .mono:first-child::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(39, 140, 102, 0.12);
+}
+
+.live-console--syncing > .mono:first-child::before {
+  background: var(--amber);
+  animation: livePulse 860ms var(--curve) infinite alternate;
+}
+
+.live-console--updated > .mono:first-child::before {
+  background: var(--blue);
+  box-shadow: 0 0 0 4px rgba(55, 90, 255, 0.14);
+}
+
+.live-console--error > .mono:first-child::before {
+  background: var(--red);
+  box-shadow: 0 0 0 4px rgba(201, 74, 74, 0.14);
+}
+
+.sound-toggle {
+  min-height: 27px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.34);
+  cursor: pointer;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  transition: transform 280ms var(--curve), background 280ms var(--curve), color 280ms var(--curve);
+}
+
+.sound-toggle:hover {
+  transform: translateY(-1px);
+  background: rgba(213, 155, 61, 0.18);
+}
+
+.sound-toggle.is-on {
+  color: var(--paper-3);
+  background: var(--ink);
+}
+
+.live-console__delta {
+  grid-column: 1 / -1;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .studio-workspace {
   display: grid;
   grid-template-columns: 1.05fr 1.65fr 0.95fr;
@@ -2055,6 +2134,11 @@ p {
   50% { opacity: 1; transform: scaleX(1.08); }
 }
 
+@keyframes livePulse {
+  from { transform: scale(0.82); opacity: 0.58; }
+  to { transform: scale(1.18); opacity: 1; }
+}
+
 @keyframes riseIn {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
@@ -2120,6 +2204,15 @@ p {
     border-top: 1px solid var(--line);
     border-left: 0;
     text-align: left;
+  }
+
+  .top-status__guard,
+  .live-console {
+    justify-self: stretch;
+  }
+
+  .live-console {
+    justify-items: start;
   }
 
   .hero-copy {
