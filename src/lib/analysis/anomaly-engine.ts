@@ -38,6 +38,15 @@ export type MarketAnomalyInput = {
   invalidationHint?: string;
   targetHints?: string[];
   updatedAt: string;
+  marketContext?: MarketAnchorContext;
+};
+
+export type MarketAnchorContext = {
+  anchor: "btc_eth" | "btc" | "eth" | "unknown";
+  btcChangePercent?: number;
+  ethChangePercent?: number;
+  note: string;
+  regime: MarketRegime;
 };
 
 type ScoreBreakdown = {
@@ -48,6 +57,7 @@ type ScoreBreakdown = {
   riskReward: number;
   fundingPenalty: number;
   regimePenalty: number;
+  marketContextPenalty: number;
 };
 
 const structureScores: Record<StructureLocation, number> = {
@@ -75,6 +85,17 @@ function riskReward(input: MarketAnomalyInput) {
   return rounded(input.projectedMovePercent / input.distanceToInvalidationPercent, 2);
 }
 
+function regimeConflict(regime: MarketRegime, direction: SignalDirection) {
+  return (regime === "risk_off" && direction === "long") ||
+    (regime === "risk_on" && direction === "short");
+}
+
+function marketContextConflict(input: MarketAnomalyInput) {
+  return input.marketContext
+    ? regimeConflict(input.marketContext.regime, input.directionBias)
+    : false;
+}
+
 function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
   const rr = riskReward(input);
   const compression = clamp(100 - input.volatilityCompressionPercentile);
@@ -83,11 +104,8 @@ function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
   const structure = structureScores[input.structureLocation];
   const riskRewardScore = clamp((rr - 1.1) * 38);
   const fundingPenalty = Math.max(0, Math.abs(input.fundingRateZScore) - 1.1) * 10;
-  const regimePenalty =
-    (input.regime === "risk_off" && input.directionBias === "long") ||
-    (input.regime === "risk_on" && input.directionBias === "short")
-      ? 6
-      : 0;
+  const regimePenalty = regimeConflict(input.regime, input.directionBias) ? 6 : 0;
+  const marketContextPenalty = marketContextConflict(input) ? 14 : 0;
 
   return {
     compression,
@@ -97,6 +115,7 @@ function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
     riskReward: riskRewardScore,
     fundingPenalty,
     regimePenalty,
+    marketContextPenalty,
   };
 }
 
@@ -108,7 +127,8 @@ function confidence(input: MarketAnomalyInput, scores: ScoreBreakdown) {
     scores.structure * 0.24 +
     scores.riskReward * 0.22 -
     scores.fundingPenalty -
-    scores.regimePenalty;
+    scores.regimePenalty -
+    scores.marketContextPenalty;
 
   return Math.round(clamp(raw));
 }
@@ -148,6 +168,10 @@ function riskFor(input: MarketAnomalyInput, state: SignalState): RiskGrade {
 
   if (input.structureLocation === "middle" || rr < 1.6 || Math.abs(input.fundingRateZScore) > 2) {
     return "high";
+  }
+
+  if (marketContextConflict(input)) {
+    return "medium";
   }
 
   if (rr >= 3 && input.dataQualityScore >= 0.85) {
@@ -237,10 +261,20 @@ function evidenceFor(input: MarketAnomalyInput): EvidencePoint[] {
     });
   }
 
-  if (
-    (input.regime === "risk_off" && input.directionBias === "long") ||
-    (input.regime === "risk_on" && input.directionBias === "short")
-  ) {
+  if (input.marketContext) {
+    const contextConflicts = marketContextConflict(input);
+
+    evidence.push({
+      label: contextConflicts ? "BTC/ETH 环境逆风" : "BTC/ETH 环境校验",
+      value: contextConflicts
+        ? "BTC/ETH 锚点与当前方向不一致，本轮降权为等待确认，但不一刀切否定。"
+        : "BTC/ETH 锚点没有明显逆风，当前信号仍按自身结构继续评估。",
+      layer: "market_regime",
+      polarity: contextConflicts ? "conflicting" : "neutral",
+    });
+  }
+
+  if (regimeConflict(input.regime, input.directionBias)) {
     evidence.push({
       label: "市场环境反向",
       value: "大环境与方向倾向不完全一致，只降权，不直接一刀切否定。",

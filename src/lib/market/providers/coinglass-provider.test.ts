@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createCoinGlassProvider } from "./coinglass-provider";
 
-function coinglassRow(symbol: string) {
+function coinglassRow(symbol: string, overrides: Record<string, string | number> = {}) {
   return {
     instrument_id: `${symbol}USDT`,
     exchange_name: "Binance",
@@ -16,6 +16,7 @@ function coinglassRow(symbol: string) {
     funding_rate: 0.0001,
     long_liquidation_usd_24h: 100_000,
     short_liquidation_usd_24h: 50_000,
+    ...overrides,
   };
 }
 
@@ -109,4 +110,33 @@ test("CoinGlass provider filters noisy quote markets and aggregates one primary 
   assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USDC")), false);
   assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USD")), false);
   assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 6, clean 3, primary 1/);
+});
+
+test("CoinGlass provider threads BTC and ETH anchor context into altcoin analysis", async () => {
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["BTC", "ETH", "ENA"],
+    batchSize: 3,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      const overrides: Record<string, string | number> = symbol === "BTC" || symbol === "ETH"
+        ? { price_change_percent_24h: -3.2 }
+        : { price_change_percent_24h: 4.6, volume_usd_change_percent_24h: 140 };
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol, overrides)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+  const enaSignal = snapshot.signals.find((signal) => signal.symbol === "ENAUSDT");
+
+  assert.ok(enaSignal);
+  assert.ok(enaSignal.evidence.some((item) => item.label === "BTC/ETH 环境逆风"));
+  assert.match(snapshot.metadata.notes.join("\n"), /market context: btc_eth risk_off/);
 });

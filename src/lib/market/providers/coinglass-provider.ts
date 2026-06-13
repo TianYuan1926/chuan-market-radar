@@ -1,5 +1,6 @@
 import {
   analyzeMarketAnomalies,
+  type MarketAnchorContext,
   type MarketAnomalyInput,
 } from "../../analysis/anomaly-engine";
 import { buildContractInstrumentPool } from "../instrument-pool";
@@ -27,7 +28,11 @@ export type CoinGlassProviderOptions = {
   now?: () => Date;
 };
 
-function anomalyInputFromMarketRow(row: CoinGlassMarketRow, updatedAt: string): MarketAnomalyInput {
+function anomalyInputFromMarketRow(
+  row: CoinGlassMarketRow,
+  updatedAt: string,
+  marketContext: MarketAnchorContext,
+): MarketAnomalyInput {
   const ticker = mapCoinGlassTicker(row, updatedAt);
   const derivative = mapCoinGlassDerivativeSnapshot(row, updatedAt);
   const volumeChange = row.volume_usd_change_percent_24h ?? row.volumeUsdChangePercent24h ?? 0;
@@ -38,7 +43,7 @@ function anomalyInputFromMarketRow(row: CoinGlassMarketRow, updatedAt: string): 
     symbol: ticker.symbol,
     exchange: ticker.exchange,
     timeframe: "15m",
-    regime: "unknown",
+    regime: marketContext.regime,
     directionBias,
     dataQualityScore: 0.82,
     priceChangePercent: ticker.changePercent24h,
@@ -54,6 +59,7 @@ function anomalyInputFromMarketRow(row: CoinGlassMarketRow, updatedAt: string): 
     invalidationHint: "OI 和价格方向背离，或价格回到区间中部",
     targetHints: ["前一流动性区", "大周期供需边界"],
     updatedAt,
+    marketContext,
   };
 }
 
@@ -100,6 +106,50 @@ function selectPrimarySignalRows(rows: CoinGlassMarketRow[], updatedAt: string) 
   }
 
   return [...bySymbol.values()];
+}
+
+function regimeFromAnchorChange(changePercent: number) {
+  if (changePercent <= -1.2) {
+    return "risk_off";
+  }
+
+  if (changePercent >= 1.2) {
+    return "risk_on";
+  }
+
+  if (Math.abs(changePercent) <= 0.6) {
+    return "range";
+  }
+
+  return "mixed";
+}
+
+function deriveMarketAnchorContext(rows: CoinGlassMarketRow[], updatedAt: string): MarketAnchorContext {
+  const tickers = rows.map((row) => mapCoinGlassTicker(row, updatedAt));
+  const btc = tickers.find((ticker) => ticker.symbol === "BTCUSDT");
+  const eth = tickers.find((ticker) => ticker.symbol === "ETHUSDT");
+  const anchorChanges = [btc?.changePercent24h, eth?.changePercent24h]
+    .filter((value): value is number => typeof value === "number");
+
+  if (anchorChanges.length === 0) {
+    return {
+      anchor: "unknown",
+      note: "BTC/ETH anchors not present in this low-rate batch",
+      regime: "unknown",
+    };
+  }
+
+  const averageChange = anchorChanges.reduce((total, value) => total + value, 0) / anchorChanges.length;
+  const anchor = btc && eth ? "btc_eth" : btc ? "btc" : "eth";
+  const regime = regimeFromAnchorChange(averageChange);
+
+  return {
+    anchor,
+    btcChangePercent: btc?.changePercent24h,
+    ethChangePercent: eth?.changePercent24h,
+    note: `anchor average ${averageChange.toFixed(2)}%`,
+    regime,
+  };
 }
 
 async function fetchPairsMarkets({
@@ -162,8 +212,9 @@ export function createCoinGlassProvider({
       });
       const tickers = cleanMarketRows.map((row) => mapCoinGlassTicker(row, generatedAt));
       const derivatives = cleanMarketRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
+      const marketContext = deriveMarketAnchorContext(primarySignalRows, generatedAt);
       const signals = analyzeMarketAnomalies(
-        primarySignalRows.slice(0, 50).map((row) => anomalyInputFromMarketRow(row, generatedAt)),
+        primarySignalRows.slice(0, 50).map((row) => anomalyInputFromMarketRow(row, generatedAt, marketContext)),
       );
       const heatmap = primarySignalRows
         .slice(0, 24)
@@ -189,6 +240,7 @@ export function createCoinGlassProvider({
           `base assets: ${batchPlan.allAssets.join(",")}`,
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
           `requests ${batchPlan.requestsPlanned}/${batchPlan.allAssets.length}, next batch ${batchPlan.nextBatchIndex + 1}`,
+          `market context: ${marketContext.anchor} ${marketContext.regime}`,
         ],
       };
 

@@ -70,6 +70,32 @@ test("analyzeMarketAnomaly keeps middle-location anomalies as observation instea
   );
 });
 
+test("analyzeMarketAnomaly downgrades long setups when BTC and ETH anchors are risk-off", () => {
+  const signal = analyzeMarketAnomaly({
+    ...baseInput,
+    marketContext: {
+      anchor: "btc_eth",
+      btcChangePercent: -3.4,
+      ethChangePercent: -2.6,
+      note: "BTC and ETH are both risk-off",
+      regime: "risk_off",
+    },
+  });
+
+  assert.equal(signal.state, "waiting_confirmation");
+  assert.equal(signal.direction, "long");
+  assert.equal(signal.risk, "medium");
+  assert.ok(signal.confidence < 74);
+  assert.ok(
+    signal.evidence.some(
+      (item: EvidencePoint) =>
+        item.layer === "market_regime" &&
+        item.polarity === "conflicting" &&
+        item.label === "BTC/ETH 环境逆风",
+    ),
+  );
+});
+
 test("analyzeMarketAnomaly blocks low-quality data before scoring", () => {
   const signal = analyzeMarketAnomaly({
     ...baseInput,
