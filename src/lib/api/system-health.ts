@@ -4,6 +4,7 @@ import type {
   MarketDataSource,
   MarketDataStatus,
   MarketRadarSnapshot,
+  ScanCoverage,
   ScanArchiveSummary,
 } from "../market/types";
 
@@ -58,6 +59,7 @@ export type SystemHealthReport = {
     entries: number;
     retentionMode: PersistenceMode;
   };
+  coverage: ScanCoverage;
   operations: {
     batchDetail: string | null;
     lastProblemScanAt: string | null;
@@ -140,6 +142,25 @@ function scanFreshness({
 
 function metadataNote(notes: string[], prefix: string) {
   return notes.find((note) => note.startsWith(prefix)) ?? null;
+}
+
+function fallbackCoverage(metadata: MarketRadarSnapshot["metadata"]): ScanCoverage {
+  const scannedAssets: string[] = [];
+
+  return {
+    batchIndex: 0,
+    coveragePercent: metadata.scannedCount > 0 ? 100 : 0,
+    eligible: metadata.scannedCount,
+    nextBatchIndex: 0,
+    pending: 0,
+    pendingAssets: [],
+    scanned: metadata.scannedCount,
+    scannedAssets,
+    skipped: 0,
+    skippedAssets: [],
+    total: metadata.scannedCount,
+    totalBatches: 1,
+  };
 }
 
 function sourceStatus({
@@ -318,6 +339,7 @@ export async function buildSystemHealthReport({
 }: BuildSystemHealthReportOptions): Promise<SystemHealthReport> {
   const configuredProvider = requestedProvider(env);
   const metadata = snapshot.metadata;
+  const coverage = metadata.coverage ?? fallbackCoverage(metadata);
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const providerStatus = sourceStatus({
@@ -384,6 +406,7 @@ export async function buildSystemHealthReport({
       entries: archiveEntries,
       retentionMode: repository.mode,
     },
+    coverage,
     operations: scanOperations({
       archiveSummaries,
       freshness,

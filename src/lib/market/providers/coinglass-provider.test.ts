@@ -40,7 +40,7 @@ test("CoinGlass provider fetches only the current low-rate scan batch", async ()
   const provider = createCoinGlassProvider({
     apiKey: "test-key",
     baseAssets: ["BTC", "ETH", "SOL", "ENA", "SUI"],
-    batchSize: 2,
+    batchSize: 3,
     now: () => new Date("2026-06-12T00:15:00.000Z"),
     fetcher: async (input) => {
       const url = new URL(input.toString());
@@ -57,23 +57,61 @@ test("CoinGlass provider fetches only the current low-rate scan batch", async ()
 
   const snapshot = await provider.fetchSnapshot();
 
-  assert.deepEqual(requestedSymbols, ["SOL", "ENA"]);
-  assert.equal(snapshot.metadata.scannedCount, 2);
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ENA"]);
+  assert.equal(snapshot.metadata.scannedCount, 3);
+  assert.equal(snapshot.metadata.coverage?.total, 5);
+  assert.equal(snapshot.metadata.coverage?.scanned, 3);
+  assert.equal(snapshot.metadata.coverage?.pending, 2);
+  assert.equal(snapshot.metadata.coverage?.coveragePercent, 60);
+  assert.deepEqual(snapshot.metadata.coverage?.scannedAssets, ["BTC", "ETH", "ENA"]);
   assert.match(snapshot.metadata.notes.join("\n"), /batch 2\/3/);
-  assert.match(snapshot.metadata.notes.join("\n"), /requests 2\/5/);
+  assert.match(snapshot.metadata.notes.join("\n"), /requests 3\/5/);
+});
+
+test("CoinGlass provider pins BTC and ETH anchors inside the structured universe scan plan", async () => {
+  const requestedSymbols: string[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA", "SUI", "ONDO", "TIA"],
+    batchSize: 4,
+    now: () => new Date("2026-06-12T00:15:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(requestedSymbols.slice(0, 2), ["BTC", "ETH"]);
+  assert.equal(snapshot.metadata.coverage?.total, 6);
+  assert.equal(snapshot.metadata.coverage?.scanned, 4);
+  assert.equal(snapshot.metadata.coverage?.pending, 2);
+  assert.equal(snapshot.metadata.coverage?.totalBatches, 2);
+  assert.match(snapshot.metadata.notes.join("\n"), /coverage 4\/6 \(67%\)/);
 });
 
 test("CoinGlass provider filters noisy quote markets and aggregates one primary signal per symbol", async () => {
   const provider = createCoinGlassProvider({
     apiKey: "test-key",
     baseAssets: ["TIA"],
-    batchSize: 1,
+    batchSize: 3,
     now: () => new Date("2026-06-12T00:00:00.000Z"),
-    fetcher: async () =>
-      new Response(JSON.stringify({
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+
+      return new Response(JSON.stringify({
         code: "0",
         msg: "success",
-        data: [
+        data: symbol === "TIA" ? [
           {
             ...coinglassRow("TIA"),
             exchange_name: "Gate.io",
@@ -111,8 +149,9 @@ test("CoinGlass provider filters noisy quote markets and aggregates one primary 
             symbol: "TIA/USD",
             volume_usd: 220_000_000,
           },
-        ],
-      })),
+        ] : [],
+      }));
+    },
   });
 
   const snapshot = await provider.fetchSnapshot();

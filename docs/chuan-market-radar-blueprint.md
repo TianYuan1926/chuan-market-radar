@@ -146,6 +146,29 @@
 - 策略卡会优先展示部分指标证据，方便用户快速看到 K 线侧依据。
 - CoinGlass provider 在可选 OHLCV provider 成功时，会把 `15m` K 线指标写入信号证据。
 
+### 已落地：合约 Universe Registry 基础
+
+- 已新增合约资产注册表模块。
+- 已支持 `BTC`、`BTCUSDT`、`BTC/USDT` 等输入格式规范化。
+- 已支持配置资产和已观测合约资产合并去重。
+- BTC 和 ETH 会固定作为市场锚点资产，避免山寨币扫描缺少大盘环境。
+- 已支持按锚点、配置顺序和观测流动性生成优先级。
+- 已支持当前批次扫描计划：
+  - scanned assets
+  - pending assets
+  - batch index
+  - next batch
+  - requests planned
+- 已支持覆盖率报告：
+  - total
+  - eligible
+  - scanned
+  - pending
+  - skipped
+  - coverage percent
+- CoinGlass provider 已把 universe coverage 写入 `metadata.coverage`。
+- 系统状态面板已显示扫描覆盖摘要。
+
 ## 当前未完整落地模块
 
 ### 未完整落地：真正的多周期融合分析
@@ -169,18 +192,17 @@
 
 ### 未完整落地：全市场合约覆盖
 
-当前依赖 `COINGLASS_BASE_ASSETS` 白名单，不是自动发现所有支持合约交易的币种。
+当前已经有 universe registry、覆盖率、锚点固定和轮转扫描计划，但资产池来源仍主要依赖 `COINGLASS_BASE_ASSETS` 与当前批次观测到的合约，不是自动发现所有支持合约交易的币种。
 
 后续需要：
 
-- 资产 universe registry。
 - 支持合约交易币种列表。
 - 交易所覆盖状态。
-- 当前扫描覆盖率。
-- 未扫描原因。
 - API quota 消耗估计。
-- 低优先级币种轮转扫描。
+- 从 Binance/OKX/Bybit public instruments 自动发现全量 USDT perpetual。
+- 低优先级币种更长期轮转扫描。
 - 高优先级币种加密扫描。
+- 将不同交易所同一币种的覆盖和差异展示出来。
 
 ### 未完整落地：技术指标引擎
 
@@ -367,6 +389,7 @@ CoinGlass 业余会员 API：
 - 健康状态必须展示：
   - provider
   - scan freshness
+  - scan coverage
   - database mode
   - archive availability
   - rate limit

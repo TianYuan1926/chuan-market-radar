@@ -7,7 +7,11 @@ import { buildTechnicalEvidence } from "../../analysis/technical-indicators";
 import type { EvidencePoint } from "../../analysis/types";
 import { buildContractInstrumentPool } from "../instrument-pool";
 import type { OhlcvProvider, OhlcvProviderFailure } from "../ohlcv/types";
-import { buildScanBatchPlan } from "../scan-batch-queue";
+import {
+  buildCoverageReport,
+  buildUniverseRegistry,
+  planUniverseScan,
+} from "../universe-registry";
 import type {
   MarketDataProvider,
   MarketRadarSnapshot,
@@ -207,12 +211,12 @@ export function createCoinGlassProvider({
     async fetchSnapshot(): Promise<MarketRadarSnapshot> {
       const scanTime = now();
       const generatedAt = scanTime.toISOString();
-      const batchPlan = buildScanBatchPlan({
-        assets: baseAssets,
+      const initialRegistry = buildUniverseRegistry(baseAssets);
+      const batchPlan = planUniverseScan(
+        initialRegistry,
         batchSize,
-        cadenceMinutes: 15,
-        now: scanTime,
-      });
+        scanTime,
+      );
       const marketRows = await fetchPairsMarkets({
         apiKey,
         baseAssets: batchPlan.assets,
@@ -226,6 +230,8 @@ export function createCoinGlassProvider({
       const instrumentPool = buildContractInstrumentPool(instruments, {
         minVolume24hUsd: 5_000_000,
       });
+      const universeRegistry = buildUniverseRegistry(baseAssets, instruments);
+      const coverage = buildCoverageReport(universeRegistry, batchPlan);
       const tickers = cleanMarketRows.map((row) => mapCoinGlassTicker(row, generatedAt));
       const derivatives = cleanMarketRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
       const marketContext = deriveMarketAnchorContext(primarySignalRows, generatedAt);
@@ -282,13 +288,15 @@ export function createCoinGlassProvider({
         generatedAt,
         nextScanAt: generatedAt,
         staleAfterMinutes: 30,
+        coverage,
         notes: [
           "CoinGlass provider enabled",
           "futures pairs-markets boundary active",
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
           `base assets: ${batchPlan.allAssets.join(",")}`,
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
-          `requests ${batchPlan.requestsPlanned}/${batchPlan.allAssets.length}, next batch ${batchPlan.nextBatchIndex + 1}`,
+          `requests ${batchPlan.requestsPlanned}/${coverage.eligible}, next batch ${batchPlan.nextBatchIndex + 1}`,
+          `coverage ${coverage.scanned}/${coverage.eligible} (${coverage.coveragePercent}%), pending ${coverage.pending}, skipped ${coverage.skipped}`,
           `market context: ${marketContext.anchor} ${marketContext.regime}`,
           ...[...ohlcvFailures.entries()].map(([symbol, failure]) =>
             `ohlcv unavailable: ${symbol} 15m ${failure.reason}`

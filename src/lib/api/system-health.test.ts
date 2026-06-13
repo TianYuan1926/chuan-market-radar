@@ -227,6 +227,43 @@ test("buildSystemHealthReport exposes scan operation timing and provider notes",
   assert.equal(report.operations.runtimeDetail, "scan runtime: updated from CoinGlass");
 });
 
+test("buildSystemHealthReport exposes structured universe coverage", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+
+  const report = await buildSystemHealthReport({
+    env: {
+      COINGLASS_API_KEY: "test-key",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+    now: new Date("2026-06-12T10:04:20.000Z"),
+    repository,
+    snapshot: snapshot({
+      source: "coinglass",
+      isRealtime: true,
+      coverage: {
+        batchIndex: 1,
+        coveragePercent: 60,
+        eligible: 5,
+        nextBatchIndex: 2,
+        pending: 2,
+        pendingAssets: ["SOL", "SUI"],
+        scanned: 3,
+        scannedAssets: ["BTC", "ETH", "ENA"],
+        skipped: 1,
+        skippedAssets: [{ symbol: "OLDUSDT", reason: "inactive" }],
+        total: 6,
+        totalBatches: 3,
+      },
+    }),
+  });
+
+  assert.equal(report.coverage.coveragePercent, 60);
+  assert.equal(report.coverage.scanned, 3);
+  assert.equal(report.coverage.pending, 2);
+  assert.equal(report.coverage.skipped, 1);
+  assert.deepEqual(report.coverage.scannedAssets, ["BTC", "ETH", "ENA"]);
+});
+
 test("buildSystemHealthReport marks scan operations blocked without a recent success", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
   await repository.addScanArchive(

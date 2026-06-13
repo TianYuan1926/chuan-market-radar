@@ -125,6 +125,29 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
             </span>
           </div>
 
+          <div className="health-op-matrix" aria-label="扫描覆盖摘要">
+            <span>
+              <RadioTower size={14} strokeWidth={2.2} />
+              <b>{health.coverage.scanned}/{health.coverage.eligible}</b>
+              scanned
+            </span>
+            <span>
+              <Archive size={14} strokeWidth={2.2} />
+              <b>{health.coverage.pending}</b>
+              pending
+            </span>
+            <span>
+              <TimerReset size={14} strokeWidth={2.2} />
+              <b>{health.coverage.batchIndex + 1}/{health.coverage.totalBatches}</b>
+              batch
+            </span>
+            <span>
+              <Activity size={14} strokeWidth={2.2} />
+              <b>{health.dataSource.status.toUpperCase()}</b>
+              provider
+            </span>
+          </div>
+
           {notes.length > 0 ? (
             <div className="health-op-notes" aria-label="扫描运行备注">
               {notes.map((note) => (

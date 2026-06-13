@@ -92,6 +92,24 @@ export type MarketHeatCell = {
   volumeRank?: number;
 };
 
+export type ScanCoverage = {
+  batchIndex: number;
+  coveragePercent: number;
+  eligible: number;
+  nextBatchIndex: number;
+  pending: number;
+  pendingAssets: string[];
+  scanned: number;
+  scannedAssets: string[];
+  skipped: number;
+  skippedAssets: Array<{
+    reason: InstrumentRejectionReason;
+    symbol: string;
+  }>;
+  total: number;
+  totalBatches: number;
+};
+
 export type ScanMetadata = {
   id: string;
   mode: "demo" | "scheduled" | "manual";
@@ -107,6 +125,7 @@ export type ScanMetadata = {
   nextScanAt: string;
   staleAfterMinutes: number;
   notes: string[];
+  coverage?: ScanCoverage;
 };
 
 export type ScanArchiveSummary = {

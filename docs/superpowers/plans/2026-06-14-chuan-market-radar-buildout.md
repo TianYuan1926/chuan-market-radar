@@ -26,8 +26,9 @@ Before implementing any task, read `docs/chuan-market-radar-blueprint.md` and co
 - Task 1 Multi-Timeframe Profile: implementation and verification complete.
 - Task 2 OHLCV Provider Boundary: implementation and verification complete.
 - Task 3 Technical Indicator Evidence: implementation and verification complete.
+- Task 4 Contract Universe Registry: implementation and verification complete.
 - Git staging/commit is pending because the current environment cannot write `.git/index.lock`.
-- Next task: Task 4 Contract Universe Registry.
+- Next task: Task 5 AI Counter-Review Layer.
 
 ## File Structure Map
 
