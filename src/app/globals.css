@@ -1500,6 +1500,121 @@ p {
   color: var(--ink-2);
 }
 
+.health-ops {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(21, 23, 28, 0.055), transparent 64%),
+    rgba(255, 250, 240, 0.9);
+}
+
+.health-ops--healthy {
+  border-color: rgba(39, 140, 102, 0.28);
+}
+
+.health-ops--watch {
+  border-color: rgba(213, 155, 61, 0.5);
+}
+
+.health-ops--attention,
+.health-ops--blocked {
+  border-color: rgba(201, 74, 74, 0.48);
+}
+
+.health-ops__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.health-ops__head span,
+.health-ops__head b,
+.health-op-matrix,
+.health-op-notes {
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+}
+
+.health-ops__head strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.health-ops__head b {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(255, 250, 240, 0.74);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.health-op-matrix {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(255, 250, 240, 0.68);
+}
+
+.health-op-matrix span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  min-height: 62px;
+  padding: 8px 7px;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.health-op-matrix span:last-child {
+  border-right: 0;
+}
+
+.health-op-matrix svg {
+  color: var(--ink-2);
+}
+
+.health-op-matrix b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-op-notes {
+  display: grid;
+  gap: 5px;
+}
+
+.health-op-notes span {
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: rgba(255, 250, 240, 0.68);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .health-guards {
   display: grid;
   gap: 7px;
@@ -2084,6 +2199,19 @@ p {
 
   .health-grid {
     grid-template-columns: 1fr;
+  }
+
+  .health-op-matrix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .health-op-matrix span:nth-child(2) {
+    border-right: 0;
+  }
+
+  .health-op-matrix span:nth-child(1),
+  .health-op-matrix span:nth-child(2) {
+    border-bottom: 1px solid var(--line);
   }
 
   .factor {

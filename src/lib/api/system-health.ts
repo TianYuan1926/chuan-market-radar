@@ -1,6 +1,11 @@
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
-import type { MarketDataSource, MarketDataStatus, MarketRadarSnapshot } from "../market/types";
+import type {
+  MarketDataSource,
+  MarketDataStatus,
+  MarketRadarSnapshot,
+  ScanArchiveSummary,
+} from "../market/types";
 
 export type SystemHealthLevel = "ready" | "preview" | "degraded" | "blocked";
 export type ScanFreshness = "fresh" | "aging" | "expired" | "unknown";
@@ -12,6 +17,8 @@ export type SystemHealthGuard = {
   state: SystemHealthLevel;
   detail: string;
 };
+
+export type ScanOperationsVerdict = "healthy" | "watch" | "attention" | "blocked";
 
 export type SystemHealthReport = {
   generatedAt: string;
@@ -51,6 +58,19 @@ export type SystemHealthReport = {
     entries: number;
     retentionMode: PersistenceMode;
   };
+  operations: {
+    batchDetail: string | null;
+    lastProblemScanAt: string | null;
+    lastSuccessfulScanAt: string | null;
+    minutesUntilNextScan: number | null;
+    minutesUntilStale: number | null;
+    operatorHint: string;
+    recentProblemCount: number;
+    recentSuccessCount: number;
+    requestDetail: string | null;
+    runtimeDetail: string | null;
+    verdict: ScanOperationsVerdict;
+  };
   guards: SystemHealthGuard[];
 };
 
@@ -76,6 +96,26 @@ function ageMinutes(generatedAt: string, now: Date) {
   return Math.max(0, Math.round((now.getTime() - generatedTime) / 60_000));
 }
 
+function minutesUntil(value: string, now: Date) {
+  const targetTime = new Date(value).getTime();
+
+  if (Number.isNaN(targetTime)) {
+    return null;
+  }
+
+  return Math.max(0, Math.ceil((targetTime - now.getTime()) / 60_000));
+}
+
+function addMinutes(value: string, minutes: number) {
+  const time = new Date(value).getTime();
+
+  if (Number.isNaN(time)) {
+    return null;
+  }
+
+  return new Date(time + minutes * 60_000).toISOString();
+}
+
 function scanFreshness({
   age,
   metadata,
@@ -96,6 +136,10 @@ function scanFreshness({
   }
 
   return "fresh";
+}
+
+function metadataNote(notes: string[], prefix: string) {
+  return notes.find((note) => note.startsWith(prefix)) ?? null;
 }
 
 function sourceStatus({
@@ -195,6 +239,76 @@ function fallbackDatabaseDiagnostics({
   };
 }
 
+function scanOperations({
+  archiveSummaries,
+  freshness,
+  metadata,
+  now,
+}: {
+  archiveSummaries: ScanArchiveSummary[];
+  freshness: ScanFreshness;
+  metadata: MarketRadarSnapshot["metadata"];
+  now: Date;
+}): SystemHealthReport["operations"] {
+  const successfulArchives = archiveSummaries.filter((archive) =>
+    archive.status === "ready" || archive.status === "partial"
+  );
+  const problemArchives = archiveSummaries.filter((archive) =>
+    archive.status === "failed" || archive.status === "stale"
+  );
+  const currentIsSuccessful = metadata.status === "ready" || metadata.status === "partial";
+  const lastSuccessfulScanAt = currentIsSuccessful
+    ? metadata.generatedAt
+    : successfulArchives[0]?.generatedAt ?? null;
+  const lastProblemScanAt = problemArchives[0]?.generatedAt ??
+    (metadata.status === "failed" || metadata.status === "stale" ? metadata.generatedAt : null);
+  const staleAt = addMinutes(metadata.generatedAt, metadata.staleAfterMinutes);
+  const minutesUntilStale = staleAt ? minutesUntil(staleAt, now) : null;
+  const minutesUntilNextScan = minutesUntil(metadata.nextScanAt, now);
+  const recentProblemCount = problemArchives.length;
+  const recentSuccessCount = successfulArchives.length;
+  const batchDetail = metadataNote(metadata.notes, "batch ");
+  const requestDetail = metadataNote(metadata.notes, "requests ");
+  const runtimeDetail = metadataNote(metadata.notes, "scan runtime:");
+  const verdict: ScanOperationsVerdict = metadata.status === "failed" || !lastSuccessfulScanAt
+    ? "blocked"
+    : freshness === "expired" || freshness === "unknown"
+      ? "attention"
+      : freshness === "aging" || metadata.status === "stale"
+        ? "watch"
+        : "healthy";
+
+  let operatorHint = "扫描链路正常，继续观察下一次自动触发。";
+
+  if (!lastSuccessfulScanAt) {
+    operatorHint = "没有成功扫描记录，先检查 GitHub Actions、CRON_SECRET 和数据源响应。";
+  } else if (verdict === "blocked") {
+    operatorHint = "当前扫描失败，先处理接口鉴权、数据源或持久化错误。";
+  } else if (verdict === "attention") {
+    operatorHint = "扫描结果已经过期，需要确认定时任务是否继续运行。";
+  } else if (verdict === "watch") {
+    operatorHint = "扫描正在接近过期窗口，观察下一次自动刷新是否准时。";
+  } else if (recentProblemCount > 0) {
+    operatorHint = "最近出现过异常，但当前扫描已恢复，建议继续观察一轮。";
+  } else if (minutesUntilStale !== null && minutesUntilStale <= 5) {
+    operatorHint = "距离过期窗口很近，下一轮扫描需要准时完成。";
+  }
+
+  return {
+    batchDetail,
+    lastProblemScanAt,
+    lastSuccessfulScanAt,
+    minutesUntilNextScan,
+    minutesUntilStale,
+    operatorHint,
+    recentProblemCount,
+    recentSuccessCount,
+    requestDetail,
+    runtimeDetail,
+    verdict,
+  };
+}
+
 export async function buildSystemHealthReport({
   database,
   env = {},
@@ -211,7 +325,8 @@ export async function buildSystemHealthReport({
     configuredProvider,
     env,
   });
-  const archiveEntries = (await repository.listScanArchives(24)).length;
+  const archiveSummaries = await repository.listScanArchives(24);
+  const archiveEntries = archiveSummaries.length;
   const durable = repository.mode === "database";
   const databaseDiagnostics = database ?? fallbackDatabaseDiagnostics({ durable, repository });
   const sourceLevel: SystemHealthLevel = providerStatus === "missing_key" ||
@@ -269,6 +384,12 @@ export async function buildSystemHealthReport({
       entries: archiveEntries,
       retentionMode: repository.mode,
     },
+    operations: scanOperations({
+      archiveSummaries,
+      freshness,
+      metadata,
+      now,
+    }),
     guards: [
       {
         id: "data-source",

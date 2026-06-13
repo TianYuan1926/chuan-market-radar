@@ -1,4 +1,4 @@
-import { Activity, Archive, Database, RadioTower } from "lucide-react";
+import { Activity, Archive, Clock3, Database, RadioTower, TimerReset } from "lucide-react";
 import type { SystemHealthLevel, SystemHealthReport } from "@/lib/api/system-health";
 
 type SystemHealthPanelProps = {
@@ -22,7 +22,36 @@ function healthTone(level: SystemHealthLevel) {
   return `health-${level}`;
 }
 
+function formatClock(value: string | null) {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    timeZone: "Asia/Shanghai",
+  }).format(date);
+}
+
+function formatCountdown(value: number | null) {
+  return value === null ? "--" : `${value}m`;
+}
+
 export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
+  const notes = [
+    health.operations.batchDetail,
+    health.operations.requestDetail,
+    health.operations.runtimeDetail,
+  ].filter((note): note is string => Boolean(note));
+
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
       <div className="module-head">
@@ -62,6 +91,47 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
             <b>{health.archive.entries}</b>
             frames
           </span>
+        </div>
+
+        <div className={`health-ops health-ops--${health.operations.verdict}`}>
+          <div className="health-ops__head">
+            <div>
+              <span className="mono">SCAN OPS</span>
+              <strong>{health.operations.operatorHint}</strong>
+            </div>
+            <b>{health.operations.verdict.toUpperCase()}</b>
+          </div>
+
+          <div className="health-op-matrix" aria-label="扫描运维摘要">
+            <span>
+              <Clock3 size={14} strokeWidth={2.2} />
+              <b>{formatClock(health.operations.lastSuccessfulScanAt)}</b>
+              最近成功
+            </span>
+            <span>
+              <TimerReset size={14} strokeWidth={2.2} />
+              <b>{formatCountdown(health.operations.minutesUntilNextScan)}</b>
+              下次扫描
+            </span>
+            <span>
+              <Activity size={14} strokeWidth={2.2} />
+              <b>{formatCountdown(health.operations.minutesUntilStale)}</b>
+              失效窗口
+            </span>
+            <span>
+              <Archive size={14} strokeWidth={2.2} />
+              <b>{health.operations.recentProblemCount}</b>
+              异常帧
+            </span>
+          </div>
+
+          {notes.length > 0 ? (
+            <div className="health-op-notes" aria-label="扫描运行备注">
+              {notes.map((note) => (
+                <span key={note}>{note}</span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="health-guards">
