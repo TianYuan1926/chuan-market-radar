@@ -3,7 +3,10 @@ import {
   type MarketAnchorContext,
   type MarketAnomalyInput,
 } from "../../analysis/anomaly-engine";
+import { buildTechnicalEvidence } from "../../analysis/technical-indicators";
+import type { EvidencePoint } from "../../analysis/types";
 import { buildContractInstrumentPool } from "../instrument-pool";
+import type { OhlcvProvider, OhlcvProviderFailure } from "../ohlcv/types";
 import { buildScanBatchPlan } from "../scan-batch-queue";
 import type {
   MarketDataProvider,
@@ -25,6 +28,7 @@ export type CoinGlassProviderOptions = {
   baseAssets?: string[];
   batchSize?: number;
   fetcher?: typeof fetch;
+  ohlcvProvider?: OhlcvProvider;
   now?: () => Date;
 };
 
@@ -32,6 +36,8 @@ function anomalyInputFromMarketRow(
   row: CoinGlassMarketRow,
   updatedAt: string,
   marketContext: MarketAnchorContext,
+  ohlcvFailure?: OhlcvProviderFailure,
+  indicatorEvidence?: EvidencePoint[],
 ): MarketAnomalyInput {
   const ticker = mapCoinGlassTicker(row, updatedAt);
   const derivative = mapCoinGlassDerivativeSnapshot(row, updatedAt);
@@ -60,6 +66,15 @@ function anomalyInputFromMarketRow(
     targetHints: ["前一流动性区", "大周期供需边界"],
     updatedAt,
     marketContext,
+    dataWarnings: ohlcvFailure
+      ? [{
+        label: "OHLCV 数据缺失",
+        value: `公开 K 线源 ${ohlcvFailure.source} 暂不可用：${ohlcvFailure.reason}。本轮保留 CoinGlass 衍生品扫描，但多周期结构证据需要等待补齐。`,
+        layer: "data_quality",
+        polarity: "neutral",
+      }]
+      : undefined,
+    indicatorEvidence,
   };
 }
 
@@ -182,6 +197,7 @@ export function createCoinGlassProvider({
   baseAssets = ["BTC", "ETH", "SOL"],
   batchSize = 3,
   fetcher,
+  ohlcvProvider,
   now = () => new Date(),
 }: CoinGlassProviderOptions): MarketDataProvider {
   return {
@@ -213,8 +229,41 @@ export function createCoinGlassProvider({
       const tickers = cleanMarketRows.map((row) => mapCoinGlassTicker(row, generatedAt));
       const derivatives = cleanMarketRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
       const marketContext = deriveMarketAnchorContext(primarySignalRows, generatedAt);
+      const ohlcvFailures = new Map<string, OhlcvProviderFailure>();
+      const indicatorEvidenceBySymbol = new Map<string, EvidencePoint[]>();
+
+      if (ohlcvProvider) {
+        await Promise.all(primarySignalRows.slice(0, 50).map(async (row) => {
+          const ticker = mapCoinGlassTicker(row, generatedAt);
+          const result = await ohlcvProvider.fetchCandles({
+            symbol: ticker.symbol,
+            interval: "15m",
+            limit: 120,
+          });
+
+          if (!result.ok) {
+            ohlcvFailures.set(ticker.symbol, result);
+          } else {
+            indicatorEvidenceBySymbol.set(
+              ticker.symbol,
+              buildTechnicalEvidence({ "15m": result.candles }),
+            );
+          }
+        }));
+      }
+
       const signals = analyzeMarketAnomalies(
-        primarySignalRows.slice(0, 50).map((row) => anomalyInputFromMarketRow(row, generatedAt, marketContext)),
+        primarySignalRows.slice(0, 50).map((row) => {
+          const ticker = mapCoinGlassTicker(row, generatedAt);
+
+          return anomalyInputFromMarketRow(
+            row,
+            generatedAt,
+            marketContext,
+            ohlcvFailures.get(ticker.symbol),
+            indicatorEvidenceBySymbol.get(ticker.symbol),
+          );
+        }),
       );
       const heatmap = primarySignalRows
         .slice(0, 24)
@@ -241,6 +290,9 @@ export function createCoinGlassProvider({
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
           `requests ${batchPlan.requestsPlanned}/${batchPlan.allAssets.length}, next batch ${batchPlan.nextBatchIndex + 1}`,
           `market context: ${marketContext.anchor} ${marketContext.regime}`,
+          ...[...ohlcvFailures.entries()].map(([symbol, failure]) =>
+            `ohlcv unavailable: ${symbol} 15m ${failure.reason}`
+          ),
         ],
       };
 

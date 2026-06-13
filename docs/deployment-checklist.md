@@ -54,6 +54,8 @@
 - CoinGlass provider 只有在 `MARKET_DATA_PROVIDER=coinglass` 且 `COINGLASS_API_KEY` 存在时启用。
 - Hobbyist 会员需要用 `COINGLASS_BASE_ASSETS` 控制查询范围，并用 `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
 - 当前分批队列按 UTC 日内扫描窗口轮转。例如 15 分钟 cadence、batch size 为 `3` 时，每 15 分钟只请求 3 个基础币，下一窗口自动轮到下一批。
+- 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
+- OHLCV provider 失败时必须降级为信号数据质量提示，不能让 CoinGlass 衍生品扫描崩溃。
 - Vercel Hobby 账号不能使用每 15 分钟一次的内置 Cron。免费预览阶段先用 cron-job.org、UptimeRobot 或 GitHub Actions 定时请求 `/api/scan`；升级 Vercel Pro 后再把 `*/15 * * * *` 放回 `vercel.json`。
 - 如果 Vercel 项目还没有连接 GitHub 仓库，CLI 本地部署可能直接进入 `production` target；要获得标准 Preview/Production 分支工作流，需要先把代码推到 GitHub 并在 Vercel Project 里连接该仓库。
 

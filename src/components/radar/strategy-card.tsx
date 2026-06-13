@@ -24,6 +24,11 @@ export function StrategyCard({ selected }: StrategyCardProps) {
   const fundingScore = selected.risk === "low" ? 42 : selected.risk === "medium" ? 48 : 68;
   const riskScore = selected.risk === "low" ? 24 : selected.risk === "medium" ? 38 : 72;
   const strategyStatus = selected.strategy.status?.replaceAll("_", " ").toUpperCase() ?? "PLAN";
+  const indicatorEvidence = selected.evidence.filter((item) => item.layer === "indicators").slice(0, 3);
+  const visibleEvidence = [
+    ...indicatorEvidence,
+    ...selected.evidence.filter((item) => !indicatorEvidence.includes(item)),
+  ].slice(0, 6);
 
   return (
     <>
@@ -134,7 +139,7 @@ export function StrategyCard({ selected }: StrategyCardProps) {
           <span className="tag">WHY</span>
         </div>
         <div className="evidence-list">
-          {selected.evidence.slice(0, 5).map((item) => (
+          {visibleEvidence.map((item) => (
             <div className={`evidence evidence--${item.polarity}`} key={`${item.layer}-${item.label}`}>
               <strong>{item.label}</strong>
               <span>{item.value}</span>

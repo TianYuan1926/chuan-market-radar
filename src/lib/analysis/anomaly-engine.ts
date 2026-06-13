@@ -8,6 +8,10 @@ import type {
   Timeframe,
 } from "./types";
 import { generateStrategyPlan } from "./strategy-planner";
+import {
+  summarizeTimeframeAgreement,
+  type TimeframeProfile,
+} from "./timeframe-profile";
 
 export type StructureLocation =
   | "support"
@@ -39,6 +43,9 @@ export type MarketAnomalyInput = {
   targetHints?: string[];
   updatedAt: string;
   marketContext?: MarketAnchorContext;
+  timeframeProfile?: TimeframeProfile;
+  dataWarnings?: EvidencePoint[];
+  indicatorEvidence?: EvidencePoint[];
 };
 
 export type MarketAnchorContext = {
@@ -58,6 +65,8 @@ type ScoreBreakdown = {
   fundingPenalty: number;
   regimePenalty: number;
   marketContextPenalty: number;
+  timeframeBonus: number;
+  timeframePenalty: number;
 };
 
 const structureScores: Record<StructureLocation, number> = {
@@ -96,6 +105,11 @@ function marketContextConflict(input: MarketAnomalyInput) {
     : false;
 }
 
+function structureTimeframeConflict(input: MarketAnomalyInput) {
+  return input.timeframeProfile?.conflictTimeframes.some((timeframe) => timeframe === "1h" || timeframe === "4h") ??
+    false;
+}
+
 function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
   const rr = riskReward(input);
   const compression = clamp(100 - input.volatilityCompressionPercentile);
@@ -106,6 +120,9 @@ function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
   const fundingPenalty = Math.max(0, Math.abs(input.fundingRateZScore) - 1.1) * 10;
   const regimePenalty = regimeConflict(input.regime, input.directionBias) ? 6 : 0;
   const marketContextPenalty = marketContextConflict(input) ? 14 : 0;
+  const timeframeBonus = input.timeframeProfile?.supportScore ?? 0;
+  const timeframePenalty = (input.timeframeProfile?.conflictScore ?? 0) +
+    (input.timeframeProfile?.missingDataPenalty ?? 0);
 
   return {
     compression,
@@ -116,6 +133,8 @@ function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
     fundingPenalty,
     regimePenalty,
     marketContextPenalty,
+    timeframeBonus,
+    timeframePenalty,
   };
 }
 
@@ -128,9 +147,14 @@ function confidence(input: MarketAnomalyInput, scores: ScoreBreakdown) {
     scores.riskReward * 0.22 -
     scores.fundingPenalty -
     scores.regimePenalty -
-    scores.marketContextPenalty;
+    scores.marketContextPenalty +
+    scores.timeframeBonus -
+    scores.timeframePenalty;
+  const capped = marketContextConflict(input) || structureTimeframeConflict(input)
+    ? Math.min(raw, 73)
+    : raw;
 
-  return Math.round(clamp(raw));
+  return Math.round(clamp(capped));
 }
 
 function stateFor(input: MarketAnomalyInput, score: number): SignalState {
@@ -145,6 +169,10 @@ function stateFor(input: MarketAnomalyInput, score: number): SignalState {
   }
 
   if (score >= 74 && rr >= 2.5 && input.structureLocation !== "middle") {
+    if (structureTimeframeConflict(input) || marketContextConflict(input)) {
+      return "waiting_confirmation";
+    }
+
     return "near_trigger";
   }
 
@@ -252,6 +280,14 @@ function evidenceFor(input: MarketAnomalyInput): EvidencePoint[] {
     });
   }
 
+  if (input.dataWarnings?.length) {
+    evidence.unshift(...input.dataWarnings);
+  }
+
+  if (input.indicatorEvidence?.length) {
+    evidence.push(...input.indicatorEvidence);
+  }
+
   if (Math.abs(input.fundingRateZScore) >= 1.5) {
     evidence.push({
       label: `资金费率 Z ${rounded(input.fundingRateZScore, 2)}`,
@@ -271,6 +307,21 @@ function evidenceFor(input: MarketAnomalyInput): EvidencePoint[] {
         : "BTC/ETH 锚点没有明显逆风，当前信号仍按自身结构继续评估。",
       layer: "market_regime",
       polarity: contextConflicts ? "conflicting" : "neutral",
+    });
+  }
+
+  if (input.timeframeProfile) {
+    const hasConflicts = input.timeframeProfile.conflictTimeframes.length > 0;
+    const hasStructureConflicts = structureTimeframeConflict(input);
+    const hasMissingRoles = input.timeframeProfile.missingRoles.length > 0;
+
+    evidence.push({
+      label: hasStructureConflicts ? "多周期结构冲突" : "多周期结构校验",
+      value: hasConflicts
+        ? `${summarizeTimeframeAgreement(input.timeframeProfile)} 冲突周期只降权并等待确认，不直接一刀切否定。`
+        : `${summarizeTimeframeAgreement(input.timeframeProfile)} 多周期证据允许继续评估，但仍需要触发条件。`,
+      layer: hasMissingRoles ? "data_quality" : "structure_location",
+      polarity: hasConflicts ? "conflicting" : hasMissingRoles ? "neutral" : "supportive",
     });
   }
 
@@ -313,6 +364,9 @@ export function analyzeMarketAnomaly(input: MarketAnomalyInput): MarketSignal {
   const risk = riskFor(input, state);
   const direction = directionFor(input, state);
   const evidence = evidenceFor(input);
+  const timeframeAgreement = input.timeframeProfile
+    ? summarizeTimeframeAgreement(input.timeframeProfile)
+    : undefined;
 
   return {
     id: input.id,
@@ -340,6 +394,9 @@ export function analyzeMarketAnomaly(input: MarketAnomalyInput): MarketSignal {
       projectedMovePercent: input.projectedMovePercent,
       evidence,
     }),
+    timeframeProfile: input.timeframeProfile,
+    timeframeAgreement,
+    timeframeConflicts: input.timeframeProfile?.conflictTimeframes,
   };
 }
 

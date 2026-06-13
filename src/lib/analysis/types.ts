@@ -1,3 +1,5 @@
+import type { TimeframeProfile } from "./timeframe-profile";
+
 export type Timeframe =
   | "1m"
   | "5m"
@@ -84,6 +86,9 @@ export type MarketSignal = {
   summary: string;
   evidence: EvidencePoint[];
   strategy: StrategyPlan;
+  timeframeProfile?: TimeframeProfile;
+  timeframeAgreement?: string;
+  timeframeConflicts?: Timeframe[];
 };
 
 export type JournalEvent = {

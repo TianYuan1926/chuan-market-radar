@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCoinGlassProvider } from "./coinglass-provider";
+import type { Candle, OhlcvProvider } from "../ohlcv/types";
 
 function coinglassRow(symbol: string, overrides: Record<string, string | number> = {}) {
   return {
@@ -17,6 +18,20 @@ function coinglassRow(symbol: string, overrides: Record<string, string | number>
     long_liquidation_usd_24h: 100_000,
     short_liquidation_usd_24h: 50_000,
     ...overrides,
+  };
+}
+
+function ohlcvCandle(index: number, close: number): Candle {
+  const openDate = new Date(Date.UTC(2026, 0, 1, 0, index));
+
+  return {
+    openTime: openDate.toISOString(),
+    open: close - 0.2,
+    high: close + 0.4,
+    low: close - 0.5,
+    close,
+    volume: 100 + index * 20,
+    closeTime: new Date(openDate.getTime() + 59_000).toISOString(),
   };
 }
 
@@ -139,4 +154,79 @@ test("CoinGlass provider threads BTC and ETH anchor context into altcoin analysi
   assert.ok(enaSignal);
   assert.ok(enaSignal.evidence.some((item) => item.label === "BTC/ETH 环境逆风"));
   assert.match(snapshot.metadata.notes.join("\n"), /market context: btc_eth risk_off/);
+});
+
+test("CoinGlass provider keeps derivatives scan alive when optional OHLCV fails", async () => {
+  const ohlcvProvider: OhlcvProvider = {
+    id: "test-ohlcv",
+    label: "Test OHLCV",
+    async fetchCandles(request) {
+      return {
+        ok: false,
+        source: "test-ohlcv",
+        symbol: request.symbol,
+        interval: request.interval,
+        reason: "upstream_error",
+        error: "test ohlcv unavailable",
+        status: 503,
+      };
+    },
+  };
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA"],
+    batchSize: 1,
+    ohlcvProvider,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async () =>
+      new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow("ENA", { volume_usd_change_percent_24h: 140 })],
+      })),
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+  const enaSignal = snapshot.signals.find((signal) => signal.symbol === "ENAUSDT");
+
+  assert.ok(enaSignal);
+  assert.ok(enaSignal.evidence.some((item) => item.label === "OHLCV 数据缺失"));
+  assert.match(snapshot.metadata.notes.join("\n"), /ohlcv unavailable: ENAUSDT 15m upstream_error/);
+});
+
+test("CoinGlass provider feeds successful OHLCV candles into technical indicator evidence", async () => {
+  const ohlcvProvider: OhlcvProvider = {
+    id: "test-ohlcv",
+    label: "Test OHLCV",
+    async fetchCandles(request) {
+      return {
+        ok: true,
+        source: "test-ohlcv",
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: [10, 10.4, 10.9, 11.4, 12, 12.2].map((close, index) => ohlcvCandle(index, close)),
+      };
+    },
+  };
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA"],
+    batchSize: 1,
+    ohlcvProvider,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async () =>
+      new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow("ENA", { volume_usd_change_percent_24h: 140 })],
+      })),
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+  const enaSignal = snapshot.signals.find((signal) => signal.symbol === "ENAUSDT");
+
+  assert.ok(enaSignal);
+  assert.ok(enaSignal.evidence.some((item) => item.label === "EMA 结构"));
+  assert.ok(enaSignal.evidence.some((item) => item.label === "RSI 动能"));
+  assert.doesNotMatch(snapshot.metadata.notes.join("\n"), /ohlcv unavailable/);
 });
