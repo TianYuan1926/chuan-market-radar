@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartPanel } from "./chart-panel";
+import { EventCenterPanel } from "./event-center-panel";
 import { JournalPanel } from "./journal-panel";
 import { PixelS680 } from "./pixel-s680";
 import { RadarTable } from "./radar-table";
@@ -504,6 +505,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
 
         <aside className="studio-stack studio-stack--right">
           <SystemHealthPanel health={liveHealth} />
+          <EventCenterPanel archive={liveSnapshot.archive} />
           <StrategyCard selected={selected} />
           <RankPanel profile={rankProfile} />
           <PixelS680 mood={mood} rankProfile={rankProfile} />

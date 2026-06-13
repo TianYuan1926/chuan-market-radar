@@ -1737,6 +1737,156 @@ p {
 .health-guard--degraded strong,
 .health-guard--blocked strong { color: var(--red); }
 
+.event-module {
+  background:
+    linear-gradient(150deg, rgba(213, 155, 61, 0.12), transparent 54%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent),
+    rgba(255, 250, 240, 0.92);
+}
+
+.event-stream {
+  display: grid;
+  padding: 10px 11px 12px;
+}
+
+.event-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 82px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.event-card:last-child {
+  border-bottom: 0;
+}
+
+.event-card::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 26px;
+  width: 1px;
+  background: rgba(21, 23, 28, 0.18);
+}
+
+.event-card__rail {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+}
+
+.event-card__rail svg {
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--paper-3);
+  background: var(--ink);
+}
+
+.event-card__rail span,
+.event-card__title span,
+.event-card small,
+.event-symbols {
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+}
+
+.event-card__rail span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.event-card__body {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.event-card__title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.event-card__title strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-card__title span {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.event-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.event-symbols span {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 7px;
+  color: var(--ink);
+  background: rgba(255, 250, 240, 0.72);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.event-card p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.event-card small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.event-card--hot .event-card__rail svg {
+  background: var(--red);
+}
+
+.event-card--watch .event-card__rail svg {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.event-card--cooldown .event-card__rail svg {
+  background: var(--blue);
+}
+
+.event-card--system .event-card__rail svg {
+  background: var(--ink-2);
+}
+
+.event-card--quiet .event-card__rail svg {
+  color: var(--ink);
+  background: var(--paper-2);
+}
+
 .replay-module {
   background:
     linear-gradient(140deg, rgba(39, 140, 102, 0.08), transparent 48%),
