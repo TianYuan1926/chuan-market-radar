@@ -505,7 +505,12 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
 
         <aside className="studio-stack studio-stack--right">
           <SystemHealthPanel health={liveHealth} />
-          <EventCenterPanel archive={liveSnapshot.archive} />
+          <EventCenterPanel
+            archive={liveSnapshot.archive}
+            liveDelta={lastDelta}
+            liveGeneratedAt={metadata.generatedAt}
+            liveScanId={metadata.id}
+          />
           <StrategyCard selected={selected} />
           <RankPanel profile={rankProfile} />
           <PixelS680 mood={mood} rankProfile={rankProfile} />

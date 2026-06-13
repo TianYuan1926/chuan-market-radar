@@ -1,8 +1,10 @@
+import type { SignalSetDelta } from "./live-refresh";
 import type { ScanArchiveBundle, ScanArchiveSummary, ScanComparison } from "./types";
 
 export type ScanEventType =
   | "new_signal"
   | "signal_removed"
+  | "signal_shift"
   | "scan_delta"
   | "system_shift"
   | "scan_heartbeat";
@@ -27,6 +29,9 @@ export type ScanEvent = {
 
 export type BuildScanEventFeedOptions = {
   limit?: number;
+  liveDelta?: SignalSetDelta | null;
+  liveGeneratedAt?: string;
+  liveScanId?: string;
 };
 
 function stripQuote(symbol: string) {
@@ -70,15 +75,85 @@ function hasScanDelta(comparison: ScanComparison) {
     comparison.scannedDelta !== 0;
 }
 
-export function buildScanEventFeed(
-  archive: ScanArchiveBundle | undefined,
-  { limit = 8 }: BuildScanEventFeedOptions = {},
-): ScanEvent[] {
-  if (!archive) {
+function buildLiveDeltaEvents({
+  generatedAt,
+  liveDelta,
+  scanId,
+}: {
+  generatedAt: string;
+  liveDelta: SignalSetDelta | null | undefined;
+  scanId: string;
+}): ScanEvent[] {
+  if (!liveDelta?.hasActionableChange) {
     return [];
   }
 
   const events: ScanEvent[] = [];
+
+  if (liveDelta.newSymbols.length > 0) {
+    events.push({
+      actionHint: "这是前端刚刚捕捉到的新增异动，先打开K线和失效位，不允许直接追。",
+      detail: `${symbolText(liveDelta.newSymbols)} 刚进入实时候选，需要马上做结构确认。`,
+      generatedAt,
+      id: `${scanId}:live:new:${liveDelta.newSymbols.join("-")}`,
+      severity: "hot",
+      symbols: liveDelta.newSymbols,
+      title: "实时新增异动",
+      type: "new_signal",
+    });
+  }
+
+  if (liveDelta.changedSymbols.length > 0) {
+    events.push({
+      actionHint: "变化代表条件有移动，重新检查触发价、状态和风险等级。",
+      detail: `${symbolText(liveDelta.changedSymbols)} 的方向、状态、周期或策略字段发生变化。`,
+      generatedAt,
+      id: `${scanId}:live:shift:${liveDelta.changedSymbols.join("-")}`,
+      severity: "watch",
+      symbols: liveDelta.changedSymbols,
+      title: "实时信号变化",
+      type: "signal_shift",
+    });
+  }
+
+  if (liveDelta.removedSymbols.length > 0) {
+    events.push({
+      actionHint: "候选冷却只代表原条件失效，不自动构成反向交易理由。",
+      detail: `${symbolText(liveDelta.removedSymbols)} 从实时候选中移除，等待下一轮重新确认。`,
+      generatedAt,
+      id: `${scanId}:live:removed:${liveDelta.removedSymbols.join("-")}`,
+      severity: "cooldown",
+      symbols: liveDelta.removedSymbols,
+      title: "实时候选冷却",
+      type: "signal_removed",
+    });
+  }
+
+  return events;
+}
+
+export function buildScanEventFeed(
+  archive: ScanArchiveBundle | undefined,
+  {
+    limit = 8,
+    liveDelta,
+    liveGeneratedAt,
+    liveScanId,
+  }: BuildScanEventFeedOptions = {},
+): ScanEvent[] {
+  const events: ScanEvent[] = [];
+  const fallbackGeneratedAt = liveGeneratedAt ?? archive?.entries[0]?.generatedAt ?? new Date(0).toISOString();
+
+  events.push(...buildLiveDeltaEvents({
+    generatedAt: fallbackGeneratedAt,
+    liveDelta,
+    scanId: liveScanId ?? "live-scan",
+  }));
+
+  if (!archive) {
+    return events.slice(0, limit);
+  }
+
   const comparison = archive.comparison;
 
   if (comparison) {

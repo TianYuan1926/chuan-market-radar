@@ -1,9 +1,13 @@
 import { BellRing, CircleAlert, History, RadioTower, TrendingUp } from "lucide-react";
 import { buildScanEventFeed, type ScanEvent } from "@/lib/market/scan-events";
+import type { SignalSetDelta } from "@/lib/market/live-refresh";
 import type { ScanArchiveBundle } from "@/lib/market/types";
 
 type EventCenterPanelProps = {
   archive?: ScanArchiveBundle;
+  liveDelta?: SignalSetDelta | null;
+  liveGeneratedAt?: string;
+  liveScanId?: string;
 };
 
 function formatEventTime(value: string) {
@@ -34,7 +38,7 @@ function eventIcon(event: ScanEvent) {
     return <RadioTower size={15} strokeWidth={2.3} />;
   }
 
-  if (event.type === "scan_delta") {
+  if (event.type === "scan_delta" || event.type === "signal_shift") {
     return <TrendingUp size={15} strokeWidth={2.3} />;
   }
 
@@ -45,9 +49,17 @@ function formatSymbols(symbols: string[]) {
   return symbols.map((symbol) => symbol.replace(/USDT$/, "")).slice(0, 4);
 }
 
-export function EventCenterPanel({ archive }: EventCenterPanelProps) {
+export function EventCenterPanel({
+  archive,
+  liveDelta,
+  liveGeneratedAt,
+  liveScanId,
+}: EventCenterPanelProps) {
   const events = buildScanEventFeed(archive, {
     limit: 7,
+    liveDelta,
+    liveGeneratedAt,
+    liveScanId,
   });
 
   return (

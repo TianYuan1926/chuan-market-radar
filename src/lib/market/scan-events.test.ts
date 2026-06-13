@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildScanEventFeed } from "./scan-events";
+import type { SignalSetDelta } from "./live-refresh";
 import type { ScanArchiveBundle, ScanArchiveSummary, ScanComparison } from "./types";
 
 function entry(overrides: Partial<ScanArchiveSummary> = {}): ScanArchiveSummary {
@@ -71,6 +72,39 @@ test("buildScanEventFeed prioritizes new and removed signal changes before scan 
 
   assert.equal(events[2].type, "scan_delta");
   assert.equal(events[2].title, "扫描强度变化");
+  assert.equal(events[3].type, "scan_heartbeat");
+});
+
+test("buildScanEventFeed promotes live delta events above archived scan events", () => {
+  const liveDelta: SignalSetDelta = {
+    changedSymbols: ["BTCUSDT"],
+    hasActionableChange: true,
+    isNewScan: true,
+    newSymbols: ["ENAUSDT"],
+    removedSymbols: ["SOLUSDT"],
+  };
+  const events = buildScanEventFeed(archiveBundle({
+    comparison: null,
+  }), {
+    liveDelta,
+    liveGeneratedAt: "2026-06-13T12:46:00.000Z",
+    liveScanId: "scan-live",
+  });
+
+  assert.equal(events[0].id, "scan-live:live:new:ENAUSDT");
+  assert.equal(events[0].title, "实时新增异动");
+  assert.equal(events[0].type, "new_signal");
+  assert.equal(events[0].severity, "hot");
+  assert.deepEqual(events[0].symbols, ["ENAUSDT"]);
+
+  assert.equal(events[1].id, "scan-live:live:shift:BTCUSDT");
+  assert.equal(events[1].title, "实时信号变化");
+  assert.equal(events[1].type, "signal_shift");
+  assert.equal(events[1].severity, "watch");
+
+  assert.equal(events[2].id, "scan-live:live:removed:SOLUSDT");
+  assert.equal(events[2].title, "实时候选冷却");
+  assert.equal(events[2].type, "signal_removed");
   assert.equal(events[3].type, "scan_heartbeat");
 });
 
