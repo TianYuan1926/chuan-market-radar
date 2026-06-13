@@ -1,0 +1,33 @@
+# dependencies and build outputs
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# local env and deployment metadata
+.env
+.env*.local
+.vercel/
+
+# local agent/tooling state
+.agents/
+.codex/
+.playwright-mcp/
+.superpowers/
+.tmp/
+skills-lock.json
+
+# local design/reference screenshots
+/chuan-quant-heatmap-v4.png
+/chuan-v31-main-desktop.png
+/chuan-v31-main-mobile.png
+/dribbble-quant-reference.png
+/flow-14-preview.png
+/flow-15-preview.png
+/flow-16-preview.png
+
+# system
+.DS_Store
+Thumbs.db

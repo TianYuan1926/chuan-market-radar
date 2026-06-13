@@ -1,0 +1,158 @@
+import {
+  analyzeMarketAnomalies,
+  type MarketAnomalyInput,
+} from "../../analysis/anomaly-engine";
+import { buildContractInstrumentPool } from "../instrument-pool";
+import { buildScanBatchPlan } from "../scan-batch-queue";
+import type {
+  MarketDataProvider,
+  MarketRadarSnapshot,
+  ScanMetadata,
+} from "../types";
+import { requestCoinGlass } from "./coinglass-client";
+import {
+  type CoinGlassMarketRow,
+  mapCoinGlassDerivativeSnapshot,
+  mapCoinGlassHeatCell,
+  mapCoinGlassMarketInstrument,
+  mapCoinGlassTicker,
+} from "./coinglass-mapper";
+
+export type CoinGlassProviderOptions = {
+  apiKey: string;
+  baseAssets?: string[];
+  batchSize?: number;
+  fetcher?: typeof fetch;
+  now?: () => Date;
+};
+
+function anomalyInputFromMarketRow(row: CoinGlassMarketRow, updatedAt: string): MarketAnomalyInput {
+  const ticker = mapCoinGlassTicker(row, updatedAt);
+  const derivative = mapCoinGlassDerivativeSnapshot(row, updatedAt);
+  const volumeChange = row.volume_usd_change_percent_24h ?? row.volumeUsdChangePercent24h ?? 0;
+  const directionBias = ticker.changePercent24h < -1 ? "short" : ticker.changePercent24h > 1 ? "long" : "neutral";
+
+  return {
+    id: `coinglass-${ticker.exchange}-${ticker.symbol}`,
+    symbol: ticker.symbol,
+    exchange: ticker.exchange,
+    timeframe: "15m",
+    regime: "unknown",
+    directionBias,
+    dataQualityScore: 0.82,
+    priceChangePercent: ticker.changePercent24h,
+    volumeRatio: Math.max(0.1, 1 + volumeChange / 100),
+    openInterestChangePercent: derivative.openInterestChangePercent,
+    fundingRateZScore: derivative.fundingRateZScore,
+    volatilityCompressionPercentile: 50,
+    liquidationUsd24h: derivative.liquidationUsd24h ?? 0,
+    structureLocation: "middle",
+    distanceToInvalidationPercent: 2,
+    projectedMovePercent: Math.max(3, Math.abs(ticker.changePercent24h) * 1.8),
+    triggerHint: "等待价格靠近关键结构边界后再确认",
+    invalidationHint: "OI 和价格方向背离，或价格回到区间中部",
+    targetHints: ["前一流动性区", "大周期供需边界"],
+    updatedAt,
+  };
+}
+
+async function fetchPairsMarkets({
+  apiKey,
+  baseAssets,
+  fetcher,
+}: {
+  apiKey: string;
+  baseAssets: string[];
+  fetcher?: typeof fetch;
+}) {
+  const rows: CoinGlassMarketRow[] = [];
+
+  for (const symbol of baseAssets) {
+    const data = await requestCoinGlass<CoinGlassMarketRow[]>({
+      apiKey,
+      path: "/api/futures/pairs-markets",
+      query: { symbol },
+      fetcher,
+    });
+
+    rows.push(...data);
+  }
+
+  return rows;
+}
+
+export function createCoinGlassProvider({
+  apiKey,
+  baseAssets = ["BTC", "ETH", "SOL"],
+  batchSize = 3,
+  fetcher,
+  now = () => new Date(),
+}: CoinGlassProviderOptions): MarketDataProvider {
+  return {
+    id: "coinglass",
+    label: "CoinGlass Futures Provider",
+
+    async fetchSnapshot(): Promise<MarketRadarSnapshot> {
+      const scanTime = now();
+      const generatedAt = scanTime.toISOString();
+      const batchPlan = buildScanBatchPlan({
+        assets: baseAssets,
+        batchSize,
+        cadenceMinutes: 15,
+        now: scanTime,
+      });
+      const marketRows = await fetchPairsMarkets({
+        apiKey,
+        baseAssets: batchPlan.assets,
+        fetcher,
+      });
+      const instruments = marketRows
+        .map((row) => mapCoinGlassMarketInstrument(row, generatedAt))
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+      const instrumentPool = buildContractInstrumentPool(instruments, {
+        minVolume24hUsd: 5_000_000,
+      });
+      const tickers = marketRows.map((row) => mapCoinGlassTicker(row, generatedAt));
+      const derivatives = marketRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
+      const signals = analyzeMarketAnomalies(
+        marketRows.slice(0, 50).map((row) => anomalyInputFromMarketRow(row, generatedAt)),
+      );
+      const heatmap = marketRows
+        .slice(0, 24)
+        .map((row) => mapCoinGlassHeatCell(row));
+      const metadata: ScanMetadata = {
+        id: `coinglass-${generatedAt}`,
+        mode: "scheduled",
+        status: "ready",
+        source: "coinglass",
+        isRealtime: true,
+        cadenceMinutes: 15,
+        scannedCount: instrumentPool.summary.accepted,
+        anomalyCount: signals.length,
+        candidateCount: signals.length,
+        riskGate: "on",
+        generatedAt,
+        nextScanAt: generatedAt,
+        staleAfterMinutes: 30,
+        notes: [
+          "CoinGlass provider enabled",
+          "futures pairs-markets boundary active",
+          `base assets: ${batchPlan.allAssets.join(",")}`,
+          `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
+          `requests ${batchPlan.requestsPlanned}/${batchPlan.allAssets.length}, next batch ${batchPlan.nextBatchIndex + 1}`,
+        ],
+      };
+
+      return {
+        metadata,
+        instrumentPool,
+        instruments,
+        tickers,
+        derivatives,
+        heatmap,
+        signals,
+        journalEvents: [],
+      };
+    },
+  };
+}

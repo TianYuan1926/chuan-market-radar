@@ -1,0 +1,45 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# build outputs
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# logs and local tooling
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.agents/
+.codex/
+.playwright-mcp/
+.superpowers/
+.tmp/
+chuan-radar-*.png
+skills-lock.json
+
+# local design/reference screenshots
+/chuan-quant-heatmap-v4.png
+/chuan-v31-main-desktop.png
+/chuan-v31-main-mobile.png
+/dribbble-quant-reference.png
+/flow-14-preview.png
+/flow-15-preview.png
+/flow-16-preview.png
+
+# env
+.env
+.env*.local
+
+# system
+.DS_Store
+Thumbs.db
+
+# vercel
+.vercel/
+.vercel
