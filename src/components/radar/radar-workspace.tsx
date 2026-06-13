@@ -135,7 +135,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
           <div className="brand-mark">川</div>
           <div>
             <strong>Market Studio</strong>
-            <span>公开模板 · 演示数据 · 非实时扫描</span>
+            <span>公开监控 · CoinGlass 实时源 · 15m 分批扫描</span>
           </div>
         </div>
 

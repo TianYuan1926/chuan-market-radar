@@ -46,3 +46,67 @@ test("CoinGlass provider fetches only the current low-rate scan batch", async ()
   assert.match(snapshot.metadata.notes.join("\n"), /batch 2\/3/);
   assert.match(snapshot.metadata.notes.join("\n"), /requests 2\/5/);
 });
+
+test("CoinGlass provider filters noisy quote markets and aggregates one primary signal per symbol", async () => {
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["TIA"],
+    batchSize: 1,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async () =>
+      new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "Gate.io",
+            volume_usd: 120_000_000,
+          },
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "Binance",
+            volume_usd: 90_000_000,
+            open_interest_usd: 45_000_000,
+          },
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "OKX",
+            volume_usd: 150_000_000,
+            open_interest_usd: 60_000_000,
+          },
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "Bybit",
+            volume_usd: 100_000_000,
+            open_interest_usd: 50_000_000,
+          },
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "Binance",
+            instrument_id: "TIAUSDC",
+            symbol: "TIA/USDC",
+            volume_usd: 200_000_000,
+          },
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "Coinbase",
+            instrument_id: "TIAUSD",
+            symbol: "TIA/USD",
+            volume_usd: 220_000_000,
+          },
+        ],
+      })),
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(snapshot.signals.map((signal) => signal.id), [
+    "coinglass-BINANCE-TIAUSDT",
+  ]);
+  assert.deepEqual([...new Set(snapshot.heatmap.map((item) => item.symbol))], ["TIA"]);
+  assert.equal(snapshot.tickers.some((ticker) => ticker.exchange === "UNKNOWN"), false);
+  assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USDC")), false);
+  assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USD")), false);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 6, clean 3, primary 1/);
+});

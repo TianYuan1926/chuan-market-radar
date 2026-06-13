@@ -33,3 +33,13 @@ test("repository ignore files keep local agent tooling and preview screenshots o
     assert.ok(vercelignore.has(pattern), `.vercelignore missing ${pattern}`);
   }
 });
+
+test("public radar shell does not label the live site as demo data", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+
+  assert.equal(workspaceSource.includes("公开模板 · 演示数据 · 非实时扫描"), false);
+  assert.match(workspaceSource, /CoinGlass/);
+});

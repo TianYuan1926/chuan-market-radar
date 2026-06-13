@@ -12,6 +12,7 @@ import type {
 import { requestCoinGlass } from "./coinglass-client";
 import {
   type CoinGlassMarketRow,
+  marketSymbolFromCoinGlass,
   mapCoinGlassDerivativeSnapshot,
   mapCoinGlassHeatCell,
   mapCoinGlassMarketInstrument,
@@ -54,6 +55,51 @@ function anomalyInputFromMarketRow(row: CoinGlassMarketRow, updatedAt: string): 
     targetHints: ["前一流动性区", "大周期供需边界"],
     updatedAt,
   };
+}
+
+const exchangePriority = {
+  BINANCE: 4,
+  OKX: 3,
+  BYBIT: 2,
+  COINBASE: 1,
+  UNKNOWN: 0,
+} as const;
+
+function marketRowVolume(row: CoinGlassMarketRow) {
+  return row.volume_usd ?? row.volumeUsd ?? 0;
+}
+
+function marketRowOpenInterest(row: CoinGlassMarketRow) {
+  return row.open_interest_usd ?? row.openInterestUsd ?? 0;
+}
+
+function isSupportedSignalRow(row: CoinGlassMarketRow, updatedAt: string) {
+  const ticker = mapCoinGlassTicker(row, updatedAt);
+
+  return ticker.symbol.endsWith("USDT") && ticker.exchange !== "UNKNOWN";
+}
+
+function primaryRowScore(row: CoinGlassMarketRow, updatedAt: string) {
+  const ticker = mapCoinGlassTicker(row, updatedAt);
+
+  return exchangePriority[ticker.exchange] * 1_000_000_000_000 +
+    marketRowVolume(row) +
+    marketRowOpenInterest(row) * 0.1;
+}
+
+function selectPrimarySignalRows(rows: CoinGlassMarketRow[], updatedAt: string) {
+  const bySymbol = new Map<string, CoinGlassMarketRow>();
+
+  for (const row of rows) {
+    const symbol = marketSymbolFromCoinGlass(row);
+    const current = bySymbol.get(symbol);
+
+    if (!current || primaryRowScore(row, updatedAt) > primaryRowScore(current, updatedAt)) {
+      bySymbol.set(symbol, row);
+    }
+  }
+
+  return [...bySymbol.values()];
 }
 
 async function fetchPairsMarkets({
@@ -106,18 +152,20 @@ export function createCoinGlassProvider({
         baseAssets: batchPlan.assets,
         fetcher,
       });
-      const instruments = marketRows
+      const cleanMarketRows = marketRows.filter((row) => isSupportedSignalRow(row, generatedAt));
+      const primarySignalRows = selectPrimarySignalRows(cleanMarketRows, generatedAt);
+      const instruments = cleanMarketRows
         .map((row) => mapCoinGlassMarketInstrument(row, generatedAt))
         .filter((item): item is NonNullable<typeof item> => item !== null);
       const instrumentPool = buildContractInstrumentPool(instruments, {
         minVolume24hUsd: 5_000_000,
       });
-      const tickers = marketRows.map((row) => mapCoinGlassTicker(row, generatedAt));
-      const derivatives = marketRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
+      const tickers = cleanMarketRows.map((row) => mapCoinGlassTicker(row, generatedAt));
+      const derivatives = cleanMarketRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
       const signals = analyzeMarketAnomalies(
-        marketRows.slice(0, 50).map((row) => anomalyInputFromMarketRow(row, generatedAt)),
+        primarySignalRows.slice(0, 50).map((row) => anomalyInputFromMarketRow(row, generatedAt)),
       );
-      const heatmap = marketRows
+      const heatmap = primarySignalRows
         .slice(0, 24)
         .map((row) => mapCoinGlassHeatCell(row));
       const metadata: ScanMetadata = {
@@ -137,6 +185,7 @@ export function createCoinGlassProvider({
         notes: [
           "CoinGlass provider enabled",
           "futures pairs-markets boundary active",
+          `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
           `base assets: ${batchPlan.allAssets.join(",")}`,
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
           `requests ${batchPlan.requestsPlanned}/${batchPlan.allAssets.length}, next batch ${batchPlan.nextBatchIndex + 1}`,
