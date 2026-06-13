@@ -43,3 +43,19 @@ test("public radar shell does not label the live site as demo data", () => {
   assert.equal(workspaceSource.includes("公开模板 · 演示数据 · 非实时扫描"), false);
   assert.match(workspaceSource, /CoinGlass/);
 });
+
+test("external scan scheduler calls the protected scan endpoint without hard-coded secrets", () => {
+  const workflowSource = readFileSync(
+    resolve(process.cwd(), ".github/workflows/chuan-scan-cron.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /cron:\s*["']\*\/30 \* \* \* \*["']/);
+  assert.match(workflowSource, /workflow_dispatch:/);
+  assert.match(workflowSource, /-X POST "\$CHUAN_SCAN_URL"/);
+  assert.match(workflowSource, /Authorization: Bearer \$CHUAN_CRON_SECRET/);
+  assert.match(workflowSource, /secrets\.CHUAN_SCAN_URL/);
+  assert.match(workflowSource, /secrets\.CHUAN_CRON_SECRET/);
+  assert.doesNotMatch(workflowSource, /web-brown-rho-95\.vercel\.app/);
+  assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
+});

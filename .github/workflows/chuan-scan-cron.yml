@@ -1,0 +1,31 @@
+name: Chuan Scheduled Scan
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chuan-scheduled-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Trigger protected scan endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call Chuan scan API
+        env:
+          CHUAN_SCAN_URL: ${{ secrets.CHUAN_SCAN_URL }}
+          CHUAN_CRON_SECRET: ${{ secrets.CHUAN_CRON_SECRET }}
+        run: |
+          test -n "$CHUAN_SCAN_URL"
+          test -n "$CHUAN_CRON_SECRET"
+          curl --fail --show-error --silent --retry 2 --retry-delay 10 \
+            -X POST "$CHUAN_SCAN_URL" \
+            -H "Authorization: Bearer $CHUAN_CRON_SECRET" \
+            -H "Content-Type: application/json"
