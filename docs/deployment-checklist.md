@@ -18,6 +18,14 @@
 - `docs/chuan-market-radar-blueprint.md` 是当前产品和技术状态的长期事实源，后续继续开发前必须先对照它
 - `vercel.json` 保持 Hobby 免费预览可部署；15 分钟扫描先使用外部 cron，升级 Pro 后再接回 Vercel Cron
 
+## 免费套餐边界
+
+- 当前默认按 CoinGlass 业余会员、Neon 免费套餐和 Vercel Hobby 免费套餐搭建。
+- 新功能必须先设计低频、缓存、分批、降级和健康状态展示，不能默认要求付费套餐。
+- CoinGlass 请求要优先控制 `COINGLASS_BASE_ASSETS` 和 `COINGLASS_BATCH_SIZE`，不要一次性追求全市场高频覆盖。
+- Neon 写入要优先保存快照、摘要和必要 payload，避免无边界流水写入。
+- Vercel 免费阶段需要定时任务时，优先外部 cron 请求受保护 API；升级付费套餐后再迁回更高频或内置 Cron。
+
 ## 必填环境变量
 
 - `MARKET_DATA_PROVIDER`: 默认 `mock`；切到真实 CoinGlass 时设为 `coinglass`

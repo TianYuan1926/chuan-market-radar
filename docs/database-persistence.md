@@ -4,6 +4,8 @@
 
 当前项目已经具备数据库持久化的类型边界、Postgres schema 生成能力，以及可替换的 repository 仓储层。
 
+当前默认按 Neon 免费套餐设计：优先保存快照、摘要、复盘结果和必要 payload；新增功能不能默认制造高频、无上限的明细流水写入。
+
 - 入口文件：`src/lib/persistence/persistence-contract.ts`
 - 仓储文件：`src/lib/persistence/persistence-store.ts`
 - 数据库接入诊断：`src/lib/persistence/database-client.ts`
