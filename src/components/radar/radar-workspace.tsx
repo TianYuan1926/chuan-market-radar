@@ -10,6 +10,15 @@ import { RankPanel } from "./rank-panel";
 import { ReplayPanel } from "./replay-panel";
 import { StrategyCard } from "./strategy-card";
 import { SystemHealthPanel } from "./system-health-panel";
+import {
+  buildAlertEvent,
+  buildOperationsAlertEvent,
+  notificationCopyForAlert,
+  shouldSuppressAlert,
+  soundProfileForSeverity,
+  type AlertEvent,
+  type AlertSound,
+} from "@/lib/alerts/alert-policy";
 import { siteConfig } from "@/lib/config/site";
 import { buildJournalEntryFromSignal, mergeJournalEntry } from "@/lib/journal/journal-entry";
 import { buildRankProfile } from "@/lib/journal/rank-engine";
@@ -18,7 +27,6 @@ import type { SystemHealthReport } from "@/lib/api/system-health";
 import {
   buildRefreshPlan,
   compareSignalSets,
-  shouldPlaySignalSound,
   type SignalSetDelta,
 } from "@/lib/market/live-refresh";
 import type { MarketRadarSnapshot } from "@/lib/market/types";
@@ -30,6 +38,12 @@ type RadarWorkspaceProps = {
 
 type RefreshState = "idle" | "syncing" | "updated" | "quiet" | "error";
 type AudioContextConstructor = typeof AudioContext;
+
+const alertQuietHours = {
+  endHour: 8,
+  startHour: 23,
+  timeZone: "Asia/Shanghai",
+};
 
 function formatScanTime(value: string) {
   const date = new Date(value);
@@ -122,6 +136,32 @@ function audioContextConstructor() {
     null;
 }
 
+function buildCurrentAlertEvents({
+  health,
+  now = new Date(),
+  previousEvents = [],
+  snapshot,
+}: {
+  health: SystemHealthReport;
+  now?: Date;
+  previousEvents?: AlertEvent[];
+  snapshot: MarketRadarSnapshot;
+}) {
+  const signalEvents = snapshot.signals
+    .map((signal) => buildAlertEvent(signal, {
+      generatedAt: snapshot.metadata.generatedAt,
+      scanId: snapshot.metadata.id,
+    }))
+    .filter((event): event is AlertEvent => Boolean(event));
+  const operationsEvent = buildOperationsAlertEvent(health);
+  const events = [
+    ...(operationsEvent ? [operationsEvent] : []),
+    ...signalEvents,
+  ];
+
+  return events.filter((event) => !shouldSuppressAlert(event, previousEvents, now)).slice(0, 5);
+}
+
 export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
   const [liveSnapshot, setLiveSnapshot] = useState(snapshot);
   const [liveHealth, setLiveHealth] = useState(health);
@@ -131,6 +171,9 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
   const [journalEntries, setJournalEntries] = useState<JournalEvent[]>(journalEvents);
   const [journalStatus, setJournalStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
+  const [alertEvents, setAlertEvents] = useState<AlertEvent[]>(() =>
+    buildCurrentAlertEvents({ health, snapshot })
+  );
   const [refreshIntervalMs, setRefreshIntervalMs] = useState(() =>
     buildRefreshPlan({
       nextScanAt: snapshot.metadata.nextScanAt,
@@ -140,6 +183,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
   const [lastDelta, setLastDelta] = useState<SignalSetDelta | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const snapshotRef = useRef(snapshot);
+  const alertEventsRef = useRef(alertEvents);
   const firstRefreshRef = useRef(true);
   const audioContextRef = useRef<AudioContext | null>(null);
   const batchNote = metadataNote(metadata.notes, "batch ");
@@ -157,10 +201,10 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
       ? "alert"
       : rankProfile.petMood;
 
-  const playSignalTone = useCallback(() => {
+  const playSignalTone = useCallback((sound: AlertSound = "pulse", volume = 0.08) => {
     const AudioCtor = audioContextConstructor();
 
-    if (!AudioCtor) {
+    if (!AudioCtor || sound === "none") {
       return;
     }
 
@@ -175,16 +219,37 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
     const gain = context.createGain();
     const now = context.currentTime;
 
-    oscillator.type = "square";
-    oscillator.frequency.setValueAtTime(740, now);
-    oscillator.frequency.exponentialRampToValueAtTime(1040, now + 0.1);
+    const startFrequency = sound === "alarm" ? 520 : sound === "tick" ? 660 : 740;
+    const endFrequency = sound === "alarm" ? 1260 : sound === "tick" ? 760 : 1040;
+    const duration = sound === "alarm" ? 0.34 : sound === "tick" ? 0.12 : 0.2;
+
+    oscillator.type = sound === "tick" ? "triangle" : "square";
+    oscillator.frequency.setValueAtTime(startFrequency, now);
+    oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration * 0.55);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start(now);
-    oscillator.stop(now + 0.2);
+    oscillator.stop(now + duration);
+  }, []);
+
+  const maybeShowNotification = useCallback((event: AlertEvent) => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      return;
+    }
+
+    const copy = notificationCopyForAlert(event);
+
+    new Notification(copy.title, {
+      body: copy.body,
+      tag: event.id,
+    });
   }, []);
 
   function toggleSound() {
@@ -202,6 +267,10 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
       if (context.state === "suspended") {
         void context.resume();
       }
+    }
+
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      void Notification.requestPermission();
     }
 
     setSoundEnabled(true);
@@ -252,13 +321,36 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
         setLastDelta(delta);
         setRefreshState(delta.hasActionableChange ? "updated" : delta.isNewScan ? "quiet" : "idle");
 
-        if (shouldPlaySignalSound({
-          delta,
-          firstLoad: firstRefreshRef.current,
-          pageVisible: document.visibilityState === "visible",
-          soundEnabled,
-        })) {
-          playSignalTone();
+        const nextAlertEvents = buildCurrentAlertEvents({
+          health: payload.health,
+          now: new Date(),
+          previousEvents: alertEventsRef.current,
+          snapshot: nextSnapshot,
+        });
+
+        if (nextAlertEvents.length > 0) {
+          setAlertEvents((current) => [...nextAlertEvents, ...current].slice(0, 12));
+          alertEventsRef.current = [...nextAlertEvents, ...alertEventsRef.current].slice(0, 24);
+        }
+
+        const soundAlert = nextAlertEvents[0];
+
+        if (soundAlert) {
+          const soundProfile = soundProfileForSeverity(soundAlert.severity, {
+            now: new Date(),
+            quietHours: alertQuietHours,
+          });
+
+          if (
+            soundEnabled &&
+            soundProfile.shouldPlay &&
+            !firstRefreshRef.current &&
+            document.visibilityState === "visible"
+          ) {
+            playSignalTone(soundProfile.name, soundProfile.volume);
+          }
+
+          maybeShowNotification(soundAlert);
         }
 
         snapshotRef.current = nextSnapshot;
@@ -295,7 +387,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
         clearTimeout(timer);
       }
     };
-  }, [playSignalTone, soundEnabled]);
+  }, [maybeShowNotification, playSignalTone, soundEnabled]);
 
   useEffect(() => {
     return () => {
@@ -412,7 +504,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
               onClick={toggleSound}
               type="button"
             >
-              {soundEnabled ? "SOUND ON" : "SOUND OFF"}
+              {soundEnabled ? "ALERT ON" : "ALERT OFF"}
             </button>
             <span className="mono live-console__delta">{deltaLabel(lastDelta)}</span>
           </div>
@@ -506,6 +598,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
         <aside className="studio-stack studio-stack--right">
           <SystemHealthPanel health={liveHealth} />
           <EventCenterPanel
+            alertEvents={alertEvents}
             archive={liveSnapshot.archive}
             liveDelta={lastDelta}
             liveGeneratedAt={metadata.generatedAt}

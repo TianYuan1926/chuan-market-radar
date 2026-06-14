@@ -12,6 +12,7 @@
     "src/lib/api/**/*.ts",
     "src/lib/market/**/*.ts",
     "src/lib/analysis/**/*.ts",
+    "src/lib/alerts/**/*.ts",
     "src/lib/journal/**/*.ts",
     "src/lib/persistence/**/*.ts",
     "src/scripts/**/*.ts"

@@ -14,6 +14,7 @@
 - `src/lib/persistence/persistence-store.ts` 提供内存/数据库仓储切换层
 - `src/lib/persistence/database-client.ts` 提供数据库 URL、driver、SQL client 的接入诊断和 schema 初始化入口
 - `src/lib/persistence/neon-client.ts` 通过 `@neondatabase/serverless` 把 Neon query 函数适配成通用 `SqlClient`
+- `src/lib/alerts/alert-policy.ts` 提供前端告警等级、重复抑制、静默时段和浏览器通知文案策略
 - `vercel.json` 保持 Hobby 免费预览可部署；15 分钟扫描先使用外部 cron，升级 Pro 后再接回 Vercel Cron
 
 ## 必填环境变量
@@ -65,6 +66,9 @@
 - AI 复核默认关闭；缺少 `AI_REVIEW_ENABLED=true` 或 `AI_API_KEY` 时，信号会显示 disabled 状态，不会隐藏复核边界。
 - AI 模型请求失败、解析失败或超出 prompt budget 时，系统会回落到规则引擎，不允许页面崩溃，也不能把失败模型输出当成判断。
 - AI 复核必须先找反证，再输出事实、推理、判断、策略、失败路径和不确定性；它只能复核和解释，不能替代规则引擎做最终裁决。
+- 告警策略当前在浏览器侧运行，不需要新增服务端环境变量；浏览器 Notification API 只会在用户主动开启告警后请求权限。
+- 告警声音受静默时段控制；静默时段只关闭声音，不隐藏事件中心日志。
+- 告警去重按同币种同状态抑制短窗口重复提醒，避免 Vercel/浏览器刷新时重复轰炸用户。
 - Vercel Hobby 账号不能使用每 15 分钟一次的内置 Cron。免费预览阶段先用 cron-job.org、UptimeRobot 或 GitHub Actions 定时请求 `/api/scan`；升级 Vercel Pro 后再把 `*/15 * * * *` 放回 `vercel.json`。
 - 如果 Vercel 项目还没有连接 GitHub 仓库，CLI 本地部署可能直接进入 `production` target；要获得标准 Preview/Production 分支工作流，需要先把代码推到 GitHub 并在 Vercel Project 里连接该仓库。
 
@@ -85,5 +89,6 @@
 - Neon 上线前，确认 Vercel 已填 `DATABASE_DRIVER=neon` 和 Neon 的 `DATABASE_URL`，部署后 `/api/health` 应显示 `databaseDriver: neon`。
 - CoinGlass 接入前不要把演示数据描述成实时数据。
 - 数据库接入前不要承诺复盘记录、扫描归档、段位分数永久保存。
+- 告警上线前，确认浏览器通知权限不是首屏自动请求，且静默时段内事件仍进入事件中心。
 - 免费预览部署完成后，如果需要接近 15 分钟刷新，用外部 cron 请求线上 `/api/scan`；Vercel Hobby 内置 Cron 不支持这个频率。
 - 本地 CLI 直传部署后，用 `vercel inspect <deployment-url>` 确认 `status: Ready`；如果当前网络无法访问 `*.vercel.app`，以 Vercel inspect 状态和你本机浏览器实测为准。

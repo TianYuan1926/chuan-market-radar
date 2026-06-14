@@ -29,7 +29,8 @@ Before implementing any task, read `docs/chuan-market-radar-blueprint.md` and co
 - Task 4 Contract Universe Registry: implementation and verification complete.
 - Task 5 AI Counter-Review Layer: implementation and verification complete.
 - Task 6 Outcome Tracking And Self-Improvement: implementation and verification complete.
-- Next task: Task 7 Alert Policy.
+- Task 7 Alert Policy: implementation and verification complete.
+- Next task: Task 8 Blueprint Status Update.
 
 ## File Structure Map
 
@@ -415,7 +416,7 @@ git commit -m "feat: add signal outcome tracking"
 - Modify: `src/components/radar/event-center-panel.tsx`
 - Test: `src/lib/alerts/alert-policy.test.ts`
 
-- [ ] **Step 1: Add failing alert policy tests**
+- [x] **Step 1: Add failing alert policy tests**
 
 Tests must assert:
 
@@ -425,7 +426,7 @@ Tests must assert:
 - Quiet hours suppress sound but keep event log entries.
 - System stale/failed state creates operations alert.
 
-- [ ] **Step 2: Implement policy**
+- [x] **Step 2: Implement policy**
 
 Create:
 
@@ -434,17 +435,17 @@ Create:
 - `soundProfileForSeverity(severity)`
 - `notificationCopyForAlert(event)`
 
-- [ ] **Step 3: Wire browser-side alerts**
+- [x] **Step 3: Wire browser-side alerts**
 
 Modify `radar-workspace.tsx` so alert policy controls sound and optional browser notifications. Do not request browser notification permission on first page load; request only after user enables alerts.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run test:market
 npm run typecheck
 npm run lint
-git add src/lib/alerts/alert-policy.ts src/lib/alerts/alert-policy.test.ts src/components/radar/radar-workspace.tsx src/components/radar/event-center-panel.tsx
+git add src/lib/alerts/alert-policy.ts src/lib/alerts/alert-policy.test.ts src/components/radar/radar-workspace.tsx src/components/radar/event-center-panel.tsx src/app/globals.css package.json tsconfig.market-test.json docs/chuan-market-radar-blueprint.md docs/deployment-checklist.md docs/superpowers/plans/2026-06-14-chuan-market-radar-buildout.md
 git commit -m "feat: add alert policy"
 ```
 

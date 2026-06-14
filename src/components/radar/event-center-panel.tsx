@@ -1,13 +1,26 @@
 import { BellRing, CircleAlert, History, RadioTower, TrendingUp } from "lucide-react";
+import type { AlertEvent } from "@/lib/alerts/alert-policy";
 import { buildScanEventFeed, type ScanEvent } from "@/lib/market/scan-events";
 import type { SignalSetDelta } from "@/lib/market/live-refresh";
 import type { ScanArchiveBundle } from "@/lib/market/types";
 
 type EventCenterPanelProps = {
+  alertEvents?: AlertEvent[];
   archive?: ScanArchiveBundle;
   liveDelta?: SignalSetDelta | null;
   liveGeneratedAt?: string;
   liveScanId?: string;
+};
+
+type DisplayEvent = {
+  actionHint: string;
+  detail: string;
+  generatedAt: string;
+  id: string;
+  severity: ScanEvent["severity"] | "critical" | "operations" | "high";
+  symbols: string[];
+  title: string;
+  type: ScanEvent["type"] | AlertEvent["type"];
 };
 
 function formatEventTime(value: string) {
@@ -25,17 +38,21 @@ function formatEventTime(value: string) {
   }).format(date);
 }
 
-function eventIcon(event: ScanEvent) {
-  if (event.type === "new_signal") {
+function eventIcon(event: DisplayEvent) {
+  if (event.type === "signal_alert") {
     return <BellRing size={15} strokeWidth={2.3} />;
   }
 
-  if (event.type === "signal_removed") {
+  if (event.type === "system_failed" || event.type === "signal_removed") {
     return <CircleAlert size={15} strokeWidth={2.3} />;
   }
 
-  if (event.type === "system_shift") {
+  if (event.type === "system_stale" || event.type === "system_shift") {
     return <RadioTower size={15} strokeWidth={2.3} />;
+  }
+
+  if (event.type === "new_signal") {
+    return <BellRing size={15} strokeWidth={2.3} />;
   }
 
   if (event.type === "scan_delta" || event.type === "signal_shift") {
@@ -49,18 +66,35 @@ function formatSymbols(symbols: string[]) {
   return symbols.map((symbol) => symbol.replace(/USDT$/, "")).slice(0, 4);
 }
 
+function alertToDisplayEvent(event: AlertEvent): DisplayEvent {
+  return {
+    actionHint: event.actionHint,
+    detail: event.detail,
+    generatedAt: event.generatedAt,
+    id: event.id,
+    severity: event.severity,
+    symbols: event.symbol ? [event.symbol] : [],
+    title: event.title,
+    type: event.type,
+  };
+}
+
 export function EventCenterPanel({
+  alertEvents = [],
   archive,
   liveDelta,
   liveGeneratedAt,
   liveScanId,
 }: EventCenterPanelProps) {
-  const events = buildScanEventFeed(archive, {
-    limit: 7,
-    liveDelta,
-    liveGeneratedAt,
-    liveScanId,
-  });
+  const events: DisplayEvent[] = [
+    ...alertEvents.map(alertToDisplayEvent),
+    ...buildScanEventFeed(archive, {
+      limit: 7,
+      liveDelta,
+      liveGeneratedAt,
+      liveScanId,
+    }),
+  ].slice(0, 7);
 
   return (
     <section className="module event-module">
