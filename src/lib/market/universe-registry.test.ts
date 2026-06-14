@@ -58,8 +58,8 @@ test("buildUniverseRegistry dedupes assets and keeps BTC and ETH as anchors", ()
     "BTCUSDT",
     "ETHUSDT",
     "SUIUSDT",
-    "ONDOUSDT",
     "ENAUSDT",
+    "ONDOUSDT",
   ]);
   assert.deepEqual(
     registry.assets.filter((asset) => asset.isAnchor).map((asset) => asset.baseAsset),
@@ -67,6 +67,28 @@ test("buildUniverseRegistry dedupes assets and keeps BTC and ETH as anchors", ()
   );
   assert.equal(registry.assets.find((asset) => asset.symbol === "ENAUSDT")?.sources.includes("configured"), true);
   assert.equal(registry.assets.find((asset) => asset.symbol === "SUIUSDT")?.sources.includes("observed"), true);
+});
+
+test("buildUniverseRegistry assigns scan tiers from anchors configuration and liquidity", () => {
+  const registry = buildUniverseRegistry(
+    ["ENA"],
+    [
+      instrument("SOL", { volume24hUsd: 180_000_000 }),
+      instrument("SUI", { volume24hUsd: 60_000_000 }),
+      instrument("MEME", { volume24hUsd: 0 }),
+    ],
+  );
+  const tiers = new Map(registry.assets.map((asset) => [asset.baseAsset, asset.tier]));
+
+  assert.equal(tiers.get("BTC"), "anchor");
+  assert.equal(tiers.get("ETH"), "anchor");
+  assert.equal(tiers.get("ENA"), "core");
+  assert.equal(tiers.get("SOL"), "core");
+  assert.equal(tiers.get("SUI"), "active");
+  assert.equal(tiers.get("MEME"), "long_tail");
+  assert.equal(registry.summary.core, 2);
+  assert.equal(registry.summary.active, 1);
+  assert.equal(registry.summary.longTail, 1);
 });
 
 test("buildUniverseRegistry marks unsupported observed instruments as skipped", () => {
@@ -102,6 +124,28 @@ test("planUniverseScan pins anchors and rotates the remaining priority assets", 
   assert.equal(plan.assets.length, 4);
   assert.equal(plan.totalBatches, 2);
   assert.deepEqual(plan.anchorAssets, ["BTC", "ETH"]);
+});
+
+test("planUniverseScan rotates long tail assets at a lower frequency than core assets", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA"],
+    [
+      instrument("ARB", { volume24hUsd: 0 }),
+      instrument("OP", { volume24hUsd: 0 }),
+    ],
+  );
+  const firstCorePlan = planUniverseScan(registry, 3, new Date("2026-06-14T00:00:00.000Z"));
+  const secondCorePlan = planUniverseScan(registry, 3, new Date("2026-06-14T00:15:00.000Z"));
+  const longTailPlan = planUniverseScan(registry, 3, new Date("2026-06-14T01:45:00.000Z"));
+
+  assert.deepEqual(firstCorePlan.assets, ["BTC", "ETH", "SOL"]);
+  assert.deepEqual(secondCorePlan.assets, ["BTC", "ETH", "ENA"]);
+  assert.deepEqual(longTailPlan.assets, ["BTC", "ETH", "ARB"]);
+  assert.equal(longTailPlan.tierCounts.core, 2);
+  assert.equal(longTailPlan.tierCounts.long_tail, 2);
+  assert.equal(longTailPlan.selectedTierCounts.anchor, 2);
+  assert.equal(longTailPlan.selectedTierCounts.long_tail, 1);
+  assert.equal(longTailPlan.tierPolicy.longTailEveryWindows, 8);
 });
 
 test("buildCoverageReport includes scanned, pending, skipped, and coverage percent", () => {

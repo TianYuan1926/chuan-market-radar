@@ -8,6 +8,14 @@ export type UniverseAssetKey = {
 };
 
 export type UniverseAssetSource = "anchor" | "configured" | "observed";
+export type UniverseAssetTier = "anchor" | "core" | "active" | "long_tail";
+
+export type UniverseTierCounts = Record<UniverseAssetTier, number>;
+
+export type UniverseTierPolicy = {
+  activeEveryWindows: number;
+  longTailEveryWindows: number;
+};
 
 export type UniverseAsset = UniverseAssetKey & {
   exchanges: ContractInstrument["exchange"][];
@@ -15,6 +23,7 @@ export type UniverseAsset = UniverseAssetKey & {
   lastSeenAt?: string;
   priority: number;
   sources: UniverseAssetSource[];
+  tier: UniverseAssetTier;
   volume24hUsd: number;
 };
 
@@ -28,7 +37,10 @@ export type UniverseRegistry = {
   skipped: SkippedUniverseAsset[];
   summary: {
     anchors: number;
+    active: number;
     configured: number;
+    core: number;
+    longTail: number;
     observed: number;
     skipped: number;
     total: number;
@@ -45,26 +57,80 @@ export type UniverseScanPlan = {
   pendingAssets: string[];
   requestsPlanned: number;
   rotatingAssets: string[];
+  selectedTierCounts: UniverseTierCounts;
+  tierCounts: UniverseTierCounts;
+  tierPolicy: UniverseTierPolicy;
   totalBatches: number;
 };
 
 const anchorAssets = ["BTC", "ETH"] as const;
+const coreLiquidityFloorUsd = 100_000_000;
+const activeLiquidityFloorUsd = 20_000_000;
+const defaultTierPolicy: UniverseTierPolicy = {
+  activeEveryWindows: 3,
+  longTailEveryWindows: 8,
+};
 
 function uniqueValues<T>(values: T[]) {
   return [...new Set(values)];
+}
+
+function emptyTierCounts(): UniverseTierCounts {
+  return {
+    anchor: 0,
+    core: 0,
+    active: 0,
+    long_tail: 0,
+  };
+}
+
+function countAssetTiers(assets: UniverseAsset[]): UniverseTierCounts {
+  const counts = emptyTierCounts();
+
+  for (const asset of assets) {
+    counts[asset.tier] += 1;
+  }
+
+  return counts;
+}
+
+function tierForAsset(asset: {
+  isAnchor: boolean;
+  sources: UniverseAssetSource[];
+  volume24hUsd: number;
+}): UniverseAssetTier {
+  if (asset.isAnchor) {
+    return "anchor";
+  }
+
+  if (asset.sources.includes("configured") || asset.volume24hUsd >= coreLiquidityFloorUsd) {
+    return "core";
+  }
+
+  if (asset.volume24hUsd >= activeLiquidityFloorUsd) {
+    return "active";
+  }
+
+  return "long_tail";
 }
 
 function priorityFor(asset: {
   baseAsset: string;
   configuredIndex?: number;
   isAnchor: boolean;
+  tier: UniverseAssetTier;
   volume24hUsd?: number;
 }) {
   const anchorBoost = asset.isAnchor ? 1_000_000 : 0;
+  const tierBoost = asset.tier === "core"
+    ? 500_000
+    : asset.tier === "active"
+      ? 250_000
+      : 0;
   const configuredBoost = asset.configuredIndex === undefined ? 0 : 1_000 - asset.configuredIndex;
   const liquidityBoost = Math.min(90_000, Math.round(Math.log10(Math.max(1, asset.volume24hUsd ?? 0)) * 10_000));
 
-  return anchorBoost + configuredBoost + liquidityBoost;
+  return anchorBoost + tierBoost + configuredBoost + liquidityBoost;
 }
 
 export function normalizeUniverseAsset(value: string): UniverseAssetKey | null {
@@ -124,6 +190,11 @@ function addOrMergeAsset(
     ...(current?.exchanges ?? []),
     ...(update.exchange ? [update.exchange] : []),
   ]);
+  const tier = tierForAsset({
+    isAnchor,
+    sources,
+    volume24hUsd,
+  });
 
   assets.set(key.symbol, {
     ...key,
@@ -136,10 +207,12 @@ function addOrMergeAsset(
         baseAsset: key.baseAsset,
         configuredIndex: update.configuredIndex,
         isAnchor,
+        tier,
         volume24hUsd,
       }),
     ),
     sources,
+    tier,
     volume24hUsd,
   });
 }
@@ -193,18 +266,115 @@ export function buildUniverseRegistry(
   const sortedAssets = [...assets.values()].sort((left, right) =>
     right.priority - left.priority || left.symbol.localeCompare(right.symbol)
   );
+  const tierCounts = countAssetTiers(sortedAssets);
 
   return {
     assets: sortedAssets,
     skipped,
     summary: {
       anchors: sortedAssets.filter((asset) => asset.isAnchor).length,
+      active: tierCounts.active,
       configured: sortedAssets.filter((asset) => asset.sources.includes("configured")).length,
+      core: tierCounts.core,
+      longTail: tierCounts.long_tail,
       observed: sortedAssets.filter((asset) => asset.sources.includes("observed")).length,
       skipped: skipped.length,
       total: sortedAssets.length + skipped.length,
     },
   };
+}
+
+function groupedRotatingAssets(assets: UniverseAsset[]) {
+  return {
+    core: assets.filter((asset) => asset.tier === "core"),
+    active: assets.filter((asset) => asset.tier === "active"),
+    long_tail: assets.filter((asset) => asset.tier === "long_tail"),
+  };
+}
+
+function preferredTiersForSlot(
+  slotCursor: number,
+  groups: ReturnType<typeof groupedRotatingAssets>,
+  policy: UniverseTierPolicy,
+): UniverseAssetTier[] {
+  const hasHigherPriorityLane = groups.core.length > 0 || groups.active.length > 0;
+
+  if (
+    groups.long_tail.length > 0 &&
+    hasHigherPriorityLane &&
+    (slotCursor + 1) % policy.longTailEveryWindows === 0
+  ) {
+    return ["long_tail", "active", "core"];
+  }
+
+  if (
+    groups.active.length > 0 &&
+    groups.core.length > 0 &&
+    (slotCursor + 1) % policy.activeEveryWindows === 0
+  ) {
+    return ["active", "core", "long_tail"];
+  }
+
+  return ["core", "active", "long_tail"];
+}
+
+function rotationDivisorForTier(
+  tier: UniverseAssetTier,
+  groups: ReturnType<typeof groupedRotatingAssets>,
+  policy: UniverseTierPolicy,
+) {
+  if (tier === "active" && groups.core.length > 0) {
+    return policy.activeEveryWindows;
+  }
+
+  if (tier === "long_tail" && (groups.core.length > 0 || groups.active.length > 0)) {
+    return policy.longTailEveryWindows;
+  }
+
+  return 1;
+}
+
+function pickTierAsset(
+  assets: UniverseAsset[],
+  slotCursor: number,
+  selectedSymbols: Set<string>,
+  rotationDivisor: number,
+) {
+  if (assets.length === 0) {
+    return null;
+  }
+
+  const start = Math.floor(slotCursor / Math.max(1, rotationDivisor)) % assets.length;
+
+  for (let index = 0; index < assets.length; index += 1) {
+    const candidate = assets[(start + index) % assets.length];
+
+    if (!selectedSymbols.has(candidate.symbol)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function estimateTierCycleWindows(
+  groups: ReturnType<typeof groupedRotatingAssets>,
+  rotatingSlots: number,
+  policy: UniverseTierPolicy,
+) {
+  const slots = Math.max(1, rotatingSlots);
+  const hasCoreOrActive = groups.core.length > 0 || groups.active.length > 0;
+  const coreCycle = groups.core.length
+    ? Math.ceil(groups.core.length / slots)
+    : 0;
+  const activeCycle = groups.active.length
+    ? Math.ceil(groups.active.length * (groups.core.length ? policy.activeEveryWindows : 1) / slots)
+    : 0;
+  const longTailCycle = groups.long_tail.length
+    ? Math.ceil(groups.long_tail.length * (hasCoreOrActive ? policy.longTailEveryWindows : 1) / slots)
+    : 0;
+
+  return Math.max(1, coreCycle, activeCycle, longTailCycle);
 }
 
 export function planUniverseScan(
@@ -224,18 +394,46 @@ export function planUniverseScan(
     .filter((asset) => !asset.isAnchor)
     .map((asset) => asset.baseAsset);
   const rotatingSlots = Math.max(0, safeBatchSize - pinnedAnchors.length);
+  const rotatingAssetRecords = sortedAssets.filter((asset) => !asset.isAnchor);
+  const groups = groupedRotatingAssets(rotatingAssetRecords);
+  const tierCounts = countAssetTiers(sortedAssets);
   const totalBatches = rotatingSlots > 0
-    ? Math.max(1, Math.ceil(rotatingAssets.length / rotatingSlots))
+    ? estimateTierCycleWindows(groups, rotatingSlots, defaultTierPolicy)
     : 1;
-  const batchIndex = scanWindowCursor(now, 15) % totalBatches;
-  const start = batchIndex * rotatingSlots;
-  const selectedRotatingAssets = rotatingSlots > 0
-    ? rotatingAssets.slice(start, start + rotatingSlots)
-    : [];
-  const assets = uniqueValues([...pinnedAnchors, ...selectedRotatingAssets]);
+  const cursor = scanWindowCursor(now, 15);
+  const batchIndex = cursor % totalBatches;
+  const selectedSymbols = new Set(
+    pinnedAnchors.map((asset) => `${asset}USDT`),
+  );
+  const selectedRotatingAssets: UniverseAsset[] = [];
+
+  for (let slot = 0; slot < rotatingSlots; slot += 1) {
+    const slotCursor = cursor * rotatingSlots + slot;
+    const preferredTiers = preferredTiersForSlot(slotCursor, groups, defaultTierPolicy);
+
+    for (const tier of preferredTiers) {
+      const tierAssets = groups[tier as keyof typeof groups] ?? [];
+      const candidate = pickTierAsset(
+        tierAssets,
+        slotCursor,
+        selectedSymbols,
+        rotationDivisorForTier(tier, groups, defaultTierPolicy),
+      );
+
+      if (candidate) {
+        selectedRotatingAssets.push(candidate);
+        selectedSymbols.add(candidate.symbol);
+        break;
+      }
+    }
+  }
+
+  const selectedRotatingBaseAssets = selectedRotatingAssets.map((asset) => asset.baseAsset);
+  const assets = uniqueValues([...pinnedAnchors, ...selectedRotatingBaseAssets]);
   const pendingAssets = sortedAssets
     .map((asset) => asset.baseAsset)
     .filter((asset) => !assets.includes(asset));
+  const selectedAssetRecords = sortedAssets.filter((asset) => assets.includes(asset.baseAsset));
 
   return {
     allAssets: sortedAssets.map((asset) => asset.baseAsset),
@@ -247,6 +445,9 @@ export function planUniverseScan(
     pendingAssets,
     requestsPlanned: assets.length,
     rotatingAssets,
+    selectedTierCounts: countAssetTiers(selectedAssetRecords),
+    tierCounts,
+    tierPolicy: defaultTierPolicy,
     totalBatches,
   };
 }
