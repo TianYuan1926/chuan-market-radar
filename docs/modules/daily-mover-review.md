@@ -20,12 +20,13 @@
 - `MoverAttribution`：成交量、持仓、资金费率、爆仓、前置漂移等归因。
 - `RadarMoverReview`：雷达已发现、漏判或不可学习样本判断。
 - `DailyMoverSnapshot`：每日涨跌幅榜快照。
+- CoinGlass 榜单行适配器：把外部 futures market rows 标准化成 `DailyMoverSnapshot`。
 - 持久化 schema 合同：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 - repository 写入和查询方法：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 
 当前未落地：
 
-- 真实交易所榜单抓取。
+- 真实交易所榜单请求入口。
 - 定时任务。
 - UI 展示。
 - 自动规则权重调整。
@@ -51,12 +52,13 @@
 
 - 逻辑：`src/lib/market/daily-movers.ts`
 - 测试：`src/lib/market/daily-movers.test.ts`
+- 数据源适配：`src/lib/market/providers/coinglass-daily-movers.ts`
 - 持久化合同：`src/lib/persistence/persistence-contract.ts`
 - 仓储接入：`src/lib/persistence/persistence-store.ts`
 
 ## 下一步
 
-1. 建立真实涨跌幅榜数据源适配器，把外部榜单转成 `DailyMoverSnapshot`。
+1. 建立每日异动抓取服务，把 CoinGlass 榜单请求结果写入 repository。
 2. 与扫描归档和复盘日记关联。
 3. 建立每日定时归因任务。
 4. 建立自动规则校准的只读建议层。
