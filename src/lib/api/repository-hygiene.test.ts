@@ -65,6 +65,86 @@ test("radar UI exposes premium pixel cockpit anchors without relying on prose", 
   assert.match(cssSource, /prefers-reduced-motion/);
 });
 
+test("public radar UI keeps reader-facing controls Chinese-first", () => {
+  const sourceFiles = [
+    "src/components/radar/chart-panel.tsx",
+    "src/components/radar/event-center-panel.tsx",
+    "src/components/radar/journal-panel.tsx",
+    "src/components/radar/radar-workspace.tsx",
+    "src/components/radar/radar-table.tsx",
+    "src/components/radar/rank-panel.tsx",
+    "src/components/radar/replay-panel.tsx",
+    "src/components/radar/strategy-card.tsx",
+    "src/components/radar/system-health-panel.tsx",
+    "src/components/radar/pixel-s680.tsx",
+  ];
+  const combinedSource = sourceFiles
+    .map((path) => readFileSync(resolve(process.cwd(), path), "utf8"))
+    .join("\n");
+  const requiredChineseLabels = [
+    "雷达中枢",
+    "候选池",
+    "策略模型",
+    "禁止追单",
+    "反证检查",
+    "执行计划",
+    "系统状态",
+    "事件中心",
+    "结构主图",
+    "复盘记录",
+    "扫描回放",
+    "段位系统",
+    "未选择",
+    "性格",
+    "纪律",
+    "动量",
+    "热度",
+    "S680 模式",
+  ];
+  const disallowedReaderLabels = [
+    "ENGINE FEED",
+    "MODEL",
+    "NO CHASE",
+    "CHECK",
+    "PERSONALITY",
+    "DISC",
+    "MOM",
+    "HEAT",
+    "S680 MODE",
+    "NONE",
+  ];
+
+  for (const label of requiredChineseLabels) {
+    assert.match(combinedSource, new RegExp(label));
+  }
+
+  for (const label of disallowedReaderLabels) {
+    assert.equal(combinedSource.includes(label), false, `reader-facing label should be localized: ${label}`);
+  }
+});
+
+test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
+  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredGeometryParts = [
+    "s680-hood",
+    "s680-window",
+    "s680-chrome",
+    "s680-tail",
+    "s680-face",
+    "s680-eye",
+    "s680-shadow",
+    "s680-grille",
+  ];
+
+  assert.equal(componentSource.includes("<img"), false);
+
+  for (const part of requiredGeometryParts) {
+    assert.match(componentSource, new RegExp(part));
+    assert.match(cssSource, new RegExp(`\\.${part}`));
+  }
+});
+
 test("external scan scheduler calls the protected scan endpoint without hard-coded secrets", () => {
   const workflowSource = readFileSync(
     resolve(process.cwd(), ".github/workflows/chuan-scan-cron.yml"),

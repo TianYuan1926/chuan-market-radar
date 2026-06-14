@@ -11,8 +11,8 @@ export function RadarTable({ signals, selectedId, onSelect }: RadarTableProps) {
   return (
     <section className="module">
       <div className="module-head">
-        <h2>异动候选表</h2>
-        <span className="tag">ENGINE FEED</span>
+        <h2>候选池</h2>
+        <span className="tag">异动流</span>
       </div>
 
       <div className="candidate-table">

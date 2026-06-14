@@ -24,10 +24,10 @@ const outcomeMeta = {
 } as const;
 
 const statusText = {
-  idle: "READY",
-  saving: "SAVING",
-  saved: "SAVED",
-  error: "LOCAL",
+  idle: "就绪",
+  saving: "保存中",
+  saved: "已保存",
+  error: "本地",
 } as const;
 
 const actionButtons: {
@@ -100,11 +100,49 @@ function outcomeLabel(event: JournalEvent) {
 }
 
 function hitLabel(value?: boolean) {
-  return value ? "HIT" : "WAIT";
+  return value ? "已到" : "等待";
+}
+
+function strategyStatusLabel(value?: string) {
+  if (!value) {
+    return "等待候选";
+  }
+
+  const labels: Record<string, string> = {
+    actionable: "可执行",
+    blocked: "已阻断",
+    confirmed: "已确认",
+    cooldown: "冷却中",
+    invalidated: "已失效",
+    near_trigger: "接近触发",
+    observe_only: "只观察",
+    pending: "待确认",
+    tracking: "跟踪中",
+    triggered: "已触发",
+    waiting: "等待",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
+function reviewStatusLabel(value?: string) {
+  if (!value) {
+    return "进行中";
+  }
+
+  const labels: Record<string, string> = {
+    closed: "已关闭",
+    complete: "完成",
+    open: "进行中",
+    queued: "排队中",
+    tracking: "跟踪中",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
 }
 
 export function JournalPanel({ events, onCreate, selected, status }: JournalPanelProps) {
-  const selectedLabel = selected?.symbol.replace("USDT", "") ?? "NONE";
+  const selectedLabel = selected?.symbol.replace("USDT", "") ?? "未选择";
   const trackingCount = events.filter((event) => event.reviewStatus === "tracking").length;
   const queueReviewAt = nextQueueReviewAt(events);
 
@@ -117,9 +155,9 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
 
       <div className="journal-command">
         <div className="journal-selected">
-          <span className="mono">SELECTED</span>
+          <span className="mono">当前标的</span>
           <strong>{selectedLabel}</strong>
-          <small>{selected?.strategy.status?.toUpperCase() ?? "WAITING"} / RR {selected?.strategy.riskReward.toFixed(2) ?? "0.00"}R</small>
+          <small>{strategyStatusLabel(selected?.strategy.status)} / RR {selected?.strategy.riskReward.toFixed(2) ?? "0.00"}R</small>
         </div>
 
         <div className="journal-actions">
@@ -141,9 +179,9 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
         </div>
 
         <div className="journal-meta-grid" aria-label="复盘队列状态">
-          <span><b>{events.length}</b> total</span>
-          <span><b>{trackingCount}</b> tracking</span>
-          <span><b>{formatReviewTime(queueReviewAt)}</b> next</span>
+          <span><b>{events.length}</b> 总数</span>
+          <span><b>{trackingCount}</b> 跟踪</span>
+          <span><b>{formatReviewTime(queueReviewAt)}</b> 下次</span>
         </div>
       </div>
 
@@ -159,13 +197,13 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
                 <small>{event.trigger ?? event.note}</small>
                 <span className="review-row__state">
                   <span>{meta.label}</span>
-                  <span>next {formatReviewTime(nextReviewAt(event))}</span>
-                  <span>{event.reviewStatus?.toUpperCase() ?? "OPEN"}</span>
+                  <span>复查 {formatReviewTime(nextReviewAt(event))}</span>
+                  <span>{reviewStatusLabel(event.reviewStatus)}</span>
                 </span>
                 <span className="review-row__flags" aria-label={`${event.symbol} 复盘状态`}>
-                  <span className={event.triggerHit ? "is-hit" : ""}>TRG {hitLabel(event.triggerHit)}</span>
-                  <span className={event.invalidationHit ? "is-hit is-bad" : ""}>INV {hitLabel(event.invalidationHit)}</span>
-                  <span className={event.firstTargetHit ? "is-hit" : ""}>TP1 {hitLabel(event.firstTargetHit)}</span>
+                  <span className={event.triggerHit ? "is-hit" : ""}>触发 {hitLabel(event.triggerHit)}</span>
+                  <span className={event.invalidationHit ? "is-hit is-bad" : ""}>失效 {hitLabel(event.invalidationHit)}</span>
+                  <span className={event.firstTargetHit ? "is-hit" : ""}>目标1 {hitLabel(event.firstTargetHit)}</span>
                 </span>
                 {(event.lessons?.length ?? 0) > 0 ? (
                   <span className="lesson-tags">

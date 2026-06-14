@@ -13,6 +13,28 @@ type ChartPanelProps = {
   onTimeframeChange: (timeframe: Timeframe) => void;
 };
 
+function strategyStatusLabel(value?: string) {
+  if (!value) {
+    return "等待候选";
+  }
+
+  const statusLabels: Record<string, string> = {
+    actionable: "可执行",
+    blocked: "已阻断",
+    confirmed: "已确认",
+    cooldown: "冷却中",
+    invalidated: "已失效",
+    near_trigger: "接近触发",
+    observe_only: "只观察",
+    pending: "待确认",
+    tracking: "跟踪中",
+    triggered: "已触发",
+    waiting: "等待",
+  };
+
+  return statusLabels[value] ?? value.replaceAll("_", " ");
+}
+
 export function ChartPanel({
   selected,
   activeTimeframe,
@@ -29,22 +51,22 @@ export function ChartPanel({
     timeframe: activeTimeframe,
   });
   const interval = toTradingViewInterval(activeTimeframe);
-  const strategyStatus = selected?.strategy.status?.replaceAll("_", " ").toUpperCase() ?? "WAITING";
+  const strategyStatus = strategyStatusLabel(selected?.strategy.status);
 
   return (
     <section className="module chart-wrap">
       <div className="module-head module-head--flush">
         <h2>{selected ? `${selected.symbol} 结构主图` : "结构主图"}</h2>
         <a className="tag tag--link" href={tradingViewUrl} target="_blank" rel="noreferrer">
-          TradingView Slot ↗
+          TradingView 图表 ↗
         </a>
       </div>
 
       <div className="chart-link-strip" aria-label="K线联动状态">
-        <span><b>{tradingViewSymbol}</b> symbol</span>
-        <span><b>{activeTimeframe.toUpperCase()}</b> local</span>
-        <span><b>{interval}</b> TV interval</span>
-        <span><b>{strategyStatus}</b> plan</span>
+        <span><b>{tradingViewSymbol}</b> 交易对</span>
+        <span><b>{activeTimeframe.toUpperCase()}</b> 本地周期</span>
+        <span><b>{interval}</b> TV 周期</span>
+        <span><b>{strategyStatus}</b> 策略</span>
         <span><b>{selected ? `${selected.strategy.riskReward.toFixed(2)}R` : "--"}</b> RR</span>
       </div>
 

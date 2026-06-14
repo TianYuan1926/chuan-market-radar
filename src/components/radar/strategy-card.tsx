@@ -4,13 +4,40 @@ type StrategyCardProps = {
   selected?: MarketSignal;
 };
 
+function statusLabel(value?: string) {
+  if (!value) {
+    return "计划中";
+  }
+
+  const statusLabels: Record<string, string> = {
+    actionable: "可执行",
+    blocked: "已阻断",
+    building: "构建中",
+    confirmed: "已确认",
+    cooldown: "冷却中",
+    disabled: "未启用",
+    fallback: "回退复核",
+    invalidated: "已失效",
+    near_trigger: "接近触发",
+    observe_only: "只观察",
+    pending: "待确认",
+    reviewed: "已复核",
+    tracking: "跟踪中",
+    triggered: "已触发",
+    wait: "等待",
+    waiting: "等待",
+  };
+
+  return statusLabels[value] ?? value.replaceAll("_", " ");
+}
+
 export function StrategyCard({ selected }: StrategyCardProps) {
   if (!selected) {
     return (
       <section className="module">
         <div className="module-head">
           <h2>策略路径</h2>
-          <span className="tag">WAITING</span>
+          <span className="tag">等待候选</span>
         </div>
         <div className="empty-state">
           <p>还没有可分析标的。</p>
@@ -23,14 +50,14 @@ export function StrategyCard({ selected }: StrategyCardProps) {
   const volumeScore = Math.min(95, selected.confidence + 7);
   const fundingScore = selected.risk === "low" ? 42 : selected.risk === "medium" ? 48 : 68;
   const riskScore = selected.risk === "low" ? 24 : selected.risk === "medium" ? 38 : 72;
-  const strategyStatus = selected.strategy.status?.replaceAll("_", " ").toUpperCase() ?? "PLAN";
+  const strategyStatus = statusLabel(selected.strategy.status);
   const indicatorEvidence = selected.evidence.filter((item) => item.layer === "indicators").slice(0, 3);
   const visibleEvidence = [
     ...indicatorEvidence,
     ...selected.evidence.filter((item) => !indicatorEvidence.includes(item)),
   ].slice(0, 6);
   const aiReview = selected.aiReview;
-  const aiReviewStatus = aiReview?.status.replaceAll("_", " ").toUpperCase() ?? "RULES";
+  const aiReviewStatus = statusLabel(aiReview?.status);
   const aiCounterEvidence = aiReview?.counterEvidence.length
     ? aiReview.counterEvidence
     : ["AI 反证复核未返回额外反证，本轮以规则引擎为准"];
@@ -40,7 +67,7 @@ export function StrategyCard({ selected }: StrategyCardProps) {
       <section className="module">
         <div className="module-head">
           <h2>指标权重</h2>
-          <span className="tag">MODEL</span>
+          <span className="tag">策略模型</span>
         </div>
         <div className="factor-list">
           <div className="factor">
@@ -69,7 +96,7 @@ export function StrategyCard({ selected }: StrategyCardProps) {
       <section className="module">
         <div className="module-head">
           <h2>策略路径</h2>
-          <span className="tag">NO CHASE</span>
+          <span className="tag">禁止追单</span>
         </div>
         <div className="route-list">
           <div className="route">
@@ -115,7 +142,7 @@ export function StrategyCard({ selected }: StrategyCardProps) {
       <section className="module">
         <div className="module-head">
           <h2>反证检查</h2>
-          <span className="tag">CHECK</span>
+          <span className="tag">反证检查</span>
         </div>
         <div className="check-list">
           {(selected.strategy.confirmation ?? ["等待触发确认"]).slice(0, 3).map((item) => (
@@ -164,7 +191,7 @@ export function StrategyCard({ selected }: StrategyCardProps) {
       <section className="module">
         <div className="module-head">
           <h2>证据链</h2>
-          <span className="tag">WHY</span>
+          <span className="tag">证据链</span>
         </div>
         <div className="evidence-list">
           {visibleEvidence.map((item) => (

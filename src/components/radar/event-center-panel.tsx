@@ -66,6 +66,21 @@ function formatSymbols(symbols: string[]) {
   return symbols.map((symbol) => symbol.replace(/USDT$/, "")).slice(0, 4);
 }
 
+function eventTypeLabel(type: DisplayEvent["type"]) {
+  const labels: Record<string, string> = {
+    new_signal: "新增信号",
+    scan_delta: "扫描变化",
+    signal_alert: "信号告警",
+    signal_removed: "信号移除",
+    signal_shift: "信号变化",
+    system_failed: "系统失败",
+    system_shift: "系统变化",
+    system_stale: "系统延迟",
+  };
+
+  return labels[type] ?? type.replaceAll("_", " ");
+}
+
 function alertToDisplayEvent(event: AlertEvent): DisplayEvent {
   return {
     actionHint: event.actionHint,
@@ -100,7 +115,7 @@ export function EventCenterPanel({
     <section className="module event-module">
       <div className="module-head">
         <h2>事件中心</h2>
-        <span className="tag">{events.length} EVENTS</span>
+        <span className="tag">{events.length} 事件</span>
       </div>
 
       {events.length > 0 ? (
@@ -114,7 +129,7 @@ export function EventCenterPanel({
               <div className="event-card__body">
                 <div className="event-card__title">
                   <strong>{event.title}</strong>
-                  <span className="mono">{event.type.replaceAll("_", " ")}</span>
+                  <span className="mono">{eventTypeLabel(event.type)}</span>
                 </div>
                 {event.symbols.length > 0 ? (
                   <div className="event-symbols" aria-label="事件币种">

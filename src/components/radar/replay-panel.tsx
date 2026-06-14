@@ -42,13 +42,36 @@ function deltaTone(value: number) {
 
 function symbolPreview(entry: ScanArchiveSummary) {
   if (!entry.topSymbols.length) {
-    return "NO SIGNAL";
+    return "暂无信号";
   }
 
   return entry.topSymbols
     .slice(0, 3)
     .map((symbol) => symbol.replace("USDT", ""))
     .join(" / ");
+}
+
+function scanStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    failed: "失败",
+    partial: "部分",
+    ready: "就绪",
+    stale: "延迟",
+  };
+
+  return labels[value] ?? value;
+}
+
+function sourceLabel(value: string) {
+  const labels: Record<string, string> = {
+    coingecko: "CoinGecko",
+    coinglass: "CoinGlass",
+    composite: "聚合源",
+    exchange_public: "交易所公开源",
+    mock: "演示源",
+  };
+
+  return labels[value] ?? value;
 }
 
 export function ReplayPanel({ archive }: ReplayPanelProps) {
@@ -60,7 +83,7 @@ export function ReplayPanel({ archive }: ReplayPanelProps) {
     <section className="module replay-module">
       <div className="module-head">
         <h2>扫描回放</h2>
-        <span className="tag">{entries.length} FRAMES</span>
+        <span className="tag">{entries.length} 帧</span>
       </div>
 
       <div className="replay-command">
@@ -68,12 +91,12 @@ export function ReplayPanel({ archive }: ReplayPanelProps) {
           <div className="replay-orbit" aria-hidden="true">
             <RotateCcw size={22} strokeWidth={2.4} />
           </div>
-          <span className="mono">LATEST FRAME</span>
+          <span className="mono">最新帧</span>
           <strong>{latest ? formatTime(latest.generatedAt) : "--:--"}</strong>
           <small>
             {latest
-              ? `${latest.status.toUpperCase()} / ${latest.source} / ${latest.signals.length} signals`
-              : "WAITING"}
+              ? `${scanStatusLabel(latest.status)} / ${sourceLabel(latest.source)} / ${latest.signals.length} 信号`
+              : "等待"}
           </small>
         </div>
 
@@ -83,29 +106,29 @@ export function ReplayPanel({ archive }: ReplayPanelProps) {
             <b className={comparison ? deltaTone(comparison.anomalyDelta) : "tone-amber"}>
               {comparison ? formatDelta(comparison.anomalyDelta) : "0"}
             </b>
-            anomaly
+            异动
           </span>
           <span>
             <GitCompareArrows size={14} strokeWidth={2.2} />
             <b className={comparison ? deltaTone(comparison.candidateDelta) : "tone-amber"}>
               {comparison ? formatDelta(comparison.candidateDelta) : "0"}
             </b>
-            candidate
+            候选
           </span>
         </div>
 
         <div className="replay-change-line">
           <span>
-            <b>new</b>
+            <b>新增</b>
             {comparison?.newSignalSymbols.length
               ? comparison.newSignalSymbols.map((symbol) => symbol.replace("USDT", "")).join(" / ")
-              : "none"}
+              : "无"}
           </span>
           <span>
-            <b>gone</b>
+            <b>移除</b>
             {comparison?.removedSignalSymbols.length
               ? comparison.removedSignalSymbols.map((symbol) => symbol.replace("USDT", "")).join(" / ")
-              : "none"}
+              : "无"}
           </span>
         </div>
       </div>
@@ -120,8 +143,8 @@ export function ReplayPanel({ archive }: ReplayPanelProps) {
             <div className="replay-frame__body">
               <strong>{formatTime(entry.generatedAt)} / {symbolPreview(entry)}</strong>
               <small>
-                {entry.status} / scan {entry.scannedCount} / anomaly {entry.anomalyCount} /
-                candidate {entry.candidateCount}
+                {scanStatusLabel(entry.status)} / 扫描 {entry.scannedCount} / 异动 {entry.anomalyCount} /
+                候选 {entry.candidateCount}
               </small>
             </div>
           </article>

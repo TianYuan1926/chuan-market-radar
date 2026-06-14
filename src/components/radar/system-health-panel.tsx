@@ -7,11 +7,68 @@ type SystemHealthPanelProps = {
 
 function levelLabel(level: SystemHealthLevel) {
   return {
-    ready: "READY",
-    preview: "PREVIEW",
-    degraded: "CHECK",
-    blocked: "BLOCKED",
+    ready: "就绪",
+    preview: "预览",
+    degraded: "检查",
+    blocked: "阻断",
   }[level];
+}
+
+function sourceLabel(value: SystemHealthReport["dataSource"]["activeSource"]) {
+  return {
+    coingecko: "CoinGecko",
+    coinglass: "CoinGlass",
+    composite: "聚合源",
+    exchange_public: "交易所公开源",
+    mock: "演示源",
+  }[value];
+}
+
+function modeLabel(value: SystemHealthReport["dataSource"]["mode"]) {
+  return value === "live" ? "实时" : "演示";
+}
+
+function dataSourceStatusLabel(value: SystemHealthReport["dataSource"]["status"]) {
+  return {
+    fallback: "回退",
+    missing_key: "缺密钥",
+    preview: "预览",
+    ready: "就绪",
+  }[value];
+}
+
+function freshnessLabel(value: SystemHealthReport["scan"]["freshness"]) {
+  return {
+    aging: "接近过期",
+    expired: "已过期",
+    fresh: "新鲜",
+    unknown: "未知",
+  }[value];
+}
+
+function operationsVerdictLabel(value: SystemHealthReport["operations"]["verdict"]) {
+  return {
+    attention: "注意",
+    blocked: "阻断",
+    healthy: "健康",
+    watch: "观察",
+  }[value];
+}
+
+function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
+  return {
+    configured: "已配置",
+    fallback: "回退",
+    ready: "就绪",
+    unconfigured: "未配置",
+  }[value] ?? value;
+}
+
+function operationNoteLabel(value: string) {
+  return value
+    .replace(/^batch /, "批次 ")
+    .replace(/^requests /, "请求 ")
+    .replace(/^scan runtime:/, "扫描耗时：");
 }
 
 function formatAge(value: number | null) {
@@ -65,7 +122,7 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
             <Activity size={21} strokeWidth={2.3} />
           </div>
           <div>
-            <span className="mono">SYSTEM CHECK</span>
+            <span className="mono">系统检查</span>
             <strong>{health.summary}</strong>
           </div>
         </div>
@@ -73,33 +130,33 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
         <div className="health-grid" aria-label="系统健康摘要">
           <span>
             <RadioTower size={14} strokeWidth={2.2} />
-            <b>{health.dataSource.activeSource}</b>
-            {health.dataSource.mode}
+            <b>{sourceLabel(health.dataSource.activeSource)}</b>
+            {modeLabel(health.dataSource.mode)}
           </span>
           <span>
             <Database size={14} strokeWidth={2.2} />
-            <b>{health.persistence.databaseStatus}</b>
+            <b>{databaseStatusLabel(health.persistence.databaseStatus)}</b>
             {health.persistence.databaseDriver}
           </span>
           <span>
             <Activity size={14} strokeWidth={2.2} />
-            <b>{health.scan.freshness}</b>
-            age {formatAge(health.scan.ageMinutes)}
+            <b>{freshnessLabel(health.scan.freshness)}</b>
+            延迟 {formatAge(health.scan.ageMinutes)}
           </span>
           <span>
             <Archive size={14} strokeWidth={2.2} />
             <b>{health.archive.entries}</b>
-            frames
+            帧
           </span>
         </div>
 
         <div className={`health-ops health-ops--${health.operations.verdict}`}>
           <div className="health-ops__head">
             <div>
-              <span className="mono">SCAN OPS</span>
+              <span className="mono">扫描运维</span>
               <strong>{health.operations.operatorHint}</strong>
             </div>
-            <b>{health.operations.verdict.toUpperCase()}</b>
+            <b>{operationsVerdictLabel(health.operations.verdict)}</b>
           </div>
 
           <div className="health-op-matrix" aria-label="扫描运维摘要">
@@ -129,29 +186,29 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
             <span>
               <RadioTower size={14} strokeWidth={2.2} />
               <b>{health.coverage.scanned}/{health.coverage.eligible}</b>
-              scanned
+              已扫
             </span>
             <span>
               <Archive size={14} strokeWidth={2.2} />
               <b>{health.coverage.pending}</b>
-              pending
+              待扫
             </span>
             <span>
               <TimerReset size={14} strokeWidth={2.2} />
               <b>{health.coverage.batchIndex + 1}/{health.coverage.totalBatches}</b>
-              batch
+              批次
             </span>
             <span>
               <Activity size={14} strokeWidth={2.2} />
-              <b>{health.dataSource.status.toUpperCase()}</b>
-              provider
+              <b>{dataSourceStatusLabel(health.dataSource.status)}</b>
+              数据源
             </span>
           </div>
 
           {notes.length > 0 ? (
             <div className="health-op-notes" aria-label="扫描运行备注">
               {notes.map((note) => (
-                <span key={note}>{note}</span>
+                <span key={note}>{operationNoteLabel(note)}</span>
               ))}
             </div>
           ) : null}

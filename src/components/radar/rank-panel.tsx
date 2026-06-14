@@ -40,7 +40,7 @@ export function RankPanel({ profile }: RankPanelProps) {
           <span>川</span>
         </div>
         <div className="rank-title">
-          <span className="mono">CURRENT RANK</span>
+          <span className="mono">当前段位</span>
           <strong>{profile.tier.label}</strong>
           <small>{profile.totalXp} XP / 下一级 {nextLabel}</small>
         </div>
@@ -58,25 +58,25 @@ export function RankPanel({ profile }: RankPanelProps) {
         <span>
           <TrendingUp size={14} strokeWidth={2.2} />
           <b>{profile.hitRate}%</b>
-          hit
+          命中
         </span>
         <span>
           <ShieldCheck size={14} strokeWidth={2.2} />
           <b>{profile.disciplineScore}%</b>
-          discipline
+          纪律
         </span>
         <span>
           <Gauge size={14} strokeWidth={2.2} />
           <b className={tone(profile.recentMomentum)}>{signed(profile.recentMomentum)}</b>
-          momentum
+          动量
         </span>
       </div>
 
       <div className="rank-ledger">
-        <span><b>{profile.wins}</b> win</span>
-        <span><b>{profile.losses}</b> loss</span>
-        <span><b>{profile.saved}</b> saved</span>
-        <span><b>{profile.tracking}</b> tracking</span>
+        <span><b>{profile.wins}</b> 胜</span>
+        <span><b>{profile.losses}</b> 负</span>
+        <span><b>{profile.saved}</b> 避险</span>
+        <span><b>{profile.tracking}</b> 跟踪</span>
       </div>
 
       <p className="rank-line">{profile.petLine}</p>

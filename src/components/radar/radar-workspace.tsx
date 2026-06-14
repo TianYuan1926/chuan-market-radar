@@ -10,6 +10,7 @@ import { RankPanel } from "./rank-panel";
 import { ReplayPanel } from "./replay-panel";
 import { StrategyCard } from "./strategy-card";
 import { SystemHealthPanel } from "./system-health-panel";
+import { signalStateLabels } from "@/lib/analysis/constants";
 import {
   buildAlertEvent,
   buildOperationsAlertEvent,
@@ -72,8 +73,42 @@ function formatCompactUsd(value: number) {
   return `$${(value / 1_000_000).toFixed(0)}M`;
 }
 
+function marketStatusLabel(value: MarketRadarSnapshot["metadata"]["status"]) {
+  return {
+    failed: "失败",
+    partial: "部分",
+    ready: "就绪",
+    stale: "延迟",
+  }[value];
+}
+
+function marketSourceLabel(value: MarketRadarSnapshot["metadata"]["source"]) {
+  return {
+    coingecko: "CoinGecko",
+    coinglass: "CoinGlass",
+    composite: "聚合源",
+    exchange_public: "交易所公开源",
+    mock: "演示源",
+  }[value];
+}
+
+function riskGateLabel(value: MarketRadarSnapshot["metadata"]["riskGate"]) {
+  return value === "on" ? "开启" : "关闭";
+}
+
 function metadataNote(notes: string[], prefix: string) {
   return notes.find((note) => note.startsWith(prefix));
+}
+
+function displayMetadataNote(note: string | undefined) {
+  if (!note) {
+    return undefined;
+  }
+
+  return note
+    .replace(/^batch /, "批次 ")
+    .replace(/^requests /, "请求 ")
+    .replace(/^scan runtime:/, "扫描耗时：");
 }
 
 function mergeJournalEvents(current: JournalEvent[], incoming: JournalEvent[]) {
@@ -98,32 +133,32 @@ function formatRefreshInterval(value: number) {
 
 function refreshStatusLabel(state: RefreshState) {
   return {
-    error: "RETRY",
-    idle: "AUTO",
-    quiet: "SYNCED",
-    syncing: "SYNCING",
-    updated: "NEW MOVE",
+    error: "重试",
+    idle: "自动",
+    quiet: "已同步",
+    syncing: "同步中",
+    updated: "新异动",
   }[state];
 }
 
 function deltaLabel(delta: SignalSetDelta | null) {
   if (!delta) {
-    return "watching";
+    return "观察中";
   }
 
   if (delta.newSymbols.length > 0) {
-    return `new ${delta.newSymbols.slice(0, 3).join("/")}`;
+    return `新增 ${delta.newSymbols.slice(0, 3).join("/")}`;
   }
 
   if (delta.changedSymbols.length > 0) {
-    return `shift ${delta.changedSymbols.slice(0, 3).join("/")}`;
+    return `变化 ${delta.changedSymbols.slice(0, 3).join("/")}`;
   }
 
   if (delta.removedSymbols.length > 0) {
-    return `cooldown ${delta.removedSymbols.slice(0, 3).join("/")}`;
+    return `降温 ${delta.removedSymbols.slice(0, 3).join("/")}`;
   }
 
-  return delta.isNewScan ? "scan refreshed" : "no change";
+  return delta.isNewScan ? "扫描已刷新" : "暂无变化";
 }
 
 function audioContextConstructor() {
@@ -186,8 +221,8 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
   const alertEventsRef = useRef(alertEvents);
   const firstRefreshRef = useRef(true);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const batchNote = metadataNote(metadata.notes, "batch ");
-  const requestsNote = metadataNote(metadata.notes, "requests ");
+  const batchNote = displayMetadataNote(metadataNote(metadata.notes, "batch "));
+  const requestsNote = displayMetadataNote(metadataNote(metadata.notes, "requests "));
 
   const selected = useMemo(
     () => signals.find((signal) => signal.id === selectedId) ?? signals[0],
@@ -464,12 +499,12 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
         <div className="brand">
           <div className="brand-mark">川</div>
           <div>
-            <strong>Market Studio</strong>
+            <strong>雷达中枢</strong>
             <span>公开监控 · CoinGlass 实时源 · 15m 分批扫描</span>
           </div>
         </div>
 
-        <div className="market-tape" aria-label="market tape">
+        <div className="market-tape" aria-label="市场滚动带">
           <div className="market-tape__track">
             <span>BTC <b>+1.8%</b> 波动扩张</span>
             <span>ENA <b>78</b> 等回踩</span>
@@ -485,19 +520,19 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
         </div>
 
         <div className="top-status">
-          <strong>Next Scan {formatScanTime(metadata.nextScanAt)}</strong>
+          <strong>下次扫描 {formatScanTime(metadata.nextScanAt)}</strong>
           <span className="mono">
-            {metadata.cadenceMinutes}m {metadata.status} / {metadata.source} / pool {instrumentPool.summary.accepted}
+            {metadata.cadenceMinutes}m {marketStatusLabel(metadata.status)} / {marketSourceLabel(metadata.source)} / 候选池 {instrumentPool.summary.accepted}
           </span>
           <span className="mono">
-            {batchNote ?? `guard ${metadata.staleAfterMinutes}m`} / {metadata.isRealtime ? "live" : "demo"}
+            {batchNote ?? `护栏 ${metadata.staleAfterMinutes}m`} / {metadata.isRealtime ? "实时" : "预览"}
           </span>
           {requestsNote ? (
             <span className="mono">{requestsNote}</span>
           ) : null}
           {batchNote ? (
             <span className="top-status__guard">
-              guard {metadata.staleAfterMinutes}m
+              护栏 {metadata.staleAfterMinutes}m
             </span>
           ) : null}
           <div className={`live-console live-console--${refreshState}`}>
@@ -510,7 +545,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
               onClick={toggleSound}
               type="button"
             >
-              {soundEnabled ? "ALERT ON" : "ALERT OFF"}
+              {soundEnabled ? "声音开启" : "声音关闭"}
             </button>
             <span className="mono live-console__delta">{deltaLabel(lastDelta)}</span>
           </div>
@@ -523,13 +558,13 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
           <section className="module">
             <div className="module-head">
               <h2>全市场热区</h2>
-              <span className="tag">{instrumentPool.summary.accepted} ACTIVE</span>
+              <span className="tag">{instrumentPool.summary.accepted} 活跃</span>
             </div>
             <div className="pool-audit" aria-label="扫描池健康度">
-              <span><b>{instrumentPool.summary.total}</b> raw</span>
-              <span><b>{instrumentPool.summary.rejected}</b> filtered</span>
-              <span><b>{instrumentPool.summary.duplicatesRemoved}</b> dup</span>
-              <span><b>{formatCompactUsd(instrumentPool.summary.minVolume24hUsd)}</b> floor</span>
+              <span><b>{instrumentPool.summary.total}</b> 原始</span>
+              <span><b>{instrumentPool.summary.rejected}</b> 过滤</span>
+              <span><b>{instrumentPool.summary.duplicatesRemoved}</b> 去重</span>
+              <span><b>{formatCompactUsd(instrumentPool.summary.minVolume24hUsd)}</b> 门槛</span>
             </div>
             <div className="heat-grid">
               {heatmap.map((item) => (
@@ -546,7 +581,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
           <section className="module hero-module">
             <div className="hero-copy">
               <div>
-                <span className="tag">CHUAN SIGNAL MAP</span>
+                <span className="tag">川 · 信号地图</span>
                 <h1>把行情异动，压缩成一张可执行的决策地图。</h1>
                 <p>不做传统首页，不堆概念。首屏直接展示扫描状态、候选币、触发条件、失效条件和市场热区。</p>
                 <div className="hero-actions">
@@ -564,10 +599,10 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
                 </div>
               </div>
               <div className="metric-strip">
-                <div className="metric"><span className="mono">SCANNED</span><strong>{metadata.scannedCount}</strong></div>
-                <div className="metric"><span className="mono">ANOMALY</span><strong>{metadata.anomalyCount.toString().padStart(2, "0")}</strong></div>
-                <div className="metric"><span className="mono">CANDIDATE</span><strong>{signals.length.toString().padStart(2, "0")}</strong></div>
-                <div className="metric"><span className="mono">RISK GATE</span><strong>{metadata.riskGate.toUpperCase()}</strong></div>
+                <div className="metric"><span className="mono">已扫描</span><strong>{metadata.scannedCount}</strong></div>
+                <div className="metric"><span className="mono">异动</span><strong>{metadata.anomalyCount.toString().padStart(2, "0")}</strong></div>
+                <div className="metric"><span className="mono">候选</span><strong>{signals.length.toString().padStart(2, "0")}</strong></div>
+                <div className="metric"><span className="mono">风控门</span><strong>{riskGateLabel(metadata.riskGate)}</strong></div>
               </div>
               <div className="signal-rhythm" aria-label="候选强度节奏">
                 {signals.slice(0, 6).map((signal) => (
@@ -600,7 +635,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
                     type="button"
                   >
                     <b>{symbol}</b>
-                    <small>{signal?.state.replaceAll("_", " ") ?? "watch"}</small>
+                    <small>{signal ? signalStateLabels[signal.state] : "观察"}</small>
                   </button>
                 );
               })}
