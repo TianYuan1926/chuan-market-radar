@@ -206,3 +206,20 @@ test("external scan scheduler calls the protected scan endpoint without hard-cod
   assert.doesNotMatch(workflowSource, /web-brown-rho-95\.vercel\.app/);
   assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
 });
+
+test("external daily mover scheduler calls the protected ingest endpoint once per day", () => {
+  const workflowSource = readFileSync(
+    resolve(process.cwd(), ".github/workflows/chuan-daily-movers.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /cron:\s*["']17 0 \* \* \*["']/);
+  assert.match(workflowSource, /workflow_dispatch:/);
+  assert.match(workflowSource, /-X POST "\$CHUAN_DAILY_MOVER_INGEST_URL"/);
+  assert.match(workflowSource, /Authorization: Bearer \$CHUAN_CRON_SECRET/);
+  assert.match(workflowSource, /api\/admin\/daily-movers\/ingest/);
+  assert.match(workflowSource, /secrets\.CHUAN_DAILY_MOVER_INGEST_URL/);
+  assert.match(workflowSource, /secrets\.CHUAN_CRON_SECRET/);
+  assert.doesNotMatch(workflowSource, /web-brown-rho-95\.vercel\.app/);
+  assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
+});

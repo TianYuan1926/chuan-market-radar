@@ -91,7 +91,7 @@ Vercel 生产环境建议先填这几项：
 - 如果没有传入真实 `SqlClient`，即使配置了数据库 URL，也会回落到内存 repository，保证预览不会崩。
 - Postgres repository 只依赖通用 `query(sql, params)`，避免现在锁死 Neon 或 Supabase。
 - `runPersistenceSchemaMigration(client)` 可用于上线前通过注入的 SQL client 执行当前持久化 schema。
-- 每日异动归因复盘已落地持久化 schema、record 转换合同、CoinGlass 榜单行适配器、抓取写入服务、受保护 API 入口和 repository 写入/查询；尚未接入外部 cron 策略、只读 API 和 UI。
+- 每日异动归因复盘已落地持久化 schema、record 转换合同、CoinGlass 榜单行适配器、抓取写入服务、受保护 API 入口、GitHub Actions 外部 cron 和 repository 写入/查询；尚未接入只读 API 和 UI。
 - `runAdminPersistenceMigration()` 负责迁移入口的 secret 校验、Neon 激活校验和迁移结果归一化。
 - `addJournalEvent()` 会写入日志后重新读取当前日志样本，再派生段位状态，避免只凭单条新日志计算段位。
 - `addScanArchive()` 会保存扫描摘要和轻量 replay frame；`getScanReplayFrame()` 和 `compareLatestScanArchives()` 负责回放与最近两轮对比。

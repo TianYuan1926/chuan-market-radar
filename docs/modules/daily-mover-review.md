@@ -23,12 +23,13 @@
 - CoinGlass 榜单行适配器：把外部 futures market rows 标准化成 `DailyMoverSnapshot`。
 - CoinGlass 每日异动抓取服务：按配置资产低频请求榜单、构建快照并写入 repository。
 - 受保护 API 入口：`POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
+- GitHub Actions 外部 cron：每天低频触发受保护 API，适配 Vercel 免费套餐边界。
 - 持久化 schema 合同：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 - repository 写入和查询方法：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 
 当前未落地：
 
-- 定时任务。
+- 只读 API。
 - UI 展示。
 - 自动规则权重调整。
 
@@ -57,13 +58,13 @@
 - 抓取写入服务：`src/lib/market/daily-mover-ingest.ts`
 - 后台入口授权：`src/lib/market/daily-mover-admin.ts`
 - API route：`src/app/api/admin/daily-movers/ingest/route.ts`
+- 外部定时触发：`.github/workflows/chuan-daily-movers.yml`
 - 持久化合同：`src/lib/persistence/persistence-contract.ts`
 - 仓储接入：`src/lib/persistence/persistence-store.ts`
 
 ## 下一步
 
-1. 建立每日一次或低频外部 cron 触发策略。
+1. 做“每日异动归因复盘”只读 API。
 2. 与扫描归档和复盘日记关联。
 3. 建立自动规则校准的只读建议层。
-4. 做“每日异动归因复盘”只读 API。
-5. 最后再做“每日异动归因复盘”UI。
+4. 最后再做“每日异动归因复盘”UI。
