@@ -7,6 +7,7 @@
 - `/api/scan` 提供扫描摘要
 - `/api/archive` 通过 repository 提供扫描快照归档、指定回放帧和相邻扫描差值
 - `/api/journal` 通过 repository 提供复盘记录；未接入真实 SQL client 时自动使用内存演示存储
+- `/api/daily-movers` 通过 repository 提供每日异动归因复盘只读样本
 - `/api/health` 提供系统健康状态，包含数据源、扫描新鲜度、持久化模式和归档状态
 - `POST /api/admin/persistence/migrate` 通过 `CRON_SECRET` 授权后执行数据库 schema 初始化
 - `GET /api/admin/deployment/readiness` 通过 `CRON_SECRET` 授权后输出部署前检查报告，不暴露密钥原文
@@ -70,6 +71,7 @@
 - 页面右侧的“系统状态”模块会显示当前是 `mock` 还是 `coinglass`、`memory` 还是 `database`、扫描是否新鲜、归档是否已有回放帧。
 - 当前 `/api/journal` 已经走 repository；真实公开使用前仍必须传入 Neon/Supabase 的服务端 SQL client，否则只是内存演示存储。
 - 当前 `/api/archive` 已经走 repository；真实公开使用前仍必须传入 Neon/Supabase 的服务端 SQL client，否则只是内存演示归档。
+- 当前 `/api/daily-movers` 已经走 repository；它是公开只读归因样本 API，返回 `allowedUse: research_only`，不能作为追涨杀跌信号入口。
 - 当前持久化骨架定义 `journal_events`、`scan_archives`、`rank_profiles` 三张 Postgres 表、映射函数、repository、数据库接入诊断和扫描归档 bundle 构建器；Neon SDK 已安装，但没有真实 `DATABASE_URL` 时仍不会把数据永久写入远端。
 - 当前已经安装 Neon 官方 serverless driver；当 `DATABASE_DRIVER=neon` 且 `DATABASE_URL` 指向 Neon 时，应用会自动创建 Neon SQL client。
 - 数据库迁移入口必须配置 `CRON_SECRET` 才会运行；没有 secret 时返回 `migration_secret_missing`。
@@ -79,7 +81,7 @@
 - CoinGlass provider 只有在 `MARKET_DATA_PROVIDER=coinglass` 且 `COINGLASS_API_KEY` 存在时启用。
 - Hobbyist 会员需要用 `COINGLASS_BASE_ASSETS` 控制查询范围，并用 `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
 - 当前分批队列按 UTC 日内扫描窗口轮转。例如 15 分钟 cadence、batch size 为 `3` 时，每 15 分钟只请求 3 个基础币，下一窗口自动轮到下一批。
-- 每日异动归因复盘已有低频抓取写入服务、受保护 API 和 GitHub Actions 外部 cron；触发入口是 `POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
+- 每日异动归因复盘已有低频抓取写入服务、公开只读 API、受保护写入 API 和 GitHub Actions 外部 cron；写入触发入口是 `POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
 - OHLCV provider 失败时必须降级为信号数据质量提示，不能让 CoinGlass 衍生品扫描崩溃。
 - AI 复核只在服务端执行，浏览器端不会接触 `AI_API_KEY`。
@@ -103,6 +105,7 @@
 - `/api/scan` 返回 `ok: true`。
 - `/api/archive` 返回 `ok: true`，且 `archive.retention.storage` 与 repository 模式一致；未接真实数据库时应为 `memory`。
 - `/api/journal` 返回 entries。
+- `/api/daily-movers` 返回 `ok: true`；即使暂时没有样本，也必须保持公开只读响应和 `allowedUse: research_only` 边界。
 - `/api/health` 返回 `ok: true`，且 `health.level` 能准确反映 `ready`、`preview`、`degraded` 或 `blocked`。
 - 数据库上线前，先在目标 Postgres 执行 `buildPersistenceSchemaSql()` 生成的 SQL，并确认当前持久化表、主键和索引存在。
 - 如果不用 Neon SQL Editor 手动建表，可以请求 `POST /api/admin/persistence/migrate`；请求必须带 `Authorization: Bearer <CRON_SECRET>`。

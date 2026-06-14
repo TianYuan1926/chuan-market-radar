@@ -223,3 +223,16 @@ test("external daily mover scheduler calls the protected ingest endpoint once pe
   assert.doesNotMatch(workflowSource, /web-brown-rho-95\.vercel\.app/);
   assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
 });
+
+test("public daily mover archive API is exposed as a read-only route", () => {
+  const routeSource = readFileSync(
+    resolve(process.cwd(), "src/app/api/daily-movers/route.ts"),
+    "utf8",
+  );
+
+  assert.match(routeSource, /export async function GET/);
+  assert.match(routeSource, /getDailyMoverReadArchive/);
+  assert.match(routeSource, /cache-control/);
+  assert.match(routeSource, /x-chuan-daily-movers-storage/);
+  assert.equal(routeSource.includes("export async function POST"), false);
+});

@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是逻辑与持久化底座：
+当前已落地的是逻辑、持久化、触发和只读底座：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -24,12 +24,13 @@
 - CoinGlass 每日异动抓取服务：按配置资产低频请求榜单、构建快照并写入 repository。
 - 受保护 API 入口：`POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - GitHub Actions 外部 cron：每天低频触发受保护 API，适配 Vercel 免费套餐边界。
+- 公开只读 API：`GET /api/daily-movers`，支持读取最新样本、按 `id` 查询历史样本、用 `limit` 控制列表数量。
 - 持久化 schema 合同：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 - repository 写入和查询方法：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 
 当前未落地：
 
-- 只读 API。
+- 与扫描归档和复盘日记关联。
 - UI 展示。
 - 自动规则权重调整。
 
@@ -58,13 +59,14 @@
 - 抓取写入服务：`src/lib/market/daily-mover-ingest.ts`
 - 后台入口授权：`src/lib/market/daily-mover-admin.ts`
 - API route：`src/app/api/admin/daily-movers/ingest/route.ts`
+- 只读 API 服务：`src/lib/api/daily-mover-readonly.ts`
+- 只读 API route：`src/app/api/daily-movers/route.ts`
 - 外部定时触发：`.github/workflows/chuan-daily-movers.yml`
 - 持久化合同：`src/lib/persistence/persistence-contract.ts`
 - 仓储接入：`src/lib/persistence/persistence-store.ts`
 
 ## 下一步
 
-1. 做“每日异动归因复盘”只读 API。
-2. 与扫描归档和复盘日记关联。
-3. 建立自动规则校准的只读建议层。
-4. 最后再做“每日异动归因复盘”UI。
+1. 与扫描归档和复盘日记关联。
+2. 建立自动规则校准的只读建议层。
+3. 最后再做“每日异动归因复盘”UI。
