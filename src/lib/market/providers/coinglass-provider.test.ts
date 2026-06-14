@@ -164,6 +164,53 @@ test("CoinGlass provider filters noisy quote markets and aggregates one primary 
   assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USDC")), false);
   assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USD")), false);
   assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 6, clean 3, primary 1/);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality rejections: unsupported_exchange 1, quote_not_supported 2, duplicate_symbol 2/);
+});
+
+test("CoinGlass provider rejects rows whose reported symbol and instrument quote disagree", async () => {
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["TIA"],
+    batchSize: 1,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: symbol === "TIA" ? [
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "Binance",
+            volume_usd: 90_000_000,
+          },
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "Binance",
+            instrument_id: "TIAUSDC",
+            symbol: "TIA/USDT",
+            volume_usd: 250_000_000,
+          },
+          {
+            ...coinglassRow("TIA"),
+            exchange_name: "OKX",
+            instrument_id: "TIAUSDT",
+            symbol: "TIA/USD",
+            volume_usd: 260_000_000,
+          },
+        ] : [],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(snapshot.tickers.map((ticker) => ticker.symbol), ["TIAUSDT"]);
+  assert.deepEqual(snapshot.signals.map((signal) => signal.id), ["coinglass-BINANCE-TIAUSDT"]);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 3, clean 1, primary 1/);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality rejections: unsupported_exchange 0, quote_not_supported 2, duplicate_symbol 0/);
 });
 
 test("CoinGlass provider threads BTC and ETH anchor context into altcoin analysis", async () => {

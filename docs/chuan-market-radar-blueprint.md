@@ -107,6 +107,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
 - 15 分钟 cadence 下分批扫描，降低触发业余会员限速的概率。
 - Provider 失败时可以使用缓存并显示 stale 状态。
+- 主扫描已加强数据清洗：拒绝 UNKNOWN 交易所、拒绝非 USDT 或报价字段冲突的合约行，并按同币种选择主交易所输出，避免重复信号刷屏。
+- 扫描 metadata notes 会显示 raw、clean、primary 数量，以及 unsupported exchange、unsupported quote、duplicate symbol 等过滤原因。
 
 ### 已落地：Neon 持久化骨架
 
@@ -262,7 +264,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定和轮转扫描计划，但资产池来源仍主要依赖 `COINGLASS_BASE_ASSETS` 与当前批次观测到的合约，不是自动发现所有支持合约交易的币种。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划和主扫描质量过滤，但资产池来源仍主要依赖 `COINGLASS_BASE_ASSETS` 与当前批次观测到的合约，不是自动发现所有支持合约交易的币种。
 
 后续需要：
 
@@ -270,6 +272,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 交易所覆盖状态。
 - API quota 消耗估计。
 - 从 Binance/OKX/Bybit public instruments 自动发现全量 USDT perpetual。
+- 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描。
 - 高优先级币种加密扫描。
 - 将不同交易所同一币种的覆盖和差异展示出来。

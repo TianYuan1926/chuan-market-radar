@@ -45,6 +45,19 @@ export type CoinGlassMarketRow = {
   shortLiquidationUsd24h?: number;
 };
 
+export type CoinGlassMarketRowRejectionReason =
+  | "quote_not_supported"
+  | "unsupported_exchange";
+
+export type CoinGlassMarketRowQuality = {
+  ok: true;
+  exchange: ExchangeId;
+  symbol: string;
+} | {
+  ok: false;
+  reason: CoinGlassMarketRowRejectionReason;
+};
+
 function firstString(...values: (string | undefined)[]) {
   return values.find((value) => typeof value === "string" && value.length > 0) ?? "";
 }
@@ -55,6 +68,15 @@ function firstNumber(...values: (number | undefined)[]) {
 
 function normalizeSymbol(value: string) {
   return value.replace("/", "").replace("-", "").replace("_", "").toUpperCase();
+}
+
+function normalizedMarketSymbolCandidates(row: CoinGlassMarketRow) {
+  return [
+    firstString(row.instrument_id, row.instrumentId),
+    row.symbol,
+  ]
+    .map((value) => normalizeSymbol(value ?? ""))
+    .filter((value) => value.length > 0);
 }
 
 function isDatedDelivery(instrumentId: string) {
@@ -84,9 +106,41 @@ export function normalizeCoinGlassExchange(exchangeName: string): ExchangeId {
 }
 
 export function marketSymbolFromCoinGlass(row: CoinGlassMarketRow) {
-  const symbol = firstString(row.symbol, row.instrument_id, row.instrumentId);
+  const symbol = firstString(row.instrument_id, row.instrumentId, row.symbol);
 
   return normalizeSymbol(symbol);
+}
+
+export function classifyCoinGlassMarketRow(row: CoinGlassMarketRow): CoinGlassMarketRowQuality {
+  const exchangeName = firstString(row.exchange_name, row.exchangeName);
+  const exchange = normalizeCoinGlassExchange(exchangeName);
+  const candidates = normalizedMarketSymbolCandidates(row);
+  const uniqueCandidates = [...new Set(candidates)];
+  const symbol = uniqueCandidates[0] ?? "";
+
+  if (
+    uniqueCandidates.length === 0 ||
+    uniqueCandidates.length > 1 ||
+    uniqueCandidates.some((candidate) => !candidate.endsWith("USDT"))
+  ) {
+    return {
+      ok: false,
+      reason: "quote_not_supported",
+    };
+  }
+
+  if (exchange === "UNKNOWN") {
+    return {
+      ok: false,
+      reason: "unsupported_exchange",
+    };
+  }
+
+  return {
+    ok: true,
+    exchange,
+    symbol,
+  };
 }
 
 export function mapCoinGlassInstrument(
@@ -129,21 +183,21 @@ export function mapCoinGlassMarketInstrument(
   row: CoinGlassMarketRow,
   updatedAt: string,
 ): ContractInstrument | null {
-  const symbol = marketSymbolFromCoinGlass(row);
-  const exchangeName = firstString(row.exchange_name, row.exchangeName);
-  const exchange = normalizeCoinGlassExchange(exchangeName);
-  const baseAsset = symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
+  const quality = classifyCoinGlassMarketRow(row);
 
-  if (!symbol.endsWith("USDT")) {
+  if (!quality.ok) {
     return null;
   }
 
+  const exchangeName = firstString(row.exchange_name, row.exchangeName);
+  const baseAsset = quality.symbol.slice(0, -4);
+
   return {
-    id: `${exchange}:${symbol}`,
-    symbol,
+    id: `${quality.exchange}:${quality.symbol}`,
+    symbol: quality.symbol,
     baseAsset,
     quoteAsset: "USDT",
-    exchange,
+    exchange: quality.exchange,
     marketType: "perpetual",
     isActive: true,
     volume24hUsd: firstNumber(row.volume_usd, row.volumeUsd),

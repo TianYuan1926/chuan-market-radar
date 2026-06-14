@@ -48,6 +48,29 @@ test("mapCoinGlassInstrument rejects non-USDT and dated delivery contracts", () 
   }, updatedAt), null);
 });
 
+test("mapCoinGlass market instruments reject unknown venues and conflicting quote symbols", () => {
+  assert.equal(mapCoinGlassMarketInstrument({
+    instrument_id: "TIAUSDT",
+    exchange_name: "Gate.io",
+    symbol: "TIA/USDT",
+    volume_usd: 120_000_000,
+  }, updatedAt), null);
+
+  assert.equal(mapCoinGlassMarketInstrument({
+    instrument_id: "TIAUSDC",
+    exchange_name: "Binance",
+    symbol: "TIA/USDT",
+    volume_usd: 120_000_000,
+  }, updatedAt), null);
+
+  assert.equal(mapCoinGlassMarketInstrument({
+    instrument_id: "TIAUSDT",
+    exchange_name: "Binance",
+    symbol: "TIA/USD",
+    volume_usd: 120_000_000,
+  }, updatedAt), null);
+});
+
 test("mapCoinGlass market rows into ticker, derivative, and instrument records", () => {
   const row = {
     instrument_id: "SUIUSDT",

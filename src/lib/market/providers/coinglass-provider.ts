@@ -20,6 +20,8 @@ import type {
 import { requestCoinGlass } from "./coinglass-client";
 import {
   type CoinGlassMarketRow,
+  type CoinGlassMarketRowRejectionReason,
+  classifyCoinGlassMarketRow,
   marketSymbolFromCoinGlass,
   mapCoinGlassDerivativeSnapshot,
   mapCoinGlassHeatCell,
@@ -90,6 +92,12 @@ const exchangePriority = {
   UNKNOWN: 0,
 } as const;
 
+type MarketRowQualityReport = {
+  cleanRows: CoinGlassMarketRow[];
+  duplicateSymbolCount: number;
+  rejections: Record<CoinGlassMarketRowRejectionReason, number>;
+};
+
 function marketRowVolume(row: CoinGlassMarketRow) {
   return row.volume_usd ?? row.volumeUsd ?? 0;
 }
@@ -98,10 +106,33 @@ function marketRowOpenInterest(row: CoinGlassMarketRow) {
   return row.open_interest_usd ?? row.openInterestUsd ?? 0;
 }
 
-function isSupportedSignalRow(row: CoinGlassMarketRow, updatedAt: string) {
-  const ticker = mapCoinGlassTicker(row, updatedAt);
+function emptyQualityRejections(): Record<CoinGlassMarketRowRejectionReason, number> {
+  return {
+    quote_not_supported: 0,
+    unsupported_exchange: 0,
+  };
+}
 
-  return ticker.symbol.endsWith("USDT") && ticker.exchange !== "UNKNOWN";
+function qualityFilterMarketRows(rows: CoinGlassMarketRow[]): MarketRowQualityReport {
+  const rejections = emptyQualityRejections();
+  const cleanRows: CoinGlassMarketRow[] = [];
+
+  for (const row of rows) {
+    const quality = classifyCoinGlassMarketRow(row);
+
+    if (!quality.ok) {
+      rejections[quality.reason] += 1;
+      continue;
+    }
+
+    cleanRows.push(row);
+  }
+
+  return {
+    cleanRows,
+    duplicateSymbolCount: Math.max(0, cleanRows.length - new Set(cleanRows.map(marketSymbolFromCoinGlass)).size),
+    rejections,
+  };
 }
 
 function primaryRowScore(row: CoinGlassMarketRow, updatedAt: string) {
@@ -222,7 +253,8 @@ export function createCoinGlassProvider({
         baseAssets: batchPlan.assets,
         fetcher,
       });
-      const cleanMarketRows = marketRows.filter((row) => isSupportedSignalRow(row, generatedAt));
+      const qualityReport = qualityFilterMarketRows(marketRows);
+      const cleanMarketRows = qualityReport.cleanRows;
       const primarySignalRows = selectPrimarySignalRows(cleanMarketRows, generatedAt);
       const instruments = cleanMarketRows
         .map((row) => mapCoinGlassMarketInstrument(row, generatedAt))
@@ -232,8 +264,8 @@ export function createCoinGlassProvider({
       });
       const universeRegistry = buildUniverseRegistry(baseAssets, instruments);
       const coverage = buildCoverageReport(universeRegistry, batchPlan);
-      const tickers = cleanMarketRows.map((row) => mapCoinGlassTicker(row, generatedAt));
-      const derivatives = cleanMarketRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
+      const tickers = primarySignalRows.map((row) => mapCoinGlassTicker(row, generatedAt));
+      const derivatives = primarySignalRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
       const marketContext = deriveMarketAnchorContext(primarySignalRows, generatedAt);
       const ohlcvFailures = new Map<string, OhlcvProviderFailure>();
       const indicatorEvidenceBySymbol = new Map<string, EvidencePoint[]>();
@@ -293,6 +325,7 @@ export function createCoinGlassProvider({
           "CoinGlass provider enabled",
           "futures pairs-markets boundary active",
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
+          `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
           `base assets: ${batchPlan.allAssets.join(",")}`,
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
           `requests ${batchPlan.requestsPlanned}/${coverage.eligible}, next batch ${batchPlan.nextBatchIndex + 1}`,
