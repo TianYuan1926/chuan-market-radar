@@ -10,6 +10,7 @@
 - `/api/health` 提供系统健康状态，包含数据源、扫描新鲜度、持久化模式和归档状态
 - `POST /api/admin/persistence/migrate` 通过 `CRON_SECRET` 授权后执行数据库 schema 初始化
 - `GET /api/admin/deployment/readiness` 通过 `CRON_SECRET` 授权后输出部署前检查报告，不暴露密钥原文
+- `POST /api/admin/daily-movers/ingest` 通过 `CRON_SECRET` 授权后低频抓取每日异动并写入 repository
 - `src/lib/persistence/persistence-contract.ts` 提供 Postgres 持久化表结构与数据映射骨架
 - `src/lib/persistence/persistence-store.ts` 提供内存/数据库仓储切换层
 - `src/lib/persistence/database-client.ts` 提供数据库 URL、driver、SQL client 的接入诊断和 schema 初始化入口
@@ -39,6 +40,8 @@
 - `COINGLASS_API_KEY`: CoinGlass 会员 API
 - `COINGLASS_BASE_ASSETS`: CoinGlass 查询币种白名单，例如 `BTC,ETH,SOL,ENA,SUI`
 - `COINGLASS_BATCH_SIZE`: 每个扫描窗口请求多少个基础币，业余会员建议先用 `3`
+- `COINGLASS_DAILY_MOVER_MAX_ASSETS`: 每次每日异动抓取最多请求多少个基础币，免费阶段默认 `8`
+- `COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE`: 每侧最多保留多少个涨跌幅样本，默认 `10`
 - `DATABASE_URL`: Neon 或其他 Postgres
 - `DATABASE_DRIVER`: `postgres`、`neon` 或 `supabase`；默认按通用 Postgres 处理
 - `SUPABASE_URL`: Supabase 项目地址
@@ -69,7 +72,7 @@
 - CoinGlass provider 只有在 `MARKET_DATA_PROVIDER=coinglass` 且 `COINGLASS_API_KEY` 存在时启用。
 - Hobbyist 会员需要用 `COINGLASS_BASE_ASSETS` 控制查询范围，并用 `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
 - 当前分批队列按 UTC 日内扫描窗口轮转。例如 15 分钟 cadence、batch size 为 `3` 时，每 15 分钟只请求 3 个基础币，下一窗口自动轮到下一批。
-- 每日异动归因复盘已有低频抓取写入服务，但尚未开放受保护 API 或定时触发入口。
+- 每日异动归因复盘已有低频抓取写入服务和受保护 API；触发入口是 `POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
 - OHLCV provider 失败时必须降级为信号数据质量提示，不能让 CoinGlass 衍生品扫描崩溃。
 - AI 复核只在服务端执行，浏览器端不会接触 `AI_API_KEY`。
@@ -105,4 +108,5 @@
 - 继续下一阶段前，先检查蓝图的阶段状态总览，确认没有把“基础已落地”误说成“完整专业闭环已完成”。
 - 每轮部署前，确认 README/蓝图/部署清单描述和实际代码一致，尤其是数据源、AI、数据库、告警、全市场覆盖和多周期融合状态。
 - 免费预览部署完成后，如果需要接近 15 分钟刷新，用外部 cron 请求线上 `/api/scan`；Vercel Hobby 内置 Cron 不支持这个频率。
+- 每日异动归因复盘如果要自动运行，免费阶段优先用外部 cron 每日或低频请求 `/api/admin/daily-movers/ingest`，不要配置高频任务。
 - 本地 CLI 直传部署后，用 `vercel inspect <deployment-url>` 确认 `status: Ready`；如果当前网络无法访问 `*.vercel.app`，以 Vercel inspect 状态和你本机浏览器实测为准。
