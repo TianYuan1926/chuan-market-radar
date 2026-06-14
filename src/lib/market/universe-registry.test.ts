@@ -174,6 +174,37 @@ test("planUniverseScan rotates long tail assets at a lower frequency than core a
   assert.equal(longTailPlan.tierPolicy.longTailEveryWindows, 8);
 });
 
+test("planUniverseScan promotes dynamic priority hints without dropping anchors or expanding the batch", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA"],
+    [
+      instrument("ARB", { volume24hUsd: 0 }),
+      instrument("OP", { volume24hUsd: 0 }),
+    ],
+  );
+  const plan = planUniverseScan(registry, 3, new Date("2026-06-14T00:00:00.000Z"), {
+    priorityHints: [
+      {
+        symbol: "ARBUSDT",
+        anomalyScore: 94,
+        historicalSampleSize: 12,
+        historicalWinRate: 0.72,
+        recentSignalCount: 3,
+      },
+    ],
+  });
+
+  assert.deepEqual(plan.assets, ["BTC", "ETH", "ARB"]);
+  assert.equal(plan.batchSize, 3);
+  assert.equal(plan.requestsPlanned, 3);
+  assert.deepEqual(plan.anchorAssets, ["BTC", "ETH"]);
+  assert.deepEqual(plan.dynamicPriority.boostedAssets, ["ARB"]);
+  assert.equal(plan.dynamicPriority.enabled, true);
+  assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "ARB");
+  assert.ok(plan.dynamicPriority.topAssets[0]?.dynamicBoost ?? 0 > 0);
+  assert.ok(plan.dynamicPriority.topAssets[0]?.reasons.includes("anomaly"));
+});
+
 test("buildCoverageReport includes scanned, pending, skipped, and coverage percent", () => {
   const registry = buildUniverseRegistry(
     ["ENA", "SUI", "ONDO", "TIA"],

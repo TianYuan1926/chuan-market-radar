@@ -206,6 +206,67 @@ test("CoinGlass provider caps oversized batches with the daily request budget gu
   assert.match(snapshot.metadata.notes.join("\n"), /quota: coinglass 288\/300 daily \(96%\), public discovery 288 daily, status near_budget/);
 });
 
+test("CoinGlass provider promotes dynamic priority hints inside the guarded scan batch", async () => {
+  const requestedSymbols: string[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["SOL", "ENA"],
+    batchSize: 3,
+    universePriorityHints: [
+      {
+        symbol: "ARBUSDT",
+        anomalyScore: 96,
+        historicalSampleSize: 10,
+        historicalWinRate: 0.7,
+        recentSignalCount: 2,
+      },
+    ],
+    universeDiscoveryProvider: {
+      id: "test-discovery",
+      label: "Test Universe Discovery",
+      async discoverInstruments() {
+        return {
+          ok: true,
+          source: "test-discovery",
+          instruments: [
+            {
+              id: "BINANCE:ARBUSDT",
+              symbol: "ARBUSDT",
+              baseAsset: "ARB",
+              quoteAsset: "USDT",
+              exchange: "BINANCE",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+          ],
+        };
+      },
+    },
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ARB"]);
+  assert.equal(snapshot.metadata.coverage?.scanned, 3);
+  assert.match(snapshot.metadata.notes.join("\n"), /dynamic priority: selected ARB/);
+  assert.match(snapshot.metadata.notes.join("\n"), /top ARB/);
+});
+
 test("CoinGlass provider exposes multi-exchange coverage quality in metadata", async () => {
   const provider = createCoinGlassProvider({
     apiKey: "test-key",

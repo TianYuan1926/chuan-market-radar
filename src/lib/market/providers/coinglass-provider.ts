@@ -12,6 +12,7 @@ import {
   buildCoverageReport,
   buildUniverseRegistry,
   planUniverseScan,
+  type UniversePriorityHint,
 } from "../universe-registry";
 import type {
   MarketDataProvider,
@@ -38,6 +39,7 @@ export type CoinGlassProviderOptions = {
   coinGlassDailyRequestBudget?: number;
   fetcher?: typeof fetch;
   ohlcvProvider?: OhlcvProvider;
+  universePriorityHints?: UniversePriorityHint[];
   universeDiscoveryProvider?: UniverseDiscoveryProvider;
   now?: () => Date;
 };
@@ -247,6 +249,7 @@ export function createCoinGlassProvider({
   coinGlassDailyRequestBudget,
   fetcher,
   ohlcvProvider,
+  universePriorityHints,
   universeDiscoveryProvider,
   now = () => new Date(),
 }: CoinGlassProviderOptions): MarketDataProvider {
@@ -278,6 +281,7 @@ export function createCoinGlassProvider({
         initialRegistry,
         quota.effectiveBatchSize,
         scanTime,
+        { priorityHints: universePriorityHints },
       );
       const marketRows = await fetchPairsMarkets({
         apiKey,
@@ -378,6 +382,9 @@ export function createCoinGlassProvider({
             ? `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/${quota.coinGlassDailyRequestBudget} daily (${quota.coinGlassBudgetUsagePercent}%), public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`
             : `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/unconfigured daily, public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`,
           `tier policy: active every ${batchPlan.tierPolicy.activeEveryWindows} windows, long_tail every ${batchPlan.tierPolicy.longTailEveryWindows} windows`,
+          batchPlan.dynamicPriority.enabled
+            ? `dynamic priority: selected ${batchPlan.dynamicPriority.boostedAssets.join(",") || "none"}, top ${batchPlan.dynamicPriority.topAssets.slice(0, 3).map((item) => `${item.baseAsset} ${Math.round(item.score)} ${item.reasons.join("/")}`).join("; ")}`
+            : "dynamic priority: no external hints",
           compactAssetList("base assets", batchPlan.allAssets),
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
           `requests ${batchPlan.requestsPlanned}/${coverage.eligible}, next batch ${batchPlan.nextBatchIndex + 1}`,

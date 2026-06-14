@@ -25,6 +25,42 @@ export type UniverseTierPolicy = {
   longTailEveryWindows: number;
 };
 
+export type UniversePriorityHint = {
+  anomalyScore?: number;
+  baseAsset?: string;
+  historicalSampleSize?: number;
+  historicalWinRate?: number;
+  recentSignalCount?: number;
+  symbol?: string;
+};
+
+export type UniversePriorityReason =
+  | "anomaly"
+  | "history"
+  | "liquidity"
+  | "recent_signal"
+  | "venue_coverage";
+
+export type UniversePriorityDecision = {
+  baseAsset: string;
+  dynamicBoost: number;
+  reasons: UniversePriorityReason[];
+  score: number;
+  staticPriority: number;
+  symbol: string;
+};
+
+export type UniverseDynamicPriorityPlan = {
+  boostedAssets: string[];
+  enabled: boolean;
+  topAssets: UniversePriorityDecision[];
+};
+
+export type PlanUniverseScanOptions = {
+  dynamicPrioritySlots?: number;
+  priorityHints?: UniversePriorityHint[];
+};
+
 export type UniverseAsset = UniverseAssetKey & {
   exchanges: ContractInstrument["exchange"][];
   isAnchor: boolean;
@@ -66,6 +102,7 @@ export type UniverseScanPlan = {
   assets: string[];
   batchIndex: number;
   batchSize: number;
+  dynamicPriority: UniverseDynamicPriorityPlan;
   nextBatchIndex: number;
   pendingAssets: string[];
   requestsPlanned: number;
@@ -106,6 +143,30 @@ function countAssetTiers(assets: UniverseAsset[]): UniverseTierCounts {
   }
 
   return counts;
+}
+
+function clampNumber(value: number | undefined, min: number, max: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, value));
+}
+
+function clampPercent(value: number | undefined) {
+  const normalized = typeof value === "number" && value > 0 && value <= 1
+    ? value * 100
+    : value;
+
+  return clampNumber(normalized, 0, 100);
+}
+
+function clampRatio(value: number | undefined) {
+  const normalized = typeof value === "number" && value > 1 && value <= 100
+    ? value / 100
+    : value;
+
+  return clampNumber(normalized, 0, 1);
 }
 
 function emptyExchangeCoverageSummary(): ExchangeCoverageSummary {
@@ -456,10 +517,142 @@ function estimateTierCycleWindows(
   return Math.max(1, coreCycle, activeCycle, longTailCycle);
 }
 
+type InternalPriorityDecision = UniversePriorityDecision & {
+  asset: UniverseAsset;
+};
+
+function hintKeys(hint: UniversePriorityHint) {
+  return uniqueValues([
+    hint.symbol ? normalizeUniverseAsset(hint.symbol)?.symbol : null,
+    hint.baseAsset ? normalizeUniverseAsset(hint.baseAsset)?.symbol : null,
+  ].filter((value): value is string => value !== null));
+}
+
+function buildPriorityHintMap(hints: UniversePriorityHint[] = []) {
+  const map = new Map<string, UniversePriorityHint>();
+
+  for (const hint of hints) {
+    for (const key of hintKeys(hint)) {
+      map.set(key, hint);
+    }
+  }
+
+  return map;
+}
+
+function venueCoverageBoost(asset: UniverseAsset): number {
+  if (asset.venueCoverage === "major_three") {
+    return 80_000;
+  }
+
+  if (asset.venueCoverage === "multi_exchange") {
+    return 40_000;
+  }
+
+  if (asset.venueCoverage === "single_exchange") {
+    return 10_000;
+  }
+
+  return -15_000;
+}
+
+function dynamicPriorityDecision(
+  asset: UniverseAsset,
+  hint: UniversePriorityHint,
+): InternalPriorityDecision {
+  const reasons: UniversePriorityReason[] = [];
+  const anomalyBoost = Math.round(clampPercent(hint.anomalyScore) * 5_000);
+  const historicalSampleSize = clampNumber(hint.historicalSampleSize, 0, 100);
+  const historicalConfidence = Math.min(1, historicalSampleSize / 20);
+  const historicalBoost = Math.round(
+    (clampRatio(hint.historicalWinRate) - 0.5) * 400_000 * historicalConfidence,
+  );
+  const recentSignalBoost = Math.round(
+    Math.min(5, clampNumber(hint.recentSignalCount, 0, 100)) * 30_000,
+  );
+  const liquidityBoost = asset.volume24hUsd > 0
+    ? Math.min(60_000, Math.round(Math.log10(asset.volume24hUsd) * 6_000))
+    : 0;
+  const coverageBoost = venueCoverageBoost(asset);
+
+  if (anomalyBoost !== 0) {
+    reasons.push("anomaly");
+  }
+
+  if (historicalSampleSize > 0) {
+    reasons.push("history");
+  }
+
+  if (recentSignalBoost !== 0) {
+    reasons.push("recent_signal");
+  }
+
+  if (liquidityBoost !== 0) {
+    reasons.push("liquidity");
+  }
+
+  if (coverageBoost !== 0) {
+    reasons.push("venue_coverage");
+  }
+
+  const dynamicBoost = anomalyBoost + historicalBoost + recentSignalBoost + liquidityBoost + coverageBoost;
+
+  return {
+    asset,
+    baseAsset: asset.baseAsset,
+    dynamicBoost,
+    reasons,
+    score: asset.priority + dynamicBoost,
+    staticPriority: asset.priority,
+    symbol: asset.symbol,
+  };
+}
+
+function buildDynamicPriorityDecisions(
+  assets: UniverseAsset[],
+  hints: UniversePriorityHint[] = [],
+) {
+  const hintsBySymbol = buildPriorityHintMap(hints);
+
+  return assets
+    .map((asset) => {
+      const hint = hintsBySymbol.get(asset.symbol);
+
+      return hint ? dynamicPriorityDecision(asset, hint) : null;
+    })
+    .filter((item): item is InternalPriorityDecision => item !== null)
+    .sort((left, right) =>
+      right.score - left.score ||
+      right.dynamicBoost - left.dynamicBoost ||
+      left.symbol.localeCompare(right.symbol)
+    );
+}
+
+function pickDynamicPriorityAsset(
+  decisions: InternalPriorityDecision[],
+  selectedSymbols: Set<string>,
+) {
+  return decisions.find((decision) =>
+    decision.dynamicBoost > 0 && !selectedSymbols.has(decision.symbol)
+  )?.asset ?? null;
+}
+
+function publicPriorityDecision(decision: InternalPriorityDecision): UniversePriorityDecision {
+  return {
+    baseAsset: decision.baseAsset,
+    dynamicBoost: decision.dynamicBoost,
+    reasons: decision.reasons,
+    score: decision.score,
+    staticPriority: decision.staticPriority,
+    symbol: decision.symbol,
+  };
+}
+
 export function planUniverseScan(
   registry: UniverseRegistry,
   batchSize: number,
   now: Date,
+  options: PlanUniverseScanOptions = {},
 ): UniverseScanPlan {
   const sortedAssets = registry.assets;
   const hasRotatingAssets = sortedAssets.some((asset) => !asset.isAnchor);
@@ -485,9 +678,33 @@ export function planUniverseScan(
     pinnedAnchors.map((asset) => `${asset}USDT`),
   );
   const selectedRotatingAssets: UniverseAsset[] = [];
+  const dynamicPriorityDecisions = buildDynamicPriorityDecisions(
+    rotatingAssetRecords,
+    options.priorityHints,
+  );
+  const defaultDynamicSlots = dynamicPriorityDecisions.length > 0
+    ? Math.max(1, Math.floor(rotatingSlots / 2))
+    : 0;
+  const dynamicPrioritySlots = Math.min(
+    rotatingSlots,
+    Math.max(0, Math.floor(options.dynamicPrioritySlots ?? defaultDynamicSlots)),
+  );
+  const boostedAssets: string[] = [];
 
   for (let slot = 0; slot < rotatingSlots; slot += 1) {
     const slotCursor = cursor * rotatingSlots + slot;
+
+    if (slot < dynamicPrioritySlots) {
+      const dynamicCandidate = pickDynamicPriorityAsset(dynamicPriorityDecisions, selectedSymbols);
+
+      if (dynamicCandidate) {
+        selectedRotatingAssets.push(dynamicCandidate);
+        selectedSymbols.add(dynamicCandidate.symbol);
+        boostedAssets.push(dynamicCandidate.baseAsset);
+        continue;
+      }
+    }
+
     const preferredTiers = preferredTiersForSlot(slotCursor, groups, defaultTierPolicy);
 
     for (const tier of preferredTiers) {
@@ -520,6 +737,11 @@ export function planUniverseScan(
     assets,
     batchIndex,
     batchSize: safeBatchSize,
+    dynamicPriority: {
+      boostedAssets,
+      enabled: dynamicPriorityDecisions.length > 0,
+      topAssets: dynamicPriorityDecisions.slice(0, 8).map(publicPriorityDecision),
+    },
     nextBatchIndex: (batchIndex + 1) % totalBatches,
     pendingAssets,
     requestsPlanned: assets.length,
