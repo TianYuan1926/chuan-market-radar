@@ -16,6 +16,7 @@
 - 当前已安装：`@neondatabase/serverless`
 - 当前已接入：`/api/journal` 已通过 repository 读取和写入
 - 当前已接入：`/api/archive` 已通过 repository 读取扫描归档 bundle
+- 当前已接入：每日异动归因复盘快照可通过 repository 写入、列表读取和按 id 读取
 - 当前已接入：`/api/health` 会读取 repository 模式，并把 `memory` / `database` 显示为系统健康状态的一部分
 - 当前已接入：`appPersistenceDiagnostics` 会记录数据库是 `unconfigured`、`fallback` 还是 `ready`
 - 当前已接入：`app-repository` 会在 `DATABASE_DRIVER=neon` 且存在 Neon 连接串时自动创建 Neon SQL client
@@ -44,7 +45,8 @@
 5. 在 server-only 入口创建 `createDatabaseAwarePersistenceRepository({ env: process.env, client })`。
 6. `/api/journal` 先写入 `journal_events`，再读取当前日志重新计算并 upsert `rank_profiles`。
 7. 扫描 runtime 写入 `scan_archives`，`/api/archive` 通过 repository 读取列表、回放帧和最近两次扫描对比。
-8. 保留内存 fallback，只能作为数据库失败时的临时降级，不能在 UI 上说成永久保存。
+8. 每日异动归因复盘写入 `daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`，后续由数据源适配器和定时任务触发。
+9. 保留内存 fallback，只能作为数据库失败时的临时降级，不能在 UI 上说成永久保存。
 
 ## Neon 环境变量
 
@@ -87,10 +89,11 @@ Vercel 生产环境建议先填这几项：
 - 如果没有传入真实 `SqlClient`，即使配置了数据库 URL，也会回落到内存 repository，保证预览不会崩。
 - Postgres repository 只依赖通用 `query(sql, params)`，避免现在锁死 Neon 或 Supabase。
 - `runPersistenceSchemaMigration(client)` 可用于上线前通过注入的 SQL client 执行当前持久化 schema。
-- 每日异动归因复盘当前只落地持久化 schema 和 record 转换合同，尚未接入 repository 写入和定时采集。
+- 每日异动归因复盘已落地持久化 schema、record 转换合同和 repository 写入/查询；尚未接入真实榜单数据源和定时采集。
 - `runAdminPersistenceMigration()` 负责迁移入口的 secret 校验、Neon 激活校验和迁移结果归一化。
 - `addJournalEvent()` 会写入日志后重新读取当前日志样本，再派生段位状态，避免只凭单条新日志计算段位。
 - `addScanArchive()` 会保存扫描摘要和轻量 replay frame；`getScanReplayFrame()` 和 `compareLatestScanArchives()` 负责回放与最近两轮对比。
+- `addDailyMoverSnapshot()` 会保存每日涨跌幅榜快照、上榜资产、归因复盘和雷达命中/漏判结果；`listDailyMoverSnapshots()` 与 `getDailyMoverSnapshot()` 负责读取复盘样本。
 - `buildSystemHealthReport()` 会把当前 repository 模式暴露给页面和 `/api/health`，避免只填环境变量却误以为已经持久化。
 - 所有 SQL 写入都使用参数数组，不拼接用户输入。
 

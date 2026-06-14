@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { JournalEvent } from "@/lib/analysis/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
+import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
 import type { ScanArchiveSummary, ScanReplayFrame } from "@/lib/market/types";
 import {
   createMemoryPersistenceRepository,
@@ -115,6 +116,51 @@ function rankProfile(): RankProfile {
   };
 }
 
+function dailyMoverSnapshot(overrides: Partial<DailyMoverSnapshot> = {}): DailyMoverSnapshot {
+  return {
+    id: "daily-movers-2026-06-14",
+    source: "coinglass",
+    observedAt: "2026-06-14T00:00:00.000Z",
+    gainers: [
+      {
+        id: "mover-sol-2026-06-14",
+        symbol: "SOL",
+        exchange: "BINANCE",
+        direction: "gainer",
+        rank: 1,
+        observedAt: "2026-06-14T00:00:00.000Z",
+        priceChangePercent: 38.4,
+        volume24hUsd: 720_000_000,
+        openInterestChangePercent: 31,
+        fundingRate: 0.0009,
+        liquidationUsd24h: 18_000_000,
+      },
+    ],
+    losers: [],
+    reviews: [
+      {
+        id: "mover-sol-2026-06-14",
+        symbol: "SOL",
+        direction: "gainer",
+        observedAt: "2026-06-14T00:00:00.000Z",
+        allowedUse: "research_only",
+        guardrail: "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。",
+        attribution: {
+          primaryDrivers: ["volume_expansion", "open_interest_expansion"],
+          evidenceStrength: "strong",
+          learnability: "learnable",
+        },
+        radarReview: {
+          status: "caught",
+          matchedSignalIds: ["sig-sol-compression"],
+          improvementTags: [],
+        },
+      },
+    ],
+    ...overrides,
+  };
+}
+
 test("detectPersistenceMode keeps local preview on memory unless a database URL exists", () => {
   assert.deepEqual(detectPersistenceMode({}), {
     mode: "memory",
@@ -188,6 +234,33 @@ test("memory repository stores journal events, derives rank state, and keeps sca
     statusChanged: false,
     sourceChanged: false,
   });
+});
+
+test("memory repository stores and reads daily mover snapshots newest first", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const older = dailyMoverSnapshot({
+    id: "daily-movers-2026-06-13",
+    observedAt: "2026-06-13T00:00:00.000Z",
+  });
+  const newer = dailyMoverSnapshot({
+    id: "daily-movers-2026-06-14",
+    observedAt: "2026-06-14T00:00:00.000Z",
+  });
+
+  await repository.addDailyMoverSnapshot(older);
+  const added = await repository.addDailyMoverSnapshot(newer);
+  const snapshots = await repository.listDailyMoverSnapshots();
+  const byId = await repository.getDailyMoverSnapshot("daily-movers-2026-06-13");
+  const latest = await repository.getDailyMoverSnapshot();
+
+  assert.equal(added.id, "daily-movers-2026-06-14");
+  assert.deepEqual(snapshots.map((snapshot) => snapshot.id), [
+    "daily-movers-2026-06-14",
+    "daily-movers-2026-06-13",
+  ]);
+  assert.equal(byId?.observedAt, "2026-06-13T00:00:00.000Z");
+  assert.equal(latest?.id, "daily-movers-2026-06-14");
+  assert.equal(latest?.reviews[0]?.allowedUse, "research_only");
 });
 
 test("postgres repository uses parameterized queries and maps durable records back to domain objects", async () => {
@@ -359,6 +432,65 @@ test("postgres repository uses parameterized queries and maps durable records ba
   assert.equal(client.calls[6]?.params[1], 1);
   assert.equal(client.calls[7]?.params[1], "scan-2026-06-12T10-15");
   assert.equal(client.calls[8]?.params[1], 2);
+});
+
+test("postgres repository writes and reads daily mover snapshots through durable tables", async () => {
+  const client = new RecordingSqlClient();
+  const snapshot = dailyMoverSnapshot();
+  client.responses.push(
+    { rows: [] },
+    { rows: [] },
+    { rows: [] },
+    { rows: [] },
+    {
+      rows: [
+        {
+          id: snapshot.id,
+          scope: "chuan-public",
+          source: snapshot.source,
+          observed_at: snapshot.observedAt,
+          gainer_count: 1,
+          loser_count: 0,
+          payload: snapshot,
+        },
+      ],
+    },
+    {
+      rows: [
+        {
+          id: snapshot.id,
+          scope: "chuan-public",
+          source: snapshot.source,
+          observed_at: snapshot.observedAt,
+          gainer_count: 1,
+          loser_count: 0,
+          payload: snapshot,
+        },
+      ],
+    },
+  );
+  const repository = createPostgresPersistenceRepository({ client, scope: "chuan-public" });
+
+  const added = await repository.addDailyMoverSnapshot(snapshot);
+  const snapshots = await repository.listDailyMoverSnapshots(5);
+  const byId = await repository.getDailyMoverSnapshot(snapshot.id);
+
+  assert.equal(added.id, snapshot.id);
+  assert.equal(snapshots[0]?.reviews[0]?.radarReview.status, "caught");
+  assert.equal(byId?.gainers[0]?.symbol, "SOL");
+  assert.match(client.calls[0]?.sql ?? "", /insert into daily_mover_snapshots/i);
+  assert.match(client.calls[1]?.sql ?? "", /insert into daily_mover_assets/i);
+  assert.match(client.calls[2]?.sql ?? "", /insert into mover_attribution_reviews/i);
+  assert.match(client.calls[3]?.sql ?? "", /insert into radar_miss_reviews/i);
+  assert.match(client.calls[4]?.sql ?? "", /select \* from daily_mover_snapshots/i);
+  assert.match(client.calls[5]?.sql ?? "", /select \* from daily_mover_snapshots/i);
+  assert.equal(client.calls[0]?.params[0], "daily-movers-2026-06-14");
+  assert.equal(client.calls[0]?.params[1], "chuan-public");
+  assert.equal(client.calls[1]?.params[3], "SOL");
+  assert.deepEqual(client.calls[2]?.params[7], ["volume_expansion", "open_interest_expansion"]);
+  assert.deepEqual(client.calls[3]?.params[4], ["sig-sol-compression"]);
+  assert.deepEqual(client.calls[4]?.params, ["chuan-public", 5]);
+  assert.deepEqual(client.calls[5]?.params, ["chuan-public", snapshot.id]);
 });
 
 test("repository factory falls back to memory when database mode is configured without a client", () => {

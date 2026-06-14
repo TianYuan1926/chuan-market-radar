@@ -1,15 +1,18 @@
 import type { JournalEvent } from "../analysis/types";
 import { createJournalStore } from "../journal/journal-store";
 import { buildRankProfile, type RankProfile } from "../journal/rank-engine";
+import type { DailyMoverSnapshot } from "../market/daily-movers";
 import { compareScanReplayFrames } from "../market/scan-archive";
 import type { ScanArchiveSummary, ScanComparison, ScanReplayFrame } from "../market/types";
 import {
+  dailyMoverSnapshotToRecords,
   journalEventRecordToEvent,
   journalEventToRecord,
   rankProfileRecordToProfile,
   rankProfileToRecord,
   scanArchiveRecordToSummary,
   scanArchiveToRecord,
+  type PersistedDailyMoverSnapshotRecord,
   type PersistedJournalEventRecord,
   type PersistedRankProfileRecord,
   type PersistedScanArchiveRecord,
@@ -44,18 +47,23 @@ export type PersistenceRepository = {
   listScanArchives: (limit?: number) => Promise<ScanArchiveSummary[]>;
   getScanReplayFrame: (id?: string) => Promise<ScanReplayFrame | null>;
   compareLatestScanArchives: () => Promise<ScanComparison | null>;
+  addDailyMoverSnapshot: (snapshot: DailyMoverSnapshot) => Promise<DailyMoverSnapshot>;
+  listDailyMoverSnapshots: (limit?: number) => Promise<DailyMoverSnapshot[]>;
+  getDailyMoverSnapshot: (id?: string) => Promise<DailyMoverSnapshot | null>;
 };
 
 export type MemoryPersistenceRepositoryOptions = {
   scope?: PersistenceScope;
   initialJournalEvents?: JournalEvent[];
   maxScanArchives?: number;
+  maxDailyMoverSnapshots?: number;
 };
 
 export type PostgresPersistenceRepositoryOptions = {
   client: SqlClient;
   scope?: PersistenceScope;
   rankRebuildLimit?: number;
+  maxDailyMoverSnapshots?: number;
 };
 
 export type CreatePersistenceRepositoryOptions = {
@@ -64,11 +72,13 @@ export type CreatePersistenceRepositoryOptions = {
   scope?: PersistenceScope;
   initialJournalEvents?: JournalEvent[];
   maxScanArchives?: number;
+  maxDailyMoverSnapshots?: number;
 };
 
 const defaultScope = "public-demo";
 const defaultJournalLimit = 500;
 const defaultArchiveLimit = 24;
+const defaultDailyMoverSnapshotLimit = 30;
 
 function resolveScope(scope?: string) {
   const trimmed = scope?.trim();
@@ -86,6 +96,23 @@ function sortArchives(records: PersistedScanArchiveRecord[]) {
   return [...records].sort(
     (left, right) => sortableTime(right.generated_at) - sortableTime(left.generated_at),
   );
+}
+
+function sortDailyMoverSnapshots(snapshots: DailyMoverSnapshot[]) {
+  return [...snapshots].sort(
+    (left, right) => sortableTime(right.observedAt) - sortableTime(left.observedAt),
+  );
+}
+
+function dailyMoverSnapshotRecordToSnapshot(
+  record: PersistedDailyMoverSnapshotRecord,
+): DailyMoverSnapshot {
+  return {
+    ...record.payload,
+    id: record.id,
+    source: record.source,
+    observedAt: record.observed_at,
+  };
 }
 
 export function detectPersistenceMode(env: PersistenceEnv = {}): PersistenceModeDecision {
@@ -109,10 +136,12 @@ export function detectPersistenceMode(env: PersistenceEnv = {}): PersistenceMode
 export function createMemoryPersistenceRepository({
   initialJournalEvents = [],
   maxScanArchives = defaultArchiveLimit,
+  maxDailyMoverSnapshots = defaultDailyMoverSnapshotLimit,
   scope = defaultScope,
 }: MemoryPersistenceRepositoryOptions = {}): PersistenceRepository {
   const journalStore = createJournalStore(initialJournalEvents);
   let archives: PersistedScanArchiveRecord[] = [];
+  let dailyMoverSnapshots: DailyMoverSnapshot[] = [];
   let rankProfile = buildRankProfile(journalStore.list());
   const resolvedScope = resolveScope(scope);
 
@@ -172,11 +201,31 @@ export function createMemoryPersistenceRepository({
 
       return compareScanReplayFrames(previous.payload.replayFrame, current.payload.replayFrame);
     },
+
+    async addDailyMoverSnapshot(snapshot) {
+      dailyMoverSnapshots = sortDailyMoverSnapshots([
+        snapshot,
+        ...dailyMoverSnapshots.filter((entry) => entry.id !== snapshot.id),
+      ]).slice(0, maxDailyMoverSnapshots);
+
+      return snapshot;
+    },
+
+    async listDailyMoverSnapshots(limit = maxDailyMoverSnapshots) {
+      return dailyMoverSnapshots.slice(0, limit);
+    },
+
+    async getDailyMoverSnapshot(id) {
+      return id
+        ? dailyMoverSnapshots.find((entry) => entry.id === id) ?? null
+        : dailyMoverSnapshots[0] ?? null;
+    },
   };
 }
 
 export function createPostgresPersistenceRepository({
   client,
+  maxDailyMoverSnapshots = defaultDailyMoverSnapshotLimit,
   rankRebuildLimit = defaultJournalLimit,
   scope = defaultScope,
 }: PostgresPersistenceRepositoryOptions): PersistenceRepository {
@@ -202,6 +251,20 @@ limit $2
 select * from scan_archives
 where scope = $1
 order by generated_at desc
+limit $2
+`.trim(),
+      [resolvedScope, limit],
+    );
+
+    return result.rows;
+  }
+
+  async function listDailyMoverSnapshotRecords(limit = maxDailyMoverSnapshots) {
+    const result = await client.query<PersistedDailyMoverSnapshotRecord>(
+      `
+select * from daily_mover_snapshots
+where scope = $1
+order by observed_at desc
 limit $2
 `.trim(),
       [resolvedScope, limit],
@@ -402,6 +465,178 @@ limit 1
 
       return compareScanReplayFrames(previous.payload.replayFrame, current.payload.replayFrame);
     },
+
+    async addDailyMoverSnapshot(snapshot) {
+      const records = dailyMoverSnapshotToRecords(snapshot, resolvedScope);
+      const snapshotRecord = records.snapshot;
+
+      await client.query(
+        `
+insert into daily_mover_snapshots (
+  id,
+  scope,
+  source,
+  observed_at,
+  gainer_count,
+  loser_count,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7)
+on conflict (scope, id) do update set
+  source = excluded.source,
+  observed_at = excluded.observed_at,
+  gainer_count = excluded.gainer_count,
+  loser_count = excluded.loser_count,
+  payload = excluded.payload
+`.trim(),
+        [
+          snapshotRecord.id,
+          snapshotRecord.scope,
+          snapshotRecord.source,
+          snapshotRecord.observed_at,
+          snapshotRecord.gainer_count,
+          snapshotRecord.loser_count,
+          snapshotRecord.payload,
+        ],
+      );
+
+      for (const asset of records.assets) {
+        await client.query(
+          `
+insert into daily_mover_assets (
+  scope,
+  snapshot_id,
+  mover_id,
+  symbol,
+  exchange,
+  direction,
+  rank,
+  observed_at,
+  price_change_percent,
+  volume_24h_usd,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+on conflict (scope, snapshot_id, mover_id) do update set
+  symbol = excluded.symbol,
+  exchange = excluded.exchange,
+  direction = excluded.direction,
+  rank = excluded.rank,
+  observed_at = excluded.observed_at,
+  price_change_percent = excluded.price_change_percent,
+  volume_24h_usd = excluded.volume_24h_usd,
+  payload = excluded.payload
+`.trim(),
+          [
+            asset.scope,
+            asset.snapshot_id,
+            asset.mover_id,
+            asset.symbol,
+            asset.exchange,
+            asset.direction,
+            asset.rank,
+            asset.observed_at,
+            asset.price_change_percent,
+            asset.volume_24h_usd,
+            asset.payload,
+          ],
+        );
+      }
+
+      for (const review of records.attributionReviews) {
+        await client.query(
+          `
+insert into mover_attribution_reviews (
+  scope,
+  mover_id,
+  symbol,
+  direction,
+  observed_at,
+  evidence_strength,
+  learnability,
+  primary_drivers,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+on conflict (scope, mover_id) do update set
+  symbol = excluded.symbol,
+  direction = excluded.direction,
+  observed_at = excluded.observed_at,
+  evidence_strength = excluded.evidence_strength,
+  learnability = excluded.learnability,
+  primary_drivers = excluded.primary_drivers,
+  payload = excluded.payload
+`.trim(),
+          [
+            review.scope,
+            review.mover_id,
+            review.symbol,
+            review.direction,
+            review.observed_at,
+            review.evidence_strength,
+            review.learnability,
+            review.primary_drivers,
+            review.payload,
+          ],
+        );
+      }
+
+      for (const review of records.radarReviews) {
+        await client.query(
+          `
+insert into radar_miss_reviews (
+  scope,
+  mover_id,
+  symbol,
+  status,
+  matched_signal_ids,
+  improvement_tags,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7)
+on conflict (scope, mover_id) do update set
+  symbol = excluded.symbol,
+  status = excluded.status,
+  matched_signal_ids = excluded.matched_signal_ids,
+  improvement_tags = excluded.improvement_tags,
+  payload = excluded.payload
+`.trim(),
+          [
+            review.scope,
+            review.mover_id,
+            review.symbol,
+            review.status,
+            review.matched_signal_ids,
+            review.improvement_tags,
+            review.payload,
+          ],
+        );
+      }
+
+      return dailyMoverSnapshotRecordToSnapshot(snapshotRecord);
+    },
+
+    async listDailyMoverSnapshots(limit = maxDailyMoverSnapshots) {
+      return (await listDailyMoverSnapshotRecords(limit)).map(dailyMoverSnapshotRecordToSnapshot);
+    },
+
+    async getDailyMoverSnapshot(id) {
+      const result = await client.query<PersistedDailyMoverSnapshotRecord>(
+        id
+          ? `
+select * from daily_mover_snapshots
+where scope = $1 and id = $2
+limit 1
+`.trim()
+          : `
+select * from daily_mover_snapshots
+where scope = $1
+order by observed_at desc
+limit 1
+`.trim(),
+        id ? [resolvedScope, id] : [resolvedScope],
+      );
+
+      return result.rows[0]
+        ? dailyMoverSnapshotRecordToSnapshot(result.rows[0])
+        : null;
+    },
   };
 }
 
@@ -409,6 +644,7 @@ export function createPersistenceRepository({
   client,
   env = {},
   initialJournalEvents = [],
+  maxDailyMoverSnapshots = defaultDailyMoverSnapshotLimit,
   maxScanArchives = defaultArchiveLimit,
   scope,
 }: CreatePersistenceRepositoryOptions = {}): PersistenceRepository {
@@ -416,11 +652,16 @@ export function createPersistenceRepository({
   const resolvedScope = resolveScope(scope ?? decision.scope);
 
   if (decision.mode === "database" && client) {
-    return createPostgresPersistenceRepository({ client, scope: resolvedScope });
+    return createPostgresPersistenceRepository({
+      client,
+      maxDailyMoverSnapshots,
+      scope: resolvedScope,
+    });
   }
 
   return createMemoryPersistenceRepository({
     initialJournalEvents,
+    maxDailyMoverSnapshots,
     maxScanArchives,
     scope: resolvedScope,
   });

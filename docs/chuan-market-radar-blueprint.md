@@ -77,6 +77,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 4：OHLCV 与技术指标 | 基础已落地 | 尚未完成多周期指标矩阵、MACD、成交量分布 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
+| 阶段 6B：每日异动归因复盘 | 逻辑、schema、repository 已落地 | 尚未接入真实涨跌幅榜数据源、定时采集和 UI |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未有 Telegram/Webhook、持久化告警历史、多设备推送 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
 
@@ -102,6 +103,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `journal_events`：复盘日记、纸面跟踪、拒绝追单、失效记录。
 - `scan_archives`：扫描快照、回放 frame、最近扫描对比。
 - `rank_profiles`：段位、XP、纪律分、宠物状态。
+- `daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`：每日涨跌幅榜归因复盘样本。
 - `DATABASE_DRIVER=neon` 且存在 `DATABASE_URL` 时可创建 Neon SQL client。
 - 管理迁移接口受 `CRON_SECRET` 保护。
 
@@ -358,6 +360,24 @@ AI 复核必须遵守：
   - 哪些因子连续有效就升权。
   - 未验证规则进入实验区。
   - 坏规则从决策逻辑删除，只保留反面样本。
+
+### 部分落地：每日异动归因复盘
+
+每日异动归因复盘用于把合约涨幅榜和跌幅榜转成可学习样本，回答“为什么涨跌、涨跌前发生了什么、雷达是否提前发现、漏判原因是什么”。
+
+当前已经完成：
+
+- 纯逻辑底座：`DailyMover`、`PreMoveWindow`、`MoverAttribution`、`RadarMoverReview`、`DailyMoverSnapshot`。
+- 持久化 schema：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
+- repository 写入和查询：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
+- 安全边界：输出必须保持 `allowedUse: "research_only"`，只能用于归因复盘、样本库和规则校准。
+
+后续需要：
+
+- 接入真实涨跌幅榜数据源，把外部榜单标准化为 `DailyMoverSnapshot`。
+- 与扫描归档、复盘日记和规则校准建议关联。
+- 建立每日定时归因任务。
+- 最后再做 UI 展示，且 UI 不能把涨跌幅榜包装成交易信号。
 
 ### 部分落地：告警系统
 
