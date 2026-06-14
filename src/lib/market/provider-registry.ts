@@ -1,7 +1,7 @@
 import type { MarketDataProvider } from "@/lib/market/types";
 import { mockMarketProvider } from "./providers/mock-market-provider";
 import { createCoinGlassProvider } from "./providers/coinglass-provider";
-import { createBinanceUniverseDiscoveryProvider } from "./providers/binance-universe-discovery";
+import { createPublicFuturesUniverseDiscoveryProvider } from "./providers/public-futures-universe-discovery";
 
 export type ProviderEnv = {
   MARKET_DATA_PROVIDER?: string;
@@ -35,7 +35,7 @@ export function getConfiguredMarketProvider(
       apiKey: env.COINGLASS_API_KEY,
       baseAssets: parseBaseAssets(env.COINGLASS_BASE_ASSETS),
       batchSize: Number.isFinite(batchSize) ? batchSize : 3,
-      universeDiscoveryProvider: createBinanceUniverseDiscoveryProvider(),
+      universeDiscoveryProvider: createPublicFuturesUniverseDiscoveryProvider(),
     });
   }
 

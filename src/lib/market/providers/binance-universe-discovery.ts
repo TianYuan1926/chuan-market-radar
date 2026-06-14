@@ -15,6 +15,7 @@ export type UniverseDiscoverySuccess = {
   ok: true;
   source: string;
   instruments: ContractInstrument[];
+  notes?: string[];
 };
 
 export type UniverseDiscoveryFailure = {
@@ -22,6 +23,7 @@ export type UniverseDiscoveryFailure = {
   source: string;
   reason: "upstream_error" | "invalid_response" | "network_error";
   error: string;
+  notes?: string[];
   status?: number;
 };
 

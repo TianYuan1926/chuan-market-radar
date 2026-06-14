@@ -83,7 +83,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | --- | --- | --- |
 | 阶段 1：蓝图固化 | 已完成 | 后续每轮继续维护本文，防止上下文压缩造成遗漏 |
 | 阶段 2：真正多周期分析引擎 | 基础已落地 | 真实多周期 OHLCV candles 尚未全量接入每个币种 |
-| 阶段 3：合约 universe registry | 基础、Binance USDT 永续自动发现、分层币池和低频轮转已落地 | 尚未接入 OKX/Bybit 自动发现、多交易所覆盖差异和动态优先级 |
+| 阶段 3：合约 universe registry | 基础、Binance/OKX/Bybit USDT 永续自动发现、分层币池和低频轮转已落地 | 尚未完成多交易所覆盖差异、API quota 估算和动态优先级 |
 | 阶段 4：OHLCV 与技术指标 | 基础已落地 | 尚未完成多周期指标矩阵、MACD、成交量分布 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
@@ -223,10 +223,12 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - CoinGlass provider 已把 universe coverage 写入 `metadata.coverage`。
 - 系统状态面板已显示扫描覆盖摘要。
 - 已新增 Binance public futures `exchangeInfo` 自动发现入口，筛选 `TRADING`、`PERPETUAL`、`USDT` 合约。
-- CoinGlass provider 会把 Binance 发现到的 USDT 永续合约并入 universe scan plan；发现失败时回退到配置白名单并在 metadata notes 中显示原因。
+- 已新增 OKX public instruments 自动发现入口，筛选 `SWAP`、`linear`、`live`、`USDT` 合约。
+- 已新增 Bybit V5 public instruments 自动发现入口，筛选 `linear`、`LinearPerpetual`、`Trading`、`USDT` 合约，并支持 cursor 分页。
+- CoinGlass provider 会把 Binance/OKX/Bybit 发现到的 USDT 永续合约并入 universe scan plan；某个交易所发现失败时不会拖垮整个扫描，所有交易所都失败时才回退到配置白名单并在 metadata notes 中显示原因。
 - 已支持分层币池：BTC/ETH 为 anchor，配置白名单和高流动性币为 core，中等流动性币为 active，仅被发现但未验证流动性的币先归为 long_tail。
 - 已支持长尾低频抽样轮转：在 `COINGLASS_BATCH_SIZE=3` 这类小批次下，BTC/ETH 固定保留，core 优先轮转，long_tail 默认每 8 个扫描窗口抽样一次，避免 CoinGlass 业余会员被全市场发现打爆。
-- CoinGlass provider 已在 metadata notes 中输出 tiered universe 和 tier policy，便于线上检查当前币池结构。
+- CoinGlass provider 已在 metadata notes 中输出每个 discovery source、tiered universe 和 tier policy，便于线上检查当前币池结构。
 
 ### 已落地：AI 反证复核边界
 
@@ -269,14 +271,13 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance public futures USDT 永续自动发现、分层币池和长尾低频轮转。资产池已不只依赖 `COINGLASS_BASE_ASSETS`，但还没有完成 OKX/Bybit 覆盖、多交易所覆盖差异和基于历史胜率的动态优先级。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池和长尾低频轮转。资产池已不只依赖 `COINGLASS_BASE_ASSETS`，但还没有完成多交易所覆盖差异、API quota 消耗估计和基于历史胜率的动态优先级。
 
 后续需要：
 
-- OKX/Bybit 支持合约交易币种列表。
+- Binance/OKX/Bybit 支持合约交易币种列表已具备自动发现基础。
 - 多交易所覆盖状态。
 - API quota 消耗估计。
-- 从 OKX/Bybit public instruments 自动发现全量 USDT perpetual。
 - 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描已具备基础策略，后续需要接入历史命中率和异常热度做动态调整。
 - 高优先级币种加密扫描需要在 quota 统计和外部 cron 稳定后再打开。
@@ -596,7 +597,7 @@ CoinGlass 业余会员 API：
 
 目标：管理所有支持合约交易的币种，并显示扫描覆盖率。
 
-当前状态：基础已完成，Binance USDT 永续自动发现已完成，分层币池和长尾低频轮转已完成，OKX/Bybit 和多交易所覆盖差异未完成。
+当前状态：基础已完成，Binance/OKX/Bybit USDT 永续自动发现已完成，分层币池和长尾低频轮转已完成，多交易所覆盖差异和动态优先级未完成。
 
 已具备：
 
@@ -605,12 +606,13 @@ CoinGlass 业余会员 API：
 - 有覆盖率展示。
 - 有未扫描原因。
 - 有 Binance public futures exchangeInfo 自动发现。
+- 有 OKX public instruments 自动发现。
+- 有 Bybit V5 public instruments 自动发现和分页读取。
 - 有 anchor/core/active/long_tail 分层。
 - 有 long_tail 低频抽样轮转策略。
 
 下一步深化：
 
-- 从 OKX/Bybit public instruments 自动发现全量 USDT perpetual。
 - 记录不同交易所对同一币种的覆盖差异。
 - 按 liquidity、异常程度和历史有效性动态调整扫描优先级。
 
