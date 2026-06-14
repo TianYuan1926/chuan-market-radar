@@ -454,6 +454,12 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
 
   return (
     <main className="studio-shell">
+      <div className="studio-scan-grid" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+
       <header className="topline">
         <div className="brand">
           <div className="brand-mark">川</div>
@@ -562,6 +568,19 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
                 <div className="metric"><span className="mono">ANOMALY</span><strong>{metadata.anomalyCount.toString().padStart(2, "0")}</strong></div>
                 <div className="metric"><span className="mono">CANDIDATE</span><strong>{signals.length.toString().padStart(2, "0")}</strong></div>
                 <div className="metric"><span className="mono">RISK GATE</span><strong>{metadata.riskGate.toUpperCase()}</strong></div>
+              </div>
+              <div className="signal-rhythm" aria-label="候选强度节奏">
+                {signals.slice(0, 6).map((signal) => (
+                  <button
+                    className={`signal-rhythm__bar signal-rhythm__bar--${signal.direction}`}
+                    key={`rhythm-${signal.id}`}
+                    onClick={() => selectSignal(signal.id)}
+                    type="button"
+                  >
+                    <i style={{ height: `${Math.max(18, Math.min(signal.confidence, 96))}%` }} />
+                    <span>{signal.symbol.replace("USDT", "")}</span>
+                  </button>
+                ))}
               </div>
             </div>
 

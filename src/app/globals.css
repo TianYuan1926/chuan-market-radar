@@ -119,6 +119,41 @@ p {
   padding: 18px 0 34px;
 }
 
+.studio-scan-grid {
+  position: absolute;
+  inset: 96px -14px auto;
+  z-index: 0;
+  height: 520px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.72;
+  background:
+    linear-gradient(90deg, transparent 0 24px, rgba(21, 23, 28, 0.07) 24px 25px, transparent 25px 48px),
+    linear-gradient(180deg, transparent 0 24px, rgba(21, 23, 28, 0.055) 24px 25px, transparent 25px 48px);
+  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 64%, transparent);
+}
+
+.studio-scan-grid span {
+  position: absolute;
+  right: 8%;
+  left: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(55, 90, 255, 0.28), rgba(213, 155, 61, 0.52), transparent);
+  box-shadow: 0 0 22px rgba(213, 155, 61, 0.24);
+  transform: translateX(-18%);
+  animation: scanLane 8.8s var(--curve) infinite;
+}
+
+.studio-scan-grid span:nth-child(1) { top: 16%; }
+.studio-scan-grid span:nth-child(2) { top: 43%; animation-delay: 1.4s; }
+.studio-scan-grid span:nth-child(3) { top: 72%; animation-delay: 2.8s; }
+
+.studio-shell > .topline,
+.studio-shell > .studio-workspace {
+  position: relative;
+  z-index: 1;
+}
+
 .topline {
   position: relative;
   display: grid;
@@ -614,6 +649,63 @@ p {
   line-height: 1;
 }
 
+.signal-rhythm {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+  min-height: 58px;
+  margin-top: 10px;
+}
+
+.signal-rhythm__bar {
+  position: relative;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  min-width: 0;
+  min-height: 58px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 4px 5px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.68), rgba(255, 255, 255, 0.24)),
+    repeating-linear-gradient(180deg, transparent 0 8px, rgba(21, 23, 28, 0.045) 8px 9px);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 240ms var(--curve), box-shadow 240ms var(--curve), transform 240ms var(--curve);
+}
+
+.signal-rhythm__bar:hover,
+.signal-rhythm__bar:focus-visible {
+  border-color: var(--line-strong);
+  box-shadow: 0 10px 24px rgba(21, 23, 28, 0.08);
+  transform: translateY(-2px);
+}
+
+.signal-rhythm__bar i {
+  width: 52%;
+  min-height: 10px;
+  border-radius: 3px 3px 1px 1px;
+  background: var(--amber);
+  box-shadow: 0 0 18px rgba(213, 155, 61, 0.26);
+}
+
+.signal-rhythm__bar--long i { background: var(--green); }
+.signal-rhythm__bar--short i { background: var(--red); }
+
+.signal-rhythm__bar span {
+  width: 100%;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .signal-map {
   position: relative;
   min-height: 308px;
@@ -1058,7 +1150,7 @@ p {
 
 .pet-plate {
   position: relative;
-  min-height: 274px;
+  min-height: 322px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1143,6 +1235,59 @@ p {
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 10px;
 }
+
+.s680-dashboard {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0 12px 10px;
+}
+
+.s680-vital {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(21, 23, 28, 0.18);
+  border-radius: 7px;
+  padding: 7px 7px 8px;
+  background: rgba(255, 250, 240, 0.7);
+}
+
+.s680-vital span,
+.s680-vital b {
+  position: relative;
+  z-index: 2;
+  display: block;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  line-height: 1;
+}
+
+.s680-vital span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.s680-vital b {
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.s680-vital i {
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--amber);
+  box-shadow: 0 0 14px rgba(213, 155, 61, 0.34);
+}
+
+.s680-vital:nth-child(1) i { background: var(--green); }
+.s680-vital:nth-child(2) i { background: var(--blue); }
+.s680-vital:nth-child(3) i { background: var(--red); }
 
 .s680-stage {
   position: relative;
@@ -2322,6 +2467,12 @@ p {
   0%, 24% { transform: translateX(-48%); opacity: 0; }
   44% { opacity: 0.95; }
   100% { transform: translateX(48%); opacity: 0; }
+}
+
+@keyframes scanLane {
+  0%, 18% { transform: translateX(-22%); opacity: 0; }
+  36% { opacity: 0.72; }
+  100% { transform: translateX(22%); opacity: 0; }
 }
 
 @keyframes crosshairSweep {

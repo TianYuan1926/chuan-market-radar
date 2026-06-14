@@ -44,6 +44,27 @@ test("public radar shell does not label the live site as demo data", () => {
   assert.match(workspaceSource, /CoinGlass/);
 });
 
+test("radar UI exposes premium pixel cockpit anchors without relying on prose", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const petSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(workspaceSource, /studio-scan-grid/);
+  assert.match(workspaceSource, /signal-rhythm/);
+  assert.match(petSource, /s680-dashboard/);
+  assert.match(petSource, /s680-vital/);
+  assert.match(cssSource, /\.studio-scan-grid/);
+  assert.match(cssSource, /\.signal-rhythm/);
+  assert.match(cssSource, /\.s680-dashboard/);
+  assert.match(cssSource, /prefers-reduced-motion/);
+});
+
 test("external scan scheduler calls the protected scan endpoint without hard-coded secrets", () => {
   const workflowSource = readFileSync(
     resolve(process.cwd(), ".github/workflows/chuan-scan-cron.yml"),

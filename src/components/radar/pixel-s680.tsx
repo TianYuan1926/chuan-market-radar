@@ -7,6 +7,9 @@ type PixelS680Props = {
 
 export function PixelS680({ mood, rankProfile }: PixelS680Props) {
   const moodLabel = mood === "serious" ? "BRAKE" : mood === "alert" ? "ALERT" : "CALM";
+  const discipline = rankProfile?.disciplineScore ?? (mood === "serious" ? 42 : mood === "alert" ? 68 : 76);
+  const momentum = rankProfile?.recentMomentum ?? (mood === "alert" ? 8 : mood === "serious" ? -6 : 2);
+  const heat = mood === "serious" ? 91 : mood === "alert" ? 74 : 36;
   const line = rankProfile?.petMood === mood
     ? rankProfile.petLine
     : mood === "serious"
@@ -31,6 +34,24 @@ export function PixelS680({ mood, rankProfile }: PixelS680Props) {
             <span>{moodLabel}</span>
             <span>{rankProfile ? `${rankProfile.totalXp} XP` : "+1 XP"}</span>
             <span>{rankProfile?.tier.label ?? "RANK"}</span>
+          </div>
+        </div>
+
+        <div className="s680-dashboard" aria-label="S680 copilot telemetry">
+          <div className="s680-vital">
+            <span>DISC</span>
+            <b>{discipline}%</b>
+            <i style={{ width: `${discipline}%` }} />
+          </div>
+          <div className="s680-vital">
+            <span>MOM</span>
+            <b>{momentum > 0 ? `+${momentum}` : momentum}</b>
+            <i style={{ width: `${Math.min(100, Math.abs(momentum) * 6 + 28)}%` }} />
+          </div>
+          <div className="s680-vital">
+            <span>HEAT</span>
+            <b>{heat}%</b>
+            <i style={{ width: `${heat}%` }} />
           </div>
         </div>
 
