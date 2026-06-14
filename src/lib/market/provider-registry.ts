@@ -1,6 +1,6 @@
 import type { MarketDataProvider } from "@/lib/market/types";
 import { mockMarketProvider } from "./providers/mock-market-provider";
-import { createCoinGlassProvider } from "./providers/coinglass-provider";
+import { createCoinGlassProvider, type CoinGlassProviderOptions } from "./providers/coinglass-provider";
 import { createPublicFuturesUniverseDiscoveryProvider } from "./providers/public-futures-universe-discovery";
 
 export type ProviderEnv = {
@@ -11,6 +11,16 @@ export type ProviderEnv = {
   COINGLASS_DAILY_REQUEST_BUDGET?: string;
   [key: string]: string | undefined;
 };
+
+export type GetConfiguredMarketProviderOptions = Pick<
+  CoinGlassProviderOptions,
+  | "fetcher"
+  | "now"
+  | "ohlcvProvider"
+  | "universeDiscoveryProvider"
+  | "universePriorityHintNotes"
+  | "universePriorityHints"
+>;
 
 export function parseBaseAssets(value?: string) {
   if (!value) {
@@ -28,6 +38,7 @@ export function parseBaseAssets(value?: string) {
 
 export function getConfiguredMarketProvider(
   env: ProviderEnv = process.env,
+  options: GetConfiguredMarketProviderOptions = {},
 ): MarketDataProvider {
   if (env.MARKET_DATA_PROVIDER === "coinglass" && env.COINGLASS_API_KEY) {
     const batchSize = Number(env.COINGLASS_BATCH_SIZE ?? 3);
@@ -40,7 +51,12 @@ export function getConfiguredMarketProvider(
       coinGlassDailyRequestBudget: Number.isFinite(dailyRequestBudget) && dailyRequestBudget > 0
         ? dailyRequestBudget
         : 300,
-      universeDiscoveryProvider: createPublicFuturesUniverseDiscoveryProvider(),
+      fetcher: options.fetcher,
+      now: options.now,
+      ohlcvProvider: options.ohlcvProvider,
+      universeDiscoveryProvider: options.universeDiscoveryProvider ?? createPublicFuturesUniverseDiscoveryProvider(),
+      universePriorityHintNotes: options.universePriorityHintNotes,
+      universePriorityHints: options.universePriorityHints,
     });
   }
 

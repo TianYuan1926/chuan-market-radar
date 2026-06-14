@@ -6,11 +6,17 @@ import {
 } from "../analysis/ai-reviewer";
 import { siteConfig } from "../config/site";
 import { appPersistenceRepository } from "../persistence/app-repository";
-import { getConfiguredMarketProvider } from "./provider-registry";
+import type { PersistenceRepository } from "../persistence/persistence-store";
+import {
+  getConfiguredMarketProvider,
+  type GetConfiguredMarketProviderOptions,
+  type ProviderEnv,
+} from "./provider-registry";
 import { createReplayFrame, summarizeScanSnapshot } from "./scan-archive";
 import { buildScanArchiveBundle } from "./scan-archive-bundle";
 import { MemoryScanCache, runScheduledScan } from "./scan-runtime";
 import type { MarketDataProvider, MarketRadarSnapshot, ScanArchiveBundle } from "./types";
+import { buildUniversePriorityHintsFromRepository } from "./universe-priority-hints";
 
 const scanCache = new MemoryScanCache();
 const archiveMaxEntries = 24;
@@ -20,6 +26,15 @@ type AiReviewSnapshotOptions = {
   fetcher?: AiReviewFetch;
   maxSignals?: number;
   now?: () => Date;
+};
+
+type RepositoryAwareMarketProviderOptions = {
+  env?: ProviderEnv;
+  providerFactory?: (
+    env?: ProviderEnv,
+    options?: GetConfiguredMarketProviderOptions,
+  ) => MarketDataProvider;
+  repository?: PersistenceRepository;
 };
 
 function archiveBundle(replayId?: string): Promise<ScanArchiveBundle> {
@@ -39,6 +54,35 @@ function envFromProcess(): AiReviewEnv {
     AI_REVIEW_MAX_PROMPT_CHARS: process.env.AI_REVIEW_MAX_PROMPT_CHARS,
     AI_REVIEW_MAX_SIGNALS: process.env.AI_REVIEW_MAX_SIGNALS,
   };
+}
+
+function priorityHintNote(summary: Awaited<ReturnType<typeof buildUniversePriorityHintsFromRepository>>["summary"]) {
+  return `repository priority hints: ${summary.hintsBuilt} built from ${summary.repositoryMode ?? "unknown"} ` +
+    `(archives ${summary.archivesRead}, journal ${summary.journalEventsRead}, movers ${summary.dailyMoverSnapshotsRead})`;
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "unknown repository priority hint error";
+}
+
+export async function buildRepositoryAwareMarketProvider({
+  env = process.env,
+  providerFactory = getConfiguredMarketProvider,
+  repository = appPersistenceRepository,
+}: RepositoryAwareMarketProviderOptions = {}): Promise<MarketDataProvider> {
+  try {
+    const report = await buildUniversePriorityHintsFromRepository(repository);
+
+    return providerFactory(env, {
+      universePriorityHintNotes: [priorityHintNote(report.summary)],
+      universePriorityHints: report.hints,
+    });
+  } catch (error) {
+    return providerFactory(env, {
+      universePriorityHintNotes: [`repository priority hints: unavailable (${errorMessage(error)})`],
+      universePriorityHints: [],
+    });
+  }
 }
 
 function reviewLimit(env: AiReviewEnv, explicit?: number) {
@@ -106,10 +150,11 @@ async function withArchive(snapshot: MarketRadarSnapshot): Promise<MarketRadarSn
 }
 
 export async function getMarketRadarSnapshot(
-  provider: MarketDataProvider = getConfiguredMarketProvider(),
+  provider?: MarketDataProvider,
 ): Promise<MarketRadarSnapshot> {
+  const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider();
   const result = await runScheduledScan({
-    provider,
+    provider: resolvedProvider,
     cache: scanCache,
     now: new Date(),
     cadenceMinutes: siteConfig.scanIntervalMinutes,
@@ -123,10 +168,11 @@ export async function getMarketRadarSnapshot(
 }
 
 export async function refreshMarketRadarSnapshot(
-  provider: MarketDataProvider = getConfiguredMarketProvider(),
+  provider?: MarketDataProvider,
 ) {
+  const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider();
   const result = await runScheduledScan({
-    provider,
+    provider: resolvedProvider,
     cache: scanCache,
     now: new Date(),
     cadenceMinutes: siteConfig.scanIntervalMinutes,

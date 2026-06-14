@@ -39,6 +39,7 @@ export type CoinGlassProviderOptions = {
   coinGlassDailyRequestBudget?: number;
   fetcher?: typeof fetch;
   ohlcvProvider?: OhlcvProvider;
+  universePriorityHintNotes?: string[];
   universePriorityHints?: UniversePriorityHint[];
   universeDiscoveryProvider?: UniverseDiscoveryProvider;
   now?: () => Date;
@@ -249,6 +250,7 @@ export function createCoinGlassProvider({
   coinGlassDailyRequestBudget,
   fetcher,
   ohlcvProvider,
+  universePriorityHintNotes,
   universePriorityHints,
   universeDiscoveryProvider,
   now = () => new Date(),
@@ -369,6 +371,7 @@ export function createCoinGlassProvider({
               : `universe discovery: ${universeDiscovery.source} ${universeDiscovery.reason}`
             : "universe discovery: disabled",
           ...(universeDiscovery?.notes ?? []).map((note) => `universe source: ${note}`),
+          ...(universePriorityHintNotes ?? []),
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
           `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
           `tiered universe: anchor ${batchPlan.tierCounts.anchor}, core ${batchPlan.tierCounts.core}, active ${batchPlan.tierCounts.active}, long_tail ${batchPlan.tierCounts.long_tail}`,

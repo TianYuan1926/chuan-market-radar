@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "../analysis/types";
+import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
+import type { GetConfiguredMarketProviderOptions, ProviderEnv } from "./provider-registry";
 import {
+  buildRepositoryAwareMarketProvider,
   enrichSnapshotWithAiReviews,
 } from "./radar-snapshot";
-import type { MarketRadarSnapshot } from "./types";
+import type { MarketDataProvider, MarketRadarSnapshot } from "./types";
 
 function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
   return {
@@ -110,4 +113,55 @@ test("enrichSnapshotWithAiReviews keeps the snapshot usable when the model fails
   assert.equal(enriched.signals.length, 1);
   assert.equal(enriched.signals[0]?.aiReview?.status, "fallback");
   assert.match(enriched.signals[0]?.aiReview?.reason ?? "", /model offline/);
+});
+
+test("buildRepositoryAwareMarketProvider injects durable priority hints into the default provider", async () => {
+  const repository = createMemoryPersistenceRepository();
+  let capturedOptions: GetConfiguredMarketProviderOptions | undefined;
+  const provider: MarketDataProvider = {
+    id: "mock",
+    label: "Captured Provider",
+    async fetchSnapshot() {
+      return snapshot([]);
+    },
+  };
+
+  await repository.addScanArchive({
+    id: "scan-tia",
+    source: "coinglass",
+    status: "ready",
+    generatedAt: "2026-06-15T00:00:00.000Z",
+    scannedCount: 30,
+    anomalyCount: 1,
+    candidateCount: 1,
+    topSymbols: ["TIAUSDT"],
+    notes: [],
+  }, {
+    id: "scan-tia",
+    source: "coinglass",
+    status: "ready",
+    generatedAt: "2026-06-15T00:00:00.000Z",
+    nextScanAt: "2026-06-15T00:15:00.000Z",
+    cadenceMinutes: 15,
+    scannedCount: 30,
+    anomalyCount: 1,
+    candidateCount: 1,
+    signals: [],
+  });
+
+  const result = await buildRepositoryAwareMarketProvider({
+    env: {
+      MARKET_DATA_PROVIDER: "coinglass",
+      COINGLASS_API_KEY: "test-key",
+    },
+    providerFactory: (_env?: ProviderEnv, options?: GetConfiguredMarketProviderOptions) => {
+      capturedOptions = options;
+      return provider;
+    },
+    repository,
+  });
+
+  assert.equal(result.label, "Captured Provider");
+  assert.equal(capturedOptions?.universePriorityHints?.[0]?.symbol, "TIAUSDT");
+  assert.match(capturedOptions?.universePriorityHintNotes?.join("\n") ?? "", /repository priority hints: 1 built from memory/);
 });
