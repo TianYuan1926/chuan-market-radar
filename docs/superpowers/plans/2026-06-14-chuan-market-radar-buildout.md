@@ -30,7 +30,8 @@ Before implementing any task, read `docs/chuan-market-radar-blueprint.md` and co
 - Task 5 AI Counter-Review Layer: implementation and verification complete.
 - Task 6 Outcome Tracking And Self-Improvement: implementation and verification complete.
 - Task 7 Alert Policy: implementation and verification complete.
-- Next task: Task 8 Blueprint Status Update.
+- Task 8 Blueprint Status Update: implementation and verification complete.
+- Next task: choose the next build track from the refreshed blueprint, most likely UI quality deepening or production data hardening.
 
 ## File Structure Map
 
@@ -455,15 +456,15 @@ git commit -m "feat: add alert policy"
 - Modify: `docs/chuan-market-radar-blueprint.md`
 - Modify: `docs/deployment-checklist.md`
 
-- [ ] **Step 1: Update completed stage status**
+- [x] **Step 1: Update completed stage status**
 
 After each task above is implemented, update `docs/chuan-market-radar-blueprint.md` so the "当前已落地模块" and "当前未完整落地模块" sections match the actual code.
 
-- [ ] **Step 2: Update deployment requirements**
+- [x] **Step 2: Update deployment requirements**
 
 Update `docs/deployment-checklist.md` with any new environment variables, public API dependencies, and operational checks introduced by the task.
 
-- [ ] **Step 3: Verify docs and repo state**
+- [x] **Step 3: Verify docs and repo state**
 
 Run:
 
