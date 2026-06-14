@@ -27,8 +27,8 @@ Before implementing any task, read `docs/chuan-market-radar-blueprint.md` and co
 - Task 2 OHLCV Provider Boundary: implementation and verification complete.
 - Task 3 Technical Indicator Evidence: implementation and verification complete.
 - Task 4 Contract Universe Registry: implementation and verification complete.
-- Git staging/commit is pending because the current environment cannot write `.git/index.lock`.
-- Next task: Task 5 AI Counter-Review Layer.
+- Task 5 AI Counter-Review Layer: implementation and verification complete.
+- Next task: Task 6 Outcome Tracking And Self-Improvement.
 
 ## File Structure Map
 
@@ -316,7 +316,7 @@ git commit -m "feat: add contract universe coverage"
 - Modify: `docs/deployment-checklist.md`
 - Test: `src/lib/analysis/ai-reviewer.test.ts`
 
-- [ ] **Step 1: Add failing AI boundary tests**
+- [x] **Step 1: Add failing AI boundary tests**
 
 Tests must assert:
 
@@ -326,7 +326,7 @@ Tests must assert:
 - Model error returns fallback review and does not crash.
 - Output is parsed into fact, reasoning, judgment, strategy, failure path, and uncertainty sections.
 
-- [ ] **Step 2: Implement model-agnostic reviewer**
+- [x] **Step 2: Implement model-agnostic reviewer**
 
 Create:
 
@@ -337,11 +337,11 @@ Create:
 
 The function must support OpenAI-compatible APIs by configuration and must not expose API keys to the client.
 
-- [ ] **Step 3: Attach AI review as optional evidence**
+- [x] **Step 3: Attach AI review as optional evidence**
 
 Modify the snapshot builder so AI review enriches signals only when enabled. If disabled or failed, the UI shows a small disabled/fallback status instead of hiding the boundary.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run test:market

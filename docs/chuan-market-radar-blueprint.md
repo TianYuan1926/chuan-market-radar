@@ -169,6 +169,24 @@
 - CoinGlass provider 已把 universe coverage 写入 `metadata.coverage`。
 - 系统状态面板已显示扫描覆盖摘要。
 
+### 已落地：AI 反证复核边界
+
+- 已新增模型无关的 AI 复核模块。
+- 已支持 OpenAI-compatible chat completions 请求格式。
+- 已支持 `AI_REVIEW_ENABLED`、`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL`、`AI_REVIEW_MAX_SIGNALS`、`AI_REVIEW_MAX_PROMPT_CHARS`。
+- AI 输入会被白名单化，只包含结构化 signal、evidence 和 snapshot metadata。
+- Prompt 明确要求先找反证，再给结论。
+- AI 输出会解析为：
+  - 事实
+  - 推理
+  - 判断
+  - 策略
+  - 失败路径
+  - 不确定性
+- 缺少 API Key、未启用、模型请求失败、解析失败或超过 prompt budget 时，系统会回落到 disabled/fallback 状态，不影响规则引擎和页面可用性。
+- Snapshot builder 已把 AI 复核状态挂到每个信号。
+- 策略卡已显示 AI 反证状态、核心反证、判断和失败路径。
+
 ## 当前未完整落地模块
 
 ### 未完整落地：真正的多周期融合分析
@@ -228,7 +246,7 @@
 
 ### 未完整落地：AI 复核链路
 
-当前只有环境变量预留和 `ai_review` layer，占位还没有真正接入。
+当前已经完成 AI 复核边界、输入白名单、OpenAI-compatible 请求、失败降级、预算护栏和 UI 状态展示；但生产环境还没有实际配置模型 API，也没有做多模型对照、成本统计和复盘校准。
 
 AI 复核必须遵守：
 
@@ -255,6 +273,14 @@ AI 复核必须遵守：
 - 市场分析不是刚好能用就行，优先稳定、推理、可控、可审计。
 - 成本必须有 budget guard。
 - 失败时系统必须回落到规则引擎，不允许页面崩溃。
+
+仍未完整落地：
+
+- 生产环境真实模型配置。
+- OpenAI/DeepSeek 多模型切换对照。
+- 每日/每轮成本统计。
+- AI 复核结果进入后续复盘评分。
+- AI 复核质量的自我校准。
 
 ### 未完整落地：复盘自我提升
 
@@ -448,10 +474,11 @@ CoinGlass 业余会员 API：
 
 验收：
 
-- AI 有输入边界。
-- AI 有成本限制。
-- AI 失败不影响规则引擎。
-- AI 输出明确区分事实、推理、判断、策略。
+- 已完成：AI 有输入边界。
+- 已完成：AI 有成本限制。
+- 已完成：AI 失败不影响规则引擎。
+- 已完成：AI 输出明确区分事实、推理、判断、策略。
+- 未完成：生产环境真实模型配置、多模型对照和复盘校准。
 
 ### 阶段 6：自我提升复盘
 

@@ -29,6 +29,11 @@ export function StrategyCard({ selected }: StrategyCardProps) {
     ...indicatorEvidence,
     ...selected.evidence.filter((item) => !indicatorEvidence.includes(item)),
   ].slice(0, 6);
+  const aiReview = selected.aiReview;
+  const aiReviewStatus = aiReview?.status.replaceAll("_", " ").toUpperCase() ?? "RULES";
+  const aiCounterEvidence = aiReview?.counterEvidence.length
+    ? aiReview.counterEvidence
+    : ["AI 反证复核未返回额外反证，本轮以规则引擎为准"];
 
   return (
     <>
@@ -130,6 +135,29 @@ export function StrategyCard({ selected }: StrategyCardProps) {
                 <span>{item}</span>
               </div>
             ))}
+        </div>
+      </section>
+
+      <section className="module">
+        <div className="module-head">
+          <h2>AI 反证</h2>
+          <span className="tag">{aiReviewStatus}</span>
+        </div>
+        <div className="check-list">
+          {aiCounterEvidence.slice(0, 2).map((item) => (
+            <div className="check check--counter" key={`ai-counter-${item}`}>
+              <strong>反证</strong>
+              <span>{item}</span>
+            </div>
+          ))}
+          <div className="check check--confirm">
+            <strong>判断</strong>
+            <span>{aiReview?.sections.judgment ?? "AI 未启用，本轮只采用规则引擎判断。"}</span>
+          </div>
+          <div className="check check--counter">
+            <strong>失败路径</strong>
+            <span>{aiReview?.sections.failurePath ?? selected.strategy.invalidation}</span>
+          </div>
         </div>
       </section>
 

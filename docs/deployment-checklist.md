@@ -33,8 +33,13 @@
 - `DATABASE_DRIVER`: `postgres`、`neon` 或 `supabase`；默认按通用 Postgres 处理
 - `SUPABASE_URL`: Supabase 项目地址
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase 服务端密钥
-- `AI_PROVIDER`: AI 供应商标识
+- `AI_REVIEW_ENABLED`: 设为 `true` 才会启用服务端 AI 复核；默认关闭
+- `AI_PROVIDER`: AI 供应商标识，默认按 OpenAI-compatible 处理
 - `AI_API_KEY`: AI API Key
+- `AI_BASE_URL`: OpenAI-compatible chat completions endpoint
+- `AI_MODEL`: AI 复核模型名
+- `AI_REVIEW_MAX_SIGNALS`: 每轮最多复核几个候选，默认 `3`
+- `AI_REVIEW_MAX_PROMPT_CHARS`: 单个复核 prompt 最大字符数，默认 `12000`
 
 ## 稳定性边界
 
@@ -56,6 +61,10 @@
 - 当前分批队列按 UTC 日内扫描窗口轮转。例如 15 分钟 cadence、batch size 为 `3` 时，每 15 分钟只请求 3 个基础币，下一窗口自动轮到下一批。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
 - OHLCV provider 失败时必须降级为信号数据质量提示，不能让 CoinGlass 衍生品扫描崩溃。
+- AI 复核只在服务端执行，浏览器端不会接触 `AI_API_KEY`。
+- AI 复核默认关闭；缺少 `AI_REVIEW_ENABLED=true` 或 `AI_API_KEY` 时，信号会显示 disabled 状态，不会隐藏复核边界。
+- AI 模型请求失败、解析失败或超出 prompt budget 时，系统会回落到规则引擎，不允许页面崩溃，也不能把失败模型输出当成判断。
+- AI 复核必须先找反证，再输出事实、推理、判断、策略、失败路径和不确定性；它只能复核和解释，不能替代规则引擎做最终裁决。
 - Vercel Hobby 账号不能使用每 15 分钟一次的内置 Cron。免费预览阶段先用 cron-job.org、UptimeRobot 或 GitHub Actions 定时请求 `/api/scan`；升级 Vercel Pro 后再把 `*/15 * * * *` 放回 `vercel.json`。
 - 如果 Vercel 项目还没有连接 GitHub 仓库，CLI 本地部署可能直接进入 `production` target；要获得标准 Preview/Production 分支工作流，需要先把代码推到 GitHub 并在 Vercel Project 里连接该仓库。
 

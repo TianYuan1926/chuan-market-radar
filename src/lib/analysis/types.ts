@@ -68,6 +68,28 @@ export type StrategyPlan = {
   riskControls?: string[];
 };
 
+export type AiReviewStatus = "disabled" | "fallback" | "reviewed";
+
+export type AiReviewSections = {
+  fact: string;
+  reasoning: string;
+  judgment: string;
+  strategy: string;
+  failurePath: string;
+  uncertainty: string;
+};
+
+export type AiSignalReview = {
+  status: AiReviewStatus;
+  counterEvidence: string[];
+  sections: AiReviewSections;
+  reason?: string;
+  provider?: string;
+  model?: string;
+  reviewedAt?: string;
+  confidenceAdjustment?: number;
+};
+
 export type JournalAction = "track" | "paper_trade" | "skip" | "invalidate";
 
 export type ReviewStatus = "queued" | "tracking" | "closed";
@@ -86,6 +108,7 @@ export type MarketSignal = {
   summary: string;
   evidence: EvidencePoint[];
   strategy: StrategyPlan;
+  aiReview?: AiSignalReview;
   timeframeProfile?: TimeframeProfile;
   timeframeAgreement?: string;
   timeframeConflicts?: Timeframe[];

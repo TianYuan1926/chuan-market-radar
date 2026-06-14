@@ -1,4 +1,4 @@
-import { mockJournalEvents } from "@/data/mock-signals";
+import { mockJournalEvents } from "../../data/mock-signals";
 import { createDatabaseAwarePersistenceRepository } from "./database-client";
 import { createNeonSqlClient } from "./neon-client";
 
