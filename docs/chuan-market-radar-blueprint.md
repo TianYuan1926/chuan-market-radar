@@ -87,7 +87,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 4：OHLCV 与技术指标 | 基础已落地 | 尚未完成多周期指标矩阵、MACD、成交量分布 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
-| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、schema、repository 已落地 | 尚未接入真实榜单请求入口、定时采集和 UI |
+| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、schema、repository 已落地 | 尚未接入受保护 API、定时采集和 UI |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未有 Telegram/Webhook、持久化告警历史、多设备推送 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
 
@@ -379,13 +379,14 @@ AI 复核必须遵守：
 
 - 纯逻辑底座：`DailyMover`、`PreMoveWindow`、`MoverAttribution`、`RadarMoverReview`、`DailyMoverSnapshot`。
 - CoinGlass 榜单行适配器：可把 futures market rows 标准化为 `DailyMoverSnapshot`。
+- CoinGlass 每日异动抓取服务：按配置资产低频请求榜单、构建快照并写入 repository。
 - 持久化 schema：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 - repository 写入和查询：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 - 安全边界：输出必须保持 `allowedUse: "research_only"`，只能用于归因复盘、样本库和规则校准。
 
 后续需要：
 
-- 建立真实榜单请求入口，把 CoinGlass 榜单请求结果写入 repository。
+- 建立受 `CRON_SECRET` 保护的每日异动 API 入口，用于手动或外部 cron 触发抓取。
 - 与扫描归档、复盘日记和规则校准建议关联。
 - 建立每日定时归因任务。
 - 最后再做 UI 展示，且 UI 不能把涨跌幅榜包装成交易信号。
