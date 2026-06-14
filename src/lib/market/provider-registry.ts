@@ -8,6 +8,7 @@ export type ProviderEnv = {
   COINGLASS_API_KEY?: string;
   COINGLASS_BASE_ASSETS?: string;
   COINGLASS_BATCH_SIZE?: string;
+  COINGLASS_DAILY_REQUEST_BUDGET?: string;
   [key: string]: string | undefined;
 };
 
@@ -30,11 +31,15 @@ export function getConfiguredMarketProvider(
 ): MarketDataProvider {
   if (env.MARKET_DATA_PROVIDER === "coinglass" && env.COINGLASS_API_KEY) {
     const batchSize = Number(env.COINGLASS_BATCH_SIZE ?? 3);
+    const dailyRequestBudget = Number(env.COINGLASS_DAILY_REQUEST_BUDGET ?? 300);
 
     return createCoinGlassProvider({
       apiKey: env.COINGLASS_API_KEY,
       baseAssets: parseBaseAssets(env.COINGLASS_BASE_ASSETS),
       batchSize: Number.isFinite(batchSize) ? batchSize : 3,
+      coinGlassDailyRequestBudget: Number.isFinite(dailyRequestBudget) && dailyRequestBudget > 0
+        ? dailyRequestBudget
+        : 300,
       universeDiscoveryProvider: createPublicFuturesUniverseDiscoveryProvider(),
     });
   }

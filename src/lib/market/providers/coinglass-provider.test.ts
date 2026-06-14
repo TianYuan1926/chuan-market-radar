@@ -162,6 +162,50 @@ test("CoinGlass provider can include discovered USDT perpetuals in the low-rate 
   assert.match(snapshot.metadata.notes.join("\n"), /universe discovery: test-discovery ok 2 instruments/);
 });
 
+test("CoinGlass provider caps oversized batches with the daily request budget guard", async () => {
+  const requestedSymbols: string[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA", "SUI", "ONDO", "TIA", "ARB", "OP"],
+    batchSize: 12,
+    coinGlassDailyRequestBudget: 300,
+    universeDiscoveryProvider: {
+      id: "test-discovery",
+      label: "Test Universe Discovery",
+      async discoverInstruments() {
+        return {
+          ok: true,
+          source: "test-discovery",
+          requestCount: 3,
+          instruments: [],
+        };
+      },
+    },
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.equal(requestedSymbols.length, 3);
+  assert.deepEqual(requestedSymbols.slice(0, 2), ["BTC", "ETH"]);
+  assert.equal(snapshot.metadata.quota?.effectiveBatchSize, 3);
+  assert.equal(snapshot.metadata.quota?.coinGlassRequestsPerDayEstimate, 288);
+  assert.equal(snapshot.metadata.quota?.status, "near_budget");
+  assert.match(snapshot.metadata.notes.join("\n"), /quota guard: requested batch 12 capped to 3/);
+  assert.match(snapshot.metadata.notes.join("\n"), /quota: coinglass 288\/300 daily \(96%\), public discovery 288 daily, status near_budget/);
+});
+
 test("CoinGlass provider exposes multi-exchange coverage quality in metadata", async () => {
   const provider = createCoinGlassProvider({
     apiKey: "test-key",

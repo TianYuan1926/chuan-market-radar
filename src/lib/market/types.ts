@@ -1,4 +1,5 @@
 import type { JournalEvent, MarketSignal } from "@/lib/analysis/types";
+import type { ScanQuotaPlan } from "./scan-quota";
 
 export type ExchangeId = "BINANCE" | "OKX" | "BYBIT" | "COINBASE" | "UNKNOWN";
 
@@ -146,6 +147,7 @@ export type ScanMetadata = {
   riskGate: "on" | "off";
   generatedAt: string;
   nextScanAt: string;
+  quota?: ScanQuotaPlan;
   staleAfterMinutes: number;
   notes: string[];
   coverage?: ScanCoverage;

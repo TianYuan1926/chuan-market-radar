@@ -120,6 +120,7 @@ test("createBinanceUniverseDiscoveryProvider returns typed failures without thro
     source: "binance-public-futures",
     reason: "upstream_error",
     error: "Universe discovery upstream returned 503",
+    requestCount: 1,
     status: 503,
   });
 });

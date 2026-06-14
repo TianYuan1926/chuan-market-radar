@@ -38,6 +38,7 @@ test("buildVercelEnvPlan marks the current Neon mock setup as preview deployable
   assert.equal(envVar(plan, "DATABASE_URL").sensitivity, "secret");
   assert.equal(envVar(plan, "DATABASE_URL").safeValue, undefined);
   assert.equal(envVar(plan, "MARKET_DATA_PROVIDER").safeValue, "mock");
+  assert.equal(envVar(plan, "COINGLASS_DAILY_REQUEST_BUDGET").safeValue, "300");
 });
 
 test("buildVercelEnvPlan blocks preview deployment when Neon persistence variables are missing", () => {

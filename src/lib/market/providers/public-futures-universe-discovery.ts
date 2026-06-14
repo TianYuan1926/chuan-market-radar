@@ -33,6 +33,7 @@ export function createPublicFuturesUniverseDiscoveryProvider({
 
     async discoverInstruments(): Promise<UniverseDiscoveryResult> {
       const results = await Promise.all(providers.map((provider) => provider.discoverInstruments()));
+      const requestCount = results.reduce((total, result) => total + (result.requestCount ?? 0), 0);
       const notes = results.map((result) =>
         result.ok
           ? `${result.source} ok ${result.instruments.length} instruments`
@@ -47,6 +48,7 @@ export function createPublicFuturesUniverseDiscoveryProvider({
           reason: "upstream_error",
           error: `All universe discovery providers failed: ${notes.join(", ")}`,
           notes,
+          requestCount,
         });
       }
 
@@ -55,6 +57,7 @@ export function createPublicFuturesUniverseDiscoveryProvider({
         source,
         instruments,
         notes,
+        requestCount,
       };
     },
   };

@@ -83,7 +83,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | --- | --- | --- |
 | 阶段 1：蓝图固化 | 已完成 | 后续每轮继续维护本文，防止上下文压缩造成遗漏 |
 | 阶段 2：真正多周期分析引擎 | 基础已落地 | 真实多周期 OHLCV candles 尚未全量接入每个币种 |
-| 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转和覆盖差异已落地 | 尚未完成 API quota 估算和动态优先级 |
+| 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异和 quota 护栏已落地 | 尚未完成动态优先级 |
 | 阶段 4：OHLCV 与技术指标 | 基础已落地 | 尚未完成多周期指标矩阵、MACD、成交量分布 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
@@ -105,6 +105,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `MARKET_DATA_PROVIDER=coinglass` 且 `COINGLASS_API_KEY` 存在时启用 CoinGlass provider。
 - `COINGLASS_BASE_ASSETS` 控制扫描资产白名单。
 - `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
+- `COINGLASS_DAILY_REQUEST_BUDGET` 控制主扫描每日 CoinGlass 请求预算，默认按业余会员阶段保守值 `300` 估算。
 - 15 分钟 cadence 下分批扫描，降低触发业余会员限速的概率。
 - Provider 失败时可以使用缓存并显示 stale 状态。
 - 主扫描已加强数据清洗：拒绝 UNKNOWN 交易所、拒绝非 USDT 或报价字段冲突的合约行，并按同币种选择主交易所输出，避免重复信号刷屏。
@@ -230,7 +231,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 已支持长尾低频抽样轮转：在 `COINGLASS_BATCH_SIZE=3` 这类小批次下，BTC/ETH 固定保留，core 优先轮转，long_tail 默认每 8 个扫描窗口抽样一次，避免 CoinGlass 业余会员被全市场发现打爆。
 - 已支持多交易所覆盖差异分类：`major_three`、`multi_exchange`、`single_exchange`、`unlisted`。
 - `metadata.coverage.exchangeCoverage` 会记录每个币种在哪些交易所有 USDT 永续，`exchangeCoverageSummary` 会输出覆盖质量汇总。
-- CoinGlass provider 已在 metadata notes 中输出每个 discovery source、tiered universe、exchange coverage 和 tier policy，便于线上检查当前币池结构。
+- 已支持 API quota 消耗估计：每轮 CoinGlass 请求数、每日 CoinGlass 预估请求数、public discovery 预估请求数、预算使用率和状态。
+- 已支持扫描预算护栏：当 `COINGLASS_BATCH_SIZE` 超过每日预算允许值时，自动压缩为安全批次；若预算低于 BTC/ETH 锚点最低扫描需求，会标记 `over_budget`，但不破坏锚点扫描。
+- CoinGlass provider 已在 metadata notes 中输出每个 discovery source、tiered universe、exchange coverage、quota 和 tier policy，便于线上检查当前币池结构。
 
 ### 已落地：AI 反证复核边界
 
@@ -273,16 +276,16 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转和多交易所覆盖差异。资产池已不只依赖 `COINGLASS_BASE_ASSETS`，但还没有完成 API quota 消耗估计和基于历史胜率的动态优先级。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异和 API quota 护栏。资产池已不只依赖 `COINGLASS_BASE_ASSETS`，但还没有完成基于历史胜率的动态优先级。
 
 后续需要：
 
 - Binance/OKX/Bybit 支持合约交易币种列表已具备自动发现基础。
 - 多交易所覆盖状态已具备基础分类和 metadata 输出。
-- API quota 消耗估计。
+- API quota 消耗估计和批次护栏已具备基础实现。
 - 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描已具备基础策略，后续需要接入历史命中率和异常热度做动态调整。
-- 高优先级币种加密扫描需要在 quota 统计和外部 cron 稳定后再打开。
+- 高优先级币种加密扫描需要在动态优先级和外部 cron 稳定后再打开。
 - 将不同交易所同一币种的覆盖和差异展示到前端。
 
 ### 未完整落地：技术指标引擎
@@ -599,7 +602,7 @@ CoinGlass 业余会员 API：
 
 目标：管理所有支持合约交易的币种，并显示扫描覆盖率。
 
-当前状态：基础已完成，Binance/OKX/Bybit USDT 永续自动发现已完成，分层币池、长尾低频轮转和多交易所覆盖差异已完成，API quota 估算和动态优先级未完成。
+当前状态：基础已完成，Binance/OKX/Bybit USDT 永续自动发现已完成，分层币池、长尾低频轮转、多交易所覆盖差异和 API quota 护栏已完成，动态优先级未完成。
 
 已具备：
 
@@ -614,10 +617,11 @@ CoinGlass 业余会员 API：
 - 有 long_tail 低频抽样轮转策略。
 - 有 major_three/multi_exchange/single_exchange/unlisted 覆盖质量分类。
 - 有 `metadata.coverage.exchangeCoverage` 和 `exchangeCoverageSummary`。
+- 有 `metadata.quota` 和 quota guard notes。
+- 有 `COINGLASS_DAILY_REQUEST_BUDGET` 环境变量，默认 `300` 请求/日。
 
 下一步深化：
 
-- 估算 public discovery 和 CoinGlass 请求的 quota 消耗。
 - 按 liquidity、异常程度和历史有效性动态调整扫描优先级。
 
 ### 阶段 4：OHLCV 与技术指标

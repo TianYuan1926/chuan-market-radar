@@ -42,6 +42,7 @@
 - `COINGLASS_API_KEY`: CoinGlass 会员 API
 - `COINGLASS_BASE_ASSETS`: CoinGlass 查询币种白名单，例如 `BTC,ETH,SOL,ENA,SUI`
 - `COINGLASS_BATCH_SIZE`: 每个扫描窗口请求多少个基础币，业余会员建议先用 `3`
+- `COINGLASS_DAILY_REQUEST_BUDGET`: 主扫描每日 CoinGlass 请求预算，默认 `300`；业余会员阶段先保守，升级套餐后再上调
 - `COINGLASS_DAILY_MOVER_MAX_ASSETS`: 每次每日异动抓取最多请求多少个基础币，免费阶段默认 `8`
 - `COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE`: 每侧最多保留多少个涨跌幅样本，默认 `10`
 - `DATABASE_URL`: Neon 或其他 Postgres
@@ -82,6 +83,7 @@
 - Hobbyist 会员需要用 `COINGLASS_BASE_ASSETS` 控制查询范围，并用 `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
 - 当前分批队列按 UTC 日内扫描窗口轮转。例如 15 分钟 cadence、batch size 为 `3` 时，每 15 分钟只请求 3 个基础币。
 - CoinGlass provider 会先用 Binance public futures `exchangeInfo`、OKX public instruments、Bybit V5 public instruments 发现 USDT 永续合约，再按 `COINGLASS_BATCH_SIZE` 低频请求 CoinGlass；单个交易所发现失败会降级为 source note，全部发现失败时回退到配置白名单。
+- `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。默认 `300` 请求/日、15 分钟 cadence 下，安全批次约为 `3`；线上检查 metadata notes 时应能看到 `quota guard` 和 `quota`。
 - Universe planner 会把资产分成 anchor/core/active/long_tail；BTC/ETH 每轮固定，配置白名单和高流动性币优先，未验证流动性的长尾币默认每 8 个扫描窗口抽样一次。线上检查 metadata notes 时应能看到 `tiered universe` 和 `tier policy`。
 - Universe coverage 会输出 `exchangeCoverage` 和 `exchangeCoverageSummary`，把币种分为 `major_three`、`multi_exchange`、`single_exchange`、`unlisted`；线上检查 metadata notes 时应能看到 `exchange coverage` 汇总。
 - 当前主扫描会拒绝 UNKNOWN 交易所、非 USDT 或报价字段冲突的 CoinGlass 行，并在 metadata notes 中输出 raw、clean、primary 和过滤原因统计；线上检查时不要只看候选数量，也要看过滤原因是否异常放大。

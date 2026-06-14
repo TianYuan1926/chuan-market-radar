@@ -100,9 +100,11 @@ export function createBybitUniverseDiscoveryProvider({
       const observedAt = now().toISOString();
       const instruments: ContractInstrument[] = [];
       let cursor = "";
+      let requestCount = 0;
 
       try {
         for (let page = 0; page < maxPages; page += 1) {
+          requestCount += 1;
           const response = await fetcher(buildBybitInstrumentsUrl(baseUrl, cursor));
 
           if (!response.ok) {
@@ -110,6 +112,7 @@ export function createBybitUniverseDiscoveryProvider({
               source,
               reason: "upstream_error",
               error: `Universe discovery upstream returned ${response.status}`,
+              requestCount,
               status: response.status,
             });
           }
@@ -129,6 +132,7 @@ export function createBybitUniverseDiscoveryProvider({
               source,
               reason: "invalid_response",
               error: "Universe discovery upstream returned an invalid instruments payload",
+              requestCount,
             });
           }
 
@@ -137,6 +141,7 @@ export function createBybitUniverseDiscoveryProvider({
               source,
               reason: "upstream_error",
               error: `Universe discovery upstream returned retCode ${String(payload.retCode)}`,
+              requestCount,
             });
           }
 
@@ -163,12 +168,14 @@ export function createBybitUniverseDiscoveryProvider({
           ok: true,
           source,
           instruments,
+          requestCount,
         };
       } catch (error) {
         return failure({
           source,
           reason: "network_error",
           error: error instanceof Error ? error.message : "Universe discovery request failed",
+          requestCount,
         });
       }
     },

@@ -108,6 +108,13 @@ const envDefinitions: EnvDefinition[] = [
     requiredFor: ["production"],
     sensitivity: "server",
   },
+  {
+    defaultValue: "300",
+    description: "CoinGlass 主扫描每日请求预算，用于自动压缩批次，业余会员阶段建议先保守。",
+    key: "COINGLASS_DAILY_REQUEST_BUDGET",
+    requiredFor: ["production"],
+    sensitivity: "server",
+  },
 ];
 
 function trimmed(value?: string) {

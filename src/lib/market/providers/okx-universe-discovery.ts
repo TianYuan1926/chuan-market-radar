@@ -104,6 +104,7 @@ export function createOkxUniverseDiscoveryProvider({
             source,
             reason: "upstream_error",
             error: `Universe discovery upstream returned ${response.status}`,
+            requestCount: 1,
             status: response.status,
           });
         }
@@ -120,6 +121,7 @@ export function createOkxUniverseDiscoveryProvider({
             source,
             reason: "invalid_response",
             error: "Universe discovery upstream returned an invalid instruments payload",
+            requestCount: 1,
           });
         }
 
@@ -128,6 +130,7 @@ export function createOkxUniverseDiscoveryProvider({
             source,
             reason: "upstream_error",
             error: `Universe discovery upstream returned code ${String(payload.code)}`,
+            requestCount: 1,
           });
         }
 
@@ -144,12 +147,14 @@ export function createOkxUniverseDiscoveryProvider({
           ok: true,
           source,
           instruments,
+          requestCount: 1,
         };
       } catch (error) {
         return failure({
           source,
           reason: "network_error",
           error: error instanceof Error ? error.message : "Universe discovery request failed",
+          requestCount: 1,
         });
       }
     },

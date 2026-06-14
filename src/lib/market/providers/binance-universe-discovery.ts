@@ -16,6 +16,7 @@ export type UniverseDiscoverySuccess = {
   source: string;
   instruments: ContractInstrument[];
   notes?: string[];
+  requestCount?: number;
 };
 
 export type UniverseDiscoveryFailure = {
@@ -24,6 +25,7 @@ export type UniverseDiscoveryFailure = {
   reason: "upstream_error" | "invalid_response" | "network_error";
   error: string;
   notes?: string[];
+  requestCount?: number;
   status?: number;
 };
 
@@ -111,6 +113,7 @@ export function createBinanceUniverseDiscoveryProvider({
             source,
             reason: "upstream_error",
             error: `Universe discovery upstream returned ${response.status}`,
+            requestCount: 1,
             status: response.status,
           });
         }
@@ -127,6 +130,7 @@ export function createBinanceUniverseDiscoveryProvider({
             source,
             reason: "invalid_response",
             error: "Universe discovery upstream returned an invalid exchangeInfo payload",
+            requestCount: 1,
           });
         }
 
@@ -143,12 +147,14 @@ export function createBinanceUniverseDiscoveryProvider({
           ok: true,
           source,
           instruments,
+          requestCount: 1,
         };
       } catch (error) {
         return failure({
           source,
           reason: "network_error",
           error: error instanceof Error ? error.message : "Universe discovery request failed",
+          requestCount: 1,
         });
       }
     },

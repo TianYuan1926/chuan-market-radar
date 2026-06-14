@@ -132,6 +132,7 @@ test("createOkxUniverseDiscoveryProvider returns typed failures without throwing
     source: "okx-public-swap",
     reason: "upstream_error",
     error: "Universe discovery upstream returned 503",
+    requestCount: 1,
     status: 503,
   });
 });

@@ -99,5 +99,6 @@ test("createPublicFuturesUniverseDiscoveryProvider fails only when every exchang
     reason: "upstream_error",
     error: "All universe discovery providers failed: okx-test network_error",
     notes: ["okx-test network_error"],
+    requestCount: 0,
   });
 });

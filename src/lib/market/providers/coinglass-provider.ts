@@ -7,6 +7,7 @@ import { buildTechnicalEvidence } from "../../analysis/technical-indicators";
 import type { EvidencePoint } from "../../analysis/types";
 import { buildContractInstrumentPool } from "../instrument-pool";
 import type { OhlcvProvider, OhlcvProviderFailure } from "../ohlcv/types";
+import { buildScanQuotaPlan } from "../scan-quota";
 import {
   buildCoverageReport,
   buildUniverseRegistry,
@@ -34,6 +35,7 @@ export type CoinGlassProviderOptions = {
   apiKey: string;
   baseAssets?: string[];
   batchSize?: number;
+  coinGlassDailyRequestBudget?: number;
   fetcher?: typeof fetch;
   ohlcvProvider?: OhlcvProvider;
   universeDiscoveryProvider?: UniverseDiscoveryProvider;
@@ -242,6 +244,7 @@ export function createCoinGlassProvider({
   apiKey,
   baseAssets = ["BTC", "ETH", "SOL"],
   batchSize = 3,
+  coinGlassDailyRequestBudget,
   fetcher,
   ohlcvProvider,
   universeDiscoveryProvider,
@@ -261,9 +264,19 @@ export function createCoinGlassProvider({
         ? universeDiscovery.instruments
         : [];
       const initialRegistry = buildUniverseRegistry(baseAssets, discoveredInstruments);
+      const cadenceMinutes = 15;
+      const minimumBatchSize = initialRegistry.summary.anchors +
+        (initialRegistry.assets.length > initialRegistry.summary.anchors ? 1 : 0);
+      const quota = buildScanQuotaPlan({
+        cadenceMinutes,
+        coinGlassDailyRequestBudget,
+        minimumRequestsPerScan: minimumBatchSize,
+        publicDiscoveryRequestsPerScan: universeDiscovery?.requestCount ?? 0,
+        requestedBatchSize: batchSize,
+      });
       const batchPlan = planUniverseScan(
         initialRegistry,
-        batchSize,
+        quota.effectiveBatchSize,
         scanTime,
       );
       const marketRows = await fetchPairsMarkets({
@@ -340,6 +353,7 @@ export function createCoinGlassProvider({
         riskGate: "on",
         generatedAt,
         nextScanAt: generatedAt,
+        quota,
         staleAfterMinutes: 30,
         coverage,
         notes: [
@@ -357,6 +371,12 @@ export function createCoinGlassProvider({
           coverage.exchangeCoverageSummary
             ? `exchange coverage: major_three ${coverage.exchangeCoverageSummary.majorThree}, multi_exchange ${coverage.exchangeCoverageSummary.multiExchange}, single_exchange ${coverage.exchangeCoverageSummary.singleExchange}, unlisted ${coverage.exchangeCoverageSummary.unlisted}`
             : "exchange coverage: unavailable",
+          quota.wasCapped
+            ? `quota guard: requested batch ${quota.requestedBatchSize} capped to ${quota.effectiveBatchSize}`
+            : `quota guard: requested batch ${quota.requestedBatchSize} kept`,
+          quota.coinGlassDailyRequestBudget
+            ? `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/${quota.coinGlassDailyRequestBudget} daily (${quota.coinGlassBudgetUsagePercent}%), public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`
+            : `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/unconfigured daily, public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`,
           `tier policy: active every ${batchPlan.tierPolicy.activeEveryWindows} windows, long_tail every ${batchPlan.tierPolicy.longTailEveryWindows} windows`,
           compactAssetList("base assets", batchPlan.allAssets),
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
