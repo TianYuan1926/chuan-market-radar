@@ -95,7 +95,9 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "扫描回放",
     "段位系统",
     "未选择",
-    "性格",
+    "像素副驾驶",
+    "BTC 项链",
+    "装备",
     "纪律",
     "动量",
     "热度",
@@ -142,6 +144,50 @@ test("S680 pet is built from bespoke pixel sedan geometry instead of a flat imag
   for (const part of requiredGeometryParts) {
     assert.match(componentSource, new RegExp(part));
     assert.match(cssSource, new RegExp(`\\.${part}`));
+  }
+});
+
+test("pixel copilot MVP renders a BTC-necklace male avatar with equipment and no callout copy", () => {
+  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredCopilotText = [
+    "像素副驾驶",
+    "BTC 项链",
+    "装备",
+  ];
+  const requiredCopilotClasses = [
+    "copilot-avatar",
+    "copilot-head",
+    "copilot-hair",
+    "copilot-expression",
+    "copilot-chain",
+    "copilot-medallion",
+    "copilot-gear",
+    "copilot-level-strip",
+  ];
+  const disallowedCalloutWords = [
+    "买入",
+    "卖出",
+    "开多",
+    "开空",
+    "做多",
+    "做空",
+    "梭哈",
+  ];
+
+  assert.equal(componentSource.includes("<img"), false);
+
+  for (const label of requiredCopilotText) {
+    assert.match(componentSource, new RegExp(label));
+  }
+
+  for (const className of requiredCopilotClasses) {
+    assert.match(componentSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  for (const word of disallowedCalloutWords) {
+    assert.equal(componentSource.includes(word), false, `copilot voice must not include callout copy: ${word}`);
   }
 });
 

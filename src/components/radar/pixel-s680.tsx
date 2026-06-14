@@ -7,22 +7,33 @@ type PixelS680Props = {
 
 export function PixelS680({ mood, rankProfile }: PixelS680Props) {
   const moodLabel = mood === "serious" ? "刹车" : mood === "alert" ? "警戒" : "巡航";
+  const equipmentLabel = rankProfile?.tier.id === "s680-black"
+    ? "S680 座驾"
+    : rankProfile?.tier.id === "operator"
+      ? "冠军外套"
+      : rankProfile?.tier.id === "sniper"
+        ? "屏幕眼镜"
+        : rankProfile?.tier.id === "discipline"
+          ? "战术背心"
+          : rankProfile?.tier.id === "observer"
+            ? "监听耳机"
+            : "黑色外套";
   const discipline = rankProfile?.disciplineScore ?? (mood === "serious" ? 42 : mood === "alert" ? 68 : 76);
   const momentum = rankProfile?.recentMomentum ?? (mood === "alert" ? 8 : mood === "serious" ? -6 : 2);
   const heat = mood === "serious" ? 91 : mood === "alert" ? 74 : 36;
   const line = rankProfile?.petMood === mood
     ? rankProfile.petLine
     : mood === "serious"
-      ? "数据不干净时，我会先踩刹车。能解释失效点，再谈入场。"
+      ? "数据不干净时，我先踩刹车。能解释失效点，再谈下一步。"
       : mood === "alert"
-        ? "有波动，但先别上头。真正的机会会把止损位置一起带过来。"
+        ? "别眨眼，但手也别乱点。真正的机会会把风险位置一起带过来。"
         : "巡航中，等真正有赔率的机会。没有低风险区，就不强行开工。";
 
   return (
     <section className={`module pet-module pet-module--${mood}`}>
       <div className="module-head module-head--flush">
-        <h2>S680 副驾驶</h2>
-        <span className="tag">性格</span>
+        <h2>像素副驾驶</h2>
+        <span className="tag">BTC 项链</span>
       </div>
 
       <div className="pet-plate">
@@ -55,8 +66,24 @@ export function PixelS680({ mood, rankProfile }: PixelS680Props) {
           </div>
         </div>
 
-        <div className="s680-stage" aria-label="S680 副驾驶像素车">
+        <div className="s680-stage" aria-label="像素副驾驶与 S680 座驾">
           <div className="s680-shadow" />
+          <div className={`copilot-avatar copilot-avatar--${mood}`} aria-label="男性像素副驾驶">
+            <div className="copilot-gear" />
+            <div className="copilot-head">
+              <div className="copilot-hair" />
+              <div className="copilot-expression">
+                <span className="copilot-eye copilot-eye--left" />
+                <span className="copilot-eye copilot-eye--right" />
+              </div>
+            </div>
+            <div className="copilot-body">
+              <div className="copilot-jacket" />
+              <div className="copilot-chain">
+                <span className="copilot-medallion">BTC</span>
+              </div>
+            </div>
+          </div>
           <div className="s680-car">
             <div className="s680-tail" />
             <div className="s680-roof" />
@@ -74,6 +101,11 @@ export function PixelS680({ mood, rankProfile }: PixelS680Props) {
             <div className="s680-wheel s680-wheel--left" />
             <div className="s680-wheel s680-wheel--right" />
             <div className="s680-badge">S680 模式</div>
+          </div>
+          <div className="copilot-level-strip" aria-label="副驾驶装备">
+            <span>BTC 项链</span>
+            <span>装备 {equipmentLabel}</span>
+            <span>{moodLabel}</span>
           </div>
         </div>
       </div>

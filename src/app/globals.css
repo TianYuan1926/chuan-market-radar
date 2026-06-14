@@ -1292,7 +1292,7 @@ p {
 .s680-stage {
   position: relative;
   z-index: 2;
-  min-height: 162px;
+  min-height: 218px;
   margin: 0 12px 12px;
   overflow: hidden;
   border: 1px solid rgba(21, 23, 28, 0.22);
@@ -1326,10 +1326,223 @@ p {
   animation: roadTick 2.8s var(--curve) infinite;
 }
 
+.copilot-avatar {
+  position: absolute;
+  left: 28px;
+  bottom: 58px;
+  z-index: 10;
+  width: 92px;
+  height: 118px;
+  filter: drop-shadow(8px 14px 12px rgba(21, 23, 28, 0.16));
+}
+
+.copilot-gear {
+  position: absolute;
+  top: 26px;
+  left: 17px;
+  z-index: 5;
+  width: 58px;
+  height: 20px;
+  border: 3px solid var(--ink);
+  border-radius: 12px 12px 4px 4px;
+  background: linear-gradient(180deg, #303743, #15171c);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 250, 240, 0.18),
+    0 0 0 2px rgba(213, 155, 61, 0.2);
+}
+
+.copilot-gear::before,
+.copilot-gear::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  width: 10px;
+  height: 22px;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--amber);
+}
+
+.copilot-gear::before { left: -9px; }
+.copilot-gear::after { right: -9px; }
+
+.copilot-head {
+  position: absolute;
+  top: 18px;
+  left: 21px;
+  z-index: 4;
+  width: 52px;
+  height: 54px;
+  border: 4px solid var(--ink);
+  border-radius: 12px 12px 10px 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.36), transparent 34%),
+    #d6a978;
+}
+
+.copilot-hair {
+  position: absolute;
+  top: -9px;
+  right: -4px;
+  left: -4px;
+  z-index: 2;
+  height: 22px;
+  border: 4px solid var(--ink);
+  border-bottom: 0;
+  border-radius: 12px 12px 4px 4px;
+  background:
+    linear-gradient(90deg, #15171c 0 30%, #2b3038 30% 48%, #15171c 48% 100%);
+}
+
+.copilot-expression {
+  position: absolute;
+  top: 24px;
+  left: 8px;
+  z-index: 3;
+  width: 30px;
+  height: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.copilot-eye {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(39, 140, 102, 0.7);
+}
+
+.pet-module--alert .copilot-eye {
+  background: var(--amber);
+  box-shadow: 0 0 12px rgba(213, 155, 61, 0.82);
+}
+
+.pet-module--serious .copilot-eye {
+  height: 4px;
+  background: var(--red);
+  box-shadow: 0 0 12px rgba(201, 74, 74, 0.72);
+}
+
+.copilot-expression::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: -9px;
+  left: 8px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(21, 23, 28, 0.56);
+}
+
+.copilot-body {
+  position: absolute;
+  left: 10px;
+  bottom: 6px;
+  z-index: 3;
+  width: 72px;
+  height: 62px;
+  border: 4px solid var(--ink);
+  border-radius: 14px 14px 8px 8px;
+  background:
+    linear-gradient(90deg, rgba(213, 155, 61, 0.2) 0 12%, transparent 12% 88%, rgba(213, 155, 61, 0.2) 88%),
+    linear-gradient(180deg, #343b46, #171b21);
+}
+
+.copilot-body::before,
+.copilot-body::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  width: 17px;
+  height: 36px;
+  border: 3px solid var(--ink);
+  border-radius: 9px;
+  background: #252b35;
+}
+
+.copilot-body::before {
+  left: -15px;
+  transform: rotate(10deg);
+}
+
+.copilot-body::after {
+  right: -15px;
+  transform: rotate(-10deg);
+}
+
+.copilot-jacket {
+  position: absolute;
+  inset: 8px 12px 0;
+  border-left: 3px solid rgba(255, 250, 240, 0.22);
+  border-right: 3px solid rgba(255, 250, 240, 0.14);
+}
+
+.copilot-chain {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  z-index: 4;
+  width: 34px;
+  height: 30px;
+  border: 2px solid #f3dfb2;
+  border-bottom: 0;
+  border-radius: 50% 50% 0 0;
+  transform: translateX(-50%);
+}
+
+.copilot-medallion {
+  position: absolute;
+  left: 50%;
+  bottom: -16px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 250, 240, 0.72), transparent 24%),
+    var(--amber);
+  color: var(--ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 8px;
+  font-weight: 900;
+  transform: translateX(-50%);
+}
+
+.copilot-level-strip {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  z-index: 12;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.copilot-level-strip span {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(21, 23, 28, 0.22);
+  border-radius: 6px;
+  padding: 5px 6px;
+  background: rgba(255, 250, 240, 0.82);
+  color: var(--ink-2);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .s680-shadow {
   position: absolute;
   left: 50%;
-  bottom: 20px;
+  bottom: 44px;
   z-index: 1;
   width: 214px;
   height: 20px;
@@ -1341,7 +1554,7 @@ p {
 .s680-car {
   position: absolute;
   left: 50%;
-  bottom: 28px;
+  bottom: 54px;
   width: 262px;
   height: 106px;
   transform: translateX(-50%);
