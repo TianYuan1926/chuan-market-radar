@@ -110,9 +110,17 @@ test("runPersistenceSchemaMigration sends one schema statement per query for Neo
   const result = await runPersistenceSchemaMigration(client);
 
   assert.equal(result.ok, true);
-  assert.deepEqual(result.tables, ["journal_events", "scan_archives", "rank_profiles"]);
-  assert.equal(result.tableCount, 3);
-  assert.equal(client.calls.length, 7);
+  assert.deepEqual(result.tables, [
+    "journal_events",
+    "scan_archives",
+    "rank_profiles",
+    "daily_mover_snapshots",
+    "daily_mover_assets",
+    "mover_attribution_reviews",
+    "radar_miss_reviews",
+  ]);
+  assert.equal(result.tableCount, 7);
+  assert.equal(client.calls.length, 16);
   assert.match(client.calls[0]?.sql ?? "", /^create table if not exists journal_events/i);
   assert.match(client.calls[1]?.sql ?? "", /^create index if not exists journal_events_scope_created_at_idx/i);
   assert.match(client.calls[2]?.sql ?? "", /^create index if not exists journal_events_scope_symbol_idx/i);
@@ -120,6 +128,32 @@ test("runPersistenceSchemaMigration sends one schema statement per query for Neo
   assert.match(client.calls[4]?.sql ?? "", /^create table if not exists scan_archives/i);
   assert.match(client.calls[5]?.sql ?? "", /^create index if not exists scan_archives_scope_generated_at_idx/i);
   assert.match(client.calls[6]?.sql ?? "", /^create table if not exists rank_profiles/i);
+  assert.match(client.calls[7]?.sql ?? "", /^create table if not exists daily_mover_snapshots/i);
+  assert.match(client.calls[8]?.sql ?? "", /^create index if not exists daily_mover_snapshots_scope_observed_at_idx/i);
+  assert.match(client.calls[9]?.sql ?? "", /^create table if not exists daily_mover_assets/i);
+  assert.match(client.calls[10]?.sql ?? "", /^create index if not exists daily_mover_assets_scope_snapshot_rank_idx/i);
+  assert.match(client.calls[11]?.sql ?? "", /^create index if not exists daily_mover_assets_scope_symbol_observed_idx/i);
+  assert.match(client.calls[12]?.sql ?? "", /^create table if not exists mover_attribution_reviews/i);
+  assert.match(client.calls[13]?.sql ?? "", /^create index if not exists mover_attribution_reviews_scope_learnability_idx/i);
+  assert.match(client.calls[14]?.sql ?? "", /^create table if not exists radar_miss_reviews/i);
+  assert.match(client.calls[15]?.sql ?? "", /^create index if not exists radar_miss_reviews_scope_status_idx/i);
   assert.equal(client.calls.some((call) => call.sql.includes(";\n\ncreate")), false);
-  assert.deepEqual(client.calls.map((call) => call.params), [[], [], [], [], [], [], []]);
+  assert.deepEqual(client.calls.map((call) => call.params), [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+  ]);
 });

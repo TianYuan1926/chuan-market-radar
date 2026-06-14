@@ -85,7 +85,7 @@
 - `/api/archive` 返回 `ok: true`，且 `archive.retention.storage` 与 repository 模式一致；未接真实数据库时应为 `memory`。
 - `/api/journal` 返回 entries。
 - `/api/health` 返回 `ok: true`，且 `health.level` 能准确反映 `ready`、`preview`、`degraded` 或 `blocked`。
-- 数据库上线前，先在目标 Postgres 执行 `buildPersistenceSchemaSql()` 生成的 SQL，并确认三张表、主键和索引存在。
+- 数据库上线前，先在目标 Postgres 执行 `buildPersistenceSchemaSql()` 生成的 SQL，并确认当前持久化表、主键和索引存在。
 - 如果不用 Neon SQL Editor 手动建表，可以请求 `POST /api/admin/persistence/migrate`；请求必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 数据库上线前，确认服务端已传入真实 `SqlClient`，不能只填 `DATABASE_URL` 就认为已经持久化。
 - 数据库上线前，确认 `DATABASE_DRIVER` 与实际方案一致；Neon 填 `neon`，Supabase 填 `supabase`，普通 Postgres 填 `postgres`。

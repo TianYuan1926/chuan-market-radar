@@ -19,22 +19,26 @@
 - 当前已接入：`/api/health` 会读取 repository 模式，并把 `memory` / `database` 显示为系统健康状态的一部分
 - 当前已接入：`appPersistenceDiagnostics` 会记录数据库是 `unconfigured`、`fallback` 还是 `ready`
 - 当前已接入：`app-repository` 会在 `DATABASE_DRIVER=neon` 且存在 Neon 连接串时自动创建 Neon SQL client
-- 当前已接入：`POST /api/admin/persistence/migrate` 可在授权后执行三张表 schema 初始化
+- 当前已接入：`POST /api/admin/persistence/migrate` 可在授权后执行当前持久化表 schema 初始化
 
 ## 表结构
 
-持久化骨架包含三张表：
+持久化骨架当前包含七张表：
 
 - `journal_events`: 复盘日记、纸面跟踪、拒绝追单、失效记录
 - `scan_archives`: 扫描快照摘要、回放 frame、候选信号 payload
 - `rank_profiles`: 当前段位、XP、纪律分、宠物状态等派生结果
+- `daily_mover_snapshots`: 每日涨跌幅榜快照摘要
+- `daily_mover_assets`: 每日上榜资产的可查询列和原始 payload
+- `mover_attribution_reviews`: 上榜资产的归因结果、证据强度和可学习性
+- `radar_miss_reviews`: 雷达是否提前发现、漏判原因和改进标签
 
 每张表都带 `scope` 字段。未登录阶段建议使用 `public-demo`；未来加登录后可以改成用户 id、workspace id 或匿名设备 id。
 
 ## 接入顺序
 
 1. 在目标 Postgres 执行 `buildPersistenceSchemaSql()` 生成的 SQL。
-2. 确认三张表和索引存在。
+2. 确认当前持久化表和索引存在。
 3. 当前 Neon 已接入 `@neondatabase/serverless`；如果未来改 Supabase，再安装 Supabase 服务端 SDK。
 4. 把目标数据库 client 适配成 `SqlClient` 的 `query(sql, params)` 形状。
 5. 在 server-only 入口创建 `createDatabaseAwarePersistenceRepository({ env: process.env, client })`。
@@ -57,9 +61,9 @@ Vercel 生产环境建议先填这几项：
 1. 在 Neon 控制台创建 project 和 database。
 2. 复制 pooled 或普通 Postgres connection string 到 Vercel 的 `DATABASE_URL`。
 3. 在 Vercel 填写 `CRON_SECRET`，用于保护后台迁移入口。
-4. 在 Neon SQL Editor 执行 `buildPersistenceSchemaSql()` 生成的三张表 SQL，或者请求 `POST /api/admin/persistence/migrate` 执行 schema 初始化。
+4. 在 Neon SQL Editor 执行 `buildPersistenceSchemaSql()` 生成的当前 schema SQL，或者请求 `POST /api/admin/persistence/migrate` 执行 schema 初始化。
 5. 如果走迁移接口，请求必须带 `Authorization: Bearer <CRON_SECRET>`。
-6. 迁移成功后接口会返回 `journal_events`、`scan_archives`、`rank_profiles` 三张表。
+6. 迁移成功后接口会返回当前持久化表清单，包括 `journal_events`、`scan_archives`、`rank_profiles` 和每日异动归因复盘相关表。
 7. 部署后访问 `/api/health`。
 8. 确认 `health.persistence.databaseDriver` 是 `neon`。
 9. 确认 `health.persistence.databaseStatus` 是 `ready`。
@@ -82,7 +86,8 @@ Vercel 生产环境建议先填这几项：
 - `createNeonSqlClient()` 只在 driver 被识别为 `neon` 时创建 Neon client；普通 Postgres 或 Supabase 不会误用 Neon adapter。
 - 如果没有传入真实 `SqlClient`，即使配置了数据库 URL，也会回落到内存 repository，保证预览不会崩。
 - Postgres repository 只依赖通用 `query(sql, params)`，避免现在锁死 Neon 或 Supabase。
-- `runPersistenceSchemaMigration(client)` 可用于上线前通过注入的 SQL client 执行当前三张表的 schema。
+- `runPersistenceSchemaMigration(client)` 可用于上线前通过注入的 SQL client 执行当前持久化 schema。
+- 每日异动归因复盘当前只落地持久化 schema 和 record 转换合同，尚未接入 repository 写入和定时采集。
 - `runAdminPersistenceMigration()` 负责迁移入口的 secret 校验、Neon 激活校验和迁移结果归一化。
 - `addJournalEvent()` 会写入日志后重新读取当前日志样本，再派生段位状态，避免只凭单条新日志计算段位。
 - `addScanArchive()` 会保存扫描摘要和轻量 replay frame；`getScanReplayFrame()` 和 `compareLatestScanArchives()` 负责回放与最近两轮对比。

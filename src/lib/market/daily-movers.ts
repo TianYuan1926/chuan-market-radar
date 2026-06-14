@@ -1,6 +1,6 @@
 import type { SignalState } from "@/lib/analysis/types";
 
-import type { ExchangeId } from "./types";
+import type { ExchangeId, MarketDataSource } from "./types";
 
 export type DailyMoverDirection = "gainer" | "loser";
 
@@ -67,6 +67,15 @@ export type DailyMoverReview = {
   guardrail: string;
   attribution: MoverAttribution;
   radarReview: RadarMoverReview;
+};
+
+export type DailyMoverSnapshot = {
+  id: string;
+  source: MarketDataSource;
+  observedAt: string;
+  gainers: DailyMover[];
+  losers: DailyMover[];
+  reviews: DailyMoverReview[];
 };
 
 export type DailyMoverReviewInput = {

@@ -19,11 +19,13 @@
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
 - `MoverAttribution`：成交量、持仓、资金费率、爆仓、前置漂移等归因。
 - `RadarMoverReview`：雷达已发现、漏判或不可学习样本判断。
+- `DailyMoverSnapshot`：每日涨跌幅榜快照。
+- 持久化 schema 合同：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 
 当前未落地：
 
 - 真实交易所榜单抓取。
-- Neon 持久化表。
+- repository 写入和查询方法。
 - 定时任务。
 - UI 展示。
 - 自动规则权重调整。
@@ -49,11 +51,12 @@
 
 - 逻辑：`src/lib/market/daily-movers.ts`
 - 测试：`src/lib/market/daily-movers.test.ts`
+- 持久化合同：`src/lib/persistence/persistence-contract.ts`
 
 ## 下一步
 
-1. 接入真实涨跌幅榜数据源。
-2. 设计 Neon 持久化表。
+1. 在 repository 层接入每日异动快照写入和查询。
+2. 接入真实涨跌幅榜数据源。
 3. 与扫描归档和复盘日记关联。
 4. 建立每日定时归因任务。
 5. 最后再做“每日异动归因复盘”UI。

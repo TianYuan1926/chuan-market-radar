@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { JournalEvent } from "@/lib/analysis/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
+import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
 import type { ScanArchiveSummary, ScanReplayFrame } from "@/lib/market/types";
 import {
   buildPersistenceSchemaSql,
+  dailyMoverSnapshotToRecords,
   journalEventRecordToEvent,
   journalEventToRecord,
   persistenceTables,
@@ -116,6 +118,50 @@ function rankProfile(): RankProfile {
   };
 }
 
+function dailyMoverSnapshot(): DailyMoverSnapshot {
+  return {
+    id: "daily-movers-2026-06-14",
+    source: "coinglass",
+    observedAt: "2026-06-14T00:00:00.000Z",
+    gainers: [
+      {
+        id: "mover-sol-2026-06-14",
+        symbol: "SOL",
+        exchange: "BINANCE",
+        direction: "gainer",
+        rank: 1,
+        observedAt: "2026-06-14T00:00:00.000Z",
+        priceChangePercent: 38.4,
+        volume24hUsd: 720_000_000,
+        openInterestChangePercent: 31,
+        fundingRate: 0.0009,
+        liquidationUsd24h: 18_000_000,
+      },
+    ],
+    losers: [],
+    reviews: [
+      {
+        id: "mover-sol-2026-06-14",
+        symbol: "SOL",
+        direction: "gainer",
+        observedAt: "2026-06-14T00:00:00.000Z",
+        allowedUse: "research_only",
+        guardrail: "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。",
+        attribution: {
+          primaryDrivers: ["volume_expansion", "open_interest_expansion"],
+          evidenceStrength: "strong",
+          learnability: "learnable",
+        },
+        radarReview: {
+          status: "caught",
+          matchedSignalIds: ["sig-sol-compression"],
+          improvementTags: [],
+        },
+      },
+    ],
+  };
+}
+
 test("journal events round-trip through a database-ready record", () => {
   const event = journalEvent();
   const record = journalEventToRecord(event, scope);
@@ -160,15 +206,52 @@ test("rank profiles store the current derived state for fast reads", () => {
   assert.deepEqual(rankProfileRecordToProfile(record), profile);
 });
 
+test("daily mover snapshots split queryable columns from attribution payloads", () => {
+  const records = dailyMoverSnapshotToRecords(dailyMoverSnapshot(), scope);
+
+  assert.equal(records.snapshot.id, "daily-movers-2026-06-14");
+  assert.equal(records.snapshot.scope, scope);
+  assert.equal(records.snapshot.source, "coinglass");
+  assert.equal(records.snapshot.gainer_count, 1);
+  assert.equal(records.snapshot.loser_count, 0);
+  assert.equal(records.assets[0]?.symbol, "SOL");
+  assert.equal(records.assets[0]?.direction, "gainer");
+  assert.equal(records.assets[0]?.price_change_percent, 38.4);
+  assert.equal(records.assets[0]?.volume_24h_usd, 720_000_000);
+  assert.deepEqual(records.attributionReviews[0]?.primary_drivers, [
+    "volume_expansion",
+    "open_interest_expansion",
+  ]);
+  assert.equal(records.attributionReviews[0]?.learnability, "learnable");
+  assert.equal(records.radarReviews[0]?.status, "caught");
+  assert.deepEqual(records.radarReviews[0]?.matched_signal_ids, ["sig-sol-compression"]);
+  assert.equal(records.radarReviews[0]?.payload.allowedUse, "research_only");
+});
+
 test("buildPersistenceSchemaSql defines the durable Postgres tables without provider lock-in", () => {
   const sql = buildPersistenceSchemaSql();
 
-  assert.deepEqual(persistenceTables, ["journal_events", "scan_archives", "rank_profiles"]);
+  assert.deepEqual(persistenceTables, [
+    "journal_events",
+    "scan_archives",
+    "rank_profiles",
+    "daily_mover_snapshots",
+    "daily_mover_assets",
+    "mover_attribution_reviews",
+    "radar_miss_reviews",
+  ]);
   assert.match(sql, /create table if not exists journal_events/i);
   assert.match(sql, /outcome_status text/i);
   assert.match(sql, /journal_events_scope_outcome_status_idx/i);
   assert.match(sql, /create table if not exists scan_archives/i);
   assert.match(sql, /create table if not exists rank_profiles/i);
+  assert.match(sql, /create table if not exists daily_mover_snapshots/i);
+  assert.match(sql, /create table if not exists daily_mover_assets/i);
+  assert.match(sql, /create table if not exists mover_attribution_reviews/i);
+  assert.match(sql, /create table if not exists radar_miss_reviews/i);
+  assert.match(sql, /daily_mover_assets_scope_snapshot_rank_idx/i);
+  assert.match(sql, /mover_attribution_reviews_scope_learnability_idx/i);
+  assert.match(sql, /radar_miss_reviews_scope_status_idx/i);
   assert.match(sql, /payload jsonb not null/i);
   assert.match(sql, /primary key \(scope, id\)/i);
   assert.match(sql, /primary key \(scope\)/i);

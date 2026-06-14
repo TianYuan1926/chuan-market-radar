@@ -1,6 +1,13 @@
 import type { JournalEvent } from "@/lib/analysis/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type {
+  DailyMover,
+  DailyMoverReview,
+  DailyMoverSnapshot,
+  MoverAttribution,
+  RadarMoverReview,
+} from "@/lib/market/daily-movers";
+import type {
   MarketDataSource,
   MarketDataStatus,
   ScanArchiveSummary,
@@ -50,10 +57,67 @@ export type PersistedRankProfileRecord = {
   payload: RankProfile;
 };
 
+export type PersistedDailyMoverSnapshotRecord = {
+  id: string;
+  scope: PersistenceScope;
+  source: MarketDataSource;
+  observed_at: string;
+  gainer_count: number;
+  loser_count: number;
+  payload: DailyMoverSnapshot;
+};
+
+export type PersistedDailyMoverAssetRecord = {
+  scope: PersistenceScope;
+  snapshot_id: string;
+  mover_id: string;
+  symbol: string;
+  exchange: DailyMover["exchange"];
+  direction: DailyMover["direction"];
+  rank: number;
+  observed_at: string;
+  price_change_percent: number;
+  volume_24h_usd: number;
+  payload: DailyMover;
+};
+
+export type PersistedMoverAttributionReviewRecord = {
+  scope: PersistenceScope;
+  mover_id: string;
+  symbol: string;
+  direction: DailyMoverReview["direction"];
+  observed_at: string;
+  evidence_strength: MoverAttribution["evidenceStrength"];
+  learnability: MoverAttribution["learnability"];
+  primary_drivers: MoverAttribution["primaryDrivers"];
+  payload: DailyMoverReview;
+};
+
+export type PersistedRadarMissReviewRecord = {
+  scope: PersistenceScope;
+  mover_id: string;
+  symbol: string;
+  status: RadarMoverReview["status"];
+  matched_signal_ids: string[];
+  improvement_tags: string[];
+  payload: DailyMoverReview;
+};
+
+export type PersistedDailyMoverSnapshotRecords = {
+  snapshot: PersistedDailyMoverSnapshotRecord;
+  assets: PersistedDailyMoverAssetRecord[];
+  attributionReviews: PersistedMoverAttributionReviewRecord[];
+  radarReviews: PersistedRadarMissReviewRecord[];
+};
+
 export const persistenceTables = [
   "journal_events",
   "scan_archives",
   "rank_profiles",
+  "daily_mover_snapshots",
+  "daily_mover_assets",
+  "mover_attribution_reviews",
+  "radar_miss_reviews",
 ] as const;
 
 export function journalEventToRecord(
@@ -158,6 +222,58 @@ export function rankProfileRecordToProfile(
   };
 }
 
+export function dailyMoverSnapshotToRecords(
+  snapshot: DailyMoverSnapshot,
+  scope: PersistenceScope,
+): PersistedDailyMoverSnapshotRecords {
+  const movers = [...snapshot.gainers, ...snapshot.losers];
+
+  return {
+    snapshot: {
+      id: snapshot.id,
+      scope,
+      source: snapshot.source,
+      observed_at: snapshot.observedAt,
+      gainer_count: snapshot.gainers.length,
+      loser_count: snapshot.losers.length,
+      payload: snapshot,
+    },
+    assets: movers.map((mover) => ({
+      scope,
+      snapshot_id: snapshot.id,
+      mover_id: mover.id,
+      symbol: mover.symbol,
+      exchange: mover.exchange,
+      direction: mover.direction,
+      rank: mover.rank,
+      observed_at: mover.observedAt,
+      price_change_percent: mover.priceChangePercent,
+      volume_24h_usd: mover.volume24hUsd,
+      payload: mover,
+    })),
+    attributionReviews: snapshot.reviews.map((review) => ({
+      scope,
+      mover_id: review.id,
+      symbol: review.symbol,
+      direction: review.direction,
+      observed_at: review.observedAt,
+      evidence_strength: review.attribution.evidenceStrength,
+      learnability: review.attribution.learnability,
+      primary_drivers: review.attribution.primaryDrivers,
+      payload: review,
+    })),
+    radarReviews: snapshot.reviews.map((review) => ({
+      scope,
+      mover_id: review.id,
+      symbol: review.symbol,
+      status: review.radarReview.status,
+      matched_signal_ids: review.radarReview.matchedSignalIds,
+      improvement_tags: review.radarReview.improvementTags,
+      payload: review,
+    })),
+  };
+}
+
 export function buildPersistenceSchemaSql() {
   return `
 create table if not exists journal_events (
@@ -212,5 +328,70 @@ create table if not exists rank_profiles (
   payload jsonb not null,
   primary key (scope)
 );
+
+create table if not exists daily_mover_snapshots (
+  scope text not null,
+  id text not null,
+  source text not null,
+  observed_at timestamptz not null,
+  gainer_count integer not null default 0,
+  loser_count integer not null default 0,
+  payload jsonb not null,
+  primary key (scope, id)
+);
+
+create index if not exists daily_mover_snapshots_scope_observed_at_idx
+  on daily_mover_snapshots (scope, observed_at desc);
+
+create table if not exists daily_mover_assets (
+  scope text not null,
+  snapshot_id text not null,
+  mover_id text not null,
+  symbol text not null,
+  exchange text not null,
+  direction text not null,
+  rank integer not null,
+  observed_at timestamptz not null,
+  price_change_percent numeric not null,
+  volume_24h_usd numeric not null,
+  payload jsonb not null,
+  primary key (scope, snapshot_id, mover_id)
+);
+
+create index if not exists daily_mover_assets_scope_snapshot_rank_idx
+  on daily_mover_assets (scope, snapshot_id, direction, rank);
+
+create index if not exists daily_mover_assets_scope_symbol_observed_idx
+  on daily_mover_assets (scope, symbol, observed_at desc);
+
+create table if not exists mover_attribution_reviews (
+  scope text not null,
+  mover_id text not null,
+  symbol text not null,
+  direction text not null,
+  observed_at timestamptz not null,
+  evidence_strength text not null,
+  learnability text not null,
+  primary_drivers text[] not null default '{}',
+  payload jsonb not null,
+  primary key (scope, mover_id)
+);
+
+create index if not exists mover_attribution_reviews_scope_learnability_idx
+  on mover_attribution_reviews (scope, learnability, observed_at desc);
+
+create table if not exists radar_miss_reviews (
+  scope text not null,
+  mover_id text not null,
+  symbol text not null,
+  status text not null,
+  matched_signal_ids text[] not null default '{}',
+  improvement_tags text[] not null default '{}',
+  payload jsonb not null,
+  primary key (scope, mover_id)
+);
+
+create index if not exists radar_miss_reviews_scope_status_idx
+  on radar_miss_reviews (scope, status);
 `.trim();
 }
