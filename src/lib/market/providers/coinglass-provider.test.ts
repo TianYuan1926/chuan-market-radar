@@ -98,6 +98,70 @@ test("CoinGlass provider pins BTC and ETH anchors inside the structured universe
   assert.match(snapshot.metadata.notes.join("\n"), /coverage 4\/6 \(67%\)/);
 });
 
+test("CoinGlass provider can include discovered USDT perpetuals in the low-rate scan plan", async () => {
+  const requestedSymbols: string[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA"],
+    batchSize: 5,
+    universeDiscoveryProvider: {
+      id: "test-discovery",
+      label: "Test Universe Discovery",
+      async discoverInstruments() {
+        return {
+          ok: true,
+          source: "test-discovery",
+          instruments: [
+            {
+              id: "BINANCE:ARBUSDT",
+              symbol: "ARBUSDT",
+              baseAsset: "ARB",
+              quoteAsset: "USDT",
+              exchange: "BINANCE",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+            {
+              id: "BINANCE:SOLUSDT",
+              symbol: "SOLUSDT",
+              baseAsset: "SOL",
+              quoteAsset: "USDT",
+              exchange: "BINANCE",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+          ],
+        };
+      },
+    },
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ENA", "ARB", "SOL"]);
+  assert.equal(snapshot.metadata.coverage?.total, 5);
+  assert.equal(snapshot.metadata.coverage?.scanned, 5);
+  assert.match(snapshot.metadata.notes.join("\n"), /universe discovery: test-discovery ok 2 instruments/);
+});
+
 test("CoinGlass provider filters noisy quote markets and aggregates one primary signal per symbol", async () => {
   const provider = createCoinGlassProvider({
     apiKey: "test-key",

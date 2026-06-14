@@ -83,7 +83,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | --- | --- | --- |
 | 阶段 1：蓝图固化 | 已完成 | 后续每轮继续维护本文，防止上下文压缩造成遗漏 |
 | 阶段 2：真正多周期分析引擎 | 基础已落地 | 真实多周期 OHLCV candles 尚未全量接入每个币种 |
-| 阶段 3：合约 universe registry | 基础已落地 | 尚未自动发现全市场所有 USDT perpetual |
+| 阶段 3：合约 universe registry | 基础和 Binance USDT 永续自动发现已落地 | 尚未接入 OKX/Bybit 自动发现、分层币池和全市场低频轮转 |
 | 阶段 4：OHLCV 与技术指标 | 基础已落地 | 尚未完成多周期指标矩阵、MACD、成交量分布 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
@@ -222,6 +222,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
   - coverage percent
 - CoinGlass provider 已把 universe coverage 写入 `metadata.coverage`。
 - 系统状态面板已显示扫描覆盖摘要。
+- 已新增 Binance public futures `exchangeInfo` 自动发现入口，筛选 `TRADING`、`PERPETUAL`、`USDT` 合约。
+- CoinGlass provider 会把 Binance 发现到的 USDT 永续合约并入 universe scan plan；发现失败时回退到配置白名单并在 metadata notes 中显示原因。
 
 ### 已落地：AI 反证复核边界
 
@@ -264,14 +266,14 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划和主扫描质量过滤，但资产池来源仍主要依赖 `COINGLASS_BASE_ASSETS` 与当前批次观测到的合约，不是自动发现所有支持合约交易的币种。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤和 Binance public futures USDT 永续自动发现。资产池已不只依赖 `COINGLASS_BASE_ASSETS`，但还没有完成 OKX/Bybit 覆盖、分层币池和全市场低频轮转策略。
 
 后续需要：
 
-- 支持合约交易币种列表。
-- 交易所覆盖状态。
+- OKX/Bybit 支持合约交易币种列表。
+- 多交易所覆盖状态。
 - API quota 消耗估计。
-- 从 Binance/OKX/Bybit public instruments 自动发现全量 USDT perpetual。
+- 从 OKX/Bybit public instruments 自动发现全量 USDT perpetual。
 - 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描。
 - 高优先级币种加密扫描。
@@ -591,7 +593,7 @@ CoinGlass 业余会员 API：
 
 目标：管理所有支持合约交易的币种，并显示扫描覆盖率。
 
-当前状态：基础已完成，全市场自动发现未完成。
+当前状态：基础已完成，Binance USDT 永续自动发现已完成，OKX/Bybit 和分层轮转未完成。
 
 已具备：
 
@@ -599,10 +601,11 @@ CoinGlass 业余会员 API：
 - 有扫描优先级。
 - 有覆盖率展示。
 - 有未扫描原因。
+- 有 Binance public futures exchangeInfo 自动发现。
 
 下一步深化：
 
-- 从 Binance/OKX/Bybit public instruments 自动发现全量 USDT perpetual。
+- 从 OKX/Bybit public instruments 自动发现全量 USDT perpetual。
 - 记录不同交易所对同一币种的覆盖差异。
 - 按 liquidity、异常程度和历史有效性动态调整扫描优先级。
 

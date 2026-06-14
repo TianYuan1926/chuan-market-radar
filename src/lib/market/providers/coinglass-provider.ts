@@ -17,6 +17,7 @@ import type {
   MarketRadarSnapshot,
   ScanMetadata,
 } from "../types";
+import type { UniverseDiscoveryProvider } from "./binance-universe-discovery";
 import { requestCoinGlass } from "./coinglass-client";
 import {
   type CoinGlassMarketRow,
@@ -35,6 +36,7 @@ export type CoinGlassProviderOptions = {
   batchSize?: number;
   fetcher?: typeof fetch;
   ohlcvProvider?: OhlcvProvider;
+  universeDiscoveryProvider?: UniverseDiscoveryProvider;
   now?: () => Date;
 };
 
@@ -158,6 +160,15 @@ function selectPrimarySignalRows(rows: CoinGlassMarketRow[], updatedAt: string) 
   return [...bySymbol.values()];
 }
 
+function compactAssetList(label: string, assets: string[], previewLimit = 12) {
+  const preview = assets.slice(0, previewLimit).join(",");
+  const suffix = assets.length > previewLimit
+    ? ` +${assets.length - previewLimit} more`
+    : "";
+
+  return `${label}: ${preview}${suffix}`;
+}
+
 function regimeFromAnchorChange(changePercent: number) {
   if (changePercent <= -1.2) {
     return "risk_off";
@@ -233,6 +244,7 @@ export function createCoinGlassProvider({
   batchSize = 3,
   fetcher,
   ohlcvProvider,
+  universeDiscoveryProvider,
   now = () => new Date(),
 }: CoinGlassProviderOptions): MarketDataProvider {
   return {
@@ -242,7 +254,13 @@ export function createCoinGlassProvider({
     async fetchSnapshot(): Promise<MarketRadarSnapshot> {
       const scanTime = now();
       const generatedAt = scanTime.toISOString();
-      const initialRegistry = buildUniverseRegistry(baseAssets);
+      const universeDiscovery = universeDiscoveryProvider
+        ? await universeDiscoveryProvider.discoverInstruments()
+        : null;
+      const discoveredInstruments = universeDiscovery?.ok
+        ? universeDiscovery.instruments
+        : [];
+      const initialRegistry = buildUniverseRegistry(baseAssets, discoveredInstruments);
       const batchPlan = planUniverseScan(
         initialRegistry,
         batchSize,
@@ -262,7 +280,10 @@ export function createCoinGlassProvider({
       const instrumentPool = buildContractInstrumentPool(instruments, {
         minVolume24hUsd: 5_000_000,
       });
-      const universeRegistry = buildUniverseRegistry(baseAssets, instruments);
+      const universeRegistry = buildUniverseRegistry(baseAssets, [
+        ...discoveredInstruments,
+        ...instruments,
+      ]);
       const coverage = buildCoverageReport(universeRegistry, batchPlan);
       const tickers = primarySignalRows.map((row) => mapCoinGlassTicker(row, generatedAt));
       const derivatives = primarySignalRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
@@ -324,9 +345,14 @@ export function createCoinGlassProvider({
         notes: [
           "CoinGlass provider enabled",
           "futures pairs-markets boundary active",
+          universeDiscovery
+            ? universeDiscovery.ok
+              ? `universe discovery: ${universeDiscovery.source} ok ${universeDiscovery.instruments.length} instruments`
+              : `universe discovery: ${universeDiscovery.source} ${universeDiscovery.reason}`
+            : "universe discovery: disabled",
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
           `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
-          `base assets: ${batchPlan.allAssets.join(",")}`,
+          compactAssetList("base assets", batchPlan.allAssets),
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
           `requests ${batchPlan.requestsPlanned}/${coverage.eligible}, next batch ${batchPlan.nextBatchIndex + 1}`,
           `coverage ${coverage.scanned}/${coverage.eligible} (${coverage.coveragePercent}%), pending ${coverage.pending}, skipped ${coverage.skipped}`,
