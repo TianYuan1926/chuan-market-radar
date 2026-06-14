@@ -36,6 +36,18 @@ function journalEvent(overrides: Partial<JournalEvent> = {}): JournalEvent {
     thesis: "接近触发，但不能追。",
     plannedReviewAt: "2026-06-12T11:45:00.000+08:00",
     lessons: ["等待确认"],
+    outcomeStatus: "expired",
+    triggerHit: false,
+    invalidationHit: false,
+    firstTargetHit: false,
+    reviewCheckpoints: [
+      {
+        id: "1h",
+        label: "1h 误报检查",
+        reviewAt: "2026-06-12T11:15:00.000+08:00",
+        status: "complete",
+      },
+    ],
     ...overrides,
   };
 }
@@ -113,7 +125,9 @@ test("journal events round-trip through a database-ready record", () => {
   assert.equal(record.symbol, "ENAUSDT");
   assert.equal(record.result, "watching");
   assert.equal(record.rank_delta, 0);
+  assert.equal(record.outcome_status, "expired");
   assert.equal(record.payload.lessons?.[0], "等待确认");
+  assert.equal(record.payload.reviewCheckpoints?.[0]?.id, "1h");
   assert.deepEqual(journalEventRecordToEvent(record), event);
 });
 
@@ -151,6 +165,8 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
 
   assert.deepEqual(persistenceTables, ["journal_events", "scan_archives", "rank_profiles"]);
   assert.match(sql, /create table if not exists journal_events/i);
+  assert.match(sql, /outcome_status text/i);
+  assert.match(sql, /journal_events_scope_outcome_status_idx/i);
   assert.match(sql, /create table if not exists scan_archives/i);
   assert.match(sql, /create table if not exists rank_profiles/i);
   assert.match(sql, /payload jsonb not null/i);

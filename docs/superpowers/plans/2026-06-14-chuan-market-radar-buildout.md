@@ -28,7 +28,8 @@ Before implementing any task, read `docs/chuan-market-radar-blueprint.md` and co
 - Task 3 Technical Indicator Evidence: implementation and verification complete.
 - Task 4 Contract Universe Registry: implementation and verification complete.
 - Task 5 AI Counter-Review Layer: implementation and verification complete.
-- Next task: Task 6 Outcome Tracking And Self-Improvement.
+- Task 6 Outcome Tracking And Self-Improvement: implementation and verification complete.
+- Next task: Task 7 Alert Policy.
 
 ## File Structure Map
 
@@ -362,7 +363,7 @@ git commit -m "feat: add guarded AI signal review"
 - Modify: `src/components/radar/journal-panel.tsx`
 - Test: `src/lib/journal/outcome-tracker.test.ts`
 
-- [ ] **Step 1: Add failing lifecycle tests**
+- [x] **Step 1: Add failing lifecycle tests**
 
 Tests must assert:
 
@@ -372,7 +373,7 @@ Tests must assert:
 - A signal that never triggers expires without rank reward.
 - Rank rewards discipline more than blind wins.
 
-- [ ] **Step 2: Implement outcome tracker**
+- [x] **Step 2: Implement outcome tracker**
 
 Create:
 
@@ -381,11 +382,11 @@ Create:
 - `buildLifecycleJournalEvent(signal, outcome)`
 - `deriveRuleAdjustment(outcomes)`
 
-- [ ] **Step 3: Persist lifecycle fields**
+- [x] **Step 3: Persist lifecycle fields**
 
 Modify persistence schema payload mapping so lifecycle details are saved in JSON payload and indexed where already supported by symbol and created time.
 
-- [ ] **Step 4: Display review checkpoints**
+- [x] **Step 4: Display review checkpoints**
 
 Modify journal UI to show:
 
@@ -395,13 +396,13 @@ Modify journal UI to show:
 - invalidation hit
 - lesson tags
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run test:market
 npm run typecheck
 npm run lint
-git add src/lib/journal/outcome-tracker.ts src/lib/journal/outcome-tracker.test.ts src/lib/journal/journal-entry.ts src/lib/journal/rank-engine.ts src/lib/persistence/persistence-contract.ts src/components/radar/journal-panel.tsx
+git add src/lib/journal/outcome-tracker.ts src/lib/journal/outcome-tracker.test.ts src/lib/journal/journal-entry.ts src/lib/journal/journal-entry.test.ts src/lib/analysis/types.ts src/lib/persistence/persistence-contract.ts src/lib/persistence/persistence-contract.test.ts src/lib/persistence/persistence-store.ts src/lib/persistence/database-client.test.ts src/components/radar/journal-panel.tsx src/app/globals.css src/data/mock-signals.ts docs/chuan-market-radar-blueprint.md docs/superpowers/plans/2026-06-14-chuan-market-radar-buildout.md
 git commit -m "feat: add signal outcome tracking"
 ```
 

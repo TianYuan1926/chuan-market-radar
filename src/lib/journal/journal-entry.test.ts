@@ -79,6 +79,20 @@ test("buildJournalEntryFromSignal preserves the full decision context", () => {
   assert.match(entry.thesis, /接近触发/);
 });
 
+test("buildJournalEntryFromSignal attaches lifecycle checkpoints to tracked signals", () => {
+  const entry = buildJournalEntryFromSignal(baseSignal, "paper_trade", {
+    createdAt: "2026-06-12T10:20:00+08:00",
+  });
+
+  assert.equal(entry.outcomeStatus, "pending");
+  assert.equal(entry.triggerHit, false);
+  assert.equal(entry.invalidationHit, false);
+  assert.equal(entry.firstTargetHit, false);
+  assert.deepEqual(entry.reviewCheckpoints?.map((checkpoint) => checkpoint.id), ["1h", "4h", "24h"]);
+  assert.equal(entry.reviewCheckpoints?.[0]?.reviewAt, "2026-06-12T03:15:00.000Z");
+  assert.deepEqual(entry.lessons, ["still_tracking"]);
+});
+
 test("skip decisions are saved as positive discipline instead of failed trades", () => {
   const entry = buildJournalEntryFromSignal(baseSignal, "skip", {
     createdAt: "2026-06-12T10:20:00+08:00",

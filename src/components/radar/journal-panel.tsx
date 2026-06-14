@@ -15,6 +15,14 @@ const resultMeta = {
   watching: { label: "跟踪" },
 } as const;
 
+const outcomeMeta = {
+  pending: { label: "待复查" },
+  partial_win: { label: "首目标" },
+  saved: { label: "已避险" },
+  loss: { label: "已失效" },
+  expired: { label: "已过期" },
+} as const;
+
 const statusText = {
   idle: "READY",
   saving: "SAVING",
@@ -67,9 +75,38 @@ function formatReviewTime(value?: string) {
   }).format(date);
 }
 
+function nextReviewAt(event: JournalEvent) {
+  return event.reviewCheckpoints?.find((checkpoint) => checkpoint.status !== "complete")?.reviewAt ??
+    event.reviewCheckpoints?.at(-1)?.reviewAt ??
+    event.plannedReviewAt;
+}
+
+function nextQueueReviewAt(events: JournalEvent[]) {
+  const pending = events
+    .map(nextReviewAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => {
+      const leftTime = new Date(left).getTime();
+      const rightTime = new Date(right).getTime();
+
+      return (Number.isNaN(leftTime) ? 0 : leftTime) - (Number.isNaN(rightTime) ? 0 : rightTime);
+    });
+
+  return pending[0];
+}
+
+function outcomeLabel(event: JournalEvent) {
+  return event.outcomeStatus ? outcomeMeta[event.outcomeStatus].label : resultMeta[event.result].label;
+}
+
+function hitLabel(value?: boolean) {
+  return value ? "HIT" : "WAIT";
+}
+
 export function JournalPanel({ events, onCreate, selected, status }: JournalPanelProps) {
   const selectedLabel = selected?.symbol.replace("USDT", "") ?? "NONE";
   const trackingCount = events.filter((event) => event.reviewStatus === "tracking").length;
+  const queueReviewAt = nextQueueReviewAt(events);
 
   return (
     <section className="module">
@@ -106,7 +143,7 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
         <div className="journal-meta-grid" aria-label="复盘队列状态">
           <span><b>{events.length}</b> total</span>
           <span><b>{trackingCount}</b> tracking</span>
-          <span><b>{formatReviewTime(events[0]?.plannedReviewAt)}</b> next</span>
+          <span><b>{formatReviewTime(queueReviewAt)}</b> next</span>
         </div>
       </div>
 
@@ -118,8 +155,25 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
             <article className="review-row" key={event.id}>
               <strong>{event.symbol.replace("USDT", "")}</strong>
               <span className="row-note">
-                <b>{meta.label} / {event.title}</b>
+                <b>{outcomeLabel(event)} / {event.title}</b>
                 <small>{event.trigger ?? event.note}</small>
+                <span className="review-row__state">
+                  <span>{meta.label}</span>
+                  <span>next {formatReviewTime(nextReviewAt(event))}</span>
+                  <span>{event.reviewStatus?.toUpperCase() ?? "OPEN"}</span>
+                </span>
+                <span className="review-row__flags" aria-label={`${event.symbol} 复盘状态`}>
+                  <span className={event.triggerHit ? "is-hit" : ""}>TRG {hitLabel(event.triggerHit)}</span>
+                  <span className={event.invalidationHit ? "is-hit is-bad" : ""}>INV {hitLabel(event.invalidationHit)}</span>
+                  <span className={event.firstTargetHit ? "is-hit" : ""}>TP1 {hitLabel(event.firstTargetHit)}</span>
+                </span>
+                {(event.lessons?.length ?? 0) > 0 ? (
+                  <span className="lesson-tags">
+                    {event.lessons?.slice(0, 3).map((lesson) => (
+                      <i key={lesson}>{lesson}</i>
+                    ))}
+                  </span>
+                ) : null}
               </span>
               <strong className={event.rankDelta > 0 ? "tone-good" : event.rankDelta < 0 ? "tone-bad" : "tone-amber"}>
                 {event.rankDelta > 0 ? `+${event.rankDelta}` : event.rankDelta}

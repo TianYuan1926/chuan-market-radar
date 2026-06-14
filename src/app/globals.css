@@ -2191,8 +2191,8 @@ p {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr) 38px;
   gap: 10px;
-  align-items: center;
-  min-height: 58px;
+  align-items: start;
+  min-height: 86px;
   padding: 9px 13px;
   border-bottom: 1px solid var(--line);
 }
@@ -2204,7 +2204,7 @@ p {
 .review-row .row-note {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 5px;
 }
 
 .review-row .row-note b,
@@ -2222,6 +2222,51 @@ p {
 .review-row .row-note small {
   color: var(--muted);
   font-size: 11px;
+}
+
+.review-row__state,
+.review-row__flags,
+.lesson-tags {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.review-row__state span,
+.review-row__flags span,
+.lesson-tags i {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  background: rgba(255, 250, 240, 0.62);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-row__flags .is-hit {
+  border-color: rgba(61, 141, 94, 0.36);
+  color: var(--green);
+  background: rgba(61, 141, 94, 0.12);
+}
+
+.review-row__flags .is-bad {
+  border-color: rgba(184, 64, 72, 0.36);
+  color: var(--red);
+  background: rgba(184, 64, 72, 0.12);
+}
+
+.lesson-tags i {
+  border-color: rgba(213, 155, 61, 0.32);
+  color: var(--ink);
+  background: rgba(213, 155, 61, 0.14);
 }
 
 .tone-good { color: var(--green); }

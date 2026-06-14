@@ -94,6 +94,20 @@ export type JournalAction = "track" | "paper_trade" | "skip" | "invalidate";
 
 export type ReviewStatus = "queued" | "tracking" | "closed";
 
+export type ReviewCheckpoint = {
+  id: "1h" | "4h" | "24h";
+  label: string;
+  reviewAt: string;
+  status: "pending" | "due" | "complete";
+};
+
+export type SignalOutcomeStatus =
+  | "pending"
+  | "partial_win"
+  | "saved"
+  | "loss"
+  | "expired";
+
 export type MarketSignal = {
   id: string;
   symbol: string;
@@ -134,4 +148,9 @@ export type JournalEvent = {
   thesis?: string;
   plannedReviewAt?: string;
   lessons?: string[];
+  outcomeStatus?: SignalOutcomeStatus;
+  triggerHit?: boolean;
+  invalidationHit?: boolean;
+  firstTargetHit?: boolean;
+  reviewCheckpoints?: ReviewCheckpoint[];
 };

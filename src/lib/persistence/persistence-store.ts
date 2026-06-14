@@ -268,15 +268,17 @@ insert into journal_events (
   rank_delta,
   action,
   review_status,
+  outcome_status,
   created_at,
   payload
-) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 on conflict (scope, id) do update set
   symbol = excluded.symbol,
   result = excluded.result,
   rank_delta = excluded.rank_delta,
   action = excluded.action,
   review_status = excluded.review_status,
+  outcome_status = excluded.outcome_status,
   created_at = excluded.created_at,
   payload = excluded.payload
 `.trim(),
@@ -288,6 +290,7 @@ on conflict (scope, id) do update set
           record.rank_delta,
           record.action,
           record.review_status,
+          record.outcome_status,
           record.created_at,
           record.payload,
         ],

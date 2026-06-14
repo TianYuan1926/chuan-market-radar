@@ -5,6 +5,7 @@ import type {
   ReviewStatus,
   Timeframe,
 } from "@/lib/analysis/types";
+import { buildReviewSchedule } from "./outcome-tracker";
 
 const reviewDelayMinutes: Record<Timeframe, number> = {
   "1m": 30,
@@ -105,6 +106,35 @@ export function buildJournalEntryFromSignal(
 ): SignalJournalEntry {
   const meta = actionMeta[action];
   const strategyStatus = signal.strategy.status ?? "waiting";
+  const reviewCheckpoints = meta.reviewStatus === "tracking"
+    ? buildReviewSchedule(signal, signal.updatedAt)
+    : undefined;
+  const lifecycleDefaults = meta.reviewStatus === "tracking"
+    ? {
+        outcomeStatus: "pending" as const,
+        triggerHit: false,
+        invalidationHit: false,
+        firstTargetHit: false,
+        reviewCheckpoints,
+        lessons: ["still_tracking"],
+      }
+    : action === "skip"
+      ? {
+          outcomeStatus: "saved" as const,
+          triggerHit: false,
+          invalidationHit: false,
+          firstTargetHit: false,
+          reviewCheckpoints: undefined,
+          lessons: ["manual_skip"],
+        }
+      : {
+          outcomeStatus: "loss" as const,
+          triggerHit: false,
+          invalidationHit: true,
+          firstTargetHit: false,
+          reviewCheckpoints: undefined,
+          lessons: ["manual_invalidation"],
+        };
 
   return {
     id: `journal-${signal.id}-${action}`,
@@ -125,7 +155,7 @@ export function buildJournalEntryFromSignal(
     invalidation: signal.strategy.invalidation,
     thesis: signal.summary,
     plannedReviewAt: plannedReviewAt(signal.updatedAt, signal.timeframe),
-    lessons: [],
+    ...lifecycleDefaults,
   };
 }
 
