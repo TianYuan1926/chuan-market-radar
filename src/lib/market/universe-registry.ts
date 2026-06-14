@@ -1,4 +1,12 @@
-import type { ContractInstrument, InstrumentRejectionReason, ScanCoverage } from "./types";
+import type {
+  AssetExchangeCoverage,
+  ContractInstrument,
+  ExchangeCoverageSummary,
+  ExchangeId,
+  InstrumentRejectionReason,
+  ScanCoverage,
+  VenueCoverageQuality,
+} from "./types";
 import { scanWindowCursor } from "./scan-batch-queue";
 
 export type UniverseAssetKey = {
@@ -24,6 +32,7 @@ export type UniverseAsset = UniverseAssetKey & {
   priority: number;
   sources: UniverseAssetSource[];
   tier: UniverseAssetTier;
+  venueCoverage: VenueCoverageQuality;
   volume24hUsd: number;
 };
 
@@ -41,9 +50,13 @@ export type UniverseRegistry = {
     configured: number;
     core: number;
     longTail: number;
+    majorThree: number;
+    multiExchange: number;
     observed: number;
+    singleExchange: number;
     skipped: number;
     total: number;
+    unlisted: number;
   };
 };
 
@@ -70,6 +83,7 @@ const defaultTierPolicy: UniverseTierPolicy = {
   activeEveryWindows: 3,
   longTailEveryWindows: 8,
 };
+const majorDiscoveryExchanges: ExchangeId[] = ["BINANCE", "OKX", "BYBIT"];
 
 function uniqueValues<T>(values: T[]) {
   return [...new Set(values)];
@@ -92,6 +106,64 @@ function countAssetTiers(assets: UniverseAsset[]): UniverseTierCounts {
   }
 
   return counts;
+}
+
+function emptyExchangeCoverageSummary(): ExchangeCoverageSummary {
+  return {
+    majorThree: 0,
+    multiExchange: 0,
+    singleExchange: 0,
+    unlisted: 0,
+  };
+}
+
+function venueCoverageFor(exchanges: ContractInstrument["exchange"][]): VenueCoverageQuality {
+  const listedExchanges = exchanges.filter((exchange) => exchange !== "UNKNOWN");
+  const listedExchangeSet = new Set<ExchangeId>(listedExchanges);
+
+  if (listedExchanges.length === 0) {
+    return "unlisted";
+  }
+
+  if (majorDiscoveryExchanges.every((exchange) => listedExchangeSet.has(exchange))) {
+    return "major_three";
+  }
+
+  if (listedExchanges.length >= 2) {
+    return "multi_exchange";
+  }
+
+  return "single_exchange";
+}
+
+function exchangeCoverageSummary(assets: UniverseAsset[]): ExchangeCoverageSummary {
+  const summary = emptyExchangeCoverageSummary();
+
+  for (const asset of assets) {
+    if (asset.venueCoverage === "major_three") {
+      summary.majorThree += 1;
+    } else if (asset.venueCoverage === "multi_exchange") {
+      summary.multiExchange += 1;
+    } else if (asset.venueCoverage === "single_exchange") {
+      summary.singleExchange += 1;
+    } else {
+      summary.unlisted += 1;
+    }
+  }
+
+  return summary;
+}
+
+function buildAssetExchangeCoverage(asset: UniverseAsset): AssetExchangeCoverage {
+  const exchanges = asset.exchanges.filter((exchange) => exchange !== "UNKNOWN");
+
+  return {
+    baseAsset: asset.baseAsset,
+    exchangeCount: exchanges.length,
+    exchanges,
+    symbol: asset.symbol,
+    venueCoverage: asset.venueCoverage,
+  };
 }
 
 function tierForAsset(asset: {
@@ -190,6 +262,7 @@ function addOrMergeAsset(
     ...(current?.exchanges ?? []),
     ...(update.exchange ? [update.exchange] : []),
   ]);
+  const venueCoverage = venueCoverageFor(exchanges);
   const tier = tierForAsset({
     isAnchor,
     sources,
@@ -213,6 +286,7 @@ function addOrMergeAsset(
     ),
     sources,
     tier,
+    venueCoverage,
     volume24hUsd,
   });
 }
@@ -267,6 +341,7 @@ export function buildUniverseRegistry(
     right.priority - left.priority || left.symbol.localeCompare(right.symbol)
   );
   const tierCounts = countAssetTiers(sortedAssets);
+  const exchangeSummary = exchangeCoverageSummary(sortedAssets);
 
   return {
     assets: sortedAssets,
@@ -277,9 +352,13 @@ export function buildUniverseRegistry(
       configured: sortedAssets.filter((asset) => asset.sources.includes("configured")).length,
       core: tierCounts.core,
       longTail: tierCounts.long_tail,
+      majorThree: exchangeSummary.majorThree,
+      multiExchange: exchangeSummary.multiExchange,
       observed: sortedAssets.filter((asset) => asset.sources.includes("observed")).length,
+      singleExchange: exchangeSummary.singleExchange,
       skipped: skipped.length,
       total: sortedAssets.length + skipped.length,
+      unlisted: exchangeSummary.unlisted,
     },
   };
 }
@@ -457,6 +536,7 @@ export function buildCoverageReport(
   batchPlan: UniverseScanPlan,
 ): ScanCoverage {
   const eligible = registry.assets.length;
+  const exchangeCoverage = registry.assets.map((asset) => buildAssetExchangeCoverage(asset));
 
   return {
     batchIndex: batchPlan.batchIndex,
@@ -464,6 +544,8 @@ export function buildCoverageReport(
       ? Math.round((batchPlan.assets.length / eligible) * 100)
       : 0,
     eligible,
+    exchangeCoverage,
+    exchangeCoverageSummary: exchangeCoverageSummary(registry.assets),
     nextBatchIndex: batchPlan.nextBatchIndex,
     pending: batchPlan.pendingAssets.length,
     pendingAssets: batchPlan.pendingAssets,

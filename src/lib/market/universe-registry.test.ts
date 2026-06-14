@@ -91,6 +91,32 @@ test("buildUniverseRegistry assigns scan tiers from anchors configuration and li
   assert.equal(registry.summary.longTail, 1);
 });
 
+test("buildUniverseRegistry records multi-exchange venue coverage quality", () => {
+  const registry = buildUniverseRegistry([], [
+    instrument("ARB", { exchange: "BINANCE", id: "BINANCE:ARBUSDT" }),
+    instrument("ARB", { exchange: "OKX", id: "OKX:ARBUSDT" }),
+    instrument("ARB", { exchange: "BYBIT", id: "BYBIT:ARBUSDT" }),
+    instrument("SUI", { exchange: "OKX", id: "OKX:SUIUSDT" }),
+    instrument("SUI", { exchange: "BYBIT", id: "BYBIT:SUIUSDT" }),
+    instrument("MEME", { exchange: "BYBIT", id: "BYBIT:MEMEUSDT" }),
+  ]);
+  const coverageByBase = new Map(registry.assets.map((asset) => [asset.baseAsset, asset.venueCoverage]));
+
+  assert.deepEqual(registry.assets.find((asset) => asset.baseAsset === "ARB")?.exchanges, [
+    "BINANCE",
+    "OKX",
+    "BYBIT",
+  ]);
+  assert.equal(coverageByBase.get("ARB"), "major_three");
+  assert.equal(coverageByBase.get("SUI"), "multi_exchange");
+  assert.equal(coverageByBase.get("MEME"), "single_exchange");
+  assert.equal(coverageByBase.get("BTC"), "unlisted");
+  assert.equal(registry.summary.majorThree, 1);
+  assert.equal(registry.summary.multiExchange, 1);
+  assert.equal(registry.summary.singleExchange, 1);
+  assert.equal(registry.summary.unlisted, 2);
+});
+
 test("buildUniverseRegistry marks unsupported observed instruments as skipped", () => {
   const registry = buildUniverseRegistry([], [
     instrument("OLD", { isActive: false }),
@@ -166,4 +192,34 @@ test("buildCoverageReport includes scanned, pending, skipped, and coverage perce
   assert.equal(coverage.skipped, 1);
   assert.equal(coverage.coveragePercent, 50);
   assert.deepEqual(coverage.skippedAssets, [{ symbol: "OLDUSDT", reason: "inactive" }]);
+});
+
+test("buildCoverageReport includes exchange coverage details and summary", () => {
+  const registry = buildUniverseRegistry([], [
+    instrument("ARB", { exchange: "BINANCE", id: "BINANCE:ARBUSDT" }),
+    instrument("ARB", { exchange: "OKX", id: "OKX:ARBUSDT" }),
+    instrument("ARB", { exchange: "BYBIT", id: "BYBIT:ARBUSDT" }),
+    instrument("SUI", { exchange: "OKX", id: "OKX:SUIUSDT" }),
+    instrument("SUI", { exchange: "BYBIT", id: "BYBIT:SUIUSDT" }),
+    instrument("MEME", { exchange: "BYBIT", id: "BYBIT:MEMEUSDT" }),
+  ]);
+  const plan = planUniverseScan(registry, 4, new Date("2026-06-14T00:00:00.000Z"));
+  const coverage = buildCoverageReport(registry, plan);
+
+  assert.deepEqual(coverage.exchangeCoverageSummary, {
+    majorThree: 1,
+    multiExchange: 1,
+    singleExchange: 1,
+    unlisted: 2,
+  });
+  assert.deepEqual(
+    (coverage.exchangeCoverage ?? []).find((item) => item.symbol === "ARBUSDT"),
+    {
+      baseAsset: "ARB",
+      exchangeCount: 3,
+      exchanges: ["BINANCE", "OKX", "BYBIT"],
+      symbol: "ARBUSDT",
+      venueCoverage: "major_three",
+    },
+  );
 });

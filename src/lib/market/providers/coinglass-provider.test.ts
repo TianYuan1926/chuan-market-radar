@@ -162,6 +162,115 @@ test("CoinGlass provider can include discovered USDT perpetuals in the low-rate 
   assert.match(snapshot.metadata.notes.join("\n"), /universe discovery: test-discovery ok 2 instruments/);
 });
 
+test("CoinGlass provider exposes multi-exchange coverage quality in metadata", async () => {
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: [],
+    batchSize: 5,
+    universeDiscoveryProvider: {
+      id: "test-discovery",
+      label: "Test Universe Discovery",
+      async discoverInstruments() {
+        return {
+          ok: true,
+          source: "test-discovery",
+          instruments: [
+            {
+              id: "BINANCE:ARBUSDT",
+              symbol: "ARBUSDT",
+              baseAsset: "ARB",
+              quoteAsset: "USDT",
+              exchange: "BINANCE",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+            {
+              id: "OKX:ARBUSDT",
+              symbol: "ARBUSDT",
+              baseAsset: "ARB",
+              quoteAsset: "USDT",
+              exchange: "OKX",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+            {
+              id: "BYBIT:ARBUSDT",
+              symbol: "ARBUSDT",
+              baseAsset: "ARB",
+              quoteAsset: "USDT",
+              exchange: "BYBIT",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+            {
+              id: "OKX:SUIUSDT",
+              symbol: "SUIUSDT",
+              baseAsset: "SUI",
+              quoteAsset: "USDT",
+              exchange: "OKX",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+            {
+              id: "BYBIT:SUIUSDT",
+              symbol: "SUIUSDT",
+              baseAsset: "SUI",
+              quoteAsset: "USDT",
+              exchange: "BYBIT",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+            {
+              id: "BYBIT:MEMEUSDT",
+              symbol: "MEMEUSDT",
+              baseAsset: "MEME",
+              quoteAsset: "USDT",
+              exchange: "BYBIT",
+              marketType: "perpetual",
+              isActive: true,
+              volume24hUsd: 0,
+              tags: ["test-discovery"],
+              lastSeenAt: "2026-06-15T00:00:00.000Z",
+            },
+          ],
+        };
+      },
+    },
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async () =>
+      new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [],
+      })),
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(snapshot.metadata.coverage?.exchangeCoverageSummary, {
+    majorThree: 1,
+    multiExchange: 1,
+    singleExchange: 1,
+    unlisted: 2,
+  });
+  assert.match(snapshot.metadata.notes.join("\n"), /exchange coverage: major_three 1, multi_exchange 1, single_exchange 1, unlisted 2/);
+});
+
 test("CoinGlass provider filters noisy quote markets and aggregates one primary signal per symbol", async () => {
   const provider = createCoinGlassProvider({
     apiKey: "test-key",

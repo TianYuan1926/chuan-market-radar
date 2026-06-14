@@ -83,6 +83,7 @@
 - 当前分批队列按 UTC 日内扫描窗口轮转。例如 15 分钟 cadence、batch size 为 `3` 时，每 15 分钟只请求 3 个基础币。
 - CoinGlass provider 会先用 Binance public futures `exchangeInfo`、OKX public instruments、Bybit V5 public instruments 发现 USDT 永续合约，再按 `COINGLASS_BATCH_SIZE` 低频请求 CoinGlass；单个交易所发现失败会降级为 source note，全部发现失败时回退到配置白名单。
 - Universe planner 会把资产分成 anchor/core/active/long_tail；BTC/ETH 每轮固定，配置白名单和高流动性币优先，未验证流动性的长尾币默认每 8 个扫描窗口抽样一次。线上检查 metadata notes 时应能看到 `tiered universe` 和 `tier policy`。
+- Universe coverage 会输出 `exchangeCoverage` 和 `exchangeCoverageSummary`，把币种分为 `major_three`、`multi_exchange`、`single_exchange`、`unlisted`；线上检查 metadata notes 时应能看到 `exchange coverage` 汇总。
 - 当前主扫描会拒绝 UNKNOWN 交易所、非 USDT 或报价字段冲突的 CoinGlass 行，并在 metadata notes 中输出 raw、clean、primary 和过滤原因统计；线上检查时不要只看候选数量，也要看过滤原因是否异常放大。
 - 每日异动归因复盘已有低频抓取写入服务、公开只读 API、受保护写入 API 和 GitHub Actions 外部 cron；写入触发入口是 `POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。

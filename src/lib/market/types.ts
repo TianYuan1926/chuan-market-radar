@@ -92,10 +92,33 @@ export type MarketHeatCell = {
   volumeRank?: number;
 };
 
+export type VenueCoverageQuality =
+  | "major_three"
+  | "multi_exchange"
+  | "single_exchange"
+  | "unlisted";
+
+export type ExchangeCoverageSummary = {
+  majorThree: number;
+  multiExchange: number;
+  singleExchange: number;
+  unlisted: number;
+};
+
+export type AssetExchangeCoverage = {
+  baseAsset: string;
+  exchangeCount: number;
+  exchanges: ExchangeId[];
+  symbol: string;
+  venueCoverage: VenueCoverageQuality;
+};
+
 export type ScanCoverage = {
   batchIndex: number;
   coveragePercent: number;
   eligible: number;
+  exchangeCoverage?: AssetExchangeCoverage[];
+  exchangeCoverageSummary?: ExchangeCoverageSummary;
   nextBatchIndex: number;
   pending: number;
   pendingAssets: string[];
