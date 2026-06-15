@@ -89,7 +89,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示和基础指标/周期权重校准 | 尚未完成完整回测权重校准、交互式多周期图表和更专业的成交量分布模型 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
-| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板基础已落地 | 尚未完成扫描归档/复盘日记关联、历史样本选择和规则校准建议 |
+| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板基础、扫描归档/复盘日记只读关联摘要已落地 | 尚未完成关联摘要 UI 展示、历史样本选择和规则校准建议 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未有 Telegram/Webhook、持久化告警历史、多设备推送 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
 
@@ -413,12 +413,14 @@ AI 复核必须遵守：
 - 持久化 schema：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 - repository 写入和查询：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 - 公开雷达 UI 入口：`DailyMoverPanel` 已接入主工作台右侧信息栈，展示最新涨跌幅样本、抓到/漏判/可学习统计、归因驱动和历史样本摘要。
+- 只读关联摘要：`GET /api/daily-movers` 会为选中样本生成 `selectedCorrelation`，把每日异动 review 与最近扫描归档、扫描 replay signal、复盘日记做 bounded 关联，输出 `caught_with_journal`、`caught_unreviewed`、`missed_with_evidence`、`not_learnable`、`unlinked` 等状态。
+- 免费套餐护栏：关联摘要最多读取 12 个扫描归档和 80 条日记，只做只读聚合，不新增表、不增加 CoinGlass 请求、不增加数据库写入频率。
 - 安全边界：输出必须保持 `allowedUse: "research_only"`，只能用于归因复盘、样本库和规则校准。
 
 后续需要：
 
-- 与扫描归档、复盘日记和规则校准建议关联。
-- 增加历史样本选择、单样本详情和“为什么漏判”的联动说明。
+- 在 UI 中展示关联摘要、历史样本选择、单样本详情和“为什么漏判”的联动说明。
+- 将 `missed_with_evidence` 聚合为规则校准建议，但只能进入候选建议，不能自动改权重。
 - UI 不能把涨跌幅榜包装成交易信号。
 
 ### 部分落地：告警系统

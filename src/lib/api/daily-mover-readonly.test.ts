@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { JournalEvent } from "../analysis/types";
 import type {
   DailyMover,
   DailyMoverReview,
   DailyMoverSnapshot,
 } from "../market/daily-movers";
+import type { ScanArchiveSummary, ScanReplayFrame } from "../market/types";
 import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
 import {
   getDailyMoverReadArchive,
@@ -77,6 +79,78 @@ function snapshot(
       review(gainer, "caught", "learnable"),
       review(loser, "missed", "watchlist"),
     ],
+  };
+}
+
+function scanSummary(id: string, generatedAt: string, topSymbols: string[]): ScanArchiveSummary {
+  return {
+    id,
+    source: "coinglass",
+    status: "ready",
+    generatedAt,
+    scannedCount: 24,
+    anomalyCount: 4,
+    candidateCount: topSymbols.length,
+    topSymbols,
+    notes: ["test scan archive"],
+  };
+}
+
+function replayFrame(id: string, generatedAt: string): ScanReplayFrame {
+  return {
+    id,
+    source: "coinglass",
+    status: "ready",
+    generatedAt,
+    nextScanAt: "2026-06-15T00:30:00.000Z",
+    cadenceMinutes: 15,
+    scannedCount: 24,
+    anomalyCount: 4,
+    candidateCount: 1,
+    signals: [
+      {
+        id: "sig-enausdt",
+        symbol: "ENAUSDT",
+        direction: "long",
+        state: "near_trigger",
+        timeframe: "15m",
+        confidence: 82,
+        risk: "low",
+        riskReward: 3.8,
+        strategyStatus: "waiting",
+        updatedAt: generatedAt,
+        summary: "放量、OI 和结构压缩同时出现。",
+      },
+    ],
+  };
+}
+
+function journalEvent(overrides: Partial<JournalEvent> = {}): JournalEvent {
+  return {
+    id: "journal-ena-track",
+    signalId: "sig-enausdt",
+    symbol: "ENAUSDT",
+    title: "加入跟踪队列",
+    result: "watching",
+    note: "记录观察，不提前交易。",
+    rankDelta: 0,
+    createdAt: "2026-06-15T00:22:00.000Z",
+    action: "track",
+    reviewStatus: "tracking",
+    timeframe: "15m",
+    direction: "long",
+    strategyStatus: "waiting",
+    riskReward: 3.8,
+    trigger: "放量突破后回踩确认",
+    invalidation: "跌回压缩区",
+    thesis: "接近触发，但需要确认。",
+    plannedReviewAt: "2026-06-15T01:52:00.000Z",
+    lessons: ["still_tracking"],
+    outcomeStatus: "pending",
+    triggerHit: false,
+    invalidationHit: false,
+    firstTargetHit: false,
+    ...overrides,
   };
 }
 
@@ -155,6 +229,55 @@ test("getDailyMoverReadArchive selects a requested historical snapshot by id", a
     "daily-movers-coinglass-2026-06-15",
     "daily-movers-coinglass-2026-06-14",
   ]);
+});
+
+test("getDailyMoverReadArchive links selected mover samples to scan archives and journal events", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshot(
+    "daily-movers-coinglass-2026-06-15",
+    "2026-06-15T00:17:00.000Z",
+    "ENAUSDT",
+    "SUIUSDT",
+  ));
+  await repository.addScanArchive(
+    scanSummary("scan-2026-06-15T00-15", "2026-06-15T00:15:00.000Z", ["ENAUSDT"]),
+    replayFrame("scan-2026-06-15T00-15", "2026-06-15T00:15:00.000Z"),
+  );
+  await repository.addJournalEvent(journalEvent());
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 1 });
+  const body = result.body as typeof result.body & {
+    selectedCorrelation?: {
+      summary: {
+        calibrationCandidates: number;
+        caught: number;
+        journalLinked: number;
+        missed: number;
+      };
+      links: Array<{
+        calibrationCandidate: boolean;
+        journalEventIds: string[];
+        matchedScanIds: string[];
+        status: string;
+        symbol: string;
+      }>;
+    } | null;
+  };
+
+  assert.equal(result.status, 200);
+  assert.equal(body.selectedCorrelation?.summary.caught, 1);
+  assert.equal(body.selectedCorrelation?.summary.missed, 1);
+  assert.equal(body.selectedCorrelation?.summary.journalLinked, 1);
+  assert.equal(body.selectedCorrelation?.summary.calibrationCandidates, 1);
+
+  const enaLink = body.selectedCorrelation?.links.find((link) => link.symbol === "ENAUSDT");
+  const suiLink = body.selectedCorrelation?.links.find((link) => link.symbol === "SUIUSDT");
+
+  assert.equal(enaLink?.status, "caught_with_journal");
+  assert.deepEqual(enaLink?.matchedScanIds, ["scan-2026-06-15T00-15"]);
+  assert.deepEqual(enaLink?.journalEventIds, ["journal-ena-track"]);
+  assert.equal(suiLink?.status, "missed_with_evidence");
+  assert.equal(suiLink?.calibrationCandidate, true);
 });
 
 test("getDailyMoverReadArchive returns 404 for a missing requested snapshot without hiding recent samples", async () => {

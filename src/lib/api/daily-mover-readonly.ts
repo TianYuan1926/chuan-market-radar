@@ -3,6 +3,11 @@ import type {
   DailyMoverReview,
   DailyMoverSnapshot,
 } from "../market/daily-movers";
+import {
+  buildDailyMoverSnapshotCorrelation,
+  type DailyMoverSnapshotCorrelation,
+} from "../market/daily-mover-correlations";
+import type { ScanReplayFrame } from "../market/types";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 
 export type DailyMoverReadLimitInput = string | number | null | undefined;
@@ -43,12 +48,22 @@ export type DailyMoverRetention = {
   returned: number;
 };
 
+export type DailyMoverCorrelationRetention = {
+  scanArchiveLimit: number;
+  scanArchivesReturned: number;
+  replayFramesReturned: number;
+  journalLimit: number;
+  journalEventsReturned: number;
+};
+
 export type DailyMoverReadArchiveBase = {
   allowedUse: "research_only";
   guardrail: string;
   latestSnapshot: DailyMoverSnapshot | null;
   selectedSnapshot: DailyMoverSnapshot | null;
+  selectedCorrelation: DailyMoverSnapshotCorrelation | null;
   snapshots: DailyMoverSnapshotSummary[];
+  correlationRetention: DailyMoverCorrelationRetention;
   retention: DailyMoverRetention;
 };
 
@@ -75,6 +90,8 @@ export type GetDailyMoverReadArchiveOptions = {
 const defaultReadLimit = 14;
 const maxReadLimit = 30;
 const moverPreviewLimit = 5;
+const correlationScanArchiveLimit = 12;
+const correlationJournalLimit = 80;
 const dailyMoverGuardrail = "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。";
 
 export function normalizeDailyMoverReadLimit(value: DailyMoverReadLimitInput) {
@@ -157,23 +174,46 @@ export async function getDailyMoverReadArchive({
   repository,
 }: GetDailyMoverReadArchiveOptions): Promise<DailyMoverReadArchiveResult> {
   const normalizedLimit = normalizeDailyMoverReadLimit(limit);
-  const snapshots = await repository.listDailyMoverSnapshots(normalizedLimit);
+  const [snapshots, scanArchives, journalEvents] = await Promise.all([
+    repository.listDailyMoverSnapshots(normalizedLimit),
+    repository.listScanArchives(correlationScanArchiveLimit),
+    repository.listJournalEvents(correlationJournalLimit),
+  ]);
   const latestSnapshot = snapshots[0] ?? await repository.getDailyMoverSnapshot();
   const selectedSnapshot = id
     ? await repository.getDailyMoverSnapshot(id)
     : latestSnapshot;
+  const replayFrames = (await Promise.all(
+    scanArchives.map((archive) => repository.getScanReplayFrame(archive.id)),
+  )).filter((frame): frame is ScanReplayFrame => Boolean(frame));
   const retention = {
     storage: repository.mode,
     scope: repository.scope,
     limit: normalizedLimit,
     returned: snapshots.length,
   };
+  const correlationRetention = {
+    scanArchiveLimit: correlationScanArchiveLimit,
+    scanArchivesReturned: scanArchives.length,
+    replayFramesReturned: replayFrames.length,
+    journalLimit: correlationJournalLimit,
+    journalEventsReturned: journalEvents.length,
+  };
   const base = {
     allowedUse: "research_only" as const,
     guardrail: dailyMoverGuardrail,
     latestSnapshot,
     selectedSnapshot,
+    selectedCorrelation: selectedSnapshot
+      ? buildDailyMoverSnapshotCorrelation({
+          journalEvents,
+          replayFrames,
+          scanArchives,
+          snapshot: selectedSnapshot,
+        })
+      : null,
     snapshots: snapshots.map(summarizeDailyMoverSnapshot),
+    correlationRetention,
     retention,
   };
 
