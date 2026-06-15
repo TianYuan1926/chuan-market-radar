@@ -280,6 +280,47 @@ test("getDailyMoverReadArchive links selected mover samples to scan archives and
   assert.equal(suiLink?.calibrationCandidate, true);
 });
 
+test("getDailyMoverReadArchive exposes selected mover details and calibration suggestions", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshot(
+    "daily-movers-coinglass-2026-06-15",
+    "2026-06-15T00:17:00.000Z",
+    "ENAUSDT",
+    "SUIUSDT",
+  ));
+  await repository.addScanArchive(
+    scanSummary("scan-2026-06-15T00-15", "2026-06-15T00:15:00.000Z", ["ENAUSDT"]),
+    replayFrame("scan-2026-06-15T00-15", "2026-06-15T00:15:00.000Z"),
+  );
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 1 });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+
+  if (!result.body.ok) {
+    assert.fail("expected a successful daily mover archive response");
+  }
+
+  assert.equal(result.body.selectedDetails.length, 2);
+
+  const missedDetail = result.body.selectedDetails.find((detail) => detail.symbol === "SUIUSDT");
+
+  assert.equal(missedDetail?.correlationStatus, "missed_with_evidence");
+  assert.equal(missedDetail?.whyMissed, "雷达没有在选中样本窗口内留下匹配扫描，但样本存在可学习驱动。");
+  assert.equal(missedDetail?.nextReviewAction, "纳入规则校准候选，检查覆盖率、成交量和 OI 权重。");
+  assert.deepEqual(missedDetail?.improvementTags, ["review_volume_oi_weight"]);
+  assert.equal(missedDetail?.allowedUse, "research_only");
+
+  assert.equal(result.body.calibrationSuggestions.length, 1);
+  assert.equal(result.body.calibrationSuggestions[0]?.tag, "review_volume_oi_weight");
+  assert.equal(result.body.calibrationSuggestions[0]?.sampleCount, 1);
+  assert.deepEqual(result.body.calibrationSuggestions[0]?.symbols, ["SUIUSDT"]);
+  assert.equal(result.body.calibrationSuggestions[0]?.allowedUse, "research_only");
+  assert.match(result.body.calibrationSuggestions[0]?.recommendation ?? "", /候选建议/);
+  assert.match(result.body.calibrationSuggestions[0]?.guardrail ?? "", /不能自动改权重/);
+});
+
 test("getDailyMoverReadArchive degrades to an empty archive when daily mover tables are not migrated yet", async () => {
   const repository = createMemoryPersistenceRepository({
     scope: "public-neon",

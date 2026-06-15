@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { ArrowDownRight, ArrowUpRight, BrainCircuit, Microscope } from "lucide-react";
 import type { DailyMoverReview } from "@/lib/market/daily-movers";
 import type {
@@ -9,6 +12,8 @@ import type {
 type DailyMoverArchive = DailyMoverReadArchiveResult["body"];
 type DailyMoverCorrelation = NonNullable<DailyMoverArchive["selectedCorrelation"]>;
 type DailyMoverCorrelationLink = DailyMoverCorrelation["links"][number];
+type DailyMoverSelectedDetail = DailyMoverArchive["selectedDetails"][number];
+type DailyMoverCalibrationSuggestion = DailyMoverArchive["calibrationSuggestions"][number];
 
 type DailyMoverPanelProps = {
   archive: DailyMoverArchive;
@@ -96,6 +101,14 @@ function driverLabel(value: DailyMoverReview["attribution"]["primaryDrivers"][nu
   }[value];
 }
 
+function evidenceLabel(value: DailyMoverSelectedDetail["evidenceStrength"]) {
+  return {
+    medium: "中等证据",
+    strong: "强证据",
+    weak: "弱证据",
+  }[value];
+}
+
 function correlationStatusLabel(value: DailyMoverCorrelationLink["status"]) {
   return {
     caught_unreviewed: "命中待复盘",
@@ -135,6 +148,40 @@ function renderMoverRow(mover: DailyMoverPreview) {
   );
 }
 
+function renderDetail(detail: DailyMoverSelectedDetail) {
+  return (
+    <article className={`daily-mover-detail__item daily-mover-detail__item--${detail.radarStatus}`} key={detail.id}>
+      <div>
+        <strong>{compactSymbol(detail.symbol)}</strong>
+        <span>{correlationStatusLabel(detail.correlationStatus)}</span>
+      </div>
+      <p>{detail.whyMissed}</p>
+      <small>
+        {detail.primaryDrivers.map(driverLabel).slice(0, 2).join(" · ")} / {evidenceLabel(detail.evidenceStrength)}
+      </small>
+      <ul>
+        <li>扫描 {detail.matchedScanIds.length}</li>
+        <li>信号 {detail.matchedSignalIds.length}</li>
+        <li>日记 {detail.journalEventIds.length}</li>
+      </ul>
+      <em>{detail.nextReviewAction}</em>
+    </article>
+  );
+}
+
+function renderCalibrationSuggestion(suggestion: DailyMoverCalibrationSuggestion) {
+  return (
+    <article className="daily-mover-calibration__item" key={suggestion.id}>
+      <div>
+        <strong>{suggestion.label}</strong>
+        <span>{suggestion.sampleCount} 样本</span>
+      </div>
+      <p>{suggestion.recommendation}</p>
+      <small>{suggestion.symbols.map(compactSymbol).join(" / ")} · {suggestion.guardrail}</small>
+    </article>
+  );
+}
+
 function selectedSummary(
   archive: DailyMoverArchive,
   snapshotId: string | undefined,
@@ -143,16 +190,48 @@ function selectedSummary(
 }
 
 export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
-  const selectedSnapshot = archive.selectedSnapshot ?? archive.latestSnapshot;
-  const summary = selectedSummary(archive, selectedSnapshot?.id);
-  const selectedCorrelation = archive.selectedCorrelation;
+  const [activeArchive, setActiveArchive] = useState(archive);
+  const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const selectedSnapshot = activeArchive.selectedSnapshot ?? activeArchive.latestSnapshot;
+  const summary = selectedSummary(activeArchive, selectedSnapshot?.id);
+  const selectedCorrelation = activeArchive.selectedCorrelation;
   const correlationLinks = selectedCorrelation?.links.slice(0, 3) ?? [];
   const topGainers = summary?.topGainers.slice(0, 3) ?? [];
   const topLosers = summary?.topLosers.slice(0, 3) ?? [];
   const reviews = selectedSnapshot?.reviews.slice(0, 3) ?? [];
-  const history = archive.snapshots.slice(0, 4);
-  const allowedUse = archive.allowedUse === "research_only" ? "research_only" : archive.allowedUse;
-  const guardrail = archive.guardrail || fallbackGuardrail;
+  const selectedDetails = activeArchive.selectedDetails.slice(0, 4);
+  const calibrationSuggestions = activeArchive.calibrationSuggestions.slice(0, 3);
+  const history = activeArchive.snapshots.slice(0, 6);
+  const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
+  const guardrail = activeArchive.guardrail || fallbackGuardrail;
+
+  async function selectSnapshot(id: string) {
+    if (id === selectedSnapshot?.id || historyStatus === "loading") {
+      return;
+    }
+
+    setHistoryStatus("loading");
+
+    try {
+      const params = new URLSearchParams({
+        id,
+        limit: String(activeArchive.retention.limit),
+      });
+      const response = await fetch(`/api/daily-movers?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const payload = await response.json() as DailyMoverArchive;
+
+      if (!response.ok || !payload.selectedSnapshot) {
+        throw new Error("daily_mover_snapshot_load_failed");
+      }
+
+      setActiveArchive(payload);
+      setHistoryStatus("ready");
+    } catch {
+      setHistoryStatus("error");
+    }
+  }
 
   return (
     <section className="module daily-mover-module">
@@ -168,7 +247,7 @@ export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
               <Microscope size={18} strokeWidth={2.3} />
               <span className="mono">{allowedUse}</span>
               <strong>{formatTime(summary.observedAt)}</strong>
-              <small>{sourceLabel(summary.source)} / {archive.retention.storage} / {archive.retention.returned} 帧</small>
+              <small>{sourceLabel(summary.source)} / {activeArchive.retention.storage} / {activeArchive.retention.returned} 帧</small>
             </div>
             <div className="daily-mover-ledger__counts" aria-label="每日异动归因统计">
               <span><b>{summary.radarReview.caught}</b>抓到</span>
@@ -255,13 +334,42 @@ export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
             </div>
           ) : null}
 
+          {selectedDetails.length > 0 ? (
+            <div className="daily-mover-detail" aria-label="每日异动单样本详情">
+              <div className="daily-mover-detail__head">
+                <h3>单样本详情</h3>
+                <span>{historyStatus === "loading" ? "读取中" : "只读复盘"}</span>
+              </div>
+              {selectedDetails.map(renderDetail)}
+            </div>
+          ) : null}
+
+          {calibrationSuggestions.length > 0 ? (
+            <div className="daily-mover-calibration" aria-label="规则校准候选建议">
+              <div className="daily-mover-calibration__head">
+                <h3>规则校准候选</h3>
+                <span>不自动改权重</span>
+              </div>
+              {calibrationSuggestions.map(renderCalibrationSuggestion)}
+            </div>
+          ) : null}
+
           <div className="daily-mover-history" aria-label="每日异动历史样本">
             {history.map((item) => (
-              <span key={item.id}>
+              <button
+                className={item.id === selectedSnapshot?.id ? "is-active" : ""}
+                disabled={historyStatus === "loading"}
+                key={item.id}
+                onClick={() => void selectSnapshot(item.id)}
+                type="button"
+              >
                 <b>{formatTime(item.observedAt)}</b>
                 {item.reviewCount} 复盘 / {item.gainerCount + item.loserCount} 样本
-              </span>
+              </button>
             ))}
+            {historyStatus === "error" ? (
+              <small>历史样本读取失败，保留当前样本。</small>
+            ) : null}
           </div>
         </>
       ) : (
