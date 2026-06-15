@@ -14,6 +14,7 @@ type DailyMoverCorrelation = NonNullable<DailyMoverArchive["selectedCorrelation"
 type DailyMoverCorrelationLink = DailyMoverCorrelation["links"][number];
 type DailyMoverSelectedDetail = DailyMoverArchive["selectedDetails"][number];
 type DailyMoverCalibrationSuggestion = DailyMoverArchive["calibrationSuggestions"][number];
+type DailyMoverCalibrationFeedback = DailyMoverArchive["calibrationFeedback"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 
 type DailyMoverPanelProps = {
@@ -217,6 +218,25 @@ function renderCalibrationSuggestion(
   );
 }
 
+function renderCalibrationFeedback(feedback: DailyMoverCalibrationFeedback) {
+  return (
+    <article className="daily-mover-feedback__item" key={feedback.tag}>
+      <div>
+        <strong>{feedback.label}</strong>
+        <span>{feedback.total} 样本</span>
+      </div>
+      <div className="daily-mover-feedback__stats" aria-label={`${feedback.label} 校准反馈统计`}>
+        <span><b>{feedback.pending}</b>待复查</span>
+        <span><b>{feedback.validated}</b>有效</span>
+        <span><b>{feedback.rejected}</b>反证</span>
+        <span><b>{feedback.expired}</b>过期</span>
+      </div>
+      <p>{feedback.nextStep}</p>
+      <small>{feedback.symbols.map(compactSymbol).join(" / ")} · {feedback.guardrail}</small>
+    </article>
+  );
+}
+
 function selectedSummary(
   archive: DailyMoverArchive,
   snapshotId: string | undefined,
@@ -239,6 +259,7 @@ export function DailyMoverPanel({
   const topLosers = summary?.topLosers.slice(0, 3) ?? [];
   const reviews = selectedSnapshot?.reviews.slice(0, 3) ?? [];
   const selectedDetails = activeArchive.selectedDetails.slice(0, 4);
+  const calibrationFeedback = activeArchive.calibrationFeedback.slice(0, 3);
   const calibrationSuggestions = activeArchive.calibrationSuggestions.slice(0, 3);
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
@@ -402,6 +423,16 @@ export function DailyMoverPanel({
                   : undefined,
                 status: calibrationReviewStatus,
               }))}
+            </div>
+          ) : null}
+
+          {calibrationFeedback.length > 0 ? (
+            <div className="daily-mover-feedback" aria-label="规则校准反馈趋势">
+              <div className="daily-mover-feedback__head">
+                <h3>校准反馈</h3>
+                <span>只读趋势</span>
+              </div>
+              {calibrationFeedback.map(renderCalibrationFeedback)}
             </div>
           ) : null}
 

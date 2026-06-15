@@ -1,4 +1,7 @@
 import type {
+  JournalEvent,
+} from "../analysis/types";
+import type {
   DailyMover,
   DailyMoverReview,
   DailyMoverSnapshot,
@@ -74,6 +77,22 @@ export type DailyMoverCalibrationSuggestion = {
   allowedUse: "research_only";
 };
 
+export type DailyMoverCalibrationFeedback = {
+  tag: string;
+  label: string;
+  total: number;
+  pending: number;
+  validated: number;
+  rejected: number;
+  expired: number;
+  symbols: string[];
+  lastReviewedAt?: string;
+  nextStep: string;
+  guardrail: string;
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+};
+
 export type DailyMoverRetention = {
   storage: PersistenceMode;
   scope: string;
@@ -92,6 +111,7 @@ export type DailyMoverCorrelationRetention = {
 export type DailyMoverReadArchiveBase = {
   allowedUse: "research_only";
   guardrail: string;
+  calibrationFeedback: DailyMoverCalibrationFeedback[];
   latestSnapshot: DailyMoverSnapshot | null;
   calibrationSuggestions: DailyMoverCalibrationSuggestion[];
   selectedSnapshot: DailyMoverSnapshot | null;
@@ -217,6 +237,137 @@ function calibrationRecommendation(tag: string) {
     review_universe_coverage: "候选建议：复核币种池覆盖和轮询优先级，先确认是否漏扫再考虑规则调整。",
     review_volume_oi_weight: "候选建议：复核成交量/OI 权重是否低估了提前扩张，必须用更多样本验证后再调整。",
   }[tag] ?? "候选建议：进入人工复盘和后续回测，不自动修改当前策略权重。";
+}
+
+function sortableTime(value: string | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  const time = new Date(value).getTime();
+
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function calibrationOutcomeBucket(
+  event: JournalEvent,
+): "expired" | "pending" | "rejected" | "validated" {
+  if (event.outcomeStatus === "expired") {
+    return "expired";
+  }
+
+  if (event.outcomeStatus === "loss" || event.result === "loss") {
+    return "rejected";
+  }
+
+  if (
+    event.outcomeStatus === "partial_win" ||
+    event.outcomeStatus === "saved" ||
+    event.result === "win" ||
+    event.result === "saved"
+  ) {
+    return "validated";
+  }
+
+  return "pending";
+}
+
+function calibrationNextStep({
+  pending,
+  rejected,
+  total,
+  validated,
+}: {
+  pending: number;
+  rejected: number;
+  total: number;
+  validated: number;
+}) {
+  if (total < 3 || pending > 0) {
+    return "继续积累样本，只记录反馈趋势。";
+  }
+
+  if (validated >= 2 && rejected === 0) {
+    return "进入回测候选，仍需人工确认。";
+  }
+
+  if (rejected > validated) {
+    return "保留为反证样本，暂不提高权重。";
+  }
+
+  return "继续观察更多样本，再判断是否进入回测。";
+}
+
+export function buildDailyMoverCalibrationFeedback(
+  journalEvents: JournalEvent[],
+): DailyMoverCalibrationFeedback[] {
+  const grouped = new Map<string, {
+    expired: number;
+    events: JournalEvent[];
+    pending: number;
+    rejected: number;
+    symbolsByRecency: string[];
+    validated: number;
+  }>();
+
+  for (const event of journalEvents) {
+    if (event.action !== "calibration_review" || !event.calibrationTag) {
+      continue;
+    }
+
+    const current = grouped.get(event.calibrationTag) ?? {
+      expired: 0,
+      events: [],
+      pending: 0,
+      rejected: 0,
+      symbolsByRecency: [],
+      validated: 0,
+    };
+    const bucket = calibrationOutcomeBucket(event);
+
+    current[bucket] += 1;
+    current.events = [...current.events, event];
+    current.symbolsByRecency = [
+      ...(event.sampleSymbols ?? [event.symbol]).filter(Boolean),
+      ...current.symbolsByRecency,
+    ];
+    grouped.set(event.calibrationTag, current);
+  }
+
+  return [...grouped.entries()]
+    .map(([tag, item]) => {
+      const total = item.events.length;
+      const symbols = [...new Set(item.symbolsByRecency)].slice(0, 6);
+      const lastReviewedAt = item.events
+        .map((event) => event.createdAt)
+        .sort((left, right) => sortableTime(right) - sortableTime(left))[0];
+
+      return {
+        tag,
+        label: calibrationLabel(tag),
+        total,
+        pending: item.pending,
+        validated: item.validated,
+        rejected: item.rejected,
+        expired: item.expired,
+        symbols,
+        lastReviewedAt,
+        nextStep: calibrationNextStep({
+          pending: item.pending,
+          rejected: item.rejected,
+          total,
+          validated: item.validated,
+        }),
+        guardrail: "校准反馈只能作为只读趋势和回测候选，不能自动改权重。",
+        allowedUse: "research_only" as const,
+        canAutoAdjustWeights: false as const,
+      };
+    })
+    .sort((first, second) => (
+      second.total - first.total ||
+      sortableTime(second.lastReviewedAt) - sortableTime(first.lastReviewedAt) ||
+      first.label.localeCompare(second.label, "zh-CN")
+    ));
 }
 
 function buildSelectedDetails(
@@ -406,6 +557,7 @@ export async function getDailyMoverReadArchive({
     : null;
   const base = {
     allowedUse: "research_only" as const,
+    calibrationFeedback: buildDailyMoverCalibrationFeedback(journalEvents),
     calibrationSuggestions: buildCalibrationSuggestions(selectedCorrelation),
     guardrail: dailyMoverGuardrail,
     latestSnapshot,
