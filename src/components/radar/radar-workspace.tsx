@@ -22,10 +22,15 @@ import {
   type AlertEvent,
   type AlertSound,
 } from "@/lib/alerts/alert-policy";
-import type { DailyMoverCalibrationSuggestion, DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
+import type {
+  DailyMoverCalibrationSuggestion,
+  DailyMoverReadArchiveResult,
+  DailyMoverStrategyDraft,
+} from "@/lib/api/daily-mover-readonly";
 import { siteConfig } from "@/lib/config/site";
 import {
   buildJournalEntryFromDailyMoverCalibration,
+  buildJournalEntryFromDailyMoverStrategyConfirmation,
   buildJournalEntryFromSignal,
   mergeJournalEntry,
 } from "@/lib/journal/journal-entry";
@@ -215,6 +220,8 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const [journalEntries, setJournalEntries] = useState<JournalEvent[]>(journalEvents);
   const [journalStatus, setJournalStatus] = useState<JournalSaveStatus>("idle");
   const [calibrationReviewStatus, setCalibrationReviewStatus] = useState<JournalSaveStatus>("idle");
+  const [strategyConfirmationStatus, setStrategyConfirmationStatus] = useState<JournalSaveStatus>("idle");
+  const [dailyMoverState, setDailyMoverState] = useState(dailyMoverArchive);
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>(() =>
     buildCurrentAlertEvents({ health, snapshot })
@@ -554,6 +561,73 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     }
   }
 
+  async function createDailyMoverStrategyConfirmation(draft: DailyMoverStrategyDraft) {
+    const strategyDraft = {
+      allowedUse: draft.allowedUse,
+      canAutoAdjustWeights: draft.canAutoAdjustWeights,
+      draftId: draft.id,
+      evidenceSummary: draft.evidenceSummary,
+      label: draft.label,
+      limitation: draft.limitation,
+      manualConfirmation: draft.manualConfirmation,
+      nextStep: draft.nextStep,
+      sourceMode: draft.sourceMode,
+      tag: draft.tag,
+      validationVerdict: draft.validationVerdict,
+      versionLabel: draft.versionLabel,
+    };
+    const optimisticEntry = buildJournalEntryFromDailyMoverStrategyConfirmation(strategyDraft, {
+      createdAt: new Date().toISOString(),
+    });
+
+    setJournalEntries((current) => mergeJournalEntry(current, optimisticEntry));
+    setStrategyConfirmationStatus("saving");
+    setJournalStatus("saving");
+
+    try {
+      const response = await fetch("/api/journal", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "strategy_confirmation",
+          strategyDraft,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("daily_mover_strategy_confirmation_failed");
+      }
+
+      const payload = await response.json() as {
+        entry?: JournalEvent;
+        entries?: JournalEvent[];
+      };
+
+      if (payload.entry) {
+        setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
+      } else if (payload.entries) {
+        setJournalEntries(payload.entries);
+      }
+
+      const archiveResponse = await fetch(`/api/daily-movers?limit=${dailyMoverState.retention.limit}`, {
+        cache: "no-store",
+      });
+
+      if (archiveResponse.ok) {
+        const archivePayload = await archiveResponse.json() as DailyMoverReadArchiveResult["body"];
+        setDailyMoverState(archivePayload);
+      }
+
+      setStrategyConfirmationStatus("saved");
+      setJournalStatus("saved");
+    } catch {
+      setStrategyConfirmationStatus("error");
+      setJournalStatus("error");
+    }
+  }
+
   return (
     <main className="studio-shell">
       <div className="studio-scan-grid" aria-hidden="true">
@@ -726,9 +800,12 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             liveScanId={metadata.id}
           />
           <DailyMoverPanel
-            archive={dailyMoverArchive}
+            archive={dailyMoverState}
             calibrationReviewStatus={calibrationReviewStatus}
+            key={dailyMoverState.strategyConfirmations.map((confirmation) => confirmation.eventId).join("|") || "daily-mover-panel"}
             onCreateCalibrationReview={createDailyMoverCalibrationReview}
+            onConfirmStrategyDraft={createDailyMoverStrategyConfirmation}
+            strategyConfirmationStatus={strategyConfirmationStatus}
           />
           <StrategyCard selected={selected} />
           <RankPanel profile={rankProfile} />

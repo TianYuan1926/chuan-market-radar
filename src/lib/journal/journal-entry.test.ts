@@ -3,6 +3,7 @@ import test from "node:test";
 import type { MarketSignal } from "@/lib/analysis/types";
 import {
   buildJournalEntryFromDailyMoverCalibration,
+  buildJournalEntryFromDailyMoverStrategyConfirmation,
   buildJournalEntryFromSignal,
   mergeJournalEntry,
   plannedReviewAt,
@@ -121,6 +122,41 @@ test("buildJournalEntryFromDailyMoverCalibration queues a neutral rule review", 
   assert.match(entry.note, /不能自动改权重/);
   assert.match(entry.thesis, /成交量\/OI/);
   assert.deepEqual(entry.lessons?.slice(0, 2), ["daily_mover_calibration", "review_volume_oi_weight"]);
+});
+
+test("buildJournalEntryFromDailyMoverStrategyConfirmation records a neutral manual version confirmation", () => {
+  const entry = buildJournalEntryFromDailyMoverStrategyConfirmation({
+    allowedUse: "research_only",
+    draftId: "strategy-review_volume_oi_weight",
+    evidenceSummary: "历史样本 4 / 日记验证 3 / 抓到 2 / 漏判 1",
+    label: "成交量/OI 权重复核",
+    limitation: "只基于已存每日异动快照和校准日记，不是完整 K 线回测。",
+    nextStep: "进入策略版本草案；必须人工确认样本边界后才能记录版本，不能自动改权重。",
+    tag: "review_volume_oi_weight",
+    validationVerdict: "review_ready",
+    versionLabel: "draft-volume-oi-weight-v1",
+  }, {
+    createdAt: "2026-06-12T10:30:00+08:00",
+  });
+
+  assert.equal(entry.id, "journal-draft-volume-oi-weight-v1-strategy-confirmation");
+  assert.equal(entry.symbol, "STRATEGY");
+  assert.equal(entry.action, "strategy_confirmation");
+  assert.equal(entry.result, "watching");
+  assert.equal(entry.rankDelta, 0);
+  assert.equal(entry.reviewStatus, "closed");
+  assert.equal(entry.source, "strategy_version_confirmation");
+  assert.equal(entry.sourceId, "strategy-review_volume_oi_weight");
+  assert.equal(entry.strategyDraftId, "strategy-review_volume_oi_weight");
+  assert.equal(entry.strategyTag, "review_volume_oi_weight");
+  assert.equal(entry.strategyVersionLabel, "draft-volume-oi-weight-v1");
+  assert.equal(entry.strategyValidationVerdict, "review_ready");
+  assert.equal(entry.allowedUse, "research_only");
+  assert.equal(entry.canAutoAdjustWeights, false);
+  assert.match(entry.title, /策略版本人工确认/);
+  assert.match(entry.note, /不能自动改权重/);
+  assert.match(entry.thesis ?? "", /历史样本 4/);
+  assert.deepEqual(entry.lessons?.slice(0, 2), ["strategy_confirmation", "review_volume_oi_weight"]);
 });
 
 test("skip decisions are saved as positive discipline instead of failed trades", () => {

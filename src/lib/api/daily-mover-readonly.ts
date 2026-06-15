@@ -145,8 +145,24 @@ export type DailyMoverBacktestValidation = {
 
 export type DailyMoverStrategyDraftStatus =
   | "blocked"
+  | "confirmed"
   | "manual_review_required"
   | "needs_more_evidence";
+
+export type DailyMoverStrategyConfirmation = {
+  eventId: string;
+  draftId: string;
+  tag: string;
+  label: string;
+  versionLabel: string;
+  confirmedAt: string;
+  validationVerdict: string;
+  evidenceSummary: string;
+  limitation: string;
+  manualConfirmation: "confirmed";
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+};
 
 export type DailyMoverStrategyDraft = {
   id: string;
@@ -156,7 +172,9 @@ export type DailyMoverStrategyDraft = {
   sourceMode: "historical_sample_validation";
   validationVerdict: DailyMoverBacktestValidationVerdict;
   status: DailyMoverStrategyDraftStatus;
-  manualConfirmation: "required";
+  manualConfirmation: "confirmed" | "required";
+  confirmationEventId?: string;
+  confirmedAt?: string;
   evidenceSummary: string;
   limitation: string;
   nextStep: string;
@@ -186,6 +204,7 @@ export type DailyMoverReadArchiveBase = {
   backtestValidations: DailyMoverBacktestValidation[];
   calibrationFeedback: DailyMoverCalibrationFeedback[];
   strategyDrafts: DailyMoverStrategyDraft[];
+  strategyConfirmations: DailyMoverStrategyConfirmation[];
   latestSnapshot: DailyMoverSnapshot | null;
   calibrationSuggestions: DailyMoverCalibrationSuggestion[];
   selectedSnapshot: DailyMoverSnapshot | null;
@@ -650,6 +669,10 @@ function strategyDraftStatus(
 }
 
 function strategyDraftNextStep(status: DailyMoverStrategyDraftStatus) {
+  if (status === "confirmed") {
+    return "已完成人工确认，作为策略版本记录保留；仍不能自动改权重。";
+  }
+
   if (status === "manual_review_required") {
     return "进入策略版本草案；必须人工确认样本边界后才能记录版本，不能自动改权重。";
   }
@@ -665,28 +688,70 @@ function strategyDraftVersionLabel(tag: string) {
   return `draft-${tag.replace(/^review_/, "").replace(/_/g, "-")}-v1`;
 }
 
+function isResearchOnlyConfirmation(event: JournalEvent) {
+  return event.action === "strategy_confirmation"
+    && event.source === "strategy_version_confirmation"
+    && event.allowedUse === "research_only"
+    && event.canAutoAdjustWeights === false
+    && typeof event.strategyDraftId === "string"
+    && typeof event.strategyTag === "string"
+    && typeof event.strategyVersionLabel === "string";
+}
+
+export function buildDailyMoverStrategyConfirmations(
+  journalEvents: JournalEvent[],
+): DailyMoverStrategyConfirmation[] {
+  return journalEvents
+    .filter(isResearchOnlyConfirmation)
+    .map((event) => ({
+      eventId: event.id,
+      draftId: event.strategyDraftId as string,
+      tag: event.strategyTag as string,
+      label: event.strategyLabel ?? calibrationLabel(event.strategyTag as string),
+      versionLabel: event.strategyVersionLabel as string,
+      confirmedAt: event.createdAt,
+      validationVerdict: event.strategyValidationVerdict ?? "unknown",
+      evidenceSummary: event.strategyEvidenceSummary ?? event.thesis ?? "确认事件缺少样本摘要。",
+      limitation: event.strategyLimitation ?? "确认事件缺少限制说明。",
+      manualConfirmation: "confirmed" as const,
+      allowedUse: "research_only" as const,
+      canAutoAdjustWeights: false as const,
+    }))
+    .sort((first, second) => (
+      sortableTime(second.confirmedAt) - sortableTime(first.confirmedAt)
+      || first.label.localeCompare(second.label, "zh-CN")
+    ));
+}
+
 export function buildDailyMoverStrategyDrafts(
   validations: DailyMoverBacktestValidation[],
+  confirmations: DailyMoverStrategyConfirmation[] = [],
 ): DailyMoverStrategyDraft[] {
   const statusOrder: Record<DailyMoverStrategyDraftStatus, number> = {
-    manual_review_required: 0,
-    needs_more_evidence: 1,
-    blocked: 2,
+    confirmed: 0,
+    manual_review_required: 1,
+    needs_more_evidence: 2,
+    blocked: 3,
   };
+  const confirmationsByDraftId = new Map(confirmations.map((confirmation) => [confirmation.draftId, confirmation]));
 
   return validations
     .map((validation) => {
-      const status = strategyDraftStatus(validation.verdict);
+      const id = `strategy-${validation.tag}`;
+      const confirmation = confirmationsByDraftId.get(id);
+      const status = confirmation ? "confirmed" : strategyDraftStatus(validation.verdict);
 
       return {
-        id: `strategy-${validation.tag}`,
+        id,
         tag: validation.tag,
         label: validation.label,
-        versionLabel: strategyDraftVersionLabel(validation.tag),
+        versionLabel: confirmation?.versionLabel ?? strategyDraftVersionLabel(validation.tag),
         sourceMode: validation.mode,
         validationVerdict: validation.verdict,
         status,
-        manualConfirmation: "required" as const,
+        manualConfirmation: confirmation ? "confirmed" as const : "required" as const,
+        confirmationEventId: confirmation?.eventId,
+        confirmedAt: confirmation?.confirmedAt,
         evidenceSummary: validation.evidenceSummary,
         limitation: validation.limitation,
         nextStep: strategyDraftNextStep(status),
@@ -888,6 +953,7 @@ export async function getDailyMoverReadArchive({
   const calibrationFeedback = buildDailyMoverCalibrationFeedback(journalEvents);
   const backtestCandidates = buildDailyMoverBacktestCandidates(calibrationFeedback);
   const backtestValidations = buildDailyMoverBacktestValidations(backtestCandidates, snapshots);
+  const strategyConfirmations = buildDailyMoverStrategyConfirmations(journalEvents);
   const base = {
     allowedUse: "research_only" as const,
     backtestCandidates,
@@ -900,7 +966,8 @@ export async function getDailyMoverReadArchive({
     selectedCorrelation,
     selectedDetails: buildSelectedDetails(selectedSnapshot, selectedCorrelation),
     snapshots: snapshots.map(summarizeDailyMoverSnapshot),
-    strategyDrafts: buildDailyMoverStrategyDrafts(backtestValidations),
+    strategyConfirmations,
+    strategyDrafts: buildDailyMoverStrategyDrafts(backtestValidations, strategyConfirmations),
     correlationRetention,
     retention,
   };

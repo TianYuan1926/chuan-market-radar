@@ -92,7 +92,7 @@ export type AiSignalReview = {
 
 export type SignalJournalAction = "track" | "paper_trade" | "skip" | "invalidate";
 
-export type JournalAction = SignalJournalAction | "calibration_review";
+export type JournalAction = SignalJournalAction | "calibration_review" | "strategy_confirmation";
 
 export type ReviewStatus = "queued" | "tracking" | "closed";
 
@@ -155,8 +155,17 @@ export type JournalEvent = {
   invalidationHit?: boolean;
   firstTargetHit?: boolean;
   reviewCheckpoints?: ReviewCheckpoint[];
-  source?: "signal" | "daily_mover_calibration";
+  source?: "signal" | "daily_mover_calibration" | "strategy_version_confirmation";
   sourceId?: string;
   calibrationTag?: string;
   sampleSymbols?: string[];
+  allowedUse?: "research_only";
+  canAutoAdjustWeights?: false;
+  strategyDraftId?: string;
+  strategyEvidenceSummary?: string;
+  strategyLabel?: string;
+  strategyLimitation?: string;
+  strategyTag?: string;
+  strategyValidationVerdict?: string;
+  strategyVersionLabel?: string;
 };

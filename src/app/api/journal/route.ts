@@ -4,8 +4,10 @@ import type { JournalAction, JournalEvent, SignalJournalAction } from "@/lib/ana
 import { getMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import {
   buildJournalEntryFromDailyMoverCalibration,
+  buildJournalEntryFromDailyMoverStrategyConfirmation,
   buildJournalEntryFromSignal,
   type DailyMoverCalibrationJournalInput,
+  type DailyMoverStrategyConfirmationJournalInput,
 } from "@/lib/journal/journal-entry";
 import { appPersistenceRepository } from "@/lib/persistence/app-repository";
 
@@ -13,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 const journalRepository = appPersistenceRepository;
 const signalJournalActions: SignalJournalAction[] = ["track", "paper_trade", "skip", "invalidate"];
-const journalActions: JournalAction[] = [...signalJournalActions, "calibration_review"];
+const journalActions: JournalAction[] = [...signalJournalActions, "calibration_review", "strategy_confirmation"];
 const journalRateLimiter = new MemoryRateLimiter({
   limit: Number(process.env.JOURNAL_API_RATE_LIMIT ?? 30),
   windowMs: 60_000,
@@ -35,6 +37,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string");
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function isDailyMoverCalibrationInput(value: unknown): value is DailyMoverCalibrationJournalInput {
   if (!isRecord(value)) {
     return false;
@@ -50,6 +56,27 @@ function isDailyMoverCalibrationInput(value: unknown): value is DailyMoverCalibr
     Number.isFinite(value.sampleCount) &&
     value.sampleCount > 0 &&
     isStringArray(value.symbols);
+}
+
+function isDailyMoverStrategyConfirmationInput(
+  value: unknown,
+): value is DailyMoverStrategyConfirmationJournalInput {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return value.allowedUse === "research_only" &&
+    value.canAutoAdjustWeights === false &&
+    value.manualConfirmation === "required" &&
+    value.sourceMode === "historical_sample_validation" &&
+    isNonEmptyString(value.draftId) &&
+    isNonEmptyString(value.evidenceSummary) &&
+    isNonEmptyString(value.label) &&
+    isNonEmptyString(value.limitation) &&
+    isNonEmptyString(value.nextStep) &&
+    isNonEmptyString(value.tag) &&
+    isNonEmptyString(value.validationVerdict) &&
+    isNonEmptyString(value.versionLabel);
 }
 
 function clientKey(request: NextRequest) {
@@ -132,6 +159,18 @@ export async function POST(request: NextRequest) {
     }
 
     const entry = buildJournalEntryFromDailyMoverCalibration(calibration);
+
+    return persistJournalEntry(entry, limit);
+  }
+
+  if (action === "strategy_confirmation") {
+    const strategyDraft = isRecord(body) && "strategyDraft" in body ? body.strategyDraft : undefined;
+
+    if (!isDailyMoverStrategyConfirmationInput(strategyDraft)) {
+      return NextResponse.json({ ok: false, error: "invalid_journal_request" }, { status: 400 });
+    }
+
+    const entry = buildJournalEntryFromDailyMoverStrategyConfirmation(strategyDraft);
 
     return persistJournalEntry(entry, limit);
   }

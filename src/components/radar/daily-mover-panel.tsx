@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDownRight, ArrowUpRight, BrainCircuit, ListPlus, Microscope } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BrainCircuit, CheckCircle2, ListPlus, Microscope } from "lucide-react";
 import type { DailyMoverReview } from "@/lib/market/daily-movers";
 import type {
   DailyMoverPreview,
@@ -19,6 +19,7 @@ type DailyMoverBacktestCandidate = DailyMoverArchive["backtestCandidates"][numbe
 type DailyMoverBacktestValidation = DailyMoverArchive["backtestValidations"][number];
 type DailyMoverStrategyDraft = DailyMoverArchive["strategyDrafts"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
+type DailyMoverStrategyConfirmationStatus = "idle" | "saving" | "saved" | "error";
 
 type DailyMoverPanelProps = {
   archive: DailyMoverArchive;
@@ -27,6 +28,8 @@ type DailyMoverPanelProps = {
     suggestion: DailyMoverCalibrationSuggestion,
     context: { observedAt: string; snapshotId: string },
   ) => void;
+  onConfirmStrategyDraft?: (draft: DailyMoverStrategyDraft) => void;
+  strategyConfirmationStatus?: DailyMoverStrategyConfirmationStatus;
 };
 
 const fallbackGuardrail = "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。";
@@ -301,12 +304,31 @@ function renderBacktestValidation(validation: DailyMoverBacktestValidation) {
 function strategyDraftStatusLabel(value: DailyMoverStrategyDraft["status"]) {
   return {
     blocked: "暂缓",
+    confirmed: "已确认",
     manual_review_required: "待确认",
     needs_more_evidence: "补样本",
   }[value];
 }
 
-function renderStrategyDraft(draft: DailyMoverStrategyDraft) {
+function strategyConfirmationStatusLabel(value: DailyMoverStrategyConfirmationStatus) {
+  return {
+    error: "确认失败",
+    idle: "人工确认",
+    saved: "已确认",
+    saving: "写入中",
+  }[value];
+}
+
+function renderStrategyDraft(
+  draft: DailyMoverStrategyDraft,
+  options: {
+    disabled: boolean;
+    onConfirm?: () => void;
+    status: DailyMoverStrategyConfirmationStatus;
+  },
+) {
+  const isConfirmed = draft.manualConfirmation === "confirmed" || draft.status === "confirmed";
+
   return (
     <article className={`daily-mover-strategy__item daily-mover-strategy__item--${draft.status}`} key={draft.id}>
       <div>
@@ -315,12 +337,25 @@ function renderStrategyDraft(draft: DailyMoverStrategyDraft) {
       </div>
       <div className="daily-mover-strategy__stats" aria-label={`${draft.label} 策略草案统计`}>
         <span><b>{backtestValidationVerdictLabel(draft.validationVerdict)}</b>验证</span>
-        <span><b>人工</b>确认</span>
+        <span><b>{isConfirmed ? "已确认" : "人工"}</b>确认</span>
         <span><b>禁止</b>调权</span>
         <span><b>只读</b>草案</span>
       </div>
       <p>{draft.nextStep}</p>
       <small>{draft.versionLabel} · {draft.evidenceSummary} · {draft.limitation || historicalValidationBoundary}</small>
+      {options.onConfirm && !isConfirmed && draft.status === "manual_review_required" ? (
+        <div className="daily-mover-strategy__actions">
+          <button
+            className="daily-mover-strategy__button"
+            disabled={options.disabled}
+            onClick={options.onConfirm}
+            type="button"
+          >
+            <CheckCircle2 aria-hidden="true" size={14} strokeWidth={2.3} />
+            <span>{options.status === "saving" ? "确认中" : "确认草案"}</span>
+          </button>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -336,6 +371,8 @@ export function DailyMoverPanel({
   archive,
   calibrationReviewStatus = "idle",
   onCreateCalibrationReview,
+  onConfirmStrategyDraft,
+  strategyConfirmationStatus = "idle",
 }: DailyMoverPanelProps) {
   const [activeArchive, setActiveArchive] = useState(archive);
   const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -551,9 +588,15 @@ export function DailyMoverPanel({
             <div className="daily-mover-strategy" aria-label="策略版本草案">
               <div className="daily-mover-strategy__head">
                 <h3>策略草案</h3>
-                <span>人工确认</span>
+                <span>{strategyConfirmationStatusLabel(strategyConfirmationStatus)}</span>
               </div>
-              {strategyDrafts.map(renderStrategyDraft)}
+              {strategyDrafts.map((draft) => renderStrategyDraft(draft, {
+                disabled: strategyConfirmationStatus === "saving",
+                onConfirm: onConfirmStrategyDraft
+                  ? () => onConfirmStrategyDraft(draft)
+                  : undefined,
+                status: strategyConfirmationStatus,
+              }))}
             </div>
           ) : null}
 

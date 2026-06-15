@@ -65,6 +65,16 @@ test("rankJournalEvent keeps daily mover calibration reviews score-neutral", () 
   })), 0);
 });
 
+test("rankJournalEvent keeps strategy confirmations score-neutral", () => {
+  assert.equal(rankJournalEvent(entry({
+    action: "strategy_confirmation",
+    id: "strategy-confirmation",
+    lessons: ["strategy_confirmation", "review_volume_oi_weight"],
+    result: "watching",
+    reviewStatus: "closed",
+  })), 0);
+});
+
 test("buildRankProfile converts journal history into tier, progress, and pet state", () => {
   const profile = buildRankProfile([
     entry({

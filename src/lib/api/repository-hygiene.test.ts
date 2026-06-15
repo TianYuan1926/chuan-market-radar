@@ -302,6 +302,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "不是完整 K 线回测",
     "策略草案",
     "策略版本草案",
+    "确认草案",
+    "已确认",
     "禁止",
     "关联摘要",
     "扫描关联",
@@ -330,6 +332,7 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "daily-mover-validation__stats",
     "daily-mover-strategy",
     "daily-mover-strategy__stats",
+    "daily-mover-strategy__button",
   ];
   const disallowedTradeWords = [
     "买入",
@@ -346,9 +349,11 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(workspaceSource, /DailyMoverPanel/);
   assert.match(workspaceSource, /dailyMoverArchive/);
   assert.match(workspaceSource, /createDailyMoverCalibrationReview/);
+  assert.match(workspaceSource, /createDailyMoverStrategyConfirmation/);
   assert.match(panelSource, /allowedUse/);
   assert.match(panelSource, /research_only/);
   assert.match(panelSource, /onCreateCalibrationReview/);
+  assert.match(panelSource, /onConfirmStrategyDraft/);
   assert.match(panelSource, /calibrationFeedback/);
   assert.match(panelSource, /backtestCandidates/);
   assert.match(panelSource, /backtestValidations/);
@@ -358,6 +363,10 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(
     readFileSync(resolve(process.cwd(), "src/app/api/journal/route.ts"), "utf8"),
     /calibration_review/,
+  );
+  assert.match(
+    readFileSync(resolve(process.cwd(), "src/app/api/journal/route.ts"), "utf8"),
+    /strategy_confirmation/,
   );
 
   for (const label of requiredLabels) {

@@ -45,7 +45,7 @@ function countByResult(entries: JournalEvent[], result: JournalEvent["result"]) 
 }
 
 export function rankJournalEvent(entry: JournalEvent) {
-  if (entry.action === "calibration_review") {
+  if (entry.action === "calibration_review" || entry.action === "strategy_confirmation") {
     return 0;
   }
 

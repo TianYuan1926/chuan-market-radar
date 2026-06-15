@@ -99,6 +99,35 @@ export type DailyMoverCalibrationJournalEntry = JournalEvent & {
   trigger: string;
 };
 
+export type DailyMoverStrategyConfirmationJournalInput = {
+  allowedUse: "research_only";
+  draftId: string;
+  evidenceSummary: string;
+  label: string;
+  limitation: string;
+  nextStep: string;
+  tag: string;
+  validationVerdict: string;
+  versionLabel: string;
+};
+
+export type DailyMoverStrategyConfirmationJournalEntry = JournalEvent & {
+  action: "strategy_confirmation";
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  lessons: string[];
+  reviewStatus: "closed";
+  source: "strategy_version_confirmation";
+  sourceId: string;
+  strategyDraftId: string;
+  strategyEvidenceSummary: string;
+  strategyLabel: string;
+  strategyLimitation: string;
+  strategyTag: string;
+  strategyValidationVerdict: string;
+  strategyVersionLabel: string;
+};
+
 function pad(value: number) {
   return value.toString().padStart(2, "0");
 }
@@ -244,6 +273,41 @@ export function buildJournalEntryFromDailyMoverCalibration(
     sourceId: input.snapshotId,
     calibrationTag: input.tag,
     sampleSymbols: normalizedSymbols,
+  };
+}
+
+export function buildJournalEntryFromDailyMoverStrategyConfirmation(
+  input: DailyMoverStrategyConfirmationJournalInput,
+  options: { createdAt?: string } = {},
+): DailyMoverStrategyConfirmationJournalEntry {
+  const version = slugPart(input.versionLabel) || "strategy-draft";
+
+  return {
+    id: `journal-${version}-strategy-confirmation`,
+    symbol: "STRATEGY",
+    title: "策略版本人工确认",
+    result: "watching",
+    note: `已人工确认策略草案：${input.label} / ${input.versionLabel}。${input.nextStep}`,
+    rankDelta: 0,
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    action: "strategy_confirmation",
+    reviewStatus: "closed",
+    trigger: "人工确认样本边界和验证限制",
+    invalidation: "确认记录不能自动改权重，后续表现不佳时必须回滚为观察",
+    thesis: `${input.evidenceSummary}。${input.limitation}`,
+    lessons: ["strategy_confirmation", input.tag, input.validationVerdict],
+    source: "strategy_version_confirmation",
+    sourceId: input.draftId,
+    calibrationTag: input.tag,
+    allowedUse: input.allowedUse,
+    canAutoAdjustWeights: false,
+    strategyDraftId: input.draftId,
+    strategyEvidenceSummary: input.evidenceSummary,
+    strategyLabel: input.label,
+    strategyLimitation: input.limitation,
+    strategyTag: input.tag,
+    strategyValidationVerdict: input.validationVerdict,
+    strategyVersionLabel: input.versionLabel,
   };
 }
 
