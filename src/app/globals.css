@@ -2876,7 +2876,8 @@ p {
 .daily-mover-feedback,
 .daily-mover-backtest,
 .daily-mover-validation,
-.daily-mover-strategy {
+.daily-mover-strategy,
+.daily-mover-performance {
   display: grid;
   gap: 7px;
   padding: 10px 12px;
@@ -2888,7 +2889,8 @@ p {
 .daily-mover-feedback__head,
 .daily-mover-backtest__head,
 .daily-mover-validation__head,
-.daily-mover-strategy__head {
+.daily-mover-strategy__head,
+.daily-mover-performance__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2900,7 +2902,8 @@ p {
 .daily-mover-feedback__head h3,
 .daily-mover-backtest__head h3,
 .daily-mover-validation__head h3,
-.daily-mover-strategy__head h3 {
+.daily-mover-strategy__head h3,
+.daily-mover-performance__head h3 {
   margin: 0;
   font-size: 12px;
   line-height: 1.1;
@@ -2911,7 +2914,8 @@ p {
 .daily-mover-feedback__head span,
 .daily-mover-backtest__head span,
 .daily-mover-validation__head span,
-.daily-mover-strategy__head span {
+.daily-mover-strategy__head span,
+.daily-mover-performance__head span {
   color: var(--muted);
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 9px;
@@ -2923,7 +2927,8 @@ p {
 .daily-mover-feedback__item,
 .daily-mover-backtest__item,
 .daily-mover-validation__item,
-.daily-mover-strategy__item {
+.daily-mover-strategy__item,
+.daily-mover-performance__item {
   display: grid;
   gap: 5px;
   padding: 8px;
@@ -2937,7 +2942,8 @@ p {
 .daily-mover-feedback__item > div,
 .daily-mover-backtest__item > div,
 .daily-mover-validation__item > div,
-.daily-mover-strategy__item > div {
+.daily-mover-strategy__item > div,
+.daily-mover-performance__item > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -2949,7 +2955,8 @@ p {
 .daily-mover-feedback__item strong,
 .daily-mover-backtest__item strong,
 .daily-mover-validation__item strong,
-.daily-mover-strategy__item strong {
+.daily-mover-strategy__item strong,
+.daily-mover-performance__item strong {
   min-width: 0;
   overflow: hidden;
   font-size: 12px;
@@ -2962,7 +2969,8 @@ p {
 .daily-mover-feedback__item > div > span,
 .daily-mover-backtest__item > div > span,
 .daily-mover-validation__item > div > span,
-.daily-mover-strategy__item > div > span {
+.daily-mover-strategy__item > div > span,
+.daily-mover-performance__item > div > span {
   min-height: 20px;
   display: inline-flex;
   align-items: center;
@@ -2998,7 +3006,9 @@ p {
 .daily-mover-validation__item p,
 .daily-mover-validation__item small,
 .daily-mover-strategy__item p,
-.daily-mover-strategy__item small {
+.daily-mover-strategy__item small,
+.daily-mover-performance__item p,
+.daily-mover-performance__item small {
   margin: 0;
   color: var(--ink-2);
   font-size: 10px;
@@ -3011,7 +3021,8 @@ p {
 .daily-mover-feedback__item small,
 .daily-mover-backtest__item small,
 .daily-mover-validation__item small,
-.daily-mover-strategy__item small {
+.daily-mover-strategy__item small,
+.daily-mover-performance__item small {
   color: var(--muted);
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 9px;
@@ -3093,6 +3104,21 @@ p {
   background: rgba(39, 140, 102, 0.08);
 }
 
+.daily-mover-performance__item {
+  border-color: rgba(64, 84, 132, 0.24);
+  background: rgba(64, 84, 132, 0.06);
+}
+
+.daily-mover-performance__item--retain_observation {
+  border-color: rgba(39, 140, 102, 0.3);
+  background: rgba(39, 140, 102, 0.08);
+}
+
+.daily-mover-performance__item--downgrade_watch {
+  border-color: rgba(184, 64, 72, 0.3);
+  background: rgba(184, 64, 72, 0.07);
+}
+
 .daily-mover-validation__item--review_ready > div > span {
   border-color: rgba(39, 140, 102, 0.38);
   color: var(--green);
@@ -3129,10 +3155,31 @@ p {
   color: var(--red);
 }
 
+.daily-mover-performance__item--awaiting_samples > div > span {
+  border-color: rgba(213, 155, 61, 0.42);
+  color: var(--amber);
+}
+
+.daily-mover-performance__item--retain_observation > div > span {
+  border-color: rgba(39, 140, 102, 0.42);
+  color: var(--green);
+}
+
+.daily-mover-performance__item--needs_manual_review > div > span {
+  border-color: rgba(64, 84, 132, 0.38);
+  color: var(--ink-2);
+}
+
+.daily-mover-performance__item--downgrade_watch > div > span {
+  border-color: rgba(184, 64, 72, 0.36);
+  color: var(--red);
+}
+
 .daily-mover-feedback__stats,
 .daily-mover-backtest__stats,
 .daily-mover-validation__stats,
-.daily-mover-strategy__stats {
+.daily-mover-strategy__stats,
+.daily-mover-performance__stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 5px;
@@ -3141,7 +3188,8 @@ p {
 .daily-mover-feedback__stats span,
 .daily-mover-backtest__stats span,
 .daily-mover-validation__stats span,
-.daily-mover-strategy__stats span {
+.daily-mover-strategy__stats span,
+.daily-mover-performance__stats span {
   min-height: 30px;
   display: grid;
   gap: 1px;
@@ -3159,7 +3207,8 @@ p {
 .daily-mover-feedback__stats b,
 .daily-mover-backtest__stats b,
 .daily-mover-validation__stats b,
-.daily-mover-strategy__stats b {
+.daily-mover-strategy__stats b,
+.daily-mover-performance__stats b {
   color: var(--ink);
   font-size: 12px;
   line-height: 1;

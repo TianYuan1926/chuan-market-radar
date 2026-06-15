@@ -18,6 +18,7 @@ type DailyMoverCalibrationFeedback = DailyMoverArchive["calibrationFeedback"][nu
 type DailyMoverBacktestCandidate = DailyMoverArchive["backtestCandidates"][number];
 type DailyMoverBacktestValidation = DailyMoverArchive["backtestValidations"][number];
 type DailyMoverStrategyDraft = DailyMoverArchive["strategyDrafts"][number];
+type DailyMoverStrategyPerformanceFeedback = DailyMoverArchive["strategyPerformanceFeedback"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 type DailyMoverStrategyConfirmationStatus = "idle" | "saving" | "saved" | "error";
 
@@ -360,6 +361,34 @@ function renderStrategyDraft(
   );
 }
 
+function strategyPerformanceStatusLabel(value: DailyMoverStrategyPerformanceFeedback["status"]) {
+  return {
+    awaiting_samples: "等样本",
+    downgrade_watch: "降级观察",
+    needs_manual_review: "人工复核",
+    retain_observation: "保留观察",
+  }[value];
+}
+
+function renderStrategyPerformance(item: DailyMoverStrategyPerformanceFeedback) {
+  return (
+    <article className={`daily-mover-performance__item daily-mover-performance__item--${item.status}`} key={item.confirmationEventId}>
+      <div>
+        <strong>{item.label}</strong>
+        <span>{strategyPerformanceStatusLabel(item.status)}</span>
+      </div>
+      <div className="daily-mover-performance__stats" aria-label={`${item.label} 确认后表现统计`}>
+        <span><b>{item.followupSampleCount}</b>后续样本</span>
+        <span><b>{item.validated}</b>有效</span>
+        <span><b>{item.rejected}</b>反证</span>
+        <span><b>{item.pending}</b>待复查</span>
+      </div>
+      <p>{item.nextStep}</p>
+      <small>{item.versionLabel} · {item.evidenceSummary}</small>
+    </article>
+  );
+}
+
 function selectedSummary(
   archive: DailyMoverArchive,
   snapshotId: string | undefined,
@@ -389,6 +418,7 @@ export function DailyMoverPanel({
   const backtestCandidates = activeArchive.backtestCandidates.slice(0, 3);
   const backtestValidations = activeArchive.backtestValidations.slice(0, 3);
   const strategyDrafts = activeArchive.strategyDrafts.slice(0, 3);
+  const strategyPerformanceFeedback = activeArchive.strategyPerformanceFeedback.slice(0, 3);
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
   const guardrail = activeArchive.guardrail || fallbackGuardrail;
@@ -597,6 +627,16 @@ export function DailyMoverPanel({
                   : undefined,
                 status: strategyConfirmationStatus,
               }))}
+            </div>
+          ) : null}
+
+          {strategyPerformanceFeedback.length > 0 ? (
+            <div className="daily-mover-performance" aria-label="策略确认后表现反馈">
+              <div className="daily-mover-performance__head">
+                <h3>确认后表现</h3>
+                <span>只读反馈</span>
+              </div>
+              {strategyPerformanceFeedback.map(renderStrategyPerformance)}
             </div>
           ) : null}
 

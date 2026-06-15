@@ -304,6 +304,9 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "策略版本草案",
     "确认草案",
     "已确认",
+    "确认后表现",
+    "只读反馈",
+    "后续样本",
     "禁止",
     "关联摘要",
     "扫描关联",
@@ -333,6 +336,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "daily-mover-strategy",
     "daily-mover-strategy__stats",
     "daily-mover-strategy__button",
+    "daily-mover-performance",
+    "daily-mover-performance__stats",
   ];
   const disallowedTradeWords = [
     "买入",
@@ -358,6 +363,7 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(panelSource, /backtestCandidates/);
   assert.match(panelSource, /backtestValidations/);
   assert.match(panelSource, /strategyDrafts/);
+  assert.match(panelSource, /strategyPerformanceFeedback/);
   assert.match(panelSource, /selectedCorrelation/);
   assert.match(panelSource, /correlationStatusLabel/);
   assert.match(

@@ -15,6 +15,7 @@ import {
   buildDailyMoverCalibrationFeedback,
   buildDailyMoverStrategyConfirmations,
   buildDailyMoverStrategyDrafts,
+  buildDailyMoverStrategyPerformanceFeedback,
   getDailyMoverReadArchive,
   normalizeDailyMoverReadLimit,
 } from "./daily-mover-readonly";
@@ -734,6 +735,138 @@ test("buildDailyMoverStrategyConfirmations marks matching strategy drafts as man
   assert.equal(drafts[0]?.canAutoAdjustWeights, false);
 });
 
+test("buildDailyMoverStrategyPerformanceFeedback tracks post-confirmation samples without automatic weight changes", () => {
+  const confirmations = buildDailyMoverStrategyConfirmations([
+    journalEvent({
+      action: "strategy_confirmation",
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      createdAt: "2026-06-18T00:22:00.000Z",
+      id: "performance-confirmed-volume-oi",
+      result: "watching",
+      reviewStatus: "closed",
+      source: "strategy_version_confirmation",
+      sourceId: "strategy-review_volume_oi_weight",
+      strategyDraftId: "strategy-review_volume_oi_weight",
+      strategyEvidenceSummary: "历史样本 2 / 日记验证 3 / 抓到 1 / 漏判 1",
+      strategyLabel: "成交量/OI 权重复核",
+      strategyLimitation: "只基于已存每日异动快照和校准日记，不是完整 K 线回测。",
+      strategyTag: "review_volume_oi_weight",
+      strategyValidationVerdict: "review_ready",
+      strategyVersionLabel: "draft-volume-oi-weight-v1",
+    }),
+  ]);
+  const feedback = buildDailyMoverStrategyPerformanceFeedback(confirmations, [
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-17T00:22:00.000Z",
+      id: "performance-before-confirmation",
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: ["SUIUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-19T00:22:00.000Z",
+      id: "performance-after-valid",
+      outcomeStatus: "saved",
+      result: "saved",
+      reviewStatus: "closed",
+      sampleSymbols: ["TIAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-20T00:22:00.000Z",
+      id: "performance-after-rejected",
+      outcomeStatus: "loss",
+      result: "loss",
+      reviewStatus: "closed",
+      sampleSymbols: ["ENAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-21T00:22:00.000Z",
+      id: "performance-after-pending",
+      outcomeStatus: "pending",
+      result: "watching",
+      reviewStatus: "tracking",
+      sampleSymbols: ["ONDOUSDT"],
+      source: "daily_mover_calibration",
+    }),
+  ]);
+
+  assert.equal(feedback.length, 1);
+  assert.equal(feedback[0]?.confirmationEventId, "performance-confirmed-volume-oi");
+  assert.equal(feedback[0]?.followupSampleCount, 3);
+  assert.equal(feedback[0]?.validated, 1);
+  assert.equal(feedback[0]?.rejected, 1);
+  assert.equal(feedback[0]?.pending, 1);
+  assert.equal(feedback[0]?.status, "awaiting_samples");
+  assert.match(feedback[0]?.nextStep ?? "", /不自动改权重/);
+  assert.equal(feedback[0]?.allowedUse, "research_only");
+  assert.equal(feedback[0]?.canAutoAdjustWeights, false);
+});
+
+test("buildDailyMoverStrategyPerformanceFeedback downgrades confirmed drafts when post-confirmation counterevidence dominates", () => {
+  const confirmations = buildDailyMoverStrategyConfirmations([
+    journalEvent({
+      action: "strategy_confirmation",
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      createdAt: "2026-06-18T00:22:00.000Z",
+      id: "performance-downgrade-confirmed-volume-oi",
+      result: "watching",
+      reviewStatus: "closed",
+      source: "strategy_version_confirmation",
+      sourceId: "strategy-review_volume_oi_weight",
+      strategyDraftId: "strategy-review_volume_oi_weight",
+      strategyEvidenceSummary: "历史样本 2 / 日记验证 3 / 抓到 1 / 漏判 1",
+      strategyLabel: "成交量/OI 权重复核",
+      strategyLimitation: "只基于已存每日异动快照和校准日记，不是完整 K 线回测。",
+      strategyTag: "review_volume_oi_weight",
+      strategyValidationVerdict: "review_ready",
+      strategyVersionLabel: "draft-volume-oi-weight-v1",
+    }),
+  ]);
+  const feedback = buildDailyMoverStrategyPerformanceFeedback(confirmations, [
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-19T00:22:00.000Z",
+      id: "performance-downgrade-rejected-1",
+      outcomeStatus: "loss",
+      result: "loss",
+      reviewStatus: "closed",
+      sampleSymbols: ["TIAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-20T00:22:00.000Z",
+      id: "performance-downgrade-rejected-2",
+      outcomeStatus: "loss",
+      result: "loss",
+      reviewStatus: "closed",
+      sampleSymbols: ["ENAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+  ]);
+
+  assert.equal(feedback[0]?.status, "downgrade_watch");
+  assert.equal(feedback[0]?.rejected, 2);
+  assert.match(feedback[0]?.nextStep ?? "", /降级/);
+  assert.equal(feedback[0]?.canAutoAdjustWeights, false);
+});
+
 test("getDailyMoverReadArchive exposes calibration feedback from journal events", async () => {
   const repository = createMemoryPersistenceRepository();
   await repository.addDailyMoverSnapshot(snapshot(
@@ -925,6 +1058,85 @@ test("getDailyMoverReadArchive exposes persisted strategy confirmations and conf
   assert.equal(result.body.strategyDrafts[0]?.manualConfirmation, "confirmed");
   assert.equal(result.body.strategyDrafts[0]?.confirmationEventId, "strategy-confirmed-api-volume-oi");
   assert.match(result.body.strategyDrafts[0]?.nextStep ?? "", /不能自动改权重/);
+});
+
+test("getDailyMoverReadArchive exposes readonly post-confirmation strategy performance feedback", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshotFromReviews(
+    "daily-movers-strategy-performance-api-1",
+    "2026-06-15T00:17:00.000Z",
+    [
+      reviewWithTags("ENAUSDT", "gainer", "caught", "learnable", []),
+      reviewWithTags("SUIUSDT", "loser", "missed", "watchlist", ["review_volume_oi_weight"]),
+    ],
+  ));
+
+  for (const [index, symbol] of ["SUIUSDT", "TIAUSDT", "ENAUSDT"].entries()) {
+    await repository.addJournalEvent(journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: `2026-06-${15 + index}T00:22:00.000Z`,
+      id: `strategy-performance-api-ready-${index + 1}`,
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: [symbol],
+      source: "daily_mover_calibration",
+    }));
+  }
+
+  await repository.addJournalEvent(journalEvent({
+    action: "strategy_confirmation",
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    createdAt: "2026-06-18T00:22:00.000Z",
+    id: "strategy-performance-api-volume-oi",
+    result: "watching",
+    reviewStatus: "closed",
+    source: "strategy_version_confirmation",
+    sourceId: "strategy-review_volume_oi_weight",
+    strategyDraftId: "strategy-review_volume_oi_weight",
+    strategyEvidenceSummary: "历史样本 2 / 日记验证 3 / 抓到 1 / 漏判 1",
+    strategyLabel: "成交量/OI 权重复核",
+    strategyLimitation: "只基于已存每日异动快照和校准日记，不是完整 K 线回测。",
+    strategyTag: "review_volume_oi_weight",
+    strategyValidationVerdict: "review_ready",
+    strategyVersionLabel: "draft-volume-oi-weight-v1",
+  }));
+  await repository.addJournalEvent(journalEvent({
+    action: "calibration_review",
+    calibrationTag: "review_volume_oi_weight",
+    createdAt: "2026-06-19T00:22:00.000Z",
+    id: "strategy-performance-api-followup-valid",
+    outcomeStatus: "saved",
+    result: "saved",
+    reviewStatus: "closed",
+    sampleSymbols: ["ONDOUSDT"],
+    source: "daily_mover_calibration",
+  }));
+  await repository.addJournalEvent(journalEvent({
+    action: "calibration_review",
+    calibrationTag: "review_volume_oi_weight",
+    createdAt: "2026-06-20T00:22:00.000Z",
+    id: "strategy-performance-api-followup-pending",
+    outcomeStatus: "pending",
+    result: "watching",
+    reviewStatus: "tracking",
+    sampleSymbols: ["TIAUSDT"],
+    source: "daily_mover_calibration",
+  }));
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 3 });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.strategyPerformanceFeedback.length, 1);
+  assert.equal(result.body.strategyPerformanceFeedback[0]?.confirmationEventId, "strategy-performance-api-volume-oi");
+  assert.equal(result.body.strategyPerformanceFeedback[0]?.followupSampleCount, 2);
+  assert.equal(result.body.strategyPerformanceFeedback[0]?.validated, 1);
+  assert.equal(result.body.strategyPerformanceFeedback[0]?.pending, 1);
+  assert.equal(result.body.strategyPerformanceFeedback[0]?.status, "awaiting_samples");
+  assert.equal(result.body.strategyPerformanceFeedback[0]?.allowedUse, "research_only");
+  assert.equal(result.body.strategyPerformanceFeedback[0]?.canAutoAdjustWeights, false);
 });
 
 test("getDailyMoverReadArchive degrades to an empty archive when daily mover tables are not migrated yet", async () => {

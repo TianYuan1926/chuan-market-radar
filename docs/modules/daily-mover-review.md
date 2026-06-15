@@ -35,11 +35,12 @@
 - 历史样本验证：`GET /api/daily-movers` 会从 `backtestCandidates` 和已存每日异动快照派生 `backtestValidations`，只读展示日记验证、历史样本、有效率、抓到率、结论和限制说明。
 - 策略版本草案：`GET /api/daily-movers` 会从 `backtestValidations` 派生 `strategyDrafts`，记录候选规则、验证结论、限制条件、草案版本名和人工确认状态；`DailyMoverPanel` 只读展示，不写正式版本、不自动改权重。
 - 策略版本人工确认：`DailyMoverPanel` 可把待确认草案以 `strategy_confirmation` 写入现有 `journal_events`；`GET /api/daily-movers` 会汇总 `strategyConfirmations`，并把匹配草案显示为已确认。
+- 策略确认后表现反馈：`GET /api/daily-movers` 会从 `strategyConfirmations` 和确认后的 `calibration_review` 日记派生 `strategyPerformanceFeedback`，统计后续样本、有效、反证、待复查和只读状态；`DailyMoverPanel` 展示“确认后表现”，不新增表、不触发 CoinGlass 请求、不自动改权重。
 
 当前未落地：
 
 - 完整 K 线级回测执行，包含独立历史 K 线窗口、缓存、成本控制和适用边界验证。
-- 策略版本确认后的表现反馈闭环。
+- 策略版本长周期表现统计、版本回滚边界和更完整的表现趋势。
 - 自动规则权重调整；当前明确不允许自动调整。
 
 ## 使用边界
@@ -77,6 +78,6 @@
 
 ## 下一步
 
-1. 增加策略版本确认后的表现反馈闭环，记录“草案 -> 人工确认 -> 后续表现”。
-2. 如需完整 K 线级回测，先设计低成本数据缓存和验证边界，不能直接扩大 CoinGlass 请求。
+1. 设计完整 K 线级回测的低成本数据缓存和验证边界，不能直接扩大 CoinGlass 请求。
+2. 建立策略版本长周期表现统计和版本回滚规则，但仍保持人工准入。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。
