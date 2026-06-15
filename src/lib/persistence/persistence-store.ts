@@ -2,12 +2,16 @@ import type { JournalEvent } from "../analysis/types";
 import { createJournalStore } from "../journal/journal-store";
 import { buildRankProfile, type RankProfile } from "../journal/rank-engine";
 import type { DailyMoverSnapshot } from "../market/daily-movers";
+import type { OhlcvCandleCacheEntry, OhlcvInterval } from "../market/ohlcv/types";
 import { compareScanReplayFrames } from "../market/scan-archive";
 import type { ScanArchiveSummary, ScanComparison, ScanReplayFrame } from "../market/types";
 import {
   dailyMoverSnapshotToRecords,
   journalEventRecordToEvent,
   journalEventToRecord,
+  ohlcvCandleCacheEntryRecordToEntry,
+  ohlcvCandleCacheEntryToRecord,
+  type PersistedOhlcvCandleCacheRecord,
   rankProfileRecordToProfile,
   rankProfileToRecord,
   scanArchiveRecordToSummary,
@@ -50,6 +54,9 @@ export type PersistenceRepository = {
   addDailyMoverSnapshot: (snapshot: DailyMoverSnapshot) => Promise<DailyMoverSnapshot>;
   listDailyMoverSnapshots: (limit?: number) => Promise<DailyMoverSnapshot[]>;
   getDailyMoverSnapshot: (id?: string) => Promise<DailyMoverSnapshot | null>;
+  upsertOhlcvCandleCache: (entry: OhlcvCandleCacheEntry) => Promise<OhlcvCandleCacheEntry>;
+  listOhlcvCandleCaches: (limit?: number) => Promise<OhlcvCandleCacheEntry[]>;
+  getOhlcvCandleCache: (symbol: string, interval: OhlcvInterval) => Promise<OhlcvCandleCacheEntry | null>;
 };
 
 export type MemoryPersistenceRepositoryOptions = {
@@ -104,6 +111,12 @@ function sortDailyMoverSnapshots(snapshots: DailyMoverSnapshot[]) {
   );
 }
 
+function sortOhlcvCandleCaches(entries: OhlcvCandleCacheEntry[]) {
+  return [...entries].sort(
+    (left, right) => sortableTime(right.fetchedAt) - sortableTime(left.fetchedAt),
+  );
+}
+
 function dailyMoverSnapshotRecordToSnapshot(
   record: PersistedDailyMoverSnapshotRecord,
 ): DailyMoverSnapshot {
@@ -142,6 +155,7 @@ export function createMemoryPersistenceRepository({
   const journalStore = createJournalStore(initialJournalEvents);
   let archives: PersistedScanArchiveRecord[] = [];
   let dailyMoverSnapshots: DailyMoverSnapshot[] = [];
+  let ohlcvCandleCaches: OhlcvCandleCacheEntry[] = [];
   let rankProfile = buildRankProfile(journalStore.list());
   const resolvedScope = resolveScope(scope);
 
@@ -220,6 +234,27 @@ export function createMemoryPersistenceRepository({
         ? dailyMoverSnapshots.find((entry) => entry.id === id) ?? null
         : dailyMoverSnapshots[0] ?? null;
     },
+
+    async upsertOhlcvCandleCache(entry) {
+      ohlcvCandleCaches = sortOhlcvCandleCaches([
+        entry,
+        ...ohlcvCandleCaches.filter((item) => (
+          item.symbol !== entry.symbol || item.interval !== entry.interval
+        )),
+      ]);
+
+      return entry;
+    },
+
+    async listOhlcvCandleCaches(limit = defaultArchiveLimit) {
+      return ohlcvCandleCaches.slice(0, limit);
+    },
+
+    async getOhlcvCandleCache(symbol, interval) {
+      return ohlcvCandleCaches.find((entry) => (
+        entry.symbol === symbol && entry.interval === interval
+      )) ?? null;
+    },
   };
 }
 
@@ -265,6 +300,20 @@ limit $2
 select * from daily_mover_snapshots
 where scope = $1
 order by observed_at desc
+limit $2
+`.trim(),
+      [resolvedScope, limit],
+    );
+
+    return result.rows;
+  }
+
+  async function listOhlcvCandleCacheRecords(limit = defaultArchiveLimit) {
+    const result = await client.query<PersistedOhlcvCandleCacheRecord>(
+      `
+select * from ohlcv_candle_cache
+where scope = $1
+order by fetched_at desc
 limit $2
 `.trim(),
       [resolvedScope, limit],
@@ -635,6 +684,68 @@ limit 1
 
       return result.rows[0]
         ? dailyMoverSnapshotRecordToSnapshot(result.rows[0])
+        : null;
+    },
+
+    async upsertOhlcvCandleCache(entry) {
+      const record = ohlcvCandleCacheEntryToRecord(entry, resolvedScope);
+
+      await client.query(
+        `
+insert into ohlcv_candle_cache (
+  scope,
+  symbol,
+  interval,
+  cache_key,
+  source,
+  fetched_at,
+  candle_count,
+  first_open_time,
+  last_close_time,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+on conflict (scope, symbol, interval) do update set
+  cache_key = excluded.cache_key,
+  source = excluded.source,
+  fetched_at = excluded.fetched_at,
+  candle_count = excluded.candle_count,
+  first_open_time = excluded.first_open_time,
+  last_close_time = excluded.last_close_time,
+  payload = excluded.payload
+`.trim(),
+        [
+          record.scope,
+          record.symbol,
+          record.interval,
+          record.cache_key,
+          record.source,
+          record.fetched_at,
+          record.candle_count,
+          record.first_open_time,
+          record.last_close_time,
+          record.payload,
+        ],
+      );
+
+      return entry;
+    },
+
+    async listOhlcvCandleCaches(limit = defaultArchiveLimit) {
+      return (await listOhlcvCandleCacheRecords(limit)).map(ohlcvCandleCacheEntryRecordToEntry);
+    },
+
+    async getOhlcvCandleCache(symbol, interval) {
+      const result = await client.query<PersistedOhlcvCandleCacheRecord>(
+        `
+select * from ohlcv_candle_cache
+where scope = $1 and symbol = $2 and interval = $3
+limit 1
+`.trim(),
+        [resolvedScope, symbol, interval],
+      );
+
+      return result.rows[0]
+        ? ohlcvCandleCacheEntryRecordToEntry(result.rows[0])
         : null;
     },
   };

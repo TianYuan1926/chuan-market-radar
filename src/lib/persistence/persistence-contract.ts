@@ -7,6 +7,7 @@ import type {
   MoverAttribution,
   RadarMoverReview,
 } from "@/lib/market/daily-movers";
+import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
 import type {
   MarketDataSource,
   MarketDataStatus,
@@ -103,6 +104,19 @@ export type PersistedRadarMissReviewRecord = {
   payload: DailyMoverReview;
 };
 
+export type PersistedOhlcvCandleCacheRecord = {
+  scope: PersistenceScope;
+  symbol: string;
+  interval: string;
+  cache_key: string;
+  source: string;
+  fetched_at: string;
+  candle_count: number;
+  first_open_time: string;
+  last_close_time: string;
+  payload: OhlcvCandleCacheEntry;
+};
+
 export type PersistedDailyMoverSnapshotRecords = {
   snapshot: PersistedDailyMoverSnapshotRecord;
   assets: PersistedDailyMoverAssetRecord[];
@@ -118,6 +132,7 @@ export const persistenceTables = [
   "daily_mover_assets",
   "mover_attribution_reviews",
   "radar_miss_reviews",
+  "ohlcv_candle_cache",
 ] as const;
 
 export function journalEventToRecord(
@@ -274,6 +289,40 @@ export function dailyMoverSnapshotToRecords(
   };
 }
 
+export function ohlcvCandleCacheEntryToRecord(
+  entry: OhlcvCandleCacheEntry,
+  scope: PersistenceScope,
+): PersistedOhlcvCandleCacheRecord {
+  const first = entry.candles[0];
+  const last = entry.candles.at(-1);
+
+  return {
+    scope,
+    symbol: entry.symbol,
+    interval: entry.interval,
+    cache_key: entry.cacheKey,
+    source: entry.source,
+    fetched_at: entry.fetchedAt,
+    candle_count: entry.candles.length,
+    first_open_time: first?.openTime ?? entry.fetchedAt,
+    last_close_time: last?.closeTime ?? entry.fetchedAt,
+    payload: entry,
+  };
+}
+
+export function ohlcvCandleCacheEntryRecordToEntry(
+  record: PersistedOhlcvCandleCacheRecord,
+): OhlcvCandleCacheEntry {
+  return {
+    ...record.payload,
+    cacheKey: record.cache_key,
+    fetchedAt: record.fetched_at,
+    interval: record.interval as OhlcvCandleCacheEntry["interval"],
+    source: record.source,
+    symbol: record.symbol,
+  };
+}
+
 export function buildPersistenceSchemaSql() {
   return `
 create table if not exists journal_events (
@@ -393,5 +442,25 @@ create table if not exists radar_miss_reviews (
 
 create index if not exists radar_miss_reviews_scope_status_idx
   on radar_miss_reviews (scope, status);
+
+create table if not exists ohlcv_candle_cache (
+  scope text not null,
+  symbol text not null,
+  interval text not null,
+  cache_key text not null,
+  source text not null,
+  fetched_at timestamptz not null,
+  candle_count integer not null default 0,
+  first_open_time timestamptz not null,
+  last_close_time timestamptz not null,
+  payload jsonb not null,
+  primary key (scope, symbol, interval)
+);
+
+create index if not exists ohlcv_candle_cache_scope_fetched_at_idx
+  on ohlcv_candle_cache (scope, fetched_at desc);
+
+create index if not exists ohlcv_candle_cache_scope_symbol_idx
+  on ohlcv_candle_cache (scope, symbol, interval);
 `.trim();
 }

@@ -3,6 +3,7 @@ import test from "node:test";
 import type { JournalEvent } from "@/lib/analysis/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
+import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
 import type { ScanArchiveSummary, ScanReplayFrame } from "@/lib/market/types";
 import {
   createMemoryPersistenceRepository,
@@ -161,6 +162,30 @@ function dailyMoverSnapshot(overrides: Partial<DailyMoverSnapshot> = {}): DailyM
   };
 }
 
+function ohlcvCacheEntry(overrides: Partial<OhlcvCandleCacheEntry> = {}): OhlcvCandleCacheEntry {
+  return {
+    allowedUse: "research_only",
+    cacheKey: `${overrides.symbol ?? "ENAUSDT"}:${overrides.interval ?? "15m"}`,
+    canAutoAdjustWeights: false,
+    candles: [
+      {
+        close: 10.4,
+        closeTime: "2026-06-15T00:29:59.000Z",
+        high: 10.5,
+        low: 9.9,
+        open: 10,
+        openTime: "2026-06-15T00:15:00.000Z",
+        volume: 120000,
+      },
+    ],
+    fetchedAt: "2026-06-15T00:31:00.000Z",
+    interval: "15m",
+    source: "binance-public-futures",
+    symbol: "ENAUSDT",
+    ...overrides,
+  };
+}
+
 test("detectPersistenceMode keeps local preview on memory unless a database URL exists", () => {
   assert.deepEqual(detectPersistenceMode({}), {
     mode: "memory",
@@ -261,6 +286,31 @@ test("memory repository stores and reads daily mover snapshots newest first", as
   assert.equal(byId?.observedAt, "2026-06-13T00:00:00.000Z");
   assert.equal(latest?.id, "daily-movers-2026-06-14");
   assert.equal(latest?.reviews[0]?.allowedUse, "research_only");
+});
+
+test("memory repository stores and reads ohlcv candle cache entries newest first", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.upsertOhlcvCandleCache(ohlcvCacheEntry({
+    fetchedAt: "2026-06-15T00:31:00.000Z",
+    interval: "15m",
+    symbol: "ENAUSDT",
+  }));
+  await repository.upsertOhlcvCandleCache(ohlcvCacheEntry({
+    cacheKey: "SUIUSDT:1h",
+    fetchedAt: "2026-06-15T01:31:00.000Z",
+    interval: "1h",
+    symbol: "SUIUSDT",
+  }));
+
+  const entries = await repository.listOhlcvCandleCaches();
+  const ena = await repository.getOhlcvCandleCache("ENAUSDT", "15m");
+  const missing = await repository.getOhlcvCandleCache("ENAUSDT", "4h");
+
+  assert.deepEqual(entries.map((entry) => entry.cacheKey), ["SUIUSDT:1h", "ENAUSDT:15m"]);
+  assert.equal(ena?.candles[0]?.close, 10.4);
+  assert.equal(ena?.allowedUse, "research_only");
+  assert.equal(ena?.canAutoAdjustWeights, false);
+  assert.equal(missing, null);
 });
 
 test("postgres repository uses parameterized queries and maps durable records back to domain objects", async () => {
@@ -491,6 +541,66 @@ test("postgres repository writes and reads daily mover snapshots through durable
   assert.deepEqual(client.calls[3]?.params[4], ["sig-sol-compression"]);
   assert.deepEqual(client.calls[4]?.params, ["chuan-public", 5]);
   assert.deepEqual(client.calls[5]?.params, ["chuan-public", snapshot.id]);
+});
+
+test("postgres repository writes and reads ohlcv candle cache entries through durable tables", async () => {
+  const client = new RecordingSqlClient();
+  const entry = ohlcvCacheEntry();
+  client.responses.push(
+    { rows: [] },
+    {
+      rows: [
+        {
+          cache_key: entry.cacheKey,
+          candle_count: 1,
+          first_open_time: "2026-06-15T00:15:00.000Z",
+          fetched_at: entry.fetchedAt,
+          interval: entry.interval,
+          last_close_time: "2026-06-15T00:29:59.000Z",
+          payload: entry,
+          scope: "chuan-public",
+          source: entry.source,
+          symbol: entry.symbol,
+        },
+      ],
+    },
+    {
+      rows: [
+        {
+          cache_key: entry.cacheKey,
+          candle_count: 1,
+          first_open_time: "2026-06-15T00:15:00.000Z",
+          fetched_at: entry.fetchedAt,
+          interval: entry.interval,
+          last_close_time: "2026-06-15T00:29:59.000Z",
+          payload: entry,
+          scope: "chuan-public",
+          source: entry.source,
+          symbol: entry.symbol,
+        },
+      ],
+    },
+  );
+  const repository = createPostgresPersistenceRepository({ client, scope: "chuan-public" });
+
+  const stored = await repository.upsertOhlcvCandleCache(entry);
+  const entries = await repository.listOhlcvCandleCaches(5);
+  const byKey = await repository.getOhlcvCandleCache("ENAUSDT", "15m");
+
+  assert.equal(stored.cacheKey, "ENAUSDT:15m");
+  assert.equal(entries[0]?.symbol, "ENAUSDT");
+  assert.equal(byKey?.interval, "15m");
+  assert.match(client.calls[0]?.sql ?? "", /insert into ohlcv_candle_cache/i);
+  assert.match(client.calls[1]?.sql ?? "", /select \* from ohlcv_candle_cache/i);
+  assert.match(client.calls[2]?.sql ?? "", /select \* from ohlcv_candle_cache/i);
+  assert.deepEqual(client.calls[0]?.params.slice(0, 4), [
+    "chuan-public",
+    "ENAUSDT",
+    "15m",
+    "ENAUSDT:15m",
+  ]);
+  assert.deepEqual(client.calls[1]?.params, ["chuan-public", 5]);
+  assert.deepEqual(client.calls[2]?.params, ["chuan-public", "ENAUSDT", "15m"]);
 });
 
 test("repository factory falls back to memory when database mode is configured without a client", () => {

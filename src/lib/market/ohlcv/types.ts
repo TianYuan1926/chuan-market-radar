@@ -48,3 +48,14 @@ export type OhlcvProvider = {
   label: string;
   fetchCandles: (request: OhlcvRequest) => Promise<OhlcvProviderResult>;
 };
+
+export type OhlcvCandleCacheEntry = {
+  allowedUse: "research_only";
+  cacheKey: string;
+  canAutoAdjustWeights: false;
+  candles: Candle[];
+  fetchedAt: string;
+  interval: OhlcvInterval;
+  source: string;
+  symbol: string;
+};

@@ -118,9 +118,10 @@ test("runPersistenceSchemaMigration sends one schema statement per query for Neo
     "daily_mover_assets",
     "mover_attribution_reviews",
     "radar_miss_reviews",
+    "ohlcv_candle_cache",
   ]);
-  assert.equal(result.tableCount, 7);
-  assert.equal(client.calls.length, 16);
+  assert.equal(result.tableCount, 8);
+  assert.equal(client.calls.length, 19);
   assert.match(client.calls[0]?.sql ?? "", /^create table if not exists journal_events/i);
   assert.match(client.calls[1]?.sql ?? "", /^create index if not exists journal_events_scope_created_at_idx/i);
   assert.match(client.calls[2]?.sql ?? "", /^create index if not exists journal_events_scope_symbol_idx/i);
@@ -137,8 +138,14 @@ test("runPersistenceSchemaMigration sends one schema statement per query for Neo
   assert.match(client.calls[13]?.sql ?? "", /^create index if not exists mover_attribution_reviews_scope_learnability_idx/i);
   assert.match(client.calls[14]?.sql ?? "", /^create table if not exists radar_miss_reviews/i);
   assert.match(client.calls[15]?.sql ?? "", /^create index if not exists radar_miss_reviews_scope_status_idx/i);
+  assert.match(client.calls[16]?.sql ?? "", /^create table if not exists ohlcv_candle_cache/i);
+  assert.match(client.calls[17]?.sql ?? "", /^create index if not exists ohlcv_candle_cache_scope_fetched_at_idx/i);
+  assert.match(client.calls[18]?.sql ?? "", /^create index if not exists ohlcv_candle_cache_scope_symbol_idx/i);
   assert.equal(client.calls.some((call) => call.sql.includes(";\n\ncreate")), false);
   assert.deepEqual(client.calls.map((call) => call.params), [
+    [],
+    [],
+    [],
     [],
     [],
     [],

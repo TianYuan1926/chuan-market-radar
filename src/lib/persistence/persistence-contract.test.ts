@@ -3,12 +3,15 @@ import test from "node:test";
 import type { JournalEvent } from "@/lib/analysis/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
+import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
 import type { ScanArchiveSummary, ScanReplayFrame } from "@/lib/market/types";
 import {
   buildPersistenceSchemaSql,
   dailyMoverSnapshotToRecords,
   journalEventRecordToEvent,
   journalEventToRecord,
+  ohlcvCandleCacheEntryRecordToEntry,
+  ohlcvCandleCacheEntryToRecord,
   persistenceTables,
   rankProfileRecordToProfile,
   rankProfileToRecord,
@@ -162,6 +165,29 @@ function dailyMoverSnapshot(): DailyMoverSnapshot {
   };
 }
 
+function ohlcvCacheEntry(): OhlcvCandleCacheEntry {
+  return {
+    allowedUse: "research_only",
+    cacheKey: "ENAUSDT:15m",
+    canAutoAdjustWeights: false,
+    candles: [
+      {
+        close: 10.4,
+        closeTime: "2026-06-15T00:29:59.000Z",
+        high: 10.5,
+        low: 9.9,
+        open: 10,
+        openTime: "2026-06-15T00:15:00.000Z",
+        volume: 120000,
+      },
+    ],
+    fetchedAt: "2026-06-15T00:31:00.000Z",
+    interval: "15m",
+    source: "binance-public-futures",
+    symbol: "ENAUSDT",
+  };
+}
+
 test("journal events round-trip through a database-ready record", () => {
   const event = journalEvent();
   const record = journalEventToRecord(event, scope);
@@ -228,6 +254,23 @@ test("daily mover snapshots split queryable columns from attribution payloads", 
   assert.equal(records.radarReviews[0]?.payload.allowedUse, "research_only");
 });
 
+test("ohlcv candle cache entries round-trip through a database-ready record", () => {
+  const entry = ohlcvCacheEntry();
+  const record = ohlcvCandleCacheEntryToRecord(entry, scope);
+
+  assert.equal(record.scope, scope);
+  assert.equal(record.symbol, "ENAUSDT");
+  assert.equal(record.interval, "15m");
+  assert.equal(record.source, "binance-public-futures");
+  assert.equal(record.cache_key, "ENAUSDT:15m");
+  assert.equal(record.candle_count, 1);
+  assert.equal(record.first_open_time, "2026-06-15T00:15:00.000Z");
+  assert.equal(record.last_close_time, "2026-06-15T00:29:59.000Z");
+  assert.equal(record.payload.allowedUse, "research_only");
+  assert.equal(record.payload.canAutoAdjustWeights, false);
+  assert.deepEqual(ohlcvCandleCacheEntryRecordToEntry(record), entry);
+});
+
 test("buildPersistenceSchemaSql defines the durable Postgres tables without provider lock-in", () => {
   const sql = buildPersistenceSchemaSql();
 
@@ -239,6 +282,7 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
     "daily_mover_assets",
     "mover_attribution_reviews",
     "radar_miss_reviews",
+    "ohlcv_candle_cache",
   ]);
   assert.match(sql, /create table if not exists journal_events/i);
   assert.match(sql, /outcome_status text/i);
@@ -249,9 +293,11 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
   assert.match(sql, /create table if not exists daily_mover_assets/i);
   assert.match(sql, /create table if not exists mover_attribution_reviews/i);
   assert.match(sql, /create table if not exists radar_miss_reviews/i);
+  assert.match(sql, /create table if not exists ohlcv_candle_cache/i);
   assert.match(sql, /daily_mover_assets_scope_snapshot_rank_idx/i);
   assert.match(sql, /mover_attribution_reviews_scope_learnability_idx/i);
   assert.match(sql, /radar_miss_reviews_scope_status_idx/i);
+  assert.match(sql, /ohlcv_candle_cache_scope_fetched_at_idx/i);
   assert.match(sql, /payload jsonb not null/i);
   assert.match(sql, /primary key \(scope, id\)/i);
   assert.match(sql, /primary key \(scope\)/i);

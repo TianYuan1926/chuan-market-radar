@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列和人工回测候选链路：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路和 K 线缓存填充基础：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -25,7 +25,7 @@
 - 受保护 API 入口：`POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - GitHub Actions 外部 cron：每天低频触发受保护 API，适配 Vercel 免费套餐边界。
 - 公开只读 API：`GET /api/daily-movers`，支持读取最新样本、按 `id` 查询历史样本、用 `limit` 控制列表数量。
-- 持久化 schema 合同：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
+- 持久化 schema 合同：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`、`ohlcv_candle_cache`。
 - repository 写入和查询方法：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 - 关联摘要：选中样本会 bounded 读取扫描归档、扫描 replay 和复盘日记，输出命中已复盘、命中待复盘、漏判有证据、不可学习等状态。
 - UI 展示：`DailyMoverPanel` 已展示涨跌幅样本、归因统计、关联摘要、历史样本切换、单样本详情和规则校准候选。
@@ -37,10 +37,12 @@
 - 策略版本人工确认：`DailyMoverPanel` 可把待确认草案以 `strategy_confirmation` 写入现有 `journal_events`；`GET /api/daily-movers` 会汇总 `strategyConfirmations`，并把匹配草案显示为已确认。
 - 策略确认后表现反馈：`GET /api/daily-movers` 会从 `strategyConfirmations` 和确认后的 `calibration_review` 日记派生 `strategyPerformanceFeedback`，统计后续样本、有效、反证、待复查和只读状态；`DailyMoverPanel` 展示“确认后表现”，不新增表、不触发 CoinGlass 请求、不自动改权重。
 - K 线回测计划边界：`GET /api/daily-movers` 会输出 `klineBacktestPlan`，从 `backtestCandidates` 和已存每日异动样本生成 planning-only 的缓存计划，包含计划币种、周期、缓存键、请求预算封顶和 deferred symbols；该计划不执行外部 K 线请求、不占用 CoinGlass 请求、不自动改权重。
+- K 线缓存持久化：`ohlcv_candle_cache` 保存公开 OHLCV candles、来源、拉取时间、周期和样本边界；repository 支持内存和 Neon 双路径读写。
+- 低频 K 线缓存填充 MVP：`POST /api/admin/daily-movers/klines/fill` 通过 `CRON_SECRET` 保护，默认读取 repository 中的回测计划候选，只拉公开 Binance Futures OHLCV，跳过已有缓存，并受 `KLINE_BACKTEST_DAILY_REQUEST_BUDGET` 和 `KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN` 封顶；该入口不占用 CoinGlass 请求、不自动改权重。
 
 当前未落地：
 
-- K 线缓存持久化 schema、低频填充执行器和完整 K 线级回测执行。
+- 基于已缓存 candles 的完整 K 线级回测读取和计算。
 - 策略版本长周期表现统计、版本回滚边界和更完整的表现趋势。
 - 自动规则权重调整；当前明确不允许自动调整。
 
@@ -68,7 +70,11 @@
 - 数据源适配：`src/lib/market/providers/coinglass-daily-movers.ts`
 - 抓取写入服务：`src/lib/market/daily-mover-ingest.ts`
 - 后台入口授权：`src/lib/market/daily-mover-admin.ts`
+- K 线缓存计划：`src/lib/market/daily-mover-kline-backtest.ts`
+- K 线缓存填充：`src/lib/market/daily-mover-kline-cache-fill.ts`
+- K 线缓存后台入口授权：`src/lib/market/daily-mover-kline-cache-admin.ts`
 - API route：`src/app/api/admin/daily-movers/ingest/route.ts`
+- K 线缓存 API route：`src/app/api/admin/daily-movers/klines/fill/route.ts`
 - 只读 API 服务：`src/lib/api/daily-mover-readonly.ts`
 - 只读 API route：`src/app/api/daily-movers/route.ts`
 - 复盘队列入口：`src/app/api/journal/route.ts`
@@ -79,6 +85,6 @@
 
 ## 下一步
 
-1. 增加 K 线缓存持久化 schema 和低频填充执行器 MVP，继续保持预算封顶。
+1. 基于 `ohlcv_candle_cache` 增加第一版 K 线级回测读取和计算，继续保持只读、预算封顶和不自动调权重。
 2. 建立策略版本长周期表现统计和版本回滚规则，但仍保持人工准入。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

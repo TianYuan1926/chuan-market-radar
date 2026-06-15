@@ -275,6 +275,19 @@ test("public daily mover archive API is exposed as a read-only route", () => {
   assert.equal(routeSource.includes("export async function POST"), false);
 });
 
+test("protected daily mover kline cache fill API is exposed as a POST-only admin route", () => {
+  const routeSource = readFileSync(
+    resolve(process.cwd(), "src/app/api/admin/daily-movers/klines/fill/route.ts"),
+    "utf8",
+  );
+
+  assert.match(routeSource, /export async function POST/);
+  assert.match(routeSource, /runAdminDailyMoverKlineCacheFill/);
+  assert.match(routeSource, /authorization/);
+  assert.match(routeSource, /x-chuan-daily-mover-kline-cache-fill/);
+  assert.equal(routeSource.includes("export async function GET"), false);
+});
+
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(
