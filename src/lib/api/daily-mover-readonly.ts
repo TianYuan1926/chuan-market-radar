@@ -93,6 +93,12 @@ const moverPreviewLimit = 5;
 const correlationScanArchiveLimit = 12;
 const correlationJournalLimit = 80;
 const dailyMoverGuardrail = "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。";
+const optionalDailyMoverTableNames = [
+  "daily_mover_snapshots",
+  "daily_mover_assets",
+  "mover_attribution_reviews",
+  "radar_miss_reviews",
+];
 
 export function normalizeDailyMoverReadLimit(value: DailyMoverReadLimitInput) {
   const parsed = typeof value === "number"
@@ -168,6 +174,46 @@ export function summarizeDailyMoverSnapshot(snapshot: DailyMoverSnapshot): Daily
   };
 }
 
+function isMissingOptionalDailyMoverTable(error: unknown) {
+  const code = typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
+  const message = error instanceof Error ? error.message : "";
+
+  return code === "42P01"
+    && optionalDailyMoverTableNames.some((tableName) => message.includes(tableName));
+}
+
+async function listDailyMoverSnapshotsForPublicRead(
+  repository: PersistenceRepository,
+  limit: number,
+) {
+  try {
+    return await repository.listDailyMoverSnapshots(limit);
+  } catch (error) {
+    if (isMissingOptionalDailyMoverTable(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function getDailyMoverSnapshotForPublicRead(
+  repository: PersistenceRepository,
+  id?: string,
+) {
+  try {
+    return await repository.getDailyMoverSnapshot(id);
+  } catch (error) {
+    if (isMissingOptionalDailyMoverTable(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 export async function getDailyMoverReadArchive({
   id,
   limit,
@@ -175,13 +221,13 @@ export async function getDailyMoverReadArchive({
 }: GetDailyMoverReadArchiveOptions): Promise<DailyMoverReadArchiveResult> {
   const normalizedLimit = normalizeDailyMoverReadLimit(limit);
   const [snapshots, scanArchives, journalEvents] = await Promise.all([
-    repository.listDailyMoverSnapshots(normalizedLimit),
+    listDailyMoverSnapshotsForPublicRead(repository, normalizedLimit),
     repository.listScanArchives(correlationScanArchiveLimit),
     repository.listJournalEvents(correlationJournalLimit),
   ]);
-  const latestSnapshot = snapshots[0] ?? await repository.getDailyMoverSnapshot();
+  const latestSnapshot = snapshots[0] ?? await getDailyMoverSnapshotForPublicRead(repository);
   const selectedSnapshot = id
-    ? await repository.getDailyMoverSnapshot(id)
+    ? await getDailyMoverSnapshotForPublicRead(repository, id)
     : latestSnapshot;
   const replayFrames = (await Promise.all(
     scanArchives.map((archive) => repository.getScanReplayFrame(archive.id)),

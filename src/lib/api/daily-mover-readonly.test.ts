@@ -280,6 +280,39 @@ test("getDailyMoverReadArchive links selected mover samples to scan archives and
   assert.equal(suiLink?.calibrationCandidate, true);
 });
 
+test("getDailyMoverReadArchive degrades to an empty archive when daily mover tables are not migrated yet", async () => {
+  const repository = createMemoryPersistenceRepository({
+    scope: "public-neon",
+  });
+  const missingTableError = Object.assign(
+    new Error('relation "daily_mover_snapshots" does not exist'),
+    { code: "42P01" },
+  );
+  const repositoryWithoutDailyMoverTables = {
+    ...repository,
+    mode: "database" as const,
+    async getDailyMoverSnapshot() {
+      throw missingTableError;
+    },
+    async listDailyMoverSnapshots() {
+      throw missingTableError;
+    },
+  };
+
+  const result = await getDailyMoverReadArchive({
+    repository: repositoryWithoutDailyMoverTables,
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+  assert.equal(result.body.latestSnapshot, null);
+  assert.equal(result.body.selectedSnapshot, null);
+  assert.equal(result.body.selectedCorrelation, null);
+  assert.deepEqual(result.body.snapshots, []);
+  assert.equal(result.body.retention.storage, "database");
+  assert.equal(result.body.retention.returned, 0);
+});
+
 test("getDailyMoverReadArchive returns 404 for a missing requested snapshot without hiding recent samples", async () => {
   const repository = createMemoryPersistenceRepository();
   await repository.addDailyMoverSnapshot(snapshot(
