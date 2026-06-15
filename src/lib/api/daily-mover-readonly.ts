@@ -12,8 +12,10 @@ import {
   type DailyMoverSnapshotCorrelation,
 } from "../market/daily-mover-correlations";
 import {
+  buildDailyMoverKlineBacktestResults,
   buildDailyMoverKlineBacktestPlan,
   type DailyMoverKlineBacktestPlan,
+  type DailyMoverKlineBacktestResults,
 } from "../market/daily-mover-kline-backtest";
 import type { ScanReplayFrame } from "../market/types";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
@@ -233,6 +235,7 @@ export type DailyMoverReadArchiveBase = {
   backtestValidations: DailyMoverBacktestValidation[];
   calibrationFeedback: DailyMoverCalibrationFeedback[];
   klineBacktestPlan: DailyMoverKlineBacktestPlan;
+  klineBacktestResults: DailyMoverKlineBacktestResults;
   strategyDrafts: DailyMoverStrategyDraft[];
   strategyConfirmations: DailyMoverStrategyConfirmation[];
   strategyPerformanceFeedback: DailyMoverStrategyPerformanceFeedback[];
@@ -271,12 +274,14 @@ const maxReadLimit = 30;
 const moverPreviewLimit = 5;
 const correlationScanArchiveLimit = 12;
 const correlationJournalLimit = 80;
+const klineCacheReadLimit = 120;
 const dailyMoverGuardrail = "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。";
 const optionalDailyMoverTableNames = [
   "daily_mover_snapshots",
   "daily_mover_assets",
   "mover_attribution_reviews",
   "radar_miss_reviews",
+  "ohlcv_candle_cache",
 ];
 
 export function normalizeDailyMoverReadLimit(value: DailyMoverReadLimitInput) {
@@ -1050,16 +1055,31 @@ async function getDailyMoverSnapshotForPublicRead(
   }
 }
 
+async function listOhlcvCandleCachesForPublicRead(
+  repository: PersistenceRepository,
+) {
+  try {
+    return await repository.listOhlcvCandleCaches(klineCacheReadLimit);
+  } catch (error) {
+    if (isMissingOptionalDailyMoverTable(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 export async function getDailyMoverReadArchive({
   id,
   limit,
   repository,
 }: GetDailyMoverReadArchiveOptions): Promise<DailyMoverReadArchiveResult> {
   const normalizedLimit = normalizeDailyMoverReadLimit(limit);
-  const [snapshots, scanArchives, journalEvents] = await Promise.all([
+  const [snapshots, scanArchives, journalEvents, ohlcvCaches] = await Promise.all([
     listDailyMoverSnapshotsForPublicRead(repository, normalizedLimit),
     repository.listScanArchives(correlationScanArchiveLimit),
     repository.listJournalEvents(correlationJournalLimit),
+    listOhlcvCandleCachesForPublicRead(repository),
   ]);
   const latestSnapshot = snapshots[0] ?? await getDailyMoverSnapshotForPublicRead(repository);
   const selectedSnapshot = id
@@ -1095,6 +1115,10 @@ export async function getDailyMoverReadArchive({
     candidates: backtestCandidates,
     snapshots,
   });
+  const klineBacktestResults = buildDailyMoverKlineBacktestResults({
+    caches: ohlcvCaches,
+    plan: klineBacktestPlan,
+  });
   const backtestValidations = buildDailyMoverBacktestValidations(backtestCandidates, snapshots);
   const strategyConfirmations = buildDailyMoverStrategyConfirmations(journalEvents);
   const strategyPerformanceFeedback = buildDailyMoverStrategyPerformanceFeedback(strategyConfirmations, journalEvents);
@@ -1106,6 +1130,7 @@ export async function getDailyMoverReadArchive({
     calibrationSuggestions: buildCalibrationSuggestions(selectedCorrelation),
     guardrail: dailyMoverGuardrail,
     klineBacktestPlan,
+    klineBacktestResults,
     latestSnapshot,
     selectedSnapshot,
     selectedCorrelation,

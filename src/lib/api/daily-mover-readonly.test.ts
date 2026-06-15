@@ -7,6 +7,7 @@ import type {
   DailyMoverReview,
   DailyMoverSnapshot,
 } from "../market/daily-movers";
+import type { OhlcvCandleCacheEntry, OhlcvInterval } from "../market/ohlcv/types";
 import type { ScanArchiveSummary, ScanReplayFrame } from "../market/types";
 import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
 import {
@@ -194,6 +195,41 @@ function journalEvent(overrides: Partial<JournalEvent> = {}): JournalEvent {
     invalidationHit: false,
     firstTargetHit: false,
     ...overrides,
+  };
+}
+
+function ohlcvCacheEntry({
+  closes = [100, 104, 112],
+  interval,
+  symbol,
+  volumes = [900, 1300, 2100],
+}: {
+  closes?: number[];
+  interval: OhlcvInterval;
+  symbol: string;
+  volumes?: number[];
+}): OhlcvCandleCacheEntry {
+  return {
+    allowedUse: "research_only",
+    cacheKey: `${symbol}:${interval}`,
+    canAutoAdjustWeights: false,
+    candles: closes.map((close, index) => {
+      const open = index === 0 ? close : closes[index - 1] ?? close;
+
+      return {
+        close,
+        closeTime: new Date(Date.UTC(2026, 5, 15, index, 59, 0)).toISOString(),
+        high: Math.max(open, close) + 1,
+        low: Math.min(open, close) - 1,
+        open,
+        openTime: new Date(Date.UTC(2026, 5, 15, index, 0, 0)).toISOString(),
+        volume: volumes[index] ?? volumes.at(-1) ?? 0,
+      };
+    }),
+    fetchedAt: "2026-06-15T04:00:00.000Z",
+    interval,
+    source: "test-public-ohlcv",
+    symbol,
   };
 }
 
@@ -932,6 +968,51 @@ test("getDailyMoverReadArchive exposes readonly backtest candidates from calibra
   assert.equal(result.body.klineBacktestPlan.canFetchExternalCandles, false);
   assert.equal(result.body.klineBacktestPlan.requiresCacheBeforeExecution, true);
   assert.equal(result.body.klineBacktestPlan.canAutoAdjustWeights, false);
+});
+
+test("getDailyMoverReadArchive exposes readonly cached kline backtest results", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshotFromReviews(
+    "daily-movers-kline-results-api-1",
+    "2026-06-15T00:17:00.000Z",
+    [
+      reviewWithTags("SUIUSDT", "loser", "missed", "watchlist", ["review_volume_oi_weight"]),
+    ],
+  ));
+
+  for (const [index, symbol] of ["SUIUSDT", "SUIUSDT", "SUIUSDT"].entries()) {
+    await repository.addJournalEvent(journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: `2026-06-${15 + index}T00:22:00.000Z`,
+      id: `kline-results-api-ready-${index + 1}`,
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: [symbol],
+      source: "daily_mover_calibration",
+    }));
+  }
+
+  await repository.upsertOhlcvCandleCache(ohlcvCacheEntry({ interval: "15m", symbol: "SUIUSDT" }));
+  await repository.upsertOhlcvCandleCache(ohlcvCacheEntry({ closes: [100, 103, 108], interval: "1h", symbol: "SUIUSDT" }));
+  await repository.upsertOhlcvCandleCache(ohlcvCacheEntry({ closes: [100, 98, 106], interval: "4h", symbol: "SUIUSDT" }));
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 3 });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.klineBacktestResults.mode, "cached_kline_validation");
+  assert.equal(result.body.klineBacktestResults.status, "ready");
+  assert.equal(result.body.klineBacktestResults.allowedUse, "research_only");
+  assert.equal(result.body.klineBacktestResults.canAutoAdjustWeights, false);
+  assert.equal(result.body.klineBacktestResults.availableCacheKeys, 3);
+  assert.equal(result.body.klineBacktestResults.cacheCoveragePercent, 100);
+  assert.equal(result.body.klineBacktestResults.candidateResults[0]?.tag, "review_volume_oi_weight");
+  assert.equal(result.body.klineBacktestResults.candidateResults[0]?.symbolResults[0]?.symbol, "SUIUSDT");
+  assert.equal(
+    result.body.klineBacktestResults.candidateResults[0]?.symbolResults[0]?.intervalResults[0]?.returnPercent,
+    12,
+  );
 });
 
 test("getDailyMoverReadArchive exposes readonly historical validation results", async () => {

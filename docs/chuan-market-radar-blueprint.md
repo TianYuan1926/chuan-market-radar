@@ -89,7 +89,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示和基础指标/周期权重校准 | 尚未完成完整回测权重校准、交互式多周期图表和更专业的成交量分布模型 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
-| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、K 线回测低成本计划边界、K 线缓存持久化和受保护低频填充 MVP 已落地 | 尚未完成完整 K 线回测执行、策略表现长周期统计/版本回滚和自动权重调整 |
+| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP 和缓存 K 线验证结果已落地 | 尚未完成按每日异动时间窗口对齐的完整 K 线回测、策略表现长周期统计/版本回滚和自动权重调整 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未有 Telegram/Webhook、持久化告警历史、多设备推送 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
 
@@ -427,12 +427,13 @@ AI 复核必须遵守：
 - K 线回测计划边界：`GET /api/daily-movers` 会输出 `klineBacktestPlan`，从 `backtestCandidates` 和已存每日异动样本生成 planning-only 的缓存计划，包含候选状态、计划币种、周期、缓存键、预算封顶和 deferred symbols；`canFetchExternalCandles` 固定为 `false`，`requiresCacheBeforeExecution` 固定为 `true`，数据源策略固定为 `public_ohlcv_cache_only_no_coinglass`。
 - K 线缓存持久化：新增 `ohlcv_candle_cache` 表、repository 读写方法和内存/Neon 双路径实现，用 `scope + symbol + interval` 做缓存键，保存公开 OHLCV candles、来源、拉取时间和样本边界。
 - 低频 K 线缓存填充 MVP：新增 `runDailyMoverKlineCacheFill()` 和 `POST /api/admin/daily-movers/klines/fill`，必须带 `Authorization: Bearer <CRON_SECRET>`；默认从 repository 生成计划，只拉公开 Binance Futures OHLCV，不占用 CoinGlass 请求，跳过已有缓存，并受 `KLINE_BACKTEST_DAILY_REQUEST_BUDGET` 和 `KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN` 封顶。
+- 缓存 K 线验证结果：`GET /api/daily-movers` 会输出 `klineBacktestResults`，只读取 bounded `ohlcv_candle_cache`，计算缓存覆盖率、周期涨跌幅、最大冲高、最大回撤和量能变化；结果保持 `cached_kline_validation`、`research_only`、`canAutoAdjustWeights: false`，不触发外部请求。
 - 免费套餐护栏：关联摘要最多读取 12 个扫描归档和 80 条日记，只做只读聚合，不新增表、不增加 CoinGlass 请求、不增加数据库写入频率。
 - 安全边界：输出必须保持 `allowedUse: "research_only"`，只能用于归因复盘、样本库和规则校准。
 
 后续需要：
 
-- 建立基于已缓存 candles 的完整 K 线回测读取/计算接口，仍必须受免费套餐预算控制。
+- 建立按每日异动 `observedAt` 对齐的 pre/post K 线窗口回测，避免把普通近期 K 线误当成事件窗口证据。
 - 建立策略版本长周期表现统计和版本回滚边界，继续记录“候选建议 -> 样本验证 -> 人工确认 -> 后续表现”的链路。
 - 自动权重调整仍需单独准入、测试和回滚设计，不能因为人工确认记录存在就直接开启。
 - UI 不能把涨跌幅榜包装成交易信号。

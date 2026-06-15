@@ -3,9 +3,11 @@ import test from "node:test";
 
 import type { DailyMoverSnapshot } from "./daily-movers";
 import {
+  buildDailyMoverKlineBacktestResults,
   buildDailyMoverKlineBacktestPlan,
   type DailyMoverKlineBacktestCandidateSource,
 } from "./daily-mover-kline-backtest";
+import type { OhlcvCandleCacheEntry, OhlcvInterval } from "./ohlcv/types";
 
 function candidate(overrides: Partial<DailyMoverKlineBacktestCandidateSource> = {}): DailyMoverKlineBacktestCandidateSource {
   return {
@@ -43,6 +45,41 @@ function snapshot(symbols: string[]): DailyMoverSnapshot {
         status: "missed",
       },
     })),
+  };
+}
+
+function cacheEntry({
+  closes = [100, 105, 110],
+  interval,
+  symbol,
+  volumes = [1000, 1400, 2200],
+}: {
+  closes?: number[];
+  interval: OhlcvInterval;
+  symbol: string;
+  volumes?: number[];
+}): OhlcvCandleCacheEntry {
+  return {
+    allowedUse: "research_only",
+    cacheKey: `${symbol}:${interval}`,
+    canAutoAdjustWeights: false,
+    candles: closes.map((close, index) => {
+      const open = index === 0 ? close : closes[index - 1] ?? close;
+
+      return {
+        close,
+        closeTime: new Date(Date.UTC(2026, 5, 15, index, 59, 0)).toISOString(),
+        high: Math.max(open, close) + 2,
+        low: Math.min(open, close) - 2,
+        open,
+        openTime: new Date(Date.UTC(2026, 5, 15, index, 0, 0)).toISOString(),
+        volume: volumes[index] ?? volumes.at(-1) ?? 0,
+      };
+    }),
+    fetchedAt: "2026-06-15T04:00:00.000Z",
+    interval,
+    source: "test-public-ohlcv",
+    symbol,
   };
 }
 
@@ -118,4 +155,66 @@ test("buildDailyMoverKlineBacktestPlan blocks execution when candidates are not 
   assert.equal(plan.candidatePlans[1]?.status, "blocked");
   assert.equal(plan.requiresCacheBeforeExecution, true);
   assert.equal(plan.canFetchExternalCandles, false);
+});
+
+test("buildDailyMoverKlineBacktestResults computes readonly metrics from cached candles", () => {
+  const plan = buildDailyMoverKlineBacktestPlan({
+    candidates: [candidate({ symbols: ["SUIUSDT"] })],
+    dailyRequestBudget: 2,
+    intervals: ["15m", "1h"],
+    maxSymbolsPerRun: 1,
+    snapshots: [snapshot(["SUIUSDT"])],
+  });
+
+  const result = buildDailyMoverKlineBacktestResults({
+    caches: [
+      cacheEntry({ interval: "15m", symbol: "SUIUSDT" }),
+      cacheEntry({ closes: [100, 98, 104], interval: "1h", symbol: "SUIUSDT", volumes: [1200, 1100, 1800] }),
+    ],
+    plan,
+  });
+
+  assert.equal(result.mode, "cached_kline_validation");
+  assert.equal(result.status, "ready");
+  assert.equal(result.allowedUse, "research_only");
+  assert.equal(result.canAutoAdjustWeights, false);
+  assert.equal(result.totalPlannedCacheKeys, 2);
+  assert.equal(result.availableCacheKeys, 2);
+  assert.equal(result.missingCacheKeys, 0);
+  assert.equal(result.cacheCoveragePercent, 100);
+  assert.match(result.guardrail, /不自动改权重/);
+
+  assert.equal(result.candidateResults.length, 1);
+  assert.equal(result.candidateResults[0]?.status, "ready");
+  assert.equal(result.candidateResults[0]?.symbolResults[0]?.symbol, "SUIUSDT");
+  assert.equal(result.candidateResults[0]?.symbolResults[0]?.intervalResults[0]?.returnPercent, 10);
+  assert.equal(result.candidateResults[0]?.symbolResults[0]?.intervalResults[0]?.volumeChangePercent, 120);
+  assert.equal(result.candidateResults[0]?.symbolResults[0]?.intervalResults[0]?.maxRunupPercent, 12);
+  assert.equal(result.candidateResults[0]?.symbolResults[0]?.intervalResults[0]?.maxDrawdownPercent, -2);
+  assert.equal(result.candidateResults[0]?.symbolResults[0]?.verdict, "supports_review");
+});
+
+test("buildDailyMoverKlineBacktestResults marks missing caches without triggering execution", () => {
+  const plan = buildDailyMoverKlineBacktestPlan({
+    candidates: [candidate({ symbols: ["SUIUSDT"] })],
+    dailyRequestBudget: 2,
+    intervals: ["15m", "1h"],
+    maxSymbolsPerRun: 1,
+    snapshots: [snapshot(["SUIUSDT"])],
+  });
+
+  const result = buildDailyMoverKlineBacktestResults({
+    caches: [
+      cacheEntry({ interval: "15m", symbol: "SUIUSDT" }),
+    ],
+    plan,
+  });
+
+  assert.equal(result.status, "partial_cache");
+  assert.equal(result.totalPlannedCacheKeys, 2);
+  assert.equal(result.availableCacheKeys, 1);
+  assert.equal(result.missingCacheKeys, 1);
+  assert.deepEqual(result.candidateResults[0]?.missingCacheKeys, ["SUIUSDT:1h"]);
+  assert.match(result.candidateResults[0]?.nextStep ?? "", /补齐缓存/);
+  assert.equal(result.canAutoAdjustWeights, false);
 });
