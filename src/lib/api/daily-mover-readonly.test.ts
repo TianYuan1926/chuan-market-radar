@@ -10,6 +10,7 @@ import type {
 import type { ScanArchiveSummary, ScanReplayFrame } from "../market/types";
 import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
 import {
+  buildDailyMoverBacktestCandidates,
   buildDailyMoverCalibrationFeedback,
   getDailyMoverReadArchive,
   normalizeDailyMoverReadLimit,
@@ -388,6 +389,105 @@ test("buildDailyMoverCalibrationFeedback groups calibration reviews without auto
   assert.equal(shortSide?.pending, 0);
 });
 
+test("buildDailyMoverBacktestCandidates gates calibration feedback before manual backtest", () => {
+  const feedback = buildDailyMoverCalibrationFeedback([
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-15T00:22:00.000Z",
+      id: "volume-validated-1",
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: ["SUIUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-16T00:22:00.000Z",
+      id: "volume-validated-2",
+      outcomeStatus: "saved",
+      result: "saved",
+      reviewStatus: "closed",
+      sampleSymbols: ["TIAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: "2026-06-17T00:22:00.000Z",
+      id: "volume-validated-3",
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: ["ENAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_short_side_detection",
+      createdAt: "2026-06-18T00:22:00.000Z",
+      id: "short-pending",
+      outcomeStatus: "pending",
+      reviewStatus: "tracking",
+      sampleSymbols: ["ARBUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_universe_coverage",
+      createdAt: "2026-06-19T00:22:00.000Z",
+      id: "coverage-rejected-1",
+      outcomeStatus: "loss",
+      result: "loss",
+      reviewStatus: "closed",
+      sampleSymbols: ["WLDUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_universe_coverage",
+      createdAt: "2026-06-20T00:22:00.000Z",
+      id: "coverage-rejected-2",
+      outcomeStatus: "loss",
+      result: "loss",
+      reviewStatus: "closed",
+      sampleSymbols: ["OPUSDT"],
+      source: "daily_mover_calibration",
+    }),
+  ]);
+
+  const candidates = buildDailyMoverBacktestCandidates(feedback);
+
+  assert.equal(candidates.length, 3);
+  assert.deepEqual(candidates.map((candidate) => candidate.readiness), ["ready", "collecting", "blocked"]);
+
+  const ready = candidates.find((candidate) => candidate.tag === "review_volume_oi_weight");
+  const collecting = candidates.find((candidate) => candidate.tag === "review_short_side_detection");
+  const blocked = candidates.find((candidate) => candidate.tag === "review_universe_coverage");
+
+  assert.equal(ready?.label, "成交量/OI 权重复核");
+  assert.equal(ready?.sampleCount, 3);
+  assert.equal(ready?.validated, 3);
+  assert.equal(ready?.rejected, 0);
+  assert.equal(ready?.pending, 0);
+  assert.equal(ready?.readinessScore, 100);
+  assert.match(ready?.evidenceSummary ?? "", /3 有效/);
+  assert.match(ready?.nextStep ?? "", /人工回测/);
+  assert.match(ready?.nextStep ?? "", /不能自动改权重/);
+  assert.equal(ready?.allowedUse, "research_only");
+  assert.equal(ready?.canAutoAdjustWeights, false);
+
+  assert.equal(collecting?.readiness, "collecting");
+  assert.match(collecting?.nextStep ?? "", /继续积累样本/);
+  assert.equal(collecting?.canAutoAdjustWeights, false);
+
+  assert.equal(blocked?.readiness, "blocked");
+  assert.match(blocked?.nextStep ?? "", /反证/);
+  assert.equal(blocked?.canAutoAdjustWeights, false);
+});
+
 test("getDailyMoverReadArchive exposes calibration feedback from journal events", async () => {
   const repository = createMemoryPersistenceRepository();
   await repository.addDailyMoverSnapshot(snapshot(
@@ -414,6 +514,40 @@ test("getDailyMoverReadArchive exposes calibration feedback from journal events"
   assert.equal(result.body.calibrationFeedback[0]?.total, 1);
   assert.equal(result.body.calibrationFeedback[0]?.pending, 1);
   assert.equal(result.body.calibrationFeedback[0]?.canAutoAdjustWeights, false);
+});
+
+test("getDailyMoverReadArchive exposes readonly backtest candidates from calibration feedback", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshot(
+    "daily-movers-coinglass-2026-06-15",
+    "2026-06-15T00:17:00.000Z",
+    "ENAUSDT",
+    "SUIUSDT",
+  ));
+
+  for (const [index, symbol] of ["SUIUSDT", "TIAUSDT", "ENAUSDT"].entries()) {
+    await repository.addJournalEvent(journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: `2026-06-${15 + index}T00:22:00.000Z`,
+      id: `calibration-ready-${index + 1}`,
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: [symbol],
+      source: "daily_mover_calibration",
+    }));
+  }
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 1 });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.backtestCandidates.length, 1);
+  assert.equal(result.body.backtestCandidates[0]?.tag, "review_volume_oi_weight");
+  assert.equal(result.body.backtestCandidates[0]?.readiness, "ready");
+  assert.equal(result.body.backtestCandidates[0]?.allowedUse, "research_only");
+  assert.equal(result.body.backtestCandidates[0]?.canAutoAdjustWeights, false);
+  assert.match(result.body.backtestCandidates[0]?.nextStep ?? "", /人工回测/);
 });
 
 test("getDailyMoverReadArchive degrades to an empty archive when daily mover tables are not migrated yet", async () => {

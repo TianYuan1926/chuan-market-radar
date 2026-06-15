@@ -15,6 +15,7 @@ type DailyMoverCorrelationLink = DailyMoverCorrelation["links"][number];
 type DailyMoverSelectedDetail = DailyMoverArchive["selectedDetails"][number];
 type DailyMoverCalibrationSuggestion = DailyMoverArchive["calibrationSuggestions"][number];
 type DailyMoverCalibrationFeedback = DailyMoverArchive["calibrationFeedback"][number];
+type DailyMoverBacktestCandidate = DailyMoverArchive["backtestCandidates"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 
 type DailyMoverPanelProps = {
@@ -237,6 +238,35 @@ function renderCalibrationFeedback(feedback: DailyMoverCalibrationFeedback) {
   );
 }
 
+function backtestReadinessLabel(value: DailyMoverBacktestCandidate["readiness"]) {
+  return {
+    blocked: "反证优先",
+    collecting: "积累样本",
+    ready: "可回测",
+  }[value];
+}
+
+function renderBacktestCandidate(candidate: DailyMoverBacktestCandidate) {
+  return (
+    <article className={`daily-mover-backtest__item daily-mover-backtest__item--${candidate.readiness}`} key={candidate.tag}>
+      <div>
+        <strong>{candidate.label}</strong>
+        <span>{backtestReadinessLabel(candidate.readiness)}</span>
+      </div>
+      <div className="daily-mover-backtest__stats" aria-label={`${candidate.label} 回测候选统计`}>
+        <span><b>{candidate.sampleCount}</b>样本</span>
+        <span><b>{candidate.validated}</b>有效</span>
+        <span><b>{candidate.rejected}</b>反证</span>
+        <span><b>{candidate.readinessScore}</b>分</span>
+      </div>
+      <p>{candidate.nextStep}</p>
+      <small>
+        {candidate.evidenceSummary} · {candidate.symbols.map(compactSymbol).join(" / ")} · {candidate.guardrail}
+      </small>
+    </article>
+  );
+}
+
 function selectedSummary(
   archive: DailyMoverArchive,
   snapshotId: string | undefined,
@@ -261,6 +291,7 @@ export function DailyMoverPanel({
   const selectedDetails = activeArchive.selectedDetails.slice(0, 4);
   const calibrationFeedback = activeArchive.calibrationFeedback.slice(0, 3);
   const calibrationSuggestions = activeArchive.calibrationSuggestions.slice(0, 3);
+  const backtestCandidates = activeArchive.backtestCandidates.slice(0, 3);
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
   const guardrail = activeArchive.guardrail || fallbackGuardrail;
@@ -433,6 +464,16 @@ export function DailyMoverPanel({
                 <span>只读趋势</span>
               </div>
               {calibrationFeedback.map(renderCalibrationFeedback)}
+            </div>
+          ) : null}
+
+          {backtestCandidates.length > 0 ? (
+            <div className="daily-mover-backtest" aria-label="回测候选链路">
+              <div className="daily-mover-backtest__head">
+                <h3>回测候选</h3>
+                <span>人工确认</span>
+              </div>
+              {backtestCandidates.map(renderBacktestCandidate)}
             </div>
           ) : null}
 

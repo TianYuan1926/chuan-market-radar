@@ -93,6 +93,27 @@ export type DailyMoverCalibrationFeedback = {
   canAutoAdjustWeights: false;
 };
 
+export type DailyMoverBacktestReadiness = "blocked" | "collecting" | "ready";
+
+export type DailyMoverBacktestCandidate = {
+  tag: string;
+  label: string;
+  sampleCount: number;
+  pending: number;
+  validated: number;
+  rejected: number;
+  expired: number;
+  symbols: string[];
+  lastReviewedAt?: string;
+  readiness: DailyMoverBacktestReadiness;
+  readinessScore: number;
+  evidenceSummary: string;
+  nextStep: string;
+  guardrail: string;
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+};
+
 export type DailyMoverRetention = {
   storage: PersistenceMode;
   scope: string;
@@ -111,6 +132,7 @@ export type DailyMoverCorrelationRetention = {
 export type DailyMoverReadArchiveBase = {
   allowedUse: "research_only";
   guardrail: string;
+  backtestCandidates: DailyMoverBacktestCandidate[];
   calibrationFeedback: DailyMoverCalibrationFeedback[];
   latestSnapshot: DailyMoverSnapshot | null;
   calibrationSuggestions: DailyMoverCalibrationSuggestion[];
@@ -370,6 +392,90 @@ export function buildDailyMoverCalibrationFeedback(
     ));
 }
 
+function backtestReadiness(feedback: DailyMoverCalibrationFeedback): DailyMoverBacktestReadiness {
+  if (feedback.rejected > feedback.validated || feedback.rejected >= 2) {
+    return "blocked";
+  }
+
+  if (feedback.total >= 3 && feedback.pending === 0 && feedback.validated >= 2 && feedback.rejected === 0) {
+    return "ready";
+  }
+
+  return "collecting";
+}
+
+function backtestReadinessScore(
+  feedback: DailyMoverCalibrationFeedback,
+  readiness: DailyMoverBacktestReadiness,
+) {
+  if (readiness === "ready") {
+    return 100;
+  }
+
+  if (readiness === "blocked") {
+    return Math.max(0, Math.min(45, (feedback.validated * 12) - (feedback.rejected * 16)));
+  }
+
+  return Math.max(0, Math.min(85, (
+    feedback.total * 12
+    + feedback.validated * 18
+    - feedback.pending * 10
+    - feedback.rejected * 20
+  )));
+}
+
+function backtestNextStep(readiness: DailyMoverBacktestReadiness) {
+  if (readiness === "ready") {
+    return "进入人工回测候选；验证历史样本命中率后再人工确认，不能自动改权重。";
+  }
+
+  if (readiness === "blocked") {
+    return "反证样本占优，先保留为反证库观察，不能提高权重。";
+  }
+
+  return "继续积累样本，只记录候选趋势，不能自动改权重。";
+}
+
+export function buildDailyMoverBacktestCandidates(
+  feedbackItems: DailyMoverCalibrationFeedback[],
+): DailyMoverBacktestCandidate[] {
+  const readinessOrder: Record<DailyMoverBacktestReadiness, number> = {
+    ready: 0,
+    collecting: 1,
+    blocked: 2,
+  };
+
+  return feedbackItems
+    .map((feedback) => {
+      const readiness = backtestReadiness(feedback);
+
+      return {
+        tag: feedback.tag,
+        label: feedback.label,
+        sampleCount: feedback.total,
+        pending: feedback.pending,
+        validated: feedback.validated,
+        rejected: feedback.rejected,
+        expired: feedback.expired,
+        symbols: feedback.symbols,
+        lastReviewedAt: feedback.lastReviewedAt,
+        readiness,
+        readinessScore: backtestReadinessScore(feedback, readiness),
+        evidenceSummary: `${feedback.total} 样本 / ${feedback.validated} 有效 / ${feedback.rejected} 反证 / ${feedback.pending} 待复查`,
+        nextStep: backtestNextStep(readiness),
+        guardrail: "回测候选只能进入人工验证和策略版本记录，不能自动改权重。",
+        allowedUse: "research_only" as const,
+        canAutoAdjustWeights: false as const,
+      };
+    })
+    .sort((first, second) => (
+      readinessOrder[first.readiness] - readinessOrder[second.readiness]
+      || second.readinessScore - first.readinessScore
+      || sortableTime(second.lastReviewedAt) - sortableTime(first.lastReviewedAt)
+      || first.label.localeCompare(second.label, "zh-CN")
+    ));
+}
+
 function buildSelectedDetails(
   snapshot: DailyMoverSnapshot | null,
   correlation: DailyMoverSnapshotCorrelation | null,
@@ -555,9 +661,11 @@ export async function getDailyMoverReadArchive({
         snapshot: selectedSnapshot,
       })
     : null;
+  const calibrationFeedback = buildDailyMoverCalibrationFeedback(journalEvents);
   const base = {
     allowedUse: "research_only" as const,
-    calibrationFeedback: buildDailyMoverCalibrationFeedback(journalEvents),
+    backtestCandidates: buildDailyMoverBacktestCandidates(calibrationFeedback),
+    calibrationFeedback,
     calibrationSuggestions: buildCalibrationSuggestions(selectedCorrelation),
     guardrail: dailyMoverGuardrail,
     latestSnapshot,

@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘和校准候选队列：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列和人工回测候选链路：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -31,10 +31,11 @@
 - UI 展示：`DailyMoverPanel` 已展示涨跌幅样本、归因统计、关联摘要、历史样本切换、单样本详情和规则校准候选。
 - 校准候选入队：校准候选可通过 `calibration_review` 写入 `journal_events`，进入跟踪队列，但 rank 分数保持 0。
 - 只读校准反馈：`GET /api/daily-movers` 会按 `calibrationTag` 汇总 `calibration_review` 的待复查、有效、反证和过期样本数，`DailyMoverPanel` 只读展示反馈趋势。
+- 人工回测候选：`GET /api/daily-movers` 会从 `calibrationFeedback` 派生 `backtestCandidates`，按 `ready / collecting / blocked` 标记候选状态，`DailyMoverPanel` 只读展示样本、有效、反证和候选分数。
 
 当前未落地：
 
-- 用历史样本和回测验证规则权重候选。
+- 真实执行历史样本回测，验证候选规则的命中率、误报率和适用边界。
 - 策略版本化反馈链路。
 - 自动规则权重调整；当前明确不允许自动调整。
 
@@ -73,6 +74,6 @@
 
 ## 下一步
 
-1. 把校准反馈趋势接入历史样本和回测验证，形成“权重候选”，但不自动改权重。
+1. 基于 `backtestCandidates` 执行真实历史样本回测，形成可审计的候选规则验证结果，但不自动改权重。
 2. 增加策略版本化反馈链路，记录“候选建议 -> 回测结果 -> 人工确认”。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。
