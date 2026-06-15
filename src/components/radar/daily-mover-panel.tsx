@@ -7,6 +7,8 @@ import type {
 } from "@/lib/api/daily-mover-readonly";
 
 type DailyMoverArchive = DailyMoverReadArchiveResult["body"];
+type DailyMoverCorrelation = NonNullable<DailyMoverArchive["selectedCorrelation"]>;
+type DailyMoverCorrelationLink = DailyMoverCorrelation["links"][number];
 
 type DailyMoverPanelProps = {
   archive: DailyMoverArchive;
@@ -94,6 +96,32 @@ function driverLabel(value: DailyMoverReview["attribution"]["primaryDrivers"][nu
   }[value];
 }
 
+function correlationStatusLabel(value: DailyMoverCorrelationLink["status"]) {
+  return {
+    caught_unreviewed: "命中待复盘",
+    caught_with_journal: "命中已复盘",
+    missed_with_evidence: "漏判有证据",
+    not_learnable: "不可学习",
+    unlinked: "未关联",
+  }[value];
+}
+
+function correlationTone(value: DailyMoverCorrelationLink["status"]) {
+  if (value === "caught_with_journal") {
+    return "good";
+  }
+
+  if (value === "caught_unreviewed") {
+    return "amber";
+  }
+
+  if (value === "missed_with_evidence") {
+    return "bad";
+  }
+
+  return "quiet";
+}
+
 function renderMoverRow(mover: DailyMoverPreview) {
   return (
     <li key={mover.id}>
@@ -117,6 +145,8 @@ function selectedSummary(
 export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
   const selectedSnapshot = archive.selectedSnapshot ?? archive.latestSnapshot;
   const summary = selectedSummary(archive, selectedSnapshot?.id);
+  const selectedCorrelation = archive.selectedCorrelation;
+  const correlationLinks = selectedCorrelation?.links.slice(0, 3) ?? [];
   const topGainers = summary?.topGainers.slice(0, 3) ?? [];
   const topLosers = summary?.topLosers.slice(0, 3) ?? [];
   const reviews = selectedSnapshot?.reviews.slice(0, 3) ?? [];
@@ -152,6 +182,40 @@ export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
             <BrainCircuit size={15} strokeWidth={2.3} />
             <p>{guardrail}</p>
           </div>
+
+          {selectedCorrelation ? (
+            <div className="daily-mover-correlation" aria-label="每日异动关联摘要">
+              <div className="daily-mover-correlation__head">
+                <h3>关联摘要</h3>
+                <span className="mono">{selectedCorrelation.links.length} 样本链</span>
+              </div>
+              <div className="daily-mover-correlation__stats">
+                <span><b>{selectedCorrelation.summary.scanLinked}</b>扫描关联</span>
+                <span><b>{selectedCorrelation.summary.journalLinked}</b>日记关联</span>
+                <span><b>{selectedCorrelation.summary.calibrationCandidates}</b>校准候选</span>
+              </div>
+              {correlationLinks.length > 0 ? (
+                <div className="daily-mover-correlation__links">
+                  {correlationLinks.map((link) => (
+                    <article
+                      className={`daily-mover-correlation__link daily-mover-correlation__link--${correlationTone(link.status)}`}
+                      key={link.moverId}
+                    >
+                      <div>
+                        <strong>{compactSymbol(link.symbol)}</strong>
+                        <span>{correlationStatusLabel(link.status)}</span>
+                      </div>
+                      <small>
+                        扫描 {link.matchedScanIds.length} / 日记 {link.journalEventIds.length} /
+                        {link.calibrationCandidate ? " 规则校准候选" : " 样本复核"}
+                      </small>
+                      <p>{link.suggestedNextStep}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="daily-mover-board" aria-label="每日涨跌幅样本预览">
             <div>

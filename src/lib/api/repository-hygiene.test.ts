@@ -291,6 +291,12 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "归因复盘",
     "样本库",
     "规则校准",
+    "关联摘要",
+    "扫描关联",
+    "日记关联",
+    "校准候选",
+    "命中已复盘",
+    "漏判有证据",
     "不用于追涨杀跌",
     "抓到",
     "漏判",
@@ -300,6 +306,9 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "daily-mover-ledger",
     "daily-mover-review",
     "daily-mover-history",
+    "daily-mover-correlation",
+    "daily-mover-correlation__stats",
+    "daily-mover-correlation__links",
   ];
   const disallowedTradeWords = [
     "买入",
@@ -317,6 +326,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(workspaceSource, /dailyMoverArchive/);
   assert.match(panelSource, /allowedUse/);
   assert.match(panelSource, /research_only/);
+  assert.match(panelSource, /selectedCorrelation/);
+  assert.match(panelSource, /correlationStatusLabel/);
 
   for (const label of requiredLabels) {
     assert.match(panelSource, new RegExp(label));
