@@ -2874,7 +2874,8 @@ p {
 .daily-mover-detail,
 .daily-mover-calibration,
 .daily-mover-feedback,
-.daily-mover-backtest {
+.daily-mover-backtest,
+.daily-mover-validation {
   display: grid;
   gap: 7px;
   padding: 10px 12px;
@@ -2884,7 +2885,8 @@ p {
 .daily-mover-detail__head,
 .daily-mover-calibration__head,
 .daily-mover-feedback__head,
-.daily-mover-backtest__head {
+.daily-mover-backtest__head,
+.daily-mover-validation__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2894,7 +2896,8 @@ p {
 .daily-mover-detail__head h3,
 .daily-mover-calibration__head h3,
 .daily-mover-feedback__head h3,
-.daily-mover-backtest__head h3 {
+.daily-mover-backtest__head h3,
+.daily-mover-validation__head h3 {
   margin: 0;
   font-size: 12px;
   line-height: 1.1;
@@ -2903,7 +2906,8 @@ p {
 .daily-mover-detail__head span,
 .daily-mover-calibration__head span,
 .daily-mover-feedback__head span,
-.daily-mover-backtest__head span {
+.daily-mover-backtest__head span,
+.daily-mover-validation__head span {
   color: var(--muted);
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 9px;
@@ -2913,7 +2917,8 @@ p {
 .daily-mover-detail__item,
 .daily-mover-calibration__item,
 .daily-mover-feedback__item,
-.daily-mover-backtest__item {
+.daily-mover-backtest__item,
+.daily-mover-validation__item {
   display: grid;
   gap: 5px;
   padding: 8px;
@@ -2925,7 +2930,8 @@ p {
 .daily-mover-detail__item > div,
 .daily-mover-calibration__item > div,
 .daily-mover-feedback__item > div,
-.daily-mover-backtest__item > div {
+.daily-mover-backtest__item > div,
+.daily-mover-validation__item > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -2935,7 +2941,8 @@ p {
 .daily-mover-detail__item strong,
 .daily-mover-calibration__item strong,
 .daily-mover-feedback__item strong,
-.daily-mover-backtest__item strong {
+.daily-mover-backtest__item strong,
+.daily-mover-validation__item strong {
   min-width: 0;
   overflow: hidden;
   font-size: 12px;
@@ -2946,7 +2953,8 @@ p {
 .daily-mover-detail__item span,
 .daily-mover-calibration__item span,
 .daily-mover-feedback__item > div > span,
-.daily-mover-backtest__item > div > span {
+.daily-mover-backtest__item > div > span,
+.daily-mover-validation__item > div > span {
   min-height: 20px;
   display: inline-flex;
   align-items: center;
@@ -2978,7 +2986,9 @@ p {
 .daily-mover-feedback__item p,
 .daily-mover-feedback__item small,
 .daily-mover-backtest__item p,
-.daily-mover-backtest__item small {
+.daily-mover-backtest__item small,
+.daily-mover-validation__item p,
+.daily-mover-validation__item small {
   margin: 0;
   color: var(--ink-2);
   font-size: 10px;
@@ -2989,7 +2999,8 @@ p {
 .daily-mover-detail__item small,
 .daily-mover-calibration__item small,
 .daily-mover-feedback__item small,
-.daily-mover-backtest__item small {
+.daily-mover-backtest__item small,
+.daily-mover-validation__item small {
   color: var(--muted);
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 9px;
@@ -3056,15 +3067,38 @@ p {
   color: var(--red);
 }
 
+.daily-mover-validation__item {
+  border-color: rgba(64, 84, 132, 0.24);
+  background: rgba(64, 84, 132, 0.07);
+}
+
+.daily-mover-validation__item--review_ready > div > span {
+  border-color: rgba(39, 140, 102, 0.38);
+  color: var(--green);
+}
+
+.daily-mover-validation__item--needs_more_samples > div > span,
+.daily-mover-validation__item--insufficient_data > div > span {
+  border-color: rgba(213, 155, 61, 0.42);
+  color: var(--amber);
+}
+
+.daily-mover-validation__item--blocked > div > span {
+  border-color: rgba(184, 64, 72, 0.36);
+  color: var(--red);
+}
+
 .daily-mover-feedback__stats,
-.daily-mover-backtest__stats {
+.daily-mover-backtest__stats,
+.daily-mover-validation__stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 5px;
 }
 
 .daily-mover-feedback__stats span,
-.daily-mover-backtest__stats span {
+.daily-mover-backtest__stats span,
+.daily-mover-validation__stats span {
   min-height: 30px;
   display: grid;
   gap: 1px;
@@ -3080,7 +3114,8 @@ p {
 }
 
 .daily-mover-feedback__stats b,
-.daily-mover-backtest__stats b {
+.daily-mover-backtest__stats b,
+.daily-mover-validation__stats b {
   color: var(--ink);
   font-size: 12px;
   line-height: 1;

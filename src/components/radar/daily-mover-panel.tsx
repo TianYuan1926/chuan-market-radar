@@ -16,6 +16,7 @@ type DailyMoverSelectedDetail = DailyMoverArchive["selectedDetails"][number];
 type DailyMoverCalibrationSuggestion = DailyMoverArchive["calibrationSuggestions"][number];
 type DailyMoverCalibrationFeedback = DailyMoverArchive["calibrationFeedback"][number];
 type DailyMoverBacktestCandidate = DailyMoverArchive["backtestCandidates"][number];
+type DailyMoverBacktestValidation = DailyMoverArchive["backtestValidations"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 
 type DailyMoverPanelProps = {
@@ -28,6 +29,7 @@ type DailyMoverPanelProps = {
 };
 
 const fallbackGuardrail = "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。";
+const historicalValidationBoundary = "不是完整 K 线回测";
 
 function formatTime(value: string | undefined) {
   if (!value) {
@@ -267,6 +269,34 @@ function renderBacktestCandidate(candidate: DailyMoverBacktestCandidate) {
   );
 }
 
+function backtestValidationVerdictLabel(value: DailyMoverBacktestValidation["verdict"]) {
+  return {
+    blocked: "反证优先",
+    insufficient_data: "样本不足",
+    needs_more_samples: "继续观察",
+    review_ready: "可草拟",
+  }[value];
+}
+
+function renderBacktestValidation(validation: DailyMoverBacktestValidation) {
+  return (
+    <article className={`daily-mover-validation__item daily-mover-validation__item--${validation.verdict}`} key={validation.tag}>
+      <div>
+        <strong>{validation.label}</strong>
+        <span>{backtestValidationVerdictLabel(validation.verdict)}</span>
+      </div>
+      <div className="daily-mover-validation__stats" aria-label={`${validation.label} 历史样本验证统计`}>
+        <span><b>{validation.validatedJournalSamples + validation.rejectedJournalSamples}</b>日记验证</span>
+        <span><b>{validation.historicalSampleCount}</b>历史样本</span>
+        <span><b>{validation.validationRatePercent}%</b>有效率</span>
+        <span><b>{validation.caughtRatePercent}%</b>抓到率</span>
+      </div>
+      <p>{validation.nextStep}</p>
+      <small>{validation.evidenceSummary} · {validation.limitation || historicalValidationBoundary}</small>
+    </article>
+  );
+}
+
 function selectedSummary(
   archive: DailyMoverArchive,
   snapshotId: string | undefined,
@@ -292,6 +322,7 @@ export function DailyMoverPanel({
   const calibrationFeedback = activeArchive.calibrationFeedback.slice(0, 3);
   const calibrationSuggestions = activeArchive.calibrationSuggestions.slice(0, 3);
   const backtestCandidates = activeArchive.backtestCandidates.slice(0, 3);
+  const backtestValidations = activeArchive.backtestValidations.slice(0, 3);
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
   const guardrail = activeArchive.guardrail || fallbackGuardrail;
@@ -474,6 +505,16 @@ export function DailyMoverPanel({
                 <span>人工确认</span>
               </div>
               {backtestCandidates.map(renderBacktestCandidate)}
+            </div>
+          ) : null}
+
+          {backtestValidations.length > 0 ? (
+            <div className="daily-mover-validation" aria-label="历史样本验证结果">
+              <div className="daily-mover-validation__head">
+                <h3>样本验证</h3>
+                <span>只读验证</span>
+              </div>
+              {backtestValidations.map(renderBacktestValidation)}
             </div>
           ) : null}
 

@@ -32,10 +32,11 @@
 - 校准候选入队：校准候选可通过 `calibration_review` 写入 `journal_events`，进入跟踪队列，但 rank 分数保持 0。
 - 只读校准反馈：`GET /api/daily-movers` 会按 `calibrationTag` 汇总 `calibration_review` 的待复查、有效、反证和过期样本数，`DailyMoverPanel` 只读展示反馈趋势。
 - 人工回测候选：`GET /api/daily-movers` 会从 `calibrationFeedback` 派生 `backtestCandidates`，按 `ready / collecting / blocked` 标记候选状态，`DailyMoverPanel` 只读展示样本、有效、反证和候选分数。
+- 历史样本验证：`GET /api/daily-movers` 会从 `backtestCandidates` 和已存每日异动快照派生 `backtestValidations`，只读展示日记验证、历史样本、有效率、抓到率、结论和限制说明。
 
 当前未落地：
 
-- 真实执行历史样本回测，验证候选规则的命中率、误报率和适用边界。
+- 完整 K 线级回测执行，包含独立历史 K 线窗口、缓存、成本控制和适用边界验证。
 - 策略版本化反馈链路。
 - 自动规则权重调整；当前明确不允许自动调整。
 
@@ -74,6 +75,6 @@
 
 ## 下一步
 
-1. 基于 `backtestCandidates` 执行真实历史样本回测，形成可审计的候选规则验证结果，但不自动改权重。
-2. 增加策略版本化反馈链路，记录“候选建议 -> 回测结果 -> 人工确认”。
+1. 基于 `backtestValidations` 增加策略版本草案，记录“候选建议 -> 样本验证 -> 人工确认”。
+2. 如需完整 K 线级回测，先设计低成本数据缓存和验证边界，不能直接扩大 CoinGlass 请求。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

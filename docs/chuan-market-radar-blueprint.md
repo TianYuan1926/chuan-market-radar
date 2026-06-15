@@ -89,7 +89,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示和基础指标/周期权重校准 | 尚未完成完整回测权重校准、交互式多周期图表和更专业的成交量分布模型 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
-| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势和人工回测候选链路已落地 | 尚未完成真实回测执行、回测级权重验证和策略版本化反馈 |
+| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路和历史样本验证层已落地 | 尚未完成完整 K 线回测执行、回测级权重验证和策略版本化反馈 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未有 Telegram/Webhook、持久化告警历史、多设备推送 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
 
@@ -420,12 +420,14 @@ AI 复核必须遵守：
 - 校准候选入复盘队列：`DailyMoverPanel` 可把校准候选以 `calibration_review` 写入 `journal_events`；该事件进入跟踪队列、记录 `calibrationTag` 和样本币种，但 rank 分数保持 0，不能自动调整策略权重。
 - 只读校准反馈趋势：`GET /api/daily-movers` 会从 bounded `journal_events` 中汇总 `calibration_review`，按 `calibrationTag` 输出待复查、有效、反证、过期样本数；`DailyMoverPanel` 只读展示，不提供自动调权重入口。
 - 人工回测候选链路：`GET /api/daily-movers` 会从 `calibrationFeedback` 派生 `backtestCandidates`，按 `ready / collecting / blocked` 标记是否具备人工回测条件；`DailyMoverPanel` 只读展示候选样本、有效/反证统计和人工确认边界，`allowedUse` 保持 `research_only`，`canAutoAdjustWeights` 固定为 `false`。
+- 历史样本验证层：`GET /api/daily-movers` 会从 `backtestCandidates` 和已存 `DailyMoverSnapshot` 派生 `backtestValidations`，输出日记验证数、历史样本数、有效率、抓到率、结论和限制说明；这只是已存样本验证，不是完整 K 线回测，`canAutoAdjustWeights` 固定为 `false`。
 - 免费套餐护栏：关联摘要最多读取 12 个扫描归档和 80 条日记，只做只读聚合，不新增表、不增加 CoinGlass 请求、不增加数据库写入频率。
 - 安全边界：输出必须保持 `allowedUse: "research_only"`，只能用于归因复盘、样本库和规则校准。
 
 后续需要：
 
-- 基于 `backtestCandidates` 执行真实历史样本回测，验证候选规则的样本命中率、误报率和适用边界。
+- 基于 `backtestValidations` 生成策略版本草案，记录候选规则、验证结果、限制条件和人工确认状态。
+- 后续如需完整 K 线级回测，必须单独设计数据获取、缓存、成本和验证边界。
 - 建立策略版本化反馈，记录“候选建议 -> 回测结果 -> 人工确认”的链路。
 - UI 不能把涨跌幅榜包装成交易信号。
 

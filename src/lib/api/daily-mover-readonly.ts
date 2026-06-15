@@ -114,6 +114,35 @@ export type DailyMoverBacktestCandidate = {
   canAutoAdjustWeights: false;
 };
 
+export type DailyMoverBacktestValidationVerdict =
+  | "blocked"
+  | "insufficient_data"
+  | "needs_more_samples"
+  | "review_ready";
+
+export type DailyMoverBacktestValidation = {
+  tag: string;
+  label: string;
+  mode: "historical_sample_validation";
+  candidateReadiness: DailyMoverBacktestReadiness;
+  journalSampleCount: number;
+  validatedJournalSamples: number;
+  rejectedJournalSamples: number;
+  pendingJournalSamples: number;
+  historicalSampleCount: number;
+  caughtSamples: number;
+  missedSamples: number;
+  notLearnableSamples: number;
+  validationRatePercent: number;
+  caughtRatePercent: number;
+  verdict: DailyMoverBacktestValidationVerdict;
+  evidenceSummary: string;
+  limitation: string;
+  nextStep: string;
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+};
+
 export type DailyMoverRetention = {
   storage: PersistenceMode;
   scope: string;
@@ -133,6 +162,7 @@ export type DailyMoverReadArchiveBase = {
   allowedUse: "research_only";
   guardrail: string;
   backtestCandidates: DailyMoverBacktestCandidate[];
+  backtestValidations: DailyMoverBacktestValidation[];
   calibrationFeedback: DailyMoverCalibrationFeedback[];
   latestSnapshot: DailyMoverSnapshot | null;
   calibrationSuggestions: DailyMoverCalibrationSuggestion[];
@@ -476,6 +506,113 @@ export function buildDailyMoverBacktestCandidates(
     ));
 }
 
+function percent(numerator: number, denominator: number) {
+  if (denominator <= 0) {
+    return 0;
+  }
+
+  return Math.round((numerator / denominator) * 100);
+}
+
+function reviewMatchesBacktestCandidate(
+  candidate: DailyMoverBacktestCandidate,
+  review: DailyMoverReview,
+) {
+  return candidate.symbols.includes(review.symbol)
+    || review.radarReview.improvementTags.includes(candidate.tag);
+}
+
+function backtestValidationVerdict({
+  candidate,
+  historicalSampleCount,
+  validationRatePercent,
+  verifiedJournalSamples,
+}: {
+  candidate: DailyMoverBacktestCandidate;
+  historicalSampleCount: number;
+  validationRatePercent: number;
+  verifiedJournalSamples: number;
+}): DailyMoverBacktestValidationVerdict {
+  if (candidate.readiness === "blocked") {
+    return "blocked";
+  }
+
+  if (verifiedJournalSamples === 0 && historicalSampleCount === 0) {
+    return "insufficient_data";
+  }
+
+  if (candidate.readiness === "ready" && verifiedJournalSamples >= 3 && historicalSampleCount >= 2 && validationRatePercent >= 60) {
+    return "review_ready";
+  }
+
+  return "needs_more_samples";
+}
+
+function backtestValidationNextStep(verdict: DailyMoverBacktestValidationVerdict) {
+  if (verdict === "review_ready") {
+    return "可以进入策略版本草案，但仍需人工复核样本边界，不能自动改权重。";
+  }
+
+  if (verdict === "blocked") {
+    return "反证样本优先，先保留为反证验证结果，不能提高权重。";
+  }
+
+  if (verdict === "insufficient_data") {
+    return "历史样本不足，继续积累快照和校准日记。";
+  }
+
+  return "继续补样本，等日记验证和历史样本都更充分后再复核。";
+}
+
+export function buildDailyMoverBacktestValidations(
+  candidates: DailyMoverBacktestCandidate[],
+  snapshots: DailyMoverSnapshot[],
+): DailyMoverBacktestValidation[] {
+  const reviews = snapshots.flatMap((snapshot) => snapshot.reviews);
+
+  return candidates.map((candidate) => {
+    const matchedReviews = reviews.filter((review) => reviewMatchesBacktestCandidate(candidate, review));
+    const verifiedJournalSamples = candidate.validated + candidate.rejected;
+    const validationRatePercent = percent(candidate.validated, verifiedJournalSamples);
+    const caughtSamples = matchedReviews.filter((review) => review.radarReview.status === "caught").length;
+    const missedSamples = matchedReviews.filter((review) => review.radarReview.status === "missed").length;
+    const notLearnableSamples = matchedReviews.filter((review) => (
+      review.radarReview.status === "not_learnable"
+      || review.attribution.learnability === "not_learnable"
+    )).length;
+    const caughtRatePercent = percent(caughtSamples, matchedReviews.length);
+    const verdict = backtestValidationVerdict({
+      candidate,
+      historicalSampleCount: matchedReviews.length,
+      validationRatePercent,
+      verifiedJournalSamples,
+    });
+
+    return {
+      tag: candidate.tag,
+      label: candidate.label,
+      mode: "historical_sample_validation" as const,
+      candidateReadiness: candidate.readiness,
+      journalSampleCount: candidate.sampleCount,
+      validatedJournalSamples: candidate.validated,
+      rejectedJournalSamples: candidate.rejected,
+      pendingJournalSamples: candidate.pending,
+      historicalSampleCount: matchedReviews.length,
+      caughtSamples,
+      missedSamples,
+      notLearnableSamples,
+      validationRatePercent,
+      caughtRatePercent,
+      verdict,
+      evidenceSummary: `历史样本 ${matchedReviews.length} / 日记验证 ${verifiedJournalSamples} / 抓到 ${caughtSamples} / 漏判 ${missedSamples}`,
+      limitation: "只基于已存每日异动快照和校准日记，不是完整 K 线回测。",
+      nextStep: backtestValidationNextStep(verdict),
+      allowedUse: "research_only" as const,
+      canAutoAdjustWeights: false as const,
+    };
+  });
+}
+
 function buildSelectedDetails(
   snapshot: DailyMoverSnapshot | null,
   correlation: DailyMoverSnapshotCorrelation | null,
@@ -662,9 +799,11 @@ export async function getDailyMoverReadArchive({
       })
     : null;
   const calibrationFeedback = buildDailyMoverCalibrationFeedback(journalEvents);
+  const backtestCandidates = buildDailyMoverBacktestCandidates(calibrationFeedback);
   const base = {
     allowedUse: "research_only" as const,
-    backtestCandidates: buildDailyMoverBacktestCandidates(calibrationFeedback),
+    backtestCandidates,
+    backtestValidations: buildDailyMoverBacktestValidations(backtestCandidates, snapshots),
     calibrationFeedback,
     calibrationSuggestions: buildCalibrationSuggestions(selectedCorrelation),
     guardrail: dailyMoverGuardrail,

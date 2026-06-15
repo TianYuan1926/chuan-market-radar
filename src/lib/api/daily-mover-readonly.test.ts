@@ -11,6 +11,7 @@ import type { ScanArchiveSummary, ScanReplayFrame } from "../market/types";
 import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
 import {
   buildDailyMoverBacktestCandidates,
+  buildDailyMoverBacktestValidations,
   buildDailyMoverCalibrationFeedback,
   getDailyMoverReadArchive,
   normalizeDailyMoverReadLimit,
@@ -81,6 +82,43 @@ function snapshot(
       review(gainer, "caught", "learnable"),
       review(loser, "missed", "watchlist"),
     ],
+  };
+}
+
+function snapshotFromReviews(
+  id: string,
+  observedAt: string,
+  reviews: DailyMoverReview[],
+): DailyMoverSnapshot {
+  return {
+    id,
+    source: "coinglass",
+    observedAt,
+    gainers: reviews
+      .filter((item) => item.direction === "gainer")
+      .map((item, index) => mover(item.symbol, item.direction, index + 1, item.observedAt, 18.6)),
+    losers: reviews
+      .filter((item) => item.direction === "loser")
+      .map((item, index) => mover(item.symbol, item.direction, index + 1, item.observedAt, -14.2)),
+    reviews,
+  };
+}
+
+function reviewWithTags(
+  symbol: string,
+  direction: DailyMover["direction"],
+  status: DailyMoverReview["radarReview"]["status"],
+  learnability: DailyMoverReview["attribution"]["learnability"],
+  improvementTags: string[],
+): DailyMoverReview {
+  const item = mover(symbol, direction, 1, "2026-06-15T00:17:00.000Z", direction === "gainer" ? 18.6 : -14.2);
+
+  return {
+    ...review(item, status, learnability),
+    radarReview: {
+      ...review(item, status, learnability).radarReview,
+      improvementTags,
+    },
   };
 }
 
@@ -488,6 +526,76 @@ test("buildDailyMoverBacktestCandidates gates calibration feedback before manual
   assert.equal(blocked?.canAutoAdjustWeights, false);
 });
 
+test("buildDailyMoverBacktestValidations validates candidates against stored historical samples only", () => {
+  const feedback = buildDailyMoverCalibrationFeedback([
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      id: "validation-ready-1",
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: ["SUIUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      id: "validation-ready-2",
+      outcomeStatus: "saved",
+      result: "saved",
+      reviewStatus: "closed",
+      sampleSymbols: ["TIAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      id: "validation-ready-3",
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: ["ENAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+  ]);
+  const candidates = buildDailyMoverBacktestCandidates(feedback);
+  const validations = buildDailyMoverBacktestValidations(candidates, [
+    snapshotFromReviews("daily-movers-validation-1", "2026-06-15T00:17:00.000Z", [
+      reviewWithTags("ENAUSDT", "gainer", "caught", "learnable", []),
+      reviewWithTags("SUIUSDT", "loser", "missed", "watchlist", ["review_volume_oi_weight"]),
+    ]),
+    snapshotFromReviews("daily-movers-validation-2", "2026-06-16T00:17:00.000Z", [
+      reviewWithTags("TIAUSDT", "gainer", "caught", "learnable", []),
+      reviewWithTags("OPUSDT", "loser", "not_learnable", "not_learnable", ["review_volume_oi_weight"]),
+    ]),
+  ]);
+
+  assert.equal(validations.length, 1);
+
+  const validation = validations[0];
+
+  assert.equal(validation?.tag, "review_volume_oi_weight");
+  assert.equal(validation?.mode, "historical_sample_validation");
+  assert.equal(validation?.candidateReadiness, "ready");
+  assert.equal(validation?.journalSampleCount, 3);
+  assert.equal(validation?.validatedJournalSamples, 3);
+  assert.equal(validation?.rejectedJournalSamples, 0);
+  assert.equal(validation?.pendingJournalSamples, 0);
+  assert.equal(validation?.historicalSampleCount, 4);
+  assert.equal(validation?.caughtSamples, 2);
+  assert.equal(validation?.missedSamples, 1);
+  assert.equal(validation?.notLearnableSamples, 1);
+  assert.equal(validation?.validationRatePercent, 100);
+  assert.equal(validation?.caughtRatePercent, 50);
+  assert.equal(validation?.verdict, "review_ready");
+  assert.match(validation?.evidenceSummary ?? "", /历史样本 4/);
+  assert.match(validation?.limitation ?? "", /不是完整 K 线回测/);
+  assert.match(validation?.nextStep ?? "", /策略版本草案/);
+  assert.equal(validation?.allowedUse, "research_only");
+  assert.equal(validation?.canAutoAdjustWeights, false);
+});
+
 test("getDailyMoverReadArchive exposes calibration feedback from journal events", async () => {
   const repository = createMemoryPersistenceRepository();
   await repository.addDailyMoverSnapshot(snapshot(
@@ -548,6 +656,42 @@ test("getDailyMoverReadArchive exposes readonly backtest candidates from calibra
   assert.equal(result.body.backtestCandidates[0]?.allowedUse, "research_only");
   assert.equal(result.body.backtestCandidates[0]?.canAutoAdjustWeights, false);
   assert.match(result.body.backtestCandidates[0]?.nextStep ?? "", /人工回测/);
+});
+
+test("getDailyMoverReadArchive exposes readonly historical validation results", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshotFromReviews(
+    "daily-movers-validation-api-1",
+    "2026-06-15T00:17:00.000Z",
+    [
+      reviewWithTags("ENAUSDT", "gainer", "caught", "learnable", []),
+      reviewWithTags("SUIUSDT", "loser", "missed", "watchlist", ["review_volume_oi_weight"]),
+    ],
+  ));
+
+  for (const [index, symbol] of ["SUIUSDT", "TIAUSDT", "ENAUSDT"].entries()) {
+    await repository.addJournalEvent(journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: `2026-06-${15 + index}T00:22:00.000Z`,
+      id: `validation-api-ready-${index + 1}`,
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: [symbol],
+      source: "daily_mover_calibration",
+    }));
+  }
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 3 });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.backtestValidations.length, 1);
+  assert.equal(result.body.backtestValidations[0]?.tag, "review_volume_oi_weight");
+  assert.equal(result.body.backtestValidations[0]?.mode, "historical_sample_validation");
+  assert.equal(result.body.backtestValidations[0]?.allowedUse, "research_only");
+  assert.equal(result.body.backtestValidations[0]?.canAutoAdjustWeights, false);
+  assert.match(result.body.backtestValidations[0]?.limitation ?? "", /不是完整 K 线回测/);
 });
 
 test("getDailyMoverReadArchive degrades to an empty archive when daily mover tables are not migrated yet", async () => {
