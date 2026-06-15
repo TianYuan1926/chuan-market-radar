@@ -1,0 +1,211 @@
+import { ArrowDownRight, ArrowUpRight, BrainCircuit, Microscope } from "lucide-react";
+import type { DailyMoverReview } from "@/lib/market/daily-movers";
+import type {
+  DailyMoverPreview,
+  DailyMoverReadArchiveResult,
+  DailyMoverSnapshotSummary,
+} from "@/lib/api/daily-mover-readonly";
+
+type DailyMoverArchive = DailyMoverReadArchiveResult["body"];
+
+type DailyMoverPanelProps = {
+  archive: DailyMoverArchive;
+};
+
+const fallbackGuardrail = "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。";
+
+function formatTime(value: string | undefined) {
+  if (!value) {
+    return "--:--";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(11, 16);
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Shanghai",
+  }).format(date);
+}
+
+function formatPercent(value: number) {
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
+function formatVolume(value: number) {
+  if (value >= 1_000_000_000) {
+    return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  }
+
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(0)}M`;
+  }
+
+  return `$${Math.round(value).toLocaleString("en-US")}`;
+}
+
+function compactSymbol(symbol: string) {
+  return symbol.replace(/USDT$/, "");
+}
+
+function sourceLabel(value: string | undefined) {
+  const labels: Record<string, string> = {
+    coingecko: "CoinGecko",
+    coinglass: "CoinGlass",
+    composite: "聚合源",
+    exchange_public: "交易所公开源",
+    mock: "演示源",
+  };
+
+  return value ? labels[value] ?? value : "等待";
+}
+
+function reviewStatusLabel(value: DailyMoverReview["radarReview"]["status"]) {
+  return {
+    caught: "抓到",
+    missed: "漏判",
+    not_learnable: "不可学",
+  }[value];
+}
+
+function learnabilityLabel(value: DailyMoverReview["attribution"]["learnability"]) {
+  return {
+    learnable: "可学",
+    not_learnable: "不可学",
+    watchlist: "观察",
+  }[value];
+}
+
+function driverLabel(value: DailyMoverReview["attribution"]["primaryDrivers"][number]) {
+  return {
+    funding_pressure: "资金费率",
+    liquidation_pressure: "爆仓压力",
+    low_liquidity_or_one_off: "低流动性/一次性",
+    open_interest_expansion: "OI 扩张",
+    pre_move_drift: "提前漂移",
+    volume_expansion: "放量扩张",
+  }[value];
+}
+
+function renderMoverRow(mover: DailyMoverPreview) {
+  return (
+    <li key={mover.id}>
+      <span className="mono">#{mover.rank}</span>
+      <b>{compactSymbol(mover.symbol)}</b>
+      <strong className={mover.direction === "gainer" ? "tone-good" : "tone-bad"}>
+        {formatPercent(mover.priceChangePercent)}
+      </strong>
+      <small>{formatVolume(mover.volume24hUsd)}</small>
+    </li>
+  );
+}
+
+function selectedSummary(
+  archive: DailyMoverArchive,
+  snapshotId: string | undefined,
+): DailyMoverSnapshotSummary | undefined {
+  return archive.snapshots.find((snapshot) => snapshot.id === snapshotId) ?? archive.snapshots[0];
+}
+
+export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
+  const selectedSnapshot = archive.selectedSnapshot ?? archive.latestSnapshot;
+  const summary = selectedSummary(archive, selectedSnapshot?.id);
+  const topGainers = summary?.topGainers.slice(0, 3) ?? [];
+  const topLosers = summary?.topLosers.slice(0, 3) ?? [];
+  const reviews = selectedSnapshot?.reviews.slice(0, 3) ?? [];
+  const history = archive.snapshots.slice(0, 4);
+  const allowedUse = archive.allowedUse === "research_only" ? "research_only" : archive.allowedUse;
+  const guardrail = archive.guardrail || fallbackGuardrail;
+
+  return (
+    <section className="module daily-mover-module">
+      <div className="module-head">
+        <h2>每日异动复盘</h2>
+        <span className="tag">研究样本</span>
+      </div>
+
+      {summary ? (
+        <>
+          <div className="daily-mover-ledger">
+            <div className="daily-mover-ledger__stamp">
+              <Microscope size={18} strokeWidth={2.3} />
+              <span className="mono">{allowedUse}</span>
+              <strong>{formatTime(summary.observedAt)}</strong>
+              <small>{sourceLabel(summary.source)} / {archive.retention.storage} / {archive.retention.returned} 帧</small>
+            </div>
+            <div className="daily-mover-ledger__counts" aria-label="每日异动归因统计">
+              <span><b>{summary.radarReview.caught}</b>抓到</span>
+              <span><b>{summary.radarReview.missed}</b>漏判</span>
+              <span><b>{summary.attribution.learnable}</b>可学</span>
+              <span><b>{summary.attribution.watchlist}</b>观察</span>
+            </div>
+          </div>
+
+          <div className="daily-mover-guard">
+            <BrainCircuit size={15} strokeWidth={2.3} />
+            <p>{guardrail}</p>
+          </div>
+
+          <div className="daily-mover-board" aria-label="每日涨跌幅样本预览">
+            <div>
+              <h3>
+                <ArrowUpRight size={14} strokeWidth={2.4} />
+                涨幅榜
+              </h3>
+              <ul>{topGainers.map(renderMoverRow)}</ul>
+            </div>
+            <div>
+              <h3>
+                <ArrowDownRight size={14} strokeWidth={2.4} />
+                跌幅榜
+              </h3>
+              <ul>{topLosers.map(renderMoverRow)}</ul>
+            </div>
+          </div>
+
+          {reviews.length > 0 ? (
+            <div className="daily-mover-review" aria-label="归因复盘样本">
+              {reviews.map((review) => (
+                <article className={`daily-mover-review__item daily-mover-review__item--${review.radarReview.status}`} key={review.id}>
+                  <div>
+                    <strong>{compactSymbol(review.symbol)}</strong>
+                    <span>{reviewStatusLabel(review.radarReview.status)} / {learnabilityLabel(review.attribution.learnability)}</span>
+                  </div>
+                  <p>
+                    {review.attribution.primaryDrivers.map(driverLabel).slice(0, 2).join(" · ")}
+                  </p>
+                  <small>
+                    {review.radarReview.improvementTags.length > 0
+                      ? review.radarReview.improvementTags.join(" / ")
+                      : "前兆证据进入样本库"}
+                  </small>
+                </article>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="daily-mover-history" aria-label="每日异动历史样本">
+            {history.map((item) => (
+              <span key={item.id}>
+                <b>{formatTime(item.observedAt)}</b>
+                {item.reviewCount} 复盘 / {item.gainerCount + item.loserCount} 样本
+              </span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="empty-state">
+          <p>等待每日异动样本进入归因复盘。</p>
+          <small>{guardrail}</small>
+        </div>
+      )}
+    </section>
+  );
+}

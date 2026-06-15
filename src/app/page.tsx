@@ -1,4 +1,5 @@
 import { RadarWorkspace } from "@/components/radar/radar-workspace";
+import { getDailyMoverReadArchive } from "@/lib/api/daily-mover-readonly";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
 import { getMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import {
@@ -9,7 +10,13 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const snapshot = await getMarketRadarSnapshot();
+  const [snapshot, dailyMoverArchive] = await Promise.all([
+    getMarketRadarSnapshot(),
+    getDailyMoverReadArchive({
+      limit: 7,
+      repository: appPersistenceRepository,
+    }),
+  ]);
   const health = await buildSystemHealthReport({
     database: appPersistenceDiagnostics,
     env: process.env,
@@ -17,5 +24,11 @@ export default async function Home() {
     snapshot,
   });
 
-  return <RadarWorkspace health={health} snapshot={snapshot} />;
+  return (
+    <RadarWorkspace
+      dailyMoverArchive={dailyMoverArchive.body}
+      health={health}
+      snapshot={snapshot}
+    />
+  );
 }

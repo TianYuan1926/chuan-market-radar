@@ -2497,6 +2497,281 @@ p {
   background: var(--paper-2);
 }
 
+.daily-mover-module {
+  background:
+    linear-gradient(135deg, rgba(39, 140, 102, 0.1), transparent 42%),
+    linear-gradient(210deg, rgba(184, 64, 72, 0.08), transparent 58%),
+    rgba(255, 250, 240, 0.92);
+}
+
+.daily-mover-ledger {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 9px;
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.daily-mover-ledger__stamp {
+  min-width: 0;
+  min-height: 104px;
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  padding: 11px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--paper-3);
+  background:
+    linear-gradient(135deg, rgba(21, 23, 28, 0.96), rgba(43, 48, 56, 0.9)),
+    var(--ink);
+}
+
+.daily-mover-ledger__stamp svg {
+  color: var(--green);
+}
+
+.daily-mover-ledger__stamp strong {
+  font-size: 22px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.daily-mover-ledger__stamp span,
+.daily-mover-ledger__stamp small {
+  color: rgba(255, 250, 240, 0.72);
+  font-size: 10px;
+}
+
+.daily-mover-ledger__counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.daily-mover-ledger__counts span {
+  min-height: 48px;
+  display: grid;
+  gap: 1px;
+  place-items: center;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: rgba(255, 250, 240, 0.72);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+}
+
+.daily-mover-ledger__counts b {
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.daily-mover-guard {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  margin: 0 12px 10px;
+  padding: 8px 9px;
+  border: 1px solid rgba(213, 155, 61, 0.34);
+  border-radius: 7px;
+  color: var(--ink-2);
+  background: rgba(213, 155, 61, 0.12);
+}
+
+.daily-mover-guard svg {
+  margin-top: 2px;
+  color: var(--amber);
+}
+
+.daily-mover-guard p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.daily-mover-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  padding: 0 12px 11px;
+  border-bottom: 1px solid var(--line);
+}
+
+.daily-mover-board > div {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 250, 240, 0.7);
+}
+
+.daily-mover-board h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.daily-mover-board h3 svg {
+  color: var(--ink-2);
+}
+
+.daily-mover-board ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.daily-mover-board li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.daily-mover-board li:last-child {
+  border-bottom: 0;
+}
+
+.daily-mover-board li span,
+.daily-mover-board li small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.daily-mover-board li b {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-mover-board li strong {
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.daily-mover-board li small {
+  grid-column: 2 / 4;
+  margin-top: -3px;
+}
+
+.daily-mover-review {
+  display: grid;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.daily-mover-review__item {
+  display: grid;
+  gap: 5px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.daily-mover-review__item:last-child {
+  border-bottom: 0;
+}
+
+.daily-mover-review__item > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.daily-mover-review__item strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-mover-review__item span {
+  min-height: 21px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-2);
+  background: rgba(255, 250, 240, 0.72);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.daily-mover-review__item--caught span {
+  border-color: rgba(39, 140, 102, 0.38);
+  color: var(--green);
+}
+
+.daily-mover-review__item--missed span {
+  border-color: rgba(184, 64, 72, 0.34);
+  color: var(--red);
+}
+
+.daily-mover-review__item p,
+.daily-mover-review__item small {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.daily-mover-review__item small {
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+}
+
+.daily-mover-history {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 10px 12px 12px;
+}
+
+.daily-mover-history span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: rgba(255, 250, 240, 0.62);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.daily-mover-history b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .replay-module {
   background:
     linear-gradient(140deg, rgba(39, 140, 102, 0.08), transparent 48%),

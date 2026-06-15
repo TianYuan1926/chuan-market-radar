@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartPanel } from "./chart-panel";
+import { DailyMoverPanel } from "./daily-mover-panel";
 import { EventCenterPanel } from "./event-center-panel";
 import { JournalPanel } from "./journal-panel";
 import { PixelS680 } from "./pixel-s680";
@@ -21,6 +22,7 @@ import {
   type AlertEvent,
   type AlertSound,
 } from "@/lib/alerts/alert-policy";
+import type { DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
 import { siteConfig } from "@/lib/config/site";
 import { buildJournalEntryFromSignal, mergeJournalEntry } from "@/lib/journal/journal-entry";
 import { buildRankProfile } from "@/lib/journal/rank-engine";
@@ -34,6 +36,7 @@ import {
 import type { MarketRadarSnapshot } from "@/lib/market/types";
 
 type RadarWorkspaceProps = {
+  dailyMoverArchive: DailyMoverReadArchiveResult["body"];
   health: SystemHealthReport;
   snapshot: MarketRadarSnapshot;
 };
@@ -198,7 +201,7 @@ function buildCurrentAlertEvents({
   return events.filter((event) => !shouldSuppressAlert(event, previousEvents, now)).slice(0, 5);
 }
 
-export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
+export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWorkspaceProps) {
   const [liveSnapshot, setLiveSnapshot] = useState(snapshot);
   const [liveHealth, setLiveHealth] = useState(health);
   const { heatmap, instrumentPool, journalEvents, metadata, signals } = liveSnapshot;
@@ -659,6 +662,7 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
             liveGeneratedAt={metadata.generatedAt}
             liveScanId={metadata.id}
           />
+          <DailyMoverPanel archive={dailyMoverArchive} />
           <StrategyCard selected={selected} />
           <RankPanel profile={rankProfile} />
           <PixelS680 mood={mood} rankProfile={rankProfile} />

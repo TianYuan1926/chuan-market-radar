@@ -274,3 +274,60 @@ test("public daily mover archive API is exposed as a read-only route", () => {
   assert.match(routeSource, /x-chuan-daily-movers-storage/);
   assert.equal(routeSource.includes("export async function POST"), false);
 });
+
+test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
+  const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const panelSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/daily-mover-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredLabels = [
+    "每日异动复盘",
+    "归因复盘",
+    "样本库",
+    "规则校准",
+    "不用于追涨杀跌",
+    "抓到",
+    "漏判",
+  ];
+  const requiredClasses = [
+    "daily-mover-module",
+    "daily-mover-ledger",
+    "daily-mover-review",
+    "daily-mover-history",
+  ];
+  const disallowedTradeWords = [
+    "买入",
+    "卖出",
+    "开多",
+    "开空",
+    "做多",
+    "做空",
+    "梭哈",
+  ];
+
+  assert.match(pageSource, /getDailyMoverReadArchive/);
+  assert.match(pageSource, /dailyMoverArchive/);
+  assert.match(workspaceSource, /DailyMoverPanel/);
+  assert.match(workspaceSource, /dailyMoverArchive/);
+  assert.match(panelSource, /allowedUse/);
+  assert.match(panelSource, /research_only/);
+
+  for (const label of requiredLabels) {
+    assert.match(panelSource, new RegExp(label));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(panelSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  for (const word of disallowedTradeWords) {
+    assert.equal(panelSource.includes(word), false, `daily mover panel must not include trade instruction copy: ${word}`);
+  }
+});
