@@ -10,6 +10,7 @@ import type {
 import { generateStrategyPlan } from "./strategy-planner";
 import {
   summarizeTimeframeAgreement,
+  timeframeRoleMap,
   type TimeframeProfile,
 } from "./timeframe-profile";
 
@@ -65,8 +66,16 @@ type ScoreBreakdown = {
   fundingPenalty: number;
   regimePenalty: number;
   marketContextPenalty: number;
+  indicatorBonus: number;
+  indicatorPenalty: number;
   timeframeBonus: number;
   timeframePenalty: number;
+};
+
+type IndicatorTimeframeCalibration = {
+  bonus: number;
+  evidence: EvidencePoint | null;
+  penalty: number;
 };
 
 const structureScores: Record<StructureLocation, number> = {
@@ -110,8 +119,125 @@ function structureTimeframeConflict(input: MarketAnomalyInput) {
     false;
 }
 
+function structureTimeframeSupport(input: MarketAnomalyInput) {
+  return input.timeframeProfile?.frames.some(
+    (frame) => timeframeRoleMap[frame.timeframe] === "structure" && frame.alignment === "support",
+  ) ?? false;
+}
+
+function indicatorSupportsDirection(value: string, direction: SignalDirection) {
+  return (direction === "long" && value === "bullish") ||
+    (direction === "short" && value === "bearish");
+}
+
+function indicatorConflictsWithDirection(value: string, direction: SignalDirection) {
+  return (direction === "long" && value === "bearish") ||
+    (direction === "short" && value === "bullish");
+}
+
+function indicatorMatrixCounts(input: MarketAnomalyInput) {
+  const matrixEvidence = input.indicatorEvidence?.find((item) => item.label === "多周期指标矩阵");
+  let supportive = 0;
+  let conflicting = 0;
+
+  if (matrixEvidence) {
+    const segments = matrixEvidence.value.split("。")[0].split("；");
+
+    for (const segment of segments) {
+      const match = segment.match(/EMA\s+(\w+)\/MACD\s+(\w+)\/RSI\s+(\w+)/);
+
+      if (!match) {
+        continue;
+      }
+
+      const [, ema, macd, rsi] = match;
+
+      for (const value of [ema, macd]) {
+        if (indicatorSupportsDirection(value, input.directionBias)) {
+          supportive += 1;
+        }
+
+        if (indicatorConflictsWithDirection(value, input.directionBias)) {
+          conflicting += 1;
+        }
+      }
+
+      if ((input.directionBias === "long" && rsi === "overheated") ||
+        (input.directionBias === "short" && rsi === "oversold")) {
+        conflicting += 1;
+      }
+    }
+
+    return { supportive, conflicting };
+  }
+
+  for (const item of input.indicatorEvidence ?? []) {
+    if (item.polarity === "supportive") {
+      supportive += 1;
+    }
+
+    if (item.polarity === "conflicting") {
+      conflicting += 1;
+    }
+  }
+
+  return { supportive, conflicting };
+}
+
+function indicatorTimeframeCalibration(input: MarketAnomalyInput): IndicatorTimeframeCalibration {
+  const hasIndicators = Boolean(input.indicatorEvidence?.length);
+  const hasTimeframeProfile = Boolean(input.timeframeProfile);
+
+  if (!hasIndicators || !hasTimeframeProfile || input.directionBias === "neutral") {
+    return {
+      bonus: 0,
+      evidence: null,
+      penalty: 0,
+    };
+  }
+
+  const counts = indicatorMatrixCounts(input);
+  const structureSupport = structureTimeframeSupport(input);
+  const structureConflict = structureTimeframeConflict(input);
+
+  if (counts.conflicting >= Math.max(2, counts.supportive) && structureConflict) {
+    return {
+      bonus: 0,
+      penalty: 8,
+      evidence: {
+        label: "指标/周期反证",
+        value:
+          `指标矩阵有 ${counts.conflicting} 个方向冲突项，且 1h/4h 结构未确认；本轮只做额外降权，不能直接反向交易。`,
+        layer: "indicators",
+        polarity: "conflicting",
+      },
+    };
+  }
+
+  if (counts.supportive > counts.conflicting && structureSupport && !structureConflict) {
+    return {
+      bonus: Math.min(5, 2 + counts.supportive),
+      penalty: 0,
+      evidence: {
+        label: "指标/周期同向校验",
+        value:
+          `指标矩阵有 ${counts.supportive} 个顺向项，且 1h/4h 结构没有明显冲突；只做小幅加权，仍需触发和失效条件兑现。`,
+        layer: "indicators",
+        polarity: "supportive",
+      },
+    };
+  }
+
+  return {
+    bonus: 0,
+    evidence: null,
+    penalty: counts.conflicting > counts.supportive ? 4 : 0,
+  };
+}
+
 function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
   const rr = riskReward(input);
+  const indicatorCalibration = indicatorTimeframeCalibration(input);
   const compression = clamp(100 - input.volatilityCompressionPercentile);
   const volume = clamp((input.volumeRatio - 1) * 62);
   const openInterest = clamp(input.openInterestChangePercent * 9);
@@ -133,6 +259,8 @@ function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
     fundingPenalty,
     regimePenalty,
     marketContextPenalty,
+    indicatorBonus: indicatorCalibration.bonus,
+    indicatorPenalty: indicatorCalibration.penalty,
     timeframeBonus,
     timeframePenalty,
   };
@@ -148,6 +276,8 @@ function confidence(input: MarketAnomalyInput, scores: ScoreBreakdown) {
     scores.fundingPenalty -
     scores.regimePenalty -
     scores.marketContextPenalty +
+    scores.indicatorBonus -
+    scores.indicatorPenalty +
     scores.timeframeBonus -
     scores.timeframePenalty;
   const capped = marketContextConflict(input) || structureTimeframeConflict(input)
@@ -286,6 +416,12 @@ function evidenceFor(input: MarketAnomalyInput): EvidencePoint[] {
 
   if (input.indicatorEvidence?.length) {
     evidence.push(...input.indicatorEvidence);
+  }
+
+  const calibration = indicatorTimeframeCalibration(input);
+
+  if (calibration.evidence) {
+    evidence.push(calibration.evidence);
   }
 
   if (Math.abs(input.fundingRateZScore) >= 1.5) {

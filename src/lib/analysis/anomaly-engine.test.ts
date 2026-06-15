@@ -5,6 +5,7 @@ import {
   analyzeMarketAnomaly,
   type MarketAnomalyInput,
 } from "./anomaly-engine";
+import { buildTimeframeProfile } from "./timeframe-profile";
 import type { EvidencePoint, MarketSignal } from "./types";
 
 const baseInput: MarketAnomalyInput = {
@@ -126,5 +127,114 @@ test("analyzeMarketAnomalies sorts actionable candidates before weak observation
   assert.deepEqual(
     signals.map((signal: MarketSignal) => signal.symbol),
     ["ENAUSDT", "MIDUSDT"],
+  );
+});
+
+test("analyzeMarketAnomaly applies extra downgrade when indicator matrix conflicts with structure profile", () => {
+  const signal = analyzeMarketAnomaly({
+    ...baseInput,
+    indicatorEvidence: [
+      {
+        label: "多周期指标矩阵",
+        value:
+          "15m EMA bearish/MACD bearish/RSI neutral；1h EMA bearish/MACD bearish/RSI neutral；4h EMA bearish/MACD bearish/RSI neutral。矩阵只描述指标一致性，不直接触发交易。",
+        layer: "indicators",
+        polarity: "conflicting",
+      },
+    ],
+    timeframeProfile: buildTimeframeProfile([
+      {
+        timeframe: "15m",
+        alignment: "support",
+        weight: 70,
+        note: "15m anomaly still active",
+      },
+      {
+        timeframe: "1h",
+        alignment: "conflict",
+        weight: 28,
+        note: "1h structure rejects the long setup",
+      },
+      {
+        timeframe: "4h",
+        alignment: "neutral",
+        weight: 35,
+        note: "4h still unconfirmed",
+      },
+      {
+        timeframe: "1d",
+        alignment: "neutral",
+        weight: 20,
+        note: "daily boundary neutral",
+      },
+    ]),
+  });
+
+  assert.equal(signal.state, "waiting_confirmation");
+  assert.ok(signal.confidence <= 66);
+  assert.ok(
+    signal.evidence.some(
+      (item) =>
+        item.label === "指标/周期反证" &&
+        item.layer === "indicators" &&
+        item.polarity === "conflicting",
+    ),
+  );
+});
+
+test("analyzeMarketAnomaly keeps supportive indicators as evidence instead of a standalone trigger", () => {
+  const signal = analyzeMarketAnomaly({
+    ...baseInput,
+    id: "weak-indicator-support",
+    dataQualityScore: 0.9,
+    volumeRatio: 1.18,
+    openInterestChangePercent: 1.4,
+    volatilityCompressionPercentile: 42,
+    indicatorEvidence: [
+      {
+        label: "多周期指标矩阵",
+        value:
+          "15m EMA bullish/MACD bullish/RSI neutral；1h EMA bullish/MACD bullish/RSI neutral；4h EMA bullish/MACD neutral/RSI neutral。矩阵只描述指标一致性，不直接触发交易。",
+        layer: "indicators",
+        polarity: "supportive",
+      },
+    ],
+    timeframeProfile: buildTimeframeProfile([
+      {
+        timeframe: "15m",
+        alignment: "support",
+        weight: 55,
+        note: "15m anomaly supports the setup",
+      },
+      {
+        timeframe: "1h",
+        alignment: "support",
+        weight: 45,
+        note: "1h structure supports but is not enough alone",
+      },
+      {
+        timeframe: "4h",
+        alignment: "neutral",
+        weight: 30,
+        note: "4h neutral",
+      },
+      {
+        timeframe: "1d",
+        alignment: "neutral",
+        weight: 20,
+        note: "daily neutral",
+      },
+    ]),
+  });
+
+  assert.notEqual(signal.state, "near_trigger");
+  assert.ok(signal.confidence < 74);
+  assert.ok(
+    signal.evidence.some(
+      (item) =>
+        item.label === "指标/周期同向校验" &&
+        item.layer === "indicators" &&
+        item.polarity === "supportive",
+    ),
   );
 });
