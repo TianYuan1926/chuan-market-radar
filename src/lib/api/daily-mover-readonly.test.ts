@@ -927,6 +927,11 @@ test("getDailyMoverReadArchive exposes readonly backtest candidates from calibra
   assert.equal(result.body.backtestCandidates[0]?.allowedUse, "research_only");
   assert.equal(result.body.backtestCandidates[0]?.canAutoAdjustWeights, false);
   assert.match(result.body.backtestCandidates[0]?.nextStep ?? "", /人工回测/);
+  assert.equal(result.body.klineBacktestPlan.mode, "planning_only");
+  assert.equal(result.body.klineBacktestPlan.dataSourcePolicy, "public_ohlcv_cache_only_no_coinglass");
+  assert.equal(result.body.klineBacktestPlan.canFetchExternalCandles, false);
+  assert.equal(result.body.klineBacktestPlan.requiresCacheBeforeExecution, true);
+  assert.equal(result.body.klineBacktestPlan.canAutoAdjustWeights, false);
 });
 
 test("getDailyMoverReadArchive exposes readonly historical validation results", async () => {

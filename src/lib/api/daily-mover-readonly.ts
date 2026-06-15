@@ -11,6 +11,10 @@ import {
   type DailyMoverCorrelationLink,
   type DailyMoverSnapshotCorrelation,
 } from "../market/daily-mover-correlations";
+import {
+  buildDailyMoverKlineBacktestPlan,
+  type DailyMoverKlineBacktestPlan,
+} from "../market/daily-mover-kline-backtest";
 import type { ScanReplayFrame } from "../market/types";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 
@@ -228,6 +232,7 @@ export type DailyMoverReadArchiveBase = {
   backtestCandidates: DailyMoverBacktestCandidate[];
   backtestValidations: DailyMoverBacktestValidation[];
   calibrationFeedback: DailyMoverCalibrationFeedback[];
+  klineBacktestPlan: DailyMoverKlineBacktestPlan;
   strategyDrafts: DailyMoverStrategyDraft[];
   strategyConfirmations: DailyMoverStrategyConfirmation[];
   strategyPerformanceFeedback: DailyMoverStrategyPerformanceFeedback[];
@@ -1086,6 +1091,10 @@ export async function getDailyMoverReadArchive({
     : null;
   const calibrationFeedback = buildDailyMoverCalibrationFeedback(journalEvents);
   const backtestCandidates = buildDailyMoverBacktestCandidates(calibrationFeedback);
+  const klineBacktestPlan = buildDailyMoverKlineBacktestPlan({
+    candidates: backtestCandidates,
+    snapshots,
+  });
   const backtestValidations = buildDailyMoverBacktestValidations(backtestCandidates, snapshots);
   const strategyConfirmations = buildDailyMoverStrategyConfirmations(journalEvents);
   const strategyPerformanceFeedback = buildDailyMoverStrategyPerformanceFeedback(strategyConfirmations, journalEvents);
@@ -1096,6 +1105,7 @@ export async function getDailyMoverReadArchive({
     calibrationFeedback,
     calibrationSuggestions: buildCalibrationSuggestions(selectedCorrelation),
     guardrail: dailyMoverGuardrail,
+    klineBacktestPlan,
     latestSnapshot,
     selectedSnapshot,
     selectedCorrelation,
