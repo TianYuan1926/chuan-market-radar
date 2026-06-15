@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDownRight, ArrowUpRight, BrainCircuit, Microscope } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BrainCircuit, ListPlus, Microscope } from "lucide-react";
 import type { DailyMoverReview } from "@/lib/market/daily-movers";
 import type {
   DailyMoverPreview,
@@ -14,9 +14,15 @@ type DailyMoverCorrelation = NonNullable<DailyMoverArchive["selectedCorrelation"
 type DailyMoverCorrelationLink = DailyMoverCorrelation["links"][number];
 type DailyMoverSelectedDetail = DailyMoverArchive["selectedDetails"][number];
 type DailyMoverCalibrationSuggestion = DailyMoverArchive["calibrationSuggestions"][number];
+type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 
 type DailyMoverPanelProps = {
   archive: DailyMoverArchive;
+  calibrationReviewStatus?: DailyMoverCalibrationReviewStatus;
+  onCreateCalibrationReview?: (
+    suggestion: DailyMoverCalibrationSuggestion,
+    context: { observedAt: string; snapshotId: string },
+  ) => void;
 };
 
 const fallbackGuardrail = "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。";
@@ -169,7 +175,23 @@ function renderDetail(detail: DailyMoverSelectedDetail) {
   );
 }
 
-function renderCalibrationSuggestion(suggestion: DailyMoverCalibrationSuggestion) {
+function calibrationReviewStatusLabel(value: DailyMoverCalibrationReviewStatus) {
+  return {
+    error: "写入失败",
+    idle: "不自动改权重",
+    saved: "已入队",
+    saving: "写入中",
+  }[value];
+}
+
+function renderCalibrationSuggestion(
+  suggestion: DailyMoverCalibrationSuggestion,
+  options: {
+    disabled: boolean;
+    onCreate?: () => void;
+    status: DailyMoverCalibrationReviewStatus;
+  },
+) {
   return (
     <article className="daily-mover-calibration__item" key={suggestion.id}>
       <div>
@@ -178,6 +200,19 @@ function renderCalibrationSuggestion(suggestion: DailyMoverCalibrationSuggestion
       </div>
       <p>{suggestion.recommendation}</p>
       <small>{suggestion.symbols.map(compactSymbol).join(" / ")} · {suggestion.guardrail}</small>
+      {options.onCreate ? (
+        <div className="daily-mover-calibration__actions">
+          <button
+            className="daily-mover-calibration__button"
+            disabled={options.disabled}
+            onClick={options.onCreate}
+            type="button"
+          >
+            <ListPlus aria-hidden="true" size={14} strokeWidth={2.3} />
+            <span>{options.status === "saving" ? "写入中" : "加入复盘队列"}</span>
+          </button>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -189,7 +224,11 @@ function selectedSummary(
   return archive.snapshots.find((snapshot) => snapshot.id === snapshotId) ?? archive.snapshots[0];
 }
 
-export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
+export function DailyMoverPanel({
+  archive,
+  calibrationReviewStatus = "idle",
+  onCreateCalibrationReview,
+}: DailyMoverPanelProps) {
   const [activeArchive, setActiveArchive] = useState(archive);
   const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const selectedSnapshot = activeArchive.selectedSnapshot ?? activeArchive.latestSnapshot;
@@ -204,6 +243,12 @@ export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
   const guardrail = activeArchive.guardrail || fallbackGuardrail;
+  const calibrationContext = selectedSnapshot
+    ? {
+        observedAt: selectedSnapshot.observedAt,
+        snapshotId: selectedSnapshot.id,
+      }
+    : undefined;
 
   async function selectSnapshot(id: string) {
     if (id === selectedSnapshot?.id || historyStatus === "loading") {
@@ -348,9 +393,15 @@ export function DailyMoverPanel({ archive }: DailyMoverPanelProps) {
             <div className="daily-mover-calibration" aria-label="规则校准候选建议">
               <div className="daily-mover-calibration__head">
                 <h3>规则校准候选</h3>
-                <span>不自动改权重</span>
+                <span>{calibrationReviewStatusLabel(calibrationReviewStatus)}</span>
               </div>
-              {calibrationSuggestions.map(renderCalibrationSuggestion)}
+              {calibrationSuggestions.map((suggestion) => renderCalibrationSuggestion(suggestion, {
+                disabled: calibrationReviewStatus === "saving" || !calibrationContext,
+                onCreate: onCreateCalibrationReview && calibrationContext
+                  ? () => onCreateCalibrationReview(suggestion, calibrationContext)
+                  : undefined,
+                status: calibrationReviewStatus,
+              }))}
             </div>
           ) : null}
 

@@ -1,11 +1,11 @@
 import { BookOpenCheck, ClipboardList, ShieldCheck } from "lucide-react";
-import type { JournalAction, JournalEvent, MarketSignal } from "@/lib/analysis/types";
+import type { JournalEvent, MarketSignal, SignalJournalAction } from "@/lib/analysis/types";
 
 type JournalPanelProps = {
   events: JournalEvent[];
   selected?: MarketSignal;
   status: "idle" | "saving" | "saved" | "error";
-  onCreate: (action: JournalAction) => void;
+  onCreate: (action: SignalJournalAction) => void;
 };
 
 const resultMeta = {
@@ -31,7 +31,7 @@ const statusText = {
 } as const;
 
 const actionButtons: {
-  action: JournalAction;
+  action: SignalJournalAction;
   label: string;
   helper: string;
   Icon: typeof BookOpenCheck;
@@ -188,6 +188,7 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
       <div className="review-list">
         {events.map((event) => {
           const meta = resultMeta[event.result];
+          const isCalibrationReview = event.action === "calibration_review";
 
           return (
             <article className="review-row" key={event.id}>
@@ -200,11 +201,18 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
                   <span>复查 {formatReviewTime(nextReviewAt(event))}</span>
                   <span>{reviewStatusLabel(event.reviewStatus)}</span>
                 </span>
-                <span className="review-row__flags" aria-label={`${event.symbol} 复盘状态`}>
-                  <span className={event.triggerHit ? "is-hit" : ""}>触发 {hitLabel(event.triggerHit)}</span>
-                  <span className={event.invalidationHit ? "is-hit is-bad" : ""}>失效 {hitLabel(event.invalidationHit)}</span>
-                  <span className={event.firstTargetHit ? "is-hit" : ""}>目标1 {hitLabel(event.firstTargetHit)}</span>
-                </span>
+                {isCalibrationReview ? (
+                  <span className="review-row__flags review-row__flags--calibration" aria-label={`${event.symbol} 规则校准复盘状态`}>
+                    <span>校准复核</span>
+                    <span>不改权重</span>
+                  </span>
+                ) : (
+                  <span className="review-row__flags" aria-label={`${event.symbol} 复盘状态`}>
+                    <span className={event.triggerHit ? "is-hit" : ""}>触发 {hitLabel(event.triggerHit)}</span>
+                    <span className={event.invalidationHit ? "is-hit is-bad" : ""}>失效 {hitLabel(event.invalidationHit)}</span>
+                    <span className={event.firstTargetHit ? "is-hit" : ""}>目标1 {hitLabel(event.firstTargetHit)}</span>
+                  </span>
+                )}
                 {(event.lessons?.length ?? 0) > 0 ? (
                   <span className="lesson-tags">
                     {event.lessons?.slice(0, 3).map((lesson) => (

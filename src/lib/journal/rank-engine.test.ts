@@ -54,6 +54,17 @@ test("rankJournalEvent penalizes losses but gives a small review credit for less
   })), -13);
 });
 
+test("rankJournalEvent keeps daily mover calibration reviews score-neutral", () => {
+  assert.equal(rankJournalEvent(entry({
+    action: "calibration_review",
+    id: "daily-mover-calibration",
+    lessons: ["daily_mover_calibration", "review_volume_oi_weight"],
+    outcomeStatus: "pending",
+    result: "watching",
+    reviewStatus: "tracking",
+  })), 0);
+});
+
 test("buildRankProfile converts journal history into tier, progress, and pet state", () => {
   const profile = buildRankProfile([
     entry({

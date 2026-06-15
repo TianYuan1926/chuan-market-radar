@@ -1,8 +1,8 @@
 import type {
-  JournalAction,
   JournalEvent,
   MarketSignal,
   ReviewStatus,
+  SignalJournalAction,
   Timeframe,
 } from "@/lib/analysis/types";
 import { buildReviewSchedule } from "./outcome-tracker";
@@ -19,7 +19,7 @@ const reviewDelayMinutes: Record<Timeframe, number> = {
 };
 
 const actionMeta: Record<
-  JournalAction,
+  SignalJournalAction,
   {
     title: string;
     result: JournalEvent["result"];
@@ -60,7 +60,7 @@ const actionMeta: Record<
 
 export type SignalJournalEntry = JournalEvent & {
   signalId: string;
-  action: JournalAction;
+  action: SignalJournalAction;
   reviewStatus: ReviewStatus;
   timeframe: Timeframe;
   direction: MarketSignal["direction"];
@@ -71,6 +71,32 @@ export type SignalJournalEntry = JournalEvent & {
   thesis: string;
   plannedReviewAt: string;
   lessons: string[];
+};
+
+export type DailyMoverCalibrationJournalInput = {
+  guardrail: string;
+  label: string;
+  observedAt: string;
+  recommendation: string;
+  sampleCount: number;
+  snapshotId: string;
+  symbols: string[];
+  tag: string;
+};
+
+export type DailyMoverCalibrationJournalEntry = JournalEvent & {
+  action: "calibration_review";
+  calibrationTag: string;
+  invalidation: string;
+  lessons: string[];
+  outcomeStatus: "pending";
+  plannedReviewAt: string;
+  reviewStatus: "tracking";
+  source: "daily_mover_calibration";
+  sourceId: string;
+  sampleSymbols: string[];
+  thesis: string;
+  trigger: string;
 };
 
 function pad(value: number) {
@@ -99,9 +125,32 @@ export function plannedReviewAt(updatedAt: string, timeframe: Timeframe) {
   return formatShanghaiIso(new Date(date.getTime() + delay));
 }
 
+function plannedCalibrationReviewAt(observedAt: string) {
+  const date = new Date(observedAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return observedAt;
+  }
+
+  return formatShanghaiIso(new Date(date.getTime() + 24 * 60 * 60 * 1000));
+}
+
+function slugPart(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function compactCalibrationSymbols(symbols: string[]) {
+  return symbols
+    .map((symbol) => symbol.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+    .filter(Boolean);
+}
+
 export function buildJournalEntryFromSignal(
   signal: MarketSignal,
-  action: JournalAction,
+  action: SignalJournalAction,
   options: { createdAt?: string } = {},
 ): SignalJournalEntry {
   const meta = actionMeta[action];
@@ -156,6 +205,45 @@ export function buildJournalEntryFromSignal(
     thesis: signal.summary,
     plannedReviewAt: plannedReviewAt(signal.updatedAt, signal.timeframe),
     ...lifecycleDefaults,
+  };
+}
+
+export function buildJournalEntryFromDailyMoverCalibration(
+  input: DailyMoverCalibrationJournalInput,
+  options: { createdAt?: string } = {},
+): DailyMoverCalibrationJournalEntry {
+  const normalizedSymbols = compactCalibrationSymbols(input.symbols);
+  const primarySymbol = normalizedSymbols[0] ?? "DAILY_MOVER";
+  const compactSymbols = normalizedSymbols
+    .slice(0, 4)
+    .map((symbol) => symbol.replace(/USDT$/u, ""))
+    .join(" / ");
+  const snapshotId = slugPart(input.snapshotId) || "daily-mover";
+  const tag = slugPart(input.tag) || "rule-review";
+
+  return {
+    id: `journal-${snapshotId}-${tag}-calibration`,
+    symbol: primarySymbol,
+    title: "规则校准复盘",
+    result: "watching",
+    note: `规则校准候选：${input.label}。${input.sampleCount} 个样本：${compactSymbols || "待补样本"}。${input.guardrail}`,
+    rankDelta: 0,
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    action: "calibration_review",
+    reviewStatus: "tracking",
+    trigger: "复核样本是否支持规则调整",
+    invalidation: "样本不足、不可学习或无法复现时不调整规则",
+    thesis: input.recommendation,
+    plannedReviewAt: plannedCalibrationReviewAt(input.observedAt),
+    lessons: ["daily_mover_calibration", input.tag, `samples_${input.sampleCount}`],
+    outcomeStatus: "pending",
+    triggerHit: false,
+    invalidationHit: false,
+    firstTargetHit: false,
+    source: "daily_mover_calibration",
+    sourceId: input.snapshotId,
+    calibrationTag: input.tag,
+    sampleSymbols: normalizedSymbols,
   };
 }
 

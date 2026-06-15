@@ -22,11 +22,15 @@ import {
   type AlertEvent,
   type AlertSound,
 } from "@/lib/alerts/alert-policy";
-import type { DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
+import type { DailyMoverCalibrationSuggestion, DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
 import { siteConfig } from "@/lib/config/site";
-import { buildJournalEntryFromSignal, mergeJournalEntry } from "@/lib/journal/journal-entry";
+import {
+  buildJournalEntryFromDailyMoverCalibration,
+  buildJournalEntryFromSignal,
+  mergeJournalEntry,
+} from "@/lib/journal/journal-entry";
 import { buildRankProfile } from "@/lib/journal/rank-engine";
-import type { JournalAction, JournalEvent, Timeframe } from "@/lib/analysis/types";
+import type { JournalEvent, SignalJournalAction, Timeframe } from "@/lib/analysis/types";
 import type { SystemHealthReport } from "@/lib/api/system-health";
 import {
   buildRefreshPlan,
@@ -42,6 +46,7 @@ type RadarWorkspaceProps = {
 };
 
 type RefreshState = "idle" | "syncing" | "updated" | "quiet" | "error";
+type JournalSaveStatus = "idle" | "saving" | "saved" | "error";
 type AudioContextConstructor = typeof AudioContext;
 
 const alertQuietHours = {
@@ -208,7 +213,8 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const [selectedId, setSelectedId] = useState<string | undefined>(signals[0]?.id);
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>(signals[0]?.timeframe ?? "15m");
   const [journalEntries, setJournalEntries] = useState<JournalEvent[]>(journalEvents);
-  const [journalStatus, setJournalStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [journalStatus, setJournalStatus] = useState<JournalSaveStatus>("idle");
+  const [calibrationReviewStatus, setCalibrationReviewStatus] = useState<JournalSaveStatus>("idle");
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>(() =>
     buildCurrentAlertEvents({ health, snapshot })
@@ -446,7 +452,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     }
   }
 
-  async function createJournalEntry(action: JournalAction) {
+  async function createJournalEntry(action: SignalJournalAction) {
     if (!selected) {
       return;
     }
@@ -487,6 +493,63 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
 
       setJournalStatus("saved");
     } catch {
+      setJournalStatus("error");
+    }
+  }
+
+  async function createDailyMoverCalibrationReview(
+    suggestion: DailyMoverCalibrationSuggestion,
+    context: { observedAt: string; snapshotId: string },
+  ) {
+    const calibration = {
+      guardrail: suggestion.guardrail,
+      label: suggestion.label,
+      observedAt: context.observedAt,
+      recommendation: suggestion.recommendation,
+      sampleCount: suggestion.sampleCount,
+      snapshotId: context.snapshotId,
+      symbols: suggestion.symbols,
+      tag: suggestion.tag,
+    };
+    const optimisticEntry = buildJournalEntryFromDailyMoverCalibration(calibration, {
+      createdAt: new Date().toISOString(),
+    });
+
+    setJournalEntries((current) => mergeJournalEntry(current, optimisticEntry));
+    setCalibrationReviewStatus("saving");
+    setJournalStatus("saving");
+
+    try {
+      const response = await fetch("/api/journal", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "calibration_review",
+          calibration,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("daily_mover_calibration_journal_failed");
+      }
+
+      const payload = await response.json() as {
+        entry?: JournalEvent;
+        entries?: JournalEvent[];
+      };
+
+      if (payload.entry) {
+        setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
+      } else if (payload.entries) {
+        setJournalEntries(payload.entries);
+      }
+
+      setCalibrationReviewStatus("saved");
+      setJournalStatus("saved");
+    } catch {
+      setCalibrationReviewStatus("error");
       setJournalStatus("error");
     }
   }
@@ -662,7 +725,11 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             liveGeneratedAt={metadata.generatedAt}
             liveScanId={metadata.id}
           />
-          <DailyMoverPanel archive={dailyMoverArchive} />
+          <DailyMoverPanel
+            archive={dailyMoverArchive}
+            calibrationReviewStatus={calibrationReviewStatus}
+            onCreateCalibrationReview={createDailyMoverCalibrationReview}
+          />
           <StrategyCard selected={selected} />
           <RankPanel profile={rankProfile} />
           <PixelS680 mood={mood} rankProfile={rankProfile} />

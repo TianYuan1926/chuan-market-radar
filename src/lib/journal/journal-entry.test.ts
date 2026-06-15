@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "@/lib/analysis/types";
 import {
+  buildJournalEntryFromDailyMoverCalibration,
   buildJournalEntryFromSignal,
   mergeJournalEntry,
   plannedReviewAt,
@@ -91,6 +92,35 @@ test("buildJournalEntryFromSignal attaches lifecycle checkpoints to tracked sign
   assert.deepEqual(entry.reviewCheckpoints?.map((checkpoint) => checkpoint.id), ["1h", "4h", "24h"]);
   assert.equal(entry.reviewCheckpoints?.[0]?.reviewAt, "2026-06-12T03:15:00.000Z");
   assert.deepEqual(entry.lessons, ["still_tracking"]);
+});
+
+test("buildJournalEntryFromDailyMoverCalibration queues a neutral rule review", () => {
+  const entry = buildJournalEntryFromDailyMoverCalibration({
+    guardrail: "候选建议不能自动改权重，只能进入人工复盘和后续回测。",
+    label: "成交量/OI 权重复核",
+    observedAt: "2026-06-12T10:00:00+08:00",
+    recommendation: "复核成交量/OI 权重是否低估了提前扩张。",
+    sampleCount: 2,
+    snapshotId: "daily-2026-06-12",
+    symbols: ["SUIUSDT", "TIAUSDT"],
+    tag: "review_volume_oi_weight",
+  }, {
+    createdAt: "2026-06-12T10:15:00+08:00",
+  });
+
+  assert.equal(entry.id, "journal-daily-2026-06-12-review-volume-oi-weight-calibration");
+  assert.equal(entry.symbol, "SUIUSDT");
+  assert.equal(entry.action, "calibration_review");
+  assert.equal(entry.result, "watching");
+  assert.equal(entry.rankDelta, 0);
+  assert.equal(entry.reviewStatus, "tracking");
+  assert.equal(entry.outcomeStatus, "pending");
+  assert.equal(entry.plannedReviewAt, "2026-06-13T10:00:00.000+08:00");
+  assert.match(entry.title, /规则校准复盘/);
+  assert.match(entry.note, /2 个样本/);
+  assert.match(entry.note, /不能自动改权重/);
+  assert.match(entry.thesis, /成交量\/OI/);
+  assert.deepEqual(entry.lessons?.slice(0, 2), ["daily_mover_calibration", "review_volume_oi_weight"]);
 });
 
 test("skip decisions are saved as positive discipline instead of failed trades", () => {

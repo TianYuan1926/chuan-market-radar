@@ -90,7 +90,9 @@ export type AiSignalReview = {
   confidenceAdjustment?: number;
 };
 
-export type JournalAction = "track" | "paper_trade" | "skip" | "invalidate";
+export type SignalJournalAction = "track" | "paper_trade" | "skip" | "invalidate";
+
+export type JournalAction = SignalJournalAction | "calibration_review";
 
 export type ReviewStatus = "queued" | "tracking" | "closed";
 
@@ -153,4 +155,8 @@ export type JournalEvent = {
   invalidationHit?: boolean;
   firstTargetHit?: boolean;
   reviewCheckpoints?: ReviewCheckpoint[];
+  source?: "signal" | "daily_mover_calibration";
+  sourceId?: string;
+  calibrationTag?: string;
+  sampleSymbols?: string[];
 };
