@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、K 线缓存填充基础和缓存 K 线验证结果：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、K 线缓存填充基础、缓存 K 线验证结果和 observedAt 事件窗口回测：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -40,10 +40,10 @@
 - K 线缓存持久化：`ohlcv_candle_cache` 保存公开 OHLCV candles、来源、拉取时间、周期和样本边界；repository 支持内存和 Neon 双路径读写。
 - 低频 K 线缓存填充 MVP：`POST /api/admin/daily-movers/klines/fill` 通过 `CRON_SECRET` 保护，默认读取 repository 中的回测计划候选，只拉公开 Binance Futures OHLCV，跳过已有缓存，并受 `KLINE_BACKTEST_DAILY_REQUEST_BUDGET` 和 `KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN` 封顶；该入口不占用 CoinGlass 请求、不自动改权重。
 - 缓存 K 线验证结果：`GET /api/daily-movers` 会输出 `klineBacktestResults`，只读取 bounded `ohlcv_candle_cache`，计算缓存覆盖率、周期涨跌幅、最大冲高、最大回撤和量能变化；该结果不触发外部请求、不新增写入、不自动改权重。
+- observedAt 事件窗口回测：`klineBacktestResults.eventWindowResults` 会按每日异动样本的 `observedAt` 把已缓存 candles 拆成 pre/post 窗口，输出样本方向、pre/post K 线数量、post 回撤/冲高、量能扩张和只读判定；该结果不触发外部请求、不新增写入、不自动改权重。
 
 当前未落地：
 
-- 按每日异动 `observedAt` 对齐的 pre/post K 线窗口回测。
 - 策略版本长周期表现统计、版本回滚边界和更完整的表现趋势。
 - 自动规则权重调整；当前明确不允许自动调整。
 
@@ -86,6 +86,5 @@
 
 ## 下一步
 
-1. 增加按每日异动 `observedAt` 对齐的 pre/post K 线窗口回测，继续保持只读、预算封顶和不自动调权重。
-2. 建立策略版本长周期表现统计和版本回滚规则，但仍保持人工准入。
-3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。
+1. 建立策略版本长周期表现统计和版本回滚规则，但仍保持人工准入。
+2. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

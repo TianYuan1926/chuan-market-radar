@@ -78,6 +78,17 @@ export type DailyMoverKlineBacktestSymbolVerdict =
   | "neutral"
   | "supports_review";
 
+export type DailyMoverKlineEventWindowStatus =
+  | "cache_missing"
+  | "ready"
+  | "window_missing";
+
+export type DailyMoverKlineEventWindowVerdict =
+  | "neutral"
+  | "post_move_confirmed"
+  | "pre_move_evidence"
+  | "window_missing";
+
 export type DailyMoverKlineBacktestIntervalResult = {
   cacheKey: string;
   candleCount: number;
@@ -108,6 +119,28 @@ export type DailyMoverKlineBacktestSymbolResult = {
   allowedUse: "research_only";
 };
 
+export type DailyMoverKlineEventWindowResult = {
+  allowedUse: "research_only";
+  cacheKey: string;
+  canAutoAdjustWeights: false;
+  interval: OhlcvInterval;
+  mode: "observed_at_pre_post_window";
+  observedAt: string;
+  postCandleCount: number;
+  postMaxDrawdownPercent: number;
+  postMaxRunupPercent: number;
+  postReturnPercent: number;
+  preCandleCount: number;
+  preReturnPercent: number;
+  sampleDirection: "gainer" | "loser";
+  sampleId: string;
+  status: DailyMoverKlineEventWindowStatus;
+  symbol: string;
+  tag: string;
+  verdict: DailyMoverKlineEventWindowVerdict;
+  volumeExpansionPercent: number;
+};
+
 export type DailyMoverKlineBacktestCandidateResult = {
   availableCacheKeys: string[];
   cacheCoveragePercent: number;
@@ -129,6 +162,7 @@ export type DailyMoverKlineBacktestResults = {
   cacheCoveragePercent: number;
   canAutoAdjustWeights: false;
   candidateResults: DailyMoverKlineBacktestCandidateResult[];
+  eventWindowResults: DailyMoverKlineEventWindowResult[];
   guardrail: string;
   missingCacheKeys: number;
   mode: "cached_kline_validation";
@@ -149,6 +183,7 @@ export type DailyMoverKlineBacktestPlanOptions = {
 export type DailyMoverKlineBacktestResultsOptions = {
   caches: OhlcvCandleCacheEntry[];
   plan: DailyMoverKlineBacktestPlan;
+  snapshots?: DailyMoverSnapshot[];
 };
 
 const defaultIntervals: OhlcvInterval[] = ["15m", "1h", "4h"];
@@ -363,6 +398,215 @@ function buildSymbolResult({
   };
 }
 
+function timeMs(value: string) {
+  const parsed = new Date(value).getTime();
+
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function candlesInWindow(
+  cache: OhlcvCandleCacheEntry,
+  observedAt: string,
+) {
+  const eventTime = timeMs(observedAt);
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  if (eventTime === null) {
+    return {
+      postCandles: [],
+      preCandles: [],
+    };
+  }
+
+  const preCandles = cache.candles.filter((candle) => {
+    const open = timeMs(candle.openTime);
+
+    return open !== null && open <= eventTime && open >= eventTime - dayMs;
+  });
+  const postCandles = cache.candles.filter((candle) => {
+    const open = timeMs(candle.openTime);
+
+    return open !== null && open > eventTime && open <= eventTime + dayMs;
+  });
+
+  return {
+    postCandles,
+    preCandles,
+  };
+}
+
+function candleWindowReturnPercent(candles: OhlcvCandleCacheEntry["candles"]) {
+  const first = candles[0];
+  const last = candles.at(-1);
+
+  if (!first || !last) {
+    return 0;
+  }
+
+  return percent(last.close - first.open, first.open);
+}
+
+function candleWindowRunupPercent(candles: OhlcvCandleCacheEntry["candles"]) {
+  const first = candles[0];
+
+  if (!first) {
+    return 0;
+  }
+
+  return percent(Math.max(...candles.map((candle) => candle.high)) - first.open, first.open);
+}
+
+function candleWindowDrawdownPercent(candles: OhlcvCandleCacheEntry["candles"]) {
+  const first = candles[0];
+
+  if (!first) {
+    return 0;
+  }
+
+  return percent(Math.min(...candles.map((candle) => candle.low)) - first.open, first.open);
+}
+
+function averageVolume(candles: OhlcvCandleCacheEntry["candles"]) {
+  return average(candles.map((candle) => candle.volume));
+}
+
+function eventWindowVerdict({
+  direction,
+  postReturnPercent,
+  preReturnPercent,
+  status,
+  volumeExpansionPercent,
+}: {
+  direction: "gainer" | "loser";
+  postReturnPercent: number;
+  preReturnPercent: number;
+  status: DailyMoverKlineEventWindowStatus;
+  volumeExpansionPercent: number;
+}): DailyMoverKlineEventWindowVerdict {
+  if (status !== "ready") {
+    return "window_missing";
+  }
+
+  const directionalPostReturn = direction === "loser" ? -postReturnPercent : postReturnPercent;
+  const directionalPreReturn = direction === "loser" ? -preReturnPercent : preReturnPercent;
+
+  if (directionalPostReturn >= 5) {
+    return "post_move_confirmed";
+  }
+
+  if (directionalPreReturn >= 3 || volumeExpansionPercent >= 50) {
+    return "pre_move_evidence";
+  }
+
+  return "neutral";
+}
+
+function candidateWindowReviews(
+  candidatePlan: DailyMoverKlineBacktestCandidatePlan,
+  snapshots: DailyMoverSnapshot[],
+) {
+  return snapshots.flatMap((snapshot) => snapshot.reviews).filter((review) => (
+    candidatePlan.plannedSymbols.includes(review.symbol)
+    && review.radarReview.improvementTags.includes(candidatePlan.tag)
+  ));
+}
+
+function buildEventWindowResult({
+  cache,
+  interval,
+  review,
+  tag,
+}: {
+  cache?: OhlcvCandleCacheEntry;
+  interval: OhlcvInterval;
+  review: DailyMoverSnapshot["reviews"][number];
+  tag: string;
+}): DailyMoverKlineEventWindowResult {
+  const cacheKey = `${review.symbol}:${interval}`;
+
+  if (!cache) {
+    return {
+      allowedUse: "research_only",
+      cacheKey,
+      canAutoAdjustWeights: false,
+      interval,
+      mode: "observed_at_pre_post_window",
+      observedAt: review.observedAt,
+      postCandleCount: 0,
+      postMaxDrawdownPercent: 0,
+      postMaxRunupPercent: 0,
+      postReturnPercent: 0,
+      preCandleCount: 0,
+      preReturnPercent: 0,
+      sampleDirection: review.direction,
+      sampleId: review.id,
+      status: "cache_missing",
+      symbol: review.symbol,
+      tag,
+      verdict: "window_missing",
+      volumeExpansionPercent: 0,
+    };
+  }
+
+  const { postCandles, preCandles } = candlesInWindow(cache, review.observedAt);
+  const status: DailyMoverKlineEventWindowStatus = preCandles.length > 0 && postCandles.length > 0
+    ? "ready"
+    : "window_missing";
+  const preReturnPercent = candleWindowReturnPercent(preCandles);
+  const postReturnPercent = candleWindowReturnPercent(postCandles);
+  const volumeExpansionPercent = percent(averageVolume(postCandles) - averageVolume(preCandles), averageVolume(preCandles));
+  const verdict = eventWindowVerdict({
+    direction: review.direction,
+    postReturnPercent,
+    preReturnPercent,
+    status,
+    volumeExpansionPercent,
+  });
+
+  return {
+    allowedUse: "research_only",
+    cacheKey,
+    canAutoAdjustWeights: false,
+    interval,
+    mode: "observed_at_pre_post_window",
+    observedAt: review.observedAt,
+    postCandleCount: postCandles.length,
+    postMaxDrawdownPercent: candleWindowDrawdownPercent(postCandles),
+    postMaxRunupPercent: candleWindowRunupPercent(postCandles),
+    postReturnPercent,
+    preCandleCount: preCandles.length,
+    preReturnPercent,
+    sampleDirection: review.direction,
+    sampleId: review.id,
+    status,
+    symbol: review.symbol,
+    tag,
+    verdict,
+    volumeExpansionPercent,
+  };
+}
+
+function buildEventWindowResults({
+  cacheByKey,
+  plan,
+  snapshots,
+}: {
+  cacheByKey: Map<string, OhlcvCandleCacheEntry>;
+  plan: DailyMoverKlineBacktestPlan;
+  snapshots: DailyMoverSnapshot[];
+}) {
+  return plan.candidatePlans.flatMap((candidatePlan) => (
+    candidateWindowReviews(candidatePlan, snapshots).flatMap((review) => (
+      candidatePlan.intervals.map((interval) => buildEventWindowResult({
+        cache: cacheByKey.get(`${review.symbol}:${interval}`),
+        interval,
+        review,
+        tag: candidatePlan.tag,
+      }))
+    ))
+  ));
+}
+
 function candidateNextStep(status: DailyMoverKlineBacktestCandidatePlanStatus) {
   if (status === "cache_plan_ready") {
     return "先建立 K 线缓存窗口，再执行离线验证；本计划不触发外部 K 线请求。";
@@ -499,6 +743,7 @@ export function buildDailyMoverKlineBacktestPlan({
 export function buildDailyMoverKlineBacktestResults({
   caches,
   plan,
+  snapshots = [],
 }: DailyMoverKlineBacktestResultsOptions): DailyMoverKlineBacktestResults {
   const cacheByKey = cacheMap(caches);
   const candidateResults = plan.candidatePlans.map((candidatePlan) => {
@@ -533,12 +778,18 @@ export function buildDailyMoverKlineBacktestResults({
   const plannedKeys = candidateResults.flatMap((result) => result.plannedCacheKeys);
   const availableCacheKeys = plannedKeys.filter((key) => cacheByKey.has(key)).length;
   const totalPlannedCacheKeys = plannedKeys.length;
+  const eventWindowResults = buildEventWindowResults({
+    cacheByKey,
+    plan,
+    snapshots,
+  });
 
   return {
     availableCacheKeys,
     cacheCoveragePercent: percent(availableCacheKeys, totalPlannedCacheKeys),
     canAutoAdjustWeights: false,
     candidateResults,
+    eventWindowResults,
     guardrail: "K 线结果只读取已缓存公开行情，用于人工复盘和规则验证，不触发外部请求，不自动改权重。",
     missingCacheKeys: totalPlannedCacheKeys - availableCacheKeys,
     mode: "cached_kline_validation",

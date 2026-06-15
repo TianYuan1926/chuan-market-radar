@@ -976,7 +976,7 @@ test("getDailyMoverReadArchive exposes readonly cached kline backtest results", 
     "daily-movers-kline-results-api-1",
     "2026-06-15T00:17:00.000Z",
     [
-      reviewWithTags("SUIUSDT", "loser", "missed", "watchlist", ["review_volume_oi_weight"]),
+      reviewWithTags("SUIUSDT", "gainer", "missed", "watchlist", ["review_volume_oi_weight"]),
     ],
   ));
 
@@ -1013,6 +1013,14 @@ test("getDailyMoverReadArchive exposes readonly cached kline backtest results", 
     result.body.klineBacktestResults.candidateResults[0]?.symbolResults[0]?.intervalResults[0]?.returnPercent,
     12,
   );
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.mode, "observed_at_pre_post_window");
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.symbol, "SUIUSDT");
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.observedAt, "2026-06-15T00:17:00.000Z");
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.status, "ready");
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.preCandleCount, 1);
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.postCandleCount, 2);
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.verdict, "post_move_confirmed");
+  assert.equal(result.body.klineBacktestResults.eventWindowResults[0]?.canAutoAdjustWeights, false);
 });
 
 test("getDailyMoverReadArchive exposes readonly historical validation results", async () => {

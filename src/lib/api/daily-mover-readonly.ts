@@ -1118,6 +1118,7 @@ export async function getDailyMoverReadArchive({
   const klineBacktestResults = buildDailyMoverKlineBacktestResults({
     caches: ohlcvCaches,
     plan: klineBacktestPlan,
+    snapshots,
   });
   const backtestValidations = buildDailyMoverBacktestValidations(backtestCandidates, snapshots);
   const strategyConfirmations = buildDailyMoverStrategyConfirmations(journalEvents);

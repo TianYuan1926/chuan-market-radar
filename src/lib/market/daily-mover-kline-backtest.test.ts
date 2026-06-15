@@ -83,6 +83,34 @@ function cacheEntry({
   };
 }
 
+function eventWindowCacheEntry(): OhlcvCandleCacheEntry {
+  const rows = [
+    { hour: 0, open: 100, high: 103, low: 99, close: 102, volume: 1000 },
+    { hour: 1, open: 102, high: 107, low: 101, close: 106, volume: 1200 },
+    { hour: 2, open: 106, high: 114, low: 105, close: 112, volume: 1800 },
+    { hour: 3, open: 112, high: 118, low: 110, close: 116, volume: 2200 },
+  ];
+
+  return {
+    allowedUse: "research_only",
+    cacheKey: "SUIUSDT:1h",
+    canAutoAdjustWeights: false,
+    candles: rows.map((row) => ({
+      close: row.close,
+      closeTime: new Date(Date.UTC(2026, 5, 15, row.hour, 59, 0)).toISOString(),
+      high: row.high,
+      low: row.low,
+      open: row.open,
+      openTime: new Date(Date.UTC(2026, 5, 15, row.hour, 0, 0)).toISOString(),
+      volume: row.volume,
+    })),
+    fetchedAt: "2026-06-15T04:00:00.000Z",
+    interval: "1h",
+    source: "test-public-ohlcv",
+    symbol: "SUIUSDT",
+  };
+}
+
 test("buildDailyMoverKlineBacktestPlan creates a cache-first planning boundary without external candle requests", () => {
   const plan = buildDailyMoverKlineBacktestPlan({
     candidates: [candidate({
@@ -217,4 +245,38 @@ test("buildDailyMoverKlineBacktestResults marks missing caches without triggerin
   assert.deepEqual(result.candidateResults[0]?.missingCacheKeys, ["SUIUSDT:1h"]);
   assert.match(result.candidateResults[0]?.nextStep ?? "", /补齐缓存/);
   assert.equal(result.canAutoAdjustWeights, false);
+});
+
+test("buildDailyMoverKlineBacktestResults aligns pre and post windows to the daily mover observedAt", () => {
+  const snapshots = [snapshot(["SUIUSDT"])];
+  const plan = buildDailyMoverKlineBacktestPlan({
+    candidates: [candidate({ symbols: ["SUIUSDT"] })],
+    dailyRequestBudget: 1,
+    intervals: ["1h"],
+    maxSymbolsPerRun: 1,
+    snapshots,
+  });
+
+  const result = buildDailyMoverKlineBacktestResults({
+    caches: [eventWindowCacheEntry()],
+    plan,
+    snapshots,
+  });
+
+  assert.equal(result.eventWindowResults.length, 1);
+  assert.equal(result.eventWindowResults[0]?.mode, "observed_at_pre_post_window");
+  assert.equal(result.eventWindowResults[0]?.sampleId, "review-suiusdt");
+  assert.equal(result.eventWindowResults[0]?.symbol, "SUIUSDT");
+  assert.equal(result.eventWindowResults[0]?.observedAt, "2026-06-15T00:17:00.000Z");
+  assert.equal(result.eventWindowResults[0]?.status, "ready");
+  assert.equal(result.eventWindowResults[0]?.preCandleCount, 1);
+  assert.equal(result.eventWindowResults[0]?.postCandleCount, 3);
+  assert.equal(result.eventWindowResults[0]?.preReturnPercent, 2);
+  assert.equal(result.eventWindowResults[0]?.postReturnPercent, 13.73);
+  assert.equal(result.eventWindowResults[0]?.postMaxRunupPercent, 15.69);
+  assert.equal(result.eventWindowResults[0]?.postMaxDrawdownPercent, -0.98);
+  assert.equal(result.eventWindowResults[0]?.volumeExpansionPercent, 73.33);
+  assert.equal(result.eventWindowResults[0]?.verdict, "post_move_confirmed");
+  assert.equal(result.eventWindowResults[0]?.allowedUse, "research_only");
+  assert.equal(result.eventWindowResults[0]?.canAutoAdjustWeights, false);
 });
