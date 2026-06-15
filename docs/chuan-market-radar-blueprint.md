@@ -84,9 +84,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 | 当前状态 | 还差什么 |
 | --- | --- | --- |
 | 阶段 1：蓝图固化 | 已完成 | 后续每轮继续维护本文，防止上下文压缩造成遗漏 |
-| 阶段 2：真正多周期分析引擎 | 基础已落地 | 真实多周期 OHLCV candles 尚未全量接入每个币种 |
+| 阶段 2：真正多周期分析引擎 | 基础已落地，受限主候选已接入真实多周期 OHLCV profile | 尚未完成前端多周期矩阵、完整指标矩阵和全量候选覆盖 |
 | 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级和 repository hints 基础已落地 | 尚未完成高优先级加密扫描和覆盖差异前端展示 |
-| 阶段 4：OHLCV 与技术指标 | 基础已落地 | 尚未完成多周期指标矩阵、MACD、成交量分布 |
+| 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles | 尚未完成多周期指标矩阵、MACD、成交量分布 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository 已落地 | 尚未接入 UI、扫描归档/复盘日记关联和规则校准建议 |
@@ -185,7 +185,10 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 上游返回 500、网络异常或 payload 异常时，OHLCV provider 返回 typed failure，不抛崩扫描流程。
 - CoinGlass provider 已保留可选 `ohlcvProvider` 接口。
 - 当可选 OHLCV 数据源失败时，CoinGlass 衍生品扫描继续运行，并在信号证据中加入 `OHLCV 数据缺失` 数据质量提示。
-- 当可选 OHLCV 数据源成功时，CoinGlass provider 已能把 `15m` candles 转换为技术指标证据。
+- CoinGlass provider 会对受限主候选低频拉取 `1m/5m/15m/30m/1h/4h/1d/1w` candles，默认最多处理 8 个主候选，避免免费套餐阶段出现公开 K 线请求尖峰。
+- CoinGlass provider 已能把成功获取的多周期 candles 转换成 `timeframeProfile`，并把多周期支持、冲突、缺失角色写入信号证据。
+- 每个周期 OHLCV 获取失败时只记录对应周期缺口，不拖垮 CoinGlass 衍生品扫描；metadata notes 会输出 `ohlcv multi-timeframe` 和 `ohlcv unavailable`，便于线上检查。
+- 当可选 OHLCV 数据源成功时，CoinGlass provider 已能把 candles 转换为技术指标证据；当前指标证据仍以优先周期输出，不等于完整多周期指标矩阵。
 
 ### 已落地：技术指标证据基础
 
@@ -201,7 +204,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 指标证据只进入证据链，不直接触发交易信号。
 - 分析引擎已支持 `indicatorEvidence` 输入。
 - 策略卡会优先展示部分指标证据，方便用户快速看到 K 线侧依据。
-- CoinGlass provider 在可选 OHLCV provider 成功时，会把 `15m` K 线指标写入信号证据。
+- CoinGlass provider 在可选 OHLCV provider 成功时，会把多周期 K 线传入指标证据构建器；当前 `buildTechnicalEvidence()` 会优先选择 `15m/30m/1h/4h/5m/1m/1d/1w` 中样本充足的周期输出基础证据。
 
 ### 已落地：合约 Universe Registry 基础
 
@@ -261,7 +264,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：真正的多周期融合分析
 
-当前已经完成多周期 Profile 基础、分析引擎接入口、公开 OHLCV provider 边界，以及 `15m` 技术指标证据接入。但 CoinGlass provider 还没有把真实 OHLCV 多周期 candles 转换成每个币种的 `1m/5m/15m/30m/1h/4h/1d/1w` profile。后续必须把多周期 OHLCV candles 同时喂给 technical indicators 和 timeframe profile，才能算完整多周期融合。
+当前已经完成多周期 Profile 基础、分析引擎接入口、公开 OHLCV provider 边界，以及受限主候选的 `1m/5m/15m/30m/1h/4h/1d/1w` candles 接入。CoinGlass provider 已能把这些 candles 同时喂给 technical indicators 和 timeframe profile。
+
+但这仍不等于完整多周期融合：当前只覆盖受限主候选，前端还没有完整多周期矩阵，指标层也还没有按每个周期输出完整指标表。后续必须补齐多周期指标矩阵、UI 展示和复盘权重校验，才能算完整专业闭环。
 
 多周期角色必须固定如下：
 
@@ -294,7 +299,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：技术指标引擎
 
-当前已具备基础技术指标计算和 `15m` 指标证据接入，但还不是完整指标引擎。后续必须扩展到多周期 candles，并补齐动能切换、成交量分布和结构确认能力。
+当前已具备基础技术指标计算，并已把受限主候选的多周期 candles 传入指标证据构建器。但当前输出仍是基础 evidence 摘要，不是完整多周期指标矩阵。后续必须补齐动能切换、成交量分布、结构确认能力和 UI 矩阵。
 
 已落地第一批指标：
 
@@ -589,7 +594,7 @@ CoinGlass 业余会员 API：
 
 目标：让系统不是只显示多周期，而是真正用多周期做判断。
 
-当前状态：基础已完成，完整多周期融合未完成。
+当前状态：基础已完成，受限主候选多周期 candles 接入已完成，完整多周期融合未完成。
 
 已具备：
 
@@ -600,8 +605,8 @@ CoinGlass 业余会员 API：
 
 下一步深化：
 
-- CoinGlass provider 或免费 OHLCV provider 需要给每个候选币种拉取完整多周期 candles。
-- 多周期 candles 需要同时进入 technical indicators 和 timeframe profile。
+- 继续把多周期 candles 从受限主候选扩展到更清晰的候选分层策略，不能突破免费套餐请求节奏。
+- 多周期 candles 已同时进入 technical indicators 和 timeframe profile，后续要补齐矩阵展示和复盘权重校验。
 - UI 需要把多周期矩阵做成更紧凑的可视化。
 
 ### 阶段 3：合约 universe registry
@@ -631,7 +636,7 @@ CoinGlass 业余会员 API：
 
 下一步深化：
 
-- 阶段 3 暂时不继续扩请求频率；在 CoinGlass 业余会员、Neon 免费和 Vercel 免费约束下，下一步优先进入阶段 4，把多周期 OHLCV candles 接入每个候选币种，提高信号证据质量。
+- 阶段 3 暂时不继续扩请求频率；在 CoinGlass 业余会员、Neon 免费和 Vercel 免费约束下，已优先进入阶段 4A，把多周期 OHLCV candles 接入受限主候选，提高信号证据质量。后续阶段 3 只在外部 cron 和 outcome executor 更稳定后继续提高动态优先级质量。
 
 ### 阶段 4：OHLCV 与技术指标
 
@@ -640,9 +645,10 @@ CoinGlass 业余会员 API：
 验收：
 
 - 已部分完成：指标来自可选 OHLCV provider 的真实 candles。
+- 已完成：受限主候选会拉取 `1m/5m/15m/30m/1h/4h/1d/1w` candles 并生成 timeframe profile。
 - 已完成：指标进入 evidence layer。
 - 已完成：策略不直接由单指标触发。
-- 未完成：多周期 candles 全量接入。
+- 未完成：多周期指标矩阵和前端矩阵展示。
 - 未完成：MACD 与成交量分布。
 
 ### 阶段 5：AI 反证复核

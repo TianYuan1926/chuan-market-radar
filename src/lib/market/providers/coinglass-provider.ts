@@ -4,9 +4,19 @@ import {
   type MarketAnomalyInput,
 } from "../../analysis/anomaly-engine";
 import { buildTechnicalEvidence } from "../../analysis/technical-indicators";
-import type { EvidencePoint } from "../../analysis/types";
+import {
+  buildTimeframeProfile,
+  type TimeframeProfile,
+  type TimeframeProfileFrame,
+} from "../../analysis/timeframe-profile";
+import type { EvidencePoint, SignalDirection } from "../../analysis/types";
 import { buildContractInstrumentPool } from "../instrument-pool";
-import type { OhlcvProvider, OhlcvProviderFailure } from "../ohlcv/types";
+import type {
+  Candle,
+  OhlcvInterval,
+  OhlcvProvider,
+  OhlcvProviderFailure,
+} from "../ohlcv/types";
 import { buildScanQuotaPlan } from "../scan-quota";
 import {
   buildCoverageReport,
@@ -49,13 +59,14 @@ function anomalyInputFromMarketRow(
   row: CoinGlassMarketRow,
   updatedAt: string,
   marketContext: MarketAnchorContext,
-  ohlcvFailure?: OhlcvProviderFailure,
+  ohlcvFailures?: OhlcvProviderFailure[],
   indicatorEvidence?: EvidencePoint[],
+  timeframeProfile?: TimeframeProfile,
 ): MarketAnomalyInput {
   const ticker = mapCoinGlassTicker(row, updatedAt);
   const derivative = mapCoinGlassDerivativeSnapshot(row, updatedAt);
   const volumeChange = row.volume_usd_change_percent_24h ?? row.volumeUsdChangePercent24h ?? 0;
-  const directionBias = ticker.changePercent24h < -1 ? "short" : ticker.changePercent24h > 1 ? "long" : "neutral";
+  const directionBias = directionBiasFromChange(ticker.changePercent24h);
 
   return {
     id: `coinglass-${ticker.exchange}-${ticker.symbol}`,
@@ -79,10 +90,11 @@ function anomalyInputFromMarketRow(
     targetHints: ["前一流动性区", "大周期供需边界"],
     updatedAt,
     marketContext,
-    dataWarnings: ohlcvFailure
+    timeframeProfile,
+    dataWarnings: ohlcvFailures?.length
       ? [{
         label: "OHLCV 数据缺失",
-        value: `公开 K 线源 ${ohlcvFailure.source} 暂不可用：${ohlcvFailure.reason}。本轮保留 CoinGlass 衍生品扫描，但多周期结构证据需要等待补齐。`,
+        value: `公开 K 线源有 ${ohlcvFailures.length} 个周期暂不可用：${ohlcvFailures.map((failure) => `${failure.interval}/${failure.reason}`).join(", ")}。本轮保留 CoinGlass 衍生品扫描，但缺失周期需要等待补齐。`,
         layer: "data_quality",
         polarity: "neutral",
       }]
@@ -98,6 +110,18 @@ const exchangePriority = {
   COINBASE: 1,
   UNKNOWN: 0,
 } as const;
+
+const multiTimeframeIntervals: OhlcvInterval[] = [
+  "1m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "4h",
+  "1d",
+  "1w",
+];
+const maxOhlcvSymbolsPerScan = 8;
 
 type MarketRowQualityReport = {
   cleanRows: CoinGlassMarketRow[];
@@ -190,6 +214,18 @@ function regimeFromAnchorChange(changePercent: number) {
   return "mixed";
 }
 
+function directionBiasFromChange(changePercent: number): SignalDirection {
+  if (changePercent < -1) {
+    return "short";
+  }
+
+  if (changePercent > 1) {
+    return "long";
+  }
+
+  return "neutral";
+}
+
 function deriveMarketAnchorContext(rows: CoinGlassMarketRow[], updatedAt: string): MarketAnchorContext {
   const tickers = rows.map((row) => mapCoinGlassTicker(row, updatedAt));
   const btc = tickers.find((ticker) => ticker.symbol === "BTCUSDT");
@@ -216,6 +252,64 @@ function deriveMarketAnchorContext(rows: CoinGlassMarketRow[], updatedAt: string
     note: `anchor average ${averageChange.toFixed(2)}%`,
     regime,
   };
+}
+
+function candleChangePercent(candles: Candle[]) {
+  const first = candles[0];
+  const last = candles.at(-1);
+
+  if (!first || !last || first.close <= 0) {
+    return 0;
+  }
+
+  return ((last.close - first.close) / first.close) * 100;
+}
+
+function timeframeAlignment(
+  directionBias: SignalDirection,
+  changePercent: number,
+): TimeframeProfileFrame["alignment"] {
+  if (Math.abs(changePercent) < 0.4 || directionBias === "neutral") {
+    return "neutral";
+  }
+
+  if (directionBias === "long") {
+    return changePercent > 0 ? "support" : "conflict";
+  }
+
+  return changePercent < 0 ? "support" : "conflict";
+}
+
+function timeframeWeight(changePercent: number, candles: Candle[]) {
+  return Math.min(100, Math.max(10, Math.round(Math.abs(changePercent) * 3 + candles.length)));
+}
+
+function buildTimeframeFrames(
+  candlesByTimeframe: Partial<Record<OhlcvInterval, Candle[]>>,
+  directionBias: SignalDirection,
+): TimeframeProfileFrame[] {
+  const frames: TimeframeProfileFrame[] = [];
+
+  for (const timeframe of multiTimeframeIntervals) {
+    const candles = candlesByTimeframe[timeframe] ?? [];
+
+    if (candles.length < 5) {
+      continue;
+    }
+
+    const changePercent = candleChangePercent(candles);
+    const alignment = timeframeAlignment(directionBias, changePercent);
+
+    frames.push({
+      timeframe,
+      alignment,
+      direction: directionBias,
+      note: `${timeframe} close change ${changePercent.toFixed(2)}% -> ${alignment}`,
+      weight: timeframeWeight(changePercent, candles),
+    });
+  }
+
+  return frames;
 }
 
 async function fetchPairsMarkets({
@@ -307,25 +401,50 @@ export function createCoinGlassProvider({
       const tickers = primarySignalRows.map((row) => mapCoinGlassTicker(row, generatedAt));
       const derivatives = primarySignalRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
       const marketContext = deriveMarketAnchorContext(primarySignalRows, generatedAt);
-      const ohlcvFailures = new Map<string, OhlcvProviderFailure>();
+      const ohlcvFailuresBySymbol = new Map<string, OhlcvProviderFailure[]>();
       const indicatorEvidenceBySymbol = new Map<string, EvidencePoint[]>();
+      const timeframeProfileBySymbol = new Map<string, TimeframeProfile>();
+      const ohlcvSummaryNotes: string[] = [];
 
       if (ohlcvProvider) {
-        await Promise.all(primarySignalRows.slice(0, 50).map(async (row) => {
+        await Promise.all(primarySignalRows.slice(0, maxOhlcvSymbolsPerScan).map(async (row) => {
           const ticker = mapCoinGlassTicker(row, generatedAt);
-          const result = await ohlcvProvider.fetchCandles({
-            symbol: ticker.symbol,
-            interval: "15m",
-            limit: 120,
-          });
+          const candlesByTimeframe: Partial<Record<OhlcvInterval, Candle[]>> = {};
+          const failures: OhlcvProviderFailure[] = [];
 
-          if (!result.ok) {
-            ohlcvFailures.set(ticker.symbol, result);
-          } else {
-            indicatorEvidenceBySymbol.set(
-              ticker.symbol,
-              buildTechnicalEvidence({ "15m": result.candles }),
-            );
+          for (const interval of multiTimeframeIntervals) {
+            const result = await ohlcvProvider.fetchCandles({
+              symbol: ticker.symbol,
+              interval,
+              limit: 120,
+            });
+
+            if (!result.ok) {
+              failures.push(result);
+              continue;
+            }
+
+            candlesByTimeframe[interval] = result.candles;
+          }
+
+          const successfulIntervals = Object.keys(candlesByTimeframe).length;
+          ohlcvSummaryNotes.push(
+            `ohlcv multi-timeframe: ${ticker.symbol} ${successfulIntervals}/${multiTimeframeIntervals.length}`,
+          );
+
+          if (failures.length) {
+            ohlcvFailuresBySymbol.set(ticker.symbol, failures);
+          }
+
+          if (successfulIntervals > 0) {
+            const directionBias = directionBiasFromChange(ticker.changePercent24h);
+            const frames = buildTimeframeFrames(candlesByTimeframe, directionBias);
+
+            indicatorEvidenceBySymbol.set(ticker.symbol, buildTechnicalEvidence(candlesByTimeframe));
+
+            if (frames.length) {
+              timeframeProfileBySymbol.set(ticker.symbol, buildTimeframeProfile(frames));
+            }
           }
         }));
       }
@@ -338,8 +457,9 @@ export function createCoinGlassProvider({
             row,
             generatedAt,
             marketContext,
-            ohlcvFailures.get(ticker.symbol),
+            ohlcvFailuresBySymbol.get(ticker.symbol),
             indicatorEvidenceBySymbol.get(ticker.symbol),
+            timeframeProfileBySymbol.get(ticker.symbol),
           );
         }),
       );
@@ -393,8 +513,9 @@ export function createCoinGlassProvider({
           `requests ${batchPlan.requestsPlanned}/${coverage.eligible}, next batch ${batchPlan.nextBatchIndex + 1}`,
           `coverage ${coverage.scanned}/${coverage.eligible} (${coverage.coveragePercent}%), pending ${coverage.pending}, skipped ${coverage.skipped}`,
           `market context: ${marketContext.anchor} ${marketContext.regime}`,
-          ...[...ohlcvFailures.entries()].map(([symbol, failure]) =>
-            `ohlcv unavailable: ${symbol} 15m ${failure.reason}`
+          ...ohlcvSummaryNotes,
+          ...[...ohlcvFailuresBySymbol.entries()].flatMap(([symbol, failures]) =>
+            failures.map((failure) => `ohlcv unavailable: ${symbol} ${failure.interval} ${failure.reason}`)
           ),
         ],
       };

@@ -594,3 +594,56 @@ test("CoinGlass provider feeds successful OHLCV candles into technical indicator
   assert.ok(enaSignal.evidence.some((item) => item.label === "RSI 动能"));
   assert.doesNotMatch(snapshot.metadata.notes.join("\n"), /ohlcv unavailable/);
 });
+
+test("CoinGlass provider feeds multi-timeframe OHLCV candles into timeframe profile", async () => {
+  const requestedCandles: string[] = [];
+  const intervals = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"];
+  const ohlcvProvider: OhlcvProvider = {
+    id: "test-ohlcv",
+    label: "Test OHLCV",
+    async fetchCandles(request) {
+      requestedCandles.push(`${request.symbol}:${request.interval}:${request.limit}`);
+
+      return {
+        ok: true,
+        source: "test-ohlcv",
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: [10, 10.4, 10.9, 11.4, 12, 12.2].map((close, index) => ohlcvCandle(index, close)),
+      };
+    },
+  };
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA"],
+    batchSize: 3,
+    ohlcvProvider,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: symbol === "ENA"
+          ? [coinglassRow("ENA", { volume_usd_change_percent_24h: 140 })]
+          : [],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+  const enaSignal = snapshot.signals.find((signal) => signal.symbol === "ENAUSDT");
+
+  assert.ok(enaSignal?.timeframeProfile);
+  assert.deepEqual(enaSignal.timeframeProfile.frames.map((frame) => frame.timeframe), intervals);
+  assert.equal(enaSignal.timeframeProfile.missingRoles.length, 0);
+  assert.ok(enaSignal.evidence.some((item) => item.label === "多周期结构校验"));
+  assert.ok(enaSignal.evidence.some((item) => item.label === "EMA 结构"));
+  assert.deepEqual(
+    requestedCandles.filter((item) => item.startsWith("ENAUSDT:")),
+    intervals.map((interval) => `ENAUSDT:${interval}:120`),
+  );
+  assert.match(snapshot.metadata.notes.join("\n"), /ohlcv multi-timeframe: ENAUSDT 8\/8/);
+});

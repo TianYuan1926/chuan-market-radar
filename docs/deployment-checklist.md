@@ -91,6 +91,8 @@
 - 当前主扫描会拒绝 UNKNOWN 交易所、非 USDT 或报价字段冲突的 CoinGlass 行，并在 metadata notes 中输出 raw、clean、primary 和过滤原因统计；线上检查时不要只看候选数量，也要看过滤原因是否异常放大。
 - 每日异动归因复盘已有低频抓取写入服务、公开只读 API、受保护写入 API 和 GitHub Actions 外部 cron；写入触发入口是 `POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
+- CoinGlass provider 会对受限主候选拉取 `1m/5m/15m/30m/1h/4h/1d/1w` 公开 K 线，生成 timeframe profile 并补充技术指标证据；当前最多处理 8 个主候选，避免免费阶段请求尖峰。
+- 线上检查 metadata notes 时应能看到 `ohlcv multi-timeframe`；如果部分周期失败，应同时看到对应 `ohlcv unavailable`，但 `/api/scan` 不应因此失败。
 - OHLCV provider 失败时必须降级为信号数据质量提示，不能让 CoinGlass 衍生品扫描崩溃。
 - AI 复核只在服务端执行，浏览器端不会接触 `AI_API_KEY`。
 - AI 复核默认关闭；缺少 `AI_REVIEW_ENABLED=true` 或 `AI_API_KEY` 时，信号会显示 disabled 状态，不会隐藏复核边界。
@@ -111,6 +113,7 @@
 - 请求 `GET /api/admin/deployment/readiness`，带 `Authorization: Bearer <CRON_SECRET>`；返回 `status=preview` 表示可公开预览，返回 `status=ready` 才表示真实行情生产就绪。
 - 首页可以打开且没有控制台错误。
 - `/api/scan` 返回 `ok: true`。
+- `/api/scan` 的 metadata notes 在有 OHLCV provider 时应显示 `ohlcv multi-timeframe`；公开 K 线源异常时应降级为信号证据里的 `OHLCV 数据缺失`，不能把主扫描拖成 500。
 - `/api/archive` 返回 `ok: true`，且 `archive.retention.storage` 与 repository 模式一致；未接真实数据库时应为 `memory`。
 - `/api/journal` 返回 entries。
 - `/api/daily-movers` 返回 `ok: true`；即使暂时没有样本，也必须保持公开只读响应和 `allowedUse: research_only` 边界。
