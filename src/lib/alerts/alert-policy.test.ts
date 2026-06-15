@@ -5,6 +5,7 @@ import type { SystemHealthReport } from "@/lib/api/system-health";
 import {
   buildAlertEvent,
   buildOperationsAlertEvent,
+  mergeAlertEventsById,
   notificationCopyForAlert,
   shouldSuppressAlert,
   soundProfileForSeverity,
@@ -171,6 +172,29 @@ test("shouldSuppressAlert suppresses repeated same-symbol same-state alerts with
 
   assert.equal(shouldSuppressAlert(second, [first], new Date("2026-06-14T10:04:00.000Z")), true);
   assert.equal(shouldSuppressAlert(second, [first], new Date("2026-06-14T10:12:00.000Z")), false);
+});
+
+test("mergeAlertEventsById keeps one stable event per alert id", () => {
+  const first = buildAlertEvent(signal(), {
+    generatedAt: "2026-06-14T10:00:00.000Z",
+    scanId: "scan-1",
+  })!;
+  const duplicate = {
+    ...first,
+    detail: "newer detail",
+    generatedAt: "2026-06-14T10:01:00.000Z",
+  };
+  const other = buildAlertEvent(signal({
+    symbol: "SUIUSDT",
+  }), {
+    generatedAt: "2026-06-14T10:02:00.000Z",
+    scanId: "scan-1",
+  })!;
+
+  const merged = mergeAlertEventsById([duplicate, first, other], 5);
+
+  assert.deepEqual(merged.map((event) => event.id), [duplicate.id, other.id]);
+  assert.equal(merged[0].detail, "newer detail");
 });
 
 test("quiet hours suppress sound but keep alert event copy available", () => {

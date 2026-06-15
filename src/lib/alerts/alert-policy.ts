@@ -38,6 +38,18 @@ export type SoundProfile = {
 
 const defaultDedupeWindowMs = 8 * 60 * 1000;
 
+export function mergeAlertEventsById(events: AlertEvent[], limit = 12) {
+  const eventsById = new Map<string, AlertEvent>();
+
+  for (const event of events) {
+    if (!eventsById.has(event.id)) {
+      eventsById.set(event.id, event);
+    }
+  }
+
+  return Array.from(eventsById.values()).slice(0, limit);
+}
+
 function stripQuote(symbol: string) {
   return symbol.replace(/USDT$/, "");
 }

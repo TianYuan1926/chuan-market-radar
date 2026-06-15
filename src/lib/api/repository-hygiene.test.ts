@@ -125,6 +125,44 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
   }
 });
 
+test("strategy card exposes a compact multi-timeframe indicator matrix", () => {
+  const strategySource = readFileSync(resolve(process.cwd(), "src/components/radar/strategy-card.tsx"), "utf8");
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredLabels = [
+    "指标矩阵",
+    "周期",
+    "EMA",
+    "MACD",
+    "RSI",
+    "POC",
+    "价值区",
+  ];
+  const requiredClasses = [
+    "indicator-matrix",
+    "indicator-frame",
+    "indicator-pill",
+    "volume-node",
+  ];
+
+  for (const label of requiredLabels) {
+    assert.match(strategySource, new RegExp(label));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(strategySource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+});
+
+test("strategy card keeps raw matrix evidence out of the compact evidence list", () => {
+  const strategySource = readFileSync(resolve(process.cwd(), "src/components/radar/strategy-card.tsx"), "utf8");
+
+  assert.match(strategySource, /matrixEvidenceLabels/);
+  assert.match(strategySource, /"多周期指标矩阵"/);
+  assert.match(strategySource, /"成交量分布"/);
+  assert.match(strategySource, /!matrixEvidenceLabels\.has\(item\.label\)/);
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");

@@ -93,6 +93,7 @@
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
 - CoinGlass provider 会对受限主候选拉取 `1m/5m/15m/30m/1h/4h/1d/1w` 公开 K 线，生成 timeframe profile 并补充技术指标证据；当前最多处理 8 个主候选，避免免费阶段请求尖峰。
 - 技术指标证据当前包含 EMA、RSI、ATR、Bollinger、VWAP、Swing、MACD、近似成交量分布和多周期指标矩阵摘要；这些都只进入证据层，不直接触发交易信号。
+- 策略卡存在 `多周期指标矩阵` 证据时，会展示紧凑指标矩阵和 POC/价值区摘要；线上检查时应确认该 UI 只作为证据展示，不把单一指标当作交易触发。
 - 线上检查 metadata notes 时应能看到 `ohlcv multi-timeframe`；如果部分周期失败，应同时看到对应 `ohlcv unavailable`，但 `/api/scan` 不应因此失败。
 - OHLCV provider 失败时必须降级为信号数据质量提示，不能让 CoinGlass 衍生品扫描崩溃。
 - AI 复核只在服务端执行，浏览器端不会接触 `AI_API_KEY`。

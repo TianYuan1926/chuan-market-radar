@@ -115,6 +115,21 @@ const demoAnomalyInputs: MarketAnomalyInput[] = [
     triggerHint: "15m 放量突破后，回踩箱体上沿不破再考虑",
     invalidationHint: "跌回箱体并收在突破位下方",
     targetHints: ["前高流动性区", "4H 供给下沿"],
+    indicatorEvidence: [
+      {
+        label: "多周期指标矩阵",
+        value:
+          "1m EMA bullish/MACD bullish/RSI neutral；5m EMA bullish/MACD bullish/RSI neutral；15m EMA bullish/MACD bullish/RSI neutral；30m EMA bullish/MACD neutral/RSI neutral；1h EMA bullish/MACD neutral/RSI neutral；4h EMA neutral/MACD neutral/RSI neutral；1d EMA neutral/MACD neutral/RSI neutral；1w EMA neutral/MACD neutral/RSI unavailable。矩阵只描述指标一致性，不直接触发交易。",
+        layer: "indicators",
+        polarity: "supportive",
+      },
+      {
+        label: "成交量分布",
+        value: "15m POC 0.67，价值区 0.64-0.70；用于观察支撑阻力，不直接当作买卖点。",
+        layer: "indicators",
+        polarity: "neutral",
+      },
+    ],
     updatedAt: "2026-06-12T10:15:00+08:00",
   },
   {

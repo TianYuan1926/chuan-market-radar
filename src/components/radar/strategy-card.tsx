@@ -4,6 +4,19 @@ type StrategyCardProps = {
   selected?: MarketSignal;
 };
 
+type IndicatorMatrixFrame = {
+  ema: string;
+  macd: string;
+  rsi: string;
+  timeframe: string;
+};
+
+type VolumeNode = {
+  pointOfControl: string;
+  timeframe: string;
+  valueArea: string;
+};
+
 function statusLabel(value?: string) {
   if (!value) {
     return "计划中";
@@ -31,6 +44,64 @@ function statusLabel(value?: string) {
   return statusLabels[value] ?? value.replaceAll("_", " ");
 }
 
+function indicatorStateLabel(value: string) {
+  const labels: Record<string, string> = {
+    bearish: "转弱",
+    bullish: "顺势",
+    neutral: "中性",
+    unavailable: "缺失",
+  };
+
+  return labels[value] ?? value;
+}
+
+function indicatorTone(value: string) {
+  if (value === "bullish") {
+    return "supportive";
+  }
+
+  if (value === "bearish" || value === "overheated" || value === "oversold") {
+    return "conflicting";
+  }
+
+  return "neutral";
+}
+
+function parseIndicatorMatrix(value: string): IndicatorMatrixFrame[] {
+  return value
+    .split("。")[0]
+    .split("；")
+    .map((segment) => {
+      const match = segment.match(/^(\S+)\s+EMA\s+(\w+)\/MACD\s+(\w+)\/RSI\s+(\w+)/);
+
+      if (!match) {
+        return null;
+      }
+
+      return {
+        timeframe: match[1],
+        ema: match[2],
+        macd: match[3],
+        rsi: match[4],
+      };
+    })
+    .filter((item): item is IndicatorMatrixFrame => item !== null);
+}
+
+function parseVolumeNode(value: string): VolumeNode | null {
+  const match = value.match(/^(\S+)\s+POC\s+([\d.]+)，价值区\s+([\d.]+-[\d.]+)/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    timeframe: match[1],
+    pointOfControl: match[2],
+    valueArea: match[3],
+  };
+}
+
 export function StrategyCard({ selected }: StrategyCardProps) {
   if (!selected) {
     return (
@@ -51,10 +122,18 @@ export function StrategyCard({ selected }: StrategyCardProps) {
   const fundingScore = selected.risk === "low" ? 42 : selected.risk === "medium" ? 48 : 68;
   const riskScore = selected.risk === "low" ? 24 : selected.risk === "medium" ? 38 : 72;
   const strategyStatus = statusLabel(selected.strategy.status);
-  const indicatorEvidence = selected.evidence.filter((item) => item.layer === "indicators").slice(0, 3);
+  const matrixEvidenceLabels = new Set(["多周期指标矩阵", "成交量分布"]);
+  const indicatorEvidence = selected.evidence
+    .filter((item) => item.layer === "indicators" && !matrixEvidenceLabels.has(item.label))
+    .slice(0, 3);
+  const indicatorMatrixEvidence = selected.evidence.find((item) => item.label === "多周期指标矩阵");
+  const indicatorMatrix = indicatorMatrixEvidence ? parseIndicatorMatrix(indicatorMatrixEvidence.value).slice(0, 8) : [];
+  const volumeNode = parseVolumeNode(
+    selected.evidence.find((item) => item.label === "成交量分布")?.value ?? "",
+  );
   const visibleEvidence = [
     ...indicatorEvidence,
-    ...selected.evidence.filter((item) => !indicatorEvidence.includes(item)),
+    ...selected.evidence.filter((item) => !indicatorEvidence.includes(item) && !matrixEvidenceLabels.has(item.label)),
   ].slice(0, 6);
   const aiReview = selected.aiReview;
   const aiReviewStatus = statusLabel(aiReview?.status);
@@ -92,6 +171,45 @@ export function StrategyCard({ selected }: StrategyCardProps) {
           </div>
         </div>
       </section>
+
+      {indicatorMatrix.length ? (
+        <section className="module">
+          <div className="module-head">
+            <h2>指标矩阵</h2>
+            <span className="tag">多周期</span>
+          </div>
+          <div className="indicator-matrix" aria-label="多周期指标矩阵">
+            <div className="indicator-frame indicator-frame--head">
+              <span>周期</span>
+              <span>EMA</span>
+              <span>MACD</span>
+              <span>RSI</span>
+            </div>
+            {indicatorMatrix.map((frame) => (
+              <div className="indicator-frame" key={`indicator-${frame.timeframe}`}>
+                <strong className="mono">{frame.timeframe.toUpperCase()}</strong>
+                <span className={`indicator-pill indicator-pill--${indicatorTone(frame.ema)}`}>
+                  {indicatorStateLabel(frame.ema)}
+                </span>
+                <span className={`indicator-pill indicator-pill--${indicatorTone(frame.macd)}`}>
+                  {indicatorStateLabel(frame.macd)}
+                </span>
+                <span className={`indicator-pill indicator-pill--${indicatorTone(frame.rsi)}`}>
+                  {indicatorStateLabel(frame.rsi)}
+                </span>
+              </div>
+            ))}
+            {volumeNode ? (
+              <div className="volume-node">
+                <span>{volumeNode.timeframe.toUpperCase()} POC</span>
+                <strong>{volumeNode.pointOfControl}</strong>
+                <span>价值区</span>
+                <b>{volumeNode.valueArea}</b>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <section className="module">
         <div className="module-head">

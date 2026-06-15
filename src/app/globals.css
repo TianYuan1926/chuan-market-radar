@@ -1021,6 +1021,104 @@ p {
 .bar .bar-amber { background: var(--amber); }
 .bar .bar-red { background: var(--red); }
 
+.indicator-matrix {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.indicator-frame {
+  display: grid;
+  grid-template-columns: 54px repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.indicator-frame:last-child {
+  border-bottom: 0;
+}
+
+.indicator-frame--head {
+  min-height: 32px;
+  color: var(--muted);
+  background: rgba(21, 23, 28, 0.045);
+  font-family: "Fira Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.indicator-frame strong {
+  min-width: 0;
+  font-size: 11px;
+}
+
+.indicator-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 24px;
+  padding: 4px 5px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink-2);
+  background: rgba(255, 250, 240, 0.58);
+  font-size: 11px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indicator-pill--supportive {
+  border-color: rgba(39, 140, 102, 0.36);
+  color: var(--green);
+  background: rgba(39, 140, 102, 0.1);
+}
+
+.indicator-pill--conflicting {
+  border-color: rgba(213, 155, 61, 0.45);
+  color: #8b5c12;
+  background: rgba(213, 155, 61, 0.13);
+}
+
+.indicator-pill--neutral {
+  color: var(--muted);
+}
+
+.volume-node {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-height: 42px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(213, 155, 61, 0.14), transparent 68%),
+    rgba(255, 255, 255, 0.22);
+}
+
+.volume-node span {
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.volume-node strong,
+.volume-node b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .route {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);

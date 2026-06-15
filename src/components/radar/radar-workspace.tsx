@@ -14,6 +14,7 @@ import { signalStateLabels } from "@/lib/analysis/constants";
 import {
   buildAlertEvent,
   buildOperationsAlertEvent,
+  mergeAlertEventsById,
   notificationCopyForAlert,
   shouldSuppressAlert,
   soundProfileForSeverity,
@@ -364,8 +365,8 @@ export function RadarWorkspace({ health, snapshot }: RadarWorkspaceProps) {
         });
 
         if (nextAlertEvents.length > 0) {
-          setAlertEvents((current) => [...nextAlertEvents, ...current].slice(0, 12));
-          alertEventsRef.current = [...nextAlertEvents, ...alertEventsRef.current].slice(0, 24);
+          setAlertEvents((current) => mergeAlertEventsById([...nextAlertEvents, ...current], 12));
+          alertEventsRef.current = mergeAlertEventsById([...nextAlertEvents, ...alertEventsRef.current], 24);
         }
 
         const soundAlert = nextAlertEvents[0];
