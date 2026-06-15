@@ -143,6 +143,27 @@ export type DailyMoverBacktestValidation = {
   canAutoAdjustWeights: false;
 };
 
+export type DailyMoverStrategyDraftStatus =
+  | "blocked"
+  | "manual_review_required"
+  | "needs_more_evidence";
+
+export type DailyMoverStrategyDraft = {
+  id: string;
+  tag: string;
+  label: string;
+  versionLabel: string;
+  sourceMode: "historical_sample_validation";
+  validationVerdict: DailyMoverBacktestValidationVerdict;
+  status: DailyMoverStrategyDraftStatus;
+  manualConfirmation: "required";
+  evidenceSummary: string;
+  limitation: string;
+  nextStep: string;
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+};
+
 export type DailyMoverRetention = {
   storage: PersistenceMode;
   scope: string;
@@ -164,6 +185,7 @@ export type DailyMoverReadArchiveBase = {
   backtestCandidates: DailyMoverBacktestCandidate[];
   backtestValidations: DailyMoverBacktestValidation[];
   calibrationFeedback: DailyMoverCalibrationFeedback[];
+  strategyDrafts: DailyMoverStrategyDraft[];
   latestSnapshot: DailyMoverSnapshot | null;
   calibrationSuggestions: DailyMoverCalibrationSuggestion[];
   selectedSnapshot: DailyMoverSnapshot | null;
@@ -613,6 +635,71 @@ export function buildDailyMoverBacktestValidations(
   });
 }
 
+function strategyDraftStatus(
+  verdict: DailyMoverBacktestValidationVerdict,
+): DailyMoverStrategyDraftStatus {
+  if (verdict === "review_ready") {
+    return "manual_review_required";
+  }
+
+  if (verdict === "blocked") {
+    return "blocked";
+  }
+
+  return "needs_more_evidence";
+}
+
+function strategyDraftNextStep(status: DailyMoverStrategyDraftStatus) {
+  if (status === "manual_review_required") {
+    return "进入策略版本草案；必须人工确认样本边界后才能记录版本，不能自动改权重。";
+  }
+
+  if (status === "blocked") {
+    return "反证优先，暂缓进入策略版本，保留为限制条件。";
+  }
+
+  return "继续补充日记验证和历史样本，暂不进入策略版本。";
+}
+
+function strategyDraftVersionLabel(tag: string) {
+  return `draft-${tag.replace(/^review_/, "").replace(/_/g, "-")}-v1`;
+}
+
+export function buildDailyMoverStrategyDrafts(
+  validations: DailyMoverBacktestValidation[],
+): DailyMoverStrategyDraft[] {
+  const statusOrder: Record<DailyMoverStrategyDraftStatus, number> = {
+    manual_review_required: 0,
+    needs_more_evidence: 1,
+    blocked: 2,
+  };
+
+  return validations
+    .map((validation) => {
+      const status = strategyDraftStatus(validation.verdict);
+
+      return {
+        id: `strategy-${validation.tag}`,
+        tag: validation.tag,
+        label: validation.label,
+        versionLabel: strategyDraftVersionLabel(validation.tag),
+        sourceMode: validation.mode,
+        validationVerdict: validation.verdict,
+        status,
+        manualConfirmation: "required" as const,
+        evidenceSummary: validation.evidenceSummary,
+        limitation: validation.limitation,
+        nextStep: strategyDraftNextStep(status),
+        allowedUse: "research_only" as const,
+        canAutoAdjustWeights: false as const,
+      };
+    })
+    .sort((first, second) => (
+      statusOrder[first.status] - statusOrder[second.status]
+      || first.label.localeCompare(second.label, "zh-CN")
+    ));
+}
+
 function buildSelectedDetails(
   snapshot: DailyMoverSnapshot | null,
   correlation: DailyMoverSnapshotCorrelation | null,
@@ -800,10 +887,11 @@ export async function getDailyMoverReadArchive({
     : null;
   const calibrationFeedback = buildDailyMoverCalibrationFeedback(journalEvents);
   const backtestCandidates = buildDailyMoverBacktestCandidates(calibrationFeedback);
+  const backtestValidations = buildDailyMoverBacktestValidations(backtestCandidates, snapshots);
   const base = {
     allowedUse: "research_only" as const,
     backtestCandidates,
-    backtestValidations: buildDailyMoverBacktestValidations(backtestCandidates, snapshots),
+    backtestValidations,
     calibrationFeedback,
     calibrationSuggestions: buildCalibrationSuggestions(selectedCorrelation),
     guardrail: dailyMoverGuardrail,
@@ -812,6 +900,7 @@ export async function getDailyMoverReadArchive({
     selectedCorrelation,
     selectedDetails: buildSelectedDetails(selectedSnapshot, selectedCorrelation),
     snapshots: snapshots.map(summarizeDailyMoverSnapshot),
+    strategyDrafts: buildDailyMoverStrategyDrafts(backtestValidations),
     correlationRetention,
     retention,
   };

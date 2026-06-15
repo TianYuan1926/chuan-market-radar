@@ -13,6 +13,7 @@ import {
   buildDailyMoverBacktestCandidates,
   buildDailyMoverBacktestValidations,
   buildDailyMoverCalibrationFeedback,
+  buildDailyMoverStrategyDrafts,
   getDailyMoverReadArchive,
   normalizeDailyMoverReadLimit,
 } from "./daily-mover-readonly";
@@ -596,6 +597,65 @@ test("buildDailyMoverBacktestValidations validates candidates against stored his
   assert.equal(validation?.canAutoAdjustWeights, false);
 });
 
+test("buildDailyMoverStrategyDrafts creates manual confirmation drafts without automatic weight changes", () => {
+  const feedback = buildDailyMoverCalibrationFeedback([
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      id: "strategy-draft-ready-1",
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: ["SUIUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      id: "strategy-draft-ready-2",
+      outcomeStatus: "saved",
+      result: "saved",
+      reviewStatus: "closed",
+      sampleSymbols: ["TIAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+    journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      id: "strategy-draft-ready-3",
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: ["ENAUSDT"],
+      source: "daily_mover_calibration",
+    }),
+  ]);
+  const candidates = buildDailyMoverBacktestCandidates(feedback);
+  const validations = buildDailyMoverBacktestValidations(candidates, [
+    snapshotFromReviews("daily-movers-strategy-draft-1", "2026-06-15T00:17:00.000Z", [
+      reviewWithTags("ENAUSDT", "gainer", "caught", "learnable", []),
+      reviewWithTags("SUIUSDT", "loser", "missed", "watchlist", ["review_volume_oi_weight"]),
+    ]),
+  ]);
+  const drafts = buildDailyMoverStrategyDrafts(validations);
+
+  assert.equal(drafts.length, 1);
+
+  const draft = drafts[0];
+
+  assert.equal(draft?.tag, "review_volume_oi_weight");
+  assert.equal(draft?.sourceMode, "historical_sample_validation");
+  assert.equal(draft?.validationVerdict, "review_ready");
+  assert.equal(draft?.status, "manual_review_required");
+  assert.equal(draft?.manualConfirmation, "required");
+  assert.match(draft?.versionLabel ?? "", /draft/);
+  assert.match(draft?.evidenceSummary ?? "", /历史样本/);
+  assert.match(draft?.limitation ?? "", /不是完整 K 线回测/);
+  assert.match(draft?.nextStep ?? "", /人工确认/);
+  assert.equal(draft?.allowedUse, "research_only");
+  assert.equal(draft?.canAutoAdjustWeights, false);
+});
+
 test("getDailyMoverReadArchive exposes calibration feedback from journal events", async () => {
   const repository = createMemoryPersistenceRepository();
   await repository.addDailyMoverSnapshot(snapshot(
@@ -692,6 +752,44 @@ test("getDailyMoverReadArchive exposes readonly historical validation results", 
   assert.equal(result.body.backtestValidations[0]?.allowedUse, "research_only");
   assert.equal(result.body.backtestValidations[0]?.canAutoAdjustWeights, false);
   assert.match(result.body.backtestValidations[0]?.limitation ?? "", /不是完整 K 线回测/);
+});
+
+test("getDailyMoverReadArchive exposes readonly strategy drafts from historical validation", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshotFromReviews(
+    "daily-movers-strategy-api-1",
+    "2026-06-15T00:17:00.000Z",
+    [
+      reviewWithTags("ENAUSDT", "gainer", "caught", "learnable", []),
+      reviewWithTags("SUIUSDT", "loser", "missed", "watchlist", ["review_volume_oi_weight"]),
+    ],
+  ));
+
+  for (const [index, symbol] of ["SUIUSDT", "TIAUSDT", "ENAUSDT"].entries()) {
+    await repository.addJournalEvent(journalEvent({
+      action: "calibration_review",
+      calibrationTag: "review_volume_oi_weight",
+      createdAt: `2026-06-${15 + index}T00:22:00.000Z`,
+      id: `strategy-api-ready-${index + 1}`,
+      outcomeStatus: "partial_win",
+      result: "win",
+      reviewStatus: "closed",
+      sampleSymbols: [symbol],
+      source: "daily_mover_calibration",
+    }));
+  }
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 3 });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.strategyDrafts.length, 1);
+  assert.equal(result.body.strategyDrafts[0]?.tag, "review_volume_oi_weight");
+  assert.equal(result.body.strategyDrafts[0]?.sourceMode, "historical_sample_validation");
+  assert.equal(result.body.strategyDrafts[0]?.status, "manual_review_required");
+  assert.equal(result.body.strategyDrafts[0]?.manualConfirmation, "required");
+  assert.equal(result.body.strategyDrafts[0]?.allowedUse, "research_only");
+  assert.equal(result.body.strategyDrafts[0]?.canAutoAdjustWeights, false);
+  assert.match(result.body.strategyDrafts[0]?.nextStep ?? "", /人工确认/);
 });
 
 test("getDailyMoverReadArchive degrades to an empty archive when daily mover tables are not migrated yet", async () => {

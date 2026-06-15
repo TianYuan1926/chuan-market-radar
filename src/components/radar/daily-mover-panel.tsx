@@ -17,6 +17,7 @@ type DailyMoverCalibrationSuggestion = DailyMoverArchive["calibrationSuggestions
 type DailyMoverCalibrationFeedback = DailyMoverArchive["calibrationFeedback"][number];
 type DailyMoverBacktestCandidate = DailyMoverArchive["backtestCandidates"][number];
 type DailyMoverBacktestValidation = DailyMoverArchive["backtestValidations"][number];
+type DailyMoverStrategyDraft = DailyMoverArchive["strategyDrafts"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 
 type DailyMoverPanelProps = {
@@ -297,6 +298,33 @@ function renderBacktestValidation(validation: DailyMoverBacktestValidation) {
   );
 }
 
+function strategyDraftStatusLabel(value: DailyMoverStrategyDraft["status"]) {
+  return {
+    blocked: "暂缓",
+    manual_review_required: "待确认",
+    needs_more_evidence: "补样本",
+  }[value];
+}
+
+function renderStrategyDraft(draft: DailyMoverStrategyDraft) {
+  return (
+    <article className={`daily-mover-strategy__item daily-mover-strategy__item--${draft.status}`} key={draft.id}>
+      <div>
+        <strong>{draft.label}</strong>
+        <span>{strategyDraftStatusLabel(draft.status)}</span>
+      </div>
+      <div className="daily-mover-strategy__stats" aria-label={`${draft.label} 策略草案统计`}>
+        <span><b>{backtestValidationVerdictLabel(draft.validationVerdict)}</b>验证</span>
+        <span><b>人工</b>确认</span>
+        <span><b>禁止</b>调权</span>
+        <span><b>只读</b>草案</span>
+      </div>
+      <p>{draft.nextStep}</p>
+      <small>{draft.versionLabel} · {draft.evidenceSummary} · {draft.limitation || historicalValidationBoundary}</small>
+    </article>
+  );
+}
+
 function selectedSummary(
   archive: DailyMoverArchive,
   snapshotId: string | undefined,
@@ -323,6 +351,7 @@ export function DailyMoverPanel({
   const calibrationSuggestions = activeArchive.calibrationSuggestions.slice(0, 3);
   const backtestCandidates = activeArchive.backtestCandidates.slice(0, 3);
   const backtestValidations = activeArchive.backtestValidations.slice(0, 3);
+  const strategyDrafts = activeArchive.strategyDrafts.slice(0, 3);
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
   const guardrail = activeArchive.guardrail || fallbackGuardrail;
@@ -515,6 +544,16 @@ export function DailyMoverPanel({
                 <span>只读验证</span>
               </div>
               {backtestValidations.map(renderBacktestValidation)}
+            </div>
+          ) : null}
+
+          {strategyDrafts.length > 0 ? (
+            <div className="daily-mover-strategy" aria-label="策略版本草案">
+              <div className="daily-mover-strategy__head">
+                <h3>策略草案</h3>
+                <span>人工确认</span>
+              </div>
+              {strategyDrafts.map(renderStrategyDraft)}
             </div>
           ) : null}
 
