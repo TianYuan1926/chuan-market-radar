@@ -492,3 +492,172 @@ test("buildSystemHealthReport segments outcome sample quality without enabling a
     validatedEvents: 2,
   });
 });
+
+test("buildSystemHealthReport exposes the read-only calibration flow through manual confirmation and rollback", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  const baseEvent = {
+    note: "样本复盘。",
+    rankDelta: 0,
+    result: "watching" as const,
+    reviewStatus: "closed" as const,
+    title: "生命周期复盘",
+  };
+
+  for (let index = 0; index < 8; index += 1) {
+    await repository.addJournalEvent({
+      ...baseEvent,
+      id: `flow-valid-${index}`,
+      signalId: `flow-valid-plan-${index}`,
+      symbol: `FLOWVALID${index}USDT`,
+      createdAt: `2026-06-12T10:0${index}:00.000Z`,
+      outcomeStatus: index % 2 === 0 ? "partial_win" : "saved",
+      result: index % 2 === 0 ? "win" : "saved",
+    });
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    await repository.addJournalEvent({
+      ...baseEvent,
+      id: `flow-counter-${index}`,
+      signalId: `flow-counter-plan-${index}`,
+      symbol: `FLOWCOUNTER${index}USDT`,
+      createdAt: `2026-06-12T10:1${index}:00.000Z`,
+      outcomeStatus: index % 2 === 0 ? "loss" : "expired",
+      result: index % 2 === 0 ? "loss" : "watching",
+    });
+  }
+
+  await repository.addJournalEvent({
+    action: "calibration_review",
+    allowedUse: "research_only",
+    calibrationTag: "review_volume_oi_weight",
+    canAutoAdjustWeights: false,
+    createdAt: "2026-06-12T10:30:00.000Z",
+    id: "flow-calibration-pending",
+    note: "规则校准复盘样本。",
+    outcomeStatus: "pending",
+    rankDelta: 0,
+    result: "watching",
+    reviewStatus: "tracking",
+    source: "daily_mover_calibration",
+    symbol: "SUIUSDT",
+    title: "规则校准复盘",
+  });
+  await repository.addJournalEvent({
+    action: "strategy_confirmation",
+    allowedUse: "research_only",
+    calibrationTag: "review_volume_oi_weight",
+    canAutoAdjustWeights: false,
+    createdAt: "2026-06-12T11:00:00.000Z",
+    id: "flow-strategy-confirmation",
+    note: "人工确认策略版本。",
+    rankDelta: 0,
+    result: "watching",
+    reviewStatus: "closed",
+    source: "strategy_version_confirmation",
+    strategyDraftId: "strategy-review_volume_oi_weight",
+    strategyTag: "review_volume_oi_weight",
+    strategyVersionLabel: "draft-volume-oi-weight-v1",
+    symbol: "STRATEGY",
+    title: "策略版本人工确认",
+  });
+
+  for (let index = 0; index < 3; index += 1) {
+    await repository.addJournalEvent({
+      action: "calibration_review",
+      allowedUse: "research_only",
+      calibrationTag: "review_volume_oi_weight",
+      canAutoAdjustWeights: false,
+      createdAt: `2026-06-12T1${index + 2}:00:00.000Z`,
+      id: `flow-calibration-loss-${index}`,
+      note: "确认后反证样本。",
+      outcomeStatus: "loss",
+      rankDelta: 0,
+      result: "loss",
+      reviewStatus: "closed",
+      source: "daily_mover_calibration",
+      symbol: `LOSS${index}USDT`,
+      title: "规则校准复盘",
+    });
+  }
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T15:10:00.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.equal(report.outcomes.calibrationFlow.status, "rollback_watch");
+  assert.equal(report.outcomes.calibrationFlow.admissionStatus, "ready");
+  assert.equal(report.outcomes.calibrationFlow.sampleGateReady, true);
+  assert.equal(report.outcomes.calibrationFlow.manualConfirmationEvents, 1);
+  assert.equal(report.outcomes.calibrationFlow.calibrationReviewEvents, 4);
+  assert.equal(report.outcomes.calibrationFlow.pendingCalibrationReviews, 1);
+  assert.equal(report.outcomes.calibrationFlow.rollbackWatchVersions, 1);
+  assert.equal(report.outcomes.calibrationFlow.canAutoAdjustWeights, false);
+  assert.match(report.outcomes.calibrationFlow.nextStep, /回滚观察/);
+});
+
+test("buildSystemHealthReport exposes manual calibration admission for outcome samples", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  const baseEvent = {
+    note: "样本复盘。",
+    rankDelta: 0,
+    result: "watching" as const,
+    reviewStatus: "closed" as const,
+    title: "生命周期复盘",
+  };
+
+  for (let index = 0; index < 8; index += 1) {
+    await repository.addJournalEvent({
+      ...baseEvent,
+      id: `journal-valid-${index}`,
+      signalId: `valid-plan-${index}`,
+      symbol: `VALID${index}USDT`,
+      createdAt: `2026-06-12T10:0${index}:00.000Z`,
+      outcomeStatus: index % 2 === 0 ? "partial_win" : "saved",
+      result: index % 2 === 0 ? "win" : "saved",
+    });
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    await repository.addJournalEvent({
+      ...baseEvent,
+      id: `journal-counter-${index}`,
+      signalId: `counter-plan-${index}`,
+      symbol: `COUNTER${index}USDT`,
+      createdAt: `2026-06-12T10:1${index}:00.000Z`,
+      outcomeStatus: index % 2 === 0 ? "loss" : "expired",
+      result: index % 2 === 0 ? "loss" : "watching",
+    });
+  }
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T11:10:00.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.deepEqual(report.outcomes.calibrationAdmission, {
+    allowedUse: "research_only",
+    autoWeightEligible: false,
+    blockers: [],
+    canAutoAdjustWeights: false,
+    closedEvents: 12,
+    counterEvidenceEvents: 4,
+    expiredEvents: 2,
+    failedEvents: 2,
+    guardrail: "outcome 样本准入只服务人工校准和回滚复核，不能自动改权重。",
+    manualCalibrationReady: true,
+    mode: "manual_calibration_gate",
+    nextStep: "样本达到人工校准准入门槛，可以进入人工校准和回滚边界复核，不能自动改权重。",
+    pendingEvents: 0,
+    readinessScore: 100,
+    sampleCount: 12,
+    status: "ready",
+    validationRatePercent: 67,
+    validatedEvents: 8,
+  });
+});

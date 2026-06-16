@@ -1,4 +1,12 @@
 import type { JournalEvent, OutcomeExecutorRunSummary } from "../analysis/types";
+import {
+  buildOutcomeCalibrationFlow,
+  type OutcomeCalibrationFlow,
+} from "../journal/outcome-calibration-flow";
+import {
+  buildOutcomeCalibrationAdmission,
+  type OutcomeCalibrationAdmission,
+} from "../journal/outcome-sample-admission";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import type {
@@ -83,6 +91,8 @@ export type SystemHealthReport = {
   outcomes: {
     allowedUse: "research_only";
     canAutoAdjustWeights: false;
+    calibrationAdmission: OutcomeCalibrationAdmission;
+    calibrationFlow: OutcomeCalibrationFlow;
     closedEvents: number;
     coveragePercent: number;
     dueEvents: number;
@@ -521,6 +531,8 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
     latestRunAt: lastRun?.ranAt ?? null,
     latestOutcomeAt: latestClosedOutcomeAt(outcomeEvents),
     lastRun,
+    calibrationAdmission: buildOutcomeCalibrationAdmission(outcomeEvents),
+    calibrationFlow: buildOutcomeCalibrationFlow(events),
     mode: "outcome_executor_mvp",
     operatorHint: outcomeOperatorHint(status, lastRun),
     pendingEvents: pendingEvents.length,

@@ -261,6 +261,8 @@ export function buildJournalEntryFromDailyMoverCalibration(
     rankDelta: 0,
     createdAt: options.createdAt ?? new Date().toISOString(),
     action: "calibration_review",
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
     reviewStatus: "tracking",
     trigger: "复核样本是否支持规则调整",
     invalidation: "样本不足、不可学习或无法复现时不调整规则",

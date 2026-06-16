@@ -88,7 +88,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级和 repository hints 基础已落地 | 尚未完成高优先级加密扫描和覆盖差异前端展示 |
 | 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示和基础指标/周期权重校准 | 尚未完成完整回测权重校准、交互式多周期图表和更专业的成交量分布模型 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
-| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情和样本质量分层健康面板展示已落地 | 尚未完成手动校准前的样本准入规则、完整策略权重回测校准和自动调权准入 |
+| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛和只读校准流健康面板展示已落地 | 尚未完成完整策略权重回测校准、自动调权准入、样本细节钻取和更精细的阈值/阻断项校准 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测和 outcome executor 复盘写回基础已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、回滚准入和人工确认流程更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未有 Telegram/Webhook、持久化告警历史、多设备推送 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
@@ -377,9 +377,11 @@ AI 复核必须遵守：
 - `POST /api/admin/outcomes/run` 已通过 `CRON_SECRET` 保护；`.github/workflows/chuan-outcome-executor.yml` 会每小时低频触发该入口，并从已有 `CHUAN_SCAN_URL` 推导 outcome executor URL，适配 Vercel 免费套餐不能依赖高频内置 Cron 的边界，也避免新增 GitHub secret。
 - outcome executor 使用公开 OHLCV provider，不占用 CoinGlass 请求预算；输出保持 `allowedUse: "research_only"` 和 `canAutoAdjustWeights: false`。
 - outcome executor 已具备基础重复执行保护：同一 signal 只要已经存在 closed lifecycle outcome，旧 tracking entry 不会再次触发公开 K 线请求。
-- 系统健康报告和系统状态面板已展示自动复盘基础状态：覆盖率、待复查数、到期数、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层和研究用途边界。
+- 系统健康报告和系统状态面板已展示自动复盘基础状态：覆盖率、待复查数、到期数、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流和研究用途边界。
 - outcome executor 每次运行会写入一条 `outcome_executor_run` journal 审计事件，记录扫描数、到期数、写回数、跳过数、失败数、拉取 K 线数量、失败摘要和跳过原因分层；该事件不参与 XP、tracking 计数或自动调权。
 - 日记面板已能把 `outcome_executor_run` 展示为只读执行批次，显示扫描、到期、写回、跳过、失败、K 线数量和跳过原因，不把它包装成交易复盘。
+- outcome 样本准入基础已落地：系统会把已关闭 outcome 样本按有效、反证、过期和待复查计数，输出 `ready / collecting / blocked` 准入状态、准入分、阻断项和下一步建议；该输出只服务人工校准和回滚复核，`canAutoAdjustWeights` 固定为 `false`。
+- outcome 只读校准流基础已落地：`buildOutcomeCalibrationFlow()` 会从现有 `journal_events` 汇总样本准入、`calibration_review`、`strategy_confirmation` 和确认后回滚观察，输出 `collecting_samples / awaiting_manual_confirmation / confirmed_observation / rollback_watch / blocked`，健康面板显示校准流、人工确认、回滚观察和待校准数量；该输出只用于人工确认和回滚边界，不写策略权重。
 - 规则调整已有基础函数：
   - 有效标签进入 promote。
   - 重复失败标签进入 demote。
@@ -387,8 +389,8 @@ AI 复核必须遵守：
 
 后续需要：
 
-- 扩大 outcome 样本质量分层，形成手动校准前的样本准入规则。
-- 把有效/反证/过期样本接入更严格的人工校准前筛选，让它服务规则复核而不是自动调权。
+- 继续细化准入阈值、阻断项和确认后样本细节，但不能绕过人工确认直接自动调权。
+- 继续补齐样本钻取、策略版本长周期回测和权重变更回滚方案。
 - 阈值校准：
   - 哪些因子经常误报就降权。
   - 哪些因子连续有效就升权。
@@ -694,7 +696,7 @@ CoinGlass 业余会员 API：
 
 目标：自动追踪信号结果，并让系统从复盘中校准。
 
-当前状态：生命周期、评分基础、outcome executor MVP、健康面板基础状态展示和复盘面板执行批次展示已完成；执行器已能低频读取待复查 journal、拉公开 OHLCV、写回复盘结果，系统状态和复盘面板已能显示最近执行批次、失败摘要、跳过原因分层和样本质量分层，但还不是完整自动调权系统。
+当前状态：生命周期、评分基础、outcome executor MVP、健康面板基础状态展示和复盘面板执行批次展示已完成；执行器已能低频读取待复查 journal、拉公开 OHLCV、写回复盘结果，系统状态和复盘面板已能显示最近执行批次、失败摘要、跳过原因分层、样本质量分层、手动校准准入门槛和只读校准流，但还不是完整自动调权系统。
 
 已具备：
 
@@ -706,16 +708,18 @@ CoinGlass 业余会员 API：
 - `POST /api/admin/outcomes/run` 已受 `CRON_SECRET` 保护。
 - `.github/workflows/chuan-outcome-executor.yml` 已支持每小时外部低频触发，并复用已有 `CHUAN_SCAN_URL` 推导 outcome executor URL，不需要新增 GitHub secret。
 - 已关闭 lifecycle outcome 会阻止同一旧 tracking entry 重复触发公开 K 线请求。
-- 系统健康报告和系统状态面板已展示 outcome 覆盖率、待复查样本、到期样本、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要和样本质量分层。
+- 系统健康报告和系统状态面板已展示 outcome 覆盖率、待复查样本、到期样本、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛和只读校准流。
 - outcome executor 已把 `not_due`、`closed_duplicate`、`missing_signal_context`、`ohlcv_unavailable` 和 `outcome_pending` 汇总成跳过原因分层。
 - 日记面板已展示 outcome executor 执行批次详情和跳过原因，且保持“只读审计 / 不改权重”。
+- outcome 样本准入门槛已落地：`buildOutcomeCalibrationAdmission()` 会输出 `manual_calibration_gate`，按已关闭样本量、有效率、反证占比和亏损聚集判断 `ready / collecting / blocked`，并在健康面板显示准入门槛、准入分、阻断项和“不改权重”。
+- outcome 只读校准流已落地：`buildOutcomeCalibrationFlow()` 会把样本准入、人工确认、确认后样本和回滚观察串成健康摘要，状态只用于人工校准和回滚复核，`canAutoAdjustWeights` 固定为 `false`。
 - outcome executor 运行审计事件保持 `research_only`，不参与段位 XP、tracking 计数或自动调权。
 - 规则调整已有 promote、demote、experiment 基础函数。
 
 下一步深化：
 
-- 继续扩大 outcome 样本质量分层，形成手动校准前的样本准入规则。
-- 把样本准入、人工确认和回滚边界串成更清楚的只读校准流程。
+- 继续细化准入阈值、阻断项和确认后样本细节，让它服务规则复核而不是自动调权。
+- 补齐样本钻取、策略版本长周期回测和权重变更回滚方案。
 - 反复误报的规则必须进入降权、隔离或删除流程。
 
 ### 阶段 7：告警系统

@@ -73,6 +73,24 @@ function outcomeQualityLabel(value: SystemHealthReport["outcomes"]["sampleQualit
   }[value];
 }
 
+function outcomeAdmissionLabel(value: SystemHealthReport["outcomes"]["calibrationAdmission"]["status"]) {
+  return {
+    blocked: "阻断",
+    collecting: "收集",
+    ready: "可人工校准",
+  }[value];
+}
+
+function outcomeFlowLabel(value: SystemHealthReport["outcomes"]["calibrationFlow"]["status"]) {
+  return {
+    awaiting_manual_confirmation: "待确认",
+    blocked: "阻断",
+    collecting_samples: "待校准",
+    confirmed_observation: "观察",
+    rollback_watch: "回滚观察",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -132,6 +150,8 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
   ].filter((note): note is string => Boolean(note));
   const outcomeRun = health.outcomes.lastRun;
   const outcomeFailureReasons = outcomeRun?.failureReasons ?? [];
+  const outcomeAdmission = health.outcomes.calibrationAdmission;
+  const outcomeFlow = health.outcomes.calibrationFlow;
 
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
@@ -281,6 +301,52 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
                 <Clock3 size={14} strokeWidth={2.2} />
                 <b>{health.outcomes.sampleQuality.expiredEvents}</b>
                 过期
+              </span>
+            </div>
+
+            <div className="health-op-matrix health-outcome-admission" aria-label="自动复盘准入门槛">
+              <span>
+                <Activity size={14} strokeWidth={2.2} />
+                <b>{outcomeAdmissionLabel(outcomeAdmission.status)}</b>
+                准入门槛
+              </span>
+              <span>
+                <Archive size={14} strokeWidth={2.2} />
+                <b>{outcomeAdmission.readinessScore}</b>
+                准入分
+              </span>
+              <span>
+                <TimerReset size={14} strokeWidth={2.2} />
+                <b>{outcomeAdmission.blockers.length}</b>
+                阻断项
+              </span>
+              <span>
+                <Clock3 size={14} strokeWidth={2.2} />
+                <b>{outcomeAdmission.canAutoAdjustWeights ? "待确认" : "不改权重"}</b>
+                人工校准
+              </span>
+            </div>
+
+            <div className="health-op-matrix health-outcome-flow" aria-label="自动复盘校准流">
+              <span>
+                <Activity size={14} strokeWidth={2.2} />
+                <b>{outcomeFlowLabel(outcomeFlow.status)}</b>
+                校准流
+              </span>
+              <span>
+                <Archive size={14} strokeWidth={2.2} />
+                <b>{outcomeFlow.manualConfirmationEvents}</b>
+                人工确认
+              </span>
+              <span>
+                <TimerReset size={14} strokeWidth={2.2} />
+                <b>{outcomeFlow.rollbackWatchVersions}</b>
+                回滚观察
+              </span>
+              <span>
+                <Clock3 size={14} strokeWidth={2.2} />
+                <b>{outcomeFlow.pendingCalibrationReviews}</b>
+                待校准
               </span>
             </div>
 

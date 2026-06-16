@@ -336,12 +336,23 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /跳过/);
   assert.match(componentSource, /失败/);
   assert.match(componentSource, /样本质量/);
+  assert.match(componentSource, /准入门槛/);
+  assert.match(componentSource, /准入分/);
+  assert.match(componentSource, /人工校准/);
+  assert.match(componentSource, /校准流/);
+  assert.match(componentSource, /人工确认/);
+  assert.match(componentSource, /回滚观察/);
+  assert.match(componentSource, /待校准/);
+  assert.match(componentSource, /阻断项/);
+  assert.match(componentSource, /不改权重/);
   assert.match(componentSource, /有效/);
   assert.match(componentSource, /反证/);
   assert.match(componentSource, /过期/);
   assert.match(componentSource, /health-outcomes/);
   assert.match(componentSource, /health-outcome-run/);
   assert.match(componentSource, /health-outcome-quality/);
+  assert.match(componentSource, /health-outcome-admission/);
+  assert.match(componentSource, /health-outcome-flow/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {

@@ -113,6 +113,8 @@ test("buildJournalEntryFromDailyMoverCalibration queues a neutral rule review", 
   assert.equal(entry.id, "journal-daily-2026-06-12-review-volume-oi-weight-calibration");
   assert.equal(entry.symbol, "SUIUSDT");
   assert.equal(entry.action, "calibration_review");
+  assert.equal(entry.allowedUse, "research_only");
+  assert.equal(entry.canAutoAdjustWeights, false);
   assert.equal(entry.result, "watching");
   assert.equal(entry.rankDelta, 0);
   assert.equal(entry.reviewStatus, "tracking");
