@@ -14,6 +14,7 @@
 - `POST /api/admin/daily-movers/ingest` 通过 `CRON_SECRET` 授权后低频抓取每日异动并写入 repository
 - `POST /api/admin/outcomes/run` 通过 `CRON_SECRET` 授权后低频执行生命周期复盘写回
 - `POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 授权后保存人工权重变更审批账本，不写真实规则权重
+- `GET /api/health` 会派生只读影子策略权重层，展示人工审批后的当前/建议权重差异，但不影响真实扫描、评分或策略权重
 - `.github/workflows/chuan-daily-movers.yml` 使用 GitHub Actions 每日低频触发每日异动抓取
 - `src/lib/persistence/persistence-contract.ts` 提供 Postgres 持久化表结构与数据映射骨架
 - `src/lib/persistence/persistence-store.ts` 提供内存/数据库仓储切换层
@@ -93,6 +94,7 @@
 - 当前主扫描会拒绝 UNKNOWN 交易所、非 USDT 或报价字段冲突的 CoinGlass 行，并在 metadata notes 中输出 raw、clean、primary 和过滤原因统计；线上检查时不要只看候选数量，也要看过滤原因是否异常放大。
 - 每日异动归因复盘已有低频抓取写入服务、公开只读 API、受保护写入 API 和 GitHub Actions 外部 cron；写入触发入口是 `POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 人工权重变更执行记录入口是 `POST /api/admin/strategy-weights/executions/record`，必须带 `Authorization: Bearer <CRON_SECRET>`；该入口只写 `journal_events` 审批账本，不新增表、不触发 CoinGlass 请求、不自动调整规则权重。
+- 影子策略权重层只从已审批的 `strategy_weight_change_execution` journal 事件派生 `baseWeights`、`shadowWeights` 和 `diffs`；它不新增环境变量、不新增 Neon 表、不触发 CoinGlass 或公开 K 线请求，且 `canAffectLiveSignals` 固定为 `false`。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
 - CoinGlass provider 会对受限主候选拉取 `1m/5m/15m/30m/1h/4h/1d/1w` 公开 K 线，生成 timeframe profile 并补充技术指标证据；当前最多处理 8 个主候选，避免免费阶段请求尖峰。
 - 技术指标证据当前包含 EMA、RSI、ATR、Bollinger、VWAP、Swing、MACD、近似成交量分布和多周期指标矩阵摘要；这些都只进入证据层，不直接触发交易信号。
@@ -125,6 +127,7 @@
 - `/api/daily-movers` 返回 `ok: true`；即使暂时没有样本，也必须保持公开只读响应和 `allowedUse: research_only` 边界。
 - `/api/health` 返回 `ok: true`，且 `health.level` 能准确反映 `ready`、`preview`、`degraded` 或 `blocked`。
 - 系统状态面板的人工权重变更执行记录入口必须显示“只保存记录/不可写权重”边界；没有可审计候选时表单保持禁用。
+- 系统状态面板的影子权重必须显示“当前权重/建议权重/差异”和“不影响实盘判断”边界；没有审批记录时应处于 collecting，不应显示成真实调权已生效。
 - 数据库上线前，先在目标 Postgres 执行 `buildPersistenceSchemaSql()` 生成的 SQL，并确认当前持久化表、主键和索引存在。
 - 如果不用 Neon SQL Editor 手动建表，可以请求 `POST /api/admin/persistence/migrate`；请求必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 数据库上线前，确认服务端已传入真实 `SqlClient`，不能只填 `DATABASE_URL` 就认为已经持久化。

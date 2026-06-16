@@ -57,14 +57,14 @@ git diff --check
 
 **Steps:**
 
-- [ ] Add failing tests for a shadow report that reads `strategy_weight_change_execution` journal events and outputs `baseWeights`, `shadowWeights`, `diffs`, `status`, `guardrail`, and `canAffectLiveSignals: false`.
-- [ ] Implement `buildStrategyWeightShadowReport()` with no persistence and no real strategy mutation.
-- [ ] Add health report integration under `health.outcomes.strategyWeightShadow`.
-- [ ] Add health panel UI: "影子权重", "当前权重", "建议权重", "差异", "不影响实盘判断".
-- [ ] Verify empty state: no execution records -> collecting, no scary broken UI.
-- [ ] Verify approved/increase/decrease/quarantine records change only shadow output.
-- [ ] Update blueprint and module docs.
-- [ ] Run full verification.
+- [x] Add failing tests for a shadow report that reads `strategy_weight_change_execution` journal events and outputs `baseWeights`, `shadowWeights`, `diffs`, `status`, `guardrail`, and `canAffectLiveSignals: false`.
+- [x] Implement `buildStrategyWeightShadowReport()` with no persistence and no real strategy mutation.
+- [x] Add health report integration under `health.outcomes.strategyWeightShadow`.
+- [x] Add health panel UI: "影子权重", "当前权重", "建议权重", "差异", "不影响实盘判断".
+- [x] Verify empty state: no execution records -> collecting, no scary broken UI.
+- [x] Verify approved/increase/decrease/quarantine records change only shadow output.
+- [x] Update blueprint and module docs.
+- [x] Run full verification.
 
 **Acceptance:**
 

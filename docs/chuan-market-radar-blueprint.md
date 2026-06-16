@@ -209,12 +209,12 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 | 当前状态 | 还差什么 |
 | --- | --- | --- |
 | 阶段 1：蓝图固化 | 已完成 | 后续每轮继续维护本文，防止上下文压缩造成遗漏 |
-| 阶段 2：真正多周期分析引擎 | 基础已落地，受限主候选已接入真实多周期 OHLCV profile、指标矩阵摘要、基础指标/周期校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口和只读 registry | 尚未完成真实权重生效、交互式多周期图表和全量候选覆盖 |
+| 阶段 2：真正多周期分析引擎 | 基础已落地，受限主候选已接入真实多周期 OHLCV profile、指标矩阵摘要、基础指标/周期校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层 | 尚未完成真实权重生效、交互式多周期图表和全量候选覆盖 |
 | 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级和 repository hints 基础已落地 | 尚未完成高优先级加密扫描和覆盖差异前端展示 |
-| 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示、基础指标/周期权重校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口和只读 registry | 尚未完成真实权重生效、交互式多周期图表和更专业的成交量分布模型 |
+| 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示、基础指标/周期权重校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层 | 尚未完成真实权重生效、交互式多周期图表和更专业的成交量分布模型 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
-| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口和只读 registry 健康面板展示已落地 | 尚未完成自动调权准入、真实权重生效和真实回滚验证 |
-| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口和只读 registry 已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重生效和真实回滚验证更成熟 |
+| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层健康面板展示已落地 | 尚未完成自动调权准入、影子表现评估、真实权重生效和真实回滚验证 |
+| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、影子表现评估、真实权重生效和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未完成站内告警历史持久化、可配置静默时段、可配置告警等级阈值和提示音细节 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
 
@@ -509,6 +509,7 @@ AI 复核必须遵守：
 - outcome 只读校准流基础已落地：`buildOutcomeCalibrationFlow()` 会从现有 `journal_events` 汇总样本准入、`calibration_review`、`strategy_confirmation` 和确认后回滚观察，输出 `collecting_samples / awaiting_manual_confirmation / confirmed_observation / rollback_watch / blocked`，健康面板显示校准流、人工确认、回滚观察、待校准数量、阻断解释、样本分布、最近样本明细、阈值层和人工回滚计划；该输出只用于人工确认和回滚边界，不写策略权重。
 - 只读策略权重回测校准 MVP 已落地：`buildStrategyWeightCalibrationReport()` 会从现有 `journal_events` 的 `calibration_review` 和 `strategy_confirmation` 汇总人工候选，输出升权候选、降权候选、隔离候选和继续观察候选；系统健康面板展示候选分布和明细，但 `allowedUse` 固定为 `research_only`，`canAutoAdjustWeights` 固定为 `false`。
 - 只读策略权重变更审计 MVP 已落地：`buildStrategyWeightChangeAuditReport()` 会从策略权重回测校准候选生成只读人工审计包，区分可审计、需回滚验证、样本不足、待确认和隔离阻断；系统健康面板展示审计候选、可审计、需回滚和阻断审计数量，但 `allowedUse` 固定为 `research_only`，`canAutoAdjustWeights` 和 `canExecuteWeightChange` 固定为 `false`，不执行真实权重变更。
+- 影子策略权重层已落地：`buildStrategyWeightShadowReport()` 从已审批的 `strategy_weight_change_execution` journal 事件生成当前权重、建议影子权重和差异，只读展示在系统健康面板；`allowedUse` 固定为 `research_only`，`canAutoAdjustWeights` 和 `canAffectLiveSignals` 固定为 `false`，不影响真实扫描、真实评分或真实策略权重。
 - 人工权重变更执行记录写入入口和只读 registry 已落地：`POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 保护，允许在系统健康面板用管理密钥把人工审批状态、版本标签、回滚触发器和观察窗口写入 `strategy_weight_change_execution` journal 事件；`buildStrategyWeightChangeExecutionReport()` 会把这些记录汇总到 `/api/health`，系统健康面板展示执行记录、已记录、待审批、回滚/阻断和不可写权重边界。该层只保存审计账本，`canAutoAdjustWeights`、`canExecuteWeightChange` 和 `canWriteRuleWeights` 固定为 `false`，不让记录自动生效到规则权重。
 - 规则调整已有基础函数：
   - 有效标签进入 promote。
@@ -824,7 +825,7 @@ CoinGlass 业余会员 API：
 
 目标：自动追踪信号结果，并让系统从复盘中校准。
 
-当前状态：生命周期、评分基础、outcome executor MVP、健康面板基础状态展示和复盘面板执行批次展示已完成；执行器已能低频读取待复查 journal、拉公开 OHLCV、写回复盘结果，系统状态和复盘面板已能显示最近执行批次、失败摘要、跳过原因分层、样本质量分层、手动校准准入门槛、只读校准流、阈值层、人工回滚计划、策略权重回测候选、只读权重变更审计、人工执行记录写入入口和 registry，但还不是完整自动调权系统。
+当前状态：生命周期、评分基础、outcome executor MVP、健康面板基础状态展示和复盘面板执行批次展示已完成；执行器已能低频读取待复查 journal、拉公开 OHLCV、写回复盘结果，系统状态和复盘面板已能显示最近执行批次、失败摘要、跳过原因分层、样本质量分层、手动校准准入门槛、只读校准流、阈值层、人工回滚计划、策略权重回测候选、只读权重变更审计、人工执行记录写入入口、registry 和影子权重差异，但还不是完整自动调权系统。
 
 已具备：
 
@@ -836,7 +837,7 @@ CoinGlass 业余会员 API：
 - `POST /api/admin/outcomes/run` 已受 `CRON_SECRET` 保护。
 - `.github/workflows/chuan-outcome-executor.yml` 已支持每小时外部低频触发，并复用已有 `CHUAN_SCAN_URL` 推导 outcome executor URL，不需要新增 GitHub secret。
 - 已关闭 lifecycle outcome 会阻止同一旧 tracking entry 重复触发公开 K 线请求。
-- 系统健康报告和系统状态面板已展示 outcome 覆盖率、待复查样本、到期样本、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、策略权重回测候选、权重变更审计和人工执行记录入口。
+- 系统健康报告和系统状态面板已展示 outcome 覆盖率、待复查样本、到期样本、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、策略权重回测候选、权重变更审计、人工执行记录入口和影子权重差异。
 - outcome executor 已把 `not_due`、`closed_duplicate`、`missing_signal_context`、`ohlcv_unavailable` 和 `outcome_pending` 汇总成跳过原因分层。
 - 日记面板已展示 outcome executor 执行批次详情和跳过原因，且保持“只读审计 / 不改权重”。
 - outcome 样本准入门槛已落地：`buildOutcomeCalibrationAdmission()` 会输出 `manual_calibration_gate`，按已关闭样本量、有效率、反证占比和亏损聚集判断 `ready / collecting / blocked`，并在健康面板显示准入门槛、准入分、阻断项和“不改权重”。
@@ -844,12 +845,13 @@ CoinGlass 业余会员 API：
 - 只读策略权重回测校准 MVP 已落地：`buildStrategyWeightCalibrationReport()` 会按校准 tag 汇总已关闭样本、有效率、反证率和人工确认版本，输出升权、降权、隔离和继续观察候选；健康面板只读展示候选分布与明细，不写策略权重。
 - 只读策略权重变更审计 MVP 已落地：`buildStrategyWeightChangeAuditReport()` 会把权重回测候选转成只读人工审计包和回滚验证要求；健康面板展示审计候选、可审计、需回滚和阻断审计，并明确 `canExecuteWeightChange` 为 `false`。
 - 人工权重变更执行记录写入入口和 registry 已落地：`POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 保护，系统健康面板可用管理密钥把审批状态、版本标签、回滚触发器和观察窗口写入 `strategy_weight_change_execution` journal 事件；`buildStrategyWeightChangeExecutionReport()` 汇总这些记录并展示审批状态和不可写权重，但不写策略权重。
+- 影子策略权重层已落地：`buildStrategyWeightShadowReport()` 从已审批的人工执行记录生成 `baseWeights`、`shadowWeights` 和 `diffs`，系统健康面板展示“影子权重 / 当前权重 / 建议权重 / 差异 / 不影响实盘判断”；该层只读、不新增表、不新增外部请求、不改变真实扫描或策略权重。
 - outcome executor 运行审计事件保持 `research_only`，不参与段位 XP、tracking 计数或自动调权。
 - 规则调整已有 promote、demote、experiment 基础函数。
 
 下一步深化：
 
-- 继续把策略版本阈值画像、权重回测候选、权重变更审计和执行记录 registry 接入更长期、更大样本的回测校准，让它服务规则复核而不是自动调权。
+- 继续把影子权重差异接入更长期、更大样本的表现评估和回滚验证，让它服务规则复核而不是自动调权。
 - 补齐真实权重生效隔离层和回滚验证方案；人工执行记录入口只保存审批账本，不能直接改变规则权重。
 - 反复误报的规则必须进入降权、隔离或删除流程。
 

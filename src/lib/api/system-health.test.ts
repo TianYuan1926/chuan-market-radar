@@ -784,4 +784,14 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
   assert.equal(report.outcomes.strategyWeightChangeExecution.items[0]?.executionStatus, "approved_recorded");
   assert.equal(report.outcomes.strategyWeightChangeExecution.items[0]?.approvalBy, "chuan");
   assert.match(report.outcomes.strategyWeightChangeExecution.guardrail, /不写入规则权重/);
+  assert.equal(report.outcomes.strategyWeightShadow.mode, "strategy_weight_shadow_readonly_mvp");
+  assert.equal(report.outcomes.strategyWeightShadow.allowedUse, "research_only");
+  assert.equal(report.outcomes.strategyWeightShadow.canAutoAdjustWeights, false);
+  assert.equal(report.outcomes.strategyWeightShadow.canAffectLiveSignals, false);
+  assert.equal(report.outcomes.strategyWeightShadow.status, "shadow_ready");
+  assert.equal(report.outcomes.strategyWeightShadow.approvedRecordCount, 1);
+  assert.equal(report.outcomes.strategyWeightShadow.baseWeights[0]?.weight, 100);
+  assert.equal(report.outcomes.strategyWeightShadow.shadowWeights[0]?.weight, 110);
+  assert.equal(report.outcomes.strategyWeightShadow.diffs[0]?.delta, 10);
+  assert.match(report.outcomes.strategyWeightShadow.guardrail, /不影响真实扫描/);
 });

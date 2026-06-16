@@ -222,6 +222,25 @@ function strategyWeightExecutionItemStatusLabel(
   }[value];
 }
 
+function strategyWeightShadowStatusLabel(value: SystemHealthReport["outcomes"]["strategyWeightShadow"]["status"]) {
+  return {
+    blocked: "隔离观察",
+    collecting: "收集",
+    rollback_watch: "回滚观察",
+    shadow_ready: "可观察",
+  }[value];
+}
+
+function strategyWeightShadowDirectionLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightShadow"]["diffs"][number]["direction"],
+) {
+  return {
+    decrease: "降权影子",
+    increase: "升权影子",
+    quarantine: "隔离影子",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -273,6 +292,10 @@ function formatPercent(value: number) {
   return `${value}%`;
 }
 
+function formatSignedValue(value: number) {
+  return value > 0 ? `+${value}` : `${value}`;
+}
+
 function defaultStrategyWeightExecutionForm(): StrategyWeightExecutionFormState {
   return {
     adminToken: "",
@@ -319,6 +342,8 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const strategyWeightAuditItems = strategyWeightChangeAudit.items.slice(0, 3);
   const strategyWeightChangeExecution = health.outcomes.strategyWeightChangeExecution;
   const strategyWeightExecutionItems = strategyWeightChangeExecution.items.slice(0, 3);
+  const strategyWeightShadow = health.outcomes.strategyWeightShadow;
+  const strategyWeightShadowDiffs = strategyWeightShadow.diffs.slice(0, 3);
   const strategyWeightExecutionFormItems = useMemo(
     () => strategyWeightChangeExecution.items
       .filter((item) => item.proposedDirection !== "none")
@@ -866,6 +891,57 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               </form>
 
               <p>{strategyWeightChangeExecution.nextStep}</p>
+            </div>
+
+            <div
+              className={`health-outcome-shadow health-outcome-shadow--${strategyWeightShadow.status}`}
+              aria-label="策略权重影子层"
+            >
+              <div className="health-outcome-shadow__head">
+                <div>
+                  <span className="mono">影子权重</span>
+                  <strong>{strategyWeightShadowStatusLabel(strategyWeightShadow.status)}</strong>
+                </div>
+                <b>不影响实盘判断</b>
+              </div>
+
+              <div className="health-outcome-shadow__grid" aria-label="策略权重影子摘要">
+                <span>
+                  <b>{strategyWeightShadow.approvedRecordCount}</b>
+                  已审批
+                </span>
+                <span>
+                  <b>{strategyWeightShadow.ignoredRecordCount}</b>
+                  忽略记录
+                </span>
+                <span>
+                  <b>{strategyWeightShadow.baseWeights.length}</b>
+                  当前权重
+                </span>
+                <span>
+                  <b>{strategyWeightShadow.shadowWeights.length}</b>
+                  建议权重
+                </span>
+              </div>
+
+              {strategyWeightShadowDiffs.length > 0 ? (
+                <div className="health-outcome-shadow__diffs" aria-label="策略权重影子差异">
+                  {strategyWeightShadowDiffs.map((diff) => (
+                    <span
+                      className={`health-outcome-shadow__diff health-outcome-shadow__diff--${diff.direction}`}
+                      key={diff.tag}
+                    >
+                      <b>{diff.label}</b>
+                      <em>{strategyWeightShadowDirectionLabel(diff.direction)}</em>
+                      <small>
+                        当前权重 {diff.baseWeight} / 建议权重 {diff.shadowWeight} / 差异 {formatSignedValue(diff.delta)}
+                      </small>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <p>{strategyWeightShadow.nextStep}</p>
             </div>
 
             {outcomeBlockers.length > 0 ? (
