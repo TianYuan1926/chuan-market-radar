@@ -12,12 +12,13 @@
 
 ## Current Position
 
-The project is currently at the end of the stage 6 deepening path:
+The project is currently in a product/UI route rebaseline before the next frontend rebuild:
 
 - Blueprint and long-term principles are solidified.
-- CoinGlass, Neon, scan archive, daily movers, journal, rank, alert basics, OHLCV cache, outcome executor, readonly calibration, audit, and protected manual execution ledger exist.
-- Manual execution ledger can be written through `POST /api/admin/strategy-weights/executions/record`, but it cannot change real strategy weights.
-- The next correct build target is not automatic weight adjustment. The next target is a shadow-only weight isolation layer.
+- CoinGlass, Neon, scan archive, daily movers, journal, rank, alert basics, OHLCV cache, outcome executor, readonly calibration, audit, protected manual execution ledger, shadow weights, shadow evaluation, activation gate, scan budget dashboard, signal dossier, and the first living-radar UI pass exist.
+- The user rejected the current surface as too paper-like, too static, and not visually strong enough. The next correct target is not another small polish pass.
+- The new frontend route is a Tailwind CSS + daisyUI radar control-center rebuild with a Live Navbar / Banner, one Cockpit Card, desktop columns at 2:6:2, a short boot/briefing layer, session clock, and visible runtime feedback.
+- Altcoins and new listings remain the primary opportunity target. BTC/ETH/ETF/CoinGlass macro data becomes the market weather layer, not a replacement for the altcoin opportunity board.
 
 ## Build Rules For Every Stage
 
@@ -37,6 +38,189 @@ git diff --check
 
 - [ ] For frontend stages, use Product Design first, then verify desktop and mobile with Browser screenshots and overflow checks.
 - [ ] User handles GitHub Desktop commit and push. End every stage with a suggested Summary line.
+
+---
+
+## Phase 0: Rebaseline Product And UI Direction
+
+**Purpose:** Lock the new design and build route before touching the frontend shell, so the UI rebuild does not drift into another small cosmetic patch.
+
+**Files likely involved:**
+
+- Modify: `docs/chuan-market-radar-blueprint.md`
+- Modify: `docs/superpowers/plans/2026-06-16-chuan-market-radar-next-build-flow.md`
+- Modify: `src/lib/api/repository-hygiene.test.ts`
+
+**Steps:**
+
+- [x] Add a repository hygiene test that requires the blueprint and build plan to mention the new radar control-center route.
+- [x] Record the new constraints: Tailwind CSS + daisyUI, Live Navbar / Banner, Cockpit Card, left / center / right = 2 : 6 : 2, 雷达之眼 / Crystal Lens, no background music, boot/briefing, session clock, and runtime feedback.
+- [x] Reorder the build flow around UI shell, runtime layer, altcoin board, and macro radar before deeper character/cosmetic work.
+- [x] Run full verification.
+
+**Acceptance:**
+
+- The blueprint is the fact source for the redesigned UI route.
+- The build plan tells the next worker exactly what to build next.
+- Future UI work cannot silently fall back to the old paper-like layout.
+
+**GitHub Desktop Summary:**
+
+```text
+Rebaseline radar UI roadmap
+```
+
+---
+
+## Phase 8.2b: Rebuild UI Shell With Tailwind And DaisyUI
+
+**Purpose:** Rebuild radar UI shell from the current paper-like page into a high-density living radar control center while preserving existing data contracts.
+
+**Files likely involved:**
+
+- Modify: `package.json` / lockfile if daisyUI is added.
+- Modify: `tailwind.config.*` or create one if the project does not already have a complete Tailwind setup.
+- Modify: `src/app/globals.css`
+- Modify: `src/components/radar/radar-workspace.tsx`
+- Modify: `src/components/radar/*` only where layout extraction is required.
+- Add asset under `public/` only if the 雷达之眼 / Crystal Lens source image is committed or recreated as a web-safe asset.
+
+**Steps:**
+
+- [ ] Use Product Design brief as the frontend design source.
+- [ ] Inspect current styles, Tailwind setup, component boundaries, and responsive pain points.
+- [ ] Add daisyUI only if it fits the existing Tailwind/Next.js build without increasing fragility.
+- [ ] Build the top Live Navbar / Banner with "川", scan heartbeat, freshness, countdown, market session, and health badges.
+- [ ] Replace the scattered page feel with one Cockpit Card.
+- [ ] Implement desktop layout: left / center / right = 2 : 6 : 2.
+- [ ] Implement mobile layout: stacked sections with the opportunity board first, then selected signal, then system/macro/supporting panels.
+- [ ] Fix current desktop text clipping around the candidate pool.
+- [ ] Keep existing APIs and business logic unchanged in this phase.
+- [ ] Browser-check desktop and mobile for overflow, text clipping, and readable density.
+- [ ] Run full verification.
+
+**Acceptance:**
+
+- The first screen clearly feels like a radar control center, not a static document.
+- The system visibly communicates that scans are running or stale.
+- The layout has one coherent shell and no broken/overlapping text.
+- The shell still uses existing scan, health, journal, replay, alert, and dossier data.
+
+**GitHub Desktop Summary:**
+
+```text
+Rebuild radar UI shell
+```
+
+---
+
+## Phase 8.2c: Live Radar Runtime Layer
+
+**Purpose:** Add the movement and operational feedback that makes the site feel alive without turning it into decorative noise.
+
+**Files likely involved:**
+
+- Create or modify: `src/lib/time/market-session.ts`
+- Create or modify: `src/components/radar/market-session-clock.tsx`
+- Modify: `src/components/radar/radar-workspace.tsx`
+- Modify: `src/components/radar/event-center-panel.tsx`
+- Modify: `src/app/globals.css`
+- Modify: `src/lib/api/repository-hygiene.test.ts`
+
+**Steps:**
+
+- [ ] Add a short, skippable startup animation / intro briefing.
+- [ ] Add market-session clock: Asia, London, New York, overlap, weekend/low-liquidity notes.
+- [ ] Add scan heartbeat, next-scan countdown, stale-data dimming, and event stream movement.
+- [ ] Add runtime badges for provider, database, archive, budget, and cron freshness.
+- [ ] Respect `prefers-reduced-motion`.
+- [ ] Keep background music deleted; this phase does not add music.
+- [ ] Browser-check desktop/mobile motion, layout stability, and reduced-motion fallback.
+- [ ] Run full verification.
+
+**Acceptance:**
+
+- The user can tell whether the site is operating, stale, degraded, or waiting for the next scan.
+- Motion maps to actual state changes.
+- The runtime layer does not hide market evidence.
+
+**GitHub Desktop Summary:**
+
+```text
+Add live radar runtime layer
+```
+
+---
+
+## Phase 3.8: Altcoin Opportunity Board
+
+**Purpose:** Make altcoins and new listings the primary decision surface, because the product goal is early long/short opportunity detection in high-upside contract names.
+
+**Files likely involved:**
+
+- Create: `src/lib/market/altcoin-opportunity-board.ts`
+- Create: `src/lib/market/altcoin-opportunity-board.test.ts`
+- Create or modify: `src/components/radar/altcoin-opportunity-board.tsx`
+- Modify: `src/lib/api/scan-response.ts` or related mappers if needed.
+- Modify: `src/components/radar/radar-workspace.tsx`
+- Modify: `docs/chuan-market-radar-blueprint.md`
+
+**Steps:**
+
+- [ ] Derive board groups from existing scan, universe, daily mover, alert, and journal data before adding new external requests.
+- [ ] Group opportunities: long warming, short warming, overextended/no chase, new/long-tail watch, and data-insufficient watch.
+- [ ] Show why each symbol is on the board: trigger gap, OI/funding/liquidation/volume evidence, BTC/ETH environment, scan tier, and stale state.
+- [ ] Add action links into Signal Dossier and TradingView.
+- [ ] Keep board labels conditional and evidence-backed, not buy/sell orders.
+- [ ] Add tests for grouping, stale handling, and no-FOMO labels.
+- [ ] Run full verification.
+
+**Acceptance:**
+
+- The homepage answers "which altcoins should I pay attention to now and why".
+- New/long-tail assets can be watched without pretending data quality is equal to BTC/ETH.
+- The board reuses existing data and does not spike CoinGlass usage.
+
+**GitHub Desktop Summary:**
+
+```text
+Add altcoin opportunity board
+```
+
+---
+
+## Phase 3.9: BTC ETH Macro Radar
+
+**Purpose:** Add BTC/ETH and CoinGlass-supported macro context as market weather that changes opportunity confidence, timing, and risk.
+
+**Files likely involved:**
+
+- Create: `src/lib/market/macro-radar.ts`
+- Create: `src/lib/market/macro-radar.test.ts`
+- Create or modify: `src/components/radar/macro-radar-panel.tsx`
+- Modify: `src/lib/analysis/*` only if a read-only environment score already exists and can be safely extended.
+- Modify: `docs/chuan-market-radar-blueprint.md`
+
+**Steps:**
+
+- [ ] Use existing BTC/ETH anchors, funding/OI/liquidation fields, scan metadata, and cached OHLCV first.
+- [ ] Add ETF-related fields only after probing the actual CoinGlass Hobbyist endpoint with the configured key and documenting availability.
+- [ ] Output regimes: tailwind, headwind, chop, leverage crowded, deleveraging, volatility expansion, and data unknown.
+- [ ] Feed macro status into UI ordering/explanations first; do not silently mutate strategy weights in this phase.
+- [ ] Add tests for regime classification and unknown-data fallback.
+- [ ] Run full verification.
+
+**Acceptance:**
+
+- BTC/ETH context is visible and useful without burying the altcoin opportunity board.
+- Unknown or unavailable ETF data is shown as unavailable, not guessed.
+- Macro context explains risk and timing rather than becoming a direct signal.
+
+**GitHub Desktop Summary:**
+
+```text
+Add BTC ETH macro radar
+```
 
 ---
 
@@ -411,7 +595,7 @@ Add gated production AI review
 
 ---
 
-## Phase 3.8: Gradual Market Coverage Expansion
+## Phase 3.10: Gradual Market Coverage Expansion
 
 **Purpose:** Move toward full-market scanning without pretending amateur CoinGlass can do high-frequency full coverage.
 
@@ -480,23 +664,25 @@ Update build roadmap status
 
 ## Recommended Execution Order
 
-1. Phase 6.13 shadow strategy weight layer.
-2. Phase 6.14 shadow outcome evaluation and rollback validation.
-3. Phase 3.7 scan coverage and CoinGlass budget dashboard.
-4. Phase 2.8 / 4.8 signal dossier foundation.
-5. Phase 8.2 living radar UI second pass.
-6. Phase 8.3 pixel male copilot replacement.
-7. Phase 7.2 in-site alerts, sound, and DIY settings.
-8. Phase 4.9 professional data visualization.
+1. Phase 0: Rebaseline Product And UI Direction.
+2. Phase 8.2b: Rebuild UI Shell With Tailwind And DaisyUI.
+3. Phase 8.2c: Live Radar Runtime Layer.
+4. Phase 3.8: Altcoin Opportunity Board.
+5. Phase 3.9: BTC ETH Macro Radar.
+6. Phase 4.9 professional data visualization.
+7. Phase 8.3 pixel male copilot replacement.
+8. Phase 7.2 in-site alerts, sound, and DIY settings.
 9. Phase 5.2 production AI review, gated.
-10. Phase 3.8 gradual market coverage expansion.
+10. Phase 3.10 gradual market coverage expansion.
 11. Phase 9 operations and replanning after every phase.
 
 ## Why This Order
 
-- The first two phases protect the self-improvement loop from becoming unsafe auto-tuning.
-- The budget dashboard comes before aggressive coverage expansion because the user needs visibility into the CoinGlass amateur limit.
-- Signal dossier comes before the big UI polish because the product needs one fused interaction model before making it beautiful.
-- Pixel copilot comes after the dossier because it should open and react to the selected signal context.
+- Phase 0 prevents roadmap drift before a large UI rebuild.
+- The UI shell comes before new visual features because the current pain is the whole page feeling like a static document.
+- The runtime layer comes immediately after the shell because the user needs to see the system operating, not just read static values.
+- The altcoin board comes before macro and character work because the core objective is early altcoin long/short opportunity discovery.
+- BTC/ETH macro comes next as a risk/weather layer that improves timing and confidence without replacing the altcoin focus.
+- Pixel copilot, sound, and settings come after the cockpit has a stable layout, so playful systems attach to a real decision surface.
 - AI comes late because it should review a mature evidence package, not compensate for missing data structure.
-- Full-market expansion is gradual and quota-aware, not a one-shot "scan everything" feature.
+- Full-market expansion remains gradual and quota-aware, not a one-shot "scan everything" feature.

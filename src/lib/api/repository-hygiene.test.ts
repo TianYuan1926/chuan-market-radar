@@ -280,6 +280,42 @@ test("living radar UI second pass exposes functional motion, state dimming, and 
   assert.match(cssSource, /prefers-reduced-motion/);
 });
 
+test("blueprint records the new radar control-center route before rebuilding the UI shell", () => {
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+  const planSource = readFileSync(
+    resolve(process.cwd(), "docs/superpowers/plans/2026-06-16-chuan-market-radar-next-build-flow.md"),
+    "utf8",
+  );
+  const requiredBlueprintTokens = [
+    "高级活体雷达控制台",
+    "Tailwind CSS + daisyUI",
+    "Live Navbar / Banner",
+    "Cockpit Card",
+    "左 / 中 / 右 = 2 : 6 : 2",
+    "雷达之眼 / Crystal Lens",
+    "Altcoin Opportunity Board",
+    "Macro Radar",
+    "Signal Lifecycle Tracker",
+    "背景音乐删除",
+  ];
+  const requiredPlanTokens = [
+    "Phase 0: Rebaseline Product And UI Direction",
+    "Phase 8.2b: Rebuild UI Shell With Tailwind And DaisyUI",
+    "Phase 8.2c: Live Radar Runtime Layer",
+    "Phase 3.8: Altcoin Opportunity Board",
+    "Phase 3.9: BTC ETH Macro Radar",
+    "Rebuild radar UI shell",
+  ];
+
+  for (const token of requiredBlueprintTokens) {
+    assert.ok(blueprintSource.includes(token), `Blueprint missing required token: ${token}`);
+  }
+
+  for (const token of requiredPlanTokens) {
+    assert.ok(planSource.includes(token), `Plan missing required token: ${token}`);
+  }
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
