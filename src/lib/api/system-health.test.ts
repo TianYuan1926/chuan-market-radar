@@ -661,3 +661,79 @@ test("buildSystemHealthReport exposes manual calibration admission for outcome s
     validatedEvents: 8,
   });
 });
+
+test("buildSystemHealthReport exposes readonly strategy weight calibration from journal samples", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+
+  for (let index = 0; index < 5; index += 1) {
+    await repository.addJournalEvent({
+      action: "calibration_review",
+      allowedUse: "research_only",
+      calibrationTag: "review_volume_oi_weight",
+      canAutoAdjustWeights: false,
+      createdAt: `2026-06-12T10:0${index}:00.000Z`,
+      id: `weight-volume-win-${index}`,
+      note: "权重校准有效样本。",
+      outcomeStatus: index % 2 === 0 ? "partial_win" : "saved",
+      rankDelta: 0,
+      result: index % 2 === 0 ? "win" : "saved",
+      reviewStatus: "closed",
+      source: "daily_mover_calibration",
+      symbol: `VOL${index}USDT`,
+      title: "规则校准复盘",
+    });
+  }
+
+  await repository.addJournalEvent({
+    action: "calibration_review",
+    allowedUse: "research_only",
+    calibrationTag: "review_volume_oi_weight",
+    canAutoAdjustWeights: false,
+    createdAt: "2026-06-12T10:10:00.000Z",
+    id: "weight-volume-loss",
+    note: "权重校准反证样本。",
+    outcomeStatus: "loss",
+    rankDelta: 0,
+    result: "loss",
+    reviewStatus: "closed",
+    source: "daily_mover_calibration",
+    symbol: "VLOSSUSDT",
+    title: "规则校准复盘",
+  });
+
+  await repository.addJournalEvent({
+    action: "strategy_confirmation",
+    allowedUse: "research_only",
+    calibrationTag: "review_volume_oi_weight",
+    canAutoAdjustWeights: false,
+    createdAt: "2026-06-12T11:00:00.000Z",
+    id: "weight-volume-confirmation",
+    note: "人工确认策略版本。",
+    rankDelta: 0,
+    result: "watching",
+    reviewStatus: "closed",
+    source: "strategy_version_confirmation",
+    strategyDraftId: "strategy-review_volume_oi_weight",
+    strategyTag: "review_volume_oi_weight",
+    strategyVersionLabel: "draft-volume-oi-weight-v1",
+    symbol: "STRATEGY",
+    title: "策略版本人工确认",
+  });
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T12:10:00.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.equal(report.outcomes.strategyWeightCalibration.mode, "strategy_weight_backtest_calibration_mvp");
+  assert.equal(report.outcomes.strategyWeightCalibration.allowedUse, "research_only");
+  assert.equal(report.outcomes.strategyWeightCalibration.canAutoAdjustWeights, false);
+  assert.equal(report.outcomes.strategyWeightCalibration.status, "manual_review_ready");
+  assert.equal(report.outcomes.strategyWeightCalibration.increaseCandidates, 1);
+  assert.equal(report.outcomes.strategyWeightCalibration.candidates[0]?.tag, "review_volume_oi_weight");
+  assert.equal(report.outcomes.strategyWeightCalibration.candidates[0]?.recommendation, "increase_candidate");
+  assert.equal(report.outcomes.strategyWeightCalibration.candidates[0]?.latestVersionLabel, "draft-volume-oi-weight-v1");
+  assert.match(report.outcomes.strategyWeightCalibration.nextStep, /人工复核/);
+});

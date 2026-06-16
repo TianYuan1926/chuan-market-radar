@@ -936,6 +936,13 @@ test("buildDailyMoverStrategyVersionPerformance summarizes version results with 
   assert.equal(performance[0]?.status, "rollback_watch");
   assert.match(performance[0]?.rollbackBoundary ?? "", /冻结加权讨论/);
   assert.match(performance[0]?.nextStep ?? "", /人工复核/);
+  assert.equal(performance[0]?.thresholdProfile.minimumVerifiedSamples, 3);
+  assert.equal(performance[0]?.thresholdProfile.rollbackRejectionMinimum, 2);
+  assert.match(performance[0]?.thresholdProfile.statusReason ?? "", /反证/);
+  assert.equal(performance[0]?.rollbackPlan.mode, "strategy_version_manual_rollback_plan");
+  assert.equal(performance[0]?.rollbackPlan.stage, "freeze_weight_discussion");
+  assert.equal(performance[0]?.rollbackPlan.severity, "high");
+  assert.match(performance[0]?.rollbackPlan.nextStep ?? "", /人工复核/);
   assert.equal(performance[0]?.allowedUse, "research_only");
   assert.equal(performance[0]?.canAutoAdjustWeights, false);
 });

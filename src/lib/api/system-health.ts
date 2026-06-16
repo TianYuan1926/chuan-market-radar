@@ -7,6 +7,10 @@ import {
   buildOutcomeCalibrationAdmission,
   type OutcomeCalibrationAdmission,
 } from "../journal/outcome-sample-admission";
+import {
+  buildStrategyWeightCalibrationReport,
+  type StrategyWeightCalibrationReport,
+} from "../journal/strategy-weight-calibration";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import type {
@@ -121,6 +125,7 @@ export type SystemHealthReport = {
       validatedEvents: number;
     };
     status: OutcomeExecutorStatus;
+    strategyWeightCalibration: StrategyWeightCalibrationReport;
     trackingEvents: number;
   };
   guards: SystemHealthGuard[];
@@ -538,6 +543,7 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
     pendingEvents: pendingEvents.length,
     sampleQuality: outcomeSampleQuality(outcomeEvents),
     status,
+    strategyWeightCalibration: buildStrategyWeightCalibrationReport(events),
     trackingEvents,
   };
 }

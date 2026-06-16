@@ -347,9 +347,21 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /阻断解释/);
   assert.match(componentSource, /样本明细/);
   assert.match(componentSource, /样本分布/);
+  assert.match(componentSource, /阈值层/);
+  assert.match(componentSource, /回滚计划/);
+  assert.match(componentSource, /权重回测/);
+  assert.match(componentSource, /人工候选/);
+  assert.match(componentSource, /升权候选/);
+  assert.match(componentSource, /降权候选/);
+  assert.match(componentSource, /隔离候选/);
+  assert.match(componentSource, /候选明细/);
   assert.match(componentSource, /blockerDetails/);
   assert.match(componentSource, /sampleDrilldown/);
   assert.match(componentSource, /sampleBreakdown/);
+  assert.match(componentSource, /thresholdLayers/);
+  assert.match(componentSource, /rollbackPlan/);
+  assert.match(componentSource, /strategyWeightCalibration/);
+  assert.match(componentSource, /manualAdjustmentBand/);
   assert.match(componentSource, /阻断项/);
   assert.match(componentSource, /不改权重/);
   assert.match(componentSource, /有效/);
@@ -362,8 +374,22 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-flow/);
   assert.match(componentSource, /health-outcome-detail/);
   assert.match(componentSource, /health-outcome-samples/);
+  assert.match(componentSource, /health-outcome-thresholds/);
+  assert.match(componentSource, /health-outcome-rollback/);
+  assert.match(componentSource, /health-outcome-weight/);
+  assert.match(componentSource, /health-outcome-weight__head/);
+  assert.match(componentSource, /health-outcome-weight__grid/);
+  assert.match(componentSource, /health-outcome-weight__candidates/);
+  assert.match(componentSource, /health-outcome-weight__item/);
   assert.match(cssSource, /\.health-outcome-detail/);
   assert.match(cssSource, /\.health-outcome-samples/);
+  assert.match(cssSource, /\.health-outcome-thresholds/);
+  assert.match(cssSource, /\.health-outcome-rollback/);
+  assert.match(cssSource, /\.health-outcome-weight/);
+  assert.match(cssSource, /\.health-outcome-weight__head/);
+  assert.match(cssSource, /\.health-outcome-weight__grid/);
+  assert.match(cssSource, /\.health-outcome-weight__candidates/);
+  assert.match(cssSource, /\.health-outcome-weight__item/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {
@@ -448,6 +474,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "后续样本",
     "版本表现",
     "回滚边界",
+    "阈值画像",
+    "回滚计划",
     "禁止",
     "关联摘要",
     "扫描关联",
@@ -481,6 +509,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "daily-mover-performance__stats",
     "daily-mover-version",
     "daily-mover-version__stats",
+    "daily-mover-version__policy",
+    "daily-mover-version__plan",
   ];
   const disallowedTradeWords = [
     "买入",
@@ -508,6 +538,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(panelSource, /strategyDrafts/);
   assert.match(panelSource, /strategyPerformanceFeedback/);
   assert.match(panelSource, /strategyVersionPerformance/);
+  assert.match(panelSource, /thresholdProfile/);
+  assert.match(panelSource, /rollbackPlan/);
   assert.match(panelSource, /selectedCorrelation/);
   assert.match(panelSource, /correlationStatusLabel/);
   assert.match(

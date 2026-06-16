@@ -1,7 +1,9 @@
 import type { JournalEvent } from "@/lib/analysis/types";
 import {
   buildOutcomeCalibrationAdmission,
+  outcomeCalibrationAdmissionThresholds,
   type OutcomeCalibrationAdmissionStatus,
+  type OutcomeCalibrationAdmission,
 } from "./outcome-sample-admission";
 
 export type OutcomeCalibrationFlowStatus =
@@ -24,6 +26,29 @@ export type OutcomeCalibrationFlowCheckpoint = {
   id: "sample_admission" | "manual_confirmation" | "rollback_boundary";
   label: string;
   status: OutcomeCalibrationFlowCheckpointStatus;
+};
+
+export type OutcomeCalibrationThresholdLayerId =
+  | "counterevidence_pressure"
+  | "manual_confirmation"
+  | "rollback_pressure"
+  | "sample_floor"
+  | "validation_quality";
+
+export type OutcomeCalibrationThresholdLayerStatus =
+  | "blocked"
+  | "collecting"
+  | "ready"
+  | "watch";
+
+export type OutcomeCalibrationThresholdLayer = {
+  current: string;
+  detail: string;
+  id: OutcomeCalibrationThresholdLayerId;
+  label: string;
+  nextStep: string;
+  status: OutcomeCalibrationThresholdLayerStatus;
+  target: string;
 };
 
 export type OutcomeCalibrationBlockerCode =
@@ -55,6 +80,31 @@ export type OutcomeCalibrationSampleDrilldown = {
   tag: string;
 };
 
+export type OutcomeCalibrationRollbackPlanStage =
+  | "awaiting_manual_confirmation"
+  | "collect_samples"
+  | "freeze_weight_discussion"
+  | "manual_review"
+  | "observe_confirmed_version";
+
+export type OutcomeCalibrationRollbackPlan = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  checkpoints: Array<{
+    detail: string;
+    id: "confirm_version" | "freeze_or_retain" | "observe_followups";
+    label: string;
+    nextStep: string;
+    status: OutcomeCalibrationFlowCheckpointStatus;
+  }>;
+  guardrail: string;
+  mode: "manual_rollback_plan";
+  nextStep: string;
+  severity: "high" | "low" | "medium";
+  stage: OutcomeCalibrationRollbackPlanStage;
+  trigger: string;
+};
+
 export type OutcomeCalibrationFlow = {
   admissionStatus: OutcomeCalibrationAdmissionStatus;
   allowedUse: "research_only";
@@ -76,6 +126,8 @@ export type OutcomeCalibrationFlow = {
   sampleDrilldown: OutcomeCalibrationSampleDrilldown[];
   sampleGateReady: boolean;
   status: OutcomeCalibrationFlowStatus;
+  thresholdLayers: OutcomeCalibrationThresholdLayer[];
+  rollbackPlan: OutcomeCalibrationRollbackPlan;
 };
 
 type CalibrationBucket = "expired" | "pending" | "rejected" | "validated";
@@ -88,6 +140,13 @@ type ConfirmationPerformance = {
   validated: number;
   verifiedSampleCount: number;
 };
+
+const strategyVersionPerformanceThresholds = {
+  maxRejectedForRetain: 1,
+  minimumVerifiedSamples: 3,
+  retainValidationMinimum: 3,
+  rollbackRejectionMinimum: 2,
+} as const;
 
 function sortableTime(value: string | undefined) {
   if (!value) {
@@ -164,15 +223,21 @@ function performanceStatus({
   validated: number;
   verifiedSampleCount: number;
 }): ConfirmationPerformance["status"] {
-  if (verifiedSampleCount < 3 || pending > 0) {
+  if (verifiedSampleCount < strategyVersionPerformanceThresholds.minimumVerifiedSamples || pending > 0) {
     return "awaiting_samples";
   }
 
-  if (rejected >= 2 && rejected > validated) {
+  if (
+    rejected >= strategyVersionPerformanceThresholds.rollbackRejectionMinimum &&
+    rejected > validated
+  ) {
     return "rollback_watch";
   }
 
-  if (validated >= 3 && rejected <= 1) {
+  if (
+    validated >= strategyVersionPerformanceThresholds.retainValidationMinimum &&
+    rejected <= strategyVersionPerformanceThresholds.maxRejectedForRetain
+  ) {
     return "retain_observation";
   }
 
@@ -384,6 +449,177 @@ function sampleDrilldown(calibrationReviews: JournalEvent[]): OutcomeCalibration
     });
 }
 
+function thresholdLayers({
+  admission,
+  manualConfirmationEvents,
+  manualReviewVersions,
+  rollbackWatchVersions,
+}: {
+  admission: OutcomeCalibrationAdmission;
+  manualConfirmationEvents: number;
+  manualReviewVersions: number;
+  rollbackWatchVersions: number;
+}): OutcomeCalibrationThresholdLayer[] {
+  const hasCounterEvidenceBlocker = admission.blockers.includes("counterevidence_dominates") ||
+    admission.blockers.includes("loss_cluster");
+  const hasValidationBlocker = admission.blockers.includes("validation_rate_below_threshold");
+
+  return [
+    {
+      current: `${admission.closedEvents} 已关闭`,
+      detail: admission.closedEvents >= outcomeCalibrationAdmissionThresholds.minimumClosedSamples
+        ? "已关闭样本达到人工校准最低样本地板。"
+        : "已关闭样本不足，继续等待 outcome executor 写回。",
+      id: "sample_floor",
+      label: "样本地板",
+      nextStep: admission.closedEvents >= outcomeCalibrationAdmissionThresholds.minimumClosedSamples
+        ? "可以继续看有效率和反证压力。"
+        : "继续积累已关闭样本，不进入确认流程。",
+      status: admission.closedEvents >= outcomeCalibrationAdmissionThresholds.minimumClosedSamples
+        ? "ready"
+        : "collecting",
+      target: `>= ${outcomeCalibrationAdmissionThresholds.minimumClosedSamples} 已关闭样本`,
+    },
+    {
+      current: `${admission.validationRatePercent}% 有效率`,
+      detail: "有效率只用于人工校准准入，不能直接升级策略权重。",
+      id: "validation_quality",
+      label: "有效率阈值",
+      nextStep: hasValidationBlocker
+        ? "有效率不足，先复核样本边界和反证原因。"
+        : "有效率达到基础线后仍需人工确认。",
+      status: hasValidationBlocker
+        ? "blocked"
+        : admission.closedEvents >= outcomeCalibrationAdmissionThresholds.minimumClosedSamples
+          ? "ready"
+          : "collecting",
+      target: `>= ${outcomeCalibrationAdmissionThresholds.minimumValidationRate}% 有效已关闭样本`,
+    },
+    {
+      current: `${admission.counterEvidenceEvents} 反证 / ${admission.validatedEvents} 有效`,
+      detail: "反证不能压过有效样本；一旦反证占优，策略只能降级或进入观察。",
+      id: "counterevidence_pressure",
+      label: "反证压力",
+      nextStep: hasCounterEvidenceBlocker
+        ? "先冻结加权讨论，拆解失败路径。"
+        : "保留反证监控，等待更多样本验证。",
+      status: hasCounterEvidenceBlocker
+        ? "blocked"
+        : admission.counterEvidenceEvents > 0
+          ? "watch"
+          : "ready",
+      target: "反证不高于有效样本，且亏损不形成聚集",
+    },
+    {
+      current: `${manualConfirmationEvents} 个人工确认`,
+      detail: "策略版本必须经过人工确认后才能进入长期表现观察。",
+      id: "manual_confirmation",
+      label: "人工确认",
+      nextStep: manualConfirmationEvents > 0
+        ? "继续观察确认后样本。"
+        : "等待人工确认策略版本和适用边界。",
+      status: manualConfirmationEvents > 0
+        ? "ready"
+        : admission.manualCalibrationReady
+          ? "watch"
+          : "collecting",
+      target: ">= 1 个人工确认版本",
+    },
+    {
+      current: `${rollbackWatchVersions} 回滚观察 / ${manualReviewVersions} 人工复核`,
+      detail: "确认后反证会触发回滚观察；该层只冻结加权讨论，不写权重。",
+      id: "rollback_pressure",
+      label: "回滚压力",
+      nextStep: rollbackWatchVersions > 0
+        ? "进入人工回滚复核，不能自动改权重。"
+        : "继续按确认后样本观察保留、复核或回滚边界。",
+      status: rollbackWatchVersions > 0
+        ? "watch"
+        : manualConfirmationEvents > 0
+          ? "collecting"
+          : "collecting",
+      target: "0 个回滚观察版本，或明确人工降级理由",
+    },
+  ];
+}
+
+function rollbackPlan({
+  manualConfirmationEvents,
+  manualReviewVersions,
+  pendingCalibrationReviews,
+  retainedObservationVersions,
+  rollbackWatchVersions,
+  sampleGateReady,
+}: {
+  manualConfirmationEvents: number;
+  manualReviewVersions: number;
+  pendingCalibrationReviews: number;
+  retainedObservationVersions: number;
+  rollbackWatchVersions: number;
+  sampleGateReady: boolean;
+}): OutcomeCalibrationRollbackPlan {
+  let stage: OutcomeCalibrationRollbackPlanStage = "collect_samples";
+  let severity: OutcomeCalibrationRollbackPlan["severity"] = "low";
+  let trigger = "样本仍在收集中，尚未进入策略版本回滚判断。";
+  let nextStepText = "继续积累 outcome 样本和校准复盘，不进入权重讨论。";
+
+  if (rollbackWatchVersions > 0) {
+    stage = "freeze_weight_discussion";
+    severity = "high";
+    trigger = `${rollbackWatchVersions} 个确认版本触发回滚观察。`;
+    nextStepText = "冻结加权讨论，人工复核失败路径、适用市场和版本边界。";
+  } else if (manualReviewVersions > 0) {
+    stage = "manual_review";
+    severity = "medium";
+    trigger = `${manualReviewVersions} 个确认版本表现分歧。`;
+    nextStepText = "人工复核样本质量和市场环境，不升级也不回滚。";
+  } else if (manualConfirmationEvents > 0 || retainedObservationVersions > 0) {
+    stage = "observe_confirmed_version";
+    severity = "low";
+    trigger = `${manualConfirmationEvents} 个版本处于确认后观察。`;
+    nextStepText = "保留观察，继续积累确认后样本，人工确认前不改权重。";
+  } else if (sampleGateReady) {
+    stage = "awaiting_manual_confirmation";
+    severity = "medium";
+    trigger = "样本已过准入门槛，但缺少人工确认版本。";
+    nextStepText = "等待人工确认策略版本和适用边界。";
+  }
+
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    checkpoints: [
+      {
+        detail: `${manualConfirmationEvents} 个人工确认版本。`,
+        id: "confirm_version",
+        label: "确认版本",
+        nextStep: manualConfirmationEvents > 0 ? "进入确认后样本观察。" : "先人工确认策略版本。",
+        status: manualConfirmationEvents > 0 ? "complete" : sampleGateReady ? "ready" : "waiting",
+      },
+      {
+        detail: `${pendingCalibrationReviews} 个校准复盘仍待复查。`,
+        id: "observe_followups",
+        label: "观察样本",
+        nextStep: pendingCalibrationReviews > 0 ? "等待样本关闭，不能提前判断。" : "用已关闭样本判断保留、复核或回滚。",
+        status: pendingCalibrationReviews > 0 ? "collecting" : manualConfirmationEvents > 0 ? "complete" : "waiting",
+      },
+      {
+        detail: `${rollbackWatchVersions} 回滚观察 / ${retainedObservationVersions} 保留观察。`,
+        id: "freeze_or_retain",
+        label: "冻结或保留",
+        nextStep: nextStepText,
+        status: rollbackWatchVersions > 0 ? "watch" : retainedObservationVersions > 0 ? "complete" : "waiting",
+      },
+    ],
+    guardrail: "回滚计划只服务人工复核和版本边界，不自动写入策略权重。",
+    mode: "manual_rollback_plan",
+    nextStep: nextStepText,
+    severity,
+    stage,
+    trigger,
+  };
+}
+
 export function buildOutcomeCalibrationFlow(events: JournalEvent[]): OutcomeCalibrationFlow {
   const admission = buildOutcomeCalibrationAdmission(events);
   const calibrationReviews = events.filter(isCalibrationReview);
@@ -396,6 +632,20 @@ export function buildOutcomeCalibrationFlow(events: JournalEvent[]): OutcomeCali
   const status = flowStatus({
     admissionStatus: admission.status,
     manualConfirmationEvents: manualConfirmations.length,
+    rollbackWatchVersions,
+    sampleGateReady: admission.manualCalibrationReady,
+  });
+  const layers = thresholdLayers({
+    admission,
+    manualConfirmationEvents: manualConfirmations.length,
+    manualReviewVersions,
+    rollbackWatchVersions,
+  });
+  const manualRollbackPlan = rollbackPlan({
+    manualConfirmationEvents: manualConfirmations.length,
+    manualReviewVersions,
+    pendingCalibrationReviews,
+    retainedObservationVersions,
     rollbackWatchVersions,
     sampleGateReady: admission.manualCalibrationReady,
   });
@@ -432,5 +682,7 @@ export function buildOutcomeCalibrationFlow(events: JournalEvent[]): OutcomeCali
     sampleDrilldown: sampleDrilldown(calibrationReviews),
     sampleGateReady: admission.manualCalibrationReady,
     status,
+    thresholdLayers: layers,
+    rollbackPlan: manualRollbackPlan,
   };
 }

@@ -91,6 +91,60 @@ function outcomeFlowLabel(value: SystemHealthReport["outcomes"]["calibrationFlow
   }[value];
 }
 
+function outcomeThresholdStatusLabel(
+  value: SystemHealthReport["outcomes"]["calibrationFlow"]["thresholdLayers"][number]["status"],
+) {
+  return {
+    blocked: "阻断",
+    collecting: "收集",
+    ready: "达标",
+    watch: "观察",
+  }[value];
+}
+
+function outcomeRollbackStageLabel(
+  value: SystemHealthReport["outcomes"]["calibrationFlow"]["rollbackPlan"]["stage"],
+) {
+  return {
+    awaiting_manual_confirmation: "待人工确认",
+    collect_samples: "收集样本",
+    freeze_weight_discussion: "冻结讨论",
+    manual_review: "人工复核",
+    observe_confirmed_version: "确认后观察",
+  }[value];
+}
+
+function strategyWeightStatusLabel(value: SystemHealthReport["outcomes"]["strategyWeightCalibration"]["status"]) {
+  return {
+    blocked: "阻断",
+    collecting: "收集",
+    manual_review_ready: "人工候选",
+    rollback_watch: "回滚观察",
+  }[value];
+}
+
+function strategyWeightRecommendationLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightCalibration"]["candidates"][number]["recommendation"],
+) {
+  return {
+    decrease_candidate: "降权候选",
+    hold_observation: "继续观察",
+    increase_candidate: "升权候选",
+    quarantine_candidate: "隔离候选",
+  }[value];
+}
+
+function strategyWeightBandLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightCalibration"]["candidates"][number]["manualAdjustmentBand"],
+) {
+  return {
+    decrease_small: "小幅降权",
+    increase_small: "小幅升权",
+    no_change: "不调整",
+    quarantine: "隔离",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -154,6 +208,10 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
   const outcomeFlow = health.outcomes.calibrationFlow;
   const outcomeBlockers = outcomeFlow.blockerDetails.slice(0, 2);
   const outcomeSampleDrilldown = outcomeFlow.sampleDrilldown.slice(0, 3);
+  const outcomeThresholdLayers = outcomeFlow.thresholdLayers.slice(0, 5);
+  const outcomeRollbackPlan = outcomeFlow.rollbackPlan;
+  const strategyWeightCalibration = health.outcomes.strategyWeightCalibration;
+  const strategyWeightCandidates = strategyWeightCalibration.candidates.slice(0, 3);
 
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
@@ -350,6 +408,83 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
                 <b>{outcomeFlow.pendingCalibrationReviews}</b>
                 待校准
               </span>
+            </div>
+
+            <div className="health-outcome-thresholds" aria-label="自动复盘阈值层">
+              <div className="health-outcome-thresholds__head">
+                <span className="mono">阈值层</span>
+                <strong>{outcomeThresholdLayers.length} 层 / {outcomeRollbackStageLabel(outcomeRollbackPlan.stage)}</strong>
+              </div>
+              <div className="health-outcome-thresholds__list">
+                {outcomeThresholdLayers.map((layer) => (
+                  <span className={`health-outcome-thresholds__item health-outcome-thresholds__item--${layer.status}`} key={layer.id}>
+                    <b>{layer.label}</b>
+                    <em>{outcomeThresholdStatusLabel(layer.status)} · {layer.current}</em>
+                    <small>{layer.target}</small>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className={`health-outcome-rollback health-outcome-rollback--${outcomeRollbackPlan.severity}`} aria-label="自动复盘回滚计划">
+              <div>
+                <span className="mono">回滚计划</span>
+                <strong>{outcomeRollbackStageLabel(outcomeRollbackPlan.stage)}</strong>
+              </div>
+              <p>{outcomeRollbackPlan.trigger}</p>
+              <small>{outcomeRollbackPlan.nextStep}</small>
+            </div>
+
+            <div
+              className={`health-outcome-weight health-outcome-weight--${strategyWeightCalibration.status}`}
+              aria-label="策略权重回测校准"
+            >
+              <div className="health-outcome-weight__head">
+                <div>
+                  <span className="mono">权重回测</span>
+                  <strong>{strategyWeightStatusLabel(strategyWeightCalibration.status)}</strong>
+                </div>
+                <b>{strategyWeightCalibration.candidateCount} 候选</b>
+              </div>
+
+              <div className="health-outcome-weight__grid" aria-label="策略权重候选分布">
+                <span>
+                  <b>{strategyWeightCalibration.increaseCandidates}</b>
+                  升权候选
+                </span>
+                <span>
+                  <b>{strategyWeightCalibration.decreaseCandidates}</b>
+                  降权候选
+                </span>
+                <span>
+                  <b>{strategyWeightCalibration.quarantineCandidates}</b>
+                  隔离候选
+                </span>
+                <span>
+                  <b>{strategyWeightCalibration.pendingCandidates}</b>
+                  继续观察
+                </span>
+              </div>
+
+              {strategyWeightCandidates.length > 0 ? (
+                <div className="health-outcome-weight__candidates" aria-label="策略权重候选明细">
+                  <span className="health-outcome-weight__title">候选明细</span>
+                  {strategyWeightCandidates.map((candidate) => (
+                    <span
+                      className={`health-outcome-weight__item health-outcome-weight__item--${candidate.recommendation}`}
+                      key={candidate.tag}
+                    >
+                      <b>{candidate.label}</b>
+                      <em>
+                        {strategyWeightRecommendationLabel(candidate.recommendation)} · {strategyWeightBandLabel(candidate.manualAdjustmentBand)}
+                      </em>
+                      <small>{candidate.reason}</small>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <p>{strategyWeightCalibration.nextStep}</p>
             </div>
 
             {outcomeBlockers.length > 0 ? (

@@ -405,6 +405,15 @@ function strategyVersionWindowLabel(value: DailyMoverStrategyVersionPerformance[
   }[value];
 }
 
+function strategyVersionRollbackPlanLabel(value: DailyMoverStrategyVersionPerformance["rollbackPlan"]["stage"]) {
+  return {
+    freeze_weight_discussion: "冻结讨论",
+    manual_review: "人工复核",
+    retain_observation: "保留观察",
+    wait_for_samples: "等样本",
+  }[value];
+}
+
 function renderStrategyVersionPerformance(item: DailyMoverStrategyVersionPerformance) {
   return (
     <article className={`daily-mover-version__item daily-mover-version__item--${item.status}`} key={item.confirmationEventId}>
@@ -418,8 +427,19 @@ function renderStrategyVersionPerformance(item: DailyMoverStrategyVersionPerform
         <span><b>{item.rejectionRatePercent}%</b>反证率</span>
         <span><b>{item.pending}</b>待复查</span>
       </div>
+      <div className="daily-mover-version__policy" aria-label={`${item.label} 阈值画像`}>
+        <span><b>{item.thresholdProfile.minimumVerifiedSamples}</b>样本地板</span>
+        <span><b>{item.thresholdProfile.retainValidationMinimum}</b>保留阈值</span>
+        <span><b>{item.thresholdProfile.rollbackRejectionMinimum}</b>回滚阈值</span>
+        <span><b>{item.thresholdProfile.maxRejectedForRetain}</b>反证上限</span>
+      </div>
+      <div className={`daily-mover-version__plan daily-mover-version__plan--${item.rollbackPlan.severity}`} aria-label={`${item.label} 回滚计划`}>
+        <strong>回滚计划 · {strategyVersionRollbackPlanLabel(item.rollbackPlan.stage)}</strong>
+        <p>{item.rollbackPlan.trigger}</p>
+        <small>{item.rollbackPlan.nextStep}</small>
+      </div>
       <p>{item.rollbackBoundary}</p>
-      <small>{item.label} · {strategyVersionWindowLabel(item.sampleWindow)} · {item.nextStep}</small>
+      <small>{item.label} · {strategyVersionWindowLabel(item.sampleWindow)} · 阈值画像：{item.thresholdProfile.statusReason} · {item.nextStep}</small>
     </article>
   );
 }

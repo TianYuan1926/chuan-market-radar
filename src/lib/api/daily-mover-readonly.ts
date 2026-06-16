@@ -201,6 +201,25 @@ export type DailyMoverStrategyVersionPerformanceStatus =
   | "retain_observation"
   | "rollback_watch";
 
+export type DailyMoverStrategyVersionThresholdProfile = {
+  maxRejectedForRetain: number;
+  minimumVerifiedSamples: number;
+  retainValidationMinimum: number;
+  rollbackRejectionMinimum: number;
+  statusReason: string;
+};
+
+export type DailyMoverStrategyVersionRollbackPlan = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  guardrail: string;
+  mode: "strategy_version_manual_rollback_plan";
+  nextStep: string;
+  severity: "high" | "low" | "medium";
+  stage: "freeze_weight_discussion" | "manual_review" | "retain_observation" | "wait_for_samples";
+  trigger: string;
+};
+
 export type DailyMoverStrategyVersionPerformance = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -217,9 +236,11 @@ export type DailyMoverStrategyVersionPerformance = {
   rejected: number;
   rejectionRatePercent: number;
   rollbackBoundary: string;
+  rollbackPlan: DailyMoverStrategyVersionRollbackPlan;
   sampleWindow: "post_confirmation_calibration_reviews";
   status: DailyMoverStrategyVersionPerformanceStatus;
   tag: string;
+  thresholdProfile: DailyMoverStrategyVersionThresholdProfile;
   validated: number;
   validationRatePercent: number;
   verifiedSampleCount: number;
@@ -899,6 +920,13 @@ export function buildDailyMoverStrategyPerformanceFeedback(
     ));
 }
 
+const strategyVersionThresholds = {
+  maxRejectedForRetain: 1,
+  minimumVerifiedSamples: 3,
+  retainValidationMinimum: 3,
+  rollbackRejectionMinimum: 2,
+} as const;
+
 function strategyVersionPerformanceStatus({
   pending,
   rejected,
@@ -910,15 +938,18 @@ function strategyVersionPerformanceStatus({
   validated: number;
   verifiedSampleCount: number;
 }): DailyMoverStrategyVersionPerformanceStatus {
-  if (verifiedSampleCount < 3 || pending > 0) {
+  if (verifiedSampleCount < strategyVersionThresholds.minimumVerifiedSamples || pending > 0) {
     return "awaiting_samples";
   }
 
-  if (rejected >= 2 && rejected > validated) {
+  if (rejected >= strategyVersionThresholds.rollbackRejectionMinimum && rejected > validated) {
     return "rollback_watch";
   }
 
-  if (validated >= 3 && rejected <= 1) {
+  if (
+    validated >= strategyVersionThresholds.retainValidationMinimum &&
+    rejected <= strategyVersionThresholds.maxRejectedForRetain
+  ) {
     return "retain_observation";
   }
 
@@ -961,6 +992,113 @@ function strategyVersionNextStep(
   return "继续积累确认后样本，先不做版本回滚或升级判断。";
 }
 
+function strategyVersionStatusReason({
+  pending,
+  rejected,
+  status,
+  validated,
+  verifiedSampleCount,
+}: {
+  pending: number;
+  rejected: number;
+  status: DailyMoverStrategyVersionPerformanceStatus;
+  validated: number;
+  verifiedSampleCount: number;
+}) {
+  if (status === "rollback_watch") {
+    return `反证 ${rejected} 个超过有效 ${validated} 个，达到回滚观察阈值。`;
+  }
+
+  if (status === "retain_observation") {
+    return `有效 ${validated} 个达到保留观察阈值，反证 ${rejected} 个未超过上限。`;
+  }
+
+  if (status === "manual_review_required") {
+    return "有效和反证没有形成明确方向，需要人工复核样本边界。";
+  }
+
+  return `已验证 ${verifiedSampleCount} 个 / 待复查 ${pending} 个，样本不足或仍未关闭。`;
+}
+
+function buildStrategyVersionThresholdProfile({
+  pending,
+  rejected,
+  status,
+  validated,
+  verifiedSampleCount,
+}: {
+  pending: number;
+  rejected: number;
+  status: DailyMoverStrategyVersionPerformanceStatus;
+  validated: number;
+  verifiedSampleCount: number;
+}): DailyMoverStrategyVersionThresholdProfile {
+  return {
+    ...strategyVersionThresholds,
+    statusReason: strategyVersionStatusReason({
+      pending,
+      rejected,
+      status,
+      validated,
+      verifiedSampleCount,
+    }),
+  };
+}
+
+function buildStrategyVersionRollbackPlan(
+  status: DailyMoverStrategyVersionPerformanceStatus,
+): DailyMoverStrategyVersionRollbackPlan {
+  if (status === "rollback_watch") {
+    return {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      guardrail: "策略版本回滚计划只服务人工复核，不自动写入权重。",
+      mode: "strategy_version_manual_rollback_plan",
+      nextStep: "进入人工复核，冻结加权讨论，必要时将版本降级为观察或删除候选。",
+      severity: "high",
+      stage: "freeze_weight_discussion",
+      trigger: "确认后反证样本达到回滚观察阈值。",
+    };
+  }
+
+  if (status === "manual_review_required") {
+    return {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      guardrail: "策略版本回滚计划只服务人工复核，不自动写入权重。",
+      mode: "strategy_version_manual_rollback_plan",
+      nextStep: "人工复核样本边界和市场适用条件，不升级也不回滚。",
+      severity: "medium",
+      stage: "manual_review",
+      trigger: "确认后表现分歧，没有形成保留或回滚结论。",
+    };
+  }
+
+  if (status === "retain_observation") {
+    return {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      guardrail: "策略版本回滚计划只服务人工复核，不自动写入权重。",
+      mode: "strategy_version_manual_rollback_plan",
+      nextStep: "保留观察并继续积累样本，后续仍需人工确认。",
+      severity: "low",
+      stage: "retain_observation",
+      trigger: "确认后有效样本达到保留观察阈值。",
+    };
+  }
+
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    guardrail: "策略版本回滚计划只服务人工复核，不自动写入权重。",
+    mode: "strategy_version_manual_rollback_plan",
+    nextStep: "继续等待确认后样本关闭，暂不判断回滚或保留。",
+    severity: "low",
+    stage: "wait_for_samples",
+    trigger: "确认后样本不足或仍有待复查。",
+  };
+}
+
 export function buildDailyMoverStrategyVersionPerformance(
   feedbackItems: DailyMoverStrategyPerformanceFeedback[],
 ): DailyMoverStrategyVersionPerformance[] {
@@ -977,6 +1115,13 @@ export function buildDailyMoverStrategyVersionPerformance(
       const status = strategyVersionPerformanceStatus({
         pending: item.pending,
         rejected: item.rejected,
+        validated: item.validated,
+        verifiedSampleCount,
+      });
+      const thresholdProfile = buildStrategyVersionThresholdProfile({
+        pending: item.pending,
+        rejected: item.rejected,
+        status,
         validated: item.validated,
         verifiedSampleCount,
       });
@@ -997,9 +1142,11 @@ export function buildDailyMoverStrategyVersionPerformance(
         rejected: item.rejected,
         rejectionRatePercent: percent(item.rejected, verifiedSampleCount),
         rollbackBoundary: strategyVersionRollbackBoundary(status),
+        rollbackPlan: buildStrategyVersionRollbackPlan(status),
         sampleWindow: "post_confirmation_calibration_reviews" as const,
         status,
         tag: item.tag,
+        thresholdProfile,
         validated: item.validated,
         validationRatePercent: percent(item.validated, verifiedSampleCount),
         verifiedSampleCount,

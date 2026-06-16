@@ -192,3 +192,60 @@ test("buildOutcomeCalibrationFlow explains blockers and exposes bounded calibrat
   assert.equal(flow.sampleDrilldown[0]?.canAutoAdjustWeights, false);
   assert.match(flow.sampleDrilldown[2]?.reason ?? "", /反证/);
 });
+
+test("buildOutcomeCalibrationFlow exposes threshold layers and a manual rollback plan", () => {
+  const outcomeSamples = [
+    ...Array.from({ length: 9 }, (_, index) => outcomeEvent({
+      id: `validated-threshold-${index}`,
+      outcomeStatus: index % 2 === 0 ? "partial_win" : "saved",
+      result: index % 2 === 0 ? "win" : "saved",
+    })),
+    ...Array.from({ length: 3 }, (_, index) => outcomeEvent({
+      id: `expired-threshold-${index}`,
+      outcomeStatus: "expired",
+    })),
+  ];
+  const flow = buildOutcomeCalibrationFlow([
+    ...outcomeSamples,
+    strategyConfirmation(),
+    calibrationReview({
+      createdAt: "2026-06-12T12:00:00.000Z",
+      id: "confirmed-loss-1",
+      outcomeStatus: "loss",
+    }),
+    calibrationReview({
+      createdAt: "2026-06-12T13:00:00.000Z",
+      id: "confirmed-loss-2",
+      outcomeStatus: "loss",
+    }),
+    calibrationReview({
+      createdAt: "2026-06-12T14:00:00.000Z",
+      id: "confirmed-win",
+      outcomeStatus: "partial_win",
+    }),
+  ]);
+
+  assert.equal(flow.status, "rollback_watch");
+  assert.deepEqual(flow.thresholdLayers.map((layer) => layer.id), [
+    "sample_floor",
+    "validation_quality",
+    "counterevidence_pressure",
+    "manual_confirmation",
+    "rollback_pressure",
+  ]);
+  assert.equal(flow.thresholdLayers[0]?.status, "ready");
+  assert.match(flow.thresholdLayers[1]?.target ?? "", /50%/);
+  assert.match(flow.thresholdLayers[2]?.detail ?? "", /反证/);
+  assert.equal(flow.thresholdLayers[4]?.status, "watch");
+  assert.equal(flow.rollbackPlan.mode, "manual_rollback_plan");
+  assert.equal(flow.rollbackPlan.allowedUse, "research_only");
+  assert.equal(flow.rollbackPlan.canAutoAdjustWeights, false);
+  assert.equal(flow.rollbackPlan.stage, "freeze_weight_discussion");
+  assert.equal(flow.rollbackPlan.severity, "high");
+  assert.match(flow.rollbackPlan.nextStep, /冻结加权讨论/);
+  assert.deepEqual(flow.rollbackPlan.checkpoints.map((checkpoint) => checkpoint.id), [
+    "confirm_version",
+    "observe_followups",
+    "freeze_or_retain",
+  ]);
+});

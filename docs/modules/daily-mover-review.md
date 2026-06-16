@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测和 outcome 健康状态展示：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示和只读策略权重回测校准 MVP：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -36,7 +36,7 @@
 - 策略版本草案：`GET /api/daily-movers` 会从 `backtestValidations` 派生 `strategyDrafts`，记录候选规则、验证结论、限制条件、草案版本名和人工确认状态；`DailyMoverPanel` 只读展示，不写正式版本、不自动改权重。
 - 策略版本人工确认：`DailyMoverPanel` 可把待确认草案以 `strategy_confirmation` 写入现有 `journal_events`；`GET /api/daily-movers` 会汇总 `strategyConfirmations`，并把匹配草案显示为已确认。
 - 策略确认后表现反馈：`GET /api/daily-movers` 会从 `strategyConfirmations` 和确认后的 `calibration_review` 日记派生 `strategyPerformanceFeedback`，统计后续样本、有效、反证、待复查和只读状态；`DailyMoverPanel` 展示“确认后表现”，不新增表、不触发 CoinGlass 请求、不自动改权重。
-- 策略版本长周期表现/回滚边界：`GET /api/daily-movers` 会从 `strategyPerformanceFeedback` 派生 `strategyVersionPerformance`，输出版本名、确认时间、后续样本窗口、已验证样本数、有效率、反证率、待复查数和只读回滚边界；`DailyMoverPanel` 展示“版本表现”和“回滚边界”，不新增写入、不触发 CoinGlass 请求、不自动改权重。
+- 策略版本长周期表现/回滚边界：`GET /api/daily-movers` 会从 `strategyPerformanceFeedback` 派生 `strategyVersionPerformance`，输出版本名、确认时间、后续样本窗口、已验证样本数、有效率、反证率、待复查数、阈值画像、手动回滚计划和只读回滚边界；`DailyMoverPanel` 展示“版本表现”“阈值画像”“回滚边界”和“回滚计划”，不新增写入、不触发 CoinGlass 请求、不自动改权重。
 - K 线回测计划边界：`GET /api/daily-movers` 会输出 `klineBacktestPlan`，从 `backtestCandidates` 和已存每日异动样本生成 planning-only 的缓存计划，包含计划币种、周期、缓存键、请求预算封顶和 deferred symbols；该计划不执行外部 K 线请求、不占用 CoinGlass 请求、不自动改权重。
 - K 线缓存持久化：`ohlcv_candle_cache` 保存公开 OHLCV candles、来源、拉取时间、周期和样本边界；repository 支持内存和 Neon 双路径读写。
 - 低频 K 线缓存填充 MVP：`POST /api/admin/daily-movers/klines/fill` 通过 `CRON_SECRET` 保护，默认读取 repository 中的回测计划候选，只拉公开 Binance Futures OHLCV，跳过已有缓存，并受 `KLINE_BACKTEST_DAILY_REQUEST_BUDGET` 和 `KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN` 封顶；该入口不占用 CoinGlass 请求、不自动改权重。
@@ -45,14 +45,15 @@
 - outcome executor MVP：`POST /api/admin/outcomes/run` 通过 `CRON_SECRET` 保护，从 repository 读取待复查 tracking journal，使用公开 OHLCV 按 checkpoint 评估 partial win、saved、loss、expired，并把 lifecycle 结果写回 journal/rank；`.github/workflows/chuan-outcome-executor.yml` 会每小时低频触发该入口，并复用已有 `CHUAN_SCAN_URL` 推导 outcome executor URL；同一 signal 已存在 closed lifecycle outcome 时，会跳过旧 tracking entry，避免重复请求公开 K 线。
 - outcome executor 运行审计：每次执行会写入一条 `outcome_executor_run` journal 审计事件，记录扫描数、到期数、写回数、跳过数、失败数、拉取 K 线数量、失败摘要和跳过原因分层；该事件保持 `research_only`，不参与段位 XP、tracking 计数或自动调权。
 - outcome executor 复盘面板展示：`JournalPanel` 已把 `outcome_executor_run` 展示为只读执行批次，显示扫描、到期、写回、跳过、失败、K 线数量和跳过原因，并明确“不改权重”。
-- outcome 健康状态展示：`GET /api/health` 和系统状态面板已展示自动复盘覆盖率、待复查、到期、最近写回、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流、阻断解释和样本明细；该展示来自现有 `journal_events`，不新增 Neon 表，不自动改权重。
+- outcome 健康状态展示：`GET /api/health` 和系统状态面板已展示自动复盘覆盖率、待复查、到期、最近写回、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层和人工回滚计划；该展示来自现有 `journal_events`，不新增 Neon 表，不自动改权重。
 - outcome 样本准入基础：`buildOutcomeCalibrationAdmission()` 会把 outcome 样本按有效、反证、过期和待复查汇总，输出 `ready / collecting / blocked`、准入分、阻断项和下一步建议；该结果只用于人工校准和回滚复核，不能自动改权重。
-- outcome 只读校准流：`buildOutcomeCalibrationFlow()` 会从现有 `journal_events` 汇总样本准入、`calibration_review`、`strategy_confirmation` 和确认后回滚观察，输出校准流状态、人工确认数、回滚观察数、待校准数、阻断项解释、样本分布和最近校准样本明细；该结果只服务人工确认和回滚边界，不写策略权重。
+- outcome 只读校准流：`buildOutcomeCalibrationFlow()` 会从现有 `journal_events` 汇总样本准入、`calibration_review`、`strategy_confirmation` 和确认后回滚观察，输出校准流状态、人工确认数、回滚观察数、待校准数、阻断项解释、样本分布、最近校准样本明细、阈值层和人工回滚计划；该结果只服务人工确认和回滚边界，不写策略权重。
+- 只读策略权重回测校准 MVP：`buildStrategyWeightCalibrationReport()` 会从现有 `journal_events` 汇总 `calibration_review` 和 `strategy_confirmation`，输出升权候选、降权候选、隔离候选和继续观察候选；`GET /api/health` 与系统状态面板只读展示候选分布和明细，不新增表、不触发外部请求、不自动改权重。
 
 当前未落地：
 
 - 自动规则权重调整；当前明确不允许自动调整。
-- outcome 样本准入到人工确认、回滚边界的基础只读校准流、阻断解释和样本明细已落地，但阈值细化、策略版本长周期回测和权重变更回滚方案仍需继续完善；当前不能当作完整自动校准闭环。
+- outcome 样本准入到人工确认、回滚边界的基础只读校准流、阻断解释、样本明细、阈值层、策略版本阈值画像、手动回滚计划和只读策略权重回测校准 MVP 已落地，但真实权重变更审计、执行记录和回滚验证仍需继续完善；当前不能当作完整自动校准闭环。
 
 ## 使用边界
 
@@ -103,5 +104,5 @@
 ## 下一步
 
 1. 继续细化准入阈值和确认后长期表现分层，让它服务规则复核而不是自动调权。
-2. 补齐策略版本长周期回测和权重变更回滚方案。
+2. 补齐真实权重变更审计、执行记录和回滚验证方案。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

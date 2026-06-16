@@ -23,8 +23,12 @@ export type OutcomeCalibrationAdmission = {
   validatedEvents: number;
 };
 
-const minimumClosedSamples = 12;
-const minimumValidationRate = 50;
+export const outcomeCalibrationAdmissionThresholds = {
+  minimumClosedSamples: 12,
+  minimumValidationRate: 50,
+} as const;
+
+const { minimumClosedSamples, minimumValidationRate } = outcomeCalibrationAdmissionThresholds;
 
 function isOutcomeSample(event: JournalEvent) {
   return Boolean(
