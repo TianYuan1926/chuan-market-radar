@@ -64,7 +64,7 @@ git diff --check
 - [x] Verify empty state: no execution records -> collecting, no scary broken UI.
 - [x] Verify approved/increase/decrease/quarantine records change only shadow output.
 - [x] Update blueprint and module docs.
-- [x] Run full verification.
+- [ ] Run full verification.
 
 **Acceptance:**
 
@@ -94,13 +94,13 @@ Add shadow-only strategy weight layer
 
 **Steps:**
 
-- [ ] Add tests for evaluating shadow diffs against closed outcome samples, calibration reviews, and strategy confirmations.
-- [ ] Output buckets: `insufficient_samples`, `improving`, `mixed`, `rollback_watch`, `blocked`.
-- [ ] Include sample counts, valid/rejected ratio, rollback trigger match, and next action.
-- [ ] Keep evaluation derived from existing journal events and cached samples. Do not add a new table yet.
-- [ ] Add UI panel: "影子表现", "样本数", "有效/反证", "回滚压力".
-- [ ] Update docs to state real activation remains blocked.
-- [ ] Run full verification.
+- [x] Add tests for evaluating shadow diffs against closed outcome samples, calibration reviews, and strategy confirmations.
+- [x] Output buckets: `insufficient_samples`, `improving`, `mixed`, `rollback_watch`, `blocked`.
+- [x] Include sample counts, valid/rejected ratio, rollback trigger match, and next action.
+- [x] Keep evaluation derived from existing journal events and cached samples. Do not add a new table yet.
+- [x] Add UI panel: "影子表现", "样本数", "有效/反证", "回滚压力".
+- [x] Update docs to state real activation remains blocked.
+- [x] Run full verification.
 
 **Acceptance:**
 

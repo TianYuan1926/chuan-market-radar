@@ -746,6 +746,44 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
     title: "人工权重变更执行记录",
   });
 
+  for (let index = 0; index < 3; index += 1) {
+    await repository.addJournalEvent({
+      action: "calibration_review",
+      allowedUse: "research_only",
+      calibrationTag: "review_volume_oi_weight",
+      canAutoAdjustWeights: false,
+      createdAt: `2026-06-12T11:3${index + 1}:00.000Z`,
+      id: `weight-volume-shadow-valid-${index}`,
+      note: "影子权重观察期有效样本。",
+      outcomeStatus: index % 2 === 0 ? "partial_win" : "saved",
+      rankDelta: 0,
+      result: index % 2 === 0 ? "win" : "saved",
+      reviewStatus: "closed",
+      source: "daily_mover_calibration",
+      symbol: `SHADOWVOL${index}USDT`,
+      title: "规则校准复盘",
+    });
+  }
+
+  await repository.addJournalEvent({
+    action: "strategy_confirmation",
+    allowedUse: "research_only",
+    calibrationTag: "review_volume_oi_weight",
+    canAutoAdjustWeights: false,
+    createdAt: "2026-06-12T11:40:00.000Z",
+    id: "weight-volume-shadow-confirmation",
+    note: "影子权重观察期人工确认。",
+    rankDelta: 0,
+    result: "watching",
+    reviewStatus: "closed",
+    source: "strategy_version_confirmation",
+    strategyDraftId: "strategy-review_volume_oi_weight",
+    strategyTag: "review_volume_oi_weight",
+    strategyVersionLabel: "draft-volume-oi-weight-v1",
+    symbol: "STRATEGY",
+    title: "策略版本人工确认",
+  });
+
   const report = await buildSystemHealthReport({
     env: { MARKET_DATA_PROVIDER: "mock" },
     now: new Date("2026-06-12T12:10:00.000Z"),
@@ -794,4 +832,16 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
   assert.equal(report.outcomes.strategyWeightShadow.shadowWeights[0]?.weight, 110);
   assert.equal(report.outcomes.strategyWeightShadow.diffs[0]?.delta, 10);
   assert.match(report.outcomes.strategyWeightShadow.guardrail, /不影响真实扫描/);
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.mode, "strategy_weight_shadow_evaluation_mvp");
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.allowedUse, "research_only");
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.canAutoAdjustWeights, false);
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.canAffectLiveSignals, false);
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.status, "improving");
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.evaluatedShadowCount, 1);
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.improvingCount, 1);
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.items[0]?.tag, "review_volume_oi_weight");
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.items[0]?.postApprovalSamples, 3);
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.items[0]?.validatedSamples, 3);
+  assert.equal(report.outcomes.strategyWeightShadowEvaluation.items[0]?.rollbackPressure, "low");
+  assert.match(report.outcomes.strategyWeightShadowEvaluation.guardrail, /不执行真实权重/);
 });

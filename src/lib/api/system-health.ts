@@ -23,6 +23,10 @@ import {
   buildStrategyWeightShadowReport,
   type StrategyWeightShadowReport,
 } from "../journal/strategy-weight-shadow";
+import {
+  buildStrategyWeightShadowEvaluationReport,
+  type StrategyWeightShadowEvaluationReport,
+} from "../journal/strategy-weight-shadow-evaluation";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import type {
@@ -141,6 +145,7 @@ export type SystemHealthReport = {
     strategyWeightChangeExecution: StrategyWeightChangeExecutionReport;
     strategyWeightCalibration: StrategyWeightCalibrationReport;
     strategyWeightShadow: StrategyWeightShadowReport;
+    strategyWeightShadowEvaluation: StrategyWeightShadowEvaluationReport;
     trackingEvents: number;
   };
   guards: SystemHealthGuard[];
@@ -544,6 +549,7 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
   const strategyWeightCalibration = buildStrategyWeightCalibrationReport(events);
   const strategyWeightChangeAudit = buildStrategyWeightChangeAuditReport(strategyWeightCalibration);
   const strategyWeightChangeExecution = buildStrategyWeightChangeExecutionReport(strategyWeightChangeAudit, events);
+  const strategyWeightShadow = buildStrategyWeightShadowReport(events);
 
   return {
     allowedUse: "research_only",
@@ -564,7 +570,11 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
     strategyWeightChangeAudit,
     strategyWeightChangeExecution,
     strategyWeightCalibration,
-    strategyWeightShadow: buildStrategyWeightShadowReport(events),
+    strategyWeightShadow,
+    strategyWeightShadowEvaluation: buildStrategyWeightShadowEvaluationReport({
+      events,
+      shadowReport: strategyWeightShadow,
+    }),
     trackingEvents,
   };
 }

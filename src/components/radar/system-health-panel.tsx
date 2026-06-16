@@ -241,6 +241,41 @@ function strategyWeightShadowDirectionLabel(
   }[value];
 }
 
+function strategyWeightShadowEvaluationStatusLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightShadowEvaluation"]["status"],
+) {
+  return {
+    blocked: "阻断",
+    improving: "表现改善",
+    insufficient_samples: "样本不足",
+    mixed: "表现分歧",
+    rollback_watch: "回滚压力",
+  }[value];
+}
+
+function strategyWeightShadowEvaluationItemStatusLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightShadowEvaluation"]["items"][number]["status"],
+) {
+  return {
+    blocked: "阻断",
+    improving: "改善",
+    insufficient_samples: "样本不足",
+    mixed: "分歧",
+    rollback_watch: "回滚",
+  }[value];
+}
+
+function strategyWeightShadowRollbackPressureLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightShadowEvaluation"]["items"][number]["rollbackPressure"],
+) {
+  return {
+    blocking: "阻断",
+    high: "高",
+    low: "低",
+    medium: "中",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -344,6 +379,8 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const strategyWeightExecutionItems = strategyWeightChangeExecution.items.slice(0, 3);
   const strategyWeightShadow = health.outcomes.strategyWeightShadow;
   const strategyWeightShadowDiffs = strategyWeightShadow.diffs.slice(0, 3);
+  const strategyWeightShadowEvaluation = health.outcomes.strategyWeightShadowEvaluation;
+  const strategyWeightShadowEvaluationItems = strategyWeightShadowEvaluation.items.slice(0, 3);
   const strategyWeightExecutionFormItems = useMemo(
     () => strategyWeightChangeExecution.items
       .filter((item) => item.proposedDirection !== "none")
@@ -942,6 +979,65 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               ) : null}
 
               <p>{strategyWeightShadow.nextStep}</p>
+            </div>
+
+            <div
+              className={`health-outcome-shadow-eval health-outcome-shadow-eval--${strategyWeightShadowEvaluation.status}`}
+              aria-label="策略权重影子表现"
+            >
+              <div className="health-outcome-shadow__head">
+                <div>
+                  <span className="mono">影子表现</span>
+                  <strong>{strategyWeightShadowEvaluationStatusLabel(strategyWeightShadowEvaluation.status)}</strong>
+                </div>
+                <b>不执行真实权重</b>
+              </div>
+
+              <div className="health-outcome-shadow-eval__grid" aria-label="策略权重影子表现摘要">
+                <span>
+                  <b>{strategyWeightShadowEvaluation.evaluatedShadowCount}</b>
+                  已评估
+                </span>
+                <span>
+                  <b>{strategyWeightShadowEvaluation.totalPostApprovalSamples}</b>
+                  样本数
+                </span>
+                <span>
+                  <b>{strategyWeightShadowEvaluation.improvingCount}</b>
+                  改善
+                </span>
+                <span>
+                  <b>{strategyWeightShadowEvaluation.rollbackWatchCount + strategyWeightShadowEvaluation.blockedCount}</b>
+                  回滚压力
+                </span>
+              </div>
+
+              {strategyWeightShadowEvaluationItems.length > 0 ? (
+                <div className="health-outcome-shadow-eval__items" aria-label="策略权重影子表现明细">
+                  {strategyWeightShadowEvaluationItems.map((item) => (
+                    <span
+                      className={`health-outcome-shadow-eval__item health-outcome-shadow-eval__item--${item.status}`}
+                      key={item.tag}
+                    >
+                      <b>{item.label}</b>
+                      <em>{strategyWeightShadowEvaluationItemStatusLabel(item.status)}</em>
+                      <small>
+                        有效/反证 {item.validatedSamples}/{item.rejectedSamples} · 样本数 {item.postApprovalSamples} · 回滚压力 {strategyWeightShadowRollbackPressureLabel(item.rollbackPressure)}
+                      </small>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="health-outcome-shadow-eval__items" aria-label="策略权重影子表现明细">
+                  <span className="health-outcome-shadow-eval__item health-outcome-shadow-eval__item--empty">
+                    <b>等待影子样本</b>
+                    <em>只读观察</em>
+                    <small>有效/反证 0/0 · 样本数 0 · 回滚压力 低</small>
+                  </span>
+                </div>
+              )}
+
+              <p>{strategyWeightShadowEvaluation.nextStep}</p>
             </div>
 
             {outcomeBlockers.length > 0 ? (

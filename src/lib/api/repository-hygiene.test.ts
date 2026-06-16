@@ -380,9 +380,13 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /管理密钥/);
   assert.match(componentSource, /只保存记录/);
   assert.match(componentSource, /影子权重/);
+  assert.match(componentSource, /影子表现/);
   assert.match(componentSource, /当前权重/);
   assert.match(componentSource, /建议权重/);
   assert.match(componentSource, /差异/);
+  assert.match(componentSource, /样本数/);
+  assert.match(componentSource, /有效\/反证/);
+  assert.match(componentSource, /回滚压力/);
   assert.match(componentSource, /不影响实盘判断/);
   assert.match(componentSource, /已记录/);
   assert.match(componentSource, /待审批/);
@@ -396,6 +400,7 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /strategyWeightChangeAudit/);
   assert.match(componentSource, /strategyWeightChangeExecution/);
   assert.match(componentSource, /strategyWeightShadow/);
+  assert.match(componentSource, /strategyWeightShadowEvaluation/);
   assert.match(componentSource, /onRecordStrategyWeightExecution/);
   assert.match(componentSource, /strategyWeightExecutionForm/);
   assert.match(componentSource, /manualAdjustmentBand/);
@@ -435,6 +440,9 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-shadow/);
   assert.match(componentSource, /health-outcome-shadow__grid/);
   assert.match(componentSource, /health-outcome-shadow__diffs/);
+  assert.match(componentSource, /health-outcome-shadow-eval/);
+  assert.match(componentSource, /health-outcome-shadow-eval__grid/);
+  assert.match(componentSource, /health-outcome-shadow-eval__items/);
   assert.match(cssSource, /\.health-outcome-detail/);
   assert.match(cssSource, /\.health-outcome-samples/);
   assert.match(cssSource, /\.health-outcome-thresholds/);
@@ -459,6 +467,9 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-shadow/);
   assert.match(cssSource, /\.health-outcome-shadow__grid/);
   assert.match(cssSource, /\.health-outcome-shadow__diffs/);
+  assert.match(cssSource, /\.health-outcome-shadow-eval/);
+  assert.match(cssSource, /\.health-outcome-shadow-eval__grid/);
+  assert.match(cssSource, /\.health-outcome-shadow-eval__items/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {
