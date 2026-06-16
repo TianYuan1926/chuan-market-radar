@@ -5,6 +5,9 @@ import type {
   ExchangeId,
   InstrumentRejectionReason,
   ScanCoverage,
+  ScanTierCounts,
+  ScanTierKey,
+  ScanTierPolicy,
   VenueCoverageQuality,
 } from "./types";
 import { scanWindowCursor } from "./scan-batch-queue";
@@ -16,14 +19,11 @@ export type UniverseAssetKey = {
 };
 
 export type UniverseAssetSource = "anchor" | "configured" | "observed";
-export type UniverseAssetTier = "anchor" | "core" | "active" | "long_tail";
+export type UniverseAssetTier = ScanTierKey;
 
-export type UniverseTierCounts = Record<UniverseAssetTier, number>;
+export type UniverseTierCounts = ScanTierCounts;
 
-export type UniverseTierPolicy = {
-  activeEveryWindows: number;
-  longTailEveryWindows: number;
-};
+export type UniverseTierPolicy = ScanTierPolicy;
 
 export type UniversePriorityHint = {
   anomalyScore?: number;
@@ -773,8 +773,11 @@ export function buildCoverageReport(
     pendingAssets: batchPlan.pendingAssets,
     scanned: batchPlan.assets.length,
     scannedAssets: batchPlan.assets,
+    selectedTierCounts: batchPlan.selectedTierCounts,
     skipped: registry.skipped.length,
     skippedAssets: registry.skipped,
+    tierCounts: batchPlan.tierCounts,
+    tierPolicy: batchPlan.tierPolicy,
     total: eligible + registry.skipped.length,
     totalBatches: batchPlan.totalBatches,
   };

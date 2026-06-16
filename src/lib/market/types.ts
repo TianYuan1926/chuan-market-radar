@@ -114,6 +114,15 @@ export type AssetExchangeCoverage = {
   venueCoverage: VenueCoverageQuality;
 };
 
+export type ScanTierKey = "anchor" | "core" | "active" | "long_tail";
+
+export type ScanTierCounts = Record<ScanTierKey, number>;
+
+export type ScanTierPolicy = {
+  activeEveryWindows: number;
+  longTailEveryWindows: number;
+};
+
 export type ScanCoverage = {
   batchIndex: number;
   coveragePercent: number;
@@ -125,11 +134,14 @@ export type ScanCoverage = {
   pendingAssets: string[];
   scanned: number;
   scannedAssets: string[];
+  selectedTierCounts?: ScanTierCounts;
   skipped: number;
   skippedAssets: Array<{
     reason: InstrumentRejectionReason;
     symbol: string;
   }>;
+  tierCounts?: ScanTierCounts;
+  tierPolicy?: ScanTierPolicy;
   total: number;
   totalBatches: number;
 };

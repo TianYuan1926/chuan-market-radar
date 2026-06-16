@@ -240,6 +240,24 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
     snapshot: snapshot({
       source: "coinglass",
       isRealtime: true,
+      quota: {
+        cadenceMinutes: 15,
+        coinGlassBudgetUsagePercent: 96,
+        coinGlassDailyRequestBudget: 300,
+        coinGlassRemainingDailyRequestEstimate: 12,
+        coinGlassRequestsPerDayEstimate: 288,
+        coinGlassRequestsPerScan: 3,
+        effectiveBatchSize: 3,
+        maxCoinGlassRequestsPerScan: 3,
+        minimumRequestsPerScan: 3,
+        publicDiscoveryRequestsPerDayEstimate: 96,
+        publicDiscoveryRequestsPerScan: 1,
+        requestedBatchSize: 7,
+        status: "near_budget",
+        warningUsagePercent: 80,
+        wasCapped: true,
+        windowsPerDay: 96,
+      },
       coverage: {
         batchIndex: 1,
         coveragePercent: 60,
@@ -249,8 +267,24 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
         pendingAssets: ["SOL", "SUI"],
         scanned: 3,
         scannedAssets: ["BTC", "ETH", "ENA"],
+        selectedTierCounts: {
+          active: 0,
+          anchor: 2,
+          core: 1,
+          long_tail: 0,
+        },
         skipped: 1,
         skippedAssets: [{ symbol: "OLDUSDT", reason: "inactive" }],
+        tierCounts: {
+          active: 1,
+          anchor: 2,
+          core: 2,
+          long_tail: 0,
+        },
+        tierPolicy: {
+          activeEveryWindows: 3,
+          longTailEveryWindows: 8,
+        },
         total: 6,
         totalBatches: 3,
       },
@@ -262,6 +296,24 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.equal(report.coverage.pending, 2);
   assert.equal(report.coverage.skipped, 1);
   assert.deepEqual(report.coverage.scannedAssets, ["BTC", "ETH", "ENA"]);
+  assert.equal(report.scanEconomy.mode, "scan_economy_mvp");
+  assert.equal(report.scanEconomy.budget.configuredDailyRequestBudget, 300);
+  assert.equal(report.scanEconomy.budget.estimatedRequestsPerScan, 3);
+  assert.equal(report.scanEconomy.budget.estimatedDailyRequests, 288);
+  assert.equal(report.scanEconomy.budget.estimatedRemainingDailyRequests, 12);
+  assert.equal(report.scanEconomy.budget.wasCapped, true);
+  assert.equal(report.scanEconomy.budget.requestedBatchSize, 7);
+  assert.equal(report.scanEconomy.budget.effectiveBatchSize, 3);
+  assert.equal(report.scanEconomy.tiers.anchor.total, 2);
+  assert.equal(report.scanEconomy.tiers.anchor.selected, 2);
+  assert.equal(report.scanEconomy.tiers.core.total, 2);
+  assert.equal(report.scanEconomy.tiers.core.selected, 1);
+  assert.equal(report.scanEconomy.tiers.active.total, 1);
+  assert.equal(report.scanEconomy.tiers.longTail.total, 0);
+  assert.equal(report.scanEconomy.tiers.skipped, 1);
+  assert.equal(report.scanEconomy.nextTier, "core");
+  assert.match(report.scanEconomy.operatorHint, /预算接近上限/);
+  assert.match(report.scanEconomy.guardrail, /不会增加 CoinGlass 请求/);
 });
 
 test("buildSystemHealthReport marks scan operations blocked without a recent success", async () => {

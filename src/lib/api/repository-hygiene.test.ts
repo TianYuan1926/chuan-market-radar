@@ -444,6 +444,20 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-shadow-eval__grid/);
   assert.match(componentSource, /health-outcome-shadow-eval__items/);
   assert.match(componentSource, /真实权重门禁/);
+  assert.match(componentSource, /扫描经济/);
+  assert.match(componentSource, /今日预算/);
+  assert.match(componentSource, /剩余额度/);
+  assert.match(componentSource, /请求\/轮/);
+  assert.match(componentSource, /批次上限/);
+  assert.match(componentSource, /层级覆盖/);
+  assert.match(componentSource, /锚定/);
+  assert.match(componentSource, /核心山寨/);
+  assert.match(componentSource, /热门资产/);
+  assert.match(componentSource, /长尾轮转/);
+  assert.match(componentSource, /不新增请求/);
+  assert.match(componentSource, /scanEconomy/);
+  assert.match(componentSource, /scanEconomyTierRows/);
+  assert.match(componentSource, /scanEconomyStatusLabel/);
   assert.match(componentSource, /启用模式/);
   assert.match(componentSource, /通过项/);
   assert.match(componentSource, /阻断项/);
@@ -482,6 +496,10 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-activation/);
   assert.match(cssSource, /\.health-outcome-activation__grid/);
   assert.match(cssSource, /\.health-outcome-activation__checks/);
+  assert.match(cssSource, /\.health-scan-economy/);
+  assert.match(cssSource, /\.health-scan-economy__grid/);
+  assert.match(cssSource, /\.health-scan-economy__tiers/);
+  assert.match(cssSource, /\.health-scan-economy__tier/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {

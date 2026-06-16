@@ -306,6 +306,25 @@ function strategyWeightActivationCheckStatusLabel(
   }[value];
 }
 
+function scanEconomyStatusLabel(value: SystemHealthReport["scanEconomy"]["budget"]["status"]) {
+  return {
+    near_budget: "接近上限",
+    over_budget: "超预算",
+    unbudgeted: "未配置",
+    within_budget: "预算安全",
+  }[value];
+}
+
+function scanEconomyNextTierLabel(value: SystemHealthReport["scanEconomy"]["nextTier"]) {
+  return {
+    active: "热门资产",
+    anchor: "锚定",
+    complete: "本轮完成",
+    core: "核心山寨",
+    long_tail: "长尾轮转",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -355,6 +374,10 @@ function formatCountdown(value: number | null) {
 
 function formatPercent(value: number) {
   return `${value}%`;
+}
+
+function formatBudgetValue(value: number | null) {
+  return value === null ? "--" : `${value}`;
 }
 
 function formatSignedValue(value: number) {
@@ -415,6 +438,33 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const strategyWeightActivationChecks = strategyWeightActivationGate.checks.slice(0, 4);
   const strategyWeightActivationPassedCount = strategyWeightActivationGate.checks
     .filter((check) => check.status === "passed").length;
+  const scanEconomy = health.scanEconomy;
+  const scanEconomyTierRows = [
+    {
+      key: "anchor",
+      label: "锚定",
+      note: "BTC/ETH 每轮优先",
+      tier: scanEconomy.tiers.anchor,
+    },
+    {
+      key: "core",
+      label: "核心山寨",
+      note: "高频主池",
+      tier: scanEconomy.tiers.core,
+    },
+    {
+      key: "active",
+      label: "热门资产",
+      note: "中频轮转",
+      tier: scanEconomy.tiers.active,
+    },
+    {
+      key: "long-tail",
+      label: "长尾轮转",
+      note: "低频巡检",
+      tier: scanEconomy.tiers.longTail,
+    },
+  ];
   const strategyWeightExecutionFormItems = useMemo(
     () => strategyWeightChangeExecution.items
       .filter((item) => item.proposedDirection !== "none")
@@ -574,6 +624,59 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               <b>{dataSourceStatusLabel(health.dataSource.status)}</b>
               数据源
             </span>
+          </div>
+
+          <div className={`health-scan-economy health-scan-economy--${scanEconomy.budget.status}`}>
+            <div className="health-ops__head">
+              <div>
+                <span className="mono">扫描经济</span>
+                <strong>{scanEconomy.operatorHint}</strong>
+              </div>
+              <b>{scanEconomyStatusLabel(scanEconomy.budget.status)}</b>
+            </div>
+
+            <div className="health-scan-economy__grid" aria-label="CoinGlass 请求预算">
+              <span>
+                <b>{formatBudgetValue(scanEconomy.budget.configuredDailyRequestBudget)}</b>
+                今日预算
+              </span>
+              <span>
+                <b>{formatBudgetValue(scanEconomy.budget.estimatedRemainingDailyRequests)}</b>
+                剩余额度
+              </span>
+              <span>
+                <b>{scanEconomy.budget.estimatedRequestsPerScan}</b>
+                请求/轮
+              </span>
+              <span>
+                <b>{scanEconomy.budget.effectiveBatchSize}/{scanEconomy.budget.requestedBatchSize}</b>
+                批次上限
+              </span>
+            </div>
+
+            <div className="health-scan-economy__subhead">
+              <span>层级覆盖</span>
+              <b>下轮重点 {scanEconomyNextTierLabel(scanEconomy.nextTier)}</b>
+            </div>
+
+            <div className="health-scan-economy__tiers" aria-label="层级覆盖">
+              {scanEconomyTierRows.map((row) => (
+                <span className="health-scan-economy__tier" key={row.key}>
+                  <b>{row.tier.selected}/{row.tier.total}</b>
+                  <strong>{row.label}</strong>
+                  <small>{row.note}</small>
+                </span>
+              ))}
+              <span className="health-scan-economy__tier health-scan-economy__tier--skipped">
+                <b>{scanEconomy.tiers.skipped}</b>
+                <strong>跳过</strong>
+                <small>非 USDT/停牌/过期</small>
+              </span>
+            </div>
+
+            <p>
+              <span>覆盖 {formatPercent(scanEconomy.coverage.coveragePercent)} · 待扫 {scanEconomy.coverage.pending} · 不新增请求</span>
+            </p>
           </div>
 
           <div className="health-outcomes" aria-label="自动复盘摘要">

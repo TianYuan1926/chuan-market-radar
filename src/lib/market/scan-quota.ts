@@ -8,6 +8,7 @@ export type ScanQuotaPlan = {
   cadenceMinutes: 15 | 30;
   coinGlassBudgetUsagePercent: number | null;
   coinGlassDailyRequestBudget: number | null;
+  coinGlassRemainingDailyRequestEstimate: number | null;
   coinGlassRequestsPerDayEstimate: number;
   coinGlassRequestsPerScan: number;
   effectiveBatchSize: number;
@@ -64,6 +65,9 @@ export function buildScanQuotaPlan({
     ? Math.max(safeMinimum, Math.min(safeRequestedBatchSize, maxCoinGlassRequestsPerScan))
     : safeRequestedBatchSize;
   const coinGlassRequestsPerDayEstimate = effectiveBatchSize * windowsPerDay;
+  const coinGlassRemainingDailyRequestEstimate = safeBudget === null
+    ? null
+    : Math.max(0, safeBudget - coinGlassRequestsPerDayEstimate);
   const coinGlassBudgetUsagePercent = safeBudget
     ? Math.round((coinGlassRequestsPerDayEstimate / safeBudget) * 100)
     : null;
@@ -79,6 +83,7 @@ export function buildScanQuotaPlan({
     cadenceMinutes,
     coinGlassBudgetUsagePercent,
     coinGlassDailyRequestBudget: safeBudget,
+    coinGlassRemainingDailyRequestEstimate,
     coinGlassRequestsPerDayEstimate,
     coinGlassRequestsPerScan: effectiveBatchSize,
     effectiveBatchSize,

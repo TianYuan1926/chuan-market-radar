@@ -2270,6 +2270,160 @@ p {
   white-space: nowrap;
 }
 
+.health-scan-economy {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(82, 115, 204, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(82, 115, 204, 0.06), rgba(39, 140, 102, 0.045)),
+    rgba(255, 255, 255, 0.42);
+}
+
+.health-scan-economy--near_budget {
+  border-color: rgba(213, 155, 61, 0.44);
+  background:
+    linear-gradient(135deg, rgba(213, 155, 61, 0.08), rgba(82, 115, 204, 0.035)),
+    rgba(255, 255, 255, 0.5);
+}
+
+.health-scan-economy--over_budget {
+  border-color: rgba(201, 74, 74, 0.32);
+  background: rgba(201, 74, 74, 0.055);
+}
+
+.health-scan-economy--unbudgeted {
+  border-color: rgba(111, 116, 128, 0.24);
+  background: rgba(111, 116, 128, 0.055);
+}
+
+.health-scan-economy__grid,
+.health-scan-economy__tiers {
+  display: grid;
+  gap: 6px;
+}
+
+.health-scan-economy__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-scan-economy__grid span,
+.health-scan-economy__tier {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.health-scan-economy__grid span {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+}
+
+.health-scan-economy__grid b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-scan-economy__subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.health-scan-economy__subhead span,
+.health-scan-economy__subhead b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-scan-economy__subhead span {
+  color: var(--ink);
+}
+
+.health-scan-economy__subhead b {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.health-scan-economy__tiers {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.health-scan-economy__tier {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+}
+
+.health-scan-economy__tier b,
+.health-scan-economy__tier strong,
+.health-scan-economy__tier small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-scan-economy__tier b {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.health-scan-economy__tier strong {
+  color: var(--ink-2);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.health-scan-economy__tier small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.health-scan-economy__tier--skipped b {
+  color: var(--danger);
+}
+
+.health-scan-economy p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.health-scan-economy p b,
+.health-scan-economy p span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-scan-economy p b {
+  color: var(--ink);
+  font-size: 11px;
+}
+
 .health-outcomes {
   display: grid;
   gap: 8px;
@@ -5281,6 +5435,15 @@ p {
   .health-op-matrix span:nth-child(1),
   .health-op-matrix span:nth-child(2) {
     border-bottom: 1px solid var(--line);
+  }
+
+  .health-scan-economy__grid,
+  .health-scan-economy__tiers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .health-scan-economy__tier--skipped {
+    grid-column: 1 / -1;
   }
 
   .executor-run-grid {

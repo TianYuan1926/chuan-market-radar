@@ -39,6 +39,8 @@ import type {
   MarketRadarSnapshot,
   ScanCoverage,
   ScanArchiveSummary,
+  ScanTierCounts,
+  ScanTierKey,
 } from "../market/types";
 
 export type SystemHealthLevel = "ready" | "preview" | "degraded" | "blocked";
@@ -59,6 +61,59 @@ export type OutcomeSampleQualityStatus =
   | "counterevidence_watch"
   | "empty"
   | "manual_review_ready";
+
+export type ScanEconomyBudgetStatus =
+  | "near_budget"
+  | "over_budget"
+  | "unbudgeted"
+  | "within_budget";
+
+export type ScanEconomyTier = {
+  pending: number;
+  selected: number;
+  total: number;
+};
+
+export type ScanEconomyNextTier = ScanTierKey | "complete";
+
+export type ScanEconomyReport = {
+  budget: {
+    budgetUsagePercent: number | null;
+    configuredDailyRequestBudget: number | null;
+    effectiveBatchSize: number;
+    estimatedDailyRequests: number;
+    estimatedRemainingDailyRequests: number | null;
+    estimatedRequestsPerScan: number;
+    maxRequestsPerScan: number;
+    publicDiscoveryRequestsPerDayEstimate: number;
+    requestedBatchSize: number;
+    status: ScanEconomyBudgetStatus;
+    wasCapped: boolean;
+  };
+  coverage: {
+    batchIndex: number;
+    coveragePercent: number;
+    eligible: number;
+    nextBatchIndex: number;
+    pending: number;
+    pendingAssets: string[];
+    scanned: number;
+    scannedAssets: string[];
+    skipped: number;
+    totalBatches: number;
+  };
+  guardrail: string;
+  mode: "scan_economy_mvp";
+  nextTier: ScanEconomyNextTier;
+  operatorHint: string;
+  tiers: {
+    active: ScanEconomyTier;
+    anchor: ScanEconomyTier;
+    core: ScanEconomyTier;
+    longTail: ScanEconomyTier;
+    skipped: number;
+  };
+};
 
 export type SystemHealthReport = {
   generatedAt: string;
@@ -99,6 +154,7 @@ export type SystemHealthReport = {
     retentionMode: PersistenceMode;
   };
   coverage: ScanCoverage;
+  scanEconomy: ScanEconomyReport;
   operations: {
     batchDetail: string | null;
     lastProblemScanAt: string | null;
@@ -240,6 +296,141 @@ function fallbackCoverage(metadata: MarketRadarSnapshot["metadata"]): ScanCovera
     skippedAssets: [],
     total: metadata.scannedCount,
     totalBatches: 1,
+  };
+}
+
+function emptyTierCounts(): ScanTierCounts {
+  return {
+    active: 0,
+    anchor: 0,
+    core: 0,
+    long_tail: 0,
+  };
+}
+
+function tierStats(
+  tier: ScanTierKey,
+  tierCounts: ScanTierCounts,
+  selectedTierCounts: ScanTierCounts,
+): ScanEconomyTier {
+  const total = tierCounts[tier];
+  const selected = Math.min(total, selectedTierCounts[tier] ?? 0);
+
+  return {
+    pending: Math.max(0, total - selected),
+    selected,
+    total,
+  };
+}
+
+function nextPendingTier(tierCounts: ScanTierCounts, selectedTierCounts: ScanTierCounts): ScanEconomyNextTier {
+  const tierOrder: ScanTierKey[] = ["anchor", "core", "active", "long_tail"];
+
+  return tierOrder.find((tier) => (selectedTierCounts[tier] ?? 0) < tierCounts[tier]) ?? "complete";
+}
+
+function fallbackQuota(metadata: MarketRadarSnapshot["metadata"], coverage: ScanCoverage) {
+  const windowsPerDay = Math.ceil(1_440 / metadata.cadenceMinutes);
+  const estimatedRequestsPerScan = Math.max(1, coverage.scanned || metadata.scannedCount || 1);
+
+  return {
+    budgetUsagePercent: null,
+    configuredDailyRequestBudget: null,
+    effectiveBatchSize: estimatedRequestsPerScan,
+    estimatedDailyRequests: estimatedRequestsPerScan * windowsPerDay,
+    estimatedRemainingDailyRequests: null,
+    estimatedRequestsPerScan,
+    maxRequestsPerScan: estimatedRequestsPerScan,
+    publicDiscoveryRequestsPerDayEstimate: 0,
+    requestedBatchSize: estimatedRequestsPerScan,
+    status: "unbudgeted" as const,
+    wasCapped: false,
+  };
+}
+
+function scanEconomyHint({
+  coverage,
+  status,
+  wasCapped,
+}: {
+  coverage: ScanCoverage;
+  status: ScanEconomyBudgetStatus;
+  wasCapped: boolean;
+}) {
+  if (status === "over_budget") {
+    return "预算已经超出，保持最小锚定扫描并等待下一轮预算窗口。";
+  }
+
+  if (status === "near_budget") {
+    return "预算接近上限，当前批次已保守轮转，优先保障锚定币和高价值合约池。";
+  }
+
+  if (wasCapped) {
+    return "批次已按预算压缩，覆盖率靠轮转补齐，不一次性扫完全市场。";
+  }
+
+  if (status === "unbudgeted") {
+    return "未配置 CoinGlass 日预算，当前只展示估算扫描经济，建议保留默认保守批次。";
+  }
+
+  if (coverage.pending > 0) {
+    return "预算仍在安全区，继续按层级轮转覆盖待扫资产。";
+  }
+
+  return "当前扫描覆盖已完成本轮可见币池，继续复用缓存和归档结果。";
+}
+
+function buildScanEconomyReport(
+  metadata: MarketRadarSnapshot["metadata"],
+  coverage: ScanCoverage,
+): ScanEconomyReport {
+  const tierCounts = coverage.tierCounts ?? emptyTierCounts();
+  const selectedTierCounts = coverage.selectedTierCounts ?? emptyTierCounts();
+  const quota = metadata.quota
+    ? {
+        budgetUsagePercent: metadata.quota.coinGlassBudgetUsagePercent,
+        configuredDailyRequestBudget: metadata.quota.coinGlassDailyRequestBudget,
+        effectiveBatchSize: metadata.quota.effectiveBatchSize,
+        estimatedDailyRequests: metadata.quota.coinGlassRequestsPerDayEstimate,
+        estimatedRemainingDailyRequests: metadata.quota.coinGlassRemainingDailyRequestEstimate,
+        estimatedRequestsPerScan: metadata.quota.coinGlassRequestsPerScan,
+        maxRequestsPerScan: metadata.quota.maxCoinGlassRequestsPerScan,
+        publicDiscoveryRequestsPerDayEstimate: metadata.quota.publicDiscoveryRequestsPerDayEstimate,
+        requestedBatchSize: metadata.quota.requestedBatchSize,
+        status: metadata.quota.status,
+        wasCapped: metadata.quota.wasCapped,
+      }
+    : fallbackQuota(metadata, coverage);
+
+  return {
+    budget: quota,
+    coverage: {
+      batchIndex: coverage.batchIndex,
+      coveragePercent: coverage.coveragePercent,
+      eligible: coverage.eligible,
+      nextBatchIndex: coverage.nextBatchIndex,
+      pending: coverage.pending,
+      pendingAssets: coverage.pendingAssets.slice(0, 8),
+      scanned: coverage.scanned,
+      scannedAssets: coverage.scannedAssets.slice(0, 8),
+      skipped: coverage.skipped,
+      totalBatches: coverage.totalBatches,
+    },
+    guardrail: "扫描经济只复用本轮 scan metadata，不会增加 CoinGlass 请求，也不会从前端触发额外扫描。",
+    mode: "scan_economy_mvp",
+    nextTier: nextPendingTier(tierCounts, selectedTierCounts),
+    operatorHint: scanEconomyHint({
+      coverage,
+      status: quota.status,
+      wasCapped: quota.wasCapped,
+    }),
+    tiers: {
+      active: tierStats("active", tierCounts, selectedTierCounts),
+      anchor: tierStats("anchor", tierCounts, selectedTierCounts),
+      core: tierStats("core", tierCounts, selectedTierCounts),
+      longTail: tierStats("long_tail", tierCounts, selectedTierCounts),
+      skipped: coverage.skipped,
+    },
   };
 }
 
@@ -605,6 +796,7 @@ export async function buildSystemHealthReport({
   const configuredProvider = requestedProvider(env);
   const metadata = snapshot.metadata;
   const coverage = metadata.coverage ?? fallbackCoverage(metadata);
+  const scanEconomy = buildScanEconomyReport(metadata, coverage);
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const providerStatus = sourceStatus({
@@ -675,6 +867,7 @@ export async function buildSystemHealthReport({
       retentionMode: repository.mode,
     },
     coverage,
+    scanEconomy,
     operations: scanOperations({
       archiveSummaries,
       freshness,

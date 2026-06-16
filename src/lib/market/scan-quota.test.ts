@@ -16,6 +16,7 @@ test("buildScanQuotaPlan caps batch size to fit the daily CoinGlass request budg
   assert.equal(plan.maxCoinGlassRequestsPerScan, 3);
   assert.equal(plan.coinGlassRequestsPerScan, 3);
   assert.equal(plan.coinGlassRequestsPerDayEstimate, 288);
+  assert.equal(plan.coinGlassRemainingDailyRequestEstimate, 12);
   assert.equal(plan.publicDiscoveryRequestsPerDayEstimate, 288);
   assert.equal(plan.coinGlassBudgetUsagePercent, 96);
   assert.equal(plan.status, "near_budget");
@@ -33,6 +34,7 @@ test("buildScanQuotaPlan preserves minimum anchor scanning even when the budget 
 
   assert.equal(plan.effectiveBatchSize, 3);
   assert.equal(plan.coinGlassRequestsPerDayEstimate, 288);
+  assert.equal(plan.coinGlassRemainingDailyRequestEstimate, 0);
   assert.equal(plan.coinGlassBudgetUsagePercent, 144);
   assert.equal(plan.status, "over_budget");
   assert.equal(plan.wasCapped, true);
@@ -50,7 +52,19 @@ test("buildScanQuotaPlan leaves batch size unchanged when the budget allows it",
   assert.equal(plan.effectiveBatchSize, 8);
   assert.equal(plan.maxCoinGlassRequestsPerScan, 12);
   assert.equal(plan.coinGlassRequestsPerDayEstimate, 384);
+  assert.equal(plan.coinGlassRemainingDailyRequestEstimate, 216);
   assert.equal(plan.coinGlassBudgetUsagePercent, 64);
   assert.equal(plan.status, "within_budget");
   assert.equal(plan.wasCapped, false);
+});
+
+test("buildScanQuotaPlan leaves remaining budget unknown when no CoinGlass budget is configured", () => {
+  const plan = buildScanQuotaPlan({
+    cadenceMinutes: 15,
+    requestedBatchSize: 5,
+  });
+
+  assert.equal(plan.coinGlassDailyRequestBudget, null);
+  assert.equal(plan.coinGlassRemainingDailyRequestEstimate, null);
+  assert.equal(plan.status, "unbudgeted");
 });

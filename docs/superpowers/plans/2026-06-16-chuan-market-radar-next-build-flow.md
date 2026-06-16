@@ -157,7 +157,7 @@ Add strategy weight activation gate
 
 ## Phase 3.7: Scan Coverage And CoinGlass Budget Dashboard
 
-**Purpose:** Use the CoinGlass amateur membership better by making coverage, request budget, and scan tiers visible and tunable.
+**Purpose:** Use the CoinGlass amateur membership better by making coverage, request budget, and scan tiers visible and auditable before later config work.
 
 **Files likely involved:**
 
@@ -170,12 +170,12 @@ Add strategy weight activation gate
 
 **Steps:**
 
-- [ ] Add tests for daily request budget display: configured budget, estimated requests per scan, remaining capacity estimate, and capped batch size.
-- [ ] Add tests for tier coverage: anchors, core alts, hot assets, long tail, skipped.
-- [ ] Expose coverage details in `/api/health` and scan metadata.
-- [ ] Add UI section "扫描经济": today budget, batch size, covered/pending/skipped, next tier.
-- [ ] Do not increase default request volume.
-- [ ] Run full verification and browser responsive check.
+- [x] Add tests for daily request budget display: configured budget, estimated requests per scan, remaining capacity estimate, and capped batch size.
+- [x] Add tests for tier coverage: anchors, core alts, hot assets, long tail, skipped.
+- [x] Expose coverage details in `/api/health` and scan metadata.
+- [x] Add UI section "扫描经济": today budget, batch size, covered/pending/skipped, next tier.
+- [x] Do not increase default request volume.
+- [x] Run full verification and browser responsive check.
 
 **Acceptance:**
 
