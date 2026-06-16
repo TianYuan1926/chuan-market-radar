@@ -83,6 +83,7 @@ test("runAdminOutcomeExecutor runs the outcome executor after authorization", as
         fetchedCandles: 12,
         mode: "outcome_executor_mvp",
         scannedEvents: 4,
+        skippedReasons: [],
         skippedEvents: 0,
         writtenEvents: 1,
       };

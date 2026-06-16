@@ -43,13 +43,14 @@
 - 缓存 K 线验证结果：`GET /api/daily-movers` 会输出 `klineBacktestResults`，只读取 bounded `ohlcv_candle_cache`，计算缓存覆盖率、周期涨跌幅、最大冲高、最大回撤和量能变化；该结果不触发外部请求、不新增写入、不自动改权重。
 - observedAt 事件窗口回测：`klineBacktestResults.eventWindowResults` 会按每日异动样本的 `observedAt` 把已缓存 candles 拆成 pre/post 窗口，输出样本方向、pre/post K 线数量、post 回撤/冲高、量能扩张和只读判定；该结果不触发外部请求、不新增写入、不自动改权重。
 - outcome executor MVP：`POST /api/admin/outcomes/run` 通过 `CRON_SECRET` 保护，从 repository 读取待复查 tracking journal，使用公开 OHLCV 按 checkpoint 评估 partial win、saved、loss、expired，并把 lifecycle 结果写回 journal/rank；`.github/workflows/chuan-outcome-executor.yml` 会每小时低频触发该入口，并复用已有 `CHUAN_SCAN_URL` 推导 outcome executor URL；同一 signal 已存在 closed lifecycle outcome 时，会跳过旧 tracking entry，避免重复请求公开 K 线。
-- outcome executor 运行审计：每次执行会写入一条 `outcome_executor_run` journal 审计事件，记录扫描数、到期数、写回数、跳过数、失败数、拉取 K 线数量和失败摘要；该事件保持 `research_only`，不参与段位 XP、tracking 计数或自动调权。
+- outcome executor 运行审计：每次执行会写入一条 `outcome_executor_run` journal 审计事件，记录扫描数、到期数、写回数、跳过数、失败数、拉取 K 线数量、失败摘要和跳过原因分层；该事件保持 `research_only`，不参与段位 XP、tracking 计数或自动调权。
+- outcome executor 复盘面板展示：`JournalPanel` 已把 `outcome_executor_run` 展示为只读执行批次，显示扫描、到期、写回、跳过、失败、K 线数量和跳过原因，并明确“不改权重”。
 - outcome 健康状态展示：`GET /api/health` 和系统状态面板已展示自动复盘覆盖率、待复查、到期、最近写回、最近执行批次、写回数、跳过数、失败数、失败原因摘要和样本质量分层；该展示来自现有 `journal_events`，不新增 Neon 表，不自动改权重。
 
 当前未落地：
 
 - 自动规则权重调整；当前明确不允许自动调整。
-- outcome executor 跳过原因仍需继续细分；当前不能当作完整自动校准闭环。
+- outcome 样本质量准入规则仍需继续细分；当前不能当作完整自动校准闭环。
 
 ## 使用边界
 
@@ -82,6 +83,7 @@
 - outcome executor 后台入口授权：`src/lib/journal/outcome-executor-admin.ts`
 - outcome 健康状态：`src/lib/api/system-health.ts`
 - outcome 健康面板：`src/components/radar/system-health-panel.tsx`
+- outcome 执行批次复盘面板：`src/components/radar/journal-panel.tsx`
 - API route：`src/app/api/admin/daily-movers/ingest/route.ts`
 - K 线缓存 API route：`src/app/api/admin/daily-movers/klines/fill/route.ts`
 - outcome executor API route：`src/app/api/admin/outcomes/run/route.ts`
@@ -96,6 +98,6 @@
 
 ## 下一步
 
-1. 继续细分 outcome executor 跳过原因，并把更细的执行批次结果接入复盘面板。
-2. 扩大 outcome executor 样本质量分层，形成手动校准前的样本准入规则。
+1. 扩大 outcome executor 样本质量分层，形成手动校准前的样本准入规则。
+2. 把样本准入、人工确认和回滚边界串成更清楚的只读校准流程。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

@@ -122,12 +122,27 @@ export type OutcomeExecutorRunFailure = {
   error: string;
 };
 
+export type OutcomeExecutorSkipReasonCode =
+  | "closed_duplicate"
+  | "missing_signal_context"
+  | "not_due"
+  | "ohlcv_unavailable"
+  | "outcome_pending";
+
+export type OutcomeExecutorSkipReasonSummary = {
+  code: OutcomeExecutorSkipReasonCode;
+  count: number;
+  label: string;
+  symbols: string[];
+};
+
 export type OutcomeExecutorRunSummary = {
   dueEvents: number;
   failedFetches: number;
   failures: OutcomeExecutorRunFailure[];
   fetchedCandles: number;
   scannedEvents: number;
+  skippedReasons: OutcomeExecutorSkipReasonSummary[];
   skippedEvents: number;
   writtenEvents: number;
 };

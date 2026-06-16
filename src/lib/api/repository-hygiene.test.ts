@@ -344,6 +344,54 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-quality/);
 });
 
+test("journal panel exposes outcome executor batch details without turning them into trades", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/journal-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredLabels = [
+    "自动复盘",
+    "执行批次",
+    "跳过原因",
+    "扫描",
+    "到期",
+    "写回",
+    "失败",
+    "只读审计",
+    "不改权重",
+  ];
+  const requiredSkipLabels = [
+    "未到窗口",
+    "已关闭去重",
+    "缺少上下文",
+    "行情请求失败",
+    "结果待判定",
+  ];
+  const requiredClasses = [
+    "review-row--executor",
+    "executor-run-grid",
+    "executor-skip-reasons",
+  ];
+
+  assert.match(componentSource, /outcome_executor_run/);
+  assert.match(componentSource, /outcomeExecutorRun/);
+  assert.match(componentSource, /canAutoAdjustWeights/);
+
+  for (const label of requiredLabels) {
+    assert.match(componentSource, new RegExp(label));
+  }
+
+  for (const label of requiredSkipLabels) {
+    assert.match(componentSource, new RegExp(label));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(componentSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+});
+
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(

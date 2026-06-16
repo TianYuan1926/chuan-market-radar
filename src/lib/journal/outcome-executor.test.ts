@@ -38,6 +38,17 @@ const baseSignal: MarketSignal = {
   },
 };
 
+function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
+  return {
+    ...baseSignal,
+    ...overrides,
+    strategy: {
+      ...baseSignal.strategy,
+      ...overrides.strategy,
+    },
+  };
+}
+
 test("runOutcomeExecutor writes lifecycle outcomes for due tracking journal entries without automatic weight changes", async () => {
   const repository = createMemoryPersistenceRepository();
   const trackingEntry = buildJournalEntryFromSignal(baseSignal, "paper_trade", {
@@ -126,6 +137,7 @@ test("runOutcomeExecutor writes lifecycle outcomes for due tracking journal entr
     failures: [],
     fetchedCandles: 2,
     scannedEvents: 1,
+    skippedReasons: [],
     skippedEvents: 0,
     writtenEvents: 1,
   });
@@ -190,4 +202,99 @@ test("runOutcomeExecutor skips tracking entries that already have a closed lifec
   assert.equal(secondRun.fetchedCandles, 0);
   assert.equal(secondRun.writtenEvents, 0);
   assert.equal(fetchCount, 1);
+});
+
+test("runOutcomeExecutor segments skipped reasons before automatic calibration", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const notDueSignal = signal({
+    id: "btc-not-due-plan",
+    symbol: "BTCUSDT",
+    updatedAt: "2026-06-12T11:45:00.000Z",
+  });
+  const closedSignal = signal({ id: "sol-closed-plan", symbol: "SOLUSDT" });
+  const pendingSignal = signal({ id: "ena-still-pending-plan", symbol: "ENAUSDT" });
+
+  await repository.addJournalEvent(buildJournalEntryFromSignal(notDueSignal, "paper_trade", {
+    createdAt: "2026-06-12T10:05:00.000Z",
+  }));
+  await repository.addJournalEvent(buildJournalEntryFromSignal(closedSignal, "paper_trade", {
+    createdAt: "2026-06-12T10:05:00.000Z",
+  }));
+  await repository.addJournalEvent({
+    id: "journal-sol-closed-plan-lifecycle",
+    signalId: "sol-closed-plan",
+    symbol: "SOLUSDT",
+    title: "目标前置命中复盘",
+    result: "win",
+    note: "已经有关闭结果。",
+    rankDelta: 2,
+    createdAt: "2026-06-12T11:20:00.000Z",
+    reviewStatus: "closed",
+    outcomeStatus: "partial_win",
+  });
+  await repository.addJournalEvent({
+    id: "journal-tia-missing-context",
+    signalId: "tia-missing-context-plan",
+    symbol: "TIAUSDT",
+    title: "纸面跟踪计划",
+    result: "watching",
+    note: "缺少策略上下文。",
+    rankDelta: 0,
+    createdAt: "2026-06-12T10:00:00.000Z",
+    outcomeStatus: "pending",
+    plannedReviewAt: "2026-06-12T11:00:00.000Z",
+    reviewStatus: "tracking",
+  });
+  await repository.addJournalEvent(buildJournalEntryFromSignal(pendingSignal, "paper_trade", {
+    createdAt: "2026-06-12T10:05:00.000Z",
+  }));
+
+  const ohlcvProvider: OhlcvProvider = {
+    id: "fake-public-ohlcv",
+    label: "Fake public OHLCV",
+    async fetchCandles(request) {
+      assert.equal(request.symbol, "ENAUSDT");
+
+      return {
+        ok: true,
+        source: "fake",
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: [
+          {
+            openTime: "2026-06-12T10:15:00.000Z",
+            closeTime: "2026-06-12T10:15:00.000Z",
+            open: 9.95,
+            high: 10.05,
+            low: 9.8,
+            close: 9.92,
+            volume: 1_000,
+          },
+        ],
+      };
+    },
+  };
+
+  const result = await runOutcomeExecutor({
+    now: "2026-06-12T12:00:00.000Z",
+    ohlcvProvider,
+    repository,
+  });
+
+  assert.equal(result.dueEvents, 2);
+  assert.equal(result.fetchedCandles, 1);
+  assert.equal(result.skippedEvents, 4);
+  assert.equal(result.writtenEvents, 0);
+  assert.deepEqual(result.skippedReasons, [
+    { code: "not_due", count: 1, label: "未到窗口", symbols: ["BTCUSDT"] },
+    { code: "closed_duplicate", count: 1, label: "已关闭去重", symbols: ["SOLUSDT"] },
+    { code: "missing_signal_context", count: 1, label: "缺少上下文", symbols: ["TIAUSDT"] },
+    { code: "outcome_pending", count: 1, label: "结果待判定", symbols: ["ENAUSDT"] },
+  ]);
+
+  const runEvent = (await repository.listJournalEvents()).find((event) => event.action === "outcome_executor_run");
+
+  assert.deepEqual(runEvent?.outcomeExecutorRun?.skippedReasons, result.skippedReasons);
+  assert.match(runEvent?.note ?? "", /未到窗口 1/);
+  assert.equal(runEvent?.canAutoAdjustWeights, false);
 });

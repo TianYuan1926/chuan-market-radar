@@ -3720,6 +3720,13 @@ p {
   border-bottom: 0;
 }
 
+.review-row--executor {
+  border-color: rgba(39, 140, 102, 0.2);
+  background:
+    linear-gradient(90deg, rgba(39, 140, 102, 0.1), transparent 42%),
+    rgba(255, 250, 240, 0.5);
+}
+
 .review-row .row-note {
   display: grid;
   min-width: 0;
@@ -3786,6 +3793,57 @@ p {
   border-color: rgba(213, 155, 61, 0.32);
   color: var(--ink);
   background: rgba(213, 155, 61, 0.14);
+}
+
+.executor-run-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.executor-run-grid span {
+  min-width: 0;
+  overflow: hidden;
+  padding: 5px 6px;
+  border: 1px solid rgba(39, 140, 102, 0.18);
+  border-radius: 4px;
+  color: var(--muted);
+  background: rgba(39, 140, 102, 0.08);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.executor-run-grid b {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.executor-skip-reasons {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.executor-skip-reasons i {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 5px;
+  border: 1px solid rgba(39, 140, 102, 0.22);
+  border-radius: 4px;
+  color: var(--ink-2);
+  background: rgba(255, 250, 240, 0.68);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lesson-tags i {
@@ -3957,6 +4015,10 @@ p {
   .row-risk {
     display: none;
   }
+
+  .executor-run-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -4031,6 +4093,10 @@ p {
   .health-op-matrix span:nth-child(1),
   .health-op-matrix span:nth-child(2) {
     border-bottom: 1px solid var(--line);
+  }
+
+  .executor-run-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .factor {

@@ -1,6 +1,8 @@
 import type {
   JournalEvent,
   MarketSignal,
+  OutcomeExecutorSkipReasonCode,
+  OutcomeExecutorSkipReasonSummary,
   OutcomeExecutorRunSummary,
   ReviewCheckpoint,
   SignalDirection,
@@ -33,6 +35,7 @@ export type OutcomeExecutorResult = {
   writtenEvents: number;
   failedFetches: number;
   failures: OutcomeExecutorFailure[];
+  skippedReasons: OutcomeExecutorSkipReasonSummary[];
 };
 
 export type RunOutcomeExecutorOptions = {
@@ -44,6 +47,14 @@ export type RunOutcomeExecutorOptions = {
 
 const defaultEventLimit = 120;
 const defaultCandleLimit = 200;
+
+const skipReasonMeta: Record<OutcomeExecutorSkipReasonCode, { label: string; order: number }> = {
+  not_due: { label: "未到窗口", order: 10 },
+  closed_duplicate: { label: "已关闭去重", order: 20 },
+  missing_signal_context: { label: "缺少上下文", order: 30 },
+  ohlcv_unavailable: { label: "行情请求失败", order: 40 },
+  outcome_pending: { label: "结果待判定", order: 50 },
+};
 
 function sortableTime(value?: string) {
   const time = value ? new Date(value).getTime() : Number.NaN;
@@ -118,6 +129,10 @@ function latestDueEvents(events: JournalEvent[], nowTime: number) {
   );
 }
 
+function trackingCandidates(events: JournalEvent[]) {
+  return events.filter(isTrackingCandidate);
+}
+
 function hasRequiredSignalContext(event: JournalEvent): event is JournalEvent & {
   direction: SignalDirection;
   firstTarget: string;
@@ -183,7 +198,75 @@ function emptyResult(): OutcomeExecutorResult {
     writtenEvents: 0,
     failedFetches: 0,
     failures: [],
+    skippedReasons: [],
   };
+}
+
+function addSkippedReason(
+  result: OutcomeExecutorResult,
+  code: OutcomeExecutorSkipReasonCode,
+  symbol: string,
+) {
+  const meta = skipReasonMeta[code];
+  const existing = result.skippedReasons.find((item) => item.code === code);
+
+  result.skippedEvents += 1;
+
+  if (existing) {
+    existing.count += 1;
+
+    if (!existing.symbols.includes(symbol)) {
+      existing.symbols.push(symbol);
+    }
+
+    return;
+  }
+
+  result.skippedReasons.push({
+    code,
+    count: 1,
+    label: meta.label,
+    symbols: [symbol],
+  });
+}
+
+function normalizedSkippedReasons(reasons: OutcomeExecutorSkipReasonSummary[]) {
+  return [...reasons]
+    .map((reason) => ({
+      ...reason,
+      symbols: [...reason.symbols].sort(),
+    }))
+    .sort((left, right) => skipReasonMeta[left.code].order - skipReasonMeta[right.code].order);
+}
+
+function recordPreflightSkips({
+  dueEvents,
+  events,
+  nowTime,
+  result,
+}: {
+  dueEvents: JournalEvent[];
+  events: JournalEvent[];
+  nowTime: number;
+  result: OutcomeExecutorResult;
+}) {
+  const closedSignalIds = closedSignalIdsFromEvents(events);
+  const dueEventIds = new Set(dueEvents.map((event) => event.id));
+
+  for (const event of trackingCandidates(events)) {
+    if (!event.signalId) {
+      continue;
+    }
+
+    if (closedSignalIds.has(event.signalId)) {
+      addSkippedReason(result, "closed_duplicate", event.symbol);
+      continue;
+    }
+
+    if (!isDueTrackingCandidate(event, nowTime) || !dueEventIds.has(event.id)) {
+      addSkippedReason(result, "not_due", event.symbol);
+    }
+  }
 }
 
 function runEventId(now: string) {
@@ -200,6 +283,7 @@ function runSummary(result: OutcomeExecutorResult): OutcomeExecutorRunSummary {
     failures: result.failures,
     fetchedCandles: result.fetchedCandles,
     scannedEvents: result.scannedEvents,
+    skippedReasons: normalizedSkippedReasons(result.skippedReasons),
     skippedEvents: result.skippedEvents,
     writtenEvents: result.writtenEvents,
   };
@@ -213,8 +297,11 @@ function runNote(summary: OutcomeExecutorRunSummary) {
   const failureText = summary.failedFetches > 0 || summary.failures.length > 0
     ? `，失败 ${summary.failedFetches}，原因 ${failurePreview || "待查看日志"}`
     : "";
+  const skippedReasonText = summary.skippedReasons.length > 0
+    ? `，跳过原因 ${summary.skippedReasons.map((reason) => `${reason.label} ${reason.count}`).join(" / ")}`
+    : "";
 
-  return `自动复盘执行：扫描 ${summary.scannedEvents}，到期 ${summary.dueEvents}，写回 ${summary.writtenEvents}，跳过 ${summary.skippedEvents}${failureText}。`;
+  return `自动复盘执行：扫描 ${summary.scannedEvents}，到期 ${summary.dueEvents}，写回 ${summary.writtenEvents}，跳过 ${summary.skippedEvents}${skippedReasonText}${failureText}。`;
 }
 
 function buildOutcomeExecutorRunEvent(result: OutcomeExecutorResult, now: string): JournalEvent {
@@ -254,12 +341,13 @@ export async function runOutcomeExecutor({
 
   result.scannedEvents = events.length;
   result.dueEvents = dueEvents.length;
+  recordPreflightSkips({ dueEvents, events, nowTime, result });
 
   for (const event of dueEvents) {
     const signal = signalFromJournalEvent(event);
 
     if (!signal) {
-      result.skippedEvents += 1;
+      addSkippedReason(result, "missing_signal_context", event.symbol);
       result.failures.push({
         eventId: event.id,
         signalId: event.signalId,
@@ -278,7 +366,7 @@ export async function runOutcomeExecutor({
 
     if (!candleResult.ok) {
       result.failedFetches += 1;
-      result.skippedEvents += 1;
+      addSkippedReason(result, "ohlcv_unavailable", event.symbol);
       result.failures.push({
         eventId: event.id,
         signalId: event.signalId,
@@ -298,7 +386,7 @@ export async function runOutcomeExecutor({
     );
 
     if (outcome.status === "pending") {
-      result.skippedEvents += 1;
+      addSkippedReason(result, "outcome_pending", event.symbol);
       continue;
     }
 
@@ -310,6 +398,8 @@ export async function runOutcomeExecutor({
 
     result.writtenEvents += 1;
   }
+
+  result.skippedReasons = normalizedSkippedReasons(result.skippedReasons);
 
   await repository.addJournalEvent(buildOutcomeExecutorRunEvent(result, now));
 

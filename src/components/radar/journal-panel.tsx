@@ -1,5 +1,10 @@
 import { BookOpenCheck, ClipboardList, ShieldCheck } from "lucide-react";
-import type { JournalEvent, MarketSignal, SignalJournalAction } from "@/lib/analysis/types";
+import type {
+  JournalEvent,
+  MarketSignal,
+  OutcomeExecutorSkipReasonCode,
+  SignalJournalAction,
+} from "@/lib/analysis/types";
 
 type JournalPanelProps = {
   events: JournalEvent[];
@@ -29,6 +34,14 @@ const statusText = {
   saved: "已保存",
   error: "本地",
 } as const;
+
+const executorSkipFallbackLabels: Record<OutcomeExecutorSkipReasonCode, string> = {
+  closed_duplicate: "已关闭去重",
+  missing_signal_context: "缺少上下文",
+  not_due: "未到窗口",
+  ohlcv_unavailable: "行情请求失败",
+  outcome_pending: "结果待判定",
+};
 
 const actionButtons: {
   action: SignalJournalAction;
@@ -141,6 +154,17 @@ function reviewStatusLabel(value?: string) {
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
+function isOutcomeExecutorRun(event: JournalEvent): event is JournalEvent & {
+  action: "outcome_executor_run";
+  outcomeExecutorRun: NonNullable<JournalEvent["outcomeExecutorRun"]>;
+} {
+  return event.action === "outcome_executor_run" && Boolean(event.outcomeExecutorRun);
+}
+
+function executorSkipLabel(code: OutcomeExecutorSkipReasonCode, label?: string) {
+  return label?.trim() || executorSkipFallbackLabels[code];
+}
+
 export function JournalPanel({ events, onCreate, selected, status }: JournalPanelProps) {
   const selectedLabel = selected?.symbol.replace("USDT", "") ?? "未选择";
   const trackingCount = events.filter((event) => event.reviewStatus === "tracking").length;
@@ -187,6 +211,39 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
 
       <div className="review-list">
         {events.map((event) => {
+          if (isOutcomeExecutorRun(event)) {
+            const run = event.outcomeExecutorRun;
+            const topSkipReasons = run.skippedReasons.slice(0, 5);
+
+            return (
+              <article className="review-row review-row--executor" key={event.id}>
+                <strong>自动</strong>
+                <span className="row-note">
+                  <b>自动复盘 / 执行批次</b>
+                  <small>{event.note}</small>
+                  <span className="executor-run-grid" aria-label="自动复盘执行批次详情">
+                    <span><b>{run.scannedEvents}</b>扫描</span>
+                    <span><b>{run.dueEvents}</b>到期</span>
+                    <span><b>{run.writtenEvents}</b>写回</span>
+                    <span><b>{run.skippedEvents}</b>跳过</span>
+                    <span><b>{run.failedFetches}</b>失败</span>
+                    <span><b>{run.fetchedCandles}</b>K 线</span>
+                  </span>
+                  <span className="executor-skip-reasons" aria-label="自动复盘跳过原因">
+                    {topSkipReasons.length > 0 ? topSkipReasons.map((reason) => (
+                      <i key={reason.code}>{executorSkipLabel(reason.code, reason.label)} {reason.count}</i>
+                    )) : <i>跳过原因 0</i>}
+                  </span>
+                  <span className="review-row__flags review-row__flags--calibration" aria-label="自动复盘执行边界">
+                    <span>只读审计</span>
+                    <span>{event.canAutoAdjustWeights === false ? "不改权重" : "需人工确认"}</span>
+                  </span>
+                </span>
+                <strong className="tone-amber">0</strong>
+              </article>
+            );
+          }
+
           const meta = resultMeta[event.result];
           const isCalibrationReview = event.action === "calibration_review";
 
