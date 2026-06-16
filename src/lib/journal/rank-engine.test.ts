@@ -75,6 +75,35 @@ test("rankJournalEvent keeps strategy confirmations score-neutral", () => {
   })), 0);
 });
 
+test("rank profile ignores outcome executor audit events", () => {
+  const profile = buildRankProfile([
+    entry({
+      action: "outcome_executor_run",
+      id: "outcome-executor-run",
+      result: "watching",
+      reviewStatus: "closed",
+      source: "outcome_executor",
+      symbol: "OUTCOME_EXECUTOR",
+    }),
+  ]);
+
+  assert.equal(rankJournalEvent(entry({
+    action: "outcome_executor_run",
+    id: "outcome-executor-run",
+    result: "watching",
+    reviewStatus: "closed",
+    source: "outcome_executor",
+    symbol: "OUTCOME_EXECUTOR",
+  })), 0);
+  assert.equal(profile.totalXp, 0);
+  assert.equal(profile.rawScore, 0);
+  assert.equal(profile.wins, 0);
+  assert.equal(profile.losses, 0);
+  assert.equal(profile.saved, 0);
+  assert.equal(profile.tracking, 0);
+  assert.equal(profile.disciplineScore, 0);
+});
+
 test("buildRankProfile converts journal history into tier, progress, and pet state", () => {
   const profile = buildRankProfile([
     entry({

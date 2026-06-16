@@ -331,7 +331,17 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /待复查/);
   assert.match(componentSource, /到期/);
   assert.match(componentSource, /最近写回/);
+  assert.match(componentSource, /最近执行/);
+  assert.match(componentSource, /写回/);
+  assert.match(componentSource, /跳过/);
+  assert.match(componentSource, /失败/);
+  assert.match(componentSource, /样本质量/);
+  assert.match(componentSource, /有效/);
+  assert.match(componentSource, /反证/);
+  assert.match(componentSource, /过期/);
   assert.match(componentSource, /health-outcomes/);
+  assert.match(componentSource, /health-outcome-run/);
+  assert.match(componentSource, /health-outcome-quality/);
 });
 
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {

@@ -44,8 +44,14 @@ function countByResult(entries: JournalEvent[], result: JournalEvent["result"]) 
   return entries.filter((entry) => entry.result === result).length;
 }
 
+function isRankNeutral(entry: JournalEvent) {
+  return entry.action === "calibration_review" ||
+    entry.action === "outcome_executor_run" ||
+    entry.action === "strategy_confirmation";
+}
+
 export function rankJournalEvent(entry: JournalEvent) {
-  if (entry.action === "calibration_review" || entry.action === "strategy_confirmation") {
+  if (isRankNeutral(entry)) {
     return 0;
   }
 
@@ -118,19 +124,20 @@ function buildPetLine({
 }
 
 export function buildRankProfile(entries: JournalEvent[]): RankProfile {
-  const scores = entries.map((entry) => rankJournalEvent(entry));
+  const rankEntries = entries.filter((entry) => !isRankNeutral(entry));
+  const scores = rankEntries.map((entry) => rankJournalEvent(entry));
   const rawScore = scores.reduce((sum, value) => sum + value, 0);
   const totalXp = Math.max(0, rawScore);
   const tier = tierForXp(totalXp);
   const nextTier = nextTierFor(tier);
-  const wins = countByResult(entries, "win");
-  const losses = countByResult(entries, "loss");
-  const saved = countByResult(entries, "saved");
-  const tracking = entries.filter((entry) => entry.reviewStatus === "tracking" || entry.result === "watching").length;
+  const wins = countByResult(rankEntries, "win");
+  const losses = countByResult(rankEntries, "loss");
+  const saved = countByResult(rankEntries, "saved");
+  const tracking = rankEntries.filter((entry) => entry.reviewStatus === "tracking" || entry.result === "watching").length;
   const closedOutcomes = wins + losses;
   const hitRate = closedOutcomes > 0 ? Math.round((wins / closedOutcomes) * 100) : 0;
-  const disciplineScore = entries.length > 0
-    ? Math.round(((saved + tracking) / entries.length) * 100)
+  const disciplineScore = rankEntries.length > 0
+    ? Math.round(((saved + tracking) / rankEntries.length) * 100)
     : 0;
   const recentMomentum = scores.slice(0, 5).reduce((sum, value) => sum + value, 0);
   const lastDelta = scores[0] ?? 0;

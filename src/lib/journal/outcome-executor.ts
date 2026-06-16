@@ -1,6 +1,7 @@
 import type {
   JournalEvent,
   MarketSignal,
+  OutcomeExecutorRunSummary,
   ReviewCheckpoint,
   SignalDirection,
   StrategyPlan,
@@ -185,6 +186,61 @@ function emptyResult(): OutcomeExecutorResult {
   };
 }
 
+function runEventId(now: string) {
+  return `journal-outcome-executor-${now
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
+}
+
+function runSummary(result: OutcomeExecutorResult): OutcomeExecutorRunSummary {
+  return {
+    dueEvents: result.dueEvents,
+    failedFetches: result.failedFetches,
+    failures: result.failures,
+    fetchedCandles: result.fetchedCandles,
+    scannedEvents: result.scannedEvents,
+    skippedEvents: result.skippedEvents,
+    writtenEvents: result.writtenEvents,
+  };
+}
+
+function runNote(summary: OutcomeExecutorRunSummary) {
+  const failurePreview = summary.failures
+    .slice(0, 3)
+    .map((failure) => `${failure.symbol}:${failure.reason}`)
+    .join(" / ");
+  const failureText = summary.failedFetches > 0 || summary.failures.length > 0
+    ? `，失败 ${summary.failedFetches}，原因 ${failurePreview || "待查看日志"}`
+    : "";
+
+  return `自动复盘执行：扫描 ${summary.scannedEvents}，到期 ${summary.dueEvents}，写回 ${summary.writtenEvents}，跳过 ${summary.skippedEvents}${failureText}。`;
+}
+
+function buildOutcomeExecutorRunEvent(result: OutcomeExecutorResult, now: string): JournalEvent {
+  const summary = runSummary(result);
+
+  return {
+    id: runEventId(now),
+    symbol: "OUTCOME_EXECUTOR",
+    title: "自动复盘执行批次",
+    result: "watching",
+    note: runNote(summary),
+    rankDelta: 0,
+    createdAt: now,
+    action: "outcome_executor_run",
+    reviewStatus: "closed",
+    lessons: [
+      "outcome_executor_run",
+      summary.failedFetches > 0 || summary.failures.length > 0 ? "executor_attention" : "executor_checked",
+    ],
+    source: "outcome_executor",
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    outcomeExecutorRun: summary,
+  };
+}
+
 export async function runOutcomeExecutor({
   limit = defaultEventLimit,
   now = new Date().toISOString(),
@@ -254,6 +310,8 @@ export async function runOutcomeExecutor({
 
     result.writtenEvents += 1;
   }
+
+  await repository.addJournalEvent(buildOutcomeExecutorRunEvent(result, now));
 
   return result;
 }

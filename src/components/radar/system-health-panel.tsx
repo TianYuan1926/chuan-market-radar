@@ -64,6 +64,15 @@ function outcomeStatusLabel(value: SystemHealthReport["outcomes"]["status"]) {
   }[value];
 }
 
+function outcomeQualityLabel(value: SystemHealthReport["outcomes"]["sampleQuality"]["status"]) {
+  return {
+    collecting: "收集中",
+    counterevidence_watch: "看反证",
+    empty: "待样本",
+    manual_review_ready: "可人工校准",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -121,6 +130,8 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
     health.operations.requestDetail,
     health.operations.runtimeDetail,
   ].filter((note): note is string => Boolean(note));
+  const outcomeRun = health.outcomes.lastRun;
+  const outcomeFailureReasons = outcomeRun?.failureReasons ?? [];
 
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
@@ -249,6 +260,58 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
                 最近写回
               </span>
             </div>
+
+            <div className="health-op-matrix health-outcome-quality" aria-label="自动复盘样本质量">
+              <span>
+                <Activity size={14} strokeWidth={2.2} />
+                <b>{outcomeQualityLabel(health.outcomes.sampleQuality.status)}</b>
+                样本质量
+              </span>
+              <span>
+                <Archive size={14} strokeWidth={2.2} />
+                <b>{health.outcomes.sampleQuality.validatedEvents}</b>
+                有效
+              </span>
+              <span>
+                <TimerReset size={14} strokeWidth={2.2} />
+                <b>{health.outcomes.sampleQuality.failedEvents}</b>
+                反证
+              </span>
+              <span>
+                <Clock3 size={14} strokeWidth={2.2} />
+                <b>{health.outcomes.sampleQuality.expiredEvents}</b>
+                过期
+              </span>
+            </div>
+
+            <div className="health-op-matrix health-outcome-run" aria-label="自动复盘执行批次">
+              <span>
+                <Clock3 size={14} strokeWidth={2.2} />
+                <b>{formatClock(health.outcomes.latestRunAt)}</b>
+                最近执行
+              </span>
+              <span>
+                <Archive size={14} strokeWidth={2.2} />
+                <b>{outcomeRun?.writtenEvents ?? 0}</b>
+                写回
+              </span>
+              <span>
+                <TimerReset size={14} strokeWidth={2.2} />
+                <b>{outcomeRun?.skippedEvents ?? 0}</b>
+                跳过
+              </span>
+              <span>
+                <Activity size={14} strokeWidth={2.2} />
+                <b>{outcomeRun?.failedFetches ?? 0}</b>
+                失败
+              </span>
+            </div>
+
+            {outcomeFailureReasons.length > 0 ? (
+              <div className="health-op-notes health-outcome-run__notes" aria-label="自动复盘失败原因">
+                <span>失败原因 {outcomeFailureReasons.join(" / ")}</span>
+              </div>
+            ) : null}
           </div>
 
           {notes.length > 0 ? (

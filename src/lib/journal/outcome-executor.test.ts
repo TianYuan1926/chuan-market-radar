@@ -100,6 +100,8 @@ test("runOutcomeExecutor writes lifecycle outcomes for due tracking journal entr
 
   const events = await repository.listJournalEvents();
   const lifecycleEvent = events.find((event) => event.id === "journal-ena-breakout-plan-lifecycle");
+  const runEvent = events.find((event) => event.action === "outcome_executor_run");
+  const runSummary = runEvent?.outcomeExecutorRun;
 
   assert.ok(lifecycleEvent);
   assert.equal(lifecycleEvent.outcomeStatus, "partial_win");
@@ -109,6 +111,24 @@ test("runOutcomeExecutor writes lifecycle outcomes for due tracking journal entr
   assert.equal(lifecycleEvent.rankDelta, 2);
   assert.equal(lifecycleEvent.firstTarget, "target 11.20");
   assert.equal(lifecycleEvent.canAutoAdjustWeights, false);
+  assert.ok(runEvent);
+  assert.equal(runEvent.symbol, "OUTCOME_EXECUTOR");
+  assert.equal(runEvent.result, "watching");
+  assert.equal(runEvent.rankDelta, 0);
+  assert.equal(runEvent.reviewStatus, "closed");
+  assert.equal(runEvent.source, "outcome_executor");
+  assert.equal(runEvent.allowedUse, "research_only");
+  assert.equal(runEvent.canAutoAdjustWeights, false);
+  assert.match(runEvent.note, /写回 1/);
+  assert.deepEqual(runSummary, {
+    dueEvents: 1,
+    failedFetches: 0,
+    failures: [],
+    fetchedCandles: 2,
+    scannedEvents: 1,
+    skippedEvents: 0,
+    writtenEvents: 1,
+  });
 });
 
 test("runOutcomeExecutor skips tracking entries that already have a closed lifecycle event", async () => {

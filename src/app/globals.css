@@ -2276,6 +2276,18 @@ p {
   border-top: 1px solid var(--line);
 }
 
+.health-outcome-run {
+  background: rgba(255, 250, 240, 0.54);
+}
+
+.health-outcome-quality {
+  background: rgba(39, 140, 102, 0.055);
+}
+
+.health-outcome-run__notes span {
+  border-color: rgba(201, 74, 74, 0.28);
+}
+
 .health-op-notes {
   display: grid;
   gap: 5px;

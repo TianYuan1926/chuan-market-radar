@@ -1,4 +1,4 @@
-import type { JournalEvent } from "../analysis/types";
+import type { JournalEvent, OutcomeExecutorRunSummary } from "../analysis/types";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import type {
@@ -22,6 +22,11 @@ export type SystemHealthGuard = {
 
 export type ScanOperationsVerdict = "healthy" | "watch" | "attention" | "blocked";
 export type OutcomeExecutorStatus = "idle" | "collecting" | "reviewing" | "covered";
+export type OutcomeSampleQualityStatus =
+  | "collecting"
+  | "counterevidence_watch"
+  | "empty"
+  | "manual_review_ready";
 
 export type SystemHealthReport = {
   generatedAt: string;
@@ -81,10 +86,30 @@ export type SystemHealthReport = {
     closedEvents: number;
     coveragePercent: number;
     dueEvents: number;
+    latestRunAt: string | null;
     latestOutcomeAt: string | null;
+    lastRun: {
+      dueEvents: number;
+      failedFetches: number;
+      failureReasons: string[];
+      fetchedCandles: number;
+      ranAt: string;
+      scannedEvents: number;
+      skippedEvents: number;
+      writtenEvents: number;
+    } | null;
     mode: "outcome_executor_mvp";
     operatorHint: string;
     pendingEvents: number;
+    sampleQuality: {
+      autoWeightEligible: false;
+      expiredEvents: number;
+      failedEvents: number;
+      manualReviewReady: boolean;
+      pendingEvents: number;
+      status: OutcomeSampleQualityStatus;
+      validatedEvents: number;
+    };
     status: OutcomeExecutorStatus;
     trackingEvents: number;
   };
@@ -390,7 +415,73 @@ function latestClosedOutcomeAt(events: JournalEvent[]) {
     .sort((left, right) => journalTime(right.createdAt) - journalTime(left.createdAt))[0]?.createdAt ?? null;
 }
 
-function outcomeOperatorHint(status: OutcomeExecutorStatus) {
+function isOutcomeExecutorRunEvent(event: JournalEvent): event is JournalEvent & {
+  outcomeExecutorRun: OutcomeExecutorRunSummary;
+} {
+  return event.action === "outcome_executor_run" && Boolean(event.outcomeExecutorRun);
+}
+
+function summarizeRunFailures(summary: OutcomeExecutorRunSummary) {
+  return summary.failures
+    .slice(0, 5)
+    .map((failure) => `${failure.symbol}:${failure.reason}`);
+}
+
+function latestOutcomeExecutorRun(events: JournalEvent[]): SystemHealthReport["outcomes"]["lastRun"] {
+  const event = events
+    .filter(isOutcomeExecutorRunEvent)
+    .sort((left, right) => journalTime(right.createdAt) - journalTime(left.createdAt))[0];
+
+  if (!event) {
+    return null;
+  }
+
+  return {
+    dueEvents: event.outcomeExecutorRun.dueEvents,
+    failedFetches: event.outcomeExecutorRun.failedFetches,
+    failureReasons: summarizeRunFailures(event.outcomeExecutorRun),
+    fetchedCandles: event.outcomeExecutorRun.fetchedCandles,
+    ranAt: event.createdAt,
+    scannedEvents: event.outcomeExecutorRun.scannedEvents,
+    skippedEvents: event.outcomeExecutorRun.skippedEvents,
+    writtenEvents: event.outcomeExecutorRun.writtenEvents,
+  };
+}
+
+function outcomeSampleQuality(outcomeEvents: JournalEvent[]): SystemHealthReport["outcomes"]["sampleQuality"] {
+  const pendingEvents = outcomeEvents.filter(isPendingOutcome).length;
+  const validatedEvents = outcomeEvents.filter((event) =>
+    event.outcomeStatus === "partial_win" || event.outcomeStatus === "saved"
+  ).length;
+  const failedEvents = outcomeEvents.filter((event) => event.outcomeStatus === "loss").length;
+  const expiredEvents = outcomeEvents.filter((event) => event.outcomeStatus === "expired").length;
+  const closedEvents = validatedEvents + failedEvents + expiredEvents;
+  const counterEvidenceEvents = failedEvents + expiredEvents;
+  const manualReviewReady = closedEvents >= 12 && validatedEvents >= counterEvidenceEvents;
+  const status: OutcomeSampleQualityStatus = closedEvents + pendingEvents === 0
+    ? "empty"
+    : closedEvents >= 5 && counterEvidenceEvents > validatedEvents
+      ? "counterevidence_watch"
+      : manualReviewReady
+        ? "manual_review_ready"
+        : "collecting";
+
+  return {
+    autoWeightEligible: false,
+    expiredEvents,
+    failedEvents,
+    manualReviewReady,
+    pendingEvents,
+    status,
+    validatedEvents,
+  };
+}
+
+function outcomeOperatorHint(status: OutcomeExecutorStatus, lastRun: SystemHealthReport["outcomes"]["lastRun"]) {
+  if (lastRun && (lastRun.failedFetches > 0 || lastRun.failureReasons.length > 0)) {
+    return "自动复盘最近有失败样本，先看失败原因，再决定是否补跑或等待下一轮。";
+  }
+
   if (status === "idle") {
     return "还没有自动复盘样本，等待信号进入跟踪队列。";
   }
@@ -412,6 +503,7 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
   const closedEvents = outcomeEvents.filter(isClosedOutcome);
   const dueEvents = pendingEvents.filter((event) => isDueOutcome(event, now));
   const trackingEvents = pendingEvents.length + closedEvents.length;
+  const lastRun = latestOutcomeExecutorRun(events);
   const status: OutcomeExecutorStatus = trackingEvents === 0
     ? "idle"
     : dueEvents.length > 0
@@ -426,10 +518,13 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
     closedEvents: closedEvents.length,
     coveragePercent: trackingEvents > 0 ? Math.round((closedEvents.length / trackingEvents) * 100) : 0,
     dueEvents: dueEvents.length,
+    latestRunAt: lastRun?.ranAt ?? null,
     latestOutcomeAt: latestClosedOutcomeAt(outcomeEvents),
+    lastRun,
     mode: "outcome_executor_mvp",
-    operatorHint: outcomeOperatorHint(status),
+    operatorHint: outcomeOperatorHint(status, lastRun),
     pendingEvents: pendingEvents.length,
+    sampleQuality: outcomeSampleQuality(outcomeEvents),
     status,
     trackingEvents,
   };

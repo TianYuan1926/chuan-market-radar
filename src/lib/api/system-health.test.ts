@@ -353,3 +353,134 @@ test("buildSystemHealthReport exposes outcome executor coverage from journal eve
   assert.equal(report.outcomes.status, "reviewing");
   assert.match(report.outcomes.operatorHint, /自动复盘/);
 });
+
+test("buildSystemHealthReport exposes the latest outcome executor run summary", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  await repository.addJournalEvent({
+    id: "journal-outcome-executor-2026-06-12t10-30-00-000z",
+    symbol: "OUTCOME_EXECUTOR",
+    title: "自动复盘执行批次",
+    result: "watching",
+    note: "自动复盘执行：扫描 24，到期 3，写回 1，跳过 2，失败 1。",
+    rankDelta: 0,
+    createdAt: "2026-06-12T10:30:00.000Z",
+    action: "outcome_executor_run",
+    reviewStatus: "closed",
+    source: "outcome_executor",
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    outcomeExecutorRun: {
+      dueEvents: 3,
+      failedFetches: 1,
+      failures: [
+        {
+          eventId: "journal-tia-track",
+          signalId: "tia-plan",
+          symbol: "TIAUSDT",
+          reason: "network",
+          error: "upstream request failed with a long provider error",
+        },
+      ],
+      fetchedCandles: 180,
+      scannedEvents: 24,
+      skippedEvents: 2,
+      writtenEvents: 1,
+    },
+  });
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T11:10:00.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.equal(report.outcomes.latestRunAt, "2026-06-12T10:30:00.000Z");
+  assert.deepEqual(report.outcomes.lastRun, {
+    dueEvents: 3,
+    failedFetches: 1,
+    failureReasons: ["TIAUSDT:network"],
+    fetchedCandles: 180,
+    ranAt: "2026-06-12T10:30:00.000Z",
+    scannedEvents: 24,
+    skippedEvents: 2,
+    writtenEvents: 1,
+  });
+  assert.match(report.outcomes.operatorHint, /失败/);
+});
+
+test("buildSystemHealthReport segments outcome sample quality without enabling automatic weights", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  const baseEvent = {
+    note: "样本复盘。",
+    rankDelta: 0,
+    result: "watching" as const,
+    reviewStatus: "closed" as const,
+    title: "生命周期复盘",
+  };
+
+  await repository.addJournalEvent({
+    ...baseEvent,
+    id: "journal-win",
+    signalId: "win-plan",
+    symbol: "ENAUSDT",
+    createdAt: "2026-06-12T10:00:00.000Z",
+    outcomeStatus: "partial_win",
+    result: "win",
+  });
+  await repository.addJournalEvent({
+    ...baseEvent,
+    id: "journal-saved",
+    signalId: "saved-plan",
+    symbol: "SOLUSDT",
+    createdAt: "2026-06-12T10:05:00.000Z",
+    outcomeStatus: "saved",
+    result: "saved",
+  });
+  await repository.addJournalEvent({
+    ...baseEvent,
+    id: "journal-loss",
+    signalId: "loss-plan",
+    symbol: "TIAUSDT",
+    createdAt: "2026-06-12T10:10:00.000Z",
+    outcomeStatus: "loss",
+    result: "loss",
+  });
+  await repository.addJournalEvent({
+    ...baseEvent,
+    id: "journal-expired",
+    signalId: "expired-plan",
+    symbol: "ONDOUSDT",
+    createdAt: "2026-06-12T10:15:00.000Z",
+    outcomeStatus: "expired",
+  });
+  await repository.addJournalEvent({
+    id: "journal-pending",
+    signalId: "pending-plan",
+    symbol: "SUIUSDT",
+    title: "纸面跟踪计划",
+    result: "watching",
+    note: "等待复查。",
+    rankDelta: 0,
+    createdAt: "2026-06-12T10:20:00.000Z",
+    outcomeStatus: "pending",
+    reviewStatus: "tracking",
+  });
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T11:10:00.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.deepEqual(report.outcomes.sampleQuality, {
+    autoWeightEligible: false,
+    expiredEvents: 1,
+    failedEvents: 1,
+    manualReviewReady: false,
+    pendingEvents: 1,
+    status: "collecting",
+    validatedEvents: 2,
+  });
+});

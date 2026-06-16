@@ -92,7 +92,11 @@ export type AiSignalReview = {
 
 export type SignalJournalAction = "track" | "paper_trade" | "skip" | "invalidate";
 
-export type JournalAction = SignalJournalAction | "calibration_review" | "strategy_confirmation";
+export type JournalAction =
+  | SignalJournalAction
+  | "calibration_review"
+  | "outcome_executor_run"
+  | "strategy_confirmation";
 
 export type ReviewStatus = "queued" | "tracking" | "closed";
 
@@ -109,6 +113,24 @@ export type SignalOutcomeStatus =
   | "saved"
   | "loss"
   | "expired";
+
+export type OutcomeExecutorRunFailure = {
+  eventId: string;
+  signalId?: string;
+  symbol: string;
+  reason: string;
+  error: string;
+};
+
+export type OutcomeExecutorRunSummary = {
+  dueEvents: number;
+  failedFetches: number;
+  failures: OutcomeExecutorRunFailure[];
+  fetchedCandles: number;
+  scannedEvents: number;
+  skippedEvents: number;
+  writtenEvents: number;
+};
 
 export type MarketSignal = {
   id: string;
@@ -156,8 +178,9 @@ export type JournalEvent = {
   invalidationHit?: boolean;
   firstTargetHit?: boolean;
   reviewCheckpoints?: ReviewCheckpoint[];
-  source?: "signal" | "daily_mover_calibration" | "strategy_version_confirmation";
+  source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation";
   sourceId?: string;
+  outcomeExecutorRun?: OutcomeExecutorRunSummary;
   calibrationTag?: string;
   sampleSymbols?: string[];
   allowedUse?: "research_only";
