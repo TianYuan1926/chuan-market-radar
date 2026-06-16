@@ -99,6 +99,15 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
         admissionStatus: "collecting",
         allowedUse: "research_only",
         autoWeightEligible: false,
+        blockerDetails: [
+          {
+            code: "closed_samples_below_threshold",
+            detail: "已关闭样本不足，当前只能继续观察。",
+            label: "样本不足",
+            nextStep: "继续积累已关闭 outcome 样本，不进入权重讨论。",
+            severity: "watch",
+          },
+        ],
         calibrationReviewEvents: 0,
         canAutoAdjustWeights: false,
         checkpoints: [
@@ -130,6 +139,13 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
         pendingCalibrationReviews: 0,
         retainedObservationVersions: 0,
         rollbackWatchVersions: 0,
+        sampleBreakdown: {
+          expired: 0,
+          pending: 0,
+          rejected: 0,
+          validated: 0,
+        },
+        sampleDrilldown: [],
         sampleGateReady: false,
         status: "collecting_samples",
       },

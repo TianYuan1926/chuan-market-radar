@@ -152,6 +152,8 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
   const outcomeFailureReasons = outcomeRun?.failureReasons ?? [];
   const outcomeAdmission = health.outcomes.calibrationAdmission;
   const outcomeFlow = health.outcomes.calibrationFlow;
+  const outcomeBlockers = outcomeFlow.blockerDetails.slice(0, 2);
+  const outcomeSampleDrilldown = outcomeFlow.sampleDrilldown.slice(0, 3);
 
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
@@ -348,6 +350,38 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
                 <b>{outcomeFlow.pendingCalibrationReviews}</b>
                 待校准
               </span>
+            </div>
+
+            {outcomeBlockers.length > 0 ? (
+              <div className="health-op-notes health-outcome-detail" aria-label="自动复盘阻断解释">
+                <span className="health-outcome-detail__title">阻断解释</span>
+                {outcomeBlockers.map((blocker) => (
+                  <span key={blocker.code}>
+                    <b>{blocker.label}</b>
+                    {blocker.detail} {blocker.nextStep}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="health-outcome-samples" aria-label="自动复盘样本明细">
+              <div className="health-outcome-samples__head">
+                <span className="mono">样本分布</span>
+                <strong>
+                  有效 {outcomeFlow.sampleBreakdown.validated} / 反证 {outcomeFlow.sampleBreakdown.rejected} / 待复查 {outcomeFlow.sampleBreakdown.pending} / 过期 {outcomeFlow.sampleBreakdown.expired}
+                </strong>
+              </div>
+              {outcomeSampleDrilldown.length > 0 ? (
+                <div className="health-outcome-samples__list" aria-label="样本明细">
+                  {outcomeSampleDrilldown.map((sample) => (
+                    <span className={`health-outcome-samples__item health-outcome-samples__item--${sample.bucket}`} key={sample.id}>
+                      <b>{sample.symbol}</b>
+                      <em>{sample.label}</em>
+                      <small>{formatClock(sample.createdAt)} · {sample.reason}</small>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="health-op-matrix health-outcome-run" aria-label="自动复盘执行批次">

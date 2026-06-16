@@ -30,11 +30,13 @@ function calibrationReview({
   id,
   createdAt,
   outcomeStatus = "pending",
+  symbol = "SUIUSDT",
   tag = "review_volume_oi_weight",
 }: {
   id: string;
   createdAt: string;
   outcomeStatus?: SignalOutcomeStatus;
+  symbol?: string;
   tag?: string;
 }): JournalEvent {
   return {
@@ -50,7 +52,7 @@ function calibrationReview({
     result: outcomeStatus === "loss" ? "loss" : outcomeStatus === "saved" ? "saved" : "watching",
     reviewStatus: outcomeStatus === "pending" ? "tracking" : "closed",
     source: "daily_mover_calibration",
-    symbol: "SUIUSDT",
+    symbol,
     title: "规则校准复盘",
   };
 }
@@ -119,4 +121,74 @@ test("buildOutcomeCalibrationFlow connects admission, manual confirmation, and r
   assert.equal(flow.checkpoints[0]?.status, "complete");
   assert.equal(flow.checkpoints[1]?.status, "complete");
   assert.equal(flow.checkpoints[2]?.status, "watch");
+});
+
+test("buildOutcomeCalibrationFlow explains blockers and exposes bounded calibration sample drilldown", () => {
+  const flow = buildOutcomeCalibrationFlow([
+    outcomeEvent({ id: "loss-1", outcomeStatus: "loss", result: "loss" }),
+    outcomeEvent({ id: "loss-2", outcomeStatus: "loss", result: "loss" }),
+    outcomeEvent({ id: "loss-3", outcomeStatus: "loss", result: "loss" }),
+    outcomeEvent({ id: "win-1", outcomeStatus: "partial_win", result: "win" }),
+    calibrationReview({
+      createdAt: "2026-06-12T12:00:00.000Z",
+      id: "calibration-pending",
+      symbol: "PENDUSDT",
+    }),
+    calibrationReview({
+      createdAt: "2026-06-12T13:00:00.000Z",
+      id: "calibration-saved",
+      outcomeStatus: "saved",
+      symbol: "SAVEUSDT",
+    }),
+    calibrationReview({
+      createdAt: "2026-06-12T14:00:00.000Z",
+      id: "calibration-loss",
+      outcomeStatus: "loss",
+      symbol: "LOSSUSDT",
+    }),
+    calibrationReview({
+      createdAt: "2026-06-12T15:00:00.000Z",
+      id: "calibration-expired",
+      outcomeStatus: "expired",
+      symbol: "OLDUSDT",
+    }),
+    calibrationReview({
+      createdAt: "2026-06-12T16:00:00.000Z",
+      id: "calibration-newest",
+      outcomeStatus: "partial_win",
+      symbol: "NEWUSDT",
+    }),
+  ]);
+
+  assert.equal(flow.status, "blocked");
+  assert.deepEqual(flow.blockerDetails.map((detail) => detail.code), [
+    "closed_samples_below_threshold",
+    "counterevidence_dominates",
+    "loss_cluster",
+    "validation_rate_below_threshold",
+  ]);
+  assert.match(flow.blockerDetails[1]?.label ?? "", /反证/);
+  assert.match(flow.blockerDetails[2]?.nextStep ?? "", /冻结/);
+  assert.equal(flow.sampleBreakdown.pending, 1);
+  assert.equal(flow.sampleBreakdown.validated, 2);
+  assert.equal(flow.sampleBreakdown.rejected, 1);
+  assert.equal(flow.sampleBreakdown.expired, 1);
+  assert.equal(flow.sampleDrilldown.length, 5);
+  assert.deepEqual(flow.sampleDrilldown.map((sample) => sample.symbol), [
+    "NEWUSDT",
+    "OLDUSDT",
+    "LOSSUSDT",
+    "SAVEUSDT",
+    "PENDUSDT",
+  ]);
+  assert.deepEqual(flow.sampleDrilldown.map((sample) => sample.bucket), [
+    "validated",
+    "expired",
+    "rejected",
+    "validated",
+    "pending",
+  ]);
+  assert.equal(flow.sampleDrilldown[0]?.allowedUse, "research_only");
+  assert.equal(flow.sampleDrilldown[0]?.canAutoAdjustWeights, false);
+  assert.match(flow.sampleDrilldown[2]?.reason ?? "", /反证/);
 });

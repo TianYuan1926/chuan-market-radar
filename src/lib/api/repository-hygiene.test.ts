@@ -325,6 +325,7 @@ test("system health UI exposes outcome executor status and coverage", () => {
     resolve(process.cwd(), "src/components/radar/system-health-panel.tsx"),
     "utf8",
   );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
   assert.match(componentSource, /自动复盘/);
   assert.match(componentSource, /覆盖率/);
@@ -343,6 +344,12 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /人工确认/);
   assert.match(componentSource, /回滚观察/);
   assert.match(componentSource, /待校准/);
+  assert.match(componentSource, /阻断解释/);
+  assert.match(componentSource, /样本明细/);
+  assert.match(componentSource, /样本分布/);
+  assert.match(componentSource, /blockerDetails/);
+  assert.match(componentSource, /sampleDrilldown/);
+  assert.match(componentSource, /sampleBreakdown/);
   assert.match(componentSource, /阻断项/);
   assert.match(componentSource, /不改权重/);
   assert.match(componentSource, /有效/);
@@ -353,6 +360,10 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-quality/);
   assert.match(componentSource, /health-outcome-admission/);
   assert.match(componentSource, /health-outcome-flow/);
+  assert.match(componentSource, /health-outcome-detail/);
+  assert.match(componentSource, /health-outcome-samples/);
+  assert.match(cssSource, /\.health-outcome-detail/);
+  assert.match(cssSource, /\.health-outcome-samples/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {

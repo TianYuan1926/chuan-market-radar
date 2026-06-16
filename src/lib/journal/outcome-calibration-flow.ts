@@ -26,10 +26,40 @@ export type OutcomeCalibrationFlowCheckpoint = {
   status: OutcomeCalibrationFlowCheckpointStatus;
 };
 
+export type OutcomeCalibrationBlockerCode =
+  | "closed_samples_below_threshold"
+  | "counterevidence_dominates"
+  | "loss_cluster"
+  | "validation_rate_below_threshold";
+
+export type OutcomeCalibrationBlockerDetail = {
+  code: OutcomeCalibrationBlockerCode;
+  detail: string;
+  label: string;
+  nextStep: string;
+  severity: "attention" | "blocked" | "watch";
+};
+
+export type OutcomeCalibrationSampleBreakdown = Record<CalibrationBucket, number>;
+
+export type OutcomeCalibrationSampleDrilldown = {
+  allowedUse: "research_only";
+  bucket: CalibrationBucket;
+  canAutoAdjustWeights: false;
+  createdAt: string;
+  id: string;
+  label: string;
+  reason: string;
+  reviewStatus: JournalEvent["reviewStatus"];
+  symbol: string;
+  tag: string;
+};
+
 export type OutcomeCalibrationFlow = {
   admissionStatus: OutcomeCalibrationAdmissionStatus;
   allowedUse: "research_only";
   autoWeightEligible: false;
+  blockerDetails: OutcomeCalibrationBlockerDetail[];
   calibrationReviewEvents: number;
   canAutoAdjustWeights: false;
   checkpoints: OutcomeCalibrationFlowCheckpoint[];
@@ -42,6 +72,8 @@ export type OutcomeCalibrationFlow = {
   pendingCalibrationReviews: number;
   retainedObservationVersions: number;
   rollbackWatchVersions: number;
+  sampleBreakdown: OutcomeCalibrationSampleBreakdown;
+  sampleDrilldown: OutcomeCalibrationSampleDrilldown[];
   sampleGateReady: boolean;
   status: OutcomeCalibrationFlowStatus;
 };
@@ -97,6 +129,24 @@ function calibrationBucket(event: JournalEvent): CalibrationBucket {
   }
 
   return "pending";
+}
+
+function calibrationBucketLabel(bucket: CalibrationBucket) {
+  return {
+    expired: "过期",
+    pending: "待复查",
+    rejected: "反证",
+    validated: "有效",
+  }[bucket];
+}
+
+function calibrationBucketReason(bucket: CalibrationBucket) {
+  return {
+    expired: "样本过期或窗口失效，暂不支持规则加权。",
+    pending: "样本仍待复查，不能提前纳入权重讨论。",
+    rejected: "样本形成反证，优先复核失败路径和适用条件。",
+    validated: "样本表现有效，只能进入人工复核候选，不能自动加权。",
+  }[bucket];
 }
 
 function confirmationTag(event: JournalEvent) {
@@ -260,6 +310,80 @@ function rollbackCheckpoint({
   };
 }
 
+function blockerDetail(code: string): OutcomeCalibrationBlockerDetail {
+  const fallback: OutcomeCalibrationBlockerDetail = {
+    code: "closed_samples_below_threshold",
+    detail: "已关闭样本不足，当前只能继续观察。",
+    label: "样本不足",
+    nextStep: "继续积累已关闭 outcome 样本，不进入权重讨论。",
+    severity: "watch",
+  };
+  const details: Record<OutcomeCalibrationBlockerCode, OutcomeCalibrationBlockerDetail> = {
+    closed_samples_below_threshold: fallback,
+    counterevidence_dominates: {
+      code: "counterevidence_dominates",
+      detail: "反证样本数量超过有效样本，说明当前规则假设可能不稳。",
+      label: "反证占优",
+      nextStep: "先复查样本来源、市场环境和规则适用边界，不能提高权重。",
+      severity: "blocked",
+    },
+    loss_cluster: {
+      code: "loss_cluster",
+      detail: "亏损样本形成聚集，可能存在系统性误报。",
+      label: "亏损聚集",
+      nextStep: "冻结加权讨论，优先拆解失败路径并降级为观察。",
+      severity: "blocked",
+    },
+    validation_rate_below_threshold: {
+      code: "validation_rate_below_threshold",
+      detail: "有效率低于人工校准阈值，不能支撑策略版本升级。",
+      label: "有效率不足",
+      nextStep: "继续补样本并复核反证，暂不进入自动调权准入。",
+      severity: "attention",
+    },
+  };
+
+  return details[code as OutcomeCalibrationBlockerCode] ?? fallback;
+}
+
+function sampleBreakdown(calibrationReviews: JournalEvent[]): OutcomeCalibrationSampleBreakdown {
+  return calibrationReviews.reduce<OutcomeCalibrationSampleBreakdown>((current, event) => {
+    const bucket = calibrationBucket(event);
+
+    return {
+      ...current,
+      [bucket]: current[bucket] + 1,
+    };
+  }, {
+    expired: 0,
+    pending: 0,
+    rejected: 0,
+    validated: 0,
+  });
+}
+
+function sampleDrilldown(calibrationReviews: JournalEvent[]): OutcomeCalibrationSampleDrilldown[] {
+  return [...calibrationReviews]
+    .sort((left, right) => sortableTime(right.createdAt) - sortableTime(left.createdAt))
+    .slice(0, 5)
+    .map((event) => {
+      const bucket = calibrationBucket(event);
+
+      return {
+        allowedUse: "research_only",
+        bucket,
+        canAutoAdjustWeights: false,
+        createdAt: event.createdAt,
+        id: event.id,
+        label: calibrationBucketLabel(bucket),
+        reason: calibrationBucketReason(bucket),
+        reviewStatus: event.reviewStatus,
+        symbol: event.symbol,
+        tag: event.calibrationTag ?? "unclassified",
+      };
+    });
+}
+
 export function buildOutcomeCalibrationFlow(events: JournalEvent[]): OutcomeCalibrationFlow {
   const admission = buildOutcomeCalibrationAdmission(events);
   const calibrationReviews = events.filter(isCalibrationReview);
@@ -280,6 +404,7 @@ export function buildOutcomeCalibrationFlow(events: JournalEvent[]): OutcomeCali
     admissionStatus: admission.status,
     allowedUse: "research_only",
     autoWeightEligible: false,
+    blockerDetails: admission.blockers.map(blockerDetail),
     calibrationReviewEvents: calibrationReviews.length,
     canAutoAdjustWeights: false,
     checkpoints: [
@@ -303,6 +428,8 @@ export function buildOutcomeCalibrationFlow(events: JournalEvent[]): OutcomeCali
     pendingCalibrationReviews,
     retainedObservationVersions,
     rollbackWatchVersions,
+    sampleBreakdown: sampleBreakdown(calibrationReviews),
+    sampleDrilldown: sampleDrilldown(calibrationReviews),
     sampleGateReady: admission.manualCalibrationReady,
     status,
   };
