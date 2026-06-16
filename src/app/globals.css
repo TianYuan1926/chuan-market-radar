@@ -1243,6 +1243,453 @@ p {
 .evidence--blocking::before { background: var(--red); }
 .evidence--neutral::before { background: var(--muted); }
 
+.signal-dossier {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.signal-dossier--open {
+  pointer-events: auto;
+}
+
+.signal-dossier__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background:
+    linear-gradient(90deg, rgba(21, 23, 28, 0.18), rgba(21, 23, 28, 0.34)),
+    rgba(21, 23, 28, 0.18);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 360ms var(--curve);
+}
+
+.signal-dossier--open .signal-dossier__backdrop {
+  opacity: 1;
+}
+
+.signal-dossier__drawer {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: min(486px, calc(100vw - 28px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(21, 23, 28, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(21, 23, 28, 0.035) 1px, transparent 1px),
+    rgba(255, 250, 240, 0.97);
+  background-size: 28px 28px;
+  box-shadow: -30px 0 90px rgba(21, 23, 28, 0.24);
+  transform: translateX(calc(100% + 22px));
+  transition: transform 420ms var(--curve);
+}
+
+.signal-dossier--open .signal-dossier__drawer {
+  transform: translateX(0);
+}
+
+.signal-dossier__hero {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 16px;
+  border-bottom: 1px solid var(--line-strong);
+  background: rgba(255, 250, 240, 0.96);
+  backdrop-filter: blur(18px);
+}
+
+.signal-dossier__hero h2 {
+  margin: 9px 0 0;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.signal-dossier__hero p {
+  margin: 9px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.signal-dossier__close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--ink);
+  color: var(--paper-3);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.signal-dossier__section {
+  margin: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.signal-dossier__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.signal-dossier__section-head h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.signal-dossier__section-head span {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 7px;
+  color: var(--ink-2);
+  background: rgba(213, 155, 61, 0.14);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.signal-dossier__context-grid,
+.signal-dossier__tv {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.signal-dossier__context-grid span,
+.signal-dossier__tv span {
+  min-height: 54px;
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  padding: 9px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+}
+
+.signal-dossier__context-grid span:nth-child(3n),
+.signal-dossier__tv span:last-child {
+  border-right: 0;
+}
+
+.signal-dossier__context-grid span:nth-last-child(-n + 3),
+.signal-dossier__tv span {
+  border-bottom: 0;
+}
+
+.signal-dossier__context-grid b,
+.signal-dossier__tv b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-dossier__tv-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  margin: 10px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper-3);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.signal-dossier__strategy {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.signal-dossier__strategy article {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.signal-dossier__strategy article:last-child {
+  border-bottom: 0;
+}
+
+.signal-dossier__strategy strong,
+.signal-dossier__checks b {
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+}
+
+.signal-dossier__strategy p,
+.signal-dossier__checks span,
+.signal-dossier__empty {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.signal-dossier__checks {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.signal-dossier__checks span {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.signal-dossier__evidence,
+.signal-dossier__journal,
+.signal-dossier__movers,
+.signal-dossier__alerts {
+  display: grid;
+}
+
+.signal-dossier__evidence-item,
+.signal-dossier__journal-item,
+.signal-dossier__mover,
+.signal-dossier__alert {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.signal-dossier__evidence-item:last-child,
+.signal-dossier__journal-item:last-child,
+.signal-dossier__mover:last-child,
+.signal-dossier__alert:last-child {
+  border-bottom: 0;
+}
+
+.signal-dossier__evidence-item {
+  position: relative;
+  padding-left: 17px;
+}
+
+.signal-dossier__evidence-item::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 8px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.signal-dossier__evidence-item--supportive::before { background: var(--green); }
+.signal-dossier__evidence-item--conflicting::before { background: var(--amber); }
+.signal-dossier__evidence-item--blocking::before { background: var(--red); }
+.signal-dossier__evidence-item--neutral::before { background: var(--muted); }
+
+.signal-dossier__evidence-item div,
+.signal-dossier__journal-item div,
+.signal-dossier__mover div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.signal-dossier__evidence-item strong,
+.signal-dossier__journal-item strong,
+.signal-dossier__mover strong,
+.signal-dossier__alert strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-dossier__evidence-item span,
+.signal-dossier__journal-item span,
+.signal-dossier__mover span {
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.signal-dossier__evidence-item p,
+.signal-dossier__journal-item p,
+.signal-dossier__mover p,
+.signal-dossier__alert p,
+.signal-dossier__copilot p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.signal-dossier__journal-item small,
+.signal-dossier__mover small,
+.signal-dossier__alert small,
+.signal-dossier__mover em {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.signal-dossier__mover--gainer {
+  background: rgba(39, 140, 102, 0.08);
+}
+
+.signal-dossier__mover--loser {
+  background: rgba(201, 74, 74, 0.08);
+}
+
+.signal-dossier__empty {
+  padding: 12px;
+}
+
+.signal-dossier__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.signal-dossier__actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: rgba(255, 250, 240, 0.72);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.signal-dossier__actions span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+.signal-dossier__actions b {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.signal-dossier__actions small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-dossier__alert {
+  grid-template-columns: 24px minmax(0, 1fr);
+}
+
+.signal-dossier__alert--critical,
+.signal-dossier__alert--high {
+  background: rgba(201, 74, 74, 0.08);
+}
+
+.signal-dossier__alert--watch {
+  background: rgba(213, 155, 61, 0.1);
+}
+
+.signal-dossier__alert--quiet {
+  background: rgba(21, 23, 28, 0.04);
+}
+
+.signal-dossier__section--copilot {
+  margin-bottom: 18px;
+}
+
+.signal-dossier__copilot {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  background:
+    linear-gradient(90deg, rgba(213, 155, 61, 0.14), transparent 72%),
+    rgba(255, 255, 255, 0.26);
+}
+
+.signal-dossier__empty-state {
+  display: grid;
+  gap: 8px;
+  margin: 12px;
+  padding: 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink-2);
+}
+
+.signal-dossier__empty-state p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pet-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pet-dossier-button {
+  min-height: 25px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 0 8px;
+  color: var(--paper-3);
+  background: var(--ink);
+  cursor: pointer;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .pet-module {
   padding: 13px;
 }
@@ -5343,6 +5790,10 @@ p {
   .executor-run-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .signal-dossier__drawer {
+    width: min(520px, calc(100vw - 22px));
+  }
 }
 
 @media (max-width: 620px) {
@@ -5422,6 +5873,68 @@ p {
 
   .health-grid {
     grid-template-columns: 1fr;
+  }
+
+  .signal-dossier__drawer {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 88dvh;
+    border-radius: 12px 12px 0 0;
+    transform: translateY(calc(100% + 18px));
+  }
+
+  .signal-dossier--open .signal-dossier__drawer {
+    transform: translateY(0);
+  }
+
+  .signal-dossier__hero {
+    grid-template-columns: 1fr;
+    padding: 13px;
+  }
+
+  .signal-dossier__hero h2 {
+    font-size: 25px;
+  }
+
+  .signal-dossier__close {
+    justify-self: start;
+  }
+
+  .signal-dossier__context-grid,
+  .signal-dossier__tv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .signal-dossier__context-grid span:nth-child(3n),
+  .signal-dossier__tv span:last-child {
+    border-right: 1px solid var(--line);
+  }
+
+  .signal-dossier__context-grid span:nth-child(2n),
+  .signal-dossier__tv span:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .signal-dossier__context-grid span:nth-last-child(-n + 3),
+  .signal-dossier__tv span {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .signal-dossier__context-grid span:nth-last-child(-n + 2),
+  .signal-dossier__tv span:nth-last-child(-n + 1) {
+    border-bottom: 0;
+  }
+
+  .signal-dossier__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .pet-head-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .health-op-matrix {

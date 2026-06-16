@@ -9,6 +9,7 @@ import { PixelS680 } from "./pixel-s680";
 import { RadarTable } from "./radar-table";
 import { RankPanel } from "./rank-panel";
 import { ReplayPanel } from "./replay-panel";
+import { SignalDossier, type SignalDossierDailyMoverMatch } from "./signal-dossier";
 import { StrategyCard } from "./strategy-card";
 import { SystemHealthPanel } from "./system-health-panel";
 import { signalStateLabels } from "@/lib/analysis/constants";
@@ -126,6 +127,35 @@ function displayMetadataNote(note: string | undefined) {
     .replace(/^scan runtime:/, "扫描耗时：");
 }
 
+function normalizeDossierSymbol(symbol: string) {
+  return symbol
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .replace(/(USDT|USDC|USD|PERP)$/u, "");
+}
+
+function correlationStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    caught_unreviewed: "命中待复盘",
+    caught_with_journal: "命中已复盘",
+    missed_with_evidence: "漏判有证据",
+    not_learnable: "不可学习",
+    unlinked: "未关联",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
+function radarStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    caught: "抓到",
+    missed: "漏判",
+    not_learnable: "不可学",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
 function mergeJournalEvents(current: JournalEvent[], incoming: JournalEvent[]) {
   const entriesById = new Map<string, JournalEvent>();
 
@@ -217,6 +247,8 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const [liveHealth, setLiveHealth] = useState(health);
   const { heatmap, instrumentPool, journalEvents, metadata, signals } = liveSnapshot;
   const [selectedId, setSelectedId] = useState<string | undefined>(signals[0]?.id);
+  const [dossierSignalId, setDossierSignalId] = useState<string | undefined>();
+  const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>(signals[0]?.timeframe ?? "15m");
   const [journalEntries, setJournalEntries] = useState<JournalEvent[]>(journalEvents);
   const [journalStatus, setJournalStatus] = useState<JournalSaveStatus>("idle");
@@ -246,7 +278,80 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     () => signals.find((signal) => signal.id === selectedId) ?? signals[0],
     [selectedId, signals],
   );
+  const selectedDossierSignal = useMemo(
+    () => signals.find((signal) => signal.id === dossierSignalId) ?? (isDossierOpen ? selected : undefined),
+    [dossierSignalId, isDossierOpen, selected, signals],
+  );
   const rankProfile = useMemo(() => buildRankProfile(journalEntries), [journalEntries]);
+  const journalMatches = useMemo(() => {
+    if (!selectedDossierSignal) {
+      return [];
+    }
+
+    const target = normalizeDossierSymbol(selectedDossierSignal.symbol);
+
+    return journalEntries
+      .filter((entry) => normalizeDossierSymbol(entry.symbol) === target)
+      .slice(0, 8);
+  }, [journalEntries, selectedDossierSignal]);
+  const dailyMoverMatches = useMemo<SignalDossierDailyMoverMatch[]>(() => {
+    if (!selectedDossierSignal) {
+      return [];
+    }
+
+    const target = normalizeDossierSymbol(selectedDossierSignal.symbol);
+    const matchesById = new Map<string, SignalDossierDailyMoverMatch>();
+
+    for (const link of dailyMoverState.selectedCorrelation?.links ?? []) {
+      if (normalizeDossierSymbol(link.symbol) !== target) {
+        continue;
+      }
+
+      matchesById.set(`correlation-${link.moverId}`, {
+        detail: link.suggestedNextStep,
+        direction: link.direction,
+        id: `correlation-${link.moverId}`,
+        journalCount: link.journalEventIds.length,
+        nextStep: link.calibrationCandidate ? "保留为规则校准候选" : "继续观察后续复盘结果",
+        observedAt: dailyMoverState.selectedCorrelation?.observedAt,
+        scanCount: link.matchedScanIds.length,
+        status: correlationStatusLabel(link.status),
+        symbol: link.symbol,
+      });
+    }
+
+    for (const detail of dailyMoverState.selectedDetails) {
+      if (normalizeDossierSymbol(detail.symbol) !== target) {
+        continue;
+      }
+
+      matchesById.set(`detail-${detail.id}`, {
+        detail: detail.whyMissed,
+        direction: detail.direction,
+        evidence: detail.primaryDrivers.slice(0, 2).join(" / "),
+        id: `detail-${detail.id}`,
+        journalCount: detail.journalEventIds.length,
+        nextStep: detail.nextReviewAction,
+        observedAt: detail.observedAt,
+        scanCount: detail.matchedScanIds.length,
+        status: radarStatusLabel(detail.radarStatus),
+        symbol: detail.symbol,
+      });
+    }
+
+    return Array.from(matchesById.values()).slice(0, 6);
+  }, [dailyMoverState, selectedDossierSignal]);
+  const alertMatches = useMemo(() => {
+    if (!selectedDossierSignal) {
+      return [];
+    }
+
+    const target = normalizeDossierSymbol(selectedDossierSignal.symbol);
+
+    return alertEvents
+      .filter((event) => event.symbol && normalizeDossierSymbol(event.symbol) === target)
+      .slice(0, 5);
+  }, [alertEvents, selectedDossierSignal]);
 
   const mood = selected?.risk === "high" || selected?.risk === "blocked"
     ? "serious"
@@ -304,6 +409,23 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       tag: event.id,
     });
   }, []);
+
+  const closeSignalDossier = useCallback(() => {
+    setIsDossierOpen(false);
+  }, []);
+
+  const openSignalDossier = useCallback((id?: string) => {
+    const signal = id ? signals.find((item) => item.id === id) : selected;
+
+    if (!signal) {
+      return;
+    }
+
+    setSelectedId(signal.id);
+    setActiveTimeframe(signal.timeframe);
+    setDossierSignalId(signal.id);
+    setIsDossierOpen(true);
+  }, [selected, signals]);
 
   function toggleSound() {
     if (soundEnabled) {
@@ -441,6 +563,24 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       }
     };
   }, [maybeShowNotification, playSignalTone, soundEnabled]);
+
+  useEffect(() => {
+    if (!isDossierOpen) {
+      return undefined;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeSignalDossier();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeSignalDossier, isDossierOpen]);
 
   useEffect(() => {
     return () => {
@@ -734,7 +874,12 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
 
       <section className="studio-workspace">
         <aside className="studio-stack studio-stack--left">
-          <RadarTable signals={signals} selectedId={selected?.id} onSelect={selectSignal} />
+          <RadarTable
+            signals={signals}
+            selectedId={selected?.id}
+            onOpenDossier={openSignalDossier}
+            onSelect={selectSignal}
+          />
           <section className="module">
             <div className="module-head">
               <h2>全市场热区</h2>
@@ -747,12 +892,23 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
               <span><b>{formatCompactUsd(instrumentPool.summary.minVolume24hUsd)}</b> 门槛</span>
             </div>
             <div className="heat-grid">
-              {heatmap.map((item) => (
-                <button className={`heat-cell heat-cell--${item.tone}`} key={item.symbol} type="button">
-                  <b>{item.symbol}</b>
-                  <span>{formatChangePercent(item.changePercent)}</span>
-                </button>
-              ))}
+              {heatmap.map((item) => {
+                const heatSignal = signals.find((signal) =>
+                  normalizeDossierSymbol(signal.symbol) === normalizeDossierSymbol(item.symbol)
+                );
+
+                return (
+                  <button
+                    className={`heat-cell heat-cell--${item.tone}`}
+                    key={item.symbol}
+                    onClick={() => heatSignal && openSignalDossier(heatSignal.id)}
+                    type="button"
+                  >
+                    <b>{item.symbol}</b>
+                    <span>{formatChangePercent(item.changePercent)}</span>
+                  </button>
+                );
+              })}
             </div>
           </section>
         </aside>
@@ -773,7 +929,11 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
                   >
                     打开主图 <span>↗</span>
                   </a>
-                  <button className="action-button action-button--ghost" type="button">
+                  <button
+                    className="action-button action-button--ghost"
+                    onClick={() => openSignalDossier()}
+                    type="button"
+                  >
                     查看逻辑 <span>→</span>
                   </button>
                 </div>
@@ -789,7 +949,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
                   <button
                     className={`signal-rhythm__bar signal-rhythm__bar--${signal.direction}`}
                     key={`rhythm-${signal.id}`}
-                    onClick={() => selectSignal(signal.id)}
+                    onClick={() => openSignalDossier(signal.id)}
                     type="button"
                   >
                     <i style={{ height: `${Math.max(18, Math.min(signal.confidence, 96))}%` }} />
@@ -807,11 +967,12 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
               {["n1", "n2", "n3", "n4", "n5"].map((slot, index) => {
                 const signal = signals[index] ?? signals[0];
                 const symbol = signal?.symbol.replace("USDT", "") ?? "BTC";
+
                 return (
                   <button
                     className={`signal-node ${slot} ${index === 0 ? "signal-node--hot" : ""}`}
                     key={`${slot}-${symbol}`}
-                    onClick={() => signal && selectSignal(signal.id)}
+                    onClick={() => signal && openSignalDossier(signal.id)}
                     type="button"
                   >
                     <b>{symbol}</b>
@@ -851,7 +1012,12 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
           />
           <StrategyCard selected={selected} />
           <RankPanel profile={rankProfile} />
-          <PixelS680 mood={mood} rankProfile={rankProfile} />
+          <PixelS680
+            mood={mood}
+            onOpenDossier={() => openSignalDossier()}
+            rankProfile={rankProfile}
+            selectedSymbol={selected?.symbol}
+          />
           <ReplayPanel archive={liveSnapshot.archive} />
           <JournalPanel
             events={journalEntries}
@@ -861,6 +1027,17 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
           />
         </aside>
       </section>
+
+      <SignalDossier
+        activeTimeframe={activeTimeframe}
+        alertMatches={alertMatches}
+        dailyMoverMatches={dailyMoverMatches}
+        isOpen={isDossierOpen}
+        journalMatches={journalMatches}
+        onClose={closeSignalDossier}
+        onCreateJournalEntry={createJournalEntry}
+        signal={selectedDossierSignal}
+      />
     </main>
   );
 }

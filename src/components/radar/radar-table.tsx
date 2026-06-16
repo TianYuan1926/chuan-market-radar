@@ -4,10 +4,11 @@ import type { MarketSignal } from "@/lib/analysis/types";
 type RadarTableProps = {
   signals: MarketSignal[];
   selectedId?: string;
+  onOpenDossier?: (id: string) => void;
   onSelect: (id: string) => void;
 };
 
-export function RadarTable({ signals, selectedId, onSelect }: RadarTableProps) {
+export function RadarTable({ signals, selectedId, onOpenDossier, onSelect }: RadarTableProps) {
   return (
     <section className="module">
       <div className="module-head">
@@ -29,7 +30,10 @@ export function RadarTable({ signals, selectedId, onSelect }: RadarTableProps) {
               <button
                 className={selectedId === signal.id ? "candidate-row is-selected" : "candidate-row"}
                 key={signal.id}
-                onClick={() => onSelect(signal.id)}
+                onClick={() => {
+                  onSelect(signal.id);
+                  onOpenDossier?.(signal.id);
+                }}
                 type="button"
               >
                 <span>

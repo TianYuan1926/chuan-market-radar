@@ -2,11 +2,14 @@ import type { RankProfile } from "@/lib/journal/rank-engine";
 
 type PixelS680Props = {
   mood: "calm" | "alert" | "serious";
+  onOpenDossier?: () => void;
   rankProfile?: RankProfile;
+  selectedSymbol?: string;
 };
 
-export function PixelS680({ mood, rankProfile }: PixelS680Props) {
+export function PixelS680({ mood, onOpenDossier, rankProfile, selectedSymbol }: PixelS680Props) {
   const moodLabel = mood === "serious" ? "刹车" : mood === "alert" ? "警戒" : "巡航";
+  const selectedLabel = selectedSymbol?.replace("USDT", "") ?? "当前";
   const equipmentLabel = rankProfile?.tier.id === "s680-black"
     ? "S680 座驾"
     : rankProfile?.tier.id === "operator"
@@ -33,7 +36,14 @@ export function PixelS680({ mood, rankProfile }: PixelS680Props) {
     <section className={`module pet-module pet-module--${mood}`}>
       <div className="module-head module-head--flush">
         <h2>像素副驾驶</h2>
-        <span className="tag">BTC 项链</span>
+        <div className="pet-head-actions">
+          {onOpenDossier ? (
+            <button className="pet-dossier-button" onClick={onOpenDossier} type="button">
+              {selectedLabel} 档案
+            </button>
+          ) : null}
+          <span className="tag">BTC 项链</span>
+        </div>
       </div>
 
       <div className="pet-plate">

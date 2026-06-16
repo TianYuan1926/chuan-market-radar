@@ -207,13 +207,13 @@ Expose scan budget and coverage dashboard
 
 **Steps:**
 
-- [ ] Use Product Design before implementation.
-- [ ] Define one selected context: symbol, signal, timeframe, daily mover matches, journal history, alert status.
-- [ ] Add desktop right drawer and mobile bottom sheet.
-- [ ] Move full evidence, invalidation, journal matches, daily mover correlations, and TradingView link into the dossier.
-- [ ] Keep main dashboard compact; dossier opens only on selected signal or copilot click.
-- [ ] Verify keyboard and click behavior.
-- [ ] Browser check desktop and mobile.
+- [x] Use Product Design before implementation.
+- [x] Define one selected context: symbol, signal, timeframe, daily mover matches, journal history, alert status.
+- [x] Add desktop right drawer and mobile bottom sheet.
+- [x] Move full evidence, invalidation, journal matches, daily mover correlations, and TradingView link into the dossier.
+- [x] Keep main dashboard compact; dossier opens only on selected signal or copilot click.
+- [x] Verify keyboard and click behavior.
+- [x] Browser check desktop and mobile.
 
 **Acceptance:**
 

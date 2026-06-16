@@ -163,6 +163,71 @@ test("strategy card keeps raw matrix evidence out of the compact evidence list",
   assert.match(strategySource, /!matrixEvidenceLabels\.has\(item\.label\)/);
 });
 
+test("public radar UI opens a selected-signal dossier that fuses strategy, journal, mover, chart, and alerts", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const dossierSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredWorkspaceTokens = [
+    "SignalDossier",
+    "selectedDossierSignal",
+    "isDossierOpen",
+    "openSignalDossier",
+    "closeSignalDossier",
+    "dailyMoverMatches",
+    "journalMatches",
+    "alertMatches",
+    "onOpenDossier",
+  ];
+  const requiredLabels = [
+    "信号档案",
+    "当前上下文",
+    "证据链",
+    "执行策略",
+    "失效条件",
+    "TradingView",
+    "每日异动关联",
+    "复盘记录",
+    "告警状态",
+    "副驾驶反馈",
+    "关闭档案",
+    "同一标的联动",
+  ];
+  const requiredClasses = [
+    "signal-dossier",
+    "signal-dossier--open",
+    "signal-dossier__backdrop",
+    "signal-dossier__drawer",
+    "signal-dossier__hero",
+    "signal-dossier__section",
+    "signal-dossier__evidence",
+    "signal-dossier__journal",
+    "signal-dossier__movers",
+    "signal-dossier__actions",
+  ];
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.match(workspaceSource, new RegExp(token));
+  }
+
+  assert.match(dossierSource, /buildTradingViewUrl/);
+  assert.match(dossierSource, /onCreateJournalEntry/);
+
+  for (const label of requiredLabels) {
+    assert.match(dossierSource, new RegExp(label));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(dossierSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
