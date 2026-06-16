@@ -33,6 +33,7 @@ import {
   buildJournalEntryFromDailyMoverStrategyConfirmation,
   buildJournalEntryFromSignal,
   mergeJournalEntry,
+  type StrategyWeightChangeExecutionJournalInput,
 } from "@/lib/journal/journal-entry";
 import { buildRankProfile } from "@/lib/journal/rank-engine";
 import type { JournalEvent, SignalJournalAction, Timeframe } from "@/lib/analysis/types";
@@ -628,6 +629,44 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     }
   }
 
+  async function createStrategyWeightExecutionRecord(
+    execution: StrategyWeightChangeExecutionJournalInput,
+    adminToken: string,
+  ) {
+    setJournalStatus("saving");
+
+    try {
+      const response = await fetch("/api/admin/strategy-weights/executions/record", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ execution }),
+      });
+
+      if (!response.ok) {
+        throw new Error("strategy_weight_execution_record_failed");
+      }
+
+      const payload = await response.json() as {
+        entry?: JournalEvent;
+        entries?: JournalEvent[];
+      };
+
+      if (payload.entry) {
+        setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
+      } else if (payload.entries) {
+        setJournalEntries(payload.entries);
+      }
+
+      setJournalStatus("saved");
+    } catch {
+      setJournalStatus("error");
+      throw new Error("strategy_weight_execution_record_failed");
+    }
+  }
+
   return (
     <main className="studio-shell">
       <div className="studio-scan-grid" aria-hidden="true">
@@ -791,7 +830,10 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         </section>
 
         <aside className="studio-stack studio-stack--right">
-          <SystemHealthPanel health={liveHealth} />
+          <SystemHealthPanel
+            health={liveHealth}
+            onRecordStrategyWeightExecution={createStrategyWeightExecutionRecord}
+          />
           <EventCenterPanel
             alertEvents={alertEvents}
             archive={liveSnapshot.archive}

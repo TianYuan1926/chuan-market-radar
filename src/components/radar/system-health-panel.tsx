@@ -1,8 +1,28 @@
+"use client";
+
+import { useMemo, useState, type FormEvent } from "react";
 import { Activity, Archive, Clock3, Database, RadioTower, TimerReset } from "lucide-react";
 import type { SystemHealthLevel, SystemHealthReport } from "@/lib/api/system-health";
+import type { StrategyWeightChangeExecutionJournalInput } from "@/lib/journal/journal-entry";
 
 type SystemHealthPanelProps = {
   health: SystemHealthReport;
+  onRecordStrategyWeightExecution?: (
+    execution: StrategyWeightChangeExecutionJournalInput,
+    adminToken: string,
+  ) => Promise<void>;
+};
+
+type StrategyWeightExecutionFormStatus = "error" | "idle" | "saved" | "saving";
+
+type StrategyWeightExecutionFormState = {
+  adminToken: string;
+  approvalStatus: StrategyWeightChangeExecutionJournalInput["approvalStatus"];
+  approvedBy: string;
+  rollbackTrigger: string;
+  rollbackWindowDays: string;
+  tag: string;
+  versionLabel: string;
 };
 
 function levelLabel(level: SystemHealthLevel) {
@@ -253,7 +273,33 @@ function formatPercent(value: number) {
   return `${value}%`;
 }
 
-export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
+function defaultStrategyWeightExecutionForm(): StrategyWeightExecutionFormState {
+  return {
+    adminToken: "",
+    approvalStatus: "pending_approval",
+    approvedBy: "chuan",
+    rollbackTrigger: "",
+    rollbackWindowDays: "14",
+    tag: "",
+    versionLabel: "",
+  };
+}
+
+function strategyWeightExecutionFormStatusLabel(status: StrategyWeightExecutionFormStatus) {
+  return {
+    error: "记录失败",
+    idle: "待记录",
+    saved: "已保存",
+    saving: "保存中",
+  }[status];
+}
+
+export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: SystemHealthPanelProps) {
+  const [strategyWeightExecutionForm, setStrategyWeightExecutionForm] = useState<StrategyWeightExecutionFormState>(
+    defaultStrategyWeightExecutionForm,
+  );
+  const [strategyWeightExecutionFormStatus, setStrategyWeightExecutionFormStatus] =
+    useState<StrategyWeightExecutionFormStatus>("idle");
   const notes = [
     health.operations.batchDetail,
     health.operations.requestDetail,
@@ -273,6 +319,70 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
   const strategyWeightAuditItems = strategyWeightChangeAudit.items.slice(0, 3);
   const strategyWeightChangeExecution = health.outcomes.strategyWeightChangeExecution;
   const strategyWeightExecutionItems = strategyWeightChangeExecution.items.slice(0, 3);
+  const strategyWeightExecutionFormItems = useMemo(
+    () => strategyWeightChangeExecution.items
+      .filter((item) => item.proposedDirection !== "none")
+      .slice(0, 5),
+    [strategyWeightChangeExecution.items],
+  );
+  const selectedStrategyWeightExecutionItem = strategyWeightExecutionFormItems.find(
+    (item) => item.tag === strategyWeightExecutionForm.tag,
+  ) ?? strategyWeightExecutionFormItems[0];
+  const canRecordStrategyWeightExecution = Boolean(
+    onRecordStrategyWeightExecution && selectedStrategyWeightExecutionItem,
+  );
+
+  async function submitStrategyWeightExecutionRecord(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!onRecordStrategyWeightExecution || !selectedStrategyWeightExecutionItem) {
+      return;
+    }
+
+    if (!strategyWeightExecutionForm.adminToken.trim()) {
+      setStrategyWeightExecutionFormStatus("error");
+      return;
+    }
+
+    if (selectedStrategyWeightExecutionItem.proposedDirection === "none") {
+      setStrategyWeightExecutionFormStatus("error");
+      return;
+    }
+
+    const rollbackWindowDays = Number(strategyWeightExecutionForm.rollbackWindowDays);
+    const execution: StrategyWeightChangeExecutionJournalInput = {
+      approvalStatus: strategyWeightExecutionForm.approvalStatus,
+      approvedAt: new Date().toISOString(),
+      approvedBy: strategyWeightExecutionForm.approvedBy.trim() || "chuan",
+      direction: selectedStrategyWeightExecutionItem.proposedDirection,
+      label: selectedStrategyWeightExecutionItem.label,
+      rollbackTrigger: strategyWeightExecutionForm.rollbackTrigger.trim() ||
+        selectedStrategyWeightExecutionItem.rollbackTrigger ||
+        "后续样本反证率超过人工阈值",
+      rollbackWindowDays: Number.isFinite(rollbackWindowDays) && rollbackWindowDays > 0
+        ? Math.floor(rollbackWindowDays)
+        : 14,
+      tag: selectedStrategyWeightExecutionItem.tag,
+      versionLabel: strategyWeightExecutionForm.versionLabel.trim() ||
+        selectedStrategyWeightExecutionItem.latestVersionLabel ||
+        `manual-${selectedStrategyWeightExecutionItem.tag}-v1`,
+    };
+
+    setStrategyWeightExecutionFormStatus("saving");
+
+    try {
+      await onRecordStrategyWeightExecution(execution, strategyWeightExecutionForm.adminToken.trim());
+      setStrategyWeightExecutionForm((current) => ({
+        ...current,
+        adminToken: "",
+        rollbackTrigger: "",
+        versionLabel: "",
+      }));
+      setStrategyWeightExecutionFormStatus("saved");
+    } catch {
+      setStrategyWeightExecutionFormStatus("error");
+    }
+  }
 
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
@@ -647,6 +757,113 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
                   ))}
                 </div>
               ) : null}
+
+              <form
+                className="health-outcome-execution__form"
+                onSubmit={submitStrategyWeightExecutionRecord}
+                aria-label="策略权重人工记录审批表单"
+              >
+                <div className="health-outcome-execution__form-head">
+                  <span>
+                    <b>记录审批账本</b>
+                    <small>只保存记录，不写入规则权重。</small>
+                  </span>
+                  <em>{strategyWeightExecutionFormStatusLabel(strategyWeightExecutionFormStatus)}</em>
+                </div>
+                <label>
+                  候选
+                  <select
+                    disabled={!canRecordStrategyWeightExecution || strategyWeightExecutionFormStatus === "saving"}
+                    value={selectedStrategyWeightExecutionItem?.tag ?? ""}
+                    onChange={(event) => setStrategyWeightExecutionForm((current) => ({
+                      ...current,
+                      tag: event.target.value,
+                    }))}
+                  >
+                    {strategyWeightExecutionFormItems.length > 0 ? strategyWeightExecutionFormItems.map((item) => (
+                      <option key={item.tag} value={item.tag}>
+                        {item.label} · {strategyWeightAuditDirectionLabel(item.proposedDirection)}
+                      </option>
+                    )) : (
+                      <option value="">暂无可记录候选</option>
+                    )}
+                  </select>
+                </label>
+                <label>
+                  审批状态
+                  <select
+                    disabled={!canRecordStrategyWeightExecution || strategyWeightExecutionFormStatus === "saving"}
+                    value={strategyWeightExecutionForm.approvalStatus}
+                    onChange={(event) => setStrategyWeightExecutionForm((current) => ({
+                      ...current,
+                      approvalStatus: event.target.value as StrategyWeightChangeExecutionJournalInput["approvalStatus"],
+                    }))}
+                  >
+                    <option value="pending_approval">待审批</option>
+                    <option value="approved">批准记录</option>
+                    <option value="rejected">拒绝记录</option>
+                    <option value="rollback_watch">回滚观察</option>
+                  </select>
+                </label>
+                <label>
+                  管理密钥
+                  <input
+                    autoComplete="off"
+                    disabled={!canRecordStrategyWeightExecution || strategyWeightExecutionFormStatus === "saving"}
+                    onChange={(event) => setStrategyWeightExecutionForm((current) => ({
+                      ...current,
+                      adminToken: event.target.value,
+                    }))}
+                    placeholder="CRON_SECRET"
+                    type="password"
+                    value={strategyWeightExecutionForm.adminToken}
+                  />
+                </label>
+                <label>
+                  版本标签
+                  <input
+                    disabled={!canRecordStrategyWeightExecution || strategyWeightExecutionFormStatus === "saving"}
+                    onChange={(event) => setStrategyWeightExecutionForm((current) => ({
+                      ...current,
+                      versionLabel: event.target.value,
+                    }))}
+                    placeholder={selectedStrategyWeightExecutionItem?.latestVersionLabel ?? "manual-weight-v1"}
+                    value={strategyWeightExecutionForm.versionLabel}
+                  />
+                </label>
+                <label>
+                  回滚窗口
+                  <input
+                    disabled={!canRecordStrategyWeightExecution || strategyWeightExecutionFormStatus === "saving"}
+                    min={1}
+                    onChange={(event) => setStrategyWeightExecutionForm((current) => ({
+                      ...current,
+                      rollbackWindowDays: event.target.value,
+                    }))}
+                    type="number"
+                    value={strategyWeightExecutionForm.rollbackWindowDays}
+                  />
+                </label>
+                <label className="health-outcome-execution__form-wide">
+                  回滚触发器
+                  <input
+                    disabled={!canRecordStrategyWeightExecution || strategyWeightExecutionFormStatus === "saving"}
+                    onChange={(event) => setStrategyWeightExecutionForm((current) => ({
+                      ...current,
+                      rollbackTrigger: event.target.value,
+                    }))}
+                    placeholder={selectedStrategyWeightExecutionItem?.rollbackTrigger ?? "后续样本反证率超过人工阈值"}
+                    value={strategyWeightExecutionForm.rollbackTrigger}
+                  />
+                </label>
+                <button
+                  className="health-outcome-execution__button"
+                  disabled={!canRecordStrategyWeightExecution || strategyWeightExecutionFormStatus === "saving"}
+                  type="submit"
+                >
+                  {strategyWeightExecutionFormStatus === "saving" ? "保存中" : "记录审批账本"}
+                </button>
+              </form>
 
               <p>{strategyWeightChangeExecution.nextStep}</p>
             </div>

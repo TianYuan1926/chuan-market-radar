@@ -2829,6 +2829,114 @@ p {
   color: var(--amber);
 }
 
+.health-outcome-execution__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid rgba(82, 115, 204, 0.16);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.health-outcome-execution__form-head,
+.health-outcome-execution__form-wide,
+.health-outcome-execution__button {
+  grid-column: 1 / -1;
+}
+
+.health-outcome-execution__form-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.health-outcome-execution__form-head span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.health-outcome-execution__form-head b,
+.health-outcome-execution__form-head em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-outcome-execution__form-head em {
+  padding: 3px 6px;
+  border: 1px solid rgba(82, 115, 204, 0.16);
+  border-radius: 999px;
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.health-outcome-execution__form-head small,
+.health-outcome-execution__form label {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.health-outcome-execution__form label {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  font-weight: 800;
+}
+
+.health-outcome-execution__form input,
+.health-outcome-execution__form select {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.health-outcome-execution__form input:focus,
+.health-outcome-execution__form select:focus {
+  border-color: rgba(82, 115, 204, 0.42);
+  box-shadow: 0 0 0 2px rgba(82, 115, 204, 0.1);
+}
+
+.health-outcome-execution__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid rgba(39, 140, 102, 0.24);
+  border-radius: 6px;
+  background: rgba(39, 140, 102, 0.12);
+  color: var(--success);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.health-outcome-execution__button:disabled,
+.health-outcome-execution__form input:disabled,
+.health-outcome-execution__form select:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .health-outcome-execution__item small,
 .health-outcome-execution p {
   margin: 0;

@@ -4,6 +4,7 @@ import type { MarketSignal } from "@/lib/analysis/types";
 import {
   buildJournalEntryFromDailyMoverCalibration,
   buildJournalEntryFromDailyMoverStrategyConfirmation,
+  buildJournalEntryFromStrategyWeightChangeExecution,
   buildJournalEntryFromSignal,
   mergeJournalEntry,
   plannedReviewAt,
@@ -160,6 +161,43 @@ test("buildJournalEntryFromDailyMoverStrategyConfirmation records a neutral manu
   assert.match(entry.note, /不能自动改权重/);
   assert.match(entry.thesis ?? "", /历史样本 4/);
   assert.deepEqual(entry.lessons?.slice(0, 2), ["strategy_confirmation", "review_volume_oi_weight"]);
+});
+
+test("buildJournalEntryFromStrategyWeightChangeExecution records a neutral manual execution ledger entry", () => {
+  const entry = buildJournalEntryFromStrategyWeightChangeExecution({
+    approvalStatus: "approved",
+    approvedAt: "2026-06-16T09:00:00+08:00",
+    approvedBy: "chuan",
+    direction: "increase",
+    label: "成交量/OI 权重复核",
+    rollbackTrigger: "后续 10 个样本反证率超过 45%",
+    rollbackWindowDays: 14,
+    tag: "review_volume_oi_weight",
+    versionLabel: "manual-volume-oi-weight-v1",
+  }, {
+    createdAt: "2026-06-16T09:05:00+08:00",
+  });
+
+  assert.equal(entry.id, "journal-manual-volume-oi-weight-v1-strategy-weight-execution");
+  assert.equal(entry.symbol, "STRATEGY");
+  assert.equal(entry.action, "strategy_weight_change_execution");
+  assert.equal(entry.source, "strategy_weight_change_execution");
+  assert.equal(entry.sourceId, "review_volume_oi_weight");
+  assert.equal(entry.result, "watching");
+  assert.equal(entry.rankDelta, 0);
+  assert.equal(entry.reviewStatus, "closed");
+  assert.equal(entry.allowedUse, "research_only");
+  assert.equal(entry.canAutoAdjustWeights, false);
+  assert.equal(entry.strategyWeightChange?.canExecuteWeightChange, false);
+  assert.equal(entry.strategyWeightChange?.approvalStatus, "approved");
+  assert.equal(entry.strategyWeightChange?.approvedBy, "chuan");
+  assert.equal(entry.strategyWeightChange?.tag, "review_volume_oi_weight");
+  assert.equal(entry.strategyWeightChange?.versionLabel, "manual-volume-oi-weight-v1");
+  assert.equal(entry.strategyWeightChange?.rollbackWindowDays, 14);
+  assert.match(entry.title, /权重变更人工记录/);
+  assert.match(entry.note, /只记录审批账本/);
+  assert.match(entry.invalidation ?? "", /不能自动写入规则权重/);
+  assert.deepEqual(entry.lessons?.slice(0, 2), ["strategy_weight_change_execution", "review_volume_oi_weight"]);
 });
 
 test("skip decisions are saved as positive discipline instead of failed trades", () => {

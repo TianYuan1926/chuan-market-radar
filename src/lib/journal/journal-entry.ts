@@ -3,6 +3,7 @@ import type {
   MarketSignal,
   ReviewStatus,
   SignalJournalAction,
+  StrategyWeightChangeApprovalStatus,
   Timeframe,
 } from "@/lib/analysis/types";
 import { buildReviewSchedule } from "./outcome-tracker";
@@ -127,6 +128,39 @@ export type DailyMoverStrategyConfirmationJournalEntry = JournalEvent & {
   strategyTag: string;
   strategyValidationVerdict: string;
   strategyVersionLabel: string;
+};
+
+export type StrategyWeightChangeExecutionJournalInput = {
+  approvalStatus: StrategyWeightChangeApprovalStatus;
+  approvedAt?: string;
+  approvedBy?: string;
+  direction: "decrease" | "increase" | "quarantine";
+  label: string;
+  rollbackTrigger: string;
+  rollbackWindowDays: number;
+  tag: string;
+  versionLabel: string;
+};
+
+export type StrategyWeightChangeExecutionJournalEntry = JournalEvent & {
+  action: "strategy_weight_change_execution";
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  lessons: string[];
+  reviewStatus: "closed";
+  source: "strategy_weight_change_execution";
+  sourceId: string;
+  strategyWeightChange: {
+    approvalStatus: StrategyWeightChangeApprovalStatus;
+    approvedAt?: string;
+    approvedBy?: string;
+    canExecuteWeightChange: false;
+    direction: "decrease" | "increase" | "quarantine";
+    rollbackTrigger: string;
+    rollbackWindowDays: number;
+    tag: string;
+    versionLabel: string;
+  };
 };
 
 function pad(value: number) {
@@ -312,6 +346,46 @@ export function buildJournalEntryFromDailyMoverStrategyConfirmation(
     strategyTag: input.tag,
     strategyValidationVerdict: input.validationVerdict,
     strategyVersionLabel: input.versionLabel,
+  };
+}
+
+export function buildJournalEntryFromStrategyWeightChangeExecution(
+  input: StrategyWeightChangeExecutionJournalInput,
+  options: { createdAt?: string } = {},
+): StrategyWeightChangeExecutionJournalEntry {
+  const version = slugPart(input.versionLabel) || "manual-weight-change";
+  const tag = input.tag.trim();
+  const approver = input.approvedBy?.trim() || "未记录审批人";
+
+  return {
+    id: `journal-${version}-strategy-weight-execution`,
+    symbol: "STRATEGY",
+    title: "权重变更人工记录",
+    result: "watching",
+    note: `只记录审批账本：${input.label} / ${input.versionLabel} / ${input.approvalStatus} / ${approver}。不写入自动权重。`,
+    rankDelta: 0,
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    action: "strategy_weight_change_execution",
+    reviewStatus: "closed",
+    trigger: "人工记录策略权重变更审批状态和观察窗口",
+    invalidation: "该记录不能自动写入规则权重，后续必须通过隔离观察和回滚验证。",
+    thesis: `${input.label}：${input.direction}。回滚触发器：${input.rollbackTrigger}`,
+    lessons: ["strategy_weight_change_execution", tag, input.approvalStatus, input.direction],
+    source: "strategy_weight_change_execution",
+    sourceId: tag,
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    strategyWeightChange: {
+      approvalStatus: input.approvalStatus,
+      approvedAt: input.approvedAt,
+      approvedBy: input.approvedBy,
+      canExecuteWeightChange: false,
+      direction: input.direction,
+      rollbackTrigger: input.rollbackTrigger,
+      rollbackWindowDays: input.rollbackWindowDays,
+      tag,
+      versionLabel: input.versionLabel,
+    },
   };
 }
 
