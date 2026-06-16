@@ -228,6 +228,58 @@ test("public radar UI opens a selected-signal dossier that fuses strategy, journ
   }
 });
 
+test("living radar UI second pass exposes functional motion, state dimming, and compact cockpit status", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredWorkspaceTokens = [
+    "studio-shell--",
+    "studio-shell--refresh-",
+    "radar-command-strip",
+    "radar-command-strip__beam",
+    "扫描节拍",
+    "信号脉冲",
+    "风险/延迟",
+    "覆盖密度",
+    "signalPulseTone",
+    "selectedPulseTone",
+    "coveragePercent",
+  ];
+  const requiredClasses = [
+    "radar-command-strip",
+    "radar-command-strip__beam",
+    "radar-command-strip__cell",
+    "radar-command-strip__cell--alert",
+    "signal-node--selected",
+    "signal-node--risk-high",
+    "signal-rhythm__bar--active",
+    "studio-shell--stale",
+    "studio-shell--failed",
+    "studio-shell--refresh-updated",
+  ];
+  const requiredAnimations = [
+    "radarCommandSweep",
+    "signalNodePulse",
+    "signalBarPulse",
+  ];
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.match(workspaceSource, new RegExp(token));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  for (const animationName of requiredAnimations) {
+    assert.match(cssSource, new RegExp(`@keyframes ${animationName}`));
+  }
+
+  assert.match(cssSource, /prefers-reduced-motion/);
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");

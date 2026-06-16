@@ -37,7 +37,7 @@ import {
   type StrategyWeightChangeExecutionJournalInput,
 } from "@/lib/journal/journal-entry";
 import { buildRankProfile } from "@/lib/journal/rank-engine";
-import type { JournalEvent, SignalJournalAction, Timeframe } from "@/lib/analysis/types";
+import type { JournalEvent, MarketSignal, SignalJournalAction, Timeframe } from "@/lib/analysis/types";
 import type { SystemHealthReport } from "@/lib/api/system-health";
 import {
   buildRefreshPlan,
@@ -154,6 +154,26 @@ function radarStatusLabel(value: string) {
   };
 
   return labels[value] ?? value.replaceAll("_", " ");
+}
+
+function signalPulseTone(signal?: MarketSignal) {
+  if (!signal) {
+    return "quiet";
+  }
+
+  if (signal.risk === "blocked" || signal.risk === "high") {
+    return "risk-high";
+  }
+
+  if (signal.state === "triggered" || signal.state === "near_trigger") {
+    return "alert";
+  }
+
+  if (signal.state === "waiting_confirmation" || signal.state === "abnormal_watch") {
+    return "watch";
+  }
+
+  return "quiet";
 }
 
 function mergeJournalEvents(current: JournalEvent[], incoming: JournalEvent[]) {
@@ -273,6 +293,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const audioContextRef = useRef<AudioContext | null>(null);
   const batchNote = displayMetadataNote(metadataNote(metadata.notes, "batch "));
   const requestsNote = displayMetadataNote(metadataNote(metadata.notes, "requests "));
+  const coveragePercent = metadata.coverage?.coveragePercent ?? (metadata.scannedCount > 0 ? 100 : 0);
 
   const selected = useMemo(
     () => signals.find((signal) => signal.id === selectedId) ?? signals[0],
@@ -358,6 +379,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     : selected?.state === "near_trigger" || selected?.state === "triggered"
       ? "alert"
       : rankProfile.petMood;
+  const selectedPulseTone = signalPulseTone(selected);
 
   const playSignalTone = useCallback((sound: AlertSound = "pulse", volume = 0.08) => {
     const AudioCtor = audioContextConstructor();
@@ -808,7 +830,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   }
 
   return (
-    <main className="studio-shell">
+    <main className={`studio-shell studio-shell--${metadata.status} studio-shell--refresh-${refreshState} studio-shell--risk-${metadata.riskGate}`}>
       <div className="studio-scan-grid" aria-hidden="true">
         <span />
         <span />
@@ -871,6 +893,30 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
           </div>
         </div>
       </header>
+
+      <section className={`radar-command-strip radar-command-strip--${metadata.status}`} aria-label="雷达节拍状态">
+        <div className="radar-command-strip__beam" aria-hidden="true" />
+        <div className="radar-command-strip__cell">
+          <span className="mono">扫描节拍</span>
+          <strong>{metadata.cadenceMinutes}m / {refreshStatusLabel(refreshState)}</strong>
+          <small>{deltaLabel(lastDelta)}</small>
+        </div>
+        <div className={`radar-command-strip__cell radar-command-strip__cell--${selectedPulseTone}`}>
+          <span className="mono">信号脉冲</span>
+          <strong>{selected ? `${selected.symbol.replace("USDT", "")} · ${selected.confidence}` : "等待候选"}</strong>
+          <small>{selected ? signalStateLabels[selected.state] : "暂无选中信号"}</small>
+        </div>
+        <div className={`radar-command-strip__cell ${metadata.status === "stale" || metadata.status === "failed" ? "radar-command-strip__cell--alert" : ""}`}>
+          <span className="mono">风险/延迟</span>
+          <strong>{marketStatusLabel(metadata.status)} / 风控门 {riskGateLabel(metadata.riskGate)}</strong>
+          <small>护栏 {metadata.staleAfterMinutes}m · {metadata.isRealtime ? "实时源" : "预览源"}</small>
+        </div>
+        <div className="radar-command-strip__cell">
+          <span className="mono">覆盖密度</span>
+          <strong>{coveragePercent}% / {metadata.coverage?.scanned ?? metadata.scannedCount} 已扫</strong>
+          <small>{metadata.coverage ? `${metadata.coverage.pending} 待轮转 · 批次 ${metadata.coverage.batchIndex + 1}/${metadata.coverage.totalBatches}` : `${instrumentPool.summary.accepted} 活跃候选`}</small>
+        </div>
+      </section>
 
       <section className="studio-workspace">
         <aside className="studio-stack studio-stack--left">
@@ -947,7 +993,11 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
               <div className="signal-rhythm" aria-label="候选强度节奏">
                 {signals.slice(0, 6).map((signal) => (
                   <button
-                    className={`signal-rhythm__bar signal-rhythm__bar--${signal.direction}`}
+                    className={[
+                      `signal-rhythm__bar signal-rhythm__bar--${signal.direction}`,
+                      `signal-rhythm__bar--pulse-${signalPulseTone(signal)}`,
+                      selected?.id === signal.id ? "signal-rhythm__bar--active" : "",
+                    ].filter(Boolean).join(" ")}
                     key={`rhythm-${signal.id}`}
                     onClick={() => openSignalDossier(signal.id)}
                     type="button"
@@ -967,10 +1017,17 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
               {["n1", "n2", "n3", "n4", "n5"].map((slot, index) => {
                 const signal = signals[index] ?? signals[0];
                 const symbol = signal?.symbol.replace("USDT", "") ?? "BTC";
+                const nodeClasses = [
+                  "signal-node",
+                  slot,
+                  index === 0 ? "signal-node--hot" : "",
+                  signal?.id === selected?.id ? "signal-node--selected" : "",
+                  signalPulseTone(signal) === "risk-high" ? "signal-node--risk-high" : "",
+                ].filter(Boolean).join(" ");
 
                 return (
                   <button
-                    className={`signal-node ${slot} ${index === 0 ? "signal-node--hot" : ""}`}
+                    className={nodeClasses}
                     key={`${slot}-${symbol}`}
                     onClick={() => signal && openSignalDossier(signal.id)}
                     type="button"

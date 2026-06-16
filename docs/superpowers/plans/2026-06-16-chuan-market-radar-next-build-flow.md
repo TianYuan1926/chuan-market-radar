@@ -244,13 +244,13 @@ Add signal dossier foundation
 
 **Steps:**
 
-- [ ] Use Product Design first.
-- [ ] Build UI around "radar cockpit + pixel intelligence room", not generic SaaS cards.
-- [ ] Replace decorative noise with functional motion: scanning sweep, signal pulse, stale-data dimming, alert state.
-- [ ] Add reduced-motion fallbacks.
-- [ ] Tighten spacing, typography hierarchy, and panel density.
-- [ ] Ensure no text overlap at mobile and desktop sizes.
-- [ ] Browser screenshot checks at desktop and mobile.
+- [x] Use Product Design first.
+- [x] Build UI around "radar cockpit + pixel intelligence room", not generic SaaS cards.
+- [x] Replace decorative noise with functional motion: scanning sweep, signal pulse, stale-data dimming, alert state.
+- [x] Add reduced-motion fallbacks.
+- [x] Tighten spacing, typography hierarchy, and panel density.
+- [x] Ensure no text overlap at mobile and desktop sizes.
+- [x] Browser screenshot checks at desktop and mobile.
 
 **Acceptance:**
 
