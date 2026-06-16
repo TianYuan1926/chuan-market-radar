@@ -361,6 +361,11 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /需回滚/);
   assert.match(componentSource, /阻断审计/);
   assert.match(componentSource, /不可执行/);
+  assert.match(componentSource, /执行记录/);
+  assert.match(componentSource, /审批/);
+  assert.match(componentSource, /已记录/);
+  assert.match(componentSource, /待审批/);
+  assert.match(componentSource, /不可写权重/);
   assert.match(componentSource, /blockerDetails/);
   assert.match(componentSource, /sampleDrilldown/);
   assert.match(componentSource, /sampleBreakdown/);
@@ -368,8 +373,10 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /rollbackPlan/);
   assert.match(componentSource, /strategyWeightCalibration/);
   assert.match(componentSource, /strategyWeightChangeAudit/);
+  assert.match(componentSource, /strategyWeightChangeExecution/);
   assert.match(componentSource, /manualAdjustmentBand/);
   assert.match(componentSource, /canExecuteWeightChange/);
+  assert.match(componentSource, /canWriteRuleWeights/);
   assert.match(componentSource, /阻断项/);
   assert.match(componentSource, /不改权重/);
   assert.match(componentSource, /有效/);
@@ -394,6 +401,11 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-audit__grid/);
   assert.match(componentSource, /health-outcome-audit__items/);
   assert.match(componentSource, /health-outcome-audit__item/);
+  assert.match(componentSource, /health-outcome-execution/);
+  assert.match(componentSource, /health-outcome-execution__head/);
+  assert.match(componentSource, /health-outcome-execution__grid/);
+  assert.match(componentSource, /health-outcome-execution__items/);
+  assert.match(componentSource, /health-outcome-execution__item/);
   assert.match(cssSource, /\.health-outcome-detail/);
   assert.match(cssSource, /\.health-outcome-samples/);
   assert.match(cssSource, /\.health-outcome-thresholds/);
@@ -408,6 +420,11 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-audit__grid/);
   assert.match(cssSource, /\.health-outcome-audit__items/);
   assert.match(cssSource, /\.health-outcome-audit__item/);
+  assert.match(cssSource, /\.health-outcome-execution/);
+  assert.match(cssSource, /\.health-outcome-execution__head/);
+  assert.match(cssSource, /\.health-outcome-execution__grid/);
+  assert.match(cssSource, /\.health-outcome-execution__items/);
+  assert.match(cssSource, /\.health-outcome-execution__item/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {

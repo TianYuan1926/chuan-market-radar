@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示、只读策略权重回测校准 MVP 和只读策略权重变更审计 MVP：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP 和人工权重变更执行记录只读 registry：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -50,11 +50,12 @@
 - outcome 只读校准流：`buildOutcomeCalibrationFlow()` 会从现有 `journal_events` 汇总样本准入、`calibration_review`、`strategy_confirmation` 和确认后回滚观察，输出校准流状态、人工确认数、回滚观察数、待校准数、阻断项解释、样本分布、最近校准样本明细、阈值层和人工回滚计划；该结果只服务人工确认和回滚边界，不写策略权重。
 - 只读策略权重回测校准 MVP：`buildStrategyWeightCalibrationReport()` 会从现有 `journal_events` 汇总 `calibration_review` 和 `strategy_confirmation`，输出升权候选、降权候选、隔离候选和继续观察候选；`GET /api/health` 与系统状态面板只读展示候选分布和明细，不新增表、不触发外部请求、不自动改权重。
 - 只读策略权重变更审计 MVP：`buildStrategyWeightChangeAuditReport()` 会从策略权重回测校准候选生成只读人工审计包和回滚验证要求，区分可审计、需回滚、样本不足、待确认和隔离阻断；`GET /api/health` 与系统状态面板展示审计候选、可审计、需回滚和阻断审计，并明确 `canExecuteWeightChange: false`，不新增表、不触发外部请求、不执行真实权重变更。
+- 人工权重变更执行记录只读 registry：`strategy_weight_change_execution` journal 事件可保存人工审批状态、版本标签、回滚触发器和观察窗口；`buildStrategyWeightChangeExecutionReport()` 会把这些记录汇总进 `GET /api/health`，系统状态面板展示执行记录、已记录、待审批、回滚/阻断和“不可写权重”。该层只保存审批账本，不新增外部请求，不自动改权重，不把记录写入真实规则权重。
 
 当前未落地：
 
 - 自动规则权重调整；当前明确不允许自动调整。
-- outcome 样本准入到人工确认、回滚边界的基础只读校准流、阻断解释、样本明细、阈值层、策略版本阈值画像、手动回滚计划、只读策略权重回测校准 MVP 和只读策略权重变更审计 MVP 已落地，但真实权重变更执行记录、人工审批入口和真实回滚验证仍需继续完善；当前不能当作完整自动校准闭环。
+- outcome 样本准入到人工确认、回滚边界的基础只读校准流、阻断解释、样本明细、阈值层、策略版本阈值画像、手动回滚计划、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP 和人工执行记录只读 registry 已落地，但人工记录写入入口、真实权重生效隔离层和真实回滚验证仍需继续完善；当前不能当作完整自动校准闭环。
 
 ## 使用边界
 
@@ -88,6 +89,7 @@
 - outcome 样本准入：`src/lib/journal/outcome-sample-admission.ts`
 - outcome 只读校准流：`src/lib/journal/outcome-calibration-flow.ts`
 - 策略权重变更审计：`src/lib/journal/strategy-weight-change-audit.ts`
+- 策略权重执行记录：`src/lib/journal/strategy-weight-change-execution.ts`
 - outcome 健康状态：`src/lib/api/system-health.ts`
 - outcome 健康面板：`src/components/radar/system-health-panel.tsx`
 - outcome 执行批次复盘面板：`src/components/radar/journal-panel.tsx`
@@ -105,6 +107,6 @@
 
 ## 下一步
 
-1. 继续细化准入阈值、确认后长期表现分层和权重变更审计，让它服务规则复核而不是自动调权。
-2. 补齐真实权重变更执行记录、人工审批入口和真实回滚验证方案。
+1. 继续细化准入阈值、确认后长期表现分层、权重变更审计和执行记录 registry，让它服务规则复核而不是自动调权。
+2. 补齐人工执行记录写入入口、真实权重生效隔离层和真实回滚验证方案。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

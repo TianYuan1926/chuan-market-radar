@@ -177,6 +177,31 @@ function strategyWeightAuditItemStatusLabel(
   }[value];
 }
 
+function strategyWeightExecutionStatusLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightChangeExecution"]["status"],
+) {
+  return {
+    awaiting_manual_approval: "待审批",
+    blocked: "阻断",
+    collecting: "收集",
+    recorded_observation: "已记录",
+    rollback_watch: "回滚观察",
+  }[value];
+}
+
+function strategyWeightExecutionItemStatusLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightChangeExecution"]["items"][number]["executionStatus"],
+) {
+  return {
+    approval_rejected: "审批拒绝",
+    approved_recorded: "已记录",
+    awaiting_manual_approval: "待审批",
+    blocked_by_audit: "审计阻断",
+    record_needs_review: "需复核",
+    rollback_watch: "回滚观察",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -246,6 +271,8 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
   const strategyWeightCandidates = strategyWeightCalibration.candidates.slice(0, 3);
   const strategyWeightChangeAudit = health.outcomes.strategyWeightChangeAudit;
   const strategyWeightAuditItems = strategyWeightChangeAudit.items.slice(0, 3);
+  const strategyWeightChangeExecution = health.outcomes.strategyWeightChangeExecution;
+  const strategyWeightExecutionItems = strategyWeightChangeExecution.items.slice(0, 3);
 
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
@@ -570,6 +597,58 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
               ) : null}
 
               <p>{strategyWeightChangeAudit.nextStep}</p>
+            </div>
+
+            <div
+              className={`health-outcome-execution health-outcome-execution--${strategyWeightChangeExecution.status}`}
+              aria-label="策略权重人工执行记录"
+            >
+              <div className="health-outcome-execution__head">
+                <div>
+                  <span className="mono">执行记录</span>
+                  <strong>{strategyWeightExecutionStatusLabel(strategyWeightChangeExecution.status)}</strong>
+                </div>
+                <b>{strategyWeightChangeExecution.canWriteRuleWeights ? "可写权重" : "不可写权重"}</b>
+              </div>
+
+              <div className="health-outcome-execution__grid" aria-label="策略权重执行记录分布">
+                <span>
+                  <b>{strategyWeightChangeExecution.executionRecordCount}</b>
+                  执行记录
+                </span>
+                <span>
+                  <b>{strategyWeightChangeExecution.approvedRecordCount}</b>
+                  已记录
+                </span>
+                <span>
+                  <b>{strategyWeightChangeExecution.pendingApprovalCount}</b>
+                  待审批
+                </span>
+                <span>
+                  <b>{strategyWeightChangeExecution.rollbackWatchCount + strategyWeightChangeExecution.blockedRecordCount}</b>
+                  回滚/阻断
+                </span>
+              </div>
+
+              {strategyWeightExecutionItems.length > 0 ? (
+                <div className="health-outcome-execution__items" aria-label="策略权重执行记录明细">
+                  {strategyWeightExecutionItems.map((item) => (
+                    <span
+                      className={`health-outcome-execution__item health-outcome-execution__item--${item.executionStatus}`}
+                      key={item.tag}
+                    >
+                      <b>{item.label}</b>
+                      <em>{strategyWeightExecutionItemStatusLabel(item.executionStatus)}</em>
+                      <small>
+                        {item.latestRecordAt ? `${formatClock(item.latestRecordAt)} · ` : ""}
+                        {item.rollbackTrigger ?? "审批记录必须包含人工确认、版本和回滚触发器。"}
+                      </small>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <p>{strategyWeightChangeExecution.nextStep}</p>
             </div>
 
             {outcomeBlockers.length > 0 ? (

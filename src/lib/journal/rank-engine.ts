@@ -47,7 +47,8 @@ function countByResult(entries: JournalEvent[], result: JournalEvent["result"]) 
 function isRankNeutral(entry: JournalEvent) {
   return entry.action === "calibration_review" ||
     entry.action === "outcome_executor_run" ||
-    entry.action === "strategy_confirmation";
+    entry.action === "strategy_confirmation" ||
+    entry.action === "strategy_weight_change_execution";
 }
 
 export function rankJournalEvent(entry: JournalEvent) {

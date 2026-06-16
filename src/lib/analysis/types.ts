@@ -96,7 +96,8 @@ export type JournalAction =
   | SignalJournalAction
   | "calibration_review"
   | "outcome_executor_run"
-  | "strategy_confirmation";
+  | "strategy_confirmation"
+  | "strategy_weight_change_execution";
 
 export type ReviewStatus = "queued" | "tracking" | "closed";
 
@@ -147,6 +148,24 @@ export type OutcomeExecutorRunSummary = {
   writtenEvents: number;
 };
 
+export type StrategyWeightChangeApprovalStatus =
+  | "approved"
+  | "pending_approval"
+  | "rejected"
+  | "rollback_watch";
+
+export type StrategyWeightChangeExecutionRecord = {
+  approvalStatus: StrategyWeightChangeApprovalStatus;
+  approvedAt?: string;
+  approvedBy?: string;
+  canExecuteWeightChange: false;
+  direction: "decrease" | "increase" | "quarantine";
+  rollbackTrigger: string;
+  rollbackWindowDays: number;
+  tag: string;
+  versionLabel: string;
+};
+
 export type MarketSignal = {
   id: string;
   symbol: string;
@@ -193,7 +212,7 @@ export type JournalEvent = {
   invalidationHit?: boolean;
   firstTargetHit?: boolean;
   reviewCheckpoints?: ReviewCheckpoint[];
-  source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation";
+  source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation" | "strategy_weight_change_execution";
   sourceId?: string;
   outcomeExecutorRun?: OutcomeExecutorRunSummary;
   calibrationTag?: string;
@@ -207,4 +226,5 @@ export type JournalEvent = {
   strategyTag?: string;
   strategyValidationVerdict?: string;
   strategyVersionLabel?: string;
+  strategyWeightChange?: StrategyWeightChangeExecutionRecord;
 };

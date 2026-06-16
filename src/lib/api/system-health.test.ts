@@ -720,6 +720,32 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
     title: "策略版本人工确认",
   });
 
+  await repository.addJournalEvent({
+    action: "strategy_weight_change_execution",
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    createdAt: "2026-06-12T11:30:00.000Z",
+    id: "weight-volume-execution",
+    note: "人工权重变更执行记录，只记录审批边界，不写入规则权重。",
+    rankDelta: 0,
+    result: "watching",
+    reviewStatus: "closed",
+    source: "strategy_weight_change_execution",
+    strategyWeightChange: {
+      approvalStatus: "approved",
+      approvedAt: "2026-06-12T11:30:00.000Z",
+      approvedBy: "chuan",
+      canExecuteWeightChange: false,
+      direction: "increase",
+      rollbackTrigger: "如果未来 14 天新增 3 个反证样本，进入人工回滚复核。",
+      rollbackWindowDays: 14,
+      tag: "review_volume_oi_weight",
+      versionLabel: "draft-volume-oi-weight-v1",
+    },
+    symbol: "STRATEGY",
+    title: "人工权重变更执行记录",
+  });
+
   const report = await buildSystemHealthReport({
     env: { MARKET_DATA_PROVIDER: "mock" },
     now: new Date("2026-06-12T12:10:00.000Z"),
@@ -746,4 +772,16 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
   assert.equal(report.outcomes.strategyWeightChangeAudit.items[0]?.tag, "review_volume_oi_weight");
   assert.equal(report.outcomes.strategyWeightChangeAudit.items[0]?.auditStatus, "ready_for_manual_audit");
   assert.match(report.outcomes.strategyWeightChangeAudit.guardrail, /不执行真实权重变更/);
+  assert.equal(report.outcomes.strategyWeightChangeExecution.mode, "strategy_weight_manual_execution_registry_mvp");
+  assert.equal(report.outcomes.strategyWeightChangeExecution.allowedUse, "research_only");
+  assert.equal(report.outcomes.strategyWeightChangeExecution.canAutoAdjustWeights, false);
+  assert.equal(report.outcomes.strategyWeightChangeExecution.canExecuteWeightChange, false);
+  assert.equal(report.outcomes.strategyWeightChangeExecution.canWriteRuleWeights, false);
+  assert.equal(report.outcomes.strategyWeightChangeExecution.requiresManualApproval, true);
+  assert.equal(report.outcomes.strategyWeightChangeExecution.status, "recorded_observation");
+  assert.equal(report.outcomes.strategyWeightChangeExecution.executionRecordCount, 1);
+  assert.equal(report.outcomes.strategyWeightChangeExecution.approvedRecordCount, 1);
+  assert.equal(report.outcomes.strategyWeightChangeExecution.items[0]?.executionStatus, "approved_recorded");
+  assert.equal(report.outcomes.strategyWeightChangeExecution.items[0]?.approvalBy, "chuan");
+  assert.match(report.outcomes.strategyWeightChangeExecution.guardrail, /不写入规则权重/);
 });

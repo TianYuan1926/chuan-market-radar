@@ -75,6 +75,28 @@ test("rankJournalEvent keeps strategy confirmations score-neutral", () => {
   })), 0);
 });
 
+test("rankJournalEvent keeps strategy weight execution records score-neutral", () => {
+  assert.equal(rankJournalEvent(entry({
+    action: "strategy_weight_change_execution",
+    id: "strategy-weight-execution",
+    result: "watching",
+    reviewStatus: "closed",
+    source: "strategy_weight_change_execution",
+    strategyWeightChange: {
+      approvalStatus: "approved",
+      approvedAt: "2026-06-13T09:00:00.000Z",
+      approvedBy: "chuan",
+      canExecuteWeightChange: false,
+      direction: "increase",
+      rollbackTrigger: "如果未来 14 天新增 3 个反证样本，进入人工回滚复核。",
+      rollbackWindowDays: 14,
+      tag: "review_volume_oi_weight",
+      versionLabel: "draft-volume-oi-weight-v1",
+    },
+    symbol: "STRATEGY",
+  })), 0);
+});
+
 test("rank profile ignores outcome executor audit events", () => {
   const profile = buildRankProfile([
     entry({
