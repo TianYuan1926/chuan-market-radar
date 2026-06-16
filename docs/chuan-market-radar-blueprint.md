@@ -16,6 +16,7 @@
 - 当前不把单一指标当作买卖信号。
 - 当前不把 AI 输出当作最终裁决。
 - 当前不把演示数据、缓存数据或缺字段数据说成真实生产级数据。
+- 当前不做中国大陆访问专项优化，不做 ICP 备案、大陆云服务器或大陆 CDN 路线；站点继续按 Vercel/海外可访问方案推进，后续最多预留海外/香港镜像作为可选稳定性方案。
 
 ## 产品原则
 
@@ -79,9 +80,11 @@
 
 2026-06-16 路线校准：当前前端不是继续小修，而是重建为 **高级活体雷达控制台**。目标不是把所有功能堆在一个页面里，而是让首页成为“正在运转的合约机会控制台”：第一眼看得到系统在扫、扫到了什么、哪些山寨币值得盯、BTC/ETH 大盘天气是否顺风、当前信号离可执行还差什么。
 
+2026-06-17 进一步校准：这次前端工作定义为 **UI Reset**，不是在旧页面上继续加样式类名。后端能力、API、CoinGlass、Neon、扫描、日记、段位、回放和规则引擎保留；首页信息架构、视觉系统、组件壳、动效反馈、像素副驾驶呈现、响应式布局和 CSS 组织重建。正式设计依据见 `docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md`。
+
 新 UI 骨架规则：
 
-- 技术方向优先使用 **Tailwind CSS + daisyUI**；Element UI / Element Plus 只作为组件参考，不作为主实现栈，因为当前项目是 Next.js / React。
+- 技术方向必须真实接入 **Tailwind CSS + daisyUI** 后才能宣称使用；Element UI / Element Plus 只作为组件参考，不作为主实现栈，因为当前项目是 Next.js / React。
 - 顶部使用 **Live Navbar / Banner**，承载“川”品牌、扫描心跳、当前市场时段、数据新鲜度、扫描倒计时和关键系统状态。
 - 首页主体使用一个融合式 **Cockpit Card**，不是散落卡片墙；桌面端宽度按 **左 / 中 / 右 = 2 : 6 : 2** 组织。
 - 左栏承载系统运行、扫描经济、市场时钟、事件流和配置入口；中栏承载机会雷达、Altcoin Opportunity Board、当前选中信号、策略计划和多周期证据；右栏承载 Macro Radar、Signal Lifecycle Tracker、复盘/副驾驶入口和风险边界。
@@ -91,6 +94,7 @@
 - 背景音乐删除：不做常驻背景音乐。后续只保留用户主动开启的提示音/告警音，且必须尊重静默时段、mute 和 `prefers-reduced-motion`。
 - 前端要有“活着”的运行反馈：扫描心跳、倒计时、数据闪烁、候选变化、stale 降级、事件流滚动和 session clock。动效只表达状态，不做无意义装饰。
 - 首页不承载所有细节。深层证据、日记历史、涨跌榜归因、K 线验证、AI 反证和策略生命周期进入 Signal Dossier、Altcoin Opportunity Board、Macro Radar、Signal Lifecycle Tracker 等专门区域。
+- 中国大陆访问不作为当前交付目标；不引入 ICP、内地云服务或内地 CDN 约束，避免把 UI 重建和访问合规问题混在一起。
 
 新版首页的最低交付标准：
 
@@ -927,60 +931,66 @@ CoinGlass 业余会员 API：
 - V1.8 已落地：`PixelS680` 加入男性像素副驾驶、BTC 项链、基础装备条和禁止喊单测试。
 - Phase 8.2 已落地：主界面加入雷达节拍条，展示扫描节拍、信号脉冲、风险/延迟和覆盖密度；信号节奏条与地图节点根据选中、高风险、接近触发状态产生功能性动效。
 - 2026-06-16 已重新校准路线：当前 UI 被用户判定为“像一张纸、没有运行感、美感不足”，后续不再继续表层小修，改为 Tailwind CSS + daisyUI 的高级活体雷达控制台重构。
-- Phase 8.2b 已完成代码层重建：顶部 Live Navbar / Banner、雷达之眼 / Crystal Lens 视觉槽位、Cockpit Card、桌面 **左 / 中 / 右 = 2 : 6 : 2** 三栏、Altcoin Opportunity Board 锚点、Macro Radar 预览和 Signal Lifecycle Tracker 预览已接入；浏览器桌面/移动视觉 QA 仍需在本地端口权限可用后补做。
+- Phase 8.2b 旧壳试探已完成：顶部 Live Navbar / Banner、雷达之眼 / Crystal Lens 视觉槽位、Cockpit Card、桌面 **左 / 中 / 右 = 2 : 6 : 2** 三栏、Altcoin Opportunity Board 锚点、Macro Radar 预览和 Signal Lifecycle Tracker 预览已接入。但它仍属于旧页面上的结构试探，不等于正式 Tailwind CSS + daisyUI UI Reset；浏览器桌面/移动视觉 QA 也仍需在本地端口权限可用后补做。
+- 2026-06-17 已确定：下一阶段以 `docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md` 为正式依据，先真实接入 Tailwind CSS + daisyUI，再重建 AppShell、Live Navbar、启动 briefing、统一 cockpit、移动端 tabs/drawer 和模块联动。
 - 移动端不挤压、不重叠。
 
 后续正确 UI 搭建顺序：
 
-1. **Phase 8.2b：Rebuild UI Shell With Tailwind And DaisyUI**
-   - 使用 Product Design 简报作为输入，重建导航、Live Navbar / Banner、Cockpit Card 和 2:6:2 桌面布局。
-   - 修复桌面候选池遮挡、纸面感、静态感和模块割裂问题。
-   - 接入“川”标识、雷达之眼 / Crystal Lens 视觉槽位和基础响应式框架。
+1. **Phase 8.2b-R：Tailwind And DaisyUI Foundation**
+   - 真实安装并配置 Tailwind CSS、daisyUI 和 PostCSS。
+   - `globals.css` 接入 Tailwind/daisyUI 入口，Element Plus 只保留为设计参考。
+   - 增加 repository hygiene 测试，防止后续再次把“口头参考”误写成“实际接入”。
 
-2. **Phase 8.2c：Live Radar Runtime Layer**
+2. **Phase 8.2c：New AppShell And Cockpit Reset**
+   - 以 spec 为准重建 `TopRadarBar`、`RadarBootBriefing`、`RadarCockpitShell`。
+   - 桌面端保持 2 : 6 : 2，移动端用 tabs/drawer，不强行压缩三列。
+   - 修复候选池遮挡、纸面感、静态感和模块割裂问题。
+
+3. **Phase 8.2d：Live Radar Runtime Layer**
    - 加入启动动画、介绍 briefing、市场时段时钟、扫描心跳、倒计时、数据新鲜度和事件流动效。
    - 动效必须表达系统正在运行，不能干扰信号阅读。
    - 背景音乐删除，只保留未来可选提示音。
 
-3. **Phase 3.8：Altcoin Opportunity Board**
+4. **Phase 3.8：Altcoin Opportunity Board**
    - 把山寨币机会作为首页核心，而不是只展示通用候选池。
    - 分出多头升温、空头升温、过热勿追、新币观察、长尾轮转和近期异动来源。
    - 与扫描经济、涨跌榜归因、Signal Dossier 和复盘样本互通。
 
-4. **Phase 3.9：BTC ETH Macro Radar**
+5. **Phase 3.9：BTC ETH Macro Radar**
    - BTC/ETH/ETF/OI/funding/liquidations 作为大盘天气，不抢山寨主线。
    - 输出顺风、逆风、拥挤、去杠杆、假突破风险等环境层，影响机会排序和策略解释。
 
-5. **V1.7：Product Design 简报与角色设定固化**
+6. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
-6. **V1.8：像素副驾驶 MVP（已落地）**
+7. **V1.8：像素副驾驶 MVP（已落地）**
    - 用现有组件边界替换或重构当前 `PixelS680`。
    - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
    - 保留 rank profile、纪律分、动量、热度等现有数据入口。
    - 为角色结构、中文台词和禁止喊单边界增加测试。
 
-7. **V1.9：装备与段位联动**
+8. **V1.9：装备与段位联动**
    - 根据 XP、段位、纪律分解锁装备。
    - 初始只做 3-5 个装备层级，避免一次性堆太多皮肤。
    - 装备只能表达成长和纪律，不表达收益承诺。
 
-8. **V2.0：主界面层级重排**
+9. **V2.0：主界面层级重排**
    - 弱化营销式 hero，强化当前选中信号工作区。
    - 建立 Command / Signal / System / Copilot 四类模块等级。
    - 让图表、多周期、策略计划和 AI 反证的视觉层级更清楚。
 
-9. **V2.1：移动端交易操作流**
+10. **V2.1：移动端交易操作流**
    - 移动端按“候选池 -> 信号详情 -> 策略计划 -> 复盘/副驾驶”顺序组织。
    - 优先保证不挤压、不重叠、关键操作一屏可理解。
 
-10. **V2.2：动效与声音**
+11. **V2.2：动效与声音**
    - 只给状态变化加动效：新异动、接近触发、数据延迟、复盘完成、升级。
    - 遵守 `prefers-reduced-motion`，声音默认由用户主动开启。
 
-11. **V2.3：视觉验收和部署**
+12. **V2.3：视觉验收和部署**
    - 本地跑 `npm run dev`，用 Browser/Playwright 检查桌面和移动端。
    - 跑 `npm run test:market`、`npm run typecheck`、`npm run lint`、`npm run build`。
    - commit 后 push 到 GitHub，等待 Vercel 部署成功，部署绿了才算网页应用新版本。

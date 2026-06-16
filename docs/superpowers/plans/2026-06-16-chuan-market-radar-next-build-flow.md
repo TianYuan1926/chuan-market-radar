@@ -12,13 +12,14 @@
 
 ## Current Position
 
-The project is currently in a product/UI route rebaseline before the next frontend rebuild:
+The project is currently in a product/UI route rebaseline before the next frontend rebuild. This plan is now superseded for frontend UI reset work by `docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md` and `docs/superpowers/plans/2026-06-17-ui-reset-living-radar-cockpit.md`.
 
 - Blueprint and long-term principles are solidified.
 - CoinGlass, Neon, scan archive, daily movers, journal, rank, alert basics, OHLCV cache, outcome executor, readonly calibration, audit, protected manual execution ledger, shadow weights, shadow evaluation, activation gate, scan budget dashboard, signal dossier, and the first living-radar UI pass exist.
 - The user rejected the current surface as too paper-like, too static, and not visually strong enough. The next correct target is not another small polish pass.
-- The new frontend route is a Tailwind CSS + daisyUI radar control-center rebuild with a Live Navbar / Banner, one Cockpit Card, desktop columns at 2:6:2, a short boot/briefing layer, session clock, and visible runtime feedback.
+- The corrected frontend route is a real Tailwind CSS + daisyUI UI reset, not a custom-CSS shell with daisyUI-style naming. The desired product form remains a Live Navbar / Banner, one Cockpit Card, desktop columns at 2:6:2, a short boot/briefing layer, session clock, and visible runtime feedback.
 - Altcoins and new listings remain the primary opportunity target. BTC/ETH/ETF/CoinGlass macro data becomes the market weather layer, not a replacement for the altcoin opportunity board.
+- Mainland China access work is intentionally excluded from the current roadmap. Do not add ICP, mainland CDN, or mainland hosting tasks to this flow unless the user explicitly reopens that decision.
 
 ## Build Rules For Every Stage
 
@@ -72,24 +73,21 @@ Rebaseline radar UI roadmap
 
 ---
 
-## Phase 8.2b: Rebuild UI Shell With Tailwind And DaisyUI
+## Phase 8.2b Legacy: Custom-CSS Shell Probe
 
-**Purpose:** Rebuild radar UI shell from the current paper-like page into a high-density living radar control center while preserving existing data contracts.
+**Purpose:** This phase is a historical shell probe, not the final UI reset. It improved the current page structure with Live Navbar / Banner, Crystal Lens slot, Cockpit Card, and 2:6:2 layout language, but it did not actually install or configure Tailwind CSS and daisyUI.
 
 **Files likely involved:**
 
-- Modify: `package.json` / lockfile if daisyUI is added.
-- Modify: `tailwind.config.*` or create one if the project does not already have a complete Tailwind setup.
 - Modify: `src/app/globals.css`
 - Modify: `src/components/radar/radar-workspace.tsx`
-- Modify: `src/components/radar/*` only where layout extraction is required.
 - Add asset under `public/` only if the 雷达之眼 / Crystal Lens source image is committed or recreated as a web-safe asset.
 
 **Steps:**
 
 - [x] Use Product Design brief as the frontend design source.
 - [x] Inspect current styles, Tailwind setup, component boundaries, and responsive pain points.
-- [x] Add daisyUI only if it fits the existing Tailwind/Next.js build without increasing fragility. Current project has no Tailwind pipeline, so this pass kept the stable custom CSS stack and implemented daisyUI-style cockpit structure without adding dependency risk.
+- [x] Keep the stable custom CSS stack and implement a daisyUI-style cockpit structure without adding dependency risk.
 - [x] Build the top Live Navbar / Banner with "川", scan heartbeat, freshness, countdown, market session, and health badges.
 - [x] Replace the scattered page feel with one Cockpit Card.
 - [x] Implement desktop layout: left / center / right = 2 : 6 : 2.
@@ -101,16 +99,32 @@ Rebaseline radar UI roadmap
 
 **Acceptance:**
 
-- The first screen clearly feels like a radar control center, not a static document.
-- The system visibly communicates that scans are running or stale.
-- The layout has one coherent shell and no broken/overlapping text.
-- The shell still uses existing scan, health, journal, replay, alert, and dossier data.
+- This phase is not enough for the user's updated request.
+- Do not claim Tailwind CSS or daisyUI are implemented based on this phase alone.
+- The corrected next phase is Phase 8.2b-R in the 2026-06-17 UI reset plan.
 
 **GitHub Desktop Summary:**
 
 ```text
+Probe radar UI shell
+```
+
+Historical Summary token retained for repository hygiene compatibility:
+
+```text
 Rebuild radar UI shell
 ```
+
+---
+
+## Superseded Frontend Route
+
+Frontend implementation should now continue from:
+
+- Spec: `docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md`
+- Plan: `docs/superpowers/plans/2026-06-17-ui-reset-living-radar-cockpit.md`
+
+The first active implementation task is **Phase 8.2b-R: Tailwind And DaisyUI Foundation**.
 
 ---
 
