@@ -316,6 +316,50 @@ test("blueprint records the new radar control-center route before rebuilding the
   }
 });
 
+test("radar workspace exposes the phase 8.2b live navbar and 2-6-2 cockpit shell", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredWorkspaceTokens = [
+    "live-navbar",
+    "Live Navbar / Banner",
+    "cockpit-card",
+    "cockpit-column--left",
+    "cockpit-column--center",
+    "cockpit-column--right",
+    "crystal-lens",
+    "雷达之眼",
+    "market-session-clock",
+    "Altcoin Opportunity Board",
+    "Macro Radar",
+    "Signal Lifecycle Tracker",
+  ];
+  const requiredClasses = [
+    "live-navbar",
+    "cockpit-card",
+    "cockpit-column--left",
+    "cockpit-column--center",
+    "cockpit-column--right",
+    "crystal-lens",
+    "market-session-clock",
+    "altcoin-opportunity-board",
+    "macro-radar-preview",
+    "signal-lifecycle-preview",
+  ];
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.ok(workspaceSource.includes(token), `workspace missing phase 8.2b token: ${token}`);
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  assert.match(cssSource, /2fr\s+6fr\s+2fr/);
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");

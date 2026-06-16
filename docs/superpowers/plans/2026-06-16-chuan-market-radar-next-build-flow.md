@@ -87,17 +87,17 @@ Rebaseline radar UI roadmap
 
 **Steps:**
 
-- [ ] Use Product Design brief as the frontend design source.
-- [ ] Inspect current styles, Tailwind setup, component boundaries, and responsive pain points.
-- [ ] Add daisyUI only if it fits the existing Tailwind/Next.js build without increasing fragility.
-- [ ] Build the top Live Navbar / Banner with "川", scan heartbeat, freshness, countdown, market session, and health badges.
-- [ ] Replace the scattered page feel with one Cockpit Card.
-- [ ] Implement desktop layout: left / center / right = 2 : 6 : 2.
-- [ ] Implement mobile layout: stacked sections with the opportunity board first, then selected signal, then system/macro/supporting panels.
-- [ ] Fix current desktop text clipping around the candidate pool.
-- [ ] Keep existing APIs and business logic unchanged in this phase.
+- [x] Use Product Design brief as the frontend design source.
+- [x] Inspect current styles, Tailwind setup, component boundaries, and responsive pain points.
+- [x] Add daisyUI only if it fits the existing Tailwind/Next.js build without increasing fragility. Current project has no Tailwind pipeline, so this pass kept the stable custom CSS stack and implemented daisyUI-style cockpit structure without adding dependency risk.
+- [x] Build the top Live Navbar / Banner with "川", scan heartbeat, freshness, countdown, market session, and health badges.
+- [x] Replace the scattered page feel with one Cockpit Card.
+- [x] Implement desktop layout: left / center / right = 2 : 6 : 2.
+- [x] Implement mobile layout: stacked sections with the opportunity board first, then selected signal, then system/macro/supporting panels.
+- [x] Fix current desktop text clipping around the candidate pool.
+- [x] Keep existing APIs and business logic unchanged in this phase.
 - [ ] Browser-check desktop and mobile for overflow, text clipping, and readable density.
-- [ ] Run full verification.
+- [x] Run automated verification: `npm run test:market`, `npm run typecheck`, `npm run lint`, and `npm run build`.
 
 **Acceptance:**
 

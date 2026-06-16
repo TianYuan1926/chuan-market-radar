@@ -927,6 +927,7 @@ CoinGlass 业余会员 API：
 - V1.8 已落地：`PixelS680` 加入男性像素副驾驶、BTC 项链、基础装备条和禁止喊单测试。
 - Phase 8.2 已落地：主界面加入雷达节拍条，展示扫描节拍、信号脉冲、风险/延迟和覆盖密度；信号节奏条与地图节点根据选中、高风险、接近触发状态产生功能性动效。
 - 2026-06-16 已重新校准路线：当前 UI 被用户判定为“像一张纸、没有运行感、美感不足”，后续不再继续表层小修，改为 Tailwind CSS + daisyUI 的高级活体雷达控制台重构。
+- Phase 8.2b 已完成代码层重建：顶部 Live Navbar / Banner、雷达之眼 / Crystal Lens 视觉槽位、Cockpit Card、桌面 **左 / 中 / 右 = 2 : 6 : 2** 三栏、Altcoin Opportunity Board 锚点、Macro Radar 预览和 Signal Lifecycle Tracker 预览已接入；浏览器桌面/移动视觉 QA 仍需在本地端口权限可用后补做。
 - 移动端不挤压、不重叠。
 
 后续正确 UI 搭建顺序：

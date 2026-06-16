@@ -181,6 +181,64 @@ p {
   animation: sheetGlide 9s var(--curve) infinite;
 }
 
+.live-navbar {
+  grid-template-columns: minmax(210px, auto) minmax(128px, 0.42fr) minmax(0, 1fr) minmax(230px, auto);
+  align-items: stretch;
+}
+
+.live-navbar__brand,
+.live-navbar__lens {
+  position: relative;
+  z-index: 1;
+}
+
+.crystal-lens {
+  position: relative;
+  min-height: 54px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(21, 23, 28, 0.34);
+  border-radius: 7px;
+  background: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 240, 0.08);
+}
+
+.crystal-lens img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 54% 44%;
+  opacity: 0.82;
+  filter: saturate(1.04) contrast(1.05);
+}
+
+.crystal-lens::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(21, 23, 28, 0.64), transparent 52%),
+    radial-gradient(circle at 52% 42%, transparent 0 24%, rgba(21, 23, 28, 0.28) 58%, rgba(21, 23, 28, 0.72) 100%);
+}
+
+.crystal-lens span {
+  position: absolute;
+  left: 9px;
+  bottom: 7px;
+  z-index: 2;
+  color: var(--paper-3);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-shadow: 0 1px 9px rgba(21, 23, 28, 0.72);
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -256,6 +314,48 @@ p {
 
 .top-status strong {
   font-size: 14px;
+}
+
+.market-session-clock {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  margin-bottom: 5px;
+  padding-bottom: 7px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.market-session-clock span {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.market-session-clock strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.market-session-clock small {
+  max-width: 230px;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 10px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.market-session-clock--hot strong {
+  color: var(--red);
+}
+
+.market-session-clock--active strong {
+  color: var(--blue);
+}
+
+.market-session-clock--watch strong {
+  color: #8b5c12;
 }
 
 .top-status__guard {
@@ -488,6 +588,31 @@ p {
   align-items: start;
 }
 
+.cockpit-card {
+  grid-template-columns: 2fr 6fr 2fr;
+  padding: 10px;
+  overflow: visible;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.74), rgba(233, 227, 216, 0.58)),
+    rgba(244, 240, 232, 0.56);
+  box-shadow: 0 22px 74px rgba(21, 23, 28, 0.1);
+}
+
+.cockpit-column {
+  align-self: start;
+}
+
+.cockpit-column--left,
+.cockpit-column--right {
+  gap: 10px;
+}
+
+.cockpit-column--center {
+  gap: 12px;
+}
+
 .studio-stack {
   display: grid;
   min-width: 0;
@@ -510,6 +635,10 @@ p {
   transform: translateY(-2px);
   border-color: rgba(21, 23, 28, 0.56);
   box-shadow: 0 26px 82px rgba(21, 23, 28, 0.12);
+}
+
+.cockpit-card .module {
+  box-shadow: 0 16px 48px rgba(21, 23, 28, 0.07);
 }
 
 .module:nth-child(2) {
@@ -590,6 +719,79 @@ p {
 .pool-audit b {
   color: var(--ink);
   font-size: 15px;
+}
+
+.cockpit-briefing__grid,
+.macro-radar-preview__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+}
+
+.cockpit-briefing__grid span,
+.macro-radar-preview__grid span {
+  min-height: 58px;
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  padding: 9px 10px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.cockpit-briefing__grid span:nth-child(2n),
+.macro-radar-preview__grid span:nth-child(2n) {
+  border-right: 0;
+}
+
+.cockpit-briefing__grid span:nth-last-child(-n + 2),
+.macro-radar-preview__grid span:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.cockpit-briefing__grid b,
+.macro-radar-preview__grid b {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.cockpit-briefing__note,
+.macro-radar-preview p,
+.signal-lifecycle-preview p {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 12px 13px;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.cockpit-briefing__note strong {
+  color: var(--ink);
+}
+
+.altcoin-opportunity-board .module {
+  border-color: rgba(21, 23, 28, 0.52);
+  background:
+    linear-gradient(90deg, rgba(213, 155, 61, 0.1), transparent 42%),
+    rgba(255, 250, 240, 0.9);
+}
+
+.altcoin-opportunity-board .module-head h2::after {
+  content: " / Altcoin Opportunity Board";
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.altcoin-opportunity-board .candidate-row {
+  grid-template-columns: 88px 54px minmax(180px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr);
 }
 
 .candidate-table {
@@ -674,12 +876,20 @@ p {
 .heat-cell--sleep { background: rgba(255, 255, 255, 0.34); }
 .heat-cell b { font-size: 14px; }
 
+.altcoin-heat-module .heat-grid {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
 .hero-module {
   min-height: 340px;
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
   gap: 16px;
   padding: 16px;
+}
+
+.cockpit-main-stage {
+  min-height: 318px;
 }
 
 .hero-copy {
@@ -978,6 +1188,52 @@ p {
 .n3 { right: 9%; top: 10%; }
 .n4 { left: 14%; bottom: 16%; }
 .n5 { right: 18%; bottom: 18%; }
+
+.macro-radar-preview {
+  background:
+    linear-gradient(180deg, rgba(238, 242, 255, 0.72), rgba(255, 250, 240, 0.88)),
+    rgba(255, 250, 240, 0.86);
+}
+
+.signal-lifecycle-preview {
+  background:
+    linear-gradient(180deg, rgba(255, 246, 221, 0.74), rgba(255, 250, 240, 0.88)),
+    rgba(255, 250, 240, 0.86);
+}
+
+.signal-lifecycle-preview__steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(21, 23, 28, 0.04);
+}
+
+.signal-lifecycle-preview__steps span {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: rgba(255, 250, 240, 0.62);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.signal-lifecycle-preview__steps .is-done {
+  border-color: rgba(39, 140, 102, 0.34);
+  color: var(--green);
+  background: rgba(39, 140, 102, 0.1);
+}
+
+.signal-lifecycle-preview__steps .is-hot {
+  border-color: rgba(213, 155, 61, 0.54);
+  color: #8b5c12;
+  background: rgba(213, 155, 61, 0.18);
+  box-shadow: 0 0 0 3px rgba(213, 155, 61, 0.08);
+}
 
 .chart-wrap {
   padding: 14px;
@@ -5910,15 +6166,33 @@ p {
 }
 
 @media (max-width: 1240px) {
+  .live-navbar {
+    grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  }
+
+  .live-navbar__lens {
+    min-height: 72px;
+  }
+
+  .market-tape {
+    grid-column: 1 / -1;
+  }
+
+  .top-status {
+    min-width: 0;
+  }
+
   .radar-command-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .studio-workspace {
+  .studio-workspace,
+  .cockpit-card {
     grid-template-columns: 0.95fr 1.35fr;
   }
 
-  .studio-stack--right {
+  .studio-stack--right,
+  .cockpit-column--right {
     grid-column: 1 / -1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5939,7 +6213,9 @@ p {
 
 @media (max-width: 940px) {
   .topline,
+  .live-navbar,
   .studio-workspace,
+  .cockpit-card,
   .hero-module,
   .studio-stack--right {
     grid-template-columns: 1fr;
@@ -5953,6 +6229,14 @@ p {
     border-top: 1px solid var(--line);
     border-left: 0;
     text-align: left;
+  }
+
+  .cockpit-card {
+    padding: 8px;
+  }
+
+  .cockpit-column--right {
+    grid-column: auto;
   }
 
   .top-status__guard,
@@ -5980,9 +6264,17 @@ p {
     grid-template-columns: 76px 52px minmax(0, 1fr);
   }
 
+  .altcoin-opportunity-board .candidate-row {
+    grid-template-columns: 76px 52px minmax(0, 1fr);
+  }
+
   .row-trigger,
   .row-risk {
     display: none;
+  }
+
+  .altcoin-heat-module .heat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .executor-run-grid {
@@ -6006,6 +6298,7 @@ p {
   }
 
   .topline,
+  .live-navbar,
   .radar-command-strip,
   .market-tape,
   .signal-map,
@@ -6018,6 +6311,20 @@ p {
   .market-tape__track {
     max-width: max-content;
     transform: translateZ(0);
+  }
+
+  .crystal-lens {
+    min-height: 88px;
+  }
+
+  .market-session-clock {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .market-session-clock small {
+    max-width: 100%;
+    white-space: normal;
   }
 
   .radar-command-strip {
@@ -6081,6 +6388,10 @@ p {
   }
 
   .heat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .altcoin-heat-module .heat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
