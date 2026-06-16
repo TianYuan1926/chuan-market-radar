@@ -262,6 +262,23 @@ test("external daily mover scheduler calls the protected ingest endpoint once pe
   assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
 });
 
+test("external outcome executor scheduler calls the protected outcome endpoint hourly", () => {
+  const workflowSource = readFileSync(
+    resolve(process.cwd(), ".github/workflows/chuan-outcome-executor.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /cron:\s*["']23 \* \* \* \*["']/);
+  assert.match(workflowSource, /workflow_dispatch:/);
+  assert.match(workflowSource, /-X POST "\$CHUAN_OUTCOME_EXECUTOR_URL"/);
+  assert.match(workflowSource, /Authorization: Bearer \$CHUAN_CRON_SECRET/);
+  assert.match(workflowSource, /api\/admin\/outcomes\/run/);
+  assert.match(workflowSource, /secrets\.CHUAN_OUTCOME_EXECUTOR_URL/);
+  assert.match(workflowSource, /secrets\.CHUAN_CRON_SECRET/);
+  assert.doesNotMatch(workflowSource, /web-brown-rho-95\.vercel\.app/);
+  assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
+});
+
 test("public daily mover archive API is exposed as a read-only route", () => {
   const routeSource = readFileSync(
     resolve(process.cwd(), "src/app/api/daily-movers/route.ts"),
@@ -285,6 +302,19 @@ test("protected daily mover kline cache fill API is exposed as a POST-only admin
   assert.match(routeSource, /runAdminDailyMoverKlineCacheFill/);
   assert.match(routeSource, /authorization/);
   assert.match(routeSource, /x-chuan-daily-mover-kline-cache-fill/);
+  assert.equal(routeSource.includes("export async function GET"), false);
+});
+
+test("protected outcome executor API is exposed as a POST-only admin route", () => {
+  const routeSource = readFileSync(
+    resolve(process.cwd(), "src/app/api/admin/outcomes/run/route.ts"),
+    "utf8",
+  );
+
+  assert.match(routeSource, /export async function POST/);
+  assert.match(routeSource, /runAdminOutcomeExecutor/);
+  assert.match(routeSource, /authorization/);
+  assert.match(routeSource, /x-chuan-outcome-executor/);
   assert.equal(routeSource.includes("export async function GET"), false);
 });
 

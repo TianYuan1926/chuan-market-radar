@@ -76,6 +76,7 @@ test("buildJournalEntryFromSignal preserves the full decision context", () => {
   assert.equal(entry.riskReward, 4);
   assert.equal(entry.trigger, "15m 放量突破后回踩不破");
   assert.equal(entry.invalidation, "跌回箱体内部");
+  assert.equal(entry.firstTarget, "前高流动性区");
   assert.equal(entry.plannedReviewAt, "2026-06-12T11:45:00.000+08:00");
   assert.match(entry.note, /候选可执行/);
   assert.match(entry.thesis, /接近触发/);

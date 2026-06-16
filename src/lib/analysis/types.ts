@@ -147,6 +147,7 @@ export type JournalEvent = {
   riskReward?: number;
   trigger?: string;
   invalidation?: string;
+  firstTarget?: string;
   thesis?: string;
   plannedReviewAt?: string;
   lessons?: string[];

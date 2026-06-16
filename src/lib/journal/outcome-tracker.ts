@@ -332,6 +332,7 @@ export function buildLifecycleJournalEvent(
     riskReward: signal.strategy.riskReward,
     trigger: signal.strategy.entry,
     invalidation: signal.strategy.invalidation,
+    firstTarget: signal.strategy.targets[0],
     thesis: signal.summary,
     plannedReviewAt: outcome.reviewCheckpoints.find((checkpoint) => checkpoint.status !== "complete")?.reviewAt ??
       outcome.reviewCheckpoints.at(-1)?.reviewAt,

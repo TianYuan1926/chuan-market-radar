@@ -88,8 +88,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级和 repository hints 基础已落地 | 尚未完成高优先级加密扫描和覆盖差异前端展示 |
 | 阶段 4：OHLCV 与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示和基础指标/周期权重校准 | 尚未完成完整回测权重校准、交互式多周期图表和更专业的成交量分布模型 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
-| 阶段 6：自我提升复盘 | 基础已落地 | 尚未有定时 outcome executor 自动读取数据库并写回复盘 |
-| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果和 observedAt 事件窗口回测已落地 | 尚未完成自动权重调整；自动调整必须等待 outcome executor 和回滚准入更成熟 |
+| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发和已关闭信号去重已落地 | 尚未完成结果覆盖率前端展示、完整策略权重回测校准和自动调权准入 |
+| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测和 outcome executor 复盘写回基础已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、回滚准入和人工确认流程更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未有 Telegram/Webhook、持久化告警历史、多设备推送 |
 | 阶段 8：UI 质感深化 | 第一轮已落地 | 像素男性副驾驶 MVP 已落地；装备升级、移动端细节、图表密度和更完整交互动效仍需继续打磨 |
 
@@ -373,6 +373,10 @@ AI 复核必须遵守：
   - 24h 后仍未触发：记为 `expired`，不奖励段位。
 - 复盘结果会进入 journal payload，并通过 `outcome_status` 支持数据库查询。
 - 日记面板会展示当前 outcome、下一次复查时间、触发/失效/首目标命中状态和 lesson tags。
+- `runOutcomeExecutor()` 已能读取数据库中的待复查 tracking journal，按 checkpoint 使用公开 OHLCV 评估信号生命周期，并写回 lifecycle journal event。
+- `POST /api/admin/outcomes/run` 已通过 `CRON_SECRET` 保护；`.github/workflows/chuan-outcome-executor.yml` 会每小时低频触发该入口，适配 Vercel 免费套餐不能依赖高频内置 Cron 的边界。
+- outcome executor 使用公开 OHLCV provider，不占用 CoinGlass 请求预算；输出保持 `allowedUse: "research_only"` 和 `canAutoAdjustWeights: false`。
+- outcome executor 已具备基础重复执行保护：同一 signal 只要已经存在 closed lifecycle outcome，旧 tracking entry 不会再次触发公开 K 线请求。
 - 规则调整已有基础函数：
   - 有效标签进入 promote。
   - 重复失败标签进入 demote。
@@ -380,18 +384,8 @@ AI 复核必须遵守：
 
 后续需要：
 
-- 信号生命周期：
-  - born
-  - watching
-  - near_trigger
-  - triggered
-  - invalidated
-  - expired
-  - reviewed
-- 自动 outcome tracking 的真实行情执行器：
-  - 从数据库读取待复查 journal。
-  - 按 checkpoint 拉取对应 OHLCV。
-  - 写回复盘事件和 rank profile。
+- 把自动复盘结果展示到系统健康或复盘面板，显示最近执行时间、扫描数、写回数、跳过原因和失败原因。
+- 建立 outcome 样本覆盖率统计，让有效/失效/过期样本可以服务后续人工校准。
 - 阈值校准：
   - 哪些因子经常误报就降权。
   - 哪些因子连续有效就升权。
@@ -431,12 +425,13 @@ AI 复核必须遵守：
 - 缓存 K 线验证结果：`GET /api/daily-movers` 会输出 `klineBacktestResults`，只读取 bounded `ohlcv_candle_cache`，计算缓存覆盖率、周期涨跌幅、最大冲高、最大回撤和量能变化；结果保持 `cached_kline_validation`、`research_only`、`canAutoAdjustWeights: false`，不触发外部请求。
 - observedAt 事件窗口回测：`klineBacktestResults.eventWindowResults` 会按每日异动样本的 `observedAt` 把已缓存 candles 拆成 pre/post 窗口，输出样本方向、pre/post K 线数量、post 回撤/冲高、量能扩张和 `post_move_confirmed / pre_move_evidence / neutral / window_missing` 判定；该结果仍只读、不触发外部请求、不自动调权重。
 - 免费套餐护栏：关联摘要最多读取 12 个扫描归档和 80 条日记，只做只读聚合，不新增表、不增加 CoinGlass 请求、不增加数据库写入频率。
+- outcome executor 复盘写回基础：待复查 journal 可经受保护 API 和外部 GitHub Actions 低频触发，使用公开 OHLCV 评估 partial win、saved、loss、expired，并把结果写回 journal/rank；该链路不占用 CoinGlass 请求预算，不自动改权重。
 - 安全边界：输出必须保持 `allowedUse: "research_only"`，只能用于归因复盘、样本库和规则校准。
 
 后续需要：
 
 - 自动权重调整仍需单独准入、测试和回滚设计，不能因为人工确认记录或版本表现存在就直接开启。
-- 自动权重调整前，应优先补齐 outcome executor，让更多确认后样本能自动写回复盘并进入版本表现统计。
+- 自动权重调整前，应继续积累 outcome executor 写回样本，并把误报、漏判、有效样本接入更严格的回滚准入。
 - UI 不能把涨跌幅榜包装成交易信号。
 
 ### 部分落地：告警系统
@@ -696,7 +691,7 @@ CoinGlass 业余会员 API：
 
 目标：自动追踪信号结果，并让系统从复盘中校准。
 
-当前状态：生命周期和评分基础已完成，自动执行器未完成。
+当前状态：生命周期、评分基础和 outcome executor MVP 已完成；执行器已能低频读取待复查 journal、拉公开 OHLCV、写回复盘结果，但还不是完整自动调权系统。
 
 已具备：
 
@@ -704,12 +699,16 @@ CoinGlass 业余会员 API：
 - outcome-tracker 已能根据后续 K 线判断 partial win、saved、loss、expired。
 - journal 已支持记录 outcome。
 - rank 已能根据纪律和结果变化。
+- outcome executor 已能从 repository 读取待复查 journal，使用公开 OHLCV 评估结果，并写回 lifecycle journal event。
+- `POST /api/admin/outcomes/run` 已受 `CRON_SECRET` 保护。
+- `.github/workflows/chuan-outcome-executor.yml` 已支持每小时外部低频触发。
+- 已关闭 lifecycle outcome 会阻止同一旧 tracking entry 重复触发公开 K 线请求。
 - 规则调整已有 promote、demote、experiment 基础函数。
 
 下一步深化：
 
-- 定时 executor 需要从数据库读取待复查 journal。
-- executor 需要按 checkpoint 拉取未来 OHLCV，写回复盘结果。
+- 在系统健康和复盘 UI 中展示 outcome executor 最近执行状态、写回数、跳过原因和失败原因。
+- 建立 outcome 覆盖率统计和样本质量分层。
 - 反复误报的规则必须进入降权、隔离或删除流程。
 
 ### 阶段 7：告警系统

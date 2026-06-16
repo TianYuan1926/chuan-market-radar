@@ -68,6 +68,7 @@ export type SignalJournalEntry = JournalEvent & {
   riskReward: number;
   trigger: string;
   invalidation: string;
+  firstTarget: string;
   thesis: string;
   plannedReviewAt: string;
   lessons: string[];
@@ -231,6 +232,7 @@ export function buildJournalEntryFromSignal(
     riskReward: signal.strategy.riskReward,
     trigger: signal.strategy.entry,
     invalidation: signal.strategy.invalidation,
+    firstTarget: signal.strategy.targets[0] ?? "",
     thesis: signal.summary,
     plannedReviewAt: plannedReviewAt(signal.updatedAt, signal.timeframe),
     ...lifecycleDefaults,

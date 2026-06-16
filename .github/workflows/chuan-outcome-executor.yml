@@ -1,0 +1,32 @@
+name: Chuan Outcome Executor
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chuan-outcome-executor
+  cancel-in-progress: false
+
+jobs:
+  outcomes:
+    name: Trigger protected outcome executor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call Chuan outcome executor API
+        env:
+          CHUAN_OUTCOME_EXECUTOR_URL: ${{ secrets.CHUAN_OUTCOME_EXECUTOR_URL }}
+          CHUAN_CRON_SECRET: ${{ secrets.CHUAN_CRON_SECRET }}
+        run: |
+          # CHUAN_OUTCOME_EXECUTOR_URL should point to /api/admin/outcomes/run.
+          test -n "$CHUAN_OUTCOME_EXECUTOR_URL"
+          test -n "$CHUAN_CRON_SECRET"
+          curl --fail --show-error --silent --retry 2 --retry-delay 10 --max-time 240 \
+            -X POST "$CHUAN_OUTCOME_EXECUTOR_URL" \
+            -H "Authorization: Bearer $CHUAN_CRON_SECRET" \
+            -H "Content-Type: application/json"
