@@ -19,6 +19,7 @@ type DailyMoverBacktestCandidate = DailyMoverArchive["backtestCandidates"][numbe
 type DailyMoverBacktestValidation = DailyMoverArchive["backtestValidations"][number];
 type DailyMoverStrategyDraft = DailyMoverArchive["strategyDrafts"][number];
 type DailyMoverStrategyPerformanceFeedback = DailyMoverArchive["strategyPerformanceFeedback"][number];
+type DailyMoverStrategyVersionPerformance = DailyMoverArchive["strategyVersionPerformance"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 type DailyMoverStrategyConfirmationStatus = "idle" | "saving" | "saved" | "error";
 
@@ -389,6 +390,40 @@ function renderStrategyPerformance(item: DailyMoverStrategyPerformanceFeedback) 
   );
 }
 
+function strategyVersionStatusLabel(value: DailyMoverStrategyVersionPerformance["status"]) {
+  return {
+    awaiting_samples: "等样本",
+    manual_review_required: "人工复核",
+    retain_observation: "保留观察",
+    rollback_watch: "回滚观察",
+  }[value];
+}
+
+function strategyVersionWindowLabel(value: DailyMoverStrategyVersionPerformance["sampleWindow"]) {
+  return {
+    post_confirmation_calibration_reviews: "确认后样本",
+  }[value];
+}
+
+function renderStrategyVersionPerformance(item: DailyMoverStrategyVersionPerformance) {
+  return (
+    <article className={`daily-mover-version__item daily-mover-version__item--${item.status}`} key={item.confirmationEventId}>
+      <div>
+        <strong>{item.versionLabel}</strong>
+        <span>{strategyVersionStatusLabel(item.status)}</span>
+      </div>
+      <div className="daily-mover-version__stats" aria-label={`${item.label} 版本表现统计`}>
+        <span><b>{item.verifiedSampleCount}</b>已验证</span>
+        <span><b>{item.validationRatePercent}%</b>有效率</span>
+        <span><b>{item.rejectionRatePercent}%</b>反证率</span>
+        <span><b>{item.pending}</b>待复查</span>
+      </div>
+      <p>{item.rollbackBoundary}</p>
+      <small>{item.label} · {strategyVersionWindowLabel(item.sampleWindow)} · {item.nextStep}</small>
+    </article>
+  );
+}
+
 function selectedSummary(
   archive: DailyMoverArchive,
   snapshotId: string | undefined,
@@ -419,6 +454,7 @@ export function DailyMoverPanel({
   const backtestValidations = activeArchive.backtestValidations.slice(0, 3);
   const strategyDrafts = activeArchive.strategyDrafts.slice(0, 3);
   const strategyPerformanceFeedback = activeArchive.strategyPerformanceFeedback.slice(0, 3);
+  const strategyVersionPerformance = activeArchive.strategyVersionPerformance.slice(0, 3);
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
   const guardrail = activeArchive.guardrail || fallbackGuardrail;
@@ -637,6 +673,16 @@ export function DailyMoverPanel({
                 <span>只读反馈</span>
               </div>
               {strategyPerformanceFeedback.map(renderStrategyPerformance)}
+            </div>
+          ) : null}
+
+          {strategyVersionPerformance.length > 0 ? (
+            <div className="daily-mover-version" aria-label="策略版本长周期表现和回滚边界">
+              <div className="daily-mover-version__head">
+                <h3>版本表现</h3>
+                <span>回滚边界</span>
+              </div>
+              {strategyVersionPerformance.map(renderStrategyVersionPerformance)}
             </div>
           ) : null}
 

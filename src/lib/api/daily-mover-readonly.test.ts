@@ -17,6 +17,7 @@ import {
   buildDailyMoverStrategyConfirmations,
   buildDailyMoverStrategyDrafts,
   buildDailyMoverStrategyPerformanceFeedback,
+  buildDailyMoverStrategyVersionPerformance,
   getDailyMoverReadArchive,
   normalizeDailyMoverReadLimit,
 } from "./daily-mover-readonly";
@@ -901,6 +902,42 @@ test("buildDailyMoverStrategyPerformanceFeedback downgrades confirmed drafts whe
   assert.equal(feedback[0]?.rejected, 2);
   assert.match(feedback[0]?.nextStep ?? "", /降级/);
   assert.equal(feedback[0]?.canAutoAdjustWeights, false);
+});
+
+test("buildDailyMoverStrategyVersionPerformance summarizes version results with rollback boundaries", () => {
+  const performance = buildDailyMoverStrategyVersionPerformance([
+    {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      confirmationEventId: "version-performance-volume-oi",
+      confirmedAt: "2026-06-18T00:22:00.000Z",
+      draftId: "strategy-review_volume_oi_weight",
+      evidenceSummary: "4 后续样本 / 1 有效 / 3 反证 / 0 待复查 / 0 过期",
+      expired: 0,
+      followupSampleCount: 4,
+      label: "成交量/OI 权重复核",
+      nextStep: "确认后反证占优，降级为观察/限制条件，不能自动改权重。",
+      pending: 0,
+      rejected: 3,
+      status: "downgrade_watch",
+      tag: "review_volume_oi_weight",
+      validated: 1,
+      versionLabel: "draft-volume-oi-weight-v1",
+    },
+  ]);
+
+  assert.equal(performance.length, 1);
+  assert.equal(performance[0]?.mode, "strategy_version_long_term_performance");
+  assert.equal(performance[0]?.versionLabel, "draft-volume-oi-weight-v1");
+  assert.equal(performance[0]?.sampleWindow, "post_confirmation_calibration_reviews");
+  assert.equal(performance[0]?.verifiedSampleCount, 4);
+  assert.equal(performance[0]?.validationRatePercent, 25);
+  assert.equal(performance[0]?.rejectionRatePercent, 75);
+  assert.equal(performance[0]?.status, "rollback_watch");
+  assert.match(performance[0]?.rollbackBoundary ?? "", /冻结加权讨论/);
+  assert.match(performance[0]?.nextStep ?? "", /人工复核/);
+  assert.equal(performance[0]?.allowedUse, "research_only");
+  assert.equal(performance[0]?.canAutoAdjustWeights, false);
 });
 
 test("getDailyMoverReadArchive exposes calibration feedback from journal events", async () => {

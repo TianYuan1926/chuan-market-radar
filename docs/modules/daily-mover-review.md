@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、K 线缓存填充基础、缓存 K 线验证结果和 observedAt 事件窗口回测：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果和 observedAt 事件窗口回测：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -36,6 +36,7 @@
 - 策略版本草案：`GET /api/daily-movers` 会从 `backtestValidations` 派生 `strategyDrafts`，记录候选规则、验证结论、限制条件、草案版本名和人工确认状态；`DailyMoverPanel` 只读展示，不写正式版本、不自动改权重。
 - 策略版本人工确认：`DailyMoverPanel` 可把待确认草案以 `strategy_confirmation` 写入现有 `journal_events`；`GET /api/daily-movers` 会汇总 `strategyConfirmations`，并把匹配草案显示为已确认。
 - 策略确认后表现反馈：`GET /api/daily-movers` 会从 `strategyConfirmations` 和确认后的 `calibration_review` 日记派生 `strategyPerformanceFeedback`，统计后续样本、有效、反证、待复查和只读状态；`DailyMoverPanel` 展示“确认后表现”，不新增表、不触发 CoinGlass 请求、不自动改权重。
+- 策略版本长周期表现/回滚边界：`GET /api/daily-movers` 会从 `strategyPerformanceFeedback` 派生 `strategyVersionPerformance`，输出版本名、确认时间、后续样本窗口、已验证样本数、有效率、反证率、待复查数和只读回滚边界；`DailyMoverPanel` 展示“版本表现”和“回滚边界”，不新增写入、不触发 CoinGlass 请求、不自动改权重。
 - K 线回测计划边界：`GET /api/daily-movers` 会输出 `klineBacktestPlan`，从 `backtestCandidates` 和已存每日异动样本生成 planning-only 的缓存计划，包含计划币种、周期、缓存键、请求预算封顶和 deferred symbols；该计划不执行外部 K 线请求、不占用 CoinGlass 请求、不自动改权重。
 - K 线缓存持久化：`ohlcv_candle_cache` 保存公开 OHLCV candles、来源、拉取时间、周期和样本边界；repository 支持内存和 Neon 双路径读写。
 - 低频 K 线缓存填充 MVP：`POST /api/admin/daily-movers/klines/fill` 通过 `CRON_SECRET` 保护，默认读取 repository 中的回测计划候选，只拉公开 Binance Futures OHLCV，跳过已有缓存，并受 `KLINE_BACKTEST_DAILY_REQUEST_BUDGET` 和 `KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN` 封顶；该入口不占用 CoinGlass 请求、不自动改权重。
@@ -44,8 +45,8 @@
 
 当前未落地：
 
-- 策略版本长周期表现统计、版本回滚边界和更完整的表现趋势。
 - 自动规则权重调整；当前明确不允许自动调整。
+- outcome executor 未完成前，版本表现仍依赖已有人工/半自动复盘样本，不能当作完整自动校准闭环。
 
 ## 使用边界
 
@@ -86,5 +87,5 @@
 
 ## 下一步
 
-1. 建立策略版本长周期表现统计和版本回滚规则，但仍保持人工准入。
+1. 建立自动 outcome executor，从数据库读取待复查 journal，按 checkpoint 拉取 OHLCV 并写回复盘结果。
 2. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

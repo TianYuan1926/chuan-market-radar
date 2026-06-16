@@ -195,6 +195,37 @@ export type DailyMoverStrategyPerformanceFeedback = {
   canAutoAdjustWeights: false;
 };
 
+export type DailyMoverStrategyVersionPerformanceStatus =
+  | "awaiting_samples"
+  | "manual_review_required"
+  | "retain_observation"
+  | "rollback_watch";
+
+export type DailyMoverStrategyVersionPerformance = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  confirmationEventId: string;
+  confirmedAt: string;
+  draftId: string;
+  evidenceSummary: string;
+  expired: number;
+  followupSampleCount: number;
+  label: string;
+  mode: "strategy_version_long_term_performance";
+  nextStep: string;
+  pending: number;
+  rejected: number;
+  rejectionRatePercent: number;
+  rollbackBoundary: string;
+  sampleWindow: "post_confirmation_calibration_reviews";
+  status: DailyMoverStrategyVersionPerformanceStatus;
+  tag: string;
+  validated: number;
+  validationRatePercent: number;
+  verifiedSampleCount: number;
+  versionLabel: string;
+};
+
 export type DailyMoverStrategyDraft = {
   id: string;
   tag: string;
@@ -239,6 +270,7 @@ export type DailyMoverReadArchiveBase = {
   strategyDrafts: DailyMoverStrategyDraft[];
   strategyConfirmations: DailyMoverStrategyConfirmation[];
   strategyPerformanceFeedback: DailyMoverStrategyPerformanceFeedback[];
+  strategyVersionPerformance: DailyMoverStrategyVersionPerformance[];
   latestSnapshot: DailyMoverSnapshot | null;
   calibrationSuggestions: DailyMoverCalibrationSuggestion[];
   selectedSnapshot: DailyMoverSnapshot | null;
@@ -867,6 +899,120 @@ export function buildDailyMoverStrategyPerformanceFeedback(
     ));
 }
 
+function strategyVersionPerformanceStatus({
+  pending,
+  rejected,
+  validated,
+  verifiedSampleCount,
+}: {
+  pending: number;
+  rejected: number;
+  validated: number;
+  verifiedSampleCount: number;
+}): DailyMoverStrategyVersionPerformanceStatus {
+  if (verifiedSampleCount < 3 || pending > 0) {
+    return "awaiting_samples";
+  }
+
+  if (rejected >= 2 && rejected > validated) {
+    return "rollback_watch";
+  }
+
+  if (validated >= 3 && rejected <= 1) {
+    return "retain_observation";
+  }
+
+  return "manual_review_required";
+}
+
+function strategyVersionRollbackBoundary(
+  status: DailyMoverStrategyVersionPerformanceStatus,
+) {
+  if (status === "rollback_watch") {
+    return "触发回滚观察：确认后反证样本超过有效样本，冻结加权讨论，先人工复核适用条件。";
+  }
+
+  if (status === "retain_observation") {
+    return "保留观察：确认后有效样本占优，但仍需人工复核，不能自动升级权重。";
+  }
+
+  if (status === "manual_review_required") {
+    return "表现分歧：不回滚也不升级，先人工复核样本边界和适用市场。";
+  }
+
+  return "样本不足或仍有待复查：暂不触发回滚或升级判断。";
+}
+
+function strategyVersionNextStep(
+  status: DailyMoverStrategyVersionPerformanceStatus,
+) {
+  if (status === "rollback_watch") {
+    return "进入人工复核和版本回滚观察；只冻结加权讨论，不自动改权重。";
+  }
+
+  if (status === "retain_observation") {
+    return "保留为观察版本，继续积累后续样本；人工确认前不自动改权重。";
+  }
+
+  if (status === "manual_review_required") {
+    return "确认后表现分歧，人工复核规则适用条件和失败路径。";
+  }
+
+  return "继续积累确认后样本，先不做版本回滚或升级判断。";
+}
+
+export function buildDailyMoverStrategyVersionPerformance(
+  feedbackItems: DailyMoverStrategyPerformanceFeedback[],
+): DailyMoverStrategyVersionPerformance[] {
+  const statusOrder: Record<DailyMoverStrategyVersionPerformanceStatus, number> = {
+    rollback_watch: 0,
+    manual_review_required: 1,
+    awaiting_samples: 2,
+    retain_observation: 3,
+  };
+
+  return feedbackItems
+    .map((item) => {
+      const verifiedSampleCount = item.validated + item.rejected + item.expired;
+      const status = strategyVersionPerformanceStatus({
+        pending: item.pending,
+        rejected: item.rejected,
+        validated: item.validated,
+        verifiedSampleCount,
+      });
+
+      return {
+        allowedUse: "research_only" as const,
+        canAutoAdjustWeights: false as const,
+        confirmationEventId: item.confirmationEventId,
+        confirmedAt: item.confirmedAt,
+        draftId: item.draftId,
+        evidenceSummary: item.evidenceSummary,
+        expired: item.expired,
+        followupSampleCount: item.followupSampleCount,
+        label: item.label,
+        mode: "strategy_version_long_term_performance" as const,
+        nextStep: strategyVersionNextStep(status),
+        pending: item.pending,
+        rejected: item.rejected,
+        rejectionRatePercent: percent(item.rejected, verifiedSampleCount),
+        rollbackBoundary: strategyVersionRollbackBoundary(status),
+        sampleWindow: "post_confirmation_calibration_reviews" as const,
+        status,
+        tag: item.tag,
+        validated: item.validated,
+        validationRatePercent: percent(item.validated, verifiedSampleCount),
+        verifiedSampleCount,
+        versionLabel: item.versionLabel,
+      };
+    })
+    .sort((first, second) => (
+      statusOrder[first.status] - statusOrder[second.status]
+      || sortableTime(second.confirmedAt) - sortableTime(first.confirmedAt)
+      || first.label.localeCompare(second.label, "zh-CN")
+    ));
+}
+
 export function buildDailyMoverStrategyDrafts(
   validations: DailyMoverBacktestValidation[],
   confirmations: DailyMoverStrategyConfirmation[] = [],
@@ -1123,6 +1269,7 @@ export async function getDailyMoverReadArchive({
   const backtestValidations = buildDailyMoverBacktestValidations(backtestCandidates, snapshots);
   const strategyConfirmations = buildDailyMoverStrategyConfirmations(journalEvents);
   const strategyPerformanceFeedback = buildDailyMoverStrategyPerformanceFeedback(strategyConfirmations, journalEvents);
+  const strategyVersionPerformance = buildDailyMoverStrategyVersionPerformance(strategyPerformanceFeedback);
   const base = {
     allowedUse: "research_only" as const,
     backtestCandidates,
@@ -1140,6 +1287,7 @@ export async function getDailyMoverReadArchive({
     strategyConfirmations,
     strategyDrafts: buildDailyMoverStrategyDrafts(backtestValidations, strategyConfirmations),
     strategyPerformanceFeedback,
+    strategyVersionPerformance,
     correlationRetention,
     retention,
   };
