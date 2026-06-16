@@ -1,18 +1,21 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartPanel } from "./chart-panel";
 import { DailyMoverPanel } from "./daily-mover-panel";
 import { EventCenterPanel } from "./event-center-panel";
 import { JournalPanel } from "./journal-panel";
+import { OpsAndFilterPanel } from "./ops-and-filter-panel";
 import { PixelS680 } from "./pixel-s680";
+import { RadarBootBriefing } from "./radar-boot-briefing";
+import { RadarCockpitShell } from "./radar-cockpit-shell";
 import { RadarTable } from "./radar-table";
 import { RankPanel } from "./rank-panel";
 import { ReplayPanel } from "./replay-panel";
 import { SignalDossier, type SignalDossierDailyMoverMatch } from "./signal-dossier";
 import { StrategyCard } from "./strategy-card";
 import { SystemHealthPanel } from "./system-health-panel";
+import { TopRadarBar } from "./top-radar-bar";
 import { signalStateLabels } from "@/lib/analysis/constants";
 import {
   buildAlertEvent,
@@ -457,6 +460,18 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       ? "alert"
       : rankProfile.petMood;
   const selectedPulseTone = signalPulseTone(selected);
+  const opsSummaryItems = [
+    { label: "数据状态", value: marketStatusLabel(metadata.status) },
+    { label: "自动刷新", value: refreshStatusLabel(refreshState) },
+    { label: "当前覆盖", value: `${coveragePercent}%` },
+    { label: "待确认", value: activeSignalCount.toString() },
+  ];
+  const opsFilterItems = [
+    { label: "多头", value: longBiasCount.toString() },
+    { label: "空头", value: shortBiasCount.toString() },
+    { label: "高风险", value: blockedSignalCount.toString() },
+    { label: "候选", value: signals.length.toString() },
+  ];
 
   const playSignalTone = useCallback((sound: AlertSound = "pulse", volume = 0.08) => {
     const AudioCtor = audioContextConstructor();
@@ -907,85 +922,39 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   }
 
   return (
-    <main className={`studio-shell studio-shell--${metadata.status} studio-shell--refresh-${refreshState} studio-shell--risk-${metadata.riskGate}`}>
+    <main className={`studio-shell radar-app-shell studio-shell--${metadata.status} studio-shell--refresh-${refreshState} studio-shell--risk-${metadata.riskGate}`}>
       <div className="studio-scan-grid" aria-hidden="true">
         <span />
         <span />
         <span />
       </div>
 
-      <header className="topline live-navbar" aria-label="Live Navbar / Banner">
-        <div className="brand live-navbar__brand">
-          <div className="brand-mark">川</div>
-          <div>
-            <strong>雷达中枢</strong>
-            <span>公开监控 · CoinGlass 实时源 · 15m 分批扫描</span>
-          </div>
-        </div>
+      <TopRadarBar
+        batchNote={batchNote}
+        cadenceMinutes={metadata.cadenceMinutes}
+        candidateCount={instrumentPool.summary.accepted}
+        deltaLabel={deltaLabel(lastDelta)}
+        isRealtime={metadata.isRealtime}
+        marketSession={marketSession}
+        marketStatus={marketStatusLabel(metadata.status)}
+        nextScanTime={formatScanTime(metadata.nextScanAt)}
+        onToggleSound={toggleSound}
+        providerLabel={marketSourceLabel(metadata.source)}
+        refreshInterval={formatRefreshInterval(refreshIntervalMs)}
+        refreshStateLabel={refreshStatusLabel(refreshState)}
+        refreshTone={refreshState}
+        requestsNote={requestsNote}
+        riskGate={riskGateLabel(metadata.riskGate)}
+        soundEnabled={soundEnabled}
+        staleAfterMinutes={metadata.staleAfterMinutes}
+      />
 
-        <div className="crystal-lens live-navbar__lens" aria-label="雷达之眼 / Crystal Lens">
-          <Image
-            alt=""
-            fill
-            priority={false}
-            sizes="(max-width: 940px) 100vw, 180px"
-            src="/assets/radar-crystal-lens.png"
-          />
-          <span>雷达之眼</span>
-        </div>
-
-        <div className="market-tape" aria-label="市场滚动带">
-          <div className="market-tape__track">
-            <span>BTC <b>+1.8%</b> 波动扩张</span>
-            <span>ENA <b>78</b> 等回踩</span>
-            <span>SUI <b>69</b> 假突破观察</span>
-            <span>ONDO <b>64</b> 靠近支撑</span>
-            <span>TIA <b>52</b> 中位过滤</span>
-            <span>BTC <b>+1.8%</b> 波动扩张</span>
-            <span>ENA <b>78</b> 等回踩</span>
-            <span>SUI <b>69</b> 假突破观察</span>
-            <span>ONDO <b>64</b> 靠近支撑</span>
-            <span>TIA <b>52</b> 中位过滤</span>
-          </div>
-        </div>
-
-        <div className="top-status">
-          <div className={`market-session-clock market-session-clock--${marketSession.tone}`} aria-label="市场时段时钟">
-            <span className="mono">Market Session</span>
-            <strong>{marketSession.label}</strong>
-            <small>{marketSession.localTime} · {marketSession.note}</small>
-          </div>
-          <strong>下次扫描 {formatScanTime(metadata.nextScanAt)}</strong>
-          <span className="mono">
-            {metadata.cadenceMinutes}m {marketStatusLabel(metadata.status)} / {marketSourceLabel(metadata.source)} / 候选池 {instrumentPool.summary.accepted}
-          </span>
-          <span className="mono">
-            {batchNote ?? `护栏 ${metadata.staleAfterMinutes}m`} / {metadata.isRealtime ? "实时" : "预览"}
-          </span>
-          {requestsNote ? (
-            <span className="mono">{requestsNote}</span>
-          ) : null}
-          {batchNote ? (
-            <span className="top-status__guard">
-              护栏 {metadata.staleAfterMinutes}m
-            </span>
-          ) : null}
-          <div className={`live-console live-console--${refreshState}`}>
-            <span className="mono">
-              {refreshStatusLabel(refreshState)} · {formatRefreshInterval(refreshIntervalMs)}
-            </span>
-            <button
-              aria-pressed={soundEnabled}
-              className={`sound-toggle ${soundEnabled ? "is-on" : ""}`}
-              onClick={toggleSound}
-              type="button"
-            >
-              {soundEnabled ? "声音开启" : "声音关闭"}
-            </button>
-            <span className="mono live-console__delta">{deltaLabel(lastDelta)}</span>
-          </div>
-        </div>
-      </header>
+      <RadarBootBriefing
+        coverageLabel={`${coveragePercent}%`}
+        healthLabel={liveHealth.level}
+        providerLabel={marketSourceLabel(metadata.source)}
+        statusLabel={marketStatusLabel(metadata.status)}
+      />
 
       <section className={`radar-command-strip radar-command-strip--${metadata.status}`} aria-label="雷达节拍状态">
         <div className="radar-command-strip__beam" aria-hidden="true" />
@@ -1011,39 +980,31 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         </div>
       </section>
 
-      <section className="studio-workspace cockpit-card" aria-label="Cockpit Card">
-        <aside className="studio-stack studio-stack--left cockpit-column cockpit-column--left">
-          <section className="module cockpit-briefing">
-            <div className="module-head">
-              <h2>运行简报</h2>
-              <span className="tag">Live</span>
-            </div>
-            <div className="cockpit-briefing__grid" aria-label="控制台运行状态">
-              <span><b>{marketStatusLabel(metadata.status)}</b> 数据状态</span>
-              <span><b>{refreshStatusLabel(refreshState)}</b> 自动刷新</span>
-              <span><b>{coveragePercent}%</b> 当前覆盖</span>
-              <span><b>{activeSignalCount}</b> 待确认</span>
-            </div>
-            <div className="cockpit-briefing__note">
-              <strong>{marketSession.label}</strong>
-              <span>{marketSession.note}</span>
-            </div>
-          </section>
-
-          <SystemHealthPanel
-            health={liveHealth}
-            onRecordStrategyWeightExecution={createStrategyWeightExecutionRecord}
+      <RadarCockpitShell
+        left={(
+          <OpsAndFilterPanel
+            eventCenterPanel={(
+              <EventCenterPanel
+                alertEvents={alertEvents}
+                archive={liveSnapshot.archive}
+                liveDelta={lastDelta}
+                liveGeneratedAt={metadata.generatedAt}
+                liveScanId={metadata.id}
+              />
+            )}
+            filterItems={opsFilterItems}
+            healthPanel={(
+              <SystemHealthPanel
+                health={liveHealth}
+                onRecordStrategyWeightExecution={createStrategyWeightExecutionRecord}
+              />
+            )}
+            marketNote={marketSession.note}
+            summaryItems={opsSummaryItems}
           />
-          <EventCenterPanel
-            alertEvents={alertEvents}
-            archive={liveSnapshot.archive}
-            liveDelta={lastDelta}
-            liveGeneratedAt={metadata.generatedAt}
-            liveScanId={metadata.id}
-          />
-        </aside>
-
-        <section className="studio-stack studio-stack--center cockpit-column cockpit-column--center">
+        )}
+        center={(
+          <>
           <div className="altcoin-opportunity-board" aria-label="Altcoin Opportunity Board 山寨机会板">
             <RadarTable
               signals={signals}
@@ -1171,9 +1132,10 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             onTimeframeChange={setActiveTimeframe}
             selected={selected}
           />
-        </section>
-
-        <aside className="studio-stack studio-stack--right cockpit-column cockpit-column--right">
+          </>
+        )}
+        right={(
+          <>
           <section className="module macro-radar-preview" aria-label="Macro Radar">
             <div className="module-head">
               <h2>大盘天气</h2>
@@ -1224,8 +1186,9 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             selected={selected}
             status={journalStatus}
           />
-        </aside>
-      </section>
+          </>
+        )}
+      />
 
       <SignalDossier
         activeTimeframe={activeTimeframe}

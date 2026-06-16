@@ -933,6 +933,8 @@ CoinGlass 业余会员 API：
 - 2026-06-16 已重新校准路线：当前 UI 被用户判定为“像一张纸、没有运行感、美感不足”，后续不再继续表层小修，改为 Tailwind CSS + daisyUI 的高级活体雷达控制台重构。
 - Phase 8.2b 旧壳试探已完成：顶部 Live Navbar / Banner、雷达之眼 / Crystal Lens 视觉槽位、Cockpit Card、桌面 **左 / 中 / 右 = 2 : 6 : 2** 三栏、Altcoin Opportunity Board 锚点、Macro Radar 预览和 Signal Lifecycle Tracker 预览已接入。但它仍属于旧页面上的结构试探，不等于正式 Tailwind CSS + daisyUI UI Reset；浏览器桌面/移动视觉 QA 也仍需在本地端口权限可用后补做。
 - 2026-06-17 已确定：下一阶段以 `docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md` 为正式依据，先真实接入 Tailwind CSS + daisyUI，再重建 AppShell、Live Navbar、启动 briefing、统一 cockpit、移动端 tabs/drawer 和模块联动。
+- Phase 8.2b-R 已落地：Tailwind CSS、daisyUI、PostCSS、`postcss.config.mjs`、`globals.css` 入口和 webpack 生产构建路径已接入，Element Plus 继续保持参考-only。
+- Phase 8.2c 已落地：新增 `TopRadarBar`、`RadarBootBriefing`、`RadarCockpitShell` 和 `OpsAndFilterPanel`，`radar-workspace.tsx` 改为组合新 AppShell；桌面 2 : 6 : 2、移动 tabs、机会区优先、候选池文字不遮挡已通过本地浏览器 QA。
 - 移动端不挤压、不重叠。
 
 后续正确 UI 搭建顺序：
@@ -940,12 +942,14 @@ CoinGlass 业余会员 API：
 1. **Phase 8.2b-R：Tailwind And DaisyUI Foundation**
    - 真实安装并配置 Tailwind CSS、daisyUI 和 PostCSS。
    - `globals.css` 接入 Tailwind/daisyUI 入口，Element Plus 只保留为设计参考。
+   - 生产构建暂时固定为 `next build --webpack`，避免 Tailwind/PostCSS 接入阶段受 Turbopack 子进程/端口权限影响；`turbopack.root` 仍保留，供本地 dev 和未来稳定后切回使用。
    - 增加 repository hygiene 测试，防止后续再次把“口头参考”误写成“实际接入”。
 
 2. **Phase 8.2c：New AppShell And Cockpit Reset**
    - 以 spec 为准重建 `TopRadarBar`、`RadarBootBriefing`、`RadarCockpitShell`。
    - 桌面端保持 2 : 6 : 2，移动端用 tabs/drawer，不强行压缩三列。
    - 修复候选池遮挡、纸面感、静态感和模块割裂问题。
+   - 当前状态：已完成第一版新壳组合；下一阶段继续增强运行感，而不是回到旧纸面结构。
 
 3. **Phase 8.2d：Live Radar Runtime Layer**
    - 加入启动动画、介绍 briefing、市场时段时钟、扫描心跳、倒计时、数据新鲜度和事件流动效。

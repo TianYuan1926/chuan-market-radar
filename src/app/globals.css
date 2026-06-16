@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
 :root {
   --paper: #f4f0e8;
   --paper-2: #e9e3d8;
@@ -149,8 +152,11 @@ p {
 .studio-scan-grid span:nth-child(3) { top: 72%; animation-delay: 2.8s; }
 
 .studio-shell > .topline,
+.studio-shell > .radar-top-bar,
+.studio-shell > .radar-boot-briefing,
 .studio-shell > .radar-command-strip,
-.studio-shell > .studio-workspace {
+.studio-shell > .studio-workspace,
+.studio-shell > .radar-cockpit-shell {
   position: relative;
   z-index: 1;
 }
@@ -588,6 +594,115 @@ p {
   align-items: start;
 }
 
+.radar-app-shell {
+  isolation: isolate;
+}
+
+.radar-boot-briefing {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(55, 90, 255, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(55, 90, 255, 0.12), transparent 42%),
+    rgba(255, 250, 240, 0.88);
+  box-shadow: 0 18px 54px rgba(21, 23, 28, 0.08);
+}
+
+.radar-boot-briefing__mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--paper-3);
+  background: var(--ink);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.radar-boot-briefing__copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.radar-boot-briefing__copy strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.radar-boot-briefing__copy p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.radar-boot-briefing__skip {
+  min-height: 34px;
+  border-radius: 7px;
+}
+
+.radar-cockpit-shell {
+  display: block;
+  margin-top: 14px;
+}
+
+.radar-cockpit-shell__tabs {
+  display: none;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 250, 240, 0.74);
+}
+
+.radar-cockpit-shell__tabs .tab {
+  min-height: 34px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.radar-cockpit-shell__tabs .tab-active {
+  color: var(--paper-3);
+  background: var(--ink);
+}
+
+.radar-cockpit-shell__grid {
+  display: grid;
+  grid-template-columns: 2fr 6fr 2fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.ops-filter-panel {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.ops-filter-panel__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 12px 13px 0;
+}
+
+.ops-filter-panel__filters .badge {
+  min-height: 24px;
+  border-radius: 7px;
+  border-color: var(--line);
+  color: var(--ink-2);
+  background: rgba(255, 250, 240, 0.72);
+  font-size: 11px;
+}
+
 .cockpit-card {
   grid-template-columns: 2fr 6fr 2fr;
   padding: 10px;
@@ -791,7 +906,7 @@ p {
 }
 
 .altcoin-opportunity-board .candidate-row {
-  grid-template-columns: 88px 54px minmax(180px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr);
+  grid-template-columns: minmax(84px, 0.72fr) 54px minmax(220px, 2fr) minmax(160px, 1.18fr) minmax(160px, 1.18fr);
 }
 
 .candidate-table {
@@ -813,6 +928,17 @@ p {
   text-align: left;
   cursor: pointer;
   transition: transform 360ms var(--curve), background 360ms var(--curve);
+}
+
+.candidate-row > span {
+  min-width: 0;
+}
+
+.candidate-row .row-note,
+.candidate-row .row-trigger,
+.candidate-row .row-risk {
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .candidate-row:hover,
@@ -6191,6 +6317,10 @@ p {
     grid-template-columns: 0.95fr 1.35fr;
   }
 
+  .radar-cockpit-shell__grid {
+    grid-template-columns: 0.95fr 1.35fr;
+  }
+
   .studio-stack--right,
   .cockpit-column--right {
     grid-column: 1 / -1;
@@ -6215,10 +6345,18 @@ p {
   .topline,
   .live-navbar,
   .studio-workspace,
+  .radar-cockpit-shell__grid,
   .cockpit-card,
   .hero-module,
   .studio-stack--right {
     grid-template-columns: 1fr;
+  }
+
+  .radar-cockpit-shell__tabs {
+    position: sticky;
+    top: 8px;
+    z-index: 4;
+    display: flex;
   }
 
   .studio-stack--center {
@@ -6233,6 +6371,10 @@ p {
 
   .cockpit-card {
     padding: 8px;
+  }
+
+  .radar-cockpit-shell {
+    padding-top: 8px;
   }
 
   .cockpit-column--right {
@@ -6299,7 +6441,9 @@ p {
 
   .topline,
   .live-navbar,
+  .radar-boot-briefing,
   .radar-command-strip,
+  .radar-cockpit-shell,
   .market-tape,
   .signal-map,
   .chart-stage,
@@ -6325,6 +6469,19 @@ p {
   .market-session-clock small {
     max-width: 100%;
     white-space: normal;
+  }
+
+  .radar-boot-briefing {
+    grid-template-columns: 1fr;
+  }
+
+  .radar-boot-briefing__mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .radar-boot-briefing__skip {
+    justify-self: start;
   }
 
   .radar-command-strip {

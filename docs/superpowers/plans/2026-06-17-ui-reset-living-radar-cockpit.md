@@ -54,14 +54,14 @@ Expected files to modify:
 
 **Purpose:** Correct the design-system foundation so the project really uses Tailwind CSS and daisyUI.
 
-- [ ] Add a failing repository hygiene test that checks `package.json` for `tailwindcss`, `@tailwindcss/postcss`, `postcss`, and `daisyui`.
-- [ ] Add the same test checks for `postcss.config.mjs`, `@import "tailwindcss";`, and `@plugin "daisyui";`.
-- [ ] Add a hygiene assertion that Element Plus is not installed and is documented as reference-only.
-- [ ] Install dependencies using npm.
-- [ ] Create `postcss.config.mjs`.
-- [ ] Add Tailwind/daisyUI entry lines to `src/app/globals.css`.
-- [ ] Run `npm run test:market` and confirm the new hygiene test passes.
-- [ ] Run `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
+- [x] Add a failing repository hygiene test that checks `package.json` for `tailwindcss`, `@tailwindcss/postcss`, `postcss`, and `daisyui`.
+- [x] Add the same test checks for `postcss.config.mjs`, `@import "tailwindcss";`, and `@plugin "daisyui";`.
+- [x] Add a hygiene assertion that Element Plus is not installed and is documented as reference-only.
+- [x] Install dependencies using npm.
+- [x] Create `postcss.config.mjs`.
+- [x] Add Tailwind/daisyUI entry lines to `src/app/globals.css`.
+- [x] Run `npm run test:market` and confirm the new hygiene test passes.
+- [x] Run `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 
 **Acceptance:**
 
@@ -79,15 +79,15 @@ Add Tailwind daisyUI foundation
 
 **Purpose:** Replace the old paper-like presentation shell with a coherent cockpit layout.
 
-- [ ] Add `TopRadarBar` using daisyUI navbar semantics and existing scan/health/session data.
-- [ ] Add `RadarBootBriefing` with short skippable copy: purpose, data source, current health, risk boundary.
-- [ ] Add `RadarCockpitShell` with desktop 2:6:2 layout and mobile tab/drawer layout.
-- [ ] Move existing left/system content into `OpsAndFilterPanel` without changing API calls.
-- [ ] Move existing center radar/table/strategy/chart composition into the center slot without losing current actions.
-- [ ] Move companion/rank/journal/replay into the right slot.
-- [ ] Remove or neutralize old CSS that creates paper-like stacked sections.
-- [ ] Run browser QA for desktop and mobile if local port permission works.
-- [ ] Run full verification.
+- [x] Add `TopRadarBar` using daisyUI navbar semantics and existing scan/health/session data.
+- [x] Add `RadarBootBriefing` with short skippable copy: purpose, data source, current health, risk boundary.
+- [x] Add `RadarCockpitShell` with desktop 2:6:2 layout and mobile tab/drawer layout.
+- [x] Move existing left/system content into `OpsAndFilterPanel` without changing API calls.
+- [x] Move existing center radar/table/strategy/chart composition into the center slot without losing current actions.
+- [x] Move companion/rank/journal/replay into the right slot.
+- [x] Remove or neutralize old CSS that creates paper-like stacked sections.
+- [x] Run browser QA for desktop and mobile if local port permission works.
+- [x] Run full verification.
 
 **Acceptance:**
 
@@ -229,4 +229,3 @@ Every completed stage must report:
 - GitHub Desktop Summary.
 - Correct next stage.
 - Remaining major items.
-

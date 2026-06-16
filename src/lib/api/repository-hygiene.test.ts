@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
@@ -70,12 +70,16 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "src/components/radar/chart-panel.tsx",
     "src/components/radar/event-center-panel.tsx",
     "src/components/radar/journal-panel.tsx",
+    "src/components/radar/ops-and-filter-panel.tsx",
+    "src/components/radar/radar-boot-briefing.tsx",
+    "src/components/radar/radar-cockpit-shell.tsx",
     "src/components/radar/radar-workspace.tsx",
     "src/components/radar/radar-table.tsx",
     "src/components/radar/rank-panel.tsx",
     "src/components/radar/replay-panel.tsx",
     "src/components/radar/strategy-card.tsx",
     "src/components/radar/system-health-panel.tsx",
+    "src/components/radar/top-radar-bar.tsx",
     "src/components/radar/pixel-s680.tsx",
   ];
   const combinedSource = sourceFiles
@@ -316,11 +320,105 @@ test("blueprint records the new radar control-center route before rebuilding the
   }
 });
 
-test("radar workspace exposes the phase 8.2b live navbar and 2-6-2 cockpit shell", () => {
+test("radar UI reset has a real Tailwind and daisyUI foundation", () => {
+  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+    scripts?: Record<string, string>;
+    browserslist?: string;
+  };
+  const dependencies = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+  const globalsSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const nextConfigSource = readFileSync(resolve(process.cwd(), "next.config.ts"), "utf8");
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+  const specSource = readFileSync(
+    resolve(process.cwd(), "docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md"),
+    "utf8",
+  );
+  const postcssPath = resolve(process.cwd(), "postcss.config.mjs");
+
+  for (const dependency of ["tailwindcss", "@tailwindcss/postcss", "postcss", "daisyui"]) {
+    assert.ok(dependencies[dependency], `package.json missing ${dependency}`);
+  }
+
+  assert.equal(dependencies["element-plus"], undefined, "Element Plus should stay reference-only");
+  assert.match(packageJson.scripts?.build ?? "", /next build --webpack/);
+  assert.equal(packageJson.browserslist, "> 1%", "Turbopack-compatible browserslist should be configured");
+  assert.equal(existsSync(postcssPath), true, "postcss.config.mjs must exist");
+
+  const postcssSource = readFileSync(postcssPath, "utf8");
+  assert.match(postcssSource, /@tailwindcss\/postcss/);
+  assert.match(globalsSource, /@import\s+"tailwindcss";/);
+  assert.match(globalsSource, /@plugin\s+"daisyui";/);
+  assert.match(nextConfigSource, /turbopack/);
+  assert.match(nextConfigSource, /root/);
+  assert.match(blueprintSource, /必须真实接入 \*\*Tailwind CSS \+ daisyUI\*\*/);
+  assert.match(specSource, /Tailwind CSS and daisyUI are actually installed\/configured/);
+});
+
+test("radar workspace composes the phase 8.2c cockpit app shell", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
     "utf8",
   );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const componentPaths = [
+    "src/components/radar/top-radar-bar.tsx",
+    "src/components/radar/radar-boot-briefing.tsx",
+    "src/components/radar/radar-cockpit-shell.tsx",
+    "src/components/radar/ops-and-filter-panel.tsx",
+  ];
+  const requiredWorkspaceTokens = [
+    "TopRadarBar",
+    "RadarBootBriefing",
+    "RadarCockpitShell",
+    "OpsAndFilterPanel",
+    "radar-app-shell",
+  ];
+  const requiredShellTokens = [
+    "data-cockpit-ratio=\"2:6:2\"",
+    "role=\"tablist\"",
+    "运行",
+    "机会",
+    "复盘",
+    "drawer",
+    "lg:grid-cols-[minmax(220px,2fr)_minmax(0,6fr)_minmax(220px,2fr)]",
+  ];
+  const requiredCssClasses = [
+    "radar-app-shell",
+    "radar-boot-briefing",
+    "radar-cockpit-shell",
+    "ops-filter-panel",
+  ];
+
+  for (const path of componentPaths) {
+    assert.equal(existsSync(resolve(process.cwd(), path)), true, `${path} must exist`);
+  }
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.match(workspaceSource, new RegExp(token));
+  }
+
+  const shellSource = readFileSync(resolve(process.cwd(), "src/components/radar/radar-cockpit-shell.tsx"), "utf8");
+
+  for (const token of requiredShellTokens) {
+    assert.ok(shellSource.includes(token), `RadarCockpitShell missing ${token}`);
+  }
+
+  for (const className of requiredCssClasses) {
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+});
+
+test("radar workspace exposes the phase 8.2b live navbar and 2-6-2 cockpit shell", () => {
+  const uiSource = [
+    "src/components/radar/radar-workspace.tsx",
+    "src/components/radar/top-radar-bar.tsx",
+    "src/components/radar/radar-cockpit-shell.tsx",
+  ].map((path) => readFileSync(resolve(process.cwd(), path), "utf8")).join("\n");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const requiredWorkspaceTokens = [
     "live-navbar",
@@ -350,7 +448,7 @@ test("radar workspace exposes the phase 8.2b live navbar and 2-6-2 cockpit shell
   ];
 
   for (const token of requiredWorkspaceTokens) {
-    assert.ok(workspaceSource.includes(token), `workspace missing phase 8.2b token: ${token}`);
+    assert.ok(uiSource.includes(token), `radar UI source missing phase 8.2b token: ${token}`);
   }
 
   for (const className of requiredClasses) {
