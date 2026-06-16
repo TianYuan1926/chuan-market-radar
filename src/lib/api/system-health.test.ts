@@ -344,6 +344,12 @@ test("buildSystemHealthReport exposes outcome executor coverage from journal eve
   assert.equal(report.outcomes.mode, "outcome_executor_mvp");
   assert.equal(report.outcomes.allowedUse, "research_only");
   assert.equal(report.outcomes.canAutoAdjustWeights, false);
+  assert.equal(report.outcomes.strategyWeightActivationGate.mode, "strategy_weight_activation_gate_mvp");
+  assert.equal(report.outcomes.strategyWeightActivationGate.activationMode, "disabled");
+  assert.equal(report.outcomes.strategyWeightActivationGate.status, "active_disabled_by_config");
+  assert.equal(report.outcomes.strategyWeightActivationGate.canAffectLiveSignals, false);
+  assert.equal(report.outcomes.strategyWeightActivationGate.canWriteRuleWeights, false);
+  assert.match(report.outcomes.strategyWeightActivationGate.nextStep, /配置关闭/);
   assert.equal(report.outcomes.trackingEvents, 2);
   assert.equal(report.outcomes.pendingEvents, 1);
   assert.equal(report.outcomes.closedEvents, 1);
@@ -785,7 +791,10 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
   });
 
   const report = await buildSystemHealthReport({
-    env: { MARKET_DATA_PROVIDER: "mock" },
+    env: {
+      MARKET_DATA_PROVIDER: "mock",
+      STRATEGY_WEIGHT_ACTIVATION_MODE: "manual",
+    },
     now: new Date("2026-06-12T12:10:00.000Z"),
     repository,
     snapshot: snapshot(),
@@ -844,4 +853,18 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
   assert.equal(report.outcomes.strategyWeightShadowEvaluation.items[0]?.validatedSamples, 3);
   assert.equal(report.outcomes.strategyWeightShadowEvaluation.items[0]?.rollbackPressure, "low");
   assert.match(report.outcomes.strategyWeightShadowEvaluation.guardrail, /不执行真实权重/);
+  assert.equal(report.outcomes.strategyWeightActivationGate.mode, "strategy_weight_activation_gate_mvp");
+  assert.equal(report.outcomes.strategyWeightActivationGate.activationMode, "manual");
+  assert.equal(report.outcomes.strategyWeightActivationGate.status, "blocked");
+  assert.equal(report.outcomes.strategyWeightActivationGate.requiredPostApprovalSamples, 5);
+  assert.equal(report.outcomes.strategyWeightActivationGate.eligibleForManualActivation, false);
+  assert.equal(
+    report.outcomes.strategyWeightActivationGate.checks.find((check: { id: string }) =>
+      check.id === "sample_floor"
+    )?.status,
+    "blocked",
+  );
+  assert.equal(report.outcomes.strategyWeightActivationGate.canAffectLiveSignals, false);
+  assert.equal(report.outcomes.strategyWeightActivationGate.canWriteRuleWeights, false);
+  assert.match(report.outcomes.strategyWeightActivationGate.guardrail, /不会改变扫描/);
 });

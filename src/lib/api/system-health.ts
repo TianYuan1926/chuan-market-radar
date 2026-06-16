@@ -20,6 +20,10 @@ import {
   type StrategyWeightChangeExecutionReport,
 } from "../journal/strategy-weight-change-execution";
 import {
+  buildStrategyWeightActivationGate,
+  type StrategyWeightActivationGateReport,
+} from "../journal/strategy-weight-activation-gate";
+import {
   buildStrategyWeightShadowReport,
   type StrategyWeightShadowReport,
 } from "../journal/strategy-weight-shadow";
@@ -143,6 +147,7 @@ export type SystemHealthReport = {
     status: OutcomeExecutorStatus;
     strategyWeightChangeAudit: StrategyWeightChangeAuditReport;
     strategyWeightChangeExecution: StrategyWeightChangeExecutionReport;
+    strategyWeightActivationGate: StrategyWeightActivationGateReport;
     strategyWeightCalibration: StrategyWeightCalibrationReport;
     strategyWeightShadow: StrategyWeightShadowReport;
     strategyWeightShadowEvaluation: StrategyWeightShadowEvaluationReport;
@@ -532,7 +537,11 @@ function outcomeOperatorHint(status: OutcomeExecutorStatus, lastRun: SystemHealt
   return "自动复盘样本已覆盖，继续累积结果后再进入人工校准。";
 }
 
-function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthReport["outcomes"] {
+function outcomeExecutorHealth(
+  events: JournalEvent[],
+  now: Date,
+  env: Record<string, string | undefined>,
+): SystemHealthReport["outcomes"] {
   const outcomeEvents = events.filter(isSignalOutcomeEvent);
   const pendingEvents = outcomeEvents.filter(isPendingOutcome);
   const closedEvents = outcomeEvents.filter(isClosedOutcome);
@@ -550,6 +559,10 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
   const strategyWeightChangeAudit = buildStrategyWeightChangeAuditReport(strategyWeightCalibration);
   const strategyWeightChangeExecution = buildStrategyWeightChangeExecutionReport(strategyWeightChangeAudit, events);
   const strategyWeightShadow = buildStrategyWeightShadowReport(events);
+  const strategyWeightShadowEvaluation = buildStrategyWeightShadowEvaluationReport({
+    events,
+    shadowReport: strategyWeightShadow,
+  });
 
   return {
     allowedUse: "research_only",
@@ -569,12 +582,15 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
     status,
     strategyWeightChangeAudit,
     strategyWeightChangeExecution,
-    strategyWeightCalibration,
-    strategyWeightShadow,
-    strategyWeightShadowEvaluation: buildStrategyWeightShadowEvaluationReport({
-      events,
+    strategyWeightActivationGate: buildStrategyWeightActivationGate({
+      activationMode: env.STRATEGY_WEIGHT_ACTIVATION_MODE,
+      executionReport: strategyWeightChangeExecution,
+      shadowEvaluationReport: strategyWeightShadowEvaluation,
       shadowReport: strategyWeightShadow,
     }),
+    strategyWeightCalibration,
+    strategyWeightShadow,
+    strategyWeightShadowEvaluation,
     trackingEvents,
   };
 }
@@ -665,7 +681,7 @@ export async function buildSystemHealthReport({
       metadata,
       now,
     }),
-    outcomes: outcomeExecutorHealth(journalEvents, now),
+    outcomes: outcomeExecutorHealth(journalEvents, now, env),
     guards: [
       {
         id: "data-source",

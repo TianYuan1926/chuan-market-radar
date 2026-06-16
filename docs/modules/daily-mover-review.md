@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP、人工权重变更执行记录写入入口、只读 registry、影子策略权重层和影子表现评估：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP、人工权重变更执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -53,11 +53,12 @@
 - 人工权重变更执行记录写入入口和只读 registry：`POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 保护，系统状态面板可用管理密钥把人工审批状态、版本标签、回滚触发器和观察窗口写入 `strategy_weight_change_execution` journal 事件；`buildStrategyWeightChangeExecutionReport()` 会把这些记录汇总进 `GET /api/health`，系统状态面板展示执行记录、已记录、待审批、回滚/阻断和“不可写权重”。该层只保存审批账本，不新增表、不新增外部请求、不自动改权重，不把记录写入真实规则权重。
 - 影子策略权重层：`buildStrategyWeightShadowReport()` 会从已审批的 `strategy_weight_change_execution` journal 事件生成 `baseWeights`、`shadowWeights` 和 `diffs`；`GET /api/health` 与系统状态面板展示影子权重、当前权重、建议权重、差异和“不影响实盘判断”。该层只读，不新增表、不触发外部请求、不影响真实扫描、真实评分或真实策略权重。
 - 影子表现评估：`buildStrategyWeightShadowEvaluationReport()` 会用审批后的 `calibration_review` 和 `strategy_confirmation` 样本评估影子权重表现，输出样本数、有效/反证比例、回滚压力、`insufficient_samples / improving / mixed / rollback_watch / blocked` 和下一步；`GET /api/health` 与系统状态面板只读展示，不新增表、不触发外部请求、不执行真实权重。
+- 真实权重启用门禁：`buildStrategyWeightActivationGate()` 会按 `STRATEGY_WEIGHT_ACTIVATION_MODE=disabled|shadow|manual` 检查样本门槛、人工审批、影子表现、回滚计划、隔离候选和回滚压力；`GET /api/health` 与系统状态面板展示“真实权重门禁”，但 `canAffectLiveSignals` 和 `canWriteRuleWeights` 固定为 `false`，不接入扫描引擎。
 
 当前未落地：
 
 - 自动规则权重调整；当前明确不允许自动调整。
-- outcome 样本准入到人工确认、回滚边界的基础只读校准流、阻断解释、样本明细、阈值层、策略版本阈值画像、手动回滚计划、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP、人工执行记录写入入口、只读 registry、影子策略权重层和影子表现评估已落地，但真实权重生效隔离层和真实回滚验证仍需继续完善；当前不能当作完整自动校准闭环。
+- outcome 样本准入到人工确认、回滚边界的基础只读校准流、阻断解释、样本明细、阈值层、策略版本阈值画像、手动回滚计划、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地，但真实权重接入扫描引擎和真实回滚验证仍需继续完善；当前不能当作完整自动校准闭环。
 
 ## 使用边界
 
@@ -95,6 +96,7 @@
 - 策略权重执行记录后台入口：`src/lib/journal/strategy-weight-change-execution-admin.ts`
 - 影子策略权重层：`src/lib/journal/strategy-weight-shadow.ts`
 - 影子表现评估：`src/lib/journal/strategy-weight-shadow-evaluation.ts`
+- 真实权重启用门禁：`src/lib/journal/strategy-weight-activation-gate.ts`
 - outcome 健康状态：`src/lib/api/system-health.ts`
 - outcome 健康面板：`src/components/radar/system-health-panel.tsx`
 - outcome 执行批次复盘面板：`src/components/radar/journal-panel.tsx`
@@ -113,6 +115,6 @@
 
 ## 下一步
 
-1. 继续把影子表现评估接入更长期样本窗口和真实回滚验证，让它服务规则复核而不是自动调权。
-2. 补齐真实权重生效隔离层和真实回滚验证方案；人工执行记录入口只能保存审批账本，不能直接改变规则权重。
+1. 继续把影子表现评估和真实权重启用门禁接入更长期样本窗口和真实回滚验证，让它服务规则复核而不是自动调权。
+2. 补齐真实权重接入扫描引擎的隔离层和真实回滚验证方案；人工执行记录入口与启用门禁只能保存/解释审批账本，不能直接改变规则权重。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

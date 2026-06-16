@@ -276,6 +276,36 @@ function strategyWeightShadowRollbackPressureLabel(
   }[value];
 }
 
+function strategyWeightActivationStatusLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightActivationGate"]["status"],
+) {
+  return {
+    active_disabled_by_config: "配置关闭",
+    blocked: "阻断",
+    eligible_for_manual_activation: "人工候选",
+  }[value];
+}
+
+function strategyWeightActivationModeLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightActivationGate"]["activationMode"],
+) {
+  return {
+    disabled: "关闭",
+    manual: "人工",
+    shadow: "影子",
+  }[value];
+}
+
+function strategyWeightActivationCheckStatusLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightActivationGate"]["checks"][number]["status"],
+) {
+  return {
+    blocked: "阻断",
+    disabled: "关闭",
+    passed: "通过",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -381,6 +411,10 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const strategyWeightShadowDiffs = strategyWeightShadow.diffs.slice(0, 3);
   const strategyWeightShadowEvaluation = health.outcomes.strategyWeightShadowEvaluation;
   const strategyWeightShadowEvaluationItems = strategyWeightShadowEvaluation.items.slice(0, 3);
+  const strategyWeightActivationGate = health.outcomes.strategyWeightActivationGate;
+  const strategyWeightActivationChecks = strategyWeightActivationGate.checks.slice(0, 4);
+  const strategyWeightActivationPassedCount = strategyWeightActivationGate.checks
+    .filter((check) => check.status === "passed").length;
   const strategyWeightExecutionFormItems = useMemo(
     () => strategyWeightChangeExecution.items
       .filter((item) => item.proposedDirection !== "none")
@@ -1038,6 +1072,50 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               )}
 
               <p>{strategyWeightShadowEvaluation.nextStep}</p>
+            </div>
+
+            <div
+              className={`health-outcome-activation health-outcome-activation--${strategyWeightActivationGate.status}`}
+              aria-label="真实权重启用门禁"
+            >
+              <div className="health-outcome-shadow__head">
+                <div>
+                  <span className="mono">真实权重门禁</span>
+                  <strong>{strategyWeightActivationStatusLabel(strategyWeightActivationGate.status)}</strong>
+                </div>
+                <b>不接入扫描</b>
+              </div>
+
+              <div className="health-outcome-activation__grid" aria-label="真实权重门禁摘要">
+                <span>
+                  <b>{strategyWeightActivationModeLabel(strategyWeightActivationGate.activationMode)}</b>
+                  启用模式
+                </span>
+                <span>
+                  <b>{strategyWeightActivationPassedCount}</b>
+                  通过项
+                </span>
+                <span>
+                  <b>{strategyWeightActivationGate.blockerCount}</b>
+                  阻断项
+                </span>
+                <span>
+                  <b>{strategyWeightActivationGate.requiredPostApprovalSamples}</b>
+                  样本门槛
+                </span>
+              </div>
+
+              <div className="health-outcome-activation__checks" aria-label="真实权重门禁检查项">
+                {strategyWeightActivationChecks.map((check) => (
+                  <span className={`health-outcome-activation__check health-outcome-activation__check--${check.status}`} key={check.id}>
+                    <b>{check.label}</b>
+                    <em>{strategyWeightActivationCheckStatusLabel(check.status)}</em>
+                    <small>{check.detail}</small>
+                  </span>
+                ))}
+              </div>
+
+              <p>{strategyWeightActivationGate.nextStep}</p>
             </div>
 
             {outcomeBlockers.length > 0 ? (

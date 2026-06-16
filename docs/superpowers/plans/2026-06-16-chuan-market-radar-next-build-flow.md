@@ -125,18 +125,21 @@ Add shadow weight outcome evaluation
 - Create: `src/lib/journal/strategy-weight-activation-gate.ts`
 - Create: `src/lib/journal/strategy-weight-activation-gate.test.ts`
 - Modify: `src/lib/api/system-health.ts`
+- Modify: `src/components/radar/system-health-panel.tsx`
+- Modify: `src/app/globals.css`
 - Modify: `docs/chuan-market-radar-blueprint.md`
 - Modify: `docs/deployment-checklist.md`
 
 **Steps:**
 
-- [ ] Add tests requiring all activation conditions: enough samples, manual approval, shadow evaluation positive, rollback plan, no blocked/quarantine candidates.
-- [ ] Implement `buildStrategyWeightActivationGate()` returning `blocked`, `eligible_for_manual_activation`, or `active_disabled_by_config`.
-- [ ] Add a hard config flag such as `STRATEGY_WEIGHT_ACTIVATION_MODE=disabled|shadow|manual`.
-- [ ] Default to `disabled`.
-- [ ] Expose the gate in health, not in the scan engine yet.
-- [ ] Document that enabling real weights is a separate future stage.
-- [ ] Run full verification.
+- [x] Add tests requiring all activation conditions: enough samples, manual approval, shadow evaluation positive, rollback plan, no blocked/quarantine candidates.
+- [x] Implement `buildStrategyWeightActivationGate()` returning `blocked`, `eligible_for_manual_activation`, or `active_disabled_by_config`.
+- [x] Add a hard config flag such as `STRATEGY_WEIGHT_ACTIVATION_MODE=disabled|shadow|manual`.
+- [x] Default to `disabled`.
+- [x] Expose the gate in health, not in the scan engine yet.
+- [x] Add system health UI card: "真实权重门禁", "启用模式", "通过项", "阻断项", "不接入扫描".
+- [x] Document that enabling real weights is a separate future stage.
+- [x] Run full verification.
 
 **Acceptance:**
 

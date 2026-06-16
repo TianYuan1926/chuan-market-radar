@@ -14,7 +14,7 @@
 - `POST /api/admin/daily-movers/ingest` 通过 `CRON_SECRET` 授权后低频抓取每日异动并写入 repository
 - `POST /api/admin/outcomes/run` 通过 `CRON_SECRET` 授权后低频执行生命周期复盘写回
 - `POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 授权后保存人工权重变更审批账本，不写真实规则权重
-- `GET /api/health` 会派生只读影子策略权重层和影子表现评估，展示人工审批后的当前/建议权重差异、样本数、有效/反证和回滚压力，但不影响真实扫描、评分或策略权重
+- `GET /api/health` 会派生只读影子策略权重层、影子表现评估和真实权重启用门禁，展示人工审批后的当前/建议权重差异、样本数、有效/反证、回滚压力和真实启用阻断原因，但不影响真实扫描、评分或策略权重
 - `.github/workflows/chuan-daily-movers.yml` 使用 GitHub Actions 每日低频触发每日异动抓取
 - `src/lib/persistence/persistence-contract.ts` 提供 Postgres 持久化表结构与数据映射骨架
 - `src/lib/persistence/persistence-store.ts` 提供内存/数据库仓储切换层
@@ -96,6 +96,7 @@
 - 人工权重变更执行记录入口是 `POST /api/admin/strategy-weights/executions/record`，必须带 `Authorization: Bearer <CRON_SECRET>`；该入口只写 `journal_events` 审批账本，不新增表、不触发 CoinGlass 请求、不自动调整规则权重。
 - 影子策略权重层只从已审批的 `strategy_weight_change_execution` journal 事件派生 `baseWeights`、`shadowWeights` 和 `diffs`；它不新增环境变量、不新增 Neon 表、不触发 CoinGlass 或公开 K 线请求，且 `canAffectLiveSignals` 固定为 `false`。
 - 影子表现评估只从现有 `journal_events` 派生审批后的校准样本和人工确认摘要；它不新增环境变量、不新增 Neon 表、不触发 CoinGlass 或公开 K 线请求，且只能输出只读回滚压力。
+- 真实权重启用门禁只从现有健康报告、影子权重、影子表现和人工执行记录派生；`STRATEGY_WEIGHT_ACTIVATION_MODE` 可选值为 `disabled|shadow|manual`，默认 `disabled`，当前只影响 `/api/health` 和系统状态面板解释，不接入扫描引擎、不新增 Neon 表、不触发外部请求。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
 - CoinGlass provider 会对受限主候选拉取 `1m/5m/15m/30m/1h/4h/1d/1w` 公开 K 线，生成 timeframe profile 并补充技术指标证据；当前最多处理 8 个主候选，避免免费阶段请求尖峰。
 - 技术指标证据当前包含 EMA、RSI、ATR、Bollinger、VWAP、Swing、MACD、近似成交量分布和多周期指标矩阵摘要；这些都只进入证据层，不直接触发交易信号。
@@ -130,6 +131,7 @@
 - 系统状态面板的人工权重变更执行记录入口必须显示“只保存记录/不可写权重”边界；没有可审计候选时表单保持禁用。
 - 系统状态面板的影子权重必须显示“当前权重/建议权重/差异”和“不影响实盘判断”边界；没有审批记录时应处于 collecting，不应显示成真实调权已生效。
 - 系统状态面板的影子表现必须显示“样本数/有效/反证/回滚压力”和“不执行真实权重”边界；样本不足或回滚压力出现时不能显示成真实权重可生效。
+- 系统状态面板的真实权重门禁必须显示“启用模式/通过项/阻断项/样本门槛”和“不接入扫描”边界；即使 `STRATEGY_WEIGHT_ACTIVATION_MODE=manual`，当前也只能显示候选或阻断原因，不能改变扫描结果。
 - 数据库上线前，先在目标 Postgres 执行 `buildPersistenceSchemaSql()` 生成的 SQL，并确认当前持久化表、主键和索引存在。
 - 如果不用 Neon SQL Editor 手动建表，可以请求 `POST /api/admin/persistence/migrate`；请求必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 数据库上线前，确认服务端已传入真实 `SqlClient`，不能只填 `DATABASE_URL` 就认为已经持久化。

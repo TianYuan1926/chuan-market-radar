@@ -443,6 +443,15 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-shadow-eval/);
   assert.match(componentSource, /health-outcome-shadow-eval__grid/);
   assert.match(componentSource, /health-outcome-shadow-eval__items/);
+  assert.match(componentSource, /真实权重门禁/);
+  assert.match(componentSource, /启用模式/);
+  assert.match(componentSource, /通过项/);
+  assert.match(componentSource, /阻断项/);
+  assert.match(componentSource, /不接入扫描/);
+  assert.match(componentSource, /strategyWeightActivationGate/);
+  assert.match(componentSource, /health-outcome-activation/);
+  assert.match(componentSource, /health-outcome-activation__grid/);
+  assert.match(componentSource, /health-outcome-activation__checks/);
   assert.match(cssSource, /\.health-outcome-detail/);
   assert.match(cssSource, /\.health-outcome-samples/);
   assert.match(cssSource, /\.health-outcome-thresholds/);
@@ -470,6 +479,9 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-shadow-eval/);
   assert.match(cssSource, /\.health-outcome-shadow-eval__grid/);
   assert.match(cssSource, /\.health-outcome-shadow-eval__items/);
+  assert.match(cssSource, /\.health-outcome-activation/);
+  assert.match(cssSource, /\.health-outcome-activation__grid/);
+  assert.match(cssSource, /\.health-outcome-activation__checks/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {

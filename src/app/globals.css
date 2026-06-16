@@ -3209,6 +3209,118 @@ p {
   color: var(--ink-2);
 }
 
+.health-outcome-activation {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(21, 23, 28, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(21, 23, 28, 0.035), rgba(213, 155, 61, 0.055)),
+    rgba(255, 255, 255, 0.42);
+}
+
+.health-outcome-activation--active_disabled_by_config {
+  border-color: rgba(111, 116, 128, 0.24);
+  background: rgba(111, 116, 128, 0.055);
+}
+
+.health-outcome-activation--blocked {
+  border-color: rgba(219, 68, 55, 0.22);
+  background: rgba(219, 68, 55, 0.055);
+}
+
+.health-outcome-activation--eligible_for_manual_activation {
+  border-color: rgba(39, 140, 102, 0.2);
+  background: rgba(39, 140, 102, 0.06);
+}
+
+.health-outcome-activation__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.health-outcome-activation__grid span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.health-outcome-activation__grid b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-outcome-activation__checks {
+  display: grid;
+  gap: 5px;
+}
+
+.health-outcome-activation__check {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.64fr) minmax(46px, 0.36fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 7px;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.health-outcome-activation__check b,
+.health-outcome-activation__check em,
+.health-outcome-activation__check small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-outcome-activation__check b {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.health-outcome-activation__check em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.health-outcome-activation__check--passed em {
+  color: var(--success);
+}
+
+.health-outcome-activation__check--blocked em {
+  color: var(--danger);
+}
+
+.health-outcome-activation__check small,
+.health-outcome-activation p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.36;
+}
+
+.health-outcome-activation p {
+  color: var(--ink-2);
+}
+
 .health-outcome-detail {
   display: grid;
   grid-template-columns: 1fr;
