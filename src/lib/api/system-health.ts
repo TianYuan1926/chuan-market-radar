@@ -11,6 +11,10 @@ import {
   buildStrategyWeightCalibrationReport,
   type StrategyWeightCalibrationReport,
 } from "../journal/strategy-weight-calibration";
+import {
+  buildStrategyWeightChangeAuditReport,
+  type StrategyWeightChangeAuditReport,
+} from "../journal/strategy-weight-change-audit";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import type {
@@ -125,6 +129,7 @@ export type SystemHealthReport = {
       validatedEvents: number;
     };
     status: OutcomeExecutorStatus;
+    strategyWeightChangeAudit: StrategyWeightChangeAuditReport;
     strategyWeightCalibration: StrategyWeightCalibrationReport;
     trackingEvents: number;
   };
@@ -526,6 +531,7 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
       : pendingEvents.length > 0
         ? "collecting"
         : "covered";
+  const strategyWeightCalibration = buildStrategyWeightCalibrationReport(events);
 
   return {
     allowedUse: "research_only",
@@ -543,7 +549,8 @@ function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthR
     pendingEvents: pendingEvents.length,
     sampleQuality: outcomeSampleQuality(outcomeEvents),
     status,
-    strategyWeightCalibration: buildStrategyWeightCalibrationReport(events),
+    strategyWeightChangeAudit: buildStrategyWeightChangeAuditReport(strategyWeightCalibration),
+    strategyWeightCalibration,
     trackingEvents,
   };
 }

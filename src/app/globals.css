@@ -2541,6 +2541,153 @@ p {
   color: var(--ink-2);
 }
 
+.health-outcome-audit {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(82, 115, 204, 0.15);
+  border-radius: 8px;
+  background: rgba(82, 115, 204, 0.045);
+}
+
+.health-outcome-audit--blocked {
+  border-color: rgba(184, 64, 72, 0.3);
+  background: rgba(184, 64, 72, 0.07);
+}
+
+.health-outcome-audit--rollback_verification_required {
+  border-color: rgba(213, 155, 61, 0.24);
+  background: rgba(213, 155, 61, 0.075);
+}
+
+.health-outcome-audit--manual_audit_ready {
+  border-color: rgba(39, 140, 102, 0.18);
+  background: rgba(39, 140, 102, 0.055);
+}
+
+.health-outcome-audit__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.health-outcome-audit__head > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.health-outcome-audit__head strong,
+.health-outcome-audit__head b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-outcome-audit__head b {
+  padding: 4px 6px;
+  border: 1px solid rgba(184, 64, 72, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.52);
+  color: var(--danger);
+}
+
+.health-outcome-audit__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.health-outcome-audit__grid span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.health-outcome-audit__grid b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-outcome-audit__items {
+  display: grid;
+  gap: 5px;
+}
+
+.health-outcome-audit__item {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.7fr) minmax(94px, 0.8fr) minmax(0, 1.7fr);
+  align-items: center;
+  gap: 7px;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.health-outcome-audit__item b,
+.health-outcome-audit__item em,
+.health-outcome-audit__item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-outcome-audit__item b {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.health-outcome-audit__item em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.health-outcome-audit__item--ready_for_manual_audit em {
+  color: var(--success);
+}
+
+.health-outcome-audit__item--rollback_verification_required em,
+.health-outcome-audit__item--blocked_by_quarantine em {
+  color: var(--danger);
+}
+
+.health-outcome-audit__item--requires_confirmation em,
+.health-outcome-audit__item--requires_more_samples em {
+  color: var(--amber);
+}
+
+.health-outcome-audit__item small,
+.health-outcome-audit p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.36;
+}
+
+.health-outcome-audit p {
+  color: var(--ink-2);
+}
+
 .health-outcome-detail {
   display: grid;
   grid-template-columns: 1fr;

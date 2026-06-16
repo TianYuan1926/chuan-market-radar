@@ -145,6 +145,38 @@ function strategyWeightBandLabel(
   }[value];
 }
 
+function strategyWeightAuditStatusLabel(value: SystemHealthReport["outcomes"]["strategyWeightChangeAudit"]["status"]) {
+  return {
+    blocked: "阻断审计",
+    collecting: "收集",
+    manual_audit_ready: "可审计",
+    rollback_verification_required: "需回滚",
+  }[value];
+}
+
+function strategyWeightAuditDirectionLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightChangeAudit"]["items"][number]["proposedDirection"],
+) {
+  return {
+    decrease: "降权审计",
+    increase: "升权审计",
+    none: "观察",
+    quarantine: "隔离审计",
+  }[value];
+}
+
+function strategyWeightAuditItemStatusLabel(
+  value: SystemHealthReport["outcomes"]["strategyWeightChangeAudit"]["items"][number]["auditStatus"],
+) {
+  return {
+    blocked_by_quarantine: "阻断审计",
+    ready_for_manual_audit: "可审计",
+    requires_confirmation: "待确认",
+    requires_more_samples: "样本不足",
+    rollback_verification_required: "需回滚",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -212,6 +244,8 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
   const outcomeRollbackPlan = outcomeFlow.rollbackPlan;
   const strategyWeightCalibration = health.outcomes.strategyWeightCalibration;
   const strategyWeightCandidates = strategyWeightCalibration.candidates.slice(0, 3);
+  const strategyWeightChangeAudit = health.outcomes.strategyWeightChangeAudit;
+  const strategyWeightAuditItems = strategyWeightChangeAudit.items.slice(0, 3);
 
   return (
     <section className={`module health-module ${healthTone(health.level)}`}>
@@ -485,6 +519,57 @@ export function SystemHealthPanel({ health }: SystemHealthPanelProps) {
               ) : null}
 
               <p>{strategyWeightCalibration.nextStep}</p>
+            </div>
+
+            <div
+              className={`health-outcome-audit health-outcome-audit--${strategyWeightChangeAudit.status}`}
+              aria-label="策略权重变更审计"
+            >
+              <div className="health-outcome-audit__head">
+                <div>
+                  <span className="mono">变更审计</span>
+                  <strong>{strategyWeightAuditStatusLabel(strategyWeightChangeAudit.status)}</strong>
+                </div>
+                <b>{strategyWeightChangeAudit.canExecuteWeightChange ? "可执行" : "不可执行"}</b>
+              </div>
+
+              <div className="health-outcome-audit__grid" aria-label="策略权重审计候选分布">
+                <span>
+                  <b>{strategyWeightChangeAudit.auditCandidateCount}</b>
+                  审计候选
+                </span>
+                <span>
+                  <b>{strategyWeightChangeAudit.readyAuditCount}</b>
+                  可审计
+                </span>
+                <span>
+                  <b>{strategyWeightChangeAudit.rollbackVerificationCount}</b>
+                  需回滚
+                </span>
+                <span>
+                  <b>{strategyWeightChangeAudit.blockedAuditCount}</b>
+                  阻断审计
+                </span>
+              </div>
+
+              {strategyWeightAuditItems.length > 0 ? (
+                <div className="health-outcome-audit__items" aria-label="策略权重审计明细">
+                  {strategyWeightAuditItems.map((item) => (
+                    <span
+                      className={`health-outcome-audit__item health-outcome-audit__item--${item.auditStatus}`}
+                      key={item.tag}
+                    >
+                      <b>{item.label}</b>
+                      <em>
+                        {strategyWeightAuditItemStatusLabel(item.auditStatus)} · {strategyWeightAuditDirectionLabel(item.proposedDirection)}
+                      </em>
+                      <small>{item.reason}</small>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <p>{strategyWeightChangeAudit.nextStep}</p>
             </div>
 
             {outcomeBlockers.length > 0 ? (

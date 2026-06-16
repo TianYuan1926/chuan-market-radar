@@ -736,4 +736,14 @@ test("buildSystemHealthReport exposes readonly strategy weight calibration from 
   assert.equal(report.outcomes.strategyWeightCalibration.candidates[0]?.recommendation, "increase_candidate");
   assert.equal(report.outcomes.strategyWeightCalibration.candidates[0]?.latestVersionLabel, "draft-volume-oi-weight-v1");
   assert.match(report.outcomes.strategyWeightCalibration.nextStep, /人工复核/);
+  assert.equal(report.outcomes.strategyWeightChangeAudit.mode, "strategy_weight_change_audit_mvp");
+  assert.equal(report.outcomes.strategyWeightChangeAudit.allowedUse, "research_only");
+  assert.equal(report.outcomes.strategyWeightChangeAudit.canAutoAdjustWeights, false);
+  assert.equal(report.outcomes.strategyWeightChangeAudit.canExecuteWeightChange, false);
+  assert.equal(report.outcomes.strategyWeightChangeAudit.status, "manual_audit_ready");
+  assert.equal(report.outcomes.strategyWeightChangeAudit.auditCandidateCount, 1);
+  assert.equal(report.outcomes.strategyWeightChangeAudit.readyAuditCount, 1);
+  assert.equal(report.outcomes.strategyWeightChangeAudit.items[0]?.tag, "review_volume_oi_weight");
+  assert.equal(report.outcomes.strategyWeightChangeAudit.items[0]?.auditStatus, "ready_for_manual_audit");
+  assert.match(report.outcomes.strategyWeightChangeAudit.guardrail, /不执行真实权重变更/);
 });

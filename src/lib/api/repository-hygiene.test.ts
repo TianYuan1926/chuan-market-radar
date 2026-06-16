@@ -355,13 +355,21 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /降权候选/);
   assert.match(componentSource, /隔离候选/);
   assert.match(componentSource, /候选明细/);
+  assert.match(componentSource, /变更审计/);
+  assert.match(componentSource, /审计候选/);
+  assert.match(componentSource, /可审计/);
+  assert.match(componentSource, /需回滚/);
+  assert.match(componentSource, /阻断审计/);
+  assert.match(componentSource, /不可执行/);
   assert.match(componentSource, /blockerDetails/);
   assert.match(componentSource, /sampleDrilldown/);
   assert.match(componentSource, /sampleBreakdown/);
   assert.match(componentSource, /thresholdLayers/);
   assert.match(componentSource, /rollbackPlan/);
   assert.match(componentSource, /strategyWeightCalibration/);
+  assert.match(componentSource, /strategyWeightChangeAudit/);
   assert.match(componentSource, /manualAdjustmentBand/);
+  assert.match(componentSource, /canExecuteWeightChange/);
   assert.match(componentSource, /阻断项/);
   assert.match(componentSource, /不改权重/);
   assert.match(componentSource, /有效/);
@@ -381,6 +389,11 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-weight__grid/);
   assert.match(componentSource, /health-outcome-weight__candidates/);
   assert.match(componentSource, /health-outcome-weight__item/);
+  assert.match(componentSource, /health-outcome-audit/);
+  assert.match(componentSource, /health-outcome-audit__head/);
+  assert.match(componentSource, /health-outcome-audit__grid/);
+  assert.match(componentSource, /health-outcome-audit__items/);
+  assert.match(componentSource, /health-outcome-audit__item/);
   assert.match(cssSource, /\.health-outcome-detail/);
   assert.match(cssSource, /\.health-outcome-samples/);
   assert.match(cssSource, /\.health-outcome-thresholds/);
@@ -390,6 +403,11 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-weight__grid/);
   assert.match(cssSource, /\.health-outcome-weight__candidates/);
   assert.match(cssSource, /\.health-outcome-weight__item/);
+  assert.match(cssSource, /\.health-outcome-audit/);
+  assert.match(cssSource, /\.health-outcome-audit__head/);
+  assert.match(cssSource, /\.health-outcome-audit__grid/);
+  assert.match(cssSource, /\.health-outcome-audit__items/);
+  assert.match(cssSource, /\.health-outcome-audit__item/);
 });
 
 test("journal panel exposes outcome executor batch details without turning them into trades", () => {
