@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果和 observedAt 事件窗口回测：
+当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测和 outcome 健康状态展示：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -42,12 +42,13 @@
 - 低频 K 线缓存填充 MVP：`POST /api/admin/daily-movers/klines/fill` 通过 `CRON_SECRET` 保护，默认读取 repository 中的回测计划候选，只拉公开 Binance Futures OHLCV，跳过已有缓存，并受 `KLINE_BACKTEST_DAILY_REQUEST_BUDGET` 和 `KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN` 封顶；该入口不占用 CoinGlass 请求、不自动改权重。
 - 缓存 K 线验证结果：`GET /api/daily-movers` 会输出 `klineBacktestResults`，只读取 bounded `ohlcv_candle_cache`，计算缓存覆盖率、周期涨跌幅、最大冲高、最大回撤和量能变化；该结果不触发外部请求、不新增写入、不自动改权重。
 - observedAt 事件窗口回测：`klineBacktestResults.eventWindowResults` 会按每日异动样本的 `observedAt` 把已缓存 candles 拆成 pre/post 窗口，输出样本方向、pre/post K 线数量、post 回撤/冲高、量能扩张和只读判定；该结果不触发外部请求、不新增写入、不自动改权重。
-- outcome executor MVP：`POST /api/admin/outcomes/run` 通过 `CRON_SECRET` 保护，从 repository 读取待复查 tracking journal，使用公开 OHLCV 按 checkpoint 评估 partial win、saved、loss、expired，并把 lifecycle 结果写回 journal/rank；`.github/workflows/chuan-outcome-executor.yml` 会每小时低频触发该入口；同一 signal 已存在 closed lifecycle outcome 时，会跳过旧 tracking entry，避免重复请求公开 K 线。
+- outcome executor MVP：`POST /api/admin/outcomes/run` 通过 `CRON_SECRET` 保护，从 repository 读取待复查 tracking journal，使用公开 OHLCV 按 checkpoint 评估 partial win、saved、loss、expired，并把 lifecycle 结果写回 journal/rank；`.github/workflows/chuan-outcome-executor.yml` 会每小时低频触发该入口，并复用已有 `CHUAN_SCAN_URL` 推导 outcome executor URL；同一 signal 已存在 closed lifecycle outcome 时，会跳过旧 tracking entry，避免重复请求公开 K 线。
+- outcome 健康状态展示：`GET /api/health` 和系统状态面板已展示自动复盘覆盖率、待复查、到期和最近写回；该展示来自现有 `journal_events`，不新增 Neon 表，不自动改权重。
 
 当前未落地：
 
 - 自动规则权重调整；当前明确不允许自动调整。
-- outcome executor 结果覆盖率和前端健康状态展示仍需继续完善；当前不能当作完整自动校准闭环。
+- outcome executor 单次运行统计、跳过原因和失败原因仍需继续完善；当前不能当作完整自动校准闭环。
 
 ## 使用边界
 
@@ -78,6 +79,8 @@
 - K 线缓存后台入口授权：`src/lib/market/daily-mover-kline-cache-admin.ts`
 - outcome executor：`src/lib/journal/outcome-executor.ts`
 - outcome executor 后台入口授权：`src/lib/journal/outcome-executor-admin.ts`
+- outcome 健康状态：`src/lib/api/system-health.ts`
+- outcome 健康面板：`src/components/radar/system-health-panel.tsx`
 - API route：`src/app/api/admin/daily-movers/ingest/route.ts`
 - K 线缓存 API route：`src/app/api/admin/daily-movers/klines/fill/route.ts`
 - outcome executor API route：`src/app/api/admin/outcomes/run/route.ts`
@@ -92,6 +95,6 @@
 
 ## 下一步
 
-1. 在系统健康或复盘 UI 中展示 outcome executor 最近执行状态、写回数、跳过原因和失败原因。
-2. 增强 outcome executor 样本覆盖率统计。
+1. 在系统健康或复盘 UI 中继续补 outcome executor 最近执行批次、写回数、跳过原因和失败原因。
+2. 增强 outcome executor 样本质量分层。
 3. 继续保持 UI 只读研究定位，避免把涨跌幅榜做成追涨杀跌入口。

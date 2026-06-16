@@ -2269,6 +2269,13 @@ p {
   white-space: nowrap;
 }
 
+.health-outcomes {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
 .health-op-notes {
   display: grid;
   gap: 5px;

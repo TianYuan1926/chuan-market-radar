@@ -20,10 +20,13 @@ jobs:
     steps:
       - name: Call Chuan outcome executor API
         env:
-          CHUAN_OUTCOME_EXECUTOR_URL: ${{ secrets.CHUAN_OUTCOME_EXECUTOR_URL }}
+          CHUAN_SCAN_URL: ${{ secrets.CHUAN_SCAN_URL }}
           CHUAN_CRON_SECRET: ${{ secrets.CHUAN_CRON_SECRET }}
         run: |
-          # CHUAN_OUTCOME_EXECUTOR_URL should point to /api/admin/outcomes/run.
+          # Reuse the existing protected scan URL secret to avoid adding another GitHub secret.
+          test -n "$CHUAN_SCAN_URL"
+          CHUAN_SCAN_BASE="${CHUAN_SCAN_URL%/}"
+          CHUAN_OUTCOME_EXECUTOR_URL="${CHUAN_SCAN_BASE%/api/scan}/api/admin/outcomes/run"
           test -n "$CHUAN_OUTCOME_EXECUTOR_URL"
           test -n "$CHUAN_CRON_SECRET"
           curl --fail --show-error --silent --retry 2 --retry-delay 10 --max-time 240 \

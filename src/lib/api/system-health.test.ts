@@ -294,3 +294,62 @@ test("buildSystemHealthReport marks scan operations blocked without a recent suc
   assert.equal(report.operations.recentProblemCount, 1);
   assert.match(report.operations.operatorHint, /没有成功扫描/);
 });
+
+test("buildSystemHealthReport exposes outcome executor coverage from journal events", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  await repository.addJournalEvent({
+    id: "journal-ena-track",
+    signalId: "ena-plan",
+    symbol: "ENAUSDT",
+    title: "纸面跟踪计划",
+    result: "watching",
+    note: "等待复盘。",
+    rankDelta: 0,
+    createdAt: "2026-06-12T10:00:00.000Z",
+    action: "paper_trade",
+    reviewStatus: "tracking",
+    outcomeStatus: "pending",
+    plannedReviewAt: "2026-06-12T11:00:00.000Z",
+    reviewCheckpoints: [
+      {
+        id: "1h",
+        label: "1h 误报检查",
+        reviewAt: "2026-06-12T11:00:00.000Z",
+        status: "pending",
+      },
+    ],
+  });
+  await repository.addJournalEvent({
+    id: "journal-sol-lifecycle",
+    signalId: "sol-plan",
+    symbol: "SOLUSDT",
+    title: "目标前置命中复盘",
+    result: "win",
+    note: "首目标已到。",
+    rankDelta: 2,
+    createdAt: "2026-06-12T10:30:00.000Z",
+    action: "paper_trade",
+    reviewStatus: "closed",
+    outcomeStatus: "partial_win",
+    firstTargetHit: true,
+  });
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T11:10:00.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.equal(report.outcomes.mode, "outcome_executor_mvp");
+  assert.equal(report.outcomes.allowedUse, "research_only");
+  assert.equal(report.outcomes.canAutoAdjustWeights, false);
+  assert.equal(report.outcomes.trackingEvents, 2);
+  assert.equal(report.outcomes.pendingEvents, 1);
+  assert.equal(report.outcomes.closedEvents, 1);
+  assert.equal(report.outcomes.dueEvents, 1);
+  assert.equal(report.outcomes.coveragePercent, 50);
+  assert.equal(report.outcomes.latestOutcomeAt, "2026-06-12T10:30:00.000Z");
+  assert.equal(report.outcomes.status, "reviewing");
+  assert.match(report.outcomes.operatorHint, /自动复盘/);
+});

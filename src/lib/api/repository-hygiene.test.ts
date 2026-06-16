@@ -270,10 +270,12 @@ test("external outcome executor scheduler calls the protected outcome endpoint h
 
   assert.match(workflowSource, /cron:\s*["']23 \* \* \* \*["']/);
   assert.match(workflowSource, /workflow_dispatch:/);
+  assert.match(workflowSource, /CHUAN_SCAN_BASE="\$\{CHUAN_SCAN_URL%\/\}"/);
+  assert.match(workflowSource, /CHUAN_OUTCOME_EXECUTOR_URL="\$\{CHUAN_SCAN_BASE%\/api\/scan\}\/api\/admin\/outcomes\/run"/);
   assert.match(workflowSource, /-X POST "\$CHUAN_OUTCOME_EXECUTOR_URL"/);
   assert.match(workflowSource, /Authorization: Bearer \$CHUAN_CRON_SECRET/);
   assert.match(workflowSource, /api\/admin\/outcomes\/run/);
-  assert.match(workflowSource, /secrets\.CHUAN_OUTCOME_EXECUTOR_URL/);
+  assert.match(workflowSource, /secrets\.CHUAN_SCAN_URL/);
   assert.match(workflowSource, /secrets\.CHUAN_CRON_SECRET/);
   assert.doesNotMatch(workflowSource, /web-brown-rho-95\.vercel\.app/);
   assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
@@ -316,6 +318,20 @@ test("protected outcome executor API is exposed as a POST-only admin route", () 
   assert.match(routeSource, /authorization/);
   assert.match(routeSource, /x-chuan-outcome-executor/);
   assert.equal(routeSource.includes("export async function GET"), false);
+});
+
+test("system health UI exposes outcome executor status and coverage", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/system-health-panel.tsx"),
+    "utf8",
+  );
+
+  assert.match(componentSource, /自动复盘/);
+  assert.match(componentSource, /覆盖率/);
+  assert.match(componentSource, /待复查/);
+  assert.match(componentSource, /到期/);
+  assert.match(componentSource, /最近写回/);
+  assert.match(componentSource, /health-outcomes/);
 });
 
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {

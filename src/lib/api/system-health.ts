@@ -1,3 +1,4 @@
+import type { JournalEvent } from "../analysis/types";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import type {
@@ -20,6 +21,7 @@ export type SystemHealthGuard = {
 };
 
 export type ScanOperationsVerdict = "healthy" | "watch" | "attention" | "blocked";
+export type OutcomeExecutorStatus = "idle" | "collecting" | "reviewing" | "covered";
 
 export type SystemHealthReport = {
   generatedAt: string;
@@ -72,6 +74,19 @@ export type SystemHealthReport = {
     requestDetail: string | null;
     runtimeDetail: string | null;
     verdict: ScanOperationsVerdict;
+  };
+  outcomes: {
+    allowedUse: "research_only";
+    canAutoAdjustWeights: false;
+    closedEvents: number;
+    coveragePercent: number;
+    dueEvents: number;
+    latestOutcomeAt: string | null;
+    mode: "outcome_executor_mvp";
+    operatorHint: string;
+    pendingEvents: number;
+    status: OutcomeExecutorStatus;
+    trackingEvents: number;
   };
   guards: SystemHealthGuard[];
 };
@@ -330,6 +345,96 @@ function scanOperations({
   };
 }
 
+function journalTime(value: string | undefined) {
+  const time = value ? new Date(value).getTime() : Number.NaN;
+
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function isSignalOutcomeEvent(event: JournalEvent) {
+  return Boolean(
+    event.signalId &&
+    event.outcomeStatus &&
+    event.action !== "calibration_review" &&
+    event.action !== "strategy_confirmation",
+  );
+}
+
+function isPendingOutcome(event: JournalEvent) {
+  return event.reviewStatus === "tracking" && event.outcomeStatus === "pending";
+}
+
+function isClosedOutcome(event: JournalEvent) {
+  return event.reviewStatus === "closed" && Boolean(event.outcomeStatus) && event.outcomeStatus !== "pending";
+}
+
+function isDueOutcome(event: JournalEvent, now: Date) {
+  if (!isPendingOutcome(event)) {
+    return false;
+  }
+
+  const nowTime = now.getTime();
+  const plannedReviewTime = journalTime(event.plannedReviewAt);
+  const hasDueCheckpoint = (event.reviewCheckpoints ?? []).some((checkpoint) => (
+    checkpoint.status !== "complete" &&
+    journalTime(checkpoint.reviewAt) > 0 &&
+    journalTime(checkpoint.reviewAt) <= nowTime
+  ));
+
+  return (plannedReviewTime > 0 && plannedReviewTime <= nowTime) || hasDueCheckpoint;
+}
+
+function latestClosedOutcomeAt(events: JournalEvent[]) {
+  return events
+    .filter(isClosedOutcome)
+    .sort((left, right) => journalTime(right.createdAt) - journalTime(left.createdAt))[0]?.createdAt ?? null;
+}
+
+function outcomeOperatorHint(status: OutcomeExecutorStatus) {
+  if (status === "idle") {
+    return "还没有自动复盘样本，等待信号进入跟踪队列。";
+  }
+
+  if (status === "reviewing") {
+    return "自动复盘有到期样本，等待 outcome executor 写回结果。";
+  }
+
+  if (status === "collecting") {
+    return "自动复盘正在收集样本，未到复查窗口前不强行判断。";
+  }
+
+  return "自动复盘样本已覆盖，继续累积结果后再进入人工校准。";
+}
+
+function outcomeExecutorHealth(events: JournalEvent[], now: Date): SystemHealthReport["outcomes"] {
+  const outcomeEvents = events.filter(isSignalOutcomeEvent);
+  const pendingEvents = outcomeEvents.filter(isPendingOutcome);
+  const closedEvents = outcomeEvents.filter(isClosedOutcome);
+  const dueEvents = pendingEvents.filter((event) => isDueOutcome(event, now));
+  const trackingEvents = pendingEvents.length + closedEvents.length;
+  const status: OutcomeExecutorStatus = trackingEvents === 0
+    ? "idle"
+    : dueEvents.length > 0
+      ? "reviewing"
+      : pendingEvents.length > 0
+        ? "collecting"
+        : "covered";
+
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    closedEvents: closedEvents.length,
+    coveragePercent: trackingEvents > 0 ? Math.round((closedEvents.length / trackingEvents) * 100) : 0,
+    dueEvents: dueEvents.length,
+    latestOutcomeAt: latestClosedOutcomeAt(outcomeEvents),
+    mode: "outcome_executor_mvp",
+    operatorHint: outcomeOperatorHint(status),
+    pendingEvents: pendingEvents.length,
+    status,
+    trackingEvents,
+  };
+}
+
 export async function buildSystemHealthReport({
   database,
   env = {},
@@ -347,7 +452,10 @@ export async function buildSystemHealthReport({
     configuredProvider,
     env,
   });
-  const archiveSummaries = await repository.listScanArchives(24);
+  const [archiveSummaries, journalEvents] = await Promise.all([
+    repository.listScanArchives(24),
+    repository.listJournalEvents(120),
+  ]);
   const archiveEntries = archiveSummaries.length;
   const durable = repository.mode === "database";
   const databaseDiagnostics = database ?? fallbackDatabaseDiagnostics({ durable, repository });
@@ -413,6 +521,7 @@ export async function buildSystemHealthReport({
       metadata,
       now,
     }),
+    outcomes: outcomeExecutorHealth(journalEvents, now),
     guards: [
       {
         id: "data-source",
