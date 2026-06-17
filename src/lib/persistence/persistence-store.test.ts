@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { JournalEvent } from "@/lib/analysis/types";
+import type { StrategyV3Dossier } from "@/lib/analysis/v3/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
 import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
@@ -93,6 +94,67 @@ function replayFrame(): ScanReplayFrame {
         summary: "压缩、放量、OI 同时出现。",
       },
     ],
+  };
+}
+
+function strategyV3Dossier(): StrategyV3Dossier {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    currentPrice: 12.7,
+    forwardLevels: [
+      {
+        id: "enausdt-support-current",
+        symbol: "ENAUSDT",
+        side: "SUPPORT",
+        role: "CURRENT_DEFENSE",
+        zoneLow: 11.8,
+        zoneHigh: 12.1,
+        timeframeWeight: 4,
+        keyScore: 78,
+        status: "AHEAD",
+        reasons: ["4h swing low confluence"],
+        confirmationRules: ["守住 12.1 后再观察"],
+        invalidationRules: ["跌破 11.8"],
+        sourceLevelIds: ["enausdt-4h-swing-low"],
+      },
+    ],
+    guardrails: ["Risk Gate and manual confirmation remain required."],
+    keyLevels: [
+      {
+        id: "enausdt-4h-swing-low",
+        symbol: "ENAUSDT",
+        timeframe: "4h",
+        type: "SWING_LOW",
+        zoneLow: 11.8,
+        zoneHigh: 12.1,
+        midPrice: 11.95,
+        direction: "SUPPORT",
+        keyScore: 78,
+        reactionScore: 42,
+        confluenceScore: 66,
+        status: "POTENTIAL",
+        reasons: ["最近 4h 低点"],
+        confirmationRules: ["回踩缩量守住"],
+        invalidationRule: "跌破 11.8",
+      },
+    ],
+    primaryTimeframe: "4h",
+    source: "existing_ohlcv_key_level_mvp",
+    sourceTimeframes: ["15m", "1h", "4h"],
+    summary: "ENAUSDT v3 key-level map.",
+    symbol: "ENAUSDT",
+  };
+}
+
+function replayFrameWithV3(): ScanReplayFrame {
+  return {
+    ...replayFrame(),
+    signals: replayFrame().signals.map((signal) => ({
+      ...signal,
+      strategyV3: strategyV3Dossier(),
+    })),
   };
 }
 
@@ -311,6 +373,33 @@ test("memory repository stores and reads ohlcv candle cache entries newest first
   assert.equal(ena?.allowedUse, "research_only");
   assert.equal(ena?.canAutoAdjustWeights, false);
   assert.equal(missing, null);
+});
+
+test("memory repository extracts v3 forward map snapshots from scan replay frames", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addScanArchive(scanSummary(), replayFrame());
+  assert.deepEqual(await repository.listV3ForwardMapSnapshots(), []);
+
+  await repository.addScanArchive({
+    ...scanSummary(),
+    id: "scan-v3-2026-06-17T08-00",
+    generatedAt: "2026-06-17T08:00:00.000Z",
+  }, {
+    ...replayFrameWithV3(),
+    id: "scan-v3-2026-06-17T08-00",
+    generatedAt: "2026-06-17T08:00:00.000Z",
+  });
+
+  const snapshots = await repository.listV3ForwardMapSnapshots();
+  const byScan = await repository.getV3ForwardMapSnapshotsForScan("scan-v3-2026-06-17T08-00");
+
+  assert.equal(snapshots.length, 1);
+  assert.equal(snapshots[0]?.symbol, "ENAUSDT");
+  assert.equal(snapshots[0]?.allowedUse, "research_only");
+  assert.equal(snapshots[0]?.canAutoAdjustWeights, false);
+  assert.equal(snapshots[0]?.canMutateLiveRanking, false);
+  assert.equal(snapshots[0]?.dossier.forwardLevels[0]?.role, "CURRENT_DEFENSE");
+  assert.deepEqual(byScan.map((snapshot) => snapshot.signalId), ["ena-near-trigger"]);
 });
 
 test("postgres repository uses parameterized queries and maps durable records back to domain objects", async () => {
@@ -601,6 +690,69 @@ test("postgres repository writes and reads ohlcv candle cache entries through du
   ]);
   assert.deepEqual(client.calls[1]?.params, ["chuan-public", 5]);
   assert.deepEqual(client.calls[2]?.params, ["chuan-public", "ENAUSDT", "15m"]);
+});
+
+test("postgres repository writes and reads v3 forward map snapshots through durable tables", async () => {
+  const client = new RecordingSqlClient();
+  const snapshot = {
+    allowedUse: "research_only" as const,
+    canAutoAdjustWeights: false as const,
+    canMutateLiveRanking: false as const,
+    dossier: strategyV3Dossier(),
+    generatedAt: "2026-06-17T08:00:00.000Z",
+    scanId: "scan-v3-2026-06-17T08-00",
+    signalId: "ena-near-trigger",
+    symbol: "ENAUSDT",
+  };
+  const row = {
+    allowed_use: snapshot.allowedUse,
+    can_auto_adjust_weights: snapshot.canAutoAdjustWeights,
+    can_mutate_live_ranking: snapshot.canMutateLiveRanking,
+    forward_level_count: 1,
+    generated_at: snapshot.generatedAt,
+    key_level_count: 1,
+    payload: snapshot,
+    scan_id: snapshot.scanId,
+    scope: "chuan-public",
+    signal_id: snapshot.signalId,
+    source_timeframes: ["15m", "1h", "4h"],
+    symbol: snapshot.symbol,
+  };
+  client.responses.push(
+    { rows: [] },
+    { rows: [] },
+    { rows: [row] },
+    { rows: [row] },
+  );
+  const repository = createPostgresPersistenceRepository({ client, scope: "chuan-public" });
+
+  await repository.addScanArchive({
+    ...scanSummary(),
+    id: "scan-v3-2026-06-17T08-00",
+    generatedAt: "2026-06-17T08:00:00.000Z",
+  }, {
+    ...replayFrameWithV3(),
+    id: "scan-v3-2026-06-17T08-00",
+    generatedAt: "2026-06-17T08:00:00.000Z",
+  });
+  const snapshots = await repository.listV3ForwardMapSnapshots(5);
+  const byScan = await repository.getV3ForwardMapSnapshotsForScan("scan-v3-2026-06-17T08-00");
+
+  assert.equal(snapshots[0]?.symbol, "ENAUSDT");
+  assert.equal(snapshots[0]?.canMutateLiveRanking, false);
+  assert.equal(byScan[0]?.dossier.keyLevels[0]?.id, "enausdt-4h-swing-low");
+  assert.match(client.calls[0]?.sql ?? "", /insert into scan_archives/i);
+  assert.match(client.calls[1]?.sql ?? "", /insert into v3_forward_map_snapshots/i);
+  assert.match(client.calls[2]?.sql ?? "", /select \* from v3_forward_map_snapshots/i);
+  assert.match(client.calls[3]?.sql ?? "", /select \* from v3_forward_map_snapshots/i);
+  assert.deepEqual(client.calls[1]?.params.slice(0, 4), [
+    "chuan-public",
+    "scan-v3-2026-06-17T08-00",
+    "ena-near-trigger",
+    "ENAUSDT",
+  ]);
+  assert.deepEqual(client.calls[2]?.params, ["chuan-public", 5]);
+  assert.deepEqual(client.calls[3]?.params, ["chuan-public", "scan-v3-2026-06-17T08-00"]);
 });
 
 test("repository factory falls back to memory when database mode is configured without a client", () => {

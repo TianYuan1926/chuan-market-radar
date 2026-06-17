@@ -98,6 +98,7 @@ export function createReplayFrame(snapshot: MarketRadarSnapshot): ScanReplayFram
       risk: signal.risk,
       riskReward: signal.strategy.riskReward,
       strategyStatus: signal.strategy.status ?? "unknown",
+      ...(signal.strategyV3 ? { strategyV3: signal.strategyV3 } : {}),
       updatedAt: signal.updatedAt,
       summary: signal.summary,
     })),

@@ -187,6 +187,7 @@ export type ScanReplaySignal = {
   risk: MarketSignal["risk"];
   riskReward: number;
   strategyStatus: MarketSignal["strategy"]["status"] | "unknown";
+  strategyV3?: MarketSignal["strategyV3"];
   updatedAt: string;
   summary: string;
 };

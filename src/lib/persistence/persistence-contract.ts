@@ -1,4 +1,5 @@
 import type { JournalEvent } from "@/lib/analysis/types";
+import type { V3ForwardMapSnapshot } from "@/lib/analysis/v3/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type {
   DailyMover,
@@ -117,6 +118,21 @@ export type PersistedOhlcvCandleCacheRecord = {
   payload: OhlcvCandleCacheEntry;
 };
 
+export type PersistedV3ForwardMapSnapshotRecord = {
+  scope: PersistenceScope;
+  scan_id: string;
+  signal_id: string;
+  symbol: string;
+  generated_at: string;
+  key_level_count: number;
+  forward_level_count: number;
+  source_timeframes: string[];
+  allowed_use: V3ForwardMapSnapshot["allowedUse"];
+  can_auto_adjust_weights: false;
+  can_mutate_live_ranking: false;
+  payload: V3ForwardMapSnapshot;
+};
+
 export type PersistedDailyMoverSnapshotRecords = {
   snapshot: PersistedDailyMoverSnapshotRecord;
   assets: PersistedDailyMoverAssetRecord[];
@@ -127,6 +143,7 @@ export type PersistedDailyMoverSnapshotRecords = {
 export const persistenceTables = [
   "journal_events",
   "scan_archives",
+  "v3_forward_map_snapshots",
   "rank_profiles",
   "daily_mover_snapshots",
   "daily_mover_assets",
@@ -202,6 +219,63 @@ export function scanArchiveRecordToSummary(
     candidateCount: record.candidate_count,
     topSymbols: record.top_symbols,
   };
+}
+
+export function v3ForwardMapSnapshotToRecord(
+  snapshot: V3ForwardMapSnapshot,
+  scope: PersistenceScope,
+): PersistedV3ForwardMapSnapshotRecord {
+  return {
+    scope,
+    scan_id: snapshot.scanId,
+    signal_id: snapshot.signalId,
+    symbol: snapshot.symbol,
+    generated_at: snapshot.generatedAt,
+    key_level_count: snapshot.dossier.keyLevels.length,
+    forward_level_count: snapshot.dossier.forwardLevels.length,
+    source_timeframes: snapshot.dossier.sourceTimeframes,
+    allowed_use: snapshot.allowedUse,
+    can_auto_adjust_weights: false,
+    can_mutate_live_ranking: false,
+    payload: snapshot,
+  };
+}
+
+export function v3ForwardMapRecordToSnapshot(
+  record: PersistedV3ForwardMapSnapshotRecord,
+): V3ForwardMapSnapshot {
+  return {
+    ...record.payload,
+    allowedUse: record.allowed_use,
+    canAutoAdjustWeights: record.can_auto_adjust_weights,
+    canMutateLiveRanking: record.can_mutate_live_ranking,
+    generatedAt: record.generated_at,
+    scanId: record.scan_id,
+    signalId: record.signal_id,
+    symbol: record.symbol,
+  };
+}
+
+export function scanReplayFrameToV3ForwardMapSnapshotRecords(
+  replayFrame: ScanReplayFrame,
+  scope: PersistenceScope,
+): PersistedV3ForwardMapSnapshotRecord[] {
+  return replayFrame.signals.flatMap((signal) => {
+    if (!signal.strategyV3) {
+      return [];
+    }
+
+    return v3ForwardMapSnapshotToRecord({
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      dossier: signal.strategyV3,
+      generatedAt: replayFrame.generatedAt,
+      scanId: replayFrame.id,
+      signalId: signal.id,
+      symbol: signal.symbol,
+    }, scope);
+  });
 }
 
 export function rankProfileToRecord(
@@ -365,6 +439,28 @@ create table if not exists scan_archives (
 
 create index if not exists scan_archives_scope_generated_at_idx
   on scan_archives (scope, generated_at desc);
+
+create table if not exists v3_forward_map_snapshots (
+  scope text not null,
+  scan_id text not null,
+  signal_id text not null,
+  symbol text not null,
+  generated_at timestamptz not null,
+  key_level_count integer not null default 0,
+  forward_level_count integer not null default 0,
+  source_timeframes text[] not null default '{}',
+  allowed_use text not null,
+  can_auto_adjust_weights boolean not null,
+  can_mutate_live_ranking boolean not null,
+  payload jsonb not null,
+  primary key (scope, scan_id, signal_id)
+);
+
+create index if not exists v3_forward_map_snapshots_scope_symbol_generated_idx
+  on v3_forward_map_snapshots (scope, symbol, generated_at desc);
+
+create index if not exists v3_forward_map_snapshots_scope_scan_idx
+  on v3_forward_map_snapshots (scope, scan_id);
 
 create table if not exists rank_profiles (
   scope text not null,

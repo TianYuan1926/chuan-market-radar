@@ -179,3 +179,14 @@ export type StrategyV3Dossier = {
   summary: string;
   symbol: string;
 };
+
+export type V3ForwardMapSnapshot = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  dossier: StrategyV3Dossier;
+  generatedAt: string;
+  scanId: string;
+  signalId: string;
+  symbol: string;
+};

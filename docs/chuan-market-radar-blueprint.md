@@ -108,6 +108,7 @@ v3 的核心不是“预测涨跌”，而是：
    - Forward Map 必须随扫描保存，用于之后验证“是否事前识别”，不能事后画线冒充提前判断。
    - Fibonacci、整数位、动态均线和成交密集区只能在与结构位共振后成为关键位，不能单独生成交易结论。
    - 2026-06-17 已完成 MVP：`buildForwardLevelMap` 和 `buildSignalTrendRadarV3Dossier` 复用本轮已有 OHLCV，为 Signal Dossier 展示关键位和前方位，不新增 CoinGlass 请求。
+   - 2026-06-17 已完成持久化 MVP：扫描归档写入时会把已有 `strategyV3` 中的 Forward Map 和 Key Level 摘要保存为 `v3_forward_map_snapshots`，仅用于后续复盘验证、人工校准和 missed altcoin review，不允许改变 live ranking 或自动调权。
 
 4. **多空双向趋势状态机**
    - v3 状态必须覆盖：`RANGE_IDLE`、`RANGE_COMPRESSION`、`PRE_TREND_LONG`、`PRE_TREND_SHORT`、`LONG_BREAKOUT`、`SHORT_BREAKDOWN`、`LONG_PULLBACK_CONFIRM`、`SHORT_RETEST_CONFIRM`、`LONG_TREND_ACCELERATION`、`SHORT_TREND_ACCELERATION`、`LONG_EXHAUSTION`、`SHORT_EXHAUSTION`、`INVALIDATED`、`CONFLICT`。
@@ -344,7 +345,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 2：真正多周期分析引擎 | 基础已落地，受限主候选已接入真实多周期 OHLCV profile、指标矩阵摘要、基础指标/周期校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层 | 尚未完成真实权重生效、交互式多周期图表和全量候选覆盖 |
 | 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级、repository hints 和扫描经济前端面板基础已落地 | 尚未完成高优先级加密扫描和更细的交易所覆盖差异前端钻取 |
 | 阶段 4：OHLCV、盘面结构与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示、基础指标/周期权重校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层；v3 KeyLevel/ForwardMap 已复用既有 OHLCV 接入 Signal Dossier | 尚未完成真实权重生效、交互式多周期图表、更专业的成交量分布模型、完整 Market Reading Engine、Pattern Library、Fibonacci/谐波辅助层 |
-| 阶段 4V3：Altcoin Trend Radar v3 | 定位已确认为“全市场山寨币趋势切换雷达”；Strategy Engine v2 已形成证据、评分、风险门控、报告和只读 UI 接入底座；v3 类型、Key Level Engine MVP、Forward Level Map MVP、forward map review hook、`strategyV3` 只读 Signal Dossier 接入已完成 | 需要补齐完整 Market Reading Engine、多空双向趋势状态机、v3 评分、v3 Trade Plan、Forward Map 持久化、key level reaction 持久复盘和 missed altcoin review |
+| 阶段 4V3：Altcoin Trend Radar v3 | 定位已确认为“全市场山寨币趋势切换雷达”；Strategy Engine v2 已形成证据、评分、风险门控、报告和只读 UI 接入底座；v3 类型、Key Level Engine MVP、Forward Level Map MVP、forward map review hook、`strategyV3` 只读 Signal Dossier 接入、Forward Map 持久化 MVP 已完成 | 需要补齐完整 Market Reading Engine、多空双向趋势状态机、v3 评分、v3 Trade Plan、key level reaction 持久复盘、forward map review executor 和 missed altcoin review |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
@@ -376,6 +377,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 - `journal_events`：复盘日记、纸面跟踪、拒绝追单、失效记录。
 - `scan_archives`：扫描快照、回放 frame、最近扫描对比。
+- `v3_forward_map_snapshots`：随扫描归档保存的 v3 Key Level / Forward Map 只读快照，用于复盘验证事前地图是否命中；该表不允许驱动实时排序或自动调权。
 - `rank_profiles`：段位、XP、纪律分、宠物状态。
 - `daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`：每日涨跌幅榜归因复盘样本。
 - `DATABASE_DRIVER=neon` 且存在 `DATABASE_URL` 时可创建 Neon SQL client。
@@ -1166,14 +1168,21 @@ CoinGlass 业余会员 API：
    - `buildSignalTrendRadarV3Dossier` 复用 CoinGlass provider 已经拉取的 OHLCV candles，生成只读 `strategyV3`。
    - Signal Dossier 已展示关键位地图和 Forward Map，包含来源周期、区域价格、支撑/压力、失效位、趋势切换位和只读 guardrail。
    - 该阶段不新增 CoinGlass 请求，不写真实权重，不改变候选排序，不自动生成交易结论。
-   - 当前状态：已完成 MVP。后续正确搭建项是把 Forward Map 持久化到 Neon，并让 outcome/review executor 验证事前地图是否命中。
+   - 当前状态：已完成 MVP。
 
-15. **V1.7：Product Design 简报与角色设定固化**
+15. **Phase 4V3-2：v3 Forward Map 持久化**
+   - 新增 `V3ForwardMapSnapshot` 和 `v3_forward_map_snapshots`，保存 `scanId`、`signalId`、`symbol`、生成时间、关键位数量、Forward Map 数量、来源周期和只读 payload。
+   - `createReplayFrame` 会保留已有 `strategyV3`，repository 的 `addScanArchive()` 会在写入扫描归档时同步提取 v3 快照。
+   - Memory 和 Neon/Postgres repository 都支持 `listV3ForwardMapSnapshots()` 与 `getV3ForwardMapSnapshotsForScan()`，用于后续复盘执行器按扫描批次回看。
+   - 该阶段不新增 CoinGlass 请求，不新增交易结论，不改变 live ranking，不自动调权。
+   - 当前状态：已完成 MVP。后续正确搭建项是让 review executor 对保存的 Forward Map 做事后验证，生成 `forward_map_review` 和 `key_level_reaction_review`。
+
+16. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
-16. **V1.8：像素副驾驶 MVP（已落地）**
+17. **V1.8：像素副驾驶 MVP（已落地）**
    - 已用 `PixelCopilot` 替换旧车辆命名组件的正常 UI 边界。
    - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
    - 保留 rank profile、纪律分、动量、热度等现有数据入口。

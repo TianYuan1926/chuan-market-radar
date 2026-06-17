@@ -1,4 +1,5 @@
 import type { JournalEvent } from "../analysis/types";
+import type { V3ForwardMapSnapshot } from "../analysis/v3/types";
 import { createJournalStore } from "../journal/journal-store";
 import { buildRankProfile, type RankProfile } from "../journal/rank-engine";
 import type { DailyMoverSnapshot } from "../market/daily-movers";
@@ -14,13 +15,16 @@ import {
   type PersistedOhlcvCandleCacheRecord,
   rankProfileRecordToProfile,
   rankProfileToRecord,
+  scanReplayFrameToV3ForwardMapSnapshotRecords,
   scanArchiveRecordToSummary,
   scanArchiveToRecord,
   type PersistedDailyMoverSnapshotRecord,
   type PersistedJournalEventRecord,
   type PersistedRankProfileRecord,
   type PersistedScanArchiveRecord,
+  type PersistedV3ForwardMapSnapshotRecord,
   type PersistenceScope,
+  v3ForwardMapRecordToSnapshot,
 } from "./persistence-contract";
 
 export type PersistenceMode = "memory" | "database";
@@ -51,6 +55,9 @@ export type PersistenceRepository = {
   listScanArchives: (limit?: number) => Promise<ScanArchiveSummary[]>;
   getScanReplayFrame: (id?: string) => Promise<ScanReplayFrame | null>;
   compareLatestScanArchives: () => Promise<ScanComparison | null>;
+  addV3ForwardMapSnapshots: (replayFrame: ScanReplayFrame) => Promise<V3ForwardMapSnapshot[]>;
+  listV3ForwardMapSnapshots: (limit?: number) => Promise<V3ForwardMapSnapshot[]>;
+  getV3ForwardMapSnapshotsForScan: (scanId: string) => Promise<V3ForwardMapSnapshot[]>;
   addDailyMoverSnapshot: (snapshot: DailyMoverSnapshot) => Promise<DailyMoverSnapshot>;
   listDailyMoverSnapshots: (limit?: number) => Promise<DailyMoverSnapshot[]>;
   getDailyMoverSnapshot: (id?: string) => Promise<DailyMoverSnapshot | null>;
@@ -64,6 +71,7 @@ export type MemoryPersistenceRepositoryOptions = {
   initialJournalEvents?: JournalEvent[];
   maxScanArchives?: number;
   maxDailyMoverSnapshots?: number;
+  maxV3ForwardMapSnapshots?: number;
 };
 
 export type PostgresPersistenceRepositoryOptions = {
@@ -80,12 +88,14 @@ export type CreatePersistenceRepositoryOptions = {
   initialJournalEvents?: JournalEvent[];
   maxScanArchives?: number;
   maxDailyMoverSnapshots?: number;
+  maxV3ForwardMapSnapshots?: number;
 };
 
 const defaultScope = "public-demo";
 const defaultJournalLimit = 500;
 const defaultArchiveLimit = 24;
 const defaultDailyMoverSnapshotLimit = 30;
+const defaultV3ForwardMapSnapshotLimit = 240;
 
 function resolveScope(scope?: string) {
   const trimmed = scope?.trim();
@@ -114,6 +124,14 @@ function sortDailyMoverSnapshots(snapshots: DailyMoverSnapshot[]) {
 function sortOhlcvCandleCaches(entries: OhlcvCandleCacheEntry[]) {
   return [...entries].sort(
     (left, right) => sortableTime(right.fetchedAt) - sortableTime(left.fetchedAt),
+  );
+}
+
+function sortV3ForwardMapSnapshotRecords(records: PersistedV3ForwardMapSnapshotRecord[]) {
+  return [...records].sort(
+    (left, right) => sortableTime(right.generated_at) - sortableTime(left.generated_at) ||
+      left.symbol.localeCompare(right.symbol) ||
+      left.signal_id.localeCompare(right.signal_id),
   );
 }
 
@@ -150,14 +168,36 @@ export function createMemoryPersistenceRepository({
   initialJournalEvents = [],
   maxScanArchives = defaultArchiveLimit,
   maxDailyMoverSnapshots = defaultDailyMoverSnapshotLimit,
+  maxV3ForwardMapSnapshots = defaultV3ForwardMapSnapshotLimit,
   scope = defaultScope,
 }: MemoryPersistenceRepositoryOptions = {}): PersistenceRepository {
   const journalStore = createJournalStore(initialJournalEvents);
   let archives: PersistedScanArchiveRecord[] = [];
   let dailyMoverSnapshots: DailyMoverSnapshot[] = [];
   let ohlcvCandleCaches: OhlcvCandleCacheEntry[] = [];
+  let v3ForwardMapSnapshots: PersistedV3ForwardMapSnapshotRecord[] = [];
   let rankProfile = buildRankProfile(journalStore.list());
   const resolvedScope = resolveScope(scope);
+
+  function upsertV3ForwardMapSnapshotRecords(replayFrame: ScanReplayFrame) {
+    const records = scanReplayFrameToV3ForwardMapSnapshotRecords(replayFrame, resolvedScope);
+
+    if (records.length === 0) {
+      return [];
+    }
+
+    const recordKeys = new Set(records.map((record) => (
+      `${record.scope}:${record.scan_id}:${record.signal_id}`
+    )));
+    v3ForwardMapSnapshots = sortV3ForwardMapSnapshotRecords([
+      ...records,
+      ...v3ForwardMapSnapshots.filter((record) => (
+        !recordKeys.has(`${record.scope}:${record.scan_id}:${record.signal_id}`)
+      )),
+    ]).slice(0, maxV3ForwardMapSnapshots);
+
+    return records.map(v3ForwardMapRecordToSnapshot);
+  }
 
   return {
     mode: "memory",
@@ -190,6 +230,7 @@ export function createMemoryPersistenceRepository({
         record,
         ...archives.filter((entry) => entry.id !== record.id),
       ]).slice(0, maxScanArchives);
+      upsertV3ForwardMapSnapshotRecords(replayFrame);
 
       return scanArchiveRecordToSummary(record);
     },
@@ -214,6 +255,20 @@ export function createMemoryPersistenceRepository({
       }
 
       return compareScanReplayFrames(previous.payload.replayFrame, current.payload.replayFrame);
+    },
+
+    async addV3ForwardMapSnapshots(replayFrame) {
+      return upsertV3ForwardMapSnapshotRecords(replayFrame);
+    },
+
+    async listV3ForwardMapSnapshots(limit = maxV3ForwardMapSnapshots) {
+      return v3ForwardMapSnapshots.slice(0, limit).map(v3ForwardMapRecordToSnapshot);
+    },
+
+    async getV3ForwardMapSnapshotsForScan(scanId) {
+      return v3ForwardMapSnapshots
+        .filter((record) => record.scan_id === scanId)
+        .map(v3ForwardMapRecordToSnapshot);
     },
 
     async addDailyMoverSnapshot(snapshot) {
@@ -320,6 +375,71 @@ limit $2
     );
 
     return result.rows;
+  }
+
+  async function listV3ForwardMapSnapshotRecords(limit = defaultV3ForwardMapSnapshotLimit) {
+    const result = await client.query<PersistedV3ForwardMapSnapshotRecord>(
+      `
+select * from v3_forward_map_snapshots
+where scope = $1
+order by generated_at desc, symbol asc, signal_id asc
+limit $2
+`.trim(),
+      [resolvedScope, limit],
+    );
+
+    return result.rows;
+  }
+
+  async function insertV3ForwardMapSnapshots(replayFrame: ScanReplayFrame) {
+    const records = scanReplayFrameToV3ForwardMapSnapshotRecords(replayFrame, resolvedScope);
+
+    for (const record of records) {
+      await client.query(
+        `
+insert into v3_forward_map_snapshots (
+  scope,
+  scan_id,
+  signal_id,
+  symbol,
+  generated_at,
+  key_level_count,
+  forward_level_count,
+  source_timeframes,
+  allowed_use,
+  can_auto_adjust_weights,
+  can_mutate_live_ranking,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+on conflict (scope, scan_id, signal_id) do update set
+  symbol = excluded.symbol,
+  generated_at = excluded.generated_at,
+  key_level_count = excluded.key_level_count,
+  forward_level_count = excluded.forward_level_count,
+  source_timeframes = excluded.source_timeframes,
+  allowed_use = excluded.allowed_use,
+  can_auto_adjust_weights = excluded.can_auto_adjust_weights,
+  can_mutate_live_ranking = excluded.can_mutate_live_ranking,
+  payload = excluded.payload
+`.trim(),
+        [
+          record.scope,
+          record.scan_id,
+          record.signal_id,
+          record.symbol,
+          record.generated_at,
+          record.key_level_count,
+          record.forward_level_count,
+          record.source_timeframes,
+          record.allowed_use,
+          record.can_auto_adjust_weights,
+          record.can_mutate_live_ranking,
+          record.payload,
+        ],
+      );
+    }
+
+    return records.map(v3ForwardMapRecordToSnapshot);
   }
 
   async function upsertRankProfile(profile: RankProfile, updatedAt = new Date().toISOString()) {
@@ -478,6 +598,8 @@ on conflict (scope, id) do update set
         ],
       );
 
+      await insertV3ForwardMapSnapshots(replayFrame);
+
       return scanArchiveRecordToSummary(record);
     },
 
@@ -513,6 +635,27 @@ limit 1
       }
 
       return compareScanReplayFrames(previous.payload.replayFrame, current.payload.replayFrame);
+    },
+
+    async addV3ForwardMapSnapshots(replayFrame) {
+      return insertV3ForwardMapSnapshots(replayFrame);
+    },
+
+    async listV3ForwardMapSnapshots(limit = defaultV3ForwardMapSnapshotLimit) {
+      return (await listV3ForwardMapSnapshotRecords(limit)).map(v3ForwardMapRecordToSnapshot);
+    },
+
+    async getV3ForwardMapSnapshotsForScan(scanId) {
+      const result = await client.query<PersistedV3ForwardMapSnapshotRecord>(
+        `
+select * from v3_forward_map_snapshots
+where scope = $1 and scan_id = $2
+order by generated_at desc, symbol asc, signal_id asc
+`.trim(),
+        [resolvedScope, scanId],
+      );
+
+      return result.rows.map(v3ForwardMapRecordToSnapshot);
     },
 
     async addDailyMoverSnapshot(snapshot) {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { JournalEvent } from "@/lib/analysis/types";
+import type { StrategyV3Dossier } from "@/lib/analysis/v3/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
 import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
@@ -17,6 +18,8 @@ import {
   rankProfileToRecord,
   scanArchiveRecordToSummary,
   scanArchiveToRecord,
+  v3ForwardMapRecordToSnapshot,
+  v3ForwardMapSnapshotToRecord,
 } from "./persistence-contract";
 
 const scope = "public-demo";
@@ -97,6 +100,57 @@ function replayFrame(): ScanReplayFrame {
         summary: "压缩、放量、OI 同时出现。",
       },
     ],
+  };
+}
+
+function strategyV3Dossier(): StrategyV3Dossier {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    currentPrice: 12.7,
+    forwardLevels: [
+      {
+        id: "enausdt-support-current",
+        symbol: "ENAUSDT",
+        side: "SUPPORT",
+        role: "CURRENT_DEFENSE",
+        zoneLow: 11.8,
+        zoneHigh: 12.1,
+        timeframeWeight: 4,
+        keyScore: 78,
+        status: "AHEAD",
+        reasons: ["4h swing low confluence"],
+        confirmationRules: ["守住 12.1 后再观察"],
+        invalidationRules: ["跌破 11.8"],
+        sourceLevelIds: ["enausdt-4h-swing-low"],
+      },
+    ],
+    guardrails: ["Risk Gate and manual confirmation remain required."],
+    keyLevels: [
+      {
+        id: "enausdt-4h-swing-low",
+        symbol: "ENAUSDT",
+        timeframe: "4h",
+        type: "SWING_LOW",
+        zoneLow: 11.8,
+        zoneHigh: 12.1,
+        midPrice: 11.95,
+        direction: "SUPPORT",
+        keyScore: 78,
+        reactionScore: 42,
+        confluenceScore: 66,
+        status: "POTENTIAL",
+        reasons: ["最近 4h 低点"],
+        confirmationRules: ["回踩缩量守住"],
+        invalidationRule: "跌破 11.8",
+      },
+    ],
+    primaryTimeframe: "4h",
+    source: "existing_ohlcv_key_level_mvp",
+    sourceTimeframes: ["15m", "1h", "4h"],
+    summary: "ENAUSDT v3 key-level map.",
+    symbol: "ENAUSDT",
   };
 }
 
@@ -271,12 +325,41 @@ test("ohlcv candle cache entries round-trip through a database-ready record", ()
   assert.deepEqual(ohlcvCandleCacheEntryRecordToEntry(record), entry);
 });
 
+test("v3 forward map snapshots store queryable review metadata plus readonly payload", () => {
+  const snapshot = {
+    allowedUse: "research_only" as const,
+    canAutoAdjustWeights: false as const,
+    canMutateLiveRanking: false as const,
+    dossier: strategyV3Dossier(),
+    generatedAt: "2026-06-17T08:00:00.000Z",
+    scanId: "scan-v3-2026-06-17T08-00",
+    signalId: "coinglass-BINANCE-ENAUSDT",
+    symbol: "ENAUSDT",
+  };
+  const record = v3ForwardMapSnapshotToRecord(snapshot, scope);
+
+  assert.equal(record.scope, scope);
+  assert.equal(record.scan_id, "scan-v3-2026-06-17T08-00");
+  assert.equal(record.signal_id, "coinglass-BINANCE-ENAUSDT");
+  assert.equal(record.symbol, "ENAUSDT");
+  assert.equal(record.generated_at, "2026-06-17T08:00:00.000Z");
+  assert.equal(record.key_level_count, 1);
+  assert.equal(record.forward_level_count, 1);
+  assert.deepEqual(record.source_timeframes, ["15m", "1h", "4h"]);
+  assert.equal(record.allowed_use, "research_only");
+  assert.equal(record.can_auto_adjust_weights, false);
+  assert.equal(record.can_mutate_live_ranking, false);
+  assert.equal(record.payload.dossier.canMutateLiveRanking, false);
+  assert.deepEqual(v3ForwardMapRecordToSnapshot(record), snapshot);
+});
+
 test("buildPersistenceSchemaSql defines the durable Postgres tables without provider lock-in", () => {
   const sql = buildPersistenceSchemaSql();
 
   assert.deepEqual(persistenceTables, [
     "journal_events",
     "scan_archives",
+    "v3_forward_map_snapshots",
     "rank_profiles",
     "daily_mover_snapshots",
     "daily_mover_assets",
@@ -288,6 +371,9 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
   assert.match(sql, /outcome_status text/i);
   assert.match(sql, /journal_events_scope_outcome_status_idx/i);
   assert.match(sql, /create table if not exists scan_archives/i);
+  assert.match(sql, /create table if not exists v3_forward_map_snapshots/i);
+  assert.match(sql, /v3_forward_map_snapshots_scope_symbol_generated_idx/i);
+  assert.match(sql, /can_mutate_live_ranking boolean not null/i);
   assert.match(sql, /create table if not exists rank_profiles/i);
   assert.match(sql, /create table if not exists daily_mover_snapshots/i);
   assert.match(sql, /create table if not exists daily_mover_assets/i);
