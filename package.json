@@ -8,7 +8,7 @@
     "deployment:env-plan": "tsc -p tsconfig.market-test.json && node .tmp/market-tests/scripts/vercel-env-plan.js",
     "start": "next start",
     "lint": "eslint .",
-    "test:market": "tsc -p tsconfig.market-test.json && node --test .tmp/market-tests/lib/api/*.test.js .tmp/market-tests/lib/market/*.test.js .tmp/market-tests/lib/market/providers/*.test.js .tmp/market-tests/lib/analysis/*.test.js .tmp/market-tests/lib/alerts/*.test.js .tmp/market-tests/lib/journal/*.test.js .tmp/market-tests/lib/persistence/*.test.js",
+    "test:market": "tsc -p tsconfig.market-test.json && find .tmp/market-tests/lib -name '*.test.js' -print | sort | xargs node --test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

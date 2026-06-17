@@ -122,7 +122,7 @@ Run: `npm run test:market`
 
 Expected: all repository hygiene tests pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 Commit summary:
 
@@ -140,7 +140,7 @@ Add strategy engine v2 specs
 **Interfaces:**
 - Produces: `EvidenceItem`, `EvidenceFamily`, `EvidenceDirection`, `createEvidenceLedger()`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Test requirements:
 
@@ -149,17 +149,17 @@ Test requirements:
 - Ledger can trace evidence by id.
 - Ledger dedupes same source/timeframe/label.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test:market`
 
 Expected: fail because v2 evidence files do not exist.
 
-- [ ] **Step 3: Implement evidence types and ledger**
+- [x] **Step 3: Implement evidence types and ledger**
 
 Implement only types and ledger operations. Do not add scoring or strategy logic.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test:market`
 

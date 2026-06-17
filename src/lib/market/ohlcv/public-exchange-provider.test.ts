@@ -18,13 +18,13 @@ test("normalizeBinanceKline converts Binance kline arrays into typed candles", (
   ]);
 
   assert.deepEqual(candle, {
-    openTime: "2024-06-10T08:53:20.000Z",
+    openTime: "2024-06-10T06:13:20.000Z",
     open: 101.2,
     high: 110.5,
     low: 99.9,
     close: 108.4,
     volume: 12345.67,
-    closeTime: "2024-06-10T08:54:19.999Z",
+    closeTime: "2024-06-10T06:14:19.999Z",
   });
 });
 

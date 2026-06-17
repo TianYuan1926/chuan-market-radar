@@ -115,6 +115,17 @@ test("strategy engine v2 specs exist and ban liquidation heatmap modules", () =>
   }
 });
 
+test("market test script runs nested compiled tests recursively", () => {
+  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
+  const marketTestScript = packageJson.scripts?.["test:market"] ?? "";
+
+  assert.match(marketTestScript, /find \.tmp\/market-tests\/lib/);
+  assert.match(marketTestScript, /-name '\*\.test\.js'/);
+  assert.match(marketTestScript, /xargs node --test/);
+});
+
 test("public radar shell does not label the live site as demo data", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
