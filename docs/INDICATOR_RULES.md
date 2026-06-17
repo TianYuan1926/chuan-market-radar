@@ -2,6 +2,15 @@
 
 本文定义技术指标解释规则。技术指标只能辅助判断趋势、动能、波动和衰竭，不能单独生成交易信号。
 
+## 0. Strategy Engine v2 禁用边界
+
+- 技术指标规则不接入清算热力图。
+- 不使用 Liquidation Heatmap。
+- 不构建 LiquidationZone。
+- 不构建 heatmap provider。
+- 不把潜在清算区作为目标位、方向依据、止损依据或入场依据。
+- 技术指标解释器只能输出 EvidenceItem 或空结果，不能让 report_generator / 报告层直接做交易判断。
+
 ## 1. RSI 规则
 
 硬规则：

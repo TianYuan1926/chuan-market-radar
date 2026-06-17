@@ -2,6 +2,16 @@
 
 本文定义证据层。任何行情结论、评分和中文解释都必须先转化为 EvidenceItem，再进入 Strategy Engine。
 
+## 0. Strategy Engine v2 禁用边界
+
+- 本证据层不接入清算热力图。
+- 不使用 Liquidation Heatmap。
+- 不构建 LiquidationZone。
+- 不构建 heatmap provider。
+- 不把潜在清算区作为目标位、入场位、止损位或方向依据。
+- EvidenceItem 可以记录常规衍生品风险背景，但不能把清算热力图或清算区转成方向证据。
+- report_generator / 报告层只能翻译 Strategy Engine 的结构化结果，不能绕过 EvidenceItem 重新判断行情。
+
 ## 1. EvidenceItem 数据结构
 
 ```ts

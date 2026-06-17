@@ -93,7 +93,7 @@ Repository guard files to modify:
 - Consumes: none.
 - Produces: specification anchors and repository guard tests.
 
-- [ ] **Step 1: Add repository hygiene test for v2 specs and banned liquidation heatmap files**
+- [x] **Step 1: Add repository hygiene test for v2 specs and banned liquidation heatmap files**
 
 Add a test that asserts:
 
@@ -116,7 +116,7 @@ const bannedPathTokens = [
 
 The test must verify each spec contains `不使用清算热力图` or its relevant English equivalent, and no source path contains banned tokens.
 
-- [ ] **Step 2: Run test to verify it passes after specs exist**
+- [x] **Step 2: Run test to verify it passes after specs exist**
 
 Run: `npm run test:market`
 

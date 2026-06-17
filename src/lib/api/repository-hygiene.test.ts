@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
@@ -10,6 +10,27 @@ function lines(path: string) {
       .map((line) => line.trim())
       .filter((line) => line && !line.startsWith("#")),
   );
+}
+
+function listRepositoryFiles(root: string): string[] {
+  const rootPath = resolve(process.cwd(), root);
+  const entries = readdirSync(rootPath);
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const absolutePath = resolve(rootPath, entry);
+    const relativePath = `${root}/${entry}`;
+    const stat = statSync(absolutePath);
+
+    if (stat.isDirectory()) {
+      files.push(...listRepositoryFiles(relativePath));
+      continue;
+    }
+
+    files.push(relativePath);
+  }
+
+  return files;
 }
 
 test("repository ignore files keep local agent tooling and preview screenshots out of deployable source", () => {
@@ -31,6 +52,66 @@ test("repository ignore files keep local agent tooling and preview screenshots o
   for (const pattern of requiredPatterns) {
     assert.ok(gitignore.has(pattern), `.gitignore missing ${pattern}`);
     assert.ok(vercelignore.has(pattern), `.vercelignore missing ${pattern}`);
+  }
+});
+
+test("strategy engine v2 specs exist and ban liquidation heatmap modules", () => {
+  const requiredSpecs = [
+    "docs/CORE_STRATEGY_SPEC.md",
+    "docs/EVIDENCE_ENGINE_SPEC.md",
+    "docs/INDICATOR_RULES.md",
+    "docs/DATA_RULES.md",
+    "docs/GOLDEN_CASES.md",
+  ];
+  const requiredSpecTokens = [
+    /EvidenceItem/,
+    /不使用清算热力图|Liquidation Heatmap|LiquidationZone|heatmap provider|清算区/,
+    /report_generator|report generator|报告层/,
+  ];
+  const bannedPathTokens = [
+    "liquidation-heatmap",
+    "liquidation-zone",
+    "liquidation_heatmap",
+    "liquidation_zone",
+    "heatmap-provider",
+  ];
+  const bannedImplementationPatterns = [
+    /LiquidationHeatmap/u,
+    /LiquidationZone/u,
+    /HeatmapProvider/u,
+    /liquidation heatmap provider/iu,
+  ];
+
+  for (const specPath of requiredSpecs) {
+    assert.equal(existsSync(resolve(process.cwd(), specPath)), true, `${specPath} must exist`);
+
+    const specSource = readFileSync(resolve(process.cwd(), specPath), "utf8");
+
+    for (const token of requiredSpecTokens) {
+      assert.match(specSource, token, `${specPath} missing strategy v2 guard token ${token}`);
+    }
+  }
+
+  const sourceFiles = listRepositoryFiles("src");
+
+  for (const filePath of sourceFiles) {
+    const normalizedPath = filePath.toLowerCase();
+
+    for (const token of bannedPathTokens) {
+      assert.equal(
+        normalizedPath.includes(token),
+        false,
+        `source path must not implement liquidation heatmap modules: ${filePath}`,
+      );
+    }
+  }
+
+  for (const filePath of sourceFiles.filter((path) => !path.endsWith("repository-hygiene.test.ts"))) {
+    const source = readFileSync(resolve(process.cwd(), filePath), "utf8");
+
+    for (const pattern of bannedImplementationPatterns) {
+      assert.doesNotMatch(source, pattern, `source file must not implement liquidation heatmap modules: ${filePath}`);
+    }
   }
 });
 

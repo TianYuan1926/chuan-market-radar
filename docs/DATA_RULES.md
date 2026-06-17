@@ -146,6 +146,7 @@ BTC/ETH Macro Weather 只解释大盘环境，不抢山寨主线。
 ## 9. 数据输出格式
 
 所有数据解释器输出 EvidenceItem，不输出交易决策。
+report_generator / 报告层只能翻译结构化结果，不能从数据规则直接生成交易判断。
 
 ```ts
 type DataInterpretation = {
