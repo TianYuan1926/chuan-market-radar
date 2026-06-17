@@ -3050,7 +3050,8 @@ button.altcoin-opportunity-card.is-selected {
   line-height: 1;
 }
 
-.signal-dossier__v3-location {
+.signal-dossier__v3-location,
+.signal-dossier__v3-reaction {
   display: grid;
   gap: 8px;
   padding: 10px 12px;
@@ -3058,7 +3059,12 @@ button.altcoin-opportunity-card.is-selected {
   background: linear-gradient(135deg, rgba(213, 155, 61, 0.12), rgba(255, 255, 255, 0.32));
 }
 
-.signal-dossier__v3-location > div:first-child {
+.signal-dossier__v3-reaction {
+  background: linear-gradient(135deg, rgba(73, 140, 255, 0.11), rgba(255, 255, 255, 0.34));
+}
+
+.signal-dossier__v3-location > div:first-child,
+.signal-dossier__v3-reaction > div:first-child {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3070,17 +3076,24 @@ button.altcoin-opportunity-card.is-selected {
 .signal-dossier__v3-location span,
 .signal-dossier__v3-location b,
 .signal-dossier__v3-location p,
-.signal-dossier__v3-location small {
+.signal-dossier__v3-location small,
+.signal-dossier__v3-reaction strong,
+.signal-dossier__v3-reaction span,
+.signal-dossier__v3-reaction b,
+.signal-dossier__v3-reaction p,
+.signal-dossier__v3-reaction small {
   min-width: 0;
 }
 
-.signal-dossier__v3-location strong {
+.signal-dossier__v3-location strong,
+.signal-dossier__v3-reaction strong {
   color: var(--ink);
   font-size: 12px;
   font-weight: 950;
 }
 
-.signal-dossier__v3-location > div:first-child span {
+.signal-dossier__v3-location > div:first-child span,
+.signal-dossier__v3-reaction > div:first-child span {
   color: var(--ink-2);
   font-size: 11px;
   font-weight: 900;
@@ -3116,14 +3129,16 @@ button.altcoin-opportunity-card.is-selected {
   white-space: nowrap;
 }
 
-.signal-dossier__v3-location p {
+.signal-dossier__v3-location p,
+.signal-dossier__v3-reaction p {
   margin: 0;
   color: var(--ink-2);
   font-size: 11px;
   line-height: 1.45;
 }
 
-.signal-dossier__v3-location small {
+.signal-dossier__v3-location small,
+.signal-dossier__v3-reaction small {
   color: var(--red);
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 9px;

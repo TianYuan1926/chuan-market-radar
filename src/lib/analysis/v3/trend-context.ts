@@ -11,10 +11,14 @@ import {
 import {
   evaluateV3LocationRiskReward,
 } from "./location-rr";
+import {
+  evaluateV3ReactionQuality,
+} from "./reaction-quality";
 import type {
   KeyLevel,
   MarketReadingContext,
   StrategyV3LocationRiskReward,
+  StrategyV3ReactionQuality,
   StrategyV3TrendContext,
   TrendDecision,
   TrendScores,
@@ -278,12 +282,21 @@ function marketReadingsFor(input: BuildStrategyV3TrendContextInput, timeframes: 
   );
 }
 
+function reactionCandlesFor(input: BuildStrategyV3TrendContextInput) {
+  const signalTimeframe = input.sourceTimeframes.find((timeframe) => timeframe === input.signal.timeframe);
+  const fallbackTimeframe = input.sourceTimeframes.find((timeframe) => (input.candlesByTimeframe[timeframe]?.length ?? 0) > 0);
+  const timeframe = signalTimeframe ?? fallbackTimeframe;
+
+  return timeframe ? input.candlesByTimeframe[timeframe] ?? [] : [];
+}
+
 function noParticipationReasons(
   state: TrendState,
   scores: TrendScores,
   conflicts: string[],
   marketReadings: MarketReadingContext[],
   locationRiskReward?: StrategyV3LocationRiskReward,
+  reactionQuality?: StrategyV3ReactionQuality,
 ) {
   const reasons = conflicts.map((conflict) => `周期冲突：${conflict}`);
 
@@ -325,6 +338,14 @@ function noParticipationReasons(
     }
   }
 
+  if (reactionQuality?.riskFlags.includes("support_lost")) {
+    reasons.push("回踩质量：结构支撑失守，承接失败，等待重新站回支撑区。");
+  }
+
+  if (reactionQuality?.riskFlags.includes("resistance_reclaimed")) {
+    reasons.push("反抽质量：结构压力被收复，承压失败，等待重新跌回压力区。");
+  }
+
   if (state === "RANGE_COMPRESSION") {
     reasons.push("区间压缩尚未给出方向，等待突破和量能确认。");
   }
@@ -353,15 +374,26 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     direction: input.signal.direction,
     keyLevels: input.keyLevels,
   });
+  const reactionQuality = evaluateV3ReactionQuality({
+    candles: reactionCandlesFor(input),
+    currentPrice: input.currentPrice,
+    direction: input.signal.direction,
+    keyLevels: input.keyLevels,
+  });
   const noParticipation = noParticipationReasons(
     stateDecision.state,
     scores,
     conflicts,
     marketReadings,
     locationRiskReward,
+    reactionQuality,
+  );
+  const hardReactionFlags = reactionQuality.riskFlags.filter((flag) =>
+    flag === "support_lost" || flag === "resistance_reclaimed"
   );
   const blockedBy = [
     ...locationRiskReward.riskFlags,
+    ...hardReactionFlags,
     ...noParticipation.map((reason) => reason.split("：")[0] ?? reason),
   ];
 
@@ -376,6 +408,7 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     marketReadings,
     nextStep: stateDecision.nextStep,
     noParticipationReasons: noParticipation,
+    reactionQuality,
     riskGate: {
       allowed: noParticipation.length === 0,
       blockedBy: [...new Set(blockedBy)],

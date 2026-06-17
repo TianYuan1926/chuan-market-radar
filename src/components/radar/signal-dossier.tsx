@@ -298,6 +298,16 @@ function positionQualityLabel(value: NonNullable<SignalStrategyV3TrendContext["l
   }[value];
 }
 
+function reactionStatusLabel(value: NonNullable<SignalStrategyV3TrendContext["reactionQuality"]>["status"]) {
+  return {
+    CONFIRMED: "已确认",
+    FAILED: "已失败",
+    NO_REACTION: "无反应",
+    REACTION_STARTED: "反应中",
+    TOO_FAR_FROM_LEVEL: "未触达",
+  }[value];
+}
+
 function pricePointLabel(value: number | null) {
   if (value === null) {
     return "待确认";
@@ -478,6 +488,26 @@ export function SignalDossier({
                         {strategyV3.trendContext.locationRiskReward.riskFlags.length > 0 ? (
                           <small>{strategyV3.trendContext.locationRiskReward.riskFlags.join(" / ")}</small>
                         ) : null}
+                      </div>
+                    ) : null}
+                    {strategyV3.trendContext.reactionQuality ? (
+                      <div className="signal-dossier__v3-reaction" aria-label="v3 回踩/反抽质量">
+                        <div>
+                          <strong>回踩/反抽</strong>
+                          <span>{reactionStatusLabel(strategyV3.trendContext.reactionQuality.status)}</span>
+                        </div>
+                        <div className="signal-dossier__v3-location-grid">
+                          <span><b>{strategyV3.trendContext.reactionQuality.qualityScore}</b>质量分</span>
+                          <span><b>{strategyV3.trendContext.reactionQuality.touchedLevelId ?? "待确认"}</b>触达位</span>
+                          <span><b>{strategyV3.trendContext.reactionQuality.hasTradeSignal ? "异常" : "否"}</b>交易信号</span>
+                          <span><b>{strategyV3.trendContext.reactionQuality.allowedUse}</b>用途</span>
+                        </div>
+                        <p>{strategyV3.trendContext.reactionQuality.summary}</p>
+                        {strategyV3.trendContext.reactionQuality.riskFlags.length > 0 ? (
+                          <small>{strategyV3.trendContext.reactionQuality.riskFlags.join(" / ")}</small>
+                        ) : (
+                          <small>{strategyV3.trendContext.reactionQuality.evidence.slice(0, 2).join(" / ")}</small>
+                        )}
                       </div>
                     ) : null}
                     <div className="signal-dossier__v3-timeframes" aria-label="v3 timeframe structures">

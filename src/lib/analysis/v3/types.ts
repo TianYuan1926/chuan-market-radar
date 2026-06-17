@@ -245,6 +245,33 @@ export type StrategyV3LocationRiskReward = {
   stopLevelId: string | null;
 };
 
+export type V3ReactionStatus =
+  | "CONFIRMED"
+  | "FAILED"
+  | "NO_REACTION"
+  | "REACTION_STARTED"
+  | "TOO_FAR_FROM_LEVEL";
+
+export type V3ReactionRiskFlag =
+  | "no_relevant_level"
+  | "no_recent_touch"
+  | "resistance_reclaimed"
+  | "support_lost";
+
+export type StrategyV3ReactionQuality = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  direction: V3LocationDirection;
+  evidence: string[];
+  hasTradeSignal: false;
+  qualityScore: number;
+  riskFlags: V3ReactionRiskFlag[];
+  status: V3ReactionStatus;
+  summary: string;
+  touchedLevelId: string | null;
+};
+
 export type StrategyV3TrendContext = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -256,6 +283,7 @@ export type StrategyV3TrendContext = {
   marketReadings?: MarketReadingContext[];
   nextStep: string;
   noParticipationReasons: string[];
+  reactionQuality?: StrategyV3ReactionQuality;
   riskGate: StrategyV3RiskGate;
   scores: TrendScores;
   state: TrendState;
