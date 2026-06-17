@@ -502,6 +502,17 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       .filter((entry) => normalizeDossierSymbol(entry.symbol) === target)
       .slice(0, 8);
   }, [journalEntries, selectedDossierSignal]);
+  const chartJournalMatches = useMemo(() => {
+    if (!selected) {
+      return [];
+    }
+
+    const target = normalizeDossierSymbol(selected.symbol);
+
+    return journalEntries
+      .filter((entry) => normalizeDossierSymbol(entry.symbol) === target)
+      .slice(0, 3);
+  }, [journalEntries, selected]);
   const dailyMoverMatches = useMemo<SignalDossierDailyMoverMatch[]>(() => {
     if (!selectedDossierSignal) {
       return [];
@@ -1275,6 +1286,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
           <StrategyCard selected={selected} />
           <ChartPanel
             activeTimeframe={activeTimeframe}
+            journalMatches={chartJournalMatches}
             onTimeframeChange={setActiveTimeframe}
             selected={selected}
           />

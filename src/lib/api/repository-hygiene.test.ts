@@ -1299,6 +1299,84 @@ test("journal panel exposes v3 pattern and trade-plan review stats as readonly s
   assert.match(cssSource, /\.v3-review-stats__samples/);
 });
 
+test("chart panel exposes active timeframe v3 structure context without replacing TradingView", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(componentSource, /strategyV3/);
+  assert.match(componentSource, /activeV3Timeframe/);
+  assert.match(componentSource, /v3 多周期上下文/);
+  assert.match(componentSource, /chart-v3-context/);
+  assert.match(componentSource, /chart-v3-levels/);
+  assert.match(componentSource, /chart-v3-plan/);
+  assert.match(componentSource, /TradingView 图表/);
+  assert.match(cssSource, /\.chart-v3-context/);
+  assert.match(cssSource, /\.chart-v3-levels/);
+  assert.match(cssSource, /\.chart-v3-plan/);
+});
+
+test("chart panel exposes readonly v3 key-level and forward-map drilldown details", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(componentSource, /activeDrilldownLevel/);
+  assert.match(componentSource, /activeForwardDrilldown/);
+  assert.match(componentSource, /chart-v3-drilldown/);
+  assert.match(componentSource, /chart-v3-forward-drilldown/);
+  assert.match(componentSource, /chart-v3-manual-review/);
+  assert.match(componentSource, /confirmationRules/);
+  assert.match(componentSource, /invalidationRules/);
+  assert.match(componentSource, /只读复核/);
+  assert.match(cssSource, /\.chart-v3-drilldown/);
+  assert.match(cssSource, /\.chart-v3-forward-drilldown/);
+  assert.match(cssSource, /\.chart-v3-manual-review/);
+});
+
+test("chart panel links selected signal v3 context to readonly journal review samples", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(workspaceSource, /chartJournalMatches/);
+  assert.match(workspaceSource, /journalMatches=\{chartJournalMatches\}/);
+  assert.match(componentSource, /journalMatches/);
+  assert.match(componentSource, /chart-v3-review-links/);
+  assert.match(componentSource, /v3_pattern_/);
+  assert.match(componentSource, /v3_trade_/);
+  assert.match(componentSource, /plannedReviewAt/);
+  assert.match(componentSource, /复盘样本/);
+  assert.match(cssSource, /\.chart-v3-review-links/);
+});
+
+test("chart panel exposes readonly forward-map review executor events", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(componentSource, /forwardReviewEvents/);
+  assert.match(componentSource, /trendRadarReview/);
+  assert.match(componentSource, /chart-v3-forward-review-events/);
+  assert.match(componentSource, /forward_map_review/);
+  assert.match(componentSource, /key_level_reaction_review/);
+  assert.match(componentSource, /事后复核/);
+  assert.match(componentSource, /evidenceIds/);
+  assert.match(cssSource, /\.chart-v3-forward-review-events/);
+});
+
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(
