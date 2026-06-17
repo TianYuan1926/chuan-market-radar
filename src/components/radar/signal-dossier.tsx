@@ -308,6 +308,16 @@ function reactionStatusLabel(value: NonNullable<SignalStrategyV3TrendContext["re
   }[value];
 }
 
+function trendIntegrityStatusLabel(value: NonNullable<SignalStrategyV3TrendContext["trendIntegrity"]>["status"]) {
+  return {
+    DAMAGED_TREND: "结构受损",
+    EXHAUSTION_RISK: "衰竭风险",
+    HEALTHY_TREND: "趋势健康",
+    INSUFFICIENT_DATA: "样本不足",
+    RANGE_BOUND: "区间约束",
+  }[value];
+}
+
 function pricePointLabel(value: number | null) {
   if (value === null) {
     return "待确认";
@@ -507,6 +517,26 @@ export function SignalDossier({
                           <small>{strategyV3.trendContext.reactionQuality.riskFlags.join(" / ")}</small>
                         ) : (
                           <small>{strategyV3.trendContext.reactionQuality.evidence.slice(0, 2).join(" / ")}</small>
+                        )}
+                      </div>
+                    ) : null}
+                    {strategyV3.trendContext.trendIntegrity ? (
+                      <div className="signal-dossier__v3-integrity" aria-label="v3 趋势完整度">
+                        <div>
+                          <strong>趋势完整度</strong>
+                          <span>{trendIntegrityStatusLabel(strategyV3.trendContext.trendIntegrity.status)}</span>
+                        </div>
+                        <div className="signal-dossier__v3-location-grid">
+                          <span><b>{strategyV3.trendContext.trendIntegrity.integrityScore}</b>完整度</span>
+                          <span><b>{strategyV3.trendContext.trendIntegrity.direction}</b>方向</span>
+                          <span><b>{strategyV3.trendContext.trendIntegrity.hasTradeSignal ? "异常" : "否"}</b>交易信号</span>
+                          <span><b>{strategyV3.trendContext.trendIntegrity.canMutateLiveRanking ? "异常" : "否"}</b>影响排序</span>
+                        </div>
+                        <p>{strategyV3.trendContext.trendIntegrity.summary}</p>
+                        {strategyV3.trendContext.trendIntegrity.riskFlags.length > 0 ? (
+                          <small>{strategyV3.trendContext.trendIntegrity.riskFlags.join(" / ")}</small>
+                        ) : (
+                          <small>{strategyV3.trendContext.trendIntegrity.evidence.slice(0, 2).join(" / ")}</small>
                         )}
                       </div>
                     ) : null}

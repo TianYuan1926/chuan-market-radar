@@ -14,11 +14,15 @@ import {
 import {
   evaluateV3ReactionQuality,
 } from "./reaction-quality";
+import {
+  evaluateV3TrendIntegrity,
+} from "./trend-integrity";
 import type {
   KeyLevel,
   MarketReadingContext,
   StrategyV3LocationRiskReward,
   StrategyV3ReactionQuality,
+  StrategyV3TrendIntegrity,
   StrategyV3TrendContext,
   TrendDecision,
   TrendScores,
@@ -297,6 +301,7 @@ function noParticipationReasons(
   marketReadings: MarketReadingContext[],
   locationRiskReward?: StrategyV3LocationRiskReward,
   reactionQuality?: StrategyV3ReactionQuality,
+  trendIntegrity?: StrategyV3TrendIntegrity,
 ) {
   const reasons = conflicts.map((conflict) => `周期冲突：${conflict}`);
 
@@ -346,6 +351,22 @@ function noParticipationReasons(
     reasons.push("反抽质量：结构压力被收复，承压失败，等待重新跌回压力区。");
   }
 
+  if (trendIntegrity?.riskFlags.includes("bull_structure_broken")) {
+    reasons.push("趋势完整度：多头 HH/HL 序列被破坏，禁止把回调当作健康承接。");
+  }
+
+  if (trendIntegrity?.riskFlags.includes("bear_structure_broken")) {
+    reasons.push("趋势完整度：空头 LH/LL 序列被破坏，禁止把反弹当作健康承压。");
+  }
+
+  if (trendIntegrity?.riskFlags.includes("upper_wick_exhaustion")) {
+    reasons.push("趋势完整度：上攻后出现假突破或上影线衰竭，禁止追高。");
+  }
+
+  if (trendIntegrity?.riskFlags.includes("lower_wick_exhaustion")) {
+    reasons.push("趋势完整度：下破后出现假跌破或下影线衰竭，禁止追空。");
+  }
+
   if (state === "RANGE_COMPRESSION") {
     reasons.push("区间压缩尚未给出方向，等待突破和量能确认。");
   }
@@ -380,6 +401,12 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     direction: input.signal.direction,
     keyLevels: input.keyLevels,
   });
+  const trendIntegrity = evaluateV3TrendIntegrity({
+    candles: reactionCandlesFor(input),
+    direction: input.signal.direction,
+    marketReadings,
+    timeframes,
+  });
   const noParticipation = noParticipationReasons(
     stateDecision.state,
     scores,
@@ -387,13 +414,21 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     marketReadings,
     locationRiskReward,
     reactionQuality,
+    trendIntegrity,
   );
   const hardReactionFlags = reactionQuality.riskFlags.filter((flag) =>
     flag === "support_lost" || flag === "resistance_reclaimed"
   );
+  const hardTrendIntegrityFlags = trendIntegrity.riskFlags.filter((flag) =>
+    flag === "bull_structure_broken"
+    || flag === "bear_structure_broken"
+    || flag === "upper_wick_exhaustion"
+    || flag === "lower_wick_exhaustion"
+  );
   const blockedBy = [
     ...locationRiskReward.riskFlags,
     ...hardReactionFlags,
+    ...hardTrendIntegrityFlags,
     ...noParticipation.map((reason) => reason.split("：")[0] ?? reason),
   ];
 
@@ -418,5 +453,6 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     state: stateDecision.state,
     summary: `${input.symbol} 多周期结构：${timeframes.map((item) => `${item.timeframe}:${item.structure}`).join(" / ")}。`,
     timeframes,
+    trendIntegrity,
   };
 }

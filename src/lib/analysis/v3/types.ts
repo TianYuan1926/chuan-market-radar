@@ -272,6 +272,34 @@ export type StrategyV3ReactionQuality = {
   touchedLevelId: string | null;
 };
 
+export type V3TrendIntegrityStatus =
+  | "DAMAGED_TREND"
+  | "EXHAUSTION_RISK"
+  | "HEALTHY_TREND"
+  | "INSUFFICIENT_DATA"
+  | "RANGE_BOUND";
+
+export type V3TrendIntegrityRiskFlag =
+  | "bear_structure_broken"
+  | "bull_structure_broken"
+  | "insufficient_market_reading"
+  | "lower_wick_exhaustion"
+  | "low_alignment"
+  | "upper_wick_exhaustion";
+
+export type StrategyV3TrendIntegrity = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  direction: V3LocationDirection;
+  evidence: string[];
+  hasTradeSignal: false;
+  integrityScore: number;
+  riskFlags: V3TrendIntegrityRiskFlag[];
+  status: V3TrendIntegrityStatus;
+  summary: string;
+};
+
 export type StrategyV3TrendContext = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -289,6 +317,7 @@ export type StrategyV3TrendContext = {
   state: TrendState;
   summary: string;
   timeframes: TrendTimeframeContext[];
+  trendIntegrity?: StrategyV3TrendIntegrity;
 };
 
 export type TrendRadarReviewType =
