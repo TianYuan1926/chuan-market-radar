@@ -318,6 +318,17 @@ function trendIntegrityStatusLabel(value: NonNullable<SignalStrategyV3TrendConte
   }[value];
 }
 
+function tradePlanStatusLabel(value: NonNullable<SignalStrategyV3["tradePlan"]>["status"]) {
+  return {
+    BLOCKED: "已阻断",
+    READY_LONG: "多头草案",
+    READY_SHORT: "空头草案",
+    WAIT_PULLBACK: "等回踩",
+    WAIT_RETEST: "等反抽",
+    WATCH_ONLY: "只观察",
+  }[value];
+}
+
 function pricePointLabel(value: number | null) {
   if (value === null) {
     return "待确认";
@@ -581,6 +592,26 @@ export function SignalDossier({
                       </div>
                     ) : null}
                   </>
+                ) : null}
+                {strategyV3.tradePlan ? (
+                  <div className="signal-dossier__v3-trade-plan" aria-label="v3 计划草案">
+                    <div>
+                      <strong>v3 计划草案</strong>
+                      <span>{tradePlanStatusLabel(strategyV3.tradePlan.status)}</span>
+                    </div>
+                    <div className="signal-dossier__v3-location-grid">
+                      <span><b>{strategyV3.tradePlan.rewardRisk === null ? "待确认" : `${strategyV3.tradePlan.rewardRisk.toFixed(2)}R`}</b>赔率</span>
+                      <span><b>{pricePointLabel(strategyV3.tradePlan.structuralStop)}</b>失效</span>
+                      <span><b>{strategyV3.tradePlan.targets[0] === undefined ? "待确认" : pricePointLabel(strategyV3.tradePlan.targets[0])}</b>目标</span>
+                      <span><b>{strategyV3.tradePlan.hasAutoExecution ? "异常" : "否"}</b>自动执行</span>
+                    </div>
+                    <p>{strategyV3.tradePlan.summary}</p>
+                    <small>
+                      {strategyV3.tradePlan.isPlanEligible
+                        ? strategyV3.tradePlan.confirmationChecklist.slice(0, 3).join(" / ")
+                        : strategyV3.tradePlan.blockedBy.slice(0, 5).join(" / ") || "等待更多证据"}
+                    </small>
+                  </div>
                 ) : null}
                 <div className="signal-dossier__v3-levels" aria-label="v3 key levels">
                   {strategyV3.keyLevels.slice(0, 6).map((level) => (

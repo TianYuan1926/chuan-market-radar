@@ -300,6 +300,35 @@ export type StrategyV3TrendIntegrity = {
   summary: string;
 };
 
+export type V3TradePlanStatus =
+  | "BLOCKED"
+  | "READY_LONG"
+  | "READY_SHORT"
+  | "WAIT_PULLBACK"
+  | "WAIT_RETEST"
+  | "WATCH_ONLY";
+
+export type StrategyV3TradePlan = {
+  allowedUse: "research_only";
+  blockedBy: string[];
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  confirmationChecklist: string[];
+  direction: V3LocationDirection;
+  entryZone: string;
+  hasAutoExecution: false;
+  invalidation: string;
+  isPlanEligible: boolean;
+  manualReviewRequired: true;
+  positionSizing: string;
+  rewardRisk: number | null;
+  status: V3TradePlanStatus;
+  structuralStop: number | null;
+  summary: string;
+  takeProfitPlan: string;
+  targets: number[];
+};
+
 export type StrategyV3TrendContext = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -392,6 +421,7 @@ export type StrategyV3Dossier = {
   sourceTimeframes: TrendTimeframe[];
   summary: string;
   symbol: string;
+  tradePlan?: StrategyV3TradePlan;
   trendContext?: StrategyV3TrendContext;
 };
 

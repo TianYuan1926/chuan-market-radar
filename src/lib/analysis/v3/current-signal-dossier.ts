@@ -14,6 +14,9 @@ import {
 import {
   buildStrategyV3TrendContext,
 } from "./trend-context";
+import {
+  buildV3TradePlan,
+} from "./trade-plan";
 import type {
   KeyLevel,
   StrategyV3Dossier,
@@ -136,6 +139,11 @@ export function buildSignalTrendRadarV3Dossier(
     sourceTimeframes,
     symbol: input.signal.symbol,
   });
+  const tradePlan = buildV3TradePlan({
+    currentPrice,
+    signal: input.signal,
+    trendContext,
+  });
 
   return {
     allowedUse: "research_only",
@@ -154,6 +162,7 @@ export function buildSignalTrendRadarV3Dossier(
     sourceTimeframes,
     summary: `${input.signal.symbol} v3 关键位地图已从 ${sourceTimeframes.join("/")} OHLCV 构建，保留 ${keyLevels.length} 个关键位与 ${forwardLevels.length} 个前方位；${trendContext.summary}`,
     symbol: input.signal.symbol,
+    tradePlan,
     trendContext,
   };
 }
