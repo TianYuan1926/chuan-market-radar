@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartPanel } from "./chart-panel";
+import { AltcoinOpportunityBoard } from "./altcoin-opportunity-board";
 import { DailyMoverPanel } from "./daily-mover-panel";
 import { EventCenterPanel } from "./event-center-panel";
 import { JournalPanel } from "./journal-panel";
@@ -48,6 +49,7 @@ import {
   compareSignalSets,
   type SignalSetDelta,
 } from "@/lib/market/live-refresh";
+import { buildAltcoinOpportunityBoard } from "@/lib/market/altcoin-opportunities";
 import type { MarketRadarSnapshot } from "@/lib/market/types";
 
 type RadarWorkspaceProps = {
@@ -556,6 +558,15 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       .filter((event) => event.symbol && normalizeDossierSymbol(event.symbol) === target)
       .slice(0, 5);
   }, [alertEvents, selectedDossierSignal]);
+  const altcoinOpportunityBoard = useMemo(
+    () => buildAltcoinOpportunityBoard({
+      dailyMoverDetails: dailyMoverState.selectedDetails,
+      journalEvents: journalEntries,
+      scanStatus: metadata.status,
+      signals,
+    }),
+    [dailyMoverState.selectedDetails, journalEntries, metadata.status, signals],
+  );
 
   const mood = selected?.risk === "high" || selected?.risk === "blocked"
     ? "serious"
@@ -1123,14 +1134,20 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         )}
         center={(
           <>
-          <div className="altcoin-opportunity-board" aria-label="Altcoin Opportunity Board 山寨机会板">
+            <AltcoinOpportunityBoard
+              ariaLabel="Altcoin Opportunity Board 山寨机会板"
+              board={altcoinOpportunityBoard}
+              selectedId={selected?.id}
+              onOpenDossier={openSignalDossier}
+              onSelectSignal={selectSignal}
+            />
+
             <RadarTable
               signals={signals}
               selectedId={selected?.id}
               onOpenDossier={openSignalDossier}
               onSelect={selectSignal}
             />
-          </div>
 
           <section className="module altcoin-heat-module">
             <div className="module-head">

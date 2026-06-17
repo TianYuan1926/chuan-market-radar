@@ -1103,23 +1103,356 @@ p {
   color: var(--ink);
 }
 
-.altcoin-opportunity-board .module {
+.altcoin-opportunity-board {
+  overflow: hidden;
   border-color: rgba(21, 23, 28, 0.52);
   background:
-    linear-gradient(90deg, rgba(213, 155, 61, 0.1), transparent 42%),
-    rgba(255, 250, 240, 0.9);
+    radial-gradient(circle at 18% 0%, rgba(55, 90, 255, 0.12), transparent 30%),
+    linear-gradient(115deg, rgba(213, 155, 61, 0.13), transparent 36%),
+    rgba(255, 250, 240, 0.94);
 }
 
-.altcoin-opportunity-board .module-head h2::after {
-  content: " / Altcoin Opportunity Board";
+.altcoin-opportunity-board .module-head {
+  align-items: flex-start;
+}
+
+.altcoin-opportunity-board__legend {
+  display: inline-flex;
+  margin-top: 6px;
   color: var(--muted);
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
-.altcoin-opportunity-board .candidate-row {
-  grid-template-columns: minmax(84px, 0.72fr) 54px minmax(220px, 2fr) minmax(160px, 1.18fr) minmax(160px, 1.18fr);
+.altcoin-opportunity-board__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: rgba(21, 23, 28, 0.035);
+}
+
+.altcoin-opportunity-board__summary span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.altcoin-opportunity-board__summary span:last-child {
+  border-right: 0;
+}
+
+.altcoin-opportunity-board__summary b {
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.altcoin-opportunity-board__groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+
+.altcoin-opportunity-group {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.72), rgba(244, 240, 232, 0.84)),
+    rgba(255, 250, 240, 0.82);
+}
+
+.altcoin-opportunity-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.altcoin-opportunity-group__head span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.altcoin-opportunity-group__head b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.altcoin-opportunity-group__head em {
+  min-width: 23px;
+  height: 23px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(255, 250, 240, 0.72);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.altcoin-opportunity-group > p {
+  min-height: 48px;
+  margin: 0;
+  padding: 9px 10px;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.altcoin-opportunity-group__items {
+  display: grid;
+  gap: 8px;
+  padding: 0 9px 10px;
+}
+
+.altcoin-opportunity-card {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  width: 100%;
+  min-height: 128px;
+  padding: 10px;
+  border: 1px solid rgba(21, 23, 28, 0.16);
+  background:
+    linear-gradient(135deg, rgba(255, 250, 240, 0.88), rgba(233, 227, 216, 0.64)),
+    rgba(255, 250, 240, 0.8);
+  color: var(--ink);
+  text-align: left;
+  transition: transform 260ms var(--curve), border-color 260ms var(--curve), background 260ms var(--curve);
+}
+
+.altcoin-opportunity-card > * {
+  min-width: 0;
+}
+
+button.altcoin-opportunity-card {
+  cursor: pointer;
+}
+
+button.altcoin-opportunity-card:hover,
+button.altcoin-opportunity-card.is-selected {
+  transform: translateY(-2px);
+  border-color: rgba(21, 23, 28, 0.42);
+  background:
+    linear-gradient(135deg, rgba(213, 155, 61, 0.16), rgba(255, 250, 240, 0.9)),
+    rgba(255, 250, 240, 0.92);
+}
+
+.altcoin-opportunity-card--near_trigger {
+  border-left: 3px solid var(--blue);
+}
+
+.altcoin-opportunity-card--long_warming {
+  border-left: 3px solid var(--green);
+}
+
+.altcoin-opportunity-card--short_warming {
+  border-left: 3px solid var(--red);
+}
+
+.altcoin-opportunity-card--no_chase {
+  border-left: 3px solid var(--amber);
+  background:
+    repeating-linear-gradient(135deg, rgba(213, 155, 61, 0.1) 0 7px, transparent 7px 14px),
+    rgba(255, 250, 240, 0.82);
+}
+
+.altcoin-opportunity-card--new_long_tail {
+  border-left: 3px solid #6b5cff;
+}
+
+.altcoin-opportunity-card--data_watch {
+  border-left: 3px solid var(--steel);
+  opacity: 0.88;
+}
+
+.altcoin-opportunity-card--empty {
+  min-height: 62px;
+  place-items: center;
+  color: var(--muted);
+  background: rgba(21, 23, 28, 0.03);
+}
+
+.altcoin-opportunity-card__topline,
+.altcoin-opportunity-card__footer,
+.altcoin-opportunity-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.altcoin-opportunity-card__topline,
+.altcoin-opportunity-card__footer {
+  justify-content: space-between;
+}
+
+.altcoin-opportunity-card__symbol {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.altcoin-opportunity-card__score {
+  min-width: 34px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(21, 23, 28, 0.05);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.altcoin-opportunity-card__meta {
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.altcoin-opportunity-card p {
+  display: -webkit-box;
+  min-height: 34px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.altcoin-opportunity-card__strategy,
+.altcoin-opportunity-card__context {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.altcoin-opportunity-card__strategy span,
+.altcoin-opportunity-card__context span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.altcoin-opportunity-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.altcoin-opportunity-badge {
+  max-width: 100%;
+  min-width: 0;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  overflow: hidden;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-2);
+  background: rgba(255, 250, 240, 0.68);
+  font-size: 10px;
+}
+
+.altcoin-opportunity-badge b,
+.altcoin-opportunity-badge small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.altcoin-opportunity-badge b {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.altcoin-opportunity-badge small {
+  flex: 1 1 auto;
+  color: var(--muted);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.altcoin-opportunity-badge--good {
+  border-color: rgba(39, 140, 102, 0.32);
+  background: rgba(39, 140, 102, 0.1);
+}
+
+.altcoin-opportunity-badge--warn {
+  border-color: rgba(213, 155, 61, 0.42);
+  background: rgba(213, 155, 61, 0.13);
+}
+
+.altcoin-opportunity-badge--bad {
+  border-color: rgba(201, 74, 74, 0.36);
+  background: rgba(201, 74, 74, 0.1);
+}
+
+.altcoin-opportunity-card__footer {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.altcoin-opportunity-card__footer span,
+.altcoin-opportunity-card__footer strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.altcoin-opportunity-card__footer strong {
+  color: var(--red);
+  font-size: 10px;
+}
+
+.altcoin-opportunity-card__context {
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+
+.altcoin-opportunity-card__context--stale {
+  color: var(--red);
 }
 
 .candidate-table {
@@ -6567,6 +6900,10 @@ p {
     grid-column: 1 / -1;
     white-space: normal;
   }
+
+  .altcoin-opportunity-board__groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 940px) {
@@ -6639,8 +6976,21 @@ p {
     grid-template-columns: 76px 52px minmax(0, 1fr);
   }
 
-  .altcoin-opportunity-board .candidate-row {
-    grid-template-columns: 76px 52px minmax(0, 1fr);
+  .altcoin-opportunity-board__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .altcoin-opportunity-board__summary span:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .altcoin-opportunity-board__groups {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .altcoin-opportunity-group > p {
+    min-height: auto;
   }
 
   .row-trigger,

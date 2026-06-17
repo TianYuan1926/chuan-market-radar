@@ -131,18 +131,21 @@ Add live runtime feedback
 
 **Purpose:** Make altcoins the primary opportunity surface.
 
-- [ ] Derive groups from existing scan, universe, daily mover, journal, alert, and replay data first.
-- [ ] Add groups: long warming, short warming, near trigger, overextended/no chase, new/long-tail watch, data-insufficient watch.
-- [ ] Show evidence on every item: OI, funding, volume, volatility, price move, BTC/ETH environment, stale/data-quality status.
-- [ ] Selecting an item updates `SignalFocusPanel`, TradingView action, companion line, and quick journal context.
-- [ ] Add tests for grouping, stale handling, and no-FOMO labels.
-- [ ] Run full verification.
+- [x] Derive groups from existing scan, daily mover, journal, and scan-status data first.
+- [x] Add groups: long warming, short warming, near trigger, overextended/no chase, new/long-tail watch, data-insufficient watch.
+- [x] Show evidence on every item: OI, funding, volume, volatility, price move, BTC/ETH environment, stale/data-quality status when present.
+- [x] Selecting a scan-backed item updates the selected signal and opens Signal Dossier.
+- [x] Keep daily movers as research/review context, not trade signals.
+- [x] Add tests for grouping, stale handling, no-FOMO labels, and the UI contract.
+- [x] Run full verification.
 
 **Acceptance:**
 
 - The homepage answers which altcoins deserve attention and why.
 - Daily movers are context, not trade signals.
 - No extra CoinGlass request spike.
+- Desktop QA: 1440x1000 keeps the 2 : 6 : 2 cockpit columns, renders 6 opportunity groups, and has no horizontal overflow.
+- Mobile QA: 390x844 renders a one-column opportunity board, keeps the center column first, and has no horizontal overflow.
 
 **GitHub Desktop Summary:**
 

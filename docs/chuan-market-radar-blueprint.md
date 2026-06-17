@@ -936,6 +936,7 @@ CoinGlass 业余会员 API：
 - Phase 8.2b-R 已落地：Tailwind CSS、daisyUI、PostCSS、`postcss.config.mjs`、`globals.css` 入口和 webpack 生产构建路径已接入，Element Plus 继续保持参考-only。
 - Phase 8.2c 已落地：新增 `TopRadarBar`、`RadarBootBriefing`、`RadarCockpitShell` 和 `OpsAndFilterPanel`，`radar-workspace.tsx` 改为组合新 AppShell；桌面 2 : 6 : 2、移动 tabs、机会区优先、候选池文字不遮挡已通过本地浏览器 QA。
 - Phase 8.2d 已落地：顶部常驻运行反馈层加入扫描心跳、下次扫描倒计时、数据新鲜度、市场时段时钟、CoinGlass/Neon/归档/Cron 状态矩阵和 stale/degraded 色阶；背景音乐继续删除，只保留用户主动开启的提示音边界。桌面 1440x1000 与移动 390x844 已通过本地生产构建浏览器 QA，无横向溢出，候选行不遮挡。
+- Phase 3.8 已落地：中栏新增 `AltcoinOpportunityBoard` 作为山寨机会主筛选面，把现有扫描信号和每日异动复盘上下文分组为接近触发、多头升温、空头升温、过热勿追、新币/长尾和数据观察；该面板不新增 CoinGlass 请求，不把每日异动直接升级为交易信号，点击扫描信号会联动 Signal Dossier。
 - 移动端不挤压、不重叠。
 
 后续正确 UI 搭建顺序：
@@ -962,6 +963,7 @@ CoinGlass 业余会员 API：
    - 把山寨币机会作为首页核心，而不是只展示通用候选池。
    - 分出多头升温、空头升温、过热勿追、新币观察、长尾轮转和近期异动来源。
    - 与扫描经济、涨跌榜归因、Signal Dossier 和复盘样本互通。
+   - 当前状态：已完成基础机会板；它复用现有扫描、日记和每日异动只读数据，不新增 CoinGlass 请求；后续可继续增强排序解释、更多筛选和可视化细节。
 
 5. **Phase 3.9：BTC ETH Macro Radar**
    - BTC/ETH/ETF/OI/funding/liquidations 作为大盘天气，不抢山寨主线。

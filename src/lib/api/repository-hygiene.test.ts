@@ -520,6 +520,67 @@ test("phase 8.2d live runtime layer exposes heartbeat, countdown, freshness, and
   assert.equal(topBarSource.includes("<audio"), false);
 });
 
+test("phase 3.8 altcoin opportunity board is the primary grouped opportunity surface", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const componentPath = resolve(process.cwd(), "src/components/radar/altcoin-opportunity-board.tsx");
+  const componentSource = existsSync(componentPath) ? readFileSync(componentPath, "utf8") : "";
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredWorkspaceTokens = [
+    "AltcoinOpportunityBoard",
+    "buildAltcoinOpportunityBoard",
+    "altcoinOpportunityBoard",
+    "dailyMoverState.selectedDetails",
+    "metadata.status",
+  ];
+  const requiredLabels = [
+    "山寨机会板",
+    "多头升温",
+    "空头升温",
+    "接近触发",
+    "过热勿追",
+    "新币/长尾",
+    "数据观察",
+    "禁止追单",
+    "复盘上下文",
+    "不新增请求",
+    "OI",
+    "资金",
+    "量能",
+  ];
+  const requiredClasses = [
+    "altcoin-opportunity-board",
+    "altcoin-opportunity-board__summary",
+    "altcoin-opportunity-board__groups",
+    "altcoin-opportunity-group",
+    "altcoin-opportunity-card",
+    "altcoin-opportunity-card__badges",
+    "altcoin-opportunity-card--no_chase",
+    "altcoin-opportunity-card--new_long_tail",
+  ];
+
+  assert.equal(existsSync(componentPath), true, "AltcoinOpportunityBoard component must exist");
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.match(workspaceSource, new RegExp(token));
+  }
+
+  for (const label of requiredLabels) {
+    assert.match(componentSource, new RegExp(label));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(componentSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  assert.equal(componentSource.includes("买入"), false);
+  assert.equal(componentSource.includes("卖出"), false);
+  assert.equal(componentSource.includes("梭哈"), false);
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
