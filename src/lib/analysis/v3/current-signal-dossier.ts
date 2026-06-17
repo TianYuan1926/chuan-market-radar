@@ -12,6 +12,9 @@ import {
   buildKeyLevels,
 } from "./key-level-engine";
 import {
+  buildV3PatternLibrary,
+} from "./pattern-library";
+import {
   buildStrategyV3TrendContext,
 } from "./trend-context";
 import {
@@ -144,6 +147,11 @@ export function buildSignalTrendRadarV3Dossier(
     signal: input.signal,
     trendContext,
   });
+  const patternLibrary = buildV3PatternLibrary({
+    candlesByTimeframe: input.candlesByTimeframe,
+    sourceTimeframes,
+    symbol: input.signal.symbol,
+  });
 
   return {
     allowedUse: "research_only",
@@ -157,6 +165,7 @@ export function buildSignalTrendRadarV3Dossier(
       "触发、失效和目标仍必须经过 Risk Gate 与人工复盘确认。",
     ],
     keyLevels,
+    patternLibrary,
     primaryTimeframe: primary,
     source: "existing_ohlcv_key_level_mvp",
     sourceTimeframes,

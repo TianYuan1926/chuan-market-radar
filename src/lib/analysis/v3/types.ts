@@ -329,6 +329,40 @@ export type StrategyV3TradePlan = {
   targets: number[];
 };
 
+export type V3PatternBias =
+  | "BEARISH_CONTEXT"
+  | "BULLISH_CONTEXT"
+  | "NEUTRAL_CONTEXT"
+  | "RISK_CONTEXT";
+
+export type V3PatternType =
+  | "DOUBLE_BOTTOM"
+  | "DOUBLE_TOP";
+
+export type StrategyV3Pattern = {
+  allowedUse: "research_only";
+  bias: V3PatternBias;
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  confidence: number;
+  evidence: string[];
+  hasTradeSignal: false;
+  invalidationHint: string;
+  timeframe: TrendTimeframe;
+  type: V3PatternType;
+};
+
+export type StrategyV3PatternLibrary = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  dominantPattern: StrategyV3Pattern | null;
+  hasTradeSignal: false;
+  maxWeightPercent: number;
+  patterns: StrategyV3Pattern[];
+  summary: string;
+};
+
 export type StrategyV3TrendContext = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -421,6 +455,7 @@ export type StrategyV3Dossier = {
   sourceTimeframes: TrendTimeframe[];
   summary: string;
   symbol: string;
+  patternLibrary?: StrategyV3PatternLibrary;
   tradePlan?: StrategyV3TradePlan;
   trendContext?: StrategyV3TrendContext;
 };

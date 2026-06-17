@@ -329,6 +329,15 @@ function tradePlanStatusLabel(value: NonNullable<SignalStrategyV3["tradePlan"]>[
   }[value];
 }
 
+function patternBiasLabel(value: NonNullable<SignalStrategyV3["patternLibrary"]>["patterns"][number]["bias"]) {
+  return {
+    BEARISH_CONTEXT: "偏空上下文",
+    BULLISH_CONTEXT: "偏多上下文",
+    NEUTRAL_CONTEXT: "中性上下文",
+    RISK_CONTEXT: "风险上下文",
+  }[value];
+}
+
 function pricePointLabel(value: number | null) {
   if (value === null) {
     return "待确认";
@@ -610,6 +619,25 @@ export function SignalDossier({
                       {strategyV3.tradePlan.isPlanEligible
                         ? strategyV3.tradePlan.confirmationChecklist.slice(0, 3).join(" / ")
                         : strategyV3.tradePlan.blockedBy.slice(0, 5).join(" / ") || "等待更多证据"}
+                    </small>
+                  </div>
+                ) : null}
+                {strategyV3.patternLibrary ? (
+                  <div className="signal-dossier__v3-pattern" aria-label="v3 形态辅助">
+                    <div>
+                      <strong>形态辅助</strong>
+                      <span>{strategyV3.patternLibrary.dominantPattern ? patternBiasLabel(strategyV3.patternLibrary.dominantPattern.bias) : "未识别"}</span>
+                    </div>
+                    <div className="signal-dossier__v3-location-grid">
+                      <span><b>{strategyV3.patternLibrary.dominantPattern?.type.replaceAll("_", " ") ?? "等待"}</b>主形态</span>
+                      <span><b>{strategyV3.patternLibrary.dominantPattern?.confidence ?? 0}</b>置信</span>
+                      <span><b>{strategyV3.patternLibrary.maxWeightPercent}%</b>权重上限</span>
+                      <span><b>{strategyV3.patternLibrary.hasTradeSignal ? "异常" : "否"}</b>交易信号</span>
+                    </div>
+                    <p>{strategyV3.patternLibrary.summary}</p>
+                    <small>
+                      {strategyV3.patternLibrary.dominantPattern?.invalidationHint
+                        ?? "形态只做辅助，不覆盖结构、位置/RR 和 Risk Gate。"}
                     </small>
                   </div>
                 ) : null}
