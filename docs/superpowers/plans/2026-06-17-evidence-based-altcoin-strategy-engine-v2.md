@@ -264,7 +264,7 @@ Expected: all tests pass.
 - Consumes: EvidenceItem arrays.
 - Produces: fused evidence summary and five numeric scores.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Cover:
 
@@ -274,17 +274,17 @@ Cover:
 - RiskScore rises when OI spikes, Funding is high, and price stalls.
 - PreMoveScore rises for compression plus neutral funding plus relative strength.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test:market`
 
 Expected: fail because fusion and scoring files do not exist.
 
-- [ ] **Step 3: Implement fusion and scores**
+- [x] **Step 3: Implement fusion and scores**
 
 Do not return StrategyDecision from scoring files.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test:market`
 
