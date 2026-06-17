@@ -307,17 +307,17 @@ Expected: all tests pass.
 - Consumes: fused evidence, scores, location/risk facts.
 - Produces: `MarketStage`, `StrategyDecision`, entry/exit/invalidation plan.
 
-- [ ] **Step 1: Write failing tests from all GOLDEN_CASES**
+- [x] **Step 1: Write failing tests from all GOLDEN_CASES**
 
 Cover at minimum the 14 documented cases in `docs/GOLDEN_CASES.md`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test:market`
 
 Expected: fail because strategy modules do not exist.
 
-- [ ] **Step 3: Implement state and decision logic**
+- [x] **Step 3: Implement state and decision logic**
 
 Hard gates:
 
@@ -326,7 +326,7 @@ Hard gates:
 - invalidation outputs `INVALIDATED`.
 - high-weight conflict outputs `CONFLICT` or `WATCH_ONLY`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test:market`
 
