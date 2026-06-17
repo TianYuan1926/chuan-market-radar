@@ -11,6 +11,9 @@ import {
 import {
   buildKeyLevels,
 } from "./key-level-engine";
+import {
+  buildStrategyV3TrendContext,
+} from "./trend-context";
 import type {
   KeyLevel,
   StrategyV3Dossier,
@@ -125,6 +128,14 @@ export function buildSignalTrendRadarV3Dossier(
   }
 
   const primary = primaryTimeframe(input.signal, sourceTimeframes);
+  const trendContext = buildStrategyV3TrendContext({
+    candlesByTimeframe: input.candlesByTimeframe,
+    currentPrice,
+    keyLevels,
+    signal: input.signal,
+    sourceTimeframes,
+    symbol: input.signal.symbol,
+  });
 
   return {
     allowedUse: "research_only",
@@ -141,7 +152,8 @@ export function buildSignalTrendRadarV3Dossier(
     primaryTimeframe: primary,
     source: "existing_ohlcv_key_level_mvp",
     sourceTimeframes,
-    summary: `${input.signal.symbol} v3 关键位地图已从 ${sourceTimeframes.join("/")} OHLCV 构建，保留 ${keyLevels.length} 个关键位与 ${forwardLevels.length} 个前方位。`,
+    summary: `${input.signal.symbol} v3 关键位地图已从 ${sourceTimeframes.join("/")} OHLCV 构建，保留 ${keyLevels.length} 个关键位与 ${forwardLevels.length} 个前方位；${trendContext.summary}`,
     symbol: input.signal.symbol,
+    trendContext,
   };
 }

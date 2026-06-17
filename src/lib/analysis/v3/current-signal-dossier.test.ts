@@ -53,6 +53,8 @@ function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
 
 const trendCandles = [10, 10.5, 11, 10.8, 10.2, 11.3, 12.1, 11.5, 10.7, 12.4, 13.1, 12.6, 11.8, 13.4]
   .map((close, index) => candle(index, close));
+const downTrendCandles = [14, 13.7, 13.2, 13.5, 13.1, 12.7, 12.1, 12.4, 11.8, 11.2, 11.4, 10.8, 10.4, 10.1]
+  .map((close, index) => candle(index, close));
 
 test("buildSignalTrendRadarV3Dossier builds readonly key levels and forward map from existing OHLCV candles", () => {
   const dossier = buildSignalTrendRadarV3Dossier({
@@ -78,6 +80,18 @@ test("buildSignalTrendRadarV3Dossier builds readonly key levels and forward map 
   assert.ok(dossier.forwardLevels.length > 0);
   assert.ok(dossier.forwardLevels.some((level) => level.role === "INVALIDATION_LEVEL"));
   assert.ok(dossier.forwardLevels.some((level) => level.role === "TREND_CHANGE_LEVEL"));
+  assert.ok(dossier.trendContext);
+  assert.equal(dossier.trendContext.allowedUse, "research_only");
+  assert.equal(dossier.trendContext.canAutoAdjustWeights, false);
+  assert.equal(dossier.trendContext.canMutateLiveRanking, false);
+  assert.equal(dossier.trendContext.state, "PRE_TREND_LONG");
+  assert.equal(dossier.trendContext.decision, "WAIT_LONG_BREAKOUT");
+  assert.equal(dossier.trendContext.scores.longPreTrendScore > dossier.trendContext.scores.shortPreTrendScore, true);
+  assert.deepEqual(
+    dossier.trendContext.timeframes.map((item) => item.timeframe),
+    ["15m", "1h", "4h"],
+  );
+  assert.match(dossier.trendContext.summary, /多周期结构/);
 });
 
 test("buildSignalTrendRadarV3Dossier returns null when no usable trend timeframe candles exist", () => {
@@ -90,4 +104,22 @@ test("buildSignalTrendRadarV3Dossier returns null when no usable trend timeframe
   });
 
   assert.equal(dossier, null);
+});
+
+test("buildSignalTrendRadarV3Dossier marks high and low timeframe structure conflict as readonly wait", () => {
+  const dossier = buildSignalTrendRadarV3Dossier({
+    candlesByTimeframe: {
+      "15m": trendCandles,
+      "4h": downTrendCandles,
+    },
+    currentPrice: 12.7,
+    signal: signal(),
+  });
+
+  assert.ok(dossier);
+  assert.ok(dossier.trendContext);
+  assert.equal(dossier.trendContext.state, "CONFLICT");
+  assert.equal(dossier.trendContext.decision, "CONFLICT_WAIT");
+  assert.equal(dossier.trendContext.conflicts.length > 0, true);
+  assert.match(dossier.trendContext.nextStep, /等待/);
 });

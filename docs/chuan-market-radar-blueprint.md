@@ -1197,25 +1197,32 @@ CoinGlass 业余会员 API：
    - `missed_altcoin_review` 只作为人工复盘证据，输出 `allowedUse: "research_only"`、`canAutoAdjustWeights: false` 和可追溯 `evidenceIds`。
    - `DailyMoverPanel` 已展示“v3 漏判复盘 / 事前地图”，显示证据数、只读用途和不改权重边界。
    - 该阶段不新增外部请求、不增加 CoinGlass 消耗、不改变 live ranking、不写真实权重。
-   - 当前状态：已完成 MVP。后续正确搭建项是 v3 多周期结构评分与市场阶段切换结果接入主信号解释层。
+   - 当前状态：已完成 MVP。
 
-18. **V1.7：Product Design 简报与角色设定固化**
+18. **Phase 4V3-5：v3 多周期趋势上下文只读接入**
+   - `StrategyV3Dossier` 新增兼容旧快照的可选 `trendContext`，新生成的 dossier 会输出多周期结构、趋势状态、v3 决策、五类趋势分数、冲突原因和下一步。
+   - `trendContext` 只使用本轮已有 OHLCV，不新增 CoinGlass 请求，不改变 live ranking，不自动写入权重。
+   - 高低周期结构冲突时输出 `CONFLICT / CONFLICT_WAIT`，明确“低周期不能推翻高周期”。
+   - Signal Dossier 已展示“趋势上下文 / 多周期结构 / v3 trend scores / timeframe structures”，让前端能看到 v3 是否在运转，而不是只看静态关键位。
+   - 当前状态：已完成 MVP。后续正确搭建项是把 v3 risk gate、阶段切换和不参与原因进一步结构化到主信号解释层，但仍不改变真实排序。
+
+19. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
-19. **V1.8：像素副驾驶 MVP（已落地）**
+20. **V1.8：像素副驾驶 MVP（已落地）**
    - 已用 `PixelCopilot` 替换旧车辆命名组件的正常 UI 边界。
    - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
    - 保留 rank profile、纪律分、动量、热度等现有数据入口。
    - 为角色结构、中文台词和禁止喊单边界增加测试。
 
-20. **V1.9：装备与段位联动**
+21. **V1.9：装备与段位联动**
    - 根据 XP、段位、纪律分解锁装备。
    - 初始只做 3-5 个装备层级，避免一次性堆太多皮肤。
    - 装备只能表达成长和纪律，不表达收益承诺。
 
-21. **V2.0：主界面层级重排**
+22. **V2.0：主界面层级重排**
    - 弱化营销式 hero，强化当前选中信号工作区。
    - 建立 Command / Signal / System / Copilot 四类模块等级。
    - 让图表、多周期、策略计划和 AI 反证的视觉层级更清楚。

@@ -136,6 +136,36 @@ export type TrendScores = {
   exhaustionScore: number;
 };
 
+export type TrendTimeframeStructure =
+  | "COMPRESSING"
+  | "DOWNTREND"
+  | "RANGE"
+  | "UPTREND";
+
+export type TrendTimeframeContext = {
+  changePercent: number;
+  close: number;
+  compressionScore: number;
+  directionalScore: number;
+  rangePercent: number;
+  structure: TrendTimeframeStructure;
+  timeframe: TrendTimeframe;
+};
+
+export type StrategyV3TrendContext = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  conflicts: string[];
+  decision: TrendDecision;
+  guardrail: string;
+  nextStep: string;
+  scores: TrendScores;
+  state: TrendState;
+  summary: string;
+  timeframes: TrendTimeframeContext[];
+};
+
 export type TrendRadarReviewType =
   | "trend_switch_review"
   | "forward_map_review"
@@ -208,6 +238,7 @@ export type StrategyV3Dossier = {
   sourceTimeframes: TrendTimeframe[];
   summary: string;
   symbol: string;
+  trendContext?: StrategyV3TrendContext;
 };
 
 export type V3ForwardMapSnapshot = {

@@ -40,6 +40,12 @@ Next correct build phase:
 
 Next correct build phase after `missed_altcoin_review`:
 
-1. Expand v3 multi-timeframe structure scoring beyond readonly map display.
-2. Connect market stage transitions and risk gates into the main signal explanation layer.
+1. Expand v3 multi-timeframe structure scoring beyond readonly map display. Completed with readonly `trendContext`.
+2. Connect market stage transitions and risk gates into the main signal explanation layer. Partially completed: Signal Dossier now shows state, decision, scores, timeframe structures, and conflicts.
 3. Keep live ranking unchanged until enough review samples are manually confirmed.
+
+Next correct build phase:
+
+1. Split v3 risk gate and no-participation reasons into explicit structured fields.
+2. Surface those fields in the main opportunity card without changing ranking.
+3. Continue to require manual review samples before any real weight activation.

@@ -49,6 +49,9 @@ type SignalDossierProps = {
   signal?: MarketSignal;
 };
 
+type SignalStrategyV3 = NonNullable<MarketSignal["strategyV3"]>;
+type SignalStrategyV3TrendContext = NonNullable<SignalStrategyV3["trendContext"]>;
+
 const actionButtons: {
   action: SignalJournalAction;
   helper: string;
@@ -175,7 +178,7 @@ function dailyMoverDirectionLabel(value: SignalDossierDailyMoverMatch["direction
   return value === "gainer" ? "涨幅样本" : "跌幅样本";
 }
 
-function keyLevelDirectionLabel(value: NonNullable<MarketSignal["strategyV3"]>["keyLevels"][number]["direction"]) {
+function keyLevelDirectionLabel(value: SignalStrategyV3["keyLevels"][number]["direction"]) {
   return {
     BOTH: "双向",
     RESISTANCE: "压力",
@@ -183,7 +186,7 @@ function keyLevelDirectionLabel(value: NonNullable<MarketSignal["strategyV3"]>["
   }[value];
 }
 
-function keyLevelStatusLabel(value: NonNullable<MarketSignal["strategyV3"]>["keyLevels"][number]["status"]) {
+function keyLevelStatusLabel(value: SignalStrategyV3["keyLevels"][number]["status"]) {
   return {
     ARRIVED: "已到位",
     BROKEN: "已突破",
@@ -196,7 +199,7 @@ function keyLevelStatusLabel(value: NonNullable<MarketSignal["strategyV3"]>["key
   }[value];
 }
 
-function forwardRoleLabel(value: NonNullable<MarketSignal["strategyV3"]>["forwardLevels"][number]["role"]) {
+function forwardRoleLabel(value: SignalStrategyV3["forwardLevels"][number]["role"]) {
   return {
     CURRENT_DEFENSE: "当前防守",
     FIRST_REBOUND_RESISTANCE: "第一反弹压力",
@@ -204,6 +207,57 @@ function forwardRoleLabel(value: NonNullable<MarketSignal["strategyV3"]>["forwar
     NEXT_REACTION_ZONE: "下一反应区",
     SECOND_REBOUND_RESISTANCE: "第二反弹压力",
     TREND_CHANGE_LEVEL: "趋势切换位",
+  }[value];
+}
+
+function trendStateLabel(value: SignalStrategyV3TrendContext["state"]) {
+  return {
+    CONFLICT: "周期冲突",
+    INVALIDATED: "结构失效",
+    LONG_BREAKOUT: "多头突破",
+    LONG_EXHAUSTION: "多头衰竭",
+    LONG_PULLBACK_CONFIRM: "多头回踩",
+    LONG_TREND_ACCELERATION: "多头加速",
+    PRE_TREND_LONG: "多头预趋势",
+    PRE_TREND_SHORT: "空头预趋势",
+    RANGE_COMPRESSION: "区间压缩",
+    RANGE_IDLE: "区间观察",
+    SHORT_BREAKDOWN: "空头跌破",
+    SHORT_EXHAUSTION: "空头衰竭",
+    SHORT_RETEST_CONFIRM: "空头反抽",
+    SHORT_TREND_ACCELERATION: "空头加速",
+  }[value];
+}
+
+function trendDecisionLabel(value: SignalStrategyV3TrendContext["decision"]) {
+  return {
+    AVOID_CHASE_LONG: "拒绝追高",
+    AVOID_CHASE_SHORT: "拒绝追空",
+    CONFLICT_WAIT: "等一致",
+    INVALIDATED: "已失效",
+    LONG_PLAN: "多头计划",
+    NO_TRADE: "不参与",
+    PREPARE_LONG: "准备多头",
+    PREPARE_SHORT: "准备空头",
+    SHORT_PLAN: "空头计划",
+    TAKE_PROFIT_LONG: "多头止盈管理",
+    TAKE_PROFIT_SHORT: "空头止盈管理",
+    TREND_HOLD_LONG: "多头持有观察",
+    TREND_HOLD_SHORT: "空头持有观察",
+    WAIT_LONG_BREAKOUT: "等多头突破",
+    WAIT_LONG_PULLBACK: "等多头回踩",
+    WAIT_SHORT_BREAKDOWN: "等空头跌破",
+    WAIT_SHORT_RETEST: "等空头反抽",
+    WATCH_ONLY: "只观察",
+  }[value];
+}
+
+function trendStructureLabel(value: SignalStrategyV3TrendContext["timeframes"][number]["structure"]) {
+  return {
+    COMPRESSING: "压缩",
+    DOWNTREND: "下行",
+    RANGE: "区间",
+    UPTREND: "上行",
   }[value];
 }
 
@@ -347,6 +401,40 @@ export function SignalDossier({
                     {strategyV3.canMutateLiveRanking ? "可影响排序" : "只读上下文"} / {strategyV3.allowedUse}
                   </small>
                 </div>
+                {strategyV3.trendContext ? (
+                  <>
+                    <div className="signal-dossier__section-head signal-dossier__section-head--sub">
+                      <h3>趋势上下文</h3>
+                      <span>{trendStateLabel(strategyV3.trendContext.state)} / {trendDecisionLabel(strategyV3.trendContext.decision)}</span>
+                    </div>
+                    <div className="signal-dossier__v3-trend" aria-label="v3 多周期结构趋势上下文">
+                      <p>{strategyV3.trendContext.summary}</p>
+                      <small>{strategyV3.trendContext.nextStep} · {strategyV3.trendContext.guardrail}</small>
+                    </div>
+                    <div className="signal-dossier__v3-scores" aria-label="v3 trend scores">
+                      <span><b>{strategyV3.trendContext.scores.longPreTrendScore}</b>多头预势</span>
+                      <span><b>{strategyV3.trendContext.scores.shortPreTrendScore}</b>空头预势</span>
+                      <span><b>{strategyV3.trendContext.scores.riskScore}</b>风险</span>
+                      <span><b>{strategyV3.trendContext.scores.trendHoldScore}</b>持有</span>
+                    </div>
+                    <div className="signal-dossier__v3-timeframes" aria-label="v3 timeframe structures">
+                      {strategyV3.trendContext.timeframes.slice(0, 6).map((timeframe) => (
+                        <article key={timeframe.timeframe}>
+                          <strong>{timeframe.timeframe}</strong>
+                          <span>{trendStructureLabel(timeframe.structure)}</span>
+                          <small>{timeframe.changePercent}% / 压缩 {timeframe.compressionScore}</small>
+                        </article>
+                      ))}
+                    </div>
+                    {strategyV3.trendContext.conflicts.length > 0 ? (
+                      <div className="signal-dossier__v3-conflicts" aria-label="v3 timeframe conflicts">
+                        {strategyV3.trendContext.conflicts.slice(0, 2).map((conflict) => (
+                          <p key={conflict}>{conflict}</p>
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
                 <div className="signal-dossier__v3-levels" aria-label="v3 key levels">
                   {strategyV3.keyLevels.slice(0, 6).map((level) => (
                     <article key={level.id}>
