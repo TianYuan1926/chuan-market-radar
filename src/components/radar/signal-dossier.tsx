@@ -51,6 +51,7 @@ type SignalDossierProps = {
 
 type SignalStrategyV3 = NonNullable<MarketSignal["strategyV3"]>;
 type SignalStrategyV3TrendContext = NonNullable<SignalStrategyV3["trendContext"]>;
+type SignalStrategyV3MarketReading = NonNullable<SignalStrategyV3TrendContext["marketReadings"]>[number];
 
 const actionButtons: {
   action: SignalJournalAction;
@@ -261,6 +262,30 @@ function trendStructureLabel(value: SignalStrategyV3TrendContext["timeframes"][n
   }[value];
 }
 
+function marketReadingStructureLabel(value: SignalStrategyV3MarketReading["structure"]) {
+  return {
+    DOWN_SEQUENCE: "LH/LL 下行",
+    INSUFFICIENT_STRUCTURE: "样本不足",
+    RANGE_SEQUENCE: "区间序列",
+    UP_SEQUENCE: "HH/HL 上行",
+  }[value];
+}
+
+function marketReadingEventLabel(value: SignalStrategyV3MarketReading["events"][number]["type"]) {
+  return {
+    BOS_DOWN: "跌破结构",
+    BOS_UP: "突破结构",
+    CHOCH_DOWN: "转弱变性",
+    CHOCH_UP: "转强变性",
+    FAKE_BREAKDOWN: "假跌破",
+    FAKE_BREAKOUT: "假突破",
+    HH: "HH",
+    HL: "HL",
+    LH: "LH",
+    LL: "LL",
+  }[value];
+}
+
 function priceZoneLabel(zoneLow: number, zoneHigh: number) {
   const digits = Math.max(zoneLow, zoneHigh) >= 100 ? 2 : 5;
 
@@ -426,6 +451,30 @@ export function SignalDossier({
                         </article>
                       ))}
                     </div>
+                    {strategyV3.trendContext.marketReadings?.length ? (
+                      <>
+                        <div className="signal-dossier__section-head signal-dossier__section-head--sub">
+                          <h3>盘面结构</h3>
+                          <span>{strategyV3.trendContext.marketReadings.length} 周期</span>
+                        </div>
+                        <div className="signal-dossier__v3-reading" aria-label="v3 盘面结构 market reading">
+                          {strategyV3.trendContext.marketReadings.slice(0, 4).map((reading) => (
+                            <article key={`${reading.timeframe}-${reading.structure}`}>
+                              <div>
+                                <strong>{reading.timeframe}</strong>
+                                <span>{marketReadingStructureLabel(reading.structure)}</span>
+                              </div>
+                              <p>{reading.summary}</p>
+                              <small>
+                                {reading.events.length > 0
+                                  ? reading.events.slice(0, 4).map((event) => marketReadingEventLabel(event.type)).join(" / ")
+                                  : "等待前高前低给出有效结构事件"}
+                              </small>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
                     {strategyV3.trendContext.conflicts.length > 0 ? (
                       <div className="signal-dossier__v3-conflicts" aria-label="v3 timeframe conflicts">
                         {strategyV3.trendContext.conflicts.slice(0, 2).map((conflict) => (

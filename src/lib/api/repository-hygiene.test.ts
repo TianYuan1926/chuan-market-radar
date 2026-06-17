@@ -380,12 +380,14 @@ test("signal dossier exposes v3 key levels and forward map as readonly context",
   assert.match(dossierSource, /关键位地图/u);
   assert.match(dossierSource, /趋势上下文/u);
   assert.match(dossierSource, /多周期结构/u);
+  assert.match(dossierSource, /盘面结构/u);
   assert.match(dossierSource, /Forward Map/u);
   assert.match(dossierSource, /canMutateLiveRanking/u);
   assert.match(dossierSource, /trendContext/u);
   assert.match(dossierSource, /signal-dossier__v3-levels/u);
   assert.match(dossierSource, /signal-dossier__v3-map/u);
   assert.match(dossierSource, /signal-dossier__v3-trend/u);
+  assert.match(dossierSource, /signal-dossier__v3-reading/u);
   assert.match(dossierSource, /signal-dossier__v3-scores/u);
   assert.match(dossierSource, /signal-dossier__v3-timeframes/u);
 });

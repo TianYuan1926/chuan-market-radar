@@ -142,6 +142,51 @@ export type TrendTimeframeStructure =
   | "RANGE"
   | "UPTREND";
 
+export type MarketReadingStructure =
+  | "DOWN_SEQUENCE"
+  | "INSUFFICIENT_STRUCTURE"
+  | "RANGE_SEQUENCE"
+  | "UP_SEQUENCE";
+
+export type MarketReadingEventType =
+  | "BOS_DOWN"
+  | "BOS_UP"
+  | "CHOCH_DOWN"
+  | "CHOCH_UP"
+  | "FAKE_BREAKDOWN"
+  | "FAKE_BREAKOUT"
+  | "HH"
+  | "HL"
+  | "LH"
+  | "LL";
+
+export type MarketReadingEvent = {
+  candleIndex: number;
+  detail: string;
+  occurredAt: string;
+  price: number;
+  type: MarketReadingEventType;
+};
+
+export type MarketReadingContext = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  events: MarketReadingEvent[];
+  latestClose: number;
+  range: {
+    high: number;
+    low: number;
+    widthPercent: number;
+  };
+  structure: MarketReadingStructure;
+  summary: string;
+  swingHighCount: number;
+  swingLowCount: number;
+  symbol: string;
+  timeframe: TrendTimeframe;
+};
+
 export type TrendTimeframeContext = {
   changePercent: number;
   close: number;
@@ -165,6 +210,7 @@ export type StrategyV3TrendContext = {
   conflicts: string[];
   decision: TrendDecision;
   guardrail: string;
+  marketReadings?: MarketReadingContext[];
   nextStep: string;
   noParticipationReasons: string[];
   riskGate: StrategyV3RiskGate;

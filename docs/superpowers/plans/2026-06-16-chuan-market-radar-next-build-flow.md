@@ -20,7 +20,7 @@ The project is currently in a product/UI route rebaseline before the next fronte
 - The corrected frontend route is a real Tailwind CSS + daisyUI UI reset, not a custom-CSS shell with daisyUI-style naming. The desired product form remains a Live Navbar / Banner, one Cockpit Card, desktop columns at 2:6:2, a short boot/briefing layer, session clock, and visible runtime feedback.
 - Altcoins and new listings remain the primary opportunity target. BTC/ETH/ETF/CoinGlass macro data becomes the market weather layer, not a replacement for the altcoin opportunity board.
 - Mainland China access work is intentionally excluded from the current roadmap. Do not add ICP, mainland CDN, or mainland hosting tasks to this flow unless the user explicitly reopens that decision.
-- Latest v3 backend progress: Signal Dossier already has Key Level Map, Forward Map, multi-timeframe trend context, trend scores, and readonly conflict output. Altcoin Opportunity Board now also surfaces v3 trend state, v3 decision, v3 risk gate, and first no-participation reason without changing live ranking or CoinGlass request volume.
+- Latest v3 backend progress: Signal Dossier already has Key Level Map, Forward Map, multi-timeframe trend context, trend scores, readonly conflict output, and Market Reading structure facts. Altcoin Opportunity Board now also surfaces v3 trend state, v3 decision, v3 risk gate, and first no-participation reason without changing live ranking or CoinGlass request volume.
 
 ## Build Rules For Every Stage
 
@@ -189,7 +189,7 @@ Add live radar runtime layer
 - [x] Keep board labels conditional and evidence-backed, not buy/sell orders.
 - [x] Add tests for grouping, stale handling, no-FOMO labels, and v3 risk gate display.
 - [x] Surface v3 trend state, v3 decision, v3 risk gate, and first no-participation reason from readonly `strategyV3.trendContext`.
-- [ ] Run full verification after the current v3 risk-gate stage.
+- [x] Run full verification after the current v3 risk-gate stage.
 
 **Acceptance:**
 
@@ -226,7 +226,7 @@ Add altcoin opportunity board
 - [x] Implement readonly `riskGate` and `noParticipationReasons` on `StrategyV3TrendContext`.
 - [x] Map v3 state, decision, risk gate, and no-participation reason into `AltcoinOpportunityItem`.
 - [x] Render compact v3 risk and no-participation blocks in the opportunity card.
-- [ ] Run full verification and commit.
+- [x] Run full verification and commit.
 
 **Acceptance:**
 
@@ -238,6 +238,43 @@ Add altcoin opportunity board
 
 ```text
 Surface v3 risk gate on opportunities
+```
+
+## Phase 4V3-7: Market Reading Engine Structure Facts
+
+**Purpose:** Upgrade v3 from simple trend context into inspectable market-structure facts while keeping the facts readonly until enough review samples exist.
+
+**Files likely involved:**
+
+- Create: `src/lib/analysis/v3/market-reading-engine.ts`
+- Create: `src/lib/analysis/v3/market-reading-engine.test.ts`
+- Modify: `src/lib/analysis/v3/types.ts`
+- Modify: `src/lib/analysis/v3/trend-context.ts`
+- Modify: `src/lib/analysis/v3/current-signal-dossier.test.ts`
+- Modify: `src/components/radar/signal-dossier.tsx`
+- Modify: `src/app/globals.css`
+- Modify: `src/lib/api/repository-hygiene.test.ts`
+- Modify: `docs/chuan-market-radar-blueprint.md`
+
+**Steps:**
+
+- [x] Add RED tests for HH/HL, bullish BOS, upper-wick fake breakout, and Dossier market reading attachment.
+- [x] Implement `buildMarketReadingContext()` from existing OHLCV candles only.
+- [x] Keep output `research_only`, `canMutateLiveRanking: false`, and `canAutoAdjustWeights: false`.
+- [x] Attach `marketReadings` to `StrategyV3TrendContext`.
+- [x] Render “盘面结构” in Signal Dossier with timeframe, structure label, summary, and event tags.
+- [x] Run full verification and commit.
+
+**Acceptance:**
+
+- The user can inspect market structure facts such as HH/HL, LH/LL, BOS, CHoCH, fake breakout, and fake breakdown.
+- These facts do not create execution orders or mutate ranking.
+- Future v3 stage switching can consume the facts behind a separate tested gate.
+
+**GitHub Desktop Summary:**
+
+```text
+Add v3 market reading structure facts
 ```
 
 ---

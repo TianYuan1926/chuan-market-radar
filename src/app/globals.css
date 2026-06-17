@@ -3098,6 +3098,66 @@ button.altcoin-opportunity-card.is-selected {
   font-size: 9px;
 }
 
+.signal-dossier__v3-reading {
+  display: grid;
+  border-bottom: 1px solid var(--line);
+}
+
+.signal-dossier__v3-reading article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.signal-dossier__v3-reading article:last-child {
+  border-bottom: 0;
+}
+
+.signal-dossier__v3-reading article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.signal-dossier__v3-reading strong,
+.signal-dossier__v3-reading span,
+.signal-dossier__v3-reading p,
+.signal-dossier__v3-reading small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.signal-dossier__v3-reading strong {
+  color: var(--ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+
+.signal-dossier__v3-reading span {
+  color: var(--ink-2);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.signal-dossier__v3-reading p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.42;
+}
+
+.signal-dossier__v3-reading small {
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
 .signal-dossier__v3-conflicts {
   display: grid;
   gap: 5px;

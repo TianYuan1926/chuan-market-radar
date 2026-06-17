@@ -93,6 +93,13 @@ test("buildSignalTrendRadarV3Dossier builds readonly key levels and forward map 
     dossier.trendContext.timeframes.map((item) => item.timeframe),
     ["15m", "1h", "4h"],
   );
+  assert.deepEqual(
+    dossier.trendContext.marketReadings?.map((item) => item.timeframe),
+    ["15m", "1h", "4h"],
+  );
+  assert.equal(dossier.trendContext.marketReadings?.some((item) =>
+    item.events.some((event) => event.type === "HH" || event.type === "BOS_UP")
+  ), true);
   assert.match(dossier.trendContext.summary, /多周期结构/);
 });
 
