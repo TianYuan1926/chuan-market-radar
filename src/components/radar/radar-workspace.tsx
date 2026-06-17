@@ -6,6 +6,7 @@ import { AltcoinOpportunityBoard } from "./altcoin-opportunity-board";
 import { DailyMoverPanel } from "./daily-mover-panel";
 import { EventCenterPanel } from "./event-center-panel";
 import { JournalPanel } from "./journal-panel";
+import { MacroWeatherPanel } from "./macro-weather-panel";
 import { OpsAndFilterPanel } from "./ops-and-filter-panel";
 import { PixelS680 } from "./pixel-s680";
 import { RadarBootBriefing } from "./radar-boot-briefing";
@@ -50,6 +51,7 @@ import {
   type SignalSetDelta,
 } from "@/lib/market/live-refresh";
 import { buildAltcoinOpportunityBoard } from "@/lib/market/altcoin-opportunities";
+import { buildMacroWeather } from "@/lib/market/macro-weather";
 import type { MarketRadarSnapshot } from "@/lib/market/types";
 
 type RadarWorkspaceProps = {
@@ -439,7 +441,7 @@ function buildCurrentAlertEvents({
 export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWorkspaceProps) {
   const [liveSnapshot, setLiveSnapshot] = useState(snapshot);
   const [liveHealth, setLiveHealth] = useState(health);
-  const { heatmap, instrumentPool, journalEvents, metadata, signals } = liveSnapshot;
+  const { derivatives, heatmap, instrumentPool, journalEvents, metadata, signals, tickers } = liveSnapshot;
   const [selectedId, setSelectedId] = useState<string | undefined>(signals[0]?.id);
   const [dossierSignalId, setDossierSignalId] = useState<string | undefined>();
   const [isDossierOpen, setIsDossierOpen] = useState(false);
@@ -566,6 +568,15 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       signals,
     }),
     [dailyMoverState.selectedDetails, journalEntries, metadata.status, signals],
+  );
+  const macroWeather = useMemo(
+    () => buildMacroWeather({
+      derivatives,
+      metadataStatus: metadata.status,
+      signals,
+      tickers,
+    }),
+    [derivatives, metadata.status, signals, tickers],
   );
 
   const mood = selected?.risk === "high" || selected?.risk === "blocked"
@@ -1271,19 +1282,11 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         )}
         right={(
           <>
-          <section className="module macro-radar-preview" aria-label="Macro Radar">
-            <div className="module-head">
-              <h2>大盘天气</h2>
-              <span className="tag">Macro Radar</span>
-            </div>
-            <div className="macro-radar-preview__grid">
-              <span><b>{longBiasCount}</b> 多头候选</span>
-              <span><b>{shortBiasCount}</b> 空头候选</span>
-              <span><b>{blockedSignalCount}</b> 高风险</span>
-              <span><b>{riskGateLabel(metadata.riskGate)}</b> 风控门</span>
-            </div>
-            <p>{selected ? `${selected.symbol.replace("USDT", "")} 当前由 ${marketSourceLabel(metadata.source)} 证据驱动，BTC/ETH 环境只做顺逆风解释，不替代山寨机会排序。` : "等待候选信号后显示大盘天气对机会排序的影响。"}</p>
-          </section>
+          <MacroWeatherPanel
+            ariaLabel="Macro Radar 大盘天气"
+            report={macroWeather}
+            selectedSymbol={selected?.symbol}
+          />
 
           <section className="module signal-lifecycle-preview" aria-label="Signal Lifecycle Tracker">
             <div className="module-head">

@@ -157,12 +157,18 @@ Add altcoin opportunity board
 
 **Purpose:** Keep BTC/ETH as market weather that affects confidence and timing without replacing the altcoin-first surface.
 
-- [ ] Build `MacroWeatherPanel` from existing BTC/ETH anchors, funding/OI/liquidation-like fields, and cached OHLCV first.
-- [ ] Show regimes: tailwind, headwind, chop, leverage crowded, deleveraging, volatility expansion, unknown.
-- [ ] Do not mutate live strategy weights in this phase.
-- [ ] Probe ETF-related CoinGlass endpoint only after availability and quota are verified.
-- [ ] Add tests for regime classification and unknown-data fallback.
-- [ ] Run full verification.
+- [x] Build `MacroWeatherPanel` from existing BTC/ETH ticker anchors and funding/OI/liquidation-like fields first; keep cached OHLCV as a later refinement input.
+- [x] Show regimes: tailwind, headwind, chop, leverage crowded, deleveraging, volatility expansion, unknown.
+- [x] Do not mutate live strategy weights in this phase.
+- [x] Defer ETF-related CoinGlass endpoint probing until availability and quota are verified.
+- [x] Add tests for regime classification and unknown-data fallback.
+- [x] Run full verification.
+
+**Implementation Notes:**
+
+- Added `buildMacroWeather()` as a pure, no-request classifier with `requestPolicy: no_extra_requests` and `canMutateWeights: false`.
+- Added `MacroWeatherPanel` to the right cockpit column and wired it to current `tickers`, `derivatives`, `metadata.status`, and `signals`.
+- Added repository hygiene coverage to keep Macro Weather as a non-mutating context layer rather than a callout surface.
 
 **Acceptance:**
 

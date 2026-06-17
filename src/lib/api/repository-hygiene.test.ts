@@ -581,6 +581,68 @@ test("phase 3.8 altcoin opportunity board is the primary grouped opportunity sur
   assert.equal(componentSource.includes("梭哈"), false);
 });
 
+test("phase 3.9 macro weather panel keeps BTC ETH context as a non-mutating market layer", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const componentPath = resolve(process.cwd(), "src/components/radar/macro-weather-panel.tsx");
+  const componentSource = existsSync(componentPath) ? readFileSync(componentPath, "utf8") : "";
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredWorkspaceTokens = [
+    "MacroWeatherPanel",
+    "buildMacroWeather",
+    "macroWeather",
+    "tickers",
+    "derivatives",
+    "metadata.status",
+  ];
+  const requiredLabels = [
+    "大盘天气",
+    "BTC",
+    "ETH",
+    "顺风",
+    "逆风",
+    "震荡",
+    "杠杆拥挤",
+    "去杠杆",
+    "波动扩张",
+    "未知",
+    "不抢山寨主线",
+    "不新增请求",
+    "不改权重",
+    "山寨环境",
+  ];
+  const requiredClasses = [
+    "macro-weather-panel",
+    "macro-weather-panel__hero",
+    "macro-weather-panel__anchors",
+    "macro-weather-panel__grid",
+    "macro-weather-regime",
+    "macro-weather-regime--tailwind",
+    "macro-weather-regime--deleveraging",
+  ];
+
+  assert.equal(existsSync(componentPath), true, "MacroWeatherPanel component must exist");
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.match(workspaceSource, new RegExp(token));
+  }
+
+  for (const label of requiredLabels) {
+    assert.match(componentSource, new RegExp(label));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(componentSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  assert.equal(componentSource.includes("买入"), false);
+  assert.equal(componentSource.includes("卖出"), false);
+  assert.equal(componentSource.includes("梭哈"), false);
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
