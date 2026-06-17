@@ -914,6 +914,28 @@ test("external outcome executor scheduler calls the protected outcome endpoint h
   assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
 });
 
+test("external v3 forward map review scheduler calls the protected v3 review endpoint at low frequency", () => {
+  const workflowSource = readFileSync(
+    resolve(process.cwd(), ".github/workflows/chuan-v3-forward-map-review.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /cron:\s*["']41 \*\/6 \* \* \*["']/);
+  assert.match(workflowSource, /workflow_dispatch:/);
+  assert.match(workflowSource, /CHUAN_SCAN_BASE="\$\{CHUAN_SCAN_URL%\/\}"/);
+  assert.match(
+    workflowSource,
+    /CHUAN_V3_FORWARD_MAP_REVIEW_URL="\$\{CHUAN_SCAN_BASE%\/api\/scan\}\/api\/admin\/v3\/forward-map-reviews\/run"/,
+  );
+  assert.match(workflowSource, /-X POST "\$CHUAN_V3_FORWARD_MAP_REVIEW_URL"/);
+  assert.match(workflowSource, /Authorization: Bearer \$CHUAN_CRON_SECRET/);
+  assert.match(workflowSource, /api\/admin\/v3\/forward-map-reviews\/run/);
+  assert.match(workflowSource, /secrets\.CHUAN_SCAN_URL/);
+  assert.match(workflowSource, /secrets\.CHUAN_CRON_SECRET/);
+  assert.doesNotMatch(workflowSource, /web-brown-rho-95\.vercel\.app/);
+  assert.doesNotMatch(workflowSource, /CRON_SECRET=/);
+});
+
 test("public daily mover archive API is exposed as a read-only route", () => {
   const routeSource = readFileSync(
     resolve(process.cwd(), "src/app/api/daily-movers/route.ts"),

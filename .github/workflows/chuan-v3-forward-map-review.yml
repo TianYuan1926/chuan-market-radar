@@ -1,0 +1,35 @@
+name: Chuan V3 Forward Map Review
+
+on:
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chuan-v3-forward-map-review
+  cancel-in-progress: false
+
+jobs:
+  v3-forward-map-review:
+    name: Trigger protected v3 forward map review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call Chuan v3 forward map review API
+        env:
+          CHUAN_SCAN_URL: ${{ secrets.CHUAN_SCAN_URL }}
+          CHUAN_CRON_SECRET: ${{ secrets.CHUAN_CRON_SECRET }}
+        run: |
+          # Reuse the existing protected scan URL secret to avoid adding another GitHub secret.
+          test -n "$CHUAN_SCAN_URL"
+          CHUAN_SCAN_BASE="${CHUAN_SCAN_URL%/}"
+          CHUAN_V3_FORWARD_MAP_REVIEW_URL="${CHUAN_SCAN_BASE%/api/scan}/api/admin/v3/forward-map-reviews/run"
+          test -n "$CHUAN_V3_FORWARD_MAP_REVIEW_URL"
+          test -n "$CHUAN_CRON_SECRET"
+          curl --fail --show-error --silent --retry 2 --retry-delay 10 --max-time 240 \
+            -X POST "$CHUAN_V3_FORWARD_MAP_REVIEW_URL" \
+            -H "Authorization: Bearer $CHUAN_CRON_SECRET" \
+            -H "Content-Type: application/json"

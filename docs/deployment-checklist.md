@@ -13,9 +13,11 @@
 - `GET /api/admin/deployment/readiness` 通过 `CRON_SECRET` 授权后输出部署前检查报告，不暴露密钥原文
 - `POST /api/admin/daily-movers/ingest` 通过 `CRON_SECRET` 授权后低频抓取每日异动并写入 repository
 - `POST /api/admin/outcomes/run` 通过 `CRON_SECRET` 授权后低频执行生命周期复盘写回
+- `POST /api/admin/v3/forward-map-reviews/run` 通过 `CRON_SECRET` 授权后低频执行 v3 Forward Map 只读复盘
 - `POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 授权后保存人工权重变更审批账本，不写真实规则权重
 - `GET /api/health` 会派生只读影子策略权重层、影子表现评估和真实权重启用门禁，展示人工审批后的当前/建议权重差异、样本数、有效/反证、回滚压力和真实启用阻断原因，但不影响真实扫描、评分或策略权重
 - `.github/workflows/chuan-daily-movers.yml` 使用 GitHub Actions 每日低频触发每日异动抓取
+- `.github/workflows/chuan-v3-forward-map-review.yml` 使用 GitHub Actions 每 6 小时低频触发 v3 Forward Map 复盘，复用 `CHUAN_SCAN_URL` 和 `CHUAN_CRON_SECRET`
 - `src/lib/persistence/persistence-contract.ts` 提供 Postgres 持久化表结构与数据映射骨架
 - `src/lib/persistence/persistence-store.ts` 提供内存/数据库仓储切换层
 - `src/lib/persistence/database-client.ts` 提供数据库 URL、driver、SQL client 的接入诊断和 schema 初始化入口
@@ -65,6 +67,7 @@
 - `CHUAN_SCAN_URL`: 指向线上 `POST /api/scan` 的完整 URL。
 - `CHUAN_DAILY_MOVER_INGEST_URL`: 指向线上 `POST /api/admin/daily-movers/ingest` 的完整 URL。
 - `CHUAN_CRON_SECRET`: 与 Vercel 环境变量 `CRON_SECRET` 保持一致，用于 `Authorization: Bearer <CRON_SECRET>`。
+- v3 Forward Map 复盘工作流不需要新增 GitHub secret；它会从 `CHUAN_SCAN_URL` 推导 `/api/admin/v3/forward-map-reviews/run`。
 
 ## 稳定性边界
 
@@ -145,4 +148,5 @@
 - 每轮部署前，确认 README/蓝图/部署清单描述和实际代码一致，尤其是数据源、AI、数据库、告警、全市场覆盖和多周期融合状态。
 - 免费预览部署完成后，如果需要接近 15 分钟刷新，用外部 cron 请求线上 `/api/scan`；Vercel Hobby 内置 Cron 不支持这个频率。
 - 每日异动归因复盘自动运行使用 `.github/workflows/chuan-daily-movers.yml` 每日低频请求 `/api/admin/daily-movers/ingest`，不要配置高频任务。
+- v3 Forward Map 复盘自动运行使用 `.github/workflows/chuan-v3-forward-map-review.yml` 每 6 小时请求 `/api/admin/v3/forward-map-reviews/run`，只写只读复盘样本，不自动改权重。
 - 本地 CLI 直传部署后，用 `vercel inspect <deployment-url>` 确认 `status: Ready`；如果当前网络无法访问 `*.vercel.app`，以 Vercel inspect 状态和你本机浏览器实测为准。

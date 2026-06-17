@@ -1187,7 +1187,8 @@ CoinGlass 业余会员 API：
    - 复盘面板和 Signal Dossier 已识别 v3 review action，展示只读复盘、不改权重和 evidence 数量，避免被当成普通交易复盘。
    - `/api/health` 和系统健康面板已展示 `v3ForwardMapReviews`，包含事前地图、最近执行、完成快照、跳过原因、失败数、最近样本时间和 `v3_forward_map_snapshots` 存储迁移状态。
    - 如果 Neon 还没有执行最新迁移，健康面板显示待迁移，首页仍必须可加载。
-   - 当前状态：已完成 MVP。后续正确搭建项是接入外部低频触发计划和 `missed_altcoin_review`。
+   - GitHub Actions 低频触发已落地：`.github/workflows/chuan-v3-forward-map-review.yml` 每 6 小时请求一次受保护入口，复用 `CHUAN_SCAN_URL` 推导目标 URL，复用 `CHUAN_CRON_SECRET` 鉴权，不新增 GitHub secret。
+   - 当前状态：已完成 MVP。后续正确搭建项是 `missed_altcoin_review`。
 
 17. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
