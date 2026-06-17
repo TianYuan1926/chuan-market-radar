@@ -5,6 +5,7 @@ import type {
   OutcomeExecutorSkipReasonCode,
   SignalJournalAction,
 } from "@/lib/analysis/types";
+import { buildV3PatternReviewStats } from "@/lib/journal/v3-pattern-review-stats";
 
 type JournalPanelProps = {
   events: JournalEvent[];
@@ -205,10 +206,38 @@ function trendRadarVerdictLabel(value: NonNullable<JournalEvent["trendRadarRevie
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
+function patternReviewStatsStatusLabel(value: ReturnType<typeof buildV3PatternReviewStats>["status"]) {
+  const labels: Record<ReturnType<typeof buildV3PatternReviewStats>["status"], string> = {
+    collecting: "收集中",
+    empty: "待样本",
+    review_ready: "可复核",
+  };
+
+  return labels[value];
+}
+
+function patternReviewBucketStatusLabel(
+  value: ReturnType<typeof buildV3PatternReviewStats>["patternBuckets"][number]["status"],
+) {
+  const labels: Record<ReturnType<typeof buildV3PatternReviewStats>["patternBuckets"][number]["status"], string> = {
+    collecting: "收集",
+    mixed: "分歧",
+    promising_context: "有效",
+    risk_context: "反证",
+  };
+
+  return labels[value];
+}
+
 export function JournalPanel({ events, onCreate, selected, status }: JournalPanelProps) {
   const selectedLabel = selected?.symbol.replace("USDT", "") ?? "未选择";
   const trackingCount = events.filter((event) => event.reviewStatus === "tracking").length;
   const queueReviewAt = nextQueueReviewAt(events);
+  const patternReviewStats = buildV3PatternReviewStats(events);
+  const visibleReviewBuckets = [
+    ...patternReviewStats.patternBuckets.map((bucket) => ({ ...bucket, kind: "形态" })),
+    ...patternReviewStats.tradePlanBuckets.map((bucket) => ({ ...bucket, kind: "计划" })),
+  ].slice(0, 4);
 
   return (
     <section className="module">
@@ -246,6 +275,39 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
           <span><b>{events.length}</b> 总数</span>
           <span><b>{trackingCount}</b> 跟踪</span>
           <span><b>{formatReviewTime(queueReviewAt)}</b> 下次</span>
+        </div>
+
+        <div
+          aria-label="形态复盘统计：读取 v3_pattern_context 与 v3_trade_ 标签"
+          className={`v3-review-stats v3-review-stats--${patternReviewStats.status}`}
+        >
+          <div className="v3-review-stats__head">
+            <span className="mono">形态复盘统计</span>
+            <b>{patternReviewStatsStatusLabel(patternReviewStats.status)}</b>
+            <small>只读统计 · 不改权重</small>
+          </div>
+          <div className="v3-review-stats__grid">
+            <span><b>{patternReviewStats.sampleCount}</b>样本</span>
+            <span><b>{patternReviewStats.closedSamples}</b>关闭</span>
+            <span><b>{patternReviewStats.pendingSamples}</b>待复查</span>
+            <span><b>{patternReviewStats.topPattern?.label ?? "等待"}</b>主形态</span>
+          </div>
+          {visibleReviewBuckets.length > 0 ? (
+            <div className="v3-review-stats__buckets" aria-label="v3 形态和交易计划复盘 bucket">
+              {visibleReviewBuckets.map((bucket) => (
+                <span className={`v3-review-stats__bucket v3-review-stats__bucket--${bucket.status}`} key={`${bucket.kind}-${bucket.tag}`}>
+                  <b>{bucket.kind} · {bucket.label}</b>
+                  <small>
+                    {bucket.validatedSamples}/{bucket.sampleCount} 有效 ·
+                    {bucket.rejectedSamples} 反证 ·
+                    {patternReviewBucketStatusLabel(bucket.status)}
+                  </small>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <small className="v3-review-stats__empty">{patternReviewStats.nextStep}</small>
+          )}
         </div>
       </div>
 

@@ -347,9 +347,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 2：真正多周期分析引擎 | 基础已落地，受限主候选已接入真实多周期 OHLCV profile、指标矩阵摘要、基础指标/周期校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层 | 尚未完成真实权重生效、交互式多周期图表和全量候选覆盖 |
 | 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级、repository hints 和扫描经济前端面板基础已落地 | 尚未完成高优先级加密扫描和更细的交易所覆盖差异前端钻取 |
 | 阶段 4：OHLCV、盘面结构与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示、基础指标/周期权重校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层；v3 KeyLevel/ForwardMap/Pattern Library 已复用既有 OHLCV 接入 Signal Dossier | 尚未完成真实权重生效、交互式多周期图表、更专业的成交量分布模型、完整 Market Reading Engine、Fibonacci/谐波辅助层 |
-| 阶段 4V3：Altcoin Trend Radar v3 | 定位已确认为“全市场山寨币趋势切换雷达”；Strategy Engine v2 已形成证据、评分、风险门控、报告和只读 UI 接入底座；v3 类型、Key Level Engine MVP、Forward Level Map MVP、forward map review hook、`strategyV3` 只读 Signal Dossier 接入、Forward Map 持久化 MVP、Forward Map review executor MVP、系统健康摘要、Market Reading MVP、结构事实驱动阶段切换、位置/RR 只读门控、回踩/反抽质量、趋势完整度、v3 只读 Trade Plan 草案、Pattern Library MVP、前端展示和复盘标签已完成 | 需要补齐更多样本后的人工校准汇总、形态复盘统计和更细的多周期图表交互 |
+| 阶段 4V3：Altcoin Trend Radar v3 | 定位已确认为“全市场山寨币趋势切换雷达”；Strategy Engine v2 已形成证据、评分、风险门控、报告和只读 UI 接入底座；v3 类型、Key Level Engine MVP、Forward Level Map MVP、forward map review hook、`strategyV3` 只读 Signal Dossier 接入、Forward Map 持久化 MVP、Forward Map review executor MVP、系统健康摘要、Market Reading MVP、结构事实驱动阶段切换、位置/RR 只读门控、回踩/反抽质量、趋势完整度、v3 只读 Trade Plan 草案、Pattern Library MVP、前端展示、复盘标签和形态/计划复盘统计面板已完成 | 需要补齐更多样本后的人工校准汇总和更细的多周期图表交互 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
-| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
+| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未完成站内告警历史持久化、可配置静默时段、可配置告警等级阈值和提示音细节 |
 | 阶段 8：UI 质感深化 | 第一轮已落地，信号档案基础已接入候选池、信号地图、TradingView、日记、每日异动、告警和副驾驶入口；Living Radar 第二轮已接入雷达节拍条、信号脉冲、延迟/失败状态弱化、移动端检查、Altcoin Opportunity Board 和 BTC/ETH Macro Weather | 像素男性副驾驶仍需正式替换旧 S680 命名与组件边界；装备升级、图表密度、信号档案视觉精修和更完整交互动效仍需继续打磨 |
@@ -1265,7 +1265,13 @@ CoinGlass 业余会员 API：
    - 这些标签只用于复盘归因和人工校准，不改变 live ranking、不自动改权重、不让形态直接产生交易信号。
    - 当前状态：已完成 MVP。后续正确搭建项是形态复盘统计面板，把 tagged journal/outcome 样本按 pattern/trade status 聚合成只读表现摘要。
 
-28. **V1.7：Product Design 简报与角色设定固化**
+28. **Phase 4V3-15：Pattern / Trade Plan 只读复盘统计面板**
+   - 新增 `buildV3PatternReviewStats()`，从 `JournalEvent.lessons` 聚合 `v3_pattern_<type>` 与 `v3_trade_<status>`，统计样本数、关闭样本、待复查、有效、反证、有效率和 bucket 状态。
+   - 统计报告固定 `allowedUse=research_only`、`canAutoAdjustWeights=false`，只能用于人工归因，不能自动改权重、不能改变实时排序、不能直接生成交易信号。
+   - `JournalPanel` 已展示“形态复盘统计”，包含样本、关闭、待复查、主形态和前几类 pattern/trade bucket；空样本时保持收集状态，不伪造结论。
+   - 当前状态：已完成 MVP。后续正确搭建项是更细的多周期图表交互和样本 drilldown，让每个统计 bucket 能追溯到具体信号、K 线窗口和复盘事件。
+
+29. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。

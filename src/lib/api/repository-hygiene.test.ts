@@ -1279,6 +1279,24 @@ test("journal panel exposes v3 forward map review events as readonly review reco
   assert.match(dossierSource, /v3复盘/);
 });
 
+test("journal panel exposes v3 pattern and trade-plan review stats as readonly summaries", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/journal-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(componentSource, /buildV3PatternReviewStats/);
+  assert.match(componentSource, /patternReviewStats/);
+  assert.match(componentSource, /形态复盘统计/);
+  assert.match(componentSource, /只读统计/);
+  assert.match(componentSource, /不改权重/);
+  assert.match(componentSource, /v3_pattern_context/);
+  assert.match(componentSource, /v3_trade_/);
+  assert.match(cssSource, /\.v3-review-stats/);
+  assert.match(cssSource, /\.v3-review-stats__bucket/);
+});
+
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(
