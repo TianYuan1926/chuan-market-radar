@@ -487,6 +487,16 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 盘面结构是后续分析能力的核心增强方向。系统不能只依赖 CoinGlass 数据、指标矩阵或多周期涨跌幅；必须识别真实盘面结构、关键位、形态位置和失效路径，尤其面向山寨币爆发前的布局机会。
 
+2026-06-17 已新增 **Evidence-Based Altcoin Strategy Engine v2** 规格文档，后续进入 Phase 4C/4D 前必须先读取：
+
+- `docs/CORE_STRATEGY_SPEC.md`
+- `docs/EVIDENCE_ENGINE_SPEC.md`
+- `docs/INDICATOR_RULES.md`
+- `docs/DATA_RULES.md`
+- `docs/GOLDEN_CASES.md`
+
+v2 硬边界：不接入清算热力图，不实现 Liquidation Heatmap，不构建 LiquidationZone，不把潜在清算区作为目标位、入场位、止损位或方向依据；常规清算统计最多作为风险背景，不能单独进入方向判断。
+
 后续新增 **Market Structure Engine / Pattern Library** 时必须遵守：
 
 - 先结构，后指标；先位置，后方向；先盈亏比，后形态名称。
