@@ -220,7 +220,7 @@ Expected: all tests pass.
 - Consumes: feature facts, indicator values, derivative snapshots.
 - Produces: EvidenceItem arrays only.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Cover:
 
@@ -231,17 +231,17 @@ Cover:
 - Funding high outputs risk, not strength.
 - CVD unavailable produces proxy boundary, not fake CVD.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test:market`
 
 Expected: fail because interpreters do not exist.
 
-- [ ] **Step 3: Implement interpreters**
+- [x] **Step 3: Implement interpreters**
 
 Each interpreter returns `{ evidence, dataIssues }` or `{ evidence, ignoredSignals }`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test:market`
 
