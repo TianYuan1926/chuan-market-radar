@@ -44,6 +44,60 @@ function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
   };
 }
 
+function strategyV3Dossier(): NonNullable<MarketSignal["strategyV3"]> {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    currentPrice: 12.7,
+    forwardLevels: [],
+    guardrails: ["只读上下文"],
+    keyLevels: [],
+    primaryTimeframe: "15m",
+    source: "existing_ohlcv_key_level_mvp",
+    sourceTimeframes: ["15m", "4h"],
+    summary: "v3 多周期结构存在冲突。",
+    symbol: "ENAUSDT",
+    trendContext: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      conflicts: ["15m 上行但 4h 下行，低周期不能推翻高周期。"],
+      decision: "CONFLICT_WAIT",
+      guardrail: "只读解释，不改变排序。",
+      nextStep: "等待高低周期重新一致。",
+      noParticipationReasons: ["周期冲突：15m 上行但 4h 下行，低周期不能推翻高周期。"],
+      riskGate: {
+        allowed: false,
+        blockedBy: ["周期冲突"],
+        mode: "readonly_v3_risk_gate",
+      },
+      scores: {
+        exhaustionScore: 18,
+        longPreTrendScore: 62,
+        longTrendEnergyScore: 44,
+        riskScore: 38,
+        shortPreTrendScore: 58,
+        shortTrendEnergyScore: 42,
+        trendHoldScore: 24,
+      },
+      state: "CONFLICT",
+      summary: "ENAUSDT 多周期结构：15m:UPTREND / 4h:DOWNTREND。",
+      timeframes: [
+        {
+          changePercent: 8.4,
+          close: 12.7,
+          compressionScore: 12,
+          directionalScore: 45,
+          rangePercent: 14.2,
+          structure: "UPTREND",
+          timeframe: "15m",
+        },
+      ],
+    },
+  };
+}
+
 test("buildAltcoinOpportunityBoard groups actionable altcoin opportunities without creating chase signals", () => {
   const board = buildAltcoinOpportunityBoard({
     dailyMoverDetails: [
@@ -175,6 +229,28 @@ test("buildAltcoinOpportunityBoard exposes v2 market stage without replacing cur
   assert.equal(item?.stateLabel, "等待确认");
   assert.equal(item?.strategyV2StageLabel, "突破前临界");
   assert.equal(item?.strategyV2DecisionLabel, "等待突破");
+});
+
+test("buildAltcoinOpportunityBoard exposes v3 risk gate without changing opportunity grouping", () => {
+  const board = buildAltcoinOpportunityBoard({
+    dailyMoverDetails: [],
+    journalEvents: [],
+    scanStatus: "ready",
+    signals: [
+      signal({
+        strategyV3: strategyV3Dossier(),
+      }),
+    ],
+  });
+
+  const item = board.groups.long_warming.items[0];
+
+  assert.equal(item?.symbol, "ENAUSDT");
+  assert.equal(item?.groupKey, "long_warming");
+  assert.equal(item?.strategyV3StateLabel, "周期冲突");
+  assert.equal(item?.strategyV3DecisionLabel, "等一致");
+  assert.match(item?.strategyV3RiskGateLabel ?? "", /v3阻断/);
+  assert.match(item?.strategyV3NoParticipationLabel ?? "", /周期冲突/);
 });
 
 test("buildAltcoinOpportunityBoard marks stale scans as watch-only", () => {

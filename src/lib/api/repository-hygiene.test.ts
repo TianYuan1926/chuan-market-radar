@@ -704,6 +704,8 @@ test("phase 3.8 altcoin opportunity board is the primary grouped opportunity sur
     "禁止追单",
     "复盘上下文",
     "不新增请求",
+    "v3风控",
+    "不参与原因",
     "OI",
     "资金",
     "量能",
@@ -715,6 +717,8 @@ test("phase 3.8 altcoin opportunity board is the primary grouped opportunity sur
     "altcoin-opportunity-group",
     "altcoin-opportunity-card",
     "altcoin-opportunity-card__badges",
+    "altcoin-opportunity-card__v3",
+    "altcoin-opportunity-card__v3-reason",
     "altcoin-opportunity-card--no_chase",
     "altcoin-opportunity-card--new_long_tail",
   ];

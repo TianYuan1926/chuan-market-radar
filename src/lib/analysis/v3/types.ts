@@ -152,6 +152,12 @@ export type TrendTimeframeContext = {
   timeframe: TrendTimeframe;
 };
 
+export type StrategyV3RiskGate = {
+  allowed: boolean;
+  blockedBy: string[];
+  mode: "readonly_v3_risk_gate";
+};
+
 export type StrategyV3TrendContext = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -160,6 +166,8 @@ export type StrategyV3TrendContext = {
   decision: TrendDecision;
   guardrail: string;
   nextStep: string;
+  noParticipationReasons: string[];
+  riskGate: StrategyV3RiskGate;
   scores: TrendScores;
   state: TrendState;
   summary: string;

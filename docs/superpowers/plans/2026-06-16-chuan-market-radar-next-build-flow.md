@@ -20,6 +20,7 @@ The project is currently in a product/UI route rebaseline before the next fronte
 - The corrected frontend route is a real Tailwind CSS + daisyUI UI reset, not a custom-CSS shell with daisyUI-style naming. The desired product form remains a Live Navbar / Banner, one Cockpit Card, desktop columns at 2:6:2, a short boot/briefing layer, session clock, and visible runtime feedback.
 - Altcoins and new listings remain the primary opportunity target. BTC/ETH/ETF/CoinGlass macro data becomes the market weather layer, not a replacement for the altcoin opportunity board.
 - Mainland China access work is intentionally excluded from the current roadmap. Do not add ICP, mainland CDN, or mainland hosting tasks to this flow unless the user explicitly reopens that decision.
+- Latest v3 backend progress: Signal Dossier already has Key Level Map, Forward Map, multi-timeframe trend context, trend scores, and readonly conflict output. Altcoin Opportunity Board now also surfaces v3 trend state, v3 decision, v3 risk gate, and first no-participation reason without changing live ranking or CoinGlass request volume.
 
 ## Build Rules For Every Stage
 
@@ -38,7 +39,7 @@ git diff --check
 ```
 
 - [ ] For frontend stages, use Product Design first, then verify desktop and mobile with Browser screenshots and overflow checks.
-- [ ] User handles GitHub Desktop commit and push. End every stage with a suggested Summary line.
+- [ ] Codex should stage/commit/push when local GitHub credentials allow it. If HTTPS credentials are unavailable, Codex must still commit locally, report the exact GitHub Desktop Summary, and let the user push from GitHub Desktop.
 
 ---
 
@@ -181,13 +182,14 @@ Add live radar runtime layer
 
 **Steps:**
 
-- [ ] Derive board groups from existing scan, universe, daily mover, alert, and journal data before adding new external requests.
-- [ ] Group opportunities: long warming, short warming, overextended/no chase, new/long-tail watch, and data-insufficient watch.
-- [ ] Show why each symbol is on the board: trigger gap, OI/funding/liquidation/volume evidence, BTC/ETH environment, scan tier, and stale state.
-- [ ] Add action links into Signal Dossier and TradingView.
-- [ ] Keep board labels conditional and evidence-backed, not buy/sell orders.
-- [ ] Add tests for grouping, stale handling, and no-FOMO labels.
-- [ ] Run full verification.
+- [x] Derive board groups from existing scan, universe, daily mover, alert, and journal data before adding new external requests.
+- [x] Group opportunities: long warming, short warming, overextended/no chase, new/long-tail watch, and data-insufficient watch.
+- [x] Show why each symbol is on the board: trigger gap, OI/funding/volume evidence, BTC/ETH environment, scan tier, and stale state.
+- [x] Add action links into Signal Dossier and TradingView.
+- [x] Keep board labels conditional and evidence-backed, not buy/sell orders.
+- [x] Add tests for grouping, stale handling, no-FOMO labels, and v3 risk gate display.
+- [x] Surface v3 trend state, v3 decision, v3 risk gate, and first no-participation reason from readonly `strategyV3.trendContext`.
+- [ ] Run full verification after the current v3 risk-gate stage.
 
 **Acceptance:**
 
@@ -199,6 +201,43 @@ Add live radar runtime layer
 
 ```text
 Add altcoin opportunity board
+```
+
+## Phase 4V3-6: v3 Risk Gate And No-Participation Reasons
+
+**Purpose:** Make the v3 engine explain why a signal is blocked, waiting, conflicting, or only watchable directly on the primary opportunity surface.
+
+**Files likely involved:**
+
+- Modify: `src/lib/analysis/v3/types.ts`
+- Modify: `src/lib/analysis/v3/trend-context.ts`
+- Modify: `src/lib/analysis/v3/current-signal-dossier.test.ts`
+- Modify: `src/lib/market/altcoin-opportunities.ts`
+- Modify: `src/lib/market/altcoin-opportunities.test.ts`
+- Modify: `src/components/radar/altcoin-opportunity-board.tsx`
+- Modify: `src/app/globals.css`
+- Modify: `docs/chuan-market-radar-blueprint.md`
+
+**Steps:**
+
+- [x] Add RED tests for trend-context risk gate and no-participation reasons.
+- [x] Add board mapper tests proving v3 risk gate does not change opportunity grouping.
+- [x] Add UI hygiene test requiring `v3风控` and `不参与原因`.
+- [x] Implement readonly `riskGate` and `noParticipationReasons` on `StrategyV3TrendContext`.
+- [x] Map v3 state, decision, risk gate, and no-participation reason into `AltcoinOpportunityItem`.
+- [x] Render compact v3 risk and no-participation blocks in the opportunity card.
+- [ ] Run full verification and commit.
+
+**Acceptance:**
+
+- User can see why v3 blocks or waits without opening every dossier.
+- The board still does not output execution orders.
+- No CoinGlass request count or live ranking changes.
+
+**GitHub Desktop Summary:**
+
+```text
+Surface v3 risk gate on opportunities
 ```
 
 ---

@@ -203,6 +203,28 @@ function stateAndDecision(scores: TrendScores, timeframes: TrendTimeframeContext
   };
 }
 
+function noParticipationReasons(state: TrendState, scores: TrendScores, conflicts: string[]) {
+  const reasons = conflicts.map((conflict) => `周期冲突：${conflict}`);
+
+  if (scores.riskScore >= 70) {
+    reasons.push(`风险分过高：RiskScore ${scores.riskScore}`);
+  }
+
+  if (state === "RANGE_COMPRESSION") {
+    reasons.push("区间压缩尚未给出方向，等待突破和量能确认。");
+  }
+
+  if (state === "RANGE_IDLE") {
+    reasons.push("结构优势不足，继续观察区间边界和量能变化。");
+  }
+
+  if (state === "INVALIDATED") {
+    reasons.push("结构已经失效，等待重新构建。");
+  }
+
+  return reasons;
+}
+
 export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextInput): StrategyV3TrendContext {
   const timeframes = input.sourceTimeframes
     .map((timeframe) => timeframeContext(timeframe, input.candlesByTimeframe[timeframe] ?? []))
@@ -210,6 +232,7 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
   const conflicts = [structureConflict(timeframes)].filter((item): item is string => Boolean(item));
   const scores = scoresFor(input, timeframes);
   const stateDecision = stateAndDecision(scores, timeframes, conflicts);
+  const noParticipation = noParticipationReasons(stateDecision.state, scores, conflicts);
 
   return {
     allowedUse: "research_only",
@@ -219,6 +242,12 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     decision: stateDecision.decision,
     guardrail: "v3 趋势上下文只解释多周期结构，不改变 live ranking，不自动生成交易结论。",
     nextStep: stateDecision.nextStep,
+    noParticipationReasons: noParticipation,
+    riskGate: {
+      allowed: noParticipation.length === 0,
+      blockedBy: noParticipation.map((reason) => reason.split("：")[0] ?? reason),
+      mode: "readonly_v3_risk_gate",
+    },
     scores,
     state: stateDecision.state,
     summary: `${input.symbol} 多周期结构：${timeframes.map((item) => `${item.timeframe}:${item.structure}`).join(" / ")}。`,

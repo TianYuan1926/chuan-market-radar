@@ -86,6 +86,8 @@ test("buildSignalTrendRadarV3Dossier builds readonly key levels and forward map 
   assert.equal(dossier.trendContext.canMutateLiveRanking, false);
   assert.equal(dossier.trendContext.state, "PRE_TREND_LONG");
   assert.equal(dossier.trendContext.decision, "WAIT_LONG_BREAKOUT");
+  assert.equal(dossier.trendContext.riskGate.allowed, true);
+  assert.deepEqual(dossier.trendContext.noParticipationReasons, []);
   assert.equal(dossier.trendContext.scores.longPreTrendScore > dossier.trendContext.scores.shortPreTrendScore, true);
   assert.deepEqual(
     dossier.trendContext.timeframes.map((item) => item.timeframe),
@@ -120,6 +122,8 @@ test("buildSignalTrendRadarV3Dossier marks high and low timeframe structure conf
   assert.ok(dossier.trendContext);
   assert.equal(dossier.trendContext.state, "CONFLICT");
   assert.equal(dossier.trendContext.decision, "CONFLICT_WAIT");
+  assert.equal(dossier.trendContext.riskGate.allowed, false);
   assert.equal(dossier.trendContext.conflicts.length > 0, true);
+  assert.match(dossier.trendContext.noParticipationReasons.join(" / "), /周期冲突/);
   assert.match(dossier.trendContext.nextStep, /等待/);
 });

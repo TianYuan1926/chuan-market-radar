@@ -116,6 +116,19 @@ function renderItemContent(item: AltcoinOpportunityItem) {
           {item.strategyV2DecisionLabel ? <b>{item.strategyV2DecisionLabel}</b> : null}
         </div>
       ) : null}
+      {item.strategyV3StateLabel ? (
+        <div className="altcoin-opportunity-card__v3">
+          <span>v3 {item.strategyV3StateLabel}</span>
+          {item.strategyV3DecisionLabel ? <b>{item.strategyV3DecisionLabel}</b> : null}
+          {item.strategyV3RiskGateLabel ? <em>v3风控：{item.strategyV3RiskGateLabel}</em> : null}
+        </div>
+      ) : null}
+      {item.strategyV3NoParticipationLabel ? (
+        <div className="altcoin-opportunity-card__v3-reason">
+          <Ban aria-hidden="true" size={12} />
+          <span>不参与原因：{item.strategyV3NoParticipationLabel}</span>
+        </div>
+      ) : null}
       <p>{item.summary}</p>
       <div className="altcoin-opportunity-card__strategy">
         <ListChecks aria-hidden="true" size={13} />
