@@ -311,23 +311,81 @@ p {
 
 .top-status {
   display: grid;
-  gap: 2px;
-  min-width: 170px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  align-content: start;
+  min-width: min(820px, 64vw);
   padding: 9px 12px;
   border-left: 1px solid var(--line);
-  text-align: right;
+  text-align: left;
 }
 
 .top-status strong {
   font-size: 14px;
 }
 
+.scan-heartbeat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 7px;
+  align-items: center;
+  justify-items: start;
+  padding-bottom: 7px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.scan-heartbeat__dot {
+  grid-row: span 2;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 5px rgba(39, 140, 102, 0.12), 0 0 18px rgba(39, 140, 102, 0.3);
+  animation: scanHeartbeatPulse 1.6s var(--curve) infinite;
+}
+
+.scan-heartbeat span:not(.scan-heartbeat__dot) {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.scan-heartbeat strong {
+  color: var(--ink);
+}
+
+.scan-heartbeat small {
+  grid-column: 1 / -1;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-heartbeat--syncing .scan-heartbeat__dot,
+.scan-heartbeat--freshness-aging .scan-heartbeat__dot {
+  background: var(--amber);
+  box-shadow: 0 0 0 5px rgba(213, 155, 61, 0.15), 0 0 22px rgba(213, 155, 61, 0.34);
+}
+
+.scan-heartbeat--updated .scan-heartbeat__dot {
+  background: var(--blue);
+  box-shadow: 0 0 0 5px rgba(55, 90, 255, 0.14), 0 0 24px rgba(55, 90, 255, 0.32);
+}
+
+.scan-heartbeat--error .scan-heartbeat__dot,
+.scan-heartbeat--freshness-expired .scan-heartbeat__dot {
+  background: var(--red);
+  box-shadow: 0 0 0 5px rgba(201, 74, 74, 0.14), 0 0 24px rgba(201, 74, 74, 0.3);
+}
+
 .market-session-clock {
   display: grid;
   gap: 3px;
-  justify-items: end;
-  margin-bottom: 5px;
-  padding-bottom: 7px;
+  justify-items: start;
+  padding: 1px 0 7px;
   border-bottom: 1px dashed var(--line);
 }
 
@@ -343,7 +401,7 @@ p {
 }
 
 .market-session-clock small {
-  max-width: 230px;
+  max-width: 100%;
   overflow: hidden;
   color: var(--ink-2);
   font-size: 10px;
@@ -364,9 +422,163 @@ p {
   color: #8b5c12;
 }
 
+.next-scan-countdown,
+.freshness-meter {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding-bottom: 7px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.next-scan-countdown span,
+.freshness-meter span:not(.freshness-meter__bar) {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.next-scan-countdown strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.next-scan-countdown small,
+.freshness-meter small {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.freshness-meter {
+  position: relative;
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 250, 240, 0.34);
+  animation: runtimeStateFlash 7s var(--curve) infinite;
+}
+
+.data-freshness {
+  min-width: 0;
+}
+
+.freshness-meter__bar {
+  position: absolute;
+  inset: auto 8px 6px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(21, 23, 28, 0.12);
+}
+
+.freshness-meter__bar i {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  animation: freshnessSweep 2.9s linear infinite;
+}
+
+.freshness-meter--aging .freshness-meter__bar i,
+.freshness-meter--unknown .freshness-meter__bar i {
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+}
+
+.freshness-meter--expired .freshness-meter__bar i {
+  background: linear-gradient(90deg, transparent, var(--red), transparent);
+}
+
+.runtime-state-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  text-align: left;
+}
+
+.runtime-state {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 250, 240, 0.34);
+}
+
+.runtime-state b,
+.runtime-state small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runtime-state b {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.runtime-state strong {
+  position: relative;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.runtime-state strong::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(39, 140, 102, 0.1);
+  vertical-align: 1px;
+}
+
+.runtime-state small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.runtime-state--watch strong::before {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgba(213, 155, 61, 0.12);
+}
+
+.runtime-state--stale {
+  background: rgba(213, 155, 61, 0.1);
+}
+
+.runtime-state--stale strong::before {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgba(213, 155, 61, 0.14);
+}
+
+.runtime-state--blocked {
+  background: rgba(201, 74, 74, 0.1);
+}
+
+.runtime-state--blocked strong::before {
+  background: var(--red);
+  box-shadow: 0 0 0 3px rgba(201, 74, 74, 0.14);
+}
+
 .top-status__guard {
   display: inline-flex;
-  justify-self: end;
+  grid-column: 1 / -1;
+  justify-self: start;
   width: fit-content;
   margin-top: 3px;
   padding: 2px 6px;
@@ -378,11 +590,12 @@ p {
 }
 
 .live-console {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px;
   align-items: center;
-  justify-items: end;
+  justify-items: start;
   margin-top: 6px;
   padding-top: 7px;
   border-top: 1px dashed var(--line);
@@ -6250,6 +6463,21 @@ p {
   to { transform: scale(1.18); opacity: 1; }
 }
 
+@keyframes scanHeartbeatPulse {
+  0%, 100% { transform: scale(0.88); opacity: 0.72; }
+  45% { transform: scale(1.18); opacity: 1; }
+}
+
+@keyframes freshnessSweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(260%); }
+}
+
+@keyframes runtimeStateFlash {
+  0%, 94%, 100% { box-shadow: inset 0 0 0 1px transparent; }
+  96% { box-shadow: inset 0 0 0 1px rgba(213, 155, 61, 0.42); }
+}
+
 @keyframes radarCommandSweep {
   0%, 30% { transform: translateX(-120%); opacity: 0; }
   44% { opacity: 0.82; }
@@ -6364,6 +6592,7 @@ p {
   }
 
   .top-status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     border-top: 1px solid var(--line);
     border-left: 0;
     text-align: left;
@@ -6388,6 +6617,10 @@ p {
 
   .live-console {
     justify-items: start;
+  }
+
+  .runtime-state-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .radar-command-strip__cell {
@@ -6458,7 +6691,7 @@ p {
   }
 
   .crystal-lens {
-    min-height: 88px;
+    min-height: 68px;
   }
 
   .market-session-clock {
@@ -6468,7 +6701,7 @@ p {
 
   .market-session-clock small {
     max-width: 100%;
-    white-space: normal;
+    white-space: nowrap;
   }
 
   .radar-boot-briefing {

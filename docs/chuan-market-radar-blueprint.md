@@ -935,6 +935,7 @@ CoinGlass 业余会员 API：
 - 2026-06-17 已确定：下一阶段以 `docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md` 为正式依据，先真实接入 Tailwind CSS + daisyUI，再重建 AppShell、Live Navbar、启动 briefing、统一 cockpit、移动端 tabs/drawer 和模块联动。
 - Phase 8.2b-R 已落地：Tailwind CSS、daisyUI、PostCSS、`postcss.config.mjs`、`globals.css` 入口和 webpack 生产构建路径已接入，Element Plus 继续保持参考-only。
 - Phase 8.2c 已落地：新增 `TopRadarBar`、`RadarBootBriefing`、`RadarCockpitShell` 和 `OpsAndFilterPanel`，`radar-workspace.tsx` 改为组合新 AppShell；桌面 2 : 6 : 2、移动 tabs、机会区优先、候选池文字不遮挡已通过本地浏览器 QA。
+- Phase 8.2d 已落地：顶部常驻运行反馈层加入扫描心跳、下次扫描倒计时、数据新鲜度、市场时段时钟、CoinGlass/Neon/归档/Cron 状态矩阵和 stale/degraded 色阶；背景音乐继续删除，只保留用户主动开启的提示音边界。桌面 1440x1000 与移动 390x844 已通过本地生产构建浏览器 QA，无横向溢出，候选行不遮挡。
 - 移动端不挤压、不重叠。
 
 后续正确 UI 搭建顺序：
@@ -955,6 +956,7 @@ CoinGlass 业余会员 API：
    - 加入启动动画、介绍 briefing、市场时段时钟、扫描心跳、倒计时、数据新鲜度和事件流动效。
    - 动效必须表达系统正在运行，不能干扰信号阅读。
    - 背景音乐删除，只保留未来可选提示音。
+   - 当前状态：扫描心跳、倒计时、数据新鲜度、盘区时钟和运行状态矩阵已落地；启动动画和更完整事件流动效后移，不阻塞下一阶段山寨机会板。
 
 4. **Phase 3.8：Altcoin Opportunity Board**
    - 把山寨币机会作为首页核心，而不是只展示通用候选池。

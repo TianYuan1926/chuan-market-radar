@@ -458,6 +458,68 @@ test("radar workspace exposes the phase 8.2b live navbar and 2-6-2 cockpit shell
   assert.match(cssSource, /2fr\s+6fr\s+2fr/);
 });
 
+test("phase 8.2d live runtime layer exposes heartbeat, countdown, freshness, and degraded states", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const topBarSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/top-radar-bar.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredTopBarTokens = [
+    "scan-heartbeat",
+    "next-scan-countdown",
+    "freshness-meter",
+    "runtime-state-grid",
+    "data-freshness",
+    "runtimeStates",
+    "formatCountdownLabel",
+  ];
+  const requiredWorkspaceTokens = [
+    "buildRuntimeStates",
+    "clockNow",
+    "liveHealth.scan.freshness",
+    "liveHealth.operations.minutesUntilNextScan",
+    "liveHealth.archive.entries",
+    "cron",
+  ];
+  const requiredClasses = [
+    "scan-heartbeat",
+    "next-scan-countdown",
+    "freshness-meter",
+    "runtime-state-grid",
+    "runtime-state",
+    "data-freshness",
+  ];
+  const requiredAnimations = [
+    "scanHeartbeatPulse",
+    "freshnessSweep",
+    "runtimeStateFlash",
+  ];
+
+  for (const token of requiredTopBarTokens) {
+    assert.match(topBarSource, new RegExp(token));
+  }
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.match(workspaceSource, new RegExp(token));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  for (const animationName of requiredAnimations) {
+    assert.match(cssSource, new RegExp(`@keyframes ${animationName}`));
+  }
+
+  assert.match(cssSource, /prefers-reduced-motion/);
+  assert.equal(topBarSource.includes("background music"), false);
+  assert.equal(topBarSource.includes("<audio"), false);
+});
+
 test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");

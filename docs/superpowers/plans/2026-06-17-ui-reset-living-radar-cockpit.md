@@ -106,14 +106,14 @@ Rebuild radar cockpit shell
 
 **Purpose:** Make the page visibly operational without fake realtime effects.
 
-- [ ] Add scan heartbeat and last-update freshness display to `TopRadarBar`.
-- [ ] Add next-scan countdown when cadence metadata is available.
-- [ ] Add market-session clock: Asia, London, New York, overlap, weekend/low-liquidity.
-- [ ] Add stale/degraded visual states for CoinGlass, Neon, archive, and cron freshness.
-- [ ] Add new-signal and changed-metric highlight transitions.
-- [ ] Add reduced-motion fallback.
-- [ ] Keep background music out of scope.
-- [ ] Run browser QA and full verification.
+- [x] Add scan heartbeat and last-update freshness display to `TopRadarBar`.
+- [x] Add next-scan countdown when cadence metadata is available.
+- [x] Add market-session clock: Asia, London, New York, overlap, weekend/low-liquidity.
+- [x] Add stale/degraded visual states for CoinGlass, Neon, archive, and cron freshness.
+- [x] Add new-signal and changed-metric highlight transitions.
+- [x] Add reduced-motion fallback.
+- [x] Keep background music out of scope.
+- [x] Run browser QA and full verification.
 
 **Acceptance:**
 

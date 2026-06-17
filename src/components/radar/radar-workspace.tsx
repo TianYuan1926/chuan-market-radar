@@ -15,7 +15,7 @@ import { ReplayPanel } from "./replay-panel";
 import { SignalDossier, type SignalDossierDailyMoverMatch } from "./signal-dossier";
 import { StrategyCard } from "./strategy-card";
 import { SystemHealthPanel } from "./system-health-panel";
-import { TopRadarBar } from "./top-radar-bar";
+import { TopRadarBar, type RuntimeStateView } from "./top-radar-bar";
 import { signalStateLabels } from "@/lib/analysis/constants";
 import {
   buildAlertEvent,
@@ -200,6 +200,107 @@ function formatRefreshInterval(value: number) {
   return value >= 60_000 ? `${Math.round(value / 60_000)}m` : `${Math.round(value / 1000)}s`;
 }
 
+function scanFreshnessLabel(health: SystemHealthReport) {
+  if (health.scan.ageMinutes === null) {
+    return "等待首轮";
+  }
+
+  if (health.scan.ageMinutes <= 0) {
+    return "刚刚刷新";
+  }
+
+  return `${health.scan.ageMinutes}m 前`;
+}
+
+function runtimeStateTone(
+  status: "blocked" | "ready" | "stale" | "watch",
+): RuntimeStateView["tone"] {
+  return status;
+}
+
+function dataSourceRuntimeTone(health: SystemHealthReport): RuntimeStateView["tone"] {
+  if (health.dataSource.status === "missing_key") {
+    return runtimeStateTone("blocked");
+  }
+
+  if (health.dataSource.status === "fallback") {
+    return runtimeStateTone("stale");
+  }
+
+  if (health.dataSource.status === "preview" || !health.dataSource.isRealtime) {
+    return runtimeStateTone("watch");
+  }
+
+  return runtimeStateTone("ready");
+}
+
+function persistenceRuntimeTone(health: SystemHealthReport): RuntimeStateView["tone"] {
+  if (health.persistence.databaseStatus === "ready" && health.persistence.durable) {
+    return runtimeStateTone("ready");
+  }
+
+  if (health.persistence.databaseStatus === "fallback") {
+    return runtimeStateTone("stale");
+  }
+
+  return runtimeStateTone("watch");
+}
+
+function scanRuntimeTone(health: SystemHealthReport): RuntimeStateView["tone"] {
+  if (health.scan.freshness === "expired" || health.scan.status === "failed") {
+    return runtimeStateTone("blocked");
+  }
+
+  if (health.scan.freshness === "aging" || health.scan.status === "stale") {
+    return runtimeStateTone("stale");
+  }
+
+  if (health.scan.freshness === "unknown") {
+    return runtimeStateTone("watch");
+  }
+
+  return runtimeStateTone("ready");
+}
+
+function buildRuntimeStates(liveHealth: SystemHealthReport): RuntimeStateView[] {
+  const minutesUntilNextScan = liveHealth.operations.minutesUntilNextScan;
+  const minutesUntilStale = liveHealth.operations.minutesUntilStale;
+  const cronDetail = minutesUntilStale === null
+    ? liveHealth.operations.operatorHint
+    : `${minutesUntilStale}m 后进入 stale 护栏`;
+
+  return [
+    {
+      detail: liveHealth.dataSource.mode === "live" ? liveHealth.dataSource.activeSource : liveHealth.dataSource.detail,
+      id: "coinglass",
+      label: "CoinGlass",
+      tone: dataSourceRuntimeTone(liveHealth),
+      value: liveHealth.dataSource.isRealtime ? "实时源" : "预览源",
+    },
+    {
+      detail: liveHealth.persistence.databaseDriver,
+      id: "neon",
+      label: "Neon",
+      tone: persistenceRuntimeTone(liveHealth),
+      value: liveHealth.persistence.durable ? "持久化" : "内存",
+    },
+    {
+      detail: liveHealth.archive.retentionMode,
+      id: "archive",
+      label: "归档",
+      tone: liveHealth.archive.entries > 0 ? runtimeStateTone("ready") : runtimeStateTone("watch"),
+      value: `${liveHealth.archive.entries} 帧`,
+    },
+    {
+      detail: cronDetail,
+      id: "cron",
+      label: "Cron",
+      tone: scanRuntimeTone(liveHealth),
+      value: minutesUntilNextScan === null ? "等待" : `${minutesUntilNextScan}m`,
+    },
+  ];
+}
+
 function formatMarketSessionTime(value: Date) {
   return new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
@@ -356,6 +457,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       now: new Date(),
     }).intervalMs
   );
+  const [clockNow, setClockNow] = useState(() => new Date());
   const [lastDelta, setLastDelta] = useState<SignalSetDelta | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const snapshotRef = useRef(snapshot);
@@ -365,7 +467,8 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const batchNote = displayMetadataNote(metadataNote(metadata.notes, "batch "));
   const requestsNote = displayMetadataNote(metadataNote(metadata.notes, "requests "));
   const coveragePercent = metadata.coverage?.coveragePercent ?? (metadata.scannedCount > 0 ? 100 : 0);
-  const marketSession = buildMarketSessionClock();
+  const marketSession = useMemo(() => buildMarketSessionClock(clockNow), [clockNow]);
+  const runtimeStates = useMemo(() => buildRuntimeStates(liveHealth), [liveHealth]);
   const longBiasCount = signals.filter((signal) => signal.direction === "long").length;
   const shortBiasCount = signals.filter((signal) => signal.direction === "short").length;
   const activeSignalCount = signals.filter((signal) =>
@@ -679,6 +782,16 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   }, [maybeShowNotification, playSignalTone, soundEnabled]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      setClockNow(new Date());
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isDossierOpen) {
       return undefined;
     }
@@ -933,10 +1046,14 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         batchNote={batchNote}
         cadenceMinutes={metadata.cadenceMinutes}
         candidateCount={instrumentPool.summary.accepted}
+        dataFreshnessLabel={scanFreshnessLabel(liveHealth)}
         deltaLabel={deltaLabel(lastDelta)}
+        freshnessTone={liveHealth.scan.freshness}
         isRealtime={metadata.isRealtime}
+        lastScanTime={formatScanTime(liveHealth.scan.generatedAt)}
         marketSession={marketSession}
         marketStatus={marketStatusLabel(metadata.status)}
+        nextScanAt={metadata.nextScanAt}
         nextScanTime={formatScanTime(metadata.nextScanAt)}
         onToggleSound={toggleSound}
         providerLabel={marketSourceLabel(metadata.source)}
@@ -945,6 +1062,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         refreshTone={refreshState}
         requestsNote={requestsNote}
         riskGate={riskGateLabel(metadata.riskGate)}
+        runtimeStates={runtimeStates}
         soundEnabled={soundEnabled}
         staleAfterMinutes={metadata.staleAfterMinutes}
       />
