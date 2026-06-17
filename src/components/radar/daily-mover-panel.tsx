@@ -20,6 +20,7 @@ type DailyMoverBacktestValidation = DailyMoverArchive["backtestValidations"][num
 type DailyMoverStrategyDraft = DailyMoverArchive["strategyDrafts"][number];
 type DailyMoverStrategyPerformanceFeedback = DailyMoverArchive["strategyPerformanceFeedback"][number];
 type DailyMoverStrategyVersionPerformance = DailyMoverArchive["strategyVersionPerformance"][number];
+type DailyMoverMissedAltcoinReview = DailyMoverArchive["missedAltcoinReviews"][number];
 type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
 type DailyMoverStrategyConfirmationStatus = "idle" | "saving" | "saved" | "error";
 
@@ -303,6 +304,25 @@ function renderBacktestValidation(validation: DailyMoverBacktestValidation) {
   );
 }
 
+function renderMissedAltcoinReview(review: DailyMoverMissedAltcoinReview) {
+  return (
+    <article className="daily-mover-missed-v3__item" key={review.id}>
+      <div>
+        <strong>{compactSymbol(review.symbol)}</strong>
+        <span>只读复盘</span>
+      </div>
+      <div className="daily-mover-missed-v3__stats" aria-label={`${review.symbol} v3 漏判复盘统计`}>
+        <span><b>{review.evidenceIds.length}</b>证据</span>
+        <span><b>{review.verdict}</b>结论</span>
+        <span><b>禁止</b>调权</span>
+        <span><b>{review.allowedUse}</b>用途</span>
+      </div>
+      <p>{review.detail}</p>
+      <small>missed_altcoin_review · 不改权重 · evidenceIds: {review.evidenceIds.slice(0, 3).join(" / ")}</small>
+    </article>
+  );
+}
+
 function strategyDraftStatusLabel(value: DailyMoverStrategyDraft["status"]) {
   return {
     blocked: "暂缓",
@@ -475,6 +495,7 @@ export function DailyMoverPanel({
   const strategyDrafts = activeArchive.strategyDrafts.slice(0, 3);
   const strategyPerformanceFeedback = activeArchive.strategyPerformanceFeedback.slice(0, 3);
   const strategyVersionPerformance = activeArchive.strategyVersionPerformance.slice(0, 3);
+  const missedAltcoinReviews = activeArchive.missedAltcoinReviews.slice(0, 3);
   const history = activeArchive.snapshots.slice(0, 6);
   const allowedUse = activeArchive.allowedUse === "research_only" ? "research_only" : activeArchive.allowedUse;
   const guardrail = activeArchive.guardrail || fallbackGuardrail;
@@ -621,6 +642,16 @@ export function DailyMoverPanel({
                 <span>{historyStatus === "loading" ? "读取中" : "只读复盘"}</span>
               </div>
               {selectedDetails.map(renderDetail)}
+            </div>
+          ) : null}
+
+          {missedAltcoinReviews.length > 0 ? (
+            <div className="daily-mover-missed-v3" aria-label="v3 漏判复盘">
+              <div className="daily-mover-missed-v3__head">
+                <h3>v3 漏判复盘</h3>
+                <span>事前地图</span>
+              </div>
+              {missedAltcoinReviews.map(renderMissedAltcoinReview)}
             </div>
           ) : null}
 

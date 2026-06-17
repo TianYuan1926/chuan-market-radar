@@ -13,7 +13,7 @@
 
 ## 当前边界
 
-当前已落地的是低频抓取、只读归因、关联复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP、人工权重变更执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁：
+当前已落地的是低频抓取、只读归因、关联复盘、v3 漏判复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP、人工权重变更执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁：
 
 - `DailyMover`：上榜资产样本。
 - `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
@@ -29,6 +29,7 @@
 - repository 写入和查询方法：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 - 关联摘要：选中样本会 bounded 读取扫描归档、扫描 replay 和复盘日记，输出命中已复盘、命中待复盘、漏判有证据、不可学习等状态。
 - UI 展示：`DailyMoverPanel` 已展示涨跌幅样本、归因统计、关联摘要、历史样本切换、单样本详情和规则校准候选。
+- v3 漏判复盘：`GET /api/daily-movers` 会把选中样本中的可学习漏判与已保存的 `v3_forward_map_snapshots` 做只读关联，输出 `missedAltcoinReviews`；`DailyMoverPanel` 展示“v3 漏判复盘 / 事前地图”、证据 id 数量和“不改权重”边界。该层不新增外部请求、不新增写入、不占用 CoinGlass 预算。
 - 校准候选入队：校准候选可通过 `calibration_review` 写入 `journal_events`，进入跟踪队列，但 rank 分数保持 0。
 - 只读校准反馈：`GET /api/daily-movers` 会按 `calibrationTag` 汇总 `calibration_review` 的待复查、有效、反证和过期样本数，`DailyMoverPanel` 只读展示反馈趋势。
 - 人工回测候选：`GET /api/daily-movers` 会从 `calibrationFeedback` 派生 `backtestCandidates`，按 `ready / collecting / blocked` 标记候选状态，`DailyMoverPanel` 只读展示样本、有效、反证和候选分数。

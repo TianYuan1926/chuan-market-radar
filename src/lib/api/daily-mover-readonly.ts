@@ -1,6 +1,8 @@
 import type {
   JournalEvent,
 } from "../analysis/types";
+import { buildMissedAltcoinReviews } from "../analysis/v3/missed-altcoin-review";
+import type { TrendRadarReview, V3ForwardMapSnapshot } from "../analysis/v3/types";
 import type {
   DailyMover,
   DailyMoverReview,
@@ -292,6 +294,7 @@ export type DailyMoverReadArchiveBase = {
   strategyConfirmations: DailyMoverStrategyConfirmation[];
   strategyPerformanceFeedback: DailyMoverStrategyPerformanceFeedback[];
   strategyVersionPerformance: DailyMoverStrategyVersionPerformance[];
+  missedAltcoinReviews: TrendRadarReview[];
   latestSnapshot: DailyMoverSnapshot | null;
   calibrationSuggestions: DailyMoverCalibrationSuggestion[];
   selectedSnapshot: DailyMoverSnapshot | null;
@@ -335,6 +338,7 @@ const optionalDailyMoverTableNames = [
   "mover_attribution_reviews",
   "radar_miss_reviews",
   "ohlcv_candle_cache",
+  "v3_forward_map_snapshots",
 ];
 
 export function normalizeDailyMoverReadLimit(value: DailyMoverReadLimitInput) {
@@ -1362,17 +1366,32 @@ async function listOhlcvCandleCachesForPublicRead(
   }
 }
 
+async function listV3ForwardMapSnapshotsForPublicRead(
+  repository: PersistenceRepository,
+): Promise<V3ForwardMapSnapshot[]> {
+  try {
+    return await repository.listV3ForwardMapSnapshots(240);
+  } catch (error) {
+    if (isMissingOptionalDailyMoverTable(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 export async function getDailyMoverReadArchive({
   id,
   limit,
   repository,
 }: GetDailyMoverReadArchiveOptions): Promise<DailyMoverReadArchiveResult> {
   const normalizedLimit = normalizeDailyMoverReadLimit(limit);
-  const [snapshots, scanArchives, journalEvents, ohlcvCaches] = await Promise.all([
+  const [snapshots, scanArchives, journalEvents, ohlcvCaches, v3ForwardMapSnapshots] = await Promise.all([
     listDailyMoverSnapshotsForPublicRead(repository, normalizedLimit),
     repository.listScanArchives(correlationScanArchiveLimit),
     repository.listJournalEvents(correlationJournalLimit),
     listOhlcvCandleCachesForPublicRead(repository),
+    listV3ForwardMapSnapshotsForPublicRead(repository),
   ]);
   const latestSnapshot = snapshots[0] ?? await getDailyMoverSnapshotForPublicRead(repository);
   const selectedSnapshot = id
@@ -1402,6 +1421,11 @@ export async function getDailyMoverReadArchive({
         snapshot: selectedSnapshot,
       })
     : null;
+  const missedAltcoinReviews = buildMissedAltcoinReviews({
+    correlation: selectedCorrelation,
+    observedAt: selectedSnapshot?.observedAt ?? latestSnapshot?.observedAt ?? new Date(0).toISOString(),
+    v3Snapshots: v3ForwardMapSnapshots,
+  });
   const calibrationFeedback = buildDailyMoverCalibrationFeedback(journalEvents);
   const backtestCandidates = buildDailyMoverBacktestCandidates(calibrationFeedback);
   const klineBacktestPlan = buildDailyMoverKlineBacktestPlan({
@@ -1427,6 +1451,7 @@ export async function getDailyMoverReadArchive({
     klineBacktestPlan,
     klineBacktestResults,
     latestSnapshot,
+    missedAltcoinReviews,
     selectedSnapshot,
     selectedCorrelation,
     selectedDetails: buildSelectedDetails(selectedSnapshot, selectedCorrelation),

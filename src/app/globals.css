@@ -6038,6 +6038,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback,
 .daily-mover-backtest,
 .daily-mover-validation,
+.daily-mover-missed-v3,
 .daily-mover-strategy,
 .daily-mover-performance,
 .daily-mover-version {
@@ -6052,6 +6053,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__head,
 .daily-mover-backtest__head,
 .daily-mover-validation__head,
+.daily-mover-missed-v3__head,
 .daily-mover-strategy__head,
 .daily-mover-performance__head,
 .daily-mover-version__head {
@@ -6066,6 +6068,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__head h3,
 .daily-mover-backtest__head h3,
 .daily-mover-validation__head h3,
+.daily-mover-missed-v3__head h3,
 .daily-mover-strategy__head h3,
 .daily-mover-performance__head h3,
 .daily-mover-version__head h3 {
@@ -6079,6 +6082,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__head span,
 .daily-mover-backtest__head span,
 .daily-mover-validation__head span,
+.daily-mover-missed-v3__head span,
 .daily-mover-strategy__head span,
 .daily-mover-performance__head span,
 .daily-mover-version__head span {
@@ -6093,6 +6097,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__item,
 .daily-mover-backtest__item,
 .daily-mover-validation__item,
+.daily-mover-missed-v3__item,
 .daily-mover-strategy__item,
 .daily-mover-performance__item,
 .daily-mover-version__item {
@@ -6109,6 +6114,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__item > div,
 .daily-mover-backtest__item > div,
 .daily-mover-validation__item > div,
+.daily-mover-missed-v3__item > div,
 .daily-mover-strategy__item > div,
 .daily-mover-performance__item > div,
 .daily-mover-version__item > div {
@@ -6123,6 +6129,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__item strong,
 .daily-mover-backtest__item strong,
 .daily-mover-validation__item strong,
+.daily-mover-missed-v3__item strong,
 .daily-mover-strategy__item strong,
 .daily-mover-performance__item strong,
 .daily-mover-version__item strong {
@@ -6138,6 +6145,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__item > div > span,
 .daily-mover-backtest__item > div > span,
 .daily-mover-validation__item > div > span,
+.daily-mover-missed-v3__item > div > span,
 .daily-mover-strategy__item > div > span,
 .daily-mover-performance__item > div > span,
 .daily-mover-version__item > div > span {
@@ -6175,6 +6183,8 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-backtest__item small,
 .daily-mover-validation__item p,
 .daily-mover-validation__item small,
+.daily-mover-missed-v3__item p,
+.daily-mover-missed-v3__item small,
 .daily-mover-strategy__item p,
 .daily-mover-strategy__item small,
 .daily-mover-performance__item p,
@@ -6193,6 +6203,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__item small,
 .daily-mover-backtest__item small,
 .daily-mover-validation__item small,
+.daily-mover-missed-v3__item small,
 .daily-mover-strategy__item small,
 .daily-mover-performance__item small,
 .daily-mover-version__item small {
@@ -6265,6 +6276,17 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-validation__item {
   border-color: rgba(64, 84, 132, 0.24);
   background: rgba(64, 84, 132, 0.07);
+}
+
+.daily-mover-missed-v3__item {
+  border-color: rgba(213, 155, 61, 0.3);
+  background:
+    linear-gradient(135deg, rgba(213, 155, 61, 0.1), rgba(55, 90, 255, 0.055));
+}
+
+.daily-mover-missed-v3__item > div > span {
+  border-color: rgba(213, 155, 61, 0.42);
+  color: var(--amber);
 }
 
 .daily-mover-strategy__item {
@@ -6386,6 +6408,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__stats,
 .daily-mover-backtest__stats,
 .daily-mover-validation__stats,
+.daily-mover-missed-v3__stats,
 .daily-mover-strategy__stats,
 .daily-mover-performance__stats,
 .daily-mover-version__stats,
@@ -6398,6 +6421,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__stats span,
 .daily-mover-backtest__stats span,
 .daily-mover-validation__stats span,
+.daily-mover-missed-v3__stats span,
 .daily-mover-strategy__stats span,
 .daily-mover-performance__stats span,
 .daily-mover-version__stats span,
@@ -6419,6 +6443,7 @@ button.altcoin-opportunity-card.is-selected {
 .daily-mover-feedback__stats b,
 .daily-mover-backtest__stats b,
 .daily-mover-validation__stats b,
+.daily-mover-missed-v3__stats b,
 .daily-mover-strategy__stats b,
 .daily-mover-performance__stats b,
 .daily-mover-version__stats b,

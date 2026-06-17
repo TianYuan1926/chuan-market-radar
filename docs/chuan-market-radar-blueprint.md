@@ -736,6 +736,7 @@ AI 复核必须遵守：
 - 只读关联摘要：`GET /api/daily-movers` 会为选中样本生成 `selectedCorrelation`，把每日异动 review 与最近扫描归档、扫描 replay signal、复盘日记做 bounded 关联，输出 `caught_with_journal`、`caught_unreviewed`、`missed_with_evidence`、`not_learnable`、`unlinked` 等状态。
 - 关联摘要 UI：`DailyMoverPanel` 已展示扫描关联、日记关联、校准候选数量，并对样本链显示命中已复盘、命中待复盘、漏判有证据、不可学习等状态。
 - 历史样本和单样本详情：`DailyMoverPanel` 已支持历史样本切换、选中样本详情和“为什么漏判/下一步复核”的只读说明。
+- v3 漏判复盘 MVP：`GET /api/daily-movers` 会把选中每日异动样本中的漏判样本与已保存的 `v3_forward_map_snapshots` 做只读关联，生成 `missed_altcoin_review`；`DailyMoverPanel` 展示事前 v3 地图证据、证据 id 数量和不改权重边界。该层不新增 CoinGlass 请求、不新增写入、不自动调权。
 - 只读规则校准建议：`missed_with_evidence` 已聚合为校准候选建议，并在 UI 中明确“不自动改权重”。
 - 校准候选入复盘队列：`DailyMoverPanel` 可把校准候选以 `calibration_review` 写入 `journal_events`；该事件进入跟踪队列、记录 `calibrationTag` 和样本币种，但 rank 分数保持 0，不能自动调整策略权重。
 - 只读校准反馈趋势：`GET /api/daily-movers` 会从 bounded `journal_events` 中汇总 `calibration_review`，按 `calibrationTag` 输出待复查、有效、反证、过期样本数；`DailyMoverPanel` 只读展示，不提供自动调权重入口。
@@ -1188,25 +1189,33 @@ CoinGlass 业余会员 API：
    - `/api/health` 和系统健康面板已展示 `v3ForwardMapReviews`，包含事前地图、最近执行、完成快照、跳过原因、失败数、最近样本时间和 `v3_forward_map_snapshots` 存储迁移状态。
    - 如果 Neon 还没有执行最新迁移，健康面板显示待迁移，首页仍必须可加载。
    - GitHub Actions 低频触发已落地：`.github/workflows/chuan-v3-forward-map-review.yml` 每 6 小时请求一次受保护入口，复用 `CHUAN_SCAN_URL` 推导目标 URL，复用 `CHUAN_CRON_SECRET` 鉴权，不新增 GitHub secret。
-   - 当前状态：已完成 MVP。后续正确搭建项是 `missed_altcoin_review`。
+   - 当前状态：已完成 MVP。
 
-17. **V1.7：Product Design 简报与角色设定固化**
+17. **Phase 4V3-4：missed_altcoin_review 与每日异动复盘融合**
+   - `GET /api/daily-movers` 会从选中每日异动样本的漏判样本中，寻找 `observedAt` 之前已经保存的 v3 Forward Map / Key Level Map。
+   - 只在 `radarStatus === "missed"`、样本可学习且存在改进标签或校准候选时生成 `missed_altcoin_review`。
+   - `missed_altcoin_review` 只作为人工复盘证据，输出 `allowedUse: "research_only"`、`canAutoAdjustWeights: false` 和可追溯 `evidenceIds`。
+   - `DailyMoverPanel` 已展示“v3 漏判复盘 / 事前地图”，显示证据数、只读用途和不改权重边界。
+   - 该阶段不新增外部请求、不增加 CoinGlass 消耗、不改变 live ranking、不写真实权重。
+   - 当前状态：已完成 MVP。后续正确搭建项是 v3 多周期结构评分与市场阶段切换结果接入主信号解释层。
+
+18. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
-18. **V1.8：像素副驾驶 MVP（已落地）**
+19. **V1.8：像素副驾驶 MVP（已落地）**
    - 已用 `PixelCopilot` 替换旧车辆命名组件的正常 UI 边界。
    - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
    - 保留 rank profile、纪律分、动量、热度等现有数据入口。
    - 为角色结构、中文台词和禁止喊单边界增加测试。
 
-17. **V1.9：装备与段位联动**
+20. **V1.9：装备与段位联动**
    - 根据 XP、段位、纪律分解锁装备。
    - 初始只做 3-5 个装备层级，避免一次性堆太多皮肤。
    - 装备只能表达成长和纪律，不表达收益承诺。
 
-10. **V2.0：主界面层级重排**
+21. **V2.0：主界面层级重排**
    - 弱化营销式 hero，强化当前选中信号工作区。
    - 建立 Command / Signal / System / Copilot 四类模块等级。
    - 让图表、多周期、策略计划和 AI 反证的视觉层级更清楚。

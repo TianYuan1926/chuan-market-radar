@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { JournalEvent } from "../analysis/types";
+import type { StrategyV3Dossier } from "../analysis/v3/types";
 import type {
   DailyMover,
   DailyMoverReview,
@@ -165,6 +166,79 @@ function replayFrame(id: string, generatedAt: string): ScanReplayFrame {
         strategyStatus: "waiting",
         updatedAt: generatedAt,
         summary: "放量、OI 和结构压缩同时出现。",
+      },
+    ],
+  };
+}
+
+function strategyV3Dossier(symbol: string): StrategyV3Dossier {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    currentPrice: 100,
+    forwardLevels: [
+      {
+        id: `${symbol}-support-s1`,
+        symbol,
+        side: "SUPPORT",
+        role: "CURRENT_DEFENSE",
+        zoneLow: 94,
+        zoneHigh: 96,
+        timeframeWeight: 4,
+        keyScore: 82,
+        status: "AHEAD",
+        reasons: ["4h swing low"],
+        confirmationRules: ["15m reclaim zoneHigh"],
+        invalidationRules: ["1h close below zoneLow"],
+        sourceLevelIds: [`${symbol}-4h-swing-low`],
+      },
+    ],
+    guardrails: ["manual review only"],
+    keyLevels: [
+      {
+        id: `${symbol}-4h-swing-low`,
+        symbol,
+        timeframe: "4h",
+        type: "SWING_LOW",
+        zoneLow: 94,
+        zoneHigh: 96,
+        midPrice: 95,
+        direction: "SUPPORT",
+        keyScore: 80,
+        reactionScore: 40,
+        confluenceScore: 72,
+        status: "POTENTIAL",
+        reasons: ["4h swing low"],
+        confirmationRules: ["reclaim 96"],
+        invalidationRule: "close below 94",
+      },
+    ],
+    primaryTimeframe: "4h",
+    source: "existing_ohlcv_key_level_mvp",
+    sourceTimeframes: ["15m", "1h", "4h"],
+    summary: "Readonly v3 map.",
+    symbol,
+  };
+}
+
+function replayFrameWithV3Map(id: string, generatedAt: string, symbol: string): ScanReplayFrame {
+  return {
+    ...replayFrame(id, generatedAt),
+    signals: [
+      {
+        id: `${symbol.toLowerCase()}-v3-signal`,
+        symbol,
+        direction: "long",
+        state: "abnormal_watch",
+        timeframe: "15m",
+        confidence: 66,
+        risk: "medium",
+        riskReward: 3.1,
+        strategyStatus: "observe_only",
+        strategyV3: strategyV3Dossier(symbol),
+        updatedAt: generatedAt,
+        summary: "v3 map saved before daily mover.",
       },
     ],
   };
@@ -358,6 +432,40 @@ test("getDailyMoverReadArchive links selected mover samples to scan archives and
   assert.deepEqual(enaLink?.journalEventIds, ["journal-ena-track"]);
   assert.equal(suiLink?.status, "missed_with_evidence");
   assert.equal(suiLink?.calibrationCandidate, true);
+});
+
+test("getDailyMoverReadArchive exposes missed altcoin reviews from selected daily mover misses and saved v3 maps", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addDailyMoverSnapshot(snapshot(
+    "daily-movers-coinglass-2026-06-15",
+    "2026-06-15T04:00:00.000Z",
+    "ENAUSDT",
+    "SUIUSDT",
+  ));
+  await repository.addScanArchive(
+    scanSummary("scan-v3-sui-2026-06-15T00-15", "2026-06-15T00:15:00.000Z", ["SUIUSDT"]),
+    replayFrameWithV3Map("scan-v3-sui-2026-06-15T00-15", "2026-06-15T00:15:00.000Z", "SUIUSDT"),
+  );
+
+  const result = await getDailyMoverReadArchive({ repository, limit: 1 });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+
+  if (!result.body.ok) {
+    assert.fail("expected a successful daily mover archive response");
+  }
+
+  assert.equal(result.body.missedAltcoinReviews.length, 1);
+  assert.equal(result.body.missedAltcoinReviews[0]?.type, "missed_altcoin_review");
+  assert.equal(result.body.missedAltcoinReviews[0]?.symbol, "SUIUSDT");
+  assert.equal(result.body.missedAltcoinReviews[0]?.allowedUse, "research_only");
+  assert.equal(result.body.missedAltcoinReviews[0]?.canAutoAdjustWeights, false);
+  assert.deepEqual(result.body.missedAltcoinReviews[0]?.evidenceIds, [
+    "SUIUSDT-support-s1",
+    "SUIUSDT-4h-swing-low",
+  ]);
+  assert.match(result.body.missedAltcoinReviews[0]?.detail ?? "", /事前 v3 地图/);
 });
 
 test("getDailyMoverReadArchive exposes selected mover details and calibration suggestions", async () => {

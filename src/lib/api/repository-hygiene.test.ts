@@ -1277,6 +1277,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "只读验证",
     "日记验证",
     "不是完整 K 线回测",
+    "v3 漏判复盘",
+    "事前地图",
     "策略草案",
     "策略版本草案",
     "确认草案",
@@ -1314,6 +1316,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
     "daily-mover-backtest__stats",
     "daily-mover-validation",
     "daily-mover-validation__stats",
+    "daily-mover-missed-v3",
+    "daily-mover-missed-v3__stats",
     "daily-mover-strategy",
     "daily-mover-strategy__stats",
     "daily-mover-strategy__button",
@@ -1347,6 +1351,8 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(panelSource, /calibrationFeedback/);
   assert.match(panelSource, /backtestCandidates/);
   assert.match(panelSource, /backtestValidations/);
+  assert.match(panelSource, /missedAltcoinReviews/);
+  assert.match(panelSource, /missed_altcoin_review/);
   assert.match(panelSource, /strategyDrafts/);
   assert.match(panelSource, /strategyPerformanceFeedback/);
   assert.match(panelSource, /strategyVersionPerformance/);
