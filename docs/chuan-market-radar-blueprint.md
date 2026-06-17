@@ -6,21 +6,24 @@
 
 ## 一句话定位
 
-川 Market Radar 是一个公开访问的合约市场雷达网站，用于扫描加密市场中支持合约交易的币种，提前发现上涨或下跌前的异常迹象，并给出证据分层、策略计划、失败路径、复盘记录和系统自我进化反馈。
+川 Market Radar 是一个公开访问的 **Altcoin Trend Radar v3 全市场山寨币趋势切换雷达**，用于从支持合约交易的山寨币中识别震荡压缩、趋势前夜、突破/跌破确认、回踩/反抽确认、趋势加速和衰竭风险，并在好位置、好价格、好盈亏比时给出证据分层、策略计划、失败路径、复盘记录和系统自我进化反馈。
 
 ## 不做什么
 
 - 当前不做登录系统。
 - 当前不做自动下单。
+- 当前不接交易权限，不做自动交易系统。
+- 当前不做普通行情站、指标信号站或单纯涨跌幅榜。
 - 当前不承诺实时秒级行情。
 - 当前不把单一指标当作买卖信号。
 - 当前不把 AI 输出当作最终裁决。
+- 当前不接入清算热力图，不实现清算区、heatmap provider 或潜在清算区交易模块。
 - 当前不把演示数据、缓存数据或缺字段数据说成真实生产级数据。
 - 当前不做中国大陆访问专项优化，不做 ICP 备案、大陆云服务器或大陆 CDN 路线；站点继续按 Vercel/海外可访问方案推进，后续最多预留海外/香港镜像作为可选稳定性方案。
 
 ## 产品原则
 
-0. **核心目标不可偏移**：网站的一切搭建都必须服务“提前发现合约行情爆发前的异常、解释证据、给出多空策略、管理买卖/失效条件、复盘学习并逐步提高稳定性”这条主线。任何 UI、宠物、彩蛋、AI、告警或数据展示，如果不能增强“扫描 -> 证据 -> 策略 -> 复盘 -> 学习”闭环，就必须降级、后置或删除。
+0. **核心目标不可偏移**：网站的一切搭建都必须服务“提前发现山寨币从震荡切换成趋势的机会、解释证据、给出多空策略、管理买卖/失效条件、复盘学习并逐步提高稳定性”这条主线。任何 UI、宠物、彩蛋、AI、告警或数据展示，如果不能增强“扫描 -> 读盘 -> 关键位 -> 证据 -> 风控 -> 策略 -> 复盘 -> 学习”闭环，就必须降级、后置或删除。
 1. **专业优先**：市场分析必须区分事实、推理、判断和策略，不能把结论写成玄学。
 2. **灵活优先**：BTC 下跌、资金费率偏高、成交量不足等因素只能降权或进入观察，不能一刀切否定所有币种。
 3. **证据优先**：每个信号必须能解释为什么出现、为什么不能追、什么条件失效。
@@ -31,6 +34,7 @@
 8. **长期迭代优先**：V3.0 不是最终版，而是专业稳定底座版；后续新增功能、优化功能、替换数据源、调整 UI 或加入登录系统时，必须通过模块边界、测试、迁移和预览验证继续迭代，不能靠堆代码硬加。
 9. **路线动态校准**：每完成一个阶段后，必须基于当下真实代码、数据源、验证结果和线上约束重新判断后续顺序；如果旧计划已被部分覆盖、优先级变化或出现更关键风险，后续计划要良性调整，不能机械照搬历史清单。
 10. **前端展示优先**：凡是能帮助用户理解“发现了什么、为什么值得看、现在能不能做、还差什么确认、怎么失效、如何复盘”的信息，优先在前端以清晰层级展示；不能只把关键判断藏在后端日志或纯文本里。
+11. **v3 趋势切换优先**：后续分析升级优先围绕 Market Reading Engine、Key Level Engine、Forward Level Map、多空双向状态机和复盘验证展开；普通指标、宠物动效、AI 润色和视觉细节不能排在趋势切换能力之前。
 
 ## 不可偏移核心目标
 
@@ -59,6 +63,100 @@
 ```
 
 产品必须把“不交易”也作为一等状态展示：现在不能做、为什么不能做、还差什么确认、硬做的风险在哪里，必须和可执行计划一样清楚。
+
+## Altcoin Trend Radar v3 最终融合原则
+
+2026-06-17 最新路线：当前项目正式升级为 **Altcoin Trend Radar v3：全市场山寨币趋势切换雷达系统**。这不是推翻现有系统，而是在当前扫描、CoinGlass、Neon、日记、每日异动、outcome executor、Strategy Engine v2 和 Signal Dossier 的基础上继续升级。
+
+v3 的核心不是“预测涨跌”，而是：
+
+```text
+提前建立关键位置地图
+-> 识别震荡和趋势切换
+-> 判断多头/空头趋势机会
+-> 过滤假突破、追高、追空和证据冲突
+-> 生成入场、止损、止盈、趋势仓和失效条件
+-> 保存事前地图和结构判断
+-> 复盘验证地图、状态机、Risk Gate 和策略计划是否有效
+```
+
+### v3 必须继承的现有底座
+
+- 继续使用 Next.js App Router、Vercel、Neon、TypeScript、Node test。
+- 继续使用 CoinGlass Hobbyist 低频、分批、缓存、预算保护和失败降级。
+- 继续使用公开 OHLCV 源承担 K 线、成交量和基础市场数据，避免浪费 CoinGlass 请求。
+- 继续保留 Strategy Engine v2 的证据优先、风险门控、报告不越权、清算热力图禁用和 `3:1` 赔率硬边界。
+- 继续保留日记、扫描回放、每日异动归因、outcome executor、人工校准、影子权重和真实权重启用门禁。
+- 继续以 Signal Dossier 作为单币深挖入口，不把全部细节堆在首页。
+
+### v3 必须新增的核心能力
+
+1. **Market Reading Engine**
+   - 把 OHLCV 转成盘面结构语言，而不是让 AI 看图或让指标直接发信号。
+   - 必须识别 HH/HL、LH/LL、BOS、CHoCH、箱体、波动压缩、实体突破/跌破、影线假突破、回踩确认、反抽确认、趋势完整度和衰竭风险。
+   - Feature Layer 只提取事实，不下交易结论。
+
+2. **Key Level Engine**
+   - 关键位必须是价格区域，不是单点。
+   - `KeyLevel` 必须包含 `zoneLow`、`zoneHigh`、`midPrice`、`direction`、`keyScore`、`reactionScore`、`confluenceScore`、`status`、`reasons`、`confirmationRules` 和 `invalidationRule`。
+   - 关键位状态必须至少支持 `POTENTIAL`、`ARRIVED`、`REACTION_STARTED`、`CONFIRMED`、`WEAKENING`、`BROKEN`、`RECLAIMED`、`INVALIDATED`。
+   - 系统最多输出上方 3 个压力区、下方 3 个支撑区、1 个主要突破位和 1 个主要失效位；不允许画太多线。
+
+3. **Forward Level Map**
+   - 系统必须事前生成 S1/S2/S3 支撑阶梯、R1/R2/R3 压力阶梯、主要防守位、主要突破位、下一反应区和趋势变化位。
+   - Forward Map 必须随扫描保存，用于之后验证“是否事前识别”，不能事后画线冒充提前判断。
+   - Fibonacci、整数位、动态均线和成交密集区只能在与结构位共振后成为关键位，不能单独生成交易结论。
+
+4. **多空双向趋势状态机**
+   - v3 状态必须覆盖：`RANGE_IDLE`、`RANGE_COMPRESSION`、`PRE_TREND_LONG`、`PRE_TREND_SHORT`、`LONG_BREAKOUT`、`SHORT_BREAKDOWN`、`LONG_PULLBACK_CONFIRM`、`SHORT_RETEST_CONFIRM`、`LONG_TREND_ACCELERATION`、`SHORT_TREND_ACCELERATION`、`LONG_EXHAUSTION`、`SHORT_EXHAUSTION`、`INVALIDATED`、`CONFLICT`。
+   - 不允许只输出 BUY / SELL。
+
+5. **v3 决策枚举**
+   - 最终决策必须使用有限枚举：`WATCH_ONLY`、`PREPARE_LONG`、`PREPARE_SHORT`、`WAIT_LONG_BREAKOUT`、`WAIT_SHORT_BREAKDOWN`、`WAIT_LONG_PULLBACK`、`WAIT_SHORT_RETEST`、`LONG_PLAN`、`SHORT_PLAN`、`AVOID_CHASE_LONG`、`AVOID_CHASE_SHORT`、`TREND_HOLD_LONG`、`TREND_HOLD_SHORT`、`TAKE_PROFIT_LONG`、`TAKE_PROFIT_SHORT`、`NO_TRADE`、`CONFLICT_WAIT`、`INVALIDATED`。
+
+6. **v3 五大分数**
+   - `PreTrendScore`：是否正在从震荡切向趋势。
+   - `TrendEnergyScore`：趋势如果启动，能量强不强。
+   - `RiskScore`：是否追高、追空、拥挤、假突破或盈亏比不足。
+   - `TrendHoldScore`：已有趋势还能不能继续拿。
+   - `ExhaustionScore`：趋势是否接近兑现或防反转。
+   - 分数必须支持多空方向，例如 `longPreTrendScore`、`shortPreTrendScore`、`longTrendEnergyScore`、`shortTrendEnergyScore`。
+
+7. **复盘进化接入**
+   - 复盘不只验证交易盈亏，还要验证趋势切换、关键位地图、Forward Map、Risk Gate 和漏判原因。
+   - 新增复盘对象：`trend_switch_review`、`forward_map_review`、`key_level_reaction_review`、`risk_gate_review`、`missed_altcoin_review`。
+   - 这些复盘样本先进入人工确认和只读校准，不允许自动改真实权重。
+
+### v3 必须剔除或降级的旧方向
+
+- 剔除“普通行情站/指标信号站/涨跌幅榜网站”定位。
+- 剔除“异常数据一出现就给方向”的路径；异常必须进入结构和关键位上下文。
+- 剔除清算热力图、清算区、heatmap provider 和潜在清算区交易逻辑。
+- 剔除 report generator 自行判断行情。
+- 剔除 S680 作为默认宠物、座驾、装备或彩蛋方向；后续组件命名应迁移到像素男性副驾驶。
+- 降级所有只增加视觉热闹但不增强扫描、证据、策略、复盘的 UI 或彩蛋。
+- 降级 AI 为反证、解释和复盘助手，不能成为核心裁决。
+
+### v3 总流程
+
+```text
+全市场轻扫描
+-> 候选池
+-> 深扫描候选
+-> Market Reading Engine
+-> Key Level Engine
+-> Forward Level Map
+-> Evidence Engine
+-> Trend State Machine
+-> Scoring Engine
+-> Risk Gate
+-> Trade Plan Engine
+-> Report Generator
+-> Signal Dossier
+-> 复盘验证与人工校准
+```
+
+全市场扫描必须分两层：轻扫描覆盖全市场，深扫描只分析候选池。任何全市场深扫、全市场高频 K 线重算或无边界 CoinGlass 请求，都违背 Hobbyist 预算和 Vercel/Neon 免费套餐约束。
 
 ## 长期运营工程原则
 
@@ -244,6 +342,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 2：真正多周期分析引擎 | 基础已落地，受限主候选已接入真实多周期 OHLCV profile、指标矩阵摘要、基础指标/周期校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层 | 尚未完成真实权重生效、交互式多周期图表和全量候选覆盖 |
 | 阶段 3：合约 universe registry | 基础、三交易所自动发现、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级、repository hints 和扫描经济前端面板基础已落地 | 尚未完成高优先级加密扫描和更细的交易所覆盖差异前端钻取 |
 | 阶段 4：OHLCV、盘面结构与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示、基础指标/周期权重校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层 | 尚未完成真实权重生效、交互式多周期图表、更专业的成交量分布模型、Market Structure Engine、Key Level Engine、Pattern Library、Fibonacci/谐波辅助层 |
+| 阶段 4V3：Altcoin Trend Radar v3 | 定位已确认为“全市场山寨币趋势切换雷达”；Strategy Engine v2 已形成证据、评分、风险门控、报告和只读 UI 接入底座 | 需要补齐 Market Reading Engine、Key Level Engine、Forward Level Map、多空双向趋势状态机、v3 评分、v3 Trade Plan、Forward Map 持久化和复盘验证 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
@@ -495,7 +594,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `docs/DATA_RULES.md`
 - `docs/GOLDEN_CASES.md`
 
-v2 硬边界：不接入清算热力图，不实现 Liquidation Heatmap，不构建 LiquidationZone，不把潜在清算区作为目标位、入场位、止损位或方向依据；常规清算统计最多作为风险背景，不能单独进入方向判断。
+v2 硬边界：不接入清算热力图，不构建清算区模块，不把潜在清算区作为目标位、入场位、止损位或方向依据；常规清算统计最多作为风险背景，不能单独进入方向判断。
 
 后续新增 **Market Structure Engine / Pattern Library** 时必须遵守：
 
@@ -698,11 +797,11 @@ AI 复核必须遵守：
 - 角色是幽默话唠，但必须服务纪律提醒和复盘反馈；不能喊单、不能替代规则引擎、不能在严肃市场判断区抢戏。
 - 角色台词风格：中文、短句、毒舌但不冒犯、像纪律教练。例如“别硬开，市场不是你家提款机”“你这不是进场，是给别人结账”“情报断了，先别装诸葛亮”。
 
-2026-06-14 V1.8 已落地像素副驾驶 MVP：
+2026-06-17 V1.8 已落地像素副驾驶 MVP，并完成 S680 可见方向剔除：
 
-- `PixelS680` 暂时作为历史组件边界存在，但宠物主角改为男性像素副驾驶；后续 UI 重构时应把命名和视觉方向迁移到像素副驾驶，而不是继续强化 S680。
+- `PixelCopilot` 作为正式组件边界，宠物主角为男性像素副驾驶；正常 UI 不再导入或展示旧 S680 座驾方向。
 - 初版已包含 BTC 项链、基础装备条、巡航/警戒/刹车 3 个情绪状态和纪律型话唠台词。
-- S680 不再作为默认座驾、装备或彩蛋方向；后续如果重新启用，必须由用户明确指定。
+- S680 不再作为默认宠物、座驾、装备、皮肤或彩蛋方向；后续如果重新启用，必须由用户明确指定并作为独立可关闭实验项。
 - 新增测试约束副驾驶结构、中文标签和禁止喊单边界，避免后续回退。
 
 最终 UI 方向：
@@ -978,7 +1077,7 @@ CoinGlass 业余会员 API：
 - 第一轮已落地：候选信号节奏条让数据可视化更紧凑。
 - 第一轮已落地：页面扫描网格和低干扰动画增强整体生命感。
 - V1.6 已落地：主要面板中文优先，早期宠物增加角色化脸部、眼睛和地面影子。
-- V1.8 已落地：`PixelS680` 加入男性像素副驾驶、BTC 项链、基础装备条和禁止喊单测试。
+- V1.8 已落地：`PixelCopilot` 作为正式像素男性副驾驶组件，包含 BTC 项链、基础装备条和禁止喊单测试；S680 可见方向已从正常 UI 剔除。
 - Phase 8.2 已落地：主界面加入雷达节拍条，展示扫描节拍、信号脉冲、风险/延迟和覆盖密度；信号节奏条与地图节点根据选中、高风险、接近触发状态产生功能性动效。
 - 2026-06-16 已重新校准路线：当前 UI 被用户判定为“像一张纸、没有运行感、美感不足”，后续不再继续表层小修，改为 Tailwind CSS + daisyUI 的高级活体雷达控制台重构。
 - Phase 8.2b 旧壳试探已完成：顶部 Live Navbar / Banner、雷达之眼 / Crystal Lens 视觉槽位、Cockpit Card、桌面 **左 / 中 / 右 = 2 : 6 : 2** 三栏、Altcoin Opportunity Board 锚点、Macro Radar 预览和 Signal Lifecycle Tracker 预览已接入。但它仍属于旧页面上的结构试探，不等于正式 Tailwind CSS + daisyUI UI Reset；浏览器桌面/移动视觉 QA 也仍需在本地端口权限可用后补做。
@@ -1022,44 +1121,44 @@ CoinGlass 业余会员 API：
    - 当前状态：已完成 BTC/ETH Macro Weather 第一版；它复用现有扫描快照，不新增请求，不修改真实权重。ETF 专项端点仍需等 CoinGlass Hobbyist 可用性和 quota 先验证后再接入。
 
 6. **Phase 4C-0：Strategy Engine v2 Guard Rails**
-   - 下一步正确搭建项：先加 repository hygiene 测试，强制 v2 五份规格文档存在，并禁止源码新增 `LiquidationHeatmap`、`LiquidationZone`、`heatmap provider` 等清算热力图/清算区模块。
+   - 下一步正确搭建项：先加 repository hygiene 测试，强制 v2 五份规格文档存在，并禁止源码新增清算热力图、清算区、heatmap provider 等模块。
    - 目的：把 Evidence-first、禁用清算热力图、report 不能重新判断行情、盈亏比低于 3:1 禁止交易信号等规则变成测试护栏。
-   - 当前状态：规格文档已完成，测试护栏未开始。
+   - 当前状态：已完成；v2 护栏现在作为 v3 的底层安全边界继续保留。
 
 7. **Phase 4C-1：Evidence Types And Evidence Ledger**
    - 建立 `EvidenceItem`、`EvidenceFamily`、`EvidenceDirection`、证据账本、同源去重、证据追溯。
    - 所有结构、指标、OI、Funding、相对强弱和大盘天气都必须先转 EvidenceItem，不能直接进入交易判断。
-   - 当前状态：未开始业务实现。
+   - 当前状态：已完成；后续 v3 在此基础上扩展 `KEY_LEVEL` 家族和趋势切换字段。
 
 8. **Phase 4C-2：Market Structure Facts**
    - 从缓存多周期 K 线识别 swing high/low、HH/HL、LH/LL、range、breakout、breakdown、sweep、failed breakout、前高/前低/区间高低。
    - 该层只提取事实，不输出交易结论；结构事实后续进入 evidence_builder。
-   - 当前状态：未开始正式实现，已有多周期 OHLCV、指标矩阵和策略卡入口可复用。
+   - 当前状态：v2 基础结构事实已完成；v3 还需要扩展为完整 Market Reading Engine，覆盖 BOS、CHoCH、突破/跌破、回踩/反抽和趋势完整度。
 
 9. **Phase 4C-3：Location / RR / Risk Gate**
    - 识别位置质量、止损距离、目标距离、盈亏比、箱体中部、追高区、低位追空区。
    - 盈亏比不足 `3:1`、RiskScore 过高或结构失效时，必须输出观察、等待、冲突或失效。
-   - 当前状态：未开始。
+   - 当前状态：v2 Location/RR/Risk Gate 已完成；v3 还需要加入 Key Level、Forward Map、结构止损意义、流动性和多空双向追高/追空门控。
 
 10. **Phase 4C-4：Indicator And Derivatives Interpreters**
    - RSI、MACD、Bollinger、ATR、EMA/VWAP、ADX、Volume/OBV/CVD proxy、OI、Funding、多空比、taker flow 都只转 EvidenceItem。
    - 技术指标总权重不能超过 `10%-15%`；Funding 高解释为拥挤风险，不解释为强势。
-   - 当前状态：未开始。
+   - 当前状态：v2 指标和衍生品解释器已完成；v3 继续补齐多空趋势场景解释和 `KEY_LEVEL` 证据融合。
 
 11. **Phase 4C-5：Scoring Engine**
    - 实现 `PreMoveScore`、`EnergyScore`、`RiskScore`、`TrendHoldScore`、`EnergyDecayScore`。
    - scoring 只算分，不输出最终交易决策。
-   - 当前状态：未开始。
+   - 当前状态：v2 scoring 已完成；v3 需要升级为 `PreTrendScore`、`TrendEnergyScore`、`RiskScore`、`TrendHoldScore`、`ExhaustionScore`，并支持多空方向拆分。
 
 12. **Phase 4C-6：Strategy State Machine And Decision Engine**
    - 输出 `IDLE`、`COMPRESSION`、`ACCUMULATION`、`PRE_BREAKOUT`、`BREAKOUT_CONFIRM`、`TREND_ACCELERATION`、`EXHAUSTION_RISK`、`INVALIDATED`、`CONFLICT`。
    - 最终决策必须经过 evidence fusion、conflict detector、risk gate 和 invalidation rules。
-   - 当前状态：未开始。
+   - 当前状态：v2 state machine 和 decision engine 已完成；v3 需要扩展为 RANGE/TREND、多空双向趋势状态和 v3 决策枚举。
 
 13. **Phase 4C-7：Report And Read-Only UI Integration**
    - `report_generator` 只翻译结构化结果，不重新判断行情。
    - 先把 v2 输出以只读方式接入 Signal Dossier 和机会板解释，不立即改变现有排序和真实权重。
-   - 当前状态：未开始。
+   - 当前状态：v2 report 和只读 UI 接入已完成；v3 报告需要补充 Key Level Map、Forward Level Map、多周期结构、数据面、技术辅助、不交易原因和复盘验证入口。
 
 14. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
@@ -1067,7 +1166,7 @@ CoinGlass 业余会员 API：
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
 15. **V1.8：像素副驾驶 MVP（已落地）**
-   - 用现有组件边界替换或重构当前 `PixelS680`。
+   - 已用 `PixelCopilot` 替换旧车辆命名组件的正常 UI 边界。
    - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
    - 保留 rank profile、纪律分、动量、热度等现有数据入口。
    - 为角色结构、中文台词和禁止喊单边界增加测试。

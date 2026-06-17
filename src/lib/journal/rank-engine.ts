@@ -33,7 +33,7 @@ export const rankTiers: RankTier[] = [
   { id: "discipline", label: "纪律席", minXp: 60 },
   { id: "sniper", label: "狙击席", minXp: 120 },
   { id: "operator", label: "主理席", minXp: 220 },
-  { id: "s680-black", label: "S680 黑卡", minXp: 360 },
+  { id: "chuan-black", label: "川牌黑卡", minXp: 360 },
 ];
 
 function clamp(value: number, min: number, max: number) {

@@ -6,7 +6,7 @@
 
 - 技术指标规则不接入清算热力图。
 - 不使用 Liquidation Heatmap。
-- 不构建 LiquidationZone。
+- 不构建清算区模块。
 - 不构建 heatmap provider。
 - 不把潜在清算区作为目标位、方向依据、止损依据或入场依据。
 - 技术指标解释器只能输出 EvidenceItem 或空结果，不能让 report_generator / 报告层直接做交易判断。

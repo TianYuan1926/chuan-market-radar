@@ -8,7 +8,7 @@ import { EventCenterPanel } from "./event-center-panel";
 import { JournalPanel } from "./journal-panel";
 import { MacroWeatherPanel } from "./macro-weather-panel";
 import { OpsAndFilterPanel } from "./ops-and-filter-panel";
-import { PixelS680 } from "./pixel-s680";
+import { PixelCopilot } from "./pixel-copilot";
 import { RadarBootBriefing } from "./radar-boot-briefing";
 import { RadarCockpitShell } from "./radar-cockpit-shell";
 import { RadarTable } from "./radar-table";
@@ -1310,7 +1310,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             onConfirmStrategyDraft={createDailyMoverStrategyConfirmation}
             strategyConfirmationStatus={strategyConfirmationStatus}
           />
-          <PixelS680
+          <PixelCopilot
             mood={mood}
             onOpenDossier={() => openSignalDossier()}
             rankProfile={rankProfile}

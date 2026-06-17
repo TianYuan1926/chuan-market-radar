@@ -18,7 +18,7 @@
 - 不预测必涨必跌。
 - 不使用清算热力图。
 - 不使用潜在清算区。
-- 不构建 `LiquidationHeatmap`、`LiquidationZone`、`HeatmapProvider` 或类似模块。
+- 不构建清算热力图、清算区、热力图 provider 或类似模块。
 - 不把潜在清算区作为目标位、入场位、止损位或方向依据。
 - 不让 `report_generator` 直接做交易判断。
 - 不让任何单一指标、单一数据、单一 K 线形态直接生成交易结论。

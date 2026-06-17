@@ -117,7 +117,7 @@ BTC/ETH Macro Weather 只解释大盘环境，不抢山寨主线。
 
 - 不接入清算热力图。
 - 不使用 Liquidation Heatmap。
-- 不构建 LiquidationZone。
+- 不构建清算区模块。
 - 不构建 heatmap provider。
 - 不把潜在清算区作为目标位、方向依据、止损依据或入场依据。
 

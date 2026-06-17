@@ -252,6 +252,6 @@
 
 期望输出：
 
-- 系统不得创建 `LiquidationHeatmap`、`LiquidationZone` 或 heatmap provider。
+- 系统不得创建清算热力图、清算区或 heatmap provider。
 - 不得使用清算区作为目标位、方向依据、止损依据或入场依据。
 - 若存在常规 `liquidationUsd24h`，最多作为风险背景，不进入方向判断。

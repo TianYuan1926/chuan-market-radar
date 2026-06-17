@@ -1,17 +1,18 @@
 import type { RankProfile } from "@/lib/journal/rank-engine";
 
-type PixelS680Props = {
+type PixelCopilotProps = {
   mood: "calm" | "alert" | "serious";
   onOpenDossier?: () => void;
   rankProfile?: RankProfile;
   selectedSymbol?: string;
 };
 
-export function PixelS680({ mood, onOpenDossier, rankProfile, selectedSymbol }: PixelS680Props) {
+export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol }: PixelCopilotProps) {
   const moodLabel = mood === "serious" ? "刹车" : mood === "alert" ? "警戒" : "巡航";
   const selectedLabel = selectedSymbol?.replace("USDT", "") ?? "当前";
-  const equipmentLabel = rankProfile?.tier.id === "s680-black"
-    ? "S680 座驾"
+  const tierFloor = rankProfile?.tier.minXp ?? 0;
+  const equipmentLabel = tierFloor >= 360
+    ? "黑卡终端"
     : rankProfile?.tier.id === "operator"
       ? "冠军外套"
       : rankProfile?.tier.id === "sniper"
@@ -58,26 +59,26 @@ export function PixelS680({ mood, onOpenDossier, rankProfile, selectedSymbol }: 
           </div>
         </div>
 
-        <div className="s680-dashboard" aria-label="S680 副驾驶仪表">
-          <div className="s680-vital">
+        <div className="copilot-dashboard" aria-label="像素副驾驶仪表">
+          <div className="copilot-vital">
             <span>纪律</span>
             <b>{discipline}%</b>
             <i style={{ width: `${discipline}%` }} />
           </div>
-          <div className="s680-vital">
+          <div className="copilot-vital">
             <span>动量</span>
             <b>{momentum > 0 ? `+${momentum}` : momentum}</b>
             <i style={{ width: `${Math.min(100, Math.abs(momentum) * 6 + 28)}%` }} />
           </div>
-          <div className="s680-vital">
+          <div className="copilot-vital">
             <span>热度</span>
             <b>{heat}%</b>
             <i style={{ width: `${heat}%` }} />
           </div>
         </div>
 
-        <div className="s680-stage" aria-label="像素副驾驶与 S680 座驾">
-          <div className="s680-shadow" />
+        <div className="copilot-stage" aria-label="像素男性副驾驶">
+          <div className="copilot-shadow" />
           <div className={`copilot-avatar copilot-avatar--${mood}`} aria-label="男性像素副驾驶">
             <div className="copilot-gear" />
             <div className="copilot-head">
@@ -94,23 +95,10 @@ export function PixelS680({ mood, onOpenDossier, rankProfile, selectedSymbol }: 
               </div>
             </div>
           </div>
-          <div className="s680-car">
-            <div className="s680-tail" />
-            <div className="s680-roof" />
-            <div className="s680-window" />
-            <div className="s680-body" />
-            <div className="s680-hood" />
-            <div className="s680-chrome" />
-            <div className="s680-face" aria-hidden="true">
-              <span className="s680-eye s680-eye--left" />
-              <span className="s680-eye s680-eye--right" />
-            </div>
-            <div className="s680-grille" />
-            <div className="s680-light s680-light--left" />
-            <div className="s680-light s680-light--right" />
-            <div className="s680-wheel s680-wheel--left" />
-            <div className="s680-wheel s680-wheel--right" />
-            <div className="s680-badge">S680 模式</div>
+          <div className="copilot-radar-desk" aria-hidden="true">
+            <span />
+            <span />
+            <span />
           </div>
           <div className="copilot-level-strip" aria-label="副驾驶装备">
             <span>BTC 项链</span>

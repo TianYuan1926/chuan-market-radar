@@ -3223,7 +3223,7 @@ button.altcoin-opportunity-card.is-selected {
   font-size: 10px;
 }
 
-.s680-dashboard {
+.copilot-dashboard {
   position: relative;
   z-index: 2;
   display: grid;
@@ -3232,7 +3232,7 @@ button.altcoin-opportunity-card.is-selected {
   margin: 0 12px 10px;
 }
 
-.s680-vital {
+.copilot-vital {
   position: relative;
   min-width: 0;
   overflow: hidden;
@@ -3242,8 +3242,8 @@ button.altcoin-opportunity-card.is-selected {
   background: rgba(255, 250, 240, 0.7);
 }
 
-.s680-vital span,
-.s680-vital b {
+.copilot-vital span,
+.copilot-vital b {
   position: relative;
   z-index: 2;
   display: block;
@@ -3251,18 +3251,18 @@ button.altcoin-opportunity-card.is-selected {
   line-height: 1;
 }
 
-.s680-vital span {
+.copilot-vital span {
   color: var(--muted);
   font-size: 9px;
 }
 
-.s680-vital b {
+.copilot-vital b {
   margin-top: 6px;
   color: var(--ink);
   font-size: 13px;
 }
 
-.s680-vital i {
+.copilot-vital i {
   position: absolute;
   right: auto;
   bottom: 0;
@@ -3272,11 +3272,11 @@ button.altcoin-opportunity-card.is-selected {
   box-shadow: 0 0 14px rgba(213, 155, 61, 0.34);
 }
 
-.s680-vital:nth-child(1) i { background: var(--green); }
-.s680-vital:nth-child(2) i { background: var(--blue); }
-.s680-vital:nth-child(3) i { background: var(--red); }
+.copilot-vital:nth-child(1) i { background: var(--green); }
+.copilot-vital:nth-child(2) i { background: var(--blue); }
+.copilot-vital:nth-child(3) i { background: var(--red); }
 
-.s680-stage {
+.copilot-stage {
   position: relative;
   z-index: 2;
   min-height: 218px;
@@ -3289,7 +3289,7 @@ button.altcoin-opportunity-card.is-selected {
     linear-gradient(180deg, rgba(21, 23, 28, 0.05), rgba(255, 250, 240, 0.36));
 }
 
-.s680-stage::before {
+.copilot-stage::before {
   content: "";
   position: absolute;
   left: 50%;
@@ -3301,7 +3301,7 @@ button.altcoin-opportunity-card.is-selected {
   transform: translateX(-50%) rotateX(65deg);
 }
 
-.s680-stage::after {
+.copilot-stage::after {
   content: "";
   position: absolute;
   right: 0;
@@ -3526,7 +3526,7 @@ button.altcoin-opportunity-card.is-selected {
   white-space: nowrap;
 }
 
-.s680-shadow {
+.copilot-shadow {
   position: absolute;
   left: 50%;
   bottom: 44px;
@@ -3538,248 +3538,63 @@ button.altcoin-opportunity-card.is-selected {
   transform: translateX(-50%);
 }
 
-.s680-car {
-  position: absolute;
-  left: 50%;
-  bottom: 54px;
-  width: 262px;
-  height: 106px;
-  transform: translateX(-50%);
-  filter: drop-shadow(0 19px 18px rgba(21, 23, 28, 0.18));
-  animation: carFloat 4.6s var(--curve) infinite;
-}
-
-.s680-roof {
-  position: absolute;
-  top: 8px;
-  left: 70px;
-  z-index: 2;
-  width: 112px;
-  height: 42px;
-  border: 3px solid var(--ink);
-  border-bottom: 0;
-  border-radius: 14px 18px 0 0;
-  background:
-    linear-gradient(90deg, #1e242d 0 18%, #ccd9df 18% 44%, #1f2630 44% 53%, #d7e2e6 53% 82%, #202731 82% 100%);
-  clip-path: polygon(7% 100%, 26% 0, 78% 0, 98% 100%);
-}
-
-.s680-window {
-  position: absolute;
-  top: 19px;
-  left: 86px;
-  z-index: 3;
-  width: 96px;
-  height: 24px;
-  border: 2px solid rgba(255, 250, 240, 0.78);
-  border-radius: 6px 10px 2px 2px;
-  background:
-    linear-gradient(90deg, transparent 0 33%, #1a2029 33% 38%, transparent 38% 66%, #1a2029 66% 71%, transparent 71%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(119, 143, 156, 0.42) 52%, rgba(22, 28, 36, 0.9));
-  box-shadow: inset 0 -5px 0 rgba(21, 23, 28, 0.18);
-}
-
-.s680-body {
-  position: absolute;
-  right: 8px;
-  bottom: 18px;
-  left: 8px;
-  z-index: 2;
-  height: 54px;
-  overflow: hidden;
-  border: 3px solid var(--ink);
-  border-radius: 18px 30px 15px 15px;
-  background:
-    linear-gradient(90deg, rgba(255, 250, 240, 0.16) 0 20%, transparent 20% 71%, rgba(213, 155, 61, 0.18) 71%),
-    linear-gradient(180deg, #828c95 0%, #4a535e 38%, #252c35 68%, #151920 100%);
-}
-
-.s680-body::before {
-  content: "CHUAN";
-  position: absolute;
-  top: 18px;
-  left: 116px;
-  padding: 1px 7px 2px;
-  border: 1px solid rgba(21, 23, 28, 0.34);
-  border-radius: 4px;
-  background: rgba(255, 250, 240, 0.86);
-  color: var(--ink);
-  font-family: "Fira Code", "JetBrains Mono", monospace;
-  font-size: 9px;
-  font-weight: 800;
-}
-
-.s680-body::after {
-  content: "";
-  position: absolute;
-  inset: auto 18px 10px 25px;
-  height: 4px;
-  border-radius: 999px;
-  background:
-    linear-gradient(90deg, rgba(21, 23, 28, 0.24), transparent 20% 78%, rgba(255, 250, 240, 0.38)),
-    rgba(255, 250, 240, 0.22);
-}
-
-.s680-hood {
+.copilot-radar-desk {
   position: absolute;
   right: 26px;
-  bottom: 53px;
+  bottom: 58px;
   z-index: 3;
-  width: 72px;
-  height: 20px;
-  border-top: 3px solid var(--ink);
-  border-right: 3px solid var(--ink);
-  border-radius: 0 22px 0 0;
-  background: linear-gradient(180deg, #8c969f, #505a65);
-  clip-path: polygon(0 42%, 76% 0, 100% 18%, 100% 100%, 0 100%);
-}
-
-.s680-chrome {
-  position: absolute;
-  right: 60px;
-  bottom: 49px;
-  left: 42px;
-  z-index: 4;
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, #f3dfb2 13% 86%, transparent);
-  box-shadow: 0 0 12px rgba(213, 155, 61, 0.52);
-}
-
-.s680-face {
-  position: absolute;
-  right: 42px;
-  bottom: 53px;
-  z-index: 8;
-  width: 48px;
-  height: 20px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
+  width: 132px;
+  height: 88px;
   border: 3px solid var(--ink);
-  border-radius: 8px 12px 5px 8px;
+  border-radius: 14px 14px 8px 8px;
   background:
-    linear-gradient(180deg, rgba(255, 250, 240, 0.58), rgba(146, 164, 174, 0.24) 46%, rgba(23, 30, 39, 0.92)),
-    #1b222c;
+    linear-gradient(180deg, rgba(255, 250, 240, 0.24), transparent 34%),
+    linear-gradient(135deg, #303743, #15171c);
   box-shadow:
-    inset 0 2px 0 rgba(255, 250, 240, 0.42),
-    0 0 18px rgba(213, 155, 61, 0.14);
+    inset 0 0 0 2px rgba(255, 250, 240, 0.08),
+    0 18px 18px rgba(21, 23, 28, 0.12);
 }
 
-.s680-face::after {
+.copilot-radar-desk::before {
+  content: "川";
+  position: absolute;
+  top: 12px;
+  left: 13px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(255, 250, 240, 0.58);
+  border-radius: 50%;
+  color: var(--amber);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.copilot-radar-desk::after {
   content: "";
   position: absolute;
-  right: 10px;
-  bottom: 3px;
-  left: 10px;
-  height: 2px;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  height: 6px;
   border-radius: 999px;
-  background: rgba(255, 250, 240, 0.42);
+  background: linear-gradient(90deg, var(--green), var(--amber), var(--red));
+  opacity: 0.75;
 }
 
-.s680-eye {
-  position: relative;
-  z-index: 2;
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: var(--green);
-  box-shadow: 0 0 11px rgba(72, 136, 112, 0.78);
-}
-
-.pet-module--alert .s680-eye {
-  background: var(--amber);
-  box-shadow: 0 0 12px rgba(213, 155, 61, 0.82);
-}
-
-.pet-module--serious .s680-eye {
-  height: 5px;
-  background: var(--red);
-  box-shadow: 0 0 12px rgba(226, 87, 76, 0.78);
-}
-
-.s680-tail {
+.copilot-radar-desk span {
   position: absolute;
-  bottom: 31px;
-  left: 7px;
-  z-index: 3;
-  width: 30px;
-  height: 34px;
-  border: 3px solid var(--ink);
-  border-right: 0;
-  border-radius: 14px 0 0 10px;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 240, 0.18), transparent 45%),
-    linear-gradient(90deg, #565f69, #202630);
-}
-
-.s680-grille {
-  position: absolute;
-  right: 10px;
-  bottom: 30px;
-  z-index: 5;
-  width: 38px;
-  height: 36px;
-  border: 3px solid var(--paper-3);
-  border-radius: 7px 11px 8px 6px;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 240, 0.52), transparent 26%),
-    repeating-linear-gradient(90deg, #d9e1e5 0 3px, #1b2028 3px 6px);
-  box-shadow: inset 0 0 0 2px rgba(21, 23, 28, 0.38);
-}
-
-.s680-light {
-  position: absolute;
-  bottom: 39px;
-  z-index: 6;
-  width: 28px;
-  height: 7px;
+  right: 14px;
+  width: 48px;
+  height: 6px;
   border-radius: 999px;
-  background: var(--amber);
-  box-shadow: 0 0 22px rgba(213, 155, 61, 0.62);
-  animation: headlightPulse 2.2s var(--curve) infinite;
+  background: rgba(255, 250, 240, 0.72);
 }
 
-.s680-light--left {
-  left: 17px;
-  width: 13px;
-  background: var(--red);
-  box-shadow: 0 0 16px rgba(226, 87, 76, 0.52);
-}
-
-.s680-light--right { right: 49px; }
-
-.s680-wheel {
-  position: absolute;
-  bottom: 1px;
-  z-index: 7;
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--ink);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, var(--paper-3) 0 13%, #d8c58e 13% 23%, #717b83 23% 36%, var(--ink) 36% 52%, #303641 52%);
-  box-shadow: inset 0 0 0 3px rgba(255, 250, 240, 0.14);
-}
-
-.s680-wheel--left { left: 44px; }
-.s680-wheel--right { right: 46px; }
-
-.s680-badge {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  color: rgba(21, 23, 28, 0.22);
-  font-family: "Fira Code", "JetBrains Mono", monospace;
-  font-size: 11px;
-  font-weight: 800;
-  transform: translateX(-50%);
-}
-
-.pet-plate:hover .s680-car {
-  transform: translateX(-50%) translateY(-4px);
-}
+.copilot-radar-desk span:nth-child(1) { top: 16px; }
+.copilot-radar-desk span:nth-child(2) { top: 32px; width: 64px; }
+.copilot-radar-desk span:nth-child(3) { top: 48px; width: 38px; }
 
 .rank-module {
   background:

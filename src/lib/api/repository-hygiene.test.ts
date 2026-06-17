@@ -115,6 +115,32 @@ test("strategy engine v2 specs exist and ban liquidation heatmap modules", () =>
   }
 });
 
+test("altcoin trend radar v3 specs and blueprint stay aligned", () => {
+  const requiredSpecs = [
+    "docs/MARKET_READING_SPEC.md",
+    "docs/KEY_LEVEL_ENGINE_SPEC.md",
+    "docs/RISK_GATE_SPEC.md",
+  ];
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+
+  assert.match(blueprintSource, /Altcoin Trend Radar v3/);
+  assert.match(blueprintSource, /Market Reading Engine/);
+  assert.match(blueprintSource, /Key Level Engine/);
+  assert.match(blueprintSource, /Forward Level Map/);
+  assert.match(blueprintSource, /trend_switch_review/);
+  assert.match(blueprintSource, /forward_map_review/);
+  assert.match(blueprintSource, /S680 从常规宠物和常规 UI 主线删除|剔除 S680/);
+
+  for (const specPath of requiredSpecs) {
+    assert.equal(existsSync(resolve(process.cwd(), specPath)), true, `${specPath} must exist`);
+
+    const source = readFileSync(resolve(process.cwd(), specPath), "utf8");
+
+    assert.match(source, /Altcoin Trend Radar v3|v3/u);
+    assert.doesNotMatch(source, /LiquidationHeatmap|LiquidationZone|HeatmapProvider/u);
+  }
+});
+
 test("market test script runs nested compiled tests recursively", () => {
   const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
     scripts?: Record<string, string>;
@@ -142,18 +168,18 @@ test("radar UI exposes premium pixel cockpit anchors without relying on prose", 
     "utf8",
   );
   const petSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"),
+    resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
   assert.match(workspaceSource, /studio-scan-grid/);
   assert.match(workspaceSource, /signal-rhythm/);
-  assert.match(petSource, /s680-dashboard/);
-  assert.match(petSource, /s680-vital/);
+  assert.match(petSource, /copilot-dashboard/);
+  assert.match(petSource, /copilot-vital/);
   assert.match(cssSource, /\.studio-scan-grid/);
   assert.match(cssSource, /\.signal-rhythm/);
-  assert.match(cssSource, /\.s680-dashboard/);
+  assert.match(cssSource, /\.copilot-dashboard/);
   assert.match(cssSource, /prefers-reduced-motion/);
 });
 
@@ -172,7 +198,7 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "src/components/radar/strategy-card.tsx",
     "src/components/radar/system-health-panel.tsx",
     "src/components/radar/top-radar-bar.tsx",
-    "src/components/radar/pixel-s680.tsx",
+    "src/components/radar/pixel-copilot.tsx",
   ];
   const combinedSource = sourceFiles
     .map((path) => readFileSync(resolve(process.cwd(), path), "utf8"))
@@ -197,7 +223,6 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "纪律",
     "动量",
     "热度",
-    "S680 模式",
   ];
   const disallowedReaderLabels = [
     "ENGINE FEED",
@@ -208,7 +233,6 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "DISC",
     "MOM",
     "HEAT",
-    "S680 MODE",
     "NONE",
   ];
 
@@ -755,30 +779,31 @@ test("phase 3.9 macro weather panel keeps BTC ETH context as a non-mutating mark
   assert.equal(componentSource.includes("梭哈"), false);
 });
 
-test("S680 pet is built from bespoke pixel sedan geometry instead of a flat image", () => {
-  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
+test("pixel copilot removes the visible S680 vehicle direction from the normal radar UI", () => {
+  const workspaceSource = readFileSync(resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"), "utf8");
+  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const requiredGeometryParts = [
-    "s680-hood",
-    "s680-window",
-    "s680-chrome",
-    "s680-tail",
-    "s680-face",
-    "s680-eye",
-    "s680-shadow",
-    "s680-grille",
+  const requiredCopilotParts = [
+    "copilot-dashboard",
+    "copilot-vital",
+    "copilot-stage",
+    "copilot-shadow",
+    "copilot-radar-desk",
   ];
 
+  assert.match(workspaceSource, /PixelCopilot/);
+  assert.doesNotMatch(workspaceSource, /PixelS680|pixel-s680/);
   assert.equal(componentSource.includes("<img"), false);
+  assert.doesNotMatch(componentSource, /S680|s680-/);
 
-  for (const part of requiredGeometryParts) {
+  for (const part of requiredCopilotParts) {
     assert.match(componentSource, new RegExp(part));
     assert.match(cssSource, new RegExp(`\\.${part}`));
   }
 });
 
 test("pixel copilot MVP renders a BTC-necklace male avatar with equipment and no callout copy", () => {
-  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-s680.tsx"), "utf8");
+  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const requiredCopilotText = [
     "像素副驾驶",

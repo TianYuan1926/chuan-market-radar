@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Do not implement Liquidation Heatmap.
-- Do not implement LiquidationZone.
+- Do not implement liquidation-zone modules.
 - Do not implement heatmap provider modules.
 - Do not use potential liquidation zones as target, direction, stop loss, or entry basis.
 - Do not auto-trade.
