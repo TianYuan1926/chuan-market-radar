@@ -161,7 +161,32 @@ function scoresFor(input: BuildStrategyV3TrendContextInput, timeframes: TrendTim
   };
 }
 
-function stateAndDecision(scores: TrendScores, timeframes: TrendTimeframeContext[], conflicts: string[]): {
+function hasMarketReadingEvent(marketReadings: MarketReadingContext[], eventTypes: string[]) {
+  return marketReadings.some((reading) =>
+    reading.events.some((event) => eventTypes.includes(event.type))
+  );
+}
+
+function hasRangeFakeBreakout(marketReadings: MarketReadingContext[]) {
+  return marketReadings.some((reading) =>
+    reading.structure !== "UP_SEQUENCE"
+    && reading.events.some((event) => event.type === "FAKE_BREAKOUT")
+  );
+}
+
+function hasRangeFakeBreakdown(marketReadings: MarketReadingContext[]) {
+  return marketReadings.some((reading) =>
+    reading.structure !== "DOWN_SEQUENCE"
+    && reading.events.some((event) => event.type === "FAKE_BREAKDOWN")
+  );
+}
+
+function stateAndDecision(
+  scores: TrendScores,
+  timeframes: TrendTimeframeContext[],
+  conflicts: string[],
+  marketReadings: MarketReadingContext[],
+): {
   decision: TrendDecision;
   nextStep: string;
   state: TrendState;
@@ -171,6 +196,38 @@ function stateAndDecision(scores: TrendScores, timeframes: TrendTimeframeContext
       decision: "CONFLICT_WAIT",
       nextStep: "等待高低周期重新一致后再复核关键位，当前只保留观察。",
       state: "CONFLICT",
+    };
+  }
+
+  if (hasRangeFakeBreakout(marketReadings)) {
+    return {
+      decision: "AVOID_CHASE_LONG",
+      nextStep: "上影线假突破风险已经出现，不追高，等待重新站回前高或回踩承接后再复核。",
+      state: "LONG_EXHAUSTION",
+    };
+  }
+
+  if (hasRangeFakeBreakdown(marketReadings)) {
+    return {
+      decision: "AVOID_CHASE_SHORT",
+      nextStep: "下影线假跌破风险已经出现，不追空，等待重新跌回前低或反抽承压后再复核。",
+      state: "SHORT_EXHAUSTION",
+    };
+  }
+
+  if (hasMarketReadingEvent(marketReadings, ["BOS_UP", "CHOCH_UP"])) {
+    return {
+      decision: "WAIT_LONG_PULLBACK",
+      nextStep: "盘面已读取到向上结构突破，但仍等待回踩承接、量能质量和 Risk Gate 复核。",
+      state: "LONG_BREAKOUT",
+    };
+  }
+
+  if (hasMarketReadingEvent(marketReadings, ["BOS_DOWN", "CHOCH_DOWN"])) {
+    return {
+      decision: "WAIT_SHORT_RETEST",
+      nextStep: "盘面已读取到向下结构跌破，但仍等待反抽承压、量能质量和 Risk Gate 复核。",
+      state: "SHORT_BREAKDOWN",
     };
   }
 
@@ -217,8 +274,21 @@ function marketReadingsFor(input: BuildStrategyV3TrendContextInput, timeframes: 
   );
 }
 
-function noParticipationReasons(state: TrendState, scores: TrendScores, conflicts: string[]) {
+function noParticipationReasons(
+  state: TrendState,
+  scores: TrendScores,
+  conflicts: string[],
+  marketReadings: MarketReadingContext[],
+) {
   const reasons = conflicts.map((conflict) => `周期冲突：${conflict}`);
+
+  if (hasRangeFakeBreakout(marketReadings)) {
+    reasons.push("假突破风险：上影线刺破前高后收回区间内，禁止追高。");
+  }
+
+  if (hasRangeFakeBreakdown(marketReadings)) {
+    reasons.push("假跌破风险：下影线刺破前低后收回区间内，禁止追空。");
+  }
 
   if (scores.riskScore >= 70) {
     reasons.push(`风险分过高：RiskScore ${scores.riskScore}`);
@@ -245,9 +315,9 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     .filter((context): context is TrendTimeframeContext => Boolean(context));
   const conflicts = [structureConflict(timeframes)].filter((item): item is string => Boolean(item));
   const scores = scoresFor(input, timeframes);
-  const stateDecision = stateAndDecision(scores, timeframes, conflicts);
   const marketReadings = marketReadingsFor(input, timeframes);
-  const noParticipation = noParticipationReasons(stateDecision.state, scores, conflicts);
+  const stateDecision = stateAndDecision(scores, timeframes, conflicts, marketReadings);
+  const noParticipation = noParticipationReasons(stateDecision.state, scores, conflicts, marketReadings);
 
   return {
     allowedUse: "research_only",

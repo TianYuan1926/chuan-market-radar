@@ -20,7 +20,7 @@ The project is currently in a product/UI route rebaseline before the next fronte
 - The corrected frontend route is a real Tailwind CSS + daisyUI UI reset, not a custom-CSS shell with daisyUI-style naming. The desired product form remains a Live Navbar / Banner, one Cockpit Card, desktop columns at 2:6:2, a short boot/briefing layer, session clock, and visible runtime feedback.
 - Altcoins and new listings remain the primary opportunity target. BTC/ETH/ETF/CoinGlass macro data becomes the market weather layer, not a replacement for the altcoin opportunity board.
 - Mainland China access work is intentionally excluded from the current roadmap. Do not add ICP, mainland CDN, or mainland hosting tasks to this flow unless the user explicitly reopens that decision.
-- Latest v3 backend progress: Signal Dossier already has Key Level Map, Forward Map, multi-timeframe trend context, trend scores, readonly conflict output, and Market Reading structure facts. Altcoin Opportunity Board now also surfaces v3 trend state, v3 decision, v3 risk gate, and first no-participation reason without changing live ranking or CoinGlass request volume.
+- Latest v3 backend progress: Signal Dossier already has Key Level Map, Forward Map, multi-timeframe trend context, trend scores, readonly conflict output, and Market Reading structure facts. v3 state switching now consumes BOS/CHoCH/fakeout facts in readonly mode. Altcoin Opportunity Board surfaces v3 trend state, v3 decision, v3 risk gate, and first no-participation reason without changing live ranking or CoinGlass request volume.
 
 ## Build Rules For Every Stage
 
@@ -275,6 +275,37 @@ Surface v3 risk gate on opportunities
 
 ```text
 Add v3 market reading structure facts
+```
+
+## Phase 4V3-8: Readonly Stage Switching From Market Reading Facts
+
+**Purpose:** Let v3 translate selected structure facts into visible market stages while preserving the rule that facts do not become execution orders.
+
+**Files likely involved:**
+
+- Modify: `src/lib/analysis/v3/current-signal-dossier.test.ts`
+- Modify: `src/lib/analysis/v3/trend-context.ts`
+- Modify: `docs/chuan-market-radar-blueprint.md`
+
+**Steps:**
+
+- [x] Add RED tests for BOS-driven `LONG_BREAKOUT / WAIT_LONG_PULLBACK`.
+- [x] Add RED tests for fake-breakout `LONG_EXHAUSTION / AVOID_CHASE_LONG` with `riskGate.allowed: false`.
+- [x] Update v3 state machine to consume `BOS_UP`, `BOS_DOWN`, `CHOCH_UP`, `CHOCH_DOWN`, `FAKE_BREAKOUT`, and `FAKE_BREAKDOWN` from `marketReadings`.
+- [x] Keep conflict checks ahead of lower-level structure events so low timeframe still cannot override high timeframe.
+- [x] Add no-participation reasons for fake breakout and fake breakdown.
+- [x] Run full verification and commit.
+
+**Acceptance:**
+
+- v3 can show breakout, breakdown, and fakeout stages.
+- Breakout still means wait for pullback/retest and Risk Gate, not buy now.
+- Fakeout becomes explicit no-participation context.
+
+**GitHub Desktop Summary:**
+
+```text
+Use v3 market readings for stage switching
 ```
 
 ---

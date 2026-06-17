@@ -55,6 +55,27 @@ const trendCandles = [10, 10.5, 11, 10.8, 10.2, 11.3, 12.1, 11.5, 10.7, 12.4, 13
   .map((close, index) => candle(index, close));
 const downTrendCandles = [14, 13.7, 13.2, 13.5, 13.1, 12.7, 12.1, 12.4, 11.8, 11.2, 11.4, 10.8, 10.4, 10.1]
   .map((close, index) => candle(index, close));
+const breakoutCandles = [
+  { close: 9.4, high: 10.5, low: 8.9, open: 9.2 },
+  { close: 10.8, high: 11, low: 9.2, open: 9.4 },
+  { close: 9.6, high: 10.5, low: 9, open: 10.8 },
+  { close: 11.8, high: 12.2, low: 9.8, open: 9.6 },
+  { close: 10.4, high: 11.6, low: 9.6, open: 11.8 },
+  { close: 12.6, high: 12.8, low: 10.2, open: 10.4 },
+].map((item, index) => ({
+  ...candle(index, item.close),
+  ...item,
+}));
+const fakeBreakoutCandles = [
+  { close: 10.5, high: 11, low: 9.8, open: 10 },
+  { close: 11.8, high: 12, low: 10, open: 10.5 },
+  { close: 10.8, high: 11.5, low: 10.2, open: 11.8 },
+  { close: 11.2, high: 11.7, low: 10.4, open: 10.8 },
+  { close: 11.4, high: 13, low: 10.9, open: 11.2 },
+].map((item, index) => ({
+  ...candle(index, item.close),
+  ...item,
+}));
 
 test("buildSignalTrendRadarV3Dossier builds readonly key levels and forward map from existing OHLCV candles", () => {
   const dossier = buildSignalTrendRadarV3Dossier({
@@ -133,4 +154,42 @@ test("buildSignalTrendRadarV3Dossier marks high and low timeframe structure conf
   assert.equal(dossier.trendContext.conflicts.length > 0, true);
   assert.match(dossier.trendContext.noParticipationReasons.join(" / "), /周期冲突/);
   assert.match(dossier.trendContext.nextStep, /等待/);
+});
+
+test("buildSignalTrendRadarV3Dossier promotes market-reading BOS into readonly long breakout state", () => {
+  const dossier = buildSignalTrendRadarV3Dossier({
+    candlesByTimeframe: {
+      "15m": breakoutCandles,
+      "1h": breakoutCandles,
+    },
+    currentPrice: 12.6,
+    signal: signal(),
+  });
+
+  assert.ok(dossier);
+  assert.ok(dossier.trendContext);
+  assert.equal(dossier.trendContext.state, "LONG_BREAKOUT");
+  assert.equal(dossier.trendContext.decision, "WAIT_LONG_PULLBACK");
+  assert.equal(dossier.trendContext.marketReadings?.some((reading) =>
+    reading.events.some((event) => event.type === "BOS_UP")
+  ), true);
+  assert.match(dossier.trendContext.nextStep, /回踩|承接/);
+});
+
+test("buildSignalTrendRadarV3Dossier blocks upper-wick fake breakout as readonly avoid-chase state", () => {
+  const dossier = buildSignalTrendRadarV3Dossier({
+    candlesByTimeframe: {
+      "15m": fakeBreakoutCandles,
+      "1h": fakeBreakoutCandles,
+    },
+    currentPrice: 11.4,
+    signal: signal(),
+  });
+
+  assert.ok(dossier);
+  assert.ok(dossier.trendContext);
+  assert.equal(dossier.trendContext.state, "LONG_EXHAUSTION");
+  assert.equal(dossier.trendContext.decision, "AVOID_CHASE_LONG");
+  assert.equal(dossier.trendContext.riskGate.allowed, false);
+  assert.match(dossier.trendContext.noParticipationReasons.join(" / "), /假突破|追高/);
 });

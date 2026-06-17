@@ -1217,25 +1217,31 @@ CoinGlass 业余会员 API：
    - 新增 `buildMarketReadingContext()`，从已有 OHLCV 提取 swing high/low、`HH`、`HL`、`LH`、`LL`、`BOS_UP`、`BOS_DOWN`、`CHOCH_UP`、`CHOCH_DOWN`、假突破和假跌破等盘面结构事实。
    - 该模块只输出 `research_only` 结构事实、区间高低、事件列表和摘要，不输出买卖建议，不直接改变趋势状态机、live ranking 或权重。
    - `StrategyV3TrendContext.marketReadings` 已接入 Signal Dossier，前端展示“盘面结构”，让前高/前低、结构序列和假突破风险可检查。
-   - 当前状态：已完成 MVP。后续正确搭建项是把结构事实逐步用于 v3 阶段切换、RR/位置质量、趋势完整度和复盘验证，但仍保持先只读、后校准、再考虑权重的顺序。
+   - 当前状态：已完成 MVP。
 
-21. **V1.7：Product Design 简报与角色设定固化**
+21. **Phase 4V3-8：Market Reading Facts 驱动只读阶段切换**
+   - v3 趋势状态机开始消费 `marketReadings`：`BOS_UP / CHOCH_UP` 输出 `LONG_BREAKOUT / WAIT_LONG_PULLBACK`，`BOS_DOWN / CHOCH_DOWN` 输出 `SHORT_BREAKDOWN / WAIT_SHORT_RETEST`。
+   - 上影线假突破输出 `LONG_EXHAUSTION / AVOID_CHASE_LONG`，下影线假跌破输出 `SHORT_EXHAUSTION / AVOID_CHASE_SHORT`，并进入 `noParticipationReasons` 与只读 `riskGate` 阻断。
+   - 该阶段仍只做结构阶段解释，不输出执行订单，不改变机会板排序，不写真实权重，不自动调参。
+   - 当前状态：已完成 MVP。后续正确搭建项是把 Key Level、RR/位置质量、趋势完整度和后续复盘结果纳入同一 v3 只读决策解释，再进入人工校准样本池。
+
+22. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
-22. **V1.8：像素副驾驶 MVP（已落地）**
+23. **V1.8：像素副驾驶 MVP（已落地）**
    - 已用 `PixelCopilot` 替换旧车辆命名组件的正常 UI 边界。
    - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
    - 保留 rank profile、纪律分、动量、热度等现有数据入口。
    - 为角色结构、中文台词和禁止喊单边界增加测试。
 
-23. **V1.9：装备与段位联动**
+24. **V1.9：装备与段位联动**
    - 根据 XP、段位、纪律分解锁装备。
    - 初始只做 3-5 个装备层级，避免一次性堆太多皮肤。
    - 装备只能表达成长和纪律，不表达收益承诺。
 
-24. **V2.0：主界面层级重排**
+25. **V2.0：主界面层级重排**
    - 弱化营销式 hero，强化当前选中信号工作区。
    - 建立 Command / Signal / System / Copilot 四类模块等级。
    - 让图表、多周期、策略计划和 AI 反证的视觉层级更清楚。
