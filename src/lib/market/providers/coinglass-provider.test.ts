@@ -647,3 +647,58 @@ test("CoinGlass provider feeds multi-timeframe OHLCV candles into timeframe prof
   );
   assert.match(snapshot.metadata.notes.join("\n"), /ohlcv multi-timeframe: ENAUSDT 8\/8/);
 });
+
+test("CoinGlass provider attaches v3 key level dossiers from the same OHLCV candles without extra requests", async () => {
+  const requestedCandles: string[] = [];
+  const intervals = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"];
+  const ohlcvProvider: OhlcvProvider = {
+    id: "test-ohlcv",
+    label: "Test OHLCV",
+    async fetchCandles(request) {
+      requestedCandles.push(`${request.symbol}:${request.interval}:${request.limit}`);
+
+      return {
+        ok: true,
+        source: "test-ohlcv",
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: [10, 10.4, 10.9, 10.6, 10.1, 11.3, 12.1, 11.4, 10.7, 12.2, 13.3, 12.8, 11.9, 13.6]
+          .map((close, index) => ohlcvCandle(index, close)),
+      };
+    },
+  };
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA"],
+    batchSize: 3,
+    ohlcvProvider,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: symbol === "ENA"
+          ? [coinglassRow("ENA", { current_price: 12.7, volume_usd_change_percent_24h: 140 })]
+          : [],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+  const enaSignal = snapshot.signals.find((signal) => signal.symbol === "ENAUSDT");
+
+  assert.ok(enaSignal?.strategyV3);
+  assert.equal(enaSignal.strategyV3.canMutateLiveRanking, false);
+  assert.equal(enaSignal.strategyV3.canAutoAdjustWeights, false);
+  assert.equal(enaSignal.strategyV3.allowedUse, "research_only");
+  assert.ok(enaSignal.strategyV3.keyLevels.length > 0);
+  assert.ok(enaSignal.strategyV3.forwardLevels.length > 0);
+  assert.deepEqual(
+    requestedCandles.filter((item) => item.startsWith("ENAUSDT:")),
+    intervals.map((interval) => `ENAUSDT:${interval}:120`),
+  );
+  assert.match(snapshot.metadata.notes.join("\n"), /v3 key levels: ENAUSDT/);
+});

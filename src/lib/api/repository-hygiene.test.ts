@@ -368,6 +368,22 @@ test("radar UI exposes strategy v2 traceability without liquidation heatmap conc
   assert.doesNotMatch(combinedSource, /清算热力图|LiquidationHeatmap|LiquidationZone|heatmap provider|潜在清算区/iu);
 });
 
+test("signal dossier exposes v3 key levels and forward map as readonly context", () => {
+  const dossierSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    "utf8",
+  );
+  const typesSource = readFileSync(resolve(process.cwd(), "src/lib/analysis/types.ts"), "utf8");
+
+  assert.match(typesSource, /strategyV3/u);
+  assert.match(dossierSource, /strategyV3/u);
+  assert.match(dossierSource, /关键位地图/u);
+  assert.match(dossierSource, /Forward Map/u);
+  assert.match(dossierSource, /canMutateLiveRanking/u);
+  assert.match(dossierSource, /signal-dossier__v3-levels/u);
+  assert.match(dossierSource, /signal-dossier__v3-map/u);
+});
+
 test("living radar UI second pass exposes functional motion, state dimming, and compact cockpit status", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),

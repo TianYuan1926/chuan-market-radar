@@ -164,3 +164,18 @@ export type TrendRadarReview = {
   canAutoAdjustWeights: false;
   evidenceIds: string[];
 };
+
+export type StrategyV3Dossier = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  currentPrice: number;
+  forwardLevels: ForwardLevel[];
+  guardrails: string[];
+  keyLevels: KeyLevel[];
+  primaryTimeframe: TrendTimeframe;
+  source: "existing_ohlcv_key_level_mvp";
+  sourceTimeframes: TrendTimeframe[];
+  summary: string;
+  symbol: string;
+};

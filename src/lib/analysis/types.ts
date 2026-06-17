@@ -3,6 +3,9 @@ import type {
   ChineseStrategyReport,
 } from "./v2/report/report-schema";
 import type {
+  StrategyV3Dossier,
+} from "./v3/types";
+import type {
   RiskGateResult,
 } from "./v2/strategy/risk-gate";
 import type {
@@ -205,6 +208,7 @@ export type MarketSignal = {
   strategy: StrategyPlan;
   aiReview?: AiSignalReview;
   strategyV2?: StrategyV2Audit;
+  strategyV3?: StrategyV3Dossier;
   timeframeProfile?: TimeframeProfile;
   timeframeAgreement?: string;
   timeframeConflicts?: Timeframe[];

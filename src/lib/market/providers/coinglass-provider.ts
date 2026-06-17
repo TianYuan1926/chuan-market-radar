@@ -3,6 +3,9 @@ import {
   type MarketAnchorContext,
   type MarketAnomalyInput,
 } from "../../analysis/anomaly-engine";
+import {
+  buildSignalTrendRadarV3Dossier,
+} from "../../analysis/v3/current-signal-dossier";
 import { buildTechnicalEvidence } from "../../analysis/technical-indicators";
 import {
   buildTimeframeProfile,
@@ -402,6 +405,7 @@ export function createCoinGlassProvider({
       const derivatives = primarySignalRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
       const marketContext = deriveMarketAnchorContext(primarySignalRows, generatedAt);
       const ohlcvFailuresBySymbol = new Map<string, OhlcvProviderFailure[]>();
+      const ohlcvCandlesBySymbol = new Map<string, Partial<Record<OhlcvInterval, Candle[]>>>();
       const indicatorEvidenceBySymbol = new Map<string, EvidencePoint[]>();
       const timeframeProfileBySymbol = new Map<string, TimeframeProfile>();
       const ohlcvSummaryNotes: string[] = [];
@@ -440,6 +444,7 @@ export function createCoinGlassProvider({
             const directionBias = directionBiasFromChange(ticker.changePercent24h);
             const frames = buildTimeframeFrames(candlesByTimeframe, directionBias);
 
+            ohlcvCandlesBySymbol.set(ticker.symbol, candlesByTimeframe);
             indicatorEvidenceBySymbol.set(ticker.symbol, buildTechnicalEvidence(candlesByTimeframe));
 
             if (frames.length) {
@@ -449,6 +454,7 @@ export function createCoinGlassProvider({
         }));
       }
 
+      const tickerBySymbol = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
       const signals = analyzeMarketAnomalies(
         primarySignalRows.slice(0, 50).map((row) => {
           const ticker = mapCoinGlassTicker(row, generatedAt);
@@ -462,7 +468,27 @@ export function createCoinGlassProvider({
             timeframeProfileBySymbol.get(ticker.symbol),
           );
         }),
-      );
+      ).map((signal) => {
+        const candlesByTimeframe = ohlcvCandlesBySymbol.get(signal.symbol);
+
+        if (!candlesByTimeframe) {
+          return signal;
+        }
+
+        const strategyV3 = buildSignalTrendRadarV3Dossier({
+          candlesByTimeframe,
+          currentPrice: tickerBySymbol.get(signal.symbol)?.price,
+          signal,
+        });
+
+        return strategyV3
+          ? {
+            ...signal,
+            strategyV3,
+          }
+          : signal;
+      });
+      const v3Signals = signals.filter((signal) => signal.strategyV3);
       const heatmap = primarySignalRows
         .slice(0, 24)
         .map((row) => mapCoinGlassHeatCell(row));
@@ -513,6 +539,9 @@ export function createCoinGlassProvider({
           `requests ${batchPlan.requestsPlanned}/${coverage.eligible}, next batch ${batchPlan.nextBatchIndex + 1}`,
           `coverage ${coverage.scanned}/${coverage.eligible} (${coverage.coveragePercent}%), pending ${coverage.pending}, skipped ${coverage.skipped}`,
           `market context: ${marketContext.anchor} ${marketContext.regime}`,
+          v3Signals.length
+            ? `v3 key levels: ${v3Signals.map((signal) => `${signal.symbol} ${signal.strategyV3?.keyLevels.length ?? 0}/${signal.strategyV3?.forwardLevels.length ?? 0}`).join(", ")}`
+            : "v3 key levels: unavailable",
           ...ohlcvSummaryNotes,
           ...[...ohlcvFailuresBySymbol.entries()].flatMap(([symbol, failures]) =>
             failures.map((failure) => `ohlcv unavailable: ${symbol} ${failure.interval} ${failure.reason}`)

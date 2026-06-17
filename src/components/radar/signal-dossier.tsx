@@ -3,6 +3,8 @@ import {
   BookOpenCheck,
   ClipboardList,
   ExternalLink,
+  KeyRound,
+  MapPinned,
   RadioTower,
   ShieldCheck,
   Sparkles,
@@ -171,6 +173,44 @@ function dailyMoverDirectionLabel(value: SignalDossierDailyMoverMatch["direction
   return value === "gainer" ? "涨幅样本" : "跌幅样本";
 }
 
+function keyLevelDirectionLabel(value: NonNullable<MarketSignal["strategyV3"]>["keyLevels"][number]["direction"]) {
+  return {
+    BOTH: "双向",
+    RESISTANCE: "压力",
+    SUPPORT: "支撑",
+  }[value];
+}
+
+function keyLevelStatusLabel(value: NonNullable<MarketSignal["strategyV3"]>["keyLevels"][number]["status"]) {
+  return {
+    ARRIVED: "已到位",
+    BROKEN: "已突破",
+    CONFIRMED: "已确认",
+    INVALIDATED: "已失效",
+    POTENTIAL: "潜在",
+    REACTION_STARTED: "有反应",
+    RECLAIMED: "已收复",
+    WEAKENING: "转弱",
+  }[value];
+}
+
+function forwardRoleLabel(value: NonNullable<MarketSignal["strategyV3"]>["forwardLevels"][number]["role"]) {
+  return {
+    CURRENT_DEFENSE: "当前防守",
+    FIRST_REBOUND_RESISTANCE: "第一反弹压力",
+    INVALIDATION_LEVEL: "失效位",
+    NEXT_REACTION_ZONE: "下一反应区",
+    SECOND_REBOUND_RESISTANCE: "第二反弹压力",
+    TREND_CHANGE_LEVEL: "趋势切换位",
+  }[value];
+}
+
+function priceZoneLabel(zoneLow: number, zoneHigh: number) {
+  const digits = Math.max(zoneLow, zoneHigh) >= 100 ? 2 : 5;
+
+  return `${zoneLow.toFixed(digits)} - ${zoneHigh.toFixed(digits)}`;
+}
+
 function copilotLine(signal: MarketSignal, journalMatches: JournalEvent[], moverMatches: SignalDossierDailyMoverMatch[]) {
   if (signal.risk === "blocked" || signal.risk === "high") {
     return "这票先别急，失效条件必须摆在桌面上。能不能做，先看反证有没有被消化。";
@@ -213,6 +253,7 @@ export function SignalDossier({
   const confirmations = signal?.strategy.confirmation?.slice(0, 3) ?? ["等待触发、位置和量能同时确认"];
   const counterEvidence = signal?.strategy.counterEvidence?.slice(0, 3) ?? ["暂无硬阻断反证，继续观察失效位"];
   const strategyV2 = signal?.strategyV2;
+  const strategyV3 = signal?.strategyV3;
 
   return (
     <div className={`signal-dossier ${isOpen ? "signal-dossier--open" : ""}`} aria-hidden={!isOpen}>
@@ -287,6 +328,50 @@ export function SignalDossier({
                     <strong>counterEvidenceIds</strong>
                     <p>{strategyV2.report.evidenceTrace.counterEvidenceIds.slice(0, 6).join(" / ") || "无"}</p>
                   </article>
+                </div>
+              </section>
+            ) : null}
+
+            {strategyV3 ? (
+              <section className="signal-dossier__section" aria-label="v3 关键位地图和 Forward Map">
+                <div className="signal-dossier__section-head">
+                  <h3>关键位地图</h3>
+                  <span>{strategyV3.primaryTimeframe} / {strategyV3.sourceTimeframes.length} 周期</span>
+                </div>
+                <div className="signal-dossier__v3-summary">
+                  <MapPinned aria-hidden="true" size={16} strokeWidth={2.35} />
+                  <p>{strategyV3.summary}</p>
+                  <small>
+                    {strategyV3.canMutateLiveRanking ? "可影响排序" : "只读上下文"} / {strategyV3.allowedUse}
+                  </small>
+                </div>
+                <div className="signal-dossier__v3-levels" aria-label="v3 key levels">
+                  {strategyV3.keyLevels.slice(0, 6).map((level) => (
+                    <article key={level.id}>
+                      <div>
+                        <KeyRound aria-hidden="true" size={14} strokeWidth={2.3} />
+                        <strong>{keyLevelDirectionLabel(level.direction)} · {level.type.replaceAll("_", " ")}</strong>
+                        <span>{level.timeframe} / {keyLevelStatusLabel(level.status)}</span>
+                      </div>
+                      <p>{priceZoneLabel(level.zoneLow, level.zoneHigh)}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="signal-dossier__section-head signal-dossier__section-head--sub">
+                  <h3>Forward Map</h3>
+                  <span>{strategyV3.forwardLevels.length} 位</span>
+                </div>
+                <div className="signal-dossier__v3-map" aria-label="v3 forward map">
+                  {strategyV3.forwardLevels.slice(0, 6).map((level) => (
+                    <article key={level.id}>
+                      <div>
+                        <strong>{forwardRoleLabel(level.role)}</strong>
+                        <span>{level.side === "SUPPORT" ? "支撑" : "压力"} / {level.status}</span>
+                      </div>
+                      <p>{priceZoneLabel(level.zoneLow, level.zoneHigh)}</p>
+                      <small>{level.confirmationRules[0] ?? level.invalidationRules[0]}</small>
+                    </article>
+                  ))}
                 </div>
               </section>
             ) : null}
