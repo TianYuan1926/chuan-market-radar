@@ -178,7 +178,7 @@ Expected: all tests pass.
 - Consumes: OHLCV candle arrays.
 - Produces: facts only: swing points, trend structure, range bounds, location quality, reward/risk.
 
-- [ ] **Step 1: Write failing tests from GOLDEN_CASES**
+- [x] **Step 1: Write failing tests from GOLDEN_CASES**
 
 Cover:
 
@@ -187,17 +187,17 @@ Cover:
 - small timeframe breakout near higher timeframe resistance becomes location risk.
 - reward/risk below `3:1` blocks trade eligibility.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test:market`
 
 Expected: fail because feature extractors do not exist.
 
-- [ ] **Step 3: Implement facts only**
+- [x] **Step 3: Implement facts only**
 
 Implement feature outputs without `StrategyDecision` strings.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test:market`
 
