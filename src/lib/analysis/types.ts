@@ -1,4 +1,15 @@
 import type { TimeframeProfile } from "./timeframe-profile";
+import type {
+  ChineseStrategyReport,
+} from "./v2/report/report-schema";
+import type {
+  RiskGateResult,
+} from "./v2/strategy/risk-gate";
+import type {
+  MarketStage,
+  StrategyDecision,
+  StrategyScores,
+} from "./v2/strategy/market-state-machine";
 
 export type Timeframe =
   | "1m"
@@ -66,6 +77,18 @@ export type StrategyPlan = {
   confirmation?: string[];
   counterEvidence?: string[];
   riskControls?: string[];
+};
+
+export type StrategyV2Audit = {
+  canMutateLiveRanking: false;
+  counterEvidenceIds: string[];
+  decision: StrategyDecision;
+  ignoredExternalInputs: number;
+  report: ChineseStrategyReport;
+  riskGate: RiskGateResult;
+  scores: StrategyScores;
+  stage: MarketStage;
+  supportEvidenceIds: string[];
 };
 
 export type AiReviewStatus = "disabled" | "fallback" | "reviewed";
@@ -181,6 +204,7 @@ export type MarketSignal = {
   evidence: EvidencePoint[];
   strategy: StrategyPlan;
   aiReview?: AiSignalReview;
+  strategyV2?: StrategyV2Audit;
   timeframeProfile?: TimeframeProfile;
   timeframeAgreement?: string;
   timeframeConflicts?: Timeframe[];

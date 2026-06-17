@@ -119,6 +119,64 @@ test("buildAltcoinOpportunityBoard groups actionable altcoin opportunities witho
   assert.equal(board.summary.requestPolicy, "no_extra_requests");
 });
 
+test("buildAltcoinOpportunityBoard exposes v2 market stage without replacing current signal state", () => {
+  const board = buildAltcoinOpportunityBoard({
+    dailyMoverDetails: [],
+    journalEvents: [],
+    scanStatus: "ready",
+    signals: [
+      signal({
+        state: "waiting_confirmation",
+        strategyV2: {
+          canMutateLiveRanking: false,
+          counterEvidenceIds: [],
+          decision: "WAIT_BREAKOUT",
+          ignoredExternalInputs: 0,
+          report: {
+            decision: "WAIT_BREAKOUT",
+            evidenceTrace: {
+              counterEvidenceIds: [],
+              supportEvidenceIds: ["compression"],
+            },
+            riskGate: {
+              allowed: true,
+              blockedBy: [],
+            },
+            sections: {
+              evidence: "支持证据 id：compression；反证 id：无。",
+              plan: "只读计划",
+              risk: "风险门控未发现硬阻断。",
+              state: "报告层不重新判断行情。",
+            },
+            stage: "PRE_BREAKOUT",
+            summary: "阶段：突破前临界；决策：等待突破。",
+            title: "突破前临界 / 等待突破",
+          },
+          riskGate: {
+            allowed: true,
+            blockedBy: [],
+          },
+          scores: {
+            energy: 42,
+            energyDecay: 10,
+            preMove: 68,
+            risk: 20,
+            trendHold: 16,
+          },
+          stage: "PRE_BREAKOUT",
+          supportEvidenceIds: ["compression"],
+        },
+      }),
+    ],
+  });
+
+  const item = board.groups.long_warming.items[0];
+
+  assert.equal(item?.stateLabel, "等待确认");
+  assert.equal(item?.strategyV2StageLabel, "突破前临界");
+  assert.equal(item?.strategyV2DecisionLabel, "等待突破");
+});
+
 test("buildAltcoinOpportunityBoard marks stale scans as watch-only", () => {
   const board = buildAltcoinOpportunityBoard({
     dailyMoverDetails: [],

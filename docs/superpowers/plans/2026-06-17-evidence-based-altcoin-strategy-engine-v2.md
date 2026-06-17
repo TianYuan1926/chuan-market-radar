@@ -381,7 +381,7 @@ Expected: all tests pass.
 - Consumes: v2 structured result.
 - Produces: visible market stage, evidence trace, risk gate, no-trade reason.
 
-- [ ] **Step 1: Write failing integration tests**
+- [x] **Step 1: Write failing integration tests**
 
 Cover:
 
@@ -389,17 +389,17 @@ Cover:
 - Altcoin Opportunity Board can show market stage without replacing existing signal state.
 - no liquidation heatmap concepts appear in UI copy.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test:market`
 
 Expected: fail because v2 is not wired.
 
-- [ ] **Step 3: Wire read-only v2 output**
+- [x] **Step 3: Wire read-only v2 output**
 
 Integrate as read-only explanation first. Do not change live ranking until v2 passes review samples.
 
-- [ ] **Step 4: Run full verification**
+- [x] **Step 4: Run full verification**
 
 Run:
 

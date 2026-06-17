@@ -324,6 +324,26 @@ test("public radar UI opens a selected-signal dossier that fuses strategy, journ
   }
 });
 
+test("radar UI exposes strategy v2 traceability without liquidation heatmap concepts", () => {
+  const dossierSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    "utf8",
+  );
+  const boardSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/altcoin-opportunity-board.tsx"),
+    "utf8",
+  );
+  const combinedSource = `${dossierSource}\n${boardSource}`;
+
+  assert.match(dossierSource, /strategyV2/u);
+  assert.match(dossierSource, /evidenceTrace/u);
+  assert.match(dossierSource, /supportEvidenceIds/u);
+  assert.match(dossierSource, /counterEvidenceIds/u);
+  assert.match(boardSource, /strategyV2StageLabel/u);
+  assert.match(boardSource, /strategyV2DecisionLabel/u);
+  assert.doesNotMatch(combinedSource, /清算热力图|LiquidationHeatmap|LiquidationZone|heatmap provider|潜在清算区/iu);
+});
+
 test("living radar UI second pass exposes functional motion, state dimming, and compact cockpit status", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),

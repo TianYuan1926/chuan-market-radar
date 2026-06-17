@@ -13,6 +13,9 @@ import {
   timeframeRoleMap,
   type TimeframeProfile,
 } from "./timeframe-profile";
+import {
+  buildSignalStrategyV2Audit,
+} from "./v2/current-signal-audit";
 
 export type StructureLocation =
   | "support"
@@ -504,7 +507,7 @@ export function analyzeMarketAnomaly(input: MarketAnomalyInput): MarketSignal {
     ? summarizeTimeframeAgreement(input.timeframeProfile)
     : undefined;
 
-  return {
+  const signal: MarketSignal = {
     id: input.id,
     symbol: input.symbol,
     exchange: input.exchange,
@@ -533,6 +536,11 @@ export function analyzeMarketAnomaly(input: MarketAnomalyInput): MarketSignal {
     timeframeProfile: input.timeframeProfile,
     timeframeAgreement,
     timeframeConflicts: input.timeframeProfile?.conflictTimeframes,
+  };
+
+  return {
+    ...signal,
+    strategyV2: buildSignalStrategyV2Audit(signal),
   };
 }
 

@@ -110,6 +110,12 @@ function renderItemContent(item: AltcoinOpportunityItem) {
         {item.timeframe ? <span>{item.timeframe}</span> : null}
         {item.exchange ? <span>{item.exchange}</span> : null}
       </div>
+      {item.strategyV2StageLabel ? (
+        <div className="altcoin-opportunity-card__v2">
+          <span>v2 {item.strategyV2StageLabel}</span>
+          {item.strategyV2DecisionLabel ? <b>{item.strategyV2DecisionLabel}</b> : null}
+        </div>
+      ) : null}
       <p>{item.summary}</p>
       <div className="altcoin-opportunity-card__strategy">
         <ListChecks aria-hidden="true" size={13} />

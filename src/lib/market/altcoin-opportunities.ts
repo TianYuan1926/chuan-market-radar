@@ -1,4 +1,8 @@
 import type { JournalEvent, MarketSignal } from "../analysis/types";
+import {
+  marketStageZh,
+  strategyDecisionZh,
+} from "../analysis/v2/report/chinese-templates";
 import type { MarketDataStatus } from "./types";
 
 export type AltcoinOpportunityGroupKey =
@@ -30,6 +34,8 @@ export type AltcoinOpportunityItem = {
   source: "daily_mover" | "signal";
   staleLabel?: string;
   stateLabel: string;
+  strategyV2DecisionLabel?: string;
+  strategyV2StageLabel?: string;
   strategyHint: string;
   summary: string;
   symbol: string;
@@ -269,6 +275,8 @@ function buildSignalItem({
     source: "signal",
     staleLabel: scanStatus === "stale" || scanStatus === "failed" ? "数据延迟，只观察不执行" : undefined,
     stateLabel: stateLabels[signal.state],
+    strategyV2DecisionLabel: signal.strategyV2 ? strategyDecisionZh[signal.strategyV2.decision] : undefined,
+    strategyV2StageLabel: signal.strategyV2 ? marketStageZh[signal.strategyV2.stage] : undefined,
     strategyHint: `${signal.strategy.entry} / 失效 ${signal.strategy.invalidation}`,
     summary: signal.summary,
     symbol: signal.symbol,

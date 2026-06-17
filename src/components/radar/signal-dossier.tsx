@@ -212,6 +212,7 @@ export function SignalDossier({
   const visibleEvidence = signal?.evidence.slice(0, 9) ?? [];
   const confirmations = signal?.strategy.confirmation?.slice(0, 3) ?? ["等待触发、位置和量能同时确认"];
   const counterEvidence = signal?.strategy.counterEvidence?.slice(0, 3) ?? ["暂无硬阻断反证，继续观察失效位"];
+  const strategyV2 = signal?.strategyV2;
 
   return (
     <div className={`signal-dossier ${isOpen ? "signal-dossier--open" : ""}`} aria-hidden={!isOpen}>
@@ -257,6 +258,38 @@ export function SignalDossier({
                 <span><b>{signal.strategy.riskReward.toFixed(2)}R</b>赔率</span>
               </div>
             </section>
+
+            {strategyV2 ? (
+              <section className="signal-dossier__section" aria-label="Strategy v2 证据审计">
+                <div className="signal-dossier__section-head">
+                  <h3>v2 证据审计</h3>
+                  <span>{strategyV2.report.title}</span>
+                </div>
+                <div className="signal-dossier__v2-grid">
+                  <span><b>{strategyV2.stage}</b>阶段</span>
+                  <span><b>{strategyV2.decision}</b>决策</span>
+                  <span><b>{strategyV2.riskGate.allowed ? "通过" : "阻断"}</b>门控</span>
+                  <span><b>{strategyV2.scores.preMove}</b>PreMove</span>
+                  <span><b>{strategyV2.scores.energy}</b>Energy</span>
+                  <span><b>{strategyV2.scores.risk}</b>Risk</span>
+                </div>
+                <div className="signal-dossier__v2-report">
+                  <p>{strategyV2.report.sections.state}</p>
+                  <p>{strategyV2.report.sections.risk}</p>
+                  <p>{strategyV2.report.sections.plan}</p>
+                </div>
+                <div className="signal-dossier__v2-trace" aria-label="Strategy v2 evidenceTrace">
+                  <article>
+                    <strong>supportEvidenceIds</strong>
+                    <p>{strategyV2.report.evidenceTrace.supportEvidenceIds.slice(0, 6).join(" / ") || "无"}</p>
+                  </article>
+                  <article>
+                    <strong>counterEvidenceIds</strong>
+                    <p>{strategyV2.report.evidenceTrace.counterEvidenceIds.slice(0, 6).join(" / ") || "无"}</p>
+                  </article>
+                </div>
+              </section>
+            ) : null}
 
             <section className="signal-dossier__section" aria-label="TradingView K 线入口">
               <div className="signal-dossier__section-head">
