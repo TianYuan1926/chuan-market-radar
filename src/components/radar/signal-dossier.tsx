@@ -164,6 +164,8 @@ function journalActionLabel(value: JournalEvent["action"]) {
     strategy_confirmation: "策略确认",
     strategy_weight_change_execution: "权重审计",
     track: "观察记录",
+    trend_radar_review: "v3复盘",
+    trend_radar_review_run: "v3复盘批次",
   };
 
   return labels[value] ?? value.replaceAll("_", " ");

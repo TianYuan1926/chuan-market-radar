@@ -22,8 +22,18 @@
 
 ## Next Correct Build Phase
 
-1. Build a readonly Forward Map review executor.
-2. Compare saved v3 maps against future OHLCV candles.
-3. Write `forward_map_review` and `key_level_reaction_review` journal/review records.
-4. Surface review results in replay/journal/Signal Dossier.
-5. Keep all calibration manual and readonly until there are enough validated samples.
+Completed after this persistence phase:
+
+- [x] Build a readonly Forward Map review executor.
+- [x] Compare saved v3 maps against future OHLCV candles.
+- [x] Write `forward_map_review` and `key_level_reaction_review` journal records.
+- [x] Add protected `POST /api/admin/v3/forward-map-reviews/run`.
+- [x] Surface review results in the journal panel and Signal Dossier action labels.
+- [x] Keep all calibration manual and readonly until there are enough validated samples.
+
+Next correct build phase:
+
+1. Add an external low-frequency trigger plan for the v3 Forward Map review endpoint.
+2. Add a system-health summary for latest v3 review run, skipped reasons, and failure count.
+3. Start `missed_altcoin_review` by connecting daily mover misses with v3 saved map coverage.
+4. Continue without automatic weights until enough manually reviewed samples exist.

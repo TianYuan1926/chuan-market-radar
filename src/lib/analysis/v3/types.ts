@@ -165,6 +165,36 @@ export type TrendRadarReview = {
   evidenceIds: string[];
 };
 
+export type TrendRadarReviewSkipReasonCode =
+  | "no_forward_levels"
+  | "no_future_candles"
+  | "ohlcv_unavailable"
+  | "unsupported_timeframe";
+
+export type TrendRadarReviewSkipReasonSummary = {
+  code: TrendRadarReviewSkipReasonCode;
+  count: number;
+  label: string;
+  symbols: string[];
+};
+
+export type TrendRadarReviewRunSummary = {
+  failedFetches: number;
+  failures: Array<{
+    error: string;
+    reason: string;
+    scanId: string;
+    signalId: string;
+    symbol: string;
+  }>;
+  fetchedCandles: number;
+  reviewedSnapshots: number;
+  scannedSnapshots: number;
+  skippedReasons: TrendRadarReviewSkipReasonSummary[];
+  skippedSnapshots: number;
+  writtenEvents: number;
+};
+
 export type StrategyV3Dossier = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;

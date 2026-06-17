@@ -953,6 +953,19 @@ test("protected outcome executor API is exposed as a POST-only admin route", () 
   assert.equal(routeSource.includes("export async function GET"), false);
 });
 
+test("protected v3 forward map review API is exposed as a POST-only admin route", () => {
+  const routeSource = readFileSync(
+    resolve(process.cwd(), "src/app/api/admin/v3/forward-map-reviews/run/route.ts"),
+    "utf8",
+  );
+
+  assert.match(routeSource, /export async function POST/);
+  assert.match(routeSource, /runAdminForwardMapReviewExecutor/);
+  assert.match(routeSource, /authorization/);
+  assert.match(routeSource, /x-chuan-v3-forward-map-review/);
+  assert.equal(routeSource.includes("export async function GET"), false);
+});
+
 test("protected strategy weight execution API is exposed as a POST-only admin route", () => {
   const routeSource = readFileSync(
     resolve(process.cwd(), "src/app/api/admin/strategy-weights/executions/record/route.ts"),
@@ -1181,6 +1194,27 @@ test("journal panel exposes outcome executor batch details without turning them 
     assert.match(componentSource, new RegExp(className));
     assert.match(cssSource, new RegExp(`\\.${className}`));
   }
+});
+
+test("journal panel exposes v3 forward map review events as readonly review records", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/journal-panel.tsx"),
+    "utf8",
+  );
+  const dossierSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    "utf8",
+  );
+
+  assert.match(componentSource, /trend_radar_review_run/);
+  assert.match(componentSource, /trendRadarReviewRun/);
+  assert.match(componentSource, /trend_radar_review/);
+  assert.match(componentSource, /trendRadarReview/);
+  assert.match(componentSource, /Forward Map/);
+  assert.match(componentSource, /事前地图复盘/);
+  assert.match(componentSource, /不改权重/);
+  assert.match(dossierSource, /trend_radar_review/);
+  assert.match(dossierSource, /v3复盘/);
 });
 
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {

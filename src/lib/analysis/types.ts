@@ -4,6 +4,8 @@ import type {
 } from "./v2/report/report-schema";
 import type {
   StrategyV3Dossier,
+  TrendRadarReview,
+  TrendRadarReviewRunSummary,
 } from "./v3/types";
 import type {
   RiskGateResult,
@@ -123,7 +125,9 @@ export type JournalAction =
   | "calibration_review"
   | "outcome_executor_run"
   | "strategy_confirmation"
-  | "strategy_weight_change_execution";
+  | "strategy_weight_change_execution"
+  | "trend_radar_review"
+  | "trend_radar_review_run";
 
 export type ReviewStatus = "queued" | "tracking" | "closed";
 
@@ -240,7 +244,7 @@ export type JournalEvent = {
   invalidationHit?: boolean;
   firstTargetHit?: boolean;
   reviewCheckpoints?: ReviewCheckpoint[];
-  source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation" | "strategy_weight_change_execution";
+  source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation" | "strategy_weight_change_execution" | "trend_radar_review_executor";
   sourceId?: string;
   outcomeExecutorRun?: OutcomeExecutorRunSummary;
   calibrationTag?: string;
@@ -255,4 +259,6 @@ export type JournalEvent = {
   strategyValidationVerdict?: string;
   strategyVersionLabel?: string;
   strategyWeightChange?: StrategyWeightChangeExecutionRecord;
+  trendRadarReview?: TrendRadarReview;
+  trendRadarReviewRun?: TrendRadarReviewRunSummary;
 };

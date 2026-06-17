@@ -161,8 +161,48 @@ function isOutcomeExecutorRun(event: JournalEvent): event is JournalEvent & {
   return event.action === "outcome_executor_run" && Boolean(event.outcomeExecutorRun);
 }
 
+function isTrendRadarReviewRun(event: JournalEvent): event is JournalEvent & {
+  action: "trend_radar_review_run";
+  trendRadarReviewRun: NonNullable<JournalEvent["trendRadarReviewRun"]>;
+} {
+  return event.action === "trend_radar_review_run" && Boolean(event.trendRadarReviewRun);
+}
+
+function isTrendRadarReview(event: JournalEvent): event is JournalEvent & {
+  action: "trend_radar_review";
+  trendRadarReview: NonNullable<JournalEvent["trendRadarReview"]>;
+} {
+  return event.action === "trend_radar_review" && Boolean(event.trendRadarReview);
+}
+
 function executorSkipLabel(code: OutcomeExecutorSkipReasonCode, label?: string) {
   return label?.trim() || executorSkipFallbackLabels[code];
+}
+
+function trendRadarReviewTypeLabel(value: NonNullable<JournalEvent["trendRadarReview"]>["type"]) {
+  const labels: Record<string, string> = {
+    forward_map_review: "Forward Map",
+    key_level_reaction_review: "关键位反应",
+    missed_altcoin_review: "漏判复盘",
+    risk_gate_review: "风控复盘",
+    trend_switch_review: "趋势切换",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
+function trendRadarVerdictLabel(value: NonNullable<JournalEvent["trendRadarReview"]>["verdict"]) {
+  const labels: Record<string, string> = {
+    false_positive: "误报",
+    invalidated: "失效",
+    missed: "漏判",
+    needs_more_evidence: "证据不足",
+    pending: "待观察",
+    reaction_confirmed: "反应确认",
+    saved: "避险有效",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
 }
 
 export function JournalPanel({ events, onCreate, selected, status }: JournalPanelProps) {
@@ -211,6 +251,57 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
 
       <div className="review-list">
         {events.map((event) => {
+          if (isTrendRadarReviewRun(event)) {
+            const run = event.trendRadarReviewRun;
+
+            return (
+              <article className="review-row review-row--executor" key={event.id}>
+                <strong>v3</strong>
+                <span className="row-note">
+                  <b>Forward Map / 执行批次</b>
+                  <small>{event.note}</small>
+                  <span className="executor-run-grid" aria-label="v3 Forward Map 复盘执行批次详情">
+                    <span><b>{run.scannedSnapshots}</b>扫描</span>
+                    <span><b>{run.reviewedSnapshots}</b>完成</span>
+                    <span><b>{run.writtenEvents}</b>写回</span>
+                    <span><b>{run.skippedSnapshots}</b>跳过</span>
+                    <span><b>{run.failedFetches}</b>失败</span>
+                    <span><b>{run.fetchedCandles}</b>K 线</span>
+                  </span>
+                  <span className="review-row__flags review-row__flags--calibration" aria-label="v3 Forward Map 复盘边界">
+                    <span>只读复盘</span>
+                    <span>不改权重</span>
+                  </span>
+                </span>
+                <strong className="tone-amber">0</strong>
+              </article>
+            );
+          }
+
+          if (isTrendRadarReview(event)) {
+            const review = event.trendRadarReview;
+
+            return (
+              <article className="review-row" key={event.id}>
+                <strong>{event.symbol.replace("USDT", "")}</strong>
+                <span className="row-note">
+                  <b>{trendRadarReviewTypeLabel(review.type)} / {trendRadarVerdictLabel(review.verdict)}</b>
+                  <small>{review.detail}</small>
+                  <span className="review-row__state">
+                    <span>{trendRadarVerdictLabel(review.verdict)}</span>
+                    <span>证据 {review.evidenceIds.length}</span>
+                    <span>{reviewStatusLabel(event.reviewStatus)}</span>
+                  </span>
+                  <span className="review-row__flags review-row__flags--calibration" aria-label={`${event.symbol} v3 复盘边界`}>
+                    <span>事前地图复盘</span>
+                    <span>{event.canAutoAdjustWeights === false ? "不改权重" : "需人工确认"}</span>
+                  </span>
+                </span>
+                <strong className="tone-amber">0</strong>
+              </article>
+            );
+          }
+
           if (isOutcomeExecutorRun(event)) {
             const run = event.outcomeExecutorRun;
             const topSkipReasons = run.skippedReasons.slice(0, 5);

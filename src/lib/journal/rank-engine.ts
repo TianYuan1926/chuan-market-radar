@@ -48,7 +48,9 @@ function isRankNeutral(entry: JournalEvent) {
   return entry.action === "calibration_review" ||
     entry.action === "outcome_executor_run" ||
     entry.action === "strategy_confirmation" ||
-    entry.action === "strategy_weight_change_execution";
+    entry.action === "strategy_weight_change_execution" ||
+    entry.action === "trend_radar_review" ||
+    entry.action === "trend_radar_review_run";
 }
 
 export function rankJournalEvent(entry: JournalEvent) {
