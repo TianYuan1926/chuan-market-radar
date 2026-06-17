@@ -203,6 +203,48 @@ export type StrategyV3RiskGate = {
   mode: "readonly_v3_risk_gate";
 };
 
+export type V3LocationDirection = "long" | "short" | "neutral";
+
+export type V3LocationRiskFlag =
+  | "chase_risk"
+  | "neutral_direction"
+  | "no_nearest_target"
+  | "no_structural_stop"
+  | "reward_risk_below_minimum"
+  | "stop_distance_too_wide";
+
+export type V3PositionQuality =
+  | "CHASE_RISK"
+  | "GOOD_LOCATION"
+  | "NEUTRAL_DIRECTION"
+  | "NO_STRUCTURAL_STOP"
+  | "NO_TARGET"
+  | "POOR_RR"
+  | "WATCH_LOCATION";
+
+export type StrategyV3LocationRiskReward = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  currentPrice: number;
+  direction: V3LocationDirection;
+  hasTradeSignal: false;
+  isTradeEligible: boolean;
+  minRewardRisk: number;
+  nearestTarget: number | null;
+  positionQuality: V3PositionQuality;
+  rewardRisk: number | null;
+  riskFlags: V3LocationRiskFlag[];
+  stopDistance: number;
+  stopDistancePercent: number;
+  structuralStop: number | null;
+  summary: string;
+  targetDistance: number;
+  targetDistancePercent: number;
+  targetLevelId: string | null;
+  stopLevelId: string | null;
+};
+
 export type StrategyV3TrendContext = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -210,6 +252,7 @@ export type StrategyV3TrendContext = {
   conflicts: string[];
   decision: TrendDecision;
   guardrail: string;
+  locationRiskReward?: StrategyV3LocationRiskReward;
   marketReadings?: MarketReadingContext[];
   nextStep: string;
   noParticipationReasons: string[];

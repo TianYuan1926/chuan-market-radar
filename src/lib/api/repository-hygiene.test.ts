@@ -384,6 +384,9 @@ test("signal dossier exposes v3 key levels and forward map as readonly context",
   assert.match(dossierSource, /Forward Map/u);
   assert.match(dossierSource, /canMutateLiveRanking/u);
   assert.match(dossierSource, /trendContext/u);
+  assert.match(dossierSource, /locationRiskReward/u);
+  assert.match(dossierSource, /位置\/RR/u);
+  assert.match(dossierSource, /signal-dossier__v3-location/u);
   assert.match(dossierSource, /signal-dossier__v3-levels/u);
   assert.match(dossierSource, /signal-dossier__v3-map/u);
   assert.match(dossierSource, /signal-dossier__v3-trend/u);

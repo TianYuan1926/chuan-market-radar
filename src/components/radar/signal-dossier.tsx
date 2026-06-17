@@ -286,6 +286,26 @@ function marketReadingEventLabel(value: SignalStrategyV3MarketReading["events"][
   }[value];
 }
 
+function positionQualityLabel(value: NonNullable<SignalStrategyV3TrendContext["locationRiskReward"]>["positionQuality"]) {
+  return {
+    CHASE_RISK: "偏追",
+    GOOD_LOCATION: "位置合格",
+    NEUTRAL_DIRECTION: "方向中性",
+    NO_STRUCTURAL_STOP: "缺止损",
+    NO_TARGET: "缺目标",
+    POOR_RR: "赔率不足",
+    WATCH_LOCATION: "观察位",
+  }[value];
+}
+
+function pricePointLabel(value: number | null) {
+  if (value === null) {
+    return "待确认";
+  }
+
+  return value >= 100 ? value.toFixed(2) : value.toFixed(5);
+}
+
 function priceZoneLabel(zoneLow: number, zoneHigh: number) {
   const digits = Math.max(zoneLow, zoneHigh) >= 100 ? 2 : 5;
 
@@ -442,6 +462,24 @@ export function SignalDossier({
                       <span><b>{strategyV3.trendContext.scores.riskScore}</b>风险</span>
                       <span><b>{strategyV3.trendContext.scores.trendHoldScore}</b>持有</span>
                     </div>
+                    {strategyV3.trendContext.locationRiskReward ? (
+                      <div className="signal-dossier__v3-location" aria-label="v3 位置/RR 风险门控">
+                        <div>
+                          <strong>位置/RR</strong>
+                          <span>{positionQualityLabel(strategyV3.trendContext.locationRiskReward.positionQuality)}</span>
+                        </div>
+                        <div className="signal-dossier__v3-location-grid">
+                          <span><b>{strategyV3.trendContext.locationRiskReward.rewardRisk === null ? "待确认" : `${strategyV3.trendContext.locationRiskReward.rewardRisk.toFixed(2)}R`}</b>盈亏比</span>
+                          <span><b>{pricePointLabel(strategyV3.trendContext.locationRiskReward.structuralStop)}</b>结构止损</span>
+                          <span><b>{pricePointLabel(strategyV3.trendContext.locationRiskReward.nearestTarget)}</b>最近目标</span>
+                          <span><b>{strategyV3.trendContext.locationRiskReward.stopDistancePercent.toFixed(2)}%</b>止损距离</span>
+                        </div>
+                        <p>{strategyV3.trendContext.locationRiskReward.summary}</p>
+                        {strategyV3.trendContext.locationRiskReward.riskFlags.length > 0 ? (
+                          <small>{strategyV3.trendContext.locationRiskReward.riskFlags.join(" / ")}</small>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="signal-dossier__v3-timeframes" aria-label="v3 timeframe structures">
                       {strategyV3.trendContext.timeframes.slice(0, 6).map((timeframe) => (
                         <article key={timeframe.timeframe}>

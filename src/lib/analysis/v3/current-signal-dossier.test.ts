@@ -107,8 +107,11 @@ test("buildSignalTrendRadarV3Dossier builds readonly key levels and forward map 
   assert.equal(dossier.trendContext.canMutateLiveRanking, false);
   assert.equal(dossier.trendContext.state, "PRE_TREND_LONG");
   assert.equal(dossier.trendContext.decision, "WAIT_LONG_BREAKOUT");
-  assert.equal(dossier.trendContext.riskGate.allowed, true);
-  assert.deepEqual(dossier.trendContext.noParticipationReasons, []);
+  assert.equal(dossier.trendContext.riskGate.allowed, false);
+  assert.ok(dossier.trendContext.locationRiskReward);
+  assert.equal(dossier.trendContext.locationRiskReward.isTradeEligible, false);
+  assert.ok(dossier.trendContext.riskGate.blockedBy.includes("reward_risk_below_minimum"));
+  assert.match(dossier.trendContext.noParticipationReasons.join(" / "), /盈亏比|追入/);
   assert.equal(dossier.trendContext.scores.longPreTrendScore > dossier.trendContext.scores.shortPreTrendScore, true);
   assert.deepEqual(
     dossier.trendContext.timeframes.map((item) => item.timeframe),

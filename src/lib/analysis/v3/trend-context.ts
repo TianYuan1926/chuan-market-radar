@@ -8,9 +8,13 @@ import type {
 import {
   buildMarketReadingContext,
 } from "./market-reading-engine";
+import {
+  evaluateV3LocationRiskReward,
+} from "./location-rr";
 import type {
   KeyLevel,
   MarketReadingContext,
+  StrategyV3LocationRiskReward,
   StrategyV3TrendContext,
   TrendDecision,
   TrendScores,
@@ -279,6 +283,7 @@ function noParticipationReasons(
   scores: TrendScores,
   conflicts: string[],
   marketReadings: MarketReadingContext[],
+  locationRiskReward?: StrategyV3LocationRiskReward,
 ) {
   const reasons = conflicts.map((conflict) => `周期冲突：${conflict}`);
 
@@ -292,6 +297,32 @@ function noParticipationReasons(
 
   if (scores.riskScore >= 70) {
     reasons.push(`风险分过高：RiskScore ${scores.riskScore}`);
+  }
+
+  if (locationRiskReward) {
+    if (locationRiskReward.riskFlags.includes("neutral_direction")) {
+      reasons.push("位置/RR：方向中性，不建立多空交易计划。");
+    }
+
+    if (locationRiskReward.riskFlags.includes("no_structural_stop")) {
+      reasons.push("位置/RR：缺少结构止损位。");
+    }
+
+    if (locationRiskReward.riskFlags.includes("no_nearest_target")) {
+      reasons.push("位置/RR：缺少前方目标位。");
+    }
+
+    if (locationRiskReward.riskFlags.includes("reward_risk_below_minimum")) {
+      reasons.push(`位置/RR：当前盈亏比 ${locationRiskReward.rewardRisk ?? "无效"}:1 低于 ${locationRiskReward.minRewardRisk}:1。`);
+    }
+
+    if (locationRiskReward.riskFlags.includes("stop_distance_too_wide")) {
+      reasons.push(`位置/RR：结构止损距离 ${locationRiskReward.stopDistancePercent}% 过远，追入风险偏高。`);
+    }
+
+    if (locationRiskReward.riskFlags.includes("chase_risk")) {
+      reasons.push("位置/RR：当前位置偏追，等待回踩或反抽到更优区域。");
+    }
   }
 
   if (state === "RANGE_COMPRESSION") {
@@ -317,7 +348,22 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
   const scores = scoresFor(input, timeframes);
   const marketReadings = marketReadingsFor(input, timeframes);
   const stateDecision = stateAndDecision(scores, timeframes, conflicts, marketReadings);
-  const noParticipation = noParticipationReasons(stateDecision.state, scores, conflicts, marketReadings);
+  const locationRiskReward = evaluateV3LocationRiskReward({
+    currentPrice: input.currentPrice,
+    direction: input.signal.direction,
+    keyLevels: input.keyLevels,
+  });
+  const noParticipation = noParticipationReasons(
+    stateDecision.state,
+    scores,
+    conflicts,
+    marketReadings,
+    locationRiskReward,
+  );
+  const blockedBy = [
+    ...locationRiskReward.riskFlags,
+    ...noParticipation.map((reason) => reason.split("：")[0] ?? reason),
+  ];
 
   return {
     allowedUse: "research_only",
@@ -326,12 +372,13 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     conflicts,
     decision: stateDecision.decision,
     guardrail: "v3 趋势上下文只解释多周期结构，不改变 live ranking，不自动生成交易结论。",
+    locationRiskReward,
     marketReadings,
     nextStep: stateDecision.nextStep,
     noParticipationReasons: noParticipation,
     riskGate: {
       allowed: noParticipation.length === 0,
-      blockedBy: noParticipation.map((reason) => reason.split("：")[0] ?? reason),
+      blockedBy: [...new Set(blockedBy)],
       mode: "readonly_v3_risk_gate",
     },
     scores,
