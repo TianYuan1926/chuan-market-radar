@@ -7408,6 +7408,29 @@ button.altcoin-opportunity-card.is-selected {
   font-size: 9px;
 }
 
+.v3-review-stats__samples {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.v3-review-stats__samples i {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  background: rgba(255, 250, 240, 0.68);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 8px;
+  font-style: normal;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .v3-review-stats__bucket--promising_context {
   border-color: rgba(39, 140, 102, 0.26);
   background: rgba(39, 140, 102, 0.1);

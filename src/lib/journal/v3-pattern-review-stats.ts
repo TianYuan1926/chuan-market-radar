@@ -17,11 +17,24 @@ export type V3PatternReviewBucket = {
   label: string;
   pendingSamples: number;
   rejectedSamples: number;
+  samples: V3PatternReviewSample[];
   sampleCount: number;
   status: V3PatternReviewBucketStatus;
   tag: string;
   validationRatePercent: number;
   validatedSamples: number;
+};
+
+export type V3PatternReviewSample = {
+  createdAt: string;
+  id: string;
+  outcome: OutcomeBucket;
+  outcomeStatus: JournalEvent["outcomeStatus"];
+  result: JournalEvent["result"];
+  reviewStatus: JournalEvent["reviewStatus"];
+  signalId?: string;
+  symbol: string;
+  title: string;
 };
 
 export type V3PatternReviewStatsReport = {
@@ -43,6 +56,7 @@ type OutcomeBucket = "expired" | "pending" | "rejected" | "validated";
 type TagKind = "pattern" | "trade";
 
 const minimumClosedSamplesForReview = 5;
+const maxBucketSamples = 5;
 
 function percent(numerator: number, denominator: number) {
   return denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
@@ -151,6 +165,17 @@ function buildBuckets(events: JournalEvent[], kind: TagKind) {
         label: labelFor(kind, tag),
         pendingSamples: counts.pending,
         rejectedSamples: counts.rejected,
+        samples: taggedEvents.slice(0, maxBucketSamples).map((event) => ({
+          createdAt: event.createdAt,
+          id: event.id,
+          outcome: outcomeBucket(event),
+          outcomeStatus: event.outcomeStatus,
+          result: event.result,
+          reviewStatus: event.reviewStatus,
+          signalId: event.signalId,
+          symbol: event.symbol,
+          title: event.title,
+        })),
         sampleCount: taggedEvents.length,
         status: bucketStatus({
           closedSamples,

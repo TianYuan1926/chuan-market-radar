@@ -77,11 +77,22 @@ test("buildV3PatternReviewStats groups readonly v3 pattern and trade-plan tags",
   assert.equal(doubleBottom?.rejectedSamples, 1);
   assert.equal(doubleBottom?.validationRatePercent, 67);
   assert.equal(doubleBottom?.status, "collecting");
+  assert.deepEqual(doubleBottom?.samples.map((sample) => sample.id), [
+    "double-bottom-win",
+    "double-bottom-saved",
+    "double-bottom-loss",
+  ]);
+  assert.equal(doubleBottom?.samples[0]?.outcome, "validated");
+  assert.equal(doubleBottom?.samples[2]?.outcome, "rejected");
 
   const readyLong = report.tradePlanBuckets.find((bucket) => bucket.tag === "READY_LONG");
   assert.equal(readyLong?.sampleCount, 2);
   assert.equal(readyLong?.validatedSamples, 1);
   assert.equal(readyLong?.rejectedSamples, 1);
+  assert.deepEqual(readyLong?.samples.map((sample) => sample.id), [
+    "double-bottom-win",
+    "double-bottom-loss",
+  ]);
 
   assert.doesNotMatch(report.patternBuckets.map((bucket) => bucket.tag).join(","), /context/iu);
   assert.match(report.guardrail, /不能自动改权重/);

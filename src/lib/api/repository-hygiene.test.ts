@@ -1293,8 +1293,10 @@ test("journal panel exposes v3 pattern and trade-plan review stats as readonly s
   assert.match(componentSource, /不改权重/);
   assert.match(componentSource, /v3_pattern_context/);
   assert.match(componentSource, /v3_trade_/);
+  assert.match(componentSource, /bucket\.samples/);
   assert.match(cssSource, /\.v3-review-stats/);
   assert.match(cssSource, /\.v3-review-stats__bucket/);
+  assert.match(cssSource, /\.v3-review-stats__samples/);
 });
 
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {

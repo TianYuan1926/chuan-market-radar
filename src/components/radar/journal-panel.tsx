@@ -229,6 +229,19 @@ function patternReviewBucketStatusLabel(
   return labels[value];
 }
 
+function patternReviewSampleOutcomeLabel(
+  value: ReturnType<typeof buildV3PatternReviewStats>["patternBuckets"][number]["samples"][number]["outcome"],
+) {
+  const labels: Record<ReturnType<typeof buildV3PatternReviewStats>["patternBuckets"][number]["samples"][number]["outcome"], string> = {
+    expired: "过期",
+    pending: "待判",
+    rejected: "反证",
+    validated: "有效",
+  };
+
+  return labels[value];
+}
+
 export function JournalPanel({ events, onCreate, selected, status }: JournalPanelProps) {
   const selectedLabel = selected?.symbol.replace("USDT", "") ?? "未选择";
   const trackingCount = events.filter((event) => event.reviewStatus === "tracking").length;
@@ -302,6 +315,13 @@ export function JournalPanel({ events, onCreate, selected, status }: JournalPane
                     {bucket.rejectedSamples} 反证 ·
                     {patternReviewBucketStatusLabel(bucket.status)}
                   </small>
+                  <span className="v3-review-stats__samples" aria-label={`${bucket.label} 样本追溯`}>
+                    {bucket.samples.slice(0, 3).map((sample) => (
+                      <i key={sample.id}>
+                        {sample.symbol.replace("USDT", "")} · {patternReviewSampleOutcomeLabel(sample.outcome)}
+                      </i>
+                    ))}
+                  </span>
                 </span>
               ))}
             </div>
