@@ -1021,17 +1021,52 @@ CoinGlass 业余会员 API：
    - 输出顺风、逆风、拥挤、去杠杆、假突破风险等环境层，影响机会排序和策略解释。
    - 当前状态：已完成 BTC/ETH Macro Weather 第一版；它复用现有扫描快照，不新增请求，不修改真实权重。ETF 专项端点仍需等 CoinGlass Hobbyist 可用性和 quota 先验证后再接入。
 
-6. **Phase 4C：Market Structure Engine**
-   - 下一步正确搭建项：从缓存多周期 K 线识别 HH/HL、LH/LL、range、breakout、breakdown、sweep、failed breakout、前高/前低/区间高低。
-   - 结构层作为指标和形态之前的第一价格行为证据，负责解释位置、确认、失效和禁止追单。
+6. **Phase 4C-0：Strategy Engine v2 Guard Rails**
+   - 下一步正确搭建项：先加 repository hygiene 测试，强制 v2 五份规格文档存在，并禁止源码新增 `LiquidationHeatmap`、`LiquidationZone`、`heatmap provider` 等清算热力图/清算区模块。
+   - 目的：把 Evidence-first、禁用清算热力图、report 不能重新判断行情、盈亏比低于 3:1 禁止交易信号等规则变成测试护栏。
+   - 当前状态：规格文档已完成，测试护栏未开始。
+
+7. **Phase 4C-1：Evidence Types And Evidence Ledger**
+   - 建立 `EvidenceItem`、`EvidenceFamily`、`EvidenceDirection`、证据账本、同源去重、证据追溯。
+   - 所有结构、指标、OI、Funding、相对强弱和大盘天气都必须先转 EvidenceItem，不能直接进入交易判断。
+   - 当前状态：未开始业务实现。
+
+8. **Phase 4C-2：Market Structure Facts**
+   - 从缓存多周期 K 线识别 swing high/low、HH/HL、LH/LL、range、breakout、breakdown、sweep、failed breakout、前高/前低/区间高低。
+   - 该层只提取事实，不输出交易结论；结构事实后续进入 evidence_builder。
    - 当前状态：未开始正式实现，已有多周期 OHLCV、指标矩阵和策略卡入口可复用。
 
-7. **V1.7：Product Design 简报与角色设定固化**
+9. **Phase 4C-3：Location / RR / Risk Gate**
+   - 识别位置质量、止损距离、目标距离、盈亏比、箱体中部、追高区、低位追空区。
+   - 盈亏比不足 `3:1`、RiskScore 过高或结构失效时，必须输出观察、等待、冲突或失效。
+   - 当前状态：未开始。
+
+10. **Phase 4C-4：Indicator And Derivatives Interpreters**
+   - RSI、MACD、Bollinger、ATR、EMA/VWAP、ADX、Volume/OBV/CVD proxy、OI、Funding、多空比、taker flow 都只转 EvidenceItem。
+   - 技术指标总权重不能超过 `10%-15%`；Funding 高解释为拥挤风险，不解释为强势。
+   - 当前状态：未开始。
+
+11. **Phase 4C-5：Scoring Engine**
+   - 实现 `PreMoveScore`、`EnergyScore`、`RiskScore`、`TrendHoldScore`、`EnergyDecayScore`。
+   - scoring 只算分，不输出最终交易决策。
+   - 当前状态：未开始。
+
+12. **Phase 4C-6：Strategy State Machine And Decision Engine**
+   - 输出 `IDLE`、`COMPRESSION`、`ACCUMULATION`、`PRE_BREAKOUT`、`BREAKOUT_CONFIRM`、`TREND_ACCELERATION`、`EXHAUSTION_RISK`、`INVALIDATED`、`CONFLICT`。
+   - 最终决策必须经过 evidence fusion、conflict detector、risk gate 和 invalidation rules。
+   - 当前状态：未开始。
+
+13. **Phase 4C-7：Report And Read-Only UI Integration**
+   - `report_generator` 只翻译结构化结果，不重新判断行情。
+   - 先把 v2 输出以只读方式接入 Signal Dossier 和机会板解释，不立即改变现有排序和真实权重。
+   - 当前状态：未开始。
+
+14. **V1.7：Product Design 简报与角色设定固化**
    - 确认像素男性副驾驶的视觉关键词、装备等级、情绪状态和台词边界。
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
-8. **V1.8：像素副驾驶 MVP（已落地）**
+15. **V1.8：像素副驾驶 MVP（已落地）**
    - 用现有组件边界替换或重构当前 `PixelS680`。
    - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
    - 保留 rank profile、纪律分、动量、热度等现有数据入口。
