@@ -4215,6 +4215,78 @@ button.altcoin-opportunity-card.is-selected {
   font-size: 11px;
 }
 
+.health-v3-forward-map {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(82, 115, 204, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(82, 115, 204, 0.08), rgba(39, 140, 102, 0.045)),
+    rgba(255, 255, 255, 0.42);
+}
+
+.health-v3-forward-map--attention {
+  border-color: rgba(193, 95, 64, 0.3);
+  background:
+    linear-gradient(135deg, rgba(193, 95, 64, 0.1), rgba(213, 155, 61, 0.06)),
+    rgba(255, 255, 255, 0.44);
+}
+
+.health-v3-forward-map--covered {
+  border-color: rgba(39, 140, 102, 0.26);
+  background:
+    linear-gradient(135deg, rgba(39, 140, 102, 0.1), rgba(82, 115, 204, 0.045)),
+    rgba(255, 255, 255, 0.44);
+}
+
+.health-v3-forward-map--idle,
+.health-v3-forward-map--waiting_run {
+  border-color: rgba(213, 155, 61, 0.22);
+}
+
+.health-v3-forward-map__grid {
+  background: rgba(255, 255, 255, 0.44);
+}
+
+.health-v3-forward-map__reasons {
+  display: grid;
+  gap: 5px;
+}
+
+.health-v3-forward-map__reasons span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(30, 35, 49, 0.08);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.48);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.health-v3-forward-map__reasons span b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-v3-forward-map p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.health-v3-forward-map__failures span {
+  border-color: rgba(193, 95, 64, 0.18);
+  color: #8a3e2f;
+}
+
 .health-outcomes {
   display: grid;
   gap: 8px;

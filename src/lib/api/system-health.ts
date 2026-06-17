@@ -62,6 +62,12 @@ export type OutcomeSampleQualityStatus =
   | "empty"
   | "manual_review_ready";
 
+export type V3ForwardMapReviewStatus =
+  | "attention"
+  | "covered"
+  | "idle"
+  | "waiting_run";
+
 export type ScanEconomyBudgetStatus =
   | "near_budget"
   | "over_budget"
@@ -113,6 +119,30 @@ export type ScanEconomyReport = {
     longTail: ScanEconomyTier;
     skipped: number;
   };
+};
+
+export type V3ForwardMapReviewHealthReport = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  latestReviewAt: string | null;
+  latestRunAt: string | null;
+  lastRun: {
+    failedFetches: number;
+    failureReasons: string[];
+    fetchedCandles: number;
+    ranAt: string;
+    reviewedSnapshots: number;
+    scannedSnapshots: number;
+    skippedReasons: NonNullable<JournalEvent["trendRadarReviewRun"]>["skippedReasons"];
+    skippedSnapshots: number;
+    writtenEvents: number;
+  } | null;
+  mode: "v3_forward_map_review_health_mvp";
+  operatorHint: string;
+  savedSnapshots: number;
+  status: V3ForwardMapReviewStatus;
+  storageDetail: string;
+  storageStatus: "ready" | "unavailable";
 };
 
 export type SystemHealthReport = {
@@ -209,6 +239,7 @@ export type SystemHealthReport = {
     strategyWeightShadowEvaluation: StrategyWeightShadowEvaluationReport;
     trackingEvents: number;
   };
+  v3ForwardMapReviews: V3ForwardMapReviewHealthReport;
   guards: SystemHealthGuard[];
 };
 
@@ -679,6 +710,150 @@ function latestOutcomeExecutorRun(events: JournalEvent[]): SystemHealthReport["o
   };
 }
 
+function isTrendRadarReviewEvent(event: JournalEvent) {
+  return event.action === "trend_radar_review" && Boolean(event.trendRadarReview);
+}
+
+function isTrendRadarReviewRunEvent(event: JournalEvent): event is JournalEvent & {
+  trendRadarReviewRun: NonNullable<JournalEvent["trendRadarReviewRun"]>;
+} {
+  return event.action === "trend_radar_review_run" && Boolean(event.trendRadarReviewRun);
+}
+
+function summarizeTrendRadarRunFailures(summary: NonNullable<JournalEvent["trendRadarReviewRun"]>) {
+  return summary.failures
+    .slice(0, 5)
+    .map((failure) => `${failure.symbol}:${failure.reason}`);
+}
+
+function latestTrendRadarReviewAt(events: JournalEvent[]) {
+  return events
+    .filter(isTrendRadarReviewEvent)
+    .sort((left, right) => journalTime(right.createdAt) - journalTime(left.createdAt))[0]?.createdAt ?? null;
+}
+
+function latestTrendRadarReviewRun(events: JournalEvent[]): V3ForwardMapReviewHealthReport["lastRun"] {
+  const event = events
+    .filter(isTrendRadarReviewRunEvent)
+    .sort((left, right) => journalTime(right.createdAt) - journalTime(left.createdAt))[0];
+
+  if (!event) {
+    return null;
+  }
+
+  return {
+    failedFetches: event.trendRadarReviewRun.failedFetches,
+    failureReasons: summarizeTrendRadarRunFailures(event.trendRadarReviewRun),
+    fetchedCandles: event.trendRadarReviewRun.fetchedCandles,
+    ranAt: event.createdAt,
+    reviewedSnapshots: event.trendRadarReviewRun.reviewedSnapshots,
+    scannedSnapshots: event.trendRadarReviewRun.scannedSnapshots,
+    skippedReasons: event.trendRadarReviewRun.skippedReasons,
+    skippedSnapshots: event.trendRadarReviewRun.skippedSnapshots,
+    writtenEvents: event.trendRadarReviewRun.writtenEvents,
+  };
+}
+
+function v3ForwardMapReviewOperatorHint({
+  lastRun,
+  savedSnapshots,
+  storageStatus,
+  status,
+}: {
+  lastRun: V3ForwardMapReviewHealthReport["lastRun"];
+  savedSnapshots: number;
+  storageStatus: V3ForwardMapReviewHealthReport["storageStatus"];
+  status: V3ForwardMapReviewStatus;
+}) {
+  if (storageStatus === "unavailable") {
+    return "v3 事前地图存储暂不可读，先运行数据库迁移，再判断 Forward Map 复盘覆盖。";
+  }
+
+  if (savedSnapshots === 0) {
+    return "还没有可复盘的 v3 事前地图，先等待扫描归档保存 Forward Map 快照。";
+  }
+
+  if (!lastRun) {
+    return "已有 v3 事前地图，等待受保护的 Forward Map 复盘执行器运行。";
+  }
+
+  if (lastRun.failedFetches > 0 || lastRun.failureReasons.length > 0) {
+    return "v3 Forward Map 复盘最近有失败样本，先检查行情请求失败原因和跳过分布。";
+  }
+
+  if (lastRun.reviewedSnapshots === 0) {
+    return "v3 Forward Map 复盘已执行，但还没有完成样本，继续等待后续 K 线或补跑。";
+  }
+
+  if (status === "covered") {
+    return "v3 Forward Map 复盘已写回只读样本，可用于人工校准和漏判复盘，不自动改权重。";
+  }
+
+  return "v3 Forward Map 复盘正在收集结构样本，继续观察下一轮受保护执行。";
+}
+
+function v3ForwardMapReviewHealth({
+  events,
+  savedSnapshots,
+  storageDetail,
+  storageStatus,
+}: {
+  events: JournalEvent[];
+  savedSnapshots: number;
+  storageDetail: string;
+  storageStatus: V3ForwardMapReviewHealthReport["storageStatus"];
+}): V3ForwardMapReviewHealthReport {
+  const lastRun = latestTrendRadarReviewRun(events);
+  const status: V3ForwardMapReviewStatus = savedSnapshots === 0
+    ? "idle"
+    : !lastRun
+      ? "waiting_run"
+      : lastRun.failedFetches > 0 || lastRun.failureReasons.length > 0
+        ? "attention"
+        : lastRun.reviewedSnapshots > 0 || lastRun.writtenEvents > 0
+          ? "covered"
+          : "waiting_run";
+
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    latestReviewAt: latestTrendRadarReviewAt(events),
+    latestRunAt: lastRun?.ranAt ?? null,
+    lastRun,
+    mode: "v3_forward_map_review_health_mvp",
+    operatorHint: v3ForwardMapReviewOperatorHint({
+      lastRun,
+      savedSnapshots,
+      storageStatus,
+      status,
+    }),
+    savedSnapshots,
+    status,
+    storageDetail,
+    storageStatus,
+  };
+}
+
+async function readV3ForwardMapSnapshotsSafely(repository: PersistenceRepository) {
+  try {
+    const snapshots = await repository.listV3ForwardMapSnapshots(240);
+
+    return {
+      snapshots,
+      storageDetail: "v3_forward_map_snapshots storage is readable.",
+      storageStatus: "ready" as const,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    return {
+      snapshots: [],
+      storageDetail: `v3_forward_map_snapshots storage unavailable: ${message}`,
+      storageStatus: "unavailable" as const,
+    };
+  }
+}
+
 function outcomeSampleQuality(outcomeEvents: JournalEvent[]): SystemHealthReport["outcomes"]["sampleQuality"] {
   const pendingEvents = outcomeEvents.filter(isPendingOutcome).length;
   const validatedEvents = outcomeEvents.filter((event) =>
@@ -804,9 +979,10 @@ export async function buildSystemHealthReport({
     configuredProvider,
     env,
   });
-  const [archiveSummaries, journalEvents] = await Promise.all([
+  const [archiveSummaries, journalEvents, v3ForwardMapSnapshotRead] = await Promise.all([
     repository.listScanArchives(24),
     repository.listJournalEvents(120),
+    readV3ForwardMapSnapshotsSafely(repository),
   ]);
   const archiveEntries = archiveSummaries.length;
   const durable = repository.mode === "database";
@@ -875,6 +1051,12 @@ export async function buildSystemHealthReport({
       now,
     }),
     outcomes: outcomeExecutorHealth(journalEvents, now, env),
+    v3ForwardMapReviews: v3ForwardMapReviewHealth({
+      events: journalEvents,
+      savedSnapshots: v3ForwardMapSnapshotRead.snapshots.length,
+      storageDetail: v3ForwardMapSnapshotRead.storageDetail,
+      storageStatus: v3ForwardMapSnapshotRead.storageStatus,
+    }),
     guards: [
       {
         id: "data-source",

@@ -30,10 +30,10 @@ Completed after this persistence phase:
 - [x] Add protected `POST /api/admin/v3/forward-map-reviews/run`.
 - [x] Surface review results in the journal panel and Signal Dossier action labels.
 - [x] Keep all calibration manual and readonly until there are enough validated samples.
+- [x] Add `/api/health` and system health panel summary for saved v3 maps, latest run, skipped reasons, failures, migration/storage status, and readonly boundaries.
 
 Next correct build phase:
 
 1. Add an external low-frequency trigger plan for the v3 Forward Map review endpoint.
-2. Add a system-health summary for latest v3 review run, skipped reasons, and failure count.
-3. Start `missed_altcoin_review` by connecting daily mover misses with v3 saved map coverage.
-4. Continue without automatic weights until enough manually reviewed samples exist.
+2. Start `missed_altcoin_review` by connecting daily mover misses with v3 saved map coverage.
+3. Continue without automatic weights until enough manually reviewed samples exist.

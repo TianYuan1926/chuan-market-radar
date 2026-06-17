@@ -4,6 +4,7 @@ import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
 import { buildSystemHealthReport } from "./system-health";
 import type { MarketRadarSnapshot, ScanArchiveSummary, ScanReplayFrame } from "../market/types";
+import type { StrategyV3Dossier } from "../analysis/v3/types";
 
 function snapshot(
   metadata: Partial<MarketRadarSnapshot["metadata"]> = {},
@@ -75,6 +76,81 @@ function replayFrame(): ScanReplayFrame {
     anomalyCount: 4,
     candidateCount: 4,
     signals: [],
+  };
+}
+
+function strategyV3Dossier(): StrategyV3Dossier {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    currentPrice: 100,
+    forwardLevels: [
+      {
+        id: "ENAUSDT-current-defense-s1",
+        symbol: "ENAUSDT",
+        side: "SUPPORT",
+        role: "CURRENT_DEFENSE",
+        zoneLow: 94,
+        zoneHigh: 96,
+        timeframeWeight: 4,
+        keyScore: 82,
+        status: "AHEAD",
+        reasons: ["4h swing low"],
+        confirmationRules: ["15m reclaim zoneHigh"],
+        invalidationRules: ["1h close below zoneLow"],
+        sourceLevelIds: ["ENAUSDT-4h-swing-low"],
+      },
+    ],
+    guardrails: ["manual review only"],
+    keyLevels: [
+      {
+        id: "ENAUSDT-4h-swing-low",
+        symbol: "ENAUSDT",
+        timeframe: "4h",
+        type: "SWING_LOW",
+        zoneLow: 94,
+        zoneHigh: 96,
+        midPrice: 95,
+        direction: "SUPPORT",
+        keyScore: 80,
+        reactionScore: 40,
+        confluenceScore: 72,
+        status: "POTENTIAL",
+        reasons: ["4h swing low"],
+        confirmationRules: ["reclaim 96"],
+        invalidationRule: "close below 94",
+      },
+    ],
+    primaryTimeframe: "4h",
+    source: "existing_ohlcv_key_level_mvp",
+    sourceTimeframes: ["15m", "1h", "4h"],
+    summary: "Readonly v3 map.",
+    symbol: "ENAUSDT",
+  };
+}
+
+function v3ReplayFrame(): ScanReplayFrame {
+  return {
+    ...replayFrame(),
+    id: "scan-health-v3",
+    generatedAt: "2026-06-12T09:00:00.000Z",
+    signals: [
+      {
+        id: "ena-v3-signal",
+        symbol: "ENAUSDT",
+        direction: "long",
+        state: "near_trigger",
+        timeframe: "15m",
+        confidence: 80,
+        risk: "medium",
+        riskReward: 3.4,
+        strategyStatus: "waiting",
+        strategyV3: strategyV3Dossier(),
+        updatedAt: "2026-06-12T09:00:00.000Z",
+        summary: "v3 test signal",
+      },
+    ],
   };
 }
 
@@ -473,6 +549,114 @@ test("buildSystemHealthReport exposes the latest outcome executor run summary", 
     writtenEvents: 1,
   });
   assert.match(report.outcomes.operatorHint, /失败/);
+});
+
+test("buildSystemHealthReport exposes v3 forward map review executor status", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  await repository.addScanArchive(
+    archiveSummary({
+      id: "scan-health-v3",
+      generatedAt: "2026-06-12T09:00:00.000Z",
+      topSymbols: ["ENAUSDT"],
+    }),
+    v3ReplayFrame(),
+  );
+  await repository.addJournalEvent({
+    id: "journal-v3-forward-map-review-run",
+    symbol: "V3_FORWARD_MAP_REVIEW",
+    title: "v3 Forward Map 复盘执行批次",
+    result: "watching",
+    note: "v3 Forward Map 复盘执行：扫描 3，完成 1，写回 2，跳过 1，失败 1。",
+    rankDelta: 0,
+    createdAt: "2026-06-12T10:45:00.000Z",
+    action: "trend_radar_review_run",
+    reviewStatus: "closed",
+    source: "trend_radar_review_executor",
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    trendRadarReviewRun: {
+      failedFetches: 1,
+      failures: [
+        {
+          error: "upstream timeout",
+          reason: "network",
+          scanId: "scan-health-v3",
+          signalId: "tia-v3-signal",
+          symbol: "TIAUSDT",
+        },
+      ],
+      fetchedCandles: 180,
+      reviewedSnapshots: 1,
+      scannedSnapshots: 3,
+      skippedReasons: [
+        {
+          code: "ohlcv_unavailable",
+          count: 1,
+          label: "行情请求失败",
+          symbols: ["TIAUSDT"],
+        },
+      ],
+      skippedSnapshots: 1,
+      writtenEvents: 2,
+    },
+  });
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T11:10:00.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.equal(report.v3ForwardMapReviews.mode, "v3_forward_map_review_health_mvp");
+  assert.equal(report.v3ForwardMapReviews.allowedUse, "research_only");
+  assert.equal(report.v3ForwardMapReviews.canAutoAdjustWeights, false);
+  assert.equal(report.v3ForwardMapReviews.savedSnapshots, 1);
+  assert.equal(report.v3ForwardMapReviews.storageStatus, "ready");
+  assert.equal(report.v3ForwardMapReviews.latestRunAt, "2026-06-12T10:45:00.000Z");
+  assert.equal(report.v3ForwardMapReviews.status, "attention");
+  assert.deepEqual(report.v3ForwardMapReviews.lastRun, {
+    failedFetches: 1,
+    failureReasons: ["TIAUSDT:network"],
+    fetchedCandles: 180,
+    ranAt: "2026-06-12T10:45:00.000Z",
+    reviewedSnapshots: 1,
+    scannedSnapshots: 3,
+    skippedReasons: [
+      {
+        code: "ohlcv_unavailable",
+        count: 1,
+        label: "行情请求失败",
+        symbols: ["TIAUSDT"],
+      },
+    ],
+    skippedSnapshots: 1,
+    writtenEvents: 2,
+  });
+  assert.match(report.v3ForwardMapReviews.operatorHint, /失败/);
+});
+
+test("buildSystemHealthReport keeps the site available when v3 forward map storage is not migrated", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  const repositoryWithMissingV3Table = {
+    ...repository,
+    async listV3ForwardMapSnapshots() {
+      throw new Error('relation "v3_forward_map_snapshots" does not exist');
+    },
+  };
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T11:10:00.000Z"),
+    repository: repositoryWithMissingV3Table,
+    snapshot: snapshot(),
+  });
+
+  assert.equal(report.v3ForwardMapReviews.savedSnapshots, 0);
+  assert.equal(report.v3ForwardMapReviews.status, "idle");
+  assert.equal(report.v3ForwardMapReviews.storageStatus, "unavailable");
+  assert.match(report.v3ForwardMapReviews.storageDetail, /v3_forward_map_snapshots/);
+  assert.match(report.v3ForwardMapReviews.operatorHint, /迁移/);
 });
 
 test("buildSystemHealthReport segments outcome sample quality without enabling automatic weights", async () => {

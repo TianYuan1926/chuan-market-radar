@@ -1091,6 +1091,16 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /health-outcome-shadow-eval__items/);
   assert.match(componentSource, /真实权重门禁/);
   assert.match(componentSource, /扫描经济/);
+  assert.match(componentSource, /v3 Forward Map/);
+  assert.match(componentSource, /事前地图/);
+  assert.match(componentSource, /扫描快照/);
+  assert.match(componentSource, /最近样本/);
+  assert.match(componentSource, /存储可读/);
+  assert.match(componentSource, /待迁移/);
+  assert.match(componentSource, /不改变实时排序/);
+  assert.match(componentSource, /v3ForwardMapReviews/);
+  assert.match(componentSource, /v3ForwardMapReviewStatusLabel/);
+  assert.match(componentSource, /v3ForwardMapStorageLabel/);
   assert.match(componentSource, /今日预算/);
   assert.match(componentSource, /剩余额度/);
   assert.match(componentSource, /请求\/轮/);
@@ -1142,6 +1152,9 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-activation/);
   assert.match(cssSource, /\.health-outcome-activation__grid/);
   assert.match(cssSource, /\.health-outcome-activation__checks/);
+  assert.match(cssSource, /\.health-v3-forward-map/);
+  assert.match(cssSource, /\.health-v3-forward-map__grid/);
+  assert.match(cssSource, /\.health-v3-forward-map__reasons/);
   assert.match(cssSource, /\.health-scan-economy/);
   assert.match(cssSource, /\.health-scan-economy__grid/);
   assert.match(cssSource, /\.health-scan-economy__tiers/);

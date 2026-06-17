@@ -84,6 +84,22 @@ function outcomeStatusLabel(value: SystemHealthReport["outcomes"]["status"]) {
   }[value];
 }
 
+function v3ForwardMapReviewStatusLabel(value: SystemHealthReport["v3ForwardMapReviews"]["status"]) {
+  return {
+    attention: "需检查",
+    covered: "已覆盖",
+    idle: "待地图",
+    waiting_run: "待执行",
+  }[value];
+}
+
+function v3ForwardMapStorageLabel(value: SystemHealthReport["v3ForwardMapReviews"]["storageStatus"]) {
+  return {
+    ready: "存储可读",
+    unavailable: "待迁移",
+  }[value];
+}
+
 function outcomeQualityLabel(value: SystemHealthReport["outcomes"]["sampleQuality"]["status"]) {
   return {
     collecting: "收集中",
@@ -418,6 +434,10 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   ].filter((note): note is string => Boolean(note));
   const outcomeRun = health.outcomes.lastRun;
   const outcomeFailureReasons = outcomeRun?.failureReasons ?? [];
+  const v3ForwardMapReviews = health.v3ForwardMapReviews;
+  const v3ForwardMapRun = v3ForwardMapReviews.lastRun;
+  const v3ForwardMapFailureReasons = v3ForwardMapRun?.failureReasons ?? [];
+  const v3ForwardMapSkipReasons = v3ForwardMapRun?.skippedReasons.slice(0, 3) ?? [];
   const outcomeAdmission = health.outcomes.calibrationAdmission;
   const outcomeFlow = health.outcomes.calibrationFlow;
   const outcomeBlockers = outcomeFlow.blockerDetails.slice(0, 2);
@@ -676,6 +696,86 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
 
             <p>
               <span>覆盖 {formatPercent(scanEconomy.coverage.coveragePercent)} · 待扫 {scanEconomy.coverage.pending} · 不新增请求</span>
+            </p>
+          </div>
+
+          <div
+            className={`health-v3-forward-map health-v3-forward-map--${v3ForwardMapReviews.status}`}
+            aria-label="v3 Forward Map 复盘健康状态"
+          >
+            <div className="health-ops__head">
+              <div>
+                <span className="mono">v3 Forward Map</span>
+                <strong>{v3ForwardMapReviews.operatorHint}</strong>
+              </div>
+              <b>{v3ForwardMapReviewStatusLabel(v3ForwardMapReviews.status)}</b>
+            </div>
+
+            <div className="health-op-matrix health-v3-forward-map__grid" aria-label="v3 Forward Map 复盘摘要">
+              <span>
+                <Archive size={14} strokeWidth={2.2} />
+                <b>{v3ForwardMapReviews.savedSnapshots}</b>
+                事前地图
+              </span>
+              <span>
+                <Clock3 size={14} strokeWidth={2.2} />
+                <b>{formatClock(v3ForwardMapReviews.latestRunAt)}</b>
+                最近执行
+              </span>
+              <span>
+                <Activity size={14} strokeWidth={2.2} />
+                <b>{v3ForwardMapRun?.reviewedSnapshots ?? 0}</b>
+                已复盘
+              </span>
+              <span>
+                <TimerReset size={14} strokeWidth={2.2} />
+                <b>{v3ForwardMapRun?.writtenEvents ?? 0}</b>
+                写回
+              </span>
+            </div>
+
+            <div className="health-op-matrix health-v3-forward-map__grid" aria-label="v3 Forward Map 复盘运行细节">
+              <span>
+                <RadioTower size={14} strokeWidth={2.2} />
+                <b>{v3ForwardMapRun?.scannedSnapshots ?? 0}</b>
+                扫描快照
+              </span>
+              <span>
+                <Archive size={14} strokeWidth={2.2} />
+                <b>{v3ForwardMapRun?.skippedSnapshots ?? 0}</b>
+                跳过
+              </span>
+              <span>
+                <Activity size={14} strokeWidth={2.2} />
+                <b>{v3ForwardMapRun?.failedFetches ?? 0}</b>
+                失败
+              </span>
+              <span>
+                <Clock3 size={14} strokeWidth={2.2} />
+                <b>{formatClock(v3ForwardMapReviews.latestReviewAt)}</b>
+                最近样本
+              </span>
+            </div>
+
+            {v3ForwardMapSkipReasons.length > 0 ? (
+              <div className="health-v3-forward-map__reasons" aria-label="v3 Forward Map 跳过原因">
+                {v3ForwardMapSkipReasons.map((reason) => (
+                  <span key={reason.code}>
+                    <b>{reason.label}</b>
+                    {reason.count} · {reason.symbols.slice(0, 4).join(" / ")}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            {v3ForwardMapFailureReasons.length > 0 ? (
+              <div className="health-op-notes health-v3-forward-map__failures" aria-label="v3 Forward Map 失败原因">
+                <span>失败原因 {v3ForwardMapFailureReasons.join(" / ")}</span>
+              </div>
+            ) : null}
+
+            <p title={v3ForwardMapReviews.storageDetail}>
+              {v3ForwardMapStorageLabel(v3ForwardMapReviews.storageStatus)} · 只读复盘 · 不改权重 · 不改变实时排序
             </p>
           </div>
 
