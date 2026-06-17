@@ -344,7 +344,7 @@ Expected: all tests pass.
 - Consumes: Strategy Engine structured result.
 - Produces: Chinese report sections only.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Cover:
 
@@ -353,17 +353,17 @@ Cover:
 - conflict and invalidation are preserved.
 - watch-only is not phrased as trade entry.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test:market`
 
 Expected: fail because report modules do not exist.
 
-- [ ] **Step 3: Implement report translation**
+- [x] **Step 3: Implement report translation**
 
 Report generator maps structured fields to Chinese copy without adding new judgment.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test:market`
 
