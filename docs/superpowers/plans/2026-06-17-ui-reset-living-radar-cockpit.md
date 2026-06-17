@@ -176,6 +176,78 @@ Add altcoin opportunity board
 Add BTC ETH macro weather
 ```
 
+## Phase 4C: Market Structure Engine
+
+**Purpose:** Make price action and market structure a first-class evidence layer before indicators and complex patterns.
+
+- [ ] Detect swing highs and swing lows from cached multi-timeframe candles.
+- [ ] Classify HH/HL, LH/LL, range, middle noise, breakout edge, breakdown edge, sweep, and failed breakout.
+- [ ] Mark previous high, previous low, range high, range low, neckline-like levels, invalidation levels, and target zones.
+- [ ] Output structure direction, required confirmation, invalidation, no-chase warning, and usable timeframes.
+- [ ] Keep indicators as confirmation or counter-evidence, not primary triggers.
+- [ ] Add tests for structure classification, false-breakout handling, and middle-noise downgrade.
+- [ ] Run full verification.
+
+**Acceptance:**
+
+- Strategy cards and opportunity board can explain where price is structurally located.
+- Middle-of-range signals are downgraded even when indicators look supportive.
+- Breakout/sweep signals include confirmation and invalidation.
+
+**GitHub Desktop Summary:**
+
+```text
+Add market structure engine
+```
+
+## Phase 4D: Pattern Library And Key Levels
+
+**Purpose:** Add common market patterns without creating contradictory or overfit signals.
+
+- [ ] Add a pattern library priority model: A-level structure patterns, B-level reversal/continuation patterns, C-level Fibonacci/harmonic/candlestick hints, D-level observation-only patterns.
+- [ ] Support common patterns first: box/range, compression, triangle, wedge, channel, flag, double top/bottom, head and shoulders, rounding top/bottom, cup and handle, key candlestick reactions near levels.
+- [ ] Add Fibonacci retracement/extension zones as position and target context only.
+- [ ] Keep harmonic patterns such as Gartley/Bat/Crab/Butterfly as observation hints only until enough review samples exist.
+- [ ] Every pattern must output required confirmation, invalidation, danger/no-chase, confidence, and usable timeframes.
+- [ ] Add tests that prevent complex patterns from becoming standalone trade triggers.
+- [ ] Run full verification.
+
+**Acceptance:**
+
+- Patterns are visible as structured evidence instead of vague labels.
+- No pattern can override market structure, position, liquidity, and risk.
+- Complex patterns do not create FOMO or direct buy/sell commands.
+
+**GitHub Desktop Summary:**
+
+```text
+Add pattern library
+```
+
+## Phase 3C: Full-Market Light Scan And Candidate Heavy Analysis
+
+**Purpose:** Move toward full-market altcoin coverage without exceeding CoinGlass Hobbyist, Neon free, or Vercel free constraints.
+
+- [ ] Keep full-market coverage as a light scan first: exchange coverage, liquidity, price/volume change, available OI/funding, daily movers, and dynamic priority.
+- [ ] Run heavy analysis only on selected candidates: multi-timeframe candles, market structure, pattern library, indicator matrix, strategy plan, and review hooks.
+- [ ] Promote high-priority candidates from anomalies, daily movers, journal outcomes, and repeated structure setups.
+- [ ] Keep long-tail assets on low-frequency rotation.
+- [ ] Add front-end coverage status that separates full-market light scan from candidate deep analysis.
+- [ ] Add tests for quota caps, candidate promotion, and no request spike.
+- [ ] Run full verification.
+
+**Acceptance:**
+
+- The system honestly reports full-market coverage scope.
+- CoinGlass requests remain budgeted and bounded.
+- Altcoin opportunity discovery improves without pretending every coin gets deep analysis every cycle.
+
+**GitHub Desktop Summary:**
+
+```text
+Add full-market light scan
+```
+
 ## Phase 8.3: Pixel Co-Pilot Reset
 
 **Purpose:** Replace the active S680 product direction with the male pixel co-pilot concept.
