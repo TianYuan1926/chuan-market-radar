@@ -97,6 +97,74 @@ test("buildJournalEntryFromSignal attaches lifecycle checkpoints to tracked sign
   assert.deepEqual(entry.lessons, ["still_tracking"]);
 });
 
+test("buildJournalEntryFromSignal attaches readonly v3 pattern and trade-plan tags for later review", () => {
+  const signal: MarketSignal = {
+    ...baseSignal,
+    strategyV3: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 107.2,
+      forwardLevels: [],
+      guardrails: ["test"],
+      keyLevels: [],
+      patternLibrary: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        dominantPattern: {
+          allowedUse: "research_only",
+          bias: "BULLISH_CONTEXT",
+          canAutoAdjustWeights: false,
+          canMutateLiveRanking: false,
+          confidence: 78,
+          evidence: ["双底上下文"],
+          hasTradeSignal: false,
+          invalidationHint: "跌破双底失效",
+          timeframe: "15m",
+          type: "DOUBLE_BOTTOM",
+        },
+        hasTradeSignal: false,
+        maxWeightPercent: 10,
+        patterns: [],
+        summary: "形态辅助",
+      },
+      primaryTimeframe: "15m",
+      source: "existing_ohlcv_key_level_mvp",
+      sourceTimeframes: ["15m"],
+      summary: "v3 summary",
+      symbol: "ENAUSDT",
+      tradePlan: {
+        allowedUse: "research_only",
+        blockedBy: [],
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        confirmationChecklist: ["Risk Gate 已通过"],
+        direction: "long",
+        entryZone: "只读计划草案",
+        hasAutoExecution: false,
+        invalidation: "结构失效",
+        isPlanEligible: true,
+        manualReviewRequired: true,
+        positionSizing: "小仓试错",
+        rewardRisk: 4,
+        status: "READY_LONG",
+        structuralStop: 100,
+        summary: "v3 只读多头计划草案",
+        takeProfitPlan: "第一目标",
+        targets: [130],
+      },
+    },
+  };
+  const entry = buildJournalEntryFromSignal(signal, "paper_trade", {
+    createdAt: "2026-06-12T10:20:00+08:00",
+  });
+
+  assert.ok(entry.lessons.includes("v3_trade_READY_LONG"));
+  assert.ok(entry.lessons.includes("v3_pattern_DOUBLE_BOTTOM"));
+  assert.ok(entry.lessons.includes("v3_pattern_context"));
+});
+
 test("buildJournalEntryFromDailyMoverCalibration queues a neutral rule review", () => {
   const entry = buildJournalEntryFromDailyMoverCalibration({
     guardrail: "候选建议不能自动改权重，只能进入人工复盘和后续回测。",

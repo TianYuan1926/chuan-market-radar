@@ -212,6 +212,22 @@ function compactCalibrationSymbols(symbols: string[]) {
     .filter(Boolean);
 }
 
+function strategyV3LessonTags(signal: MarketSignal) {
+  const tags: string[] = [];
+  const tradeStatus = signal.strategyV3?.tradePlan?.status;
+  const dominantPattern = signal.strategyV3?.patternLibrary?.dominantPattern;
+
+  if (tradeStatus) {
+    tags.push(`v3_trade_${tradeStatus}`);
+  }
+
+  if (dominantPattern) {
+    tags.push("v3_pattern_context", `v3_pattern_${dominantPattern.type}`);
+  }
+
+  return tags;
+}
+
 export function buildJournalEntryFromSignal(
   signal: MarketSignal,
   action: SignalJournalAction,
@@ -219,6 +235,7 @@ export function buildJournalEntryFromSignal(
 ): SignalJournalEntry {
   const meta = actionMeta[action];
   const strategyStatus = signal.strategy.status ?? "waiting";
+  const v3LessonTags = strategyV3LessonTags(signal);
   const reviewCheckpoints = meta.reviewStatus === "tracking"
     ? buildReviewSchedule(signal, signal.updatedAt)
     : undefined;
@@ -229,7 +246,7 @@ export function buildJournalEntryFromSignal(
         invalidationHit: false,
         firstTargetHit: false,
         reviewCheckpoints,
-        lessons: ["still_tracking"],
+        lessons: ["still_tracking", ...v3LessonTags],
       }
     : action === "skip"
       ? {
@@ -238,7 +255,7 @@ export function buildJournalEntryFromSignal(
           invalidationHit: false,
           firstTargetHit: false,
           reviewCheckpoints: undefined,
-          lessons: ["manual_skip"],
+          lessons: ["manual_skip", ...v3LessonTags],
         }
       : {
           outcomeStatus: "loss" as const,
@@ -246,7 +263,7 @@ export function buildJournalEntryFromSignal(
           invalidationHit: true,
           firstTargetHit: false,
           reviewCheckpoints: undefined,
-          lessons: ["manual_invalidation"],
+          lessons: ["manual_invalidation", ...v3LessonTags],
         };
 
   return {
