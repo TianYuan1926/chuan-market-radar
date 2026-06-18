@@ -1787,6 +1787,42 @@ test("phase 8.2k chart panel exposes readonly candle realism without replacing T
   assert.match(componentSource, /不自动下单、不改排序、不自动调权/);
 });
 
+test("phase 8 final closeout documents production QA and prevents decorative horizontal overflow", () => {
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const designQaSource = readFileSync(resolve(process.cwd(), "design-qa.md"), "utf8");
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+  const requiredCssTokens = [
+    "Phase 8 closeout: hidden off-canvas layers must not inflate body scroll width",
+    ".studio-scan-grid span",
+    ".workspace-drawer__panel",
+    ".signal-dossier__drawer",
+    "clip-path: inset(0 0 0 100%)",
+    ".workspace-drawer--open .workspace-drawer__panel",
+    ".signal-dossier--open .signal-dossier__drawer",
+  ];
+  const requiredQaTokens = [
+    "Phase 8 Final Acceptance Closeout",
+    "next start --port 3002",
+    "radar-8-final-desktop-home.png",
+    "radar-8-final-desktop-settings.png",
+    "radar-8-final-mobile-dossier.png",
+    "hidden off-canvas drawers",
+  ];
+
+  for (const token of requiredCssTokens) {
+    assert.ok(cssSource.includes(token), `missing CSS token: ${token}`);
+  }
+
+  for (const token of requiredQaTokens) {
+    assert.ok(designQaSource.includes(token), `missing QA token: ${token}`);
+  }
+
+  assert.match(blueprintSource, /Phase 8 Final Acceptance Closeout/);
+  assert.match(blueprintSource, /生产模式浏览器 QA/);
+  assert.match(blueprintSource, /不再把视觉打磨放在全市场扫描、数据质量、策略引擎和复盘闭环之前/);
+  assert.doesNotMatch(blueprintSource, /LiquidationZone/);
+});
+
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(

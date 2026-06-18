@@ -77,3 +77,20 @@
 
 **Final Result**
 final result: passed
+
+**Phase 8 Final Acceptance Closeout**
+- Date: 2026-06-18.
+- Production QA URL: `http://localhost:3002/` via `next build --webpack` + `next start --port 3002`.
+- Desktop screenshots:
+  - `.playwright-mcp/design-qa-radar-ui/radar-8-final-desktop-home.png`
+  - `.playwright-mcp/design-qa-radar-ui/radar-8-final-desktop-settings.png`
+- Mobile screenshot:
+  - `.playwright-mcp/design-qa-radar-ui/radar-8-final-mobile-dossier.png`
+- Desktop 1536 x 1024 result: boot briefing, `川` brand mark, top radar banner, runtime cockpit, Settings drawer, Signals drawer, and no forbidden liquidation heatmap text all passed.
+- Mobile 390 x 844 result: boot briefing persistence, Settings drawer, Signal Dossier bottom-sheet behavior, `川` brand mark, and no horizontal overflow all passed.
+- Regression fixed during closeout: hidden off-canvas drawers, hidden Signal Dossier, and decorative scan beams no longer inflate body horizontal scroll width.
+- Dev-server note: `127.0.0.1` triggers Next.js dev HMR cross-origin blocking in this environment; final interaction QA must use `localhost` or production mode to avoid false hydration failures.
+- Remaining P3 UI follow-up: future mobile work can still convert the long vertical cockpit into clearer tabbed sections, but Phase 8 is safe to close and the roadmap should return to core scanning, data quality, strategy, and review loops.
+
+**Phase 8 Final Result**
+final result: passed

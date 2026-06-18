@@ -12593,3 +12593,58 @@ body {
     border-bottom: 0;
   }
 }
+
+/* Phase 8 closeout: hidden off-canvas layers must not inflate body scroll width. */
+.radar-command-strip__beam {
+  right: auto;
+  width: 42%;
+}
+
+.studio-scan-grid {
+  right: 0;
+  left: 0;
+  max-width: 100%;
+  overflow: clip;
+  contain: paint;
+}
+
+.studio-scan-grid span {
+  right: auto;
+  left: 22%;
+  width: 56%;
+}
+
+.workspace-drawer__panel,
+.signal-dossier__drawer {
+  transform: translateX(0);
+  opacity: 0;
+  visibility: hidden;
+  clip-path: inset(0 0 0 100%);
+  transition:
+    clip-path 420ms var(--curve),
+    opacity 240ms var(--curve),
+    visibility 0ms linear 420ms;
+}
+
+.workspace-drawer--open .workspace-drawer__panel,
+.signal-dossier--open .signal-dossier__drawer {
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  clip-path: inset(0);
+  transition:
+    clip-path 420ms var(--curve),
+    opacity 240ms var(--curve);
+}
+
+@media (max-width: 620px) {
+  .signal-dossier__drawer {
+    transform: translateY(0);
+    clip-path: inset(100% 0 0 0);
+  }
+
+  .signal-dossier--open .signal-dossier__drawer {
+    transform: translateY(0);
+    clip-path: inset(0);
+  }
+}
