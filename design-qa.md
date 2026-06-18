@@ -20,6 +20,9 @@
 - Phase 8.2j desktop chart focus screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-desktop-chart-focus.png`
 - Phase 8.2j mobile chart focus screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-mobile-chart-focus.png`
 - Phase 8.2j console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-console.log`
+- Phase 8.2k desktop chart realism screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2k-desktop-chart-realism.png`
+- Phase 8.2k mobile chart realism screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2k-mobile-chart-realism.png`
+- Phase 8.2k console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2k-console.log`
 - Desktop viewport: 1536 x 1024.
 - Mobile viewport: 390 x 844.
 - State: local `http://localhost:3001/`, default radar route, first-visit boot briefing state, drawer entry checks, and selected ENA Signal Dossier open state.
@@ -41,7 +44,9 @@
 - Phase 8.2i compactness: desktop dock measured `297px x 364px` with fixed `82px x 124px` avatar stage; mobile dock measured `364px x 358px` with fixed `74px x 108px` avatar stage. Desktop and mobile checks both reported no horizontal overflow.
 - Phase 8.2j ChartPanel focus: desktop and mobile checks found four focus buttons, clickable focus state, one focus layer, one focus note, and final `chart-focus-layer--review` state after cycling through price/key/forward/review. Current default mock data has no `strategyV3`, so detailed key-level and forward-map buttons correctly remain absent instead of fabricating levels.
 - Phase 8.2j responsiveness: desktop chart stage measured `860px x 370px`; mobile chart stage measured `342px x 330px`. Both reported no horizontal overflow.
-- Runtime console: 0 errors and 0 warnings for the 8.2j Playwright QA run.
+- Phase 8.2k Chart Realism: desktop and mobile checks found 29 preview candles, two chart-level tags, one volume-quality profile, and two surge-volume bars. This makes the chart read more like a working market surface while remaining a readonly preview and keeping TradingView as the full chart path.
+- Phase 8.2k responsiveness: desktop chart stage measured `860px x 370px`; mobile chart stage measured `342px x 330px`. Both reported no horizontal overflow.
+- Runtime console: 0 errors and 0 warnings for the 8.2k Playwright QA run.
 
 **Patches Made**
 - Reordered the center workspace so the candidate strip and chart sit before deep review modules.
@@ -62,9 +67,11 @@
 - Added Phase 8.2i repository hygiene coverage for compact motion/equipment tokens and the continued no-callout boundary.
 - Upgraded `ChartPanel` with readonly focus interaction: price, key level, forward map, and review-sample focus modes; chart overlay lines; focus note; clickable key/forward/review entries when v3 data exists.
 - Added Phase 8.2j repository hygiene coverage for ChartPanel focus interaction, reduced-motion protection, and no automatic execution boundary.
+- Upgraded `ChartPanel` with a readonly chart realism layer: dense candle preview, volume-quality profile, chart-level tags, and differentiated volume surge bars.
+- Added Phase 8.2k repository hygiene coverage for candle realism, key-level tags, volume quality, and TradingView non-replacement boundary.
 
 **Follow-up Polish**
-- P3: the next UI pass should make the chart itself more TradingView-like with denser candles, richer volume behavior, and populated v3 key-level screenshots from live `strategyV3` samples.
+- P3: capture populated v3 key-level and Forward Map screenshots from live `strategyV3` samples once production data returns those fields.
 - P3: the mobile route should eventually switch to tabbed sections instead of a long vertical scroll.
 - P3: when live `strategyV3` is present, capture a second dossier screenshot with real Key Levels / Forward Map populated instead of the mock pending state.
 

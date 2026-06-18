@@ -17,6 +17,59 @@ type ChartPanelProps = {
   onTimeframeChange: (timeframe: Timeframe) => void;
 };
 
+const previewCandles = [
+  { x: 6, open: 61, high: 56, low: 70, close: 66 },
+  { x: 9, open: 65, high: 58, low: 68, close: 60 },
+  { x: 12, open: 60, high: 55, low: 66, close: 63 },
+  { x: 15, open: 64, high: 59, low: 71, close: 69 },
+  { x: 18, open: 69, high: 62, low: 73, close: 65 },
+  { x: 21, open: 65, high: 58, low: 67, close: 59 },
+  { x: 24, open: 58, high: 52, low: 62, close: 54 },
+  { x: 27, open: 54, high: 49, low: 60, close: 57 },
+  { x: 30, open: 57, high: 51, low: 64, close: 61 },
+  { x: 33, open: 62, high: 56, low: 66, close: 58 },
+  { x: 36, open: 58, high: 50, low: 61, close: 51 },
+  { x: 39, open: 51, high: 45, low: 56, close: 48 },
+  { x: 42, open: 48, high: 42, low: 54, close: 46 },
+  { x: 45, open: 46, high: 41, low: 51, close: 43 },
+  { x: 48, open: 43, high: 38, low: 49, close: 45 },
+  { x: 51, open: 45, high: 39, low: 48, close: 40 },
+  { x: 54, open: 40, high: 34, low: 44, close: 36 },
+  { x: 57, open: 36, high: 31, low: 42, close: 39 },
+  { x: 60, open: 39, high: 33, low: 43, close: 35 },
+  { x: 63, open: 35, high: 28, low: 38, close: 30 },
+  { x: 66, open: 30, high: 24, low: 36, close: 27 },
+  { x: 69, open: 27, high: 21, low: 33, close: 25 },
+  { x: 72, open: 25, high: 19, low: 31, close: 28 },
+  { x: 75, open: 28, high: 22, low: 34, close: 24 },
+  { x: 78, open: 24, high: 18, low: 29, close: 21 },
+  { x: 81, open: 21, high: 16, low: 27, close: 18 },
+  { x: 84, open: 18, high: 13, low: 24, close: 20 },
+  { x: 87, open: 20, high: 15, low: 26, close: 17 },
+  { x: 90, open: 17, high: 12, low: 23, close: 15 },
+];
+
+const volumeQualityBars = [
+  { height: 22, tone: "base" },
+  { height: 31, tone: "base" },
+  { height: 18, tone: "base" },
+  { height: 42, tone: "active" },
+  { height: 26, tone: "base" },
+  { height: 34, tone: "base" },
+  { height: 24, tone: "base" },
+  { height: 38, tone: "base" },
+  { height: 28, tone: "base" },
+  { height: 46, tone: "active" },
+  { height: 36, tone: "base" },
+  { height: 52, tone: "active" },
+  { height: 64, tone: "surge" },
+  { height: 44, tone: "base" },
+  { height: 39, tone: "base" },
+  { height: 58, tone: "surge" },
+  { height: 47, tone: "active" },
+  { height: 55, tone: "active" },
+];
+
 function strategyStatusLabel(value?: string) {
   if (!value) {
     return "等待候选";
@@ -273,6 +326,25 @@ export function ChartPanel({
           <line className="threshold" x1="0" x2="920" y1="126" y2="126" />
         </svg>
 
+        <div className="chart-preview-candles" aria-label="只读K线预览">
+          {previewCandles.map((candle, index) => {
+            const isUp = candle.close < candle.open;
+            const bodyTop = Math.min(candle.open, candle.close);
+            const bodyHeight = Math.max(3, Math.abs(candle.close - candle.open));
+
+            return (
+              <span
+                className={`chart-preview-candle ${isUp ? "is-up" : "is-down"}`}
+                key={`${candle.x}-${index}`}
+                style={{ left: `${candle.x}%` }}
+              >
+                <i style={{ height: `${candle.low - candle.high}%`, top: `${candle.high}%` }} />
+                <b style={{ height: `${bodyHeight}%`, top: `${bodyTop}%` }} />
+              </span>
+            );
+          })}
+        </div>
+
         <div className={`chart-focus-layer chart-focus-layer--${focusMode}`} aria-hidden="true">
           <span className="chart-focus-layer__level chart-focus-layer__level--key">
             <i />
@@ -285,6 +357,17 @@ export function ChartPanel({
           <span className="chart-focus-layer__review">
             <i />
             <b>Review</b>
+          </span>
+        </div>
+
+        <div className="chart-level-tags" aria-label="图上关键位标签">
+          <span className="chart-level-tag chart-level-tag--key">
+            <b>关键位</b>
+            {compactPriceZone(activeDrilldownLevel?.zoneLow, activeDrilldownLevel?.zoneHigh)}
+          </span>
+          <span className="chart-level-tag chart-level-tag--forward">
+            <b>前方位</b>
+            {compactPriceZone(activeForwardDrilldown?.zoneLow, activeForwardDrilldown?.zoneHigh)}
           </span>
         </div>
 
@@ -302,10 +385,16 @@ export function ChartPanel({
           <span>只读焦点 · 用于人工复核</span>
         </div>
 
+        <div className="chart-volume-profile" aria-label="成交量质量">
+          <span><b>POC</b> 结构中位</span>
+          <span><b>VOL</b> {selected ? `${Math.round(selected.confidence)} 质量分` : "等待样本"}</span>
+          <span><b>FLOW</b> 只读预览</span>
+        </div>
+
         <div className="volume-bars" aria-hidden="true">
-          {[22, 31, 18, 42, 26, 34, 24, 38, 28, 46, 36, 52, 64, 44, 39, 58, 47, 55].map(
-            (height, index) => (
-              <span key={`${height}-${index}`} style={{ height: `${height}px` }} />
+          {volumeQualityBars.map(
+            (bar, index) => (
+              <span className={`volume-bar--${bar.tone}`} key={`${bar.height}-${index}`} style={{ height: `${bar.height}px` }} />
             ),
           )}
         </div>

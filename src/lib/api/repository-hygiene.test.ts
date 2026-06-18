@@ -1652,6 +1652,48 @@ test("phase 8.2j chart panel exposes professional readonly focus interaction", (
   assert.match(componentSource, /不自动下单、不改排序、不自动调权/);
 });
 
+test("phase 8.2k chart panel exposes readonly candle realism without replacing TradingView", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+  const requiredComponentTokens = [
+    "previewCandles",
+    "volumeQualityBars",
+    "chart-preview-candles",
+    "chart-preview-candle",
+    "chart-level-tags",
+    "chart-level-tag",
+    "chart-volume-profile",
+    "只读K线预览",
+    "成交量质量",
+  ];
+  const requiredCssTokens = [
+    "Phase 8.2k: chart realism and key-level drilldown preview",
+    ".chart-preview-candles",
+    ".chart-preview-candle",
+    ".chart-level-tags",
+    ".chart-level-tag",
+    ".chart-volume-profile",
+    ".volume-bar--surge",
+  ];
+
+  for (const token of requiredComponentTokens) {
+    assert.match(componentSource, new RegExp(token));
+  }
+
+  for (const token of requiredCssTokens) {
+    assert.match(cssSource, new RegExp(token.replaceAll(".", "\\.")));
+  }
+
+  assert.match(blueprintSource, /Phase 8\.2k/);
+  assert.match(blueprintSource, /Chart Realism And Key-Level Drilldown/);
+  assert.match(componentSource, /TradingView 图表/);
+  assert.match(componentSource, /不自动下单、不改排序、不自动调权/);
+});
+
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(

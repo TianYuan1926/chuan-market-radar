@@ -11679,3 +11679,179 @@ body {
     animation: none !important;
   }
 }
+
+/* Phase 8.2k: chart realism and key-level drilldown preview. */
+.chart-preview-candles {
+  position: absolute;
+  inset: 18px 18px 86px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.chart-preview-candle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: clamp(5px, 0.78vw, 9px);
+  transform: translateX(-50%);
+}
+
+.chart-preview-candle i,
+.chart-preview-candle b {
+  position: absolute;
+  left: 50%;
+  display: block;
+  transform: translateX(-50%);
+}
+
+.chart-preview-candle i {
+  width: 1px;
+  min-height: 12px;
+  background: rgba(14, 40, 78, 0.42);
+}
+
+.chart-preview-candle b {
+  width: 100%;
+  min-height: 7px;
+  border: 1px solid rgba(14, 40, 78, 0.14);
+  border-radius: 2px;
+}
+
+.chart-preview-candle.is-up b {
+  background: linear-gradient(180deg, rgba(0, 168, 122, 0.88), rgba(0, 132, 94, 0.78));
+  box-shadow: 0 0 13px rgba(0, 168, 122, 0.16);
+}
+
+.chart-preview-candle.is-down b {
+  background: linear-gradient(180deg, rgba(201, 74, 74, 0.82), rgba(166, 53, 63, 0.76));
+}
+
+.chart-level-tags {
+  position: absolute;
+  top: 72px;
+  right: 14px;
+  left: 14px;
+  z-index: 6;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.chart-level-tag {
+  max-width: min(240px, 46%);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(31, 118, 255, 0.18);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 12px 26px rgba(31, 77, 142, 0.08);
+  color: var(--radar-ink-soft);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-level-tag b {
+  color: var(--radar-ink);
+}
+
+.chart-level-tag--forward {
+  border-color: rgba(215, 168, 61, 0.26);
+  background: rgba(255, 248, 229, 0.86);
+}
+
+.chart-volume-profile {
+  position: absolute;
+  right: 14px;
+  bottom: 22px;
+  z-index: 6;
+  width: min(270px, calc(100% - 28px));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(65, 113, 183, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 14px 30px rgba(31, 77, 142, 0.09);
+}
+
+.chart-volume-profile span {
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid rgba(65, 113, 183, 0.11);
+  padding: 7px 8px;
+  color: var(--radar-ink-soft);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-volume-profile span:last-child {
+  border-right: 0;
+}
+
+.chart-volume-profile b {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--radar-ink);
+  font-size: 10px;
+}
+
+.volume-bars .volume-bar--active {
+  background: rgba(215, 168, 61, 0.68);
+}
+
+.volume-bars .volume-bar--surge {
+  background: linear-gradient(180deg, rgba(31, 118, 255, 0.74), rgba(0, 168, 122, 0.68));
+  box-shadow: 0 0 14px rgba(31, 118, 255, 0.18);
+}
+
+@media (max-width: 760px) {
+  .chart-preview-candles {
+    inset: 20px 14px 88px;
+  }
+
+  .chart-level-tags {
+    top: 56px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chart-level-tag {
+    max-width: min(260px, 100%);
+  }
+
+  .chart-volume-profile {
+    right: 10px;
+    bottom: 18px;
+    left: 10px;
+    width: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .chart-preview-candle {
+    width: 5px;
+  }
+
+  .chart-volume-profile {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-volume-profile span {
+    border-right: 0;
+    border-bottom: 1px solid rgba(65, 113, 183, 0.11);
+  }
+
+  .chart-volume-profile span:last-child {
+    border-bottom: 0;
+  }
+}
