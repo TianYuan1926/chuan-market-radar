@@ -17,6 +17,9 @@
 - Phase 8.2i desktop pixel copilot screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-desktop-pixel-copilot.png`
 - Phase 8.2i mobile pixel copilot screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-mobile-pixel-copilot.png`
 - Phase 8.2i console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-console.log`
+- Phase 8.2j desktop chart focus screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-desktop-chart-focus.png`
+- Phase 8.2j mobile chart focus screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-mobile-chart-focus.png`
+- Phase 8.2j console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-console.log`
 - Desktop viewport: 1536 x 1024.
 - Mobile viewport: 390 x 844.
 - State: local `http://localhost:3001/`, default radar route, first-visit boot briefing state, drawer entry checks, and selected ENA Signal Dossier open state.
@@ -36,7 +39,9 @@
 - Phase 8.2h responsiveness: desktop `1536px` and mobile `390px` checks both reported no horizontal overflow. Drawer rects stayed within viewport: desktop `638px` right drawer, mobile `390px` bottom sheet.
 - Phase 8.2i Pixel Copilot: the compact dock now includes motion rings, four signal pips, an action status strip, four equipment slots, BTC medallion pulse, a mini desk with the `川` mark, and no static image. It remains a discipline/status companion instead of a trade-decision surface.
 - Phase 8.2i compactness: desktop dock measured `297px x 364px` with fixed `82px x 124px` avatar stage; mobile dock measured `364px x 358px` with fixed `74px x 108px` avatar stage. Desktop and mobile checks both reported no horizontal overflow.
-- Runtime console: 0 errors and 0 warnings for the 8.2i Playwright QA run.
+- Phase 8.2j ChartPanel focus: desktop and mobile checks found four focus buttons, clickable focus state, one focus layer, one focus note, and final `chart-focus-layer--review` state after cycling through price/key/forward/review. Current default mock data has no `strategyV3`, so detailed key-level and forward-map buttons correctly remain absent instead of fabricating levels.
+- Phase 8.2j responsiveness: desktop chart stage measured `860px x 370px`; mobile chart stage measured `342px x 330px`. Both reported no horizontal overflow.
+- Runtime console: 0 errors and 0 warnings for the 8.2j Playwright QA run.
 
 **Patches Made**
 - Reordered the center workspace so the candidate strip and chart sit before deep review modules.
@@ -55,9 +60,11 @@
 - Added Phase 8.2h repository hygiene coverage for the Signal Dossier hierarchy and no-forbidden-module boundary.
 - Upgraded `PixelCopilot` with compact motion/equipment states: low-noise cruise, anomaly scan, discipline brake, BTC medallion pulse, equipment slots, mini desk, and reduced-motion protection.
 - Added Phase 8.2i repository hygiene coverage for compact motion/equipment tokens and the continued no-callout boundary.
+- Upgraded `ChartPanel` with readonly focus interaction: price, key level, forward map, and review-sample focus modes; chart overlay lines; focus note; clickable key/forward/review entries when v3 data exists.
+- Added Phase 8.2j repository hygiene coverage for ChartPanel focus interaction, reduced-motion protection, and no automatic execution boundary.
 
 **Follow-up Polish**
-- P3: the next UI pass should make the chart itself more TradingView-like with denser candles, key-level overlays, Forward Map focus, and review-sample drilldown.
+- P3: the next UI pass should make the chart itself more TradingView-like with denser candles, richer volume behavior, and populated v3 key-level screenshots from live `strategyV3` samples.
 - P3: the mobile route should eventually switch to tabbed sections instead of a long vertical scroll.
 - P3: when live `strategyV3` is present, capture a second dossier screenshot with real Key Levels / Forward Map populated instead of the mock pending state.
 

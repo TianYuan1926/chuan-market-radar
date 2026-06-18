@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { siteConfig } from "@/lib/config/site";
 import { supportedTimeframes } from "@/lib/analysis/constants";
 import {
@@ -157,6 +160,9 @@ export function ChartPanel({
   journalMatches = [],
   onTimeframeChange,
 }: ChartPanelProps) {
+  const [focusMode, setFocusMode] = useState<"price" | "key" | "forward" | "review">("key");
+  const [activeKeyLevelId, setActiveKeyLevelId] = useState<string | undefined>();
+  const [activeForwardLevelId, setActiveForwardLevelId] = useState<string | undefined>();
   const strategyV3 = selected?.strategyV3;
   const activeV3Timeframe = strategyV3?.trendContext?.timeframes.find((timeframe) =>
     timeframe.timeframe === activeTimeframe
@@ -168,8 +174,12 @@ export function ChartPanel({
     ? (matchingKeyLevels.length > 0 ? matchingKeyLevels : strategyV3.keyLevels).slice(0, 3)
     : [];
   const activeForwardLevels = strategyV3?.forwardLevels.slice(0, 2) ?? [];
-  const activeDrilldownLevel = activeKeyLevels[0] ?? strategyV3?.keyLevels[0];
-  const activeForwardDrilldown = activeForwardLevels[0] ?? strategyV3?.forwardLevels[0];
+  const activeDrilldownLevel = activeKeyLevels.find((level) => level.id === activeKeyLevelId)
+    ?? activeKeyLevels[0]
+    ?? strategyV3?.keyLevels[0];
+  const activeForwardDrilldown = activeForwardLevels.find((level) => level.id === activeForwardLevelId)
+    ?? activeForwardLevels[0]
+    ?? strategyV3?.forwardLevels[0];
   const reviewSamples = journalMatches.slice(0, 3);
   const v3ReviewLessons = Array.from(new Set(
     journalMatches
@@ -192,6 +202,13 @@ export function ChartPanel({
   });
   const interval = toTradingViewInterval(activeTimeframe);
   const strategyStatus = strategyStatusLabel(selected?.strategy.status);
+  const focusSummary = focusMode === "key"
+    ? `关键位 ${compactPriceZone(activeDrilldownLevel?.zoneLow, activeDrilldownLevel?.zoneHigh)}`
+    : focusMode === "forward"
+      ? `前方位 ${compactPriceZone(activeForwardDrilldown?.zoneLow, activeForwardDrilldown?.zoneHigh)}`
+      : focusMode === "review"
+        ? `复盘样本 ${reviewSamples.length} 条`
+        : `${activeTimeframe.toUpperCase()} 主走势`;
 
   return (
     <section className="module chart-wrap">
@@ -223,6 +240,26 @@ export function ChartPanel({
         ))}
       </div>
 
+      <div className="chart-focus-toolbar" aria-label="盘面焦点切换">
+        {[
+          { id: "price", label: "走势", value: activeTimeframe.toUpperCase() },
+          { id: "key", label: "关键位", value: activeDrilldownLevel ? keyLevelStatusLabel(activeDrilldownLevel.status) : "等待" },
+          { id: "forward", label: "前方位", value: activeForwardLevels.length.toString() },
+          { id: "review", label: "复盘", value: reviewSamples.length.toString() },
+        ].map((item) => (
+          <button
+            aria-pressed={focusMode === item.id}
+            className={`chart-focus-toolbar__item ${focusMode === item.id ? "is-active" : ""}`}
+            key={item.id}
+            onClick={() => setFocusMode(item.id as "price" | "key" | "forward" | "review")}
+            type="button"
+          >
+            <span>{item.label}</span>
+            <b>{item.value}</b>
+          </button>
+        ))}
+      </div>
+
       <div className="chart-stage">
         <svg viewBox="0 0 920 420" preserveAspectRatio="none" aria-hidden="true">
           <path
@@ -236,6 +273,21 @@ export function ChartPanel({
           <line className="threshold" x1="0" x2="920" y1="126" y2="126" />
         </svg>
 
+        <div className={`chart-focus-layer chart-focus-layer--${focusMode}`} aria-hidden="true">
+          <span className="chart-focus-layer__level chart-focus-layer__level--key">
+            <i />
+            <b>Key</b>
+          </span>
+          <span className="chart-focus-layer__level chart-focus-layer__level--forward">
+            <i />
+            <b>Map</b>
+          </span>
+          <span className="chart-focus-layer__review">
+            <i />
+            <b>Review</b>
+          </span>
+        </div>
+
         <div className="chart-callout">
           <strong>策略提示</strong>
           <span className="muted">
@@ -243,6 +295,11 @@ export function ChartPanel({
               ? selected.strategy.positionHint
               : "等待扫描池返回候选后，这里会显示触发、失效和交易计划。"}
           </span>
+        </div>
+
+        <div className="chart-focus-note">
+          <b>{focusSummary}</b>
+          <span>只读焦点 · 用于人工复核</span>
         </div>
 
         <div className="volume-bars" aria-hidden="true">
@@ -271,12 +328,41 @@ export function ChartPanel({
 
           <div className="chart-v3-levels" aria-label="v3 当前周期关键位">
             {activeKeyLevels.length > 0 ? activeKeyLevels.map((level) => (
-              <span key={level.id}>
+              <button
+                aria-pressed={activeDrilldownLevel?.id === level.id && focusMode === "key"}
+                className={activeDrilldownLevel?.id === level.id && focusMode === "key" ? "is-active" : ""}
+                key={level.id}
+                onClick={() => {
+                  setActiveKeyLevelId(level.id);
+                  setFocusMode("key");
+                }}
+                type="button"
+              >
                 <b>{level.direction}</b>
                 {level.zoneLow.toFixed(4)}-{level.zoneHigh.toFixed(4)}
                 <small>{level.timeframe} / {keyLevelStatusLabel(level.status)}</small>
-              </span>
+              </button>
             )) : <span><b>关键位</b>等待样本<small>无可用 v3 key level</small></span>}
+          </div>
+
+          <div className="chart-v3-forward-focus" aria-label="v3 前方位焦点">
+            {activeForwardLevels.length > 0 ? activeForwardLevels.map((level) => (
+              <button
+                aria-pressed={activeForwardDrilldown?.id === level.id && focusMode === "forward"}
+                className={activeForwardDrilldown?.id === level.id && focusMode === "forward" ? "is-active" : ""}
+                key={level.id}
+                onClick={() => {
+                  setActiveForwardLevelId(level.id);
+                  setFocusMode("forward");
+                }}
+                type="button"
+              >
+                <b>{forwardRoleLabel(level.role)}</b>
+                <span>{compactPriceZone(level.zoneLow, level.zoneHigh)}</span>
+              </button>
+            )) : (
+              <span><b>前方位</b>等待 Forward Map</span>
+            )}
           </div>
 
           <div className="chart-v3-plan" aria-label="v3 计划和事前地图">
@@ -332,11 +418,16 @@ export function ChartPanel({
               <span>{reviewSamples.length} 条 / {v3ReviewLessons.length} 个 v3 标签</span>
             </div>
             {reviewSamples.length > 0 ? reviewSamples.map((entry) => (
-              <article key={entry.id}>
+              <button
+                className={focusMode === "review" ? "is-active" : ""}
+                key={entry.id}
+                onClick={() => setFocusMode("review")}
+                type="button"
+              >
                 <b>{entry.title}</b>
                 <span>{entry.result} · {entry.reviewStatus ?? "待复查"} · {compactReviewTime(entry.createdAt)}</span>
                 <small>plannedReviewAt {compactReviewTime(entry.plannedReviewAt)}</small>
-              </article>
+              </button>
             )) : (
               <article>
                 <b>等待复盘样本</b>

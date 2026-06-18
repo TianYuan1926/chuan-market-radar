@@ -356,7 +356,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未完成站内告警历史持久化、可配置静默时段、可配置告警等级阈值和提示音细节 |
-| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构、Phase 8.2f Functional Navigation / Drawers、Phase 8.2g Startup Briefing / Brand Motion、Phase 8.2h Signal Dossier Visual Upgrade 和 Phase 8.2i Pixel Copilot Motion And Equipment 已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、真实导航抽屉、启动 briefing、证据室式信号档案和紧凑像素副驾驶 dock 已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 仍需继续做更完整交互动效、更专业的真实图表表现和关键位交互选中态 |
+| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构、Phase 8.2f Functional Navigation / Drawers、Phase 8.2g Startup Briefing / Brand Motion、Phase 8.2h Signal Dossier Visual Upgrade、Phase 8.2i Pixel Copilot Motion And Equipment 和 Phase 8.2j ChartPanel Professional Visual Interaction 已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、真实导航抽屉、启动 briefing、证据室式信号档案、紧凑像素副驾驶 dock 和主图焦点交互已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 仍需继续做更专业的真实图表表现、更多 K 线细节和更细样本 drilldown |
 
 ## 当前已落地模块
 
@@ -848,6 +848,12 @@ AI 复核必须遵守：
 - 装备解锁由段位/XP 驱动，服务纪律反馈和复盘陪跑；锁定装备明确显示为成长路径，避免一次性堆满皮肤。
 - 样式继续遵守 `prefers-reduced-motion`；移动端保持小尺寸，不遮挡候选池、图表和行动栏。后续正确顺序转为更专业的 ChartPanel 真实图表表现和关键位交互选中态。
 
+2026-06-18 Phase 8.2j 已完成 ChartPanel Professional Visual Interaction：
+- `ChartPanel` 新增盘面焦点切换：走势、关键位、前方位、复盘样本，允许用户在同一主图里聚焦当前关键位、Forward Map 和复盘样本。
+- 新增只读 overlay：关键位线、前方位线、复盘点和焦点提示，帮助判断系统是否在运转，而不是只看静态示意图。
+- v3 key level 和 forward level 卡片变为可点击焦点入口；review sample 也可以切换到复盘焦点，但只做人工复核入口。
+- 该阶段不新增 CoinGlass 请求、不自动下单、不改排序、不自动调权。后续正确顺序是继续提升图表真实感：更密 K 线、成交量质量、关键位与复盘样本 drilldown。
+
 最终 UI 方向：
 
 - 主视觉是浅色专业液态玻璃雷达工作台，不是传统后台表格，也不是低龄像素游戏页。
@@ -1144,10 +1150,14 @@ CoinGlass 业余会员 API：
    - 副驾驶只做纪律反馈、状态提示和档案入口，不能喊单、不能抢主信息层。
 
 3. **Phase 8.2j：ChartPanel Professional Visual Interaction**
-   - 把当前主图从“示意图”继续升级为更专业的盘面工作区：关键位选中态、Forward Map 焦点、复盘样本跳转和多周期上下文联动。
+   - 当前状态：已完成。主图新增走势 / 关键位 / 前方位 / 复盘四类焦点、只读 overlay、可点击 key level / forward level / review sample。
    - 不新增 CoinGlass 请求，优先复用现有 OHLCV / v3 / journal / review 数据。
 
-4. **Phase 3.9+：BTC ETH Macro Radar**
+4. **Phase 8.2k：Chart Realism And Key-Level Drilldown**
+   - 继续把示意图升级成更接近真实交易盘面的密集 K 线工作区：更多 candle、成交量分布、关键位焦点与样本 drilldown。
+   - 继续只读展示，不替代 TradingView，不自动生成交易指令。
+
+5. **Phase 3.9+：BTC ETH Macro Radar**
    - BTC/ETH/ETF/OI/funding/liquidations 作为大盘天气，不抢山寨主线。
    - 输出顺风、逆风、拥挤、去杠杆、假突破风险等环境层，影响机会排序和策略解释。
    - 当前状态：已完成 BTC/ETH Macro Weather 第一版；它复用现有扫描快照，不新增请求，不修改真实权重。ETF 专项端点仍需等 CoinGlass Hobbyist 可用性和 quota 先验证后再接入。

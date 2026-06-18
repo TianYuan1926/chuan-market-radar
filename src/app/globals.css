@@ -11374,3 +11374,308 @@ body {
     animation: none !important;
   }
 }
+
+/* Phase 8.2j: ChartPanel professional focus interaction. */
+.chart-focus-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: -4px 0 12px;
+}
+
+.chart-focus-toolbar__item {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+  border: 1px solid rgba(65, 113, 183, 0.16);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(238, 247, 255, 0.52));
+  color: var(--radar-ink-soft);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 220ms var(--curve), border-color 220ms var(--curve), box-shadow 220ms var(--curve);
+}
+
+.chart-focus-toolbar__item span,
+.chart-focus-toolbar__item b {
+  min-width: 0;
+  overflow: hidden;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-focus-toolbar__item b {
+  color: var(--radar-ink);
+  font-size: 11px;
+}
+
+.chart-focus-toolbar__item:hover,
+.chart-focus-toolbar__item.is-active {
+  transform: translateY(-1px);
+  border-color: rgba(31, 118, 255, 0.36);
+  box-shadow: 0 10px 24px rgba(31, 77, 142, 0.11);
+}
+
+.chart-focus-toolbar__item.is-active {
+  background:
+    linear-gradient(135deg, rgba(31, 118, 255, 0.14), rgba(255, 255, 255, 0.74));
+}
+
+.chart-focus-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.chart-focus-layer__level {
+  position: absolute;
+  right: 10px;
+  left: 10px;
+  display: block;
+  height: 0;
+  border-top: 2px solid rgba(31, 118, 255, 0.56);
+  opacity: 0.3;
+}
+
+.chart-focus-layer__level i {
+  position: absolute;
+  inset: -9px 0 auto;
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(31, 118, 255, 0.16), transparent);
+}
+
+.chart-focus-layer__level b,
+.chart-focus-layer__review b {
+  position: absolute;
+  top: -20px;
+  right: 0;
+  border: 1px solid rgba(31, 118, 255, 0.22);
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--radar-blue);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.chart-focus-layer__level--key {
+  top: 38%;
+}
+
+.chart-focus-layer__level--forward {
+  top: 24%;
+  border-top-color: rgba(215, 168, 61, 0.72);
+}
+
+.chart-focus-layer__level--forward b {
+  border-color: rgba(215, 168, 61, 0.28);
+  color: #9a6a13;
+}
+
+.chart-focus-layer__review {
+  position: absolute;
+  right: 19%;
+  bottom: 92px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 168, 122, 0.68);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.86);
+  opacity: 0.36;
+  box-shadow: 0 0 0 7px rgba(0, 168, 122, 0.08);
+}
+
+.chart-focus-layer__review b {
+  top: -30px;
+  right: -24px;
+  border-color: rgba(0, 168, 122, 0.22);
+  color: var(--green);
+}
+
+.chart-focus-layer--price .chart-focus-layer__level,
+.chart-focus-layer--price .chart-focus-layer__review {
+  opacity: 0.18;
+}
+
+.chart-focus-layer--key .chart-focus-layer__level--key,
+.chart-focus-layer--forward .chart-focus-layer__level--forward,
+.chart-focus-layer--review .chart-focus-layer__review {
+  opacity: 1;
+}
+
+.chart-focus-layer--key .chart-focus-layer__level--key,
+.chart-focus-layer--forward .chart-focus-layer__level--forward {
+  animation: chartFocusPulse 2.4s ease-in-out infinite;
+}
+
+.chart-focus-layer--review .chart-focus-layer__review {
+  animation: chartReviewPulse 2.4s ease-in-out infinite;
+}
+
+.chart-focus-note {
+  position: absolute;
+  right: 14px;
+  bottom: 92px;
+  z-index: 6;
+  max-width: min(260px, calc(100% - 28px));
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(65, 113, 183, 0.16);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 12px 28px rgba(31, 77, 142, 0.1);
+}
+
+.chart-focus-note b,
+.chart-focus-note span {
+  min-width: 0;
+  overflow: hidden;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-focus-note b {
+  color: var(--radar-ink);
+}
+
+.chart-focus-note span {
+  color: var(--radar-ink-soft);
+}
+
+.chart-v3-levels button,
+.chart-v3-forward-focus button,
+.chart-v3-forward-focus span,
+.chart-v3-review-links button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(65, 113, 183, 0.14);
+  border-radius: 7px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.38);
+  color: var(--radar-ink-soft);
+  cursor: pointer;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  text-align: left;
+}
+
+.chart-v3-levels button:hover,
+.chart-v3-levels button.is-active,
+.chart-v3-forward-focus button:hover,
+.chart-v3-forward-focus button.is-active,
+.chart-v3-review-links button:hover,
+.chart-v3-review-links button.is-active {
+  border-color: rgba(31, 118, 255, 0.34);
+  background: rgba(232, 244, 255, 0.72);
+}
+
+.chart-v3-levels button b,
+.chart-v3-forward-focus button b,
+.chart-v3-forward-focus span b,
+.chart-v3-review-links button b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--radar-ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-v3-levels button small,
+.chart-v3-forward-focus button span,
+.chart-v3-review-links button span,
+.chart-v3-review-links button small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--radar-ink-soft);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-v3-forward-focus {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.chart-v3-forward-focus button {
+  border-color: rgba(215, 168, 61, 0.22);
+  background: rgba(255, 245, 219, 0.52);
+}
+
+.chart-v3-review-links button {
+  border-color: rgba(0, 168, 122, 0.16);
+}
+
+@keyframes chartFocusPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(31, 118, 255, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(31, 118, 255, 0.3));
+  }
+}
+
+@keyframes chartReviewPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 7px rgba(0, 168, 122, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(0, 168, 122, 0.14);
+  }
+}
+
+@media (max-width: 760px) {
+  .chart-focus-toolbar,
+  .chart-v3-forward-focus {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart-focus-note {
+    right: 10px;
+    bottom: 86px;
+    left: 10px;
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .chart-focus-toolbar {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .chart-focus-toolbar__item {
+    min-height: 38px;
+    padding: 6px 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-focus-layer--key .chart-focus-layer__level--key,
+  .chart-focus-layer--forward .chart-focus-layer__level--forward,
+  .chart-focus-layer--review .chart-focus-layer__review {
+    animation: none !important;
+  }
+}

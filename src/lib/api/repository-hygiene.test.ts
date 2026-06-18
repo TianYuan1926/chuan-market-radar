@@ -1609,6 +1609,49 @@ test("chart panel exposes readonly forward-map review executor events", () => {
   assert.match(cssSource, /\.chart-v3-forward-review-events/);
 });
 
+test("phase 8.2j chart panel exposes professional readonly focus interaction", () => {
+  const componentSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+  const requiredComponentTokens = [
+    "chart-focus-toolbar",
+    "chart-focus-layer",
+    "chart-focus-note",
+    "chart-v3-forward-focus",
+    "focusMode",
+    "setFocusMode",
+    "setActiveKeyLevelId",
+    "setActiveForwardLevelId",
+    "盘面焦点切换",
+    "只读焦点",
+  ];
+  const requiredCssTokens = [
+    "Phase 8.2j: ChartPanel professional focus interaction",
+    ".chart-focus-toolbar",
+    ".chart-focus-layer",
+    ".chart-focus-note",
+    ".chart-v3-forward-focus",
+    "@keyframes chartFocusPulse",
+    "@keyframes chartReviewPulse",
+    "prefers-reduced-motion",
+  ];
+
+  for (const token of requiredComponentTokens) {
+    assert.match(componentSource, new RegExp(token));
+  }
+
+  for (const token of requiredCssTokens) {
+    assert.match(cssSource, new RegExp(token.replaceAll(".", "\\.")));
+  }
+
+  assert.match(blueprintSource, /Phase 8\.2j/);
+  assert.match(blueprintSource, /ChartPanel Professional Visual Interaction/);
+  assert.match(componentSource, /不自动下单、不改排序、不自动调权/);
+});
+
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(
