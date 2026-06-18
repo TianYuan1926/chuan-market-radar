@@ -356,7 +356,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未完成站内告警历史持久化、可配置静默时段、可配置告警等级阈值和提示音细节 |
-| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构、Phase 8.2f Functional Navigation / Drawers 和 Phase 8.2g Startup Briefing / Brand Motion 已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、真实导航抽屉、启动 briefing 和紧凑像素副驾驶 dock 已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 仍需继续做 Signal Dossier 视觉精修、装备升级动效、更完整交互动效和更专业的真实图表表现 |
+| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构、Phase 8.2f Functional Navigation / Drawers、Phase 8.2g Startup Briefing / Brand Motion 和 Phase 8.2h Signal Dossier Visual Upgrade 已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、真实导航抽屉、启动 briefing、证据室式信号档案和紧凑像素副驾驶 dock 已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 仍需继续做像素副驾驶装备升级动效、更完整交互动效和更专业的真实图表表现 |
 
 ## 当前已落地模块
 
@@ -836,6 +836,12 @@ AI 复核必须遵守：
 - 动效遵守全局 `prefers-reduced-motion` 降级；继续明确不做背景音乐、不做喊单、不自动下单。
 - 当前已经通过 `npm run test:market`、`npm run lint`、`npm run build` 和单独 `npm run typecheck`；`design-qa.md` 记录本轮视觉验收，最终结果为 `passed`。后续还需要继续做 Signal Dossier 视觉精修、像素副驾驶装备动效和更专业的真实图表表现。
 
+2026-06-18 Phase 8.2h 已完成 Signal Dossier Visual Upgrade：
+- `SignalDossier` 从旧式竖向资料堆叠升级为浅色液态玻璃证据室：顶部新增决策总览、策略状态速览、v3 证据路径和计划边界，方便先看“能不能做、为什么、还差什么确认”。
+- v3 关键位地图、Forward Map、趋势上下文、位置/RR、回踩/反抽、趋势完整度、计划草案和形态辅助继续保持只读展示，不新增 CoinGlass 请求、不改变 live ranking、不自动交易。
+- 执行策略、证据链、每日异动关联、复盘记录、告警状态和副驾驶纪律被分成更清晰的功能区，继续围绕同一标的上下文联动，避免首页重新堆满细节。
+- 移动端继续保持底部上滑档案形态；桌面端保持右侧深挖抽屉。后续正确顺序转为 Phase 8.2i 像素副驾驶装备/动效，再推进更专业图表和交互式关键位选中态。
+
 最终 UI 方向：
 
 - 主视觉是浅色专业液态玻璃雷达工作台，不是传统后台表格，也不是低龄像素游戏页。
@@ -1124,8 +1130,8 @@ CoinGlass 业余会员 API：
 后续正确 UI 搭建顺序：
 
 1. **Phase 8.2h：Signal Dossier Visual Upgrade**
-   - 按选定浅色工作台风格重做信号档案视觉：关键位、Forward Map、证据链、交易计划、复盘关联和副驾驶反馈同屏联动。
-   - 深层证据放档案，不回到首页堆叠。
+   - 当前状态：已完成。信号档案已按浅色工作台风格升级为证据室，关键位、Forward Map、证据链、交易计划、复盘关联和副驾驶纪律同一上下文联动。
+   - 深层证据继续放档案，不回到首页堆叠。
 
 2. **Phase 8.2i：Pixel Copilot Motion And Equipment**
    - 在紧凑 dock 基础上增加眨眼、呼吸、BTC 项链闪光、警戒/刹车/升级状态和装备解锁。

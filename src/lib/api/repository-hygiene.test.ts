@@ -542,6 +542,47 @@ test("signal dossier exposes v3 key levels and forward map as readonly context",
   assert.match(dossierSource, /signal-dossier__v3-timeframes/u);
 });
 
+test("phase 8.2h signal dossier uses a workstation evidence-room hierarchy", () => {
+  const dossierSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+  const requiredLabels = [
+    "证据室 · 计划边界",
+    "信号档案决策总览",
+    "策略状态速览",
+    "v3 证据路径",
+    "结构阶段",
+    "关键位置",
+    "计划边界",
+    "副驾驶纪律",
+  ];
+  const requiredClasses = [
+    "signal-dossier__command",
+    "signal-dossier__decision-rail",
+    "signal-dossier__route-map",
+    "signal-dossier__section--v3",
+    "signal-dossier__section--plan",
+    "signal-dossier__section--evidence-room",
+    "signal-dossier__copilot-card",
+  ];
+
+  for (const label of requiredLabels) {
+    assert.match(dossierSource, new RegExp(label));
+  }
+
+  for (const className of requiredClasses) {
+    assert.match(dossierSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
+  }
+
+  assert.match(cssSource, /Phase 8\.2h: Signal Dossier visual upgrade/);
+  assert.match(blueprintSource, /Signal Dossier Visual Upgrade/);
+  assert.doesNotMatch(dossierSource, /LiquidationHeatmap|LiquidationZone|HeatmapProvider/u);
+});
+
 test("living radar UI second pass exposes functional motion, state dimming, and compact cockpit status", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),

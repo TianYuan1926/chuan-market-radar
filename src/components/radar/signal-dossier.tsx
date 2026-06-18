@@ -426,7 +426,45 @@ export function SignalDossier({
 
         {signal ? (
           <>
-            <section className="signal-dossier__section" aria-label="当前上下文">
+            <section
+              className={`signal-dossier__command signal-dossier__command--risk-${signal.risk}`}
+              aria-label="信号档案决策总览"
+            >
+              <div className="signal-dossier__command-mark" aria-hidden="true">川</div>
+              <div className="signal-dossier__command-main">
+                <span className="tag">证据室 · 计划边界</span>
+                <strong>
+                  {strategyV3?.trendContext
+                    ? trendDecisionLabel(strategyV3.trendContext.decision)
+                    : directionLabel(signal.direction)}
+                </strong>
+                <p>
+                  {strategyV3?.trendContext?.nextStep
+                    ?? signal.strategy.entryZone
+                    ?? signal.strategy.entry}
+                </p>
+              </div>
+              <div className="signal-dossier__decision-rail" aria-label="策略状态速览">
+                <span>
+                  <b>{strategyV3?.trendContext ? trendStateLabel(strategyV3.trendContext.state) : signalStateLabels[signal.state]}</b>
+                  阶段
+                </span>
+                <span>
+                  <b>{riskLabel(signal.risk)}</b>
+                  风险
+                </span>
+                <span>
+                  <b>{signal.strategy.riskReward.toFixed(2)}R</b>
+                  赔率
+                </span>
+                <span>
+                  <b>{strategyV3?.canMutateLiveRanking ? "异常" : "只读"}</b>
+                  v3
+                </span>
+              </div>
+            </section>
+
+            <section className="signal-dossier__section signal-dossier__section--context" aria-label="当前上下文">
               <div className="signal-dossier__section-head">
                 <h3>当前上下文</h3>
                 <span>{signalStateLabels[signal.state]}</span>
@@ -442,7 +480,7 @@ export function SignalDossier({
             </section>
 
             {strategyV2 ? (
-              <section className="signal-dossier__section" aria-label="Strategy v2 证据审计">
+              <section className="signal-dossier__section signal-dossier__section--audit" aria-label="Strategy v2 证据审计">
                 <div className="signal-dossier__section-head">
                   <h3>v2 证据审计</h3>
                   <span>{strategyV2.report.title}</span>
@@ -474,7 +512,7 @@ export function SignalDossier({
             ) : null}
 
             {strategyV3 ? (
-              <section className="signal-dossier__section" aria-label="v3 关键位地图和 Forward Map">
+              <section className="signal-dossier__section signal-dossier__section--v3" aria-label="v3 关键位地图和 Forward Map">
                 <div className="signal-dossier__section-head">
                   <h3>关键位地图</h3>
                   <span>{strategyV3.primaryTimeframe} / {strategyV3.sourceTimeframes.length} 周期</span>
@@ -485,6 +523,38 @@ export function SignalDossier({
                   <small>
                     {strategyV3.canMutateLiveRanking ? "可影响排序" : "只读上下文"} / {strategyV3.allowedUse}
                   </small>
+                </div>
+                <div className="signal-dossier__route-map" aria-label="v3 证据路径">
+                  <article>
+                    <strong>结构阶段</strong>
+                    <span>
+                      {strategyV3.trendContext
+                        ? trendStateLabel(strategyV3.trendContext.state)
+                        : "等待结构"}
+                    </span>
+                    <p>
+                      {strategyV3.trendContext?.guardrail
+                        ?? "先读结构，再验证衍生品和量价。"}
+                    </p>
+                  </article>
+                  <article>
+                    <strong>关键位置</strong>
+                    <span>{strategyV3.keyLevels.length} 区域</span>
+                    <p>
+                      {strategyV3.keyLevels[0]
+                        ? `${keyLevelDirectionLabel(strategyV3.keyLevels[0].direction)} ${priceZoneLabel(strategyV3.keyLevels[0].zoneLow, strategyV3.keyLevels[0].zoneHigh)}`
+                        : "等待支撑/压力共振"}
+                    </p>
+                  </article>
+                  <article>
+                    <strong>计划边界</strong>
+                    <span>{strategyV3.tradePlan ? tradePlanStatusLabel(strategyV3.tradePlan.status) : "待生成"}</span>
+                    <p>
+                      {strategyV3.tradePlan?.isPlanEligible
+                        ? "计划只在确认清单满足后有效。"
+                        : strategyV3.tradePlan?.blockedBy.slice(0, 2).join(" / ") || "缺少可执行计划时保持观察。"}
+                    </p>
+                  </article>
                 </div>
                 {strategyV3.trendContext ? (
                   <>
@@ -670,9 +740,41 @@ export function SignalDossier({
                   ))}
                 </div>
               </section>
-            ) : null}
+            ) : (
+              <section
+                className="signal-dossier__section signal-dossier__section--v3 signal-dossier__section--v3-pending"
+                aria-label="v3 关键位地图等待数据"
+              >
+                <div className="signal-dossier__section-head">
+                  <h3>关键位地图</h3>
+                  <span>等待 v3 样本</span>
+                </div>
+                <div className="signal-dossier__v3-summary">
+                  <MapPinned aria-hidden="true" size={16} strokeWidth={2.35} />
+                  <p>当前信号还没有附带 strategyV3，只展示现有策略和证据；系统不会补画事后关键位。</p>
+                  <small>Forward Map 待同步 / 不影响 live ranking</small>
+                </div>
+                <div className="signal-dossier__route-map" aria-label="v3 证据路径">
+                  <article>
+                    <strong>结构阶段</strong>
+                    <span>等待结构</span>
+                    <p>需要多周期 OHLCV 生成 HH/HL、LH/LL、BOS、CHoCH 或区间压缩事实。</p>
+                  </article>
+                  <article>
+                    <strong>关键位置</strong>
+                    <span>等待区域</span>
+                    <p>关键位必须来自事前结构区间，不使用事后画线或外部拥挤图当作依据。</p>
+                  </article>
+                  <article>
+                    <strong>计划边界</strong>
+                    <span>只读等待</span>
+                    <p>缺少 v3 Forward Map 时，只保留现有入场、失效、目标和证据链。</p>
+                  </article>
+                </div>
+              </section>
+            )}
 
-            <section className="signal-dossier__section" aria-label="TradingView K 线入口">
+            <section className="signal-dossier__section signal-dossier__section--tv" aria-label="TradingView K 线入口">
               <div className="signal-dossier__section-head">
                 <h3>TradingView</h3>
                 <span>{tradingViewSymbol}</span>
@@ -688,7 +790,7 @@ export function SignalDossier({
               </a>
             </section>
 
-            <section className="signal-dossier__section" aria-label="执行策略">
+            <section className="signal-dossier__section signal-dossier__section--plan" aria-label="执行策略">
               <div className="signal-dossier__section-head">
                 <h3>执行策略</h3>
                 <span>{signal.strategy.noChase ? "禁止追单" : "等待确认"}</span>
@@ -717,7 +819,7 @@ export function SignalDossier({
               </div>
             </section>
 
-            <section className="signal-dossier__section" aria-label="证据链">
+            <section className="signal-dossier__section signal-dossier__section--evidence-room" aria-label="证据链">
               <div className="signal-dossier__section-head">
                 <h3>证据链</h3>
                 <span>{visibleEvidence.length} 条</span>
@@ -735,7 +837,7 @@ export function SignalDossier({
               </div>
             </section>
 
-            <section className="signal-dossier__section" aria-label="每日异动关联">
+            <section className="signal-dossier__section signal-dossier__section--review-link" aria-label="每日异动关联">
               <div className="signal-dossier__section-head">
                 <h3>每日异动关联</h3>
                 <span>{dailyMoverMatches.length} 样本</span>
@@ -759,7 +861,7 @@ export function SignalDossier({
               </div>
             </section>
 
-            <section className="signal-dossier__section" aria-label="复盘记录">
+            <section className="signal-dossier__section signal-dossier__section--review-link" aria-label="复盘记录">
               <div className="signal-dossier__section-head">
                 <h3>复盘记录</h3>
                 <span>{journalMatches.length} 条</span>
@@ -791,7 +893,7 @@ export function SignalDossier({
               </div>
             </section>
 
-            <section className="signal-dossier__section" aria-label="告警状态">
+            <section className="signal-dossier__section signal-dossier__section--review-link" aria-label="告警状态">
               <div className="signal-dossier__section-head">
                 <h3>告警状态</h3>
                 <span>{alertMatches.length ? "有近期事件" : "未触发"}</span>
@@ -820,10 +922,10 @@ export function SignalDossier({
 
             <section className="signal-dossier__section signal-dossier__section--copilot" aria-label="副驾驶反馈">
               <div className="signal-dossier__section-head">
-                <h3>副驾驶反馈</h3>
+                <h3>副驾驶纪律</h3>
                 <span>纪律优先</span>
               </div>
-              <div className="signal-dossier__copilot">
+              <div className="signal-dossier__copilot signal-dossier__copilot-card">
                 <Sparkles aria-hidden="true" size={16} strokeWidth={2.4} />
                 <p>{copilotLine(signal, journalMatches, dailyMoverMatches)}</p>
               </div>

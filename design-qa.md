@@ -11,9 +11,12 @@
 - Phase 8.2g desktop boot briefing screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-desktop-boot-briefing.png`
 - Phase 8.2g mobile boot briefing screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-mobile-boot-briefing.png`
 - Phase 8.2g console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-console.log`
+- Phase 8.2h desktop signal dossier screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-desktop-signal-dossier.png`
+- Phase 8.2h mobile signal dossier screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-mobile-signal-dossier.png`
+- Phase 8.2h console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-console.log`
 - Desktop viewport: 1536 x 1024.
 - Mobile viewport: 390 x 844.
-- State: local `http://localhost:3001/`, default radar route, first-visit boot briefing state plus drawer entry checks.
+- State: local `http://localhost:3001/`, default radar route, first-visit boot briefing state, drawer entry checks, and selected ENA Signal Dossier open state.
 
 **Findings**
 - No P0/P1/P2 blocking issues remain.
@@ -26,7 +29,9 @@
 - Phase 8.2f drawer runtime check: all five desktop drawers opened with the expected title, closed back to zero open drawers, and produced no horizontal overflow. The 390px mobile Review drawer also had no horizontal overflow and closed with Escape.
 - Phase 8.2g startup briefing: the first-visit boot briefing appears on desktop and mobile, carries the selected liquid-glass lens asset, preserves the `川` brand mark, and states the product boundary as a full-market altcoin trend-switch radar rather than a marketing page.
 - Phase 8.2g interaction check: `查看信号池` opens the Signals drawer, `看复盘链路` opens the Review drawer, and `进入雷达` dismisses the briefing with `localStorage` persistence. Desktop and 390px mobile checks both reported no horizontal overflow.
-- Runtime console: 0 errors and 0 warnings for the 8.2g Playwright QA run.
+- Phase 8.2h Signal Dossier: the selected ENA dossier opens as a right-side evidence room on desktop and a bottom sheet on mobile. It exposes one decision overview, four strategy status cells, three v3 evidence-path cards, the plan section, evidence room, and copilot discipline card. The current mock signal has no real `strategyV3`, so the dossier shows an explicit v3 pending state rather than fabricating a Forward Map.
+- Phase 8.2h responsiveness: desktop `1536px` and mobile `390px` checks both reported no horizontal overflow. Drawer rects stayed within viewport: desktop `638px` right drawer, mobile `390px` bottom sheet.
+- Runtime console: 0 errors and 0 warnings for the 8.2h Playwright QA run.
 
 **Patches Made**
 - Reordered the center workspace so the candidate strip and chart sit before deep review modules.
@@ -40,10 +45,14 @@
 - Preserved the homepage rule: full Replay, DailyMover, Journal, Rank, and Health modules stay behind navigation drawers instead of permanently occupying the first screen.
 - Rebuilt `RadarBootBriefing` as a first-visit startup layer with real runtime data, skip persistence, Signals/Review drawer entry points, and reduced-motion-compatible brand motion.
 - Added Phase 8.2g repository hygiene coverage for the startup briefing boundaries: no background music, no callout behavior, no automatic trading, and no static-only marketing surface.
+- Upgraded `SignalDossier` into a light liquid-glass evidence room with a decision overview, status rail, v3 evidence path, clearer plan/evidence/review sections, and a discipline-focused copilot card.
+- Added a v3 pending state so preview data without `strategyV3` remains honest: it states that Forward Map is waiting for data and does not affect live ranking.
+- Added Phase 8.2h repository hygiene coverage for the Signal Dossier hierarchy and no-forbidden-module boundary.
 
 **Follow-up Polish**
 - P3: the next UI pass should make the chart itself more TradingView-like with denser candles and key-level overlays.
 - P3: the mobile route should eventually switch to tabbed sections instead of a long vertical scroll.
+- P3: when live `strategyV3` is present, capture a second dossier screenshot with real Key Levels / Forward Map populated instead of the mock pending state.
 
 **Final Result**
 final result: passed

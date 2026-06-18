@@ -10434,3 +10434,441 @@ body {
     padding: 8px 10px;
   }
 }
+
+/* Phase 8.2h: Signal Dossier visual upgrade for the light liquid-glass workstation. */
+.signal-dossier {
+  z-index: 70;
+}
+
+.signal-dossier__backdrop {
+  background:
+    radial-gradient(circle at 74% 18%, rgba(79, 148, 255, 0.22), transparent 34%),
+    linear-gradient(90deg, rgba(6, 18, 45, 0.14), rgba(8, 33, 74, 0.36));
+  backdrop-filter: blur(3px);
+}
+
+.signal-dossier__drawer {
+  right: 12px;
+  top: 12px;
+  bottom: 12px;
+  width: min(638px, calc(100vw - 34px));
+  border-color: rgba(65, 113, 183, 0.36);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(234, 244, 255, 0.9) 52%, rgba(255, 255, 255, 0.78)),
+    url("/assets/radar-crystal-lens.png") top right / 78% auto no-repeat;
+  background-blend-mode: normal, screen;
+  box-shadow:
+    -34px 0 84px rgba(15, 60, 130, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  color: var(--radar-ink);
+}
+
+.signal-dossier__drawer::before {
+  content: "";
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: block;
+  height: 0;
+  pointer-events: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.signal-dossier__hero {
+  border-bottom-color: rgba(65, 113, 183, 0.28);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.96), rgba(238, 247, 255, 0.86)),
+    linear-gradient(135deg, rgba(71, 185, 255, 0.12), transparent 58%);
+  color: var(--radar-ink);
+}
+
+.signal-dossier__hero h2 {
+  color: var(--radar-ink);
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.signal-dossier__hero p {
+  color: var(--radar-ink-soft);
+}
+
+.signal-dossier__close {
+  border-color: rgba(31, 118, 255, 0.28);
+  background: linear-gradient(180deg, #1f76ff, #0f63df);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(31, 118, 255, 0.18);
+}
+
+.signal-dossier__command {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+  margin: 12px;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(65, 113, 183, 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.92), rgba(225, 241, 255, 0.8)),
+    radial-gradient(circle at 100% 0%, rgba(71, 185, 255, 0.22), transparent 44%);
+  box-shadow: 0 16px 38px rgba(31, 77, 142, 0.1);
+}
+
+.signal-dossier__command::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  left: 76px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--radar-blue), var(--radar-cyan), transparent);
+  opacity: 0.66;
+}
+
+.signal-dossier__command-mark {
+  grid-row: span 2;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid rgba(31, 118, 255, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(217, 237, 255, 0.76)),
+    radial-gradient(circle at 50% 18%, rgba(71, 185, 255, 0.34), transparent 60%);
+  color: var(--radar-ink);
+  font-size: 34px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.signal-dossier__command-main {
+  min-width: 0;
+}
+
+.signal-dossier__command-main strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--radar-ink);
+  font-size: 18px;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-dossier__command-main p {
+  margin: 6px 0 0;
+  color: var(--radar-ink-soft);
+  font-size: 12px;
+  line-height: 1.52;
+}
+
+.signal-dossier__decision-rail {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.signal-dossier__decision-rail span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 48px;
+  align-content: center;
+  border: 1px solid rgba(65, 113, 183, 0.18);
+  border-radius: 7px;
+  padding: 7px;
+  background: rgba(255, 255, 255, 0.62);
+  color: rgba(49, 81, 116, 0.84);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1.1;
+}
+
+.signal-dossier__decision-rail b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--radar-ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-dossier__command--risk-high,
+.signal-dossier__command--risk-blocked {
+  border-color: rgba(216, 66, 66, 0.28);
+}
+
+.signal-dossier__command--risk-high::after,
+.signal-dossier__command--risk-blocked::after {
+  background: linear-gradient(90deg, var(--radar-red), var(--radar-gold), transparent);
+}
+
+.signal-dossier__section {
+  border-color: rgba(65, 113, 183, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 251, 255, 0.58)),
+    rgba(255, 255, 255, 0.54);
+  box-shadow: 0 12px 34px rgba(31, 77, 142, 0.07);
+}
+
+.signal-dossier__section--v3 {
+  border-color: rgba(31, 118, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(232, 244, 255, 0.62)),
+    rgba(255, 255, 255, 0.64);
+}
+
+.signal-dossier__section--plan {
+  border-color: rgba(0, 168, 122, 0.28);
+}
+
+.signal-dossier__section--evidence-room {
+  border-color: rgba(71, 185, 255, 0.28);
+}
+
+.signal-dossier__section-head {
+  border-bottom-color: rgba(65, 113, 183, 0.18);
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.signal-dossier__section-head h3 {
+  color: var(--radar-ink);
+  font-weight: 950;
+}
+
+.signal-dossier__section-head span {
+  border-color: rgba(31, 118, 255, 0.2);
+  background: rgba(31, 118, 255, 0.07);
+  color: var(--radar-blue);
+}
+
+.signal-dossier__context-grid span,
+.signal-dossier__tv span,
+.signal-dossier__v2-grid span,
+.signal-dossier__v3-timeframes article,
+.signal-dossier__v3-reading article,
+.signal-dossier__v3-levels article,
+.signal-dossier__v3-map article,
+.signal-dossier__strategy article,
+.signal-dossier__evidence-item,
+.signal-dossier__journal-item,
+.signal-dossier__mover,
+.signal-dossier__alert {
+  border-color: rgba(65, 113, 183, 0.16);
+}
+
+.signal-dossier__context-grid b,
+.signal-dossier__tv b,
+.signal-dossier__v2-grid b,
+.signal-dossier__v3-scores b,
+.signal-dossier__v3-timeframes strong,
+.signal-dossier__v3-reading strong,
+.signal-dossier__v3-levels strong,
+.signal-dossier__v3-map strong,
+.signal-dossier__strategy p,
+.signal-dossier__evidence-item strong,
+.signal-dossier__journal-item strong,
+.signal-dossier__mover strong,
+.signal-dossier__alert strong {
+  color: var(--radar-ink);
+}
+
+.signal-dossier__route-map {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(65, 113, 183, 0.18);
+}
+
+.signal-dossier__route-map article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 116px;
+  align-content: start;
+  border: 1px solid rgba(65, 113, 183, 0.18);
+  border-radius: 8px;
+  padding: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(238, 247, 255, 0.56)),
+    radial-gradient(circle at 100% 0%, rgba(71, 185, 255, 0.16), transparent 50%);
+}
+
+.signal-dossier__route-map strong {
+  color: var(--radar-ink);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.signal-dossier__route-map span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--radar-blue);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-dossier__route-map p {
+  margin: 0;
+  color: var(--radar-ink-soft);
+  font-size: 11px;
+  line-height: 1.48;
+}
+
+.signal-dossier__v3-summary {
+  border-bottom-color: rgba(65, 113, 183, 0.18);
+  background:
+    linear-gradient(90deg, rgba(31, 118, 255, 0.1), rgba(71, 185, 255, 0.06)),
+    rgba(255, 255, 255, 0.52);
+}
+
+.signal-dossier__v3-trend {
+  background:
+    linear-gradient(90deg, rgba(31, 118, 255, 0.08), rgba(255, 255, 255, 0.42));
+}
+
+.signal-dossier__v3-scores {
+  border-bottom-color: rgba(65, 113, 183, 0.16);
+}
+
+.signal-dossier__v3-scores span {
+  border-color: rgba(65, 113, 183, 0.16);
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.signal-dossier__v3-location,
+.signal-dossier__v3-reaction,
+.signal-dossier__v3-integrity,
+.signal-dossier__v3-trade-plan,
+.signal-dossier__v3-pattern {
+  border-bottom-color: rgba(65, 113, 183, 0.16);
+}
+
+.signal-dossier__v3-location {
+  background: linear-gradient(135deg, rgba(215, 168, 61, 0.13), rgba(255, 255, 255, 0.58));
+}
+
+.signal-dossier__v3-reaction {
+  background: linear-gradient(135deg, rgba(31, 118, 255, 0.1), rgba(255, 255, 255, 0.58));
+}
+
+.signal-dossier__v3-integrity {
+  background: linear-gradient(135deg, rgba(0, 168, 122, 0.12), rgba(255, 255, 255, 0.58));
+}
+
+.signal-dossier__v3-trade-plan {
+  background: linear-gradient(135deg, rgba(0, 168, 122, 0.12), rgba(31, 118, 255, 0.08));
+}
+
+.signal-dossier__v3-pattern {
+  background: linear-gradient(135deg, rgba(71, 185, 255, 0.1), rgba(255, 255, 255, 0.58));
+}
+
+.signal-dossier__v3-location-grid {
+  border-color: rgba(65, 113, 183, 0.14);
+  background: rgba(65, 113, 183, 0.08);
+}
+
+.signal-dossier__v3-location-grid span {
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.signal-dossier__tv-link,
+.signal-dossier__actions button {
+  border-color: rgba(31, 118, 255, 0.24);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--radar-ink);
+}
+
+.signal-dossier__tv-link {
+  background: linear-gradient(180deg, #1f76ff, #0f63df);
+  color: #fff;
+}
+
+.signal-dossier__actions button:hover,
+.signal-dossier__actions button:focus-visible {
+  border-color: rgba(31, 118, 255, 0.42);
+  background: rgba(232, 244, 255, 0.9);
+}
+
+.signal-dossier__evidence-item::before {
+  box-shadow: 0 0 12px currentColor;
+}
+
+.signal-dossier__copilot-card {
+  background:
+    linear-gradient(90deg, rgba(31, 118, 255, 0.09), transparent 72%),
+    rgba(255, 255, 255, 0.54);
+}
+
+@media (max-width: 760px) {
+  .signal-dossier__drawer {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 88dvh;
+    border-radius: 8px 8px 0 0;
+    transform: translateY(calc(100% + 18px));
+  }
+
+  .signal-dossier--open .signal-dossier__drawer {
+    transform: translateY(0);
+  }
+
+  .signal-dossier__command {
+    grid-template-columns: 44px minmax(0, 1fr);
+    margin: 10px;
+    padding: 10px;
+  }
+
+  .signal-dossier__command-mark {
+    width: 44px;
+    height: 44px;
+    font-size: 28px;
+  }
+
+  .signal-dossier__decision-rail,
+  .signal-dossier__route-map,
+  .signal-dossier__v3-scores,
+  .signal-dossier__v3-location-grid,
+  .signal-dossier__v3-timeframes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .signal-dossier__hero {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .signal-dossier__command {
+    grid-template-columns: 1fr;
+  }
+
+  .signal-dossier__command-mark {
+    display: none;
+  }
+
+  .signal-dossier__decision-rail {
+    grid-column: 1;
+  }
+
+  .signal-dossier__route-map,
+  .signal-dossier__actions {
+    grid-template-columns: 1fr;
+  }
+}
