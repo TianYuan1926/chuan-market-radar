@@ -1379,6 +1379,15 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /存储可读/);
   assert.match(componentSource, /待迁移/);
   assert.match(componentSource, /不改变实时排序/);
+  assert.match(componentSource, /v3 Strategy Loop/);
+  assert.match(componentSource, /v3 策略实战闭环/);
+  assert.match(componentSource, /v3 live 覆盖/);
+  assert.match(componentSource, /v3 复盘覆盖/);
+  assert.match(componentSource, /v3 候选下一步/);
+  assert.match(componentSource, /关键位\/前方位/);
+  assert.match(componentSource, /Risk Gate/);
+  assert.match(componentSource, /v3StrategyLoop/);
+  assert.match(componentSource, /v3StrategyLoopStatusLabel/);
   assert.match(componentSource, /v3ForwardMapReviews/);
   assert.match(componentSource, /v3ForwardMapReviewStatusLabel/);
   assert.match(componentSource, /v3ForwardMapStorageLabel/);
@@ -1465,6 +1474,10 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-activation__grid/);
   assert.match(cssSource, /\.health-outcome-activation__checks/);
   assert.match(cssSource, /\.health-v3-forward-map/);
+  assert.match(cssSource, /\.health-v3-strategy-loop/);
+  assert.match(cssSource, /\.health-v3-strategy-loop__grid/);
+  assert.match(cssSource, /\.health-v3-strategy-loop__candidates/);
+  assert.match(cssSource, /\.health-v3-strategy-loop__candidate/);
   assert.match(cssSource, /\.health-v3-forward-map__grid/);
   assert.match(cssSource, /\.health-v3-forward-map__reasons/);
   assert.match(cssSource, /\.health-scan-economy/);

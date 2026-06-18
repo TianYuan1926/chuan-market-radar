@@ -93,6 +93,15 @@ function v3ForwardMapReviewStatusLabel(value: SystemHealthReport["v3ForwardMapRe
   }[value];
 }
 
+function v3StrategyLoopStatusLabel(value: SystemHealthReport["v3StrategyLoop"]["status"]) {
+  return {
+    blocked: "阻断",
+    collecting: "收集中",
+    ready_for_manual_review: "可复核",
+    waiting_data: "待数据",
+  }[value];
+}
+
 function v3ForwardMapStorageLabel(value: SystemHealthReport["v3ForwardMapReviews"]["storageStatus"]) {
   return {
     ready: "存储可读",
@@ -474,6 +483,8 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const v3ForwardMapRun = v3ForwardMapReviews.lastRun;
   const v3ForwardMapFailureReasons = v3ForwardMapRun?.failureReasons ?? [];
   const v3ForwardMapSkipReasons = v3ForwardMapRun?.skippedReasons.slice(0, 3) ?? [];
+  const v3StrategyLoop = health.v3StrategyLoop;
+  const v3StrategyLoopCandidates = v3StrategyLoop.candidates.slice(0, 4);
   const outcomeAdmission = health.outcomes.calibrationAdmission;
   const outcomeFlow = health.outcomes.calibrationFlow;
   const outcomeBlockers = outcomeFlow.blockerDetails.slice(0, 2);
@@ -969,6 +980,73 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
             <p title={v3ForwardMapReviews.storageDetail}>
               {v3ForwardMapStorageLabel(v3ForwardMapReviews.storageStatus)} · 只读复盘 · 不改权重 · 不改变实时排序
             </p>
+          </div>
+
+          <div
+            className={`health-v3-strategy-loop health-v3-strategy-loop--${v3StrategyLoop.status}`}
+            aria-label="v3 策略实战闭环"
+          >
+            <div className="health-ops__head">
+              <div>
+                <span className="mono">v3 Strategy Loop</span>
+                <strong>{v3StrategyLoop.operatorHint}</strong>
+              </div>
+              <b>{v3StrategyLoopStatusLabel(v3StrategyLoop.status)}</b>
+            </div>
+
+            <div className="health-v3-strategy-loop__grid" aria-label="v3 live 覆盖">
+              <span>
+                <b>{v3StrategyLoop.live.v3Signals}/{v3StrategyLoop.live.totalSignals}</b>
+                v3 覆盖
+              </span>
+              <span>
+                <b>{v3StrategyLoop.live.keyLevels}/{v3StrategyLoop.live.forwardLevels}</b>
+                关键位/前方位
+              </span>
+              <span>
+                <b>{v3StrategyLoop.live.readyPlans}/{v3StrategyLoop.live.blockedPlans}</b>
+                计划/阻断
+              </span>
+              <span>
+                <b>{v3StrategyLoop.live.riskGateBlocked}</b>
+                Risk Gate
+              </span>
+            </div>
+
+            <div className="health-v3-strategy-loop__grid" aria-label="v3 复盘覆盖">
+              <span>
+                <b>{v3StrategyLoop.review.sampleCount}</b>
+                复盘样本
+              </span>
+              <span>
+                <b>{v3StrategyLoop.review.closedSamples}</b>
+                已关闭
+              </span>
+              <span>
+                <b>{v3StrategyLoop.review.pendingSamples}</b>
+                待复查
+              </span>
+              <span>
+                <b>{v3StrategyLoop.review.topTradePlanLabel ?? "等待"}</b>
+                主计划
+              </span>
+            </div>
+
+            {v3StrategyLoopCandidates.length > 0 ? (
+              <div className="health-v3-strategy-loop__candidates" aria-label="v3 候选下一步">
+                {v3StrategyLoopCandidates.map((candidate) => (
+                  <span className="health-v3-strategy-loop__candidate" key={candidate.symbol}>
+                    <b>{candidate.symbol.replace("USDT", "")}</b>
+                    <em>{candidate.planStatus} · {candidate.rewardRisk === null ? "--" : `${candidate.rewardRisk.toFixed(2)}R`}</em>
+                    <small>{candidate.riskGateAllowed ? "Risk Gate 通过" : "Risk Gate 阻断"} · {candidate.nextStep}</small>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p>v3 候选等待 OHLCV、关键位和 Forward Map 样本。</p>
+            )}
+
+            <p>{v3StrategyLoop.guardrail}</p>
           </div>
 
           <div className="health-outcomes" aria-label="自动复盘摘要">

@@ -31,6 +31,7 @@ import {
   buildStrategyWeightShadowEvaluationReport,
   type StrategyWeightShadowEvaluationReport,
 } from "../journal/strategy-weight-shadow-evaluation";
+import { buildV3PatternReviewStats } from "../journal/v3-pattern-review-stats";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import type {
@@ -67,6 +68,12 @@ export type V3ForwardMapReviewStatus =
   | "covered"
   | "idle"
   | "waiting_run";
+
+export type V3StrategyLoopStatus =
+  | "blocked"
+  | "collecting"
+  | "ready_for_manual_review"
+  | "waiting_data";
 
 export type ScanEconomyBudgetStatus =
   | "near_budget"
@@ -232,6 +239,46 @@ export type V3ForwardMapReviewHealthReport = {
   storageStatus: "ready" | "unavailable";
 };
 
+export type V3StrategyLoopCandidate = {
+  decision: string;
+  nextStep: string;
+  planStatus: string;
+  rewardRisk: number | null;
+  riskGateAllowed: boolean;
+  state: string;
+  symbol: string;
+};
+
+export type V3StrategyLoopReport = {
+  allowedUse: "research_only";
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  candidates: V3StrategyLoopCandidate[];
+  guardrail: string;
+  live: {
+    blockedPlans: number;
+    conflictSignals: number;
+    forwardLevels: number;
+    keyLevels: number;
+    missingV3Signals: number;
+    readyPlans: number;
+    riskGateBlocked: number;
+    totalSignals: number;
+    v3Signals: number;
+  };
+  mode: "v3_strategy_loop_mvp";
+  operatorHint: string;
+  review: {
+    closedSamples: number;
+    patternStatus: string;
+    pendingSamples: number;
+    sampleCount: number;
+    topPatternLabel: string | null;
+    topTradePlanLabel: string | null;
+  };
+  status: V3StrategyLoopStatus;
+};
+
 export type SystemHealthReport = {
   generatedAt: string;
   level: SystemHealthLevel;
@@ -329,6 +376,7 @@ export type SystemHealthReport = {
     trackingEvents: number;
   };
   v3ForwardMapReviews: V3ForwardMapReviewHealthReport;
+  v3StrategyLoop: V3StrategyLoopReport;
   guards: SystemHealthGuard[];
 };
 
@@ -1321,6 +1369,126 @@ function v3ForwardMapReviewHealth({
   };
 }
 
+function v3StrategyLoopStatus({
+  reviewSampleCount,
+  reviewStatus,
+  riskGateBlocked,
+  totalSignals,
+  v3Signals,
+}: {
+  reviewSampleCount: number;
+  reviewStatus: string;
+  riskGateBlocked: number;
+  totalSignals: number;
+  v3Signals: number;
+}): V3StrategyLoopStatus {
+  if (totalSignals === 0 || v3Signals === 0) {
+    return "waiting_data";
+  }
+
+  if (riskGateBlocked >= v3Signals && v3Signals > 0) {
+    return "blocked";
+  }
+
+  if (reviewStatus === "review_ready" || reviewSampleCount >= 5) {
+    return "ready_for_manual_review";
+  }
+
+  return "collecting";
+}
+
+function v3StrategyLoopOperatorHint(status: V3StrategyLoopStatus) {
+  if (status === "waiting_data") {
+    return "当前扫描还缺少 v3 结构地图，先等待 OHLCV 和 Forward Map 样本进入扫描归档。";
+  }
+
+  if (status === "blocked") {
+    return "当前 v3 信号主要被 Risk Gate 或结构冲突阻断，只能观察或等待回踩/反抽确认。";
+  }
+
+  if (status === "ready_for_manual_review") {
+    return "v3 实战闭环已有可复核样本，可以人工查看形态/计划统计，但不能自动改权重。";
+  }
+
+  return "v3 实战闭环正在收集 live 地图、计划草案和复盘样本。";
+}
+
+function v3StrategyLoopReport(snapshot: MarketRadarSnapshot, events: JournalEvent[]): V3StrategyLoopReport {
+  const v3Signals = snapshot.signals.filter((signal) => signal.strategyV3);
+  const reviewStats = buildV3PatternReviewStats(events);
+  const live = v3Signals.reduce<V3StrategyLoopReport["live"]>((current, signal) => {
+    const strategyV3 = signal.strategyV3;
+
+    if (!strategyV3) {
+      return current;
+    }
+
+    current.keyLevels += strategyV3.keyLevels.length;
+    current.forwardLevels += strategyV3.forwardLevels.length;
+
+    if (strategyV3.tradePlan?.isPlanEligible) {
+      current.readyPlans += 1;
+    } else if (strategyV3.tradePlan) {
+      current.blockedPlans += 1;
+    }
+
+    if (strategyV3.trendContext?.riskGate.allowed === false) {
+      current.riskGateBlocked += 1;
+    }
+
+    if (strategyV3.trendContext?.state === "CONFLICT" || (strategyV3.trendContext?.conflicts.length ?? 0) > 0) {
+      current.conflictSignals += 1;
+    }
+
+    return current;
+  }, {
+    blockedPlans: 0,
+    conflictSignals: 0,
+    forwardLevels: 0,
+    keyLevels: 0,
+    missingV3Signals: Math.max(0, snapshot.signals.length - v3Signals.length),
+    readyPlans: 0,
+    riskGateBlocked: 0,
+    totalSignals: snapshot.signals.length,
+    v3Signals: v3Signals.length,
+  });
+  const status = v3StrategyLoopStatus({
+    reviewSampleCount: reviewStats.sampleCount,
+    reviewStatus: reviewStats.status,
+    riskGateBlocked: live.riskGateBlocked,
+    totalSignals: live.totalSignals,
+    v3Signals: live.v3Signals,
+  });
+
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    candidates: v3Signals.slice(0, 5).map((signal) => ({
+      decision: signal.strategyV3?.trendContext?.decision ?? "WATCH_ONLY",
+      nextStep: signal.strategyV3?.trendContext?.nextStep ?? signal.strategyV3?.summary ?? "等待 v3 上下文补齐。",
+      planStatus: signal.strategyV3?.tradePlan?.status ?? "WATCH_ONLY",
+      rewardRisk: signal.strategyV3?.tradePlan?.rewardRisk ?? null,
+      riskGateAllowed: signal.strategyV3?.trendContext?.riskGate.allowed ?? false,
+      state: signal.strategyV3?.trendContext?.state ?? "RANGE_IDLE",
+      symbol: signal.symbol,
+    })),
+    guardrail: "v3 实战闭环只读聚合 live 信号、Forward Map 和复盘样本；不能自动下单、不能自动改权重、不能改变实时排序。",
+    live,
+    mode: "v3_strategy_loop_mvp",
+    operatorHint: v3StrategyLoopOperatorHint(status),
+    review: {
+      closedSamples: reviewStats.closedSamples,
+      patternStatus: reviewStats.status,
+      pendingSamples: reviewStats.pendingSamples,
+      sampleCount: reviewStats.sampleCount,
+      topPatternLabel: reviewStats.topPattern?.label ?? null,
+      topTradePlanLabel: reviewStats.tradePlanBuckets[0]?.label ?? null,
+    },
+    status,
+  };
+}
+
 async function readV3ForwardMapSnapshotsSafely(repository: PersistenceRepository) {
   try {
     const snapshots = await repository.listV3ForwardMapSnapshots(240);
@@ -1548,6 +1716,7 @@ export async function buildSystemHealthReport({
       storageDetail: v3ForwardMapSnapshotRead.storageDetail,
       storageStatus: v3ForwardMapSnapshotRead.storageStatus,
     }),
+    v3StrategyLoop: v3StrategyLoopReport(snapshot, journalEvents),
     guards: [
       {
         id: "data-source",

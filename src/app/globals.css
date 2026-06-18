@@ -6717,6 +6717,120 @@ button.altcoin-opportunity-card.is-selected {
   color: #8a3e2f;
 }
 
+.health-v3-strategy-loop {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(82, 115, 204, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(82, 115, 204, 0.075), rgba(39, 140, 102, 0.045)),
+    rgba(255, 255, 255, 0.5);
+}
+
+.health-v3-strategy-loop--ready_for_manual_review {
+  border-color: rgba(39, 140, 102, 0.3);
+}
+
+.health-v3-strategy-loop--blocked {
+  border-color: rgba(201, 74, 74, 0.34);
+  background:
+    linear-gradient(135deg, rgba(201, 74, 74, 0.08), rgba(213, 155, 61, 0.045)),
+    rgba(255, 255, 255, 0.5);
+}
+
+.health-v3-strategy-loop--waiting_data {
+  border-color: rgba(111, 116, 128, 0.24);
+}
+
+.health-v3-strategy-loop__grid,
+.health-v3-strategy-loop__candidates {
+  display: grid;
+  gap: 6px;
+}
+
+.health-v3-strategy-loop__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-v3-strategy-loop__grid span,
+.health-v3-strategy-loop__candidate {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.health-v3-strategy-loop__grid span {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+}
+
+.health-v3-strategy-loop__grid b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-v3-strategy-loop__candidates {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.health-v3-strategy-loop__candidate {
+  display: grid;
+  grid-template-columns: minmax(0, 0.65fr) minmax(0, 1fr);
+  gap: 3px 8px;
+  padding: 7px;
+}
+
+.health-v3-strategy-loop__candidate b,
+.health-v3-strategy-loop__candidate em,
+.health-v3-strategy-loop__candidate small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-v3-strategy-loop__candidate b {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.health-v3-strategy-loop__candidate em {
+  color: var(--accent);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.health-v3-strategy-loop__candidate small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.health-v3-strategy-loop p {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .health-outcomes {
   display: grid;
   gap: 8px;
@@ -10182,7 +10296,8 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__lanes,
   .health-full-market__samples,
   .health-data-quality__grid,
-  .health-data-quality__issues {
+  .health-data-quality__issues,
+  .health-v3-strategy-loop__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -10191,6 +10306,10 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__samples span:nth-child(3),
   .health-data-quality__issue {
     grid-column: 1 / -1;
+  }
+
+  .health-v3-strategy-loop__candidates {
+    grid-template-columns: 1fr;
   }
 
   .executor-run-grid {

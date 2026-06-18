@@ -677,6 +677,80 @@ test("buildSystemHealthReport exposes v3 forward map review executor status", as
   assert.match(report.v3ForwardMapReviews.operatorHint, /失败/);
 });
 
+test("buildSystemHealthReport exposes readonly v3 strategy loop coverage", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+
+  for (let index = 0; index < 5; index += 1) {
+    await repository.addJournalEvent({
+      id: `journal-v3-loop-${index}`,
+      signalId: `ena-v3-loop-${index}`,
+      symbol: "ENAUSDT",
+      title: "v3 计划复盘样本",
+      result: index < 4 ? "win" : "loss",
+      note: "v3 pattern/trade sample.",
+      rankDelta: 0,
+      createdAt: `2026-06-12T10:0${index}:00.000Z`,
+      action: "paper_trade",
+      reviewStatus: "closed",
+      outcomeStatus: index < 4 ? "partial_win" : "loss",
+      lessons: ["still_tracking", "v3_trade_READY_LONG", "v3_pattern_context", "v3_pattern_DOUBLE_BOTTOM"],
+    });
+  }
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T11:10:00.000Z"),
+    repository,
+    snapshot: {
+      ...snapshot(),
+      signals: [
+        {
+          id: "ena-v3-loop-signal",
+          symbol: "ENAUSDT",
+          exchange: "BINANCE",
+          direction: "long",
+          state: "near_trigger",
+          timeframe: "15m",
+          regime: "risk_on",
+          confidence: 80,
+          risk: "medium",
+          evidence: [],
+          strategy: {
+            bias: "long",
+            entry: "wait reclaim",
+            invalidation: "close below support",
+            positionHint: "paper only",
+            riskReward: 3.4,
+            status: "waiting",
+            targets: ["target 1"],
+          },
+          strategyV3: strategyV3Dossier(),
+          updatedAt: "2026-06-12T10:00:00.000Z",
+          summary: "v3 loop signal",
+        },
+      ],
+    },
+  });
+
+  assert.equal(report.v3StrategyLoop.mode, "v3_strategy_loop_mvp");
+  assert.equal(report.v3StrategyLoop.allowedUse, "research_only");
+  assert.equal(report.v3StrategyLoop.canAutoAdjustWeights, false);
+  assert.equal(report.v3StrategyLoop.canMutateLiveRanking, false);
+  assert.equal(report.v3StrategyLoop.status, "ready_for_manual_review");
+  assert.equal(report.v3StrategyLoop.live.totalSignals, 1);
+  assert.equal(report.v3StrategyLoop.live.v3Signals, 1);
+  assert.equal(report.v3StrategyLoop.live.missingV3Signals, 0);
+  assert.equal(report.v3StrategyLoop.live.keyLevels, 1);
+  assert.equal(report.v3StrategyLoop.live.forwardLevels, 1);
+  assert.equal(report.v3StrategyLoop.review.sampleCount, 5);
+  assert.equal(report.v3StrategyLoop.review.closedSamples, 5);
+  assert.equal(report.v3StrategyLoop.review.topPatternLabel, "双底");
+  assert.equal(report.v3StrategyLoop.review.topTradePlanLabel, "多头就绪");
+  assert.equal(report.v3StrategyLoop.candidates[0]?.symbol, "ENAUSDT");
+  assert.match(report.v3StrategyLoop.guardrail, /不能自动下单/);
+  assert.match(report.v3StrategyLoop.operatorHint, /人工查看|人工校准|可复核/);
+});
+
 test("buildSystemHealthReport keeps the site available when v3 forward map storage is not migrated", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
   const repositoryWithMissingV3Table = {
