@@ -44,6 +44,7 @@ import type {
   ScanPriorityReason,
   ScanTierCounts,
   ScanTierKey,
+  VenueCoverageQuality,
 } from "../market/types";
 
 export type SystemHealthLevel = "ready" | "preview" | "degraded" | "blocked";
@@ -165,6 +166,27 @@ export type FullMarketHighPriorityReport = {
   rotatingSelectedAssets: string[];
 };
 
+export type FullMarketExchangeDrilldownRow = {
+  action: string;
+  count: number;
+  id: VenueCoverageQuality;
+  label: string;
+  operatorHint: string;
+  percent: number;
+  samples: string[];
+};
+
+export type FullMarketExchangeDrilldownReport = {
+  guardrail: string;
+  nextActions: string[];
+  rows: FullMarketExchangeDrilldownRow[];
+  unsupported: {
+    count: number;
+    operatorHint: string;
+    samples: string[];
+  };
+};
+
 export type FullMarketCoverageReport = {
   coverage: {
     batchLabel: string;
@@ -186,6 +208,7 @@ export type FullMarketCoverageReport = {
     singleExchange: number;
     unlisted: number;
   };
+  exchangeDrilldown: FullMarketExchangeDrilldownReport;
   guardrails: string[];
   highPriority: FullMarketHighPriorityReport;
   lanes: FullMarketCoverageLane[];
@@ -808,6 +831,109 @@ function fullMarketHighPriorityReport(
   };
 }
 
+const exchangeDrilldownLabels: Record<VenueCoverageQuality, string> = {
+  major_three: "三所共振",
+  multi_exchange: "多所覆盖",
+  single_exchange: "单所观察",
+  unlisted: "发现缺口",
+};
+
+const exchangeDrilldownHints: Record<VenueCoverageQuality, string> = {
+  major_three: "Binance/OKX/Bybit 同时覆盖，适合优先进入候选深挖。",
+  multi_exchange: "多所覆盖但不是三所齐全，信号可用但仍需留意交易所差异。",
+  single_exchange: "只有单所覆盖，信号需要更严格的流动性、OI 和波动验证。",
+  unlisted: "未在主要发现源确认，不能包装成可靠全市场覆盖。",
+};
+
+const exchangeDrilldownActions: Record<VenueCoverageQuality, string> = {
+  major_three: "优先承接深度分析候选。",
+  multi_exchange: "保留轮转，等待更多交易所确认。",
+  single_exchange: "降权观察，避免单所噪音直接触发。",
+  unlisted: "确认发现源、报价和合约状态后再纳入。",
+};
+
+const exchangeDrilldownOrder: VenueCoverageQuality[] = [
+  "major_three",
+  "multi_exchange",
+  "single_exchange",
+  "unlisted",
+];
+
+function exchangeCoverageSampleLabel(
+  item: NonNullable<ScanCoverage["exchangeCoverage"]>[number],
+) {
+  const exchanges = item.exchanges.length > 0 ? item.exchanges.join("/") : "未发现";
+
+  return `${item.baseAsset} ${exchanges}`;
+}
+
+function buildExchangeDrilldownRows(
+  coverage: ScanCoverage,
+  eligible: number,
+): FullMarketExchangeDrilldownRow[] {
+  const exchangeCoverage = coverage.exchangeCoverage ?? [];
+
+  return exchangeDrilldownOrder.map((id) => {
+    const items = exchangeCoverage.filter((item) => item.venueCoverage === id);
+    const summaryKey = id === "major_three"
+      ? "majorThree"
+      : id === "multi_exchange"
+        ? "multiExchange"
+        : id === "single_exchange"
+          ? "singleExchange"
+          : "unlisted";
+    const count = items.length > 0
+      ? items.length
+      : coverage.exchangeCoverageSummary?.[summaryKey] ?? 0;
+
+    return {
+      action: exchangeDrilldownActions[id],
+      count,
+      id,
+      label: exchangeDrilldownLabels[id],
+      operatorHint: exchangeDrilldownHints[id],
+      percent: eligible > 0 ? Math.round((count / eligible) * 100) : 0,
+      samples: items.slice(0, 5).map(exchangeCoverageSampleLabel),
+    };
+  });
+}
+
+function fullMarketExchangeDrilldownReport(
+  coverage: ScanCoverage,
+  eligible: number,
+): FullMarketExchangeDrilldownReport {
+  const rows = buildExchangeDrilldownRows(coverage, eligible);
+  const singleOrUnlisted = rows
+    .filter((row) => row.id === "single_exchange" || row.id === "unlisted")
+    .reduce((sum, row) => sum + row.count, 0);
+  const majorThree = rows.find((row) => row.id === "major_three")?.count ?? 0;
+  const rejectedSamples = coverage.skippedAssets
+    .slice(0, 6)
+    .map((asset) => `${asset.symbol}:${asset.reason}`);
+  const nextActions = [
+    singleOrUnlisted > 0
+      ? `先复核 ${singleOrUnlisted} 个单所/发现缺口标的，避免低质量数据进入深挖。`
+      : "当前没有单所或发现缺口标的，保持现有轮转。",
+    majorThree > 0
+      ? `三所共振标的 ${majorThree} 个，可优先进入候选深度分析。`
+      : "三所共振覆盖不足，先检查 discovery source 和配置白名单。",
+    "交易所覆盖钻取只读扫描 metadata，不会触发额外请求。",
+  ];
+
+  return {
+    guardrail: "交易所覆盖钻取只读取本轮 coverage metadata；覆盖质量只能影响观察优先级，不能单独生成交易方向。",
+    nextActions,
+    rows,
+    unsupported: {
+      count: coverage.skipped,
+      operatorHint: coverage.skipped > 0
+        ? "过滤标的来自停牌、非 USDT、非永续或流动性不足，必须留在分析外层。"
+        : "当前没有过滤样本，继续保持质量门槛。",
+      samples: rejectedSamples,
+    },
+  };
+}
+
 function fullMarketLaneRows(scanEconomy: ScanEconomyReport): FullMarketCoverageLane[] {
   return [
     {
@@ -903,6 +1029,7 @@ function fullMarketCoverageReport(
       singleExchange: exchangeSummary.singleExchange,
       unlisted: exchangeSummary.unlisted,
     },
+    exchangeDrilldown: fullMarketExchangeDrilldownReport(coverage, eligible),
     guardrails: [
       "全市场扫描采用轻扫描轮转，深度分析只给候选池和关键观察标的。",
       "前端覆盖报告只读取本轮 metadata，不会触发额外 CoinGlass 请求。",

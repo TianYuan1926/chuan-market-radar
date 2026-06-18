@@ -80,6 +80,16 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
         singleExchange: 0,
         unlisted: 0,
       },
+      exchangeDrilldown: {
+        guardrail: "交易所覆盖钻取只读取本轮 coverage metadata；覆盖质量只能影响观察优先级，不能单独生成交易方向。",
+        nextActions: [],
+        rows: [],
+        unsupported: {
+          count: 0,
+          operatorHint: "当前没有过滤样本，继续保持质量门槛。",
+          samples: [],
+        },
+      },
       guardrails: [
         "全市场扫描采用轻扫描轮转，深度分析只给候选池和关键观察标的。",
         "前端覆盖报告只读取本轮 metadata，不会触发额外 CoinGlass 请求。",

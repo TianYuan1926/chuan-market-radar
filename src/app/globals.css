@@ -6384,6 +6384,8 @@ button.altcoin-opportunity-card.is-selected {
 .health-full-market__grid,
 .health-full-market__lanes,
 .health-full-market__priority,
+.health-full-market__exchange-drilldown,
+.health-full-market__exchange-actions,
 .health-full-market__samples,
 .health-full-market__guardrails {
   display: grid;
@@ -6397,6 +6399,8 @@ button.altcoin-opportunity-card.is-selected {
 .health-full-market__grid span,
 .health-full-market__lane,
 .health-full-market__priority span,
+.health-full-market__exchange-row,
+.health-full-market__exchange-actions span,
 .health-full-market__samples span,
 .health-full-market__guardrails span {
   min-width: 0;
@@ -6434,6 +6438,14 @@ button.altcoin-opportunity-card.is-selected {
   grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr));
 }
 
+.health-full-market__exchange-drilldown {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-full-market__exchange-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .health-full-market__lane {
   display: grid;
   gap: 2px;
@@ -6449,10 +6461,22 @@ button.altcoin-opportunity-card.is-selected {
   line-height: 1.35;
 }
 
+.health-full-market__exchange-row,
+.health-full-market__exchange-actions span {
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .health-full-market__lane strong,
 .health-full-market__lane small,
 .health-full-market__priority strong,
-.health-full-market__priority small {
+.health-full-market__priority small,
+.health-full-market__exchange-row strong,
+.health-full-market__exchange-row small {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6471,10 +6495,31 @@ button.altcoin-opportunity-card.is-selected {
   font-weight: 900;
 }
 
+.health-full-market__exchange-row strong {
+  color: var(--ink-2);
+  font-size: 10px;
+  font-weight: 900;
+}
+
 .health-full-market__priority b {
   color: var(--accent);
   font-size: 13px;
   font-weight: 900;
+}
+
+.health-full-market__exchange-row b {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.health-full-market__exchange-row--major_three b {
+  color: var(--success);
+}
+
+.health-full-market__exchange-row--single_exchange b,
+.health-full-market__exchange-row--unlisted b {
+  color: var(--warning);
 }
 
 .health-full-market__lane small {
@@ -6485,6 +6530,15 @@ button.altcoin-opportunity-card.is-selected {
 .health-full-market__priority small {
   color: var(--muted);
   font-size: 9px;
+}
+
+.health-full-market__exchange-row small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.health-full-market__exchange-actions span {
+  color: var(--ink-2);
 }
 
 .health-full-market__lane--skipped b {
@@ -10633,6 +10687,8 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__grid,
   .health-full-market__lanes,
   .health-full-market__priority,
+  .health-full-market__exchange-drilldown,
+  .health-full-market__exchange-actions,
   .health-full-market__samples,
   .health-data-quality__grid,
   .health-data-quality__issues,
@@ -10650,6 +10706,7 @@ button.altcoin-opportunity-card.is-selected {
   .health-scan-economy__tier--skipped,
   .health-full-market__lane--skipped,
   .health-full-market__priority span:first-child,
+  .health-full-market__exchange-actions span,
   .health-full-market__samples span:nth-child(3),
   .health-data-quality__issue,
   .health-evolution-loop__stage:nth-child(5),

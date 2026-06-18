@@ -391,9 +391,46 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
         exchangeCoverageSummary: {
           majorThree: 2,
           multiExchange: 1,
-          singleExchange: 2,
-          unlisted: 0,
+          singleExchange: 1,
+          unlisted: 1,
         },
+        exchangeCoverage: [
+          {
+            baseAsset: "BTC",
+            exchangeCount: 3,
+            exchanges: ["BINANCE", "OKX", "BYBIT"],
+            symbol: "BTCUSDT",
+            venueCoverage: "major_three",
+          },
+          {
+            baseAsset: "ETH",
+            exchangeCount: 3,
+            exchanges: ["BINANCE", "OKX", "BYBIT"],
+            symbol: "ETHUSDT",
+            venueCoverage: "major_three",
+          },
+          {
+            baseAsset: "SOL",
+            exchangeCount: 2,
+            exchanges: ["BINANCE", "OKX"],
+            symbol: "SOLUSDT",
+            venueCoverage: "multi_exchange",
+          },
+          {
+            baseAsset: "ENA",
+            exchangeCount: 1,
+            exchanges: ["BINANCE"],
+            symbol: "ENAUSDT",
+            venueCoverage: "single_exchange",
+          },
+          {
+            baseAsset: "SUI",
+            exchangeCount: 0,
+            exchanges: [],
+            symbol: "SUIUSDT",
+            venueCoverage: "unlisted",
+          },
+        ],
         nextBatchIndex: 2,
         pending: 2,
         pendingAssets: ["SOL", "SUI"],
@@ -452,6 +489,18 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.equal(report.fullMarketCoverage.coverage.nextBatchLabel, "3/3");
   assert.equal(report.fullMarketCoverage.coverage.estimatedFullCycleMinutes, 45);
   assert.equal(report.fullMarketCoverage.exchangeQuality.majorThreePercent, 40);
+  assert.equal(report.fullMarketCoverage.exchangeDrilldown.rows.length, 4);
+  assert.equal(report.fullMarketCoverage.exchangeDrilldown.rows[0]?.label, "三所共振");
+  assert.equal(report.fullMarketCoverage.exchangeDrilldown.rows[0]?.count, 2);
+  assert.deepEqual(report.fullMarketCoverage.exchangeDrilldown.rows[0]?.samples, [
+    "BTC BINANCE/OKX/BYBIT",
+    "ETH BINANCE/OKX/BYBIT",
+  ]);
+  assert.equal(report.fullMarketCoverage.exchangeDrilldown.rows.find((row) => row.id === "single_exchange")?.count, 1);
+  assert.equal(report.fullMarketCoverage.exchangeDrilldown.rows.find((row) => row.id === "unlisted")?.samples[0], "SUI 未发现");
+  assert.match(report.fullMarketCoverage.exchangeDrilldown.guardrail, /只读取本轮 coverage metadata/);
+  assert.match(report.fullMarketCoverage.exchangeDrilldown.nextActions.join(" "), /单所\/发现缺口/);
+  assert.deepEqual(report.fullMarketCoverage.exchangeDrilldown.unsupported.samples, ["OLDUSDT:inactive"]);
   assert.equal(report.fullMarketCoverage.highPriority.enabled, true);
   assert.equal(report.fullMarketCoverage.highPriority.slotsUsed, 1);
   assert.equal(report.fullMarketCoverage.highPriority.slotsAvailable, 1);

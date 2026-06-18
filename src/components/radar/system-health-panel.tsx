@@ -843,6 +843,22 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               </span>
             </div>
 
+            <div className="health-full-market__exchange-drilldown" aria-label="交易所覆盖钻取">
+              {fullMarketCoverage.exchangeDrilldown.rows.map((row) => (
+                <span className={`health-full-market__exchange-row health-full-market__exchange-row--${row.id}`} key={row.id}>
+                  <b>{row.count}</b>
+                  <strong>{row.label}</strong>
+                  <small>{row.samples.length > 0 ? row.samples.join(" / ") : row.operatorHint}</small>
+                </span>
+              ))}
+            </div>
+
+            <div className="health-full-market__exchange-actions" aria-label="覆盖动作">
+              {fullMarketCoverage.exchangeDrilldown.nextActions.slice(0, 3).map((action) => (
+                <span key={action}>{action}</span>
+              ))}
+            </div>
+
             <div className="health-full-market__samples" aria-label="全市场样本解释">
               <span>
                 <b>已扫</b>
