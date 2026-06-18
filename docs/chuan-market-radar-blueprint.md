@@ -356,7 +356,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未完成站内告警历史持久化、可配置静默时段、可配置告警等级阈值和提示音细节 |
-| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础和 2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、功能抽屉和紧凑像素副驾驶 dock 已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 仍需继续做功能抽屉真实二级页面/路由、启动动画、Signal Dossier 视觉精修、装备升级动效、更完整交互动效和更专业的真实图表表现 |
+| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构和 Phase 8.2f Functional Navigation / Drawers 已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、真实导航抽屉和紧凑像素副驾驶 dock 已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 仍需继续做启动动画、Signal Dossier 视觉精修、装备升级动效、更完整交互动效和更专业的真实图表表现 |
 
 ## 当前已落地模块
 
@@ -821,6 +821,13 @@ AI 复核必须遵守：
 - `radar-workspace.tsx` 不再把 DailyMover、Replay、Journal、Rank 等完整模块堆在首屏；首页改为左侧雷达控制台、中央信号竞技场、候选横条、首屏主图、右侧 Action Rail 和功能抽屉。
 - `PixelCopilot` 改为紧凑 companion dock，只作为右侧轻量助手入口，不再占用大面积面板。
 - `TopRadarBar` 的雷达之眼图片按首屏 LCP 处理为 `priority + loading="eager"` 资源；桌面 1536x1024 与移动 390x844 已用浏览器截图检查，无控制台错误、无 LCP warning、无候选文字遮挡。
+
+2026-06-18 Phase 8.2f 已完成 Functional Navigation And Drawers：
+- `TopRadarBar` 的 Radar / Signals / Review / Journal / Evolution / Settings 已从静态按钮升级为真实导航状态；Radar 关闭抽屉回主控台，其余入口打开对应工作区抽屉。
+- 右侧 Action Rail 的功能抽屉入口已可点击，并与顶部导航共享同一 `activeSection`。
+- Signals 抽屉承接候选池、信号档案入口和当前策略卡；Review 抽屉承接扫描回放与每日异动复盘；Journal 抽屉承接交易日记和形态复盘统计；Evolution 抽屉承接段位、策略校准和每日异动策略版本表现；Settings 抽屉承接系统健康状态。
+- `DailyMoverPanel` 的人工校准入队和策略草案人工确认已接入现有 `/api/journal`，只写入复盘/确认记录，不自动交易、不自动改权重、不改变实时排序。
+- 完整 DailyMover / Replay / Journal / Rank / SystemHealth 能力不再常驻首页首屏，而是通过 drawer 按需打开，避免 UI 回到“一页堆满所有功能”的旧问题。
 - 当前已经通过 `npm run test:market`、`npm run lint`、`npm run build` 和单独 `npm run typecheck`；`design-qa.md` 记录本轮视觉验收，最终结果为 `passed`。后续还需要继续做二级页面、启动动画和真实图表表现。
 
 最终 UI 方向：
@@ -1110,23 +1117,19 @@ CoinGlass 业余会员 API：
 
 后续正确 UI 搭建顺序：
 
-1. **Phase 8.2f：Functional Navigation And Drawers**
-   - 让 Radar / Signals / Review / Journal / Evolution / Settings 从静态 nav 变成可打开的 drawer、tab 或二级页面入口。
-   - DailyMover、Replay、Journal、Rank/Evolution 的完整能力迁入对应区域，不回到首页常驻。
-
-2. **Phase 8.2g：Startup Briefing And Brand Motion**
+1. **Phase 8.2g：Startup Briefing And Brand Motion**
    - 增加可跳过启动动画和网站介绍 briefing：解释“全市场山寨趋势切换雷达”、当前数据源、风险边界和扫描状态。
    - 动画必须短、可关闭、遵守 `prefers-reduced-motion`，不做背景音乐。
 
-3. **Phase 8.2h：Signal Dossier Visual Upgrade**
+2. **Phase 8.2h：Signal Dossier Visual Upgrade**
    - 按选定浅色工作台风格重做信号档案视觉：关键位、Forward Map、证据链、交易计划、复盘关联和副驾驶反馈同屏联动。
    - 深层证据放档案，不回到首页堆叠。
 
-4. **Phase 8.2i：Pixel Copilot Motion And Equipment**
+3. **Phase 8.2i：Pixel Copilot Motion And Equipment**
    - 在紧凑 dock 基础上增加眨眼、呼吸、BTC 项链闪光、警戒/刹车/升级状态和装备解锁。
    - 副驾驶只做纪律反馈、状态提示和档案入口，不能喊单、不能抢主信息层。
 
-5. **Phase 3.9：BTC ETH Macro Radar**
+4. **Phase 3.9：BTC ETH Macro Radar**
    - BTC/ETH/ETF/OI/funding/liquidations 作为大盘天气，不抢山寨主线。
    - 输出顺风、逆风、拥挤、去杠杆、假突破风险等环境层，影响机会排序和策略解释。
    - 当前状态：已完成 BTC/ETH Macro Weather 第一版；它复用现有扫描快照，不新增请求，不修改真实权重。ETF 专项端点仍需等 CoinGlass Hobbyist 可用性和 quota 先验证后再接入。

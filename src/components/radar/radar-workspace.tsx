@@ -1,16 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChartPanel } from "./chart-panel";
 import { AltcoinOpportunityBoard } from "./altcoin-opportunity-board";
+import { DailyMoverPanel } from "./daily-mover-panel";
+import { JournalPanel } from "./journal-panel";
 import { MacroWeatherPanel } from "./macro-weather-panel";
 import { OpsAndFilterPanel } from "./ops-and-filter-panel";
 import { PixelCopilot } from "./pixel-copilot";
 import { RadarCockpitShell } from "./radar-cockpit-shell";
 import { RadarTable } from "./radar-table";
+import { RankPanel } from "./rank-panel";
+import { ReplayPanel } from "./replay-panel";
 import { SignalDossier, type SignalDossierDailyMoverMatch } from "./signal-dossier";
 import { StrategyCard } from "./strategy-card";
-import { TopRadarBar, type RuntimeStateView } from "./top-radar-bar";
+import { SystemHealthPanel } from "./system-health-panel";
+import { TopRadarBar, type RadarNavigationSection, type RuntimeStateView } from "./top-radar-bar";
 import { signalStateLabels } from "@/lib/analysis/constants";
 import {
   buildAlertEvent,
@@ -22,7 +27,11 @@ import {
   type AlertEvent,
   type AlertSound,
 } from "@/lib/alerts/alert-policy";
-import type { DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
+import type {
+  DailyMoverCalibrationSuggestion,
+  DailyMoverReadArchiveResult,
+  DailyMoverStrategyDraft,
+} from "@/lib/api/daily-mover-readonly";
 import {
   buildJournalEntryFromSignal,
   mergeJournalEntry,
@@ -47,7 +56,11 @@ type RadarWorkspaceProps = {
 
 type RefreshState = "idle" | "syncing" | "updated" | "quiet" | "error";
 type JournalSaveStatus = "idle" | "saving" | "saved" | "error";
+type DailyMoverCalibrationReviewStatus = "idle" | "saving" | "saved" | "error";
+type DailyMoverStrategyConfirmationStatus = "idle" | "saving" | "saved" | "error";
 type AudioContextConstructor = typeof AudioContext;
+
+type WorkspaceDrawerSection = Exclude<RadarNavigationSection, "radar">;
 
 const alertQuietHours = {
   endHour: 8,
@@ -386,6 +399,38 @@ function journalStatusLabel(state: JournalSaveStatus) {
   }[state];
 }
 
+const workspaceDrawerCopy: Record<WorkspaceDrawerSection, {
+  closeLabel: string;
+  kicker: string;
+  title: string;
+}> = {
+  evolution: {
+    closeLabel: "关闭进化抽屉",
+    kicker: "策略校准 / 段位 / 版本表现",
+    title: "Evolution 进化室",
+  },
+  journal: {
+    closeLabel: "关闭日志抽屉",
+    kicker: "交易日记 / 行为记录 / 形态复盘统计",
+    title: "Journal 日志室",
+  },
+  review: {
+    closeLabel: "关闭复盘抽屉",
+    kicker: "扫描回放 / 每日异动 / 漏判归因",
+    title: "Review 复盘室",
+  },
+  settings: {
+    closeLabel: "关闭设置抽屉",
+    kicker: "系统健康 / 数据源 / 持久化状态",
+    title: "Settings 系统设置",
+  },
+  signals: {
+    closeLabel: "关闭信号抽屉",
+    kicker: "候选池 / 信号档案 / 当前计划",
+    title: "Signals 信号池",
+  },
+};
+
 function deltaLabel(delta: SignalSetDelta | null) {
   if (!delta) {
     return "观察中";
@@ -449,9 +494,14 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const [selectedId, setSelectedId] = useState<string | undefined>(signals[0]?.id);
   const [dossierSignalId, setDossierSignalId] = useState<string | undefined>();
   const [isDossierOpen, setIsDossierOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<RadarNavigationSection>("radar");
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>(signals[0]?.timeframe ?? "15m");
   const [journalEntries, setJournalEntries] = useState<JournalEvent[]>(journalEvents);
   const [journalStatus, setJournalStatus] = useState<JournalSaveStatus>("idle");
+  const [dailyMoverCalibrationStatus, setDailyMoverCalibrationStatus] =
+    useState<DailyMoverCalibrationReviewStatus>("idle");
+  const [dailyMoverStrategyStatus, setDailyMoverStrategyStatus] =
+    useState<DailyMoverStrategyConfirmationStatus>("idle");
   const [dailyMoverState] = useState(dailyMoverArchive);
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>(() =>
@@ -687,6 +737,14 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     setIsDossierOpen(false);
   }, []);
 
+  const closeWorkspaceDrawer = useCallback(() => {
+    setActiveSection("radar");
+  }, []);
+
+  const navigateWorkspace = useCallback((section: RadarNavigationSection) => {
+    setActiveSection(section);
+  }, []);
+
   const openSignalDossier = useCallback((id?: string) => {
     const signal = id ? signals.find((item) => item.id === id) : selected;
 
@@ -699,6 +757,17 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     setDossierSignalId(signal.id);
     setIsDossierOpen(true);
   }, [selected, signals]);
+
+  const applyJournalResponse = useCallback((payload: {
+    entry?: JournalEvent;
+    entries?: JournalEvent[];
+  }) => {
+    if (payload.entry) {
+      setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
+    } else if (payload.entries) {
+      setJournalEntries(payload.entries);
+    }
+  }, []);
 
   function toggleSound() {
     if (soundEnabled) {
@@ -870,6 +939,24 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   }, [closeSignalDossier, isDossierOpen]);
 
   useEffect(() => {
+    if (activeSection === "radar" || isDossierOpen) {
+      return undefined;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeWorkspaceDrawer();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeSection, closeWorkspaceDrawer, isDossierOpen]);
+
+  useEffect(() => {
     return () => {
       if (audioContextRef.current) {
         void audioContextRef.current.close();
@@ -920,23 +1007,107 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         entries?: JournalEvent[];
       };
 
-      if (payload.entry) {
-        setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
-      } else if (payload.entries) {
-        setJournalEntries(payload.entries);
-      }
-
+      applyJournalResponse(payload);
       setJournalStatus("saved");
     } catch {
       setJournalStatus("error");
     }
   }
 
+  async function createDailyMoverCalibrationReview(
+    suggestion: DailyMoverCalibrationSuggestion,
+    context: { observedAt: string; snapshotId: string },
+  ) {
+    setDailyMoverCalibrationStatus("saving");
+
+    try {
+      const response = await fetch("/api/journal", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "calibration_review",
+          calibration: {
+            guardrail: suggestion.guardrail,
+            label: suggestion.label,
+            observedAt: context.observedAt,
+            recommendation: suggestion.recommendation,
+            sampleCount: suggestion.sampleCount,
+            snapshotId: context.snapshotId,
+            symbols: suggestion.symbols,
+            tag: suggestion.tag,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("daily_mover_calibration_request_failed");
+      }
+
+      const payload = await response.json() as {
+        entry?: JournalEvent;
+        entries?: JournalEvent[];
+      };
+
+      applyJournalResponse(payload);
+      setDailyMoverCalibrationStatus("saved");
+      setActiveSection("journal");
+    } catch {
+      setDailyMoverCalibrationStatus("error");
+    }
+  }
+
+  async function confirmDailyMoverStrategyDraft(draft: DailyMoverStrategyDraft) {
+    setDailyMoverStrategyStatus("saving");
+
+    try {
+      const response = await fetch("/api/journal", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "strategy_confirmation",
+          strategyDraft: {
+            allowedUse: draft.allowedUse,
+            canAutoAdjustWeights: draft.canAutoAdjustWeights,
+            draftId: draft.id,
+            evidenceSummary: draft.evidenceSummary,
+            label: draft.label,
+            limitation: draft.limitation,
+            manualConfirmation: draft.manualConfirmation,
+            nextStep: draft.nextStep,
+            sourceMode: draft.sourceMode,
+            tag: draft.tag,
+            validationVerdict: draft.validationVerdict,
+            versionLabel: draft.versionLabel,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("daily_mover_strategy_confirmation_failed");
+      }
+
+      const payload = await response.json() as {
+        entry?: JournalEvent;
+        entries?: JournalEvent[];
+      };
+
+      applyJournalResponse(payload);
+      setDailyMoverStrategyStatus("saved");
+      setActiveSection("evolution");
+    } catch {
+      setDailyMoverStrategyStatus("error");
+    }
+  }
+
   const featureDrawerItems = [
-    { label: "Signals", value: `${signals.length} 候选`, description: "候选池与信号档案" },
-    { label: "Review", value: `${liveSnapshot.archive?.entries.length ?? 0} 帧`, description: "扫描回放与复盘样本" },
-    { label: "Journal", value: `${journalEntries.length} 条`, description: "交易日记和行为记录" },
-    { label: "Evolution", value: `${dailyMoverState.strategyConfirmations.length} 版`, description: "策略校准与权重学习" },
+    { description: "候选池与信号档案", label: "Signals", section: "signals" as const, value: `${signals.length} 候选` },
+    { description: "扫描回放与复盘样本", label: "Review", section: "review" as const, value: `${liveSnapshot.archive?.entries.length ?? 0} 帧` },
+    { description: "交易日记和行为记录", label: "Journal", section: "journal" as const, value: `${journalEntries.length} 条` },
+    { description: "策略校准与权重学习", label: "Evolution", section: "evolution" as const, value: `${dailyMoverState.strategyConfirmations.length} 版` },
   ];
   const candidateStripSignals = signals.slice(0, 5);
   const selectedSymbol = selected?.symbol.replace("USDT", "") ?? "等待候选";
@@ -948,6 +1119,77 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         ? "检查关键位，满足条件再执行。"
         : "继续观察，不提前抢跑。"
     : "等待下一轮扫描。";
+  const isWorkspaceDrawerOpen = activeSection !== "radar";
+  const activeDrawerCopy = isWorkspaceDrawerOpen ? workspaceDrawerCopy[activeSection] : undefined;
+  let workspaceDrawerContent: ReactNode = null;
+
+  if (activeSection === "signals") {
+    workspaceDrawerContent = (
+      <div className="workspace-drawer__stack">
+        <section className="module workspace-drawer__brief">
+          <div className="module-head">
+            <h2>候选池操作</h2>
+            <span className="tag">{signals.length} 信号</span>
+          </div>
+          <p>这里只承接信号池、候选切换和档案入口；真正交易判断仍以证据链、关键位、RR 和风控门为准。</p>
+          <div className="workspace-drawer__actions">
+            <button className="action-button" onClick={() => openSignalDossier()} type="button">
+              打开当前信号档案
+            </button>
+            <button className="action-button action-button--ghost" onClick={() => setActiveSection("review")} type="button">
+              去复盘链路
+            </button>
+          </div>
+        </section>
+        <RadarTable
+          signals={signals}
+          selectedId={selected?.id}
+          onOpenDossier={openSignalDossier}
+          onSelect={selectSignal}
+        />
+        <StrategyCard selected={selected} />
+      </div>
+    );
+  } else if (activeSection === "review") {
+    workspaceDrawerContent = (
+      <div className="workspace-drawer__stack">
+        <ReplayPanel archive={liveSnapshot.archive} />
+        <DailyMoverPanel
+          archive={dailyMoverState}
+          calibrationReviewStatus={dailyMoverCalibrationStatus}
+          onCreateCalibrationReview={createDailyMoverCalibrationReview}
+          onConfirmStrategyDraft={confirmDailyMoverStrategyDraft}
+          strategyConfirmationStatus={dailyMoverStrategyStatus}
+        />
+      </div>
+    );
+  } else if (activeSection === "journal") {
+    workspaceDrawerContent = (
+      <JournalPanel
+        events={journalEntries}
+        onCreate={createJournalEntry}
+        selected={selected}
+        status={journalStatus}
+      />
+    );
+  } else if (activeSection === "evolution") {
+    workspaceDrawerContent = (
+      <div className="workspace-drawer__stack">
+        <RankPanel profile={rankProfile} />
+        <DailyMoverPanel
+          archive={dailyMoverState}
+          calibrationReviewStatus={dailyMoverCalibrationStatus}
+          onCreateCalibrationReview={createDailyMoverCalibrationReview}
+          onConfirmStrategyDraft={confirmDailyMoverStrategyDraft}
+          strategyConfirmationStatus={dailyMoverStrategyStatus}
+        />
+      </div>
+    );
+  } else if (activeSection === "settings") {
+    workspaceDrawerContent = (
+      <SystemHealthPanel health={liveHealth} />
+    );
+  }
 
   return (
     <main className={`studio-shell radar-app-shell studio-shell--${metadata.status} studio-shell--refresh-${refreshState} studio-shell--risk-${metadata.riskGate}`}>
@@ -958,6 +1200,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       </div>
 
       <TopRadarBar
+        activeSection={activeSection}
         batchNote={batchNote}
         cadenceMinutes={metadata.cadenceMinutes}
         candidateCount={instrumentPool.summary.accepted}
@@ -970,6 +1213,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         marketStatus={marketStatusLabel(metadata.status)}
         nextScanAt={metadata.nextScanAt}
         nextScanTime={formatScanTime(metadata.nextScanAt)}
+        onNavigate={navigateWorkspace}
         onToggleSound={toggleSound}
         providerLabel={marketSourceLabel(metadata.source)}
         refreshInterval={formatRefreshInterval(refreshIntervalMs)}
@@ -1148,7 +1392,13 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             </div>
             <div className="feature-drawer-grid" aria-label="功能抽屉">
               {featureDrawerItems.map((item) => (
-                <button className="feature-drawer-grid__item" key={item.label} type="button">
+                <button
+                  aria-current={activeSection === item.section ? "page" : undefined}
+                  className={`feature-drawer-grid__item ${activeSection === item.section ? "is-active" : ""}`}
+                  key={item.label}
+                  onClick={() => setActiveSection(item.section)}
+                  type="button"
+                >
                   <span>{item.label}</span>
                   <b>{item.value}</b>
                   <small>{item.description}</small>
@@ -1186,6 +1436,36 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
           </>
         )}
       />
+
+      <section
+        aria-label={activeDrawerCopy?.title ?? "Workspace Drawer"}
+        aria-modal={isWorkspaceDrawerOpen}
+        className={`workspace-drawer workspace-drawer--${activeSection} ${isWorkspaceDrawerOpen ? "workspace-drawer--open" : ""}`}
+        role="dialog"
+      >
+        <button
+          aria-label={activeDrawerCopy?.closeLabel ?? "关闭功能抽屉"}
+          className="workspace-drawer__backdrop"
+          onClick={closeWorkspaceDrawer}
+          tabIndex={isWorkspaceDrawerOpen ? 0 : -1}
+          type="button"
+        />
+        <div className="workspace-drawer__panel">
+          <div className="workspace-drawer__head">
+            <div>
+              <span className="mono">Functional Drawer</span>
+              <h2>{activeDrawerCopy?.title ?? "Radar 主控台"}</h2>
+              <small>{activeDrawerCopy?.kicker ?? "主雷达工作台"}</small>
+            </div>
+            <button className="workspace-drawer__close" onClick={closeWorkspaceDrawer} type="button">
+              关闭
+            </button>
+          </div>
+          <div className="workspace-drawer__body">
+            {workspaceDrawerContent}
+          </div>
+        </div>
+      </section>
 
       <SignalDossier
         activeTimeframe={activeTimeframe}

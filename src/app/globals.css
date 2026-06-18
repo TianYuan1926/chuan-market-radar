@@ -4178,6 +4178,143 @@ button.altcoin-opportunity-card.is-selected {
 .evidence--blocking::before { background: var(--red); }
 .evidence--neutral::before { background: var(--muted); }
 
+.workspace-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  pointer-events: none;
+}
+
+.workspace-drawer--open {
+  pointer-events: auto;
+}
+
+.workspace-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(120, 175, 255, 0.18), transparent 32%),
+    linear-gradient(90deg, rgba(17, 37, 66, 0.12), rgba(17, 37, 66, 0.34));
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 320ms var(--curve);
+}
+
+.workspace-drawer--open .workspace-drawer__backdrop {
+  opacity: 1;
+}
+
+.workspace-drawer__panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: min(760px, calc(100vw - 28px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(96, 145, 205, 0.42);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, rgba(64, 124, 200, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(64, 124, 200, 0.04) 1px, transparent 1px),
+    rgba(248, 252, 255, 0.96);
+  background-size: 26px 26px;
+  box-shadow: -30px 0 90px rgba(42, 82, 128, 0.22);
+  transform: translateX(calc(100% + 26px));
+  transition: transform 420ms var(--curve);
+}
+
+.workspace-drawer--open .workspace-drawer__panel {
+  transform: translateX(0);
+}
+
+.workspace-drawer__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(96, 145, 205, 0.34);
+  background: rgba(248, 252, 255, 0.88);
+  backdrop-filter: blur(18px);
+}
+
+.workspace-drawer__head h2 {
+  margin: 2px 0;
+  color: #0a315f;
+  font-size: 21px;
+  line-height: 1.15;
+}
+
+.workspace-drawer__head small {
+  color: #5f7896;
+}
+
+.workspace-drawer__close {
+  min-width: 64px;
+  min-height: 34px;
+  border: 1px solid rgba(48, 112, 210, 0.32);
+  border-radius: 10px;
+  color: #0f4f96;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.workspace-drawer__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+}
+
+.workspace-drawer__stack {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-drawer__brief p {
+  margin: 0;
+  color: #4a6583;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.workspace-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.feature-drawer-grid__item.is-active {
+  border-color: rgba(37, 117, 255, 0.52);
+  background: rgba(222, 238, 255, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(37, 117, 255, 0.18);
+}
+
+@media (max-width: 720px) {
+  .workspace-drawer__panel {
+    inset: 6px;
+    width: auto;
+    border-radius: 14px;
+  }
+
+  .workspace-drawer__head {
+    align-items: flex-start;
+    padding: 13px;
+  }
+
+  .workspace-drawer__body {
+    padding: 10px;
+  }
+}
+
 .signal-dossier {
   position: fixed;
   inset: 0;

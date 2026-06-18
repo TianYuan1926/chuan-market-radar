@@ -370,6 +370,8 @@ test("public radar UI reset uses a focused liquid-glass cockpit instead of dumpi
     "功能抽屉",
     "signal-arena-command",
     "signal-arena-split",
+    "workspace-drawer",
+    "activeSection",
   ];
   const requiredTopBarTokens = [
     "radar-primary-nav",
@@ -393,8 +395,9 @@ test("public radar UI reset uses a focused liquid-glass cockpit instead of dumpi
     ".liquid-brand-lens",
     ".radar-action-rail",
     ".companion-dock",
+    ".workspace-drawer",
   ];
-  const hiddenFromFirstScreen = [
+  const drawerMountedPanels = [
     "<DailyMoverPanel",
     "<ReplayPanel",
     "<JournalPanel",
@@ -417,11 +420,13 @@ test("public radar UI reset uses a focused liquid-glass cockpit instead of dumpi
     assert.match(cssSource, new RegExp(token.replaceAll(".", "\\.")));
   }
 
-  for (const token of hiddenFromFirstScreen) {
-    assert.equal(
-      workspaceSource.includes(token),
-      false,
-      `${token} should move behind navigation or drawers instead of rendering in the first-screen cockpit`,
+  const drawerIndex = workspaceSource.indexOf("workspace-drawer");
+  assert.ok(drawerIndex > 0, "workspace drawer should exist as the secondary feature surface");
+
+  for (const token of drawerMountedPanels) {
+    assert.ok(
+      workspaceSource.indexOf(token, drawerIndex) > drawerIndex,
+      `${token} should mount behind the workspace drawer instead of rendering in the first-screen cockpit`,
     );
   }
 });
@@ -1560,7 +1565,10 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(pageSource, /getDailyMoverReadArchive/);
   assert.match(pageSource, /dailyMoverArchive/);
   assert.match(workspaceSource, /dailyMoverArchive/);
-  assert.doesNotMatch(workspaceSource, /<DailyMoverPanel/);
+  assert.match(workspaceSource, /workspace-drawer/u);
+  assert.match(workspaceSource, /<DailyMoverPanel/u);
+  assert.match(workspaceSource, /onCreateCalibrationReview/u);
+  assert.match(workspaceSource, /onConfirmStrategyDraft/u);
   assert.match(workspaceSource, /功能抽屉/);
   assert.match(workspaceSource, /Review/);
   assert.match(panelSource, /allowedUse/);

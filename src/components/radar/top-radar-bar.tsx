@@ -34,7 +34,10 @@ export type RuntimeStateView = {
   value: string;
 };
 
+export type RadarNavigationSection = "radar" | "signals" | "review" | "journal" | "evolution" | "settings";
+
 type TopRadarBarProps = {
+  activeSection: RadarNavigationSection;
   batchNote?: string;
   cadenceMinutes: number;
   candidateCount: number;
@@ -47,6 +50,7 @@ type TopRadarBarProps = {
   marketStatus: string;
   nextScanAt: string;
   nextScanTime: string;
+  onNavigate: (section: RadarNavigationSection) => void;
   onToggleSound: () => void;
   providerLabel: string;
   refreshInterval: string;
@@ -58,6 +62,20 @@ type TopRadarBarProps = {
   soundEnabled: boolean;
   staleAfterMinutes: number;
 };
+
+const navItems: {
+  icon: typeof Sparkles;
+  id: RadarNavigationSection;
+  label: string;
+  sublabel: string;
+}[] = [
+  { icon: Sparkles, id: "radar", label: "Radar", sublabel: "雷达" },
+  { icon: Zap, id: "signals", label: "Signals", sublabel: "信号" },
+  { icon: RefreshCw, id: "review", label: "Review", sublabel: "复盘" },
+  { icon: BookOpen, id: "journal", label: "Journal", sublabel: "日志" },
+  { icon: Orbit, id: "evolution", label: "Evolution", sublabel: "进化" },
+  { icon: Settings, id: "settings", label: "Settings", sublabel: "设置" },
+];
 
 export function formatCountdownLabel(nextScanAt: string, now = new Date()) {
   const targetTime = new Date(nextScanAt).getTime();
@@ -87,6 +105,7 @@ export function formatCountdownLabel(nextScanAt: string, now = new Date()) {
 }
 
 export function TopRadarBar({
+  activeSection,
   batchNote,
   cadenceMinutes,
   candidateCount,
@@ -99,6 +118,7 @@ export function TopRadarBar({
   marketStatus,
   nextScanAt,
   nextScanTime,
+  onNavigate,
   onToggleSound,
   providerLabel,
   refreshInterval,
@@ -111,14 +131,6 @@ export function TopRadarBar({
   staleAfterMinutes,
 }: TopRadarBarProps) {
   const [countdownLabel, setCountdownLabel] = useState("等待校准");
-  const navItems = [
-    { icon: Sparkles, label: "Radar", sublabel: "雷达" },
-    { icon: Zap, label: "Signals", sublabel: "信号" },
-    { icon: RefreshCw, label: "Review", sublabel: "复盘" },
-    { icon: BookOpen, label: "Journal", sublabel: "日志" },
-    { icon: Orbit, label: "Evolution", sublabel: "进化" },
-    { icon: Settings, label: "Settings", sublabel: "设置" },
-  ];
 
   useEffect(() => {
     function tick() {
@@ -158,14 +170,16 @@ export function TopRadarBar({
         </div>
 
         <nav className="radar-primary-nav" aria-label="川 Market Radar 主导航">
-          {navItems.map((item, index) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
+            const isActive = item.id === activeSection;
 
             return (
               <button
-                aria-current={index === 0 ? "page" : undefined}
-                className={`radar-primary-nav__item ${index === 0 ? "is-active" : ""}`}
+                aria-current={isActive ? "page" : undefined}
+                className={`radar-primary-nav__item ${isActive ? "is-active" : ""}`}
                 key={item.label}
+                onClick={() => onNavigate(item.id)}
                 type="button"
               >
                 <Icon aria-hidden="true" size={16} />
@@ -176,7 +190,7 @@ export function TopRadarBar({
           })}
         </nav>
 
-        <button className="radar-menu-button" aria-label="打开菜单" type="button">
+        <button className="radar-menu-button" aria-label="打开设置菜单" onClick={() => onNavigate("settings")} type="button">
           <Menu aria-hidden="true" size={22} />
         </button>
       </div>
