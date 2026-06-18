@@ -40,6 +40,8 @@ import type {
   MarketRadarSnapshot,
   ScanCoverage,
   ScanArchiveSummary,
+  ScanDynamicPriorityPlan,
+  ScanPriorityReason,
   ScanTierCounts,
   ScanTierKey,
 } from "../market/types";
@@ -145,6 +147,24 @@ export type FullMarketCoverageLane = {
   total: number;
 };
 
+export type FullMarketHighPriorityReason = {
+  count: number;
+  id: ScanPriorityReason;
+  label: string;
+};
+
+export type FullMarketHighPriorityReport = {
+  candidateCount: number;
+  enabled: boolean;
+  operatorHint: string;
+  queuedAssets: string[];
+  reasonCounts: FullMarketHighPriorityReason[];
+  selectedAssets: string[];
+  slotsAvailable: number;
+  slotsUsed: number;
+  rotatingSelectedAssets: string[];
+};
+
 export type FullMarketCoverageReport = {
   coverage: {
     batchLabel: string;
@@ -167,6 +187,7 @@ export type FullMarketCoverageReport = {
     unlisted: number;
   };
   guardrails: string[];
+  highPriority: FullMarketHighPriorityReport;
   lanes: FullMarketCoverageLane[];
   mode: "full_market_coverage_depth_mvp";
   operatorHint: string;
@@ -698,16 +719,93 @@ function fullMarketOperatorHint(status: FullMarketCoverageStatus, coverage: Scan
 
 function fullMarketPriorityExplanation(coverage: ScanCoverage) {
   const tierPolicy = coverage.tierPolicy;
+  const dynamicPriority = coverage.dynamicPriority;
 
   if (!tierPolicy) {
     return "候选池优先级来自锚定币、配置白名单、流动性、交易所覆盖和近期信号；当前缺少层级策略元数据。";
   }
 
-  return [
+  const explanation = [
     "候选池优先级来自锚定币、配置白名单、流动性、交易所覆盖和近期信号。",
     `热门资产约每 ${tierPolicy.activeEveryWindows} 个扫描窗口轮到一次，长尾资产约每 ${tierPolicy.longTailEveryWindows} 个窗口低频巡检。`,
     "只有进入候选或关键观察状态的标的才进入后续深度分析。",
-  ].join(" ");
+  ];
+
+  if (dynamicPriority?.enabled) {
+    explanation.push(
+      `本轮高优先级槽位 ${dynamicPriority.slotsUsed}/${dynamicPriority.slotsAvailable}，候选池 ${dynamicPriority.candidateCount} 个标的；未选中的高优先级标的保留到后续批次，不额外打 API。`,
+    );
+  }
+
+  return explanation.join(" ");
+}
+
+const highPriorityReasonLabels: Record<ScanPriorityReason, string> = {
+  anomaly: "异动",
+  history: "复盘",
+  liquidity: "流动性",
+  recent_signal: "近期信号",
+  venue_coverage: "交易所覆盖",
+};
+
+function fullMarketHighPriorityOperatorHint(
+  dynamicPriority?: ScanDynamicPriorityPlan,
+) {
+  if (!dynamicPriority?.enabled) {
+    return "当前没有可用的高优先级提示，按层级轮转扫描。";
+  }
+
+  if (dynamicPriority.slotsAvailable === 0) {
+    return "本轮没有非锚定槽位，高优先级候选等待后续批次。";
+  }
+
+  if (dynamicPriority.slotsUsed === 0) {
+    return "本轮有高优先级候选，但未占用槽位，优先检查候选是否已被轮转覆盖。";
+  }
+
+  if (dynamicPriority.slotsUsed < dynamicPriority.slotsAvailable) {
+    return "高优先级槽位未满，说明可用候选有限或已被轮转覆盖。";
+  }
+
+  return "高优先级槽位已用满，剩余候选等待后续批次。";
+}
+
+function fullMarketHighPriorityReport(
+  dynamicPriority?: ScanDynamicPriorityPlan,
+): FullMarketHighPriorityReport {
+  const selectedAssets = dynamicPriority?.candidates
+    .filter((candidate) => candidate.status === "selected")
+    .map((candidate) => candidate.baseAsset)
+    .slice(0, 8) ?? [];
+  const queuedAssets = dynamicPriority?.candidates
+    .filter((candidate) => candidate.status === "queued")
+    .map((candidate) => candidate.baseAsset)
+    .slice(0, 8) ?? [];
+  const rotatingSelectedAssets = dynamicPriority?.candidates
+    .filter((candidate) => candidate.status === "already_selected")
+    .map((candidate) => candidate.baseAsset)
+    .slice(0, 8) ?? [];
+  const reasonCounts = Object.entries(dynamicPriority?.reasonCounts ?? {})
+    .map(([id, count]) => ({
+      count,
+      id: id as ScanPriorityReason,
+      label: highPriorityReasonLabels[id as ScanPriorityReason] ?? id,
+    }))
+    .filter((item) => item.count > 0)
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-CN"))
+    .slice(0, 5);
+
+  return {
+    candidateCount: dynamicPriority?.candidateCount ?? 0,
+    enabled: dynamicPriority?.enabled ?? false,
+    operatorHint: fullMarketHighPriorityOperatorHint(dynamicPriority),
+    queuedAssets,
+    reasonCounts,
+    selectedAssets,
+    slotsAvailable: dynamicPriority?.slotsAvailable ?? 0,
+    slotsUsed: dynamicPriority?.slotsUsed ?? 0,
+    rotatingSelectedAssets,
+  };
 }
 
 function fullMarketLaneRows(scanEconomy: ScanEconomyReport): FullMarketCoverageLane[] {
@@ -810,6 +908,7 @@ function fullMarketCoverageReport(
       "前端覆盖报告只读取本轮 metadata，不会触发额外 CoinGlass 请求。",
       "覆盖率不是胜率，未扫标的只代表等待轮转，不代表没有机会。",
     ],
+    highPriority: fullMarketHighPriorityReport(coverage.dynamicPriority),
     lanes: fullMarketLaneRows(scanEconomy),
     mode: "full_market_coverage_depth_mvp",
     operatorHint: fullMarketOperatorHint(status, coverage),

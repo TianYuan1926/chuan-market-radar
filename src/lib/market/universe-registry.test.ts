@@ -205,6 +205,47 @@ test("planUniverseScan promotes dynamic priority hints without dropping anchors 
   assert.ok(plan.dynamicPriority.topAssets[0]?.reasons.includes("anomaly"));
 });
 
+test("planUniverseScan exposes priority admission metadata within the same request budget", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA"],
+    [
+      instrument("ARB", { volume24hUsd: 75_000_000 }),
+      instrument("OP", { volume24hUsd: 70_000_000 }),
+      instrument("MANTA", { volume24hUsd: 0 }),
+    ],
+  );
+  const plan = planUniverseScan(registry, 4, new Date("2026-06-14T00:00:00.000Z"), {
+    dynamicPrioritySlots: 1,
+    priorityHints: [
+      {
+        symbol: "ARBUSDT",
+        anomalyScore: 92,
+        historicalSampleSize: 20,
+        historicalWinRate: 0.75,
+        recentSignalCount: 4,
+      },
+      {
+        symbol: "OPUSDT",
+        anomalyScore: 88,
+        recentSignalCount: 2,
+      },
+    ],
+  });
+
+  assert.equal(plan.assets.length, 4);
+  assert.equal(plan.requestsPlanned, 4);
+  assert.equal(plan.dynamicPriority.enabled, true);
+  assert.equal(plan.dynamicPriority.candidateCount, 2);
+  assert.equal(plan.dynamicPriority.slotsAvailable, 1);
+  assert.equal(plan.dynamicPriority.slotsUsed, 1);
+  assert.equal(plan.dynamicPriority.candidates[0]?.status, "selected");
+  assert.equal(plan.dynamicPriority.candidates[1]?.status, "queued");
+  assert.match(plan.dynamicPriority.candidates[1]?.statusReason ?? "", /等待后续批次/);
+  assert.equal(plan.dynamicPriority.reasonCounts.anomaly, 2);
+  assert.equal(plan.dynamicPriority.reasonCounts.recent_signal, 2);
+  assert.equal(plan.dynamicPriority.reasonCounts.history, 1);
+});
+
 test("buildCoverageReport includes scanned, pending, skipped, and coverage percent", () => {
   const registry = buildUniverseRegistry(
     ["ENA", "SUI", "ONDO", "TIA"],
@@ -222,6 +263,7 @@ test("buildCoverageReport includes scanned, pending, skipped, and coverage perce
   assert.equal(coverage.pending, 3);
   assert.equal(coverage.skipped, 1);
   assert.equal(coverage.coveragePercent, 50);
+  assert.equal(coverage.dynamicPriority?.enabled, false);
   assert.deepEqual(coverage.skippedAssets, [{ symbol: "OLDUSDT", reason: "inactive" }]);
 });
 

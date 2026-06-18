@@ -341,6 +341,52 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
       coverage: {
         batchIndex: 1,
         coveragePercent: 60,
+        dynamicPriority: {
+          boostedAssets: ["ENA"],
+          candidateCount: 2,
+          candidates: [
+            {
+              baseAsset: "ENA",
+              dynamicBoost: 192_000,
+              reasons: ["anomaly", "history", "recent_signal"],
+              score: 312_000,
+              staticPriority: 120_000,
+              status: "selected",
+              statusReason: "本轮占用高优先级槽位",
+              symbol: "ENAUSDT",
+            },
+            {
+              baseAsset: "SUI",
+              dynamicBoost: 121_000,
+              reasons: ["anomaly", "liquidity"],
+              score: 201_000,
+              staticPriority: 80_000,
+              status: "queued",
+              statusReason: "等待后续批次或高优先级槽位",
+              symbol: "SUIUSDT",
+            },
+          ],
+          enabled: true,
+          reasonCounts: {
+            anomaly: 2,
+            history: 1,
+            liquidity: 1,
+            recent_signal: 1,
+            venue_coverage: 0,
+          },
+          slotsAvailable: 1,
+          slotsUsed: 1,
+          topAssets: [
+            {
+              baseAsset: "ENA",
+              dynamicBoost: 192_000,
+              reasons: ["anomaly", "history", "recent_signal"],
+              score: 312_000,
+              staticPriority: 120_000,
+              symbol: "ENAUSDT",
+            },
+          ],
+        },
         eligible: 5,
         exchangeCoverageSummary: {
           majorThree: 2,
@@ -406,6 +452,14 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.equal(report.fullMarketCoverage.coverage.nextBatchLabel, "3/3");
   assert.equal(report.fullMarketCoverage.coverage.estimatedFullCycleMinutes, 45);
   assert.equal(report.fullMarketCoverage.exchangeQuality.majorThreePercent, 40);
+  assert.equal(report.fullMarketCoverage.highPriority.enabled, true);
+  assert.equal(report.fullMarketCoverage.highPriority.slotsUsed, 1);
+  assert.equal(report.fullMarketCoverage.highPriority.slotsAvailable, 1);
+  assert.deepEqual(report.fullMarketCoverage.highPriority.selectedAssets, ["ENA"]);
+  assert.deepEqual(report.fullMarketCoverage.highPriority.queuedAssets, ["SUI"]);
+  assert.match(report.fullMarketCoverage.highPriority.operatorHint, /槽位已用满/);
+  assert.equal(report.fullMarketCoverage.highPriority.reasonCounts[0]?.label, "异动");
+  assert.equal(report.fullMarketCoverage.highPriority.reasonCounts[0]?.count, 2);
   assert.equal(report.fullMarketCoverage.lanes.length, 5);
   assert.equal(report.fullMarketCoverage.lanes.find((lane) => lane.id === "core")?.pending, 1);
   assert.deepEqual(report.fullMarketCoverage.samples.scannedAssets, ["BTC", "ETH", "ENA"]);
@@ -413,6 +467,7 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.match(report.fullMarketCoverage.samples.rejectedAssets[0], /OLDUSDT:inactive/);
   assert.match(report.fullMarketCoverage.operatorHint, /预算压缩轮转/);
   assert.match(report.fullMarketCoverage.priorityExplanation, /长尾资产/);
+  assert.match(report.fullMarketCoverage.priorityExplanation, /高优先级槽位 1\/1/);
   assert.match(report.fullMarketCoverage.guardrails.join(" "), /不会触发额外 CoinGlass 请求/);
   assert.equal(report.marketDataQuality.mode, "market_data_quality_mvp");
   assert.equal(report.marketDataQuality.status, "degraded");

@@ -5,6 +5,11 @@ import type {
   ExchangeId,
   InstrumentRejectionReason,
   ScanCoverage,
+  ScanDynamicPriorityPlan,
+  ScanPriorityCandidate,
+  ScanPriorityCandidateStatus,
+  ScanPriorityDecision,
+  ScanPriorityReason,
   ScanTierCounts,
   ScanTierKey,
   ScanTierPolicy,
@@ -34,27 +39,11 @@ export type UniversePriorityHint = {
   symbol?: string;
 };
 
-export type UniversePriorityReason =
-  | "anomaly"
-  | "history"
-  | "liquidity"
-  | "recent_signal"
-  | "venue_coverage";
+export type UniversePriorityReason = ScanPriorityReason;
 
-export type UniversePriorityDecision = {
-  baseAsset: string;
-  dynamicBoost: number;
-  reasons: UniversePriorityReason[];
-  score: number;
-  staticPriority: number;
-  symbol: string;
-};
+export type UniversePriorityDecision = ScanPriorityDecision;
 
-export type UniverseDynamicPriorityPlan = {
-  boostedAssets: string[];
-  enabled: boolean;
-  topAssets: UniversePriorityDecision[];
-};
+export type UniverseDynamicPriorityPlan = ScanDynamicPriorityPlan;
 
 export type PlanUniverseScanOptions = {
   dynamicPrioritySlots?: number;
@@ -521,6 +510,14 @@ type InternalPriorityDecision = UniversePriorityDecision & {
   asset: UniverseAsset;
 };
 
+const priorityReasons: UniversePriorityReason[] = [
+  "anomaly",
+  "history",
+  "liquidity",
+  "recent_signal",
+  "venue_coverage",
+];
+
 function hintKeys(hint: UniversePriorityHint) {
   return uniqueValues([
     hint.symbol ? normalizeUniverseAsset(hint.symbol)?.symbol : null,
@@ -648,6 +645,70 @@ function publicPriorityDecision(decision: InternalPriorityDecision): UniversePri
   };
 }
 
+function emptyPriorityReasonCounts(): Record<UniversePriorityReason, number> {
+  return Object.fromEntries(
+    priorityReasons.map((reason) => [reason, 0]),
+  ) as Record<UniversePriorityReason, number>;
+}
+
+function buildPriorityReasonCounts(
+  decisions: InternalPriorityDecision[],
+): Record<UniversePriorityReason, number> {
+  const counts = emptyPriorityReasonCounts();
+
+  for (const decision of decisions) {
+    for (const reason of decision.reasons) {
+      counts[reason] += 1;
+    }
+  }
+
+  return counts;
+}
+
+function priorityCandidateStatus(
+  decision: InternalPriorityDecision,
+  selectedSymbols: Set<string>,
+  boostedAssets: string[],
+): ScanPriorityCandidateStatus {
+  if (boostedAssets.includes(decision.baseAsset)) {
+    return "selected";
+  }
+
+  if (selectedSymbols.has(decision.symbol)) {
+    return "already_selected";
+  }
+
+  return "queued";
+}
+
+function priorityCandidateStatusReason(status: ScanPriorityCandidateStatus) {
+  if (status === "selected") {
+    return "本轮占用高优先级槽位";
+  }
+
+  if (status === "already_selected") {
+    return "本轮已被层级轮转选中";
+  }
+
+  return "等待后续批次或高优先级槽位";
+}
+
+function buildPriorityCandidates(
+  decisions: InternalPriorityDecision[],
+  selectedSymbols: Set<string>,
+  boostedAssets: string[],
+): ScanPriorityCandidate[] {
+  return decisions.slice(0, 8).map((decision) => {
+    const status = priorityCandidateStatus(decision, selectedSymbols, boostedAssets);
+
+    return {
+      ...publicPriorityDecision(decision),
+      status,
+      statusReason: priorityCandidateStatusReason(status),
+    };
+  });
+}
+
 export function planUniverseScan(
   registry: UniverseRegistry,
   batchSize: number,
@@ -739,7 +800,16 @@ export function planUniverseScan(
     batchSize: safeBatchSize,
     dynamicPriority: {
       boostedAssets,
+      candidateCount: dynamicPriorityDecisions.length,
+      candidates: buildPriorityCandidates(
+        dynamicPriorityDecisions,
+        selectedSymbols,
+        boostedAssets,
+      ),
       enabled: dynamicPriorityDecisions.length > 0,
+      reasonCounts: buildPriorityReasonCounts(dynamicPriorityDecisions),
+      slotsAvailable: dynamicPrioritySlots,
+      slotsUsed: boostedAssets.length,
       topAssets: dynamicPriorityDecisions.slice(0, 8).map(publicPriorityDecision),
     },
     nextBatchIndex: (batchIndex + 1) % totalBatches,
@@ -765,6 +835,7 @@ export function buildCoverageReport(
     coveragePercent: eligible
       ? Math.round((batchPlan.assets.length / eligible) * 100)
       : 0,
+    dynamicPriority: batchPlan.dynamicPriority,
     eligible,
     exchangeCoverage,
     exchangeCoverageSummary: exchangeCoverageSummary(registry.assets),

@@ -817,6 +817,32 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               ))}
             </div>
 
+            <div className="health-full-market__priority" aria-label="高优先级候选池">
+              <span>
+                <b>{fullMarketCoverage.highPriority.slotsUsed}/{fullMarketCoverage.highPriority.slotsAvailable}</b>
+                <strong>高优先级槽位</strong>
+                <small>{fullMarketCoverage.highPriority.operatorHint}</small>
+              </span>
+              <span>
+                <b>选中</b>
+                {fullMarketCoverage.highPriority.selectedAssets.length > 0
+                  ? fullMarketCoverage.highPriority.selectedAssets.join(" / ")
+                  : "按常规轮转"}
+              </span>
+              <span>
+                <b>排队</b>
+                {fullMarketCoverage.highPriority.queuedAssets.length > 0
+                  ? fullMarketCoverage.highPriority.queuedAssets.join(" / ")
+                  : "暂无积压"}
+              </span>
+              <span>
+                <b>证据来源</b>
+                {fullMarketCoverage.highPriority.reasonCounts.length > 0
+                  ? fullMarketCoverage.highPriority.reasonCounts.map((reason) => `${reason.label} ${reason.count}`).join(" / ")
+                  : "等待复盘或异动提示"}
+              </span>
+            </div>
+
             <div className="health-full-market__samples" aria-label="全市场样本解释">
               <span>
                 <b>已扫</b>

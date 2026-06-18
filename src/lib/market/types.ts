@@ -123,9 +123,44 @@ export type ScanTierPolicy = {
   longTailEveryWindows: number;
 };
 
+export type ScanPriorityReason =
+  | "anomaly"
+  | "history"
+  | "liquidity"
+  | "recent_signal"
+  | "venue_coverage";
+
+export type ScanPriorityDecision = {
+  baseAsset: string;
+  dynamicBoost: number;
+  reasons: ScanPriorityReason[];
+  score: number;
+  staticPriority: number;
+  symbol: string;
+};
+
+export type ScanPriorityCandidateStatus = "already_selected" | "queued" | "selected";
+
+export type ScanPriorityCandidate = ScanPriorityDecision & {
+  status: ScanPriorityCandidateStatus;
+  statusReason: string;
+};
+
+export type ScanDynamicPriorityPlan = {
+  boostedAssets: string[];
+  candidateCount: number;
+  candidates: ScanPriorityCandidate[];
+  enabled: boolean;
+  reasonCounts: Record<ScanPriorityReason, number>;
+  slotsAvailable: number;
+  slotsUsed: number;
+  topAssets: ScanPriorityDecision[];
+};
+
 export type ScanCoverage = {
   batchIndex: number;
   coveragePercent: number;
+  dynamicPriority?: ScanDynamicPriorityPlan;
   eligible: number;
   exchangeCoverage?: AssetExchangeCoverage[];
   exchangeCoverageSummary?: ExchangeCoverageSummary;

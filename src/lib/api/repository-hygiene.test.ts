@@ -1451,8 +1451,12 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /当前批次/);
   assert.match(componentSource, /轮转周期/);
   assert.match(componentSource, /三所覆盖/);
+  assert.match(componentSource, /高优先级候选池/);
+  assert.match(componentSource, /高优先级槽位/);
+  assert.match(componentSource, /证据来源/);
   assert.match(componentSource, /待轮转/);
   assert.match(componentSource, /交易所质量/);
+  assert.match(componentSource, /highPriority/);
   assert.match(componentSource, /fullMarketCoverage/);
   assert.match(componentSource, /fullMarketCoverageStatusLabel/);
   assert.match(componentSource, /数据质量清洗报告/);

@@ -509,6 +509,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 已支持 API quota 消耗估计：每轮 CoinGlass 请求数、每日 CoinGlass 预估请求数、剩余请求估算、public discovery 预估请求数、预算使用率和状态。
 - 已支持扫描预算护栏：当 `COINGLASS_BATCH_SIZE` 超过每日预算允许值时，自动压缩为安全批次；若预算低于 BTC/ETH 锚点最低扫描需求，会标记 `over_budget`，但不破坏锚点扫描。
 - 已支持动态优先级基础：universe scan plan 可接收 `priorityHints`，按异常分、历史胜率样本、近期信号、流动性和交易所覆盖质量生成动态分数；动态候选只能占用非 anchor 轮转槽，不能挤掉 BTC/ETH，也不能突破 quota 批次。
+- 已支持高优先级候选可观测：`dynamicPriority` 会输出候选数、可用槽位、已用槽位、选中/排队状态和原因计数；`/api/health.fullMarketCoverage.highPriority` 与健康面板会显示高优先级槽位、选中标的、排队标的和证据来源。该能力只复用扫描 metadata，不增加 CoinGlass 请求量。
 - 已支持 repository priority hints 基础：扫描归档 top symbols 提供近期热度，复盘 journal outcome 提供历史有效性，每日异动归因样本提供 learnable 异常热度；默认 CoinGlass provider 创建前会从 repository 读取这些样本并注入 `priorityHints`。
 - CoinGlass provider 已在 metadata notes 中输出每个 discovery source、tiered universe、exchange coverage、quota、repository priority hints、dynamic priority 和 tier policy，便于线上检查当前币池结构。
 
@@ -555,7 +556,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`；Phase 3.10 已把全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界接入 `/api/health` 与健康面板；Phase 3.11 已把 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本和质量分结构化为 `marketDataQuality`。但还没有完成高优先级币种加密扫描和依赖自动 outcome executor 的完整胜率闭环。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`；Phase 3.10 已把全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界接入 `/api/health` 与健康面板；Phase 3.11 已把 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本和质量分结构化为 `marketDataQuality`；Phase 3.12 已把高优先级候选槽位、选中/排队状态和原因计数接入扫描 metadata、`/api/health` 与健康面板。当前仍未完成更细的交易所覆盖钻取、预算稳定后的二段深度扫描，以及依赖自动 outcome executor 的完整胜率闭环。
 
 后续需要：
 
@@ -564,8 +565,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - API quota 消耗估计和批次护栏已具备基础实现。
 - 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描已具备基础策略，动态优先级接口和 repository hints 已具备，后续需要在 outcome executor 完成后继续提高历史胜率样本质量。
-- 高优先级币种加密扫描需要在动态优先级和外部 cron 稳定后再打开。
-- 不同交易所同一币种的覆盖数量、UNKNOWN、非 USDT、重复币种和基础过滤原因已在健康面板展示；后续还需增加更细的交易所差异钻取和高优先级币种加密扫描。
+- 高优先级候选的 quota-safe 插队和页面解释已具备；更高频或更深度的二段扫描需要在外部 cron、预算监控和失败回退稳定后按预算打开。
+- 不同交易所同一币种的覆盖数量、UNKNOWN、非 USDT、重复币种和基础过滤原因已在健康面板展示；后续还需增加更细的交易所差异钻取和二段深度扫描边界。
 
 ### 部分落地：技术指标引擎
 
