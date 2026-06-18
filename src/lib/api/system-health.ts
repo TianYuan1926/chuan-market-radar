@@ -279,6 +279,49 @@ export type V3StrategyLoopReport = {
   status: V3StrategyLoopStatus;
 };
 
+export type StrategyEvolutionLoopStatus =
+  | "activation_disabled"
+  | "blocked"
+  | "collecting_samples"
+  | "manual_review_ready"
+  | "shadow_observation";
+
+export type StrategyEvolutionLoopStageStatus =
+  | "blocked"
+  | "collecting"
+  | "disabled"
+  | "ready"
+  | "watch";
+
+export type StrategyEvolutionLoopStage = {
+  count: number;
+  detail: string;
+  id:
+    | "activation_gate"
+    | "manual_audit"
+    | "manual_execution"
+    | "outcome_samples"
+    | "shadow_weights"
+    | "v3_live";
+  label: string;
+  status: StrategyEvolutionLoopStageStatus;
+};
+
+export type StrategyEvolutionLoopReport = {
+  allowedUse: "research_only";
+  blockers: string[];
+  canAutoAdjustWeights: false;
+  canMutateLiveRanking: false;
+  canWriteRuleWeights: false;
+  guardrail: string;
+  mode: "strategy_evolution_loop_mvp";
+  nextActions: string[];
+  operatorHint: string;
+  readinessScore: number;
+  stages: StrategyEvolutionLoopStage[];
+  status: StrategyEvolutionLoopStatus;
+};
+
 export type SystemHealthReport = {
   generatedAt: string;
   level: SystemHealthLevel;
@@ -376,6 +419,7 @@ export type SystemHealthReport = {
     trackingEvents: number;
   };
   v3ForwardMapReviews: V3ForwardMapReviewHealthReport;
+  strategyEvolutionLoop: StrategyEvolutionLoopReport;
   v3StrategyLoop: V3StrategyLoopReport;
   guards: SystemHealthGuard[];
 };
@@ -1489,6 +1533,243 @@ function v3StrategyLoopReport(snapshot: MarketRadarSnapshot, events: JournalEven
   };
 }
 
+function strategyEvolutionLoopStageStatus({
+  blocked,
+  disabled,
+  ready,
+  watch,
+}: {
+  blocked?: boolean;
+  disabled?: boolean;
+  ready?: boolean;
+  watch?: boolean;
+}): StrategyEvolutionLoopStageStatus {
+  if (disabled) {
+    return "disabled";
+  }
+
+  if (blocked) {
+    return "blocked";
+  }
+
+  if (ready) {
+    return "ready";
+  }
+
+  if (watch) {
+    return "watch";
+  }
+
+  return "collecting";
+}
+
+function strategyEvolutionLoopStatus({
+  activationDisabled,
+  blockerCount,
+  manualReady,
+  shadowObservation,
+  hasAnySample,
+}: {
+  activationDisabled: boolean;
+  blockerCount: number;
+  hasAnySample: boolean;
+  manualReady: boolean;
+  shadowObservation: boolean;
+}): StrategyEvolutionLoopStatus {
+  if (!hasAnySample) {
+    return "collecting_samples";
+  }
+
+  if (shadowObservation) {
+    return "shadow_observation";
+  }
+
+  if (manualReady) {
+    return "manual_review_ready";
+  }
+
+  if (activationDisabled) {
+    return "activation_disabled";
+  }
+
+  if (blockerCount > 0) {
+    return "blocked";
+  }
+
+  return "collecting_samples";
+}
+
+function strategyEvolutionLoopOperatorHint(status: StrategyEvolutionLoopStatus) {
+  if (status === "shadow_observation") {
+    return "进化闭环已到影子观察层，只能人工复核表现，不能让权重自动生效。";
+  }
+
+  if (status === "manual_review_ready") {
+    return "进化闭环已有人工复核候选，先看样本、反证和回滚边界，再考虑人工记录。";
+  }
+
+  if (status === "activation_disabled") {
+    return "真实权重启用被配置关闭，系统只展示学习链路，不让任何权重进入实时扫描。";
+  }
+
+  if (status === "blocked") {
+    return "进化闭环存在阻断项，先处理样本质量、审计或回滚压力，不推进权重讨论。";
+  }
+
+  return "进化闭环正在收集 live v3、outcome 和校准样本，当前只做观察。";
+}
+
+function strategyEvolutionReadinessScore(
+  outcomes: SystemHealthReport["outcomes"],
+  v3StrategyLoop: V3StrategyLoopReport,
+) {
+  let score = 0;
+
+  if (v3StrategyLoop.live.totalSignals > 0) {
+    score += Math.min(20, Math.round((v3StrategyLoop.live.v3Signals / v3StrategyLoop.live.totalSignals) * 20));
+  }
+
+  score += Math.min(25, outcomes.sampleQuality.validatedEvents * 3);
+  score += Math.min(15, outcomes.calibrationFlow.calibrationReviewEvents * 3);
+  score += Math.min(15, outcomes.strategyWeightChangeAudit.readyAuditCount * 8);
+  score += Math.min(15, outcomes.strategyWeightShadowEvaluation.improvingCount * 8);
+
+  if (outcomes.strategyWeightActivationGate.status === "eligible_for_manual_activation") {
+    score += 10;
+  }
+
+  if (outcomes.strategyWeightShadowEvaluation.rollbackWatchCount > 0) {
+    score -= 12;
+  }
+
+  if (outcomes.calibrationAdmission.status === "blocked") {
+    score -= 10;
+  }
+
+  return Math.max(0, Math.min(100, score));
+}
+
+function strategyEvolutionLoopReport(
+  outcomes: SystemHealthReport["outcomes"],
+  v3StrategyLoop: V3StrategyLoopReport,
+): StrategyEvolutionLoopReport {
+  const blockers = [
+    ...outcomes.calibrationAdmission.blockers.slice(0, 2),
+    ...outcomes.calibrationFlow.blockerDetails.slice(0, 2).map((blocker) => blocker.detail),
+    ...outcomes.strategyWeightChangeAudit.items.flatMap((item) => item.blockers).slice(0, 2),
+    ...outcomes.strategyWeightActivationGate.blockers.slice(0, 2),
+  ].filter((blocker, index, list) => blocker && list.indexOf(blocker) === index);
+  const activationDisabled = outcomes.strategyWeightActivationGate.status === "active_disabled_by_config";
+  const manualReady =
+    outcomes.calibrationAdmission.status === "ready" ||
+    outcomes.strategyWeightCalibration.candidates.length > 0 ||
+    outcomes.strategyWeightChangeAudit.readyAuditCount > 0 ||
+    v3StrategyLoop.status === "ready_for_manual_review";
+  const shadowObservation =
+    outcomes.strategyWeightShadow.approvedRecordCount > 0 ||
+    outcomes.strategyWeightShadowEvaluation.evaluatedShadowCount > 0;
+  const hasAnySample =
+    v3StrategyLoop.live.v3Signals > 0 ||
+    v3StrategyLoop.review.sampleCount > 0 ||
+    outcomes.trackingEvents > 0 ||
+    outcomes.calibrationFlow.calibrationReviewEvents > 0;
+  const status = strategyEvolutionLoopStatus({
+    activationDisabled,
+    blockerCount: blockers.length,
+    hasAnySample,
+    manualReady,
+    shadowObservation,
+  });
+  const stages: StrategyEvolutionLoopStage[] = [
+    {
+      count: v3StrategyLoop.live.v3Signals,
+      detail: `${v3StrategyLoop.live.keyLevels} 个关键位，${v3StrategyLoop.live.readyPlans} 个可读计划。`,
+      id: "v3_live",
+      label: "v3 实时样本",
+      status: strategyEvolutionLoopStageStatus({
+        blocked: v3StrategyLoop.status === "blocked",
+        ready: v3StrategyLoop.status === "ready_for_manual_review",
+        watch: v3StrategyLoop.live.v3Signals > 0,
+      }),
+    },
+    {
+      count: outcomes.closedEvents,
+      detail: `跟踪 ${outcomes.trackingEvents}，待复查 ${outcomes.pendingEvents}，到期 ${outcomes.dueEvents}。`,
+      id: "outcome_samples",
+      label: "outcome 复盘",
+      status: strategyEvolutionLoopStageStatus({
+        blocked: outcomes.sampleQuality.status === "counterevidence_watch",
+        ready: outcomes.sampleQuality.manualReviewReady,
+        watch: outcomes.trackingEvents > 0,
+      }),
+    },
+    {
+      count: outcomes.strategyWeightChangeAudit.readyAuditCount,
+      detail: `${outcomes.strategyWeightCalibration.candidates.length} 个校准候选，${outcomes.strategyWeightChangeAudit.rollbackVerificationCount} 个需回滚验证。`,
+      id: "manual_audit",
+      label: "人工审计",
+      status: strategyEvolutionLoopStageStatus({
+        blocked: outcomes.strategyWeightChangeAudit.status === "blocked",
+        ready: outcomes.strategyWeightChangeAudit.readyAuditCount > 0,
+        watch: outcomes.strategyWeightCalibration.candidates.length > 0,
+      }),
+    },
+    {
+      count: outcomes.strategyWeightChangeExecution.executionRecordCount,
+      detail: `${outcomes.strategyWeightChangeExecution.approvedRecordCount} 条已批准记录，${outcomes.strategyWeightChangeExecution.pendingApprovalCount} 条待审批。`,
+      id: "manual_execution",
+      label: "人工记录",
+      status: strategyEvolutionLoopStageStatus({
+        blocked: outcomes.strategyWeightChangeExecution.status === "blocked",
+        ready: outcomes.strategyWeightChangeExecution.approvedRecordCount > 0,
+        watch: outcomes.strategyWeightChangeExecution.pendingApprovalCount > 0,
+      }),
+    },
+    {
+      count: outcomes.strategyWeightShadowEvaluation.evaluatedShadowCount,
+      detail: `${outcomes.strategyWeightShadow.approvedRecordCount} 条影子权重，${outcomes.strategyWeightShadowEvaluation.rollbackWatchCount} 条回滚观察。`,
+      id: "shadow_weights",
+      label: "影子观察",
+      status: strategyEvolutionLoopStageStatus({
+        blocked: outcomes.strategyWeightShadowEvaluation.status === "blocked",
+        ready: outcomes.strategyWeightShadowEvaluation.status === "improving",
+        watch: outcomes.strategyWeightShadowEvaluation.evaluatedShadowCount > 0,
+      }),
+    },
+    {
+      count: outcomes.strategyWeightActivationGate.checks.filter((check) => check.status === "passed").length,
+      detail: `${outcomes.strategyWeightActivationGate.activationMode} 模式，${outcomes.strategyWeightActivationGate.blockers.length} 个阻断项。`,
+      id: "activation_gate",
+      label: "真实启用门禁",
+      status: strategyEvolutionLoopStageStatus({
+        blocked: outcomes.strategyWeightActivationGate.status === "blocked",
+        disabled: activationDisabled,
+        ready: outcomes.strategyWeightActivationGate.status === "eligible_for_manual_activation",
+      }),
+    },
+  ];
+  const nextActions = [
+    v3StrategyLoop.operatorHint,
+    outcomes.calibrationFlow.nextStep,
+    outcomes.strategyWeightActivationGate.nextStep,
+  ].filter((action, index, list) => action && list.indexOf(action) === index).slice(0, 3);
+
+  return {
+    allowedUse: "research_only",
+    blockers: blockers.slice(0, 5),
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    canWriteRuleWeights: false,
+    guardrail: "进化闭环只能串联 v3 实时证据、outcome 复盘、人工校准、影子权重和启用门禁；不能自动下单、不能自动改权重、不能改变实时排序。",
+    mode: "strategy_evolution_loop_mvp",
+    nextActions,
+    operatorHint: strategyEvolutionLoopOperatorHint(status),
+    readinessScore: strategyEvolutionReadinessScore(outcomes, v3StrategyLoop),
+    stages,
+    status,
+  };
+}
+
 async function readV3ForwardMapSnapshotsSafely(repository: PersistenceRepository) {
   try {
     const snapshots = await repository.listV3ForwardMapSnapshots(240);
@@ -1644,6 +1925,15 @@ export async function buildSystemHealthReport({
   const archiveEntries = archiveSummaries.length;
   const durable = repository.mode === "database";
   const databaseDiagnostics = database ?? fallbackDatabaseDiagnostics({ durable, repository });
+  const outcomes = outcomeExecutorHealth(journalEvents, now, env);
+  const v3ForwardMapReviews = v3ForwardMapReviewHealth({
+    events: journalEvents,
+    savedSnapshots: v3ForwardMapSnapshotRead.snapshots.length,
+    storageDetail: v3ForwardMapSnapshotRead.storageDetail,
+    storageStatus: v3ForwardMapSnapshotRead.storageStatus,
+  });
+  const v3StrategyLoop = v3StrategyLoopReport(snapshot, journalEvents);
+  const strategyEvolutionLoop = strategyEvolutionLoopReport(outcomes, v3StrategyLoop);
   const sourceLevel: SystemHealthLevel = providerStatus === "missing_key" ||
       providerStatus === "fallback"
     ? "degraded"
@@ -1709,14 +1999,10 @@ export async function buildSystemHealthReport({
       metadata,
       now,
     }),
-    outcomes: outcomeExecutorHealth(journalEvents, now, env),
-    v3ForwardMapReviews: v3ForwardMapReviewHealth({
-      events: journalEvents,
-      savedSnapshots: v3ForwardMapSnapshotRead.snapshots.length,
-      storageDetail: v3ForwardMapSnapshotRead.storageDetail,
-      storageStatus: v3ForwardMapSnapshotRead.storageStatus,
-    }),
-    v3StrategyLoop: v3StrategyLoopReport(snapshot, journalEvents),
+    outcomes,
+    v3ForwardMapReviews,
+    strategyEvolutionLoop,
+    v3StrategyLoop,
     guards: [
       {
         id: "data-source",

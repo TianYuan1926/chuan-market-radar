@@ -102,6 +102,28 @@ function v3StrategyLoopStatusLabel(value: SystemHealthReport["v3StrategyLoop"]["
   }[value];
 }
 
+function strategyEvolutionLoopStatusLabel(value: SystemHealthReport["strategyEvolutionLoop"]["status"]) {
+  return {
+    activation_disabled: "启用关闭",
+    blocked: "阻断",
+    collecting_samples: "收集样本",
+    manual_review_ready: "人工复核",
+    shadow_observation: "影子观察",
+  }[value];
+}
+
+function strategyEvolutionStageStatusLabel(
+  value: SystemHealthReport["strategyEvolutionLoop"]["stages"][number]["status"],
+) {
+  return {
+    blocked: "阻断",
+    collecting: "收集",
+    disabled: "关闭",
+    ready: "就绪",
+    watch: "观察",
+  }[value];
+}
+
 function v3ForwardMapStorageLabel(value: SystemHealthReport["v3ForwardMapReviews"]["storageStatus"]) {
   return {
     ready: "存储可读",
@@ -485,6 +507,10 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const v3ForwardMapSkipReasons = v3ForwardMapRun?.skippedReasons.slice(0, 3) ?? [];
   const v3StrategyLoop = health.v3StrategyLoop;
   const v3StrategyLoopCandidates = v3StrategyLoop.candidates.slice(0, 4);
+  const strategyEvolutionLoop = health.strategyEvolutionLoop;
+  const strategyEvolutionStages = strategyEvolutionLoop.stages.slice(0, 6);
+  const strategyEvolutionActions = strategyEvolutionLoop.nextActions.slice(0, 3);
+  const strategyEvolutionBlockers = strategyEvolutionLoop.blockers.slice(0, 3);
   const outcomeAdmission = health.outcomes.calibrationAdmission;
   const outcomeFlow = health.outcomes.calibrationFlow;
   const outcomeBlockers = outcomeFlow.blockerDetails.slice(0, 2);
@@ -1047,6 +1073,64 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
             )}
 
             <p>{v3StrategyLoop.guardrail}</p>
+          </div>
+
+          <div
+            className={`health-evolution-loop health-evolution-loop--${strategyEvolutionLoop.status}`}
+            aria-label="策略进化闭环"
+          >
+            <div className="health-ops__head">
+              <div>
+                <span className="mono">Evolution Loop</span>
+                <strong>{strategyEvolutionLoop.operatorHint}</strong>
+              </div>
+              <b>{strategyEvolutionLoopStatusLabel(strategyEvolutionLoop.status)}</b>
+            </div>
+
+            <div className="health-evolution-loop__score" aria-label="进化闭环准备度">
+              <span>
+                <b>{strategyEvolutionLoop.readinessScore}</b>
+                准备度
+              </span>
+              <span>
+                <b>{strategyEvolutionLoop.stages.filter((stage) => stage.status === "ready").length}</b>
+                就绪阶段
+              </span>
+              <span>
+                <b>{strategyEvolutionLoop.blockers.length}</b>
+                阻断项
+              </span>
+              <span>
+                <b>{strategyEvolutionLoop.canWriteRuleWeights ? "可写" : "只读"}</b>
+                权重写入
+              </span>
+            </div>
+
+            <div className="health-evolution-loop__stages" aria-label="策略进化阶段">
+              {strategyEvolutionStages.map((stage) => (
+                <span className={`health-evolution-loop__stage health-evolution-loop__stage--${stage.status}`} key={stage.id}>
+                  <b>{stage.label}</b>
+                  <em>{strategyEvolutionStageStatusLabel(stage.status)} · {stage.count}</em>
+                  <small>{stage.detail}</small>
+                </span>
+              ))}
+            </div>
+
+            {strategyEvolutionBlockers.length > 0 ? (
+              <div className="health-evolution-loop__blockers" aria-label="策略进化阻断项">
+                {strategyEvolutionBlockers.map((blocker) => (
+                  <span key={blocker}>{blocker}</span>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="health-evolution-loop__actions" aria-label="策略进化下一步">
+              {strategyEvolutionActions.map((action) => (
+                <span key={action}>{action}</span>
+              ))}
+            </div>
+
+            <p>{strategyEvolutionLoop.guardrail}</p>
           </div>
 
           <div className="health-outcomes" aria-label="自动复盘摘要">

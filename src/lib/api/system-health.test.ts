@@ -749,6 +749,17 @@ test("buildSystemHealthReport exposes readonly v3 strategy loop coverage", async
   assert.equal(report.v3StrategyLoop.candidates[0]?.symbol, "ENAUSDT");
   assert.match(report.v3StrategyLoop.guardrail, /不能自动下单/);
   assert.match(report.v3StrategyLoop.operatorHint, /人工查看|人工校准|可复核/);
+  assert.equal(report.strategyEvolutionLoop.mode, "strategy_evolution_loop_mvp");
+  assert.equal(report.strategyEvolutionLoop.allowedUse, "research_only");
+  assert.equal(report.strategyEvolutionLoop.canAutoAdjustWeights, false);
+  assert.equal(report.strategyEvolutionLoop.canMutateLiveRanking, false);
+  assert.equal(report.strategyEvolutionLoop.canWriteRuleWeights, false);
+  assert.equal(report.strategyEvolutionLoop.status, "manual_review_ready");
+  assert.ok(report.strategyEvolutionLoop.readinessScore >= 30);
+  assert.equal(report.strategyEvolutionLoop.stages.find((stage) => stage.id === "v3_live")?.status, "ready");
+  assert.equal(report.strategyEvolutionLoop.stages.find((stage) => stage.id === "outcome_samples")?.count, 5);
+  assert.match(report.strategyEvolutionLoop.guardrail, /不能自动下单/);
+  assert.match(report.strategyEvolutionLoop.operatorHint, /人工复核/);
 });
 
 test("buildSystemHealthReport keeps the site available when v3 forward map storage is not migrated", async () => {

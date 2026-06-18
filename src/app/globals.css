@@ -6831,6 +6831,150 @@ button.altcoin-opportunity-card.is-selected {
   white-space: nowrap;
 }
 
+.health-evolution-loop {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(39, 140, 102, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(39, 140, 102, 0.075), rgba(82, 115, 204, 0.052)),
+    rgba(255, 255, 255, 0.54);
+}
+
+.health-evolution-loop--manual_review_ready,
+.health-evolution-loop--shadow_observation {
+  border-color: rgba(39, 140, 102, 0.32);
+}
+
+.health-evolution-loop--blocked {
+  border-color: rgba(201, 74, 74, 0.34);
+  background:
+    linear-gradient(135deg, rgba(201, 74, 74, 0.075), rgba(213, 155, 61, 0.045)),
+    rgba(255, 255, 255, 0.54);
+}
+
+.health-evolution-loop--activation_disabled,
+.health-evolution-loop--collecting_samples {
+  border-color: rgba(111, 116, 128, 0.22);
+}
+
+.health-evolution-loop__score,
+.health-evolution-loop__stages,
+.health-evolution-loop__actions,
+.health-evolution-loop__blockers {
+  display: grid;
+  gap: 6px;
+}
+
+.health-evolution-loop__score {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-evolution-loop__score span,
+.health-evolution-loop__stage,
+.health-evolution-loop__actions span,
+.health-evolution-loop__blockers span {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.health-evolution-loop__score span {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+}
+
+.health-evolution-loop__score b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-evolution-loop__stages {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.health-evolution-loop__stage {
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+}
+
+.health-evolution-loop__stage--ready {
+  border-color: rgba(39, 140, 102, 0.24);
+}
+
+.health-evolution-loop__stage--blocked {
+  border-color: rgba(201, 74, 74, 0.28);
+}
+
+.health-evolution-loop__stage--disabled {
+  opacity: 0.78;
+}
+
+.health-evolution-loop__stage b,
+.health-evolution-loop__stage em,
+.health-evolution-loop__stage small,
+.health-evolution-loop__actions span,
+.health-evolution-loop__blockers span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-evolution-loop__stage b {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.health-evolution-loop__stage em {
+  color: var(--accent);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.health-evolution-loop__stage small,
+.health-evolution-loop__actions span,
+.health-evolution-loop__blockers span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.health-evolution-loop__actions span,
+.health-evolution-loop__blockers span {
+  padding: 6px 8px;
+}
+
+.health-evolution-loop__blockers span {
+  border-color: rgba(201, 74, 74, 0.18);
+  color: #8a3e2f;
+}
+
+.health-evolution-loop p {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .health-outcomes {
   display: grid;
   gap: 8px;
@@ -10297,14 +10441,18 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__samples,
   .health-data-quality__grid,
   .health-data-quality__issues,
-  .health-v3-strategy-loop__grid {
+  .health-v3-strategy-loop__grid,
+  .health-evolution-loop__score,
+  .health-evolution-loop__stages {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .health-scan-economy__tier--skipped,
   .health-full-market__lane--skipped,
   .health-full-market__samples span:nth-child(3),
-  .health-data-quality__issue {
+  .health-data-quality__issue,
+  .health-evolution-loop__stage:nth-child(5),
+  .health-evolution-loop__stage:nth-child(6) {
     grid-column: 1 / -1;
   }
 
