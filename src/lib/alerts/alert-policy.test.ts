@@ -145,6 +145,30 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       },
       status: "budget_capped",
     },
+    marketDataQuality: {
+      filters: {
+        acceptedPool: 24,
+        cleanRows: 24,
+        duplicateSymbolCount: 0,
+        duplicatesRemoved: 0,
+        minVolume24hUsd: 5_000_000,
+        primaryRows: 24,
+        quoteNotSupported: 0,
+        rawRows: 24,
+        rejectedPool: 0,
+        unsupportedExchange: 0,
+      },
+      guardrails: [
+        "数据质量层只能阻断、降级或解释候选，不能单独生成交易方向。",
+        "UNKNOWN、非 USDT、报价冲突和低流动性标的不能包装成机会。",
+      ],
+      issues: [],
+      mode: "market_data_quality_mvp",
+      operatorHint: "数据质量干净。",
+      qualityScore: 100,
+      rejectedSamples: [],
+      status: "clean",
+    },
     scanEconomy: {
       budget: {
         budgetUsagePercent: 96,

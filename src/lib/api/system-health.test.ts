@@ -316,6 +316,10 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
     snapshot: snapshot({
       source: "coinglass",
       isRealtime: true,
+      notes: [
+        "quality filter: raw 10, clean 5, primary 1",
+        "quality rejections: unsupported_exchange 2, quote_not_supported 3, duplicate_symbol 4",
+      ],
       quota: {
         cadenceMinutes: 15,
         coinGlassBudgetUsagePercent: 96,
@@ -410,6 +414,23 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.match(report.fullMarketCoverage.operatorHint, /预算压缩轮转/);
   assert.match(report.fullMarketCoverage.priorityExplanation, /长尾资产/);
   assert.match(report.fullMarketCoverage.guardrails.join(" "), /不会触发额外 CoinGlass 请求/);
+  assert.equal(report.marketDataQuality.mode, "market_data_quality_mvp");
+  assert.equal(report.marketDataQuality.status, "degraded");
+  assert.equal(report.marketDataQuality.filters.rawRows, 10);
+  assert.equal(report.marketDataQuality.filters.cleanRows, 5);
+  assert.equal(report.marketDataQuality.filters.primaryRows, 1);
+  assert.equal(report.marketDataQuality.filters.unsupportedExchange, 2);
+  assert.equal(report.marketDataQuality.filters.quoteNotSupported, 3);
+  assert.equal(report.marketDataQuality.filters.duplicateSymbolCount, 4);
+  assert.equal(report.marketDataQuality.filters.acceptedPool, 24);
+  assert.equal(report.marketDataQuality.filters.rejectedPool, 4);
+  assert.ok(report.marketDataQuality.qualityScore < 65);
+  assert.deepEqual(
+    report.marketDataQuality.issues.map((issue) => issue.label),
+    ["未知交易所", "报价不支持", "重复币种", "池过滤"],
+  );
+  assert.match(report.marketDataQuality.operatorHint, /数据清洗/);
+  assert.match(report.marketDataQuality.guardrails.join(" "), /不能单独生成交易方向/);
 });
 
 test("buildSystemHealthReport marks scan operations blocked without a recent success", async () => {

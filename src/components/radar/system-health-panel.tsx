@@ -351,6 +351,16 @@ function fullMarketCoverageStatusLabel(value: SystemHealthReport["fullMarketCove
   }[value];
 }
 
+function marketDataQualityStatusLabel(value: SystemHealthReport["marketDataQuality"]["status"]) {
+  return {
+    blocked: "阻断",
+    clean: "干净",
+    degraded: "降级",
+    preview: "预览",
+    watch: "观察",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -404,6 +414,22 @@ function formatPercent(value: number) {
 
 function formatBudgetValue(value: number | null) {
   return value === null ? "--" : `${value}`;
+}
+
+function formatCompactUsd(value: number) {
+  if (value >= 1_000_000_000) {
+    return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  }
+
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(1)}M`;
+  }
+
+  if (value >= 1_000) {
+    return `$${(value / 1_000).toFixed(1)}K`;
+  }
+
+  return `$${value.toFixed(0)}`;
 }
 
 function formatSignedValue(value: number) {
@@ -471,6 +497,8 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const scanEconomy = health.scanEconomy;
   const fullMarketCoverage = health.fullMarketCoverage;
   const fullMarketGuardrails = fullMarketCoverage.guardrails.slice(0, 3);
+  const marketDataQuality = health.marketDataQuality;
+  const marketDataQualityGuardrails = marketDataQuality.guardrails.slice(0, 3);
   const scanEconomyTierRows = [
     {
       key: "anchor",
@@ -775,6 +803,89 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
 
             <div className="health-full-market__guardrails" aria-label="全市场扫描边界">
               {fullMarketGuardrails.map((guardrail) => (
+                <span key={guardrail}>{guardrail}</span>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className={`health-data-quality health-data-quality--${marketDataQuality.status}`}
+            aria-label="数据质量清洗报告"
+          >
+            <div className="health-ops__head">
+              <div>
+                <span className="mono">数据质量</span>
+                <strong>{marketDataQuality.operatorHint}</strong>
+              </div>
+              <b>{marketDataQualityStatusLabel(marketDataQuality.status)}</b>
+            </div>
+
+            <div className="health-data-quality__score" aria-label="数据质量分">
+              <span>
+                <b>{marketDataQuality.qualityScore}</b>
+                <small>质量分</small>
+              </span>
+              <em style={{ inlineSize: `${marketDataQuality.qualityScore}%` }} />
+            </div>
+
+            <div className="health-data-quality__grid" aria-label="数据清洗摘要">
+              <span>
+                <b>{marketDataQuality.filters.rawRows ?? "--"}</b>
+                原始行
+              </span>
+              <span>
+                <b>{marketDataQuality.filters.cleanRows ?? "--"}</b>
+                清洗后
+              </span>
+              <span>
+                <b>{marketDataQuality.filters.primaryRows ?? "--"}</b>
+                主信号
+              </span>
+              <span>
+                <b>{marketDataQuality.filters.acceptedPool}</b>
+                可用池
+              </span>
+            </div>
+
+            <div className="health-data-quality__grid" aria-label="数据质量过滤项">
+              <span>
+                <b>{marketDataQuality.filters.unsupportedExchange}</b>
+                UNKNOWN
+              </span>
+              <span>
+                <b>{marketDataQuality.filters.quoteNotSupported}</b>
+                非 USDT
+              </span>
+              <span>
+                <b>{marketDataQuality.filters.duplicateSymbolCount + marketDataQuality.filters.duplicatesRemoved}</b>
+                重复/去重
+              </span>
+              <span>
+                <b>{formatCompactUsd(marketDataQuality.filters.minVolume24hUsd)}</b>
+                流动性门槛
+              </span>
+            </div>
+
+            {marketDataQuality.issues.length > 0 ? (
+              <div className="health-data-quality__issues" aria-label="数据质量问题">
+                {marketDataQuality.issues.map((issue) => (
+                  <span className={`health-data-quality__issue health-data-quality__issue--${issue.severity}`} key={issue.label}>
+                    <b>{issue.label}</b>
+                    <em>{issue.count}</em>
+                    <small>{issue.action}</small>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            {marketDataQuality.rejectedSamples.length > 0 ? (
+              <p>过滤样本 {marketDataQuality.rejectedSamples.join(" / ")}</p>
+            ) : (
+              <p>过滤样本 暂无</p>
+            )}
+
+            <div className="health-data-quality__guardrails" aria-label="数据质量边界">
+              {marketDataQualityGuardrails.map((guardrail) => (
                 <span key={guardrail}>{guardrail}</span>
               ))}
             </div>

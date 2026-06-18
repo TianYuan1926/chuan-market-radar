@@ -6484,6 +6484,167 @@ button.altcoin-opportunity-card.is-selected {
   line-height: 1.35;
 }
 
+.health-data-quality {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(39, 140, 102, 0.2);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(39, 140, 102, 0.07), rgba(82, 115, 204, 0.04)),
+    rgba(255, 255, 255, 0.52);
+}
+
+.health-data-quality--watch {
+  border-color: rgba(213, 155, 61, 0.34);
+}
+
+.health-data-quality--degraded,
+.health-data-quality--blocked {
+  border-color: rgba(201, 74, 74, 0.34);
+  background:
+    linear-gradient(135deg, rgba(201, 74, 74, 0.08), rgba(213, 155, 61, 0.045)),
+    rgba(255, 255, 255, 0.5);
+}
+
+.health-data-quality--preview {
+  border-color: rgba(111, 116, 128, 0.24);
+}
+
+.health-data-quality__score {
+  position: relative;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.health-data-quality__score span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1px;
+  padding: 6px 8px;
+}
+
+.health-data-quality__score b {
+  color: var(--ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.health-data-quality__score small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.health-data-quality__score em {
+  display: block;
+  block-size: 8px;
+  max-inline-size: calc(100% - 12px);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(39, 140, 102, 0.9), rgba(82, 115, 204, 0.85));
+  box-shadow: 0 0 14px rgba(82, 115, 204, 0.16);
+}
+
+.health-data-quality__grid,
+.health-data-quality__issues,
+.health-data-quality__guardrails {
+  display: grid;
+  gap: 6px;
+}
+
+.health-data-quality__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-data-quality__grid span,
+.health-data-quality__issue,
+.health-data-quality__guardrails span {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.health-data-quality__grid span {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  color: var(--muted);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+}
+
+.health-data-quality__grid b,
+.health-data-quality__issue b,
+.health-data-quality__issue em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-data-quality__issues {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.health-data-quality__issue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  padding: 7px;
+}
+
+.health-data-quality__issue small {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-data-quality__issue--high em {
+  color: var(--danger);
+}
+
+.health-data-quality__issue--medium em {
+  color: #b2741b;
+}
+
+.health-data-quality p {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-data-quality__guardrails span {
+  padding: 6px 7px;
+  color: var(--ink-2);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .health-v3-forward-map {
   display: grid;
   gap: 8px;
@@ -10019,13 +10180,16 @@ button.altcoin-opportunity-card.is-selected {
   .health-scan-economy__tiers,
   .health-full-market__grid,
   .health-full-market__lanes,
-  .health-full-market__samples {
+  .health-full-market__samples,
+  .health-data-quality__grid,
+  .health-data-quality__issues {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .health-scan-economy__tier--skipped,
   .health-full-market__lane--skipped,
-  .health-full-market__samples span:nth-child(3) {
+  .health-full-market__samples span:nth-child(3),
+  .health-data-quality__issue {
     grid-column: 1 / -1;
   }
 

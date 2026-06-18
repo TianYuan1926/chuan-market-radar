@@ -172,6 +172,42 @@ export type FullMarketCoverageReport = {
   status: FullMarketCoverageStatus;
 };
 
+export type MarketDataQualityStatus =
+  | "blocked"
+  | "clean"
+  | "degraded"
+  | "preview"
+  | "watch";
+
+export type MarketDataQualityIssue = {
+  action: string;
+  count: number;
+  label: string;
+  severity: "high" | "low" | "medium";
+};
+
+export type MarketDataQualityReport = {
+  filters: {
+    acceptedPool: number;
+    cleanRows: number | null;
+    duplicateSymbolCount: number;
+    duplicatesRemoved: number;
+    minVolume24hUsd: number;
+    primaryRows: number | null;
+    quoteNotSupported: number;
+    rawRows: number | null;
+    rejectedPool: number;
+    unsupportedExchange: number;
+  };
+  guardrails: string[];
+  issues: MarketDataQualityIssue[];
+  mode: "market_data_quality_mvp";
+  operatorHint: string;
+  qualityScore: number;
+  rejectedSamples: string[];
+  status: MarketDataQualityStatus;
+};
+
 export type V3ForwardMapReviewHealthReport = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -236,6 +272,7 @@ export type SystemHealthReport = {
   };
   coverage: ScanCoverage;
   fullMarketCoverage: FullMarketCoverageReport;
+  marketDataQuality: MarketDataQualityReport;
   scanEconomy: ScanEconomyReport;
   operations: {
     batchDetail: string | null;
@@ -690,6 +727,227 @@ function fullMarketCoverageReport(
       rejectedAssets: coverage.skippedAssets.slice(0, 6).map((asset) => `${asset.symbol}:${asset.reason}`),
       scannedAssets: coverage.scannedAssets.slice(0, 10),
     },
+    status,
+  };
+}
+
+function parseQualityFilterNote(notes: string[]) {
+  const note = metadataNote(notes, "quality filter:");
+  const match = note?.match(/raw\s+(\d+),\s+clean\s+(\d+),\s+primary\s+(\d+)/u);
+
+  if (!match) {
+    return {
+      cleanRows: null,
+      primaryRows: null,
+      rawRows: null,
+    };
+  }
+
+  return {
+    cleanRows: Number(match[2]),
+    primaryRows: Number(match[3]),
+    rawRows: Number(match[1]),
+  };
+}
+
+function parseQualityRejectionNote(notes: string[]) {
+  const note = metadataNote(notes, "quality rejections:");
+  const match = note?.match(
+    /unsupported_exchange\s+(\d+),\s+quote_not_supported\s+(\d+),\s+duplicate_symbol\s+(\d+)/u,
+  );
+
+  if (!match) {
+    return {
+      duplicateSymbolCount: 0,
+      quoteNotSupported: 0,
+      unsupportedExchange: 0,
+    };
+  }
+
+  return {
+    duplicateSymbolCount: Number(match[3]),
+    quoteNotSupported: Number(match[2]),
+    unsupportedExchange: Number(match[1]),
+  };
+}
+
+function marketDataQualityScore({
+  duplicateSymbolCount,
+  duplicatesRemoved,
+  quoteNotSupported,
+  rejectedPool,
+  totalPool,
+  unsupportedExchange,
+}: {
+  duplicateSymbolCount: number;
+  duplicatesRemoved: number;
+  quoteNotSupported: number;
+  rejectedPool: number;
+  totalPool: number;
+  unsupportedExchange: number;
+}) {
+  const rejectionRatioPenalty = totalPool > 0
+    ? Math.round((rejectedPool / totalPool) * 22)
+    : 0;
+  const penalty = Math.min(30, unsupportedExchange * 8) +
+    Math.min(25, quoteNotSupported * 5) +
+    Math.min(18, duplicateSymbolCount * 3 + duplicatesRemoved * 2) +
+    rejectionRatioPenalty;
+
+  return Math.max(0, Math.min(100, 100 - penalty));
+}
+
+function marketDataQualityStatus({
+  acceptedPool,
+  metadata,
+  qualityScore,
+}: {
+  acceptedPool: number;
+  metadata: MarketRadarSnapshot["metadata"];
+  qualityScore: number;
+}): MarketDataQualityStatus {
+  if (metadata.status === "failed" || acceptedPool === 0) {
+    return "blocked";
+  }
+
+  if (metadata.source === "mock") {
+    return "preview";
+  }
+
+  if (qualityScore < 65) {
+    return "degraded";
+  }
+
+  if (qualityScore < 92) {
+    return "watch";
+  }
+
+  return "clean";
+}
+
+function marketDataQualityOperatorHint(status: MarketDataQualityStatus) {
+  if (status === "blocked") {
+    return "数据质量阻断，当前不能把扫描结果当成可用候选池。";
+  }
+
+  if (status === "preview") {
+    return "当前是演示或预览质量，只用于验证流程，不代表真实市场数据。";
+  }
+
+  if (status === "degraded") {
+    return "数据清洗发现较多异常，优先检查非 USDT、未知交易所、重复币种和低流动性过滤。";
+  }
+
+  if (status === "watch") {
+    return "数据质量可用但有过滤痕迹，继续观察被拒原因和主交易所聚合是否稳定。";
+  }
+
+  return "数据质量干净，主扫描已完成交易所、报价、去重和流动性基础过滤。";
+}
+
+function marketDataQualityIssues({
+  duplicateSymbolCount,
+  duplicatesRemoved,
+  quoteNotSupported,
+  rejectedPool,
+  unsupportedExchange,
+}: {
+  duplicateSymbolCount: number;
+  duplicatesRemoved: number;
+  quoteNotSupported: number;
+  rejectedPool: number;
+  unsupportedExchange: number;
+}): MarketDataQualityIssue[] {
+  const issues: MarketDataQualityIssue[] = [];
+
+  if (unsupportedExchange > 0) {
+    issues.push({
+      action: "降级或拒绝 UNKNOWN，优先保留 Binance/OKX/Bybit/Coinbase。",
+      count: unsupportedExchange,
+      label: "未知交易所",
+      severity: "high",
+    });
+  }
+
+  if (quoteNotSupported > 0) {
+    issues.push({
+      action: "只保留 USDT 永续，报价冲突或 USDC/USD 行不进入候选。",
+      count: quoteNotSupported,
+      label: "报价不支持",
+      severity: "medium",
+    });
+  }
+
+  if (duplicateSymbolCount + duplicatesRemoved > 0) {
+    issues.push({
+      action: "同币种按交易所优先级、成交量和 OI 聚合为主信号。",
+      count: duplicateSymbolCount + duplicatesRemoved,
+      label: "重复币种",
+      severity: "low",
+    });
+  }
+
+  if (rejectedPool > 0) {
+    issues.push({
+      action: "停牌、非永续、非 USDT 或低于流动性门槛的标的不进入分析。",
+      count: rejectedPool,
+      label: "池过滤",
+      severity: "medium",
+    });
+  }
+
+  return issues;
+}
+
+function marketDataQualityReport(snapshot: MarketRadarSnapshot): MarketDataQualityReport {
+  const qualityFilter = parseQualityFilterNote(snapshot.metadata.notes);
+  const qualityRejections = parseQualityRejectionNote(snapshot.metadata.notes);
+  const poolSummary = snapshot.instrumentPool.summary;
+  const qualityScore = marketDataQualityScore({
+    duplicateSymbolCount: qualityRejections.duplicateSymbolCount,
+    duplicatesRemoved: poolSummary.duplicatesRemoved,
+    quoteNotSupported: qualityRejections.quoteNotSupported,
+    rejectedPool: poolSummary.rejected,
+    totalPool: poolSummary.total,
+    unsupportedExchange: qualityRejections.unsupportedExchange,
+  });
+  const status = marketDataQualityStatus({
+    acceptedPool: poolSummary.accepted,
+    metadata: snapshot.metadata,
+    qualityScore,
+  });
+
+  return {
+    filters: {
+      acceptedPool: poolSummary.accepted,
+      cleanRows: qualityFilter.cleanRows,
+      duplicateSymbolCount: qualityRejections.duplicateSymbolCount,
+      duplicatesRemoved: poolSummary.duplicatesRemoved,
+      minVolume24hUsd: poolSummary.minVolume24hUsd,
+      primaryRows: qualityFilter.primaryRows,
+      quoteNotSupported: qualityRejections.quoteNotSupported,
+      rawRows: qualityFilter.rawRows,
+      rejectedPool: poolSummary.rejected,
+      unsupportedExchange: qualityRejections.unsupportedExchange,
+    },
+    guardrails: [
+      "数据质量层只能阻断、降级或解释候选，不能单独生成交易方向。",
+      "UNKNOWN、非 USDT、报价冲突和低流动性标的不能包装成机会。",
+      "同币种多交易所行必须聚合，避免重复信号刷屏。",
+    ],
+    issues: marketDataQualityIssues({
+      duplicateSymbolCount: qualityRejections.duplicateSymbolCount,
+      duplicatesRemoved: poolSummary.duplicatesRemoved,
+      quoteNotSupported: qualityRejections.quoteNotSupported,
+      rejectedPool: poolSummary.rejected,
+      unsupportedExchange: qualityRejections.unsupportedExchange,
+    }),
+    mode: "market_data_quality_mvp",
+    operatorHint: marketDataQualityOperatorHint(status),
+    qualityScore,
+    rejectedSamples: snapshot.instrumentPool.rejected
+      .slice(0, 6)
+      .map((item) => `${item.instrument.symbol}:${item.reason}`),
     status,
   };
 }
@@ -1202,6 +1460,7 @@ export async function buildSystemHealthReport({
   const coverage = metadata.coverage ?? fallbackCoverage(metadata);
   const scanEconomy = buildScanEconomyReport(metadata, coverage);
   const fullMarketCoverage = fullMarketCoverageReport(metadata, coverage, scanEconomy);
+  const marketDataQuality = marketDataQualityReport(snapshot);
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const providerStatus = sourceStatus({
@@ -1274,6 +1533,7 @@ export async function buildSystemHealthReport({
     },
     coverage,
     fullMarketCoverage,
+    marketDataQuality,
     scanEconomy,
     operations: scanOperations({
       archiveSummaries,
