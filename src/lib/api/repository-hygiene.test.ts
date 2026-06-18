@@ -1392,6 +1392,16 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /热门资产/);
   assert.match(componentSource, /长尾轮转/);
   assert.match(componentSource, /不新增请求/);
+  assert.match(componentSource, /全市场覆盖/);
+  assert.match(componentSource, /全市场覆盖深度报告/);
+  assert.match(componentSource, /已扫\/可扫/);
+  assert.match(componentSource, /当前批次/);
+  assert.match(componentSource, /轮转周期/);
+  assert.match(componentSource, /三所覆盖/);
+  assert.match(componentSource, /待轮转/);
+  assert.match(componentSource, /交易所质量/);
+  assert.match(componentSource, /fullMarketCoverage/);
+  assert.match(componentSource, /fullMarketCoverageStatusLabel/);
   assert.match(componentSource, /scanEconomy/);
   assert.match(componentSource, /scanEconomyTierRows/);
   assert.match(componentSource, /scanEconomyStatusLabel/);
@@ -1423,6 +1433,11 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-outcome-execution__items/);
   assert.match(cssSource, /\.health-outcome-execution__item/);
   assert.match(cssSource, /\.health-outcome-execution__form/);
+  assert.match(cssSource, /\.health-full-market/);
+  assert.match(cssSource, /\.health-full-market__grid/);
+  assert.match(cssSource, /\.health-full-market__lanes/);
+  assert.match(cssSource, /\.health-full-market__samples/);
+  assert.match(cssSource, /\.health-full-market__guardrails/);
   assert.match(cssSource, /\.health-outcome-execution__button/);
   assert.match(cssSource, /\.health-outcome-shadow/);
   assert.match(cssSource, /\.health-outcome-shadow__grid/);

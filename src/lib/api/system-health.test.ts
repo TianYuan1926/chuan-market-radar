@@ -338,6 +338,12 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
         batchIndex: 1,
         coveragePercent: 60,
         eligible: 5,
+        exchangeCoverageSummary: {
+          majorThree: 2,
+          multiExchange: 1,
+          singleExchange: 2,
+          unlisted: 0,
+        },
         nextBatchIndex: 2,
         pending: 2,
         pendingAssets: ["SOL", "SUI"],
@@ -390,6 +396,20 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.equal(report.scanEconomy.nextTier, "core");
   assert.match(report.scanEconomy.operatorHint, /预算接近上限/);
   assert.match(report.scanEconomy.guardrail, /不会增加 CoinGlass 请求/);
+  assert.equal(report.fullMarketCoverage.mode, "full_market_coverage_depth_mvp");
+  assert.equal(report.fullMarketCoverage.status, "budget_capped");
+  assert.equal(report.fullMarketCoverage.coverage.batchLabel, "2/3");
+  assert.equal(report.fullMarketCoverage.coverage.nextBatchLabel, "3/3");
+  assert.equal(report.fullMarketCoverage.coverage.estimatedFullCycleMinutes, 45);
+  assert.equal(report.fullMarketCoverage.exchangeQuality.majorThreePercent, 40);
+  assert.equal(report.fullMarketCoverage.lanes.length, 5);
+  assert.equal(report.fullMarketCoverage.lanes.find((lane) => lane.id === "core")?.pending, 1);
+  assert.deepEqual(report.fullMarketCoverage.samples.scannedAssets, ["BTC", "ETH", "ENA"]);
+  assert.deepEqual(report.fullMarketCoverage.samples.pendingAssets, ["SOL", "SUI"]);
+  assert.match(report.fullMarketCoverage.samples.rejectedAssets[0], /OLDUSDT:inactive/);
+  assert.match(report.fullMarketCoverage.operatorHint, /预算压缩轮转/);
+  assert.match(report.fullMarketCoverage.priorityExplanation, /长尾资产/);
+  assert.match(report.fullMarketCoverage.guardrails.join(" "), /不会触发额外 CoinGlass 请求/);
 });
 
 test("buildSystemHealthReport marks scan operations blocked without a recent success", async () => {

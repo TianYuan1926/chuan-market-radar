@@ -121,6 +121,57 @@ export type ScanEconomyReport = {
   };
 };
 
+export type FullMarketCoverageStatus =
+  | "blocked"
+  | "budget_capped"
+  | "complete"
+  | "preview"
+  | "rotating";
+
+export type FullMarketCoverageLane = {
+  cadenceHint: string;
+  id: ScanTierKey | "skipped";
+  label: string;
+  pending: number;
+  priorityHint: string;
+  selected: number;
+  total: number;
+};
+
+export type FullMarketCoverageReport = {
+  coverage: {
+    batchLabel: string;
+    cadenceMinutes: number;
+    coveragePercent: number;
+    eligible: number;
+    estimatedFullCycleMinutes: number;
+    nextBatchLabel: string;
+    pending: number;
+    scanned: number;
+    skipped: number;
+    total: number;
+    totalBatches: number;
+  };
+  exchangeQuality: {
+    majorThree: number;
+    majorThreePercent: number;
+    multiExchange: number;
+    singleExchange: number;
+    unlisted: number;
+  };
+  guardrails: string[];
+  lanes: FullMarketCoverageLane[];
+  mode: "full_market_coverage_depth_mvp";
+  operatorHint: string;
+  priorityExplanation: string;
+  samples: {
+    pendingAssets: string[];
+    rejectedAssets: string[];
+    scannedAssets: string[];
+  };
+  status: FullMarketCoverageStatus;
+};
+
 export type V3ForwardMapReviewHealthReport = {
   allowedUse: "research_only";
   canAutoAdjustWeights: false;
@@ -184,6 +235,7 @@ export type SystemHealthReport = {
     retentionMode: PersistenceMode;
   };
   coverage: ScanCoverage;
+  fullMarketCoverage: FullMarketCoverageReport;
   scanEconomy: ScanEconomyReport;
   operations: {
     batchDetail: string | null;
@@ -462,6 +514,183 @@ function buildScanEconomyReport(
       longTail: tierStats("long_tail", tierCounts, selectedTierCounts),
       skipped: coverage.skipped,
     },
+  };
+}
+
+function fullMarketStatus({
+  coverage,
+  metadata,
+  quotaStatus,
+  wasCapped,
+}: {
+  coverage: ScanCoverage;
+  metadata: MarketRadarSnapshot["metadata"];
+  quotaStatus: ScanEconomyBudgetStatus;
+  wasCapped: boolean;
+}): FullMarketCoverageStatus {
+  if (coverage.eligible === 0 || metadata.status === "failed") {
+    return "blocked";
+  }
+
+  if (metadata.source === "mock") {
+    return "preview";
+  }
+
+  if (quotaStatus === "near_budget" || quotaStatus === "over_budget" || wasCapped) {
+    return "budget_capped";
+  }
+
+  if (coverage.pending === 0) {
+    return "complete";
+  }
+
+  return "rotating";
+}
+
+function fullMarketOperatorHint(status: FullMarketCoverageStatus, coverage: ScanCoverage) {
+  if (status === "blocked") {
+    return "当前没有可解释的合约币池覆盖，先确认数据源、币池发现和扫描成功率。";
+  }
+
+  if (status === "preview") {
+    return "当前是预览覆盖，只能验证流程和界面，不代表真实全市场扫描。";
+  }
+
+  if (status === "budget_capped") {
+    return "全市场覆盖正在按预算压缩轮转，先保证锚定币和高优先级山寨，不做一次性深扫。";
+  }
+
+  if (status === "complete") {
+    return "当前可见合约币池已完成本轮覆盖，后续继续按节奏刷新并复用归档。";
+  }
+
+  return `全市场覆盖正在轮转，还有 ${coverage.pending} 个标的等待后续批次。`;
+}
+
+function fullMarketPriorityExplanation(coverage: ScanCoverage) {
+  const tierPolicy = coverage.tierPolicy;
+
+  if (!tierPolicy) {
+    return "候选池优先级来自锚定币、配置白名单、流动性、交易所覆盖和近期信号；当前缺少层级策略元数据。";
+  }
+
+  return [
+    "候选池优先级来自锚定币、配置白名单、流动性、交易所覆盖和近期信号。",
+    `热门资产约每 ${tierPolicy.activeEveryWindows} 个扫描窗口轮到一次，长尾资产约每 ${tierPolicy.longTailEveryWindows} 个窗口低频巡检。`,
+    "只有进入候选或关键观察状态的标的才进入后续深度分析。",
+  ].join(" ");
+}
+
+function fullMarketLaneRows(scanEconomy: ScanEconomyReport): FullMarketCoverageLane[] {
+  return [
+    {
+      cadenceHint: "每轮优先保留",
+      id: "anchor",
+      label: "锚定大盘",
+      pending: scanEconomy.tiers.anchor.pending,
+      priorityHint: "BTC/ETH 用于判断大盘天气，不与山寨抢请求预算。",
+      selected: scanEconomy.tiers.anchor.selected,
+      total: scanEconomy.tiers.anchor.total,
+    },
+    {
+      cadenceHint: "高频主池",
+      id: "core",
+      label: "核心山寨",
+      pending: scanEconomy.tiers.core.pending,
+      priorityHint: "优先覆盖流动性更好、配置优先或交易所覆盖更完整的山寨。",
+      selected: scanEconomy.tiers.core.selected,
+      total: scanEconomy.tiers.core.total,
+    },
+    {
+      cadenceHint: "中频轮转",
+      id: "active",
+      label: "活跃山寨",
+      pending: scanEconomy.tiers.active.pending,
+      priorityHint: "保持中频巡检，捕捉突然进入启动前状态的热门标的。",
+      selected: scanEconomy.tiers.active.selected,
+      total: scanEconomy.tiers.active.total,
+    },
+    {
+      cadenceHint: "低频长尾",
+      id: "long_tail",
+      label: "长尾新币",
+      pending: scanEconomy.tiers.longTail.pending,
+      priorityHint: "低频覆盖新币和长尾币，避免为了全市场一次性打爆配额。",
+      selected: scanEconomy.tiers.longTail.selected,
+      total: scanEconomy.tiers.longTail.total,
+    },
+    {
+      cadenceHint: "不进入扫描",
+      id: "skipped",
+      label: "过滤标的",
+      pending: 0,
+      priorityHint: "非 USDT、非永续、停牌或数据质量不合格的标的不进入分析。",
+      selected: scanEconomy.tiers.skipped,
+      total: scanEconomy.tiers.skipped,
+    },
+  ];
+}
+
+function fullMarketCoverageReport(
+  metadata: MarketRadarSnapshot["metadata"],
+  coverage: ScanCoverage,
+  scanEconomy: ScanEconomyReport,
+): FullMarketCoverageReport {
+  const exchangeSummary = coverage.exchangeCoverageSummary ?? {
+    majorThree: 0,
+    multiExchange: 0,
+    singleExchange: 0,
+    unlisted: 0,
+  };
+  const eligible = Math.max(0, coverage.eligible);
+  const status = fullMarketStatus({
+    coverage,
+    metadata,
+    quotaStatus: scanEconomy.budget.status,
+    wasCapped: scanEconomy.budget.wasCapped,
+  });
+  const totalBatches = Math.max(1, coverage.totalBatches);
+  const estimatedFullCycleMinutes = totalBatches * metadata.cadenceMinutes;
+  const majorThreePercent = eligible > 0
+    ? Math.round((exchangeSummary.majorThree / eligible) * 100)
+    : 0;
+
+  return {
+    coverage: {
+      batchLabel: `${coverage.batchIndex + 1}/${totalBatches}`,
+      cadenceMinutes: metadata.cadenceMinutes,
+      coveragePercent: coverage.coveragePercent,
+      eligible,
+      estimatedFullCycleMinutes,
+      nextBatchLabel: `${coverage.nextBatchIndex + 1}/${totalBatches}`,
+      pending: coverage.pending,
+      scanned: coverage.scanned,
+      skipped: coverage.skipped,
+      total: coverage.total,
+      totalBatches,
+    },
+    exchangeQuality: {
+      majorThree: exchangeSummary.majorThree,
+      majorThreePercent,
+      multiExchange: exchangeSummary.multiExchange,
+      singleExchange: exchangeSummary.singleExchange,
+      unlisted: exchangeSummary.unlisted,
+    },
+    guardrails: [
+      "全市场扫描采用轻扫描轮转，深度分析只给候选池和关键观察标的。",
+      "前端覆盖报告只读取本轮 metadata，不会触发额外 CoinGlass 请求。",
+      "覆盖率不是胜率，未扫标的只代表等待轮转，不代表没有机会。",
+    ],
+    lanes: fullMarketLaneRows(scanEconomy),
+    mode: "full_market_coverage_depth_mvp",
+    operatorHint: fullMarketOperatorHint(status, coverage),
+    priorityExplanation: fullMarketPriorityExplanation(coverage),
+    samples: {
+      pendingAssets: coverage.pendingAssets.slice(0, 10),
+      rejectedAssets: coverage.skippedAssets.slice(0, 6).map((asset) => `${asset.symbol}:${asset.reason}`),
+      scannedAssets: coverage.scannedAssets.slice(0, 10),
+    },
+    status,
   };
 }
 
@@ -972,6 +1201,7 @@ export async function buildSystemHealthReport({
   const metadata = snapshot.metadata;
   const coverage = metadata.coverage ?? fallbackCoverage(metadata);
   const scanEconomy = buildScanEconomyReport(metadata, coverage);
+  const fullMarketCoverage = fullMarketCoverageReport(metadata, coverage, scanEconomy);
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const providerStatus = sourceStatus({
@@ -1043,6 +1273,7 @@ export async function buildSystemHealthReport({
       retentionMode: repository.mode,
     },
     coverage,
+    fullMarketCoverage,
     scanEconomy,
     operations: scanOperations({
       archiveSummaries,

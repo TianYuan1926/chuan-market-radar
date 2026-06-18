@@ -555,7 +555,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`，但还没有完成高优先级币种加密扫描、覆盖差异前端展示，以及依赖自动 outcome executor 的完整胜率闭环。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`；Phase 3.10 已把全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界接入 `/api/health` 与健康面板。但还没有完成高优先级币种加密扫描、数据质量降级明细和依赖自动 outcome executor 的完整胜率闭环。
 
 后续需要：
 
@@ -565,7 +565,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描已具备基础策略，动态优先级接口和 repository hints 已具备，后续需要在 outcome executor 完成后继续提高历史胜率样本质量。
 - 高优先级币种加密扫描需要在动态优先级和外部 cron 稳定后再打开。
-- 将不同交易所同一币种的覆盖和差异展示到前端。
+- 不同交易所同一币种的覆盖数量已在健康面板展示；后续还需增加更细的交易所差异、UNKNOWN 降级、重复币种聚合和被过滤原因钻取。
 
 ### 部分落地：技术指标引擎
 
@@ -1164,8 +1164,9 @@ CoinGlass 业余会员 API：
    - 继续只读展示，不替代 TradingView，不自动生成交易指令。
 
 5. **Phase 3.10：Full-Market Scan Depth And Coverage**
-   - 下一步正确搭建项：在现有 universe registry、三交易所发现、低频轮转和 quota guard 基础上，补全“全市场覆盖深度报告”和候选池优先级解释。
-   - 目标是让前端和健康状态能清楚说明：哪些已扫、哪些待轮转、哪些因数据质量/流动性/交易所覆盖被降级，不误导为一次性全市场深扫。
+   - 当前状态：已完成。`/api/health` 已新增 `fullMarketCoverage`，健康面板已展示全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界。
+   - 该阶段不新增 CoinGlass 请求，不做一次性全市场深扫；它把现有 universe registry、三交易所发现、低频轮转和 quota guard 解释给前端和运维层。
+   - 下一步应进入 Phase 3.11 数据质量清洗与覆盖质量解释，处理 UNKNOWN、非 USDT、重复交易所和低质量标的降级说明。
 
 6. **Phase 3.9+：BTC ETH Macro Radar**
    - BTC/ETH/ETF/OI/funding/liquidations 作为大盘天气，不抢山寨主线。

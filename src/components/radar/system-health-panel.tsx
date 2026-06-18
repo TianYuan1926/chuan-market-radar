@@ -341,6 +341,16 @@ function scanEconomyNextTierLabel(value: SystemHealthReport["scanEconomy"]["next
   }[value];
 }
 
+function fullMarketCoverageStatusLabel(value: SystemHealthReport["fullMarketCoverage"]["status"]) {
+  return {
+    blocked: "阻断",
+    budget_capped: "预算压缩",
+    complete: "本轮覆盖",
+    preview: "预览",
+    rotating: "轮转中",
+  }[value];
+}
+
 function databaseStatusLabel(value: SystemHealthReport["persistence"]["databaseStatus"]) {
   return {
     configured: "已配置",
@@ -459,6 +469,8 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
   const strategyWeightActivationPassedCount = strategyWeightActivationGate.checks
     .filter((check) => check.status === "passed").length;
   const scanEconomy = health.scanEconomy;
+  const fullMarketCoverage = health.fullMarketCoverage;
+  const fullMarketGuardrails = fullMarketCoverage.guardrails.slice(0, 3);
   const scanEconomyTierRows = [
     {
       key: "anchor",
@@ -697,6 +709,75 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
             <p>
               <span>覆盖 {formatPercent(scanEconomy.coverage.coveragePercent)} · 待扫 {scanEconomy.coverage.pending} · 不新增请求</span>
             </p>
+          </div>
+
+          <div
+            className={`health-full-market health-full-market--${fullMarketCoverage.status}`}
+            aria-label="全市场覆盖深度报告"
+          >
+            <div className="health-ops__head">
+              <div>
+                <span className="mono">全市场覆盖</span>
+                <strong>{fullMarketCoverage.operatorHint}</strong>
+              </div>
+              <b>{fullMarketCoverageStatusLabel(fullMarketCoverage.status)}</b>
+            </div>
+
+            <div className="health-full-market__grid" aria-label="全市场扫描深度">
+              <span>
+                <b>{fullMarketCoverage.coverage.scanned}/{fullMarketCoverage.coverage.eligible}</b>
+                已扫/可扫
+              </span>
+              <span>
+                <b>{fullMarketCoverage.coverage.batchLabel}</b>
+                当前批次
+              </span>
+              <span>
+                <b>{fullMarketCoverage.coverage.estimatedFullCycleMinutes}m</b>
+                轮转周期
+              </span>
+              <span>
+                <b>{fullMarketCoverage.exchangeQuality.majorThreePercent}%</b>
+                三所覆盖
+              </span>
+            </div>
+
+            <div className="health-full-market__lanes" aria-label="全市场候选池层级">
+              {fullMarketCoverage.lanes.map((lane) => (
+                <span className={`health-full-market__lane health-full-market__lane--${lane.id}`} key={lane.id}>
+                  <b>{lane.selected}/{lane.total}</b>
+                  <strong>{lane.label}</strong>
+                  <small>{lane.cadenceHint}</small>
+                </span>
+              ))}
+            </div>
+
+            <div className="health-full-market__samples" aria-label="全市场样本解释">
+              <span>
+                <b>已扫</b>
+                {fullMarketCoverage.samples.scannedAssets.length > 0
+                  ? fullMarketCoverage.samples.scannedAssets.join(" / ")
+                  : "暂无样本"}
+              </span>
+              <span>
+                <b>待轮转</b>
+                {fullMarketCoverage.samples.pendingAssets.length > 0
+                  ? fullMarketCoverage.samples.pendingAssets.join(" / ")
+                  : "本轮无待扫"}
+              </span>
+              <span>
+                <b>交易所质量</b>
+                三所 {fullMarketCoverage.exchangeQuality.majorThree} · 多所 {fullMarketCoverage.exchangeQuality.multiExchange} · 单所 {fullMarketCoverage.exchangeQuality.singleExchange}
+              </span>
+            </div>
+
+            <p>{fullMarketCoverage.priorityExplanation}</p>
+
+            <div className="health-full-market__guardrails" aria-label="全市场扫描边界">
+              {fullMarketGuardrails.map((guardrail) => (
+                <span key={guardrail}>{guardrail}</span>
+              ))}
+            </div>
           </div>
 
           <div

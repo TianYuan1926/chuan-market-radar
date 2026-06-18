@@ -59,6 +59,42 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       total: 24,
       totalBatches: 1,
     },
+    fullMarketCoverage: {
+      coverage: {
+        batchLabel: "1/1",
+        cadenceMinutes: 15,
+        coveragePercent: 100,
+        eligible: 24,
+        estimatedFullCycleMinutes: 15,
+        nextBatchLabel: "1/1",
+        pending: 0,
+        scanned: 24,
+        skipped: 0,
+        total: 24,
+        totalBatches: 1,
+      },
+      exchangeQuality: {
+        majorThree: 0,
+        majorThreePercent: 0,
+        multiExchange: 0,
+        singleExchange: 0,
+        unlisted: 0,
+      },
+      guardrails: [
+        "全市场扫描采用轻扫描轮转，深度分析只给候选池和关键观察标的。",
+        "前端覆盖报告只读取本轮 metadata，不会触发额外 CoinGlass 请求。",
+      ],
+      lanes: [],
+      mode: "full_market_coverage_depth_mvp",
+      operatorHint: "当前可见合约币池已完成本轮覆盖。",
+      priorityExplanation: "候选池优先级来自锚定币、配置白名单、流动性、交易所覆盖和近期信号。",
+      samples: {
+        pendingAssets: [],
+        rejectedAssets: [],
+        scannedAssets: [],
+      },
+      status: "complete",
+    },
     scanEconomy: {
       budget: {
         budgetUsagePercent: 32,
