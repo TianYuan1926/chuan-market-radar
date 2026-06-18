@@ -3894,7 +3894,8 @@ button.altcoin-opportunity-card.is-selected {
 }
 
 .chart-v3-drilldown,
-.chart-v3-forward-drilldown {
+.chart-v3-forward-drilldown,
+.chart-v3-pattern-context {
   display: grid;
   gap: 5px;
   padding: 9px;
@@ -3909,6 +3910,7 @@ button.altcoin-opportunity-card.is-selected {
 
 .chart-v3-drilldown div,
 .chart-v3-forward-drilldown div,
+.chart-v3-pattern-context div,
 .chart-v3-manual-review {
   display: flex;
   min-width: 0;
@@ -3919,6 +3921,7 @@ button.altcoin-opportunity-card.is-selected {
 
 .chart-v3-drilldown strong,
 .chart-v3-forward-drilldown strong,
+.chart-v3-pattern-context strong,
 .chart-v3-manual-review b {
   color: var(--ink);
   font-size: 11px;
@@ -3928,8 +3931,10 @@ button.altcoin-opportunity-card.is-selected {
 .chart-v3-forward-drilldown span,
 .chart-v3-drilldown p,
 .chart-v3-forward-drilldown p,
+.chart-v3-pattern-context p,
 .chart-v3-drilldown small,
 .chart-v3-forward-drilldown small,
+.chart-v3-pattern-context small,
 .chart-v3-manual-review span {
   min-width: 0;
   overflow: hidden;
@@ -3938,8 +3943,10 @@ button.altcoin-opportunity-card.is-selected {
 
 .chart-v3-drilldown span,
 .chart-v3-forward-drilldown span,
+.chart-v3-pattern-context span,
 .chart-v3-drilldown small,
 .chart-v3-forward-drilldown small,
+.chart-v3-pattern-context small,
 .chart-v3-manual-review span {
   color: var(--muted);
   font-family: var(--font-mono);
@@ -3947,11 +3954,18 @@ button.altcoin-opportunity-card.is-selected {
 }
 
 .chart-v3-drilldown p,
-.chart-v3-forward-drilldown p {
+.chart-v3-forward-drilldown p,
+.chart-v3-pattern-context p {
   margin: 0;
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.chart-v3-pattern-context {
+  background:
+    linear-gradient(135deg, rgba(157, 103, 255, 0.1), transparent 72%),
+    rgba(255, 255, 255, 0.3);
 }
 
 .chart-v3-manual-review {

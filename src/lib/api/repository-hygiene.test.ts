@@ -524,6 +524,8 @@ test("signal dossier exposes v3 key levels and forward map as readonly context",
   assert.match(dossierSource, /trendIntegrity/u);
   assert.match(dossierSource, /tradePlan/u);
   assert.match(dossierSource, /patternLibrary/u);
+  assert.match(dossierSource, /patternTypeLabel/u);
+  assert.match(dossierSource, /FIBONACCI_PULLBACK/u);
   assert.match(dossierSource, /位置\/RR/u);
   assert.match(dossierSource, /回踩\/反抽/u);
   assert.match(dossierSource, /趋势完整度/u);
@@ -1648,10 +1650,13 @@ test("chart panel exposes active timeframe v3 structure context without replacin
   assert.match(componentSource, /chart-v3-context/);
   assert.match(componentSource, /chart-v3-levels/);
   assert.match(componentSource, /chart-v3-plan/);
+  assert.match(componentSource, /chart-v3-pattern-context/);
+  assert.match(componentSource, /patternTypeLabel/);
   assert.match(componentSource, /TradingView 图表/);
   assert.match(cssSource, /\.chart-v3-context/);
   assert.match(cssSource, /\.chart-v3-levels/);
   assert.match(cssSource, /\.chart-v3-plan/);
+  assert.match(cssSource, /\.chart-v3-pattern-context/);
 });
 
 test("chart panel exposes readonly v3 key-level and forward-map drilldown details", () => {

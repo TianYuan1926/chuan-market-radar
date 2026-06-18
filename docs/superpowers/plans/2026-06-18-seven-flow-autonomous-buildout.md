@@ -78,7 +78,7 @@
 - [x] Add primary-row selection reason output.
 - [x] Expose examples and operator actions in health.
 - [x] Update blueprint, run `npm run typecheck`, `npm run test:market`, `npm run lint`, and `npm run build`; browser recheck deferred because Playwright navigation was blocked by tool approval.
-- [ ] Commit as `Explain market data quality aggregation`.
+- [x] Commit as `Explain market data quality aggregation`.
 
 ### Task 3: Multi-Timeframe Market Structure Deepening
 
@@ -92,10 +92,10 @@
 - Consumes: existing OHLCV candles and v3 context.
 - Produces: richer market reading facts, pattern support, Fibonacci/harmonic auxiliary evidence, and clearer chart/dossier traceability.
 
-- [ ] Add structure and pattern golden tests.
-- [ ] Implement facts first, then evidence, then read-only display.
-- [ ] Keep technical and pattern evidence low-weight and traceable.
-- [ ] Update blueprint, verify, commit.
+- [x] Add structure and pattern golden tests.
+- [x] Implement facts first, then evidence, then read-only display.
+- [x] Keep technical and pattern evidence low-weight and traceable.
+- [x] Update blueprint, verify, commit.
 
 ### Task 4: V3 Strategy Loop Practical Readiness
 

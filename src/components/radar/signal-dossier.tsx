@@ -338,6 +338,20 @@ function patternBiasLabel(value: NonNullable<SignalStrategyV3["patternLibrary"]>
   }[value];
 }
 
+function patternTypeLabel(value: NonNullable<SignalStrategyV3["patternLibrary"]>["patterns"][number]["type"]) {
+  return {
+    ASCENDING_TRIANGLE: "上升三角",
+    BEAR_FLAG: "熊旗",
+    BULL_FLAG: "牛旗",
+    DESCENDING_TRIANGLE: "下降三角",
+    DOUBLE_BOTTOM: "双底",
+    DOUBLE_TOP: "双顶",
+    FIBONACCI_PULLBACK: "Fibonacci 回撤",
+    HEAD_AND_SHOULDERS: "头肩顶",
+    INVERSE_HEAD_AND_SHOULDERS: "反头肩",
+  }[value];
+}
+
 function pricePointLabel(value: number | null) {
   if (value === null) {
     return "待确认";
@@ -699,12 +713,15 @@ export function SignalDossier({
                       <span>{strategyV3.patternLibrary.dominantPattern ? patternBiasLabel(strategyV3.patternLibrary.dominantPattern.bias) : "未识别"}</span>
                     </div>
                     <div className="signal-dossier__v3-location-grid">
-                      <span><b>{strategyV3.patternLibrary.dominantPattern?.type.replaceAll("_", " ") ?? "等待"}</b>主形态</span>
+                      <span><b>{strategyV3.patternLibrary.dominantPattern ? patternTypeLabel(strategyV3.patternLibrary.dominantPattern.type) : "等待"}</b>主形态</span>
                       <span><b>{strategyV3.patternLibrary.dominantPattern?.confidence ?? 0}</b>置信</span>
                       <span><b>{strategyV3.patternLibrary.maxWeightPercent}%</b>权重上限</span>
                       <span><b>{strategyV3.patternLibrary.hasTradeSignal ? "异常" : "否"}</b>交易信号</span>
                     </div>
                     <p>{strategyV3.patternLibrary.summary}</p>
+                    {strategyV3.patternLibrary.dominantPattern?.evidence[0] ? (
+                      <p>{strategyV3.patternLibrary.dominantPattern.evidence[0]}</p>
+                    ) : null}
                     <small>
                       {strategyV3.patternLibrary.dominantPattern?.invalidationHint
                         ?? "形态只做辅助，不覆盖结构、位置/RR 和 Risk Gate。"}

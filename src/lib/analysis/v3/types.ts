@@ -336,8 +336,15 @@ export type V3PatternBias =
   | "RISK_CONTEXT";
 
 export type V3PatternType =
+  | "ASCENDING_TRIANGLE"
+  | "BEAR_FLAG"
+  | "BULL_FLAG"
+  | "DESCENDING_TRIANGLE"
   | "DOUBLE_BOTTOM"
-  | "DOUBLE_TOP";
+  | "DOUBLE_TOP"
+  | "FIBONACCI_PULLBACK"
+  | "HEAD_AND_SHOULDERS"
+  | "INVERSE_HEAD_AND_SHOULDERS";
 
 export type StrategyV3Pattern = {
   allowedUse: "research_only";

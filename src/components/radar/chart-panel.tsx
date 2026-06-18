@@ -207,6 +207,22 @@ function trendReviewVerdictLabel(value?: string) {
   return value ? labels[value] ?? value.replaceAll("_", " ") : "待确认";
 }
 
+function patternTypeLabel(value?: string) {
+  const labels: Record<string, string> = {
+    ASCENDING_TRIANGLE: "上升三角",
+    BEAR_FLAG: "熊旗",
+    BULL_FLAG: "牛旗",
+    DESCENDING_TRIANGLE: "下降三角",
+    DOUBLE_BOTTOM: "双底",
+    DOUBLE_TOP: "双顶",
+    FIBONACCI_PULLBACK: "Fibonacci 回撤",
+    HEAD_AND_SHOULDERS: "头肩顶",
+    INVERSE_HEAD_AND_SHOULDERS: "反头肩",
+  };
+
+  return value ? labels[value] ?? value.replaceAll("_", " ") : "等待识别";
+}
+
 export function ChartPanel({
   selected,
   activeTimeframe,
@@ -459,6 +475,22 @@ export function ChartPanel({
             <span><b>{strategyV3.tradePlan?.rewardRisk?.toFixed(2) ?? "--"}R</b>赔率</span>
             <span><b>{activeForwardLevels.length}</b>事前位</span>
             <small>{strategyV3.tradePlan?.summary ?? strategyV3.summary}</small>
+          </div>
+
+          <div className="chart-v3-pattern-context" aria-label="v3 形态辅助上下文">
+            <div>
+              <strong>形态上下文</strong>
+              <span>{patternTypeLabel(strategyV3.patternLibrary?.dominantPattern?.type)}</span>
+            </div>
+            <p>
+              {strategyV3.patternLibrary?.dominantPattern
+                ? `${strategyV3.patternLibrary.dominantPattern.confidence} 置信 / ${strategyV3.patternLibrary.maxWeightPercent}% 权重上限 / 不生成交易信号`
+                : "等待更清晰的盘面结构。"}
+            </p>
+            <small>
+              {strategyV3.patternLibrary?.dominantPattern?.evidence[0]
+                ?? "形态只做低权重辅助，不能覆盖关键位、位置/RR 和 Risk Gate。"}
+            </small>
           </div>
 
           <div className="chart-v3-drilldown" aria-label="v3 关键位 drilldown">
