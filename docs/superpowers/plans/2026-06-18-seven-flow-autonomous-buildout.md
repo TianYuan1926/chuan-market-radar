@@ -59,7 +59,7 @@
 - [x] Implement health report drilldown fields.
 - [x] Render compact front-end drilldown in System Health.
 - [x] Update blueprint, run `npm run typecheck`, `npm run test:market`, `npm run lint`, and `npm run build`; Playwright recheck was blocked by tool approval after 1A browser smoke had already verified the same settings panel route.
-- [ ] Commit as `Add exchange coverage drilldown`.
+- [x] Commit as `Add exchange coverage drilldown`.
 
 ### Task 2: Data Quality Enforcement And Aggregation Explainability
 
