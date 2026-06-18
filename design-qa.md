@@ -8,9 +8,12 @@
 - Phase 8.2f desktop home screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2f-desktop-home.png`
 - Phase 8.2f desktop review drawer screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2f-desktop-review-drawer.png`
 - Phase 8.2f mobile review drawer screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2f-mobile-review-drawer.png`
+- Phase 8.2g desktop boot briefing screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-desktop-boot-briefing.png`
+- Phase 8.2g mobile boot briefing screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-mobile-boot-briefing.png`
+- Phase 8.2g console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-console.log`
 - Desktop viewport: 1536 x 1024.
 - Mobile viewport: 390 x 844.
-- State: local `http://localhost:3000/`, default radar route, live refresh idle/watch state.
+- State: local `http://localhost:3001/`, default radar route, first-visit boot briefing state plus drawer entry checks.
 
 **Findings**
 - No P0/P1/P2 blocking issues remain.
@@ -21,6 +24,9 @@
 - Copy and content: first-screen content is Chinese-first and action-oriented. Secondary features are represented as drawer entries instead of all being dumped into the homepage.
 - Phase 8.2f navigation: Radar / Signals / Review / Journal / Evolution / Settings are now real interactive states. Signals, Review, Journal, Evolution, and Settings open a workspace drawer; Radar returns to the main cockpit.
 - Phase 8.2f drawer runtime check: all five desktop drawers opened with the expected title, closed back to zero open drawers, and produced no horizontal overflow. The 390px mobile Review drawer also had no horizontal overflow and closed with Escape.
+- Phase 8.2g startup briefing: the first-visit boot briefing appears on desktop and mobile, carries the selected liquid-glass lens asset, preserves the `川` brand mark, and states the product boundary as a full-market altcoin trend-switch radar rather than a marketing page.
+- Phase 8.2g interaction check: `查看信号池` opens the Signals drawer, `看复盘链路` opens the Review drawer, and `进入雷达` dismisses the briefing with `localStorage` persistence. Desktop and 390px mobile checks both reported no horizontal overflow.
+- Runtime console: 0 errors and 0 warnings for the 8.2g Playwright QA run.
 
 **Patches Made**
 - Reordered the center workspace so the candidate strip and chart sit before deep review modules.
@@ -32,6 +38,8 @@
 - Added functional workspace drawers for Signals, Review, Journal, Evolution, and Settings.
 - Wired DailyMover manual calibration and strategy-draft confirmation actions into `/api/journal` as review records only.
 - Preserved the homepage rule: full Replay, DailyMover, Journal, Rank, and Health modules stay behind navigation drawers instead of permanently occupying the first screen.
+- Rebuilt `RadarBootBriefing` as a first-visit startup layer with real runtime data, skip persistence, Signals/Review drawer entry points, and reduced-motion-compatible brand motion.
+- Added Phase 8.2g repository hygiene coverage for the startup briefing boundaries: no background music, no callout behavior, no automatic trading, and no static-only marketing surface.
 
 **Follow-up Polish**
 - P3: the next UI pass should make the chart itself more TradingView-like with denser candles and key-level overlays.

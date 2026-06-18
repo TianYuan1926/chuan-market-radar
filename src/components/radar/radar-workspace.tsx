@@ -8,6 +8,7 @@ import { JournalPanel } from "./journal-panel";
 import { MacroWeatherPanel } from "./macro-weather-panel";
 import { OpsAndFilterPanel } from "./ops-and-filter-panel";
 import { PixelCopilot } from "./pixel-copilot";
+import { RadarBootBriefing } from "./radar-boot-briefing";
 import { RadarCockpitShell } from "./radar-cockpit-shell";
 import { RadarTable } from "./radar-table";
 import { RankPanel } from "./rank-panel";
@@ -1224,6 +1225,20 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         runtimeStates={runtimeStates}
         soundEnabled={soundEnabled}
         staleAfterMinutes={metadata.staleAfterMinutes}
+      />
+
+      <RadarBootBriefing
+        cadenceLabel={`${metadata.cadenceMinutes}m`}
+        coverageLabel={`${coveragePercent}%`}
+        healthLabel={runtimeStates.every((state) => state.tone === "ready") ? "全绿" : "有观察项"}
+        marketSessionLabel={`${marketSession.label} ${marketSession.localTime}`}
+        nextScanLabel={formatScanTime(metadata.nextScanAt)}
+        onOpenReview={() => navigateWorkspace("review")}
+        onOpenSignals={() => navigateWorkspace("signals")}
+        providerLabel={marketSourceLabel(metadata.source)}
+        requestBudgetLabel={requestsNote}
+        signalCount={signals.length}
+        statusLabel={marketStatusLabel(metadata.status)}
       />
 
       <section className={`radar-command-strip radar-command-strip--${metadata.status}`} aria-label="雷达节拍状态">

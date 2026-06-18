@@ -183,6 +183,58 @@ test("radar UI exposes premium pixel cockpit anchors without relying on prose", 
   assert.match(cssSource, /prefers-reduced-motion/);
 });
 
+test("phase 8.2g startup briefing exposes brand motion without becoming a marketing page", () => {
+  const briefingSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-boot-briefing.tsx"),
+    "utf8",
+  );
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const requiredBriefingTokens = [
+    "bootBriefingStorageKey",
+    "localStorage",
+    "全市场山寨趋势切换雷达",
+    "不做喊单",
+    "不自动下单",
+    "进入雷达",
+    "查看信号池",
+    "看复盘链路",
+    "/assets/radar-crystal-lens.png",
+  ];
+  const requiredWorkspaceTokens = [
+    "<RadarBootBriefing",
+    "onOpenSignals={() => navigateWorkspace(\"signals\")}",
+    "onOpenReview={() => navigateWorkspace(\"review\")}",
+    "requestBudgetLabel={requestsNote}",
+    "marketSessionLabel",
+  ];
+  const requiredCssTokens = [
+    ".radar-boot-briefing__lens",
+    ".radar-boot-briefing__scanline",
+    ".radar-boot-briefing__status",
+    "@keyframes radarBootReveal",
+    "@keyframes radarBootScan",
+    "prefers-reduced-motion",
+  ];
+
+  for (const token of requiredBriefingTokens) {
+    assert.match(briefingSource, new RegExp(token.replaceAll("/", "\\/")));
+  }
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.ok(workspaceSource.includes(token), `RadarWorkspace missing startup token: ${token}`);
+  }
+
+  for (const token of requiredCssTokens) {
+    assert.ok(cssSource.includes(token), `globals.css missing startup token: ${token}`);
+  }
+
+  assert.equal(briefingSource.includes("背景音乐"), false);
+});
+
 test("public radar UI keeps reader-facing controls Chinese-first", () => {
   const sourceFiles = [
     "src/components/radar/chart-panel.tsx",
