@@ -34,29 +34,41 @@ export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol 
         : "巡航中，等真正有赔率的机会。没有低风险区，就不强行开工。";
 
   return (
-    <section className={`module pet-module pet-module--${mood}`}>
-      <div className="module-head module-head--flush">
-        <h2>像素副驾驶</h2>
-        <div className="pet-head-actions">
-          {onOpenDossier ? (
-            <button className="pet-dossier-button" onClick={onOpenDossier} type="button">
-              {selectedLabel} 档案
-            </button>
-          ) : null}
-          <span className="tag">BTC 项链</span>
+    <section className={`module pet-module companion-dock pet-module--${mood}`} aria-label="助手 dock">
+      <div className="companion-dock__avatar">
+        <div className={`copilot-avatar copilot-avatar--${mood}`} aria-label="男性像素副驾驶">
+          <div className="copilot-gear" />
+          <div className="copilot-head">
+            <div className="copilot-hair" />
+            <div className="copilot-expression">
+              <span className="copilot-eye copilot-eye--left" />
+              <span className="copilot-eye copilot-eye--right" />
+            </div>
+          </div>
+          <div className="copilot-body">
+            <div className="copilot-jacket" />
+            <div className="copilot-chain">
+              <span className="copilot-medallion">BTC</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="pet-plate">
-        <div className="copilot-top">
-          <div className="pet-say">
-            {line}
+      <div className="companion-dock__body">
+        <div className="module-head module-head--flush">
+          <div>
+            <h2>像素副驾驶</h2>
+            <span>BTC 项链 · 装备 {equipmentLabel}</span>
           </div>
-          <div className="pet-state">
-            <span>{moodLabel}</span>
-            <span>{rankProfile ? `${rankProfile.totalXp} XP` : "+1 XP"}</span>
-            <span>{rankProfile?.tier.label ?? "段位"}</span>
-          </div>
+          <span className="tag">{moodLabel}</span>
+        </div>
+
+        <p className="companion-dock__line">{line}</p>
+
+        <div className="pet-state">
+          <span>{rankProfile ? `${rankProfile.totalXp} XP` : "+1 XP"}</span>
+          <span>{rankProfile?.tier.label ?? "段位"}</span>
+          <span>{selectedLabel}</span>
         </div>
 
         <div className="copilot-dashboard" aria-label="像素副驾驶仪表">
@@ -77,35 +89,11 @@ export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol 
           </div>
         </div>
 
-        <div className="copilot-stage" aria-label="像素男性副驾驶">
-          <div className="copilot-shadow" />
-          <div className={`copilot-avatar copilot-avatar--${mood}`} aria-label="男性像素副驾驶">
-            <div className="copilot-gear" />
-            <div className="copilot-head">
-              <div className="copilot-hair" />
-              <div className="copilot-expression">
-                <span className="copilot-eye copilot-eye--left" />
-                <span className="copilot-eye copilot-eye--right" />
-              </div>
-            </div>
-            <div className="copilot-body">
-              <div className="copilot-jacket" />
-              <div className="copilot-chain">
-                <span className="copilot-medallion">BTC</span>
-              </div>
-            </div>
-          </div>
-          <div className="copilot-radar-desk" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="copilot-level-strip" aria-label="副驾驶装备">
-            <span>BTC 项链</span>
-            <span>装备 {equipmentLabel}</span>
-            <span>{moodLabel}</span>
-          </div>
-        </div>
+        {onOpenDossier ? (
+          <button className="pet-dossier-button" onClick={onOpenDossier} type="button">
+            {selectedLabel} 档案
+          </button>
+        ) : null}
       </div>
     </section>
   );

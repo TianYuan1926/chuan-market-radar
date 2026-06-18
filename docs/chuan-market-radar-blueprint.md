@@ -185,6 +185,8 @@ v3 的核心不是“预测涨跌”，而是：
 
 2026-06-17 进一步校准：这次前端工作定义为 **UI Reset**，不是在旧页面上继续加样式类名。后端能力、API、CoinGlass、Neon、扫描、日记、段位、回放和规则引擎保留；首页信息架构、视觉系统、组件壳、动效反馈、像素副驾驶呈现、响应式布局和 CSS 组织重建。正式设计依据见 `docs/superpowers/specs/2026-06-17-ui-reset-living-radar-cockpit-design.md`。
 
+2026-06-18 最新校准：用户选定浅色专业工作台参考图作为正式首屏方向。当前 UI Reset 不再追求“像素二次元全屏风格”，而是以 **Light Liquid-Glass Radar Workstation** 为主：银白/冰蓝/深蓝信息工作台、顶部“川 Market Radar”品牌 banner、液态玻璃雷达之眼、运行状态条、市场 ticker、2 : 6 : 2 主 cockpit、中心 Signal Arena、右侧 Action Rail 和小型像素副驾驶 dock。旧的“一页展示所有功能”方向删除，Daily Mover、Journal、Replay、Rank/Evolution 等进入导航、功能抽屉、信号档案或二级页面。
+
 新 UI 骨架规则：
 
 - 技术方向必须真实接入 **Tailwind CSS + daisyUI** 后才能宣称使用；Element UI / Element Plus 只作为组件参考，不作为主实现栈，因为当前项目是 Next.js / React。
@@ -192,11 +194,13 @@ v3 的核心不是“预测涨跌”，而是：
 - 首页主体使用一个融合式 **Cockpit Card**，不是散落卡片墙；桌面端宽度按 **左 / 中 / 右 = 2 : 6 : 2** 组织。
 - 左栏承载系统运行、扫描经济、市场时钟、事件流和配置入口；中栏承载机会雷达、Altcoin Opportunity Board、当前选中信号、策略计划和多周期证据；右栏承载 Macro Radar、Signal Lifecycle Tracker、复盘/副驾驶入口和风险边界。
 - 用户提供的视觉图作为 **雷达之眼 / Crystal Lens** 方向使用：可以裁切成顶部视觉、启动动画镜头、信号档案封面或微弱材质层；不能整张铺成壁纸，不能压住行情信息，不能把网站变成纯插画页。
+- 参考图应体现为顶部品牌镜头和材质系统，不作为全屏背景；首屏必须优先保证行情、信号、关键位、策略和运行状态可读。
 - “川”必须是核心品牌符号：logo、启动动画、水印、favicon、雷达刻印或控制台铭牌都要逐步体现，而不是只出现在导航小字里。
 - 打开网站可有启动动画和介绍 briefing，但必须短、可跳过、可降级；它解释网站定位、当前扫描状态和风险边界，不做营销页。
 - 背景音乐删除：不做常驻背景音乐。后续只保留用户主动开启的提示音/告警音，且必须尊重静默时段、mute 和 `prefers-reduced-motion`。
 - 前端要有“活着”的运行反馈：扫描心跳、倒计时、数据闪烁、候选变化、stale 降级、事件流滚动和 session clock。动效只表达状态，不做无意义装饰。
 - 首页不承载所有细节。深层证据、日记历史、涨跌榜归因、K 线验证、AI 反证和策略生命周期进入 Signal Dossier、Altcoin Opportunity Board、Macro Radar、Signal Lifecycle Tracker 等专门区域。
+- 首页首屏禁止重新堆满 `DailyMoverPanel`、`JournalPanel`、`ReplayPanel`、`RankPanel` 这类完整模块；允许保留聚合入口、摘要数字和打开档案/抽屉的动作。
 - 中国大陆访问不作为当前交付目标；不引入 ICP、内地云服务或内地 CDN 约束，避免把 UI 重建和访问合规问题混在一起。
 
 新版首页的最低交付标准：
@@ -352,7 +356,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板和真实权重启用门禁健康面板展示已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础已落地 | 尚未完成站内告警历史持久化、可配置静默时段、可配置告警等级阈值和提示音细节 |
-| 阶段 8：UI 质感深化 | 第一轮已落地，信号档案基础已接入候选池、信号地图、TradingView、日记、每日异动、告警和副驾驶入口；Living Radar 第二轮已接入雷达节拍条、信号脉冲、延迟/失败状态弱化、移动端检查、Altcoin Opportunity Board 和 BTC/ETH Macro Weather | 像素男性副驾驶仍需正式替换旧 S680 命名与组件边界；装备升级、图表密度、信号档案视觉精修和更完整交互动效仍需继续打磨 |
+| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础和 2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、功能抽屉和紧凑像素副驾驶 dock 已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 仍需继续做功能抽屉真实二级页面/路由、启动动画、Signal Dossier 视觉精修、装备升级动效、更完整交互动效和更专业的真实图表表现 |
 
 ## 当前已落地模块
 
@@ -361,7 +365,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - Next.js 项目结构已建立。
 - Vercel 项目已连接 GitHub 仓库。
 - 生产访问地址已生成。
-- 页面有主雷达、策略卡、图表入口、事件中心、系统状态、复盘日记、段位、像素宠物、声音开关。
+- 页面首屏现在以主雷达工作台为核心：顶部品牌/运行状态、市场 ticker、左侧雷达控制台、中央信号竞技场、候选横条、主图/策略计划、右侧行动栏、功能抽屉、Macro Weather、生命周期预览和紧凑像素副驾驶 dock。复盘日记、段位、扫描回放、每日异动归因等完整模块不再全部堆在首屏，而是通过导航、功能抽屉、信号档案或二级页面承接。
 - 信号档案基础已落地：点击候选池、信号地图、热区匹配项或像素副驾驶可打开同一标的档案；桌面为右侧抽屉，移动端为底部上滑面板；档案复用现有扫描、日记、每日异动、告警、TradingView 链接和 v3 关键位地图，不新增 CoinGlass 请求。
 
 ### 已落地：CoinGlass 数据接入骨架
@@ -732,11 +736,11 @@ AI 复核必须遵守：
 - GitHub Actions 外部 cron：`.github/workflows/chuan-daily-movers.yml` 每日低频触发受保护 API。
 - 持久化 schema：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 - repository 写入和查询：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
-- 公开雷达 UI 入口：`DailyMoverPanel` 已接入主工作台右侧信息栈，展示最新涨跌幅样本、抓到/漏判/可学习统计、归因驱动和历史样本摘要。
+- 公开雷达 UI 入口：每日异动能力保留为 Review / Evolution / 功能抽屉 / Signal Dossier 的研究入口；完整 `DailyMoverPanel` 不再常驻首页右侧信息栈，避免首页重新变成全功能堆叠。
 - 只读关联摘要：`GET /api/daily-movers` 会为选中样本生成 `selectedCorrelation`，把每日异动 review 与最近扫描归档、扫描 replay signal、复盘日记做 bounded 关联，输出 `caught_with_journal`、`caught_unreviewed`、`missed_with_evidence`、`not_learnable`、`unlinked` 等状态。
-- 关联摘要 UI：`DailyMoverPanel` 已展示扫描关联、日记关联、校准候选数量，并对样本链显示命中已复盘、命中待复盘、漏判有证据、不可学习等状态。
-- 历史样本和单样本详情：`DailyMoverPanel` 已支持历史样本切换、选中样本详情和“为什么漏判/下一步复核”的只读说明。
-- v3 漏判复盘 MVP：`GET /api/daily-movers` 会把选中每日异动样本中的漏判样本与已保存的 `v3_forward_map_snapshots` 做只读关联，生成 `missed_altcoin_review`；`DailyMoverPanel` 展示事前 v3 地图证据、证据 id 数量和不改权重边界。该层不新增 CoinGlass 请求、不新增写入、不自动调权。
+- 关联摘要 UI：每日异动关联状态继续作为复盘/进化层能力，后续应在二级页面或信号档案中展示扫描关联、日记关联、校准候选数量，以及命中已复盘、命中待复盘、漏判有证据、不可学习等状态。
+- 历史样本和单样本详情：完整历史样本切换、选中样本详情和“为什么漏判/下一步复核”的只读说明，应放在 Review/Evolution 二级页面或抽屉中，不回到首页常驻。
+- v3 漏判复盘 MVP：`GET /api/daily-movers` 会把选中每日异动样本中的漏判样本与已保存的 `v3_forward_map_snapshots` 做只读关联，生成 `missed_altcoin_review`；前端展示必须强调事前 v3 地图证据、证据 id 数量和不改权重边界。该层不新增 CoinGlass 请求、不新增写入、不自动调权。
 - 只读规则校准建议：`missed_with_evidence` 已聚合为校准候选建议，并在 UI 中明确“不自动改权重”。
 - 校准候选入复盘队列：`DailyMoverPanel` 可把校准候选以 `calibration_review` 写入 `journal_events`；该事件进入跟踪队列、记录 `calibrationTag` 和样本币种，但 rank 分数保持 0，不能自动调整策略权重。
 - 只读校准反馈趋势：`GET /api/daily-movers` 会从 bounded `journal_events` 中汇总 `calibration_review`，按 `calibrationTag` 输出待复查、有效、反证、过期样本数；`DailyMoverPanel` 只读展示，不提供自动调权重入口。
@@ -811,18 +815,24 @@ AI 复核必须遵守：
 - S680 不再作为默认宠物、座驾、装备、皮肤或彩蛋方向；后续如果重新启用，必须由用户明确指定并作为独立可关闭实验项。
 - 新增测试约束副驾驶结构、中文标签和禁止喊单边界，避免后续回退。
 
+2026-06-18 已按用户选定参考图完成首屏 UI Reset 基础版，并完成 Product Design QA：
+
+- 顶部 `TopRadarBar` 改为浅色 Live Navbar / Banner，包含“川 Market Radar”、液态玻璃雷达之眼、主导航、扫描倒计时、数据新鲜度、市场时段、请求预算、ticker 和运行矩阵。
+- `radar-workspace.tsx` 不再把 DailyMover、Replay、Journal、Rank 等完整模块堆在首屏；首页改为左侧雷达控制台、中央信号竞技场、候选横条、首屏主图、右侧 Action Rail 和功能抽屉。
+- `PixelCopilot` 改为紧凑 companion dock，只作为右侧轻量助手入口，不再占用大面积面板。
+- `TopRadarBar` 的雷达之眼图片按首屏 LCP 处理为 `priority + loading="eager"` 资源；桌面 1536x1024 与移动 390x844 已用浏览器截图检查，无控制台错误、无 LCP warning、无候选文字遮挡。
+- 当前已经通过 `npm run test:market`、`npm run lint`、`npm run build` 和单独 `npm run typecheck`；`design-qa.md` 记录本轮视觉验收，最终结果为 `passed`。后续还需要继续做二级页面、启动动画和真实图表表现。
+
 最终 UI 方向：
 
-- 像素二次元。
-- 不幼稚。
-- 有数据密度。
-- 有动画和互动。
-- 不走传统后台表格感。
-- 不走冷酷科幻风。
-- 网站命名为“川”。
-- 宠物主角是男性像素副驾驶，以 BTC 项链、装备升级、情绪话唠和纪律反馈为核心。
+- 主视觉是浅色专业液态玻璃雷达工作台，不是传统后台表格，也不是低龄像素游戏页。
+- “川”是核心品牌符号，顶部、启动动画、favicon、雷达刻印和关键入口都应逐步体现。
+- 用户提供的液态玻璃图像用于雷达之眼、启动镜头或材质层，不能铺满成壁纸、遮挡行情或削弱专业度。
+- 首页必须有运行感：心跳、倒计时、ticker、数据新鲜度、候选变化、stale 降级和 session clock。
+- 首页不展示所有功能；完整复盘、每日异动、段位、回放、AI 反证和策略进化进入导航、功能抽屉、信号档案或二级页面。
+- 宠物主角是男性像素副驾驶，以 BTC 项链、装备升级、情绪话唠和纪律反馈为核心；它是互动层，不是主信息架构。
 - S680 从常规 UI 主线删除，不作为默认宠物、座驾、装备或皮肤方向。
-- 严肃区域严肃，彩蛋区域有趣。
+- 严肃区域严肃，彩蛋区域有趣；任何动效必须服务状态理解或纪律反馈。
 
 后续前端 UI 工作原则：
 
@@ -1094,33 +1104,27 @@ CoinGlass 业余会员 API：
 - Phase 8.2d 已落地：顶部常驻运行反馈层加入扫描心跳、下次扫描倒计时、数据新鲜度、市场时段时钟、CoinGlass/Neon/归档/Cron 状态矩阵和 stale/degraded 色阶；背景音乐继续删除，只保留用户主动开启的提示音边界。桌面 1440x1000 与移动 390x844 已通过本地生产构建浏览器 QA，无横向溢出，候选行不遮挡。
 - Phase 3.8 已落地：中栏新增 `AltcoinOpportunityBoard` 作为山寨机会主筛选面，把现有扫描信号和每日异动复盘上下文分组为接近触发、多头升温、空头升温、过热勿追、新币/长尾和数据观察；该面板不新增 CoinGlass 请求，不把每日异动直接升级为交易信号，点击扫描信号会联动 Signal Dossier。
 - Phase 3.9 已落地：右栏新增 `MacroWeatherPanel`，用现有扫描快照中的 BTC/ETH ticker、funding、OI、清算字段和扫描状态生成顺风、逆风、震荡、杠杆拥挤、去杠杆、波动扩张、未知等天气层；该层只用于解释山寨候选的顺逆风和风险环境，不新增 CoinGlass 请求，不修改真实策略权重。
-- 移动端不挤压、不重叠。
+- Phase 8.2e 已落地：按用户选定浅色专业工作台参考图重建首屏信息架构。`TopRadarBar` 统一品牌 banner、液态玻璃雷达之眼、主导航、运行状态条和 ticker；`RadarWorkspace` 首屏保留左侧雷达控制台、中央信号主舞台、候选横条、首屏 Chart/Strategy 和右侧 Action Rail；Altcoin Opportunity Board 下沉为主图后的辅助筛选区；完整 DailyMover/Journal/Replay/Rank 不再常驻首页，而是进入功能抽屉、信号档案或二级页面；`PixelCopilot` 收敛为紧凑 companion dock。
+- Phase 8.2e-QA 已落地：已按 Product Design image-to-code / design QA 流程对选定参考图做桌面 1536x1024 与移动 390x844 检查；最新控制台无错误，旧 LCP warning 已通过 `priority + loading="eager"` 修复；移动端运行状态区已压缩为两列，避免主雷达内容过度下沉；QA 记录保存为 `design-qa.md`。
+- 移动端不挤压、不重叠；后续仍应升级为更明确的 tab/drawer 移动导航。
 
 后续正确 UI 搭建顺序：
 
-1. **Phase 8.2b-R：Tailwind And DaisyUI Foundation**
-   - 真实安装并配置 Tailwind CSS、daisyUI 和 PostCSS。
-   - `globals.css` 接入 Tailwind/daisyUI 入口，Element Plus 只保留为设计参考。
-   - 生产构建暂时固定为 `next build --webpack`，避免 Tailwind/PostCSS 接入阶段受 Turbopack 子进程/端口权限影响；`turbopack.root` 仍保留，供本地 dev 和未来稳定后切回使用。
-   - 增加 repository hygiene 测试，防止后续再次把“口头参考”误写成“实际接入”。
+1. **Phase 8.2f：Functional Navigation And Drawers**
+   - 让 Radar / Signals / Review / Journal / Evolution / Settings 从静态 nav 变成可打开的 drawer、tab 或二级页面入口。
+   - DailyMover、Replay、Journal、Rank/Evolution 的完整能力迁入对应区域，不回到首页常驻。
 
-2. **Phase 8.2c：New AppShell And Cockpit Reset**
-   - 以 spec 为准重建 `TopRadarBar`、`RadarBootBriefing`、`RadarCockpitShell`。
-   - 桌面端保持 2 : 6 : 2，移动端用 tabs/drawer，不强行压缩三列。
-   - 修复候选池遮挡、纸面感、静态感和模块割裂问题。
-   - 当前状态：已完成第一版新壳组合；下一阶段继续增强运行感，而不是回到旧纸面结构。
+2. **Phase 8.2g：Startup Briefing And Brand Motion**
+   - 增加可跳过启动动画和网站介绍 briefing：解释“全市场山寨趋势切换雷达”、当前数据源、风险边界和扫描状态。
+   - 动画必须短、可关闭、遵守 `prefers-reduced-motion`，不做背景音乐。
 
-3. **Phase 8.2d：Live Radar Runtime Layer**
-   - 加入启动动画、介绍 briefing、市场时段时钟、扫描心跳、倒计时、数据新鲜度和事件流动效。
-   - 动效必须表达系统正在运行，不能干扰信号阅读。
-   - 背景音乐删除，只保留未来可选提示音。
-   - 当前状态：扫描心跳、倒计时、数据新鲜度、盘区时钟和运行状态矩阵已落地；启动动画和更完整事件流动效后移，不阻塞下一阶段山寨机会板。
+3. **Phase 8.2h：Signal Dossier Visual Upgrade**
+   - 按选定浅色工作台风格重做信号档案视觉：关键位、Forward Map、证据链、交易计划、复盘关联和副驾驶反馈同屏联动。
+   - 深层证据放档案，不回到首页堆叠。
 
-4. **Phase 3.8：Altcoin Opportunity Board**
-   - 把山寨币机会作为首页核心，而不是只展示通用候选池。
-   - 分出多头升温、空头升温、过热勿追、新币观察、长尾轮转和近期异动来源。
-   - 与扫描经济、涨跌榜归因、Signal Dossier 和复盘样本互通。
-   - 当前状态：已完成基础机会板，并已接入 v3 只读风险门控与“不参与原因”。它复用现有扫描、日记、每日异动和 v3 trendContext，不新增 CoinGlass 请求，不改变真实排序；后续可继续增强排序解释、筛选和可视化细节。
+4. **Phase 8.2i：Pixel Copilot Motion And Equipment**
+   - 在紧凑 dock 基础上增加眨眼、呼吸、BTC 项链闪光、警戒/刹车/升级状态和装备解锁。
+   - 副驾驶只做纪律反馈、状态提示和档案入口，不能喊单、不能抢主信息层。
 
 5. **Phase 3.9：BTC ETH Macro Radar**
    - BTC/ETH/ETF/OI/funding/liquidations 作为大盘天气，不抢山寨主线。

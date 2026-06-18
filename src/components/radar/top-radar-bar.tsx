@@ -2,6 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import {
+  Activity,
+  BarChart3,
+  BookOpen,
+  CloudRain,
+  Gauge,
+  Menu,
+  Moon,
+  Orbit,
+  RefreshCw,
+  Settings,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 
 type MarketSessionView = {
   label: string;
@@ -97,6 +111,14 @@ export function TopRadarBar({
   staleAfterMinutes,
 }: TopRadarBarProps) {
   const [countdownLabel, setCountdownLabel] = useState("等待校准");
+  const navItems = [
+    { icon: Sparkles, label: "Radar", sublabel: "雷达" },
+    { icon: Zap, label: "Signals", sublabel: "信号" },
+    { icon: RefreshCw, label: "Review", sublabel: "复盘" },
+    { icon: BookOpen, label: "Journal", sublabel: "日志" },
+    { icon: Orbit, label: "Evolution", sublabel: "进化" },
+    { icon: Settings, label: "Settings", sublabel: "设置" },
+  ];
 
   useEffect(() => {
     function tick() {
@@ -113,104 +135,150 @@ export function TopRadarBar({
   }, [nextScanAt]);
 
   return (
-    <header className="topline live-navbar radar-top-bar navbar" aria-label="Live Navbar / Banner">
-      <div className="brand live-navbar__brand radar-top-bar__brand">
-        <div className="brand-mark">川</div>
-        <div>
-          <strong>雷达中枢</strong>
-          <span>公开监控 · CoinGlass 实时源 · 15m 分批扫描</span>
+    <header className="radar-header-shell crystal-brand-banner crystal-brand-banner__top" aria-label="Live Navbar / Banner">
+      <div className="radar-header-main navbar">
+        <div className="brand live-navbar__brand radar-top-bar__brand">
+          <div className="brand-mark">川</div>
+          <div>
+            <strong>川 Market Radar</strong>
+            <span>加密山寨趋势雷达 · 专注趋势切换</span>
+          </div>
         </div>
-      </div>
 
-      <div className="crystal-lens live-navbar__lens radar-top-bar__lens" aria-label="雷达之眼 / Crystal Lens">
-        <Image
-          alt=""
-          fill
-          priority={false}
-          sizes="(max-width: 940px) 100vw, 180px"
-          src="/assets/radar-crystal-lens.png"
-        />
-        <span>雷达之眼</span>
-      </div>
-
-      <div className="market-tape radar-top-bar__tape" aria-label="市场滚动带">
-        <div className="market-tape__track">
-          <span>BTC <b>+1.8%</b> 波动扩张</span>
-          <span>ENA <b>78</b> 等回踩</span>
-          <span>SUI <b>69</b> 假突破观察</span>
-          <span>ONDO <b>64</b> 靠近支撑</span>
-          <span>TIA <b>52</b> 中位过滤</span>
-          <span>BTC <b>+1.8%</b> 波动扩张</span>
-          <span>ENA <b>78</b> 等回踩</span>
-          <span>SUI <b>69</b> 假突破观察</span>
-          <span>ONDO <b>64</b> 靠近支撑</span>
-          <span>TIA <b>52</b> 中位过滤</span>
+        <div className="crystal-lens liquid-brand-lens live-navbar__lens radar-top-bar__lens" aria-label="雷达之眼 / Crystal Lens">
+          <Image
+            alt=""
+            fill
+            loading="eager"
+            priority
+            sizes="(max-width: 940px) 100vw, 360px"
+            src="/assets/radar-crystal-lens.png"
+          />
+          <span>雷达之眼</span>
         </div>
+
+        <nav className="radar-primary-nav" aria-label="川 Market Radar 主导航">
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+
+            return (
+              <button
+                aria-current={index === 0 ? "page" : undefined}
+                className={`radar-primary-nav__item ${index === 0 ? "is-active" : ""}`}
+                key={item.label}
+                type="button"
+              >
+                <Icon aria-hidden="true" size={16} />
+                <span>{item.label}</span>
+                <small>{item.sublabel}</small>
+              </button>
+            );
+          })}
+        </nav>
+
+        <button className="radar-menu-button" aria-label="打开菜单" type="button">
+          <Menu aria-hidden="true" size={22} />
+        </button>
       </div>
 
-      <div className="top-status radar-top-bar__status">
-        <div className={`scan-heartbeat scan-heartbeat--${refreshTone} scan-heartbeat--freshness-${freshnessTone}`} aria-label="扫描心跳">
+      <div className="radar-runtime-bar" aria-label="系统运行状态条">
+        <div className={`radar-runtime-card radar-runtime-card--${isRealtime ? "ready" : "watch"}`}>
+          <Activity aria-hidden="true" size={15} />
+          <div>
+            <strong>{providerLabel} Live</strong>
+            <span>{isRealtime ? "API 延迟 82ms" : "预览源"} · {marketStatus}</span>
+          </div>
+        </div>
+        <div className={`radar-runtime-card radar-runtime-card--${runtimeStates[1]?.tone ?? "watch"}`}>
+          <Zap aria-hidden="true" size={15} />
+          <div>
+            <strong>Neon Ready</strong>
+            <span>{runtimeStates[1]?.detail ?? "持久化"} · {runtimeStates[1]?.value ?? "数据库"}</span>
+          </div>
+        </div>
+        <div className={`radar-runtime-card radar-runtime-card--scan scan-heartbeat next-scan-countdown scan-heartbeat--${refreshTone} scan-heartbeat--freshness-${freshnessTone}`}>
+          <Gauge aria-hidden="true" size={17} />
           <span className="scan-heartbeat__dot" aria-hidden="true" />
-          <span className="mono">扫描心跳</span>
-          <strong>{refreshStateLabel}</strong>
-          <small>{deltaLabel}</small>
+          <div>
+            <span>下一轮扫描</span>
+            <strong>{countdownLabel}</strong>
+            <small>{refreshStateLabel} · {deltaLabel}</small>
+          </div>
         </div>
-
-        <div className={`market-session-clock market-session-clock--${marketSession.tone}`} aria-label="市场时段时钟">
-          <span className="mono">Market Session</span>
-          <strong>{marketSession.label}</strong>
-          <small>{marketSession.localTime} · {marketSession.note}</small>
+        <div className={`radar-runtime-card market-session-clock--${marketSession.tone}`}>
+          <BarChart3 aria-hidden="true" size={16} />
+          <div>
+            <strong>{marketSession.label}</strong>
+            <span>{marketSession.localTime} · {marketSession.note}</span>
+          </div>
         </div>
-
-        <div className="next-scan-countdown" aria-label="下次扫描倒计时">
-          <span className="mono">下次扫描</span>
-          <strong>{countdownLabel}</strong>
-          <small>{nextScanTime} · 自动刷新 {refreshInterval}</small>
+        <div className="radar-runtime-card">
+          <CloudRain aria-hidden="true" size={16} />
+          <div>
+            <strong>伦敦盘</strong>
+            <span>{nextScanTime} · 等待中</span>
+          </div>
         </div>
-
-        <div className={`data-freshness freshness-meter freshness-meter--${freshnessTone}`} aria-label="数据新鲜度">
+        <div className="radar-runtime-card">
+          <Moon aria-hidden="true" size={16} />
+          <div>
+            <strong>纽约盘</strong>
+            <span>20:42:17 · 等待中</span>
+          </div>
+        </div>
+        <div className="radar-runtime-budget" aria-label="今日请求预算">
+          <div>
+            <strong>今日请求预算</strong>
+            <span>{requestsNote ?? `${candidateCount} 候选 · ${cadenceMinutes}m`}</span>
+          </div>
+          <i><b style={{ width: batchNote ? "36.9%" : "24%" }} /></i>
+          <small>{batchNote ?? `护栏 ${staleAfterMinutes}m · 风控门 ${riskGate}`}</small>
+        </div>
+        <div className={`radar-runtime-card data-freshness freshness-meter freshness-meter--${freshnessTone}`}>
+          <div>
+            <span>数据新鲜度</span>
+            <strong>{dataFreshnessLabel}</strong>
+            <small>{refreshInterval} 自动轮询 · 最后 {lastScanTime}</small>
+          </div>
           <span className="freshness-meter__bar" aria-hidden="true"><i /></span>
-          <span className="mono">数据新鲜度</span>
-          <strong>{dataFreshnessLabel}</strong>
-          <small>最后扫描 {lastScanTime} · 护栏 {staleAfterMinutes}m</small>
         </div>
-
-        <span className="mono">
-          {cadenceMinutes}m {marketStatus} / {providerLabel} / 候选池 {candidateCount}
-        </span>
-        <span className="mono">
-          {batchNote ?? `护栏 ${staleAfterMinutes}m`} / {isRealtime ? "实时" : "预览"}
-        </span>
-        {requestsNote ? (
-          <span className="mono">{requestsNote}</span>
-        ) : null}
-        {batchNote ? (
-          <span className="top-status__guard">
-            护栏 {staleAfterMinutes}m · 风控门 {riskGate}
-          </span>
-        ) : null}
+        <button
+          aria-pressed={soundEnabled}
+          className={`btn btn-xs sound-toggle ${soundEnabled ? "is-on" : ""}`}
+          onClick={onToggleSound}
+          type="button"
+        >
+          {soundEnabled ? "声音开启" : "声音关闭"}
+        </button>
+        <div className={`live-console live-console--${refreshTone}`} aria-label="实时控制台">
+          <span className="mono">实时状态 · {refreshStateLabel}</span>
+          <span className="mono">{dataFreshnessLabel}</span>
+        </div>
         <div className="runtime-state-grid" aria-label="运行状态矩阵">
           {runtimeStates.map((state) => (
-            <span className={`runtime-state runtime-state--${state.tone}`} key={state.id}>
+            <div className={`runtime-state runtime-state--${state.tone}`} key={state.id}>
               <b>{state.label}</b>
               <strong>{state.value}</strong>
               <small>{state.detail}</small>
-            </span>
+            </div>
           ))}
         </div>
-        <div className={`live-console live-console--${refreshTone}`}>
-          <span className="mono">
-            {refreshStateLabel} · {refreshInterval}
-          </span>
-          <button
-            aria-pressed={soundEnabled}
-            className={`btn btn-xs sound-toggle ${soundEnabled ? "is-on" : ""}`}
-            onClick={onToggleSound}
-            type="button"
-          >
-            {soundEnabled ? "声音开启" : "声音关闭"}
-          </button>
-          <span className="mono live-console__delta">{deltaLabel}</span>
+      </div>
+
+      <div className="market-tape radar-market-ticker" aria-label="市场快讯 ticker">
+        <div className="market-tape__track">
+          <span>BTC <b>+1.24%</b> 67,892.1</span>
+          <span>ETH <b>-0.68%</b> 3,712.45</span>
+          <span>SOL <b>+2.31%</b> 153.21</span>
+          <span>BNB <b>+0.92%</b> 612.11</span>
+          <span>XRP <b>-0.35%</b> 0.5221</span>
+          <span>DOGE <b>+1.12%</b> 0.1287</span>
+          <span>AVAX <b>+1.85%</b> 36.24</span>
+          <span>SUI <b>+2.67%</b> 1.82</span>
+          <span>{dataFreshnessLabel} · 最后扫描 {lastScanTime}</span>
+          <span>BTC <b>+1.24%</b> 67,892.1</span>
+          <span>ETH <b>-0.68%</b> 3,712.45</span>
+          <span>SOL <b>+2.31%</b> 153.21</span>
         </div>
       </div>
     </header>

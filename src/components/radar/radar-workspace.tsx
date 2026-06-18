@@ -3,20 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartPanel } from "./chart-panel";
 import { AltcoinOpportunityBoard } from "./altcoin-opportunity-board";
-import { DailyMoverPanel } from "./daily-mover-panel";
-import { EventCenterPanel } from "./event-center-panel";
-import { JournalPanel } from "./journal-panel";
 import { MacroWeatherPanel } from "./macro-weather-panel";
 import { OpsAndFilterPanel } from "./ops-and-filter-panel";
 import { PixelCopilot } from "./pixel-copilot";
-import { RadarBootBriefing } from "./radar-boot-briefing";
 import { RadarCockpitShell } from "./radar-cockpit-shell";
 import { RadarTable } from "./radar-table";
-import { RankPanel } from "./rank-panel";
-import { ReplayPanel } from "./replay-panel";
 import { SignalDossier, type SignalDossierDailyMoverMatch } from "./signal-dossier";
 import { StrategyCard } from "./strategy-card";
-import { SystemHealthPanel } from "./system-health-panel";
 import { TopRadarBar, type RuntimeStateView } from "./top-radar-bar";
 import { signalStateLabels } from "@/lib/analysis/constants";
 import {
@@ -29,18 +22,10 @@ import {
   type AlertEvent,
   type AlertSound,
 } from "@/lib/alerts/alert-policy";
-import type {
-  DailyMoverCalibrationSuggestion,
-  DailyMoverReadArchiveResult,
-  DailyMoverStrategyDraft,
-} from "@/lib/api/daily-mover-readonly";
-import { siteConfig } from "@/lib/config/site";
+import type { DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
 import {
-  buildJournalEntryFromDailyMoverCalibration,
-  buildJournalEntryFromDailyMoverStrategyConfirmation,
   buildJournalEntryFromSignal,
   mergeJournalEntry,
-  type StrategyWeightChangeExecutionJournalInput,
 } from "@/lib/journal/journal-entry";
 import { buildRankProfile } from "@/lib/journal/rank-engine";
 import type { JournalEvent, MarketSignal, SignalJournalAction, Timeframe } from "@/lib/analysis/types";
@@ -314,6 +299,16 @@ function formatMarketSessionTime(value: Date) {
   }).format(value);
 }
 
+function dateFromSnapshot(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date(0);
+  }
+
+  return date;
+}
+
 function buildMarketSessionClock(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
@@ -379,6 +374,15 @@ function refreshStatusLabel(state: RefreshState) {
     quiet: "已同步",
     syncing: "同步中",
     updated: "新异动",
+  }[state];
+}
+
+function journalStatusLabel(state: JournalSaveStatus) {
+  return {
+    error: "记录失败",
+    idle: "日记待命",
+    saved: "记录已保存",
+    saving: "记录中",
   }[state];
 }
 
@@ -448,20 +452,22 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>(signals[0]?.timeframe ?? "15m");
   const [journalEntries, setJournalEntries] = useState<JournalEvent[]>(journalEvents);
   const [journalStatus, setJournalStatus] = useState<JournalSaveStatus>("idle");
-  const [calibrationReviewStatus, setCalibrationReviewStatus] = useState<JournalSaveStatus>("idle");
-  const [strategyConfirmationStatus, setStrategyConfirmationStatus] = useState<JournalSaveStatus>("idle");
-  const [dailyMoverState, setDailyMoverState] = useState(dailyMoverArchive);
+  const [dailyMoverState] = useState(dailyMoverArchive);
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>(() =>
-    buildCurrentAlertEvents({ health, snapshot })
+    buildCurrentAlertEvents({
+      health,
+      now: dateFromSnapshot(snapshot.metadata.generatedAt),
+      snapshot,
+    })
   );
   const [refreshIntervalMs, setRefreshIntervalMs] = useState(() =>
     buildRefreshPlan({
       nextScanAt: snapshot.metadata.nextScanAt,
-      now: new Date(),
+      now: dateFromSnapshot(snapshot.metadata.generatedAt),
     }).intervalMs
   );
-  const [clockNow, setClockNow] = useState(() => new Date());
+  const [clockNow, setClockNow] = useState(() => dateFromSnapshot(snapshot.metadata.generatedAt));
   const [lastDelta, setLastDelta] = useState<SignalSetDelta | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const snapshotRef = useRef(snapshot);
@@ -608,6 +614,23 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     { label: "高风险", value: blockedSignalCount.toString() },
     { label: "候选", value: signals.length.toString() },
   ];
+  const opsHealthItems = [
+    { label: "数据源", value: runtimeStates[0]?.value ?? marketSourceLabel(metadata.source) },
+    { label: "数据库", value: runtimeStates[1]?.value ?? "待检" },
+    { label: "归档", value: `${liveSnapshot.archive?.entries.length ?? 0} 帧` },
+    { label: "Cron", value: runtimeStates.find((state) => state.id === "cron")?.value ?? "等待" },
+  ];
+  const opsEventItems = alertEvents.slice(0, 3).map((event) => ({
+    label: event.symbol ?? event.type,
+    value: notificationCopyForAlert(event).title,
+  }));
+
+  if (opsEventItems.length === 0) {
+    opsEventItems.push({
+      label: "扫描",
+      value: "暂无高优先级告警",
+    });
+  }
 
   const playSignalTone = useCallback((sound: AlertSound = "pulse", volume = 0.08) => {
     const AudioCtor = audioContextConstructor();
@@ -815,11 +838,15 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   }, [maybeShowNotification, playSignalTone, soundEnabled]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const updateClock = () => {
       setClockNow(new Date());
-    }, 30_000);
+    };
+
+    const initialTimer = window.setTimeout(updateClock, 0);
+    const timer = window.setInterval(updateClock, 30_000);
 
     return () => {
+      window.clearTimeout(initialTimer);
       window.clearInterval(timer);
     };
   }, []);
@@ -905,167 +932,22 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     }
   }
 
-  async function createDailyMoverCalibrationReview(
-    suggestion: DailyMoverCalibrationSuggestion,
-    context: { observedAt: string; snapshotId: string },
-  ) {
-    const calibration = {
-      guardrail: suggestion.guardrail,
-      label: suggestion.label,
-      observedAt: context.observedAt,
-      recommendation: suggestion.recommendation,
-      sampleCount: suggestion.sampleCount,
-      snapshotId: context.snapshotId,
-      symbols: suggestion.symbols,
-      tag: suggestion.tag,
-    };
-    const optimisticEntry = buildJournalEntryFromDailyMoverCalibration(calibration, {
-      createdAt: new Date().toISOString(),
-    });
-
-    setJournalEntries((current) => mergeJournalEntry(current, optimisticEntry));
-    setCalibrationReviewStatus("saving");
-    setJournalStatus("saving");
-
-    try {
-      const response = await fetch("/api/journal", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "calibration_review",
-          calibration,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("daily_mover_calibration_journal_failed");
-      }
-
-      const payload = await response.json() as {
-        entry?: JournalEvent;
-        entries?: JournalEvent[];
-      };
-
-      if (payload.entry) {
-        setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
-      } else if (payload.entries) {
-        setJournalEntries(payload.entries);
-      }
-
-      setCalibrationReviewStatus("saved");
-      setJournalStatus("saved");
-    } catch {
-      setCalibrationReviewStatus("error");
-      setJournalStatus("error");
-    }
-  }
-
-  async function createDailyMoverStrategyConfirmation(draft: DailyMoverStrategyDraft) {
-    const strategyDraft = {
-      allowedUse: draft.allowedUse,
-      canAutoAdjustWeights: draft.canAutoAdjustWeights,
-      draftId: draft.id,
-      evidenceSummary: draft.evidenceSummary,
-      label: draft.label,
-      limitation: draft.limitation,
-      manualConfirmation: draft.manualConfirmation,
-      nextStep: draft.nextStep,
-      sourceMode: draft.sourceMode,
-      tag: draft.tag,
-      validationVerdict: draft.validationVerdict,
-      versionLabel: draft.versionLabel,
-    };
-    const optimisticEntry = buildJournalEntryFromDailyMoverStrategyConfirmation(strategyDraft, {
-      createdAt: new Date().toISOString(),
-    });
-
-    setJournalEntries((current) => mergeJournalEntry(current, optimisticEntry));
-    setStrategyConfirmationStatus("saving");
-    setJournalStatus("saving");
-
-    try {
-      const response = await fetch("/api/journal", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "strategy_confirmation",
-          strategyDraft,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("daily_mover_strategy_confirmation_failed");
-      }
-
-      const payload = await response.json() as {
-        entry?: JournalEvent;
-        entries?: JournalEvent[];
-      };
-
-      if (payload.entry) {
-        setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
-      } else if (payload.entries) {
-        setJournalEntries(payload.entries);
-      }
-
-      const archiveResponse = await fetch(`/api/daily-movers?limit=${dailyMoverState.retention.limit}`, {
-        cache: "no-store",
-      });
-
-      if (archiveResponse.ok) {
-        const archivePayload = await archiveResponse.json() as DailyMoverReadArchiveResult["body"];
-        setDailyMoverState(archivePayload);
-      }
-
-      setStrategyConfirmationStatus("saved");
-      setJournalStatus("saved");
-    } catch {
-      setStrategyConfirmationStatus("error");
-      setJournalStatus("error");
-    }
-  }
-
-  async function createStrategyWeightExecutionRecord(
-    execution: StrategyWeightChangeExecutionJournalInput,
-    adminToken: string,
-  ) {
-    setJournalStatus("saving");
-
-    try {
-      const response = await fetch("/api/admin/strategy-weights/executions/record", {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${adminToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ execution }),
-      });
-
-      if (!response.ok) {
-        throw new Error("strategy_weight_execution_record_failed");
-      }
-
-      const payload = await response.json() as {
-        entry?: JournalEvent;
-        entries?: JournalEvent[];
-      };
-
-      if (payload.entry) {
-        setJournalEntries((current) => mergeJournalEntry(current, payload.entry as JournalEvent));
-      } else if (payload.entries) {
-        setJournalEntries(payload.entries);
-      }
-
-      setJournalStatus("saved");
-    } catch {
-      setJournalStatus("error");
-      throw new Error("strategy_weight_execution_record_failed");
-    }
-  }
+  const featureDrawerItems = [
+    { label: "Signals", value: `${signals.length} 候选`, description: "候选池与信号档案" },
+    { label: "Review", value: `${liveSnapshot.archive?.entries.length ?? 0} 帧`, description: "扫描回放与复盘样本" },
+    { label: "Journal", value: `${journalEntries.length} 条`, description: "交易日记和行为记录" },
+    { label: "Evolution", value: `${dailyMoverState.strategyConfirmations.length} 版`, description: "策略校准与权重学习" },
+  ];
+  const candidateStripSignals = signals.slice(0, 5);
+  const selectedSymbol = selected?.symbol.replace("USDT", "") ?? "等待候选";
+  const selectedStateLabel = selected ? signalStateLabels[selected.state] : "暂无选中信号";
+  const nextActionCopy = selected
+    ? selected.risk === "blocked" || selected.risk === "high"
+      ? "风险偏高，等待回踩或证据修复。"
+      : selected.state === "near_trigger" || selected.state === "triggered"
+        ? "检查关键位，满足条件再执行。"
+        : "继续观察，不提前抢跑。"
+    : "等待下一轮扫描。";
 
   return (
     <main className={`studio-shell radar-app-shell studio-shell--${metadata.status} studio-shell--refresh-${refreshState} studio-shell--risk-${metadata.riskGate}`}>
@@ -1100,13 +982,6 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         staleAfterMinutes={metadata.staleAfterMinutes}
       />
 
-      <RadarBootBriefing
-        coverageLabel={`${coveragePercent}%`}
-        healthLabel={liveHealth.level}
-        providerLabel={marketSourceLabel(metadata.source)}
-        statusLabel={marketStatusLabel(metadata.status)}
-      />
-
       <section className={`radar-command-strip radar-command-strip--${metadata.status}`} aria-label="雷达节拍状态">
         <div className="radar-command-strip__beam" aria-hidden="true" />
         <div className="radar-command-strip__cell">
@@ -1133,36 +1008,111 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
 
       <RadarCockpitShell
         left={(
+          <section aria-label="雷达控制台">
           <OpsAndFilterPanel
-            eventCenterPanel={(
-              <EventCenterPanel
-                alertEvents={alertEvents}
-                archive={liveSnapshot.archive}
-                liveDelta={lastDelta}
-                liveGeneratedAt={metadata.generatedAt}
-                liveScanId={metadata.id}
-              />
-            )}
+            eventItems={opsEventItems}
             filterItems={opsFilterItems}
-            healthPanel={(
-              <SystemHealthPanel
-                health={liveHealth}
-                onRecordStrategyWeightExecution={createStrategyWeightExecutionRecord}
-              />
-            )}
+            healthItems={opsHealthItems}
             marketNote={marketSession.note}
             summaryItems={opsSummaryItems}
           />
+          </section>
         )}
         center={(
           <>
-            <AltcoinOpportunityBoard
-              ariaLabel="Altcoin Opportunity Board 山寨机会板"
-              board={altcoinOpportunityBoard}
-              selectedId={selected?.id}
-              onOpenDossier={openSignalDossier}
-              onSelectSignal={selectSignal}
+            <section className="module signal-arena-command" aria-label="Signal Arena 决策主舞台">
+              <div className="module-head module-head--flush">
+                <div>
+                  <h2>Signal Arena</h2>
+                  <span className="signal-arena-command__subtitle">当前主候选 · 证据链 · 执行边界</span>
+                </div>
+                <button className="action-button action-button--ghost" onClick={() => openSignalDossier()} type="button">
+                  打开信号档案
+                </button>
+              </div>
+
+              <div className="signal-arena-command__focus">
+                <div>
+                  <span className={`signal-arena-command__pulse signal-arena-command__pulse--${selectedPulseTone}`} />
+                  <strong>{selectedSymbol}</strong>
+                  <small>{selectedStateLabel}</small>
+                </div>
+                <p>{selected ? `${selected.strategy.entry} · 失效 ${selected.strategy.invalidation}` : "等待全市场扫描产出候选。"}</p>
+                <span className="tag">{nextActionCopy}</span>
+              </div>
+
+            </section>
+
+            <section className="signal-candidate-strip" aria-label="信号竞技场候选横条">
+              {candidateStripSignals.map((signal, index) => (
+                <button
+                  className={[
+                    "signal-candidate-tile",
+                    `signal-candidate-tile--${signal.direction}`,
+                    selected?.id === signal.id ? "is-selected" : "",
+                  ].filter(Boolean).join(" ")}
+                  key={`candidate-${signal.id}`}
+                  onClick={() => selectSignal(signal.id)}
+                  type="button"
+                >
+                  <span className="signal-candidate-tile__rank">{index + 1}</span>
+                  <span className={`signal-candidate-tile__pulse signal-candidate-tile__pulse--${signalPulseTone(signal)}`} />
+                  <strong>{signal.symbol.replace("USDT", "")}</strong>
+                  <small>{signalStateLabels[signal.state]}</small>
+                  <b>{signal.confidence}</b>
+                  <em>RR {signal.strategy.riskReward.toFixed(1)}:1</em>
+                </button>
+              ))}
+            </section>
+
+            <ChartPanel
+              activeTimeframe={activeTimeframe}
+              journalMatches={chartJournalMatches}
+              onTimeframeChange={setActiveTimeframe}
+              selected={selected}
             />
+
+            <div className="signal-arena-split">
+              <AltcoinOpportunityBoard
+                ariaLabel="Altcoin Opportunity Board 山寨机会板"
+                board={altcoinOpportunityBoard}
+                selectedId={selected?.id}
+                onOpenDossier={openSignalDossier}
+                onSelectSignal={selectSignal}
+              />
+
+              <section className="module altcoin-heat-module">
+                <div className="module-head">
+                  <h2>山寨热区</h2>
+                  <span className="tag">{instrumentPool.summary.accepted} 活跃</span>
+                </div>
+                <div className="pool-audit" aria-label="扫描池健康度">
+                  <span><b>{instrumentPool.summary.total}</b> 原始</span>
+                  <span><b>{instrumentPool.summary.rejected}</b> 过滤</span>
+                  <span><b>{instrumentPool.summary.duplicatesRemoved}</b> 去重</span>
+                  <span><b>{formatCompactUsd(instrumentPool.summary.minVolume24hUsd)}</b> 门槛</span>
+                </div>
+                <div className="heat-grid">
+                  {heatmap.map((item) => {
+                    const heatSignal = signals.find((signal) =>
+                      normalizeDossierSymbol(signal.symbol) === normalizeDossierSymbol(item.symbol)
+                    );
+
+                    return (
+                      <button
+                        className={`heat-cell heat-cell--${item.tone}`}
+                        key={item.symbol}
+                        onClick={() => heatSignal && openSignalDossier(heatSignal.id)}
+                        type="button"
+                      >
+                        <b>{item.symbol}</b>
+                        <span>{formatChangePercent(item.changePercent)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
 
             <RadarTable
               signals={signals}
@@ -1170,140 +1120,47 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
               onOpenDossier={openSignalDossier}
               onSelect={selectSignal}
             />
-
-          <section className="module altcoin-heat-module">
-            <div className="module-head">
-              <h2>山寨热区</h2>
-              <span className="tag">{instrumentPool.summary.accepted} 活跃</span>
-            </div>
-            <div className="pool-audit" aria-label="扫描池健康度">
-              <span><b>{instrumentPool.summary.total}</b> 原始</span>
-              <span><b>{instrumentPool.summary.rejected}</b> 过滤</span>
-              <span><b>{instrumentPool.summary.duplicatesRemoved}</b> 去重</span>
-              <span><b>{formatCompactUsd(instrumentPool.summary.minVolume24hUsd)}</b> 门槛</span>
-            </div>
-            <div className="heat-grid">
-              {heatmap.map((item) => {
-                const heatSignal = signals.find((signal) =>
-                  normalizeDossierSymbol(signal.symbol) === normalizeDossierSymbol(item.symbol)
-                );
-
-                return (
-                  <button
-                    className={`heat-cell heat-cell--${item.tone}`}
-                    key={item.symbol}
-                    onClick={() => heatSignal && openSignalDossier(heatSignal.id)}
-                    type="button"
-                  >
-                    <b>{item.symbol}</b>
-                    <span>{formatChangePercent(item.changePercent)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="module hero-module cockpit-main-stage">
-            <div className="hero-copy">
-              <div>
-                <span className="tag">川 · 信号地图</span>
-                <h1>把行情异动，压缩成一张可执行的决策地图。</h1>
-                <p>不做传统首页，不堆概念。首屏直接展示扫描状态、候选币、触发条件、失效条件和市场热区。</p>
-                <div className="hero-actions">
-                  <a
-                    className="action-button"
-                    href={siteConfig.tradingViewBaseUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    打开主图 <span>↗</span>
-                  </a>
-                  <button
-                    className="action-button action-button--ghost"
-                    onClick={() => openSignalDossier()}
-                    type="button"
-                  >
-                    查看逻辑 <span>→</span>
-                  </button>
-                </div>
-              </div>
-              <div className="metric-strip">
-                <div className="metric"><span className="mono">已扫描</span><strong>{metadata.scannedCount}</strong></div>
-                <div className="metric"><span className="mono">异动</span><strong>{metadata.anomalyCount.toString().padStart(2, "0")}</strong></div>
-                <div className="metric"><span className="mono">候选</span><strong>{signals.length.toString().padStart(2, "0")}</strong></div>
-                <div className="metric"><span className="mono">风控门</span><strong>{riskGateLabel(metadata.riskGate)}</strong></div>
-              </div>
-              <div className="signal-rhythm" aria-label="候选强度节奏">
-                {signals.slice(0, 6).map((signal) => (
-                  <button
-                    className={[
-                      `signal-rhythm__bar signal-rhythm__bar--${signal.direction}`,
-                      `signal-rhythm__bar--pulse-${signalPulseTone(signal)}`,
-                      selected?.id === signal.id ? "signal-rhythm__bar--active" : "",
-                    ].filter(Boolean).join(" ")}
-                    key={`rhythm-${signal.id}`}
-                    onClick={() => openSignalDossier(signal.id)}
-                    type="button"
-                  >
-                    <i style={{ height: `${Math.max(18, Math.min(signal.confidence, 96))}%` }} />
-                    <span>{signal.symbol.replace("USDT", "")}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="signal-map" aria-label="signal map">
-              <svg className="map-line" viewBox="0 0 620 340" preserveAspectRatio="none">
-                <path d="M55 70 C160 58 190 130 270 120 C365 108 390 62 560 72" />
-                <path d="M80 258 C180 220 210 260 300 205 C390 150 440 230 530 240" />
-              </svg>
-              {["n1", "n2", "n3", "n4", "n5"].map((slot, index) => {
-                const signal = signals[index] ?? signals[0];
-                const symbol = signal?.symbol.replace("USDT", "") ?? "BTC";
-                const nodeClasses = [
-                  "signal-node",
-                  slot,
-                  index === 0 ? "signal-node--hot" : "",
-                  signal?.id === selected?.id ? "signal-node--selected" : "",
-                  signalPulseTone(signal) === "risk-high" ? "signal-node--risk-high" : "",
-                ].filter(Boolean).join(" ");
-
-                return (
-                  <button
-                    className={nodeClasses}
-                    key={`${slot}-${symbol}`}
-                    onClick={() => signal && openSignalDossier(signal.id)}
-                    type="button"
-                  >
-                    <b>{symbol}</b>
-                    <small>{signal ? signalStateLabels[signal.state] : "观察"}</small>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <StrategyCard selected={selected} />
-          <ChartPanel
-            activeTimeframe={activeTimeframe}
-            journalMatches={chartJournalMatches}
-            onTimeframeChange={setActiveTimeframe}
-            selected={selected}
-          />
+            <StrategyCard selected={selected} />
           </>
         )}
         right={(
           <>
-          <MacroWeatherPanel
-            ariaLabel="Macro Radar 大盘天气"
-            report={macroWeather}
-            selectedSymbol={selected?.symbol}
-          />
+          <section className="module radar-action-rail" aria-label="Action Rail 下一步行动">
+            <div className="module-head module-head--flush">
+              <div>
+                <h2>下一步行动</h2>
+                <span>Action Rail · 只放当前决策相关内容 · {journalStatusLabel(journalStatus)}</span>
+              </div>
+              <span className="tag">{selectedStateLabel}</span>
+            </div>
+            <div className="radar-action-rail__primary">
+              <span className={`radar-action-rail__dot radar-action-rail__dot--${selectedPulseTone}`} />
+              <strong>{nextActionCopy}</strong>
+              <small>{selected ? `${selectedSymbol} · RR ${selected.strategy.riskReward.toFixed(1)} : 1` : "等待候选"}</small>
+            </div>
+            <div className="radar-action-rail__buttons">
+              <button className="action-button" onClick={() => openSignalDossier()} type="button">
+                查看档案
+              </button>
+              <button className="action-button action-button--ghost" onClick={() => selected && createJournalEntry("track")} type="button">
+                记录观察
+              </button>
+            </div>
+            <div className="feature-drawer-grid" aria-label="功能抽屉">
+              {featureDrawerItems.map((item) => (
+                <button className="feature-drawer-grid__item" key={item.label} type="button">
+                  <span>{item.label}</span>
+                  <b>{item.value}</b>
+                  <small>{item.description}</small>
+                </button>
+              ))}
+            </div>
+          </section>
 
           <section className="module signal-lifecycle-preview" aria-label="Signal Lifecycle Tracker">
             <div className="module-head">
               <h2>信号生命周期</h2>
-              <span className="tag">Signal Lifecycle Tracker</span>
+              <span className="tag">Review cue</span>
             </div>
             <div className="signal-lifecycle-preview__steps">
               <span className={selected ? "is-done" : ""}>扫描</span>
@@ -1314,27 +1171,17 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             <p>{selected ? `${signalStateLabels[selected.state]} · 入场 ${selected.strategy.entry} · 失效 ${selected.strategy.invalidation}` : "暂无选中信号。"}</p>
           </section>
 
-          <DailyMoverPanel
-            archive={dailyMoverState}
-            calibrationReviewStatus={calibrationReviewStatus}
-            key={dailyMoverState.strategyConfirmations.map((confirmation) => confirmation.eventId).join("|") || "daily-mover-panel"}
-            onCreateCalibrationReview={createDailyMoverCalibrationReview}
-            onConfirmStrategyDraft={createDailyMoverStrategyConfirmation}
-            strategyConfirmationStatus={strategyConfirmationStatus}
+          <MacroWeatherPanel
+            ariaLabel="Macro Radar 大盘天气"
+            report={macroWeather}
+            selectedSymbol={selected?.symbol}
           />
+
           <PixelCopilot
             mood={mood}
             onOpenDossier={() => openSignalDossier()}
             rankProfile={rankProfile}
             selectedSymbol={selected?.symbol}
-          />
-          <RankPanel profile={rankProfile} />
-          <ReplayPanel archive={liveSnapshot.archive} />
-          <JournalPanel
-            events={journalEntries}
-            onCreate={createJournalEntry}
-            selected={selected}
-            status={journalStatus}
           />
           </>
         )}

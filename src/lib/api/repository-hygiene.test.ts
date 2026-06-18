@@ -174,11 +174,11 @@ test("radar UI exposes premium pixel cockpit anchors without relying on prose", 
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
   assert.match(workspaceSource, /studio-scan-grid/);
-  assert.match(workspaceSource, /signal-rhythm/);
+  assert.match(workspaceSource, /signal-candidate-strip/);
   assert.match(petSource, /copilot-dashboard/);
   assert.match(petSource, /copilot-vital/);
   assert.match(cssSource, /\.studio-scan-grid/);
-  assert.match(cssSource, /\.signal-rhythm/);
+  assert.match(cssSource, /\.signal-candidate-tile/);
   assert.match(cssSource, /\.copilot-dashboard/);
   assert.match(cssSource, /prefers-reduced-motion/);
 });
@@ -204,7 +204,7 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     .map((path) => readFileSync(resolve(process.cwd(), path), "utf8"))
     .join("\n");
   const requiredChineseLabels = [
-    "雷达中枢",
+    "雷达控制台",
     "候选池",
     "策略模型",
     "禁止追单",
@@ -223,6 +223,8 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "纪律",
     "动量",
     "热度",
+    "下一步行动",
+    "功能抽屉",
   ];
   const disallowedReaderLabels = [
     "ENGINE FEED",
@@ -348,6 +350,82 @@ test("public radar UI opens a selected-signal dossier that fuses strategy, journ
   }
 });
 
+test("public radar UI reset uses a focused liquid-glass cockpit instead of dumping every feature", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const topBarSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/top-radar-bar.tsx"),
+    "utf8",
+  );
+  const pixelCopilotSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  const requiredWorkspaceTokens = [
+    "radar-action-rail",
+    "功能抽屉",
+    "signal-arena-command",
+    "signal-arena-split",
+  ];
+  const requiredTopBarTokens = [
+    "radar-primary-nav",
+    "crystal-brand-banner",
+    "liquid-brand-lens",
+    "川",
+    "Radar",
+    "Signals",
+    "Review",
+    "Journal",
+    "Evolution",
+    "Settings",
+  ];
+  const requiredCopilotTokens = [
+    "companion-dock",
+    "助手 dock",
+  ];
+  const requiredCssTokens = [
+    ".radar-primary-nav",
+    ".crystal-brand-banner",
+    ".liquid-brand-lens",
+    ".radar-action-rail",
+    ".companion-dock",
+  ];
+  const hiddenFromFirstScreen = [
+    "<DailyMoverPanel",
+    "<ReplayPanel",
+    "<JournalPanel",
+    "<RankPanel",
+  ];
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.match(workspaceSource, new RegExp(token));
+  }
+
+  for (const token of requiredTopBarTokens) {
+    assert.match(topBarSource, new RegExp(token));
+  }
+
+  for (const token of requiredCopilotTokens) {
+    assert.match(pixelCopilotSource, new RegExp(token));
+  }
+
+  for (const token of requiredCssTokens) {
+    assert.match(cssSource, new RegExp(token.replaceAll(".", "\\.")));
+  }
+
+  for (const token of hiddenFromFirstScreen) {
+    assert.equal(
+      workspaceSource.includes(token),
+      false,
+      `${token} should move behind navigation or drawers instead of rendering in the first-screen cockpit`,
+    );
+  }
+});
+
 test("radar UI exposes strategy v2 traceability without liquidation heatmap concepts", () => {
   const dossierSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
@@ -433,7 +511,8 @@ test("living radar UI second pass exposes functional motion, state dimming, and 
     "radar-command-strip__cell--alert",
     "signal-node--selected",
     "signal-node--risk-high",
-    "signal-rhythm__bar--active",
+    "signal-candidate-tile",
+    "signal-candidate-tile__pulse",
     "studio-shell--stale",
     "studio-shell--failed",
     "studio-shell--refresh-updated",
@@ -534,7 +613,7 @@ test("radar UI reset has a real Tailwind and daisyUI foundation", () => {
   assert.match(specSource, /Tailwind CSS and daisyUI are actually installed\/configured/);
 });
 
-test("radar workspace composes the phase 8.2c cockpit app shell", () => {
+test("radar workspace composes the selected liquid-glass workstation shell", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
     "utf8",
@@ -542,16 +621,20 @@ test("radar workspace composes the phase 8.2c cockpit app shell", () => {
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const componentPaths = [
     "src/components/radar/top-radar-bar.tsx",
-    "src/components/radar/radar-boot-briefing.tsx",
     "src/components/radar/radar-cockpit-shell.tsx",
     "src/components/radar/ops-and-filter-panel.tsx",
+    "src/components/radar/pixel-copilot.tsx",
   ];
   const requiredWorkspaceTokens = [
     "TopRadarBar",
-    "RadarBootBriefing",
     "RadarCockpitShell",
     "OpsAndFilterPanel",
+    "PixelCopilot",
     "radar-app-shell",
+    "signal-arena-command",
+    "signal-arena-split",
+    "radar-action-rail",
+    "featureDrawerItems",
   ];
   const requiredShellTokens = [
     "data-cockpit-ratio=\"2:6:2\"",
@@ -564,8 +647,11 @@ test("radar workspace composes the phase 8.2c cockpit app shell", () => {
   ];
   const requiredCssClasses = [
     "radar-app-shell",
-    "radar-boot-briefing",
+    "radar-header-shell",
+    "radar-primary-nav",
     "radar-cockpit-shell",
+    "radar-action-rail",
+    "companion-dock",
     "ops-filter-panel",
   ];
 
@@ -588,17 +674,20 @@ test("radar workspace composes the phase 8.2c cockpit app shell", () => {
   }
 });
 
-test("radar workspace exposes the phase 8.2b live navbar and 2-6-2 cockpit shell", () => {
+test("radar workspace exposes the selected live navbar, banner, and 2-6-2 cockpit shell", () => {
   const uiSource = [
     "src/components/radar/radar-workspace.tsx",
     "src/components/radar/top-radar-bar.tsx",
     "src/components/radar/radar-cockpit-shell.tsx",
+    "src/components/radar/pixel-copilot.tsx",
   ].map((path) => readFileSync(resolve(process.cwd(), path), "utf8")).join("\n");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const requiredWorkspaceTokens = [
     "live-navbar",
     "Live Navbar / Banner",
-    "cockpit-card",
+    "crystal-brand-banner",
+    "radar-primary-nav",
+    "liquid-brand-lens",
     "cockpit-column--left",
     "cockpit-column--center",
     "cockpit-column--right",
@@ -608,18 +697,23 @@ test("radar workspace exposes the phase 8.2b live navbar and 2-6-2 cockpit shell
     "Altcoin Opportunity Board",
     "Macro Radar",
     "Signal Lifecycle Tracker",
+    "功能抽屉",
+    "companion-dock",
   ];
   const requiredClasses = [
     "live-navbar",
-    "cockpit-card",
+    "radar-header-shell",
+    "radar-primary-nav",
+    "liquid-brand-lens",
     "cockpit-column--left",
     "cockpit-column--center",
     "cockpit-column--right",
     "crystal-lens",
     "market-session-clock",
     "altcoin-opportunity-board",
-    "macro-radar-preview",
+    "macro-weather-panel",
     "signal-lifecycle-preview",
+    "companion-dock",
   ];
 
   for (const token of requiredWorkspaceTokens) {
@@ -827,11 +921,11 @@ test("pixel copilot removes the visible S680 vehicle direction from the normal r
   const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const requiredCopilotParts = [
+    "companion-dock",
+    "companion-dock__avatar",
+    "companion-dock__line",
     "copilot-dashboard",
     "copilot-vital",
-    "copilot-stage",
-    "copilot-shadow",
-    "copilot-radar-desk",
   ];
 
   assert.match(workspaceSource, /PixelCopilot/);
@@ -861,7 +955,7 @@ test("pixel copilot MVP renders a BTC-necklace male avatar with equipment and no
     "copilot-chain",
     "copilot-medallion",
     "copilot-gear",
-    "copilot-level-strip",
+    "companion-dock",
   ];
   const disallowedCalloutWords = [
     "买入",
@@ -1465,10 +1559,10 @@ test("public radar UI exposes daily mover attribution as a research-only review 
 
   assert.match(pageSource, /getDailyMoverReadArchive/);
   assert.match(pageSource, /dailyMoverArchive/);
-  assert.match(workspaceSource, /DailyMoverPanel/);
   assert.match(workspaceSource, /dailyMoverArchive/);
-  assert.match(workspaceSource, /createDailyMoverCalibrationReview/);
-  assert.match(workspaceSource, /createDailyMoverStrategyConfirmation/);
+  assert.doesNotMatch(workspaceSource, /<DailyMoverPanel/);
+  assert.match(workspaceSource, /功能抽屉/);
+  assert.match(workspaceSource, /Review/);
   assert.match(panelSource, /allowedUse/);
   assert.match(panelSource, /research_only/);
   assert.match(panelSource, /onCreateCalibrationReview/);
