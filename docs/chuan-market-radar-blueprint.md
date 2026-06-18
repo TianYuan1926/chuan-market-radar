@@ -355,7 +355,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
-| 阶段 7：告警系统 | 网页内基础已落地 | 尚未完成站内告警历史持久化、可配置静默时段、可配置告警等级阈值和提示音细节 |
+| 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音和 Settings 抽屉本地告警控制已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化、站内事件中心筛选归档和更细提示音音色 |
 | 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 Light Liquid-Glass Radar Workstation 首屏重构、Phase 8.2f Functional Navigation / Drawers、Phase 8.2g Startup Briefing / Brand Motion、Phase 8.2h Signal Dossier Visual Upgrade、Phase 8.2i Pixel Copilot Motion And Equipment、Phase 8.2j ChartPanel Professional Visual Interaction 和 Phase 8.2k Chart Realism And Key-Level Drilldown 已落地；顶部品牌 banner、雷达之眼、运行状态条、ticker、2 : 6 : 2 cockpit、Signal Arena、候选横条、首屏主图、Action Rail、真实导航抽屉、启动 briefing、证据室式信号档案、紧凑像素副驾驶 dock、主图焦点交互和只读 K 线真实感层已接入；桌面 1536x1024 与移动 390x844 浏览器 QA 已通过；旧 S680 可见方向和首屏全功能堆叠已剔除 | 后续 UI 进入阶段性收束，优先回到全市场扫描、数据质量和复盘闭环 |
 
 ## 当前已落地模块
@@ -767,7 +767,7 @@ AI 复核必须遵守：
 
 ### 部分落地：告警系统
 
-当前已经完成网页内基础告警策略：
+当前已经完成网页内基础告警策略和站内本地设置：
 
 - `near_trigger` 会生成 high 级别告警。
 - `triggered` 会生成 critical 级别告警。
@@ -776,14 +776,14 @@ AI 复核必须遵守：
 - 静默时段会关闭声音，但事件仍进入事件中心。
 - 浏览器 Notification API 只会在用户主动开启告警后请求权限，不会首屏打扰。
 - 事件中心会把 signal alert、system stale、system failed 和扫描事件合并展示。
+- Settings 抽屉已新增 `AlertControlPanel`，可在站内切换最低信号等级、提示音、浏览器通知、静默时段和 5m/8m/15m 去重窗口。
+- `buildAlertControlReport()` 固定输出 `allowedUse: "in_app_only"`，`canUseTelegram=false`，`canUseWebhook=false`，避免后续把外部推送误当作当前阶段目标。
 
 后续需要：
 
-- 可配置静默时段。
-- 可配置告警等级阈值。
 - 告警历史持久化。
 - 站内事件中心筛选与归档。
-- 提示音细节和浏览器通知开关优化。
+- 提示音音色、音量和更多静默规则细化。
 
 ### 未完整落地：UI 精细化
 
@@ -1104,7 +1104,7 @@ CoinGlass 业余会员 API：
 
 目标：让重要异动有可控提醒。
 
-当前状态：网页内基础告警已完成，站内配置和持久化未完成。
+当前状态：网页内基础告警、站内本地设置和不接外部推送边界已完成，持久化未完成。
 
 已具备：
 
@@ -1112,12 +1112,13 @@ CoinGlass 业余会员 API：
 - 声音级别。
 - 重复抑制。
 - 静默时段。
+- Settings 抽屉里的站内告警控制：最低等级、提示音、浏览器通知、静默时段、去重窗口。
+- 外部推送边界：当前不接 Telegram/Webhook。
 - 系统异常告警。
 - 事件中心合并展示。
 
 下一步深化：
 
-- 可配置静默时段和告警阈值。
 - 告警历史持久化。
 - 站内事件中心筛选与归档。
 - 提示音细节和浏览器通知开关优化。

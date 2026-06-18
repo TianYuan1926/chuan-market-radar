@@ -3,12 +3,15 @@ import test from "node:test";
 import type { MarketSignal } from "@/lib/analysis/types";
 import type { SystemHealthReport } from "@/lib/api/system-health";
 import {
+  buildAlertControlReport,
   buildAlertEvent,
   buildOperationsAlertEvent,
   mergeAlertEventsById,
   notificationCopyForAlert,
+  shouldKeepAlertEventForPreferences,
   shouldSuppressAlert,
   soundProfileForSeverity,
+  type AlertPreferences,
 } from "./alert-policy";
 
 const baseSignal: MarketSignal = {
@@ -643,6 +646,58 @@ test("quiet hours suppress sound but keep alert event copy available", () => {
   assert.equal(profile.shouldPlay, false);
   assert.equal(event.severity, "high");
   assert.match(notificationCopyForAlert(event).title, /ENA/);
+});
+
+test("local alert preferences filter signal severity without hiding operations alerts", () => {
+  const preferences: AlertPreferences = {
+    browserNotificationsEnabled: false,
+    dedupeWindowMinutes: 15,
+    minimumSignalSeverity: "high",
+    quietHours: {
+      endHour: 8,
+      startHour: 23,
+      timeZone: "Asia/Shanghai",
+    },
+    quietHoursEnabled: true,
+    soundEnabled: true,
+  };
+  const watch = buildAlertEvent(signal({
+    state: "abnormal_watch",
+  }), {
+    generatedAt: "2026-06-14T10:00:00.000Z",
+    scanId: "scan-alert-control",
+  })!;
+  const high = buildAlertEvent(signal(), {
+    generatedAt: "2026-06-14T10:00:00.000Z",
+    scanId: "scan-alert-control",
+  })!;
+  const operations = buildOperationsAlertEvent(health({
+    scan: {
+      ...health().scan,
+      freshness: "expired",
+      status: "stale",
+    },
+    operations: {
+      ...health().operations,
+      verdict: "attention",
+    },
+  }))!;
+  const report = buildAlertControlReport(preferences, new Date("2026-06-14T15:30:00.000Z"));
+
+  assert.equal(watch.severity, "watch");
+  assert.equal(shouldKeepAlertEventForPreferences(watch, preferences), false);
+  assert.equal(shouldKeepAlertEventForPreferences(high, preferences), true);
+  assert.equal(shouldKeepAlertEventForPreferences(operations, preferences), true);
+  assert.equal(report.mode, "local_alert_control_mvp");
+  assert.equal(report.allowedUse, "in_app_only");
+  assert.equal(report.canUseTelegram, false);
+  assert.equal(report.canUseWebhook, false);
+  assert.equal(report.externalChannelsEnabled, false);
+  assert.equal(report.dedupeWindowMinutes, 15);
+  assert.equal(report.thresholdLabel, "接近触发+触发");
+  assert.equal(report.suppressedByQuietHours, true);
+  assert.equal(report.soundArmed, false);
+  assert.match(report.operatorHint, /不接 Telegram\/Webhook/);
 });
 
 test("buildOperationsAlertEvent creates an operations alert for stale or failed scan state", () => {

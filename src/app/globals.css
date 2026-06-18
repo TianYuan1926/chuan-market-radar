@@ -8181,6 +8181,166 @@ button.altcoin-opportunity-card.is-selected {
 .health-guard--degraded strong,
 .health-guard--blocked strong { color: var(--red); }
 
+.alert-control-module {
+  background:
+    linear-gradient(145deg, rgba(82, 115, 204, 0.12), transparent 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), transparent),
+    rgba(247, 251, 255, 0.94);
+}
+
+.alert-control__summary,
+.alert-control__severity,
+.alert-control__toggles,
+.alert-control__dedupe,
+.alert-control__channels {
+  display: grid;
+  gap: 7px;
+  padding: 0 11px 10px;
+}
+
+.alert-control__summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding-top: 10px;
+}
+
+.alert-control__summary span,
+.alert-control__channels span {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.alert-control__summary span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 7px;
+  align-items: center;
+  padding: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.alert-control__summary svg {
+  grid-row: span 2;
+  color: var(--accent);
+}
+
+.alert-control__summary b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-control__severity {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.alert-control__toggles,
+.alert-control__dedupe,
+.alert-control__channels {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.alert-control__severity button,
+.alert-control__toggles button,
+.alert-control__dedupe button {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.alert-control__severity button,
+.alert-control__toggles button {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+
+.alert-control__dedupe button {
+  padding: 8px;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.alert-control__severity button:hover,
+.alert-control__toggles button:hover,
+.alert-control__dedupe button:hover {
+  transform: translateY(-1px);
+}
+
+.alert-control__severity button.is-active,
+.alert-control__toggles button.is-active,
+.alert-control__dedupe button.is-active {
+  border-color: rgba(47, 111, 237, 0.42);
+  box-shadow: 0 0 0 2px rgba(47, 111, 237, 0.1);
+}
+
+.alert-control__severity b,
+.alert-control__toggles b,
+.alert-control__severity small,
+.alert-control__toggles small,
+.alert-control__channels b,
+.alert-control__channels span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-control__severity b,
+.alert-control__toggles b {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.alert-control__severity small,
+.alert-control__toggles small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.alert-control__channels span {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.alert-control__channels b {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.alert-control-module p {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0 11px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .event-module {
   background:
     linear-gradient(150deg, rgba(213, 155, 61, 0.12), transparent 54%),
@@ -10443,7 +10603,12 @@ button.altcoin-opportunity-card.is-selected {
   .health-data-quality__issues,
   .health-v3-strategy-loop__grid,
   .health-evolution-loop__score,
-  .health-evolution-loop__stages {
+  .health-evolution-loop__stages,
+  .alert-control__summary,
+  .alert-control__severity,
+  .alert-control__toggles,
+  .alert-control__dedupe,
+  .alert-control__channels {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -10452,7 +10617,10 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__samples span:nth-child(3),
   .health-data-quality__issue,
   .health-evolution-loop__stage:nth-child(5),
-  .health-evolution-loop__stage:nth-child(6) {
+  .health-evolution-loop__stage:nth-child(6),
+  .alert-control__severity button:nth-child(3),
+  .alert-control__toggles button:nth-child(3),
+  .alert-control__channels span:nth-child(3) {
     grid-column: 1 / -1;
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AlertControlPanel } from "./alert-control-panel";
 import { ChartPanel } from "./chart-panel";
 import { AltcoinOpportunityBoard } from "./altcoin-opportunity-board";
 import { DailyMoverPanel } from "./daily-mover-panel";
@@ -20,12 +21,16 @@ import { TopRadarBar, type RadarNavigationSection, type RuntimeStateView } from 
 import { signalStateLabels } from "@/lib/analysis/constants";
 import {
   buildAlertEvent,
+  buildAlertControlReport,
   buildOperationsAlertEvent,
   mergeAlertEventsById,
   notificationCopyForAlert,
   shouldSuppressAlert,
+  shouldKeepAlertEventForPreferences,
   soundProfileForSeverity,
   type AlertEvent,
+  type AlertPreferences,
+  type AlertSignalThreshold,
   type AlertSound,
 } from "@/lib/alerts/alert-policy";
 import type {
@@ -67,6 +72,15 @@ const alertQuietHours = {
   endHour: 8,
   startHour: 23,
   timeZone: "Asia/Shanghai",
+};
+
+const defaultAlertPreferences: AlertPreferences = {
+  browserNotificationsEnabled: false,
+  dedupeWindowMinutes: 8,
+  minimumSignalSeverity: "watch",
+  quietHours: alertQuietHours,
+  quietHoursEnabled: true,
+  soundEnabled: false,
 };
 
 function formatScanTime(value: string) {
@@ -465,11 +479,13 @@ function audioContextConstructor() {
 function buildCurrentAlertEvents({
   health,
   now = new Date(),
+  preferences,
   previousEvents = [],
   snapshot,
 }: {
   health: SystemHealthReport;
   now?: Date;
+  preferences: AlertPreferences;
   previousEvents?: AlertEvent[];
   snapshot: MarketRadarSnapshot;
 }) {
@@ -485,7 +501,15 @@ function buildCurrentAlertEvents({
     ...signalEvents,
   ];
 
-  return events.filter((event) => !shouldSuppressAlert(event, previousEvents, now)).slice(0, 5);
+  return events
+    .filter((event) => shouldKeepAlertEventForPreferences(event, preferences))
+    .filter((event) => !shouldSuppressAlert(
+      event,
+      previousEvents,
+      now,
+      preferences.dedupeWindowMinutes * 60 * 1000,
+    ))
+    .slice(0, 5);
 }
 
 export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWorkspaceProps) {
@@ -505,10 +529,12 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     useState<DailyMoverStrategyConfirmationStatus>("idle");
   const [dailyMoverState] = useState(dailyMoverArchive);
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
+  const [alertPreferences, setAlertPreferences] = useState<AlertPreferences>(defaultAlertPreferences);
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>(() =>
     buildCurrentAlertEvents({
       health,
       now: dateFromSnapshot(snapshot.metadata.generatedAt),
+      preferences: defaultAlertPreferences,
       snapshot,
     })
   );
@@ -520,7 +546,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   );
   const [clockNow, setClockNow] = useState(() => dateFromSnapshot(snapshot.metadata.generatedAt));
   const [lastDelta, setLastDelta] = useState<SignalSetDelta | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const soundEnabled = alertPreferences.soundEnabled;
   const snapshotRef = useRef(snapshot);
   const alertEventsRef = useRef(alertEvents);
   const firstRefreshRef = useRef(true);
@@ -625,9 +651,14 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     const target = normalizeDossierSymbol(selectedDossierSignal.symbol);
 
     return alertEvents
+      .filter((event) => shouldKeepAlertEventForPreferences(event, alertPreferences))
       .filter((event) => event.symbol && normalizeDossierSymbol(event.symbol) === target)
       .slice(0, 5);
-  }, [alertEvents, selectedDossierSignal]);
+  }, [alertEvents, alertPreferences, selectedDossierSignal]);
+  const visibleAlertEvents = useMemo(
+    () => alertEvents.filter((event) => shouldKeepAlertEventForPreferences(event, alertPreferences)),
+    [alertEvents, alertPreferences],
+  );
   const altcoinOpportunityBoard = useMemo(
     () => buildAltcoinOpportunityBoard({
       dailyMoverDetails: dailyMoverState.selectedDetails,
@@ -645,6 +676,10 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       tickers,
     }),
     [derivatives, metadata.status, signals, tickers],
+  );
+  const alertControlReport = useMemo(
+    () => buildAlertControlReport(alertPreferences, clockNow),
+    [alertPreferences, clockNow],
   );
 
   const mood = selected?.risk === "high" || selected?.risk === "blocked"
@@ -671,7 +706,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     { label: "归档", value: `${liveSnapshot.archive?.entries.length ?? 0} 帧` },
     { label: "Cron", value: runtimeStates.find((state) => state.id === "cron")?.value ?? "等待" },
   ];
-  const opsEventItems = alertEvents.slice(0, 3).map((event) => ({
+  const opsEventItems = visibleAlertEvents.slice(0, 3).map((event) => ({
     label: event.symbol ?? event.type,
     value: notificationCopyForAlert(event).title,
   }));
@@ -772,7 +807,10 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
 
   function toggleSound() {
     if (soundEnabled) {
-      setSoundEnabled(false);
+      setAlertPreferences((current) => ({
+        ...current,
+        soundEnabled: false,
+      }));
       return;
     }
 
@@ -787,11 +825,42 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
       }
     }
 
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+    setAlertPreferences((current) => ({
+      ...current,
+      soundEnabled: true,
+    }));
+  }
+
+  function setMinimumAlertSeverity(severity: AlertSignalThreshold) {
+    setAlertPreferences((current) => ({
+      ...current,
+      minimumSignalSeverity: severity,
+    }));
+  }
+
+  function setAlertDedupeWindow(minutes: number) {
+    setAlertPreferences((current) => ({
+      ...current,
+      dedupeWindowMinutes: minutes,
+    }));
+  }
+
+  function setAlertQuietHours(enabled: boolean) {
+    setAlertPreferences((current) => ({
+      ...current,
+      quietHoursEnabled: enabled,
+    }));
+  }
+
+  function setBrowserNotifications(enabled: boolean) {
+    if (enabled && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
       void Notification.requestPermission();
     }
 
-    setSoundEnabled(true);
+    setAlertPreferences((current) => ({
+      ...current,
+      browserNotificationsEnabled: enabled,
+    }));
   }
 
   useEffect(() => {
@@ -842,6 +911,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         const nextAlertEvents = buildCurrentAlertEvents({
           health: payload.health,
           now: new Date(),
+          preferences: alertPreferences,
           previousEvents: alertEventsRef.current,
           snapshot: nextSnapshot,
         });
@@ -856,11 +926,11 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         if (soundAlert) {
           const soundProfile = soundProfileForSeverity(soundAlert.severity, {
             now: new Date(),
-            quietHours: alertQuietHours,
+            quietHours: alertPreferences.quietHoursEnabled ? alertPreferences.quietHours : undefined,
           });
 
           if (
-            soundEnabled &&
+            alertPreferences.soundEnabled &&
             soundProfile.shouldPlay &&
             !firstRefreshRef.current &&
             document.visibilityState === "visible"
@@ -868,7 +938,9 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             playSignalTone(soundProfile.name, soundProfile.volume);
           }
 
-          maybeShowNotification(soundAlert);
+          if (alertPreferences.browserNotificationsEnabled) {
+            maybeShowNotification(soundAlert);
+          }
         }
 
         snapshotRef.current = nextSnapshot;
@@ -905,7 +977,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         clearTimeout(timer);
       }
     };
-  }, [maybeShowNotification, playSignalTone, soundEnabled]);
+  }, [alertPreferences, maybeShowNotification, playSignalTone]);
 
   useEffect(() => {
     const updateClock = () => {
@@ -1188,7 +1260,19 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     );
   } else if (activeSection === "settings") {
     workspaceDrawerContent = (
-      <SystemHealthPanel health={liveHealth} />
+      <div className="workspace-drawer__stack">
+        <AlertControlPanel
+          alertEvents={visibleAlertEvents}
+          preferences={alertPreferences}
+          report={alertControlReport}
+          onBrowserNotificationsChange={setBrowserNotifications}
+          onDedupeWindowChange={setAlertDedupeWindow}
+          onMinimumSeverityChange={setMinimumAlertSeverity}
+          onQuietHoursChange={setAlertQuietHours}
+          onSoundToggle={toggleSound}
+        />
+        <SystemHealthPanel health={liveHealth} />
+      </div>
     );
   }
 

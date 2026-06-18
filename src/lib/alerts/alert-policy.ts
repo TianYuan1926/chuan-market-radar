@@ -4,6 +4,7 @@ import type { SystemHealthReport } from "@/lib/api/system-health";
 export type AlertSeverity = "watch" | "high" | "critical" | "operations";
 export type AlertSound = "none" | "tick" | "pulse" | "alarm";
 export type AlertType = "signal_alert" | "system_stale" | "system_failed";
+export type AlertSignalThreshold = Exclude<AlertSeverity, "operations">;
 
 export type AlertEvent = {
   actionHint: string;
@@ -29,11 +30,35 @@ export type QuietHours = {
   timeZone: string;
 };
 
+export type AlertPreferences = {
+  browserNotificationsEnabled: boolean;
+  dedupeWindowMinutes: number;
+  minimumSignalSeverity: AlertSignalThreshold;
+  quietHours: QuietHours;
+  quietHoursEnabled: boolean;
+  soundEnabled: boolean;
+};
+
 export type SoundProfile = {
   muted: boolean;
   name: AlertSound;
   shouldPlay: boolean;
   volume: number;
+};
+
+export type AlertControlReport = {
+  activeChannels: string[];
+  allowedUse: "in_app_only";
+  canUseTelegram: false;
+  canUseWebhook: false;
+  dedupeWindowMinutes: number;
+  externalChannelsEnabled: false;
+  mode: "local_alert_control_mvp";
+  operatorHint: string;
+  quietHoursLabel: string;
+  soundArmed: boolean;
+  suppressedByQuietHours: boolean;
+  thresholdLabel: string;
 };
 
 const defaultDedupeWindowMs = 8 * 60 * 1000;
@@ -68,6 +93,22 @@ function severityForSignal(signal: MarketSignal): AlertSeverity | null {
   }
 
   return null;
+}
+
+function severityRank(severity: AlertSignalThreshold) {
+  return {
+    critical: 3,
+    high: 2,
+    watch: 1,
+  }[severity];
+}
+
+function signalAlertSeverity(event: AlertEvent): AlertSignalThreshold | null {
+  if (event.type !== "signal_alert" || event.severity === "operations") {
+    return null;
+  }
+
+  return event.severity;
 }
 
 function soundNameForSeverity(severity: AlertSeverity): AlertSound {
@@ -206,6 +247,51 @@ export function soundProfileForSeverity(
     name: muted ? "none" : name,
     shouldPlay: !muted && name !== "none",
     volume: muted ? 0 : soundVolumeForSeverity(severity),
+  };
+}
+
+export function shouldKeepAlertEventForPreferences(event: AlertEvent, preferences: AlertPreferences) {
+  const signalSeverity = signalAlertSeverity(event);
+
+  if (!signalSeverity) {
+    return true;
+  }
+
+  return severityRank(signalSeverity) >= severityRank(preferences.minimumSignalSeverity);
+}
+
+export function buildAlertControlReport(
+  preferences: AlertPreferences,
+  now = new Date(),
+): AlertControlReport {
+  const quietHours = preferences.quietHoursEnabled ? preferences.quietHours : undefined;
+  const suppressedByQuietHours = isQuietHour(now, quietHours);
+  const activeChannels = [
+    "站内事件中心",
+    preferences.soundEnabled && !suppressedByQuietHours ? "声音" : null,
+    preferences.browserNotificationsEnabled ? "浏览器通知" : null,
+  ].filter((channel): channel is string => Boolean(channel));
+  const thresholdLabel = {
+    critical: "仅触发",
+    high: "接近触发+触发",
+    watch: "观察以上",
+  }[preferences.minimumSignalSeverity];
+
+  return {
+    activeChannels,
+    allowedUse: "in_app_only",
+    canUseTelegram: false,
+    canUseWebhook: false,
+    dedupeWindowMinutes: preferences.dedupeWindowMinutes,
+    externalChannelsEnabled: false,
+    mode: "local_alert_control_mvp",
+    operatorHint: "站内告警只做提醒和上下文聚合，不自动下单，不接 Telegram/Webhook。",
+    quietHoursLabel: preferences.quietHoursEnabled
+      ? `${preferences.quietHours.startHour}:00-${preferences.quietHours.endHour}:00 ${preferences.quietHours.timeZone}`
+      : "关闭",
+    soundArmed: preferences.soundEnabled && !suppressedByQuietHours,
+    suppressedByQuietHours,
+    thresholdLabel,
   };
 }
 

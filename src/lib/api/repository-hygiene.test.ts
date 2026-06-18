@@ -583,6 +583,42 @@ test("phase 8.2h signal dossier uses a workstation evidence-room hierarchy", () 
   assert.doesNotMatch(dossierSource, /LiquidationHeatmap|LiquidationZone|HeatmapProvider/u);
 });
 
+test("settings drawer exposes local alert controls without external notification channels", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const panelSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/alert-control-panel.tsx"),
+    "utf8",
+  );
+  const policySource = readFileSync(resolve(process.cwd(), "src/lib/alerts/alert-policy.ts"), "utf8");
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(workspaceSource, /AlertControlPanel/);
+  assert.match(workspaceSource, /alertPreferences/);
+  assert.match(workspaceSource, /buildAlertControlReport/);
+  assert.match(workspaceSource, /shouldKeepAlertEventForPreferences/);
+  assert.match(workspaceSource, /minimumSignalSeverity/);
+  assert.match(workspaceSource, /dedupeWindowMinutes/);
+  assert.match(workspaceSource, /browserNotificationsEnabled/);
+  assert.match(panelSource, /站内告警设置/);
+  assert.match(panelSource, /告警等级阈值/);
+  assert.match(panelSource, /告警通道开关/);
+  assert.match(panelSource, /告警去重窗口/);
+  assert.match(panelSource, /Telegram\/Webhook/);
+  assert.match(policySource, /allowedUse: "in_app_only"/);
+  assert.match(policySource, /canUseTelegram: false/);
+  assert.match(policySource, /canUseWebhook: false/);
+  assert.match(policySource, /externalChannelsEnabled: false/);
+  assert.match(cssSource, /\.alert-control-module/);
+  assert.match(cssSource, /\.alert-control__summary/);
+  assert.match(cssSource, /\.alert-control__severity/);
+  assert.match(cssSource, /\.alert-control__toggles/);
+  assert.match(cssSource, /\.alert-control__dedupe/);
+  assert.match(cssSource, /\.alert-control__channels/);
+});
+
 test("living radar UI second pass exposes functional motion, state dimming, and compact cockpit status", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
