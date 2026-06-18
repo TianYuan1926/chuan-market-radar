@@ -11,6 +11,9 @@ export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol 
   const moodLabel = mood === "serious" ? "刹车" : mood === "alert" ? "警戒" : "巡航";
   const selectedLabel = selectedSymbol?.replace("USDT", "") ?? "当前";
   const tierFloor = rankProfile?.tier.minXp ?? 0;
+  const posture = mood === "serious" ? "brake" : mood === "alert" ? "scan" : "idle";
+  const postureLabel = posture === "brake" ? "纪律制动" : posture === "scan" ? "异动侦测" : "低噪巡航";
+  const actionLabel = posture === "brake" ? "先看失效" : posture === "scan" ? "盯突破" : "等赔率";
   const equipmentLabel = tierFloor >= 360
     ? "黑卡终端"
     : rankProfile?.tier.id === "operator"
@@ -22,9 +25,16 @@ export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol 
           : rankProfile?.tier.id === "observer"
             ? "监听耳机"
             : "黑色外套";
+  const equipmentSlots = [
+    { label: "BTC", state: "active", title: "BTC 项链始终在线" },
+    { label: tierFloor >= 60 ? "耳机" : "锁定", state: tierFloor >= 60 ? "active" : "locked", title: "纪律席解锁监听耳机" },
+    { label: tierFloor >= 160 ? "镜片" : "锁定", state: tierFloor >= 160 ? "active" : "locked", title: "狙击席解锁屏幕眼镜" },
+    { label: tierFloor >= 360 ? "终端" : "锁定", state: tierFloor >= 360 ? "active" : "locked", title: "高阶段位解锁黑卡终端" },
+  ];
   const discipline = rankProfile?.disciplineScore ?? (mood === "serious" ? 42 : mood === "alert" ? 68 : 76);
   const momentum = rankProfile?.recentMomentum ?? (mood === "alert" ? 8 : mood === "serious" ? -6 : 2);
   const heat = mood === "serious" ? 91 : mood === "alert" ? 74 : 36;
+  const disciplineLabel = discipline >= 80 ? "纪律稳定" : discipline >= 55 ? "纪律观察" : "纪律修复";
   const line = rankProfile?.petMood === mood
     ? rankProfile.petLine
     : mood === "serious"
@@ -34,8 +44,19 @@ export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol 
         : "巡航中，等真正有赔率的机会。没有低风险区，就不强行开工。";
 
   return (
-    <section className={`module pet-module companion-dock pet-module--${mood}`} aria-label="助手 dock">
-      <div className="companion-dock__avatar">
+    <section className={`module pet-module companion-dock pet-module--${mood} companion-dock--${posture}`} aria-label="助手 dock">
+      <div className={`companion-dock__avatar companion-dock__avatar--${posture}`}>
+        <div className="copilot-motion-field" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="copilot-signal-pips" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
         <div className={`copilot-avatar copilot-avatar--${mood}`} aria-label="男性像素副驾驶">
           <div className="copilot-gear" />
           <div className="copilot-head">
@@ -51,6 +72,13 @@ export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol 
               <span className="copilot-medallion">BTC</span>
             </div>
           </div>
+          <span className="copilot-hand copilot-hand--left" />
+          <span className="copilot-hand copilot-hand--right" />
+        </div>
+        <div className="copilot-mini-desk" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
       </div>
 
@@ -64,6 +92,21 @@ export function PixelCopilot({ mood, onOpenDossier, rankProfile, selectedSymbol 
         </div>
 
         <p className="companion-dock__line">{line}</p>
+
+        <div className="copilot-status-strip" aria-label="副驾驶动作状态">
+          <span>{postureLabel}</span>
+          <b>{actionLabel}</b>
+          <em>{disciplineLabel}</em>
+        </div>
+
+        <div className="copilot-equipment" aria-label="装备槽">
+          {equipmentSlots.map((item) => (
+            <span className={`copilot-equipment__slot copilot-equipment__slot--${item.state}`} key={item.title} title={item.title}>
+              <i />
+              <b>{item.label}</b>
+            </span>
+          ))}
+        </div>
 
         <div className="pet-state">
           <span>{rankProfile ? `${rankProfile.totalXp} XP` : "+1 XP"}</span>

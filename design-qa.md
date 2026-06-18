@@ -14,6 +14,9 @@
 - Phase 8.2h desktop signal dossier screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-desktop-signal-dossier.png`
 - Phase 8.2h mobile signal dossier screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-mobile-signal-dossier.png`
 - Phase 8.2h console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-console.log`
+- Phase 8.2i desktop pixel copilot screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-desktop-pixel-copilot.png`
+- Phase 8.2i mobile pixel copilot screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-mobile-pixel-copilot.png`
+- Phase 8.2i console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-console.log`
 - Desktop viewport: 1536 x 1024.
 - Mobile viewport: 390 x 844.
 - State: local `http://localhost:3001/`, default radar route, first-visit boot briefing state, drawer entry checks, and selected ENA Signal Dossier open state.
@@ -31,7 +34,9 @@
 - Phase 8.2g interaction check: `查看信号池` opens the Signals drawer, `看复盘链路` opens the Review drawer, and `进入雷达` dismisses the briefing with `localStorage` persistence. Desktop and 390px mobile checks both reported no horizontal overflow.
 - Phase 8.2h Signal Dossier: the selected ENA dossier opens as a right-side evidence room on desktop and a bottom sheet on mobile. It exposes one decision overview, four strategy status cells, three v3 evidence-path cards, the plan section, evidence room, and copilot discipline card. The current mock signal has no real `strategyV3`, so the dossier shows an explicit v3 pending state rather than fabricating a Forward Map.
 - Phase 8.2h responsiveness: desktop `1536px` and mobile `390px` checks both reported no horizontal overflow. Drawer rects stayed within viewport: desktop `638px` right drawer, mobile `390px` bottom sheet.
-- Runtime console: 0 errors and 0 warnings for the 8.2h Playwright QA run.
+- Phase 8.2i Pixel Copilot: the compact dock now includes motion rings, four signal pips, an action status strip, four equipment slots, BTC medallion pulse, a mini desk with the `川` mark, and no static image. It remains a discipline/status companion instead of a trade-decision surface.
+- Phase 8.2i compactness: desktop dock measured `297px x 364px` with fixed `82px x 124px` avatar stage; mobile dock measured `364px x 358px` with fixed `74px x 108px` avatar stage. Desktop and mobile checks both reported no horizontal overflow.
+- Runtime console: 0 errors and 0 warnings for the 8.2i Playwright QA run.
 
 **Patches Made**
 - Reordered the center workspace so the candidate strip and chart sit before deep review modules.
@@ -48,9 +53,11 @@
 - Upgraded `SignalDossier` into a light liquid-glass evidence room with a decision overview, status rail, v3 evidence path, clearer plan/evidence/review sections, and a discipline-focused copilot card.
 - Added a v3 pending state so preview data without `strategyV3` remains honest: it states that Forward Map is waiting for data and does not affect live ranking.
 - Added Phase 8.2h repository hygiene coverage for the Signal Dossier hierarchy and no-forbidden-module boundary.
+- Upgraded `PixelCopilot` with compact motion/equipment states: low-noise cruise, anomaly scan, discipline brake, BTC medallion pulse, equipment slots, mini desk, and reduced-motion protection.
+- Added Phase 8.2i repository hygiene coverage for compact motion/equipment tokens and the continued no-callout boundary.
 
 **Follow-up Polish**
-- P3: the next UI pass should make the chart itself more TradingView-like with denser candles and key-level overlays.
+- P3: the next UI pass should make the chart itself more TradingView-like with denser candles, key-level overlays, Forward Map focus, and review-sample drilldown.
 - P3: the mobile route should eventually switch to tabbed sections instead of a long vertical scroll.
 - P3: when live `strategyV3` is present, capture a second dossier screenshot with real Key Levels / Forward Map populated instead of the mock pending state.
 

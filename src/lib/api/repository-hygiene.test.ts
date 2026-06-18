@@ -1081,6 +1081,46 @@ test("pixel copilot MVP renders a BTC-necklace male avatar with equipment and no
   }
 });
 
+test("phase 8.2i pixel copilot stays compact while adding motion and equipment states", () => {
+  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"), "utf8");
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+  const requiredComponentTokens = [
+    "copilot-motion-field",
+    "copilot-signal-pips",
+    "copilot-status-strip",
+    "copilot-equipment",
+    "copilot-equipment__slot",
+    "copilot-mini-desk",
+    "纪律制动",
+    "异动侦测",
+    "低噪巡航",
+  ];
+  const requiredCssTokens = [
+    "Phase 8.2i: compact pixel copilot motion and equipment system",
+    "@keyframes copilotBreathe",
+    "@keyframes copilotBlink",
+    "@keyframes copilotMedallionPulse",
+    "prefers-reduced-motion",
+    ".copilot-equipment",
+    ".copilot-status-strip",
+    ".copilot-motion-field",
+    ".copilot-mini-desk",
+  ];
+
+  for (const token of requiredComponentTokens) {
+    assert.match(componentSource, new RegExp(token));
+  }
+
+  for (const token of requiredCssTokens) {
+    assert.match(cssSource, new RegExp(token.replaceAll(".", "\\.")));
+  }
+
+  assert.match(blueprintSource, /Phase 8\.2i/);
+  assert.match(blueprintSource, /像素副驾驶装备\/动效|Pixel Copilot Motion And Equipment/);
+  assert.doesNotMatch(componentSource, /开多|开空|做多|做空|买入|卖出|梭哈/);
+});
+
 test("external scan scheduler calls the protected scan endpoint without hard-coded secrets", () => {
   const workflowSource = readFileSync(
     resolve(process.cwd(), ".github/workflows/chuan-scan-cron.yml"),

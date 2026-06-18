@@ -10872,3 +10872,505 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Phase 8.2i: compact pixel copilot motion and equipment system. */
+.companion-dock {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(65, 113, 183, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(238, 247, 255, 0.72)),
+    radial-gradient(circle at 16% 12%, rgba(71, 185, 255, 0.18), transparent 42%);
+}
+
+.companion-dock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.42;
+  background:
+    linear-gradient(90deg, rgba(65, 113, 183, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(65, 113, 183, 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(90deg, #000, transparent 68%);
+}
+
+.companion-dock__avatar {
+  position: relative;
+  overflow: hidden;
+  min-height: 124px;
+  height: 124px;
+  align-self: start;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 14px 28px rgba(31, 77, 142, 0.08);
+}
+
+.companion-dock__avatar::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  height: 18px;
+  border: 1px solid rgba(31, 118, 255, 0.14);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(31, 77, 142, 0.18), transparent 68%);
+}
+
+.companion-dock .copilot-avatar {
+  position: absolute;
+  top: auto;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.5);
+  transform-origin: 50% 100%;
+  animation: copilotBreathe 3.2s ease-in-out infinite;
+}
+
+.companion-dock--scan .copilot-avatar {
+  animation: copilotBreathe 2.6s ease-in-out infinite, copilotScanLean 3.8s ease-in-out infinite;
+}
+
+.companion-dock--brake .copilot-avatar {
+  animation: copilotBrakeHold 3.4s ease-in-out infinite;
+}
+
+.copilot-motion-field {
+  position: absolute;
+  inset: 9px;
+  pointer-events: none;
+}
+
+.copilot-motion-field span {
+  position: absolute;
+  border: 1px solid rgba(31, 118, 255, 0.18);
+  border-radius: 50%;
+  opacity: 0;
+  animation: copilotRadarPing 3.6s ease-out infinite;
+}
+
+.copilot-motion-field span:nth-child(1) {
+  inset: 26px;
+}
+
+.copilot-motion-field span:nth-child(2) {
+  inset: 16px;
+  animation-delay: 0.65s;
+}
+
+.copilot-motion-field span:nth-child(3) {
+  inset: 6px;
+  animation-delay: 1.3s;
+}
+
+.companion-dock--brake .copilot-motion-field span {
+  border-color: rgba(201, 74, 74, 0.2);
+  animation-duration: 4.8s;
+}
+
+.copilot-signal-pips {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.copilot-signal-pips span {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--radar-blue);
+  box-shadow: 0 0 12px rgba(31, 118, 255, 0.42);
+  animation: copilotSignalPip 2.8s ease-in-out infinite;
+}
+
+.copilot-signal-pips span:nth-child(1) {
+  top: 18px;
+  left: 17px;
+}
+
+.copilot-signal-pips span:nth-child(2) {
+  top: 28px;
+  right: 18px;
+  animation-delay: 0.42s;
+}
+
+.copilot-signal-pips span:nth-child(3) {
+  right: 24px;
+  bottom: 24px;
+  animation-delay: 0.86s;
+}
+
+.copilot-signal-pips span:nth-child(4) {
+  bottom: 33px;
+  left: 20px;
+  animation-delay: 1.24s;
+}
+
+.companion-dock--idle .copilot-signal-pips span {
+  opacity: 0.44;
+  animation-duration: 4.2s;
+}
+
+.companion-dock--brake .copilot-signal-pips span {
+  background: var(--red);
+  box-shadow: 0 0 12px rgba(201, 74, 74, 0.36);
+}
+
+.companion-dock .copilot-eye {
+  animation: copilotBlink 5.8s steps(1, end) infinite;
+}
+
+.companion-dock .copilot-eye--right {
+  animation-delay: 0.08s;
+}
+
+.companion-dock .copilot-medallion {
+  animation: copilotMedallionPulse 2.9s ease-in-out infinite;
+}
+
+.copilot-hand {
+  position: absolute;
+  z-index: 8;
+  width: 16px;
+  height: 12px;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: #d6a978;
+}
+
+.copilot-hand--left {
+  top: 82px;
+  left: 0;
+  transform: rotate(12deg);
+}
+
+.copilot-hand--right {
+  top: 82px;
+  right: 0;
+  transform: rotate(-12deg);
+}
+
+.companion-dock--scan .copilot-hand--right {
+  animation: copilotTap 1.8s ease-in-out infinite;
+}
+
+.companion-dock--brake .copilot-hand--left,
+.companion-dock--brake .copilot-hand--right {
+  background: #c98f72;
+}
+
+.copilot-mini-desk {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  width: 40px;
+  height: 26px;
+  border: 2px solid rgba(14, 40, 78, 0.72);
+  border-radius: 7px 7px 4px 4px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), transparent 36%),
+    linear-gradient(135deg, #5a84be, #183660);
+  box-shadow: 0 8px 16px rgba(31, 77, 142, 0.18);
+}
+
+.copilot-mini-desk::before {
+  content: "川";
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.copilot-mini-desk span {
+  position: absolute;
+  right: 5px;
+  width: 13px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.copilot-mini-desk span:nth-child(1) {
+  top: 7px;
+}
+
+.copilot-mini-desk span:nth-child(2) {
+  top: 13px;
+  width: 19px;
+}
+
+.copilot-mini-desk span:nth-child(3) {
+  top: 19px;
+  width: 10px;
+}
+
+.copilot-status-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 5px;
+  margin: 0 0 6px;
+}
+
+.copilot-status-strip span,
+.copilot-status-strip b,
+.copilot-status-strip em {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(65, 113, 183, 0.14);
+  border-radius: 999px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--radar-ink-soft);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-status-strip b {
+  color: var(--radar-blue);
+}
+
+.copilot-status-strip em {
+  color: var(--green);
+}
+
+.companion-dock--brake .copilot-status-strip em,
+.companion-dock--brake .copilot-status-strip b {
+  color: var(--red);
+}
+
+.copilot-equipment {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0 0 6px;
+}
+
+.copilot-equipment__slot {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(65, 113, 183, 0.14);
+  border-radius: 7px;
+  padding: 4px 5px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.copilot-equipment__slot i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--radar-blue);
+  box-shadow: 0 0 10px rgba(31, 118, 255, 0.34);
+}
+
+.copilot-equipment__slot b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--radar-ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 9px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-equipment__slot--locked {
+  opacity: 0.52;
+}
+
+.copilot-equipment__slot--locked i {
+  background: #9cafc5;
+  box-shadow: none;
+}
+
+.companion-dock .pet-state {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.companion-dock .pet-state span {
+  min-height: 20px;
+  font-size: 9px;
+}
+
+.companion-dock .copilot-dashboard {
+  gap: 5px;
+  margin: 0 0 7px;
+}
+
+.companion-dock .copilot-vital {
+  padding: 5px 6px 7px;
+}
+
+.companion-dock .copilot-vital b {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.companion-dock .pet-dossier-button {
+  min-height: 24px;
+  width: 100%;
+}
+
+.companion-dock__body .module-head {
+  min-height: 34px;
+  padding-bottom: 4px;
+}
+
+.companion-dock__body .module-head h2 {
+  font-size: 13px;
+}
+
+.companion-dock__body .module-head span {
+  font-size: 10px;
+}
+
+.companion-dock__body .tag {
+  min-height: 20px;
+  padding: 0 7px;
+  font-size: 9px;
+}
+
+@keyframes copilotBreathe {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(0.5) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) scale(0.5) translateY(-3px);
+  }
+}
+
+@keyframes copilotScanLean {
+  0%,
+  100% {
+    filter: drop-shadow(8px 14px 12px rgba(21, 23, 28, 0.16));
+  }
+  50% {
+    filter: drop-shadow(10px 12px 14px rgba(31, 118, 255, 0.2));
+  }
+}
+
+@keyframes copilotBrakeHold {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(0.5);
+  }
+  50% {
+    transform: translateX(-50%) scale(0.5) translateY(1px);
+  }
+}
+
+@keyframes copilotRadarPing {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  22% {
+    opacity: 0.68;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes copilotSignalPip {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes copilotBlink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.18);
+  }
+}
+
+@keyframes copilotMedallionPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(215, 168, 61, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(215, 168, 61, 0.52);
+  }
+}
+
+@keyframes copilotTap {
+  0%,
+  100% {
+    transform: rotate(-12deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-4deg) translateY(3px);
+  }
+}
+
+@media (max-width: 940px) {
+  .copilot-status-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .companion-dock .copilot-avatar {
+    transform: translateX(-50%) scale(0.55);
+  }
+}
+
+@media (max-width: 520px) {
+  .companion-dock {
+    grid-template-columns: 74px minmax(0, 1fr) !important;
+    gap: 8px;
+    min-height: 0;
+    padding: 9px;
+  }
+
+  .companion-dock__avatar {
+    min-height: 108px;
+    height: 108px;
+  }
+
+  .copilot-equipment {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .companion-dock .copilot-avatar {
+    bottom: -12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companion-dock .copilot-avatar,
+  .copilot-motion-field span,
+  .copilot-signal-pips span,
+  .companion-dock .copilot-eye,
+  .companion-dock .copilot-medallion,
+  .companion-dock--scan .copilot-hand--right {
+    animation: none !important;
+  }
+}
