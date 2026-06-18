@@ -319,6 +319,9 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
       notes: [
         "quality filter: raw 10, clean 5, primary 1",
         "quality rejections: unsupported_exchange 2, quote_not_supported 3, duplicate_symbol 4",
+        "quality rejected samples: Gate.io:TIAUSDT:unsupported_exchange; Binance:TIAUSDC:quote_not_supported",
+        "quality aggregation summary: duplicate_groups 1, rule exchange_priority_then_volume_oi",
+        "quality aggregation: TIAUSDT selected BINANCE over OKX/BYBIT by exchange_priority_then_volume_oi",
       ],
       quota: {
         cadenceMinutes: 15,
@@ -528,6 +531,27 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.equal(report.marketDataQuality.filters.duplicateSymbolCount, 4);
   assert.equal(report.marketDataQuality.filters.acceptedPool, 24);
   assert.equal(report.marketDataQuality.filters.rejectedPool, 4);
+  assert.equal(report.marketDataQuality.primarySelection.duplicateGroups, 1);
+  assert.equal(report.marketDataQuality.primarySelection.rule, "exchange_priority_then_volume_oi");
+  assert.match(report.marketDataQuality.primarySelection.operatorHint, /交易所优先级/);
+  assert.deepEqual(report.marketDataQuality.primarySelection.samples[0], {
+    discardedExchanges: ["OKX", "BYBIT"],
+    reason: "exchange_priority_then_volume_oi",
+    selectedExchange: "BINANCE",
+    symbol: "TIAUSDT",
+  });
+  assert.deepEqual(report.marketDataQuality.rejectedRowSamples, [
+    {
+      exchangeName: "Gate.io",
+      reason: "unsupported_exchange",
+      symbol: "TIAUSDT",
+    },
+    {
+      exchangeName: "Binance",
+      reason: "quote_not_supported",
+      symbol: "TIAUSDC",
+    },
+  ]);
   assert.ok(report.marketDataQuality.qualityScore < 65);
   assert.deepEqual(
     report.marketDataQuality.issues.map((issue) => issue.label),

@@ -74,10 +74,11 @@
 - Consumes: CoinGlass market rows, quality rejection counters, primary-row selection.
 - Produces: transparent aggregation decision, dirty-row examples, and blocking/degrading rules.
 
-- [ ] Lock rejection and aggregation behavior with tests.
-- [ ] Add primary-row selection reason output.
-- [ ] Expose examples and operator actions in health.
-- [ ] Update blueprint, verify, commit.
+- [x] Lock rejection and aggregation behavior with tests.
+- [x] Add primary-row selection reason output.
+- [x] Expose examples and operator actions in health.
+- [x] Update blueprint, run `npm run typecheck`, `npm run test:market`, `npm run lint`, and `npm run build`; browser recheck deferred because Playwright navigation was blocked by tool approval.
+- [ ] Commit as `Explain market data quality aggregation`.
 
 ### Task 3: Multi-Timeframe Market Structure Deepening
 

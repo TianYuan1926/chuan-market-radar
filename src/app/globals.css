@@ -6646,6 +6646,7 @@ button.altcoin-opportunity-card.is-selected {
 
 .health-data-quality__grid,
 .health-data-quality__issues,
+.health-data-quality__aggregation,
 .health-data-quality__guardrails {
   display: grid;
   gap: 6px;
@@ -6657,6 +6658,7 @@ button.altcoin-opportunity-card.is-selected {
 
 .health-data-quality__grid span,
 .health-data-quality__issue,
+.health-data-quality__aggregation span,
 .health-data-quality__guardrails span {
   min-width: 0;
   border: 1px solid var(--line);
@@ -6689,11 +6691,45 @@ button.altcoin-opportunity-card.is-selected {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.health-data-quality__aggregation {
+  grid-template-columns: 1fr 1.1fr 1.6fr;
+}
+
 .health-data-quality__issue {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 3px 8px;
   padding: 7px;
+}
+
+.health-data-quality__aggregation span {
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.health-data-quality__aggregation b,
+.health-data-quality__aggregation strong,
+.health-data-quality__aggregation small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-data-quality__aggregation b,
+.health-data-quality__aggregation strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.health-data-quality__aggregation small {
+  color: var(--muted);
+  font-size: 9px;
 }
 
 .health-data-quality__issue small {
@@ -10692,6 +10728,7 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__samples,
   .health-data-quality__grid,
   .health-data-quality__issues,
+  .health-data-quality__aggregation,
   .health-v3-strategy-loop__grid,
   .health-evolution-loop__score,
   .health-evolution-loop__stages,
@@ -10709,6 +10746,7 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__exchange-actions span,
   .health-full-market__samples span:nth-child(3),
   .health-data-quality__issue,
+  .health-data-quality__aggregation span:nth-child(3),
   .health-evolution-loop__stage:nth-child(5),
   .health-evolution-loop__stage:nth-child(6),
   .alert-control__severity button:nth-child(3),

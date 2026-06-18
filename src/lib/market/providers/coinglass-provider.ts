@@ -130,6 +130,22 @@ type MarketRowQualityReport = {
   cleanRows: CoinGlassMarketRow[];
   duplicateSymbolCount: number;
   rejections: Record<CoinGlassMarketRowRejectionReason, number>;
+  rejectedSamples: Array<{
+    exchangeName: string;
+    reason: CoinGlassMarketRowRejectionReason;
+    symbol: string;
+  }>;
+};
+
+type PrimarySignalRowSelectionReport = {
+  duplicateGroupCount: number;
+  primaryRows: CoinGlassMarketRow[];
+  samples: Array<{
+    discardedExchanges: string[];
+    reason: "exchange_priority_then_volume_oi";
+    selectedExchange: string;
+    symbol: string;
+  }>;
 };
 
 function marketRowVolume(row: CoinGlassMarketRow) {
@@ -147,15 +163,25 @@ function emptyQualityRejections(): Record<CoinGlassMarketRowRejectionReason, num
   };
 }
 
+function coinGlassRowExchangeName(row: CoinGlassMarketRow) {
+  return row.exchange_name ?? row.exchangeName ?? "unknown";
+}
+
 function qualityFilterMarketRows(rows: CoinGlassMarketRow[]): MarketRowQualityReport {
   const rejections = emptyQualityRejections();
   const cleanRows: CoinGlassMarketRow[] = [];
+  const rejectedSamples: MarketRowQualityReport["rejectedSamples"] = [];
 
   for (const row of rows) {
     const quality = classifyCoinGlassMarketRow(row);
 
     if (!quality.ok) {
       rejections[quality.reason] += 1;
+      rejectedSamples.push({
+        exchangeName: coinGlassRowExchangeName(row),
+        reason: quality.reason,
+        symbol: marketSymbolFromCoinGlass(row) || "UNKNOWN",
+      });
       continue;
     }
 
@@ -166,6 +192,7 @@ function qualityFilterMarketRows(rows: CoinGlassMarketRow[]): MarketRowQualityRe
     cleanRows,
     duplicateSymbolCount: Math.max(0, cleanRows.length - new Set(cleanRows.map(marketSymbolFromCoinGlass)).size),
     rejections,
+    rejectedSamples: rejectedSamples.slice(0, 8),
   };
 }
 
@@ -177,19 +204,47 @@ function primaryRowScore(row: CoinGlassMarketRow, updatedAt: string) {
     marketRowOpenInterest(row) * 0.1;
 }
 
-function selectPrimarySignalRows(rows: CoinGlassMarketRow[], updatedAt: string) {
+function selectPrimarySignalRows(rows: CoinGlassMarketRow[], updatedAt: string): PrimarySignalRowSelectionReport {
   const bySymbol = new Map<string, CoinGlassMarketRow>();
+  const candidatesBySymbol = new Map<string, CoinGlassMarketRow[]>();
 
   for (const row of rows) {
     const symbol = marketSymbolFromCoinGlass(row);
     const current = bySymbol.get(symbol);
+    const candidates = candidatesBySymbol.get(symbol) ?? [];
 
     if (!current || primaryRowScore(row, updatedAt) > primaryRowScore(current, updatedAt)) {
       bySymbol.set(symbol, row);
     }
+
+    candidates.push(row);
+    candidatesBySymbol.set(symbol, candidates);
   }
 
-  return [...bySymbol.values()];
+  const samples = [...candidatesBySymbol.entries()]
+    .filter(([, candidates]) => candidates.length > 1)
+    .slice(0, 8)
+    .map(([symbol, candidates]) => {
+      const selected = bySymbol.get(symbol) ?? candidates[0];
+      const selectedExchange = mapCoinGlassTicker(selected, updatedAt).exchange;
+      const discardedExchanges = candidates
+        .filter((row) => row !== selected)
+        .map((row) => mapCoinGlassTicker(row, updatedAt).exchange)
+        .filter((exchange, index, exchanges) => exchanges.indexOf(exchange) === index);
+
+      return {
+        discardedExchanges,
+        reason: "exchange_priority_then_volume_oi" as const,
+        selectedExchange,
+        symbol,
+      };
+    });
+
+  return {
+    duplicateGroupCount: samples.length,
+    primaryRows: [...bySymbol.values()],
+    samples,
+  };
 }
 
 function compactAssetList(label: string, assets: string[], previewLimit = 12) {
@@ -389,7 +444,8 @@ export function createCoinGlassProvider({
       });
       const qualityReport = qualityFilterMarketRows(marketRows);
       const cleanMarketRows = qualityReport.cleanRows;
-      const primarySignalRows = selectPrimarySignalRows(cleanMarketRows, generatedAt);
+      const primarySelectionReport = selectPrimarySignalRows(cleanMarketRows, generatedAt);
+      const primarySignalRows = primarySelectionReport.primaryRows;
       const instruments = cleanMarketRows
         .map((row) => mapCoinGlassMarketInstrument(row, generatedAt))
         .filter((item): item is NonNullable<typeof item> => item !== null);
@@ -520,6 +576,13 @@ export function createCoinGlassProvider({
           ...(universePriorityHintNotes ?? []),
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
           `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
+          qualityReport.rejectedSamples.length
+            ? `quality rejected samples: ${qualityReport.rejectedSamples.map((sample) => `${sample.exchangeName}:${sample.symbol}:${sample.reason}`).join("; ")}`
+            : "quality rejected samples: none",
+          `quality aggregation summary: duplicate_groups ${primarySelectionReport.duplicateGroupCount}, rule exchange_priority_then_volume_oi`,
+          primarySelectionReport.samples.length
+            ? `quality aggregation: ${primarySelectionReport.samples.map((sample) => `${sample.symbol} selected ${sample.selectedExchange} over ${sample.discardedExchanges.join("/") || "none"} by ${sample.reason}`).join("; ")}`
+            : "quality aggregation: none",
           `tiered universe: anchor ${batchPlan.tierCounts.anchor}, core ${batchPlan.tierCounts.core}, active ${batchPlan.tierCounts.active}, long_tail ${batchPlan.tierCounts.long_tail}`,
           coverage.exchangeCoverageSummary
             ? `exchange coverage: major_three ${coverage.exchangeCoverageSummary.majorThree}, multi_exchange ${coverage.exchangeCoverageSummary.multiExchange}, single_exchange ${coverage.exchangeCoverageSummary.singleExchange}, unlisted ${coverage.exchangeCoverageSummary.unlisted}`

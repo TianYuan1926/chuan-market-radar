@@ -237,6 +237,19 @@ export type MarketDataQualityIssue = {
   severity: "high" | "low" | "medium";
 };
 
+export type MarketDataRejectedRowSample = {
+  exchangeName: string;
+  reason: string;
+  symbol: string;
+};
+
+export type MarketDataAggregationSample = {
+  discardedExchanges: string[];
+  reason: string;
+  selectedExchange: string;
+  symbol: string;
+};
+
 export type MarketDataQualityReport = {
   filters: {
     acceptedPool: number;
@@ -254,8 +267,15 @@ export type MarketDataQualityReport = {
   issues: MarketDataQualityIssue[];
   mode: "market_data_quality_mvp";
   operatorHint: string;
+  primarySelection: {
+    duplicateGroups: number;
+    operatorHint: string;
+    rule: string;
+    samples: MarketDataAggregationSample[];
+  };
   qualityScore: number;
   rejectedSamples: string[];
+  rejectedRowSamples: MarketDataRejectedRowSample[];
   status: MarketDataQualityStatus;
 };
 
@@ -1089,6 +1109,91 @@ function parseQualityRejectionNote(notes: string[]) {
   };
 }
 
+function parseQualityRejectedSamples(notes: string[]): MarketDataRejectedRowSample[] {
+  const note = metadataNote(notes, "quality rejected samples:");
+  const payload = note?.replace(/^quality rejected samples:\s*/u, "").trim();
+
+  if (!payload || payload === "none") {
+    return [];
+  }
+
+  return payload
+    .split(";")
+    .map((item) => item.trim())
+    .map((item) => {
+      const match = item.match(/^(.+?):([A-Z0-9]+):([a-z_]+)$/u);
+
+      if (!match) {
+        return null;
+      }
+
+      return {
+        exchangeName: match[1],
+        reason: match[3],
+        symbol: match[2],
+      };
+    })
+    .filter((item): item is MarketDataRejectedRowSample => item !== null)
+    .slice(0, 8);
+}
+
+function parseQualityAggregationSummary(notes: string[]) {
+  const note = metadataNote(notes, "quality aggregation summary:");
+  const match = note?.match(/duplicate_groups\s+(\d+),\s+rule\s+([a-z_]+)/u);
+
+  return {
+    duplicateGroups: match ? Number(match[1]) : 0,
+    rule: match?.[2] ?? "exchange_priority_then_volume_oi",
+  };
+}
+
+function parseQualityAggregationSamples(notes: string[]): MarketDataAggregationSample[] {
+  const note = metadataNote(notes, "quality aggregation:");
+  const payload = note?.replace(/^quality aggregation:\s*/u, "").trim();
+
+  if (!payload || payload === "none") {
+    return [];
+  }
+
+  return payload
+    .split(";")
+    .map((item) => item.trim())
+    .map((item) => {
+      const match = item.match(/^([A-Z0-9]+)\s+selected\s+([A-Z_]+)\s+over\s+([A-Z_/]+|none)\s+by\s+([a-z_]+)$/u);
+
+      if (!match) {
+        return null;
+      }
+
+      return {
+        discardedExchanges: match[3] === "none" ? [] : match[3].split("/"),
+        reason: match[4],
+        selectedExchange: match[2],
+        symbol: match[1],
+      };
+    })
+    .filter((item): item is MarketDataAggregationSample => item !== null)
+    .slice(0, 8);
+}
+
+function primarySelectionOperatorHint({
+  duplicateGroups,
+  samples,
+}: {
+  duplicateGroups: number;
+  samples: MarketDataAggregationSample[];
+}) {
+  if (duplicateGroups === 0) {
+    return "本轮没有重复交易所行，主信号无需聚合。";
+  }
+
+  if (samples.length === 0) {
+    return `${duplicateGroups} 个重复币种已聚合，但缺少可展示样本，保留观察。`;
+  }
+
+  return `${duplicateGroups} 个重复币种已按交易所优先级、成交量和 OI 聚合为主信号。`;
+}
+
 function marketDataQualityScore({
   duplicateSymbolCount,
   duplicatesRemoved,
@@ -1220,6 +1325,9 @@ function marketDataQualityIssues({
 function marketDataQualityReport(snapshot: MarketRadarSnapshot): MarketDataQualityReport {
   const qualityFilter = parseQualityFilterNote(snapshot.metadata.notes);
   const qualityRejections = parseQualityRejectionNote(snapshot.metadata.notes);
+  const rejectedRowSamples = parseQualityRejectedSamples(snapshot.metadata.notes);
+  const aggregationSummary = parseQualityAggregationSummary(snapshot.metadata.notes);
+  const aggregationSamples = parseQualityAggregationSamples(snapshot.metadata.notes);
   const poolSummary = snapshot.instrumentPool.summary;
   const qualityScore = marketDataQualityScore({
     duplicateSymbolCount: qualityRejections.duplicateSymbolCount,
@@ -1262,10 +1370,20 @@ function marketDataQualityReport(snapshot: MarketRadarSnapshot): MarketDataQuali
     }),
     mode: "market_data_quality_mvp",
     operatorHint: marketDataQualityOperatorHint(status),
+    primarySelection: {
+      duplicateGroups: aggregationSummary.duplicateGroups,
+      operatorHint: primarySelectionOperatorHint({
+        duplicateGroups: aggregationSummary.duplicateGroups,
+        samples: aggregationSamples,
+      }),
+      rule: aggregationSummary.rule,
+      samples: aggregationSamples,
+    },
     qualityScore,
     rejectedSamples: snapshot.instrumentPool.rejected
       .slice(0, 6)
       .map((item) => `${item.instrument.symbol}:${item.reason}`),
+    rejectedRowSamples,
     status,
   };
 }

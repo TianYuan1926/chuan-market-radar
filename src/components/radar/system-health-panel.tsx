@@ -957,6 +957,37 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               </div>
             ) : null}
 
+            <div className="health-data-quality__aggregation" aria-label="主信号聚合解释">
+              <span>
+                <b>{marketDataQuality.primarySelection.duplicateGroups}</b>
+                <strong>重复组</strong>
+                <small>{marketDataQuality.primarySelection.operatorHint}</small>
+              </span>
+              <span>
+                <b>规则</b>
+                <strong>{marketDataQuality.primarySelection.rule}</strong>
+                <small>交易所优先级 / 成交量 / OI</small>
+              </span>
+              <span>
+                <b>样本</b>
+                {marketDataQuality.primarySelection.samples.length > 0
+                  ? marketDataQuality.primarySelection.samples.slice(0, 3).map((sample) =>
+                    `${sample.symbol} ${sample.selectedExchange}>${sample.discardedExchanges.join("/") || "none"}`
+                  ).join(" / ")
+                  : "暂无聚合样本"}
+              </span>
+            </div>
+
+            {marketDataQuality.rejectedRowSamples.length > 0 ? (
+              <p>
+                原始拒绝样本 {" "}
+                {marketDataQuality.rejectedRowSamples
+                  .slice(0, 5)
+                  .map((sample) => `${sample.exchangeName}:${sample.symbol}:${sample.reason}`)
+                  .join(" / ")}
+              </p>
+            ) : null}
+
             {marketDataQuality.rejectedSamples.length > 0 ? (
               <p>过滤样本 {marketDataQuality.rejectedSamples.join(" / ")}</p>
             ) : (

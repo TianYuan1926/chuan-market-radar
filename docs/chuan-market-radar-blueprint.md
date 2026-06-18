@@ -377,6 +377,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 15 分钟 cadence 下分批扫描，降低触发业余会员限速的概率。
 - Provider 失败时可以使用缓存并显示 stale 状态。
 - 主扫描已加强数据清洗：拒绝 UNKNOWN 交易所、拒绝非 USDT 或报价字段冲突的合约行，并按同币种选择主交易所输出，避免重复信号刷屏。
+- 主扫描已输出数据质量审计样本：metadata notes 会记录原始拒绝样本、重复币种聚合组数、主信号选择规则和样本，如 `TIAUSDT selected BINANCE over OKX/BYBIT by exchange_priority_then_volume_oi`。
 - 扫描 metadata notes 会显示 raw、clean、primary 数量，以及 unsupported exchange、unsupported quote、duplicate symbol 等过滤原因。
 
 ### 已落地：Neon 持久化骨架
@@ -557,7 +558,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 未完整落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`；Phase 3.10 已把全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界接入 `/api/health` 与健康面板；Phase 3.11 已把 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本和质量分结构化为 `marketDataQuality`；Phase 3.12 已把高优先级候选槽位、选中/排队状态和原因计数接入扫描 metadata、`/api/health` 与健康面板；Phase 3.13 已把三所共振、多所覆盖、单所观察、发现缺口、过滤样本和覆盖动作接入 `/api/health.fullMarketCoverage.exchangeDrilldown` 与健康面板。当前仍未完成预算稳定后的二段深度扫描，以及依赖自动 outcome executor 的完整胜率闭环。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`；Phase 3.10 已把全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界接入 `/api/health` 与健康面板；Phase 3.11 已把 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本和质量分结构化为 `marketDataQuality`；Phase 3.12 已把高优先级候选槽位、选中/排队状态和原因计数接入扫描 metadata、`/api/health` 与健康面板；Phase 3.13 已把三所共振、多所覆盖、单所观察、发现缺口、过滤样本和覆盖动作接入 `/api/health.fullMarketCoverage.exchangeDrilldown` 与健康面板；Phase 3.14 已把 CoinGlass 原始拒绝样本、重复币种聚合组、主信号选择规则和聚合样本接入 `marketDataQuality.primarySelection` / `rejectedRowSamples` 与健康面板。当前仍未完成预算稳定后的二段深度扫描，以及依赖自动 outcome executor 的完整胜率闭环。
 
 后续需要：
 
@@ -567,7 +568,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描已具备基础策略，动态优先级接口和 repository hints 已具备，后续需要在 outcome executor 完成后继续提高历史胜率样本质量。
 - 高优先级候选的 quota-safe 插队和页面解释已具备；更高频或更深度的二段扫描需要在外部 cron、预算监控和失败回退稳定后按预算打开。
-- 不同交易所同一币种的覆盖数量、UNKNOWN、非 USDT、重复币种、基础过滤原因和覆盖动作已在健康面板展示；后续重点转向二段深度扫描边界与历史胜率闭环。
+- 不同交易所同一币种的覆盖数量、UNKNOWN、非 USDT、重复币种、基础过滤原因、原始拒绝样本、主信号聚合原因和覆盖动作已在健康面板展示；后续重点转向二段深度扫描边界与历史胜率闭环。
 
 ### 部分落地：技术指标引擎
 
@@ -1180,8 +1181,9 @@ CoinGlass 业余会员 API：
    - 已进入 Phase 3.11 数据质量清洗与覆盖质量解释。
 
 6. **Phase 3.11：Data Quality Cleaning And Coverage Quality Explanation**
-   - 当前状态：已完成。`/api/health` 已新增 `marketDataQuality`，会从主扫描 metadata 和 instrument pool 汇总 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本、质量分和只读边界。
-   - 健康面板已新增“数据质量”卡片，直接展示原始行、清洗后、主信号、可用池、UNKNOWN、非 USDT、重复/去重、流动性门槛和过滤样本。
+   - 当前状态：已完成并增强。`/api/health` 已新增 `marketDataQuality`，会从主扫描 metadata 和 instrument pool 汇总 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本、质量分和只读边界。
+   - Phase 3.14 已增强数据质量解释：CoinGlass provider 会写入 `quality rejected samples`、`quality aggregation summary` 和 `quality aggregation` notes；`marketDataQuality.primarySelection` 会展示重复组数、主信号选择规则和样本，`rejectedRowSamples` 会展示原始拒绝行样本。
+   - 健康面板已新增“数据质量”卡片，直接展示原始行、清洗后、主信号、可用池、UNKNOWN、非 USDT、重复/去重、流动性门槛、主信号聚合解释、原始拒绝样本和过滤样本。
    - 该阶段不改变 CoinGlass 请求、不改变实时排序、不生成交易方向；数据质量层只能阻断、降级或解释候选。
    - 下一步应进入 v3 策略引擎实战闭环只读接入，把现有 v3 Key Level / Forward Map / Pattern / Trade Plan 结果更明确地串到复盘与候选解释里。
 

@@ -189,8 +189,15 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       issues: [],
       mode: "market_data_quality_mvp",
       operatorHint: "数据质量干净。",
+      primarySelection: {
+        duplicateGroups: 0,
+        operatorHint: "本轮没有重复交易所行，主信号无需聚合。",
+        rule: "exchange_priority_then_volume_oi",
+        samples: [],
+      },
       qualityScore: 100,
       rejectedSamples: [],
+      rejectedRowSamples: [],
       status: "clean",
     },
     scanEconomy: {
