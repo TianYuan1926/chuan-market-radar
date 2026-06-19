@@ -32,6 +32,8 @@ import type {
   MarketDataProvider,
   MarketRadarSnapshot,
   ScanMetadata,
+  ScanRequestDiagnostics,
+  ScanV3CoverageDiagnostics,
 } from "../types";
 import type { UniverseDiscoveryProvider } from "./binance-universe-discovery";
 import { requestCoinGlass } from "./coinglass-client";
@@ -45,6 +47,11 @@ import {
   mapCoinGlassMarketInstrument,
   mapCoinGlassTicker,
 } from "./coinglass-mapper";
+import {
+  disabledPublicLightScanProvider,
+  type PublicLightScanProvider,
+  type PublicLightScanResult,
+} from "./public-light-scan";
 
 export type CoinGlassProviderOptions = {
   apiKey: string;
@@ -54,6 +61,7 @@ export type CoinGlassProviderOptions = {
   fetcher?: typeof fetch;
   maxConcurrentRequests?: number;
   ohlcvProvider?: OhlcvProvider;
+  publicLightScanProvider?: PublicLightScanProvider;
   universePriorityHintNotes?: string[];
   universePriorityHints?: UniversePriorityHint[];
   universeDiscoveryProvider?: UniverseDiscoveryProvider;
@@ -260,6 +268,96 @@ function compactAssetList(label: string, assets: string[], previewLimit = 12) {
   return `${label}: ${preview}${suffix}`;
 }
 
+function lightScanPriorityHints(lightScan: PublicLightScanResult): UniversePriorityHint[] {
+  if (lightScan.diagnostics.status !== "ready" && lightScan.diagnostics.status !== "partial") {
+    return [];
+  }
+
+  return lightScan.priorityCandidates.slice(0, 24).map((candidate) => ({
+    anomalyScore: Math.min(100, Math.max(0, candidate.score)),
+    baseAsset: candidate.baseAsset,
+    recentSignalCount: candidate.state === "HOT" ? 2 : 1,
+    symbol: candidate.symbol,
+  }));
+}
+
+function rowBaseAsset(row: CoinGlassMarketRow) {
+  const symbol = marketSymbolFromCoinGlass(row);
+
+  return symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
+}
+
+function buildRequestDiagnostics({
+  acceptedInstruments,
+  batchAssets,
+  cleanRows,
+  primaryRows,
+  primarySelectionDuplicateGroups,
+  qualityRejections,
+  rawRows,
+}: {
+  acceptedInstruments: number;
+  batchAssets: string[];
+  cleanRows: number;
+  primaryRows: number;
+  primarySelectionDuplicateGroups: number;
+  qualityRejections: Record<CoinGlassMarketRowRejectionReason, number>;
+  rawRows: CoinGlassMarketRow[];
+}): ScanRequestDiagnostics {
+  const rawBaseAssets = new Set(rawRows.map(rowBaseAsset).filter(Boolean));
+  const emptyResultAssets = batchAssets.filter((asset) => !rawBaseAssets.has(asset));
+  const unsupportedExchangeRows = qualityRejections.unsupported_exchange ?? 0;
+  const quoteUnsupportedRows = qualityRejections.quote_not_supported ?? 0;
+  const filteredRows = Math.max(0, rawRows.length - cleanRows);
+
+  return {
+    acceptedInstruments,
+    cleanRows,
+    coinGlassRequestsPlanned: batchAssets.length,
+    duplicateSymbolGroups: primarySelectionDuplicateGroups,
+    emptyResultAssets,
+    filteredRows,
+    plannedAssets: batchAssets,
+    primaryRows,
+    quoteUnsupportedRows,
+    rawRows: rawRows.length,
+    statusCounts: {
+      clean: cleanRows,
+      conflict: primarySelectionDuplicateGroups,
+      empty: emptyResultAssets.length,
+      fallback_only: 0,
+      filtered: filteredRows,
+      live_ok: primaryRows,
+      stale: 0,
+      unsupported: unsupportedExchangeRows + quoteUnsupportedRows,
+    },
+    unsupportedExchangeRows,
+  };
+}
+
+function buildV3CoverageDiagnostics({
+  ohlcvAttemptedSymbols,
+  ohlcvFailuresBySymbol,
+  signals,
+}: {
+  ohlcvAttemptedSymbols: Iterable<string>;
+  ohlcvFailuresBySymbol: Map<string, OhlcvProviderFailure[]>;
+  signals: MarketRadarSnapshot["signals"];
+}): ScanV3CoverageDiagnostics {
+  const withV3Signals = signals.filter((signal) => signal.strategyV3).length;
+
+  return {
+    missingSignals: Math.max(0, signals.length - withV3Signals),
+    ohlcvAttemptedSymbols: [...ohlcvAttemptedSymbols],
+    ohlcvFailureCount: [...ohlcvFailuresBySymbol.values()].reduce(
+      (total, failures) => total + failures.length,
+      0,
+    ),
+    totalSignals: signals.length,
+    withV3Signals,
+  };
+}
+
 function regimeFromAnchorChange(changePercent: number) {
   if (changePercent <= -1.2) {
     return "risk_off";
@@ -451,12 +549,15 @@ export function createCoinGlassProvider({
   coinGlassDailyRequestBudget,
   fetcher,
   maxConcurrentRequests,
+  now = () => new Date(),
   ohlcvProvider,
+  publicLightScanProvider,
   universePriorityHintNotes,
   universePriorityHints,
   universeDiscoveryProvider,
-  now = () => new Date(),
 }: CoinGlassProviderOptions): MarketDataProvider {
+  const resolvedPublicLightScanProvider = publicLightScanProvider ?? disabledPublicLightScanProvider(now);
+
   return {
     id: "coinglass",
     label: "CoinGlass Futures Provider",
@@ -467,10 +568,20 @@ export function createCoinGlassProvider({
       const universeDiscovery = universeDiscoveryProvider
         ? await universeDiscoveryProvider.discoverInstruments()
         : null;
+      const lightScan = await resolvedPublicLightScanProvider.scan();
       const discoveredInstruments = universeDiscovery?.ok
         ? universeDiscovery.instruments
         : [];
-      const initialRegistry = buildUniverseRegistry(baseAssets, discoveredInstruments);
+      const combinedDiscoveryInstruments = [
+        ...discoveredInstruments,
+        ...lightScan.instruments,
+      ];
+      const lightPriorityHints = lightScanPriorityHints(lightScan);
+      const allPriorityHints = [
+        ...(universePriorityHints ?? []),
+        ...lightPriorityHints,
+      ];
+      const initialRegistry = buildUniverseRegistry(baseAssets, combinedDiscoveryInstruments);
       const cadenceMinutes = 15;
       const minimumBatchSize = initialRegistry.summary.anchors +
         (initialRegistry.assets.length > initialRegistry.summary.anchors ? 1 : 0);
@@ -485,7 +596,7 @@ export function createCoinGlassProvider({
         initialRegistry,
         quota.effectiveBatchSize,
         scanTime,
-        { priorityHints: universePriorityHints },
+        { priorityHints: allPriorityHints },
       );
       const marketRows = await fetchPairsMarkets({
         apiKey,
@@ -504,7 +615,7 @@ export function createCoinGlassProvider({
         minVolume24hUsd: 5_000_000,
       });
       const universeRegistry = buildUniverseRegistry(baseAssets, [
-        ...discoveredInstruments,
+        ...combinedDiscoveryInstruments,
         ...instruments,
       ]);
       const baseCoverage = buildCoverageReport(universeRegistry, batchPlan);
@@ -515,6 +626,7 @@ export function createCoinGlassProvider({
       const ohlcvCandlesBySymbol = new Map<string, Partial<Record<OhlcvInterval, Candle[]>>>();
       const indicatorEvidenceBySymbol = new Map<string, EvidencePoint[]>();
       const timeframeProfileBySymbol = new Map<string, TimeframeProfile>();
+      const ohlcvAttemptedSymbols = new Set<string>();
       const ohlcvSummaryNotes: string[] = [];
 
       if (ohlcvProvider) {
@@ -522,6 +634,8 @@ export function createCoinGlassProvider({
           const ticker = mapCoinGlassTicker(row, generatedAt);
           const candlesByTimeframe: Partial<Record<OhlcvInterval, Candle[]>> = {};
           const failures: OhlcvProviderFailure[] = [];
+
+          ohlcvAttemptedSymbols.add(ticker.symbol);
 
           for (const interval of multiTimeframeIntervals) {
             const result = await ohlcvProvider.fetchCandles({
@@ -596,6 +710,37 @@ export function createCoinGlassProvider({
           : signal;
       });
       const v3Signals = signals.filter((signal) => signal.strategyV3);
+      const requestDiagnostics = buildRequestDiagnostics({
+        acceptedInstruments: instrumentPool.summary.accepted,
+        batchAssets: batchPlan.assets,
+        cleanRows: cleanMarketRows.length,
+        primaryRows: primarySignalRows.length,
+        primarySelectionDuplicateGroups: primarySelectionReport.duplicateGroupCount,
+        qualityRejections: qualityReport.rejections,
+        rawRows: marketRows,
+      });
+      const fallbackActivated = universeDiscovery?.ok
+        ? universeDiscovery.fallbackActivated === true
+        : false;
+      const discoveryDiagnostics = universeDiscovery?.diagnostics ?? [];
+      const scanDiagnostics: NonNullable<ScanMetadata["diagnostics"]> = {
+        discovery: {
+          fallbackActivated,
+          fallbackInstrumentCount: universeDiscovery?.ok
+            ? universeDiscovery.fallbackInstrumentCount ?? 0
+            : 0,
+          liveInstrumentCount: universeDiscovery?.ok
+            ? universeDiscovery.liveInstrumentCount ?? discoveredInstruments.length
+            : 0,
+          sources: discoveryDiagnostics,
+        },
+        requests: requestDiagnostics,
+        v3Coverage: buildV3CoverageDiagnostics({
+          ohlcvAttemptedSymbols,
+          ohlcvFailuresBySymbol,
+          signals,
+        }),
+      };
       const heatmap = primarySignalRows
         .slice(0, 24)
         .map((row) => mapCoinGlassHeatCell(row));
@@ -623,6 +768,8 @@ export function createCoinGlassProvider({
         generatedAt,
         nextScanAt: generatedAt,
         quota,
+        diagnostics: scanDiagnostics,
+        lightScan: lightScan.diagnostics,
         staleAfterMinutes: 30,
         coverage,
         notes: [
@@ -634,7 +781,12 @@ export function createCoinGlassProvider({
               : `universe discovery: ${universeDiscovery.source} ${universeDiscovery.reason}`
             : "universe discovery: disabled",
           ...(universeDiscovery?.notes ?? []).map((note) => `universe source: ${note}`),
+          `public light scan: ${lightScan.diagnostics.source} ${lightScan.diagnostics.status} ${lightScan.diagnostics.acceptedCount}/${lightScan.diagnostics.universeCount} accepted, candidates ${lightScan.diagnostics.candidateCount}`,
+          ...lightScan.diagnostics.notes.map((note) => `public light scan source: ${note}`),
           ...(universePriorityHintNotes ?? []),
+          lightPriorityHints.length
+            ? `public light scan priority hints: ${lightPriorityHints.slice(0, 8).map((item) => item.baseAsset ?? item.symbol).join(",")}`
+            : "public light scan priority hints: none",
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
           `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
           qualityReport.rejectedSamples.length
@@ -663,10 +815,12 @@ export function createCoinGlassProvider({
           `batch ${batchPlan.batchIndex + 1}/${batchPlan.totalBatches}: ${batchPlan.assets.join(",")}`,
           `requests ${batchPlan.requestsPlanned}/${coverage.eligible}, next batch ${batchPlan.nextBatchIndex + 1}`,
           `coverage ${coverage.scanned}/${coverage.eligible} (${coverage.coveragePercent}%), pending ${coverage.pending}, skipped ${coverage.skipped}`,
+          `request diagnostics: planned ${requestDiagnostics.coinGlassRequestsPlanned}, raw ${requestDiagnostics.rawRows}, empty ${requestDiagnostics.emptyResultAssets.length}, filtered ${requestDiagnostics.filteredRows}, accepted ${requestDiagnostics.acceptedInstruments}`,
           `market context: ${marketContext.anchor} ${marketContext.regime}`,
           v3Signals.length
             ? `v3 key levels: ${v3Signals.map((signal) => `${signal.symbol} ${signal.strategyV3?.keyLevels.length ?? 0}/${signal.strategyV3?.forwardLevels.length ?? 0}`).join(", ")}`
             : "v3 key levels: unavailable",
+          `v3 coverage: ${scanDiagnostics.v3Coverage.withV3Signals}/${scanDiagnostics.v3Coverage.totalSignals}, missing ${scanDiagnostics.v3Coverage.missingSignals}, ohlcv_failures ${scanDiagnostics.v3Coverage.ohlcvFailureCount}`,
           ...ohlcvSummaryNotes,
           ...[...ohlcvFailuresBySymbol.entries()].flatMap(([symbol, failures]) =>
             failures.map((failure) => `ohlcv unavailable: ${symbol} ${failure.interval} ${failure.reason}`)

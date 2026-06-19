@@ -6,6 +6,7 @@ import {
   createCoinGlassProvider,
 } from "./coinglass-provider";
 import type { Candle, OhlcvProvider } from "../ohlcv/types";
+import type { PublicLightScanProvider } from "./public-light-scan";
 
 function coinglassRow(symbol: string, overrides: Record<string, string | number> = {}) {
   return {
@@ -36,6 +37,57 @@ function ohlcvCandle(index: number, close: number): Candle {
     close,
     volume: 100 + index * 20,
     closeTime: new Date(openDate.getTime() + 59_000).toISOString(),
+  };
+}
+
+function publicLightScanProviderForTest(): PublicLightScanProvider {
+  return {
+    id: "test-public-light-scan",
+    label: "Test Public Light Scan",
+    async scan() {
+      const candidate = {
+        baseAsset: "ARB",
+        changePercent24h: 6.4,
+        distanceFromHighPercent: 1.2,
+        distanceFromLowPercent: 8.4,
+        reasons: ["price_volume_anomaly", "near_24h_edge"],
+        score: 92,
+        state: "HOT" as const,
+        symbol: "ARBUSDT",
+        volume24hUsd: 64_000_000,
+        volatilityPercent: 9.6,
+      };
+
+      return {
+        diagnostics: {
+          acceptedCount: 1,
+          candidateCount: 1,
+          generatedAt: "2026-06-15T00:00:00.000Z",
+          notes: ["test light scan selected ARB"],
+          requestCount: 1,
+          source: "test-public-light-scan",
+          status: "ready" as const,
+          topCandidates: [candidate],
+          universeCount: 1,
+        },
+        instruments: [
+          {
+            id: "BINANCE-LIGHT:ARBUSDT",
+            symbol: "ARBUSDT",
+            baseAsset: "ARB",
+            quoteAsset: "USDT" as const,
+            exchange: "BINANCE" as const,
+            marketType: "perpetual" as const,
+            isActive: true,
+            volume24hUsd: 64_000_000,
+            tags: ["test-public-light-scan"],
+            lastSeenAt: "2026-06-15T00:00:00.000Z",
+          },
+        ],
+        priorityCandidates: [candidate],
+        tickers: [],
+      };
+    },
   };
 }
 
@@ -327,6 +379,40 @@ test("CoinGlass provider promotes dynamic priority hints when rotating capacity 
   assert.equal(snapshot.metadata.coverage?.scanned, 4);
   assert.match(snapshot.metadata.notes.join("\n"), /dynamic priority: selected ARB/);
   assert.match(snapshot.metadata.notes.join("\n"), /top ARB/);
+});
+
+test("CoinGlass provider promotes public light scan candidates into CoinGlass deep scan", async () => {
+  const requestedSymbols: string[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["SOL", "ENA"],
+    batchSize: 4,
+    publicLightScanProvider: publicLightScanProviderForTest(),
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ARB", "ENA"]);
+  assert.equal(snapshot.metadata.lightScan?.status, "ready");
+  assert.equal(snapshot.metadata.lightScan?.topCandidates[0]?.symbol, "ARBUSDT");
+  assert.deepEqual(snapshot.metadata.diagnostics?.requests.plannedAssets, requestedSymbols);
+  assert.equal(snapshot.metadata.diagnostics?.requests.coinGlassRequestsPlanned, 4);
+  assert.equal(snapshot.metadata.diagnostics?.requests.emptyResultAssets.length, 0);
+  assert.match(snapshot.metadata.notes.join("\n"), /public light scan: test-public-light-scan ready 1\/1 accepted, candidates 1/);
+  assert.match(snapshot.metadata.notes.join("\n"), /public light scan priority hints: ARB/);
+  assert.match(snapshot.metadata.notes.join("\n"), /dynamic priority: selected ARB/);
 });
 
 test("CoinGlass provider exposes multi-exchange coverage quality in metadata", async () => {

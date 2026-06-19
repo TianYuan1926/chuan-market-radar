@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     return limitedResponse(limit);
   }
 
-  const snapshot = await getMarketRadarSnapshot();
+  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "scan_get" });
 
   return NextResponse.json(snapshotResponse(snapshot), {
     headers: {
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     return limitedResponse(limit);
   }
 
-  const result = await refreshMarketRadarSnapshot();
+  const result = await refreshMarketRadarSnapshot(undefined, { trigger: "cron_post" });
 
   if (!result.snapshot) {
     return NextResponse.json(

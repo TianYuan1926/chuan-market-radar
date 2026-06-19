@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "invalid_journal_request" }, { status: 400 });
   }
 
-  const snapshot = await getMarketRadarSnapshot();
+  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "journal_get" });
   const signal = snapshot.signals.find((item) => item.id === signalId);
 
   if (!signal) {

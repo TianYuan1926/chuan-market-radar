@@ -298,6 +298,101 @@ export type ScanCoverage = {
   totalBatches: number;
 };
 
+export type ScanDiscoverySourceDiagnostic = {
+  error?: string;
+  instrumentCount: number;
+  reason?: string;
+  requestCount: number;
+  source: string;
+  status: "failed" | "fallback" | "ok" | "partial";
+  statusCode?: number;
+};
+
+export type ScanLightScanCandidate = {
+  baseAsset: string;
+  changePercent24h: number;
+  distanceFromHighPercent: number;
+  distanceFromLowPercent: number;
+  reasons: string[];
+  score: number;
+  state: "COLD" | "HOT" | "PRE_TREND" | "WARM";
+  symbol: string;
+  volume24hUsd: number;
+  volatilityPercent: number;
+};
+
+export type ScanLightScanDiagnostics = {
+  acceptedCount: number;
+  candidateCount: number;
+  generatedAt: string;
+  notes: string[];
+  requestCount: number;
+  source: string;
+  status: "disabled" | "failed" | "partial" | "ready";
+  topCandidates: ScanLightScanCandidate[];
+  universeCount: number;
+};
+
+export type ScanDataQualityStatus =
+  | "clean"
+  | "conflict"
+  | "empty"
+  | "fallback_only"
+  | "filtered"
+  | "live_ok"
+  | "stale"
+  | "unsupported";
+
+export type ScanRequestDiagnostics = {
+  acceptedInstruments: number;
+  cleanRows: number;
+  coinGlassRequestsPlanned: number;
+  duplicateSymbolGroups: number;
+  emptyResultAssets: string[];
+  filteredRows: number;
+  plannedAssets: string[];
+  primaryRows: number;
+  quoteUnsupportedRows: number;
+  rawRows: number;
+  statusCounts: Record<ScanDataQualityStatus, number>;
+  unsupportedExchangeRows: number;
+};
+
+export type ScanV3CoverageDiagnostics = {
+  missingSignals: number;
+  ohlcvAttemptedSymbols: string[];
+  ohlcvFailureCount: number;
+  totalSignals: number;
+  withV3Signals: number;
+};
+
+export type ScanDiagnostics = {
+  discovery: {
+    fallbackActivated: boolean;
+    fallbackInstrumentCount: number;
+    liveInstrumentCount: number;
+    sources: ScanDiscoverySourceDiagnostic[];
+  };
+  requests: ScanRequestDiagnostics;
+  v3Coverage: ScanV3CoverageDiagnostics;
+};
+
+export type ScanRuntimeDiagnostics = {
+  cacheStatus?: "failed" | "served_cache" | "updated";
+  persistedArchive: boolean;
+  repositoryMode?: "database" | "memory";
+  trigger:
+    | "cron_post"
+    | "health_get"
+    | "internal"
+    | "journal_get"
+    | "page_ssr"
+    | "radar_get"
+    | "readiness_get"
+    | "scan_get"
+    | "unknown";
+};
+
 export type ScanMetadata = {
   id: string;
   mode: "demo" | "scheduled" | "manual";
@@ -312,6 +407,9 @@ export type ScanMetadata = {
   generatedAt: string;
   nextScanAt: string;
   quota?: ScanQuotaPlan;
+  diagnostics?: ScanDiagnostics;
+  lightScan?: ScanLightScanDiagnostics;
+  runtime?: ScanRuntimeDiagnostics;
   staleAfterMinutes: number;
   notes: string[];
   coverage?: ScanCoverage;

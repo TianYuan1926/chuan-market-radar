@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const snapshot = await getMarketRadarSnapshot();
+  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "radar_get" });
   const health = await buildSystemHealthReport({
     database: appPersistenceDiagnostics,
     env: process.env,

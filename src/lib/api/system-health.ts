@@ -430,6 +430,8 @@ export type SystemHealthReport = {
     retentionMode: PersistenceMode;
   };
   coverage: ScanCoverage;
+  lightScan: MarketRadarSnapshot["metadata"]["lightScan"] | null;
+  scanDiagnostics: MarketRadarSnapshot["metadata"]["diagnostics"] | null;
   fullMarketCoverage: FullMarketCoverageReport;
   marketDataQuality: MarketDataQualityReport;
   scanStatePool: ScanStatePoolReport;
@@ -445,6 +447,10 @@ export type SystemHealthReport = {
     recentSuccessCount: number;
     requestDetail: string | null;
     runtimeDetail: string | null;
+    runtimeTrigger: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"] | "unknown";
+    runtimeCacheStatus: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["cacheStatus"] | "unknown";
+    persistedArchive: boolean;
+    repositoryMode: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["repositoryMode"] | "unknown";
     verdict: ScanOperationsVerdict;
   };
   outcomes: {
@@ -1561,10 +1567,14 @@ function scanOperations({
     minutesUntilNextScan,
     minutesUntilStale,
     operatorHint,
+    persistedArchive: metadata.runtime?.persistedArchive ?? false,
     recentProblemCount,
     recentSuccessCount,
     requestDetail,
+    repositoryMode: metadata.runtime?.repositoryMode ?? "unknown",
+    runtimeCacheStatus: metadata.runtime?.cacheStatus ?? "unknown",
     runtimeDetail,
+    runtimeTrigger: metadata.runtime?.trigger ?? "unknown",
     verdict,
   };
 }
@@ -2349,6 +2359,8 @@ export async function buildSystemHealthReport({
       retentionMode: repository.mode,
     },
     coverage,
+    lightScan: metadata.lightScan ?? null,
+    scanDiagnostics: metadata.diagnostics ?? null,
     fullMarketCoverage,
     marketDataQuality,
     scanStatePool,

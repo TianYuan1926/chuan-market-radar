@@ -40,6 +40,7 @@ type RepositoryAwareMarketProviderOptions = {
 type SnapshotArchiveOptions = {
   persistArchive?: boolean;
   repository?: PersistenceRepository;
+  trigger?: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
 };
 
 function archiveBundle(
@@ -161,6 +162,15 @@ async function withArchive(
 
   return {
     ...enriched,
+    metadata: {
+      ...enriched.metadata,
+      runtime: {
+        ...enriched.metadata.runtime,
+        trigger: enriched.metadata.runtime?.trigger ?? "unknown",
+        persistedArchive: persistArchive,
+        repositoryMode: repository.mode,
+      },
+    },
     archive: await archiveBundle(enriched.metadata.id, repository),
   };
 }
@@ -176,6 +186,7 @@ export async function getMarketRadarSnapshot(
     cache: scanCache,
     now: new Date(),
     cadenceMinutes: siteConfig.scanIntervalMinutes,
+    trigger: options.trigger ?? "internal",
   });
 
   if (!result.snapshot) {
@@ -200,6 +211,7 @@ export async function refreshMarketRadarSnapshot(
     now: new Date(),
     cadenceMinutes: siteConfig.scanIntervalMinutes,
     forceRefresh: true,
+    trigger: options.trigger ?? "cron_post",
   });
 
   return {

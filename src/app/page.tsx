@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const [snapshot, dailyMoverArchive] = await Promise.all([
-    getMarketRadarSnapshot(),
+    getMarketRadarSnapshot(undefined, { trigger: "page_ssr" }),
     getDailyMoverReadArchive({
       limit: 7,
       repository: appPersistenceRepository,

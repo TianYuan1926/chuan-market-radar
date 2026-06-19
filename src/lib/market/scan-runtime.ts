@@ -1,4 +1,9 @@
-import type { MarketDataProvider, MarketRadarSnapshot, ScanMetadata } from "./types";
+import type {
+  MarketDataProvider,
+  MarketRadarSnapshot,
+  ScanMetadata,
+  ScanRuntimeDiagnostics,
+} from "./types";
 
 export type ScanRunStatus = "updated" | "served_cache" | "failed";
 
@@ -19,6 +24,7 @@ export type RunScheduledScanOptions = {
   now: Date;
   cadenceMinutes: 15 | 30;
   forceRefresh?: boolean;
+  trigger?: ScanRuntimeDiagnostics["trigger"];
 };
 
 export class MemoryScanCache implements ScanCache {
@@ -72,6 +78,7 @@ export async function runScheduledScan({
   forceRefresh = false,
   now,
   provider,
+  trigger = "unknown",
 }: RunScheduledScanOptions): Promise<ScanRunResult> {
   const nowIso = now.toISOString();
   const cachedSnapshot = cache.get();
@@ -82,6 +89,12 @@ export async function runScheduledScan({
       snapshot: withRuntimeMetadata(cachedSnapshot, {
         cadenceMinutes,
         nextScanAt: calculateNextScanAt(cachedSnapshot.metadata.generatedAt, cadenceMinutes),
+        runtime: {
+          ...cachedSnapshot.metadata.runtime,
+          cacheStatus: "served_cache",
+          persistedArchive: cachedSnapshot.metadata.runtime?.persistedArchive ?? false,
+          trigger,
+        },
         notes: [
           ...cachedSnapshot.metadata.notes,
           "scan runtime: fresh cache served without provider refresh",
@@ -97,6 +110,12 @@ export async function runScheduledScan({
       cadenceMinutes,
       generatedAt: nowIso,
       nextScanAt: calculateNextScanAt(now, cadenceMinutes),
+      runtime: {
+        ...providerSnapshot.metadata.runtime,
+        cacheStatus: "updated",
+        persistedArchive: providerSnapshot.metadata.runtime?.persistedArchive ?? false,
+        trigger,
+      },
       staleAfterMinutes: cadenceMinutes * 2,
       notes: [
         ...providerSnapshot.metadata.notes,
@@ -125,6 +144,12 @@ export async function runScheduledScan({
       status: "stale",
       cadenceMinutes,
       nextScanAt: calculateNextScanAt(now, cadenceMinutes),
+      runtime: {
+        ...cachedSnapshot.metadata.runtime,
+        cacheStatus: "failed",
+        persistedArchive: cachedSnapshot.metadata.runtime?.persistedArchive ?? false,
+        trigger,
+      },
       notes: [
         ...cachedSnapshot.metadata.notes,
         `scan runtime: provider failed, serving cache (${message})`,

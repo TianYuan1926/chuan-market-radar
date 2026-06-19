@@ -1,4 +1,4 @@
-import type { ContractInstrument } from "../types";
+import type { ContractInstrument, ScanDiscoverySourceDiagnostic } from "../types";
 
 export const BINANCE_FUTURES_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 
@@ -14,7 +14,11 @@ export type BinanceExchangeInfoSymbol = {
 export type UniverseDiscoverySuccess = {
   ok: true;
   source: string;
+  diagnostics?: ScanDiscoverySourceDiagnostic[];
+  fallbackActivated?: boolean;
+  fallbackInstrumentCount?: number;
   instruments: ContractInstrument[];
+  liveInstrumentCount?: number;
   notes?: string[];
   requestCount?: number;
 };
@@ -22,6 +26,7 @@ export type UniverseDiscoverySuccess = {
 export type UniverseDiscoveryFailure = {
   ok: false;
   source: string;
+  diagnostics?: ScanDiscoverySourceDiagnostic[];
   reason: "upstream_error" | "invalid_response" | "network_error";
   error: string;
   notes?: string[];

@@ -303,6 +303,120 @@ test("buildSystemHealthReport exposes scan operation timing and provider notes",
   assert.equal(report.operations.runtimeDetail, "scan runtime: updated from CoinGlass");
 });
 
+test("buildSystemHealthReport exposes runtime, light scan, and request diagnostics", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+  await repository.addScanArchive(
+    archiveSummary({
+      id: "scan-ready",
+      status: "ready",
+      generatedAt: "2026-06-12T10:00:00.000Z",
+      notes: ["ready archive"],
+    }),
+    replayFrame(),
+  );
+
+  const report = await buildSystemHealthReport({
+    env: {
+      COINGLASS_API_KEY: "test-key",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+    now: new Date("2026-06-12T10:04:20.000Z"),
+    repository,
+    snapshot: snapshot({
+      source: "coinglass",
+      isRealtime: true,
+      diagnostics: {
+        discovery: {
+          fallbackActivated: true,
+          fallbackInstrumentCount: 220,
+          liveInstrumentCount: 0,
+          sources: [
+            {
+              instrumentCount: 0,
+              reason: "upstream_unavailable",
+              requestCount: 1,
+              source: "binance-futures-exchange-info",
+              status: "failed",
+              statusCode: 451,
+            },
+          ],
+        },
+        requests: {
+          acceptedInstruments: 22,
+          cleanRows: 22,
+          coinGlassRequestsPlanned: 24,
+          duplicateSymbolGroups: 1,
+          emptyResultAssets: ["NEW"],
+          filteredRows: 2,
+          plannedAssets: ["BTC", "ETH", "ARB", "NEW"],
+          primaryRows: 21,
+          quoteUnsupportedRows: 1,
+          rawRows: 24,
+          statusCounts: {
+            clean: 22,
+            conflict: 1,
+            empty: 1,
+            fallback_only: 0,
+            filtered: 2,
+            live_ok: 21,
+            stale: 0,
+            unsupported: 2,
+          },
+          unsupportedExchangeRows: 1,
+        },
+        v3Coverage: {
+          missingSignals: 3,
+          ohlcvAttemptedSymbols: ["ARBUSDT", "ENAUSDT"],
+          ohlcvFailureCount: 4,
+          totalSignals: 8,
+          withV3Signals: 5,
+        },
+      },
+      lightScan: {
+        acceptedCount: 180,
+        candidateCount: 36,
+        generatedAt: "2026-06-12T10:00:00.000Z",
+        notes: ["public light scan ready"],
+        requestCount: 1,
+        source: "binance-public-futures-24h",
+        status: "ready",
+        topCandidates: [
+          {
+            baseAsset: "ARB",
+            changePercent24h: 6.4,
+            distanceFromHighPercent: 1.2,
+            distanceFromLowPercent: 8.4,
+            reasons: ["price_volume_anomaly"],
+            score: 92,
+            state: "HOT",
+            symbol: "ARBUSDT",
+            volume24hUsd: 64_000_000,
+            volatilityPercent: 9.6,
+          },
+        ],
+        universeCount: 220,
+      },
+      runtime: {
+        cacheStatus: "updated",
+        persistedArchive: true,
+        repositoryMode: "database",
+        trigger: "cron_post",
+      },
+    }),
+  });
+
+  assert.equal(report.lightScan?.status, "ready");
+  assert.equal(report.lightScan?.topCandidates[0]?.symbol, "ARBUSDT");
+  assert.equal(report.scanDiagnostics?.discovery.fallbackActivated, true);
+  assert.equal(report.scanDiagnostics?.requests.coinGlassRequestsPlanned, 24);
+  assert.deepEqual(report.scanDiagnostics?.requests.emptyResultAssets, ["NEW"]);
+  assert.deepEqual(report.scanDiagnostics?.v3Coverage.ohlcvAttemptedSymbols, ["ARBUSDT", "ENAUSDT"]);
+  assert.equal(report.operations.runtimeTrigger, "cron_post");
+  assert.equal(report.operations.runtimeCacheStatus, "updated");
+  assert.equal(report.operations.persistedArchive, true);
+  assert.equal(report.operations.repositoryMode, "database");
+});
+
 test("buildSystemHealthReport exposes structured universe coverage", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
 

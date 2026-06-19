@@ -46,6 +46,8 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       entries: 1,
       retentionMode: "database",
     },
+    lightScan: null,
+    scanDiagnostics: null,
     coverage: {
       batchIndex: 0,
       coveragePercent: 100,
@@ -210,7 +212,11 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       recentProblemCount: 0,
       recentSuccessCount: 1,
       requestDetail: "requests 1/1, next batch 1",
+      runtimeCacheStatus: "updated",
       runtimeDetail: "scan runtime: updated from test",
+      runtimeTrigger: "cron_post",
+      persistedArchive: true,
+      repositoryMode: "database",
       verdict: "healthy",
     },
     outcomes: {

@@ -9,7 +9,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const snapshot = await getMarketRadarSnapshot();
+  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "health_get" });
   const health = await buildSystemHealthReport({
     database: appPersistenceDiagnostics,
     env: process.env,
