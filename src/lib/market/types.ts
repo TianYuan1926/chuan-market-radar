@@ -125,8 +125,10 @@ export type ScanTierPolicy = {
 
 export type ScanPriorityReason =
   | "anomaly"
+  | "cooldown_review"
   | "history"
   | "liquidity"
+  | "missed_opportunity"
   | "recent_signal"
   | "venue_coverage";
 

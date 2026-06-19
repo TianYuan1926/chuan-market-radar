@@ -307,6 +307,48 @@ test("planUniverseScan preserves exploration when priority hints are crowded", (
   assert.match(plan.twoStageAllocation.guardrail, /未进入深扫不代表淘汰/u);
 });
 
+test("planUniverseScan ranks missed opportunity hints above stale familiar archive pressure", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA"],
+    [
+      instrument("OLD", { volume24hUsd: 90_000_000 }),
+      instrument("LOSSY", { volume24hUsd: 95_000_000 }),
+      instrument("PONKE", { volume24hUsd: 15_000_000 }),
+      instrument("MANTA", { volume24hUsd: 45_000_000 }),
+    ],
+  );
+  const plan = planUniverseScan(registry, 5, new Date("2026-06-16T00:00:00.000Z"), {
+    dynamicPrioritySlots: 2,
+    priorityHints: [
+      { symbol: "OLDUSDT", anomalyScore: 100, recentSignalCount: 5 },
+      {
+        symbol: "LOSSYUSDT",
+        anomalyScore: 100,
+        cooldownReviewCount: 4,
+        historicalSampleSize: 4,
+        historicalWinRate: 0,
+        recentSignalCount: 5,
+      },
+      {
+        symbol: "PONKEUSDT",
+        anomalyScore: 72,
+        missedOpportunityCount: 2,
+        recentSignalCount: 2,
+      },
+      { symbol: "MANTAUSDT", anomalyScore: 60, recentSignalCount: 1 },
+    ],
+  });
+
+  assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "PONKE");
+  assert.ok(plan.dynamicPriority.topAssets[0]?.reasons.includes("missed_opportunity"));
+  assert.ok(plan.dynamicPriority.reasonCounts.missed_opportunity);
+  assert.ok(plan.dynamicPriority.reasonCounts.cooldown_review);
+  assert.ok(
+    (plan.dynamicPriority.topAssets.find((asset) => asset.baseAsset === "LOSSY")?.score ?? 0) <
+      (plan.dynamicPriority.topAssets.find((asset) => asset.baseAsset === "OLD")?.score ?? 0),
+  );
+});
+
 test("buildCoverageReport includes scanned, pending, skipped, and coverage percent", () => {
   const registry = buildUniverseRegistry(
     ["ENA", "SUI", "ONDO", "TIA"],

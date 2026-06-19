@@ -93,8 +93,8 @@
 - `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。旧值 `300` 会把 15 分钟 cadence 下的安全批次压到约 `3`，导致长期只扫 BTC/ETH + 1 个山寨；当前推荐 `3000`，线上 metadata notes 应显示 `quota guard: requested batch 24 kept`。
 - `/api/health` 会把 quota 与 coverage 汇总为 `scanEconomy`；系统状态面板必须显示“扫描经济 / 今日预算 / 剩余额度 / 请求/轮 / 批次上限 / 层级覆盖 / 不新增请求”，该面板只读展示，不触发额外 CoinGlass 请求。
 - Universe planner 会把资产分成 anchor/core/active/long_tail；BTC/ETH 每轮固定，配置白名单和高流动性币优先，未验证流动性的长尾币默认每 8 个扫描窗口抽样一次。线上检查 metadata notes 时应能看到 `tiered universe` 和 `tier policy`。
-- Universe planner 支持 dynamic priority hints；异常分、历史有效性、近期信号、流动性和交易所覆盖质量较高的币可以占用非 anchor 轮转槽提前扫描，但不能挤掉 BTC/ETH，也不能突破 quota 批次。线上检查 metadata notes 时应能看到 `dynamic priority`。
-- 默认 CoinGlass provider 会从 repository 读取扫描归档、复盘 journal outcome 和每日异动归因样本，生成 repository priority hints 后再创建扫描计划。线上检查 metadata notes 时应能看到 `repository priority hints`。
+- Universe planner 支持 dynamic priority hints；异常分、历史有效性、近期信号、流动性、交易所覆盖质量、可学习漏判和冷却复盘会进入非 anchor 轮转槽排序，但不能挤掉 BTC/ETH，也不能突破 quota 批次。线上检查 metadata notes 时应能看到 `dynamic priority`。
+- 默认 CoinGlass provider 会从 repository 读取扫描归档、复盘 journal outcome、每日异动归因样本和 v3 trend review 样本，生成 repository priority hints 后再创建扫描计划。线上检查 metadata notes 时应能看到 `repository priority hints`。
 - Universe coverage 会输出 `exchangeCoverage` 和 `exchangeCoverageSummary`，把币种分为 `major_three`、`multi_exchange`、`single_exchange`、`unlisted`；线上检查 metadata notes 时应能看到 `exchange coverage` 汇总。
 - 当前主扫描会拒绝 UNKNOWN 交易所、非 USDT 或报价字段冲突的 CoinGlass 行，并在 metadata notes 中输出 raw、clean、primary 和过滤原因统计；线上检查时不要只看候选数量，也要看过滤原因是否异常放大。
 - 每日异动归因复盘已有低频抓取写入服务、公开只读 API、受保护写入 API 和 GitHub Actions 外部 cron；写入触发入口是 `POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。

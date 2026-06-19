@@ -486,8 +486,10 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
           enabled: true,
           reasonCounts: {
             anomaly: 2,
+            cooldown_review: 0,
             history: 1,
             liquidity: 1,
+            missed_opportunity: 0,
             recent_signal: 1,
             venue_coverage: 0,
           },

@@ -133,6 +133,73 @@ function dailyMoverSnapshot(): DailyMoverSnapshot {
   };
 }
 
+function missedMoverSnapshot(symbol: string): DailyMoverSnapshot {
+  return {
+    id: `daily-movers-missed-${symbol}`,
+    source: "coinglass",
+    observedAt: "2026-06-16T00:00:00.000Z",
+    gainers: [
+      {
+        id: `mover-${symbol.toLowerCase()}-2026-06-16`,
+        symbol,
+        exchange: "BINANCE",
+        direction: "gainer",
+        rank: 1,
+        observedAt: "2026-06-16T00:00:00.000Z",
+        priceChangePercent: 38,
+        volume24hUsd: 48_000_000,
+        openInterestChangePercent: 18,
+      },
+    ],
+    losers: [],
+    reviews: [
+      {
+        id: `mover-${symbol.toLowerCase()}-2026-06-16`,
+        symbol,
+        direction: "gainer",
+        observedAt: "2026-06-16T00:00:00.000Z",
+        allowedUse: "research_only",
+        guardrail: "每日涨跌幅榜只用于归因复盘、样本库和规则校准，不用于追涨杀跌。",
+        attribution: {
+          primaryDrivers: ["volume_expansion", "open_interest_expansion"],
+          evidenceStrength: "strong",
+          learnability: "learnable",
+        },
+        radarReview: {
+          status: "missed",
+          matchedSignalIds: [],
+          improvementTags: ["review_missed_altcoin_priority"],
+        },
+      },
+    ],
+  };
+}
+
+function trendRadarReviewEvent(
+  symbol: string,
+  verdict: NonNullable<JournalEvent["trendRadarReview"]>["verdict"],
+): JournalEvent {
+  return journalEvent(symbol, {
+    id: `trend-review-${symbol}-${verdict}`,
+    action: "trend_radar_review",
+    source: "trend_radar_review_executor",
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    trendRadarReview: {
+      id: `review-${symbol}-${verdict}`,
+      type: verdict === "missed" ? "missed_altcoin_review" : "key_level_reaction_review",
+      symbol,
+      sourceId: `source-${symbol}`,
+      verdict,
+      detail: `${symbol} ${verdict} review sample.`,
+      observedAt: "2026-06-16T01:00:00.000Z",
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      evidenceIds: [`evidence-${symbol}`],
+    },
+  });
+}
+
 test("buildUniversePriorityHints merges archives journal outcomes and daily mover samples", () => {
   const report = buildUniversePriorityHints({
     archives: [
@@ -158,6 +225,32 @@ test("buildUniversePriorityHints merges archives journal outcomes and daily move
   assert.equal(hintsBySymbol.get("ENAUSDT")?.historicalWinRate, 0);
   assert.ok(hintsBySymbol.get("SOLUSDT")?.anomalyScore ?? 0 >= 70);
   assert.ok(hintsBySymbol.get("SOLUSDT")?.recentSignalCount ?? 0 >= 1);
+});
+
+test("buildUniversePriorityHints promotes learnable misses and cools repeated failed reviews", () => {
+  const report = buildUniversePriorityHints({
+    archives: [
+      archive("scan-old-1", ["OLDUSDT", "LOSSYUSDT"]),
+      archive("scan-old-2", ["OLDUSDT", "LOSSYUSDT"]),
+      archive("scan-old-3", ["OLDUSDT", "LOSSYUSDT"]),
+      archive("scan-old-4", ["OLDUSDT", "LOSSYUSDT"]),
+    ],
+    dailyMoverSnapshots: [missedMoverSnapshot("PONKE")],
+    journalEvents: [
+      trendRadarReviewEvent("PONKE", "missed"),
+      journalEvent("LOSSY", { id: "lossy-loss-1", outcomeStatus: "loss", result: "loss" }),
+      journalEvent("LOSSY", { id: "lossy-loss-2", outcomeStatus: "expired", result: "loss" }),
+      trendRadarReviewEvent("LOSSY", "invalidated"),
+    ],
+    maxHints: 8,
+  });
+  const symbols = report.hints.map((hint) => hint.symbol);
+  const hintsBySymbol = new Map(report.hints.map((hint) => [hint.symbol, hint]));
+
+  assert.equal(symbols[0], "PONKEUSDT");
+  assert.equal(hintsBySymbol.get("PONKEUSDT")?.missedOpportunityCount, 2);
+  assert.equal(hintsBySymbol.get("LOSSYUSDT")?.cooldownReviewCount, 3);
+  assert.ok(symbols.indexOf("LOSSYUSDT") > symbols.indexOf("PONKEUSDT"));
 });
 
 test("buildUniversePriorityHintsFromRepository reads bounded durable samples", async () => {

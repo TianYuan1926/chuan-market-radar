@@ -36,8 +36,10 @@ export type UniverseTierPolicy = ScanTierPolicy;
 export type UniversePriorityHint = {
   anomalyScore?: number;
   baseAsset?: string;
+  cooldownReviewCount?: number;
   historicalSampleSize?: number;
   historicalWinRate?: number;
+  missedOpportunityCount?: number;
   recentSignalCount?: number;
   symbol?: string;
 };
@@ -516,8 +518,10 @@ type InternalPriorityDecision = UniversePriorityDecision & {
 
 const priorityReasons: UniversePriorityReason[] = [
   "anomaly",
+  "cooldown_review",
   "history",
   "liquidity",
+  "missed_opportunity",
   "recent_signal",
   "venue_coverage",
 ];
@@ -563,10 +567,14 @@ function dynamicPriorityDecision(
 ): InternalPriorityDecision {
   const reasons: UniversePriorityReason[] = [];
   const anomalyBoost = Math.round(clampPercent(hint.anomalyScore) * 5_000);
+  const cooldownReviewCount = clampNumber(hint.cooldownReviewCount, 0, 100);
   const historicalSampleSize = clampNumber(hint.historicalSampleSize, 0, 100);
   const historicalConfidence = Math.min(1, historicalSampleSize / 20);
   const historicalBoost = Math.round(
     (clampRatio(hint.historicalWinRate) - 0.5) * 400_000 * historicalConfidence,
+  );
+  const missedOpportunityBoost = Math.round(
+    Math.min(4, clampNumber(hint.missedOpportunityCount, 0, 100)) * 250_000,
   );
   const recentSignalBoost = Math.round(
     Math.min(5, clampNumber(hint.recentSignalCount, 0, 100)) * 30_000,
@@ -580,8 +588,16 @@ function dynamicPriorityDecision(
     reasons.push("anomaly");
   }
 
+  if (cooldownReviewCount > 0) {
+    reasons.push("cooldown_review");
+  }
+
   if (historicalSampleSize > 0) {
     reasons.push("history");
+  }
+
+  if (missedOpportunityBoost !== 0) {
+    reasons.push("missed_opportunity");
   }
 
   if (recentSignalBoost !== 0) {
@@ -596,7 +612,9 @@ function dynamicPriorityDecision(
     reasons.push("venue_coverage");
   }
 
-  const dynamicBoost = anomalyBoost + historicalBoost + recentSignalBoost + liquidityBoost + coverageBoost;
+  const cooldownPenalty = Math.round(Math.min(6, cooldownReviewCount) * 120_000);
+  const dynamicBoost = anomalyBoost + historicalBoost + missedOpportunityBoost +
+    recentSignalBoost + liquidityBoost + coverageBoost - cooldownPenalty;
 
   return {
     asset,

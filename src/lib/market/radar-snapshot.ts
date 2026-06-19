@@ -67,7 +67,8 @@ function envFromProcess(): AiReviewEnv {
 
 function priorityHintNote(summary: Awaited<ReturnType<typeof buildUniversePriorityHintsFromRepository>>["summary"]) {
   return `repository priority hints: ${summary.hintsBuilt} built from ${summary.repositoryMode ?? "unknown"} ` +
-    `(archives ${summary.archivesRead}, journal ${summary.journalEventsRead}, movers ${summary.dailyMoverSnapshotsRead})`;
+    `(archives ${summary.archivesRead}, journal ${summary.journalEventsRead}, movers ${summary.dailyMoverSnapshotsRead}, ` +
+    `trend reviews ${summary.sourceCounts.trendRadarReviews})`;
 }
 
 function errorMessage(error: unknown) {

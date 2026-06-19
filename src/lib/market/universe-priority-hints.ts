@@ -8,6 +8,7 @@ export type UniversePriorityHintSourceCounts = {
   archives: number;
   dailyMovers: number;
   journalOutcomes: number;
+  trendRadarReviews: number;
 };
 
 export type UniversePriorityHintSummary = {
@@ -42,8 +43,10 @@ export type BuildUniversePriorityHintsFromRepositoryOptions = {
 type AssetPriorityAccumulator = {
   anomalyScore: number;
   baseAsset: string;
+  cooldownReviews: number;
   historicalPositive: number;
   historicalSamples: number;
+  missedOpportunities: number;
   recentSignalCount: number;
   symbol: string;
 };
@@ -85,8 +88,10 @@ function getAccumulator(
   const created: AssetPriorityAccumulator = {
     anomalyScore: 0,
     baseAsset: key.baseAsset,
+    cooldownReviews: 0,
     historicalPositive: 0,
     historicalSamples: 0,
+    missedOpportunities: 0,
     recentSignalCount: 0,
     symbol: key.symbol,
   };
@@ -132,6 +137,8 @@ function addHistoricalOutcome(
 
   if (positive) {
     accumulator.historicalPositive += 1;
+  } else {
+    accumulator.cooldownReviews += 1;
   }
 }
 
@@ -161,11 +168,53 @@ function addArchiveHints(
   return count;
 }
 
+function addTrendRadarReviewHint(
+  accumulator: AssetPriorityAccumulator,
+  event: JournalEvent,
+) {
+  const review = event.trendRadarReview;
+
+  if (!review) {
+    return false;
+  }
+
+  if (review.verdict === "missed") {
+    accumulator.missedOpportunities += 1;
+    accumulator.anomalyScore += 36;
+    accumulator.recentSignalCount += 1;
+
+    return true;
+  }
+
+  if (review.verdict === "reaction_confirmed" || review.verdict === "saved") {
+    accumulator.anomalyScore += 10;
+    accumulator.recentSignalCount += 1;
+    addHistoricalOutcome(accumulator, true);
+
+    return true;
+  }
+
+  if (review.verdict === "invalidated" || review.verdict === "false_positive") {
+    addHistoricalOutcome(accumulator, false);
+
+    return true;
+  }
+
+  if (review.verdict === "needs_more_evidence" || review.verdict === "pending") {
+    accumulator.recentSignalCount += 1;
+
+    return true;
+  }
+
+  return false;
+}
+
 function addJournalHints(
   accumulators: Map<string, AssetPriorityAccumulator>,
   journalEvents: JournalEvent[],
 ) {
-  let count = 0;
+  let journalOutcomes = 0;
+  let trendRadarReviews = 0;
 
   for (const event of journalEvents) {
     const accumulator = getAccumulator(accumulators, event.symbol);
@@ -174,16 +223,21 @@ function addJournalHints(
       continue;
     }
 
+    if (addTrendRadarReviewHint(accumulator, event)) {
+      trendRadarReviews += 1;
+      continue;
+    }
+
     accumulator.recentSignalCount += 1;
     const outcome = outcomeValue(event);
 
     if (outcome !== null) {
       addHistoricalOutcome(accumulator, outcome);
-      count += 1;
+      journalOutcomes += 1;
     }
   }
 
-  return count;
+  return { journalOutcomes, trendRadarReviews };
 }
 
 function evidenceStrengthBoost(review?: DailyMoverReview) {
@@ -246,6 +300,10 @@ function addDailyMoverHints(
       accumulator.anomalyScore += dailyMoverAnomalyScore(mover, review);
       accumulator.recentSignalCount += 1;
 
+      if (review?.radarReview.status === "missed") {
+        accumulator.missedOpportunities += 1;
+      }
+
       if (review?.radarReview.status === "caught") {
         addHistoricalOutcome(accumulator, true);
       }
@@ -261,11 +319,15 @@ function hintRank(hint: UniversePriorityHint) {
   const historyAdjustment = typeof hint.historicalWinRate === "number"
     ? (hint.historicalWinRate - 0.5) * 40
     : 0;
+  const missedOpportunityBoost = (hint.missedOpportunityCount ?? 0) * 100;
+  const cooldownPenalty = (hint.cooldownReviewCount ?? 0) * 100;
 
   return (hint.anomalyScore ?? 0) * 4 +
     (hint.recentSignalCount ?? 0) * 12 +
     (hint.historicalSampleSize ?? 0) * 4 +
-    historyAdjustment;
+    historyAdjustment +
+    missedOpportunityBoost -
+    cooldownPenalty;
 }
 
 function toHint(accumulator: AssetPriorityAccumulator): UniversePriorityHint {
@@ -276,8 +338,10 @@ function toHint(accumulator: AssetPriorityAccumulator): UniversePriorityHint {
   return {
     anomalyScore: Math.round(clamp(accumulator.anomalyScore, 0, 100)),
     baseAsset: accumulator.baseAsset,
+    cooldownReviewCount: accumulator.cooldownReviews || undefined,
     historicalSampleSize: accumulator.historicalSamples || undefined,
     historicalWinRate,
+    missedOpportunityCount: accumulator.missedOpportunities || undefined,
     recentSignalCount: accumulator.recentSignalCount || undefined,
     symbol: accumulator.symbol,
   };
@@ -290,10 +354,12 @@ export function buildUniversePriorityHints({
   maxHints = defaultMaxHints,
 }: BuildUniversePriorityHintsOptions): UniversePriorityHintReport {
   const accumulators = new Map<string, AssetPriorityAccumulator>();
+  const journalHintCounts = addJournalHints(accumulators, journalEvents);
   const sourceCounts: UniversePriorityHintSourceCounts = {
     archives: addArchiveHints(accumulators, archives),
     dailyMovers: addDailyMoverHints(accumulators, dailyMoverSnapshots),
-    journalOutcomes: addJournalHints(accumulators, journalEvents),
+    journalOutcomes: journalHintCounts.journalOutcomes,
+    trendRadarReviews: journalHintCounts.trendRadarReviews,
   };
   const hints = [...accumulators.values()]
     .map(toHint)
