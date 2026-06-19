@@ -4,6 +4,7 @@ import test from "node:test";
 import { createPublicFuturesUniverseDiscoveryProvider } from "./public-futures-universe-discovery";
 import type { UniverseDiscoveryProvider } from "./binance-universe-discovery";
 import type { ContractInstrument } from "../types";
+import { STATIC_USDT_PERP_FALLBACK_BASE_ASSETS } from "./static-futures-universe-seed";
 
 function instrument(exchange: ContractInstrument["exchange"], baseAsset: string): ContractInstrument {
   return {
@@ -59,7 +60,10 @@ test("createPublicFuturesUniverseDiscoveryProvider aggregates successful exchang
     },
   ];
 
-  const result = await createPublicFuturesUniverseDiscoveryProvider({ providers }).discoverInstruments();
+  const result = await createPublicFuturesUniverseDiscoveryProvider({
+    minimumLiveInstruments: 1,
+    providers,
+  }).discoverInstruments();
 
   assert.equal(result.ok, true);
   assert.equal(result.ok ? result.source : "", "public-futures-multi-exchange");
@@ -73,7 +77,7 @@ test("createPublicFuturesUniverseDiscoveryProvider aggregates successful exchang
   assert.match(result.ok ? (result.notes ?? []).join("\n") : "", /bybit-test upstream_error/);
 });
 
-test("createPublicFuturesUniverseDiscoveryProvider fails only when every exchange discovery fails", async () => {
+test("createPublicFuturesUniverseDiscoveryProvider activates broad fallback seed when live discovery collapses", async () => {
   const provider = createPublicFuturesUniverseDiscoveryProvider({
     providers: [
       {
@@ -93,12 +97,37 @@ test("createPublicFuturesUniverseDiscoveryProvider fails only when every exchang
 
   const result = await provider.discoverInstruments();
 
-  assert.deepEqual(result, {
-    ok: false,
-    source: "public-futures-multi-exchange",
-    reason: "upstream_error",
-    error: "All universe discovery providers failed: okx-test network_error",
-    notes: ["okx-test network_error"],
-    requestCount: 0,
+  assert.equal(result.ok, true);
+  assert.ok(result.ok ? result.instruments.length >= STATIC_USDT_PERP_FALLBACK_BASE_ASSETS.length : false);
+  assert.ok(result.ok ? result.instruments.length > 100 : false);
+  assert.match(result.ok ? (result.notes ?? []).join("\n") : "", /okx-test network_error/);
+  assert.match(result.ok ? (result.notes ?? []).join("\n") : "", /fallback seed activated: live 0 below 50/);
+  assert.equal(result.ok ? result.instruments.find((item) => item.symbol === "SUIUSDT")?.exchange : "", "UNKNOWN");
+  assert.equal(result.ok ? result.requestCount : -1, 0);
+});
+
+test("createPublicFuturesUniverseDiscoveryProvider keeps live results when fallback is explicitly disabled", async () => {
+  const provider = createPublicFuturesUniverseDiscoveryProvider({
+    fallbackSeed: [],
+    providers: [
+      {
+        id: "binance-test",
+        label: "Binance Test",
+        async discoverInstruments() {
+          return {
+            ok: true,
+            source: "binance-test",
+            instruments: [instrument("BINANCE", "ARB")],
+            requestCount: 1,
+          };
+        },
+      },
+    ],
   });
+
+  const result = await provider.discoverInstruments();
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.ok ? result.instruments.map((item) => item.symbol) : [], ["ARBUSDT"]);
+  assert.match(result.ok ? (result.notes ?? []).join("\n") : "", /fallback seed unavailable: live 1 below 50/);
 });

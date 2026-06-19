@@ -7,6 +7,7 @@ import {
   planUniverseScan,
 } from "./universe-registry";
 import type { ContractInstrument } from "./types";
+import { buildStaticFuturesUniverseSeed } from "./providers/static-futures-universe-seed";
 
 function instrument(
   baseAsset: string,
@@ -150,6 +151,25 @@ test("planUniverseScan pins anchors and rotates the remaining priority assets", 
   assert.equal(plan.assets.length, 4);
   assert.equal(plan.totalBatches, 2);
   assert.deepEqual(plan.anchorAssets, ["BTC", "ETH"]);
+});
+
+test("planUniverseScan keeps broad fallback universe rotating instead of collapsing to configured assets", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA", "SUI", "ONDO", "TIA"],
+    buildStaticFuturesUniverseSeed("2026-06-19T00:00:00.000Z"),
+  );
+  const plan = planUniverseScan(registry, 24, new Date("2026-06-19T00:00:00.000Z"));
+  const coverage = buildCoverageReport(registry, plan);
+
+  assert.ok(registry.summary.observed > 100);
+  assert.equal(plan.assets.length, 24);
+  assert.deepEqual(plan.assets.slice(0, 2), ["BTC", "ETH"]);
+  assert.ok(plan.pendingAssets.length > 100);
+  assert.ok(plan.totalBatches > 1);
+  assert.equal(coverage.scanned, 24);
+  assert.ok(coverage.eligible > 100);
+  assert.notEqual(coverage.coveragePercent, 100);
+  assert.ok(coverage.pending > 100);
 });
 
 test("planUniverseScan rotates long tail assets at a lower frequency than core assets", () => {

@@ -556,6 +556,10 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const batchNote = displayMetadataNote(metadataNote(metadata.notes, "batch "));
   const requestsNote = displayMetadataNote(metadataNote(metadata.notes, "requests "));
   const coveragePercent = metadata.coverage?.coveragePercent ?? (metadata.scannedCount > 0 ? 100 : 0);
+  const universeFallbackActive = metadata.notes.some((note) => note.includes("fallback seed activated"));
+  const coverageModeLabel = universeFallbackActive ? "兜底池" : "全市场池";
+  const coverageScanned = metadata.coverage?.scanned ?? metadata.scannedCount;
+  const coverageEligible = metadata.coverage?.eligible ?? metadata.scannedCount;
   const scanStatePool = liveHealth.scanStatePool;
   const statePoolBattleCount =
     scanStatePool.counts.BATTLE_READY + scanStatePool.counts.BATTLE_WATCH;
@@ -695,7 +699,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const opsSummaryItems = [
     { label: "数据状态", value: marketStatusLabel(metadata.status) },
     { label: "状态池", value: `${scanStatePool.proof.notEliminatedAssets} 常驻` },
-    { label: "当前覆盖", value: `${coveragePercent}%` },
+    { label: "当前覆盖", value: `${coverageScanned}/${coverageEligible}` },
     { label: "重点池", value: statePoolAttentionCount.toString() },
   ];
   const opsFilterItems = [
@@ -1324,7 +1328,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
 
       <RadarBootBriefing
         cadenceLabel={`${metadata.cadenceMinutes}m`}
-        coverageLabel={`${coveragePercent}%`}
+        coverageLabel={`${coverageModeLabel} ${coverageScanned}/${coverageEligible}`}
         healthLabel={runtimeStates.every((state) => state.tone === "ready") ? "全绿" : "有观察项"}
         marketSessionLabel={`${marketSession.label} ${marketSession.localTime}`}
         nextScanLabel={formatScanTime(metadata.nextScanAt)}
@@ -1355,8 +1359,8 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         </div>
         <div className="radar-command-strip__cell">
           <span className="mono">覆盖密度</span>
-          <strong>{coveragePercent}% / {metadata.coverage?.scanned ?? metadata.scannedCount} 已扫</strong>
-          <small>{metadata.coverage ? `${metadata.coverage.pending} 待轮转 · 批次 ${metadata.coverage.batchIndex + 1}/${metadata.coverage.totalBatches}` : `${instrumentPool.summary.accepted} 活跃候选`}</small>
+          <strong>{coverageModeLabel} {coverageScanned}/{coverageEligible}</strong>
+          <small>{metadata.coverage ? `${coveragePercent}% · ${metadata.coverage.pending} 待轮转 · 批次 ${metadata.coverage.batchIndex + 1}/${metadata.coverage.totalBatches}` : `${instrumentPool.summary.accepted} 活跃候选`}</small>
         </div>
       </section>
 

@@ -377,6 +377,7 @@ function fullMarketCoverageStatusLabel(value: SystemHealthReport["fullMarketCove
     blocked: "阻断",
     budget_capped: "预算压缩",
     complete: "本轮覆盖",
+    fallback: "兜底轮转",
     preview: "预览",
     rotating: "轮转中",
   }[value];

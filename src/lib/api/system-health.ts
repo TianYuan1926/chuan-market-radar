@@ -139,6 +139,7 @@ export type FullMarketCoverageStatus =
   | "blocked"
   | "budget_capped"
   | "complete"
+  | "fallback"
   | "preview"
   | "rotating";
 
@@ -734,6 +735,10 @@ function fullMarketStatus({
     return "preview";
   }
 
+  if (metadata.notes.some((note) => note.includes("fallback seed activated"))) {
+    return "fallback";
+  }
+
   if (quotaStatus === "near_budget" || quotaStatus === "over_budget" || wasCapped) {
     return "budget_capped";
   }
@@ -756,6 +761,10 @@ function fullMarketOperatorHint(status: FullMarketCoverageStatus, coverage: Scan
 
   if (status === "budget_capped") {
     return "全市场覆盖正在按预算压缩轮转，先保证锚定币和高优先级山寨，不做一次性深扫。";
+  }
+
+  if (status === "fallback") {
+    return "交易所实时币池发现降级，当前启用广谱兜底池轮转；候选仍需 CoinGlass 数据和风控门确认。";
   }
 
   if (status === "complete") {

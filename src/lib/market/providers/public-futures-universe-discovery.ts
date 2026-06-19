@@ -1,4 +1,5 @@
 import { createBinanceUniverseDiscoveryProvider } from "./binance-universe-discovery";
+import type { ContractInstrument } from "../types";
 import type {
   UniverseDiscoveryFailure,
   UniverseDiscoveryProvider,
@@ -6,8 +7,11 @@ import type {
 } from "./binance-universe-discovery";
 import { createBybitUniverseDiscoveryProvider } from "./bybit-universe-discovery";
 import { createOkxUniverseDiscoveryProvider } from "./okx-universe-discovery";
+import { buildStaticFuturesUniverseSeed } from "./static-futures-universe-seed";
 
 export type PublicFuturesUniverseDiscoveryProviderOptions = {
+  fallbackSeed?: ContractInstrument[];
+  minimumLiveInstruments?: number;
   providers?: UniverseDiscoveryProvider[];
 };
 
@@ -19,6 +23,8 @@ function failure(fields: Omit<UniverseDiscoveryFailure, "ok">): UniverseDiscover
 }
 
 export function createPublicFuturesUniverseDiscoveryProvider({
+  fallbackSeed,
+  minimumLiveInstruments = 50,
   providers = [
     createBinanceUniverseDiscoveryProvider(),
     createOkxUniverseDiscoveryProvider(),
@@ -42,7 +48,19 @@ export function createPublicFuturesUniverseDiscoveryProvider({
       const successfulResults = results.filter((result) => result.ok);
       const instruments = successfulResults.flatMap((result) => result.instruments);
 
-      if (instruments.length === 0) {
+      if (instruments.length >= minimumLiveInstruments) {
+        return {
+          ok: true,
+          source,
+          instruments,
+          notes,
+          requestCount,
+        };
+      }
+
+      const seed = fallbackSeed ?? buildStaticFuturesUniverseSeed();
+
+      if (seed.length === 0 && instruments.length === 0) {
         return failure({
           source,
           reason: "upstream_error",
@@ -52,11 +70,27 @@ export function createPublicFuturesUniverseDiscoveryProvider({
         });
       }
 
+      if (seed.length === 0) {
+        return {
+          ok: true,
+          source,
+          instruments,
+          notes: [
+            ...notes,
+            `fallback seed unavailable: live ${instruments.length} below ${minimumLiveInstruments}`,
+          ],
+          requestCount,
+        };
+      }
+
       return {
         ok: true,
         source,
-        instruments,
-        notes,
+        instruments: [...instruments, ...seed],
+        notes: [
+          ...notes,
+          `fallback seed activated: live ${instruments.length} below ${minimumLiveInstruments}, seed ${seed.length}`,
+        ],
         requestCount,
       };
     },

@@ -561,6 +561,53 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.match(report.marketDataQuality.guardrails.join(" "), /不能单独生成交易方向/);
 });
 
+test("buildSystemHealthReport marks broad universe fallback as degraded rotation", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+
+  const report = await buildSystemHealthReport({
+    env: {
+      COINGLASS_API_KEY: "test-key",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+    now: new Date("2026-06-19T10:04:20.000Z"),
+    repository,
+    snapshot: snapshot({
+      source: "coinglass",
+      isRealtime: true,
+      notes: [
+        "universe discovery: public-futures-multi-exchange ok 214 instruments",
+        "universe source: fallback seed activated: live 0 below 50, seed 214",
+      ],
+      coverage: {
+        batchIndex: 0,
+        coveragePercent: 11,
+        eligible: 214,
+        exchangeCoverageSummary: {
+          majorThree: 0,
+          multiExchange: 0,
+          singleExchange: 0,
+          unlisted: 214,
+        },
+        nextBatchIndex: 1,
+        pending: 190,
+        pendingAssets: ["SOL", "ENA", "SUI"],
+        scanned: 24,
+        scannedAssets: ["BTC", "ETH", "ARB"],
+        skipped: 0,
+        skippedAssets: [],
+        total: 214,
+        totalBatches: 10,
+      },
+    }),
+  });
+
+  assert.equal(report.fullMarketCoverage.status, "fallback");
+  assert.match(report.fullMarketCoverage.operatorHint, /广谱兜底池轮转/);
+  assert.equal(report.fullMarketCoverage.coverage.eligible, 214);
+  assert.equal(report.fullMarketCoverage.coverage.scanned, 24);
+  assert.equal(report.fullMarketCoverage.coverage.estimatedFullCycleMinutes, 150);
+});
+
 test("buildSystemHealthReport marks scan operations blocked without a recent success", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
   await repository.addScanArchive(
