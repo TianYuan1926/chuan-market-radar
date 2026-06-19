@@ -103,6 +103,49 @@ function snapshot(): MarketRadarSnapshot {
         skippedAssets: [{ reason: "quote_not_supported", symbol: "TIAUSDC" }],
         total: 520,
         totalBatches: 70,
+        twoStageAllocation: {
+          guardrail: "二段深扫只分配本轮 CoinGlass 名额；未进入深扫不代表淘汰。",
+          mode: "two_stage_deep_scan_v1",
+          slots: [
+            {
+              baseAsset: "BTC",
+              kind: "anchor_context",
+              priorityReasons: [],
+              reason: "BTC/ETH 锚点用于大盘环境。",
+              slotIndex: 0,
+              source: "anchor",
+              symbol: "BTCUSDT",
+              tier: "anchor",
+              venueCoverage: "major_three",
+            },
+            {
+              baseAsset: "BAKE",
+              kind: "long_tail_exploration",
+              priorityReasons: [],
+              reason: "冷门探索保底。",
+              slotIndex: 5,
+              source: "exploration_reserve",
+              symbol: "BAKEUSDT",
+              tier: "long_tail",
+              venueCoverage: "single_exchange",
+            },
+          ],
+          stageOne: {
+            priorityCandidates: 24,
+            priorityQueued: 12,
+            source: "public_light_scan_and_repository_hints",
+            universeAssets: 420,
+          },
+          stageTwo: {
+            anchorSlots: 2,
+            capacity: 6,
+            explorationSlots: 1,
+            prioritySlots: 2,
+            queuedPriorityAssets: ["SUI", "MANTA"],
+            rotationSlots: 1,
+            selectedAssets: ["BTC", "ETH", "ARB", "ENA", "TIA", "BAKE"],
+          },
+        },
         statePool: {
           assetSamples: [
             {
@@ -390,6 +433,9 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   assert.equal(contract.scanProof.allocation.assets.find((asset) => asset.symbol === "BTCUSDT")?.bucket, "anchor");
   assert.equal(contract.scanProof.allocation.assets.find((asset) => asset.symbol === "ARBUSDT")?.bucket, "hot");
   assert.equal(contract.scanProof.allocation.assets.find((asset) => asset.symbol === "BAKEUSDT")?.bucket, "cold_exploration");
+  assert.equal(contract.scanProof.twoStageAllocation?.mode, "two_stage_deep_scan_v1");
+  assert.equal(contract.scanProof.twoStageAllocation?.stageTwo.explorationSlots, 1);
+  assert.ok(contract.scanProof.twoStageAllocation?.stageTwo.queuedPriorityAssets.includes("SUI"));
   assert.equal(contract.analysis.v3Coverage.withV3Signals, 2);
   assert.equal(contract.analysis.evolution.canAutoAdjustWeights, false);
   assert.ok(contract.guardrails.includes("no_silent_ui_truncation"));

@@ -5,6 +5,7 @@ import type {
   ScanStatePoolAssetSample,
   ScanStatePoolKey,
   ScanStatePoolReason,
+  ScanTwoStageAllocationPlan,
 } from "../market/types";
 
 export type BackendContractSchemaVersion = "backend-contract.v1";
@@ -91,6 +92,7 @@ export type BackendContract = {
       reviveWatchAssets: string[];
       selectedAssets: string[];
     };
+    twoStageAllocation: ScanTwoStageAllocationPlan | null;
   };
   dataQuality: {
     cleanRows: number;
@@ -332,6 +334,7 @@ export function buildBackendContract({
         reviveWatchAssets: statePool.proof.reviveWatchAssets,
         selectedAssets: statePool.deepScan.selectedAssets,
       },
+      twoStageAllocation: coverage.twoStageAllocation ?? null,
     },
     dataQuality: {
       cleanRows: requests?.cleanRows ?? 0,

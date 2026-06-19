@@ -273,6 +273,47 @@ export type ScanDynamicPriorityPlan = {
   topAssets: ScanPriorityDecision[];
 };
 
+export type ScanTwoStageSlotKind =
+  | "anchor_context"
+  | "active_rotation"
+  | "core_rotation"
+  | "hot_priority"
+  | "long_tail_exploration"
+  | "revive_priority";
+
+export type ScanTwoStageSlot = {
+  baseAsset: string;
+  kind: ScanTwoStageSlotKind;
+  priorityReasons: ScanPriorityReason[];
+  reason: string;
+  slotIndex: number;
+  source: "anchor" | "dynamic_priority" | "exploration_reserve" | "tier_rotation";
+  symbol: string;
+  tier: ScanTierKey;
+  venueCoverage: VenueCoverageQuality;
+};
+
+export type ScanTwoStageAllocationPlan = {
+  guardrail: string;
+  mode: "two_stage_deep_scan_v1";
+  slots: ScanTwoStageSlot[];
+  stageOne: {
+    priorityCandidates: number;
+    priorityQueued: number;
+    source: "public_light_scan_and_repository_hints";
+    universeAssets: number;
+  };
+  stageTwo: {
+    anchorSlots: number;
+    capacity: number;
+    explorationSlots: number;
+    prioritySlots: number;
+    queuedPriorityAssets: string[];
+    rotationSlots: number;
+    selectedAssets: string[];
+  };
+};
+
 export type ScanCoverage = {
   batchIndex: number;
   coveragePercent: number;
@@ -294,6 +335,7 @@ export type ScanCoverage = {
   statePool?: ScanStatePoolReport;
   tierCounts?: ScanTierCounts;
   tierPolicy?: ScanTierPolicy;
+  twoStageAllocation?: ScanTwoStageAllocationPlan;
   total: number;
   totalBatches: number;
 };

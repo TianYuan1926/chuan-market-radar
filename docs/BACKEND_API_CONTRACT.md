@@ -24,6 +24,7 @@ Response shape:
 - `contract.scanProof.lightScan`: public light scan status, universe size, accepted count, candidate count and top candidates.
 - `contract.scanProof.deepScan`: planned assets, request count, raw/clean/primary row counts, empty assets and rejected rows.
 - `contract.scanProof.allocation`: state-pool bucket assignment for the current deep-scan batch.
+- `contract.scanProof.twoStageAllocation`: two-stage deep-scan allocation proof, including anchor/context slots, dynamic-priority slots, rotation slots, cold-exploration reserve slots and queued priority assets.
 - `contract.dataQuality`: row-level quality counters.
 - `contract.analysis.v3Coverage`: v3 coverage, OHLCV attempts and missing signals.
 - `contract.analysis.v3StrategyLoop`: live v3 plans, risk-gate blocks and missing v3 count.
@@ -34,6 +35,8 @@ Response shape:
 Primary use:
 
 - A redesigned frontend can show whether the system is really scanning, what was scanned, what remains pending and why a candidate entered deep scan.
+- The two-stage allocation proof is the frontend-safe answer to "why these assets now": stage one discovers and ranks candidates from public light scan and repository hints; stage two spends the limited CoinGlass deep-scan slots while preserving at least one long-tail exploration slot when capacity allows.
+- Assets listed in `queuedPriorityAssets` are not eliminated. They remain in the priority queue, rotation pool, revive watch or cold exploration pool for later batches.
 - Operations panels can read one object instead of stitching together `/api/health`, `/api/scan` and local assumptions.
 
 ## `GET /api/radar/dossier?symbol=SYMBOL`

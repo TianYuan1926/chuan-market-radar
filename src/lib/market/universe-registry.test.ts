@@ -268,6 +268,45 @@ test("planUniverseScan exposes priority admission metadata within the same reque
   assert.equal(plan.dynamicPriority.reasonCounts.history, 1);
 });
 
+test("planUniverseScan preserves exploration when priority hints are crowded", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA"],
+    [
+      instrument("ARB", { volume24hUsd: 75_000_000 }),
+      instrument("OP", { volume24hUsd: 70_000_000 }),
+      instrument("TIA", { volume24hUsd: 60_000_000 }),
+      instrument("WIF", { volume24hUsd: 55_000_000 }),
+      instrument("MANTA", { volume24hUsd: 0 }),
+      instrument("PONKE", { volume24hUsd: 0 }),
+    ],
+  );
+  const plan = planUniverseScan(registry, 6, new Date("2026-06-14T00:00:00.000Z"), {
+    dynamicPrioritySlots: 4,
+    priorityHints: [
+      { symbol: "ARBUSDT", anomalyScore: 95, recentSignalCount: 4 },
+      { symbol: "OPUSDT", anomalyScore: 92, recentSignalCount: 3 },
+      { symbol: "MANTAUSDT", anomalyScore: 90, historicalSampleSize: 6, historicalWinRate: 0.67 },
+      { symbol: "TIAUSDT", anomalyScore: 88, recentSignalCount: 2 },
+      { symbol: "WIFUSDT", anomalyScore: 86, recentSignalCount: 2 },
+    ],
+  });
+
+  assert.equal(plan.assets.length, 6);
+  assert.equal(plan.requestsPlanned, 6);
+  assert.equal(plan.dynamicPriority.slotsAvailable, 3);
+  assert.equal(plan.twoStageAllocation.mode, "two_stage_deep_scan_v1");
+  assert.equal(plan.twoStageAllocation.stageTwo.prioritySlots, 3);
+  assert.equal(plan.twoStageAllocation.stageTwo.explorationSlots, 1);
+  assert.ok(plan.twoStageAllocation.stageTwo.queuedPriorityAssets.includes("WIF"));
+  assert.equal(
+    plan.twoStageAllocation.slots.some((slot) =>
+      slot.kind === "long_tail_exploration" && slot.baseAsset === "PONKE"
+    ),
+    true,
+  );
+  assert.match(plan.twoStageAllocation.guardrail, /未进入深扫不代表淘汰/u);
+});
+
 test("buildCoverageReport includes scanned, pending, skipped, and coverage percent", () => {
   const registry = buildUniverseRegistry(
     ["ENA", "SUI", "ONDO", "TIA"],

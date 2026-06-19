@@ -427,7 +427,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | --- | --- | --- |
 | 阶段 1：蓝图固化 | 已完成 | 后续每轮继续维护本文，防止上下文压缩造成遗漏 |
 | 阶段 2：真正多周期分析引擎 | 基础已落地，受限主候选已接入真实多周期 OHLCV profile、指标矩阵摘要、基础指标/周期校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层 | 尚未完成真实权重生效、交互式多周期图表和全量候选覆盖 |
-| 阶段 3：合约 universe registry | 基础、三交易所自动发现、静态兜底池、免费 public light scan、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级、repository hints、扫描经济前端面板、高优先级候选可观测、交易所覆盖钻取、状态池调度 MVP、深扫容量证明、复活观察/冷门探索展示、v2/v3 只读晋级桥、结构化扫描诊断和后端扫描契约出口已落地 | 尚未完成更精细的二段深扫配额优化、状态池历史胜率排序、长周期漏网统计和长期 outcome 样本后的自动调度校准 |
+| 阶段 3：合约 universe registry | 基础、三交易所自动发现、静态兜底池、免费 public light scan、分层币池、低频轮转、覆盖差异、quota 护栏、动态优先级、repository hints、扫描经济前端面板、高优先级候选可观测、交易所覆盖钻取、状态池调度 MVP、深扫容量证明、复活观察/冷门探索展示、v2/v3 只读晋级桥、结构化扫描诊断、后端扫描契约出口和二段深扫分配证明已落地 | 尚未完成状态池历史胜率排序、长周期漏网统计和长期 outcome 样本后的自动调度校准 |
 | 阶段 4：OHLCV、盘面结构与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示、基础指标/周期权重校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层；v3 KeyLevel/ForwardMap/Pattern Library 已复用既有 OHLCV 接入 Signal Dossier；Fibonacci 回撤已作为位置/RR 辅助上下文接入 | 尚未完成真实权重生效、交互式多周期图表、更专业的成交量分布模型、完整 Market Reading Engine、谐波辅助层 |
 | 阶段 4V3：Altcoin Trend Radar v3 | 定位已确认为“全市场山寨币趋势切换雷达”；Strategy Engine v2 已形成证据、评分、风险门控、报告和只读 UI 接入底座；v3 类型、Key Level Engine MVP、Forward Level Map MVP、forward map review hook、`strategyV3` 只读 Signal Dossier 接入、Forward Map 持久化 MVP、Forward Map review executor MVP、系统健康摘要、Market Reading MVP、结构事实驱动阶段切换、位置/RR 只读门控、回踩/反抽质量、趋势完整度、v3 只读 Trade Plan 草案、Pattern Library MVP、三角压缩/旗形/头肩/Fibonacci 低权重辅助、前端展示、复盘标签、形态/计划复盘统计面板、bucket 样本追溯、ChartPanel 多周期只读上下文、关键位/事前位 drilldown、形态上下文上屏、图表复盘样本联动、Forward Map review 事件联动、系统级 `v3StrategyLoop` 闭环健康摘要、`strategyEvolutionLoop` 只读进化闭环总控和单信号后端档案 API 已完成 | 需要补齐更细的图表交互选中态、谐波低权重提示和长期样本后的真实回滚验证 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
@@ -642,7 +642,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### 部分落地：全市场合约覆盖
 
-当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`；Phase 3.10 已把全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界接入 `/api/health` 与健康面板；Phase 3.11 已把 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本和质量分结构化为 `marketDataQuality`；Phase 3.12 已把高优先级候选槽位、选中/排队状态和原因计数接入扫描 metadata、`/api/health` 与健康面板；Phase 3.13 已把三所共振、多所覆盖、单所观察、发现缺口、过滤样本和覆盖动作接入 `/api/health.fullMarketCoverage.exchangeDrilldown` 与健康面板；Phase 3.14 已把 CoinGlass 原始拒绝样本、重复币种聚合组、主信号选择规则和聚合样本接入 `marketDataQuality.primarySelection` / `rejectedRowSamples` 与健康面板；Phase 3.15 已把状态池调度 MVP、深扫容量证明、复活观察、冷门探索和下一批样本接入 `coverage.statePool` 与健康面板；Phase 3.16 已把每日异动宽覆盖从固定少量币扩展到配置资产 + 公开合约 universe 低频轮转；Phase 3.17 已把 v2/v3 只读晋级桥接入状态池，解释作战、观察、冷却和赔率/冲突阻断；Phase 3.18 已把扫描证明、轻扫/深扫、状态池分配、数据质量和 v3 覆盖合并为 `/api/radar/backend-contract`，作为后续 UI 重建和运维诊断的统一事实出口。当前仍未完成更精细的二段深扫配额优化、长期状态池胜率排序，以及依赖更多 outcome 样本的自动调度校准。
+当前已经有 universe registry、覆盖率、锚点固定、轮转扫描计划、主扫描质量过滤、Binance/OKX/Bybit public USDT 永续自动发现、分层币池、长尾低频轮转、多交易所覆盖差异、API quota 护栏、动态优先级基础和 repository priority hints。资产池已不只依赖 `COINGLASS_BASE_ASSETS`；Phase 3.10 已把全市场覆盖深度、当前批次、预计轮转周期、三所覆盖质量、已扫/待轮转样本和只读边界接入 `/api/health` 与健康面板；Phase 3.11 已把 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本和质量分结构化为 `marketDataQuality`；Phase 3.12 已把高优先级候选槽位、选中/排队状态和原因计数接入扫描 metadata、`/api/health` 与健康面板；Phase 3.13 已把三所共振、多所覆盖、单所观察、发现缺口、过滤样本和覆盖动作接入 `/api/health.fullMarketCoverage.exchangeDrilldown` 与健康面板；Phase 3.14 已把 CoinGlass 原始拒绝样本、重复币种聚合组、主信号选择规则和聚合样本接入 `marketDataQuality.primarySelection` / `rejectedRowSamples` 与健康面板；Phase 3.15 已把状态池调度 MVP、深扫容量证明、复活观察、冷门探索和下一批样本接入 `coverage.statePool` 与健康面板；Phase 3.16 已把每日异动宽覆盖从固定少量币扩展到配置资产 + 公开合约 universe 低频轮转；Phase 3.17 已把 v2/v3 只读晋级桥接入状态池，解释作战、观察、冷却和赔率/冲突阻断；Phase 3.18 已把扫描证明、轻扫/深扫、状态池分配、数据质量和 v3 覆盖合并为 `/api/radar/backend-contract`，作为后续 UI 重建和运维诊断的统一事实出口；Phase 3.19 已把二段深扫分配证明接入扫描计划和后端契约，明确锚点、动态优先级、常规轮转、冷门探索保底和排队优先级资产。当前仍未完成长期状态池胜率排序，以及依赖更多 outcome 样本的自动调度校准。
 
 后续需要：
 
@@ -651,7 +651,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - API quota 消耗估计和批次护栏已具备基础实现。
 - 将主扫描的质量分类器复用到每日异动、全市场发现和后续扩展池。
 - 低优先级币种更长期轮转扫描已具备基础策略，动态优先级接口和 repository hints 已具备，后续需要在 outcome executor 完成后继续提高历史胜率样本质量。
-- 高优先级候选的 quota-safe 插队和页面解释已具备；更高频或更深度的二段扫描需要在外部 cron、预算监控和失败回退稳定后按预算打开。
+- 高优先级候选的 quota-safe 插队和页面解释已具备；Phase 3.19 已加二段深扫分配证明：当轮转名额充足且存在长尾资产时，动态优先级不能吃光全部轮转名额，系统会保留冷门探索位。
+- 二段深扫只分配本轮 CoinGlass 深扫名额，不代表最终淘汰。排队优先级资产必须在契约中可见，继续留在 priority queue、rotation pool、revive watch 或 cold exploration pool。
 - 不同交易所同一币种的覆盖数量、UNKNOWN、非 USDT、重复币种、基础过滤原因、原始拒绝样本、主信号聚合原因和覆盖动作已在健康面板展示。
 - 状态池调度、复活观察、冷门探索和深扫容量证明已具备 MVP；后续重点是用更多 outcome、daily mover 和 forward-map review 样本提升状态池排序质量，而不是单纯提高批次数量。
 - `/api/radar/backend-contract` 是扫描后端契约：它只读复用已有 snapshot 和 health，不新增 CoinGlass 请求，不写数据库，不生成交易信号。前端若空间有限，必须用分页、滚动、筛选或数量提示承接候选，不允许静默隐藏候选导致“扫到了但看不见”。
@@ -1282,7 +1283,13 @@ CoinGlass 业余会员 API：
    - 该阶段不改变 CoinGlass 请求、不改变实时排序、不生成交易方向；数据质量层只能阻断、降级或解释候选。
    - 下一步应进入 v3 策略引擎实战闭环只读接入，把现有 v3 Key Level / Forward Map / Pattern / Trade Plan 结果更明确地串到复盘与候选解释里。
 
-7. **Phase 3.9+：BTC ETH Macro Radar**
+7. **Phase 3.19：Two-Stage Deep Scan Allocation Proof**
+   - 当前状态：已完成。扫描计划会输出 `twoStageAllocation`，解释本轮 CoinGlass 深扫名额如何分给 BTC/ETH 锚点、动态优先级、常规轮转和冷门探索保底。
+   - 当轮转名额不少于 3 且 universe 存在长尾资产时，动态优先级名额会给冷门探索预留至少 1 个位置，避免高优先级提示把未知山寨币永久挤出深扫。
+   - `queuedPriorityAssets` 必须显式展示高优先级但本轮未进入深扫的资产；它们不是淘汰，而是等待后续批次、复活观察或轮转扫描。
+   - 该阶段不新增 CoinGlass 请求、不放宽风险门控、不把 light scan 直接升级为交易信号。
+
+8. **Phase 3.9+：BTC ETH Macro Radar**
    - BTC/ETH/ETF/OI/funding/liquidations 作为大盘天气，不抢山寨主线。
    - 输出顺风、逆风、拥挤、去杠杆、假突破风险等环境层，影响机会排序和策略解释。
    - 当前状态：已完成 BTC/ETH Macro Weather 第一版；它复用现有扫描快照，不新增请求，不修改真实权重。ETF 专项端点仍需等 CoinGlass Hobbyist 可用性和 quota 先验证后再接入。

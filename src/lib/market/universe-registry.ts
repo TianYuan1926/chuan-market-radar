@@ -10,6 +10,9 @@ import type {
   ScanPriorityCandidateStatus,
   ScanPriorityDecision,
   ScanPriorityReason,
+  ScanTwoStageAllocationPlan,
+  ScanTwoStageSlot,
+  ScanTwoStageSlotKind,
   ScanTierCounts,
   ScanTierKey,
   ScanTierPolicy,
@@ -99,6 +102,7 @@ export type UniverseScanPlan = {
   selectedTierCounts: UniverseTierCounts;
   tierCounts: UniverseTierCounts;
   tierPolicy: UniverseTierPolicy;
+  twoStageAllocation: ScanTwoStageAllocationPlan;
   totalBatches: number;
 };
 
@@ -634,6 +638,24 @@ function pickDynamicPriorityAsset(
   )?.asset ?? null;
 }
 
+function pickLongTailExplorationAsset(
+  groups: ReturnType<typeof groupedRotatingAssets>,
+  slotCursor: number,
+  selectedSymbols: Set<string>,
+  dynamicPrioritySymbols: Set<string>,
+) {
+  const coldExplorationAssets = groups.long_tail.filter((asset) => !dynamicPrioritySymbols.has(asset.symbol));
+  const coldCandidate = pickTierAsset(
+    coldExplorationAssets,
+    slotCursor,
+    selectedSymbols,
+    defaultTierPolicy.longTailEveryWindows,
+  );
+
+  return coldCandidate ??
+    pickTierAsset(groups.long_tail, slotCursor, selectedSymbols, defaultTierPolicy.longTailEveryWindows);
+}
+
 function publicPriorityDecision(decision: InternalPriorityDecision): UniversePriorityDecision {
   return {
     baseAsset: decision.baseAsset,
@@ -709,6 +731,123 @@ function buildPriorityCandidates(
   });
 }
 
+function twoStageSlotKind(
+  asset: UniverseAsset,
+  source: ScanTwoStageSlot["source"],
+  priorityReasons: ScanPriorityReason[],
+): ScanTwoStageSlotKind {
+  if (source === "anchor") {
+    return "anchor_context";
+  }
+
+  if (source === "dynamic_priority") {
+    return priorityReasons.includes("history") || priorityReasons.includes("recent_signal")
+      ? "revive_priority"
+      : "hot_priority";
+  }
+
+  if (source === "exploration_reserve" || asset.tier === "long_tail") {
+    return "long_tail_exploration";
+  }
+
+  return asset.tier === "core" ? "core_rotation" : "active_rotation";
+}
+
+function twoStageReason(kind: ScanTwoStageSlotKind) {
+  return {
+    active_rotation: "主动轮转活跃层，防止只看已熟悉币种。",
+    anchor_context: "BTC/ETH 锚点用于大盘环境，不参与山寨筛选名额竞争。",
+    core_rotation: "核心流动性层常规轮转。",
+    hot_priority: "来自 public light scan / repository hints 的高优先级异动。",
+    long_tail_exploration: "冷门探索保底，避免前置漏斗过死。",
+    revive_priority: "来自历史、复盘或近期信号的复活观察。",
+  }[kind];
+}
+
+function buildTwoStageSlot({
+  asset,
+  decision,
+  slotIndex,
+  source,
+}: {
+  asset: UniverseAsset;
+  decision?: InternalPriorityDecision;
+  slotIndex: number;
+  source: ScanTwoStageSlot["source"];
+}): ScanTwoStageSlot {
+  const priorityReasons = decision?.reasons ?? [];
+  const kind = twoStageSlotKind(asset, source, priorityReasons);
+
+  return {
+    baseAsset: asset.baseAsset,
+    kind,
+    priorityReasons,
+    reason: twoStageReason(kind),
+    slotIndex,
+    source,
+    symbol: asset.symbol,
+    tier: asset.tier,
+    venueCoverage: asset.venueCoverage,
+  };
+}
+
+function buildTwoStageAllocation({
+  dynamicPriorityDecisions,
+  pinnedAnchorRecords,
+  selectedRotatingAssets,
+  selectedSymbols,
+  selectedSources,
+  universeAssets,
+}: {
+  dynamicPriorityDecisions: InternalPriorityDecision[];
+  pinnedAnchorRecords: UniverseAsset[];
+  selectedRotatingAssets: UniverseAsset[];
+  selectedSymbols: Set<string>;
+  selectedSources: Map<string, ScanTwoStageSlot["source"]>;
+  universeAssets: number;
+}): ScanTwoStageAllocationPlan {
+  const decisionsBySymbol = new Map(dynamicPriorityDecisions.map((decision) => [decision.symbol, decision]));
+  const slots = [
+    ...pinnedAnchorRecords.map((asset, index) => buildTwoStageSlot({
+      asset,
+      slotIndex: index,
+      source: "anchor",
+    })),
+    ...selectedRotatingAssets.map((asset, index) => buildTwoStageSlot({
+      asset,
+      decision: decisionsBySymbol.get(asset.symbol),
+      slotIndex: pinnedAnchorRecords.length + index,
+      source: selectedSources.get(asset.symbol) ?? "tier_rotation",
+    })),
+  ];
+  const selectedAssets = slots.map((slot) => slot.baseAsset);
+  const queuedPriorityAssets = dynamicPriorityDecisions
+    .filter((decision) => decision.dynamicBoost > 0 && !selectedSymbols.has(decision.symbol))
+    .map((decision) => decision.baseAsset)
+    .slice(0, 12);
+
+  return {
+    guardrail: "二段深扫只分配本轮 CoinGlass 名额；未进入深扫不代表淘汰，资产继续留在轮转、复活观察或冷门探索池。",
+    mode: "two_stage_deep_scan_v1",
+    slots,
+    stageOne: {
+      priorityCandidates: dynamicPriorityDecisions.length,
+      priorityQueued: queuedPriorityAssets.length,
+      source: "public_light_scan_and_repository_hints",
+      universeAssets,
+    },
+    stageTwo: {
+      anchorSlots: pinnedAnchorRecords.length,
+      capacity: slots.length,
+      explorationSlots: slots.filter((slot) => slot.kind === "long_tail_exploration").length,
+      prioritySlots: slots.filter((slot) => slot.source === "dynamic_priority").length,
+      queuedPriorityAssets,
+      rotationSlots: slots.filter((slot) => slot.source === "tier_rotation").length,
+      selectedAssets,
+    },
+  };
+}
+
 export function planUniverseScan(
   registry: UniverseRegistry,
   batchSize: number,
@@ -723,6 +862,8 @@ export function planUniverseScan(
     .filter((asset) => asset.isAnchor)
     .slice(0, safeBatchSize)
     .map((asset) => asset.baseAsset);
+  const pinnedAnchorRecords = sortedAssets
+    .filter((asset) => pinnedAnchors.includes(asset.baseAsset));
   const rotatingAssets = sortedAssets
     .filter((asset) => !asset.isAnchor)
     .map((asset) => asset.baseAsset);
@@ -743,24 +884,47 @@ export function planUniverseScan(
     rotatingAssetRecords,
     options.priorityHints,
   );
+  const dynamicPrioritySymbols = new Set(dynamicPriorityDecisions.map((decision) => decision.symbol));
+  const explorationReserveSlots = groups.long_tail.length > 0 && rotatingSlots >= 3 ? 1 : 0;
   const defaultDynamicSlots = dynamicPriorityDecisions.length > 0 && rotatingSlots > 1
-    ? Math.max(1, Math.floor(rotatingSlots / 2))
+    ? Math.max(1, Math.floor(Math.max(0, rotatingSlots - explorationReserveSlots) / 2))
     : 0;
   const dynamicPrioritySlots = Math.min(
-    rotatingSlots,
+    Math.max(0, rotatingSlots - explorationReserveSlots),
     Math.max(0, Math.floor(options.dynamicPrioritySlots ?? defaultDynamicSlots)),
   );
   const boostedAssets: string[] = [];
+  const selectedSources = new Map<string, ScanTwoStageSlot["source"]>();
 
   for (let slot = 0; slot < rotatingSlots; slot += 1) {
     const slotCursor = cursor * rotatingSlots + slot;
+    const isExplorationReserveSlot = explorationReserveSlots > 0 && slot >= rotatingSlots - explorationReserveSlots;
+
+    if (isExplorationReserveSlot) {
+      const explorationCandidate = pickLongTailExplorationAsset(
+        groups,
+        slotCursor,
+        selectedSymbols,
+        dynamicPrioritySymbols,
+      );
+
+      if (explorationCandidate) {
+        selectedRotatingAssets.push(explorationCandidate);
+        selectedSymbols.add(explorationCandidate.symbol);
+        selectedSources.set(explorationCandidate.symbol, "exploration_reserve");
+        continue;
+      }
+    }
 
     if (slot < dynamicPrioritySlots) {
-      const dynamicCandidate = pickDynamicPriorityAsset(dynamicPriorityDecisions, selectedSymbols);
+      const dynamicCandidate = isExplorationReserveSlot
+        ? null
+        : pickDynamicPriorityAsset(dynamicPriorityDecisions, selectedSymbols);
 
       if (dynamicCandidate) {
         selectedRotatingAssets.push(dynamicCandidate);
         selectedSymbols.add(dynamicCandidate.symbol);
+        selectedSources.set(dynamicCandidate.symbol, "dynamic_priority");
         boostedAssets.push(dynamicCandidate.baseAsset);
         continue;
       }
@@ -780,6 +944,7 @@ export function planUniverseScan(
       if (candidate) {
         selectedRotatingAssets.push(candidate);
         selectedSymbols.add(candidate.symbol);
+        selectedSources.set(candidate.symbol, "tier_rotation");
         break;
       }
     }
@@ -791,6 +956,14 @@ export function planUniverseScan(
     .map((asset) => asset.baseAsset)
     .filter((asset) => !assets.includes(asset));
   const selectedAssetRecords = sortedAssets.filter((asset) => assets.includes(asset.baseAsset));
+  const twoStageAllocation = buildTwoStageAllocation({
+    dynamicPriorityDecisions,
+    pinnedAnchorRecords,
+    selectedRotatingAssets,
+    selectedSources,
+    selectedSymbols,
+    universeAssets: sortedAssets.length,
+  });
 
   return {
     allAssets: sortedAssets.map((asset) => asset.baseAsset),
@@ -819,6 +992,7 @@ export function planUniverseScan(
     selectedTierCounts: countAssetTiers(selectedAssetRecords),
     tierCounts,
     tierPolicy: defaultTierPolicy,
+    twoStageAllocation,
     totalBatches,
   };
 }
@@ -849,6 +1023,7 @@ export function buildCoverageReport(
     skippedAssets: registry.skipped,
     tierCounts: batchPlan.tierCounts,
     tierPolicy: batchPlan.tierPolicy,
+    twoStageAllocation: batchPlan.twoStageAllocation,
     total: eligible + registry.skipped.length,
     totalBatches: batchPlan.totalBatches,
   };
