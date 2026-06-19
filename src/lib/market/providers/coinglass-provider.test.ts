@@ -206,12 +206,12 @@ test("CoinGlass provider caps oversized batches with the daily request budget gu
   assert.match(snapshot.metadata.notes.join("\n"), /quota: coinglass 288\/300 daily \(96%\), public discovery 288 daily, status near_budget/);
 });
 
-test("CoinGlass provider promotes dynamic priority hints inside the guarded scan batch", async () => {
+test("CoinGlass provider promotes dynamic priority hints when rotating capacity has a spare slot", async () => {
   const requestedSymbols: string[] = [];
   const provider = createCoinGlassProvider({
     apiKey: "test-key",
     baseAssets: ["SOL", "ENA"],
-    batchSize: 3,
+    batchSize: 4,
     universePriorityHints: [
       {
         symbol: "ARBUSDT",
@@ -261,8 +261,8 @@ test("CoinGlass provider promotes dynamic priority hints inside the guarded scan
 
   const snapshot = await provider.fetchSnapshot();
 
-  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ARB"]);
-  assert.equal(snapshot.metadata.coverage?.scanned, 3);
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ARB", "ENA"]);
+  assert.equal(snapshot.metadata.coverage?.scanned, 4);
   assert.match(snapshot.metadata.notes.join("\n"), /dynamic priority: selected ARB/);
   assert.match(snapshot.metadata.notes.join("\n"), /top ARB/);
 });

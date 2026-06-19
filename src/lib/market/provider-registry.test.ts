@@ -51,7 +51,7 @@ test("getConfiguredMarketProvider threads repository priority hints into CoinGla
     MARKET_DATA_PROVIDER: "coinglass",
     COINGLASS_API_KEY: "test-key",
     COINGLASS_BASE_ASSETS: "SOL,ENA",
-    COINGLASS_BATCH_SIZE: "3",
+    COINGLASS_BATCH_SIZE: "4",
   }, {
     fetcher: async (input) => {
       const url = new URL(input.toString());
@@ -101,6 +101,7 @@ test("getConfiguredMarketProvider threads repository priority hints into CoinGla
 
   const snapshot = await provider.fetchSnapshot();
 
-  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ARB"]);
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "SOL"]);
   assert.match(snapshot.metadata.notes.join("\n"), /priority hints: 1 built from repository/);
+  assert.match(snapshot.metadata.notes.join("\n"), /dynamic priority: selected none, top ARB/);
 });

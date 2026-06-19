@@ -577,6 +577,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 已支持 API quota 消耗估计：每轮 CoinGlass 请求数、每日 CoinGlass 预估请求数、剩余请求估算、public discovery 预估请求数、预算使用率和状态。
 - 已支持扫描预算护栏：当 `COINGLASS_BATCH_SIZE` 超过每日预算允许值时，自动压缩为安全批次；若预算低于 BTC/ETH 锚点最低扫描需求，会标记 `over_budget`，但不破坏锚点扫描。
 - 已支持动态优先级基础：universe scan plan 可接收 `priorityHints`，按异常分、历史胜率样本、近期信号、流动性和交易所覆盖质量生成动态分数；动态候选只能占用非 anchor 轮转槽，不能挤掉 BTC/ETH，也不能突破 quota 批次。
+- 2026-06-19 新增硬规则：当小批次扫描只剩 1 个非 anchor 轮转槽时，动态优先级不得占用该唯一槽位，必须让 core/long_tail 正常轮转；只有非 anchor 轮转槽大于 1 时，动态优先级才允许使用部分额外容量，避免 BTC/ETH 固定后山寨位长期被单一热门币锁死。
 - 已支持高优先级候选可观测：`dynamicPriority` 会输出候选数、可用槽位、已用槽位、选中/排队状态和原因计数；`/api/health.fullMarketCoverage.highPriority` 与健康面板会显示高优先级槽位、选中标的、排队标的和证据来源。该能力只复用扫描 metadata，不增加 CoinGlass 请求量。
 - 已支持 repository priority hints 基础：扫描归档 top symbols 提供近期热度，复盘 journal outcome 提供历史有效性，每日异动归因样本提供 learnable 异常热度；默认 CoinGlass provider 创建前会从 repository 读取这些样本并注入 `priorityHints`。
 - CoinGlass provider 已在 metadata notes 中输出每个 discovery source、tiered universe、exchange coverage、quota、repository priority hints、dynamic priority 和 tier policy，便于线上检查当前币池结构。

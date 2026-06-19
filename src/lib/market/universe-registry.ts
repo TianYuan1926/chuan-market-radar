@@ -743,7 +743,7 @@ export function planUniverseScan(
     rotatingAssetRecords,
     options.priorityHints,
   );
-  const defaultDynamicSlots = dynamicPriorityDecisions.length > 0
+  const defaultDynamicSlots = dynamicPriorityDecisions.length > 0 && rotatingSlots > 1
     ? Math.max(1, Math.floor(rotatingSlots / 2))
     : 0;
   const dynamicPrioritySlots = Math.min(

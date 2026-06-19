@@ -174,7 +174,7 @@ test("planUniverseScan rotates long tail assets at a lower frequency than core a
   assert.equal(longTailPlan.tierPolicy.longTailEveryWindows, 8);
 });
 
-test("planUniverseScan promotes dynamic priority hints without dropping anchors or expanding the batch", () => {
+test("planUniverseScan keeps the only rotating slot available for rotation when dynamic hints exist", () => {
   const registry = buildUniverseRegistry(
     ["SOL", "ENA"],
     [
@@ -194,12 +194,14 @@ test("planUniverseScan promotes dynamic priority hints without dropping anchors 
     ],
   });
 
-  assert.deepEqual(plan.assets, ["BTC", "ETH", "ARB"]);
+  assert.deepEqual(plan.assets, ["BTC", "ETH", "SOL"]);
   assert.equal(plan.batchSize, 3);
   assert.equal(plan.requestsPlanned, 3);
   assert.deepEqual(plan.anchorAssets, ["BTC", "ETH"]);
-  assert.deepEqual(plan.dynamicPriority.boostedAssets, ["ARB"]);
+  assert.deepEqual(plan.dynamicPriority.boostedAssets, []);
   assert.equal(plan.dynamicPriority.enabled, true);
+  assert.equal(plan.dynamicPriority.slotsAvailable, 0);
+  assert.equal(plan.dynamicPriority.candidates[0]?.status, "queued");
   assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "ARB");
   assert.ok(plan.dynamicPriority.topAssets[0]?.dynamicBoost ?? 0 > 0);
   assert.ok(plan.dynamicPriority.topAssets[0]?.reasons.includes("anomaly"));
