@@ -1034,7 +1034,7 @@ CoinGlass 业余会员 API：
 ## Vercel 与稳定性原则
 
 - 免费阶段不依赖 Vercel 15 分钟内置 Cron。
-- 使用外部 cron 请求 `/api/scan`。
+- 使用 GitHub Actions 外部 cron 每 15 分钟请求 `/api/scan`；该频率与应用 `cadenceMinutes=15` 对齐，配合 `COINGLASS_DAILY_REQUEST_BUDGET=300` 和低批次扫描，最大化业余会员预算但不扩大单轮深扫宽度。
 - 使用外部 cron 每日低频请求 `/api/admin/daily-movers/ingest`。
 - K 线缓存填充只通过受保护入口 `/api/admin/daily-movers/klines/fill` 低频触发，默认小预算、缓存优先，不占用 CoinGlass 请求。
 - API 层必须缓存。

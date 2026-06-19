@@ -87,7 +87,7 @@
 - 即使 `DATABASE_URL` 已填写，只要没有注入真实 `SqlClient`，系统会显示为 fallback/memory，不能算已经接入数据库。
 - CoinGlass provider 只有在 `MARKET_DATA_PROVIDER=coinglass` 且 `COINGLASS_API_KEY` 存在时启用。
 - Hobbyist 会员需要用 `COINGLASS_BASE_ASSETS` 控制查询范围，并用 `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
-- 当前分批队列按 UTC 日内扫描窗口轮转。例如 15 分钟 cadence、batch size 为 `3` 时，每 15 分钟只请求 3 个基础币。
+- 当前分批队列按 UTC 日内扫描窗口轮转。GitHub Actions 外部扫描 cron 与应用 cadence 对齐为 15 分钟；例如 batch size 为 `3` 时，每 15 分钟只请求 3 个主扫描资产。
 - CoinGlass provider 会先用 Binance public futures `exchangeInfo`、OKX public instruments、Bybit V5 public instruments 发现 USDT 永续合约，再按 `COINGLASS_BATCH_SIZE` 低频请求 CoinGlass；单个交易所发现失败会降级为 source note，全部发现失败时回退到配置白名单。
 - `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。默认 `300` 请求/日、15 分钟 cadence 下，安全批次约为 `3`；线上检查 metadata notes 时应能看到 `quota guard` 和 `quota`。
 - `/api/health` 会把 quota 与 coverage 汇总为 `scanEconomy`；系统状态面板必须显示“扫描经济 / 今日预算 / 剩余额度 / 请求/轮 / 批次上限 / 层级覆盖 / 不新增请求”，该面板只读展示，不触发额外 CoinGlass 请求。
@@ -146,7 +146,7 @@
 - 告警上线前，确认浏览器通知权限不是首屏自动请求，且静默时段内事件仍进入事件中心。
 - 继续下一阶段前，先检查蓝图的阶段状态总览，确认没有把“基础已落地”误说成“完整专业闭环已完成”。
 - 每轮部署前，确认 README/蓝图/部署清单描述和实际代码一致，尤其是数据源、AI、数据库、告警、全市场覆盖和多周期融合状态。
-- 免费预览部署完成后，如果需要接近 15 分钟刷新，用外部 cron 请求线上 `/api/scan`；Vercel Hobby 内置 Cron 不支持这个频率。
+- 免费预览部署完成后，用 GitHub Actions 外部 cron 每 15 分钟请求线上 `/api/scan`；Vercel Hobby 内置 Cron 不支持这个频率。
 - 每日异动归因复盘自动运行使用 `.github/workflows/chuan-daily-movers.yml` 每日低频请求 `/api/admin/daily-movers/ingest`，不要配置高频任务。
 - v3 Forward Map 复盘自动运行使用 `.github/workflows/chuan-v3-forward-map-review.yml` 每 6 小时请求 `/api/admin/v3/forward-map-reviews/run`，只写只读复盘样本，不自动改权重。
 - 本地 CLI 直传部署后，用 `vercel inspect <deployment-url>` 确认 `status: Ready`；如果当前网络无法访问 `*.vercel.app`，以 Vercel inspect 状态和你本机浏览器实测为准。

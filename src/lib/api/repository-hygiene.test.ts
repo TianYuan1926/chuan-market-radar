@@ -1195,7 +1195,7 @@ test("external scan scheduler calls the protected scan endpoint without hard-cod
     "utf8",
   );
 
-  assert.match(workflowSource, /cron:\s*["']\*\/30 \* \* \* \*["']/);
+  assert.match(workflowSource, /cron:\s*["']\*\/15 \* \* \* \*["']/);
   assert.match(workflowSource, /workflow_dispatch:/);
   assert.match(workflowSource, /-X POST "\$CHUAN_SCAN_URL"/);
   assert.match(workflowSource, /Authorization: Bearer \$CHUAN_CRON_SECRET/);
