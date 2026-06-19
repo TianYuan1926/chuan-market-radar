@@ -52,6 +52,7 @@ export type CoinGlassProviderOptions = {
   batchSize?: number;
   coinGlassDailyRequestBudget?: number;
   fetcher?: typeof fetch;
+  maxConcurrentRequests?: number;
   ohlcvProvider?: OhlcvProvider;
   universePriorityHintNotes?: string[];
   universePriorityHints?: UniversePriorityHint[];
@@ -126,6 +127,8 @@ const multiTimeframeIntervals: OhlcvInterval[] = [
   "1w",
 ];
 const maxOhlcvSymbolsPerScan = 8;
+const defaultCoinGlassBatchSize = 24;
+const defaultCoinGlassRequestConcurrency = 6;
 
 type MarketRowQualityReport = {
   cleanRows: CoinGlassMarketRow[];
@@ -375,33 +378,79 @@ async function fetchPairsMarkets({
   apiKey,
   baseAssets,
   fetcher,
+  maxConcurrentRequests,
 }: {
   apiKey: string;
   baseAssets: string[];
   fetcher?: typeof fetch;
+  maxConcurrentRequests?: number;
 }) {
-  const rows: CoinGlassMarketRow[] = [];
-
-  for (const symbol of baseAssets) {
-    const data = await requestCoinGlass<CoinGlassMarketRow[]>({
+  const concurrency = safeCoinGlassConcurrency(maxConcurrentRequests);
+  const rowGroups = await mapWithConcurrency(baseAssets, concurrency, async (symbol) =>
+    requestCoinGlass<CoinGlassMarketRow[]>({
       apiKey,
       path: "/api/futures/pairs-markets",
       query: { symbol },
       fetcher,
-    });
+    })
+  );
 
-    rows.push(...data);
+  return rowGroups.flat();
+}
+
+function safeCoinGlassConcurrency(value: number | undefined) {
+  if (!Number.isFinite(value ?? NaN)) {
+    return defaultCoinGlassRequestConcurrency;
   }
 
-  return rows;
+  return Math.min(30, Math.max(1, Math.floor(value as number)));
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+) {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(items.length, concurrency);
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      const item = items[currentIndex];
+
+      if (item !== undefined) {
+        results[currentIndex] = await mapper(item, currentIndex);
+      }
+    }
+  }));
+
+  return results;
+}
+
+function noteConcurrency(value: number | undefined) {
+  const concurrency = safeCoinGlassConcurrency(value);
+
+  return `coinglass concurrency: ${concurrency} parallel pair-market requests`;
+}
+
+export function coinGlassRequestConcurrencyForTest(value?: number) {
+  return safeCoinGlassConcurrency(value);
+}
+
+export function coinGlassDefaultRequestConcurrencyForTest() {
+  return defaultCoinGlassRequestConcurrency;
 }
 
 export function createCoinGlassProvider({
   apiKey,
   baseAssets = ["BTC", "ETH", "SOL"],
-  batchSize = 3,
+  batchSize = defaultCoinGlassBatchSize,
   coinGlassDailyRequestBudget,
   fetcher,
+  maxConcurrentRequests,
   ohlcvProvider,
   universePriorityHintNotes,
   universePriorityHints,
@@ -442,6 +491,7 @@ export function createCoinGlassProvider({
         apiKey,
         baseAssets: batchPlan.assets,
         fetcher,
+        maxConcurrentRequests,
       });
       const qualityReport = qualityFilterMarketRows(marketRows);
       const cleanMarketRows = qualityReport.cleanRows;
@@ -601,6 +651,7 @@ export function createCoinGlassProvider({
           quota.wasCapped
             ? `quota guard: requested batch ${quota.requestedBatchSize} capped to ${quota.effectiveBatchSize}`
             : `quota guard: requested batch ${quota.requestedBatchSize} kept`,
+          noteConcurrency(maxConcurrentRequests),
           quota.coinGlassDailyRequestBudget
             ? `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/${quota.coinGlassDailyRequestBudget} daily (${quota.coinGlassBudgetUsagePercent}%), public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`
             : `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/unconfigured daily, public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`,

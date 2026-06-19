@@ -58,6 +58,26 @@ test("buildScanQuotaPlan leaves batch size unchanged when the budget allows it",
   assert.equal(plan.wasCapped, false);
 });
 
+test("buildScanQuotaPlan supports the Hobbyist 24-per-scan operating budget", () => {
+  const plan = buildScanQuotaPlan({
+    cadenceMinutes: 15,
+    coinGlassDailyRequestBudget: 3_000,
+    minimumRequestsPerScan: 3,
+    publicDiscoveryRequestsPerScan: 3,
+    requestedBatchSize: 24,
+  });
+
+  assert.equal(plan.effectiveBatchSize, 24);
+  assert.equal(plan.maxCoinGlassRequestsPerScan, 31);
+  assert.equal(plan.coinGlassRequestsPerScan, 24);
+  assert.equal(plan.coinGlassRequestsPerDayEstimate, 2_304);
+  assert.equal(plan.coinGlassRemainingDailyRequestEstimate, 696);
+  assert.equal(plan.publicDiscoveryRequestsPerDayEstimate, 288);
+  assert.equal(plan.coinGlassBudgetUsagePercent, 77);
+  assert.equal(plan.status, "within_budget");
+  assert.equal(plan.wasCapped, false);
+});
+
 test("buildScanQuotaPlan leaves remaining budget unknown when no CoinGlass budget is configured", () => {
   const plan = buildScanQuotaPlan({
     cadenceMinutes: 15,

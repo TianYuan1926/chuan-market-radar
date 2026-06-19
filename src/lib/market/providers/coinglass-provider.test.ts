@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCoinGlassProvider } from "./coinglass-provider";
+import {
+  coinGlassDefaultRequestConcurrencyForTest,
+  coinGlassRequestConcurrencyForTest,
+  createCoinGlassProvider,
+} from "./coinglass-provider";
 import type { Candle, OhlcvProvider } from "../ohlcv/types";
 
 function coinglassRow(symbol: string, overrides: Record<string, string | number> = {}) {
@@ -66,6 +70,64 @@ test("CoinGlass provider fetches only the current low-rate scan batch", async ()
   assert.deepEqual(snapshot.metadata.coverage?.scannedAssets, ["BTC", "ETH", "ENA"]);
   assert.match(snapshot.metadata.notes.join("\n"), /batch 2\/3/);
   assert.match(snapshot.metadata.notes.join("\n"), /requests 3\/5/);
+});
+
+test("CoinGlass provider clamps request concurrency for Hobbyist-safe bursts", () => {
+  assert.equal(coinGlassDefaultRequestConcurrencyForTest(), 6);
+  assert.equal(coinGlassRequestConcurrencyForTest(), 6);
+  assert.equal(coinGlassRequestConcurrencyForTest(0), 1);
+  assert.equal(coinGlassRequestConcurrencyForTest(12), 12);
+  assert.equal(coinGlassRequestConcurrencyForTest(99), 30);
+});
+
+test("CoinGlass provider defaults to a 24 request scan batch when discovery widens the universe", async () => {
+  const requestedSymbols: string[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA"],
+    universeDiscoveryProvider: {
+      id: "test-discovery",
+      label: "Test Universe Discovery",
+      async discoverInstruments() {
+        return {
+          ok: true,
+          source: "test-discovery",
+          instruments: Array.from({ length: 30 }, (_, index) => ({
+            id: `BINANCE:ALT${index + 1}USDT`,
+            symbol: `ALT${index + 1}USDT`,
+            baseAsset: `ALT${index + 1}`,
+            quoteAsset: "USDT" as const,
+            exchange: "BINANCE" as const,
+            marketType: "perpetual" as const,
+            isActive: true,
+            volume24hUsd: 25_000_000,
+            tags: ["test-discovery"],
+            lastSeenAt: "2026-06-15T00:00:00.000Z",
+          })),
+        };
+      },
+    },
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.equal(requestedSymbols.length, 24);
+  assert.equal(snapshot.metadata.quota?.requestedBatchSize, 24);
+  assert.equal(snapshot.metadata.coverage?.scanned, 24);
+  assert.equal(snapshot.metadata.coverage?.pending, 9);
+  assert.match(snapshot.metadata.notes.join("\n"), /quota guard: requested batch 24 kept/);
 });
 
 test("CoinGlass provider pins BTC and ETH anchors inside the structured universe scan plan", async () => {

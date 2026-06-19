@@ -46,8 +46,9 @@
 
 - `COINGLASS_API_KEY`: CoinGlass 会员 API
 - `COINGLASS_BASE_ASSETS`: CoinGlass 查询币种白名单，例如 `BTC,ETH,SOL,ENA,SUI`
-- `COINGLASS_BATCH_SIZE`: 每个扫描窗口请求多少个基础币，业余会员建议先用 `3`
-- `COINGLASS_DAILY_REQUEST_BUDGET`: 主扫描每日 CoinGlass 请求预算，默认 `300`；业余会员阶段先保守，升级套餐后再上调
+- `COINGLASS_BATCH_SIZE`: 每个 15m 主扫描窗口请求多少个基础币。当前 Hobbyist 30/min 阶段推荐 `24`，其中 BTC/ETH 为锚点，其余槽位轮转山寨。
+- `COINGLASS_DAILY_REQUEST_BUDGET`: 主扫描每日 CoinGlass 请求预算，推荐 `3000`；`24 * 96 = 2304` 次/日，保留失败重试和手动刷新余量。
+- `COINGLASS_MAX_CONCURRENCY`: CoinGlass 主扫描受控并发，推荐 `6`，避免 24 个币串行拖慢 Vercel 函数。
 - `COINGLASS_DAILY_MOVER_MAX_ASSETS`: 每次每日异动抓取最多请求多少个基础币，免费阶段默认 `8`
 - `COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE`: 每侧最多保留多少个涨跌幅样本，默认 `10`
 - `DATABASE_URL`: Neon 或其他 Postgres
@@ -86,10 +87,10 @@
 - 部署前检查会把系统状态归为 `ready`、`preview` 或 `blocked`：`mock` 数据源允许公开预览，但不会被标记为真实行情生产就绪。
 - 即使 `DATABASE_URL` 已填写，只要没有注入真实 `SqlClient`，系统会显示为 fallback/memory，不能算已经接入数据库。
 - CoinGlass provider 只有在 `MARKET_DATA_PROVIDER=coinglass` 且 `COINGLASS_API_KEY` 存在时启用。
-- Hobbyist 会员需要用 `COINGLASS_BASE_ASSETS` 控制查询范围，并用 `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
-- 当前分批队列按 UTC 日内扫描窗口轮转。GitHub Actions 外部扫描 cron 与应用 cadence 对齐为 15 分钟；例如 batch size 为 `3` 时，每 15 分钟只请求 3 个主扫描资产。
+- Hobbyist 会员需要用 `COINGLASS_BASE_ASSETS` 控制基础优先池，并用 `COINGLASS_BATCH_SIZE` 控制每轮请求数量；基础优先池不是全市场上限，公开 USDT 永续 universe 会继续并入轮转。
+- 当前分批队列按 UTC 日内扫描窗口轮转。GitHub Actions 外部扫描 cron 与应用 cadence 对齐为 15 分钟；推荐 batch size 为 `24`，每轮约扫 BTC/ETH + 22 个山寨标的。
 - CoinGlass provider 会先用 Binance public futures `exchangeInfo`、OKX public instruments、Bybit V5 public instruments 发现 USDT 永续合约，再按 `COINGLASS_BATCH_SIZE` 低频请求 CoinGlass；单个交易所发现失败会降级为 source note，全部发现失败时回退到配置白名单。
-- `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。默认 `300` 请求/日、15 分钟 cadence 下，安全批次约为 `3`；线上检查 metadata notes 时应能看到 `quota guard` 和 `quota`。
+- `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。旧值 `300` 会把 15 分钟 cadence 下的安全批次压到约 `3`，导致长期只扫 BTC/ETH + 1 个山寨；当前推荐 `3000`，线上 metadata notes 应显示 `quota guard: requested batch 24 kept`。
 - `/api/health` 会把 quota 与 coverage 汇总为 `scanEconomy`；系统状态面板必须显示“扫描经济 / 今日预算 / 剩余额度 / 请求/轮 / 批次上限 / 层级覆盖 / 不新增请求”，该面板只读展示，不触发额外 CoinGlass 请求。
 - Universe planner 会把资产分成 anchor/core/active/long_tail；BTC/ETH 每轮固定，配置白名单和高流动性币优先，未验证流动性的长尾币默认每 8 个扫描窗口抽样一次。线上检查 metadata notes 时应能看到 `tiered universe` 和 `tier policy`。
 - Universe planner 支持 dynamic priority hints；异常分、历史有效性、近期信号、流动性和交易所覆盖质量较高的币可以占用非 anchor 轮转槽提前扫描，但不能挤掉 BTC/ETH，也不能突破 quota 批次。线上检查 metadata notes 时应能看到 `dynamic priority`。

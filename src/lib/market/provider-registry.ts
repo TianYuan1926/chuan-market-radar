@@ -9,8 +9,13 @@ export type ProviderEnv = {
   COINGLASS_BASE_ASSETS?: string;
   COINGLASS_BATCH_SIZE?: string;
   COINGLASS_DAILY_REQUEST_BUDGET?: string;
+  COINGLASS_MAX_CONCURRENCY?: string;
   [key: string]: string | undefined;
 };
+
+export const defaultCoinGlassBatchSize = 24;
+export const defaultCoinGlassDailyRequestBudget = 3_000;
+export const defaultCoinGlassMaxConcurrency = 6;
 
 export type GetConfiguredMarketProviderOptions = Pick<
   CoinGlassProviderOptions,
@@ -36,22 +41,34 @@ export function parseBaseAssets(value?: string) {
   return [...new Set(assets)];
 }
 
+function positiveNumberFromEnv(value: string | undefined, fallback: number) {
+  const parsed = Number(value ?? fallback);
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export function getConfiguredMarketProvider(
   env: ProviderEnv = process.env,
   options: GetConfiguredMarketProviderOptions = {},
 ): MarketDataProvider {
   if (env.MARKET_DATA_PROVIDER === "coinglass" && env.COINGLASS_API_KEY) {
-    const batchSize = Number(env.COINGLASS_BATCH_SIZE ?? 3);
-    const dailyRequestBudget = Number(env.COINGLASS_DAILY_REQUEST_BUDGET ?? 300);
+    const batchSize = positiveNumberFromEnv(env.COINGLASS_BATCH_SIZE, defaultCoinGlassBatchSize);
+    const dailyRequestBudget = positiveNumberFromEnv(
+      env.COINGLASS_DAILY_REQUEST_BUDGET,
+      defaultCoinGlassDailyRequestBudget,
+    );
+    const maxConcurrentRequests = positiveNumberFromEnv(
+      env.COINGLASS_MAX_CONCURRENCY,
+      defaultCoinGlassMaxConcurrency,
+    );
 
     return createCoinGlassProvider({
       apiKey: env.COINGLASS_API_KEY,
       baseAssets: parseBaseAssets(env.COINGLASS_BASE_ASSETS),
-      batchSize: Number.isFinite(batchSize) ? batchSize : 3,
-      coinGlassDailyRequestBudget: Number.isFinite(dailyRequestBudget) && dailyRequestBudget > 0
-        ? dailyRequestBudget
-        : 300,
+      batchSize,
+      coinGlassDailyRequestBudget: dailyRequestBudget,
       fetcher: options.fetcher,
+      maxConcurrentRequests,
       now: options.now,
       ohlcvProvider: options.ohlcvProvider,
       universeDiscoveryProvider: options.universeDiscoveryProvider ?? createPublicFuturesUniverseDiscoveryProvider(),

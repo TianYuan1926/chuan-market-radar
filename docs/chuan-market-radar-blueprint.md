@@ -446,7 +446,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `MARKET_DATA_PROVIDER=coinglass` 且 `COINGLASS_API_KEY` 存在时启用 CoinGlass provider。
 - `COINGLASS_BASE_ASSETS` 控制扫描资产白名单。
 - `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
-- `COINGLASS_DAILY_REQUEST_BUDGET` 控制主扫描每日 CoinGlass 请求预算，默认按业余会员阶段保守值 `300` 估算。
+- `COINGLASS_DAILY_REQUEST_BUDGET` 控制主扫描每日 CoinGlass 请求预算。基于当前 Hobbyist `30 调用/分钟` 边界，默认改为 `3000`，配合 `COINGLASS_BATCH_SIZE=24` 约使用 `2304` 次/日，保留失败重试和手动刷新余量。
+- `COINGLASS_MAX_CONCURRENCY` 控制 CoinGlass 主扫描受控并发，默认 `6`，避免 24 个币串行拖慢 Vercel 函数，同时低于 30/min 限速。
 - 15 分钟 cadence 下分批扫描，降低触发业余会员限速的概率。
 - Provider 失败时可以使用缓存并显示 stale 状态。
 - 主扫描已加强数据清洗：拒绝 UNKNOWN 交易所、拒绝非 USDT 或报价字段冲突的合约行，并按同币种选择主交易所输出，避免重复信号刷屏。
@@ -578,7 +579,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 已新增 Bybit V5 public instruments 自动发现入口，筛选 `linear`、`LinearPerpetual`、`Trading`、`USDT` 合约，并支持 cursor 分页。
 - CoinGlass provider 会把 Binance/OKX/Bybit 发现到的 USDT 永续合约并入 universe scan plan；某个交易所发现失败时不会拖垮整个扫描，所有交易所都失败时才回退到配置白名单并在 metadata notes 中显示原因。
 - 已支持分层币池：BTC/ETH 为 anchor，配置白名单和高流动性币为 core，中等流动性币为 active，仅被发现但未验证流动性的币先归为 long_tail。
-- 已支持长尾低频抽样轮转：在 `COINGLASS_BATCH_SIZE=3` 这类小批次下，BTC/ETH 固定保留，core 优先轮转，long_tail 默认每 8 个扫描窗口抽样一次，避免 CoinGlass 业余会员被全市场发现打爆。
+- 已支持长尾低频抽样轮转：旧版 `COINGLASS_BATCH_SIZE=3` 会导致 BTC/ETH 固定后只剩 1 个山寨深扫位，已经判定为不符合“全市场山寨雷达”的根因配置。当前默认改为 `COINGLASS_BATCH_SIZE=24`，BTC/ETH 固定保留，剩余约 22 个槽位用于 core / active / long_tail / dynamic priority 轮转，long_tail 默认每 8 个扫描窗口抽样一次。
 - 已支持多交易所覆盖差异分类：`major_three`、`multi_exchange`、`single_exchange`、`unlisted`。
 - `metadata.coverage.exchangeCoverage` 会记录每个币种在哪些交易所有 USDT 永续，`exchangeCoverageSummary` 会输出覆盖质量汇总。
 - 已支持交易所覆盖钻取：`/api/health.fullMarketCoverage.exchangeDrilldown` 会把三所共振、多所覆盖、单所观察和发现缺口拆成只读行，输出样本、动作建议、过滤样本和“不会触发额外请求”的护栏；健康面板已展示该钻取区块。
@@ -1043,7 +1044,7 @@ CoinGlass 业余会员 API：
 ## Vercel 与稳定性原则
 
 - 免费阶段不依赖 Vercel 15 分钟内置 Cron。
-- 使用 GitHub Actions 外部 cron 每 15 分钟请求 `/api/scan`；该频率与应用 `cadenceMinutes=15` 对齐，配合 `COINGLASS_DAILY_REQUEST_BUDGET=300` 和低批次扫描，最大化业余会员预算但不扩大单轮深扫宽度。
+- 使用 GitHub Actions 外部 cron 每 15 分钟请求 `/api/scan`；该频率与应用 `cadenceMinutes=15` 对齐，配合 `COINGLASS_BATCH_SIZE=24`、`COINGLASS_DAILY_REQUEST_BUDGET=3000` 和 `COINGLASS_MAX_CONCURRENCY=6`，让全市场山寨池在免费/业余阶段以低频宽覆盖方式轮转，而不是长期只扫 BTC/ETH + 1 个山寨。
 - 使用外部 cron 每日低频请求 `/api/admin/daily-movers/ingest`。
 - K 线缓存填充只通过受保护入口 `/api/admin/daily-movers/klines/fill` 低频触发，默认小预算、缓存优先，不占用 CoinGlass 请求。
 - API 层必须缓存。
@@ -1118,7 +1119,7 @@ CoinGlass 业余会员 API：
 - 有 major_three/multi_exchange/single_exchange/unlisted 覆盖质量分类。
 - 有 `metadata.coverage.exchangeCoverage` 和 `exchangeCoverageSummary`。
 - 有 `metadata.quota` 和 quota guard notes。
-- 有 `COINGLASS_DAILY_REQUEST_BUDGET` 环境变量，默认 `300` 请求/日。
+- 有 `COINGLASS_DAILY_REQUEST_BUDGET` 环境变量，默认 `3000` 请求/日；旧值 `300` 会把 15m 主扫描压成每轮 3 个请求，属于本项目已识别的全市场覆盖根因问题，不再作为推荐配置。
 - 有 `/api/health` 的 `scanEconomy` 只读摘要：今日预算、预估请求/轮、预估日请求、剩余额度、批次压缩、层级覆盖和下轮重点。
 - 有系统状态面板“扫描经济”区块，解释为什么 CoinGlass 业余会员阶段不能每 15 分钟全市场全扫。
 - 有 `priorityHints` 动态优先级入口，可按异常程度、历史有效性、近期信号、流动性和交易所覆盖质量提升非 anchor 轮转币优先级。

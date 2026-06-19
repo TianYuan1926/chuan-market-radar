@@ -966,7 +966,7 @@ function fullMarketLaneRows(scanEconomy: ScanEconomyReport): FullMarketCoverageL
       id: "anchor",
       label: "锚定大盘",
       pending: scanEconomy.tiers.anchor.pending,
-      priorityHint: "BTC/ETH 用于判断大盘天气，不与山寨抢请求预算。",
+      priorityHint: "BTC/ETH 每轮固定占用锚点请求，用于大盘天气；剩余深扫槽位轮转山寨。",
       selected: scanEconomy.tiers.anchor.selected,
       total: scanEconomy.tiers.anchor.total,
     },
