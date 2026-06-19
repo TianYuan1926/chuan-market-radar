@@ -83,6 +83,8 @@ const defaultAlertPreferences: AlertPreferences = {
   soundEnabled: false,
 };
 
+const candidateStripMaxTiles = 5;
+
 function formatScanTime(value: string) {
   const date = new Date(value);
 
@@ -1186,7 +1188,11 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
     { description: "交易日记和行为记录", label: "Journal", section: "journal" as const, value: `${journalEntries.length} 条` },
     { description: "策略校准与权重学习", label: "Evolution", section: "evolution" as const, value: `${dailyMoverState.strategyConfirmations.length} 版` },
   ];
-  const candidateStripSignals = signals.slice(0, 5);
+  const candidateStripLimit = signals.length > candidateStripMaxTiles
+    ? candidateStripMaxTiles - 1
+    : candidateStripMaxTiles;
+  const candidateStripSignals = signals.slice(0, candidateStripLimit);
+  const candidateHiddenCount = Math.max(0, signals.length - candidateStripSignals.length);
   const selectedSymbol = selected?.symbol.replace("USDT", "") ?? "等待候选";
   const selectedStateLabel = selected ? signalStateLabels[selected.state] : "暂无选中信号";
   const nextActionCopy = selected
@@ -1374,9 +1380,15 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
                   <h2>Signal Arena</h2>
                   <span className="signal-arena-command__subtitle">当前主候选 · 证据链 · 执行边界</span>
                 </div>
-                <button className="action-button action-button--ghost" onClick={() => openSignalDossier()} type="button">
-                  打开信号档案
-                </button>
+                <div className="signal-arena-command__tools">
+                  <span className="tag">首页 {candidateStripSignals.length} / 共 {signals.length}</span>
+                  <button className="action-button action-button--ghost" onClick={() => setActiveSection("signals")} type="button">
+                    查看完整候选池
+                  </button>
+                  <button className="action-button action-button--ghost" onClick={() => openSignalDossier()} type="button">
+                    打开信号档案
+                  </button>
+                </div>
               </div>
 
               <div className="signal-arena-command__focus">
@@ -1392,6 +1404,12 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
             </section>
 
             <section className="signal-candidate-strip" aria-label="信号竞技场候选横条">
+              {candidateStripSignals.length === 0 ? (
+                <div className="signal-candidate-empty">
+                  <b>当前轮暂无候选</b>
+                  <span>请看左侧覆盖率、扫描节拍和复盘回放确认系统是否仍在运行。</span>
+                </div>
+              ) : null}
               {candidateStripSignals.map((signal, index) => (
                 <button
                   className={[
@@ -1411,6 +1429,15 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
                   <em>RR {signal.strategy.riskReward.toFixed(1)}:1</em>
                 </button>
               ))}
+              {candidateHiddenCount > 0 ? (
+                <button className="signal-candidate-tile signal-candidate-tile--overflow" onClick={() => setActiveSection("signals")} type="button">
+                  <span className="signal-candidate-tile__rank">+{candidateHiddenCount}</span>
+                  <strong>更多候选</strong>
+                  <small>首页只放主候选</small>
+                  <b>{signals.length}</b>
+                  <em>打开完整池</em>
+                </button>
+              ) : null}
             </section>
 
             <ChartPanel
@@ -1426,6 +1453,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
                 board={altcoinOpportunityBoard}
                 selectedId={selected?.id}
                 onOpenDossier={openSignalDossier}
+                onOpenSignals={() => setActiveSection("signals")}
                 onSelectSignal={selectSignal}
               />
 
@@ -1541,35 +1569,36 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         )}
       />
 
-      <section
-        aria-label={activeDrawerCopy?.title ?? "Workspace Drawer"}
-        aria-modal={isWorkspaceDrawerOpen}
-        className={`workspace-drawer workspace-drawer--${activeSection} ${isWorkspaceDrawerOpen ? "workspace-drawer--open" : ""}`}
-        role="dialog"
-      >
-        <button
-          aria-label={activeDrawerCopy?.closeLabel ?? "关闭功能抽屉"}
-          className="workspace-drawer__backdrop"
-          onClick={closeWorkspaceDrawer}
-          tabIndex={isWorkspaceDrawerOpen ? 0 : -1}
-          type="button"
-        />
-        <div className="workspace-drawer__panel">
-          <div className="workspace-drawer__head">
-            <div>
-              <span className="mono">Functional Drawer</span>
-              <h2>{activeDrawerCopy?.title ?? "Radar 主控台"}</h2>
-              <small>{activeDrawerCopy?.kicker ?? "主雷达工作台"}</small>
+      {isWorkspaceDrawerOpen ? (
+        <section
+          aria-label={activeDrawerCopy?.title ?? "Workspace Drawer"}
+          aria-modal="true"
+          className={`workspace-drawer workspace-drawer--${activeSection} workspace-drawer--open`}
+          role="dialog"
+        >
+          <button
+            aria-label={activeDrawerCopy?.closeLabel ?? "关闭功能抽屉"}
+            className="workspace-drawer__backdrop"
+            onClick={closeWorkspaceDrawer}
+            type="button"
+          />
+          <div className="workspace-drawer__panel">
+            <div className="workspace-drawer__head">
+              <div>
+                <span className="mono">Functional Drawer</span>
+                <h2>{activeDrawerCopy?.title ?? "Radar 主控台"}</h2>
+                <small>{activeDrawerCopy?.kicker ?? "主雷达工作台"}</small>
+              </div>
+              <button className="workspace-drawer__close" onClick={closeWorkspaceDrawer} type="button">
+                关闭
+              </button>
             </div>
-            <button className="workspace-drawer__close" onClick={closeWorkspaceDrawer} type="button">
-              关闭
-            </button>
+            <div className="workspace-drawer__body">
+              {workspaceDrawerContent}
+            </div>
           </div>
-          <div className="workspace-drawer__body">
-            {workspaceDrawerContent}
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <SignalDossier
         activeTimeframe={activeTimeframe}

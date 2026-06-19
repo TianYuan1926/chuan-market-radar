@@ -22,8 +22,11 @@ type AltcoinOpportunityBoardProps = {
   board: AltcoinOpportunityBoardModel;
   selectedId?: string;
   onOpenDossier?: (id?: string) => void;
+  onOpenSignals?: () => void;
   onSelectSignal: (id: string) => void;
 };
+
+const groupPreviewLimit = 3;
 
 const groupOrder: AltcoinOpportunityGroupKey[] = [
   "near_trigger",
@@ -207,8 +210,12 @@ export function AltcoinOpportunityBoard({
   board,
   selectedId,
   onOpenDossier,
+  onOpenSignals,
   onSelectSignal,
 }: AltcoinOpportunityBoardProps) {
+  const hiddenItemsCount = groupOrder.reduce((total, key) =>
+    total + Math.max(0, board.groups[key].items.length - groupPreviewLimit), 0);
+
   return (
     <section className="module altcoin-opportunity-board" aria-label={ariaLabel}>
       <div className="module-head">
@@ -216,7 +223,14 @@ export function AltcoinOpportunityBoard({
           <h2>山寨机会板</h2>
           <span className="altcoin-opportunity-board__legend">OI / 资金 / 量能</span>
         </div>
-        <span className="tag">{requestPolicyLabel(board.summary.requestPolicy)}</span>
+        <div className="altcoin-opportunity-board__actions">
+          <span className="tag">{requestPolicyLabel(board.summary.requestPolicy)}</span>
+          {hiddenItemsCount > 0 ? (
+            <button className="tag tag--button" onClick={onOpenSignals} type="button">
+              +{hiddenItemsCount} 未展开
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="altcoin-opportunity-board__summary" aria-label="机会板摘要">
@@ -231,6 +245,8 @@ export function AltcoinOpportunityBoard({
           const group = board.groups[key];
           const display = groupDisplay[key];
           const Icon = groupIcons[key];
+          const visibleItems = group.items.slice(0, groupPreviewLimit);
+          const hiddenGroupCount = Math.max(0, group.items.length - visibleItems.length);
 
           return (
             <section className={`altcoin-opportunity-group altcoin-opportunity-group--${key}`} key={key}>
@@ -249,7 +265,7 @@ export function AltcoinOpportunityBoard({
                     <span>暂无样本</span>
                   </div>
                 ) : (
-                  group.items.slice(0, 3).map((item) =>
+                  visibleItems.map((item) =>
                     item.source === "signal" ? (
                       <SignalOpportunityCard
                         isSelected={selectedId === item.id}
@@ -263,6 +279,12 @@ export function AltcoinOpportunityBoard({
                     )
                   )
                 )}
+                {hiddenGroupCount > 0 ? (
+                  <button className="altcoin-opportunity-more" onClick={onOpenSignals} type="button">
+                    <b>另有 {hiddenGroupCount} 个未在首页展开</b>
+                    <span>打开候选池查看完整信号和档案</span>
+                  </button>
+                ) : null}
               </div>
             </section>
           );

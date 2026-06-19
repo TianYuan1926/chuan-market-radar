@@ -392,6 +392,10 @@ export function SignalDossier({
   onCreateJournalEntry,
   signal,
 }: SignalDossierProps) {
+  if (!isOpen) {
+    return null;
+  }
+
   const tradingViewSymbol = toTradingViewSymbol({
     exchange: signal?.exchange,
     symbol: signal?.symbol,
@@ -411,12 +415,11 @@ export function SignalDossier({
   const strategyV3 = signal?.strategyV3;
 
   return (
-    <div className={`signal-dossier ${isOpen ? "signal-dossier--open" : ""}`} aria-hidden={!isOpen}>
+    <div className="signal-dossier signal-dossier--open">
       <button
         aria-label="关闭档案"
         className="signal-dossier__backdrop"
         onClick={onClose}
-        tabIndex={isOpen ? 0 : -1}
         type="button"
       />
 
@@ -803,7 +806,7 @@ export function SignalDossier({
               </div>
               <a className="signal-dossier__tv-link" href={tradingViewUrl} target="_blank" rel="noreferrer">
                 <ExternalLink aria-hidden="true" size={15} strokeWidth={2.4} />
-                <span>打开 TradingView 图表</span>
+                <span>打开 TradingView 实时图</span>
               </a>
             </section>
 

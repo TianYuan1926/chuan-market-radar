@@ -9,6 +9,7 @@ import {
   toTradingViewSymbol,
 } from "@/lib/market/tradingview-links";
 import type { JournalEvent, MarketSignal, Timeframe } from "@/lib/analysis/types";
+import { TradingViewEmbed } from "./tradingview-embed";
 
 type ChartPanelProps = {
   selected?: MarketSignal;
@@ -282,15 +283,15 @@ export function ChartPanel({
   return (
     <section className="module chart-wrap">
       <div className="module-head module-head--flush">
-        <h2>{selected ? `${selected.symbol} 结构主图` : "结构主图"}</h2>
+        <h2>{selected ? `${selected.symbol} 系统结构图` : "系统结构图"}</h2>
         <a className="tag tag--link" href={tradingViewUrl} target="_blank" rel="noreferrer">
-          TradingView 图表 ↗
+          打开 TradingView 实时图 ↗
         </a>
       </div>
 
       <div className="chart-link-strip" aria-label="K线联动状态">
         <span><b>{tradingViewSymbol}</b> 交易对</span>
-        <span><b>{activeTimeframe.toUpperCase()}</b> 本地周期</span>
+        <span><b>{activeTimeframe.toUpperCase()}</b> 系统周期</span>
         <span><b>{interval}</b> TV 周期</span>
         <span><b>{strategyStatus}</b> 策略</span>
         <span><b>{selected ? `${selected.strategy.riskReward.toFixed(2)}R` : "--"}</b> RR</span>
@@ -308,6 +309,16 @@ export function ChartPanel({
           </button>
         ))}
       </div>
+
+      <div className="chart-subsection-head">
+        <div>
+          <strong>TradingView 实时图</strong>
+          <span>真实外部盘面 · 用于人工确认 K 线、形态和成交量</span>
+        </div>
+        <span>{tradingViewSymbol}</span>
+      </div>
+
+      <TradingViewEmbed interval={interval} symbol={tradingViewSymbol} />
 
       <div className="chart-focus-toolbar" aria-label="盘面焦点切换">
         {[
@@ -327,6 +338,14 @@ export function ChartPanel({
             <b>{item.value}</b>
           </button>
         ))}
+      </div>
+
+      <div className="chart-subsection-head chart-subsection-head--structure">
+        <div>
+          <strong>系统结构复核层</strong>
+          <span>只读关键位、Forward Map、复盘事件和策略边界，不冒充实时 K 线</span>
+        </div>
+        <span>{focusSummary}</span>
       </div>
 
       <div className="chart-stage">

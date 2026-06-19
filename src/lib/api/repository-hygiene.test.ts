@@ -294,7 +294,7 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "执行计划",
     "系统状态",
     "事件中心",
-    "结构主图",
+    "系统结构图",
     "复盘记录",
     "扫描回放",
     "段位系统",
@@ -1710,7 +1710,7 @@ test("chart panel exposes active timeframe v3 structure context without replacin
   assert.match(componentSource, /chart-v3-plan/);
   assert.match(componentSource, /chart-v3-pattern-context/);
   assert.match(componentSource, /patternTypeLabel/);
-  assert.match(componentSource, /TradingView 图表/);
+  assert.match(componentSource, /TradingView 实时图/);
   assert.match(cssSource, /\.chart-v3-context/);
   assert.match(cssSource, /\.chart-v3-levels/);
   assert.match(cssSource, /\.chart-v3-plan/);
@@ -1836,6 +1836,8 @@ test("phase 8.2k chart panel exposes readonly candle realism without replacing T
     "chart-volume-profile",
     "只读K线预览",
     "成交量质量",
+    "系统结构复核层",
+    "TradingViewEmbed",
   ];
   const requiredCssTokens = [
     "Phase 8.2k: chart realism and key-level drilldown preview",
@@ -1857,8 +1859,81 @@ test("phase 8.2k chart panel exposes readonly candle realism without replacing T
 
   assert.match(blueprintSource, /Phase 8\.2k/);
   assert.match(blueprintSource, /Chart Realism And Key-Level Drilldown/);
-  assert.match(componentSource, /TradingView 图表/);
+  assert.match(componentSource, /TradingView 实时图/);
   assert.match(componentSource, /不自动下单、不改排序、不自动调权/);
+});
+
+test("public radar UI exposes complete candidate access instead of silent truncation", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const tableSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-table.tsx"),
+    "utf8",
+  );
+  const opportunitySource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/altcoin-opportunity-board.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
+
+  assert.match(workspaceSource, /candidateHiddenCount/);
+  assert.match(workspaceSource, /查看完整候选池/);
+  assert.match(workspaceSource, /更多候选/);
+  assert.match(tableSource, /完整信号列表/);
+  assert.match(tableSource, /不做静默截断/);
+  assert.match(opportunitySource, /hiddenItemsCount/);
+  assert.match(opportunitySource, /未在首页展开/);
+  assert.match(cssSource, /\.signal-candidate-tile--overflow/);
+  assert.match(cssSource, /\.candidate-table__meta/);
+  assert.match(cssSource, /\.altcoin-opportunity-more/);
+  assert.match(blueprintSource, /不允许静默截断/);
+});
+
+test("chart panel uses a real TradingView widget boundary and truthful local structure wording", () => {
+  const chartSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
+    "utf8",
+  );
+  const embedSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/tradingview-embed.tsx"),
+    "utf8",
+  );
+  const dossierSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    "utf8",
+  );
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+  assert.match(chartSource, /TradingViewEmbed/);
+  assert.match(chartSource, /TradingView 实时图/);
+  assert.match(chartSource, /系统结构图/);
+  assert.match(chartSource, /系统结构复核层/);
+  assert.match(embedSource, /https:\/\/s3\.tradingview\.com\/tv\.js/);
+  assert.match(embedSource, /new window\.TradingView\.widget/);
+  assert.match(dossierSource, /打开 TradingView 实时图/);
+  assert.match(cssSource, /\.tradingview-embed/);
+  assert.equal(chartSource.includes("TradingView 图表"), false);
+  assert.equal(dossierSource.includes("TradingView 图表"), false);
+});
+
+test("closed workspace overlays are not left mounted as hidden interaction layers", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const dossierSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    "utf8",
+  );
+
+  assert.match(workspaceSource, /\{isWorkspaceDrawerOpen \? \(/);
+  assert.match(workspaceSource, /workspace-drawer--open/);
+  assert.match(dossierSource, /if \(!isOpen\) \{\s*return null;\s*\}/u);
+  assert.equal(dossierSource.includes("aria-hidden={!isOpen}"), false);
+  assert.equal(dossierSource.includes("tabIndex={isOpen ? 0 : -1}"), false);
 });
 
 test("phase 8 final closeout documents production QA and prevents decorative horizontal overflow", () => {
