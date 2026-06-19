@@ -1,5 +1,10 @@
 import type { PersistenceRepository } from "../persistence/persistence-store";
 import type { DailyMoverSnapshot, RadarSignalSnapshot } from "./daily-movers";
+import {
+  buildDailyMoverCoveragePlan,
+  type DailyMoverCoveragePlan,
+} from "./daily-mover-coverage-plan";
+import type { UniverseDiscoveryProvider } from "./providers/binance-universe-discovery";
 import { requestCoinGlass } from "./providers/coinglass-client";
 import { buildCoinGlassDailyMoverSnapshot } from "./providers/coinglass-daily-movers";
 import type { CoinGlassMarketRow } from "./providers/coinglass-mapper";
@@ -13,6 +18,7 @@ export type CoinGlassDailyMoverIngestOptions = {
   fetcher?: typeof fetch;
   now?: () => Date;
   radarSignals?: RadarSignalSnapshot[];
+  universeDiscoveryProvider?: UniverseDiscoveryProvider;
 };
 
 export type DailyMoverIngestResult = {
@@ -21,22 +27,13 @@ export type DailyMoverIngestResult = {
   scope: string;
   requestedAssets: string[];
   rawRowCount: number;
+  coveragePlan: DailyMoverCoveragePlan;
   snapshot: DailyMoverSnapshot;
   notes: string[];
 };
 
-const defaultBaseAssets = ["BTC", "ETH", "SOL"];
-const defaultMaxAssets = 8;
+const defaultMaxAssets = 30;
 const defaultLimitPerSide = 10;
-
-function normalizeBaseAssets(baseAssets?: string[], maxAssets = defaultMaxAssets) {
-  const assets = (baseAssets && baseAssets.length > 0 ? baseAssets : defaultBaseAssets)
-    .map((asset) => asset.trim().toUpperCase())
-    .filter(Boolean)
-    .map((asset) => asset.replace("/USDT", "").replace("USDT", ""));
-
-  return [...new Set(assets)].slice(0, maxAssets);
-}
 
 async function fetchCoinGlassDailyMoverRows({
   apiKey,
@@ -72,9 +69,17 @@ export async function runCoinGlassDailyMoverIngest({
   now = () => new Date(),
   radarSignals = [],
   repository,
+  universeDiscoveryProvider,
 }: CoinGlassDailyMoverIngestOptions): Promise<DailyMoverIngestResult> {
-  const requestedAssets = normalizeBaseAssets(baseAssets, maxAssets);
-  const observedAt = now().toISOString();
+  const observedAtDate = now();
+  const observedAt = observedAtDate.toISOString();
+  const coveragePlan = await buildDailyMoverCoveragePlan({
+    baseAssets,
+    maxAssets,
+    now: observedAtDate,
+    universeDiscoveryProvider,
+  });
+  const requestedAssets = coveragePlan.requestedAssets;
   const rows = await fetchCoinGlassDailyMoverRows({
     apiKey,
     assets: requestedAssets,
@@ -94,10 +99,13 @@ export async function runCoinGlassDailyMoverIngest({
     scope: repository.scope,
     requestedAssets,
     rawRowCount: rows.length,
+    coveragePlan,
     snapshot: storedSnapshot,
     notes: [
-      `coinglass daily mover ingest: requested ${requestedAssets.length} configured assets`,
+      `coinglass daily mover ingest: requested ${requestedAssets.length} ${coveragePlan.mode} assets`,
       `free tier controls: max assets ${maxAssets}, limit per side ${limitPerSide}`,
+      `daily mover coverage: universe ${coveragePlan.totalUniverseAssets}, discovery ${coveragePlan.discovery.status} ${coveragePlan.discovery.source}`,
+      ...coveragePlan.notes,
       `repository storage: ${repository.mode}`,
     ],
   };

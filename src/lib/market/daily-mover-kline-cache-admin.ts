@@ -2,6 +2,7 @@ import {
   buildDailyMoverBacktestCandidates,
   buildDailyMoverCalibrationFeedback,
 } from "../api/daily-mover-readonly";
+import { isCronRequestAuthorized } from "../api/cron-auth";
 import { createPublicExchangeOhlcvProvider } from "./ohlcv/public-exchange-provider";
 import type { OhlcvProvider } from "./ohlcv/types";
 import type { PersistenceEnv, PersistenceRepository } from "../persistence/persistence-store";
@@ -57,12 +58,6 @@ export type RunAdminDailyMoverKlineCacheFillOptions = {
   repository: PersistenceRepository;
 };
 
-function expectedAuthorization(env: PersistenceEnv) {
-  const secret = env.CRON_SECRET?.trim();
-
-  return secret ? `Bearer ${secret}` : null;
-}
-
 function numberFromEnv(value: string | undefined, fallback: number) {
   const parsed = Number(value);
 
@@ -115,9 +110,7 @@ export async function runAdminDailyMoverKlineCacheFill({
   ohlcvProvider = createPublicExchangeOhlcvProvider(),
   repository,
 }: RunAdminDailyMoverKlineCacheFillOptions): Promise<AdminDailyMoverKlineCacheFillResponse> {
-  const expected = expectedAuthorization(env);
-
-  if (!expected) {
+  if (!env.CRON_SECRET?.trim()) {
     return errorResponse(503, {
       ok: false,
       detail: "Set CRON_SECRET before enabling the K line cache fill endpoint.",
@@ -125,7 +118,7 @@ export async function runAdminDailyMoverKlineCacheFill({
     });
   }
 
-  if (authorization !== expected) {
+  if (!isCronRequestAuthorized(authorization ?? null, env, { requireSecret: true })) {
     return errorResponse(401, {
       ok: false,
       detail: "The K line cache fill request must include the correct Bearer token.",

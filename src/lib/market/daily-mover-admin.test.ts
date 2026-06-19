@@ -116,6 +116,22 @@ test("runAdminDailyMoverIngest triggers the ingest service after authorization",
         scope: repository.scope,
         requestedAssets: options.baseAssets ?? [],
         rawRowCount: 2,
+        coveragePlan: {
+          configuredAssets: options.baseAssets ?? [],
+          discovery: {
+            instrumentCount: 0,
+            notes: [],
+            requestCount: 0,
+            source: "test",
+            status: "ready",
+          },
+          maxAssets: options.maxAssets ?? 30,
+          mode: "discovered_rotation",
+          notes: ["test coverage plan"],
+          requestedAssets: options.baseAssets ?? [],
+          rotationCursor: 20_000,
+          totalUniverseAssets: options.baseAssets?.length ?? 0,
+        },
         snapshot: {
           id: "daily-movers-coinglass-2026-06-14",
           source: "coinglass",
@@ -124,7 +140,7 @@ test("runAdminDailyMoverIngest triggers the ingest service after authorization",
           losers: [],
           reviews: [],
         },
-        notes: ["free tier controls: max assets 8, limit per side 10"],
+        notes: ["free tier controls: max assets 30, limit per side 10"],
       };
     },
     repository,
@@ -136,7 +152,7 @@ test("runAdminDailyMoverIngest triggers the ingest service after authorization",
     apiKey: "test-key",
     baseAssets: ["SOL", "AVAX"],
     limitPerSide: 10,
-    maxAssets: 8,
+    maxAssets: 30,
   }]);
 
   if (response.body.ok) {
@@ -144,5 +160,7 @@ test("runAdminDailyMoverIngest triggers the ingest service after authorization",
     assert.equal(response.body.ingest.storage, "memory");
     assert.deepEqual(response.body.ingest.requestedAssets, ["SOL", "AVAX"]);
     assert.equal(response.body.ingest.rawRowCount, 2);
+    assert.equal(response.body.ingest.coverageMode, "discovered_rotation");
+    assert.equal(response.body.ingest.discoveryStatus, "ready");
   }
 });

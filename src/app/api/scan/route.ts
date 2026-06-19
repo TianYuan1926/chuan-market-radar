@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isCronRequestAuthorized } from "@/lib/api/cron-auth";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
 import {
   getMarketRadarSnapshot,
@@ -13,13 +14,7 @@ const scanRateLimiter = new MemoryRateLimiter({
 });
 
 function isAuthorized(request: NextRequest) {
-  const expectedSecret = process.env.CRON_SECRET;
-
-  if (!expectedSecret) {
-    return true;
-  }
-
-  return request.headers.get("authorization") === `Bearer ${expectedSecret}`;
+  return isCronRequestAuthorized(request.headers.get("authorization"), process.env);
 }
 
 function clientKey(request: NextRequest) {

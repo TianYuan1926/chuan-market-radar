@@ -21,6 +21,7 @@ import type {
   OhlcvProviderFailure,
 } from "../ohlcv/types";
 import { buildScanQuotaPlan } from "../scan-quota";
+import { buildScanStatePoolReport } from "../scan-state-pool";
 import {
   buildCoverageReport,
   buildUniverseRegistry,
@@ -456,7 +457,7 @@ export function createCoinGlassProvider({
         ...discoveredInstruments,
         ...instruments,
       ]);
-      const coverage = buildCoverageReport(universeRegistry, batchPlan);
+      const baseCoverage = buildCoverageReport(universeRegistry, batchPlan);
       const tickers = primarySignalRows.map((row) => mapCoinGlassTicker(row, generatedAt));
       const derivatives = primarySignalRows.map((row) => mapCoinGlassDerivativeSnapshot(row, generatedAt));
       const marketContext = deriveMarketAnchorContext(primarySignalRows, generatedAt);
@@ -548,6 +549,16 @@ export function createCoinGlassProvider({
       const heatmap = primarySignalRows
         .slice(0, 24)
         .map((row) => mapCoinGlassHeatCell(row));
+      const coverage = {
+        ...baseCoverage,
+        statePool: buildScanStatePoolReport({
+          batchPlan,
+          derivatives,
+          registry: universeRegistry,
+          signals,
+          tickers,
+        }),
+      };
       const metadata: ScanMetadata = {
         id: `coinglass-${generatedAt}`,
         mode: "scheduled",

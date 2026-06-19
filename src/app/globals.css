@@ -6586,6 +6586,174 @@ button.altcoin-opportunity-card.is-selected {
   line-height: 1.35;
 }
 
+.health-state-pool {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(82, 115, 204, 0.2);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(82, 115, 204, 0.07), rgba(39, 140, 102, 0.045)),
+    rgba(255, 255, 255, 0.56);
+}
+
+.health-state-pool__grid,
+.health-state-pool__deep-scan,
+.health-state-pool__samples,
+.health-state-pool__bridge,
+.health-state-pool__bridge-list {
+  display: grid;
+  gap: 6px;
+}
+
+.health-state-pool__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.health-state-pool__deep-scan {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-state-pool__samples {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.health-state-pool__bridge {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.health-state-pool__bridge-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.health-state-pool__lane,
+.health-state-pool__deep-scan span,
+.health-state-pool__samples span,
+.health-state-pool__bridge div,
+.health-state-pool__bridge-list span {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.health-state-pool__lane {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+}
+
+.health-state-pool__deep-scan span,
+.health-state-pool__samples span,
+.health-state-pool__bridge div,
+.health-state-pool__bridge-list span {
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.health-state-pool__lane b,
+.health-state-pool__deep-scan b,
+.health-state-pool__samples b,
+.health-state-pool__bridge b,
+.health-state-pool__bridge-list b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-state-pool__lane strong,
+.health-state-pool__lane small,
+.health-state-pool__deep-scan strong,
+.health-state-pool__deep-scan small,
+.health-state-pool__bridge strong,
+.health-state-pool__bridge small,
+.health-state-pool__bridge-list strong,
+.health-state-pool__bridge-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-state-pool__lane strong,
+.health-state-pool__deep-scan strong,
+.health-state-pool__bridge strong,
+.health-state-pool__bridge-list strong {
+  color: var(--ink-2);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.health-state-pool__lane small,
+.health-state-pool__deep-scan small,
+.health-state-pool__bridge small,
+.health-state-pool__bridge-list small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.health-state-pool__bridge div {
+  background:
+    linear-gradient(135deg, rgba(82, 115, 204, 0.08), rgba(255, 255, 255, 0.56)),
+    rgba(255, 255, 255, 0.72);
+}
+
+.health-state-pool__bridge-list span {
+  border-color: rgba(82, 115, 204, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  transition:
+    transform 160ms var(--curve),
+    border-color 160ms var(--curve),
+    background 160ms var(--curve);
+}
+
+.health-state-pool__bridge div:first-child b {
+  animation: scanHeartbeatPulse 1.8s var(--curve) infinite;
+}
+
+.health-state-pool__bridge-list small {
+  display: -webkit-box;
+  min-height: 2.7em;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.health-state-pool__bridge-list span:hover {
+  border-color: rgba(46, 109, 232, 0.36);
+  background: rgba(255, 255, 255, 0.86);
+  transform: translateY(-1px);
+}
+
+.health-state-pool__lane--battle_ready b,
+.health-state-pool__lane--battle_watch b {
+  color: var(--success);
+}
+
+.health-state-pool__lane--hot b {
+  color: var(--warning);
+}
+
+.health-state-pool__lane--cooldown b {
+  color: var(--danger);
+}
+
+.health-state-pool p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .health-data-quality {
   display: grid;
   gap: 8px;
@@ -10740,6 +10908,11 @@ button.altcoin-opportunity-card.is-selected {
   .health-full-market__exchange-drilldown,
   .health-full-market__exchange-actions,
   .health-full-market__samples,
+  .health-state-pool__grid,
+  .health-state-pool__deep-scan,
+  .health-state-pool__samples,
+  .health-state-pool__bridge,
+  .health-state-pool__bridge-list,
   .health-data-quality__grid,
   .health-data-quality__issues,
   .health-data-quality__aggregation,

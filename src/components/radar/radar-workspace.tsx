@@ -554,13 +554,15 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const batchNote = displayMetadataNote(metadataNote(metadata.notes, "batch "));
   const requestsNote = displayMetadataNote(metadataNote(metadata.notes, "requests "));
   const coveragePercent = metadata.coverage?.coveragePercent ?? (metadata.scannedCount > 0 ? 100 : 0);
+  const scanStatePool = liveHealth.scanStatePool;
+  const statePoolBattleCount =
+    scanStatePool.counts.BATTLE_READY + scanStatePool.counts.BATTLE_WATCH;
+  const statePoolAttentionCount =
+    statePoolBattleCount + scanStatePool.counts.CANDIDATE + scanStatePool.counts.HOT + scanStatePool.counts.REVIVE_WATCH;
   const marketSession = useMemo(() => buildMarketSessionClock(clockNow), [clockNow]);
   const runtimeStates = useMemo(() => buildRuntimeStates(liveHealth), [liveHealth]);
   const longBiasCount = signals.filter((signal) => signal.direction === "long").length;
   const shortBiasCount = signals.filter((signal) => signal.direction === "short").length;
-  const activeSignalCount = signals.filter((signal) =>
-    signal.state === "near_trigger" || signal.state === "triggered" || signal.state === "waiting_confirmation"
-  ).length;
   const blockedSignalCount = signals.filter((signal) =>
     signal.risk === "blocked" || signal.risk === "high"
   ).length;
@@ -690,15 +692,17 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
   const selectedPulseTone = signalPulseTone(selected);
   const opsSummaryItems = [
     { label: "数据状态", value: marketStatusLabel(metadata.status) },
-    { label: "自动刷新", value: refreshStatusLabel(refreshState) },
+    { label: "状态池", value: `${scanStatePool.proof.notEliminatedAssets} 常驻` },
     { label: "当前覆盖", value: `${coveragePercent}%` },
-    { label: "待确认", value: activeSignalCount.toString() },
+    { label: "重点池", value: statePoolAttentionCount.toString() },
   ];
   const opsFilterItems = [
     { label: "多头", value: longBiasCount.toString() },
     { label: "空头", value: shortBiasCount.toString() },
+    { label: "热池", value: scanStatePool.counts.HOT.toString() },
+    { label: "复活", value: scanStatePool.counts.REVIVE_WATCH.toString() },
+    { label: "冷池", value: scanStatePool.counts.COLD.toString() },
     { label: "高风险", value: blockedSignalCount.toString() },
-    { label: "候选", value: signals.length.toString() },
   ];
   const opsHealthItems = [
     { label: "数据源", value: runtimeStates[0]?.value ?? marketSourceLabel(metadata.source) },
@@ -1309,6 +1313,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
         runtimeStates={runtimeStates}
         soundEnabled={soundEnabled}
         staleAfterMinutes={metadata.staleAfterMinutes}
+        tickers={tickers}
       />
 
       <RadarBootBriefing
@@ -1426,7 +1431,7 @@ export function RadarWorkspace({ dailyMoverArchive, health, snapshot }: RadarWor
 
               <section className="module altcoin-heat-module">
                 <div className="module-head">
-                  <h2>山寨热区</h2>
+                  <h2>山寨异动热区</h2>
                   <span className="tag">{instrumentPool.summary.accepted} 活跃</span>
                 </div>
                 <div className="pool-audit" aria-label="扫描池健康度">

@@ -5,6 +5,7 @@ import {
   runAdminDeploymentReadiness,
   type DeploymentReadinessReport,
 } from "./deployment-readiness";
+import { buildFallbackScanStatePoolReport } from "../market/scan-state-pool";
 import type { SystemHealthReport } from "./system-health";
 
 function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport {
@@ -147,6 +148,20 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       rejectedRowSamples: [],
       status: "clean",
     },
+    scanStatePool: buildFallbackScanStatePoolReport({
+      batchIndex: 0,
+      coveragePercent: 100,
+      eligible: 24,
+      nextBatchIndex: 0,
+      pending: 0,
+      pendingAssets: [],
+      scanned: 24,
+      scannedAssets: [],
+      skipped: 0,
+      skippedAssets: [],
+      total: 24,
+      totalBatches: 1,
+    }),
     scanEconomy: {
       budget: {
         budgetUsagePercent: 32,

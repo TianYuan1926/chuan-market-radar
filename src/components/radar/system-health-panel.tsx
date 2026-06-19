@@ -533,6 +533,8 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
     .filter((check) => check.status === "passed").length;
   const scanEconomy = health.scanEconomy;
   const fullMarketCoverage = health.fullMarketCoverage;
+  const scanStatePool = health.scanStatePool;
+  const promotionBridge = scanStatePool.promotionBridge;
   const fullMarketGuardrails = fullMarketCoverage.guardrails.slice(0, 3);
   const marketDataQuality = health.marketDataQuality;
   const marketDataQualityGuardrails = marketDataQuality.guardrails.slice(0, 3);
@@ -885,6 +887,105 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
                 <span key={guardrail}>{guardrail}</span>
               ))}
             </div>
+          </div>
+
+          <div
+            className="health-state-pool"
+            aria-label="全市场状态池证明"
+          >
+            <div className="health-ops__head">
+              <div>
+                <span className="mono">状态池调度</span>
+                <strong>{scanStatePool.guardrail}</strong>
+              </div>
+              <b>{scanStatePool.proof.notEliminatedAssets} 常驻</b>
+            </div>
+
+            <div className="health-state-pool__grid" aria-label="状态池数量">
+              {scanStatePool.lanes.map((lane) => (
+                <span className={`health-state-pool__lane health-state-pool__lane--${lane.id.toLowerCase()}`} key={lane.id}>
+                  <b>{lane.count}</b>
+                  <strong>{lane.label}</strong>
+                  <small>{lane.selected} 本轮 · {lane.queued} 排队</small>
+                </span>
+              ))}
+            </div>
+
+            <div className="health-state-pool__deep-scan" aria-label="深扫配额证明">
+              <span>
+                <b>{scanStatePool.deepScan.capacity}</b>
+                <strong>深扫容量</strong>
+                <small>{scanStatePool.deepScan.guardrail}</small>
+              </span>
+              <span>
+                <b>{scanStatePool.deepScan.battleSlots}</b>
+                <strong>作战名额</strong>
+                <small>READY/WATCH</small>
+              </span>
+              <span>
+                <b>{scanStatePool.deepScan.hotSlots}</b>
+                <strong>热区名额</strong>
+                <small>异动插队</small>
+              </span>
+              <span>
+                <b>{scanStatePool.deepScan.explorationSlots}</b>
+                <strong>探索名额</strong>
+                <small>长尾/冷门防漏网</small>
+              </span>
+            </div>
+
+            <div className="health-state-pool__samples" aria-label="状态池扫描证明">
+              <span>
+                <b>本轮</b>
+                {scanStatePool.proof.scannedAssets.length > 0
+                  ? scanStatePool.proof.scannedAssets.join(" / ")
+                  : "暂无"}
+              </span>
+              <span>
+                <b>下一批</b>
+                {scanStatePool.proof.nextBatchAssets.length > 0
+                  ? scanStatePool.proof.nextBatchAssets.join(" / ")
+                  : "等待轮转"}
+              </span>
+              <span>
+                <b>复活</b>
+                {scanStatePool.proof.reviveWatchAssets.length > 0
+                  ? scanStatePool.proof.reviveWatchAssets.join(" / ")
+                  : "暂无复盘复活"}
+              </span>
+            </div>
+
+            <div className="health-state-pool__bridge" aria-label="v2/v3 晋级桥">
+              <div>
+                <b>{promotionBridge.summary.readonlySignals}</b>
+                <strong>只读晋级桥</strong>
+                <small>{promotionBridge.guardrail}</small>
+              </div>
+              <div>
+                <b>{promotionBridge.summary.eligibleForBattle}</b>
+                <strong>作战准备</strong>
+                <small>{promotionBridge.summary.blockedByRisk} 风险阻断 · {promotionBridge.summary.rewardRiskBlocked} 赔率不足</small>
+              </div>
+              <div>
+                <b>{promotionBridge.summary.conflictOrInvalidated}</b>
+                <strong>冲突/失效</strong>
+                <small>回到观察或冷却，不强行给方向</small>
+              </div>
+            </div>
+
+            {promotionBridge.samples.length > 0 ? (
+              <div className="health-state-pool__bridge-list" aria-label="晋级桥样本">
+                {promotionBridge.samples.slice(0, 3).map((sample) => (
+                  <span key={`${sample.symbol}-${sample.suggestedState}`}>
+                    <b>{sample.symbol}</b>
+                    <strong>{sample.currentState} → {sample.suggestedState}</strong>
+                    <small>{sample.summary}</small>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <p>{scanStatePool.proof.notes.slice(0, 2).join(" ")}</p>
           </div>
 
           <div

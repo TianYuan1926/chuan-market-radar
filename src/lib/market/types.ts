@@ -146,6 +146,122 @@ export type ScanPriorityCandidate = ScanPriorityDecision & {
   statusReason: string;
 };
 
+export type ScanStatePoolKey =
+  | "BATTLE_READY"
+  | "BATTLE_WATCH"
+  | "CANDIDATE"
+  | "COLD"
+  | "COOLDOWN"
+  | "DEEP_QUEUE"
+  | "HOT"
+  | "REVIVE_WATCH"
+  | "WARM";
+
+export type ScanStatePoolReason =
+  | "anchor_market_context"
+  | "battle_ready"
+  | "battle_watch"
+  | "cold_exploration"
+  | "cooldown_risk"
+  | "derivative_activity"
+  | "dynamic_priority"
+  | "light_scan_pending"
+  | "recent_or_historical_review"
+  | "signal_candidate"
+  | "tier_rotation"
+  | "volume_price_anomaly";
+
+export type ScanStatePoolCounts = Record<ScanStatePoolKey, number>;
+
+export type ScanStatePoolAssetSample = {
+  baseAsset: string;
+  cadenceHint: string;
+  nextAction: string;
+  promotionBridge?: ScanPromotionBridgeSample;
+  reasons: ScanStatePoolReason[];
+  scannedThisRound: boolean;
+  selectedThisRound: boolean;
+  state: ScanStatePoolKey;
+  symbol: string;
+  tier?: ScanTierKey;
+  venueCoverage?: VenueCoverageQuality;
+};
+
+export type ScanPromotionBridgeSample = {
+  allowedUse: "scan_explanation_only";
+  baseAsset: string;
+  blockers: string[];
+  canMutateLiveRanking: false;
+  currentState: ScanStatePoolKey;
+  drivers: string[];
+  rewardRisk: number | null;
+  summary: string;
+  suggestedState: ScanStatePoolKey;
+  symbol: string;
+  v2?: {
+    decision: string;
+    riskGateAllowed: boolean;
+    stage: string;
+  };
+  v3?: {
+    decision: string;
+    riskGateAllowed: boolean;
+    state: string;
+  };
+};
+
+export type ScanStatePoolLane = {
+  cadenceHint: string;
+  count: number;
+  id: ScanStatePoolKey;
+  label: string;
+  operatorHint: string;
+  queued: number;
+  samples: string[];
+  selected: number;
+};
+
+export type ScanStatePoolReport = {
+  assetSamples: ScanStatePoolAssetSample[];
+  counts: ScanStatePoolCounts;
+  deepScan: {
+    anchorSlots: number;
+    battleSlots: number;
+    capacity: number;
+    explorationSlots: number;
+    guardrail: string;
+    hotSlots: number;
+    queuedAssets: string[];
+    reviveSlots: number;
+    selectedAssets: string[];
+  };
+  guardrail: string;
+  lanes: ScanStatePoolLane[];
+  mode: "state_pool_mvp";
+  omittedAssetCount: number;
+  proof: {
+    coldExplorationAssets: string[];
+    nextBatchAssets: string[];
+    notEliminatedAssets: number;
+    notes: string[];
+    pendingAssets: string[];
+    reviveWatchAssets: string[];
+    scannedAssets: string[];
+    universeAssets: number;
+  };
+  promotionBridge: {
+    guardrail: string;
+    samples: ScanPromotionBridgeSample[];
+    summary: {
+      blockedByRisk: number;
+      conflictOrInvalidated: number;
+      eligibleForBattle: number;
+      readonlySignals: number;
+      rewardRiskBlocked: number;
+    };
+  };
+};
+
 export type ScanDynamicPriorityPlan = {
   boostedAssets: string[];
   candidateCount: number;
@@ -175,6 +291,7 @@ export type ScanCoverage = {
     reason: InstrumentRejectionReason;
     symbol: string;
   }>;
+  statePool?: ScanStatePoolReport;
   tierCounts?: ScanTierCounts;
   tierPolicy?: ScanTierPolicy;
   total: number;

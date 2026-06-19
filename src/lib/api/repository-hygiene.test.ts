@@ -162,6 +162,36 @@ test("public radar shell does not label the live site as demo data", () => {
   assert.match(workspaceSource, /CoinGlass/);
 });
 
+test("public radar shell does not present fixed runtime or ticker values as live data", () => {
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    "utf8",
+  );
+  const topBarSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/top-radar-bar.tsx"),
+    "utf8",
+  );
+  const disallowedTopBarTokens = [
+    "API 延迟 82ms",
+    "Neon Ready",
+    "67,892.1",
+    "3,712.45",
+    "153.21",
+    "36.9%",
+    "24%",
+  ];
+
+  for (const token of disallowedTopBarTokens) {
+    assert.equal(topBarSource.includes(token), false, `top bar must not hardcode fake live value: ${token}`);
+  }
+
+  assert.match(topBarSource, /tickers: MarketTicker\[\]/);
+  assert.match(topBarSource, /marketTapeItems\(tickers\)/);
+  assert.match(workspaceSource, /tickers=\{tickers\}/);
+  assert.equal(workspaceSource.includes("<h2>山寨热区</h2>"), false);
+  assert.match(workspaceSource, /山寨异动热区/);
+});
+
 test("radar UI exposes premium pixel cockpit anchors without relying on prose", () => {
   const workspaceSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
@@ -1298,6 +1328,27 @@ test("protected strategy weight execution API is exposed as a POST-only admin ro
   assert.equal(routeSource.includes("export async function GET"), false);
 });
 
+test("admin execution modules use the shared cron authorization helper", () => {
+  const adminSources = [
+    "src/lib/analysis/v3/forward-map-review-admin.ts",
+    "src/lib/api/deployment-readiness.ts",
+    "src/lib/journal/outcome-executor-admin.ts",
+    "src/lib/journal/strategy-weight-change-execution-admin.ts",
+    "src/lib/market/daily-mover-admin.ts",
+    "src/lib/market/daily-mover-kline-cache-admin.ts",
+    "src/lib/persistence/database-admin.ts",
+  ];
+
+  for (const sourcePath of adminSources) {
+    const source = readFileSync(resolve(process.cwd(), sourcePath), "utf8");
+
+    assert.match(source, /isCronRequestAuthorized/);
+    assert.match(source, /requireSecret: true/);
+    assert.doesNotMatch(source, /function expectedAuthorization/);
+    assert.doesNotMatch(source, /authorization !== expected/);
+  }
+});
+
 test("system health UI exposes outcome executor status and coverage", () => {
   const componentSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/system-health-panel.tsx"),
@@ -1376,6 +1427,9 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(componentSource, /有效/);
   assert.match(componentSource, /反证/);
   assert.match(componentSource, /过期/);
+  assert.match(componentSource, /promotionBridge/);
+  assert.match(componentSource, /只读晋级桥/);
+  assert.match(componentSource, /v2\/v3 晋级桥/);
   assert.match(componentSource, /health-outcomes/);
   assert.match(componentSource, /health-outcome-run/);
   assert.match(componentSource, /health-outcome-quality/);
@@ -1520,6 +1574,10 @@ test("system health UI exposes outcome executor status and coverage", () => {
   assert.match(cssSource, /\.health-data-quality__grid/);
   assert.match(cssSource, /\.health-data-quality__issues/);
   assert.match(cssSource, /\.health-data-quality__guardrails/);
+  assert.match(cssSource, /\.health-state-pool__bridge/);
+  assert.match(cssSource, /\.health-state-pool__bridge-list/);
+  assert.match(cssSource, /scanHeartbeatPulse/);
+  assert.match(cssSource, /-webkit-line-clamp: 2/);
   assert.match(cssSource, /\.health-outcome-execution__button/);
   assert.match(cssSource, /\.health-outcome-shadow/);
   assert.match(cssSource, /\.health-outcome-shadow__grid/);

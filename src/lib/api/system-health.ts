@@ -34,6 +34,9 @@ import {
 import { buildV3PatternReviewStats } from "../journal/v3-pattern-review-stats";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
+import {
+  buildFallbackScanStatePoolReport,
+} from "../market/scan-state-pool";
 import type {
   MarketDataSource,
   MarketDataStatus,
@@ -42,6 +45,7 @@ import type {
   ScanArchiveSummary,
   ScanDynamicPriorityPlan,
   ScanPriorityReason,
+  ScanStatePoolReport,
   ScanTierCounts,
   ScanTierKey,
   VenueCoverageQuality,
@@ -427,6 +431,7 @@ export type SystemHealthReport = {
   coverage: ScanCoverage;
   fullMarketCoverage: FullMarketCoverageReport;
   marketDataQuality: MarketDataQualityReport;
+  scanStatePool: ScanStatePoolReport;
   scanEconomy: ScanEconomyReport;
   operations: {
     batchDetail: string | null;
@@ -2251,6 +2256,7 @@ export async function buildSystemHealthReport({
   const configuredProvider = requestedProvider(env);
   const metadata = snapshot.metadata;
   const coverage = metadata.coverage ?? fallbackCoverage(metadata);
+  const scanStatePool = coverage.statePool ?? buildFallbackScanStatePoolReport(coverage);
   const scanEconomy = buildScanEconomyReport(metadata, coverage);
   const fullMarketCoverage = fullMarketCoverageReport(metadata, coverage, scanEconomy);
   const marketDataQuality = marketDataQualityReport(snapshot);
@@ -2336,6 +2342,7 @@ export async function buildSystemHealthReport({
     coverage,
     fullMarketCoverage,
     marketDataQuality,
+    scanStatePool,
     scanEconomy,
     operations: scanOperations({
       archiveSummaries,

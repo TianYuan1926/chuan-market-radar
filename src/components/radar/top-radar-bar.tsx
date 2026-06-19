@@ -16,6 +16,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import type { MarketTicker } from "@/lib/market/types";
 
 type MarketSessionView = {
   label: string;
@@ -61,6 +62,7 @@ type TopRadarBarProps = {
   runtimeStates: RuntimeStateView[];
   soundEnabled: boolean;
   staleAfterMinutes: number;
+  tickers: MarketTicker[];
 };
 
 const navItems: {
@@ -104,6 +106,76 @@ export function formatCountdownLabel(nextScanAt: string, now = new Date()) {
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
+function runtimeStateById(runtimeStates: RuntimeStateView[], id: string) {
+  return runtimeStates.find((state) => state.id === id);
+}
+
+function budgetFillWidth(...notes: Array<string | undefined>) {
+  for (const note of notes) {
+    const match = note?.match(/(\d+(?:\.\d+)?)%/u);
+    const percent = match ? Number(match[1]) : NaN;
+
+    if (Number.isFinite(percent)) {
+      return `${Math.min(100, Math.max(0, percent))}%`;
+    }
+  }
+
+  return "0%";
+}
+
+function compactTickerSymbol(symbol: string) {
+  return symbol.replace(/USDT$/u, "");
+}
+
+function formatTickerPrice(price: number) {
+  if (!Number.isFinite(price)) {
+    return "--";
+  }
+
+  if (price >= 1000) {
+    return price.toLocaleString("en-US", {
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 1,
+    });
+  }
+
+  if (price >= 1) {
+    return price.toLocaleString("en-US", {
+      maximumFractionDigits: 3,
+      minimumFractionDigits: 2,
+    });
+  }
+
+  return price.toLocaleString("en-US", {
+    maximumFractionDigits: 6,
+    minimumFractionDigits: 4,
+  });
+}
+
+function formatTickerChange(changePercent: number) {
+  if (!Number.isFinite(changePercent)) {
+    return "--";
+  }
+
+  const sign = changePercent > 0 ? "+" : "";
+
+  return `${sign}${changePercent.toFixed(2)}%`;
+}
+
+function marketTapeItems(tickers: MarketTicker[]) {
+  const anchors = ["BTCUSDT", "ETHUSDT"];
+  const bySymbol = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
+  const anchorTickers = anchors
+    .map((symbol) => bySymbol.get(symbol))
+    .filter((ticker): ticker is MarketTicker => Boolean(ticker));
+  const altTickers = tickers
+    .filter((ticker) => !anchors.includes(ticker.symbol))
+    .sort((left, right) => Math.abs(right.changePercent24h) - Math.abs(left.changePercent24h))
+    .slice(0, 8);
+
+  return [...anchorTickers, ...altTickers];
+}
+
 export function TopRadarBar({
   activeSection,
   batchNote,
@@ -129,8 +201,15 @@ export function TopRadarBar({
   runtimeStates,
   soundEnabled,
   staleAfterMinutes,
+  tickers,
 }: TopRadarBarProps) {
   const [countdownLabel, setCountdownLabel] = useState("等待校准");
+  const sourceState = runtimeStateById(runtimeStates, "coinglass");
+  const persistenceState = runtimeStateById(runtimeStates, "neon");
+  const archiveState = runtimeStateById(runtimeStates, "archive");
+  const cronState = runtimeStateById(runtimeStates, "cron");
+  const requestBudgetWidth = budgetFillWidth(requestsNote, batchNote);
+  const tapeItems = marketTapeItems(tickers);
 
   useEffect(() => {
     function tick() {
@@ -199,15 +278,15 @@ export function TopRadarBar({
         <div className={`radar-runtime-card radar-runtime-card--${isRealtime ? "ready" : "watch"}`}>
           <Activity aria-hidden="true" size={15} />
           <div>
-            <strong>{providerLabel} Live</strong>
-            <span>{isRealtime ? "API 延迟 82ms" : "预览源"} · {marketStatus}</span>
+            <strong>{providerLabel}</strong>
+            <span>{sourceState?.value ?? (isRealtime ? "实时源" : "预览源")} · {sourceState?.detail ?? marketStatus}</span>
           </div>
         </div>
-        <div className={`radar-runtime-card radar-runtime-card--${runtimeStates[1]?.tone ?? "watch"}`}>
+        <div className={`radar-runtime-card radar-runtime-card--${persistenceState?.tone ?? "watch"}`}>
           <Zap aria-hidden="true" size={15} />
           <div>
-            <strong>Neon Ready</strong>
-            <span>{runtimeStates[1]?.detail ?? "持久化"} · {runtimeStates[1]?.value ?? "数据库"}</span>
+            <strong>{persistenceState?.label ?? "Neon"}</strong>
+            <span>{persistenceState?.value ?? "待检测"} · {persistenceState?.detail ?? "数据库"}</span>
           </div>
         </div>
         <div className={`radar-runtime-card radar-runtime-card--scan scan-heartbeat next-scan-countdown scan-heartbeat--${refreshTone} scan-heartbeat--freshness-${freshnessTone}`}>
@@ -229,15 +308,15 @@ export function TopRadarBar({
         <div className="radar-runtime-card">
           <CloudRain aria-hidden="true" size={16} />
           <div>
-            <strong>伦敦盘</strong>
-            <span>{nextScanTime} · 等待中</span>
+            <strong>{archiveState?.label ?? "归档"}</strong>
+            <span>{archiveState?.value ?? "0 帧"} · {archiveState?.detail ?? `下一轮 ${nextScanTime}`}</span>
           </div>
         </div>
-        <div className="radar-runtime-card">
+        <div className={`radar-runtime-card radar-runtime-card--${cronState?.tone ?? "watch"}`}>
           <Moon aria-hidden="true" size={16} />
           <div>
-            <strong>纽约盘</strong>
-            <span>20:42:17 · 等待中</span>
+            <strong>{cronState?.label ?? "Cron"}</strong>
+            <span>{cronState?.value ?? "等待"} · {cronState?.detail ?? `最后 ${lastScanTime}`}</span>
           </div>
         </div>
         <div className="radar-runtime-budget" aria-label="今日请求预算">
@@ -245,7 +324,7 @@ export function TopRadarBar({
             <strong>今日请求预算</strong>
             <span>{requestsNote ?? `${candidateCount} 候选 · ${cadenceMinutes}m`}</span>
           </div>
-          <i><b style={{ width: batchNote ? "36.9%" : "24%" }} /></i>
+          <i><b style={{ width: requestBudgetWidth }} /></i>
           <small>{batchNote ?? `护栏 ${staleAfterMinutes}m · 风控门 ${riskGate}`}</small>
         </div>
         <div className={`radar-runtime-card data-freshness freshness-meter freshness-meter--${freshnessTone}`}>
@@ -281,18 +360,16 @@ export function TopRadarBar({
 
       <div className="market-tape radar-market-ticker" aria-label="市场快讯 ticker">
         <div className="market-tape__track">
-          <span>BTC <b>+1.24%</b> 67,892.1</span>
-          <span>ETH <b>-0.68%</b> 3,712.45</span>
-          <span>SOL <b>+2.31%</b> 153.21</span>
-          <span>BNB <b>+0.92%</b> 612.11</span>
-          <span>XRP <b>-0.35%</b> 0.5221</span>
-          <span>DOGE <b>+1.12%</b> 0.1287</span>
-          <span>AVAX <b>+1.85%</b> 36.24</span>
-          <span>SUI <b>+2.67%</b> 1.82</span>
-          <span>{dataFreshnessLabel} · 最后扫描 {lastScanTime}</span>
-          <span>BTC <b>+1.24%</b> 67,892.1</span>
-          <span>ETH <b>-0.68%</b> 3,712.45</span>
-          <span>SOL <b>+2.31%</b> 153.21</span>
+          {(tapeItems.length > 0 ? [...tapeItems, ...tapeItems] : []).map((ticker, index) => (
+            <span key={`${ticker.exchange}-${ticker.symbol}-${index}`}>
+              {compactTickerSymbol(ticker.symbol)} <b>{formatTickerChange(ticker.changePercent24h)}</b>{" "}
+              {formatTickerPrice(ticker.price)}
+            </span>
+          ))}
+          <span>{dataFreshnessLabel} · 最后扫描 {lastScanTime} · {marketStatus}</span>
+          {tapeItems.length === 0 ? (
+            <span>{providerLabel} 暂无 ticker · 等待下一轮扫描</span>
+          ) : null}
         </div>
       </div>
     </header>

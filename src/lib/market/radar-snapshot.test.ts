@@ -6,6 +6,8 @@ import type { GetConfiguredMarketProviderOptions, ProviderEnv } from "./provider
 import {
   buildRepositoryAwareMarketProvider,
   enrichSnapshotWithAiReviews,
+  getMarketRadarSnapshot,
+  refreshMarketRadarSnapshot,
 } from "./radar-snapshot";
 import type { MarketDataProvider, MarketRadarSnapshot } from "./types";
 
@@ -164,4 +166,24 @@ test("buildRepositoryAwareMarketProvider injects durable priority hints into the
   assert.equal(result.label, "Captured Provider");
   assert.equal(capturedOptions?.universePriorityHints?.[0]?.symbol, "TIAUSDT");
   assert.match(capturedOptions?.universePriorityHintNotes?.join("\n") ?? "", /repository priority hints: 1 built from memory/);
+});
+
+test("getMarketRadarSnapshot reads without writing archives while refresh persists them", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const provider: MarketDataProvider = {
+    id: "mock",
+    label: "Read Write Boundary Provider",
+    async fetchSnapshot() {
+      return snapshot([]);
+    },
+  };
+
+  await getMarketRadarSnapshot(provider, { repository });
+
+  assert.equal((await repository.listScanArchives()).length, 0);
+
+  const refreshed = await refreshMarketRadarSnapshot(provider, { repository });
+
+  assert.equal(refreshed.status, "updated");
+  assert.equal((await repository.listScanArchives()).length, 1);
 });

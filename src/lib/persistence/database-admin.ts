@@ -4,6 +4,7 @@ import {
   type DatabaseDriver,
   type SchemaMigrationResult,
 } from "./database-client";
+import { isCronRequestAuthorized } from "../api/cron-auth";
 import { createNeonSqlClient, type NeonClientInactiveReason, type NeonSqlClientBundle } from "./neon-client";
 import type { PersistenceEnv, SqlClient } from "./persistence-store";
 
@@ -43,12 +44,6 @@ export type RunAdminPersistenceMigrationOptions = {
   migrate?: (client: SqlClient) => Promise<SchemaMigrationResult>;
 };
 
-function expectedAuthorization(env: PersistenceEnv) {
-  const secret = env.CRON_SECRET?.trim();
-
-  return secret ? `Bearer ${secret}` : null;
-}
-
 function errorResponse(
   status: number,
   body: Extract<AdminPersistenceMigrationResponseBody, { ok: false }>,
@@ -69,9 +64,7 @@ export async function runAdminPersistenceMigration({
   env = {},
   migrate = runPersistenceSchemaMigration,
 }: RunAdminPersistenceMigrationOptions = {}): Promise<AdminPersistenceMigrationResponse> {
-  const expected = expectedAuthorization(env);
-
-  if (!expected) {
+  if (!env.CRON_SECRET?.trim()) {
     return errorResponse(503, {
       ok: false,
       detail: "Set CRON_SECRET before enabling the database migration endpoint.",
@@ -79,7 +72,7 @@ export async function runAdminPersistenceMigration({
     });
   }
 
-  if (authorization !== expected) {
+  if (!isCronRequestAuthorized(authorization ?? null, env, { requireSecret: true })) {
     return errorResponse(401, {
       ok: false,
       detail: "The migration request must include the correct Bearer token.",

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "@/lib/analysis/types";
 import type { SystemHealthReport } from "@/lib/api/system-health";
+import { buildFallbackScanStatePoolReport } from "../market/scan-state-pool";
 import {
   buildAlertControlReport,
   buildAlertEvent,
@@ -200,6 +201,20 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       rejectedRowSamples: [],
       status: "clean",
     },
+    scanStatePool: buildFallbackScanStatePoolReport({
+      batchIndex: 1,
+      coveragePercent: 40,
+      eligible: 60,
+      nextBatchIndex: 2,
+      pending: 36,
+      pendingAssets: [],
+      scanned: 24,
+      scannedAssets: [],
+      skipped: 0,
+      skippedAssets: [],
+      total: 60,
+      totalBatches: 3,
+    }),
     scanEconomy: {
       budget: {
         budgetUsagePercent: 96,

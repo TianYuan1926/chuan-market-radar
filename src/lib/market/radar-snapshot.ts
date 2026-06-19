@@ -37,8 +37,16 @@ type RepositoryAwareMarketProviderOptions = {
   repository?: PersistenceRepository;
 };
 
-function archiveBundle(replayId?: string): Promise<ScanArchiveBundle> {
-  return buildScanArchiveBundle(appPersistenceRepository, replayId, {
+type SnapshotArchiveOptions = {
+  persistArchive?: boolean;
+  repository?: PersistenceRepository;
+};
+
+function archiveBundle(
+  replayId?: string,
+  repository: PersistenceRepository = appPersistenceRepository,
+): Promise<ScanArchiveBundle> {
+  return buildScanArchiveBundle(repository, replayId, {
     listLimit: 8,
     maxEntries: archiveMaxEntries,
   });
@@ -135,24 +143,34 @@ export async function enrichSnapshotWithAiReviews(
   };
 }
 
-async function withArchive(snapshot: MarketRadarSnapshot): Promise<MarketRadarSnapshot> {
+async function withArchive(
+  snapshot: MarketRadarSnapshot,
+  {
+    persistArchive = false,
+    repository = appPersistenceRepository,
+  }: SnapshotArchiveOptions = {},
+): Promise<MarketRadarSnapshot> {
   const enriched = await enrichSnapshotWithAiReviews(snapshot);
 
-  await appPersistenceRepository.addScanArchive(
-    summarizeScanSnapshot(enriched),
-    createReplayFrame(enriched),
-  );
+  if (persistArchive) {
+    await repository.addScanArchive(
+      summarizeScanSnapshot(enriched),
+      createReplayFrame(enriched),
+    );
+  }
 
   return {
     ...enriched,
-    archive: await archiveBundle(enriched.metadata.id),
+    archive: await archiveBundle(enriched.metadata.id, repository),
   };
 }
 
 export async function getMarketRadarSnapshot(
   provider?: MarketDataProvider,
+  options: SnapshotArchiveOptions = {},
 ): Promise<MarketRadarSnapshot> {
-  const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider();
+  const repository = options.repository ?? appPersistenceRepository;
+  const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider({ repository });
   const result = await runScheduledScan({
     provider: resolvedProvider,
     cache: scanCache,
@@ -164,13 +182,18 @@ export async function getMarketRadarSnapshot(
     throw new Error(result.error ?? "market radar snapshot unavailable");
   }
 
-  return withArchive(result.snapshot);
+  return withArchive(result.snapshot, {
+    persistArchive: options.persistArchive,
+    repository,
+  });
 }
 
 export async function refreshMarketRadarSnapshot(
   provider?: MarketDataProvider,
+  options: SnapshotArchiveOptions = {},
 ) {
-  const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider();
+  const repository = options.repository ?? appPersistenceRepository;
+  const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider({ repository });
   const result = await runScheduledScan({
     provider: resolvedProvider,
     cache: scanCache,
@@ -181,16 +204,13 @@ export async function refreshMarketRadarSnapshot(
 
   return {
     ...result,
-    snapshot: result.snapshot ? await withArchive(result.snapshot) : null,
+    snapshot: result.snapshot ? await withArchive(result.snapshot, {
+      persistArchive: true,
+      repository,
+    }) : null,
   };
 }
 
 export async function getScanArchive(replayId?: string) {
-  const entries = await appPersistenceRepository.listScanArchives(1);
-
-  if (entries.length === 0) {
-    await getMarketRadarSnapshot();
-  }
-
   return archiveBundle(replayId);
 }

@@ -1,4 +1,6 @@
 import { parseBaseAssets } from "./provider-registry";
+import { createPublicFuturesUniverseDiscoveryProvider } from "./providers/public-futures-universe-discovery";
+import { isCronRequestAuthorized } from "../api/cron-auth";
 import {
   runCoinGlassDailyMoverIngest,
   type CoinGlassDailyMoverIngestOptions,
@@ -24,9 +26,12 @@ export type AdminDailyMoverIngestResponseBody =
         notes: string[];
         rawRowCount: number;
         requestedAssets: string[];
+        coverageMode: DailyMoverIngestResult["coveragePlan"]["mode"];
+        discoveryStatus: DailyMoverIngestResult["coveragePlan"]["discovery"]["status"];
         scope: string;
         snapshotId: string;
         storage: DailyMoverIngestResult["storage"];
+        totalUniverseAssets: number;
       };
     }
   | {
@@ -42,14 +47,8 @@ export type RunAdminDailyMoverIngestOptions = {
   repository: PersistenceRepository;
 };
 
-const defaultMaxAssets = 8;
+const defaultMaxAssets = 30;
 const defaultLimitPerSide = 10;
-
-function expectedAuthorization(env: PersistenceEnv) {
-  const secret = env.CRON_SECRET?.trim();
-
-  return secret ? `Bearer ${secret}` : null;
-}
 
 function numberFromEnv(value: string | undefined, fallback: number) {
   const parsed = Number(value);
@@ -81,9 +80,7 @@ export async function runAdminDailyMoverIngest({
   ingest = runCoinGlassDailyMoverIngest,
   repository,
 }: RunAdminDailyMoverIngestOptions): Promise<AdminDailyMoverIngestResponse> {
-  const expected = expectedAuthorization(env);
-
-  if (!expected) {
+  if (!env.CRON_SECRET?.trim()) {
     return errorResponse(503, {
       ok: false,
       detail: "Set CRON_SECRET before enabling the daily mover ingest endpoint.",
@@ -91,7 +88,7 @@ export async function runAdminDailyMoverIngest({
     });
   }
 
-  if (authorization !== expected) {
+  if (!isCronRequestAuthorized(authorization ?? null, env, { requireSecret: true })) {
     return errorResponse(401, {
       ok: false,
       detail: "The daily mover ingest request must include the correct Bearer token.",
@@ -122,6 +119,7 @@ export async function runAdminDailyMoverIngest({
         defaultMaxAssets,
       ),
       repository,
+      universeDiscoveryProvider: createPublicFuturesUniverseDiscoveryProvider(),
     });
 
     return {
@@ -131,9 +129,12 @@ export async function runAdminDailyMoverIngest({
           notes: result.notes,
           rawRowCount: result.rawRowCount,
           requestedAssets: result.requestedAssets,
+          coverageMode: result.coveragePlan.mode,
+          discoveryStatus: result.coveragePlan.discovery.status,
           scope: result.scope,
           snapshotId: result.snapshot.id,
           storage: result.storage,
+          totalUniverseAssets: result.coveragePlan.totalUniverseAssets,
         },
       },
       status: 200,

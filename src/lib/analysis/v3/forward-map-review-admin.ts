@@ -1,5 +1,6 @@
 import { createPublicExchangeOhlcvProvider } from "../../market/ohlcv/public-exchange-provider";
 import type { OhlcvProvider } from "../../market/ohlcv/types";
+import { isCronRequestAuthorized } from "../../api/cron-auth";
 import type { PersistenceEnv, PersistenceRepository } from "../../persistence/persistence-store";
 import {
   runForwardMapReviewExecutor,
@@ -38,12 +39,6 @@ export type RunAdminForwardMapReviewExecutorOptions = {
   repository: PersistenceRepository;
 };
 
-function expectedAuthorization(env: PersistenceEnv) {
-  const secret = env.CRON_SECRET?.trim();
-
-  return secret ? `Bearer ${secret}` : null;
-}
-
 function numberFromEnv(value: string | undefined, fallback: number) {
   const parsed = Number(value);
 
@@ -75,9 +70,7 @@ export async function runAdminForwardMapReviewExecutor({
   ohlcvProvider = createPublicExchangeOhlcvProvider(),
   repository,
 }: RunAdminForwardMapReviewExecutorOptions): Promise<AdminForwardMapReviewResponse> {
-  const expected = expectedAuthorization(env);
-
-  if (!expected) {
+  if (!env.CRON_SECRET?.trim()) {
     return errorResponse(503, {
       ok: false,
       detail: "Set CRON_SECRET before enabling the v3 Forward Map review endpoint.",
@@ -85,7 +78,7 @@ export async function runAdminForwardMapReviewExecutor({
     });
   }
 
-  if (authorization !== expected) {
+  if (!isCronRequestAuthorized(authorization ?? null, env, { requireSecret: true })) {
     return errorResponse(401, {
       ok: false,
       detail: "The v3 Forward Map review request must include the correct Bearer token.",

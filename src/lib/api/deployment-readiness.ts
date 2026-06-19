@@ -1,4 +1,5 @@
 import type { SystemHealthReport } from "./system-health";
+import { isCronRequestAuthorized } from "./cron-auth";
 
 type DeploymentEnv = Record<string, string | undefined>;
 
@@ -340,7 +341,7 @@ export function authorizeDeploymentReadinessRequest({
     });
   }
 
-  if (authorization !== `Bearer ${secret}`) {
+  if (!isCronRequestAuthorized(authorization ?? null, env, { requireSecret: true })) {
     return errorResponse(401, {
       detail: "The readiness request must include the correct Bearer token.",
       error: "unauthorized",

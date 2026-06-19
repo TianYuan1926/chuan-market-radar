@@ -2,6 +2,7 @@ import type {
   JournalEvent,
   StrategyWeightChangeApprovalStatus,
 } from "@/lib/analysis/types";
+import { isCronRequestAuthorized } from "../api/cron-auth";
 import type { RankProfile } from "./rank-engine";
 import type { PersistenceEnv, PersistenceRepository } from "../persistence/persistence-store";
 import {
@@ -54,12 +55,6 @@ const directions: StrategyWeightChangeExecutionJournalInput["direction"][] = [
   "increase",
   "quarantine",
 ];
-
-function expectedAuthorization(env: PersistenceEnv) {
-  const secret = env.CRON_SECRET?.trim();
-
-  return secret ? `Bearer ${secret}` : null;
-}
 
 function errorResponse(
   status: number,
@@ -115,9 +110,7 @@ export async function runAdminStrategyWeightChangeExecutionRecord({
   env = {},
   repository,
 }: RunAdminStrategyWeightChangeExecutionRecordOptions): Promise<AdminStrategyWeightExecutionResponse> {
-  const expected = expectedAuthorization(env);
-
-  if (!expected) {
+  if (!env.CRON_SECRET?.trim()) {
     return errorResponse(503, {
       ok: false,
       detail: "Set CRON_SECRET before enabling manual strategy weight execution records.",
@@ -125,7 +118,7 @@ export async function runAdminStrategyWeightChangeExecutionRecord({
     });
   }
 
-  if (authorization !== expected) {
+  if (!isCronRequestAuthorized(authorization ?? null, env, { requireSecret: true })) {
     return errorResponse(401, {
       ok: false,
       detail: "The manual strategy weight execution request must include the correct Bearer token.",
