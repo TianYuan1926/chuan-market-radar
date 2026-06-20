@@ -464,6 +464,16 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 测试、类型检查、lint、生产构建和关键 UI 浏览器检查是质量底线，不能为了提速省掉。
 - 蓝图只固化核心原则、模块边界、路线变化和重大决策，不记录每个小按钮的施工细节。
 
+## 沟通规则
+
+后续与用户沟通默认使用中文和大白话。能用中文表达的，不用英文术语堆砌；必须使用技术词时，要顺手解释它等于什么、用来干什么、为什么现在需要。
+
+- 默认中文回答，除非代码、命令、环境变量、接口名或第三方产品名必须保留英文。
+- 默认大白话解释，先讲结论和影响，再讲技术细节。
+- 遇到 Docker、Redis、Postgres、Worker、Runner、CDN、Nginx/Caddy、CI/CD、Webhook、Token bucket 等术语时，必须用一句话解释成用户能理解的说法。
+- 方案汇报要明确“这一步解决什么问题、会改变什么、不改变什么、怎么验证、出问题怎么回滚”。
+- 不用装饰性套话，不把半成品说成完成，不把旧数据/缓存/兜底说成真实新数据。
+
 ## 当前技术栈
 
 - 前端与后端：Next.js App Router
@@ -515,6 +525,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 任何部署改造不得添加自动下单，不得连接交易所下单 API。
 - 新服务器验收必须包含：容器健康、`/api/health`、数据库迁移、Redis 连通、主扫描 Worker、CoinGlass 深扫 Worker、动态调度 Worker、日志、备份和回滚。
 - 后续提速优先建设自托管部署流水线、诊断脚本和回滚脚本；不能依赖用户反复手动复制命令排错。
+- 老 Vercel/Neon 到腾讯云的完整迁移属于阶段 0/1 的核心工作，不是可选项。迁移范围包括：Next.js 前端/API 运行环境从 Vercel 切到腾讯云 `web` 容器，Neon Postgres 数据导出并导入腾讯云本机 PostgreSQL，受保护 admin/scan/review worker 从外部 cron 切到单机 Worker，环境变量从 Vercel/Neon 面板迁到服务器 `.env.production`。
+- 数据迁移不能只看“容器能启动”。必须验证旧 Neon 表结构、关键表行数、最近 scan archive、journal events、v3 forward map snapshots、daily mover reviews、rank profile 和 outcome/review 样本是否能在腾讯云 Postgres 读到。
+- 切换生产前，Vercel/Neon 保留只读或回滚状态；腾讯云连续通过健康检查、扫描写入、页面读取、Worker 日志和备份验证后，才把腾讯云视为主生产。
 
 ## 当前阶段状态总览
 
@@ -1204,8 +1217,8 @@ CoinGlass 业余会员 API：
 2026-06-20 之后的当前主顺序，以腾讯云香港单机生产和三源数据体系为默认前提：
 
 ```text
-0. 生产部署稳定化
-   -> Docker Compose、Postgres、Redis、Caddy、Worker、迁移、健康检查、日志、备份、回滚
+0. 生产部署稳定化与老系统迁移
+   -> Vercel/Neon 旧运行和旧数据迁到腾讯云，Docker Compose、Postgres、Redis、Caddy、Worker、迁移、健康检查、日志、备份、回滚
 
 1. 部署自动化与诊断提速
    -> prod deploy / diagnose / rollback 脚本，自托管或等效部署流水线，减少 OrcaTerm 手动复制
