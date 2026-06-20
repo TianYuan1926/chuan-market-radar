@@ -19,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertControlPanel } from "@/components/radar/alert-control-panel";
 import { signalStateLabels } from "@/lib/analysis/constants";
 import type {
   JournalEvent,
@@ -27,6 +28,23 @@ import type {
   SignalJournalAction,
 } from "@/lib/analysis/types";
 import { evaluateStrategyV3Readiness } from "@/lib/analysis/v3/readiness";
+import {
+  buildAlertControlReport,
+  buildAlertEvent,
+  buildAlertHistoryReport,
+  buildOperationsAlertEvent,
+  mergeAlertEventsById,
+  shouldKeepAlertEventForPreferences,
+  shouldSuppressAlert,
+  type AlertControlReport,
+  type AlertEvent,
+  type AlertHistoryAction,
+  type AlertHistoryEntry,
+  type AlertHistoryFilter,
+  type AlertHistoryReport,
+  type AlertPreferences,
+  type AlertSignalThreshold,
+} from "@/lib/alerts/alert-policy";
 import type { BackendContract } from "@/lib/api/backend-contract";
 import type { DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
 import type { SystemHealthReport } from "@/lib/api/system-health";
@@ -83,6 +101,29 @@ const filterTabs: Array<{
   { id: "watch", label: "观察池" },
   { id: "risk", label: "高危预警" },
 ];
+
+const alertHistoryFilters: Array<{
+  id: AlertHistoryFilter;
+  label: string;
+}> = [
+  { id: "active", label: "活跃" },
+  { id: "unseen", label: "未读" },
+  { id: "all", label: "全部" },
+  { id: "archived", label: "归档" },
+];
+
+const defaultAlertPreferences: AlertPreferences = {
+  browserNotificationsEnabled: false,
+  dedupeWindowMinutes: 8,
+  minimumSignalSeverity: "watch",
+  quietHours: {
+    endHour: 7,
+    startHour: 1,
+    timeZone: "Asia/Shanghai",
+  },
+  quietHoursEnabled: false,
+  soundEnabled: true,
+};
 
 function compactSymbol(symbol?: string) {
   return symbol?.replace(/USDT$/u, "") ?? "WAIT";
@@ -237,6 +278,39 @@ function signalFilterMatches(signal: MarketSignal, filter: SignalFilter) {
   return signal.risk === "high" || signal.risk === "blocked" || signal.state === "invalidated";
 }
 
+function buildWorkspaceAlertEvents(snapshot: MarketRadarSnapshot, health: SystemHealthReport) {
+  const signalEvents = snapshot.signals
+    .map((signal) => buildAlertEvent(signal, {
+      generatedAt: snapshot.metadata.generatedAt,
+      scanId: snapshot.metadata.id,
+    }))
+    .filter((event): event is AlertEvent => Boolean(event));
+  const operationsEvent = buildOperationsAlertEvent(health);
+
+  return operationsEvent ? [...signalEvents, operationsEvent] : signalEvents;
+}
+
+function appendWorkspaceAlertEvents(
+  currentEvents: AlertEvent[],
+  incomingEvents: AlertEvent[],
+  preferences: AlertPreferences,
+) {
+  const dedupeWindowMs = preferences.dedupeWindowMinutes * 60 * 1000;
+  const acceptedEvents: AlertEvent[] = [];
+
+  for (const event of incomingEvents) {
+    const generatedAt = new Date(event.generatedAt);
+
+    if (shouldSuppressAlert(event, [...acceptedEvents, ...currentEvents], generatedAt, dedupeWindowMs)) {
+      continue;
+    }
+
+    acceptedEvents.push(event);
+  }
+
+  return mergeAlertEventsById([...acceptedEvents, ...currentEvents], 120);
+}
+
 function strategyStatusLabel(value?: string) {
   if (!value) {
     return "等待";
@@ -385,11 +459,13 @@ function EvidenceList({ signal }: { signal?: MarketSignal }) {
 }
 
 function DossierOverlay({
+  alertEvents,
   journalEntries,
   onClose,
   onCreateJournalEntry,
   signal,
 }: {
+  alertEvents: AlertEvent[];
   journalEntries: JournalEvent[];
   onClose: () => void;
   onCreateJournalEntry: (action: SignalJournalAction) => void;
@@ -402,6 +478,9 @@ function DossierOverlay({
   const relatedJournal = journalEntries
     .filter((entry) => normalizeSymbol(entry.symbol) === normalizeSymbol(signal.symbol))
     .slice(0, 6);
+  const relatedAlerts = alertEvents
+    .filter((event) => event.symbol && normalizeSymbol(event.symbol) === normalizeSymbol(signal.symbol))
+    .slice(0, 4);
   const tvUrl = tradingViewUrl(signal);
   const strategyV3Readiness = signal.strategyV3 ? evaluateStrategyV3Readiness(signal) : null;
 
@@ -504,6 +583,20 @@ function DossierOverlay({
             ))}
           </div>
         </section>
+
+        <section className="chuan-dossier__section">
+          <h3>相关站内告警</h3>
+          <div className="chuan-dossier-alerts">
+            {relatedAlerts.length === 0 ? <span>暂无该标的站内告警。</span> : null}
+            {relatedAlerts.map((event) => (
+              <div className={`chuan-dossier-alert chuan-dossier-alert--${event.severity}`} key={event.id}>
+                <strong>{event.title}</strong>
+                <small>{formatDateTime(event.generatedAt)} · {event.severity}</small>
+                <p>{event.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </section>
   );
@@ -511,23 +604,41 @@ function DossierOverlay({
 
 function Drawer({
   activeSection,
+  alertControlReport,
+  alertEvents,
+  alertHistory,
+  alertPreferences,
   backendContract,
   dailyMoverArchive,
   journalEntries,
+  onBrowserNotificationsChange,
   onClose,
+  onDedupeWindowChange,
+  onMinimumSeverityChange,
   onOpenDossier,
+  onQuietHoursChange,
   onSelectSignal,
+  onSoundToggle,
   rankProfile,
   selected,
   signals,
 }: {
   activeSection: Exclude<NavigationSection, "radar">;
+  alertControlReport: AlertControlReport;
+  alertEvents: AlertEvent[];
+  alertHistory: AlertHistoryReport;
+  alertPreferences: AlertPreferences;
   backendContract: BackendContract;
   dailyMoverArchive: DailyMoverReadArchiveResult["body"];
   journalEntries: JournalEvent[];
+  onBrowserNotificationsChange: (enabled: boolean) => void;
   onClose: () => void;
+  onDedupeWindowChange: (minutes: number) => void;
+  onMinimumSeverityChange: (severity: AlertSignalThreshold) => void;
   onOpenDossier: (signal?: MarketSignal) => void;
+  onQuietHoursChange: (enabled: boolean) => void;
   onSelectSignal: (signal: MarketSignal) => void;
+  onSoundToggle: () => void;
   rankProfile: ReturnType<typeof buildRankProfile>;
   selected?: MarketSignal;
   signals: MarketSignal[];
@@ -656,6 +767,17 @@ function Drawer({
                 <div><dt>容量</dt><dd>{backendContract.scanProof.allocation.capacity}</dd></div>
               </dl>
             </section>
+            <AlertControlPanel
+              alertEvents={alertEvents}
+              alertHistory={alertHistory}
+              onBrowserNotificationsChange={onBrowserNotificationsChange}
+              onDedupeWindowChange={onDedupeWindowChange}
+              onMinimumSeverityChange={onMinimumSeverityChange}
+              onQuietHoursChange={onQuietHoursChange}
+              onSoundToggle={onSoundToggle}
+              preferences={alertPreferences}
+              report={alertControlReport}
+            />
           </div>
         ) : null}
       </div>
@@ -681,7 +803,12 @@ export function ChuanScanWorkspace({
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [lastDelta, setLastDelta] = useState<SignalSetDelta | null>(null);
   const [bootVisible, setBootVisible] = useState(true);
+  const [alertPreferences, setAlertPreferences] = useState<AlertPreferences>(defaultAlertPreferences);
+  const [alertEvents, setAlertEvents] = useState<AlertEvent[]>(() => buildWorkspaceAlertEvents(snapshot, health));
+  const [alertHistoryActions, setAlertHistoryActions] = useState<AlertHistoryAction[]>([]);
+  const [alertHistoryFilter, setAlertHistoryFilter] = useState<AlertHistoryFilter>("active");
   const snapshotRef = useRef(snapshot);
+  const alertPreferencesRef = useRef(defaultAlertPreferences);
 
   const { metadata, signals, tickers } = liveSnapshot;
   const selected = useMemo(
@@ -714,6 +841,21 @@ export function ChuanScanWorkspace({
   const marketHeat = [...tickers]
     .sort((left, right) => Math.abs(right.changePercent24h) - Math.abs(left.changePercent24h))
     .slice(0, 9);
+  const preferenceAlertEvents = useMemo(
+    () => alertEvents.filter((event) => shouldKeepAlertEventForPreferences(event, alertPreferences)),
+    [alertEvents, alertPreferences],
+  );
+  const alertHistory = useMemo(
+    () => buildAlertHistoryReport(preferenceAlertEvents, alertHistoryActions, {
+      filter: alertHistoryFilter,
+      limit: 8,
+    }),
+    [alertHistoryActions, alertHistoryFilter, preferenceAlertEvents],
+  );
+  const alertControlReport = useMemo(
+    () => buildAlertControlReport(alertPreferences),
+    [alertPreferences],
+  );
 
   const openDossier = useCallback((signal?: MarketSignal) => {
     const target = signal ?? selected;
@@ -734,8 +876,51 @@ export function ChuanScanWorkspace({
     setSelectedId(signal.id);
   }, []);
 
+  const openAlertDossier = useCallback((event: AlertHistoryEntry) => {
+    const eventSymbol = event.symbol;
+
+    if (!eventSymbol) {
+      return;
+    }
+
+    const target = signals.find((signal) => normalizeSymbol(signal.symbol) === normalizeSymbol(eventSymbol));
+
+    if (target) {
+      openDossier(target);
+    }
+  }, [openDossier, signals]);
+
   const closeDrawer = useCallback(() => {
     setActiveSection("radar");
+  }, []);
+
+  const appendAlertHistoryAction = useCallback((action: Omit<AlertHistoryAction, "at">) => {
+    setAlertHistoryActions((current) => [
+      ...current.slice(-160),
+      {
+        ...action,
+        at: new Date().toISOString(),
+      },
+    ]);
+  }, []);
+
+  const markAlertSeen = useCallback((alertId: string) => {
+    appendAlertHistoryAction({ alertId, type: "seen" });
+  }, [appendAlertHistoryAction]);
+
+  const archiveAlert = useCallback((alertId: string) => {
+    appendAlertHistoryAction({ alertId, type: "archive" });
+  }, [appendAlertHistoryAction]);
+
+  const restoreAlert = useCallback((alertId: string) => {
+    appendAlertHistoryAction({ alertId, type: "restore" });
+  }, [appendAlertHistoryAction]);
+
+  const updateAlertPreference = useCallback((patch: Partial<AlertPreferences>) => {
+    setAlertPreferences((current) => ({
+      ...current,
+      ...patch,
+    }));
   }, []);
 
   const applyJournalResponse = useCallback((payload: {
@@ -796,6 +981,10 @@ export function ChuanScanWorkspace({
   }, []);
 
   useEffect(() => {
+    alertPreferencesRef.current = alertPreferences;
+  }, [alertPreferences]);
+
+  useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -827,6 +1016,7 @@ export function ChuanScanWorkspace({
         }
 
         const previousSnapshot = snapshotRef.current;
+        const nextHealth = radarPayload.health;
         const nextSnapshot = radarPayload.snapshot;
         const delta = compareSignalSets({
           nextScanId: nextSnapshot.metadata.id,
@@ -840,9 +1030,14 @@ export function ChuanScanWorkspace({
         }
 
         setLiveSnapshot(nextSnapshot);
-        setLiveHealth(radarPayload.health);
+        setLiveHealth(nextHealth);
         setLiveContract(contractPayload.contract);
         setJournalEntries((current) => mergeJournalEvents(current, nextSnapshot.journalEvents));
+        setAlertEvents((current) => appendWorkspaceAlertEvents(
+          current,
+          buildWorkspaceAlertEvents(nextSnapshot, nextHealth),
+          alertPreferencesRef.current,
+        ));
         setLastDelta(delta);
         setRefreshState(delta.hasActionableChange ? "updated" : delta.isNewScan ? "quiet" : "idle");
         snapshotRef.current = nextSnapshot;
@@ -1102,17 +1297,51 @@ export function ChuanScanWorkspace({
         <aside className="chuan-radar-side">
           <section className="chuan-side-card chuan-alert-list">
             <div className="chuan-side-card__head">
-              <h2>实时预警</h2>
-              <span>{refreshLabel}</span>
+              <h2>站内告警</h2>
+              <span>{alertHistory.unseenCount} 未读</span>
             </div>
-            {signals.slice(0, 6).map((signal) => (
-              <button key={`alert-${signal.id}`} onClick={() => openDossier(signal)} type="button">
-                <time>{formatTime(signal.updatedAt)}</time>
-                <strong>{compactSymbol(signal.symbol)}</strong>
-                <span>{signalStateLabels[signal.state]}</span>
-                <b className={signal.direction === "short" ? "is-down" : "is-up"}>{signal.direction === "short" ? "SHORT" : signal.direction === "long" ? "LONG" : "WAIT"}</b>
-              </button>
-            ))}
+            <div className="chuan-alert-tabs" aria-label="告警历史筛选">
+              {alertHistoryFilters.map((filter) => (
+                <button
+                  aria-pressed={alertHistoryFilter === filter.id}
+                  className={alertHistoryFilter === filter.id ? "is-active" : ""}
+                  key={filter.id}
+                  onClick={() => setAlertHistoryFilter(filter.id)}
+                  type="button"
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            <div className="chuan-alert-events" aria-label="站内告警历史">
+              {alertHistory.entries.map((event) => (
+                <article className={`chuan-alert-event chuan-alert-event--${event.historyStatus}`} key={event.id}>
+                  <button className="chuan-alert-event__main" onClick={() => openAlertDossier(event)} type="button">
+                    <time>{formatTime(event.generatedAt)}</time>
+                    <strong>{event.symbol ? compactSymbol(event.symbol) : event.title}</strong>
+                    <span>{event.state ? signalStateLabels[event.state] : event.title}</span>
+                    <b className={event.severity === "critical" || event.severity === "high" ? "is-up" : ""}>{event.historyStatus === "active" ? "未读" : event.historyStatus === "seen" ? "已读" : "归档"}</b>
+                  </button>
+                  <p>{event.detail}</p>
+                  <div className="chuan-alert-event__actions">
+                    {event.historyStatus === "active" ? (
+                      <button onClick={() => markAlertSeen(event.id)} type="button">已读</button>
+                    ) : null}
+                    {event.historyStatus !== "archived" ? (
+                      <button onClick={() => archiveAlert(event.id)} type="button">归档</button>
+                    ) : (
+                      <button onClick={() => restoreAlert(event.id)} type="button">恢复</button>
+                    )}
+                  </div>
+                </article>
+              ))}
+              {alertHistory.entries.length === 0 ? (
+                <div className="chuan-empty-state chuan-empty-state--compact">
+                  <strong>暂无站内告警</strong>
+                  <span>{refreshLabel} · 等待接近触发、已触发或系统异常。</span>
+                </div>
+              ) : null}
+            </div>
           </section>
 
           <section className="chuan-side-card chuan-heat-board">
@@ -1163,12 +1392,21 @@ export function ChuanScanWorkspace({
       {activeSection !== "radar" ? (
         <Drawer
           activeSection={activeSection}
+          alertControlReport={alertControlReport}
+          alertEvents={preferenceAlertEvents}
+          alertHistory={alertHistory}
+          alertPreferences={alertPreferences}
           backendContract={liveContract}
           dailyMoverArchive={dailyMoverArchive}
           journalEntries={journalEntries}
+          onBrowserNotificationsChange={(enabled) => updateAlertPreference({ browserNotificationsEnabled: enabled })}
           onClose={closeDrawer}
+          onDedupeWindowChange={(dedupeWindowMinutes) => updateAlertPreference({ dedupeWindowMinutes })}
+          onMinimumSeverityChange={(minimumSignalSeverity) => updateAlertPreference({ minimumSignalSeverity })}
           onOpenDossier={openDossier}
+          onQuietHoursChange={(quietHoursEnabled) => updateAlertPreference({ quietHoursEnabled })}
           onSelectSignal={selectSignal}
+          onSoundToggle={() => updateAlertPreference({ soundEnabled: !alertPreferences.soundEnabled })}
           rankProfile={rankProfile}
           selected={selected}
           signals={signals}
@@ -1176,6 +1414,7 @@ export function ChuanScanWorkspace({
       ) : null}
 
       <DossierOverlay
+        alertEvents={preferenceAlertEvents}
         journalEntries={journalEntries}
         onClose={closeDossier}
         onCreateJournalEntry={createJournalEntry}

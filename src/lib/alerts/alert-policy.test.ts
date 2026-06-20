@@ -7,12 +7,14 @@ import { buildFallbackScanStatePoolReport } from "../market/scan-state-pool";
 import {
   buildAlertControlReport,
   buildAlertEvent,
+  buildAlertHistoryReport,
   buildOperationsAlertEvent,
   mergeAlertEventsById,
   notificationCopyForAlert,
   shouldKeepAlertEventForPreferences,
   shouldSuppressAlert,
   soundProfileForSeverity,
+  type AlertHistoryAction,
   type AlertPreferences,
 } from "./alert-policy";
 
@@ -698,6 +700,70 @@ test("mergeAlertEventsById keeps one stable event per alert id", () => {
 
   assert.deepEqual(merged.map((event) => event.id), [duplicate.id, other.id]);
   assert.equal(merged[0].detail, "newer detail");
+});
+
+test("buildAlertHistoryReport tracks seen archive restore and filters local in-app history", () => {
+  const first = buildAlertEvent(signal(), {
+    generatedAt: "2026-06-14T10:00:00.000Z",
+    scanId: "scan-history-1",
+  })!;
+  const second = buildAlertEvent(signal({
+    symbol: "SUIUSDT",
+    state: "triggered",
+  }), {
+    generatedAt: "2026-06-14T10:03:00.000Z",
+    scanId: "scan-history-2",
+  })!;
+  const operations = buildOperationsAlertEvent(health({
+    scan: {
+      ...health().scan,
+      freshness: "expired",
+      status: "stale",
+    },
+    operations: {
+      ...health().operations,
+      verdict: "attention",
+    },
+  }))!;
+  const actions: AlertHistoryAction[] = [
+    { alertId: first.id, at: "2026-06-14T10:01:00.000Z", type: "seen" },
+    { alertId: second.id, at: "2026-06-14T10:04:00.000Z", type: "archive" },
+    { alertId: second.id, at: "2026-06-14T10:05:00.000Z", type: "restore" },
+    { alertId: operations.id, at: "2026-06-14T10:06:00.000Z", type: "archive" },
+  ];
+
+  const active = buildAlertHistoryReport([first, second, operations], actions, {
+    filter: "active",
+    limit: 10,
+  });
+  const archived = buildAlertHistoryReport([first, second, operations], actions, {
+    filter: "archived",
+    limit: 10,
+  });
+  const unseen = buildAlertHistoryReport([first, second, operations], actions, {
+    filter: "unseen",
+    limit: 10,
+  });
+  const system = buildAlertHistoryReport([first, second, operations], actions, {
+    filter: "system",
+    limit: 10,
+  });
+
+  assert.equal(active.allowedUse, "in_app_only");
+  assert.equal(active.canUseTelegram, false);
+  assert.equal(active.canUseWebhook, false);
+  assert.equal(active.externalChannelsEnabled, false);
+  assert.equal(active.totalCount, 3);
+  assert.equal(active.activeCount, 2);
+  assert.equal(active.archivedCount, 1);
+  assert.equal(active.unseenCount, 0);
+  assert.deepEqual(active.entries.map((entry) => entry.id), [second.id, first.id]);
+  assert.equal(active.entries.find((entry) => entry.id === first.id)?.historyStatus, "seen");
+  assert.equal(active.entries.find((entry) => entry.id === second.id)?.historyStatus, "seen");
+  assert.deepEqual(archived.entries.map((entry) => entry.id), [operations.id]);
+  assert.deepEqual(unseen.entries, []);
+  assert.deepEqual(system.entries, []);
+  assert.match(active.guardrail, /不接 Telegram\/Webhook/);
 });
 
 test("quiet hours suppress sound but keep alert event copy available", () => {

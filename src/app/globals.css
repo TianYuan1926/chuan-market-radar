@@ -15716,22 +15716,65 @@ body {
   font-weight: 850;
 }
 
-.chuan-alert-list button {
+.chuan-alert-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  padding: 12px 14px 4px;
+}
+
+.chuan-alert-tabs button,
+.chuan-alert-event__actions button {
+  min-width: 0;
+  border: 1px solid rgba(232, 160, 32, 0.14);
+  border-radius: 5px;
+  background: rgba(232, 160, 32, 0.05);
+  color: var(--cs-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.chuan-alert-tabs button {
+  min-height: 30px;
+}
+
+.chuan-alert-tabs button:hover,
+.chuan-alert-tabs button.is-active,
+.chuan-alert-event__actions button:hover {
+  border-color: rgba(232, 160, 32, 0.34);
+  background: rgba(232, 160, 32, 0.12);
+  color: #f4f0ea;
+}
+
+.chuan-alert-events {
+  display: grid;
+}
+
+.chuan-alert-event {
+  border-bottom: 1px solid rgba(232, 160, 32, 0.08);
+  padding: 0 0 12px;
+}
+
+.chuan-alert-event--archived {
+  opacity: 0.68;
+}
+
+.chuan-alert-event__main {
   display: grid;
   grid-template-columns: 46px 1fr auto auto;
   align-items: center;
   gap: 10px;
   width: 100%;
   border: 0;
-  border-bottom: 1px solid rgba(232, 160, 32, 0.08);
-  padding: 14px 18px;
+  padding: 13px 18px 8px;
   background: transparent;
   color: var(--cs-muted);
   text-align: left;
   cursor: pointer;
 }
 
-.chuan-alert-list button:hover {
+.chuan-alert-event__main:hover {
   background: rgba(232, 160, 32, 0.06);
 }
 
@@ -15755,6 +15798,71 @@ body {
 
 .chuan-alert-list b {
   font-size: 12px;
+}
+
+.chuan-alert-event p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  padding: 0 18px;
+  color: var(--cs-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.chuan-alert-event__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 9px 18px 0;
+}
+
+.chuan-alert-event__actions button {
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.chuan-dossier-alerts {
+  display: grid;
+  gap: 9px;
+}
+
+.chuan-dossier-alerts > span {
+  color: var(--cs-muted);
+  font-size: 12px;
+}
+
+.chuan-dossier-alert {
+  border: 1px solid rgba(232, 160, 32, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chuan-dossier-alert strong,
+.chuan-dossier-alert small {
+  display: block;
+}
+
+.chuan-dossier-alert strong {
+  color: #f4f0ea;
+  font-size: 13px;
+}
+
+.chuan-dossier-alert small {
+  margin-top: 3px;
+  color: var(--cs-gold);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 10px;
+}
+
+.chuan-dossier-alert p {
+  margin: 7px 0 0;
+  color: var(--cs-muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .chuan-heat-board > div:last-child {

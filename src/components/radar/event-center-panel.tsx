@@ -1,21 +1,26 @@
 import { BellRing, CircleAlert, History, RadioTower, TrendingUp } from "lucide-react";
-import type { AlertEvent } from "@/lib/alerts/alert-policy";
+import type { AlertEvent, AlertHistoryEntry, AlertHistoryReport, AlertHistoryStatus } from "@/lib/alerts/alert-policy";
 import { buildScanEventFeed, type ScanEvent } from "@/lib/market/scan-events";
 import type { SignalSetDelta } from "@/lib/market/live-refresh";
 import type { ScanArchiveBundle } from "@/lib/market/types";
 
 type EventCenterPanelProps = {
   alertEvents?: AlertEvent[];
+  alertHistory?: AlertHistoryReport;
   archive?: ScanArchiveBundle;
   liveDelta?: SignalSetDelta | null;
   liveGeneratedAt?: string;
   liveScanId?: string;
+  onArchiveAlert?: (alertId: string) => void;
+  onMarkAlertSeen?: (alertId: string) => void;
+  onRestoreAlert?: (alertId: string) => void;
 };
 
 type DisplayEvent = {
   actionHint: string;
   detail: string;
   generatedAt: string;
+  historyStatus?: AlertHistoryStatus;
   id: string;
   severity: ScanEvent["severity"] | "critical" | "operations" | "high";
   symbols: string[];
@@ -94,15 +99,45 @@ function alertToDisplayEvent(event: AlertEvent): DisplayEvent {
   };
 }
 
+function historyToDisplayEvent(event: AlertHistoryEntry): DisplayEvent {
+  return {
+    ...alertToDisplayEvent(event),
+    historyStatus: event.historyStatus,
+  };
+}
+
+function historyStatusLabel(status?: AlertHistoryStatus) {
+  if (status === "archived") {
+    return "已归档";
+  }
+
+  if (status === "seen") {
+    return "已读";
+  }
+
+  if (status === "active") {
+    return "未读";
+  }
+
+  return null;
+}
+
 export function EventCenterPanel({
   alertEvents = [],
+  alertHistory,
   archive,
   liveDelta,
   liveGeneratedAt,
   liveScanId,
+  onArchiveAlert,
+  onMarkAlertSeen,
+  onRestoreAlert,
 }: EventCenterPanelProps) {
+  const alertDisplayEvents = alertHistory
+    ? alertHistory.entries.map(historyToDisplayEvent)
+    : alertEvents.map(alertToDisplayEvent);
   const events: DisplayEvent[] = [
-    ...alertEvents.map(alertToDisplayEvent),
+    ...alertDisplayEvents,
     ...buildScanEventFeed(archive, {
       limit: 7,
       liveDelta,
@@ -115,7 +150,9 @@ export function EventCenterPanel({
     <section className="module event-module">
       <div className="module-head">
         <h2>事件中心</h2>
-        <span className="tag">{events.length} 事件</span>
+        <span className="tag">
+          {alertHistory ? `${alertHistory.unseenCount} 未读 / ${alertHistory.archivedCount} 归档` : `${events.length} 事件`}
+        </span>
       </div>
 
       {events.length > 0 ? (
@@ -129,7 +166,10 @@ export function EventCenterPanel({
               <div className="event-card__body">
                 <div className="event-card__title">
                   <strong>{event.title}</strong>
-                  <span className="mono">{eventTypeLabel(event.type)}</span>
+                  <span className="mono">
+                    {eventTypeLabel(event.type)}
+                    {historyStatusLabel(event.historyStatus) ? ` · ${historyStatusLabel(event.historyStatus)}` : ""}
+                  </span>
                 </div>
                 {event.symbols.length > 0 ? (
                   <div className="event-symbols" aria-label="事件币种">
@@ -140,6 +180,19 @@ export function EventCenterPanel({
                 ) : null}
                 <p>{event.detail}</p>
                 <small>{event.actionHint}</small>
+                {event.historyStatus ? (
+                  <div className="event-card__actions" aria-label="告警历史操作">
+                    {event.historyStatus === "active" && onMarkAlertSeen ? (
+                      <button onClick={() => onMarkAlertSeen(event.id)} type="button">已读</button>
+                    ) : null}
+                    {event.historyStatus !== "archived" && onArchiveAlert ? (
+                      <button onClick={() => onArchiveAlert(event.id)} type="button">归档</button>
+                    ) : null}
+                    {event.historyStatus === "archived" && onRestoreAlert ? (
+                      <button onClick={() => onRestoreAlert(event.id)} type="button">恢复</button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}

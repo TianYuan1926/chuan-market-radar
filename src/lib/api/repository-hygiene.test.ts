@@ -756,7 +756,7 @@ test("CHUANSCAN exposes the selected navbar, ticker strip, drawers, and compact 
     "功能抽屉",
     "川川助手",
     "扫描证明",
-    "实时预警",
+    "站内告警",
   ];
   const requiredClasses = [
     "chuan-topbar",

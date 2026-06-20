@@ -203,6 +203,7 @@
 
 **Files:**
 - Modify: `/Users/chuan/Documents/web/src/lib/alerts/*`
+- Modify: `/Users/chuan/Documents/web/src/components/radar/chuan-scan-workspace.tsx`
 - Modify: `/Users/chuan/Documents/web/src/components/radar/event-center-panel.tsx`
 - Modify: `/Users/chuan/Documents/web/src/components/radar/alert-control-panel.tsx`
 - Modify: persistence schema only if durable history is implemented.
@@ -211,10 +212,10 @@
 - Consumes: existing alert events and preferences.
 - Produces: in-app alert history, filtering, archive/seen states, and richer sound profile without Telegram/Webhook.
 
-- [ ] Add tests for history retention, filtering, seen/archive behavior.
-- [ ] Implement local first; durable only if schema changes are justified.
-- [ ] Keep external channels disabled.
-- [ ] Update blueprint, verify, commit.
+- [x] Add tests for history retention, filtering, seen/archive behavior.
+- [x] Implement local first; durable only if schema changes are justified.
+- [x] Keep external channels disabled.
+- [x] Update blueprint, verify, commit.
 
 ### Final Acceptance
 

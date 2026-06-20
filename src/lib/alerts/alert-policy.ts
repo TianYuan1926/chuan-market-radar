@@ -19,6 +19,37 @@ export type AlertEvent = {
   type: AlertType;
 };
 
+export type AlertHistoryStatus = "active" | "archived" | "seen";
+
+export type AlertHistoryEntry = AlertEvent & {
+  archivedAt?: string;
+  historyStatus: AlertHistoryStatus;
+  seenAt?: string;
+};
+
+export type AlertHistoryAction = {
+  alertId: string;
+  at: string;
+  type: "archive" | "restore" | "seen";
+};
+
+export type AlertHistoryFilter = "active" | "all" | "archived" | "signal" | "system" | "unseen";
+
+export type AlertHistoryReport = {
+  activeCount: number;
+  allowedUse: "in_app_only";
+  archivedCount: number;
+  canUseTelegram: false;
+  canUseWebhook: false;
+  entries: AlertHistoryEntry[];
+  externalChannelsEnabled: false;
+  filter: AlertHistoryFilter;
+  guardrail: string;
+  retentionLimit: number;
+  totalCount: number;
+  unseenCount: number;
+};
+
 export type AlertBuildMetadata = {
   generatedAt: string;
   scanId: string;
@@ -62,6 +93,7 @@ export type AlertControlReport = {
 };
 
 const defaultDedupeWindowMs = 8 * 60 * 1000;
+const defaultAlertHistoryLimit = 50;
 
 export function mergeAlertEventsById(events: AlertEvent[], limit = 12) {
   const eventsById = new Map<string, AlertEvent>();
@@ -73,6 +105,118 @@ export function mergeAlertEventsById(events: AlertEvent[], limit = 12) {
   }
 
   return Array.from(eventsById.values()).slice(0, limit);
+}
+
+function sortableTime(value: string) {
+  const time = new Date(value).getTime();
+
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function latestAlertEvents(events: AlertEvent[]) {
+  const sortedEvents = [...events].sort((left, right) => sortableTime(right.generatedAt) - sortableTime(left.generatedAt));
+  const seenIds = new Set<string>();
+  const uniqueEvents: AlertEvent[] = [];
+
+  for (const event of sortedEvents) {
+    if (seenIds.has(event.id)) {
+      continue;
+    }
+
+    seenIds.add(event.id);
+    uniqueEvents.push(event);
+  }
+
+  return uniqueEvents;
+}
+
+function actionsForAlert(actions: AlertHistoryAction[], alertId: string) {
+  return actions
+    .filter((action) => action.alertId === alertId)
+    .sort((left, right) => sortableTime(left.at) - sortableTime(right.at));
+}
+
+function historyEntryFor(event: AlertEvent, actions: AlertHistoryAction[]): AlertHistoryEntry {
+  let archivedAt: string | undefined;
+  let seenAt: string | undefined;
+
+  for (const action of actionsForAlert(actions, event.id)) {
+    if (action.type === "seen") {
+      seenAt = action.at;
+      continue;
+    }
+
+    if (action.type === "archive") {
+      archivedAt = action.at;
+      seenAt = seenAt ?? action.at;
+      continue;
+    }
+
+    archivedAt = undefined;
+  }
+
+  return {
+    ...event,
+    archivedAt,
+    historyStatus: archivedAt ? "archived" : seenAt ? "seen" : "active",
+    seenAt,
+  };
+}
+
+function keepHistoryEntryForFilter(entry: AlertHistoryEntry, filter: AlertHistoryFilter) {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "active") {
+    return entry.historyStatus !== "archived";
+  }
+
+  if (filter === "unseen") {
+    return entry.historyStatus === "active";
+  }
+
+  if (filter === "archived") {
+    return entry.historyStatus === "archived";
+  }
+
+  if (filter === "signal") {
+    return entry.type === "signal_alert" && entry.historyStatus !== "archived";
+  }
+
+  return entry.type !== "signal_alert" && entry.historyStatus !== "archived";
+}
+
+export function buildAlertHistoryReport(
+  events: AlertEvent[],
+  actions: AlertHistoryAction[] = [],
+  options: {
+    filter?: AlertHistoryFilter;
+    limit?: number;
+  } = {},
+): AlertHistoryReport {
+  const retentionLimit = Math.max(1, Math.floor(options.limit ?? defaultAlertHistoryLimit));
+  const filter = options.filter ?? "active";
+  const entries = latestAlertEvents(events)
+    .map((event) => historyEntryFor(event, actions));
+  const filteredEntries = entries
+    .filter((entry) => keepHistoryEntryForFilter(entry, filter))
+    .slice(0, retentionLimit);
+
+  return {
+    activeCount: entries.filter((entry) => entry.historyStatus !== "archived").length,
+    allowedUse: "in_app_only",
+    archivedCount: entries.filter((entry) => entry.historyStatus === "archived").length,
+    canUseTelegram: false,
+    canUseWebhook: false,
+    entries: filteredEntries,
+    externalChannelsEnabled: false,
+    filter,
+    guardrail: "站内告警历史只用于本地查看、标记已读和归档，不接 Telegram/Webhook，不自动下单。",
+    retentionLimit,
+    totalCount: entries.length,
+    unseenCount: entries.filter((entry) => entry.historyStatus === "active").length,
+  };
 }
 
 function stripQuote(symbol: string) {

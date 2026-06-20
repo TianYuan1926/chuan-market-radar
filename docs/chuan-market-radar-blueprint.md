@@ -648,7 +648,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
-| 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音和 Settings 抽屉本地告警控制已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化、站内事件中心筛选归档和更细提示音音色 |
+| 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音、Settings 抽屉本地告警控制、站内告警历史筛选、已读、归档、恢复和信号档案告警联动已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化和更细提示音音色 |
 | 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 浅色工作台探索、2026-06-19 Figma Make 黑金 CHUANSCAN 首页重构已落地；当前首页渲染入口已从 `RadarWorkspace` 切换为 `ChuanScanWorkspace`，旧 2 : 6 : 2 cockpit / 浅色液态玻璃 / chart-first 首屏不再作为当前 UI；2026-06-20 已物理移除旧首页壳文件 `radar-workspace.tsx`、`top-radar-bar.tsx`、`radar-cockpit-shell.tsx`、`radar-boot-briefing.tsx`、`ops-and-filter-panel.tsx`、`pixel-copilot.tsx`；新首页包含 compact navbar、行情带、KPI 墙、主信号卡网格、选中计划 dock、右侧预警/热力/扫描证明、Signals/Review/Journal/Evolution/Settings 功能抽屉和信号档案；桌面 1536x960 与移动 390x844 Playwright QA 已通过；Figma mock 业务数据、随机 K 线和清算热力图概念未接入 | 当前 UI 基线已换成黑金 CHUANSCAN。后续 UI 工作优先做生产数据 QA、动效/hover 精修、信号显示 taxonomy 和业务模块二级页面/抽屉精修；宠物/小人/副驾驶不再作为后续 UI 方向；主线仍优先保证全市场扫描、数据质量、策略引擎和复盘闭环 |
 
 ## 当前已落地模块
@@ -1098,12 +1098,14 @@ AI 复核必须遵守：
 - 浏览器 Notification API 只会在用户主动开启告警后请求权限，不会首屏打扰。
 - 事件中心会把 signal alert、system stale、system failed 和扫描事件合并展示。
 - Settings 抽屉已新增 `AlertControlPanel`，可在站内切换最低信号等级、提示音、浏览器通知、静默时段和 5m/8m/15m 去重窗口。
+- `buildAlertHistoryReport()` 已新增站内本地历史：支持 active/unseen/all/archived 筛选、已读、归档、恢复、本地保留上限和不接外部通道边界。
+- `ChuanScanWorkspace` 右侧“站内告警”已接入真实 alert events，不再只是截取当前信号列表；点击告警可打开同标的信号档案。
+- 信号档案已展示同标的相关站内告警，避免告警、策略和复盘上下文脱钩。
 - `buildAlertControlReport()` 固定输出 `allowedUse: "in_app_only"`，`canUseTelegram=false`，`canUseWebhook=false`，避免后续把外部推送误当作当前阶段目标。
 
 后续需要：
 
 - 告警历史持久化。
-- 站内事件中心筛选与归档。
 - 提示音音色、音量和更多静默规则细化。
 
 ### 未完整落地：UI 精细化
@@ -1473,7 +1475,7 @@ CoinGlass 业余会员 API：
 
 目标：让重要异动有可控提醒。
 
-当前状态：网页内基础告警、站内本地设置和不接外部推送边界已完成，持久化未完成。
+当前状态：网页内基础告警、站内本地设置、站内告警历史筛选、已读、归档、恢复、信号档案告警联动和不接外部推送边界已完成，持久化未完成。
 
 已具备：
 
@@ -1485,11 +1487,13 @@ CoinGlass 业余会员 API：
 - 外部推送边界：当前不接 Telegram/Webhook。
 - 系统异常告警。
 - 事件中心合并展示。
+- 站内告警历史筛选：active / unseen / all / archived。
+- 已读、归档和恢复本地动作。
+- 信号档案相关告警联动。
 
 下一步深化：
 
 - 告警历史持久化。
-- 站内事件中心筛选与归档。
 - 提示音细节和浏览器通知开关优化。
 
 ### 阶段 8：UI 质感深化
@@ -1766,6 +1770,14 @@ CoinGlass 业余会员 API：
    - Strategy Card 和 Signal Dossier 已显示 AI 反证、不确定性、边界摘要和复盘校准 tag；AI 只能辅助人工复核，不能覆盖 v2/v3 证据、Risk Gate、RR、失效条件或 live ranking。
    - 该阶段不新增自动下单、不新增真实交易 API、不自动调权、不改变候选排序。
    - 当前状态：已完成 MVP。下一步进入站内告警历史和事件中心。
+
+38A. **Phase 7-1：In-App Alert History And Event Center**
+   - `buildAlertHistoryReport()` 已落地站内本地告警历史，支持去重后的事件保留、active/unseen/all/archived 筛选、已读、归档、恢复和本地保留上限。
+   - `ChuanScanWorkspace` 已把真实 alert events 接入右侧“站内告警”，刷新时会合并新扫描产生的 signal/system 告警，并按当前去重窗口抑制重复事件。
+   - Settings 抽屉的 `AlertControlPanel` 已显示活跃、未读、归档、本地保留、阈值、提示音、浏览器通知和静默时段；仍固定 `in_app_only`，不接 Telegram/Webhook。
+   - 信号档案已显示同标的相关站内告警，避免告警系统与策略/复盘上下文脱钩。
+   - 该阶段不新增数据库表、不新增外部推送、不新增自动下单、不改变 live ranking；告警历史暂为前端本地状态，刷新页面会重建当前扫描告警。
+   - 当前状态：已完成本地 MVP。下一步只考虑告警历史持久化、提示音细节和浏览器通知体验优化。
 
 39. **V1.7 / V1.8：角色化 UI 方向（历史阶段，已废弃）**
    - 历史阶段曾讨论并验证过像素男性副驾驶、BTC 项链、情绪状态、装备和 S680 删除边界。

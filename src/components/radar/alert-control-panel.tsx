@@ -4,12 +4,14 @@ import { BellRing, BellOff, SlidersHorizontal, Volume2 } from "lucide-react";
 import type {
   AlertControlReport,
   AlertEvent,
+  AlertHistoryReport,
   AlertPreferences,
   AlertSignalThreshold,
 } from "@/lib/alerts/alert-policy";
 
 type AlertControlPanelProps = {
   alertEvents: AlertEvent[];
+  alertHistory?: AlertHistoryReport;
   preferences: AlertPreferences;
   report: AlertControlReport;
   onBrowserNotificationsChange: (enabled: boolean) => void;
@@ -49,6 +51,7 @@ function severityCount(events: AlertEvent[], severity: AlertEvent["severity"]) {
 
 export function AlertControlPanel({
   alertEvents,
+  alertHistory,
   preferences,
   report,
   onBrowserNotificationsChange,
@@ -70,8 +73,8 @@ export function AlertControlPanel({
       <div className="alert-control__summary" aria-label="告警控制摘要">
         <span>
           <BellRing size={14} strokeWidth={2.2} />
-          <b>{alertEvents.length}</b>
-          当前事件
+          <b>{alertHistory?.activeCount ?? alertEvents.length}</b>
+          活跃事件
         </span>
         <span>
           <SlidersHorizontal size={14} strokeWidth={2.2} />
@@ -154,9 +157,16 @@ export function AlertControlPanel({
         <span><b>{report.activeChannels.join(" / ") || "站内事件中心"}</b>当前通道</span>
         <span><b>{report.externalChannelsEnabled ? "开启" : "关闭"}</b>Telegram/Webhook</span>
         <span><b>{severityCount(alertEvents, "critical")}/{severityCount(alertEvents, "high")}/{severityCount(alertEvents, "watch")}</b>Critical/High/Watch</span>
+        {alertHistory ? (
+          <>
+            <span><b>{alertHistory.unseenCount}</b>未读</span>
+            <span><b>{alertHistory.archivedCount}</b>归档</span>
+            <span><b>{alertHistory.retentionLimit}</b>本地保留</span>
+          </>
+        ) : null}
       </div>
 
-      <p>{report.operatorHint}</p>
+      <p>{alertHistory ? `${report.operatorHint} ${alertHistory.guardrail}` : report.operatorHint}</p>
     </section>
   );
 }
