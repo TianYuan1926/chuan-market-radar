@@ -29,6 +29,7 @@ import {
   type UniversePriorityHint,
 } from "../universe-registry";
 import type {
+  MarketDataStatus,
   MarketDataProvider,
   MarketRadarSnapshot,
   ScanMetadata,
@@ -36,7 +37,7 @@ import type {
   ScanV3CoverageDiagnostics,
 } from "../types";
 import type { UniverseDiscoveryProvider } from "./binance-universe-discovery";
-import { requestCoinGlass } from "./coinglass-client";
+import { CoinGlassApiError, requestCoinGlass } from "./coinglass-client";
 import {
   type CoinGlassMarketRow,
   type CoinGlassMarketRowRejectionReason,
@@ -158,6 +159,18 @@ type PrimarySignalRowSelectionReport = {
     selectedExchange: string;
     symbol: string;
   }>;
+};
+
+type CoinGlassPairsMarketFailure = {
+  code?: string;
+  error: string;
+  httpStatus?: number;
+  symbol: string;
+};
+
+type CoinGlassPairsMarketFetch = {
+  failures: CoinGlassPairsMarketFailure[];
+  rows: CoinGlassMarketRow[];
 };
 
 function marketRowVolume(row: CoinGlassMarketRow) {
@@ -285,6 +298,45 @@ function rowBaseAsset(row: CoinGlassMarketRow) {
   const symbol = marketSymbolFromCoinGlass(row);
 
   return symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
+}
+
+function coinGlassFailureFromError(symbol: string, error: unknown): CoinGlassPairsMarketFailure {
+  if (error instanceof CoinGlassApiError) {
+    return {
+      code: error.code,
+      error: error.message,
+      httpStatus: error.httpStatus,
+      symbol,
+    };
+  }
+
+  return {
+    error: error instanceof Error ? error.message : String(error),
+    symbol,
+  };
+}
+
+function compactCoinGlassFailures(failures: CoinGlassPairsMarketFailure[], previewLimit = 8) {
+  const preview = failures
+    .slice(0, previewLimit)
+    .map((failure) => {
+      const status = failure.httpStatus ? ` http ${failure.httpStatus}` : "";
+      const code = failure.code ? ` code ${failure.code}` : "";
+
+      return `${failure.symbol}: ${failure.error}${code}${status}`;
+    })
+    .join("; ");
+  const suffix = failures.length > previewLimit
+    ? `; +${failures.length - previewLimit} more`
+    : "";
+
+  return `${preview}${suffix}`;
+}
+
+function metadataStatusFromCoinGlassFailures(
+  failures: CoinGlassPairsMarketFailure[],
+): MarketDataStatus {
+  return failures.length > 0 ? "partial" : "ready";
 }
 
 function buildRequestDiagnostics({
@@ -482,18 +534,33 @@ async function fetchPairsMarkets({
   baseAssets: string[];
   fetcher?: typeof fetch;
   maxConcurrentRequests?: number;
-}) {
+}): Promise<CoinGlassPairsMarketFetch> {
   const concurrency = safeCoinGlassConcurrency(maxConcurrentRequests);
-  const rowGroups = await mapWithConcurrency(baseAssets, concurrency, async (symbol) =>
-    requestCoinGlass<CoinGlassMarketRow[]>({
-      apiKey,
-      path: "/api/futures/pairs-markets",
-      query: { symbol },
-      fetcher,
-    })
-  );
+  const results = await mapWithConcurrency(baseAssets, concurrency, async (symbol) => {
+    try {
+      const rows = await requestCoinGlass<CoinGlassMarketRow[]>({
+        apiKey,
+        path: "/api/futures/pairs-markets",
+        query: { symbol },
+        fetcher,
+      });
 
-  return rowGroups.flat();
+      return {
+        failures: [],
+        rows,
+      };
+    } catch (error) {
+      return {
+        failures: [coinGlassFailureFromError(symbol, error)],
+        rows: [],
+      };
+    }
+  });
+
+  return {
+    failures: results.flatMap((result) => result.failures),
+    rows: results.flatMap((result) => result.rows),
+  };
 }
 
 function safeCoinGlassConcurrency(value: number | undefined) {
@@ -598,12 +665,14 @@ export function createCoinGlassProvider({
         scanTime,
         { priorityHints: allPriorityHints },
       );
-      const marketRows = await fetchPairsMarkets({
+      const pairMarketFetch = await fetchPairsMarkets({
         apiKey,
         baseAssets: batchPlan.assets,
         fetcher,
         maxConcurrentRequests,
       });
+      const marketRows = pairMarketFetch.rows;
+      const coinGlassFailures = pairMarketFetch.failures;
       const qualityReport = qualityFilterMarketRows(marketRows);
       const cleanMarketRows = qualityReport.cleanRows;
       const primarySelectionReport = selectPrimarySignalRows(cleanMarketRows, generatedAt);
@@ -757,7 +826,7 @@ export function createCoinGlassProvider({
       const metadata: ScanMetadata = {
         id: `coinglass-${generatedAt}`,
         mode: "scheduled",
-        status: "ready",
+        status: metadataStatusFromCoinGlassFailures(coinGlassFailures),
         source: "coinglass",
         isRealtime: true,
         cadenceMinutes: 15,
@@ -787,6 +856,12 @@ export function createCoinGlassProvider({
           lightPriorityHints.length
             ? `public light scan priority hints: ${lightPriorityHints.slice(0, 8).map((item) => item.baseAsset ?? item.symbol).join(",")}`
             : "public light scan priority hints: none",
+          coinGlassFailures.length
+            ? `coinglass deep scan degraded: ${coinGlassFailures.length}/${batchPlan.assets.length} requests failed; public light scan preserved`
+            : "coinglass deep scan: all planned requests returned",
+          coinGlassFailures.length
+            ? `coinglass request failures: ${compactCoinGlassFailures(coinGlassFailures)}`
+            : "coinglass request failures: none",
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
           `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
           qualityReport.rejectedSamples.length

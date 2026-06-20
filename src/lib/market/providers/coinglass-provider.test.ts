@@ -415,6 +415,38 @@ test("CoinGlass provider promotes public light scan candidates into CoinGlass de
   assert.match(snapshot.metadata.notes.join("\n"), /dynamic priority: selected ARB/);
 });
 
+test("CoinGlass provider preserves public scan output when paid deep scan is plan-restricted", async () => {
+  const requestedSymbols: string[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ARB"],
+    batchSize: 3,
+    publicLightScanProvider: publicLightScanProviderForTest(),
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      requestedSymbols.push(url.searchParams.get("symbol") ?? "");
+
+      return new Response(JSON.stringify({
+        code: "403001",
+        msg: "Upgrade Plan",
+        data: null,
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "ARB"]);
+  assert.equal(snapshot.metadata.status, "partial");
+  assert.equal(snapshot.metadata.lightScan?.status, "ready");
+  assert.equal(snapshot.metadata.diagnostics?.requests.coinGlassRequestsPlanned, 3);
+  assert.equal(snapshot.metadata.diagnostics?.requests.rawRows, 0);
+  assert.equal(snapshot.metadata.anomalyCount, 0);
+  assert.match(snapshot.metadata.notes.join("\n"), /coinglass deep scan degraded: 3\/3 requests failed/);
+  assert.match(snapshot.metadata.notes.join("\n"), /BTC: Upgrade Plan/);
+});
+
 test("CoinGlass provider exposes multi-exchange coverage quality in metadata", async () => {
   const provider = createCoinGlassProvider({
     apiKey: "test-key",
