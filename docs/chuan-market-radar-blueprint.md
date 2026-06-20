@@ -436,7 +436,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音和 Settings 抽屉本地告警控制已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化、站内事件中心筛选归档和更细提示音音色 |
-| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 浅色工作台探索、2026-06-19 Figma Make 黑金 CHUANSCAN 首页重构已落地；当前首页渲染入口已从 `RadarWorkspace` 切换为 `ChuanScanWorkspace`，旧 2 : 6 : 2 cockpit / 浅色液态玻璃 / chart-first 首屏不再作为当前 UI；新首页包含 compact navbar、行情带、KPI 墙、主信号卡网格、选中计划 dock、右侧预警/热力/扫描证明/川川助手、Signals/Review/Journal/Evolution/Settings 功能抽屉和信号档案；桌面 1536x960 与移动 390x844 Playwright QA 已通过；Figma mock 业务数据、随机 K 线和清算热力图概念未接入 | 当前 UI 基线已换成黑金 CHUANSCAN。后续 UI 工作优先做生产数据 QA、动效/hover 精修、信号显示 taxonomy 和旧视觉壳物理清理；主线仍优先保证全市场扫描、数据质量、策略引擎和复盘闭环 |
+| 阶段 8：UI 质感深化 | 第一轮、Living Radar 第二轮、Tailwind/daisyUI 基础、2026-06-18 浅色工作台探索、2026-06-19 Figma Make 黑金 CHUANSCAN 首页重构已落地；当前首页渲染入口已从 `RadarWorkspace` 切换为 `ChuanScanWorkspace`，旧 2 : 6 : 2 cockpit / 浅色液态玻璃 / chart-first 首屏不再作为当前 UI；2026-06-20 已物理移除旧首页壳文件 `radar-workspace.tsx`、`top-radar-bar.tsx`、`radar-cockpit-shell.tsx`、`radar-boot-briefing.tsx`、`ops-and-filter-panel.tsx`、`pixel-copilot.tsx`；新首页包含 compact navbar、行情带、KPI 墙、主信号卡网格、选中计划 dock、右侧预警/热力/扫描证明/川川助手、Signals/Review/Journal/Evolution/Settings 功能抽屉和信号档案；桌面 1536x960 与移动 390x844 Playwright QA 已通过；Figma mock 业务数据、随机 K 线和清算热力图概念未接入 | 当前 UI 基线已换成黑金 CHUANSCAN。后续 UI 工作优先做生产数据 QA、动效/hover 精修、信号显示 taxonomy 和业务模块二级页面/抽屉精修；主线仍优先保证全市场扫描、数据质量、策略引擎和复盘闭环 |
 
 ## 当前已落地模块
 
@@ -933,6 +933,13 @@ AI 复核必须遵守：
 - 桌面 1536x960 与移动 390x844 已用 Playwright 截图检查；QA 记录保存于 `design-qa.md`，最终结果为 `passed`。
 - 后续前端工作必须基于该黑金 CHUANSCAN 基线继续，不允许恢复旧浅色 cockpit 作为首页主方向。
 
+2026-06-20 已完成旧 UI 壳物理清理：
+
+- 旧首页壳文件 `radar-workspace.tsx`、`top-radar-bar.tsx`、`radar-cockpit-shell.tsx`、`radar-boot-briefing.tsx`、`ops-and-filter-panel.tsx`、`pixel-copilot.tsx` 已删除，不再作为当前 UI 入口、兼容层或测试正向目标。
+- `ChartPanel`、`SignalDossier`、`DailyMoverPanel`、`ReplayPanel`、`JournalPanel`、`RankPanel`、`SystemHealthPanel`、`AltcoinOpportunityBoard`、`MacroWeatherPanel` 等旧业务组件暂时保留为功能资产和后续二级页面/抽屉迁移素材，不能被误判为当前首页壳。
+- `repository-hygiene.test.ts` 的 UI 治理基线已切到 `ChuanScanWorkspace`：测试必须保护当前首页真实消费 `snapshot` / `health` / `backendContract` / `dailyMoverArchive`，并把旧 2 : 6 : 2 cockpit 组件列为必须不存在。
+- 后续如果继续做前端，不允许“旧壳复活 + 新 UI 套皮”；所有功能补回必须正向接入 CHUANSCAN 的导航、抽屉、信号档案或二级页面。
+
 2026-06-18 Phase 8.2f 已完成 Functional Navigation And Drawers：
 - `TopRadarBar` 的 Radar / Signals / Review / Journal / Evolution / Settings 已从静态按钮升级为真实导航状态；Radar 关闭抽屉回主控台，其余入口打开对应工作区抽屉。
 - 右侧 Action Rail 的功能抽屉入口已可点击，并与顶部导航共享同一 `activeSection`。
@@ -1263,6 +1270,7 @@ CoinGlass 业余会员 API：
 - Phase 3.9 已落地：右栏新增 `MacroWeatherPanel`，用现有扫描快照中的 BTC/ETH ticker、funding、OI、清算字段和扫描状态生成顺风、逆风、震荡、杠杆拥挤、去杠杆、波动扩张、未知等天气层；该层只用于解释山寨候选的顺逆风和风险环境，不新增 CoinGlass 请求，不修改真实策略权重。
 - Phase 8.2e 已落地：按用户选定浅色专业工作台参考图重建首屏信息架构。`TopRadarBar` 统一品牌 banner、液态玻璃雷达之眼、主导航、运行状态条和 ticker；`RadarWorkspace` 首屏保留左侧雷达控制台、中央信号主舞台、候选横条、首屏 Chart/Strategy 和右侧 Action Rail；Altcoin Opportunity Board 下沉为主图后的辅助筛选区；完整 DailyMover/Journal/Replay/Rank 不再常驻首页，而是进入功能抽屉、信号档案或二级页面；`PixelCopilot` 收敛为紧凑 companion dock。
 - 2026-06-19 当前前端基线已切换：用户要求剔除现有前端 UI 后，首页入口改为 `ChuanScanWorkspace`，按 Figma Make 黑金 CHUANSCAN 参考重建为 compact navbar、行情带、KPI 墙、信号卡网格、选中计划 dock、右侧预警/热力/扫描证明/川川助手和功能抽屉。该基线使用真实 `snapshot` / `health` / `backendContract` / `dailyMoverArchive`，不复制 Figma mock 业务逻辑。旧浅色 cockpit 只保留为历史探索记录，不再作为当前 UI 方向。
+- 2026-06-20 旧壳物理清理已落地：`RadarWorkspace`、`TopRadarBar`、`RadarCockpitShell`、`RadarBootBriefing`、`OpsAndFilterPanel`、`PixelCopilot` 对应文件已删除；旧业务面板暂保留为后续迁移资产，不能在首页重新堆叠。
 - Phase 8.2e-QA 已落地：已按 Product Design image-to-code / design QA 流程对选定参考图做桌面 1536x1024 与移动 390x844 检查；最新控制台无错误，旧 LCP warning 已通过 `priority + loading="eager"` 修复；移动端运行状态区已压缩为两列，避免主雷达内容过度下沉；QA 记录保存为 `design-qa.md`。
 - 移动端不挤压、不重叠；后续仍应升级为更明确的 tab/drawer 移动导航。
 
@@ -1472,7 +1480,7 @@ CoinGlass 业余会员 API：
    - 当前状态：已完成 MVP。后续正确搭建项是把复盘样本、Forward Map review 事件和图表关键位做更直接的可追溯联动。
 
 32. **Phase 4V3-19：ChartPanel journal review sample linkage**
-   - `RadarWorkspace` 已为主图选中信号独立计算 `chartJournalMatches`，避免抽屉信号和主图信号互相污染。
+   - 旧浅色界面时期由 `RadarWorkspace` 为主图选中信号独立计算 `chartJournalMatches`；当前 CHUANSCAN 首页已切换为自有轻量档案层，`ChartPanel` 作为业务资产暂保留，后续需要迁移到 CHUANSCAN 二级图表/档案页时再重新接入。
    - `ChartPanel` 已展示最近复盘样本、`plannedReviewAt`、复盘结果、review 状态，以及 `v3_pattern_` / `v3_trade_` 标签摘要。
    - 该联动只读展示已有 journal 样本，不新增写入、不改变段位计算、不自动调参、不生成交易信号。
    - 当前状态：已完成 MVP。后续正确搭建项是把 Forward Map review executor 写入的事件也按关键位关联到图表上下文。
@@ -1500,11 +1508,10 @@ CoinGlass 业余会员 API：
    - 明确 S680 从常规 UI 主线删除，不再作为默认座驾/装备/彩蛋。
    - 先出 3 个角色视觉方向，再选一个实现，不直接盲改。
 
-37. **V1.8：像素副驾驶 MVP（已落地）**
-   - 已用 `PixelCopilot` 替换旧车辆命名组件的正常 UI 边界。
-   - 初版只做一个男性像素小人、BTC 项链、3 个情绪状态和基础台词。
-   - 保留 rank profile、纪律分、动量、热度等现有数据入口。
-   - 为角色结构、中文台词和禁止喊单边界增加测试。
+37. **V1.8：像素副驾驶 MVP（历史阶段，当前已收敛）**
+   - 历史阶段曾用 `PixelCopilot` 替换旧车辆命名组件，并验证男性像素小人、BTC 项链、情绪状态和禁止喊单边界。
+   - 当前 CHUANSCAN 首页已把该方向收敛为右侧小型“川川助手”卡片，不再保留独立 `PixelCopilot` 壳组件。
+   - S680 继续保持从常规 UI 主线删除；后续角色系统如果重新增强，必须作为 CHUANSCAN 的小面板/抽屉/二级页能力接入，不能恢复大面积宠物面板。
 
 38. **Phase Backend-1：后端事实契约与单信号档案 API（已落地）**
    - 新增 `docs/BACKEND_API_CONTRACT.md`，规定后续 UI 重建必须消费统一只读后端契约，不能从零散字段猜测系统状态。

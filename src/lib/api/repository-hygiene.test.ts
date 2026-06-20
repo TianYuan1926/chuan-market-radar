@@ -152,28 +152,24 @@ test("market test script runs nested compiled tests recursively", () => {
   assert.match(marketTestScript, /xargs node --test/);
 });
 
-test("public radar shell does not label the live site as demo data", () => {
+test("current public radar shell uses the CHUANSCAN live-data baseline", () => {
+  const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
-
-  assert.equal(workspaceSource.includes("公开模板 · 演示数据 · 非实时扫描"), false);
-  assert.match(workspaceSource, /CoinGlass/);
-});
-
-test("public radar shell does not present fixed runtime or ticker values as live data", () => {
-  const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
-  const topBarSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/top-radar-bar.tsx"),
-    "utf8",
-  );
-  const disallowedTopBarTokens = [
+  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const legacyShellPaths = [
+    "src/components/radar/radar-workspace.tsx",
+    "src/components/radar/top-radar-bar.tsx",
+    "src/components/radar/radar-cockpit-shell.tsx",
+    "src/components/radar/radar-boot-briefing.tsx",
+    "src/components/radar/ops-and-filter-panel.tsx",
+    "src/components/radar/pixel-copilot.tsx",
+  ];
+  const disallowedTokens = [
+    "公开模板 · 演示数据 · 非实时扫描",
     "API 延迟 82ms",
-    "Neon Ready",
     "67,892.1",
     "3,712.45",
     "153.21",
@@ -181,112 +177,76 @@ test("public radar shell does not present fixed runtime or ticker values as live
     "24%",
   ];
 
-  for (const token of disallowedTopBarTokens) {
-    assert.equal(topBarSource.includes(token), false, `top bar must not hardcode fake live value: ${token}`);
+  assert.match(pageSource, /ChuanScanWorkspace/);
+  assert.doesNotMatch(pageSource, /RadarWorkspace/);
+  assert.match(workspaceSource, /marketTapeItems\(tickers\)/);
+  assert.match(workspaceSource, /liveContract\.source\.activeSource/);
+  assert.match(workspaceSource, /scanCoverage\.scannedAssets/);
+  assert.match(cssSource, /\.chuan-scan-shell/);
+
+  for (const token of disallowedTokens) {
+    assert.equal(workspaceSource.includes(token), false, `CHUANSCAN must not hardcode fake live value: ${token}`);
   }
 
-  assert.match(topBarSource, /tickers: MarketTicker\[\]/);
-  assert.match(topBarSource, /marketTapeItems\(tickers\)/);
-  assert.match(workspaceSource, /tickers=\{tickers\}/);
-  assert.equal(workspaceSource.includes("<h2>山寨热区</h2>"), false);
-  assert.match(workspaceSource, /山寨异动热区/);
+  for (const path of legacyShellPaths) {
+    assert.equal(existsSync(resolve(process.cwd(), path)), false, `${path} should not remain as current UI shell`);
+  }
 });
 
-test("radar UI exposes premium pixel cockpit anchors without relying on prose", () => {
+test("CHUANSCAN startup motion exposes brand identity without background music or marketing shell", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
-  const petSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-
-  assert.match(workspaceSource, /studio-scan-grid/);
-  assert.match(workspaceSource, /signal-candidate-strip/);
-  assert.match(petSource, /copilot-dashboard/);
-  assert.match(petSource, /copilot-vital/);
-  assert.match(cssSource, /\.studio-scan-grid/);
-  assert.match(cssSource, /\.signal-candidate-tile/);
-  assert.match(cssSource, /\.copilot-dashboard/);
-  assert.match(cssSource, /prefers-reduced-motion/);
-});
-
-test("phase 8.2g startup briefing exposes brand motion without becoming a marketing page", () => {
-  const briefingSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-boot-briefing.tsx"),
-    "utf8",
-  );
-  const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
-  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const requiredBriefingTokens = [
-    "bootBriefingStorageKey",
-    "localStorage",
-    "全市场山寨趋势切换雷达",
-    "不做喊单",
-    "不自动下单",
-    "进入雷达",
-    "查看信号池",
-    "看复盘链路",
-    "/assets/radar-crystal-lens.png",
-  ];
   const requiredWorkspaceTokens = [
-    "<RadarBootBriefing",
-    "onOpenSignals={() => navigateWorkspace(\"signals\")}",
-    "onOpenReview={() => navigateWorkspace(\"review\")}",
-    "requestBudgetLabel={requestsNote}",
-    "marketSessionLabel",
+    "bootVisible",
+    "chuan-boot",
+    "CHUANSCAN",
+    "REAL-TIME ALTCOIN TREND RADAR",
+    "证据链启动中",
+    "进入雷达",
+    "ChuanLogo",
   ];
   const requiredCssTokens = [
-    ".radar-boot-briefing__lens",
-    ".radar-boot-briefing__scanline",
-    ".radar-boot-briefing__status",
-    "@keyframes radarBootReveal",
-    "@keyframes radarBootScan",
+    ".chuan-boot",
+    ".chuan-boot__grid",
+    ".chuan-boot__bar",
+    ".chuan-logo",
     "prefers-reduced-motion",
   ];
 
-  for (const token of requiredBriefingTokens) {
-    assert.match(briefingSource, new RegExp(token.replaceAll("/", "\\/")));
-  }
-
   for (const token of requiredWorkspaceTokens) {
-    assert.ok(workspaceSource.includes(token), `RadarWorkspace missing startup token: ${token}`);
+    assert.ok(workspaceSource.includes(token), `CHUANSCAN workspace missing startup token: ${token}`);
   }
 
   for (const token of requiredCssTokens) {
-    assert.ok(cssSource.includes(token), `globals.css missing startup token: ${token}`);
+    assert.ok(cssSource.includes(token), `globals.css missing CHUANSCAN startup token: ${token}`);
   }
 
-  assert.equal(briefingSource.includes("背景音乐"), false);
+  assert.equal(workspaceSource.includes("背景音乐"), false);
+  assert.equal(workspaceSource.includes("<audio"), false);
 });
 
 test("public radar UI keeps reader-facing controls Chinese-first", () => {
   const sourceFiles = [
+    "src/components/radar/chuan-scan-workspace.tsx",
     "src/components/radar/chart-panel.tsx",
+    "src/components/radar/daily-mover-panel.tsx",
     "src/components/radar/event-center-panel.tsx",
     "src/components/radar/journal-panel.tsx",
-    "src/components/radar/ops-and-filter-panel.tsx",
-    "src/components/radar/radar-boot-briefing.tsx",
-    "src/components/radar/radar-cockpit-shell.tsx",
-    "src/components/radar/radar-workspace.tsx",
     "src/components/radar/radar-table.tsx",
     "src/components/radar/rank-panel.tsx",
     "src/components/radar/replay-panel.tsx",
+    "src/components/radar/signal-dossier.tsx",
     "src/components/radar/strategy-card.tsx",
     "src/components/radar/system-health-panel.tsx",
-    "src/components/radar/top-radar-bar.tsx",
-    "src/components/radar/pixel-copilot.tsx",
   ];
   const combinedSource = sourceFiles
     .map((path) => readFileSync(resolve(process.cwd(), path), "utf8"))
     .join("\n");
   const requiredChineseLabels = [
-    "雷达控制台",
+    "异动雷达",
     "候选池",
     "策略模型",
     "禁止追单",
@@ -299,14 +259,12 @@ test("public radar UI keeps reader-facing controls Chinese-first", () => {
     "扫描回放",
     "段位系统",
     "未选择",
-    "像素副驾驶",
-    "BTC 项链",
-    "装备",
+    "川川助手",
     "纪律",
     "动量",
-    "热度",
-    "下一步行动",
-    "功能抽屉",
+    "交易计划",
+    "证据链",
+    "信号档案",
   ];
   const disallowedReaderLabels = [
     "ENGINE FEED",
@@ -367,9 +325,9 @@ test("strategy card keeps raw matrix evidence out of the compact evidence list",
   assert.match(strategySource, /!matrixEvidenceLabels\.has\(item\.label\)/);
 });
 
-test("public radar UI opens a selected-signal dossier that fuses strategy, journal, mover, chart, and alerts", () => {
+test("public radar UI opens a selected CHUANSCAN dossier and keeps the legacy dossier module reusable", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const dossierSource = readFileSync(
@@ -378,15 +336,16 @@ test("public radar UI opens a selected-signal dossier that fuses strategy, journ
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const requiredWorkspaceTokens = [
-    "SignalDossier",
-    "selectedDossierSignal",
-    "isDossierOpen",
-    "openSignalDossier",
-    "closeSignalDossier",
-    "dailyMoverMatches",
-    "journalMatches",
-    "alertMatches",
-    "onOpenDossier",
+    "DossierOverlay",
+    "dossierSignalId",
+    "openDossier",
+    "closeDossier",
+    "chuan-dossier",
+    "信号档案",
+    "证据链",
+    "交易计划",
+    "相关复盘",
+    "打开 TradingView",
   ];
   const requiredLabels = [
     "信号档案",
@@ -430,35 +389,27 @@ test("public radar UI opens a selected-signal dossier that fuses strategy, journ
     assert.match(dossierSource, new RegExp(className));
     assert.match(cssSource, new RegExp(`\\.${className}`));
   }
+
+  assert.match(cssSource, /\.chuan-dossier/);
 });
 
-test("public radar UI reset uses a focused liquid-glass cockpit instead of dumping every feature", () => {
+test("public radar UI reset uses the CHUANSCAN control-center shell instead of the old cockpit", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
-  const topBarSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/top-radar-bar.tsx"),
-    "utf8",
-  );
-  const pixelCopilotSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
   const requiredWorkspaceTokens = [
-    "radar-action-rail",
-    "功能抽屉",
-    "signal-arena-command",
-    "signal-arena-split",
-    "workspace-drawer",
+    "chuan-topbar",
+    "chuan-market-strip",
+    "chuan-kpi-grid",
+    "chuan-radar-card-grid",
+    "chuan-drawer",
+    "chuan-side-card",
+    "chuan-proof-card",
+    "chuan-assistant-card",
     "activeSection",
-  ];
-  const requiredTopBarTokens = [
-    "radar-primary-nav",
-    "crystal-brand-banner",
-    "liquid-brand-lens",
     "川",
     "Radar",
     "Signals",
@@ -467,50 +418,27 @@ test("public radar UI reset uses a focused liquid-glass cockpit instead of dumpi
     "Evolution",
     "Settings",
   ];
-  const requiredCopilotTokens = [
-    "companion-dock",
-    "助手 dock",
-  ];
   const requiredCssTokens = [
-    ".radar-primary-nav",
-    ".crystal-brand-banner",
-    ".liquid-brand-lens",
-    ".radar-action-rail",
-    ".companion-dock",
-    ".workspace-drawer",
-  ];
-  const drawerMountedPanels = [
-    "<DailyMoverPanel",
-    "<ReplayPanel",
-    "<JournalPanel",
-    "<RankPanel",
+    ".chuan-topbar",
+    ".chuan-market-strip",
+    ".chuan-kpi-grid",
+    ".chuan-radar-card-grid",
+    ".chuan-drawer",
+    ".chuan-side-card",
+    ".chuan-proof-card",
+    ".chuan-assistant-card",
   ];
 
   for (const token of requiredWorkspaceTokens) {
     assert.match(workspaceSource, new RegExp(token));
   }
 
-  for (const token of requiredTopBarTokens) {
-    assert.match(topBarSource, new RegExp(token));
-  }
-
-  for (const token of requiredCopilotTokens) {
-    assert.match(pixelCopilotSource, new RegExp(token));
-  }
-
   for (const token of requiredCssTokens) {
     assert.match(cssSource, new RegExp(token.replaceAll(".", "\\.")));
   }
 
-  const drawerIndex = workspaceSource.indexOf("workspace-drawer");
-  assert.ok(drawerIndex > 0, "workspace drawer should exist as the secondary feature surface");
-
-  for (const token of drawerMountedPanels) {
-    assert.ok(
-      workspaceSource.indexOf(token, drawerIndex) > drawerIndex,
-      `${token} should mount behind the workspace drawer instead of rendering in the first-screen cockpit`,
-    );
-  }
+  assert.doesNotMatch(workspaceSource, /TopRadarBar|RadarCockpitShell|OpsAndFilterPanel|PixelCopilot/);
+  assert.doesNotMatch(workspaceSource, /radar-action-rail|signal-arena-command|workspace-drawer|companion-dock/);
 });
 
 test("radar UI exposes strategy v2 traceability without liquidation heatmap concepts", () => {
@@ -617,7 +545,7 @@ test("phase 8.2h signal dossier uses a workstation evidence-room hierarchy", () 
 
 test("settings drawer exposes local alert controls without external notification channels", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const panelSource = readFileSync(
@@ -627,13 +555,10 @@ test("settings drawer exposes local alert controls without external notification
   const policySource = readFileSync(resolve(process.cwd(), "src/lib/alerts/alert-policy.ts"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
-  assert.match(workspaceSource, /AlertControlPanel/);
-  assert.match(workspaceSource, /alertPreferences/);
-  assert.match(workspaceSource, /buildAlertControlReport/);
-  assert.match(workspaceSource, /shouldKeepAlertEventForPreferences/);
-  assert.match(workspaceSource, /minimumSignalSeverity/);
-  assert.match(workspaceSource, /dedupeWindowMinutes/);
-  assert.match(workspaceSource, /browserNotificationsEnabled/);
+  assert.match(workspaceSource, /Settings 系统设置/);
+  assert.match(workspaceSource, /后端契约/);
+  assert.match(workspaceSource, /扫描证明/);
+  assert.match(workspaceSource, /chuan-settings-grid/);
   assert.match(panelSource, /站内告警设置/);
   assert.match(panelSource, /告警等级阈值/);
   assert.match(panelSource, /告警通道开关/);
@@ -649,44 +574,37 @@ test("settings drawer exposes local alert controls without external notification
   assert.match(cssSource, /\.alert-control__toggles/);
   assert.match(cssSource, /\.alert-control__dedupe/);
   assert.match(cssSource, /\.alert-control__channels/);
+  assert.match(cssSource, /\.chuan-settings-grid/);
 });
 
-test("living radar UI second pass exposes functional motion, state dimming, and compact cockpit status", () => {
+test("CHUANSCAN UI exposes functional motion, state refresh, and compact runtime status", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const requiredWorkspaceTokens = [
-    "studio-shell--",
-    "studio-shell--refresh-",
-    "radar-command-strip",
-    "radar-command-strip__beam",
-    "扫描节拍",
-    "信号脉冲",
-    "风险/延迟",
-    "覆盖密度",
-    "signalPulseTone",
-    "selectedPulseTone",
-    "coveragePercent",
+    "chuan-scan-shell--refresh-",
+    "refreshState",
+    "syncRadar",
+    "compareSignalSets",
+    "buildRefreshPlan",
+    "chuan-radar-card--",
+    "chuan-radar-card__live",
+    "chuan-proof-card",
+    "scanCoverage.coveragePercent",
   ];
   const requiredClasses = [
-    "radar-command-strip",
-    "radar-command-strip__beam",
-    "radar-command-strip__cell",
-    "radar-command-strip__cell--alert",
-    "signal-node--selected",
-    "signal-node--risk-high",
-    "signal-candidate-tile",
-    "signal-candidate-tile__pulse",
-    "studio-shell--stale",
-    "studio-shell--failed",
-    "studio-shell--refresh-updated",
+    "chuan-radar-card",
+    "chuan-radar-card__live",
+    "chuan-score-ring",
+    "chuan-progress",
+    "chuan-bg-scanline",
   ];
   const requiredAnimations = [
-    "radarCommandSweep",
-    "signalNodePulse",
-    "signalBarPulse",
+    "chuanScanline",
+    "chuanPulse",
+    "chuanBootBar",
   ];
 
   for (const token of requiredWorkspaceTokens) {
@@ -779,60 +697,43 @@ test("radar UI reset has a real Tailwind and daisyUI foundation", () => {
   assert.match(specSource, /Tailwind CSS and daisyUI are actually installed\/configured/);
 });
 
-test("radar workspace composes the selected liquid-glass workstation shell", () => {
+test("CHUANSCAN baseline removes the retired 2-6-2 cockpit shell files", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const componentPaths = [
+  const retiredComponentPaths = [
+    "src/components/radar/radar-workspace.tsx",
     "src/components/radar/top-radar-bar.tsx",
     "src/components/radar/radar-cockpit-shell.tsx",
     "src/components/radar/ops-and-filter-panel.tsx",
     "src/components/radar/pixel-copilot.tsx",
+    "src/components/radar/radar-boot-briefing.tsx",
   ];
   const requiredWorkspaceTokens = [
-    "TopRadarBar",
-    "RadarCockpitShell",
-    "OpsAndFilterPanel",
-    "PixelCopilot",
-    "radar-app-shell",
-    "signal-arena-command",
-    "signal-arena-split",
-    "radar-action-rail",
-    "featureDrawerItems",
-  ];
-  const requiredShellTokens = [
-    "data-cockpit-ratio=\"2:6:2\"",
-    "role=\"tablist\"",
-    "运行",
-    "机会",
-    "复盘",
-    "drawer",
-    "lg:grid-cols-[minmax(220px,2fr)_minmax(0,6fr)_minmax(220px,2fr)]",
+    "chuan-radar-layout",
+    "chuan-radar-main",
+    "chuan-radar-side",
+    "chuan-drawer",
+    "chuan-dossier",
+    "chuan-side-card",
   ];
   const requiredCssClasses = [
-    "radar-app-shell",
-    "radar-header-shell",
-    "radar-primary-nav",
-    "radar-cockpit-shell",
-    "radar-action-rail",
-    "companion-dock",
-    "ops-filter-panel",
+    "chuan-radar-layout",
+    "chuan-radar-main",
+    "chuan-radar-side",
+    "chuan-drawer",
+    "chuan-dossier",
+    "chuan-side-card",
   ];
 
-  for (const path of componentPaths) {
-    assert.equal(existsSync(resolve(process.cwd(), path)), true, `${path} must exist`);
+  for (const path of retiredComponentPaths) {
+    assert.equal(existsSync(resolve(process.cwd(), path)), false, `${path} should be removed after CHUANSCAN rebuild`);
   }
 
   for (const token of requiredWorkspaceTokens) {
     assert.match(workspaceSource, new RegExp(token));
-  }
-
-  const shellSource = readFileSync(resolve(process.cwd(), "src/components/radar/radar-cockpit-shell.tsx"), "utf8");
-
-  for (const token of requiredShellTokens) {
-    assert.ok(shellSource.includes(token), `RadarCockpitShell missing ${token}`);
   }
 
   for (const className of requiredCssClasses) {
@@ -840,46 +741,32 @@ test("radar workspace composes the selected liquid-glass workstation shell", () 
   }
 });
 
-test("radar workspace exposes the selected live navbar, banner, and 2-6-2 cockpit shell", () => {
-  const uiSource = [
-    "src/components/radar/radar-workspace.tsx",
-    "src/components/radar/top-radar-bar.tsx",
-    "src/components/radar/radar-cockpit-shell.tsx",
-    "src/components/radar/pixel-copilot.tsx",
-  ].map((path) => readFileSync(resolve(process.cwd(), path), "utf8")).join("\n");
+test("CHUANSCAN exposes the selected navbar, ticker strip, drawers, and compact assistant", () => {
+  const uiSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
+    "utf8",
+  );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const requiredWorkspaceTokens = [
-    "live-navbar",
-    "Live Navbar / Banner",
-    "crystal-brand-banner",
-    "radar-primary-nav",
-    "liquid-brand-lens",
-    "cockpit-column--left",
-    "cockpit-column--center",
-    "cockpit-column--right",
-    "crystal-lens",
-    "雷达之眼",
-    "market-session-clock",
-    "Altcoin Opportunity Board",
-    "Macro Radar",
-    "Signal Lifecycle Tracker",
+    "chuan-topbar",
+    "chuan-topbar__nav",
+    "chuan-market-strip",
+    "chuan-kpi-grid",
+    "chuan-radar-card-grid",
     "功能抽屉",
-    "companion-dock",
+    "川川助手",
+    "扫描证明",
+    "实时预警",
   ];
   const requiredClasses = [
-    "live-navbar",
-    "radar-header-shell",
-    "radar-primary-nav",
-    "liquid-brand-lens",
-    "cockpit-column--left",
-    "cockpit-column--center",
-    "cockpit-column--right",
-    "crystal-lens",
-    "market-session-clock",
-    "altcoin-opportunity-board",
-    "macro-weather-panel",
-    "signal-lifecycle-preview",
-    "companion-dock",
+    "chuan-topbar",
+    "chuan-topbar__nav",
+    "chuan-market-strip",
+    "chuan-kpi-grid",
+    "chuan-radar-card-grid",
+    "chuan-mini-assistant__avatar",
+    "chuan-proof-card",
+    "chuan-alert-list",
   ];
 
   for (const token of requiredWorkspaceTokens) {
@@ -889,57 +776,35 @@ test("radar workspace exposes the selected live navbar, banner, and 2-6-2 cockpi
   for (const className of requiredClasses) {
     assert.match(cssSource, new RegExp(`\\.${className}`));
   }
-
-  assert.match(cssSource, /2fr\s+6fr\s+2fr/);
 });
 
-test("phase 8.2d live runtime layer exposes heartbeat, countdown, freshness, and degraded states", () => {
+test("CHUANSCAN live runtime layer exposes polling, freshness proof, and degraded states", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
-  const topBarSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/top-radar-bar.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const requiredTopBarTokens = [
-    "scan-heartbeat",
-    "next-scan-countdown",
-    "freshness-meter",
-    "runtime-state-grid",
-    "data-freshness",
-    "runtimeStates",
-    "formatCountdownLabel",
-  ];
   const requiredWorkspaceTokens = [
-    "buildRuntimeStates",
-    "clockNow",
-    "liveHealth.scan.freshness",
-    "liveHealth.operations.minutesUntilNextScan",
-    "liveHealth.archive.entries",
-    "cron",
+    "buildRefreshPlan",
+    "compareSignalSets",
+    "fetch(\"/api/radar\"",
+    "fetch(\"/api/radar/backend-contract\"",
+    "setRefreshState",
+    "liveHealth",
+    "liveContract",
+    "metadata.nextScanAt",
   ];
   const requiredClasses = [
-    "scan-heartbeat",
-    "next-scan-countdown",
-    "freshness-meter",
-    "runtime-state-grid",
-    "runtime-state",
-    "data-freshness",
+    "chuan-proof-compact",
+    "chuan-progress",
   ];
   const requiredAnimations = [
-    "scanHeartbeatPulse",
-    "freshnessSweep",
-    "runtimeStateFlash",
+    "chuanScanline",
+    "chuanPulse",
   ];
 
-  for (const token of requiredTopBarTokens) {
-    assert.match(topBarSource, new RegExp(token));
-  }
-
   for (const token of requiredWorkspaceTokens) {
-    assert.match(workspaceSource, new RegExp(token));
+    assert.ok(workspaceSource.includes(token), `CHUANSCAN workspace missing runtime token: ${token}`);
   }
 
   for (const className of requiredClasses) {
@@ -951,25 +816,14 @@ test("phase 8.2d live runtime layer exposes heartbeat, countdown, freshness, and
   }
 
   assert.match(cssSource, /prefers-reduced-motion/);
-  assert.equal(topBarSource.includes("background music"), false);
-  assert.equal(topBarSource.includes("<audio"), false);
+  assert.equal(workspaceSource.includes("background music"), false);
+  assert.equal(workspaceSource.includes("<audio"), false);
 });
 
 test("phase 3.8 altcoin opportunity board is the primary grouped opportunity surface", () => {
-  const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
   const componentPath = resolve(process.cwd(), "src/components/radar/altcoin-opportunity-board.tsx");
   const componentSource = existsSync(componentPath) ? readFileSync(componentPath, "utf8") : "";
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const requiredWorkspaceTokens = [
-    "AltcoinOpportunityBoard",
-    "buildAltcoinOpportunityBoard",
-    "altcoinOpportunityBoard",
-    "dailyMoverState.selectedDetails",
-    "metadata.status",
-  ];
   const requiredLabels = [
     "山寨机会板",
     "多头升温",
@@ -1002,10 +856,6 @@ test("phase 3.8 altcoin opportunity board is the primary grouped opportunity sur
 
   assert.equal(existsSync(componentPath), true, "AltcoinOpportunityBoard component must exist");
 
-  for (const token of requiredWorkspaceTokens) {
-    assert.match(workspaceSource, new RegExp(token));
-  }
-
   for (const label of requiredLabels) {
     assert.match(componentSource, new RegExp(label));
   }
@@ -1021,21 +871,9 @@ test("phase 3.8 altcoin opportunity board is the primary grouped opportunity sur
 });
 
 test("phase 3.9 macro weather panel keeps BTC ETH context as a non-mutating market layer", () => {
-  const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
   const componentPath = resolve(process.cwd(), "src/components/radar/macro-weather-panel.tsx");
   const componentSource = existsSync(componentPath) ? readFileSync(componentPath, "utf8") : "";
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const requiredWorkspaceTokens = [
-    "MacroWeatherPanel",
-    "buildMacroWeather",
-    "macroWeather",
-    "tickers",
-    "derivatives",
-    "metadata.status",
-  ];
   const requiredLabels = [
     "大盘天气",
     "BTC",
@@ -1064,10 +902,6 @@ test("phase 3.9 macro weather panel keeps BTC ETH context as a non-mutating mark
 
   assert.equal(existsSync(componentPath), true, "MacroWeatherPanel component must exist");
 
-  for (const token of requiredWorkspaceTokens) {
-    assert.match(workspaceSource, new RegExp(token));
-  }
-
   for (const label of requiredLabels) {
     assert.match(componentSource, new RegExp(label));
   }
@@ -1082,46 +916,38 @@ test("phase 3.9 macro weather panel keeps BTC ETH context as a non-mutating mark
   assert.equal(componentSource.includes("梭哈"), false);
 });
 
-test("pixel copilot removes the visible S680 vehicle direction from the normal radar UI", () => {
-  const workspaceSource = readFileSync(resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"), "utf8");
-  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"), "utf8");
+test("CHUANSCAN assistant removes the visible S680 vehicle direction from the normal radar UI", () => {
+  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const requiredCopilotParts = [
-    "companion-dock",
-    "companion-dock__avatar",
-    "companion-dock__line",
-    "copilot-dashboard",
-    "copilot-vital",
+  const requiredAssistantTokens = [
+    "川川助手",
+    "rankProfile.petLine",
+    "风控门不是装饰",
+  ];
+  const requiredAssistantClasses = [
+    "chuan-assistant-card",
+    "chuan-mini-assistant__avatar",
   ];
 
-  assert.match(workspaceSource, /PixelCopilot/);
-  assert.doesNotMatch(workspaceSource, /PixelS680|pixel-s680/);
-  assert.equal(componentSource.includes("<img"), false);
-  assert.doesNotMatch(componentSource, /S680|s680-/);
+  assert.doesNotMatch(componentSource, /PixelCopilot|PixelS680|pixel-s680|S680|s680-/);
 
-  for (const part of requiredCopilotParts) {
-    assert.match(componentSource, new RegExp(part));
-    assert.match(cssSource, new RegExp(`\\.${part}`));
+  for (const token of requiredAssistantTokens) {
+    assert.match(componentSource, new RegExp(token));
+  }
+
+  for (const className of requiredAssistantClasses) {
+    assert.match(componentSource, new RegExp(className));
+    assert.match(cssSource, new RegExp(`\\.${className}`));
   }
 });
 
-test("pixel copilot MVP renders a BTC-necklace male avatar with equipment and no callout copy", () => {
-  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"), "utf8");
+test("CHUANSCAN assistant stays compact and contains no direct trade callout copy", () => {
+  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const requiredCopilotText = [
-    "像素副驾驶",
-    "BTC 项链",
-    "装备",
-  ];
-  const requiredCopilotClasses = [
-    "copilot-avatar",
-    "copilot-head",
-    "copilot-hair",
-    "copilot-expression",
-    "copilot-chain",
-    "copilot-medallion",
-    "copilot-gear",
-    "companion-dock",
+  const requiredAssistantClasses = [
+    "chuan-assistant-card",
+    "chuan-mini-assistant__avatar",
+    "chuan-progress",
   ];
   const disallowedCalloutWords = [
     "买入",
@@ -1135,11 +961,7 @@ test("pixel copilot MVP renders a BTC-necklace male avatar with equipment and no
 
   assert.equal(componentSource.includes("<img"), false);
 
-  for (const label of requiredCopilotText) {
-    assert.match(componentSource, new RegExp(label));
-  }
-
-  for (const className of requiredCopilotClasses) {
+  for (const className of requiredAssistantClasses) {
     assert.match(componentSource, new RegExp(className));
     assert.match(cssSource, new RegExp(`\\.${className}`));
   }
@@ -1147,46 +969,6 @@ test("pixel copilot MVP renders a BTC-necklace male avatar with equipment and no
   for (const word of disallowedCalloutWords) {
     assert.equal(componentSource.includes(word), false, `copilot voice must not include callout copy: ${word}`);
   }
-});
-
-test("phase 8.2i pixel copilot stays compact while adding motion and equipment states", () => {
-  const componentSource = readFileSync(resolve(process.cwd(), "src/components/radar/pixel-copilot.tsx"), "utf8");
-  const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
-  const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
-  const requiredComponentTokens = [
-    "copilot-motion-field",
-    "copilot-signal-pips",
-    "copilot-status-strip",
-    "copilot-equipment",
-    "copilot-equipment__slot",
-    "copilot-mini-desk",
-    "纪律制动",
-    "异动侦测",
-    "低噪巡航",
-  ];
-  const requiredCssTokens = [
-    "Phase 8.2i: compact pixel copilot motion and equipment system",
-    "@keyframes copilotBreathe",
-    "@keyframes copilotBlink",
-    "@keyframes copilotMedallionPulse",
-    "prefers-reduced-motion",
-    ".copilot-equipment",
-    ".copilot-status-strip",
-    ".copilot-motion-field",
-    ".copilot-mini-desk",
-  ];
-
-  for (const token of requiredComponentTokens) {
-    assert.match(componentSource, new RegExp(token));
-  }
-
-  for (const token of requiredCssTokens) {
-    assert.match(cssSource, new RegExp(token.replaceAll(".", "\\.")));
-  }
-
-  assert.match(blueprintSource, /Phase 8\.2i/);
-  assert.match(blueprintSource, /像素副驾驶装备\/动效|Pixel Copilot Motion And Equipment/);
-  assert.doesNotMatch(componentSource, /开多|开空|做多|做空|买入|卖出|梭哈/);
 });
 
 test("external scan scheduler calls the protected scan endpoint without hard-coded secrets", () => {
@@ -1738,18 +1520,12 @@ test("chart panel exposes readonly v3 key-level and forward-map drilldown detail
 });
 
 test("chart panel links selected signal v3 context to readonly journal review samples", () => {
-  const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
   const componentSource = readFileSync(
     resolve(process.cwd(), "src/components/radar/chart-panel.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
-  assert.match(workspaceSource, /chartJournalMatches/);
-  assert.match(workspaceSource, /journalMatches=\{chartJournalMatches\}/);
   assert.match(componentSource, /journalMatches/);
   assert.match(componentSource, /chart-v3-review-links/);
   assert.match(componentSource, /v3_pattern_/);
@@ -1865,30 +1641,19 @@ test("phase 8.2k chart panel exposes readonly candle realism without replacing T
 
 test("public radar UI exposes complete candidate access instead of silent truncation", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
-  const tableSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-table.tsx"),
-    "utf8",
-  );
-  const opportunitySource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/altcoin-opportunity-board.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
 
-  assert.match(workspaceSource, /candidateHiddenCount/);
-  assert.match(workspaceSource, /查看完整候选池/);
-  assert.match(workspaceSource, /更多候选/);
-  assert.match(tableSource, /完整信号列表/);
-  assert.match(tableSource, /不做静默截断/);
-  assert.match(opportunitySource, /hiddenItemsCount/);
-  assert.match(opportunitySource, /未在首页展开/);
-  assert.match(cssSource, /\.signal-candidate-tile--overflow/);
-  assert.match(cssSource, /\.candidate-table__meta/);
-  assert.match(cssSource, /\.altcoin-opportunity-more/);
+  assert.match(workspaceSource, /topSignals = filteredSignals\.slice\(0, 12\)/);
+  assert.match(workspaceSource, /hiddenSignalCount/);
+  assert.match(workspaceSource, /查看剩余 \{hiddenSignalCount\} 个候选/);
+  assert.match(workspaceSource, /Signals 完整候选池/);
+  assert.match(workspaceSource, /chuan-full-signal-list/);
+  assert.match(cssSource, /\.chuan-more-signals/);
+  assert.match(cssSource, /\.chuan-full-signal-list/);
   assert.match(blueprintSource, /不允许静默截断/);
 });
 
@@ -1921,19 +1686,15 @@ test("chart panel uses a real TradingView widget boundary and truthful local str
 
 test("closed workspace overlays are not left mounted as hidden interaction layers", () => {
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
-    "utf8",
-  );
-  const dossierSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/signal-dossier.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
 
-  assert.match(workspaceSource, /\{isWorkspaceDrawerOpen \? \(/);
-  assert.match(workspaceSource, /workspace-drawer--open/);
-  assert.match(dossierSource, /if \(!isOpen\) \{\s*return null;\s*\}/u);
-  assert.equal(dossierSource.includes("aria-hidden={!isOpen}"), false);
-  assert.equal(dossierSource.includes("tabIndex={isOpen ? 0 : -1}"), false);
+  assert.match(workspaceSource, /\{activeSection !== "radar" \? \(/);
+  assert.match(workspaceSource, /if \(!signal\) \{\s*return null;\s*\}/u);
+  assert.match(workspaceSource, /aria-modal="true"/);
+  assert.equal(workspaceSource.includes("aria-hidden={!isOpen}"), false);
+  assert.equal(workspaceSource.includes("tabIndex={isOpen ? 0 : -1}"), false);
 });
 
 test("phase 8 current frontend baseline documents the CHUANSCAN Figma rebuild QA", () => {
@@ -1998,7 +1759,7 @@ test("phase 8 current frontend baseline documents the CHUANSCAN Figma rebuild QA
 test("public radar UI exposes daily mover attribution as a research-only review panel", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const workspaceSource = readFileSync(
-    resolve(process.cwd(), "src/components/radar/radar-workspace.tsx"),
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
     "utf8",
   );
   const panelSource = readFileSync(
@@ -2084,11 +1845,10 @@ test("public radar UI exposes daily mover attribution as a research-only review 
   assert.match(pageSource, /getDailyMoverReadArchive/);
   assert.match(pageSource, /dailyMoverArchive/);
   assert.match(workspaceSource, /dailyMoverArchive/);
-  assert.match(workspaceSource, /workspace-drawer/u);
-  assert.match(workspaceSource, /<DailyMoverPanel/u);
-  assert.match(workspaceSource, /onCreateCalibrationReview/u);
-  assert.match(workspaceSource, /onConfirmStrategyDraft/u);
-  assert.match(workspaceSource, /功能抽屉/);
+  assert.match(workspaceSource, /chuan-drawer/u);
+  assert.match(workspaceSource, /dailyMoverArchive\.snapshots/u);
+  assert.match(workspaceSource, /dailyMoverArchive\.selectedDetails/u);
+  assert.match(workspaceSource, /漏判\/归因样本/u);
   assert.match(workspaceSource, /Review/);
   assert.match(panelSource, /allowedUse/);
   assert.match(panelSource, /research_only/);
