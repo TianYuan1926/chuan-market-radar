@@ -2,8 +2,12 @@
 
 ## 当前部署形态
 
+2026-06-20 起，项目进入腾讯云香港单机迁移阶段。Vercel + Neon 保留为回滚路径，新生产目标以 Docker Compose 单机部署为准。
+
 - Next.js App Router
-- Vercel 公开网站
+- 旧线上回滚：Vercel 公开网站
+- 新生产目标：Caddy + Docker Compose 单机部署
+- 单机服务：`web`、`postgres`、`redis`、`scanner-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`
 - `/api/scan` 提供扫描摘要
 - `/api/archive` 通过 repository 提供扫描快照归档、指定回放帧和相邻扫描差值
 - `/api/journal` 通过 repository 提供复盘记录；未接入真实 SQL client 时自动使用内存演示存储
@@ -22,11 +26,15 @@
 - `src/lib/persistence/persistence-store.ts` 提供内存/数据库仓储切换层
 - `src/lib/persistence/database-client.ts` 提供数据库 URL、driver、SQL client 的接入诊断和 schema 初始化入口
 - `src/lib/persistence/neon-client.ts` 通过 `@neondatabase/serverless` 把 Neon query 函数适配成通用 `SqlClient`
+- `src/lib/persistence/postgres-client.ts` 通过 `pg` 把普通 PostgreSQL pool 适配成通用 `SqlClient`
+- `src/lib/persistence/configured-sql-client.ts` 根据 `DATABASE_DRIVER` 选择 Neon 或普通 PostgreSQL client
 - `src/lib/alerts/alert-policy.ts` 提供前端告警等级、重复抑制、静默时段和浏览器通知文案策略
 - `docs/chuan-market-radar-blueprint.md` 是当前产品和技术状态的长期事实源，后续继续开发前必须先对照它
-- `vercel.json` 保持 Hobby 免费预览可部署；15 分钟扫描先使用外部 cron，升级 Pro 后再接回 Vercel Cron
+- `vercel.json` 保持旧线上回滚可部署；新生产部署不依赖 Vercel Cron
 
 ## 免费套餐边界
+
+以下边界作为旧 Vercel/Neon 回滚路径继续有效；新主线按腾讯云单机部署推进。
 
 - 当前默认按 CoinGlass 业余会员、Neon 免费套餐和 Vercel Hobby 免费套餐搭建。
 - 新功能必须先设计低频、缓存、分批、降级和健康状态展示，不能默认要求付费套餐。
@@ -41,6 +49,12 @@
 - `JOURNAL_API_RATE_LIMIT`: 日记写入每分钟限制，默认 `30`
 - `CRON_SECRET`: 手动强制刷新用，建议生产环境填写随机长字符串
 - `PERSISTENCE_SCOPE`: 当前公开站点数据命名空间，未登录阶段建议保持 `public-demo`
+- `POSTGRES_DB`: 单机 PostgreSQL 数据库名，推荐 `chuan_market_radar`
+- `POSTGRES_USER`: 单机 PostgreSQL 用户名
+- `POSTGRES_PASSWORD`: 单机 PostgreSQL 密码，只能在服务器 `.env.production` 中填写
+- `DATABASE_DRIVER`: 单机生产填 `postgres`，Neon 回滚填 `neon`
+- `DATABASE_URL`: 单机生产指向 compose 内 `postgres:5432`
+- `REDIS_URL`: 单机 Redis 地址，默认 `redis://redis:6379`
 
 ## 后续接入时再填写
 
@@ -51,8 +65,12 @@
 - `COINGLASS_MAX_CONCURRENCY`: CoinGlass 主扫描受控并发，推荐 `6`，避免 24 个币串行拖慢 Vercel 函数。
 - `COINGLASS_DAILY_MOVER_MAX_ASSETS`: 每次每日异动抓取最多请求多少个基础币，免费阶段默认 `8`
 - `COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE`: 每侧最多保留多少个涨跌幅样本，默认 `10`
-- `DATABASE_URL`: Neon 或其他 Postgres
-- `DATABASE_DRIVER`: `postgres`、`neon` 或 `supabase`；默认按通用 Postgres 处理
+- `SCANNER_INTERVAL_SECONDS`: 单机 scanner-worker 主扫描间隔，默认 `900`
+- `DAILY_MOVER_INTERVAL_SECONDS`: 单机 coinglass-worker 每日异动抓取间隔，默认 `86400`
+- `KLINE_CACHE_INTERVAL_SECONDS`: 单机 coinglass-worker K 线缓存填充间隔，默认 `21600`
+- `OUTCOME_INTERVAL_SECONDS`: 单机 signal-worker 生命周期复盘间隔，默认 `3600`
+- `V3_FORWARD_MAP_INTERVAL_SECONDS`: 单机 signal-worker v3 复盘间隔，默认 `21600`
+- `HEALTH_WATCH_INTERVAL_SECONDS`: dynamic-scan-scheduler 健康巡检间隔，默认 `300`
 - `SUPABASE_URL`: Supabase 项目地址
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase 服务端密钥
 - `AI_REVIEW_ENABLED`: 设为 `true` 才会启用服务端 AI 复核；默认关闭
@@ -77,11 +95,12 @@
 - Provider 失败且已有缓存时，接口会返回旧快照并把状态降为 `stale`。
 - Provider 失败且没有缓存时，接口返回 `503`，不能伪装成实时成功。
 - 页面右侧的“系统状态”模块会显示当前是 `mock` 还是 `coinglass`、`memory` 还是 `database`、扫描是否新鲜、归档是否已有回放帧。
-- 当前 `/api/journal` 已经走 repository；真实公开使用前仍必须传入 Neon/Supabase 的服务端 SQL client，否则只是内存演示存储。
-- 当前 `/api/archive` 已经走 repository；真实公开使用前仍必须传入 Neon/Supabase 的服务端 SQL client，否则只是内存演示归档。
+- 当前 `/api/journal` 已经走 repository；真实公开使用前必须传入普通 PostgreSQL/Neon/Supabase 的服务端 SQL client，否则只是内存演示存储。
+- 当前 `/api/archive` 已经走 repository；真实公开使用前必须传入普通 PostgreSQL/Neon/Supabase 的服务端 SQL client，否则只是内存演示归档。
 - 当前 `/api/daily-movers` 已经走 repository；它是公开只读归因样本 API，返回 `allowedUse: research_only`，不能作为追涨杀跌信号入口。
 - 当前持久化骨架定义 `journal_events`、`scan_archives`、`rank_profiles` 三张 Postgres 表、映射函数、repository、数据库接入诊断和扫描归档 bundle 构建器；Neon SDK 已安装，但没有真实 `DATABASE_URL` 时仍不会把数据永久写入远端。
 - 当前已经安装 Neon 官方 serverless driver；当 `DATABASE_DRIVER=neon` 且 `DATABASE_URL` 指向 Neon 时，应用会自动创建 Neon SQL client。
+- 当前已经安装普通 PostgreSQL driver；当 `DATABASE_DRIVER=postgres` 且 `DATABASE_URL` / `POSTGRES_URL` 指向单机 PostgreSQL 时，应用会自动创建 PostgreSQL SQL client。
 - 数据库迁移入口必须配置 `CRON_SECRET` 才会运行；没有 secret 时返回 `migration_secret_missing`。
 - 部署前检查入口必须配置 `CRON_SECRET` 才会运行；没有 secret 时返回 `readiness_secret_missing`。
 - 部署前检查会把系统状态归为 `ready`、`preview` 或 `blocked`：`mock` 数据源允许公开预览，但不会被标记为真实行情生产就绪。

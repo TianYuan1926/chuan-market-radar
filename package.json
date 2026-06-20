@@ -5,8 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
+    "compose:config": "docker compose --env-file .env.production config",
+    "compose:up": "docker compose --env-file .env.production up -d --build",
+    "compose:down": "docker compose --env-file .env.production down",
     "deployment:env-plan": "tsc -p tsconfig.market-test.json && node .tmp/market-tests/scripts/vercel-env-plan.js",
     "start": "next start",
+    "smoke:server": "bash deploy/scripts/smoke-test.sh",
+    "worker:protected-api": "node deploy/workers/protected-api-worker.mjs",
     "lint": "eslint .",
     "test:market": "tsc -p tsconfig.market-test.json && find .tmp/market-tests/lib -name '*.test.js' -print | sort | xargs node --test",
     "typecheck": "tsc --noEmit"
@@ -15,12 +20,14 @@
     "@neondatabase/serverless": "^1.1.0",
     "lucide-react": "latest",
     "next": "latest",
+    "pg": "8.16.3",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.1",
     "@types/node": "latest",
+    "@types/pg": "8.15.6",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "daisyui": "5.5.23",

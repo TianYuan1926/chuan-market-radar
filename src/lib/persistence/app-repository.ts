@@ -1,10 +1,10 @@
 import { mockJournalEvents } from "../../data/mock-signals";
+import { createConfiguredSqlClient } from "./configured-sql-client";
 import { createDatabaseAwarePersistenceRepository } from "./database-client";
-import { createNeonSqlClient } from "./neon-client";
 
-const neonSqlClient = createNeonSqlClient({ env: process.env });
+const sqlClient = createConfiguredSqlClient({ env: process.env });
 const appPersistenceBundle = createDatabaseAwarePersistenceRepository({
-  client: neonSqlClient.client,
+  client: sqlClient.client,
   env: process.env,
   initialJournalEvents: mockJournalEvents,
 });

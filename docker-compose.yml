@@ -1,0 +1,168 @@
+name: chuan-market-radar
+
+x-app-env: &app-env
+  NODE_ENV: production
+  NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-川}
+  MARKET_DATA_PROVIDER: ${MARKET_DATA_PROVIDER:-coinglass}
+  SCAN_API_RATE_LIMIT: ${SCAN_API_RATE_LIMIT:-120}
+  JOURNAL_API_RATE_LIMIT: ${JOURNAL_API_RATE_LIMIT:-60}
+  RADAR_API_RATE_LIMIT: ${RADAR_API_RATE_LIMIT:-120}
+  RADAR_CONTRACT_API_RATE_LIMIT: ${RADAR_CONTRACT_API_RATE_LIMIT:-120}
+  RADAR_DOSSIER_API_RATE_LIMIT: ${RADAR_DOSSIER_API_RATE_LIMIT:-180}
+  PERSISTENCE_SCOPE: ${PERSISTENCE_SCOPE:-chuan-prod}
+  DATABASE_DRIVER: postgres
+  DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB}
+  REDIS_URL: redis://redis:6379
+  CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET}
+  COINGLASS_API_KEY: ${COINGLASS_API_KEY:?Set COINGLASS_API_KEY}
+  COINGLASS_BASE_ASSETS: ${COINGLASS_BASE_ASSETS:-BTC,ETH,SOL,ENA,SUI,ONDO,TIA}
+  COINGLASS_BATCH_SIZE: ${COINGLASS_BATCH_SIZE:-24}
+  COINGLASS_DAILY_REQUEST_BUDGET: ${COINGLASS_DAILY_REQUEST_BUDGET:-3000}
+  COINGLASS_MAX_CONCURRENCY: ${COINGLASS_MAX_CONCURRENCY:-6}
+  COINGLASS_DAILY_MOVER_MAX_ASSETS: ${COINGLASS_DAILY_MOVER_MAX_ASSETS:-30}
+  COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE: ${COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE:-10}
+  KLINE_BACKTEST_DAILY_REQUEST_BUDGET: ${KLINE_BACKTEST_DAILY_REQUEST_BUDGET:-12}
+  KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN: ${KLINE_BACKTEST_MAX_SYMBOLS_PER_RUN:-2}
+  OUTCOME_EXECUTOR_EVENT_LIMIT: ${OUTCOME_EXECUTOR_EVENT_LIMIT:-80}
+  V3_FORWARD_MAP_REVIEW_LIMIT: ${V3_FORWARD_MAP_REVIEW_LIMIT:-80}
+  STRATEGY_WEIGHT_ACTIVATION_MODE: ${STRATEGY_WEIGHT_ACTIVATION_MODE:-disabled}
+  AI_REVIEW_ENABLED: ${AI_REVIEW_ENABLED:-false}
+  AI_PROVIDER: ${AI_PROVIDER:-}
+  AI_API_KEY: ${AI_API_KEY:-}
+  AI_BASE_URL: ${AI_BASE_URL:-}
+  AI_MODEL: ${AI_MODEL:-}
+  AI_REVIEW_MAX_SIGNALS: ${AI_REVIEW_MAX_SIGNALS:-3}
+  AI_REVIEW_MAX_PROMPT_CHARS: ${AI_REVIEW_MAX_PROMPT_CHARS:-12000}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      CHUAN_PUBLIC_HOST: ${CHUAN_PUBLIC_HOST:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+  scanner-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "deploy/workers/protected-api-worker.mjs", "scanner"]
+    environment:
+      <<: *app-env
+      APP_INTERNAL_URL: http://web:3000
+      SCANNER_INTERVAL_SECONDS: ${SCANNER_INTERVAL_SECONDS:-900}
+    depends_on:
+      web:
+        condition: service_healthy
+
+  coinglass-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "deploy/workers/protected-api-worker.mjs", "coinglass"]
+    environment:
+      <<: *app-env
+      APP_INTERNAL_URL: http://web:3000
+      DAILY_MOVER_INTERVAL_SECONDS: ${DAILY_MOVER_INTERVAL_SECONDS:-86400}
+      KLINE_CACHE_INTERVAL_SECONDS: ${KLINE_CACHE_INTERVAL_SECONDS:-21600}
+    depends_on:
+      web:
+        condition: service_healthy
+
+  signal-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "deploy/workers/protected-api-worker.mjs", "signal"]
+    environment:
+      <<: *app-env
+      APP_INTERNAL_URL: http://web:3000
+      OUTCOME_INTERVAL_SECONDS: ${OUTCOME_INTERVAL_SECONDS:-3600}
+      V3_FORWARD_MAP_INTERVAL_SECONDS: ${V3_FORWARD_MAP_INTERVAL_SECONDS:-21600}
+    depends_on:
+      web:
+        condition: service_healthy
+
+  dynamic-scan-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "deploy/workers/protected-api-worker.mjs", "dynamic"]
+    environment:
+      <<: *app-env
+      APP_INTERNAL_URL: http://web:3000
+      HEALTH_WATCH_INTERVAL_SECONDS: ${HEALTH_WATCH_INTERVAL_SECONDS:-300}
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  caddy-config:
+  caddy-data:
+  postgres-data:
+  redis-data:

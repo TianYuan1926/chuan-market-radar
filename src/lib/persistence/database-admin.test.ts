@@ -5,7 +5,7 @@ import {
   runAdminPersistenceMigration,
   type AdminPersistenceMigrationResponse,
 } from "./database-admin";
-import type { NeonSqlClientBundle } from "./neon-client";
+import type { RuntimeSqlClientBundle } from "./configured-sql-client";
 import type { SqlClient } from "./persistence-store";
 
 const readyClient: SqlClient = {
@@ -14,12 +14,15 @@ const readyClient: SqlClient = {
   },
 };
 
-function readyNeonBundle(client: SqlClient = readyClient): NeonSqlClientBundle {
+function readySqlBundle(
+  driver: RuntimeSqlClientBundle["driver"] = "neon",
+  client: SqlClient = readyClient,
+): RuntimeSqlClientBundle {
   return {
     active: true,
     client,
     connectionStringEnv: "DATABASE_URL",
-    driver: "neon",
+    driver,
   };
 }
 
@@ -50,7 +53,7 @@ test("runAdminPersistenceMigration refuses to run when CRON_SECRET is missing", 
   let migrated = false;
   const response = await runAdminPersistenceMigration({
     authorization: "Bearer anything",
-    clientBundle: readyNeonBundle(),
+    clientBundle: readySqlBundle(),
     env: {
       DATABASE_DRIVER: "neon",
       DATABASE_URL: "postgresql://example.neon.tech/neondb",
@@ -73,7 +76,7 @@ test("runAdminPersistenceMigration rejects requests with the wrong bearer token"
   let migrated = false;
   const response = await runAdminPersistenceMigration({
     authorization: "Bearer wrong",
-    clientBundle: readyNeonBundle(),
+    clientBundle: readySqlBundle(),
     env: {
       CRON_SECRET: "correct-secret",
       DATABASE_DRIVER: "neon",
@@ -93,7 +96,7 @@ test("runAdminPersistenceMigration rejects requests with the wrong bearer token"
   assert.equal(migrated, false);
 });
 
-test("runAdminPersistenceMigration reports Neon as unavailable before touching schema", async () => {
+test("runAdminPersistenceMigration reports SQL client as unavailable before touching schema", async () => {
   let migrated = false;
   const response = await runAdminPersistenceMigration({
     authorization: "Bearer correct-secret",
@@ -123,11 +126,11 @@ test("runAdminPersistenceMigration reports Neon as unavailable before touching s
   }
 });
 
-test("runAdminPersistenceMigration executes schema migration only after auth and Neon are ready", async () => {
+test("runAdminPersistenceMigration executes schema migration only after auth and SQL client are ready", async () => {
   const calls: SqlClient[] = [];
   const response = await runAdminPersistenceMigration({
     authorization: "Bearer correct-secret",
-    clientBundle: readyNeonBundle(readyClient),
+    clientBundle: readySqlBundle("neon", readyClient),
     env: {
       CRON_SECRET: "correct-secret",
       DATABASE_DRIVER: "neon",
@@ -152,6 +155,35 @@ test("runAdminPersistenceMigration executes schema migration only after auth and
       "scan_archives",
       "rank_profiles",
     ]);
+  }
+
+  assert.deepEqual(calls, [readyClient]);
+});
+
+test("runAdminPersistenceMigration supports self-hosted Postgres drivers", async () => {
+  const calls: SqlClient[] = [];
+  const response = await runAdminPersistenceMigration({
+    authorization: "Bearer correct-secret",
+    clientBundle: readySqlBundle("postgres", readyClient),
+    env: {
+      CRON_SECRET: "correct-secret",
+      DATABASE_DRIVER: "postgres",
+      DATABASE_URL: "postgresql://chuan:secret@postgres:5432/chuan_market_radar",
+    },
+    migrate: async (client: SqlClient) => {
+      calls.push(client);
+
+      return migrationResult();
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.ok, true);
+
+  if (response.body.ok) {
+    assert.equal(response.body.database.driver, "postgres");
+    assert.equal(response.body.database.status, "ready");
+    assert.equal(response.body.migration.tableCount, 3);
   }
 
   assert.deepEqual(calls, [readyClient]);

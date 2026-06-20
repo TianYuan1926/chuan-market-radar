@@ -399,8 +399,11 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 ## 当前技术栈
 
 - 前端与后端：Next.js App Router
-- 部署：Vercel
-- 数据库：Neon Postgres
+- 当前线上回滚部署：Vercel
+- 当前目标生产部署：腾讯云香港单机 Docker Compose
+- 当前线上回滚数据库：Neon Postgres
+- 当前目标生产数据库：单机 PostgreSQL
+- 本机缓存/队列底座：Redis
 - 数据源：CoinGlass 业余会员 API 为主
 - 公开图表：TradingView 链接入口
 - 语言：TypeScript
@@ -413,13 +416,31 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ## 资源预算原则
 
-当前默认按 **CoinGlass 业余会员 + Neon 免费套餐 + Vercel 免费套餐** 设计和搭建。
+2026-06-20 起，项目进入 **腾讯云香港单机迁移阶段**。旧 Vercel + Neon 仍作为回滚路径保留，不再作为新功能设计的默认资源上限。
+
+当前目标资源基线：
+
+- 腾讯云香港轻量服务器：4 核 CPU / 8GB 内存 / 120GB SSD / 200Mbps 峰值带宽。
+- 单机 Docker Compose：`web`、`postgres`、`redis`、`scanner-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`、`caddy`。
+- PostgreSQL 与 Redis 先部署在同一台服务器；后续只有当真实瓶颈出现时，才评估 TencentDB 或独立缓存。
+- CoinGlass 仍是硬限速来源，服务器升级不代表可以无限制深扫全市场。
+
+旧免费阶段原则作为回滚边界继续保留：
 
 - 功能优先做低频、分批、缓存、可降级版本，不能默认依赖高频扫描、重计算或大量数据库写入。
 - CoinGlass 业余会员阶段必须控制请求范围和请求次数，优先白名单资产、分批扫描、复用缓存和展示覆盖率。
 - Neon 免费阶段必须控制表结构、索引、写入频率和 payload 体积；能按快照/摘要保存就不做无边界明细流水。
 - Vercel 免费阶段不能依赖高频内置 Cron 或长时间后台任务；需要定时刷新时优先外部 cron 请求受保护 API。
 - 如果某个功能必须升级付费套餐才能稳定运行，先做开关、降级和健康提示，再由用户决定是否升级。
+
+单机迁移硬规则：
+
+- 新服务器完整验收前，不删除 `vercel.json`、Neon adapter、GitHub Actions workflow 或旧环境变量文档。
+- 迁移先新增普通 PostgreSQL client 和单机部署骨架，再切换运行环境；不能重写交易/扫描核心来冒充迁移。
+- Redis 第一阶段作为缓存/锁/队列底座部署，但业务逻辑未接入前不得在 UI 上宣称 Redis 已承担调度决策。
+- Worker 第一阶段先调用现有受保护 API，跑稳后再逐步拆为直接调用库函数的独立 worker。
+- `.env.example` 只能放占位符；真实 `.env.production` 只存在服务器，不进 Git。
+- 任何部署改造不得添加自动下单，不得连接交易所下单 API。
 
 ## 当前阶段状态总览
 
@@ -464,7 +485,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 扫描 metadata notes 会显示 raw、clean、primary 数量，以及 unsupported exchange、unsupported quote、duplicate symbol 等过滤原因。
 - 扫描 metadata 已新增结构化诊断：`diagnostics.discovery`、`diagnostics.requests`、`diagnostics.v3Coverage` 和 `runtime`，用于排查发现源是否失败、是否启用兜底、CoinGlass 是否空返回、OHLCV/v3 是否缺失、当前结果来自 cron/页面/API/缓存还是新扫描。
 
-### 已落地：Neon 持久化骨架
+### 已落地：Postgres 持久化骨架
 
 - `journal_events`：复盘日记、纸面跟踪、拒绝追单、失效记录。
 - `scan_archives`：扫描快照、回放 frame、最近扫描对比。
@@ -472,6 +493,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `rank_profiles`：段位、XP、纪律分、宠物状态。
 - `daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`：每日涨跌幅榜归因复盘样本。
 - `DATABASE_DRIVER=neon` 且存在 `DATABASE_URL` 时可创建 Neon SQL client。
+- `DATABASE_DRIVER=postgres` 且存在 `DATABASE_URL` / `POSTGRES_URL` 时可创建普通 PostgreSQL SQL client，用于腾讯云单机部署。
 - 管理迁移接口受 `CRON_SECRET` 保护。
 - 2026-06-19 已统一 admin 执行入口鉴权：迁移、部署检查、每日异动抓取、K 线缓存填充、outcome executor、v3 Forward Map review 和策略权重执行记录都必须使用共享 `isCronRequestAuthorized(..., { requireSecret: true })`，避免各模块手写 Bearer 校验造成权限边界分叉。
 
@@ -1070,7 +1092,19 @@ CoinGlass 业余会员 API：
 
 这些免费数据主要用于 OHLCV、多周期 K 线和技术指标，不替代 CoinGlass 衍生品数据。
 
-## Vercel 与稳定性原则
+## 单机部署与稳定性原则
+
+- 腾讯云单机生产目标使用 `docker-compose.yml` 编排 `web`、`postgres`、`redis`、`scanner-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler` 和 `caddy`。
+- `web` 继续承载 Next.js 前端和 API，避免迁移第一阶段同时重写业务边界。
+- `scanner-worker` 每 15 分钟调用受保护 `POST /api/scan`，替代 GitHub Actions 主扫描 cron。
+- `coinglass-worker` 低频调用每日异动归因和 K 线缓存受保护入口，不直接生成交易建议。
+- `signal-worker` 低频调用 outcome executor 和 v3 Forward Map review，不自动改权重、不自动下单。
+- `dynamic-scan-scheduler` 第一阶段只做健康巡检，后续再升级为 Redis 队列调度器。
+- Caddy 无域名阶段先使用 `:80` HTTP；绑定域名后再自动启用 HTTPS。
+- PostgreSQL 通过 `DATABASE_DRIVER=postgres` 和 `DATABASE_URL` 接入；Neon adapter 保留作为旧线上回滚路径。
+- Redis 通过 `REDIS_URL` 预留；未接业务前只能作为部署底座，不能宣称已完成 Redis 队列闭环。
+
+## Vercel 回滚与稳定性原则
 
 - 免费阶段不依赖 Vercel 15 分钟内置 Cron。
 - 使用 GitHub Actions 外部 cron 每 15 分钟请求 `/api/scan`；该频率与应用 `cadenceMinutes=15` 对齐，配合 `COINGLASS_BATCH_SIZE=24`、`COINGLASS_DAILY_REQUEST_BUDGET=3000` 和 `COINGLASS_MAX_CONCURRENCY=6`，让全市场山寨池在免费/业余阶段以低频宽覆盖方式轮转，而不是长期只扫 BTC/ETH + 1 个山寨。

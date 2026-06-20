@@ -5,7 +5,11 @@ import {
   type SchemaMigrationResult,
 } from "./database-client";
 import { isCronRequestAuthorized } from "../api/cron-auth";
-import { createNeonSqlClient, type NeonClientInactiveReason, type NeonSqlClientBundle } from "./neon-client";
+import {
+  createConfiguredSqlClient,
+  type RuntimeSqlClientBundle,
+  type RuntimeSqlClientInactiveReason,
+} from "./configured-sql-client";
 import type { PersistenceEnv, SqlClient } from "./persistence-store";
 
 export type AdminMigrationError =
@@ -34,12 +38,12 @@ export type AdminPersistenceMigrationResponseBody =
       detail: string;
       driver?: DatabaseDriver;
       error: AdminMigrationError;
-      reason?: NeonClientInactiveReason;
+      reason?: RuntimeSqlClientInactiveReason;
     };
 
 export type RunAdminPersistenceMigrationOptions = {
   authorization?: string | null;
-  clientBundle?: NeonSqlClientBundle;
+  clientBundle?: RuntimeSqlClientBundle;
   env?: PersistenceEnv;
   migrate?: (client: SqlClient) => Promise<SchemaMigrationResult>;
 };
@@ -80,12 +84,12 @@ export async function runAdminPersistenceMigration({
     });
   }
 
-  const bundle = clientBundle ?? createNeonSqlClient({ env });
+  const bundle = clientBundle ?? createConfiguredSqlClient({ env });
 
   if (!bundle.active || !bundle.client) {
     return errorResponse(503, {
       ok: false,
-      detail: "Neon SQL client is not active, so schema migration was not attempted.",
+      detail: "SQL client is not active, so schema migration was not attempted.",
       driver: bundle.driver,
       error: "database_unavailable",
       reason: bundle.reason,
