@@ -227,8 +227,19 @@
 - Consumes: all flow outputs.
 - Produces: final status report, residual limitations, and deployment notes.
 
-- [ ] Run full verification suite.
-- [ ] Run production browser QA for material UI changes.
-- [ ] Confirm `/api/health`, `/api/scan`, and deployment readiness.
-- [ ] Commit final closeout.
+- [x] Run full verification suite.
+- [x] Run production browser QA for material UI changes.
+- [x] Confirm `/api/health`, `/api/scan`, and deployment readiness.
+- [x] Commit final closeout.
 - [ ] Attempt push; report credential blockers if any.
+
+**Final acceptance evidence:**
+- `npm run test:market` passed: 496/496.
+- `npm run typecheck` passed.
+- `npm run lint` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- Local production smoke at `http://127.0.0.1:3100/`: `/` 200, `/api/health` 200, `/api/scan` 200.
+- `/api/admin/deployment/readiness` returned 401 without Bearer token, confirming the protected admin endpoint does not run unauthenticated.
+- Playwright desktop `1536 x 960`: `站内告警` rendered, Settings drawer opened, `站内告警设置` rendered, Telegram/Webhook boundary visible.
+- Playwright mobile `390 x 844`: `站内告警` rendered, mobile menu opened Settings drawer, no horizontal overflow.

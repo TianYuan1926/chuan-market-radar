@@ -46,3 +46,15 @@
 
 **Final Result**
 final result: passed
+
+**2026-06-20 Alert History QA**
+- Local URL: `http://127.0.0.1:3100/`
+- Mode: production build via `npm run build` + `PORT=3100 npm run start`
+- Desktop viewport: `1536 x 960`
+- Mobile viewport: `390 x 844`
+- Desktop checks: homepage rendered, `站内告警` visible in the right rail, Settings drawer opened, `站内告警设置` visible, Telegram/Webhook disabled boundary visible.
+- Mobile checks: topbar visible, `站内告警` visible, menu opened Settings drawer, `站内告警设置` visible, no horizontal overflow.
+- API smoke: `/` 200, `/api/health` 200, `/api/scan` 200. Local `.env.local` rendered `mock` preview data; production live CoinGlass still needs server-side verification after deploy.
+- Protected admin smoke: `/api/admin/deployment/readiness` returned 401 without Bearer token, which is expected for a protected endpoint.
+- Runtime console: no warning/error messages captured.
+- Result: passed.
