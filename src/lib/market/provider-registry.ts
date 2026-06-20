@@ -2,7 +2,7 @@ import type { MarketDataProvider } from "@/lib/market/types";
 import { mockMarketProvider } from "./providers/mock-market-provider";
 import { createCoinGlassProvider, type CoinGlassProviderOptions } from "./providers/coinglass-provider";
 import { createPublicFuturesUniverseDiscoveryProvider } from "./providers/public-futures-universe-discovery";
-import { createBinancePublicLightScanProvider } from "./providers/public-light-scan";
+import { createCompositePublicLightScanProvider } from "./providers/public-light-scan";
 
 export type ProviderEnv = {
   MARKET_DATA_PROVIDER?: string;
@@ -74,7 +74,7 @@ export function getConfiguredMarketProvider(
       now: options.now,
       ohlcvProvider: options.ohlcvProvider,
       publicLightScanProvider: options.publicLightScanProvider ??
-        (options.fetcher ? undefined : createBinancePublicLightScanProvider()),
+        (options.fetcher ? undefined : createCompositePublicLightScanProvider()),
       universeDiscoveryProvider: options.universeDiscoveryProvider ?? createPublicFuturesUniverseDiscoveryProvider(),
       universePriorityHintNotes: options.universePriorityHintNotes,
       universePriorityHints: options.universePriorityHints,

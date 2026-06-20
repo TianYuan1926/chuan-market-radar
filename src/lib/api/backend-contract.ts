@@ -43,6 +43,33 @@ export type BackendContract = {
     mode: SystemHealthReport["dataSource"]["mode"];
     status: SystemHealthReport["dataSource"]["status"];
   };
+  sourceAudit: {
+    coinGlassDeepScan: {
+      cleanRows: number;
+      failedPlannedAssets: string[];
+      plannedAssets: string[];
+      plannedRequests: number;
+      rawRows: number;
+      status: MarketRadarSnapshot["metadata"]["status"];
+    };
+    guardrail: string;
+    publicDiscovery: {
+      fallbackActivated: boolean;
+      fallbackInstrumentCount: number;
+      liveInstrumentCount: number;
+      sources: NonNullable<MarketRadarSnapshot["metadata"]["diagnostics"]>["discovery"]["sources"];
+    };
+    publicLightScan: {
+      acceptedCount: number;
+      candidateCount: number;
+      notes: string[];
+      requestCount: number;
+      source: string | null;
+      status: "disabled" | "failed" | "missing" | "partial" | "ready";
+      topSymbols: string[];
+      universeCount: number;
+    };
+  };
   runtime: {
     cacheStatus: SystemHealthReport["operations"]["runtimeCacheStatus"];
     persistedArchive: boolean;
@@ -282,6 +309,33 @@ export function buildBackendContract({
       isRealtime: snapshot.metadata.isRealtime,
       mode: health.dataSource.mode,
       status: health.dataSource.status,
+    },
+    sourceAudit: {
+      coinGlassDeepScan: {
+        cleanRows: requests?.cleanRows ?? 0,
+        failedPlannedAssets: requests?.emptyResultAssets ?? [],
+        plannedAssets: requests?.plannedAssets ?? coverage.scannedAssets,
+        plannedRequests: requests?.coinGlassRequestsPlanned ?? 0,
+        rawRows: requests?.rawRows ?? 0,
+        status: snapshot.metadata.status,
+      },
+      guardrail: "Binance/OKX public light scan can discover and prioritize; CoinGlass deep scan confirms funds and risk; neither bypasses Evidence or Risk Gate.",
+      publicDiscovery: {
+        fallbackActivated: diagnostics?.discovery.fallbackActivated ?? false,
+        fallbackInstrumentCount: diagnostics?.discovery.fallbackInstrumentCount ?? 0,
+        liveInstrumentCount: diagnostics?.discovery.liveInstrumentCount ?? 0,
+        sources: diagnostics?.discovery.sources ?? [],
+      },
+      publicLightScan: {
+        acceptedCount: lightScan?.acceptedCount ?? 0,
+        candidateCount: lightScan?.candidateCount ?? 0,
+        notes: lightScan?.notes ?? [],
+        requestCount: lightScan?.requestCount ?? 0,
+        source: lightScan?.source ?? null,
+        status: lightScan?.status ?? "missing",
+        topSymbols: (lightScan?.topCandidates ?? []).slice(0, 20).map((candidate) => candidate.symbol),
+        universeCount: lightScan?.universeCount ?? 0,
+      },
     },
     runtime: {
       cacheStatus: health.operations.runtimeCacheStatus,

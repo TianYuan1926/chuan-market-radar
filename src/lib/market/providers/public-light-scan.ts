@@ -6,6 +6,7 @@ import type {
 } from "../types";
 
 export const BINANCE_FUTURES_24H_TICKER_URL = "https://fapi.binance.com/fapi/v1/ticker/24hr";
+export const OKX_PUBLIC_SWAP_TICKERS_URL = "https://www.okx.com/api/v5/market/tickers";
 
 export type PublicLightScanResult = {
   diagnostics: ScanLightScanDiagnostics;
@@ -29,11 +30,28 @@ export type BinanceFutures24hTickerRow = {
   symbol?: string;
 };
 
+export type OkxSwapTickerRow = {
+  high24h?: string;
+  instId?: string;
+  last?: string;
+  low24h?: string;
+  open24h?: string;
+  vol24h?: string;
+  volCcy24h?: string;
+};
+
 export type BinancePublicLightScanProviderOptions = {
   baseUrl?: string;
   fetcher?: typeof fetch;
   maxPriorityCandidates?: number;
   now?: () => Date;
+};
+
+export type OkxPublicLightScanProviderOptions = BinancePublicLightScanProviderOptions;
+
+export type CompositePublicLightScanProviderOptions = {
+  maxPriorityCandidates?: number;
+  providers?: PublicLightScanProvider[];
 };
 
 function finiteNumber(value: unknown) {
@@ -195,17 +213,18 @@ function tickerFromRow(row: BinanceFutures24hTickerRow, updatedAt: string): Mark
 
 function instrumentFromTicker(ticker: MarketTicker): ContractInstrument {
   const baseAsset = baseFromSymbol(ticker.symbol);
+  const sourceTag = `${ticker.exchange.toLowerCase()}-public-light-scan`;
 
   return {
-    id: `BINANCE-LIGHT:${ticker.symbol}`,
+    id: `${ticker.exchange}-LIGHT:${ticker.symbol}`,
     symbol: ticker.symbol,
     baseAsset,
     quoteAsset: "USDT",
-    exchange: "BINANCE",
+    exchange: ticker.exchange,
     marketType: "perpetual",
     isActive: true,
     volume24hUsd: ticker.volume24hUsd,
-    tags: ["binance-public-light-scan", "quote:USDT", "market:perpetual"],
+    tags: [sourceTag, "quote:USDT", "market:perpetual"],
     lastSeenAt: ticker.updatedAt,
   };
 }
@@ -384,6 +403,304 @@ export function createBinancePublicLightScanProvider({
           tickers: [],
         };
       }
+    },
+  };
+}
+
+function buildOkxTickersUrl(baseUrl: string) {
+  const url = new URL(baseUrl);
+  url.searchParams.set("instType", "SWAP");
+
+  return url;
+}
+
+function okxSymbolFromInstId(instId: string) {
+  const normalized = instId.trim().toUpperCase();
+  const match = /^([A-Z0-9]+)-USDT-SWAP$/u.exec(normalized);
+
+  return match?.[1] ? `${match[1]}USDT` : "";
+}
+
+function tickerFromOkxRow(row: OkxSwapTickerRow, updatedAt: string): MarketTicker | null {
+  const symbol = okxSymbolFromInstId(row.instId ?? "");
+
+  if (!isUsdtPerpLikeSymbol(symbol)) {
+    return null;
+  }
+
+  const price = finiteNumber(row.last);
+  const high24h = finiteNumber(row.high24h);
+  const low24h = finiteNumber(row.low24h);
+  const open24h = finiteNumber(row.open24h);
+  const baseVolume24h = finiteNumber(row.volCcy24h);
+
+  if (price <= 0 || high24h <= 0 || low24h <= 0) {
+    return null;
+  }
+
+  return {
+    symbol,
+    exchange: "OKX",
+    price,
+    changePercent24h: open24h > 0 ? ((price - open24h) / open24h) * 100 : 0,
+    volume24hUsd: Math.round(baseVolume24h * price),
+    high24h,
+    low24h,
+    updatedAt,
+  };
+}
+
+export function createOkxPublicLightScanProvider({
+  baseUrl = OKX_PUBLIC_SWAP_TICKERS_URL,
+  fetcher = fetch,
+  maxPriorityCandidates = 80,
+  now = () => new Date(),
+}: OkxPublicLightScanProviderOptions = {}): PublicLightScanProvider {
+  const source = "okx-public-swap-24h";
+
+  return {
+    id: source,
+    label: "OKX Public Swap Light Scan",
+
+    async scan(): Promise<PublicLightScanResult> {
+      const startedAt = now().toISOString();
+
+      try {
+        const response = await fetcher(buildOkxTickersUrl(baseUrl));
+
+        if (!response.ok) {
+          return {
+            diagnostics: {
+              acceptedCount: 0,
+              candidateCount: 0,
+              generatedAt: startedAt,
+              notes: [`public light scan upstream returned ${response.status}`],
+              requestCount: 1,
+              source,
+              status: "failed",
+              topCandidates: [],
+              universeCount: 0,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [],
+          };
+        }
+
+        const payload: unknown = await response.json();
+
+        if (
+          typeof payload !== "object" ||
+          payload === null ||
+          !("data" in payload) ||
+          !Array.isArray(payload.data)
+        ) {
+          return {
+            diagnostics: {
+              acceptedCount: 0,
+              candidateCount: 0,
+              generatedAt: startedAt,
+              notes: ["public light scan returned an invalid OKX payload"],
+              requestCount: 1,
+              source,
+              status: "failed",
+              topCandidates: [],
+              universeCount: 0,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [],
+          };
+        }
+
+        if ("code" in payload && String(payload.code) !== "0") {
+          return {
+            diagnostics: {
+              acceptedCount: 0,
+              candidateCount: 0,
+              generatedAt: startedAt,
+              notes: [`public light scan upstream returned code ${String(payload.code)}`],
+              requestCount: 1,
+              source,
+              status: "failed",
+              topCandidates: [],
+              universeCount: payload.data.length,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [],
+          };
+        }
+
+        const tickers = payload.data
+          .map((row: unknown) => (
+            typeof row === "object" && row !== null
+              ? tickerFromOkxRow(row as OkxSwapTickerRow, startedAt)
+              : null
+          ))
+          .filter((ticker): ticker is MarketTicker => ticker !== null);
+        const candidates = tickers
+          .map(candidateFromTicker)
+          .filter((candidate) => candidate.state !== "COLD")
+          .sort((left, right) => right.score - left.score || right.volume24hUsd - left.volume24hUsd)
+          .slice(0, maxPriorityCandidates);
+        const instruments = tickers.map(instrumentFromTicker);
+
+        return {
+          diagnostics: {
+            acceptedCount: tickers.length,
+            candidateCount: candidates.length,
+            generatedAt: startedAt,
+            notes: [`public light scan accepted ${tickers.length}/${payload.data.length} OKX USDT swap tickers`],
+            requestCount: 1,
+            source,
+            status: tickers.length > 0 ? "ready" : "partial",
+            topCandidates: candidates.slice(0, 16),
+            universeCount: payload.data.length,
+          },
+          instruments,
+          priorityCandidates: candidates,
+          tickers,
+        };
+      } catch (error) {
+        return {
+          diagnostics: {
+            acceptedCount: 0,
+            candidateCount: 0,
+            generatedAt: startedAt,
+            notes: [error instanceof Error ? error.message : "public light scan request failed"],
+            requestCount: 1,
+            source,
+            status: "failed",
+            topCandidates: [],
+            universeCount: 0,
+          },
+          instruments: [],
+          priorityCandidates: [],
+          tickers: [],
+        };
+      }
+    },
+  };
+}
+
+function compositeStatus(results: PublicLightScanResult[]): ScanLightScanDiagnostics["status"] {
+  const activeResults = results.filter((result) => result.diagnostics.status !== "disabled");
+  const acceptedCount = results.reduce((total, result) => total + result.diagnostics.acceptedCount, 0);
+
+  if (activeResults.length === 0) {
+    return "disabled";
+  }
+
+  if (acceptedCount === 0) {
+    return activeResults.some((result) => result.diagnostics.status === "failed") ? "failed" : "partial";
+  }
+
+  return activeResults.every((result) => result.diagnostics.status === "ready") ? "ready" : "partial";
+}
+
+function mergeCompositeCandidates(
+  candidates: ScanLightScanCandidate[],
+  maxPriorityCandidates: number,
+): ScanLightScanCandidate[] {
+  const bySymbol = new Map<string, ScanLightScanCandidate & { sourceCount: number }>();
+
+  for (const candidate of candidates) {
+    const existing = bySymbol.get(candidate.symbol);
+
+    if (!existing) {
+      bySymbol.set(candidate.symbol, {
+        ...candidate,
+        sourceCount: 1,
+      });
+      continue;
+    }
+
+    existing.sourceCount += 1;
+    existing.score = Math.max(existing.score, candidate.score) + 8;
+    existing.volume24hUsd = Math.max(existing.volume24hUsd, candidate.volume24hUsd);
+    existing.reasons = [...new Set([
+      ...existing.reasons,
+      ...candidate.reasons,
+      "cross_exchange_light_scan",
+    ])];
+
+    if (
+      candidate.state === "HOT" ||
+      (candidate.state === "PRE_TREND" && existing.state !== "HOT")
+    ) {
+      existing.state = candidate.state;
+    }
+  }
+
+  return [...bySymbol.values()]
+    .sort((left, right) => right.score - left.score || right.volume24hUsd - left.volume24hUsd)
+    .slice(0, maxPriorityCandidates)
+    .map((candidate) => ({
+      baseAsset: candidate.baseAsset,
+      changePercent24h: candidate.changePercent24h,
+      distanceFromHighPercent: candidate.distanceFromHighPercent,
+      distanceFromLowPercent: candidate.distanceFromLowPercent,
+      reasons: candidate.reasons,
+      score: candidate.score,
+      state: candidate.state,
+      symbol: candidate.symbol,
+      volume24hUsd: candidate.volume24hUsd,
+      volatilityPercent: candidate.volatilityPercent,
+    }));
+}
+
+export function createCompositePublicLightScanProvider({
+  maxPriorityCandidates = 100,
+  providers = [
+    createBinancePublicLightScanProvider({ maxPriorityCandidates }),
+    createOkxPublicLightScanProvider({ maxPriorityCandidates }),
+  ],
+}: CompositePublicLightScanProviderOptions = {}): PublicLightScanProvider {
+  const source = "public-light-composite";
+
+  return {
+    id: source,
+    label: "Composite Public Futures Light Scan",
+
+    async scan(): Promise<PublicLightScanResult> {
+      const results = await Promise.all(providers.map((provider) => provider.scan()));
+      const generatedAt = results[0]?.diagnostics.generatedAt ?? new Date().toISOString();
+      const instruments = [...new Map(
+        results.flatMap((result) => result.instruments).map((instrument) => [instrument.id, instrument]),
+      ).values()];
+      const tickers = results.flatMap((result) => result.tickers);
+      const priorityCandidates = mergeCompositeCandidates(
+        results.flatMap((result) => result.priorityCandidates),
+        maxPriorityCandidates,
+      );
+      const requestCount = results.reduce((total, result) => total + result.diagnostics.requestCount, 0);
+      const acceptedCount = new Set(instruments.map((instrument) => `${instrument.exchange}:${instrument.symbol}`)).size;
+      const universeCount = results.reduce((total, result) => total + result.diagnostics.universeCount, 0);
+
+      return {
+        diagnostics: {
+          acceptedCount,
+          candidateCount: priorityCandidates.length,
+          generatedAt,
+          notes: [
+            ...results.map((result) =>
+              `${result.diagnostics.source} ${result.diagnostics.status} ${result.diagnostics.acceptedCount}/${result.diagnostics.universeCount} accepted`
+            ),
+            ...results.flatMap((result) =>
+              result.diagnostics.notes.map((note) => `${result.diagnostics.source}: ${note}`)
+            ),
+          ],
+          requestCount,
+          source,
+          status: compositeStatus(results),
+          topCandidates: priorityCandidates.slice(0, 16),
+          universeCount,
+        },
+        instruments,
+        priorityCandidates,
+        tickers,
+      };
     },
   };
 }

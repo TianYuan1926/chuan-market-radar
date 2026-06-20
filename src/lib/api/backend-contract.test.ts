@@ -70,9 +70,12 @@ function snapshot(): MarketRadarSnapshot {
         acceptedCount: 360,
         candidateCount: 24,
         generatedAt: "2026-06-19T08:00:00.000Z",
-        notes: ["Binance public 24h ticker"],
+        notes: [
+          "binance-public-futures-24h ready 360/520 accepted",
+          "okx-public-swap-24h ready 180/220 accepted",
+        ],
         requestCount: 1,
-        source: "binance_public_24h",
+        source: "public-light-composite",
         status: "ready",
         topCandidates: [
           {
@@ -423,6 +426,12 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
 
   assert.equal(contract.schemaVersion, "backend-contract.v1");
   assert.equal(contract.source.activeSource, "coinglass");
+  assert.equal(contract.sourceAudit.publicDiscovery.sources[0]?.source, "binance");
+  assert.equal(contract.sourceAudit.publicLightScan.source, "public-light-composite");
+  assert.equal(contract.sourceAudit.publicLightScan.topSymbols[0], "ARBUSDT");
+  assert.equal(contract.sourceAudit.coinGlassDeepScan.plannedRequests, 6);
+  assert.equal(contract.sourceAudit.coinGlassDeepScan.failedPlannedAssets[0], "BAKE");
+  assert.match(contract.sourceAudit.guardrail, /CoinGlass deep scan confirms/u);
   assert.equal(contract.runtime.repositoryMode, "database");
   assert.equal(contract.scanProof.fullMarket.eligibleAssets, 420);
   assert.equal(contract.scanProof.fullMarket.pendingAssets, 414);
