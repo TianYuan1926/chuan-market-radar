@@ -5,6 +5,7 @@ import {
   runAdminDeploymentReadiness,
   type DeploymentReadinessReport,
 } from "./deployment-readiness";
+import { buildDataSourceCapabilityPlan } from "../market/data-source-capabilities";
 import { buildFallbackScanStatePoolReport } from "../market/scan-state-pool";
 import type { SystemHealthReport } from "./system-health";
 
@@ -21,6 +22,9 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       mode: "demo",
       status: "preview",
     },
+    dataSourceCapabilities: buildDataSourceCapabilityPlan({
+      MARKET_DATA_PROVIDER: "mock",
+    }),
     persistence: {
       databaseDriver: "neon",
       databaseStatus: "ready",

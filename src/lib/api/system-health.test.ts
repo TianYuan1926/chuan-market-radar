@@ -196,7 +196,64 @@ test("buildSystemHealthReport reports a degraded provider when CoinGlass is requ
   assert.equal(report.dataSource.configuredProvider, "coinglass");
   assert.equal(report.dataSource.status, "missing_key");
   assert.match(report.dataSource.detail, /COINGLASS_API_KEY/);
+  assert.equal(
+    report.dataSourceCapabilities.providers.find((provider) => provider.id === "coinglass_paid")?.implementationStatus,
+    "blocked",
+  );
+  assert.equal(
+    report.dataSourceCapabilities.coinGlassHobbyist.endpointFamilies.find((family) =>
+      family.id === "open_interest_current"
+    )?.implementationStatus,
+    "blocked",
+  );
+  assert.equal(
+    report.dataSourceCapabilities.coinGlassHobbyist.endpointFamilies.find((family) =>
+      family.id === "coins_price_change"
+    )?.hobbyistStatus,
+    "unsupported_by_hobbyist",
+  );
   assert.equal(report.guards.find((guard) => guard.id === "data-source")?.state, "degraded");
+});
+
+test("buildSystemHealthReport exposes CoinGlass Hobbyist capability contract when configured", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+
+  const report = await buildSystemHealthReport({
+    env: {
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+    now: new Date("2026-06-12T10:02:00.000Z"),
+    repository,
+    snapshot: snapshot({
+      source: "coinglass",
+      isRealtime: true,
+    }),
+  });
+
+  assert.equal(report.dataSourceCapabilities.coinGlassHobbyist.accountPlan, "hobbyist");
+  assert.equal(report.dataSourceCapabilities.coinGlassHobbyist.minuteLimit, 30);
+  assert.equal(
+    report.dataSourceCapabilities.providers.find((provider) => provider.id === "coinglass_paid")?.implementationStatus,
+    "enabled",
+  );
+  assert.equal(
+    report.dataSourceCapabilities.coinGlassHobbyist.endpointFamilies.find((family) =>
+      family.id === "open_interest_current"
+    )?.implementationStatus,
+    "enabled",
+  );
+  assert.equal(
+    report.dataSourceCapabilities.coinGlassHobbyist.endpointFamilies.find((family) =>
+      family.id === "technical_indicators"
+    )?.implementationStatus,
+    "blocked",
+  );
+  assert.ok(
+    report.dataSourceCapabilities.visualizationContracts.some((contract) =>
+      contract.id === "scan_proof"
+    ),
+  );
 });
 
 test("buildSystemHealthReport exposes database fallback diagnostics instead of hiding them behind memory mode", async () => {

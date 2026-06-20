@@ -19,6 +19,7 @@ Response shape:
 - `ok`: request status.
 - `contract.schemaVersion`: currently `backend-contract.v1`.
 - `contract.source`: active data source, configured provider, realtime flag and source status.
+- `contract.dataSourceCapabilities`: provider capability matrix, CoinGlass Hobbyist endpoint allowlist, unsupported endpoint states and visualization contracts.
 - `contract.sourceAudit`: source-level proof for public discovery, Binance/OKX composite light scan and CoinGlass deep scan.
 - `contract.runtime`: scan trigger, cache status, repository mode and archive persistence.
 - `contract.scanProof.fullMarket`: total, eligible, scanned, pending, coverage percent and coverage status.
@@ -37,6 +38,7 @@ Primary use:
 
 - A redesigned frontend can show whether the system is really scanning, what was scanned, what remains pending and why a candidate entered deep scan.
 - Source panels can show Binance/OKX public discovery and light-scan status separately from CoinGlass deep-scan status. A public source failure should appear as `partial` or `failed` source-level evidence, not as a silent fallback to a small fixed coin list.
+- Frontend panels should read `contract.dataSourceCapabilities` before showing CoinGlass-derived visuals. Supported Hobbyist families can be displayed as active/available when configured; unsupported families must show `unsupported_by_hobbyist`, `disabled_by_blueprint`, `partial`, `stale` or equivalent visible states instead of hidden failures.
 - The two-stage allocation proof is the frontend-safe answer to "why these assets now": stage one discovers and ranks candidates from public light scan and repository hints; stage two spends the limited CoinGlass deep-scan slots while preserving at least one long-tail exploration slot when capacity allows.
 - Assets listed in `queuedPriorityAssets` are not eliminated. They remain in the priority queue, rotation pool, revive watch or cold exploration pool for later batches.
 - Operations panels can read one object instead of stitching together `/api/health`, `/api/scan` and local assumptions.

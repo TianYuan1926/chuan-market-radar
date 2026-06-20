@@ -13,6 +13,9 @@
 - The product is an altcoin trend-switch radar, not an automatic trading bot.
 - Do not implement liquidation heatmap, LiquidationZone, or heatmap-provider decision logic.
 - CoinGlass Hobbyist API must be budgeted, cached, low-rate, and reused; public OHLCV handles candles whenever possible.
+- CoinGlass Hobbyist endpoints must be allowlisted before implementation. Supported endpoint families can power deep-scan confirmation and visuals; unsupported endpoint families must surface as `unsupported_by_plan` instead of failing silently or falling back to fake data.
+- Binance/OKX public data remain the full-market discovery layer. CoinGlass is the high-value candidate confirmation layer, not the full-market minute-level discovery source.
+- Visualizations must answer operational trading questions: what is being scanned, which assets reached candidate status, what derivatives evidence confirms or rejects them, what is hidden by Top N, and what should be reviewed later.
 - Full-market scanning is two-layered: light scan covers the market, deep analysis only runs on candidates.
 - Reports, AI, UI, pets, sounds, and alerts cannot override structured evidence, risk gates, or invalidation.
 - No Telegram/Webhook alert work; alerts remain in-app/browser-only.
@@ -20,6 +23,54 @@
 - Each delivery block must update blueprint state, add/adjust tests, run verification, and commit.
 
 ---
+
+### Task 0C: CoinGlass Hobbyist Capability Contract And Data Visual Roadmap
+
+**Files:**
+- Modify: `/Users/chuan/Documents/web/docs/chuan-market-radar-blueprint.md`
+- Modify: `/Users/chuan/Documents/web/docs/BACKEND_API_CONTRACT.md`
+- Modify: `/Users/chuan/Documents/web/src/lib/market/data-source-capabilities.ts`
+- Modify: `/Users/chuan/Documents/web/src/lib/api/system-health.ts`
+- Modify: `/Users/chuan/Documents/web/src/app/api/radar/backend-contract/route.ts` or the backend-contract builder it calls
+- Modify: related tests under `/Users/chuan/Documents/web/src/lib/market/` and `/Users/chuan/Documents/web/src/lib/api/`
+
+**Purpose:** Turn the official CoinGlass Hobbyist capability review into code-level guardrails and frontend-readable visual contracts.
+
+**Allowed CoinGlass Hobbyist families:**
+- account subscription
+- supported exchanges
+- supported exchange pairs
+- supported coins
+- futures pairs markets
+- open interest current and `>=4h` history
+- funding current and `>=4h` history
+- taker buy/sell current and `>=4h` history
+- global/top long-short history with `>=4h` Hobbyist limit
+- BTC/ETH ETF data
+- fear/greed and exchange assets/balances as low-frequency macro context
+
+**Unsupported or disabled families:**
+- CoinGlass full-market price-change list
+- CoinGlass RSI/MACD/EMA/MA/ATR/BOLL indicator endpoints
+- CoinGlass News
+- CVD, NetFlow, Net Position
+- Altcoin Season Index, Bitcoin Dominance, token unlock/vesting unless a separate free source is chosen
+- Liquidation heatmap/map/max-pain and any liquidation-zone decision module
+
+**Visualization contract:**
+- `Scan Proof`: source status, supported exchanges/pairs, request budget, minute limit, batch plan, hidden counts.
+- `Candidate Deep Scan`: OI pulse, Funding crowding, Taker buy/sell balance, Long/Short crowding, exchange distribution.
+- `Signal Dossier Evidence`: selected symbol structure + CoinGlass derivatives + Risk Gate + RR + invalidation.
+- `Macro Weather`: BTC/ETH ETF, fear/greed, exchange balances, BTC/ETH context.
+- `Review Evolution`: OI/Funding/Taker after-signal validation and missed-opportunity samples.
+
+- [x] Add tests that unsupported Hobbyist endpoints cannot be marked enabled.
+- [x] Expose a capability matrix in health/backend-contract without leaking secrets.
+- [x] Add visual contract fields for source status and hidden counts.
+- [x] Ensure unsupported families are represented as unavailable states, not runtime failures.
+- [x] Update blueprint and backend API contract.
+- [x] Run `npm run typecheck`, `npm run test:market`, `npm run lint`, and `npm run build`; browser QA if UI changes.
+- [x] Commit as `Add CoinGlass Hobbyist capability contract`.
 
 ### Task 1A: Full-Market Priority Scan Depth
 

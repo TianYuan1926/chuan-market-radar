@@ -35,6 +35,10 @@ import { buildV3PatternReviewStats } from "../journal/v3-pattern-review-stats";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import {
+  buildDataSourceCapabilityPlan,
+  type DataSourceCapabilityPlan,
+} from "../market/data-source-capabilities";
+import {
   buildFallbackScanStatePoolReport,
 } from "../market/scan-state-pool";
 import type {
@@ -403,6 +407,7 @@ export type SystemHealthReport = {
     mode: "demo" | "live";
     status: DataSourceHealthStatus;
   };
+  dataSourceCapabilities: DataSourceCapabilityPlan;
   persistence: {
     databaseDriver: DatabaseClientDiagnostics["driver"];
     databaseReason?: DatabaseClientDiagnostics["reason"];
@@ -2322,6 +2327,7 @@ export async function buildSystemHealthReport({
   const scanEconomy = buildScanEconomyReport(metadata, coverage);
   const fullMarketCoverage = fullMarketCoverageReport(metadata, coverage, scanEconomy);
   const marketDataQuality = marketDataQualityReport(snapshot);
+  const dataSourceCapabilities = buildDataSourceCapabilityPlan(env);
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const providerStatus = sourceStatus({
@@ -2389,6 +2395,7 @@ export async function buildSystemHealthReport({
       mode: metadata.source === "mock" ? "demo" : "live",
       status: providerStatus,
     },
+    dataSourceCapabilities,
     persistence: {
       databaseDriver: databaseDiagnostics.driver,
       databaseReason: databaseDiagnostics.reason,

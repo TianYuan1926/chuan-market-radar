@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "@/lib/analysis/types";
 import type { SystemHealthReport } from "@/lib/api/system-health";
+import { buildDataSourceCapabilityPlan } from "../market/data-source-capabilities";
 import { buildFallbackScanStatePoolReport } from "../market/scan-state-pool";
 import {
   buildAlertControlReport,
@@ -74,6 +75,10 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       mode: "live",
       status: "ready",
     },
+    dataSourceCapabilities: buildDataSourceCapabilityPlan({
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    }),
     persistence: {
       databaseDriver: "postgres",
       databaseStatus: "ready",

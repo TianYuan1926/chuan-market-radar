@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketRadarSnapshot } from "../market/types";
+import { buildDataSourceCapabilityPlan } from "../market/data-source-capabilities";
 import type { SystemHealthReport } from "./system-health";
 import { buildBackendContract } from "./backend-contract";
 
@@ -311,6 +312,10 @@ function health(): SystemHealthReport {
       mode: "live",
       status: "ready",
     },
+    dataSourceCapabilities: buildDataSourceCapabilityPlan({
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    }),
     persistence: {
       databaseStatus: "ready",
       detail: "Neon ready",
@@ -426,6 +431,19 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
 
   assert.equal(contract.schemaVersion, "backend-contract.v1");
   assert.equal(contract.source.activeSource, "coinglass");
+  assert.equal(contract.dataSourceCapabilities.coinGlassHobbyist.accountPlan, "hobbyist");
+  assert.equal(contract.dataSourceCapabilities.coinGlassHobbyist.minuteLimit, 30);
+  assert.equal(
+    contract.dataSourceCapabilities.coinGlassHobbyist.endpointFamilies.find((family) =>
+      family.id === "coins_price_change"
+    )?.implementationStatus,
+    "blocked",
+  );
+  assert.ok(
+    contract.dataSourceCapabilities.visualizationContracts.some((visualContract) =>
+      visualContract.id === "candidate_deep_scan"
+    ),
+  );
   assert.equal(contract.sourceAudit.publicDiscovery.sources[0]?.source, "binance");
   assert.equal(contract.sourceAudit.publicLightScan.source, "public-light-composite");
   assert.equal(contract.sourceAudit.publicLightScan.topSymbols[0], "ARBUSDT");

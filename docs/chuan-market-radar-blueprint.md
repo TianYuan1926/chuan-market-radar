@@ -285,6 +285,86 @@ CoinGlass paid data：深扫确认源
 -> Outcome / Missed Opportunity / 策略进化
 ```
 
+### CoinGlass Hobbyist 官方能力清单与接入规则
+
+2026-06-20 已按 CoinGlass 官方文档重新校准：当前账号按 **Hobbyist** 级别设计。CoinGlass 不是全市场分钟级发现源，而是候选币深扫确认源。后续任何 CoinGlass 新接口接入前，必须先进入能力白名单，标明 `supported_by_hobbyist`、`unsupported_by_hobbyist`、`interval_limit`、`scan_layer`、`visualization_target` 和 `fallback_behavior`；不允许在代码里直接硬接一个未确认端点。
+
+官方文档来源：
+
+- `https://docs.coinglass.com/reference/supported-exchanges`
+- `https://docs.coinglass.com/reference/instruments`
+- `https://docs.coinglass.com/reference/endpoint-overview`
+- `https://docs.coinglass.com/reference/responses-error-codes`
+- `https://docs.coinglass.com/reference/user-account-subscription`
+
+当前 Hobbyist 限制按用户已购买套餐展示设计：约 `30 调用/分钟`、`80+ 数据接口端点`、更新频率最高可到 `<= 1 分钟`。服务器升级不改变 CoinGlass 外部限速，因此仍必须使用令牌桶、批次、缓存、预算、失败降级和健康展示。
+
+Hobbyist 可用并建议接入：
+
+| 数据能力 | 官方端点/类别 | 使用位置 | 可视化目标 | 硬边界 |
+| --- | --- | --- | --- | --- |
+| 账户等级与到期 | `/api/user/account/subscription` | 系统状态 / 设置 | CoinGlass 账号状态、到期、套餐能力 | 不展示 API key，不把失败当作数据源失败 |
+| 支持交易所 | `/api/futures/supported-exchanges` | Universe / 扫描证明 | 支持交易所矩阵、覆盖说明 | 只证明 CoinGlass 支持范围，不等于本轮已深扫 |
+| 支持交易对 | `/api/futures/supported-exchange-pairs` | Universe / 数据清洗 | 合约池覆盖、交易所覆盖、USDT 永续过滤 | 用于过滤脏数据，不直接生成 Evidence |
+| 支持币种 | `/api/futures/supported-coins` | Universe / Coverage | CoinGlass 可深扫币池数量 | 与 Binance/OKX 交叉验证，不能替代公共全市场轻扫 |
+| Futures Pairs Markets | `/api/futures/pairs-markets` | 候选深扫 | 合约市场基础卡片 | 只对候选使用，不全市场高频刷 |
+| 当前 OI | `/api/futures/open-interest/exchange-list` | Evidence / 深扫 | OI 脉冲、交易所 OI 分布、价格/OI 对照 | OI 上升不能单独看涨 |
+| OI 图表/历史 | `open-interest/*history*` | Dossier / 复盘 | 4h+ OI 趋势线、复盘对照 | Hobbyist 历史周期限制 `>=4h`，不能当 15m/30m 早期发现源 |
+| 当前 Funding | `/api/futures/funding-rate/exchange-list` | Evidence / 风险门控 | Funding 拥挤仪表、交易所 funding 对比 | 高 funding 是拥挤风险，不是强势本身 |
+| Funding 历史 | `funding-rate/*history*` | Dossier / 复盘 | 4h+ funding 趋势线 | Hobbyist 历史周期限制 `>=4h` |
+| 当前 Taker Buy/Sell | `/api/futures/taker-buy-sell-volume/exchange-list` | Evidence / 深扫 | 主动买卖天平、买卖量堆叠条 | 只能验证资金推动质量，不单独决定方向 |
+| Taker Buy/Sell 历史 | `taker-buy-sell-volume/history` | 复盘 / 趋势质量 | 4h+ 主动买卖趋势线 | Hobbyist 历史周期限制 `>=4h` |
+| 多空账户 / 大户多空 | `global/top-long-short-*history` | Risk Gate / 拥挤判断 | 多空拥挤条、反向风险提示 | 极端多空比只能作为拥挤证据 |
+| BTC ETF / ETH ETF | `/api/etf/bitcoin/*`、`/api/etf/ethereum/*` | Macro Weather | ETF 流入流出、AUM、净资产趋势 | 只做大盘天气，不抢山寨主线 |
+| 恐惧贪婪指数 | `/api/index/fear-greed-history` | Macro Weather | 情绪仪表 | 只做背景降权/加权 |
+| 交易所资产/余额 | `/api/exchange/assets`、`/api/exchange/balance/list` | Macro / 风险背景 | 交易所余额变化、资金流背景 | 低频展示，不做短线入场依据 |
+
+Hobbyist 不支持或当前明确不接：
+
+| 数据能力 | 官方状态 | 处理方式 |
+| --- | --- | --- |
+| CoinGlass 全市场涨跌幅 `/api/futures/coins-price-change` | Hobbyist 不支持 | 用 Binance/OKX public ticker 自己算全市场涨跌、波动、成交额 |
+| CoinGlass RSI/MACD/EMA/MA/ATR 列表 | Hobbyist 不支持 | 用本地指标引擎从 Binance/OKX K 线计算 |
+| CoinGlass Pair RSI/MACD/BOLL/EMA/ATR | Hobbyist 不支持 | 本地计算并标明来源周期 |
+| CoinGlass News `/api/article/list` | Hobbyist 不支持 | 后续如需要新闻，另接免费 RSS、交易所公告或公开资讯源 |
+| CVD | Hobbyist 不支持 | 用 Taker Buy/Sell 作为 CVD proxy，不冒充真实 CVD |
+| NetFlow / Net Position | Hobbyist 不支持 | 暂不接；升级套餐前只标记为 unavailable |
+| Altcoin Season Index / Bitcoin Dominance | Hobbyist 不支持 | 另找免费公开源，或延后 |
+| Token Unlock / Vesting | Hobbyist 不支持 | 另找免费解锁数据源，或延后 |
+| Liquidation Heatmap / Map / Max Pain | Hobbyist 不支持，且本项目蓝图禁用 | 不实现、不作为目标位、不作为方向依据 |
+
+Hobbyist 可用但当前降级或默认不用：
+
+- Liquidation history / liquidation coin-list / liquidation exchange-list：部分 Hobbyist 可用，但项目已禁止清算热力图和潜在清算区逻辑。除非后续单独重开“清算历史只做风险背景”的设计，否则不进入主线。
+- 4h+ 历史数据：适合复盘、趋势质量和中周期背景；不适合作为 15m/30m 爆发前发现源。
+
+CoinGlass 可视化接入优先级：
+
+```text
+第一优先：Scan Proof / Source Status
+-> 套餐状态、分钟限速、今日预算、已用/剩余、本轮请求、失败/降级原因、支持交易所和支持交易对
+
+第二优先：Candidate Deep Scan
+-> OI 脉冲、Funding 拥挤、Taker 买卖天平、多空拥挤、交易所分布
+
+第三优先：Signal Dossier Evidence
+-> 单币价格结构 + OI + Funding + Taker + Long/Short + 关键位 + RR + Risk Gate 联动展示
+
+第四优先：Macro Weather
+-> BTC/ETH ETF、恐惧贪婪、交易所余额/资产背景，只影响环境解释和机会权重
+
+第五优先：Review Evolution
+-> 事后验证 OI/Funding/Taker 是否支持信号、是否出现拥挤、是否错过机会
+```
+
+首页可视化必须遵守：
+
+- 首页只显示最重要的扫描证明、候选排行和选中币作战摘要；完整数据进 Signals / Dossier / Review。
+- 任何 Top N 展示必须显示 `显示 X / 共 Y` 和完整入口，不能让用户误以为只扫到了几个币。
+- CoinGlass 深扫可视化必须标明 `current`、`4h+ history`、`unsupported_by_plan`、`stale` 或 `partial`。
+- TradingView 真实图、自研结构图、CoinGlass 衍生品图必须命名清楚，不能互相冒充。
+- 所有图表必须回答交易问题：有没有提前迹象、资金质量是否支持、是否拥挤、位置是否合理、能不能做、错了在哪里失效。
+
 Worker 目标拆分：
 
 - `binance-universe-worker`：低频同步 Binance USDT 永续合约池。
@@ -596,6 +676,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 主扫描已输出数据质量审计样本：metadata notes 会记录原始拒绝样本、重复币种聚合组数、主信号选择规则和样本，如 `TIAUSDT selected BINANCE over OKX/BYBIT by exchange_priority_then_volume_oi`。
 - 扫描 metadata notes 会显示 raw、clean、primary 数量，以及 unsupported exchange、unsupported quote、duplicate symbol 等过滤原因。
 - 扫描 metadata 已新增结构化诊断：`diagnostics.discovery`、`diagnostics.requests`、`diagnostics.v3Coverage` 和 `runtime`，用于排查发现源是否失败、是否启用兜底、CoinGlass 是否空返回、OHLCV/v3 是否缺失、当前结果来自 cron/页面/API/缓存还是新扫描。
+- 2026-06-20 已完成 CoinGlass Hobbyist 官方能力梳理并写入蓝图：可用能力包括 supported exchanges/pairs/coins、pairs markets、OI、Funding、Taker Buy/Sell、Long/Short、BTC/ETH ETF、恐惧贪婪、交易所资产/余额；不支持或禁用能力包括 CoinGlass 全市场涨跌幅、CoinGlass 指标接口、News、CVD、NetFlow、Net Position、Altcoin Season、Bitcoin Dominance、Token Unlock/Vesting 和 Liquidation Heatmap/Map/Max Pain。
+- 2026-06-20 已完成代码级能力白名单 MVP：`buildDataSourceCapabilityPlan()` 会输出 CoinGlass Hobbyist 支持/不支持/蓝图禁用端点、`30 调用/分钟` 边界、可视化契约和三源职责；`/api/health` 与 `/api/radar/backend-contract` 会暴露同一份 `dataSourceCapabilities`，前端必须显示 `supported_by_hobbyist`、`unsupported_by_hobbyist`、`disabled_by_blueprint`、`partial` 和 `stale`，防止误接不支持接口或静默隐藏。
 
 ### 已落地：Postgres 持久化骨架
 
@@ -1227,22 +1309,25 @@ CoinGlass 业余会员 API：
 5. 结构、关键位、赔率和技术指标候选预筛
    -> Market Reading、Key Level、Forward Map、位置/RR、回踩/反抽、趋势完整度、EMA/RSI/MACD/Bollinger/ATR/VWAP/ADX/Volume/OBV-CVD/Fibonacci 辅助证据
 
-6. CoinGlass 深扫价值最大化
-   -> 令牌桶、深扫优先级、防漏网配额、资金质量验证、拥挤/假突破风险
+6. CoinGlass Hobbyist 能力白名单与深扫价值最大化
+   -> 先固化官方支持/不支持清单，再做令牌桶、深扫优先级、防漏网配额、资金质量验证、拥挤/假突破风险；禁止接入 Hobbyist 不支持端点
 
-7. Evidence / Strategy / Risk Gate 实战闭环
+7. 数据可视化契约与前端承接
+   -> Scan Proof、Source Status、Candidate Deep Scan、Signal Dossier Evidence、Macro Weather、Review Evolution 六类可视化，确保后端数据不被首页 Top N 静默隐藏
+
+8. Evidence / Strategy / Risk Gate 实战闭环
    -> 所有数据转 EvidenceItem，最终由 Strategy/Risk Gate 生成条件化计划或不参与原因
 
-8. 复盘进化闭环
+9. 复盘进化闭环
    -> outcome、missed opportunity、每日异动、Forward Map review、人工校准、策略版本审计
 
-9. Figma 新 UI 与真实数据融合
+10. Figma 新 UI 与真实数据融合
    -> 首页、Signals、Dossier、Review、Journal、Evolution、Settings 消费统一后端契约，不再使用旧 UI 或 mock 业务逻辑
 
-10. 运行互动、提示音、启动 briefing 和 DIY 设置
+11. 运行互动、提示音、启动 briefing 和 DIY 设置
    -> 只保留真实运行状态、扫描动效、数据新鲜度、提示音、静默时段、启动介绍和可关闭设置；宠物、小人、副驾驶、S680、装备和娱乐彩蛋删除
 
-11. 长期运维、监控、备份和性能优化
+12. 长期运维、监控、备份和性能优化
    -> Postgres 备份、日志归档、Worker 心跳、Redis 队列监控、资源水位、错误告警、部署回滚和容量复盘
 ```
 

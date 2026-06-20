@@ -43,6 +43,7 @@ export type BackendContract = {
     mode: SystemHealthReport["dataSource"]["mode"];
     status: SystemHealthReport["dataSource"]["status"];
   };
+  dataSourceCapabilities: SystemHealthReport["dataSourceCapabilities"];
   sourceAudit: {
     coinGlassDeepScan: {
       cleanRows: number;
@@ -310,6 +311,7 @@ export function buildBackendContract({
       mode: health.dataSource.mode,
       status: health.dataSource.status,
     },
+    dataSourceCapabilities: health.dataSourceCapabilities,
     sourceAudit: {
       coinGlassDeepScan: {
         cleanRows: requests?.cleanRows ?? 0,
