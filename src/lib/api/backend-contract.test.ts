@@ -418,6 +418,14 @@ function health(): SystemHealthReport {
         v3Signals: 1,
       },
       mode: "v3_strategy_loop_mvp",
+      readinessBuckets: [
+        {
+          bucket: "manual_review_ready",
+          count: 1,
+          label: "可人工复核",
+          samples: ["ENAUSDT"],
+        },
+      ],
       status: "collecting",
     } as SystemHealthReport["v3StrategyLoop"],
   } as unknown as SystemHealthReport;
@@ -464,6 +472,7 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   assert.equal(contract.scanProof.twoStageAllocation?.stageTwo.explorationSlots, 1);
   assert.ok(contract.scanProof.twoStageAllocation?.stageTwo.queuedPriorityAssets.includes("SUI"));
   assert.equal(contract.analysis.v3Coverage.withV3Signals, 2);
+  assert.equal(contract.analysis.v3StrategyLoop.readinessBuckets[0]?.bucket, "manual_review_ready");
   assert.equal(contract.analysis.evolution.canAutoAdjustWeights, false);
   assert.ok(contract.guardrails.includes("no_silent_ui_truncation"));
   assert.ok(contract.guardrails.includes("light_scan_never_trades_directly"));

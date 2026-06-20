@@ -153,6 +153,7 @@ export type BackendContract = {
     v3StrategyLoop: {
       missingV3Signals: number;
       readyPlans: number;
+      readinessBuckets: SystemHealthReport["v3StrategyLoop"]["readinessBuckets"];
       riskGateBlocked: number;
       status: SystemHealthReport["v3StrategyLoop"]["status"];
       totalSignals: number;
@@ -419,6 +420,7 @@ export function buildBackendContract({
       v3StrategyLoop: {
         missingV3Signals: liveV3.missingV3Signals,
         readyPlans: liveV3.readyPlans,
+        readinessBuckets: health.v3StrategyLoop.readinessBuckets,
         riskGateBlocked: liveV3.riskGateBlocked,
         status: health.v3StrategyLoop.status,
         totalSignals: liveV3.totalSignals,

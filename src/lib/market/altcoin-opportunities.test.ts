@@ -249,6 +249,8 @@ test("buildAltcoinOpportunityBoard exposes v3 risk gate without changing opportu
   assert.equal(item?.groupKey, "long_warming");
   assert.equal(item?.strategyV3StateLabel, "周期冲突");
   assert.equal(item?.strategyV3DecisionLabel, "等一致");
+  assert.equal(item?.strategyV3ReadinessBucket, "conflict_wait");
+  assert.equal(item?.strategyV3ReadinessLabel, "周期冲突等待");
   assert.match(item?.strategyV3RiskGateLabel ?? "", /v3阻断/);
   assert.match(item?.strategyV3NoParticipationLabel ?? "", /周期冲突/);
 });

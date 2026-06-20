@@ -127,6 +127,101 @@ function strategyV3Dossier(): StrategyV3Dossier {
     sourceTimeframes: ["15m", "1h", "4h"],
     summary: "Readonly v3 map.",
     symbol: "ENAUSDT",
+    tradePlan: {
+      allowedUse: "research_only",
+      blockedBy: [],
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      confirmationChecklist: ["Risk Gate 已通过", "位置/RR 不低于 3:1"],
+      direction: "long",
+      entryZone: "等待人工确认",
+      hasAutoExecution: false,
+      invalidation: "跌破 94",
+      isPlanEligible: true,
+      manualReviewRequired: true,
+      positionSizing: "人工确认",
+      rewardRisk: 3.4,
+      status: "READY_LONG",
+      structuralStop: 94,
+      summary: "v3 只读多头计划草案。",
+      takeProfitPlan: "分批止盈",
+      targets: [112],
+    },
+    trendContext: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      conflicts: [],
+      decision: "LONG_PLAN",
+      guardrail: "只读复核，不改变实时排序。",
+      locationRiskReward: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        currentPrice: 100,
+        direction: "long",
+        hasTradeSignal: false,
+        isTradeEligible: true,
+        minRewardRisk: 3,
+        nearestTarget: 112,
+        positionQuality: "GOOD_LOCATION",
+        rewardRisk: 3.4,
+        riskFlags: [],
+        stopDistance: 6,
+        stopDistancePercent: 6,
+        stopLevelId: "ENAUSDT-4h-swing-low",
+        structuralStop: 94,
+        summary: "位置/RR 合格。",
+        targetDistance: 12,
+        targetDistancePercent: 12,
+        targetLevelId: "ENAUSDT-forward-r1",
+      },
+      marketReadings: [],
+      nextStep: "进入人工复核。",
+      noParticipationReasons: [],
+      reactionQuality: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        direction: "long",
+        evidence: ["回踩承接已确认。"],
+        hasTradeSignal: false,
+        qualityScore: 80,
+        riskFlags: [],
+        status: "CONFIRMED",
+        summary: "回踩确认。",
+        touchedLevelId: "ENAUSDT-4h-swing-low",
+      },
+      riskGate: {
+        allowed: true,
+        blockedBy: [],
+        mode: "readonly_v3_risk_gate",
+      },
+      scores: {
+        exhaustionScore: 12,
+        longPreTrendScore: 78,
+        longTrendEnergyScore: 80,
+        riskScore: 24,
+        shortPreTrendScore: 20,
+        shortTrendEnergyScore: 12,
+        trendHoldScore: 72,
+      },
+      state: "LONG_BREAKOUT",
+      summary: "v3 ready context",
+      timeframes: [],
+      trendIntegrity: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        direction: "long",
+        evidence: ["HH/HL 保持。"],
+        hasTradeSignal: false,
+        integrityScore: 82,
+        riskFlags: [],
+        status: "HEALTHY_TREND",
+        summary: "趋势健康。",
+      },
+    },
   };
 }
 
@@ -1139,6 +1234,10 @@ test("buildSystemHealthReport exposes readonly v3 strategy loop coverage", async
   assert.equal(report.v3StrategyLoop.review.topPatternLabel, "双底");
   assert.equal(report.v3StrategyLoop.review.topTradePlanLabel, "多头就绪");
   assert.equal(report.v3StrategyLoop.candidates[0]?.symbol, "ENAUSDT");
+  assert.equal(report.v3StrategyLoop.candidates[0]?.readinessBucket, "manual_review_ready");
+  assert.equal(report.v3StrategyLoop.candidates[0]?.readinessLabel, "可人工复核");
+  assert.equal(report.v3StrategyLoop.readinessBuckets[0]?.bucket, "manual_review_ready");
+  assert.equal(report.v3StrategyLoop.readinessBuckets[0]?.count, 1);
   assert.match(report.v3StrategyLoop.guardrail, /不能自动下单/);
   assert.match(report.v3StrategyLoop.operatorHint, /人工查看|人工校准|可复核/);
   assert.equal(report.strategyEvolutionLoop.mode, "strategy_evolution_loop_mvp");

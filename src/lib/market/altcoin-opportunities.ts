@@ -3,6 +3,10 @@ import {
   marketStageZh,
   strategyDecisionZh,
 } from "../analysis/v2/report/chinese-templates";
+import {
+  evaluateStrategyV3Readiness,
+  type StrategyV3ReadinessBucket,
+} from "../analysis/v3/readiness";
 import type { MarketDataStatus } from "./types";
 
 export type AltcoinOpportunityGroupKey =
@@ -38,6 +42,9 @@ export type AltcoinOpportunityItem = {
   strategyV2StageLabel?: string;
   strategyV3DecisionLabel?: string;
   strategyV3NoParticipationLabel?: string;
+  strategyV3ReadinessBucket?: StrategyV3ReadinessBucket;
+  strategyV3ReadinessLabel?: string;
+  strategyV3ReadinessScore?: number;
   strategyV3RiskGateLabel?: string;
   strategyV3StateLabel?: string;
   strategyHint: string;
@@ -317,6 +324,7 @@ function buildSignalItem({
   signal: MarketSignal;
 }): AltcoinOpportunityItem {
   const trendContext = signal.strategyV3?.trendContext;
+  const v3Readiness = signal.strategyV3 ? evaluateStrategyV3Readiness(signal) : null;
 
   return {
     actionLabel: signalActionLabel(groupKey, signal),
@@ -337,6 +345,9 @@ function buildSignalItem({
     strategyV2StageLabel: signal.strategyV2 ? marketStageZh[signal.strategyV2.stage] : undefined,
     strategyV3DecisionLabel: trendContext ? trendDecisionLabels[trendContext.decision] : undefined,
     strategyV3NoParticipationLabel: trendContext?.noParticipationReasons[0],
+    strategyV3ReadinessBucket: v3Readiness?.bucket,
+    strategyV3ReadinessLabel: v3Readiness?.label,
+    strategyV3ReadinessScore: v3Readiness?.score,
     strategyV3RiskGateLabel: strategyV3RiskGateLabel(signal),
     strategyV3StateLabel: trendContext ? trendStateLabels[trendContext.state] : undefined,
     strategyHint: `${signal.strategy.entry} / 失效 ${signal.strategy.invalidation}`,

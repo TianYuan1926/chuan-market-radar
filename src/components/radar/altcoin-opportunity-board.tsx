@@ -123,6 +123,7 @@ function renderItemContent(item: AltcoinOpportunityItem) {
         <div className="altcoin-opportunity-card__v3">
           <span>v3 {item.strategyV3StateLabel}</span>
           {item.strategyV3DecisionLabel ? <b>{item.strategyV3DecisionLabel}</b> : null}
+          {item.strategyV3ReadinessLabel ? <b>{item.strategyV3ReadinessLabel} · {item.strategyV3ReadinessScore}</b> : null}
           {item.strategyV3RiskGateLabel ? <em>v3风控：{item.strategyV3RiskGateLabel}</em> : null}
         </div>
       ) : null}

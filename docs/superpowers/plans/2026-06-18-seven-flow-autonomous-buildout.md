@@ -160,10 +160,10 @@
 - Consumes: v3 key levels, forward maps, trade plans, review samples.
 - Produces: readiness grading and candidate explanation without changing live ranking.
 
-- [ ] Add tests for v3 readiness buckets.
-- [ ] Connect readiness to opportunity and dossier explanations.
-- [ ] Preserve no-auto-trade and no-live-weight guards.
-- [ ] Update blueprint, verify, commit.
+- [x] Add tests for v3 readiness buckets.
+- [x] Connect readiness to opportunity and dossier explanations.
+- [x] Preserve no-auto-trade and no-live-weight guards.
+- [x] Update blueprint, verify, commit.
 
 ### Task 5: Review Evolution And Safe Weight Activation
 

@@ -2829,6 +2829,11 @@ button.altcoin-opportunity-card.is-selected {
   font-style: normal;
 }
 
+.altcoin-opportunity-card__v3 b:nth-of-type(2) {
+  grid-column: 1 / -1;
+  color: #1a6f55;
+}
+
 .altcoin-opportunity-card__v3-reason {
   display: flex;
   align-items: flex-start;
@@ -4778,6 +4783,51 @@ button.altcoin-opportunity-card.is-selected {
   color: var(--muted);
   font-family: "Fira Code", "JetBrains Mono", monospace;
   font-size: 10px;
+}
+
+.signal-dossier__v3-readiness {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(20, 131, 92, 0.08);
+}
+
+.signal-dossier__v3-readiness div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.signal-dossier__v3-readiness strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.signal-dossier__v3-readiness span {
+  color: var(--good);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+
+.signal-dossier__v3-readiness p,
+.signal-dossier__v3-readiness small {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.signal-dossier__v3-readiness--risk_gate_blocked,
+.signal-dossier__v3-readiness--rr_blocked,
+.signal-dossier__v3-readiness--invalidated {
+  background: rgba(201, 74, 74, 0.08);
+}
+
+.signal-dossier__v3-readiness--conflict_wait,
+.signal-dossier__v3-readiness--wait_reaction {
+  background: rgba(232, 160, 32, 0.09);
 }
 
 .signal-dossier__v3-trend {
@@ -7050,7 +7100,8 @@ button.altcoin-opportunity-card.is-selected {
 }
 
 .health-v3-strategy-loop__grid,
-.health-v3-strategy-loop__candidates {
+.health-v3-strategy-loop__candidates,
+.health-v3-strategy-loop__readiness {
   display: grid;
   gap: 6px;
 }
@@ -7088,6 +7139,41 @@ button.altcoin-opportunity-card.is-selected {
 
 .health-v3-strategy-loop__candidates {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.health-v3-strategy-loop__readiness {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-v3-strategy-loop__readiness span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(30, 99, 92, 0.16);
+  border-radius: 6px;
+  background: rgba(30, 99, 92, 0.06);
+  color: var(--ink-2);
+  font-size: 10px;
+}
+
+.health-v3-strategy-loop__readiness b,
+.health-v3-strategy-loop__readiness small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-v3-strategy-loop__readiness b {
+  color: var(--ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.health-v3-strategy-loop__readiness small {
+  color: var(--muted);
+  font-size: 9px;
 }
 
 .health-v3-strategy-loop__candidate {
@@ -14774,6 +14860,27 @@ body {
   background: rgba(232, 160, 32, 0.06);
   color: var(--cs-gold-soft);
   font-size: 11px;
+}
+
+.chuan-dossier__readiness {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 160, 32, 0.2);
+  border-radius: 8px;
+  background: rgba(232, 160, 32, 0.06);
+}
+
+.chuan-dossier__readiness strong {
+  color: var(--cs-gold);
+  font-size: 12px;
+}
+
+.chuan-dossier__readiness span {
+  color: var(--cs-muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .chuan-dossier__actions {

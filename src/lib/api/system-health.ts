@@ -35,6 +35,10 @@ import { buildV3PatternReviewStats } from "../journal/v3-pattern-review-stats";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import {
+  evaluateStrategyV3Readiness,
+  type StrategyV3ReadinessBucket,
+} from "../analysis/v3/readiness";
+import {
   buildDataSourceCapabilityPlan,
   type DataSourceCapabilityPlan,
 } from "../market/data-source-capabilities";
@@ -316,6 +320,9 @@ export type V3StrategyLoopCandidate = {
   decision: string;
   nextStep: string;
   planStatus: string;
+  readinessBucket: StrategyV3ReadinessBucket;
+  readinessLabel: string;
+  readinessScore: number;
   rewardRisk: number | null;
   riskGateAllowed: boolean;
   state: string;
@@ -341,6 +348,12 @@ export type V3StrategyLoopReport = {
   };
   mode: "v3_strategy_loop_mvp";
   operatorHint: string;
+  readinessBuckets: Array<{
+    bucket: StrategyV3ReadinessBucket;
+    count: number;
+    label: string;
+    samples: string[];
+  }>;
   review: {
     closedSamples: number;
     patternStatus: string;
@@ -1876,6 +1889,29 @@ function v3StrategyLoopOperatorHint(status: V3StrategyLoopStatus) {
 function v3StrategyLoopReport(snapshot: MarketRadarSnapshot, events: JournalEvent[]): V3StrategyLoopReport {
   const v3Signals = snapshot.signals.filter((signal) => signal.strategyV3);
   const reviewStats = buildV3PatternReviewStats(events);
+  const readinessReports = v3Signals.map((signal) => ({
+    report: evaluateStrategyV3Readiness(signal),
+    signal,
+  }));
+  const readinessBuckets = readinessReports.reduce<V3StrategyLoopReport["readinessBuckets"]>((current, item) => {
+    const existing = current.find((bucket) => bucket.bucket === item.report.bucket);
+
+    if (existing) {
+      existing.count += 1;
+      existing.samples = [...existing.samples, item.signal.symbol].slice(0, 5);
+      return current;
+    }
+
+    return [
+      ...current,
+      {
+        bucket: item.report.bucket,
+        count: 1,
+        label: item.report.label,
+        samples: [item.signal.symbol],
+      },
+    ];
+  }, []).sort((first, second) => second.count - first.count || first.label.localeCompare(second.label));
   const live = v3Signals.reduce<V3StrategyLoopReport["live"]>((current, signal) => {
     const strategyV3 = signal.strategyV3;
 
@@ -1924,10 +1960,13 @@ function v3StrategyLoopReport(snapshot: MarketRadarSnapshot, events: JournalEven
     allowedUse: "research_only",
     canAutoAdjustWeights: false,
     canMutateLiveRanking: false,
-    candidates: v3Signals.slice(0, 5).map((signal) => ({
+    candidates: readinessReports.slice(0, 5).map(({ report, signal }) => ({
       decision: signal.strategyV3?.trendContext?.decision ?? "WATCH_ONLY",
-      nextStep: signal.strategyV3?.trendContext?.nextStep ?? signal.strategyV3?.summary ?? "等待 v3 上下文补齐。",
+      nextStep: report.nextStep,
       planStatus: signal.strategyV3?.tradePlan?.status ?? "WATCH_ONLY",
+      readinessBucket: report.bucket,
+      readinessLabel: report.label,
+      readinessScore: report.score,
       rewardRisk: signal.strategyV3?.tradePlan?.rewardRisk ?? null,
       riskGateAllowed: signal.strategyV3?.trendContext?.riskGate.allowed ?? false,
       state: signal.strategyV3?.trendContext?.state ?? "RANGE_IDLE",
@@ -1937,6 +1976,7 @@ function v3StrategyLoopReport(snapshot: MarketRadarSnapshot, events: JournalEven
     live,
     mode: "v3_strategy_loop_mvp",
     operatorHint: v3StrategyLoopOperatorHint(status),
+    readinessBuckets,
     review: {
       closedSamples: reviewStats.closedSamples,
       patternStatus: reviewStats.status,

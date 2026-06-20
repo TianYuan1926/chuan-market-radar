@@ -545,6 +545,7 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       },
       mode: "v3_strategy_loop_mvp",
       operatorHint: "当前扫描还缺少 v3 结构地图，先等待 OHLCV 和 Forward Map 样本进入扫描归档。",
+      readinessBuckets: [],
       review: {
         closedSamples: 0,
         patternStatus: "empty",

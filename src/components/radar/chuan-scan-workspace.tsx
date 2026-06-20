@@ -26,6 +26,7 @@ import type {
   SignalDirection,
   SignalJournalAction,
 } from "@/lib/analysis/types";
+import { evaluateStrategyV3Readiness } from "@/lib/analysis/v3/readiness";
 import type { BackendContract } from "@/lib/api/backend-contract";
 import type { DailyMoverReadArchiveResult } from "@/lib/api/daily-mover-readonly";
 import type { SystemHealthReport } from "@/lib/api/system-health";
@@ -402,6 +403,7 @@ function DossierOverlay({
     .filter((entry) => normalizeSymbol(entry.symbol) === normalizeSymbol(signal.symbol))
     .slice(0, 6);
   const tvUrl = tradingViewUrl(signal);
+  const strategyV3Readiness = signal.strategyV3 ? evaluateStrategyV3Readiness(signal) : null;
 
   return (
     <section aria-label={`${signal.symbol} 信号档案`} aria-modal="true" className="chuan-dossier-overlay" role="dialog">
@@ -428,6 +430,12 @@ function DossierOverlay({
               <span>{riskLabel(signal.risk)}</span>
               <span>{v3DecisionLabel(signal.strategyV3?.trendContext?.decision)}</span>
             </div>
+            {strategyV3Readiness ? (
+              <div className="chuan-dossier__readiness" aria-label="v3 人工复核准备度">
+                <strong>{strategyV3Readiness.label} · {strategyV3Readiness.score}</strong>
+                <span>{strategyV3Readiness.summary}</span>
+              </div>
+            ) : null}
           </div>
         </div>
 

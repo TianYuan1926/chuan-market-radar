@@ -1233,12 +1233,24 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
               </span>
             </div>
 
+            {v3StrategyLoop.readinessBuckets.length > 0 ? (
+              <div className="health-v3-strategy-loop__readiness" aria-label="v3 readiness bucket 分布">
+                {v3StrategyLoop.readinessBuckets.slice(0, 4).map((bucket) => (
+                  <span key={bucket.bucket}>
+                    <b>{bucket.count}</b>
+                    {bucket.label}
+                    <small>{bucket.samples.map((symbol) => symbol.replace("USDT", "")).join(" / ")}</small>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
             {v3StrategyLoopCandidates.length > 0 ? (
               <div className="health-v3-strategy-loop__candidates" aria-label="v3 候选下一步">
                 {v3StrategyLoopCandidates.map((candidate) => (
                   <span className="health-v3-strategy-loop__candidate" key={candidate.symbol}>
                     <b>{candidate.symbol.replace("USDT", "")}</b>
-                    <em>{candidate.planStatus} · {candidate.rewardRisk === null ? "--" : `${candidate.rewardRisk.toFixed(2)}R`}</em>
+                    <em>{candidate.readinessLabel} · {candidate.planStatus} · {candidate.rewardRisk === null ? "--" : `${candidate.rewardRisk.toFixed(2)}R`}</em>
                     <small>{candidate.riskGateAllowed ? "Risk Gate 通过" : "Risk Gate 阻断"} · {candidate.nextStep}</small>
                   </span>
                 ))}

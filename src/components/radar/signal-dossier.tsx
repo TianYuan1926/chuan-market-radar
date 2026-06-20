@@ -18,6 +18,7 @@ import type {
   Timeframe,
 } from "@/lib/analysis/types";
 import type { AlertEvent } from "@/lib/alerts/alert-policy";
+import { evaluateStrategyV3Readiness } from "@/lib/analysis/v3/readiness";
 import { siteConfig } from "@/lib/config/site";
 import {
   buildTradingViewUrl,
@@ -413,6 +414,7 @@ export function SignalDossier({
   const counterEvidence = signal?.strategy.counterEvidence?.slice(0, 3) ?? ["暂无硬阻断反证，继续观察失效位"];
   const strategyV2 = signal?.strategyV2;
   const strategyV3 = signal?.strategyV3;
+  const strategyV3Readiness = signal?.strategyV3 ? evaluateStrategyV3Readiness(signal) : null;
 
   return (
     <div className="signal-dossier signal-dossier--open">
@@ -541,6 +543,24 @@ export function SignalDossier({
                     {strategyV3.canMutateLiveRanking ? "可影响排序" : "只读上下文"} / {strategyV3.allowedUse}
                   </small>
                 </div>
+                {strategyV3Readiness ? (
+                  <div
+                    aria-label="v3 人工复核准备度"
+                    className={`signal-dossier__v3-readiness signal-dossier__v3-readiness--${strategyV3Readiness.bucket}`}
+                  >
+                    <div>
+                      <strong>{strategyV3Readiness.label}</strong>
+                      <span>{strategyV3Readiness.score} 分</span>
+                    </div>
+                    <p>{strategyV3Readiness.summary}</p>
+                    <small>
+                      {strategyV3Readiness.nextStep}
+                      {strategyV3Readiness.blockers.length > 0
+                        ? ` · 阻断：${strategyV3Readiness.blockers.slice(0, 3).join(" / ")}`
+                        : ""}
+                    </small>
+                  </div>
+                ) : null}
                 <div className="signal-dossier__route-map" aria-label="v3 证据路径">
                   <article>
                     <strong>结构阶段</strong>
