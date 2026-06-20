@@ -4,7 +4,7 @@
 
 **Goal:** Upgrade Chuan Market Radar into an evidence-based full-market altcoin trend-switching radar without breaking the existing CoinGlass, Neon, scan, journal, daily-mover, outcome, and Strategy Engine v2 foundations.
 
-**Architecture:** Build v3 as an additive layer under `src/lib/analysis/v3/*`. v3 inherits v2 guard rails and adds Market Reading, Key Level, Forward Level Map, trend-switch scoring, and review hooks before it is allowed to mutate live ranking. UI integration stays read-only until v3 golden cases and review samples prove stability.
+**Architecture:** Build v3 as an additive layer under `src/lib/analysis/v3/*`. v3 inherits v2 guard rails and adds Market Reading, Key Level, Forward Level Map, trend-switch scoring, and review hooks before it is allowed to mutate live ranking. Frontend consumption must stay read-only until v3 golden cases and review samples prove stability.
 
 **Tech Stack:** Next.js App Router, TypeScript, Node test, existing `npm run test:market`, Neon-compatible persistence boundaries, current public OHLCV and CoinGlass low-quota scan rules.
 
@@ -19,7 +19,6 @@
 - Risk Gate remains above opportunity scores.
 - Reward/risk below `3:1` cannot become a trade plan.
 - v3 must support both long and short trend-switch paths.
-- Pixel companion direction is male pixel co-pilot; visible S680 direction is removed from normal UI.
 
 ---
 
@@ -34,9 +33,7 @@
 - Create: `src/lib/analysis/v3/forward-level-map.ts` for S/R route maps.
 - Create: `src/lib/analysis/v3/forward-map-review.ts` for review samples that verify whether a pre-built map reacted later.
 - Create tests beside each v3 module.
-- Modify: `src/lib/api/repository-hygiene.test.ts` to enforce v3 specs and visible S680 removal.
-- Create: `src/components/radar/pixel-copilot.tsx` and migrate `radar-workspace.tsx` to it.
-- Delete or retire the legacy pixel vehicle component after compatibility is no longer needed.
+- Modify: `src/lib/api/repository-hygiene.test.ts` to enforce v3 specs and prevent deprecated analysis paths.
 
 ## Task 1: v3 Specs And Blueprint
 
@@ -72,7 +69,6 @@ Guard requirements:
 ```text
 v3 spec docs exist.
 Blueprint names Altcoin Trend Radar v3.
-No source file contains visible S680 UI copy after PixelCoPilot migration.
 No source path implements heatmap provider or liquidation-zone module.
 ```
 
@@ -239,35 +235,9 @@ npm run test:market
 
 Expected: Review hook tests pass.
 
-## Task 6: Pixel Co-Pilot S680 Removal
+## Task 6: Frontend Reset Boundary
 
-**Files:**
-- Create: `src/components/radar/pixel-copilot.tsx`
-- Modify: `src/components/radar/radar-workspace.tsx`
-- Modify: `src/lib/api/repository-hygiene.test.ts`
-- Delete: legacy pixel vehicle component
-
-**Interfaces:**
-- Consumes: same props as old pixel component.
-- Produces: `PixelCopilot`.
-
-- [x] **Step 1: Write guard update**
-
-Repository guard must assert normal radar workspace imports `PixelCopilot`, not the legacy vehicle component.
-
-- [x] **Step 2: Implement migration**
-
-Move visible UI copy to male pixel co-pilot. Remove visible S680 labels, car body, S680 mode, and S680 equipment labels.
-
-- [x] **Step 3: Run verification**
-
-Run:
-
-```bash
-npm run test:market
-npm run typecheck
-npm run lint
-```
+Current frontend implementation was later reset. v3 remains a backend analysis layer and must be reconnected to any future frontend only through stable API contracts.
 
 Expected: all pass.
 

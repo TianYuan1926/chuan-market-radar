@@ -373,21 +373,18 @@ Expected: all tests pass.
 
 **Files:**
 - Modify: `src/lib/analysis/engine.ts` or current analysis entrypoint after verifying actual file ownership.
-- Modify: `src/components/radar/signal-dossier.tsx`
-- Modify: `src/components/radar/altcoin-opportunity-board.tsx`
 - Test: current market tests plus new integration tests.
 
 **Interfaces:**
 - Consumes: v2 structured result.
-- Produces: visible market stage, evidence trace, risk gate, no-trade reason.
+- Produces: structured market stage, evidence trace, risk gate, no-trade reason.
 
 - [x] **Step 1: Write failing integration tests**
 
 Cover:
 
-- v2 output is displayed as evidence trace in Signal Dossier.
-- Altcoin Opportunity Board can show market stage without replacing existing signal state.
-- no liquidation heatmap concepts appear in UI copy.
+- v2 output is exposed through structured data without replacing existing signal state.
+- no liquidation heatmap concepts appear in structured output.
 
 - [x] **Step 2: Run test to verify it fails**
 
@@ -416,6 +413,6 @@ Expected: all commands pass.
 ## Execution Notes
 
 - Implement one task per commit.
-- Keep v2 read-only until golden cases and UI traceability are stable.
+- Keep v2 read-only until golden cases and API traceability are stable.
 - Do not add dependencies unless a later task proves existing helpers cannot support the required calculation.
 - Do not introduce full-market heavy analysis before the light-scan plus candidate-heavy boundary is wired.

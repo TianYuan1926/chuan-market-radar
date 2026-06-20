@@ -1,40 +1,22 @@
-import { ChuanScanWorkspace } from "@/components/radar/chuan-scan-workspace";
-import { buildBackendContract } from "@/lib/api/backend-contract";
-import { getDailyMoverReadArchive } from "@/lib/api/daily-mover-readonly";
-import { buildSystemHealthReport } from "@/lib/api/system-health";
-import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
-import {
-  appPersistenceDiagnostics,
-  appPersistenceRepository,
-} from "@/lib/persistence/app-repository";
+export const dynamic = "force-static";
 
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  const [snapshot, dailyMoverArchive] = await Promise.all([
-    getReadableMarketRadarSnapshot(undefined, { trigger: "page_ssr" }),
-    getDailyMoverReadArchive({
-      limit: 7,
-      repository: appPersistenceRepository,
-    }),
-  ]);
-  const health = await buildSystemHealthReport({
-    database: appPersistenceDiagnostics,
-    env: process.env,
-    repository: appPersistenceRepository,
-    snapshot,
-  });
-  const backendContract = buildBackendContract({
-    health,
-    snapshot,
-  });
-
+export default function Home() {
   return (
-    <ChuanScanWorkspace
-      backendContract={backendContract}
-      dailyMoverArchive={dailyMoverArchive.body}
-      health={health}
-      snapshot={snapshot}
-    />
+    <main className="frontend-reset-shell" aria-label="前端重建占位页">
+      <section className="frontend-reset-card">
+        <p className="frontend-reset-kicker">Frontend reset</p>
+        <h1>前端已清空</h1>
+        <p>
+          当前只保留最小占位页，等待重新设计。后端 API、扫描、数据库、复盘、
+          分析引擎和 Worker 未被删除。
+        </p>
+        <nav className="frontend-reset-links" aria-label="后端验证入口">
+          <a href="/api/health">/api/health</a>
+          <a href="/api/scan">/api/scan</a>
+          <a href="/api/radar">/api/radar</a>
+          <a href="/api/radar/backend-contract">/api/radar/backend-contract</a>
+        </nav>
+      </section>
+    </main>
   );
 }

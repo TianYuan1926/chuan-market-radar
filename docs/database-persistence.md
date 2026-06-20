@@ -30,7 +30,7 @@
 
 - `journal_events`: 复盘日记、纸面跟踪、拒绝追单、失效记录
 - `scan_archives`: 扫描快照摘要、回放 frame、候选信号 payload
-- `rank_profiles`: 当前段位、XP、纪律分、宠物状态等派生结果
+- `rank_profiles`: 当前段位、XP、纪律分等派生结果
 - `daily_mover_snapshots`: 每日涨跌幅榜快照摘要
 - `daily_mover_assets`: 每日上榜资产的可查询列和原始 payload
 - `mover_attribution_reviews`: 上榜资产的归因结果、证据强度和可学习性

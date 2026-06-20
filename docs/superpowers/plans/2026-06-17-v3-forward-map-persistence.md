@@ -35,7 +35,7 @@ Completed after this persistence phase:
 Next correct build phase:
 
 1. Add an external low-frequency trigger plan for the v3 Forward Map review endpoint. Completed with `.github/workflows/chuan-v3-forward-map-review.yml`.
-2. Start `missed_altcoin_review` by connecting daily mover misses with v3 saved map coverage. Completed as a readonly `/api/daily-movers` and `DailyMoverPanel` MVP.
+2. Start `missed_altcoin_review` by connecting daily mover misses with v3 saved map coverage. Completed as a readonly `/api/daily-movers` and `后续新前端` MVP.
 3. Continue without automatic weights until enough manually reviewed samples exist.
 
 Next correct build phase after `missed_altcoin_review`:
