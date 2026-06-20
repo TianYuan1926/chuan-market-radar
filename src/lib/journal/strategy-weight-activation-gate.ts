@@ -41,6 +41,21 @@ export type StrategyWeightActivationGateReport = {
   nextStep: string;
   requiredPostApprovalSamples: number;
   requiresSeparateRelease: true;
+  safetySummary: {
+    activationBlockerIds: StrategyWeightActivationGateCheck["id"][];
+    rollbackPressure: {
+      blockingCount: number;
+      highCount: number;
+      samples: string[];
+      watchCount: number;
+    };
+    sampleFloor: {
+      lowestPostApprovalSamples: number;
+      requiredPostApprovalSamples: number;
+      underSampledCount: number;
+      underSampledTags: string[];
+    };
+  };
   status: StrategyWeightActivationGateStatus;
 };
 
@@ -240,6 +255,45 @@ function nextStepFor(status: StrategyWeightActivationGateStatus) {
   return "真实权重启用仍被阻断，先补齐样本、审批、回滚计划和影子表现条件。";
 }
 
+function safetySummaryFor({
+  checks,
+  shadowEvaluationReport,
+}: {
+  checks: StrategyWeightActivationGateCheck[];
+  shadowEvaluationReport: StrategyWeightShadowEvaluationReport;
+}): StrategyWeightActivationGateReport["safetySummary"] {
+  const underSampledItems = shadowEvaluationReport.items.filter((item) =>
+    item.postApprovalSamples < requiredPostApprovalSamples
+  );
+  const lowestPostApprovalSamples = shadowEvaluationReport.items.reduce(
+    (lowest, item) => Math.min(lowest, item.postApprovalSamples),
+    Number.POSITIVE_INFINITY,
+  );
+  const pressureItems = shadowEvaluationReport.items.filter((item) =>
+    item.rollbackPressure === "blocking" ||
+    item.rollbackPressure === "high" ||
+    item.status === "rollback_watch"
+  );
+
+  return {
+    activationBlockerIds: checks
+      .filter((check) => check.status === "blocked" || check.status === "disabled")
+      .map((check) => check.id),
+    rollbackPressure: {
+      blockingCount: shadowEvaluationReport.items.filter((item) => item.rollbackPressure === "blocking").length,
+      highCount: shadowEvaluationReport.items.filter((item) => item.rollbackPressure === "high").length,
+      samples: pressureItems.map((item) => item.tag).slice(0, 5),
+      watchCount: shadowEvaluationReport.rollbackWatchCount,
+    },
+    sampleFloor: {
+      lowestPostApprovalSamples: Number.isFinite(lowestPostApprovalSamples) ? lowestPostApprovalSamples : 0,
+      requiredPostApprovalSamples,
+      underSampledCount: underSampledItems.length,
+      underSampledTags: underSampledItems.map((item) => item.tag).slice(0, 5),
+    },
+  };
+}
+
 export function buildStrategyWeightActivationGate({
   activationMode,
   executionReport,
@@ -284,6 +338,10 @@ export function buildStrategyWeightActivationGate({
     nextStep: nextStepFor(status),
     requiredPostApprovalSamples,
     requiresSeparateRelease: true,
+    safetySummary: safetySummaryFor({
+      checks,
+      shadowEvaluationReport,
+    }),
     status,
   };
 }

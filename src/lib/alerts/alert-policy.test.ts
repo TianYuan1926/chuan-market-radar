@@ -499,6 +499,21 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
         nextStep: "配置关闭真实权重启用，继续保持影子观察和人工复盘。",
         requiredPostApprovalSamples: 5,
         requiresSeparateRelease: true,
+        safetySummary: {
+          activationBlockerIds: ["activation_mode"],
+          rollbackPressure: {
+            blockingCount: 0,
+            highCount: 0,
+            samples: [],
+            watchCount: 0,
+          },
+          sampleFloor: {
+            lowestPostApprovalSamples: 0,
+            requiredPostApprovalSamples: 5,
+            underSampledCount: 0,
+            underSampledTags: [],
+          },
+        },
         status: "active_disabled_by_config",
       },
       strategyWeightShadow: {

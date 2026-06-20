@@ -151,6 +151,8 @@ test("buildStrategyWeightActivationGate defaults to disabled and cannot affect l
   assert.equal(gate.canWriteRuleWeights, false);
   assert.equal(gate.eligibleForManualActivation, false);
   assert.equal(gate.blockerCount > 0, true);
+  assert.ok(gate.safetySummary.activationBlockerIds.includes("activation_mode"));
+  assert.equal(gate.safetySummary.sampleFloor.lowestPostApprovalSamples, 0);
   assert.match(gate.guardrail, /不会改变扫描/);
   assert.match(gate.nextStep, /配置关闭/);
 });
@@ -198,6 +200,8 @@ test("buildStrategyWeightActivationGate blocks manual mode when samples or rollb
   assert.equal(gate.activationMode, "manual");
   assert.equal(gate.status, "blocked");
   assert.equal(gate.eligibleForManualActivation, false);
+  assert.equal(gate.safetySummary.sampleFloor.underSampledCount, 1);
+  assert.ok(gate.safetySummary.sampleFloor.underSampledTags.includes("review_volume_oi_weight"));
   assert.equal(
     gate.checks.find((check: { id: string; status: string }) => check.id === "sample_floor")?.status,
     "blocked",
@@ -209,6 +213,53 @@ test("buildStrategyWeightActivationGate blocks manual mode when samples or rollb
   assert.match(gate.blockers.join(" "), /样本/);
   assert.match(gate.blockers.join(" "), /回滚/);
   assert.match(gate.nextStep, /补齐/);
+});
+
+test("buildStrategyWeightActivationGate exposes rollback pressure samples as activation blockers", () => {
+  const tag = "review_breakout_weight";
+  const events: JournalEvent[] = [
+    ...Array.from({ length: 5 }, (_, index) => calibrationReview({
+      createdAt: `2026-06-12T09:0${index}:00.000Z`,
+      id: `breakout-pre-valid-${index}`,
+      outcomeStatus: "partial_win",
+      result: "win",
+      tag,
+    })),
+    strategyConfirmation({
+      createdAt: "2026-06-12T10:00:00.000Z",
+      id: "confirm-breakout",
+      tag,
+      versionLabel: "draft-breakout-v1",
+    }),
+    executionRecord({
+      createdAt: "2026-06-12T10:30:00.000Z",
+      direction: "increase",
+      id: "execute-breakout",
+      tag,
+      versionLabel: "draft-breakout-v1",
+    }),
+    ...Array.from({ length: 5 }, (_, index) => calibrationReview({
+      createdAt: `2026-06-12T10:3${index + 1}:00.000Z`,
+      id: `breakout-shadow-loss-${index}`,
+      outcomeStatus: index < 3 ? "loss" : "saved",
+      result: index < 3 ? "loss" : "saved",
+      tag,
+    })),
+  ];
+  const reports = buildReports(events);
+  const gate = buildStrategyWeightActivationGate({
+    activationMode: "manual",
+    executionReport: reports.execution,
+    shadowEvaluationReport: reports.shadowEvaluation,
+    shadowReport: reports.shadow,
+  });
+
+  assert.equal(gate.status, "blocked");
+  assert.equal(gate.safetySummary.rollbackPressure.highCount, 1);
+  assert.equal(gate.safetySummary.rollbackPressure.watchCount, 1);
+  assert.ok(gate.safetySummary.rollbackPressure.samples.includes(tag));
+  assert.ok(gate.safetySummary.activationBlockerIds.includes("rollback_pressure"));
+  assert.match(gate.blockers.join(" "), /回滚压力/);
 });
 
 test("buildStrategyWeightActivationGate marks manual activation eligible only after every guard passes", () => {
@@ -255,6 +306,8 @@ test("buildStrategyWeightActivationGate marks manual activation eligible only af
   assert.equal(gate.eligibleForManualActivation, true);
   assert.equal(gate.eligibleDiffCount, 1);
   assert.equal(gate.blockerCount, 0);
+  assert.equal(gate.safetySummary.sampleFloor.underSampledCount, 0);
+  assert.equal(gate.safetySummary.rollbackPressure.blockingCount, 0);
   assert.equal(gate.checks.every((check: { status: string }) => check.status === "passed"), true);
   assert.match(gate.guardrail, /仍需单独发布/);
   assert.match(gate.nextStep, /人工启用候选/);

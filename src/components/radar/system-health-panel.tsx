@@ -1849,6 +1849,24 @@ export function SystemHealthPanel({ health, onRecordStrategyWeightExecution }: S
                 </span>
               </div>
 
+              <div className="health-outcome-activation__safety" aria-label="真实权重门禁安全摘要">
+                <span>
+                  <b>{strategyWeightActivationGate.safetySummary.sampleFloor.lowestPostApprovalSamples}/{strategyWeightActivationGate.safetySummary.sampleFloor.requiredPostApprovalSamples}</b>
+                  最低样本
+                  <small>{strategyWeightActivationGate.safetySummary.sampleFloor.underSampledTags.join(" / ") || "无样本缺口"}</small>
+                </span>
+                <span>
+                  <b>{strategyWeightActivationGate.safetySummary.rollbackPressure.blockingCount + strategyWeightActivationGate.safetySummary.rollbackPressure.highCount}</b>
+                  高压回滚
+                  <small>{strategyWeightActivationGate.safetySummary.rollbackPressure.samples.join(" / ") || "暂无"}</small>
+                </span>
+                <span>
+                  <b>{strategyWeightActivationGate.safetySummary.activationBlockerIds.length}</b>
+                  阻断检查
+                  <small>{strategyWeightActivationGate.safetySummary.activationBlockerIds.join(" / ") || "全部通过"}</small>
+                </span>
+              </div>
+
               <div className="health-outcome-activation__checks" aria-label="真实权重门禁检查项">
                 {strategyWeightActivationChecks.map((check) => (
                   <span className={`health-outcome-activation__check health-outcome-activation__check--${check.status}`} key={check.id}>

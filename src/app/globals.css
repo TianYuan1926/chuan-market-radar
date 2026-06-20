@@ -8360,6 +8360,43 @@ button.altcoin-opportunity-card.is-selected {
   white-space: nowrap;
 }
 
+.health-outcome-activation__safety {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.health-outcome-activation__safety span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(201, 74, 74, 0.14);
+  border-radius: 6px;
+  background: rgba(201, 74, 74, 0.045);
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.health-outcome-activation__safety b,
+.health-outcome-activation__safety small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-outcome-activation__safety b {
+  color: var(--ink);
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.health-outcome-activation__safety small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
 .health-outcome-activation__checks {
   display: grid;
   gap: 5px;

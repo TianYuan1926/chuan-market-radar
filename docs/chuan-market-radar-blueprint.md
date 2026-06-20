@@ -1023,6 +1023,7 @@ AI 复核必须遵守：
 - 影子策略权重层已落地：`buildStrategyWeightShadowReport()` 从已审批的 `strategy_weight_change_execution` journal 事件生成当前权重、建议影子权重和差异，只读展示在系统健康面板；`allowedUse` 固定为 `research_only`，`canAutoAdjustWeights` 和 `canAffectLiveSignals` 固定为 `false`，不影响真实扫描、真实评分或真实策略权重。
 - 影子表现评估已落地：`buildStrategyWeightShadowEvaluationReport()` 只读取审批后的 `calibration_review`、`strategy_confirmation` 和人工执行记录，输出 `insufficient_samples / improving / mixed / rollback_watch / blocked`、样本数、有效/反证比例和回滚压力；系统健康面板展示“影子表现”，但该层只读、不新增表、不触发外部请求、不执行真实权重。
 - 真实权重启用门禁已落地：`buildStrategyWeightActivationGate()` 会读取影子权重、影子表现和人工执行记录，按 `STRATEGY_WEIGHT_ACTIVATION_MODE=disabled|shadow|manual` 输出 `active_disabled_by_config / blocked / eligible_for_manual_activation`、启用模式、通过项、阻断项、样本门槛和下一步；默认 `disabled`，系统健康面板展示“真实权重门禁”，但 `canAffectLiveSignals` 与 `canWriteRuleWeights` 固定为 `false`，不接入扫描引擎。
+- 真实权重启用安全摘要已落地：真实权重门禁新增 `safetySummary`，把启用阻断项、审批后最低样本数、样本不足 tag、回滚高压/阻断数量和回滚样本 tag 单独上屏；该摘要只用于人工复核，不会自动写权重、不改变 live ranking。
 - 人工权重变更执行记录写入入口和只读 registry 已落地：`POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 保护，允许在系统健康面板用管理密钥把人工审批状态、版本标签、回滚触发器和观察窗口写入 `strategy_weight_change_execution` journal 事件；`buildStrategyWeightChangeExecutionReport()` 会把这些记录汇总到 `/api/health`，系统健康面板展示执行记录、已记录、待审批、回滚/阻断和不可写权重边界。该层只保存审计账本，`canAutoAdjustWeights`、`canExecuteWeightChange` 和 `canWriteRuleWeights` 固定为 `false`，不让记录自动生效到规则权重。
 - 规则调整已有基础函数：
   - 有效标签进入 promote。
@@ -1443,7 +1444,7 @@ CoinGlass 业余会员 API：
 - `POST /api/admin/outcomes/run` 已受 `CRON_SECRET` 保护。
 - `.github/workflows/chuan-outcome-executor.yml` 已支持每小时外部低频触发，并复用已有 `CHUAN_SCAN_URL` 推导 outcome executor URL，不需要新增 GitHub secret。
 - 已关闭 lifecycle outcome 会阻止同一旧 tracking entry 重复触发公开 K 线请求。
-- 系统健康报告和系统状态面板已展示 outcome 覆盖率、待复查样本、到期样本、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、策略权重回测候选、权重变更审计、人工执行记录入口、影子权重差异、影子表现评估、真实权重启用门禁和策略进化闭环总控。
+- 系统健康报告和系统状态面板已展示 outcome 覆盖率、待复查样本、到期样本、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、策略权重回测候选、权重变更审计、人工执行记录入口、影子权重差异、影子表现评估、真实权重启用门禁、安全摘要和策略进化闭环总控。
 - outcome executor 已把 `not_due`、`closed_duplicate`、`missing_signal_context`、`ohlcv_unavailable` 和 `outcome_pending` 汇总成跳过原因分层。
 - 日记面板已展示 outcome executor 执行批次详情和跳过原因，且保持“只读审计 / 不改权重”。
 - outcome 样本准入门槛已落地：`buildOutcomeCalibrationAdmission()` 会输出 `manual_calibration_gate`，按已关闭样本量、有效率、反证占比和亏损聚集判断 `ready / collecting / blocked`，并在健康面板显示准入门槛、准入分、阻断项和“不改权重”。
@@ -1453,7 +1454,8 @@ CoinGlass 业余会员 API：
 - 人工权重变更执行记录写入入口和 registry 已落地：`POST /api/admin/strategy-weights/executions/record` 通过 `CRON_SECRET` 保护，系统健康面板可用管理密钥把审批状态、版本标签、回滚触发器和观察窗口写入 `strategy_weight_change_execution` journal 事件；`buildStrategyWeightChangeExecutionReport()` 汇总这些记录并展示审批状态和不可写权重，但不写策略权重。
 - 影子策略权重层已落地：`buildStrategyWeightShadowReport()` 从已审批的人工执行记录生成 `baseWeights`、`shadowWeights` 和 `diffs`，系统健康面板展示“影子权重 / 当前权重 / 建议权重 / 差异 / 不影响实盘判断”；该层只读、不新增表、不新增外部请求、不改变真实扫描或策略权重。
 - 影子表现评估已落地：`buildStrategyWeightShadowEvaluationReport()` 用审批后的校准样本和人工确认记录评估影子差异，输出样本数、有效/反证、回滚压力和下一步，只服务人工复核，不执行真实权重。
-- 真实权重启用门禁已落地：`buildStrategyWeightActivationGate()` 在系统健康面板展示“真实权重门禁 / 启用模式 / 通过项 / 阻断项 / 样本门槛 / 不接入扫描”，默认 `STRATEGY_WEIGHT_ACTIVATION_MODE=disabled`；即使未来设为 `manual`，当前也只生成候选说明，不写真实权重。
+- 真实权重启用门禁已落地：`buildStrategyWeightActivationGate()` 在系统健康面板展示“真实权重门禁 / 启用模式 / 通过项 / 阻断项 / 样本门槛 / 安全摘要 / 不接入扫描”，默认 `STRATEGY_WEIGHT_ACTIVATION_MODE=disabled`；即使未来设为 `manual`，当前也只生成候选说明，不写真实权重。
+- 真实权重启用安全摘要已落地：`strategyWeightActivationGate.safetySummary` 会把启用阻断项、最低审批后样本数、样本不足 tag、回滚高压/阻断数量和回滚样本 tag 输出到健康面板。该摘要只用于人工复核，仍固定 `canAutoAdjustWeights=false`、`canAffectLiveSignals=false`、`canWriteRuleWeights=false`。
 - 策略进化闭环总控已落地：`strategyEvolutionLoop` 会把 v3 实时样本、outcome 复盘、人工审计、人工记录、影子观察和真实启用门禁串成只读链路，输出准备度、阶段状态、阻断项和下一步；该层固定 `allowedUse=research_only`，`canAutoAdjustWeights=false`，`canMutateLiveRanking=false`，`canWriteRuleWeights=false`。
 - outcome executor 运行审计事件保持 `research_only`，不参与段位 XP、tracking 计数或自动调权。
 - 规则调整已有 promote、demote、experiment 基础函数。
@@ -1747,14 +1749,20 @@ CoinGlass 业余会员 API：
    - `/api/health.v3StrategyLoop` 已新增 `readinessBuckets` 和候选 readiness 字段；`/api/radar/backend-contract.analysis.v3StrategyLoop` 同步暴露 bucket 汇总，给后续前端重构统一消费。
    - Opportunity Board、Signal Dossier 和 CHUANSCAN 首页档案已显示同一份 readiness 解释，避免各板块对“能不能进入人工复核”各说各话。
    - 该阶段不新增请求、不写数据库、不自动下单、不自动改权重、不改变实时排序；低于 `3:1` 的位置进入 `rr_blocked`，不能进入人工复核。
-   - 当前状态：已完成 MVP。下一步进入 Review Evolution 与 Safe Weight Activation，继续强化样本门槛、回滚压力和真实权重启用阻断。
+   - 当前状态：已完成 MVP。下一步进入 AI 反证复核生产边界和站内告警历史，继续保持 AI/告警只能解释和提醒，不能覆盖证据引擎。
 
-37. **V1.7 / V1.8：角色化 UI 方向（历史阶段，已废弃）**
+37. **Phase 4V3-24：Review Evolution Safe Activation Summary**
+   - `strategyWeightActivationGate` 已新增 `safetySummary`：统一输出 activation blocker ids、审批后最低样本数、样本不足 tag、回滚高压/阻断数量和回滚样本 tag。
+   - 系统健康面板已把真实权重门禁拆成“样本门槛 / 样本缺口 / 回滚压力 / 启用阻断”四块，让人工复核能看清为什么不能启用。
+   - 该阶段不新增外部请求、不新增数据库表、不写真实权重、不改变 live ranking；回滚压力和样本不足只会阻断真实启用候选，不会反向自动调权。
+   - 当前状态：已完成 MVP。下一步进入 AI Counter-Evidence Production Boundary。
+
+38. **V1.7 / V1.8：角色化 UI 方向（历史阶段，已废弃）**
    - 历史阶段曾讨论并验证过像素男性副驾驶、BTC 项链、情绪状态、装备和 S680 删除边界。
    - 2026-06-20 最新校准：宠物、小人、副驾驶、S680、座驾、装备、角色台词和娱乐彩蛋全部退出后续主线。
    - 后续 Product Design 只服务真实雷达、信号档案、复盘进化、运行状态和可关闭提示，不再做角色系统。
 
-37. **Phase Backend-1：后端事实契约与单信号档案 API（已落地）**
+39. **Phase Backend-1：后端事实契约与单信号档案 API（已落地）**
    - 新增 `docs/BACKEND_API_CONTRACT.md`，规定后续 UI 重建必须消费统一只读后端契约，不能从零散字段猜测系统状态。
    - 新增 `GET /api/radar/backend-contract`：聚合 source、runtime、全市场 coverage、public light scan、CoinGlass deep scan、状态池 allocation、数据质量、v3 覆盖、v3StrategyLoop 和 strategyEvolutionLoop。
    - 2026-06-20 已增强 `sourceAudit`：前端可直接读取 public discovery 源级状态、Binance/OKX 组合轻扫状态、topSymbols、源级 notes、CoinGlass 深扫计划/失败/原始行/清洗行，避免 UI 只展示最终几个币却无法证明系统正在扫全市场。
@@ -1762,25 +1770,25 @@ CoinGlass 业余会员 API：
    - 该阶段只读复用已有 snapshot、health、journal 和 v3 dossier，不新增 CoinGlass 请求、不新增数据库写入、不自动下单、不自动改权重、不改变 live ranking。
    - 后续 UI 或功能接入若要展示扫描、图表、复盘或进化状态，必须优先接这些 API，避免与现有分析板块脱钩。
 
-38. **V1.9：段位与纪律状态联动**
+40. **V1.9：段位与纪律状态联动**
    - 根据 XP、段位、纪律分展示成长状态、复盘状态和风险纪律。
    - 不再建设装备、皮肤或角色成长系统。
    - 段位只能表达纪律和复盘质量，不表达收益承诺。
 
-39. **V2.0：主界面层级重排**
+41. **V2.0：主界面层级重排**
    - 弱化营销式 hero，强化当前选中信号工作区。
    - 建立 Radar / Signals / Review / Journal / Evolution / Settings / System 几类模块等级。
    - 让图表、多周期、策略计划和 AI 反证的视觉层级更清楚。
 
-40. **V2.1：移动端交易操作流**
+42. **V2.1：移动端交易操作流**
    - 移动端按“候选池 -> 信号详情 -> 策略计划 -> 复盘/系统状态”顺序组织。
    - 优先保证不挤压、不重叠、关键操作一屏可理解。
 
-41. **V2.2：动效与声音**
+43. **V2.2：动效与声音**
    - 只给状态变化加动效：新异动、接近触发、数据延迟、复盘完成、升级。
    - 遵守 `prefers-reduced-motion`，声音默认由用户主动开启。
 
-42. **V2.3：视觉验收和部署**
+44. **V2.3：视觉验收和部署**
    - 本地跑 `npm run dev`，用 Browser/Playwright 检查桌面和移动端。
    - 跑 `npm run test:market`、`npm run typecheck`、`npm run lint`、`npm run build`。
    - commit 后 push 到 GitHub，等待 Vercel 部署成功，部署绿了才算网页应用新版本。

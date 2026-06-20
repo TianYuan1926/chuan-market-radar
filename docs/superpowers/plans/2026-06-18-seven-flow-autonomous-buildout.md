@@ -177,10 +177,10 @@
 - Consumes: outcome executor, manual confirmations, shadow weights, rollback gates.
 - Produces: stronger sample admission, rollback validation, and still-disabled live activation unless separate release criteria pass.
 
-- [ ] Add tests for sample floor, rollback pressure, and activation blockers.
-- [ ] Improve manual/readonly evolution panels.
-- [ ] Keep `canAutoAdjustWeights=false` and live ranking unchanged.
-- [ ] Update blueprint, verify, commit.
+- [x] Add tests for sample floor, rollback pressure, and activation blockers.
+- [x] Improve manual/readonly evolution panels with activation safety summary.
+- [x] Keep `canAutoAdjustWeights=false` and live ranking unchanged.
+- [x] Update blueprint, verify, commit.
 
 ### Task 6: AI Counter-Evidence Production Boundary
 
