@@ -129,7 +129,7 @@ test("altcoin trend radar v3 specs and blueprint stay aligned", () => {
   assert.match(blueprintSource, /Forward Level Map/);
   assert.match(blueprintSource, /trend_switch_review/);
   assert.match(blueprintSource, /forward_map_review/);
-  assert.match(blueprintSource, /S680 从常规宠物和常规 UI 主线删除|剔除 S680/);
+  assert.match(blueprintSource, /宠物、小人、副驾驶、S680、座驾、装备、角色台词和娱乐彩蛋.*退出后续主线|剔除宠物、小人、副驾驶、S680/);
 
   for (const specPath of requiredSpecs) {
     assert.equal(existsSync(resolve(process.cwd(), specPath)), true, `${specPath} must exist`);

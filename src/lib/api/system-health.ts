@@ -426,8 +426,10 @@ export type SystemHealthReport = {
     staleAfterMinutes: number;
   };
   archive: {
+    detail: string;
     entries: number;
     retentionMode: PersistenceMode;
+    status: "ready" | "unavailable";
   };
   coverage: ScanCoverage;
   lightScan: MarketRadarSnapshot["metadata"]["lightScan"] | null;
@@ -508,6 +510,12 @@ export type BuildSystemHealthReportOptions = {
   snapshot: MarketRadarSnapshot;
 };
 
+type RepositoryReadResult<T> = {
+  detail: string;
+  items: T[];
+  status: "ready" | "unavailable";
+};
+
 function requestedProvider(env: Record<string, string | undefined>) {
   return env.MARKET_DATA_PROVIDER?.trim() || "mock";
 }
@@ -540,6 +548,39 @@ function addMinutes(value: string, minutes: number) {
   }
 
   return new Date(time + minutes * 60_000).toISOString();
+}
+
+function repositoryReadErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function readRepositoryListSafely<T>(
+  label: string,
+  read: () => Promise<T[]>,
+): Promise<RepositoryReadResult<T>> {
+  try {
+    return {
+      detail: `${label} storage is readable.`,
+      items: await read(),
+      status: "ready",
+    };
+  } catch (error) {
+    return {
+      detail: `${label} storage unavailable: ${repositoryReadErrorMessage(error)}`,
+      items: [],
+      status: "unavailable",
+    };
+  }
+}
+
+function repositoryReadIssueDetail(reads: RepositoryReadResult<unknown>[]) {
+  const unavailable = reads.filter((read) => read.status === "unavailable");
+
+  if (unavailable.length === 0) {
+    return null;
+  }
+
+  return unavailable.map((read) => read.detail).join(" ");
 }
 
 function scanFreshness({
@@ -2288,14 +2329,20 @@ export async function buildSystemHealthReport({
     configuredProvider,
     env,
   });
-  const [archiveSummaries, journalEvents, v3ForwardMapSnapshotRead] = await Promise.all([
-    repository.listScanArchives(24),
-    repository.listJournalEvents(120),
+  const [archiveRead, journalRead, v3ForwardMapSnapshotRead] = await Promise.all([
+    readRepositoryListSafely("scan_archives", () => repository.listScanArchives(24)),
+    readRepositoryListSafely("journal_events", () => repository.listJournalEvents(120)),
     readV3ForwardMapSnapshotsSafely(repository),
   ]);
+  const archiveSummaries = archiveRead.items;
+  const journalEvents = journalRead.items;
   const archiveEntries = archiveSummaries.length;
   const durable = repository.mode === "database";
   const databaseDiagnostics = database ?? fallbackDatabaseDiagnostics({ durable, repository });
+  const repositoryReadIssue = repositoryReadIssueDetail([archiveRead, journalRead]);
+  const persistenceDetail = repositoryReadIssue
+    ? `${databaseDiagnostics.detail} Repository reads degraded: ${repositoryReadIssue}`
+    : databaseDiagnostics.detail;
   const outcomes = outcomeExecutorHealth(journalEvents, now, env);
   const v3ForwardMapReviews = v3ForwardMapReviewHealth({
     events: journalEvents,
@@ -2311,7 +2358,11 @@ export async function buildSystemHealthReport({
     : providerStatus === "preview"
       ? "preview"
       : "ready";
-  const persistenceLevel: SystemHealthLevel = durable ? "ready" : "preview";
+  const persistenceLevel: SystemHealthLevel = repositoryReadIssue
+    ? "degraded"
+    : durable
+      ? "ready"
+      : "preview";
   const freshnessLevel: SystemHealthLevel = metadata.status === "failed"
     ? "blocked"
     : freshness === "expired" || freshness === "unknown"
@@ -2319,7 +2370,11 @@ export async function buildSystemHealthReport({
       : freshness === "aging"
         ? "degraded"
         : "ready";
-  const archiveLevel: SystemHealthLevel = archiveEntries > 0 ? persistenceLevel : "degraded";
+  const archiveLevel: SystemHealthLevel = archiveRead.status === "unavailable"
+    ? "degraded"
+    : archiveEntries > 0
+      ? persistenceLevel
+      : "degraded";
   const level = strongestLevel([sourceLevel, persistenceLevel, freshnessLevel, archiveLevel]);
 
   return {
@@ -2338,7 +2393,7 @@ export async function buildSystemHealthReport({
       databaseDriver: databaseDiagnostics.driver,
       databaseReason: databaseDiagnostics.reason,
       databaseStatus: databaseDiagnostics.status,
-      detail: databaseDiagnostics.detail,
+      detail: persistenceDetail,
       durable,
       mode: repository.mode,
       scope: repository.scope,
@@ -2357,8 +2412,10 @@ export async function buildSystemHealthReport({
       staleAfterMinutes: metadata.staleAfterMinutes,
     },
     archive: {
+      detail: archiveRead.detail,
       entries: archiveEntries,
       retentionMode: repository.mode,
+      status: archiveRead.status,
     },
     coverage,
     lightScan: metadata.lightScan ?? null,
@@ -2388,7 +2445,7 @@ export async function buildSystemHealthReport({
         id: "persistence",
         label: "持久化",
         state: persistenceLevel,
-        detail: databaseDiagnostics.detail,
+        detail: persistenceDetail,
       },
       {
         id: "freshness",
@@ -2402,9 +2459,11 @@ export async function buildSystemHealthReport({
         id: "archive",
         label: "归档",
         state: archiveLevel,
-        detail: archiveEntries > 0
-          ? `已记录 ${archiveEntries} 个扫描回放帧。`
-          : "还没有扫描回放帧。",
+        detail: archiveRead.status === "unavailable"
+          ? archiveRead.detail
+          : archiveEntries > 0
+            ? `已记录 ${archiveEntries} 个扫描回放帧。`
+            : "还没有扫描回放帧。",
       },
     ],
   };

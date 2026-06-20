@@ -43,8 +43,10 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       staleAfterMinutes: 30,
     },
     archive: {
+      detail: "scan_archives storage is readable.",
       entries: 1,
       retentionMode: "database",
+      status: "ready",
     },
     lightScan: null,
     scanDiagnostics: null,

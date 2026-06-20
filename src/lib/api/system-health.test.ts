@@ -230,6 +230,50 @@ test("buildSystemHealthReport exposes database fallback diagnostics instead of h
   );
 });
 
+test("buildSystemHealthReport degrades instead of throwing when database tables are not migrated yet", async () => {
+  const baseRepository = createMemoryPersistenceRepository({ scope: "chuan-prod" });
+  const repository = {
+    ...baseRepository,
+    mode: "database" as const,
+    async listJournalEvents() {
+      throw new Error('relation "journal_events" does not exist');
+    },
+    async listScanArchives() {
+      throw new Error('relation "scan_archives" does not exist');
+    },
+  };
+
+  const database: DatabaseClientDiagnostics = {
+    connectionStringEnv: "DATABASE_URL",
+    detail: "已启用 postgres SQL client，scope 为 chuan-prod，可写入远端数据库。",
+    driver: "postgres",
+    durable: true,
+    hasDatabaseUrl: true,
+    scope: "chuan-prod",
+    status: "ready",
+  };
+
+  const report = await buildSystemHealthReport({
+    database,
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T10:04:30.000Z"),
+    repository,
+    snapshot: snapshot(),
+  });
+
+  assert.equal(report.level, "degraded");
+  assert.equal(report.persistence.mode, "database");
+  assert.equal(report.persistence.databaseDriver, "postgres");
+  assert.equal(report.persistence.databaseStatus, "ready");
+  assert.match(report.persistence.detail, /journal_events/);
+  assert.match(report.persistence.detail, /scan_archives/);
+  assert.equal(report.archive.entries, 0);
+  assert.equal(report.archive.status, "unavailable");
+  assert.match(report.archive.detail, /scan_archives/);
+  assert.equal(report.guards.find((guard) => guard.id === "persistence")?.state, "degraded");
+  assert.match(report.guards.find((guard) => guard.id === "archive")?.detail ?? "", /scan_archives/);
+});
+
 test("buildSystemHealthReport escalates stale scans past the stale window", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
 
