@@ -1,4 +1,5 @@
-import { RadarWorkspace } from "@/components/radar/radar-workspace";
+import { ChuanScanWorkspace } from "@/components/radar/chuan-scan-workspace";
+import { buildBackendContract } from "@/lib/api/backend-contract";
 import { getDailyMoverReadArchive } from "@/lib/api/daily-mover-readonly";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
 import { getMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
@@ -23,9 +24,14 @@ export default async function Home() {
     repository: appPersistenceRepository,
     snapshot,
   });
+  const backendContract = buildBackendContract({
+    health,
+    snapshot,
+  });
 
   return (
-    <RadarWorkspace
+    <ChuanScanWorkspace
+      backendContract={backendContract}
       dailyMoverArchive={dailyMoverArchive.body}
       health={health}
       snapshot={snapshot}

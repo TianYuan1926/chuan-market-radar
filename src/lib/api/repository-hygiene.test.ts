@@ -1936,39 +1936,62 @@ test("closed workspace overlays are not left mounted as hidden interaction layer
   assert.equal(dossierSource.includes("tabIndex={isOpen ? 0 : -1}"), false);
 });
 
-test("phase 8 final closeout documents production QA and prevents decorative horizontal overflow", () => {
+test("phase 8 current frontend baseline documents the CHUANSCAN Figma rebuild QA", () => {
+  const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
+  const workspaceSource = readFileSync(
+    resolve(process.cwd(), "src/components/radar/chuan-scan-workspace.tsx"),
+    "utf8",
+  );
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const designQaSource = readFileSync(resolve(process.cwd(), "design-qa.md"), "utf8");
   const blueprintSource = readFileSync(resolve(process.cwd(), "docs/chuan-market-radar-blueprint.md"), "utf8");
   const requiredCssTokens = [
-    "Phase 8 closeout: hidden off-canvas layers must not inflate body scroll width",
-    ".studio-scan-grid span",
-    ".workspace-drawer__panel",
-    ".signal-dossier__drawer",
-    "clip-path: inset(0 0 0 100%)",
-    ".workspace-drawer--open .workspace-drawer__panel",
-    ".signal-dossier--open .signal-dossier__drawer",
+    ".chuan-scan-shell",
+    ".chuan-topbar",
+    ".chuan-market-strip",
+    ".chuan-kpi-grid",
+    ".chuan-radar-card-grid",
+    ".chuan-drawer__panel",
+    ".chuan-dossier",
+    "prefers-reduced-motion",
   ];
   const requiredQaTokens = [
-    "Phase 8 Final Acceptance Closeout",
-    "next start --port 3002",
-    "radar-8-final-desktop-home.png",
-    "radar-8-final-desktop-settings.png",
-    "radar-8-final-mobile-dossier.png",
-    "hidden off-canvas drawers",
+    "CHUANSCAN",
+    "chuan-scan-current-desktop.png",
+    "chuan-scan-current-mobile.png",
+    "chuan-scan-design-comparison.png",
+    "final result: passed",
   ];
+  const requiredWorkspaceTokens = [
+    "snapshot",
+    "backendContract",
+    "dailyMoverArchive",
+    "marketTapeItems",
+    "chuan-radar-card-grid",
+    "chuan-side-card",
+    "chuan-drawer",
+    "chuan-dossier",
+    "查看剩余 {hiddenSignalCount} 个候选",
+  ];
+
+  assert.match(pageSource, /ChuanScanWorkspace/);
+  assert.doesNotMatch(pageSource, /RadarWorkspace/);
 
   for (const token of requiredCssTokens) {
     assert.ok(cssSource.includes(token), `missing CSS token: ${token}`);
+  }
+
+  for (const token of requiredWorkspaceTokens) {
+    assert.ok(workspaceSource.includes(token), `missing CHUANSCAN workspace token: ${token}`);
   }
 
   for (const token of requiredQaTokens) {
     assert.ok(designQaSource.includes(token), `missing QA token: ${token}`);
   }
 
-  assert.match(blueprintSource, /Phase 8 Final Acceptance Closeout/);
-  assert.match(blueprintSource, /生产模式浏览器 QA/);
-  assert.match(blueprintSource, /不再把视觉打磨放在全市场扫描、数据质量、策略引擎和复盘闭环之前/);
+  assert.match(blueprintSource, /Figma Make 黑金 CHUANSCAN/);
+  assert.match(blueprintSource, /旧 2 : 6 : 2 cockpit/);
+  assert.match(blueprintSource, /ChuanScanWorkspace/);
   assert.doesNotMatch(blueprintSource, /LiquidationZone/);
 });
 

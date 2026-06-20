@@ -1,96 +1,48 @@
 **Source Visual Truth**
-- Path: `/var/folders/25/47myfpbx27jbw68qkwp7lw_80000gn/T/codex-clipboard-86380f39-6234-4059-aa1a-17a18b895593.png`
-- Intent: light liquid-glass radar workstation, prominent `川` brand, top lens/banner, 2:6:2 desktop cockpit, centered candidate strip plus chart, compact right action rail and small companion dock.
+- Path: `/Users/chuan/Downloads/虚拟货币异动检测网站 3/src/imports/image-7.png`
+- Intent: black/gold `CHUANSCAN` anomaly radar, compact top nav, live ticker strip, KPI wall, primary signal-card grid, right alert/market-heat column, dark professional data surface.
 
 **Implementation Evidence**
-- Desktop screenshot: `.playwright-mcp/design-qa-radar-ui/radar-selected-ui-final-desktop-1536.png`
-- Mobile screenshot: `.playwright-mcp/design-qa-radar-ui/radar-selected-ui-final-mobile-390.png`
-- Phase 8.2f desktop home screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2f-desktop-home.png`
-- Phase 8.2f desktop review drawer screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2f-desktop-review-drawer.png`
-- Phase 8.2f mobile review drawer screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2f-mobile-review-drawer.png`
-- Phase 8.2g desktop boot briefing screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-desktop-boot-briefing.png`
-- Phase 8.2g mobile boot briefing screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-mobile-boot-briefing.png`
-- Phase 8.2g console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2g-console.log`
-- Phase 8.2h desktop signal dossier screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-desktop-signal-dossier.png`
-- Phase 8.2h mobile signal dossier screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-mobile-signal-dossier.png`
-- Phase 8.2h console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2h-console.log`
-- Phase 8.2i desktop pixel copilot screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-desktop-pixel-copilot.png`
-- Phase 8.2i mobile pixel copilot screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-mobile-pixel-copilot.png`
-- Phase 8.2i console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2i-console.log`
-- Phase 8.2j desktop chart focus screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-desktop-chart-focus.png`
-- Phase 8.2j mobile chart focus screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-mobile-chart-focus.png`
-- Phase 8.2j console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2j-console.log`
-- Phase 8.2k desktop chart realism screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2k-desktop-chart-realism.png`
-- Phase 8.2k mobile chart realism screenshot: `.playwright-mcp/design-qa-radar-ui/radar-8-2k-mobile-chart-realism.png`
-- Phase 8.2k console evidence: `.playwright-mcp/design-qa-radar-ui/radar-8-2k-console.log`
-- Desktop viewport: 1536 x 1024.
-- Mobile viewport: 390 x 844.
-- State: local `http://localhost:3001/`, default radar route, first-visit boot briefing state, drawer entry checks, and selected ENA Signal Dossier open state.
+- Local URL: `http://localhost:3000/?qa=figma-rebuild-clean`
+- Desktop screenshot: `/Users/chuan/Documents/web/.playwright-mcp/design-qa-chuanscan/chuan-scan-current-desktop.png`
+- Mobile screenshot: `/Users/chuan/Documents/web/.playwright-mcp/design-qa-chuanscan/chuan-scan-current-mobile.png`
+- Full-view comparison: `/Users/chuan/Documents/web/.playwright-mcp/design-qa-chuanscan/chuan-scan-design-comparison.png`
+- Accessibility snapshot: `/Users/chuan/Documents/web/.playwright-mcp/design-qa-chuanscan/chuan-scan-redesign-accessibility.md`
+- Desktop viewport: `1536 x 960`
+- Mobile viewport: `390 x 844`
+- State: default Radar screen after startup overlay auto-dismissed, local mock/provider state from `.env.local`.
 
 **Findings**
 - No P0/P1/P2 blocking issues remain.
-- Fonts and typography: hierarchy is now tighter and aligned to the selected workstation direction; brand, nav, runtime metrics, candidate tiles, chart labels, and right rail are readable on desktop and mobile.
-- Spacing and layout rhythm: desktop now keeps top banner, runtime row, 2:6:2 shell, candidate tiles, primary chart, and right action rail in the first viewport. Mobile stacks safely without horizontal overflow.
-- Colors and visual tokens: palette follows the chosen white/blue liquid-glass direction and uses the provided crystal lens image as the main visual anchor. The compact pixel companion no longer uses the old S680 vehicle direction.
-- Image quality and asset fidelity: `/assets/radar-crystal-lens.png` is used in the top lens and is marked as priority plus eager for above-the-fold loading.
-- Copy and content: first-screen content is Chinese-first and action-oriented. Secondary features are represented as drawer entries instead of all being dumped into the homepage.
-- Phase 8.2f navigation: Radar / Signals / Review / Journal / Evolution / Settings are now real interactive states. Signals, Review, Journal, Evolution, and Settings open a workspace drawer; Radar returns to the main cockpit.
-- Phase 8.2f drawer runtime check: all five desktop drawers opened with the expected title, closed back to zero open drawers, and produced no horizontal overflow. The 390px mobile Review drawer also had no horizontal overflow and closed with Escape.
-- Phase 8.2g startup briefing: the first-visit boot briefing appears on desktop and mobile, carries the selected liquid-glass lens asset, preserves the `川` brand mark, and states the product boundary as a full-market altcoin trend-switch radar rather than a marketing page.
-- Phase 8.2g interaction check: `查看信号池` opens the Signals drawer, `看复盘链路` opens the Review drawer, and `进入雷达` dismisses the briefing with `localStorage` persistence. Desktop and 390px mobile checks both reported no horizontal overflow.
-- Phase 8.2h Signal Dossier: the selected ENA dossier opens as a right-side evidence room on desktop and a bottom sheet on mobile. It exposes one decision overview, four strategy status cells, three v3 evidence-path cards, the plan section, evidence room, and copilot discipline card. The current mock signal has no real `strategyV3`, so the dossier shows an explicit v3 pending state rather than fabricating a Forward Map.
-- Phase 8.2h responsiveness: desktop `1536px` and mobile `390px` checks both reported no horizontal overflow. Drawer rects stayed within viewport: desktop `638px` right drawer, mobile `390px` bottom sheet.
-- Phase 8.2i Pixel Copilot: the compact dock now includes motion rings, four signal pips, an action status strip, four equipment slots, BTC medallion pulse, a mini desk with the `川` mark, and no static image. It remains a discipline/status companion instead of a trade-decision surface.
-- Phase 8.2i compactness: desktop dock measured `297px x 364px` with fixed `82px x 124px` avatar stage; mobile dock measured `364px x 358px` with fixed `74px x 108px` avatar stage. Desktop and mobile checks both reported no horizontal overflow.
-- Phase 8.2j ChartPanel focus: desktop and mobile checks found four focus buttons, clickable focus state, one focus layer, one focus note, and final `chart-focus-layer--review` state after cycling through price/key/forward/review. Current default mock data has no `strategyV3`, so detailed key-level and forward-map buttons correctly remain absent instead of fabricating levels.
-- Phase 8.2j responsiveness: desktop chart stage measured `860px x 370px`; mobile chart stage measured `342px x 330px`. Both reported no horizontal overflow.
-- Phase 8.2k Chart Realism: desktop and mobile checks found 29 preview candles, two chart-level tags, one volume-quality profile, and two surge-volume bars. This makes the chart read more like a working market surface while remaining a readonly preview and keeping TradingView as the full chart path.
-- Phase 8.2k responsiveness: desktop chart stage measured `860px x 370px`; mobile chart stage measured `342px x 330px`. Both reported no horizontal overflow.
-- Runtime console: 0 errors and 0 warnings for the 8.2k Playwright QA run.
+- Fonts and typography: the implementation now uses the same dense black/gold dashboard hierarchy as the Figma source: large signal title, compact nav labels, tabular market numbers, score rings, and small operational labels. Mobile text remains readable without horizontal overflow.
+- Spacing and layout rhythm: the old 2:6:2 cockpit was removed from the first screen. The new first screen follows the source structure: top nav, ticker strip, KPI wall, main signal grid, right alert/heat/status rail, and a compact selected-plan dock.
+- Colors and visual tokens: black base, amber/gold accents, green/red market states, thin borders, low-opacity panel surfaces, and muted secondary text match the selected Figma direction. The prior light liquid-glass visual language is no longer driving the homepage.
+- Image quality and asset fidelity: the Figma source screen is mostly UI-native. The implementation avoids fake chart screenshots or decorative image placeholders and uses real backend data surfaces instead.
+- Copy and content: all visible app copy is Chinese-first and trading-workflow specific. The UI does not claim automatic execution, guaranteed direction, or fabricated K-line data.
+- Interaction states: top nav opens functional drawers, filter tabs actually filter the signal list, signal cards select a candidate, the dossier button opens a signal dossier, journal buttons write through the existing `/api/journal` path, and TradingView opens the real external chart URL.
+- Backend fusion: signal cards, KPI counts, market heat, scan proof, selected plan, alert list, assistant status, drawer content, and dossier content all use current `snapshot`, `health`, `backendContract`, `journalEvents`, or `dailyMoverArchive` props rather than copied Figma mock arrays.
+- Mobile responsiveness: at `390px`, the screen stacks cleanly, keeps nav horizontally scrollable, preserves signal cards, plan dock, alert list, heat board, scan proof, and assistant card without horizontal overflow.
+- Runtime console: current clean run at `http://localhost:3000/?qa=figma-current` has no application errors; the only console entries are React DevTools/HMR development messages.
 
 **Patches Made**
-- Reordered the center workspace so the candidate strip and chart sit before deep review modules.
-- Replaced the old rhythm strip with focused candidate tiles.
-- Compressed the left ops panel and right action rail.
-- Added mobile compaction rules and verified runtime grid columns at 390px.
-- Removed the LCP warning by using priority plus eager loading for the above-the-fold lens image.
-- Rechecked the desktop runtime console after the hydration clock fix: 0 errors and 0 warnings.
-- Added functional workspace drawers for Signals, Review, Journal, Evolution, and Settings.
-- Wired DailyMover manual calibration and strategy-draft confirmation actions into `/api/journal` as review records only.
-- Preserved the homepage rule: full Replay, DailyMover, Journal, Rank, and Health modules stay behind navigation drawers instead of permanently occupying the first screen.
-- Rebuilt `RadarBootBriefing` as a first-visit startup layer with real runtime data, skip persistence, Signals/Review drawer entry points, and reduced-motion-compatible brand motion.
-- Added Phase 8.2g repository hygiene coverage for the startup briefing boundaries: no background music, no callout behavior, no automatic trading, and no static-only marketing surface.
-- Upgraded `SignalDossier` into a light liquid-glass evidence room with a decision overview, status rail, v3 evidence path, clearer plan/evidence/review sections, and a discipline-focused copilot card.
-- Added a v3 pending state so preview data without `strategyV3` remains honest: it states that Forward Map is waiting for data and does not affect live ranking.
-- Added Phase 8.2h repository hygiene coverage for the Signal Dossier hierarchy and no-forbidden-module boundary.
-- Upgraded `PixelCopilot` with compact motion/equipment states: low-noise cruise, anomaly scan, discipline brake, BTC medallion pulse, equipment slots, mini desk, and reduced-motion protection.
-- Added Phase 8.2i repository hygiene coverage for compact motion/equipment tokens and the continued no-callout boundary.
-- Upgraded `ChartPanel` with readonly focus interaction: price, key level, forward map, and review-sample focus modes; chart overlay lines; focus note; clickable key/forward/review entries when v3 data exists.
-- Added Phase 8.2j repository hygiene coverage for ChartPanel focus interaction, reduced-motion protection, and no automatic execution boundary.
-- Upgraded `ChartPanel` with a readonly chart realism layer: dense candle preview, volume-quality profile, chart-level tags, and differentiated volume surge bars.
-- Added Phase 8.2k repository hygiene coverage for candle realism, key-level tags, volume quality, and TradingView non-replacement boundary.
+- Replaced the homepage render path from `RadarWorkspace` to `ChuanScanWorkspace`.
+- Rebuilt the first-screen UI around the black/gold Figma source instead of the previous light/liquid cockpit.
+- Removed the old homepage visual structure from the rendered screen: no left scan-control column, no center chart-first module, no right action rail as the primary layout.
+- Added real signal filtering: all, long candidates, short candidates, breakout/near-trigger, watch pool, and high-risk warnings.
+- Kept non-primary modules behind drawers: Signals, Review, Journal, Evolution, Settings.
+- Preserved the real backend contract: no Figma mock data, no `Math.random()` candles, no copied liquidation heatmap concepts.
+- Fixed the earlier `next/image fill` parent-position warning by removing the fill-dependent hero image path from the new topbar design.
+- Restarted the dev server after a Fast Refresh stale runtime error and re-captured clean desktop/mobile screenshots.
 
-**Follow-up Polish**
-- P3: capture populated v3 key-level and Forward Map screenshots from live `strategyV3` samples once production data returns those fields.
-- P3: the mobile route should eventually switch to tabbed sections instead of a long vertical scroll.
-- P3: when live `strategyV3` is present, capture a second dossier screenshot with real Key Levels / Forward Map populated instead of the mock pending state.
+**Open Questions**
+- The source Figma screen uses mock marketing-style quantities like broad “284” counters. The implementation intentionally replaces those with live backend counts, so numeric parity is not expected.
+- The source has richer card-type badges such as `PUMP/WHALE/BREAK`. The current implementation maps to the project’s real direction/state/risk vocabulary. This is intentional until backend evidence families expose a stable display taxonomy for those labels.
+
+**Implementation Checklist**
+- Keep the black/gold shell as the new homepage baseline.
+- Next frontend iteration should refine motion/hover polish, not restore the old liquid cockpit.
+- Add a backend-backed display taxonomy for signal card badges if we want Figma-style `PUMP/BREAK/FLOW` tags without inventing labels.
+- Capture another QA pass against production live CoinGlass data after deploy, because local `.env.local` currently renders mock/provider-preview values.
 
 **Final Result**
-final result: passed
-
-**Phase 8 Final Acceptance Closeout**
-- Date: 2026-06-18.
-- Production QA URL: `http://localhost:3002/` via `next build --webpack` + `next start --port 3002`.
-- Desktop screenshots:
-  - `.playwright-mcp/design-qa-radar-ui/radar-8-final-desktop-home.png`
-  - `.playwright-mcp/design-qa-radar-ui/radar-8-final-desktop-settings.png`
-- Mobile screenshot:
-  - `.playwright-mcp/design-qa-radar-ui/radar-8-final-mobile-dossier.png`
-- Desktop 1536 x 1024 result: boot briefing, `川` brand mark, top radar banner, runtime cockpit, Settings drawer, Signals drawer, and no forbidden liquidation heatmap text all passed.
-- Mobile 390 x 844 result: boot briefing persistence, Settings drawer, Signal Dossier bottom-sheet behavior, `川` brand mark, and no horizontal overflow all passed.
-- Regression fixed during closeout: hidden off-canvas drawers, hidden Signal Dossier, and decorative scan beams no longer inflate body horizontal scroll width.
-- Dev-server note: `127.0.0.1` triggers Next.js dev HMR cross-origin blocking in this environment; final interaction QA must use `localhost` or production mode to avoid false hydration failures.
-- Remaining P3 UI follow-up: future mobile work can still convert the long vertical cockpit into clearer tabbed sections, but Phase 8 is safe to close and the roadmap should return to core scanning, data quality, strategy, and review loops.
-
-**Phase 8 Final Result**
 final result: passed
