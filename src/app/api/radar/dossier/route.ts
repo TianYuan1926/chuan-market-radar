@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
-import { getMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import { buildSignalBackendDossier } from "@/lib/market/signal-backend-dossier";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "radar_get" });
+  const snapshot = await getReadableMarketRadarSnapshot(undefined, { trigger: "radar_get" });
   const dossier = buildSignalBackendDossier({
     snapshot,
     symbol,

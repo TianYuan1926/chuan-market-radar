@@ -7,6 +7,7 @@ import {
   buildRepositoryAwareMarketProvider,
   enrichSnapshotWithAiReviews,
   getMarketRadarSnapshot,
+  getReadableMarketRadarSnapshot,
   refreshMarketRadarSnapshot,
 } from "./radar-snapshot";
 import type { MarketDataProvider, MarketRadarSnapshot } from "./types";
@@ -166,6 +167,34 @@ test("buildRepositoryAwareMarketProvider injects durable priority hints into the
   assert.equal(result.label, "Captured Provider");
   assert.equal(capturedOptions?.universePriorityHints?.[0]?.symbol, "TIAUSDT");
   assert.match(capturedOptions?.universePriorityHintNotes?.join("\n") ?? "", /repository priority hints: 1 built from memory/);
+});
+
+test("getReadableMarketRadarSnapshot returns a failed placeholder when the provider is unavailable", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const provider: MarketDataProvider = {
+    id: "coinglass",
+    label: "Unavailable CoinGlass Provider",
+    async fetchSnapshot() {
+      throw new Error("Upgrade plan");
+    },
+  };
+
+  await assert.rejects(
+    getMarketRadarSnapshot(provider, { repository }),
+    /Upgrade plan/,
+  );
+
+  const readable = await getReadableMarketRadarSnapshot(provider, {
+    repository,
+    trigger: "health_get",
+  });
+
+  assert.equal(readable.metadata.status, "failed");
+  assert.equal(readable.metadata.source, "composite");
+  assert.equal(readable.metadata.runtime?.cacheStatus, "failed");
+  assert.equal(readable.metadata.runtime?.trigger, "health_get");
+  assert.match(readable.metadata.notes.join("\n"), /Upgrade plan/);
+  assert.equal(readable.signals.length, 0);
 });
 
 test("getMarketRadarSnapshot reads without writing archives while refresh persists them", async () => {

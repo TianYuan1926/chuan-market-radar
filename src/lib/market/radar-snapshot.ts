@@ -14,7 +14,7 @@ import {
 } from "./provider-registry";
 import { createReplayFrame, summarizeScanSnapshot } from "./scan-archive";
 import { buildScanArchiveBundle } from "./scan-archive-bundle";
-import { MemoryScanCache, runScheduledScan } from "./scan-runtime";
+import { calculateNextScanAt, MemoryScanCache, runScheduledScan } from "./scan-runtime";
 import type { MarketDataProvider, MarketRadarSnapshot, ScanArchiveBundle } from "./types";
 import { buildUniversePriorityHintsFromRepository } from "./universe-priority-hints";
 
@@ -43,14 +43,26 @@ type SnapshotArchiveOptions = {
   trigger?: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
 };
 
-function archiveBundle(
+async function archiveBundle(
   replayId?: string,
   repository: PersistenceRepository = appPersistenceRepository,
 ): Promise<ScanArchiveBundle> {
-  return buildScanArchiveBundle(repository, replayId, {
-    listLimit: 8,
-    maxEntries: archiveMaxEntries,
-  });
+  try {
+    return await buildScanArchiveBundle(repository, replayId, {
+      listLimit: 8,
+      maxEntries: archiveMaxEntries,
+    });
+  } catch {
+    return {
+      entries: [],
+      comparison: null,
+      retention: {
+        storage: repository.mode,
+        durable: repository.mode === "database",
+        maxEntries: archiveMaxEntries,
+      },
+    };
+  }
 }
 
 function envFromProcess(): AiReviewEnv {
@@ -73,6 +85,71 @@ function priorityHintNote(summary: Awaited<ReturnType<typeof buildUniversePriori
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "unknown repository priority hint error";
+}
+
+function emptyInstrumentPool(): MarketRadarSnapshot["instrumentPool"] {
+  return {
+    instruments: [],
+    rejected: [],
+    summary: {
+      accepted: 0,
+      duplicatesRemoved: 0,
+      marketTypes: ["perpetual"],
+      minVolume24hUsd: 5_000_000,
+      quoteAssets: ["USDT"],
+      rejected: 0,
+      total: 0,
+    },
+  };
+}
+
+function unavailableSnapshot({
+  error,
+  repository,
+  trigger,
+}: {
+  error: unknown;
+  repository: PersistenceRepository;
+  trigger: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
+}): MarketRadarSnapshot {
+  const now = new Date();
+  const cadenceMinutes = siteConfig.scanIntervalMinutes;
+  const generatedAt = now.toISOString();
+
+  return {
+    metadata: {
+      anomalyCount: 0,
+      cadenceMinutes,
+      candidateCount: 0,
+      generatedAt,
+      id: `scan-unavailable-${now.getTime()}`,
+      isRealtime: false,
+      mode: "scheduled",
+      nextScanAt: calculateNextScanAt(now, cadenceMinutes),
+      notes: [
+        `scan runtime: provider unavailable (${errorMessage(error)})`,
+        "read endpoint: degraded placeholder returned so the app remains reachable",
+      ],
+      riskGate: "on",
+      runtime: {
+        cacheStatus: "failed",
+        persistedArchive: false,
+        repositoryMode: repository.mode,
+        trigger,
+      },
+      scannedCount: 0,
+      source: "composite",
+      staleAfterMinutes: cadenceMinutes * 2,
+      status: "failed",
+    },
+    derivatives: [],
+    heatmap: [],
+    instrumentPool: emptyInstrumentPool(),
+    instruments: [],
+    journalEvents: [],
+    signals: [],
+    tickers: [],
+  };
 }
 
 export async function buildRepositoryAwareMarketProvider({
@@ -198,6 +275,29 @@ export async function getMarketRadarSnapshot(
     persistArchive: options.persistArchive,
     repository,
   });
+}
+
+export async function getReadableMarketRadarSnapshot(
+  provider?: MarketDataProvider,
+  options: SnapshotArchiveOptions = {},
+): Promise<MarketRadarSnapshot> {
+  const repository = options.repository ?? appPersistenceRepository;
+
+  try {
+    return await getMarketRadarSnapshot(provider, options);
+  } catch (error) {
+    return withArchive(
+      unavailableSnapshot({
+        error,
+        repository,
+        trigger: options.trigger ?? "internal",
+      }),
+      {
+        persistArchive: false,
+        repository,
+      },
+    );
+  }
 }
 
 export async function refreshMarketRadarSnapshot(

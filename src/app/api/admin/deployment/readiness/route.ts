@@ -4,7 +4,7 @@ import {
   runAdminDeploymentReadiness,
 } from "@/lib/api/deployment-readiness";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
-import { getMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import {
   appPersistenceDiagnostics,
   appPersistenceRepository,
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "readiness_get" });
+  const snapshot = await getReadableMarketRadarSnapshot(undefined, { trigger: "readiness_get" });
   const health = await buildSystemHealthReport({
     database: appPersistenceDiagnostics,
     env: process.env,

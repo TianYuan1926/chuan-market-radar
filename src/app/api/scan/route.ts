@@ -3,6 +3,7 @@ import { isCronRequestAuthorized } from "@/lib/api/cron-auth";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
 import {
   getMarketRadarSnapshot,
+  getReadableMarketRadarSnapshot,
   refreshMarketRadarSnapshot,
 } from "@/lib/market/radar-snapshot";
 
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
     return limitedResponse(limit);
   }
 
-  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "scan_get" });
+  const snapshot = await getReadableMarketRadarSnapshot(undefined, { trigger: "scan_get" });
 
   return NextResponse.json(snapshotResponse(snapshot), {
     headers: {

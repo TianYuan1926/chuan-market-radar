@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
-import { getMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import {
   appPersistenceDiagnostics,
   appPersistenceRepository,
@@ -9,7 +9,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const snapshot = await getMarketRadarSnapshot(undefined, { trigger: "health_get" });
+  const snapshot = await getReadableMarketRadarSnapshot(undefined, { trigger: "health_get" });
   const health = await buildSystemHealthReport({
     database: appPersistenceDiagnostics,
     env: process.env,

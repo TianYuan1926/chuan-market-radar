@@ -2,7 +2,7 @@ import { ChuanScanWorkspace } from "@/components/radar/chuan-scan-workspace";
 import { buildBackendContract } from "@/lib/api/backend-contract";
 import { getDailyMoverReadArchive } from "@/lib/api/daily-mover-readonly";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
-import { getMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import {
   appPersistenceDiagnostics,
   appPersistenceRepository,
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const [snapshot, dailyMoverArchive] = await Promise.all([
-    getMarketRadarSnapshot(undefined, { trigger: "page_ssr" }),
+    getReadableMarketRadarSnapshot(undefined, { trigger: "page_ssr" }),
     getDailyMoverReadArchive({
       limit: 7,
       repository: appPersistenceRepository,
