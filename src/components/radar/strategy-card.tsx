@@ -136,6 +136,7 @@ export function StrategyCard({ selected }: StrategyCardProps) {
     ...selected.evidence.filter((item) => !indicatorEvidence.includes(item) && !matrixEvidenceLabels.has(item.label)),
   ].slice(0, 6);
   const aiReview = selected.aiReview;
+  const aiBoundary = aiReview?.boundary;
   const aiReviewStatus = statusLabel(aiReview?.status);
   const aiCounterEvidence = aiReview?.counterEvidence.length
     ? aiReview.counterEvidence
@@ -302,6 +303,18 @@ export function StrategyCard({ selected }: StrategyCardProps) {
           <div className="check check--counter">
             <strong>失败路径</strong>
             <span>{aiReview?.sections.failurePath ?? selected.strategy.invalidation}</span>
+          </div>
+          <div className="check check--confirm">
+            <strong>边界</strong>
+            <span>{aiBoundary?.summary ?? "AI 只做反证复核，不改排序，不生成交易信号。"}</span>
+          </div>
+          <div className="check check--counter">
+            <strong>不确定性</strong>
+            <span>{aiReview?.sections.uncertainty ?? "AI 未启用，本轮没有模型不确定性补充。"}</span>
+          </div>
+          <div className="check check--confirm">
+            <strong>复盘标签</strong>
+            <span>{aiBoundary?.replayCalibration.tag ?? "ai_counter_evidence_review"}</span>
           </div>
         </div>
       </section>

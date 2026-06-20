@@ -194,10 +194,10 @@
 - Consumes: structured signal evidence and metadata.
 - Produces: model-cost boundary, counter-evidence summary, uncertainty, and replay calibration hooks.
 
-- [ ] Add tests for cost-safe disabled/configured modes.
-- [ ] Add multi-model/config surface only if env keys exist; otherwise keep visible disabled state.
-- [ ] Display AI as reviewer, not decider.
-- [ ] Update blueprint, verify, commit.
+- [x] Add tests for cost-safe disabled/configured modes.
+- [x] Add config surface only if env keys exist; otherwise keep visible disabled state.
+- [x] Display AI as reviewer, not decider.
+- [x] Update blueprint, verify, commit.
 
 ### Task 7: In-App Alert History And Event Center
 

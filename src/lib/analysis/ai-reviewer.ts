@@ -1,4 +1,5 @@
 import type {
+  AiReviewBoundary,
   AiReviewSections,
   AiSignalReview,
   EvidencePoint,
@@ -83,6 +84,16 @@ export type AiReviewPrompt = {
 
 export type AiReviewFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+type AiReviewBoundaryInput = Partial<{
+  costStatus: AiReviewBoundary["cost"]["status"];
+  maxPromptChars: number;
+  maxSignalsPerSnapshot: number;
+  model: string;
+  promptChars: number;
+  provider: string;
+  reason: string;
+}>;
+
 export type ReviewSignalWithAiOptions = {
   signal: MarketSignal;
   context: AiReviewContext;
@@ -108,6 +119,61 @@ const fallbackSections: AiReviewSections = {
   failurePath: "若规则证据被破坏，则按原失效条件处理。",
   uncertainty: "本轮缺少可审计 AI 复核。",
 };
+
+const defaultMaxPromptChars = 12_000;
+const defaultMaxSignalsPerSnapshot = 3;
+
+function positiveInteger(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
+function maxPromptCharsFrom(env: AiReviewEnv) {
+  return positiveInteger(env.AI_REVIEW_MAX_PROMPT_CHARS, defaultMaxPromptChars);
+}
+
+function maxSignalsFrom(env: AiReviewEnv) {
+  return Math.min(8, positiveInteger(env.AI_REVIEW_MAX_SIGNALS, defaultMaxSignalsPerSnapshot));
+}
+
+function aiReviewBoundary({
+  costStatus = "disabled",
+  maxPromptChars = defaultMaxPromptChars,
+  maxSignalsPerSnapshot = defaultMaxSignalsPerSnapshot,
+  model,
+  promptChars,
+  provider,
+  reason,
+}: AiReviewBoundaryInput = {}): AiReviewBoundary {
+  return {
+    allowedUse: "counter_evidence_review_only",
+    canAutoExecute: false,
+    canCreateTradeSignal: false,
+    canMutateLiveRanking: false,
+    canOverrideDecision: false,
+    cost: {
+      maxPromptChars,
+      maxSignalsPerSnapshot,
+      model,
+      promptChars,
+      provider,
+      reason,
+      status: costStatus,
+    },
+    replayCalibration: {
+      allowedUse: "manual_replay_calibration_only",
+      canAutoAdjustWeights: false,
+      requiresOutcomeSample: true,
+      tag: "ai_counter_evidence_review",
+    },
+    summary: "AI 只做反证复核和不确定性说明，不能覆盖规则引擎、不能改排序、不能生成交易信号。",
+  };
+}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -245,12 +311,13 @@ export function buildAiReviewPrompt(signal: MarketSignal, context: AiReviewConte
     snapshot: sanitizeSnapshotMetadata(context.metadata),
   };
   const payloadJson = JSON.stringify(payload, null, 2);
-  const system = [
-    "你是川 Market Radar 的 AI 反证复核层，必须先找反证，再给结论。",
-    "你只能使用用户 payload 中的结构化 JSON，不得编造新闻、链上数据、盘口数据或未接入的数据源。",
-    "你的作用是复核和解释，不是最终裁决；规则引擎和用户纪律仍然优先。",
-    "返回 JSON，不要返回 Markdown。",
-  ].join("\n");
+	  const system = [
+	    "你是川 Market Radar 的 AI 反证复核层，必须先找反证，再给结论。",
+	    "你只能使用用户 payload 中的结构化 JSON，不得编造新闻、链上数据、盘口数据或未接入的数据源。",
+	    "你的作用是复核和解释，不是最终裁决；规则引擎和用户纪律仍然优先。",
+	    "你不得新增买卖方向、不得改变信号置信度、不得覆盖 Risk Gate 或失效条件。",
+	    "返回 JSON，不要返回 Markdown。",
+	  ].join("\n");
   const user = [
     "Review this market signal with counter-evidence first.",
     "Return JSON keys: counterEvidence, fact, reasoning, judgment, strategy, failurePath, uncertainty, confidenceAdjustment.",
@@ -266,18 +333,35 @@ export function buildAiReviewPrompt(signal: MarketSignal, context: AiReviewConte
   };
 }
 
-export function disabledAiReview(reason: string): AiSignalReview {
+export function disabledAiReview(reason: string, boundaryInput: AiReviewBoundaryInput = {}): AiSignalReview {
   return {
     status: "disabled",
+    boundary: aiReviewBoundary({
+      costStatus: reason.includes("API_KEY") ? "missing_key" : "disabled",
+      reason,
+      ...boundaryInput,
+    }),
     reason,
     counterEvidence: [`AI 复核未启用：${reason}`],
     sections: disabledSections,
   };
 }
 
-function fallbackAiReview(reason: string, provider?: string, model?: string): AiSignalReview {
+function fallbackAiReview(
+  reason: string,
+  provider?: string,
+  model?: string,
+  boundaryInput: AiReviewBoundaryInput = {},
+): AiSignalReview {
   return {
     status: "fallback",
+    boundary: aiReviewBoundary({
+      costStatus: "fallback",
+      model,
+      provider,
+      reason,
+      ...boundaryInput,
+    }),
     reason,
     provider,
     model,
@@ -288,13 +372,20 @@ function fallbackAiReview(reason: string, provider?: string, model?: string): Ai
 
 export function parseAiReviewResponse(
   text: string,
-  meta: Pick<AiSignalReview, "provider" | "model" | "reviewedAt"> = {},
+  meta: Pick<AiSignalReview, "provider" | "model" | "reviewedAt"> & {
+    boundary?: AiReviewBoundary;
+  } = {},
 ): AiSignalReview {
   try {
     const parsed = asRecord(JSON.parse(cleanJsonText(text)));
 
     return {
       status: "reviewed",
+      boundary: meta.boundary ?? aiReviewBoundary({
+        costStatus: "within_budget",
+        model: meta.model,
+        provider: meta.provider,
+      }),
       provider: meta.provider,
       model: meta.model,
       reviewedAt: meta.reviewedAt,
@@ -310,7 +401,10 @@ export function parseAiReviewResponse(
       confidenceAdjustment: boundedConfidenceAdjustment(parsed.confidenceAdjustment),
     };
   } catch (error) {
-    return fallbackAiReview(error instanceof Error ? error.message : "AI response parse failed", meta.provider, meta.model);
+    return fallbackAiReview(error instanceof Error ? error.message : "AI response parse failed", meta.provider, meta.model, {
+      ...meta.boundary?.cost,
+      costStatus: "fallback",
+    });
   }
 }
 
@@ -339,23 +433,51 @@ export async function reviewSignalWithAi({
   fetcher = fetch,
   now = () => new Date(),
 }: ReviewSignalWithAiOptions): Promise<AiSignalReview> {
-  if (env.AI_REVIEW_ENABLED !== "true") {
-    return disabledAiReview("AI_REVIEW_ENABLED is not true");
-  }
-
-  if (!env.AI_API_KEY) {
-    return disabledAiReview("AI_API_KEY is missing");
-  }
-
   const provider = env.AI_PROVIDER ?? "openai-compatible";
   const model = env.AI_MODEL ?? "gpt-4.1-mini";
   const baseUrl = env.AI_BASE_URL ?? "https://api.openai.com/v1/chat/completions";
-  const maxPromptChars = Number(env.AI_REVIEW_MAX_PROMPT_CHARS ?? 12_000);
-  const prompt = buildAiReviewPrompt(signal, context);
+  const maxPromptChars = maxPromptCharsFrom(env);
+  const maxSignalsPerSnapshot = maxSignalsFrom(env);
 
-  if (prompt.user.length + prompt.system.length > maxPromptChars) {
-    return disabledAiReview("AI review prompt exceeds budget guard");
+  if (env.AI_REVIEW_ENABLED !== "true") {
+    return disabledAiReview("AI_REVIEW_ENABLED is not true", {
+      maxPromptChars,
+      maxSignalsPerSnapshot,
+      model,
+      provider,
+    });
   }
+
+  if (!env.AI_API_KEY) {
+    return disabledAiReview("AI_API_KEY is missing", {
+      maxPromptChars,
+      maxSignalsPerSnapshot,
+      model,
+      provider,
+    });
+  }
+
+  const prompt = buildAiReviewPrompt(signal, context);
+  const promptChars = prompt.user.length + prompt.system.length;
+
+  if (promptChars > maxPromptChars) {
+    return disabledAiReview("AI review prompt exceeds budget guard", {
+      costStatus: "over_budget",
+      maxPromptChars,
+      maxSignalsPerSnapshot,
+      model,
+      promptChars,
+      provider,
+    });
+  }
+  const boundary = aiReviewBoundary({
+    costStatus: "within_budget",
+    maxPromptChars,
+    maxSignalsPerSnapshot,
+    model,
+    promptChars,
+    provider,
+  });
 
   try {
     const response = await fetcher(baseUrl, {
@@ -376,21 +498,31 @@ export async function reviewSignalWithAi({
     });
 
     if (!response.ok) {
-      return fallbackAiReview(`model request failed with ${response.status}`, provider, model);
+      return fallbackAiReview(`model request failed with ${response.status}`, provider, model, {
+        ...boundary.cost,
+        costStatus: "fallback",
+      });
     }
 
     const content = modelContent(await response.json());
 
     if (!content) {
-      return fallbackAiReview("model response did not include message content", provider, model);
+      return fallbackAiReview("model response did not include message content", provider, model, {
+        ...boundary.cost,
+        costStatus: "fallback",
+      });
     }
 
     return parseAiReviewResponse(content, {
+      boundary,
       provider,
       model,
       reviewedAt: now().toISOString(),
     });
   } catch (error) {
-    return fallbackAiReview(error instanceof Error ? error.message : "model request failed", provider, model);
+    return fallbackAiReview(error instanceof Error ? error.message : "model request failed", provider, model, {
+      ...boundary.cost,
+      costStatus: "fallback",
+    });
   }
 }

@@ -415,6 +415,10 @@ export function SignalDossier({
   const strategyV2 = signal?.strategyV2;
   const strategyV3 = signal?.strategyV3;
   const strategyV3Readiness = signal?.strategyV3 ? evaluateStrategyV3Readiness(signal) : null;
+  const aiReview = signal?.aiReview;
+  const aiCounterEvidence = aiReview?.counterEvidence.length
+    ? aiReview.counterEvidence.slice(0, 3)
+    : ["AI 反证复核未返回额外反证，本轮以规则引擎为准"];
 
   return (
     <div className="signal-dossier signal-dossier--open">
@@ -856,6 +860,21 @@ export function SignalDossier({
                 {counterEvidence.map((item) => (
                   <span key={`counter-${item}`}><b>反证</b>{item}</span>
                 ))}
+              </div>
+            </section>
+
+            <section className="signal-dossier__section signal-dossier__section--ai-review" aria-label="AI 反证复核">
+              <div className="signal-dossier__section-head">
+                <h3>AI 反证复核</h3>
+                <span>{aiReview ? aiReview.status : "disabled"}</span>
+              </div>
+              <div className="signal-dossier__checks">
+                {aiCounterEvidence.map((item) => (
+                  <span key={`ai-counter-${item}`}><b>反证</b>{item}</span>
+                ))}
+                <span><b>边界</b>{aiReview?.boundary.summary ?? "AI 只做反证复核，不改排序，不生成交易信号。"}</span>
+                <span><b>不确定性</b>{aiReview?.sections.uncertainty ?? "AI 未启用，本轮没有模型不确定性补充。"}</span>
+                <span><b>复盘</b>{aiReview?.boundary.replayCalibration.tag ?? "ai_counter_evidence_review"}</span>
               </div>
             </section>
 

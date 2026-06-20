@@ -182,6 +182,16 @@ function reviewLimit(env: AiReviewEnv, explicit?: number) {
   return Math.min(8, Math.floor(parsed));
 }
 
+function promptLimit(env: AiReviewEnv) {
+  const parsed = Number(env.AI_REVIEW_MAX_PROMPT_CHARS ?? 12_000);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 12_000;
+  }
+
+  return Math.floor(parsed);
+}
+
 export async function enrichSnapshotWithAiReviews(
   snapshot: MarketRadarSnapshot,
   options: AiReviewSnapshotOptions = {},
@@ -199,7 +209,12 @@ export async function enrichSnapshotWithAiReviews(
       if (enabled && index >= maxSignals) {
         return {
           ...signal,
-          aiReview: disabledAiReview("AI_REVIEW_MAX_SIGNALS budget guard"),
+          aiReview: disabledAiReview("AI_REVIEW_MAX_SIGNALS budget guard", {
+            maxPromptChars: promptLimit(env),
+            maxSignalsPerSnapshot: maxSignals,
+            model: env.AI_MODEL ?? "gpt-4.1-mini",
+            provider: env.AI_PROVIDER ?? "openai-compatible",
+          }),
         };
       }
 

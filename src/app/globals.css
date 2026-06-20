@@ -11809,6 +11809,10 @@ body {
   border-color: rgba(0, 168, 122, 0.28);
 }
 
+.signal-dossier__section--ai-review {
+  border-color: rgba(94, 118, 255, 0.26);
+}
+
 .signal-dossier__section--evidence-room {
   border-color: rgba(71, 185, 255, 0.28);
 }

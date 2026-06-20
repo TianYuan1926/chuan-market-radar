@@ -118,6 +118,29 @@ test("enrichSnapshotWithAiReviews keeps the snapshot usable when the model fails
   assert.match(enriched.signals[0]?.aiReview?.reason ?? "", /model offline/);
 });
 
+test("enrichSnapshotWithAiReviews marks signals beyond AI budget as visible disabled reviews", async () => {
+  const enriched = await enrichSnapshotWithAiReviews(snapshot([
+    signal({ id: "ai-budget-1", symbol: "TIAUSDT" }),
+    signal({ id: "ai-budget-2", symbol: "SUIUSDT" }),
+  ]), {
+    env: {
+      AI_REVIEW_ENABLED: "true",
+      AI_API_KEY: "test-key",
+      AI_MODEL: "review-model",
+      AI_REVIEW_MAX_SIGNALS: "1",
+    },
+    fetcher: async () => new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ counterEvidence: ["等待反证"], judgment: "只复核" }) } }],
+    })),
+  });
+
+  assert.equal(enriched.signals[0]?.aiReview?.status, "reviewed");
+  assert.equal(enriched.signals[1]?.aiReview?.status, "disabled");
+  assert.match(enriched.signals[1]?.aiReview?.reason ?? "", /MAX_SIGNALS/);
+  assert.equal(enriched.signals[1]?.aiReview?.boundary.cost.maxSignalsPerSnapshot, 1);
+  assert.equal(enriched.signals[1]?.aiReview?.boundary.canCreateTradeSignal, false);
+});
+
 test("buildRepositoryAwareMarketProvider injects durable priority hints into the default provider", async () => {
   const repository = createMemoryPersistenceRepository();
   let capturedOptions: GetConfiguredMarketProviderOptions | undefined;

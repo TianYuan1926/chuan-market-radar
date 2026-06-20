@@ -103,9 +103,40 @@ test("disabledAiReview and missing AI_API_KEY return a visible disabled boundary
   });
 
   assert.equal(disabled.status, "disabled");
+  assert.equal(disabled.boundary.canOverrideDecision, false);
+  assert.equal(disabled.boundary.canCreateTradeSignal, false);
+  assert.equal(disabled.boundary.cost.status, "missing_key");
   assert.equal(review.status, "disabled");
   assert.match(review.reason ?? "", /AI_API_KEY/);
+  assert.equal(review.boundary.cost.status, "missing_key");
+  assert.equal(review.boundary.replayCalibration.tag, "ai_counter_evidence_review");
   assert.equal(review.sections.fact, "AI 复核未启用。");
+});
+
+test("reviewSignalWithAi blocks over-budget prompts before calling the model", async () => {
+  let called = false;
+  const review = await reviewSignalWithAi({
+    signal: baseSignal,
+    context: baseContext,
+    env: {
+      AI_REVIEW_ENABLED: "true",
+      AI_API_KEY: "test-key",
+      AI_REVIEW_MAX_PROMPT_CHARS: "10",
+      AI_REVIEW_MAX_SIGNALS: "2",
+    },
+    fetcher: async () => {
+      called = true;
+
+      return new Response("{}");
+    },
+  });
+
+  assert.equal(called, false);
+  assert.equal(review.status, "disabled");
+  assert.equal(review.boundary.cost.status, "over_budget");
+  assert.equal(review.boundary.cost.maxPromptChars, 10);
+  assert.equal(review.boundary.cost.maxSignalsPerSnapshot, 2);
+  assert.equal(review.boundary.canMutateLiveRanking, false);
 });
 
 test("reviewSignalWithAi falls back when an OpenAI-compatible model request fails", async () => {
@@ -124,6 +155,8 @@ test("reviewSignalWithAi falls back when an OpenAI-compatible model request fail
   });
 
   assert.equal(review.status, "fallback");
+  assert.equal(review.boundary.cost.status, "fallback");
+  assert.equal(review.boundary.canOverrideDecision, false);
   assert.match(review.reason ?? "", /model offline/);
   assert.ok(review.counterEvidence.some((item: string) => item.includes("规则引擎")));
 });
@@ -141,6 +174,9 @@ test("parseAiReviewResponse normalizes fact reasoning judgment strategy failure 
   }));
 
   assert.equal(review.status, "reviewed");
+  assert.equal(review.boundary.allowedUse, "counter_evidence_review_only");
+  assert.equal(review.boundary.canOverrideDecision, false);
+  assert.equal(review.boundary.canAutoExecute, false);
   assert.deepEqual(review.counterEvidence, ["BTC 没有同步走强", "突破后未回踩确认"]);
   assert.equal(review.sections.fact, "ENA 放量接近箱体上沿。");
   assert.equal(review.sections.reasoning, "量能支持观察，但大盘和触发条件不足。");
@@ -191,5 +227,9 @@ test("reviewSignalWithAi uses OpenAI-compatible chat completions without exposin
   assert.match(requestBody, /counter-evidence first/i);
   assert.doesNotMatch(JSON.stringify(review), /test-key/);
   assert.equal(review.status, "reviewed");
+  assert.equal(review.boundary.cost.status, "within_budget");
+  assert.equal(review.boundary.cost.model, "review-model");
+  assert.equal(review.boundary.cost.provider, "openai-compatible");
+  assert.equal(review.boundary.replayCalibration.allowedUse, "manual_replay_calibration_only");
   assert.equal(review.sections.failurePath, "跌回突破位则失效。");
 });

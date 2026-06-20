@@ -98,6 +98,30 @@ export type StrategyV2Audit = {
 
 export type AiReviewStatus = "disabled" | "fallback" | "reviewed";
 
+export type AiReviewBoundary = {
+  allowedUse: "counter_evidence_review_only";
+  canAutoExecute: false;
+  canCreateTradeSignal: false;
+  canMutateLiveRanking: false;
+  canOverrideDecision: false;
+  cost: {
+    maxPromptChars: number;
+    maxSignalsPerSnapshot: number;
+    model?: string;
+    promptChars?: number;
+    provider?: string;
+    reason?: string;
+    status: "disabled" | "fallback" | "missing_key" | "over_budget" | "within_budget";
+  };
+  replayCalibration: {
+    allowedUse: "manual_replay_calibration_only";
+    canAutoAdjustWeights: false;
+    requiresOutcomeSample: true;
+    tag: "ai_counter_evidence_review";
+  };
+  summary: string;
+};
+
 export type AiReviewSections = {
   fact: string;
   reasoning: string;
@@ -109,6 +133,7 @@ export type AiReviewSections = {
 
 export type AiSignalReview = {
   status: AiReviewStatus;
+  boundary: AiReviewBoundary;
   counterEvidence: string[];
   sections: AiReviewSections;
   reason?: string;
