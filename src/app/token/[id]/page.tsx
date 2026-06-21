@@ -13,7 +13,15 @@ import {
   fmtCap,
   fmtUsd,
 } from '@/lib/mock-data'
-import { getTokenDossierContractForPage } from '@/lib/frontend-contract-server'
+import {
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+  getTokenDossierContractForPage,
+} from '@/lib/frontend-contract-server'
+import {
+  radarSignalsToFeedSignals,
+  radarSignalsToTokens,
+} from '@/lib/frontend-display-adapters'
 import { cn } from '@/lib/utils'
 
 export function generateStaticParams() {
@@ -26,12 +34,18 @@ export default async function TokenPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const token = getToken(id)
+  const radar = await getRadarContractForPage()
+  const tickerLeaderboard = await getLeaderboardContractForPage('volume')
+  const tickerRows = tickerLeaderboard.data
+  const lookupId = id.toLowerCase()
+  const backendToken = radarSignalsToTokens(radar.radarSignals.data, tickerRows).find((item) => item.id === lookupId || item.symbol.toLowerCase() === lookupId)
+  const token = backendToken ?? getToken(id)
   if (!token) notFound()
   const dossier = await getTokenDossierContractForPage(token.symbol, token.price)
 
   const seed = token.hue + token.symbol.length * 31
-  const signals = getSignals(token.symbol, token.price)
+  const backendSignals = radarSignalsToFeedSignals(radar.radarSignals.data, token.symbol)
+  const signals = backendSignals.length > 0 ? backendSignals : getSignals(token.symbol, token.price)
   const up = token.change24h >= 0
 
   const facts: [string, string][] = [
@@ -244,7 +258,7 @@ export default async function TokenPage({
         <TokenDossier symbol={token.symbol} basePrice={token.price} dossier={dossier} />
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          数据均为模拟演示，仅供参考，不构成投资建议
+          数据仅供研究复盘与系统校准，不构成投资建议
         </p>
       </main>
     </div>

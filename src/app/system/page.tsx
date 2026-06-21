@@ -2,8 +2,11 @@ import { SiteNav } from '@/components/site-nav'
 import { SessionBar } from '@/components/session-bar'
 import { SystemCenter } from '@/components/system-center'
 import { SystemStatus } from '@/components/system/system-status'
+import { getRadarContractForPage } from '@/lib/frontend-contract-server'
 
-export default function SystemPage() {
+export default async function SystemPage() {
+  const radar = await getRadarContractForPage()
+
   return (
     <main className="min-h-screen">
       <SiteNav />
@@ -18,10 +21,10 @@ export default function SystemPage() {
         <SystemCenter />
 
         {/* 后端承载位：服务健康 / 数据管线 / CoinGlass API 用量 */}
-        <SystemStatus />
+        <SystemStatus contract={radar} />
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          数据均为模拟演示，仅供参考，不构成投资建议
+          系统状态仅用于运行监控与风险提示，不构成投资建议
         </p>
       </div>
     </main>

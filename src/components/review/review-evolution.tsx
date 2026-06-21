@@ -7,17 +7,18 @@ import {
   getStrategyArchetypes,
   getMissedDetections,
   getEvolutionSuggestions,
+  type ReviewContract,
 } from '@/lib/radar-contract'
 import { Panel } from '@/components/panel'
 import { FreshnessTag, StatusBadge, ResourceBoundary } from '@/components/data-state'
 import { TokenAvatar } from '@/components/token-avatar'
 import { cn } from '@/lib/utils'
 
-export function ReviewEvolution() {
-  const lifecycles = useMemo(() => getSignalLifecycles(), [])
-  const archetypes = useMemo(() => getStrategyArchetypes(), [])
-  const missed = useMemo(() => getMissedDetections(), [])
-  const suggestions = useMemo(() => getEvolutionSuggestions(), [])
+export function ReviewEvolution({ contract }: { contract?: ReviewContract }) {
+  const lifecycles = useMemo(() => contract?.signalLifecycles ?? getSignalLifecycles(), [contract])
+  const archetypes = useMemo(() => contract?.strategyArchetypes ?? getStrategyArchetypes(), [contract])
+  const missed = useMemo(() => contract?.missedDetections ?? getMissedDetections(), [contract])
+  const suggestions = useMemo(() => contract?.evolutionSuggestions ?? getEvolutionSuggestions(), [contract])
 
   return (
     <div className="mt-5 space-y-5">

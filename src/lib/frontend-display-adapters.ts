@@ -1,5 +1,6 @@
 import type {
   PoolStatus,
+  Signal,
   SignalCard,
   SignalCategory,
   SignalType,
@@ -177,6 +178,13 @@ function timeLabelFromAge(ageMin: number) {
   return `${Math.floor(ageMin / 60)}小时前`
 }
 
+function baseSymbol(value: string) {
+  return value
+    .toUpperCase()
+    .replace(/\.P$/, '')
+    .replace(/USDT$|USDC$|USD$/, '')
+}
+
 function descFor(signal: RadarSignal) {
   if (signal.whyBlocked) return `${signal.whySelected}；${signal.whyBlocked}`
   return signal.whySelected
@@ -230,6 +238,38 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
       }
     })
     .sort((a, b) => b.score - a.score)
+}
+
+export function radarSignalsToFeedSignals(signals: RadarSignal[], symbol: string): Signal[] {
+  const wanted = baseSymbol(symbol)
+
+  return signals
+    .filter((signal) => baseSymbol(signal.symbol) === wanted)
+    .sort((a, b) => a.updatedMinAgo - b.updatedMinAgo)
+    .map((signal, index) => {
+      const type: Signal['type'] =
+        signal.direction === '空'
+          ? 'bear'
+          : signal.direction === '多'
+            ? 'bull'
+            : 'neutral'
+      const rr = signal.rr ? `，RR ${signal.rr.toFixed(1)}` : ''
+      const status = signal.whyBlocked ? '风控拦截' : '证据更新'
+
+      return {
+        id: `${signal.id}-feed-${index}`,
+        time: timeLabelFromAge(signal.updatedMinAgo),
+        type,
+        title: `${signal.symbol} ${status} · ${signal.maturity}`,
+        body: `${descFor(signal)}${rr}。数据新鲜度：${signal.freshness}。`,
+        tags: [
+          signal.direction,
+          signal.risk,
+          signal.maturity,
+          signal.whyBlocked ? 'Risk Gate' : '证据链',
+        ],
+      }
+    })
 }
 
 function sniperSide(signal: RadarSignal): SniperTarget['side'] {

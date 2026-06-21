@@ -300,3 +300,46 @@ test("backend radar visual cards are enriched with backend ticker rows before fa
   assert.match(signalsSource, /radarSignalsToSignalCards\(radar\.radarSignals\.data,\s*tickerRows\)/);
   assert.match(signalsSource, /radarSignalsToSniperTargets\(radar\.radarSignals\.data,\s*tickerRows\)/);
 });
+
+test("review and system backend carrier panels receive server-side contracts", () => {
+  const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
+  const systemPageSource = readFileSync(resolve(process.cwd(), "src/app/system/page.tsx"), "utf8");
+  const reviewEvolutionSource = readFileSync(resolve(process.cwd(), "src/components/review/review-evolution.tsx"), "utf8");
+  const systemStatusSource = readFileSync(resolve(process.cwd(), "src/components/system/system-status.tsx"), "utf8");
+
+  assert.match(reviewPageSource, /getReviewContractForPage/);
+  assert.match(reviewPageSource, /export default async function ReviewPage/);
+  assert.match(reviewPageSource, /<ReviewEvolution contract=\{review\}/);
+
+  assert.match(systemPageSource, /getRadarContractForPage/);
+  assert.match(systemPageSource, /export default async function SystemPage/);
+  assert.match(systemPageSource, /<SystemStatus contract=\{radar\}/);
+
+  assert.match(reviewEvolutionSource, /contract\?:\s*ReviewContract/);
+  assert.match(reviewEvolutionSource, /contract\?\.signalLifecycles\s*\?\?/);
+  assert.match(reviewEvolutionSource, /contract\?\.strategyArchetypes\s*\?\?/);
+  assert.match(reviewEvolutionSource, /contract\?\.missedDetections\s*\?\?/);
+  assert.match(reviewEvolutionSource, /contract\?\.evolutionSuggestions\s*\?\?/);
+
+  assert.match(systemStatusSource, /contract\?:\s*RadarContract/);
+  assert.match(systemStatusSource, /contract\?\.serviceNodes\s*\?\?/);
+  assert.match(systemStatusSource, /contract\?\.dataPipeline\s*\?\?/);
+  assert.match(systemStatusSource, /contract\?\.apiUsage\s*\?\?/);
+});
+
+test("token detail page can render backend radar symbols without relying only on mock tokens", () => {
+  const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
+  const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");
+
+  assert.match(adapterSource, /radarSignalsToFeedSignals/);
+
+  assert.match(tokenPageSource, /getRadarContractForPage/);
+  assert.match(tokenPageSource, /getLeaderboardContractForPage/);
+  assert.match(tokenPageSource, /radarSignalsToTokens/);
+  assert.match(tokenPageSource, /radarSignalsToFeedSignals/);
+  assert.match(tokenPageSource, /const backendToken = radarSignalsToTokens\(radar\.radarSignals\.data,\s*tickerRows\)\.find/);
+  assert.match(tokenPageSource, /const token = backendToken \?\? getToken\(id\)/);
+  assert.match(tokenPageSource, /const backendSignals = radarSignalsToFeedSignals\(radar\.radarSignals\.data,\s*token\.symbol\)/);
+  assert.match(tokenPageSource, /backendSignals\.length > 0 \? backendSignals : getSignals/);
+  assert.doesNotMatch(tokenPageSource, /数据均为模拟演示/);
+});
