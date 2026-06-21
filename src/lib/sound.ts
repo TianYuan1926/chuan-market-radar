@@ -37,6 +37,10 @@ function emit() {
   for (const l of listeners) l()
 }
 
+type WebAudioWindow = Window & {
+  webkitAudioContext?: typeof AudioContext
+}
+
 // ---- 持久化（接入腾讯云后端时替换以下两处） ----
 function loadEnabled(): boolean {
   if (typeof window === 'undefined') return true
@@ -64,7 +68,7 @@ function ensureHydrated() {
 function ensureCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null
   if (!ctx) {
-    const AC = window.AudioContext || (window as any).webkitAudioContext
+    const AC = window.AudioContext || (window as WebAudioWindow).webkitAudioContext
     if (!AC) return null
     ctx = new AC()
     master = ctx.createGain()

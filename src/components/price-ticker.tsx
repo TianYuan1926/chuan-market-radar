@@ -1,12 +1,22 @@
 'use client'
 
-import { getTokens } from '@/lib/mock-data'
+import { getTokens, type Token } from '@/lib/mock-data'
 import { TokenAvatar } from './token-avatar'
 import { LiveQuotePrice, LiveQuotePct } from './live-value'
 
-export function PriceTicker() {
-  const tokens = getTokens()
-  const row = [...tokens, ...tokens]
+export function PriceTicker({ tokens }: { tokens?: Token[] }) {
+  const tokenRows = tokens ?? getTokens()
+  const tokensToShow = tokenRows.slice(0, 24)
+  const row = [...tokensToShow, ...tokensToShow]
+
+  if (row.length === 0) {
+    return (
+      <div className="border-y border-border bg-card/40 py-2.5 text-center text-xs text-muted-foreground">
+        等待行情榜单数据
+      </div>
+    )
+  }
+
   return (
     <div className="relative overflow-hidden border-y border-border bg-card/40 py-2.5">
       <div className="animate-ticker flex w-max items-center gap-8 whitespace-nowrap">

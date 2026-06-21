@@ -10,6 +10,7 @@ import {
   type SignalMaturity,
   type RadarSignal,
 } from '@/lib/radar-contract'
+import type { Resource } from '@/lib/data-status'
 import { Search, ArrowUpDown, ChevronRight, ShieldX, CheckCircle2, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -50,8 +51,8 @@ const MATURITY_ORDER: SignalMaturity[] = [
   'INVALIDATED',
 ]
 
-export function SignalMaturityPool() {
-  const res = getRadarSignals()
+export function SignalMaturityPool({ signals }: { signals?: Resource<RadarSignal[]> }) {
+  const res = signals ?? getRadarSignals()
   const all = res.data
 
   const [query, setQuery] = useState('')

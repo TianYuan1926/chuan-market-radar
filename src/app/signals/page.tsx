@@ -6,16 +6,34 @@ import { LiveFeed } from '@/components/live-feed'
 import { MarketHeatmap } from '@/components/market-heatmap'
 import { SessionBar } from '@/components/session-bar'
 import { JournalLauncher } from '@/components/journal-launcher'
-import { getTokens, getSignalCards } from '@/lib/mock-data'
+import {
+  radarSignalsToSignalCards,
+  radarSignalsToSniperTargets,
+  radarSignalsToTokens,
+  withLeaderboardSignalFallback,
+} from '@/lib/frontend-display-adapters'
+import {
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+} from '@/lib/frontend-contract-server'
 
-export default function SignalsPage() {
-  const tokens = getTokens()
-  const cards = getSignalCards()
+export const dynamic = 'force-dynamic'
+
+export default async function SignalsPage() {
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const tickerRows = tickerLeaderboard.data
+  const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
+  const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
+  const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
+  const sniperTargets = radarSignalsToSniperTargets(radar.radarSignals.data, tickerRows)
 
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar />
+      <SessionBar tokens={tokens} />
 
       <main className="mx-auto max-w-[1560px] px-4 py-5 sm:px-6">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -23,12 +41,12 @@ export default function SignalsPage() {
           <div className="min-w-0">
             {/* 狙击榜：通过最终筛选的精选目标（与复盘进化引擎共用数据源） */}
             <div className="mb-5">
-              <SniperBoard />
+              <SniperBoard targets={sniperTargets} />
             </div>
 
             {/* 信号成熟度池：按成熟度分层，支持搜索/筛选/排序/滚动（后端承载位） */}
             <div className="mb-5">
-              <SignalMaturityPool />
+              <SignalMaturityPool signals={displaySignals} />
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">

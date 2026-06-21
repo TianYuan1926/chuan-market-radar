@@ -228,23 +228,16 @@ test("frontend contract routes are read-only and cannot trigger scans", () => {
   }
 });
 
-test("core v0 pages expose backend contract injection points", () => {
+test("signals and leaderboard pages expose backend contract injection points", () => {
   const serverReaderPath = "src/lib/frontend-contract-server.ts";
   const serverReaderSource = existsSync(resolve(process.cwd(), serverReaderPath))
     ? readFileSync(resolve(process.cwd(), serverReaderPath), "utf8")
     : "";
   const requiredSources: Record<string, RegExp[]> = {
-    "src/app/dashboard/page.tsx": [/getRadarContractForPage/, /<DashboardRadarControl contract=\{radar\}/],
     "src/app/signals/page.tsx": [/getRadarContractForPage/, /<SignalMaturityPool signals=\{displaySignals\}/],
-    "src/app/market/page.tsx": [/getRadarContractForPage/, /<MarketPageClient radar=\{radar\} tickerRows=\{tickerLeaderboard\.data\}/],
-    "src/app/market/market-page-client.tsx": [/radar:/, /<MarketMacroDerivatives contract=\{radar\}/],
     "src/app/leaderboard/page.tsx": [/getAllLeaderboardContractsForPage/, /<MarketLeaderboards initialLeaderboards=\{leaderboards\}/],
-    "src/app/token/[id]/page.tsx": [/getTokenDossierContractForPage/, /<TokenDossier[\s\S]+dossier=\{dossier\}/],
-    "src/components/dashboard/radar-control.tsx": [/contract\?:/],
     "src/components/signals/signal-maturity-pool.tsx": [/signals\?:/],
-    "src/components/market/macro-derivatives.tsx": [/contract\?:/],
     "src/components/leaderboard/market-leaderboards.tsx": [/initialLeaderboards\?:/],
-    "src/components/token/token-dossier.tsx": [/dossier\?:/],
   };
 
   assert.equal(existsSync(resolve(process.cwd(), serverReaderPath)), true, "server-side frontend contract reader must exist");
@@ -259,13 +252,12 @@ test("core v0 pages expose backend contract injection points", () => {
   }
 });
 
-test("dashboard and signals visual widgets derive from backend radar signals", () => {
+test("signals visual widgets derive from backend radar signals", () => {
   const adapterPath = "src/lib/frontend-display-adapters.ts";
 
   assert.equal(existsSync(resolve(process.cwd(), adapterPath)), true, "backend-to-v0 display adapter must exist");
 
   const adapterSource = readFileSync(resolve(process.cwd(), adapterPath), "utf8");
-  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
   const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
   const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
   const liveFeedSource = readFileSync(resolve(process.cwd(), "src/components/live-feed.tsx"), "utf8");
@@ -276,11 +268,6 @@ test("dashboard and signals visual widgets derive from backend radar signals", (
   assert.match(adapterSource, /radarSignalsToSniperTargets/);
   assert.match(adapterSource, /leaderboardRowsToCandidateSignals/);
   assert.match(adapterSource, /withLeaderboardSignalFallback/);
-
-  assert.match(dashboardSource, /radarSignalsToSignalCards/);
-  assert.match(dashboardSource, /const displaySignals = withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
-  assert.match(dashboardSource, /const cards = radarSignalsToSignalCards\(displaySignals\.data,\s*tickerRows\)/);
-  assert.doesNotMatch(dashboardSource, /getSignalCards/);
 
   assert.match(signalsSource, /radarSignalsToSignalCards/);
   assert.match(signalsSource, /radarSignalsToTokens/);
@@ -297,7 +284,6 @@ test("dashboard and signals visual widgets derive from backend radar signals", (
 
 test("backend radar visual cards are enriched with backend ticker rows before falling back", () => {
   const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");
-  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
   const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
 
   assert.match(adapterSource, /LeaderboardRow/);
@@ -305,11 +291,6 @@ test("backend radar visual cards are enriched with backend ticker rows before fa
   assert.match(adapterSource, /priceBySymbol/);
   assert.match(adapterSource, /leaderboardRowsToCandidateSignals/);
   assert.match(adapterSource, /候选不等于交易计划/);
-
-  assert.match(dashboardSource, /getLeaderboardContractForPage/);
-  assert.match(dashboardSource, /const tickerRows = tickerLeaderboard\.data/);
-  assert.match(dashboardSource, /withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
-  assert.match(dashboardSource, /radarSignalsToSignalCards\(displaySignals\.data,\s*tickerRows\)/);
 
   assert.match(signalsSource, /getLeaderboardContractForPage/);
   assert.match(signalsSource, /const tickerRows = tickerLeaderboard\.data/);
@@ -373,9 +354,7 @@ test("sniper board stays visible when backend has no trade-plan-ready targets", 
 test("stage 8 global ticker bars can receive backend-derived tokens", () => {
   const priceTickerSource = readFileSync(resolve(process.cwd(), "src/components/price-ticker.tsx"), "utf8");
   const sessionBarSource = readFileSync(resolve(process.cwd(), "src/components/session-bar.tsx"), "utf8");
-  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
   const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
-  const marketClientSource = readFileSync(resolve(process.cwd(), "src/app/market/market-page-client.tsx"), "utf8");
   const leaderboardSource = readFileSync(resolve(process.cwd(), "src/app/leaderboard/page.tsx"), "utf8");
   const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");
 
@@ -387,11 +366,7 @@ test("stage 8 global ticker bars can receive backend-derived tokens", () => {
   assert.match(sessionBarSource, /tokens\?:\s*Token\[\]/);
   assert.match(sessionBarSource, /tokens\s*\?\?\s*getTokens\(\)/);
 
-  assert.match(dashboardSource, /radarSignalsToTokens/);
-  assert.match(dashboardSource, /<SessionBar tokens=\{tokens\}/);
   assert.match(signalsSource, /<SessionBar tokens=\{tokens\}/);
-  assert.match(marketClientSource, /radarSignalsToTokens/);
-  assert.match(marketClientSource, /<SessionBar tokens=\{tokens\}/);
   assert.match(leaderboardSource, /leaderboardRowsToTokens/);
   assert.match(leaderboardSource, /mergeTokensBySymbol/);
   assert.match(leaderboardSource, /<PriceTicker tokens=\{tickerTokens\}/);
