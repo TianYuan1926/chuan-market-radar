@@ -281,6 +281,7 @@ function candidateFromTicker(ticker: MarketTicker): ScanLightScanCandidate {
     changePercent24h: ticker.changePercent24h,
     distanceFromHighPercent: Math.round(distanceHigh * 100) / 100,
     distanceFromLowPercent: Math.round(distanceLow * 100) / 100,
+    price: ticker.price,
     reasons: candidateReasons({
       changePercent24h: ticker.changePercent24h,
       distanceHigh,
@@ -841,6 +842,7 @@ function mergeCompositeCandidates(
       changePercent24h: candidate.changePercent24h,
       distanceFromHighPercent: candidate.distanceFromHighPercent,
       distanceFromLowPercent: candidate.distanceFromLowPercent,
+      price: candidate.price,
       reasons: candidate.reasons,
       score: candidate.score,
       state: candidate.state,

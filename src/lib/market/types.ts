@@ -425,6 +425,7 @@ export type ScanLightScanCandidate = {
   changePercent24h: number;
   distanceFromHighPercent: number;
   distanceFromLowPercent: number;
+  price?: number;
   reasons: string[];
   score: number;
   state: "COLD" | "HOT" | "PRE_TREND" | "WARM";

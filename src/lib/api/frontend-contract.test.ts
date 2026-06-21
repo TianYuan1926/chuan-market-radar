@@ -411,6 +411,44 @@ test("buildFrontendLeaderboardContract maps and sorts real ticker data", () => {
   assert.equal(gainers.data[0]?.hasSignal, true);
 });
 
+test("buildFrontendLeaderboardContract falls back to public light scan candidates when tickers are absent", () => {
+  const backend = backendContract();
+  backend.scanProof.lightScan.topCandidates = [
+    {
+      baseAsset: "POWER",
+      changePercent24h: 12.4,
+      distanceFromHighPercent: 1.2,
+      distanceFromLowPercent: 18.5,
+      price: 0.42,
+      reasons: ["price_volume_anomaly", "liquid_enough"],
+      score: 91,
+      state: "HOT",
+      symbol: "POWERUSDT",
+      volume24hUsd: 58_000_000,
+      volatilityPercent: 8.4,
+    },
+  ];
+
+  const lightOnlySnapshot = {
+    ...snapshot([]),
+    tickers: [],
+    signals: [],
+  };
+
+  const volume = buildFrontendLeaderboardContract({
+    kind: "volume",
+    snapshot: lightOnlySnapshot,
+    backend,
+  });
+
+  assert.equal(volume.status, "live");
+  assert.equal(volume.data[0]?.symbol, "POWER");
+  assert.equal(volume.data[0]?.price, 0.42);
+  assert.equal(volume.data[0]?.value, 58_000_000);
+  assert.equal(volume.data[0]?.inCandidatePool, true);
+  assert.equal(volume.data[0]?.hasSignal, false);
+});
+
 test("buildFrontendTokenDossierContract translates backend dossier without report-side decisions", () => {
   const dossier: SignalBackendDossier = {
     found: true,

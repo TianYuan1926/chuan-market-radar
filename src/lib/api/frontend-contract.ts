@@ -836,6 +836,30 @@ function tickerValue(kind: LeaderboardKind, ticker: MarketTicker, derivatives: D
   return ticker.changePercent24h;
 }
 
+function lightCandidateValue(kind: LeaderboardKind, candidate: ScanLightScanCandidate, derivatives: DerivativeSnapshot[]) {
+  const derivative = derivatives.find((item) => baseSymbol(item.symbol) === baseSymbol(candidate.symbol));
+
+  if (kind === "losers" || kind === "gainers") {
+    return candidate.changePercent24h;
+  }
+  if (kind === "volume") {
+    return candidate.volume24hUsd;
+  }
+  if (kind === "volatility_squeeze") {
+    return Math.max(0, 100 - candidate.volatilityPercent);
+  }
+  if (kind === "relative_strength") {
+    return candidate.score + Math.max(0, candidate.changePercent24h);
+  }
+  if (kind === "oi_change") {
+    return derivative?.openInterestChangePercent ?? 0;
+  }
+  if (kind === "funding_hot") {
+    return derivative?.fundingRate ?? 0;
+  }
+  return candidate.score;
+}
+
 export function buildFrontendLeaderboardContract({
   backend,
   kind,
@@ -857,21 +881,42 @@ export function buildFrontendLeaderboardContract({
   const awaitingSymbols = new Set(backend.scanProof.allocation.pendingAssets.map(baseSymbol));
   const lightBySymbol = new Map(backend.scanProof.lightScan.topCandidates.map((candidate) => [baseSymbol(candidate.symbol), candidate]));
   const direction = kind === "losers" ? 1 : -1;
-  const rows = snapshot.tickers
-    .map((ticker) => {
-      const symbol = baseSymbol(ticker.symbol);
-      return {
-        symbol,
-        hue: symbolHue(symbol),
-        value: round(tickerValue(kind, ticker, snapshot.derivatives, lightBySymbol.get(symbol)), kind === "funding_hot" ? 4 : 2),
-        price: ticker.price,
-        inCandidatePool: candidateSymbols.has(symbol),
-        deepScanned: deepScannedSymbols.has(symbol),
-        hasSignal: signalSymbols.has(symbol),
-        blocked: blockedSymbols.has(symbol),
-        awaitingScan: awaitingSymbols.has(symbol),
-      };
-    })
+  const rowsBySymbol = new Map<string, LeaderboardRow>();
+
+  for (const ticker of snapshot.tickers) {
+    const symbol = baseSymbol(ticker.symbol);
+    rowsBySymbol.set(symbol, {
+      symbol,
+      hue: symbolHue(symbol),
+      value: round(tickerValue(kind, ticker, snapshot.derivatives, lightBySymbol.get(symbol)), kind === "funding_hot" ? 4 : 2),
+      price: ticker.price,
+      inCandidatePool: candidateSymbols.has(symbol),
+      deepScanned: deepScannedSymbols.has(symbol),
+      hasSignal: signalSymbols.has(symbol),
+      blocked: blockedSymbols.has(symbol),
+      awaitingScan: awaitingSymbols.has(symbol),
+    });
+  }
+
+  for (const candidate of backend.scanProof.lightScan.topCandidates) {
+    const symbol = baseSymbol(candidate.symbol);
+    if (rowsBySymbol.has(symbol)) {
+      continue;
+    }
+    rowsBySymbol.set(symbol, {
+      symbol,
+      hue: symbolHue(symbol),
+      value: round(lightCandidateValue(kind, candidate, snapshot.derivatives), kind === "funding_hot" ? 4 : 2),
+      price: safeNumber(candidate.price, 0),
+      inCandidatePool: true,
+      deepScanned: deepScannedSymbols.has(symbol),
+      hasSignal: signalSymbols.has(symbol),
+      blocked: blockedSymbols.has(symbol),
+      awaitingScan: awaitingSymbols.has(symbol),
+    });
+  }
+
+  const rows = [...rowsBySymbol.values()]
     .sort((left, right) => direction * (left.value - right.value))
     .slice(0, 50);
 
