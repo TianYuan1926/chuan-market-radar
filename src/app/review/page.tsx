@@ -2,6 +2,8 @@ import { SiteNav } from '@/components/site-nav'
 import { ReviewEvolution } from '@/components/review/review-evolution'
 import { getReviewContractForPage } from '@/lib/frontend-contract-server'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ReviewPage() {
   const review = await getReviewContractForPage()
 

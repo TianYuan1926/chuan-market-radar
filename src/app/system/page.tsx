@@ -4,6 +4,8 @@ import { SystemStatus } from '@/components/system/system-status'
 import { getRadarContractForPage } from '@/lib/frontend-contract-server'
 import { radarSignalsToTokens } from '@/lib/frontend-display-adapters'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SystemPage() {
   const radar = await getRadarContractForPage()
   const tokens = radarSignalsToTokens(radar.radarSignals.data)

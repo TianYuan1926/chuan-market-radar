@@ -454,3 +454,52 @@ test("stage 8 review and system pages do not render legacy mock centers", () => 
   assert.doesNotMatch(systemPageSource, /SystemCenter/);
   assert.doesNotMatch(systemPageSource, /<SessionBar\s*\/>/);
 });
+
+test("stage 8 homepage uses backend contract data and removes old demo claims", () => {
+  const homePageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
+  const introSectionsSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-sections.tsx"), "utf8");
+  const introHeroSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-hero.tsx"), "utf8");
+  const introPipelineSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-pipeline.tsx"), "utf8");
+  const siteLoaderSource = readFileSync(resolve(process.cwd(), "src/components/site-loader.tsx"), "utf8");
+  const layoutSource = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8");
+
+  assert.match(homePageSource, /getRadarContractForPage/);
+  assert.match(homePageSource, /radarSignalsToTokens/);
+  assert.match(homePageSource, /export default async function HomePage/);
+  assert.match(homePageSource, /<SessionBar tokens=\{tokens\}/);
+  assert.match(homePageSource, /后端契约数据/);
+  assert.doesNotMatch(homePageSource, /<SessionBar\s*\/>/);
+  assert.doesNotMatch(homePageSource, /数据均为模拟演示/);
+  assert.doesNotMatch(homePageSource, /15600|99\.9|200ms|毫秒级/);
+
+  assert.match(introSectionsSource, /分层扫描/);
+  assert.match(introSectionsSource, /CoinGlass/);
+  assert.match(introSectionsSource, /交易所合约/);
+  assert.match(introSectionsSource, /显式标注/);
+  assert.doesNotMatch(
+    introSectionsSource,
+    /模拟演示数据|毫秒级|不足 200ms|2400\+|链上转账|社交热度|即刻推送/,
+  );
+  assert.doesNotMatch(introHeroSource, /毫秒级|链上异动/);
+  assert.doesNotMatch(introPipelineSource, /毫秒级/);
+  assert.doesNotMatch(siteLoaderSource, /链上异动|链上数据源/);
+  assert.doesNotMatch(layoutSource, /链上资金异动/);
+});
+
+test("frontend contract pages render dynamically instead of freezing build-time data", () => {
+  const contractPages = [
+    "src/app/page.tsx",
+    "src/app/dashboard/page.tsx",
+    "src/app/signals/page.tsx",
+    "src/app/market/page.tsx",
+    "src/app/leaderboard/page.tsx",
+    "src/app/review/page.tsx",
+    "src/app/system/page.tsx",
+    "src/app/token/[id]/page.tsx",
+  ];
+
+  for (const pagePath of contractPages) {
+    const source = readFileSync(resolve(process.cwd(), pagePath), "utf8");
+    assert.match(source, /export const dynamic = ['"]force-dynamic['"]/, `${pagePath} must not prerender stale contract data`);
+  }
+});

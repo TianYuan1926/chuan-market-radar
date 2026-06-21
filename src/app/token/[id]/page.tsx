@@ -24,6 +24,8 @@ import {
 } from '@/lib/frontend-display-adapters'
 import { cn } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
+
 export function generateStaticParams() {
   return getTokens().map((t) => ({ id: t.id }))
 }

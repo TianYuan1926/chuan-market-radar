@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { Radar, Activity, Waves } from 'lucide-react'
 
 const GATES = [
-  { at: 0.3, icon: Radar, label: '异动雷达', sub: '毫秒级监测' },
+  { at: 0.3, icon: Radar, label: '异动雷达', sub: '分层扫描' },
   { at: 0.5, icon: Activity, label: 'AI 信号', sub: '模型研判' },
   { at: 0.7, icon: Waves, label: '资金之川', sub: '主力追踪' },
 ]

@@ -9,6 +9,8 @@ import {
   mergeTokensBySymbol,
 } from '@/lib/frontend-display-adapters'
 
+export const dynamic = 'force-dynamic'
+
 export default async function LeaderboardPage() {
   const leaderboards = await getAllLeaderboardContractsForPage()
   const gainers = leaderboardRowsToTokens(leaderboards.gainers?.data ?? [], 'gainers')
