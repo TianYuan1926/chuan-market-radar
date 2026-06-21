@@ -343,3 +343,11 @@ test("token detail page can render backend radar symbols without relying only on
   assert.match(tokenPageSource, /backendSignals\.length > 0 \? backendSignals : getSignals/);
   assert.doesNotMatch(tokenPageSource, /数据均为模拟演示/);
 });
+
+test("sniper board stays visible when backend has no trade-plan-ready targets", () => {
+  const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
+
+  assert.doesNotMatch(sniperBoardSource, /if \(pool\.length === 0\) return null/);
+  assert.match(sniperBoardSource, /暂无通过最终筛选/);
+  assert.match(sniperBoardSource, /等待证据融合、赔率和风控同时满足/);
+});

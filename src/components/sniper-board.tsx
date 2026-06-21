@@ -86,8 +86,6 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
     [lockedIds, pool],
   )
 
-  if (pool.length === 0) return null
-
   const longs = locked.filter((c) => c.side === 'long').length
   const shorts = locked.length - longs
 
@@ -158,17 +156,33 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
       </div>
 
       {/* 目标卡片网格 */}
-      <div className="relative z-10 grid gap-px bg-border p-px sm:grid-cols-2 xl:grid-cols-3">
-        {locked.map((card) => (
-          <SniperCard
-            key={card.id}
-            card={card}
-            justLocked={justLocked === card.id}
-            evaluating={currentId === card.id}
-            evalPhase={phase}
-          />
-        ))}
-      </div>
+      {locked.length > 0 ? (
+        <div className="relative z-10 grid gap-px bg-border p-px sm:grid-cols-2 xl:grid-cols-3">
+          {locked.map((card) => (
+            <SniperCard
+              key={card.id}
+              card={card}
+              justLocked={justLocked === card.id}
+              evaluating={currentId === card.id}
+              evalPhase={phase}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="relative z-10 border-t border-neon/20 bg-background/55 px-4 py-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="grid size-9 place-items-center border border-neon/30 bg-neon-soft text-neon">
+              <Crosshair className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">暂无通过最终筛选的狙击目标</div>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                等待证据融合、赔率和风控同时满足。候选币仍会在下方信号池继续展示，不会被隐藏。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
