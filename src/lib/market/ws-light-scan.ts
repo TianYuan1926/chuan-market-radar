@@ -54,6 +54,7 @@ export type WebSocketLightScanAccumulatorOptions = {
 };
 
 export type WebSocketLightScanProviderOptions = {
+  now?: () => Date;
   staleAfterMs?: number;
   store: WebSocketLightScanStore;
 };
@@ -502,6 +503,7 @@ export function staleWebSocketLightScanResult(now: Date): PublicLightScanResult 
 }
 
 export function createWebSocketLightScanProvider({
+  now = () => new Date(),
   staleAfterMs = 3 * 60 * 1000,
   store,
 }: WebSocketLightScanProviderOptions): PublicLightScanProvider {
@@ -510,16 +512,16 @@ export function createWebSocketLightScanProvider({
     label: "WebSocket Light Scan",
     async scan() {
       const snapshot = await store.readSnapshot();
-      const now = new Date();
+      const currentTime = now();
 
       if (!snapshot) {
-        return staleWebSocketLightScanResult(now);
+        return staleWebSocketLightScanResult(currentTime);
       }
 
       const generatedAt = new Date(snapshot.diagnostics.generatedAt).getTime();
 
-      if (Number.isNaN(generatedAt) || now.getTime() - generatedAt > staleAfterMs) {
-        return staleWebSocketLightScanResult(now);
+      if (Number.isNaN(generatedAt) || currentTime.getTime() - generatedAt > staleAfterMs) {
+        return staleWebSocketLightScanResult(currentTime);
       }
 
       return snapshot;

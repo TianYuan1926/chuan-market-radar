@@ -577,7 +577,15 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   assert.match(contract.analysis.timeframeGate.guardrail, /低周期不能推翻高周期/u);
   assert.equal(contract.analysis.v3Coverage.withV3Signals, 2);
   assert.equal(contract.analysis.v3StrategyLoop.readinessBuckets[0]?.bucket, "manual_review_ready");
+  assert.equal(contract.analysis.businessCapability.schemaVersion, "business-capability.v1");
+  assert.equal(contract.analysis.businessCapability.canAutoExecute, false);
+  assert.equal(contract.analysis.businessCapability.stages.length, 9);
+  assert.ok(
+    contract.analysis.businessCapability.stages.some((stage) => stage.id === "candidate_rotation"),
+  );
+  assert.ok(contract.analysis.businessCapability.frontendContracts.some((item) => /主信号区/u.test(item)));
   assert.equal(contract.analysis.evolution.canAutoAdjustWeights, false);
+  assert.equal(contract.apiSurfaces.businessCapability, "/api/radar/business-capability");
   assert.ok(contract.guardrails.includes("no_silent_ui_truncation"));
   assert.ok(contract.guardrails.includes("light_scan_never_trades_directly"));
 });

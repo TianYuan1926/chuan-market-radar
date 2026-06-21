@@ -104,7 +104,10 @@ test("createWebSocketLightScanProvider exposes stored snapshots as a public ligh
   accumulator.ingest(event({ minutes: 0, price: 1, quoteVolumeDeltaUsd: 120_000 }));
   await store.writeSnapshot(accumulator.snapshot());
 
-  const provider = createWebSocketLightScanProvider({ store });
+  const provider = createWebSocketLightScanProvider({
+    now: () => new Date(start + 2_000),
+    store,
+  });
   const result = await provider.scan();
 
   assert.equal(provider.id, "websocket-light-scan");

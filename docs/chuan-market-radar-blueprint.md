@@ -149,6 +149,9 @@ v3 的核心不是“预测涨跌”，而是：
    - 这些复盘样本先进入人工确认和只读校准，不允许自动改真实权重。
    - 2026-06-17 已完成 MVP：`runForwardMapReviewExecutor` 可读取已保存的 v3 事前地图，拉取后续公开 OHLCV，写入 `forward_map_review` 和 `key_level_reaction_review` journal 事件，并记录受保护执行批次；该链路只读，不自动改权重。
    - 2026-06-17 已完成健康摘要 MVP：`/api/health` 现在暴露 `v3ForwardMapReviews`，系统健康面板展示事前地图数量、最近执行、完成/跳过/失败分布、存储迁移状态和只读边界，用于判断 v3 复盘引擎是否真的在运转。若 Neon 还没有迁移 `v3_forward_map_snapshots`，首页必须降级提示“待迁移”，不能 500。
+   - 2026-06-21 已完成业务能力总控 MVP：`buildBusinessCapabilityReport` 和 `/api/radar/business-capability` 把信号生命周期、复盘判定标准、候选池公平轮换、信号成熟度分层、影子实盘追踪、策略分型统计、历史案例回放、AI 反证复核和进化建议系统统一暴露为 `business-capability.v1`。该接口只读、研究用途，不触发额外 CoinGlass 请求，不自动下单，不自动改权重，不改变实时排序。
+   - 前端重建时必须读取业务能力总控状态：每个板块至少能看到 `status`、`score`、`summary`、`evidence`、`nextAction` 和 `guardrail`。如果某项还在收集样本或被禁用，必须明确展示，不能用漂亮 UI 掩盖“还没实战验证”的事实。
+   - 业务能力总控固定 9 项：`signal_lifecycle`、`outcome_standard`、`candidate_rotation`、`signal_maturity`、`shadow_tracking`、`strategy_family_stats`、`historical_case_replay`、`ai_counter_review`、`evolution_suggestions`。后续新增复盘或进化能力必须接入这条链，不能成为孤立面板。
 
 ### v3 必须剔除或降级的旧方向
 

@@ -1,4 +1,8 @@
 import type { SystemHealthReport } from "./system-health";
+import {
+  buildBusinessCapabilityReport,
+  type BusinessCapabilityReport,
+} from "./business-capability";
 import type {
   TimeframeHardGateAction,
   TimeframeHardGateBlocker,
@@ -179,6 +183,7 @@ export type BackendContract = {
     unsupportedExchangeRows: number;
   };
   analysis: {
+    businessCapability: BusinessCapabilityReport;
     evolution: {
       allowedUse: "research_only";
       canAutoAdjustWeights: false;
@@ -221,6 +226,7 @@ export type BackendContract = {
   };
   apiSurfaces: {
     backendContract: "/api/radar/backend-contract";
+    businessCapability: "/api/radar/business-capability";
     health: "/api/health";
     radar: "/api/radar";
     scan: "/api/scan";
@@ -426,6 +432,10 @@ export function buildBackendContract({
   const liveV3 = health.v3StrategyLoop.live;
   const allocationAssets = buildAllocationAssets(snapshot);
   const timeframeGate = buildTimeframeGateSummary(snapshot);
+  const businessCapability = buildBusinessCapabilityReport({
+    health,
+    snapshot,
+  });
 
   return {
     schemaVersion: "backend-contract.v1",
@@ -564,6 +574,7 @@ export function buildBackendContract({
       unsupportedExchangeRows: requests?.unsupportedExchangeRows ?? 0,
     },
     analysis: {
+      businessCapability,
       evolution: {
         allowedUse: "research_only",
         canAutoAdjustWeights: false,
@@ -599,6 +610,7 @@ export function buildBackendContract({
     },
     apiSurfaces: {
       backendContract: "/api/radar/backend-contract",
+      businessCapability: "/api/radar/business-capability",
       health: "/api/health",
       radar: "/api/radar",
       scan: "/api/scan",
