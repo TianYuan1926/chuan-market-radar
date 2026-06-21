@@ -11,21 +11,18 @@ import {
   Check,
   X,
 } from 'lucide-react'
-import { getTokenDossier, type TokenDossier as TokenDossierData } from '@/lib/radar-contract'
+import { getTokenDossier } from '@/lib/radar-contract'
 import { FreshnessTag, StatusBadge } from '@/components/data-state'
-import type { Resource } from '@/lib/data-status'
 import { cn } from '@/lib/utils'
 
 export function TokenDossier({
   symbol,
   basePrice = 1,
-  dossier,
 }: {
   symbol: string
   basePrice?: number
-  dossier?: Resource<TokenDossierData>
 }) {
-  const res = useMemo(() => dossier ?? getTokenDossier(symbol, basePrice), [dossier, symbol, basePrice])
+  const res = useMemo(() => getTokenDossier(symbol, basePrice), [symbol, basePrice])
   const d = res.data
   if (!d) return null
 

@@ -16,7 +16,7 @@ const TYPE_VAR: Record<SignalType, string> = {
 }
 
 const ALERT_TEXT: Record<SignalType, (s: string) => string> = {
-  PUMP: () => `暴涨放量，量能 ×8 倍`,
+  PUMP: (s) => `暴涨放量，量能 ×8 倍`,
   WHALE: () => `巨鲸入场 $3,280 万`,
   LIQ: () => `空单爆仓 $4,200 万`,
   BREAK: () => `突破关键阻力，放量`,
@@ -39,18 +39,13 @@ export function LiveFeed({ cards }: { cards: SignalCard[] }) {
   const counter = useRef(0)
 
   useEffect(() => {
-    if (cards.length === 0) {
-      setItems([])
-      return
-    }
-
     setItems(Array.from({ length: 6 }, makeItem))
     const timer = setInterval(() => {
       setItems((prev) => [makeItem(), ...prev].slice(0, 9))
     }, 3200)
     return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards])
+  }, [])
 
   function makeItem(): Alert {
     const c = cards[Math.floor(Math.random() * cards.length)]
@@ -79,11 +74,6 @@ export function LiveFeed({ cards }: { cards: SignalCard[] }) {
         </span>
       </div>
       <div className="max-h-[440px] divide-y divide-border/60 overflow-y-auto">
-        {cards.length === 0 && (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            暂无实时预警
-          </div>
-        )}
         {items.map((it, idx) => {
           const up = it.change >= 0
           const color = `var(${TYPE_VAR[it.type]})`

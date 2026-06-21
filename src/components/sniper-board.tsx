@@ -22,9 +22,9 @@ import { getSniperTargets, sideLabel, type SniperTarget } from '@/lib/sniper-dat
 import { useTrainingEngine, getTrainingRow } from '@/lib/training-engine'
 import { cn } from '@/lib/utils'
 
-export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
+export function SniperBoard() {
   // 与复盘进化引擎共用的同一狙击目标池（按评分排序）
-  const pool = useMemo(() => targets ?? getSniperTargets(), [targets])
+  const pool = useMemo(() => getSniperTargets(), [])
 
   // 复盘进化引擎当前正在评判的目标 → 用于榜单高亮联动
   const { idx, phase } = useTrainingEngine()
@@ -32,12 +32,8 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
 
   // 初始锁定前 N 个，其余作为储备，周期性"通过最终筛选"入榜
   const INITIAL = Math.min(6, pool.length)
-  const initialLockedIds = useMemo(
-    () => pool.slice(0, INITIAL).map((c) => c.id),
-    [INITIAL, pool],
-  )
   const [lockedIds, setLockedIds] = useState<string[]>(() =>
-    initialLockedIds,
+    pool.slice(0, INITIAL).map((c) => c.id),
   )
   const [justLocked, setJustLocked] = useState<string | null>(null)
   const [banner, setBanner] = useState<{
@@ -47,11 +43,6 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
   } | null>(null)
   const cursor = useRef(INITIAL)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    setLockedIds(initialLockedIds)
-    cursor.current = INITIAL
-  }, [INITIAL, initialLockedIds])
 
   useEffect(() => {
     if (pool.length <= 1) return
@@ -85,6 +76,8 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
     () => pool.filter((c) => lockedIds.includes(c.id)),
     [lockedIds, pool],
   )
+
+  if (pool.length === 0) return null
 
   const longs = locked.filter((c) => c.side === 'long').length
   const shorts = locked.length - longs
@@ -156,33 +149,17 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
       </div>
 
       {/* 目标卡片网格 */}
-      {locked.length > 0 ? (
-        <div className="relative z-10 grid gap-px bg-border p-px sm:grid-cols-2 xl:grid-cols-3">
-          {locked.map((card) => (
-            <SniperCard
-              key={card.id}
-              card={card}
-              justLocked={justLocked === card.id}
-              evaluating={currentId === card.id}
-              evalPhase={phase}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="relative z-10 border-t border-neon/20 bg-background/55 px-4 py-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="grid size-9 place-items-center border border-neon/30 bg-neon-soft text-neon">
-              <Crosshair className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold">暂无通过最终筛选的狙击目标</div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                等待证据融合、赔率和风控同时满足。候选币仍会在下方信号池继续展示，不会被隐藏。
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="relative z-10 grid gap-px bg-border p-px sm:grid-cols-2 xl:grid-cols-3">
+        {locked.map((card) => (
+          <SniperCard
+            key={card.id}
+            card={card}
+            justLocked={justLocked === card.id}
+            evaluating={currentId === card.id}
+            evalPhase={phase}
+          />
+        ))}
+      </div>
     </section>
   )
 }

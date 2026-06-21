@@ -672,73 +672,7 @@ export type RadarContract = {
   serviceNodes: Resource<ServiceNode[]>
 }
 
-function frontendApiBase() {
-  if (typeof window !== 'undefined') return ''
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.APP_ORIGIN ||
-    'http://127.0.0.1:3000'
-  ).replace(/\/$/, '')
-}
-
-async function fetchFrontendContract<T>(path: string): Promise<T> {
-  const res = await fetch(`${frontendApiBase()}${path}`, {
-    cache: 'no-store',
-    headers: { accept: 'application/json' },
-  })
-  if (!res.ok) throw new Error(`${path} returned ${res.status}`)
-  return res.json() as Promise<T>
-}
-
-function withFailure<T>(res: Resource<T>, reason: string): Resource<T> {
-  return { ...res, status: 'failed', reason }
-}
-
-function fallbackRadarContract(reason?: string): RadarContract {
-  const contract = {
-    scanProof: getScanProof(),
-    deepScanQueue: getDeepScanQueue(),
-    capabilityStages: getCapabilityStages(),
-    dataSources: getDataSources(),
-    apiUsage: getApiUsage(),
-    dataPipeline: getDataPipeline(),
-    petBackendStatus: getPetBackendStatus(),
-    radarSignals: getRadarSignals(),
-    macroAltEnv: getMacroAltEnv(),
-    derivatives: getDerivatives(),
-    serviceNodes: getServiceNodes(),
-  }
-  if (!reason) return contract
-  return {
-    scanProof: withFailure(contract.scanProof, reason),
-    deepScanQueue: withFailure(contract.deepScanQueue, reason),
-    capabilityStages: withFailure(contract.capabilityStages, reason),
-    dataSources: withFailure(contract.dataSources, reason),
-    apiUsage: withFailure(contract.apiUsage, reason),
-    dataPipeline: withFailure(contract.dataPipeline, reason),
-    petBackendStatus: withFailure(contract.petBackendStatus, reason),
-    radarSignals: withFailure(contract.radarSignals, reason),
-    macroAltEnv: withFailure(contract.macroAltEnv, reason),
-    derivatives: withFailure(contract.derivatives, reason),
-    serviceNodes: withFailure(contract.serviceNodes, reason),
-  }
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
-
-export async function getRadarContract(): Promise<RadarContract> {
-  try {
-    const body = await fetchFrontendContract<{ ok: boolean; contract: RadarContract }>('/api/frontend/radar-contract')
-    return body.contract
-  } catch (error) {
-    return fallbackRadarContract(errorMessage(error))
-  }
-}
-
-export function getRadarContractFallback(): RadarContract {
+export function getRadarContract(): RadarContract {
   return {
     scanProof: getScanProof(),
     deepScanQueue: getDeepScanQueue(),
@@ -755,27 +689,13 @@ export function getRadarContractFallback(): RadarContract {
 }
 
 // 2) GET /api/frontend/token-dossier?symbol=XXX
-export async function getTokenDossierContract(symbol: string, basePrice = 1): Promise<Resource<TokenDossier>> {
-  try {
-    const body = await fetchFrontendContract<{ ok: boolean; dossier: Resource<TokenDossier> }>(
-      `/api/frontend/token-dossier?symbol=${encodeURIComponent(symbol)}&basePrice=${encodeURIComponent(String(basePrice))}`,
-    )
-    return body.dossier
-  } catch (error) {
-    return withFailure(getTokenDossier(symbol, basePrice), errorMessage(error))
-  }
+export function getTokenDossierContract(symbol: string, basePrice = 1): Resource<TokenDossier> {
+  return getTokenDossier(symbol, basePrice)
 }
 
 // 3) GET /api/frontend/leaderboard?kind=XXX
-export async function getLeaderboardContract(kind: LeaderboardKind): Promise<Resource<LeaderboardRow[]>> {
-  try {
-    const body = await fetchFrontendContract<{ ok: boolean; leaderboard: Resource<LeaderboardRow[]> }>(
-      `/api/frontend/leaderboard?kind=${encodeURIComponent(kind)}`,
-    )
-    return body.leaderboard
-  } catch (error) {
-    return withFailure(getLeaderboard(kind), errorMessage(error))
-  }
+export function getLeaderboardContract(kind: LeaderboardKind): Resource<LeaderboardRow[]> {
+  return getLeaderboard(kind)
 }
 
 // 4) GET /api/frontend/review-contract
@@ -786,32 +706,7 @@ export type ReviewContract = {
   evolutionSuggestions: Resource<EvolutionSuggestion[]>
 }
 
-function fallbackReviewContract(reason?: string): ReviewContract {
-  const contract = {
-    signalLifecycles: getSignalLifecycles(),
-    strategyArchetypes: getStrategyArchetypes(),
-    missedDetections: getMissedDetections(),
-    evolutionSuggestions: getEvolutionSuggestions(),
-  }
-  if (!reason) return contract
-  return {
-    signalLifecycles: withFailure(contract.signalLifecycles, reason),
-    strategyArchetypes: withFailure(contract.strategyArchetypes, reason),
-    missedDetections: withFailure(contract.missedDetections, reason),
-    evolutionSuggestions: withFailure(contract.evolutionSuggestions, reason),
-  }
-}
-
-export async function getReviewContract(): Promise<ReviewContract> {
-  try {
-    const body = await fetchFrontendContract<{ ok: boolean; contract: ReviewContract }>('/api/frontend/review-contract')
-    return body.contract
-  } catch (error) {
-    return fallbackReviewContract(errorMessage(error))
-  }
-}
-
-export function getReviewContractFallback(): ReviewContract {
+export function getReviewContract(): ReviewContract {
   return {
     signalLifecycles: getSignalLifecycles(),
     strategyArchetypes: getStrategyArchetypes(),

@@ -18,14 +18,14 @@ import {
 import { Reveal } from '@/components/intro/reveal'
 
 /* ============================================================
-   工作原理：从原始行情到结构化信号的 5 步流程
+   工作原理：从链上数据到可执行信号的 5 步流程
    ============================================================ */
 const STEPS = [
   {
     icon: Database,
     k: '01',
-    title: '接入市场数据',
-    desc: '聚合公开交易所行情、CoinGlass 衍生品、成交量、持仓与资金费率，进入分层扫描。',
+    title: '接入链上数据',
+    desc: '聚合全网交易所与链上成交、资金费率、持仓与大额转账，毫秒级汇入雷达。',
   },
   {
     icon: Radar,
@@ -43,7 +43,7 @@ const STEPS = [
     icon: BellRing,
     k: '04',
     title: '实时推送告警',
-    desc: '命中你关注的代币进入信号流，附带异动强度、方向与风险等级提示。',
+    desc: '命中你关注的代币即刻推送，附带异动强度、方向与风险等级提示。',
   },
   {
     icon: GitBranch,
@@ -62,7 +62,7 @@ export function HowItWorks() {
             工作原理 · HOW IT WORKS
           </div>
           <h2 className="mt-4 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            从一条市场数据，到<span className="text-neon">一次结构化判断</span>
+            从一条链上数据，到<span className="text-neon">一次精准出手</span>
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-pretty text-muted-foreground">
             五个环节闭环运转，让信息差成为你的优势
@@ -117,8 +117,8 @@ const FEATURES = [
   },
   {
     icon: Gauge,
-    title: '分层扫描响应',
-    desc: '轻扫、深扫、证据融合分层运行，优先把异常候选推进验证队列。',
+    title: '毫秒级响应',
+    desc: '从异动发生到信号推送平均不足 200ms，先于市场反应。',
   },
   {
     icon: ShieldCheck,
@@ -128,12 +128,12 @@ const FEATURES = [
   {
     icon: Eye,
     title: '全市场覆盖',
-    desc: '以交易所合约币池为基准轮换覆盖，前端显式展示覆盖率与等待深扫数量。',
+    desc: '2400+ 主流与新兴代币同时监控，不再错过任何一个角落的机会。',
   },
   {
     icon: Layers,
     title: '多维度交叉验证',
-    desc: '盘面结构、成交量、OI、Funding、相对强弱与技术指标共同校验，过滤单一指标误判。',
+    desc: '成交、持仓、链上转账、社交热度多源印证，过滤单一指标的误判。',
   },
 ]
 
@@ -177,7 +177,7 @@ const PERSONAS = [
     tag: '短线狙击手',
     icon: Crosshair,
     pain: '盘面太快，总是慢半拍',
-    gain: '候选成熟度分层 + 入场/止盈/止损价位，减少追涨和误判。',
+    gain: '毫秒级异动推送 + 入场/止盈/止损价位，抓住瞬时机会。',
   },
   {
     tag: '波段猎人',
@@ -294,7 +294,7 @@ const FAQS = [
   },
   {
     q: '信号延迟有多低？',
-    a: '系统按轻扫、深扫、证据融合分层推进。前端会展示数据新鲜度、覆盖率和等待深扫数量，让你知道系统当前扫到哪里。',
+    a: '从异动发生到推送到你的设备，平均响应不足 200ms，目标是让你先于大多数市场参与者看到流向。',
   },
   {
     q: '我需要懂技术分析才能使用吗？',
@@ -306,7 +306,7 @@ const FAQS = [
   },
   {
     q: '当前展示的数据是真实的吗？',
-    a: '前端读取后端契约数据，并显式标注 live、cached、stale、partial 或 failed。数据缺失时不能把旧缓存或前端占位冒充实时结果。',
+    a: '当前站点中的行情、信号与统计均为模拟演示数据，仅用于产品体验，不构成任何投资建议。',
   },
 ]
 

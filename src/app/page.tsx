@@ -15,35 +15,12 @@ import {
   Faq,
 } from '@/components/intro/intro-sections'
 import { Reveal } from '@/components/intro/reveal'
-import { radarSignalsToTokens } from '@/lib/frontend-display-adapters'
-import {
-  getLeaderboardContractForPage,
-  getRadarContractForPage,
-} from '@/lib/frontend-contract-server'
 
-export const dynamic = 'force-dynamic'
-
-export default async function HomePage() {
-  const [radar, tickerLeaderboard] = await Promise.all([
-    getRadarContractForPage(),
-    getLeaderboardContractForPage('volume'),
-  ])
-  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerLeaderboard.data)
-  const scan = radar.scanProof.data
-  const activeSignals = radar.radarSignals.data.filter((signal) =>
-    signal.maturity === 'EVIDENCE_SIGNAL' || signal.maturity === 'TRADE_PLAN_READY',
-  ).length
-  const stats = [
-    { v: scan.totalMonitored, suffix: '', label: '监控币种' },
-    { v: scan.deepScanned, suffix: '', label: '本轮深扫' },
-    { v: activeSignals, suffix: '', label: '成熟信号' },
-    { v: scan.coverage, suffix: '%', label: '覆盖率', decimals: 1 },
-  ]
-
+export default function HomePage() {
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar tokens={tokens} />
+      <SessionBar />
 
       {/* HERO：掌控流向 */}
       <IntroHero />
@@ -60,7 +37,7 @@ export default async function HomePage() {
               扫描线扫过之处，<span className="text-neon">异动无所遁形</span>
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-pretty text-muted-foreground">
-              全市场合约币池分层轮换。每一次扫描都会记录覆盖率、候选状态与证据成熟度。
+              全网代币尽收雷达。每一次扫描经过目标，即刻捕获资金净流入与抛压异动。
             </p>
           </Reveal>
 
@@ -109,7 +86,7 @@ export default async function HomePage() {
               <BentoCard
                 href="/dashboard"
                 title="雷达总控"
-                desc="查看全市场扫描证明、数据源状态、候选池与风险提醒。"
+                desc="全局异动大盘，毫秒级监测异常成交、资金流向与持仓变化。"
                 big
               >
                 <RadarMotif />
@@ -118,11 +95,7 @@ export default async function HomePage() {
 
             {/* 信号池 */}
             <Reveal delay={80}>
-              <BentoCard
-                href="/signals"
-                title="信号池"
-                desc="按成熟度查看深扫候选、证据融合信号与交易计划。"
-              >
+              <BentoCard href="/signals" title="信号池" desc="看涨/看跌信号与风险提示实时推送。">
                 <EqualizerMotif />
               </BentoCard>
             </Reveal>
@@ -165,10 +138,16 @@ export default async function HomePage() {
       {/* 数字滚动统计带 */}
       <section className="border-t border-border bg-card/30">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px overflow-hidden px-4 py-16 sm:px-6 lg:grid-cols-4">
-          {stats.map((s, i) => (
+          {[
+            { v: 2480, suffix: '+', label: '监控代币' },
+            { v: 15600, suffix: '', label: '日均信号' },
+            { v: 200, suffix: 'ms', label: '响应延迟', prefix: '<' },
+            { v: 99, suffix: '.9%', label: '在线时长' },
+          ].map((s, i) => (
             <Reveal key={s.label} delay={i * 90} className="text-center">
               <div className="font-mono text-4xl font-bold text-neon sm:text-5xl">
-                <CountUp value={s.v} decimals={s.decimals ?? 0} />
+                {s.prefix}
+                <CountUp value={s.v} />
                 {s.suffix}
               </div>
               <div className="mt-2 text-sm text-muted-foreground">{s.label}</div>
@@ -203,7 +182,7 @@ export default async function HomePage() {
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
             <p className="mt-6 text-xs text-muted-foreground">
-              后端契约数据仅供研究复盘与系统校准，不构成投资建议
+              数据均为模拟演示，仅供参考，不构成投资建议
             </p>
           </Reveal>
         </div>

@@ -10,7 +10,6 @@ import {
   type LeaderboardKind,
   type LeaderboardRow,
 } from '@/lib/radar-contract'
-import type { Resource } from '@/lib/data-status'
 import { cn } from '@/lib/utils'
 import { ListOrdered, ChevronRight } from 'lucide-react'
 
@@ -54,13 +53,9 @@ function StatusFlags({ row }: { row: LeaderboardRow }) {
   )
 }
 
-export function MarketLeaderboards({
-  initialLeaderboards,
-}: {
-  initialLeaderboards?: Partial<Record<LeaderboardKind, Resource<LeaderboardRow[]>>>
-}) {
+export function MarketLeaderboards() {
   const [kind, setKind] = useState<LeaderboardKind>('gainers')
-  const res = initialLeaderboards?.[kind] ?? getLeaderboard(kind)
+  const res = getLeaderboard(kind)
   const meta = LEADERBOARD_META[kind]
 
   return (

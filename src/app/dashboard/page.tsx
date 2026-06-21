@@ -6,16 +6,13 @@ import { DashboardRadarControl } from '@/components/dashboard/radar-control'
 import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveStat, LiveQuotePct } from '@/components/live-value'
-import { getMarketEnv, POOL_META } from '@/lib/mock-data'
 import {
-  radarSignalsToSignalCards,
-  radarSignalsToTokens,
-  withLeaderboardSignalFallback,
-} from '@/lib/frontend-display-adapters'
-import {
-  getLeaderboardContractForPage,
-  getRadarContractForPage,
-} from '@/lib/frontend-contract-server'
+  getTokens,
+  getSignalCards,
+  getScanState,
+  getMarketEnv,
+  POOL_META,
+} from '@/lib/mock-data'
 import {
   Activity,
   ArrowRight,
@@ -26,21 +23,11 @@ import {
   ChevronRight,
 } from 'lucide-react'
 
-export const dynamic = 'force-dynamic'
-
-export default async function DashboardPage() {
-  const [radar, tickerLeaderboard] = await Promise.all([
-    getRadarContractForPage(),
-    getLeaderboardContractForPage('volume'),
-  ])
-  const tickerRows = tickerLeaderboard.data
-  const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
-  const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
-  const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
+export default function DashboardPage() {
+  const tokens = getTokens()
+  const cards = getSignalCards()
+  const scan = getScanState()
   const env = getMarketEnv()
-  const scan = radar.scanProof.data
-  const radarSignals = radar.radarSignals.data
-  const dataSources = radar.dataSources.data
 
   const sniper = cards
     .filter((c) => c.category === 'sniper')
@@ -51,27 +38,25 @@ export default async function DashboardPage() {
     .filter((c) => c.poolStatus === 'high_risk' || c.type === 'CRASH')
     .slice(0, 4)
 
-  const activeSignalCount = radarSignals.filter((s) =>
-    s.maturity === 'EVIDENCE_SIGNAL' || s.maturity === 'TRADE_PLAN_READY'
-  ).length
-  const candidateCount = cards.length
-  const liveSourceCount = dataSources.filter((source) =>
-    source.feed === 'live' || source.feed === 'cached'
-  ).length
+  const bull = tokens.filter((t) => t.trend === 'bull').length
+  const avg = Math.round(
+    tokens.reduce((s, t) => s + t.anomalyScore, 0) / tokens.length,
+  )
+
   const overview = [
     {
       label: '系统运行状态',
-      value: scan.stuck ? '异常' : '正常',
+      value: '正常',
       icon: Activity,
-      tone: scan.stuck ? 'var(--down)' : 'var(--up)',
-      sub: `${liveSourceCount}/${dataSources.length || 4} 数据源在线`,
+      tone: 'var(--up)',
+      sub: '5/6 数据源在线',
     },
     {
       label: '活跃候选信号',
-      value: candidateCount,
+      value: cards.length,
       icon: Crosshair,
       tone: 'var(--neon)',
-      sub: `成熟信号 ${activeSignalCount} · 候选 ${candidateCount}`,
+      sub: `多头 ${bull} · 实时更新`,
       count: true,
     },
     {
@@ -80,7 +65,7 @@ export default async function DashboardPage() {
       suffix: '%',
       icon: Gauge,
       tone: 'var(--neon)',
-      sub: `已轻扫 ${scan.lightScanned.toLocaleString()} 个标的`,
+      sub: `已扫描 ${scan.scanned.toLocaleString()} 个标的`,
       live: true,
     },
     {
@@ -95,7 +80,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar tokens={tokens} />
+      <SessionBar />
 
       <main className="mx-auto max-w-[1560px] px-4 py-5 sm:px-6">
         {/* 标题 */}
@@ -172,7 +157,7 @@ export default async function DashboardPage() {
 
         {/* 后端承载位：全市场扫描证明 · 深扫队列 · 能力总控 · 数据源状态 */}
         <div className="mt-5">
-          <DashboardRadarControl contract={radar} />
+          <DashboardRadarControl />
         </div>
 
         {/* 重点候选 + 风险提醒 */}

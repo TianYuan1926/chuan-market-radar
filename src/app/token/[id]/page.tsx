@@ -13,18 +13,7 @@ import {
   fmtCap,
   fmtUsd,
 } from '@/lib/mock-data'
-import {
-  getLeaderboardContractForPage,
-  getRadarContractForPage,
-  getTokenDossierContractForPage,
-} from '@/lib/frontend-contract-server'
-import {
-  radarSignalsToFeedSignals,
-  radarSignalsToTokens,
-} from '@/lib/frontend-display-adapters'
 import { cn } from '@/lib/utils'
-
-export const dynamic = 'force-dynamic'
 
 export function generateStaticParams() {
   return getTokens().map((t) => ({ id: t.id }))
@@ -36,17 +25,11 @@ export default async function TokenPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const radar = await getRadarContractForPage()
-  const tickerLeaderboard = await getLeaderboardContractForPage('volume')
-  const tickerRows = tickerLeaderboard.data
-  const lookupId = id.toLowerCase()
-  const backendToken = radarSignalsToTokens(radar.radarSignals.data, tickerRows).find((item) => item.id === lookupId || item.symbol.toLowerCase() === lookupId)
-  const token = backendToken ?? getToken(id)
+  const token = getToken(id)
   if (!token) notFound()
-  const dossier = await getTokenDossierContractForPage(token.symbol, token.price)
 
-  const backendSignals = radarSignalsToFeedSignals(radar.radarSignals.data, token.symbol)
-  const signals = backendSignals.length > 0 ? backendSignals : getSignals(token.symbol, token.price)
+  const seed = token.hue + token.symbol.length * 31
+  const signals = getSignals(token.symbol, token.price)
   const up = token.change24h >= 0
 
   const facts: [string, string][] = [
@@ -139,7 +122,7 @@ export default async function TokenPage({
                 </span>
               </div>
               <div className="px-3 py-2">
-                <KlinePanel bare allowMockFallback={false} />
+                <KlinePanel seed={seed} startPrice={token.price * 0.45} bare />
               </div>
 
               {/* 主力资金净流入 */}
@@ -148,13 +131,24 @@ export default async function TokenPage({
                   <span className="h-3.5 w-1 bg-neon" />
                   主力资金 · 近 7 日净流入
                 </h3>
-                <div className="mt-4 grid h-28 place-items-center border border-dashed border-border bg-secondary/10 px-4 text-center">
-                  <div>
-                    <div className="text-sm font-semibold">等待真实资金流数据</div>
-                    <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
-                      当前不再用随机柱子模拟主力净流入。待后端接入 CVD、taker buy/sell 或净流入字段后，这里直接展示真实资金流。
-                    </p>
-                  </div>
+                <div className="mt-4 flex h-28 items-end gap-1.5">
+                  {Array.from({ length: 28 }).map((_, i) => {
+                    const r = ((seed * (i + 3)) % 100) / 100
+                    const inflow = r > 0.4
+                    const h = 12 + r * 100
+                    return (
+                      <div
+                        key={i}
+                        className="flex-1 transition-all hover:opacity-70"
+                        style={{
+                          height: `${h}%`,
+                          background: inflow ? 'var(--up)' : 'var(--down)',
+                          opacity: 0.45 + r * 0.55,
+                        }}
+                        title={`${inflow ? '净流入' : '净流出'} ${(r * 100).toFixed(0)}万`}
+                      />
+                    )
+                  })}
                 </div>
                 <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
@@ -242,13 +236,13 @@ export default async function TokenPage({
         </div>
 
         {/* 信号档案：证据链 / 反证 / 关键位 / 失效条件 / 交易计划 */}
-        <SignalArchive token={token} dossier={dossier} />
+        <SignalArchive token={token} />
 
         {/* 后端承载位：多周期结构 / 证据链 / 反证链 / Risk Gate / 交易计划 / AI 复核 */}
-        <TokenDossier symbol={token.symbol} basePrice={token.price} dossier={dossier} />
+        <TokenDossier symbol={token.symbol} basePrice={token.price} />
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          数据仅供研究复盘与系统校准，不构成投资建议
+          数据均为模拟演示，仅供参考，不构成投资建议
         </p>
       </main>
     </div>

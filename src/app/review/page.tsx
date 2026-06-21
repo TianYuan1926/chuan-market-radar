@@ -1,12 +1,8 @@
 import { SiteNav } from '@/components/site-nav'
+import { ReviewCenter } from '@/components/review-center'
 import { ReviewEvolution } from '@/components/review/review-evolution'
-import { getReviewContractForPage } from '@/lib/frontend-contract-server'
 
-export const dynamic = 'force-dynamic'
-
-export default async function ReviewPage() {
-  const review = await getReviewContractForPage()
-
+export default function ReviewPage() {
   return (
     <main className="min-h-screen">
       <SiteNav />
@@ -14,15 +10,16 @@ export default async function ReviewPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">复盘进化中心</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            后端契约复盘数据：信号生命周期、策略分型、漏判复查与进化建议
+            每日异动复盘、扫描帧回放与交易日记——让系统在样本中持续进化
           </p>
         </header>
+        <ReviewCenter />
 
         {/* 后端承载位：信号生命周期 / MFE-MAE / 策略分型 / 漏判复查 / 进化建议 */}
-        <ReviewEvolution contract={review} />
+        <ReviewEvolution />
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          数据仅供研究复盘与系统校准，不构成投资建议
+          数据均为模拟演示，仅供参考，不构成投资建议
         </p>
       </div>
     </main>

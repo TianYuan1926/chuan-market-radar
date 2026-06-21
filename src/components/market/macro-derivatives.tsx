@@ -2,7 +2,7 @@
 
 import { Panel } from '@/components/panel'
 import { StatusBadge, FreshnessTag, ResourceBoundary } from '@/components/data-state'
-import { getMacroAltEnv, getDerivatives, getApiUsage, type RadarContract } from '@/lib/radar-contract'
+import { getMacroAltEnv, getDerivatives, getApiUsage } from '@/lib/radar-contract'
 import { fmtCap } from '@/lib/mock-data'
 import { Globe2, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
@@ -17,10 +17,10 @@ const SUGGEST_TONE: Record<string, string> = {
   建议观望: 'var(--sig-pump)',
 }
 
-export function MarketMacroDerivatives({ contract }: { contract?: RadarContract }) {
-  const macroRes = contract?.macroAltEnv ?? getMacroAltEnv()
-  const derivRes = contract?.derivatives ?? getDerivatives()
-  const apiRes = contract?.apiUsage ?? getApiUsage()
+export function MarketMacroDerivatives() {
+  const macroRes = getMacroAltEnv()
+  const derivRes = getDerivatives()
+  const apiRes = getApiUsage()
   const m = macroRes.data
   const d = derivRes.data
   const a = apiRes.data

@@ -6,7 +6,6 @@ import {
   getServiceNodes,
   getDataPipeline,
   getApiUsage,
-  type RadarContract,
 } from '@/lib/radar-contract'
 import { Panel } from '@/components/panel'
 import { FreshnessTag, StatusBadge, ResourceBoundary } from '@/components/data-state'
@@ -23,10 +22,10 @@ const NODE_LABEL: Record<string, string> = {
   down: '异常',
 }
 
-export function SystemStatus({ contract }: { contract?: RadarContract }) {
-  const services = useMemo(() => contract?.serviceNodes ?? getServiceNodes(), [contract])
-  const pipeline = useMemo(() => contract?.dataPipeline ?? getDataPipeline(), [contract])
-  const api = useMemo(() => contract?.apiUsage ?? getApiUsage(), [contract])
+export function SystemStatus() {
+  const services = useMemo(() => getServiceNodes(), [])
+  const pipeline = useMemo(() => getDataPipeline(), [])
+  const api = useMemo(() => getApiUsage(), [])
   const p = pipeline.data
   const a = api.data
 

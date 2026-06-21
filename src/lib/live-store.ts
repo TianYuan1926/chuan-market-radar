@@ -44,51 +44,6 @@ function init() {
   }
 }
 
-function seedFromId(id: string) {
-  let hash = 2166136261
-  for (const char of id.toUpperCase()) {
-    hash ^= char.charCodeAt(0)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
-function fallbackQuoteForId(id: string): LiveQuote {
-  const seed = seedFromId(id)
-  const roll = (Math.sin(seed) * 10000) % 1
-  const unit = Math.abs(roll)
-  const price =
-    id.toUpperCase() === 'BTC'
-      ? 65000
-      : id.toUpperCase() === 'ETH'
-        ? 3500
-        : unit < 0.4
-          ? 0.01 + unit * 0.2
-          : 0.3 + unit * 80
-  const change24h = +(unit * 18 - 5).toFixed(2)
-
-  return {
-    price,
-    change1h: +(change24h / 10).toFixed(2),
-    change24h,
-    change7d: +(change24h * 2.2).toFixed(2),
-    change30d: +(change24h * 4.8).toFixed(2),
-  }
-}
-
-function ensureQuote(id: string): LiveQuote {
-  init()
-  const key = id.trim().toLowerCase()
-  const existing = snapshot.get(key) ?? base.get(key)
-
-  if (existing) return existing
-
-  const fallback = fallbackQuoteForId(key)
-  base.set(key, fallback)
-  snapshot.set(key, fallback)
-  return fallback
-}
-
 function emit() {
   listeners.forEach((l) => l())
 }
@@ -130,12 +85,10 @@ function subscribe(cb: () => void) {
 
 /** 订阅单个币种的实时报价 */
 export function useLiveQuote(id: string): LiveQuote {
-  const key = id.trim().toLowerCase()
-  ensureQuote(key)
-
+  init()
   return useSyncExternalStore(
     subscribe,
-    () => snapshot.get(key) ?? ensureQuote(key),
-    () => base.get(key) ?? ensureQuote(key),
+    () => snapshot.get(id) ?? base.get(id)!,
+    () => base.get(id)!,
   )
 }
