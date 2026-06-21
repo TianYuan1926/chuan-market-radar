@@ -1,0 +1,122 @@
+'use client'
+
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
+import { Radio } from 'lucide-react'
+import type { SignalCard, SignalType } from '@/lib/mock-data'
+import { cn } from '@/lib/utils'
+
+const TYPE_VAR: Record<SignalType, string> = {
+  PUMP: '--sig-pump',
+  WHALE: '--sig-whale',
+  LIQ: '--sig-liq',
+  BREAK: '--sig-break',
+  FLOW: '--sig-flow',
+  CRASH: '--sig-crash',
+}
+
+const ALERT_TEXT: Record<SignalType, (s: string) => string> = {
+  PUMP: (s) => `暴涨放量，量能 ×8 倍`,
+  WHALE: () => `巨鲸入场 $3,280 万`,
+  LIQ: () => `空单爆仓 $4,200 万`,
+  BREAK: () => `突破关键阻力，放量`,
+  FLOW: () => `链上净流入持续增加`,
+  CRASH: () => `盘口买盘撤离，警惕闪崩`,
+}
+
+type Alert = {
+  id: number
+  symbol: string
+  tokenId: string
+  type: SignalType
+  text: string
+  change: number
+  time: string
+}
+
+export function LiveFeed({ cards }: { cards: SignalCard[] }) {
+  const [items, setItems] = useState<Alert[]>([])
+  const counter = useRef(0)
+
+  useEffect(() => {
+    setItems(Array.from({ length: 6 }, makeItem))
+    const timer = setInterval(() => {
+      setItems((prev) => [makeItem(), ...prev].slice(0, 9))
+    }, 3200)
+    return () => clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function makeItem(): Alert {
+    const c = cards[Math.floor(Math.random() * cards.length)]
+    counter.current += 1
+    const now = new Date()
+    return {
+      id: counter.current,
+      symbol: c.token.symbol,
+      tokenId: c.token.id,
+      type: c.type,
+      text: ALERT_TEXT[c.type](c.token.symbol),
+      change: c.token.change24h,
+      time: `${String(now.getHours()).padStart(2, '0')}:${String(
+        now.getMinutes(),
+      ).padStart(2, '0')}`,
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <Radio className="size-4 animate-pulse text-down" />
+        <span className="font-semibold">实时预警</span>
+        <span className="ml-auto rounded bg-down/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-down">
+          LIVE
+        </span>
+      </div>
+      <div className="max-h-[440px] divide-y divide-border/60 overflow-y-auto">
+        {items.map((it, idx) => {
+          const up = it.change >= 0
+          const color = `var(${TYPE_VAR[it.type]})`
+          // 最新一条（idx 0）做整行涨跌高亮，强化"新数据到达"反馈
+          const flashClass =
+            idx === 0 ? (up ? 'row-flash-up' : 'row-flash-down') : ''
+          return (
+            <Link
+              key={it.id}
+              href={`/token/${it.tokenId}`}
+              className={cn(
+                'animate-float-up block px-4 py-3 transition-colors hover:bg-secondary/40',
+                flashClass,
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-muted-foreground">
+                  {it.time}
+                </span>
+                <span className="font-mono text-sm font-semibold">
+                  {it.symbol}
+                </span>
+                <span
+                  className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                  style={{ background: `color-mix(in oklch, ${color} 16%, transparent)`, color }}
+                >
+                  {it.type}
+                </span>
+                <span
+                  className={cn(
+                    'ml-auto font-mono text-xs font-semibold',
+                    up ? 'text-up' : 'text-down',
+                  )}
+                >
+                  {up ? '+' : ''}
+                  {it.change.toFixed(1)}%
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{it.text}</p>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

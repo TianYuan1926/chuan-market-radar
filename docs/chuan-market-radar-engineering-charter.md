@@ -41,8 +41,8 @@
 | 分析层 | 异常识别、多周期、技术指标、评分、策略计划、AI 反证边界 | `src/lib/analysis` | 不依赖 UI 状态 |
 | 持久化层 | Neon、扫描归档、复盘日记、段位、规则反馈 | `src/lib/persistence`、`src/lib/journal` | 不绕过 repository 合同 |
 | 应用编排层 | API、定时扫描、健康状态、迁移、权限、rate limit | `src/app/api`、`src/lib/api` | 不把业务规则散落到路由里 |
-| 展示层 | 当前前端已清空；后续新页面、候选池、图表、复盘、系统状态必须重新设计并消费 API 契约 | 待重建 | 不重新发明市场判断逻辑 |
-| 体验层 | 当前仅保留最小样式占位；后续动效、声音、中文化、移动端体验必须重新设计 | `src/app/globals.css` | 不越权影响分析结论 |
+| 展示层 | v0 前端 UI 已作为当前展示事实源接入；页面、候选池、图表、复盘、系统状态必须消费 API 契约 | `src/app`、`src/components`、`src/lib/radar-contract.ts` | 不重新发明市场判断逻辑 |
+| 体验层 | v0 前端的动效、声音、宠物小人、中文化和移动端体验尽量 1:1 保留 | `src/app/globals.css`、`src/components` | 不越权影响分析结论 |
 
 关键规则：
 

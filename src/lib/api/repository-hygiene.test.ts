@@ -151,7 +151,7 @@ test("market test script runs nested compiled tests recursively", () => {
   assert.match(marketTestScript, /xargs node --test/);
 });
 
-test("frontend reset keeps a minimal homepage without touching backend API routes", () => {
+test("v0 frontend shell is restored without touching backend API routes", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const radarComponentDir = resolve(process.cwd(), "src/components/radar");
@@ -164,11 +164,16 @@ test("frontend reset keeps a minimal homepage without touching backend API route
     "src/app/api/radar/dossier/route.ts",
     "src/app/api/archive/route.ts",
     "src/app/api/journal/route.ts",
+    "src/app/api/frontend/radar-contract/route.ts",
+    "src/app/api/frontend/token-dossier/route.ts",
+    "src/app/api/frontend/leaderboard/route.ts",
+    "src/app/api/frontend/review-contract/route.ts",
   ];
 
-  assert.match(pageSource, /前端已清空/);
-  assert.match(pageSource, /后端 API、扫描、数据库、复盘/);
-  assert.match(cssSource, /\.frontend-reset-shell/);
+  assert.match(pageSource, /IntroHero/);
+  assert.match(pageSource, /CHUANSCAN|虚拟货币异动检测/u);
+  assert.match(cssSource, /@import 'tailwindcss'/);
+  assert.match(cssSource, /--background:/);
   assert.equal(radarComponentFiles.length, 0, "src/components/radar should contain no active frontend files");
   assert.doesNotMatch(pageSource, /@\/components\/radar/);
   assert.doesNotMatch(pageSource, /getReadableMarketRadarSnapshot/);
@@ -180,7 +185,7 @@ test("frontend reset keeps a minimal homepage without touching backend API route
   }
 });
 
-test("frontend reset removes prior visual artifacts and records the reset in docs", () => {
+test("v0 frontend handoff keeps old visual artifacts removed and records the handoff in docs", () => {
   const removedPaths = [
     "design-qa.md",
     "public/assets/radar-crystal-lens.png",
@@ -194,7 +199,53 @@ test("frontend reset removes prior visual artifacts and records the reset in doc
     assert.equal(existsSync(resolve(process.cwd(), path)), false, `${path} should be removed by frontend reset`);
   }
 
-  assert.match(blueprintSource, /前端已清空/);
-  assert.match(blueprintSource, /旧前端设计要求已失效/);
-  assert.match(charterSource, /当前前端已清空/);
+  assert.match(blueprintSource, /v0 前端 UI 作为当前展示事实源/);
+  assert.match(blueprintSource, /\/api\/frontend\/radar-contract/);
+  assert.match(charterSource, /v0 前端 UI/);
+});
+
+test("frontend contract routes are read-only and cannot trigger scans", () => {
+  const routePaths = [
+    "src/app/api/frontend/radar-contract/route.ts",
+    "src/app/api/frontend/token-dossier/route.ts",
+    "src/app/api/frontend/leaderboard/route.ts",
+    "src/app/api/frontend/review-contract/route.ts",
+  ];
+
+  for (const routePath of routePaths) {
+    const source = readFileSync(resolve(process.cwd(), routePath), "utf8");
+    assert.match(source, /allowRefresh:\s*false/, `${routePath} must read cached snapshots only`);
+    assert.doesNotMatch(source, /refreshMarketRadarSnapshot/, `${routePath} must not start scan refreshes`);
+  }
+});
+
+test("core v0 pages expose backend contract injection points", () => {
+  const serverReaderPath = "src/lib/frontend-contract-server.ts";
+  const serverReaderSource = existsSync(resolve(process.cwd(), serverReaderPath))
+    ? readFileSync(resolve(process.cwd(), serverReaderPath), "utf8")
+    : "";
+  const requiredSources: Record<string, RegExp[]> = {
+    "src/app/dashboard/page.tsx": [/getRadarContractForPage/, /<DashboardRadarControl contract=\{radar\}/],
+    "src/app/signals/page.tsx": [/getRadarContractForPage/, /<SignalMaturityPool signals=\{radar\.radarSignals\}/],
+    "src/app/market/page.tsx": [/getRadarContractForPage/, /<MarketPageClient radar=\{radar\}/],
+    "src/app/market/market-page-client.tsx": [/radar:/, /<MarketMacroDerivatives contract=\{radar\}/],
+    "src/app/leaderboard/page.tsx": [/getAllLeaderboardContractsForPage/, /<MarketLeaderboards initialLeaderboards=\{leaderboards\}/],
+    "src/app/token/[id]/page.tsx": [/getTokenDossierContractForPage/, /<TokenDossier[\s\S]+dossier=\{dossier\}/],
+    "src/components/dashboard/radar-control.tsx": [/contract\?:/],
+    "src/components/signals/signal-maturity-pool.tsx": [/signals\?:/],
+    "src/components/market/macro-derivatives.tsx": [/contract\?:/],
+    "src/components/leaderboard/market-leaderboards.tsx": [/initialLeaderboards\?:/],
+    "src/components/token/token-dossier.tsx": [/dossier\?:/],
+  };
+
+  assert.equal(existsSync(resolve(process.cwd(), serverReaderPath)), true, "server-side frontend contract reader must exist");
+  assert.doesNotMatch(serverReaderSource, /fetch\s*\(/, "server-side page reader must not HTTP fetch its own app");
+  assert.match(serverReaderSource, /allowRefresh:\s*false/, "server-side page reader must not trigger scans");
+
+  for (const [path, patterns] of Object.entries(requiredSources)) {
+    const source = readFileSync(resolve(process.cwd(), path), "utf8");
+    for (const pattern of patterns) {
+      assert.match(source, pattern, `${path} must match ${pattern}`);
+    }
+  }
 });

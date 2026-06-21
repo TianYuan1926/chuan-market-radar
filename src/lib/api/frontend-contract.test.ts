@@ -1,0 +1,478 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { MarketSignal } from "../analysis/types";
+import type { BackendContract } from "./backend-contract";
+import {
+  buildFrontendLeaderboardContract,
+  buildFrontendRadarContract,
+  buildFrontendReviewContract,
+  buildFrontendTokenDossierContract,
+} from "./frontend-contract";
+import type { MarketRadarSnapshot } from "../market/types";
+import type { SignalBackendDossier } from "../market/signal-backend-dossier";
+
+function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
+  return {
+    id: "sig-tia",
+    symbol: "TIAUSDT",
+    exchange: "BINANCE",
+    direction: "long",
+    state: "near_trigger",
+    timeframe: "1h",
+    regime: "mixed",
+    confidence: 84,
+    risk: "medium",
+    updatedAt: "2026-06-21T08:00:00.000Z",
+    summary: "压缩突破后等待回踩确认",
+    evidence: [
+      { label: "结构突破", value: "4h 压缩区上沿突破", layer: "structure_location", polarity: "supportive" },
+      { label: "OI 温和抬升", value: "+8.2%", layer: "derivatives", polarity: "supportive" },
+      { label: "日线压力", value: "上方前高压力仍在", layer: "structure_location", polarity: "conflicting" },
+    ],
+    strategy: {
+      bias: "long",
+      entry: "回踩不破再考虑",
+      invalidation: "跌回箱体",
+      targets: ["8.2", "8.8", "9.6"],
+      riskReward: 3.2,
+      positionHint: "不追单",
+      status: "waiting",
+      stopLoss: "7.2",
+      takeProfitPlan: "TP1 40% / TP2 40% / TP3 20%",
+      noChase: true,
+    },
+    maturity: {
+      canAttachTradePlan: true,
+      canEnterMainSignalArea: true,
+      canRequestAiReview: true,
+      label: "计划就绪",
+      reasons: ["eligible_v3_trade_plan"],
+      stage: "TRADE_PLAN_READY",
+    },
+    ...overrides,
+  };
+}
+
+function snapshot(signals: MarketSignal[] = [signal()]): MarketRadarSnapshot {
+  return {
+    metadata: {
+      id: "front-contract-scan",
+      mode: "scheduled",
+      status: "ready",
+      source: "coinglass",
+      isRealtime: true,
+      cadenceMinutes: 15,
+      scannedCount: 24,
+      anomalyCount: signals.length,
+      candidateCount: signals.length,
+      riskGate: "on",
+      generatedAt: "2026-06-21T08:00:00.000Z",
+      nextScanAt: "2026-06-21T08:15:00.000Z",
+      staleAfterMinutes: 30,
+      notes: [],
+    },
+    instrumentPool: {
+      instruments: [],
+      rejected: [],
+      summary: {
+        total: 0,
+        accepted: 0,
+        rejected: 0,
+        duplicatesRemoved: 0,
+        minVolume24hUsd: 0,
+        quoteAssets: ["USDT"],
+        marketTypes: ["perpetual"],
+      },
+    },
+    instruments: [],
+    tickers: [
+      {
+        symbol: "TIAUSDT",
+        exchange: "BINANCE",
+        price: 7.84,
+        changePercent24h: 6.2,
+        volume24hUsd: 180_000_000,
+        high24h: 8.1,
+        low24h: 7.1,
+        updatedAt: "2026-06-21T08:00:00.000Z",
+      },
+      {
+        symbol: "WIFUSDT",
+        exchange: "BINANCE",
+        price: 1.82,
+        changePercent24h: -4.4,
+        volume24hUsd: 280_000_000,
+        high24h: 1.98,
+        low24h: 1.75,
+        updatedAt: "2026-06-21T08:00:00.000Z",
+      },
+    ],
+    derivatives: [
+      {
+        symbol: "TIAUSDT",
+        exchange: "BINANCE",
+        source: "coinglass",
+        openInterestUsd: 120_000_000,
+        openInterestChangePercent: 8.4,
+        fundingRate: 0.0125,
+        fundingRateZScore: 0.4,
+        longShortRatio: 1.22,
+        updatedAt: "2026-06-21T08:00:00.000Z",
+      },
+    ],
+    heatmap: [],
+    signals,
+    journalEvents: [
+      {
+        id: "j-1",
+        signalId: "sig-tia",
+        symbol: "TIAUSDT",
+        title: "TIA 跟踪",
+        result: "watching",
+        note: "等待验证",
+        rankDelta: 1,
+        createdAt: "2026-06-21T07:30:00.000Z",
+        direction: "long",
+        riskReward: 3.2,
+        outcomeMetrics: {
+          evaluatedCandles: 12,
+          validationWindowHours: 24,
+          validationWindowLabel: "24h",
+          entryPrice: 7.84,
+          invalidationPrice: 7.2,
+          firstTargetPrice: 8.8,
+          mfePercent: 6.4,
+          maePercent: -1.8,
+        },
+      },
+    ],
+  };
+}
+
+function backendContract(): BackendContract {
+  return {
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    source: {
+      activeSource: "coinglass",
+      configuredProvider: "coinglass",
+      isRealtime: true,
+      mode: "live",
+      status: "ready",
+    },
+    runtime: {
+      cacheStatus: "updated",
+      persistedArchive: true,
+      repositoryMode: "database",
+      trigger: "radar_get",
+    },
+    scanProof: {
+      fullMarket: {
+        coveragePercent: 42,
+        eligibleAssets: 720,
+        pendingAssets: 696,
+        scannedAssets: 24,
+        status: "rotating",
+        totalAssets: 820,
+        totalBatches: 30,
+        operatorHint: "轮转中",
+      },
+      lightScan: {
+        acceptedCount: 720,
+        candidateCount: 33,
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        requestCount: 3,
+        source: "public-light-composite",
+        status: "ready",
+        topCandidates: [],
+        universeCount: 820,
+      },
+      deepScan: {
+        cleanRows: 24,
+        coinGlassRequestsPlanned: 24,
+        duplicateSymbolGroups: 0,
+        emptyResultAssets: [],
+        filteredRows: 0,
+        plannedAssets: ["BTC", "ETH", "TIA", "WIF"],
+        primaryRows: 24,
+        rawRows: 24,
+        rejectedRows: 0,
+      },
+      allocation: {
+        assets: [],
+        capacity: 24,
+        coldExplorationAssets: ["REI"],
+        guardrail: "轮换名额保底",
+        nextBatchAssets: ["SUI", "ARB"],
+        notEliminatedAssets: 696,
+        pendingAssets: ["OP", "SEI"],
+        reviveWatchAssets: ["LDO"],
+        selectedAssets: ["BTC", "ETH", "TIA", "WIF"],
+      },
+      twoStageAllocation: null,
+      rotationAudit: null,
+    },
+    sourceAudit: {
+      coinGlassDeepScan: {
+        cleanRows: 24,
+        failedPlannedAssets: [],
+        plannedAssets: ["BTC", "ETH", "TIA", "WIF"],
+        plannedRequests: 24,
+        rawRows: 24,
+        status: "ready",
+      },
+      guardrail: "test",
+      publicDiscovery: {
+        fallbackActivated: false,
+        fallbackInstrumentCount: 0,
+        liveInstrumentCount: 820,
+        sources: [
+          { instrumentCount: 420, requestCount: 1, source: "binance", status: "ok" },
+          { instrumentCount: 220, requestCount: 1, source: "okx", status: "ok" },
+        ],
+      },
+      publicLightScan: {
+        acceptedCount: 720,
+        candidateCount: 33,
+        notes: [],
+        requestCount: 3,
+        source: "public-light-composite",
+        status: "ready",
+        topSymbols: ["TIAUSDT"],
+        universeCount: 820,
+      },
+      macroMarket: {
+        ageMinutes: 5,
+        allowedUse: "macro_context_only",
+        btcDominancePercent: 54.2,
+        canCreateTradeSignal: false,
+        fetchedAt: "2026-06-21T07:55:00.000Z",
+        guardrail: "macro only",
+        operatorHint: "BTC.D 下降，山寨环境改善",
+        source: "coingecko",
+        status: "ready",
+        total2MarketCapUsd: 1_400_000_000_000,
+        total3MarketCapUsd: 700_000_000_000,
+      },
+    },
+    analysis: {
+      businessCapability: {
+        schemaVersion: "business-capability.v1",
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canAutoExecute: false,
+        canMutateLiveRanking: false,
+        mode: "business_capability_loop_v1",
+        operatorHint: "ready",
+        readinessScore: 72,
+        status: "operational",
+        stages: [
+          {
+            id: "signal_lifecycle",
+            title: "信号生命周期",
+            status: "ready",
+            score: 90,
+            summary: "正常",
+            evidence: [],
+            nextAction: "继续",
+            guardrail: "不自动下单",
+          },
+        ],
+        gaps: [],
+        nextActions: ["继续跟踪"],
+        frontendContracts: [],
+        operatingRules: [],
+      },
+      evolution: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        canWriteRuleWeights: false,
+        status: "ready",
+      },
+      signalMaturity: {
+        candidateLaneSymbols: ["PEPEUSDT"],
+        counts: {
+          LIGHT_SCAN_MARK: 33,
+          DEEP_SCAN_CANDIDATE: 4,
+          EVIDENCE_SIGNAL: 1,
+          TRADE_PLAN_READY: 1,
+        },
+        guardrail: "轻扫标记不交易",
+        mainSignalSymbols: ["TIAUSDT"],
+        rules: [],
+        tradePlanReadySymbols: ["TIAUSDT"],
+      },
+      timeframeGate: {
+        blockedSymbols: [],
+        blockers: {
+          regime_timeframe_double_conflict: 0,
+          structure_timeframe_conflict: 0,
+        },
+        conflictTimeframes: [],
+        counts: {
+          ALLOW: 1,
+          WAIT_HIGH_TIMEFRAME_BREAK: 0,
+          WATCH_ONLY: 0,
+        },
+        guardrail: "高周期优先",
+        mode: "multi_timeframe_hard_gate_v1",
+      },
+      v3Coverage: {
+        missingSignals: 0,
+        ohlcvAttemptedSymbols: ["TIAUSDT"],
+        ohlcvFailureCount: 0,
+        totalSignals: 1,
+        withV3Signals: 1,
+      },
+      v3StrategyLoop: {
+        missingV3Signals: 0,
+        readyPlans: 1,
+        readinessBuckets: {},
+        riskGateBlocked: 0,
+        status: "ready",
+        totalSignals: 1,
+        v3Signals: 1,
+      },
+    },
+  } as unknown as BackendContract;
+}
+
+test("buildFrontendRadarContract exposes full-market proof and mature radar signals", () => {
+  const radar = buildFrontendRadarContract({
+    backend: backendContract(),
+    snapshot: snapshot(),
+    env: { COINGLASS_DAILY_REQUEST_BUDGET: "300" },
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.scanProof.status, "live");
+  assert.equal(radar.scanProof.data.totalMonitored, 820);
+  assert.equal(radar.scanProof.data.scannable, 720);
+  assert.equal(radar.scanProof.data.deepScanned, 24);
+  assert.equal(radar.deepScanQueue.data.currentBatch.includes("TIA"), true);
+  assert.equal(radar.radarSignals.data[0]?.symbol, "TIA");
+  assert.equal(radar.radarSignals.data[0]?.direction, "多");
+  assert.equal(radar.radarSignals.data[0]?.maturity, "TRADE_PLAN_READY");
+  assert.equal(radar.radarSignals.data[0]?.rr, 3.2);
+});
+
+test("buildFrontendRadarContract derives BLOCKED when risk gate or RR blocks the plan", () => {
+  const blocked = signal({
+    id: "sig-fet",
+    symbol: "FETUSDT",
+    risk: "blocked",
+    strategy: {
+      bias: "long",
+      entry: "不追",
+      invalidation: "失效",
+      targets: ["1.2"],
+      riskReward: 1.4,
+      positionHint: "等待",
+      status: "blocked",
+    },
+    maturity: {
+      canAttachTradePlan: false,
+      canEnterMainSignalArea: true,
+      canRequestAiReview: true,
+      label: "风险拦截",
+      reasons: ["risk_gate_or_rr_blocked"],
+      stage: "EVIDENCE_SIGNAL",
+    },
+  });
+
+  const radar = buildFrontendRadarContract({
+    backend: backendContract(),
+    snapshot: snapshot([blocked]),
+    env: {},
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.radarSignals.data[0]?.maturity, "BLOCKED");
+  assert.equal(radar.radarSignals.data[0]?.risk, "极高");
+  assert.match(radar.radarSignals.data[0]?.whyBlocked ?? "", /3:1|Risk Gate/);
+});
+
+test("buildFrontendLeaderboardContract maps and sorts real ticker data", () => {
+  const gainers = buildFrontendLeaderboardContract({
+    kind: "gainers",
+    snapshot: snapshot(),
+    backend: backendContract(),
+  });
+  const losers = buildFrontendLeaderboardContract({
+    kind: "losers",
+    snapshot: snapshot(),
+    backend: backendContract(),
+  });
+
+  assert.equal(gainers.status, "live");
+  assert.equal(gainers.data[0]?.symbol, "TIA");
+  assert.equal(losers.data[0]?.symbol, "WIF");
+  assert.equal(gainers.data[0]?.hasSignal, true);
+});
+
+test("buildFrontendTokenDossierContract translates backend dossier without report-side decisions", () => {
+  const dossier: SignalBackendDossier = {
+    found: true,
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    guardrails: ["report_is_translation_only"],
+    symbol: "TIAUSDT",
+    chart: {
+      availableTimeframes: ["15m", "1h", "4h", "1d"],
+      selectedTimeframe: "1h",
+      tradingView: {
+        interval: "1h",
+        symbol: "BINANCE:TIAUSDT.P",
+        url: "https://www.tradingview.com/chart/?symbol=BINANCE%3ATIAUSDT.P",
+      },
+    },
+    evidence: {
+      conflictingCount: 1,
+      items: signal().evidence,
+      neutralCount: 0,
+      supportiveCount: 2,
+      total: 3,
+    },
+    journal: {
+      recentEvents: [],
+      totalEvents: 0,
+    },
+    signal: {
+      confidence: 84,
+      direction: "long",
+      exchange: "BINANCE",
+      id: "sig-tia",
+      risk: "medium",
+      state: "near_trigger",
+      summary: "压缩突破",
+      timeframe: "1h",
+      updatedAt: "2026-06-21T08:00:00.000Z",
+    },
+    strategyV3: null,
+  };
+
+  const res = buildFrontendTokenDossierContract({
+    dossier,
+    basePrice: 7.84,
+    now: new Date("2026-06-21T08:00:05.000Z"),
+  });
+
+  assert.equal(res.status, "live");
+  assert.equal(res.data.symbol, "TIA");
+  assert.equal(res.data.direction, "看多");
+  assert.equal(res.data.riskGate.allowTradePlan, true);
+  assert.equal(res.data.aiReview.note.includes("AI 仅对反证进行复核"), true);
+});
+
+test("buildFrontendReviewContract returns review resources from journal and capability data", () => {
+  const review = buildFrontendReviewContract({
+    backend: backendContract(),
+    snapshot: snapshot(),
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(review.signalLifecycles.status, "live");
+  assert.equal(review.signalLifecycles.data[0]?.symbol, "TIA");
+  assert.equal(review.strategyArchetypes.data.length > 0, true);
+  assert.equal(review.evolutionSuggestions.data[0]?.adopted, false);
+});
