@@ -18,7 +18,7 @@ const sora = Sora({
 export const metadata: Metadata = {
   title: '川 CHUANSCAN · 虚拟货币异动雷达',
   description:
-    'CHUANSCAN 川 — 实时捕捉链上资金异动，AI 信号、K 线可视化与榜单一站式监控。',
+    'CHUANSCAN 川 — 捕捉合约市场异动，展示后端信号、K 线研究与榜单监控。',
   generator: 'v0.app',
 }
 

@@ -15,12 +15,40 @@ import {
   Faq,
 } from '@/components/intro/intro-sections'
 import { Reveal } from '@/components/intro/reveal'
+import {
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+} from '@/lib/frontend-contract-server'
+import {
+  radarSignalsToTokens,
+  withLeaderboardSignalFallback,
+} from '@/lib/frontend-display-adapters'
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const displaySignals = withLeaderboardSignalFallback(
+    radar.radarSignals,
+    tickerLeaderboard.data,
+  )
+  const tokens = radarSignalsToTokens(displaySignals.data, tickerLeaderboard.data)
+  const scan = radar.scanProof.data
+  const api = radar.apiUsage.data
+  const stats = [
+    { v: scan.totalMonitored, suffix: '', label: '监控标的', decimals: 0 },
+    { v: radar.radarSignals.data.length, suffix: '', label: '成熟信号', decimals: 0 },
+    { v: scan.coverage, suffix: '%', label: '扫描覆盖率', decimals: 1 },
+    { v: api.usedToday, suffix: '', label: '今日 API 调用', decimals: 0 },
+  ]
+
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar />
+      <SessionBar tokens={tokens} />
 
       {/* HERO：掌控流向 */}
       <IntroHero />
@@ -42,7 +70,7 @@ export default function HomePage() {
           </Reveal>
 
           <Reveal delay={120}>
-            <IntroRadar />
+            <IntroRadar tokens={tokens} />
           </Reveal>
         </div>
       </section>
@@ -86,7 +114,7 @@ export default function HomePage() {
               <BentoCard
                 href="/dashboard"
                 title="雷达总控"
-                desc="全局异动大盘，毫秒级监测异常成交、资金流向与持仓变化。"
+                desc="全局异动大盘，展示后端扫描覆盖、候选状态与数据源健康。"
                 big
               >
                 <RadarMotif />
@@ -121,7 +149,7 @@ export default function HomePage() {
 
             {/* 大盘数据 */}
             <Reveal delay={200}>
-              <BentoCard href="/market" title="大盘数据" desc="高性能 K 线与全市场情绪潮汐。">
+              <BentoCard href="/market" title="大盘数据" desc="宏观山寨环境、CoinGlass 衍生品与数据质量面板。">
                 <SparkMotif />
               </BentoCard>
             </Reveal>
@@ -138,16 +166,10 @@ export default function HomePage() {
       {/* 数字滚动统计带 */}
       <section className="border-t border-border bg-card/30">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px overflow-hidden px-4 py-16 sm:px-6 lg:grid-cols-4">
-          {[
-            { v: 2480, suffix: '+', label: '监控代币' },
-            { v: 15600, suffix: '', label: '日均信号' },
-            { v: 200, suffix: 'ms', label: '响应延迟', prefix: '<' },
-            { v: 99, suffix: '.9%', label: '在线时长' },
-          ].map((s, i) => (
+          {stats.map((s, i) => (
             <Reveal key={s.label} delay={i * 90} className="text-center">
               <div className="font-mono text-4xl font-bold text-neon sm:text-5xl">
-                {s.prefix}
-                <CountUp value={s.v} />
+                <CountUp value={s.v} decimals={s.decimals} />
                 {s.suffix}
               </div>
               <div className="mt-2 text-sm text-muted-foreground">{s.label}</div>
@@ -182,7 +204,7 @@ export default function HomePage() {
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
             <p className="mt-6 text-xs text-muted-foreground">
-              数据均为模拟演示，仅供参考，不构成投资建议
+              后端契约数据仅供市场研究与系统校准，不构成投资建议
             </p>
           </Reveal>
         </div>

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Token } from '@/lib/mock-data'
 
 type Blip = {
   id: string
@@ -25,7 +26,21 @@ const BLIPS: Blip[] = [
 
 type LogItem = { key: number; symbol: string; dir: 'up' | 'down'; strength: number }
 
-export function IntroRadar() {
+function blipsFromTokens(tokens: Token[] | undefined): Blip[] {
+  if (!tokens?.length) return BLIPS
+
+  return tokens.slice(0, 7).map((token, index) => ({
+    id: token.id,
+    symbol: token.symbol,
+    angle: (index * 47 + token.hue) % 360,
+    radius: 0.28 + ((token.anomalyScore + index * 11) % 52) / 100,
+    dir: token.trend === 'bear' ? 'down' : 'up',
+    strength: token.anomalyScore,
+  }))
+}
+
+export function IntroRadar({ tokens }: { tokens?: Token[] } = {}) {
+  const blips = useMemo(() => blipsFromTokens(tokens), [tokens])
   const sweepRef = useRef<HTMLDivElement>(null)
   const blipRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const litAt = useRef<Record<string, number>>({})
@@ -46,7 +61,7 @@ export function IntroRadar() {
       angle = (angle + SPEED * dt) % 360
       if (sweepRef.current) sweepRef.current.style.transform = `rotate(${angle}deg)`
 
-      for (const b of BLIPS) {
+      for (const b of blips) {
         // 角差（扫描线顺时针经过 blip 时点亮）
         let diff = angle - b.angle
         diff = ((diff % 360) + 360) % 360
@@ -71,7 +86,7 @@ export function IntroRadar() {
 
     if (!prefersReduced) raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
-  }, [])
+  }, [blips])
 
   return (
     <div className="grid items-center gap-10 lg:grid-cols-[1fr_0.9fr]">
@@ -110,7 +125,7 @@ export function IntroRadar() {
         <span className="absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-neon shadow-[0_0_12px_var(--neon)]" />
 
         {/* 光点 */}
-        {BLIPS.map((b) => {
+        {blips.map((b) => {
           const rad = (b.angle * Math.PI) / 180
           const left = 50 + Math.cos(rad) * b.radius * 50
           const top = 50 + Math.sin(rad) * b.radius * 50

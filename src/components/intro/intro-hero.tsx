@@ -348,7 +348,7 @@ export function IntroHero() {
       <div className="relative z-10 mx-auto flex min-h-[94vh] max-w-5xl flex-col items-center justify-center px-4 text-center sm:px-6">
         <div className="animate-float-up inline-flex items-center gap-2 border border-border glass px-3 py-1 text-xs text-muted-foreground">
           <Crosshair className="size-3 text-neon" />
-          链上异动雷达 · 移动鼠标，掌控资金之川
+          合约异动雷达 · 移动鼠标，掌控资金之川
         </div>
 
         {/* 标题 + 漂浮加密币徽章 */}
@@ -368,7 +368,7 @@ export function IntroHero() {
             textShadow: '0 1px 12px var(--background), 0 0 24px var(--background)',
           }}
         >
-          川 Chuan 以毫秒级雷达扫描全网链上异动，把噪声炼成信号。
+          川 Chuan 以分层扫描追踪全市场异动，把噪声炼成信号。
           <br className="hidden sm:block" />
           大道至简，知行合一，让资金的流向先你一步被看见。
         </p>

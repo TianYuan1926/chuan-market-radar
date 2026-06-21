@@ -7,7 +7,7 @@ import { ArrowRight, ShieldAlert } from 'lucide-react'
 // 终端启动日志（逐行流入，营造系统冷启动质感）
 const BOOT_LOG = [
   { t: '初始化雷达阵列', v: 'ARRAY ONLINE' },
-  { t: '接入链上数据源', v: '5/6 LINKED' },
+  { t: '接入合约数据源', v: '5/6 LINKED' },
   { t: '校准资金费率 / 持仓', v: 'CALIBRATED' },
   { t: '加载异动检测模型', v: 'v4.2 LOADED' },
   { t: '全市场扫描覆盖', v: '87.6%' },
@@ -73,7 +73,7 @@ export function SiteLoader() {
           </span>
         </div>
         <span className="mt-1.5 font-mono text-[10px] tracking-[0.3em] text-muted-foreground">
-          链上异动雷达 · BOOT SEQUENCE
+          合约异动雷达 · BOOT SEQUENCE
         </span>
 
         {/* 雷达扫描镜 */}
