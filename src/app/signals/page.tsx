@@ -10,6 +10,7 @@ import {
   radarSignalsToSignalCards,
   radarSignalsToSniperTargets,
   radarSignalsToTokens,
+  withLeaderboardSignalFallback,
 } from '@/lib/frontend-display-adapters'
 import {
   getLeaderboardContractForPage,
@@ -24,8 +25,9 @@ export default async function SignalsPage() {
     getLeaderboardContractForPage('volume'),
   ])
   const tickerRows = tickerLeaderboard.data
-  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerRows)
-  const cards = radarSignalsToSignalCards(radar.radarSignals.data, tickerRows)
+  const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
+  const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
+  const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
   const sniperTargets = radarSignalsToSniperTargets(radar.radarSignals.data, tickerRows)
 
   return (
@@ -44,7 +46,7 @@ export default async function SignalsPage() {
 
             {/* 信号成熟度池：按成熟度分层，支持搜索/筛选/排序/滚动（后端承载位） */}
             <div className="mb-5">
-              <SignalMaturityPool signals={radar.radarSignals} />
+              <SignalMaturityPool signals={displaySignals} />
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">

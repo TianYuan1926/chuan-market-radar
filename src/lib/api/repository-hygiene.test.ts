@@ -235,8 +235,8 @@ test("core v0 pages expose backend contract injection points", () => {
     : "";
   const requiredSources: Record<string, RegExp[]> = {
     "src/app/dashboard/page.tsx": [/getRadarContractForPage/, /<DashboardRadarControl contract=\{radar\}/],
-    "src/app/signals/page.tsx": [/getRadarContractForPage/, /<SignalMaturityPool signals=\{radar\.radarSignals\}/],
-    "src/app/market/page.tsx": [/getRadarContractForPage/, /<MarketPageClient radar=\{radar\}/],
+    "src/app/signals/page.tsx": [/getRadarContractForPage/, /<SignalMaturityPool signals=\{displaySignals\}/],
+    "src/app/market/page.tsx": [/getRadarContractForPage/, /<MarketPageClient radar=\{radar\} tickerRows=\{tickerLeaderboard\.data\}/],
     "src/app/market/market-page-client.tsx": [/radar:/, /<MarketMacroDerivatives contract=\{radar\}/],
     "src/app/leaderboard/page.tsx": [/getAllLeaderboardContractsForPage/, /<MarketLeaderboards initialLeaderboards=\{leaderboards\}/],
     "src/app/token/[id]/page.tsx": [/getTokenDossierContractForPage/, /<TokenDossier[\s\S]+dossier=\{dossier\}/],
@@ -274,14 +274,19 @@ test("dashboard and signals visual widgets derive from backend radar signals", (
   assert.match(adapterSource, /radarSignalsToSignalCards/);
   assert.match(adapterSource, /radarSignalsToTokens/);
   assert.match(adapterSource, /radarSignalsToSniperTargets/);
+  assert.match(adapterSource, /leaderboardRowsToCandidateSignals/);
+  assert.match(adapterSource, /withLeaderboardSignalFallback/);
 
   assert.match(dashboardSource, /radarSignalsToSignalCards/);
-  assert.match(dashboardSource, /const cards = radarSignalsToSignalCards\(radar\.radarSignals\.data(?:,\s*tickerRows)?\)/);
+  assert.match(dashboardSource, /const displaySignals = withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
+  assert.match(dashboardSource, /const cards = radarSignalsToSignalCards\(displaySignals\.data,\s*tickerRows\)/);
   assert.doesNotMatch(dashboardSource, /getSignalCards/);
 
   assert.match(signalsSource, /radarSignalsToSignalCards/);
   assert.match(signalsSource, /radarSignalsToTokens/);
   assert.match(signalsSource, /radarSignalsToSniperTargets/);
+  assert.match(signalsSource, /const displaySignals = withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
+  assert.match(signalsSource, /<SignalMaturityPool signals=\{displaySignals\}/);
   assert.match(signalsSource, /<SniperBoard targets=\{sniperTargets\}/);
   assert.doesNotMatch(signalsSource, /getTokens|getSignalCards/);
 
@@ -298,15 +303,19 @@ test("backend radar visual cards are enriched with backend ticker rows before fa
   assert.match(adapterSource, /LeaderboardRow/);
   assert.match(adapterSource, /tickerRows/);
   assert.match(adapterSource, /priceBySymbol/);
+  assert.match(adapterSource, /leaderboardRowsToCandidateSignals/);
+  assert.match(adapterSource, /候选不等于交易计划/);
 
   assert.match(dashboardSource, /getLeaderboardContractForPage/);
   assert.match(dashboardSource, /const tickerRows = tickerLeaderboard\.data/);
-  assert.match(dashboardSource, /radarSignalsToSignalCards\(radar\.radarSignals\.data,\s*tickerRows\)/);
+  assert.match(dashboardSource, /withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
+  assert.match(dashboardSource, /radarSignalsToSignalCards\(displaySignals\.data,\s*tickerRows\)/);
 
   assert.match(signalsSource, /getLeaderboardContractForPage/);
   assert.match(signalsSource, /const tickerRows = tickerLeaderboard\.data/);
-  assert.match(signalsSource, /radarSignalsToTokens\(radar\.radarSignals\.data,\s*tickerRows\)/);
-  assert.match(signalsSource, /radarSignalsToSignalCards\(radar\.radarSignals\.data,\s*tickerRows\)/);
+  assert.match(signalsSource, /withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
+  assert.match(signalsSource, /radarSignalsToTokens\(displaySignals\.data,\s*tickerRows\)/);
+  assert.match(signalsSource, /radarSignalsToSignalCards\(displaySignals\.data,\s*tickerRows\)/);
   assert.match(signalsSource, /radarSignalsToSniperTargets\(radar\.radarSignals\.data,\s*tickerRows\)/);
 });
 

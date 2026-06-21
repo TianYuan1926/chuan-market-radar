@@ -8,6 +8,7 @@ import type {
 } from './mock-data'
 import type { LeaderboardKind, LeaderboardRow, RadarSignal } from './radar-contract'
 import type { SniperSignal, SniperTarget } from './sniper-data'
+import type { Resource } from './data-status'
 
 type Direction = RadarSignal['direction']
 type Maturity = RadarSignal['maturity']
@@ -71,6 +72,17 @@ function priceBySymbol(tickerRows: TickerRows = []) {
   }
 
   return rows
+}
+
+function dedupeSignals(signals: RadarSignal[]) {
+  const rows = new Map<string, RadarSignal>()
+
+  for (const signal of signals) {
+    const key = signal.symbol.toUpperCase()
+    if (!rows.has(key)) rows.set(key, signal)
+  }
+
+  return [...rows.values()]
 }
 
 function round(value: number, digits = 2) {
@@ -179,6 +191,98 @@ function changeForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
   return 0
 }
 
+function maturityForLeaderboardRow(row: LeaderboardRow): Maturity {
+  if (row.blocked) return 'BLOCKED'
+  if (row.hasSignal) return 'EVIDENCE_SIGNAL'
+  if (row.deepScanned || row.inCandidatePool) return 'DEEP_SCAN_CANDIDATE'
+  return 'LIGHT_SCAN_MARK'
+}
+
+function directionForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind): Direction {
+  if (kind === 'losers' || row.value < 0) return '空'
+  if (kind === 'gainers' || kind === 'relative_strength') return '多'
+  return '观察'
+}
+
+function whyForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
+  const metric = {
+    gainers: '24h 涨幅靠前',
+    losers: '24h 跌幅靠前',
+    volume: '成交量/流动性靠前',
+    volatility_squeeze: '波动率压缩靠前',
+    relative_strength: '相对强弱靠前',
+    oi_change: 'OI 异动靠前',
+    funding_hot: 'Funding 过热靠前',
+  } satisfies Record<LeaderboardKind, string>
+  const flags: string[] = []
+
+  if (row.inCandidatePool) flags.push('已进入候选池')
+  if (row.deepScanned) flags.push('已完成深扫')
+  if (row.awaitingScan) flags.push('等待深扫')
+  if (row.hasSignal) flags.push('已有证据融合信号')
+  if (row.blocked) flags.push('Risk Gate 拦截')
+
+  return `${metric[kind]}${flags.length ? `；${flags.join('；')}` : '；等待扫描验证'}`
+}
+
+export function leaderboardRowsToCandidateSignals(
+  rows: LeaderboardRow[],
+  kind: LeaderboardKind = 'volume',
+): RadarSignal[] {
+  return rows.map((row, index) => {
+    const symbol = row.symbol.toUpperCase()
+    const maturity = maturityForLeaderboardRow(row)
+    const evidenceCount = row.hasSignal ? 3 : row.deepScanned ? 2 : row.inCandidatePool ? 1 : 1
+    const blocked = row.blocked || maturity === 'BLOCKED'
+
+    return {
+      id: `candidate-${kind}-${symbol}`,
+      symbol,
+      hue: row.hue,
+      direction: directionForLeaderboardRow(row, kind),
+      maturity,
+      rr: null,
+      risk: blocked ? '高' : kind === 'funding_hot' ? '中' : '低',
+      evidenceCount,
+      counterCount: blocked ? 2 : 0,
+      freshness: 'live',
+      whySelected: whyForLeaderboardRow(row, kind),
+      whyBlocked: blocked
+        ? 'Risk Gate 已标记，不能直接生成交易计划'
+        : '候选阶段只代表发现异动，未完成证据融合和 3:1 赔率验证，不能当作交易计划',
+      updatedMinAgo: Math.min(index, 59),
+    }
+  })
+}
+
+function displaySignalsFor(
+  signals: RadarSignal[],
+  tickerRows: TickerRows = [],
+  kind: LeaderboardKind = 'volume',
+) {
+  return dedupeSignals([...signals, ...leaderboardRowsToCandidateSignals(tickerRows, kind)])
+}
+
+export function withLeaderboardSignalFallback(
+  signals: Resource<RadarSignal[]>,
+  tickerRows: TickerRows = [],
+  kind: LeaderboardKind = 'volume',
+): Resource<RadarSignal[]> {
+  const data = displaySignalsFor(signals.data, tickerRows, kind)
+
+  return {
+    ...signals,
+    data,
+    status: data.length > signals.data.length && signals.status === 'empty' ? 'partial' : signals.status,
+    source: data.length > signals.data.length
+      ? `${signals.source ?? 'signal-worker'}+leaderboard`
+      : signals.source,
+    reason: data.length > signals.data.length
+      ? `${signals.reason ? `${signals.reason}；` : ''}当前无成熟信号时展示全市场候选，候选不等于交易计划`
+      : signals.reason,
+  }
+}
+
 export function leaderboardRowsToTokens(
   rows: LeaderboardRow[],
   kind: LeaderboardKind = 'volume',
@@ -266,16 +370,14 @@ function descFor(signal: RadarSignal) {
 export function radarSignalsToTokens(signals: RadarSignal[], tickerRows: TickerRows = []): Token[] {
   const tickerLookup = priceBySymbol(tickerRows)
 
-  return signals
-    .filter((signal) => signal.maturity !== 'LIGHT_SCAN_MARK')
+  return displaySignalsFor(signals, tickerRows)
     .map((signal) => tokenFor(signal, tickerRows, tickerLookup))
 }
 
 export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: TickerRows = []): SignalCard[] {
   const tickerLookup = priceBySymbol(tickerRows)
 
-  return signals
-    .filter((signal) => signal.maturity !== 'LIGHT_SCAN_MARK')
+  return displaySignalsFor(signals, tickerRows)
     .map((signal) => {
       const token = tokenFor(signal, tickerRows, tickerLookup)
       const score = scoreFor(signal)

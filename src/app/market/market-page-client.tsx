@@ -7,7 +7,7 @@ import { Panel, PageHeader } from '@/components/panel'
 import { MarketMacroDerivatives } from '@/components/market/macro-derivatives'
 import { FreshnessTag, ResourceBoundary, StatusBadge } from '@/components/data-state'
 import { radarSignalsToTokens } from '@/lib/frontend-display-adapters'
-import type { DataSourceState, RadarContract } from '@/lib/radar-contract'
+import type { DataSourceState, LeaderboardRow, RadarContract } from '@/lib/radar-contract'
 import {
   Activity,
   AlertTriangle,
@@ -19,8 +19,14 @@ import {
   Wind,
 } from 'lucide-react'
 
-export function MarketPageClient({ radar }: { radar: RadarContract }) {
-  const tokens = radarSignalsToTokens(radar.radarSignals.data)
+export function MarketPageClient({
+  radar,
+  tickerRows = [],
+}: {
+  radar: RadarContract
+  tickerRows?: LeaderboardRow[]
+}) {
+  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerRows)
   const macro = radar.macroAltEnv.data
   const scan = radar.scanProof.data
   const api = radar.apiUsage.data

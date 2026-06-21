@@ -1,14 +1,20 @@
 import { SiteNav } from '@/components/site-nav'
 import { SessionBar } from '@/components/session-bar'
 import { SystemStatus } from '@/components/system/system-status'
-import { getRadarContractForPage } from '@/lib/frontend-contract-server'
+import {
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+} from '@/lib/frontend-contract-server'
 import { radarSignalsToTokens } from '@/lib/frontend-display-adapters'
 
 export const dynamic = 'force-dynamic'
 
 export default async function SystemPage() {
-  const radar = await getRadarContractForPage()
-  const tokens = radarSignalsToTokens(radar.radarSignals.data)
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerLeaderboard.data)
 
   return (
     <main className="min-h-screen">

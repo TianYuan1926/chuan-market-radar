@@ -16,13 +16,19 @@ import {
 } from '@/components/intro/intro-sections'
 import { Reveal } from '@/components/intro/reveal'
 import { radarSignalsToTokens } from '@/lib/frontend-display-adapters'
-import { getRadarContractForPage } from '@/lib/frontend-contract-server'
+import {
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+} from '@/lib/frontend-contract-server'
 
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
-  const radar = await getRadarContractForPage()
-  const tokens = radarSignalsToTokens(radar.radarSignals.data)
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerLeaderboard.data)
   const scan = radar.scanProof.data
   const activeSignals = radar.radarSignals.data.filter((signal) =>
     signal.maturity === 'EVIDENCE_SIGNAL' || signal.maturity === 'TRADE_PLAN_READY',

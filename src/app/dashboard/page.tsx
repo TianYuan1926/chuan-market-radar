@@ -10,6 +10,7 @@ import { getMarketEnv, POOL_META } from '@/lib/mock-data'
 import {
   radarSignalsToSignalCards,
   radarSignalsToTokens,
+  withLeaderboardSignalFallback,
 } from '@/lib/frontend-display-adapters'
 import {
   getLeaderboardContractForPage,
@@ -33,8 +34,9 @@ export default async function DashboardPage() {
     getLeaderboardContractForPage('volume'),
   ])
   const tickerRows = tickerLeaderboard.data
-  const cards = radarSignalsToSignalCards(radar.radarSignals.data, tickerRows)
-  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerRows)
+  const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
+  const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
+  const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
   const env = getMarketEnv()
   const scan = radar.scanProof.data
   const radarSignals = radar.radarSignals.data
@@ -52,6 +54,7 @@ export default async function DashboardPage() {
   const activeSignalCount = radarSignals.filter((s) =>
     s.maturity === 'EVIDENCE_SIGNAL' || s.maturity === 'TRADE_PLAN_READY'
   ).length
+  const candidateCount = cards.length
   const liveSourceCount = dataSources.filter((source) =>
     source.feed === 'live' || source.feed === 'cached'
   ).length
@@ -65,10 +68,10 @@ export default async function DashboardPage() {
     },
     {
       label: '活跃候选信号',
-      value: activeSignalCount,
+      value: candidateCount,
       icon: Crosshair,
       tone: 'var(--neon)',
-      sub: `成熟信号 ${activeSignalCount} · 后端契约`,
+      sub: `成熟信号 ${activeSignalCount} · 候选 ${candidateCount}`,
       count: true,
     },
     {
