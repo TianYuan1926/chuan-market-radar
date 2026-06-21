@@ -103,6 +103,37 @@ test("runCoinGlassDailyMoverIngest fetches only configured assets and stores the
   assert.equal(stored?.reviews[0]?.allowedUse, "research_only");
 });
 
+test("runCoinGlassDailyMoverIngest paces CoinGlass asset requests", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "chuan-public" });
+  const requestedSymbols: string[] = [];
+  const sleepIntervals: number[] = [];
+
+  await runCoinGlassDailyMoverIngest({
+    apiKey: "test-key",
+    baseAssets: ["SOL", "AVAX", "ARB"],
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [row(symbol)],
+      }));
+    },
+    now: () => new Date(observedAt),
+    repository,
+    requestIntervalMs: 500,
+    requestPaceSleep: async (ms) => {
+      sleepIntervals.push(ms);
+    },
+  });
+
+  assert.deepEqual(requestedSymbols, ["SOL", "AVAX", "ARB"]);
+  assert.deepEqual(sleepIntervals, [500, 500]);
+});
+
 test("runCoinGlassDailyMoverIngest widens daily coverage from public universe discovery under max assets", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "chuan-public" });
   const requestedSymbols: string[] = [];

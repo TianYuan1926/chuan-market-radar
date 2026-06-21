@@ -13,6 +13,10 @@ import {
   type TimeframeProfileFrame,
 } from "../../analysis/timeframe-profile";
 import type { EvidencePoint, SignalDirection } from "../../analysis/types";
+import {
+  buildMacroWeather,
+  type AltcoinMacroAnchorInput,
+} from "../macro-weather";
 import { buildContractInstrumentPool } from "../instrument-pool";
 import type {
   Candle,
@@ -56,6 +60,7 @@ import {
 
 export type CoinGlassProviderOptions = {
   apiKey: string;
+  altcoinMacro?: AltcoinMacroAnchorInput;
   baseAssets?: string[];
   batchSize?: number;
   coinGlassDailyRequestBudget?: number;
@@ -63,6 +68,8 @@ export type CoinGlassProviderOptions = {
   maxConcurrentRequests?: number;
   ohlcvProvider?: OhlcvProvider;
   publicLightScanProvider?: PublicLightScanProvider;
+  requestIntervalMs?: number;
+  requestPaceSleep?: (ms: number) => Promise<void>;
   universePriorityHintNotes?: string[];
   universePriorityHints?: UniversePriorityHint[];
   universeDiscoveryProvider?: UniverseDiscoveryProvider;
@@ -81,6 +88,9 @@ function anomalyInputFromMarketRow(
   const derivative = mapCoinGlassDerivativeSnapshot(row, updatedAt);
   const volumeChange = row.volume_usd_change_percent_24h ?? row.volumeUsdChangePercent24h ?? 0;
   const directionBias = directionBiasFromChange(ticker.changePercent24h);
+  const structureLocation = structureLocationFromTimeframeProfile(timeframeProfile, directionBias);
+  const distanceToInvalidationPercent = distanceToInvalidationPercentFromStructure(structureLocation, timeframeProfile);
+  const projectedMovePercent = projectedMovePercentFromInputs(ticker.changePercent24h, structureLocation, timeframeProfile);
 
   return {
     id: `coinglass-${ticker.exchange}-${ticker.symbol}`,
@@ -89,16 +99,16 @@ function anomalyInputFromMarketRow(
     timeframe: "15m",
     regime: marketContext.regime,
     directionBias,
-    dataQualityScore: 0.82,
+    dataQualityScore: dataQualityScoreFromOhlcv(timeframeProfile, ohlcvFailures),
     priceChangePercent: ticker.changePercent24h,
     volumeRatio: Math.max(0.1, 1 + volumeChange / 100),
     openInterestChangePercent: derivative.openInterestChangePercent,
     fundingRateZScore: derivative.fundingRateZScore,
-    volatilityCompressionPercentile: 50,
+    volatilityCompressionPercentile: volatilityCompressionPercentileFromTimeframeProfile(timeframeProfile),
     liquidationUsd24h: derivative.liquidationUsd24h ?? 0,
-    structureLocation: "middle",
-    distanceToInvalidationPercent: 2,
-    projectedMovePercent: Math.max(3, Math.abs(ticker.changePercent24h) * 1.8),
+    structureLocation,
+    distanceToInvalidationPercent,
+    projectedMovePercent,
     triggerHint: "等待价格靠近关键结构边界后再确认",
     invalidationHint: "OI 和价格方向背离，或价格回到区间中部",
     targetHints: ["前一流动性区", "大周期供需边界"],
@@ -138,6 +148,99 @@ const multiTimeframeIntervals: OhlcvInterval[] = [
 const maxOhlcvSymbolsPerScan = 8;
 const defaultCoinGlassBatchSize = 24;
 const defaultCoinGlassRequestConcurrency = 6;
+
+function dataQualityScoreFromOhlcv(
+  timeframeProfile?: TimeframeProfile,
+  ohlcvFailures: OhlcvProviderFailure[] = [],
+) {
+  if (!timeframeProfile) {
+    return ohlcvFailures.length > 0 ? 0.72 : 0.82;
+  }
+
+  const missingPenalty = Math.min(0.18, timeframeProfile.missingRoles.length * 0.04);
+  const conflictPenalty = timeframeProfile.conflictTimeframes.length > 0 ? 0.04 : 0;
+
+  return Math.max(0.68, Number((0.9 - missingPenalty - conflictPenalty).toFixed(2)));
+}
+
+function hasStructureSupport(profile?: TimeframeProfile) {
+  return profile?.frames.some((frame) =>
+    (frame.timeframe === "1h" || frame.timeframe === "4h") && frame.alignment === "support"
+  ) ?? false;
+}
+
+function hasStructureConflict(profile?: TimeframeProfile) {
+  return profile?.frames.some((frame) =>
+    (frame.timeframe === "1h" || frame.timeframe === "4h") && frame.alignment === "conflict"
+  ) ?? false;
+}
+
+function structureLocationFromTimeframeProfile(
+  profile: TimeframeProfile | undefined,
+  directionBias: SignalDirection,
+): MarketAnomalyInput["structureLocation"] {
+  if (!profile) {
+    return "middle";
+  }
+
+  if (hasStructureConflict(profile)) {
+    return directionBias === "short" ? "support" : "resistance";
+  }
+
+  if (hasStructureSupport(profile)) {
+    return "breakout_edge";
+  }
+
+  if (profile.supportTimeframes.length >= 2 && profile.conflictTimeframes.length === 0) {
+    return "range_edge";
+  }
+
+  return "middle";
+}
+
+function volatilityCompressionPercentileFromTimeframeProfile(profile?: TimeframeProfile) {
+  if (!profile) {
+    return 50;
+  }
+
+  if (profile.conflictTimeframes.length > profile.supportTimeframes.length) {
+    return 62;
+  }
+
+  if (hasStructureSupport(profile) && profile.supportTimeframes.length >= 3) {
+    return 22;
+  }
+
+  if (profile.supportTimeframes.length >= 2) {
+    return 32;
+  }
+
+  return 45;
+}
+
+function distanceToInvalidationPercentFromStructure(
+  structureLocation: MarketAnomalyInput["structureLocation"],
+  profile?: TimeframeProfile,
+) {
+  if (structureLocation === "middle") {
+    return 2.8;
+  }
+
+  const structureBonus = hasStructureSupport(profile) ? 0.2 : 0;
+
+  return Number(Math.max(1.1, 1.6 - structureBonus).toFixed(1));
+}
+
+function projectedMovePercentFromInputs(
+  priceChangePercent: number,
+  structureLocation: MarketAnomalyInput["structureLocation"],
+  profile?: TimeframeProfile,
+) {
+  const minimumMove = structureLocation === "middle" ? 3 : 4.8;
+  const timeframeBoost = profile ? Math.min(2.4, Math.max(0, profile.supportScore - profile.conflictScore) / 12) : 0;
+
+  return Number(Math.max(minimumMove, Math.abs(priceChangePercent) * 1.8 + timeframeBoost).toFixed(1));
+}
 
 type MarketRowQualityReport = {
   cleanRows: CoinGlassMarketRow[];
@@ -246,8 +349,9 @@ function selectPrimarySignalRows(rows: CoinGlassMarketRow[], updatedAt: string):
     candidatesBySymbol.set(symbol, candidates);
   }
 
-  const samples = [...candidatesBySymbol.entries()]
-    .filter(([, candidates]) => candidates.length > 1)
+  const duplicateEntries = [...candidatesBySymbol.entries()]
+    .filter(([, candidates]) => candidates.length > 1);
+  const samples = duplicateEntries
     .slice(0, 8)
     .map(([symbol, candidates]) => {
       const selected = bySymbol.get(symbol) ?? candidates[0];
@@ -266,7 +370,7 @@ function selectPrimarySignalRows(rows: CoinGlassMarketRow[], updatedAt: string):
     });
 
   return {
-    duplicateGroupCount: samples.length,
+    duplicateGroupCount: duplicateEntries.length,
     primaryRows: [...bySymbol.values()],
     samples,
   };
@@ -529,15 +633,25 @@ async function fetchPairsMarkets({
   baseAssets,
   fetcher,
   maxConcurrentRequests,
+  requestIntervalMs,
+  requestPaceSleep,
 }: {
   apiKey: string;
   baseAssets: string[];
   fetcher?: typeof fetch;
   maxConcurrentRequests?: number;
+  requestIntervalMs?: number;
+  requestPaceSleep?: (ms: number) => Promise<void>;
 }): Promise<CoinGlassPairsMarketFetch> {
-  const concurrency = safeCoinGlassConcurrency(maxConcurrentRequests);
+  const intervalMs = safeCoinGlassRequestIntervalMs(requestIntervalMs);
+  const sleep = requestPaceSleep ?? defaultRequestPaceSleep;
+  const concurrency = intervalMs > 0 ? 1 : safeCoinGlassConcurrency(maxConcurrentRequests);
   const results = await mapWithConcurrency(baseAssets, concurrency, async (symbol) => {
     try {
+      if (intervalMs > 0 && symbol !== baseAssets[0]) {
+        await sleep(intervalMs);
+      }
+
       const rows = await requestCoinGlass<CoinGlassMarketRow[]>({
         apiKey,
         path: "/api/futures/pairs-markets",
@@ -563,12 +677,24 @@ async function fetchPairsMarkets({
   };
 }
 
+async function defaultRequestPaceSleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function safeCoinGlassConcurrency(value: number | undefined) {
   if (!Number.isFinite(value ?? NaN)) {
     return defaultCoinGlassRequestConcurrency;
   }
 
   return Math.min(30, Math.max(1, Math.floor(value as number)));
+}
+
+function safeCoinGlassRequestIntervalMs(value: number | undefined) {
+  if (!Number.isFinite(value ?? NaN)) {
+    return 0;
+  }
+
+  return Math.min(60_000, Math.max(0, Math.floor(value as number)));
 }
 
 async function mapWithConcurrency<T, R>(
@@ -601,6 +727,14 @@ function noteConcurrency(value: number | undefined) {
   return `coinglass concurrency: ${concurrency} parallel pair-market requests`;
 }
 
+function notePacing(value: number | undefined) {
+  const intervalMs = safeCoinGlassRequestIntervalMs(value);
+
+  return intervalMs > 0
+    ? `coinglass pacing: ${intervalMs}ms between deep-scan requests`
+    : "coinglass pacing: disabled";
+}
+
 export function coinGlassRequestConcurrencyForTest(value?: number) {
   return safeCoinGlassConcurrency(value);
 }
@@ -611,6 +745,7 @@ export function coinGlassDefaultRequestConcurrencyForTest() {
 
 export function createCoinGlassProvider({
   apiKey,
+  altcoinMacro,
   baseAssets = ["BTC", "ETH", "SOL"],
   batchSize = defaultCoinGlassBatchSize,
   coinGlassDailyRequestBudget,
@@ -619,6 +754,8 @@ export function createCoinGlassProvider({
   now = () => new Date(),
   ohlcvProvider,
   publicLightScanProvider,
+  requestIntervalMs,
+  requestPaceSleep,
   universePriorityHintNotes,
   universePriorityHints,
   universeDiscoveryProvider,
@@ -670,6 +807,8 @@ export function createCoinGlassProvider({
         baseAssets: batchPlan.assets,
         fetcher,
         maxConcurrentRequests,
+        requestIntervalMs,
+        requestPaceSleep,
       });
       const marketRows = pairMarketFetch.rows;
       const coinGlassFailures = pairMarketFetch.failures;
@@ -823,10 +962,18 @@ export function createCoinGlassProvider({
           tickers,
         }),
       };
+      const metadataStatus = metadataStatusFromCoinGlassFailures(coinGlassFailures);
+      const macroWeather = buildMacroWeather({
+        altcoinMacro,
+        derivatives,
+        metadataStatus,
+        signals,
+        tickers,
+      });
       const metadata: ScanMetadata = {
         id: `coinglass-${generatedAt}`,
         mode: "scheduled",
-        status: metadataStatusFromCoinGlassFailures(coinGlassFailures),
+        status: metadataStatus,
         source: "coinglass",
         isRealtime: true,
         cadenceMinutes: 15,
@@ -839,6 +986,7 @@ export function createCoinGlassProvider({
         quota,
         diagnostics: scanDiagnostics,
         lightScan: lightScan.diagnostics,
+        macroWeather,
         staleAfterMinutes: 30,
         coverage,
         notes: [
@@ -879,6 +1027,7 @@ export function createCoinGlassProvider({
             ? `quota guard: requested batch ${quota.requestedBatchSize} capped to ${quota.effectiveBatchSize}`
             : `quota guard: requested batch ${quota.requestedBatchSize} kept`,
           noteConcurrency(maxConcurrentRequests),
+          notePacing(requestIntervalMs),
           quota.coinGlassDailyRequestBudget
             ? `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/${quota.coinGlassDailyRequestBudget} daily (${quota.coinGlassBudgetUsagePercent}%), public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`
             : `quota: coinglass ${quota.coinGlassRequestsPerDayEstimate}/unconfigured daily, public discovery ${quota.publicDiscoveryRequestsPerDayEstimate} daily, status ${quota.status}`,

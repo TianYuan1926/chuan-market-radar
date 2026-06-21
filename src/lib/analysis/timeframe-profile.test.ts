@@ -93,7 +93,36 @@ test("analyzeMarketAnomaly downgrades low-timeframe triggers that lack structure
   assert.ok(signal.timeframeProfile);
   assert.equal(signal.timeframeAgreement, "多周期支持 3 个，冲突 1 个，缺失 regime；主导证据来自 execution。");
   assert.deepEqual(signal.timeframeConflicts, ["1h"]);
+  assert.equal(signal.timeframeGate?.allowed, false);
+  assert.equal(signal.timeframeGate?.action, "WAIT_HIGH_TIMEFRAME_BREAK");
   assert.ok(signal.evidence.some((item) => item.label === "多周期结构冲突"));
+  assert.ok(signal.evidence.some((item) => item.label === "多周期硬门控"));
+  assert.match(signal.strategy.positionHint, /等待高周期/);
+  assert.equal(signal.strategy.status, "waiting");
+});
+
+test("analyzeMarketAnomaly downgrades long setups to watch only when daily and weekly both conflict", () => {
+  const profile = buildTimeframeProfile([
+    frame("15m", "support", 86),
+    frame("30m", "support", 82),
+    frame("1h", "support", 72),
+    frame("4h", "neutral", 30),
+    frame("1d", "conflict", 80),
+    frame("1w", "conflict", 78),
+  ]);
+
+  const signal = analyzeMarketAnomaly({
+    ...baseInput,
+    timeframeProfile: profile,
+  });
+
+  assert.equal(signal.timeframeGate?.allowed, false);
+  assert.equal(signal.timeframeGate?.action, "WATCH_ONLY");
+  assert.deepEqual(signal.timeframeGate?.blockedBy, ["regime_timeframe_double_conflict"]);
+  assert.notEqual(signal.state, "near_trigger");
+  assert.equal(signal.strategy.status, "observe_only");
+  assert.match(signal.strategy.positionHint, /日线和周线/);
+  assert.ok(signal.strategy.noChase);
 });
 
 test("analyzeMarketAnomaly combines BTC and ETH conflict with timeframe profile without hard rejection", () => {

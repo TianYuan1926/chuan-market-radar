@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  mapCoinGlassHeatCell,
   mapCoinGlassDerivativeSnapshot,
   mapCoinGlassInstrument,
   mapCoinGlassMarketInstrument,
@@ -110,4 +111,26 @@ test("mapCoinGlass market rows into ticker, derivative, and instrument records",
   });
 
   assert.equal(mapCoinGlassMarketInstrument(row, updatedAt)?.volume24hUsd, 318_000_000);
+});
+
+test("mapCoinGlassHeatCell does not treat liquidation amount as an anomaly-score input", () => {
+  const quietRow = {
+    instrument_id: "TIAUSDT",
+    exchange_name: "Binance",
+    symbol: "TIA/USDT",
+    current_price: 7.2,
+    price_change_percent_24h: 0.4,
+    volume_usd: 80_000_000,
+    open_interest_usd: 42_000_000,
+    open_interest_change_percent_24h: 0.6,
+    funding_rate: 0.0001,
+    long_liquidation_usd_24h: 80_000_000,
+    short_liquidation_usd_24h: 70_000_000,
+  };
+
+  const cell = mapCoinGlassHeatCell(quietRow);
+
+  assert.equal(cell.symbol, "TIA");
+  assert.ok(cell.anomalyScore < 45);
+  assert.equal(cell.tone, "sleep");
 });

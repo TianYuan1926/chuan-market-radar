@@ -1,7 +1,14 @@
 import type { SystemHealthReport } from "./system-health";
 import type {
+  TimeframeHardGateAction,
+  TimeframeHardGateBlocker,
+  Timeframe,
+} from "../analysis/types";
+import type {
   MarketRadarSnapshot,
+  ScanSignalMaturityDiagnostics,
   ScanLightScanCandidate,
+  ScanRotationAudit,
   ScanStatePoolAssetSample,
   ScanStatePoolKey,
   ScanStatePoolReason,
@@ -70,12 +77,47 @@ export type BackendContract = {
       topSymbols: string[];
       universeCount: number;
     };
+    macroMarket: {
+      ageMinutes: number | null;
+      allowedUse: "macro_context_only";
+      btcDominancePercent: number | null;
+      canCreateTradeSignal: false;
+      fetchedAt: string | null;
+      guardrail: string;
+      operatorHint: string;
+      source: SystemHealthReport["macroMarket"]["source"];
+      status: SystemHealthReport["macroMarket"]["status"];
+      total2MarketCapUsd: number | null;
+      total3MarketCapUsd: number | null;
+    };
   };
   runtime: {
     cacheStatus: SystemHealthReport["operations"]["runtimeCacheStatus"];
     persistedArchive: boolean;
     repositoryMode: SystemHealthReport["operations"]["repositoryMode"];
     trigger: SystemHealthReport["operations"]["runtimeTrigger"];
+  };
+  presentation: {
+    counts: {
+      candidateLaneSignals: number;
+      currentSignals: number;
+      deepScanAllocationAssets: number;
+      lightScanCandidates: number;
+      lightScanMarks: number;
+      mainSignalArea: number;
+      omittedStatePoolAssets: number;
+      pendingAssets: number;
+      tradePlanReady: number;
+    };
+    noSilentTruncation: true;
+    rules: Array<
+      | "main_signal_area_requires_evidence_or_trade_plan"
+      | "show_empty_states"
+      | "show_overflow_counts"
+      | "show_pending_assets"
+      | "show_signal_maturity"
+      | "show_source_status"
+    >;
   };
   scanProof: {
     fullMarket: {
@@ -121,6 +163,7 @@ export type BackendContract = {
       selectedAssets: string[];
     };
     twoStageAllocation: ScanTwoStageAllocationPlan | null;
+    rotationAudit: ScanRotationAudit | null;
   };
   dataQuality: {
     cleanRows: number;
@@ -142,6 +185,22 @@ export type BackendContract = {
       canMutateLiveRanking: false;
       canWriteRuleWeights: false;
       status: SystemHealthReport["strategyEvolutionLoop"]["status"];
+    };
+    signalMaturity: {
+      candidateLaneSymbols: string[];
+      counts: ScanSignalMaturityDiagnostics["counts"];
+      guardrail: string;
+      mainSignalSymbols: string[];
+      rules: ScanSignalMaturityDiagnostics["rules"];
+      tradePlanReadySymbols: string[];
+    };
+    timeframeGate: {
+      blockedSymbols: string[];
+      blockers: Record<TimeframeHardGateBlocker, number>;
+      conflictTimeframes: Timeframe[];
+      counts: Record<TimeframeHardGateAction, number>;
+      guardrail: string;
+      mode: "multi_timeframe_hard_gate_v1";
     };
     v3Coverage: {
       missingSignals: number;
@@ -190,6 +249,52 @@ function normalizeSymbol(value: string) {
   }
 
   return `${normalized}USDT`;
+}
+
+function buildTimeframeGateSummary(snapshot: MarketRadarSnapshot): BackendContract["analysis"]["timeframeGate"] {
+  const counts: Record<TimeframeHardGateAction, number> = {
+    ALLOW: 0,
+    WAIT_HIGH_TIMEFRAME_BREAK: 0,
+    WATCH_ONLY: 0,
+  };
+  const blockers: Record<TimeframeHardGateBlocker, number> = {
+    regime_timeframe_double_conflict: 0,
+    structure_timeframe_conflict: 0,
+  };
+  const blockedSymbols: string[] = [];
+  const conflictTimeframes = new Set<Timeframe>();
+
+  for (const signal of snapshot.signals) {
+    const gate = signal.timeframeGate;
+
+    if (!gate) {
+      counts.ALLOW += 1;
+      continue;
+    }
+
+    counts[gate.action] += 1;
+
+    if (!gate.allowed) {
+      blockedSymbols.push(signal.symbol);
+    }
+
+    for (const blocker of gate.blockedBy) {
+      blockers[blocker] += 1;
+    }
+
+    for (const timeframe of gate.conflictTimeframes) {
+      conflictTimeframes.add(timeframe);
+    }
+  }
+
+  return {
+    blockedSymbols,
+    blockers,
+    conflictTimeframes: Array.from(conflictTimeframes),
+    counts,
+    guardrail: "低周期不能推翻高周期；1h/4h 压力未解除只能等待突破；1d/1w 双冲突只能观察。",
+    mode: "multi_timeframe_hard_gate_v1",
+  };
 }
 
 function allocationBucket({
@@ -300,7 +405,27 @@ export function buildBackendContract({
   const v3Coverage = diagnostics?.v3Coverage;
   const statePool = coverage.statePool ?? health.scanStatePool;
   const lightScan = snapshot.metadata.lightScan ?? health.lightScan;
+  const signalMaturity = snapshot.metadata.signalMaturity ?? {
+    candidateLaneSymbols: [],
+    counts: {
+      DEEP_SCAN_CANDIDATE: 0,
+      EVIDENCE_SIGNAL: snapshot.signals.length,
+      LIGHT_SCAN_MARK: lightScan?.candidateCount ?? 0,
+      TRADE_PLAN_READY: 0,
+    },
+    guardrail: "轻扫标记不进入主信号区；深扫候选只能进候选/验证中区域；只有证据融合信号和交易计划就绪能进入主信号区。",
+    mainSignalSymbols: snapshot.signals.map((signal) => signal.symbol),
+    rules: [
+      "LIGHT_SCAN_MARK is scheduling input only",
+      "DEEP_SCAN_CANDIDATE is visible as verifying candidate only",
+      "EVIDENCE_SIGNAL can enter the main signal area without a trade plan",
+      "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
+    ],
+    tradePlanReadySymbols: [],
+  };
   const liveV3 = health.v3StrategyLoop.live;
+  const allocationAssets = buildAllocationAssets(snapshot);
+  const timeframeGate = buildTimeframeGateSummary(snapshot);
 
   return {
     schemaVersion: "backend-contract.v1",
@@ -322,7 +447,7 @@ export function buildBackendContract({
         rawRows: requests?.rawRows ?? 0,
         status: snapshot.metadata.status,
       },
-      guardrail: "Binance/OKX public light scan can discover and prioritize; CoinGlass deep scan confirms funds and risk; neither bypasses Evidence or Risk Gate.",
+      guardrail: "Binance/OKX/Bybit public light scan can discover and prioritize; CoinGlass deep scan confirms funds and risk; neither bypasses Evidence or Risk Gate.",
       publicDiscovery: {
         fallbackActivated: diagnostics?.discovery.fallbackActivated ?? false,
         fallbackInstrumentCount: diagnostics?.discovery.fallbackInstrumentCount ?? 0,
@@ -339,12 +464,47 @@ export function buildBackendContract({
         topSymbols: (lightScan?.topCandidates ?? []).slice(0, 20).map((candidate) => candidate.symbol),
         universeCount: lightScan?.universeCount ?? 0,
       },
+      macroMarket: {
+        ageMinutes: health.macroMarket.ageMinutes,
+        allowedUse: health.macroMarket.allowedUse,
+        btcDominancePercent: health.macroMarket.btcDominancePercent,
+        canCreateTradeSignal: health.macroMarket.canCreateTradeSignal,
+        fetchedAt: health.macroMarket.fetchedAt,
+        guardrail: health.macroMarket.guardrail,
+        operatorHint: health.macroMarket.operatorHint,
+        source: health.macroMarket.source,
+        status: health.macroMarket.status,
+        total2MarketCapUsd: health.macroMarket.total2MarketCapUsd,
+        total3MarketCapUsd: health.macroMarket.total3MarketCapUsd,
+      },
     },
     runtime: {
       cacheStatus: health.operations.runtimeCacheStatus,
       persistedArchive: health.operations.persistedArchive,
       repositoryMode: health.operations.repositoryMode,
       trigger: health.operations.runtimeTrigger,
+    },
+    presentation: {
+      counts: {
+        candidateLaneSignals: signalMaturity.candidateLaneSymbols.length,
+        currentSignals: snapshot.signals.length,
+        deepScanAllocationAssets: allocationAssets.length,
+        lightScanCandidates: lightScan?.candidateCount ?? 0,
+        lightScanMarks: signalMaturity.counts.LIGHT_SCAN_MARK,
+        mainSignalArea: signalMaturity.mainSignalSymbols.length,
+        omittedStatePoolAssets: statePool.omittedAssetCount,
+        pendingAssets: coverage.pending,
+        tradePlanReady: signalMaturity.tradePlanReadySymbols.length,
+      },
+      noSilentTruncation: true,
+      rules: [
+        "main_signal_area_requires_evidence_or_trade_plan",
+        "show_empty_states",
+        "show_overflow_counts",
+        "show_pending_assets",
+        "show_signal_maturity",
+        "show_source_status",
+      ],
     },
     scanProof: {
       fullMarket: {
@@ -381,7 +541,7 @@ export function buildBackendContract({
           (requests?.unsupportedExchangeRows ?? 0),
       },
       allocation: {
-        assets: buildAllocationAssets(snapshot),
+        assets: allocationAssets,
         capacity: statePool.deepScan.capacity,
         coldExplorationAssets: statePool.proof.coldExplorationAssets,
         guardrail: statePool.deepScan.guardrail || statePool.guardrail,
@@ -392,6 +552,7 @@ export function buildBackendContract({
         selectedAssets: statePool.deepScan.selectedAssets,
       },
       twoStageAllocation: coverage.twoStageAllocation ?? null,
+      rotationAudit: coverage.rotationAudit ?? null,
     },
     dataQuality: {
       cleanRows: requests?.cleanRows ?? 0,
@@ -410,6 +571,15 @@ export function buildBackendContract({
         canWriteRuleWeights: false,
         status: health.strategyEvolutionLoop.status,
       },
+      signalMaturity: {
+        candidateLaneSymbols: signalMaturity.candidateLaneSymbols,
+        counts: signalMaturity.counts,
+        guardrail: signalMaturity.guardrail,
+        mainSignalSymbols: signalMaturity.mainSignalSymbols,
+        rules: signalMaturity.rules,
+        tradePlanReadySymbols: signalMaturity.tradePlanReadySymbols,
+      },
+      timeframeGate,
       v3Coverage: {
         missingSignals: v3Coverage?.missingSignals ?? Math.max(0, snapshot.signals.length - liveV3.v3Signals),
         ohlcvAttemptedSymbols: v3Coverage?.ohlcvAttemptedSymbols ?? [],

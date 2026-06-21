@@ -92,8 +92,10 @@ test("buildJournalEntryFromSignal attaches lifecycle checkpoints to tracked sign
   assert.equal(entry.triggerHit, false);
   assert.equal(entry.invalidationHit, false);
   assert.equal(entry.firstTargetHit, false);
-  assert.deepEqual(entry.reviewCheckpoints?.map((checkpoint) => checkpoint.id), ["1h", "4h", "24h"]);
+  assert.equal(entry.signalMaturityStage, "TRADE_PLAN_READY");
+  assert.deepEqual(entry.reviewCheckpoints?.map((checkpoint) => checkpoint.id), ["1h", "4h"]);
   assert.equal(entry.reviewCheckpoints?.[0]?.reviewAt, "2026-06-12T03:15:00.000Z");
+  assert.equal(entry.reviewCheckpoints?.[1]?.reviewAt, "2026-06-12T06:15:00.000Z");
   assert.deepEqual(entry.lessons, ["still_tracking"]);
 });
 

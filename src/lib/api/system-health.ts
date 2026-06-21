@@ -42,6 +42,7 @@ import {
   buildDataSourceCapabilityPlan,
   type DataSourceCapabilityPlan,
 } from "../market/data-source-capabilities";
+import type { MacroMarketSnapshot } from "../market/macro-snapshot";
 import {
   buildFallbackScanStatePoolReport,
 } from "../market/scan-state-pool";
@@ -53,6 +54,7 @@ import type {
   ScanArchiveSummary,
   ScanDynamicPriorityPlan,
   ScanPriorityReason,
+  ScanRotationAudit,
   ScanStatePoolReport,
   ScanTierCounts,
   ScanTierKey,
@@ -95,6 +97,12 @@ export type ScanEconomyBudgetStatus =
   | "over_budget"
   | "unbudgeted"
   | "within_budget";
+
+export type MacroMarketHealthStatus =
+  | "empty"
+  | "ready"
+  | "stale"
+  | "unavailable";
 
 export type ScanEconomyTier = {
   pending: number;
@@ -228,6 +236,7 @@ export type FullMarketCoverageReport = {
   mode: "full_market_coverage_depth_mvp";
   operatorHint: string;
   priorityExplanation: string;
+  rotationAudit: ScanRotationAudit | null;
   samples: {
     pendingAssets: string[];
     rejectedAssets: string[];
@@ -290,6 +299,21 @@ export type MarketDataQualityReport = {
   rejectedSamples: string[];
   rejectedRowSamples: MarketDataRejectedRowSample[];
   status: MarketDataQualityStatus;
+};
+
+export type MacroMarketHealthReport = {
+  ageMinutes: number | null;
+  allowedUse: "macro_context_only";
+  btcDominancePercent: number | null;
+  canCreateTradeSignal: false;
+  fetchedAt: string | null;
+  guardrail: string;
+  operatorHint: string;
+  snapshotCount: number;
+  source: MacroMarketSnapshot["source"] | null;
+  status: MacroMarketHealthStatus;
+  total2MarketCapUsd: number | null;
+  total3MarketCapUsd: number | null;
 };
 
 export type V3ForwardMapReviewHealthReport = {
@@ -451,9 +475,11 @@ export type SystemHealthReport = {
   };
   coverage: ScanCoverage;
   lightScan: MarketRadarSnapshot["metadata"]["lightScan"] | null;
+  signalMaturity?: MarketRadarSnapshot["metadata"]["signalMaturity"] | null;
   scanDiagnostics: MarketRadarSnapshot["metadata"]["diagnostics"] | null;
   fullMarketCoverage: FullMarketCoverageReport;
   marketDataQuality: MarketDataQualityReport;
+  macroMarket: MacroMarketHealthReport;
   scanStatePool: ScanStatePoolReport;
   scanEconomy: ScanEconomyReport;
   operations: {
@@ -599,6 +625,73 @@ function repositoryReadIssueDetail(reads: RepositoryReadResult<unknown>[]) {
   }
 
   return unavailable.map((read) => read.detail).join(" ");
+}
+
+const macroMarketGuardrail =
+  "BTC.D/TOTAL2/TOTAL3 只能作为山寨大盘环境锚点，不能直接生成交易方向，不能降低 3:1 最低盈亏比。";
+
+function buildMacroMarketHealthReport(
+  read: RepositoryReadResult<MacroMarketSnapshot>,
+  now: Date,
+): MacroMarketHealthReport {
+  if (read.status === "unavailable") {
+    return {
+      ageMinutes: null,
+      allowedUse: "macro_context_only",
+      btcDominancePercent: null,
+      canCreateTradeSignal: false,
+      fetchedAt: null,
+      guardrail: macroMarketGuardrail,
+      operatorHint: "宏观环境快照读取失败；扫描和交易计划仍按现有证据链运行，但缺少 BTC.D/TOTAL2/TOTAL3 顺逆风参考。",
+      snapshotCount: 0,
+      source: null,
+      status: "unavailable",
+      total2MarketCapUsd: null,
+      total3MarketCapUsd: null,
+    };
+  }
+
+  const snapshots = [...read.items].sort((left, right) =>
+    new Date(right.fetchedAt).getTime() - new Date(left.fetchedAt).getTime()
+  );
+  const latest = snapshots[0];
+
+  if (!latest) {
+    return {
+      ageMinutes: null,
+      allowedUse: "macro_context_only",
+      btcDominancePercent: null,
+      canCreateTradeSignal: false,
+      fetchedAt: null,
+      guardrail: macroMarketGuardrail,
+      operatorHint: "还没有宏观环境快照；建议运行 /api/admin/macro/ingest，让 BTC.D/TOTAL2/TOTAL3 成为山寨扫描的环境参考。",
+      snapshotCount: 0,
+      source: null,
+      status: "empty",
+      total2MarketCapUsd: null,
+      total3MarketCapUsd: null,
+    };
+  }
+
+  const age = ageMinutes(latest.fetchedAt, now);
+  const status = age !== null && age <= 180 ? "ready" : "stale";
+
+  return {
+    ageMinutes: age,
+    allowedUse: "macro_context_only",
+    btcDominancePercent: latest.btcDominancePercent,
+    canCreateTradeSignal: false,
+    fetchedAt: latest.fetchedAt,
+    guardrail: latest.guardrail || macroMarketGuardrail,
+    operatorHint: status === "ready"
+      ? "宏观环境快照已写入，可用于山寨大盘顺逆风判断；它不能单独生成交易方向。"
+      : "宏观环境快照已过期，建议触发 macro ingest；过期数据只能作为弱参考。",
+    snapshotCount: snapshots.length,
+    source: latest.source,
+    status,
+    total2MarketCapUsd: latest.total2MarketCapUsd,
+    total3MarketCapUsd: latest.total3MarketCapUsd,
+  };
 }
 
 function scanFreshness({
@@ -868,7 +961,9 @@ const highPriorityReasonLabels: Record<ScanPriorityReason, string> = {
   history: "复盘",
   liquidity: "流动性",
   missed_opportunity: "漏判复查",
+  recent_deep_scan: "近期已深扫",
   recent_signal: "近期信号",
+  rotation_age: "轮转等待过久",
   venue_coverage: "交易所覆盖",
 };
 
@@ -1141,6 +1236,7 @@ function fullMarketCoverageReport(
     mode: "full_market_coverage_depth_mvp",
     operatorHint: fullMarketOperatorHint(status, coverage),
     priorityExplanation: fullMarketPriorityExplanation(coverage),
+    rotationAudit: coverage.rotationAudit ?? null,
     samples: {
       pendingAssets: coverage.pendingAssets.slice(0, 10),
       rejectedAssets: coverage.skippedAssets.slice(0, 6).map((asset) => `${asset.symbol}:${asset.reason}`),
@@ -2375,13 +2471,15 @@ export async function buildSystemHealthReport({
     configuredProvider,
     env,
   });
-  const [archiveRead, journalRead, v3ForwardMapSnapshotRead] = await Promise.all([
+  const [archiveRead, journalRead, macroMarketRead, v3ForwardMapSnapshotRead] = await Promise.all([
     readRepositoryListSafely("scan_archives", () => repository.listScanArchives(24)),
     readRepositoryListSafely("journal_events", () => repository.listJournalEvents(120)),
+    readRepositoryListSafely("macro_market_snapshots", () => repository.listMacroMarketSnapshots(96)),
     readV3ForwardMapSnapshotsSafely(repository),
   ]);
   const archiveSummaries = archiveRead.items;
   const journalEvents = journalRead.items;
+  const macroMarket = buildMacroMarketHealthReport(macroMarketRead, now);
   const archiveEntries = archiveSummaries.length;
   const durable = repository.mode === "database";
   const databaseDiagnostics = database ?? fallbackDatabaseDiagnostics({ durable, repository });
@@ -2466,9 +2564,11 @@ export async function buildSystemHealthReport({
     },
     coverage,
     lightScan: metadata.lightScan ?? null,
+    signalMaturity: metadata.signalMaturity ?? null,
     scanDiagnostics: metadata.diagnostics ?? null,
     fullMarketCoverage,
     marketDataQuality,
+    macroMarket,
     scanStatePool,
     scanEconomy,
     operations: scanOperations({

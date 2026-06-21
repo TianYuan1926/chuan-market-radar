@@ -151,6 +151,71 @@ test("runScheduledScan force refresh bypasses fresh cache", async () => {
   assert.equal(result.snapshot?.metadata.id, "forced-provider-scan");
 });
 
+test("runScheduledScan returns cache when an exclusive scan lock is already held", async () => {
+  const cache = new MemoryScanCache();
+  cache.set(snapshot({
+    id: "fresh-cache",
+    generatedAt: "2026-06-12T02:19:00.000Z",
+  }));
+  let fetchCount = 0;
+
+  const result = await runScheduledScan({
+    provider: provider(async () => {
+      fetchCount += 1;
+      return snapshot({ id: "should-not-fetch" });
+    }),
+    cache,
+    now: new Date("2026-06-12T02:20:00.000Z"),
+    cadenceMinutes: 15,
+    forceRefresh: true,
+    coordinator: {
+      async beforeScan() {
+        return {
+          allowed: false,
+          reason: "scan already running",
+        };
+      },
+      async afterScan() {
+        throw new Error("release should not run without a lock token");
+      },
+    },
+  });
+
+  assert.equal(result.status, "served_cache");
+  assert.equal(result.snapshot?.metadata.id, "fresh-cache");
+  assert.equal(fetchCount, 0);
+  assert.match(result.snapshot?.metadata.notes.at(-1) ?? "", /scan already running/);
+});
+
+test("runScheduledScan fails before provider work when the CoinGlass minute budget is exhausted", async () => {
+  let fetchCount = 0;
+  const result = await runScheduledScan({
+    provider: provider(async () => {
+      fetchCount += 1;
+      return snapshot({ id: "should-not-fetch" });
+    }),
+    cache: new MemoryScanCache(),
+    now: new Date("2026-06-12T02:20:00.000Z"),
+    cadenceMinutes: 15,
+    coordinator: {
+      async beforeScan() {
+        return {
+          allowed: false,
+          reason: "coinglass minute budget exhausted",
+        };
+      },
+      async afterScan() {
+        throw new Error("release should not run without a lock token");
+      },
+    },
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.snapshot, null);
+  assert.match(result.error ?? "", /minute budget/);
+  assert.equal(fetchCount, 0);
+});
+
 test("runScheduledScan serves cached data as stale when provider fails", async () => {
   const cache = new MemoryScanCache();
   cache.set(snapshot({ id: "cached-scan", generatedAt: "2026-06-12T01:00:00.000Z" }));

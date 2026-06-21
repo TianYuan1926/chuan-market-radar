@@ -60,19 +60,35 @@ function candle(
   };
 }
 
-test("buildReviewSchedule schedules the fixed 1h, 4h, and 24h review checkpoints", () => {
+test("buildReviewSchedule uses timeframe-specific validation windows", () => {
   const schedule = buildReviewSchedule(baseSignal, "2026-06-12T10:00:00.000Z");
+  const oneHourSchedule = buildReviewSchedule({
+    ...baseSignal,
+    timeframe: "1h",
+  }, "2026-06-12T10:00:00.000Z");
+  const fourHourSchedule = buildReviewSchedule({
+    ...baseSignal,
+    timeframe: "4h",
+  }, "2026-06-12T10:00:00.000Z");
 
-  assert.deepEqual(schedule.map((checkpoint) => checkpoint.id), ["1h", "4h", "24h"]);
+  assert.deepEqual(schedule.map((checkpoint) => checkpoint.id), ["1h", "4h"]);
   assert.deepEqual(schedule.map((checkpoint) => checkpoint.reviewAt), [
     "2026-06-12T11:00:00.000Z",
     "2026-06-12T14:00:00.000Z",
-    "2026-06-13T10:00:00.000Z",
   ]);
   assert.deepEqual(schedule.map((checkpoint) => checkpoint.status), [
     "pending",
     "pending",
-    "pending",
+  ]);
+  assert.deepEqual(oneHourSchedule.map((checkpoint) => checkpoint.id), ["4h", "24h"]);
+  assert.deepEqual(oneHourSchedule.map((checkpoint) => checkpoint.reviewAt), [
+    "2026-06-12T14:00:00.000Z",
+    "2026-06-13T10:00:00.000Z",
+  ]);
+  assert.deepEqual(fourHourSchedule.map((checkpoint) => checkpoint.id), ["24h", "4d"]);
+  assert.deepEqual(fourHourSchedule.map((checkpoint) => checkpoint.reviewAt), [
+    "2026-06-13T10:00:00.000Z",
+    "2026-06-16T10:00:00.000Z",
   ]);
 });
 
@@ -90,6 +106,18 @@ test("evaluateSignalOutcome records a partial win when first target arrives befo
   assert.equal(outcome.firstTargetHit, true);
   assert.equal(outcome.invalidationHit, false);
   assert.equal(outcome.rankDelta, 2);
+  assert.deepEqual(outcome.outcomeMetrics, {
+    entryPrice: 10,
+    evaluatedCandles: 2,
+    firstTargetPrice: 11.2,
+    invalidationPrice: 9.4,
+    maePercent: 2,
+    maxAdversePrice: 9.8,
+    maxFavorablePrice: 11.3,
+    mfePercent: 13,
+    validationWindowHours: 4,
+    validationWindowLabel: "4h",
+  });
   assert.deepEqual(outcome.lessonTags, ["confirmed_breakout", "target_before_invalidation"]);
 });
 
@@ -139,7 +167,33 @@ test("buildLifecycleJournalEvent closes an expired signal without rank reward", 
   assert.equal(event.outcomeStatus, "expired");
   assert.equal(event.triggerHit, false);
   assert.equal(event.invalidationHit, false);
+  assert.equal(event.outcomeMetrics?.validationWindowHours, 4);
+  assert.equal(event.outcomeMetrics?.validationWindowLabel, "4h");
   assert.equal(event.reviewCheckpoints?.at(-1)?.status, "complete");
+});
+
+test("buildLifecycleJournalEvent persists signal maturity and outcome metrics for research-only statistics", () => {
+  const matureSignal: MarketSignal = {
+    ...baseSignal,
+    maturity: {
+      canAttachTradePlan: false,
+      canEnterMainSignalArea: true,
+      canRequestAiReview: true,
+      label: "证据融合信号",
+      reasons: ["has_structured_evidence", "trade_plan_not_ready"],
+      stage: "EVIDENCE_SIGNAL",
+    },
+  };
+  const schedule = buildReviewSchedule(matureSignal, "2026-06-12T10:00:00.000Z");
+  const outcome = evaluateSignalOutcome(matureSignal, [
+    candle("2026-06-12T10:15:00.000Z", 10.1, 9.8, 10.05),
+    candle("2026-06-12T11:05:00.000Z", 11.3, 10.2, 11.1),
+  ], schedule);
+  const event = buildLifecycleJournalEvent(matureSignal, outcome);
+
+  assert.equal(event.signalMaturityStage, "EVIDENCE_SIGNAL");
+  assert.equal(event.outcomeMetrics?.mfePercent, 13);
+  assert.equal(event.outcomeMetrics?.maePercent, 2);
 });
 
 test("rankJournalEvent rewards disciplined saved decisions more than blind wins", () => {

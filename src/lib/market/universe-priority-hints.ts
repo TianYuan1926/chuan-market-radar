@@ -1,11 +1,12 @@
 import type { JournalEvent, SignalOutcomeStatus } from "../analysis/types";
 import type { PersistenceRepository } from "../persistence/persistence-store";
 import type { DailyMover, DailyMoverReview, DailyMoverSnapshot } from "./daily-movers";
-import type { ScanArchiveSummary } from "./types";
+import type { ScanArchiveSummary, ScanAssetState } from "./types";
 import { normalizeUniverseAsset, type UniversePriorityHint } from "./universe-registry";
 
 export type UniversePriorityHintSourceCounts = {
   archives: number;
+  assetStates: number;
   dailyMovers: number;
   journalOutcomes: number;
   trendRadarReviews: number;
@@ -13,6 +14,7 @@ export type UniversePriorityHintSourceCounts = {
 
 export type UniversePriorityHintSummary = {
   archivesRead: number;
+  assetStatesRead: number;
   dailyMoverSnapshotsRead: number;
   hintsBuilt: number;
   journalEventsRead: number;
@@ -28,6 +30,7 @@ export type UniversePriorityHintReport = {
 
 export type BuildUniversePriorityHintsOptions = {
   archives?: ScanArchiveSummary[];
+  assetStates?: ScanAssetState[];
   dailyMoverSnapshots?: DailyMoverSnapshot[];
   journalEvents?: JournalEvent[];
   maxHints?: number;
@@ -35,6 +38,7 @@ export type BuildUniversePriorityHintsOptions = {
 
 export type BuildUniversePriorityHintsFromRepositoryOptions = {
   archiveLimit?: number;
+  assetStateLimit?: number;
   dailyMoverSnapshotLimit?: number;
   journalLimit?: number;
   maxHints?: number;
@@ -44,14 +48,22 @@ type AssetPriorityAccumulator = {
   anomalyScore: number;
   baseAsset: string;
   cooldownReviews: number;
+  consecutiveSkipped: number;
+  deepScanCount1h: number;
+  deepScanCount24h: number;
   historicalPositive: number;
   historicalSamples: number;
   missedOpportunities: number;
+  recentDeepScanPenalty: number;
   recentSignalCount: number;
+  rotationAgeBoost: number;
+  rotationPriorityScore: number;
   symbol: string;
+  wasDisplacedByDynamicPriority: boolean;
 };
 
 const defaultArchiveLimit = 12;
+const defaultAssetStateLimit = 1_000;
 const defaultDailyMoverSnapshotLimit = 10;
 const defaultJournalLimit = 200;
 const defaultMaxHints = 24;
@@ -89,11 +101,18 @@ function getAccumulator(
     anomalyScore: 0,
     baseAsset: key.baseAsset,
     cooldownReviews: 0,
+    consecutiveSkipped: 0,
+    deepScanCount1h: 0,
+    deepScanCount24h: 0,
     historicalPositive: 0,
     historicalSamples: 0,
     missedOpportunities: 0,
+    recentDeepScanPenalty: 0,
     recentSignalCount: 0,
+    rotationAgeBoost: 0,
+    rotationPriorityScore: 0,
     symbol: key.symbol,
+    wasDisplacedByDynamicPriority: false,
   };
 
   accumulators.set(key.symbol, created);
@@ -315,6 +334,56 @@ function addDailyMoverHints(
   return count;
 }
 
+function rotationAgeBoost(state: ScanAssetState) {
+  const skippedBoost = Math.min(900_000, state.consecutiveSkipped * 90_000);
+  const displacementBoost = state.wasDisplacedByDynamicPriority ? 120_000 : 0;
+
+  return Math.max(state.rotationPriorityScore, skippedBoost + displacementBoost);
+}
+
+function recentDeepScanPenalty(state: ScanAssetState) {
+  if (state.deepScanCount1h <= 0 && state.deepScanCount24h <= 0) {
+    return 0;
+  }
+
+  return Math.min(1_200_000, state.deepScanCount1h * 450_000 + state.deepScanCount24h * 50_000);
+}
+
+function addScanAssetStateHints(
+  accumulators: Map<string, AssetPriorityAccumulator>,
+  states: ScanAssetState[],
+) {
+  let count = 0;
+
+  for (const state of states) {
+    const accumulator = getAccumulator(accumulators, state.symbol);
+
+    if (!accumulator) {
+      continue;
+    }
+
+    accumulator.consecutiveSkipped = Math.max(
+      accumulator.consecutiveSkipped,
+      state.consecutiveSkipped,
+    );
+    accumulator.deepScanCount1h = Math.max(accumulator.deepScanCount1h, state.deepScanCount1h);
+    accumulator.deepScanCount24h = Math.max(accumulator.deepScanCount24h, state.deepScanCount24h);
+    accumulator.rotationPriorityScore = Math.max(
+      accumulator.rotationPriorityScore,
+      state.rotationPriorityScore,
+    );
+    accumulator.rotationAgeBoost = Math.max(accumulator.rotationAgeBoost, rotationAgeBoost(state));
+    accumulator.recentDeepScanPenalty = Math.max(
+      accumulator.recentDeepScanPenalty,
+      recentDeepScanPenalty(state),
+    );
+    accumulator.wasDisplacedByDynamicPriority ||= state.wasDisplacedByDynamicPriority;
+    count += 1;
+  }
+
+  return count;
+}
+
 function hintRank(hint: UniversePriorityHint) {
   const historyAdjustment = typeof hint.historicalWinRate === "number"
     ? (hint.historicalWinRate - 0.5) * 40
@@ -326,8 +395,10 @@ function hintRank(hint: UniversePriorityHint) {
     (hint.recentSignalCount ?? 0) * 12 +
     (hint.historicalSampleSize ?? 0) * 4 +
     historyAdjustment +
+    (hint.rotationAgeBoost ?? 0) / 10_000 +
     missedOpportunityBoost -
-    cooldownPenalty;
+    cooldownPenalty -
+    (hint.recentDeepScanPenalty ?? 0) / 10_000;
 }
 
 function toHint(accumulator: AssetPriorityAccumulator): UniversePriorityHint {
@@ -339,16 +410,24 @@ function toHint(accumulator: AssetPriorityAccumulator): UniversePriorityHint {
     anomalyScore: Math.round(clamp(accumulator.anomalyScore, 0, 100)),
     baseAsset: accumulator.baseAsset,
     cooldownReviewCount: accumulator.cooldownReviews || undefined,
+    consecutiveSkipped: accumulator.consecutiveSkipped || undefined,
+    deepScanCount1h: accumulator.deepScanCount1h || undefined,
+    deepScanCount24h: accumulator.deepScanCount24h || undefined,
     historicalSampleSize: accumulator.historicalSamples || undefined,
     historicalWinRate,
     missedOpportunityCount: accumulator.missedOpportunities || undefined,
+    recentDeepScanPenalty: accumulator.recentDeepScanPenalty || undefined,
     recentSignalCount: accumulator.recentSignalCount || undefined,
+    rotationAgeBoost: accumulator.rotationAgeBoost || undefined,
+    rotationPriorityScore: accumulator.rotationPriorityScore || undefined,
     symbol: accumulator.symbol,
+    wasDisplacedByDynamicPriority: accumulator.wasDisplacedByDynamicPriority || undefined,
   };
 }
 
 export function buildUniversePriorityHints({
   archives = [],
+  assetStates = [],
   dailyMoverSnapshots = [],
   journalEvents = [],
   maxHints = defaultMaxHints,
@@ -357,6 +436,7 @@ export function buildUniversePriorityHints({
   const journalHintCounts = addJournalHints(accumulators, journalEvents);
   const sourceCounts: UniversePriorityHintSourceCounts = {
     archives: addArchiveHints(accumulators, archives),
+    assetStates: addScanAssetStateHints(accumulators, assetStates),
     dailyMovers: addDailyMoverHints(accumulators, dailyMoverSnapshots),
     journalOutcomes: journalHintCounts.journalOutcomes,
     trendRadarReviews: journalHintCounts.trendRadarReviews,
@@ -365,6 +445,8 @@ export function buildUniversePriorityHints({
     .map(toHint)
     .filter((hint) =>
       (hint.anomalyScore ?? 0) > 0 ||
+      (hint.rotationAgeBoost ?? 0) > 0 ||
+      (hint.recentDeepScanPenalty ?? 0) > 0 ||
       (hint.recentSignalCount ?? 0) > 0 ||
       (hint.historicalSampleSize ?? 0) > 0
     )
@@ -378,6 +460,7 @@ export function buildUniversePriorityHints({
     hints,
     summary: {
       archivesRead: archives.length,
+      assetStatesRead: assetStates.length,
       dailyMoverSnapshotsRead: dailyMoverSnapshots.length,
       hintsBuilt: hints.length,
       journalEventsRead: journalEvents.length,
@@ -390,18 +473,21 @@ export async function buildUniversePriorityHintsFromRepository(
   repository: PersistenceRepository,
   {
     archiveLimit = defaultArchiveLimit,
+    assetStateLimit = defaultAssetStateLimit,
     dailyMoverSnapshotLimit = defaultDailyMoverSnapshotLimit,
     journalLimit = defaultJournalLimit,
     maxHints = defaultMaxHints,
   }: BuildUniversePriorityHintsFromRepositoryOptions = {},
 ): Promise<UniversePriorityHintReport> {
-  const [archives, journalEvents, dailyMoverSnapshots] = await Promise.all([
+  const [archives, journalEvents, dailyMoverSnapshots, assetStates] = await Promise.all([
     repository.listScanArchives(archiveLimit),
     repository.listJournalEvents(journalLimit),
     repository.listDailyMoverSnapshots(dailyMoverSnapshotLimit),
+    repository.listScanAssetStates(assetStateLimit),
   ]);
   const report = buildUniversePriorityHints({
     archives,
+    assetStates,
     dailyMoverSnapshots,
     journalEvents,
     maxHints,

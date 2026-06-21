@@ -34,6 +34,10 @@ function isOutcomeSample(event: JournalEvent) {
   return Boolean(
     event.signalId &&
     event.outcomeStatus &&
+    (
+      event.signalMaturityStage === "EVIDENCE_SIGNAL" ||
+      event.signalMaturityStage === "TRADE_PLAN_READY"
+    ) &&
     event.action !== "calibration_review" &&
     event.action !== "outcome_executor_run" &&
     event.action !== "strategy_confirmation",

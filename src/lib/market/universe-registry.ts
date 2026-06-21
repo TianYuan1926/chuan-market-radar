@@ -10,6 +10,8 @@ import type {
   ScanPriorityCandidateStatus,
   ScanPriorityDecision,
   ScanPriorityReason,
+  ScanRotationAudit,
+  ScanRotationAuditWarning,
   ScanTwoStageAllocationPlan,
   ScanTwoStageSlot,
   ScanTwoStageSlotKind,
@@ -37,11 +39,18 @@ export type UniversePriorityHint = {
   anomalyScore?: number;
   baseAsset?: string;
   cooldownReviewCount?: number;
+  consecutiveSkipped?: number;
+  deepScanCount1h?: number;
+  deepScanCount24h?: number;
   historicalSampleSize?: number;
   historicalWinRate?: number;
   missedOpportunityCount?: number;
+  recentDeepScanPenalty?: number;
   recentSignalCount?: number;
+  rotationAgeBoost?: number;
+  rotationPriorityScore?: number;
   symbol?: string;
+  wasDisplacedByDynamicPriority?: boolean;
 };
 
 export type UniversePriorityReason = ScanPriorityReason;
@@ -101,6 +110,7 @@ export type UniverseScanPlan = {
   pendingAssets: string[];
   requestsPlanned: number;
   rotatingAssets: string[];
+  rotationAudit: ScanRotationAudit;
   selectedTierCounts: UniverseTierCounts;
   tierCounts: UniverseTierCounts;
   tierPolicy: UniverseTierPolicy;
@@ -523,6 +533,8 @@ const priorityReasons: UniversePriorityReason[] = [
   "liquidity",
   "missed_opportunity",
   "recent_signal",
+  "recent_deep_scan",
+  "rotation_age",
   "venue_coverage",
 ];
 
@@ -579,6 +591,8 @@ function dynamicPriorityDecision(
   const recentSignalBoost = Math.round(
     Math.min(5, clampNumber(hint.recentSignalCount, 0, 100)) * 30_000,
   );
+  const rotationAgeBoost = Math.round(clampNumber(hint.rotationAgeBoost, 0, 2_000_000));
+  const recentDeepScanPenalty = Math.round(clampNumber(hint.recentDeepScanPenalty, 0, 2_000_000));
   const liquidityBoost = asset.volume24hUsd > 0
     ? Math.min(60_000, Math.round(Math.log10(asset.volume24hUsd) * 6_000))
     : 0;
@@ -604,6 +618,14 @@ function dynamicPriorityDecision(
     reasons.push("recent_signal");
   }
 
+  if (recentDeepScanPenalty !== 0) {
+    reasons.push("recent_deep_scan");
+  }
+
+  if (rotationAgeBoost !== 0) {
+    reasons.push("rotation_age");
+  }
+
   if (liquidityBoost !== 0) {
     reasons.push("liquidity");
   }
@@ -614,7 +636,8 @@ function dynamicPriorityDecision(
 
   const cooldownPenalty = Math.round(Math.min(6, cooldownReviewCount) * 120_000);
   const dynamicBoost = anomalyBoost + historicalBoost + missedOpportunityBoost +
-    recentSignalBoost + liquidityBoost + coverageBoost - cooldownPenalty;
+    recentSignalBoost + rotationAgeBoost + liquidityBoost + coverageBoost -
+    cooldownPenalty - recentDeepScanPenalty;
 
   return {
     asset,
@@ -866,6 +889,155 @@ function buildTwoStageAllocation({
   };
 }
 
+function rotationAuditStatus(warnings: ScanRotationAuditWarning[]): ScanRotationAudit["status"] {
+  if (warnings.some((warning) => warning.id === "deep_scan_starved")) {
+    return "blocked";
+  }
+
+  if (warnings.some((warning) => warning.severity === "high")) {
+    return "starved";
+  }
+
+  if (warnings.length > 0) {
+    return "watch";
+  }
+
+  return "healthy";
+}
+
+function rotationAuditOperatorHint(status: ScanRotationAudit["status"]) {
+  if (status === "blocked") {
+    return "当前没有山寨轮转深扫槽，必须先提高 batch size 或降低锚点占用，否则全市场山寨雷达会失真。";
+  }
+
+  if (status === "starved") {
+    return "轮转存在明显饥饿风险，优先保留长尾探索和常规轮转，不允许热门候选长期吃光名额。";
+  }
+
+  if (status === "watch") {
+    return "轮转可用但有排队或周期偏长风险，前端必须展示排队资产和完整轮转周期。";
+  }
+
+  return "轮转健康：锚点、动态优先级、常规轮转和冷门探索都有明确边界。";
+}
+
+function buildScanRotationAudit({
+  dynamicPriorityDecisions,
+  dynamicPrioritySlots,
+  explorationReserveSlots,
+  groups,
+  pinnedAnchors,
+  rotatingSlots,
+  selectedRotatingAssets,
+  selectedSources,
+  totalBatches,
+  twoStageAllocation,
+}: {
+  dynamicPriorityDecisions: InternalPriorityDecision[];
+  dynamicPrioritySlots: number;
+  explorationReserveSlots: number;
+  groups: ReturnType<typeof groupedRotatingAssets>;
+  pinnedAnchors: string[];
+  rotatingSlots: number;
+  selectedRotatingAssets: UniverseAsset[];
+  selectedSources: Map<string, ScanTwoStageSlot["source"]>;
+  totalBatches: number;
+  twoStageAllocation: ScanTwoStageAllocationPlan;
+}): ScanRotationAudit {
+  const warnings: ScanRotationAuditWarning[] = [];
+  const selectedLongTailAssets = selectedRotatingAssets
+    .filter((asset) => asset.tier === "long_tail")
+    .map((asset) => asset.baseAsset);
+  const selectedPriorityAssets = selectedRotatingAssets
+    .filter((asset) => selectedSources.get(asset.symbol) === "dynamic_priority")
+    .map((asset) => asset.baseAsset);
+  const pendingNonAnchorAssets = Math.max(
+    0,
+    groups.core.length + groups.active.length + groups.long_tail.length - selectedRotatingAssets.length,
+  );
+  const estimatedFullCycleMinutes = totalBatches * 15;
+
+  if (rotatingSlots === 0 && pendingNonAnchorAssets > 0) {
+    warnings.push({
+      action: "提高 COINGLASS_BATCH_SIZE，至少保留 1 个山寨深扫位。",
+      detail: "BTC/ETH 锚点已经占满本轮深扫容量，山寨币无法进入 CoinGlass 深扫。",
+      id: "deep_scan_starved",
+      severity: "high",
+    });
+  }
+
+  if (rotatingSlots === 1 && dynamicPriorityDecisions.length > 0) {
+    warnings.push({
+      action: "保持唯一山寨槽位给常规轮转，高优先级候选排队展示，不能抢占唯一轮转位。",
+      detail: "本轮只有 1 个山寨深扫位，同时存在高优先级候选。",
+      id: "single_rotation_slot",
+      severity: "medium",
+    });
+  }
+
+  if (groups.long_tail.length > 0 && rotatingSlots >= 3 && selectedLongTailAssets.length === 0) {
+    warnings.push({
+      action: "保留至少 1 个长尾探索位，避免新币和冷门币永远进不了深扫。",
+      detail: "本轮具备长尾探索条件，但没有任何长尾资产被选入。",
+      id: "exploration_missing",
+      severity: "high",
+    });
+  }
+
+  if (twoStageAllocation.stageTwo.queuedPriorityAssets.length > 0) {
+    warnings.push({
+      action: "前端展示 queuedPriorityAssets，并在后续批次继续轮转，不要静默隐藏。",
+      detail: `${twoStageAllocation.stageTwo.queuedPriorityAssets.length} 个高优先级标的仍在排队。`,
+      id: "priority_queue_waiting",
+      severity: "low",
+    });
+  }
+
+  if (estimatedFullCycleMinutes > 6 * 60) {
+    warnings.push({
+      action: "继续使用轻扫覆盖全市场；CoinGlass 深扫只给候选池，并在前端展示完整周期。",
+      detail: `当前预计完整深扫轮转约 ${estimatedFullCycleMinutes} 分钟。`,
+      id: "full_cycle_slow",
+      severity: "medium",
+    });
+  }
+
+  const status = rotationAuditStatus(warnings);
+
+  return {
+    fairnessRules: [
+      "BTC/ETH 是大盘锚点，不和山寨轮转名额混算。",
+      "动态优先级只能占用部分非锚点名额，不能长期吃光常规轮转。",
+      "当非锚点名额足够时，必须保留长尾探索入口。",
+      "未进入本轮深扫只代表排队或低频轮转，不代表淘汰。",
+    ],
+    guardrail: "轮转审计只解释扫描分配健康度，不增加请求、不生成交易信号、不绕过 Evidence/Risk Gate。",
+    mode: "scan_rotation_audit_v1",
+    operatorHint: rotationAuditOperatorHint(status),
+    priorityQueue: {
+      queuedAssets: twoStageAllocation.stageTwo.queuedPriorityAssets,
+      queuedCount: twoStageAllocation.stageOne.priorityQueued,
+      selectedPriorityAssets,
+    },
+    slots: {
+      anchorSlots: pinnedAnchors.length,
+      dynamicPrioritySlots,
+      explorationReserveSlots,
+      rotatingSlots,
+      selectedLongTailAssets,
+      selectedNonAnchorAssets: selectedRotatingAssets.map((asset) => asset.baseAsset),
+    },
+    status,
+    timing: {
+      cadenceMinutes: 15,
+      estimatedFullCycleMinutes,
+      estimatedFullCycleWindows: totalBatches,
+      pendingNonAnchorAssets,
+    },
+    warnings,
+  };
+}
+
 export function planUniverseScan(
   registry: UniverseRegistry,
   batchSize: number,
@@ -982,6 +1154,18 @@ export function planUniverseScan(
     selectedSymbols,
     universeAssets: sortedAssets.length,
   });
+  const rotationAudit = buildScanRotationAudit({
+    dynamicPriorityDecisions,
+    dynamicPrioritySlots,
+    explorationReserveSlots,
+    groups,
+    pinnedAnchors,
+    rotatingSlots,
+    selectedRotatingAssets,
+    selectedSources,
+    totalBatches,
+    twoStageAllocation,
+  });
 
   return {
     allAssets: sortedAssets.map((asset) => asset.baseAsset),
@@ -1007,6 +1191,7 @@ export function planUniverseScan(
     pendingAssets,
     requestsPlanned: assets.length,
     rotatingAssets,
+    rotationAudit,
     selectedTierCounts: countAssetTiers(selectedAssetRecords),
     tierCounts,
     tierPolicy: defaultTierPolicy,
@@ -1034,6 +1219,7 @@ export function buildCoverageReport(
     nextBatchIndex: batchPlan.nextBatchIndex,
     pending: batchPlan.pendingAssets.length,
     pendingAssets: batchPlan.pendingAssets,
+    rotationAudit: batchPlan.rotationAudit,
     scanned: batchPlan.assets.length,
     scannedAssets: batchPlan.assets,
     selectedTierCounts: batchPlan.selectedTierCounts,

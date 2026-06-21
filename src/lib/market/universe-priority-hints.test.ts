@@ -3,7 +3,7 @@ import test from "node:test";
 import type { JournalEvent } from "../analysis/types";
 import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
 import type { DailyMoverSnapshot } from "./daily-movers";
-import type { ScanArchiveSummary, ScanReplayFrame } from "./types";
+import type { ScanArchiveSummary, ScanAssetState, ScanReplayFrame } from "./types";
 import {
   buildUniversePriorityHints,
   buildUniversePriorityHintsFromRepository,
@@ -200,6 +200,31 @@ function trendRadarReviewEvent(
   });
 }
 
+function scanAssetState(overrides: Partial<ScanAssetState> = {}): ScanAssetState {
+  return {
+    baseAsset: "ENA",
+    consecutiveSkipped: 8,
+    deepScanCount1h: 0,
+    deepScanCount24h: 0,
+    dynamicPriorityScore: 0,
+    lastDeepScannedAt: null,
+    lastLightScannedAt: "2026-06-20T09:00:00.000Z",
+    lastSelectedReason: null,
+    lastSkippedReason: "waiting_for_rotation",
+    payload: {
+      recentDeepScanTimes: [],
+      source: "scan_rotation_state_v1",
+    },
+    rotationPriorityScore: 720000,
+    statePool: "COLD",
+    symbol: "ENAUSDT",
+    tier: "long_tail",
+    updatedAt: "2026-06-20T09:00:00.000Z",
+    wasDisplacedByDynamicPriority: false,
+    ...overrides,
+  };
+}
+
 test("buildUniversePriorityHints merges archives journal outcomes and daily mover samples", () => {
   const report = buildUniversePriorityHints({
     archives: [
@@ -278,4 +303,40 @@ test("buildUniversePriorityHintsFromRepository reads bounded durable samples", a
   assert.equal(tia.historicalWinRate, 1);
   assert.equal(report.summary.archivesRead, 1);
   assert.equal(report.summary.repositoryMode, "memory");
+});
+
+test("buildUniversePriorityHintsFromRepository turns durable rotation state into fair rotation hints", async () => {
+  const repository = createMemoryPersistenceRepository();
+
+  await repository.upsertScanAssetStates([
+    scanAssetState(),
+    scanAssetState({
+      baseAsset: "TIA",
+      consecutiveSkipped: 0,
+      deepScanCount1h: 2,
+      deepScanCount24h: 5,
+      lastDeepScannedAt: "2026-06-20T09:10:00.000Z",
+      lastSelectedReason: "dynamic_priority",
+      lastSkippedReason: null,
+      rotationPriorityScore: 0,
+      statePool: "BATTLE_WATCH",
+      symbol: "TIAUSDT",
+      tier: "active",
+      wasDisplacedByDynamicPriority: false,
+    }),
+  ]);
+
+  const report = await buildUniversePriorityHintsFromRepository(repository, {
+    assetStateLimit: 10,
+    maxHints: 10,
+  });
+  const hintsBySymbol = new Map(report.hints.map((hint) => [hint.symbol, hint]));
+
+  assert.equal(report.summary.assetStatesRead, 2);
+  assert.equal(report.summary.sourceCounts.assetStates, 2);
+  assert.equal(hintsBySymbol.get("ENAUSDT")?.consecutiveSkipped, 8);
+  assert.equal(hintsBySymbol.get("ENAUSDT")?.rotationPriorityScore, 720000);
+  assert.ok(hintsBySymbol.get("ENAUSDT")?.rotationAgeBoost ?? 0 > 0);
+  assert.equal(hintsBySymbol.get("TIAUSDT")?.deepScanCount1h, 2);
+  assert.ok(hintsBySymbol.get("TIAUSDT")?.recentDeepScanPenalty ?? 0 > 0);
 });

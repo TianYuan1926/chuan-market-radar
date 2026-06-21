@@ -6,6 +6,7 @@ import type {
   StrategyWeightChangeApprovalStatus,
   Timeframe,
 } from "@/lib/analysis/types";
+import { classifySignalMaturity } from "../market/signal-maturity";
 import { buildReviewSchedule } from "./outcome-tracker";
 
 const reviewDelayMinutes: Record<Timeframe, number> = {
@@ -228,6 +229,10 @@ function strategyV3LessonTags(signal: MarketSignal) {
   return tags;
 }
 
+function signalMaturityStage(signal: MarketSignal) {
+  return signal.maturity?.stage ?? classifySignalMaturity(signal).stage;
+}
+
 export function buildJournalEntryFromSignal(
   signal: MarketSignal,
   action: SignalJournalAction,
@@ -286,6 +291,7 @@ export function buildJournalEntryFromSignal(
     firstTarget: signal.strategy.targets[0] ?? "",
     thesis: signal.summary,
     plannedReviewAt: plannedReviewAt(signal.updatedAt, signal.timeframe),
+    signalMaturityStage: signalMaturityStage(signal),
     ...lifecycleDefaults,
   };
 }

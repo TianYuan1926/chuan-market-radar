@@ -7,6 +7,7 @@ import type {
 
 export const BINANCE_FUTURES_24H_TICKER_URL = "https://fapi.binance.com/fapi/v1/ticker/24hr";
 export const OKX_PUBLIC_SWAP_TICKERS_URL = "https://www.okx.com/api/v5/market/tickers";
+export const BYBIT_PUBLIC_LINEAR_TICKERS_URL = "https://api.bybit.com/v5/market/tickers";
 
 export type PublicLightScanResult = {
   diagnostics: ScanLightScanDiagnostics;
@@ -40,6 +41,15 @@ export type OkxSwapTickerRow = {
   volCcy24h?: string;
 };
 
+export type BybitLinearTickerRow = {
+  highPrice24h?: string;
+  lastPrice?: string;
+  lowPrice24h?: string;
+  price24hPcnt?: string;
+  symbol?: string;
+  turnover24h?: string;
+};
+
 export type BinancePublicLightScanProviderOptions = {
   baseUrl?: string;
   fetcher?: typeof fetch;
@@ -48,6 +58,7 @@ export type BinancePublicLightScanProviderOptions = {
 };
 
 export type OkxPublicLightScanProviderOptions = BinancePublicLightScanProviderOptions;
+export type BybitPublicLightScanProviderOptions = BinancePublicLightScanProviderOptions;
 
 export type CompositePublicLightScanProviderOptions = {
   maxPriorityCandidates?: number;
@@ -144,6 +155,14 @@ function candidateReasons(candidate: {
     reasons.push("range_compression_watch");
   }
 
+  if (candidate.state === "PRE_TREND" && candidate.volatility <= 5) {
+    reasons.push("compression_priority");
+  }
+
+  if (Math.abs(candidate.changePercent24h) > 15) {
+    reasons.push("overextended_move_capped");
+  }
+
   if (candidate.volume24hUsd >= 20_000_000) {
     reasons.push("liquid_enough");
   }
@@ -167,20 +186,30 @@ function priorityScore(candidate: {
   volume24hUsd: number;
   volatility: number;
 }) {
+  const absChange = Math.abs(candidate.changePercent24h);
   const stateBoost = {
     COLD: 0,
-    HOT: 45,
-    PRE_TREND: 38,
+    HOT: 40,
+    PRE_TREND: 44,
     WARM: 18,
   }[candidate.state];
-  const edgeBoost = candidate.distanceHigh <= 3 || candidate.distanceLow <= 3 ? 10 : 0;
+  const edgeBoost = candidate.distanceHigh <= 3 || candidate.distanceLow <= 3 ? 12 : 0;
+  const compressionBoost = candidate.state === "PRE_TREND" && candidate.volatility <= 5 ? 14 : 0;
+  const cappedMoveBoost = Math.min(30, Math.min(absChange, 15) * 2);
+  const isPositiveHighExtension = candidate.changePercent24h > 15 && candidate.distanceHigh <= 3;
+  const isNegativeLowExtension = candidate.changePercent24h < -15 && candidate.distanceLow <= 3;
+  const overextensionPenalty = absChange > 15
+    ? Math.min(45, (absChange - 15) * 1.2 + (isPositiveHighExtension || isNegativeLowExtension ? 12 : 0))
+    : 0;
 
   return Math.round(
     stateBoost +
-    Math.min(35, Math.abs(candidate.changePercent24h) * 4) +
+    cappedMoveBoost +
     logVolumeScore(candidate.volume24hUsd) +
     Math.min(15, candidate.volatility) +
-    edgeBoost,
+    edgeBoost +
+    compressionBoost -
+    overextensionPenalty,
   );
 }
 
@@ -584,6 +613,177 @@ export function createOkxPublicLightScanProvider({
   };
 }
 
+function buildBybitTickersUrl(baseUrl: string) {
+  const url = new URL(baseUrl);
+  url.searchParams.set("category", "linear");
+
+  return url;
+}
+
+function tickerFromBybitRow(row: BybitLinearTickerRow, updatedAt: string): MarketTicker | null {
+  const symbol = normalizedSymbol(row.symbol ?? "");
+
+  if (!isUsdtPerpLikeSymbol(symbol)) {
+    return null;
+  }
+
+  const price = finiteNumber(row.lastPrice);
+  const high24h = finiteNumber(row.highPrice24h);
+  const low24h = finiteNumber(row.lowPrice24h);
+
+  if (price <= 0 || high24h <= 0 || low24h <= 0) {
+    return null;
+  }
+
+  return {
+    symbol,
+    exchange: "BYBIT",
+    price,
+    changePercent24h: Number((finiteNumber(row.price24hPcnt) * 100).toFixed(2)),
+    volume24hUsd: finiteNumber(row.turnover24h),
+    high24h,
+    low24h,
+    updatedAt,
+  };
+}
+
+export function createBybitPublicLightScanProvider({
+  baseUrl = BYBIT_PUBLIC_LINEAR_TICKERS_URL,
+  fetcher = fetch,
+  maxPriorityCandidates = 80,
+  now = () => new Date(),
+}: BybitPublicLightScanProviderOptions = {}): PublicLightScanProvider {
+  const source = "bybit-public-linear-24h";
+
+  return {
+    id: source,
+    label: "Bybit Public Linear Light Scan",
+
+    async scan(): Promise<PublicLightScanResult> {
+      const startedAt = now().toISOString();
+
+      try {
+        const response = await fetcher(buildBybitTickersUrl(baseUrl));
+
+        if (!response.ok) {
+          return {
+            diagnostics: {
+              acceptedCount: 0,
+              candidateCount: 0,
+              generatedAt: startedAt,
+              notes: [`public light scan upstream returned ${response.status}`],
+              requestCount: 1,
+              source,
+              status: "failed",
+              topCandidates: [],
+              universeCount: 0,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [],
+          };
+        }
+
+        const payload: unknown = await response.json();
+
+        if (
+          typeof payload !== "object" ||
+          payload === null ||
+          !("result" in payload) ||
+          typeof payload.result !== "object" ||
+          payload.result === null ||
+          !("list" in payload.result) ||
+          !Array.isArray(payload.result.list)
+        ) {
+          return {
+            diagnostics: {
+              acceptedCount: 0,
+              candidateCount: 0,
+              generatedAt: startedAt,
+              notes: ["public light scan returned an invalid Bybit payload"],
+              requestCount: 1,
+              source,
+              status: "failed",
+              topCandidates: [],
+              universeCount: 0,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [],
+          };
+        }
+
+        if ("retCode" in payload && Number(payload.retCode) !== 0) {
+          return {
+            diagnostics: {
+              acceptedCount: 0,
+              candidateCount: 0,
+              generatedAt: startedAt,
+              notes: [`public light scan upstream returned retCode ${Number(payload.retCode)}`],
+              requestCount: 1,
+              source,
+              status: "failed",
+              topCandidates: [],
+              universeCount: payload.result.list.length,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [],
+          };
+        }
+
+        const tickers = payload.result.list
+          .map((row: unknown) => (
+            typeof row === "object" && row !== null
+              ? tickerFromBybitRow(row as BybitLinearTickerRow, startedAt)
+              : null
+          ))
+          .filter((ticker): ticker is MarketTicker => ticker !== null);
+        const candidates = tickers
+          .map(candidateFromTicker)
+          .filter((candidate) => candidate.state !== "COLD")
+          .sort((left, right) => right.score - left.score || right.volume24hUsd - left.volume24hUsd)
+          .slice(0, maxPriorityCandidates);
+        const instruments = tickers.map(instrumentFromTicker);
+
+        return {
+          diagnostics: {
+            acceptedCount: tickers.length,
+            candidateCount: candidates.length,
+            generatedAt: startedAt,
+            notes: [`public light scan accepted ${tickers.length}/${payload.result.list.length} Bybit USDT linear tickers`],
+            requestCount: 1,
+            source,
+            status: tickers.length > 0 ? "ready" : "partial",
+            topCandidates: candidates.slice(0, 16),
+            universeCount: payload.result.list.length,
+          },
+          instruments,
+          priorityCandidates: candidates,
+          tickers,
+        };
+      } catch (error) {
+        return {
+          diagnostics: {
+            acceptedCount: 0,
+            candidateCount: 0,
+            generatedAt: startedAt,
+            notes: [error instanceof Error ? error.message : "public light scan request failed"],
+            requestCount: 1,
+            source,
+            status: "failed",
+            topCandidates: [],
+            universeCount: 0,
+          },
+          instruments: [],
+          priorityCandidates: [],
+          tickers: [],
+        };
+      }
+    },
+  };
+}
+
 function compositeStatus(results: PublicLightScanResult[]): ScanLightScanDiagnostics["status"] {
   const activeResults = results.filter((result) => result.diagnostics.status !== "disabled");
   const acceptedCount = results.reduce((total, result) => total + result.diagnostics.acceptedCount, 0);
@@ -655,6 +855,7 @@ export function createCompositePublicLightScanProvider({
   providers = [
     createBinancePublicLightScanProvider({ maxPriorityCandidates }),
     createOkxPublicLightScanProvider({ maxPriorityCandidates }),
+    createBybitPublicLightScanProvider({ maxPriorityCandidates }),
   ],
 }: CompositePublicLightScanProviderOptions = {}): PublicLightScanProvider {
   const source = "public-light-composite";

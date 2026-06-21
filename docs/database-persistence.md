@@ -4,7 +4,7 @@
 
 当前项目已经具备数据库持久化的类型边界、Postgres schema 生成能力，以及可替换的 repository 仓储层。
 
-当前默认按 Neon 免费套餐设计：优先保存快照、摘要、复盘结果和必要 payload；新增功能不能默认制造高频、无上限的明细流水写入。
+当前生产主线按腾讯云单机 PostgreSQL 设计，Neon 保留为旧线上回滚路径。优先保存快照、摘要、复盘结果、轮换状态和必要 payload；新增功能不能默认制造高频、无上限的明细流水写入。
 
 - 入口文件：`src/lib/persistence/persistence-contract.ts`
 - 仓储文件：`src/lib/persistence/persistence-store.ts`
@@ -15,7 +15,7 @@
 - 数据库接入测试：`src/lib/persistence/database-client.test.ts`
 - Neon 适配器测试：`src/lib/persistence/neon-client.test.ts`
 - 当前运行：没有传入真实 SQL client 时自动降级为内存演示存储
-- 当前已安装：`@neondatabase/serverless`
+- 当前已安装：`@neondatabase/serverless` 和普通 PostgreSQL driver
 - 当前已接入：`/api/journal` 已通过 repository 读取和写入
 - 当前已接入：`/api/archive` 已通过 repository 读取扫描归档 bundle
 - 当前已接入：每日异动归因复盘快照可通过 repository 写入、列表读取和按 id 读取
@@ -26,15 +26,19 @@
 
 ## 表结构
 
-持久化骨架当前包含七张表：
+持久化骨架当前包含这些核心表：
 
 - `journal_events`: 复盘日记、纸面跟踪、拒绝追单、失效记录
 - `scan_archives`: 扫描快照摘要、回放 frame、候选信号 payload
+- `v3_forward_map_snapshots`: 事前关键位地图和 Forward Map 快照，只用于复盘验证和人工校准
 - `rank_profiles`: 当前段位、XP、纪律分等派生结果
 - `daily_mover_snapshots`: 每日涨跌幅榜快照摘要
 - `daily_mover_assets`: 每日上榜资产的可查询列和原始 payload
 - `mover_attribution_reviews`: 上榜资产的归因结果、证据强度和可学习性
 - `radar_miss_reviews`: 雷达是否提前发现、漏判原因和改进标签
+- `ohlcv_candle_cache`: 公开 OHLCV candles 有界缓存，用于复盘、技术指标和趋势档案
+- `scan_asset_states`: 每个币的深扫轮换账本，记录上次深扫、连续跳过、近期深扫次数、状态池、被动态优先级挤占和选中/跳过原因
+- `macro_market_snapshots`: BTC.D、ETH.D、TOTAL2、TOTAL3 和总市值宏观快照，只作为山寨环境锚点，不生成交易信号
 
 每张表都带 `scope` 字段。未登录阶段建议使用 `public-demo`；未来加登录后可以改成用户 id、workspace id 或匿名设备 id。
 
@@ -48,7 +52,9 @@
 6. `/api/journal` 先写入 `journal_events`，再读取当前日志重新计算并 upsert `rank_profiles`。
 7. 扫描 runtime 写入 `scan_archives`，`/api/archive` 通过 repository 读取列表、回放帧和最近两次扫描对比。
 8. 每日异动归因复盘写入 `daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`，后续由数据源适配器和定时任务触发。
-9. 保留内存 fallback，只能作为数据库失败时的临时降级，不能在 UI 上说成永久保存。
+9. 扫描 refresh 持久化时同步 upsert `scan_asset_states`，用于下一轮 repository priority hints 和轮换公平性。
+10. 受保护 `POST /api/admin/macro/ingest` 写入 `macro_market_snapshots`，供 Macro Weather 和 `/api/health.macroMarket` 读取。
+11. 保留内存 fallback，只能作为数据库失败时的临时降级，不能在 UI 上说成永久保存。
 
 ## Neon 环境变量
 
@@ -67,7 +73,7 @@ Vercel 生产环境建议先填这几项：
 3. 在 Vercel 填写 `CRON_SECRET`，用于保护后台迁移入口。
 4. 在 Neon SQL Editor 执行 `buildPersistenceSchemaSql()` 生成的当前 schema SQL，或者请求 `POST /api/admin/persistence/migrate` 执行 schema 初始化。
 5. 如果走迁移接口，请求必须带 `Authorization: Bearer <CRON_SECRET>`。
-6. 迁移成功后接口会返回当前持久化表清单，包括 `journal_events`、`scan_archives`、`rank_profiles` 和每日异动归因复盘相关表。
+6. 迁移成功后接口会返回当前持久化表清单，包括 `journal_events`、`scan_archives`、`rank_profiles`、`v3_forward_map_snapshots`、`ohlcv_candle_cache`、`scan_asset_states` 和每日异动归因复盘相关表。
 7. 部署后访问 `/api/health`。
 8. 确认 `health.persistence.databaseDriver` 是 `neon`。
 9. 确认 `health.persistence.databaseStatus` 是 `ready`。
@@ -96,6 +102,7 @@ Vercel 生产环境建议先填这几项：
 - `addJournalEvent()` 会写入日志后重新读取当前日志样本，再派生段位状态，避免只凭单条新日志计算段位。
 - `addScanArchive()` 会保存扫描摘要和轻量 replay frame；`getScanReplayFrame()` 和 `compareLatestScanArchives()` 负责回放与最近两轮对比。
 - `addDailyMoverSnapshot()` 会保存每日涨跌幅榜快照、上榜资产、归因复盘和雷达命中/漏判结果；`listDailyMoverSnapshots()` 与 `getDailyMoverSnapshot()` 负责读取复盘样本。
+- `addMacroMarketSnapshot()` 会保存 CoinGecko global 宏观快照；`listMacroMarketSnapshots()` 和 `getLatestMacroMarketSnapshot()` 负责读取 BTC.D/TOTAL2/TOTAL3 环境锚点。
 - `buildSystemHealthReport()` 会把当前 repository 模式暴露给页面和 `/api/health`，避免只填环境变量却误以为已经持久化。
 - 所有 SQL 写入都使用参数数组，不拼接用户输入。
 

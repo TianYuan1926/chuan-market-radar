@@ -60,6 +60,16 @@ function numberFromEnv(value: string | undefined, fallback: number) {
   return Math.floor(parsed);
 }
 
+function nonNegativeNumberFromEnv(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
 function errorResponse(
   status: number,
   body: Extract<AdminDailyMoverIngestResponseBody, { ok: false }>,
@@ -119,6 +129,7 @@ export async function runAdminDailyMoverIngest({
         defaultMaxAssets,
       ),
       repository,
+      requestIntervalMs: nonNegativeNumberFromEnv(env.COINGLASS_REQUEST_INTERVAL_MS, 500),
       universeDiscoveryProvider: createPublicFuturesUniverseDiscoveryProvider(),
     });
 

@@ -4,6 +4,7 @@ import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import { createMemoryPersistenceRepository } from "../persistence/persistence-store";
 import { buildSystemHealthReport } from "./system-health";
 import type { MarketRadarSnapshot, ScanArchiveSummary, ScanReplayFrame } from "../market/types";
+import type { MacroMarketSnapshot } from "../market/macro-snapshot";
 import type { StrategyV3Dossier } from "../analysis/v3/types";
 
 function snapshot(
@@ -60,6 +61,25 @@ function archiveSummary(overrides: Partial<ScanArchiveSummary> = {}): ScanArchiv
     candidateCount: 4,
     topSymbols: ["ENAUSDT"],
     notes: ["演示数据"],
+    ...overrides,
+  };
+}
+
+function macroMarketSnapshot(overrides: Partial<MacroMarketSnapshot> = {}): MacroMarketSnapshot {
+  return {
+    allowedUse: "macro_context_only",
+    btcDominancePercent: 53.2,
+    canCreateTradeSignal: false,
+    ethDominancePercent: 16.4,
+    fetchedAt: "2026-06-12T09:50:00.000Z",
+    guardrail: "BTC.D/TOTAL2/TOTAL3 只能作为山寨大盘环境锚点，不能直接生成交易方向，不能降低 3:1 最低盈亏比。",
+    id: "macro-coingecko-global-20260612095000000",
+    source: "coingecko_global",
+    total2MarketCapUsd: 1_420_000_000_000,
+    total3MarketCapUsd: 910_000_000_000,
+    totalMarketCapChangePercent24h: 1.8,
+    totalMarketCapUsd: 3_040_000_000_000,
+    updatedAt: "2026-06-12T09:50:00.000Z",
     ...overrides,
   };
 }
@@ -592,6 +612,24 @@ test("buildSystemHealthReport exposes runtime, light scan, and request diagnosti
         ],
         universeCount: 220,
       },
+      signalMaturity: {
+        candidateLaneSymbols: ["NEWUSDT"],
+        counts: {
+          DEEP_SCAN_CANDIDATE: 1,
+          EVIDENCE_SIGNAL: 3,
+          LIGHT_SCAN_MARK: 36,
+          TRADE_PLAN_READY: 2,
+        },
+        guardrail: "轻扫标记不进入主信号区；深扫候选只能进候选/验证中区域；只有证据融合信号和交易计划就绪能进入主信号区。",
+        mainSignalSymbols: ["ARBUSDT", "ENAUSDT", "SUIUSDT", "TIAUSDT", "ONDOUSDT"],
+        rules: [
+          "LIGHT_SCAN_MARK is scheduling input only",
+          "DEEP_SCAN_CANDIDATE is visible as verifying candidate only",
+          "EVIDENCE_SIGNAL can enter the main signal area without a trade plan",
+          "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
+        ],
+        tradePlanReadySymbols: ["ARBUSDT", "ENAUSDT"],
+      },
       runtime: {
         cacheStatus: "updated",
         persistedArchive: true,
@@ -603,6 +641,9 @@ test("buildSystemHealthReport exposes runtime, light scan, and request diagnosti
 
   assert.equal(report.lightScan?.status, "ready");
   assert.equal(report.lightScan?.topCandidates[0]?.symbol, "ARBUSDT");
+  assert.equal(report.signalMaturity?.counts.LIGHT_SCAN_MARK, 36);
+  assert.deepEqual(report.signalMaturity?.candidateLaneSymbols, ["NEWUSDT"]);
+  assert.deepEqual(report.signalMaturity?.tradePlanReadySymbols, ["ARBUSDT", "ENAUSDT"]);
   assert.equal(report.scanDiagnostics?.discovery.fallbackActivated, true);
   assert.equal(report.scanDiagnostics?.requests.coinGlassRequestsPlanned, 24);
   assert.deepEqual(report.scanDiagnostics?.requests.emptyResultAssets, ["NEW"]);
@@ -611,6 +652,35 @@ test("buildSystemHealthReport exposes runtime, light scan, and request diagnosti
   assert.equal(report.operations.runtimeCacheStatus, "updated");
   assert.equal(report.operations.persistedArchive, true);
   assert.equal(report.operations.repositoryMode, "database");
+});
+
+test("buildSystemHealthReport exposes durable macro market anchors without making trade signals", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "chuan-prod" });
+  await repository.addScanArchive(archiveSummary(), replayFrame());
+  await repository.addMacroMarketSnapshot(macroMarketSnapshot());
+
+  const report = await buildSystemHealthReport({
+    env: {
+      COINGLASS_API_KEY: "test-key",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+    now: new Date("2026-06-12T10:04:20.000Z"),
+    repository,
+    snapshot: snapshot({
+      source: "coinglass",
+      isRealtime: true,
+    }),
+  });
+
+  assert.equal(report.macroMarket.status, "ready");
+  assert.equal(report.macroMarket.allowedUse, "macro_context_only");
+  assert.equal(report.macroMarket.canCreateTradeSignal, false);
+  assert.equal(report.macroMarket.source, "coingecko_global");
+  assert.equal(report.macroMarket.ageMinutes, 14);
+  assert.equal(report.macroMarket.btcDominancePercent, 53.2);
+  assert.equal(report.macroMarket.total2MarketCapUsd, 1_420_000_000_000);
+  assert.equal(report.macroMarket.total3MarketCapUsd, 910_000_000_000);
+  assert.match(report.macroMarket.guardrail, /不能直接生成交易方向/);
 });
 
 test("buildSystemHealthReport exposes structured universe coverage", async () => {
@@ -686,7 +756,9 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
             history: 1,
             liquidity: 1,
             missed_opportunity: 0,
+            recent_deep_scan: 0,
             recent_signal: 1,
+            rotation_age: 0,
             venue_coverage: 0,
           },
           slotsAvailable: 1,
@@ -1283,6 +1355,7 @@ test("buildSystemHealthReport segments outcome sample quality without enabling a
     rankDelta: 0,
     result: "watching" as const,
     reviewStatus: "closed" as const,
+    signalMaturityStage: "EVIDENCE_SIGNAL" as const,
     title: "生命周期复盘",
   };
 
@@ -1332,6 +1405,7 @@ test("buildSystemHealthReport segments outcome sample quality without enabling a
     createdAt: "2026-06-12T10:20:00.000Z",
     outcomeStatus: "pending",
     reviewStatus: "tracking",
+    signalMaturityStage: "EVIDENCE_SIGNAL",
   });
 
   const report = await buildSystemHealthReport({
@@ -1359,6 +1433,7 @@ test("buildSystemHealthReport exposes the read-only calibration flow through man
     rankDelta: 0,
     result: "watching" as const,
     reviewStatus: "closed" as const,
+    signalMaturityStage: "EVIDENCE_SIGNAL" as const,
     title: "生命周期复盘",
   };
 
@@ -1465,6 +1540,7 @@ test("buildSystemHealthReport exposes manual calibration admission for outcome s
     rankDelta: 0,
     result: "watching" as const,
     reviewStatus: "closed" as const,
+    signalMaturityStage: "EVIDENCE_SIGNAL" as const,
     title: "生命周期复盘",
   };
 

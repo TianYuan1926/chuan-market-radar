@@ -83,6 +83,14 @@ const profiles = {
       true,
     ),
   ],
+  macro: [
+    protectedPost(
+      "macro-market-ingest",
+      "/api/admin/macro/ingest",
+      numberFromEnv("MACRO_INGEST_INTERVAL_SECONDS", 3_600),
+      true,
+    ),
+  ],
 };
 
 function log(message, fields = {}) {

@@ -37,6 +37,7 @@ export type SignalBackendDossier = {
     risk: MarketSignal["risk"];
     state: MarketSignal["state"];
     summary: string;
+    timeframeGate?: MarketSignal["timeframeGate"];
     timeframe: MarketSignal["timeframe"];
     updatedAt: string;
   } | null;
@@ -196,6 +197,7 @@ export function buildSignalBackendDossier({
           risk: signal.risk,
           state: signal.state,
           summary: signal.summary,
+          ...(signal.timeframeGate ? { timeframeGate: signal.timeframeGate } : {}),
           timeframe: signal.timeframe,
           updatedAt: signal.updatedAt,
         }

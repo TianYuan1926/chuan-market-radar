@@ -135,6 +135,75 @@ test("buildMacroWeather flags deleveraging when anchors fall with OI contraction
   assert.ok(report.metrics.liquidationUsd24h > 20_000_000);
 });
 
+test("buildMacroWeather adds BTC dominance and TOTAL2 TOTAL3 as altcoin macro anchors", () => {
+  const report = buildMacroWeather({
+    altcoinMacro: {
+      btcDominance7dAveragePercent: 55,
+      btcDominance30dAveragePercent: 56,
+      btcDominancePercent: 54,
+      ethDominancePercent: 16,
+      source: "coingecko_global",
+      total2ChangePercent24h: 2.4,
+      total3ChangePercent24h: 3.1,
+      totalMarketCapUsd: 2_000_000_000_000,
+      updatedAt: UPDATED_AT,
+    },
+    derivatives: [
+      derivative("BTCUSDT", { fundingRateZScore: 0.2, openInterestChangePercent: 2 }),
+      derivative("ETHUSDT", { fundingRateZScore: 0.1, openInterestChangePercent: 2 }),
+    ],
+    metadataStatus: "ready",
+    signals: [signal("ENAUSDT", "up")],
+    tickers: [
+      ticker("BTCUSDT", 0.4),
+      ticker("ETHUSDT", 0.3),
+      ticker("ENAUSDT", 3),
+    ],
+  });
+
+  assert.equal(report.metrics.altcoinMacro?.btcDominanceTrend, "falling");
+  assert.equal(report.metrics.altcoinMacro?.total2MarketCapUsd, 920_000_000_000);
+  assert.equal(report.metrics.altcoinMacro?.total3MarketCapUsd, 600_000_000_000);
+  assert.equal(report.metrics.altcoinMacro?.tone, "good");
+  assert.ok(report.evidence.some((item) => item.label === "BTC.D"));
+  assert.ok(report.evidence.some((item) => item.label === "TOTAL2/TOTAL3"));
+  assert.match(report.summary, /BTC\.D/);
+  assert.match(report.guidance.riskHint, /3:1/);
+});
+
+test("buildMacroWeather treats rising BTC dominance as an altcoin headwind without lowering RR rules", () => {
+  const report = buildMacroWeather({
+    altcoinMacro: {
+      btcDominance7dAveragePercent: 55,
+      btcDominance30dAveragePercent: 54,
+      btcDominancePercent: 57,
+      ethDominancePercent: 15,
+      source: "coingecko_global",
+      total2ChangePercent24h: -0.6,
+      total3ChangePercent24h: -1.4,
+      totalMarketCapUsd: 2_000_000_000_000,
+      updatedAt: UPDATED_AT,
+    },
+    derivatives: [
+      derivative("BTCUSDT", { fundingRateZScore: 0.1, openInterestChangePercent: 1 }),
+      derivative("ETHUSDT", { fundingRateZScore: 0.1, openInterestChangePercent: 1 }),
+    ],
+    metadataStatus: "ready",
+    signals: [signal("ENAUSDT", "up")],
+    tickers: [
+      ticker("BTCUSDT", 0.4),
+      ticker("ETHUSDT", 0.2),
+      ticker("ENAUSDT", 2),
+    ],
+  });
+
+  assert.equal(report.primaryRegime, "headwind");
+  assert.equal(report.metrics.altcoinMacro?.btcDominanceTrend, "rising");
+  assert.equal(report.metrics.altcoinMacro?.tone, "bad");
+  assert.match(report.guidance.longWeightHint, /BTC\.D/);
+  assert.match(report.guidance.riskHint, /3:1/);
+});
+
 test("buildMacroWeather returns unknown when anchors are missing or scan is stale", () => {
   const report = buildMacroWeather({
     derivatives: [],

@@ -1,4 +1,4 @@
-import type { JournalEvent, MarketSignal } from "@/lib/analysis/types";
+import type { JournalEvent, MarketSignal, SignalMaturityStage } from "@/lib/analysis/types";
 import type { ScanQuotaPlan } from "./scan-quota";
 
 export type ExchangeId = "BINANCE" | "OKX" | "BYBIT" | "COINBASE" | "UNKNOWN";
@@ -130,6 +130,8 @@ export type ScanPriorityReason =
   | "liquidity"
   | "missed_opportunity"
   | "recent_signal"
+  | "recent_deep_scan"
+  | "rotation_age"
   | "venue_coverage";
 
 export type ScanPriorityDecision = {
@@ -264,6 +266,31 @@ export type ScanStatePoolReport = {
   };
 };
 
+export type ScanAssetStatePayload = {
+  notes?: string[];
+  recentDeepScanTimes?: string[];
+  source: "scan_rotation_state_v1";
+};
+
+export type ScanAssetState = {
+  baseAsset: string;
+  consecutiveSkipped: number;
+  deepScanCount1h: number;
+  deepScanCount24h: number;
+  dynamicPriorityScore: number;
+  lastDeepScannedAt: string | null;
+  lastLightScannedAt: string | null;
+  lastSelectedReason: string | null;
+  lastSkippedReason: string | null;
+  payload: ScanAssetStatePayload;
+  rotationPriorityScore: number;
+  statePool: ScanStatePoolKey;
+  symbol: string;
+  tier: ScanTierKey;
+  updatedAt: string;
+  wasDisplacedByDynamicPriority: boolean;
+};
+
 export type ScanDynamicPriorityPlan = {
   boostedAssets: string[];
   candidateCount: number;
@@ -316,6 +343,46 @@ export type ScanTwoStageAllocationPlan = {
   };
 };
 
+export type ScanRotationAuditWarning = {
+  action: string;
+  detail: string;
+  id:
+    | "deep_scan_starved"
+    | "exploration_missing"
+    | "full_cycle_slow"
+    | "priority_queue_waiting"
+    | "single_rotation_slot";
+  severity: "high" | "low" | "medium";
+};
+
+export type ScanRotationAudit = {
+  fairnessRules: string[];
+  guardrail: string;
+  mode: "scan_rotation_audit_v1";
+  operatorHint: string;
+  priorityQueue: {
+    queuedAssets: string[];
+    queuedCount: number;
+    selectedPriorityAssets: string[];
+  };
+  slots: {
+    anchorSlots: number;
+    dynamicPrioritySlots: number;
+    explorationReserveSlots: number;
+    rotatingSlots: number;
+    selectedLongTailAssets: string[];
+    selectedNonAnchorAssets: string[];
+  };
+  status: "blocked" | "healthy" | "starved" | "watch";
+  timing: {
+    cadenceMinutes: 15;
+    estimatedFullCycleMinutes: number;
+    estimatedFullCycleWindows: number;
+    pendingNonAnchorAssets: number;
+  };
+  warnings: ScanRotationAuditWarning[];
+};
+
 export type ScanCoverage = {
   batchIndex: number;
   coveragePercent: number;
@@ -334,6 +401,7 @@ export type ScanCoverage = {
     reason: InstrumentRejectionReason;
     symbol: string;
   }>;
+  rotationAudit?: ScanRotationAudit;
   statePool?: ScanStatePoolReport;
   tierCounts?: ScanTierCounts;
   tierPolicy?: ScanTierPolicy;
@@ -421,6 +489,15 @@ export type ScanDiagnostics = {
   v3Coverage: ScanV3CoverageDiagnostics;
 };
 
+export type ScanSignalMaturityDiagnostics = {
+  candidateLaneSymbols: string[];
+  counts: Record<SignalMaturityStage, number>;
+  guardrail: string;
+  mainSignalSymbols: string[];
+  rules: string[];
+  tradePlanReadySymbols: string[];
+};
+
 export type ScanRuntimeDiagnostics = {
   cacheStatus?: "failed" | "served_cache" | "updated";
   persistedArchive: boolean;
@@ -453,6 +530,8 @@ export type ScanMetadata = {
   quota?: ScanQuotaPlan;
   diagnostics?: ScanDiagnostics;
   lightScan?: ScanLightScanDiagnostics;
+  macroWeather?: import("./macro-weather").MacroWeatherReport;
+  signalMaturity?: ScanSignalMaturityDiagnostics;
   runtime?: ScanRuntimeDiagnostics;
   staleAfterMinutes: number;
   notes: string[];
@@ -480,6 +559,8 @@ export type ScanReplaySignal = {
   confidence: number;
   risk: MarketSignal["risk"];
   riskReward: number;
+  maturity?: MarketSignal["maturity"];
+  timeframeGate?: MarketSignal["timeframeGate"];
   strategyStatus: MarketSignal["strategy"]["status"] | "unknown";
   strategyV3?: MarketSignal["strategyV3"];
   updatedAt: string;

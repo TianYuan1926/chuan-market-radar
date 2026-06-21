@@ -1,8 +1,10 @@
 import type {
   JournalEvent,
   MarketSignal,
+  OutcomeMetrics,
   ReviewCheckpoint,
   SignalOutcomeStatus,
+  Timeframe,
 } from "@/lib/analysis/types";
 import type { Candle } from "@/lib/market/ohlcv/types";
 
@@ -15,6 +17,7 @@ export type SignalOutcome = {
   triggerHit: boolean;
   invalidationHit: boolean;
   firstTargetHit: boolean;
+  outcomeMetrics: OutcomeMetrics;
   reviewedAt: string;
   reviewCheckpoints: ReviewCheckpoint[];
   lessonTags: string[];
@@ -26,11 +29,23 @@ export type RuleAdjustment = {
   experiment: string[];
 };
 
-const reviewOffsets: { id: ReviewCheckpoint["id"]; label: string; hours: number }[] = [
-  { id: "1h", label: "1h 误报检查", hours: 1 },
-  { id: "4h", label: "4h 触发检查", hours: 4 },
-  { id: "24h", label: "24h 目标/失效检查", hours: 24 },
-];
+const checkpointMeta: Record<ReviewCheckpoint["id"], { label: string; hours: number }> = {
+  "1h": { label: "1h 误报检查", hours: 1 },
+  "4h": { label: "4h 触发/首目标检查", hours: 4 },
+  "24h": { label: "24h 目标/失效检查", hours: 24 },
+  "4d": { label: "4d 趋势验证检查", hours: 96 },
+};
+
+const validationWindows: Record<Timeframe, { checkpointIds: ReviewCheckpoint["id"][]; hours: number; label: string }> = {
+  "1m": { checkpointIds: ["1h", "4h"], hours: 4, label: "4h" },
+  "5m": { checkpointIds: ["1h", "4h"], hours: 4, label: "4h" },
+  "15m": { checkpointIds: ["1h", "4h"], hours: 4, label: "4h" },
+  "30m": { checkpointIds: ["1h", "4h"], hours: 4, label: "4h" },
+  "1h": { checkpointIds: ["4h", "24h"], hours: 24, label: "24h" },
+  "4h": { checkpointIds: ["24h", "4d"], hours: 96, label: "4d" },
+  "1d": { checkpointIds: ["24h", "4d"], hours: 96, label: "4d" },
+  "1w": { checkpointIds: ["24h", "4d"], hours: 96, label: "4d" },
+};
 
 function addHours(value: string, hours: number) {
   const time = new Date(value).getTime();
@@ -55,6 +70,10 @@ function sortCandles(candles: Candle[]) {
   });
 }
 
+function validationWindowFor(signal: MarketSignal) {
+  return validationWindows[signal.timeframe] ?? validationWindows["15m"];
+}
+
 function firstNumber(value?: string) {
   if (!value) {
     return undefined;
@@ -70,6 +89,63 @@ function planPrices(signal: MarketSignal) {
     entry: firstNumber(signal.strategy.entry),
     invalidation: firstNumber(signal.strategy.invalidation),
     firstTarget: firstNumber(signal.strategy.targets[0]),
+  };
+}
+
+function roundPrice(value: number) {
+  return Number(value.toFixed(8));
+}
+
+function roundPercent(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function outcomeMetrics({
+  candles,
+  prices,
+  signal,
+}: {
+  candles: Candle[];
+  prices: ReturnType<typeof planPrices>;
+  signal: MarketSignal;
+}): OutcomeMetrics {
+  const window = validationWindowFor(signal);
+  const entry = prices.entry;
+
+  if (entry === undefined || entry === 0 || candles.length === 0) {
+    return {
+      entryPrice: entry,
+      evaluatedCandles: candles.length,
+      firstTargetPrice: prices.firstTarget,
+      invalidationPrice: prices.invalidation,
+      validationWindowHours: window.hours,
+      validationWindowLabel: window.label,
+    };
+  }
+
+  const high = Math.max(...candles.map((candle) => candle.high));
+  const low = Math.min(...candles.map((candle) => candle.low));
+  const short = isShort(signal);
+  const maxFavorablePrice = short ? low : high;
+  const maxAdversePrice = short ? high : low;
+  const mfeRaw = short
+    ? ((entry - maxFavorablePrice) / entry) * 100
+    : ((maxFavorablePrice - entry) / entry) * 100;
+  const maeRaw = short
+    ? ((maxAdversePrice - entry) / entry) * 100
+    : ((entry - maxAdversePrice) / entry) * 100;
+
+  return {
+    entryPrice: roundPrice(entry),
+    evaluatedCandles: candles.length,
+    firstTargetPrice: prices.firstTarget === undefined ? undefined : roundPrice(prices.firstTarget),
+    invalidationPrice: prices.invalidation === undefined ? undefined : roundPrice(prices.invalidation),
+    maePercent: roundPercent(Math.max(0, maeRaw)),
+    maxAdversePrice: roundPrice(maxAdversePrice),
+    maxFavorablePrice: roundPrice(maxFavorablePrice),
+    mfePercent: roundPercent(Math.max(0, mfeRaw)),
+    validationWindowHours: window.hours,
+    validationWindowLabel: window.label,
   };
 }
 
@@ -185,13 +261,15 @@ function noteForOutcome(signal: MarketSignal, outcomeValue: SignalOutcome) {
 }
 
 export function buildReviewSchedule(
-  _signal: MarketSignal,
+  signal: MarketSignal,
   createdAt: string,
 ): ReviewCheckpoint[] {
-  return reviewOffsets.map((checkpoint) => ({
-    id: checkpoint.id,
-    label: checkpoint.label,
-    reviewAt: addHours(createdAt, checkpoint.hours),
+  const window = validationWindowFor(signal);
+
+  return window.checkpointIds.map((id) => ({
+    id,
+    label: checkpointMeta[id].label,
+    reviewAt: addHours(createdAt, checkpointMeta[id].hours),
     status: "pending",
   }));
 }
@@ -202,37 +280,44 @@ export function evaluateSignalOutcome(
   schedule: ReviewCheckpoint[],
 ): SignalOutcome {
   const prices = planPrices(signal);
-  const reviewedFallback = latestCandleTime(candles, signal.updatedAt);
+  const sortedCandles = sortCandles(candles);
+  const effectiveSchedule = schedule.length > 0 ? schedule : buildReviewSchedule(signal, signal.updatedAt);
+  const reviewedFallback = latestCandleTime(sortedCandles, signal.updatedAt);
+  const fallbackMetrics = outcomeMetrics({ candles: sortedCandles, prices, signal });
 
   if (prices.entry === undefined || prices.invalidation === undefined || prices.firstTarget === undefined) {
-    return outcome(signal, schedule, {
+    return outcome(signal, effectiveSchedule, {
       status: "pending",
       result: "watching",
       rankDelta: 0,
       triggerHit: false,
       invalidationHit: false,
       firstTargetHit: false,
+      outcomeMetrics: fallbackMetrics,
       reviewedAt: reviewedFallback,
       lessonTags: ["missing_numeric_lifecycle_plan"],
     });
   }
 
   let triggerHit = false;
+  let triggerIndex = 0;
 
-  for (const candle of sortCandles(candles)) {
+  for (const [index, candle] of sortedCandles.entries()) {
     const reviewedAt = candleTime(candle);
     const triggerThisCandle = hitsTrigger(signal, candle, prices.entry);
     const invalidationThisCandle = hitsInvalidation(signal, candle, prices.invalidation);
     const targetThisCandle = hitsFirstTarget(signal, candle, prices.firstTarget);
+    const candlesThroughCurrent = sortedCandles.slice(0, index + 1);
 
     if (!triggerHit && invalidationThisCandle && !triggerThisCandle) {
-      return outcome(signal, schedule, {
+      return outcome(signal, effectiveSchedule, {
         status: "saved",
         result: "saved",
         rankDelta: 2,
         triggerHit: false,
         invalidationHit: true,
         firstTargetHit: false,
+        outcomeMetrics: outcomeMetrics({ candles: candlesThroughCurrent, prices, signal }),
         reviewedAt,
         lessonTags: ["waited_for_trigger", "invalidation_before_entry"],
       });
@@ -240,72 +325,80 @@ export function evaluateSignalOutcome(
 
     if (!triggerHit && triggerThisCandle) {
       triggerHit = true;
+      triggerIndex = index;
     }
 
     if (!triggerHit) {
       continue;
     }
 
+    const candlesSinceTrigger = sortedCandles.slice(triggerIndex, index + 1);
+
     if (invalidationThisCandle && !targetThisCandle) {
-      return outcome(signal, schedule, {
+      return outcome(signal, effectiveSchedule, {
         status: "loss",
         result: "loss",
         rankDelta: -1,
         triggerHit: true,
         invalidationHit: true,
         firstTargetHit: false,
+        outcomeMetrics: outcomeMetrics({ candles: candlesSinceTrigger, prices, signal }),
         reviewedAt,
         lessonTags: [...failureRuleTags(signal), "triggered_then_invalidated"],
       });
     }
 
     if (targetThisCandle && !invalidationThisCandle) {
-      return outcome(signal, schedule, {
+      return outcome(signal, effectiveSchedule, {
         status: "partial_win",
         result: "win",
         rankDelta: 2,
         triggerHit: true,
         invalidationHit: false,
         firstTargetHit: true,
+        outcomeMetrics: outcomeMetrics({ candles: candlesSinceTrigger, prices, signal }),
         reviewedAt,
         lessonTags: [...(signal.strategy.confirmation ?? []), "target_before_invalidation"],
       });
     }
 
     if (targetThisCandle && invalidationThisCandle) {
-      return outcome(signal, schedule, {
+      return outcome(signal, effectiveSchedule, {
         status: "loss",
         result: "loss",
         rankDelta: -1,
         triggerHit: true,
         invalidationHit: true,
         firstTargetHit: true,
+        outcomeMetrics: outcomeMetrics({ candles: candlesSinceTrigger, prices, signal }),
         reviewedAt,
         lessonTags: ["ambiguous_target_and_invalidation"],
       });
     }
   }
 
-  if (hasReachedExpiry(candles, schedule)) {
-    return outcome(signal, schedule, {
+  if (hasReachedExpiry(sortedCandles, effectiveSchedule)) {
+    return outcome(signal, effectiveSchedule, {
       status: "expired",
       result: "watching",
       rankDelta: 0,
       triggerHit: false,
       invalidationHit: false,
       firstTargetHit: false,
+      outcomeMetrics: fallbackMetrics,
       reviewedAt: reviewedFallback,
       lessonTags: ["expired_without_trigger"],
     });
   }
 
-  return outcome(signal, schedule, {
+  return outcome(signal, effectiveSchedule, {
     status: "pending",
     result: "watching",
     rankDelta: 0,
     triggerHit,
     invalidationHit: false,
     firstTargetHit: false,
+    outcomeMetrics: fallbackMetrics,
     reviewedAt: reviewedFallback,
     lessonTags: ["still_tracking"],
   });
@@ -341,7 +434,9 @@ export function buildLifecycleJournalEvent(
     triggerHit: outcome.triggerHit,
     invalidationHit: outcome.invalidationHit,
     firstTargetHit: outcome.firstTargetHit,
+    outcomeMetrics: outcome.outcomeMetrics,
     reviewCheckpoints: outcome.reviewCheckpoints,
+    signalMaturityStage: signal.maturity?.stage,
   };
 }
 

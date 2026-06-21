@@ -252,9 +252,7 @@ export function mapCoinGlassHeatCell(row: CoinGlassMarketRow): MarketHeatCell {
     row.open_interest_change_percent_24h,
     row.openInterestChangePercent24h,
   ));
-  const liquidation = firstNumber(row.long_liquidation_usd_24h, row.longLiquidationUsd24h) +
-    firstNumber(row.short_liquidation_usd_24h, row.shortLiquidationUsd24h);
-  const anomalyScore = Math.min(99, Math.round(Math.abs(changePercent) * 8 + oiChange * 4 + liquidation / 500_000));
+  const anomalyScore = Math.min(99, Math.round(Math.abs(changePercent) * 8 + oiChange * 4));
 
   return {
     symbol: marketSymbolFromCoinGlass(row).replace("USDT", ""),

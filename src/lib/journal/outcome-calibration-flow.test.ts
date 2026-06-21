@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { JournalEvent, SignalOutcomeStatus } from "@/lib/analysis/types";
+import type { JournalEvent, SignalMaturityStage, SignalOutcomeStatus } from "@/lib/analysis/types";
 import { buildOutcomeCalibrationFlow } from "./outcome-calibration-flow";
 
 function outcomeEvent({
   id,
   outcomeStatus,
   result = "watching",
+  signalMaturityStage = "EVIDENCE_SIGNAL",
 }: {
   id: string;
   outcomeStatus: SignalOutcomeStatus;
   result?: JournalEvent["result"];
+  signalMaturityStage?: SignalMaturityStage;
 }): JournalEvent {
   return {
     createdAt: "2026-06-12T10:00:00.000Z",
@@ -21,6 +23,7 @@ function outcomeEvent({
     result,
     reviewStatus: outcomeStatus === "pending" ? "tracking" : "closed",
     signalId: `${id}-signal`,
+    signalMaturityStage,
     symbol: `${id.toUpperCase()}USDT`,
     title: "生命周期复盘",
   };

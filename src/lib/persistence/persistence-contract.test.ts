@@ -4,13 +4,16 @@ import type { JournalEvent } from "@/lib/analysis/types";
 import type { StrategyV3Dossier } from "@/lib/analysis/v3/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
+import type { MacroMarketSnapshot } from "@/lib/market/macro-snapshot";
 import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
-import type { ScanArchiveSummary, ScanReplayFrame } from "@/lib/market/types";
+import type { ScanArchiveSummary, ScanAssetState, ScanReplayFrame } from "@/lib/market/types";
 import {
   buildPersistenceSchemaSql,
   dailyMoverSnapshotToRecords,
   journalEventRecordToEvent,
   journalEventToRecord,
+  macroMarketSnapshotRecordToSnapshot,
+  macroMarketSnapshotToRecord,
   ohlcvCandleCacheEntryRecordToEntry,
   ohlcvCandleCacheEntryToRecord,
   persistenceTables,
@@ -18,6 +21,8 @@ import {
   rankProfileToRecord,
   scanArchiveRecordToSummary,
   scanArchiveToRecord,
+  scanAssetStateRecordToState,
+  scanAssetStateToRecord,
   v3ForwardMapRecordToSnapshot,
   v3ForwardMapSnapshotToRecord,
 } from "./persistence-contract";
@@ -242,6 +247,53 @@ function ohlcvCacheEntry(): OhlcvCandleCacheEntry {
   };
 }
 
+function scanAssetState(overrides: Partial<ScanAssetState> = {}): ScanAssetState {
+  return {
+    baseAsset: "TIA",
+    consecutiveSkipped: 4,
+    deepScanCount1h: 0,
+    deepScanCount24h: 2,
+    dynamicPriorityScore: 820000,
+    lastDeepScannedAt: "2026-06-20T08:00:00.000Z",
+    lastLightScannedAt: "2026-06-20T09:00:00.000Z",
+    lastSelectedReason: "dynamic_priority",
+    lastSkippedReason: "priority_queue_waiting",
+    payload: {
+      recentDeepScanTimes: [
+        "2026-06-20T08:00:00.000Z",
+        "2026-06-19T23:30:00.000Z",
+      ],
+      source: "scan_rotation_state_v1",
+    },
+    rotationPriorityScore: 940000,
+    statePool: "BATTLE_WATCH",
+    symbol: "TIAUSDT",
+    tier: "active",
+    updatedAt: "2026-06-20T09:00:00.000Z",
+    wasDisplacedByDynamicPriority: true,
+    ...overrides,
+  };
+}
+
+function macroMarketSnapshot(overrides: Partial<MacroMarketSnapshot> = {}): MacroMarketSnapshot {
+  return {
+    allowedUse: "macro_context_only",
+    btcDominancePercent: 52,
+    canCreateTradeSignal: false,
+    ethDominancePercent: 10,
+    fetchedAt: "2026-06-21T00:00:00.000Z",
+    guardrail: "BTC.D/TOTAL2/TOTAL3 只能作为山寨大盘环境锚点，不能直接生成交易方向，不能降低 3:1 最低盈亏比。",
+    id: "macro-coingecko-global-20260621000000000",
+    source: "coingecko_global",
+    total2MarketCapUsd: 1_440_000_000_000,
+    total3MarketCapUsd: 1_140_000_000_000,
+    totalMarketCapChangePercent24h: 1.8,
+    totalMarketCapUsd: 3_000_000_000_000,
+    updatedAt: "2026-06-21T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 test("journal events round-trip through a database-ready record", () => {
   const event = journalEvent();
   const record = journalEventToRecord(event, scope);
@@ -325,6 +377,51 @@ test("ohlcv candle cache entries round-trip through a database-ready record", ()
   assert.deepEqual(ohlcvCandleCacheEntryRecordToEntry(record), entry);
 });
 
+test("scan asset states round-trip through a database-ready record", () => {
+  const state = scanAssetState();
+  const record = scanAssetStateToRecord(state, scope);
+
+  assert.equal(record.scope, scope);
+  assert.equal(record.symbol, "TIAUSDT");
+  assert.equal(record.base_asset, "TIA");
+  assert.equal(record.tier, "active");
+  assert.equal(record.state_pool, "BATTLE_WATCH");
+  assert.equal(record.last_deep_scanned_at, "2026-06-20T08:00:00.000Z");
+  assert.equal(record.last_light_scanned_at, "2026-06-20T09:00:00.000Z");
+  assert.equal(record.consecutive_skipped, 4);
+  assert.equal(record.deep_scan_count_1h, 0);
+  assert.equal(record.deep_scan_count_24h, 2);
+  assert.equal(record.dynamic_priority_score, 820000);
+  assert.equal(record.rotation_priority_score, 940000);
+  assert.equal(record.was_displaced_by_dynamic_priority, true);
+  assert.equal(record.last_selected_reason, "dynamic_priority");
+  assert.equal(record.last_skipped_reason, "priority_queue_waiting");
+  assert.deepEqual(record.payload.recentDeepScanTimes, [
+    "2026-06-20T08:00:00.000Z",
+    "2026-06-19T23:30:00.000Z",
+  ]);
+  assert.deepEqual(scanAssetStateRecordToState(record), state);
+});
+
+test("macro market snapshots round-trip through a database-ready record", () => {
+  const snapshot = macroMarketSnapshot();
+  const record = macroMarketSnapshotToRecord(snapshot, scope);
+
+  assert.equal(record.scope, scope);
+  assert.equal(record.id, "macro-coingecko-global-20260621000000000");
+  assert.equal(record.source, "coingecko_global");
+  assert.equal(record.fetched_at, "2026-06-21T00:00:00.000Z");
+  assert.equal(record.btc_dominance_percent, 52);
+  assert.equal(record.eth_dominance_percent, 10);
+  assert.equal(record.total_market_cap_usd, 3_000_000_000_000);
+  assert.equal(record.total2_market_cap_usd, 1_440_000_000_000);
+  assert.equal(record.total3_market_cap_usd, 1_140_000_000_000);
+  assert.equal(record.allowed_use, "macro_context_only");
+  assert.equal(record.can_create_trade_signal, false);
+  assert.match(record.payload.guardrail, /不能直接生成交易方向/u);
+  assert.deepEqual(macroMarketSnapshotRecordToSnapshot(record), snapshot);
+});
+
 test("v3 forward map snapshots store queryable review metadata plus readonly payload", () => {
   const snapshot = {
     allowedUse: "research_only" as const,
@@ -366,6 +463,8 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
     "mover_attribution_reviews",
     "radar_miss_reviews",
     "ohlcv_candle_cache",
+    "scan_asset_states",
+    "macro_market_snapshots",
   ]);
   assert.match(sql, /create table if not exists journal_events/i);
   assert.match(sql, /outcome_status text/i);
@@ -380,10 +479,20 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
   assert.match(sql, /create table if not exists mover_attribution_reviews/i);
   assert.match(sql, /create table if not exists radar_miss_reviews/i);
   assert.match(sql, /create table if not exists ohlcv_candle_cache/i);
+  assert.match(sql, /create table if not exists scan_asset_states/i);
+  assert.match(sql, /create table if not exists macro_market_snapshots/i);
+  assert.match(sql, /btc_dominance_percent numeric not null/i);
+  assert.match(sql, /can_create_trade_signal boolean not null/i);
+  assert.match(sql, /macro_market_snapshots_scope_fetched_at_idx/i);
+  assert.match(sql, /last_deep_scanned_at timestamptz/i);
+  assert.match(sql, /consecutive_skipped integer not null default 0/i);
+  assert.match(sql, /was_displaced_by_dynamic_priority boolean not null default false/i);
+  assert.match(sql, /primary key \(scope, symbol\)/i);
   assert.match(sql, /daily_mover_assets_scope_snapshot_rank_idx/i);
   assert.match(sql, /mover_attribution_reviews_scope_learnability_idx/i);
   assert.match(sql, /radar_miss_reviews_scope_status_idx/i);
   assert.match(sql, /ohlcv_candle_cache_scope_fetched_at_idx/i);
+  assert.match(sql, /scan_asset_states_scope_rotation_idx/i);
   assert.match(sql, /payload jsonb not null/i);
   assert.match(sql, /primary key \(scope, id\)/i);
   assert.match(sql, /primary key \(scope\)/i);

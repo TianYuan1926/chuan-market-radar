@@ -12,13 +12,18 @@ import {
   type GetConfiguredMarketProviderOptions,
   type ProviderEnv,
 } from "./provider-registry";
+import { buildAltcoinMacroAnchorInputFromSnapshots } from "./macro-snapshot";
+import { buildScanAssetStatesFromCoverage } from "./scan-asset-state";
+import { applySignalMaturityToSnapshot, classifySignalMaturity } from "./signal-maturity";
 import { createReplayFrame, summarizeScanSnapshot } from "./scan-archive";
 import { buildScanArchiveBundle } from "./scan-archive-bundle";
-import { calculateNextScanAt, MemoryScanCache, runScheduledScan } from "./scan-runtime";
+import { createScanCoordinatorFromEnv } from "./scan-coordinator";
+import { calculateNextScanAt, MemoryScanCache, runScheduledScan, type ScanCoordinator } from "./scan-runtime";
 import type { MarketDataProvider, MarketRadarSnapshot, ScanArchiveBundle } from "./types";
 import { buildUniversePriorityHintsFromRepository } from "./universe-priority-hints";
 
 const scanCache = new MemoryScanCache();
+const scanCoordinator = createScanCoordinatorFromEnv(process.env);
 const archiveMaxEntries = 24;
 
 type AiReviewSnapshotOptions = {
@@ -38,6 +43,8 @@ type RepositoryAwareMarketProviderOptions = {
 };
 
 type SnapshotArchiveOptions = {
+  allowRefresh?: boolean;
+  coordinator?: ScanCoordinator | null;
   persistArchive?: boolean;
   repository?: PersistenceRepository;
   trigger?: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
@@ -80,7 +87,34 @@ function envFromProcess(): AiReviewEnv {
 function priorityHintNote(summary: Awaited<ReturnType<typeof buildUniversePriorityHintsFromRepository>>["summary"]) {
   return `repository priority hints: ${summary.hintsBuilt} built from ${summary.repositoryMode ?? "unknown"} ` +
     `(archives ${summary.archivesRead}, journal ${summary.journalEventsRead}, movers ${summary.dailyMoverSnapshotsRead}, ` +
-    `trend reviews ${summary.sourceCounts.trendRadarReviews})`;
+    `asset states ${summary.assetStatesRead}, trend reviews ${summary.sourceCounts.trendRadarReviews})`;
+}
+
+async function macroAnchorOptions(repository: PersistenceRepository): Promise<Pick<
+  GetConfiguredMarketProviderOptions,
+  "altcoinMacro" | "universePriorityHintNotes"
+>> {
+  try {
+    const snapshots = await repository.listMacroMarketSnapshots(96);
+    const altcoinMacro = buildAltcoinMacroAnchorInputFromSnapshots(snapshots);
+
+    if (!altcoinMacro) {
+      return {
+        universePriorityHintNotes: ["macro anchors: unavailable"],
+      };
+    }
+
+    return {
+      altcoinMacro,
+      universePriorityHintNotes: [
+        `macro anchors: ${altcoinMacro.source} BTC.D ${altcoinMacro.btcDominancePercent}, TOTAL2 24h ${altcoinMacro.total2ChangePercent24h ?? "waiting"}, TOTAL3 24h ${altcoinMacro.total3ChangePercent24h ?? "waiting"}`,
+      ],
+    };
+  } catch (error) {
+    return {
+      universePriorityHintNotes: [`macro anchors: unavailable (${errorMessage(error)})`],
+    };
+  }
 }
 
 function errorMessage(error: unknown) {
@@ -152,6 +186,34 @@ function unavailableSnapshot({
   };
 }
 
+function cachedSnapshotForNoRefreshRead({
+  cachedSnapshot,
+  repository,
+  trigger,
+}: {
+  cachedSnapshot: MarketRadarSnapshot;
+  repository: PersistenceRepository;
+  trigger: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
+}): MarketRadarSnapshot {
+  return {
+    ...cachedSnapshot,
+    metadata: {
+      ...cachedSnapshot.metadata,
+      runtime: {
+        ...cachedSnapshot.metadata.runtime,
+        cacheStatus: "served_cache",
+        persistedArchive: cachedSnapshot.metadata.runtime?.persistedArchive ?? false,
+        repositoryMode: repository.mode,
+        trigger,
+      },
+      notes: [
+        ...cachedSnapshot.metadata.notes,
+        "scan runtime: no-refresh read served cached snapshot",
+      ],
+    },
+  };
+}
+
 export async function buildRepositoryAwareMarketProvider({
   env = process.env,
   providerFactory = getConfiguredMarketProvider,
@@ -159,9 +221,14 @@ export async function buildRepositoryAwareMarketProvider({
 }: RepositoryAwareMarketProviderOptions = {}): Promise<MarketDataProvider> {
   try {
     const report = await buildUniversePriorityHintsFromRepository(repository);
+    const macroOptions = await macroAnchorOptions(repository);
 
     return providerFactory(env, {
-      universePriorityHintNotes: [priorityHintNote(report.summary)],
+      altcoinMacro: macroOptions.altcoinMacro,
+      universePriorityHintNotes: [
+        priorityHintNote(report.summary),
+        ...(macroOptions.universePriorityHintNotes ?? []),
+      ],
       universePriorityHints: report.hints,
     });
   } catch (error) {
@@ -206,9 +273,25 @@ export async function enrichSnapshotWithAiReviews(
   const context = { metadata: snapshot.metadata };
   const signals = await Promise.all(
     snapshot.signals.map(async (signal, index) => {
+      const maturity = signal.maturity ?? classifySignalMaturity(signal);
+
+      if (maturity.canRequestAiReview === false) {
+        return {
+          ...signal,
+          maturity,
+          aiReview: disabledAiReview("SIGNAL_MATURITY_GATE: AI only reviews EVIDENCE_SIGNAL or TRADE_PLAN_READY", {
+            maxPromptChars: promptLimit(env),
+            maxSignalsPerSnapshot: maxSignals,
+            model: env.AI_MODEL ?? "gpt-4.1-mini",
+            provider: env.AI_PROVIDER ?? "openai-compatible",
+          }),
+        };
+      }
+
       if (enabled && index >= maxSignals) {
         return {
           ...signal,
+          maturity,
           aiReview: disabledAiReview("AI_REVIEW_MAX_SIGNALS budget guard", {
             maxPromptChars: promptLimit(env),
             maxSignalsPerSnapshot: maxSignals,
@@ -220,8 +303,12 @@ export async function enrichSnapshotWithAiReviews(
 
       return {
         ...signal,
+        maturity,
         aiReview: await reviewSignalWithAi({
-          signal,
+          signal: {
+            ...signal,
+            maturity,
+          },
           context,
           env,
           fetcher: options.fetcher,
@@ -244,13 +331,26 @@ async function withArchive(
     repository = appPersistenceRepository,
   }: SnapshotArchiveOptions = {},
 ): Promise<MarketRadarSnapshot> {
-  const enriched = await enrichSnapshotWithAiReviews(snapshot);
+  const matured = applySignalMaturityToSnapshot(snapshot);
+  const enriched = await enrichSnapshotWithAiReviews(matured);
 
   if (persistArchive) {
     await repository.addScanArchive(
       summarizeScanSnapshot(enriched),
       createReplayFrame(enriched),
     );
+
+    if (enriched.metadata.coverage) {
+      const previousStates = await repository.listScanAssetStates(1_000);
+
+      await repository.upsertScanAssetStates(
+        buildScanAssetStatesFromCoverage({
+          coverage: enriched.metadata.coverage,
+          generatedAt: enriched.metadata.generatedAt,
+          previousStates,
+        }),
+      );
+    }
   }
 
   return {
@@ -273,12 +373,37 @@ export async function getMarketRadarSnapshot(
   options: SnapshotArchiveOptions = {},
 ): Promise<MarketRadarSnapshot> {
   const repository = options.repository ?? appPersistenceRepository;
+
+  if (options.allowRefresh === false) {
+    const cachedSnapshot = scanCache.get();
+
+    if (!cachedSnapshot) {
+      throw new Error("no-refresh read requested and no cached snapshot available");
+    }
+
+    return withArchive(
+      cachedSnapshotForNoRefreshRead({
+        cachedSnapshot,
+        repository,
+        trigger: options.trigger ?? "internal",
+      }),
+      {
+        persistArchive: false,
+        repository,
+      },
+    );
+  }
+
   const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider({ repository });
+  const coordinator = options.coordinator === undefined
+    ? provider ? undefined : scanCoordinator
+    : options.coordinator ?? undefined;
   const result = await runScheduledScan({
     provider: resolvedProvider,
     cache: scanCache,
     now: new Date(),
     cadenceMinutes: siteConfig.scanIntervalMinutes,
+    coordinator,
     trigger: options.trigger ?? "internal",
   });
 
@@ -321,11 +446,15 @@ export async function refreshMarketRadarSnapshot(
 ) {
   const repository = options.repository ?? appPersistenceRepository;
   const resolvedProvider = provider ?? await buildRepositoryAwareMarketProvider({ repository });
+  const coordinator = options.coordinator === undefined
+    ? provider ? undefined : scanCoordinator
+    : options.coordinator ?? undefined;
   const result = await runScheduledScan({
     provider: resolvedProvider,
     cache: scanCache,
     now: new Date(),
     cadenceMinutes: siteConfig.scanIntervalMinutes,
+    coordinator,
     forceRefresh: true,
     trigger: options.trigger ?? "cron_post",
   });

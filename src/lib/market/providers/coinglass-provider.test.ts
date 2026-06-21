@@ -132,6 +132,39 @@ test("CoinGlass provider clamps request concurrency for Hobbyist-safe bursts", (
   assert.equal(coinGlassRequestConcurrencyForTest(99), 30);
 });
 
+test("CoinGlass provider paces deep scan requests before hitting the API", async () => {
+  const requestedSymbols: string[] = [];
+  const sleepIntervals: number[] = [];
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["BTC", "ETH", "SOL", "ENA"],
+    batchSize: 4,
+    maxConcurrentRequests: 4,
+    requestIntervalMs: 500,
+    requestPaceSleep: async (ms) => {
+      sleepIntervals.push(ms);
+    },
+    now: () => new Date("2026-06-21T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+      requestedSymbols.push(symbol);
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.deepEqual(requestedSymbols, ["BTC", "ETH", "SOL", "ENA"]);
+  assert.deepEqual(sleepIntervals, [500, 500, 500]);
+  assert.match(snapshot.metadata.notes.join("\n"), /coinglass pacing: 500ms between deep-scan requests/);
+});
+
 test("CoinGlass provider defaults to a 24 request scan batch when discovery widens the universe", async () => {
   const requestedSymbols: string[] = [];
   const provider = createCoinGlassProvider({
@@ -833,6 +866,59 @@ test("CoinGlass provider feeds multi-timeframe OHLCV candles into timeframe prof
   assert.match(snapshot.metadata.notes.join("\n"), /ohlcv multi-timeframe: ENAUSDT 8\/8/);
 });
 
+test("CoinGlass provider uses OHLCV timeframe structure instead of treating every signal as range middle", async () => {
+  const ohlcvProvider: OhlcvProvider = {
+    id: "test-ohlcv",
+    label: "Test OHLCV",
+    async fetchCandles(request) {
+      return {
+        ok: true,
+        source: "test-ohlcv",
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: [10, 10.2, 10.4, 10.7, 11.1, 11.8, 12.4, 12.9].map((close, index) =>
+          ohlcvCandle(index, close)
+        ),
+      };
+    },
+  };
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ENA"],
+    batchSize: 3,
+    ohlcvProvider,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: symbol === "ENA"
+          ? [coinglassRow("ENA", {
+            current_price: 12.9,
+            price_change_percent_24h: 5.4,
+            volume_usd_change_percent_24h: 160,
+            open_interest_change_percent_24h: 8,
+          })]
+          : [],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+  const enaSignal = snapshot.signals.find((signal) => signal.symbol === "ENAUSDT");
+  const structureEvidence = enaSignal?.evidence.find((item) => item.label === "结构位置");
+
+  assert.ok(enaSignal);
+  assert.notEqual(enaSignal.direction, "neutral");
+  assert.notEqual(enaSignal.risk, "high");
+  assert.ok((enaSignal.strategy.riskReward ?? 0) >= 3);
+  assert.match(structureEvidence?.value ?? "", /关键边界/);
+  assert.doesNotMatch(structureEvidence?.value ?? "", /区间中部/);
+});
+
 test("CoinGlass provider attaches v3 key level dossiers from the same OHLCV candles without extra requests", async () => {
   const requestedCandles: string[] = [];
   const intervals = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"];
@@ -886,4 +972,32 @@ test("CoinGlass provider attaches v3 key level dossiers from the same OHLCV cand
     intervals.map((interval) => `ENAUSDT:${interval}:120`),
   );
   assert.match(snapshot.metadata.notes.join("\n"), /v3 key levels: ENAUSDT/);
+});
+
+test("CoinGlass provider reports the full duplicate symbol group count instead of only the sample count", async () => {
+  const duplicateBases = Array.from({ length: 10 }, (_, index) => `ALT${index + 1}`);
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: duplicateBases,
+    batchSize: 24,
+    now: () => new Date("2026-06-12T00:00:00.000Z"),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [
+          coinglassRow(symbol, { exchange_name: "Binance", volume_usd: 100_000_000 }),
+          coinglassRow(symbol, { exchange_name: "OKX", volume_usd: 120_000_000 }),
+        ],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.equal(snapshot.metadata.diagnostics?.requests.duplicateSymbolGroups, 12);
+  assert.match(snapshot.metadata.notes.join("\n"), /duplicate_groups 12/);
 });

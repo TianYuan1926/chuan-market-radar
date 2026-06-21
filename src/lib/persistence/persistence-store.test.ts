@@ -4,8 +4,9 @@ import type { JournalEvent } from "@/lib/analysis/types";
 import type { StrategyV3Dossier } from "@/lib/analysis/v3/types";
 import type { RankProfile } from "@/lib/journal/rank-engine";
 import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
+import type { MacroMarketSnapshot } from "@/lib/market/macro-snapshot";
 import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
-import type { ScanArchiveSummary, ScanReplayFrame } from "@/lib/market/types";
+import type { ScanArchiveSummary, ScanAssetState, ScanReplayFrame } from "@/lib/market/types";
 import {
   createMemoryPersistenceRepository,
   createPersistenceRepository,
@@ -248,6 +249,53 @@ function ohlcvCacheEntry(overrides: Partial<OhlcvCandleCacheEntry> = {}): OhlcvC
   };
 }
 
+function scanAssetState(overrides: Partial<ScanAssetState> = {}): ScanAssetState {
+  return {
+    baseAsset: "TIA",
+    consecutiveSkipped: 4,
+    deepScanCount1h: 0,
+    deepScanCount24h: 2,
+    dynamicPriorityScore: 820000,
+    lastDeepScannedAt: "2026-06-20T08:00:00.000Z",
+    lastLightScannedAt: "2026-06-20T09:00:00.000Z",
+    lastSelectedReason: "dynamic_priority",
+    lastSkippedReason: "priority_queue_waiting",
+    payload: {
+      recentDeepScanTimes: [
+        "2026-06-20T08:00:00.000Z",
+        "2026-06-19T23:30:00.000Z",
+      ],
+      source: "scan_rotation_state_v1",
+    },
+    rotationPriorityScore: 940000,
+    statePool: "BATTLE_WATCH",
+    symbol: "TIAUSDT",
+    tier: "active",
+    updatedAt: "2026-06-20T09:00:00.000Z",
+    wasDisplacedByDynamicPriority: true,
+    ...overrides,
+  };
+}
+
+function macroMarketSnapshot(overrides: Partial<MacroMarketSnapshot> = {}): MacroMarketSnapshot {
+  return {
+    allowedUse: "macro_context_only",
+    btcDominancePercent: 52,
+    canCreateTradeSignal: false,
+    ethDominancePercent: 10,
+    fetchedAt: "2026-06-21T00:00:00.000Z",
+    guardrail: "BTC.D/TOTAL2/TOTAL3 只能作为山寨大盘环境锚点，不能直接生成交易方向，不能降低 3:1 最低盈亏比。",
+    id: "macro-coingecko-global-20260621000000000",
+    source: "coingecko_global",
+    total2MarketCapUsd: 1_440_000_000_000,
+    total3MarketCapUsd: 1_140_000_000_000,
+    totalMarketCapChangePercent24h: 1.8,
+    totalMarketCapUsd: 3_000_000_000_000,
+    updatedAt: "2026-06-21T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 test("detectPersistenceMode keeps local preview on memory unless a database URL exists", () => {
   assert.deepEqual(detectPersistenceMode({}), {
     mode: "memory",
@@ -373,6 +421,68 @@ test("memory repository stores and reads ohlcv candle cache entries newest first
   assert.equal(ena?.allowedUse, "research_only");
   assert.equal(ena?.canAutoAdjustWeights, false);
   assert.equal(missing, null);
+});
+
+test("memory repository stores and updates scan asset rotation states newest first", async () => {
+  const repository = createMemoryPersistenceRepository();
+
+  await repository.upsertScanAssetStates([
+    scanAssetState({
+      symbol: "TIAUSDT",
+      baseAsset: "TIA",
+      updatedAt: "2026-06-20T09:00:00.000Z",
+    }),
+    scanAssetState({
+      baseAsset: "ENA",
+      consecutiveSkipped: 7,
+      lastDeepScannedAt: null,
+      statePool: "COLD",
+      symbol: "ENAUSDT",
+      tier: "long_tail",
+      updatedAt: "2026-06-20T08:30:00.000Z",
+      wasDisplacedByDynamicPriority: false,
+    }),
+  ]);
+  await repository.upsertScanAssetStates([
+    scanAssetState({
+      consecutiveSkipped: 0,
+      deepScanCount1h: 1,
+      lastDeepScannedAt: "2026-06-20T09:15:00.000Z",
+      lastSelectedReason: "tier_rotation",
+      symbol: "TIAUSDT",
+      updatedAt: "2026-06-20T09:15:00.000Z",
+      wasDisplacedByDynamicPriority: false,
+    }),
+  ]);
+
+  const states = await repository.listScanAssetStates();
+  const limited = await repository.listScanAssetStates(1);
+
+  assert.deepEqual(states.map((state) => state.symbol), ["TIAUSDT", "ENAUSDT"]);
+  assert.equal(states[0]?.consecutiveSkipped, 0);
+  assert.equal(states[0]?.lastSelectedReason, "tier_rotation");
+  assert.equal(states[1]?.consecutiveSkipped, 7);
+  assert.deepEqual(limited.map((state) => state.symbol), ["TIAUSDT"]);
+});
+
+test("memory repository stores and reads macro market snapshots newest first", async () => {
+  const repository = createMemoryPersistenceRepository();
+
+  await repository.addMacroMarketSnapshot(macroMarketSnapshot({
+    fetchedAt: "2026-06-20T00:00:00.000Z",
+    id: "macro-old",
+  }));
+  await repository.addMacroMarketSnapshot(macroMarketSnapshot());
+
+  const snapshots = await repository.listMacroMarketSnapshots();
+  const latest = await repository.getLatestMacroMarketSnapshot();
+
+  assert.deepEqual(snapshots.map((snapshot) => snapshot.id), [
+    "macro-coingecko-global-20260621000000000",
+    "macro-old",
+  ]);
+  assert.equal(latest?.allowedUse, "macro_context_only");
+  assert.equal(latest?.canCreateTradeSignal, false);
 });
 
 test("memory repository extracts v3 forward map snapshots from scan replay frames", async () => {
@@ -632,6 +742,55 @@ test("postgres repository writes and reads daily mover snapshots through durable
   assert.deepEqual(client.calls[5]?.params, ["chuan-public", snapshot.id]);
 });
 
+test("postgres repository upserts and reads scan asset rotation states through durable tables", async () => {
+  const client = new RecordingSqlClient();
+  const state = scanAssetState();
+  client.responses.push(
+    { rows: [] },
+    {
+      rows: [
+        {
+          scope: "chuan-public",
+          symbol: state.symbol,
+          base_asset: state.baseAsset,
+          tier: state.tier,
+          state_pool: state.statePool,
+          last_light_scanned_at: state.lastLightScannedAt,
+          last_deep_scanned_at: state.lastDeepScannedAt,
+          consecutive_skipped: state.consecutiveSkipped,
+          deep_scan_count_1h: state.deepScanCount1h,
+          deep_scan_count_24h: state.deepScanCount24h,
+          dynamic_priority_score: state.dynamicPriorityScore,
+          rotation_priority_score: state.rotationPriorityScore,
+          was_displaced_by_dynamic_priority: state.wasDisplacedByDynamicPriority,
+          last_selected_reason: state.lastSelectedReason,
+          last_skipped_reason: state.lastSkippedReason,
+          updated_at: state.updatedAt,
+          payload: state.payload,
+        },
+      ],
+    },
+  );
+  const repository = createPostgresPersistenceRepository({ client, scope: "chuan-public" });
+
+  await repository.upsertScanAssetStates([state]);
+  const states = await repository.listScanAssetStates(10);
+
+  assert.equal(states[0]?.symbol, "TIAUSDT");
+  assert.equal(states[0]?.consecutiveSkipped, 4);
+  assert.equal(states[0]?.wasDisplacedByDynamicPriority, true);
+  assert.match(client.calls[0]?.sql ?? "", /insert into scan_asset_states/i);
+  assert.match(client.calls[0]?.sql ?? "", /on conflict \(scope, symbol\) do update/i);
+  assert.match(client.calls[1]?.sql ?? "", /select \* from scan_asset_states/i);
+  assert.deepEqual(client.calls[0]?.params.slice(0, 4), [
+    "chuan-public",
+    "TIAUSDT",
+    "TIA",
+    "active",
+  ]);
+  assert.equal(client.calls[1]?.params[1], 10);
+});
+
 test("postgres repository writes and reads ohlcv candle cache entries through durable tables", async () => {
   const client = new RecordingSqlClient();
   const entry = ohlcvCacheEntry();
@@ -690,6 +849,68 @@ test("postgres repository writes and reads ohlcv candle cache entries through du
   ]);
   assert.deepEqual(client.calls[1]?.params, ["chuan-public", 5]);
   assert.deepEqual(client.calls[2]?.params, ["chuan-public", "ENAUSDT", "15m"]);
+});
+
+test("postgres repository writes and reads macro market snapshots through durable tables", async () => {
+  const client = new RecordingSqlClient();
+  const snapshot = macroMarketSnapshot();
+  client.responses.push(
+    { rows: [] },
+    {
+      rows: [
+        {
+          allowed_use: snapshot.allowedUse,
+          btc_dominance_percent: snapshot.btcDominancePercent,
+          can_create_trade_signal: snapshot.canCreateTradeSignal,
+          eth_dominance_percent: snapshot.ethDominancePercent,
+          fetched_at: snapshot.fetchedAt,
+          id: snapshot.id,
+          payload: snapshot,
+          scope: "chuan-public",
+          source: snapshot.source,
+          total2_market_cap_usd: snapshot.total2MarketCapUsd,
+          total3_market_cap_usd: snapshot.total3MarketCapUsd,
+          total_market_cap_change_percent_24h: snapshot.totalMarketCapChangePercent24h,
+          total_market_cap_usd: snapshot.totalMarketCapUsd,
+          updated_at: snapshot.updatedAt,
+        },
+      ],
+    },
+    {
+      rows: [
+        {
+          allowed_use: snapshot.allowedUse,
+          btc_dominance_percent: snapshot.btcDominancePercent,
+          can_create_trade_signal: snapshot.canCreateTradeSignal,
+          eth_dominance_percent: snapshot.ethDominancePercent,
+          fetched_at: snapshot.fetchedAt,
+          id: snapshot.id,
+          payload: snapshot,
+          scope: "chuan-public",
+          source: snapshot.source,
+          total2_market_cap_usd: snapshot.total2MarketCapUsd,
+          total3_market_cap_usd: snapshot.total3MarketCapUsd,
+          total_market_cap_change_percent_24h: snapshot.totalMarketCapChangePercent24h,
+          total_market_cap_usd: snapshot.totalMarketCapUsd,
+          updated_at: snapshot.updatedAt,
+        },
+      ],
+    },
+  );
+  const repository = createPostgresPersistenceRepository({ client, scope: "chuan-public" });
+
+  const added = await repository.addMacroMarketSnapshot(snapshot);
+  const snapshots = await repository.listMacroMarketSnapshots(5);
+  const latest = await repository.getLatestMacroMarketSnapshot();
+
+  assert.equal(added.id, snapshot.id);
+  assert.equal(snapshots[0]?.btcDominancePercent, 52);
+  assert.equal(latest?.total3MarketCapUsd, 1_140_000_000_000);
+  assert.match(client.calls[0]?.sql ?? "", /insert into macro_market_snapshots/i);
+  assert.match(client.calls[1]?.sql ?? "", /select \* from macro_market_snapshots/i);
+  assert.match(client.calls[2]?.sql ?? "", /select \* from macro_market_snapshots/i);
+  assert.deepEqual(client.calls[1]?.params, ["chuan-public", 5]);
+  assert.deepEqual(client.calls[2]?.params, ["chuan-public", 1]);
 });
 
 test("postgres repository writes and reads v3 forward map snapshots through durable tables", async () => {

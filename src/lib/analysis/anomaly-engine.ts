@@ -6,6 +6,7 @@ import type {
   SignalDirection,
   SignalState,
   Timeframe,
+  TimeframeHardGate,
 } from "./types";
 import { generateStrategyPlan } from "./strategy-planner";
 import {
@@ -120,6 +121,58 @@ function marketContextConflict(input: MarketAnomalyInput) {
 function structureTimeframeConflict(input: MarketAnomalyInput) {
   return input.timeframeProfile?.conflictTimeframes.some((timeframe) => timeframe === "1h" || timeframe === "4h") ??
     false;
+}
+
+function structureConflictTimeframes(input: MarketAnomalyInput): Timeframe[] {
+  return input.timeframeProfile?.conflictTimeframes.filter(
+    (timeframe) => timeframe === "1h" || timeframe === "4h",
+  ) ?? [];
+}
+
+function regimeConflictTimeframes(input: MarketAnomalyInput): Timeframe[] {
+  return input.timeframeProfile?.conflictTimeframes.filter(
+    (timeframe) => timeframe === "1d" || timeframe === "1w",
+  ) ?? [];
+}
+
+function evaluateTimeframeHardGate(input: MarketAnomalyInput): TimeframeHardGate {
+  const structureConflicts = structureConflictTimeframes(input);
+  const regimeConflicts = regimeConflictTimeframes(input);
+  const doubleRegimeConflict = regimeConflicts.includes("1d") && regimeConflicts.includes("1w");
+
+  if (doubleRegimeConflict) {
+    return {
+      action: "WATCH_ONLY",
+      allowed: false,
+      blockedBy: ["regime_timeframe_double_conflict"],
+      conflictTimeframes: regimeConflicts,
+      guardrail: "日线和周线同时冲突时，低周期信号只能观察，不能输出交易计划。",
+      mode: "multi_timeframe_hard_gate_v1",
+      summary: `${regimeConflicts.join("/")} 同时与当前方向冲突；日线和周线没有转向前，只能观察。`,
+    };
+  }
+
+  if (structureConflicts.length > 0) {
+    return {
+      action: "WAIT_HIGH_TIMEFRAME_BREAK",
+      allowed: false,
+      blockedBy: ["structure_timeframe_conflict"],
+      conflictTimeframes: structureConflicts,
+      guardrail: "低周期不能推翻高周期；1h/4h 压力未突破时只能等待确认。",
+      mode: "multi_timeframe_hard_gate_v1",
+      summary: `${structureConflicts.join("/")} 结构仍冲突；短周期信号只能等待高周期突破或回踩确认。`,
+    };
+  }
+
+  return {
+    action: "ALLOW",
+    allowed: true,
+    blockedBy: [],
+    conflictTimeframes: [],
+    guardrail: "高周期未发现硬阻断，仍需 Evidence、赔率和 Risk Gate 继续确认。",
+    mode: "multi_timeframe_hard_gate_v1",
+    summary: "多周期硬门控通过。",
+  };
 }
 
 function structureTimeframeSupport(input: MarketAnomalyInput) {
@@ -290,7 +343,7 @@ function confidence(input: MarketAnomalyInput, scores: ScoreBreakdown) {
   return Math.round(clamp(capped));
 }
 
-function stateFor(input: MarketAnomalyInput, score: number): SignalState {
+function stateFor(input: MarketAnomalyInput, score: number, timeframeGate: TimeframeHardGate): SignalState {
   const rr = riskReward(input);
 
   if (input.dataQualityScore < 0.6) {
@@ -302,11 +355,19 @@ function stateFor(input: MarketAnomalyInput, score: number): SignalState {
   }
 
   if (score >= 74 && rr >= 2.5 && input.structureLocation !== "middle") {
-    if (structureTimeframeConflict(input) || marketContextConflict(input)) {
+    if (timeframeGate.action === "WATCH_ONLY") {
+      return "normal_watch";
+    }
+
+    if (timeframeGate.action === "WAIT_HIGH_TIMEFRAME_BREAK" || marketContextConflict(input)) {
       return "waiting_confirmation";
     }
 
     return "near_trigger";
+  }
+
+  if (timeframeGate.action === "WATCH_ONLY" && score >= 45) {
+    return "normal_watch";
   }
 
   if (score >= 62) {
@@ -354,7 +415,7 @@ function directionFor(input: MarketAnomalyInput, state: SignalState): SignalDire
   return input.directionBias;
 }
 
-function evidenceFor(input: MarketAnomalyInput): EvidencePoint[] {
+function evidenceFor(input: MarketAnomalyInput, timeframeGate: TimeframeHardGate): EvidencePoint[] {
   const rr = riskReward(input);
   const evidence: EvidencePoint[] = [
     {
@@ -421,6 +482,15 @@ function evidenceFor(input: MarketAnomalyInput): EvidencePoint[] {
     evidence.push(...input.indicatorEvidence);
   }
 
+  if (!timeframeGate.allowed) {
+    evidence.push({
+      label: "多周期硬门控",
+      value: `${timeframeGate.summary} ${timeframeGate.guardrail}`,
+      layer: timeframeGate.action === "WATCH_ONLY" ? "market_regime" : "structure_location",
+      polarity: timeframeGate.action === "WATCH_ONLY" ? "blocking" : "conflicting",
+    });
+  }
+
   const calibration = indicatorTimeframeCalibration(input);
 
   if (calibration.evidence) {
@@ -476,9 +546,17 @@ function evidenceFor(input: MarketAnomalyInput): EvidencePoint[] {
   return evidence;
 }
 
-function summaryFor(input: MarketAnomalyInput, state: SignalState) {
+function summaryFor(input: MarketAnomalyInput, state: SignalState, timeframeGate: TimeframeHardGate) {
   if (state === "insufficient_data") {
     return "关键数据不足，本轮只进入记录池，不给交易判断。";
+  }
+
+  if (timeframeGate.action === "WATCH_ONLY") {
+    return "日线和周线同时冲突，本轮只观察，不给交易计划。";
+  }
+
+  if (timeframeGate.action === "WAIT_HIGH_TIMEFRAME_BREAK") {
+    return "低周期异动存在，但 1h/4h 高周期结构未确认，只能等待突破或回踩确认。";
   }
 
   if (input.structureLocation === "middle") {
@@ -496,16 +574,87 @@ function summaryFor(input: MarketAnomalyInput, state: SignalState) {
   return "有观察价值，但证据强度或赔率还不够，不进入执行候选。";
 }
 
+function applyTimeframeGateToPlan(
+  plan: ReturnType<typeof generateStrategyPlan>,
+  timeframeGate: TimeframeHardGate,
+): ReturnType<typeof generateStrategyPlan> {
+  if (timeframeGate.allowed) {
+    return plan;
+  }
+
+  const counterEvidence = [
+    `多周期硬门控: ${timeframeGate.summary}`,
+    ...(plan.counterEvidence ?? []),
+  ];
+
+  if (timeframeGate.action === "WATCH_ONLY") {
+    return {
+      ...plan,
+      bias: "neutral",
+      entry: "不参与，等待日线和周线至少解除一个方向冲突后再评估。",
+      invalidation: "日线和周线继续同向压制时，多头计划保持失效。",
+      positionHint: "日线和周线同时冲突，只观察，不给交易计划。",
+      status: "observe_only",
+      entryZone: "无入场区",
+      stopLoss: "无执行计划",
+      takeProfitPlan: "无执行计划",
+      noChase: true,
+      confirmation: [
+        "日线或周线冲突解除",
+        "1h/4h 重新形成同向结构",
+        ...(plan.confirmation ?? []),
+      ],
+      counterEvidence,
+      riskControls: [
+        "禁止用低周期强势覆盖日线/周线冲突",
+        ...(plan.riskControls ?? []),
+      ],
+    };
+  }
+
+  return {
+    ...plan,
+    entry: "等待 1h/4h 关键压力突破并回踩确认后再评估。",
+    positionHint: "等待高周期确认；低周期不能推翻高周期，当前不允许提前执行。",
+    status: "waiting",
+    noChase: true,
+    confirmation: [
+      "1h/4h 冲突周期突破或转为支撑",
+      "回踩不破高周期关键位",
+      ...(plan.confirmation ?? []),
+    ],
+    counterEvidence,
+    riskControls: [
+      "高周期压力未解除前禁止追单",
+      ...(plan.riskControls ?? []),
+    ],
+  };
+}
+
 export function analyzeMarketAnomaly(input: MarketAnomalyInput): MarketSignal {
+  const timeframeGate = evaluateTimeframeHardGate(input);
   const scores = scoreBreakdown(input);
   const score = input.dataQualityScore < 0.6 ? 0 : confidence(input, scores);
-  const state = stateFor(input, score);
+  const state = stateFor(input, score, timeframeGate);
   const risk = riskFor(input, state);
   const direction = directionFor(input, state);
-  const evidence = evidenceFor(input);
+  const evidence = evidenceFor(input, timeframeGate);
   const timeframeAgreement = input.timeframeProfile
     ? summarizeTimeframeAgreement(input.timeframeProfile)
     : undefined;
+  const strategy = applyTimeframeGateToPlan(generateStrategyPlan({
+    symbol: input.symbol,
+    direction,
+    state,
+    risk,
+    riskReward: riskReward(input),
+    triggerHint: input.triggerHint,
+    invalidationHint: input.invalidationHint,
+    targets: input.targetHints ?? [],
+    distanceToInvalidationPercent: input.distanceToInvalidationPercent,
+    projectedMovePercent: input.projectedMovePercent,
+    evidence,
+  }), timeframeGate);
 
   const signal: MarketSignal = {
     id: input.id,
@@ -518,24 +667,13 @@ export function analyzeMarketAnomaly(input: MarketAnomalyInput): MarketSignal {
     confidence: score,
     risk,
     updatedAt: input.updatedAt,
-    summary: summaryFor(input, state),
+    summary: summaryFor(input, state, timeframeGate),
     evidence,
-    strategy: generateStrategyPlan({
-      symbol: input.symbol,
-      direction,
-      state,
-      risk,
-      riskReward: riskReward(input),
-      triggerHint: input.triggerHint,
-      invalidationHint: input.invalidationHint,
-      targets: input.targetHints ?? [],
-      distanceToInvalidationPercent: input.distanceToInvalidationPercent,
-      projectedMovePercent: input.projectedMovePercent,
-      evidence,
-    }),
+    strategy,
     timeframeProfile: input.timeframeProfile,
     timeframeAgreement,
     timeframeConflicts: input.timeframeProfile?.conflictTimeframes,
+    timeframeGate,
   };
 
   return {

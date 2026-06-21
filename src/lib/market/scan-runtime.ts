@@ -18,11 +18,33 @@ export type ScanCache = {
   set: (snapshot: MarketRadarSnapshot) => void;
 };
 
+export type ScanCoordinationClaim = {
+  allowed: true;
+  token: string;
+} | {
+  allowed: false;
+  reason: string;
+};
+
+export type ScanCoordinator = {
+  beforeScan: (context: {
+    cadenceMinutes: 15 | 30;
+    forceRefresh: boolean;
+    now: Date;
+    providerId: MarketDataProvider["id"];
+    trigger: ScanRuntimeDiagnostics["trigger"];
+  }) => Promise<ScanCoordinationClaim>;
+  afterScan: (token: string, context: {
+    status: ScanRunStatus;
+  }) => Promise<void>;
+};
+
 export type RunScheduledScanOptions = {
   provider: MarketDataProvider;
   cache: ScanCache;
   now: Date;
   cadenceMinutes: 15 | 30;
+  coordinator?: ScanCoordinator;
   forceRefresh?: boolean;
   trigger?: ScanRuntimeDiagnostics["trigger"];
 };
@@ -75,6 +97,7 @@ function withRuntimeMetadata(
 export async function runScheduledScan({
   cache,
   cadenceMinutes,
+  coordinator,
   forceRefresh = false,
   now,
   provider,
@@ -103,6 +126,47 @@ export async function runScheduledScan({
     };
   }
 
+  const coordination = coordinator
+    ? await coordinator.beforeScan({
+      cadenceMinutes,
+      forceRefresh,
+      now,
+      providerId: provider.id,
+      trigger,
+    })
+    : null;
+
+  if (coordination && !coordination.allowed) {
+    if (!cachedSnapshot) {
+      return {
+        status: "failed",
+        snapshot: null,
+        error: coordination.reason,
+      };
+    }
+
+    return {
+      status: "served_cache",
+      snapshot: withRuntimeMetadata(cachedSnapshot, {
+        cadenceMinutes,
+        nextScanAt: calculateNextScanAt(cachedSnapshot.metadata.generatedAt, cadenceMinutes),
+        runtime: {
+          ...cachedSnapshot.metadata.runtime,
+          cacheStatus: "served_cache",
+          persistedArchive: cachedSnapshot.metadata.runtime?.persistedArchive ?? false,
+          trigger,
+        },
+        notes: [
+          ...cachedSnapshot.metadata.notes,
+          `scan runtime: served cache because ${coordination.reason}`,
+        ],
+      }),
+      error: coordination.reason,
+    };
+  }
+
+  const token = coordination?.token;
+
   try {
     const providerSnapshot = await provider.fetchSnapshot();
     const snapshot = withRuntimeMetadata(providerSnapshot, {
@@ -124,6 +188,9 @@ export async function runScheduledScan({
     });
 
     cache.set(snapshot);
+    if (token) {
+      await coordinator?.afterScan(token, { status: "updated" });
+    }
 
     return {
       status: "updated",
@@ -131,6 +198,9 @@ export async function runScheduledScan({
     };
   } catch (error) {
     const message = errorMessage(error);
+    if (token) {
+      await coordinator?.afterScan(token, { status: cachedSnapshot ? "served_cache" : "failed" });
+    }
 
     if (!cachedSnapshot) {
       return {

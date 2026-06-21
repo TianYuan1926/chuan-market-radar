@@ -8,11 +8,13 @@ import type {
   MoverAttribution,
   RadarMoverReview,
 } from "@/lib/market/daily-movers";
+import type { MacroMarketSnapshot } from "@/lib/market/macro-snapshot";
 import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
 import type {
   MarketDataSource,
   MarketDataStatus,
   ScanArchiveSummary,
+  ScanAssetState,
   ScanReplayFrame,
 } from "@/lib/market/types";
 
@@ -133,6 +135,43 @@ export type PersistedV3ForwardMapSnapshotRecord = {
   payload: V3ForwardMapSnapshot;
 };
 
+export type PersistedScanAssetStateRecord = {
+  scope: PersistenceScope;
+  symbol: string;
+  base_asset: string;
+  tier: ScanAssetState["tier"];
+  state_pool: ScanAssetState["statePool"];
+  last_light_scanned_at: string | null;
+  last_deep_scanned_at: string | null;
+  consecutive_skipped: number;
+  deep_scan_count_1h: number;
+  deep_scan_count_24h: number;
+  dynamic_priority_score: number;
+  rotation_priority_score: number;
+  was_displaced_by_dynamic_priority: boolean;
+  last_selected_reason: string | null;
+  last_skipped_reason: string | null;
+  updated_at: string;
+  payload: ScanAssetState["payload"];
+};
+
+export type PersistedMacroMarketSnapshotRecord = {
+  allowed_use: MacroMarketSnapshot["allowedUse"];
+  btc_dominance_percent: number;
+  can_create_trade_signal: false;
+  eth_dominance_percent: number | null;
+  fetched_at: string;
+  id: string;
+  payload: MacroMarketSnapshot;
+  scope: PersistenceScope;
+  source: MacroMarketSnapshot["source"];
+  total2_market_cap_usd: number;
+  total3_market_cap_usd: number;
+  total_market_cap_change_percent_24h: number | null;
+  total_market_cap_usd: number;
+  updated_at: string;
+};
+
 export type PersistedDailyMoverSnapshotRecords = {
   snapshot: PersistedDailyMoverSnapshotRecord;
   assets: PersistedDailyMoverAssetRecord[];
@@ -150,6 +189,8 @@ export const persistenceTables = [
   "mover_attribution_reviews",
   "radar_miss_reviews",
   "ohlcv_candle_cache",
+  "scan_asset_states",
+  "macro_market_snapshots",
 ] as const;
 
 export function journalEventToRecord(
@@ -397,6 +438,109 @@ export function ohlcvCandleCacheEntryRecordToEntry(
   };
 }
 
+export function scanAssetStateToRecord(
+  state: ScanAssetState,
+  scope: PersistenceScope,
+): PersistedScanAssetStateRecord {
+  return {
+    scope,
+    symbol: state.symbol,
+    base_asset: state.baseAsset,
+    tier: state.tier,
+    state_pool: state.statePool,
+    last_light_scanned_at: state.lastLightScannedAt,
+    last_deep_scanned_at: state.lastDeepScannedAt,
+    consecutive_skipped: state.consecutiveSkipped,
+    deep_scan_count_1h: state.deepScanCount1h,
+    deep_scan_count_24h: state.deepScanCount24h,
+    dynamic_priority_score: state.dynamicPriorityScore,
+    rotation_priority_score: state.rotationPriorityScore,
+    was_displaced_by_dynamic_priority: state.wasDisplacedByDynamicPriority,
+    last_selected_reason: state.lastSelectedReason,
+    last_skipped_reason: state.lastSkippedReason,
+    updated_at: state.updatedAt,
+    payload: state.payload,
+  };
+}
+
+export function scanAssetStateRecordToState(
+  record: PersistedScanAssetStateRecord,
+): ScanAssetState {
+  return {
+    baseAsset: record.base_asset,
+    consecutiveSkipped: record.consecutive_skipped,
+    deepScanCount1h: record.deep_scan_count_1h,
+    deepScanCount24h: record.deep_scan_count_24h,
+    dynamicPriorityScore: record.dynamic_priority_score,
+    lastDeepScannedAt: record.last_deep_scanned_at,
+    lastLightScannedAt: record.last_light_scanned_at,
+    lastSelectedReason: record.last_selected_reason,
+    lastSkippedReason: record.last_skipped_reason,
+    payload: {
+      ...record.payload,
+      source: record.payload.source ?? "scan_rotation_state_v1",
+    },
+    rotationPriorityScore: record.rotation_priority_score,
+    statePool: record.state_pool,
+    symbol: record.symbol,
+    tier: record.tier,
+    updatedAt: record.updated_at,
+    wasDisplacedByDynamicPriority: record.was_displaced_by_dynamic_priority,
+  };
+}
+
+export function macroMarketSnapshotToRecord(
+  snapshot: MacroMarketSnapshot,
+  scope: PersistenceScope,
+): PersistedMacroMarketSnapshotRecord {
+  return {
+    allowed_use: snapshot.allowedUse,
+    btc_dominance_percent: snapshot.btcDominancePercent,
+    can_create_trade_signal: false,
+    eth_dominance_percent: snapshot.ethDominancePercent,
+    fetched_at: snapshot.fetchedAt,
+    id: snapshot.id,
+    payload: snapshot,
+    scope,
+    source: snapshot.source,
+    total2_market_cap_usd: snapshot.total2MarketCapUsd,
+    total3_market_cap_usd: snapshot.total3MarketCapUsd,
+    total_market_cap_change_percent_24h: snapshot.totalMarketCapChangePercent24h,
+    total_market_cap_usd: snapshot.totalMarketCapUsd,
+    updated_at: snapshot.updatedAt,
+  };
+}
+
+function numericValue(value: number | string | null) {
+  if (value === null) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function macroMarketSnapshotRecordToSnapshot(
+  record: PersistedMacroMarketSnapshotRecord,
+): MacroMarketSnapshot {
+  return {
+    ...record.payload,
+    allowedUse: record.allowed_use,
+    btcDominancePercent: numericValue(record.btc_dominance_percent) ?? record.payload.btcDominancePercent,
+    canCreateTradeSignal: false,
+    ethDominancePercent: numericValue(record.eth_dominance_percent),
+    fetchedAt: record.fetched_at,
+    id: record.id,
+    source: record.source,
+    total2MarketCapUsd: numericValue(record.total2_market_cap_usd) ?? record.payload.total2MarketCapUsd,
+    total3MarketCapUsd: numericValue(record.total3_market_cap_usd) ?? record.payload.total3MarketCapUsd,
+    totalMarketCapChangePercent24h: numericValue(record.total_market_cap_change_percent_24h),
+    totalMarketCapUsd: numericValue(record.total_market_cap_usd) ?? record.payload.totalMarketCapUsd,
+    updatedAt: record.updated_at,
+  };
+}
+
 export function buildPersistenceSchemaSql() {
   return `
 create table if not exists journal_events (
@@ -558,5 +702,53 @@ create index if not exists ohlcv_candle_cache_scope_fetched_at_idx
 
 create index if not exists ohlcv_candle_cache_scope_symbol_idx
   on ohlcv_candle_cache (scope, symbol, interval);
+
+create table if not exists scan_asset_states (
+  scope text not null,
+  symbol text not null,
+  base_asset text not null,
+  tier text not null,
+  state_pool text not null,
+  last_light_scanned_at timestamptz,
+  last_deep_scanned_at timestamptz,
+  consecutive_skipped integer not null default 0,
+  deep_scan_count_1h integer not null default 0,
+  deep_scan_count_24h integer not null default 0,
+  dynamic_priority_score numeric not null default 0,
+  rotation_priority_score numeric not null default 0,
+  was_displaced_by_dynamic_priority boolean not null default false,
+  last_selected_reason text,
+  last_skipped_reason text,
+  updated_at timestamptz not null,
+  payload jsonb not null,
+  primary key (scope, symbol)
+);
+
+create index if not exists scan_asset_states_scope_rotation_idx
+  on scan_asset_states (scope, rotation_priority_score desc, consecutive_skipped desc, updated_at desc);
+
+create index if not exists scan_asset_states_scope_last_deep_idx
+  on scan_asset_states (scope, last_deep_scanned_at desc);
+
+create table if not exists macro_market_snapshots (
+  scope text not null,
+  id text not null,
+  source text not null,
+  fetched_at timestamptz not null,
+  updated_at timestamptz not null,
+  btc_dominance_percent numeric not null,
+  eth_dominance_percent numeric,
+  total_market_cap_usd numeric not null,
+  total_market_cap_change_percent_24h numeric,
+  total2_market_cap_usd numeric not null,
+  total3_market_cap_usd numeric not null,
+  allowed_use text not null,
+  can_create_trade_signal boolean not null,
+  payload jsonb not null,
+  primary key (scope, id)
+);
+
+create index if not exists macro_market_snapshots_scope_fetched_at_idx
+  on macro_market_snapshots (scope, fetched_at desc);
 `.trim();
 }

@@ -4,6 +4,8 @@ import {
   defaultCoinGlassBatchSize,
   defaultCoinGlassDailyRequestBudget,
   defaultCoinGlassMaxConcurrency,
+  defaultCoinGlassRequestIntervalMs,
+  createConfiguredPublicLightScanProvider,
   getConfiguredMarketProvider,
   parseBaseAssets,
 } from "./provider-registry";
@@ -24,6 +26,39 @@ function instrument(baseAsset: string): ContractInstrument {
   };
 }
 
+function coinglassRow(symbol: string) {
+  return {
+    instrument_id: `${symbol}USDT`,
+    exchange_name: "Binance",
+    symbol: `${symbol}/USDT`,
+    current_price: 12.7,
+    price_change_percent_24h: 4.8,
+    volume_usd: 35_000_000,
+    volume_usd_change_percent_24h: 140,
+    open_interest_usd: 18_000_000,
+    open_interest_change_percent_24h: 5,
+    funding_rate: 0.0001,
+    long_liquidation_usd_24h: 100_000,
+    short_liquidation_usd_24h: 50_000,
+  };
+}
+
+function klineRows() {
+  return [10, 10.4, 10.9, 10.6, 10.1, 11.3, 12.1, 11.4, 10.7, 12.2, 13.3, 12.8, 11.9, 13.6]
+    .map((close, index) => {
+      const openTime = Date.UTC(2026, 5, 15, 0, index);
+      return [
+        openTime,
+        String(close - 0.2),
+        String(close + 0.4),
+        String(close - 0.5),
+        String(close),
+        String(10_000 + index * 500),
+        openTime + 60_000 - 1,
+      ];
+    });
+}
+
 test("parseBaseAssets normalizes configured symbols and removes empty values", () => {
   assert.deepEqual(parseBaseAssets(" btc, ETHUSDT, sui/usdt, , ondo "), [
     "BTC",
@@ -31,6 +66,80 @@ test("parseBaseAssets normalizes configured symbols and removes empty values", (
     "SUI",
     "ONDO",
   ]);
+});
+
+test("getConfiguredMarketProvider attaches default OHLCV so production scans can build v3 dossiers", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedKlines: string[] = [];
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = new URL(input.toString());
+
+    if (url.pathname.endsWith("/klines")) {
+      requestedKlines.push(`${url.searchParams.get("symbol")}:${url.searchParams.get("interval")}`);
+      return new Response(JSON.stringify(klineRows()));
+    }
+
+    return new Response(JSON.stringify({
+      code: "0",
+      msg: "success",
+      data: [coinglassRow(url.searchParams.get("symbol") ?? "ENA")],
+    }));
+  }) as typeof fetch;
+
+  try {
+    const provider = getConfiguredMarketProvider({
+      MARKET_DATA_PROVIDER: "coinglass",
+      COINGLASS_API_KEY: "test-key",
+      COINGLASS_BASE_ASSETS: "ENA",
+      COINGLASS_BATCH_SIZE: "1",
+      COINGLASS_REQUEST_INTERVAL_MS: "0",
+    }, {
+      now: () => new Date("2026-06-15T00:00:00.000Z"),
+      publicLightScanProvider: {
+        id: "disabled",
+        label: "Disabled Public Light Scan",
+        async scan() {
+          return {
+            diagnostics: {
+              acceptedCount: 0,
+              candidateCount: 0,
+              generatedAt: "2026-06-15T00:00:00.000Z",
+              notes: ["disabled"],
+              requestCount: 0,
+              source: "disabled",
+              status: "disabled",
+              topCandidates: [],
+              universeCount: 0,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [],
+          };
+        },
+      },
+      universeDiscoveryProvider: {
+        id: "test-discovery",
+        label: "Test Discovery",
+        async discoverInstruments() {
+          return {
+            ok: true,
+            source: "test-discovery",
+            instruments: [instrument("ENA")],
+          };
+        },
+      },
+    });
+
+    const snapshot = await provider.fetchSnapshot();
+    const signal = snapshot.signals.find((item) => item.symbol === "ENAUSDT");
+
+    assert.ok(signal?.strategyV3);
+    assert.ok(requestedKlines.some((request) => request === "ENAUSDT:15m"));
+    assert.ok((snapshot.metadata.diagnostics?.v3Coverage.withV3Signals ?? 0) >= 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("getConfiguredMarketProvider stays on mock unless CoinGlass is explicitly enabled with a key", () => {
@@ -51,12 +160,96 @@ test("getConfiguredMarketProvider returns CoinGlass provider when enabled", () =
   assert.equal(provider.label, "CoinGlass Futures Provider");
 });
 
+test("getConfiguredMarketProvider defaults to conservative CoinGlass pacing", () => {
+  assert.equal(defaultCoinGlassRequestIntervalMs, 500);
+});
+
+test("createConfiguredPublicLightScanProvider merges websocket Redis snapshots before REST fallback", async () => {
+  const provider = createConfiguredPublicLightScanProvider({
+    WS_LIGHT_SCAN_ENABLED: "true",
+  }, {
+    restPublicLightScanProvider: {
+      id: "rest-test",
+      label: "REST Test",
+      async scan() {
+        return {
+          diagnostics: {
+            acceptedCount: 0,
+            candidateCount: 0,
+            generatedAt: "2026-06-21T00:00:00.000Z",
+            notes: ["rest fallback disabled in test"],
+            requestCount: 0,
+            source: "rest-test",
+            status: "disabled",
+            topCandidates: [],
+            universeCount: 0,
+          },
+          instruments: [],
+          priorityCandidates: [],
+          tickers: [],
+        };
+      },
+    },
+    webSocketLightScanStore: {
+      async readSnapshot() {
+        return {
+          diagnostics: {
+            acceptedCount: 1,
+            candidateCount: 1,
+            generatedAt: new Date().toISOString(),
+            notes: ["snapshot is scheduling input; CoinGlass deep scan and Evidence gate still required"],
+            requestCount: 0,
+            source: "websocket-light-scan",
+            status: "ready",
+            topCandidates: [],
+            universeCount: 1,
+          },
+          instruments: [instrument("ARB")],
+          mode: "websocket_sliding_window",
+          priorityCandidates: [{
+            baseAsset: "ARB",
+            changePercent24h: 2.3,
+            distanceFromHighPercent: 3,
+            distanceFromLowPercent: 4,
+            reasons: ["websocket_sliding_window", "volume_zscore_spike"],
+            score: 88,
+            state: "HOT",
+            symbol: "ARBUSDT",
+            volume24hUsd: 800_000,
+            volatilityPercent: 3.1,
+          }],
+          tickers: [{
+            exchange: "BINANCE",
+            symbol: "ARBUSDT",
+            price: 1.2,
+            changePercent24h: 2.3,
+            volume24hUsd: 800_000,
+            high24h: 1.24,
+            low24h: 1.1,
+            updatedAt: "2026-06-21T00:00:00.000Z",
+          }],
+          windowMs: 900_000,
+        };
+      },
+      async writeSnapshot() {},
+    },
+  });
+
+  const result = await provider.scan();
+
+  assert.equal(result.diagnostics.status, "ready");
+  assert.equal(result.priorityCandidates[0]?.symbol, "ARBUSDT");
+  assert.match(result.diagnostics.notes.join("\n"), /websocket-light-scan ready 1\/1 accepted/);
+  assert.match(result.priorityCandidates[0]?.reasons.join(","), /volume_zscore_spike/);
+});
+
 test("getConfiguredMarketProvider defaults to a wider Hobbyist-safe scan batch", async () => {
   const requestedSymbols: string[] = [];
   const discovered = Array.from({ length: 30 }, (_, index) => instrument(`ALT${index + 1}`));
   const provider = getConfiguredMarketProvider({
     MARKET_DATA_PROVIDER: "coinglass",
     COINGLASS_API_KEY: "test-key",
+    COINGLASS_REQUEST_INTERVAL_MS: "0",
   }, {
     fetcher: async (input) => {
       const url = new URL(input.toString());
@@ -121,6 +314,7 @@ test("getConfiguredMarketProvider threads repository priority hints into CoinGla
     COINGLASS_API_KEY: "test-key",
     COINGLASS_BASE_ASSETS: "SOL,ENA",
     COINGLASS_BATCH_SIZE: "4",
+    COINGLASS_REQUEST_INTERVAL_MS: "0",
   }, {
     fetcher: async (input) => {
       const url = new URL(input.toString());

@@ -20,6 +20,40 @@ export type MacroWeatherAnchor = {
   liquidationUsd24h: number | null;
 };
 
+export type AltcoinMacroAnchorSource =
+  | "coingecko_global"
+  | "coinglass"
+  | "manual"
+  | "unknown";
+
+export type AltcoinMacroAnchorInput = {
+  btcDominance7dAveragePercent?: number;
+  btcDominance30dAveragePercent?: number;
+  btcDominancePercent: number;
+  ethDominancePercent?: number;
+  source: AltcoinMacroAnchorSource;
+  total2ChangePercent24h?: number;
+  total3ChangePercent24h?: number;
+  totalMarketCapUsd: number;
+  updatedAt: string;
+};
+
+export type AltcoinMacroAnchorReport = {
+  btcDominancePercent: number;
+  btcDominanceTrend: "falling" | "flat" | "rising" | "unknown";
+  ethDominancePercent: number | null;
+  guardrail: string;
+  source: AltcoinMacroAnchorSource;
+  summary: string;
+  tone: MacroWeatherTone;
+  total2ChangePercent24h: number | null;
+  total2MarketCapUsd: number;
+  total3ChangePercent24h: number | null;
+  total3MarketCapUsd: number;
+  totalMarketCapUsd: number;
+  updatedAt: string;
+};
+
 export type MacroWeatherReport = {
   anchors: MacroWeatherAnchor[];
   canMutateWeights: false;
@@ -45,6 +79,7 @@ export type MacroWeatherReport = {
     averageAnchorChangePercent: number | null;
     averageFundingZScore: number | null;
     averageOpenInterestChangePercent: number | null;
+    altcoinMacro: AltcoinMacroAnchorReport | null;
     liquidationUsd24h: number;
   };
   primaryRegime: MacroWeatherRegime;
@@ -62,6 +97,7 @@ export type MacroWeatherReport = {
 };
 
 export type BuildMacroWeatherInput = {
+  altcoinMacro?: AltcoinMacroAnchorInput;
   derivatives: DerivativeSnapshot[];
   metadataStatus: MarketDataStatus;
   signals: MarketSignal[];
@@ -126,6 +162,80 @@ function formatUsd(value: number) {
   }
 
   return `$${value.toFixed(0)}`;
+}
+
+function rounded(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function dominanceTrend(input: AltcoinMacroAnchorInput): AltcoinMacroAnchorReport["btcDominanceTrend"] {
+  const references = [
+    input.btcDominance7dAveragePercent,
+    input.btcDominance30dAveragePercent,
+  ].filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  if (references.length === 0) {
+    return "unknown";
+  }
+
+  const reference = average(references);
+
+  if (reference === null) {
+    return "unknown";
+  }
+
+  const delta = input.btcDominancePercent - reference;
+
+  if (delta >= 0.6) {
+    return "rising";
+  }
+
+  if (delta <= -0.6) {
+    return "falling";
+  }
+
+  return "flat";
+}
+
+function buildAltcoinMacroAnchors(input?: AltcoinMacroAnchorInput): AltcoinMacroAnchorReport | null {
+  if (!input || input.totalMarketCapUsd <= 0 || input.btcDominancePercent <= 0) {
+    return null;
+  }
+
+  const ethDominancePercent = input.ethDominancePercent ?? null;
+  const nonBtcPercent = Math.max(0, 100 - input.btcDominancePercent);
+  const nonBtcEthPercent = Math.max(0, 100 - input.btcDominancePercent - (ethDominancePercent ?? 0));
+  const total2MarketCapUsd = rounded(input.totalMarketCapUsd * (nonBtcPercent / 100));
+  const total3MarketCapUsd = rounded(input.totalMarketCapUsd * (nonBtcEthPercent / 100));
+  const trend = dominanceTrend(input);
+  const total3Change = input.total3ChangePercent24h ?? null;
+  const total2Change = input.total2ChangePercent24h ?? null;
+  const tone: MacroWeatherTone = trend === "falling" && (total3Change ?? total2Change ?? 0) > 0
+    ? "good"
+    : trend === "rising" && (total3Change ?? total2Change ?? 0) <= 0.5
+      ? "bad"
+      : "neutral";
+  const summary = tone === "good"
+    ? "BTC.D 下行且 TOTAL2/TOTAL3 扩张，山寨资金环境偏顺风。"
+    : tone === "bad"
+      ? "BTC.D 上行且 TOTAL2/TOTAL3 走弱，山寨多头环境偏逆风。"
+      : "BTC.D 与 TOTAL2/TOTAL3 暂未形成明确山寨顺逆风。";
+
+  return {
+    btcDominancePercent: rounded(input.btcDominancePercent),
+    btcDominanceTrend: trend,
+    ethDominancePercent: ethDominancePercent === null ? null : rounded(ethDominancePercent),
+    guardrail: "BTC.D/TOTAL2/TOTAL3 只做山寨环境锚点，不降低 3:1 盈亏比，不直接生成买卖方向。",
+    source: input.source,
+    summary,
+    tone,
+    total2ChangePercent24h: total2Change === null ? null : rounded(total2Change),
+    total2MarketCapUsd,
+    total3ChangePercent24h: total3Change === null ? null : rounded(total3Change),
+    total3MarketCapUsd,
+    totalMarketCapUsd: rounded(input.totalMarketCapUsd),
+    updatedAt: input.updatedAt,
+  };
 }
 
 function buildAnchors(tickers: MarketTicker[], derivatives: DerivativeSnapshot[]): MacroWeatherAnchor[] {
@@ -243,6 +353,35 @@ function guidanceFor(regime: MacroWeatherRegime): MacroWeatherReport["guidance"]
   };
 }
 
+function withAltcoinMacroGuidance(
+  guidance: MacroWeatherReport["guidance"],
+  altcoinMacro: AltcoinMacroAnchorReport | null,
+): MacroWeatherReport["guidance"] {
+  if (!altcoinMacro) {
+    return guidance;
+  }
+
+  if (altcoinMacro.tone === "bad") {
+    return {
+      ...guidance,
+      longWeightHint: `${guidance.longWeightHint} BTC.D 上行时，山寨多头必须等待更强独立强势和更近失效位。`,
+      riskHint: `${guidance.riskHint} BTC.D/TOTAL2/TOTAL3 只是环境过滤，3:1 最低盈亏比不降低。`,
+    };
+  }
+
+  if (altcoinMacro.tone === "good") {
+    return {
+      ...guidance,
+      riskHint: `${guidance.riskHint} BTC.D 下行可解释山寨顺风，但仍必须由币种结构、量能和衍生品证据触发，3:1 最低盈亏比不降低。`,
+    };
+  }
+
+  return {
+    ...guidance,
+    riskHint: `${guidance.riskHint} BTC.D/TOTAL2/TOTAL3 未给出明确方向，不参与提高信号等级。`,
+  };
+}
+
 function summaryFor(regime: MacroWeatherRegime) {
   if (regime === "tailwind") {
     return "BTC/ETH 同向上行，山寨机会处在顺风环境，但排序仍由币种自身证据决定。";
@@ -271,12 +410,18 @@ function summaryFor(regime: MacroWeatherRegime) {
   return "等待 BTC/ETH 锚点恢复，暂不把大盘天气用于机会解释。";
 }
 
+function appendAltcoinMacroSummary(summary: string, altcoinMacro: AltcoinMacroAnchorReport | null) {
+  return altcoinMacro ? `${summary} ${altcoinMacro.summary}` : summary;
+}
+
 export function buildMacroWeather({
+  altcoinMacro,
   derivatives,
   metadataStatus,
   signals,
   tickers,
 }: BuildMacroWeatherInput): MacroWeatherReport {
+  const altcoinMacroReport = buildAltcoinMacroAnchors(altcoinMacro);
   const anchors = buildAnchors(tickers, derivatives);
   const anchorChanges = anchors.map((anchor) => anchor.changePercent24h);
   const averageAnchorChangePercent = average(anchorChanges);
@@ -288,6 +433,8 @@ export function buildMacroWeather({
   const averageOpenInterestChangePercent = average(anchors.map((anchor) => anchor.openInterestChangePercent));
   const liquidationUsd24h = anchors.reduce((sum, anchor) => sum + (anchor.liquidationUsd24h ?? 0), 0);
   const altcoinAdvanceDecline = buildBreadth(tickers, signals);
+  const dominanceHeadwind = altcoinMacroReport?.tone === "bad";
+  const dominanceTailwind = altcoinMacroReport?.tone === "good";
   const missingAnchors = knownChanges.length === 0;
   const unknown = metadataStatus === "failed" || metadataStatus === "stale" || missingAnchors;
   const deleveraging = !unknown &&
@@ -302,8 +449,14 @@ export function buildMacroWeather({
   const volatilityExpansion = !unknown &&
     ((averageAnchorChangePercent !== null && Math.abs(averageAnchorChangePercent) >= 2.5) ||
       (anchorDivergencePercent !== null && anchorDivergencePercent >= 2.5));
-  const tailwind = !unknown && averageAnchorChangePercent !== null && averageAnchorChangePercent >= 1.2;
-  const headwind = !unknown && averageAnchorChangePercent !== null && averageAnchorChangePercent <= -1.2;
+  const tailwind = !unknown && (
+    (averageAnchorChangePercent !== null && averageAnchorChangePercent >= 1.2) ||
+    (dominanceTailwind && averageAnchorChangePercent !== null && averageAnchorChangePercent >= -0.6)
+  );
+  const headwind = !unknown && (
+    dominanceHeadwind ||
+    (averageAnchorChangePercent !== null && averageAnchorChangePercent <= -1.2)
+  );
   const chop = !unknown &&
     ((averageAnchorChangePercent !== null && Math.abs(averageAnchorChangePercent) <= 0.6) ||
       (anchorDivergencePercent !== null && anchorDivergencePercent >= 1.5));
@@ -315,10 +468,10 @@ export function buildMacroWeather({
         ? "leverage_crowded"
         : volatilityExpansion
           ? "volatility_expansion"
-          : tailwind
-            ? "tailwind"
-            : headwind
-              ? "headwind"
+          : headwind
+            ? "headwind"
+            : tailwind
+              ? "tailwind"
               : chop
                 ? "chop"
                 : "chop";
@@ -356,10 +509,25 @@ export function buildMacroWeather({
         tone: liquidationUsd24h > 20_000_000 ? "bad" : "neutral",
         value: formatUsd(liquidationUsd24h),
       },
+      ...(altcoinMacroReport
+        ? [
+            {
+              label: "BTC.D",
+              tone: altcoinMacroReport.tone,
+              value: `${formatPercent(altcoinMacroReport.btcDominancePercent)} / ${altcoinMacroReport.btcDominanceTrend}`,
+            },
+            {
+              label: "TOTAL2/TOTAL3",
+              tone: altcoinMacroReport.tone,
+              value: `${formatUsd(altcoinMacroReport.total2MarketCapUsd)} / ${formatUsd(altcoinMacroReport.total3MarketCapUsd)}`,
+            },
+          ]
+        : []),
     ],
-    guidance: guidanceFor(primaryRegime),
+    guidance: withAltcoinMacroGuidance(guidanceFor(primaryRegime), altcoinMacroReport),
     metrics: {
       altcoinAdvanceDecline,
+      altcoinMacro: altcoinMacroReport,
       anchorDivergencePercent,
       averageAnchorChangePercent,
       averageFundingZScore,
@@ -376,7 +544,7 @@ export function buildMacroWeather({
     })),
     requestPolicy: "no_extra_requests",
     statusLabel: labels[primaryRegime],
-    summary: summaryFor(primaryRegime),
+    summary: appendAltcoinMacroSummary(summaryFor(primaryRegime), altcoinMacroReport),
     tone: tones[primaryRegime],
   };
 }

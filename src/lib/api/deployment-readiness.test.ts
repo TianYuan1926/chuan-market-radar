@@ -118,6 +118,7 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       mode: "full_market_coverage_depth_mvp",
       operatorHint: "当前可见合约币池已完成本轮覆盖。",
       priorityExplanation: "候选池优先级来自锚定币、配置白名单、流动性、交易所覆盖和近期信号。",
+      rotationAudit: null,
       samples: {
         pendingAssets: [],
         rejectedAssets: [],
@@ -155,6 +156,20 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       rejectedSamples: [],
       rejectedRowSamples: [],
       status: "clean",
+    },
+    macroMarket: {
+      ageMinutes: null,
+      allowedUse: "macro_context_only",
+      btcDominancePercent: null,
+      canCreateTradeSignal: false,
+      fetchedAt: null,
+      guardrail: "BTC.D/TOTAL2/TOTAL3 只能作为山寨大盘环境锚点，不能直接生成交易方向，不能降低 3:1 最低盈亏比。",
+      operatorHint: "还没有宏观环境快照。",
+      snapshotCount: 0,
+      source: null,
+      status: "empty",
+      total2MarketCapUsd: null,
+      total3MarketCapUsd: null,
     },
     scanStatePool: buildFallbackScanStatePoolReport({
       batchIndex: 0,

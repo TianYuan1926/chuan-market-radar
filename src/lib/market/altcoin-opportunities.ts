@@ -138,7 +138,6 @@ const stateLabels: Record<MarketSignal["state"], string> = {
 
 const driverLabels: Record<string, string> = {
   funding_pressure: "资金",
-  liquidation_pressure: "清算",
   low_liquidity_or_one_off: "低流动",
   open_interest_expansion: "OI",
   pre_move_drift: "提前漂移",

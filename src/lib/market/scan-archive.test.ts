@@ -102,7 +102,20 @@ test("summarizeScanSnapshot keeps the archive payload compact", () => {
 
 test("createReplayFrame converts a snapshot into a stable review frame", () => {
   const frame = createReplayFrame(snapshot({ id: "scan-review" }, [
-    signal({ id: "ena-long", symbol: "ENAUSDT", confidence: 78 }),
+    signal({
+      id: "ena-long",
+      symbol: "ENAUSDT",
+      confidence: 78,
+      timeframeGate: {
+        action: "WAIT_HIGH_TIMEFRAME_BREAK",
+        allowed: false,
+        blockedBy: ["structure_timeframe_conflict"],
+        conflictTimeframes: ["4h"],
+        guardrail: "低周期不能推翻高周期。",
+        mode: "multi_timeframe_hard_gate_v1",
+        summary: "4h 结构仍有压力。",
+      },
+    }),
   ]));
 
   assert.equal(frame.id, "scan-review");
@@ -117,6 +130,15 @@ test("createReplayFrame converts a snapshot into a stable review frame", () => {
     confidence: 78,
     risk: "medium",
     riskReward: 3.2,
+    timeframeGate: {
+      action: "WAIT_HIGH_TIMEFRAME_BREAK",
+      allowed: false,
+      blockedBy: ["structure_timeframe_conflict"],
+      conflictTimeframes: ["4h"],
+      guardrail: "低周期不能推翻高周期。",
+      mode: "multi_timeframe_hard_gate_v1",
+      summary: "4h 结构仍有压力。",
+    },
     strategyStatus: "waiting",
     updatedAt: "2026-06-12T02:00:00.000Z",
     summary: "test signal",

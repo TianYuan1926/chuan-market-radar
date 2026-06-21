@@ -141,6 +141,41 @@ test("enrichSnapshotWithAiReviews marks signals beyond AI budget as visible disa
   assert.equal(enriched.signals[1]?.aiReview?.boundary.canCreateTradeSignal, false);
 });
 
+test("enrichSnapshotWithAiReviews skips model calls for signals below evidence maturity", async () => {
+  let fetchCount = 0;
+  const enriched = await enrichSnapshotWithAiReviews(snapshot([
+    signal({
+      evidence: [],
+      state: "insufficient_data",
+      strategy: {
+        bias: "neutral",
+        entry: "等待数据补齐",
+        invalidation: "数据缺失",
+        positionHint: "不参与",
+        riskReward: 0,
+        status: "blocked",
+        targets: [],
+      },
+      symbol: "COLDUSDT",
+    }),
+  ]), {
+    env: {
+      AI_REVIEW_ENABLED: "true",
+      AI_API_KEY: "test-key",
+      AI_MODEL: "review-model",
+    },
+    fetcher: async () => {
+      fetchCount += 1;
+      return new Response("{}");
+    },
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(enriched.signals[0]?.maturity?.stage, "DEEP_SCAN_CANDIDATE");
+  assert.equal(enriched.signals[0]?.aiReview?.status, "disabled");
+  assert.match(enriched.signals[0]?.aiReview?.reason ?? "", /SIGNAL_MATURITY_GATE/);
+});
+
 test("buildRepositoryAwareMarketProvider injects durable priority hints into the default provider", async () => {
   const repository = createMemoryPersistenceRepository();
   let capturedOptions: GetConfiguredMarketProviderOptions | undefined;
@@ -192,6 +227,67 @@ test("buildRepositoryAwareMarketProvider injects durable priority hints into the
   assert.match(capturedOptions?.universePriorityHintNotes?.join("\n") ?? "", /repository priority hints: 1 built from memory/);
 });
 
+test("buildRepositoryAwareMarketProvider injects durable BTC dominance and TOTAL2 TOTAL3 macro anchors", async () => {
+  const repository = createMemoryPersistenceRepository();
+  let capturedOptions: GetConfiguredMarketProviderOptions | undefined;
+  const provider: MarketDataProvider = {
+    id: "mock",
+    label: "Captured Macro Provider",
+    async fetchSnapshot() {
+      return snapshot([]);
+    },
+  };
+
+  await repository.addMacroMarketSnapshot({
+    allowedUse: "macro_context_only",
+    btcDominancePercent: 53,
+    canCreateTradeSignal: false,
+    ethDominancePercent: 11,
+    fetchedAt: "2026-06-20T00:00:00.000Z",
+    guardrail: "不能直接生成交易方向",
+    id: "macro-old",
+    source: "coingecko_global",
+    total2MarketCapUsd: 1_316_000_000_000,
+    total3MarketCapUsd: 1_008_000_000_000,
+    totalMarketCapChangePercent24h: -0.2,
+    totalMarketCapUsd: 2_800_000_000_000,
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  });
+  await repository.addMacroMarketSnapshot({
+    allowedUse: "macro_context_only",
+    btcDominancePercent: 52,
+    canCreateTradeSignal: false,
+    ethDominancePercent: 10,
+    fetchedAt: "2026-06-21T00:00:00.000Z",
+    guardrail: "不能直接生成交易方向",
+    id: "macro-current",
+    source: "coingecko_global",
+    total2MarketCapUsd: 1_440_000_000_000,
+    total3MarketCapUsd: 1_140_000_000_000,
+    totalMarketCapChangePercent24h: 1.8,
+    totalMarketCapUsd: 3_000_000_000_000,
+    updatedAt: "2026-06-21T00:00:00.000Z",
+  });
+
+  await buildRepositoryAwareMarketProvider({
+    env: {
+      MARKET_DATA_PROVIDER: "coinglass",
+      COINGLASS_API_KEY: "test-key",
+    },
+    providerFactory: (_env?: ProviderEnv, options?: GetConfiguredMarketProviderOptions) => {
+      capturedOptions = options;
+      return provider;
+    },
+    repository,
+  });
+
+  assert.equal(capturedOptions?.altcoinMacro?.source, "coingecko_global");
+  assert.equal(capturedOptions?.altcoinMacro?.btcDominancePercent, 52);
+  assert.equal(capturedOptions?.altcoinMacro?.total2ChangePercent24h, 9.42);
+  assert.equal(capturedOptions?.altcoinMacro?.total3ChangePercent24h, 13.1);
+  assert.match(capturedOptions?.universePriorityHintNotes?.join("\n") ?? "", /macro anchors: coingecko_global BTC.D 52/);
+});
+
 test("getReadableMarketRadarSnapshot returns a failed placeholder when the provider is unavailable", async () => {
   const repository = createMemoryPersistenceRepository();
   const provider: MarketDataProvider = {
@@ -220,6 +316,31 @@ test("getReadableMarketRadarSnapshot returns a failed placeholder when the provi
   assert.equal(readable.signals.length, 0);
 });
 
+test("getReadableMarketRadarSnapshot can perform a no-refresh read for health checks", async () => {
+  const repository = createMemoryPersistenceRepository();
+  let fetchCount = 0;
+  const provider: MarketDataProvider = {
+    id: "coinglass",
+    label: "Expensive Provider",
+    async fetchSnapshot() {
+      fetchCount += 1;
+      return snapshot([]);
+    },
+  };
+
+  const readable = await getReadableMarketRadarSnapshot(provider, {
+    allowRefresh: false,
+    repository,
+    trigger: "health_get",
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(readable.metadata.status, "failed");
+  assert.equal(readable.metadata.runtime?.cacheStatus, "failed");
+  assert.equal(readable.metadata.runtime?.trigger, "health_get");
+  assert.match(readable.metadata.notes.join("\n"), /no-refresh read/);
+});
+
 test("getMarketRadarSnapshot reads without writing archives while refresh persists them", async () => {
   const repository = createMemoryPersistenceRepository();
   const provider: MarketDataProvider = {
@@ -238,4 +359,76 @@ test("getMarketRadarSnapshot reads without writing archives while refresh persis
 
   assert.equal(refreshed.status, "updated");
   assert.equal((await repository.listScanArchives()).length, 1);
+});
+
+test("refreshMarketRadarSnapshot persists scan asset rotation states from coverage", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const provider: MarketDataProvider = {
+    id: "coinglass",
+    label: "Coverage Provider",
+    async fetchSnapshot() {
+      return {
+        ...snapshot([]),
+        metadata: {
+          ...snapshot([]).metadata,
+          generatedAt: "2026-06-20T09:15:00.000Z",
+          source: "coinglass",
+          coverage: {
+            batchIndex: 1,
+            coveragePercent: 50,
+            dynamicPriority: {
+              boostedAssets: ["TIA"],
+              candidateCount: 1,
+              candidates: [],
+              enabled: true,
+              reasonCounts: {
+                anomaly: 1,
+                cooldown_review: 0,
+                history: 0,
+                liquidity: 0,
+                missed_opportunity: 0,
+                recent_deep_scan: 0,
+                recent_signal: 1,
+                rotation_age: 0,
+                venue_coverage: 0,
+              },
+              slotsAvailable: 1,
+              slotsUsed: 1,
+              topAssets: [
+                {
+                  baseAsset: "TIA",
+                  dynamicBoost: 820000,
+                  reasons: ["anomaly"],
+                  score: 1000000,
+                  staticPriority: 180000,
+                  symbol: "TIAUSDT",
+                },
+              ],
+            },
+            eligible: 5,
+            nextBatchIndex: 2,
+            pending: 2,
+            pendingAssets: ["SUI", "ENA"],
+            scanned: 3,
+            scannedAssets: ["BTC", "ETH", "TIA"],
+            skipped: 0,
+            skippedAssets: [],
+            total: 5,
+            totalBatches: 2,
+          },
+        },
+      };
+    },
+  };
+
+  const refreshed = await refreshMarketRadarSnapshot(provider, { repository });
+  const states = await repository.listScanAssetStates();
+  const bySymbol = new Map(states.map((state) => [state.symbol, state]));
+  const persistedGeneratedAt = refreshed.snapshot?.metadata.generatedAt;
+
+  assert.equal(refreshed.status, "updated");
+  assert.equal(bySymbol.get("TIAUSDT")?.lastDeepScannedAt, persistedGeneratedAt);
+  assert.equal(bySymbol.get("TIAUSDT")?.lastSelectedReason, "dynamic_priority");
+  assert.equal(bySymbol.get("SUIUSDT")?.consecutiveSkipped, 1);
+  assert.equal(bySymbol.get("ENAUSDT")?.consecutiveSkipped, 1);
 });

@@ -120,9 +120,11 @@ test("runPersistenceSchemaMigration sends one schema statement per query for Neo
     "mover_attribution_reviews",
     "radar_miss_reviews",
     "ohlcv_candle_cache",
+    "scan_asset_states",
+    "macro_market_snapshots",
   ]);
-  assert.equal(result.tableCount, 9);
-  assert.equal(client.calls.length, 22);
+  assert.equal(result.tableCount, 11);
+  assert.equal(client.calls.length, 27);
   assert.match(client.calls[0]?.sql ?? "", /^create table if not exists journal_events/i);
   assert.match(client.calls[1]?.sql ?? "", /^create index if not exists journal_events_scope_created_at_idx/i);
   assert.match(client.calls[2]?.sql ?? "", /^create index if not exists journal_events_scope_symbol_idx/i);
@@ -145,29 +147,11 @@ test("runPersistenceSchemaMigration sends one schema statement per query for Neo
   assert.match(client.calls[19]?.sql ?? "", /^create table if not exists ohlcv_candle_cache/i);
   assert.match(client.calls[20]?.sql ?? "", /^create index if not exists ohlcv_candle_cache_scope_fetched_at_idx/i);
   assert.match(client.calls[21]?.sql ?? "", /^create index if not exists ohlcv_candle_cache_scope_symbol_idx/i);
+  assert.match(client.calls[22]?.sql ?? "", /^create table if not exists scan_asset_states/i);
+  assert.match(client.calls[23]?.sql ?? "", /^create index if not exists scan_asset_states_scope_rotation_idx/i);
+  assert.match(client.calls[24]?.sql ?? "", /^create index if not exists scan_asset_states_scope_last_deep_idx/i);
+  assert.match(client.calls[25]?.sql ?? "", /^create table if not exists macro_market_snapshots/i);
+  assert.match(client.calls[26]?.sql ?? "", /^create index if not exists macro_market_snapshots_scope_fetched_at_idx/i);
   assert.equal(client.calls.some((call) => call.sql.includes(";\n\ncreate")), false);
-  assert.deepEqual(client.calls.map((call) => call.params), [
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-  ]);
+  assert.deepEqual(client.calls.map((call) => call.params), Array.from({ length: 27 }, () => []));
 });

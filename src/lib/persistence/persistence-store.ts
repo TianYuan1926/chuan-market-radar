@@ -3,18 +3,25 @@ import type { V3ForwardMapSnapshot } from "../analysis/v3/types";
 import { createJournalStore } from "../journal/journal-store";
 import { buildRankProfile, type RankProfile } from "../journal/rank-engine";
 import type { DailyMoverSnapshot } from "../market/daily-movers";
+import type { MacroMarketSnapshot } from "../market/macro-snapshot";
 import type { OhlcvCandleCacheEntry, OhlcvInterval } from "../market/ohlcv/types";
 import { compareScanReplayFrames } from "../market/scan-archive";
-import type { ScanArchiveSummary, ScanComparison, ScanReplayFrame } from "../market/types";
+import type { ScanArchiveSummary, ScanAssetState, ScanComparison, ScanReplayFrame } from "../market/types";
 import {
   dailyMoverSnapshotToRecords,
   journalEventRecordToEvent,
   journalEventToRecord,
+  macroMarketSnapshotRecordToSnapshot,
+  macroMarketSnapshotToRecord,
   ohlcvCandleCacheEntryRecordToEntry,
   ohlcvCandleCacheEntryToRecord,
+  type PersistedMacroMarketSnapshotRecord,
   type PersistedOhlcvCandleCacheRecord,
+  type PersistedScanAssetStateRecord,
   rankProfileRecordToProfile,
   rankProfileToRecord,
+  scanAssetStateRecordToState,
+  scanAssetStateToRecord,
   scanReplayFrameToV3ForwardMapSnapshotRecords,
   scanArchiveRecordToSummary,
   scanArchiveToRecord,
@@ -64,6 +71,11 @@ export type PersistenceRepository = {
   upsertOhlcvCandleCache: (entry: OhlcvCandleCacheEntry) => Promise<OhlcvCandleCacheEntry>;
   listOhlcvCandleCaches: (limit?: number) => Promise<OhlcvCandleCacheEntry[]>;
   getOhlcvCandleCache: (symbol: string, interval: OhlcvInterval) => Promise<OhlcvCandleCacheEntry | null>;
+  upsertScanAssetStates: (states: ScanAssetState[]) => Promise<ScanAssetState[]>;
+  listScanAssetStates: (limit?: number) => Promise<ScanAssetState[]>;
+  addMacroMarketSnapshot: (snapshot: MacroMarketSnapshot) => Promise<MacroMarketSnapshot>;
+  listMacroMarketSnapshots: (limit?: number) => Promise<MacroMarketSnapshot[]>;
+  getLatestMacroMarketSnapshot: () => Promise<MacroMarketSnapshot | null>;
 };
 
 export type MemoryPersistenceRepositoryOptions = {
@@ -135,6 +147,21 @@ function sortV3ForwardMapSnapshotRecords(records: PersistedV3ForwardMapSnapshotR
   );
 }
 
+function sortScanAssetStateRecords(records: PersistedScanAssetStateRecord[]) {
+  return [...records].sort(
+    (left, right) => sortableTime(right.updated_at) - sortableTime(left.updated_at) ||
+      right.rotation_priority_score - left.rotation_priority_score ||
+      left.symbol.localeCompare(right.symbol),
+  );
+}
+
+function sortMacroMarketSnapshotRecords(records: PersistedMacroMarketSnapshotRecord[]) {
+  return [...records].sort(
+    (left, right) => sortableTime(right.fetched_at) - sortableTime(left.fetched_at) ||
+      left.id.localeCompare(right.id),
+  );
+}
+
 function dailyMoverSnapshotRecordToSnapshot(
   record: PersistedDailyMoverSnapshotRecord,
 ): DailyMoverSnapshot {
@@ -175,6 +202,8 @@ export function createMemoryPersistenceRepository({
   let archives: PersistedScanArchiveRecord[] = [];
   let dailyMoverSnapshots: DailyMoverSnapshot[] = [];
   let ohlcvCandleCaches: OhlcvCandleCacheEntry[] = [];
+  let scanAssetStates: PersistedScanAssetStateRecord[] = [];
+  let macroMarketSnapshots: PersistedMacroMarketSnapshotRecord[] = [];
   let v3ForwardMapSnapshots: PersistedV3ForwardMapSnapshotRecord[] = [];
   let rankProfile = buildRankProfile(journalStore.list());
   const resolvedScope = resolveScope(scope);
@@ -310,6 +339,41 @@ export function createMemoryPersistenceRepository({
         entry.symbol === symbol && entry.interval === interval
       )) ?? null;
     },
+
+    async upsertScanAssetStates(states) {
+      const records = states.map((state) => scanAssetStateToRecord(state, resolvedScope));
+      const keys = new Set(records.map((record) => `${record.scope}:${record.symbol}`));
+      scanAssetStates = sortScanAssetStateRecords([
+        ...records,
+        ...scanAssetStates.filter((record) => !keys.has(`${record.scope}:${record.symbol}`)),
+      ]);
+
+      return records.map(scanAssetStateRecordToState);
+    },
+
+    async listScanAssetStates(limit = defaultArchiveLimit) {
+      return scanAssetStates.slice(0, limit).map(scanAssetStateRecordToState);
+    },
+
+    async addMacroMarketSnapshot(snapshot) {
+      const record = macroMarketSnapshotToRecord(snapshot, resolvedScope);
+      macroMarketSnapshots = sortMacroMarketSnapshotRecords([
+        record,
+        ...macroMarketSnapshots.filter((item) => item.id !== record.id),
+      ]);
+
+      return macroMarketSnapshotRecordToSnapshot(record);
+    },
+
+    async listMacroMarketSnapshots(limit = defaultArchiveLimit) {
+      return macroMarketSnapshots.slice(0, limit).map(macroMarketSnapshotRecordToSnapshot);
+    },
+
+    async getLatestMacroMarketSnapshot() {
+      const record = macroMarketSnapshots[0];
+
+      return record ? macroMarketSnapshotRecordToSnapshot(record) : null;
+    },
   };
 }
 
@@ -383,6 +447,34 @@ limit $2
 select * from v3_forward_map_snapshots
 where scope = $1
 order by generated_at desc, symbol asc, signal_id asc
+limit $2
+`.trim(),
+      [resolvedScope, limit],
+    );
+
+    return result.rows;
+  }
+
+  async function listScanAssetStateRecords(limit = defaultArchiveLimit) {
+    const result = await client.query<PersistedScanAssetStateRecord>(
+      `
+select * from scan_asset_states
+where scope = $1
+order by updated_at desc, rotation_priority_score desc, symbol asc
+limit $2
+`.trim(),
+      [resolvedScope, limit],
+    );
+
+    return result.rows;
+  }
+
+  async function listMacroMarketSnapshotRecords(limit = defaultArchiveLimit) {
+    const result = await client.query<PersistedMacroMarketSnapshotRecord>(
+      `
+select * from macro_market_snapshots
+where scope = $1
+order by fetched_at desc
 limit $2
 `.trim(),
       [resolvedScope, limit],
@@ -890,6 +982,143 @@ limit 1
       return result.rows[0]
         ? ohlcvCandleCacheEntryRecordToEntry(result.rows[0])
         : null;
+    },
+
+    async upsertScanAssetStates(states) {
+      const records = states.map((state) => scanAssetStateToRecord(state, resolvedScope));
+
+      for (const record of records) {
+        await client.query(
+          `
+insert into scan_asset_states (
+  scope,
+  symbol,
+  base_asset,
+  tier,
+  state_pool,
+  last_light_scanned_at,
+  last_deep_scanned_at,
+  consecutive_skipped,
+  deep_scan_count_1h,
+  deep_scan_count_24h,
+  dynamic_priority_score,
+  rotation_priority_score,
+  was_displaced_by_dynamic_priority,
+  last_selected_reason,
+  last_skipped_reason,
+  updated_at,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+on conflict (scope, symbol) do update set
+  base_asset = excluded.base_asset,
+  tier = excluded.tier,
+  state_pool = excluded.state_pool,
+  last_light_scanned_at = excluded.last_light_scanned_at,
+  last_deep_scanned_at = excluded.last_deep_scanned_at,
+  consecutive_skipped = excluded.consecutive_skipped,
+  deep_scan_count_1h = excluded.deep_scan_count_1h,
+  deep_scan_count_24h = excluded.deep_scan_count_24h,
+  dynamic_priority_score = excluded.dynamic_priority_score,
+  rotation_priority_score = excluded.rotation_priority_score,
+  was_displaced_by_dynamic_priority = excluded.was_displaced_by_dynamic_priority,
+  last_selected_reason = excluded.last_selected_reason,
+  last_skipped_reason = excluded.last_skipped_reason,
+  updated_at = excluded.updated_at,
+  payload = excluded.payload
+`.trim(),
+          [
+            record.scope,
+            record.symbol,
+            record.base_asset,
+            record.tier,
+            record.state_pool,
+            record.last_light_scanned_at,
+            record.last_deep_scanned_at,
+            record.consecutive_skipped,
+            record.deep_scan_count_1h,
+            record.deep_scan_count_24h,
+            record.dynamic_priority_score,
+            record.rotation_priority_score,
+            record.was_displaced_by_dynamic_priority,
+            record.last_selected_reason,
+            record.last_skipped_reason,
+            record.updated_at,
+            record.payload,
+          ],
+        );
+      }
+
+      return records.map(scanAssetStateRecordToState);
+    },
+
+    async listScanAssetStates(limit = defaultArchiveLimit) {
+      return (await listScanAssetStateRecords(limit)).map(scanAssetStateRecordToState);
+    },
+
+    async addMacroMarketSnapshot(snapshot) {
+      const record = macroMarketSnapshotToRecord(snapshot, resolvedScope);
+
+      await client.query(
+        `
+insert into macro_market_snapshots (
+  scope,
+  id,
+  source,
+  fetched_at,
+  updated_at,
+  btc_dominance_percent,
+  eth_dominance_percent,
+  total_market_cap_usd,
+  total_market_cap_change_percent_24h,
+  total2_market_cap_usd,
+  total3_market_cap_usd,
+  allowed_use,
+  can_create_trade_signal,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+on conflict (scope, id) do update set
+  source = excluded.source,
+  fetched_at = excluded.fetched_at,
+  updated_at = excluded.updated_at,
+  btc_dominance_percent = excluded.btc_dominance_percent,
+  eth_dominance_percent = excluded.eth_dominance_percent,
+  total_market_cap_usd = excluded.total_market_cap_usd,
+  total_market_cap_change_percent_24h = excluded.total_market_cap_change_percent_24h,
+  total2_market_cap_usd = excluded.total2_market_cap_usd,
+  total3_market_cap_usd = excluded.total3_market_cap_usd,
+  allowed_use = excluded.allowed_use,
+  can_create_trade_signal = excluded.can_create_trade_signal,
+  payload = excluded.payload
+`.trim(),
+        [
+          record.scope,
+          record.id,
+          record.source,
+          record.fetched_at,
+          record.updated_at,
+          record.btc_dominance_percent,
+          record.eth_dominance_percent,
+          record.total_market_cap_usd,
+          record.total_market_cap_change_percent_24h,
+          record.total2_market_cap_usd,
+          record.total3_market_cap_usd,
+          record.allowed_use,
+          record.can_create_trade_signal,
+          record.payload,
+        ],
+      );
+
+      return macroMarketSnapshotRecordToSnapshot(record);
+    },
+
+    async listMacroMarketSnapshots(limit = defaultArchiveLimit) {
+      return (await listMacroMarketSnapshotRecords(limit)).map(macroMarketSnapshotRecordToSnapshot);
+    },
+
+    async getLatestMacroMarketSnapshot() {
+      const records = await listMacroMarketSnapshotRecords(1);
+
+      return records[0] ? macroMarketSnapshotRecordToSnapshot(records[0]) : null;
     },
   };
 }

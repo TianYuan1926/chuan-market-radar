@@ -42,7 +42,6 @@ export type MoverDriver =
   | "volume_expansion"
   | "open_interest_expansion"
   | "funding_pressure"
-  | "liquidation_pressure"
   | "pre_move_drift"
   | "low_liquidity_or_one_off";
 
@@ -152,10 +151,6 @@ function attributionDrivers(mover: DailyMover, preMoveWindows: PreMoveWindow[]):
 
   if (maxFunding >= 0.0005) {
     drivers.push("funding_pressure");
-  }
-
-  if ((mover.liquidationUsd24h ?? 0) >= 10_000_000) {
-    drivers.push("liquidation_pressure");
   }
 
   if (maxPreMoveDrift >= 5) {

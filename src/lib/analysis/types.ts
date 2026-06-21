@@ -39,6 +39,31 @@ export type SignalState =
   | "invalidated"
   | "reviewed";
 
+export type SignalMaturityStage =
+  | "LIGHT_SCAN_MARK"
+  | "DEEP_SCAN_CANDIDATE"
+  | "EVIDENCE_SIGNAL"
+  | "TRADE_PLAN_READY";
+
+export type SignalMaturityReason =
+  | "eligible_legacy_trade_plan"
+  | "eligible_v3_trade_plan"
+  | "has_structured_evidence"
+  | "insufficient_data"
+  | "light_scan_only"
+  | "risk_gate_or_rr_blocked"
+  | "timeframe_gate_blocked"
+  | "trade_plan_not_ready";
+
+export type SignalMaturity = {
+  canAttachTradePlan: boolean;
+  canEnterMainSignalArea: boolean;
+  canRequestAiReview: boolean;
+  label: string;
+  reasons: SignalMaturityReason[];
+  stage: SignalMaturityStage;
+};
+
 export type MarketRegime =
   | "risk_on"
   | "risk_off"
@@ -65,6 +90,25 @@ export type EvidencePoint = {
   value: string;
   layer: AnalysisLayer;
   polarity: "supportive" | "conflicting" | "neutral" | "blocking";
+};
+
+export type TimeframeHardGateBlocker =
+  | "regime_timeframe_double_conflict"
+  | "structure_timeframe_conflict";
+
+export type TimeframeHardGateAction =
+  | "ALLOW"
+  | "WAIT_HIGH_TIMEFRAME_BREAK"
+  | "WATCH_ONLY";
+
+export type TimeframeHardGate = {
+  action: TimeframeHardGateAction;
+  allowed: boolean;
+  blockedBy: TimeframeHardGateBlocker[];
+  conflictTimeframes: Timeframe[];
+  guardrail: string;
+  mode: "multi_timeframe_hard_gate_v1";
+  summary: string;
 };
 
 export type StrategyPlan = {
@@ -157,10 +201,23 @@ export type JournalAction =
 export type ReviewStatus = "queued" | "tracking" | "closed";
 
 export type ReviewCheckpoint = {
-  id: "1h" | "4h" | "24h";
+  id: "1h" | "4h" | "24h" | "4d";
   label: string;
   reviewAt: string;
   status: "pending" | "due" | "complete";
+};
+
+export type OutcomeMetrics = {
+  entryPrice?: number;
+  evaluatedCandles: number;
+  firstTargetPrice?: number;
+  invalidationPrice?: number;
+  maePercent?: number;
+  maxAdversePrice?: number;
+  maxFavorablePrice?: number;
+  mfePercent?: number;
+  validationWindowHours: number;
+  validationWindowLabel: string;
 };
 
 export type SignalOutcomeStatus =
@@ -236,11 +293,13 @@ export type MarketSignal = {
   evidence: EvidencePoint[];
   strategy: StrategyPlan;
   aiReview?: AiSignalReview;
+  maturity?: SignalMaturity;
   strategyV2?: StrategyV2Audit;
   strategyV3?: StrategyV3Dossier;
   timeframeProfile?: TimeframeProfile;
   timeframeAgreement?: string;
   timeframeConflicts?: Timeframe[];
+  timeframeGate?: TimeframeHardGate;
 };
 
 export type JournalEvent = {
@@ -268,7 +327,9 @@ export type JournalEvent = {
   triggerHit?: boolean;
   invalidationHit?: boolean;
   firstTargetHit?: boolean;
+  outcomeMetrics?: OutcomeMetrics;
   reviewCheckpoints?: ReviewCheckpoint[];
+  signalMaturityStage?: SignalMaturityStage;
   source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation" | "strategy_weight_change_execution" | "trend_radar_review_executor";
   sourceId?: string;
   outcomeExecutorRun?: OutcomeExecutorRunSummary;

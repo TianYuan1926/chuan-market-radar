@@ -225,6 +225,15 @@ test("planUniverseScan keeps the only rotating slot available for rotation when 
   assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "ARB");
   assert.ok(plan.dynamicPriority.topAssets[0]?.dynamicBoost ?? 0 > 0);
   assert.ok(plan.dynamicPriority.topAssets[0]?.reasons.includes("anomaly"));
+  assert.equal(plan.rotationAudit.status, "watch");
+  assert.equal(plan.rotationAudit.slots.rotatingSlots, 1);
+  assert.equal(plan.rotationAudit.slots.dynamicPrioritySlots, 0);
+  assert.deepEqual(plan.rotationAudit.priorityQueue.queuedAssets, ["ARB"]);
+  assert.equal(
+    plan.rotationAudit.warnings.some((warning) => warning.id === "single_rotation_slot"),
+    true,
+  );
+  assert.match(plan.rotationAudit.guardrail, /不增加请求/);
 });
 
 test("planUniverseScan exposes priority admission metadata within the same request budget", () => {
@@ -305,6 +314,37 @@ test("planUniverseScan preserves exploration when priority hints are crowded", (
     true,
   );
   assert.match(plan.twoStageAllocation.guardrail, /未进入深扫不代表淘汰/u);
+  assert.equal(plan.rotationAudit.slots.explorationReserveSlots, 1);
+  assert.deepEqual(plan.rotationAudit.slots.selectedLongTailAssets, ["PONKE"]);
+  assert.equal(
+    plan.rotationAudit.warnings.some((warning) => warning.id === "exploration_missing"),
+    false,
+  );
+  assert.ok(plan.rotationAudit.priorityQueue.queuedAssets.includes("WIF"));
+  assert.match(plan.rotationAudit.fairnessRules.join(" "), /不能长期吃光常规轮转/);
+});
+
+test("buildCoverageReport exposes scan rotation audit for frontend and operations", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA"],
+    [
+      instrument("ARB", { volume24hUsd: 75_000_000 }),
+      instrument("MANTA", { volume24hUsd: 0 }),
+    ],
+  );
+  const plan = planUniverseScan(registry, 4, new Date("2026-06-14T00:00:00.000Z"), {
+    priorityHints: [
+      { symbol: "ARBUSDT", anomalyScore: 94, recentSignalCount: 2 },
+      { symbol: "MANTAUSDT", anomalyScore: 88, missedOpportunityCount: 1 },
+    ],
+  });
+  const coverage = buildCoverageReport(registry, plan);
+
+  assert.equal(coverage.rotationAudit?.mode, "scan_rotation_audit_v1");
+  assert.equal(coverage.rotationAudit?.slots.anchorSlots, 2);
+  assert.equal(coverage.rotationAudit?.slots.rotatingSlots, 2);
+  assert.deepEqual(coverage.rotationAudit?.slots.selectedNonAnchorAssets, plan.assets.slice(2));
+  assert.match(coverage.rotationAudit?.operatorHint ?? "", /轮转/);
 });
 
 test("planUniverseScan ranks missed opportunity hints above stale familiar archive pressure", () => {
@@ -347,6 +387,42 @@ test("planUniverseScan ranks missed opportunity hints above stale familiar archi
     (plan.dynamicPriority.topAssets.find((asset) => asset.baseAsset === "LOSSY")?.score ?? 0) <
       (plan.dynamicPriority.topAssets.find((asset) => asset.baseAsset === "OLD")?.score ?? 0),
   );
+});
+
+test("planUniverseScan uses persistent rotation hints to avoid repeatedly deep scanning the same asset", () => {
+  const registry = buildUniverseRegistry(
+    ["SOL", "ENA"],
+    [
+      instrument("TIA", { volume24hUsd: 90_000_000 }),
+      instrument("SUI", { volume24hUsd: 80_000_000 }),
+      instrument("MANTA", { volume24hUsd: 70_000_000 }),
+    ],
+  );
+  const plan = planUniverseScan(registry, 4, new Date("2026-06-20T09:15:00.000Z"), {
+    dynamicPrioritySlots: 1,
+    priorityHints: [
+      {
+        symbol: "TIAUSDT",
+        anomalyScore: 90,
+        deepScanCount1h: 2,
+        recentDeepScanPenalty: 900000,
+        recentSignalCount: 4,
+      },
+      {
+        symbol: "SUIUSDT",
+        consecutiveSkipped: 8,
+        rotationAgeBoost: 720000,
+        rotationPriorityScore: 720000,
+      },
+    ],
+  });
+
+  assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "SUI");
+  assert.ok(plan.dynamicPriority.topAssets[0]?.reasons.includes("rotation_age"));
+  assert.equal(plan.dynamicPriority.reasonCounts.rotation_age, 1);
+  assert.equal(plan.dynamicPriority.reasonCounts.recent_deep_scan, 1);
+  assert.equal(plan.dynamicPriority.boostedAssets.includes("SUI"), true);
+  assert.equal(plan.dynamicPriority.boostedAssets.includes("TIA"), false);
 });
 
 test("buildCoverageReport includes scanned, pending, skipped, and coverage percent", () => {

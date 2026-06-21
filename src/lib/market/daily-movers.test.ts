@@ -123,3 +123,38 @@ test("daily mover review marks low-liquidity one-off moves as not learnable", ()
   assert.deepEqual(review.radarReview.improvementTags, []);
   assert.ok(review.attribution.primaryDrivers.includes("low_liquidity_or_one_off"));
 });
+
+test("daily mover review does not classify liquidation alone as a primary driver", () => {
+  const review = buildDailyMoverReview({
+    mover: {
+      id: "mover-tia-2026-06-14",
+      symbol: "TIA",
+      exchange: "BINANCE",
+      direction: "gainer",
+      rank: 3,
+      observedAt,
+      priceChangePercent: 19.2,
+      volume24hUsd: 220_000_000,
+      openInterestChangePercent: 2,
+      fundingRate: 0.0001,
+      liquidationUsd24h: 120_000_000,
+    },
+    preMoveWindows: [
+      {
+        window: "4h",
+        startedAt: "2026-06-13T20:00:00.000Z",
+        endedAt: observedAt,
+        priceChangePercent: 2.2,
+        volumeChangePercent: 18,
+        openInterestChangePercent: 2,
+        fundingRate: 0.0001,
+        radarSignalIds: [],
+      },
+    ],
+    radarSignals: [],
+  });
+
+  assert.equal(review.attribution.primaryDrivers.some((driver) => (driver as string) === "liquidation_pressure"), false);
+  assert.deepEqual(review.attribution.primaryDrivers, ["pre_move_drift"]);
+  assert.equal(review.attribution.evidenceStrength, "medium");
+});

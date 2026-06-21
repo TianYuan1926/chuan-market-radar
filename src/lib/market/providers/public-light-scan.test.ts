@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   createBinancePublicLightScanProvider,
+  createBybitPublicLightScanProvider,
   createCompositePublicLightScanProvider,
   createOkxPublicLightScanProvider,
   disabledPublicLightScanProvider,
@@ -62,6 +63,37 @@ test("createBinancePublicLightScanProvider converts public futures tickers into 
   assert.equal(result.tickers[0]?.exchange, "BINANCE");
 });
 
+test("createBinancePublicLightScanProvider caps overextended 24h movers below compression candidates", async () => {
+  const provider = createBinancePublicLightScanProvider({
+    now: () => new Date("2026-06-21T00:00:00.000Z"),
+    fetcher: async () => response([
+      {
+        symbol: "MOONUSDT",
+        lastPrice: "1.35",
+        highPrice: "1.36",
+        lowPrice: "0.98",
+        priceChangePercent: "35",
+        quoteVolume: "50000000",
+      },
+      {
+        symbol: "COILUSDT",
+        lastPrice: "1.02",
+        highPrice: "1.05",
+        lowPrice: "1.00",
+        priceChangePercent: "1.2",
+        quoteVolume: "32000000",
+      },
+    ]),
+  });
+
+  const result = await provider.scan();
+
+  assert.deepEqual(result.priorityCandidates.map((item) => item.symbol), ["COILUSDT", "MOONUSDT"]);
+  assert.equal(result.priorityCandidates[0]?.state, "PRE_TREND");
+  assert.ok(result.priorityCandidates[0]?.reasons.includes("compression_priority"));
+  assert.ok(result.priorityCandidates[1]?.reasons.includes("overextended_move_capped"));
+});
+
 test("createBinancePublicLightScanProvider returns a typed failure without throwing", async () => {
   const provider = createBinancePublicLightScanProvider({
     fetcher: async () => response({ error: "blocked" }, false, 451),
@@ -114,6 +146,49 @@ test("createOkxPublicLightScanProvider converts public swap tickers into light s
   assert.equal(result.instruments[0]?.exchange, "OKX");
   assert.equal(result.priorityCandidates[0]?.state, "HOT");
   assert.equal(result.tickers[0]?.changePercent24h.toFixed(2), "9.09");
+});
+
+test("createBybitPublicLightScanProvider converts public linear tickers into light scan candidates", async () => {
+  const provider = createBybitPublicLightScanProvider({
+    now: () => new Date("2026-06-20T00:00:00.000Z"),
+    fetcher: async (input) => {
+      assert.match(input.toString(), /category=linear/u);
+
+      return response({
+        retCode: 0,
+        result: {
+          list: [
+            {
+              symbol: "MANTAUSDT",
+              lastPrice: "2.4",
+              price24hPcnt: "0.081",
+              highPrice24h: "2.46",
+              lowPrice24h: "2.05",
+              turnover24h: "54000000",
+            },
+            {
+              symbol: "BTCUSDC",
+              lastPrice: "100",
+              price24hPcnt: "0.01",
+              highPrice24h: "101",
+              lowPrice24h: "99",
+              turnover24h: "1000000",
+            },
+          ],
+        },
+      });
+    },
+  });
+
+  const result = await provider.scan();
+
+  assert.equal(result.diagnostics.status, "ready");
+  assert.equal(result.diagnostics.universeCount, 2);
+  assert.equal(result.diagnostics.acceptedCount, 1);
+  assert.deepEqual(result.instruments.map((item) => item.symbol), ["MANTAUSDT"]);
+  assert.equal(result.instruments[0]?.exchange, "BYBIT");
+  assert.equal(result.priorityCandidates[0]?.state, "HOT");
+  assert.equal(result.tickers[0]?.changePercent24h, 8.1);
 });
 
 test("createCompositePublicLightScanProvider merges Binance and OKX candidates without hiding partial failures", async () => {

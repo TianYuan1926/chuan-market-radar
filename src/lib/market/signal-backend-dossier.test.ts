@@ -78,6 +78,15 @@ function snapshot(): MarketRadarSnapshot {
             value: "funding elevated",
           },
         ],
+        timeframeGate: {
+          action: "WAIT_HIGH_TIMEFRAME_BREAK",
+          allowed: false,
+          blockedBy: ["structure_timeframe_conflict"],
+          conflictTimeframes: ["1h"],
+          guardrail: "低周期不能推翻高周期。",
+          mode: "multi_timeframe_hard_gate_v1",
+          summary: "1h 关键压力未突破。",
+        },
         strategy: {
           bias: "long",
           entry: "8.20 突破确认",
@@ -224,6 +233,8 @@ test("buildSignalBackendDossier returns chart context, levels, evidence and read
   assert.equal(dossier.found, true);
   assert.equal(dossier.symbol, "ARBUSDT");
   assert.equal(dossier.signal?.state, "near_trigger");
+  assert.equal(dossier.signal?.timeframeGate?.allowed, false);
+  assert.equal(dossier.signal?.timeframeGate?.action, "WAIT_HIGH_TIMEFRAME_BREAK");
   assert.equal(dossier.chart.tradingView.symbol, "BINANCE:ARBUSDT.P");
   assert.equal(
     dossier.chart.tradingView.url,

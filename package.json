@@ -12,8 +12,10 @@
     "start": "next start",
     "smoke:server": "bash deploy/scripts/smoke-test.sh",
     "worker:protected-api": "node deploy/workers/protected-api-worker.mjs",
+    "worker:ws-light-scan": "node deploy/workers/ws-light-scan-worker.mjs",
     "lint": "eslint .",
-    "test:market": "tsc -p tsconfig.market-test.json && find .tmp/market-tests/lib -name '*.test.js' -print | sort | xargs node --test",
+    "test:market": "tsc -p tsconfig.market-test.json && find .tmp/market-tests/lib -name '*.test.js' -print | sort | xargs node --test && npm run test:workers",
+    "test:workers": "node --test deploy/workers/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -22,7 +24,8 @@
     "next": "latest",
     "pg": "8.16.3",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "redis": "6.0.0"
   },
   "devDependencies": {
     "@types/node": "latest",

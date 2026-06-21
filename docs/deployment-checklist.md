@@ -7,7 +7,7 @@
 - Next.js App Router
 - 旧线上回滚：Vercel 公开网站
 - 新生产目标：Caddy + Docker Compose 单机部署
-- 单机服务：`web`、`postgres`、`redis`、`scanner-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`
+- 单机服务：`web`、`postgres`、`redis`、`scanner-worker`、`websocket-light-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`
 - `/api/scan` 提供扫描摘要
 - `/api/archive` 通过 repository 提供扫描快照归档、指定回放帧和相邻扫描差值
 - `/api/journal` 通过 repository 提供复盘记录；未接入真实 SQL client 时自动使用内存演示存储
@@ -63,14 +63,32 @@
 - `COINGLASS_BATCH_SIZE`: 每个 15m 主扫描窗口请求多少个基础币。当前 Hobbyist 30/min 阶段推荐 `24`，其中 BTC/ETH 为锚点，其余槽位轮转山寨。
 - `COINGLASS_DAILY_REQUEST_BUDGET`: 主扫描每日 CoinGlass 请求预算，推荐 `3000`；`24 * 96 = 2304` 次/日，保留失败重试和手动刷新余量。
 - `COINGLASS_MAX_CONCURRENCY`: CoinGlass 主扫描受控并发，推荐 `6`，避免 24 个币串行拖慢 Vercel 函数。
+- `COINGLASS_MINUTE_REQUEST_LIMIT`: CoinGlass 每分钟调用上限，Hobbyist 当前按 `30` 配置；扫描协调器会用 Redis/内存令牌桶阻止超限。
+- `COINGLASS_REQUEST_INTERVAL_MS`: CoinGlass 请求间隔，默认 `500`；主深扫和 daily mover 都必须 pacing，避免瞬时打爆 30/min。
+- `SCAN_LOCK_TTL_SECONDS`: 单次扫描锁过期时间，默认 `600` 秒；用于避免 worker、手动刷新和页面读取同时触发深扫。
 - `COINGLASS_DAILY_MOVER_MAX_ASSETS`: 每次每日异动抓取最多请求多少个基础币，免费阶段默认 `8`
 - `COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE`: 每侧最多保留多少个涨跌幅样本，默认 `10`
+- `WS_LIGHT_SCAN_WINDOW_MS`: WebSocket 轻扫滑动窗口，默认 `900000`，即 15 分钟。
+- `WS_LIGHT_SCAN_ZSCORE_THRESHOLD`: WebSocket 轻扫成交额 z-score 候选阈值，默认 `2`。
+- `WS_LIGHT_SCAN_MIN_CANDIDATE_VOLUME_USD`: WebSocket 轻扫候选最低窗口成交额，默认 `250000`。
+- `WS_LIGHT_SCAN_ENABLED`: 主扫描是否读取 Redis WebSocket 轻扫快照，默认 `true`；快照缺失或过期会回退到 REST public light scan。
+- `WS_LIGHT_SCAN_WORKER_ENABLED`: 常驻 WebSocket 轻扫 worker 是否启动，默认 `true`。
+- `WS_LIGHT_SCAN_EXCHANGES`: WebSocket 轻扫交易所，默认 `BINANCE,OKX,BYBIT`；Binance 使用全市场 ticker，OKX/Bybit 先公开发现 USDT 永续再订阅。
+- `WS_LIGHT_SCAN_REDIS_KEY`: Redis 快照 key，默认 `chuan:ws-light-scan:snapshot`。
+- `WS_LIGHT_SCAN_STALE_AFTER_MS`: 主扫描认为 WebSocket 快照过期的时间，默认 `180000`。
+- `WS_LIGHT_SCAN_SNAPSHOT_INTERVAL_SECONDS`: Worker 写 Redis 快照间隔，默认 `15`。
+- `WS_LIGHT_SCAN_SNAPSHOT_TTL_SECONDS`: Redis 快照 TTL，默认 `1200`。
+- `WS_LIGHT_SCAN_SYMBOL_LIMIT_PER_EXCHANGE`: OKX/Bybit 每所最多订阅多少个 USDT 永续，默认 `500`。
+- `WS_LIGHT_SCAN_SUBSCRIBE_CHUNK_SIZE`: OKX/Bybit WebSocket 订阅分批大小，默认 `40`。
+- `WS_LIGHT_SCAN_MAX_PRIORITY_CANDIDATES`: WebSocket 轻扫最多输出多少个优先候选，默认 `48`。
+- `WS_LIGHT_SCAN_RECONNECT_SECONDS`: WebSocket 断线重连间隔，默认 `10`。
 - `SCANNER_INTERVAL_SECONDS`: 单机 scanner-worker 主扫描间隔，默认 `900`
 - `DAILY_MOVER_INTERVAL_SECONDS`: 单机 coinglass-worker 每日异动抓取间隔，默认 `86400`
 - `KLINE_CACHE_INTERVAL_SECONDS`: 单机 coinglass-worker K 线缓存填充间隔，默认 `21600`
 - `OUTCOME_INTERVAL_SECONDS`: 单机 signal-worker 生命周期复盘间隔，默认 `3600`
 - `V3_FORWARD_MAP_INTERVAL_SECONDS`: 单机 signal-worker v3 复盘间隔，默认 `21600`
 - `HEALTH_WATCH_INTERVAL_SECONDS`: dynamic-scan-scheduler 健康巡检间隔，默认 `300`
+- `MACRO_INGEST_INTERVAL_SECONDS`: 单机 macro-worker 抓取 BTC.D/TOTAL2/TOTAL3 宏观快照间隔，默认 `3600`
 - `SUPABASE_URL`: Supabase 项目地址
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase 服务端密钥
 - `AI_REVIEW_ENABLED`: 设为 `true` 才会启用服务端 AI 复核；默认关闭
@@ -110,6 +128,12 @@
 - 当前分批队列按 UTC 日内扫描窗口轮转。GitHub Actions 外部扫描 cron 与应用 cadence 对齐为 15 分钟；推荐 batch size 为 `24`，每轮约扫 BTC/ETH + 22 个山寨标的。
 - CoinGlass provider 会先用 Binance public futures `exchangeInfo`、OKX public instruments、Bybit V5 public instruments 发现 USDT 永续合约，再按 `COINGLASS_BATCH_SIZE` 低频请求 CoinGlass；单个交易所发现失败会降级为 source note，全部发现失败时回退到配置白名单。
 - `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。旧值 `300` 会把 15 分钟 cadence 下的安全批次压到约 `3`，导致长期只扫 BTC/ETH + 1 个山寨；当前推荐 `3000`，线上 metadata notes 应显示 `quota guard: requested batch 24 kept`。
+- `COINGLASS_REQUEST_INTERVAL_MS` 不能随意设为 `0`。只有本地测试或明确排查才可关闭 pacing；生产默认 `500ms`，用于保护 CoinGlass Hobbyist 限速。
+- `REDIS_URL` 存在时主扫描会优先使用 Redis 做跨容器扫描锁和 CoinGlass 分钟级令牌桶；Redis 不可用时自动降级为进程内锁，但多容器防重能力会变弱。
+- WebSocket 轻扫已具备常驻 worker：`websocket-light-worker` 会连接 Binance/OKX/Bybit public ticker 流并写 Redis 快照；主扫描优先读取新鲜快照，缺失或过期时自动回退到 REST public light scan。该层仍只是调度和候选发现，不能直接生成交易信号。
+- Macro Weather 已具备常驻 `macro-worker`：默认每小时请求受保护 `POST /api/admin/macro/ingest`，写入 `macro_market_snapshots`；该层只能提供 BTC.D/TOTAL2/TOTAL3 山寨环境锚点，不能直接生成交易方向、不能降低 `3:1` 最低 RR。
+- outcome 复盘统计只承认 `EVIDENCE_SIGNAL` 和 `TRADE_PLAN_READY`；轻扫标记、深扫候选和缺成熟度旧样本不能进入命中率或人工校准胜率。
+- Macro Weather 的 BTC.D / TOTAL2 / TOTAL3 只做山寨环境顺逆风说明；不得降低 `3:1` 最低赔率，也不能直接生成方向或交易计划。
 - `/api/health` 会把 quota 与 coverage 汇总为 `scanEconomy`；系统状态面板必须显示“扫描经济 / 今日预算 / 剩余额度 / 请求/轮 / 批次上限 / 层级覆盖 / 不新增请求”，该面板只读展示，不触发额外 CoinGlass 请求。
 - Universe planner 会把资产分成 anchor/core/active/long_tail；BTC/ETH 每轮固定，配置白名单和高流动性币优先，未验证流动性的长尾币默认每 8 个扫描窗口抽样一次。线上检查 metadata notes 时应能看到 `tiered universe` 和 `tier policy`。
 - Universe planner 支持 dynamic priority hints；异常分、历史有效性、近期信号、流动性、交易所覆盖质量、可学习漏判和冷却复盘会进入非 anchor 轮转槽排序，但不能挤掉 BTC/ETH，也不能突破 quota 批次。线上检查 metadata notes 时应能看到 `dynamic priority`。
@@ -152,6 +176,9 @@
 - `/api/journal` 返回 entries。
 - `/api/daily-movers` 返回 `ok: true`；即使暂时没有样本，也必须保持公开只读响应和 `allowedUse: research_only` 边界。
 - `/api/health` 返回 `ok: true`，且 `health.level` 能准确反映 `ready`、`preview`、`degraded` 或 `blocked`。
+- `/api/health` 的 `health.macroMarket` 必须显示 `status`、`source`、`ageMinutes`、`btcDominancePercent`、`total2MarketCapUsd`、`total3MarketCapUsd` 和 “不能直接生成交易方向” 边界。
+- `bash deploy/scripts/production-verify.sh` 应在服务器上通过；本地没有 Docker 时不能用本地结果替代服务器验收。
+- `bash deploy/scripts/production-observe.sh` 应能打印服务状态、健康摘要、backend contract 摘要和 worker 日志，不打印任何 secret。
 - 系统状态面板的人工权重变更执行记录入口必须显示“只保存记录/不可写权重”边界；没有可审计候选时表单保持禁用。
 - 系统状态面板的影子权重必须显示“当前权重/建议权重/差异”和“不影响实盘判断”边界；没有审批记录时应处于 collecting，不应显示成真实调权已生效。
 - 系统状态面板的影子表现必须显示“样本数/有效/反证/回滚压力”和“不执行真实权重”边界；样本不足或回滚压力出现时不能显示成真实权重可生效。

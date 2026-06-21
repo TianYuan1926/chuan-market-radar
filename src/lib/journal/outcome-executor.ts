@@ -5,6 +5,8 @@ import type {
   OutcomeExecutorSkipReasonSummary,
   OutcomeExecutorRunSummary,
   ReviewCheckpoint,
+  SignalMaturity,
+  SignalMaturityStage,
   SignalDirection,
   StrategyPlan,
   Timeframe,
@@ -159,6 +161,7 @@ function signalFromJournalEvent(event: JournalEvent): MarketSignal | null {
   }
 
   const strategyStatus: StrategyPlan["status"] = event.strategyStatus ?? "waiting";
+  const maturity = signalMaturityFromStage(event.signalMaturityStage);
 
   return {
     id: event.signalId,
@@ -183,6 +186,26 @@ function signalFromJournalEvent(event: JournalEvent): MarketSignal | null {
       status: strategyStatus,
       confirmation: event.lessons ?? [],
     },
+    ...(maturity ? { maturity } : {}),
+  };
+}
+
+function signalMaturityFromStage(stage?: SignalMaturityStage): SignalMaturity | undefined {
+  if (!stage) {
+    return undefined;
+  }
+
+  return {
+    canAttachTradePlan: stage === "TRADE_PLAN_READY",
+    canEnterMainSignalArea: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+    canRequestAiReview: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+    label: stage,
+    reasons: stage === "LIGHT_SCAN_MARK"
+      ? ["light_scan_only"]
+      : stage === "DEEP_SCAN_CANDIDATE"
+        ? ["trade_plan_not_ready"]
+        : ["has_structured_evidence"],
+    stage,
   };
 }
 

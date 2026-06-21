@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { JournalEvent, SignalOutcomeStatus } from "@/lib/analysis/types";
+import type { JournalEvent, SignalMaturityStage, SignalOutcomeStatus } from "@/lib/analysis/types";
 import { buildOutcomeCalibrationAdmission } from "./outcome-sample-admission";
 
 function outcomeEvent({
   id,
   outcomeStatus,
   result = "watching",
+  signalMaturityStage = "EVIDENCE_SIGNAL",
 }: {
   id: string;
   outcomeStatus: SignalOutcomeStatus;
   result?: JournalEvent["result"];
+  signalMaturityStage?: SignalMaturityStage;
 }): JournalEvent {
   return {
     id,
@@ -23,6 +25,7 @@ function outcomeEvent({
     createdAt: "2026-06-12T10:00:00.000Z",
     outcomeStatus,
     reviewStatus: outcomeStatus === "pending" ? "tracking" : "closed",
+    signalMaturityStage,
   };
 }
 
@@ -72,4 +75,46 @@ test("buildOutcomeCalibrationAdmission gates samples before manual calibration w
   assert.equal(blocked.status, "blocked");
   assert.equal(blocked.manualCalibrationReady, false);
   assert.match(blocked.blockers.join(" / "), /counterevidence_dominates/);
+});
+
+test("buildOutcomeCalibrationAdmission only counts evidence-level or trade-plan-ready signals", () => {
+  const admission = buildOutcomeCalibrationAdmission([
+    outcomeEvent({
+      id: "evidence-win",
+      outcomeStatus: "partial_win",
+      result: "win",
+      signalMaturityStage: "EVIDENCE_SIGNAL",
+    }),
+    outcomeEvent({
+      id: "plan-win",
+      outcomeStatus: "saved",
+      result: "saved",
+      signalMaturityStage: "TRADE_PLAN_READY",
+    }),
+    outcomeEvent({
+      id: "deep-candidate",
+      outcomeStatus: "loss",
+      result: "loss",
+      signalMaturityStage: "DEEP_SCAN_CANDIDATE",
+    }),
+    outcomeEvent({
+      id: "light-mark",
+      outcomeStatus: "loss",
+      result: "loss",
+      signalMaturityStage: "LIGHT_SCAN_MARK",
+    }),
+    {
+      ...outcomeEvent({
+        id: "legacy-unknown",
+        outcomeStatus: "loss",
+        result: "loss",
+      }),
+      signalMaturityStage: undefined,
+    },
+  ]);
+
+  assert.equal(admission.sampleCount, 2);
+  assert.equal(admission.validatedEvents, 2);
+  assert.equal(admission.failedEvents, 0);
+  assert.equal(admission.counterEvidenceEvents, 0);
 });

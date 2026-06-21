@@ -11,6 +11,7 @@ Tencent Cloud Lighthouse / CVM
 ├── postgres              # 本机 PostgreSQL
 ├── redis                 # 本机 Redis，先用于部署基础，后续接缓存/锁/队列
 ├── scanner-worker        # 定时触发 POST /api/scan
+├── websocket-light-worker# 连接 public ticker WebSocket，写入 Redis 轻扫快照
 ├── coinglass-worker      # 定时触发每日异动和 K 线缓存任务
 ├── signal-worker         # 定时触发 outcome executor 和 v3 forward-map review
 └── dynamic-scan-scheduler# 健康状态巡检；后续升级为 Redis 队列调度器
@@ -132,7 +133,9 @@ docker compose --env-file .env.production ps
 ```bash
 docker compose --env-file .env.production logs -f web
 docker compose --env-file .env.production logs -f scanner-worker
+docker compose --env-file .env.production logs -f websocket-light-worker
 docker compose --env-file .env.production logs -f coinglass-worker
+docker compose --env-file .env.production logs -f macro-worker
 docker compose --env-file .env.production logs -f signal-worker
 docker compose --env-file .env.production logs -f dynamic-scan-scheduler
 ```
@@ -182,9 +185,23 @@ daily_mover_assets
 mover_attribution_reviews
 radar_miss_reviews
 ohlcv_candle_cache
+scan_asset_states
+macro_market_snapshots
 ```
 
 ## 第 8 步：运行验收
+
+```bash
+bash deploy/scripts/production-verify.sh
+```
+
+只读观察当前运行状态：
+
+```bash
+bash deploy/scripts/production-observe.sh
+```
+
+如果只想做公开 HTTP smoke test：
 
 ```bash
 bash deploy/scripts/smoke-test.sh http://127.0.0.1
@@ -205,7 +222,9 @@ http://43.161.202.227
 - `health.dataSource.activeSource` 是 `coinglass`。
 - `/api/archive` 能返回扫描归档。
 - scanner-worker 日志有 `task-ok`。
-- coinglass-worker / signal-worker 没有无限重启。
+- websocket-light-worker 日志有 `snapshot-written`，Redis 里能读到 `chuan:ws-light-scan:snapshot`。
+- macro-worker 日志有 `macro-market-ingest task-ok`，`/api/health` 的 `macroMarket.status` 是 `ready` 或可解释的 `empty/stale/unavailable`。
+- coinglass-worker / signal-worker / macro-worker 没有无限重启。
 
 ## 常用运维命令
 
@@ -220,6 +239,8 @@ docker compose --env-file .env.production restart
 ```bash
 docker compose --env-file .env.production restart web
 docker compose --env-file .env.production restart scanner-worker
+docker compose --env-file .env.production restart websocket-light-worker
+docker compose --env-file .env.production restart macro-worker
 ```
 
 停止服务：
@@ -274,9 +295,8 @@ docker compose --env-file .env.production down
 
 ## 后续增强顺序
 
-1. Redis 接入扫描锁，避免人工刷新和 worker 同时触发重复扫描。
-2. Redis 接入任务队列，把 dynamic-scan-scheduler 从健康巡检升级为统一调度器。
-3. 将 scanner-worker 从“调用 API”逐步升级为“直接运行扫描库函数”。
-4. 增加日志轮转和远程备份。
-5. 有域名后启用 Caddy 自动 HTTPS。
-6. 等单机稳定后，再评估是否需要独立 TencentDB；当前阶段不需要。
+1. Redis 接入任务队列，把 dynamic-scan-scheduler 从健康巡检升级为统一调度器。
+2. 将 scanner-worker 从“调用 API”逐步升级为“直接运行扫描库函数”。
+3. 增加日志轮转和远程备份。
+4. 有域名后启用 Caddy 自动 HTTPS。
+5. 等单机稳定后，再评估是否需要独立 TencentDB；当前阶段不需要。

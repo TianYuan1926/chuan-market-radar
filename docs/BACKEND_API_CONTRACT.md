@@ -6,6 +6,11 @@ This document defines the readonly backend surfaces that future UI rebuilds shou
 
 - These endpoints do not trigger extra CoinGlass requests beyond the existing snapshot refresh path.
 - Light scan output is discovery evidence only; it never creates trade decisions directly.
+- WebSocket light scan output is also discovery/scheduling input only. The production worker writes Redis snapshots from Binance/OKX/Bybit public ticker streams; stale or missing snapshots must degrade to REST public light scan instead of being presented as live.
+- Signal maturity is mandatory: `LIGHT_SCAN_MARK` is backend discovery only, `DEEP_SCAN_CANDIDATE` is verification/candidate lane only, `EVIDENCE_SIGNAL` and `TRADE_PLAN_READY` are the only stages allowed in the main signal area.
+- Multi-timeframe hard gate is mandatory: low-timeframe signals cannot override `1h/4h` structure conflict or `1d/1w` double conflict. A blocked gate can only produce wait/watch states, not trade-plan-ready output.
+- Outcome statistics are only valid for mature samples: `EVIDENCE_SIGNAL` and `TRADE_PLAN_READY`. Light marks, deep candidates and legacy samples with missing maturity must not be used as hit-rate proof.
+- BTC.D/TOTAL2/TOTAL3 are macro-weather anchors only. They can explain altcoin headwind/tailwind but cannot reduce the `3:1` minimum RR rule or create a trade plan.
 - Strategy, report and UI layers must not mutate live ranking, auto-adjust weights or auto-execute trades.
 - Missing data must stay visible as `null`, `missing`, `empty`, `blocked`, `collecting` or equivalent explicit states.
 - Frontend views must not silently truncate candidates. If UI space is limited, expose pagination, scrolling, tabs, filters or a count.
@@ -21,14 +26,18 @@ Response shape:
 - `contract.source`: active data source, configured provider, realtime flag and source status.
 - `contract.dataSourceCapabilities`: provider capability matrix, CoinGlass Hobbyist endpoint allowlist, unsupported endpoint states and visualization contracts.
 - `contract.sourceAudit`: source-level proof for public discovery, Binance/OKX composite light scan and CoinGlass deep scan.
+- `contract.sourceAudit.macroMarket`: BTC.D/TOTAL2/TOTAL3 macro-weather anchor status, freshness and guardrail.
 - `contract.runtime`: scan trigger, cache status, repository mode and archive persistence.
 - `contract.scanProof.fullMarket`: total, eligible, scanned, pending, coverage percent and coverage status.
 - `contract.scanProof.lightScan`: public light scan status, universe size, accepted count, candidate count and top candidates.
 - `contract.scanProof.deepScan`: planned assets, request count, raw/clean/primary row counts, empty assets and rejected rows.
 - `contract.scanProof.allocation`: state-pool bucket assignment for the current deep-scan batch.
 - `contract.scanProof.twoStageAllocation`: two-stage deep-scan allocation proof, including anchor/context slots, dynamic-priority slots, rotation slots, cold-exploration reserve slots and queued priority assets.
+- `contract.scanProof.rotationAudit`: rotation health proof for anchor slots, non-anchor slots, dynamic-priority pressure, cold-exploration reserve, queued priority assets, full-cycle timing and starvation warnings.
 - `contract.dataQuality`: row-level quality counters.
 - `contract.analysis.v3Coverage`: v3 coverage, OHLCV attempts and missing signals.
+- `contract.analysis.signalMaturity`: counts and symbol lists for `LIGHT_SCAN_MARK`, `DEEP_SCAN_CANDIDATE`, `EVIDENCE_SIGNAL` and `TRADE_PLAN_READY`.
+- `contract.analysis.timeframeGate`: counts, blocked symbols, blockers and conflict timeframes for multi-timeframe hard-gate decisions.
 - `contract.analysis.v3StrategyLoop`: live v3 plans, risk-gate blocks and missing v3 count.
 - `contract.analysis.evolution`: readonly strategy evolution boundary.
 - `contract.apiSurfaces`: stable API surface names for frontend integration.
@@ -41,6 +50,10 @@ Primary use:
 - Frontend panels should read `contract.dataSourceCapabilities` before showing CoinGlass-derived visuals. Supported Hobbyist families can be displayed as active/available when configured; unsupported families must show `unsupported_by_hobbyist`, `disabled_by_blueprint`, `partial`, `stale` or equivalent visible states instead of hidden failures.
 - The two-stage allocation proof is the frontend-safe answer to "why these assets now": stage one discovers and ranks candidates from public light scan and repository hints; stage two spends the limited CoinGlass deep-scan slots while preserving at least one long-tail exploration slot when capacity allows.
 - Assets listed in `queuedPriorityAssets` are not eliminated. They remain in the priority queue, rotation pool, revive watch or cold exploration pool for later batches.
+- `rotationAudit` is the frontend-safe answer to "is the scan stuck on a few coins": it must show non-anchor slot count, queued priority assets, selected long-tail assets, estimated full-cycle time and any starvation warning instead of silently implying that hidden assets do not exist.
+- `signalMaturity` is the frontend-safe answer to "is this a real signal or just a scan mark": main signal panels must use `mainSignalSymbols` / `EVIDENCE_SIGNAL` / `TRADE_PLAN_READY`; verifying candidate panels can show `candidateLaneSymbols`; light-scan marks should be shown only as coverage/discovery counts.
+- `timeframeGate` is the frontend-safe answer to "why is a signal waiting instead of actionable": `WAIT_HIGH_TIMEFRAME_BREAK` means `1h/4h` pressure has not cleared; `WATCH_ONLY` means `1d/1w` double conflict makes the setup observation-only.
+- `sourceAudit.macroMarket` is the frontend-safe answer to "is the altcoin environment favorable": it can display BTC dominance, TOTAL2 and TOTAL3 as headwind/tailwind context, but it must never be shown as an entry trigger or as permission to lower the `3:1` RR floor.
 - Operations panels can read one object instead of stitching together `/api/health`, `/api/scan` and local assumptions.
 
 ## `GET /api/radar/dossier?symbol=SYMBOL`
@@ -58,6 +71,7 @@ Response shape:
 - `dossier.found`: whether the current snapshot has a matching signal.
 - `dossier.symbol`: resolved symbol.
 - `dossier.signal`: selected signal state, direction, risk, confidence and summary.
+- `dossier.signal.timeframeGate`: selected signal's multi-timeframe hard-gate result when available.
 - `dossier.chart.tradingView`: external TradingView symbol, interval and URL.
 - `dossier.chart.availableTimeframes`: timeframes available from signal and v3 context.
 - `dossier.strategyV3`: full readonly v3 dossier when available.

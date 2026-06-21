@@ -94,6 +94,24 @@ function snapshot(): MarketRadarSnapshot {
         ],
         universeCount: 520,
       },
+      signalMaturity: {
+        candidateLaneSymbols: ["BAKEUSDT"],
+        counts: {
+          DEEP_SCAN_CANDIDATE: 1,
+          EVIDENCE_SIGNAL: 1,
+          LIGHT_SCAN_MARK: 24,
+          TRADE_PLAN_READY: 0,
+        },
+        guardrail: "轻扫标记不进入主信号区；深扫候选只能进候选/验证中区域；只有证据融合信号和交易计划就绪能进入主信号区。",
+        mainSignalSymbols: ["ARBUSDT"],
+        rules: [
+          "LIGHT_SCAN_MARK is scheduling input only",
+          "DEEP_SCAN_CANDIDATE is visible as verifying candidate only",
+          "EVIDENCE_SIGNAL can enter the main signal area without a trade plan",
+          "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
+        ],
+        tradePlanReadySymbols: [],
+      },
       coverage: {
         batchIndex: 3,
         coveragePercent: 38.2,
@@ -107,6 +125,43 @@ function snapshot(): MarketRadarSnapshot {
         skippedAssets: [{ reason: "quote_not_supported", symbol: "TIAUSDC" }],
         total: 520,
         totalBatches: 70,
+        rotationAudit: {
+          fairnessRules: [
+            "BTC/ETH 是大盘锚点，不和山寨轮转名额混算。",
+            "动态优先级只能占用部分非锚点名额，不能长期吃光常规轮转。",
+          ],
+          guardrail: "轮转审计只解释扫描分配健康度，不增加请求、不生成交易信号、不绕过 Evidence/Risk Gate。",
+          mode: "scan_rotation_audit_v1",
+          operatorHint: "轮转可用但有排队或周期偏长风险，前端必须展示排队资产和完整轮转周期。",
+          priorityQueue: {
+            queuedAssets: ["SUI", "MANTA"],
+            queuedCount: 2,
+            selectedPriorityAssets: ["ARB", "ENA"],
+          },
+          slots: {
+            anchorSlots: 2,
+            dynamicPrioritySlots: 2,
+            explorationReserveSlots: 1,
+            rotatingSlots: 4,
+            selectedLongTailAssets: ["BAKE"],
+            selectedNonAnchorAssets: ["ARB", "ENA", "TIA", "BAKE"],
+          },
+          status: "watch",
+          timing: {
+            cadenceMinutes: 15,
+            estimatedFullCycleMinutes: 1_050,
+            estimatedFullCycleWindows: 70,
+            pendingNonAnchorAssets: 414,
+          },
+          warnings: [
+            {
+              action: "前端展示 queuedPriorityAssets，并在后续批次继续轮转，不要静默隐藏。",
+              detail: "2 个高优先级标的仍在排队。",
+              id: "priority_queue_waiting",
+              severity: "low",
+            },
+          ],
+        },
         twoStageAllocation: {
           guardrail: "二段深扫只分配本轮 CoinGlass 名额；未进入深扫不代表淘汰。",
           mode: "two_stage_deep_scan_v1",
@@ -271,6 +326,15 @@ function snapshot(): MarketRadarSnapshot {
         updatedAt: "2026-06-19T08:00:00.000Z",
         summary: "ARB pre-trend",
         evidence: [],
+        timeframeGate: {
+          action: "WAIT_HIGH_TIMEFRAME_BREAK",
+          allowed: false,
+          blockedBy: ["structure_timeframe_conflict"],
+          conflictTimeframes: ["1h"],
+          guardrail: "低周期不能推翻高周期。",
+          mode: "multi_timeframe_hard_gate_v1",
+          summary: "1h 关键压力未突破。",
+        },
         strategy: {
           bias: "long",
           entry: "wait breakout",
@@ -383,6 +447,20 @@ function health(): SystemHealthReport {
       trackingEvents: 20,
     } as SystemHealthReport["outcomes"],
     scanDiagnostics: snapshot().metadata.diagnostics!,
+    macroMarket: {
+      ageMinutes: 11,
+      allowedUse: "macro_context_only",
+      btcDominancePercent: 52.8,
+      canCreateTradeSignal: false,
+      fetchedAt: "2026-06-19T07:50:00.000Z",
+      guardrail: "BTC.D/TOTAL2/TOTAL3 只能作为山寨大盘环境锚点，不能直接生成交易方向，不能降低 3:1 最低盈亏比。",
+      operatorHint: "宏观环境正常写入，可用于山寨大盘顺逆风判断。",
+      source: "coingecko_global",
+      snapshotCount: 12,
+      status: "ready",
+      total2MarketCapUsd: 1_380_000_000_000,
+      total3MarketCapUsd: 860_000_000_000,
+    },
     scanEconomy: {
       guardrail: "no extra requests",
       mode: "scan_economy_mvp",
@@ -454,6 +532,10 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   );
   assert.equal(contract.sourceAudit.publicDiscovery.sources[0]?.source, "binance");
   assert.equal(contract.sourceAudit.publicLightScan.source, "public-light-composite");
+  assert.equal(contract.sourceAudit.macroMarket.status, "ready");
+  assert.equal(contract.sourceAudit.macroMarket.canCreateTradeSignal, false);
+  assert.equal(contract.sourceAudit.macroMarket.btcDominancePercent, 52.8);
+  assert.match(contract.sourceAudit.macroMarket.guardrail, /不能降低 3:1/);
   assert.equal(contract.sourceAudit.publicLightScan.topSymbols[0], "ARBUSDT");
   assert.equal(contract.sourceAudit.coinGlassDeepScan.plannedRequests, 6);
   assert.equal(contract.sourceAudit.coinGlassDeepScan.failedPlannedAssets[0], "BAKE");
@@ -471,6 +553,28 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   assert.equal(contract.scanProof.twoStageAllocation?.mode, "two_stage_deep_scan_v1");
   assert.equal(contract.scanProof.twoStageAllocation?.stageTwo.explorationSlots, 1);
   assert.ok(contract.scanProof.twoStageAllocation?.stageTwo.queuedPriorityAssets.includes("SUI"));
+  assert.equal(contract.scanProof.rotationAudit?.mode, "scan_rotation_audit_v1");
+  assert.equal(contract.scanProof.rotationAudit?.slots.rotatingSlots, 4);
+  assert.deepEqual(contract.scanProof.rotationAudit?.priorityQueue.queuedAssets, ["SUI", "MANTA"]);
+  assert.match(contract.scanProof.rotationAudit?.guardrail ?? "", /不增加请求/);
+  assert.equal(contract.presentation.noSilentTruncation, true);
+  assert.equal(contract.presentation.counts.currentSignals, 1);
+  assert.equal(contract.presentation.counts.lightScanMarks, 24);
+  assert.equal(contract.presentation.counts.candidateLaneSignals, 1);
+  assert.equal(contract.presentation.counts.mainSignalArea, 1);
+  assert.equal(contract.presentation.counts.tradePlanReady, 0);
+  assert.equal(contract.presentation.counts.deepScanAllocationAssets, 6);
+  assert.equal(contract.presentation.counts.pendingAssets, 414);
+  assert.ok(contract.presentation.rules.includes("show_overflow_counts"));
+  assert.ok(contract.presentation.rules.includes("show_signal_maturity"));
+  assert.ok(contract.presentation.rules.includes("main_signal_area_requires_evidence_or_trade_plan"));
+  assert.equal(contract.analysis.signalMaturity.counts.LIGHT_SCAN_MARK, 24);
+  assert.deepEqual(contract.analysis.signalMaturity.candidateLaneSymbols, ["BAKEUSDT"]);
+  assert.deepEqual(contract.analysis.signalMaturity.mainSignalSymbols, ["ARBUSDT"]);
+  assert.match(contract.analysis.signalMaturity.guardrail, /轻扫标记不进入主信号区/u);
+  assert.equal(contract.analysis.timeframeGate.counts.WAIT_HIGH_TIMEFRAME_BREAK, 1);
+  assert.deepEqual(contract.analysis.timeframeGate.blockedSymbols, ["ARBUSDT"]);
+  assert.match(contract.analysis.timeframeGate.guardrail, /低周期不能推翻高周期/u);
   assert.equal(contract.analysis.v3Coverage.withV3Signals, 2);
   assert.equal(contract.analysis.v3StrategyLoop.readinessBuckets[0]?.bucket, "manual_review_ready");
   assert.equal(contract.analysis.evolution.canAutoAdjustWeights, false);
