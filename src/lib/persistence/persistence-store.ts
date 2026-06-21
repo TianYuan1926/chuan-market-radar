@@ -6,7 +6,13 @@ import type { DailyMoverSnapshot } from "../market/daily-movers";
 import type { MacroMarketSnapshot } from "../market/macro-snapshot";
 import type { OhlcvCandleCacheEntry, OhlcvInterval } from "../market/ohlcv/types";
 import { compareScanReplayFrames } from "../market/scan-archive";
-import type { ScanArchiveSummary, ScanAssetState, ScanComparison, ScanReplayFrame } from "../market/types";
+import type {
+  MarketRadarSnapshot,
+  ScanArchiveSummary,
+  ScanAssetState,
+  ScanComparison,
+  ScanReplayFrame,
+} from "../market/types";
 import {
   dailyMoverSnapshotToRecords,
   journalEventRecordToEvent,
@@ -58,8 +64,10 @@ export type PersistenceRepository = {
   addScanArchive: (
     summary: ScanArchiveSummary,
     replayFrame: ScanReplayFrame,
+    snapshot?: MarketRadarSnapshot,
   ) => Promise<ScanArchiveSummary>;
   listScanArchives: (limit?: number) => Promise<ScanArchiveSummary[]>;
+  getScanSnapshot: (id?: string) => Promise<MarketRadarSnapshot | null>;
   getScanReplayFrame: (id?: string) => Promise<ScanReplayFrame | null>;
   compareLatestScanArchives: () => Promise<ScanComparison | null>;
   addV3ForwardMapSnapshots: (replayFrame: ScanReplayFrame) => Promise<V3ForwardMapSnapshot[]>;
@@ -253,8 +261,8 @@ export function createMemoryPersistenceRepository({
       return profile;
     },
 
-    async addScanArchive(summary, replayFrame) {
-      const record = scanArchiveToRecord(summary, replayFrame, resolvedScope);
+    async addScanArchive(summary, replayFrame, snapshot) {
+      const record = scanArchiveToRecord(summary, replayFrame, resolvedScope, snapshot);
       archives = sortArchives([
         record,
         ...archives.filter((entry) => entry.id !== record.id),
@@ -266,6 +274,14 @@ export function createMemoryPersistenceRepository({
 
     async listScanArchives(limit = maxScanArchives) {
       return archives.slice(0, limit).map(scanArchiveRecordToSummary);
+    },
+
+    async getScanSnapshot(id) {
+      const record = id
+        ? archives.find((entry) => entry.id === id)
+        : archives[0];
+
+      return record?.payload.snapshot ?? null;
     },
 
     async getScanReplayFrame(id) {
@@ -646,8 +662,8 @@ limit 1
 
     upsertRankProfile,
 
-    async addScanArchive(summary, replayFrame) {
-      const record = scanArchiveToRecord(summary, replayFrame, resolvedScope);
+    async addScanArchive(summary, replayFrame, snapshot) {
+      const record = scanArchiveToRecord(summary, replayFrame, resolvedScope, snapshot);
 
       await client.query(
         `
@@ -697,6 +713,26 @@ on conflict (scope, id) do update set
 
     async listScanArchives(limit = defaultArchiveLimit) {
       return (await listScanArchiveRecords(limit)).map(scanArchiveRecordToSummary);
+    },
+
+    async getScanSnapshot(id) {
+      const result = await client.query<PersistedScanArchiveRecord>(
+        id
+          ? `
+select * from scan_archives
+where scope = $1 and id = $2
+limit 1
+`.trim()
+          : `
+select * from scan_archives
+where scope = $1
+order by generated_at desc
+limit 1
+`.trim(),
+        id ? [resolvedScope, id] : [resolvedScope],
+      );
+
+      return result.rows[0]?.payload.snapshot ?? null;
     },
 
     async getScanReplayFrame(id) {

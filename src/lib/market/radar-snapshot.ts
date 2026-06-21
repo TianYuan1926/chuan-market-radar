@@ -1,4 +1,10 @@
 import {
+  mkdir,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, join } from "node:path";
+import {
   disabledAiReview,
   reviewSignalWithAi,
   type AiReviewEnv,
@@ -25,6 +31,7 @@ import { buildUniversePriorityHintsFromRepository } from "./universe-priority-hi
 const scanCache = new MemoryScanCache();
 const scanCoordinator = createScanCoordinatorFromEnv(process.env);
 const archiveMaxEntries = 24;
+const devSnapshotPath = join(process.cwd(), ".next", "cache", "chuan-market-radar", "latest-snapshot.json");
 
 type AiReviewSnapshotOptions = {
   env?: AiReviewEnv;
@@ -121,6 +128,39 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "unknown repository priority hint error";
 }
 
+function shouldUseDevSnapshotFile(repository: PersistenceRepository) {
+  const lifecycle = process.env.npm_lifecycle_event ?? "";
+
+  return process.env.NODE_ENV !== "production" &&
+    !lifecycle.startsWith("test") &&
+    repository.mode === "memory";
+}
+
+async function readDevSnapshotFile(repository: PersistenceRepository): Promise<MarketRadarSnapshot | null> {
+  if (!shouldUseDevSnapshotFile(repository)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(await readFile(devSnapshotPath, "utf8")) as MarketRadarSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDevSnapshotFile(snapshot: MarketRadarSnapshot, repository: PersistenceRepository) {
+  if (!shouldUseDevSnapshotFile(repository)) {
+    return;
+  }
+
+  try {
+    await mkdir(dirname(devSnapshotPath), { recursive: true });
+    await writeFile(devSnapshotPath, JSON.stringify(snapshot), "utf8");
+  } catch {
+    // Local preview cache is best-effort only; database/memory cache remains authoritative.
+  }
+}
+
 function emptyInstrumentPool(): MarketRadarSnapshot["instrumentPool"] {
   return {
     instruments: [],
@@ -188,10 +228,12 @@ function unavailableSnapshot({
 
 function cachedSnapshotForNoRefreshRead({
   cachedSnapshot,
+  note = "scan runtime: no-refresh read served cached snapshot",
   repository,
   trigger,
 }: {
   cachedSnapshot: MarketRadarSnapshot;
+  note?: string;
   repository: PersistenceRepository;
   trigger: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
 }): MarketRadarSnapshot {
@@ -208,7 +250,7 @@ function cachedSnapshotForNoRefreshRead({
       },
       notes: [
         ...cachedSnapshot.metadata.notes,
-        "scan runtime: no-refresh read served cached snapshot",
+        note,
       ],
     },
   };
@@ -335,10 +377,14 @@ async function withArchive(
   const enriched = await enrichSnapshotWithAiReviews(matured);
 
   if (persistArchive) {
+    const replayFrame = createReplayFrame(enriched);
+
     await repository.addScanArchive(
       summarizeScanSnapshot(enriched),
-      createReplayFrame(enriched),
+      replayFrame,
+      enriched,
     );
+    await writeDevSnapshotFile(enriched, repository);
 
     if (enriched.metadata.coverage) {
       const previousStates = await repository.listScanAssetStates(1_000);
@@ -378,7 +424,26 @@ export async function getMarketRadarSnapshot(
     const cachedSnapshot = scanCache.get();
 
     if (!cachedSnapshot) {
-      throw new Error("no-refresh read requested and no cached snapshot available");
+      const persistedSnapshot = await repository.getScanSnapshot() ?? await readDevSnapshotFile(repository);
+
+      if (!persistedSnapshot) {
+        throw new Error("no-refresh read requested and no cached snapshot available");
+      }
+
+      scanCache.set(persistedSnapshot);
+
+      return withArchive(
+        cachedSnapshotForNoRefreshRead({
+          cachedSnapshot: persistedSnapshot,
+          note: "scan runtime: no-refresh read restored latest persisted scan snapshot",
+          repository,
+          trigger: options.trigger ?? "internal",
+        }),
+        {
+          persistArchive: false,
+          repository,
+        },
+      );
     }
 
     return withArchive(

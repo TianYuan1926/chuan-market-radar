@@ -6,7 +6,12 @@ import type { RankProfile } from "@/lib/journal/rank-engine";
 import type { DailyMoverSnapshot } from "@/lib/market/daily-movers";
 import type { MacroMarketSnapshot } from "@/lib/market/macro-snapshot";
 import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
-import type { ScanArchiveSummary, ScanAssetState, ScanReplayFrame } from "@/lib/market/types";
+import type {
+  MarketRadarSnapshot,
+  ScanArchiveSummary,
+  ScanAssetState,
+  ScanReplayFrame,
+} from "@/lib/market/types";
 import {
   createMemoryPersistenceRepository,
   createPersistenceRepository,
@@ -95,6 +100,48 @@ function replayFrame(): ScanReplayFrame {
         summary: "压缩、放量、OI 同时出现。",
       },
     ],
+  };
+}
+
+function radarSnapshot(): MarketRadarSnapshot {
+  const summary = scanSummary();
+
+  return {
+    metadata: {
+      id: summary.id,
+      mode: "scheduled",
+      status: summary.status,
+      source: summary.source,
+      isRealtime: false,
+      cadenceMinutes: 15,
+      scannedCount: summary.scannedCount,
+      anomalyCount: summary.anomalyCount,
+      candidateCount: summary.candidateCount,
+      riskGate: "on",
+      generatedAt: summary.generatedAt,
+      nextScanAt: "2026-06-12T10:30:00.000+08:00",
+      staleAfterMinutes: 30,
+      notes: summary.notes,
+    },
+    instrumentPool: {
+      instruments: [],
+      rejected: [],
+      summary: {
+        accepted: 24,
+        duplicatesRemoved: 0,
+        marketTypes: ["perpetual"],
+        minVolume24hUsd: 5_000_000,
+        quoteAssets: ["USDT"],
+        rejected: 0,
+        total: 24,
+      },
+    },
+    instruments: [],
+    tickers: [],
+    derivatives: [],
+    heatmap: [],
+    signals: [],
+    journalEvents: [],
   };
 }
 
@@ -369,6 +416,16 @@ test("memory repository stores journal events, derives rank state, and keeps sca
     statusChanged: false,
     sourceChanged: false,
   });
+});
+
+test("memory repository stores and reads full scan snapshots for frontend no-refresh recovery", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const snapshot = radarSnapshot();
+
+  await repository.addScanArchive(scanSummary(), replayFrame(), snapshot);
+
+  assert.equal((await repository.getScanSnapshot("scan-2026-06-12T10-15"))?.metadata.id, snapshot.metadata.id);
+  assert.equal((await repository.getScanSnapshot())?.instrumentPool.summary.accepted, 24);
 });
 
 test("memory repository stores and reads daily mover snapshots newest first", async () => {

@@ -13,6 +13,7 @@ import type { OhlcvCandleCacheEntry } from "@/lib/market/ohlcv/types";
 import type {
   MarketDataSource,
   MarketDataStatus,
+  MarketRadarSnapshot,
   ScanArchiveSummary,
   ScanAssetState,
   ScanReplayFrame,
@@ -47,6 +48,7 @@ export type PersistedScanArchiveRecord = {
   payload: {
     summary: ScanArchiveSummary;
     replayFrame: ScanReplayFrame;
+    snapshot?: MarketRadarSnapshot;
   };
 };
 
@@ -227,6 +229,7 @@ export function scanArchiveToRecord(
   summary: ScanArchiveSummary,
   replayFrame: ScanReplayFrame,
   scope: PersistenceScope,
+  snapshot?: MarketRadarSnapshot,
 ): PersistedScanArchiveRecord {
   return {
     id: summary.id,
@@ -242,6 +245,7 @@ export function scanArchiveToRecord(
     payload: {
       summary,
       replayFrame,
+      ...(snapshot ? { snapshot } : {}),
     },
   };
 }
