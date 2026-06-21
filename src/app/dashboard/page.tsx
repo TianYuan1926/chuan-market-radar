@@ -6,13 +6,18 @@ import { DashboardRadarControl } from '@/components/dashboard/radar-control'
 import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveStat, LiveQuotePct } from '@/components/live-value'
+import { POOL_META } from '@/lib/mock-data'
 import {
-  getTokens,
-  getSignalCards,
-  getScanState,
-  getMarketEnv,
-  POOL_META,
-} from '@/lib/mock-data'
+  macroResourceToMarketEnv,
+  radarSignalsToSignalCards,
+  radarSignalsToTokens,
+  scanProofResourceToScanState,
+  withLeaderboardSignalFallback,
+} from '@/lib/frontend-display-adapters'
+import {
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+} from '@/lib/frontend-contract-server'
 import {
   Activity,
   ArrowRight,
@@ -23,11 +28,19 @@ import {
   ChevronRight,
 } from 'lucide-react'
 
-export default function DashboardPage() {
-  const tokens = getTokens()
-  const cards = getSignalCards()
-  const scan = getScanState()
-  const env = getMarketEnv()
+export const dynamic = 'force-dynamic'
+
+export default async function DashboardPage() {
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const tickerRows = tickerLeaderboard.data
+  const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
+  const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
+  const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
+  const scan = scanProofResourceToScanState(radar.scanProof, radar.apiUsage)
+  const env = macroResourceToMarketEnv(radar.macroAltEnv, radar.derivatives, tokens)
 
   const sniper = cards
     .filter((c) => c.category === 'sniper')
@@ -39,17 +52,15 @@ export default function DashboardPage() {
     .slice(0, 4)
 
   const bull = tokens.filter((t) => t.trend === 'bull').length
-  const avg = Math.round(
-    tokens.reduce((s, t) => s + t.anomalyScore, 0) / tokens.length,
-  )
-
+  const onlineSources = radar.dataSources.data.filter((source) => source.feed === 'live').length
+  const totalSources = radar.dataSources.data.length
   const overview = [
     {
       label: '系统运行状态',
       value: '正常',
       icon: Activity,
       tone: 'var(--up)',
-      sub: '5/6 数据源在线',
+      sub: `${onlineSources}/${totalSources || 0} 数据源在线`,
     },
     {
       label: '活跃候选信号',
@@ -80,7 +91,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar />
+      <SessionBar tokens={tokens} />
 
       <main className="mx-auto max-w-[1560px] px-4 py-5 sm:px-6">
         {/* 标题 */}
@@ -152,12 +163,16 @@ export default function DashboardPage() {
 
         {/* 扫描证明 */}
         <div className="mt-5">
-          <ScanProof />
+          <ScanProof
+            scanProof={radar.scanProof}
+            dataSources={radar.dataSources}
+            apiUsage={radar.apiUsage}
+          />
         </div>
 
         {/* 后端承载位：全市场扫描证明 · 深扫队列 · 能力总控 · 数据源状态 */}
         <div className="mt-5">
-          <DashboardRadarControl />
+          <DashboardRadarControl contract={radar} />
         </div>
 
         {/* 重点候选 + 风险提醒 */}
@@ -171,6 +186,11 @@ export default function DashboardPage() {
               <span className="ml-auto text-xs text-muted-foreground">狙击榜 Top 5</span>
             </div>
             <div className="divide-y divide-border">
+              {sniper.length === 0 && (
+                <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  当前没有满足证据、赔率和风控要求的狙击目标
+                </div>
+              )}
               {sniper.map((c, i) => (
                 <Link
                   key={c.id}

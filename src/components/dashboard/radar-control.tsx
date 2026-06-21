@@ -5,6 +5,7 @@ import {
   getDeepScanQueue,
   getCapabilityStages,
   getDataSources,
+  type RadarContract,
 } from '@/lib/radar-contract'
 import { StatusBadge, FreshnessTag, ResourceBoundary } from '@/components/data-state'
 import { CountUp } from '@/components/count-up'
@@ -42,11 +43,11 @@ const FEED_LABEL: Record<string, string> = {
   failed: '失败',
 }
 
-export function DashboardRadarControl() {
-  const scan = getScanProof()
-  const queue = getDeepScanQueue()
-  const caps = getCapabilityStages()
-  const sources = getDataSources()
+export function DashboardRadarControl({ contract }: { contract?: RadarContract } = {}) {
+  const scan = contract?.scanProof ?? getScanProof()
+  const queue = contract?.deepScanQueue ?? getDeepScanQueue()
+  const caps = contract?.capabilityStages ?? getCapabilityStages()
+  const sources = contract?.dataSources ?? getDataSources()
 
   const sp = scan.data
 

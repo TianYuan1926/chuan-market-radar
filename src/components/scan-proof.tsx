@@ -9,6 +9,12 @@ import {
   type ScanState,
   type ExchangeStatus,
 } from '@/lib/mock-data'
+import type { ApiUsageState, DataSourceState, ScanProofData } from '@/lib/radar-contract'
+import type { Resource } from '@/lib/data-status'
+import {
+  dataSourcesResourceToExchangeCoverage,
+  scanProofResourceToScanState,
+} from '@/lib/frontend-display-adapters'
 import { LiveValue } from './live-value'
 import { useLiveNumber } from '@/lib/use-live-number'
 import { cn } from '@/lib/utils'
@@ -24,9 +30,21 @@ const STATUS_LABEL: Record<ExchangeStatus['status'], string> = {
   down: '离线',
 }
 
-export function ScanProof() {
-  const scan: ScanState = getScanState()
-  const exchanges = getExchangeCoverage()
+export function ScanProof({
+  scanProof,
+  dataSources,
+  apiUsage,
+}: {
+  scanProof?: Resource<ScanProofData>
+  dataSources?: Resource<DataSourceState[]>
+  apiUsage?: Resource<ApiUsageState>
+} = {}) {
+  const scan: ScanState = scanProof
+    ? scanProofResourceToScanState(scanProof, apiUsage)
+    : getScanState()
+  const exchanges = dataSources
+    ? dataSourcesResourceToExchangeCoverage(dataSources)
+    : getExchangeCoverage()
   const [countdown, setCountdown] = useState(scan.nextBatchSec)
 
   // 实时跳动（演示用；对接后端时换成真实推送值）

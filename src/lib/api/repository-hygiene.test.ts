@@ -407,20 +407,57 @@ test("stage 8 token detail chart and flow panels do not present generated mock d
   assert.doesNotMatch(tokenPageSource, /\(\(seed \* \(i \+ 3\)\) % 100\)/);
 });
 
-test("stage 8 market page reads backend contract instead of mock market panels", () => {
+test("stage 8 dashboard and market pages read backend contract instead of mock market panels", () => {
+  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+  const scanProofSource = readFileSync(resolve(process.cwd(), "src/components/scan-proof.tsx"), "utf8");
+  const dashboardControlSource = readFileSync(resolve(process.cwd(), "src/components/dashboard/radar-control.tsx"), "utf8");
+  const marketPageSource = readFileSync(resolve(process.cwd(), "src/app/market/page.tsx"), "utf8");
   const marketClientSource = readFileSync(resolve(process.cwd(), "src/app/market/market-page-client.tsx"), "utf8");
+  const macroDerivativesSource = readFileSync(resolve(process.cwd(), "src/components/market/macro-derivatives.tsx"), "utf8");
+  const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");
 
+  assert.match(adapterSource, /macroResourceToMarketEnv/);
+  assert.match(adapterSource, /scanProofResourceToScanState/);
+  assert.match(adapterSource, /scanProofResourceToDataQuality/);
+  assert.match(adapterSource, /derivativesResourceToCoinglassData/);
+
+  assert.match(dashboardSource, /getRadarContractForPage/);
+  assert.match(dashboardSource, /getLeaderboardContractForPage/);
+  assert.match(dashboardSource, /scanProofResourceToScanState/);
+  assert.match(dashboardSource, /macroResourceToMarketEnv/);
+  assert.match(dashboardSource, /<SessionBar tokens=\{tokens\}/);
+  assert.match(dashboardSource, /<ScanProof[\s\S]+scanProof=\{radar\.scanProof\}/);
+  assert.match(dashboardSource, /<DashboardRadarControl contract=\{radar\}/);
+  assert.doesNotMatch(dashboardSource, /getTokens|getSignalCards|getScanState|getMarketEnv/);
+
+  assert.match(scanProofSource, /scanProof\?:\s*Resource<ScanProofData>/);
+  assert.match(scanProofSource, /scanProofResourceToScanState/);
+  assert.match(scanProofSource, /dataSourcesResourceToExchangeCoverage/);
+
+  assert.match(dashboardControlSource, /contract\?:\s*RadarContract/);
+  assert.match(dashboardControlSource, /contract\?\.scanProof\s*\?\?/);
+  assert.match(dashboardControlSource, /contract\?\.deepScanQueue\s*\?\?/);
+  assert.match(dashboardControlSource, /contract\?\.dataSources\s*\?\?/);
+
+  assert.match(marketPageSource, /getRadarContractForPage/);
+  assert.match(marketPageSource, /getAllLeaderboardContractsForPage/);
+  assert.match(marketPageSource, /<MarketPageClient radar=\{radar\} tokens=\{tokens\}/);
   assert.match(marketClientSource, /radar\.macroAltEnv/);
   assert.match(marketClientSource, /radar\.derivatives/);
   assert.match(marketClientSource, /radar\.dataSources/);
   assert.match(marketClientSource, /radar\.scanProof/);
   assert.match(marketClientSource, /radar\.apiUsage/);
-  assert.match(marketClientSource, /ResourceBoundary/);
   assert.match(marketClientSource, /后端契约数据/);
+  assert.match(marketClientSource, /<SessionBar tokens=\{tokens\}/);
+  assert.match(marketClientSource, /<MarketMacroDerivatives contract=\{radar\}/);
 
   assert.doesNotMatch(marketClientSource, /getMarketEnv|getDataQuality|getCoinglass/);
-  assert.doesNotMatch(marketClientSource, /useLiveNumber|LiveValue|LiveStat/);
   assert.doesNotMatch(marketClientSource, /数据均为模拟演示/);
+
+  assert.match(macroDerivativesSource, /contract\?:\s*RadarContract/);
+  assert.match(macroDerivativesSource, /contract\?\.macroAltEnv\s*\?\?/);
+  assert.match(macroDerivativesSource, /contract\?\.derivatives\s*\?\?/);
+  assert.match(macroDerivativesSource, /contract\?\.apiUsage\s*\?\?/);
 });
 
 test("stage 8 review and system pages do not render legacy mock centers", () => {

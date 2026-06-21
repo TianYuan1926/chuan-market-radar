@@ -1,12 +1,26 @@
 import type {
+  CoinglassData,
+  DataQuality,
+  ExchangeStatus,
+  MarketEnv,
   PoolStatus,
+  ScanState,
   Signal,
   SignalCard,
   SignalCategory,
   SignalType,
   Token,
 } from './mock-data'
-import type { LeaderboardKind, LeaderboardRow, RadarSignal } from './radar-contract'
+import type {
+  ApiUsageState,
+  DataSourceState,
+  DerivativesState,
+  LeaderboardKind,
+  LeaderboardRow,
+  MacroAltEnv,
+  RadarSignal,
+  ScanProofData,
+} from './radar-contract'
 import type { SniperSignal, SniperTarget } from './sniper-data'
 import type { Resource } from './data-status'
 
@@ -347,6 +361,154 @@ export function mergeTokensBySymbol(...groups: Token[][]): Token[] {
   }
 
   return [...merged.values()]
+}
+
+export function scanProofResourceToScanState(
+  scan: Resource<ScanProofData>,
+  apiUsage?: Resource<ApiUsageState>,
+): ScanState {
+  const data = scan.data
+  const used = apiUsage?.data.usedToday ?? 0
+  const remaining = apiUsage?.data.remainingToday ?? 0
+  const totalBudget = Math.max(1, used + remaining)
+  const scanned = Math.max(data.lightScanned, data.deepScanned)
+  const total = Math.max(data.totalMonitored, data.scannable, scanned + data.awaitingDeepScan)
+  const pending = Math.max(0, data.awaitingDeepScan || total - scanned)
+  const batchSize = Math.max(1, data.deepScanned || data.lightScanned || 1)
+
+  return {
+    coverage: clamp(data.coverage, 0, 100),
+    scanned,
+    pending,
+    total,
+    batch: Math.max(1, Math.ceil(scanned / batchSize)),
+    totalBatches: Math.max(1, Math.ceil(Math.max(1, data.scannable) / batchSize)),
+    nextBatchSec: Math.max(0, data.nextScanCountdownSec),
+    budgetUsed: used,
+    budgetTotal: totalBudget,
+    freshnessSec: Math.max(1, Math.round(scan.ageSec ?? 1)),
+    mode: data.deepScanned > 0 ? '深扫' : '轻扫',
+  }
+}
+
+export function dataSourcesResourceToExchangeCoverage(
+  sources: Resource<DataSourceState[]>,
+): ExchangeStatus[] {
+  const coverageByFeed: Record<DataSourceState['feed'], number> = {
+    live: 100,
+    cached: 80,
+    partial: 65,
+    stale: 40,
+    failed: 0,
+  }
+  const statusByFeed: Record<DataSourceState['feed'], ExchangeStatus['status']> = {
+    live: 'online',
+    cached: 'degraded',
+    partial: 'degraded',
+    stale: 'degraded',
+    failed: 'down',
+  }
+
+  return sources.data.map((source) => ({
+    name: source.name,
+    status: statusByFeed[source.feed],
+    latencyMs: source.latencyMs,
+    coverage: coverageByFeed[source.feed],
+  }))
+}
+
+function stateToRegime(state: MacroAltEnv['suggestion']): MarketEnv['regime'] {
+  if (state === '更适合做多') return '顺风'
+  if (state === '更适合做空') return '逆风'
+  return '震荡'
+}
+
+function currentSession(): MarketEnv['session'] {
+  const hour = new Date().getHours()
+  if (hour >= 8 && hour < 15) return '亚洲盘'
+  if (hour >= 15 && hour < 21) return '伦敦盘'
+  return '纽约盘'
+}
+
+export function macroResourceToMarketEnv(
+  macro: Resource<MacroAltEnv>,
+  derivatives?: Resource<DerivativesState>,
+  tokens: Token[] = [],
+): MarketEnv {
+  const data = macro.data
+  const derivative = derivatives?.data
+  const btc = tokens.find((token) => token.symbol.toUpperCase() === 'BTC')
+  const eth = tokens.find((token) => token.symbol.toUpperCase() === 'ETH')
+  const fundingHeat = derivative ? Math.min(35, Math.abs(derivative.funding) * 1200) : 0
+  const oiHeat = derivative ? Math.min(45, Math.abs(derivative.oiChange) * 1.4) : 0
+  const leverageCrowding = Math.round(clamp(25 + fundingHeat + oiHeat, 0, 100))
+
+  return {
+    btc: {
+      price: btc?.price ?? 0,
+      change: btc?.change24h ?? 0,
+      state: data.btcState,
+    },
+    eth: {
+      price: eth?.price ?? 0,
+      change: eth?.change24h ?? 0,
+      state: data.ethState,
+    },
+    altStrength: data.altStrength,
+    regime: stateToRegime(data.suggestion),
+    leverageCrowding,
+    deleverageRisk:
+      data.riskMode === '防守' || leverageCrowding >= 75
+        ? '高'
+        : data.riskMode === '中性' || leverageCrowding >= 55
+          ? '中'
+          : '低',
+    session: currentSession(),
+    fearGreed: Math.round(clamp(data.altStrength + (data.btcDominanceTrend === '下降' ? 8 : -6), 0, 100)),
+  }
+}
+
+export function scanProofResourceToDataQuality(
+  scan: Resource<ScanProofData>,
+  sources?: Resource<DataSourceState[]>,
+): DataQuality {
+  const data = scan.data
+  const sourceRows = sources?.data ?? []
+  const degraded = scan.status !== 'live' || sourceRows.some((source) => source.feed !== 'live')
+
+  return {
+    raw: data.totalMonitored,
+    cleaned: data.scannable,
+    duplicates: 0,
+    filtered: Math.max(0, data.totalMonitored - data.scannable),
+    missing: data.awaitingDeepScan,
+    delayMs: Math.max(0, ...sourceRows.map((source) => source.latencyMs)),
+    degraded,
+    trust: clamp(data.coverage, 0, 100),
+  }
+}
+
+export function derivativesResourceToCoinglassData(
+  derivatives: Resource<DerivativesState>,
+  apiUsage?: Resource<ApiUsageState>,
+  tokens: Token[] = [],
+): CoinglassData {
+  const data = derivatives.data
+  const used = apiUsage?.data.usedToday ?? 0
+  const remaining = apiUsage?.data.remainingToday ?? 0
+  const volume = tokens.reduce((sum, token) => sum + token.volume24h, 0)
+  const heat = Math.abs(data.oiChange) + Math.abs(data.funding) * 1000
+
+  return {
+    oiChange: data.oiChange,
+    funding: data.funding,
+    longShortRatio: data.longShortRatio,
+    takerBuySell: data.takerBuySell,
+    futVolume: volume,
+    crowding: heat >= 18 ? '高' : heat >= 8 ? '中' : '低',
+    apiQuotaUsed: used,
+    apiQuotaTotal: Math.max(1, used + remaining),
+  }
 }
 
 function timeLabelFromAge(ageMin: number) {
