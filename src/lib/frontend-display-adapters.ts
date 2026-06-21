@@ -6,7 +6,7 @@ import type {
   SignalType,
   Token,
 } from './mock-data'
-import type { LeaderboardRow, RadarSignal } from './radar-contract'
+import type { LeaderboardKind, LeaderboardRow, RadarSignal } from './radar-contract'
 import type { SniperSignal, SniperTarget } from './sniper-data'
 
 type Direction = RadarSignal['direction']
@@ -170,6 +170,79 @@ function tokenFor(
     anomalyScore: clamp(score + signal.evidenceCount * 2 - signal.counterCount * 2, 1, 100),
     trend,
   }
+}
+
+function changeForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
+  if (kind === 'gainers' || kind === 'losers') return row.value
+  if (kind === 'relative_strength') return round(row.value / 10, 2)
+  if (kind === 'oi_change') return round(row.value / 2, 2)
+  return 0
+}
+
+export function leaderboardRowsToTokens(
+  rows: LeaderboardRow[],
+  kind: LeaderboardKind = 'volume',
+): Token[] {
+  return rows.map((row) => {
+    const symbol = row.symbol.toUpperCase()
+    const change24h = changeForLeaderboardRow(row, kind)
+    const tags: Token['tags'] = ['合约']
+
+    if (row.hasSignal) tags.push('异常活跃')
+    if (row.inCandidatePool) tags.push('Alpha')
+    if (change24h > 0) tags.push('利多')
+    if (row.blocked) tags.push('FOMO')
+
+    return {
+      id: symbol.toLowerCase(),
+      symbol,
+      name: `${symbol} / USDT`,
+      price: row.price > 0 ? row.price : priceForSymbol(symbol),
+      marketCap: Math.round((seededUnit(seedFrom(`${symbol}-cap`)) * 2.6 + 0.12) * 1e8),
+      volume24h: Math.round(
+        kind === 'volume' && Number.isFinite(row.value) && row.value > 0
+          ? row.value
+          : (seededUnit(seedFrom(`${symbol}-vol`)) * 8.5 + 0.35) * 1e7,
+      ),
+      change1h: round(change24h / 8, 2),
+      change24h,
+      change7d: round(change24h * 2.4, 2),
+      change30d: round(change24h * 5.8, 2),
+      hue: row.hue,
+      tags: [...new Set(tags)] as Token['tags'],
+      anomalyScore: clamp(
+        35 +
+          Math.min(Math.abs(row.value), 50) +
+          (row.hasSignal ? 18 : 0) +
+          (row.deepScanned ? 8 : 0),
+        1,
+        100,
+      ),
+      trend: change24h > 0 ? 'bull' : change24h < 0 ? 'bear' : 'shock',
+    }
+  })
+}
+
+export function mergeTokensBySymbol(...groups: Token[][]): Token[] {
+  const merged = new Map<string, Token>()
+
+  for (const token of groups.flat()) {
+    const key = token.symbol.toUpperCase()
+    const existing = merged.get(key)
+    if (!existing) {
+      merged.set(key, token)
+      continue
+    }
+
+    merged.set(key, {
+      ...existing,
+      ...token,
+      tags: [...new Set([...existing.tags, ...token.tags])] as Token['tags'],
+      anomalyScore: Math.max(existing.anomalyScore, token.anomalyScore),
+    })
+  }
+
+  return [...merged.values()]
 }
 
 function timeLabelFromAge(ageMin: number) {

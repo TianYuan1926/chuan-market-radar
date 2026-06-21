@@ -3,16 +3,24 @@ import { SiteNav } from '@/components/site-nav'
 import { PriceTicker } from '@/components/price-ticker'
 import { LeaderboardTable } from '@/components/leaderboard-table'
 import { MarketLeaderboards } from '@/components/leaderboard/market-leaderboards'
-import { getTokens } from '@/lib/mock-data'
 import { getAllLeaderboardContractsForPage } from '@/lib/frontend-contract-server'
+import {
+  leaderboardRowsToTokens,
+  mergeTokensBySymbol,
+} from '@/lib/frontend-display-adapters'
 
 export default async function LeaderboardPage() {
   const leaderboards = await getAllLeaderboardContractsForPage()
-  const tokens = getTokens()
+  const gainers = leaderboardRowsToTokens(leaderboards.gainers?.data ?? [], 'gainers')
+  const losers = leaderboardRowsToTokens(leaderboards.losers?.data ?? [], 'losers')
+  const volume = leaderboardRowsToTokens(leaderboards.volume?.data ?? [], 'volume')
+  const tickerTokens = mergeTokensBySymbol(volume, gainers, losers)
+  const tableTokens = mergeTokensBySymbol(gainers, losers, volume)
+
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <PriceTicker />
+      <PriceTicker tokens={tickerTokens} />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="flex items-center gap-3">
@@ -33,11 +41,11 @@ export default async function LeaderboardPage() {
         </div>
 
         <div className="mt-6">
-          <LeaderboardTable tokens={tokens} />
+          <LeaderboardTable tokens={tableTokens} />
         </div>
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          数据均为模拟演示，仅供参考，不构成投资建议
+          榜单数据仅供市场研究与系统校准，不构成投资建议
         </p>
       </main>
     </div>

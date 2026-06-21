@@ -7,7 +7,9 @@ import {
   ExternalLink,
   ClipboardList,
 } from 'lucide-react'
-import { getTokenArchive, fmtUsd, type Token } from '@/lib/mock-data'
+import { getTokenArchive, fmtUsd, type Token, type TokenArchive } from '@/lib/mock-data'
+import type { Resource } from '@/lib/data-status'
+import type { TokenDossier } from '@/lib/radar-contract'
 import { cn } from '@/lib/utils'
 
 const DIR_TONE: Record<string, string> = {
@@ -22,8 +24,153 @@ const RISK_TONE: Record<string, string> = {
   极高: 'var(--down)',
 }
 
-export function SignalArchive({ token }: { token: Token }) {
-  const a = getTokenArchive(token)
+function roundLikePrice(value: number, reference: number) {
+  const decimals = reference < 0.01 ? 6 : reference < 1 ? 4 : 2
+  return +value.toFixed(decimals)
+}
+
+function parsePrice(value: string | undefined, fallback: number) {
+  const match = value?.match(/-?\d+(?:\.\d+)?/)
+  if (!match) return fallback
+
+  const parsed = Number(match[0])
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function parseOptionalPrice(value: string | undefined) {
+  const match = value?.match(/-?\d+(?:\.\d+)?/)
+  if (!match) return null
+
+  const parsed = Number(match[0])
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function pickNearestBelow(values: number[], price: number, fallback: number) {
+  const candidates = values.filter((value) => Number.isFinite(value) && value > 0 && value <= price)
+  if (candidates.length > 0) return Math.max(...candidates)
+
+  const valid = values.filter((value) => Number.isFinite(value) && value > 0)
+  return valid.length > 0 ? Math.min(...valid) : fallback
+}
+
+function pickNearestAbove(values: number[], price: number, fallback: number) {
+  const candidates = values.filter((value) => Number.isFinite(value) && value > 0 && value >= price)
+  if (candidates.length > 0) return Math.min(...candidates)
+
+  const valid = values.filter((value) => Number.isFinite(value) && value > 0)
+  return valid.length > 0 ? Math.max(...valid) : fallback
+}
+
+function riskFromDossier(dossier: TokenDossier): TokenArchive['risk'] {
+  if (!dossier.riskGate.allowTradePlan) {
+    return dossier.riskGate.reasons.length >= 3 ? '极高' : '高'
+  }
+
+  if (dossier.counter.length >= 3) return '高'
+  if (dossier.counter.length >= 1) return '中'
+  return '低'
+}
+
+function dossierToArchive(
+  dossier: Resource<TokenDossier> | undefined,
+  token: Token,
+): TokenArchive | null {
+  const data = dossier?.data
+  if (!data) return null
+
+  const support = roundLikePrice(
+    pickNearestBelow(
+      data.structures.map((item) => item.support),
+      token.price,
+      token.price * 0.92,
+    ),
+    token.price,
+  )
+  const resistance = roundLikePrice(
+    pickNearestAbove(
+      data.structures.map((item) => item.resistance),
+      token.price,
+      token.price * 1.12,
+    ),
+    token.price,
+  )
+  const invalidation = roundLikePrice(
+    parsePrice(data.tradePlan?.invalidation ?? data.tradePlan?.stop, support),
+    token.price,
+  )
+  const targets = [data.tradePlan?.tp1, data.tradePlan?.tp2, data.tradePlan?.tp3]
+    .map(parseOptionalPrice)
+    .filter((value): value is number => value !== null)
+    .map((value) => roundLikePrice(value, token.price))
+
+  const totalEvidenceWeight = data.evidence.reduce((sum, item) => sum + item.weight, 0)
+  const counterPenalty = data.counter.length * 6
+  const planBonus = data.riskGate.allowTradePlan ? 22 : 0
+  const score = Math.max(1, Math.min(100, Math.round(totalEvidenceWeight + planBonus - counterPenalty)))
+  const fallbackTargets = data.direction === '看空' ? [support] : [resistance]
+
+  return {
+    direction: data.direction,
+    score,
+    risk: riskFromDossier(data),
+    evidence:
+      data.evidence.length > 0
+        ? data.evidence.map((item) => ({
+            label: item.label,
+            weight: item.weight,
+            detail: item.detail,
+          }))
+        : [
+            {
+              label: '后端证据待补齐',
+              weight: 0,
+              detail: '当前 dossier 已返回，但 evidence 明细为空，等待下一轮信号融合补齐。',
+            },
+          ],
+    counterEvidence:
+      data.counter.length > 0
+        ? data.counter.map((item) => ({
+            label: item.label,
+            detail: item.detail,
+          }))
+        : [{ label: '暂无强反证', detail: '当前后端未返回足以推翻主结论的反证项。' }],
+    keyLevels: {
+      support,
+      resistance,
+      invalidation,
+      targets: targets.length > 0 ? targets : fallbackTargets,
+    },
+    invalidation:
+      data.tradePlan?.invalidation ??
+      (data.riskGate.reasons.length > 0
+        ? data.riskGate.reasons.join('；')
+        : '等待后端返回明确失效条件。'),
+    plan: data.tradePlan
+      ? {
+          bias: data.tradePlan.bias,
+          entry: data.tradePlan.entryCondition,
+          stop: data.tradePlan.stop,
+          targets: `T1 ${data.tradePlan.tp1} / T2 ${data.tradePlan.tp2} / T3 ${data.tradePlan.tp3}`,
+          position: data.tradePlan.scaleOut,
+        }
+      : {
+          bias: '观望',
+          entry: 'Risk Gate 未放行，等待证据、赔率或结构重新满足条件。',
+          stop: '未生成交易计划，不设置执行止损。',
+          targets: '未生成目标位。',
+          position: '不参与，等待后端重新评估。',
+        },
+  }
+}
+
+export function SignalArchive({
+  token,
+  dossier,
+}: {
+  token: Token
+  dossier?: Resource<TokenDossier>
+}) {
+  const a = dossierToArchive(dossier, token) ?? getTokenArchive(token)
 
   return (
     <section className="sheet mt-5">
@@ -158,7 +305,7 @@ export function SignalArchive({ token }: { token: Token }) {
           <ExternalLink className="size-4 transition-transform group-hover:translate-x-0.5" />
         </a>
         <span className="text-xs text-muted-foreground">
-          交易计划为系统模拟推演，仅供参考，不构成投资建议。
+          交易计划为后端结构化研究输出，仅供复盘参考，不构成投资建议。
         </span>
       </div>
     </section>

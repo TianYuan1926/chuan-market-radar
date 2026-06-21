@@ -7,7 +7,10 @@ import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveStat, LiveQuotePct } from '@/components/live-value'
 import { getMarketEnv, POOL_META } from '@/lib/mock-data'
-import { radarSignalsToSignalCards } from '@/lib/frontend-display-adapters'
+import {
+  radarSignalsToSignalCards,
+  radarSignalsToTokens,
+} from '@/lib/frontend-display-adapters'
 import {
   getLeaderboardContractForPage,
   getRadarContractForPage,
@@ -29,6 +32,7 @@ export default async function DashboardPage() {
   ])
   const tickerRows = tickerLeaderboard.data
   const cards = radarSignalsToSignalCards(radar.radarSignals.data, tickerRows)
+  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerRows)
   const env = getMarketEnv()
   const scan = radar.scanProof.data
   const radarSignals = radar.radarSignals.data
@@ -86,7 +90,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar />
+      <SessionBar tokens={tokens} />
 
       <main className="mx-auto max-w-[1560px] px-4 py-5 sm:px-6">
         {/* 标题 */}

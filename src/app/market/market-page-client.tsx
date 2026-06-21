@@ -12,6 +12,7 @@ import {
   getCoinglass,
   fmtCap,
 } from '@/lib/mock-data'
+import { radarSignalsToTokens } from '@/lib/frontend-display-adapters'
 import {
   Globe,
   Database,
@@ -28,6 +29,7 @@ export function MarketPageClient({ radar }: { radar: RadarContract }) {
   const env = getMarketEnv()
   const dq = getDataQuality()
   const cg = getCoinglass()
+  const tokens = radarSignalsToTokens(radar.radarSignals.data)
 
   const regimeTone =
     env.regime === '顺风'
@@ -39,7 +41,7 @@ export function MarketPageClient({ radar }: { radar: RadarContract }) {
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar />
+      <SessionBar tokens={tokens} />
 
       <main className="mx-auto max-w-[1560px] space-y-5 px-4 py-5 sm:px-6">
         <PageHeader

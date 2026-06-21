@@ -29,7 +29,7 @@ export default async function SignalsPage() {
   return (
     <div className="min-h-dvh bg-background">
       <SiteNav />
-      <SessionBar />
+      <SessionBar tokens={tokens} />
 
       <main className="mx-auto max-w-[1560px] px-4 py-5 sm:px-6">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">

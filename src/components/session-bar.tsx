@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getTokens } from '@/lib/mock-data'
+import { getTokens, type Token } from '@/lib/mock-data'
 import { LiveQuotePct } from './live-value'
 import { cn } from '@/lib/utils'
 
@@ -40,7 +40,7 @@ function tzHour(tz: string, d: Date) {
   return parseInt(h, 10) % 24
 }
 
-export function SessionBar() {
+export function SessionBar({ tokens }: { tokens?: Token[] }) {
   const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
@@ -49,12 +49,12 @@ export function SessionBar() {
     return () => clearInterval(id)
   }, [])
 
-  const tokens = getTokens()
-  const gainers = [...tokens]
+  const tokenRows = tokens ?? getTokens()
+  const gainers = [...tokenRows]
     .filter((t) => t.change24h > 0)
     .sort((a, b) => b.change24h - a.change24h)
     .slice(0, 6)
-  const losers = [...tokens]
+  const losers = [...tokenRows]
     .filter((t) => t.change24h < 0)
     .sort((a, b) => a.change24h - b.change24h)
     .slice(0, 4)

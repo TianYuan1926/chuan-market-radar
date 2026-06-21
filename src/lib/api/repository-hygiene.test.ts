@@ -151,6 +151,15 @@ test("market test script runs nested compiled tests recursively", () => {
   assert.match(marketTestScript, /xargs node --test/);
 });
 
+test("local dev preview uses webpack to match the production CSS pipeline", () => {
+  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
+  const devScript = packageJson.scripts?.dev ?? "";
+
+  assert.match(devScript, /--webpack/);
+});
+
 test("v0 frontend shell is restored without touching backend API routes", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
@@ -350,4 +359,51 @@ test("sniper board stays visible when backend has no trade-plan-ready targets", 
   assert.doesNotMatch(sniperBoardSource, /if \(pool\.length === 0\) return null/);
   assert.match(sniperBoardSource, /暂无通过最终筛选/);
   assert.match(sniperBoardSource, /等待证据融合、赔率和风控同时满足/);
+});
+
+test("stage 8 global ticker bars can receive backend-derived tokens", () => {
+  const priceTickerSource = readFileSync(resolve(process.cwd(), "src/components/price-ticker.tsx"), "utf8");
+  const sessionBarSource = readFileSync(resolve(process.cwd(), "src/components/session-bar.tsx"), "utf8");
+  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+  const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
+  const marketClientSource = readFileSync(resolve(process.cwd(), "src/app/market/market-page-client.tsx"), "utf8");
+  const leaderboardSource = readFileSync(resolve(process.cwd(), "src/app/leaderboard/page.tsx"), "utf8");
+  const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");
+
+  assert.match(adapterSource, /leaderboardRowsToTokens/);
+  assert.match(adapterSource, /mergeTokensBySymbol/);
+
+  assert.match(priceTickerSource, /tokens\?:\s*Token\[\]/);
+  assert.match(priceTickerSource, /tokens\s*\?\?\s*getTokens\(\)/);
+  assert.match(sessionBarSource, /tokens\?:\s*Token\[\]/);
+  assert.match(sessionBarSource, /tokens\s*\?\?\s*getTokens\(\)/);
+
+  assert.match(dashboardSource, /radarSignalsToTokens/);
+  assert.match(dashboardSource, /<SessionBar tokens=\{tokens\}/);
+  assert.match(signalsSource, /<SessionBar tokens=\{tokens\}/);
+  assert.match(marketClientSource, /radarSignalsToTokens/);
+  assert.match(marketClientSource, /<SessionBar tokens=\{tokens\}/);
+  assert.match(leaderboardSource, /leaderboardRowsToTokens/);
+  assert.match(leaderboardSource, /mergeTokensBySymbol/);
+  assert.match(leaderboardSource, /<PriceTicker tokens=\{tickerTokens\}/);
+  assert.match(leaderboardSource, /<LeaderboardTable tokens=\{tableTokens\}/);
+  assert.doesNotMatch(leaderboardSource, /getTokens\(\)/);
+  assert.doesNotMatch(leaderboardSource, /数据均为模拟演示/);
+});
+
+test("stage 8 token signal archive prefers backend dossier before mock fallback", () => {
+  const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
+  const signalArchiveSource = readFileSync(resolve(process.cwd(), "src/components/signal-archive.tsx"), "utf8");
+
+  assert.match(tokenPageSource, /<SignalArchive token=\{token\} dossier=\{dossier\}/);
+
+  assert.match(signalArchiveSource, /type TokenArchive/);
+  assert.match(signalArchiveSource, /TokenDossier/);
+  assert.match(signalArchiveSource, /Resource/);
+  assert.match(signalArchiveSource, /dossier\?:\s*Resource<TokenDossier>/);
+  assert.match(signalArchiveSource, /dossierToArchive/);
+  assert.match(signalArchiveSource, /dossier\?\.data/);
+  assert.match(signalArchiveSource, /dossierToArchive\(dossier,\s*token\)\s*\?\?\s*getTokenArchive\(token\)/);
+  assert.match(signalArchiveSource, /后端结构化研究输出/);
+  assert.doesNotMatch(signalArchiveSource, /系统模拟推演/);
 });
