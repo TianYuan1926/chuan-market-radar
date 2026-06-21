@@ -6,13 +6,25 @@ import { LiveFeed } from '@/components/live-feed'
 import { MarketHeatmap } from '@/components/market-heatmap'
 import { SessionBar } from '@/components/session-bar'
 import { JournalLauncher } from '@/components/journal-launcher'
-import { getTokens, getSignalCards } from '@/lib/mock-data'
-import { getRadarContractForPage } from '@/lib/frontend-contract-server'
+import {
+  radarSignalsToSignalCards,
+  radarSignalsToSniperTargets,
+  radarSignalsToTokens,
+} from '@/lib/frontend-display-adapters'
+import {
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+} from '@/lib/frontend-contract-server'
 
 export default async function SignalsPage() {
-  const radar = await getRadarContractForPage()
-  const tokens = getTokens()
-  const cards = getSignalCards()
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const tickerRows = tickerLeaderboard.data
+  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerRows)
+  const cards = radarSignalsToSignalCards(radar.radarSignals.data, tickerRows)
+  const sniperTargets = radarSignalsToSniperTargets(radar.radarSignals.data, tickerRows)
 
   return (
     <div className="min-h-dvh bg-background">
@@ -25,7 +37,7 @@ export default async function SignalsPage() {
           <div className="min-w-0">
             {/* 狙击榜：通过最终筛选的精选目标（与复盘进化引擎共用数据源） */}
             <div className="mb-5">
-              <SniperBoard />
+              <SniperBoard targets={sniperTargets} />
             </div>
 
             {/* 信号成熟度池：按成熟度分层，支持搜索/筛选/排序/滚动（后端承载位） */}

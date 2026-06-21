@@ -1,0 +1,291 @@
+import type {
+  PoolStatus,
+  SignalCard,
+  SignalCategory,
+  SignalType,
+  Token,
+} from './mock-data'
+import type { LeaderboardRow, RadarSignal } from './radar-contract'
+import type { SniperSignal, SniperTarget } from './sniper-data'
+
+type Direction = RadarSignal['direction']
+type Maturity = RadarSignal['maturity']
+type TickerRows = LeaderboardRow[]
+type TickerLookup = Map<string, LeaderboardRow>
+
+const RISK_PENALTY: Record<RadarSignal['risk'], number> = {
+  低: 0,
+  中: 8,
+  高: 18,
+  极高: 32,
+}
+
+const MATURITY_BONUS: Record<Maturity, number> = {
+  LIGHT_SCAN_MARK: -12,
+  DEEP_SCAN_CANDIDATE: 0,
+  EVIDENCE_SIGNAL: 12,
+  TRADE_PLAN_READY: 22,
+  BLOCKED: -16,
+  INVALIDATED: -28,
+  COOLDOWN: -18,
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function seedFrom(value: string) {
+  let hash = 2166136261
+  for (const char of value.toUpperCase()) {
+    hash ^= char.charCodeAt(0)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function seededUnit(seed: number) {
+  const x = Math.sin(seed) * 10000
+  return x - Math.floor(x)
+}
+
+function priceForSymbol(symbol: string) {
+  const seed = seedFrom(symbol)
+  const roll = seededUnit(seed)
+  if (symbol === 'BTC') return 65000
+  if (symbol === 'ETH') return 3500
+  if (symbol === 'SOL') return 145
+  if (roll < 0.35) return +(0.008 + roll * 0.18).toFixed(5)
+  if (roll < 0.72) return +(0.2 + roll * 8).toFixed(4)
+  return +(8 + roll * 75).toFixed(3)
+}
+
+function priceBySymbol(tickerRows: TickerRows = []) {
+  const rows = new Map<string, LeaderboardRow>()
+
+  for (const row of tickerRows) {
+    const symbol = row.symbol.toUpperCase()
+    if (!rows.has(symbol) && Number.isFinite(row.price) && row.price > 0) {
+      rows.set(symbol, row)
+    }
+  }
+
+  return rows
+}
+
+function round(value: number, digits = 2) {
+  const factor = 10 ** digits
+  return Math.round(value * factor) / factor
+}
+
+function scoreFor(signal: RadarSignal) {
+  const rrBoost = signal.rr === null ? 0 : clamp(signal.rr * 5, 0, 22)
+  const raw =
+    42 +
+    signal.evidenceCount * 8 -
+    signal.counterCount * 7 +
+    rrBoost +
+    MATURITY_BONUS[signal.maturity] -
+    RISK_PENALTY[signal.risk]
+
+  return Math.round(clamp(raw, 8, 99))
+}
+
+function typeFor(signal: RadarSignal): SignalType {
+  if (signal.maturity === 'INVALIDATED' || signal.direction === '空') return 'CRASH'
+  if (signal.maturity === 'BLOCKED') return signal.risk === '极高' ? 'LIQ' : 'WHALE'
+  if (signal.maturity === 'TRADE_PLAN_READY') return 'BREAK'
+  if (signal.maturity === 'EVIDENCE_SIGNAL') return 'FLOW'
+  if (signal.maturity === 'DEEP_SCAN_CANDIDATE') return 'WHALE'
+  return 'PUMP'
+}
+
+function categoryFor(signal: RadarSignal): SignalCategory {
+  if (signal.maturity === 'TRADE_PLAN_READY' && signal.rr !== null && signal.rr >= 3 && !signal.whyBlocked) {
+    return 'sniper'
+  }
+  if (signal.direction === '多') return 'bull'
+  if (signal.direction === '空') return 'bear'
+  return 'watch'
+}
+
+function poolStatusFor(signal: RadarSignal): PoolStatus {
+  if (signal.maturity === 'INVALIDATED' || signal.maturity === 'COOLDOWN') return 'expired'
+  if (signal.maturity === 'BLOCKED') {
+    if (signal.risk === '高' || signal.risk === '极高') return 'high_risk'
+    return 'low_odds'
+  }
+  if (signal.rr !== null && signal.rr > 0 && signal.rr < 3) return 'low_odds'
+  if (signal.maturity === 'LIGHT_SCAN_MARK') return 'insufficient'
+  if (signal.maturity === 'DEEP_SCAN_CANDIDATE') return 'waiting'
+  if (signal.maturity === 'EVIDENCE_SIGNAL') return 'near'
+  if (signal.direction === '空') return 'short'
+  if (signal.direction === '多') return 'long'
+  return 'waiting'
+}
+
+function trendFor(direction: Direction): Token['trend'] {
+  if (direction === '多') return 'bull'
+  if (direction === '空') return 'bear'
+  return 'shock'
+}
+
+function changeFor(signal: RadarSignal, score: number) {
+  const base = Math.max(1, score - 45) / 6
+  if (signal.direction === '空') return -round(base + signal.counterCount * 0.8, 2)
+  if (signal.direction === '多') return round(base + signal.evidenceCount * 0.55, 2)
+  return round((score - 50) / 12, 2)
+}
+
+function tokenFor(
+  signal: RadarSignal,
+  tickerRows: TickerRows = [],
+  tickerLookup: TickerLookup = priceBySymbol(tickerRows),
+): Token {
+  const symbol = signal.symbol.toUpperCase()
+  const score = scoreFor(signal)
+  const ticker = tickerLookup.get(symbol)
+  const price = ticker?.price ?? priceForSymbol(symbol)
+  const change24h = changeFor(signal, score)
+  const trend = trendFor(signal.direction)
+  const tags: Token['tags'] = ['合约', '异常活跃']
+
+  if (signal.maturity === 'TRADE_PLAN_READY') tags.push('Alpha')
+  if (signal.maturity === 'BLOCKED') tags.push('FOMO')
+  if (signal.direction === '多') tags.push('利多')
+
+  return {
+    id: symbol.toLowerCase(),
+    symbol,
+    name: `${symbol} / USDT`,
+    price,
+    marketCap: Math.round((seededUnit(seedFrom(`${symbol}-cap`)) * 2.6 + 0.12) * 1e8),
+    volume24h: Math.round((seededUnit(seedFrom(`${symbol}-vol`)) * 8.5 + 0.35) * 1e7),
+    change1h: round(change24h / 8, 2),
+    change24h,
+    change7d: round(change24h * 2.4, 2),
+    change30d: round(change24h * 5.8, 2),
+    hue: signal.hue,
+    tags: [...new Set(tags)] as Token['tags'],
+    anomalyScore: clamp(score + signal.evidenceCount * 2 - signal.counterCount * 2, 1, 100),
+    trend,
+  }
+}
+
+function timeLabelFromAge(ageMin: number) {
+  if (ageMin <= 0) return '刚刚'
+  if (ageMin < 60) return `${ageMin}分钟前`
+  return `${Math.floor(ageMin / 60)}小时前`
+}
+
+function descFor(signal: RadarSignal) {
+  if (signal.whyBlocked) return `${signal.whySelected}；${signal.whyBlocked}`
+  return signal.whySelected
+}
+
+export function radarSignalsToTokens(signals: RadarSignal[], tickerRows: TickerRows = []): Token[] {
+  const tickerLookup = priceBySymbol(tickerRows)
+
+  return signals
+    .filter((signal) => signal.maturity !== 'LIGHT_SCAN_MARK')
+    .map((signal) => tokenFor(signal, tickerRows, tickerLookup))
+}
+
+export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: TickerRows = []): SignalCard[] {
+  const tickerLookup = priceBySymbol(tickerRows)
+
+  return signals
+    .filter((signal) => signal.maturity !== 'LIGHT_SCAN_MARK')
+    .map((signal) => {
+      const token = tokenFor(signal, tickerRows, tickerLookup)
+      const score = scoreFor(signal)
+      const type = typeFor(signal)
+      const ageMin = Math.max(0, signal.updatedMinAgo)
+      const pushPrice = token.price / Math.max(0.01, 1 + token.change24h / 100)
+
+      return {
+        id: signal.id,
+        token,
+        type,
+        category: categoryFor(signal),
+        poolStatus: poolStatusFor(signal),
+        score,
+        riskLevel: signal.risk,
+        odds: signal.rr ?? 0,
+        ageMin,
+        exchange: 'CoinGlass',
+        market: '合约' as const,
+        volMult: round(1 + signal.evidenceCount * 0.7 + Math.max(0, score - 60) / 15, 1),
+        desc: descFor(signal),
+        starred: signal.maturity === 'TRADE_PLAN_READY',
+        firstPush: timeLabelFromAge(ageMin + 15),
+        lastPush: timeLabelFromAge(ageMin),
+        pushPrice: round(pushPrice, token.price < 1 ? 6 : 4),
+        bullSentiment: signal.direction === '空'
+          ? clamp(45 - signal.counterCount * 5, 5, 48)
+          : signal.direction === '多'
+            ? clamp(55 + signal.evidenceCount * 6 - signal.counterCount * 4, 52, 96)
+            : clamp(48 + signal.evidenceCount * 3 - signal.counterCount * 4, 25, 75),
+        shortAnomaly: signal.evidenceCount + signal.counterCount,
+        trendAnomaly: Math.max(0, signal.evidenceCount - signal.counterCount),
+      }
+    })
+    .sort((a, b) => b.score - a.score)
+}
+
+function sniperSide(signal: RadarSignal): SniperTarget['side'] {
+  return signal.direction === '空' ? 'short' : 'long'
+}
+
+function sniperSignals(signal: RadarSignal): SniperSignal[] {
+  return [
+    { label: `证据 ${signal.evidenceCount} 条`, hit: signal.evidenceCount >= 3 },
+    { label: `反证 ${signal.counterCount} 条`, hit: signal.counterCount <= 1 },
+    { label: `RR ${signal.rr ?? 0}`, hit: (signal.rr ?? 0) >= 3 },
+    { label: signal.whyBlocked ? 'Risk Gate 拦截' : 'Risk Gate 通过', hit: !signal.whyBlocked },
+  ]
+}
+
+export function radarSignalsToSniperTargets(signals: RadarSignal[], tickerRows: TickerRows = []): SniperTarget[] {
+  return radarSignalsToSignalCards(signals, tickerRows)
+    .filter((card) => card.category === 'sniper' && card.odds >= 3)
+    .map((card) => {
+      const signal = signals.find((item) => item.id === card.id)
+      const side = signal ? sniperSide(signal) : card.token.trend === 'bear' ? 'short' : 'long'
+      const long = side === 'long'
+      const ref = card.token.price
+      const entryLow = long ? ref * 0.985 : ref * 1.005
+      const entryHigh = long ? ref * 1.01 : ref * 1.035
+      const stop = long ? ref * 0.955 : ref * 1.06
+      const target1 = long ? ref * (1 + 0.06 * card.odds) : ref * (1 - 0.04 * card.odds)
+      const target2 = long ? ref * (1 + 0.1 * card.odds) : ref * (1 - 0.07 * card.odds)
+
+      return {
+        id: card.id,
+        tokenId: card.token.id,
+        symbol: card.token.symbol,
+        name: card.token.name,
+        hue: card.token.hue,
+        side,
+        type: card.type,
+        score: card.score,
+        confidence: clamp(card.score + 3, 1, 99),
+        odds: card.odds,
+        riskLevel: card.riskLevel,
+        exchange: card.exchange,
+        market: card.market,
+        pushPrice: card.pushPrice,
+        entryLow: round(entryLow, ref < 1 ? 6 : 4),
+        entryHigh: round(entryHigh, ref < 1 ? 6 : 4),
+        stop: round(stop, ref < 1 ? 6 : 4),
+        target1: round(target1, ref < 1 ? 6 : 4),
+        target2: round(target2, ref < 1 ? 6 : 4),
+        thesis: card.desc,
+        signals: signal ? sniperSignals(signal) : [],
+        bullSentiment: card.bullSentiment,
+        volMult: card.volMult,
+        played: false,
+        outcomePct: 0,
+        outcomeNote: '等待复盘验证',
+      }
+    })
+}

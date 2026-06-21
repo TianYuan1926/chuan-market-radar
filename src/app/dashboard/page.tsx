@@ -6,12 +6,12 @@ import { DashboardRadarControl } from '@/components/dashboard/radar-control'
 import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveStat, LiveQuotePct } from '@/components/live-value'
+import { getMarketEnv, POOL_META } from '@/lib/mock-data'
+import { radarSignalsToSignalCards } from '@/lib/frontend-display-adapters'
 import {
-  getSignalCards,
-  getMarketEnv,
-  POOL_META,
-} from '@/lib/mock-data'
-import { getRadarContractForPage } from '@/lib/frontend-contract-server'
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+} from '@/lib/frontend-contract-server'
 import {
   Activity,
   ArrowRight,
@@ -23,8 +23,12 @@ import {
 } from 'lucide-react'
 
 export default async function DashboardPage() {
-  const radar = await getRadarContractForPage()
-  const cards = getSignalCards()
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const tickerRows = tickerLeaderboard.data
+  const cards = radarSignalsToSignalCards(radar.radarSignals.data, tickerRows)
   const env = getMarketEnv()
   const scan = radar.scanProof.data
   const radarSignals = radar.radarSignals.data

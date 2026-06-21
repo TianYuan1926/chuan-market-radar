@@ -22,9 +22,9 @@ import { getSniperTargets, sideLabel, type SniperTarget } from '@/lib/sniper-dat
 import { useTrainingEngine, getTrainingRow } from '@/lib/training-engine'
 import { cn } from '@/lib/utils'
 
-export function SniperBoard() {
+export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
   // 与复盘进化引擎共用的同一狙击目标池（按评分排序）
-  const pool = useMemo(() => getSniperTargets(), [])
+  const pool = useMemo(() => targets ?? getSniperTargets(), [targets])
 
   // 复盘进化引擎当前正在评判的目标 → 用于榜单高亮联动
   const { idx, phase } = useTrainingEngine()
@@ -32,8 +32,12 @@ export function SniperBoard() {
 
   // 初始锁定前 N 个，其余作为储备，周期性"通过最终筛选"入榜
   const INITIAL = Math.min(6, pool.length)
+  const initialLockedIds = useMemo(
+    () => pool.slice(0, INITIAL).map((c) => c.id),
+    [INITIAL, pool],
+  )
   const [lockedIds, setLockedIds] = useState<string[]>(() =>
-    pool.slice(0, INITIAL).map((c) => c.id),
+    initialLockedIds,
   )
   const [justLocked, setJustLocked] = useState<string | null>(null)
   const [banner, setBanner] = useState<{
@@ -43,6 +47,11 @@ export function SniperBoard() {
   } | null>(null)
   const cursor = useRef(INITIAL)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setLockedIds(initialLockedIds)
+    cursor.current = INITIAL
+  }, [INITIAL, initialLockedIds])
 
   useEffect(() => {
     if (pool.length <= 1) return

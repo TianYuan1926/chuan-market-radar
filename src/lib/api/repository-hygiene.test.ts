@@ -249,3 +249,54 @@ test("core v0 pages expose backend contract injection points", () => {
     }
   }
 });
+
+test("dashboard and signals visual widgets derive from backend radar signals", () => {
+  const adapterPath = "src/lib/frontend-display-adapters.ts";
+
+  assert.equal(existsSync(resolve(process.cwd(), adapterPath)), true, "backend-to-v0 display adapter must exist");
+
+  const adapterSource = readFileSync(resolve(process.cwd(), adapterPath), "utf8");
+  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+  const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
+  const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
+  const liveFeedSource = readFileSync(resolve(process.cwd(), "src/components/live-feed.tsx"), "utf8");
+  const liveStoreSource = readFileSync(resolve(process.cwd(), "src/lib/live-store.ts"), "utf8");
+
+  assert.match(adapterSource, /radarSignalsToSignalCards/);
+  assert.match(adapterSource, /radarSignalsToTokens/);
+  assert.match(adapterSource, /radarSignalsToSniperTargets/);
+
+  assert.match(dashboardSource, /radarSignalsToSignalCards/);
+  assert.match(dashboardSource, /const cards = radarSignalsToSignalCards\(radar\.radarSignals\.data(?:,\s*tickerRows)?\)/);
+  assert.doesNotMatch(dashboardSource, /getSignalCards/);
+
+  assert.match(signalsSource, /radarSignalsToSignalCards/);
+  assert.match(signalsSource, /radarSignalsToTokens/);
+  assert.match(signalsSource, /radarSignalsToSniperTargets/);
+  assert.match(signalsSource, /<SniperBoard targets=\{sniperTargets\}/);
+  assert.doesNotMatch(signalsSource, /getTokens|getSignalCards/);
+
+  assert.match(sniperBoardSource, /targets\?:\s*SniperTarget\[\]/);
+  assert.match(liveFeedSource, /cards\.length === 0/);
+  assert.match(liveStoreSource, /ensureQuote|fallbackQuoteForId/);
+});
+
+test("backend radar visual cards are enriched with backend ticker rows before falling back", () => {
+  const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");
+  const dashboardSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+  const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
+
+  assert.match(adapterSource, /LeaderboardRow/);
+  assert.match(adapterSource, /tickerRows/);
+  assert.match(adapterSource, /priceBySymbol/);
+
+  assert.match(dashboardSource, /getLeaderboardContractForPage/);
+  assert.match(dashboardSource, /const tickerRows = tickerLeaderboard\.data/);
+  assert.match(dashboardSource, /radarSignalsToSignalCards\(radar\.radarSignals\.data,\s*tickerRows\)/);
+
+  assert.match(signalsSource, /getLeaderboardContractForPage/);
+  assert.match(signalsSource, /const tickerRows = tickerLeaderboard\.data/);
+  assert.match(signalsSource, /radarSignalsToTokens\(radar\.radarSignals\.data,\s*tickerRows\)/);
+  assert.match(signalsSource, /radarSignalsToSignalCards\(radar\.radarSignals\.data,\s*tickerRows\)/);
+  assert.match(signalsSource, /radarSignalsToSniperTargets\(radar\.radarSignals\.data,\s*tickerRows\)/);
+});
