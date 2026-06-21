@@ -438,3 +438,19 @@ test("stage 8 market page reads backend contract instead of mock market panels",
   assert.doesNotMatch(marketClientSource, /useLiveNumber|LiveValue|LiveStat/);
   assert.doesNotMatch(marketClientSource, /数据均为模拟演示/);
 });
+
+test("stage 8 review and system pages do not render legacy mock centers", () => {
+  const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
+  const systemPageSource = readFileSync(resolve(process.cwd(), "src/app/system/page.tsx"), "utf8");
+
+  assert.match(reviewPageSource, /getReviewContractForPage/);
+  assert.match(reviewPageSource, /<ReviewEvolution contract=\{review\}/);
+  assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
+
+  assert.match(systemPageSource, /getRadarContractForPage/);
+  assert.match(systemPageSource, /radarSignalsToTokens/);
+  assert.match(systemPageSource, /<SessionBar tokens=\{tokens\}/);
+  assert.match(systemPageSource, /<SystemStatus contract=\{radar\}/);
+  assert.doesNotMatch(systemPageSource, /SystemCenter/);
+  assert.doesNotMatch(systemPageSource, /<SessionBar\s*\/>/);
+});
