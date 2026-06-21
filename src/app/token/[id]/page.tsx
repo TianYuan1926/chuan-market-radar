@@ -43,7 +43,6 @@ export default async function TokenPage({
   if (!token) notFound()
   const dossier = await getTokenDossierContractForPage(token.symbol, token.price)
 
-  const seed = token.hue + token.symbol.length * 31
   const backendSignals = radarSignalsToFeedSignals(radar.radarSignals.data, token.symbol)
   const signals = backendSignals.length > 0 ? backendSignals : getSignals(token.symbol, token.price)
   const up = token.change24h >= 0
@@ -138,7 +137,7 @@ export default async function TokenPage({
                 </span>
               </div>
               <div className="px-3 py-2">
-                <KlinePanel seed={seed} startPrice={token.price * 0.45} bare />
+                <KlinePanel bare allowMockFallback={false} />
               </div>
 
               {/* 主力资金净流入 */}
@@ -147,24 +146,13 @@ export default async function TokenPage({
                   <span className="h-3.5 w-1 bg-neon" />
                   主力资金 · 近 7 日净流入
                 </h3>
-                <div className="mt-4 flex h-28 items-end gap-1.5">
-                  {Array.from({ length: 28 }).map((_, i) => {
-                    const r = ((seed * (i + 3)) % 100) / 100
-                    const inflow = r > 0.4
-                    const h = 12 + r * 100
-                    return (
-                      <div
-                        key={i}
-                        className="flex-1 transition-all hover:opacity-70"
-                        style={{
-                          height: `${h}%`,
-                          background: inflow ? 'var(--up)' : 'var(--down)',
-                          opacity: 0.45 + r * 0.55,
-                        }}
-                        title={`${inflow ? '净流入' : '净流出'} ${(r * 100).toFixed(0)}万`}
-                      />
-                    )
-                  })}
+                <div className="mt-4 grid h-28 place-items-center border border-dashed border-border bg-secondary/10 px-4 text-center">
+                  <div>
+                    <div className="text-sm font-semibold">等待真实资金流数据</div>
+                    <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                      当前不再用随机柱子模拟主力净流入。待后端接入 CVD、taker buy/sell 或净流入字段后，这里直接展示真实资金流。
+                    </p>
+                  </div>
                 </div>
                 <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">

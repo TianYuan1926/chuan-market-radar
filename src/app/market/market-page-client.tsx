@@ -1,42 +1,31 @@
 'use client'
 
+import type { ComponentType, ReactNode } from 'react'
 import { SiteNav } from '@/components/site-nav'
 import { SessionBar } from '@/components/session-bar'
 import { Panel, PageHeader } from '@/components/panel'
 import { MarketMacroDerivatives } from '@/components/market/macro-derivatives'
-import { LiveValue, LiveStat } from '@/components/live-value'
-import { useLiveNumber } from '@/lib/use-live-number'
-import {
-  getMarketEnv,
-  getDataQuality,
-  getCoinglass,
-  fmtCap,
-} from '@/lib/mock-data'
+import { FreshnessTag, ResourceBoundary, StatusBadge } from '@/components/data-state'
 import { radarSignalsToTokens } from '@/lib/frontend-display-adapters'
+import type { DataSourceState, RadarContract } from '@/lib/radar-contract'
 import {
-  Globe,
+  Activity,
+  AlertTriangle,
   Database,
   Gauge,
-  Bitcoin,
+  Globe,
+  Radio,
+  ShieldCheck,
   Wind,
-  AlertTriangle,
-  Activity,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import type { RadarContract } from '@/lib/radar-contract'
 
 export function MarketPageClient({ radar }: { radar: RadarContract }) {
-  const env = getMarketEnv()
-  const dq = getDataQuality()
-  const cg = getCoinglass()
   const tokens = radarSignalsToTokens(radar.radarSignals.data)
-
-  const regimeTone =
-    env.regime === '顺风'
-      ? 'var(--up)'
-      : env.regime === '逆风'
-        ? 'var(--down)'
-        : 'var(--sig-pump)'
+  const macro = radar.macroAltEnv.data
+  const scan = radar.scanProof.data
+  const api = radar.apiUsage.data
+  const marketTone = suggestionTone(macro.suggestion)
+  const coverageTone = scan.stuck ? 'var(--down)' : scan.coverage >= 80 ? 'var(--up)' : 'var(--sig-pump)'
 
   return (
     <div className="min-h-dvh bg-background">
@@ -46,200 +35,170 @@ export function MarketPageClient({ radar }: { radar: RadarContract }) {
       <main className="mx-auto max-w-[1560px] space-y-5 px-4 py-5 sm:px-6">
         <PageHeader
           title="大盘环境与数据面板"
-          desc="判断风向、监控数据质量、追踪衍生品拥挤度——决定何时该出手、何时该收手"
+          desc="所有行情环境、衍生品、扫描覆盖和数据源状态均读取后端契约数据；缺失时显式降级，不再用前端模拟数值补位。"
         />
 
-        {/* 大盘环境总览条 */}
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <BigStat
             label="市场风向"
-            value={env.regime}
-            tone={regimeTone}
-            sub={`杠杆拥挤 ${env.leverageCrowding}/100`}
+            value={macro.suggestion}
+            tone={marketTone}
+            sub={`风险模式 ${macro.riskMode}`}
             icon={Wind}
+            status={<StatusBadge status={radar.macroAltEnv.status} />}
           />
           <BigStat
             label="山寨强弱"
-            value={`${env.altStrength}`}
-            liveBase={env.altStrength}
-            suffix="/100"
-            tone={env.altStrength >= 50 ? 'var(--up)' : 'var(--down)'}
-            sub={env.altStrength >= 60 ? '山寨季倾向' : '资金偏防御'}
+            value={`${macro.altStrength}/100`}
+            tone={macro.altStrength >= 50 ? 'var(--up)' : 'var(--down)'}
+            sub={`BTC.D ${macro.btcDominance}% · ${macro.btcDominanceTrend}`}
             icon={Activity}
+            status={<FreshnessTag {...radar.macroAltEnv} />}
           />
           <BigStat
-            label="去杠杆风险"
-            value={env.deleverageRisk}
-            tone={
-              env.deleverageRisk === '高'
-                ? 'var(--down)'
-                : env.deleverageRisk === '中'
-                  ? 'var(--sig-pump)'
-                  : 'var(--up)'
-            }
-            sub="衍生品拥挤监控"
-            icon={AlertTriangle}
+            label="全市场覆盖"
+            value={`${scan.coverage}%`}
+            tone={coverageTone}
+            sub={`${scan.lightScanned}/${scan.totalMonitored} 轻扫，${scan.deepScanned} 深扫`}
+            icon={RadarIcon}
+            status={<StatusBadge status={radar.scanProof.status} />}
           />
           <BigStat
-            label="贪婪指数"
-            value={`${env.fearGreed}`}
-            liveBase={env.fearGreed}
-            tone={env.fearGreed >= 60 ? 'var(--up)' : 'var(--down)'}
-            sub={`当前时段 · ${env.session}`}
+            label="CoinGlass 调用"
+            value={`${api.usedToday}/${api.usedToday + api.remainingToday}`}
+            tone={api.throttled ? 'var(--down)' : 'var(--neon)'}
+            sub={`每分钟 ${api.perMinuteLimit} · pacing ${api.pacingMs}ms`}
             icon={Gauge}
+            status={<StatusBadge status={radar.apiUsage.status} />}
           />
         </div>
 
-        {/* 后端承载位：宏观山寨环境 + CoinGlass 衍生品状态（不含清算热力图） */}
         <MarketMacroDerivatives contract={radar} />
 
-        <div className="grid gap-5 lg:grid-cols-2">
-          {/* 大盘环境 */}
-          <Panel title="大盘环境" icon={Globe}>
-            <div className="grid grid-cols-2 gap-px bg-border">
-              <CoinState
-                name="BTC"
-                price={env.btc.price}
-                change={env.btc.change}
-                state={env.btc.state}
-                icon={Bitcoin}
-              />
-              <CoinState
-                name="ETH"
-                price={env.eth.price}
-                change={env.eth.change}
-                state={env.eth.state}
-              />
-            </div>
-            <div className="space-y-4 px-5 py-4">
-              <Meter label="山寨市场强弱" value={env.altStrength} />
-              <Meter label="杠杆拥挤度" value={env.leverageCrowding} danger />
-              <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
-                <span className="text-muted-foreground">综合判定</span>
-                <span
-                  className="px-2 py-0.5 font-semibold"
-                  style={{
-                    color: regimeTone,
-                    background: `color-mix(in oklch, ${regimeTone} 14%, transparent)`,
-                  }}
-                >
-                  {env.regime} · 适度参与
-                </span>
-              </div>
+        <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <Panel
+            title="全市场扫描证明"
+            icon={Globe}
+            right={<StatusBadge status={radar.scanProof.status} />}
+          >
+            <ResourceBoundary resource={radar.scanProof}>
+              {(s) => (
+                <>
+                  <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+                    <DataCell label="监控币种" value={formatNumber(s.totalMonitored)} />
+                    <DataCell label="可扫描" value={formatNumber(s.scannable)} />
+                    <DataCell label="已轻扫" value={formatNumber(s.lightScanned)} tone="var(--up)" />
+                    <DataCell label="已深扫" value={formatNumber(s.deepScanned)} tone="var(--neon)" />
+                    <DataCell label="等待深扫" value={formatNumber(s.awaitingDeepScan)} tone="var(--sig-pump)" />
+                    <DataCell label="覆盖率" value={`${s.coverage}%`} tone={coverageTone} />
+                    <DataCell label="最近扫描" value={s.lastScanAt} />
+                    <DataCell
+                      label="扫描状态"
+                      value={s.stuck ? '卡住' : '运行中'}
+                      tone={s.stuck ? 'var(--down)' : 'var(--up)'}
+                    />
+                  </div>
+                  <ProgressSection
+                    label="扫描覆盖进度"
+                    value={s.coverage}
+                    tone={coverageTone}
+                    note={`下一轮倒计时 ${s.nextScanCountdownSec}s`}
+                  />
+                </>
+              )}
+            </ResourceBoundary>
+            <div className="border-t border-border px-5 py-2">
+              <FreshnessTag {...radar.scanProof} />
             </div>
           </Panel>
 
-          {/* CoinGlass */}
           <Panel
-            title="CoinGlass 衍生品数据"
-            icon={Activity}
-            right={
-              <span className="font-mono text-xs text-muted-foreground">
-                额度 {cg.apiQuotaUsed}/{cg.apiQuotaTotal}
-              </span>
-            }
+            title="数据源状态"
+            icon={Database}
+            right={<StatusBadge status={radar.dataSources.status} />}
           >
-            <div className="grid grid-cols-2 gap-px bg-border">
-              <LiveDataCell
-                label="OI 持仓变化"
-                base={cg.oiChange}
-                format={(n) => `${n > 0 ? '+' : ''}${n.toFixed(2)}%`}
-                tone="var(--up)"
-                volatility={0.04}
-              />
-              <LiveDataCell
-                label="资金费率"
-                base={cg.funding}
-                format={(n) => `${n > 0 ? '+' : ''}${n.toFixed(4)}%`}
-                tone={cg.funding > 0 ? 'var(--up)' : 'var(--down)'}
-                volatility={0.05}
-              />
-              <LiveDataCell
-                label="多空比"
-                base={cg.longShortRatio}
-                format={(n) => n.toFixed(2)}
-                tone="var(--up)"
-                volatility={0.02}
-              />
-              <LiveDataCell
-                label="主动买卖比"
-                base={cg.takerBuySell}
-                format={(n) => n.toFixed(2)}
-                tone="var(--up)"
-                volatility={0.02}
-              />
-              <DataCell label="合约成交量" value={`$${fmtCap(cg.futVolume)}`} />
-              <DataCell
-                label="衍生品拥挤"
-                value={cg.crowding}
-                tone={cg.crowding === '高' ? 'var(--down)' : 'var(--up)'}
-              />
-            </div>
-            <div className="border-t border-border px-5 py-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">接口额度使用</span>
-                <span className="font-mono">
-                  {Math.round((cg.apiQuotaUsed / cg.apiQuotaTotal) * 100)}%
-                </span>
-              </div>
-              <div className="mt-1.5 h-2 overflow-hidden bg-secondary">
-                <div
-                  className="relative h-full origin-left animate-bar-grow bg-neon"
-                  style={{ width: `${(cg.apiQuotaUsed / cg.apiQuotaTotal) * 100}%` }}
-                >
-                  <span
-                    className="absolute inset-y-0 w-1/3"
-                    style={{
-                      background:
-                        'linear-gradient(90deg, transparent, color-mix(in oklch, white 45%, transparent), transparent)',
-                      animation: 'bar-stream 2.2s linear infinite',
-                    }}
-                  />
+            <ResourceBoundary
+              resource={radar.dataSources}
+              isEmpty={(rows) => rows.length === 0}
+              emptyText="后端未返回数据源状态"
+            >
+              {(rows) => (
+                <div className="divide-y divide-border/70">
+                  {rows.map((row) => (
+                    <DataSourceRow key={row.name} row={row} />
+                  ))}
                 </div>
-              </div>
+              )}
+            </ResourceBoundary>
+            <div className="border-t border-border px-5 py-2">
+              <FreshnessTag {...radar.dataSources} />
             </div>
           </Panel>
         </div>
 
-        {/* 数据质量面板 */}
-        <Panel
-          title="数据质量面板"
-          icon={Database}
-          right={
-            <span
-              className={cn(
-                'px-2 py-0.5 text-xs font-semibold',
-                dq.degraded ? 'bg-down/15 text-down' : 'bg-up/15 text-up',
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Panel
+            title="后端契约数据质量"
+            icon={ShieldCheck}
+            right={<StatusBadge status={radar.derivatives.status} />}
+          >
+            <ResourceBoundary resource={radar.derivatives}>
+              {(d) => (
+                <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3">
+                  <DataCell
+                    label="OI 变化"
+                    value={`${d.oiChange > 0 ? '+' : ''}${d.oiChange}%`}
+                    tone={d.oiChange >= 0 ? 'var(--up)' : 'var(--down)'}
+                  />
+                  <DataCell
+                    label="资金费率"
+                    value={`${d.funding > 0 ? '+' : ''}${d.funding}%`}
+                    tone={d.funding >= 0 ? 'var(--sig-pump)' : 'var(--up)'}
+                  />
+                  <DataCell label="多空比" value={d.longShortRatio.toFixed(2)} />
+                  <DataCell label="主动买卖比" value={d.takerBuySell.toFixed(2)} />
+                  <DataCell label="交易所覆盖" value={`${d.exchangeCoverage}/${d.totalExchanges}`} />
+                  <DataCell label="更新时间" value={d.lastUpdate} />
+                </div>
               )}
-            >
-              {dq.degraded ? '降级运行' : '正常运行'}
-            </span>
-          }
-        >
-          <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
-            <LiveCountCell label="原始数据" base={dq.raw} volatility={0.015} />
-            <LiveCountCell label="清洗后数据" base={dq.cleaned} tone="var(--up)" volatility={0.015} />
-            <LiveCountCell label="重复币种处理" base={dq.duplicates} volatility={0.03} />
-            <LiveCountCell label="被过滤数据" base={dq.filtered} volatility={0.03} />
-            <LiveCountCell label="数据缺失" base={dq.missing} tone="var(--sig-pump)" volatility={0.05} />
-            <LiveCountCell label="数据延迟" base={dq.delayMs} suffix="ms" tone="var(--sig-pump)" volatility={0.08} />
-            <DataCell
-              label="降级状态"
-              value={dq.degraded ? '是' : '否'}
-              tone={dq.degraded ? 'var(--down)' : 'var(--up)'}
-            />
-            <LiveDataCell
-              label="数据可信度"
-              base={dq.trust}
-              format={(n) => `${n.toFixed(1)}%`}
-              tone="var(--neon)"
-              volatility={0.006}
-            />
-          </div>
-        </Panel>
+            </ResourceBoundary>
+            <div className="border-t border-border px-5 py-2">
+              <FreshnessTag {...radar.derivatives} />
+            </div>
+          </Panel>
+
+          <Panel
+            title="调用预算与限速保护"
+            icon={AlertTriangle}
+            right={<StatusBadge status={radar.apiUsage.status} />}
+          >
+            <ResourceBoundary resource={radar.apiUsage}>
+              {(a) => {
+                const total = Math.max(1, a.usedToday + a.remainingToday)
+                const usedPct = Math.round((a.usedToday / total) * 100)
+                return (
+                  <div className="px-5 py-4">
+                    <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+                      <DataCell label="数据源" value={a.provider} />
+                      <DataCell label="已用" value={formatNumber(a.usedToday)} />
+                      <DataCell label="剩余" value={formatNumber(a.remainingToday)} tone="var(--up)" />
+                      <DataCell label="分钟上限" value={`${a.perMinuteLimit}/min`} tone="var(--neon)" />
+                    </div>
+                    <ProgressSection
+                      label="今日预算使用"
+                      value={usedPct}
+                      tone={usedPct > 85 ? 'var(--down)' : 'var(--neon)'}
+                      note={a.throttled ? '已触发限速保护' : `请求间隔 ${a.pacingMs}ms，未触发限速`}
+                    />
+                  </div>
+                )
+              }}
+            </ResourceBoundary>
+          </Panel>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          数据均为模拟演示，仅供参考，不构成投资建议
+          后端契约数据仅供研究复盘与系统校准，不构成投资建议
         </p>
       </main>
     </div>
@@ -249,98 +208,37 @@ export function MarketPageClient({ radar }: { radar: RadarContract }) {
 function BigStat({
   label,
   value,
-  liveBase,
-  suffix,
   tone,
   sub,
   icon: Icon,
+  status,
 }: {
   label: string
   value: string
-  liveBase?: number
-  suffix?: string
   tone: string
   sub: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
+  status?: ReactNode
 }) {
   return (
     <div className="hover-lift border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <span className="text-[13px] text-muted-foreground">{label}</span>
         <span
-          className="grid size-7 place-items-center"
+          className="grid size-7 shrink-0 place-items-center"
           style={{ background: `color-mix(in oklch, ${tone} 14%, transparent)`, color: tone }}
         >
           <Icon className="size-3.5" />
         </span>
       </div>
-      <div className="mt-2 font-mono text-2xl font-bold" style={{ color: tone }}>
-        {typeof liveBase === 'number' ? (
-          <LiveStat
-            base={liveBase}
-            format={(n) => `${Math.round(n)}`}
-            volatility={0.02}
-            min={0}
-            max={100}
-          />
-        ) : (
-          value
-        )}
-        {suffix && <span className="text-base text-muted-foreground">{suffix}</span>}
+      <div className="mt-2 break-words font-mono text-2xl font-bold leading-tight" style={{ color: tone }}>
+        {value}
       </div>
       <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <span className="size-1.5 animate-pulse rounded-full" style={{ background: tone }} />
-        {sub}
+        <span className="size-1.5 rounded-full" style={{ background: tone }} />
+        <span className="min-w-0 break-words">{sub}</span>
       </div>
-    </div>
-  )
-}
-
-function CoinState({
-  name,
-  price,
-  change,
-  state,
-  icon: Icon,
-}: {
-  name: string
-  price: number
-  change: number
-  state: string
-  icon?: React.ComponentType<{ className?: string }>
-}) {
-  const up = change >= 0
-  const livePrice = useLiveNumber(price, {
-    volatility: 0.0012,
-    intervalMs: 2000,
-    drift: true,
-  })
-  return (
-    <div className="bg-card px-5 py-4">
-      <div className="flex items-center gap-1.5 text-sm font-semibold">
-        {Icon && <Icon className="size-4 text-[var(--sig-pump)]" />}
-        {name}
-        <span
-          className="ml-auto px-1.5 py-0.5 text-[10px] font-semibold"
-          style={{
-            color: state === '强势' ? 'var(--up)' : state === '弱势' ? 'var(--down)' : 'var(--sig-pump)',
-            background: `color-mix(in oklch, ${state === '强势' ? 'var(--up)' : state === '弱势' ? 'var(--down)' : 'var(--sig-pump)'} 14%, transparent)`,
-          }}
-        >
-          {state}
-        </span>
-      </div>
-      <LiveValue
-        value={livePrice}
-        format={(n) =>
-          `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        }
-        className="mt-2 block font-mono text-xl font-bold"
-      />
-      <div className={cn('font-mono text-sm', up ? 'text-up' : 'text-down')}>
-        {up ? '+' : ''}
-        {change}%
-      </div>
+      {status && <div className="mt-2">{status}</div>}
     </div>
   )
 }
@@ -358,7 +256,7 @@ function DataCell({
     <div className="bg-card px-5 py-4">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div
-        className="mt-1 font-mono text-lg font-bold"
+        className="mt-1 break-words font-mono text-lg font-bold leading-tight"
         style={tone ? { color: tone } : undefined}
       >
         {value}
@@ -367,117 +265,80 @@ function DataCell({
   )
 }
 
-// 实时计数格：整数计数随推送跳动（用于数据质量面板）
-function LiveCountCell({
-  label,
-  base,
-  tone,
-  suffix = '',
-  volatility = 0.01,
-}: {
-  label: string
-  base: number
-  tone?: string
-  suffix?: string
-  volatility?: number
-}) {
+function DataSourceRow({ row }: { row: DataSourceState }) {
+  const tone = feedTone(row.feed)
   return (
-    <div className="bg-card px-5 py-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <span
-        className="mt-1 block font-mono text-lg font-bold"
-        style={tone ? { color: tone } : undefined}
-      >
-        <LiveStat
-          base={base}
-          format={(n) => `${Math.round(n).toLocaleString('en-US')}${suffix}`}
-          volatility={volatility}
-          flash={false}
-          drift
-        />
-      </span>
+    <div className="px-5 py-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Radio className="size-4 shrink-0" style={{ color: tone }} />
+          <div className="min-w-0">
+            <div className="font-semibold">{row.name}</div>
+            <div className="mt-0.5 break-words text-xs text-muted-foreground">{row.note}</div>
+          </div>
+        </div>
+        <span
+          className="shrink-0 border px-2 py-0.5 font-mono text-[10px] uppercase"
+          style={{
+            color: tone,
+            borderColor: `color-mix(in oklch, ${tone} 42%, transparent)`,
+            background: `color-mix(in oklch, ${tone} 12%, transparent)`,
+          }}
+        >
+          {row.feed}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+        <span>延迟 {row.latencyMs}ms</span>
+        <span>更新 {row.lastUpdate}</span>
+      </div>
     </div>
   )
 }
 
-// 实时数据格：数值随推送跳动并闪烁
-function LiveDataCell({
-  label,
-  base,
-  format,
-  tone,
-  volatility = 0.02,
-}: {
-  label: string
-  base: number
-  format: (n: number) => string
-  tone?: string
-  volatility?: number
-}) {
-  const v = useLiveNumber(base, { volatility, intervalMs: 2400, drift: true })
-  return (
-    <div className="bg-card px-5 py-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <span
-        className="mt-1 block font-mono text-lg font-bold"
-        style={tone ? { color: tone } : undefined}
-      >
-        <LiveValue value={v} format={format} />
-      </span>
-    </div>
-  )
-}
-
-function Meter({
+function ProgressSection({
   label,
   value,
-  danger,
+  tone,
+  note,
 }: {
   label: string
   value: number
-  danger?: boolean
+  tone: string
+  note: string
 }) {
-  const live = useLiveNumber(value, {
-    volatility: 0.02,
-    intervalMs: 4200,
-    min: 0,
-    max: 100,
-  })
-  const display = Math.round(live)
-  const tone = danger
-    ? display > 70
-      ? 'var(--down)'
-      : 'var(--sig-pump)'
-    : display > 55
-      ? 'var(--up)'
-      : 'var(--sig-pump)'
+  const width = Math.max(0, Math.min(100, value))
   return (
-    <div>
-      <div className="flex items-center justify-between text-sm">
+    <div className="border-t border-border px-5 py-3.5">
+      <div className="flex items-center justify-between gap-3 text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <LiveValue
-          value={live}
-          format={(n) => `${Math.round(n)}/100`}
-          flash={false}
-          className="font-mono font-semibold"
-        />
+        <span className="font-mono">{Math.round(width)}%</span>
       </div>
-      <div className="mt-1.5 h-2 overflow-hidden bg-secondary">
-        <div
-          className="relative h-full origin-left animate-bar-grow transition-all duration-700"
-          style={{ width: `${display}%`, background: tone }}
-        >
-          {/* 流动高光，强化"实时数据"观感 */}
-          <span
-            className="absolute inset-y-0 w-1/3"
-            style={{
-              background:
-                'linear-gradient(90deg, transparent, color-mix(in oklch, white 45%, transparent), transparent)',
-              animation: 'bar-stream 2.2s linear infinite',
-            }}
-          />
-        </div>
+      <div className="bar-track mt-1.5 h-2 overflow-hidden bg-secondary">
+        <div className="bar-fill h-full" style={{ width: `${width}%`, background: tone }} />
       </div>
+      <div className="mt-2 text-xs text-muted-foreground">{note}</div>
     </div>
   )
+}
+
+function suggestionTone(suggestion: string) {
+  if (suggestion.includes('多')) return 'var(--up)'
+  if (suggestion.includes('空')) return 'var(--down)'
+  return 'var(--sig-pump)'
+}
+
+function feedTone(feed: DataSourceState['feed']) {
+  if (feed === 'live') return 'var(--up)'
+  if (feed === 'failed' || feed === 'stale') return 'var(--down)'
+  if (feed === 'cached' || feed === 'partial') return 'var(--sig-pump)'
+  return 'var(--muted-foreground)'
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString('en-US')
+}
+
+function RadarIcon({ className }: { className?: string }) {
+  return <Activity className={className} />
 }

@@ -407,3 +407,34 @@ test("stage 8 token signal archive prefers backend dossier before mock fallback"
   assert.match(signalArchiveSource, /后端结构化研究输出/);
   assert.doesNotMatch(signalArchiveSource, /系统模拟推演/);
 });
+
+test("stage 8 token detail chart and flow panels do not present generated mock data as real", () => {
+  const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
+  const klinePanelSource = readFileSync(resolve(process.cwd(), "src/components/kline-panel.tsx"), "utf8");
+
+  assert.match(klinePanelSource, /candles\?:\s*ChartCandle\[\]/);
+  assert.match(klinePanelSource, /allowMockFallback\?:\s*boolean/);
+  assert.match(klinePanelSource, /等待真实 K 线数据/);
+  assert.match(klinePanelSource, /candles\?\.length/);
+
+  assert.match(tokenPageSource, /<KlinePanel[\s\S]+allowMockFallback=\{false\}/);
+  assert.match(tokenPageSource, /等待真实资金流数据/);
+  assert.doesNotMatch(tokenPageSource, /Array\.from\(\{ length: 28 \}\)/);
+  assert.doesNotMatch(tokenPageSource, /\(\(seed \* \(i \+ 3\)\) % 100\)/);
+});
+
+test("stage 8 market page reads backend contract instead of mock market panels", () => {
+  const marketClientSource = readFileSync(resolve(process.cwd(), "src/app/market/market-page-client.tsx"), "utf8");
+
+  assert.match(marketClientSource, /radar\.macroAltEnv/);
+  assert.match(marketClientSource, /radar\.derivatives/);
+  assert.match(marketClientSource, /radar\.dataSources/);
+  assert.match(marketClientSource, /radar\.scanProof/);
+  assert.match(marketClientSource, /radar\.apiUsage/);
+  assert.match(marketClientSource, /ResourceBoundary/);
+  assert.match(marketClientSource, /后端契约数据/);
+
+  assert.doesNotMatch(marketClientSource, /getMarketEnv|getDataQuality|getCoinglass/);
+  assert.doesNotMatch(marketClientSource, /useLiveNumber|LiveValue|LiveStat/);
+  assert.doesNotMatch(marketClientSource, /数据均为模拟演示/);
+});
