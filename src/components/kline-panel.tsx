@@ -2,26 +2,33 @@
 
 import { useMemo, useState } from 'react'
 import { KlineChart } from './kline-chart'
-import { getCandles } from '@/lib/mock-data'
+import { getCandles, type Candle } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 const TFS = ['1分钟', '15分钟', '1小时', '4小时', '1天'] as const
+export type ChartCandle = Candle
 
 export function KlinePanel({
   seed,
   startPrice,
   bare = false,
+  candles,
+  allowMockFallback = true,
 }: {
   seed: number
   startPrice: number
   bare?: boolean
+  candles?: ChartCandle[]
+  allowMockFallback?: boolean
 }) {
   const [tf, setTf] = useState<(typeof TFS)[number]>('4小时')
 
-  const candles = useMemo(() => {
+  const displayCandles = useMemo(() => {
+    if (candles?.length) return candles
+    if (!allowMockFallback) return []
     const i = TFS.indexOf(tf)
     return getCandles(seed + i * 17, 80, startPrice)
-  }, [tf, seed, startPrice])
+  }, [tf, seed, startPrice, candles, allowMockFallback])
 
   return (
     <div className={bare ? '' : 'border border-border bg-card'}>
@@ -53,7 +60,13 @@ export function KlinePanel({
         </div>
       </div>
       <div className="px-3 pb-2 pt-3">
-        <KlineChart candles={candles} />
+        {displayCandles.length > 0 ? (
+          <KlineChart candles={displayCandles} />
+        ) : (
+          <div className="grid min-h-[320px] place-items-center border border-dashed border-border bg-secondary/20 px-4 text-center text-sm text-muted-foreground">
+            等待真实 K 线数据
+          </div>
+        )}
       </div>
     </div>
   )

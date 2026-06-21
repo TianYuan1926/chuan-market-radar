@@ -339,7 +339,9 @@ test("token detail page can render backend radar symbols without relying only on
   assert.match(tokenPageSource, /const backendToken = radarSignalsToTokens\(radar\.radarSignals\.data,\s*tickerRows\)\.find/);
   assert.match(tokenPageSource, /const token = backendToken \?\? getToken\(id\)/);
   assert.match(tokenPageSource, /const backendSignals = radarSignalsToFeedSignals\(radar\.radarSignals\.data,\s*token\.symbol\)/);
-  assert.match(tokenPageSource, /backendSignals\.length > 0 \? backendSignals : getSignals/);
+  assert.match(tokenPageSource, /backendSignals\.length === 0/);
+  assert.match(tokenPageSource, /当前没有该标的的后端异动追踪记录/);
+  assert.doesNotMatch(tokenPageSource, /getSignals/);
   assert.doesNotMatch(tokenPageSource, /数据均为模拟演示/);
 });
 

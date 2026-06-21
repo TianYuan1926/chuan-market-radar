@@ -7,7 +7,9 @@ import {
   ExternalLink,
   ClipboardList,
 } from 'lucide-react'
-import { getTokenArchive, fmtUsd, type Token } from '@/lib/mock-data'
+import { getTokenArchive, fmtUsd, type Token, type TokenArchive } from '@/lib/mock-data'
+import type { Resource } from '@/lib/data-status'
+import type { TokenDossier } from '@/lib/radar-contract'
 import { cn } from '@/lib/utils'
 
 const DIR_TONE: Record<string, string> = {
@@ -22,8 +24,65 @@ const RISK_TONE: Record<string, string> = {
   极高: 'var(--down)',
 }
 
-export function SignalArchive({ token }: { token: Token }) {
-  const a = getTokenArchive(token)
+export function dossierToArchive(
+  dossier: Resource<TokenDossier> | undefined,
+  token: Token,
+): TokenArchive | null {
+  const data = dossier?.data
+  if (!data) return null
+  const mainStructure = data.structures.find((item) => item.tf === '4h') ?? data.structures[0]
+  const support = mainStructure?.support ?? token.price
+  const resistance = mainStructure?.resistance ?? token.price
+  const invalidation = data.tradePlan
+    ? Number(data.tradePlan.stop.match(/[\d.]+/)?.[0] ?? support)
+    : support
+
+  return {
+    direction: data.direction,
+    score: Math.max(0, Math.min(100, Math.round(data.evidence.reduce((sum, item) => sum + item.weight, 0)))),
+    risk: data.riskGate.allowTradePlan ? '中' : '高',
+    evidence: data.evidence.map((item) => ({
+      label: item.label,
+      weight: item.weight,
+      detail: item.detail,
+    })),
+    counterEvidence: data.counter.map((item) => ({
+      label: item.label,
+      detail: item.detail,
+    })),
+    keyLevels: {
+      support,
+      resistance,
+      invalidation,
+      targets: data.tradePlan
+        ? [data.tradePlan.tp1, data.tradePlan.tp2, data.tradePlan.tp3].map((value) =>
+            Number(value.match(/[\d.]+/)?.[0] ?? resistance),
+          )
+        : [resistance],
+    },
+    invalidation:
+      data.tradePlan?.invalidation ??
+      (data.riskGate.reasons.join('；') || '后端暂未生成失效条件'),
+    plan: {
+      bias: data.tradePlan?.bias ?? '观望',
+      entry: data.tradePlan?.entryCondition ?? '等待后端交易计划放行',
+      stop: data.tradePlan?.stop ?? '未生成',
+      targets: data.tradePlan
+        ? `${data.tradePlan.tp1} / ${data.tradePlan.tp2} / ${data.tradePlan.tp3}`
+        : '未生成',
+      position: data.tradePlan?.scaleOut ?? '风控拦截时不生成仓位计划',
+    },
+  }
+}
+
+export function SignalArchive({
+  token,
+  dossier,
+}: {
+  token: Token
+  dossier?: Resource<TokenDossier>
+}) {
+  const a = dossierToArchive(dossier, token) ?? getTokenArchive(token)
 
   return (
     <section className="sheet mt-5">
@@ -158,7 +217,7 @@ export function SignalArchive({ token }: { token: Token }) {
           <ExternalLink className="size-4 transition-transform group-hover:translate-x-0.5" />
         </a>
         <span className="text-xs text-muted-foreground">
-          交易计划为系统模拟推演，仅供参考，不构成投资建议。
+          交易计划来自后端结构化研究输出，仅供参考，不构成投资建议。
         </span>
       </div>
     </section>

@@ -6,18 +6,19 @@ import { KlinePanel } from '@/components/kline-panel'
 import { SignalArchive } from '@/components/signal-archive'
 import { TokenDossier } from '@/components/token/token-dossier'
 import { TokenAvatar } from '@/components/token-avatar'
+import { getToken, fmtCap, fmtUsd } from '@/lib/mock-data'
 import {
-  getToken,
-  getTokens,
-  getSignals,
-  fmtCap,
-  fmtUsd,
-} from '@/lib/mock-data'
+  getLeaderboardContractForPage,
+  getRadarContractForPage,
+  getTokenDossierContractForPage,
+} from '@/lib/frontend-contract-server'
+import {
+  radarSignalsToFeedSignals,
+  radarSignalsToTokens,
+} from '@/lib/frontend-display-adapters'
 import { cn } from '@/lib/utils'
 
-export function generateStaticParams() {
-  return getTokens().map((t) => ({ id: t.id }))
-}
+export const dynamic = 'force-dynamic'
 
 export default async function TokenPage({
   params,
@@ -25,20 +26,30 @@ export default async function TokenPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const token = getToken(id)
+  const symbol = id.toUpperCase()
+  const [radar, tickerLeaderboard] = await Promise.all([
+    getRadarContractForPage(),
+    getLeaderboardContractForPage('volume'),
+  ])
+  const tickerRows = tickerLeaderboard.data
+  const backendToken = radarSignalsToTokens(radar.radarSignals.data, tickerRows).find(
+    (item) => item.id === id || item.symbol.toUpperCase() === symbol,
+  )
+  const token = backendToken ?? getToken(id)
   if (!token) notFound()
+  const dossier = await getTokenDossierContractForPage(token.symbol, token.price)
 
   const seed = token.hue + token.symbol.length * 31
-  const signals = getSignals(token.symbol, token.price)
+  const backendSignals = radarSignalsToFeedSignals(radar.radarSignals.data, token.symbol)
   const up = token.change24h >= 0
 
   const facts: [string, string][] = [
     ['市值', `$${fmtCap(token.marketCap)}`],
     ['24H 成交额', `$${fmtCap(token.volume24h)}`],
-    ['总供应量', '100.00亿'],
-    ['流通量', '22.00亿'],
-    ['流通率', '22.00%'],
-    ['发行时间', '2026/01/15'],
+    ['异动强度', `${token.anomalyScore}/100`],
+    ['趋势方向', token.trend === 'bull' ? '偏多' : token.trend === 'bear' ? '偏空' : '震荡'],
+    ['证据状态', dossier.data.riskGate.allowTradePlan ? '风控放行' : '风控拦截'],
+    ['数据来源', dossier.source ?? 'backend-contract'],
   ]
 
   return (
@@ -122,7 +133,12 @@ export default async function TokenPage({
                 </span>
               </div>
               <div className="px-3 py-2">
-                <KlinePanel seed={seed} startPrice={token.price * 0.45} bare />
+                <KlinePanel
+                  seed={seed}
+                  startPrice={token.price * 0.45}
+                  bare
+                  allowMockFallback={false}
+                />
               </div>
 
               {/* 主力资金净流入 */}
@@ -131,32 +147,8 @@ export default async function TokenPage({
                   <span className="h-3.5 w-1 bg-neon" />
                   主力资金 · 近 7 日净流入
                 </h3>
-                <div className="mt-4 flex h-28 items-end gap-1.5">
-                  {Array.from({ length: 28 }).map((_, i) => {
-                    const r = ((seed * (i + 3)) % 100) / 100
-                    const inflow = r > 0.4
-                    const h = 12 + r * 100
-                    return (
-                      <div
-                        key={i}
-                        className="flex-1 transition-all hover:opacity-70"
-                        style={{
-                          height: `${h}%`,
-                          background: inflow ? 'var(--up)' : 'var(--down)',
-                          opacity: 0.45 + r * 0.55,
-                        }}
-                        title={`${inflow ? '净流入' : '净流出'} ${(r * 100).toFixed(0)}万`}
-                      />
-                    )
-                  })}
-                </div>
-                <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="size-2 bg-up" />净流入
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="size-2 bg-down" />净流出
-                  </span>
+                <div className="mt-4 grid h-28 place-items-center border border-dashed border-border bg-secondary/20 px-4 text-center text-sm text-muted-foreground">
+                  等待真实资金流数据
                 </div>
               </div>
             </div>
@@ -178,7 +170,12 @@ export default async function TokenPage({
                 </span>
               </div>
               <div className="max-h-[620px] divide-y divide-border overflow-y-auto">
-                {signals.map((s, i) => {
+                {backendSignals.length === 0 && (
+                  <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                    当前没有该标的的后端异动追踪记录
+                  </div>
+                )}
+                {backendSignals.map((s, i) => {
                   const Icon =
                     s.type === 'bull'
                       ? TrendingUp
@@ -236,13 +233,13 @@ export default async function TokenPage({
         </div>
 
         {/* 信号档案：证据链 / 反证 / 关键位 / 失效条件 / 交易计划 */}
-        <SignalArchive token={token} />
+        <SignalArchive token={token} dossier={dossier} />
 
         {/* 后端承载位：多周期结构 / 证据链 / 反证链 / Risk Gate / 交易计划 / AI 复核 */}
-        <TokenDossier symbol={token.symbol} basePrice={token.price} />
+        <TokenDossier symbol={token.symbol} basePrice={token.price} dossier={dossier} />
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          数据均为模拟演示，仅供参考，不构成投资建议
+          后端契约数据仅供市场研究与系统校准，不构成投资建议
         </p>
       </main>
     </div>
