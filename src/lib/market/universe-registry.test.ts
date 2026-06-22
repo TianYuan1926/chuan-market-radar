@@ -49,10 +49,16 @@ test("normalizeUniverseAsset accepts base and USDT contract formats", () => {
   assert.equal(normalizeUniverseAsset(""), null);
 });
 
+test("normalizeUniverseAsset rejects non-crypto underlyings", () => {
+  assert.equal(normalizeUniverseAsset("NVDAUSDT"), null);
+  assert.equal(normalizeUniverseAsset("SPY/USDT"), null);
+  assert.equal(normalizeUniverseAsset("XAU"), null);
+});
+
 test("buildUniverseRegistry dedupes assets and keeps BTC and ETH as anchors", () => {
   const registry = buildUniverseRegistry(
-    ["ena", "ENAUSDT", "SUI/USDT"],
-    [instrument("ONDO"), instrument("SUI", { volume24hUsd: 90_000_000 })],
+    ["ena", "ENAUSDT", "SUI/USDT", "NVDAUSDT"],
+    [instrument("ONDO"), instrument("SUI", { volume24hUsd: 90_000_000 }), instrument("SPY")],
   );
 
   assert.deepEqual(registry.assets.map((asset) => asset.symbol), [

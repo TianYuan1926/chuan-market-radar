@@ -640,6 +640,11 @@ test("CoinGlass provider filters noisy quote markets and aggregates one primary 
             symbol: "TIA/USD",
             volume_usd: 220_000_000,
           },
+          {
+            ...coinglassRow("NVDA"),
+            exchange_name: "Binance",
+            volume_usd: 320_000_000,
+          },
         ] : [],
       }));
     },
@@ -654,9 +659,9 @@ test("CoinGlass provider filters noisy quote markets and aggregates one primary 
   assert.equal(snapshot.tickers.some((ticker) => ticker.exchange === "UNKNOWN"), false);
   assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USDC")), false);
   assert.equal(snapshot.tickers.some((ticker) => ticker.symbol.endsWith("USD")), false);
-  assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 6, clean 3, primary 1/);
-  assert.match(snapshot.metadata.notes.join("\n"), /quality rejections: unsupported_exchange 1, quote_not_supported 2, duplicate_symbol 2/);
-  assert.match(snapshot.metadata.notes.join("\n"), /quality rejected samples: Gate\.io:TIAUSDT:unsupported_exchange; Binance:TIAUSDC:quote_not_supported; Coinbase:TIAUSD:quote_not_supported/);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 7, clean 3, primary 1/);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality rejections: unsupported_exchange 1, quote_not_supported 2, non_crypto_underlying 1, duplicate_symbol 2/);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality rejected samples: Gate\.io:TIAUSDT:unsupported_exchange; Binance:TIAUSDC:quote_not_supported; Coinbase:TIAUSD:quote_not_supported; Binance:NVDAUSDT:non_crypto_underlying/);
   assert.match(snapshot.metadata.notes.join("\n"), /quality aggregation summary: duplicate_groups 1, rule exchange_priority_then_volume_oi/);
   assert.match(snapshot.metadata.notes.join("\n"), /quality aggregation: TIAUSDT selected BINANCE over OKX\/BYBIT by exchange_priority_then_volume_oi/);
 });
@@ -704,7 +709,7 @@ test("CoinGlass provider rejects rows whose reported symbol and instrument quote
   assert.deepEqual(snapshot.tickers.map((ticker) => ticker.symbol), ["TIAUSDT"]);
   assert.deepEqual(snapshot.signals.map((signal) => signal.id), ["coinglass-BINANCE-TIAUSDT"]);
   assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 3, clean 1, primary 1/);
-  assert.match(snapshot.metadata.notes.join("\n"), /quality rejections: unsupported_exchange 0, quote_not_supported 2, duplicate_symbol 0/);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality rejections: unsupported_exchange 0, quote_not_supported 2, non_crypto_underlying 0, duplicate_symbol 0/);
   assert.match(snapshot.metadata.notes.join("\n"), /quality rejected samples: Binance:TIAUSDC:quote_not_supported; OKX:TIAUSDT:quote_not_supported/);
   assert.match(snapshot.metadata.notes.join("\n"), /quality aggregation: none/);
 });

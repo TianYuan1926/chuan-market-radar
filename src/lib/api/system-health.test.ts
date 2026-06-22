@@ -702,7 +702,7 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
       isRealtime: true,
       notes: [
         "quality filter: raw 10, clean 5, primary 1",
-        "quality rejections: unsupported_exchange 2, quote_not_supported 3, duplicate_symbol 4",
+        "quality rejections: unsupported_exchange 2, quote_not_supported 3, non_crypto_underlying 1, duplicate_symbol 4",
         "quality rejected samples: Gate.io:TIAUSDT:unsupported_exchange; Binance:TIAUSDC:quote_not_supported",
         "quality aggregation summary: duplicate_groups 1, rule exchange_priority_then_volume_oi",
         "quality aggregation: TIAUSDT selected BINANCE over OKX/BYBIT by exchange_priority_then_volume_oi",
@@ -943,7 +943,7 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
   assert.ok(report.marketDataQuality.qualityScore < 65);
   assert.deepEqual(
     report.marketDataQuality.issues.map((issue) => issue.label),
-    ["未知交易所", "报价不支持", "重复币种", "池过滤"],
+    ["未知交易所", "报价不支持", "非加密标的", "重复币种", "池过滤"],
   );
   assert.match(report.marketDataQuality.operatorHint, /数据清洗/);
   assert.match(report.marketDataQuality.guardrails.join(" "), /不能单独生成交易方向/);

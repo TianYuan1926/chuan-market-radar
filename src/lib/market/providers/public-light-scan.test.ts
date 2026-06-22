@@ -47,13 +47,21 @@ test("createBinancePublicLightScanProvider converts public futures tickers into 
         priceChangePercent: "1",
         quoteVolume: "1000000",
       },
+      {
+        symbol: "NVDAUSDT",
+        lastPrice: "140",
+        highPrice: "145",
+        lowPrice: "138",
+        priceChangePercent: "3",
+        quoteVolume: "90000000",
+      },
     ]),
   });
 
   const result = await provider.scan();
 
   assert.equal(result.diagnostics.status, "ready");
-  assert.equal(result.diagnostics.universeCount, 3);
+  assert.equal(result.diagnostics.universeCount, 4);
   assert.equal(result.diagnostics.acceptedCount, 2);
   assert.equal(result.instruments.length, 2);
   assert.deepEqual(result.instruments.map((item) => item.symbol), ["ARBUSDT", "SUIUSDT"]);

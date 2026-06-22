@@ -189,6 +189,7 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
         duplicateSymbolCount: 0,
         duplicatesRemoved: 0,
         minVolume24hUsd: 5_000_000,
+        nonCryptoUnderlying: 0,
         primaryRows: 24,
         quoteNotSupported: 0,
         rawRows: 24,

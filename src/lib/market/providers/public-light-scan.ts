@@ -4,6 +4,7 @@ import type {
   ScanLightScanCandidate,
   ScanLightScanDiagnostics,
 } from "../types";
+import { isCryptoFuturesUnderlying } from "../asset-class-filter";
 
 export const BINANCE_FUTURES_24H_TICKER_URL = "https://fapi.binance.com/fapi/v1/ticker/24hr";
 export const OKX_PUBLIC_SWAP_TICKERS_URL = "https://www.okx.com/api/v5/market/tickers";
@@ -80,7 +81,10 @@ function baseFromSymbol(symbol: string) {
 }
 
 function isUsdtPerpLikeSymbol(symbol: string) {
-  return symbol.endsWith("USDT") && !symbol.includes("_") && symbol.length > 4;
+  return symbol.endsWith("USDT") &&
+    !symbol.includes("_") &&
+    symbol.length > 4 &&
+    isCryptoFuturesUnderlying(symbol);
 }
 
 function volatilityPercent(high: number, low: number, price: number) {

@@ -5,6 +5,7 @@ import type {
   MarketHeatCell,
   MarketTicker,
 } from "@/lib/market/types";
+import { isCryptoFuturesUnderlying } from "../asset-class-filter";
 
 export type CoinGlassInstrumentRow = {
   instrument_id?: string;
@@ -46,6 +47,7 @@ export type CoinGlassMarketRow = {
 };
 
 export type CoinGlassMarketRowRejectionReason =
+  | "non_crypto_underlying"
   | "quote_not_supported"
   | "unsupported_exchange";
 
@@ -139,6 +141,13 @@ export function classifyCoinGlassMarketRow(row: CoinGlassMarketRow): CoinGlassMa
     return {
       ok: false,
       reason: "quote_not_supported",
+    };
+  }
+
+  if (!isCryptoFuturesUnderlying(symbol)) {
+    return {
+      ok: false,
+      reason: "non_crypto_underlying",
     };
   }
 

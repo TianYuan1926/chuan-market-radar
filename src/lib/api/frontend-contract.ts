@@ -21,6 +21,7 @@ import type {
   MarketTicker,
   ScanLightScanCandidate,
 } from "../market/types";
+import { isCryptoFuturesUnderlying } from "../market/asset-class-filter";
 import type { BackendContract } from "./backend-contract";
 import type { BusinessCapabilityStage } from "./business-capability";
 
@@ -414,6 +415,43 @@ function baseSymbol(value: string) {
 
 function displaySymbol(value: string) {
   return baseSymbol(value);
+}
+
+function addFrontendUniverseSymbol(set: Set<string>, value: string | null | undefined) {
+  if (!value) {
+    return;
+  }
+  const symbol = baseSymbol(value);
+  if (symbol && isCryptoFuturesUnderlying(symbol)) {
+    set.add(symbol);
+  }
+}
+
+function buildFrontendUniverseSymbols(backend: BackendContract, snapshot: MarketRadarSnapshot) {
+  const symbols = new Set<string>();
+
+  snapshot.signals.forEach((signal) => addFrontendUniverseSymbol(symbols, signal.symbol));
+  backend.scanProof.deepScan.plannedAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
+  backend.sourceAudit.coinGlassDeepScan.plannedAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
+  backend.scanProof.allocation.selectedAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
+  backend.scanProof.allocation.pendingAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
+  backend.scanProof.allocation.nextBatchAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
+  backend.scanProof.allocation.coldExplorationAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
+  backend.scanProof.allocation.reviveWatchAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
+  backend.scanProof.allocation.assets.forEach((asset) => {
+    addFrontendUniverseSymbol(symbols, asset.baseAsset);
+    addFrontendUniverseSymbol(symbols, asset.symbol);
+  });
+
+  return symbols;
+}
+
+function shouldExposeFrontendAsset(symbol: string, universeSymbols: Set<string>) {
+  const base = baseSymbol(symbol);
+  if (!isCryptoFuturesUnderlying(base)) {
+    return false;
+  }
+  return universeSymbols.size === 0 || universeSymbols.has(base);
 }
 
 function symbolHue(symbol: string) {
@@ -1205,9 +1243,13 @@ export function buildFrontendLeaderboardContract({
   const lightBySymbol = new Map(backend.scanProof.lightScan.topCandidates.map((candidate) => [baseSymbol(candidate.symbol), candidate]));
   const direction = kind === "losers" ? 1 : -1;
   const rowsBySymbol = new Map<string, LeaderboardRow>();
+  const universeSymbols = buildFrontendUniverseSymbols(backend, snapshot);
 
   for (const ticker of snapshot.tickers) {
     const symbol = baseSymbol(ticker.symbol);
+    if (!shouldExposeFrontendAsset(symbol, universeSymbols)) {
+      continue;
+    }
     rowsBySymbol.set(symbol, {
       symbol,
       hue: symbolHue(symbol),
@@ -1223,6 +1265,9 @@ export function buildFrontendLeaderboardContract({
 
   for (const candidate of backend.scanProof.lightScan.topCandidates) {
     const symbol = baseSymbol(candidate.symbol);
+    if (!shouldExposeFrontendAsset(symbol, universeSymbols)) {
+      continue;
+    }
     if (rowsBySymbol.has(symbol)) {
       continue;
     }

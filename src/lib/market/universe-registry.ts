@@ -20,6 +20,7 @@ import type {
   ScanTierPolicy,
   VenueCoverageQuality,
 } from "./types";
+import { isCryptoFuturesUnderlying } from "./asset-class-filter";
 import { scanWindowCursor } from "./scan-batch-queue";
 
 export type UniverseAssetKey = {
@@ -286,6 +287,10 @@ export function normalizeUniverseAsset(value: string): UniverseAssetKey | null {
     return null;
   }
 
+  if (!isCryptoFuturesUnderlying(baseAsset)) {
+    return null;
+  }
+
   return {
     baseAsset,
     quoteAsset: "USDT",
@@ -299,6 +304,10 @@ function instrumentRejectionReason(instrument: ContractInstrument): InstrumentRe
   }
 
   if (instrument.quoteAsset !== "USDT") {
+    return "quote_not_supported";
+  }
+
+  if (!isCryptoFuturesUnderlying(instrument.baseAsset)) {
     return "quote_not_supported";
   }
 

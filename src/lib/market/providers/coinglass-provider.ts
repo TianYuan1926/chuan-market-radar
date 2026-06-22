@@ -303,6 +303,7 @@ function marketRowNumber(...values: (number | string | undefined)[]) {
 
 function emptyQualityRejections(): Record<CoinGlassMarketRowRejectionReason, number> {
   return {
+    non_crypto_underlying: 0,
     quote_not_supported: 0,
     unsupported_exchange: 0,
   };
@@ -481,6 +482,7 @@ function buildRequestDiagnostics({
   const emptyResultAssets = batchAssets.filter((asset) => !rawBaseAssets.has(asset));
   const unsupportedExchangeRows = qualityRejections.unsupported_exchange ?? 0;
   const quoteUnsupportedRows = qualityRejections.quote_not_supported ?? 0;
+  const nonCryptoUnderlyingRows = qualityRejections.non_crypto_underlying ?? 0;
   const filteredRows = Math.max(0, rawRows.length - cleanRows);
 
   return {
@@ -502,7 +504,7 @@ function buildRequestDiagnostics({
       filtered: filteredRows,
       live_ok: primaryRows,
       stale: 0,
-      unsupported: unsupportedExchangeRows + quoteUnsupportedRows,
+      unsupported: unsupportedExchangeRows + quoteUnsupportedRows + nonCryptoUnderlyingRows,
     },
     unsupportedExchangeRows,
   };
@@ -1028,7 +1030,7 @@ export function createCoinGlassProvider({
             ? `coinglass request failures: ${compactCoinGlassFailures(coinGlassFailures)}`
             : "coinglass request failures: none",
           `quality filter: raw ${marketRows.length}, clean ${cleanMarketRows.length}, primary ${primarySignalRows.length}`,
-          `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
+          `quality rejections: unsupported_exchange ${qualityReport.rejections.unsupported_exchange}, quote_not_supported ${qualityReport.rejections.quote_not_supported}, non_crypto_underlying ${qualityReport.rejections.non_crypto_underlying}, duplicate_symbol ${qualityReport.duplicateSymbolCount}`,
           qualityReport.rejectedSamples.length
             ? `quality rejected samples: ${qualityReport.rejectedSamples.map((sample) => `${sample.exchangeName}:${sample.symbol}:${sample.reason}`).join("; ")}`
             : "quality rejected samples: none",

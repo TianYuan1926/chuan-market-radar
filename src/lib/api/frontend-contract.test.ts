@@ -605,6 +605,7 @@ test("buildFrontendLeaderboardContract maps and sorts real ticker data", () => {
 
 test("buildFrontendLeaderboardContract falls back to public light scan candidates when tickers are absent", () => {
   const backend = backendContract();
+  backend.scanProof.allocation.pendingAssets.push("POWER");
   backend.scanProof.lightScan.topCandidates = [
     {
       baseAsset: "POWER",
@@ -639,6 +640,52 @@ test("buildFrontendLeaderboardContract falls back to public light scan candidate
   assert.equal(volume.data[0]?.value, 58_000_000);
   assert.equal(volume.data[0]?.inCandidatePool, true);
   assert.equal(volume.data[0]?.hasSignal, false);
+});
+
+test("buildFrontendLeaderboardContract excludes non-crypto underlyings from frontend rows", () => {
+  const backend = backendContract();
+  backend.scanProof.allocation.selectedAssets.push("NVDA");
+  backend.scanProof.lightScan.topCandidates = [
+    {
+      baseAsset: "NVDA",
+      changePercent24h: 12.4,
+      distanceFromHighPercent: 1.2,
+      distanceFromLowPercent: 18.5,
+      price: 140,
+      reasons: ["price_volume_anomaly", "liquid_enough"],
+      score: 99,
+      state: "HOT",
+      symbol: "NVDAUSDT",
+      volume24hUsd: 900_000_000,
+      volatilityPercent: 8.4,
+    },
+  ];
+
+  const pollutedSnapshot = {
+    ...snapshot([]),
+    signals: [],
+    tickers: [
+      {
+        symbol: "NVDAUSDT",
+        exchange: "BINANCE" as const,
+        price: 140,
+        changePercent24h: 9.1,
+        volume24hUsd: 900_000_000,
+        high24h: 145,
+        low24h: 132,
+        updatedAt: "2026-06-21T08:00:00.000Z",
+      },
+    ],
+  };
+
+  const rows = buildFrontendLeaderboardContract({
+    kind: "volume",
+    snapshot: pollutedSnapshot,
+    backend,
+  });
+
+  assert.equal(rows.status, "empty");
+  assert.deepEqual(rows.data, []);
 });
 
 test("normalizeFrontendKlineSymbol prepares base assets for public futures OHLCV", () => {

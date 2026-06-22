@@ -296,6 +296,7 @@ export type MarketDataQualityReport = {
     duplicateSymbolCount: number;
     duplicatesRemoved: number;
     minVolume24hUsd: number;
+    nonCryptoUnderlying: number;
     primaryRows: number | null;
     quoteNotSupported: number;
     rawRows: number | null;
@@ -1291,19 +1292,21 @@ function parseQualityFilterNote(notes: string[]) {
 function parseQualityRejectionNote(notes: string[]) {
   const note = metadataNote(notes, "quality rejections:");
   const match = note?.match(
-    /unsupported_exchange\s+(\d+),\s+quote_not_supported\s+(\d+),\s+duplicate_symbol\s+(\d+)/u,
+    /unsupported_exchange\s+(\d+),\s+quote_not_supported\s+(\d+)(?:,\s+non_crypto_underlying\s+(\d+))?,\s+duplicate_symbol\s+(\d+)/u,
   );
 
   if (!match) {
     return {
       duplicateSymbolCount: 0,
+      nonCryptoUnderlying: 0,
       quoteNotSupported: 0,
       unsupportedExchange: 0,
     };
   }
 
   return {
-    duplicateSymbolCount: Number(match[3]),
+    duplicateSymbolCount: Number(match[4]),
+    nonCryptoUnderlying: Number(match[3] ?? 0),
     quoteNotSupported: Number(match[2]),
     unsupportedExchange: Number(match[1]),
   };
@@ -1397,6 +1400,7 @@ function primarySelectionOperatorHint({
 function marketDataQualityScore({
   duplicateSymbolCount,
   duplicatesRemoved,
+  nonCryptoUnderlying,
   quoteNotSupported,
   rejectedPool,
   totalPool,
@@ -1404,6 +1408,7 @@ function marketDataQualityScore({
 }: {
   duplicateSymbolCount: number;
   duplicatesRemoved: number;
+  nonCryptoUnderlying: number;
   quoteNotSupported: number;
   rejectedPool: number;
   totalPool: number;
@@ -1413,6 +1418,7 @@ function marketDataQualityScore({
     ? Math.round((rejectedPool / totalPool) * 22)
     : 0;
   const penalty = Math.min(30, unsupportedExchange * 8) +
+    Math.min(25, nonCryptoUnderlying * 8) +
     Math.min(25, quoteNotSupported * 5) +
     Math.min(18, duplicateSymbolCount * 3 + duplicatesRemoved * 2) +
     rejectionRatioPenalty;
@@ -1471,12 +1477,14 @@ function marketDataQualityOperatorHint(status: MarketDataQualityStatus) {
 function marketDataQualityIssues({
   duplicateSymbolCount,
   duplicatesRemoved,
+  nonCryptoUnderlying,
   quoteNotSupported,
   rejectedPool,
   unsupportedExchange,
 }: {
   duplicateSymbolCount: number;
   duplicatesRemoved: number;
+  nonCryptoUnderlying: number;
   quoteNotSupported: number;
   rejectedPool: number;
   unsupportedExchange: number;
@@ -1498,6 +1506,15 @@ function marketDataQualityIssues({
       count: quoteNotSupported,
       label: "报价不支持",
       severity: "medium",
+    });
+  }
+
+  if (nonCryptoUnderlying > 0) {
+    issues.push({
+      action: "股票、ETF、金属和外汇类标的不得进入山寨币扫描宇宙。",
+      count: nonCryptoUnderlying,
+      label: "非加密标的",
+      severity: "high",
     });
   }
 
@@ -1532,6 +1549,7 @@ function marketDataQualityReport(snapshot: MarketRadarSnapshot): MarketDataQuali
   const qualityScore = marketDataQualityScore({
     duplicateSymbolCount: qualityRejections.duplicateSymbolCount,
     duplicatesRemoved: poolSummary.duplicatesRemoved,
+    nonCryptoUnderlying: qualityRejections.nonCryptoUnderlying,
     quoteNotSupported: qualityRejections.quoteNotSupported,
     rejectedPool: poolSummary.rejected,
     totalPool: poolSummary.total,
@@ -1550,6 +1568,7 @@ function marketDataQualityReport(snapshot: MarketRadarSnapshot): MarketDataQuali
       duplicateSymbolCount: qualityRejections.duplicateSymbolCount,
       duplicatesRemoved: poolSummary.duplicatesRemoved,
       minVolume24hUsd: poolSummary.minVolume24hUsd,
+      nonCryptoUnderlying: qualityRejections.nonCryptoUnderlying,
       primaryRows: qualityFilter.primaryRows,
       quoteNotSupported: qualityRejections.quoteNotSupported,
       rawRows: qualityFilter.rawRows,
@@ -1564,6 +1583,7 @@ function marketDataQualityReport(snapshot: MarketRadarSnapshot): MarketDataQuali
     issues: marketDataQualityIssues({
       duplicateSymbolCount: qualityRejections.duplicateSymbolCount,
       duplicatesRemoved: poolSummary.duplicatesRemoved,
+      nonCryptoUnderlying: qualityRejections.nonCryptoUnderlying,
       quoteNotSupported: qualityRejections.quoteNotSupported,
       rejectedPool: poolSummary.rejected,
       unsupportedExchange: qualityRejections.unsupportedExchange,
