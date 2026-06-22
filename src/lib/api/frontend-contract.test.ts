@@ -642,6 +642,32 @@ test("buildFrontendLeaderboardContract falls back to public light scan candidate
   assert.equal(volume.data[0]?.hasSignal, false);
 });
 
+test("frontend contract does not mark planned CoinGlass assets as deep scanned when clean rows are zero", () => {
+  const backend = backendContract();
+  backend.scanProof.deepScan.cleanRows = 0;
+  backend.scanProof.deepScan.rawRows = 0;
+  backend.scanProof.deepScan.emptyResultAssets = ["TIA", "WIF"];
+  backend.sourceAudit.coinGlassDeepScan.cleanRows = 0;
+  backend.sourceAudit.coinGlassDeepScan.rawRows = 0;
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: {},
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+  const rows = buildFrontendLeaderboardContract({
+    backend,
+    kind: "gainers",
+    snapshot: snapshot(),
+  });
+  const tia = rows.data.find((row) => row.symbol === "TIA");
+
+  assert.equal(radar.scanProof.data.deepScanned, 0);
+  assert.equal(tia?.deepScanned, false);
+  assert.equal(tia?.awaitingScan, true);
+});
+
 test("buildFrontendLeaderboardContract excludes non-crypto underlyings from frontend rows", () => {
   const backend = backendContract();
   backend.scanProof.allocation.selectedAssets.push("NVDA");

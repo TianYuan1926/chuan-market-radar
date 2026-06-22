@@ -1016,13 +1016,14 @@ export function buildFrontendRadarContract({
   const blockedSignals = snapshot.signals.filter((signal) => lifecycleStatusReason(signal).length > 0);
   const liveSignals = snapshot.signals.map((signal) => buildRadarSignal(signal, snapshot, now));
   const coinGlassLatencyStatus = sourceLatencyStatus(backend, "CoinGlass");
+  const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
 
   return {
     scanProof: resource({
       totalMonitored: coverage.totalAssets,
       scannable: coverage.eligibleAssets,
       lightScanned: backend.scanProof.lightScan.acceptedCount,
-      deepScanned: backend.scanProof.deepScan.cleanRows || allocation.selectedAssets.length,
+      deepScanned: cleanDeepScanRows,
       awaitingDeepScan: coverage.pendingAssets,
       coverage: round(coverage.coveragePercent, 1),
       lastScanAt: timeLabel(snapshot.metadata.generatedAt),
@@ -1238,8 +1239,17 @@ export function buildFrontendLeaderboardContract({
     ...backend.scanProof.lightScan.topCandidates.map((candidate) => baseSymbol(candidate.symbol)),
     ...backend.analysis.signalMaturity.candidateLaneSymbols.map(baseSymbol),
   ]);
-  const deepScannedSymbols = new Set(backend.scanProof.allocation.selectedAssets.map(baseSymbol));
-  const awaitingSymbols = new Set(backend.scanProof.allocation.pendingAssets.map(baseSymbol));
+  const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
+  const deepScannedSymbols = cleanDeepScanRows > 0
+    ? new Set([
+      ...snapshot.tickers.map((ticker) => baseSymbol(ticker.symbol)),
+      ...snapshot.derivatives.map((derivative) => baseSymbol(derivative.symbol)),
+    ])
+    : new Set<string>();
+  const awaitingSymbols = new Set([
+    ...backend.scanProof.allocation.pendingAssets.map(baseSymbol),
+    ...backend.scanProof.allocation.selectedAssets.map(baseSymbol).filter((symbol) => !deepScannedSymbols.has(symbol)),
+  ]);
   const lightBySymbol = new Map(backend.scanProof.lightScan.topCandidates.map((candidate) => [baseSymbol(candidate.symbol), candidate]));
   const direction = kind === "losers" ? 1 : -1;
   const rowsBySymbol = new Map<string, LeaderboardRow>();

@@ -4,6 +4,7 @@ import type { MarketRadarSnapshot, ScanArchiveSummary } from "./types";
 export type ScanStabilityIssueCode =
   | "archive_empty"
   | "coverage_collapsed"
+  | "deep_scan_empty"
   | "long_cycle"
   | "redis_unhealthy"
   | "scan_failed"
@@ -121,6 +122,7 @@ export function buildScanStabilityReport({
   const recentFailures = archives.filter((archive) => archive.status === "failed").length;
   const recentSuccesses = archives.filter((archive) => archive.status === "ready").length;
   const scanAge = ageMinutes(snapshot.metadata.generatedAt, now);
+  const requestDiagnostics = snapshot.metadata.diagnostics?.requests;
 
   if (archives.length === 0) {
     addIssue(issues, {
@@ -150,6 +152,20 @@ export function buildScanStabilityReport({
     addIssue(issues, {
       code: "coverage_collapsed",
       detail: `可扫 ${eligibleAssets} 个，但本轮只扫 ${scannedAssets} 个且覆盖率 ${coveragePercent.toFixed(1)}%。`,
+      severity: "watch",
+    });
+  }
+
+  if (
+    snapshot.metadata.source === "coinglass" &&
+    requestDiagnostics &&
+    requestDiagnostics.coinGlassRequestsPlanned > 0 &&
+    requestDiagnostics.cleanRows === 0
+  ) {
+    addIssue(issues, {
+      code: "deep_scan_empty",
+      detail:
+        `CoinGlass 本轮计划深扫 ${requestDiagnostics.coinGlassRequestsPlanned} 个币，但返回 0 行可用数据；不能把本轮计划资产标成已完成深扫。`,
       severity: "watch",
     });
   }
