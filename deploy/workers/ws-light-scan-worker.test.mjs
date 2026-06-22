@@ -4,7 +4,10 @@ import test from "node:test";
 import {
   buildSubscriptionChunks,
   createLightScanAccumulator,
+  discoverBinanceSymbols,
+  discoverBybitSymbols,
   discoverOkxSymbols,
+  filterTickerEventsByAllowedSymbols,
   parseBinanceTickerMessage,
   parseBybitTickerMessage,
   parseOkxTickerMessage,
@@ -91,6 +94,56 @@ test("discoverOkxSymbols keeps only OKX crypto swap instruments", async () => {
   });
 
   assert.deepEqual(symbols, ["ARB-USDT-SWAP", "SUI-USDT-SWAP"]);
+});
+
+test("discoverBinanceSymbols keeps only Binance COIN perpetual instruments", async () => {
+  const symbols = await discoverBinanceSymbols({
+    limit: 20,
+    fetcher: async () => new Response(JSON.stringify({
+      symbols: [
+        { baseAsset: "ARB", contractType: "PERPETUAL", quoteAsset: "USDT", status: "TRADING", symbol: "ARBUSDT", underlyingType: "COIN" },
+        { baseAsset: "BB", contractType: "PERPETUAL", quoteAsset: "USDT", status: "TRADING", symbol: "BBUSDT", underlyingType: "COIN" },
+        { baseAsset: "COHR", contractType: "TRADIFI_PERPETUAL", quoteAsset: "USDT", status: "TRADING", symbol: "COHRUSDT", underlyingType: "EQUITY" },
+        { baseAsset: "CL", contractType: "TRADIFI_PERPETUAL", quoteAsset: "USDT", status: "TRADING", symbol: "CLUSDT", underlyingType: "COMMODITY" },
+        { baseAsset: "OPENAI", contractType: "TRADIFI_PERPETUAL", quoteAsset: "USDT", status: "TRADING", symbol: "OPENAIUSDT", underlyingType: "PREMARKET" },
+      ],
+    })),
+  });
+
+  assert.deepEqual(symbols, ["ARBUSDT", "BBUSDT"]);
+});
+
+test("discoverBybitSymbols rejects stock and commodity linear instruments", async () => {
+  const symbols = await discoverBybitSymbols({
+    limit: 20,
+    fetcher: async () => new Response(JSON.stringify({
+      retCode: 0,
+      result: {
+        list: [
+          { baseCoin: "ENA", contractType: "LinearPerpetual", quoteCoin: "USDT", status: "Trading", symbol: "ENAUSDT", symbolType: "" },
+          { baseCoin: "QNT", contractType: "LinearPerpetual", quoteCoin: "USDT", status: "Trading", symbol: "QNTUSDT", symbolType: "" },
+          { baseCoin: "BE", contractType: "LinearPerpetual", quoteCoin: "USDT", status: "Trading", symbol: "BEUSDT", symbolType: "stock" },
+          { baseCoin: "CL", contractType: "LinearPerpetual", quoteCoin: "USDT", status: "Trading", symbol: "CLUSDT", symbolType: "commodity" },
+        ],
+        nextPageCursor: "",
+      },
+    })),
+  });
+
+  assert.deepEqual(symbols, ["ENAUSDT", "QNTUSDT"]);
+});
+
+test("filterTickerEventsByAllowedSymbols applies discovery allowlists before ingestion", () => {
+  const events = [
+    { exchange: "BINANCE", symbol: "ARBUSDT" },
+    { exchange: "BINANCE", symbol: "COHRUSDT" },
+    { exchange: "BINANCE", symbol: "BBUSDT" },
+  ];
+
+  assert.deepEqual(filterTickerEventsByAllowedSymbols(events, new Set(["ARBUSDT", "BBUSDT"])), [
+    { exchange: "BINANCE", symbol: "ARBUSDT" },
+    { exchange: "BINANCE", symbol: "BBUSDT" },
+  ]);
 });
 
 test("parseBybitTickerMessage converts linear ticker events into light scan events", () => {

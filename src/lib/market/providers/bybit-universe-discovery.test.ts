@@ -69,6 +69,15 @@ test("normalizeBybitInstrument rejects non-USDT inactive or dated contracts", ()
     status: "Trading",
     symbolType: "stock",
   }, observedAt), null);
+
+  assert.equal(normalizeBybitInstrument({
+    symbol: "CLUSDT",
+    baseCoin: "CL",
+    quoteCoin: "USDT",
+    contractType: "LinearPerpetual",
+    status: "Trading",
+    symbolType: "commodity",
+  }, observedAt), null);
 });
 
 test("createBybitUniverseDiscoveryProvider fetches paginated normalized USDT perpetual instruments", async () => {
@@ -100,6 +109,14 @@ test("createBybitUniverseDiscoveryProvider fetches paginated normalized USDT per
                 contractType: "LinearPerpetual",
                 status: "Trading",
                 symbolType: "stock",
+              },
+              {
+                symbol: "CLUSDT",
+                baseCoin: "CL",
+                quoteCoin: "USDT",
+                contractType: "LinearPerpetual",
+                status: "Trading",
+                symbolType: "commodity",
               },
             ],
             nextPageCursor: "",

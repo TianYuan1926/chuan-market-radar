@@ -68,7 +68,7 @@ export function normalizeBybitInstrument(
     quoteAsset !== "USDT" ||
     contractType !== "LINEARPERPETUAL" ||
     status !== "TRADING" ||
-    symbolType === "STOCK" ||
+    ["COMMODITY", "STOCK"].includes(symbolType) ||
     symbol !== `${baseAsset}USDT`
   ) {
     return null;

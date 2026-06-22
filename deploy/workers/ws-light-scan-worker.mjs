@@ -559,6 +559,17 @@ function isOkxCryptoSwapRow(row) {
   return instCategory === "1" && ruleType !== "pre_market";
 }
 
+function isBybitCryptoLinearRow(row) {
+  const symbolType = String(row?.symbolType ?? "").trim().toLowerCase();
+  const contractType = String(row?.contractType ?? "").trim().toLowerCase();
+  const status = String(row?.status ?? "").trim().toLowerCase();
+
+  return (!contractType || contractType === "linearperpetual") &&
+    (!status || status === "trading") &&
+    symbolType !== "stock" &&
+    symbolType !== "commodity";
+}
+
 export function parseOkxTickerMessage(raw) {
   const payloadText = payloadToString(raw);
 
@@ -628,6 +639,52 @@ export function buildSubscriptionChunks(items, chunkSize) {
   return chunks;
 }
 
+export function filterTickerEventsByAllowedSymbols(events, allowedSymbols) {
+  if (!allowedSymbols || allowedSymbols.size === 0) {
+    return events;
+  }
+
+  return events.filter((event) => allowedSymbols.has(event.symbol));
+}
+
+export async function discoverBinanceSymbols({ fetcher = fetch, limit = 500 } = {}) {
+  const response = await fetcher(process.env.BINANCE_EXCHANGE_INFO_URL ?? "https://fapi.binance.com/fapi/v1/exchangeInfo");
+
+  if (!response.ok) {
+    throw new Error(`Binance exchangeInfo returned ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const rows = Array.isArray(payload?.symbols) ? payload.symbols : [];
+
+  return rows
+    .map((row) => {
+      const symbol = normalizedSymbol(row?.symbol);
+      const baseAsset = normalizedSymbol(row?.baseAsset);
+      const quoteAsset = normalizedSymbol(row?.quoteAsset);
+      const contractType = normalizedSymbol(row?.contractType);
+      const status = normalizedSymbol(row?.status);
+      const underlyingType = normalizedSymbol(row?.underlyingType);
+
+      if (
+        !symbol ||
+        !baseAsset ||
+        quoteAsset !== "USDT" ||
+        status !== "TRADING" ||
+        contractType !== "PERPETUAL" ||
+        underlyingType !== "COIN" ||
+        symbol !== `${baseAsset}USDT` ||
+        !isUsdtPerpLikeSymbol(symbol)
+      ) {
+        return null;
+      }
+
+      return symbol;
+    })
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
 export async function discoverOkxSymbols({ fetcher = fetch, limit = 500 } = {}) {
   const url = new URL(process.env.OKX_INSTRUMENTS_URL ?? "https://www.okx.com/api/v5/public/instruments");
   url.searchParams.set("instType", "SWAP");
@@ -647,7 +704,7 @@ export async function discoverOkxSymbols({ fetcher = fetch, limit = 500 } = {}) 
     .slice(0, limit);
 }
 
-async function discoverBybitSymbols({ fetcher = fetch, limit = 500 } = {}) {
+export async function discoverBybitSymbols({ fetcher = fetch, limit = 500 } = {}) {
   const symbols = [];
   let cursor = "";
 
@@ -671,9 +728,12 @@ async function discoverBybitSymbols({ fetcher = fetch, limit = 500 } = {}) {
 
     for (const row of rows) {
       const symbol = normalizedSymbol(row?.symbol);
-      const status = String(row?.status ?? "").toLowerCase();
 
-      if (isUsdtPerpLikeSymbol(symbol) && (!status || status === "trading")) {
+      if (!isBybitCryptoLinearRow(row)) {
+        continue;
+      }
+
+      if (isUsdtPerpLikeSymbol(symbol)) {
         symbols.push(symbol);
       }
     }
@@ -695,12 +755,18 @@ async function buildSources() {
   const sources = [];
 
   if (exchanges.includes("BINANCE")) {
-    sources.push({
-      exchange: "BINANCE",
-      parser: parseBinanceTickerMessage,
-      subscribeMessages: [],
-      url: process.env.BINANCE_WS_TICKER_URL ?? "wss://fstream.binance.com/ws/!ticker@arr",
-    });
+    try {
+      const symbols = await discoverBinanceSymbols({ limit: symbolLimit });
+      sources.push({
+        allowedSymbols: new Set(symbols),
+        exchange: "BINANCE",
+        parser: parseBinanceTickerMessage,
+        subscribeMessages: [],
+        url: process.env.BINANCE_WS_TICKER_URL ?? "wss://fstream.binance.com/ws/!ticker@arr",
+      });
+    } catch (error) {
+      log("source-discovery-failed", { exchange: "BINANCE", error: errorMessage(error) });
+    }
   }
 
   if (exchanges.includes("OKX")) {
@@ -712,6 +778,7 @@ async function buildSources() {
       ).map((args) => JSON.stringify({ op: "subscribe", args }));
 
       sources.push({
+        allowedSymbols: new Set(instIds.map(okxSymbolFromInstId).filter(Boolean)),
         exchange: "OKX",
         parser: parseOkxTickerMessage,
         subscribeMessages,
@@ -731,6 +798,7 @@ async function buildSources() {
       ).map((args) => JSON.stringify({ op: "subscribe", args }));
 
       sources.push({
+        allowedSymbols: new Set(symbols),
         exchange: "BYBIT",
         parser: parseBybitTickerMessage,
         subscribeMessages,
@@ -850,7 +918,7 @@ function connectSource({ accumulator, reconnectMs, source }) {
         return;
       }
 
-      const events = source.parser(event.data);
+      const events = filterTickerEventsByAllowedSymbols(source.parser(event.data), source.allowedSymbols);
 
       for (const tickerEvent of events) {
         accumulator.ingest(tickerEvent);
