@@ -18,6 +18,7 @@ All active pages must receive market facts from one of these paths:
 - `GET /api/frontend/token-dossier?symbol=...`
 - `GET /api/frontend/review-contract`
 - `GET /api/frontend/journal-contract`
+- `POST /api/admin/runtime/heartbeat` protected worker heartbeat writer
 
 Mock files may remain as legacy UI type helpers or isolated preview helpers, but
 active market pages must not use them as fact sources.
@@ -33,7 +34,7 @@ active market pages must not use them as fact sources.
 | `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `dataSources`, `apiUsage`, leaderboards | connected/partial | real data-source latency and taker flow are not wired |
 | `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier + `getKlineContractForPage()` | connected/partial | exact v3 trade plan and real OHLCV are wired when present; fund-flow panel is still an honest waiting state |
 | `/review` | lifecycle, archetypes, missed detections, evolution suggestions, manual journal drawer | `ReviewContract` from journal events and business capability + `/api/frontend/journal-contract` | connected/partial | quality depends on real outcome samples; manual trade entries are API-backed with local fallback |
-| `/system` | service nodes, pipeline state, API usage | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage` | connected/partial | Redis probe, worker heartbeat, real API daily counter, and latency probe need backend fields |
+| `/system` | service nodes, pipeline state, API usage | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage` | connected/partial | Redis probe and worker heartbeat are wired; real API daily counter and latency probe still need backend fields |
 | `/login` | local gate UI | placeholder UI state | not market data | real server session/auth is not wired |
 
 ## Radar Contract Field Map
@@ -63,7 +64,7 @@ active market pages must not use them as fact sources.
 | `radarSignals` | `snapshot.signals` through signal mapper | connected | source of maturity pool and trade-ready sniper board |
 | `macroAltEnv` | `backend.sourceAudit.macroMarket` | connected/partial | BTC.D/TOTAL2/TOTAL3 only if backend snapshot has them |
 | `derivatives` | `snapshot.derivatives` aggregate | partial | OI/funding/long-short connected; `takerBuySell` placeholder `0` |
-| `serviceNodes` | health, source audit, repository mode, allocation state | partial | Redis and worker heartbeats need real probes |
+| `serviceNodes` | `backend.runtime.runtimeProbes`, repository mode and web runtime | connected/partial | Redis and worker heartbeat probes are wired; status depends on live worker reports and Redis availability |
 
 ## Leaderboard Contract Field Map
 
@@ -122,17 +123,23 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 
 These are the current high-priority backend gaps for complete frontend wiring:
 
-1. Redis health probe and worker heartbeat probe exposed in `RadarContract.serviceNodes`.
-2. Real API daily usage counter instead of planned-request approximation.
-3. Real data-source latency probes instead of `0`.
-4. SSE/WebSocket frontend event stream for scan progress and signal state changes.
-5. Real AI review adapter for high-value signals only, never all-market review.
-6. Pet/easter egg progress persistence if user wants cross-device state.
-7. Login/auth session if the site should become private.
+1. Real API daily usage counter instead of planned-request approximation.
+2. Real data-source latency probes instead of `0`.
+3. SSE/WebSocket frontend event stream for scan progress and signal state changes.
+4. Real AI review adapter for high-value signals only, never all-market review.
+5. Pet/easter egg progress persistence if user wants cross-device state.
+6. Login/auth session if the site should become private.
+
+Completed system probes:
+
+- Redis health probe and worker heartbeat probe are now connected through runtime probes.
+- `/api/admin/runtime/heartbeat` stores protected worker heartbeats in Redis.
+- `scanner-worker`, `coinglass-worker`, `signal-worker`, `dynamic-scan-scheduler`, `macro-worker`, and `websocket-light-worker` report task state through the heartbeat endpoint.
+- `/api/health`, `/api/radar/backend-contract`, `/api/frontend/radar-contract`, and SSR page contracts expose runtime probes through `runtimeProbes` and `RadarContract.serviceNodes`.
 
 ## Next Build Order
 
-1. System probes: Redis, worker heartbeat, API counter, source latency.
+1. API counter and source latency probes: replace planned-request and `0ms` placeholders.
 2. SSE/WebSocket: push scan progress and signal changes to the UI.
 3. AI review adapter: env-only key, high-value signal review only, results tied to evidence IDs.
 4. Pet/easter-egg persistence: optional cross-device UI state after market data is complete.

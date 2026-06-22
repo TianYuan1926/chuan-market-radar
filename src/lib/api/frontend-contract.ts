@@ -704,6 +704,51 @@ function dataSourceRow({
   };
 }
 
+function runtimeProbeStatusToServiceStatus(
+  status: BackendContract["runtime"]["runtimeProbes"]["redis"]["status"] | BackendContract["runtime"]["runtimeProbes"]["workers"][number]["status"],
+): ServiceNode["status"] {
+  if (status === "healthy") return "healthy";
+  if (status === "down") return "down";
+  return "degraded";
+}
+
+function runtimeProbeServiceNodes(runtimeProbes?: BackendContract["runtime"]["runtimeProbes"]): ServiceNode[] {
+  if (!runtimeProbes) {
+    return [
+      {
+        key: "redis",
+        name: "redis",
+        status: "degraded",
+        detail: "运行探针暂不可用",
+      },
+      ...["scanner-worker", "websocket-light-worker", "coinglass-worker", "signal-worker", "dynamic-scan-scheduler", "macro-worker"]
+        .map((name) => ({
+          key: name,
+          name,
+          status: "down" as const,
+          detail: "未收到运行探针",
+        })),
+    ];
+  }
+
+  return [
+    {
+      key: "redis",
+      name: "redis",
+      status: runtimeProbeStatusToServiceStatus(runtimeProbes.redis.status),
+      detail: runtimeProbes.redis.detail,
+    },
+    ...runtimeProbes.workers.map((worker) => ({
+      key: worker.key,
+      name: worker.name,
+      status: runtimeProbeStatusToServiceStatus(worker.status),
+      detail: worker.ageSec === null
+        ? worker.detail
+        : `${worker.detail} · age=${worker.ageSec}s`,
+    })),
+  ];
+}
+
 function capabilityStatus(status: BusinessCapabilityStage["status"]): CapabilityStage["status"] {
   if (status === "ready") {
     return "active";
@@ -935,26 +980,7 @@ export function buildFrontendRadarContract({
         status: backend.runtime.repositoryMode === "database" ? "healthy" : "degraded",
         detail: `repository=${backend.runtime.repositoryMode}`,
       },
-      { key: "redis", name: "redis", status: "degraded", detail: "未从后端健康检查暴露 Redis 探针" },
-      {
-        key: "scanner-worker",
-        name: "scanner-worker",
-        status: status === "failed" ? "down" : status === "partial" ? "degraded" : "healthy",
-        detail: `coverage=${round(coverage.coveragePercent, 1)}%`,
-      },
-      {
-        key: "coinglass-worker",
-        name: "coinglass-worker",
-        status: backend.sourceAudit.coinGlassDeepScan.status === "failed" ? "down" : "healthy",
-        detail: `planned=${plannedRequests}, clean=${backend.sourceAudit.coinGlassDeepScan.cleanRows}`,
-      },
-      { key: "signal-worker", name: "signal-worker", status: "healthy", detail: `signals=${snapshot.signals.length}` },
-      {
-        key: "dynamic-scan-scheduler",
-        name: "dynamic-scan-scheduler",
-        status: allocation.selectedAssets.length > 0 ? "healthy" : "degraded",
-        detail: `next=${allocation.nextBatchAssets.slice(0, 4).join(", ") || "waiting"}`,
-      },
+      ...runtimeProbeServiceNodes(backend.runtime.runtimeProbes),
     ], status, { ageSec, source: "web" }),
   };
 }

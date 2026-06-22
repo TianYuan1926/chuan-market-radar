@@ -355,6 +355,30 @@ test("review and system backend carrier panels receive server-side contracts", (
   assert.doesNotMatch(systemStatusSource, /getServiceNodes|getDataPipeline|getApiUsage/);
 });
 
+test("system service nodes use runtime probes instead of static Redis and worker placeholders", () => {
+  const frontendContractSource = readFileSync(resolve(process.cwd(), "src/lib/api/frontend-contract.ts"), "utf8");
+  const systemHealthSource = readFileSync(resolve(process.cwd(), "src/lib/api/system-health.ts"), "utf8");
+  const backendContractSource = readFileSync(resolve(process.cwd(), "src/lib/api/backend-contract.ts"), "utf8");
+  const heartbeatRoutePath = "src/app/api/admin/runtime/heartbeat/route.ts";
+  const heartbeatRouteSource = existsSync(resolve(process.cwd(), heartbeatRoutePath))
+    ? readFileSync(resolve(process.cwd(), heartbeatRoutePath), "utf8")
+    : "";
+  const protectedWorkerSource = readFileSync(resolve(process.cwd(), "deploy/workers/protected-api-worker.mjs"), "utf8");
+  const websocketWorkerSource = readFileSync(resolve(process.cwd(), "deploy/workers/ws-light-scan-worker.mjs"), "utf8");
+
+  assert.equal(existsSync(resolve(process.cwd(), "src/lib/runtime/worker-heartbeat.ts")), true);
+  assert.equal(existsSync(resolve(process.cwd(), heartbeatRoutePath)), true);
+  assert.match(heartbeatRouteSource, /isCronRequestAuthorized/);
+  assert.match(heartbeatRouteSource, /writeConfiguredWorkerHeartbeat/);
+  assert.match(protectedWorkerSource, /\/api\/admin\/runtime\/heartbeat/);
+  assert.match(websocketWorkerSource, /\/api\/admin\/runtime\/heartbeat/);
+
+  assert.match(systemHealthSource, /runtimeProbes:\s*RuntimeProbeReport/);
+  assert.match(backendContractSource, /runtimeProbes:\s*SystemHealthReport\["runtimeProbes"\]/);
+  assert.match(frontendContractSource, /runtimeProbeServiceNodes/);
+  assert.doesNotMatch(frontendContractSource, /未从后端健康检查暴露 Redis 探针/);
+});
+
 test("token detail page can render backend radar symbols without relying only on mock tokens", () => {
   const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
   const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");

@@ -7,6 +7,8 @@ const defaultMaxPriorityCandidates = 48;
 const defaultMinCandidateVolumeUsd = 250_000;
 const defaultZScoreThreshold = 2;
 const defaultSnapshotKey = "chuan:ws-light-scan:snapshot";
+const appInternalUrl = String(process.env.APP_INTERNAL_URL ?? "http://web:3000").replace(/\/+$/, "");
+const cronSecret = process.env.CRON_SECRET ?? "";
 
 function finiteNumber(value) {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -663,17 +665,64 @@ function log(message, fields = {}) {
   }) + "\n");
 }
 
+async function postHeartbeat({
+  detail,
+  elapsedMs,
+  status,
+  task,
+}) {
+  if (!cronSecret.trim()) {
+    return;
+  }
+
+  try {
+    await fetch(`${appInternalUrl}/api/admin/runtime/heartbeat`, {
+      body: JSON.stringify({
+        detail,
+        elapsedMs,
+        status,
+        task,
+        worker: "ws-light-scan",
+      }),
+      headers: {
+        authorization: `Bearer ${cronSecret}`,
+        "cache-control": "no-store",
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch (error) {
+    log("heartbeat-error", {
+      error: errorMessage(error),
+      task,
+    });
+  }
+}
+
 function writeSnapshotLoop({ accumulator, client, intervalMs, key, ttlSeconds }) {
   return setInterval(async () => {
+    const startedAt = Date.now();
+
     try {
       const snapshot = accumulator.snapshot();
       await client.set(key, JSON.stringify(snapshot), { EX: ttlSeconds });
+      await postHeartbeat({
+        detail: `candidates=${snapshot.diagnostics.candidateCount}, universe=${snapshot.diagnostics.universeCount}`,
+        elapsedMs: Date.now() - startedAt,
+        status: "ok",
+        task: "websocket-light-snapshot",
+      });
       log("snapshot-written", {
         candidateCount: snapshot.diagnostics.candidateCount,
         key,
         universeCount: snapshot.diagnostics.universeCount,
       });
     } catch (error) {
+      await postHeartbeat({
+        detail: errorMessage(error),
+        status: "error",
+        task: "websocket-light-snapshot",
+      });
       log("snapshot-write-failed", { error: errorMessage(error), key });
     }
   }, intervalMs);
@@ -764,10 +813,20 @@ export async function runWorker() {
 
   await client.connect();
   log("redis-ready", { snapshotKey });
+  await postHeartbeat({
+    detail: `redis-ready key=${snapshotKey}`,
+    status: "starting",
+    task: "boot",
+  });
 
   const sources = await buildSources();
 
   if (sources.length === 0) {
+    await postHeartbeat({
+      detail: "no WebSocket light scan sources enabled",
+      status: "error",
+      task: "boot",
+    });
     throw new Error("no WebSocket light scan sources enabled");
   }
 

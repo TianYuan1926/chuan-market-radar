@@ -67,7 +67,7 @@ restore frontend source from user ui package
 
 - 详见 `docs/frontend-backend-field-map.md`。
 - 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链。
-- 半接：复盘样本统计、API 用量、Redis/worker 探针、数据源延迟、AI 复审。
+- 半接：复盘样本统计、API 用量、数据源延迟、AI 复审。
 - 未接：主力资金流、SSE/WebSocket 前端实时推送、宠物/彩蛋跨设备持久化、真实登录鉴权。
 
 ## 阶段 2：后端接口对齐
@@ -87,13 +87,14 @@ restore frontend source from user ui package
 
 下一批需要补强的只读合同：
 
-- `/api/frontend/system-contract` 或扩展 radar contract：暴露 Redis、worker heartbeat、API 日内计数和数据源延迟。
+- 扩展 radar contract：暴露 API 日内计数和数据源延迟。
 - `/api/frontend/live-events`：SSE/WebSocket 事件流，后续让前端动起来。
 
 已补齐的只读合同：
 
 - `/api/frontend/kline-contract?symbol=...&tf=...`：给 Token 详情页真实 K 线；页面侧通过 `getKlineContractForPage()` 直接读取同一合同，不再生成模拟蜡烛。
 - `/api/frontend/journal-contract`：给交易日记抽屉读取/写入真实 Postgres 日记；写入 `manual_trade` 事件，`rankDelta=0`，不自动调权。
+- `/api/admin/runtime/heartbeat` + `RadarContract.serviceNodes`：worker 通过受保护接口写 Redis 心跳，系统页读取真实 Redis/worker 运行探针，不再硬写在线状态。
 
 ## 阶段 3：统一 mapper 层
 
@@ -157,6 +158,7 @@ mapper 硬规则：
 ### `/system`
 
 - 展示真实服务健康、数据库、Redis、worker、扫描状态。
+- Redis 和 worker 状态必须来自 runtime heartbeat / Redis probe；不能硬写 healthy。
 
 ## 阶段 5：清理假数据入口
 

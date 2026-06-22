@@ -6,6 +6,7 @@ import {
   appPersistenceDiagnostics,
   appPersistenceRepository,
 } from "@/lib/persistence/app-repository";
+import { readConfiguredRuntimeProbeReport } from "@/lib/runtime/worker-heartbeat";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +39,12 @@ export async function GET(request: NextRequest) {
   }
 
   const snapshot = await getReadableMarketRadarSnapshot(undefined, { trigger: "radar_get" });
+  const runtimeProbes = await readConfiguredRuntimeProbeReport(process.env);
   const health = await buildSystemHealthReport({
     database: appPersistenceDiagnostics,
     env: process.env,
     repository: appPersistenceRepository,
+    runtimeProbes,
     snapshot,
   });
 

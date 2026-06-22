@@ -102,6 +102,40 @@ function log(message, fields = {}) {
   }) + "\n");
 }
 
+async function postHeartbeat({
+  detail,
+  elapsedMs,
+  status,
+  task,
+}) {
+  if (!cronSecret.trim()) {
+    return;
+  }
+
+  try {
+    await fetch(`${appInternalUrl}/api/admin/runtime/heartbeat`, {
+      body: JSON.stringify({
+        detail,
+        elapsedMs,
+        status,
+        task,
+        worker: profileName,
+      }),
+      headers: {
+        authorization: `Bearer ${cronSecret}`,
+        "cache-control": "no-store",
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch (error) {
+    log("heartbeat-error", {
+      error: error instanceof Error ? error.message : "unknown error",
+      task,
+    });
+  }
+}
+
 async function waitForWeb() {
   const maxAttempts = 60;
 
@@ -167,6 +201,8 @@ async function callTask(task) {
   if (!response.ok) {
     throw new Error(`${task.name} failed with HTTP ${response.status}`);
   }
+
+  return elapsedMs;
 }
 
 async function runTaskLoop(task) {
@@ -175,11 +211,27 @@ async function runTaskLoop(task) {
     path: task.path,
     task: task.name,
   });
+  await postHeartbeat({
+    detail: `interval=${task.intervalSeconds}s`,
+    status: "starting",
+    task: task.name,
+  });
 
   if (task.immediate) {
     try {
-      await callTask(task);
+      const elapsedMs = await callTask(task);
+      await postHeartbeat({
+        detail: "task completed",
+        elapsedMs,
+        status: "ok",
+        task: task.name,
+      });
     } catch (error) {
+      await postHeartbeat({
+        detail: error instanceof Error ? error.message : "unknown error",
+        status: "error",
+        task: task.name,
+      });
       log("task-error", {
         error: error instanceof Error ? error.message : "unknown error",
         task: task.name,
@@ -191,8 +243,19 @@ async function runTaskLoop(task) {
     await sleep(task.intervalSeconds * 1_000);
 
     try {
-      await callTask(task);
+      const elapsedMs = await callTask(task);
+      await postHeartbeat({
+        detail: "task completed",
+        elapsedMs,
+        status: "ok",
+        task: task.name,
+      });
     } catch (error) {
+      await postHeartbeat({
+        detail: error instanceof Error ? error.message : "unknown error",
+        status: "error",
+        task: task.name,
+      });
       log("task-error", {
         error: error instanceof Error ? error.message : "unknown error",
         task: task.name,
@@ -215,4 +278,9 @@ process.on("unhandledRejection", (error) => {
 });
 
 await waitForWeb();
+await postHeartbeat({
+  detail: "web dependency ready",
+  status: "starting",
+  task: "boot",
+});
 await Promise.all(tasks.map(runTaskLoop));

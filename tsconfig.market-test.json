@@ -15,6 +15,7 @@
     "src/lib/alerts/**/*.ts",
     "src/lib/journal/**/*.ts",
     "src/lib/persistence/**/*.ts",
+    "src/lib/runtime/**/*.ts",
     "src/scripts/**/*.ts"
   ]
 }

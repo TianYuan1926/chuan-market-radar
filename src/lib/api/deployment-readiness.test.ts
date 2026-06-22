@@ -223,6 +223,16 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
         skipped: 0,
       },
     },
+    runtimeProbes: {
+      generatedAt: "2026-06-13T12:00:00.000Z",
+      redis: {
+        checkedAt: "2026-06-13T12:00:00.000Z",
+        detail: "Redis 可读，运行心跳探针可用。",
+        status: "healthy",
+      },
+      staleAfterSeconds: 900,
+      workers: [],
+    },
     operations: {
       batchDetail: "batch 1/1: BTC",
       lastProblemScanAt: null,

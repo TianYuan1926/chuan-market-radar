@@ -35,6 +35,10 @@ import { buildV3PatternReviewStats } from "../journal/v3-pattern-review-stats";
 import type { PersistenceMode, PersistenceRepository } from "../persistence/persistence-store";
 import type { DatabaseClientDiagnostics } from "../persistence/database-client";
 import {
+  readWorkerHeartbeatReport,
+  type RuntimeProbeReport,
+} from "../runtime/worker-heartbeat";
+import {
   evaluateStrategyV3Readiness,
   type StrategyV3ReadinessBucket,
 } from "../analysis/v3/readiness";
@@ -482,6 +486,7 @@ export type SystemHealthReport = {
   macroMarket: MacroMarketHealthReport;
   scanStatePool: ScanStatePoolReport;
   scanEconomy: ScanEconomyReport;
+  runtimeProbes: RuntimeProbeReport;
   operations: {
     batchDetail: string | null;
     lastProblemScanAt: string | null;
@@ -551,6 +556,7 @@ export type BuildSystemHealthReportOptions = {
   env?: Record<string, string | undefined>;
   now?: Date;
   repository: PersistenceRepository;
+  runtimeProbes?: RuntimeProbeReport;
   snapshot: MarketRadarSnapshot;
 };
 
@@ -2454,6 +2460,7 @@ export async function buildSystemHealthReport({
   env = {},
   now = new Date(),
   repository,
+  runtimeProbes,
   snapshot,
 }: BuildSystemHealthReportOptions): Promise<SystemHealthReport> {
   const configuredProvider = requestedProvider(env);
@@ -2464,6 +2471,10 @@ export async function buildSystemHealthReport({
   const fullMarketCoverage = fullMarketCoverageReport(metadata, coverage, scanEconomy);
   const marketDataQuality = marketDataQualityReport(snapshot);
   const dataSourceCapabilities = buildDataSourceCapabilityPlan(env);
+  const resolvedRuntimeProbes = runtimeProbes ?? await readWorkerHeartbeatReport({
+    env,
+    now,
+  });
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const providerStatus = sourceStatus({
@@ -2571,6 +2582,7 @@ export async function buildSystemHealthReport({
     macroMarket,
     scanStatePool,
     scanEconomy,
+    runtimeProbes: resolvedRuntimeProbes,
     operations: scanOperations({
       archiveSummaries,
       freshness,

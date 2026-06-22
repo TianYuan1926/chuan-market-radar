@@ -143,8 +143,11 @@ services:
     command: ["node", "deploy/workers/ws-light-scan-worker.mjs"]
     environment:
       <<: *app-env
+      APP_INTERNAL_URL: http://web:3000
     depends_on:
       redis:
+        condition: service_healthy
+      web:
         condition: service_healthy
 
   coinglass-worker:

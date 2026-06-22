@@ -99,6 +99,7 @@ export type BackendContract = {
     cacheStatus: SystemHealthReport["operations"]["runtimeCacheStatus"];
     persistedArchive: boolean;
     repositoryMode: SystemHealthReport["operations"]["repositoryMode"];
+    runtimeProbes: SystemHealthReport["runtimeProbes"];
     trigger: SystemHealthReport["operations"]["runtimeTrigger"];
   };
   presentation: {
@@ -492,6 +493,7 @@ export function buildBackendContract({
       cacheStatus: health.operations.runtimeCacheStatus,
       persistedArchive: health.operations.persistedArchive,
       repositoryMode: health.operations.repositoryMode,
+      runtimeProbes: health.runtimeProbes,
       trigger: health.operations.runtimeTrigger,
     },
     presentation: {
