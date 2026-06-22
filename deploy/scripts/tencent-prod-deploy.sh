@@ -12,8 +12,34 @@ ENV_FILE="${ENV_FILE:-.env.production}"
 BASE_URL="${BASE_URL:-http://${PROD_HOST}}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-8}"
 SSH_IDENTITY_FILE="${SSH_IDENTITY_FILE:-}"
+SSH_SOCKS_PROXY="${SSH_SOCKS_PROXY:-}"
+DEFAULT_SSH_IDENTITY_FILE="${HOME}/.ssh/chuan_radar_tencent_ed25519"
 RUN_REMOTE_FULL_VERIFY="${RUN_REMOTE_FULL_VERIFY:-false}"
 RUN_LOCAL_SMOKE="${RUN_LOCAL_SMOKE:-true}"
+
+detect_macos_socks_proxy() {
+  if [[ "$(uname -s)" != "Darwin" ]] || ! command -v scutil >/dev/null 2>&1; then
+    return
+  fi
+
+  local proxy_output proxy_host proxy_port socks_enabled
+  proxy_output="$(scutil --proxy 2>/dev/null || true)"
+  socks_enabled="$(awk '/SOCKSEnable/ {print $3; exit}' <<< "${proxy_output}")"
+  proxy_host="$(awk '/SOCKSProxy/ {print $3; exit}' <<< "${proxy_output}")"
+  proxy_port="$(awk '/SOCKSPort/ {print $3; exit}' <<< "${proxy_output}")"
+
+  if [[ "${socks_enabled}" == "1" && -n "${proxy_host}" && -n "${proxy_port}" ]]; then
+    printf '%s:%s' "${proxy_host}" "${proxy_port}"
+  fi
+}
+
+if [[ -z "${SSH_SOCKS_PROXY}" ]]; then
+  SSH_SOCKS_PROXY="$(detect_macos_socks_proxy)"
+fi
+
+if [[ -z "${SSH_IDENTITY_FILE}" && -f "${DEFAULT_SSH_IDENTITY_FILE}" ]]; then
+  SSH_IDENTITY_FILE="${DEFAULT_SSH_IDENTITY_FILE}"
+fi
 
 SSH_OPTS=(
   -p "${SSH_PORT}"
@@ -26,6 +52,10 @@ SSH_OPTS=(
 
 if [[ -n "${SSH_IDENTITY_FILE}" ]]; then
   SSH_OPTS+=(-i "${SSH_IDENTITY_FILE}")
+fi
+
+if [[ -n "${SSH_SOCKS_PROXY}" ]]; then
+  SSH_OPTS+=(-o "ProxyCommand=nc -x ${SSH_SOCKS_PROXY} -X 5 %h %p")
 fi
 
 cd "${ROOT_DIR}"
@@ -89,4 +119,3 @@ if [[ "${RUN_LOCAL_SMOKE}" == "true" ]]; then
 fi
 
 echo "Tencent production deploy completed."
-
