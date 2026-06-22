@@ -605,7 +605,6 @@ test("buildFrontendLeaderboardContract maps and sorts real ticker data", () => {
 
 test("buildFrontendLeaderboardContract falls back to public light scan candidates when tickers are absent", () => {
   const backend = backendContract();
-  backend.scanProof.allocation.pendingAssets.push("POWER");
   backend.scanProof.lightScan.topCandidates = [
     {
       baseAsset: "POWER",

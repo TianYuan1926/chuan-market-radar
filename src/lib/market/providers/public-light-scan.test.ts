@@ -87,13 +87,37 @@ test("createBinancePublicLightScanProvider converts public futures tickers into 
         priceChangePercent: "4",
         quoteVolume: "61000000",
       },
+      {
+        symbol: "ISRGUSDT",
+        lastPrice: "440",
+        highPrice: "450",
+        lowPrice: "430",
+        priceChangePercent: "4",
+        quoteVolume: "62000000",
+      },
+      {
+        symbol: "RKLBUSDT",
+        lastPrice: "20",
+        highPrice: "21",
+        lowPrice: "19",
+        priceChangePercent: "6",
+        quoteVolume: "63000000",
+      },
+      {
+        symbol: "POETUSDT",
+        lastPrice: "4",
+        highPrice: "4.2",
+        lowPrice: "3.8",
+        priceChangePercent: "5",
+        quoteVolume: "64000000",
+      },
     ]),
   });
 
   const result = await provider.scan();
 
   assert.equal(result.diagnostics.status, "ready");
-  assert.equal(result.diagnostics.universeCount, 8);
+  assert.equal(result.diagnostics.universeCount, 11);
   assert.equal(result.diagnostics.acceptedCount, 2);
   assert.equal(result.instruments.length, 2);
   assert.deepEqual(result.instruments.map((item) => item.symbol), ["ARBUSDT", "SUIUSDT"]);

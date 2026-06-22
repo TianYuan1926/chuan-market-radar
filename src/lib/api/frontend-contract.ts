@@ -431,6 +431,10 @@ function buildFrontendUniverseSymbols(backend: BackendContract, snapshot: Market
   const symbols = new Set<string>();
 
   snapshot.signals.forEach((signal) => addFrontendUniverseSymbol(symbols, signal.symbol));
+  backend.scanProof.lightScan.topCandidates.forEach((candidate) => {
+    addFrontendUniverseSymbol(symbols, candidate.baseAsset);
+    addFrontendUniverseSymbol(symbols, candidate.symbol);
+  });
   backend.scanProof.deepScan.plannedAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
   backend.sourceAudit.coinGlassDeepScan.plannedAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
   backend.scanProof.allocation.selectedAssets.forEach((symbol) => addFrontendUniverseSymbol(symbols, symbol));
