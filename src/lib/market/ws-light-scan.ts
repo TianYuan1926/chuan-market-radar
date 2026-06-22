@@ -285,6 +285,7 @@ function buildCandidate({
     distanceFromLowPercent: window.lowPrice > 0
       ? round(((window.closePrice - window.lowPrice) / window.lowPrice) * 100)
       : 100,
+    price: round(window.closePrice, 8),
     reasons: candidateReasons({ absChange, state: candidateStateValue, volumeZScore: z }),
     score,
     state: candidateStateValue,

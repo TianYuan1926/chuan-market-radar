@@ -56,6 +56,7 @@ test("createWebSocketLightScanAccumulator promotes volume z-score spikes without
   assert.equal(snapshot.diagnostics.status, "ready");
   assert.equal(snapshot.diagnostics.source, "websocket-light-scan");
   assert.equal(snapshot.priorityCandidates[0]?.symbol, "ARBUSDT");
+  assert.equal(snapshot.priorityCandidates[0]?.price, 1.06);
   assert.equal(snapshot.instruments.some((item) => item.symbol === "COINUSDT"), false);
   assert.equal(snapshot.priorityCandidates[0]?.state, "HOT");
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("volume_zscore_spike"));

@@ -211,6 +211,7 @@ test("createLightScanAccumulator promotes a 15m volume z-score spike into Redis 
   assert.equal(snapshot.mode, "websocket_sliding_window");
   assert.equal(snapshot.diagnostics.source, "websocket-light-scan");
   assert.equal(snapshot.priorityCandidates[0]?.symbol, "ALTUSDT");
+  assert.equal(snapshot.priorityCandidates[0]?.price, 1.16);
   assert.equal(snapshot.instruments.some((item) => item.symbol === "COINUSDT"), false);
   assert.equal(snapshot.priorityCandidates[0]?.state, "HOT");
   assert.match(snapshot.priorityCandidates[0]?.reasons.join(","), /volume_zscore_spike/);
