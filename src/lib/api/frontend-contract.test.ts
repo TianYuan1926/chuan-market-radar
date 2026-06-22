@@ -388,6 +388,75 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.radarSignals.data[0]?.rr, 3.2);
 });
 
+test("buildFrontendRadarContract uses observed CoinGlass usage instead of planned requests", () => {
+  const backend = backendContract();
+  backend.runtime.apiUsage = {
+    dailyBudget: 300,
+    day: "2026-06-21",
+    detail: "Redis daily counter is readable.",
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    pacingMs: 500,
+    perMinuteLimit: 30,
+    provider: "CoinGlass",
+    remainingToday: 163,
+    source: "redis",
+    status: "ready",
+    throttled: false,
+    usedToday: 137,
+  };
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: { COINGLASS_DAILY_REQUEST_BUDGET: "300" },
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.apiUsage.status, "live");
+  assert.equal(radar.apiUsage.data.usedToday, 137);
+  assert.equal(radar.apiUsage.data.remainingToday, 163);
+  assert.equal(radar.apiUsage.data.source, "redis");
+  assert.match(radar.apiUsage.reason ?? "", /Redis daily counter/);
+});
+
+test("buildFrontendRadarContract uses observed source latency when probes exist", () => {
+  const backend = backendContract();
+  backend.runtime.sourceLatency = {
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    probes: [
+      {
+        checkedAt: "2026-06-21T08:00:00.000Z",
+        detail: "CoinGlass API call elapsedMs recorded.",
+        latencyMs: 184,
+        name: "CoinGlass",
+        source: "redis",
+        status: "ready",
+      },
+      {
+        checkedAt: "2026-06-21T08:00:01.000Z",
+        detail: "Binance source probe elapsedMs recorded.",
+        latencyMs: 42,
+        name: "Binance",
+        source: "redis",
+        status: "ready",
+      },
+    ],
+    status: "partial",
+  };
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: {},
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.dataSources.data.find((source) => source.name === "CoinGlass")?.latencyMs, 184);
+  assert.equal(radar.dataSources.data.find((source) => source.name === "Binance")?.latencyMs, 42);
+  assert.equal(radar.dataSources.data.find((source) => source.name === "OKX")?.latencyStatus, "partial");
+  assert.doesNotMatch(radar.dataSources.reason ?? "", /0 占位/);
+});
+
 test("buildFrontendRadarContract derives BLOCKED when risk gate or RR blocks the plan", () => {
   const blocked = signal({
     id: "sig-fet",

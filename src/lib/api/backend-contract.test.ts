@@ -447,6 +447,34 @@ function health(): SystemHealthReport {
       trackingEvents: 20,
     } as SystemHealthReport["outcomes"],
     scanDiagnostics: snapshot().metadata.diagnostics!,
+    apiUsage: {
+      dailyBudget: 300,
+      day: "2026-06-19",
+      detail: "Redis daily counter is readable.",
+      generatedAt: "2026-06-19T08:01:00.000Z",
+      pacingMs: 500,
+      perMinuteLimit: 30,
+      provider: "CoinGlass",
+      remainingToday: 256,
+      source: "redis",
+      status: "ready",
+      throttled: false,
+      usedToday: 44,
+    },
+    dataSourceLatency: {
+      generatedAt: "2026-06-19T08:01:00.000Z",
+      probes: [
+        {
+          checkedAt: "2026-06-19T08:00:59.000Z",
+          detail: "CoinGlass API call elapsedMs recorded.",
+          latencyMs: 95,
+          name: "CoinGlass",
+          source: "redis",
+          status: "ready",
+        },
+      ],
+      status: "partial",
+    },
     macroMarket: {
       ageMinutes: 11,
       allowedUse: "macro_context_only",
@@ -541,6 +569,9 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   assert.equal(contract.sourceAudit.coinGlassDeepScan.failedPlannedAssets[0], "BAKE");
   assert.match(contract.sourceAudit.guardrail, /CoinGlass deep scan confirms/u);
   assert.equal(contract.runtime.repositoryMode, "database");
+  assert.equal(contract.runtime.apiUsage.usedToday, 44);
+  assert.equal(contract.runtime.apiUsage.source, "redis");
+  assert.equal(contract.runtime.sourceLatency.probes[0]?.latencyMs, 95);
   assert.equal(contract.scanProof.fullMarket.eligibleAssets, 420);
   assert.equal(contract.scanProof.fullMarket.pendingAssets, 414);
   assert.equal(contract.scanProof.lightScan.status, "ready");

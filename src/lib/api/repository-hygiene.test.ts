@@ -604,6 +604,25 @@ test("stage 8 dashboard and market pages read backend contract instead of mock m
   assert.match(macroDerivativesSource, /contract\?\.apiUsage\s*\?\?/);
 });
 
+test("radar contract observability no longer uses planned request or zero latency placeholders", () => {
+  const frontendContractSource = readFileSync(resolve(process.cwd(), "src/lib/api/frontend-contract.ts"), "utf8");
+  const backendContractSource = readFileSync(resolve(process.cwd(), "src/lib/api/backend-contract.ts"), "utf8");
+  const systemHealthSource = readFileSync(resolve(process.cwd(), "src/lib/api/system-health.ts"), "utf8");
+  const fieldMap = readFileSync(resolve(process.cwd(), "docs/frontend-backend-field-map.md"), "utf8");
+
+  assert.match(systemHealthSource, /readConfiguredApiObservabilityReport/);
+  assert.match(backendContractSource, /apiUsage:\s*health\.apiUsage/);
+  assert.match(backendContractSource, /sourceLatency:\s*health\.dataSourceLatency/);
+  assert.match(frontendContractSource, /backend\.runtime\.apiUsage/);
+  assert.match(frontendContractSource, /latencyStatus/);
+  assert.doesNotMatch(frontendContractSource, /latencyMs:\s*0,/);
+  assert.doesNotMatch(frontendContractSource, /plannedRequests[\s\S]{0,180}usedToday/);
+  assert.doesNotMatch(frontendContractSource, /真实日内计数后续接入/);
+
+  assert.match(fieldMap, /CoinGlass Redis daily usage counter/);
+  assert.match(fieldMap, /source latency probes/);
+});
+
 test("stage 8 review and system pages do not render legacy mock centers", () => {
   const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
   const systemPageSource = readFileSync(resolve(process.cwd(), "src/app/system/page.tsx"), "utf8");

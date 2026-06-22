@@ -289,6 +289,10 @@ test("buildSystemHealthReport marks mock and memory mode as a visible preview st
   assert.equal(report.archive.entries, 1);
   assert.equal(report.scan.freshness, "fresh");
   assert.equal(report.scan.ageMinutes, 5);
+  assert.equal(report.apiUsage.status, "unconfigured");
+  assert.equal(report.apiUsage.usedToday, 0);
+  assert.equal(report.dataSourceLatency.status, "unconfigured");
+  assert.equal(report.dataSourceLatency.probes.find((probe) => probe.name === "CoinGlass")?.latencyMs, null);
   assert.deepEqual(report.guards.map((guard) => guard.id), [
     "data-source",
     "persistence",
