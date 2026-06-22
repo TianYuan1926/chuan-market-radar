@@ -67,8 +67,8 @@ restore frontend source from user ui package
 
 - 详见 `docs/frontend-backend-field-map.md`。
 - 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链、API 用量、数据源延迟、AI evidence-id 绑定复审。
-- 半接：复盘样本统计。
-- 未接：主力资金流、真正的 SSE/WebSocket 前端推送传输。
+- 已接：复盘样本统计合同、AI 复核统计合同、扫描稳定性合同。
+- 半接：主力资金流。当前只展示 OI/Funding/多空比上下文和 taker/CVD 未接入状态，不能伪装成真实资金流。
 - 已接：宠物/彩蛋跨设备持久化通过 `/api/frontend/ui-state` 写入 `frontend_ui_states`；真实登录鉴权通过 `/api/auth/session` 和可选私有模式完成。
 
 ## 阶段 2：后端接口对齐
@@ -89,17 +89,21 @@ restore frontend source from user ui package
 已补齐的只读合同：
 
 - 扩展 radar contract：暴露 API 日内计数和数据源延迟。
-- `/api/frontend/live-events`：只读事件合同，前端可轮询；真正 SSE/WebSocket 推送传输后续再做。
+- `/api/frontend/live-events`：只读事件合同，前端可轮询。
+- `/api/frontend/live-events/stream`：同一只读事件合同的 SSE 传输；不得触发扫描、不得调用 CoinGlass。
 - `/api/frontend/ui-state`：宠物、彩蛋和 UI 偏好状态，UI-only，不进入交易判断。
 - `/api/auth/session`：可选私有登录，默认关闭，开启后使用服务端签名会话。
 - `/api/frontend/kline-contract?symbol=...&tf=...`：给 Token 详情页真实 K 线；页面侧通过 `getKlineContractForPage()` 直接读取同一合同，不再生成模拟蜡烛。
 - `/api/frontend/journal-contract`：给交易日记抽屉读取/写入真实 Postgres 日记；写入 `manual_trade` 事件，`rankDelta=0`，不自动调权。
 - `/api/admin/runtime/heartbeat` + `RadarContract.serviceNodes`：worker 通过受保护接口写 Redis 心跳，系统页读取真实 Redis/worker 运行探针，不再硬写在线状态。
+- `RadarContract.scanStability`：从扫描归档、覆盖率、Redis 和 worker 心跳生成扫描稳定性诊断；只做运维诊断，不能生成交易信号。
+- `ReviewContract.reviewStats`：从真实 journal outcome 样本生成复盘统计；样本不足时必须显示 collecting/empty，不能自动调权。
+- `ReviewContract.aiReviewStats`：统计 evidence-id 绑定的 AI 复核状态；AI 不能替代规则引擎。
 
 下一批需要补强的合同：
 
 - 主力资金流：需要确认可免费稳定获取的数据源后再接入。
-- 真正 SSE/WebSocket 前端推送传输：当前已有 `/api/frontend/live-events` 轮询合同，后续只升级传输方式，不改变交易判断。
+- 前端消费补齐：如果 UI 有对应位置，应读取 `fundFlow`、`scanStability`、`reviewStats`、`aiReviewStats`，没有位置时保留合同，不为了展示硬改 UI。
 
 ## 阶段 3：统一 mapper 层
 
@@ -120,6 +124,8 @@ mapper 硬规则：
 - 交易结论、方向、RR、Risk Gate、成熟度和证据链只能来自后端合同或后端 mapper。
 - 榜单候选可以用于展示“候选/等待验证”，不能在前端升级成交易计划。
 - Token 详情不得用前端价格推导伪造完整交易计划；精确交易计划必须来自 `strategyV3.tradePlan`，缺失或被阻断时显示无交易计划。
+- 资金流缺 taker/CVD 时必须显示 partial/waiting，不能用 `0`、随机数或旧 mock 当真实数据。
+- 扫描稳定性、复盘统计、AI 统计只能解释系统状态，不能改变候选排序、Risk Gate 或交易计划。
 
 ## 阶段 4：逐页对接
 

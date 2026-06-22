@@ -629,6 +629,7 @@ export type DerivativesState = {
   funding: number // 资金费率 %
   longShortRatio: number // 多空比
   takerBuySell: number // 主动买卖比
+  takerBuySellStatus: 'connected' | 'not_connected'
   exchangeCoverage: number // 交易所覆盖数
   totalExchanges: number
   lastUpdate: string
@@ -640,13 +641,64 @@ export function getDerivatives(): Resource<DerivativesState> {
       oiChange: 8.4,
       funding: 0.0125,
       longShortRatio: 1.84,
-      takerBuySell: 1.32,
+      takerBuySell: 0,
+      takerBuySellStatus: 'not_connected',
       exchangeCoverage: 11,
       totalExchanges: 13,
       lastUpdate: '13:48:05',
     },
+    'partial',
+    { ageSec: 9, source: 'coinglass', reason: 'OI/Funding/多空比已接入；主动买卖和 CVD 暂未接真实源。' },
+  )
+}
+
+export type FundFlowState = {
+  allowedUse: 'market_context_only'
+  canCreateTradeSignal: false
+  detail: string
+  source: 'coinglass_derivatives' | 'not_connected'
+  status: 'partial' | 'waiting_source'
+  takerBuySellAvailable: boolean
+  unavailableFields: string[]
+}
+
+export function getFundFlow(): Resource<FundFlowState> {
+  return resource(
+    {
+      allowedUse: 'market_context_only',
+      canCreateTradeSignal: false,
+      detail: '已接 OI、Funding、Long/Short 等衍生品上下文；主动买卖和 CVD 仍等待真实稳定源。',
+      source: 'coinglass_derivatives',
+      status: 'partial',
+      takerBuySellAvailable: false,
+      unavailableFields: ['taker_buy_sell', 'cvd_proxy', 'real_fund_flow'],
+    },
+    'partial',
+    { ageSec: 9, source: 'coinglass', reason: '资金流只能展示已接真实字段；未接 taker/CVD 时必须显示等待数据源。' },
+  )
+}
+
+export type ScanStabilityState = {
+  issues: Array<{
+    code: string
+    detail: string
+    severity: 'info' | 'watch' | 'critical'
+  }>
+  score: number
+  status: 'blocked' | 'healthy' | 'watch'
+  summary: string
+}
+
+export function getScanStability(): Resource<ScanStabilityState> {
+  return resource(
+    {
+      issues: [],
+      score: 100,
+      status: 'healthy',
+      summary: '扫描链路健康，覆盖、归档和 worker 心跳可用。',
+    },
     'live',
-    { ageSec: 9, source: 'coinglass' },
+    { ageSec: 8, source: 'system-health', reason: '扫描稳定性报告只用于运维诊断；不能直接生成交易信号。' },
   )
 }
 
@@ -672,6 +724,8 @@ export type RadarContract = {
   radarSignals: Resource<RadarSignal[]>
   macroAltEnv: Resource<MacroAltEnv>
   derivatives: Resource<DerivativesState>
+  fundFlow: Resource<FundFlowState>
+  scanStability: Resource<ScanStabilityState>
   serviceNodes: Resource<ServiceNode[]>
 }
 
@@ -687,6 +741,8 @@ export function getRadarContract(): RadarContract {
     radarSignals: getRadarSignals(),
     macroAltEnv: getMacroAltEnv(),
     derivatives: getDerivatives(),
+    fundFlow: getFundFlow(),
+    scanStability: getScanStability(),
     serviceNodes: getServiceNodes(),
   }
 }
@@ -707,6 +763,60 @@ export type ReviewContract = {
   strategyArchetypes: Resource<StrategyArchetype[]>
   missedDetections: Resource<MissedDetection[]>
   evolutionSuggestions: Resource<EvolutionSuggestion[]>
+  reviewStats: Resource<ReviewStatsData>
+  aiReviewStats: Resource<AiReviewStats>
+}
+
+export type ReviewStatsData = {
+  closedSamples: number
+  evidenceSamples: number
+  maeAvg: number
+  mfeAvg: number
+  pendingSamples: number
+  sampleStatus: 'empty' | 'collecting' | 'usable' | 'statistically_thin'
+  summary: string
+  totalSamples: number
+  winRate: number | null
+}
+
+export type AiReviewStats = {
+  disabled: number
+  fallback: number
+  reviewed: number
+  total: number
+  unboundFallbackProtected: boolean
+}
+
+export function getReviewStats(): Resource<ReviewStatsData> {
+  return resource(
+    {
+      closedSamples: 0,
+      evidenceSamples: 0,
+      maeAvg: 0,
+      mfeAvg: 0,
+      pendingSamples: 0,
+      sampleStatus: 'collecting',
+      summary: '复盘统计只用于人工校准和回滚验证；不能自动改权重、不能改变实时排序。',
+      totalSamples: 0,
+      winRate: null,
+    },
+    'empty',
+    { ageSec: 30, source: 'outcome-review' },
+  )
+}
+
+export function getAiReviewStats(): Resource<AiReviewStats> {
+  return resource(
+    {
+      disabled: 0,
+      fallback: 0,
+      reviewed: 0,
+      total: 0,
+      unboundFallbackProtected: true,
+    },
+    'partial',
+    { ageSec: 30, source: 'ai-reviewer', reason: 'AI 只统计 evidence-id 绑定复核结果，不替代规则引擎。' },
+  )
 }
 
 export function getReviewContract(): ReviewContract {
@@ -715,5 +825,7 @@ export function getReviewContract(): ReviewContract {
     strategyArchetypes: getStrategyArchetypes(),
     missedDetections: getMissedDetections(),
     evolutionSuggestions: getEvolutionSuggestions(),
+    reviewStats: getReviewStats(),
+    aiReviewStats: getAiReviewStats(),
   }
 }

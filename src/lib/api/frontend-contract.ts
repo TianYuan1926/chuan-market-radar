@@ -281,9 +281,31 @@ export type DerivativesState = {
   funding: number;
   longShortRatio: number;
   takerBuySell: number;
+  takerBuySellStatus: "connected" | "not_connected";
   exchangeCoverage: number;
   totalExchanges: number;
   lastUpdate: string;
+};
+
+export type FundFlowState = {
+  allowedUse: "market_context_only";
+  canCreateTradeSignal: false;
+  detail: string;
+  source: "coinglass_derivatives" | "not_connected";
+  status: "partial" | "waiting_source";
+  takerBuySellAvailable: boolean;
+  unavailableFields: string[];
+};
+
+export type ScanStabilityState = {
+  issues: Array<{
+    code: string;
+    detail: string;
+    severity: "info" | "watch" | "critical";
+  }>;
+  score: number;
+  status: "blocked" | "healthy" | "watch";
+  summary: string;
 };
 
 export type RadarContract = {
@@ -297,7 +319,29 @@ export type RadarContract = {
   radarSignals: Resource<RadarSignal[]>;
   macroAltEnv: Resource<MacroAltEnv>;
   derivatives: Resource<DerivativesState>;
+  fundFlow: Resource<FundFlowState>;
+  scanStability: Resource<ScanStabilityState>;
   serviceNodes: Resource<ServiceNode[]>;
+};
+
+export type ReviewStatsData = {
+  closedSamples: number;
+  evidenceSamples: number;
+  maeAvg: number;
+  mfeAvg: number;
+  pendingSamples: number;
+  sampleStatus: "empty" | "collecting" | "usable" | "statistically_thin";
+  summary: string;
+  totalSamples: number;
+  winRate: number | null;
+};
+
+export type AiReviewStats = {
+  disabled: number;
+  fallback: number;
+  reviewed: number;
+  total: number;
+  unboundFallbackProtected: boolean;
 };
 
 export type ReviewContract = {
@@ -305,6 +349,8 @@ export type ReviewContract = {
   strategyArchetypes: Resource<StrategyArchetype[]>;
   missedDetections: Resource<MissedDetection[]>;
   evolutionSuggestions: Resource<EvolutionSuggestion[]>;
+  reviewStats: Resource<ReviewStatsData>;
+  aiReviewStats: Resource<AiReviewStats>;
 };
 
 export type KlineChartCandle = {
@@ -853,9 +899,26 @@ function buildDerivatives(snapshot: MarketRadarSnapshot): DerivativesState {
     funding: round(average(snapshot.derivatives.map((item) => item.fundingRate)) * 100, 4),
     longShortRatio: round(average(snapshot.derivatives.map((item) => item.longShortRatio ?? 0)), 2),
     takerBuySell: 0,
+    takerBuySellStatus: "not_connected",
     exchangeCoverage: uniqueExchanges.size,
     totalExchanges: 3,
     lastUpdate: timeLabel(latest),
+  };
+}
+
+function buildFundFlowState(snapshot: MarketRadarSnapshot): FundFlowState {
+  const hasDerivativeContext = snapshot.derivatives.length > 0;
+
+  return {
+    allowedUse: "market_context_only",
+    canCreateTradeSignal: false,
+    detail: hasDerivativeContext
+      ? "已接 OI、Funding、Long/Short 等衍生品上下文；主动买卖和 CVD 仍等待真实稳定源。"
+      : "当前没有可用衍生品上下文，资金流只能显示等待数据源。",
+    source: hasDerivativeContext ? "coinglass_derivatives" : "not_connected",
+    status: hasDerivativeContext ? "partial" : "waiting_source",
+    takerBuySellAvailable: false,
+    unavailableFields: ["taker_buy_sell", "cvd_proxy", "real_fund_flow"],
   };
 }
 
@@ -1028,7 +1091,36 @@ export function buildFrontendRadarContract({
       {
         ageSec,
         source: "coinglass",
-        reason: snapshot.derivatives.length > 0 ? undefined : "当前快照未包含衍生品明细。",
+        reason: snapshot.derivatives.length > 0
+          ? "OI/Funding/多空比已接入；主动买卖和 CVD 暂未接真实源。"
+          : "当前快照未包含衍生品明细。",
+      },
+    ),
+    fundFlow: resource(
+      buildFundFlowState(snapshot),
+      snapshot.derivatives.length > 0 ? "partial" : "empty",
+      {
+        ageSec,
+        source: "coinglass",
+        reason: "资金流只能展示已接真实字段；未接 taker/CVD 时必须显示等待数据源。",
+      },
+    ),
+    scanStability: resource(
+      {
+        issues: backend.runtime.scanStability.issues,
+        score: backend.runtime.scanStability.score,
+        status: backend.runtime.scanStability.status,
+        summary: backend.runtime.scanStability.summary,
+      },
+      backend.runtime.scanStability.status === "healthy"
+        ? "live"
+        : backend.runtime.scanStability.status === "watch"
+          ? "partial"
+          : "failed",
+      {
+        ageSec,
+        source: "system-health",
+        reason: backend.runtime.scanStability.guardrail,
       },
     ),
     serviceNodes: resource([
@@ -1388,6 +1480,18 @@ function strategyArchetypeFromStage(stage: BusinessCapabilityStage): StrategyArc
   };
 }
 
+function buildAiReviewStats(snapshot: MarketRadarSnapshot): AiReviewStats {
+  const reviews = snapshot.signals.map((signal) => signal.aiReview).filter(Boolean);
+
+  return {
+    disabled: reviews.filter((review) => review?.status === "disabled").length,
+    fallback: reviews.filter((review) => review?.status === "fallback").length,
+    reviewed: reviews.filter((review) => review?.status === "reviewed").length,
+    total: reviews.length,
+    unboundFallbackProtected: true,
+  };
+}
+
 export function buildFrontendReviewContract({
   backend,
   snapshot,
@@ -1455,6 +1559,34 @@ export function buildFrontendReviewContract({
       })),
       suggestions.length > 0 ? "live" : "empty",
       { ageSec, source: "signal-worker" },
+    ),
+    reviewStats: resource(
+      {
+        closedSamples: backend.analysis.reviewStatistics.samples.closed,
+        evidenceSamples: backend.analysis.reviewStatistics.samples.evidenceLevel,
+        maeAvg: backend.analysis.reviewStatistics.mae.averagePercent,
+        mfeAvg: backend.analysis.reviewStatistics.mfe.averagePercent,
+        pendingSamples: backend.analysis.reviewStatistics.samples.pending,
+        sampleStatus: backend.analysis.reviewStatistics.sampleStatus,
+        summary: backend.analysis.reviewStatistics.summary,
+        totalSamples: backend.analysis.reviewStatistics.samples.total,
+        winRate: backend.analysis.reviewStatistics.winRate.expiredExcludedPercent,
+      },
+      backend.analysis.reviewStatistics.sampleStatus === "empty" ? "empty" : "live",
+      {
+        ageSec,
+        source: "outcome-review",
+        reason: backend.analysis.reviewStatistics.guardrail,
+      },
+    ),
+    aiReviewStats: resource(
+      buildAiReviewStats(snapshot),
+      snapshot.signals.some((signal) => signal.aiReview?.status === "reviewed") ? "live" : "partial",
+      {
+        ageSec,
+        source: "ai-reviewer",
+        reason: "AI 只统计 evidence-id 绑定复核结果，不替代规则引擎。",
+      },
     ),
   };
 }

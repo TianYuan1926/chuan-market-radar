@@ -14,7 +14,8 @@ Tencent Cloud Lighthouse / CVM
 ├── websocket-light-worker# 连接 public ticker WebSocket，写入 Redis 轻扫快照
 ├── coinglass-worker      # 定时触发每日异动和 K 线缓存任务
 ├── signal-worker         # 定时触发 outcome executor 和 v3 forward-map review
-└── dynamic-scan-scheduler# 健康状态巡检；后续升级为 Redis 队列调度器
+├── dynamic-scan-scheduler# 健康状态巡检；后续升级为 Redis 队列调度器
+└── macro-worker          # 定时写入 BTC.D / TOTAL2 / TOTAL3 宏观快照
 ```
 
 ## 当前服务器信息
@@ -196,6 +197,12 @@ frontend_ui_states
 bash deploy/scripts/production-verify.sh
 ```
 
+完整生产验收使用：
+
+```bash
+bash deploy/scripts/production-full-verify.sh
+```
+
 只读观察当前运行状态：
 
 ```bash
@@ -218,6 +225,31 @@ http://43.161.202.227
 
 - 首页能打开。
 - `/api/health` 返回 `ok: true`。
+- `/api/health.health.scanStability` 显示扫描稳定性。
+- `/api/health.health.reviewStatistics` 显示复盘样本状态。
+- `/api/frontend/radar-contract` 返回 scanProof、apiUsage、dataSources、fundFlow、scanStability。
+- `/api/frontend/review-contract` 返回 reviewStats 和 aiReviewStats。
+- `/api/frontend/live-events/stream` 是只读 SSE 事件流，不触发扫描。
+
+## 数据库备份和恢复
+
+备份 PostgreSQL：
+
+```bash
+bash deploy/scripts/backup-postgres.sh
+```
+
+恢复 PostgreSQL 前必须确认目标环境和备份文件。恢复命令需要显式确认，避免误覆盖：
+
+```bash
+CONFIRM_RESTORE=yes bash deploy/scripts/restore-postgres.sh deploy/backups/<backup-file>.dump
+```
+
+恢复后重新运行：
+
+```bash
+bash deploy/scripts/production-full-verify.sh
+```
 - `health.persistence.mode` 是 `database`。
 - `health.persistence.databaseDriver` 是 `postgres`。
 - `health.dataSource.activeSource` 是 `coinglass`。

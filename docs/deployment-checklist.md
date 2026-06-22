@@ -7,7 +7,7 @@
 - Next.js App Router
 - 旧线上回滚：Vercel 公开网站
 - 新生产目标：Caddy + Docker Compose 单机部署
-- 单机服务：`web`、`postgres`、`redis`、`scanner-worker`、`websocket-light-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`
+- 单机服务：`web`、`postgres`、`redis`、`scanner-worker`、`websocket-light-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`、`macro-worker`
 - `/api/scan` 提供扫描摘要
 - `/api/archive` 通过 repository 提供扫描快照归档、指定回放帧和相邻扫描差值
 - `/api/journal` 通过 repository 提供复盘记录；未接入真实 SQL client 时自动使用内存演示存储
@@ -55,6 +55,15 @@
 - `DATABASE_DRIVER`: 单机生产填 `postgres`，Neon 回滚填 `neon`
 - `DATABASE_URL`: 单机生产指向 compose 内 `postgres:5432`
 - `REDIS_URL`: 单机 Redis 地址，默认 `redis://redis:6379`
+- `FRONTEND_LIVE_EVENTS_RATE_LIMIT`: 前端只读事件接口限流，默认 `180`
+- `FRONTEND_UI_STATE_RATE_LIMIT`: 前端 UI 状态读写限流，默认 `180`
+- `FRONTEND_UI_STATE_MAX_BYTES`: 单条 UI 状态最大字节数，默认 `32768`
+- `AUTH_SESSION_RATE_LIMIT`: 私有登录接口限流，默认 `30`
+- `CHUAN_PRIVATE_MODE_ENABLED`: 私有访问模式，默认 `false`
+- `CHUAN_SESSION_COOKIE_NAME`: 私有访问 cookie 名，默认 `chuan_session`
+- `CHUAN_SESSION_PASSWORD`: 私有访问密码，只能在服务器 `.env.production` 中填写；为空时不应开启私有模式
+- `CHUAN_SESSION_SECRET`: 会话签名密钥，只能在服务器 `.env.production` 中填写
+- `CHUAN_SESSION_TTL_SECONDS`: 会话有效期，默认 `604800`
 
 ## 后续接入时再填写
 
@@ -82,6 +91,8 @@
 - `WS_LIGHT_SCAN_SUBSCRIBE_CHUNK_SIZE`: OKX/Bybit WebSocket 订阅分批大小，默认 `40`。
 - `WS_LIGHT_SCAN_MAX_PRIORITY_CANDIDATES`: WebSocket 轻扫最多输出多少个优先候选，默认 `48`。
 - `WS_LIGHT_SCAN_RECONNECT_SECONDS`: WebSocket 断线重连间隔，默认 `10`。
+- `WORKER_HEARTBEAT_TTL_SECONDS`: Worker 心跳 Redis TTL，默认 `1800`。
+- `WORKER_HEARTBEAT_STALE_SECONDS`: Worker 心跳过期判定，默认 `900`。
 - `SCANNER_INTERVAL_SECONDS`: 单机 scanner-worker 主扫描间隔，默认 `900`
 - `DAILY_MOVER_INTERVAL_SECONDS`: 单机 coinglass-worker 每日异动抓取间隔，默认 `86400`
 - `KLINE_CACHE_INTERVAL_SECONDS`: 单机 coinglass-worker K 线缓存填充间隔，默认 `21600`
@@ -135,6 +146,10 @@
 - outcome 复盘统计只承认 `EVIDENCE_SIGNAL` 和 `TRADE_PLAN_READY`；轻扫标记、深扫候选和缺成熟度旧样本不能进入命中率或人工校准胜率。
 - Macro Weather 的 BTC.D / TOTAL2 / TOTAL3 只做山寨环境顺逆风说明；不得降低 `3:1` 最低赔率，也不能直接生成方向或交易计划。
 - `/api/health` 会把 quota 与 coverage 汇总为 `scanEconomy`；系统状态面板必须显示“扫描经济 / 今日预算 / 剩余额度 / 请求/轮 / 批次上限 / 层级覆盖 / 不新增请求”，该面板只读展示，不触发额外 CoinGlass 请求。
+- `/api/health.scanStability` 会把扫描归档、覆盖率、Redis 和 worker 心跳汇总为扫描稳定性诊断；该字段只用于运维排错，不允许前端或策略层把它当作交易信号。
+- `/api/health.reviewStatistics` 会从真实复盘样本派生统计；样本少时必须显示 collecting/empty，不能据此自动调权。
+- `/api/frontend/live-events/stream` 是 SSE 只读事件流，只能复用归档/心跳事件合同，不能触发扫描、不能调用 CoinGlass。
+- `RadarContract.fundFlow` 当前是 partial/waiting 合同，未接 taker/CVD/真实资金流源前不得显示成 live。
 - Universe planner 会把资产分成 anchor/core/active/long_tail；BTC/ETH 每轮固定，配置白名单和高流动性币优先，未验证流动性的长尾币默认每 8 个扫描窗口抽样一次。线上检查 metadata notes 时应能看到 `tiered universe` 和 `tier policy`。
 - Universe planner 支持 dynamic priority hints；异常分、历史有效性、近期信号、流动性、交易所覆盖质量、可学习漏判和冷却复盘会进入非 anchor 轮转槽排序，但不能挤掉 BTC/ETH，也不能突破 quota 批次。线上检查 metadata notes 时应能看到 `dynamic priority`。
 - 默认 CoinGlass provider 会从 repository 读取扫描归档、复盘 journal outcome、每日异动归因样本和 v3 trend review 样本，生成 repository priority hints 后再创建扫描计划。线上检查 metadata notes 时应能看到 `repository priority hints`。
@@ -178,6 +193,8 @@
 - `/api/health` 返回 `ok: true`，且 `health.level` 能准确反映 `ready`、`preview`、`degraded` 或 `blocked`。
 - `/api/health` 的 `health.macroMarket` 必须显示 `status`、`source`、`ageMinutes`、`btcDominancePercent`、`total2MarketCapUsd`、`total3MarketCapUsd` 和 “不能直接生成交易方向” 边界。
 - `bash deploy/scripts/production-verify.sh` 应在服务器上通过；本地没有 Docker 时不能用本地结果替代服务器验收。
+- `bash deploy/scripts/production-full-verify.sh` 应在服务器上通过；它会统一检查 compose、迁移、health、frontend contracts、只读事件、UI state、扫描触发、worker 日志和备份 dry run。
+- `bash deploy/scripts/backup-postgres.sh` 应能生成 PostgreSQL 备份；恢复必须用 `CONFIRM_RESTORE=yes bash deploy/scripts/restore-postgres.sh <backup-file>`，避免误覆盖。
 - `bash deploy/scripts/production-observe.sh` 应能打印服务状态、健康摘要、backend contract 摘要和 worker 日志，不打印任何 secret。
 - 系统状态面板的人工权重变更执行记录入口必须显示“只保存记录/不可写权重”边界；没有可审计候选时表单保持禁用。
 - 系统状态面板的影子权重必须显示“当前权重/建议权重/差异”和“不影响实盘判断”边界；没有审批记录时应处于 collecting，不应显示成真实调权已生效。

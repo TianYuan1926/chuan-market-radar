@@ -101,6 +101,7 @@ export type BackendContract = {
     persistedArchive: boolean;
     repositoryMode: SystemHealthReport["operations"]["repositoryMode"];
     runtimeProbes: SystemHealthReport["runtimeProbes"];
+    scanStability: SystemHealthReport["scanStability"];
     sourceLatency: SystemHealthReport["dataSourceLatency"];
     trigger: SystemHealthReport["operations"]["runtimeTrigger"];
   };
@@ -194,6 +195,7 @@ export type BackendContract = {
       canWriteRuleWeights: false;
       status: SystemHealthReport["strategyEvolutionLoop"]["status"];
     };
+    reviewStatistics: SystemHealthReport["reviewStatistics"];
     signalMaturity: {
       candidateLaneSymbols: string[];
       counts: ScanSignalMaturityDiagnostics["counts"];
@@ -497,6 +499,7 @@ export function buildBackendContract({
       persistedArchive: health.operations.persistedArchive,
       repositoryMode: health.operations.repositoryMode,
       runtimeProbes: health.runtimeProbes,
+      scanStability: health.scanStability,
       sourceLatency: health.dataSourceLatency,
       trigger: health.operations.runtimeTrigger,
     },
@@ -588,6 +591,7 @@ export function buildBackendContract({
         canWriteRuleWeights: false,
         status: health.strategyEvolutionLoop.status,
       },
+      reviewStatistics: health.reviewStatistics,
       signalMaturity: {
         candidateLaneSymbols: signalMaturity.candidateLaneSymbols,
         counts: signalMaturity.counts,

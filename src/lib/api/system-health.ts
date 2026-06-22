@@ -55,6 +55,14 @@ import type { MacroMarketSnapshot } from "../market/macro-snapshot";
 import {
   buildFallbackScanStatePoolReport,
 } from "../market/scan-state-pool";
+import {
+  buildScanStabilityReport,
+  type ScanStabilityReport,
+} from "../market/scan-stability";
+import {
+  buildReviewStatisticsReport,
+  type ReviewStatisticsReport,
+} from "../journal/review-statistics";
 import type {
   MarketDataSource,
   MarketDataStatus,
@@ -552,6 +560,8 @@ export type SystemHealthReport = {
     strategyWeightShadowEvaluation: StrategyWeightShadowEvaluationReport;
     trackingEvents: number;
   };
+  reviewStatistics: ReviewStatisticsReport;
+  scanStability: ScanStabilityReport;
   v3ForwardMapReviews: V3ForwardMapReviewHealthReport;
   strategyEvolutionLoop: StrategyEvolutionLoopReport;
   v3StrategyLoop: V3StrategyLoopReport;
@@ -2509,6 +2519,13 @@ export async function buildSystemHealthReport({
     ? `${databaseDiagnostics.detail} Repository reads degraded: ${repositoryReadIssue}`
     : databaseDiagnostics.detail;
   const outcomes = outcomeExecutorHealth(journalEvents, now, env);
+  const reviewStatistics = buildReviewStatisticsReport(journalEvents, now);
+  const scanStability = buildScanStabilityReport({
+    archives: archiveSummaries,
+    now,
+    runtimeProbes: resolvedRuntimeProbes,
+    snapshot,
+  });
   const v3ForwardMapReviews = v3ForwardMapReviewHealth({
     events: journalEvents,
     savedSnapshots: v3ForwardMapSnapshotRead.snapshots.length,
@@ -2595,6 +2612,7 @@ export async function buildSystemHealthReport({
     apiUsage: apiObservability.apiUsage,
     dataSourceLatency: apiObservability.dataSourceLatency,
     runtimeProbes: resolvedRuntimeProbes,
+    scanStability,
     operations: scanOperations({
       archiveSummaries,
       freshness,
@@ -2602,6 +2620,7 @@ export async function buildSystemHealthReport({
       now,
     }),
     outcomes,
+    reviewStatistics,
     v3ForwardMapReviews,
     strategyEvolutionLoop,
     v3StrategyLoop,

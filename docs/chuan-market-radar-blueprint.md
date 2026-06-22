@@ -1609,6 +1609,18 @@ CoinGlass 业余会员 API：
    - `.env.example` 只允许使用占位符：`CHUAN_SESSION_PASSWORD`、`CHUAN_SESSION_SECRET`、`CHUAN_SESSION_TTL_SECONDS`、`FRONTEND_UI_STATE_*`。真实密码、API key 和 session secret 不得写入仓库。
    - 私有登录不是交易权限，不接交易所下单 API，不做自动交易；它只保护个人站点访问。
 
+32. **Phase Backend-5：九阶段后端对接、稳定性和生产验收合同（已落地）**
+   - 新增 `ScanStabilityReport`，从扫描归档、覆盖率、Redis 状态和 worker 心跳生成扫描稳定性诊断；该报告只能用于运维和排错，不能直接生成交易信号。
+   - `/api/health`、`/api/radar/backend-contract` 和 `RadarContract.scanStability` 必须暴露扫描稳定性状态、分数、问题列表和只读边界。前端如果显示“系统在运转”，必须优先使用这些字段，而不是动画或静态文案。
+   - 新增 `ReviewStatisticsReport`，从真实 `journal_events` outcome 样本统计样本数、已关闭样本、待跟踪样本、MFE/MAE、胜率和样本状态；样本少时必须输出 `empty/collecting/statistically_thin`，不能假装已经具备稳定胜率。
+   - `ReviewContract.reviewStats` 和 `ReviewContract.aiReviewStats` 已接入；复盘统计只用于人工研究和回滚验证，`canAutoAdjustWeights=false`、`canMutateLiveRanking=false` 固定不变。
+   - `RadarContract.fundFlow` 固定为诚实 partial/waiting 合同：当前只承认 OI、Funding、Long/Short 等已接衍生品上下文，未接入 taker buy/sell、CVD 或真实资金流源时必须明确标注，不能用 mock 数字补位。
+   - 新增 `GET /api/frontend/live-events/stream`，使用 SSE 输出与 `/api/frontend/live-events` 相同的只读事件合同；该接口不得触发扫描、不得调用 CoinGlass、不得读取 provider secret。
+   - 单机部署环境变量、`docker-compose.yml` 和 `deploy/scripts/bootstrap-prod-env.sh` 必须同步私有模式、前端 UI 状态、实时事件限流、worker 心跳、AI/扫描相关变量。真实密钥只写服务器 `.env.production`，不得写入仓库。
+   - 新增生产全量验收脚本 `deploy/scripts/production-full-verify.sh`，统一检查 compose、迁移、健康、前端合同、只读事件、UI 状态、扫描触发、公开 smoke、worker 日志和备份 dry run。
+   - 新增 PostgreSQL 恢复脚本 `deploy/scripts/restore-postgres.sh`，必须显式设置 `CONFIRM_RESTORE=yes` 才能恢复，避免误覆盖生产数据。
+   - 当前九阶段结论：后端合同、扫描稳定性、复盘统计、AI 统计、事件流、单机验收和恢复路径已形成闭环；剩余业务事实缺口是稳定资金流源。没有稳定来源前，前端只能显示 partial/waiting。
+
 ## 每次继续开发必须遵守
 
 1. 每完成一个阶段向用户汇报：

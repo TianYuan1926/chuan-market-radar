@@ -19,6 +19,7 @@ All active pages must receive market facts from one of these paths:
 - `GET /api/frontend/review-contract`
 - `GET /api/frontend/journal-contract`
 - `GET /api/frontend/live-events`
+- `GET /api/frontend/live-events/stream`
 - `GET/POST /api/frontend/ui-state`
 - `GET/POST/DELETE /api/auth/session`
 - `POST /api/admin/runtime/heartbeat` protected worker heartbeat writer
@@ -32,12 +33,12 @@ active market pages must not use them as fact sources.
 | --- | --- | --- | --- | --- |
 | `/` | intro stats, radar display, ticker/session display | `getRadarContractForPage()` + `getLeaderboardContractForPage('volume')` | connected | intro copy is static; acceptable because it is product explanation, not market fact |
 | `/dashboard` | scan proof, overview cards, current candidates, risk reminders, backend radar control | `RadarContract` + volume leaderboard | connected | risk reminders are derived from signal cards; exact backend alert stream is not wired yet |
-| `/signals` | sniper board, maturity pool, anomaly table, live feed, heatmap | `RadarContract.radarSignals` + leaderboard candidate display + `/api/frontend/live-events` | connected with candidate fallback | event feed is read-only archive/runtime data; true SSE/WebSocket frontend event stream is still a later transport upgrade |
+| `/signals` | sniper board, maturity pool, anomaly table, live feed, heatmap | `RadarContract.radarSignals` + leaderboard candidate display + `/api/frontend/live-events` or `/api/frontend/live-events/stream` | connected with candidate fallback | event feed is read-only archive/runtime data; SSE transport is available and must not trigger scans |
 | `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected | market cap is unknown and must show `待补齐`; no fake cap allowed |
-| `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `dataSources`, `apiUsage`, leaderboards | connected/partial | real data-source latency and taker flow are not wired |
+| `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `fundFlow`, `dataSources`, `apiUsage`, leaderboards | connected/partial | source latency is wired; taker/CVD/real fund-flow source is not wired and must show partial |
 | `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier + `getKlineContractForPage()` | connected/partial | exact v3 trade plan and real OHLCV are wired when present; fund-flow panel is still an honest waiting state |
 | `/review` | lifecycle, archetypes, missed detections, evolution suggestions, manual journal drawer | `ReviewContract` from journal events and business capability + `/api/frontend/journal-contract` | connected/partial | quality depends on real outcome samples; manual trade entries are API-backed with local fallback |
-| `/system` | service nodes, pipeline state, API usage | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage` | connected/partial | Redis probe and worker heartbeat are wired; real API daily counter and latency probe still need backend fields |
+| `/system` | service nodes, pipeline state, API usage, scan stability | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage`, `scanStability` | connected/partial | Redis probe, worker heartbeat, API usage and latency probes are wired; status depends on live runtime |
 | `/login` | gate UI | `/api/auth/session` | connected/optional | server private mode is disabled by default; enable with env vars before exposing the personal site |
 
 ## Radar Contract Field Map
@@ -66,7 +67,9 @@ active market pages must not use them as fact sources.
 | `petBackendStatus` | derived from system, scan, signal, review state | partial | pet remains UI behavior; no market decision authority |
 | `radarSignals` | `snapshot.signals` through signal mapper | connected | source of maturity pool and trade-ready sniper board |
 | `macroAltEnv` | `backend.sourceAudit.macroMarket` | connected/partial | BTC.D/TOTAL2/TOTAL3 only if backend snapshot has them |
-| `derivatives` | `snapshot.derivatives` aggregate | partial | OI/funding/long-short connected; `takerBuySell` placeholder `0` |
+| `derivatives` | `snapshot.derivatives` aggregate | partial | OI/funding/long-short connected; `takerBuySellStatus=not_connected` until a true source exists |
+| `fundFlow` | current derivative context + explicit missing source metadata | partial | UI may show context only; cannot create trade signals and must expose missing taker/CVD/real flow |
+| `scanStability` | `backend.runtime.scanStability` from archives, coverage and runtime probes | connected | operations diagnostic only; cannot generate trade signals |
 | `serviceNodes` | `backend.runtime.runtimeProbes`, repository mode and web runtime | connected/partial | Redis and worker heartbeat probes are wired; status depends on live worker reports and Redis availability |
 
 ## Leaderboard Contract Field Map
@@ -99,7 +102,7 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | `tradePlan` | `strategyV3.tradePlan` | connected/partial | eligible v3 plans map to entry/stop/TP/RR; missing or blocked plans render no trade plan |
 | `aiReview` | rule-based review boundary text and model counter-evidence review | connected/partial | AI review is env-gated, high-value only, evidence-id bound, and cannot override strategy |
 | K-line panel | `/api/frontend/kline-contract` + `buildFrontendKlineContract()` from public OHLCV/cache | connected | maps backend candles to front chart candles; no generated candles |
-| fund flow panel | none currently | not connected | must wire real flow/source or honest waiting state |
+| fund flow panel | `RadarContract.fundFlow` | partial | shows honest waiting/partial state until a real taker/CVD/source is connected |
 
 ## Review Contract Field Map
 
@@ -109,6 +112,8 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | `strategyArchetypes` | business capability stages | connected/partial | describes capability buckets, not true win rate until enough outcomes |
 | `missedDetections` | selected journal review events | partial | needs more outcome samples and missed-opportunity ingestion |
 | `evolutionSuggestions` | business capability next actions/gaps | connected/partial | suggestions are read-only; must not auto-change live weights |
+| `reviewStats` | `backend.analysis.reviewStatistics` from journal outcome samples | connected/partial | sample-size aware; research only, no auto weight changes |
+| `aiReviewStats` | `snapshot.signals[].aiReview` | connected/partial | evidence-id-bound review count; AI cannot override strategy |
 
 ## Manual Journal Contract Field Map
 
@@ -134,8 +139,8 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 
 These are the current high-priority backend gaps for complete frontend wiring:
 
-1. True SSE/WebSocket frontend event stream if the frontend needs push delivery instead of polling `/api/frontend/live-events`.
-2. Fund-flow panel real source.
+1. Fund-flow panel real source for taker buy/sell, CVD proxy, or another stable free/paid flow feed.
+2. Frontend visual consumption of `scanStability`, `reviewStats`, `aiReviewStats`, and `fundFlow` where the imported UI exposes a matching area.
 
 Completed system probes:
 
@@ -143,6 +148,7 @@ Completed system probes:
 - CoinGlass Redis daily usage counter is connected through `readConfiguredApiObservabilityReport`.
 - Binance/OKX/Bybit/CoinGlass source latency probes are connected through Redis-backed source latency probes.
 - `/api/frontend/live-events` exposes read-only archive/runtime events and never triggers scans.
+- `/api/frontend/live-events/stream` exposes the same read-only event contract over SSE; it never triggers scans and never calls CoinGlass.
 - `/api/frontend/ui-state` persists pet/easter/frontend preferences in `frontend_ui_states` as UI-only data.
 - `/api/auth/session` provides optional private mode with signed HTTP-only cookie sessions.
 - Real AI review adapter is wired as an optional, evidence-id-bound reviewer; it cannot override the strategy engine.
@@ -154,8 +160,9 @@ Completed system probes:
 ## Next Build Order
 
 1. Frontend consumption check: make sure the imported UI calls every connected contract without falling back to active mock market facts.
-2. Server deployment migration: run schema migration so `frontend_ui_states` is present on the Tencent Postgres container.
-3. Remaining market fact gaps: fund-flow source and true SSE/WebSocket frontend event stream.
+2. Server deployment migration: run schema migration so `frontend_ui_states` and all current persistence tables are present on the Tencent Postgres container.
+3. Production verification: run `deploy/scripts/production-full-verify.sh` after each server deployment.
+4. Remaining market fact gap: fund-flow source. Until a stable source exists, keep `fundFlow` partial/waiting.
 
 Do not start refinement or visual polish until these data connections are either
 connected or explicitly represented as honest partial/empty states.

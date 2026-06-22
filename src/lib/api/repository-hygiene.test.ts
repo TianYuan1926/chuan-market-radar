@@ -180,6 +180,7 @@ test("v0 frontend shell is restored without touching backend API routes", () => 
     "src/app/api/frontend/kline-contract/route.ts",
     "src/app/api/frontend/journal-contract/route.ts",
     "src/app/api/frontend/live-events/route.ts",
+    "src/app/api/frontend/live-events/stream/route.ts",
     "src/app/api/frontend/ui-state/route.ts",
   ];
 
@@ -237,6 +238,15 @@ test("frontend contract routes are read-only and cannot trigger scans", () => {
   assert.match(liveEventsSource, /buildFrontendLiveEvents/, `${liveEventsRoute} must use the archive event contract`);
   assert.match(liveEventsSource, /x-chuan-triggered-scan/);
   assert.doesNotMatch(liveEventsSource, /getReadableMarketRadarSnapshot|refreshMarketRadarSnapshot/, `${liveEventsRoute} must not start scan refreshes`);
+
+  const liveEventsStreamRoute = "src/app/api/frontend/live-events/stream/route.ts";
+  const liveEventsStreamSource = readFileSync(resolve(process.cwd(), liveEventsStreamRoute), "utf8");
+
+  assert.match(liveEventsStreamSource, /text\/event-stream/, `${liveEventsStreamRoute} must be an SSE stream`);
+  assert.match(liveEventsStreamSource, /buildFrontendLiveEvents/, `${liveEventsStreamRoute} must reuse the archive event contract`);
+  assert.match(liveEventsStreamSource, /x-chuan-triggered-scan/);
+  assert.match(liveEventsStreamSource, /request\.signal/);
+  assert.doesNotMatch(liveEventsStreamSource, /getReadableMarketRadarSnapshot|refreshMarketRadarSnapshot|COINGLASS_API_KEY/, `${liveEventsStreamRoute} must not start scans or read provider secrets`);
 
   const uiStateRoute = "src/app/api/frontend/ui-state/route.ts";
   const uiStateSource = readFileSync(resolve(process.cwd(), uiStateRoute), "utf8");
@@ -485,14 +495,18 @@ test("frontend backend field map records current wiring gaps before refinement",
 
   assert.match(fieldMap, /K-line panel[\s\S]+buildFrontendKlineContract/);
   assert.match(fieldMap, /fund-flow panel is still an honest waiting state/);
+  assert.match(fieldMap, /fundFlow[\s\S]+partial/);
+  assert.match(fieldMap, /scanStability[\s\S]+operations diagnostic only/);
+  assert.match(fieldMap, /reviewStats[\s\S]+sample-size aware/);
   assert.match(fieldMap, /strategyV3\.tradePlan/);
   assert.match(fieldMap, /missing or blocked plans render no trade plan/);
   assert.match(fieldMap, /Manual Journal Contract Field Map/);
   assert.match(fieldMap, /\/api\/frontend\/journal-contract/);
   assert.match(fieldMap, /rankDelta=0/);
   assert.match(fieldMap, /Redis health probe and worker heartbeat probe/);
-  assert.match(fieldMap, /SSE\/WebSocket frontend event stream/);
-  assert.match(fieldMap, /Real AI review adapter/);
+  assert.match(fieldMap, /\/api\/frontend\/live-events\/stream/);
+  assert.match(fieldMap, /SSE transport is available/);
+  assert.match(fieldMap, /AI counter-evidence review is evidence-id bound/);
 
   assert.match(integrationPlan, /docs\/frontend-backend-field-map\.md/);
   assert.match(integrationPlan, /当前已经完成的基础/);
@@ -501,6 +515,9 @@ test("frontend backend field map records current wiring gaps before refinement",
   assert.match(integrationPlan, /\/api\/frontend\/kline-contract/);
   assert.match(integrationPlan, /\/api\/frontend\/journal-contract/);
   assert.match(integrationPlan, /\/api\/frontend\/live-events/);
+  assert.match(integrationPlan, /\/api\/frontend\/live-events\/stream/);
+  assert.match(integrationPlan, /RadarContract\.scanStability/);
+  assert.match(integrationPlan, /ReviewContract\.reviewStats/);
   assert.match(integrationPlan, /\/api\/frontend\/ui-state/);
   assert.match(integrationPlan, /\/api\/auth\/session/);
 });
@@ -705,4 +722,38 @@ test("frontend contract pages render dynamically instead of freezing build-time 
     const source = readFileSync(resolve(process.cwd(), pagePath), "utf8");
     assert.match(source, /export const dynamic = ['"]force-dynamic['"]/, `${pagePath} must not prerender stale contract data`);
   }
+});
+
+test("single-server deployment scripts expose current runtime contracts and recovery commands", () => {
+  const composeSource = readFileSync(resolve(process.cwd(), "docker-compose.yml"), "utf8");
+  const bootstrapSource = readFileSync(resolve(process.cwd(), "deploy/scripts/bootstrap-prod-env.sh"), "utf8");
+  const verifyPath = "deploy/scripts/production-full-verify.sh";
+  const restorePath = "deploy/scripts/restore-postgres.sh";
+  const verifySource = readFileSync(resolve(process.cwd(), verifyPath), "utf8");
+  const restoreSource = readFileSync(resolve(process.cwd(), restorePath), "utf8");
+
+  for (const token of [
+    "FRONTEND_LIVE_EVENTS_RATE_LIMIT",
+    "FRONTEND_UI_STATE_RATE_LIMIT",
+    "FRONTEND_UI_STATE_MAX_BYTES",
+    "AUTH_SESSION_RATE_LIMIT",
+    "CHUAN_PRIVATE_MODE_ENABLED",
+    "CHUAN_SESSION_SECRET",
+    "WORKER_HEARTBEAT_TTL_SECONDS",
+    "WORKER_HEARTBEAT_STALE_SECONDS",
+  ]) {
+    assert.match(composeSource, new RegExp(token), `docker-compose.yml missing ${token}`);
+    assert.match(bootstrapSource, new RegExp(token), `bootstrap-prod-env.sh missing ${token}`);
+  }
+
+  assert.equal(existsSync(resolve(process.cwd(), verifyPath)), true, `${verifyPath} must exist`);
+  assert.equal(existsSync(resolve(process.cwd(), restorePath)), true, `${restorePath} must exist`);
+  assert.match(verifySource, /scanStability/);
+  assert.match(verifySource, /reviewStatistics/);
+  assert.match(verifySource, /\/api\/frontend\/live-events/);
+  assert.match(verifySource, /backup-postgres\.sh/);
+  assert.match(restoreSource, /CONFIRM_RESTORE=yes/);
+  assert.match(restoreSource, /pg_restore/);
+  assert.doesNotMatch(verifySource, /COINGLASS_API_KEY=.*echo|AI_API_KEY=.*echo/);
+  assert.doesNotMatch(restoreSource, /POSTGRES_PASSWORD=.*echo/);
 });

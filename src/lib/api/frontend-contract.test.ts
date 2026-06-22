@@ -190,6 +190,32 @@ function backendContract(): BackendContract {
         staleAfterSeconds: 900,
         workers: [],
       },
+      scanStability: {
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        guardrail: "扫描稳定性报告只用于运维诊断；不能直接生成交易信号。",
+        issues: [],
+        rotation: {
+          coveragePercent: 42,
+          eligibleAssets: 720,
+          estimatedFullCycleMinutes: 450,
+          pendingAssets: 696,
+          scannedAssets: 24,
+        },
+        runtime: {
+          redisStatus: "healthy",
+          workerDown: 0,
+          workerHealthy: 0,
+          workerTotal: 0,
+        },
+        score: 100,
+        status: "healthy",
+        summary: "扫描链路健康，覆盖、归档和 worker 心跳可用。",
+        trend: {
+          recentArchives: 1,
+          recentFailures: 0,
+          recentSuccesses: 1,
+        },
+      },
       sourceLatency: {
         generatedAt: "2026-06-21T08:00:00.000Z",
         probes: [],
@@ -366,6 +392,36 @@ function backendContract(): BackendContract {
         totalSignals: 1,
         v3Signals: 1,
       },
+      reviewStatistics: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        guardrail: "复盘统计只用于人工校准和回滚验证；不能自动改权重、不能改变实时排序。",
+        mae: {
+          averagePercent: -1.8,
+          maxPercent: 0,
+        },
+        mfe: {
+          averagePercent: 6.4,
+          maxPercent: 6.4,
+        },
+        outcomeBuckets: [],
+        sampleStatus: "collecting",
+        samples: {
+          closed: 0,
+          evidenceLevel: 1,
+          pending: 1,
+          total: 1,
+          tradePlanReady: 0,
+          withMetrics: 1,
+        },
+        summary: "已关闭样本 0 条，仍处于收集阶段，不能据此调整权重。",
+        winRate: {
+          expiredExcludedPercent: null,
+          rawResolvedPercent: null,
+        },
+      },
     },
   } as unknown as BackendContract;
 }
@@ -415,6 +471,13 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.radarSignals.data[0]?.direction, "多");
   assert.equal(radar.radarSignals.data[0]?.maturity, "TRADE_PLAN_READY");
   assert.equal(radar.radarSignals.data[0]?.rr, 3.2);
+  assert.equal(radar.fundFlow.status, "partial");
+  assert.equal(radar.fundFlow.data.canCreateTradeSignal, false);
+  assert.equal(radar.fundFlow.data.takerBuySellAvailable, false);
+  assert.equal(radar.derivatives.data.takerBuySellStatus, "not_connected");
+  assert.equal(radar.scanStability.status, "live");
+  assert.equal(radar.scanStability.data.status, "healthy");
+  assert.match(radar.scanStability.reason ?? "", /不能直接生成交易信号/);
 });
 
 test("buildFrontendRadarContract uses observed CoinGlass usage instead of planned requests", () => {
@@ -880,4 +943,9 @@ test("buildFrontendReviewContract returns review resources from journal and capa
   assert.equal(review.signalLifecycles.data[0]?.symbol, "TIA");
   assert.equal(review.strategyArchetypes.data.length > 0, true);
   assert.equal(review.evolutionSuggestions.data[0]?.adopted, false);
+  assert.equal(review.reviewStats.data.totalSamples, 1);
+  assert.equal(review.reviewStats.data.evidenceSamples, 1);
+  assert.equal(review.reviewStats.data.winRate, null);
+  assert.equal(review.aiReviewStats.data.unboundFallbackProtected, true);
+  assert.match(review.aiReviewStats.reason ?? "", /不替代规则引擎/);
 });
