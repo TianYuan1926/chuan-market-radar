@@ -14,6 +14,7 @@ export type BybitInstrumentRow = {
   quoteCoin?: string;
   status?: string;
   symbol?: string;
+  symbolType?: string;
 };
 
 export type BybitUniverseDiscoveryProviderOptions = {
@@ -59,6 +60,7 @@ export function normalizeBybitInstrument(
   const quoteAsset = normalizeSymbolPart(row.quoteCoin ?? "");
   const contractType = normalizeBybitValue(row.contractType ?? "");
   const status = normalizeBybitValue(row.status ?? "");
+  const symbolType = normalizeBybitValue(row.symbolType ?? "");
 
   if (
     !symbol ||
@@ -66,6 +68,7 @@ export function normalizeBybitInstrument(
     quoteAsset !== "USDT" ||
     contractType !== "LINEARPERPETUAL" ||
     status !== "TRADING" ||
+    symbolType === "STOCK" ||
     symbol !== `${baseAsset}USDT`
   ) {
     return null;

@@ -6,6 +6,7 @@ export const BINANCE_FUTURES_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/
 export type BinanceExchangeInfoSymbol = {
   baseAsset?: string;
   contractType?: string;
+  underlyingType?: string;
   pair?: string;
   quoteAsset?: string;
   status?: string;
@@ -73,12 +74,14 @@ export function normalizeBinanceExchangeInfoSymbol(
   const quoteAsset = normalizeSymbol(row.quoteAsset ?? "");
   const contractType = normalizeSymbol(row.contractType ?? "");
   const status = normalizeSymbol(row.status ?? "");
+  const underlyingType = normalizeSymbol(row.underlyingType ?? "");
 
   if (
     !symbol ||
     !baseAsset ||
     quoteAsset !== "USDT" ||
     status !== "TRADING" ||
+    underlyingType !== "COIN" ||
     isDatedOrDeliverySymbol(symbol, contractType) ||
     symbol !== `${baseAsset}USDT`
   ) {

@@ -17,6 +17,7 @@ test("normalizeBinanceExchangeInfoSymbol accepts active USDT perpetual contracts
     status: "TRADING",
     baseAsset: "ARB",
     quoteAsset: "USDT",
+    underlyingType: "COIN",
   }, observedAt);
 
   assert.deepEqual(instrument, {
@@ -40,6 +41,7 @@ test("normalizeBinanceExchangeInfoSymbol rejects non-USDT inactive or dated cont
     status: "TRADING",
     baseAsset: "BTC",
     quoteAsset: "USD",
+    underlyingType: "COIN",
   }, observedAt), null);
 
   assert.equal(normalizeBinanceExchangeInfoSymbol({
@@ -48,6 +50,7 @@ test("normalizeBinanceExchangeInfoSymbol rejects non-USDT inactive or dated cont
     status: "TRADING",
     baseAsset: "ETH",
     quoteAsset: "USDT",
+    underlyingType: "COIN",
   }, observedAt), null);
 
   assert.equal(normalizeBinanceExchangeInfoSymbol({
@@ -56,6 +59,25 @@ test("normalizeBinanceExchangeInfoSymbol rejects non-USDT inactive or dated cont
     status: "BREAK",
     baseAsset: "OLD",
     quoteAsset: "USDT",
+    underlyingType: "COIN",
+  }, observedAt), null);
+
+  assert.equal(normalizeBinanceExchangeInfoSymbol({
+    symbol: "COHRUSDT",
+    contractType: "TRADIFI_PERPETUAL",
+    status: "TRADING",
+    baseAsset: "COHR",
+    quoteAsset: "USDT",
+    underlyingType: "EQUITY",
+  }, observedAt), null);
+
+  assert.equal(normalizeBinanceExchangeInfoSymbol({
+    symbol: "OPENAIUSDT",
+    contractType: "TRADIFI_PERPETUAL",
+    status: "TRADING",
+    baseAsset: "OPENAI",
+    quoteAsset: "USDT",
+    underlyingType: "PREMARKET",
   }, observedAt), null);
 });
 
@@ -75,6 +97,7 @@ test("createBinanceUniverseDiscoveryProvider fetches normalized USDT perpetual i
             status: "TRADING",
             baseAsset: "ARB",
             quoteAsset: "USDT",
+            underlyingType: "COIN",
           },
           {
             symbol: "BTCUSD_PERP",
@@ -83,6 +106,7 @@ test("createBinanceUniverseDiscoveryProvider fetches normalized USDT perpetual i
             status: "TRADING",
             baseAsset: "BTC",
             quoteAsset: "USD",
+            underlyingType: "COIN",
           },
           {
             symbol: "SOLUSDT",
@@ -91,6 +115,16 @@ test("createBinanceUniverseDiscoveryProvider fetches normalized USDT perpetual i
             status: "TRADING",
             baseAsset: "SOL",
             quoteAsset: "USDT",
+            underlyingType: "COIN",
+          },
+          {
+            symbol: "COHRUSDT",
+            pair: "COHRUSDT",
+            contractType: "TRADIFI_PERPETUAL",
+            status: "TRADING",
+            baseAsset: "COHR",
+            quoteAsset: "USDT",
+            underlyingType: "EQUITY",
           },
         ],
       }));

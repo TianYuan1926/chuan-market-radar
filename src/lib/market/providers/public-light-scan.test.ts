@@ -22,7 +22,20 @@ function response(body: unknown, ok = true, status = 200): Response {
 test("createBinancePublicLightScanProvider converts public futures tickers into light scan candidates", async () => {
   const provider = createBinancePublicLightScanProvider({
     now: () => new Date("2026-06-19T00:00:00.000Z"),
-    fetcher: async () => response([
+    fetcher: async (input) => {
+      if (input.toString().includes("exchangeInfo")) {
+        return response({
+          symbols: [
+            { symbol: "ARBUSDT", contractType: "PERPETUAL", status: "TRADING", baseAsset: "ARB", quoteAsset: "USDT", underlyingType: "COIN" },
+            { symbol: "SUIUSDT", contractType: "PERPETUAL", status: "TRADING", baseAsset: "SUI", quoteAsset: "USDT", underlyingType: "COIN" },
+            { symbol: "NVDAUSDT", contractType: "TRADIFI_PERPETUAL", status: "TRADING", baseAsset: "NVDA", quoteAsset: "USDT", underlyingType: "EQUITY" },
+            { symbol: "ARMUSDT", contractType: "TRADIFI_PERPETUAL", status: "TRADING", baseAsset: "ARM", quoteAsset: "USDT", underlyingType: "EQUITY" },
+            { symbol: "OPENAIUSDT", contractType: "TRADIFI_PERPETUAL", status: "TRADING", baseAsset: "OPENAI", quoteAsset: "USDT", underlyingType: "PREMARKET" },
+          ],
+        });
+      }
+
+      return response([
       {
         symbol: "ARBUSDT",
         lastPrice: "1.2",
@@ -175,7 +188,8 @@ test("createBinancePublicLightScanProvider converts public futures tickers into 
         priceChangePercent: "4",
         quoteVolume: "72000000",
       },
-    ]),
+    ]);
+    },
   });
 
   const result = await provider.scan();
@@ -194,7 +208,17 @@ test("createBinancePublicLightScanProvider converts public futures tickers into 
 test("createBinancePublicLightScanProvider caps overextended 24h movers below compression candidates", async () => {
   const provider = createBinancePublicLightScanProvider({
     now: () => new Date("2026-06-21T00:00:00.000Z"),
-    fetcher: async () => response([
+    fetcher: async (input) => {
+      if (input.toString().includes("exchangeInfo")) {
+        return response({
+          symbols: [
+            { symbol: "MOONUSDT", contractType: "PERPETUAL", status: "TRADING", baseAsset: "MOON", quoteAsset: "USDT", underlyingType: "COIN" },
+            { symbol: "COILUSDT", contractType: "PERPETUAL", status: "TRADING", baseAsset: "COIL", quoteAsset: "USDT", underlyingType: "COIN" },
+          ],
+        });
+      }
+
+      return response([
       {
         symbol: "MOONUSDT",
         lastPrice: "1.35",
@@ -211,7 +235,8 @@ test("createBinancePublicLightScanProvider caps overextended 24h movers below co
         priceChangePercent: "1.2",
         quoteVolume: "32000000",
       },
-    ]),
+    ]);
+    },
   });
 
   const result = await provider.scan();
@@ -239,49 +264,27 @@ test("createOkxPublicLightScanProvider converts public swap tickers into light s
   const provider = createOkxPublicLightScanProvider({
     now: () => new Date("2026-06-20T00:00:00.000Z"),
     fetcher: async (input) => {
-      assert.match(input.toString(), /instType=SWAP/u);
+      const url = input.toString();
+      assert.match(url, /instType=SWAP/u);
+
+      if (url.includes("/public/instruments")) {
+        return response({
+          code: "0",
+          data: [
+            { instCategory: "1", instId: "ARB-USDT-SWAP", instType: "SWAP", settleCcy: "USDT", ctType: "linear", ruleType: "normal", state: "live" },
+            { instCategory: "3", instId: "COHR-USDT-SWAP", instType: "SWAP", settleCcy: "USDT", ctType: "linear", ruleType: "normal", state: "live" },
+            { instCategory: "3", instId: "OPENAI-USDT-SWAP", instType: "SWAP", settleCcy: "USDT", ctType: "linear", ruleType: "pre_market", state: "live" },
+          ],
+        });
+      }
 
       return response({
         code: "0",
         data: [
-          {
-            instCategory: "1",
-            instId: "ARB-USDT-SWAP",
-            last: "1.2",
-            open24h: "1.1",
-            ruleType: "normal",
-            high24h: "1.22",
-            low24h: "1.01",
-            volCcy24h: "35000000",
-          },
-          {
-            instId: "BTC-USDC-SWAP",
-            last: "100",
-            open24h: "99",
-            high24h: "101",
-            low24h: "98",
-            volCcy24h: "1000",
-          },
-          {
-            instCategory: "3",
-            instId: "COHR-USDT-SWAP",
-            last: "85",
-            open24h: "80",
-            ruleType: "normal",
-            high24h: "88",
-            low24h: "78",
-            volCcy24h: "1000000",
-          },
-          {
-            instCategory: "3",
-            instId: "OPENAI-USDT-SWAP",
-            last: "700",
-            open24h: "650",
-            ruleType: "pre_market",
-            high24h: "720",
-            low24h: "640",
-            volCcy24h: "1000000",
-          },
+          { instId: "ARB-USDT-SWAP", last: "1.2", open24h: "1.1", high24h: "1.22", low24h: "1.01", volCcy24h: "35000000" },
+          { instId: "BTC-USDC-SWAP", last: "100", open24h: "99", high24h: "101", low24h: "98", volCcy24h: "1000" },
+          { instId: "COHR-USDT-SWAP", last: "85", open24h: "80", high24h: "88", low24h: "78", volCcy24h: "1000000" },
+          { instId: "OPENAI-USDT-SWAP", last: "700", open24h: "650", high24h: "720", low24h: "640", volCcy24h: "1000000" },
         ],
       });
     },
@@ -302,28 +305,29 @@ test("createBybitPublicLightScanProvider converts public linear tickers into lig
   const provider = createBybitPublicLightScanProvider({
     now: () => new Date("2026-06-20T00:00:00.000Z"),
     fetcher: async (input) => {
-      assert.match(input.toString(), /category=linear/u);
+      const url = input.toString();
+      assert.match(url, /category=linear/u);
+
+      if (url.includes("/instruments-info")) {
+        return response({
+          retCode: 0,
+          result: {
+            list: [
+              { symbol: "MANTAUSDT", baseCoin: "MANTA", quoteCoin: "USDT", contractType: "LinearPerpetual", status: "Trading", symbolType: "innovation" },
+              { symbol: "COHRUSDT", baseCoin: "COHR", quoteCoin: "USDT", contractType: "LinearPerpetual", status: "Trading", symbolType: "stock" },
+            ],
+            nextPageCursor: "",
+          },
+        });
+      }
 
       return response({
         retCode: 0,
         result: {
           list: [
-            {
-              symbol: "MANTAUSDT",
-              lastPrice: "2.4",
-              price24hPcnt: "0.081",
-              highPrice24h: "2.46",
-              lowPrice24h: "2.05",
-              turnover24h: "54000000",
-            },
-            {
-              symbol: "BTCUSDC",
-              lastPrice: "100",
-              price24hPcnt: "0.01",
-              highPrice24h: "101",
-              lowPrice24h: "99",
-              turnover24h: "1000000",
-            },
+            { symbol: "MANTAUSDT", lastPrice: "2.4", price24hPcnt: "0.081", highPrice24h: "2.46", lowPrice24h: "2.05", turnover24h: "54000000" },
+            { symbol: "BTCUSDC", lastPrice: "100", price24hPcnt: "0.01", highPrice24h: "101", lowPrice24h: "99", turnover24h: "1000000" },
+            { symbol: "COHRUSDT", lastPrice: "435", price24hPcnt: "0.11", highPrice24h: "440", lowPrice24h: "380", turnover24h: "8400000" },
           ],
         },
       });
@@ -333,7 +337,7 @@ test("createBybitPublicLightScanProvider converts public linear tickers into lig
   const result = await provider.scan();
 
   assert.equal(result.diagnostics.status, "ready");
-  assert.equal(result.diagnostics.universeCount, 2);
+  assert.equal(result.diagnostics.universeCount, 3);
   assert.equal(result.diagnostics.acceptedCount, 1);
   assert.deepEqual(result.instruments.map((item) => item.symbol), ["MANTAUSDT"]);
   assert.equal(result.instruments[0]?.exchange, "BYBIT");

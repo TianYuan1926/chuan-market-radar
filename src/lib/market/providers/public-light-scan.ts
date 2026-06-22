@@ -5,6 +5,9 @@ import type {
   ScanLightScanDiagnostics,
 } from "../types";
 import { isCryptoFuturesUnderlying } from "../asset-class-filter";
+import { createBinanceUniverseDiscoveryProvider } from "./binance-universe-discovery";
+import { createBybitUniverseDiscoveryProvider } from "./bybit-universe-discovery";
+import { createOkxUniverseDiscoveryProvider } from "./okx-universe-discovery";
 
 export const BINANCE_FUTURES_24H_TICKER_URL = "https://fapi.binance.com/fapi/v1/ticker/24hr";
 export const OKX_PUBLIC_SWAP_TICKERS_URL = "https://www.okx.com/api/v5/market/tickers";
@@ -68,6 +71,13 @@ export type CompositePublicLightScanProviderOptions = {
   providers?: PublicLightScanProvider[];
 };
 
+type AllowedSymbolDiscovery = {
+  notes: string[];
+  requestCount: number;
+  symbols: Set<string>;
+  universeCount: number;
+};
+
 function finiteNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
 
@@ -87,6 +97,27 @@ function isUsdtPerpLikeSymbol(symbol: string) {
     !symbol.includes("_") &&
     symbol.length > 4 &&
     isCryptoFuturesUnderlying(symbol);
+}
+
+async function discoverAllowedSymbols({
+  label,
+  provider,
+}: {
+  label: string;
+  provider: ReturnType<typeof createBinanceUniverseDiscoveryProvider>;
+}): Promise<AllowedSymbolDiscovery> {
+  const discovery = await provider.discoverInstruments();
+
+  if (!discovery.ok) {
+    throw new Error(`${label} discovery failed: ${discovery.error}`);
+  }
+
+  return {
+    notes: discovery.notes ?? [],
+    requestCount: discovery.requestCount ?? 0,
+    symbols: new Set(discovery.instruments.map((instrument) => instrument.symbol)),
+    universeCount: discovery.instruments.length,
+  };
 }
 
 function volatilityPercent(high: number, low: number, price: number) {
@@ -349,6 +380,10 @@ export function createBinancePublicLightScanProvider({
       const startedAt = now().toISOString();
 
       try {
+        const discovery = await discoverAllowedSymbols({
+          label: "binance",
+          provider: createBinanceUniverseDiscoveryProvider({ fetcher, now }),
+        });
         const response = await fetcher(baseUrl);
 
         if (!response.ok) {
@@ -397,7 +432,9 @@ export function createBinancePublicLightScanProvider({
               ? tickerFromRow(row as BinanceFutures24hTickerRow, startedAt)
               : null
           ))
-          .filter((ticker): ticker is MarketTicker => ticker !== null);
+          .filter((ticker): ticker is MarketTicker =>
+            ticker !== null && discovery.symbols.has(ticker.symbol)
+          );
         const candidates = tickers
           .map(candidateFromTicker)
           .filter((candidate) => candidate.state !== "COLD")
@@ -410,8 +447,12 @@ export function createBinancePublicLightScanProvider({
             acceptedCount: tickers.length,
             candidateCount: candidates.length,
             generatedAt: startedAt,
-            notes: [`public light scan accepted ${tickers.length}/${payload.length} USDT perpetual tickers`],
-            requestCount: 1,
+            notes: [
+              `public light scan accepted ${tickers.length}/${payload.length} Binance USDT perpetual tickers`,
+              `classified universe ${discovery.universeCount} crypto instruments`,
+              ...discovery.notes,
+            ],
+            requestCount: discovery.requestCount + 1,
             source,
             status: tickers.length > 0 ? "ready" : "partial",
             topCandidates: candidates.slice(0, 16),
@@ -457,18 +498,7 @@ function okxSymbolFromInstId(instId: string) {
   return match?.[1] ? `${match[1]}USDT` : "";
 }
 
-function isOkxCryptoSwapTicker(row: OkxSwapTickerRow) {
-  const instCategory = String(row.instCategory ?? "").trim();
-  const ruleType = String(row.ruleType ?? "").trim().toLowerCase();
-
-  return instCategory === "1" && ruleType !== "pre_market";
-}
-
 function tickerFromOkxRow(row: OkxSwapTickerRow, updatedAt: string): MarketTicker | null {
-  if (!isOkxCryptoSwapTicker(row)) {
-    return null;
-  }
-
   const symbol = okxSymbolFromInstId(row.instId ?? "");
 
   if (!isUsdtPerpLikeSymbol(symbol)) {
@@ -513,6 +543,10 @@ export function createOkxPublicLightScanProvider({
       const startedAt = now().toISOString();
 
       try {
+        const discovery = await discoverAllowedSymbols({
+          label: "okx",
+          provider: createOkxUniverseDiscoveryProvider({ fetcher, now }),
+        });
         const response = await fetcher(buildOkxTickersUrl(baseUrl));
 
         if (!response.ok) {
@@ -585,7 +619,9 @@ export function createOkxPublicLightScanProvider({
               ? tickerFromOkxRow(row as OkxSwapTickerRow, startedAt)
               : null
           ))
-          .filter((ticker): ticker is MarketTicker => ticker !== null);
+          .filter((ticker): ticker is MarketTicker =>
+            ticker !== null && discovery.symbols.has(ticker.symbol)
+          );
         const candidates = tickers
           .map(candidateFromTicker)
           .filter((candidate) => candidate.state !== "COLD")
@@ -598,8 +634,12 @@ export function createOkxPublicLightScanProvider({
             acceptedCount: tickers.length,
             candidateCount: candidates.length,
             generatedAt: startedAt,
-            notes: [`public light scan accepted ${tickers.length}/${payload.data.length} OKX USDT swap tickers`],
-            requestCount: 1,
+            notes: [
+              `public light scan accepted ${tickers.length}/${payload.data.length} OKX USDT swap tickers`,
+              `classified universe ${discovery.universeCount} crypto instruments`,
+              ...discovery.notes,
+            ],
+            requestCount: discovery.requestCount + 1,
             source,
             status: tickers.length > 0 ? "ready" : "partial",
             topCandidates: candidates.slice(0, 16),
@@ -681,6 +721,10 @@ export function createBybitPublicLightScanProvider({
       const startedAt = now().toISOString();
 
       try {
+        const discovery = await discoverAllowedSymbols({
+          label: "bybit",
+          provider: createBybitUniverseDiscoveryProvider({ fetcher, now }),
+        });
         const response = await fetcher(buildBybitTickersUrl(baseUrl));
 
         if (!response.ok) {
@@ -756,7 +800,9 @@ export function createBybitPublicLightScanProvider({
               ? tickerFromBybitRow(row as BybitLinearTickerRow, startedAt)
               : null
           ))
-          .filter((ticker): ticker is MarketTicker => ticker !== null);
+          .filter((ticker): ticker is MarketTicker =>
+            ticker !== null && discovery.symbols.has(ticker.symbol)
+          );
         const candidates = tickers
           .map(candidateFromTicker)
           .filter((candidate) => candidate.state !== "COLD")
@@ -769,8 +815,12 @@ export function createBybitPublicLightScanProvider({
             acceptedCount: tickers.length,
             candidateCount: candidates.length,
             generatedAt: startedAt,
-            notes: [`public light scan accepted ${tickers.length}/${payload.result.list.length} Bybit USDT linear tickers`],
-            requestCount: 1,
+            notes: [
+              `public light scan accepted ${tickers.length}/${payload.result.list.length} Bybit USDT linear tickers`,
+              `classified universe ${discovery.universeCount} crypto instruments`,
+              ...discovery.notes,
+            ],
+            requestCount: discovery.requestCount + 1,
             source,
             status: tickers.length > 0 ? "ready" : "partial",
             topCandidates: candidates.slice(0, 16),

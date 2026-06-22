@@ -16,6 +16,7 @@ test("normalizeBybitInstrument accepts trading USDT linear perpetual contracts",
     quoteCoin: "USDT",
     contractType: "LinearPerpetual",
     status: "Trading",
+    symbolType: "innovation",
   }, observedAt);
 
   assert.deepEqual(instrument, {
@@ -39,6 +40,7 @@ test("normalizeBybitInstrument rejects non-USDT inactive or dated contracts", ()
     quoteCoin: "USD",
     contractType: "InversePerpetual",
     status: "Trading",
+    symbolType: "",
   }, observedAt), null);
 
   assert.equal(normalizeBybitInstrument({
@@ -47,6 +49,7 @@ test("normalizeBybitInstrument rejects non-USDT inactive or dated contracts", ()
     quoteCoin: "USDT",
     contractType: "LinearPerpetual",
     status: "Settling",
+    symbolType: "",
   }, observedAt), null);
 
   assert.equal(normalizeBybitInstrument({
@@ -55,6 +58,16 @@ test("normalizeBybitInstrument rejects non-USDT inactive or dated contracts", ()
     quoteCoin: "USDT",
     contractType: "LinearFutures",
     status: "Trading",
+    symbolType: "",
+  }, observedAt), null);
+
+  assert.equal(normalizeBybitInstrument({
+    symbol: "COHRUSDT",
+    baseCoin: "COHR",
+    quoteCoin: "USDT",
+    contractType: "LinearPerpetual",
+    status: "Trading",
+    symbolType: "stock",
   }, observedAt), null);
 });
 
@@ -78,6 +91,15 @@ test("createBybitUniverseDiscoveryProvider fetches paginated normalized USDT per
                 quoteCoin: "USDT",
                 contractType: "LinearPerpetual",
                 status: "Trading",
+                symbolType: "",
+              },
+              {
+                symbol: "ADBEUSDT",
+                baseCoin: "ADBE",
+                quoteCoin: "USDT",
+                contractType: "LinearPerpetual",
+                status: "Trading",
+                symbolType: "stock",
               },
             ],
             nextPageCursor: "",
@@ -93,10 +115,11 @@ test("createBybitUniverseDiscoveryProvider fetches paginated normalized USDT per
             {
               symbol: "ARBUSDT",
               baseCoin: "ARB",
-              quoteCoin: "USDT",
-              contractType: "LinearPerpetual",
-              status: "Trading",
-            },
+            quoteCoin: "USDT",
+            contractType: "LinearPerpetual",
+            status: "Trading",
+            symbolType: "innovation",
+          },
             {
               symbol: "BTCUSD",
               baseCoin: "BTC",
