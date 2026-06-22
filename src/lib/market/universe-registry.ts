@@ -390,6 +390,10 @@ export function buildUniverseRegistry(
   });
 
   for (const instrument of observedInstruments) {
+    if (!isCryptoFuturesUnderlying(instrument.baseAsset) || !isCryptoFuturesUnderlying(instrument.symbol)) {
+      continue;
+    }
+
     const rejectionReason = instrumentRejectionReason(instrument);
 
     if (rejectionReason) {

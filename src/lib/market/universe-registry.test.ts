@@ -160,6 +160,22 @@ test("buildUniverseRegistry marks unsupported observed instruments as skipped", 
   );
 });
 
+test("buildUniverseRegistry hard-drops non-crypto observed instruments from assets and skipped proof", () => {
+  const registry = buildUniverseRegistry([], [
+    instrument("SUI"),
+    instrument("QCOM"),
+    instrument("ARM"),
+    instrument("SPY"),
+  ]);
+
+  assert.deepEqual(
+    registry.assets.map((asset) => asset.symbol),
+    ["BTCUSDT", "ETHUSDT", "SUIUSDT"],
+  );
+  assert.deepEqual(registry.skipped, []);
+  assert.equal(registry.summary.skipped, 0);
+});
+
 test("planUniverseScan pins anchors and rotates the remaining priority assets", () => {
   const registry = buildUniverseRegistry(
     ["ENA", "SUI", "ONDO", "TIA"],
