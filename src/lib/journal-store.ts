@@ -4,10 +4,11 @@
 // 交易日记存储
 //   记录每一笔真实开仓：币种 / 方向 / 杠杆 / 初始保证金 / 价格 / 截图
 //   仓位按「初始保证金 × 杠杆」计算，盈亏比由开仓/止损/目标价自动推导。
-//   持久化在 localStorage（演示用）。接入后端时：
+//   当前持久化在 localStorage，属于用户本机输入的 UI 状态。
+//   接入后端时：
 //     loadEntries() → 改为 GET 你的接口
 //     saveEntries() → 改为 POST 你的接口
-//     图片建议改为上传至对象存储（如 Vercel Blob），此处仅存 base64
+//     图片建议改为上传至对象存储，此处仅存 base64
 // ============================================================
 import { useSyncExternalStore } from 'react'
 
@@ -36,55 +37,22 @@ export type TradeJournal = {
 }
 
 const STORAGE_KEY = 'chuanscan_journal_v2'
-
-// 预置两条示例，帮助用户理解格式（用户新增的会排在最前）
-const SEED: TradeJournal[] = [
-  {
-    id: 'seed-1',
-    symbol: 'DOGS',
-    side: 'long',
-    leverage: 10,
-    margin: 500,
-    entry: 0.0392,
-    stop: 0.0361,
-    target: 0.052,
-    status: '持仓中',
-    note: '突破回踩入场，量能配合良好，已移动止损至成本。',
-    images: [],
-    createdAt: Date.now() - 1000 * 60 * 60 * 6,
-  },
-  {
-    id: 'seed-2',
-    symbol: 'WIF',
-    side: 'short',
-    leverage: 5,
-    margin: 800,
-    entry: 1.82,
-    stop: 1.91,
-    target: 1.65,
-    status: '已平仓',
-    note: '跌破结构入场，到达 T1 减仓，结构走完离场。',
-    images: [],
-    createdAt: Date.now() - 1000 * 60 * 60 * 20,
-    exitPrice: 1.66,
-    result: 'win',
-    closeNote: '到达目标位附近止盈，结构走完离场。',
-    closedAt: Date.now() - 1000 * 60 * 60 * 14,
-  },
-]
+const LEGACY_SEED_IDS = new Set(['seed-1', 'seed-2'])
 
 let entries: TradeJournal[] | null = null
 const listeners = new Set<() => void>()
 
 function loadEntries(): TradeJournal[] {
-  if (typeof window === 'undefined') return SEED
+  if (typeof window === 'undefined') return []
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return SEED
+    if (!raw) return []
     const parsed = JSON.parse(raw) as TradeJournal[]
-    return Array.isArray(parsed) ? parsed : SEED
+    return Array.isArray(parsed)
+      ? parsed.filter((entry) => !LEGACY_SEED_IDS.has(entry.id))
+      : []
   } catch {
-    return SEED
+    return []
   }
 }
 
@@ -111,7 +79,9 @@ export function addJournalEntry(data: Omit<TradeJournal, 'id' | 'createdAt'>) {
   ensureHydrated()
   const entry: TradeJournal = {
     ...data,
-    id: `j-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? `j-${crypto.randomUUID()}`
+      : `j-${Date.now()}`,
     createdAt: Date.now(),
   }
   entries = [entry, ...(entries ?? [])]
@@ -178,7 +148,7 @@ function getSnapshot(): TradeJournal[] {
   return entries as TradeJournal[]
 }
 
-const SERVER_SNAPSHOT: TradeJournal[] = SEED
+const SERVER_SNAPSHOT: TradeJournal[] = []
 
 /** 订阅交易日记列表 */
 export function useJournal(): TradeJournal[] {

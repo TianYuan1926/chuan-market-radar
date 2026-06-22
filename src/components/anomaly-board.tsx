@@ -21,12 +21,12 @@ import { useLiveQuote, usePrimeLiveQuotes } from '@/lib/live-store'
 import { useLatestSignal } from '@/lib/signal-feed'
 import {
   fmtUsd,
-  fmtCap,
   POOL_META,
   type SignalCard,
   type SignalType,
   type PoolStatus,
 } from '@/lib/mock-data'
+import { fmtKnownCap } from '@/lib/display-format'
 import { cn } from '@/lib/utils'
 
 const TYPE_META: Record<SignalType, { label: string; cssVar: string }> = {
@@ -48,8 +48,8 @@ const POOL_TONE: Record<string, string> = {
 
 const FILTERS: { id: PoolStatus | 'all'; label: string; hint?: string }[] = [
   { id: 'all', label: '全部候选' },
-  { id: 'long', label: '多头候选', hint: '趋势结构偏多、量价配合，AI 倾向做多的优质机会' },
-  { id: 'short', label: '空头候选', hint: '动能衰减或破位，AI 倾向做空的机会' },
+  { id: 'long', label: '多头候选', hint: '趋势结构偏多、量价配合，后端证据倾向做多的候选' },
+  { id: 'short', label: '空头候选', hint: '动能衰减或破位，后端证据倾向做空的候选' },
   { id: 'waiting', label: '等待确认', hint: '信号雏形已现，等待放量/突破等确认条件' },
   { id: 'near', label: '接近触发', hint: '距入场触发条件已非常接近，请重点关注' },
   { id: 'high_risk', label: '高风险勿追', hint: '高位资金拥挤、风险极高，建议规避而非追入' },
@@ -427,7 +427,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                     </span>
                   </div>
                   <span className="text-right font-mono text-muted-foreground">
-                    {fmtCap(t.marketCap)}
+                    {fmtKnownCap(t.marketCap)}
                   </span>
                   <span className="text-center font-mono text-foreground">
                     {card.shortAnomaly}
@@ -530,7 +530,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       </dl>
                       <p className="mt-2 flex items-start gap-1 text-[11px] text-muted-foreground">
                         <Shield className="mt-0.5 size-3 shrink-0" />
-                        策略为 AI 模拟推演，仅供参考，不构成投资建议。
+                        策略来自后端结构化研究输出，仅供参考，不构成投资建议。
                       </p>
                     </div>
                   </div>

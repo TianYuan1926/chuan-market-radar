@@ -1,12 +1,12 @@
 'use client'
 
-import { getTokens, type Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/mock-data'
 import { TokenAvatar } from './token-avatar'
 import { LiveQuotePrice, LiveQuotePct } from './live-value'
 import { usePrimeLiveQuotes } from '@/lib/live-store'
 
 export function PriceTicker({ tokens }: { tokens?: Token[] }) {
-  const tokenRows = tokens ?? getTokens()
+  const tokenRows = tokens ?? []
   usePrimeLiveQuotes(tokenRows)
   const tokensToShow = tokenRows.slice(0, 24)
   const row = [...tokensToShow, ...tokensToShow]

@@ -19,6 +19,7 @@ import {
   radarSignalsToFeedSignals,
   radarSignalsToTokens,
 } from '@/lib/frontend-display-adapters'
+import { fmtKnownCap } from '@/lib/display-format'
 import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -54,7 +55,7 @@ export default async function TokenPage({
   const up = token.change24h >= 0
 
   const facts: [string, string][] = [
-    ['市值', `$${fmtCap(token.marketCap)}`],
+    ['市值', fmtKnownCap(token.marketCap, { prefix: '$' })],
     ['24H 成交额', `$${fmtCap(token.volume24h)}`],
     ['异动强度', `${token.anomalyScore}/100`],
     ['趋势方向', token.trend === 'bull' ? '偏多' : token.trend === 'bear' ? '偏空' : '震荡'],

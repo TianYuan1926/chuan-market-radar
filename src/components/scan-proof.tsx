@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { Radar, Layers, Clock } from 'lucide-react'
 import {
-  getScanState,
-  getExchangeCoverage,
   fmtCap,
   type ScanState,
   type ExchangeStatus,
@@ -30,6 +28,20 @@ const STATUS_LABEL: Record<ExchangeStatus['status'], string> = {
   down: '离线',
 }
 
+const EMPTY_SCAN: ScanState = {
+  coverage: 0,
+  scanned: 0,
+  pending: 0,
+  total: 0,
+  batch: 1,
+  totalBatches: 1,
+  nextBatchSec: 0,
+  budgetUsed: 0,
+  budgetTotal: 1,
+  freshnessSec: 0,
+  mode: '轻扫',
+}
+
 export function ScanProof({
   scanProof,
   dataSources,
@@ -41,13 +53,13 @@ export function ScanProof({
 } = {}) {
   const scan: ScanState = scanProof
     ? scanProofResourceToScanState(scanProof, apiUsage)
-    : getScanState()
+    : EMPTY_SCAN
   const exchanges = dataSources
     ? dataSourcesResourceToExchangeCoverage(dataSources)
-    : getExchangeCoverage()
+    : []
   const [countdown, setCountdown] = useState(scan.nextBatchSec)
 
-  // 实时跳动（演示用；对接后端时换成真实推送值）
+  // Only mirrors backend values. No generated market movement.
   const liveCoverage = useLiveNumber(scan.coverage, {
     volatility: 0.012,
     intervalMs: 2600,

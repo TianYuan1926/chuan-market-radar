@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getTokens, type Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/mock-data'
 import { LiveQuotePct } from './live-value'
 import { usePrimeLiveQuotes } from '@/lib/live-store'
 import { cn } from '@/lib/utils'
@@ -50,7 +50,7 @@ export function SessionBar({ tokens }: { tokens?: Token[] }) {
     return () => clearInterval(id)
   }, [])
 
-  const tokenRows = tokens ?? getTokens()
+  const tokenRows = tokens ?? []
   usePrimeLiveQuotes(tokenRows)
   const gainers = [...tokenRows]
     .filter((t) => t.change24h > 0)

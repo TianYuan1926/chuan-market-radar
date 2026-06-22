@@ -10,7 +10,6 @@ import {
 } from '@/lib/pet-brain'
 import { RankBadge } from './rank-badge'
 import { playSound } from '@/lib/sound'
-import { startTrainingEngine } from '@/lib/training-engine'
 import { cn } from '@/lib/utils'
 
 const MOOD_TONE: Record<PetMood, string> = {
@@ -60,9 +59,6 @@ export function PetRobot() {
 
   useEffect(() => {
     setMounted(true)
-    // 启动全局常驻判断训练引擎：跨页面、跨标签全时运行，
-    // 川宝在任意页面都会对评判结果做出反应。
-    startTrainingEngine()
   }, [])
 
   // 初始化位置（右下角）+ 监听 resize 夹取

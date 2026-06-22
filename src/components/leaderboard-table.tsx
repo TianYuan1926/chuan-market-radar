@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TokenAvatar } from './token-avatar'
 import { LiveQuotePrice, LiveQuotePct, LiveStat } from './live-value'
 import { fmtCap, type Token } from '@/lib/mock-data'
+import { fmtKnownCap, hasKnownPositiveValue } from '@/lib/display-format'
 import { usePrimeLiveQuotes, type LiveQuote } from '@/lib/live-store'
 import { cn } from '@/lib/utils'
 
@@ -123,12 +124,16 @@ export function LeaderboardTable({ tokens }: { tokens: Token[] }) {
                   <LiveQuotePrice id={t.id} />
                 </td>
                 <td className="px-4 py-3 font-mono text-muted-foreground">
-                  <LiveStat
-                    base={t.marketCap}
-                    format={fmtCap}
-                    volatility={0.004}
-                    flash={false}
-                  />
+                  {hasKnownPositiveValue(t.marketCap) ? (
+                    <LiveStat
+                      base={t.marketCap}
+                      format={fmtCap}
+                      volatility={0.004}
+                      flash={false}
+                    />
+                  ) : (
+                    <span>{fmtKnownCap(t.marketCap)}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 font-mono text-muted-foreground">
                   <LiveStat

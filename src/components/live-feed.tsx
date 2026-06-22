@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
 import { Radio } from 'lucide-react'
 import type { SignalCard, SignalType } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
@@ -15,17 +14,17 @@ const TYPE_VAR: Record<SignalType, string> = {
   CRASH: '--sig-crash',
 }
 
-const ALERT_TEXT: Record<SignalType, (s: string) => string> = {
-  PUMP: () => `暴涨放量，量能 ×8 倍`,
-  WHALE: () => `巨鲸入场 $3,280 万`,
-  LIQ: () => `空单爆仓 $4,200 万`,
-  BREAK: () => `突破关键阻力，放量`,
-  FLOW: () => `链上净流入持续增加`,
-  CRASH: () => `盘口买盘撤离，警惕闪崩`,
+const ALERT_TEXT: Record<SignalType, (card: SignalCard) => string> = {
+  PUMP: (card) => `量能异动 ${card.volMult.toFixed(1)}x，等待证据链确认`,
+  WHALE: (card) => `${card.poolStatus === 'waiting' ? '深扫候选' : '衍生品复核'} · ${card.desc}`,
+  LIQ: (card) => `风险拥挤提示 · ${card.desc}`,
+  BREAK: (card) => `结构突破候选 · RR ${card.odds.toFixed(1)}:1`,
+  FLOW: (card) => `证据链更新 · ${card.score}/100`,
+  CRASH: (card) => `下跌/风控候选 · ${card.desc}`,
 }
 
 type Alert = {
-  id: number
+  id: string
   symbol: string
   tokenId: string
   type: SignalType
@@ -35,39 +34,15 @@ type Alert = {
 }
 
 export function LiveFeed({ cards }: { cards: SignalCard[] }) {
-  const [items, setItems] = useState<Alert[]>([])
-  const counter = useRef(0)
-
-  useEffect(() => {
-    if (cards.length === 0) {
-      setItems([])
-      return
-    }
-
-    setItems(Array.from({ length: 6 }, makeItem))
-    const timer = setInterval(() => {
-      setItems((prev) => [makeItem(), ...prev].slice(0, 9))
-    }, 3200)
-    return () => clearInterval(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards])
-
-  function makeItem(): Alert {
-    const c = cards[Math.floor(Math.random() * cards.length)]
-    counter.current += 1
-    const now = new Date()
-    return {
-      id: counter.current,
-      symbol: c.token.symbol,
-      tokenId: c.token.id,
-      type: c.type,
-      text: ALERT_TEXT[c.type](c.token.symbol),
-      change: c.token.change24h,
-      time: `${String(now.getHours()).padStart(2, '0')}:${String(
-        now.getMinutes(),
-      ).padStart(2, '0')}`,
-    }
-  }
+  const items: Alert[] = cards.slice(0, 9).map((c, index) => ({
+    id: `${c.id}-${index}`,
+    symbol: c.token.symbol,
+    tokenId: c.token.id,
+    type: c.type,
+    text: ALERT_TEXT[c.type](c),
+    change: c.token.change24h,
+    time: c.lastPush || c.firstPush || '等待',
+  }))
 
   return (
     <div className="rounded-2xl border border-border bg-card">

@@ -1,13 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
 import { Server, Database, GaugeCircle } from 'lucide-react'
 import {
-  getServiceNodes,
-  getDataPipeline,
-  getApiUsage,
   type RadarContract,
 } from '@/lib/radar-contract'
+import { resource } from '@/lib/data-status'
 import { Panel } from '@/components/panel'
 import { FreshnessTag, StatusBadge, ResourceBoundary } from '@/components/data-state'
 import { cn } from '@/lib/utils'
@@ -24,12 +21,23 @@ const NODE_LABEL: Record<string, string> = {
 }
 
 export function SystemStatus({ contract }: { contract?: RadarContract } = {}) {
-  const fallbackServices = useMemo(() => getServiceNodes(), [])
-  const fallbackPipeline = useMemo(() => getDataPipeline(), [])
-  const fallbackApi = useMemo(() => getApiUsage(), [])
-  const services = contract?.serviceNodes ?? fallbackServices
-  const pipeline = contract?.dataPipeline ?? fallbackPipeline
-  const api = contract?.apiUsage ?? fallbackApi
+  const services = contract?.serviceNodes ?? resource([], 'empty', { source: 'radar-contract', reason: '未传入后端服务契约' })
+  const pipeline = contract?.dataPipeline ?? resource({
+    lastScanAt: '等待数据',
+    lastWriteAt: '等待数据',
+    stale: true,
+    cacheHit: false,
+    recentError: null,
+    recentSuccess: '等待后端数据管线状态',
+  }, 'empty', { source: 'radar-contract', reason: '未传入后端数据管线契约' })
+  const api = contract?.apiUsage ?? resource({
+    provider: 'CoinGlass',
+    usedToday: 0,
+    remainingToday: 0,
+    perMinuteLimit: 0,
+    pacingMs: 0,
+    throttled: false,
+  }, 'empty', { source: 'radar-contract', reason: '未传入后端 API 用量契约' })
   const p = pipeline.data
   const a = api.data
 

@@ -80,9 +80,9 @@ export function LiveValue({
 }
 
 /**
- * LiveStat —— 通用实时统计值（围绕基准小幅游走 + 补间 + 可选闪烁）。
+ * LiveStat —— 通用实时统计值（跟随后端值变化 + 补间 + 可选闪烁）。
  * 适用于覆盖率、强弱指数、数据质量计数、命中率等非币种指标。
- * 对接后端：把 `base` 换成真实推送值即可。
+ * `volatility` 等参数仅为兼容旧 UI 调用保留，不再制造随机跳动。
  */
 export function LiveStat({
   base,
@@ -126,8 +126,8 @@ export function LiveStat({
 }
 
 /**
- * LivePrice —— 便捷的实时价格组件（含 $ 前缀与模拟跳动）。
- * 对接后端：把 `base` 换成真实价格流即可，或直接使用 <LiveValue />。
+ * LivePrice —— 便捷的实时价格组件（含 $ 前缀）。
+ * 只展示传入的真实价格，不生成随机价格。
  */
 export function LivePrice({
   base,

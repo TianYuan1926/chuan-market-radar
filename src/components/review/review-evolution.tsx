@@ -1,28 +1,20 @@
 'use client'
 
-import { useMemo } from 'react'
 import { Activity, Layers3, SearchX, Sparkles } from 'lucide-react'
 import {
-  getSignalLifecycles,
-  getStrategyArchetypes,
-  getMissedDetections,
-  getEvolutionSuggestions,
   type ReviewContract,
 } from '@/lib/radar-contract'
+import { resource } from '@/lib/data-status'
 import { Panel } from '@/components/panel'
 import { FreshnessTag, StatusBadge, ResourceBoundary } from '@/components/data-state'
 import { TokenAvatar } from '@/components/token-avatar'
 import { cn } from '@/lib/utils'
 
 export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}) {
-  const fallbackLifecycles = useMemo(() => getSignalLifecycles(), [])
-  const fallbackArchetypes = useMemo(() => getStrategyArchetypes(), [])
-  const fallbackMissed = useMemo(() => getMissedDetections(), [])
-  const fallbackSuggestions = useMemo(() => getEvolutionSuggestions(), [])
-  const lifecycles = contract?.signalLifecycles ?? fallbackLifecycles
-  const archetypes = contract?.strategyArchetypes ?? fallbackArchetypes
-  const missed = contract?.missedDetections ?? fallbackMissed
-  const suggestions = contract?.evolutionSuggestions ?? fallbackSuggestions
+  const lifecycles = contract?.signalLifecycles ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端复盘契约' })
+  const archetypes = contract?.strategyArchetypes ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端策略分型契约' })
+  const missed = contract?.missedDetections ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端漏判复查契约' })
+  const suggestions = contract?.evolutionSuggestions ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端进化建议契约' })
 
   return (
     <div className="mt-5 space-y-5">

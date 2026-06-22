@@ -278,8 +278,16 @@ test("signals visual widgets derive from backend radar signals", () => {
   assert.doesNotMatch(signalsSource, /getTokens|getSignalCards/);
 
   assert.match(sniperBoardSource, /targets\?:\s*SniperTarget\[\]/);
+  assert.match(sniperBoardSource, /targets\s*\?\?\s*\[\]/);
+  assert.doesNotMatch(sniperBoardSource, /getSniperTargets/);
+  assert.doesNotMatch(sniperBoardSource, /Math\.random/);
+  assert.doesNotMatch(sniperBoardSource, /setTimeout/);
   assert.match(liveFeedSource, /cards\.length === 0/);
-  assert.match(liveStoreSource, /ensureQuote|fallbackQuoteForId/);
+  assert.doesNotMatch(liveFeedSource, /Math\.random/);
+  assert.doesNotMatch(liveFeedSource, /setInterval/);
+  assert.doesNotMatch(liveFeedSource, /巨鲸入场|\$3,280|空单爆仓 \$4,200/);
+  assert.match(liveStoreSource, /upsertLiveQuotes/);
+  assert.doesNotMatch(liveStoreSource, /fallbackQuoteForId/);
 });
 
 test("backend radar visual cards are enriched with backend ticker rows before falling back", () => {
@@ -319,11 +327,13 @@ test("review and system backend carrier panels receive server-side contracts", (
   assert.match(reviewEvolutionSource, /contract\?\.strategyArchetypes\s*\?\?/);
   assert.match(reviewEvolutionSource, /contract\?\.missedDetections\s*\?\?/);
   assert.match(reviewEvolutionSource, /contract\?\.evolutionSuggestions\s*\?\?/);
+  assert.doesNotMatch(reviewEvolutionSource, /getSignalLifecycles|getStrategyArchetypes|getMissedDetections|getEvolutionSuggestions/);
 
   assert.match(systemStatusSource, /contract\?:\s*RadarContract/);
   assert.match(systemStatusSource, /contract\?\.serviceNodes\s*\?\?/);
   assert.match(systemStatusSource, /contract\?\.dataPipeline\s*\?\?/);
   assert.match(systemStatusSource, /contract\?\.apiUsage\s*\?\?/);
+  assert.doesNotMatch(systemStatusSource, /getServiceNodes|getDataPipeline|getApiUsage/);
 });
 
 test("token detail page can render backend radar symbols without relying only on mock tokens", () => {
@@ -358,6 +368,43 @@ test("sniper board stays visible when backend has no trade-plan-ready targets", 
   assert.match(sniperBoardSource, /等待证据融合、赔率和风控同时满足/);
 });
 
+test("frontend data truth contract blocks active mock market facts", () => {
+  const contractDoc = readFileSync(resolve(process.cwd(), "docs/frontend-data-truth-contract.md"), "utf8");
+  const signalFeedSource = readFileSync(resolve(process.cwd(), "src/lib/signal-feed.ts"), "utf8");
+  const journalStoreSource = readFileSync(resolve(process.cwd(), "src/lib/journal-store.ts"), "utf8");
+  const liveNumberSource = readFileSync(resolve(process.cwd(), "src/lib/use-live-number.ts"), "utf8");
+  const displayFormatSource = readFileSync(resolve(process.cwd(), "src/lib/display-format.ts"), "utf8");
+  const trainingEngineSource = readFileSync(resolve(process.cwd(), "src/lib/training-engine.ts"), "utf8");
+  const petRobotSource = readFileSync(resolve(process.cwd(), "src/components/pet-robot.tsx"), "utf8");
+  const leaderboardSource = readFileSync(resolve(process.cwd(), "src/components/leaderboard-table.tsx"), "utf8");
+  const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
+  const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
+
+  assert.match(contractDoc, /Backend fact/);
+  assert.match(contractDoc, /Honest empty state/);
+  assert.match(contractDoc, /Randomly generated market signals/);
+  assert.match(contractDoc, /Market cap: show `待补齐`, not `0`/);
+
+  assert.match(signalFeedSource, /publishSignalEvent/);
+  assert.doesNotMatch(signalFeedSource, /getTokens|Math\.random|scheduleNext|playSound/);
+
+  assert.match(journalStoreSource, /LEGACY_SEED_IDS/);
+  assert.doesNotMatch(journalStoreSource, /symbol:\s*'DOGS'|symbol:\s*'WIF'/);
+
+  assert.match(liveNumberSource, /mirrors the latest backend-provided value only/);
+  assert.doesNotMatch(liveNumberSource, /Math\.random|setInterval|随机游走/);
+
+  assert.match(trainingEngineSource, /setTrainingPool/);
+  assert.doesNotMatch(trainingEngineSource, /getSniperTargets|getSignalCards/);
+  assert.doesNotMatch(petRobotSource, /startTrainingEngine/);
+
+  assert.match(displayFormatSource, /fmtKnownCap/);
+  assert.match(leaderboardSource, /fmtKnownCap/);
+  assert.match(anomalyBoardSource, /fmtKnownCap/);
+  assert.match(tokenPageSource, /fmtKnownCap/);
+  assert.doesNotMatch(anomalyBoardSource, /AI 模拟推演/);
+});
+
 test("stage 8 global ticker bars can receive backend-derived tokens", () => {
   const priceTickerSource = readFileSync(resolve(process.cwd(), "src/components/price-ticker.tsx"), "utf8");
   const sessionBarSource = readFileSync(resolve(process.cwd(), "src/components/session-bar.tsx"), "utf8");
@@ -369,9 +416,11 @@ test("stage 8 global ticker bars can receive backend-derived tokens", () => {
   assert.match(adapterSource, /mergeTokensBySymbol/);
 
   assert.match(priceTickerSource, /tokens\?:\s*Token\[\]/);
-  assert.match(priceTickerSource, /tokens\s*\?\?\s*getTokens\(\)/);
+  assert.match(priceTickerSource, /tokens\s*\?\?\s*\[\]/);
+  assert.doesNotMatch(priceTickerSource, /getTokens\(\)/);
   assert.match(sessionBarSource, /tokens\?:\s*Token\[\]/);
-  assert.match(sessionBarSource, /tokens\s*\?\?\s*getTokens\(\)/);
+  assert.match(sessionBarSource, /tokens\s*\?\?\s*\[\]/);
+  assert.doesNotMatch(sessionBarSource, /getTokens\(\)/);
 
   assert.match(signalsSource, /<SessionBar tokens=\{tokens\}/);
   assert.match(leaderboardSource, /leaderboardRowsToTokens/);
@@ -441,6 +490,7 @@ test("stage 8 dashboard and market pages read backend contract instead of mock m
   assert.match(scanProofSource, /scanProof\?:\s*Resource<ScanProofData>/);
   assert.match(scanProofSource, /scanProofResourceToScanState/);
   assert.match(scanProofSource, /dataSourcesResourceToExchangeCoverage/);
+  assert.doesNotMatch(scanProofSource, /getScanState|getExchangeCoverage/);
 
   assert.match(dashboardControlSource, /contract\?:\s*RadarContract/);
   assert.match(dashboardControlSource, /contract\?\.scanProof\s*\?\?/);

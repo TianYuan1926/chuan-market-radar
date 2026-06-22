@@ -1,7 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
-import { getSniperTargets, type SniperTarget } from './sniper-data'
+import type { SniperTarget } from './sniper-data'
 import { submitJudgement } from './pet-store'
 
 /**
@@ -59,9 +59,15 @@ let dueAt = 0 // 当前阶段应当结束的时间戳
 let started = false
 
 function ensurePool() {
-  if (pool.length) return
-  // 复盘进化只评判「狙击榜」目标，与榜单共用同一数据源 → 二者天然联动
-  pool = getSniperTargets()
+  return pool
+}
+
+export function setTrainingPool(rows: SniperTarget[]) {
+  pool = rows
+  if (state.idx >= pool.length) {
+    state = { ...state, idx: 0, result: null, phase: 'analyzing' }
+  }
+  emit()
 }
 
 function emit() {

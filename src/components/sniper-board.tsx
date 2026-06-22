@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Crosshair,
   Target,
@@ -16,75 +16,15 @@ import {
 import { TokenAvatar } from './token-avatar'
 import { LiveValue } from './live-value'
 import { useLiveQuote } from '@/lib/live-store'
-import { playSound } from '@/lib/sound'
 import { fmtUsd } from '@/lib/mock-data'
-import { getSniperTargets, sideLabel, type SniperTarget } from '@/lib/sniper-data'
-import { useTrainingEngine, getTrainingRow } from '@/lib/training-engine'
+import { sideLabel, type SniperTarget } from '@/lib/sniper-data'
 import { cn } from '@/lib/utils'
 
 export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
-  // 与复盘进化引擎共用的同一狙击目标池（按评分排序）
-  const pool = useMemo(() => targets ?? getSniperTargets(), [targets])
+  // Only backend-provided trade-plan-ready targets can enter the sniper board.
+  const pool = useMemo(() => targets ?? [], [targets])
 
-  // 复盘进化引擎当前正在评判的目标 → 用于榜单高亮联动
-  const { idx, phase } = useTrainingEngine()
-  const currentId = getTrainingRow(idx)?.id ?? null
-
-  // 初始锁定前 N 个，其余作为储备，周期性"通过最终筛选"入榜
-  const INITIAL = Math.min(6, pool.length)
-  const initialLockedIds = useMemo(
-    () => pool.slice(0, INITIAL).map((c) => c.id),
-    [INITIAL, pool],
-  )
-  const [lockedIds, setLockedIds] = useState<string[]>(() =>
-    initialLockedIds,
-  )
-  const [justLocked, setJustLocked] = useState<string | null>(null)
-  const [banner, setBanner] = useState<{
-    symbol: string
-    side: SniperTarget['side']
-    id: number
-  } | null>(null)
-  const cursor = useRef(INITIAL)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    setLockedIds(initialLockedIds)
-    cursor.current = INITIAL
-  }, [INITIAL, initialLockedIds])
-
-  useEffect(() => {
-    if (pool.length <= 1) return
-    let alive = true
-    function schedule() {
-      // 14~26s 随机间隔，模拟新目标通过最终筛选入榜
-      const delay = 14000 + Math.random() * 12000
-      timer.current = setTimeout(() => {
-        if (!alive) return
-        const next = pool[cursor.current % pool.length]
-        cursor.current += 1
-        setLockedIds((prev) => [next.id, ...prev.filter((id) => id !== next.id)].slice(0, 8))
-        setJustLocked(next.id)
-        setBanner({ symbol: next.symbol, side: next.side, id: Date.now() })
-        playSound('sniper')
-        setTimeout(() => alive && setJustLocked(null), 1400)
-        setTimeout(() => alive && setBanner(null), 4200)
-        schedule()
-      }, delay)
-    }
-    schedule()
-    return () => {
-      alive = false
-      if (timer.current) clearTimeout(timer.current)
-    }
-  }, [pool])
-
-  // 始终按评分从高到低展示：从已按评分排序的 pool 中筛出已锁定项，
-  // 而非沿用锁定的时间顺序，确保榜单恒为评分降序。
-  const locked = useMemo(
-    () => pool.filter((c) => lockedIds.includes(c.id)),
-    [lockedIds, pool],
-  )
+  const locked = useMemo(() => pool.slice(0, 8), [pool])
 
   const longs = locked.filter((c) => c.side === 'long').length
   const shorts = locked.length - longs
@@ -110,7 +50,7 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
             </span>
           </h2>
           <p className="text-[12px] text-muted-foreground">
-            通过 AI 最终筛选的高置信目标 · 复盘进化引擎全程实时复盘
+            通过后端证据融合、赔率和风控筛选的高置信目标
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3 font-mono text-xs">
@@ -125,36 +65,6 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
         </div>
       </header>
 
-      {/* 新目标锁定播报条 */}
-      <div
-        className={cn(
-          'relative z-10 overflow-hidden border-b border-neon/20 bg-background/60 transition-all duration-300',
-          banner ? 'max-h-12 py-2' : 'max-h-0 py-0',
-        )}
-      >
-        {banner && (
-          <div className="animate-update-pop flex items-center gap-2 px-4 text-[13px]">
-            <Crosshair className="size-4 shrink-0 animate-pulse text-neon" />
-            <span className="font-semibold text-neon">新目标锁定</span>
-            <span className="font-mono font-bold">{banner.symbol}</span>
-            <span
-              className={cn(
-                'inline-flex items-center gap-0.5 px-1.5 py-0.5 font-mono text-[10px] font-bold',
-                banner.side === 'long' ? 'bg-up/15 text-up' : 'bg-down/15 text-down',
-              )}
-            >
-              {banner.side === 'long' ? (
-                <TrendingUp className="size-3" />
-              ) : (
-                <TrendingDown className="size-3" />
-              )}
-              {sideLabel(banner.side)}
-            </span>
-            <span className="text-muted-foreground">已通过最终筛选，进入狙击名单</span>
-          </div>
-        )}
-      </div>
-
       {/* 目标卡片网格 */}
       {locked.length > 0 ? (
         <div className="relative z-10 grid gap-px bg-border p-px sm:grid-cols-2 xl:grid-cols-3">
@@ -162,9 +72,9 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
             <SniperCard
               key={card.id}
               card={card}
-              justLocked={justLocked === card.id}
-              evaluating={currentId === card.id}
-              evalPhase={phase}
+              justLocked={false}
+              evaluating={false}
+              evalPhase="analyzing"
             />
           ))}
         </div>
