@@ -14,10 +14,60 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 
 local_head="$(git rev-parse HEAD)"
-remote_head="$(git ls-remote "${REMOTE_NAME}" "refs/heads/${REMOTE_BRANCH}" | awk '{print $1}')"
+remote_head=""
+last_remote_error=""
+remote_timeout_seconds="${GIT_REMOTE_TIMEOUT_SECONDS:-25}"
+
+run_git_ls_remote() {
+  local output_file status_file pid waited status
+  output_file="$(mktemp)"
+  status_file="$(mktemp)"
+
+  (
+    GIT_TERMINAL_PROMPT=0 git \
+      -c http.version="${GIT_HTTP_VERSION:-HTTP/1.1}" \
+      -c http.lowSpeedLimit=1 \
+      -c http.lowSpeedTime="${GIT_LOW_SPEED_TIME:-20}" \
+      ls-remote "${REMOTE_NAME}" "refs/heads/${REMOTE_BRANCH}" >"${output_file}" 2>&1
+    echo "$?" >"${status_file}"
+  ) &
+  pid="$!"
+  waited=0
+
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    if (( waited >= remote_timeout_seconds )); then
+      kill "${pid}" >/dev/null 2>&1 || true
+      wait "${pid}" >/dev/null 2>&1 || true
+      echo "git ls-remote timed out after ${remote_timeout_seconds}s"
+      cat "${output_file}"
+      rm -f "${output_file}" "${status_file}"
+      return 124
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+
+  wait "${pid}" >/dev/null 2>&1 || true
+  status="$(cat "${status_file}" 2>/dev/null || echo 1)"
+  cat "${output_file}"
+  rm -f "${output_file}" "${status_file}"
+  return "${status}"
+}
+
+for attempt in 1 2 3; do
+  if remote_output="$(run_git_ls_remote)"; then
+    remote_head="$(awk '{print $1}' <<< "${remote_output}")"
+    break
+  fi
+  last_remote_error="${remote_output}"
+  sleep "${attempt}"
+done
 
 if [[ -z "${remote_head}" ]]; then
   echo "ERROR: cannot read ${REMOTE_NAME}/${REMOTE_BRANCH}." >&2
+  if [[ -n "${last_remote_error}" ]]; then
+    echo "${last_remote_error}" >&2
+  fi
   exit 1
 fi
 
