@@ -520,8 +520,6 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
       const score = scoreFor(signal)
       const type = typeFor(signal)
       const ageMin = Math.max(0, signal.updatedMinAgo)
-      const pushPrice = token.price
-
       return {
         id: signal.id,
         token,
@@ -539,7 +537,9 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
         starred: signal.maturity === 'TRADE_PLAN_READY',
         firstPush: timeLabelFromAge(ageMin + 15),
         lastPush: timeLabelFromAge(ageMin),
-        pushPrice: round(pushPrice, token.price < 1 ? 6 : 4),
+        // 没有后端生命周期触发价时必须保持 0，由 UI 显示“待追踪”。
+        // 不能用当前价伪装入选价，否则“入选后变化”会变成假的 0%。
+        pushPrice: 0,
         bullSentiment: signal.direction === '空'
           ? clamp(45 - signal.counterCount * 5, 5, 48)
           : signal.direction === '多'

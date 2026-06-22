@@ -728,9 +728,14 @@ test("single-server deployment scripts expose current runtime contracts and reco
   const composeSource = readFileSync(resolve(process.cwd(), "docker-compose.yml"), "utf8");
   const bootstrapSource = readFileSync(resolve(process.cwd(), "deploy/scripts/bootstrap-prod-env.sh"), "utf8");
   const verifyPath = "deploy/scripts/production-full-verify.sh";
+  const gitSyncPath = "deploy/scripts/verify-git-sync.sh";
   const restorePath = "deploy/scripts/restore-postgres.sh";
   const verifySource = readFileSync(resolve(process.cwd(), verifyPath), "utf8");
+  const gitSyncSource = readFileSync(resolve(process.cwd(), gitSyncPath), "utf8");
   const restoreSource = readFileSync(resolve(process.cwd(), restorePath), "utf8");
+  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
 
   for (const token of [
     "FRONTEND_LIVE_EVENTS_RATE_LIMIT",
@@ -747,7 +752,13 @@ test("single-server deployment scripts expose current runtime contracts and reco
   }
 
   assert.equal(existsSync(resolve(process.cwd(), verifyPath)), true, `${verifyPath} must exist`);
+  assert.equal(existsSync(resolve(process.cwd(), gitSyncPath)), true, `${gitSyncPath} must exist`);
   assert.equal(existsSync(resolve(process.cwd(), restorePath)), true, `${restorePath} must exist`);
+  assert.match(packageJson.scripts?.["production:git-sync"] ?? "", /verify-git-sync\.sh/);
+  assert.match(verifySource, /verify-git-sync\.sh/);
+  assert.match(gitSyncSource, /git ls-remote/);
+  assert.match(gitSyncSource, /ALLOW_UNTRACKED/);
+  assert.match(gitSyncSource, /\.env\.production/);
   assert.match(verifySource, /scanStability/);
   assert.match(verifySource, /reviewStatistics/);
   assert.match(verifySource, /\/api\/frontend\/live-events/);
@@ -832,4 +843,29 @@ test("signal table does not fabricate lifecycle prices or frontend trade plans",
   assert.doesNotMatch(tokenPageSource, /主力资金|净流入/);
   assert.match(homePageSource, /本轮深扫占比/);
   assert.match(dashboardPageSource, /本轮深扫占比/);
+});
+
+test("legacy radar contract getters are disabled instead of returning static market facts", () => {
+  const radarContractSource = readFileSync(resolve(process.cwd(), "src/lib/radar-contract.ts"), "utf8");
+  const siteLoaderSource = readFileSync(resolve(process.cwd(), "src/components/site-loader.tsx"), "utf8");
+  const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
+  const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
+  const scanProofSource = readFileSync(resolve(process.cwd(), "src/components/scan-proof.tsx"), "utf8");
+
+  assert.match(radarContractSource, /旧同步 getter 已停用/);
+  assert.match(radarContractSource, /legacyEmptyResource/);
+  assert.doesNotMatch(radarContractSource, /后端契约 mock 数据层/);
+  assert.doesNotMatch(radarContractSource, /const RADAR_SIGNALS|function mkRows/);
+  assert.doesNotMatch(radarContractSource, /QPS 1\.2k|主从同步|社媒情绪源|数据均为模拟演示/);
+
+  assert.match(siteLoaderSource, /SERVER FACT/);
+  assert.doesNotMatch(siteLoaderSource, /87\.6%|5\/6 LINKED|v4\.2 LOADED/);
+
+  assert.match(scanProofSource, /深扫占比/);
+  assert.doesNotMatch(scanProofSource, />覆盖率</);
+
+  assert.match(anomalyBoardSource, /待后端追踪/);
+  assert.doesNotMatch(anomalyBoardSource, /入选后上涨|入选后回撤/);
+  assert.match(sniperBoardSource, /hasTrackedPushPrice/);
+  assert.match(sniperBoardSource, /待追踪/);
 });

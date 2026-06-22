@@ -164,7 +164,7 @@ test("leaderboard fallback does not create sniper targets", () => {
   assert.equal(targets.length, 0);
 });
 
-test("signal cards do not reverse engineer push price from synthetic change", () => {
+test("signal cards keep push price empty until backend lifecycle tracking provides it", () => {
   const signal: RadarSignal = {
     id: "real-tia",
     symbol: "TIA",
@@ -195,7 +195,7 @@ test("signal cards do not reverse engineer push price from synthetic change", ()
     },
   ]);
 
-  assert.equal(cards[0]?.pushPrice, 7.842);
+  assert.equal(cards[0]?.pushPrice, 0);
 });
 
 test("sniper targets do not fabricate frontend entry stop or target prices", () => {
@@ -229,7 +229,7 @@ test("sniper targets do not fabricate frontend entry stop or target prices", () 
     },
   ]);
 
-  assert.equal(target?.pushPrice, 7.842);
+  assert.equal(target?.pushPrice, 0);
   assert.equal(target?.entryLow, 0);
   assert.equal(target?.entryHigh, 0);
   assert.equal(target?.stop, 0);

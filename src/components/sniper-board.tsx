@@ -111,8 +111,9 @@ function SniperCard({
   const q = useLiveQuote(card.tokenId)
   const long = card.side === 'long'
   const sideTone = long ? 'var(--up)' : 'var(--down)'
-  const gain = ((q.price - card.pushPrice) / card.pushPrice) * 100
-  const gUp = gain >= 0
+  const hasTrackedPushPrice = Number.isFinite(card.pushPrice) && card.pushPrice > 0
+  const gain = hasTrackedPushPrice ? ((q.price - card.pushPrice) / card.pushPrice) * 100 : null
+  const gUp = gain === null ? true : gain >= 0
 
   return (
     <Link
@@ -183,11 +184,15 @@ function SniperCard({
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wide text-muted-foreground">入选后</div>
-          <LiveValue
-            value={gain}
-            format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`}
-            className={cn('font-mono text-sm font-bold', gUp ? 'text-up' : 'text-down')}
-          />
+          {gain === null ? (
+            <div className="font-mono text-sm font-bold text-muted-foreground">待追踪</div>
+          ) : (
+            <LiveValue
+              value={gain}
+              format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`}
+              className={cn('font-mono text-sm font-bold', gUp ? 'text-up' : 'text-down')}
+            />
+          )}
         </div>
       </div>
 

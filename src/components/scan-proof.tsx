@@ -60,7 +60,7 @@ export function ScanProof({
   const [countdown, setCountdown] = useState(scan.nextBatchSec)
 
   // Only mirrors backend values. No generated market movement.
-  const liveCoverage = useLiveNumber(scan.coverage, {
+  const liveDeepScanShare = useLiveNumber(scan.coverage, {
     volatility: 0.012,
     intervalMs: 2600,
     min: 0,
@@ -106,19 +106,19 @@ export function ScanProof({
       </div>
 
       <div className="grid gap-5 p-5 lg:grid-cols-[1.1fr_1fr]">
-        {/* 左：覆盖率环 + 扫描进度 */}
+        {/* 左：本轮深扫占比 + 扫描进度 */}
         <div className="flex items-center gap-5">
-          <CoverageRing pct={liveCoverage} />
+          <CoverageRing pct={liveDeepScanShare} />
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-2">
-              <span className="w-16 text-xs text-muted-foreground">已扫描</span>
+              <span className="w-16 text-xs text-muted-foreground">本轮已扫</span>
               <LiveValue
                 value={liveScanned}
                 format={(n) => fmtCap(Math.round(n))}
                 className="font-mono font-bold text-up"
               />
             </div>
-            <Stat label="待扫描" value={fmtCap(scan.pending)} tone="text-muted-foreground" />
+            <Stat label="等待深扫" value={fmtCap(scan.pending)} tone="text-muted-foreground" />
             <Stat label="标的总量" value={fmtCap(scan.total)} />
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="size-3.5" />
@@ -251,7 +251,7 @@ function CoverageRing({ pct }: { pct: number }) {
           flash={false}
           className="font-mono text-2xl font-bold text-neon"
         />
-        <span className="text-[10px] text-muted-foreground">覆盖率</span>
+        <span className="text-[10px] text-muted-foreground">深扫占比</span>
       </div>
     </div>
   )

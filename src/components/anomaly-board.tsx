@@ -89,7 +89,7 @@ function analysisLogic(card: SignalCard): string[] {
 const COLS =
   'grid-cols-[28px_36px_minmax(140px,1.4fr)_repeat(2,minmax(80px,0.9fr))_repeat(3,minmax(72px,0.8fr))_minmax(56px,0.6fr)_minmax(80px,0.8fr)_repeat(2,52px)_28px]'
 
-type SortKey = 'score' | 'age' | 'moveUp' | 'moveDown' | 'cap' | 'sentiment'
+type SortKey = 'score' | 'age' | 'cap' | 'sentiment'
 
 const PAGE_SIZE = 20
 
@@ -133,17 +133,6 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
       )
     return [...list].sort((a, b) => {
       if (sort === 'age') return a.ageMin - b.ageMin
-      if (sort === 'moveUp') {
-        const ga = (a.token.price - a.pushPrice) / a.pushPrice
-        const gb = (b.token.price - b.pushPrice) / b.pushPrice
-        return gb - ga
-      }
-      if (sort === 'moveDown') {
-        // 入选后跌幅：回撤最深（负得最多）的排在最前
-        const da = (a.token.price - a.pushPrice) / a.pushPrice
-        const db = (b.token.price - b.pushPrice) / b.pushPrice
-        return da - db
-      }
       if (sort === 'cap') return b.token.marketCap - a.token.marketCap
       if (sort === 'sentiment') return b.bullSentiment - a.bullSentiment
       return b.score - a.score
@@ -231,8 +220,6 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           {(
             [
               ['score', '评分'],
-              ['moveUp', '入选后上涨'],
-              ['moveDown', '入选后回撤'],
               ['sentiment', '情绪'],
               ['cap', '市值'],
               ['age', '最新'],
@@ -282,7 +269,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             <span className="text-right">最近更新</span>
             <span className="text-right">入选价</span>
             <span className="text-right">现价</span>
-            <span className="text-right">入选后</span>
+            <span className="text-right">追踪</span>
             <span className="text-center">情绪</span>
             <span className="text-right">市值</span>
             <span className="text-center">短线</span>
@@ -376,8 +363,8 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                     )}
                     {fmtAge(card.ageMin)}
                   </span>
-                  <span className="text-right font-mono">
-                    ${fmtUsd(card.pushPrice)}
+                  <span className="text-right font-mono text-muted-foreground">
+                    {card.pushPrice > 0 ? `$${fmtUsd(card.pushPrice)}` : '待追踪'}
                   </span>
                   <LivePriceGainCells
                     id={t.id}
@@ -578,7 +565,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
   )
 }
 
-// 现价 + 入选后变化：订阅集中行情 store，价格变化时实时推导涨跌幅
+// 现价 + 入选后变化：只有后端提供真实入选价后才计算，不用当前价伪造 0%。
 function LivePriceGainCells({
   id,
   pushPrice,
@@ -587,6 +574,18 @@ function LivePriceGainCells({
   pushPrice: number
 }) {
   const q = useLiveQuote(id)
+  if (!Number.isFinite(pushPrice) || pushPrice <= 0) {
+    return (
+      <>
+        <LiveValue
+          value={q.price}
+          format={(n) => `$${fmtUsd(n)}`}
+          className="text-right font-mono font-semibold"
+        />
+        <span className="text-right font-mono text-muted-foreground">待后端追踪</span>
+      </>
+    )
+  }
   const gain = ((q.price - pushPrice) / pushPrice) * 100
   const gUp = gain >= 0
   return (
