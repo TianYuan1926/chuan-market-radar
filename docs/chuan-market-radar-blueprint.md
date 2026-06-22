@@ -87,7 +87,7 @@ v3 的核心不是“预测涨跌”，而是：
 
 ### v3 必须继承的现有底座
 
-- 继续使用 Next.js App Router、TypeScript、Node test；生产主线迁移到腾讯云香港单机 Docker Compose，Vercel/Neon 保留为旧线上回滚路径。
+- 继续使用 Next.js App Router、TypeScript、Node test；生产主线运行在腾讯云香港单机 Docker Compose，Vercel/Neon 保留为旧线上回滚路径。
 - 继续使用 CoinGlass Hobbyist 低频、分批、缓存、预算保护和失败降级；服务器升级不改变 CoinGlass `30 调用/分钟` 这类外部限速边界。
 - 继续使用 Binance/OKX 等公开源承担全市场轻扫、K 线、成交量、ticker 和交易所交叉验证，避免浪费 CoinGlass 请求。
 - 继续保留 Strategy Engine v2 的证据优先、风险门控、报告不越权、清算热力图禁用和 `3:1` 赔率硬边界。
@@ -148,7 +148,7 @@ v3 的核心不是“预测涨跌”，而是：
    - 新增复盘对象：`trend_switch_review`、`forward_map_review`、`key_level_reaction_review`、`risk_gate_review`、`missed_altcoin_review`。
    - 这些复盘样本先进入人工确认和只读校准，不允许自动改真实权重。
    - 2026-06-17 已完成 MVP：`runForwardMapReviewExecutor` 可读取已保存的 v3 事前地图，拉取后续公开 OHLCV，写入 `forward_map_review` 和 `key_level_reaction_review` journal 事件，并记录受保护执行批次；该链路只读，不自动改权重。
-   - 2026-06-17 已完成健康摘要 MVP：`/api/health` 现在暴露 `v3ForwardMapReviews`，系统健康面板展示事前地图数量、最近执行、完成/跳过/失败分布、存储迁移状态和只读边界，用于判断 v3 复盘引擎是否真的在运转。若 Neon 还没有迁移 `v3_forward_map_snapshots`，首页必须降级提示“待迁移”，不能 500。
+   - 2026-06-17 已完成健康摘要 MVP：`/api/health` 现在暴露 `v3ForwardMapReviews`，系统健康面板展示事前地图数量、最近执行、完成/跳过/失败分布、存储迁移状态和只读边界，用于判断 v3 复盘引擎是否真的在运转。若当前生产 Postgres 或旧 Neon 回滚库还没有迁移 `v3_forward_map_snapshots`，首页必须降级提示“待迁移”，不能 500。
    - 2026-06-21 已完成业务能力总控 MVP：`buildBusinessCapabilityReport` 和 `/api/radar/business-capability` 把信号生命周期、复盘判定标准、候选池公平轮换、信号成熟度分层、影子实盘追踪、策略分型统计、历史案例回放、AI 反证复核和进化建议系统统一暴露为 `business-capability.v1`。该接口只读、研究用途，不触发额外 CoinGlass 请求，不自动下单，不自动改权重，不改变实时排序。
    - 前端重建时必须读取业务能力总控状态：每个板块至少能看到 `status`、`score`、`summary`、`evidence`、`nextAction` 和 `guardrail`。如果某项还在收集样本或被禁用，必须明确展示，不能用漂亮 UI 掩盖“还没实战验证”的事实。
    - 业务能力总控固定 9 项：`signal_lifecycle`、`outcome_standard`、`candidate_rotation`、`signal_maturity`、`shadow_tracking`、`strategy_family_stats`、`historical_case_replay`、`ai_counter_review`、`evolution_suggestions`。后续新增复盘或进化能力必须接入这条链，不能成为孤立面板。
@@ -426,7 +426,7 @@ Postgres 使用边界：
 - **功能开关优先**：实验性功能先通过 feature flag 或配置边界接入，避免新功能崩掉主线。
 - **前端展示不等于前端乱塞**：能展示的要展示，但按决策路径渐进展开：首页显示最该注意的东西，信号档案显示完整证据链，展开层显示细节和历史，复盘层显示学习与策略变化。
 - **主动审计责任**：后续搭建不能只在用户指出问题后修补。每轮开发都必须主动检查同类隐患，包括扫描容量是否符合“全市场山寨雷达”目标、后端能力是否被前端完整承接、是否存在静默隐藏、文字溢出、旧数据误导、模块两张皮、图表承诺不真实、定时任务成功但业务无效等问题。发现问题必须汇报类别、影响、是否已修、是否需要蓝图规则或测试防回归。
-- **全市场发现不得静默塌缩**：如果 Binance/OKX/Bybit public universe discovery 在 Vercel 生产环境失败、被区域网络阻断或返回过少标的，系统不得静默退回 `COINGLASS_BASE_ASSETS` 的 7 个基础币并显示 100% 覆盖。必须启用广谱 USDT 永续静态兜底池继续轮转，同时在 metadata、`/api/health.fullMarketCoverage.status` 和前端覆盖区明确标注 `fallback/兜底轮转`。兜底池只用于防止漏扫和维持轮转，不是交易所上市事实源，不得单独构成 EvidenceItem、方向判断、买卖建议或策略入场依据；候选仍必须由 CoinGlass 数据、盘面结构、证据链和 Risk Gate 过滤。
+- **全市场发现不得静默塌缩**：如果 Binance/OKX/Bybit public universe discovery 在腾讯云生产环境或 Vercel 回滚环境失败、被区域网络阻断或返回过少标的，系统不得静默退回 `COINGLASS_BASE_ASSETS` 的 7 个基础币并显示 100% 覆盖。必须启用广谱 USDT 永续静态兜底池继续轮转，同时在 metadata、`/api/health.fullMarketCoverage.status` 和前端覆盖区明确标注 `fallback/兜底轮转`。兜底池只用于防止漏扫和维持轮转，不是交易所上市事实源，不得单独构成 EvidenceItem、方向判断、买卖建议或策略入场依据；候选仍必须由 CoinGlass 数据、盘面结构、证据链和 Risk Gate 过滤。
 - **前后端信息一致性**：后端返回、计算、归档或复盘出的核心信息，前端不能无提示吞掉。任何 Top N、`slice`、折叠、样本展示、摘要展示，都必须在用户可见处说明“显示 X / 共 Y”、`+N`、完整入口或被隐藏原因。首页可以分层，但不能让用户误以为系统只扫描或只产生当前可见的几个币。
 - **可读性是核心功能**：文字溢出、遮挡、挤压、截断无提示、按钮文字放不下、状态条重叠、移动端横向滚动、桌面窄宽错位，都按功能缺陷处理，不按普通美观问题处理。任何前端阶段完成前，必须检查主要断点和高密度内容区域的可读性。
 - **验收不止代码通过**：`lint`、`typecheck`、`build`、测试通过只能证明工程基础合格，不能证明产品合格。每次重要搭建还必须验证真实页面表现、信息完整性、数据新鲜度、线上动作是否真的生效、用户是否能看懂系统正在做什么。
@@ -508,7 +508,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 新功能不能直接堆进页面，必须有明确模块归属和接口边界。
 - 分析逻辑、复盘、告警、数据库和数据源相关改动必须有测试。
 - 数据库结构变化必须通过迁移方式处理，不能随手改表。
-- 每次上线前必须通过本地验证、构建验证和 Vercel 预览或生产健康检查。
+- 每次上线前必须通过本地验证、构建验证和腾讯云生产健康检查；Vercel 预览只作为旧回滚路径验证，不再作为主生产上线门禁。
 - 如果一个功能会破坏核心市场分析稳定性，必须延期或拆小，不能为了好玩牺牲专业性。
 
 ## 交付节奏原则
@@ -517,7 +517,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 - 一轮交付应围绕一个明确业务目标，而不是一个按钮、一个字段或一小段样式。
 - 每轮开始前说明：当前阶段、本轮目标、本轮包含哪些小项、为何现在做它。
-- 每轮结束后说明：本轮完成、验证结果、GitHub Desktop Summary、下一轮正确顺序、剩余大项。
+- 每轮结束后说明：本轮完成、验证结果、Git 提交 Summary、下一轮正确顺序、剩余大项。
 - 代码提交、推送、测试、文档和本地/生产验证默认由搭建流程负责；只有外部账号内必须人工确认、密钥录入、支付、短信/扫码、被工具安全策略禁止的网页控制动作，才由用户手动完成。
 - 测试、类型检查、lint、生产构建和关键 UI 浏览器检查是质量底线，不能为了提速省掉。
 - 蓝图只固化核心原则、模块边界、路线变化和重大决策，不记录每个小按钮的施工细节。
@@ -533,6 +533,39 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 汇报必须说清楚：完成了什么、没完成什么、验证了什么、哪里还有风险、下一步应该做什么。
 - 禁止为了显得快而省略验证、隐藏失败、使用 mock 冒充真实、用旧缓存冒充新扫描，或把“能启动”说成“已稳定生产”。
 
+## 生产发布流程硬规则
+
+2026-06-22 起，项目正式采用 **GitHub 作为代码正本、腾讯云作为运行环境** 的发布方式。服务器不是写代码的地方，服务器只负责拉取已验证代码、构建容器和运行服务。
+
+标准发布顺序固定为：
+
+```text
+本地改代码
+-> 本地测试和构建
+-> 提交并推送到 GitHub main
+-> 腾讯服务器 git pull origin main
+-> docker compose build/up 重启
+-> 服务器健康检查和页面/API 验收
+```
+
+硬规则：
+
+- **GitHub 是唯一代码正本**：后续业务代码、配置模板、部署脚本、测试和文档都以 GitHub `main` 为准。
+- **腾讯服务器禁止直接改业务代码**：不能把服务器当开发机。服务器上临时改代码会造成 GitHub、服务器和本地三方不一致，后续 `git pull` 可能覆盖或混乱。
+- **紧急修复例外**：如果必须在服务器临时修复生产故障，修完后必须立刻把同样改动同步回本地/GitHub，并记录原因和回滚点。
+- **本地验证先行**：至少按改动类型运行 `npm run typecheck`、`npm run test:market`、`npm run lint`、`npm run build` 中对应项；扫描、数据库、Worker 或 Docker 改动还必须补服务器健康检查。
+- **服务器发布命令固定**：
+  ```bash
+  cd /home/ubuntu/apps/chuan-market-radar
+  git pull origin main
+  sudo docker compose --env-file .env.production up -d --build
+  sudo docker compose --env-file .env.production ps
+  curl http://127.0.0.1:3000/api/health
+  ```
+- **提交一致性检查**：服务器发布后必须确认服务器 `git rev-parse HEAD` 与 GitHub `origin/main` 提交号一致；不一致不能说“已同步”。
+- **部署验收不只看容器启动**：必须看 `web` 是否 healthy、Postgres/Redis 是否 healthy、Worker 是否持续运行、`/api/health` 是否 ready、前端合同接口是否能读到后端数据。
+- **回滚路径**：生产发布失败时，优先回到上一个已知可用 Git 提交并重建容器；不得在服务器上边猜边改。
+
 ## 沟通规则
 
 后续与用户沟通默认使用中文和大白话。能用中文表达的，不用英文术语堆砌；必须使用技术词时，要顺手解释它等于什么、用来干什么、为什么现在需要。
@@ -546,10 +579,12 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 ## 当前技术栈
 
 - 前端与后端：Next.js App Router
+- 当前生产主线部署：腾讯云香港单机 Docker Compose
+- 当前生产数据库：腾讯云单机 PostgreSQL
+- 当前生产缓存/队列底座：腾讯云单机 Redis
+- 当前代码正本：GitHub `main`
 - 当前线上回滚部署：Vercel
-- 当前目标生产部署：腾讯云香港单机 Docker Compose
 - 当前线上回滚数据库：Neon Postgres
-- 当前目标生产数据库：单机 PostgreSQL
 - 本机缓存/队列底座：Redis
 - 数据源：Binance public data + OKX public data 负责全市场轻扫和交叉验证，CoinGlass 业余会员 API 负责候选深扫和资金质量确认
 - 公开图表：TradingView 链接入口
@@ -563,7 +598,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ## 资源预算原则
 
-2026-06-20 起，项目进入 **腾讯云香港单机迁移阶段**。旧 Vercel + Neon 仍作为回滚路径保留，不再作为新功能设计的默认资源上限。
+2026-06-20 起，项目进入 **腾讯云香港单机生产主线阶段**。旧 Vercel + Neon 仍作为回滚路径保留，不再作为新功能设计的默认资源上限。
 
 当前目标资源基线：
 
@@ -576,17 +611,17 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 4C/8G 当前足够支撑个人使用场景下的全市场轻扫、候选深扫、Postgres、Redis、Next.js 和多个低频 Worker；真正瓶颈优先看 CoinGlass 限速、交易所限速、数据库写入策略和扫描算法，而不是先买更多云产品。
 - 服务器新能力必须优先用来增强“全市场发现、动态候选池、复盘进化、可观测性和前端运行感”，不能优先堆无关装饰功能。
 
-旧免费阶段原则作为回滚边界继续保留：
+旧 Vercel/Neon 回滚环境约束继续保留：
 
-- 功能优先做低频、分批、缓存、可降级版本，不能默认依赖高频扫描、重计算或大量数据库写入。
-- CoinGlass 业余会员阶段必须控制请求范围和请求次数，优先白名单资产、分批扫描、复用缓存和展示覆盖率。
-- Neon 免费阶段必须控制表结构、索引、写入频率和 payload 体积；能按快照/摘要保存就不做无边界明细流水。
-- Vercel 免费阶段不能依赖高频内置 Cron 或长时间后台任务；需要定时刷新时优先外部 cron 请求受保护 API。
-- 如果某个功能必须升级付费套餐才能稳定运行，先做开关、降级和健康提示，再由用户决定是否升级。
+- 主生产按腾讯云单机能力设计；只有临时回滚到 Vercel/Neon 时，才启用低频、分批、缓存、可降级边界。
+- CoinGlass Hobbyist 始终必须控制请求范围和请求次数，优先分层候选、分批扫描、复用缓存和展示覆盖率。
+- 旧 Neon 回滚库必须控制表结构、索引、写入频率和 payload 体积；能按快照/摘要保存就不做无边界明细流水。
+- 旧 Vercel 回滚部署不能依赖高频内置 Cron 或长时间后台任务；需要定时刷新时优先 GitHub Actions 外部 cron 请求受保护 API。
+- 如果某个功能必须升级云资源才能稳定运行，先做开关、降级和健康提示，再由用户决定是否升级。
 
-单机迁移硬规则：
+单机生产与回滚硬规则：
 
-- 新服务器完整验收前，不删除 `vercel.json`、Neon adapter、GitHub Actions workflow 或旧环境变量文档。
+- 回滚资源完整退役前，不删除 `vercel.json`、Neon adapter、GitHub Actions workflow 或旧环境变量文档。
 - 迁移先新增普通 PostgreSQL client 和单机部署骨架，再切换运行环境；不能重写交易/扫描核心来冒充迁移。
 - Redis 第一阶段作为缓存/锁/队列底座部署，但业务逻辑未接入前不得在 UI 上宣称 Redis 已承担调度决策。
 - Worker 第一阶段先调用现有受保护 API，跑稳后再逐步拆为直接调用库函数的独立 worker。
@@ -594,9 +629,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 任何部署改造不得添加自动下单，不得连接交易所下单 API。
 - 新服务器验收必须包含：容器健康、`/api/health`、数据库迁移、Redis 连通、主扫描 Worker、CoinGlass 深扫 Worker、动态调度 Worker、日志、备份和回滚。
 - 后续提速优先建设自托管部署流水线、诊断脚本和回滚脚本；不能依赖用户反复手动复制命令排错。
-- 老 Vercel/Neon 到腾讯云的完整迁移属于阶段 0/1 的核心工作，不是可选项。迁移范围包括：Next.js 前端/API 运行环境从 Vercel 切到腾讯云 `web` 容器，Neon Postgres 数据导出并导入腾讯云本机 PostgreSQL，受保护 admin/scan/review worker 从外部 cron 切到单机 Worker，环境变量从 Vercel/Neon 面板迁到服务器 `.env.production`。
+- Vercel/Neon 到腾讯云的迁移与回归验收属于阶段 0/1 的核心工作，不是可选项。验收范围包括：Next.js 前端/API 运行环境在腾讯云 `web` 容器运行，Neon Postgres 关键数据已导入腾讯云本机 PostgreSQL，受保护 admin/scan/review worker 从外部 cron 切到单机 Worker，环境变量从 Vercel/Neon 面板迁到服务器 `.env.production`。
 - 数据迁移不能只看“容器能启动”。必须验证旧 Neon 表结构、关键表行数、最近 scan archive、journal events、v3 forward map snapshots、daily mover reviews、rank profile 和 outcome/review 样本是否能在腾讯云 Postgres 读到。
-- 切换生产前，Vercel/Neon 保留只读或回滚状态；腾讯云连续通过健康检查、扫描写入、页面读取、Worker 日志和备份验证后，才把腾讯云视为主生产。
+- 腾讯云已经是当前主生产后，Vercel/Neon 只能保留只读或回滚状态；任何回滚演练都必须说明数据源、提交号、健康检查和恢复路径。
 
 ## 当前阶段状态总览
 
@@ -610,8 +645,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 4：OHLCV、盘面结构与技术指标 | 基础已落地，受限主候选已接入 `1m/5m/15m/30m/1h/4h/1d/1w` candles、MACD、近似成交量分布、指标矩阵摘要、策略卡前端矩阵基础展示、基础指标/周期权重校准、只读权重回测校准 MVP、只读权重变更审计、人工执行记录写入入口、只读 registry 和影子策略权重层；v3 KeyLevel/ForwardMap/Pattern Library 已复用既有 OHLCV 接入 Signal Dossier；Fibonacci 回撤已作为位置/RR 辅助上下文接入 | 尚未完成真实权重生效、交互式多周期图表、更专业的成交量分布模型、完整 Market Reading Engine、谐波辅助层 |
 | 阶段 4V3：Altcoin Trend Radar v3 | 定位已确认为“全市场山寨币趋势切换雷达”；Strategy Engine v2 已形成证据、评分、风险门控和报告底座；v3 类型、Key Level Engine MVP、Forward Level Map MVP、forward map review hook、Forward Map 持久化 MVP、Forward Map review executor MVP、系统健康摘要、Market Reading MVP、结构事实驱动阶段切换、位置/RR 只读门控、回踩/反抽质量、趋势完整度、v3 只读 Trade Plan 草案、Pattern Library MVP、三角压缩/旗形/头肩/Fibonacci 低权重辅助、复盘标签、形态/计划复盘统计、bucket 样本追溯、Forward Map review 事件联动、系统级 `v3StrategyLoop` 闭环健康摘要、v3 readiness bucket、`strategyEvolutionLoop` 只读进化闭环总控和单信号后端档案 API 已完成 | v0 前端 UI 已恢复为当前展示壳，后续需要继续把更多模块从 mock 切到 `/api/frontend/*` 和后端只读契约；仍需补齐谐波低权重提示和长期样本后的真实回滚验证 |
 | 阶段 5：AI 反证复核 | 边界已落地 | 尚未配置生产模型、多模型对照、成本统计和复盘校准 |
-| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
-| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
+| 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、腾讯云 `signal-worker` 主线低频触发、GitHub Actions 回滚触发保留、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
+| 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、腾讯云 Worker 主线触发、外部 cron 回滚策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音、Settings 抽屉本地告警控制、站内告警历史筛选、已读、归档、恢复和信号档案告警联动已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化和更细提示音音色 |
 | 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底 | 后续按页面逐步把彩蛋/宠物状态、系统偏好、资金流等剩余 mock 或 localStorage 模块接到真实后端，同时保证 UI 1:1 不被重写 |
 
@@ -620,8 +655,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 ### 已落地：公开网站基础
 
 - Next.js 项目结构已建立。
-- Vercel 项目已连接 GitHub 仓库。
-- 生产访问地址已生成。
+- GitHub 仓库已作为代码正本；所有生产改动先进入 GitHub `main`。
+- 腾讯云单机 Docker Compose 是当前生产运行主线；生产访问以服务器、Caddy 和 `/api/health` 验收为准。
+- Vercel 项目连接 GitHub 仅保留为旧线上回滚路径。
 - v0 前端 UI 已作为当前展示事实源接入，首页、Dashboard、Signals、Market、Leaderboard、Review、System、Token Dossier 和宠物小人壳保留 1:1 视觉。
 - 后端事实出口已落地：`GET /api/radar/backend-contract` 输出扫描证明、轻扫全市场状态、深扫候选、状态池分配、轮转健康审计、数据质量、v3 覆盖和进化闭环边界；`GET /api/radar/dossier?symbol=SYMBOL` 输出单标的 TradingView 外链、可用周期、v3 关键位/Forward Map、Evidence 和 Journal 样本。
 - 前端专用适配出口已落地：`GET /api/frontend/radar-contract`、`GET /api/frontend/token-dossier?symbol=SYMBOL`、`GET /api/frontend/leaderboard?kind=KIND`、`GET /api/frontend/review-contract`、`GET /api/frontend/kline-contract?symbol=SYMBOL&tf=TF`、`GET/POST /api/frontend/journal-contract`。后续前端融合必须优先消费这些契约，避免绕开扫描、分析和复盘主链路形成“两张皮”。
@@ -634,7 +670,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `COINGLASS_BASE_ASSETS` 控制扫描资产白名单。
 - `COINGLASS_BATCH_SIZE` 控制每轮请求数量。
 - `COINGLASS_DAILY_REQUEST_BUDGET` 控制主扫描每日 CoinGlass 请求预算。基于当前 Hobbyist `30 调用/分钟` 边界，默认改为 `3000`，配合 `COINGLASS_BATCH_SIZE=24` 约使用 `2304` 次/日，保留失败重试和手动刷新余量。
-- `COINGLASS_MAX_CONCURRENCY` 控制 CoinGlass 主扫描受控并发，默认 `6`，避免 24 个币串行拖慢 Vercel 函数，同时低于 30/min 限速。
+- `COINGLASS_MAX_CONCURRENCY` 控制 CoinGlass 主扫描受控并发，默认 `6`，避免 24 个币串行拖慢主扫描，同时低于 30/min 限速。
 - `COINGLASS_MINUTE_REQUEST_LIMIT` 控制 CoinGlass 分钟级令牌桶，Hobbyist 默认 `30`；`SCAN_LOCK_TTL_SECONDS` 控制扫描锁过期，默认 `600` 秒。
 - 15 分钟 cadence 下分批扫描，降低触发业余会员限速的概率。
 - 生产环境默认接入 Binance public futures、OKX SWAP、Bybit linear 24h ticker 作为免费全市场轻扫层；轻扫结果会补充 universe、生成深扫优先级提示并写入 `metadata.lightScan`，但不直接生成交易信号。
@@ -994,7 +1030,7 @@ AI 复核必须遵守：
 - 复盘结果会进入 journal payload，并通过 `outcome_status` 支持数据库查询。
 - 日记面板会展示当前 outcome、下一次复查时间、触发/失效/首目标命中状态和 lesson tags。
 - `runOutcomeExecutor()` 已能读取数据库中的待复查 tracking journal，按 checkpoint 使用公开 OHLCV 评估信号生命周期，并写回 lifecycle journal event。
-- `POST /api/admin/outcomes/run` 已通过 `CRON_SECRET` 保护；`.github/workflows/chuan-outcome-executor.yml` 会每小时低频触发该入口，并从已有 `CHUAN_SCAN_URL` 推导 outcome executor URL，适配 Vercel 免费套餐不能依赖高频内置 Cron 的边界，也避免新增 GitHub secret。
+- `POST /api/admin/outcomes/run` 已通过 `CRON_SECRET` 保护；当前腾讯云单机生产主线由 `signal-worker` 低频触发 outcome executor。`.github/workflows/chuan-outcome-executor.yml` 仅保留为 Vercel 回滚路径的外部 cron 方案，不再作为主生产执行方式。
 - outcome executor 使用公开 OHLCV provider，不占用 CoinGlass 请求预算；输出保持 `allowedUse: "research_only"` 和 `canAutoAdjustWeights: false`。
 - outcome executor 已具备基础重复执行保护：同一 signal 只要已经存在 closed lifecycle outcome，旧 tracking entry 不会再次触发公开 K 线请求。
 - 系统健康报告和系统状态面板已展示自动复盘基础状态：覆盖率、待复查数、到期数、最近写回时间、最近执行批次、写回数、跳过数、失败数、失败原因摘要、样本质量分层、手动校准准入门槛、只读校准流、阈值层、人工回滚计划和研究用途边界。
@@ -1035,7 +1071,7 @@ AI 复核必须遵守：
 - CoinGlass 每日异动抓取服务：按配置资产低频请求榜单、构建快照并写入 repository。
 - 受保护 API 入口：`POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 公开只读 API：`GET /api/daily-movers` 可读取最新样本、按 `id` 查询历史样本，并输出轻量摘要列表。
-- GitHub Actions 外部 cron：`.github/workflows/chuan-daily-movers.yml` 每日低频触发受保护 API。
+- 腾讯云单机生产主线由 `coinglass-worker` / 后台 Worker 低频触发每日异动归因；`.github/workflows/chuan-daily-movers.yml` 仅保留为 Vercel 回滚路径外部 cron。
 - 持久化 schema：`daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`。
 - repository 写入和查询：`addDailyMoverSnapshot()`、`listDailyMoverSnapshots()`、`getDailyMoverSnapshot()`。
 - 公开只读能力入口：每日异动能力保留为 Review / Evolution / 功能抽屉 / Signal Dossier 的研究入口；完整 `后续新前端` 不再常驻首页右侧信息栈，避免首页重新变成全功能堆叠。
@@ -1058,7 +1094,7 @@ AI 复核必须遵守：
 - 缓存 K 线验证结果：`GET /api/daily-movers` 会输出 `klineBacktestResults`，只读取 bounded `ohlcv_candle_cache`，计算缓存覆盖率、周期涨跌幅、最大冲高、最大回撤和量能变化；结果保持 `cached_kline_validation`、`research_only`、`canAutoAdjustWeights: false`，不触发外部请求。
 - observedAt 事件窗口回测：`klineBacktestResults.eventWindowResults` 会按每日异动样本的 `observedAt` 把已缓存 candles 拆成 pre/post 窗口，输出样本方向、pre/post K 线数量、post 回撤/冲高、量能扩张和 `post_move_confirmed / pre_move_evidence / neutral / window_missing` 判定；该结果仍只读、不触发外部请求、不自动调权重。
 - 免费套餐护栏：关联摘要最多读取 12 个扫描归档和 80 条日记，只做只读聚合，不新增表、不增加 CoinGlass 请求、不增加数据库写入频率。
-- outcome executor 复盘写回基础：待复查 journal 可经受保护 API 和外部 GitHub Actions 低频触发，使用公开 OHLCV 评估 partial win、saved、loss、expired，并把结果写回 journal/rank；健康面板已展示覆盖率、待复查、到期、最近写回、最近执行批次、失败原因摘要、样本质量分层、只读阈值层、人工回滚计划、策略权重回测候选、只读权重变更审计、人工执行记录写入入口和 registry；该链路不占用 CoinGlass 请求预算，不自动改权重。
+- outcome executor 复盘写回基础：待复查 journal 由腾讯云 `signal-worker` 主线低频触发受保护 API；外部 GitHub Actions 仅作为 Vercel 回滚路径触发方案。该链路使用公开 OHLCV 评估 partial win、saved、loss、expired，并把结果写回 journal/rank；健康面板已展示覆盖率、待复查、到期、最近写回、最近执行批次、失败原因摘要、样本质量分层、只读阈值层、人工回滚计划、策略权重回测候选、只读权重变更审计、人工执行记录写入入口和 registry；该链路不占用 CoinGlass 请求预算，不自动改权重。
 - 安全边界：输出必须保持 `allowedUse: "research_only"`，只能用于归因复盘、样本库和规则校准。
 
 后续需要：
@@ -1186,15 +1222,14 @@ CoinGlass 业余会员 API：
 - 后续单机生产目标需要把 Worker 从“调用受保护 API”逐步升级为“直接调用内部服务 + Redis 调度 + Postgres 审计”，但每次拆分必须保证同一套 Evidence / Risk Gate / Repository 合同，不允许复制一套平行逻辑。
 - 部署自动化优先级提升：需要补齐生产诊断、自动拉取、构建、迁移、健康检查、失败回滚和日志打包脚本，减少 OrcaTerm 手动步骤。
 
-## Vercel 回滚与稳定性原则
+## Vercel / Neon 旧回滚原则
 
-- 免费阶段不依赖 Vercel 15 分钟内置 Cron。
-- 使用 GitHub Actions 外部 cron 每 15 分钟请求 `/api/scan`；该频率与应用 `cadenceMinutes=15` 对齐，配合 `COINGLASS_BATCH_SIZE=24`、`COINGLASS_DAILY_REQUEST_BUDGET=3000` 和 `COINGLASS_MAX_CONCURRENCY=6`，让全市场山寨池在免费/业余阶段以低频宽覆盖方式轮转，而不是长期只扫 BTC/ETH + 1 个山寨。
-- 使用外部 cron 每日低频请求 `/api/admin/daily-movers/ingest`。
-- K 线缓存填充只通过受保护入口 `/api/admin/daily-movers/klines/fill` 低频触发，默认小预算、缓存优先，不占用 CoinGlass 请求。
+- Vercel/Neon/GitHub Actions cron 只作为旧线上回滚路径保留，不再作为新功能设计和生产部署的默认主线。
+- 如果临时回滚到 Vercel，不依赖 Vercel 15 分钟内置 Cron。
+- 回滚到 Vercel 时，可使用 GitHub Actions 外部 cron 请求 `/api/scan`、`/api/admin/daily-movers/ingest`、`/api/admin/daily-movers/klines/fill` 等受保护入口；该模式必须保持低频、小预算、缓存优先，不占用额外 CoinGlass 请求。
 - API 层必须缓存。
 - 页面刷新不等于每次重新打 CoinGlass。
-- 后台任务必须短、可重试、可降级，不能假设免费套餐有长时间常驻 worker。
+- Vercel 回滚路径中的后台任务必须短、可重试、可降级，不能假设免费套餐有长时间常驻 worker。
 - 上游失败时展示 stale，而不是假装 ready。
 - 健康状态必须展示：
   - provider
@@ -1316,7 +1351,7 @@ CoinGlass 业余会员 API：
 
 下一步深化：
 
-- 阶段 3 暂时不继续扩请求频率；在 CoinGlass 业余会员、Neon 免费和 Vercel 免费约束下，已优先进入阶段 4A，把多周期 OHLCV candles 接入受限主候选，提高信号证据质量。后续阶段 3 的正确方向不是简单加大请求，而是补齐状态池调度、深扫配额、复活观察、冷门探索、扫描证明和漏判反哺，再根据真实 health 数据逐步提高动态优先级质量。
+- 阶段 3 暂时不继续盲目扩请求频率；在腾讯云单机生产和 CoinGlass Hobbyist 限速边界下，已优先进入阶段 4A，把多周期 OHLCV candles 接入受限主候选，提高信号证据质量。后续阶段 3 的正确方向不是简单加大请求，而是补齐状态池调度、深扫配额、复活观察、冷门探索、扫描证明和漏判反哺，再根据真实 health 数据逐步提高动态优先级质量。
 
 ### 阶段 4：OHLCV 与技术指标
 
@@ -1505,8 +1540,8 @@ CoinGlass 业余会员 API：
    - 新增受保护接口 `POST /api/admin/v3/forward-map-reviews/run`，继续使用 `CRON_SECRET`，不暴露公开写入入口。
    - 复盘面板和 Signal Dossier 已识别 v3 review action，展示只读复盘、不改权重和 evidence 数量，避免被当成普通交易复盘。
    - `/api/health` 和系统健康面板已展示 `v3ForwardMapReviews`，包含事前地图、最近执行、完成快照、跳过原因、失败数、最近样本时间和 `v3_forward_map_snapshots` 存储迁移状态。
-   - 如果 Neon 还没有执行最新迁移，健康面板显示待迁移，首页仍必须可加载。
-   - GitHub Actions 低频触发已落地：`.github/workflows/chuan-v3-forward-map-review.yml` 每 6 小时请求一次受保护入口，复用 `CHUAN_SCAN_URL` 推导目标 URL，复用 `CHUAN_CRON_SECRET` 鉴权，不新增 GitHub secret。
+   - 如果当前生产 Postgres 或旧 Neon 回滚库还没有执行最新迁移，健康面板显示待迁移，首页仍必须可加载。
+   - 当前腾讯云单机生产主线由 `signal-worker` 低频触发 v3 Forward Map Review。`.github/workflows/chuan-v3-forward-map-review.yml` 仅作为 Vercel 回滚路径的低频触发方案保留，复用 `CHUAN_SCAN_URL` 和 `CHUAN_CRON_SECRET`，不作为主生产执行方式。
    - 当前状态：已完成 MVP。
 
 17. **Phase 4V3-4：missed_altcoin_review 与每日异动复盘融合**
