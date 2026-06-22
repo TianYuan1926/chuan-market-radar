@@ -2,7 +2,13 @@
 
 import { Panel } from '@/components/panel'
 import { StatusBadge, FreshnessTag, ResourceBoundary } from '@/components/data-state'
-import { getMacroAltEnv, getDerivatives, getApiUsage, type RadarContract } from '@/lib/radar-contract'
+import {
+  type ApiUsageState,
+  type DerivativesState,
+  type MacroAltEnv,
+  type RadarContract,
+} from '@/lib/radar-contract'
+import { resource } from '@/lib/data-status'
 import { fmtCap } from '@/lib/mock-data'
 import { Globe2, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
@@ -17,14 +23,64 @@ const SUGGEST_TONE: Record<string, string> = {
   建议观望: 'var(--sig-pump)',
 }
 
+const EMPTY_META = {
+  source: 'frontend-contract',
+  reason: '未收到后端页面契约，禁止使用演示数据兜底',
+}
+
+const EMPTY_MACRO = resource<MacroAltEnv>(
+  {
+    btcDominance: 0,
+    btcDominanceTrend: '走平',
+    total2: 0,
+    total3: 0,
+    altStrength: 0,
+    btcState: '震荡',
+    ethState: '震荡',
+    riskMode: '中性',
+    suggestion: '建议观望',
+  },
+  'empty',
+  EMPTY_META,
+)
+
+const EMPTY_DERIVATIVES = resource<DerivativesState>(
+  {
+    oiChange: 0,
+    funding: 0,
+    longShortRatio: 0,
+    takerBuySell: 0,
+    takerBuySellStatus: 'not_connected',
+    exchangeCoverage: 0,
+    totalExchanges: 0,
+    lastUpdate: '—',
+  },
+  'empty',
+  EMPTY_META,
+)
+
+const EMPTY_API_USAGE = resource<ApiUsageState>(
+  {
+    provider: 'CoinGlass',
+    usedToday: 0,
+    remainingToday: 0,
+    perMinuteLimit: 0,
+    pacingMs: 0,
+    throttled: false,
+  },
+  'empty',
+  EMPTY_META,
+)
+
 export function MarketMacroDerivatives({ contract }: { contract?: RadarContract } = {}) {
-  const macroRes = contract?.macroAltEnv ?? getMacroAltEnv()
-  const derivRes = contract?.derivatives ?? getDerivatives()
-  const apiRes = contract?.apiUsage ?? getApiUsage()
+  const macroRes = contract?.macroAltEnv ?? EMPTY_MACRO
+  const derivRes = contract?.derivatives ?? EMPTY_DERIVATIVES
+  const apiRes = contract?.apiUsage ?? EMPTY_API_USAGE
   const m = macroRes.data
   const d = derivRes.data
   const a = apiRes.data
-  const usedPct = Math.round((a.usedToday / (a.usedToday + a.remainingToday)) * 100)
+  const apiBudget = Math.max(1, a.usedToday + a.remainingToday)
+  const usedPct = Math.round((a.usedToday / apiBudget) * 100)
 
   const TrendIcon =
     m.btcDominanceTrend === '上升' ? TrendingUp : m.btcDominanceTrend === '下降' ? TrendingDown : Minus
@@ -102,7 +158,11 @@ export function MarketMacroDerivatives({ contract }: { contract?: RadarContract 
             tone={d.funding >= 0 ? 'var(--up)' : 'var(--down)'}
           />
           <Cell index={2} label="多空比" value={d.longShortRatio.toFixed(2)} />
-          <Cell index={3} label="主动买卖比" value={d.takerBuySell.toFixed(2)} />
+          <Cell
+            index={3}
+            label="主动买卖比"
+            value={d.takerBuySellStatus === 'connected' ? d.takerBuySell.toFixed(2) : '待接入'}
+          />
           <Cell index={4} label="交易所覆盖" value={`${d.exchangeCoverage}/${d.totalExchanges}`} />
           <Cell index={5} label="数据更新" value={d.lastUpdate} />
         </div>

@@ -135,13 +135,6 @@ function trendFor(direction: Direction): Token['trend'] {
   return 'shock'
 }
 
-function changeFor(signal: RadarSignal, score: number) {
-  const base = Math.max(1, score - 45) / 6
-  if (signal.direction === '空') return -round(base + signal.counterCount * 0.8, 2)
-  if (signal.direction === '多') return round(base + signal.evidenceCount * 0.55, 2)
-  return round((score - 50) / 12, 2)
-}
-
 function tokenFor(
   signal: RadarSignal,
   tickerRows: TickerRows = [],
@@ -151,7 +144,6 @@ function tokenFor(
   const score = scoreFor(signal)
   const ticker = tickerLookup.get(symbol)
   const price = positiveNumber(ticker?.price)
-  const change24h = changeFor(signal, score)
   const trend = trendFor(signal.direction)
   const tags: Token['tags'] = ['合约', '异常活跃']
 
@@ -166,10 +158,10 @@ function tokenFor(
     price,
     marketCap: 0,
     volume24h: Math.round(positiveNumber(ticker?.value)),
-    change1h: round(change24h / 8, 2),
-    change24h,
-    change7d: round(change24h * 2.4, 2),
-    change30d: round(change24h * 5.8, 2),
+    change1h: 0,
+    change24h: 0,
+    change7d: 0,
+    change30d: 0,
     hue: signal.hue,
     tags: [...new Set(tags)] as Token['tags'],
     anomalyScore: clamp(score + signal.evidenceCount * 2 - signal.counterCount * 2, 1, 100),
@@ -297,10 +289,10 @@ export function leaderboardRowsToTokens(
       price: positiveNumber(row.price),
       marketCap: 0,
       volume24h: Math.round(kind === 'volume' ? positiveNumber(row.value) : 0),
-      change1h: round(change24h / 8, 2),
+      change1h: 0,
       change24h,
-      change7d: round(change24h * 2.4, 2),
-      change30d: round(change24h * 5.8, 2),
+      change7d: 0,
+      change30d: 0,
       hue: row.hue,
       tags: [...new Set(tags)] as Token['tags'],
       anomalyScore: clamp(
@@ -528,7 +520,7 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
       const score = scoreFor(signal)
       const type = typeFor(signal)
       const ageMin = Math.max(0, signal.updatedMinAgo)
-      const pushPrice = token.price / Math.max(0.01, 1 + token.change24h / 100)
+      const pushPrice = token.price
 
       return {
         id: signal.id,

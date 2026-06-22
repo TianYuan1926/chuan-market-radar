@@ -6,9 +6,8 @@ import type { Token } from './mock-data'
 /**
  * 集中式实时行情 store
  * ---------------------------------------------------------------
- * 单一定时器统一驱动所有币种报价的小幅游走，组件通过
- * useSyncExternalStore 订阅，保证盘口条 / 信号表 / 榜单 / 热力图
- * 等各处显示的同一币种数值完全一致，且只用一个 interval。
+ * 组件通过 useSyncExternalStore 订阅，保证盘口条 / 信号表 / 榜单 /
+ * 热力图等各处显示的同一币种数值完全一致。
  *
  * 后端对接规则：
  * - 页面拿到真实 token 列表后调用 usePrimeLiveQuotes(tokens) 注入行情。

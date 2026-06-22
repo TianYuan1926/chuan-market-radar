@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { TokenAvatar } from '@/components/token-avatar'
 import { StatusBadge, ResourceBoundary } from '@/components/data-state'
 import {
-  getRadarSignals,
   MATURITY_META,
   type SignalMaturity,
   type RadarSignal,
 } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'
+import { resource } from '@/lib/data-status'
 import { Search, ArrowUpDown, ChevronRight, ShieldX, CheckCircle2, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -51,8 +51,17 @@ const MATURITY_ORDER: SignalMaturity[] = [
   'INVALIDATED',
 ]
 
+const EMPTY_SIGNALS = resource<RadarSignal[]>(
+  [],
+  'empty',
+  {
+    source: 'frontend-contract',
+    reason: '未收到后端信号契约，禁止使用演示信号兜底',
+  },
+)
+
 export function SignalMaturityPool({ signals }: { signals?: Resource<RadarSignal[]> }) {
-  const res = signals ?? getRadarSignals()
+  const res = signals ?? EMPTY_SIGNALS
   const all = res.data
 
   const [query, setQuery] = useState('')

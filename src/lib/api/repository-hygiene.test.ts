@@ -757,3 +757,48 @@ test("single-server deployment scripts expose current runtime contracts and reco
   assert.doesNotMatch(verifySource, /COINGLASS_API_KEY=.*echo|AI_API_KEY=.*echo/);
   assert.doesNotMatch(restoreSource, /POSTGRES_PASSWORD=.*echo/);
 });
+
+test("active frontend carrier components cannot fall back to radar-contract mock getters", () => {
+  const activeCarrierFiles: Record<string, RegExp[]> = {
+    "src/components/dashboard/radar-control.tsx": [
+      /getScanProof/,
+      /getDeepScanQueue/,
+      /getCapabilityStages/,
+      /getDataSources/,
+    ],
+    "src/components/signals/signal-maturity-pool.tsx": [/getRadarSignals/],
+    "src/components/leaderboard/market-leaderboards.tsx": [/getLeaderboard\(/, /getLeaderboard,/],
+    "src/components/market/macro-derivatives.tsx": [/getMacroAltEnv/, /getDerivatives/, /getApiUsage/],
+  };
+
+  for (const [filePath, bannedPatterns] of Object.entries(activeCarrierFiles)) {
+    const source = readFileSync(resolve(process.cwd(), filePath), "utf8");
+
+    for (const pattern of bannedPatterns) {
+      assert.doesNotMatch(source, pattern, `${filePath} must not use active mock fallback ${pattern}`);
+    }
+  }
+});
+
+test("frontend subscribes to the read-only live event stream after auth", () => {
+  const bridgePath = "src/components/frontend-live-event-bridge.tsx";
+  const authGateSource = readFileSync(resolve(process.cwd(), "src/components/auth/auth-gate.tsx"), "utf8");
+
+  assert.equal(existsSync(resolve(process.cwd(), bridgePath)), true, `${bridgePath} must exist`);
+
+  const bridgeSource = readFileSync(resolve(process.cwd(), bridgePath), "utf8");
+
+  assert.match(authGateSource, /FrontendLiveEventBridge/);
+  assert.match(bridgeSource, /new EventSource\('\/api\/frontend\/live-events\/stream\?/);
+  assert.match(bridgeSource, /publishSignalEvent/);
+  assert.match(bridgeSource, /upsertLiveQuotes/);
+  assert.doesNotMatch(bridgeSource, /refreshMarketRadarSnapshot|\/api\/scan|COINGLASS_API_KEY/);
+});
+
+test("review page restores rank visibility without rendering the legacy mock review center", () => {
+  const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
+
+  assert.match(reviewPageSource, /RankBanner/);
+  assert.match(reviewPageSource, /<RankBanner/);
+  assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
+});

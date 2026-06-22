@@ -102,6 +102,27 @@ test("leaderboard tokens do not fabricate prices when backend price is missing",
   assert.equal(tokens[0]?.change24h, 6.2);
 });
 
+test("leaderboard tokens do not fabricate unsupported period changes", () => {
+  const tokens = leaderboardRowsToTokens([
+    {
+      symbol: "TIA",
+      hue: 220,
+      value: 9.25,
+      price: 7.842,
+      inCandidatePool: true,
+      deepScanned: true,
+      hasSignal: false,
+      blocked: false,
+      awaitingScan: false,
+    },
+  ], "gainers");
+
+  assert.equal(tokens[0]?.change24h, 9.25);
+  assert.equal(tokens[0]?.change1h, 0);
+  assert.equal(tokens[0]?.change7d, 0);
+  assert.equal(tokens[0]?.change30d, 0);
+});
+
 test("merged tokens preserve real price and real change from different leaderboards", () => {
   const gainers = leaderboardRowsToTokens([
     {
@@ -141,6 +162,40 @@ test("leaderboard fallback does not create sniper targets", () => {
   const targets = radarSignalsToSniperTargets([], rows);
 
   assert.equal(targets.length, 0);
+});
+
+test("signal cards do not reverse engineer push price from synthetic change", () => {
+  const signal: RadarSignal = {
+    id: "real-tia",
+    symbol: "TIA",
+    hue: 220,
+    direction: "多",
+    maturity: "EVIDENCE_SIGNAL",
+    rr: 3.1,
+    risk: "低",
+    evidenceCount: 5,
+    counterCount: 0,
+    freshness: "live",
+    whySelected: "真实证据融合信号",
+    whyBlocked: null,
+    updatedMinAgo: 1,
+  };
+
+  const cards = radarSignalsToSignalCards([signal], [
+    {
+      symbol: "TIA",
+      hue: 220,
+      value: 12.4,
+      price: 7.842,
+      inCandidatePool: true,
+      deepScanned: true,
+      hasSignal: true,
+      blocked: false,
+      awaitingScan: false,
+    },
+  ]);
+
+  assert.equal(cards[0]?.pushPrice, 7.842);
 });
 
 test("signal resource fallback keeps real signals and appends missing candidates", () => {

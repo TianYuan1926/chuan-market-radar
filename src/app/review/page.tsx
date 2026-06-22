@@ -1,5 +1,6 @@
 import { SiteNav } from '@/components/site-nav'
 import { ReviewEvolution } from '@/components/review/review-evolution'
+import { RankBanner } from '@/components/rank-training'
 import { getReviewContractForPage } from '@/lib/frontend-contract-server'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +18,10 @@ export default async function ReviewPage() {
             每日异动复盘、扫描帧回放与交易日记——让系统在样本中持续进化
           </p>
         </header>
-        <ReviewEvolution contract={review} />
+        <div className="space-y-6">
+          <RankBanner />
+          <ReviewEvolution contract={review} />
+        </div>
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
           后端契约数据仅供市场研究与系统校准，不构成投资建议

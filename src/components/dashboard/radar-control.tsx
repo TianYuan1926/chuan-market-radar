@@ -1,12 +1,13 @@
 'use client'
 
 import {
-  getScanProof,
-  getDeepScanQueue,
-  getCapabilityStages,
-  getDataSources,
+  type CapabilityStage,
+  type DataSourceState,
+  type DeepScanQueue,
   type RadarContract,
+  type ScanProofData,
 } from '@/lib/radar-contract'
+import { resource } from '@/lib/data-status'
 import { StatusBadge, FreshnessTag, ResourceBoundary } from '@/components/data-state'
 import { CountUp } from '@/components/count-up'
 import {
@@ -43,11 +44,47 @@ const FEED_LABEL: Record<string, string> = {
   failed: '失败',
 }
 
+const EMPTY_SOURCE = {
+  source: 'frontend-contract',
+  reason: '未收到后端页面契约，禁止使用演示数据兜底',
+}
+
+const EMPTY_SCAN = resource<ScanProofData>(
+  {
+    totalMonitored: 0,
+    scannable: 0,
+    lightScanned: 0,
+    deepScanned: 0,
+    awaitingDeepScan: 0,
+    coverage: 0,
+    lastScanAt: '—',
+    nextScanCountdownSec: 0,
+    stuck: true,
+  },
+  'empty',
+  EMPTY_SOURCE,
+)
+
+const EMPTY_QUEUE = resource<DeepScanQueue>(
+  {
+    currentBatch: [],
+    nextBatch: [],
+    highPriority: [],
+    coldExploration: [],
+    longUnscanned: [],
+  },
+  'empty',
+  EMPTY_SOURCE,
+)
+
+const EMPTY_CAPABILITIES = resource<CapabilityStage[]>([], 'empty', EMPTY_SOURCE)
+const EMPTY_SOURCES = resource<DataSourceState[]>([], 'empty', EMPTY_SOURCE)
+
 export function DashboardRadarControl({ contract }: { contract?: RadarContract } = {}) {
-  const scan = contract?.scanProof ?? getScanProof()
-  const queue = contract?.deepScanQueue ?? getDeepScanQueue()
-  const caps = contract?.capabilityStages ?? getCapabilityStages()
-  const sources = contract?.dataSources ?? getDataSources()
+  const scan = contract?.scanProof ?? EMPTY_SCAN
+  const queue = contract?.deepScanQueue ?? EMPTY_QUEUE
+  const caps = contract?.capabilityStages ?? EMPTY_CAPABILITIES
+  const sources = contract?.dataSources ?? EMPTY_SOURCES
 
   const sp = scan.data
 
@@ -57,7 +94,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
     { label: '已轻扫', value: sp.lightScanned },
     { label: '已深扫', value: sp.deepScanned },
     { label: '等待深扫', value: sp.awaitingDeepScan },
-    { label: '覆盖率', value: sp.coverage, suffix: '%' },
+    { label: '本轮深扫占比', value: sp.coverage, suffix: '%' },
   ]
 
   return (
@@ -86,10 +123,10 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
               </div>
             ))}
           </div>
-          {/* 覆盖率进度条：入场增长 + 轨道流光 */}
+          {/* 本轮深扫占比进度条：入场增长 + 轨道流光 */}
           <div className="mt-3">
             <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>扫描覆盖率</span>
+              <span>本轮深扫占比</span>
               <span className="font-mono text-foreground">{sp.coverage}%</span>
             </div>
             <div className="bar-track h-1.5 overflow-hidden bg-secondary">

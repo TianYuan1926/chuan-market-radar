@@ -6,6 +6,7 @@ import { PetRobot } from '@/components/pet-robot'
 import { GlobalSignalFeed } from '@/components/global-signal-feed'
 import { EasterEggSystem } from '@/components/easter-egg-system'
 import { LoginTerminal } from '@/components/auth/login-terminal'
+import { FrontendLiveEventBridge } from '@/components/frontend-live-event-bridge'
 
 // 与 LoginTerminal 写入的登录态标记保持一致
 const AUTH_KEY = 'chuan_operator'
@@ -79,6 +80,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       {authed === null ? null : authed ? (
         <>
           {children}
+          <FrontendLiveEventBridge />
           <GlobalSignalFeed />
           <PetRobot />
           <EasterEggSystem />

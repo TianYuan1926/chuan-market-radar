@@ -21,6 +21,8 @@ const COLS: { key: keyof LiveQuote; label: string }[] = [
   { key: 'change30d', label: '30天' },
 ]
 
+const SUPPORTED_CHANGE_FIELDS = new Set<keyof LiveQuote>(['change24h'])
+
 export function LeaderboardTable({ tokens }: { tokens: Token[] }) {
   const [tab, setTab] = useState<Tab>('gainers')
   const [page, setPage] = useState(1)
@@ -148,7 +150,11 @@ export function LeaderboardTable({ tokens }: { tokens: Token[] }) {
                     key={c.key}
                     className="px-4 py-3 text-right font-mono font-medium"
                   >
-                    <LiveQuotePct id={t.id} field={c.key} />
+                    {SUPPORTED_CHANGE_FIELDS.has(c.key) ? (
+                      <LiveQuotePct id={t.id} field={c.key} />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">待补齐</span>
+                    )}
                   </td>
                 ))}
               </tr>

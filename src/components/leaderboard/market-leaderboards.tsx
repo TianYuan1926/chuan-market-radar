@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { TokenAvatar } from '@/components/token-avatar'
 import { StatusBadge, ResourceBoundary } from '@/components/data-state'
 import {
-  getLeaderboard,
   LEADERBOARD_META,
   type LeaderboardKind,
   type LeaderboardRow,
 } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'
+import { resource } from '@/lib/data-status'
 import { cn } from '@/lib/utils'
 import { ListOrdered, ChevronRight } from 'lucide-react'
 
@@ -29,6 +29,17 @@ function formatValue(kind: LeaderboardKind, v: number): string {
   if (kind === 'gainers' || kind === 'losers' || kind === 'oi_change') return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`
   if (kind === 'volume') return `${v.toFixed(1)}x`
   return v.toFixed(0)
+}
+
+function emptyLeaderboard(kind: LeaderboardKind) {
+  return resource<LeaderboardRow[]>(
+    [],
+    'empty',
+    {
+      source: 'frontend-contract',
+      reason: `未收到后端 ${LEADERBOARD_META[kind].label} 契约，禁止使用演示榜单兜底`,
+    },
+  )
 }
 
 // 扫描状态标记（候选池 / 深扫 / 信号 / 拦截 / 待扫）
@@ -60,7 +71,7 @@ export function MarketLeaderboards({
   initialLeaderboards?: Partial<Record<LeaderboardKind, Resource<LeaderboardRow[]>>>
 }) {
   const [kind, setKind] = useState<LeaderboardKind>('gainers')
-  const res = initialLeaderboards?.[kind] ?? getLeaderboard(kind)
+  const res = initialLeaderboards?.[kind] ?? emptyLeaderboard(kind)
   const meta = LEADERBOARD_META[kind]
 
   return (
