@@ -1,4 +1,5 @@
 import type { ContractInstrument } from "../types";
+import { recordConfiguredDataSourceLatency } from "../../runtime/api-observability";
 import type {
   UniverseDiscoveryFailure,
   UniverseDiscoveryProvider,
@@ -96,8 +97,15 @@ export function createOkxUniverseDiscoveryProvider({
     label: "OKX Public Swap Universe Discovery",
 
     async discoverInstruments(): Promise<UniverseDiscoveryResult> {
+      const startedAt = Date.now();
+
       try {
         const response = await fetcher(buildOkxInstrumentsUrl(baseUrl));
+
+        void recordConfiguredDataSourceLatency({
+          elapsedMs: Date.now() - startedAt,
+          source: "okx",
+        });
 
         if (!response.ok) {
           return failure({
@@ -150,6 +158,11 @@ export function createOkxUniverseDiscoveryProvider({
           requestCount: 1,
         };
       } catch (error) {
+        void recordConfiguredDataSourceLatency({
+          elapsedMs: Date.now() - startedAt,
+          source: "okx",
+        });
+
         return failure({
           source,
           reason: "network_error",

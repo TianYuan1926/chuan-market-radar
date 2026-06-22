@@ -405,7 +405,7 @@ export function getScanState(): ScanState {
 export type ExchangeStatus = {
   name: string
   status: 'online' | 'degraded' | 'down'
-  latencyMs: number
+  latencyMs: number | null
   coverage: number
 }
 

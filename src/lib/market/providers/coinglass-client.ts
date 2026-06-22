@@ -1,3 +1,8 @@
+import {
+  recordConfiguredCoinGlassApiRequest,
+  recordConfiguredDataSourceLatency,
+} from "../../runtime/api-observability";
+
 export const COINGLASS_BASE_URL = "https://open-api-v4.coinglass.com";
 
 export type CoinGlassQuery = Record<string, string | number | boolean | undefined>;
@@ -90,21 +95,35 @@ export async function requestCoinGlass<T>({
     accept: "application/json",
     "CG-API-KEY": apiKey,
   });
-  const response = await fetcher(url, {
-    method: "GET",
-    headers,
-  });
-  const payload = await response.json() as CoinGlassEnvelope<T>;
-  const code = String(payload.code);
+  const startedAt = Date.now();
 
-  if (!response.ok || code !== "0") {
-    throw new CoinGlassApiError({
-      code,
-      httpStatus: response.status,
-      message: payload.msg ?? `CoinGlass request failed with code ${code}`,
-      rateLimit: rateLimitFromHeaders(response.headers),
+  try {
+    const response = await fetcher(url, {
+      method: "GET",
+      headers,
     });
-  }
+    const payload = await response.json() as CoinGlassEnvelope<T>;
+    const code = String(payload.code);
 
-  return payload.data;
+    if (!response.ok || code !== "0") {
+      throw new CoinGlassApiError({
+        code,
+        httpStatus: response.status,
+        message: payload.msg ?? `CoinGlass request failed with code ${code}`,
+        rateLimit: rateLimitFromHeaders(response.headers),
+      });
+    }
+
+    return payload.data;
+  } finally {
+    const elapsedMs = Date.now() - startedAt;
+
+    void Promise.allSettled([
+      recordConfiguredCoinGlassApiRequest(),
+      recordConfiguredDataSourceLatency({
+        elapsedMs,
+        source: "coinglass",
+      }),
+    ]);
+  }
 }

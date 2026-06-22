@@ -66,9 +66,10 @@ restore frontend source from user ui package
 当前审计基线：
 
 - 详见 `docs/frontend-backend-field-map.md`。
-- 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链。
-- 半接：复盘样本统计、API 用量、数据源延迟、AI 复审。
-- 未接：主力资金流、SSE/WebSocket 前端实时推送、宠物/彩蛋跨设备持久化、真实登录鉴权。
+- 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链、API 用量、数据源延迟、AI evidence-id 绑定复审。
+- 半接：复盘样本统计。
+- 未接：主力资金流、真正的 SSE/WebSocket 前端推送传输。
+- 已接：宠物/彩蛋跨设备持久化通过 `/api/frontend/ui-state` 写入 `frontend_ui_states`；真实登录鉴权通过 `/api/auth/session` 和可选私有模式完成。
 
 ## 阶段 2：后端接口对齐
 
@@ -85,16 +86,20 @@ restore frontend source from user ui package
 
 如果字段不够，只补只读字段，不改 UI。
 
-下一批需要补强的只读合同：
-
-- 扩展 radar contract：暴露 API 日内计数和数据源延迟。
-- `/api/frontend/live-events`：SSE/WebSocket 事件流，后续让前端动起来。
-
 已补齐的只读合同：
 
+- 扩展 radar contract：暴露 API 日内计数和数据源延迟。
+- `/api/frontend/live-events`：只读事件合同，前端可轮询；真正 SSE/WebSocket 推送传输后续再做。
+- `/api/frontend/ui-state`：宠物、彩蛋和 UI 偏好状态，UI-only，不进入交易判断。
+- `/api/auth/session`：可选私有登录，默认关闭，开启后使用服务端签名会话。
 - `/api/frontend/kline-contract?symbol=...&tf=...`：给 Token 详情页真实 K 线；页面侧通过 `getKlineContractForPage()` 直接读取同一合同，不再生成模拟蜡烛。
 - `/api/frontend/journal-contract`：给交易日记抽屉读取/写入真实 Postgres 日记；写入 `manual_trade` 事件，`rankDelta=0`，不自动调权。
 - `/api/admin/runtime/heartbeat` + `RadarContract.serviceNodes`：worker 通过受保护接口写 Redis 心跳，系统页读取真实 Redis/worker 运行探针，不再硬写在线状态。
+
+下一批需要补强的合同：
+
+- 主力资金流：需要确认可免费稳定获取的数据源后再接入。
+- 真正 SSE/WebSocket 前端推送传输：当前已有 `/api/frontend/live-events` 轮询合同，后续只升级传输方式，不改变交易判断。
 
 ## 阶段 3：统一 mapper 层
 

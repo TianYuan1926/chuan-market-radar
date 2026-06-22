@@ -1,4 +1,5 @@
 import type { ContractInstrument } from "../types";
+import { recordConfiguredDataSourceLatency } from "../../runtime/api-observability";
 import type {
   UniverseDiscoveryFailure,
   UniverseDiscoveryProvider,
@@ -100,12 +101,20 @@ export function createBybitUniverseDiscoveryProvider({
       const observedAt = now().toISOString();
       const instruments: ContractInstrument[] = [];
       let cursor = "";
+      let lastStartedAt = Date.now();
       let requestCount = 0;
 
       try {
         for (let page = 0; page < maxPages; page += 1) {
           requestCount += 1;
+          const startedAt = Date.now();
+          lastStartedAt = startedAt;
           const response = await fetcher(buildBybitInstrumentsUrl(baseUrl, cursor));
+
+          void recordConfiguredDataSourceLatency({
+            elapsedMs: Date.now() - startedAt,
+            source: "bybit",
+          });
 
           if (!response.ok) {
             return failure({
@@ -171,6 +180,11 @@ export function createBybitUniverseDiscoveryProvider({
           requestCount,
         };
       } catch (error) {
+        void recordConfiguredDataSourceLatency({
+          elapsedMs: Date.now() - lastStartedAt,
+          source: "bybit",
+        });
+
         return failure({
           source,
           reason: "network_error",

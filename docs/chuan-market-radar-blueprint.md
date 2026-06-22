@@ -10,7 +10,7 @@
 
 ## 不做什么
 
-- 当前不做登录系统。
+- 当前不做多用户账户系统；只支持可选私有登录模式，默认关闭，开启后用于个人站点访问保护。
 - 当前不做自动下单。
 - 当前不接交易权限，不做自动交易系统。
 - 当前不做普通行情站、指标信号站或单纯涨跌幅榜。
@@ -29,7 +29,7 @@
 3. **证据优先**：每个信号必须能解释为什么出现、为什么不能追、什么条件失效。
 4. **稳定优先**：业余版 CoinGlass API 需要低频、缓存、分批、降级和健康状态展示。
 5. **可扩展优先**：数据源、分析引擎、AI 复核、复盘、告警、UI 模块必须保持边界清楚，方便后期替换。
-6. **公开站点优先**：未登录阶段所有数据使用公共 scope，未来再扩展用户账户、个人 watchlist 和私有日记。
+6. **个人站点优先**：生产主线服务用户本人。私有登录只控制访问权限；分析、扫描和复盘数据仍按清晰 scope 归类，未来如扩展多用户账户、个人 watchlist 和私有日记，必须另设数据边界。
 7. **运行感优先**：网站必须能让用户看出系统正在扫描、排队、分析、深扫、写入和复盘；动效、提示音和互动反馈只能表达真实运行状态，不能替代信号判断，不能变成娱乐主线。
 8. **长期迭代优先**：V3.0 不是最终版，而是专业稳定底座版；后续新增功能、优化功能、替换数据源、调整 UI 或加入登录系统时，必须通过模块边界、测试、迁移和预览验证继续迭代，不能靠堆代码硬加。
 9. **路线动态校准**：每完成一个阶段后，必须基于当下真实代码、数据源、验证结果和线上约束重新判断后续顺序；如果旧计划已被部分覆盖、优先级变化或出现更关键风险，后续计划要良性调整，不能机械照搬历史清单。
@@ -1594,6 +1594,20 @@ CoinGlass 业余会员 API：
    - 当前旧前端已清空，首页只保留最小占位页。
    - 后续不从旧组件、旧视觉稿、旧 QA 记录或旧沟通方向恢复。
    - 新前端必须先完成信息架构和数据契约设计，再进入视觉和交互实现。
+
+30. **Phase Backend-3：前端数据观测与事件合同（已落地）**
+   - 新增 Redis-backed `api-observability`：CoinGlass 每次真实请求写入日内调用计数，CoinGlass/Binance/OKX/Bybit 写入数据源延迟探针。
+   - `/api/health.apiUsage`、`/api/health.dataSourceLatency`、`/api/radar/backend-contract.runtime.apiUsage`、`/api/radar/backend-contract.runtime.sourceLatency` 和 `RadarContract.apiUsage/dataSources` 必须读取这些真实观测；未配置 Redis 时只能显示 unconfigured/partial，严禁用本轮计划请求数或 `0ms` 冒充真实状态。
+   - 新增 `GET /api/frontend/live-events`，只读取扫描归档和 runtime 心跳，输出 scan heartbeat、signal change、candidate change 和 system status 事件；该接口不得触发扫描、不得调用 CoinGlass。
+   - AI 反证复核升级为 evidence-id bound：prompt 必须包含 `trace.signalId` 和 `trace.evidenceIds`；模型反证若引用 payload 外 evidenceId，必须 fallback，不能进入 reviewed。AI 仍只做反证复核，不能覆盖规则引擎、不能生成交易信号、不能改排序。
+
+31. **Phase Backend-4：前端 UI 状态持久化与私有访问边界（已落地）**
+   - 新增 `frontend_ui_states` 持久化表，用于宠物进度、彩蛋进度和 UI 偏好；该表的 `allowedUse` 固定为 `ui_state_only`，`canCreateTradeSignal`、`canMutateLiveRanking`、`canAutoAdjustWeights` 固定为 `false`。
+   - 新增 `GET/POST /api/frontend/ui-state`，只读写 UI 状态，不触发扫描、不写交易日记、不进入 Evidence、Signal Maturity、Universe Priority、Risk Gate 或权重系统。
+   - `pet-store` 和 `egg-store` 已接入服务器同步：先读 localStorage 保证前端不卡，再后台读写 `/api/frontend/ui-state`；接口失败时只能降级为本地缓存，不能假称已跨设备保存。
+   - 新增 `GET/POST/DELETE /api/auth/session` 和 `middleware.ts` 私有模式边界。`CHUAN_PRIVATE_MODE_ENABLED=false` 时默认放行；开启后使用 HTTP-only 签名 cookie 保护页面、前端合同和读写型前端 API。
+   - `.env.example` 只允许使用占位符：`CHUAN_SESSION_PASSWORD`、`CHUAN_SESSION_SECRET`、`CHUAN_SESSION_TTL_SECONDS`、`FRONTEND_UI_STATE_*`。真实密码、API key 和 session secret 不得写入仓库。
+   - 私有登录不是交易权限，不接交易所下单 API，不做自动交易；它只保护个人站点访问。
 
 ## 每次继续开发必须遵守
 

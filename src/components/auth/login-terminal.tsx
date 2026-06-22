@@ -75,10 +75,35 @@ export function LoginTerminal() {
       logTimers.current.push(t)
     })
 
-    const done = setTimeout(() => {
+    const done = setTimeout(async () => {
+      let authenticated = false
+      try {
+        const response = await fetch('/api/auth/session', {
+          body: JSON.stringify({
+            account: account.trim(),
+            password,
+            remember,
+          }),
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          method: 'POST',
+        })
+        const body = await response.json().catch(() => null)
+        authenticated = response.ok && Boolean(body?.authenticated)
+      } catch {
+        authenticated = false
+      }
+
+      if (!authenticated) {
+        setPhase('idle')
+        setError('身份核验失败，请检查账号或密钥')
+        return
+      }
+
       setPhase('granted')
       try {
-        // 占位的登录态标记，后端接入后由真实会话替代
+        // 服务端会话是主凭证；本地标记只做离线兜底。
         const store = remember ? window.localStorage : window.sessionStorage
         store.setItem('chuan_operator', account.trim())
       } catch {

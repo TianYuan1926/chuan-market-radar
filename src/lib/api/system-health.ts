@@ -39,6 +39,11 @@ import {
   type RuntimeProbeReport,
 } from "../runtime/worker-heartbeat";
 import {
+  readConfiguredApiObservabilityReport,
+  type ApiUsageReport,
+  type DataSourceLatencyReport,
+} from "../runtime/api-observability";
+import {
   evaluateStrategyV3Readiness,
   type StrategyV3ReadinessBucket,
 } from "../analysis/v3/readiness";
@@ -486,6 +491,8 @@ export type SystemHealthReport = {
   macroMarket: MacroMarketHealthReport;
   scanStatePool: ScanStatePoolReport;
   scanEconomy: ScanEconomyReport;
+  apiUsage: ApiUsageReport;
+  dataSourceLatency: DataSourceLatencyReport;
   runtimeProbes: RuntimeProbeReport;
   operations: {
     batchDetail: string | null;
@@ -2471,10 +2478,13 @@ export async function buildSystemHealthReport({
   const fullMarketCoverage = fullMarketCoverageReport(metadata, coverage, scanEconomy);
   const marketDataQuality = marketDataQualityReport(snapshot);
   const dataSourceCapabilities = buildDataSourceCapabilityPlan(env);
-  const resolvedRuntimeProbes = runtimeProbes ?? await readWorkerHeartbeatReport({
-    env,
-    now,
-  });
+  const [resolvedRuntimeProbes, apiObservability] = await Promise.all([
+    runtimeProbes ?? readWorkerHeartbeatReport({
+      env,
+      now,
+    }),
+    readConfiguredApiObservabilityReport(env, now),
+  ]);
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const providerStatus = sourceStatus({
@@ -2582,6 +2592,8 @@ export async function buildSystemHealthReport({
     macroMarket,
     scanStatePool,
     scanEconomy,
+    apiUsage: apiObservability.apiUsage,
+    dataSourceLatency: apiObservability.dataSourceLatency,
     runtimeProbes: resolvedRuntimeProbes,
     operations: scanOperations({
       archiveSummaries,

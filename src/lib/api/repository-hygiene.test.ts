@@ -179,6 +179,8 @@ test("v0 frontend shell is restored without touching backend API routes", () => 
     "src/app/api/frontend/review-contract/route.ts",
     "src/app/api/frontend/kline-contract/route.ts",
     "src/app/api/frontend/journal-contract/route.ts",
+    "src/app/api/frontend/live-events/route.ts",
+    "src/app/api/frontend/ui-state/route.ts",
   ];
 
   assert.match(pageSource, /IntroHero/);
@@ -228,6 +230,20 @@ test("frontend contract routes are read-only and cannot trigger scans", () => {
     assert.match(source, /allowRefresh:\s*false/, `${routePath} must read cached snapshots only`);
     assert.doesNotMatch(source, /refreshMarketRadarSnapshot/, `${routePath} must not start scan refreshes`);
   }
+
+  const liveEventsRoute = "src/app/api/frontend/live-events/route.ts";
+  const liveEventsSource = readFileSync(resolve(process.cwd(), liveEventsRoute), "utf8");
+
+  assert.match(liveEventsSource, /buildFrontendLiveEvents/, `${liveEventsRoute} must use the archive event contract`);
+  assert.match(liveEventsSource, /x-chuan-triggered-scan/);
+  assert.doesNotMatch(liveEventsSource, /getReadableMarketRadarSnapshot|refreshMarketRadarSnapshot/, `${liveEventsRoute} must not start scan refreshes`);
+
+  const uiStateRoute = "src/app/api/frontend/ui-state/route.ts";
+  const uiStateSource = readFileSync(resolve(process.cwd(), uiStateRoute), "utf8");
+
+  assert.match(uiStateSource, /upsertFrontendUiState/, `${uiStateRoute} must use the dedicated UI state store`);
+  assert.match(uiStateSource, /ui_state_only/);
+  assert.doesNotMatch(uiStateSource, /addJournalEvent|addScanArchive|refreshMarketRadarSnapshot|getReadableMarketRadarSnapshot/);
 });
 
 test("frontend manual journal is backed by the journal contract with local fallback only", () => {
@@ -480,10 +496,13 @@ test("frontend backend field map records current wiring gaps before refinement",
 
   assert.match(integrationPlan, /docs\/frontend-backend-field-map\.md/);
   assert.match(integrationPlan, /当前已经完成的基础/);
-  assert.match(integrationPlan, /下一批需要补强的只读合同/);
+  assert.match(integrationPlan, /已补齐的只读合同/);
+  assert.match(integrationPlan, /下一批需要补强的合同/);
   assert.match(integrationPlan, /\/api\/frontend\/kline-contract/);
   assert.match(integrationPlan, /\/api\/frontend\/journal-contract/);
   assert.match(integrationPlan, /\/api\/frontend\/live-events/);
+  assert.match(integrationPlan, /\/api\/frontend\/ui-state/);
+  assert.match(integrationPlan, /\/api\/auth\/session/);
 });
 
 test("stage 8 global ticker bars can receive backend-derived tokens", () => {

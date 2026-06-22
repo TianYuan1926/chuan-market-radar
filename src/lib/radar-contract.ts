@@ -105,7 +105,8 @@ export function getCapabilityStages(): Resource<CapabilityStage[]> {
 export type DataSourceState = {
   name: 'CoinGlass' | 'Binance' | 'OKX' | 'Bybit'
   feed: 'live' | 'cached' | 'stale' | 'partial' | 'failed'
-  latencyMs: number
+  latencyMs: number | null
+  latencyStatus?: 'ready' | 'partial' | 'unconfigured' | 'unavailable'
   lastUpdate: string
   note: string
 }
@@ -113,10 +114,10 @@ export type DataSourceState = {
 export function getDataSources(): Resource<DataSourceState[]> {
   return resource(
     [
-      { name: 'CoinGlass', feed: 'live', latencyMs: 180, lastUpdate: '13:48:05', note: '深扫衍生品数据正常' },
-      { name: 'Binance', feed: 'live', latencyMs: 42, lastUpdate: '13:48:11', note: '公共行情轻扫正常' },
-      { name: 'OKX', feed: 'live', latencyMs: 61, lastUpdate: '13:48:10', note: '公共行情轻扫正常' },
-      { name: 'Bybit', feed: 'cached', latencyMs: 320, lastUpdate: '13:46:58', note: '行情流抖动，暂用缓存' },
+      { name: 'CoinGlass', feed: 'live', latencyMs: 180, latencyStatus: 'ready', lastUpdate: '13:48:05', note: '深扫衍生品数据正常' },
+      { name: 'Binance', feed: 'live', latencyMs: 42, latencyStatus: 'ready', lastUpdate: '13:48:11', note: '公共行情轻扫正常' },
+      { name: 'OKX', feed: 'live', latencyMs: 61, latencyStatus: 'ready', lastUpdate: '13:48:10', note: '公共行情轻扫正常' },
+      { name: 'Bybit', feed: 'cached', latencyMs: 320, latencyStatus: 'ready', lastUpdate: '13:46:58', note: '行情流抖动，暂用缓存' },
     ],
     'partial',
     { ageSec: 8, source: 'scanner-worker', reason: 'Bybit 暂用缓存数据' },
@@ -470,6 +471,7 @@ export type ApiUsageState = {
   perMinuteLimit: number
   pacingMs: number
   throttled: boolean
+  source?: 'redis' | 'unconfigured' | 'unavailable'
 }
 
 export function getApiUsage(): Resource<ApiUsageState> {
@@ -481,6 +483,7 @@ export function getApiUsage(): Resource<ApiUsageState> {
       perMinuteLimit: 30,
       pacingMs: 1200,
       throttled: false,
+      source: 'redis',
     },
     'live',
     { ageSec: 10, source: 'coinglass-worker' },

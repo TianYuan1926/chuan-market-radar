@@ -15,6 +15,8 @@ import type {
 } from "../market/types";
 import {
   dailyMoverSnapshotToRecords,
+  frontendUiStateRecordToEntry,
+  frontendUiStateToRecord,
   journalEventRecordToEvent,
   journalEventToRecord,
   macroMarketSnapshotRecordToSnapshot,
@@ -32,10 +34,13 @@ import {
   scanArchiveRecordToSummary,
   scanArchiveToRecord,
   type PersistedDailyMoverSnapshotRecord,
+  type PersistedFrontendUiStateRecord,
   type PersistedJournalEventRecord,
   type PersistedRankProfileRecord,
   type PersistedScanArchiveRecord,
   type PersistedV3ForwardMapSnapshotRecord,
+  type FrontendUiStateEntry,
+  type FrontendUiStateKind,
   type PersistenceScope,
   v3ForwardMapRecordToSnapshot,
 } from "./persistence-contract";
@@ -84,6 +89,12 @@ export type PersistenceRepository = {
   addMacroMarketSnapshot: (snapshot: MacroMarketSnapshot) => Promise<MacroMarketSnapshot>;
   listMacroMarketSnapshots: (limit?: number) => Promise<MacroMarketSnapshot[]>;
   getLatestMacroMarketSnapshot: () => Promise<MacroMarketSnapshot | null>;
+  getFrontendUiState: <TPayload = Record<string, unknown>>(
+    kind: FrontendUiStateKind,
+  ) => Promise<FrontendUiStateEntry<TPayload> | null>;
+  upsertFrontendUiState: <TPayload = Record<string, unknown>>(
+    entry: FrontendUiStateEntry<TPayload>,
+  ) => Promise<FrontendUiStateEntry<TPayload>>;
 };
 
 export type MemoryPersistenceRepositoryOptions = {
@@ -212,6 +223,7 @@ export function createMemoryPersistenceRepository({
   let ohlcvCandleCaches: OhlcvCandleCacheEntry[] = [];
   let scanAssetStates: PersistedScanAssetStateRecord[] = [];
   let macroMarketSnapshots: PersistedMacroMarketSnapshotRecord[] = [];
+  let frontendUiStates: PersistedFrontendUiStateRecord[] = [];
   let v3ForwardMapSnapshots: PersistedV3ForwardMapSnapshotRecord[] = [];
   let rankProfile = buildRankProfile(journalStore.list());
   const resolvedScope = resolveScope(scope);
@@ -390,6 +402,26 @@ export function createMemoryPersistenceRepository({
 
       return record ? macroMarketSnapshotRecordToSnapshot(record) : null;
     },
+
+    async getFrontendUiState<TPayload = Record<string, unknown>>(kind: FrontendUiStateKind) {
+      const record = frontendUiStates.find((entry) => entry.kind === kind);
+
+      return record
+        ? frontendUiStateRecordToEntry(record as PersistedFrontendUiStateRecord<TPayload>)
+        : null;
+    },
+
+    async upsertFrontendUiState<TPayload = Record<string, unknown>>(
+      entry: FrontendUiStateEntry<TPayload>,
+    ) {
+      const record = frontendUiStateToRecord(entry, resolvedScope);
+      frontendUiStates = [
+        record as PersistedFrontendUiStateRecord,
+        ...frontendUiStates.filter((item) => item.kind !== entry.kind),
+      ].sort((left, right) => sortableTime(right.updated_at) - sortableTime(left.updated_at));
+
+      return frontendUiStateRecordToEntry(record);
+    },
   };
 }
 
@@ -497,6 +529,21 @@ limit $2
     );
 
     return result.rows;
+  }
+
+  async function getFrontendUiState<TPayload = Record<string, unknown>>(
+    kind: FrontendUiStateKind,
+  ) {
+    const result = await client.query<PersistedFrontendUiStateRecord<TPayload>>(
+      `
+select * from frontend_ui_states
+where scope = $1 and kind = $2
+limit 1
+`.trim(),
+      [resolvedScope, kind],
+    );
+
+    return result.rows[0] ? frontendUiStateRecordToEntry(result.rows[0]) : null;
   }
 
   async function insertV3ForwardMapSnapshots(replayFrame: ScanReplayFrame) {
@@ -1155,6 +1202,51 @@ on conflict (scope, id) do update set
       const records = await listMacroMarketSnapshotRecords(1);
 
       return records[0] ? macroMarketSnapshotRecordToSnapshot(records[0]) : null;
+    },
+
+    getFrontendUiState,
+
+    async upsertFrontendUiState<TPayload = Record<string, unknown>>(
+      entry: FrontendUiStateEntry<TPayload>,
+    ) {
+      const record = frontendUiStateToRecord(entry, resolvedScope);
+
+      await client.query(
+        `
+insert into frontend_ui_states (
+  scope,
+  kind,
+  updated_at,
+  version,
+  allowed_use,
+  can_create_trade_signal,
+  can_mutate_live_ranking,
+  can_auto_adjust_weights,
+  payload
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+on conflict (scope, kind) do update set
+  updated_at = excluded.updated_at,
+  version = excluded.version,
+  allowed_use = excluded.allowed_use,
+  can_create_trade_signal = excluded.can_create_trade_signal,
+  can_mutate_live_ranking = excluded.can_mutate_live_ranking,
+  can_auto_adjust_weights = excluded.can_auto_adjust_weights,
+  payload = excluded.payload
+`.trim(),
+        [
+          record.scope,
+          record.kind,
+          record.updated_at,
+          record.version,
+          record.allowed_use,
+          record.can_create_trade_signal,
+          record.can_mutate_live_ranking,
+          record.can_auto_adjust_weights,
+          record.payload,
+        ],
+      );
+
+      return frontendUiStateRecordToEntry(record);
     },
   };
 }

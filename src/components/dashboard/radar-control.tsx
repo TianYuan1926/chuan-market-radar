@@ -215,7 +215,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
-                  <span>延迟 {s.latencyMs}ms</span>
+                  <span>{s.latencyMs === null ? '延迟 待探针' : `延迟 ${s.latencyMs}ms`}</span>
                   <span>{s.lastUpdate}</span>
                 </div>
                 <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{s.note}</p>

@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "./types";
 import {
+  type AiReviewPromptPayload,
   buildAiReviewPrompt,
   disabledAiReview,
   parseAiReviewResponse,
   reviewSignalWithAi,
 } from "./ai-reviewer";
+
+type AiReviewParseMeta = NonNullable<Parameters<typeof parseAiReviewResponse>[1]>;
 
 const baseSignal: MarketSignal = {
   id: "ena-ai-review",
@@ -75,7 +78,7 @@ test("buildAiReviewPrompt sends only structured signal evidence and snapshot met
 
   assert.match(prompt.system, /先找反证/);
   assert.match(prompt.user, /counter-evidence first/i);
-  assert.deepEqual(Object.keys(prompt.payload).sort(), ["evidence", "signal", "snapshot"].sort());
+  assert.deepEqual(Object.keys(prompt.payload).sort(), ["evidence", "signal", "snapshot", "trace"].sort());
   assert.deepEqual(Object.keys(prompt.payload.signal).sort(), [
     "confidence",
     "direction",
@@ -91,6 +94,23 @@ test("buildAiReviewPrompt sends only structured signal evidence and snapshot met
     "updatedAt",
   ].sort());
   assert.doesNotMatch(prompt.user, /super-secret-token|leaky-key|private journal|fundingRate/);
+});
+
+test("buildAiReviewPrompt binds every model input to the signal id and evidence ids", () => {
+  const prompt = buildAiReviewPrompt(baseSignal, baseContext);
+  const payload: AiReviewPromptPayload = prompt.payload;
+
+  assert.equal(payload.trace.signalId, "ena-ai-review");
+  assert.deepEqual(payload.trace.evidenceIds, [
+    "ena-ai-review:evidence:0",
+    "ena-ai-review:evidence:1",
+  ]);
+  assert.deepEqual(payload.evidence.map((item) => item.id), [
+    "ena-ai-review:evidence:0",
+    "ena-ai-review:evidence:1",
+  ]);
+  assert.match(prompt.user, /ena-ai-review:evidence:0/);
+  assert.match(prompt.user, /只能引用 trace\.evidenceIds/);
 });
 
 test("disabledAiReview and missing AI_API_KEY return a visible disabled boundary", async () => {
@@ -187,12 +207,34 @@ test("parseAiReviewResponse normalizes fact reasoning judgment strategy failure 
   assert.equal(review.confidenceAdjustment, -8);
 });
 
+test("parseAiReviewResponse falls back when model counter-evidence is not tied to allowed evidence ids", () => {
+  const review = parseAiReviewResponse(JSON.stringify({
+    counterEvidence: [
+      { evidenceId: "made-up-market-fact", note: "外部消息说要突破" },
+    ],
+    fact: "模型引用了 payload 外证据。",
+    reasoning: "这不允许。",
+    judgment: "应降级。",
+    strategy: "等待。",
+    failurePath: "失效。",
+    uncertainty: "未知。",
+  }), {
+    evidenceIds: ["ena-ai-review:evidence:0"],
+    signalId: "ena-ai-review",
+  } satisfies AiReviewParseMeta);
+
+  assert.equal(review.status, "fallback");
+  assert.match(review.reason ?? "", /unbound evidence id/);
+  assert.equal(review.signalId, "ena-ai-review");
+  assert.deepEqual(review.evidenceIds, ["ena-ai-review:evidence:0"]);
+});
+
 test("reviewSignalWithAi uses OpenAI-compatible chat completions without exposing the API key", async () => {
   let requestUrl = "";
   let requestBody = "";
   let authHeader = "";
   const modelAnswer = JSON.stringify({
-    counterEvidence: ["资金费率拥挤度需要继续确认"],
+    counterEvidence: [{ evidenceId: "ena-ai-review:evidence:1", note: "资金费率拥挤度需要继续确认" }],
     fact: "候选信号包含量能和结构证据。",
     reasoning: "支持证据存在，但反证要求等待触发。",
     judgment: "观察，不直接触发。",
@@ -227,6 +269,9 @@ test("reviewSignalWithAi uses OpenAI-compatible chat completions without exposin
   assert.match(requestBody, /counter-evidence first/i);
   assert.doesNotMatch(JSON.stringify(review), /test-key/);
   assert.equal(review.status, "reviewed");
+  assert.deepEqual(review.counterEvidence, ["资金费率拥挤度需要继续确认"]);
+  assert.equal(review.signalId, "ena-ai-review");
+  assert.deepEqual(review.referencedEvidenceIds, ["ena-ai-review:evidence:1"]);
   assert.equal(review.boundary.cost.status, "within_budget");
   assert.equal(review.boundary.cost.model, "review-model");
   assert.equal(review.boundary.cost.provider, "openai-compatible");

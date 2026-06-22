@@ -1,4 +1,5 @@
 import type { ContractInstrument, ScanDiscoverySourceDiagnostic } from "../types";
+import { recordConfiguredDataSourceLatency } from "../../runtime/api-observability";
 
 export const BINANCE_FUTURES_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 
@@ -110,8 +111,15 @@ export function createBinanceUniverseDiscoveryProvider({
     label: "Binance Public Futures Universe Discovery",
 
     async discoverInstruments(): Promise<UniverseDiscoveryResult> {
+      const startedAt = Date.now();
+
       try {
         const response = await fetcher(baseUrl);
+
+        void recordConfiguredDataSourceLatency({
+          elapsedMs: Date.now() - startedAt,
+          source: "binance",
+        });
 
         if (!response.ok) {
           return failure({
@@ -155,6 +163,11 @@ export function createBinanceUniverseDiscoveryProvider({
           requestCount: 1,
         };
       } catch (error) {
+        void recordConfiguredDataSourceLatency({
+          elapsedMs: Date.now() - startedAt,
+          source: "binance",
+        });
+
         return failure({
           source,
           reason: "network_error",

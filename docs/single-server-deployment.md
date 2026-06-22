@@ -187,6 +187,7 @@ radar_miss_reviews
 ohlcv_candle_cache
 scan_asset_states
 macro_market_snapshots
+frontend_ui_states
 ```
 
 ## 第 8 步：运行验收

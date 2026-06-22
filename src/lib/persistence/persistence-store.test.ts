@@ -542,6 +542,35 @@ test("memory repository stores and reads macro market snapshots newest first", a
   assert.equal(latest?.canCreateTradeSignal, false);
 });
 
+test("memory repository stores frontend UI state separately from trading data", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const entry = {
+    allowedUse: "ui_state_only" as const,
+    canAutoAdjustWeights: false as const,
+    canCreateTradeSignal: false as const,
+    canMutateLiveRanking: false as const,
+    kind: "egg_progress" as const,
+    payload: {
+      unlocked: {
+        chuan: 1_797_870_000_000,
+      },
+    },
+    updatedAt: "2026-06-22T10:00:00.000Z",
+    version: "frontend-ui-state.v1" as const,
+  };
+
+  await repository.upsertFrontendUiState(entry);
+  const stored = await repository.getFrontendUiState<typeof entry.payload>("egg_progress");
+  const journal = await repository.listJournalEvents();
+
+  assert.equal(stored?.kind, "egg_progress");
+  assert.equal(stored?.allowedUse, "ui_state_only");
+  assert.equal(stored?.canCreateTradeSignal, false);
+  assert.equal(stored?.canMutateLiveRanking, false);
+  assert.equal(stored?.payload.unlocked.chuan, 1_797_870_000_000);
+  assert.deepEqual(journal, []);
+});
+
 test("memory repository extracts v3 forward map snapshots from scan replay frames", async () => {
   const repository = createMemoryPersistenceRepository();
   await repository.addScanArchive(scanSummary(), replayFrame());
@@ -968,6 +997,63 @@ test("postgres repository writes and reads macro market snapshots through durabl
   assert.match(client.calls[2]?.sql ?? "", /select \* from macro_market_snapshots/i);
   assert.deepEqual(client.calls[1]?.params, ["chuan-public", 5]);
   assert.deepEqual(client.calls[2]?.params, ["chuan-public", 1]);
+});
+
+test("postgres repository writes and reads frontend UI state through durable tables", async () => {
+  const client = new RecordingSqlClient();
+  const entry = {
+    allowedUse: "ui_state_only" as const,
+    canAutoAdjustWeights: false as const,
+    canCreateTradeSignal: false as const,
+    canMutateLiveRanking: false as const,
+    kind: "pet_progress" as const,
+    payload: {
+      exp: 180,
+      streak: 5,
+      totalRight: 9,
+      totalWrong: 2,
+      wrongStreak: 0,
+    },
+    updatedAt: "2026-06-22T10:00:00.000Z",
+    version: "frontend-ui-state.v1" as const,
+  };
+  client.responses.push(
+    { rows: [] },
+    {
+      rows: [
+        {
+          allowed_use: "ui_state_only",
+          can_auto_adjust_weights: false,
+          can_create_trade_signal: false,
+          can_mutate_live_ranking: false,
+          kind: "pet_progress",
+          payload: entry.payload,
+          scope: "chuan-public",
+          updated_at: entry.updatedAt,
+          version: "frontend-ui-state.v1",
+        },
+      ],
+    },
+  );
+  const repository = createPostgresPersistenceRepository({ client, scope: "chuan-public" });
+
+  const written = await repository.upsertFrontendUiState(entry);
+  const stored = await repository.getFrontendUiState<typeof entry.payload>("pet_progress");
+
+  assert.equal(written.kind, "pet_progress");
+  assert.equal(stored?.payload.exp, 180);
+  assert.equal(stored?.canCreateTradeSignal, false);
+  assert.match(client.calls[0]?.sql ?? "", /insert into frontend_ui_states/i);
+  assert.match(client.calls[0]?.sql ?? "", /on conflict \(scope, kind\) do update/i);
+  assert.match(client.calls[1]?.sql ?? "", /select \* from frontend_ui_states/i);
+  assert.deepEqual(client.calls[0]?.params.slice(0, 5), [
+    "chuan-public",
+    "pet_progress",
+    "2026-06-22T10:00:00.000Z",
+    "frontend-ui-state.v1",
+    "ui_state_only",
+  ]);
+  assert.deepEqual(client.calls[1]?.params, ["chuan-public", "pet_progress"]);
 });
 
 test("postgres repository writes and reads v3 forward map snapshots through durable tables", async () => {

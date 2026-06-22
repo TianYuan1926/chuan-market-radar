@@ -74,7 +74,8 @@ export type CapabilityStage = {
 export type DataSourceState = {
   name: "CoinGlass" | "Binance" | "OKX" | "Bybit";
   feed: "live" | "cached" | "stale" | "partial" | "failed";
-  latencyMs: number;
+  latencyMs: number | null;
+  latencyStatus: "ready" | "partial" | "unconfigured" | "unavailable";
   lastUpdate: string;
   note: string;
 };
@@ -228,6 +229,7 @@ export type ApiUsageState = {
   perMinuteLimit: number;
   pacingMs: number;
   throttled: boolean;
+  source: "redis" | "unconfigured" | "unavailable";
 };
 
 export type PetBackendStatus = {
@@ -693,15 +695,65 @@ function dataSourceRow({
   feed,
   lastUpdate,
   latencyMs,
+  latencyStatus = "partial",
   note,
 }: DataSourceState): DataSourceState {
   return {
     name,
     feed,
     latencyMs,
+    latencyStatus,
     lastUpdate,
     note,
   };
+}
+
+function apiUsageStatusToResourceStatus(status?: NonNullable<BackendContract["runtime"]["apiUsage"]>["status"]): DataStatus {
+  if (status === "ready") return "live";
+  if (status === "unavailable") return "failed";
+  return "partial";
+}
+
+function latencyStatusToFeed(status: DataSourceState["latencyStatus"]): DataSourceState["feed"] {
+  if (status === "ready") return "live";
+  if (status === "unavailable") return "failed";
+  if (status === "unconfigured") return "stale";
+  return "partial";
+}
+
+function latencyProbe(
+  backend: BackendContract,
+  name: DataSourceState["name"],
+) {
+  return backend.runtime.sourceLatency?.probes.find((probe) => probe.name === name);
+}
+
+function sourceLatencyStatus(
+  backend: BackendContract,
+  name: DataSourceState["name"],
+): DataSourceState["latencyStatus"] {
+  const status = latencyProbe(backend, name)?.status;
+
+  if (status === "ready" || status === "partial" || status === "unconfigured" || status === "unavailable") {
+    return status;
+  }
+
+  return "partial";
+}
+
+function sourceLatencyMs(
+  backend: BackendContract,
+  name: DataSourceState["name"],
+) {
+  return latencyProbe(backend, name)?.latencyMs ?? null;
+}
+
+function sourceLatencyUpdatedAt(
+  backend: BackendContract,
+  name: DataSourceState["name"],
+  fallback: string,
+) {
+  return timeLabel(latencyProbe(backend, name)?.checkedAt ?? fallback);
 }
 
 function runtimeProbeStatusToServiceStatus(
@@ -856,13 +908,13 @@ export function buildFrontendRadarContract({
   const source = snapshot.metadata.source;
   const coverage = backend.scanProof.fullMarket;
   const allocation = backend.scanProof.allocation;
-  const plannedRequests = backend.sourceAudit.coinGlassDeepScan.plannedRequests;
   const dailyBudget = Math.max(1, Number(env.COINGLASS_DAILY_REQUEST_BUDGET ?? 300));
-  const usedToday = Math.min(dailyBudget, Math.max(0, plannedRequests));
+  const observedApiUsage = backend.runtime.apiUsage;
   const derivatives = buildDerivatives(snapshot);
   const tradeReady = snapshot.signals.some((signal) => maturityForSignal(signal) === "TRADE_PLAN_READY");
   const blockedSignals = snapshot.signals.filter((signal) => lifecycleStatusReason(signal).length > 0);
   const liveSignals = snapshot.signals.map((signal) => buildRadarSignal(signal, snapshot, now));
+  const coinGlassLatencyStatus = sourceLatencyStatus(backend, "CoinGlass");
 
   return {
     scanProof: resource({
@@ -900,41 +952,48 @@ export function buildFrontendRadarContract({
     dataSources: resource([
       dataSourceRow({
         name: "CoinGlass",
-        feed: marketStatusToResourceStatus(backend.sourceAudit.coinGlassDeepScan.status) === "live" ? "live" : "partial",
-        latencyMs: 0,
-        lastUpdate: timeLabel(snapshot.metadata.generatedAt),
-        note: `深扫 ${backend.sourceAudit.coinGlassDeepScan.cleanRows}/${backend.sourceAudit.coinGlassDeepScan.rawRows} 行可用`,
+        feed: latencyStatusToFeed(coinGlassLatencyStatus),
+        latencyMs: sourceLatencyMs(backend, "CoinGlass"),
+        latencyStatus: coinGlassLatencyStatus,
+        lastUpdate: sourceLatencyUpdatedAt(backend, "CoinGlass", snapshot.metadata.generatedAt),
+        note: latencyProbe(backend, "CoinGlass")?.detail ??
+          `深扫 ${backend.sourceAudit.coinGlassDeepScan.cleanRows}/${backend.sourceAudit.coinGlassDeepScan.rawRows} 行可用，延迟探针待写入`,
       }),
       ...(["Binance", "OKX", "Bybit"] as const).map((name) => {
         const sourceRow = backend.sourceAudit.publicDiscovery.sources.find((item) =>
           item.source.toLowerCase().includes(name.toLowerCase())
         );
+        const latencyStatus = sourceLatencyStatus(backend, name);
         return dataSourceRow({
           name,
-          feed: sourceStatusToFeed(sourceRow?.status),
-          latencyMs: 0,
-          lastUpdate: timeLabel(snapshot.metadata.generatedAt),
+          feed: latencyStatus === "ready" ? sourceStatusToFeed(sourceRow?.status) : latencyStatusToFeed(latencyStatus),
+          latencyMs: sourceLatencyMs(backend, name),
+          latencyStatus,
+          lastUpdate: sourceLatencyUpdatedAt(backend, name, snapshot.metadata.generatedAt),
           note: sourceRow
-            ? `发现 ${sourceRow.instrumentCount} 个合约，request=${sourceRow.requestCount}`
-            : "当前快照未包含该交易所明细",
+            ? `${latencyProbe(backend, name)?.detail ?? "延迟探针待写入"}；发现 ${sourceRow.instrumentCount} 个合约，request=${sourceRow.requestCount}`
+            : `${latencyProbe(backend, name)?.detail ?? "当前快照未包含该交易所明细"}`,
         });
       }),
-    ], status === "live" ? "partial" : status, {
+    ], backend.runtime.sourceLatency?.status === "ready" ? status : "partial", {
       ageSec,
       source: "scanner-worker",
-      reason: "latencyMs 暂未接入真实探针，先用 0 占位。",
+      reason: backend.runtime.sourceLatency
+        ? `${backend.runtime.sourceLatency.status} source latency probes`
+        : "source latency probes unavailable",
     }),
     apiUsage: resource({
       provider: "CoinGlass",
-      usedToday,
-      remainingToday: Math.max(0, dailyBudget - usedToday),
-      perMinuteLimit: 30,
-      pacingMs: Number(env.COINGLASS_REQUEST_INTERVAL_MS ?? 500),
-      throttled: false,
-    }, "partial", {
+      usedToday: observedApiUsage?.usedToday ?? 0,
+      remainingToday: observedApiUsage?.remainingToday ?? dailyBudget,
+      perMinuteLimit: observedApiUsage?.perMinuteLimit ?? 30,
+      pacingMs: observedApiUsage?.pacingMs ?? Number(env.COINGLASS_REQUEST_INTERVAL_MS ?? 500),
+      throttled: observedApiUsage?.throttled ?? false,
+      source: observedApiUsage?.source ?? "unconfigured",
+    }, apiUsageStatusToResourceStatus(observedApiUsage?.status), {
       ageSec,
       source: "coinglass-worker",
-      reason: "当前只有本轮计划请求数，真实日内计数后续接入 Redis/Postgres 计数器。",
+      reason: observedApiUsage?.detail ?? "CoinGlass Redis daily usage counter unavailable",
     }),
     dataPipeline: resource({
       lastScanAt: timeLabel(snapshot.metadata.generatedAt),

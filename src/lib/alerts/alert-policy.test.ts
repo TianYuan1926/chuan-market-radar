@@ -654,6 +654,25 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
     },
     guards: [],
     ...overrides,
+    apiUsage: overrides.apiUsage ?? {
+      dailyBudget: 300,
+      day: "2026-06-14",
+      detail: "Redis daily counter is readable.",
+      generatedAt: "2026-06-14T10:05:00.000Z",
+      pacingMs: 500,
+      perMinuteLimit: 30,
+      provider: "CoinGlass",
+      remainingToday: 280,
+      source: "redis",
+      status: "ready",
+      throttled: false,
+      usedToday: 20,
+    },
+    dataSourceLatency: overrides.dataSourceLatency ?? {
+      generatedAt: "2026-06-14T10:05:00.000Z",
+      probes: [],
+      status: "partial",
+    },
   };
 }
 

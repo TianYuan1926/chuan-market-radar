@@ -465,7 +465,7 @@ export function scanProofResourceToDataQuality(
     duplicates: 0,
     filtered: Math.max(0, data.totalMonitored - data.scannable),
     missing: data.awaitingDeepScan,
-    delayMs: Math.max(0, ...sourceRows.map((source) => source.latencyMs)),
+    delayMs: Math.max(0, ...sourceRows.map((source) => source.latencyMs ?? 0)),
     degraded,
     trust: clamp(data.coverage, 0, 100),
   }

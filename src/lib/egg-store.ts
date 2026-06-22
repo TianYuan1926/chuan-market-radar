@@ -171,6 +171,25 @@ export const ACHIEVEMENTS: Achievement[] = [
 // 持久化层（接入后端时仅替换以下两个函数体）
 // ------------------------------------------------------------
 const STORAGE_KEY = 'chuanscan_eggs_v1'
+const UI_STATE_ENDPOINT = '/api/frontend/ui-state'
+
+let lastPersistedAt = 0
+let serverHydrationStarted = false
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function unlockedFromPayload(payload: unknown): Record<string, number> {
+  if (!isRecord(payload) || !isRecord(payload.unlocked)) return {}
+
+  return Object.fromEntries(
+    Object.entries(payload.unlocked).filter((entry): entry is [string, number] => {
+      const [id, value] = entry
+      return Boolean(getEgg(id)) && typeof value === 'number' && Number.isFinite(value)
+    }),
+  )
+}
 
 type EggState = {
   unlocked: Record<string, number> // id -> 解锁时间戳
@@ -184,19 +203,68 @@ function loadProgress(): EggState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return DEFAULT_STATE
-    const parsed = JSON.parse(raw) as { unlocked?: Record<string, number> }
-    return { unlocked: parsed.unlocked ?? {}, lastUnlock: null }
+    const parsed = JSON.parse(raw)
+    if (isRecord(parsed) && typeof parsed.updatedAt === 'string') {
+      const time = Date.parse(parsed.updatedAt)
+      lastPersistedAt = Number.isNaN(time) ? 0 : time
+    }
+    return { unlocked: unlockedFromPayload(parsed), lastUnlock: null }
   } catch {
     return DEFAULT_STATE
   }
 }
 
-function saveProgress(s: EggState) {
+function writeLocalProgress(s: EggState, updatedAt: string) {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ unlocked: s.unlocked }))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ unlocked: s.unlocked, updatedAt }))
+    lastPersistedAt = Date.parse(updatedAt)
   } catch {
     /* 忽略写入失败 */
+  }
+}
+
+function saveProgress(s: EggState) {
+  const updatedAt = new Date().toISOString()
+  writeLocalProgress(s, updatedAt)
+
+  if (typeof window === 'undefined') return
+  void fetch(UI_STATE_ENDPOINT, {
+    body: JSON.stringify({
+      kind: 'egg_progress',
+      payload: { unlocked: s.unlocked },
+      updatedAt,
+    }),
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    method: 'POST',
+  }).catch(() => {
+    /* 本地缓存已写入，服务器同步失败不阻塞 UI */
+  })
+}
+
+async function syncProgressFromServer() {
+  if (typeof window === 'undefined' || serverHydrationStarted) return
+  serverHydrationStarted = true
+
+  try {
+    const response = await fetch(`${UI_STATE_ENDPOINT}?kind=egg_progress`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+    if (!response.ok) return
+    const body = await response.json()
+    const entry = isRecord(body?.uiState?.data) ? body.uiState.data : null
+    if (!entry || !isRecord(entry.payload) || typeof entry.updatedAt !== 'string') return
+
+    const serverTime = Date.parse(entry.updatedAt)
+    if (Number.isNaN(serverTime) || serverTime < lastPersistedAt) return
+
+    state = { unlocked: unlockedFromPayload(entry.payload), lastUnlock: null }
+    writeLocalProgress(state, entry.updatedAt)
+    emit()
+  } catch {
+    /* 后端不可用时继续使用本地缓存 */
   }
 }
 
@@ -215,6 +283,7 @@ function ensureHydrated() {
   if (hydrated || typeof window === 'undefined') return
   state = loadProgress()
   hydrated = true
+  void syncProgressFromServer()
 }
 
 function subscribe(cb: () => void) {

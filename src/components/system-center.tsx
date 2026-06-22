@@ -309,6 +309,8 @@ function SystemHealth() {
                   <span className="ml-auto flex items-center gap-1 font-mono text-xs text-muted-foreground">
                     {e.status === 'down' ? (
                       '— '
+                    ) : e.latencyMs === null ? (
+                      '待探针 · '
                     ) : (
                       <>
                         <LiveStat

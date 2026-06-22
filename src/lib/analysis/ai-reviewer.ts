@@ -71,8 +71,12 @@ export type AiReviewPromptPayload = {
       | "riskControls"
     >;
   };
-  evidence: EvidencePoint[];
+  evidence: Array<EvidencePoint & { id: string }>;
   snapshot: AiReviewSnapshotMetadata;
+  trace: {
+    evidenceIds: string[];
+    signalId: string;
+  };
 };
 
 export type AiReviewPrompt = {
@@ -209,6 +213,10 @@ function stringArray(value: unknown) {
   return [];
 }
 
+function evidenceIdFor(signal: MarketSignal, index: number) {
+  return `${signal.id}:evidence:${index}`;
+}
+
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
@@ -271,8 +279,9 @@ function sanitizeSignal(signal: MarketSignal): AiReviewPromptPayload["signal"] {
   };
 }
 
-function sanitizeEvidence(evidence: EvidencePoint[]) {
-  return evidence.map((item) => ({
+function sanitizeEvidence(signal: MarketSignal) {
+  return signal.evidence.map((item, index) => ({
+    id: evidenceIdFor(signal, index),
     label: item.label,
     value: item.value,
     layer: item.layer,
@@ -307,8 +316,12 @@ function sanitizeSnapshotMetadata(metadata: AiReviewSnapshotMetadata = {}): AiRe
 export function buildAiReviewPrompt(signal: MarketSignal, context: AiReviewContext): AiReviewPrompt {
   const payload: AiReviewPromptPayload = {
     signal: sanitizeSignal(signal),
-    evidence: sanitizeEvidence(signal.evidence),
+    evidence: sanitizeEvidence(signal),
     snapshot: sanitizeSnapshotMetadata(context.metadata),
+    trace: {
+      evidenceIds: signal.evidence.map((_, index) => evidenceIdFor(signal, index)),
+      signalId: signal.id,
+    },
   };
   const payloadJson = JSON.stringify(payload, null, 2);
 	  const system = [
@@ -321,6 +334,9 @@ export function buildAiReviewPrompt(signal: MarketSignal, context: AiReviewConte
   const user = [
     "Review this market signal with counter-evidence first.",
     "Return JSON keys: counterEvidence, fact, reasoning, judgment, strategy, failurePath, uncertainty, confidenceAdjustment.",
+    "counterEvidence should be an array of { evidenceId, note } objects when possible.",
+    "只能引用 trace.evidenceIds 中列出的 evidenceId；不能引用 payload 外的新闻、链上、盘口或传闻。",
+    `Signal id: ${payload.trace.signalId}`,
     "Payload:",
     payloadJson,
   ].join("\n\n");
@@ -370,14 +386,87 @@ function fallbackAiReview(
   };
 }
 
+type AiReviewParseMeta = Pick<AiSignalReview, "provider" | "model" | "reviewedAt" | "signalId"> & {
+  boundary?: AiReviewBoundary;
+  evidenceIds?: string[];
+};
+
+function counterEvidenceResult(
+  value: unknown,
+  meta: AiReviewParseMeta,
+): {
+  counterEvidence: string[];
+  invalidReason?: string;
+  referencedEvidenceIds: string[];
+} {
+  const allowed = new Set(meta.evidenceIds ?? []);
+  const counterEvidence: string[] = [];
+  const referencedEvidenceIds: string[] = [];
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item === "string" && item.trim()) {
+        counterEvidence.push(item.trim());
+        continue;
+      }
+
+      const record = asRecord(item);
+      const evidenceId = typeof record.evidenceId === "string" ? record.evidenceId.trim() : "";
+      const note = textValue(record.note ?? record.detail ?? record.value, "");
+
+      if (evidenceId) {
+        if (allowed.size > 0 && !allowed.has(evidenceId)) {
+          return {
+            counterEvidence: [],
+            invalidReason: `unbound evidence id: ${evidenceId}`,
+            referencedEvidenceIds: [],
+          };
+        }
+
+        referencedEvidenceIds.push(evidenceId);
+      } else if (allowed.size > 0 && Object.keys(record).length > 0) {
+        return {
+          counterEvidence: [],
+          invalidReason: "unbound evidence id: missing evidenceId",
+          referencedEvidenceIds: [],
+        };
+      }
+
+      if (note) {
+        counterEvidence.push(note);
+      }
+    }
+
+    return {
+      counterEvidence,
+      referencedEvidenceIds: [...new Set(referencedEvidenceIds)],
+    };
+  }
+
+  return {
+    counterEvidence: stringArray(value),
+    referencedEvidenceIds,
+  };
+}
+
 export function parseAiReviewResponse(
   text: string,
-  meta: Pick<AiSignalReview, "provider" | "model" | "reviewedAt"> & {
-    boundary?: AiReviewBoundary;
-  } = {},
+  meta: AiReviewParseMeta = {},
 ): AiSignalReview {
   try {
     const parsed = asRecord(JSON.parse(cleanJsonText(text)));
+    const counter = counterEvidenceResult(parsed.counterEvidence, meta);
+
+    if (counter.invalidReason) {
+      return {
+        ...fallbackAiReview(counter.invalidReason, meta.provider, meta.model, {
+          ...meta.boundary?.cost,
+          costStatus: "fallback",
+        }),
+        evidenceIds: meta.evidenceIds,
+        signalId: meta.signalId,
+      };
+    }
 
     return {
       status: "reviewed",
@@ -389,7 +478,7 @@ export function parseAiReviewResponse(
       provider: meta.provider,
       model: meta.model,
       reviewedAt: meta.reviewedAt,
-      counterEvidence: stringArray(parsed.counterEvidence),
+      counterEvidence: counter.counterEvidence,
       sections: {
         fact: textValue(parsed.fact, "模型未提供事实层。"),
         reasoning: textValue(parsed.reasoning, "模型未提供推理层。"),
@@ -399,6 +488,9 @@ export function parseAiReviewResponse(
         uncertainty: textValue(parsed.uncertainty, "模型未提供不确定性。"),
       },
       confidenceAdjustment: boundedConfidenceAdjustment(parsed.confidenceAdjustment),
+      evidenceIds: meta.evidenceIds,
+      referencedEvidenceIds: counter.referencedEvidenceIds,
+      signalId: meta.signalId,
     };
   } catch (error) {
     return fallbackAiReview(error instanceof Error ? error.message : "AI response parse failed", meta.provider, meta.model, {
@@ -515,9 +607,11 @@ export async function reviewSignalWithAi({
 
     return parseAiReviewResponse(content, {
       boundary,
+      evidenceIds: prompt.payload.trace.evidenceIds,
       provider,
       model,
       reviewedAt: now().toISOString(),
+      signalId: prompt.payload.trace.signalId,
     });
   } catch (error) {
     return fallbackAiReview(error instanceof Error ? error.message : "model request failed", provider, model, {

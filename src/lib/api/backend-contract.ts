@@ -96,10 +96,12 @@ export type BackendContract = {
     };
   };
   runtime: {
+    apiUsage: SystemHealthReport["apiUsage"];
     cacheStatus: SystemHealthReport["operations"]["runtimeCacheStatus"];
     persistedArchive: boolean;
     repositoryMode: SystemHealthReport["operations"]["repositoryMode"];
     runtimeProbes: SystemHealthReport["runtimeProbes"];
+    sourceLatency: SystemHealthReport["dataSourceLatency"];
     trigger: SystemHealthReport["operations"]["runtimeTrigger"];
   };
   presentation: {
@@ -490,10 +492,12 @@ export function buildBackendContract({
       },
     },
     runtime: {
+      apiUsage: health.apiUsage,
       cacheStatus: health.operations.runtimeCacheStatus,
       persistedArchive: health.operations.persistedArchive,
       repositoryMode: health.operations.repositoryMode,
       runtimeProbes: health.runtimeProbes,
+      sourceLatency: health.dataSourceLatency,
       trigger: health.operations.runtimeTrigger,
     },
     presentation: {

@@ -36,41 +36,119 @@ const DEFAULT_STATE: PetState = {
 // 其余逻辑与组件层均无需改动。
 // ------------------------------------------------------------
 const STORAGE_KEY = 'chuanscan_pet_v1'
+const UI_STATE_ENDPOINT = '/api/frontend/ui-state'
+
+let lastPersistedAt = 0
+let serverHydrationStarted = false
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function numberValue(value: unknown, fallback = 0) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function petStateFromPayload(payload: unknown): PetState {
+  const record = isRecord(payload) ? payload : {}
+
+  return {
+    ...DEFAULT_STATE,
+    exp: Math.max(0, numberValue(record.exp)),
+    totalRight: Math.max(0, numberValue(record.totalRight)),
+    totalWrong: Math.max(0, numberValue(record.totalWrong)),
+    streak: Math.max(0, numberValue(record.streak)),
+    wrongStreak: Math.max(0, numberValue(record.wrongStreak)),
+    lastEvent: null,
+  }
+}
+
+function persistablePetPayload(state: PetState) {
+  return {
+    exp: state.exp,
+    totalRight: state.totalRight,
+    totalWrong: state.totalWrong,
+    streak: state.streak,
+    wrongStreak: state.wrongStreak,
+  }
+}
+
+function localUpdatedAtFromRecord(record: unknown) {
+  if (!isRecord(record) || typeof record.updatedAt !== 'string') return 0
+  const time = Date.parse(record.updatedAt)
+  return Number.isNaN(time) ? 0 : time
+}
 
 function loadProgress(): PetState {
   if (typeof window === 'undefined') return DEFAULT_STATE
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return DEFAULT_STATE
-    const parsed = JSON.parse(raw) as Partial<PetState>
-    return {
-      ...DEFAULT_STATE,
-      exp: Math.max(0, parsed.exp ?? 0),
-      totalRight: parsed.totalRight ?? 0,
-      totalWrong: parsed.totalWrong ?? 0,
-      streak: parsed.streak ?? 0,
-      wrongStreak: parsed.wrongStreak ?? 0,
-      lastEvent: null,
-    }
+    const parsed = JSON.parse(raw)
+    lastPersistedAt = localUpdatedAtFromRecord(parsed)
+    return petStateFromPayload(parsed)
   } catch {
     return DEFAULT_STATE
   }
 }
 
-function saveProgress(state: PetState) {
+function writeLocalProgress(state: PetState, updatedAt: string) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        exp: state.exp,
-        totalRight: state.totalRight,
-        totalWrong: state.totalWrong,
-        streak: state.streak,
+        ...persistablePetPayload(state),
+        updatedAt,
       }),
     )
+    lastPersistedAt = Date.parse(updatedAt)
   } catch {
     // 忽略写入失败（隐私模式等）
+  }
+}
+
+function saveProgress(state: PetState) {
+  const updatedAt = new Date().toISOString()
+  writeLocalProgress(state, updatedAt)
+
+  if (typeof window === 'undefined') return
+  void fetch(UI_STATE_ENDPOINT, {
+    body: JSON.stringify({
+      kind: 'pet_progress',
+      payload: persistablePetPayload(state),
+      updatedAt,
+    }),
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    method: 'POST',
+  }).catch(() => {
+    /* 本地缓存已写入，服务器同步失败不阻塞 UI */
+  })
+}
+
+async function syncProgressFromServer() {
+  if (typeof window === 'undefined' || serverHydrationStarted) return
+  serverHydrationStarted = true
+
+  try {
+    const response = await fetch(`${UI_STATE_ENDPOINT}?kind=pet_progress`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+    if (!response.ok) return
+    const body = await response.json()
+    const entry = isRecord(body?.uiState?.data) ? body.uiState.data : null
+    if (!entry || !isRecord(entry.payload) || typeof entry.updatedAt !== 'string') return
+
+    const serverTime = Date.parse(entry.updatedAt)
+    if (Number.isNaN(serverTime) || serverTime < lastPersistedAt) return
+
+    state = petStateFromPayload(entry.payload)
+    writeLocalProgress(state, entry.updatedAt)
+    emit()
+  } catch {
+    /* 后端不可用时继续使用本地缓存 */
   }
 }
 
@@ -89,6 +167,7 @@ function ensureHydrated() {
   if (hydrated || typeof window === 'undefined') return
   state = loadProgress()
   hydrated = true
+  void syncProgressFromServer()
 }
 
 function subscribe(cb: () => void) {

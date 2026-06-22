@@ -174,6 +174,31 @@ export type PersistedMacroMarketSnapshotRecord = {
   updated_at: string;
 };
 
+export type FrontendUiStateKind = "pet_progress" | "egg_progress" | "ui_preferences";
+
+export type FrontendUiStateEntry<TPayload = Record<string, unknown>> = {
+  kind: FrontendUiStateKind;
+  updatedAt: string;
+  version: "frontend-ui-state.v1";
+  allowedUse: "ui_state_only";
+  canCreateTradeSignal: false;
+  canMutateLiveRanking: false;
+  canAutoAdjustWeights: false;
+  payload: TPayload;
+};
+
+export type PersistedFrontendUiStateRecord<TPayload = Record<string, unknown>> = {
+  scope: PersistenceScope;
+  kind: FrontendUiStateKind;
+  updated_at: string;
+  version: "frontend-ui-state.v1";
+  allowed_use: "ui_state_only";
+  can_create_trade_signal: false;
+  can_mutate_live_ranking: false;
+  can_auto_adjust_weights: false;
+  payload: TPayload;
+};
+
 export type PersistedDailyMoverSnapshotRecords = {
   snapshot: PersistedDailyMoverSnapshotRecord;
   assets: PersistedDailyMoverAssetRecord[];
@@ -193,6 +218,7 @@ export const persistenceTables = [
   "ohlcv_candle_cache",
   "scan_asset_states",
   "macro_market_snapshots",
+  "frontend_ui_states",
 ] as const;
 
 export function journalEventToRecord(
@@ -545,6 +571,38 @@ export function macroMarketSnapshotRecordToSnapshot(
   };
 }
 
+export function frontendUiStateToRecord<TPayload = Record<string, unknown>>(
+  entry: FrontendUiStateEntry<TPayload>,
+  scope: PersistenceScope,
+): PersistedFrontendUiStateRecord<TPayload> {
+  return {
+    scope,
+    kind: entry.kind,
+    updated_at: entry.updatedAt,
+    version: "frontend-ui-state.v1",
+    allowed_use: "ui_state_only",
+    can_create_trade_signal: false,
+    can_mutate_live_ranking: false,
+    can_auto_adjust_weights: false,
+    payload: entry.payload,
+  };
+}
+
+export function frontendUiStateRecordToEntry<TPayload = Record<string, unknown>>(
+  record: PersistedFrontendUiStateRecord<TPayload>,
+): FrontendUiStateEntry<TPayload> {
+  return {
+    allowedUse: "ui_state_only",
+    canAutoAdjustWeights: false,
+    canCreateTradeSignal: false,
+    canMutateLiveRanking: false,
+    kind: record.kind,
+    payload: record.payload,
+    updatedAt: record.updated_at,
+    version: "frontend-ui-state.v1",
+  };
+}
+
 export function buildPersistenceSchemaSql() {
   return `
 create table if not exists journal_events (
@@ -754,5 +812,21 @@ create table if not exists macro_market_snapshots (
 
 create index if not exists macro_market_snapshots_scope_fetched_at_idx
   on macro_market_snapshots (scope, fetched_at desc);
+
+create table if not exists frontend_ui_states (
+  scope text not null,
+  kind text not null,
+  updated_at timestamptz not null,
+  version text not null,
+  allowed_use text not null,
+  can_create_trade_signal boolean not null,
+  can_mutate_live_ranking boolean not null,
+  can_auto_adjust_weights boolean not null,
+  payload jsonb not null,
+  primary key (scope, kind)
+);
+
+create index if not exists frontend_ui_states_scope_updated_at_idx
+  on frontend_ui_states (scope, updated_at desc);
 `.trim();
 }

@@ -185,6 +185,9 @@ export type AiSignalReview = {
   model?: string;
   reviewedAt?: string;
   confidenceAdjustment?: number;
+  evidenceIds?: string[];
+  referencedEvidenceIds?: string[];
+  signalId?: string;
 };
 
 export type SignalJournalAction = "track" | "paper_trade" | "skip" | "invalidate";

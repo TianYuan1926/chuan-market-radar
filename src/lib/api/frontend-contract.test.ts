@@ -163,9 +163,38 @@ function backendContract(): BackendContract {
       status: "ready",
     },
     runtime: {
+      apiUsage: {
+        dailyBudget: 300,
+        day: "2026-06-21",
+        detail: "Redis daily counter is readable.",
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        pacingMs: 500,
+        perMinuteLimit: 30,
+        provider: "CoinGlass",
+        remainingToday: 276,
+        source: "redis",
+        status: "ready",
+        throttled: false,
+        usedToday: 24,
+      },
       cacheStatus: "updated",
       persistedArchive: true,
       repositoryMode: "database",
+      runtimeProbes: {
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        redis: {
+          checkedAt: "2026-06-21T08:00:00.000Z",
+          detail: "Redis 可读，运行心跳探针可用。",
+          status: "healthy",
+        },
+        staleAfterSeconds: 900,
+        workers: [],
+      },
+      sourceLatency: {
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        probes: [],
+        status: "partial",
+      },
       trigger: "radar_get",
     },
     scanProof: {

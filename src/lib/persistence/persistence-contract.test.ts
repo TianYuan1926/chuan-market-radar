@@ -10,6 +10,8 @@ import type { ScanArchiveSummary, ScanAssetState, ScanReplayFrame } from "@/lib/
 import {
   buildPersistenceSchemaSql,
   dailyMoverSnapshotToRecords,
+  frontendUiStateRecordToEntry,
+  frontendUiStateToRecord,
   journalEventRecordToEvent,
   journalEventToRecord,
   macroMarketSnapshotRecordToSnapshot,
@@ -422,6 +424,35 @@ test("macro market snapshots round-trip through a database-ready record", () => 
   assert.deepEqual(macroMarketSnapshotRecordToSnapshot(record), snapshot);
 });
 
+test("frontend UI state round-trips without becoming trading evidence", () => {
+  const entry = {
+    allowedUse: "ui_state_only" as const,
+    canAutoAdjustWeights: false as const,
+    canCreateTradeSignal: false as const,
+    canMutateLiveRanking: false as const,
+    kind: "pet_progress" as const,
+    payload: {
+      exp: 120,
+      streak: 4,
+      totalRight: 8,
+      totalWrong: 1,
+      wrongStreak: 0,
+    },
+    updatedAt: "2026-06-22T10:00:00.000Z",
+    version: "frontend-ui-state.v1" as const,
+  };
+  const record = frontendUiStateToRecord(entry, scope);
+
+  assert.equal(record.scope, scope);
+  assert.equal(record.kind, "pet_progress");
+  assert.equal(record.allowed_use, "ui_state_only");
+  assert.equal(record.can_create_trade_signal, false);
+  assert.equal(record.can_mutate_live_ranking, false);
+  assert.equal(record.can_auto_adjust_weights, false);
+  assert.equal(record.payload.exp, 120);
+  assert.deepEqual(frontendUiStateRecordToEntry(record), entry);
+});
+
 test("v3 forward map snapshots store queryable review metadata plus readonly payload", () => {
   const snapshot = {
     allowedUse: "research_only" as const,
@@ -465,6 +496,7 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
     "ohlcv_candle_cache",
     "scan_asset_states",
     "macro_market_snapshots",
+    "frontend_ui_states",
   ]);
   assert.match(sql, /create table if not exists journal_events/i);
   assert.match(sql, /outcome_status text/i);
@@ -481,9 +513,12 @@ test("buildPersistenceSchemaSql defines the durable Postgres tables without prov
   assert.match(sql, /create table if not exists ohlcv_candle_cache/i);
   assert.match(sql, /create table if not exists scan_asset_states/i);
   assert.match(sql, /create table if not exists macro_market_snapshots/i);
+  assert.match(sql, /create table if not exists frontend_ui_states/i);
   assert.match(sql, /btc_dominance_percent numeric not null/i);
   assert.match(sql, /can_create_trade_signal boolean not null/i);
   assert.match(sql, /macro_market_snapshots_scope_fetched_at_idx/i);
+  assert.match(sql, /frontend_ui_states_scope_updated_at_idx/i);
+  assert.match(sql, /allowed_use text not null/i);
   assert.match(sql, /last_deep_scanned_at timestamptz/i);
   assert.match(sql, /consecutive_skipped integer not null default 0/i);
   assert.match(sql, /was_displaced_by_dynamic_priority boolean not null default false/i);
