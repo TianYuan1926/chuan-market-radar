@@ -480,6 +480,30 @@ test("CoinGlass provider preserves public scan output when paid deep scan is pla
   assert.match(snapshot.metadata.notes.join("\n"), /BTC: Upgrade Plan/);
 });
 
+test("CoinGlass provider marks zero clean rows as partial even when the API envelope succeeds", async () => {
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["ARB"],
+    batchSize: 3,
+    publicLightScanProvider: publicLightScanProviderForTest(),
+    now: () => new Date("2026-06-15T00:00:00.000Z"),
+    fetcher: async () =>
+      new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [],
+      })),
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.equal(snapshot.metadata.status, "partial");
+  assert.equal(snapshot.metadata.scannedCount, 0);
+  assert.equal(snapshot.metadata.diagnostics?.requests.coinGlassRequestsPlanned, 3);
+  assert.equal(snapshot.metadata.diagnostics?.requests.cleanRows, 0);
+  assert.match(snapshot.metadata.notes.join("\n"), /quality filter: raw 0, clean 0, primary 0/);
+});
+
 test("CoinGlass provider exposes multi-exchange coverage quality in metadata", async () => {
   const provider = createCoinGlassProvider({
     apiKey: "test-key",

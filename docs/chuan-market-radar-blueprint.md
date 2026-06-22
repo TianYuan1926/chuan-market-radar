@@ -1664,7 +1664,7 @@ CoinGlass 业余会员 API：
    - 生产发布脚本必须在 `docker compose up -d --build` 后自动调用 `/api/admin/persistence/migrate`；数据库迁移是发布流程的一部分，不能靠手动记忆。
    - 长间隔 worker 在任务睡眠期间必须按 `WORKER_IDLE_HEARTBEAT_SECONDS` 上报空闲心跳，避免 daily mover、signal、macro 这类低频任务被误判为 down。
    - public light scan、universe registry 和 CoinGlass mapper 必须过滤已知非加密底层资产、股票、ETF、指数和贵金属类污染标的；这些资产不能进入山寨币深扫槽位。
-   - 如果 CoinGlass deep scan 出现 `Invalid API key`、`Upgrade plan`、0 clean rows 或 24/24 failed，系统必须保留 public light scan，但必须把深扫状态标成 partial/watch，不能把它解释成“市场没有机会”。
+   - 如果 CoinGlass deep scan 出现 `Invalid API key`、`Upgrade plan`、接口成功但 `data=[]`、0 clean rows 或 24/24 failed，系统必须保留 public light scan，但必须把深扫状态标成 partial/watch，不能把它解释成“市场没有机会”。
    - CoinGlass API key、账号等级和端点权限属于外部事实；代码只能做诊断和降级，不能伪造深扫成功。
 
 ## 每次继续开发必须遵守

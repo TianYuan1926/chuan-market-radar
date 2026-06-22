@@ -455,10 +455,16 @@ function compactCoinGlassFailures(failures: CoinGlassPairsMarketFailure[], previ
   return `${preview}${suffix}`;
 }
 
-function metadataStatusFromCoinGlassFailures(
-  failures: CoinGlassPairsMarketFailure[],
-): MarketDataStatus {
-  return failures.length > 0 ? "partial" : "ready";
+function metadataStatusFromCoinGlassResult({
+  cleanRows,
+  failures,
+  plannedRequests,
+}: {
+  cleanRows: number;
+  failures: CoinGlassPairsMarketFailure[];
+  plannedRequests: number;
+}): MarketDataStatus {
+  return failures.length > 0 || (plannedRequests > 0 && cleanRows === 0) ? "partial" : "ready";
 }
 
 function buildRequestDiagnostics({
@@ -981,7 +987,11 @@ export function createCoinGlassProvider({
           tickers,
         }),
       };
-      const metadataStatus = metadataStatusFromCoinGlassFailures(coinGlassFailures);
+      const metadataStatus = metadataStatusFromCoinGlassResult({
+        cleanRows: cleanMarketRows.length,
+        failures: coinGlassFailures,
+        plannedRequests: batchPlan.assets.length,
+      });
       const macroWeather = buildMacroWeather({
         altcoinMacro,
         derivatives,

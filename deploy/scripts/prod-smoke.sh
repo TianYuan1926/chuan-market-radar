@@ -140,9 +140,10 @@ if not review_body.get("ok"):
 
 backend_status, backend_ms, backend_body = fetch("/api/radar/backend-contract", expect_json=True)
 print(f"api /api/radar/backend-contract: {backend_status} {backend_ms}ms")
-if not backend_body.get("ok", True) and "source" not in backend_body:
+if not backend_body.get("ok", True) and "source" not in backend_body and "contract" not in backend_body:
     errors.append("/api/radar/backend-contract: unexpected body")
-backend_scan = backend_body.get("scanProof") or {}
+backend_contract = backend_body.get("contract") or backend_body
+backend_scan = backend_contract.get("scanProof") or {}
 deep_scan = backend_scan.get("deepScan") or {}
 print(
     "backend-deep-scan",
