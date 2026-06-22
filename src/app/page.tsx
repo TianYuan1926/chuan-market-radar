@@ -41,7 +41,7 @@ export default async function HomePage() {
   const stats = [
     { v: scan.totalMonitored, suffix: '', label: '监控标的', decimals: 0 },
     { v: radar.radarSignals.data.length, suffix: '', label: '成熟信号', decimals: 0 },
-    { v: scan.coverage, suffix: '%', label: '扫描覆盖率', decimals: 1 },
+    { v: scan.coverage, suffix: '%', label: '本轮深扫占比', decimals: 1 },
     { v: api.usedToday, suffix: '', label: '今日 API 调用', decimals: 0 },
   ]
 
@@ -65,7 +65,7 @@ export default async function HomePage() {
               扫描线扫过之处，<span className="text-neon">异动无所遁形</span>
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-pretty text-muted-foreground">
-              全网代币尽收雷达。每一次扫描经过目标，即刻捕获资金净流入与抛压异动。
+              监控范围以后端扫描证明为准。每一轮扫描都会标注候选、深扫、信号和数据新鲜度。
             </p>
           </Reveal>
 
@@ -86,7 +86,7 @@ export default async function HomePage() {
               把<span className="text-neon">噪声</span>，炼成<span className="text-neon">信号</span>
             </h2>
             <p className="mt-3 text-muted-foreground">
-              海量杂乱数据流经三道引擎，收敛为一条清晰可执行的信号流
+              海量杂乱数据流经三道引擎，收敛为一条可复核的信号流
             </p>
           </Reveal>
           <Reveal delay={120}>
@@ -130,7 +130,7 @@ export default async function HomePage() {
 
             {/* 榜单 */}
             <Reveal delay={160}>
-              <BentoCard href="/leaderboard" title="榜单" desc="实力交易者与热门标的排行。" icon={Trophy}>
+              <BentoCard href="/leaderboard" title="榜单" desc="涨跌幅、成交额、相对强弱等后端榜单。" icon={Trophy}>
                 <RankMotif />
               </BentoCard>
             </Reveal>

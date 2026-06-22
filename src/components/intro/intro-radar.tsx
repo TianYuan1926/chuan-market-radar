@@ -222,7 +222,7 @@ export function IntroRadar({ tokens }: { tokens?: Token[] } = {}) {
                 </span>
                 <span className="font-mono text-sm font-semibold">{it.symbol}</span>
                 <span className="text-xs text-muted-foreground">
-                  {it.dir === 'up' ? '资金净流入' : '抛压异动'}
+                  {it.dir === 'up' ? '强势异动' : '抛压异动'}
                 </span>
                 <span className="ml-auto font-mono text-xs text-neon">强度 {it.strength}</span>
               </div>

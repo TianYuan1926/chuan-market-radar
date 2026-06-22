@@ -58,7 +58,7 @@ const FILTERS: { id: PoolStatus | 'all'; label: string; hint?: string }[] = [
   { id: 'expired', label: '已失效', hint: '触发窗口已过或结构破坏，信号已失效' },
 ]
 
-// 最新推送的相对时间：基于确定性的 ageMin（距今分钟数），避免绝对时间戳显得过时
+// 最近更新的相对时间：基于后端 ageMin（距今分钟数），避免绝对时间戳显得过时
 function fmtAge(ageMin: number): string {
   if (ageMin < 1) return '刚刚'
   if (ageMin < 60) return `${ageMin} 分钟前`
@@ -74,55 +74,22 @@ function direction(card: SignalCard): 'long' | 'short' {
   return card.token.trend === 'bear' ? 'short' : 'long'
 }
 
-// 分析逻辑文案
+// 证据说明文案：只解释后端卡片字段，不生成交易结论。
 function analysisLogic(card: SignalCard): string[] {
   const t = card.token
-  const dir = direction(card)
-  const base = [
-    `主力资金在 ${card.exchange} ${card.market}盘口出现 ×${card.volMult} 异常放量，AI 异动强度评分 ${t.anomalyScore}/100。`,
-    `看涨情绪指数 ${card.bullSentiment}%，短线异动 ${card.shortAnomaly} 次、趋势异动 ${card.trendAnomaly} 次，资金活跃度显著高于均值。`,
+  return [
+    `${card.exchange} ${card.market} 后端卡片评分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
+    `方向状态 ${direction(card) === 'long' ? '偏多' : '偏空'}，风险等级 ${card.riskLevel}，RR ${card.odds || '未就绪'}，候选状态 ${POOL_META[card.poolStatus].label}。`,
+    card.category === 'sniper'
+      ? '该标的已进入最终计划候选；具体计划字段必须以单币档案中的后端结构化计划为准。'
+      : '后端未给出完整交易计划；列表页只展示观察状态，不生成计划字段。',
   ]
-  if (dir === 'long') {
-    base.push(
-      `自首次推送价 $${fmtUsd(card.pushPrice)} 以来已上行，量价齐升、链上换手放大，趋势结构偏多。`,
-    )
-  } else {
-    base.push(
-      `盘口买盘撤离、大额转入交易所，多头动能衰减，结构转弱，存在回调或破位风险。`,
-    )
-  }
-  return base
-}
-
-// 入场策略
-function entryPlan(card: SignalCard) {
-  const dir = direction(card)
-  const p = card.token.price
-  const dp = (x: number) => +(p * x).toFixed(p < 0.01 ? 6 : 4)
-  if (dir === 'long') {
-    return {
-      side: '做多 / Long',
-      sideTone: 'var(--up)',
-      entry: `$${fmtUsd(dp(0.97))} ~ $${fmtUsd(dp(1.01))}（回踩不破支撑分批建仓）`,
-      stop: `$${fmtUsd(dp(0.92))}（跌破止损，约 -8%）`,
-      targets: `T1 $${fmtUsd(dp(1.12))} · T2 $${fmtUsd(dp(1.28))} · T3 $${fmtUsd(dp(1.5))}`,
-      size: `建议仓位 ≤ 15%，分 2-3 批进场，盈利后移动止损保护本金`,
-    }
-  }
-  return {
-    side: '做空 / Short',
-    sideTone: 'var(--down)',
-    entry: `$${fmtUsd(dp(1.0))} ~ $${fmtUsd(dp(1.04))}（反弹至阻力位分批做空）`,
-    stop: `$${fmtUsd(dp(1.09))}（突破止损，约 -8%）`,
-    targets: `T1 $${fmtUsd(dp(0.9))} · T2 $${fmtUsd(dp(0.8))} · T3 $${fmtUsd(dp(0.68))}`,
-    size: `建议仓位 ≤ 12%，严格止损，避免逆势加仓`,
-  }
 }
 
 const COLS =
   'grid-cols-[28px_36px_minmax(140px,1.4fr)_repeat(2,minmax(80px,0.9fr))_repeat(3,minmax(72px,0.8fr))_minmax(56px,0.6fr)_minmax(80px,0.8fr)_repeat(2,52px)_28px]'
 
-type SortKey = 'score' | 'age' | 'gain' | 'drop' | 'cap' | 'sentiment'
+type SortKey = 'score' | 'age' | 'moveUp' | 'moveDown' | 'cap' | 'sentiment'
 
 const PAGE_SIZE = 20
 
@@ -166,13 +133,13 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
       )
     return [...list].sort((a, b) => {
       if (sort === 'age') return a.ageMin - b.ageMin
-      if (sort === 'gain') {
+      if (sort === 'moveUp') {
         const ga = (a.token.price - a.pushPrice) / a.pushPrice
         const gb = (b.token.price - b.pushPrice) / b.pushPrice
         return gb - ga
       }
-      if (sort === 'drop') {
-        // 推送后跌幅：回撤最深（负得最多）的排在最前
+      if (sort === 'moveDown') {
+        // 入选后跌幅：回撤最深（负得最多）的排在最前
         const da = (a.token.price - a.pushPrice) / a.pushPrice
         const db = (b.token.price - b.pushPrice) / b.pushPrice
         return da - db
@@ -264,8 +231,8 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           {(
             [
               ['score', '评分'],
-              ['gain', '推送后涨幅'],
-              ['drop', '推送后跌幅'],
+              ['moveUp', '入选后上涨'],
+              ['moveDown', '入选后回撤'],
               ['sentiment', '情绪'],
               ['cap', '市值'],
               ['age', '最新'],
@@ -311,11 +278,11 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             <span />
             <span className="text-center">#</span>
             <span>币种</span>
-            <span className="text-right">首次推送</span>
-            <span className="text-right">最新推送</span>
-            <span className="text-right">推送价</span>
+            <span className="text-right">首次记录</span>
+            <span className="text-right">最近更新</span>
+            <span className="text-right">入选价</span>
             <span className="text-right">现价</span>
-            <span className="text-right">推送后</span>
+            <span className="text-right">入选后</span>
             <span className="text-center">情绪</span>
             <span className="text-right">市值</span>
             <span className="text-center">短线</span>
@@ -331,8 +298,8 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             const color = `var(${meta.cssVar})`
             const isStar = starred[card.id]
             const isOpen = open === card.id
-            const plan = entryPlan(card)
             const logic = analysisLogic(card)
+            const planReady = card.category === 'sniper' && card.odds >= 3
             return (
               <div
                 key={card.id}
@@ -402,7 +369,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                     )}
                   >
                     {card.ageMin <= 8 && (
-                      <span className="relative flex size-1.5" title="刚刚推送">
+                      <span className="relative flex size-1.5" title="刚刚更新">
                         <span className="absolute inline-flex size-full animate-ping rounded-full bg-up opacity-70" />
                         <span className="relative inline-flex size-1.5 rounded-full bg-up" />
                       </span>
@@ -443,7 +410,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                   />
                 </div>
 
-                {/* 展开：详情 / 分析逻辑 / 入场策略 */}
+                {/* 展开：详情 / 后端证据 / 计划状态 */}
                 {isOpen && (
                   <div className="animate-float-up grid gap-4 border-t border-border bg-background/60 px-4 py-4 lg:grid-cols-3">
                     {/* 详情 */}
@@ -488,11 +455,11 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       </Link>
                     </div>
 
-                    {/* 分析逻辑 */}
+                    {/* 后端证据说明 */}
                     <div className="lg:border-l lg:border-border lg:pl-4">
                       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                         <Brain className="size-4 text-neon" />
-                        AI 分析逻辑
+                        后端证据说明
                       </div>
                       <ul className="space-y-1.5">
                         {logic.map((l, i) => (
@@ -507,30 +474,42 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       </ul>
                     </div>
 
-                    {/* 入场策略 */}
+                    {/* 计划状态 */}
                     <div className="lg:border-l lg:border-border lg:pl-4">
                       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                         <Target className="size-4 text-neon" />
-                        入场策略
+                        交易计划状态
                       </div>
                       <div
                         className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 text-[12px] font-bold"
                         style={{
-                          color: plan.sideTone,
-                          background: `color-mix(in oklch, ${plan.sideTone} 14%, transparent)`,
+                          color: planReady ? 'var(--up)' : 'var(--muted-foreground)',
+                          background: planReady
+                            ? 'color-mix(in oklch, var(--up) 14%, transparent)'
+                            : 'var(--secondary)',
                         }}
                       >
-                        {plan.side}
+                        {planReady ? '计划候选 / Plan Candidate' : '观察中 / Watch Only'}
                       </div>
                       <dl className="space-y-1.5 text-[12px]">
-                        <PlanRow label="建议入场" value={plan.entry} />
-                        <PlanRow label="止损" value={plan.stop} tone="var(--down)" />
-                        <PlanRow label="目标位" value={plan.targets} tone="var(--up)" />
-                        <PlanRow label="仓位管理" value={plan.size} />
+                        <PlanRow
+                          label="状态"
+                          value={planReady ? '已进入最终计划候选' : '后端未给出完整交易计划'}
+                          tone={planReady ? 'var(--up)' : 'var(--muted-foreground)'}
+                        />
+                        <PlanRow label="原因" value={card.desc} />
+                        <PlanRow
+                          label="下一步"
+                          value={
+                            planReady
+                              ? '打开单币档案查看后端结构化建仓、止损、目标和失效条件。'
+                              : '等待证据融合、RR、Risk Gate 和多周期门控同时满足。'
+                          }
+                        />
                       </dl>
                       <p className="mt-2 flex items-start gap-1 text-[11px] text-muted-foreground">
                         <Shield className="mt-0.5 size-3 shrink-0" />
-                        策略来自后端结构化研究输出，仅供参考，不构成投资建议。
+                        列表页不会前端生成交易计划字段；完整计划只读取后端单币档案。
                       </p>
                     </div>
                   </div>
@@ -599,7 +578,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
   )
 }
 
-// 现价 + 推送后涨幅：订阅集中行情 store，价格跳动同时实时推导涨幅
+// 现价 + 入选后变化：订阅集中行情 store，价格变化时实时推导涨跌幅
 function LivePriceGainCells({
   id,
   pushPrice,

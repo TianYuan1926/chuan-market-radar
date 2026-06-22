@@ -56,7 +56,7 @@ export default async function SignalsPage() {
                 LIVE
               </span>
               <span className="text-[13px] text-muted-foreground">
-                点击任意一行可展开币种详情、分析逻辑与入场策略
+                点击任意一行可展开币种详情、后端证据与计划状态
               </span>
             </div>
             <div className="mt-4">

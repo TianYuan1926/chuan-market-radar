@@ -171,7 +171,7 @@ function SniperCard({
         </div>
       </div>
 
-      {/* 现价 + 推送后涨幅 */}
+      {/* 现价 + 入选后变化 */}
       <div className="mt-2.5 flex items-end justify-between pl-1.5">
         <div>
           <div className="text-[10px] uppercase tracking-wide text-muted-foreground">现价</div>
@@ -182,7 +182,7 @@ function SniperCard({
           />
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">推送后</div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">入选后</div>
           <LiveValue
             value={gain}
             format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`}
@@ -196,23 +196,19 @@ function SniperCard({
         {card.thesis}
       </p>
 
-      {/* 交易计划：建仓 / 止损 / 目标 */}
+      {/* 完整计划必须来自后端单币档案，列表页不生成价格计划。 */}
       <div className="mt-2.5 grid grid-cols-3 gap-px border border-border bg-border font-mono text-[10px]">
         <div className="bg-card p-1.5">
-          <div className="text-muted-foreground">建仓区间</div>
-          <div className="mt-0.5 text-foreground">
-            {fmtUsd(card.entryLow)}~{fmtUsd(card.entryHigh)}
-          </div>
+          <div className="text-muted-foreground">计划状态</div>
+          <div className="mt-0.5 text-neon">后端完整计划</div>
         </div>
         <div className="bg-card p-1.5">
-          <div className="text-muted-foreground">止损</div>
-          <div className="mt-0.5 text-down">{fmtUsd(card.stop)}</div>
+          <div className="text-muted-foreground">执行边界</div>
+          <div className="mt-0.5 text-foreground">单币档案</div>
         </div>
         <div className="bg-card p-1.5">
-          <div className="text-muted-foreground">目标</div>
-          <div className="mt-0.5 text-up">
-            {fmtUsd(card.target1)} / {fmtUsd(card.target2)}
-          </div>
+          <div className="text-muted-foreground">最低赔率</div>
+          <div className="mt-0.5 text-up">{card.odds}:1</div>
         </div>
       </div>
 

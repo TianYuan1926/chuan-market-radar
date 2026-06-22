@@ -603,13 +603,6 @@ export function radarSignalsToSniperTargets(signals: RadarSignal[], tickerRows: 
     .map((card) => {
       const signal = signals.find((item) => item.id === card.id)
       const side = signal ? sniperSide(signal) : card.token.trend === 'bear' ? 'short' : 'long'
-      const long = side === 'long'
-      const ref = card.token.price
-      const entryLow = long ? ref * 0.985 : ref * 1.005
-      const entryHigh = long ? ref * 1.01 : ref * 1.035
-      const stop = long ? ref * 0.955 : ref * 1.06
-      const target1 = long ? ref * (1 + 0.06 * card.odds) : ref * (1 - 0.04 * card.odds)
-      const target2 = long ? ref * (1 + 0.1 * card.odds) : ref * (1 - 0.07 * card.odds)
 
       return {
         id: card.id,
@@ -626,18 +619,18 @@ export function radarSignalsToSniperTargets(signals: RadarSignal[], tickerRows: 
         exchange: card.exchange,
         market: card.market,
         pushPrice: card.pushPrice,
-        entryLow: round(entryLow, ref < 1 ? 6 : 4),
-        entryHigh: round(entryHigh, ref < 1 ? 6 : 4),
-        stop: round(stop, ref < 1 ? 6 : 4),
-        target1: round(target1, ref < 1 ? 6 : 4),
-        target2: round(target2, ref < 1 ? 6 : 4),
+        entryLow: 0,
+        entryHigh: 0,
+        stop: 0,
+        target1: 0,
+        target2: 0,
         thesis: card.desc,
         signals: signal ? sniperSignals(signal) : [],
         bullSentiment: card.bullSentiment,
         volMult: card.volMult,
         played: false,
         outcomePct: 0,
-        outcomeNote: '等待复盘验证',
+        outcomeNote: '等待后端完整交易计划和复盘验证',
       }
     })
 }

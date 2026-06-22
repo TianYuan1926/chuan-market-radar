@@ -157,11 +157,11 @@ export default async function TokenPage({
                 />
               </div>
 
-              {/* 主力资金净流入 */}
+              {/* 资金流数据 */}
               <div className="border-t border-border px-6 py-5">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   <span className="h-3.5 w-1 bg-neon" />
-                  主力资金 · 近 7 日净流入
+                  资金流 · 待接入真实序列
                 </h3>
                 <div className="mt-4 grid h-28 place-items-center border border-dashed border-border bg-secondary/20 px-4 text-center text-sm text-muted-foreground">
                   等待真实资金流数据

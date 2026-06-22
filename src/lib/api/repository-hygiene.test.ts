@@ -802,3 +802,34 @@ test("review page restores rank visibility without rendering the legacy mock rev
   assert.match(reviewPageSource, /<RankBanner/);
   assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
 });
+
+test("signal table does not fabricate lifecycle prices or frontend trade plans", () => {
+  const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
+  const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
+  const homePageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
+  const dashboardPageSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+  const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
+  const signalsPageSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
+  const introSectionsSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-sections.tsx"), "utf8");
+  const introRadarSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-radar.tsx"), "utf8");
+
+  assert.doesNotMatch(anomalyBoardSource, /function entryPlan|const plan = entryPlan/);
+  assert.doesNotMatch(anomalyBoardSource, /建议入场|目标位|仓位管理|链上换手|AI 分析逻辑|推送后涨幅|推送后跌幅/);
+  assert.match(anomalyBoardSource, /后端未给出完整交易计划/);
+  assert.match(anomalyBoardSource, /单币档案/);
+  assert.match(anomalyBoardSource, /入选后/);
+
+  assert.doesNotMatch(sniperBoardSource, /建仓区间|止损|目标位|entryLow|entryHigh|target1|target2|card\.stop|card\.target/);
+  assert.match(sniperBoardSource, /后端完整计划/);
+  assert.match(sniperBoardSource, /入选后/);
+
+  assert.doesNotMatch(homePageSource, /扫描覆盖率/);
+  assert.doesNotMatch(dashboardPageSource, /全市场覆盖/);
+  assert.doesNotMatch(homePageSource, /实力交易者/);
+  assert.doesNotMatch(signalsPageSource, /入场策略/);
+  assert.doesNotMatch(introSectionsSource, /建议入场区间|杠杆建议|主力净流入\/流出|链上数据|精准出手|资金净流向|入场窗口与目标价/);
+  assert.doesNotMatch(introRadarSource, /资金净流入/);
+  assert.doesNotMatch(tokenPageSource, /主力资金|净流入/);
+  assert.match(homePageSource, /本轮深扫占比/);
+  assert.match(dashboardPageSource, /本轮深扫占比/);
+});

@@ -71,12 +71,12 @@ export default async function DashboardPage() {
       count: true,
     },
     {
-      label: '全市场覆盖',
+      label: '本轮深扫占比',
       value: scan.coverage,
       suffix: '%',
       icon: Gauge,
       tone: 'var(--neon)',
-      sub: `已扫描 ${scan.scanned.toLocaleString()} 个标的`,
+      sub: `本轮深扫 ${scan.scanned.toLocaleString()} 个标的`,
       live: true,
     },
     {

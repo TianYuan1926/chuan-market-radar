@@ -198,6 +198,46 @@ test("signal cards do not reverse engineer push price from synthetic change", ()
   assert.equal(cards[0]?.pushPrice, 7.842);
 });
 
+test("sniper targets do not fabricate frontend entry stop or target prices", () => {
+  const signal: RadarSignal = {
+    id: "real-tia",
+    symbol: "TIA",
+    hue: 220,
+    direction: "多",
+    maturity: "TRADE_PLAN_READY",
+    rr: 3.4,
+    risk: "低",
+    evidenceCount: 6,
+    counterCount: 0,
+    freshness: "live",
+    whySelected: "后端证据融合已通过",
+    whyBlocked: null,
+    updatedMinAgo: 1,
+  };
+
+  const [target] = radarSignalsToSniperTargets([signal], [
+    {
+      symbol: "TIA",
+      hue: 220,
+      value: 12.4,
+      price: 7.842,
+      inCandidatePool: true,
+      deepScanned: true,
+      hasSignal: true,
+      blocked: false,
+      awaitingScan: false,
+    },
+  ]);
+
+  assert.equal(target?.pushPrice, 7.842);
+  assert.equal(target?.entryLow, 0);
+  assert.equal(target?.entryHigh, 0);
+  assert.equal(target?.stop, 0);
+  assert.equal(target?.target1, 0);
+  assert.equal(target?.target2, 0);
+  assert.match(target?.outcomeNote ?? "", /后端完整交易计划/);
+});
+
 test("signal resource fallback keeps real signals and appends missing candidates", () => {
   const realSignal: RadarSignal = {
     id: "real-met",
