@@ -172,7 +172,7 @@ function SniperCard({
         </div>
       </div>
 
-      {/* 现价 + 入选后变化 */}
+      {/* 现价 + 后端生命周期追踪 */}
       <div className="mt-2.5 flex items-end justify-between pl-1.5">
         <div>
           <div className="text-[10px] uppercase tracking-wide text-muted-foreground">现价</div>
@@ -183,7 +183,7 @@ function SniperCard({
           />
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">入选后</div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">追踪</div>
           {gain === null ? (
             <div className="font-mono text-sm font-bold text-muted-foreground">待追踪</div>
           ) : (

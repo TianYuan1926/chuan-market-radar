@@ -565,7 +565,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
   )
 }
 
-// 现价 + 入选后变化：只有后端提供真实入选价后才计算，不用当前价伪造 0%。
+// 现价 + 生命周期追踪：只有后端提供真实入选价后才计算，不用当前价伪造 0%。
 function LivePriceGainCells({
   id,
   pushPrice,

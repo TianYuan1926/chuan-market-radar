@@ -828,11 +828,11 @@ test("signal table does not fabricate lifecycle prices or frontend trade plans",
   assert.doesNotMatch(anomalyBoardSource, /建议入场|目标位|仓位管理|链上换手|AI 分析逻辑|推送后涨幅|推送后跌幅/);
   assert.match(anomalyBoardSource, /后端未给出完整交易计划/);
   assert.match(anomalyBoardSource, /单币档案/);
-  assert.match(anomalyBoardSource, /入选后/);
+  assert.match(anomalyBoardSource, /追踪/);
 
   assert.doesNotMatch(sniperBoardSource, /建仓区间|止损|目标位|entryLow|entryHigh|target1|target2|card\.stop|card\.target/);
   assert.match(sniperBoardSource, /后端完整计划/);
-  assert.match(sniperBoardSource, /入选后/);
+  assert.match(sniperBoardSource, /追踪/);
 
   assert.doesNotMatch(homePageSource, /扫描覆盖率/);
   assert.doesNotMatch(dashboardPageSource, /全市场覆盖/);
