@@ -1,5 +1,6 @@
 import type { ExchangeId, ContractInstrument, MarketTicker, ScanLightScanCandidate, ScanLightScanDiagnostics } from "./types";
 import type { PublicLightScanProvider, PublicLightScanResult } from "./providers/public-light-scan";
+import { isCryptoFuturesUnderlying } from "./asset-class-filter";
 
 export type WebSocketTickerEvent = {
   eventTime: string;
@@ -80,7 +81,10 @@ function baseFromSymbol(symbol: string) {
 }
 
 function isUsdtPerpLikeSymbol(symbol: string) {
-  return symbol.endsWith("USDT") && !symbol.includes("_") && symbol.length > 4;
+  return symbol.endsWith("USDT") &&
+    !symbol.includes("_") &&
+    symbol.length > 4 &&
+    isCryptoFuturesUnderlying(symbol);
 }
 
 function windowStartMs(timeMs: number, windowMs: number) {
@@ -349,6 +353,29 @@ function diagnostics({
   };
 }
 
+function sanitizeWebSocketLightScanSnapshot(snapshot: WebSocketLightScanSnapshot): WebSocketLightScanSnapshot {
+  const isAllowedSymbol = (symbol: string) => isUsdtPerpLikeSymbol(normalizedSymbol(symbol));
+  const priorityCandidates = snapshot.priorityCandidates.filter((candidate) => isAllowedSymbol(candidate.symbol));
+  const instruments = snapshot.instruments.filter((instrument) =>
+    isAllowedSymbol(instrument.symbol) && isCryptoFuturesUnderlying(instrument.baseAsset)
+  );
+  const tickers = snapshot.tickers.filter((ticker) => isAllowedSymbol(ticker.symbol));
+
+  return {
+    ...snapshot,
+    diagnostics: {
+      ...snapshot.diagnostics,
+      acceptedCount: instruments.length,
+      candidateCount: priorityCandidates.length,
+      topCandidates: priorityCandidates.slice(0, 12),
+      universeCount: instruments.length,
+    },
+    instruments,
+    priorityCandidates,
+    tickers,
+  };
+}
+
 export function createWebSocketLightScanAccumulator({
   maxBaselineWindows = defaultMaxBaselineWindows,
   maxPriorityCandidates = defaultMaxPriorityCandidates,
@@ -524,7 +551,7 @@ export function createWebSocketLightScanProvider({
         return staleWebSocketLightScanResult(currentTime);
       }
 
-      return snapshot;
+      return sanitizeWebSocketLightScanSnapshot(snapshot);
     },
   };
 }

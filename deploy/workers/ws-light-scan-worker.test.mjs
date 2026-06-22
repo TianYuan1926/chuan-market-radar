@@ -33,6 +33,26 @@ test("parseBinanceTickerMessage accepts Buffer WebSocket payloads", () => {
   assert.equal(events[0]?.price, 0.88);
 });
 
+test("ticker parsers reject tokenized stocks and commodities before light scan", () => {
+  assert.deepEqual(parseBinanceTickerMessage(JSON.stringify([
+    { E: 1_797_760_000_000, c: "85", q: "980000", s: "WDCUSDT" },
+    { E: 1_797_760_000_000, c: "4.2", q: "980000", s: "NOKUSDT" },
+  ])), []);
+  assert.deepEqual(parseOkxTickerMessage(JSON.stringify({
+    data: [
+      { instId: "SAMSUNG-USDT-SWAP", last: "1200", ts: "1797760000000", volCcy24h: "1000" },
+      { instId: "NATGAS-USDT-SWAP", last: "3", ts: "1797760000000", volCcy24h: "1000" },
+    ],
+  })), []);
+  assert.deepEqual(parseBybitTickerMessage(JSON.stringify({
+    data: [
+      { lastPrice: "220", symbol: "COINUSDT", turnover24h: "1000000" },
+      { lastPrice: "15", symbol: "AAOIUSDT", turnover24h: "1000000" },
+    ],
+    ts: 1_797_760_000_000,
+  })), []);
+});
+
 test("parseOkxTickerMessage converts USDT swap ticker events into light scan events", () => {
   const events = parseOkxTickerMessage(JSON.stringify({
     arg: { channel: "tickers", instId: "TIA-USDT-SWAP" },
@@ -103,12 +123,20 @@ test("createLightScanAccumulator promotes a 15m volume z-score spike into Redis 
     quoteVolume24hUsd: 1_080_000,
     symbol: "ALTUSDT",
   });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:01:00.000Z",
+    exchange: "BINANCE",
+    price: 150,
+    quoteVolume24hUsd: 10_000_000,
+    symbol: "COINUSDT",
+  });
 
   const snapshot = accumulator.snapshot();
 
   assert.equal(snapshot.mode, "websocket_sliding_window");
   assert.equal(snapshot.diagnostics.source, "websocket-light-scan");
   assert.equal(snapshot.priorityCandidates[0]?.symbol, "ALTUSDT");
+  assert.equal(snapshot.instruments.some((item) => item.symbol === "COINUSDT"), false);
   assert.equal(snapshot.priorityCandidates[0]?.state, "HOT");
   assert.match(snapshot.priorityCandidates[0]?.reasons.join(","), /volume_zscore_spike/);
 });

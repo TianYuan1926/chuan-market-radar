@@ -77,6 +77,7 @@ test("normalizeUniverseAsset rejects non-crypto underlyings", () => {
   assert.equal(normalizeUniverseAsset("NATGASUSDT"), null);
   assert.equal(normalizeUniverseAsset("NBISUSDT"), null);
   assert.equal(normalizeUniverseAsset("NOKUSDT"), null);
+  assert.equal(normalizeUniverseAsset("SAMSUNGUSDT"), null);
 });
 
 test("buildUniverseRegistry dedupes assets and keeps BTC and ETH as anchors", () => {
@@ -173,6 +174,7 @@ test("buildUniverseRegistry hard-drops non-crypto observed instruments from asse
     instrument("NATGAS"),
     instrument("NBIS"),
     instrument("NOK"),
+    instrument("SAMSUNG"),
     instrument("QCOM"),
     instrument("ARM"),
     instrument("SPY"),

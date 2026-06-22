@@ -9,6 +9,73 @@ const defaultZScoreThreshold = 2;
 const defaultSnapshotKey = "chuan:ws-light-scan:snapshot";
 const appInternalUrl = String(process.env.APP_INTERNAL_URL ?? "http://web:3000").replace(/\/+$/, "");
 const cronSecret = process.env.CRON_SECRET ?? "";
+const nonCryptoUnderlyingDenylist = new Set([
+  "AAPL",
+  "AAOI",
+  "AMD",
+  "AMZN",
+  "ARM",
+  "AVGO",
+  "BABA",
+  "BIDU",
+  "BRK",
+  "CIEN",
+  "CL",
+  "COIN",
+  "CRCL",
+  "CSCO",
+  "DIA",
+  "DIS",
+  "DRAM",
+  "EWJ",
+  "EWY",
+  "FXI",
+  "GOOG",
+  "GOOGL",
+  "HOOD",
+  "HYUNDAI",
+  "IBM",
+  "INTC",
+  "ISRG",
+  "IWM",
+  "JD",
+  "KLAC",
+  "KWEB",
+  "LRCX",
+  "META",
+  "MRVL",
+  "MSTR",
+  "MSFT",
+  "MU",
+  "NATGAS",
+  "NBIS",
+  "NFLX",
+  "NOK",
+  "NOKIA",
+  "NVO",
+  "NVDA",
+  "PDD",
+  "PLTR",
+  "POET",
+  "QCOM",
+  "QQQ",
+  "RIVN",
+  "RKLB",
+  "SAMSUNG",
+  "SKHYNIX",
+  "SNDK",
+  "SOXL",
+  "SPCX",
+  "SPY",
+  "TCEHY",
+  "TSLA",
+  "TSM",
+  "USO",
+  "WDC",
+  "XAG",
+  "XAU",
+  "XOM",
+]);
 
 function finiteNumber(value) {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -53,8 +120,25 @@ function baseFromSymbol(symbol) {
   return symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
 }
 
+function normalizeBaseAssetForClass(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[-_/]/g, "")
+    .replace(/(USDT|USDC|USD|PERP|SWAP)\.?P?$/u, "");
+}
+
+function isCryptoFuturesUnderlying(value) {
+  const baseAsset = normalizeBaseAssetForClass(value);
+
+  return Boolean(baseAsset) && !nonCryptoUnderlyingDenylist.has(baseAsset);
+}
+
 function isUsdtPerpLikeSymbol(symbol) {
-  return symbol.endsWith("USDT") && !symbol.includes("_") && symbol.length > 4;
+  return symbol.endsWith("USDT") &&
+    !symbol.includes("_") &&
+    symbol.length > 4 &&
+    isCryptoFuturesUnderlying(symbol);
 }
 
 function payloadToString(raw) {

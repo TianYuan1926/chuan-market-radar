@@ -50,6 +50,7 @@ const NON_CRYPTO_UNDERLYING_DENYLIST = new Set([
   "QQQ",
   "RIVN",
   "RKLB",
+  "SAMSUNG",
   "SKHYNIX",
   "SNDK",
   "SOXL",

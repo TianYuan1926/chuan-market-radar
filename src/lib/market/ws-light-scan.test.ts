@@ -44,12 +44,19 @@ test("createWebSocketLightScanAccumulator promotes volume z-score spikes without
 
   accumulator.ingest(event({ minutes: 60, price: 1.01, quoteVolumeDeltaUsd: 900_000 }));
   accumulator.ingest(event({ minutes: 61, price: 1.06, quoteVolumeDeltaUsd: 350_000 }));
+  accumulator.ingest(event({
+    minutes: 61,
+    price: 250,
+    quoteVolumeDeltaUsd: 10_000_000,
+    symbol: "COINUSDT",
+  }));
 
   const snapshot = accumulator.snapshot();
 
   assert.equal(snapshot.diagnostics.status, "ready");
   assert.equal(snapshot.diagnostics.source, "websocket-light-scan");
   assert.equal(snapshot.priorityCandidates[0]?.symbol, "ARBUSDT");
+  assert.equal(snapshot.instruments.some((item) => item.symbol === "COINUSDT"), false);
   assert.equal(snapshot.priorityCandidates[0]?.state, "HOT");
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("volume_zscore_spike"));
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("price_impulse"));
@@ -78,6 +85,135 @@ test("createWebSocketLightScanAccumulator detects pre-trend compression with ris
   assert.equal(snapshot.priorityCandidates[0]?.symbol, "SUIUSDT");
   assert.equal(snapshot.priorityCandidates[0]?.state, "PRE_TREND");
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("compression_volume_accumulation"));
+});
+
+test("createWebSocketLightScanProvider sanitizes stale Redis snapshots before exposing them", async () => {
+  const store = createMemoryWebSocketLightScanStore({
+    diagnostics: {
+      acceptedCount: 2,
+      candidateCount: 2,
+      generatedAt: new Date(start + 1_000).toISOString(),
+      notes: ["stored before filter update"],
+      requestCount: 0,
+      source: "websocket-light-scan",
+      status: "ready",
+      topCandidates: [
+        {
+          baseAsset: "COIN",
+          changePercent24h: 1,
+          distanceFromHighPercent: 0,
+          distanceFromLowPercent: 1,
+          reasons: ["websocket_sliding_window"],
+          score: 99,
+          state: "HOT",
+          symbol: "COINUSDT",
+          volume24hUsd: 1_000_000,
+          volatilityPercent: 1,
+        },
+        {
+          baseAsset: "ARB",
+          changePercent24h: 1,
+          distanceFromHighPercent: 0,
+          distanceFromLowPercent: 1,
+          reasons: ["websocket_sliding_window"],
+          score: 90,
+          state: "HOT",
+          symbol: "ARBUSDT",
+          volume24hUsd: 1_000_000,
+          volatilityPercent: 1,
+        },
+      ],
+      universeCount: 2,
+    },
+    instruments: [
+      {
+        baseAsset: "COIN",
+        exchange: "BINANCE",
+        id: "BINANCE-WS-LIGHT:COINUSDT",
+        isActive: true,
+        lastSeenAt: new Date(start + 1_000).toISOString(),
+        marketType: "perpetual",
+        quoteAsset: "USDT",
+        symbol: "COINUSDT",
+        tags: [],
+        volume24hUsd: 1_000_000,
+      },
+      {
+        baseAsset: "ARB",
+        exchange: "BINANCE",
+        id: "BINANCE-WS-LIGHT:ARBUSDT",
+        isActive: true,
+        lastSeenAt: new Date(start + 1_000).toISOString(),
+        marketType: "perpetual",
+        quoteAsset: "USDT",
+        symbol: "ARBUSDT",
+        tags: [],
+        volume24hUsd: 1_000_000,
+      },
+    ],
+    mode: "websocket_sliding_window",
+    priorityCandidates: [
+      {
+        baseAsset: "COIN",
+        changePercent24h: 1,
+        distanceFromHighPercent: 0,
+        distanceFromLowPercent: 1,
+        reasons: ["websocket_sliding_window"],
+        score: 99,
+        state: "HOT",
+        symbol: "COINUSDT",
+        volume24hUsd: 1_000_000,
+        volatilityPercent: 1,
+      },
+      {
+        baseAsset: "ARB",
+        changePercent24h: 1,
+        distanceFromHighPercent: 0,
+        distanceFromLowPercent: 1,
+        reasons: ["websocket_sliding_window"],
+        score: 90,
+        state: "HOT",
+        symbol: "ARBUSDT",
+        volume24hUsd: 1_000_000,
+        volatilityPercent: 1,
+      },
+    ],
+    tickers: [
+      {
+        changePercent24h: 1,
+        exchange: "BINANCE",
+        high24h: 1,
+        low24h: 1,
+        price: 1,
+        symbol: "COINUSDT",
+        updatedAt: new Date(start + 1_000).toISOString(),
+        volume24hUsd: 1_000_000,
+      },
+      {
+        changePercent24h: 1,
+        exchange: "BINANCE",
+        high24h: 1,
+        low24h: 1,
+        price: 1,
+        symbol: "ARBUSDT",
+        updatedAt: new Date(start + 1_000).toISOString(),
+        volume24hUsd: 1_000_000,
+      },
+    ],
+    windowMs: 15 * 60_000,
+  });
+  const provider = createWebSocketLightScanProvider({
+    now: () => new Date(start + 2_000),
+    store,
+  });
+
+  const result = await provider.scan();
+
+  assert.deepEqual(result.priorityCandidates.map((candidate) => candidate.symbol), ["ARBUSDT"]);
+  assert.deepEqual(result.diagnostics.topCandidates.map((candidate) => candidate.symbol), ["ARBUSDT"]);
+  assert.equal(result.diagnostics.candidateCount, 1);
+  assert.equal(result.diagnostics.universeCount, 1);
+  assert.equal(result.instruments.some((item) => item.symbol === "COINUSDT"), false);
 });
 
 test("createWebSocketLightScanStore persists snapshots for a future Redis-backed worker", async () => {
