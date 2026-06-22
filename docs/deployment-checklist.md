@@ -93,6 +93,7 @@
 - `WS_LIGHT_SCAN_RECONNECT_SECONDS`: WebSocket 断线重连间隔，默认 `10`。
 - `WORKER_HEARTBEAT_TTL_SECONDS`: Worker 心跳 Redis TTL，默认 `1800`。
 - `WORKER_HEARTBEAT_STALE_SECONDS`: Worker 心跳过期判定，默认 `900`。
+- `WORKER_IDLE_HEARTBEAT_SECONDS`: 长间隔 Worker 任务睡眠期间的空闲心跳间隔，默认 `300`，防止 daily mover、signal、macro 这类低频任务被误判为 down。
 - `SCANNER_INTERVAL_SECONDS`: 单机 scanner-worker 主扫描间隔，默认 `900`
 - `DAILY_MOVER_INTERVAL_SECONDS`: 单机 coinglass-worker 每日异动抓取间隔，默认 `86400`
 - `KLINE_CACHE_INTERVAL_SECONDS`: 单机 coinglass-worker K 线缓存填充间隔，默认 `21600`

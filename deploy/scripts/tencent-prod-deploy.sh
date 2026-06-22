@@ -104,6 +104,9 @@ sudo docker compose --env-file "${ENV_FILE}" up -d --build --remove-orphans
 echo "== Services =="
 sudo docker compose --env-file "${ENV_FILE}" ps
 
+echo "== Database migrations =="
+sudo docker compose --env-file "${ENV_FILE}" exec -T web node -e "const secret=process.env.CRON_SECRET||''; fetch('http://127.0.0.1:3000/api/admin/persistence/migrate',{method:'POST',headers:{authorization:'Bearer '+secret,'cache-control':'no-store'}}).then(async r=>{const text=await r.text(); console.log('migration',r.status); console.log(text.slice(0,1200)); process.exit(r.ok?0:1);}).catch(e=>{console.error(e);process.exit(1);})"
+
 echo "== Internal health =="
 sudo docker compose --env-file "${ENV_FILE}" exec -T web node -e "fetch('http://127.0.0.1:3000/api/health',{headers:{'cache-control':'no-store'}}).then(async r=>{const b=await r.json(); const h=b.health||{}; console.log(JSON.stringify({status:r.status,ok:b.ok,level:h.level,source:h.dataSource&&h.dataSource.activeSource,database:h.persistence&&h.persistence.databaseStatus,scan:h.scan},null,2)); process.exit(r.ok&&b.ok?0:1);}).catch(e=>{console.error(e);process.exit(1);})"
 

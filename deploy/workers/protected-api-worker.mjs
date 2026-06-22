@@ -1,6 +1,7 @@
 const profileName = process.argv[2] ?? process.env.WORKER_PROFILE ?? "scanner";
 const appInternalUrl = trimTrailingSlash(process.env.APP_INTERNAL_URL ?? "http://127.0.0.1:3000");
 const cronSecret = process.env.CRON_SECRET ?? "";
+const idleHeartbeatSeconds = numberFromEnv("WORKER_IDLE_HEARTBEAT_SECONDS", 300);
 
 function trimTrailingSlash(value) {
   return value.replace(/\/+$/, "");
@@ -239,8 +240,27 @@ async function runTaskLoop(task) {
     }
   }
 
+  async function sleepUntilNextRun() {
+    const totalSleepMs = task.intervalSeconds * 1_000;
+    const startedAt = Date.now();
+    let remainingMs = totalSleepMs;
+
+    while (remainingMs > 0) {
+      await sleep(Math.min(remainingMs, idleHeartbeatSeconds * 1_000));
+      remainingMs = Math.max(0, totalSleepMs - (Date.now() - startedAt));
+
+      if (remainingMs > 0) {
+        await postHeartbeat({
+          detail: `idle; next run in ${Math.ceil(remainingMs / 1_000)}s`,
+          status: "ok",
+          task: task.name,
+        });
+      }
+    }
+  }
+
   while (true) {
-    await sleep(task.intervalSeconds * 1_000);
+    await sleepUntilNextRun();
 
     try {
       const elapsedMs = await callTask(task);

@@ -1628,10 +1628,11 @@ CoinGlass 业余会员 API：
    - 新增 `deploy/scripts/production-verify.sh` 和 `deploy/scripts/production-observe.sh`，用于服务器验收、扫描证明、宏观快照证明、backend contract 证明和 worker 日志观察。
    - 当前状态：已完成后端 MVP；本地无法运行 Docker 时只能做脚本语法验证，服务器端必须执行验收脚本确认容器真实状态。
 
-29. **阶段 8：前端重建（待重新设计）**
-   - 当前旧前端已清空，首页只保留最小占位页。
-   - 后续不从旧组件、旧视觉稿、旧 QA 记录或旧沟通方向恢复。
-   - 新前端必须先完成信息架构和数据契约设计，再进入视觉和交互实现。
+29. **阶段 8：前端重建与后端合同接入**
+   - 旧自研前端不再作为设计依据，旧视觉稿、旧 QA 记录和旧沟通方向不得反向污染当前前端。
+   - 当前前端以用户提供的 v0/外部 AI 前端为展示壳，工程侧只负责把真实后端合同接进去，不能擅自重写 UI、文案、动画和样式。
+   - 新前端不得使用 mock 排名、mock 大盘、mock 复盘、mock 信号冒充真实数据；当后端没有合格数据时，必须显示空态、partial、waiting、blocked 或 unavailable。
+   - 前端显示“系统在运转”必须依赖 `/api/health`、`/api/radar/backend-contract`、`/api/frontend/radar-contract`、runtime heartbeats、scan proof 和 scan stability，不得只靠动画制造实时感。
 
 30. **Phase Backend-3：前端数据观测与事件合同（已落地）**
    - 新增 Redis-backed `api-observability`：CoinGlass 每次真实请求写入日内调用计数，CoinGlass/Binance/OKX/Bybit 写入数据源延迟探针。
@@ -1658,6 +1659,13 @@ CoinGlass 业余会员 API：
    - 新增生产全量验收脚本 `deploy/scripts/production-full-verify.sh`，统一检查 compose、迁移、健康、前端合同、只读事件、UI 状态、扫描触发、公开 smoke、worker 日志和备份 dry run。
    - 新增 PostgreSQL 恢复脚本 `deploy/scripts/restore-postgres.sh`，必须显式设置 `CONFIRM_RESTORE=yes` 才能恢复，避免误覆盖生产数据。
    - 当前九阶段结论：后端合同、扫描稳定性、复盘统计、AI 统计、事件流、单机验收和恢复路径已形成闭环；剩余业务事实缺口是稳定资金流源。没有稳定来源前，前端只能显示 partial/waiting。
+
+33. **Phase Backend-6：生产根因治理与数据污染防线**
+   - 生产发布脚本必须在 `docker compose up -d --build` 后自动调用 `/api/admin/persistence/migrate`；数据库迁移是发布流程的一部分，不能靠手动记忆。
+   - 长间隔 worker 在任务睡眠期间必须按 `WORKER_IDLE_HEARTBEAT_SECONDS` 上报空闲心跳，避免 daily mover、signal、macro 这类低频任务被误判为 down。
+   - public light scan、universe registry 和 CoinGlass mapper 必须过滤已知非加密底层资产、股票、ETF、指数和贵金属类污染标的；这些资产不能进入山寨币深扫槽位。
+   - 如果 CoinGlass deep scan 出现 `Invalid API key`、`Upgrade plan`、0 clean rows 或 24/24 failed，系统必须保留 public light scan，但必须把深扫状态标成 partial/watch，不能把它解释成“市场没有机会”。
+   - CoinGlass API key、账号等级和端点权限属于外部事实；代码只能做诊断和降级，不能伪造深扫成功。
 
 ## 每次继续开发必须遵守
 
