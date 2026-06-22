@@ -53,7 +53,9 @@ test("normalizeUniverseAsset rejects non-crypto underlyings", () => {
   assert.equal(normalizeUniverseAsset("NVDAUSDT"), null);
   assert.equal(normalizeUniverseAsset("SPY/USDT"), null);
   assert.equal(normalizeUniverseAsset("XAU"), null);
+  assert.equal(normalizeUniverseAsset("AAOIUSDT"), null);
   assert.equal(normalizeUniverseAsset("CIENUSDT"), null);
+  assert.equal(normalizeUniverseAsset("EWYUSDT"), null);
   assert.equal(normalizeUniverseAsset("SOXLUSDT"), null);
   assert.equal(normalizeUniverseAsset("WDCUSDT"), null);
   assert.equal(normalizeUniverseAsset("HOODUSDT"), null);
@@ -72,6 +74,9 @@ test("normalizeUniverseAsset rejects non-crypto underlyings", () => {
   assert.equal(normalizeUniverseAsset("DRAMUSDT"), null);
   assert.equal(normalizeUniverseAsset("SKHYNIXUSDT"), null);
   assert.equal(normalizeUniverseAsset("MUUSDT"), null);
+  assert.equal(normalizeUniverseAsset("NATGASUSDT"), null);
+  assert.equal(normalizeUniverseAsset("NBISUSDT"), null);
+  assert.equal(normalizeUniverseAsset("NOKUSDT"), null);
 });
 
 test("buildUniverseRegistry dedupes assets and keeps BTC and ETH as anchors", () => {
@@ -163,6 +168,11 @@ test("buildUniverseRegistry marks unsupported observed instruments as skipped", 
 test("buildUniverseRegistry hard-drops non-crypto observed instruments from assets and skipped proof", () => {
   const registry = buildUniverseRegistry([], [
     instrument("SUI"),
+    instrument("AAOI"),
+    instrument("EWY"),
+    instrument("NATGAS"),
+    instrument("NBIS"),
+    instrument("NOK"),
     instrument("QCOM"),
     instrument("ARM"),
     instrument("SPY"),
