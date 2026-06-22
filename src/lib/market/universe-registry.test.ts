@@ -66,6 +66,8 @@ test("normalizeUniverseAsset rejects non-crypto underlyings", () => {
   assert.equal(normalizeUniverseAsset("POETUSDT"), null);
   assert.equal(normalizeUniverseAsset("SPCXUSDT"), null);
   assert.equal(normalizeUniverseAsset("CLUSDT"), null);
+  assert.equal(normalizeUniverseAsset("QCOMUSDT"), null);
+  assert.equal(normalizeUniverseAsset("ARMUSDT"), null);
   assert.equal(normalizeUniverseAsset("MRVLUSDT"), null);
   assert.equal(normalizeUniverseAsset("DRAMUSDT"), null);
   assert.equal(normalizeUniverseAsset("SKHYNIXUSDT"), null);
