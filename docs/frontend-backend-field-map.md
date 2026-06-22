@@ -17,6 +17,7 @@ All active pages must receive market facts from one of these paths:
 - `GET /api/frontend/leaderboard?kind=...`
 - `GET /api/frontend/token-dossier?symbol=...`
 - `GET /api/frontend/review-contract`
+- `GET /api/frontend/journal-contract`
 
 Mock files may remain as legacy UI type helpers or isolated preview helpers, but
 active market pages must not use them as fact sources.
@@ -30,8 +31,8 @@ active market pages must not use them as fact sources.
 | `/signals` | sniper board, maturity pool, anomaly table, live feed, heatmap | `RadarContract.radarSignals` + leaderboard candidate display | connected with candidate fallback | live feed is deterministic display of backend-derived cards, not real push; SSE/WebSocket not wired |
 | `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected | market cap is unknown and must show `待补齐`; no fake cap allowed |
 | `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `dataSources`, `apiUsage`, leaderboards | connected/partial | real data-source latency and taker flow are not wired |
-| `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier | partial | exact v3 trade plan is wired when present; real OHLCV and fund-flow panels are not wired |
-| `/review` | lifecycle, archetypes, missed detections, evolution suggestions | `ReviewContract` from journal events and business capability | connected/partial | quality depends on real outcome samples; no fake historical samples allowed |
+| `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier + `getKlineContractForPage()` | connected/partial | exact v3 trade plan and real OHLCV are wired when present; fund-flow panel is still an honest waiting state |
+| `/review` | lifecycle, archetypes, missed detections, evolution suggestions, manual journal drawer | `ReviewContract` from journal events and business capability + `/api/frontend/journal-contract` | connected/partial | quality depends on real outcome samples; manual trade entries are API-backed with local fallback |
 | `/system` | service nodes, pipeline state, API usage | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage` | connected/partial | Redis probe, worker heartbeat, real API daily counter, and latency probe need backend fields |
 | `/login` | local gate UI | placeholder UI state | not market data | real server session/auth is not wired |
 
@@ -93,7 +94,7 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | `riskGate` | risk/timeframe/blocker summary | connected | controls whether plan can show |
 | `tradePlan` | `strategyV3.tradePlan` | connected/partial | eligible v3 plans map to entry/stop/TP/RR; missing or blocked plans render no trade plan |
 | `aiReview` | rule-based review boundary text and counter findings | partial | real model review not wired yet |
-| K-line panel | none currently | not connected | must wire real OHLCV contract; no generated candles |
+| K-line panel | `/api/frontend/kline-contract` + `buildFrontendKlineContract()` from public OHLCV/cache | connected | maps backend candles to front chart candles; no generated candles |
 | fund flow panel | none currently | not connected | must wire real flow/source or honest waiting state |
 
 ## Review Contract Field Map
@@ -105,28 +106,37 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | `missedDetections` | selected journal review events | partial | needs more outcome samples and missed-opportunity ingestion |
 | `evolutionSuggestions` | business capability next actions/gaps | connected/partial | suggestions are read-only; must not auto-change live weights |
 
+## Manual Journal Contract Field Map
+
+| Frontend field | Backend source | Current status | Notes |
+| --- | --- | --- | --- |
+| `TradeJournal[]` | `/api/frontend/journal-contract` reconstructed from `journal_events` | connected | browser localStorage is fallback only |
+| `addJournalEntry()` | POST `/api/frontend/journal-contract` with `operation=upsert` | connected | writes `manual_trade` journal event |
+| `closeTrade()` | POST `/api/frontend/journal-contract` with `operation=close` | connected | append-only event; does not delete history |
+| `reopenTrade()` | POST `/api/frontend/journal-contract` with `operation=reopen` | connected | append-only event; latest state is reconstructed |
+| `removeJournalEntry()` | POST `/api/frontend/journal-contract` with `operation=remove` | connected | tombstone event hides the row without physical DB deletion |
+| screenshots | `manualTradeJournal.entry.images` with server caps | partial | oversized images are dropped before persistence to avoid DB bloat |
+| rank / strategy weights | `rankDelta=0`, `allowedUse=research_only`, `canAutoAdjustWeights=false` | connected | manual trades never auto-mutate live strategy weights |
+
 ## System Data Gaps
 
 These are the current high-priority backend gaps for complete frontend wiring:
 
-1. Real OHLCV contract for token K-line panels.
-2. Journal launcher read/write through Postgres instead of localStorage-only UI state.
-3. Redis health probe and worker heartbeat probe exposed in `RadarContract.serviceNodes`.
-4. Real API daily usage counter instead of planned-request approximation.
-5. Real data-source latency probes instead of `0`.
-6. SSE/WebSocket frontend event stream for scan progress and signal state changes.
-7. Real AI review adapter for high-value signals only, never all-market review.
-8. Pet/easter egg progress persistence if user wants cross-device state.
-9. Login/auth session if the site should become private.
+1. Redis health probe and worker heartbeat probe exposed in `RadarContract.serviceNodes`.
+2. Real API daily usage counter instead of planned-request approximation.
+3. Real data-source latency probes instead of `0`.
+4. SSE/WebSocket frontend event stream for scan progress and signal state changes.
+5. Real AI review adapter for high-value signals only, never all-market review.
+6. Pet/easter egg progress persistence if user wants cross-device state.
+7. Login/auth session if the site should become private.
 
 ## Next Build Order
 
-1. OHLCV/K-line contract: expose real candles and wire `KlinePanel`.
-2. Journal contract: move `JournalLauncher` from localStorage-only to API-backed persistence.
-3. System probes: Redis, worker heartbeat, API counter, source latency.
-4. SSE/WebSocket: push scan progress and signal changes to the UI.
-5. AI review adapter: env-only key, high-value signal review only, results tied to evidence IDs.
-6. Pet/easter-egg persistence: optional cross-device UI state after market data is complete.
+1. System probes: Redis, worker heartbeat, API counter, source latency.
+2. SSE/WebSocket: push scan progress and signal changes to the UI.
+3. AI review adapter: env-only key, high-value signal review only, results tied to evidence IDs.
+4. Pet/easter-egg persistence: optional cross-device UI state after market data is complete.
+5. Login/auth: only after data contracts are stable.
 
 Do not start refinement or visual polish until these data connections are either
 connected or explicitly represented as honest partial/empty states.

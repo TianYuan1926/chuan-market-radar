@@ -189,8 +189,41 @@ export type AiSignalReview = {
 
 export type SignalJournalAction = "track" | "paper_trade" | "skip" | "invalidate";
 
+export type ManualTradeJournalOperation = "upsert" | "close" | "reopen" | "remove";
+
+export type ManualTradeJournalEntry = {
+  id: string;
+  symbol: string;
+  side: "long" | "short";
+  leverage: number;
+  margin: number;
+  entry: number;
+  stop: number;
+  target: number;
+  status: "持仓中" | "已平仓";
+  note: string;
+  images: string[];
+  createdAt: number;
+  exitPrice?: number;
+  result?: "win" | "loss";
+  closeNote?: string;
+  closedAt?: number;
+};
+
+export type ManualTradeJournalPayload = {
+  operation: ManualTradeJournalOperation;
+  entry: ManualTradeJournalEntry;
+  savedAt: string;
+  storagePolicy: {
+    imagesPersisted: number;
+    maxImageChars: number;
+    maxImages: number;
+  };
+};
+
 export type JournalAction =
   | SignalJournalAction
+  | "manual_trade"
   | "calibration_review"
   | "outcome_executor_run"
   | "strategy_confirmation"
@@ -330,8 +363,9 @@ export type JournalEvent = {
   outcomeMetrics?: OutcomeMetrics;
   reviewCheckpoints?: ReviewCheckpoint[];
   signalMaturityStage?: SignalMaturityStage;
-  source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation" | "strategy_weight_change_execution" | "trend_radar_review_executor";
+  source?: "signal" | "daily_mover_calibration" | "outcome_executor" | "strategy_version_confirmation" | "strategy_weight_change_execution" | "trend_radar_review_executor" | "manual_trade_journal";
   sourceId?: string;
+  manualTradeJournal?: ManualTradeJournalPayload;
   outcomeExecutorRun?: OutcomeExecutorRunSummary;
   calibrationTag?: string;
   sampleSymbols?: string[];

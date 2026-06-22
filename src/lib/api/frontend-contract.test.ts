@@ -3,13 +3,16 @@ import test from "node:test";
 import type { MarketSignal } from "../analysis/types";
 import type { BackendContract } from "./backend-contract";
 import {
+  buildFrontendKlineContract,
   buildFrontendLeaderboardContract,
   buildFrontendRadarContract,
   buildFrontendReviewContract,
   buildFrontendTokenDossierContract,
+  normalizeFrontendKlineSymbol,
 } from "./frontend-contract";
 import type { MarketRadarSnapshot } from "../market/types";
 import type { SignalBackendDossier } from "../market/signal-backend-dossier";
+import type { OhlcvProvider } from "../market/ohlcv/types";
 
 function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
   return {
@@ -338,6 +341,34 @@ function backendContract(): BackendContract {
   } as unknown as BackendContract;
 }
 
+function ohlcvProvider(): OhlcvProvider & { requests: Array<{ symbol: string; interval: string; limit?: number }> } {
+  return {
+    id: "test-public-ohlcv",
+    label: "Test Public OHLCV",
+    requests: [],
+    async fetchCandles(request) {
+      this.requests.push(request);
+      return {
+        ok: true,
+        source: "test-public-ohlcv",
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: [
+          {
+            openTime: "2026-06-21T08:00:00.000Z",
+            open: 7.1,
+            high: 7.8,
+            low: 7,
+            close: 7.6,
+            volume: 123456,
+            closeTime: "2026-06-21T08:59:59.999Z",
+          },
+        ],
+      };
+    },
+  };
+}
+
 test("buildFrontendRadarContract exposes full-market proof and mature radar signals", () => {
   const radar = buildFrontendRadarContract({
     backend: backendContract(),
@@ -447,6 +478,45 @@ test("buildFrontendLeaderboardContract falls back to public light scan candidate
   assert.equal(volume.data[0]?.value, 58_000_000);
   assert.equal(volume.data[0]?.inCandidatePool, true);
   assert.equal(volume.data[0]?.hasSignal, false);
+});
+
+test("normalizeFrontendKlineSymbol prepares base assets for public futures OHLCV", () => {
+  assert.equal(normalizeFrontendKlineSymbol("TIA"), "TIAUSDT");
+  assert.equal(normalizeFrontendKlineSymbol("tia/usdt"), "TIAUSDT");
+  assert.equal(normalizeFrontendKlineSymbol("BINANCE:ETHUSDT.P"), "ETHUSDT");
+});
+
+test("buildFrontendKlineContract maps public OHLCV candles into frontend chart candles", async () => {
+  const provider = ohlcvProvider();
+
+  const kline = await buildFrontendKlineContract({
+    interval: "1h",
+    limit: 80,
+    now: new Date("2026-06-21T08:01:30.000Z"),
+    ohlcvProvider: provider,
+    symbol: "TIA",
+  });
+
+  assert.equal(kline.status, "live");
+  assert.equal(kline.source, "test-public-ohlcv");
+  assert.equal(kline.ageSec, 90);
+  assert.deepEqual(provider.requests, [
+    {
+      symbol: "TIAUSDT",
+      interval: "1h",
+      limit: 80,
+    },
+  ]);
+  assert.deepEqual(kline.data, [
+    {
+      t: Date.parse("2026-06-21T08:00:00.000Z"),
+      o: 7.1,
+      h: 7.8,
+      l: 7,
+      c: 7.6,
+      v: 123456,
+    },
+  ]);
 });
 
 test("buildFrontendTokenDossierContract translates backend dossier without report-side decisions", () => {

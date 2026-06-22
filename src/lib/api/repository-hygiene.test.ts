@@ -177,6 +177,8 @@ test("v0 frontend shell is restored without touching backend API routes", () => 
     "src/app/api/frontend/token-dossier/route.ts",
     "src/app/api/frontend/leaderboard/route.ts",
     "src/app/api/frontend/review-contract/route.ts",
+    "src/app/api/frontend/kline-contract/route.ts",
+    "src/app/api/frontend/journal-contract/route.ts",
   ];
 
   assert.match(pageSource, /IntroHero/);
@@ -226,6 +228,23 @@ test("frontend contract routes are read-only and cannot trigger scans", () => {
     assert.match(source, /allowRefresh:\s*false/, `${routePath} must read cached snapshots only`);
     assert.doesNotMatch(source, /refreshMarketRadarSnapshot/, `${routePath} must not start scan refreshes`);
   }
+});
+
+test("frontend manual journal is backed by the journal contract with local fallback only", () => {
+  const routePath = "src/app/api/frontend/journal-contract/route.ts";
+  const journalStoreSource = readFileSync(resolve(process.cwd(), "src/lib/journal-store.ts"), "utf8");
+  const routeSource = existsSync(resolve(process.cwd(), routePath))
+    ? readFileSync(resolve(process.cwd(), routePath), "utf8")
+    : "";
+
+  assert.equal(existsSync(resolve(process.cwd(), routePath)), true, `${routePath} must exist`);
+  assert.match(routeSource, /reconstructManualTradeJournal/);
+  assert.match(routeSource, /buildManualTradeJournalEvent/);
+  assert.doesNotMatch(routeSource, /refreshMarketRadarSnapshot/);
+  assert.match(journalStoreSource, /\/api\/frontend\/journal-contract/);
+  assert.match(journalStoreSource, /syncEntriesFromServer/);
+  assert.match(journalStoreSource, /postJournalMutation/);
+  assert.match(journalStoreSource, /localStorage/);
 });
 
 test("signals and leaderboard pages expose backend contract injection points", () => {
@@ -424,10 +443,13 @@ test("frontend backend field map records current wiring gaps before refinement",
   assert.match(fieldMap, /Review Contract Field Map/);
   assert.match(fieldMap, /System Data Gaps/);
 
-  assert.match(fieldMap, /Real OHLCV contract/);
+  assert.match(fieldMap, /K-line panel[\s\S]+buildFrontendKlineContract/);
+  assert.match(fieldMap, /fund-flow panel is still an honest waiting state/);
   assert.match(fieldMap, /strategyV3\.tradePlan/);
   assert.match(fieldMap, /missing or blocked plans render no trade plan/);
-  assert.match(fieldMap, /Journal launcher read\/write through Postgres/);
+  assert.match(fieldMap, /Manual Journal Contract Field Map/);
+  assert.match(fieldMap, /\/api\/frontend\/journal-contract/);
+  assert.match(fieldMap, /rankDelta=0/);
   assert.match(fieldMap, /Redis health probe and worker heartbeat probe/);
   assert.match(fieldMap, /SSE\/WebSocket frontend event stream/);
   assert.match(fieldMap, /Real AI review adapter/);
@@ -487,12 +509,17 @@ test("stage 8 token signal archive uses backend dossier and honest empty state i
 test("stage 8 token detail chart and flow panels do not present generated mock data as real", () => {
   const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
   const klinePanelSource = readFileSync(resolve(process.cwd(), "src/components/kline-panel.tsx"), "utf8");
+  const serverReaderSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-contract-server.ts"), "utf8");
 
   assert.match(klinePanelSource, /candles\?:\s*ChartCandle\[\]/);
   assert.match(klinePanelSource, /allowMockFallback\?:\s*boolean/);
   assert.match(klinePanelSource, /等待真实 K 线数据/);
   assert.match(klinePanelSource, /candles\?\.length/);
 
+  assert.match(serverReaderSource, /getKlineContractForPage/);
+  assert.match(serverReaderSource, /buildFrontendKlineContract/);
+  assert.match(tokenPageSource, /getKlineContractForPage/);
+  assert.match(tokenPageSource, /candles=\{kline\.data\}/);
   assert.match(tokenPageSource, /<KlinePanel[\s\S]+allowMockFallback=\{false\}/);
   assert.match(tokenPageSource, /等待真实资金流数据/);
   assert.doesNotMatch(tokenPageSource, /Array\.from\(\{ length: 28 \}\)/);

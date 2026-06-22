@@ -14,7 +14,8 @@
 当前已经完成的基础：
 
 - 活跃页面已通过 `src/lib/frontend-contract-server.ts` 读取前端专用后端合同。
-- 已落地四个前端只读合同接口：`/api/frontend/radar-contract`、`/api/frontend/leaderboard`、`/api/frontend/token-dossier`、`/api/frontend/review-contract`。
+- 已落地五个前端只读合同接口：`/api/frontend/radar-contract`、`/api/frontend/leaderboard`、`/api/frontend/token-dossier`、`/api/frontend/review-contract`、`/api/frontend/kline-contract`。
+- 已落地一个前端读写合同接口：`/api/frontend/journal-contract`，用于交易日记抽屉读写真实 `journal_events`，localStorage 仅作兜底。
 - 已切断活跃页面上的随机信号、随机行情、假交易日记和 mock 补位。
 - 未接真实数据的区域必须显示真实空状态或 partial 状态，不能用 mock 填满。
 
@@ -67,7 +68,7 @@ restore frontend source from user ui package
 - 详见 `docs/frontend-backend-field-map.md`。
 - 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链。
 - 半接：复盘样本统计、API 用量、Redis/worker 探针、数据源延迟、AI 复审。
-- 未接：真实 K 线 OHLCV、主力资金流、SSE/WebSocket 前端实时推送、JournalLauncher 数据库读写、宠物/彩蛋跨设备持久化、真实登录鉴权。
+- 未接：主力资金流、SSE/WebSocket 前端实时推送、宠物/彩蛋跨设备持久化、真实登录鉴权。
 
 ## 阶段 2：后端接口对齐
 
@@ -86,10 +87,13 @@ restore frontend source from user ui package
 
 下一批需要补强的只读合同：
 
-- `/api/frontend/kline-contract?symbol=...&tf=...`：给 Token 详情页真实 K 线。
-- `/api/frontend/journal-contract`：给交易日记抽屉读取/写入真实 Postgres 日记。
 - `/api/frontend/system-contract` 或扩展 radar contract：暴露 Redis、worker heartbeat、API 日内计数和数据源延迟。
 - `/api/frontend/live-events`：SSE/WebSocket 事件流，后续让前端动起来。
+
+已补齐的只读合同：
+
+- `/api/frontend/kline-contract?symbol=...&tf=...`：给 Token 详情页真实 K 线；页面侧通过 `getKlineContractForPage()` 直接读取同一合同，不再生成模拟蜡烛。
+- `/api/frontend/journal-contract`：给交易日记抽屉读取/写入真实 Postgres 日记；写入 `manual_trade` 事件，`rankDelta=0`，不自动调权。
 
 ## 阶段 3：统一 mapper 层
 
@@ -173,14 +177,14 @@ mapper 硬规则：
 
 - `mock-data.ts` 仍提供部分 UI 类型和格式化函数，后续要逐步拆出纯类型/格式化文件。
 - `sniper-data.ts` 仍提供类型和文案 helper，不能作为活跃数据源。
-- `journal-store.ts`、`pet-store.ts`、`egg-store.ts` 属于本地 UI 状态，后续需要按优先级迁到后端持久化。
+- `pet-store.ts`、`egg-store.ts` 属于本地 UI 状态，后续需要按优先级迁到后端持久化。
+- `journal-store.ts` 已接 `/api/frontend/journal-contract`，localStorage 只作为失败兜底。
 
 下一步清理顺序：
 
 1. 把格式化函数从 `mock-data.ts` 拆到纯工具文件。
 2. 把 Sniper 类型从 `sniper-data.ts` 拆到 contract/display 类型文件。
-3. 把 JournalLauncher 改为 API-backed，再保留 localStorage 作为草稿缓存。
-4. 最后再决定是否删除 legacy mock 文件。
+3. 最后再决定是否删除 legacy mock 文件。
 
 ## 阶段 6：真实空状态验收
 

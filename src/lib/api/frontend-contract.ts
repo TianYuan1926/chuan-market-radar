@@ -8,6 +8,13 @@ import type {
 } from "../analysis/types";
 import type { KeyLevel, StrategyV3TradePlan } from "../analysis/v3/types";
 import type { SignalBackendDossier } from "../market/signal-backend-dossier";
+import { createPublicExchangeOhlcvProvider } from "../market/ohlcv/public-exchange-provider";
+import type {
+  Candle as OhlcvCandle,
+  OhlcvCandleCacheEntry,
+  OhlcvInterval,
+  OhlcvProvider,
+} from "../market/ohlcv/types";
 import type {
   DerivativeSnapshot,
   MarketRadarSnapshot,
@@ -298,6 +305,23 @@ export type ReviewContract = {
   evolutionSuggestions: Resource<EvolutionSuggestion[]>;
 };
 
+export type KlineChartCandle = {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
+type FrontendKlineRepository = Pick<
+  {
+    getOhlcvCandleCache: (symbol: string, interval: OhlcvInterval) => Promise<OhlcvCandleCacheEntry | null>;
+    upsertOhlcvCandleCache: (entry: OhlcvCandleCacheEntry) => Promise<OhlcvCandleCacheEntry>;
+  },
+  "getOhlcvCandleCache" | "upsertOhlcvCandleCache"
+>;
+
 type FrontendContractEnv = Partial<Record<
   "COINGLASS_DAILY_REQUEST_BUDGET" | "COINGLASS_REQUEST_INTERVAL_MS",
   string
@@ -361,6 +385,129 @@ function diffSeconds(from: string | null | undefined, now: Date) {
     return undefined;
   }
   return Math.max(0, Math.round((now.getTime() - parsed) / 1000));
+}
+
+export function normalizeFrontendKlineSymbol(value: string) {
+  const clean = value
+    .trim()
+    .toUpperCase()
+    .replace(/^BINANCE:/u, "")
+    .replace(/\.P$/u, "")
+    .replace(/[^A-Z0-9]/gu, "");
+
+  if (!clean) {
+    return "BTCUSDT";
+  }
+
+  return /(USDT|USDC)$/u.test(clean) ? clean : `${baseSymbol(clean)}USDT`;
+}
+
+function chartCandleFromOhlcv(candle: OhlcvCandle): KlineChartCandle | null {
+  const t = Date.parse(candle.openTime);
+
+  if (!Number.isFinite(t)) {
+    return null;
+  }
+
+  return {
+    t,
+    o: candle.open,
+    h: candle.high,
+    l: candle.low,
+    c: candle.close,
+    v: candle.volume,
+  };
+}
+
+function chartCandlesFromOhlcv(candles: OhlcvCandle[]) {
+  return candles
+    .map(chartCandleFromOhlcv)
+    .filter((candle): candle is KlineChartCandle => Boolean(candle));
+}
+
+function latestCandleOpenTime(candles: OhlcvCandle[]) {
+  return candles.at(-1)?.openTime;
+}
+
+function cacheFreshEnough(cache: OhlcvCandleCacheEntry, now: Date, maxAgeMs: number) {
+  const fetchedAt = new Date(cache.fetchedAt).getTime();
+  return Number.isFinite(fetchedAt) && now.getTime() - fetchedAt <= maxAgeMs;
+}
+
+export async function buildFrontendKlineContract({
+  interval,
+  limit = 160,
+  maxCacheAgeMs = 5 * 60_000,
+  now = new Date(),
+  ohlcvProvider = createPublicExchangeOhlcvProvider(),
+  repository,
+  symbol,
+}: {
+  interval: OhlcvInterval;
+  limit?: number;
+  maxCacheAgeMs?: number;
+  now?: Date;
+  ohlcvProvider?: OhlcvProvider;
+  repository?: FrontendKlineRepository;
+  symbol: string;
+}): Promise<Resource<KlineChartCandle[]>> {
+  const normalizedSymbol = normalizeFrontendKlineSymbol(symbol);
+  const cached = repository
+    ? await repository.getOhlcvCandleCache(normalizedSymbol, interval)
+    : null;
+
+  if (cached && cacheFreshEnough(cached, now, maxCacheAgeMs)) {
+    return resource(chartCandlesFromOhlcv(cached.candles), "cached", {
+      ageSec: diffSeconds(latestCandleOpenTime(cached.candles), now),
+      source: cached.source,
+      updatedAt: cached.fetchedAt,
+    });
+  }
+
+  const result = await ohlcvProvider.fetchCandles({
+    symbol: normalizedSymbol,
+    interval,
+    limit,
+  });
+
+  if (result.ok) {
+    const candles = chartCandlesFromOhlcv(result.candles);
+    const fetchedAt = now.toISOString();
+
+    if (repository && result.candles.length > 0) {
+      await repository.upsertOhlcvCandleCache({
+        allowedUse: "research_only",
+        cacheKey: `${normalizedSymbol}:${interval}`,
+        canAutoAdjustWeights: false,
+        candles: result.candles,
+        fetchedAt,
+        interval,
+        source: result.source,
+        symbol: normalizedSymbol,
+      });
+    }
+
+    return resource(candles, candles.length > 0 ? "live" : "empty", {
+      ageSec: diffSeconds(latestCandleOpenTime(result.candles), now),
+      source: result.source,
+      updatedAt: fetchedAt,
+      reason: candles.length > 0 ? undefined : "公开 K 线源暂未返回可用蜡烛",
+    });
+  }
+
+  if (cached) {
+    return resource(chartCandlesFromOhlcv(cached.candles), "stale", {
+      ageSec: diffSeconds(latestCandleOpenTime(cached.candles), now),
+      source: cached.source,
+      updatedAt: cached.fetchedAt,
+      reason: `公开 K 线源请求失败，使用旧缓存：${result.reason}`,
+    });
+  }
+
+  return resource([], "failed", {
+    source: result.source,
+    reason: result.error,
+  });
 }
 
 function diffMinutes(from: string | null | undefined, now: Date) {

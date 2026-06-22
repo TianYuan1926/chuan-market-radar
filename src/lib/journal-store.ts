@@ -4,13 +4,10 @@
 // 交易日记存储
 //   记录每一笔真实开仓：币种 / 方向 / 杠杆 / 初始保证金 / 价格 / 截图
 //   仓位按「初始保证金 × 杠杆」计算，盈亏比由开仓/止损/目标价自动推导。
-//   当前持久化在 localStorage，属于用户本机输入的 UI 状态。
-//   接入后端时：
-//     loadEntries() → 改为 GET 你的接口
-//     saveEntries() → 改为 POST 你的接口
-//     图片建议改为上传至对象存储，此处仅存 base64
+//   当前优先同步到 /api/frontend/journal-contract，localStorage 只做离线兜底。
 // ============================================================
 import { useSyncExternalStore } from 'react'
+import type { Resource } from './data-status'
 
 export type TradeSide = 'long' | 'short'
 export type TradeStatus = '持仓中' | '已平仓'
@@ -37,10 +34,19 @@ export type TradeJournal = {
 }
 
 const STORAGE_KEY = 'chuanscan_journal_v2'
+const JOURNAL_CONTRACT_ENDPOINT = '/api/frontend/journal-contract'
 const LEGACY_SEED_IDS = new Set(['seed-1', 'seed-2'])
 
 let entries: TradeJournal[] | null = null
+let serverSyncStarted = false
+let serverSyncInFlight = false
 const listeners = new Set<() => void>()
+
+type JournalContractResponse = {
+  ok: boolean
+  journal?: Resource<TradeJournal[]>
+  error?: string
+}
 
 function loadEntries(): TradeJournal[] {
   if (typeof window === 'undefined') return []
@@ -68,10 +74,82 @@ function saveEntries(list: TradeJournal[]) {
 
 function ensureHydrated() {
   if (entries === null) entries = loadEntries()
+  if (!serverSyncStarted) {
+    serverSyncStarted = true
+    void syncEntriesFromServer()
+  }
 }
 
 function emit() {
   for (const fn of listeners) fn()
+}
+
+function replaceEntriesFromServer(list: TradeJournal[]) {
+  entries = list.filter((entry) => !LEGACY_SEED_IDS.has(entry.id))
+  saveEntries(entries)
+  emit()
+}
+
+function isTradeJournalArray(value: unknown): value is TradeJournal[] {
+  return Array.isArray(value) && value.every((entry) => (
+    entry &&
+    typeof entry === 'object' &&
+    typeof (entry as TradeJournal).id === 'string' &&
+    typeof (entry as TradeJournal).symbol === 'string'
+  ))
+}
+
+export async function syncEntriesFromServer() {
+  if (typeof window === 'undefined' || serverSyncInFlight) return
+
+  serverSyncInFlight = true
+
+  try {
+    const response = await fetch(JOURNAL_CONTRACT_ENDPOINT, {
+      cache: 'no-store',
+      headers: { accept: 'application/json' },
+    })
+    const payload = (await response.json()) as JournalContractResponse
+    const serverEntries = payload.journal?.data
+
+    if (response.ok && payload.ok && isTradeJournalArray(serverEntries)) {
+      const localEntries = entries ?? []
+
+      if (serverEntries.length > 0 || localEntries.length === 0) {
+        replaceEntriesFromServer(serverEntries)
+      }
+    }
+  } catch (e) {
+    console.log('[v0] journal backend sync failed, using local fallback:', (e as Error).message)
+  } finally {
+    serverSyncInFlight = false
+  }
+}
+
+async function postJournalMutation(operation: 'upsert' | 'close' | 'reopen' | 'remove', entry: TradeJournal) {
+  if (typeof window === 'undefined') return
+
+  try {
+    const response = await fetch(JOURNAL_CONTRACT_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ operation, entry }),
+    })
+    const payload = (await response.json()) as JournalContractResponse
+    const serverEntries = payload.journal?.data
+
+    if (response.ok && payload.ok && isTradeJournalArray(serverEntries)) {
+      replaceEntriesFromServer(serverEntries)
+      return
+    }
+
+    console.log('[v0] journal backend mutation failed:', payload.error ?? response.statusText)
+  } catch (e) {
+    console.log('[v0] journal backend mutation failed, kept local fallback:', (e as Error).message)
+  }
 }
 
 /** 新增一笔开仓记录 */
@@ -87,24 +165,28 @@ export function addJournalEntry(data: Omit<TradeJournal, 'id' | 'createdAt'>) {
   entries = [entry, ...(entries ?? [])]
   saveEntries(entries)
   emit()
+  void postJournalMutation('upsert', entry)
 }
 
 /** 删除一笔记录 */
 export function removeJournalEntry(id: string) {
   ensureHydrated()
+  const removed = (entries ?? []).find((e) => e.id === id)
   entries = (entries ?? []).filter((e) => e.id !== id)
   saveEntries(entries)
   emit()
+  if (removed) void postJournalMutation('remove', removed)
 }
 
 /** 平仓结算：写入平仓价，按盈亏自动判定成功/失败 */
 export function closeTrade(id: string, exitPrice: number, closeNote = '') {
   ensureHydrated()
+  let closed: TradeJournal | undefined
   entries = (entries ?? []).map((e) => {
     if (e.id !== id) return e
     const dir = e.side === 'long' ? 1 : -1
     const pnl = exitPrice ? (exitPrice - e.entry) * dir : 0
-    return {
+    closed = {
       ...e,
       status: '已平仓' as TradeStatus,
       exitPrice,
@@ -112,21 +194,32 @@ export function closeTrade(id: string, exitPrice: number, closeNote = '') {
       closeNote,
       closedAt: Date.now(),
     }
+    return closed
   })
   saveEntries(entries)
   emit()
+  if (closed) void postJournalMutation('close', closed)
 }
 
 /** 重新打开一笔已平仓记录（撤销结算） */
 export function reopenTrade(id: string) {
   ensureHydrated()
-  entries = (entries ?? []).map((e) =>
-    e.id === id
-      ? { ...e, status: '持仓中' as TradeStatus, exitPrice: undefined, result: undefined, closeNote: undefined, closedAt: undefined }
-      : e,
-  )
+  let reopened: TradeJournal | undefined
+  entries = (entries ?? []).map((e) => {
+    if (e.id !== id) return e
+    reopened = {
+      ...e,
+      status: '持仓中' as TradeStatus,
+      exitPrice: undefined,
+      result: undefined,
+      closeNote: undefined,
+      closedAt: undefined,
+    }
+    return reopened
+  })
   saveEntries(entries)
   emit()
+  if (reopened) void postJournalMutation('reopen', reopened)
 }
 
 /** 当前所有未平仓持仓的币种符号（供信号推送做持仓异动告警） */

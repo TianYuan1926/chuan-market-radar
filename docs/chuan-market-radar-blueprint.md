@@ -439,7 +439,7 @@ Postgres 使用边界：
 - 保留 `src/lib/**` 扫描、分析、复盘、告警、持久化、Worker 相关能力。
 - 保留数据库、迁移、Postgres/Redis、扫描调度和部署配置。
 - 保留后端只读契约：`GET /api/radar/backend-contract` 和 `GET /api/radar/dossier?symbol=SYMBOL`。
-- 新增前端专用只读契约：`GET /api/frontend/radar-contract`、`GET /api/frontend/token-dossier?symbol=SYMBOL`、`GET /api/frontend/leaderboard?kind=KIND`、`GET /api/frontend/review-contract`。
+- 新增前端专用契约：`GET /api/frontend/radar-contract`、`GET /api/frontend/token-dossier?symbol=SYMBOL`、`GET /api/frontend/leaderboard?kind=KIND`、`GET /api/frontend/review-contract`、`GET /api/frontend/kline-contract?symbol=SYMBOL&tf=TF`、`GET/POST /api/frontend/journal-contract`。
 
 后续前端融合必须遵守：
 
@@ -611,7 +611,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、GitHub Actions 外部低频触发、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、外部 cron 策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音、Settings 抽屉本地告警控制、站内告警历史筛选、已读、归档、恢复和信号档案告警联动已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化和更细提示音音色 |
-| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract` 四个前端专用适配接口 | 后续按页面逐步把行情 ticker、K 线、日记、彩蛋/宠物状态、系统偏好等剩余 mock 或 localStorage 模块接到真实后端，同时保证 UI 1:1 不被重写 |
+| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底 | 后续按页面逐步把彩蛋/宠物状态、系统偏好、资金流等剩余 mock 或 localStorage 模块接到真实后端，同时保证 UI 1:1 不被重写 |
 
 ## 当前已落地模块
 
@@ -622,7 +622,9 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 生产访问地址已生成。
 - v0 前端 UI 已作为当前展示事实源接入，首页、Dashboard、Signals、Market、Leaderboard、Review、System、Token Dossier 和宠物小人壳保留 1:1 视觉。
 - 后端事实出口已落地：`GET /api/radar/backend-contract` 输出扫描证明、轻扫全市场状态、深扫候选、状态池分配、轮转健康审计、数据质量、v3 覆盖和进化闭环边界；`GET /api/radar/dossier?symbol=SYMBOL` 输出单标的 TradingView 外链、可用周期、v3 关键位/Forward Map、Evidence 和 Journal 样本。
-- 前端专用适配出口已落地：`GET /api/frontend/radar-contract`、`GET /api/frontend/token-dossier?symbol=SYMBOL`、`GET /api/frontend/leaderboard?kind=KIND`、`GET /api/frontend/review-contract`。后续前端融合必须优先消费这些契约，避免绕开扫描、分析和复盘主链路形成“两张皮”。
+- 前端专用适配出口已落地：`GET /api/frontend/radar-contract`、`GET /api/frontend/token-dossier?symbol=SYMBOL`、`GET /api/frontend/leaderboard?kind=KIND`、`GET /api/frontend/review-contract`、`GET /api/frontend/kline-contract?symbol=SYMBOL&tf=TF`、`GET/POST /api/frontend/journal-contract`。后续前端融合必须优先消费这些契约，避免绕开扫描、分析和复盘主链路形成“两张皮”。
+- 2026-06-22 已新增 `GET /api/frontend/kline-contract?symbol=SYMBOL&tf=4h` 和页面侧 `getKlineContractForPage()`：Token 详情页 K 线使用公开 OHLCV/cache 转换后的真实 `t/o/h/l/c/v`，无数据时显示真实空状态，不允许生成模拟 K 线冒充真实行情。
+- 2026-06-22 已新增 `GET/POST /api/frontend/journal-contract`：交易日记抽屉写入 `manual_trade` journal event，使用 append-only/tombstone 方式重建前端状态；`rankDelta=0`、`allowedUse=research_only`、`canAutoAdjustWeights=false`，不允许手动日记自动改变实时策略权重。
 
 ### 已落地：CoinGlass 数据接入骨架
 

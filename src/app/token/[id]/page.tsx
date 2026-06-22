@@ -9,6 +9,7 @@ import { TokenAvatar } from '@/components/token-avatar'
 import { fmtCap, fmtUsd } from '@/lib/mock-data'
 import {
   getAllLeaderboardContractsForPage,
+  getKlineContractForPage,
   getLeaderboardContractForPage,
   getRadarContractForPage,
   getTokenDossierContractForPage,
@@ -48,7 +49,10 @@ export default async function TokenPage({
     (item) => item.id === id || item.symbol.toUpperCase() === symbol,
   )
   if (!token) notFound()
-  const dossier = await getTokenDossierContractForPage(token.symbol, token.price)
+  const [dossier, kline] = await Promise.all([
+    getTokenDossierContractForPage(token.symbol, token.price),
+    getKlineContractForPage(token.symbol, '4h'),
+  ])
 
   const seed = token.hue + token.symbol.length * 31
   const backendSignals = radarSignalsToFeedSignals(radar.radarSignals.data, token.symbol)
@@ -148,6 +152,7 @@ export default async function TokenPage({
                   seed={seed}
                   startPrice={token.price * 0.45}
                   bare
+                  candles={kline.data}
                   allowMockFallback={false}
                 />
               </div>

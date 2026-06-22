@@ -1,13 +1,16 @@
 import { buildBackendContract } from "@/lib/api/backend-contract";
 import {
+  buildFrontendKlineContract,
   buildFrontendLeaderboardContract,
   buildFrontendRadarContract,
   buildFrontendReviewContract,
   buildFrontendTokenDossierContract,
+  type KlineChartCandle,
 } from "@/lib/api/frontend-contract";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
 import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import { buildSignalBackendDossier } from "@/lib/market/signal-backend-dossier";
+import type { OhlcvInterval } from "@/lib/market/ohlcv/types";
 import {
   appPersistenceDiagnostics,
   appPersistenceRepository,
@@ -101,6 +104,17 @@ export async function getTokenDossierContractForPage(
     basePrice,
     dossier,
   }) as unknown as Resource<TokenDossier>;
+}
+
+export async function getKlineContractForPage(
+  symbol: string,
+  interval: OhlcvInterval = "4h",
+): Promise<Resource<KlineChartCandle[]>> {
+  return buildFrontendKlineContract({
+    interval,
+    repository: appPersistenceRepository,
+    symbol,
+  }) as unknown as Resource<KlineChartCandle[]>;
 }
 
 export async function getReviewContractForPage(): Promise<ReviewContract> {
