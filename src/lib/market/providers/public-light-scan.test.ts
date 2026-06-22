@@ -111,13 +111,61 @@ test("createBinancePublicLightScanProvider converts public futures tickers into 
         priceChangePercent: "5",
         quoteVolume: "64000000",
       },
+      {
+        symbol: "SPCXUSDT",
+        lastPrice: "166",
+        highPrice: "170",
+        lowPrice: "160",
+        priceChangePercent: "9",
+        quoteVolume: "65000000",
+      },
+      {
+        symbol: "CLUSDT",
+        lastPrice: "81",
+        highPrice: "83",
+        lowPrice: "80",
+        priceChangePercent: "2",
+        quoteVolume: "66000000",
+      },
+      {
+        symbol: "MRVLUSDT",
+        lastPrice: "68",
+        highPrice: "70",
+        lowPrice: "66",
+        priceChangePercent: "4",
+        quoteVolume: "67000000",
+      },
+      {
+        symbol: "DRAMUSDT",
+        lastPrice: "27",
+        highPrice: "29",
+        lowPrice: "26",
+        priceChangePercent: "5",
+        quoteVolume: "68000000",
+      },
+      {
+        symbol: "SKHYNIXUSDT",
+        lastPrice: "250",
+        highPrice: "260",
+        lowPrice: "240",
+        priceChangePercent: "6",
+        quoteVolume: "69000000",
+      },
+      {
+        symbol: "MUUSDT",
+        lastPrice: "115",
+        highPrice: "118",
+        lowPrice: "110",
+        priceChangePercent: "3",
+        quoteVolume: "70000000",
+      },
     ]),
   });
 
   const result = await provider.scan();
 
   assert.equal(result.diagnostics.status, "ready");
-  assert.equal(result.diagnostics.universeCount, 11);
+  assert.equal(result.diagnostics.universeCount, 17);
   assert.equal(result.diagnostics.acceptedCount, 2);
   assert.equal(result.instruments.length, 2);
   assert.deepEqual(result.instruments.map((item) => item.symbol), ["ARBUSDT", "SUIUSDT"]);

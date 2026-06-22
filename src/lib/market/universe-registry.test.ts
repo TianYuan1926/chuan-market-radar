@@ -64,6 +64,12 @@ test("normalizeUniverseAsset rejects non-crypto underlyings", () => {
   assert.equal(normalizeUniverseAsset("ISRGUSDT"), null);
   assert.equal(normalizeUniverseAsset("RKLBUSDT"), null);
   assert.equal(normalizeUniverseAsset("POETUSDT"), null);
+  assert.equal(normalizeUniverseAsset("SPCXUSDT"), null);
+  assert.equal(normalizeUniverseAsset("CLUSDT"), null);
+  assert.equal(normalizeUniverseAsset("MRVLUSDT"), null);
+  assert.equal(normalizeUniverseAsset("DRAMUSDT"), null);
+  assert.equal(normalizeUniverseAsset("SKHYNIXUSDT"), null);
+  assert.equal(normalizeUniverseAsset("MUUSDT"), null);
 });
 
 test("buildUniverseRegistry dedupes assets and keeps BTC and ETH as anchors", () => {
