@@ -895,6 +895,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `/api/radar/backend-contract` 是扫描后端契约：它只读复用已有 snapshot 和 health，不新增 CoinGlass 请求，不写数据库，不生成交易信号。前端若空间有限，必须用分页、滚动、筛选或数量提示承接候选，不允许静默隐藏候选导致“扫到了但看不见”。
 - `scanProof.rotationAudit` 是“扫描有没有卡死在少数币”的硬证明。前端必须展示锚点槽、山寨轮转槽、动态优先级槽、长尾探索槽、排队候选、预计完整轮转时间和饥饿风险；不允许只展示本轮少数深扫币，导致用户误判系统没有全市场轻扫。
 - `analysis.signalMaturity` 是“这条信息成熟到哪一步”的硬证明。前端主信号区必须只读取 `mainSignalSymbols` 或 maturity 为 `EVIDENCE_SIGNAL / TRADE_PLAN_READY` 的信号；`DEEP_SCAN_CANDIDATE` 必须放进候选验证区并标注“验证中”；`LIGHT_SCAN_MARK` 只能用于覆盖证明、调度说明和数量统计，不得做成交易卡片。
+- 当 CoinGlass 深扫端点返回套餐限制、401、空结果或全部请求失败时，前端不得空白，也不得把轻扫候选包装成策略信号。正确做法是把 public light scan Top 候选映射为 `DEEP_SCAN_CANDIDATE / 验证中`，明确 `whyBlocked=等待深扫、结构、Evidence/Risk Gate`，不展示入场、止损、目标位和 AI 复核结论。
 - `analysis.timeframeGate` 是“为什么这条信号不能交易”的硬证明。前端必须把 `WAIT_HIGH_TIMEFRAME_BREAK` 显示为等待高周期突破/回踩确认，把 `WATCH_ONLY` 显示为只观察，不允许把被硬门控拦截的信号包装成可执行计划。
 
 ### 部分落地：技术指标引擎

@@ -778,6 +778,76 @@ function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, n
   };
 }
 
+function riskForLightCandidate(candidate: ScanLightScanCandidate): RadarSignal["risk"] {
+  if (candidate.state === "HOT") {
+    return "高";
+  }
+  if (candidate.state === "COLD") {
+    return "低";
+  }
+  return "中";
+}
+
+function buildLightCandidateRadarSignal({
+  candidate,
+  freshness,
+  now,
+  scanGeneratedAt,
+}: {
+  candidate: ScanLightScanCandidate;
+  freshness: DataSourceState["feed"];
+  now: Date;
+  scanGeneratedAt: string;
+}): RadarSignal {
+  const symbol = displaySymbol(candidate.symbol);
+  const reasons = candidate.reasons.length > 0
+    ? candidate.reasons.join(" / ")
+    : "public light scan candidate";
+
+  return {
+    id: `light:${candidate.symbol}`,
+    symbol,
+    hue: symbolHue(candidate.symbol),
+    direction: "观察",
+    maturity: "DEEP_SCAN_CANDIDATE",
+    rr: null,
+    risk: riskForLightCandidate(candidate),
+    evidenceCount: candidate.reasons.length,
+    counterCount: 0,
+    freshness,
+    whySelected: `轻扫候选：${candidate.state}，${reasons}`,
+    whyBlocked: "仅完成轻扫/候选层验证；等待 CoinGlass 深扫、盘面结构和 Evidence/Risk Gate，不能生成交易计划。",
+    updatedMinAgo: diffMinutes(scanGeneratedAt, now),
+  };
+}
+
+function buildCandidateRadarSignals({
+  backend,
+  existingSignals,
+  now,
+  snapshot,
+}: {
+  backend: BackendContract;
+  existingSignals: RadarSignal[];
+  now: Date;
+  snapshot: MarketRadarSnapshot;
+}) {
+  const existingSymbols = new Set(existingSignals.map((signal) => baseSymbol(signal.symbol)));
+  const universeSymbols = buildFrontendUniverseSymbols(backend, snapshot);
+  const freshness = sourceStatusToFeed(backend.scanProof.lightScan.status);
+
+  return backend.scanProof.lightScan.topCandidates
+    .filter((candidate) => shouldExposeFrontendAsset(candidate.symbol, universeSymbols))
+    .filter((candidate) => !existingSymbols.has(baseSymbol(candidate.symbol)))
+    .slice(0, 24)
+    .map((candidate) => buildLightCandidateRadarSignal({
+      candidate,
+      freshness,
+      now,
+      scanGeneratedAt: backend.scanProof.lightScan.generatedAt || snapshot.metadata.generatedAt,
+    }));
+}
+
 function dataSourceRow({
   name,
   feed,
@@ -1019,6 +1089,8 @@ export function buildFrontendRadarContract({
   const tradeReady = snapshot.signals.some((signal) => maturityForSignal(signal) === "TRADE_PLAN_READY");
   const blockedSignals = snapshot.signals.filter((signal) => lifecycleStatusReason(signal).length > 0);
   const liveSignals = snapshot.signals.map((signal) => buildRadarSignal(signal, snapshot, now));
+  const candidateSignals = buildCandidateRadarSignals({ backend, existingSignals: liveSignals, now, snapshot });
+  const visibleSignals = [...liveSignals, ...candidateSignals];
   const coinGlassLatencyStatus = sourceLatencyStatus(backend, "CoinGlass");
   const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
 
@@ -1107,19 +1179,33 @@ export function buildFrontendRadarContract({
       stale: snapshot.metadata.status === "stale",
       cacheHit: backend.runtime.cacheStatus === "served_cache",
       recentError: snapshot.metadata.status === "failed" ? snapshot.metadata.notes.join("；") || "数据源失败" : null,
-      recentSuccess: `完成 ${snapshot.signals.length} 条信号融合，归档 ${backend.runtime.persistedArchive ? "已持久化" : "未持久化"}`,
+      recentSuccess: `完成 ${snapshot.signals.length} 条信号融合，候选 ${candidateSignals.length} 条，归档 ${
+        backend.runtime.persistedArchive ? "已持久化" : "未持久化"
+      }`,
     }, status, { ageSec, source: "web" }),
     petBackendStatus: resource({
       system: status === "live" ? "正常" : status === "failed" ? "异常" : "降级",
       scan: snapshot.metadata.status === "failed" ? "卡住" : scanCountdown(snapshot, now) > 0 ? "扫描中" : "空闲",
-      signal: tradeReady ? "有就绪信号" : liveSignals.length > 0 ? "验证中" : "无信号",
+      signal: tradeReady ? "有就绪信号" : visibleSignals.length > 0 ? "验证中" : "无信号",
       risk: blockedSignals.length > 0 ? "高" : "中",
       rank: "川流不息",
       discipline: "良好",
       review: snapshot.journalEvents.length > 0 ? "已完成" : "待复盘",
       todayPerf: Math.min(100, Math.max(0, backend.analysis.businessCapability.readinessScore)),
     }, status, { ageSec, source: "web" }),
-    radarSignals: resource(liveSignals, status, { ageSec, source: "signal-worker" }),
+    radarSignals: resource(
+      visibleSignals,
+      liveSignals.length > 0 ? status : candidateSignals.length > 0 ? "partial" : status,
+      {
+        ageSec,
+        source: liveSignals.length > 0 ? "signal-worker" : "public-light-scan",
+        reason: liveSignals.length > 0
+          ? undefined
+          : candidateSignals.length > 0
+            ? "当前无 Evidence/TradePlan 信号；展示轻扫候选作为验证中队列，不生成交易计划。"
+            : undefined,
+      },
+    ),
     macroAltEnv: resource(
       buildMacro(backend),
       marketStatusToResourceStatus(backend.sourceAudit.macroMarket.status),

@@ -641,6 +641,50 @@ test("buildFrontendLeaderboardContract falls back to public light scan candidate
   assert.equal(volume.data[0]?.hasSignal, false);
 });
 
+test("buildFrontendRadarContract exposes light scan candidates as validation signals when evidence signals are empty", () => {
+  const backend = backendContract();
+  backend.scanProof.deepScan.cleanRows = 0;
+  backend.scanProof.deepScan.rawRows = 0;
+  backend.sourceAudit.coinGlassDeepScan.cleanRows = 0;
+  backend.sourceAudit.coinGlassDeepScan.rawRows = 0;
+  backend.scanProof.lightScan.topCandidates = [
+    {
+      baseAsset: "POWER",
+      changePercent24h: 12.4,
+      distanceFromHighPercent: 1.2,
+      distanceFromLowPercent: 18.5,
+      price: 0.42,
+      reasons: ["price_volume_anomaly", "liquid_enough"],
+      score: 91,
+      state: "HOT",
+      symbol: "POWERUSDT",
+      volume24hUsd: 58_000_000,
+      volatilityPercent: 8.4,
+    },
+  ];
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: {
+      ...snapshot([]),
+      signals: [],
+      tickers: [],
+      derivatives: [],
+    },
+    env: {},
+    now: new Date("2026-06-21T08:01:00.000Z"),
+  });
+
+  assert.equal(radar.radarSignals.status, "partial");
+  assert.equal(radar.radarSignals.source, "public-light-scan");
+  assert.equal(radar.radarSignals.data[0]?.symbol, "POWER");
+  assert.equal(radar.radarSignals.data[0]?.maturity, "DEEP_SCAN_CANDIDATE");
+  assert.equal(radar.radarSignals.data[0]?.direction, "观察");
+  assert.equal(radar.radarSignals.data[0]?.rr, null);
+  assert.match(radar.radarSignals.data[0]?.whyBlocked ?? "", /不能生成交易计划/);
+  assert.equal(radar.petBackendStatus.data.signal, "验证中");
+});
+
 test("frontend contract does not mark planned CoinGlass assets as deep scanned when clean rows are zero", () => {
   const backend = backendContract();
   backend.scanProof.deepScan.cleanRows = 0;
