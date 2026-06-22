@@ -170,7 +170,7 @@ export async function runScheduledScan({
   try {
     const providerSnapshot = await provider.fetchSnapshot();
     const snapshot = withRuntimeMetadata(providerSnapshot, {
-      status: "ready",
+      status: providerSnapshot.metadata.status,
       cadenceMinutes,
       generatedAt: nowIso,
       nextScanAt: calculateNextScanAt(now, cadenceMinutes),

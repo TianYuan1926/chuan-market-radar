@@ -86,6 +86,26 @@ test("runScheduledScan stores a successful provider snapshot with runtime timest
   assert.equal(cache.get()?.metadata.id, "fresh-scan");
 });
 
+test("runScheduledScan preserves provider partial status instead of forcing ready", async () => {
+  const cache = new MemoryScanCache();
+  const result = await runScheduledScan({
+    provider: provider(async () => snapshot({
+      id: "partial-provider-scan",
+      status: "partial",
+      notes: ["provider: planned requests returned zero clean rows"],
+    })),
+    cache,
+    now: new Date("2026-06-12T02:20:00.000Z"),
+    cadenceMinutes: 15,
+  });
+
+  assert.equal(result.status, "updated");
+  assert.equal(result.snapshot?.metadata.id, "partial-provider-scan");
+  assert.equal(result.snapshot?.metadata.status, "partial");
+  assert.equal(cache.get()?.metadata.status, "partial");
+  assert.match(result.snapshot?.metadata.notes.join("\n") ?? "", /zero clean rows/);
+});
+
 test("runScheduledScan serves fresh cache without calling the provider", async () => {
   const cache = new MemoryScanCache();
   cache.set(snapshot({
