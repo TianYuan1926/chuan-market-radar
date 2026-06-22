@@ -71,12 +71,12 @@ export default async function DashboardPage() {
       count: true,
     },
     {
-      label: '本轮深扫占比',
+      label: '轻扫覆盖率',
       value: scan.coverage,
       suffix: '%',
       icon: Gauge,
       tone: 'var(--neon)',
-      sub: `本轮深扫 ${scan.scanned.toLocaleString()} 个标的`,
+      sub: `轻扫 ${scan.scanned.toLocaleString()} · 深扫 ${radar.scanProof.data.deepScanned.toLocaleString()}`,
       live: true,
     },
     {

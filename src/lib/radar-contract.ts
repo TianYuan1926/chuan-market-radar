@@ -33,7 +33,8 @@ export type ScanProofData = {
   lightScanned: number // 已轻扫
   deepScanned: number // 已深扫
   awaitingDeepScan: number // 等待深扫
-  coverage: number // 扫描覆盖率 %
+  coverage: number // 全市场轻扫覆盖率 %
+  deepCoverage?: number // 本轮 CoinGlass 深扫占比 %
   lastScanAt: string // 最近扫描时间
   nextScanCountdownSec: number // 下一轮扫描倒计时（秒）
   stuck: boolean // 当前扫描是否卡住
@@ -47,6 +48,7 @@ export function getScanProof(): Resource<ScanProofData> {
     deepScanned: 0,
     awaitingDeepScan: 0,
     coverage: 0,
+    deepCoverage: 0,
     lastScanAt: '等待后端契约',
     nextScanCountdownSec: 0,
     stuck: true,

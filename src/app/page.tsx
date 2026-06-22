@@ -41,7 +41,7 @@ export default async function HomePage() {
   const stats = [
     { v: scan.totalMonitored, suffix: '', label: '监控标的', decimals: 0 },
     { v: radar.radarSignals.data.length, suffix: '', label: '成熟信号', decimals: 0 },
-    { v: scan.coverage, suffix: '%', label: '本轮深扫占比', decimals: 1 },
+    { v: scan.coverage, suffix: '%', label: '轻扫覆盖率', decimals: 1 },
     { v: api.usedToday, suffix: '', label: '今日 API 调用', decimals: 0 },
   ]
 

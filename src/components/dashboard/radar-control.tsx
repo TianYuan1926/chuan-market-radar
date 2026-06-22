@@ -56,6 +56,7 @@ const EMPTY_SCAN = resource<ScanProofData>(
     lightScanned: 0,
     deepScanned: 0,
     awaitingDeepScan: 0,
+    deepCoverage: 0,
     coverage: 0,
     lastScanAt: '—',
     nextScanCountdownSec: 0,
@@ -94,7 +95,8 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
     { label: '已轻扫', value: sp.lightScanned },
     { label: '已深扫', value: sp.deepScanned },
     { label: '等待深扫', value: sp.awaitingDeepScan },
-    { label: '本轮深扫占比', value: sp.coverage, suffix: '%' },
+    { label: '轻扫覆盖率', value: sp.coverage, suffix: '%' },
+    { label: '深扫占比', value: sp.deepCoverage ?? 0, suffix: '%' },
   ]
 
   return (
@@ -123,10 +125,10 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
               </div>
             ))}
           </div>
-          {/* 本轮深扫占比进度条：入场增长 + 轨道流光 */}
+          {/* 全市场轻扫覆盖进度条：入场增长 + 轨道流光 */}
           <div className="mt-3">
             <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>本轮深扫占比</span>
+              <span>全市场轻扫覆盖</span>
               <span className="font-mono text-foreground">{sp.coverage}%</span>
             </div>
             <div className="bar-track h-1.5 overflow-hidden bg-secondary">

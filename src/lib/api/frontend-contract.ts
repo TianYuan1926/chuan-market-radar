@@ -50,6 +50,7 @@ export type ScanProofData = {
   lightScanned: number;
   deepScanned: number;
   awaitingDeepScan: number;
+  deepCoverage: number;
   coverage: number;
   lastScanAt: string;
   nextScanCountdownSec: number;
@@ -1093,15 +1094,26 @@ export function buildFrontendRadarContract({
   const visibleSignals = [...liveSignals, ...candidateSignals];
   const coinGlassLatencyStatus = sourceLatencyStatus(backend, "CoinGlass");
   const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
+  const scannableAssets = Math.max(0, coverage.eligibleAssets);
+  const lightScannedAssets = scannableAssets > 0
+    ? Math.min(scannableAssets, Math.max(0, backend.scanProof.lightScan.acceptedCount))
+    : Math.max(0, backend.scanProof.lightScan.acceptedCount);
+  const lightCoverage = scannableAssets > 0
+    ? (lightScannedAssets / scannableAssets) * 100
+    : coverage.coveragePercent;
+  const deepCoverage = scannableAssets > 0
+    ? (Math.max(0, cleanDeepScanRows) / scannableAssets) * 100
+    : coverage.coveragePercent;
 
   return {
     scanProof: resource({
       totalMonitored: coverage.totalAssets,
-      scannable: coverage.eligibleAssets,
-      lightScanned: backend.scanProof.lightScan.acceptedCount,
+      scannable: scannableAssets,
+      lightScanned: lightScannedAssets,
       deepScanned: cleanDeepScanRows,
-      awaitingDeepScan: coverage.pendingAssets,
-      coverage: round(coverage.coveragePercent, 1),
+      awaitingDeepScan: Math.max(0, scannableAssets - Math.max(0, cleanDeepScanRows)),
+      deepCoverage: round(deepCoverage, 1),
+      coverage: round(Math.min(100, Math.max(0, lightCoverage)), 1),
       lastScanAt: timeLabel(snapshot.metadata.generatedAt),
       nextScanCountdownSec: scanCountdown(snapshot, now),
       stuck: snapshot.metadata.status === "failed" || coverage.status === "blocked",

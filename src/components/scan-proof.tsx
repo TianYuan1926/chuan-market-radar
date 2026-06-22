@@ -60,7 +60,7 @@ export function ScanProof({
   const [countdown, setCountdown] = useState(scan.nextBatchSec)
 
   // Only mirrors backend values. No generated market movement.
-  const liveDeepScanShare = useLiveNumber(scan.coverage, {
+  const liveLightScanShare = useLiveNumber(scan.coverage, {
     volatility: 0.012,
     intervalMs: 2600,
     min: 0,
@@ -106,12 +106,12 @@ export function ScanProof({
       </div>
 
       <div className="grid gap-5 p-5 lg:grid-cols-[1.1fr_1fr]">
-        {/* 左：本轮深扫占比 + 扫描进度 */}
+        {/* 左：全市场轻扫覆盖 + 扫描进度 */}
         <div className="flex items-center gap-5">
-          <CoverageRing pct={liveDeepScanShare} />
+          <CoverageRing pct={liveLightScanShare} />
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-2">
-              <span className="w-16 text-xs text-muted-foreground">本轮已扫</span>
+              <span className="w-16 text-xs text-muted-foreground">已轻扫</span>
               <LiveValue
                 value={liveScanned}
                 format={(n) => fmtCap(Math.round(n))}
