@@ -552,6 +552,13 @@ function okxSymbolFromInstId(instId) {
   return `${value.slice(0, -"-USDT-SWAP".length).replace(/-/g, "")}USDT`;
 }
 
+function isOkxCryptoSwapRow(row) {
+  const instCategory = String(row?.instCategory ?? "").trim();
+  const ruleType = String(row?.ruleType ?? "").trim().toLowerCase();
+
+  return instCategory === "1" && ruleType !== "pre_market";
+}
+
 export function parseOkxTickerMessage(raw) {
   const payloadText = payloadToString(raw);
 
@@ -564,6 +571,10 @@ export function parseOkxTickerMessage(raw) {
 
   return rows
     .map((row) => {
+      if (!isOkxCryptoSwapRow(row)) {
+        return null;
+      }
+
       const symbol = okxSymbolFromInstId(row?.instId);
       const price = finiteNumber(row?.last);
 
@@ -617,7 +628,7 @@ export function buildSubscriptionChunks(items, chunkSize) {
   return chunks;
 }
 
-async function discoverOkxSymbols({ fetcher = fetch, limit = 500 } = {}) {
+export async function discoverOkxSymbols({ fetcher = fetch, limit = 500 } = {}) {
   const url = new URL(process.env.OKX_INSTRUMENTS_URL ?? "https://www.okx.com/api/v5/public/instruments");
   url.searchParams.set("instType", "SWAP");
   const response = await fetcher(url);
@@ -630,6 +641,7 @@ async function discoverOkxSymbols({ fetcher = fetch, limit = 500 } = {}) {
   const rows = Array.isArray(payload?.data) ? payload.data : [];
 
   return rows
+    .filter((row) => isOkxCryptoSwapRow(row))
     .map((row) => String(row?.instId ?? "").toUpperCase())
     .filter((instId) => instId.endsWith("-USDT-SWAP"))
     .slice(0, limit);

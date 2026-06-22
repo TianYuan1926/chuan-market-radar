@@ -13,10 +13,12 @@ test("normalizeOkxInstrument accepts live USDT linear swaps", () => {
   const instrument = normalizeOkxInstrument({
     instType: "SWAP",
     instId: "ARB-USDT-SWAP",
-    baseCcy: "ARB",
-    quoteCcy: "USDT",
+    baseCcy: "",
+    quoteCcy: "",
     settleCcy: "USDT",
+    instCategory: "1",
     ctType: "linear",
+    ruleType: "normal",
     state: "live",
   }, observedAt);
 
@@ -29,18 +31,19 @@ test("normalizeOkxInstrument accepts live USDT linear swaps", () => {
     marketType: "perpetual",
     isActive: true,
     volume24hUsd: 0,
-    tags: ["okx-public-swap", "instType:SWAP", "ctType:linear", "state:live"],
+    tags: ["okx-public-swap", "instType:SWAP", "instCategory:1", "ctType:linear", "state:live"],
     lastSeenAt: observedAt,
   });
 });
 
-test("normalizeOkxInstrument rejects non-USDT inactive or non-linear swaps", () => {
+test("normalizeOkxInstrument rejects non-USDT inactive non-linear or non-crypto swaps", () => {
   assert.equal(normalizeOkxInstrument({
     instType: "SWAP",
     instId: "BTC-USD-SWAP",
     baseCcy: "BTC",
     quoteCcy: "USD",
     settleCcy: "USD",
+    instCategory: "1",
     ctType: "inverse",
     state: "live",
   }, observedAt), null);
@@ -51,6 +54,7 @@ test("normalizeOkxInstrument rejects non-USDT inactive or non-linear swaps", () 
     baseCcy: "ETH",
     quoteCcy: "USDT",
     settleCcy: "USDT",
+    instCategory: "1",
     ctType: "linear",
     state: "suspend",
   }, observedAt), null);
@@ -61,7 +65,32 @@ test("normalizeOkxInstrument rejects non-USDT inactive or non-linear swaps", () 
     baseCcy: "SOL",
     quoteCcy: "USDT",
     settleCcy: "USDT",
+    instCategory: "1",
     ctType: "linear",
+    state: "live",
+  }, observedAt), null);
+
+  assert.equal(normalizeOkxInstrument({
+    instType: "SWAP",
+    instId: "COHR-USDT-SWAP",
+    baseCcy: "",
+    quoteCcy: "",
+    settleCcy: "USDT",
+    instCategory: "3",
+    ctType: "linear",
+    ruleType: "normal",
+    state: "live",
+  }, observedAt), null);
+
+  assert.equal(normalizeOkxInstrument({
+    instType: "SWAP",
+    instId: "OPENAI-USDT-SWAP",
+    baseCcy: "",
+    quoteCcy: "",
+    settleCcy: "USDT",
+    instCategory: "3",
+    ctType: "linear",
+    ruleType: "pre_market",
     state: "live",
   }, observedAt), null);
 });
@@ -80,10 +109,12 @@ test("createOkxUniverseDiscoveryProvider fetches normalized USDT swap instrument
           {
             instType: "SWAP",
             instId: "ARB-USDT-SWAP",
-            baseCcy: "ARB",
-            quoteCcy: "USDT",
+            baseCcy: "",
+            quoteCcy: "",
             settleCcy: "USDT",
+            instCategory: "1",
             ctType: "linear",
+            ruleType: "normal",
             state: "live",
           },
           {
@@ -92,16 +123,30 @@ test("createOkxUniverseDiscoveryProvider fetches normalized USDT swap instrument
             baseCcy: "BTC",
             quoteCcy: "USD",
             settleCcy: "USD",
+            instCategory: "1",
             ctType: "inverse",
             state: "live",
           },
           {
             instType: "SWAP",
             instId: "SUI-USDT-SWAP",
-            baseCcy: "SUI",
-            quoteCcy: "USDT",
+            baseCcy: "",
+            quoteCcy: "",
             settleCcy: "USDT",
+            instCategory: "1",
             ctType: "linear",
+            ruleType: "normal",
+            state: "live",
+          },
+          {
+            instType: "SWAP",
+            instId: "ADBE-USDT-SWAP",
+            baseCcy: "",
+            quoteCcy: "",
+            settleCcy: "USDT",
+            instCategory: "3",
+            ctType: "linear",
+            ruleType: "normal",
             state: "live",
           },
         ],

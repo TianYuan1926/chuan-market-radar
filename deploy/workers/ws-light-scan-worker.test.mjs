@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildSubscriptionChunks,
   createLightScanAccumulator,
+  discoverOkxSymbols,
   parseBinanceTickerMessage,
   parseBybitTickerMessage,
   parseOkxTickerMessage,
@@ -40,8 +41,10 @@ test("ticker parsers reject tokenized stocks and commodities before light scan",
   ])), []);
   assert.deepEqual(parseOkxTickerMessage(JSON.stringify({
     data: [
-      { instId: "SAMSUNG-USDT-SWAP", last: "1200", ts: "1797760000000", volCcy24h: "1000" },
-      { instId: "NATGAS-USDT-SWAP", last: "3", ts: "1797760000000", volCcy24h: "1000" },
+      { instCategory: "3", instId: "SAMSUNG-USDT-SWAP", last: "1200", ruleType: "normal", ts: "1797760000000", volCcy24h: "1000" },
+      { instCategory: "3", instId: "NATGAS-USDT-SWAP", last: "3", ruleType: "normal", ts: "1797760000000", volCcy24h: "1000" },
+      { instCategory: "3", instId: "OPENAI-USDT-SWAP", last: "700", ruleType: "pre_market", ts: "1797760000000", volCcy24h: "1000" },
+      { instCategory: "3", instId: "COHR-USDT-SWAP", last: "85", ruleType: "normal", ts: "1797760000000", volCcy24h: "1000" },
     ],
   })), []);
   assert.deepEqual(parseBybitTickerMessage(JSON.stringify({
@@ -57,8 +60,9 @@ test("parseOkxTickerMessage converts USDT swap ticker events into light scan eve
   const events = parseOkxTickerMessage(JSON.stringify({
     arg: { channel: "tickers", instId: "TIA-USDT-SWAP" },
     data: [
-      { instId: "TIA-USDT-SWAP", last: "7.5", ts: "1797760000000", volCcy24h: "100000" },
-      { instId: "BTC-USD-SWAP", last: "66000", ts: "1797760000000", volCcy24h: "500" },
+      { instCategory: "1", instId: "TIA-USDT-SWAP", last: "7.5", ruleType: "normal", ts: "1797760000000", volCcy24h: "100000" },
+      { instCategory: "1", instId: "BTC-USD-SWAP", last: "66000", ruleType: "normal", ts: "1797760000000", volCcy24h: "500" },
+      { instCategory: "3", instId: "ADBE-USDT-SWAP", last: "400", ruleType: "normal", ts: "1797760000000", volCcy24h: "500" },
     ],
   }));
 
@@ -69,6 +73,24 @@ test("parseOkxTickerMessage converts USDT swap ticker events into light scan eve
     quoteVolume24hUsd: 750_000,
     symbol: "TIAUSDT",
   }]);
+});
+
+test("discoverOkxSymbols keeps only OKX crypto swap instruments", async () => {
+  const symbols = await discoverOkxSymbols({
+    limit: 20,
+    fetcher: async () => new Response(JSON.stringify({
+      code: "0",
+      data: [
+        { instCategory: "1", instId: "ARB-USDT-SWAP", ruleType: "normal" },
+        { instCategory: "3", instId: "COHR-USDT-SWAP", ruleType: "normal" },
+        { instCategory: "3", instId: "OPENAI-USDT-SWAP", ruleType: "pre_market" },
+        { instCategory: "1", instId: "SUI-USDT-SWAP", ruleType: "normal" },
+        { instCategory: "1", instId: "BTC-USD-SWAP", ruleType: "normal" },
+      ],
+    })),
+  });
+
+  assert.deepEqual(symbols, ["ARB-USDT-SWAP", "SUI-USDT-SWAP"]);
 });
 
 test("parseBybitTickerMessage converts linear ticker events into light scan events", () => {

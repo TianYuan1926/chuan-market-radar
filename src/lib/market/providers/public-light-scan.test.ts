@@ -245,9 +245,11 @@ test("createOkxPublicLightScanProvider converts public swap tickers into light s
         code: "0",
         data: [
           {
+            instCategory: "1",
             instId: "ARB-USDT-SWAP",
             last: "1.2",
             open24h: "1.1",
+            ruleType: "normal",
             high24h: "1.22",
             low24h: "1.01",
             volCcy24h: "35000000",
@@ -260,6 +262,26 @@ test("createOkxPublicLightScanProvider converts public swap tickers into light s
             low24h: "98",
             volCcy24h: "1000",
           },
+          {
+            instCategory: "3",
+            instId: "COHR-USDT-SWAP",
+            last: "85",
+            open24h: "80",
+            ruleType: "normal",
+            high24h: "88",
+            low24h: "78",
+            volCcy24h: "1000000",
+          },
+          {
+            instCategory: "3",
+            instId: "OPENAI-USDT-SWAP",
+            last: "700",
+            open24h: "650",
+            ruleType: "pre_market",
+            high24h: "720",
+            low24h: "640",
+            volCcy24h: "1000000",
+          },
         ],
       });
     },
@@ -268,7 +290,7 @@ test("createOkxPublicLightScanProvider converts public swap tickers into light s
   const result = await provider.scan();
 
   assert.equal(result.diagnostics.status, "ready");
-  assert.equal(result.diagnostics.universeCount, 2);
+  assert.equal(result.diagnostics.universeCount, 4);
   assert.equal(result.diagnostics.acceptedCount, 1);
   assert.deepEqual(result.instruments.map((item) => item.symbol), ["ARBUSDT"]);
   assert.equal(result.instruments[0]?.exchange, "OKX");

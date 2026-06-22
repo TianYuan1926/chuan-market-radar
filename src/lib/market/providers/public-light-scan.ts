@@ -34,10 +34,12 @@ export type BinanceFutures24hTickerRow = {
 
 export type OkxSwapTickerRow = {
   high24h?: string;
+  instCategory?: string;
   instId?: string;
   last?: string;
   low24h?: string;
   open24h?: string;
+  ruleType?: string;
   vol24h?: string;
   volCcy24h?: string;
 };
@@ -455,7 +457,18 @@ function okxSymbolFromInstId(instId: string) {
   return match?.[1] ? `${match[1]}USDT` : "";
 }
 
+function isOkxCryptoSwapTicker(row: OkxSwapTickerRow) {
+  const instCategory = String(row.instCategory ?? "").trim();
+  const ruleType = String(row.ruleType ?? "").trim().toLowerCase();
+
+  return instCategory === "1" && ruleType !== "pre_market";
+}
+
 function tickerFromOkxRow(row: OkxSwapTickerRow, updatedAt: string): MarketTicker | null {
+  if (!isOkxCryptoSwapTicker(row)) {
+    return null;
+  }
+
   const symbol = okxSymbolFromInstId(row.instId ?? "");
 
   if (!isUsdtPerpLikeSymbol(symbol)) {

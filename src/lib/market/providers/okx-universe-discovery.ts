@@ -11,9 +11,11 @@ export const OKX_PUBLIC_INSTRUMENTS_URL = "https://www.okx.com/api/v5/public/ins
 export type OkxInstrumentRow = {
   baseCcy?: string;
   ctType?: string;
+  instCategory?: string;
   instId?: string;
   instType?: string;
   quoteCcy?: string;
+  ruleType?: string;
   settleCcy?: string;
   state?: string;
 };
@@ -30,6 +32,12 @@ function normalizeSymbolPart(value: string) {
 
 function normalizeOkxState(value: string) {
   return value.trim().toLowerCase();
+}
+
+function parseOkxUsdtSwapInstId(instId: string) {
+  const match = /^([A-Z0-9]+)-USDT-SWAP$/u.exec(instId.trim().toUpperCase());
+
+  return match?.[1] ?? "";
 }
 
 function failure(fields: Omit<UniverseDiscoveryFailure, "ok">): UniverseDiscoveryFailure {
@@ -50,12 +58,14 @@ export function normalizeOkxInstrument(
   row: OkxInstrumentRow,
   observedAt: string,
 ): ContractInstrument | null {
-  const baseAsset = normalizeSymbolPart(row.baseCcy ?? "");
-  const quoteAsset = normalizeSymbolPart(row.quoteCcy ?? "");
-  const settleAsset = normalizeSymbolPart(row.settleCcy ?? "");
   const instId = row.instId?.trim().toUpperCase() ?? "";
+  const baseAsset = normalizeSymbolPart(row.baseCcy ?? "") || parseOkxUsdtSwapInstId(instId);
+  const quoteAsset = normalizeSymbolPart(row.quoteCcy ?? "") || (parseOkxUsdtSwapInstId(instId) ? "USDT" : "");
+  const settleAsset = normalizeSymbolPart(row.settleCcy ?? "");
   const instType = normalizeSymbolPart(row.instType ?? "");
+  const instCategory = normalizeSymbolPart(row.instCategory ?? "");
   const ctType = normalizeOkxState(row.ctType ?? "");
+  const ruleType = normalizeOkxState(row.ruleType ?? "");
   const state = normalizeOkxState(row.state ?? "");
   const symbol = `${baseAsset}${quoteAsset}`;
 
@@ -64,7 +74,9 @@ export function normalizeOkxInstrument(
     quoteAsset !== "USDT" ||
     settleAsset !== "USDT" ||
     instType !== "SWAP" ||
+    instCategory !== "1" ||
     ctType !== "linear" ||
+    ruleType === "pre_market" ||
     state !== "live" ||
     instId !== `${baseAsset}-USDT-SWAP`
   ) {
@@ -80,7 +92,7 @@ export function normalizeOkxInstrument(
     marketType: "perpetual",
     isActive: true,
     volume24hUsd: 0,
-    tags: ["okx-public-swap", "instType:SWAP", "ctType:linear", "state:live"],
+    tags: ["okx-public-swap", "instType:SWAP", "instCategory:1", "ctType:linear", "state:live"],
     lastSeenAt: observedAt,
   };
 }
