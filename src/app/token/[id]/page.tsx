@@ -6,13 +6,16 @@ import { KlinePanel } from '@/components/kline-panel'
 import { SignalArchive } from '@/components/signal-archive'
 import { TokenDossier } from '@/components/token/token-dossier'
 import { TokenAvatar } from '@/components/token-avatar'
-import { getToken, fmtCap, fmtUsd } from '@/lib/mock-data'
+import { fmtCap, fmtUsd } from '@/lib/mock-data'
 import {
+  getAllLeaderboardContractsForPage,
   getLeaderboardContractForPage,
   getRadarContractForPage,
   getTokenDossierContractForPage,
 } from '@/lib/frontend-contract-server'
 import {
+  leaderboardRowsToTokens,
+  mergeTokensBySymbol,
   radarSignalsToFeedSignals,
   radarSignalsToTokens,
 } from '@/lib/frontend-display-adapters'
@@ -27,15 +30,22 @@ export default async function TokenPage({
 }) {
   const { id } = await params
   const symbol = id.toUpperCase()
-  const [radar, tickerLeaderboard] = await Promise.all([
+  const [radar, tickerLeaderboard, allLeaderboards] = await Promise.all([
     getRadarContractForPage(),
     getLeaderboardContractForPage('volume'),
+    getAllLeaderboardContractsForPage(),
   ])
   const tickerRows = tickerLeaderboard.data
-  const backendToken = radarSignalsToTokens(radar.radarSignals.data, tickerRows).find(
+  const leaderboardTokens = Object.entries(allLeaderboards).flatMap(([kind, rows]) =>
+    leaderboardRowsToTokens(rows?.data ?? [], kind as Parameters<typeof leaderboardRowsToTokens>[1])
+  )
+  const backendTokens = mergeTokensBySymbol(
+    radarSignalsToTokens(radar.radarSignals.data, tickerRows),
+    leaderboardTokens,
+  )
+  const token = backendTokens.find(
     (item) => item.id === id || item.symbol.toUpperCase() === symbol,
   )
-  const token = backendToken ?? getToken(id)
   if (!token) notFound()
   const dossier = await getTokenDossierContractForPage(token.symbol, token.price)
 

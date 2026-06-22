@@ -15,8 +15,8 @@ export type CoinGlassInstrumentRow = {
   quoteAsset?: string;
   settlement_currency?: string;
   settlementCurrency?: string;
-  max_leverage?: number;
-  maxLeverage?: number;
+  max_leverage?: number | string;
+  maxLeverage?: number | string;
 };
 
 export type CoinGlassMarketRow = {
@@ -25,24 +25,24 @@ export type CoinGlassMarketRow = {
   exchange_name?: string;
   exchangeName?: string;
   symbol?: string;
-  current_price?: number;
-  currentPrice?: number;
-  price_change_percent_24h?: number;
-  priceChangePercent24h?: number;
-  volume_usd?: number;
-  volumeUsd?: number;
-  volume_usd_change_percent_24h?: number;
-  volumeUsdChangePercent24h?: number;
-  open_interest_usd?: number;
-  openInterestUsd?: number;
-  open_interest_change_percent_24h?: number;
-  openInterestChangePercent24h?: number;
-  funding_rate?: number;
-  fundingRate?: number;
-  long_liquidation_usd_24h?: number;
-  longLiquidationUsd24h?: number;
-  short_liquidation_usd_24h?: number;
-  shortLiquidationUsd24h?: number;
+  current_price?: number | string;
+  currentPrice?: number | string;
+  price_change_percent_24h?: number | string;
+  priceChangePercent24h?: number | string;
+  volume_usd?: number | string;
+  volumeUsd?: number | string;
+  volume_usd_change_percent_24h?: number | string;
+  volumeUsdChangePercent24h?: number | string;
+  open_interest_usd?: number | string;
+  openInterestUsd?: number | string;
+  open_interest_change_percent_24h?: number | string;
+  openInterestChangePercent24h?: number | string;
+  funding_rate?: number | string;
+  fundingRate?: number | string;
+  long_liquidation_usd_24h?: number | string;
+  longLiquidationUsd24h?: number | string;
+  short_liquidation_usd_24h?: number | string;
+  shortLiquidationUsd24h?: number | string;
 };
 
 export type CoinGlassMarketRowRejectionReason =
@@ -62,8 +62,21 @@ function firstString(...values: (string | undefined)[]) {
   return values.find((value) => typeof value === "string" && value.length > 0) ?? "";
 }
 
-function firstNumber(...values: (number | undefined)[]) {
-  return values.find((value) => typeof value === "number" && Number.isFinite(value)) ?? 0;
+function firstNumber(...values: (number | string | undefined)[]) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(/,/g, "").trim());
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return 0;
 }
 
 function normalizeSymbol(value: string) {

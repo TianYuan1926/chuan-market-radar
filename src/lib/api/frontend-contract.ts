@@ -7,6 +7,7 @@ import type {
   SignalMaturityStage,
   StrategyPlan,
 } from "../analysis/types";
+import type { KeyLevel } from "../analysis/v3/types";
 import type { SignalBackendDossier } from "../market/signal-backend-dossier";
 import type {
   DerivativeSnapshot,
@@ -324,7 +325,16 @@ function round(value: number, digits = 2) {
 }
 
 function safeNumber(value: unknown, fallback = 0) {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/,/g, "").trim());
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  return fallback;
 }
 
 function baseSymbol(value: string) {
@@ -926,22 +936,81 @@ export function buildFrontendLeaderboardContract({
   });
 }
 
+function levelMid(level: KeyLevel) {
+  const mid = safeNumber(level.midPrice, 0);
+  if (mid > 0) {
+    return mid;
+  }
+  return (safeNumber(level.zoneLow, 0) + safeNumber(level.zoneHigh, 0)) / 2;
+}
+
+function bestLevel({
+  currentPrice,
+  direction,
+  levels,
+}: {
+  currentPrice: number;
+  direction: "SUPPORT" | "RESISTANCE";
+  levels: KeyLevel[];
+}) {
+  const directional = levels.filter((level) => level.direction === direction || level.direction === "BOTH");
+  const located = directional.filter((level) => {
+    if (currentPrice <= 0) {
+      return true;
+    }
+    return direction === "SUPPORT"
+      ? safeNumber(level.zoneLow, 0) <= currentPrice
+      : safeNumber(level.zoneHigh, 0) >= currentPrice;
+  });
+  const pool = located.length > 0 ? located : directional;
+
+  return pool
+    .map((level) => ({
+      distance: currentPrice > 0 ? Math.abs(levelMid(level) - currentPrice) : 0,
+      level,
+    }))
+    .sort((left, right) =>
+      left.distance - right.distance ||
+      right.level.keyScore - left.level.keyScore ||
+      right.level.confluenceScore - left.level.confluenceScore
+    )[0]?.level ?? null;
+}
+
 function structureFromDossier(dossier: SignalBackendDossier, basePrice: number): TfStructure[] {
   const timeframes = ["15m", "1h", "4h", "1d"] as const;
   const selected = new Set(dossier.chart.availableTimeframes);
   const direction = tokenDirectionCn(dossier.signal?.direction);
   const trend: TfStructure["trend"] = direction === "看多" ? "多" : direction === "看空" ? "空" : "震荡";
+  const currentPrice = safeNumber(dossier.strategyV3?.currentPrice, safeNumber(basePrice, 0));
+  const keyLevels = dossier.strategyV3?.keyLevels ?? [];
 
-  return timeframes.map((tf, index) => {
-    const width = 0.02 + index * 0.025;
+  return timeframes.map((tf) => {
+    const timeframeLevels = keyLevels.filter((level) => level.timeframe === tf);
+    const support = bestLevel({
+      currentPrice,
+      direction: "SUPPORT",
+      levels: timeframeLevels,
+    });
+    const resistance = bestLevel({
+      currentPrice,
+      direction: "RESISTANCE",
+      levels: timeframeLevels,
+    });
+    const supportValue = support ? round(levelMid(support), currentPrice < 1 ? 4 : 2) : 0;
+    const resistanceValue = resistance ? round(levelMid(resistance), currentPrice < 1 ? 4 : 2) : 0;
+
     return {
       tf,
-      phase: selected.has(tf) ? dossier.signal?.summary ?? "后端结构" : "等待 OHLCV 补齐",
+      phase: selected.has(tf)
+        ? timeframeLevels.length > 0
+          ? dossier.strategyV3?.summary ?? dossier.signal?.summary ?? "后端结构"
+          : "OHLCV 已接入，关键位待补齐"
+        : "等待 OHLCV 补齐",
       trend,
-      priorHigh: round(basePrice * (1 + width), basePrice < 1 ? 4 : 2),
-      priorLow: round(basePrice * (1 - width), basePrice < 1 ? 4 : 2),
-      support: round(basePrice * (1 - width * 0.7), basePrice < 1 ? 4 : 2),
-      resistance: round(basePrice * (1 + width * 0.7), basePrice < 1 ? 4 : 2),
+      priorHigh: resistanceValue,
+      priorLow: supportValue,
+      support: supportValue,
+      resistance: resistanceValue,
     };
   });
 }

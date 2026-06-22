@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { TokenAvatar } from './token-avatar'
 import { LiveValue } from './live-value'
-import { useLiveQuote } from '@/lib/live-store'
+import { useLiveQuote, usePrimeLiveQuotes } from '@/lib/live-store'
 import { useLatestSignal } from '@/lib/signal-feed'
 import {
   fmtUsd,
@@ -127,6 +127,8 @@ type SortKey = 'score' | 'age' | 'gain' | 'drop' | 'cap' | 'sentiment'
 const PAGE_SIZE = 20
 
 export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
+  const liveTokens = useMemo(() => cards.map((card) => card.token), [cards])
+  usePrimeLiveQuotes(liveTokens)
   const [filter, setFilter] = useState<PoolStatus | 'all'>('all')
   const [starred, setStarred] = useState<Record<string, boolean>>({})
   const [open, setOpen] = useState<string | null>(null)

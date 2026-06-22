@@ -15,7 +15,9 @@ export async function POST(request: NextRequest) {
     status: result.status,
     headers: {
       "cache-control": "no-store",
-      "x-chuan-macro-ingest": result.body.ok ? "stored" : "blocked",
+      "x-chuan-macro-ingest": result.body.ok
+        ? result.body.macro.mode === "cached" ? "cached" : "stored"
+        : "blocked",
     },
   });
 }

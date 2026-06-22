@@ -50,29 +50,8 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
 }
 
-function seedFrom(value: string) {
-  let hash = 2166136261
-  for (const char of value.toUpperCase()) {
-    hash ^= char.charCodeAt(0)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
-function seededUnit(seed: number) {
-  const x = Math.sin(seed) * 10000
-  return x - Math.floor(x)
-}
-
-function priceForSymbol(symbol: string) {
-  const seed = seedFrom(symbol)
-  const roll = seededUnit(seed)
-  if (symbol === 'BTC') return 65000
-  if (symbol === 'ETH') return 3500
-  if (symbol === 'SOL') return 145
-  if (roll < 0.35) return +(0.008 + roll * 0.18).toFixed(5)
-  if (roll < 0.72) return +(0.2 + roll * 8).toFixed(4)
-  return +(8 + roll * 75).toFixed(3)
+function positiveNumber(value: number | undefined | null) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
 }
 
 function priceBySymbol(tickerRows: TickerRows = []) {
@@ -171,7 +150,7 @@ function tokenFor(
   const symbol = signal.symbol.toUpperCase()
   const score = scoreFor(signal)
   const ticker = tickerLookup.get(symbol)
-  const price = ticker?.price ?? priceForSymbol(symbol)
+  const price = positiveNumber(ticker?.price)
   const change24h = changeFor(signal, score)
   const trend = trendFor(signal.direction)
   const tags: Token['tags'] = ['合约', '异常活跃']
@@ -185,8 +164,8 @@ function tokenFor(
     symbol,
     name: `${symbol} / USDT`,
     price,
-    marketCap: Math.round((seededUnit(seedFrom(`${symbol}-cap`)) * 2.6 + 0.12) * 1e8),
-    volume24h: Math.round((seededUnit(seedFrom(`${symbol}-vol`)) * 8.5 + 0.35) * 1e7),
+    marketCap: 0,
+    volume24h: Math.round(positiveNumber(ticker?.value)),
     change1h: round(change24h / 8, 2),
     change24h,
     change7d: round(change24h * 2.4, 2),
@@ -315,13 +294,9 @@ export function leaderboardRowsToTokens(
       id: symbol.toLowerCase(),
       symbol,
       name: `${symbol} / USDT`,
-      price: row.price > 0 ? row.price : priceForSymbol(symbol),
-      marketCap: Math.round((seededUnit(seedFrom(`${symbol}-cap`)) * 2.6 + 0.12) * 1e8),
-      volume24h: Math.round(
-        kind === 'volume' && Number.isFinite(row.value) && row.value > 0
-          ? row.value
-          : (seededUnit(seedFrom(`${symbol}-vol`)) * 8.5 + 0.35) * 1e7,
-      ),
+      price: positiveNumber(row.price),
+      marketCap: 0,
+      volume24h: Math.round(kind === 'volume' ? positiveNumber(row.value) : 0),
       change1h: round(change24h / 8, 2),
       change24h,
       change7d: round(change24h * 2.4, 2),
@@ -355,6 +330,14 @@ export function mergeTokensBySymbol(...groups: Token[][]): Token[] {
     merged.set(key, {
       ...existing,
       ...token,
+      price: token.price > 0 ? token.price : existing.price,
+      marketCap: Math.max(existing.marketCap, token.marketCap),
+      volume24h: Math.max(existing.volume24h, token.volume24h),
+      change1h: token.change1h !== 0 ? token.change1h : existing.change1h,
+      change24h: token.change24h !== 0 ? token.change24h : existing.change24h,
+      change7d: token.change7d !== 0 ? token.change7d : existing.change7d,
+      change30d: token.change30d !== 0 ? token.change30d : existing.change30d,
+      trend: token.trend !== 'shock' ? token.trend : existing.trend,
       tags: [...new Set([...existing.tags, ...token.tags])] as Token['tags'],
       anomalyScore: Math.max(existing.anomalyScore, token.anomalyScore),
     })
@@ -624,7 +607,7 @@ function sniperSignals(signal: RadarSignal): SniperSignal[] {
 
 export function radarSignalsToSniperTargets(signals: RadarSignal[], tickerRows: TickerRows = []): SniperTarget[] {
   return radarSignalsToSignalCards(signals, tickerRows)
-    .filter((card) => card.category === 'sniper' && card.odds >= 3)
+    .filter((card) => card.category === 'sniper' && card.odds >= 3 && card.token.price > 0)
     .map((card) => {
       const signal = signals.find((item) => item.id === card.id)
       const side = signal ? sniperSide(signal) : card.token.trend === 'bear' ? 'short' : 'long'

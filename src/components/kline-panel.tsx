@@ -13,7 +13,7 @@ export function KlinePanel({
   startPrice,
   bare = false,
   candles,
-  allowMockFallback = true,
+  allowMockFallback = false,
 }: {
   seed: number
   startPrice: number

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getTokens, type Token } from '@/lib/mock-data'
 import { LiveQuotePct } from './live-value'
+import { usePrimeLiveQuotes } from '@/lib/live-store'
 import { cn } from '@/lib/utils'
 
 type Session = {
@@ -50,6 +51,7 @@ export function SessionBar({ tokens }: { tokens?: Token[] }) {
   }, [])
 
   const tokenRows = tokens ?? getTokens()
+  usePrimeLiveQuotes(tokenRows)
   const gainers = [...tokenRows]
     .filter((t) => t.change24h > 0)
     .sort((a, b) => b.change24h - a.change24h)

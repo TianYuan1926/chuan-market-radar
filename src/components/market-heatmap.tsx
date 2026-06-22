@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { LiveValue } from './live-value'
-import { useLiveQuote } from '@/lib/live-store'
+import { useLiveQuote, usePrimeLiveQuotes } from '@/lib/live-store'
 import type { Token } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 export function MarketHeatmap({ tokens }: { tokens: Token[] }) {
+  usePrimeLiveQuotes(tokens)
   const list = tokens.slice(0, 9)
   return (
     <div className="border border-border bg-card">

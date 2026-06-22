@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo } from 'react'
 import {
   Layers,
   ShieldCheck,
@@ -11,23 +10,20 @@ import {
   Check,
   X,
 } from 'lucide-react'
-import { getTokenDossier, type TokenDossier as TokenDossierData } from '@/lib/radar-contract'
+import type { TokenDossier as TokenDossierData } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'
 import { FreshnessTag, StatusBadge } from '@/components/data-state'
 import { cn } from '@/lib/utils'
 
 export function TokenDossier({
-  symbol,
-  basePrice = 1,
   dossier,
 }: {
   symbol: string
   basePrice?: number
   dossier?: Resource<TokenDossierData>
 }) {
-  const fallback = useMemo(() => getTokenDossier(symbol, basePrice), [symbol, basePrice])
-  const res = dossier ?? fallback
-  const d = res.data
+  const res = dossier
+  const d = res?.data
   if (!d) return null
 
   const dirTone =
@@ -82,8 +78,8 @@ export function TokenDossier({
                 </div>
                 <div className="mt-1.5 text-xs text-muted-foreground">{s.phase}</div>
                 <div className="mt-2 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">
-                  <span>支撑 {s.support}</span>
-                  <span className="text-right">压力 {s.resistance}</span>
+                  <span>支撑 {levelText(s.support)}</span>
+                  <span className="text-right">压力 {levelText(s.resistance)}</span>
                 </div>
               </div>
             )
@@ -234,6 +230,10 @@ export function TokenDossier({
       </div>
     </section>
   )
+}
+
+function levelText(value: number) {
+  return Number.isFinite(value) && value > 0 ? String(value) : '待补齐'
 }
 
 function PlanCell({

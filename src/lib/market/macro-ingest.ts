@@ -35,12 +35,14 @@ export type AdminMacroMarketIngestResponseBody =
         btcDominancePercent: number;
         fetchedAt: string;
         guardrail: string;
+        mode?: "cached";
         scope: string;
         snapshotId: string;
         source: MacroMarketSnapshot["source"];
         storage: PersistenceRepository["mode"];
         total2MarketCapUsd: number;
         total3MarketCapUsd: number;
+        warning?: string;
       };
       ok: true;
     }
@@ -74,6 +76,34 @@ function errorResponse(
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "unknown macro market ingest error";
+}
+
+function macroPayloadFromSnapshot({
+  mode,
+  scope,
+  snapshot,
+  storage,
+  warning,
+}: {
+  mode?: "cached";
+  scope: string;
+  snapshot: MacroMarketSnapshot;
+  storage: PersistenceRepository["mode"];
+  warning?: string;
+}): Extract<AdminMacroMarketIngestResponseBody, { ok: true }>["macro"] {
+  return {
+    btcDominancePercent: snapshot.btcDominancePercent,
+    fetchedAt: snapshot.fetchedAt,
+    guardrail: snapshot.guardrail,
+    ...(mode ? { mode } : {}),
+    scope,
+    snapshotId: snapshot.id,
+    source: snapshot.source,
+    storage,
+    total2MarketCapUsd: snapshot.total2MarketCapUsd,
+    total3MarketCapUsd: snapshot.total3MarketCapUsd,
+    ...(warning ? { warning } : {}),
+  };
 }
 
 export async function runMacroMarketIngest({
@@ -134,24 +164,37 @@ export async function runAdminMacroMarketIngest({
 
     return {
       body: {
-        macro: {
-          btcDominancePercent: result.snapshot.btcDominancePercent,
-          fetchedAt: result.snapshot.fetchedAt,
-          guardrail: result.snapshot.guardrail,
+        macro: macroPayloadFromSnapshot({
           scope: result.scope,
-          snapshotId: result.snapshot.id,
-          source: result.snapshot.source,
+          snapshot: result.snapshot,
           storage: result.storage,
-          total2MarketCapUsd: result.snapshot.total2MarketCapUsd,
-          total3MarketCapUsd: result.snapshot.total3MarketCapUsd,
-        },
+        }),
         ok: true,
       },
       status: 200,
     };
   } catch (error) {
+    const detail = errorMessage(error);
+    const cachedSnapshot = await repository.getLatestMacroMarketSnapshot().catch(() => null);
+
+    if (cachedSnapshot) {
+      return {
+        body: {
+          macro: macroPayloadFromSnapshot({
+            mode: "cached",
+            scope: repository.scope,
+            snapshot: cachedSnapshot,
+            storage: repository.mode,
+            warning: `macro ingest source unavailable; using cached snapshot: ${detail}`,
+          }),
+          ok: true,
+        },
+        status: 200,
+      };
+    }
+
     return errorResponse(500, {
-      detail: errorMessage(error),
+      detail,
       error: "macro_ingest_failed",
       ok: false,
     });

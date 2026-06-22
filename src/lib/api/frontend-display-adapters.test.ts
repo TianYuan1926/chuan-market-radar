@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resource } from "../data-status";
 import {
+  leaderboardRowsToTokens,
+  mergeTokensBySymbol,
   leaderboardRowsToCandidateSignals,
   radarSignalsToSignalCards,
   radarSignalsToSniperTargets,
@@ -59,6 +61,80 @@ test("empty mature signals still render candidate cards and tokens", () => {
   );
   assert.ok(cards.every((card) => card.category !== "sniper"));
   assert.ok(cards.every((card) => card.odds === 0));
+});
+
+test("leaderboard tokens use real row price and never metric value as price", () => {
+  const tokens = leaderboardRowsToTokens([
+    {
+      symbol: "BTC",
+      hue: 35,
+      value: 61_000_000_000,
+      price: 67_443.2,
+      inCandidatePool: true,
+      deepScanned: true,
+      hasSignal: false,
+      blocked: false,
+      awaitingScan: false,
+    },
+  ], "volume");
+
+  assert.equal(tokens[0]?.symbol, "BTC");
+  assert.equal(tokens[0]?.price, 67_443.2);
+  assert.equal(tokens[0]?.volume24h, 61_000_000_000);
+});
+
+test("leaderboard tokens do not fabricate prices when backend price is missing", () => {
+  const tokens = leaderboardRowsToTokens([
+    {
+      symbol: "BTC",
+      hue: 35,
+      value: 6.2,
+      price: 0,
+      inCandidatePool: true,
+      deepScanned: false,
+      hasSignal: false,
+      blocked: false,
+      awaitingScan: true,
+    },
+  ], "gainers");
+
+  assert.equal(tokens[0]?.price, 0);
+  assert.equal(tokens[0]?.change24h, 6.2);
+});
+
+test("merged tokens preserve real price and real change from different leaderboards", () => {
+  const gainers = leaderboardRowsToTokens([
+    {
+      symbol: "ETH",
+      hue: 210,
+      value: 4.5,
+      price: 0,
+      inCandidatePool: false,
+      deepScanned: false,
+      hasSignal: false,
+      blocked: false,
+      awaitingScan: true,
+    },
+  ], "gainers");
+  const volume = leaderboardRowsToTokens([
+    {
+      symbol: "ETH",
+      hue: 210,
+      value: 28_000_000_000,
+      price: 3_612.5,
+      inCandidatePool: true,
+      deepScanned: true,
+      hasSignal: false,
+      blocked: false,
+      awaitingScan: false,
+    },
+  ], "volume");
+
+  const [merged] = mergeTokensBySymbol(gainers, volume);
+
+  assert.equal(merged?.price, 3_612.5);
+  assert.equal(merged?.volume24h, 28_000_000_000);
+  assert.equal(merged?.change24h, 4.5);
 });
 
 test("leaderboard fallback does not create sniper targets", () => {

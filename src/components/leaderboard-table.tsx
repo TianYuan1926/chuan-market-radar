@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TokenAvatar } from './token-avatar'
 import { LiveQuotePrice, LiveQuotePct, LiveStat } from './live-value'
 import { fmtCap, type Token } from '@/lib/mock-data'
-import type { LiveQuote } from '@/lib/live-store'
+import { usePrimeLiveQuotes, type LiveQuote } from '@/lib/live-store'
 import { cn } from '@/lib/utils'
 
 type Tab = 'gainers' | 'losers'
@@ -23,6 +23,7 @@ const COLS: { key: keyof LiveQuote; label: string }[] = [
 export function LeaderboardTable({ tokens }: { tokens: Token[] }) {
   const [tab, setTab] = useState<Tab>('gainers')
   const [page, setPage] = useState(1)
+  usePrimeLiveQuotes(tokens)
 
   const sorted = useMemo(() => {
     return [...tokens].sort((a, b) =>

@@ -500,6 +500,110 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
   assert.equal(res.data.direction, "看多");
   assert.equal(res.data.riskGate.allowTradePlan, true);
   assert.equal(res.data.aiReview.note.includes("AI 仅对反证进行复核"), true);
+  assert.equal(res.data.structures.every((item) => item.support === 0 && item.resistance === 0), true);
+});
+
+test("buildFrontendTokenDossierContract maps real v3 key levels without fabricating missing levels", () => {
+  const dossier: SignalBackendDossier = {
+    found: true,
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    guardrails: ["report_is_translation_only"],
+    symbol: "TIAUSDT",
+    chart: {
+      availableTimeframes: ["1h"],
+      selectedTimeframe: "1h",
+      tradingView: {
+        interval: "1h",
+        symbol: "BINANCE:TIAUSDT.P",
+        url: "https://www.tradingview.com/chart/?symbol=BINANCE%3ATIAUSDT.P",
+      },
+    },
+    evidence: {
+      conflictingCount: 0,
+      items: signal().evidence,
+      neutralCount: 0,
+      supportiveCount: 2,
+      total: 3,
+    },
+    journal: {
+      recentEvents: [],
+      totalEvents: 0,
+    },
+    signal: {
+      confidence: 84,
+      direction: "long",
+      exchange: "BINANCE",
+      id: "sig-tia",
+      risk: "medium",
+      state: "near_trigger",
+      summary: "压缩突破",
+      timeframe: "1h",
+      updatedAt: "2026-06-21T08:00:00.000Z",
+    },
+    strategyV3: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 7.84,
+      forwardLevels: [],
+      guardrails: ["research_only"],
+      keyLevels: [
+        {
+          id: "tia-s1",
+          symbol: "TIAUSDT",
+          timeframe: "1h",
+          type: "RANGE_LOW",
+          zoneLow: 7.72,
+          zoneHigh: 7.82,
+          midPrice: 7.77,
+          direction: "SUPPORT",
+          keyScore: 80,
+          reactionScore: 55,
+          confluenceScore: 70,
+          status: "POTENTIAL",
+          reasons: ["箱体下沿"],
+          confirmationRules: ["回踩守住"],
+          invalidationRule: "跌破箱体",
+        },
+        {
+          id: "tia-r1",
+          symbol: "TIAUSDT",
+          timeframe: "1h",
+          type: "RANGE_HIGH",
+          zoneLow: 8.2,
+          zoneHigh: 8.32,
+          midPrice: 8.26,
+          direction: "RESISTANCE",
+          keyScore: 84,
+          reactionScore: 58,
+          confluenceScore: 72,
+          status: "POTENTIAL",
+          reasons: ["箱体上沿"],
+          confirmationRules: ["突破站稳"],
+          invalidationRule: "跌回箱体",
+        },
+      ],
+      primaryTimeframe: "1h",
+      source: "existing_ohlcv_key_level_mvp",
+      sourceTimeframes: ["1h"],
+      summary: "v3 关键位地图",
+      symbol: "TIAUSDT",
+    },
+  };
+
+  const res = buildFrontendTokenDossierContract({
+    dossier,
+    basePrice: 7.84,
+    now: new Date("2026-06-21T08:00:05.000Z"),
+  });
+
+  const oneHour = res.data.structures.find((item) => item.tf === "1h");
+  const fourHour = res.data.structures.find((item) => item.tf === "4h");
+
+  assert.equal(oneHour?.support, 7.77);
+  assert.equal(oneHour?.resistance, 8.26);
+  assert.equal(fourHour?.support, 0);
+  assert.equal(fourHour?.resistance, 0);
 });
 
 test("buildFrontendReviewContract returns review resources from journal and capability data", () => {

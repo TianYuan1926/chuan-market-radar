@@ -7,7 +7,7 @@ import {
   ExternalLink,
   ClipboardList,
 } from 'lucide-react'
-import { getTokenArchive, fmtUsd, type Token, type TokenArchive } from '@/lib/mock-data'
+import { fmtUsd, type Token, type TokenArchive } from '@/lib/mock-data'
 import type { Resource } from '@/lib/data-status'
 import type { TokenDossier } from '@/lib/radar-contract'
 import { cn } from '@/lib/utils'
@@ -24,15 +24,19 @@ const RISK_TONE: Record<string, string> = {
   极高: 'var(--down)',
 }
 
+function validLevel(value: number | undefined) {
+  return Number.isFinite(value) && value !== undefined && value > 0 ? value : 0
+}
+
 export function dossierToArchive(
   dossier: Resource<TokenDossier> | undefined,
-  token: Token,
 ): TokenArchive | null {
   const data = dossier?.data
   if (!data) return null
+  if (dossier?.status === 'empty' || data.evidence.length === 0) return null
   const mainStructure = data.structures.find((item) => item.tf === '4h') ?? data.structures[0]
-  const support = mainStructure?.support ?? token.price
-  const resistance = mainStructure?.resistance ?? token.price
+  const support = validLevel(mainStructure?.support)
+  const resistance = validLevel(mainStructure?.resistance)
   const invalidation = data.tradePlan
     ? Number(data.tradePlan.stop.match(/[\d.]+/)?.[0] ?? support)
     : support
@@ -58,7 +62,7 @@ export function dossierToArchive(
         ? [data.tradePlan.tp1, data.tradePlan.tp2, data.tradePlan.tp3].map((value) =>
             Number(value.match(/[\d.]+/)?.[0] ?? resistance),
           )
-        : [resistance],
+        : resistance > 0 ? [resistance] : [],
     },
     invalidation:
       data.tradePlan?.invalidation ??
@@ -82,7 +86,23 @@ export function SignalArchive({
   token: Token
   dossier?: Resource<TokenDossier>
 }) {
-  const a = dossierToArchive(dossier, token) ?? getTokenArchive(token)
+  const a = dossierToArchive(dossier)
+
+  if (!a) {
+    return (
+      <section className="sheet mt-5">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
+          <span className="h-3.5 w-1 bg-neon" />
+          <Crosshair className="size-4 text-neon" />
+          <h2 className="font-semibold">信号档案</h2>
+          <span className="ml-auto text-xs text-muted-foreground">等待后端证据链</span>
+        </div>
+        <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+          当前标的没有完整后端信号档案。系统不会用模拟证据、模拟关键位或模拟交易计划补位。
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="sheet mt-5">
@@ -283,7 +303,7 @@ function Level({
     <div className="bg-card px-4 py-3">
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-mono text-sm font-bold" style={{ color: tone }}>
-        ${fmtUsd(value)}
+        {value > 0 ? `$${fmtUsd(value)}` : '待补齐'}
       </div>
     </div>
   )

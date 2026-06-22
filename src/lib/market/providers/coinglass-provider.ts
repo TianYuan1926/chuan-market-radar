@@ -86,7 +86,7 @@ function anomalyInputFromMarketRow(
 ): MarketAnomalyInput {
   const ticker = mapCoinGlassTicker(row, updatedAt);
   const derivative = mapCoinGlassDerivativeSnapshot(row, updatedAt);
-  const volumeChange = row.volume_usd_change_percent_24h ?? row.volumeUsdChangePercent24h ?? 0;
+  const volumeChange = marketRowNumber(row.volume_usd_change_percent_24h, row.volumeUsdChangePercent24h);
   const directionBias = directionBiasFromChange(ticker.changePercent24h);
   const structureLocation = structureLocationFromTimeframeProfile(timeframeProfile, directionBias);
   const distanceToInvalidationPercent = distanceToInvalidationPercentFromStructure(structureLocation, timeframeProfile);
@@ -277,11 +277,28 @@ type CoinGlassPairsMarketFetch = {
 };
 
 function marketRowVolume(row: CoinGlassMarketRow) {
-  return row.volume_usd ?? row.volumeUsd ?? 0;
+  return marketRowNumber(row.volume_usd, row.volumeUsd);
 }
 
 function marketRowOpenInterest(row: CoinGlassMarketRow) {
-  return row.open_interest_usd ?? row.openInterestUsd ?? 0;
+  return marketRowNumber(row.open_interest_usd, row.openInterestUsd);
+}
+
+function marketRowNumber(...values: (number | string | undefined)[]) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(/,/g, "").trim());
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return 0;
 }
 
 function emptyQualityRejections(): Record<CoinGlassMarketRowRejectionReason, number> {

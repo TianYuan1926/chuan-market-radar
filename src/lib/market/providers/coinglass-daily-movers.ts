@@ -33,8 +33,21 @@ function firstString(...values: (string | undefined)[]) {
   return values.find((value) => typeof value === "string" && value.trim().length > 0) ?? "";
 }
 
-function firstNumber(...values: (number | undefined)[]) {
-  return values.find((value) => typeof value === "number" && Number.isFinite(value)) ?? 0;
+function firstNumber(...values: (number | string | undefined)[]) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(/,/g, "").trim());
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return 0;
 }
 
 function dayKey(value: string) {

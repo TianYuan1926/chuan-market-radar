@@ -334,13 +334,18 @@ test("token detail page can render backend radar symbols without relying only on
 
   assert.match(tokenPageSource, /getRadarContractForPage/);
   assert.match(tokenPageSource, /getLeaderboardContractForPage/);
+  assert.match(tokenPageSource, /getAllLeaderboardContractsForPage/);
   assert.match(tokenPageSource, /radarSignalsToTokens/);
+  assert.match(tokenPageSource, /leaderboardRowsToTokens/);
+  assert.match(tokenPageSource, /mergeTokensBySymbol/);
   assert.match(tokenPageSource, /radarSignalsToFeedSignals/);
-  assert.match(tokenPageSource, /const backendToken = radarSignalsToTokens\(radar\.radarSignals\.data,\s*tickerRows\)\.find/);
-  assert.match(tokenPageSource, /const token = backendToken \?\? getToken\(id\)/);
+  assert.match(tokenPageSource, /const backendTokens = mergeTokensBySymbol/);
+  assert.match(tokenPageSource, /const token = backendTokens\.find/);
+  assert.match(tokenPageSource, /if \(!token\) notFound\(\)/);
   assert.match(tokenPageSource, /const backendSignals = radarSignalsToFeedSignals\(radar\.radarSignals\.data,\s*token\.symbol\)/);
   assert.match(tokenPageSource, /backendSignals\.length === 0/);
   assert.match(tokenPageSource, /当前没有该标的的后端异动追踪记录/);
+  assert.doesNotMatch(tokenPageSource, /getToken\(id\)/);
   assert.doesNotMatch(tokenPageSource, /getSignals/);
   assert.doesNotMatch(tokenPageSource, /数据均为模拟演示/);
 });
@@ -377,7 +382,7 @@ test("stage 8 global ticker bars can receive backend-derived tokens", () => {
   assert.doesNotMatch(leaderboardSource, /数据均为模拟演示/);
 });
 
-test("stage 8 token signal archive prefers backend dossier before mock fallback", () => {
+test("stage 8 token signal archive uses backend dossier and honest empty state instead of mock fallback", () => {
   const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
   const signalArchiveSource = readFileSync(resolve(process.cwd(), "src/components/signal-archive.tsx"), "utf8");
 
@@ -389,8 +394,9 @@ test("stage 8 token signal archive prefers backend dossier before mock fallback"
   assert.match(signalArchiveSource, /dossier\?:\s*Resource<TokenDossier>/);
   assert.match(signalArchiveSource, /dossierToArchive/);
   assert.match(signalArchiveSource, /dossier\?\.data/);
-  assert.match(signalArchiveSource, /dossierToArchive\(dossier,\s*token\)\s*\?\?\s*getTokenArchive\(token\)/);
+  assert.match(signalArchiveSource, /系统不会用模拟证据、模拟关键位或模拟交易计划补位/);
   assert.match(signalArchiveSource, /后端结构化研究输出/);
+  assert.doesNotMatch(signalArchiveSource, /getTokenArchive/);
   assert.doesNotMatch(signalArchiveSource, /系统模拟推演/);
 });
 

@@ -113,6 +113,32 @@ test("mapCoinGlass market rows into ticker, derivative, and instrument records",
   assert.equal(mapCoinGlassMarketInstrument(row, updatedAt)?.volume24hUsd, 318_000_000);
 });
 
+test("mapCoinGlass market rows accepts numeric strings from API payloads", () => {
+  const row = {
+    instrument_id: "BTCUSDT",
+    exchange_name: "Binance",
+    symbol: "BTC/USDT",
+    current_price: "67,443.2",
+    price_change_percent_24h: "-1.8",
+    volume_usd: "31800000000",
+    open_interest_usd: "12000000000",
+    open_interest_change_percent_24h: "7.1",
+    funding_rate: "0.00024",
+    long_liquidation_usd_24h: "1100000",
+    short_liquidation_usd_24h: "800000",
+  };
+
+  const ticker = mapCoinGlassTicker(row, updatedAt);
+  const derivatives = mapCoinGlassDerivativeSnapshot(row, updatedAt);
+
+  assert.equal(ticker.price, 67_443.2);
+  assert.equal(ticker.changePercent24h, -1.8);
+  assert.equal(ticker.volume24hUsd, 31_800_000_000);
+  assert.equal(derivatives.openInterestUsd, 12_000_000_000);
+  assert.equal(derivatives.fundingRate, 0.00024);
+  assert.equal(derivatives.liquidationUsd24h, 1_900_000);
+});
+
 test("mapCoinGlassHeatCell does not treat liquidation amount as an anomaly-score input", () => {
   const quietRow = {
     instrument_id: "TIAUSDT",

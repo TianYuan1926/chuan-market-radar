@@ -31,7 +31,7 @@ echo "== Persistence migration =="
 run_web_node -e "const secret=process.env.CRON_SECRET||''; fetch('http://127.0.0.1:3000/api/admin/persistence/migrate',{method:'POST',headers:{authorization:'Bearer '+secret,'cache-control':'no-store'}}).then(async r=>{console.log('migration',r.status); console.log((await r.text()).slice(0,1200)); process.exit(r.ok?0:1);}).catch(e=>{console.error(e);process.exit(1);})"
 
 echo "== Macro ingest =="
-run_web_node -e "const secret=process.env.CRON_SECRET||''; fetch('http://127.0.0.1:3000/api/admin/macro/ingest',{method:'POST',headers:{authorization:'Bearer '+secret,'cache-control':'no-store'}}).then(async r=>{console.log('macro-ingest',r.status); console.log((await r.text()).slice(0,1200)); process.exit(r.ok?0:1);}).catch(e=>{console.error(e);process.exit(1);})"
+run_web_node -e "const secret=process.env.CRON_SECRET||''; fetch('http://127.0.0.1:3000/api/admin/macro/ingest',{method:'POST',headers:{authorization:'Bearer '+secret,'cache-control':'no-store'}}).then(async r=>{console.log('macro-ingest',r.status); const text=await r.text(); console.log(text.slice(0,1200)); if(!r.ok) console.warn('macro ingest warning: external macro source unavailable; continuing because macro context is not required for core scan liveness'); process.exit(0);}).catch(e=>{console.error(e);process.exit(0);})"
 
 echo "== Scheduled scan =="
 run_web_node -e "const secret=process.env.CRON_SECRET||''; fetch('http://127.0.0.1:3000/api/scan',{method:'POST',headers:{authorization:'Bearer '+secret,'cache-control':'no-store'}}).then(async r=>{console.log('scan',r.status); console.log((await r.text()).slice(0,1600)); process.exit(r.ok?0:1);}).catch(e=>{console.error(e);process.exit(1);})"

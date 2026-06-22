@@ -111,3 +111,37 @@ test("runAdminMacroMarketIngest returns a compact success payload after storing 
     },
   });
 });
+
+test("runAdminMacroMarketIngest reuses cached macro context when the source is temporarily unavailable", async () => {
+  const repository = createMemoryPersistenceRepository();
+  await repository.addMacroMarketSnapshot({
+    allowedUse: "macro_context_only",
+    btcDominancePercent: 53,
+    canCreateTradeSignal: false,
+    ethDominancePercent: 9.5,
+    fetchedAt: "2026-06-21T00:00:00.000Z",
+    guardrail: "不能直接生成交易方向",
+    id: "macro-cached",
+    source: "coingecko_global",
+    total2MarketCapUsd: 1_400_000_000_000,
+    total3MarketCapUsd: 1_100_000_000_000,
+    totalMarketCapChangePercent24h: -0.4,
+    totalMarketCapUsd: 2_900_000_000_000,
+    updatedAt: "2026-06-21T00:00:00.000Z",
+  });
+
+  const result = await runAdminMacroMarketIngest({
+    authorization: "Bearer secret",
+    env: { CRON_SECRET: "secret" },
+    ingest: async () => {
+      throw new Error("CoinGecko global macro request failed with HTTP 502");
+    },
+    repository,
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+  assert.equal(result.body.macro.snapshotId, "macro-cached");
+  assert.equal(result.body.macro.mode, "cached");
+  assert.match(result.body.macro.warning ?? "", /HTTP 502/);
+});
