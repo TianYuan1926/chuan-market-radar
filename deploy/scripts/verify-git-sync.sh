@@ -16,45 +16,63 @@ fi
 local_head="$(git rev-parse HEAD)"
 remote_head=""
 last_remote_error=""
-remote_timeout_seconds="${GIT_REMOTE_TIMEOUT_SECONDS:-25}"
+remote_attempts="${GIT_REMOTE_ATTEMPTS:-2}"
+remote_timeout_seconds="${GIT_REMOTE_TIMEOUT_SECONDS:-15}"
 
 run_git_ls_remote() {
-  local output_file status_file pid waited status
-  output_file="$(mktemp)"
-  status_file="$(mktemp)"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "${remote_timeout_seconds}" "${REMOTE_NAME}" "${REMOTE_BRANCH}" <<'PY'
+import os
+import subprocess
+import sys
 
-  (
-    GIT_TERMINAL_PROMPT=0 git \
-      -c http.version="${GIT_HTTP_VERSION:-HTTP/1.1}" \
-      -c http.lowSpeedLimit=1 \
-      -c http.lowSpeedTime="${GIT_LOW_SPEED_TIME:-20}" \
-      ls-remote "${REMOTE_NAME}" "refs/heads/${REMOTE_BRANCH}" >"${output_file}" 2>&1
-    echo "$?" >"${status_file}"
-  ) &
-  pid="$!"
-  waited=0
+timeout = int(sys.argv[1])
+remote = sys.argv[2]
+branch = sys.argv[3]
+env = os.environ.copy()
+env["GIT_TERMINAL_PROMPT"] = "0"
+cmd = [
+    "git",
+    "-c",
+    f"http.version={env.get('GIT_HTTP_VERSION', 'HTTP/1.1')}",
+    "-c",
+    "http.lowSpeedLimit=1",
+    "-c",
+    f"http.lowSpeedTime={env.get('GIT_LOW_SPEED_TIME', '20')}",
+    "ls-remote",
+    remote,
+    f"refs/heads/{branch}",
+]
 
-  while kill -0 "${pid}" >/dev/null 2>&1; do
-    if (( waited >= remote_timeout_seconds )); then
-      kill "${pid}" >/dev/null 2>&1 || true
-      wait "${pid}" >/dev/null 2>&1 || true
-      echo "git ls-remote timed out after ${remote_timeout_seconds}s"
-      cat "${output_file}"
-      rm -f "${output_file}" "${status_file}"
-      return 124
-    fi
-    sleep 1
-    waited=$((waited + 1))
-  done
+try:
+    result = subprocess.run(
+        cmd,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+        check=False,
+    )
+except subprocess.TimeoutExpired:
+    print(f"git ls-remote timed out after {timeout}s", file=sys.stderr)
+    raise SystemExit(124)
 
-  wait "${pid}" >/dev/null 2>&1 || true
-  status="$(cat "${status_file}" 2>/dev/null || echo 1)"
-  cat "${output_file}"
-  rm -f "${output_file}" "${status_file}"
-  return "${status}"
+sys.stdout.write(result.stdout)
+sys.stderr.write(result.stderr)
+raise SystemExit(result.returncode)
+PY
+    return "$?"
+  fi
+
+  GIT_TERMINAL_PROMPT=0 git \
+    -c http.version="${GIT_HTTP_VERSION:-HTTP/1.1}" \
+    -c http.lowSpeedLimit=1 \
+    -c http.lowSpeedTime="${GIT_LOW_SPEED_TIME:-20}" \
+    ls-remote "${REMOTE_NAME}" "refs/heads/${REMOTE_BRANCH}"
 }
 
-for attempt in 1 2 3; do
+for (( attempt = 1; attempt <= remote_attempts; attempt++ )); do
   if remote_output="$(run_git_ls_remote)"; then
     remote_head="$(awk '{print $1}' <<< "${remote_output}")"
     break
