@@ -1,14 +1,22 @@
-# 当前临时施工方案：前端 UI 与后端真实数据对接
+# 当前施工方案：前端 UI 与后端真实数据全量对接
 
-> 状态：临时生效。  
-> 生效范围：只约束本轮“现有后端数据对接到已完成前端 UI”的搭建。  
-> 取消条件：本轮对接完成、通过本地验证和部署验证后，本方案自动作废，不再约束后续新阶段。
+> 状态：生效中。
+> 生效范围：约束“后端真实数据接入当前 v0 前端 UI”的全部搭建。
+> 详细字段地图：见 `docs/frontend-backend-field-map.md`。
+> 取消条件：全部活跃页面不再依赖 mock/伪实时/本地假样本展示市场事实，并完成本地与生产验证。
 
 ## 核心目标
 
 把现有后端真实数据完整接入当前已恢复的前端 UI。
 
 本轮不做前端重设计，不做业务能力扩展，不改变交易分析逻辑。
+
+当前已经完成的基础：
+
+- 活跃页面已通过 `src/lib/frontend-contract-server.ts` 读取前端专用后端合同。
+- 已落地四个前端只读合同接口：`/api/frontend/radar-contract`、`/api/frontend/leaderboard`、`/api/frontend/token-dossier`、`/api/frontend/review-contract`。
+- 已切断活跃页面上的随机信号、随机行情、假交易日记和 mock 补位。
+- 未接真实数据的区域必须显示真实空状态或 partial 状态，不能用 mock 填满。
 
 ## 总原则
 
@@ -54,6 +62,13 @@ restore frontend source from user ui package
 前端字段 -> 后端已有来源 -> mapper 转换方式 -> 空状态规则
 ```
 
+当前审计基线：
+
+- 详见 `docs/frontend-backend-field-map.md`。
+- 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链。
+- 半接：复盘样本统计、API 用量、Redis/worker 探针、数据源延迟、AI 复审。
+- 未接：真实 K 线 OHLCV、主力资金流、SSE/WebSocket 前端实时推送、JournalLauncher 数据库读写、宠物/彩蛋跨设备持久化、真实登录鉴权。
+
 ## 阶段 2：后端接口对齐
 
 优先使用已有后端接口，不乱加新接口。
@@ -69,6 +84,13 @@ restore frontend source from user ui package
 
 如果字段不够，只补只读字段，不改 UI。
 
+下一批需要补强的只读合同：
+
+- `/api/frontend/kline-contract?symbol=...&tf=...`：给 Token 详情页真实 K 线。
+- `/api/frontend/journal-contract`：给交易日记抽屉读取/写入真实 Postgres 日记。
+- `/api/frontend/system-contract` 或扩展 radar contract：暴露 Redis、worker heartbeat、API 日内计数和数据源延迟。
+- `/api/frontend/live-events`：SSE/WebSocket 事件流，后续让前端动起来。
+
 ## 阶段 3：统一 mapper 层
 
 后端数据和前端字段不一致时，只在中间转换。
@@ -81,6 +103,13 @@ restore frontend source from user ui package
 - 单币证据链 -> 代币详情
 - 扫描归档 -> 复盘中心
 - 健康状态 -> 系统页
+
+mapper 硬规则：
+
+- 前端字段名保持不变。
+- 交易结论、方向、RR、Risk Gate、成熟度和证据链只能来自后端合同或后端 mapper。
+- 榜单候选可以用于展示“候选/等待验证”，不能在前端升级成交易计划。
+- Token 详情不得用前端价格推导伪造完整交易计划；精确交易计划必须来自 `strategyV3.tradePlan`，缺失或被阻断时显示无交易计划。
 
 ## 阶段 4：逐页对接
 
@@ -139,6 +168,19 @@ restore frontend source from user ui package
 - 可以保留给开发预览。
 - 真实页面不能默认读它们。
 - 没有数据时显示空状态，不 fallback 到假数据。
+
+当前保留原因：
+
+- `mock-data.ts` 仍提供部分 UI 类型和格式化函数，后续要逐步拆出纯类型/格式化文件。
+- `sniper-data.ts` 仍提供类型和文案 helper，不能作为活跃数据源。
+- `journal-store.ts`、`pet-store.ts`、`egg-store.ts` 属于本地 UI 状态，后续需要按优先级迁到后端持久化。
+
+下一步清理顺序：
+
+1. 把格式化函数从 `mock-data.ts` 拆到纯工具文件。
+2. 把 Sniper 类型从 `sniper-data.ts` 拆到 contract/display 类型文件。
+3. 把 JournalLauncher 改为 API-backed，再保留 localStorage 作为草稿缓存。
+4. 最后再决定是否删除 legacy mock 文件。
 
 ## 阶段 6：真实空状态验收
 
@@ -205,4 +247,3 @@ npm run build
 后端不脱钩；
 UI 保持用户提供的设计。
 ```
-

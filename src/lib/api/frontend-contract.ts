@@ -5,9 +5,8 @@ import type {
   RiskGrade,
   SignalDirection,
   SignalMaturityStage,
-  StrategyPlan,
 } from "../analysis/types";
-import type { KeyLevel } from "../analysis/v3/types";
+import type { KeyLevel, StrategyV3TradePlan } from "../analysis/v3/types";
 import type { SignalBackendDossier } from "../market/signal-backend-dossier";
 import type {
   DerivativeSnapshot,
@@ -451,16 +450,6 @@ function tokenDirectionCn(direction: SignalDirection | undefined): TokenDossier[
     return "看空";
   }
   return "中性";
-}
-
-function biasCn(bias: StrategyPlan["bias"] | undefined): TradePlanData["bias"] {
-  if (bias === "long") {
-    return "多";
-  }
-  if (bias === "short") {
-    return "空";
-  }
-  return "观望";
 }
 
 function riskCn(risk: RiskGrade | undefined): RadarSignal["risk"] {
@@ -1015,30 +1004,58 @@ function structureFromDossier(dossier: SignalBackendDossier, basePrice: number):
   });
 }
 
-function tradePlanFromSignal(signal: SignalBackendDossier["signal"]): TradePlanData | null {
-  if (!signal) {
-    return null;
+function priceText(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return "等待目标位";
   }
-  return null;
+
+  return value >= 100 ? value.toFixed(2) : value.toFixed(6).replace(/0+$/u, "").replace(/\.$/u, "");
 }
 
-function tradePlanFromStrategy(strategy: StrategyPlan | undefined): TradePlanData | null {
-  if (!strategy || strategy.status === "blocked" || strategy.riskReward < 3) {
+function tradePlanFromV3(plan: StrategyV3TradePlan | undefined): TradePlanData | null {
+  if (!plan || !plan.isPlanEligible || plan.rewardRisk === null || plan.rewardRisk < 3) {
+    return null;
+  }
+
+  if (plan.status !== "READY_LONG" && plan.status !== "READY_SHORT") {
     return null;
   }
 
   return {
-    bias: biasCn(strategy.bias),
-    entryCondition: strategy.entry,
-    stop: strategy.stopLoss ?? strategy.invalidation,
-    tp1: strategy.targets[0] ?? "等待目标位",
-    tp2: strategy.targets[1] ?? strategy.targets[0] ?? "等待目标位",
-    tp3: strategy.targets[2] ?? strategy.targets.at(-1) ?? "等待目标位",
-    rr: round(strategy.riskReward, 2),
-    scaleOut: strategy.takeProfitPlan ?? "TP1/TP2/TP3 分批管理",
-    invalidation: strategy.invalidation,
-    allowChase: strategy.noChase === true ? false : false,
+    bias: plan.direction === "long" ? "多" : plan.direction === "short" ? "空" : "观望",
+    entryCondition: plan.entryZone,
+    stop: plan.structuralStop === null
+      ? plan.invalidation
+      : `${priceText(plan.structuralStop)}；${plan.invalidation}`,
+    tp1: priceText(plan.targets[0]),
+    tp2: priceText(plan.targets[1] ?? plan.targets[0]),
+    tp3: priceText(plan.targets[2] ?? plan.targets.at(-1) ?? plan.targets[0]),
+    rr: round(plan.rewardRisk, 2),
+    scaleOut: plan.takeProfitPlan,
+    invalidation: plan.invalidation,
+    allowChase: false,
   };
+}
+
+function v3TradePlanBlockers(plan: StrategyV3TradePlan | undefined) {
+  if (!plan) {
+    return ["等待后端结构化交易计划"];
+  }
+
+  if (plan.isPlanEligible && plan.rewardRisk !== null && plan.rewardRisk >= 3 && (
+    plan.status === "READY_LONG" || plan.status === "READY_SHORT"
+  )) {
+    return [];
+  }
+
+  return [
+    ...plan.blockedBy,
+    plan.rewardRisk !== null && plan.rewardRisk < 3 ? `RR ${round(plan.rewardRisk, 2)} 低于最低 3:1 门槛` : null,
+    plan.status === "WAIT_PULLBACK" ? "等待回踩确认" : null,
+    plan.status === "WAIT_RETEST" ? "等待反抽确认" : null,
+    plan.status === "WATCH_ONLY" ? "只观察，不生成交易计划" : null,
+    plan.summary,
+  ].filter((item): item is string => Boolean(item));
 }
 
 export function buildFrontendTokenDossierContract({
@@ -1051,18 +1068,7 @@ export function buildFrontendTokenDossierContract({
   now?: Date;
 }): Resource<TokenDossier> {
   const signal = dossier.signal;
-  const syntheticStrategy: StrategyPlan | undefined = signal
-    ? {
-      bias: signal.direction,
-      entry: signal.summary,
-      invalidation: "结构失效或高周期门控不再允许",
-      targets: [],
-      riskReward: 3,
-      positionHint: "等待确认",
-      status: "waiting",
-    }
-    : undefined;
-  const blockedReasons = signal
+  const hardBlockedReasons = signal
     ? [
       ...(signal.risk === "blocked" ? ["Risk Gate 拦截"] : []),
       ...(signal.timeframeGate && !signal.timeframeGate.allowed ? [signal.timeframeGate.summary] : []),
@@ -1070,12 +1076,23 @@ export function buildFrontendTokenDossierContract({
     : ["后端没有找到该币种的成熟信号"];
   const evidence = dossier.evidence.items.filter((item) => item.polarity === "supportive");
   const counter = dossier.evidence.items.filter((item) => item.polarity === "conflicting" || item.polarity === "blocking");
-  const tradePlan = tradePlanFromStrategy(signal?.id ? syntheticStrategy : undefined) ?? tradePlanFromSignal(signal);
+  const v3Plan = dossier.strategyV3?.tradePlan;
+  const tradePlan = tradePlanFromV3(v3Plan);
+  const blockedReasons = [
+    ...hardBlockedReasons,
+    ...(signal ? v3TradePlanBlockers(v3Plan) : []),
+  ];
 
   return resource({
     symbol: displaySymbol(dossier.symbol),
     direction: tokenDirectionCn(signal?.direction),
-    maturity: signal ? (blockedReasons.length > 0 ? "BLOCKED" : "EVIDENCE_SIGNAL") : "INVALIDATED",
+    maturity: signal
+      ? hardBlockedReasons.length > 0 || v3Plan?.status === "BLOCKED"
+        ? "BLOCKED"
+        : tradePlan
+          ? "TRADE_PLAN_READY"
+          : "EVIDENCE_SIGNAL"
+      : "INVALIDATED",
     structures: structureFromDossier(dossier, basePrice),
     evidence: evidence.map((item) => ({
       kind: evidenceKind(item.layer),
@@ -1090,8 +1107,8 @@ export function buildFrontendTokenDossierContract({
       detail: item.value,
     })),
     riskGate: {
-      allowTradePlan: blockedReasons.length === 0,
-      reasons: blockedReasons,
+      allowTradePlan: tradePlan !== null,
+      reasons: tradePlan ? [] : blockedReasons,
     },
     tradePlan,
     aiReview: {

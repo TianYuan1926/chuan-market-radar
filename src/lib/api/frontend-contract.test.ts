@@ -498,7 +498,10 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
   assert.equal(res.status, "live");
   assert.equal(res.data.symbol, "TIA");
   assert.equal(res.data.direction, "看多");
-  assert.equal(res.data.riskGate.allowTradePlan, true);
+  assert.equal(res.data.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(res.data.tradePlan, null);
+  assert.equal(res.data.riskGate.allowTradePlan, false);
+  assert.match(res.data.riskGate.reasons.join("；"), /等待后端结构化交易计划/);
   assert.equal(res.data.aiReview.note.includes("AI 仅对反证进行复核"), true);
   assert.equal(res.data.structures.every((item) => item.support === 0 && item.resistance === 0), true);
 });
@@ -604,6 +607,98 @@ test("buildFrontendTokenDossierContract maps real v3 key levels without fabricat
   assert.equal(oneHour?.resistance, 8.26);
   assert.equal(fourHour?.support, 0);
   assert.equal(fourHour?.resistance, 0);
+});
+
+test("buildFrontendTokenDossierContract maps backend v3 trade plan without frontend fabrication", () => {
+  const dossier: SignalBackendDossier = {
+    found: true,
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    guardrails: ["report_is_translation_only"],
+    symbol: "TIAUSDT",
+    chart: {
+      availableTimeframes: ["1h"],
+      selectedTimeframe: "1h",
+      tradingView: {
+        interval: "1h",
+        symbol: "BINANCE:TIAUSDT.P",
+        url: "https://www.tradingview.com/chart/?symbol=BINANCE%3ATIAUSDT.P",
+      },
+    },
+    evidence: {
+      conflictingCount: 0,
+      items: signal().evidence,
+      neutralCount: 0,
+      supportiveCount: 2,
+      total: 3,
+    },
+    journal: {
+      recentEvents: [],
+      totalEvents: 0,
+    },
+    signal: {
+      confidence: 84,
+      direction: "long",
+      exchange: "BINANCE",
+      id: "sig-tia",
+      risk: "medium",
+      state: "near_trigger",
+      summary: "压缩突破",
+      timeframe: "1h",
+      updatedAt: "2026-06-21T08:00:00.000Z",
+    },
+    strategyV3: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 7.84,
+      forwardLevels: [],
+      guardrails: ["research_only"],
+      keyLevels: [],
+      primaryTimeframe: "1h",
+      source: "existing_ohlcv_key_level_mvp",
+      sourceTimeframes: ["1h"],
+      summary: "v3 关键位地图",
+      symbol: "TIAUSDT",
+      tradePlan: {
+        allowedUse: "research_only",
+        blockedBy: [],
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        confirmationChecklist: ["突破 8.28", "回踩不破 8.20"],
+        direction: "long",
+        entryZone: "8.20 - 8.28",
+        hasAutoExecution: false,
+        invalidation: "1h 跌回 7.76",
+        isPlanEligible: true,
+        manualReviewRequired: true,
+        positionSizing: "轻仓确认",
+        rewardRisk: 3.4,
+        status: "READY_LONG",
+        structuralStop: 7.76,
+        summary: "等待突破确认",
+        takeProfitPlan: "TP1 减仓，TP2 锁定本金，TP3 趋势仓管理",
+        targets: [8.6, 9.15, 10.2],
+      },
+    },
+  };
+
+  const res = buildFrontendTokenDossierContract({
+    dossier,
+    basePrice: 7.84,
+    now: new Date("2026-06-21T08:00:05.000Z"),
+  });
+
+  assert.equal(res.data.maturity, "TRADE_PLAN_READY");
+  assert.equal(res.data.riskGate.allowTradePlan, true);
+  assert.deepEqual(res.data.riskGate.reasons, []);
+  assert.equal(res.data.tradePlan?.bias, "多");
+  assert.equal(res.data.tradePlan?.entryCondition, "8.20 - 8.28");
+  assert.match(res.data.tradePlan?.stop ?? "", /7\.76/);
+  assert.equal(res.data.tradePlan?.tp1, "8.6");
+  assert.equal(res.data.tradePlan?.tp2, "9.15");
+  assert.equal(res.data.tradePlan?.tp3, "10.2");
+  assert.equal(res.data.tradePlan?.rr, 3.4);
+  assert.equal(res.data.tradePlan?.allowChase, false);
 });
 
 test("buildFrontendReviewContract returns review resources from journal and capability data", () => {

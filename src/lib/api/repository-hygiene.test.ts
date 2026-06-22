@@ -405,6 +405,41 @@ test("frontend data truth contract blocks active mock market facts", () => {
   assert.doesNotMatch(anomalyBoardSource, /AI 模拟推演/);
 });
 
+test("frontend backend field map records current wiring gaps before refinement", () => {
+  const fieldMapPath = "docs/frontend-backend-field-map.md";
+  const integrationPlanPath = "docs/current-frontend-backend-integration-plan.md";
+  const fieldMap = readFileSync(resolve(process.cwd(), fieldMapPath), "utf8");
+  const integrationPlan = readFileSync(resolve(process.cwd(), integrationPlanPath), "utf8");
+
+  assert.match(fieldMap, /Frontend Backend Field Map/);
+  assert.match(fieldMap, /v0 frontend UI is the visual source of truth/);
+  assert.match(fieldMap, /\/api\/frontend\/radar-contract/);
+  assert.match(fieldMap, /\/api\/frontend\/leaderboard\?kind=\.\.\./);
+  assert.match(fieldMap, /\/api\/frontend\/token-dossier\?symbol=\.\.\./);
+  assert.match(fieldMap, /\/api\/frontend\/review-contract/);
+
+  assert.match(fieldMap, /Radar Contract Field Map/);
+  assert.match(fieldMap, /Leaderboard Contract Field Map/);
+  assert.match(fieldMap, /Token Dossier Field Map/);
+  assert.match(fieldMap, /Review Contract Field Map/);
+  assert.match(fieldMap, /System Data Gaps/);
+
+  assert.match(fieldMap, /Real OHLCV contract/);
+  assert.match(fieldMap, /strategyV3\.tradePlan/);
+  assert.match(fieldMap, /missing or blocked plans render no trade plan/);
+  assert.match(fieldMap, /Journal launcher read\/write through Postgres/);
+  assert.match(fieldMap, /Redis health probe and worker heartbeat probe/);
+  assert.match(fieldMap, /SSE\/WebSocket frontend event stream/);
+  assert.match(fieldMap, /Real AI review adapter/);
+
+  assert.match(integrationPlan, /docs\/frontend-backend-field-map\.md/);
+  assert.match(integrationPlan, /当前已经完成的基础/);
+  assert.match(integrationPlan, /下一批需要补强的只读合同/);
+  assert.match(integrationPlan, /\/api\/frontend\/kline-contract/);
+  assert.match(integrationPlan, /\/api\/frontend\/journal-contract/);
+  assert.match(integrationPlan, /\/api\/frontend\/live-events/);
+});
+
 test("stage 8 global ticker bars can receive backend-derived tokens", () => {
   const priceTickerSource = readFileSync(resolve(process.cwd(), "src/components/price-ticker.tsx"), "utf8");
   const sessionBarSource = readFileSync(resolve(process.cwd(), "src/components/session-bar.tsx"), "utf8");
