@@ -194,6 +194,9 @@
 - `/api/health` 的 `health.macroMarket` 必须显示 `status`、`source`、`ageMinutes`、`btcDominancePercent`、`total2MarketCapUsd`、`total3MarketCapUsd` 和 “不能直接生成交易方向” 边界。
 - `bash deploy/scripts/production-verify.sh` 应在服务器上通过；本地没有 Docker 时不能用本地结果替代服务器验收。
 - `bash deploy/scripts/production-full-verify.sh` 应在服务器上通过；它会统一检查 compose、迁移、health、frontend contracts、只读事件、UI state、扫描触发、worker 日志和备份 dry run。
+- `npm run production:ssh-check` 应能从本机连通腾讯云 SSH，并确认远端项目目录和 Git 提交；不通时优先修 SSH，不把 OrcaTerm 手工复制当长期部署方案。
+- `npm run production:deploy` 是本机到腾讯云生产的标准发布入口：本地 GitHub 同步检查、SSH 预检、服务器 `git pull --ff-only`、Docker Compose 重建、内部 health、公网 smoke。
+- `npm run production:smoke` 应能检查公网页面、`/api/health`、前端 radar contract、leaderboard、review contract 和 backend contract；如果只页面 200 但合同为空，不能算完成。
 - `bash deploy/scripts/backup-postgres.sh` 应能生成 PostgreSQL 备份；恢复必须用 `CONFIRM_RESTORE=yes bash deploy/scripts/restore-postgres.sh <backup-file>`，避免误覆盖。
 - `bash deploy/scripts/production-observe.sh` 应能打印服务状态、健康摘要、backend contract 摘要和 worker 日志，不打印任何 secret。
 - 系统状态面板的人工权重变更执行记录入口必须显示“只保存记录/不可写权重”边界；没有可审计候选时表单保持禁用。

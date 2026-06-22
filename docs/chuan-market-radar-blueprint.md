@@ -554,6 +554,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - **腾讯服务器禁止直接改业务代码**：不能把服务器当开发机。服务器上临时改代码会造成 GitHub、服务器和本地三方不一致，后续 `git pull` 可能覆盖或混乱。
 - **紧急修复例外**：如果必须在服务器临时修复生产故障，修完后必须立刻把同样改动同步回本地/GitHub，并记录原因和回滚点。
 - **本地验证先行**：至少按改动类型运行 `npm run typecheck`、`npm run test:market`、`npm run lint`、`npm run build` 中对应项；扫描、数据库、Worker 或 Docker 改动还必须补服务器健康检查。
+- **SSH 优先、OrcaTerm 兜底**：生产部署必须优先使用本机 SSH 和自动化脚本。OrcaTerm 只能作为 SSH 不通时的临时兜底，不能作为长期部署主流程。
+- **一键脚本优先**：腾讯云发布默认使用 `npm run production:deploy`；只检查 SSH 使用 `npm run production:ssh-check`；只做公网验收使用 `npm run production:smoke`。
 - **服务器发布命令固定**：
   ```bash
   cd /home/ubuntu/apps/chuan-market-radar
@@ -564,6 +566,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
   ```
 - **提交一致性检查**：服务器发布后必须确认服务器 `git rev-parse HEAD` 与 GitHub `origin/main` 提交号一致；不一致不能说“已同步”。
 - **部署验收不只看容器启动**：必须看 `web` 是否 healthy、Postgres/Redis 是否 healthy、Worker 是否持续运行、`/api/health` 是否 ready、前端合同接口是否能读到后端数据。
+- **公网验收必须查业务合同**：生产验收必须至少检查 `/api/health`、`/api/frontend/radar-contract`、`/api/frontend/leaderboard?kind=volume`、`/api/frontend/review-contract` 和 `/api/radar/backend-contract`。如果页面能打开但 contract 空、榜单空、深扫状态不可信，不能说部署完成。
 - **回滚路径**：生产发布失败时，优先回到上一个已知可用 Git 提交并重建容器；不得在服务器上边猜边改。
 
 ## 沟通规则
@@ -1220,7 +1223,7 @@ CoinGlass 业余会员 API：
 - PostgreSQL 通过 `DATABASE_DRIVER=postgres` 和 `DATABASE_URL` 接入；Neon adapter 保留作为旧线上回滚路径。
 - Redis 通过 `REDIS_URL` 接入主扫描锁和 CoinGlass 分钟级令牌桶；完整 Redis 队列调度仍是后续项，不能提前宣称完成。
 - 后续单机生产目标需要把 Worker 从“调用受保护 API”逐步升级为“直接调用内部服务 + Redis 调度 + Postgres 审计”，但每次拆分必须保证同一套 Evidence / Risk Gate / Repository 合同，不允许复制一套平行逻辑。
-- 部署自动化优先级提升：需要补齐生产诊断、自动拉取、构建、迁移、健康检查、失败回滚和日志打包脚本，减少 OrcaTerm 手动步骤。
+- 部署自动化优先级提升：已补齐基础远程部署、SSH 检查和公网 smoke 脚本；后续继续补失败回滚、日志打包和更细的数据合同诊断，减少 OrcaTerm 手动步骤。
 
 ## Vercel / Neon 旧回滚原则
 

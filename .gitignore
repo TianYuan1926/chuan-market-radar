@@ -34,7 +34,12 @@ skills-lock.json
 
 # env
 .env
+.env.production
+.env.staging
 .env*.local
+
+# local/production backups
+/backups/
 
 # system
 .DS_Store

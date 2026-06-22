@@ -193,6 +193,39 @@ frontend_ui_states
 
 ## 第 8 步：运行验收
 
+如果是在本机直接部署腾讯云生产，优先使用：
+
+```bash
+npm run production:ssh-check
+npm run production:deploy
+```
+
+如果只是检查公网页面和 API 合同：
+
+```bash
+npm run production:smoke
+```
+
+这三个命令默认使用：
+
+```text
+PROD_HOST=43.161.202.227
+PROD_USER=ubuntu
+APP_DIR=/home/ubuntu/apps/chuan-market-radar
+BASE_URL=http://43.161.202.227
+```
+
+如需覆盖：
+
+```bash
+PROD_HOST=<公网 IP> PROD_USER=ubuntu npm run production:ssh-check
+PROD_HOST=<公网 IP> BASE_URL=http://<公网 IP> npm run production:deploy
+```
+
+如果 SSH 不通，不要继续用 OrcaTerm 手工部署当常态；先修 SSH 网络/密钥/防火墙，再恢复自动部署链路。
+
+登录服务器后，可运行服务器内验收：
+
 ```bash
 bash deploy/scripts/production-verify.sh
 ```
@@ -213,6 +246,7 @@ bash deploy/scripts/production-observe.sh
 
 ```bash
 bash deploy/scripts/smoke-test.sh http://127.0.0.1
+bash deploy/scripts/prod-smoke.sh http://43.161.202.227
 ```
 
 浏览器打开：
@@ -287,6 +321,12 @@ docker compose --env-file .env.production down
 ```bash
 git pull
 docker compose --env-file .env.production up -d --build
+```
+
+标准生产发布不要手工复制上述两行，优先从本机运行：
+
+```bash
+npm run production:deploy
 ```
 
 查看资源：
