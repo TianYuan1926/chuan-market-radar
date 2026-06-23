@@ -217,11 +217,12 @@ backend_contract = backend_body.get("contract") or backend_body
 validate_no_polluted_symbols("backend-contract", backend_contract)
 backend_scan = backend_contract.get("scanProof") or {}
 deep_scan = backend_scan.get("deepScan") or {}
+planned_deep_scan_requests = deep_scan.get("coinGlassRequestsPlanned", deep_scan.get("plannedRequests", 0))
 print(
     "backend-deep-scan",
     json.dumps(
         {
-            "planned": deep_scan.get("plannedRequests"),
+            "planned": planned_deep_scan_requests,
             "rawRows": deep_scan.get("rawRows"),
             "cleanRows": deep_scan.get("cleanRows"),
             "emptyResultAssets": (deep_scan.get("emptyResultAssets") or [])[:12],
@@ -229,7 +230,7 @@ print(
         ensure_ascii=False,
     ),
 )
-if deep_scan.get("plannedRequests", 0) and not deep_scan.get("cleanRows", 0):
+if planned_deep_scan_requests and not deep_scan.get("cleanRows", 0):
     warnings.append("/api/radar/backend-contract: CoinGlass planned requests but returned 0 clean rows")
 
 if errors:
