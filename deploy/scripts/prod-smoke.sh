@@ -23,10 +23,10 @@ USDT_SYMBOL_RE = re.compile(r"^[A-Z0-9]{1,30}USDT(?:\.P)?$")
 OKX_SWAP_RE = re.compile(r"^[A-Z0-9]{1,30}-USDT-SWAP$")
 TV_SYMBOL_RE = re.compile(r"^[A-Z]+:[A-Z0-9]{1,30}USDT(?:\.P)?$")
 CJK_RE = re.compile(r"[\u3400-\u9fff]")
-SYMBOL_KEY_RE = re.compile(
-    r"(?:^|\.|_)(symbol|symbols|baseAsset|base_asset|asset|assets|selectedAssets|"
-    r"pendingAssets|scannedAssets|boostedAssets|topAssets|emptyResultAssets|tokens|"
-    r"currentBatch|nextBatch|highPriority|coldExploration|longUnscanned)(?:$|\.|_|\[)",
+SYMBOL_LEAF_RE = re.compile(r"\.(?:symbol|baseAsset|base_asset|asset)$", re.IGNORECASE)
+SYMBOL_ARRAY_ITEM_RE = re.compile(
+    r"\.(?:selectedAssets|pendingAssets|scannedAssets|boostedAssets|emptyResultAssets|"
+    r"currentBatch|nextBatch|highPriority|coldExploration|longUnscanned)\[\d+\]$",
     re.IGNORECASE,
 )
 
@@ -68,7 +68,7 @@ def walk(value, path="root"):
 
 
 def is_symbol_like_path(path: str) -> bool:
-    return bool(SYMBOL_KEY_RE.search(path))
+    return bool(SYMBOL_LEAF_RE.search(path) or SYMBOL_ARRAY_ITEM_RE.search(path))
 
 
 def is_valid_symbolish(value: str) -> bool:
