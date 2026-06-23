@@ -62,6 +62,7 @@ export type BackendContract = {
       plannedAssets: string[];
       plannedRequests: number;
       rawRows: number;
+      requestFailures: NonNullable<MarketRadarSnapshot["metadata"]["diagnostics"]>["requests"]["requestFailures"];
       status: MarketRadarSnapshot["metadata"]["status"];
     };
     guardrail: string;
@@ -460,6 +461,7 @@ export function buildBackendContract({
         plannedAssets: requests?.plannedAssets ?? coverage.scannedAssets,
         plannedRequests: requests?.coinGlassRequestsPlanned ?? 0,
         rawRows: requests?.rawRows ?? 0,
+        requestFailures: requests?.requestFailures ?? [],
         status: snapshot.metadata.status,
       },
       guardrail: "Binance/OKX/Bybit public light scan can discover and prioritize; CoinGlass deep scan confirms funds and risk; neither bypasses Evidence or Risk Gate.",

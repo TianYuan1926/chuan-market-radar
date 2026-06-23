@@ -1,8 +1,9 @@
 import type { RuntimeProbeReport } from "../runtime/worker-heartbeat";
-import type { MarketRadarSnapshot, ScanArchiveSummary } from "./types";
+import type { MarketRadarSnapshot, ScanArchiveSummary, ScanRequestDiagnostics } from "./types";
 
 export type ScanStabilityIssueCode =
   | "archive_empty"
+  | "coinglass_upgrade_required"
   | "coverage_collapsed"
   | "deep_scan_empty"
   | "long_cycle"
@@ -97,6 +98,13 @@ function summary(status: ScanStabilityReport["status"], issues: ScanStabilityIss
     : `扫描链路需要观察：${first}`;
 }
 
+function hasCoinGlassUpgradeFailure(requestDiagnostics: ScanRequestDiagnostics) {
+  return requestDiagnostics.requestFailures?.some((failure) =>
+    /upgrade plan/i.test(failure.error) ||
+    failure.code === "401"
+  ) ?? false;
+}
+
 export function buildScanStabilityReport({
   archives,
   now = new Date(),
@@ -162,10 +170,13 @@ export function buildScanStabilityReport({
     requestDiagnostics.coinGlassRequestsPlanned > 0 &&
     requestDiagnostics.cleanRows === 0
   ) {
+    const upgradeRequired = hasCoinGlassUpgradeFailure(requestDiagnostics);
+
     addIssue(issues, {
-      code: "deep_scan_empty",
-      detail:
-        `CoinGlass 本轮计划深扫 ${requestDiagnostics.coinGlassRequestsPlanned} 个币，但返回 0 行可用数据；不能把本轮计划资产标成已完成深扫。`,
+      code: upgradeRequired ? "coinglass_upgrade_required" : "deep_scan_empty",
+      detail: upgradeRequired
+        ? `CoinGlass 本轮计划深扫 ${requestDiagnostics.coinGlassRequestsPlanned} 个币，但 API 返回 Upgrade plan；当前 Key/套餐没有这些 futures 深扫端点权限，不能生成衍生品证据和交易计划。`
+        : `CoinGlass 本轮计划深扫 ${requestDiagnostics.coinGlassRequestsPlanned} 个币，但返回 0 行可用数据；不能把本轮计划资产标成已完成深扫。`,
       severity: "watch",
     });
   }

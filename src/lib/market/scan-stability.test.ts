@@ -214,3 +214,67 @@ test("buildScanStabilityReport watches CoinGlass scans that planned requests but
   assert.equal(report.issues.some((issue) => issue.code === "deep_scan_empty"), true);
   assert.match(report.summary, /CoinGlass/);
 });
+
+test("buildScanStabilityReport explains CoinGlass Upgrade plan failures explicitly", () => {
+  const report = buildScanStabilityReport({
+    archives: [archive()],
+    now: new Date("2026-06-21T08:05:00.000Z"),
+    runtimeProbes: runtime(),
+    snapshot: snapshot({
+      metadata: {
+        ...snapshot().metadata,
+        diagnostics: {
+          discovery: {
+            fallbackActivated: false,
+            fallbackInstrumentCount: 0,
+            liveInstrumentCount: 720,
+            sources: [],
+          },
+          requests: {
+            acceptedInstruments: 720,
+            cleanRows: 0,
+            coinGlassRequestsPlanned: 24,
+            duplicateSymbolGroups: 0,
+            emptyResultAssets: ["BTC", "ETH"],
+            filteredRows: 0,
+            plannedAssets: ["BTC", "ETH"],
+            primaryRows: 0,
+            quoteUnsupportedRows: 0,
+            rawRows: 0,
+            requestFailures: [
+              {
+                code: "401",
+                error: "Upgrade plan",
+                httpStatus: 200,
+                symbol: "BTC",
+              },
+            ],
+            statusCounts: {
+              clean: 0,
+              conflict: 0,
+              empty: 24,
+              fallback_only: 0,
+              filtered: 0,
+              live_ok: 0,
+              stale: 0,
+              unsupported: 0,
+            },
+            unsupportedExchangeRows: 0,
+          },
+          v3Coverage: {
+            missingSignals: 0,
+            ohlcvAttemptedSymbols: [],
+            ohlcvFailureCount: 0,
+            totalSignals: 0,
+            withV3Signals: 0,
+          },
+        },
+      },
+    }),
+  });
+
+  assert.equal(report.status, "watch");
+  assert.equal(report.issues.some((issue) => issue.code === "coinglass_upgrade_required"), true);
+  assert.match(report.summary, /Upgrade plan/);
+  assert.match(report.summary, /不能生成衍生品证据/);
+});

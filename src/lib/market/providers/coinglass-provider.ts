@@ -471,6 +471,7 @@ function buildRequestDiagnostics({
   acceptedInstruments,
   batchAssets,
   cleanRows,
+  failures,
   primaryRows,
   primarySelectionDuplicateGroups,
   qualityRejections,
@@ -479,6 +480,7 @@ function buildRequestDiagnostics({
   acceptedInstruments: number;
   batchAssets: string[];
   cleanRows: number;
+  failures: CoinGlassPairsMarketFailure[];
   primaryRows: number;
   primarySelectionDuplicateGroups: number;
   qualityRejections: Record<CoinGlassMarketRowRejectionReason, number>;
@@ -502,6 +504,12 @@ function buildRequestDiagnostics({
     primaryRows,
     quoteUnsupportedRows,
     rawRows: rawRows.length,
+    requestFailures: failures.map((failure) => ({
+      code: failure.code,
+      error: failure.error,
+      httpStatus: failure.httpStatus,
+      symbol: failure.symbol,
+    })),
     statusCounts: {
       clean: cleanRows,
       conflict: primarySelectionDuplicateGroups,
@@ -947,6 +955,7 @@ export function createCoinGlassProvider({
         acceptedInstruments: instrumentPool.summary.accepted,
         batchAssets: batchPlan.assets,
         cleanRows: cleanMarketRows.length,
+        failures: coinGlassFailures,
         primaryRows: primarySignalRows.length,
         primarySelectionDuplicateGroups: primarySelectionReport.duplicateGroupCount,
         qualityRejections: qualityReport.rejections,

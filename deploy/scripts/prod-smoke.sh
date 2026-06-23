@@ -218,6 +218,7 @@ validate_no_polluted_symbols("backend-contract", backend_contract)
 backend_scan = backend_contract.get("scanProof") or {}
 deep_scan = backend_scan.get("deepScan") or {}
 planned_deep_scan_requests = deep_scan.get("coinGlassRequestsPlanned", deep_scan.get("plannedRequests", 0))
+coin_glass_failures = ((backend_contract.get("sourceAudit") or {}).get("coinGlassDeepScan") or {}).get("requestFailures") or []
 print(
     "backend-deep-scan",
     json.dumps(
@@ -226,12 +227,16 @@ print(
             "rawRows": deep_scan.get("rawRows"),
             "cleanRows": deep_scan.get("cleanRows"),
             "emptyResultAssets": (deep_scan.get("emptyResultAssets") or [])[:12],
+            "failureSample": coin_glass_failures[:3],
         },
         ensure_ascii=False,
     ),
 )
 if planned_deep_scan_requests and not deep_scan.get("cleanRows", 0):
-    warnings.append("/api/radar/backend-contract: CoinGlass planned requests but returned 0 clean rows")
+    if any("upgrade plan" in str(item.get("error", "")).lower() for item in coin_glass_failures if isinstance(item, dict)):
+        warnings.append("/api/radar/backend-contract: CoinGlass futures endpoint requires an upgraded plan for this key")
+    else:
+        warnings.append("/api/radar/backend-contract: CoinGlass planned requests but returned 0 clean rows")
 
 if errors:
     print("== HARD FAILURES ==", file=sys.stderr)

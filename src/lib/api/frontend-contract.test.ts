@@ -552,6 +552,30 @@ test("buildFrontendRadarContract uses observed source latency when probes exist"
   assert.doesNotMatch(radar.dataSources.reason ?? "", /0 占位/);
 });
 
+test("buildFrontendRadarContract exposes CoinGlass Upgrade plan failures in data source notes", () => {
+  const backend = backendContract();
+  backend.sourceAudit.coinGlassDeepScan.requestFailures = [
+    {
+      code: "401",
+      error: "Upgrade plan",
+      httpStatus: 200,
+      symbol: "BTC",
+    },
+  ];
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: {},
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  const coinGlass = radar.dataSources.data.find((source) => source.name === "CoinGlass");
+
+  assert.match(coinGlass?.note ?? "", /Upgrade plan/);
+  assert.match(coinGlass?.note ?? "", /不能生成衍生品证据/);
+});
+
 test("buildFrontendRadarContract derives BLOCKED when risk gate or RR blocks the plan", () => {
   const blocked = signal({
     id: "sig-fet",

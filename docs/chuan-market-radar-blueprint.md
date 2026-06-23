@@ -306,6 +306,10 @@ CoinGlass paid data：深扫确认源
 
 当前 Hobbyist 限制按用户已购买套餐展示设计：约 `30 调用/分钟`、`80+ 数据接口端点`、更新频率最高可到 `<= 1 分钟`。服务器升级不改变 CoinGlass 外部限速，因此仍必须使用令牌桶、批次、缓存、预算、失败降级和健康展示。
 
+2026-06-23 生产实测补充：当前生产 `COINGLASS_API_KEY` 对 futures 系列端点返回 `code=401`、`msg=Upgrade plan`，已确认探测范围包括 `/api/futures/supported-exchanges`、`/api/futures/supported-coins`、`/api/futures/supported-exchange-pairs`、`/api/futures/pairs-markets`、`/api/futures/open-interest/exchange-list`、`/api/futures/funding-rate/exchange-list` 和 `/api/futures/taker-buy-sell-volume/exchange-list`。因此在该 Key/套餐权限修正前，CoinGlass futures 深扫必须标记为 `partial/watch`，`requestFailures` 必须进入 `metadata.diagnostics.requests`、`/api/health.scanStability`、`/api/radar/backend-contract.sourceAudit.coinGlassDeepScan` 和前端数据源说明；不得把 `Upgrade plan` 写成“市场无机会”或“0 行正常”。公共轻扫、OHLCV、榜单和复盘继续使用 Binance/OKX/Bybit 等免费公开源运转，但不能生成 CoinGlass 衍生品 Evidence 或 TradePlanReady。
+
+下面表格是按文档和目标架构设计的能力白名单；实际启用必须以生产探针为准。任何端点只要返回 `Upgrade plan`、`Invalid API key`、`Endpoint not found` 或连续空数据，就按不可用处理并进入可观测诊断，不允许在 UI 或报告里宣称已接通。
+
 Hobbyist 可用并建议接入：
 
 | 数据能力 | 官方端点/类别 | 使用位置 | 可视化目标 | 硬边界 |

@@ -1103,6 +1103,7 @@ export function buildFrontendRadarContract({
   const visibleSignals = [...liveSignals, ...candidateSignals];
   const coinGlassLatencyStatus = sourceLatencyStatus(backend, "CoinGlass");
   const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
+  const coinGlassRequestFailure = backend.sourceAudit.coinGlassDeepScan.requestFailures?.[0];
   const scannableAssets = Math.max(0, coverage.eligibleAssets);
   const lightScannedAssets = scannableAssets > 0
     ? Math.min(scannableAssets, Math.max(0, backend.scanProof.lightScan.acceptedCount))
@@ -1155,8 +1156,10 @@ export function buildFrontendRadarContract({
         latencyMs: sourceLatencyMs(backend, "CoinGlass"),
         latencyStatus: coinGlassLatencyStatus,
         lastUpdate: sourceLatencyUpdatedAt(backend, "CoinGlass", snapshot.metadata.generatedAt),
-        note: latencyProbe(backend, "CoinGlass")?.detail ??
-          `深扫 ${backend.sourceAudit.coinGlassDeepScan.cleanRows}/${backend.sourceAudit.coinGlassDeepScan.rawRows} 行可用，延迟探针待写入`,
+        note: coinGlassRequestFailure
+          ? `深扫端点失败：${coinGlassRequestFailure.symbol} ${coinGlassRequestFailure.error} code=${coinGlassRequestFailure.code ?? "unknown"}；公开轻扫继续运行，但不能生成衍生品证据。`
+          : latencyProbe(backend, "CoinGlass")?.detail ??
+            `深扫 ${backend.sourceAudit.coinGlassDeepScan.cleanRows}/${backend.sourceAudit.coinGlassDeepScan.rawRows} 行可用，延迟探针待写入`,
       }),
       ...(["Binance", "OKX", "Bybit"] as const).map((name) => {
         const sourceRow = backend.sourceAudit.publicDiscovery.sources.find((item) =>

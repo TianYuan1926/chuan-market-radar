@@ -467,6 +467,12 @@ export type ScanRequestDiagnostics = {
   primaryRows: number;
   quoteUnsupportedRows: number;
   rawRows: number;
+  requestFailures?: {
+    code?: string;
+    error: string;
+    httpStatus?: number;
+    symbol: string;
+  }[];
   statusCounts: Record<ScanDataQualityStatus, number>;
   unsupportedExchangeRows: number;
 };
