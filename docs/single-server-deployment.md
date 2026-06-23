@@ -206,6 +206,14 @@ npm run production:deploy
 npm run production:smoke
 ```
 
+如果 CoinGlass 返回 `Invalid API key provided`、`auth_error` 或生产 key 需要更新，使用安全更新脚本：
+
+```bash
+npm run production:update-coinglass-key
+```
+
+这个脚本会隐藏输入 CoinGlass key，只更新腾讯服务器 `.env.production`，自动备份旧文件，重建 `web`、`scanner-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`、`macro-worker`，并调用受保护的 CoinGlass 能力体检。脚本不会打印真实 key。
+
 这三个命令默认使用：
 
 ```text

@@ -20,7 +20,8 @@
     "lint": "eslint .",
     "test:market": "tsc -p tsconfig.market-test.json && find .tmp/market-tests/lib -name '*.test.js' -print | sort | xargs node --test && npm run test:workers",
     "test:workers": "node --test deploy/workers/*.test.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "production:update-coinglass-key": "bash deploy/scripts/update-prod-coinglass-key.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

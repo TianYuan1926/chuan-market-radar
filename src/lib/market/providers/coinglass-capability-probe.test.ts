@@ -46,6 +46,8 @@ test("buildCoinGlassCapabilityProbeReport reports not_configured without calling
 
   assert.equal(called, false);
   assert.equal(report.deepScanStatus, "not_configured");
+  assert.deepEqual(report.availableDeepEndpointIds, []);
+  assert.equal(report.providerCanFetchPairMarkets, false);
   assert.equal(report.requestedEndpoints, 0);
   assert.equal(report.endpointStatuses.every((endpoint) => endpoint.status === "not_configured"), true);
 });
@@ -83,7 +85,47 @@ test("buildCoinGlassCapabilityProbeReport identifies Upgrade plan without leakin
   assert.equal(report.requestedEndpoints, endpoints.length);
   assert.equal(report.deepScanStatus, "upgrade_required");
   assert.equal(report.canCreateDerivativeEvidence, false);
+  assert.equal(report.providerCanFetchPairMarkets, false);
+  assert.deepEqual(report.availableDeepEndpointIds, []);
+  assert.deepEqual(report.blockedDeepEndpointIds, ["futures_pairs_markets"]);
   assert.equal(report.endpointStatuses.find((endpoint) => endpoint.id === "futures_pairs_markets")?.status, "upgrade_required");
   assert.deepEqual(requestedPaths, endpoints.map((endpoint) => endpoint.endpoint));
   assert.doesNotMatch(JSON.stringify(report), /secret-must-not-leak/u);
+});
+
+test("buildCoinGlassCapabilityProbeReport keeps provider blocked when pair markets fail but auxiliary endpoints are ready", async () => {
+  const endpoints = coinGlassCapabilityProbeEndpointsForTest.filter((endpoint) =>
+    ["futures_pairs_markets", "open_interest_current", "funding_current"].includes(endpoint.id)
+  );
+  const report = await buildCoinGlassCapabilityProbeReport({
+    endpoints,
+    env: {
+      COINGLASS_API_KEY: "secret-must-not-leak",
+      COINGLASS_REQUEST_INTERVAL_MS: "0",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+
+      if (url.pathname === "/api/futures/pairs-markets") {
+        return new Response(JSON.stringify({
+          code: "400",
+          msg: "Invalid API key provided",
+          data: null,
+        }));
+      }
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [{ symbol: "BTCUSDT", value: 1 }],
+      }));
+    },
+  });
+
+  assert.equal(report.deepScanStatus, "auth_error");
+  assert.equal(report.providerCanFetchPairMarkets, false);
+  assert.equal(report.canCreateDerivativeEvidence, false);
+  assert.deepEqual(report.availableDeepEndpointIds, ["open_interest_current", "funding_current"]);
+  assert.deepEqual(report.blockedDeepEndpointIds, ["futures_pairs_markets"]);
 });

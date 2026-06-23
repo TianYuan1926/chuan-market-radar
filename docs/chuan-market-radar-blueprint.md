@@ -1718,6 +1718,13 @@ CoinGlass 业余会员 API：
    - `RadarContract.dataSources` 必须读取 `sourceAudit.coinGlassCapability.deepScanStatus`，当出现 `Upgrade plan`、鉴权失败、限速、参数错误或空返回时显示 partial/failed，并明确“公共轻扫继续运行，但不能生成 CoinGlass 衍生品证据”。
    - Provider 展示命名统一为 `CoinGlass Contract Provider` 和“合约深扫”，避免把用户误导成传统期货业务或把公共交易所数据冒充 CoinGlass 付费数据。
 
+35. **Phase Backend-8：生产 CoinGlass key 安全更新与端点依赖体检（已落地）**
+   - 新增 `npm run production:update-coinglass-key`，通过隐藏输入、`COINGLASS_API_KEY`、`COINGLASS_API_KEY_FILE` 或显式剪贴板读取来更新腾讯服务器 `.env.production`；脚本只写服务器环境文件，不把真实 key 写入仓库、聊天、日志或命令输出。
+   - 更新前必须校验 key 非空、非占位符、长度合理且不含空白；服务器会自动备份旧 `.env.production`，权限保持 `600`。
+   - 更新后默认强制重建 `web`、`scanner-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler`、`macro-worker`，确保新环境变量真正进入容器；仅 `docker restart` 不算完成，因为它可能继续使用旧 env。
+   - 更新后自动调用 `POST /api/admin/coinglass/capability` 做受保护体检，只输出 `deepScanStatus`、`providerCanFetchPairMarkets`、`availableDeepEndpointIds`、`blockedDeepEndpointIds` 和 operator hint，不输出任何 secret。
+   - 运行态体检必须区分“辅助端点可用”和“当前深扫引擎可用”：当前 provider 依赖 `futures_pairs_markets`，只有该端点 ready 时 `providerCanFetchPairMarkets=true` 且 `canCreateDerivativeEvidence=true`；OI/Funding/Taker 单独 ready 只能作为后续适配候选，不能冒充当前深扫已经可生成交易计划。
+
 ## 每次继续开发必须遵守
 
 1. 每完成一个阶段向用户汇报：

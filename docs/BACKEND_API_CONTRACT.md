@@ -76,8 +76,16 @@ Response shape:
 - `ok`: request status.
 - `capability.mode`: `coinglass_hobbyist_live_capability_probe`.
 - `capability.deepScanStatus`: runtime status for contract deep scan.
+- `capability.providerRequiredEndpointId`: currently `futures_pairs_markets`, because the current CoinGlass provider needs pair-market rows before it can build derivative evidence.
+- `capability.providerCanFetchPairMarkets`: true only when the required pair-market endpoint is ready.
+- `capability.availableDeepEndpointIds`: deep-scan-related endpoints that returned usable data in this probe.
+- `capability.blockedDeepEndpointIds`: deep-scan-related endpoints that are unavailable, blocked, empty, rate-limited or parameter-failed.
 - `capability.endpointStatuses`: per-endpoint status, safe message, http/code, sample shape and whether the endpoint can feed deep-scan evidence.
 - `capability.operatorHint`: plain-language next action for operations.
+
+Important boundary:
+
+- Auxiliary OI, Funding or Taker endpoints being ready does not mean the current provider can create full derivative evidence. Until `providerCanFetchPairMarkets=true`, frontend and strategy layers must show CoinGlass as partial/unavailable for trade-plan generation.
 
 ## `GET /api/radar/business-capability`
 

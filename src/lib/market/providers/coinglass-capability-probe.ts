@@ -22,8 +22,12 @@ export type CoinGlassCapabilityProbeEndpointReport = CoinGlassRuntimeEndpointRep
 };
 
 export type CoinGlassCapabilityProbeReport = Omit<CoinGlassRuntimeCapabilityReport, "endpointStatuses"> & {
+  availableDeepEndpointIds: string[];
+  blockedDeepEndpointIds: string[];
   endpointStatuses: CoinGlassCapabilityProbeEndpointReport[];
   mode: "coinglass_hobbyist_live_capability_probe";
+  providerCanFetchPairMarkets: boolean;
+  providerRequiredEndpointId: "futures_pairs_markets";
   requestedEndpoints: number;
 };
 
@@ -186,6 +190,16 @@ function reportFromError(
 function aggregateDeepScanStatus(
   reports: CoinGlassCapabilityProbeEndpointReport[],
 ): CoinGlassRuntimeEndpointStatus {
+  const pairMarkets = reports.find((report) => report.id === "futures_pairs_markets");
+
+  if (pairMarkets?.status === "ready") {
+    return "ready";
+  }
+
+  if (pairMarkets) {
+    return pairMarkets.status;
+  }
+
   const deepReports = reports.filter((report) => report.canUseForDeepScan || [
     "futures_pairs_markets",
     "open_interest_current",
@@ -280,6 +294,10 @@ export async function buildCoinGlassCapabilityProbeReport({
   if (!configuredForCoinGlass(env) || !apiKey) {
     return {
       ...baseRuntime,
+      availableDeepEndpointIds: [],
+      blockedDeepEndpointIds: endpoints
+        .filter((endpoint) => endpoint.usesDeepScanEvidence)
+        .map((endpoint) => endpoint.id),
       endpointStatuses: endpoints.map((endpoint) => ({
         canUseForDeepScan: false,
         endpoint: endpoint.endpoint,
@@ -288,6 +306,8 @@ export async function buildCoinGlassCapabilityProbeReport({
         status: "not_configured",
       })),
       mode: "coinglass_hobbyist_live_capability_probe",
+      providerCanFetchPairMarkets: false,
+      providerRequiredEndpointId: "futures_pairs_markets",
       requestedEndpoints: 0,
     };
   }
@@ -323,14 +343,34 @@ export async function buildCoinGlassCapabilityProbeReport({
   }
 
   const deepScanStatus = aggregateDeepScanStatus(reports);
+  const availableDeepEndpointIds = reports
+    .filter((report) => report.canUseForDeepScan)
+    .map((report) => report.id);
+  const blockedDeepEndpointIds = reports
+    .filter((report) =>
+      [
+        "futures_pairs_markets",
+        "open_interest_current",
+        "funding_current",
+        "taker_buy_sell_current",
+      ].includes(report.id) && report.status !== "ready"
+    )
+    .map((report) => report.id);
+  const providerCanFetchPairMarkets = reports.some((report) =>
+    report.id === "futures_pairs_markets" && report.status === "ready"
+  );
 
   return {
     ...baseRuntime,
-    canCreateDerivativeEvidence: reports.some((report) => report.canUseForDeepScan),
+    availableDeepEndpointIds,
+    blockedDeepEndpointIds,
+    canCreateDerivativeEvidence: providerCanFetchPairMarkets,
     deepScanStatus,
     endpointStatuses: reports,
     mode: "coinglass_hobbyist_live_capability_probe",
     operatorHint: operatorHint(deepScanStatus),
+    providerCanFetchPairMarkets,
+    providerRequiredEndpointId: "futures_pairs_markets",
     requestedEndpoints: endpoints.length,
   };
 }
