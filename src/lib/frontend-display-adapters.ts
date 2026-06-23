@@ -10,7 +10,7 @@ import type {
   SignalCategory,
   SignalType,
   Token,
-} from './mock-data'
+} from './frontend-market-types'
 import type {
   ApiUsageState,
   DataSourceState,

@@ -7,7 +7,7 @@
 // ============================================================
 import { useEffect, useState } from 'react'
 import { NotebookPen, X } from 'lucide-react'
-import { Journal } from './review-center'
+import { ManualJournal } from './manual-journal'
 import { useJournal } from '@/lib/journal-store'
 import { cn } from '@/lib/utils'
 
@@ -82,7 +82,7 @@ export function JournalLauncher() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <Journal />
+            <ManualJournal />
           </div>
         </aside>
       </div>

@@ -6,7 +6,7 @@ import { DashboardRadarControl } from '@/components/dashboard/radar-control'
 import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveStat, LiveQuotePct } from '@/components/live-value'
-import { POOL_META } from '@/lib/mock-data'
+import { POOL_META } from '@/lib/frontend-market-types'
 import {
   macroResourceToMarketEnv,
   radarSignalsToSignalCards,

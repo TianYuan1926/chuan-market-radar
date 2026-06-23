@@ -24,7 +24,7 @@ import {
   type SignalCard,
   type SignalType,
   type PoolStatus,
-} from '@/lib/mock-data'
+} from '@/lib/frontend-market-types'
 import { fmtKnownCap, fmtUsd } from '@/lib/display-format'
 import { cn } from '@/lib/utils'
 

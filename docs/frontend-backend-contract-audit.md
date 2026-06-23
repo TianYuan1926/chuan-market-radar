@@ -6,10 +6,10 @@
 
 ## 当前结论
 
-前端恢复后，当前页面重新回到了两类 mock 数据入口：
-
-1. 页面直接读 `src/lib/mock-data.ts`。
-2. 组件读 `src/lib/radar-contract.ts` 中的同步 mock getter。
+2026-06-23 更新：第一轮前端真实数据接线已经完成，活跃页面不再直接读取
+`src/lib/mock-data.ts` 作为市场事实源，也不再通过旧同步 mock getter 伪造主展示。
+旧 `ReviewCenter` / `SystemCenter` 大型 mock 面板已删除，`sniper-data.ts` 已降级为
+类型和纯显示 helper。
 
 后端已经具备可用的前端契约构建层和接口：
 
@@ -39,12 +39,12 @@
 | `/leaderboard` | `getTokens()` | `getAllLeaderboardContractsForPage()` | 页面读取 7 类榜单，传给榜单组件；基础表格用真实 leaderboard 转 token | 无榜单行时展示数据状态和原因 |
 | `/market` | `getMarketEnv()` / `getDataQuality()` / `getCoinglass()` | `getRadarContractForPage()` | 页面读取 `macroAltEnv`、`derivatives`、`dataSources`、`apiUsage` | 宏观或衍生品缺失时展示 partial/empty，不生成假指标 |
 | `/token/[id]` | `getToken()` / `getTokens()` / `getSignals()` | `getRadarContractForPage()` + `getTokenDossierContractForPage()` | 用真实榜单/信号定位 token；dossier 走后端单币接口 | 后端未覆盖该币时显示未覆盖或 404，不生成假档案 |
-| `/review` | `ReviewCenter` 内部 mock + `ReviewEvolution` 的 `radar-contract` mock | `getReviewContractForPage()` + `/api/archive` + `/api/journal` | 先接 `ReviewEvolution` 的 lifecycle/archetype/missed/suggestions；再逐步接旧 `ReviewCenter` | 无复盘样本时显示暂无样本，不造历史 |
-| `/system` | `SystemCenter` 内部 mock + `SystemStatus` 的 `radar-contract` mock | `getRadarContractForPage()` + `/api/health` | 先接 `SystemStatus`；再把 `SystemCenter` 告警/服务状态接真实 health | 后端健康异常时展示异常，不隐藏 |
-| `ScanProof` | `mock-data.ts` | `radar.scanProof` | 接收 `Resource<ScanProofData>` prop | 无扫描帧时展示 empty 和原因 |
+| `/review` | `ReviewEvolution` + manual journal drawer | `getReviewContractForPage()` + `/api/frontend/journal-contract` | 已接真实合同；旧 `ReviewCenter` mock 面板已删除 | 无复盘样本时显示暂无样本，不造历史 |
+| `/system` | `SystemStatus` + backend runtime probes | `getRadarContractForPage()` + `/api/health` | 已接真实合同；旧 `SystemCenter` mock 面板已删除 | 后端健康异常时展示异常，不隐藏 |
+| `ScanProof` | `radar.scanProof` | `radar.scanProof` | 接收 `Resource<ScanProofData>` prop | 无扫描帧时展示 empty 和原因 |
 | `DashboardRadarControl` | `radar-contract.ts` mock getter | `radar` contract | 接收 `contract` prop；内部不再自行读 mock getter | 按 ResourceBoundary 展示 |
 | `SignalMaturityPool` | `getRadarSignals()` mock getter | `radar.radarSignals` | 接收 `signals` prop | 允许为空，但显示真实空状态 |
-| `SniperBoard` | `getSniperTargets()` mock | `radarSignalsToSniperTargets()` | 接收 `targets` prop | 只展示达标狙击标的；无达标时显示真实空 |
+| `SniperBoard` | `radarSignalsToSniperTargets()` | `radarSignalsToSniperTargets()` | 接收 `targets` prop；`sniper-data.ts` 不再生成 mock 目标 | 只展示达标狙击标的；无达标时显示真实空 |
 | `MarketLeaderboards` | `getLeaderboard(kind)` mock getter | `getAllLeaderboardContractsForPage()` | 接收 `leaderboards` prop | 每个榜单单独显示 Resource 状态 |
 | `MarketMacroDerivatives` | `getMacroAltEnv()` / `getDerivatives()` / `getApiUsage()` mock getter | `radar.macroAltEnv` / `radar.derivatives` / `radar.apiUsage` | 接收 `contract` prop | 缺失时展示 partial/empty |
 | `TokenDossier` | `getTokenDossier()` mock getter | `getTokenDossierContractForPage()` | 接收 `dossier` prop | 未找到时显示后端未覆盖 |
@@ -70,44 +70,34 @@
 | `tokenDossier` | `buildSignalBackendDossier()` + frontend mapper | 可直接接 |
 | `reviewContract` | `buildFrontendReviewContract()` | 可接，样本多少取决于后端归档/复盘数据 |
 
-## 第一批必须修的 mock 入口
+## 第一批 mock 入口处理状态
 
 优先级按“用户最容易误解系统是否运行”排序：
 
 1. `/signals`
-   - `getTokens()`
-   - `getSignalCards()`
-   - `SniperBoard()` 默认 mock
-   - `SignalMaturityPool()` 默认 mock
+   - 已改为后端 RadarContract + leaderboard candidate 合同。
+   - `SniperBoard()` 不再默认生成 mock target。
+   - `SignalMaturityPool()` 只消费后端 maturity 信号。
 
 2. `/leaderboard`
-   - `getTokens()`
-   - `MarketLeaderboards()` 默认 mock
+   - 已改为后端 `getAllLeaderboardContractsForPage()`。
+   - market cap 未知时必须显示 `待补齐`，不允许用 mock cap。
 
 3. `/dashboard`
-   - `getTokens()`
-   - `getSignalCards()`
-   - `getScanState()`
-   - `getMarketEnv()`
-   - `ScanProof()` 默认 mock
-   - `DashboardRadarControl()` 默认 mock
+   - 已改为后端 RadarContract + volume leaderboard。
+   - `ScanProof()` 和 `DashboardRadarControl()` 已走真实 contract。
 
 4. `/token/[id]`
-   - `getToken()`
-   - `getTokens()`
-   - `getSignals()`
-   - `TokenDossier()` 默认 mock
-   - `SignalArchive()` 默认 mock
+   - 已改为榜单/信号/Token Dossier/K-line contract。
+   - 未覆盖标的显示 honest empty / not found，不生成假档案。
 
 5. `/market`
-   - `getMarketEnv()`
-   - `getDataQuality()`
-   - `getCoinglass()`
-   - `MarketMacroDerivatives()` 默认 mock
+   - 已改为 RadarContract 的 macro / derivatives / dataSources / apiUsage。
+   - taker/CVD 仍是明确 partial，不允许用假资金流补齐。
 
 6. `/review` 和 `/system`
-   - 先接后端承载位组件。
-   - 旧的大型 mock 面板后续逐块接，不能一次硬拆导致 UI 崩。
+   - 旧大型 mock 面板已经删除。
+   - 当前只允许通过 ReviewContract / RadarContract 展示真实样本、真实空状态或 partial。
 
 ## 对接执行顺序
 
@@ -158,13 +148,12 @@
 
 ## 阶段 1 审计结论
 
-当前后端契约基础是够的，不需要先新增大功能。
-
-下一步应直接进入阶段 2 和阶段 3 的合并执行：
+当前后端契约基础已经接回主要活跃页面。下一步不再是“接回页面”，而是：
 
 ```text
-把现有 server contract 接回页面；
-给关键组件加真实数据 prop；
-先让 /signals 与 /leaderboard 正确展示真实数据或真实空状态。
+1. 对外部参考榜做同时间戳对账；
+2. 补 K 线交互和 TradingView 兜底；
+3. 检查 Token Dossier 的丰富 reportSections 是否在 UI 中充分可见；
+4. 持续验证生产服务、Redis、worker、Caddy 和 SSE；
+5. 等确认稳定数据源后再补真实 taker/CVD/资金流。
 ```
-

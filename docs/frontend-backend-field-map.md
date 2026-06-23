@@ -24,8 +24,9 @@ All active pages must receive market facts from one of these paths:
 - `GET/POST/DELETE /api/auth/session`
 - `POST /api/admin/runtime/heartbeat` protected worker heartbeat writer
 
-Mock files may remain as legacy UI type helpers or isolated preview helpers, but
-active market pages must not use them as fact sources.
+Mock files may remain as isolated preview helpers only. Active market pages must
+not use them as fact sources. Shared UI display types that were formerly imported
+from `mock-data.ts` now live in `src/lib/frontend-market-types.ts`.
 
 ## Page Contract Map
 
@@ -37,8 +38,8 @@ active market pages must not use them as fact sources.
 | `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected/production smoke verified | gainers pick the strongest same-symbol venue move, losers pick the weakest same-symbol venue move, volume aggregates same-symbol cross-venue volume; each row exposes source/sort/venue; if public tickers are unavailable they degrade honestly to scanner snapshot/candidate context; market cap is unknown and must show `待补齐`; no fake cap allowed; still needs timestamp-level comparison against the chosen external reference board |
 | `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `fundFlow`, `dataSources`, `apiUsage`, leaderboards | connected/partial | source latency is wired; taker/CVD/real fund-flow source is not wired and must show partial |
 | `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier + `getKlineContractForPage()` | connected/partial | dossier now exposes richer v3 report sections; K-line panel uses real public OHLCV only and cascades Binance -> OKX -> Bybit; first-pass chart overlays now expose v3 key levels, Forward Map, structural stop and TP targets; still needs TradingView fallback UX and deeper interaction; fund-flow panel is still an honest waiting state |
-| `/review` | lifecycle, archetypes, missed detections, evolution suggestions, manual journal drawer | `ReviewContract` from journal events and business capability + `/api/frontend/journal-contract` | connected/partial | quality depends on real outcome samples; manual trade entries are API-backed with local fallback |
-| `/system` | service nodes, pipeline state, API usage, scan stability | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage`, `scanStability` | connected/partial | Redis probe, worker heartbeat, API usage and latency probes are wired; status depends on live runtime |
+| `/review` | lifecycle, archetypes, missed detections, evolution suggestions, manual journal drawer | `ReviewContract` from journal events and business capability + `/api/frontend/journal-contract` | connected/partial | quality depends on real outcome samples; manual trade entries are API-backed with local fallback; legacy `ReviewCenter` mock panel has been removed |
+| `/system` | service nodes, pipeline state, API usage, scan stability | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage`, `scanStability` | connected/partial | Redis probe, worker heartbeat, API usage and latency probes are wired; status depends on live runtime; legacy `SystemCenter` mock panel has been removed |
 | `/login` | gate UI | `/api/auth/session` | connected/optional | server private mode is disabled by default; enable with env vars before exposing the personal site |
 
 ## Radar Contract Field Map
@@ -81,10 +82,20 @@ active market pages must not use them as fact sources.
 | K-line panel underpowered | `/api/frontend/kline-contract` provides real candles, interval, source, age, missing-data reason, optional `overlays`, `overlayStatus`, and TradingView metadata; public OHLCV source cascades Binance -> OKX -> Bybit | 2026-06-23 local tests pass and local smoke shows honest `failed` when all upstreams are unreachable. OHLCV requests have a default 4s timeout. First-pass overlays map backend v3 key levels, Forward Map, structural stop and TP targets without frontend judgment. Still needs TradingView fallback UX and deeper chart interaction |
 | Analysis report too shallow | Token dossier maps backend Evidence, counter-evidence, risk gate, trade-plan draft, key levels, Forward Map, trend scores, location/RR, reaction quality, trend integrity, confirmation checklist and review boundaries into separate `reportSections` | 2026-06-23 local tests pass. Every displayed explanation links back to backend evidence/review ids or v3 source ids, or is labeled as missing/partial; frontend cannot invent reasoning |
 
-2026-06-23 cleanup: active K-line components no longer expose `allowMockFallback`
-or import `getCandles`; chart candles now use `src/lib/chart-types.ts`. Shared
-number formatters were moved to `src/lib/display-format.ts` so active market
-components do not import `mock-data` just to format values.
+2026-06-23 cleanup:
+
+- Active K-line components no longer expose `allowMockFallback` or import
+  `getCandles`; chart candles now use `src/lib/chart-types.ts`.
+- Shared number formatters were moved to `src/lib/display-format.ts`.
+- Shared frontend display types were moved to `src/lib/frontend-market-types.ts`
+  so active market components no longer import `mock-data.ts` for either types
+  or facts.
+- `src/lib/sniper-data.ts` is now type/display-helper only; it no longer creates
+  mock sniper targets, random theses, frontend entry/stop/target, or random
+  outcome samples.
+- Legacy `src/components/review-center.tsx` and
+  `src/components/system-center.tsx` were deleted. Review and System pages must
+  use backend contracts and honest empty/partial states.
 
 ## Leaderboard Contract Field Map
 
@@ -174,12 +185,19 @@ Completed system probes:
 
 ## Next Build Order
 
-1. Frontend consumption audit: make sure each active page calls the connected contracts and does not fall back to active mock market facts.
-2. External leaderboard reconciliation: choose the reference board scope and compare `gainers/losers/volume` at the same timestamp.
-3. K-line professionalization next pass: add TradingView fallback UX, richer hover details, overlay toggles and volume/structure interaction. First-pass key level, Forward Map, stop and target overlays are connected.
-4. Token/detail report consumption audit: make sure the richer `reportSections` are actually visible enough in active UI without rewriting the user-provided design.
-5. Production stability: keep checking Caddy/SSE and public IP path after deploys; server-side `/api/health` and internal web checks are mandatory, but local public curl timeouts must be recorded instead of ignored.
-6. Remaining market fact gap: fund-flow source. Until a stable source exists, keep `fundFlow` partial/waiting.
+1. External leaderboard reconciliation: choose the reference board scope and
+   compare `gainers/losers/volume` at the same timestamp.
+2. K-line professionalization next pass: add TradingView fallback UX, richer
+   hover details, overlay toggles and volume/structure interaction. First-pass
+   key level, Forward Map, stop and target overlays are connected.
+3. Token/detail report consumption audit: make sure the richer `reportSections`
+   are actually visible enough in active UI without rewriting the user-provided
+   design.
+4. Production stability: keep checking Caddy/SSE and public IP path after
+   deploys; server-side `/api/health` and internal web checks are mandatory, but
+   local public curl timeouts must be recorded instead of ignored.
+5. Remaining market fact gap: fund-flow source. Until a stable source exists,
+   keep `fundFlow` partial/waiting.
 
 Do not start refinement or visual polish until these data connections are either
 connected or explicitly represented as honest partial/empty states.

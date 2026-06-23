@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { LiveValue } from './live-value'
 import { useLiveQuote, usePrimeLiveQuotes } from '@/lib/live-store'
-import type { Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/frontend-market-types'
 import { cn } from '@/lib/utils'
 
 export function MarketHeatmap({ tokens }: { tokens: Token[] }) {

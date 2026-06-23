@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Radio } from 'lucide-react'
-import type { SignalCard, SignalType } from '@/lib/mock-data'
+import type { SignalCard, SignalType } from '@/lib/frontend-market-types'
 import { cn } from '@/lib/utils'
 
 const TYPE_VAR: Record<SignalType, string> = {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/frontend-market-types'
 import { LiveQuotePct } from './live-value'
 import { usePrimeLiveQuotes } from '@/lib/live-store'
 import { cn } from '@/lib/utils'

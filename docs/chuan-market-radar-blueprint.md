@@ -660,7 +660,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、腾讯云 `signal-worker` 主线低频触发、GitHub Actions 回滚触发保留、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、腾讯云 Worker 主线触发、外部 cron 回滚策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音、Settings 抽屉本地告警控制、站内告警历史筛选、已读、归档、恢复和信号档案告警联动已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化和更细提示音音色 |
-| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底；2026-06-23 已补榜单事实源/排序/来源说明、K 线多源级联失败边界、上游请求超时护栏、分析报告分层和 evidence sourceId；2026-06-23 继续修复榜单跨交易所口径：涨幅榜取同币种最高 24h 涨幅、跌幅榜取同币种最低 24h 涨幅、成交额榜聚合跨交易所 24h 成交额；Token Dossier 汇报已扩展到关键位、Forward Map、趋势分数、位置/RR、回踩/反抽、趋势完整度、确认清单和人工复核边界；K 线合同已新增只读 overlay，能输出/绘制后端 v3 关键位、Forward Map、结构止损和 TP 目标线；腾讯服务器内部和服务器公网侧已验证 leaderboard 与 K 线合同可返回 | 仍需前端继续消费更多真实字段：资金流、更多复盘统计、TradingView 兜底和更高级图表交互；本机直连公网 IP 偶发超时和 Caddy 重启期 Docker DNS 短暂 502 需继续纳入生产稳定性观察；保证 UI 1:1 不被重写 |
+| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底；2026-06-23 已补榜单事实源/排序/来源说明、K 线多源级联失败边界、上游请求超时护栏、分析报告分层和 evidence sourceId；2026-06-23 继续修复榜单跨交易所口径：涨幅榜取同币种最高 24h 涨幅、跌幅榜取同币种最低 24h 涨幅、成交额榜聚合跨交易所 24h 成交额；Token Dossier 汇报已扩展到关键位、Forward Map、趋势分数、位置/RR、回踩/反抽、趋势完整度、确认清单和人工复核边界；K 线合同已新增只读 overlay，能输出/绘制后端 v3 关键位、Forward Map、结构止损和 TP 目标线；2026-06-23 已完成 active frontend mock 事实源清理：活跃页面/组件不再从 `mock-data.ts` 导入市场事实或 UI 类型，`frontend-market-types.ts` 承接展示类型，`sniper-data.ts` 仅保留类型/显示 helper，旧 `ReviewCenter` 和 `SystemCenter` mock 面板已删除，并新增仓库卫生测试防回归；腾讯服务器内部和服务器公网侧已验证 leaderboard 与 K 线合同可返回 | 仍需前端继续消费更多真实字段：资金流、更多复盘统计、TradingView 兜底和更高级图表交互；本机直连公网 IP 偶发超时和 Caddy 重启期 Docker DNS 短暂 502 需继续纳入生产稳定性观察；保证 UI 1:1 不被重写 |
 
 ## 当前已落地模块
 
@@ -1477,22 +1477,25 @@ CoinGlass 业余会员 API：
 - 告警历史持久化。
 - 提示音细节和浏览器通知开关优化。
 
-### 阶段 8：前端重建
+### 阶段 8：前端融合与真实数据接线
 
-目标：从空白前端重新打造长期可维护的展示层。
+目标：保留用户提供的 v0 前端视觉，全面接入后端真实数据合同，禁止 mock 冒充真实。
 
 当前状态：
 
-- 已清空旧前端。
-- 首页只保留最小占位页。
-- 后端契约和业务能力保持可用。
+- v0 前端 UI 是当前展示事实源，视觉、布局、动效、宠物小人和文案风格必须 1:1 保留。
+- 首页、Dashboard、Signals、Market、Leaderboard、Review、System、Token Dossier 已接后端前端合同。
+- 活跃前端文件不再从 `mock-data.ts` 导入市场事实或 UI 类型。
+- `src/lib/frontend-market-types.ts` 承接 UI 展示类型；`src/lib/sniper-data.ts` 只允许保留类型和纯显示 helper。
+- 旧 `ReviewCenter`、`SystemCenter` 大型 mock 面板已删除，避免旧样本和假健康状态污染真实页面。
+- 交易日记抽屉使用 `ManualJournal` + `/api/frontend/journal-contract`，localStorage 只作为接口失败兜底。
 
 后续验收：
 
-- 新前端必须先通过信息架构和后端契约审查。
-- 新前端必须能解释系统正在扫什么、扫到什么、为什么候选成立或不成立。
-- 新前端不能静默隐藏候选、证据、风险、关键位或复盘样本。
-- 新前端不能自动下单，不能伪造图表，不能把研究信息包装成确定交易信号。
+- 前端必须能解释系统正在扫什么、扫到什么、为什么候选成立或不成立。
+- 前端不能静默隐藏候选、证据、风险、关键位或复盘样本。
+- 前端不能自动下单，不能伪造图表，不能把研究信息包装成确定交易信号。
+- 任何新增页面不得重新导入 `mock-data.ts` 作为事实源；仓库卫生测试必须继续覆盖这一点。
 
 6. **Phase 3.11：Data Quality Cleaning And Coverage Quality Explanation**
    - 当前状态：已完成并增强。`/api/health` 已新增 `marketDataQuality`，会从主扫描 metadata 和 instrument pool 汇总 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本、质量分和只读边界。

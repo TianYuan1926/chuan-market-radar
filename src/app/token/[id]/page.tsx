@@ -233,7 +233,7 @@ export default async function TokenPage({
                         {s.body}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {s.tags.map((t) => (
+                        {s.tags.map((t: string) => (
                           <span
                             key={t}
                             className="bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground"

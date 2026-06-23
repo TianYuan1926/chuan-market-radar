@@ -304,6 +304,7 @@ test("signals visual widgets derive from backend radar signals", () => {
 
   const adapterSource = readFileSync(resolve(process.cwd(), adapterPath), "utf8");
   const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
+  const sniperDataSource = readFileSync(resolve(process.cwd(), "src/lib/sniper-data.ts"), "utf8");
   const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
   const liveFeedSource = readFileSync(resolve(process.cwd(), "src/components/live-feed.tsx"), "utf8");
   const liveStoreSource = readFileSync(resolve(process.cwd(), "src/lib/live-store.ts"), "utf8");
@@ -327,6 +328,8 @@ test("signals visual widgets derive from backend radar signals", () => {
   assert.doesNotMatch(sniperBoardSource, /getSniperTargets/);
   assert.doesNotMatch(sniperBoardSource, /Math\.random/);
   assert.doesNotMatch(sniperBoardSource, /setTimeout/);
+  assert.doesNotMatch(sniperDataSource, /getSniperTargets|getSignalCards|mulberry32|Math\.random/);
+  assert.match(sniperDataSource, /纯显示 helper/);
   assert.match(liveFeedSource, /cards\.length === 0/);
   assert.doesNotMatch(liveFeedSource, /Math\.random/);
   assert.doesNotMatch(liveFeedSource, /setInterval/);
@@ -669,6 +672,8 @@ test("stage 8 review and system pages do not render legacy mock centers", () => 
   const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
   const systemPageSource = readFileSync(resolve(process.cwd(), "src/app/system/page.tsx"), "utf8");
 
+  assert.equal(existsSync(resolve(process.cwd(), "src/components/review-center.tsx")), false);
+  assert.equal(existsSync(resolve(process.cwd(), "src/components/system-center.tsx")), false);
   assert.match(reviewPageSource, /getReviewContractForPage/);
   assert.match(reviewPageSource, /<ReviewEvolution contract=\{review\}/);
   assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
@@ -710,6 +715,30 @@ test("stage 8 homepage uses backend contract data and removes old demo claims", 
   assert.doesNotMatch(introPipelineSource, /毫秒级/);
   assert.doesNotMatch(siteLoaderSource, /链上异动|链上数据源/);
   assert.doesNotMatch(layoutSource, /链上资金异动/);
+});
+
+test("active frontend files do not import mock-data as a market fact source", () => {
+  const activeRoots = ["src/app", "src/components", "src/lib"];
+  const allowed = new Set([
+    "src/lib/mock-data.ts",
+    "src/lib/market/providers/mock-market-provider.ts",
+    "src/lib/market/providers/mock-market-provider.test.ts",
+  ]);
+  const offenders: string[] = [];
+
+  for (const root of activeRoots) {
+    for (const filePath of listRepositoryFiles(root)) {
+      if (!/\.(tsx?|jsx?)$/.test(filePath)) continue;
+      if (allowed.has(filePath) || filePath.endsWith(".test.ts") || filePath.endsWith(".test.tsx")) continue;
+
+      const source = readFileSync(resolve(process.cwd(), filePath), "utf8");
+      if (/from ['"](?:@\/lib\/mock-data|\.\/mock-data|\.\.\/mock-data)['"]/.test(source)) {
+        offenders.push(filePath);
+      }
+    }
+  }
+
+  assert.deepEqual(offenders, [], `active frontend files must not import mock-data: ${offenders.join(", ")}`);
 });
 
 test("frontend contract pages render dynamically instead of freezing build-time data", () => {

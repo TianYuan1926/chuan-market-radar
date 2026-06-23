@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useSyncExternalStore } from 'react'
-import type { Token } from './mock-data'
+import type { Token } from './frontend-market-types'
 
 /**
  * 集中式实时行情 store

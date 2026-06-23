@@ -5,7 +5,7 @@ import { Radar, Layers, Clock } from 'lucide-react'
 import {
   type ScanState,
   type ExchangeStatus,
-} from '@/lib/mock-data'
+} from '@/lib/frontend-market-types'
 import { fmtCap } from '@/lib/display-format'
 import type { ApiUsageState, DataSourceState, ScanProofData } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'

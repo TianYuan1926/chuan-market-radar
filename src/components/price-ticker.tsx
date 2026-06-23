@@ -1,6 +1,6 @@
 'use client'
 
-import type { Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/frontend-market-types'
 import { TokenAvatar } from './token-avatar'
 import { LiveQuotePrice, LiveQuotePct } from './live-value'
 import { usePrimeLiveQuotes } from '@/lib/live-store'

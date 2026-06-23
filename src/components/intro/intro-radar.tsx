@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/frontend-market-types'
 
 type Blip = {
   id: string
