@@ -42,6 +42,7 @@
 16. **付费源失败降级硬规则**：CoinGlass 是深扫确认源，不是主雷达唯一生命线。任何 CoinGlass 套餐限制、单币接口拒绝、限速、空返回或临时失败，都必须写入 metadata / health / 日志诊断并降级处理；不得让公共轻扫、全市场覆盖证明、状态池调度、页面加载、数据库归档或系统健康接口整体崩掉。公共轻扫结果只能用于发现和调度，不能绕过 CoinGlass / 结构证据 / Risk Gate 直接生成交易结论。
 17. **数据污染双防线**：全市场 universe、公开轻扫、交易所发现、CoinGlass 映射、前端合同输出和生产 smoke 都必须过滤非合约币、股票/商品、非 USDT 永续、中文/特殊字符资产和非法 symbol。入口层负责不写入，输出层负责不展示历史脏数据；生产验收必须能抓出符号污染、榜单零价格和覆盖率语义错误。
 18. **预览种子默认关闭**：任何 mock、seed、演示复盘和样例信号默认不能注入真实 repository 或活跃页面。只有显式设置 `ENABLE_PREVIEW_SEED_DATA=true` 的本地预览才允许加载样例数据；生产、降级和无数据库模式都不能把样例数据说成真实记录。
+19. **蓝图清理硬规则**：每次重要搭建收尾时，必须同步清理蓝图和字段映射：已经验证完成的项目从“未完成/待验证”移到“已完成/已验证”，仍未完成的项目必须保留原因、下一步、验证方式；旧规则如果被新架构覆盖，必须标记替换或删除，不能让历史计划、当前代码和生产事实互相打架。
 
 ## 不可偏移核心目标
 
@@ -659,7 +660,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、腾讯云 `signal-worker` 主线低频触发、GitHub Actions 回滚触发保留、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、腾讯云 Worker 主线触发、外部 cron 回滚策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音、Settings 抽屉本地告警控制、站内告警历史筛选、已读、归档、恢复和信号档案告警联动已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化和更细提示音音色 |
-| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底；2026-06-23 已补榜单事实源/排序/来源说明、K 线多源级联失败边界、分析报告分层和 evidence sourceId | 仍需线上验证 public market ticker 与 K 线在腾讯香港生产网络的可用性；继续把资金流、更多复盘统计和前端剩余展示位接到真实后端，并保证 UI 1:1 不被重写 |
+| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底；2026-06-23 已补榜单事实源/排序/来源说明、K 线多源级联失败边界、上游请求超时护栏、分析报告分层和 evidence sourceId；腾讯服务器内部和服务器公网侧已验证 leaderboard 与 K 线合同可返回 | 仍需前端继续消费更多真实字段：资金流、更多复盘统计、图表 overlay、关键位/Forward Map/目标/失效线；本机直连公网 IP 偶发超时和 Caddy 重启期 Docker DNS 短暂 502 需继续纳入生产稳定性观察；保证 UI 1:1 不被重写 |
 
 ## 当前已落地模块
 
@@ -681,11 +682,13 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 1. **涨幅榜/跌幅榜真实性缺口**：当前前端涨幅榜和跌幅榜与用户对照的真实市场榜单不一致。后续必须明确榜单事实源、排序口径、交易所范围、过滤规则、更新时间和 partial 状态；不能把候选池、轻扫候选或内部排序直接伪装成“全市场真实涨跌幅榜”。
    - 2026-06-23 已完成合同修复：`/api/frontend/leaderboard` 对 `gainers/losers/volume` 优先读取 public market ticker；同一币种跨交易所重复时选成交额最高的主场 ticker；每行输出 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。如果 public ticker 不可用，降级为 scanner snapshot 或 light-scan candidate，并在 `reason` 中明确“不能当作真实全市场涨跌幅榜”。
+   - 2026-06-23 腾讯服务器生产验证：`/api/frontend/leaderboard?kind=volume/gainers/losers` 均可返回 `live`、50 行 public ticker 结果；榜单行已带来源和排序口径。后续仍需与指定外部参考榜在同一时间戳做抽样对账，确认交易所口径差异。
 2. **实时展示边界缺口**：前端需要明确哪些区域可以实时展示，哪些只能准实时或缓存展示。可实时展示的区域必须来自 WebSocket/SSE/Redis 最新快照或明确的 runtime heartbeat；不能用定时动画、跳动数字或旧缓存冒充实时。
    - 2026-06-23 已完成第一轮合同修复：榜单和 K 线面板开始展示 `StatusBadge` 与 `FreshnessTag`；K 线失败、partial、empty 会显示 `DegradeNotice`，不再用假蜡烛填充。
    - 2026-06-23 已完成上游超时护栏：public light scan 默认 4 秒请求超时，K 线 OHLCV 默认 4 秒请求超时；可用 `PUBLIC_LIGHT_SCAN_REQUEST_TIMEOUT_MS` 和 `PUBLIC_OHLCV_REQUEST_TIMEOUT_MS` 调整。上游慢或卡死时必须返回 partial/failed，不允许拖死页面。
 3. **K 线图专业度缺口**：当前 K 线已经禁止模拟蜡烛，但展示仍不够专业。后续要补齐多周期切换、真实 OHLCV 新鲜度、成交量、关键位/Forward Map 叠加、支撑压力区、失效线、目标区、数据缺口提示和 TradingView 外链兜底。
    - 2026-06-23 已完成数据源底座修复：公开 OHLCV provider 从单一 Binance 升级为 Binance -> OKX -> Bybit 级联；三者都失败时返回 `public-exchange-ohlcv` typed failure，错误原因可追踪，不允许回落到 mock K 线。后续专业图表层继续补 overlay 和更完整交互。
+   - 2026-06-23 腾讯服务器生产验证：web 容器内部请求 `/api/frontend/kline-contract?symbol=BTC&tf=1h&limit=20` 返回 200 且耗时约 57ms；服务器公网侧 `/api/health` 可经 Caddy 返回。当前本机直连公网 IP 的部分 API curl 仍可能超时，归入生产网络路径和 Caddy/SSE 稳定性观察，不得当作 K 线合同已完全完成。
 4. **分析推理报告展示缺口**：前端关于分析、推理、反证、风险门控和交易计划的展示过于简陋，不能体现后端 Evidence / Market Reading / Key Level / Forward Map / Risk Gate / Review 的能力。后续必须把“事实、证据、推理、阻断、计划、复盘反馈”分层展示，并保证每条中文解释可追溯到后端 EvidenceItem 或只读 review 样本。
    - 2026-06-23 已完成第一轮合同修复：Token Dossier 新增 `reportSections`，按事实、支持证据、反证、风险门控、交易计划、复盘边界分层；`evidence` 和 `counter` 都带 `sourceId`，前端展示必须可追溯。
 
@@ -1705,3 +1708,4 @@ CoinGlass 业余会员 API：
 5. 不能因为上下文压缩丢掉本文约束。
 6. 前端大改必须先重新确认信息架构、数据契约和验收标准，再进入实现。
 7. 本地预览和浏览器检查需要权限时，先请求授权；未获得授权不能假装已经看过页面。
+8. 每次阶段收尾都要清理蓝图：把已经验证完成的条目移出未完成清单；把仍未完成的条目保留原因、下一步和验收方式；如果新方案覆盖旧方案，必须删除或改写旧描述，防止后续按过时计划返工。

@@ -34,7 +34,7 @@ active market pages must not use them as fact sources.
 | `/` | intro stats, radar display, ticker/session display | `getRadarContractForPage()` + `getLeaderboardContractForPage('volume')` | connected | intro copy is static; acceptable because it is product explanation, not market fact |
 | `/dashboard` | scan proof, overview cards, current candidates, risk reminders, backend radar control | `RadarContract` + volume leaderboard | connected | risk reminders are derived from signal cards; exact backend alert stream is not wired yet |
 | `/signals` | sniper board, maturity pool, anomaly table, live feed, heatmap | `RadarContract.radarSignals` + leaderboard candidate display + `/api/frontend/live-events` or `/api/frontend/live-events/stream` | connected with candidate fallback | event feed is read-only archive/runtime data; SSE transport is available and must not trigger scans |
-| `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected/needs production verification | gainers/losers/volume prefer public market tickers and expose source/sort/venue; if public tickers are unavailable they degrade honestly to scanner snapshot/candidate context; market cap is unknown and must show `待补齐`; no fake cap allowed |
+| `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected/production smoke verified | gainers/losers/volume prefer public market tickers and expose source/sort/venue; if public tickers are unavailable they degrade honestly to scanner snapshot/candidate context; market cap is unknown and must show `待补齐`; no fake cap allowed; still needs timestamp-level comparison against the chosen external reference board |
 | `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `fundFlow`, `dataSources`, `apiUsage`, leaderboards | connected/partial | source latency is wired; taker/CVD/real fund-flow source is not wired and must show partial |
 | `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier + `getKlineContractForPage()` | connected/partial | K-line panel uses real public OHLCV only and cascades Binance -> OKX -> Bybit; still needs professional overlays: key levels, Forward Map, invalidation, targets, volume and TradingView fallback; fund-flow panel is still an honest waiting state |
 | `/review` | lifecycle, archetypes, missed detections, evolution suggestions, manual journal drawer | `ReviewContract` from journal events and business capability + `/api/frontend/journal-contract` | connected/partial | quality depends on real outcome samples; manual trade entries are API-backed with local fallback |
@@ -76,9 +76,9 @@ active market pages must not use them as fact sources.
 
 | Gap | Required contract behavior | Verification |
 | --- | --- | --- |
-| Real gainers/losers mismatch | `/api/frontend/leaderboard?kind=gainers|losers` states source, venue scope, sorting key, update time, partial reason and whether rows are public ticker rows, scanner snapshot rows, or light-scan candidates | 2026-06-23 local tests pass. Production must compare API rows against the chosen external source at the same timestamp; no candidate-only ranking may be labeled as a market-wide gainers/losers board |
+| Real gainers/losers mismatch | `/api/frontend/leaderboard?kind=gainers|losers` states source, venue scope, sorting key, update time, partial reason and whether rows are public ticker rows, scanner snapshot rows, or light-scan candidates | 2026-06-23 local tests pass. Tencent production smoke returns live 50-row public ticker boards for gainers/losers/volume. Still needs timestamp-level comparison against the chosen external source; no candidate-only ranking may be labeled as a market-wide gainers/losers board |
 | Real-time display boundary unclear | Every live-looking frontend area must expose `status`, `ageSec`, `source`, and `reason`; websocket/SSE-backed areas may be marked live, scan/archive-backed areas must be marked fresh/stale/partial | 2026-06-23 leaderboard and K-line panel now expose freshness/status tags. Public light scan requests have a default 4s timeout so slow upstreams degrade instead of blocking pages. Remaining pages must follow the same Resource contract |
-| K-line panel underpowered | `/api/frontend/kline-contract` provides real candles, interval, source, age and missing-data reason; public OHLCV source cascades Binance -> OKX -> Bybit | 2026-06-23 local tests pass and local smoke shows honest `failed` when all upstreams are unreachable. OHLCV requests have a default 4s timeout. Production smoke must verify Tencent HK can fetch at least one source. Overlays still come from backend dossier only |
+| K-line panel underpowered | `/api/frontend/kline-contract` provides real candles, interval, source, age and missing-data reason; public OHLCV source cascades Binance -> OKX -> Bybit | 2026-06-23 local tests pass and local smoke shows honest `failed` when all upstreams are unreachable. OHLCV requests have a default 4s timeout. Tencent web container verified BTC 1h K-line returns 200 in about 57ms. Overlays still need key levels, Forward Map, invalidation, targets, volume and TradingView fallback |
 | Analysis report too shallow | Token dossier maps backend Evidence, counter-evidence, risk gate, trade-plan draft and review boundaries into separate `reportSections` | 2026-06-23 local tests pass. Every displayed explanation links back to backend evidence/review ids or is labeled as missing/partial; frontend cannot invent reasoning |
 
 ## Leaderboard Contract Field Map
@@ -168,10 +168,12 @@ Completed system probes:
 
 ## Next Build Order
 
-1. Frontend consumption check: make sure the imported UI calls every connected contract without falling back to active mock market facts.
-2. Server deployment migration: run schema migration so `frontend_ui_states` and all current persistence tables are present on the Tencent Postgres container.
-3. Production verification: run `deploy/scripts/production-full-verify.sh` after each server deployment.
-4. Remaining market fact gap: fund-flow source. Until a stable source exists, keep `fundFlow` partial/waiting.
+1. Frontend consumption audit: make sure each active page calls the connected contracts and does not fall back to active mock market facts.
+2. External leaderboard reconciliation: choose the reference board scope and compare `gainers/losers/volume` at the same timestamp.
+3. K-line professionalization: add key levels, Forward Map, invalidation, targets, volume and TradingView fallback to the existing real-candle contract.
+4. Analysis report expansion: consume `reportSections` more visibly in the token/detail surfaces without frontend-invented reasoning.
+5. Production stability: keep checking Caddy/SSE and public IP path after deploys; server-side `/api/health` and internal web checks are mandatory, but local public curl timeouts must be recorded instead of ignored.
+6. Remaining market fact gap: fund-flow source. Until a stable source exists, keep `fundFlow` partial/waiting.
 
 Do not start refinement or visual polish until these data connections are either
 connected or explicitly represented as honest partial/empty states.
