@@ -260,6 +260,22 @@ test("createBinancePublicLightScanProvider returns a typed failure without throw
   assert.equal(result.priorityCandidates.length, 0);
 });
 
+test("createBinancePublicLightScanProvider times out a hanging upstream instead of blocking pages", async () => {
+  const provider = createBinancePublicLightScanProvider({
+    requestTimeoutMs: 50,
+    fetcher: ((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as typeof fetch,
+  });
+
+  const result = await provider.scan();
+
+  assert.equal(result.diagnostics.status, "failed");
+  assert.match(result.diagnostics.notes.join(" "), /timed out after 50ms/);
+  assert.equal(result.priorityCandidates.length, 0);
+});
+
 test("createOkxPublicLightScanProvider converts public swap tickers into light scan candidates", async () => {
   const provider = createOkxPublicLightScanProvider({
     now: () => new Date("2026-06-20T00:00:00.000Z"),

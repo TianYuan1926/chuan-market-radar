@@ -273,3 +273,24 @@ test("createPublicExchangeOhlcvProvider returns typed failures without throwing"
     status: 503,
   });
 });
+
+test("createPublicExchangeOhlcvProvider times out hanging public K-line upstreams", async () => {
+  const provider = createPublicExchangeOhlcvProvider({
+    requestTimeoutMs: 50,
+    fetcher: ((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as typeof fetch,
+  });
+
+  const result = await provider.fetchCandles({
+    symbol: "ENAUSDT",
+    interval: "1h",
+    limit: 50,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.source, "public-exchange-ohlcv");
+  assert.equal(result.reason, "network_error");
+  assert.match(result.ok ? "" : result.error, /timed out after 50ms/);
+});

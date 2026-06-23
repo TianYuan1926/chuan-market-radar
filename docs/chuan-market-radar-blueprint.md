@@ -683,6 +683,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
    - 2026-06-23 已完成合同修复：`/api/frontend/leaderboard` 对 `gainers/losers/volume` 优先读取 public market ticker；同一币种跨交易所重复时选成交额最高的主场 ticker；每行输出 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。如果 public ticker 不可用，降级为 scanner snapshot 或 light-scan candidate，并在 `reason` 中明确“不能当作真实全市场涨跌幅榜”。
 2. **实时展示边界缺口**：前端需要明确哪些区域可以实时展示，哪些只能准实时或缓存展示。可实时展示的区域必须来自 WebSocket/SSE/Redis 最新快照或明确的 runtime heartbeat；不能用定时动画、跳动数字或旧缓存冒充实时。
    - 2026-06-23 已完成第一轮合同修复：榜单和 K 线面板开始展示 `StatusBadge` 与 `FreshnessTag`；K 线失败、partial、empty 会显示 `DegradeNotice`，不再用假蜡烛填充。
+   - 2026-06-23 已完成上游超时护栏：public light scan 默认 4 秒请求超时，K 线 OHLCV 默认 4 秒请求超时；可用 `PUBLIC_LIGHT_SCAN_REQUEST_TIMEOUT_MS` 和 `PUBLIC_OHLCV_REQUEST_TIMEOUT_MS` 调整。上游慢或卡死时必须返回 partial/failed，不允许拖死页面。
 3. **K 线图专业度缺口**：当前 K 线已经禁止模拟蜡烛，但展示仍不够专业。后续要补齐多周期切换、真实 OHLCV 新鲜度、成交量、关键位/Forward Map 叠加、支撑压力区、失效线、目标区、数据缺口提示和 TradingView 外链兜底。
    - 2026-06-23 已完成数据源底座修复：公开 OHLCV provider 从单一 Binance 升级为 Binance -> OKX -> Bybit 级联；三者都失败时返回 `public-exchange-ohlcv` typed failure，错误原因可追踪，不允许回落到 mock K 线。后续专业图表层继续补 overlay 和更完整交互。
 4. **分析推理报告展示缺口**：前端关于分析、推理、反证、风险门控和交易计划的展示过于简陋，不能体现后端 Evidence / Market Reading / Key Level / Forward Map / Risk Gate / Review 的能力。后续必须把“事实、证据、推理、阻断、计划、复盘反馈”分层展示，并保证每条中文解释可追溯到后端 EvidenceItem 或只读 review 样本。

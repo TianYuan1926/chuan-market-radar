@@ -10,6 +10,7 @@ import type {
 export const BINANCE_FUTURES_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
 export const OKX_SWAP_CANDLES_URL = "https://www.okx.com/api/v5/market/candles";
 export const BYBIT_LINEAR_KLINES_URL = "https://api.bybit.com/v5/market/kline";
+export const DEFAULT_PUBLIC_OHLCV_TIMEOUT_MS = 4_000;
 
 export const binanceIntervalMap: Record<OhlcvInterval, string> = {
   "1m": "1m",
@@ -49,12 +50,50 @@ export type PublicExchangeOhlcvProviderOptions = {
   bybitBaseUrl?: string;
   fetcher?: typeof fetch;
   okxBaseUrl?: string;
+  requestTimeoutMs?: number;
 };
 
 function finiteNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
 
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function fetchTimeoutMs(value: number | undefined) {
+  const envValue = Number(process.env.PUBLIC_OHLCV_REQUEST_TIMEOUT_MS ?? "");
+  let resolved = DEFAULT_PUBLIC_OHLCV_TIMEOUT_MS;
+
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    resolved = value;
+  } else if (Number.isFinite(envValue) && envValue > 0) {
+    resolved = envValue;
+  }
+
+  return Math.max(50, Math.min(15_000, Math.round(resolved)));
+}
+
+function fetchWithTimeout(fetcher: typeof fetch, timeoutMs: number, label: string): typeof fetch {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    try {
+      return await fetcher(input, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`${label} timed out after ${timeoutMs}ms`);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
 }
 
 function isoTime(value: unknown) {
@@ -387,7 +426,10 @@ export function createPublicExchangeOhlcvProvider({
   bybitBaseUrl = BYBIT_LINEAR_KLINES_URL,
   fetcher = fetch,
   okxBaseUrl = OKX_SWAP_CANDLES_URL,
+  requestTimeoutMs,
 }: PublicExchangeOhlcvProviderOptions = {}): OhlcvProvider {
+  const timedFetcher = fetchWithTimeout(fetcher, fetchTimeoutMs(requestTimeoutMs), "public-exchange-ohlcv");
+
   return {
     id: "public-exchange-ohlcv",
     label: "Public Futures OHLCV Cascade",
@@ -415,7 +457,7 @@ export function createPublicExchangeOhlcvProvider({
 
       for (const attempt of attempts) {
         const result = await requestCandles({
-          fetcher,
+          fetcher: timedFetcher,
           interval: request.interval,
           normalize: attempt.normalize,
           source: attempt.source,

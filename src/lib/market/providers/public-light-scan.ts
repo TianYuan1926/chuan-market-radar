@@ -12,6 +12,7 @@ import { createOkxUniverseDiscoveryProvider } from "./okx-universe-discovery";
 export const BINANCE_FUTURES_24H_TICKER_URL = "https://fapi.binance.com/fapi/v1/ticker/24hr";
 export const OKX_PUBLIC_SWAP_TICKERS_URL = "https://www.okx.com/api/v5/market/tickers";
 export const BYBIT_PUBLIC_LINEAR_TICKERS_URL = "https://api.bybit.com/v5/market/tickers";
+export const DEFAULT_PUBLIC_LIGHT_SCAN_TIMEOUT_MS = 4_000;
 
 export type PublicLightScanResult = {
   diagnostics: ScanLightScanDiagnostics;
@@ -61,6 +62,7 @@ export type BinancePublicLightScanProviderOptions = {
   fetcher?: typeof fetch;
   maxPriorityCandidates?: number;
   now?: () => Date;
+  requestTimeoutMs?: number;
 };
 
 export type OkxPublicLightScanProviderOptions = BinancePublicLightScanProviderOptions;
@@ -82,6 +84,43 @@ function finiteNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
 
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function fetchTimeoutMs(value: number | undefined) {
+  const envValue = Number(process.env.PUBLIC_LIGHT_SCAN_REQUEST_TIMEOUT_MS ?? "");
+  let resolved = DEFAULT_PUBLIC_LIGHT_SCAN_TIMEOUT_MS;
+
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    resolved = value;
+  } else if (Number.isFinite(envValue) && envValue > 0) {
+    resolved = envValue;
+  }
+
+  return Math.max(50, Math.min(15_000, Math.round(resolved)));
+}
+
+function fetchWithTimeout(fetcher: typeof fetch, timeoutMs: number, label: string): typeof fetch {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    try {
+      return await fetcher(input, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`${label} timed out after ${timeoutMs}ms`);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
 }
 
 function normalizedSymbol(value: string) {
@@ -369,8 +408,10 @@ export function createBinancePublicLightScanProvider({
   fetcher = fetch,
   maxPriorityCandidates = 80,
   now = () => new Date(),
+  requestTimeoutMs,
 }: BinancePublicLightScanProviderOptions = {}): PublicLightScanProvider {
   const source = "binance-public-futures-24h";
+  const timedFetcher = fetchWithTimeout(fetcher, fetchTimeoutMs(requestTimeoutMs), source);
 
   return {
     id: source,
@@ -382,9 +423,9 @@ export function createBinancePublicLightScanProvider({
       try {
         const discovery = await discoverAllowedSymbols({
           label: "binance",
-          provider: createBinanceUniverseDiscoveryProvider({ fetcher, now }),
+          provider: createBinanceUniverseDiscoveryProvider({ fetcher: timedFetcher, now }),
         });
-        const response = await fetcher(baseUrl);
+        const response = await timedFetcher(baseUrl);
 
         if (!response.ok) {
           return {
@@ -532,8 +573,10 @@ export function createOkxPublicLightScanProvider({
   fetcher = fetch,
   maxPriorityCandidates = 80,
   now = () => new Date(),
+  requestTimeoutMs,
 }: OkxPublicLightScanProviderOptions = {}): PublicLightScanProvider {
   const source = "okx-public-swap-24h";
+  const timedFetcher = fetchWithTimeout(fetcher, fetchTimeoutMs(requestTimeoutMs), source);
 
   return {
     id: source,
@@ -545,9 +588,9 @@ export function createOkxPublicLightScanProvider({
       try {
         const discovery = await discoverAllowedSymbols({
           label: "okx",
-          provider: createOkxUniverseDiscoveryProvider({ fetcher, now }),
+          provider: createOkxUniverseDiscoveryProvider({ fetcher: timedFetcher, now }),
         });
-        const response = await fetcher(buildOkxTickersUrl(baseUrl));
+        const response = await timedFetcher(buildOkxTickersUrl(baseUrl));
 
         if (!response.ok) {
           return {
@@ -710,8 +753,10 @@ export function createBybitPublicLightScanProvider({
   fetcher = fetch,
   maxPriorityCandidates = 80,
   now = () => new Date(),
+  requestTimeoutMs,
 }: BybitPublicLightScanProviderOptions = {}): PublicLightScanProvider {
   const source = "bybit-public-linear-24h";
+  const timedFetcher = fetchWithTimeout(fetcher, fetchTimeoutMs(requestTimeoutMs), source);
 
   return {
     id: source,
@@ -723,9 +768,9 @@ export function createBybitPublicLightScanProvider({
       try {
         const discovery = await discoverAllowedSymbols({
           label: "bybit",
-          provider: createBybitUniverseDiscoveryProvider({ fetcher, now }),
+          provider: createBybitUniverseDiscoveryProvider({ fetcher: timedFetcher, now }),
         });
-        const response = await fetcher(buildBybitTickersUrl(baseUrl));
+        const response = await timedFetcher(buildBybitTickersUrl(baseUrl));
 
         if (!response.ok) {
           return {
