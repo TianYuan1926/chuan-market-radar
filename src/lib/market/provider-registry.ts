@@ -32,7 +32,7 @@ export type ProviderEnv = {
 export const defaultCoinGlassBatchSize = 24;
 export const defaultCoinGlassDailyRequestBudget = 3_000;
 export const defaultCoinGlassMaxConcurrency = 6;
-export const defaultCoinGlassRequestIntervalMs = 500;
+export const defaultCoinGlassRequestIntervalMs = 2_200;
 
 let websocketLightScanRedisClientPromise: Promise<{
   get: (key: string) => Promise<string | null>;

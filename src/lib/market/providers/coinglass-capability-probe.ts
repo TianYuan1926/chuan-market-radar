@@ -114,7 +114,7 @@ function safeCoinGlassProbeIntervalMs(value?: string) {
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
-    return 500;
+    return 2_200;
   }
 
   return Math.min(60_000, Math.max(0, Math.floor(parsed)));

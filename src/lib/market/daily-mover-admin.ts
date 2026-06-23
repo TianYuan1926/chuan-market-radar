@@ -129,7 +129,7 @@ export async function runAdminDailyMoverIngest({
         defaultMaxAssets,
       ),
       repository,
-      requestIntervalMs: nonNegativeNumberFromEnv(env.COINGLASS_REQUEST_INTERVAL_MS, 500),
+      requestIntervalMs: nonNegativeNumberFromEnv(env.COINGLASS_REQUEST_INTERVAL_MS, 2_200),
       universeDiscoveryProvider: createPublicFuturesUniverseDiscoveryProvider(),
     });
 
