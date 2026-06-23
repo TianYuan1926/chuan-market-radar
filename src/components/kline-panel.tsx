@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { KlineChart } from './kline-chart'
 import { DegradeNotice, FreshnessTag, StatusBadge } from './data-state'
-import type { ChartCandle } from '@/lib/chart-types'
+import type { ChartCandle, KlineOverlay } from '@/lib/chart-types'
 import type { DataStatus } from '@/lib/data-status'
 import { cn } from '@/lib/utils'
 
@@ -15,10 +15,12 @@ const TF_TO_INTERVAL: Record<(typeof TFS)[number], string> = {
   '4小时': '4h',
   '1天': '1d',
 }
+const EMPTY_OVERLAYS: KlineOverlay[] = []
 
 type KlineResourcePayload = {
   status: DataStatus
   data: ChartCandle[]
+  overlays?: KlineOverlay[]
   updatedAt?: string
   ageSec?: number
   source?: string
@@ -33,6 +35,7 @@ export function KlinePanel({
   initialSource,
   initialStatus = 'empty',
   initialUpdatedAt,
+  initialOverlays = EMPTY_OVERLAYS,
   symbol,
 }: {
   bare?: boolean
@@ -42,12 +45,14 @@ export function KlinePanel({
   initialSource?: string
   initialStatus?: DataStatus
   initialUpdatedAt?: string
+  initialOverlays?: KlineOverlay[]
   symbol?: string
 }) {
   const [tf, setTf] = useState<(typeof TFS)[number]>('4小时')
   const [remote, setRemote] = useState<KlineResourcePayload>({
     ageSec: initialAgeSec,
     data: candles ?? [],
+    overlays: initialOverlays,
     reason: initialReason,
     source: initialSource,
     status: initialStatus,
@@ -58,12 +63,13 @@ export function KlinePanel({
     setRemote({
       ageSec: initialAgeSec,
       data: candles ?? [],
+      overlays: initialOverlays,
       reason: initialReason,
       source: initialSource,
       status: initialStatus,
       updatedAt: initialUpdatedAt,
     })
-  }, [candles, initialAgeSec, initialReason, initialSource, initialStatus, initialUpdatedAt])
+  }, [candles, initialAgeSec, initialOverlays, initialReason, initialSource, initialStatus, initialUpdatedAt])
 
   useEffect(() => {
     if (!symbol) return
@@ -71,6 +77,7 @@ export function KlinePanel({
       setRemote({
         ageSec: initialAgeSec,
         data: candles,
+        overlays: initialOverlays,
         reason: initialReason,
         source: initialSource,
         status: initialStatus,
@@ -110,9 +117,10 @@ export function KlinePanel({
       })
 
     return () => controller.abort()
-  }, [candles, initialAgeSec, initialReason, initialSource, initialStatus, initialUpdatedAt, symbol, tf])
+  }, [candles, initialAgeSec, initialOverlays, initialReason, initialSource, initialStatus, initialUpdatedAt, symbol, tf])
 
   const displayCandles = remote.data
+  const displayOverlays = remote.overlays ?? []
 
   return (
     <div className={bare ? '' : 'border border-border bg-card'}>
@@ -148,7 +156,22 @@ export function KlinePanel({
       <div className="px-3 pb-2 pt-3">
         <DegradeNotice status={remote.status} reason={remote.reason} className="mb-3" />
         {displayCandles.length > 0 ? (
-          <KlineChart candles={displayCandles} />
+          <>
+            <KlineChart candles={displayCandles} overlays={displayOverlays} />
+            {displayOverlays.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {displayOverlays.slice(0, 8).map((overlay) => (
+                  <span
+                    key={`${overlay.kind}-${overlay.id}`}
+                    className="border border-border bg-secondary/40 px-2 py-1 font-mono text-[10px] text-muted-foreground"
+                    title={overlay.detail}
+                  >
+                    {overlay.label} {overlay.price >= 1 ? overlay.price.toFixed(3) : overlay.price.toFixed(5)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <div className="grid min-h-[320px] place-items-center border border-dashed border-border bg-secondary/20 px-4 text-center text-sm text-muted-foreground">
             {remote.reason ?? '等待真实 K 线数据'}

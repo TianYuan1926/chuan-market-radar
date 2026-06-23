@@ -5,7 +5,7 @@ import {
   buildFrontendRadarContract,
   buildFrontendReviewContract,
   buildFrontendTokenDossierContract,
-  type KlineChartCandle,
+  type KlineContractResource,
 } from "@/lib/api/frontend-contract";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
 import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
@@ -137,12 +137,19 @@ export async function getTokenDossierContractForPage(
 export async function getKlineContractForPage(
   symbol: string,
   interval: OhlcvInterval = "4h",
-): Promise<Resource<KlineChartCandle[]>> {
+): Promise<KlineContractResource> {
+  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
+    allowRefresh: false,
+    trigger: "page_ssr",
+  });
+  const dossier = buildSignalBackendDossier({ snapshot, symbol });
+
   return buildFrontendKlineContract({
+    dossier,
     interval,
     repository: appPersistenceRepository,
     symbol,
-  }) as unknown as Resource<KlineChartCandle[]>;
+  });
 }
 
 export async function getReviewContractForPage(): Promise<ReviewContract> {

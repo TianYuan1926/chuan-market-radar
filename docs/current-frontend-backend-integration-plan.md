@@ -101,6 +101,7 @@ restore frontend source from user ui package
 - `ReviewContract.aiReviewStats`：统计 evidence-id 绑定的 AI 复核状态；AI 不能替代规则引擎。
 - `/api/frontend/leaderboard`：public market ticker 模式下，`gainers` 取同币种最高 24h 涨幅，`losers` 取同币种最低 24h 涨幅，`volume` 聚合同币种跨交易所 24h 成交额；每行必须带 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。
 - `/api/frontend/token-dossier`：`reportSections` 已纳入 v3 关键位、Forward Map、趋势状态、趋势分数、位置/RR、回踩/反抽质量、趋势完整度、交易计划确认清单、分批止盈和人工复核边界。
+- `/api/frontend/kline-contract`：在保持 `data` 为真实蜡烛数组的前提下，新增只读 `overlays/overlayStatus/tradingView`，把后端 v3 关键位、Forward Map、结构止损和目标位提供给图表层。
 
 下一批需要补强的合同：
 
@@ -165,6 +166,7 @@ mapper 硬规则：
 - 包括证据链、关键位、策略计划、风险说明。
 - 后端没有该币时显示未覆盖，不生成假档案。
 - 分析汇报必须优先展示后端 `reportSections`，不能只展示一句简略总结；如果 UI 空间不足，也要保留可展开或分层查看入口。
+- K 线图只能画真实 OHLCV；关键线只能来自后端 v3 overlay，不能由前端自己推导支撑压力、止损或目标。
 
 ### `/review`
 

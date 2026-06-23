@@ -25,6 +25,7 @@ import type {
 import { isCryptoFuturesUnderlying } from "../market/asset-class-filter";
 import type { BackendContract } from "./backend-contract";
 import type { BusinessCapabilityStage } from "./business-capability";
+import type { KlineOverlay } from "../chart-types";
 
 export type DataStatus =
   | "loading"
@@ -385,6 +386,14 @@ export type KlineChartCandle = {
   v: number;
 };
 
+export type KlineChartOverlay = KlineOverlay;
+
+export type KlineContractResource = Resource<KlineChartCandle[]> & {
+  overlays: KlineChartOverlay[];
+  overlayStatus: DataStatus;
+  tradingView?: SignalBackendDossier["chart"]["tradingView"];
+};
+
 type FrontendKlineRepository = Pick<
   {
     getOhlcvCandleCache: (symbol: string, interval: OhlcvInterval) => Promise<OhlcvCandleCacheEntry | null>;
@@ -546,7 +555,143 @@ function cacheFreshEnough(cache: OhlcvCandleCacheEntry, now: Date, maxAgeMs: num
   return Number.isFinite(fetchedAt) && now.getTime() - fetchedAt <= maxAgeMs;
 }
 
+function overlayPrice(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function zoneMid(low: number, high: number) {
+  return (low + high) / 2;
+}
+
+function dedupeKlineOverlays(overlays: KlineChartOverlay[]) {
+  const seen = new Set<string>();
+
+  return overlays.filter((overlay) => {
+    const key = `${overlay.kind}:${overlay.sourceId ?? overlay.id}:${overlay.price.toFixed(8)}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function klineOverlayFromKeyLevel(level: KeyLevel): KlineChartOverlay | null {
+  const price = overlayPrice(level.midPrice || zoneMid(level.zoneLow, level.zoneHigh));
+  if (price === null) {
+    return null;
+  }
+
+  const kind = level.direction === "SUPPORT" ? "support" : "resistance";
+
+  return {
+    detail: `${level.timeframe} ${level.type} · ${level.status} · score ${level.keyScore}`,
+    id: `key-level:${level.id}`,
+    kind,
+    label: kind === "support" ? "支撑" : "压力",
+    price,
+    sourceId: `v3:key-level:${level.id}`,
+    tone: kind,
+    zoneHigh: level.zoneHigh,
+    zoneLow: level.zoneLow,
+  };
+}
+
+function klineOverlayFromForwardLevel(level: ForwardLevel): KlineChartOverlay | null {
+  const price = overlayPrice(zoneMid(level.zoneLow, level.zoneHigh));
+  if (price === null) {
+    return null;
+  }
+
+  const tone = level.role === "INVALIDATION_LEVEL"
+    ? "risk"
+    : level.side === "SUPPORT"
+      ? "support"
+      : "resistance";
+
+  return {
+    detail: `${level.role} · ${level.status} · score ${level.keyScore}`,
+    id: `forward-level:${level.id}`,
+    kind: level.role === "INVALIDATION_LEVEL" ? "invalidation" : "forward",
+    label: level.role === "INVALIDATION_LEVEL" ? "失效" : level.side === "SUPPORT" ? "前方支撑" : "前方压力",
+    price,
+    sourceId: `v3:forward-level:${level.id}`,
+    tone,
+    zoneHigh: level.zoneHigh,
+    zoneLow: level.zoneLow,
+  };
+}
+
+function klineOverlaysFromTradePlan(plan: StrategyV3TradePlan | undefined): KlineChartOverlay[] {
+  if (!plan) {
+    return [];
+  }
+
+  const overlays: KlineChartOverlay[] = [];
+  const stop = overlayPrice(plan.structuralStop);
+  if (stop !== null) {
+    overlays.push({
+      detail: plan.invalidation,
+      id: "trade-plan:stop",
+      kind: "stop",
+      label: "结构止损",
+      price: stop,
+      sourceId: "trade-plan:stop",
+      tone: "risk",
+    });
+  }
+
+  plan.targets.slice(0, 3).forEach((target, index) => {
+    const price = overlayPrice(target);
+    if (price === null) {
+      return;
+    }
+    overlays.push({
+      detail: plan.takeProfitPlan,
+      id: `trade-plan:tp${index + 1}`,
+      kind: "target",
+      label: `TP${index + 1}`,
+      price,
+      sourceId: `trade-plan:tp${index + 1}`,
+      tone: "target",
+    });
+  });
+
+  return overlays;
+}
+
+function buildKlineOverlays(dossier: SignalBackendDossier | null | undefined): KlineChartOverlay[] {
+  if (!dossier?.found || !dossier.strategyV3) {
+    return [];
+  }
+
+  return dedupeKlineOverlays([
+    ...dossier.strategyV3.keyLevels.map(klineOverlayFromKeyLevel).filter((item): item is KlineChartOverlay => Boolean(item)),
+    ...dossier.strategyV3.forwardLevels.map(klineOverlayFromForwardLevel).filter((item): item is KlineChartOverlay => Boolean(item)),
+    ...klineOverlaysFromTradePlan(dossier.strategyV3.tradePlan),
+  ]).slice(0, 16);
+}
+
+function klineResource(
+  data: KlineChartCandle[],
+  status: DataStatus,
+  extra: Omit<Resource<KlineChartCandle[]>, "data" | "status"> & {
+    dossier?: SignalBackendDossier | null;
+  } = {},
+): KlineContractResource {
+  const { dossier, ...resourceExtra } = extra;
+  const overlays = buildKlineOverlays(dossier);
+
+  return {
+    ...resource(data, status, resourceExtra),
+    overlays,
+    overlayStatus: overlays.length > 0 ? "live" : "empty",
+    tradingView: dossier?.found ? dossier.chart.tradingView : undefined,
+  };
+}
+
 export async function buildFrontendKlineContract({
+  dossier,
   interval,
   limit = 160,
   maxCacheAgeMs = 5 * 60_000,
@@ -561,16 +706,18 @@ export async function buildFrontendKlineContract({
   now?: Date;
   ohlcvProvider?: OhlcvProvider;
   repository?: FrontendKlineRepository;
+  dossier?: SignalBackendDossier | null;
   symbol: string;
-}): Promise<Resource<KlineChartCandle[]>> {
+}): Promise<KlineContractResource> {
   const normalizedSymbol = normalizeFrontendKlineSymbol(symbol);
   const cached = repository
     ? await repository.getOhlcvCandleCache(normalizedSymbol, interval)
     : null;
 
   if (cached && cacheFreshEnough(cached, now, maxCacheAgeMs)) {
-    return resource(chartCandlesFromOhlcv(cached.candles), "cached", {
+    return klineResource(chartCandlesFromOhlcv(cached.candles), "cached", {
       ageSec: diffSeconds(latestCandleOpenTime(cached.candles), now),
+      dossier,
       source: cached.source,
       updatedAt: cached.fetchedAt,
     });
@@ -599,8 +746,9 @@ export async function buildFrontendKlineContract({
       });
     }
 
-    return resource(candles, candles.length > 0 ? "live" : "empty", {
+    return klineResource(candles, candles.length > 0 ? "live" : "empty", {
       ageSec: diffSeconds(latestCandleOpenTime(result.candles), now),
+      dossier,
       source: result.source,
       updatedAt: fetchedAt,
       reason: candles.length > 0 ? undefined : "公开 K 线源暂未返回可用蜡烛",
@@ -608,15 +756,17 @@ export async function buildFrontendKlineContract({
   }
 
   if (cached) {
-    return resource(chartCandlesFromOhlcv(cached.candles), "stale", {
+    return klineResource(chartCandlesFromOhlcv(cached.candles), "stale", {
       ageSec: diffSeconds(latestCandleOpenTime(cached.candles), now),
+      dossier,
       source: cached.source,
       updatedAt: cached.fetchedAt,
       reason: `公开 K 线源请求失败，使用旧缓存：${result.reason}`,
     });
   }
 
-  return resource([], "failed", {
+  return klineResource([], "failed", {
+    dossier,
     source: result.source,
     reason: result.error,
   });

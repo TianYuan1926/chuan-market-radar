@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildFrontendKlineContract } from "@/lib/api/frontend-contract";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
+import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { buildSignalBackendDossier } from "@/lib/market/signal-backend-dossier";
 import type { OhlcvInterval } from "@/lib/market/ohlcv/types";
 import { appPersistenceRepository } from "@/lib/persistence/app-repository";
 
@@ -96,7 +98,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
+    allowRefresh: false,
+    trigger: "page_ssr",
+  });
+  const dossier = buildSignalBackendDossier({ snapshot, symbol });
   const kline = await buildFrontendKlineContract({
+    dossier,
     interval,
     limit: limitParam(request),
     repository: appPersistenceRepository,

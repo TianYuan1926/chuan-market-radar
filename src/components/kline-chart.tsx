@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { ChartCandle } from '@/lib/chart-types'
+import type { ChartCandle, KlineOverlay, KlineOverlayTone } from '@/lib/chart-types'
 
 type Props = {
   candles: ChartCandle[]
   height?: number
+  overlays?: KlineOverlay[]
 }
 
 const UP = 'oklch(0.78 0.17 155)'
@@ -17,6 +18,13 @@ const AXIS = 'oklch(0.68 0.02 250 / 0.55)'
 const NEON = 'oklch(0.77 0.16 62)'
 const BG = 'oklch(0.15 0.008 260)'
 const MONO = '11px ui-monospace, SFMono-Regular, Menlo, monospace'
+const OVERLAY_COLORS: Record<KlineOverlayTone, string> = {
+  neutral: 'oklch(0.72 0.03 250 / 0.72)',
+  resistance: 'oklch(0.66 0.22 20 / 0.9)',
+  risk: 'oklch(0.62 0.24 28 / 0.95)',
+  support: 'oklch(0.78 0.17 155 / 0.9)',
+  target: 'oklch(0.77 0.16 62 / 0.95)',
+}
 
 function fmtP(p: number) {
   if (p >= 1000) return p.toFixed(1)
@@ -24,7 +32,11 @@ function fmtP(p: number) {
   return p.toFixed(5)
 }
 
-export function KlineChart({ candles, height = 440 }: Props) {
+function withAlpha(color: string, alpha: number) {
+  return color.replace(/\/\s*[\d.]+\)/, `/ ${alpha})`)
+}
+
+export function KlineChart({ candles, height = 440, overlays = [] }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hover, setHover] = useState<{ x: number; i: number } | null>(null)
@@ -61,8 +73,16 @@ export function KlineChart({ candles, height = 440 }: Props) {
     const priceH = height - padT - gap - volH - axisB
     const volTop = padT + priceH + gap
 
-    const highs = candles.map((c) => c.h)
-    const lows = candles.map((c) => c.l)
+    const visibleOverlays = overlays
+      .filter((overlay) => Number.isFinite(overlay.price) && overlay.price > 0)
+      .slice(0, 12)
+    const overlayPrices = visibleOverlays.flatMap((overlay) =>
+      [overlay.price, overlay.zoneLow, overlay.zoneHigh].filter((value): value is number =>
+        typeof value === 'number' && Number.isFinite(value) && value > 0
+      )
+    )
+    const highs = [...candles.map((c) => c.h), ...overlayPrices]
+    const lows = [...candles.map((c) => c.l), ...overlayPrices]
     const maxP = Math.max(...highs)
     const minP = Math.min(...lows)
     const pad = (maxP - minP) * 0.08 || 1
@@ -140,6 +160,43 @@ export function KlineChart({ candles, height = 440 }: Props) {
       ctx.fillRect(x - bodyW / 2, vy, bodyW, volTop + volH - vy)
     })
 
+    // 后端 v3 关键位 / Forward Map / 止损目标 overlay。只展示后端事实，不在前端生成交易判断。
+    visibleOverlays.forEach((overlay, index) => {
+      const y = yP(overlay.price)
+      const color = OVERLAY_COLORS[overlay.tone] ?? OVERLAY_COLORS.neutral
+
+      if (
+        typeof overlay.zoneLow === 'number' &&
+        typeof overlay.zoneHigh === 'number' &&
+        Number.isFinite(overlay.zoneLow) &&
+        Number.isFinite(overlay.zoneHigh) &&
+        overlay.zoneHigh > overlay.zoneLow
+      ) {
+        const yTop = yP(overlay.zoneHigh)
+        const yBottom = yP(overlay.zoneLow)
+        ctx.fillStyle = withAlpha(color, 0.08)
+        ctx.fillRect(padL, yTop, plotW, Math.max(1, yBottom - yTop))
+      }
+
+      ctx.strokeStyle = color
+      ctx.lineWidth = overlay.kind === 'target' || overlay.kind === 'stop' ? 1.4 : 1
+      ctx.setLineDash(overlay.kind === 'forward' ? [6, 5] : overlay.kind === 'target' ? [2, 4] : [])
+      ctx.beginPath()
+      ctx.moveTo(padL, y + 0.5)
+      ctx.lineTo(padL + plotW, y + 0.5)
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      const labelY = Math.max(padT + 10, Math.min(padT + priceH - 10, y - (index % 3) * 12))
+      const text = `${overlay.label} ${fmtP(overlay.price)}`
+      const textW = ctx.measureText(text).width + 10
+      ctx.fillStyle = 'oklch(0.13 0.01 260 / 0.82)'
+      ctx.fillRect(padL + 6, labelY - 8, textW, 16)
+      ctx.fillStyle = color
+      ctx.textAlign = 'left'
+      ctx.fillText(text, padL + 11, labelY)
+    })
+
     // 最新价虚线 + 价签
     const last = candles[candles.length - 1]
     const ly = yP(last.c)
@@ -180,7 +237,7 @@ export function KlineChart({ candles, height = 440 }: Props) {
       ctx.fillStyle = 'oklch(0.96 0.005 250)'
       ctx.fillText(fmtP(hc.c), padL + plotW + 8, hy)
     }
-  }, [candles, width, height, hover])
+  }, [candles, width, height, hover, overlays])
 
   const onMove = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect()
@@ -220,6 +277,11 @@ export function KlineChart({ candles, height = 440 }: Props) {
           {hcUp ? '+' : ''}
           {chg.toFixed(2)}%
         </span>
+        {overlays.length > 0 && (
+          <span className="text-neon">
+            关键线 {Math.min(overlays.length, 12)}
+          </span>
+        )}
       </div>
       <canvas
         ref={canvasRef}

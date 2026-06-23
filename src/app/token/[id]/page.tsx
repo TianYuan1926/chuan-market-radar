@@ -154,6 +154,7 @@ export default async function TokenPage({
                   initialSource={kline.source}
                   initialStatus={kline.status}
                   initialUpdatedAt={kline.updatedAt}
+                  initialOverlays={kline.overlays}
                   symbol={token.symbol}
                 />
               </div>

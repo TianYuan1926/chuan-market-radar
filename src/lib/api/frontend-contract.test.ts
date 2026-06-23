@@ -1001,6 +1001,133 @@ test("buildFrontendKlineContract maps public OHLCV candles into frontend chart c
       v: 123456,
     },
   ]);
+  assert.deepEqual(kline.overlays, []);
+  assert.equal(kline.overlayStatus, "empty");
+});
+
+test("buildFrontendKlineContract exposes readonly v3 chart overlays from backend dossier", async () => {
+  const provider = ohlcvProvider();
+  const dossier: SignalBackendDossier = {
+    found: true,
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    guardrails: ["report_is_translation_only"],
+    symbol: "TIAUSDT",
+    chart: {
+      availableTimeframes: ["1h"],
+      selectedTimeframe: "1h",
+      tradingView: {
+        interval: "1h",
+        symbol: "BINANCE:TIAUSDT.P",
+        url: "https://www.tradingview.com/chart/?symbol=BINANCE%3ATIAUSDT.P",
+      },
+    },
+    evidence: {
+      conflictingCount: 0,
+      items: signal().evidence,
+      neutralCount: 0,
+      supportiveCount: 2,
+      total: 3,
+    },
+    journal: {
+      recentEvents: [],
+      totalEvents: 0,
+    },
+    signal: {
+      confidence: 84,
+      direction: "long",
+      exchange: "BINANCE",
+      id: "sig-tia",
+      risk: "medium",
+      state: "near_trigger",
+      summary: "压缩突破",
+      timeframe: "1h",
+      updatedAt: "2026-06-21T08:00:00.000Z",
+    },
+    strategyV3: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 7.84,
+      forwardLevels: [
+        {
+          id: "tia-forward-r1",
+          symbol: "TIAUSDT",
+          side: "RESISTANCE",
+          role: "NEXT_REACTION_ZONE",
+          zoneLow: 8.55,
+          zoneHigh: 8.65,
+          timeframeWeight: 70,
+          keyScore: 78,
+          status: "AHEAD",
+          reasons: ["前方反应区"],
+          confirmationRules: ["放量站上"],
+          invalidationRules: ["跌回突破位"],
+          sourceLevelIds: ["tia-r1"],
+        },
+      ],
+      guardrails: ["research_only"],
+      keyLevels: [
+        {
+          id: "tia-s1",
+          symbol: "TIAUSDT",
+          timeframe: "1h",
+          type: "RANGE_LOW",
+          zoneLow: 7.72,
+          zoneHigh: 7.82,
+          midPrice: 7.77,
+          direction: "SUPPORT",
+          keyScore: 80,
+          reactionScore: 55,
+          confluenceScore: 70,
+          status: "POTENTIAL",
+          reasons: ["箱体下沿"],
+          confirmationRules: ["回踩守住"],
+          invalidationRule: "跌破箱体",
+        },
+      ],
+      primaryTimeframe: "1h",
+      source: "existing_ohlcv_key_level_mvp",
+      sourceTimeframes: ["1h"],
+      summary: "v3 关键位地图",
+      symbol: "TIAUSDT",
+      tradePlan: {
+        allowedUse: "research_only",
+        blockedBy: [],
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        confirmationChecklist: ["突破站稳 8.2"],
+        direction: "long",
+        entryZone: "8.2 上方确认",
+        hasAutoExecution: false,
+        invalidation: "跌回箱体",
+        isPlanEligible: true,
+        manualReviewRequired: true,
+        positionSizing: "轻仓",
+        rewardRisk: 3.4,
+        status: "READY_LONG",
+        structuralStop: 7.72,
+        summary: "只读交易计划",
+        takeProfitPlan: "分批止盈",
+        targets: [8.6, 9.15, 10.2],
+      },
+    },
+  };
+
+  const kline = await buildFrontendKlineContract({
+    dossier,
+    interval: "1h",
+    now: new Date("2026-06-21T08:01:30.000Z"),
+    ohlcvProvider: provider,
+    symbol: "TIA",
+  });
+
+  assert.equal(kline.status, "live");
+  assert.equal(kline.overlayStatus, "live");
+  assert.equal(kline.tradingView?.symbol, "BINANCE:TIAUSDT.P");
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "v3:key-level:tia-s1"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "v3:forward-level:tia-forward-r1"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "trade-plan:stop"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "trade-plan:tp1"), true);
 });
 
 test("buildFrontendTokenDossierContract translates backend dossier without report-side decisions", () => {
