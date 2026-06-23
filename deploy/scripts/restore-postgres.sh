@@ -20,6 +20,15 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+if docker ps >/dev/null 2>&1; then
+  COMPOSE=(docker compose --env-file "${ENV_FILE}")
+elif sudo -n docker ps >/dev/null 2>&1; then
+  COMPOSE=(sudo docker compose --env-file "${ENV_FILE}")
+else
+  echo "ERROR: cannot access Docker daemon. Add this user to docker group or allow passwordless sudo for docker." >&2
+  exit 1
+fi
+
 set -a
 source "${ENV_FILE}"
 set +a
@@ -37,7 +46,7 @@ if [[ "${CONFIRM_RESTORE:-}" != "yes" ]]; then
   exit 3
 fi
 
-docker compose --env-file "${ENV_FILE}" exec -T postgres \
+"${COMPOSE[@]}" exec -T postgres \
   pg_restore -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --clean --if-exists --no-owner --no-acl < "${BACKUP_FILE}"
 
 echo "Restore completed."

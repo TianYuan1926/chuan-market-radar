@@ -10,6 +10,15 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+if docker ps >/dev/null 2>&1; then
+  COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.yml")
+elif sudo -n docker ps >/dev/null 2>&1; then
+  COMPOSE=(sudo docker compose --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.yml")
+else
+  echo "ERROR: cannot access Docker daemon. Add this user to docker group or allow passwordless sudo for docker." >&2
+  exit 1
+fi
+
 set -a
 source "${ENV_FILE}"
 set +a
@@ -19,7 +28,7 @@ mkdir -p "${BACKUP_DIR}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 TARGET="${BACKUP_DIR}/chuan-market-radar-${STAMP}.dump"
 
-docker compose --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.yml" exec -T postgres \
+"${COMPOSE[@]}" exec -T postgres \
   pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --format=custom --no-owner --no-acl > "${TARGET}"
 
 find "${BACKUP_DIR}" -type f -name 'chuan-market-radar-*.dump' -mtime +14 -delete

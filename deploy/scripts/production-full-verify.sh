@@ -4,10 +4,18 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
-COMPOSE=(docker compose --env-file "${ENV_FILE}")
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "ERROR: docker is not installed or not in PATH." >&2
+  exit 1
+fi
+
+if docker ps >/dev/null 2>&1; then
+  COMPOSE=(docker compose --env-file "${ENV_FILE}")
+elif sudo -n docker ps >/dev/null 2>&1; then
+  COMPOSE=(sudo docker compose --env-file "${ENV_FILE}")
+else
+  echo "ERROR: cannot access Docker daemon. Add this user to docker group or allow passwordless sudo for docker." >&2
   exit 1
 fi
 
