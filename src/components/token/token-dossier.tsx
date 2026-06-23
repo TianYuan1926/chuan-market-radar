@@ -117,7 +117,7 @@ export function TokenDossier({
                   </span>
                 </div>
                 <ul className="mt-2 space-y-1.5">
-                  {section.items.slice(0, 4).map((item) => (
+                  {section.items.slice(0, 8).map((item) => (
                     <li key={`${section.key}-${item.label}-${item.sourceId}`} className="text-xs leading-relaxed">
                       <span className="font-semibold">{item.label}：</span>
                       <span className="text-muted-foreground">{item.detail}</span>

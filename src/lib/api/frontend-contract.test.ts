@@ -632,7 +632,7 @@ test("buildFrontendLeaderboardContract maps and sorts real ticker data", () => {
   assert.match(gainers.reason ?? "", /扫描快照|scanner/u);
 });
 
-test("buildFrontendLeaderboardContract prefers full public market tickers for gainers and losers", () => {
+test("buildFrontendLeaderboardContract uses public market ticker metrics without candidate filler", () => {
   const backend = backendContract();
   backend.scanProof.lightScan.topCandidates = [
     {
@@ -702,13 +702,73 @@ test("buildFrontendLeaderboardContract prefers full public market tickers for ga
   });
 
   assert.equal(gainers.status, "live");
-  assert.equal(gainers.data[0]?.symbol, "AAA");
+  assert.equal(gainers.data[0]?.symbol, "BBB");
   assert.equal(gainers.data.some((row) => row.symbol === "CANDY"), false);
   assert.equal(gainers.data[0]?.source, "public_market_ticker");
   assert.equal(gainers.data[0]?.rankingScope, "market_board");
-  assert.equal(gainers.data.find((row) => row.symbol === "BBB")?.value, 7);
-  assert.match(gainers.data.find((row) => row.symbol === "BBB")?.sourceLabel ?? "", /OKX/);
+  assert.equal(gainers.data.find((row) => row.symbol === "BBB")?.value, 55);
+  assert.match(gainers.data.find((row) => row.symbol === "BBB")?.sourceLabel ?? "", /BYBIT/);
+  assert.match(gainers.data.find((row) => row.symbol === "BBB")?.venueScope ?? "", /BINANCE|BYBIT|OKX/);
   assert.match(gainers.reason ?? "", /真实市场榜单/);
+});
+
+test("buildFrontendLeaderboardContract aggregates cross-venue volume for volume board", () => {
+  const volume = buildFrontendLeaderboardContract({
+    backend: backendContract(),
+    kind: "volume",
+    publicMarket: {
+      diagnostics: {
+        acceptedCount: 3,
+        candidateCount: 0,
+        generatedAt: "2026-06-21T08:00:30.000Z",
+        notes: [],
+        requestCount: 3,
+        source: "public-light-composite",
+        status: "ready",
+        topCandidates: [],
+        universeCount: 3,
+      },
+      tickers: [
+        {
+          symbol: "AAAUSDT",
+          exchange: "BINANCE",
+          price: 1,
+          changePercent24h: 10,
+          volume24hUsd: 1_000_000,
+          high24h: 1.1,
+          low24h: 0.8,
+          updatedAt: "2026-06-21T08:00:10.000Z",
+        },
+        {
+          symbol: "AAAUSDT",
+          exchange: "OKX",
+          price: 1.01,
+          changePercent24h: 20,
+          volume24hUsd: 2_000_000,
+          high24h: 1.12,
+          low24h: 0.82,
+          updatedAt: "2026-06-21T08:00:30.000Z",
+        },
+        {
+          symbol: "BBBUSDT",
+          exchange: "BYBIT",
+          price: 2,
+          changePercent24h: 2,
+          volume24hUsd: 2_500_000,
+          high24h: 2.1,
+          low24h: 1.9,
+          updatedAt: "2026-06-21T08:00:20.000Z",
+        },
+      ],
+    },
+    snapshot: snapshot([]),
+  });
+
+  assert.equal(volume.status, "live");
+  assert.equal(volume.data[0]?.symbol, "AAA");
+  assert.equal(volume.data[0]?.value, 3_000_000);
+  assert.equal(volume.data[0]?.price, 1.01);
+  assert.match(volume.data[0]?.sourceLabel ?? "", /aggregated volume/);
 });
 
 test("buildFrontendLeaderboardContract falls back to public light scan candidates when tickers are absent", () => {
@@ -1149,14 +1209,122 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
       canAutoAdjustWeights: false,
       canMutateLiveRanking: false,
       currentPrice: 7.84,
-      forwardLevels: [],
+      forwardLevels: [
+        {
+          id: "tia-fwd-r1",
+          symbol: "TIAUSDT",
+          side: "RESISTANCE",
+          role: "NEXT_REACTION_ZONE",
+          zoneLow: 8.55,
+          zoneHigh: 8.65,
+          timeframeWeight: 70,
+          keyScore: 78,
+          status: "AHEAD",
+          reasons: ["前方反应区"],
+          confirmationRules: ["放量站上"],
+          invalidationRules: ["跌回突破位"],
+          sourceLevelIds: ["tia-r1"],
+        },
+      ],
       guardrails: ["research_only"],
-      keyLevels: [],
+      keyLevels: [
+        {
+          id: "tia-r1",
+          symbol: "TIAUSDT",
+          timeframe: "1h",
+          type: "RANGE_HIGH",
+          zoneLow: 8.2,
+          zoneHigh: 8.32,
+          midPrice: 8.26,
+          direction: "RESISTANCE",
+          keyScore: 84,
+          reactionScore: 58,
+          confluenceScore: 72,
+          status: "POTENTIAL",
+          reasons: ["箱体上沿"],
+          confirmationRules: ["突破站稳"],
+          invalidationRule: "跌回箱体",
+        },
+      ],
       primaryTimeframe: "1h",
       source: "existing_ohlcv_key_level_mvp",
       sourceTimeframes: ["1h"],
       summary: "v3 关键位地图",
       symbol: "TIAUSDT",
+      trendContext: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        conflicts: [],
+        decision: "LONG_PLAN",
+        guardrail: "只读趋势上下文",
+        locationRiskReward: {
+          allowedUse: "research_only",
+          canAutoAdjustWeights: false,
+          canMutateLiveRanking: false,
+          currentPrice: 7.84,
+          direction: "long",
+          hasTradeSignal: false,
+          isTradeEligible: true,
+          minRewardRisk: 3,
+          nearestTarget: 10.2,
+          positionQuality: "GOOD_LOCATION",
+          rewardRisk: 3.4,
+          riskFlags: [],
+          stopDistance: 0.08,
+          stopDistancePercent: 1.02,
+          structuralStop: 7.76,
+          summary: "贴近突破位，赔率达标",
+          targetDistance: 2.36,
+          targetDistancePercent: 30.1,
+          targetLevelId: "tia-fwd-r1",
+          stopLevelId: "tia-s1",
+        },
+        nextStep: "等待突破后回踩确认",
+        noParticipationReasons: [],
+        reactionQuality: {
+          allowedUse: "research_only",
+          canAutoAdjustWeights: false,
+          canMutateLiveRanking: false,
+          direction: "long",
+          evidence: ["回踩不破"],
+          hasTradeSignal: false,
+          qualityScore: 76,
+          riskFlags: [],
+          status: "REACTION_STARTED",
+          summary: "回踩质量正在形成",
+          touchedLevelId: "tia-r1",
+        },
+        riskGate: {
+          allowed: true,
+          blockedBy: [],
+          mode: "readonly_v3_risk_gate",
+        },
+        scores: {
+          longPreTrendScore: 82,
+          shortPreTrendScore: 12,
+          longTrendEnergyScore: 74,
+          shortTrendEnergyScore: 8,
+          riskScore: 28,
+          trendHoldScore: 66,
+          exhaustionScore: 21,
+        },
+        state: "LONG_BREAKOUT",
+        summary: "多头趋势切换确认中",
+        timeframes: [],
+        trendIntegrity: {
+          allowedUse: "research_only",
+          canAutoAdjustWeights: false,
+          canMutateLiveRanking: false,
+          direction: "long",
+          evidence: ["HH/HL 未破坏"],
+          hasTradeSignal: false,
+          integrityScore: 70,
+          riskFlags: [],
+          status: "HEALTHY_TREND",
+          summary: "趋势完整度健康",
+        },
+      },
       tradePlan: {
         allowedUse: "research_only",
         blockedBy: [],
@@ -1197,6 +1365,38 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   assert.equal(res.data.tradePlan?.tp3, "10.2");
   assert.equal(res.data.tradePlan?.rr, 3.4);
   assert.equal(res.data.tradePlan?.allowChase, false);
+  assert.equal(
+    res.data.reportSections
+      .find((section) => section.key === "facts")
+      ?.items.some((item) => item.sourceId === "v3:key-level:tia-r1"),
+    true,
+  );
+  assert.equal(
+    res.data.reportSections
+      .find((section) => section.key === "supportive_evidence")
+      ?.items.some((item) => item.sourceId === "v3:trend-context:scores"),
+    true,
+  );
+  assert.equal(
+    res.data.reportSections
+      .find((section) => section.key === "supportive_evidence")
+      ?.items.some((item) => item.sourceId === "v3:forward-level:tia-fwd-r1"),
+    true,
+  );
+  assert.match(
+    res.data.reportSections
+      .find((section) => section.key === "trade_plan")
+      ?.items.find((item) => item.sourceId === "trade-plan:confirmation-checklist")
+      ?.detail ?? "",
+    /突破 8\.28/,
+  );
+  assert.match(
+    res.data.reportSections
+      .find((section) => section.key === "trade_plan")
+      ?.items.find((item) => item.sourceId === "trade-plan:manual-review")
+      ?.detail ?? "",
+    /不自动下单/,
+  );
 });
 
 test("buildFrontendReviewContract returns review resources from journal and capability data", () => {

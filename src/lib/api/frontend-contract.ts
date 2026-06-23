@@ -6,7 +6,7 @@ import type {
   SignalDirection,
   SignalMaturityStage,
 } from "../analysis/types";
-import type { KeyLevel, StrategyV3TradePlan } from "../analysis/v3/types";
+import type { ForwardLevel, KeyLevel, StrategyV3TradePlan } from "../analysis/v3/types";
 import type { SignalBackendDossier } from "../market/signal-backend-dossier";
 import { createPublicExchangeOhlcvProvider } from "../market/ohlcv/public-exchange-provider";
 import type {
@@ -1342,31 +1342,104 @@ function tickerValue(kind: LeaderboardKind, ticker: MarketTicker, derivatives: D
   return ticker.changePercent24h;
 }
 
-function selectRepresentativeTickers(tickers: MarketTicker[]) {
-  const rows = new Map<string, MarketTicker>();
+type LeaderboardTicker = MarketTicker & {
+  sourceLabel: string;
+  venueScope: string;
+};
+
+function latestTimestamp(tickers: MarketTicker[]) {
+  return tickers
+    .map((ticker) => Date.parse(ticker.updatedAt))
+    .filter(Number.isFinite)
+    .sort((left, right) => right - left)[0];
+}
+
+function latestUpdatedAt(tickers: MarketTicker[]) {
+  const latest = latestTimestamp(tickers);
+  return Number.isFinite(latest) ? new Date(latest).toISOString() : tickers[0]?.updatedAt ?? new Date(0).toISOString();
+}
+
+function primaryTickerForKind(kind: LeaderboardKind, tickers: MarketTicker[]) {
+  if (kind === "gainers") {
+    return [...tickers].sort((left, right) =>
+      right.changePercent24h - left.changePercent24h ||
+      right.volume24hUsd - left.volume24hUsd
+    )[0];
+  }
+
+  if (kind === "losers") {
+    return [...tickers].sort((left, right) =>
+      left.changePercent24h - right.changePercent24h ||
+      right.volume24hUsd - left.volume24hUsd
+    )[0];
+  }
+
+  return [...tickers].sort((left, right) =>
+    right.volume24hUsd - left.volume24hUsd ||
+    Date.parse(right.updatedAt) - Date.parse(left.updatedAt)
+  )[0];
+}
+
+function weightedChangePercent(tickers: MarketTicker[]) {
+  const totalVolume = tickers.reduce((sum, ticker) => sum + Math.max(0, ticker.volume24hUsd), 0);
+
+  if (totalVolume <= 0) {
+    return tickers[0]?.changePercent24h ?? 0;
+  }
+
+  return tickers.reduce((sum, ticker) =>
+    sum + ticker.changePercent24h * (Math.max(0, ticker.volume24hUsd) / totalVolume)
+  , 0);
+}
+
+function selectLeaderboardTickers(tickers: MarketTicker[], kind: LeaderboardKind): LeaderboardTicker[] {
+  const groups = new Map<string, MarketTicker[]>();
 
   for (const ticker of tickers) {
     const symbol = baseSymbol(ticker.symbol);
-    const existing = rows.get(symbol);
-    if (!existing) {
-      rows.set(symbol, ticker);
+    if (!symbol) {
       continue;
     }
 
-    const existingVolume = safeNumber(existing.volume24hUsd, 0);
-    const tickerVolume = safeNumber(ticker.volume24hUsd, 0);
-    const existingTime = Date.parse(existing.updatedAt);
-    const tickerTime = Date.parse(ticker.updatedAt);
-
-    if (
-      tickerVolume > existingVolume ||
-      (tickerVolume === existingVolume && Number.isFinite(tickerTime) && tickerTime > existingTime)
-    ) {
-      rows.set(symbol, ticker);
-    }
+    groups.set(symbol, [...(groups.get(symbol) ?? []), ticker]);
   }
 
-  return [...rows.values()];
+  return [...groups.entries()].flatMap(([, group]) => {
+    const primary = primaryTickerForKind(kind, group);
+    if (!primary) {
+      return [];
+    }
+
+    const venues = [...new Set(group.map((ticker) => ticker.exchange))].sort();
+    const venueScope = venues.length > 1 ? venues.join(" + ") : `${primary.exchange}`;
+    const sourceLabel = venues.length > 1
+      ? kind === "volume"
+        ? `${venueScope} public futures ticker aggregated volume`
+        : `${primary.exchange} public futures ticker (${venues.length} venues compared)`
+      : `${primary.exchange} public futures ticker`;
+
+    if (kind !== "volume") {
+      return [{
+        ...primary,
+        sourceLabel,
+        venueScope,
+        updatedAt: latestUpdatedAt(group),
+      }];
+    }
+
+    const volume24hUsd = group.reduce((sum, ticker) => sum + Math.max(0, ticker.volume24hUsd), 0);
+
+    return [{
+      ...primary,
+      changePercent24h: weightedChangePercent(group),
+      high24h: Math.max(...group.map((ticker) => ticker.high24h)),
+      low24h: Math.min(...group.map((ticker) => ticker.low24h)),
+      sourceLabel,
+      venueScope,
+      updatedAt: latestUpdatedAt(group),
+      volume24hUsd,
+    }];
+  });
 }
 
 function lightCandidateValue(kind: LeaderboardKind, candidate: ScanLightScanCandidate, derivatives: DerivativeSnapshot[]) {
@@ -1433,7 +1506,7 @@ export function buildFrontendLeaderboardContract({
   publicMarket?.tickers.forEach((ticker) => addFrontendUniverseSymbol(universeSymbols, ticker.symbol));
   const tickerRows = publicMarket?.tickers.length ? publicMarket.tickers : snapshot.tickers;
   const usingPublicMarket = Boolean(publicMarket?.tickers.length);
-  const representativeTickerRows = selectRepresentativeTickers(tickerRows);
+  const representativeTickerRows = selectLeaderboardTickers(tickerRows, kind);
   const tickerSource: LeaderboardRow["source"] = usingPublicMarket
     ? "public_market_ticker"
     : "scanner_snapshot_ticker";
@@ -1455,8 +1528,8 @@ export function buildFrontendLeaderboardContract({
       value: round(tickerValue(kind, ticker, snapshot.derivatives, lightBySymbol.get(symbol)), kind === "funding_hot" ? 4 : 2),
       price: ticker.price,
       source: tickerSource,
-      sourceLabel: usingPublicMarket ? `${ticker.exchange} public futures ticker` : `${ticker.exchange} scanner ticker snapshot`,
-      venueScope,
+      sourceLabel: usingPublicMarket ? ticker.sourceLabel : `${ticker.exchange} scanner ticker snapshot`,
+      venueScope: usingPublicMarket ? ticker.venueScope : venueScope,
       sortKey,
       rankingScope: marketBoardKinds.has(kind) ? "market_board" : kind === "oi_change" || kind === "funding_hot"
         ? "derivatives_board"
@@ -1716,6 +1789,127 @@ function v3TradePlanBlockers(plan: StrategyV3TradePlan | undefined) {
   ].filter((item): item is string => Boolean(item));
 }
 
+function zoneText(zoneLow: number, zoneHigh: number) {
+  const low = priceText(zoneLow);
+  const high = priceText(zoneHigh);
+
+  return low === high ? low : `${low} - ${high}`;
+}
+
+function keyLevelLabel(level: KeyLevel) {
+  const direction = level.direction === "SUPPORT" ? "支撑" : level.direction === "RESISTANCE" ? "压力" : "双向位";
+  return `${level.timeframe} ${direction} · ${level.type}`;
+}
+
+function keyLevelReportItems(dossier: SignalBackendDossier): AnalysisReportSection["items"] {
+  const currentPrice = safeNumber(dossier.strategyV3?.currentPrice, 0);
+  const levels = [...(dossier.strategyV3?.keyLevels ?? [])]
+    .map((level) => ({
+      distance: currentPrice > 0 ? Math.abs(levelMid(level) - currentPrice) : 0,
+      level,
+    }))
+    .sort((left, right) =>
+      left.distance - right.distance ||
+      right.level.keyScore - left.level.keyScore ||
+      right.level.confluenceScore - left.level.confluenceScore
+    )
+    .slice(0, 4);
+
+  return levels.map(({ level }, index) => ({
+    detail: `${zoneText(level.zoneLow, level.zoneHigh)}；状态 ${level.status}；关键分 ${level.keyScore}，共振 ${level.confluenceScore}；确认：${level.confirmationRules.join(" / ") || "等待确认"}；失效：${level.invalidationRule}`,
+    label: keyLevelLabel(level),
+    sourceId: `v3:key-level:${level.id || index + 1}`,
+  }));
+}
+
+function forwardRoleLabel(level: ForwardLevel) {
+  const side = level.side === "SUPPORT" ? "支撑" : "压力";
+  return `${side} · ${level.role}`;
+}
+
+function forwardLevelReportItems(dossier: SignalBackendDossier): AnalysisReportSection["items"] {
+  return (dossier.strategyV3?.forwardLevels ?? [])
+    .slice(0, 4)
+    .map((level, index) => ({
+      detail: `${zoneText(level.zoneLow, level.zoneHigh)}；状态 ${level.status}；权重 ${level.timeframeWeight}，关键分 ${level.keyScore}；原因：${level.reasons.join(" / ") || "等待后续反应"}；失效：${level.invalidationRules.join(" / ") || "等待定义"}`,
+      label: forwardRoleLabel(level),
+      sourceId: `v3:forward-level:${level.id || index + 1}`,
+    }));
+}
+
+function timeframeGateReportItems(signal: SignalBackendDossier["signal"]): AnalysisReportSection["items"] {
+  if (!signal?.timeframeGate) {
+    return [{
+      detail: "当前信号没有触发多周期硬门控；仍需以后端风险门控和 RR 为准。",
+      label: "多周期门控",
+      sourceId: "timeframe-gate:allow",
+    }];
+  }
+
+  const gate = signal.timeframeGate;
+
+  return [{
+    detail: `${gate.summary}；动作 ${gate.action}；阻断：${gate.blockedBy.join(" / ") || "无"}；${gate.guardrail}`,
+    label: gate.allowed ? "多周期门控放行" : "多周期门控拦截",
+    sourceId: "timeframe-gate:summary",
+  }];
+}
+
+function trendContextReportItems(dossier: SignalBackendDossier): AnalysisReportSection["items"] {
+  const context = dossier.strategyV3?.trendContext;
+
+  if (!context) {
+    return [];
+  }
+
+  const items: AnalysisReportSection["items"] = [
+    {
+      detail: `${context.summary}；状态 ${context.state}；决策 ${context.decision}；下一步：${context.nextStep}`,
+      label: "趋势状态机",
+      sourceId: "v3:trend-context:state",
+    },
+    {
+      detail: `PreLong ${context.scores.longPreTrendScore} / EnergyLong ${context.scores.longTrendEnergyScore} / Risk ${context.scores.riskScore} / Hold ${context.scores.trendHoldScore} / Exhaustion ${context.scores.exhaustionScore}`,
+      label: "趋势评分",
+      sourceId: "v3:trend-context:scores",
+    },
+  ];
+
+  if (context.locationRiskReward) {
+    items.push({
+      detail: `${context.locationRiskReward.summary}；RR ${context.locationRiskReward.rewardRisk ?? "等待"}；结构止损 ${priceText(context.locationRiskReward.structuralStop)}；最近目标 ${priceText(context.locationRiskReward.nearestTarget)}`,
+      label: "位置与赔率",
+      sourceId: "v3:location-rr",
+    });
+  }
+
+  if (context.reactionQuality) {
+    items.push({
+      detail: `${context.reactionQuality.summary}；状态 ${context.reactionQuality.status}；质量分 ${context.reactionQuality.qualityScore}；风险 ${context.reactionQuality.riskFlags.join(" / ") || "无"}`,
+      label: "回踩/反抽质量",
+      sourceId: "v3:reaction-quality",
+    });
+  }
+
+  if (context.trendIntegrity) {
+    items.push({
+      detail: `${context.trendIntegrity.summary}；状态 ${context.trendIntegrity.status}；完整度 ${context.trendIntegrity.integrityScore}；风险 ${context.trendIntegrity.riskFlags.join(" / ") || "无"}`,
+      label: "趋势完整度",
+      sourceId: "v3:trend-integrity",
+    });
+  }
+
+  if (context.conflicts.length > 0) {
+    items.push({
+      detail: context.conflicts.join(" / "),
+      label: "趋势冲突",
+      sourceId: "v3:trend-context:conflicts",
+    });
+  }
+
+  return items;
+}
+
 function buildAnalysisReportSections({
   blockedReasons,
   counter,
@@ -1730,6 +1924,11 @@ function buildAnalysisReportSections({
   tradePlan: TradePlanData | null;
 }): AnalysisReportSection[] {
   const signal = dossier.signal;
+  const keyLevelItems = keyLevelReportItems(dossier);
+  const forwardItems = forwardLevelReportItems(dossier);
+  const timeframeGateItems = timeframeGateReportItems(signal);
+  const trendContextItems = trendContextReportItems(dossier);
+  const v3Plan = dossier.strategyV3?.tradePlan;
 
   return [
     {
@@ -1740,32 +1939,44 @@ function buildAnalysisReportSections({
         { detail: displaySymbol(dossier.symbol), label: "标的", sourceId: "dossier:symbol" },
         { detail: tokenDirectionCn(signal?.direction), label: "方向", sourceId: "signal:direction" },
         { detail: signal?.summary ?? "后端未找到成熟信号", label: "状态", sourceId: "signal:summary" },
+        { detail: signal?.timeframe ?? "等待信号周期", label: "信号周期", sourceId: "signal:timeframe" },
+        { detail: String(signal?.confidence ?? "等待评分"), label: "置信度", sourceId: "signal:confidence" },
+        { detail: dossier.strategyV3?.summary ?? "等待 v3 趋势地图", label: "v3 摘要", sourceId: "v3:summary" },
+        { detail: priceText(dossier.strategyV3?.currentPrice), label: "当前价", sourceId: "v3:current-price" },
         {
           detail: dossier.chart.availableTimeframes.join(" / ") || "等待 OHLCV",
           label: "可用周期",
           sourceId: "chart:timeframes",
         },
+        ...keyLevelItems,
       ],
     },
     {
       key: "supportive_evidence",
       title: "支持证据",
       status: evidence.length > 0 ? "ready" : "empty",
-      items: evidence.map((item) => ({
+      items: [
+        ...trendContextItems,
+        ...forwardItems,
+        ...evidence.map((item) => ({
         detail: item.detail,
         label: `${item.label} · 权重 ${item.weight}`,
         sourceId: item.sourceId,
-      })),
+        })),
+      ],
     },
     {
       key: "counter_evidence",
       title: "反证风险",
-      status: counter.length > 0 ? "partial" : "empty",
-      items: counter.map((item) => ({
-        detail: item.detail,
-        label: item.label,
-        sourceId: item.sourceId,
-      })),
+      status: counter.length > 0 || timeframeGateItems.length > 0 ? "partial" : "empty",
+      items: [
+        ...timeframeGateItems,
+        ...counter.map((item) => ({
+          detail: item.detail,
+          label: item.label,
+          sourceId: item.sourceId,
+        })),
+      ],
     },
     {
       key: "risk_gate",
@@ -1785,10 +1996,23 @@ function buildAnalysisReportSections({
       status: tradePlan ? "ready" : "blocked",
       items: tradePlan
         ? [
+          { detail: v3Plan?.summary ?? "后端已生成交易计划", label: "计划摘要", sourceId: "trade-plan:summary" },
           { detail: tradePlan.entryCondition, label: "入场条件", sourceId: "trade-plan:entry" },
           { detail: tradePlan.stop, label: "止损/失效", sourceId: "trade-plan:stop" },
           { detail: `${tradePlan.tp1} / ${tradePlan.tp2} / ${tradePlan.tp3}`, label: "目标区", sourceId: "trade-plan:targets" },
           { detail: `${tradePlan.rr}:1`, label: "盈亏比", sourceId: "trade-plan:rr" },
+          { detail: tradePlan.scaleOut, label: "分批止盈", sourceId: "trade-plan:scale-out" },
+          { detail: v3Plan?.positionSizing ?? "等待仓位提示", label: "仓位规则", sourceId: "trade-plan:position-sizing" },
+          {
+            detail: v3Plan?.confirmationChecklist.join(" / ") || "等待确认清单",
+            label: "确认清单",
+            sourceId: "trade-plan:confirmation-checklist",
+          },
+          {
+            detail: v3Plan?.manualReviewRequired ? "必须人工复核；不自动下单" : "等待人工复核状态",
+            label: "执行边界",
+            sourceId: "trade-plan:manual-review",
+          },
         ]
         : [{ detail: "未通过 Risk Gate 或 RR 门槛，前端不得生成入场、止损、目标。", label: "未生成", sourceId: "trade-plan:blocked" }],
     },

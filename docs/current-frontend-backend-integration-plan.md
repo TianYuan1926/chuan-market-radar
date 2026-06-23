@@ -99,6 +99,8 @@ restore frontend source from user ui package
 - `RadarContract.scanStability`：从扫描归档、覆盖率、Redis 和 worker 心跳生成扫描稳定性诊断；只做运维诊断，不能生成交易信号。
 - `ReviewContract.reviewStats`：从真实 journal outcome 样本生成复盘统计；样本不足时必须显示 collecting/empty，不能自动调权。
 - `ReviewContract.aiReviewStats`：统计 evidence-id 绑定的 AI 复核状态；AI 不能替代规则引擎。
+- `/api/frontend/leaderboard`：public market ticker 模式下，`gainers` 取同币种最高 24h 涨幅，`losers` 取同币种最低 24h 涨幅，`volume` 聚合同币种跨交易所 24h 成交额；每行必须带 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。
+- `/api/frontend/token-dossier`：`reportSections` 已纳入 v3 关键位、Forward Map、趋势状态、趋势分数、位置/RR、回踩/反抽质量、趋势完整度、交易计划确认清单、分批止盈和人工复核边界。
 
 下一批需要补强的合同：
 
@@ -148,6 +150,8 @@ mapper 硬规则：
 
 - 展示真实候选榜、涨跌幅榜、成交量榜。
 - 没有榜单数据时显示数据源状态，不用 mock 填充。
+- 涨幅榜、跌幅榜、成交额榜必须按后端合同的 public ticker 口径展示，不允许前端按候选池二次排序伪造成市场榜。
+- 外部平台榜单对不上时，先检查交易所范围、时间戳、是否合并同币种多交易所、是否含非永续/非 USDT 标的，不能直接认定后端错误或前端正确。
 
 ### `/market`
 
@@ -160,6 +164,7 @@ mapper 硬规则：
 - 展示真实单币档案。
 - 包括证据链、关键位、策略计划、风险说明。
 - 后端没有该币时显示未覆盖，不生成假档案。
+- 分析汇报必须优先展示后端 `reportSections`，不能只展示一句简略总结；如果 UI 空间不足，也要保留可展开或分层查看入口。
 
 ### `/review`
 
@@ -188,15 +193,15 @@ mapper 硬规则：
 
 当前保留原因：
 
-- `mock-data.ts` 仍提供部分 UI 类型和格式化函数，后续要逐步拆出纯类型/格式化文件。
+- `mock-data.ts` 仍提供部分 UI 类型和 legacy preview 数据；活跃市场页面不能把它当事实源。共享数字格式化函数已拆到 `src/lib/display-format.ts`。
 - `sniper-data.ts` 仍提供类型和文案 helper，不能作为活跃数据源。
-- `pet-store.ts`、`egg-store.ts` 属于本地 UI 状态，后续需要按优先级迁到后端持久化。
+- `pet-store.ts`、`egg-store.ts` 属于 UI 状态，已接 `/api/frontend/ui-state`，localStorage 只作为离线/失败兜底。
 - `journal-store.ts` 已接 `/api/frontend/journal-contract`，localStorage 只作为失败兜底。
 
 下一步清理顺序：
 
-1. 把格式化函数从 `mock-data.ts` 拆到纯工具文件。
-2. 把 Sniper 类型从 `sniper-data.ts` 拆到 contract/display 类型文件。
+1. 把 Sniper 类型从 `sniper-data.ts` 拆到 contract/display 类型文件。
+2. 审计每个活跃页面 import，确认没有从 `mock-data.ts` 读取市场事实。
 3. 最后再决定是否删除 legacy mock 文件。
 
 ## 阶段 6：真实空状态验收
