@@ -251,7 +251,7 @@ function CoverageRing({ pct }: { pct: number }) {
           flash={false}
           className="font-mono text-2xl font-bold text-neon"
         />
-        <span className="text-[10px] text-muted-foreground">深扫占比</span>
+        <span className="text-[10px] text-muted-foreground">轻扫覆盖</span>
       </div>
     </div>
   )

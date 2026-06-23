@@ -46,11 +46,13 @@ export function LoginTerminal() {
 
   // 启动日志逐行出现
   useEffect(() => {
+    const bootTimers: ReturnType<typeof setTimeout>[] = []
     BOOT_LOGS.forEach((line, i) => {
       const t = setTimeout(() => setLogs((prev) => [...prev, line]), 400 + i * 450)
+      bootTimers.push(t)
       logTimers.current.push(t)
     })
-    return () => logTimers.current.forEach(clearTimeout)
+    return () => bootTimers.forEach(clearTimeout)
   }, [])
 
   function handleSubmit(e: React.FormEvent) {
@@ -62,9 +64,7 @@ export function LoginTerminal() {
       return
     }
 
-    // ====== 前端占位逻辑 ======
-    // TODO(后端对接): 替换为真实的服务端会话校验（如 Better Auth signIn）。
-    // 这里仅做 UI 流程演示：播放核验动画后，写入本地占位标记并跳转。
+    // 服务端会话是唯一登录判定；动画只负责保留原前端核验体验。
     setPhase('scanning')
     setLogs([])
     VERIFY_LOGS.forEach((line, i) => {

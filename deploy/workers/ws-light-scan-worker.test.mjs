@@ -48,6 +48,7 @@ test("ticker parsers reject tokenized stocks and commodities before light scan",
       { instCategory: "3", instId: "NATGAS-USDT-SWAP", last: "3", ruleType: "normal", ts: "1797760000000", volCcy24h: "1000" },
       { instCategory: "3", instId: "OPENAI-USDT-SWAP", last: "700", ruleType: "pre_market", ts: "1797760000000", volCcy24h: "1000" },
       { instCategory: "3", instId: "COHR-USDT-SWAP", last: "85", ruleType: "normal", ts: "1797760000000", volCcy24h: "1000" },
+      { instCategory: "1", instId: "龙虾-USDT-SWAP", last: "85", ruleType: "normal", ts: "1797760000000", volCcy24h: "1000" },
     ],
   })), []);
   assert.deepEqual(parseBybitTickerMessage(JSON.stringify({
@@ -89,6 +90,7 @@ test("discoverOkxSymbols keeps only OKX crypto swap instruments", async () => {
         { instCategory: "3", instId: "OPENAI-USDT-SWAP", ruleType: "pre_market" },
         { instCategory: "1", instId: "SUI-USDT-SWAP", ruleType: "normal" },
         { instCategory: "1", instId: "BTC-USD-SWAP", ruleType: "normal" },
+        { instCategory: "1", instId: "龙虾-USDT-SWAP", ruleType: "normal" },
       ],
     })),
   });

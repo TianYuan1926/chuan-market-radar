@@ -1,5 +1,6 @@
 import type { ContractInstrument } from "../types";
 import { recordConfiguredDataSourceLatency } from "../../runtime/api-observability";
+import { isCryptoFuturesUnderlying } from "../asset-class-filter";
 import type {
   UniverseDiscoveryFailure,
   UniverseDiscoveryProvider,
@@ -69,6 +70,7 @@ export function normalizeBybitInstrument(
     contractType !== "LINEARPERPETUAL" ||
     status !== "TRADING" ||
     ["COMMODITY", "STOCK"].includes(symbolType) ||
+    !isCryptoFuturesUnderlying(baseAsset) ||
     symbol !== `${baseAsset}USDT`
   ) {
     return null;

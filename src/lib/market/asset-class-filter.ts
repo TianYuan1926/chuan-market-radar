@@ -81,5 +81,9 @@ export function isCryptoFuturesUnderlying(value: string) {
     return false;
   }
 
+  if (!/^[A-Z0-9]{1,30}$/u.test(baseAsset)) {
+    return false;
+  }
+
   return !NON_CRYPTO_UNDERLYING_DENYLIST.has(baseAsset);
 }

@@ -78,6 +78,15 @@ test("normalizeBybitInstrument rejects non-USDT inactive or dated contracts", ()
     status: "Trading",
     symbolType: "commodity",
   }, observedAt), null);
+
+  assert.equal(normalizeBybitInstrument({
+    symbol: "龙虾USDT",
+    baseCoin: "龙虾",
+    quoteCoin: "USDT",
+    contractType: "LinearPerpetual",
+    status: "Trading",
+    symbolType: "innovation",
+  }, observedAt), null);
 });
 
 test("createBybitUniverseDiscoveryProvider fetches paginated normalized USDT perpetual instruments", async () => {

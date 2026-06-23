@@ -93,6 +93,18 @@ test("normalizeOkxInstrument rejects non-USDT inactive non-linear or non-crypto 
     ruleType: "pre_market",
     state: "live",
   }, observedAt), null);
+
+  assert.equal(normalizeOkxInstrument({
+    instType: "SWAP",
+    instId: "龙虾-USDT-SWAP",
+    baseCcy: "龙虾",
+    quoteCcy: "USDT",
+    settleCcy: "USDT",
+    instCategory: "1",
+    ctType: "linear",
+    ruleType: "normal",
+    state: "live",
+  }, observedAt), null);
 });
 
 test("createOkxUniverseDiscoveryProvider fetches normalized USDT swap instruments", async () => {

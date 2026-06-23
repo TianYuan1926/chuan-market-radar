@@ -33,13 +33,18 @@ export function SiteLoader() {
       setPhase('done')
       return
     }
+    const bootTimers: ReturnType<typeof setTimeout>[] = []
     // 逐行流入启动日志
     BOOT_LOG.forEach((_, i) => {
-      timers.current.push(setTimeout(() => setLogCount(i + 1), 350 + i * 260))
+      const timer = setTimeout(() => setLogCount(i + 1), 350 + i * 260)
+      bootTimers.push(timer)
+      timers.current.push(timer)
     })
     // 启动序列完成 → 进入门户
-    timers.current.push(setTimeout(() => setPhase('intro'), 350 + BOOT_LOG.length * 260 + 500))
-    return () => timers.current.forEach(clearTimeout)
+    const introTimer = setTimeout(() => setPhase('intro'), 350 + BOOT_LOG.length * 260 + 500)
+    bootTimers.push(introTimer)
+    timers.current.push(introTimer)
+    return () => bootTimers.forEach(clearTimeout)
   }, [])
 
   function enter() {

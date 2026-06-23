@@ -1,5 +1,6 @@
 import type { ContractInstrument } from "../types";
 import { recordConfiguredDataSourceLatency } from "../../runtime/api-observability";
+import { isCryptoFuturesUnderlying } from "../asset-class-filter";
 import type {
   UniverseDiscoveryFailure,
   UniverseDiscoveryProvider,
@@ -78,6 +79,7 @@ export function normalizeOkxInstrument(
     ctType !== "linear" ||
     ruleType === "pre_market" ||
     state !== "live" ||
+    !isCryptoFuturesUnderlying(baseAsset) ||
     instId !== `${baseAsset}-USDT-SWAP`
   ) {
     return null;

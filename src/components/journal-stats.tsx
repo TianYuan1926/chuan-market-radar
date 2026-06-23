@@ -9,7 +9,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, TrendingUp, TrendingDown, Trophy, Crosshair, BarChart3, Activity } from 'lucide-react'
 import { type JournalStats, fmtUsd } from '@/lib/journal-store'
-import { cn } from '@/lib/utils'
 
 export function JournalStatsModal({
   stats,

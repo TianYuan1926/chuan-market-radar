@@ -79,6 +79,15 @@ test("normalizeBinanceExchangeInfoSymbol rejects non-USDT inactive or dated cont
     quoteAsset: "USDT",
     underlyingType: "PREMARKET",
   }, observedAt), null);
+
+  assert.equal(normalizeBinanceExchangeInfoSymbol({
+    symbol: "龙虾USDT",
+    contractType: "PERPETUAL",
+    status: "TRADING",
+    baseAsset: "龙虾",
+    quoteAsset: "USDT",
+    underlyingType: "COIN",
+  }, observedAt), null);
 });
 
 test("createBinanceUniverseDiscoveryProvider fetches normalized USDT perpetual instruments", async () => {

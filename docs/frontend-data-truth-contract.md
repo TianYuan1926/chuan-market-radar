@@ -23,6 +23,7 @@ Anything else is forbidden for active pages.
 - Mock review samples shown as if they came from the review/evolution system.
 - Fake whale alerts, fake liquidation alerts, fake chain-flow alerts, or fake AI conclusions.
 - Showing `0` for unavailable market cap when the real meaning is unknown.
+- Polluted symbols or non-crypto underlyings, including Chinese text assets, tokenized stocks, commodities, non-USDT contracts, or any invalid symbol that slipped through old cache/database state.
 
 ## Current Backend Contract Sources
 
@@ -66,3 +67,5 @@ If backend does not provide a value:
 
 Any future frontend delivery must be wired through the same contract shape first.
 Do not add a new mock layer to "fill the page" during integration.
+Mock/seed data may only run when an explicit local preview switch is enabled.
+The production contract layer must filter polluted historical symbols before they reach visible UI fields.

@@ -760,6 +760,43 @@ test("buildFrontendLeaderboardContract excludes non-crypto underlyings from fron
   assert.deepEqual(rows.data, []);
 });
 
+test("buildFrontendRadarContract filters polluted historical symbols from visible contract fields", () => {
+  const backend = backendContract();
+  backend.scanProof.allocation.selectedAssets.push("龙虾");
+  backend.scanProof.allocation.pendingAssets.push("龙虾");
+  backend.scanProof.allocation.nextBatchAssets.push("龙虾");
+  backend.scanProof.allocation.coldExplorationAssets.push("龙虾");
+  backend.scanProof.lightScan.topCandidates = [
+    {
+      baseAsset: "龙虾",
+      changePercent24h: 12.4,
+      distanceFromHighPercent: 1.2,
+      distanceFromLowPercent: 18.5,
+      price: 140,
+      reasons: ["price_volume_anomaly", "liquid_enough"],
+      score: 99,
+      state: "HOT",
+      symbol: "龙虾USDT",
+      volume24hUsd: 900_000_000,
+      volatilityPercent: 8.4,
+    },
+  ];
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    env: {},
+    now: new Date("2026-06-21T08:00:10.000Z"),
+    snapshot: snapshot([signal(), signal({ id: "polluted", symbol: "龙虾USDT" })]),
+  });
+
+  assert.equal(radar.radarSignals.data.some((item) => item.symbol === "龙虾"), false);
+  assert.equal(radar.deepScanQueue.data.currentBatch.includes("龙虾"), false);
+  assert.equal(radar.deepScanQueue.data.nextBatch.includes("龙虾"), false);
+  assert.equal(radar.deepScanQueue.data.highPriority.includes("龙虾"), false);
+  assert.equal(radar.deepScanQueue.data.coldExploration.includes("龙虾"), false);
+  assert.equal(radar.deepScanQueue.data.longUnscanned.some((item) => item.symbol === "龙虾"), false);
+});
+
 test("normalizeFrontendKlineSymbol prepares base assets for public futures OHLCV", () => {
   assert.equal(normalizeFrontendKlineSymbol("TIA"), "TIAUSDT");
   assert.equal(normalizeFrontendKlineSymbol("tia/usdt"), "TIAUSDT");

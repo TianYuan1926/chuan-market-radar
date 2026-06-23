@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Sparkles, X } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import {
   getEgg,
   unlockEgg,

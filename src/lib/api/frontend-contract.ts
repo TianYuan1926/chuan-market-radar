@@ -1065,7 +1065,13 @@ function buildMacro(backend: BackendContract): MacroAltEnv {
 }
 
 function normalizeAssetList(values: string[] | undefined) {
-  return (values ?? []).map(displaySymbol).filter((value, index, list) => value && list.indexOf(value) === index);
+  return (values ?? [])
+    .map(displaySymbol)
+    .filter((value, index, list) =>
+      Boolean(value) &&
+      isCryptoFuturesUnderlying(value) &&
+      list.indexOf(value) === index
+    );
 }
 
 export function buildFrontendRadarContract({
@@ -1089,7 +1095,10 @@ export function buildFrontendRadarContract({
   const derivatives = buildDerivatives(snapshot);
   const tradeReady = snapshot.signals.some((signal) => maturityForSignal(signal) === "TRADE_PLAN_READY");
   const blockedSignals = snapshot.signals.filter((signal) => lifecycleStatusReason(signal).length > 0);
-  const liveSignals = snapshot.signals.map((signal) => buildRadarSignal(signal, snapshot, now));
+  const frontendUniverseSymbols = buildFrontendUniverseSymbols(backend, snapshot);
+  const liveSignals = snapshot.signals
+    .filter((signal) => shouldExposeFrontendAsset(signal.symbol, frontendUniverseSymbols))
+    .map((signal) => buildRadarSignal(signal, snapshot, now));
   const candidateSignals = buildCandidateRadarSignals({ backend, existingSignals: liveSignals, now, snapshot });
   const visibleSignals = [...liveSignals, ...candidateSignals];
   const coinGlassLatencyStatus = sourceLatencyStatus(backend, "CoinGlass");

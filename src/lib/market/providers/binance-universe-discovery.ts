@@ -1,5 +1,6 @@
 import type { ContractInstrument, ScanDiscoverySourceDiagnostic } from "../types";
 import { recordConfiguredDataSourceLatency } from "../../runtime/api-observability";
+import { isCryptoFuturesUnderlying } from "../asset-class-filter";
 
 export const BINANCE_FUTURES_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 
@@ -82,6 +83,7 @@ export function normalizeBinanceExchangeInfoSymbol(
     quoteAsset !== "USDT" ||
     status !== "TRADING" ||
     underlyingType !== "COIN" ||
+    !isCryptoFuturesUnderlying(baseAsset) ||
     isDatedOrDeliverySymbol(symbol, contractType) ||
     symbol !== `${baseAsset}USDT`
   ) {

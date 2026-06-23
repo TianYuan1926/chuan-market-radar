@@ -152,7 +152,6 @@ export function PetRobot() {
       showMessage(line, 5200)
     }, 14000)
     return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, mood, message, open, state.exp, state.streak])
 
   // 响应评判/互动事件
@@ -195,8 +194,7 @@ export function PetRobot() {
     return () => {
       if (revertTimer.current) clearTimeout(revertTimer.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.lastEvent])
+  }, [state.exp, state.lastEvent, state.streak, state.wrongStreak])
 
   // 接收彩蛋系统派发的台词，让川宝在彩蛋触发时开口
   useEffect(() => {
@@ -211,7 +209,6 @@ export function PetRobot() {
     }
     window.addEventListener('chuan:pet-say', onSay as EventListener)
     return () => window.removeEventListener('chuan:pet-say', onSay as EventListener)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function showMessage(text: string, holdMs: number) {

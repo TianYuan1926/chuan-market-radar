@@ -131,7 +131,9 @@ function normalizeBaseAssetForClass(value) {
 function isCryptoFuturesUnderlying(value) {
   const baseAsset = normalizeBaseAssetForClass(value);
 
-  return Boolean(baseAsset) && !nonCryptoUnderlyingDenylist.has(baseAsset);
+  return Boolean(baseAsset) &&
+    /^[A-Z0-9]{1,30}$/u.test(baseAsset) &&
+    !nonCryptoUnderlyingDenylist.has(baseAsset);
 }
 
 function isUsdtPerpLikeSymbol(symbol) {
@@ -700,8 +702,17 @@ export async function discoverOkxSymbols({ fetcher = fetch, limit = 500 } = {}) 
 
   return rows
     .filter((row) => isOkxCryptoSwapRow(row))
-    .map((row) => String(row?.instId ?? "").toUpperCase())
-    .filter((instId) => instId.endsWith("-USDT-SWAP"))
+    .map((row) => {
+      const instId = String(row?.instId ?? "").toUpperCase();
+      const symbol = okxSymbolFromInstId(instId);
+
+      if (!isUsdtPerpLikeSymbol(symbol)) {
+        return null;
+      }
+
+      return instId;
+    })
+    .filter(Boolean)
     .slice(0, limit);
 }
 

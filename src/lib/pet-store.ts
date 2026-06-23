@@ -30,10 +30,8 @@ const DEFAULT_STATE: PetState = {
 }
 
 // ------------------------------------------------------------
-// 持久化层 —— 接入腾讯云后端时，仅需替换以下两个函数体
-//   loadProgress(): 从 localStorage 读取 → 改为 GET 你的接口
-//   saveProgress(): 写入 localStorage   → 改为 POST 你的接口
-// 其余逻辑与组件层均无需改动。
+// 持久化层
+//   服务端 /api/frontend/ui-state 是主同步通道，localStorage 只做离线兜底。
 // ------------------------------------------------------------
 const STORAGE_KEY = 'chuanscan_pet_v1'
 const UI_STATE_ENDPOINT = '/api/frontend/ui-state'

@@ -287,6 +287,10 @@ export function normalizeUniverseAsset(value: string): UniverseAssetKey | null {
     return null;
   }
 
+  if (!/^[A-Z0-9]{1,30}$/u.test(baseAsset)) {
+    return null;
+  }
+
   if (!isCryptoFuturesUnderlying(baseAsset)) {
     return null;
   }

@@ -29,7 +29,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { Panel } from './panel'
-import { LiveStat, LiveValue } from './live-value'
+import { LiveStat } from './live-value'
 import { RankBanner, JudgementTraining } from './rank-training'
 import { TokenAvatar } from './token-avatar'
 import {

@@ -6,7 +6,7 @@ import { useSyncExternalStore } from 'react'
 // 彩蛋系统 store
 //   - 目录（EGGS）：所有可解锁彩蛋的定义
 //   - 成就（ACHIEVEMENTS）：按累计解锁数达成的里程碑
-//   - 解锁进度持久化（localStorage，接入后端时仅替换 load/save）
+//   - 解锁进度持久化（服务端 ui-state 为主，localStorage 只做离线兜底）
 //   单一数据源，供全局控制器、收集册、川宝共享。
 // ============================================================
 
@@ -168,7 +168,7 @@ export const ACHIEVEMENTS: Achievement[] = [
 ]
 
 // ------------------------------------------------------------
-// 持久化层（接入后端时仅替换以下两个函数体）
+// 持久化层
 // ------------------------------------------------------------
 const STORAGE_KEY = 'chuanscan_eggs_v1'
 const UI_STATE_ENDPOINT = '/api/frontend/ui-state'
