@@ -19,6 +19,7 @@ import type {
   DerivativeSnapshot,
   MarketRadarSnapshot,
   MarketTicker,
+  ScanLightScanDiagnostics,
   ScanLightScanCandidate,
 } from "../market/types";
 import { isCryptoFuturesUnderlying } from "../market/asset-class-filter";
@@ -115,6 +116,7 @@ export type TfStructure = {
 };
 
 export type EvidenceItem = {
+  sourceId: string;
   kind: string;
   label: string;
   weight: number;
@@ -123,6 +125,7 @@ export type EvidenceItem = {
 };
 
 export type CounterItem = {
+  sourceId: string;
   kind: string;
   label: string;
   detail: string;
@@ -153,6 +156,17 @@ export type AiReviewData = {
   note: string;
 };
 
+export type AnalysisReportSection = {
+  key: "facts" | "supportive_evidence" | "counter_evidence" | "risk_gate" | "trade_plan" | "review_boundary";
+  title: string;
+  status: "ready" | "partial" | "blocked" | "empty";
+  items: {
+    detail: string;
+    label: string;
+    sourceId?: string;
+  }[];
+};
+
 export type TokenDossier = {
   symbol: string;
   direction: "看多" | "看空" | "中性";
@@ -163,6 +177,7 @@ export type TokenDossier = {
   riskGate: RiskGateResult;
   tradePlan: TradePlanData | null;
   aiReview: AiReviewData;
+  reportSections: AnalysisReportSection[];
 };
 
 export type SignalLifecycle = {
@@ -259,6 +274,12 @@ export type LeaderboardRow = {
   hue: number;
   value: number;
   price: number;
+  source: "public_market_ticker" | "scanner_snapshot_ticker" | "light_scan_candidate" | "derivatives_context";
+  sourceLabel: string;
+  venueScope: string;
+  sortKey: string;
+  rankingScope: "market_board" | "radar_candidate_board" | "derivatives_board";
+  updatedAt?: string;
   inCandidatePool: boolean;
   deepScanned: boolean;
   hasSignal: boolean;
@@ -751,6 +772,15 @@ function evidenceWeight(item: EvidencePoint, total: number) {
   }
   const base = item.polarity === "supportive" ? 100 / total : 50 / total;
   return Math.max(1, Math.round(base));
+}
+
+function evidenceSourceId(item: EvidencePoint, index: number) {
+  const label = item.label
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/gu, "-")
+    .replace(/^-|-$/gu, "");
+
+  return `${item.layer}:${label || "evidence"}:${index + 1}`;
 }
 
 function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, now: Date): RadarSignal {
@@ -1312,6 +1342,33 @@ function tickerValue(kind: LeaderboardKind, ticker: MarketTicker, derivatives: D
   return ticker.changePercent24h;
 }
 
+function selectRepresentativeTickers(tickers: MarketTicker[]) {
+  const rows = new Map<string, MarketTicker>();
+
+  for (const ticker of tickers) {
+    const symbol = baseSymbol(ticker.symbol);
+    const existing = rows.get(symbol);
+    if (!existing) {
+      rows.set(symbol, ticker);
+      continue;
+    }
+
+    const existingVolume = safeNumber(existing.volume24hUsd, 0);
+    const tickerVolume = safeNumber(ticker.volume24hUsd, 0);
+    const existingTime = Date.parse(existing.updatedAt);
+    const tickerTime = Date.parse(ticker.updatedAt);
+
+    if (
+      tickerVolume > existingVolume ||
+      (tickerVolume === existingVolume && Number.isFinite(tickerTime) && tickerTime > existingTime)
+    ) {
+      rows.set(symbol, ticker);
+    }
+  }
+
+  return [...rows.values()];
+}
+
 function lightCandidateValue(kind: LeaderboardKind, candidate: ScanLightScanCandidate, derivatives: DerivativeSnapshot[]) {
   const derivative = derivatives.find((item) => baseSymbol(item.symbol) === baseSymbol(candidate.symbol));
 
@@ -1339,10 +1396,15 @@ function lightCandidateValue(kind: LeaderboardKind, candidate: ScanLightScanCand
 export function buildFrontendLeaderboardContract({
   backend,
   kind,
+  publicMarket,
   snapshot,
 }: {
   backend: BackendContract;
   kind: LeaderboardKind;
+  publicMarket?: {
+    diagnostics: ScanLightScanDiagnostics;
+    tickers: MarketTicker[];
+  };
   snapshot: MarketRadarSnapshot;
 }): Resource<LeaderboardRow[]> {
   const signalSymbols = new Set(snapshot.signals.map((signal) => baseSymbol(signal.symbol)));
@@ -1368,8 +1430,21 @@ export function buildFrontendLeaderboardContract({
   const direction = kind === "losers" ? 1 : -1;
   const rowsBySymbol = new Map<string, LeaderboardRow>();
   const universeSymbols = buildFrontendUniverseSymbols(backend, snapshot);
+  publicMarket?.tickers.forEach((ticker) => addFrontendUniverseSymbol(universeSymbols, ticker.symbol));
+  const tickerRows = publicMarket?.tickers.length ? publicMarket.tickers : snapshot.tickers;
+  const usingPublicMarket = Boolean(publicMarket?.tickers.length);
+  const representativeTickerRows = selectRepresentativeTickers(tickerRows);
+  const tickerSource: LeaderboardRow["source"] = usingPublicMarket
+    ? "public_market_ticker"
+    : "scanner_snapshot_ticker";
+  const marketBoardKinds = new Set<LeaderboardKind>(["gainers", "losers", "volume"]);
+  const shouldUseCandidateFallback = !marketBoardKinds.has(kind) || tickerRows.length === 0;
+  const sortKey = leaderboardSortKey(kind);
+  const venueScope = usingPublicMarket
+    ? "Binance USD-M + OKX USDT SWAP + Bybit USDT linear"
+    : "scanner snapshot ticker subset";
 
-  for (const ticker of snapshot.tickers) {
+  for (const ticker of representativeTickerRows) {
     const symbol = baseSymbol(ticker.symbol);
     if (!shouldExposeFrontendAsset(symbol, universeSymbols)) {
       continue;
@@ -1379,6 +1454,14 @@ export function buildFrontendLeaderboardContract({
       hue: symbolHue(symbol),
       value: round(tickerValue(kind, ticker, snapshot.derivatives, lightBySymbol.get(symbol)), kind === "funding_hot" ? 4 : 2),
       price: ticker.price,
+      source: tickerSource,
+      sourceLabel: usingPublicMarket ? `${ticker.exchange} public futures ticker` : `${ticker.exchange} scanner ticker snapshot`,
+      venueScope,
+      sortKey,
+      rankingScope: marketBoardKinds.has(kind) ? "market_board" : kind === "oi_change" || kind === "funding_hot"
+        ? "derivatives_board"
+        : "radar_candidate_board",
+      updatedAt: ticker.updatedAt,
       inCandidatePool: candidateSymbols.has(symbol),
       deepScanned: deepScannedSymbols.has(symbol),
       hasSignal: signalSymbols.has(symbol),
@@ -1387,7 +1470,7 @@ export function buildFrontendLeaderboardContract({
     });
   }
 
-  for (const candidate of backend.scanProof.lightScan.topCandidates) {
+  if (shouldUseCandidateFallback) for (const candidate of backend.scanProof.lightScan.topCandidates) {
     const symbol = baseSymbol(candidate.symbol);
     if (!shouldExposeFrontendAsset(symbol, universeSymbols)) {
       continue;
@@ -1400,6 +1483,14 @@ export function buildFrontendLeaderboardContract({
       hue: symbolHue(symbol),
       value: round(lightCandidateValue(kind, candidate, snapshot.derivatives), kind === "funding_hot" ? 4 : 2),
       price: safeNumber(candidate.price, 0),
+      source: kind === "oi_change" || kind === "funding_hot" ? "derivatives_context" : "light_scan_candidate",
+      sourceLabel: kind === "oi_change" || kind === "funding_hot"
+        ? "CoinGlass/scanner derivatives context"
+        : "public light scan candidate fallback",
+      venueScope: backend.scanProof.lightScan.source || "public light scan",
+      sortKey,
+      rankingScope: kind === "oi_change" || kind === "funding_hot" ? "derivatives_board" : "radar_candidate_board",
+      updatedAt: backend.scanProof.lightScan.generatedAt ?? undefined,
       inCandidatePool: true,
       deepScanned: deepScannedSymbols.has(symbol),
       hasSignal: signalSymbols.has(symbol),
@@ -1411,11 +1502,85 @@ export function buildFrontendLeaderboardContract({
   const rows = [...rowsBySymbol.values()]
     .sort((left, right) => direction * (left.value - right.value))
     .slice(0, 50);
-
-  return resource(rows, rows.length > 0 ? marketStatusToResourceStatus(snapshot.metadata.status) : "empty", {
-    ageSec: diffSeconds(snapshot.metadata.generatedAt, new Date()),
-    source: "scanner-worker",
+  const usedCandidateFallback = rows.some((row) => row.source === "light_scan_candidate");
+  const status = rows.length === 0
+    ? "empty"
+    : usingPublicMarket
+      ? marketStatusToResourceStatus(publicMarket?.diagnostics.status)
+      : usedCandidateFallback
+        ? "partial"
+        : marketStatusToResourceStatus(snapshot.metadata.status);
+  const source = usingPublicMarket
+    ? publicMarket?.diagnostics.source ?? "public-market-tickers"
+    : usedCandidateFallback
+      ? "public-light-scan-candidate-fallback"
+      : "scanner-worker";
+  const reason = leaderboardReason({
+    kind,
+    publicMarket,
+    rows,
+    usedCandidateFallback,
+    usingPublicMarket,
   });
+
+  return resource(rows, status, {
+    ageSec: diffSeconds(publicMarket?.diagnostics.generatedAt ?? snapshot.metadata.generatedAt, new Date()),
+    source,
+    updatedAt: publicMarket?.diagnostics.generatedAt ?? snapshot.metadata.generatedAt,
+    reason,
+  });
+}
+
+function leaderboardSortKey(kind: LeaderboardKind) {
+  if (kind === "gainers") {
+    return "24h price change percent desc";
+  }
+  if (kind === "losers") {
+    return "24h price change percent asc";
+  }
+  if (kind === "volume") {
+    return "24h quote volume desc";
+  }
+  if (kind === "volatility_squeeze") {
+    return "public light scan volatility compression desc";
+  }
+  if (kind === "relative_strength") {
+    return "public light scan score + positive 24h change desc";
+  }
+  if (kind === "oi_change") {
+    return "open interest change percent desc";
+  }
+  return "funding rate desc";
+}
+
+function leaderboardReason({
+  kind,
+  publicMarket,
+  rows,
+  usedCandidateFallback,
+  usingPublicMarket,
+}: {
+  kind: LeaderboardKind;
+  publicMarket?: {
+    diagnostics: ScanLightScanDiagnostics;
+    tickers: MarketTicker[];
+  };
+  rows: LeaderboardRow[];
+  usedCandidateFallback: boolean;
+  usingPublicMarket: boolean;
+}) {
+  if (rows.length === 0) {
+    return "没有可展示的真实榜单行；前端不得用 mock 或旧候选补位。";
+  }
+  if (usingPublicMarket) {
+    return `${kind === "gainers" || kind === "losers" || kind === "volume" ? "真实市场榜单" : "雷达辅助榜单"}：${leaderboardSortKey(kind)}；覆盖 ${
+      publicMarket?.diagnostics.acceptedCount ?? rows.length
+    } 个 USDT 永续 ticker；来源 ${publicMarket?.diagnostics.source ?? "public futures ticker"}。`;
+  }
+  if (usedCandidateFallback) {
+    return "未取得全量 public ticker，本榜单降级为雷达候选/轻扫候选视图；不能当作真实全市场涨跌幅榜。";
+  }
+  return "使用最近扫描快照中的 ticker 子集；如果需要和交易所实时榜单逐项对照，必须刷新 public market ticker。";
 }
 
 function levelMid(level: KeyLevel) {
@@ -1551,6 +1716,94 @@ function v3TradePlanBlockers(plan: StrategyV3TradePlan | undefined) {
   ].filter((item): item is string => Boolean(item));
 }
 
+function buildAnalysisReportSections({
+  blockedReasons,
+  counter,
+  dossier,
+  evidence,
+  tradePlan,
+}: {
+  blockedReasons: string[];
+  counter: CounterItem[];
+  dossier: SignalBackendDossier;
+  evidence: EvidenceItem[];
+  tradePlan: TradePlanData | null;
+}): AnalysisReportSection[] {
+  const signal = dossier.signal;
+
+  return [
+    {
+      key: "facts",
+      title: "盘面事实",
+      status: signal ? "ready" : "empty",
+      items: [
+        { detail: displaySymbol(dossier.symbol), label: "标的", sourceId: "dossier:symbol" },
+        { detail: tokenDirectionCn(signal?.direction), label: "方向", sourceId: "signal:direction" },
+        { detail: signal?.summary ?? "后端未找到成熟信号", label: "状态", sourceId: "signal:summary" },
+        {
+          detail: dossier.chart.availableTimeframes.join(" / ") || "等待 OHLCV",
+          label: "可用周期",
+          sourceId: "chart:timeframes",
+        },
+      ],
+    },
+    {
+      key: "supportive_evidence",
+      title: "支持证据",
+      status: evidence.length > 0 ? "ready" : "empty",
+      items: evidence.map((item) => ({
+        detail: item.detail,
+        label: `${item.label} · 权重 ${item.weight}`,
+        sourceId: item.sourceId,
+      })),
+    },
+    {
+      key: "counter_evidence",
+      title: "反证风险",
+      status: counter.length > 0 ? "partial" : "empty",
+      items: counter.map((item) => ({
+        detail: item.detail,
+        label: item.label,
+        sourceId: item.sourceId,
+      })),
+    },
+    {
+      key: "risk_gate",
+      title: "风险门控",
+      status: blockedReasons.length > 0 ? "blocked" : "ready",
+      items: blockedReasons.length > 0
+        ? blockedReasons.map((reason, index) => ({
+          detail: reason,
+          label: `阻断 ${index + 1}`,
+          sourceId: `risk-gate:blocker:${index + 1}`,
+        }))
+        : [{ detail: "未发现阻断交易计划的 Risk Gate 原因。", label: "风控状态", sourceId: "risk-gate:allow" }],
+    },
+    {
+      key: "trade_plan",
+      title: "交易计划",
+      status: tradePlan ? "ready" : "blocked",
+      items: tradePlan
+        ? [
+          { detail: tradePlan.entryCondition, label: "入场条件", sourceId: "trade-plan:entry" },
+          { detail: tradePlan.stop, label: "止损/失效", sourceId: "trade-plan:stop" },
+          { detail: `${tradePlan.tp1} / ${tradePlan.tp2} / ${tradePlan.tp3}`, label: "目标区", sourceId: "trade-plan:targets" },
+          { detail: `${tradePlan.rr}:1`, label: "盈亏比", sourceId: "trade-plan:rr" },
+        ]
+        : [{ detail: "未通过 Risk Gate 或 RR 门槛，前端不得生成入场、止损、目标。", label: "未生成", sourceId: "trade-plan:blocked" }],
+    },
+    {
+      key: "review_boundary",
+      title: "复盘与 AI 边界",
+      status: "partial",
+      items: [
+        { detail: `${dossier.journal.totalEvents} 条关联 journal / review 样本。`, label: "复盘样本", sourceId: "journal:samples" },
+        { detail: "AI 只做反证复核，不替代规则引擎，不直接给买卖方向。", label: "AI 边界", sourceId: "ai-review:boundary" },
+      ],
+    },
+  ];
+}
+
 export function buildFrontendTokenDossierContract({
   basePrice = 1,
   dossier,
@@ -1575,6 +1828,20 @@ export function buildFrontendTokenDossierContract({
     ...hardBlockedReasons,
     ...(signal ? v3TradePlanBlockers(v3Plan) : []),
   ];
+  const evidenceItems = evidence.map((item, index) => ({
+    sourceId: evidenceSourceId(item, index),
+    kind: evidenceKind(item.layer),
+    label: item.label,
+    weight: evidenceWeight(item, dossier.evidence.total),
+    detail: item.value,
+    supportive: true,
+  }));
+  const counterItems = counter.map((item, index) => ({
+    sourceId: evidenceSourceId(item, index),
+    kind: evidenceKind(item.layer),
+    label: item.label,
+    detail: item.value,
+  }));
 
   return resource({
     symbol: displaySymbol(dossier.symbol),
@@ -1587,18 +1854,8 @@ export function buildFrontendTokenDossierContract({
           : "EVIDENCE_SIGNAL"
       : "INVALIDATED",
     structures: structureFromDossier(dossier, basePrice),
-    evidence: evidence.map((item) => ({
-      kind: evidenceKind(item.layer),
-      label: item.label,
-      weight: evidenceWeight(item, dossier.evidence.total),
-      detail: item.value,
-      supportive: true,
-    })),
-    counter: counter.map((item) => ({
-      kind: evidenceKind(item.layer),
-      label: item.label,
-      detail: item.value,
-    })),
+    evidence: evidenceItems,
+    counter: counterItems,
     riskGate: {
       allowTradePlan: tradePlan !== null,
       reasons: tradePlan ? [] : blockedReasons,
@@ -1610,6 +1867,13 @@ export function buildFrontendTokenDossierContract({
       suggestDowngrade: blockedReasons.length > 0,
       note: "AI 仅对反证进行复核，不生成交易结论；最终判定以规则引擎为准。",
     },
+    reportSections: buildAnalysisReportSections({
+      blockedReasons,
+      counter: counterItems,
+      dossier,
+      evidence: evidenceItems,
+      tradePlan,
+    }),
   }, dossier.found ? "live" : "empty", {
     ageSec: diffSeconds(dossier.generatedAt, now),
     source: "signal-worker",

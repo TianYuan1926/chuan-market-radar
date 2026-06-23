@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { TokenAvatar } from '@/components/token-avatar'
-import { StatusBadge, ResourceBoundary } from '@/components/data-state'
+import { FreshnessTag, StatusBadge, ResourceBoundary } from '@/components/data-state'
 import {
   LEADERBOARD_META,
   type LeaderboardKind,
@@ -27,7 +27,11 @@ const KINDS: LeaderboardKind[] = [
 function formatValue(kind: LeaderboardKind, v: number): string {
   if (kind === 'funding_hot') return `${v > 0 ? '+' : ''}${v.toFixed(4)}%`
   if (kind === 'gainers' || kind === 'losers' || kind === 'oi_change') return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`
-  if (kind === 'volume') return `${v.toFixed(1)}x`
+  if (kind === 'volume') {
+    if (Math.abs(v) >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(2)}B`
+    if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`
+    return `$${v.toLocaleString()}`
+  }
   return v.toFixed(0)
 }
 
@@ -82,6 +86,7 @@ export function MarketLeaderboards({
         <h2 className="font-semibold">全市场榜单</h2>
         <StatusBadge status={res.status} />
         <span className="ml-auto text-xs text-muted-foreground">指标：{meta.metric}</span>
+        <FreshnessTag source={res.source} ageSec={res.ageSec} updatedAt={res.updatedAt} />
       </div>
 
       {/* 7 类榜单 tab */}
@@ -128,6 +133,9 @@ export function MarketLeaderboards({
                 <div className="font-mono text-[11px] text-muted-foreground">
                   ${row.price.toLocaleString()}
                 </div>
+                <div className="max-w-[190px] truncate text-[10px] text-muted-foreground">
+                  {row.sourceLabel ?? row.sortKey ?? '等待来源'}
+                </div>
               </div>
               <span
                 className={cn(
@@ -153,7 +161,7 @@ export function MarketLeaderboards({
       </div>
       <div className="border-t border-border px-5 py-2 text-center">
         <span className="text-[11px] text-muted-foreground">
-          榜单状态标记反映该币当前是否进入扫描/候选/信号流程
+          {res.reason ?? '榜单状态标记反映该币当前是否进入扫描/候选/信号流程'}
         </span>
       </div>
     </section>

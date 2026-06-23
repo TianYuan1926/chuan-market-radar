@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/frontend-contract";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
 import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { createCompositePublicLightScanProvider } from "@/lib/market/providers/public-light-scan";
 import { buildSignalBackendDossier } from "@/lib/market/signal-backend-dossier";
 import type { OhlcvInterval } from "@/lib/market/ohlcv/types";
 import {
@@ -24,6 +25,7 @@ import type {
   TokenDossier,
 } from "@/lib/radar-contract";
 import type { Resource } from "@/lib/data-status";
+import type { PublicLightScanResult } from "@/lib/market/providers/public-light-scan";
 
 const leaderboardKinds: LeaderboardKind[] = [
   "gainers",
@@ -55,6 +57,22 @@ async function readPageBackend() {
   };
 }
 
+async function readPublicMarketBoard(): Promise<Pick<PublicLightScanResult, "diagnostics" | "tickers"> | undefined> {
+  const provider = createCompositePublicLightScanProvider({
+    maxPriorityCandidates: Number(process.env.FRONTEND_PUBLIC_MARKET_MAX_CANDIDATES ?? 120),
+  });
+  const result = await provider.scan();
+
+  if (result.tickers.length === 0) {
+    return undefined;
+  }
+
+  return {
+    diagnostics: result.diagnostics,
+    tickers: result.tickers,
+  };
+}
+
 export async function getRadarContractForPage(): Promise<RadarContract> {
   const { backend, snapshot } = await readPageBackend();
 
@@ -71,11 +89,15 @@ export async function getRadarContractForPage(): Promise<RadarContract> {
 export async function getLeaderboardContractForPage(
   kind: LeaderboardKind,
 ): Promise<Resource<LeaderboardRow[]>> {
-  const { backend, snapshot } = await readPageBackend();
+  const [{ backend, snapshot }, publicMarket] = await Promise.all([
+    readPageBackend(),
+    readPublicMarketBoard(),
+  ]);
 
   return buildFrontendLeaderboardContract({
     backend,
     kind,
+    publicMarket,
     snapshot,
   }) as unknown as Resource<LeaderboardRow[]>;
 }
@@ -83,12 +105,15 @@ export async function getLeaderboardContractForPage(
 export async function getAllLeaderboardContractsForPage(): Promise<
   Partial<Record<LeaderboardKind, Resource<LeaderboardRow[]>>>
 > {
-  const { backend, snapshot } = await readPageBackend();
+  const [{ backend, snapshot }, publicMarket] = await Promise.all([
+    readPageBackend(),
+    readPublicMarketBoard(),
+  ]);
 
   return Object.fromEntries(
     leaderboardKinds.map((kind) => [
       kind,
-      buildFrontendLeaderboardContract({ backend, kind, snapshot }),
+      buildFrontendLeaderboardContract({ backend, kind, publicMarket, snapshot }),
     ]),
   ) as Partial<Record<LeaderboardKind, Resource<LeaderboardRow[]>>>;
 }

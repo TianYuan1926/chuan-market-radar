@@ -659,7 +659,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6：自我提升复盘 | 基础已落地，outcome executor MVP、受保护 API、腾讯云 `signal-worker` 主线低频触发、GitHub Actions 回滚触发保留、已关闭信号去重、结果覆盖率、执行批次统计、跳过原因分层、复盘面板执行批次详情、样本质量分层、手动校准准入门槛、只读校准流、阻断解释、样本明细、阈值层、人工回滚计划、只读策略权重回测校准、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估、v3 trade/pattern 复盘标签、形态/计划复盘统计面板、真实权重启用门禁和策略进化闭环总控已落地 | 尚未完成真实权重接入扫描引擎、真实权重生效和真实回滚验证 |
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、腾讯云 Worker 主线触发、外部 cron 回滚策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音、Settings 抽屉本地告警控制、站内告警历史筛选、已读、归档、恢复和信号档案告警联动已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化和更细提示音音色 |
-| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底 | 后续按页面逐步把彩蛋/宠物状态、系统偏好、资金流等剩余 mock 或 localStorage 模块接到真实后端，同时保证 UI 1:1 不被重写 |
+| 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底；2026-06-23 已补榜单事实源/排序/来源说明、K 线多源级联失败边界、分析报告分层和 evidence sourceId | 仍需线上验证 public market ticker 与 K 线在腾讯香港生产网络的可用性；继续把资金流、更多复盘统计和前端剩余展示位接到真实后端，并保证 UI 1:1 不被重写 |
 
 ## 当前已落地模块
 
@@ -674,6 +674,19 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 前端专用适配出口已落地：`GET /api/frontend/radar-contract`、`GET /api/frontend/token-dossier?symbol=SYMBOL`、`GET /api/frontend/leaderboard?kind=KIND`、`GET /api/frontend/review-contract`、`GET /api/frontend/kline-contract?symbol=SYMBOL&tf=TF`、`GET/POST /api/frontend/journal-contract`。后续前端融合必须优先消费这些契约，避免绕开扫描、分析和复盘主链路形成“两张皮”。
 - 2026-06-22 已新增 `GET /api/frontend/kline-contract?symbol=SYMBOL&tf=4h` 和页面侧 `getKlineContractForPage()`：Token 详情页 K 线使用公开 OHLCV/cache 转换后的真实 `t/o/h/l/c/v`，无数据时显示真实空状态，不允许生成模拟 K 线冒充真实行情。
 - 2026-06-22 已新增 `GET/POST /api/frontend/journal-contract`：交易日记抽屉写入 `manual_trade` journal event，使用 append-only/tombstone 方式重建前端状态；`rankDelta=0`、`allowedUse=research_only`、`canAutoAdjustWeights=false`，不允许手动日记自动改变实时策略权重。
+
+### 2026-06-23 用户发现的前端真实数据缺口
+
+这些问题必须进入未完成项目，不能被当作单次 UI 反馈处理：
+
+1. **涨幅榜/跌幅榜真实性缺口**：当前前端涨幅榜和跌幅榜与用户对照的真实市场榜单不一致。后续必须明确榜单事实源、排序口径、交易所范围、过滤规则、更新时间和 partial 状态；不能把候选池、轻扫候选或内部排序直接伪装成“全市场真实涨跌幅榜”。
+   - 2026-06-23 已完成合同修复：`/api/frontend/leaderboard` 对 `gainers/losers/volume` 优先读取 public market ticker；同一币种跨交易所重复时选成交额最高的主场 ticker；每行输出 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。如果 public ticker 不可用，降级为 scanner snapshot 或 light-scan candidate，并在 `reason` 中明确“不能当作真实全市场涨跌幅榜”。
+2. **实时展示边界缺口**：前端需要明确哪些区域可以实时展示，哪些只能准实时或缓存展示。可实时展示的区域必须来自 WebSocket/SSE/Redis 最新快照或明确的 runtime heartbeat；不能用定时动画、跳动数字或旧缓存冒充实时。
+   - 2026-06-23 已完成第一轮合同修复：榜单和 K 线面板开始展示 `StatusBadge` 与 `FreshnessTag`；K 线失败、partial、empty 会显示 `DegradeNotice`，不再用假蜡烛填充。
+3. **K 线图专业度缺口**：当前 K 线已经禁止模拟蜡烛，但展示仍不够专业。后续要补齐多周期切换、真实 OHLCV 新鲜度、成交量、关键位/Forward Map 叠加、支撑压力区、失效线、目标区、数据缺口提示和 TradingView 外链兜底。
+   - 2026-06-23 已完成数据源底座修复：公开 OHLCV provider 从单一 Binance 升级为 Binance -> OKX -> Bybit 级联；三者都失败时返回 `public-exchange-ohlcv` typed failure，错误原因可追踪，不允许回落到 mock K 线。后续专业图表层继续补 overlay 和更完整交互。
+4. **分析推理报告展示缺口**：前端关于分析、推理、反证、风险门控和交易计划的展示过于简陋，不能体现后端 Evidence / Market Reading / Key Level / Forward Map / Risk Gate / Review 的能力。后续必须把“事实、证据、推理、阻断、计划、复盘反馈”分层展示，并保证每条中文解释可追溯到后端 EvidenceItem 或只读 review 样本。
+   - 2026-06-23 已完成第一轮合同修复：Token Dossier 新增 `reportSections`，按事实、支持证据、反证、风险门控、交易计划、复盘边界分层；`evidence` 和 `counter` 都带 `sourceId`，前端展示必须可追溯。
 
 ### 已落地：CoinGlass 数据接入骨架
 

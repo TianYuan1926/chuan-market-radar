@@ -87,6 +87,54 @@ export function TokenDossier({
         </div>
       </div>
 
+      {/* 分层分析报告 */}
+      {d.reportSections.length > 0 && (
+        <div className="border-b border-border px-6 py-5">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <ScrollText className="size-4 text-neon" />
+            分析报告分层
+          </h3>
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            {d.reportSections.map((section, i) => (
+              <div
+                key={section.key}
+                style={{ ['--i' as string]: i }}
+                className="data-tile tile-in border border-border bg-secondary/20 p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs font-semibold">{section.title}</div>
+                  <span
+                    className={cn(
+                      'border px-1.5 py-0.5 font-mono text-[10px]',
+                      section.status === 'ready'
+                        ? 'border-up/40 bg-up/10 text-up'
+                        : section.status === 'blocked'
+                          ? 'border-down/40 bg-down/10 text-down'
+                          : 'border-border bg-muted/40 text-muted-foreground',
+                    )}
+                  >
+                    {section.status}
+                  </span>
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {section.items.slice(0, 4).map((item) => (
+                    <li key={`${section.key}-${item.label}-${item.sourceId}`} className="text-xs leading-relaxed">
+                      <span className="font-semibold">{item.label}：</span>
+                      <span className="text-muted-foreground">{item.detail}</span>
+                      {item.sourceId && (
+                        <span className="ml-1 font-mono text-[10px] text-muted-foreground/70">
+                          [{item.sourceId}]
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 证据链 + 反证链 */}
       <div className="grid border-b border-border lg:grid-cols-2">
         <div className="border-b border-border px-6 py-5 lg:border-b-0 lg:border-r">
@@ -114,6 +162,11 @@ export function TokenDossier({
                     <div className="text-xs leading-relaxed text-muted-foreground">
                       {e.detail}
                     </div>
+                    {e.sourceId && (
+                      <div className="mt-1 font-mono text-[10px] text-muted-foreground/70">
+                        source: {e.sourceId}
+                      </div>
+                    )}
                     {/* 权重占比条：入场增长 */}
                     <div className="mt-1.5 h-1 overflow-hidden bg-secondary">
                       <span
@@ -144,6 +197,11 @@ export function TokenDossier({
                   <div className="text-xs leading-relaxed text-muted-foreground">
                     {c.detail}
                   </div>
+                  {c.sourceId && (
+                    <div className="mt-1 font-mono text-[10px] text-muted-foreground/70">
+                      source: {c.sourceId}
+                    </div>
+                  )}
                 </div>
               </li>
             ))}

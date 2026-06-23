@@ -165,8 +165,8 @@ export type TfStructure = {
   resistance: number
 }
 
-export type EvidenceItem = { kind: string; label: string; weight: number; detail: string; supportive: boolean }
-export type CounterItem = { kind: string; label: string; detail: string }
+export type EvidenceItem = { sourceId?: string; kind: string; label: string; weight: number; detail: string; supportive: boolean }
+export type CounterItem = { sourceId?: string; kind: string; label: string; detail: string }
 export type RiskGateResult = {
   allowTradePlan: boolean
   reasons: string[] // 不允许时的明确原因
@@ -189,6 +189,12 @@ export type AiReviewData = {
   suggestDowngrade: boolean
   note: string // AI 只复核不下结论的声明
 }
+export type AnalysisReportSection = {
+  key: 'facts' | 'supportive_evidence' | 'counter_evidence' | 'risk_gate' | 'trade_plan' | 'review_boundary'
+  title: string
+  status: 'ready' | 'partial' | 'blocked' | 'empty'
+  items: { label: string; detail: string; sourceId?: string }[]
+}
 
 export type TokenDossier = {
   symbol: string
@@ -200,6 +206,7 @@ export type TokenDossier = {
   riskGate: RiskGateResult
   tradePlan: TradePlanData | null // 被拦截时为 null
   aiReview: AiReviewData
+  reportSections: AnalysisReportSection[]
 }
 
 export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDossier> {
@@ -222,6 +229,7 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
       suggestDowngrade: false,
       note: LEGACY_DISABLED_REASON,
     },
+    reportSections: [],
   })
 }
 
@@ -397,6 +405,12 @@ export type LeaderboardRow = {
   hue: number
   value: number // 该榜单对应指标值
   price: number
+  source?: 'public_market_ticker' | 'scanner_snapshot_ticker' | 'light_scan_candidate' | 'derivatives_context'
+  sourceLabel?: string
+  venueScope?: string
+  sortKey?: string
+  rankingScope?: 'market_board' | 'radar_candidate_board' | 'derivatives_board'
+  updatedAt?: string
   inCandidatePool: boolean // 是否进候选池
   deepScanned: boolean // 是否已深扫
   hasSignal: boolean // 是否有信号

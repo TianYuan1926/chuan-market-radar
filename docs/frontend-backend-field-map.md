@@ -1,7 +1,7 @@
 # Frontend Backend Field Map
 
 > Status: phase 0/1 execution baseline.
-> Updated: 2026-06-22.
+> Updated: 2026-06-23.
 > Goal: make every frontend data surface traceable to backend facts before any refinement work.
 
 ## Hard Boundary
@@ -34,9 +34,9 @@ active market pages must not use them as fact sources.
 | `/` | intro stats, radar display, ticker/session display | `getRadarContractForPage()` + `getLeaderboardContractForPage('volume')` | connected | intro copy is static; acceptable because it is product explanation, not market fact |
 | `/dashboard` | scan proof, overview cards, current candidates, risk reminders, backend radar control | `RadarContract` + volume leaderboard | connected | risk reminders are derived from signal cards; exact backend alert stream is not wired yet |
 | `/signals` | sniper board, maturity pool, anomaly table, live feed, heatmap | `RadarContract.radarSignals` + leaderboard candidate display + `/api/frontend/live-events` or `/api/frontend/live-events/stream` | connected with candidate fallback | event feed is read-only archive/runtime data; SSE transport is available and must not trigger scans |
-| `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected | market cap is unknown and must show `待补齐`; no fake cap allowed |
+| `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected/needs production verification | gainers/losers/volume prefer public market tickers and expose source/sort/venue; if public tickers are unavailable they degrade honestly to scanner snapshot/candidate context; market cap is unknown and must show `待补齐`; no fake cap allowed |
 | `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `fundFlow`, `dataSources`, `apiUsage`, leaderboards | connected/partial | source latency is wired; taker/CVD/real fund-flow source is not wired and must show partial |
-| `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier + `getKlineContractForPage()` | connected/partial | exact v3 trade plan and real OHLCV are wired when present; fund-flow panel is still an honest waiting state |
+| `/token/[id]` | token facts, dossier, signal archive, K-line panel, flow panel | radar signals + leaderboards + token dossier + `getKlineContractForPage()` | connected/partial | K-line panel uses real public OHLCV only and cascades Binance -> OKX -> Bybit; still needs professional overlays: key levels, Forward Map, invalidation, targets, volume and TradingView fallback; fund-flow panel is still an honest waiting state |
 | `/review` | lifecycle, archetypes, missed detections, evolution suggestions, manual journal drawer | `ReviewContract` from journal events and business capability + `/api/frontend/journal-contract` | connected/partial | quality depends on real outcome samples; manual trade entries are API-backed with local fallback |
 | `/system` | service nodes, pipeline state, API usage, scan stability | `RadarContract.serviceNodes`, `dataPipeline`, `apiUsage`, `scanStability` | connected/partial | Redis probe, worker heartbeat, API usage and latency probes are wired; status depends on live runtime |
 | `/login` | gate UI | `/api/auth/session` | connected/optional | server private mode is disabled by default; enable with env vars before exposing the personal site |
@@ -72,13 +72,22 @@ active market pages must not use them as fact sources.
 | `scanStability` | `backend.runtime.scanStability` from archives, coverage and runtime probes | connected | operations diagnostic only; cannot generate trade signals |
 | `serviceNodes` | `backend.runtime.runtimeProbes`, repository mode and web runtime | connected/partial | Redis and worker heartbeat probes are wired; status depends on live worker reports and Redis availability |
 
+## 2026-06-23 Frontend Gaps Added To Backlog
+
+| Gap | Required contract behavior | Verification |
+| --- | --- | --- |
+| Real gainers/losers mismatch | `/api/frontend/leaderboard?kind=gainers|losers` states source, venue scope, sorting key, update time, partial reason and whether rows are public ticker rows, scanner snapshot rows, or light-scan candidates | 2026-06-23 local tests pass. Production must compare API rows against the chosen external source at the same timestamp; no candidate-only ranking may be labeled as a market-wide gainers/losers board |
+| Real-time display boundary unclear | Every live-looking frontend area must expose `status`, `ageSec`, `source`, and `reason`; websocket/SSE-backed areas may be marked live, scan/archive-backed areas must be marked fresh/stale/partial | 2026-06-23 leaderboard and K-line panel now expose freshness/status tags. Remaining pages must follow the same Resource contract |
+| K-line panel underpowered | `/api/frontend/kline-contract` provides real candles, interval, source, age and missing-data reason; public OHLCV source cascades Binance -> OKX -> Bybit | 2026-06-23 local tests pass and local smoke shows honest `failed` when all upstreams are unreachable. Production smoke must verify Tencent HK can fetch at least one source. Overlays still come from backend dossier only |
+| Analysis report too shallow | Token dossier maps backend Evidence, counter-evidence, risk gate, trade-plan draft and review boundaries into separate `reportSections` | 2026-06-23 local tests pass. Every displayed explanation links back to backend evidence/review ids or is labeled as missing/partial; frontend cannot invent reasoning |
+
 ## Leaderboard Contract Field Map
 
 | Kind | Backend source | Current status | Meaning |
 | --- | --- | --- | --- |
-| `gainers` | `snapshot.tickers` + light scan candidates | connected | price movement ranking, not trade signal |
-| `losers` | `snapshot.tickers` + light scan candidates | connected | downside movement ranking, not trade signal |
-| `volume` | ticker volume / light scan volume | connected | liquidity and attention proxy |
+| `gainers` | public market ticker -> scanner snapshot -> explicit candidate fallback | connected/needs production source verification | price movement ranking, not trade signal |
+| `losers` | public market ticker -> scanner snapshot -> explicit candidate fallback | connected/needs production source verification | downside movement ranking, not trade signal |
+| `volume` | public market ticker volume -> scanner snapshot volume -> explicit candidate fallback | connected/needs production source verification | liquidity and attention proxy |
 | `volatility_squeeze` | light scan volatility percentile | connected/partial | ranking only; must not imply direction alone |
 | `relative_strength` | light scan score + 24h change | connected/partial | ranking only |
 | `oi_change` | derivatives open interest change | connected/partial | only available for symbols with derivative rows |

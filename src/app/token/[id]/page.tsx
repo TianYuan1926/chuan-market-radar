@@ -153,6 +153,12 @@ export default async function TokenPage({
                   startPrice={token.price * 0.45}
                   bare
                   candles={kline.data}
+                  initialAgeSec={kline.ageSec}
+                  initialReason={kline.reason}
+                  initialSource={kline.source}
+                  initialStatus={kline.status}
+                  initialUpdatedAt={kline.updatedAt}
+                  symbol={token.symbol}
                   allowMockFallback={false}
                 />
               </div>

@@ -7,6 +7,7 @@ import {
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
 import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { createCompositePublicLightScanProvider } from "@/lib/market/providers/public-light-scan";
 import {
   appPersistenceDiagnostics,
   appPersistenceRepository,
@@ -72,7 +73,21 @@ export async function GET(request: NextRequest) {
   });
   const backend = buildBackendContract({ health, snapshot });
   const kind = parseKind(request);
-  const leaderboard = buildFrontendLeaderboardContract({ backend, kind, snapshot });
+  const publicProvider = createCompositePublicLightScanProvider({
+    maxPriorityCandidates: Number(process.env.FRONTEND_PUBLIC_MARKET_MAX_CANDIDATES ?? 120),
+  });
+  const publicResult = await publicProvider.scan();
+  const leaderboard = buildFrontendLeaderboardContract({
+    backend,
+    kind,
+    publicMarket: publicResult.tickers.length > 0
+      ? {
+        diagnostics: publicResult.diagnostics,
+        tickers: publicResult.tickers,
+      }
+      : undefined,
+    snapshot,
+  });
 
   return NextResponse.json({
     ok: true,

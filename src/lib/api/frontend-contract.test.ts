@@ -628,6 +628,87 @@ test("buildFrontendLeaderboardContract maps and sorts real ticker data", () => {
   assert.equal(gainers.data[0]?.symbol, "TIA");
   assert.equal(losers.data[0]?.symbol, "WIF");
   assert.equal(gainers.data[0]?.hasSignal, true);
+  assert.equal(gainers.data[0]?.source, "scanner_snapshot_ticker");
+  assert.match(gainers.reason ?? "", /扫描快照|scanner/u);
+});
+
+test("buildFrontendLeaderboardContract prefers full public market tickers for gainers and losers", () => {
+  const backend = backendContract();
+  backend.scanProof.lightScan.topCandidates = [
+    {
+      baseAsset: "CANDY",
+      changePercent24h: 99,
+      distanceFromHighPercent: 0,
+      distanceFromLowPercent: 50,
+      price: 0.12,
+      reasons: ["price_volume_anomaly"],
+      score: 100,
+      state: "HOT",
+      symbol: "CANDYUSDT",
+      volume24hUsd: 10_000_000,
+      volatilityPercent: 10,
+    },
+  ];
+
+  const gainers = buildFrontendLeaderboardContract({
+    backend,
+    kind: "gainers",
+    publicMarket: {
+      diagnostics: {
+        acceptedCount: 3,
+        candidateCount: 1,
+        generatedAt: "2026-06-21T08:00:30.000Z",
+        notes: [],
+        requestCount: 3,
+        source: "public-light-composite",
+        status: "ready",
+        topCandidates: [],
+        universeCount: 3,
+      },
+      tickers: [
+        {
+          symbol: "AAAUSDT",
+          exchange: "BINANCE",
+          price: 1,
+          changePercent24h: 21,
+          volume24hUsd: 1_000_000,
+          high24h: 1.1,
+          low24h: 0.8,
+          updatedAt: "2026-06-21T08:00:30.000Z",
+        },
+        {
+          symbol: "BBBUSDT",
+          exchange: "OKX",
+          price: 2,
+          changePercent24h: 7,
+          volume24hUsd: 2_000_000,
+          high24h: 2.1,
+          low24h: 1.7,
+          updatedAt: "2026-06-21T08:00:30.000Z",
+        },
+        {
+          symbol: "BBBUSDT",
+          exchange: "BYBIT",
+          price: 2.01,
+          changePercent24h: 55,
+          volume24hUsd: 100_000,
+          high24h: 2.2,
+          low24h: 1.6,
+          updatedAt: "2026-06-21T08:00:30.000Z",
+        },
+      ],
+    },
+    snapshot: snapshot([]),
+  });
+
+  assert.equal(gainers.status, "live");
+  assert.equal(gainers.data[0]?.symbol, "AAA");
+  assert.equal(gainers.data.some((row) => row.symbol === "CANDY"), false);
+  assert.equal(gainers.data[0]?.source, "public_market_ticker");
+  assert.equal(gainers.data[0]?.rankingScope, "market_board");
+  assert.equal(gainers.data.find((row) => row.symbol === "BBB")?.value, 7);
+  assert.match(gainers.data.find((row) => row.symbol === "BBB")?.sourceLabel ?? "", /OKX/);
+  assert.match(gainers.reason ?? "", /真实市场榜单/);
 });
 
 test("buildFrontendLeaderboardContract falls back to public light scan candidates when tickers are absent", () => {
@@ -660,12 +741,14 @@ test("buildFrontendLeaderboardContract falls back to public light scan candidate
     backend,
   });
 
-  assert.equal(volume.status, "live");
+  assert.equal(volume.status, "partial");
   assert.equal(volume.data[0]?.symbol, "POWER");
   assert.equal(volume.data[0]?.price, 0.42);
   assert.equal(volume.data[0]?.value, 58_000_000);
   assert.equal(volume.data[0]?.inCandidatePool, true);
   assert.equal(volume.data[0]?.hasSignal, false);
+  assert.equal(volume.data[0]?.source, "light_scan_candidate");
+  assert.match(volume.reason ?? "", /不能当作真实全市场涨跌幅榜|候选/u);
 });
 
 test("buildFrontendRadarContract exposes light scan candidates as validation signals when evidence signals are empty", () => {
@@ -915,6 +998,10 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
   assert.match(res.data.riskGate.reasons.join("；"), /等待后端结构化交易计划/);
   assert.equal(res.data.aiReview.note.includes("AI 仅对反证进行复核"), true);
   assert.equal(res.data.structures.every((item) => item.support === 0 && item.resistance === 0), true);
+  assert.equal(res.data.reportSections.some((section) => section.key === "facts"), true);
+  assert.equal(res.data.reportSections.some((section) => section.key === "risk_gate"), true);
+  assert.equal(res.data.evidence.every((item) => item.sourceId), true);
+  assert.equal(res.data.counter.every((item) => item.sourceId), true);
 });
 
 test("buildFrontendTokenDossierContract maps real v3 key levels without fabricating missing levels", () => {
