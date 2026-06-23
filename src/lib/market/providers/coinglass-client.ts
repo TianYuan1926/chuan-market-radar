@@ -15,6 +15,12 @@ export type CoinGlassRequestOptions = {
   fetcher?: typeof fetch;
 };
 
+type CoinGlassPaceOptions = {
+  intervalMs?: number;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+};
+
 export type CoinGlassRateLimit = {
   max?: number;
   used?: number;
@@ -48,6 +54,67 @@ export class CoinGlassApiError extends Error {
     this.httpStatus = httpStatus;
     this.rateLimit = rateLimit;
   }
+}
+
+let coinGlassGlobalPaceChain: Promise<void> = Promise.resolve();
+let nextCoinGlassRequestAt = 0;
+
+function defaultSleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function configuredGlobalPacingMs() {
+  const parsed = Number(process.env.COINGLASS_REQUEST_INTERVAL_MS);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0;
+  }
+
+  return Math.min(60_000, Math.floor(parsed));
+}
+
+async function reserveCoinGlassGlobalRequestSlot({
+  intervalMs = configuredGlobalPacingMs(),
+  now = Date.now,
+  sleep = defaultSleep,
+}: CoinGlassPaceOptions = {}) {
+  if (intervalMs <= 0) {
+    return undefined;
+  }
+
+  const previous = coinGlassGlobalPaceChain;
+  let release = () => {};
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  coinGlassGlobalPaceChain = previous.then(() => current);
+
+  await previous;
+
+  try {
+    const waitMs = Math.max(0, nextCoinGlassRequestAt - now());
+
+    if (waitMs > 0) {
+      await sleep(waitMs);
+    }
+
+    const reservedAt = Math.max(nextCoinGlassRequestAt, now());
+    nextCoinGlassRequestAt = reservedAt + intervalMs;
+    return reservedAt;
+  } finally {
+    release();
+  }
+}
+
+export async function reserveCoinGlassGlobalRequestSlotForTest(
+  options: CoinGlassPaceOptions = {},
+) {
+  return reserveCoinGlassGlobalRequestSlot(options);
+}
+
+export function resetCoinGlassGlobalPaceForTest() {
+  coinGlassGlobalPaceChain = Promise.resolve();
+  nextCoinGlassRequestAt = 0;
 }
 
 function toNumber(value: string | null) {
@@ -95,6 +162,9 @@ export async function requestCoinGlass<T>({
     accept: "application/json",
     "CG-API-KEY": apiKey,
   });
+
+  await reserveCoinGlassGlobalRequestSlot();
+
   const startedAt = Date.now();
 
   try {

@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   CoinGlassApiError,
   buildCoinGlassUrl,
+  reserveCoinGlassGlobalRequestSlotForTest,
   requestCoinGlass,
+  resetCoinGlassGlobalPaceForTest,
 } from "./coinglass-client";
 
 test("buildCoinGlassUrl appends query parameters and preserves the v4 base URL", () => {
@@ -73,4 +75,43 @@ test("requestCoinGlass exposes API errors and rate-limit headers", async () => {
       return true;
     },
   );
+});
+
+test("CoinGlass global pacing serializes concurrent request slots", async () => {
+  resetCoinGlassGlobalPaceForTest();
+
+  let now = 1_000;
+  const sleeps: number[] = [];
+
+  const reservedAt = await Promise.all([
+    reserveCoinGlassGlobalRequestSlotForTest({
+      intervalMs: 100,
+      now: () => now,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        now += ms;
+      },
+    }),
+    reserveCoinGlassGlobalRequestSlotForTest({
+      intervalMs: 100,
+      now: () => now,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        now += ms;
+      },
+    }),
+    reserveCoinGlassGlobalRequestSlotForTest({
+      intervalMs: 100,
+      now: () => now,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        now += ms;
+      },
+    }),
+  ]);
+
+  assert.deepEqual(sleeps, [100, 100]);
+  assert.deepEqual(reservedAt, [1_000, 1_100, 1_200]);
+
+  resetCoinGlassGlobalPaceForTest();
 });

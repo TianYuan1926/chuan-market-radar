@@ -37,7 +37,66 @@ const leaderboardKinds: LeaderboardKind[] = [
   "funding_hot",
 ];
 
-async function readPageBackend() {
+type TimedMemoryCache<T> = {
+  expiresAt: number;
+  hasValue: boolean;
+  inFlight?: Promise<T>;
+  value?: T;
+};
+
+function ttlMsFromEnv(name: string, fallbackMs: number) {
+  const parsed = Number(process.env[name]);
+
+  if (!Number.isFinite(parsed)) {
+    return fallbackMs;
+  }
+
+  return Math.max(0, Math.min(60_000, Math.floor(parsed)));
+}
+
+async function readThroughTtlCache<T>(
+  cache: TimedMemoryCache<T>,
+  ttlMs: number,
+  load: () => Promise<T>,
+) {
+  const now = Date.now();
+
+  if (ttlMs > 0 && cache.hasValue && cache.expiresAt > now) {
+    return cache.value as T;
+  }
+
+  if (cache.inFlight) {
+    return cache.inFlight;
+  }
+
+  cache.inFlight = load()
+    .then((value) => {
+      cache.value = value;
+      cache.hasValue = true;
+      cache.expiresAt = ttlMs > 0 ? Date.now() + ttlMs : 0;
+      return value;
+    })
+    .finally(() => {
+      cache.inFlight = undefined;
+    });
+
+  return cache.inFlight;
+}
+
+type PageBackendPayload = Awaited<ReturnType<typeof readPageBackendUncached>>;
+type PublicMarketBoardPayload = Awaited<ReturnType<typeof readPublicMarketBoardUncached>>;
+
+const pageBackendCache: TimedMemoryCache<PageBackendPayload> = {
+  expiresAt: 0,
+  hasValue: false,
+};
+
+const publicMarketBoardCache: TimedMemoryCache<PublicMarketBoardPayload> = {
+  expiresAt: 0,
+  hasValue: false,
+};
+
+async function readPageBackendUncached() {
   const snapshot = await getReadableMarketRadarSnapshot(undefined, {
     allowRefresh: false,
     trigger: "page_ssr",
@@ -57,7 +116,15 @@ async function readPageBackend() {
   };
 }
 
-async function readPublicMarketBoard(): Promise<Pick<PublicLightScanResult, "diagnostics" | "tickers"> | undefined> {
+async function readPageBackend() {
+  return readThroughTtlCache(
+    pageBackendCache,
+    ttlMsFromEnv("FRONTEND_BACKEND_CONTRACT_CACHE_TTL_MS", 5_000),
+    readPageBackendUncached,
+  );
+}
+
+async function readPublicMarketBoardUncached(): Promise<Pick<PublicLightScanResult, "diagnostics" | "tickers"> | undefined> {
   const provider = createCompositePublicLightScanProvider({
     maxPriorityCandidates: Number(process.env.FRONTEND_PUBLIC_MARKET_MAX_CANDIDATES ?? 120),
   });
@@ -71,6 +138,14 @@ async function readPublicMarketBoard(): Promise<Pick<PublicLightScanResult, "dia
     diagnostics: result.diagnostics,
     tickers: result.tickers,
   };
+}
+
+async function readPublicMarketBoard() {
+  return readThroughTtlCache(
+    publicMarketBoardCache,
+    ttlMsFromEnv("FRONTEND_PUBLIC_MARKET_CACHE_TTL_MS", 15_000),
+    readPublicMarketBoardUncached,
+  );
 }
 
 export async function getRadarContractForPage(): Promise<RadarContract> {
