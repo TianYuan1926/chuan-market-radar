@@ -86,6 +86,7 @@ Response shape:
 Important boundary:
 
 - Auxiliary OI, Funding or Taker endpoints being ready does not mean the current provider can create full derivative evidence. Until `providerCanFetchPairMarkets=true`, frontend and strategy layers must show CoinGlass as partial/unavailable for trade-plan generation.
+- 2026-06-23 production probe after safe key rotation returned `deepScanStatus=upgrade_required` and `providerCanFetchPairMarkets=false`. This means the production key is accepted but the current Hobbyist plan does not unlock the contract-deep-scan endpoints used by the provider. UI and reports must present this as a plan/capability boundary, not as a missing opportunity count or a healthy zero-signal market.
 
 ## `GET /api/radar/business-capability`
 

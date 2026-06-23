@@ -309,6 +309,8 @@ CoinGlass paid data：深扫确认源
 
 2026-06-23 生产实测补充：旧生产 `COINGLASS_API_KEY` 曾对合约深扫端点返回 `code=401`、`msg=Upgrade plan`，探测范围包括 `/api/futures/supported-exchanges`、`/api/futures/supported-coins`、`/api/futures/supported-exchange-pairs`、`/api/futures/pairs-markets`、`/api/futures/open-interest/exchange-list`、`/api/futures/funding-rate/exchange-list` 和 `/api/futures/taker-buy-sell-volume/exchange-list`。该结果只能作为历史故障样本，不能替代最新 key 的受保护能力体检。最新生产事实必须以 `POST /api/admin/coinglass/capability` 和本轮 `metadata.diagnostics.requests` 为准；只要返回 `Upgrade plan`、鉴权失败、限速、参数错误、空数据或 0 clean rows，就必须进入 `coinGlassRuntimeCapability`、`metadata.diagnostics.requests`、`/api/health.scanStability`、`/api/radar/backend-contract.sourceAudit.coinGlassDeepScan` 和前端数据源说明；不得把失败写成“市场无机会”或“0 行正常”。公共轻扫、OHLCV、榜单和复盘继续使用 Binance/OKX/Bybit 等免费公开源运转，但不能生成 CoinGlass 衍生品 Evidence 或 TradePlanReady。
 
+2026-06-23 第二批生产验证：已通过 `npm run production:update-coinglass-key` 安全替换生产 CoinGlass key，未在日志、命令行、Git 或聊天中输出密钥。替换后线上受保护探针返回 `deepScanStatus=upgrade_required`、`providerCanFetchPairMarkets=false`，`futures_pairs_markets`、`open_interest_current`、`funding_current`、`taker_buy_sell_current` 仍被 `Upgrade plan` 拦截。由此确认当前故障已不是 `Invalid API key`，而是 Hobbyist 套餐对现有合约深扫端点的权限边界。后续不得继续把“换 key”作为主修复路径；必须改为：逐项验证 Hobbyist 实际可用端点、建立公开交易所深扫替代层，并在 UI 中明确标注“CoinGlass 深扫受套餐限制 / 公共交易所深扫可用”。
+
 下面表格是按文档和目标架构设计的能力白名单；实际启用必须以生产受保护探针为准。任何端点只要返回 `Upgrade plan`、`Invalid API key`、`Endpoint not found`、参数错误、限速或连续空数据，就按不可用/待修处理并进入可观测诊断，不允许在 UI 或报告里宣称已接通。
 
 Hobbyist 可用并建议接入：
