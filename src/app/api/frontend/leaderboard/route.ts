@@ -1,18 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildBackendContract } from "@/lib/api/backend-contract";
-import {
-  buildFrontendLeaderboardContract,
-  type LeaderboardKind,
-} from "@/lib/api/frontend-contract";
+import type { LeaderboardKind } from "@/lib/api/frontend-contract";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
-import { buildSystemHealthReport } from "@/lib/api/system-health";
-import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
-import { createCompositePublicLightScanProvider } from "@/lib/market/providers/public-light-scan";
-import {
-  appPersistenceDiagnostics,
-  appPersistenceRepository,
-} from "@/lib/persistence/app-repository";
-import { readConfiguredRuntimeProbeReport } from "@/lib/runtime/worker-heartbeat";
+import { getLeaderboardContractForPage } from "@/lib/frontend-contract-server";
 
 export const dynamic = "force-dynamic";
 
@@ -59,35 +48,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
-    allowRefresh: false,
-    trigger: "page_ssr",
-  });
-  const runtimeProbes = await readConfiguredRuntimeProbeReport(process.env);
-  const health = await buildSystemHealthReport({
-    database: appPersistenceDiagnostics,
-    env: process.env,
-    repository: appPersistenceRepository,
-    runtimeProbes,
-    snapshot,
-  });
-  const backend = buildBackendContract({ health, snapshot });
   const kind = parseKind(request);
-  const publicProvider = createCompositePublicLightScanProvider({
-    maxPriorityCandidates: Number(process.env.FRONTEND_PUBLIC_MARKET_MAX_CANDIDATES ?? 120),
-  });
-  const publicResult = await publicProvider.scan();
-  const leaderboard = buildFrontendLeaderboardContract({
-    backend,
-    kind,
-    publicMarket: publicResult.tickers.length > 0
-      ? {
-        diagnostics: publicResult.diagnostics,
-        tickers: publicResult.tickers,
-      }
-      : undefined,
-    snapshot,
-  });
+  const leaderboard = await getLeaderboardContractForPage(kind);
 
   return NextResponse.json({
     ok: true,
@@ -98,7 +60,7 @@ export async function GET(request: NextRequest) {
       ...rateLimitHeaders(limit),
       "cache-control": "s-maxage=30, stale-while-revalidate=120",
       "x-chuan-contract": "frontend-leaderboard.v1",
-      "x-chuan-data-status": snapshot.metadata.status,
+      "x-chuan-data-status": leaderboard.status,
     },
   });
 }

@@ -96,6 +96,18 @@ const publicMarketBoardCache: TimedMemoryCache<PublicMarketBoardPayload> = {
   hasValue: false,
 };
 
+export function dataStatusToHealthLevel(status: Resource<unknown>["status"]) {
+  if (status === "failed" || status === "error") {
+    return "blocked";
+  }
+
+  if (status === "live" || status === "cached") {
+    return "ready";
+  }
+
+  return "degraded";
+}
+
 async function readPageBackendUncached() {
   const snapshot = await getReadableMarketRadarSnapshot(undefined, {
     allowRefresh: false,

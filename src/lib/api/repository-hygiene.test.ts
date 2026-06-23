@@ -219,18 +219,31 @@ test("v0 frontend handoff keeps old visual artifacts removed and records the han
 });
 
 test("frontend contract routes are read-only and cannot trigger scans", () => {
-  const routePaths = [
-    "src/app/api/frontend/radar-contract/route.ts",
+  const directSnapshotRoutePaths = [
     "src/app/api/frontend/token-dossier/route.ts",
-    "src/app/api/frontend/leaderboard/route.ts",
-    "src/app/api/frontend/review-contract/route.ts",
   ];
+  const cachedGetterRoutePaths = [
+    ["src/app/api/frontend/radar-contract/route.ts", "getRadarContractForPage"],
+    ["src/app/api/frontend/leaderboard/route.ts", "getLeaderboardContractForPage"],
+    ["src/app/api/frontend/review-contract/route.ts", "getReviewContractForPage"],
+  ] as const;
+  const frontendContractServerSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-contract-server.ts"), "utf8");
 
-  for (const routePath of routePaths) {
+  for (const routePath of directSnapshotRoutePaths) {
     const source = readFileSync(resolve(process.cwd(), routePath), "utf8");
     assert.match(source, /allowRefresh:\s*false/, `${routePath} must read cached snapshots only`);
     assert.doesNotMatch(source, /refreshMarketRadarSnapshot/, `${routePath} must not start scan refreshes`);
   }
+
+  for (const [routePath, getterName] of cachedGetterRoutePaths) {
+    const source = readFileSync(resolve(process.cwd(), routePath), "utf8");
+    assert.match(source, new RegExp(`${getterName}\\(`), `${routePath} must use the shared cached frontend getter`);
+    assert.doesNotMatch(source, /getReadableMarketRadarSnapshot|refreshMarketRadarSnapshot/, `${routePath} must not read or refresh snapshots directly`);
+  }
+
+  assert.match(frontendContractServerSource, /allowRefresh:\s*false/, "shared frontend getters must read cached snapshots only");
+  assert.doesNotMatch(frontendContractServerSource, /refreshMarketRadarSnapshot/, "shared frontend getters must not start scan refreshes");
+  assert.match(frontendContractServerSource, /readThroughTtlCache/, "shared frontend getters must use short TTL caching");
 
   const liveEventsRoute = "src/app/api/frontend/live-events/route.ts";
   const liveEventsSource = readFileSync(resolve(process.cwd(), liveEventsRoute), "utf8");

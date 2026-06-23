@@ -1731,8 +1731,8 @@ CoinGlass 业余会员 API：
    - 运行态体检必须区分“辅助端点可用”和“当前深扫引擎可用”：当前 provider 依赖 `futures_pairs_markets`，只有该端点 ready 时 `providerCanFetchPairMarkets=true` 且 `canCreateDerivativeEvidence=true`；OI/Funding/Taker 单独 ready 只能作为后续适配候选，不能冒充当前深扫已经可生成交易计划。
 
 36. **Phase Backend-9：前端只读合同缓存与 CoinGlass 全局请求节流（已落地）**
-   - 前端 SSR 页面读取后端合同时，`readPageBackend` 默认使用 `FRONTEND_BACKEND_CONTRACT_CACHE_TTL_MS=5000` 的短缓存和 in-flight 合并，避免 dashboard、signals、home、system 等页面在同一次导航里重复读取同一份 snapshot 和 health。
-   - 前端全市场公开榜单默认使用 `FRONTEND_PUBLIC_MARKET_CACHE_TTL_MS=15000` 的短缓存和 in-flight 合并，避免页面切换时反复拉 Binance/OKX/Bybit public ticker。该缓存只服务页面展示，不是事实源，不写数据库，不改变扫描结果。
+   - 前端 SSR 页面和 `/api/frontend/radar-contract`、`/api/frontend/review-contract` 读取后端合同时，`readPageBackend` 默认使用 `FRONTEND_BACKEND_CONTRACT_CACHE_TTL_MS=5000` 的短缓存和 in-flight 合并，避免 dashboard、signals、home、system、review 等页面和前端 API 在同一次导航里重复读取同一份 snapshot 和 health。
+   - 前端全市场公开榜单和 `/api/frontend/leaderboard` 默认使用 `FRONTEND_PUBLIC_MARKET_CACHE_TTL_MS=15000` 的短缓存和 in-flight 合并，避免页面切换时反复拉 Binance/OKX/Bybit public ticker。该缓存只服务页面展示，不是事实源，不写数据库，不改变扫描结果。
    - 新增全局 CoinGlass request pacing：所有 `requestCoinGlass` 调用统一进入进程级队列并遵守 `COINGLASS_REQUEST_INTERVAL_MS`，防止扫描、能力体检、健康探针或 worker 并发时撞穿 Hobbyist 限速。
    - 新增全局 `app/loading.tsx`，页面切换期间明确显示“正在读取后端真实合同，不触发额外 CoinGlass 深扫”，避免用户误以为页面卡死。
    - 已验证：新增 pacing 单测，后续改 CoinGlass client 时必须保持并发请求按间隔串行化。

@@ -1,14 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildBackendContract } from "@/lib/api/backend-contract";
-import { buildFrontendReviewContract } from "@/lib/api/frontend-contract";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
-import { buildSystemHealthReport } from "@/lib/api/system-health";
-import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
-import {
-  appPersistenceDiagnostics,
-  appPersistenceRepository,
-} from "@/lib/persistence/app-repository";
-import { readConfiguredRuntimeProbeReport } from "@/lib/runtime/worker-heartbeat";
+import { dataStatusToHealthLevel, getReviewContractForPage } from "@/lib/frontend-contract-server";
 
 export const dynamic = "force-dynamic";
 
@@ -40,20 +32,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
-    allowRefresh: false,
-    trigger: "page_ssr",
-  });
-  const runtimeProbes = await readConfiguredRuntimeProbeReport(process.env);
-  const health = await buildSystemHealthReport({
-    database: appPersistenceDiagnostics,
-    env: process.env,
-    repository: appPersistenceRepository,
-    runtimeProbes,
-    snapshot,
-  });
-  const backend = buildBackendContract({ health, snapshot });
-  const contract = buildFrontendReviewContract({ backend, snapshot });
+  const contract = await getReviewContractForPage();
 
   return NextResponse.json({
     ok: true,
@@ -63,8 +42,8 @@ export async function GET(request: NextRequest) {
       ...rateLimitHeaders(limit),
       "cache-control": "s-maxage=60, stale-while-revalidate=300",
       "x-chuan-contract": "frontend-review-contract.v1",
-      "x-chuan-data-status": snapshot.metadata.status,
-      "x-chuan-health-level": health.level,
+      "x-chuan-data-status": contract.reviewStats.status,
+      "x-chuan-health-level": dataStatusToHealthLevel(contract.reviewStats.status),
     },
   });
 }

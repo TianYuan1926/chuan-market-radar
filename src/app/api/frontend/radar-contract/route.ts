@@ -1,14 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildBackendContract } from "@/lib/api/backend-contract";
-import { buildFrontendRadarContract } from "@/lib/api/frontend-contract";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
-import { buildSystemHealthReport } from "@/lib/api/system-health";
-import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
-import {
-  appPersistenceDiagnostics,
-  appPersistenceRepository,
-} from "@/lib/persistence/app-repository";
-import { readConfiguredRuntimeProbeReport } from "@/lib/runtime/worker-heartbeat";
+import { dataStatusToHealthLevel, getRadarContractForPage } from "@/lib/frontend-contract-server";
 
 export const dynamic = "force-dynamic";
 
@@ -40,27 +32,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
-    allowRefresh: false,
-    trigger: "page_ssr",
-  });
-  const runtimeProbes = await readConfiguredRuntimeProbeReport(process.env);
-  const health = await buildSystemHealthReport({
-    database: appPersistenceDiagnostics,
-    env: process.env,
-    repository: appPersistenceRepository,
-    runtimeProbes,
-    snapshot,
-  });
-  const backend = buildBackendContract({ health, snapshot });
-  const contract = buildFrontendRadarContract({
-    backend,
-    snapshot,
-    env: {
-      COINGLASS_DAILY_REQUEST_BUDGET: process.env.COINGLASS_DAILY_REQUEST_BUDGET,
-      COINGLASS_REQUEST_INTERVAL_MS: process.env.COINGLASS_REQUEST_INTERVAL_MS,
-    },
-  });
+  const contract = await getRadarContractForPage();
 
   return NextResponse.json({
     ok: true,
@@ -70,8 +42,8 @@ export async function GET(request: NextRequest) {
       ...rateLimitHeaders(limit),
       "cache-control": "s-maxage=15, stale-while-revalidate=60",
       "x-chuan-contract": "frontend-radar-contract.v1",
-      "x-chuan-data-status": snapshot.metadata.status,
-      "x-chuan-health-level": health.level,
+      "x-chuan-data-status": contract.scanProof.status,
+      "x-chuan-health-level": dataStatusToHealthLevel(contract.scanStability.status),
     },
   });
 }
