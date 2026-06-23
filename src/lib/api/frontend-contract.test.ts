@@ -1536,6 +1536,10 @@ test("buildFrontendReviewContract returns review resources from journal and capa
   assert.equal(review.signalLifecycles.status, "live");
   assert.equal(review.signalLifecycles.data[0]?.symbol, "TIA");
   assert.equal(review.strategyArchetypes.data.length > 0, true);
+  assert.equal(review.strategyArchetypes.data[0]?.winRate, null);
+  assert.equal(review.strategyArchetypes.data[0]?.avgRR, null);
+  assert.equal(review.strategyArchetypes.data[0]?.samples, 0);
+  assert.match(review.strategyArchetypes.data[0]?.commonFailure ?? "", /样本收集中/);
   assert.equal(review.evolutionSuggestions.data[0]?.adopted, false);
   assert.equal(review.reviewStats.data.totalSamples, 1);
   assert.equal(review.reviewStats.data.evidenceSamples, 1);

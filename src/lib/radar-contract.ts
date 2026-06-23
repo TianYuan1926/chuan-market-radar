@@ -260,8 +260,8 @@ export function getSignalLifecycles(): Resource<SignalLifecycle[]> {
 export type StrategyArchetype = {
   key: string
   name: string
-  winRate: number
-  avgRR: number
+  winRate: number | null
+  avgRR: number | null
   samples: number
   commonFailure: string
 }

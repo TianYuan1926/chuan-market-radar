@@ -201,8 +201,8 @@ export type SignalLifecycle = {
 export type StrategyArchetype = {
   key: string;
   name: string;
-  winRate: number;
-  avgRR: number;
+  winRate: number | null;
+  avgRR: number | null;
   samples: number;
   commonFailure: string;
 };
@@ -2280,10 +2280,10 @@ function strategyArchetypeFromStage(stage: BusinessCapabilityStage): StrategyArc
   return {
     key: capabilityKey(stage.id),
     name: stage.title,
-    winRate: Math.max(0, Math.min(100, stage.score)),
-    avgRR: round(Math.max(1, stage.score / 30), 2),
-    samples: Math.max(1, stage.evidence.length),
-    commonFailure: stage.nextAction,
+    winRate: null,
+    avgRR: null,
+    samples: 0,
+    commonFailure: `样本收集中：${stage.nextAction}`,
   };
 }
 

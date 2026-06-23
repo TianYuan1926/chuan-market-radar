@@ -113,22 +113,24 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">{a.name}</span>
                   <span className="font-mono text-xs text-muted-foreground">
-                    {a.samples} 样本
+                    {a.samples > 0 ? `${a.samples} 样本` : '样本收集中'}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center gap-3">
                   <div className="bar-track h-2 flex-1 overflow-hidden bg-secondary">
                     <span
                       className="bar-fill block h-full bg-neon"
-                      style={{ width: `${a.winRate}%` }}
+                      style={{ width: `${a.winRate ?? 0}%` }}
                     />
                   </div>
                   <span className="min-w-[96px] text-right font-mono text-[11px]">
-                    胜率 {a.winRate}% · RR {a.avgRR}
+                    {a.winRate === null || a.avgRR === null
+                      ? '胜率待统计 · RR 待统计'
+                      : `胜率 ${a.winRate}% · RR ${a.avgRR}`}
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  常见失败：{a.commonFailure}
+                  状态说明：{a.commonFailure}
                 </p>
               </div>
             ))}

@@ -1489,6 +1489,7 @@ CoinGlass 业余会员 API：
 - `src/lib/frontend-market-types.ts` 承接 UI 展示类型；`src/lib/sniper-data.ts` 只允许保留类型和纯显示 helper。
 - 旧 `ReviewCenter`、`SystemCenter` 大型 mock 面板已删除，避免旧样本和假健康状态污染真实页面。
 - 交易日记抽屉使用 `ManualJournal` + `/api/frontend/journal-contract`，localStorage 只作为接口失败兜底。
+- 复盘页 `strategyArchetypes` 不能把业务能力分数伪装成策略胜率；没有真实分型 outcome 样本时，`winRate/avgRR` 必须为 `null`，前端显示“样本收集中/待统计”。
 
 后续验收：
 

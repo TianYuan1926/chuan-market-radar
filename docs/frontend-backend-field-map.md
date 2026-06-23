@@ -135,7 +135,7 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | Frontend field | Backend source | Current status | Notes |
 | --- | --- | --- | --- |
 | `signalLifecycles` | journal events with outcome metrics | connected/partial | only real samples; empty if no samples |
-| `strategyArchetypes` | business capability stages | connected/partial | describes capability buckets, not true win rate until enough outcomes |
+| `strategyArchetypes` | business capability stages | connected/partial | describes capability buckets, not true win rate until enough outcomes; without real grouped outcome samples, `winRate` and `avgRR` must be `null` and UI must show collecting state |
 | `missedDetections` | selected journal review events | partial | needs more outcome samples and missed-opportunity ingestion |
 | `evolutionSuggestions` | business capability next actions/gaps | connected/partial | suggestions are read-only; must not auto-change live weights |
 | `reviewStats` | `backend.analysis.reviewStatistics` from journal outcome samples | connected/partial | sample-size aware; research only, no auto weight changes |
