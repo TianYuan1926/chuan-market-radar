@@ -238,7 +238,7 @@ test("planUniverseScan rotates long tail assets at a lower frequency than core a
   );
   const firstCorePlan = planUniverseScan(registry, 3, new Date("2026-06-14T00:00:00.000Z"));
   const secondCorePlan = planUniverseScan(registry, 3, new Date("2026-06-14T00:15:00.000Z"));
-  const longTailPlan = planUniverseScan(registry, 3, new Date("2026-06-14T01:45:00.000Z"));
+  const longTailPlan = planUniverseScan(registry, 3, new Date("2026-06-14T00:45:00.000Z"));
 
   assert.deepEqual(firstCorePlan.assets, ["BTC", "ETH", "SOL"]);
   assert.deepEqual(secondCorePlan.assets, ["BTC", "ETH", "ENA"]);
@@ -247,7 +247,7 @@ test("planUniverseScan rotates long tail assets at a lower frequency than core a
   assert.equal(longTailPlan.tierCounts.long_tail, 2);
   assert.equal(longTailPlan.selectedTierCounts.anchor, 2);
   assert.equal(longTailPlan.selectedTierCounts.long_tail, 1);
-  assert.equal(longTailPlan.tierPolicy.longTailEveryWindows, 8);
+  assert.equal(longTailPlan.tierPolicy.longTailEveryWindows, 4);
 });
 
 test("planUniverseScan keeps the only rotating slot available for rotation when dynamic hints exist", () => {

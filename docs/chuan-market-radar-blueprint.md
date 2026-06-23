@@ -441,6 +441,7 @@ Postgres 使用边界：
 - **前后端信息一致性**：后端返回、计算、归档或复盘出的核心信息，前端不能无提示吞掉。任何 Top N、`slice`、折叠、样本展示、摘要展示，都必须在用户可见处说明“显示 X / 共 Y”、`+N`、完整入口或被隐藏原因。首页可以分层，但不能让用户误以为系统只扫描或只产生当前可见的几个币。
 - **可读性是核心功能**：文字溢出、遮挡、挤压、截断无提示、按钮文字放不下、状态条重叠、移动端横向滚动、桌面窄宽错位，都按功能缺陷处理，不按普通美观问题处理。任何前端阶段完成前，必须检查主要断点和高密度内容区域的可读性。
 - **验收不止代码通过**：`lint`、`typecheck`、`build`、测试通过只能证明工程基础合格，不能证明产品合格。每次重要搭建还必须验证真实页面表现、信息完整性、数据新鲜度、线上动作是否真的生效、用户是否能看懂系统正在做什么。
+- **验证命令顺序硬规则**：`next build` 会重建 `.next/types`，因此 `npm run typecheck` 和 `npm run build` 不能并行执行；必须顺序执行，避免工具互相删除/生成 `.next/types` 导致假失败。可以并行的是互不写同一产物的只读检查。
 
 ## 前端 UI 交付边界
 
@@ -843,7 +844,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 已新增 Bybit V5 public instruments 自动发现入口，筛选 `linear`、`LinearPerpetual`、`Trading`、`USDT` 合约，并支持 cursor 分页。
 - CoinGlass provider 会把 Binance/OKX/Bybit 发现到的 USDT 永续合约并入 universe scan plan；某个交易所发现失败时不会拖垮整个扫描，所有交易所都失败时才回退到配置白名单并在 metadata notes 中显示原因。
 - 已支持分层币池：BTC/ETH 为 anchor，配置白名单和高流动性币为 core，中等流动性币为 active，仅被发现但未验证流动性的币先归为 long_tail。
-- 已支持长尾低频抽样轮转：旧版 `COINGLASS_BATCH_SIZE=3` 会导致 BTC/ETH 固定后只剩 1 个山寨深扫位，已经判定为不符合“全市场山寨雷达”的根因配置。当前默认改为 `COINGLASS_BATCH_SIZE=24`，BTC/ETH 固定保留，剩余约 22 个槽位用于 core / active / long_tail / dynamic priority 轮转，long_tail 默认每 8 个扫描窗口抽样一次。
+- 已支持长尾低频抽样轮转：旧版 `COINGLASS_BATCH_SIZE=3` 会导致 BTC/ETH 固定后只剩 1 个山寨深扫位，已经判定为不符合“全市场山寨雷达”的根因配置。当前默认改为 `COINGLASS_BATCH_SIZE=24`，BTC/ETH 固定保留，剩余约 22 个槽位用于 core / active / long_tail / dynamic priority 轮转。2026-06-23 根据生产 `long_cycle` 诊断，把 long_tail 默认从每 8 个扫描窗口提高到每 4 个扫描窗口抽样一次；这不增加 CoinGlass 请求数，只提高冷门/新山寨被验证或排除的速度。
 - 已支持多交易所覆盖差异分类：`major_three`、`multi_exchange`、`single_exchange`、`unlisted`。
 - `metadata.coverage.exchangeCoverage` 会记录每个币种在哪些交易所有 USDT 永续，`exchangeCoverageSummary` 会输出覆盖质量汇总。
 - 已支持交易所覆盖钻取：`/api/health.fullMarketCoverage.exchangeDrilldown` 会把三所共振、多所覆盖、单所观察和发现缺口拆成只读行，输出样本、动作建议、过滤样本和“不会触发额外请求”的护栏；健康面板已展示该钻取区块。

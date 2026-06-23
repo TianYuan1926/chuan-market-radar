@@ -124,7 +124,7 @@ const coreLiquidityFloorUsd = 100_000_000;
 const activeLiquidityFloorUsd = 20_000_000;
 const defaultTierPolicy: UniverseTierPolicy = {
   activeEveryWindows: 3,
-  longTailEveryWindows: 8,
+  longTailEveryWindows: 4,
 };
 const majorDiscoveryExchanges: ExchangeId[] = ["BINANCE", "OKX", "BYBIT"];
 
