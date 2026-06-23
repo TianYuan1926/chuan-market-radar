@@ -599,7 +599,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 当前线上回滚数据库：Neon Postgres
 - 本机缓存/队列底座：Redis
 - 数据源：Binance public data + OKX public data 负责全市场轻扫和交叉验证，CoinGlass 业余会员 API 负责候选深扫和资金质量确认
-- 公开图表：TradingView 链接入口
+- 公开图表：TradingView 站内主图嵌入 + 外部 TradingView 链接入口
 - 语言：TypeScript
 - 测试：Node test + TypeScript 编译测试
 - 当前验证命令：
@@ -1165,8 +1165,13 @@ AI 复核必须遵守：
 - 首页、Dashboard、Signals、Market、Leaderboard、Review、System、Token Dossier 和宠物小人壳已恢复为 v0 前端 UI。
 - 后端 API、扫描、数据库、复盘、分析引擎、告警策略和 Worker 保留。
 - 已新增前端专用适配接口：`/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`。
-- `lib/radar-contract.ts` 的组合 getter 已具备调用前端专用接口的入口；页面中仍直接使用的局部 mock/getter 后续按页面逐步切换。
+- `lib/radar-contract.ts` 的组合 getter 已具备调用前端专用接口的入口；活跃页面必须优先消费后端前端合同。旧 mock 文件只允许保留为类型参考、离线预览或测试边界，不能作为线上事实源。
 - 后续前端融合必须优先消费后端只读契约，不能让 UI 复制临时业务逻辑。
+- TradingView 图表必须作为 Token Dossier 主图优先展示；自绘 K 线只能作为 TradingView 不可用时的只读降级展示，不能伪装成真实交易图表。
+- 币种 logo 必须优先使用真实可追溯来源；缺失时显示 fallback 图形，不得用假 logo 伪装。
+- 榜单或信号价格缺失时必须显示“等待价格/数据待补齐”这类明确状态，禁止把缺失值展示成 `$0` 或错误排名。
+- 前端实时流必须优先消费后端 SSE/live store；SSR 初始卡片只能作为首屏兜底，不得让页面长期静态假装实时。
+- 宏观页如果展示的是系统推导值，必须命名为“山寨温度/市场温度”等内部指标；除非接入真实 Fear & Greed 数据源，否则不得叫“贪婪指数”。
 
 后续前端真实数据融合前，必须先确认：
 
@@ -1490,6 +1495,11 @@ CoinGlass 业余会员 API：
 - 旧 `ReviewCenter`、`SystemCenter` 大型 mock 面板已删除，避免旧样本和假健康状态污染真实页面。
 - 交易日记抽屉使用 `ManualJournal` + `/api/frontend/journal-contract`，localStorage 只作为接口失败兜底。
 - 复盘页 `strategyArchetypes` 不能把业务能力分数伪装成策略胜率；没有真实分型 outcome 样本时，`winRate/avgRR` 必须为 `null`，前端显示“样本收集中/待统计”。
+- Token Dossier 主图区已接 `tradingView` 合同：优先嵌入 TradingView，关键位、证据链和交易计划仍由后端提供。
+- 币种头像改为通用真实 logo 查询 + fallback，避免固定白名单导致大多数山寨币显示假状态。
+- Leaderboard 对缺失价格显示“等待价格”，不得把缺失价格渲染为 `$0`。
+- 实时推送区优先读取后端 SSE/live feed，只有没有事件时才显示合同内首屏事件。
+- Market 概览的推导温度已从“贪婪指数”改为“山寨温度”；真实 Fear & Greed 如需展示，必须另接真实数据源。
 
 后续验收：
 
@@ -1497,6 +1507,7 @@ CoinGlass 业余会员 API：
 - 前端不能静默隐藏候选、证据、风险、关键位或复盘样本。
 - 前端不能自动下单，不能伪造图表，不能把研究信息包装成确定交易信号。
 - 任何新增页面不得重新导入 `mock-data.ts` 作为事实源；仓库卫生测试必须继续覆盖这一点。
+- 仍未完成的前端数据能力：稳定 CVD/taker 主动买卖流、真实资金流、真实 Fear & Greed、Token Dossier 更细的分析报告可视化、长期样本后的策略分型胜率展示。
 
 6. **Phase 3.11：Data Quality Cleaning And Coverage Quality Explanation**
    - 当前状态：已完成并增强。`/api/health` 已新增 `marketDataQuality`，会从主扫描 metadata 和 instrument pool 汇总 raw / clean / primary、UNKNOWN、非 USDT、重复币种、流动性门槛、过滤样本、质量分和只读边界。

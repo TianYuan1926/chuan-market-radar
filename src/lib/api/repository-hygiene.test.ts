@@ -330,7 +330,9 @@ test("signals visual widgets derive from backend radar signals", () => {
   assert.doesNotMatch(sniperBoardSource, /setTimeout/);
   assert.doesNotMatch(sniperDataSource, /getSniperTargets|getSignalCards|mulberry32|Math\.random/);
   assert.match(sniperDataSource, /纯显示 helper/);
-  assert.match(liveFeedSource, /cards\.length === 0/);
+  assert.match(liveFeedSource, /useSignalFeed/);
+  assert.match(liveFeedSource, /eventItems\.length > 0 \? eventItems : cardItems/);
+  assert.match(liveFeedSource, /items\.length === 0/);
   assert.doesNotMatch(liveFeedSource, /Math\.random/);
   assert.doesNotMatch(liveFeedSource, /setInterval/);
   assert.doesNotMatch(liveFeedSource, /巨鲸入场|\$3,280|空单爆仓 \$4,200/);
@@ -584,15 +586,28 @@ test("stage 8 token detail chart and flow panels do not present generated mock d
   assert.doesNotMatch(klinePanelSource, /@\/lib\/mock-data/);
   assert.match(klinePanelSource, /等待真实 K 线数据/);
   assert.match(klinePanelSource, /candles\?\.length/);
+  assert.match(klinePanelSource, /buildTradingViewWidgetEmbedUrl/);
+  assert.match(klinePanelSource, /TradingView 主图/);
+  assert.match(klinePanelSource, /initialTradingView/);
 
   assert.match(serverReaderSource, /getKlineContractForPage/);
   assert.match(serverReaderSource, /buildFrontendKlineContract/);
   assert.match(tokenPageSource, /getKlineContractForPage/);
   assert.match(tokenPageSource, /candles=\{kline\.data\}/);
+  assert.match(tokenPageSource, /initialTradingView=\{kline\.tradingView\}/);
   assert.doesNotMatch(tokenPageSource, /allowMockFallback/);
   assert.match(tokenPageSource, /等待真实资金流数据/);
   assert.doesNotMatch(tokenPageSource, /Array\.from\(\{ length: 28 \}\)/);
   assert.doesNotMatch(tokenPageSource, /\(\(seed \* \(i \+ 3\)\) % 100\)/);
+});
+
+test("token avatars prefer real icon lookup without a fixed small whitelist", () => {
+  const tokenAvatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
+
+  assert.match(tokenAvatarSource, /logoLookupSymbol/);
+  assert.match(tokenAvatarSource, /assets\.coincap\.io\/assets\/icons/);
+  assert.match(tokenAvatarSource, /onError=\{\(\) => setFailed\(true\)\}/);
+  assert.doesNotMatch(tokenAvatarSource, /const REAL_LOGOS = new Set/);
 });
 
 test("stage 8 dashboard and market pages read backend contract instead of mock market panels", () => {
@@ -739,6 +754,31 @@ test("active frontend files do not import mock-data as a market fact source", ()
   }
 
   assert.deepEqual(offenders, [], `active frontend files must not import mock-data: ${offenders.join(", ")}`);
+});
+
+test("leaderboard price display does not present missing prices as zero", () => {
+  const leaderboardSource = readFileSync(resolve(process.cwd(), "src/components/leaderboard/market-leaderboards.tsx"), "utf8");
+
+  assert.match(leaderboardSource, /formatPrice/);
+  assert.match(leaderboardSource, /等待价格/);
+  assert.match(leaderboardSource, /hasKnownPositiveValue/);
+  assert.doesNotMatch(leaderboardSource, /\$\{row\.price\.toLocaleString\(\)\}/);
+});
+
+test("live feed subscribes to backend SSE events before falling back to SSR cards", () => {
+  const liveFeedSource = readFileSync(resolve(process.cwd(), "src/components/live-feed.tsx"), "utf8");
+
+  assert.match(liveFeedSource, /useSignalFeed/);
+  assert.match(liveFeedSource, /eventToAlert/);
+  assert.match(liveFeedSource, /eventItems\.length > 0 \? eventItems : cardItems/);
+});
+
+test("market overview does not label derived altcoin temperature as real fear greed data", () => {
+  const marketClientSource = readFileSync(resolve(process.cwd(), "src/app/market/market-page-client.tsx"), "utf8");
+
+  assert.match(marketClientSource, /山寨温度/);
+  assert.match(marketClientSource, /由宏观合同推导/);
+  assert.doesNotMatch(marketClientSource, /label="贪婪指数"/);
 });
 
 test("frontend contract pages render dynamically instead of freezing build-time data", () => {

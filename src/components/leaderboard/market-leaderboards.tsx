@@ -11,6 +11,7 @@ import {
 } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'
 import { resource } from '@/lib/data-status'
+import { fmtUsd, hasKnownPositiveValue } from '@/lib/display-format'
 import { cn } from '@/lib/utils'
 import { ListOrdered, ChevronRight } from 'lucide-react'
 
@@ -33,6 +34,10 @@ function formatValue(kind: LeaderboardKind, v: number): string {
     return `$${v.toLocaleString()}`
   }
   return v.toFixed(0)
+}
+
+function formatPrice(value: number): string {
+  return hasKnownPositiveValue(value) ? `$${fmtUsd(value)}` : '等待价格'
 }
 
 function emptyLeaderboard(kind: LeaderboardKind) {
@@ -131,7 +136,7 @@ export function MarketLeaderboards({
               <div className="min-w-0">
                 <div className="font-mono text-sm font-bold">{row.symbol}</div>
                 <div className="font-mono text-[11px] text-muted-foreground">
-                  ${row.price.toLocaleString()}
+                  {formatPrice(row.price)}
                 </div>
                 <div className="max-w-[190px] truncate text-[10px] text-muted-foreground">
                   {row.sourceLabel ?? row.sortKey ?? '等待来源'}

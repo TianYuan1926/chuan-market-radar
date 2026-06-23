@@ -3,19 +3,22 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
-/* ============ 拥有真实 logo 的币种（CoinCap 图标 CDN，按符号小写匹配） ============ */
-const REAL_LOGOS = new Set([
-  'btc', 'eth', 'sol', 'arb', 'op', 'sui', 'apt', 'sei', 'tia', 'pepe',
-  'wif', 'bonk', 'floki', 'jup', 'pyth', 'rndr', 'inj', 'fet', 'tao', 'akt',
-  'grt', 'ldo', 'mkr', 'aave', 'uni', 'crv', 'snx', 'dydx', 'ena', 'ondo',
-  'strk', 'zk', 'axl', 'metis', 'kava', 'paxg', 'near',
-])
+/* ============ 真实 logo 源：CoinCap 图标 CDN。失败时明确回退生成式头像。 ============ */
+export function logoLookupSymbol(symbol: string): string {
+  const clean = symbol
+    .trim()
+    .toLowerCase()
+    .replace(/^binance:/, '')
+    .replace(/\.p$/, '')
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/(usdt|usdc|busd|usd|perp|swap)$/u, '')
 
-function realLogoUrl(symbol: string): string | null {
-  const key = symbol.toLowerCase()
-  return REAL_LOGOS.has(key)
-    ? `https://assets.coincap.io/assets/icons/${key}@2x.png`
-    : null
+  return clean.replace(/^(1000000|10000|1000)(?=[a-z])/u, '')
+}
+
+export function realLogoUrl(symbol: string): string | null {
+  const key = logoLookupSymbol(symbol)
+  return key ? `https://assets.coincap.io/assets/icons/${key}@2x.png` : null
 }
 
 /* ============ 生成式几何标志（虚构币种各有形状） ============ */

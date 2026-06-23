@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildTradingViewWidgetEmbedUrl,
   buildTradingViewUrl,
   toTradingViewInterval,
   toTradingViewSymbol,
@@ -30,5 +31,17 @@ test("buildTradingViewUrl includes selected symbol and active timeframe", () => 
   assert.equal(
     url,
     "https://www.tradingview.com/chart/?symbol=BINANCE%3AENAUSDT.P&interval=15",
+  );
+});
+
+test("buildTradingViewWidgetEmbedUrl builds an embeddable TradingView widget URL", () => {
+  const url = buildTradingViewWidgetEmbedUrl({
+    interval: "240",
+    symbol: "BINANCE:ENAUSDT.P",
+  });
+
+  assert.equal(
+    url,
+    "https://www.tradingview.com/widgetembed/?allow_symbol_change=0&calendar=0&hide_side_toolbar=0&interval=240&locale=zh_CN&save_image=0&style=1&symbol=BINANCE%3AENAUSDT.P&theme=dark&timezone=Asia%2FShanghai&withdateranges=1",
   );
 });

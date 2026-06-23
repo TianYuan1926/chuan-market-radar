@@ -86,11 +86,11 @@ export function MarketPageClient({
             icon={AlertTriangle}
           />
           <BigStat
-            label="贪婪指数"
+            label="山寨温度"
             value={`${env.fearGreed}`}
             liveBase={env.fearGreed}
             tone={env.fearGreed >= 60 ? 'var(--up)' : 'var(--down)'}
-            sub={`当前时段 · ${env.session}`}
+            sub={`由宏观合同推导 · ${env.session}`}
             icon={Gauge}
           />
         </div>

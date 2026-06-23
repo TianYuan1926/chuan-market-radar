@@ -10,6 +10,14 @@ type TradingViewUrlInput = TradingViewSymbolInput & {
   timeframe: Timeframe;
 };
 
+type TradingViewWidgetUrlInput = {
+  baseUrl?: string;
+  interval?: string | null;
+  locale?: string;
+  symbol?: string | null;
+  theme?: "dark" | "light";
+};
+
 const intervalMap: Record<Timeframe, string> = {
   "1m": "1",
   "5m": "5",
@@ -41,6 +49,30 @@ export function buildTradingViewUrl({
   const params = new URLSearchParams({
     symbol: toTradingViewSymbol({ exchange, symbol }),
     interval: toTradingViewInterval(timeframe),
+  });
+
+  return `${baseUrl}?${params.toString()}`;
+}
+
+export function buildTradingViewWidgetEmbedUrl({
+  baseUrl = "https://www.tradingview.com/widgetembed/",
+  interval,
+  locale = "zh_CN",
+  symbol,
+  theme = "dark",
+}: TradingViewWidgetUrlInput) {
+  const params = new URLSearchParams({
+    allow_symbol_change: "0",
+    calendar: "0",
+    hide_side_toolbar: "0",
+    interval: interval || "240",
+    locale,
+    save_image: "0",
+    style: "1",
+    symbol: symbol || toTradingViewSymbol({ exchange: "BINANCE", symbol: "BTCUSDT" }),
+    theme,
+    timezone: "Asia/Shanghai",
+    withdateranges: "1",
   });
 
   return `${baseUrl}?${params.toString()}`;

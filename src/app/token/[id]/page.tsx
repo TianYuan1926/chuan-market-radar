@@ -153,6 +153,7 @@ export default async function TokenPage({
                   initialReason={kline.reason}
                   initialSource={kline.source}
                   initialStatus={kline.status}
+                  initialTradingView={kline.tradingView}
                   initialUpdatedAt={kline.updatedAt}
                   initialOverlays={kline.overlays}
                   symbol={token.symbol}

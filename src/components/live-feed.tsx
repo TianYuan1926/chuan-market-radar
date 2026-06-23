@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Radio } from 'lucide-react'
 import type { SignalCard, SignalType } from '@/lib/frontend-market-types'
+import { useSignalFeed, type SignalEvent } from '@/lib/signal-feed'
 import { cn } from '@/lib/utils'
 
 const TYPE_VAR: Record<SignalType, string> = {
@@ -33,8 +34,32 @@ type Alert = {
   time: string
 }
 
+function timeLabel(ts: number) {
+  if (!Number.isFinite(ts)) {
+    return '实时'
+  }
+  return new Date(ts).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
+function eventToAlert(event: SignalEvent): Alert {
+  return {
+    change: event.side === 'bull' ? event.anomalyScore / 10 : -event.anomalyScore / 10,
+    id: `sse-${event.id}-${event.ts}`,
+    symbol: event.symbol,
+    tokenId: event.symbol.toLowerCase(),
+    type: event.side === 'bull' ? 'BREAK' : 'CRASH',
+    text: `后端实时事件 · 异动强度 ${event.anomalyScore}/100`,
+    time: timeLabel(event.ts),
+  }
+}
+
 export function LiveFeed({ cards }: { cards: SignalCard[] }) {
-  const items: Alert[] = cards.slice(0, 9).map((c, index) => ({
+  const liveEvents = useSignalFeed()
+  const cardItems: Alert[] = cards.slice(0, 9).map((c, index) => ({
     id: `${c.id}-${index}`,
     symbol: c.token.symbol,
     tokenId: c.token.id,
@@ -43,6 +68,8 @@ export function LiveFeed({ cards }: { cards: SignalCard[] }) {
     change: c.token.change24h,
     time: c.lastPush || c.firstPush || '等待',
   }))
+  const eventItems = liveEvents.slice(0, 9).map(eventToAlert)
+  const items = eventItems.length > 0 ? eventItems : cardItems
 
   return (
     <div className="rounded-2xl border border-border bg-card">
@@ -54,7 +81,7 @@ export function LiveFeed({ cards }: { cards: SignalCard[] }) {
         </span>
       </div>
       <div className="max-h-[440px] divide-y divide-border/60 overflow-y-auto">
-        {cards.length === 0 && (
+        {items.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">
             暂无实时预警
           </div>
