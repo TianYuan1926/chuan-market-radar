@@ -7,7 +7,8 @@ import {
   ExternalLink,
   ClipboardList,
 } from 'lucide-react'
-import { fmtUsd, type Token, type TokenArchive } from '@/lib/mock-data'
+import type { Token, TokenArchive } from '@/lib/mock-data'
+import { fmtUsd } from '@/lib/display-format'
 import type { Resource } from '@/lib/data-status'
 import type { TokenDossier } from '@/lib/radar-contract'
 import { cn } from '@/lib/utils'

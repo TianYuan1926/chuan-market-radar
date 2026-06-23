@@ -6,7 +6,6 @@ import { KlinePanel } from '@/components/kline-panel'
 import { SignalArchive } from '@/components/signal-archive'
 import { TokenDossier } from '@/components/token/token-dossier'
 import { TokenAvatar } from '@/components/token-avatar'
-import { fmtCap, fmtUsd } from '@/lib/mock-data'
 import {
   getAllLeaderboardContractsForPage,
   getKlineContractForPage,
@@ -20,7 +19,7 @@ import {
   radarSignalsToFeedSignals,
   radarSignalsToTokens,
 } from '@/lib/frontend-display-adapters'
-import { fmtKnownCap } from '@/lib/display-format'
+import { fmtCap, fmtKnownCap, fmtUsd } from '@/lib/display-format'
 import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -54,7 +53,6 @@ export default async function TokenPage({
     getKlineContractForPage(token.symbol, '4h'),
   ])
 
-  const seed = token.hue + token.symbol.length * 31
   const backendSignals = radarSignalsToFeedSignals(radar.radarSignals.data, token.symbol)
   const up = token.change24h >= 0
 
@@ -149,8 +147,6 @@ export default async function TokenPage({
               </div>
               <div className="px-3 py-2">
                 <KlinePanel
-                  seed={seed}
-                  startPrice={token.price * 0.45}
                   bare
                   candles={kline.data}
                   initialAgeSec={kline.ageSec}
@@ -159,7 +155,6 @@ export default async function TokenPage({
                   initialStatus={kline.status}
                   initialUpdatedAt={kline.updatedAt}
                   symbol={token.symbol}
-                  allowMockFallback={false}
                 />
               </div>
 

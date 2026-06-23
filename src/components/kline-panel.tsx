@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { KlineChart } from './kline-chart'
 import { DegradeNotice, FreshnessTag, StatusBadge } from './data-state'
-import { getCandles, type Candle } from '@/lib/mock-data'
+import type { ChartCandle } from '@/lib/chart-types'
 import type { DataStatus } from '@/lib/data-status'
 import { cn } from '@/lib/utils'
 
@@ -15,7 +15,6 @@ const TF_TO_INTERVAL: Record<(typeof TFS)[number], string> = {
   '4小时': '4h',
   '1天': '1d',
 }
-export type ChartCandle = Candle
 
 type KlineResourcePayload = {
   status: DataStatus
@@ -27,11 +26,8 @@ type KlineResourcePayload = {
 }
 
 export function KlinePanel({
-  seed,
-  startPrice,
   bare = false,
   candles,
-  allowMockFallback = false,
   initialAgeSec,
   initialReason,
   initialSource,
@@ -39,11 +35,8 @@ export function KlinePanel({
   initialUpdatedAt,
   symbol,
 }: {
-  seed: number
-  startPrice: number
   bare?: boolean
   candles?: ChartCandle[]
-  allowMockFallback?: boolean
   initialAgeSec?: number
   initialReason?: string
   initialSource?: string
@@ -119,12 +112,7 @@ export function KlinePanel({
     return () => controller.abort()
   }, [candles, initialAgeSec, initialReason, initialSource, initialStatus, initialUpdatedAt, symbol, tf])
 
-  const displayCandles = useMemo(() => {
-    if (remote.data.length) return remote.data
-    if (!allowMockFallback) return []
-    const i = TFS.indexOf(tf)
-    return getCandles(seed + i * 17, 80, startPrice)
-  }, [tf, seed, startPrice, remote.data, allowMockFallback])
+  const displayCandles = remote.data
 
   return (
     <div className={bare ? '' : 'border border-border bg-card'}>

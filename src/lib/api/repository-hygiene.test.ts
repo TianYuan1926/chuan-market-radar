@@ -558,7 +558,7 @@ test("stage 8 token signal archive uses backend dossier and honest empty state i
 
   assert.match(tokenPageSource, /<SignalArchive token=\{token\} dossier=\{dossier\}/);
 
-  assert.match(signalArchiveSource, /type TokenArchive/);
+  assert.match(signalArchiveSource, /TokenArchive/);
   assert.match(signalArchiveSource, /TokenDossier/);
   assert.match(signalArchiveSource, /Resource/);
   assert.match(signalArchiveSource, /dossier\?:\s*Resource<TokenDossier>/);
@@ -576,7 +576,9 @@ test("stage 8 token detail chart and flow panels do not present generated mock d
   const serverReaderSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-contract-server.ts"), "utf8");
 
   assert.match(klinePanelSource, /candles\?:\s*ChartCandle\[\]/);
-  assert.match(klinePanelSource, /allowMockFallback\?:\s*boolean/);
+  assert.doesNotMatch(klinePanelSource, /allowMockFallback/);
+  assert.doesNotMatch(klinePanelSource, /getCandles/);
+  assert.doesNotMatch(klinePanelSource, /@\/lib\/mock-data/);
   assert.match(klinePanelSource, /等待真实 K 线数据/);
   assert.match(klinePanelSource, /candles\?\.length/);
 
@@ -584,7 +586,7 @@ test("stage 8 token detail chart and flow panels do not present generated mock d
   assert.match(serverReaderSource, /buildFrontendKlineContract/);
   assert.match(tokenPageSource, /getKlineContractForPage/);
   assert.match(tokenPageSource, /candles=\{kline\.data\}/);
-  assert.match(tokenPageSource, /<KlinePanel[\s\S]+allowMockFallback=\{false\}/);
+  assert.doesNotMatch(tokenPageSource, /allowMockFallback/);
   assert.match(tokenPageSource, /等待真实资金流数据/);
   assert.doesNotMatch(tokenPageSource, /Array\.from\(\{ length: 28 \}\)/);
   assert.doesNotMatch(tokenPageSource, /\(\(seed \* \(i \+ 3\)\) % 100\)/);

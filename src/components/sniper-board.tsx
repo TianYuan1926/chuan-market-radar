@@ -16,7 +16,7 @@ import {
 import { TokenAvatar } from './token-avatar'
 import { LiveValue } from './live-value'
 import { useLiveQuote } from '@/lib/live-store'
-import { fmtUsd } from '@/lib/mock-data'
+import { fmtUsd } from '@/lib/display-format'
 import { sideLabel, type SniperTarget } from '@/lib/sniper-data'
 import { cn } from '@/lib/utils'
 

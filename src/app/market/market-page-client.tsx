@@ -6,7 +6,8 @@ import { Panel, PageHeader } from '@/components/panel'
 import { MarketMacroDerivatives } from '@/components/market/macro-derivatives'
 import { LiveValue, LiveStat } from '@/components/live-value'
 import { useLiveNumber } from '@/lib/use-live-number'
-import { fmtCap, type Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/mock-data'
+import { fmtCap } from '@/lib/display-format'
 import {
   derivativesResourceToCoinglassData,
   macroResourceToMarketEnv,

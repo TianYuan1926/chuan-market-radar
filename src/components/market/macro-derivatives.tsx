@@ -9,7 +9,7 @@ import {
   type RadarContract,
 } from '@/lib/radar-contract'
 import { resource } from '@/lib/data-status'
-import { fmtCap } from '@/lib/mock-data'
+import { fmtCap } from '@/lib/display-format'
 import { Globe2, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 const STATE_TONE: Record<string, string> = {

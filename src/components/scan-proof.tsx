@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Radar, Layers, Clock } from 'lucide-react'
 import {
-  fmtCap,
   type ScanState,
   type ExchangeStatus,
 } from '@/lib/mock-data'
+import { fmtCap } from '@/lib/display-format'
 import type { ApiUsageState, DataSourceState, ScanProofData } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'
 import {

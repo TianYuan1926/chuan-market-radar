@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { fmtUsd } from '@/lib/mock-data'
+import { fmtUsd } from '@/lib/display-format'
 import { useLiveNumber } from '@/lib/use-live-number'
 import { useLiveQuote, type LiveQuote } from '@/lib/live-store'
 import { cn } from '@/lib/utils'

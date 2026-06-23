@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { Candle } from '@/lib/mock-data'
+import type { ChartCandle } from '@/lib/chart-types'
 
 type Props = {
-  candles: Candle[]
+  candles: ChartCandle[]
   height?: number
 }
 

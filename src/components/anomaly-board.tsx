@@ -20,13 +20,12 @@ import { LiveValue } from './live-value'
 import { useLiveQuote, usePrimeLiveQuotes } from '@/lib/live-store'
 import { useLatestSignal } from '@/lib/signal-feed'
 import {
-  fmtUsd,
   POOL_META,
   type SignalCard,
   type SignalType,
   type PoolStatus,
 } from '@/lib/mock-data'
-import { fmtKnownCap } from '@/lib/display-format'
+import { fmtKnownCap, fmtUsd } from '@/lib/display-format'
 import { cn } from '@/lib/utils'
 
 const TYPE_META: Record<SignalType, { label: string; cssVar: string }> = {

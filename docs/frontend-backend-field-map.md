@@ -81,6 +81,11 @@ active market pages must not use them as fact sources.
 | K-line panel underpowered | `/api/frontend/kline-contract` provides real candles, interval, source, age and missing-data reason; public OHLCV source cascades Binance -> OKX -> Bybit | 2026-06-23 local tests pass and local smoke shows honest `failed` when all upstreams are unreachable. OHLCV requests have a default 4s timeout. Tencent web container verified BTC 1h K-line returns 200 in about 57ms. Overlays still need key levels, Forward Map, invalidation, targets, volume and TradingView fallback |
 | Analysis report too shallow | Token dossier maps backend Evidence, counter-evidence, risk gate, trade-plan draft and review boundaries into separate `reportSections` | 2026-06-23 local tests pass. Every displayed explanation links back to backend evidence/review ids or is labeled as missing/partial; frontend cannot invent reasoning |
 
+2026-06-23 cleanup: active K-line components no longer expose `allowMockFallback`
+or import `getCandles`; chart candles now use `src/lib/chart-types.ts`. Shared
+number formatters were moved to `src/lib/display-format.ts` so active market
+components do not import `mock-data` just to format values.
+
 ## Leaderboard Contract Field Map
 
 | Kind | Backend source | Current status | Meaning |
