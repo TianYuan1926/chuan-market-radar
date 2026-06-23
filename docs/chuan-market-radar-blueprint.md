@@ -307,9 +307,9 @@ CoinGlass paid data：深扫确认源
 
 当前 Hobbyist 限制按用户已购买套餐展示设计：约 `30 调用/分钟`、`80+ 数据接口端点`、更新频率最高可到 `<= 1 分钟`。服务器升级不改变 CoinGlass 外部限速，因此仍必须使用令牌桶、批次、缓存、预算、失败降级和健康展示。
 
-2026-06-23 生产实测补充：当前生产 `COINGLASS_API_KEY` 对 futures 系列端点返回 `code=401`、`msg=Upgrade plan`，已确认探测范围包括 `/api/futures/supported-exchanges`、`/api/futures/supported-coins`、`/api/futures/supported-exchange-pairs`、`/api/futures/pairs-markets`、`/api/futures/open-interest/exchange-list`、`/api/futures/funding-rate/exchange-list` 和 `/api/futures/taker-buy-sell-volume/exchange-list`。因此在该 Key/套餐权限修正前，CoinGlass futures 深扫必须标记为 `partial/watch`，`requestFailures` 必须进入 `metadata.diagnostics.requests`、`/api/health.scanStability`、`/api/radar/backend-contract.sourceAudit.coinGlassDeepScan` 和前端数据源说明；不得把 `Upgrade plan` 写成“市场无机会”或“0 行正常”。公共轻扫、OHLCV、榜单和复盘继续使用 Binance/OKX/Bybit 等免费公开源运转，但不能生成 CoinGlass 衍生品 Evidence 或 TradePlanReady。
+2026-06-23 生产实测补充：旧生产 `COINGLASS_API_KEY` 曾对合约深扫端点返回 `code=401`、`msg=Upgrade plan`，探测范围包括 `/api/futures/supported-exchanges`、`/api/futures/supported-coins`、`/api/futures/supported-exchange-pairs`、`/api/futures/pairs-markets`、`/api/futures/open-interest/exchange-list`、`/api/futures/funding-rate/exchange-list` 和 `/api/futures/taker-buy-sell-volume/exchange-list`。该结果只能作为历史故障样本，不能替代最新 key 的受保护能力体检。最新生产事实必须以 `POST /api/admin/coinglass/capability` 和本轮 `metadata.diagnostics.requests` 为准；只要返回 `Upgrade plan`、鉴权失败、限速、参数错误、空数据或 0 clean rows，就必须进入 `coinGlassRuntimeCapability`、`metadata.diagnostics.requests`、`/api/health.scanStability`、`/api/radar/backend-contract.sourceAudit.coinGlassDeepScan` 和前端数据源说明；不得把失败写成“市场无机会”或“0 行正常”。公共轻扫、OHLCV、榜单和复盘继续使用 Binance/OKX/Bybit 等免费公开源运转，但不能生成 CoinGlass 衍生品 Evidence 或 TradePlanReady。
 
-下面表格是按文档和目标架构设计的能力白名单；实际启用必须以生产探针为准。任何端点只要返回 `Upgrade plan`、`Invalid API key`、`Endpoint not found` 或连续空数据，就按不可用处理并进入可观测诊断，不允许在 UI 或报告里宣称已接通。
+下面表格是按文档和目标架构设计的能力白名单；实际启用必须以生产受保护探针为准。任何端点只要返回 `Upgrade plan`、`Invalid API key`、`Endpoint not found`、参数错误、限速或连续空数据，就按不可用/待修处理并进入可观测诊断，不允许在 UI 或报告里宣称已接通。
 
 Hobbyist 可用并建议接入：
 
@@ -319,7 +319,7 @@ Hobbyist 可用并建议接入：
 | 支持交易所 | `/api/futures/supported-exchanges` | Universe / 扫描证明 | 支持交易所矩阵、覆盖说明 | 只证明 CoinGlass 支持范围，不等于本轮已深扫 |
 | 支持交易对 | `/api/futures/supported-exchange-pairs` | Universe / 数据清洗 | 合约池覆盖、交易所覆盖、USDT 永续过滤 | 用于过滤脏数据，不直接生成 Evidence |
 | 支持币种 | `/api/futures/supported-coins` | Universe / Coverage | CoinGlass 可深扫币池数量 | 与 Binance/OKX 交叉验证，不能替代公共全市场轻扫 |
-| Futures Pairs Markets | `/api/futures/pairs-markets` | 候选深扫 | 合约市场基础卡片 | 只对候选使用，不全市场高频刷 |
+| 合约 Pairs Markets | `/api/futures/pairs-markets` | 候选深扫 | 合约市场基础卡片 | 只对候选使用，不全市场高频刷 |
 | 当前 OI | `/api/futures/open-interest/exchange-list` | Evidence / 深扫 | OI 脉冲、交易所 OI 分布、价格/OI 对照 | OI 上升不能单独看涨 |
 | OI 图表/历史 | `open-interest/*history*` | Dossier / 复盘 | 4h+ OI 趋势线、复盘对照 | Hobbyist 历史周期限制 `>=4h`，不能当 15m/30m 早期发现源 |
 | 当前 Funding | `/api/futures/funding-rate/exchange-list` | Evidence / 风险门控 | Funding 拥挤仪表、交易所 funding 对比 | 高 funding 是拥挤风险，不是强势本身 |
@@ -1099,7 +1099,7 @@ AI 复核必须遵守：
 当前已经完成：
 
 - 纯逻辑底座：`DailyMover`、`PreMoveWindow`、`MoverAttribution`、`RadarMoverReview`、`DailyMoverSnapshot`。
-- CoinGlass 榜单行适配器：可把 futures market rows 标准化为 `DailyMoverSnapshot`。
+- CoinGlass 榜单行适配器：可把合约 market rows 标准化为 `DailyMoverSnapshot`。
 - CoinGlass 每日异动抓取服务：按配置资产低频请求榜单、构建快照并写入 repository。
 - 受保护 API 入口：`POST /api/admin/daily-movers/ingest`，必须带 `Authorization: Bearer <CRON_SECRET>`。
 - 公开只读 API：`GET /api/daily-movers` 可读取最新样本、按 `id` 查询历史样本，并输出轻量摘要列表。
@@ -1710,6 +1710,13 @@ CoinGlass 业余会员 API：
    - public light scan、universe registry 和 CoinGlass mapper 必须过滤已知非加密底层资产、股票、ETF、指数和贵金属类污染标的；这些资产不能进入山寨币深扫槽位。
    - 如果 CoinGlass deep scan 出现 `Invalid API key`、`Upgrade plan`、接口成功但 `data=[]`、0 clean rows 或 24/24 failed，系统必须保留 public light scan，但必须把深扫状态标成 partial/watch，不能把它解释成“市场没有机会”。
    - CoinGlass API key、账号等级和端点权限属于外部事实；代码只能做诊断和降级，不能伪造深扫成功。
+
+34. **Phase Backend-7：CoinGlass 合约深扫能力体检与运行态合同（已落地）**
+   - 新增受保护只读入口 `POST /api/admin/coinglass/capability`，必须带 `Authorization: Bearer <CRON_SECRET>`，只用于少量白名单端点能力体检；它不写数据库、不生成信号、不暴露 API key。
+   - 新增 `CoinGlassRuntimeCapabilityReport`，区分官方白名单和生产运行态：`ready`、`upgrade_required`、`auth_error`、`rate_limited`、`param_error`、`empty`、`failed`、`not_configured`、`not_requested` 必须分别显示，不能合并成“可用/不可用”两种粗糙状态。
+   - `/api/health.coinGlassRuntimeCapability` 和 `/api/radar/backend-contract.sourceAudit.coinGlassCapability` 必须复用本轮扫描诊断，不得在普通页面刷新时额外消耗 CoinGlass 额度。
+   - `RadarContract.dataSources` 必须读取 `sourceAudit.coinGlassCapability.deepScanStatus`，当出现 `Upgrade plan`、鉴权失败、限速、参数错误或空返回时显示 partial/failed，并明确“公共轻扫继续运行，但不能生成 CoinGlass 衍生品证据”。
+   - Provider 展示命名统一为 `CoinGlass Contract Provider` 和“合约深扫”，避免把用户误导成传统期货业务或把公共交易所数据冒充 CoinGlass 付费数据。
 
 ## 每次继续开发必须遵守
 

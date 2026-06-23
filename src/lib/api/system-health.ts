@@ -48,7 +48,9 @@ import {
   type StrategyV3ReadinessBucket,
 } from "../analysis/v3/readiness";
 import {
+  buildCoinGlassRuntimeCapabilityReport,
   buildDataSourceCapabilityPlan,
+  type CoinGlassRuntimeCapabilityReport,
   type DataSourceCapabilityPlan,
 } from "../market/data-source-capabilities";
 import type { MacroMarketSnapshot } from "../market/macro-snapshot";
@@ -463,6 +465,7 @@ export type SystemHealthReport = {
     status: DataSourceHealthStatus;
   };
   dataSourceCapabilities: DataSourceCapabilityPlan;
+  coinGlassRuntimeCapability: CoinGlassRuntimeCapabilityReport;
   persistence: {
     databaseDriver: DatabaseClientDiagnostics["driver"];
     databaseReason?: DatabaseClientDiagnostics["reason"];
@@ -2508,6 +2511,11 @@ export async function buildSystemHealthReport({
   const fullMarketCoverage = fullMarketCoverageReport(metadata, coverage, scanEconomy);
   const marketDataQuality = marketDataQualityReport(snapshot);
   const dataSourceCapabilities = buildDataSourceCapabilityPlan(env);
+  const coinGlassRuntimeCapability = buildCoinGlassRuntimeCapabilityReport({
+    checkedAt: now.toISOString(),
+    diagnostics: metadata.diagnostics?.requests ?? null,
+    env,
+  });
   const [resolvedRuntimeProbes, apiObservability] = await Promise.all([
     runtimeProbes ?? readWorkerHeartbeatReport({
       env,
@@ -2592,6 +2600,7 @@ export async function buildSystemHealthReport({
       status: providerStatus,
     },
     dataSourceCapabilities,
+    coinGlassRuntimeCapability,
     persistence: {
       databaseDriver: databaseDiagnostics.driver,
       databaseReason: databaseDiagnostics.reason,

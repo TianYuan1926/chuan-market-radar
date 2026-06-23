@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketRadarSnapshot } from "../market/types";
-import { buildDataSourceCapabilityPlan } from "../market/data-source-capabilities";
+import {
+  buildCoinGlassRuntimeCapabilityReport,
+  buildDataSourceCapabilityPlan,
+} from "../market/data-source-capabilities";
 import type { SystemHealthReport } from "./system-health";
 import { buildBackendContract } from "./backend-contract";
 
@@ -379,6 +382,14 @@ function health(): SystemHealthReport {
     dataSourceCapabilities: buildDataSourceCapabilityPlan({
       COINGLASS_API_KEY: "configured",
       MARKET_DATA_PROVIDER: "coinglass",
+    }),
+    coinGlassRuntimeCapability: buildCoinGlassRuntimeCapabilityReport({
+      checkedAt: "2026-06-19T08:01:00.000Z",
+      diagnostics: snapshot().metadata.diagnostics?.requests ?? null,
+      env: {
+        COINGLASS_API_KEY: "configured",
+        MARKET_DATA_PROVIDER: "coinglass",
+      },
     }),
     persistence: {
       databaseStatus: "ready",

@@ -13,6 +13,10 @@ import {
 import type { MarketRadarSnapshot } from "../market/types";
 import type { SignalBackendDossier } from "../market/signal-backend-dossier";
 import type { OhlcvProvider } from "../market/ohlcv/types";
+import {
+  buildCoinGlassRuntimeCapabilityReport,
+  buildDataSourceCapabilityPlan,
+} from "../market/data-source-capabilities";
 
 function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
   return {
@@ -162,6 +166,10 @@ function backendContract(): BackendContract {
       mode: "live",
       status: "ready",
     },
+    dataSourceCapabilities: buildDataSourceCapabilityPlan({
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    }),
     runtime: {
       apiUsage: {
         dailyBudget: 300,
@@ -270,6 +278,19 @@ function backendContract(): BackendContract {
       rotationAudit: null,
     },
     sourceAudit: {
+      coinGlassCapability: buildCoinGlassRuntimeCapabilityReport({
+        checkedAt: "2026-06-21T08:00:00.000Z",
+        diagnostics: {
+          cleanRows: 24,
+          coinGlassRequestsPlanned: 24,
+          rawRows: 24,
+          requestFailures: [],
+        },
+        env: {
+          COINGLASS_API_KEY: "configured",
+          MARKET_DATA_PROVIDER: "coinglass",
+        },
+      }),
       coinGlassDeepScan: {
         cleanRows: 24,
         failedPlannedAssets: [],
@@ -562,6 +583,19 @@ test("buildFrontendRadarContract exposes CoinGlass Upgrade plan failures in data
       symbol: "BTC",
     },
   ];
+  backend.sourceAudit.coinGlassCapability = buildCoinGlassRuntimeCapabilityReport({
+    checkedAt: "2026-06-21T08:00:00.000Z",
+    diagnostics: {
+      cleanRows: 0,
+      coinGlassRequestsPlanned: 24,
+      rawRows: 0,
+      requestFailures: backend.sourceAudit.coinGlassDeepScan.requestFailures,
+    },
+    env: {
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+  });
 
   const radar = buildFrontendRadarContract({
     backend,
@@ -574,6 +608,7 @@ test("buildFrontendRadarContract exposes CoinGlass Upgrade plan failures in data
 
   assert.match(coinGlass?.note ?? "", /Upgrade plan/);
   assert.match(coinGlass?.note ?? "", /不能生成衍生品证据/);
+  assert.equal(coinGlass?.feed, "partial");
 });
 
 test("buildFrontendRadarContract derives BLOCKED when risk gate or RR blocks the plan", () => {

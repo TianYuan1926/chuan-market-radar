@@ -20,6 +20,17 @@ export type DataSourceImplementationStatus =
   | "partial"
   | "planned";
 
+export type CoinGlassRuntimeEndpointStatus =
+  | "auth_error"
+  | "empty"
+  | "failed"
+  | "not_configured"
+  | "not_requested"
+  | "param_error"
+  | "ready"
+  | "rate_limited"
+  | "upgrade_required";
+
 export type CoinGlassHobbyistSupportStatus =
   | "disabled_by_blueprint"
   | "supported_by_hobbyist"
@@ -95,10 +106,213 @@ export type DataSourceCapabilityPlan = {
   visualizationContracts: DataVisualizationContract[];
 };
 
+export type CoinGlassRuntimeEndpointReport = {
+  code?: string;
+  endpoint: string;
+  httpStatus?: number;
+  id: string;
+  label: string;
+  message?: string;
+  status: CoinGlassRuntimeEndpointStatus;
+};
+
+export type CoinGlassRuntimeCapabilityReport = {
+  accountPlan: "hobbyist";
+  canCreateDerivativeEvidence: boolean;
+  checkedAt: string;
+  deepScanStatus: CoinGlassRuntimeEndpointStatus;
+  endpointStatuses: CoinGlassRuntimeEndpointReport[];
+  guardrails: string[];
+  keyConfigured: boolean;
+  minuteLimit: number;
+  operatorHint: string;
+};
+
+export type CoinGlassRuntimeRequestDiagnostics = {
+  cleanRows?: number;
+  coinGlassRequestsPlanned?: number;
+  rawRows?: number;
+  requestFailures?: Array<{
+    code?: string;
+    error: string;
+    httpStatus?: number;
+    symbol: string;
+  }>;
+};
+
 export type DataSourceCapabilityEnv = {
   COINGLASS_API_KEY?: string;
   MARKET_DATA_PROVIDER?: string;
 };
+
+function normalizeCapabilityMessage(value?: string) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+export function classifyCoinGlassRuntimeFailure(input: {
+  code?: string | number;
+  httpStatus?: number;
+  message?: string;
+}): CoinGlassRuntimeEndpointStatus {
+  const code = String(input.code ?? "").trim().toLowerCase();
+  const message = normalizeCapabilityMessage(input.message);
+  const status = input.httpStatus;
+
+  if (message.includes("upgrade plan") || message.includes("upgrade required")) {
+    return "upgrade_required";
+  }
+
+  if (
+    code === "401" ||
+    status === 401 ||
+    message.includes("invalid api key") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden")
+  ) {
+    return "auth_error";
+  }
+
+  if (code === "429" || status === 429 || message.includes("rate limit")) {
+    return "rate_limited";
+  }
+
+  if (
+    code === "400" ||
+    status === 400 ||
+    message.includes("parameter") ||
+    message.includes("param") ||
+    message.includes("required") ||
+    message.includes("invalid symbol")
+  ) {
+    return "param_error";
+  }
+
+  return "failed";
+}
+
+function statusFromDeepScanDiagnostics(
+  diagnostics: CoinGlassRuntimeRequestDiagnostics | null | undefined,
+): CoinGlassRuntimeEndpointStatus {
+  if (!diagnostics || (diagnostics.coinGlassRequestsPlanned ?? 0) <= 0) {
+    return "not_requested";
+  }
+
+  if ((diagnostics.cleanRows ?? 0) > 0) {
+    return "ready";
+  }
+
+  const failures = diagnostics.requestFailures ?? [];
+  const classifiedFailures = failures.map((failure) =>
+    classifyCoinGlassRuntimeFailure({
+      code: failure.code,
+      httpStatus: failure.httpStatus,
+      message: failure.error,
+    })
+  );
+
+  if (classifiedFailures.includes("upgrade_required")) {
+    return "upgrade_required";
+  }
+
+  if (classifiedFailures.includes("auth_error")) {
+    return "auth_error";
+  }
+
+  if (classifiedFailures.includes("rate_limited")) {
+    return "rate_limited";
+  }
+
+  if (classifiedFailures.includes("param_error")) {
+    return "param_error";
+  }
+
+  if ((diagnostics.rawRows ?? 0) === 0) {
+    return "empty";
+  }
+
+  return "failed";
+}
+
+function operatorHintFromRuntimeStatus(status: CoinGlassRuntimeEndpointStatus) {
+  if (status === "ready") {
+    return "CoinGlass 合约深扫已经返回可用行，可以进入衍生品证据层；仍要遵守 30 次/分钟、批次和缓存边界。";
+  }
+
+  if (status === "upgrade_required") {
+    return "CoinGlass 返回 Upgrade plan，本轮只能保留公共轻扫和结构预筛；不能生成 CoinGlass 衍生品 Evidence 或交易计划就绪。";
+  }
+
+  if (status === "auth_error") {
+    return "CoinGlass 鉴权失败，先检查服务器 COINGLASS_API_KEY 和套餐状态；公共轻扫可继续运行但不能冒充深扫。";
+  }
+
+  if (status === "rate_limited") {
+    return "CoinGlass 触发限速，降低请求节奏并等待窗口恢复；不要改用旧缓存冒充实时深扫。";
+  }
+
+  if (status === "empty") {
+    return "CoinGlass 请求成功但没有可用行，必须显示 empty/partial，并继续观察下一批候选。";
+  }
+
+  if (status === "param_error") {
+    return "CoinGlass 端点可访问但请求参数不匹配，需要修正 symbol/exchange/interval；不能把参数错误误判成套餐不可用。";
+  }
+
+  if (status === "not_requested") {
+    return "本次健康读数没有新增 CoinGlass 请求，只能说明上次扫描的深扫状态；需要受保护能力体检确认端点权限。";
+  }
+
+  if (status === "not_configured") {
+    return "未配置 CoinGlass API key，付费深扫不可用。";
+  }
+
+  return "CoinGlass 合约深扫失败，保留公共轻扫、状态池和诊断输出，先排查失败原因。";
+}
+
+export function buildCoinGlassRuntimeCapabilityReport({
+  checkedAt,
+  diagnostics,
+  env = {
+    COINGLASS_API_KEY: process.env.COINGLASS_API_KEY,
+    MARKET_DATA_PROVIDER: process.env.MARKET_DATA_PROVIDER,
+  },
+}: {
+  checkedAt: string;
+  diagnostics?: CoinGlassRuntimeRequestDiagnostics | null;
+  env?: DataSourceCapabilityEnv;
+}): CoinGlassRuntimeCapabilityReport {
+  const keyConfigured = configuredForCoinGlass(env) && hasCoinGlassKey(env);
+  const deepScanStatus = keyConfigured
+    ? statusFromDeepScanDiagnostics(diagnostics)
+    : "not_configured";
+  const pairsMarketFailure = diagnostics?.requestFailures?.[0];
+
+  return {
+    accountPlan: "hobbyist",
+    canCreateDerivativeEvidence: deepScanStatus === "ready",
+    checkedAt,
+    deepScanStatus,
+    endpointStatuses: [
+      {
+        code: pairsMarketFailure?.code,
+        endpoint: "/api/futures/pairs-markets",
+        httpStatus: pairsMarketFailure?.httpStatus,
+        id: "futures_pairs_markets",
+        label: "合约市场基础数据",
+        message: pairsMarketFailure?.error,
+        status: deepScanStatus,
+      },
+    ],
+    guardrails: [
+      "运行态能力来自本轮扫描诊断或受保护体检，不等同于官方文档白名单。",
+      "deepScanStatus 不是交易信号，只决定 CoinGlass 衍生品证据是否可用。",
+      "Upgrade plan、鉴权失败、限速、空返回都必须显示为 partial/unavailable，不能解释成市场没有机会。",
+    ],
+    keyConfigured,
+    minuteLimit: 30,
+    operatorHint: operatorHintFromRuntimeStatus(deepScanStatus),
+  };
+}
 
 function hasCoinGlassKey(env: DataSourceCapabilityEnv) {
   return Boolean(env.COINGLASS_API_KEY?.trim());

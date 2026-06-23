@@ -141,7 +141,7 @@
 - CoinGlass provider 会先用 Binance public futures `exchangeInfo`、OKX public instruments、Bybit V5 public instruments 发现 USDT 永续合约，再按 `COINGLASS_BATCH_SIZE` 低频请求 CoinGlass；单个交易所发现失败会降级为 source note，全部发现失败时回退到配置白名单。
 - `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。旧值 `300` 会把 15 分钟 cadence 下的安全批次压到约 `3`，导致长期只扫 BTC/ETH + 1 个山寨；当前推荐 `3000`，线上 metadata notes 应显示 `quota guard: requested batch 24 kept`。
 - `COINGLASS_REQUEST_INTERVAL_MS` 不能随意设为 `0`。只有本地测试或明确排查才可关闭 pacing；生产默认 `500ms`，用于保护 CoinGlass Hobbyist 限速。
-- 2026-06-23 生产探针显示当前 `COINGLASS_API_KEY` 对 futures 深扫端点返回 `Upgrade plan`。验收时如果 `/api/health.scanStability` 或 `/api/radar/backend-contract.sourceAudit.coinGlassDeepScan.requestFailures` 出现该错误，必须判定为“CoinGlass 权限/套餐未覆盖 futures 深扫”，不是系统没运行；公共轻扫和榜单仍可用，但不能生成衍生品 Evidence 或交易计划。
+- 2026-06-23 旧生产探针曾显示旧 `COINGLASS_API_KEY` 对合约深扫端点返回 `Upgrade plan`。验收时必须先看 `/api/health.coinGlassRuntimeCapability`、`/api/radar/backend-contract.sourceAudit.coinGlassCapability`，必要时用 `Authorization: Bearer <CRON_SECRET>` 调用 `POST /api/admin/coinglass/capability`。如果结果仍为 `upgrade_required`、`auth_error`、`rate_limited`、`param_error`、`empty` 或 0 clean rows，必须判定为 CoinGlass 付费深扫未就绪或请求参数待修，不是系统没运行；公共轻扫和榜单仍可用，但不能生成 CoinGlass 衍生品 Evidence 或交易计划。
 - `REDIS_URL` 存在时主扫描会优先使用 Redis 做跨容器扫描锁和 CoinGlass 分钟级令牌桶；Redis 不可用时自动降级为进程内锁，但多容器防重能力会变弱。
 - WebSocket 轻扫已具备常驻 worker：`websocket-light-worker` 会连接 Binance/OKX/Bybit public ticker 流并写 Redis 快照；主扫描优先读取新鲜快照，缺失或过期时自动回退到 REST public light scan。该层仍只是调度和候选发现，不能直接生成交易信号。
 - Macro Weather 已具备常驻 `macro-worker`：默认每小时请求受保护 `POST /api/admin/macro/ingest`，写入 `macro_market_snapshots`；该层只能提供 BTC.D/TOTAL2/TOTAL3 山寨环境锚点，不能直接生成交易方向、不能降低 `3:1` 最低 RR。

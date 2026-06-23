@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildDataSourceCapabilityPlan } from "./data-source-capabilities";
+import {
+  buildCoinGlassRuntimeCapabilityReport,
+  buildDataSourceCapabilityPlan,
+  classifyCoinGlassRuntimeFailure,
+} from "./data-source-capabilities";
 
 test("buildDataSourceCapabilityPlan exposes CoinGlass Hobbyist allowlist without leaking secrets", () => {
   const plan = buildDataSourceCapabilityPlan({
@@ -60,4 +64,59 @@ test("buildDataSourceCapabilityPlan maps supported endpoints to trading visual s
 
   assert.ok(plan.visualizationContracts.some((contract) => contract.id === "scan_proof"));
   assert.ok(plan.visualizationContracts.some((contract) => contract.id === "review_evolution"));
+});
+
+test("buildCoinGlassRuntimeCapabilityReport marks Upgrade plan as unavailable evidence", () => {
+  const report = buildCoinGlassRuntimeCapabilityReport({
+    checkedAt: "2026-06-23T00:00:00.000Z",
+    diagnostics: {
+      cleanRows: 0,
+      coinGlassRequestsPlanned: 2,
+      rawRows: 0,
+      requestFailures: [
+        {
+          code: "401",
+          error: "Upgrade plan",
+          httpStatus: 200,
+          symbol: "BTC",
+        },
+      ],
+    },
+    env: {
+      COINGLASS_API_KEY: "configured-secret",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+  });
+
+  assert.equal(report.deepScanStatus, "upgrade_required");
+  assert.equal(report.canCreateDerivativeEvidence, false);
+  assert.equal(report.endpointStatuses[0]?.status, "upgrade_required");
+  assert.match(report.operatorHint, /Upgrade plan/u);
+  assert.doesNotMatch(JSON.stringify(report), /configured-secret/u);
+});
+
+test("buildCoinGlassRuntimeCapabilityReport only permits derivative evidence after clean rows", () => {
+  const report = buildCoinGlassRuntimeCapabilityReport({
+    checkedAt: "2026-06-23T00:00:00.000Z",
+    diagnostics: {
+      cleanRows: 3,
+      coinGlassRequestsPlanned: 3,
+      rawRows: 5,
+      requestFailures: [],
+    },
+    env: {
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+  });
+
+  assert.equal(report.deepScanStatus, "ready");
+  assert.equal(report.canCreateDerivativeEvidence, true);
+});
+
+test("classifyCoinGlassRuntimeFailure keeps auth, rate limit and upgrade distinct", () => {
+  assert.equal(classifyCoinGlassRuntimeFailure({ message: "Upgrade Plan" }), "upgrade_required");
+  assert.equal(classifyCoinGlassRuntimeFailure({ httpStatus: 401, message: "Unauthorized" }), "auth_error");
+  assert.equal(classifyCoinGlassRuntimeFailure({ httpStatus: 429, message: "Rate limit" }), "rate_limited");
+  assert.equal(classifyCoinGlassRuntimeFailure({ httpStatus: 400, message: "symbol parameter required" }), "param_error");
 });

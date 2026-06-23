@@ -59,7 +59,7 @@ from `mock-data.ts` now live in `src/lib/frontend-market-types.ts`.
 | `deepScanQueue.highPriority` | stage two queue or pending priority assets | connected | shows dynamic priority |
 | `deepScanQueue.coldExploration` | `backend.scanProof.allocation.coldExplorationAssets` | connected | prevents only large caps being visible |
 | `capabilityStages` | `backend.analysis.businessCapability.stages` | connected | describes readiness, not proof of live profitability |
-| `dataSources` | `backend.sourceAudit` + `backend.runtime.sourceLatency` | connected/partial | source latency probes come from Redis; missing probes are shown as partial, never as fake `0ms` |
+| `dataSources` | `backend.sourceAudit.coinGlassCapability` + `backend.sourceAudit` + `backend.runtime.sourceLatency` | connected/partial | CoinGlass feed status comes from runtime capability first; source latency probes come from Redis; missing probes are shown as partial, never as fake `0ms` |
 | `apiUsage.usedToday` | `backend.runtime.apiUsage` | connected/partial | CoinGlass Redis daily usage counter; unconfigured Redis is explicit |
 | `apiUsage.remainingToday` | `backend.runtime.apiUsage` | connected/partial | daily budget minus Redis daily counter |
 | `apiUsage.perMinuteLimit` | configured CoinGlass Hobbyist limit | connected | currently 30/min |

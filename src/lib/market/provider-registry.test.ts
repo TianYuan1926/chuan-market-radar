@@ -157,7 +157,7 @@ test("getConfiguredMarketProvider returns CoinGlass provider when enabled", () =
   });
 
   assert.equal(provider.id, "coinglass");
-  assert.equal(provider.label, "CoinGlass Futures Provider");
+  assert.equal(provider.label, "CoinGlass Contract Provider");
 });
 
 test("getConfiguredMarketProvider defaults to conservative CoinGlass pacing", () => {

@@ -797,7 +797,7 @@ export function createCoinGlassProvider({
 
   return {
     id: "coinglass",
-    label: "CoinGlass Futures Provider",
+    label: "CoinGlass Contract Provider",
 
     async fetchSnapshot(): Promise<MarketRadarSnapshot> {
       const scanTime = now();
@@ -1029,7 +1029,7 @@ export function createCoinGlassProvider({
         coverage,
         notes: [
           "CoinGlass provider enabled",
-          "futures pairs-markets boundary active",
+          "CoinGlass contract pairs-markets boundary active",
           universeDiscovery
             ? universeDiscovery.ok
               ? `universe discovery: ${universeDiscovery.source} ok ${universeDiscovery.instruments.length} instruments`

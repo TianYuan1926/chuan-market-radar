@@ -56,6 +56,7 @@ export type BackendContract = {
   };
   dataSourceCapabilities: SystemHealthReport["dataSourceCapabilities"];
   sourceAudit: {
+    coinGlassCapability: SystemHealthReport["coinGlassRuntimeCapability"];
     coinGlassDeepScan: {
       cleanRows: number;
       failedPlannedAssets: string[];
@@ -233,6 +234,7 @@ export type BackendContract = {
   apiSurfaces: {
     backendContract: "/api/radar/backend-contract";
     businessCapability: "/api/radar/business-capability";
+    coinGlassCapability: "/api/admin/coinglass/capability";
     health: "/api/health";
     radar: "/api/radar";
     scan: "/api/scan";
@@ -455,6 +457,7 @@ export function buildBackendContract({
     },
     dataSourceCapabilities: health.dataSourceCapabilities,
     sourceAudit: {
+      coinGlassCapability: health.coinGlassRuntimeCapability,
       coinGlassDeepScan: {
         cleanRows: requests?.cleanRows ?? 0,
         failedPlannedAssets: requests?.emptyResultAssets ?? [],
@@ -623,6 +626,7 @@ export function buildBackendContract({
     apiSurfaces: {
       backendContract: "/api/radar/backend-contract",
       businessCapability: "/api/radar/business-capability",
+      coinGlassCapability: "/api/admin/coinglass/capability",
       health: "/api/health",
       radar: "/api/radar",
       scan: "/api/scan",

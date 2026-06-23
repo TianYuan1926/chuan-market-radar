@@ -5,7 +5,10 @@ import {
   runAdminDeploymentReadiness,
   type DeploymentReadinessReport,
 } from "./deployment-readiness";
-import { buildDataSourceCapabilityPlan } from "../market/data-source-capabilities";
+import {
+  buildCoinGlassRuntimeCapabilityReport,
+  buildDataSourceCapabilityPlan,
+} from "../market/data-source-capabilities";
 import { buildFallbackScanStatePoolReport } from "../market/scan-state-pool";
 import type { SystemHealthReport } from "./system-health";
 
@@ -24,6 +27,11 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
     },
     dataSourceCapabilities: buildDataSourceCapabilityPlan({
       MARKET_DATA_PROVIDER: "mock",
+    }),
+    coinGlassRuntimeCapability: buildCoinGlassRuntimeCapabilityReport({
+      checkedAt: "2026-06-13T12:00:00.000Z",
+      diagnostics: null,
+      env: { MARKET_DATA_PROVIDER: "mock" },
     }),
     persistence: {
       databaseDriver: "neon",

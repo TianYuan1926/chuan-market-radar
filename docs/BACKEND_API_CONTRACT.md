@@ -26,6 +26,7 @@ Response shape:
 - `contract.source`: active data source, configured provider, realtime flag and source status.
 - `contract.dataSourceCapabilities`: provider capability matrix, CoinGlass Hobbyist endpoint allowlist, unsupported endpoint states and visualization contracts.
 - `contract.sourceAudit`: source-level proof for public discovery, Binance/OKX composite light scan and CoinGlass deep scan.
+- `contract.sourceAudit.coinGlassCapability`: runtime CoinGlass capability derived from the latest scan diagnostics, including `ready`, `upgrade_required`, `auth_error`, `rate_limited`, `param_error`, `empty`, `failed`, `not_configured` and `not_requested`.
 - `contract.sourceAudit.macroMarket`: BTC.D/TOTAL2/TOTAL3 macro-weather anchor status, freshness and guardrail.
 - `contract.runtime`: scan trigger, cache status, repository mode and archive persistence.
 - `contract.scanProof.fullMarket`: total, eligible, scanned, pending, coverage percent and coverage status.
@@ -49,6 +50,7 @@ Primary use:
 - A redesigned frontend can show whether the system is really scanning, what was scanned, what remains pending and why a candidate entered deep scan.
 - Source panels can show Binance/OKX public discovery and light-scan status separately from CoinGlass deep-scan status. A public source failure should appear as `partial` or `failed` source-level evidence, not as a silent fallback to a small fixed coin list.
 - Frontend panels should read `contract.dataSourceCapabilities` before showing CoinGlass-derived visuals. Supported Hobbyist families can be displayed as active/available when configured; unsupported families must show `unsupported_by_hobbyist`, `disabled_by_blueprint`, `partial`, `stale` or equivalent visible states instead of hidden failures.
+- Frontend source panels must read `contract.sourceAudit.coinGlassCapability.deepScanStatus` before showing CoinGlass as live. `Upgrade plan`, auth failure, rate limit, parameter error or empty rows must be visible as partial/failed; public light scan may continue, but it must not be shown as CoinGlass derivative evidence.
 - The two-stage allocation proof is the frontend-safe answer to "why these assets now": stage one discovers and ranks candidates from public light scan and repository hints; stage two spends the limited CoinGlass deep-scan slots while preserving at least one long-tail exploration slot when capacity allows.
 - Assets listed in `queuedPriorityAssets` are not eliminated. They remain in the priority queue, rotation pool, revive watch or cold exploration pool for later batches.
 - `rotationAudit` is the frontend-safe answer to "is the scan stuck on a few coins": it must show non-anchor slot count, queued priority assets, selected long-tail assets, estimated full-cycle time and any starvation warning instead of silently implying that hidden assets do not exist.
@@ -57,6 +59,25 @@ Primary use:
 - `sourceAudit.macroMarket` is the frontend-safe answer to "is the altcoin environment favorable": it can display BTC dominance, TOTAL2 and TOTAL3 as headwind/tailwind context, but it must never be shown as an entry trigger or as permission to lower the `3:1` RR floor.
 - `businessCapability` is the frontend-safe answer to "which core business abilities are actually working": each stage exposes status, score, evidence, next action and guardrail. A UI must not hide collecting/disabled/blocked stages behind polished cards.
 - Operations panels can read one object instead of stitching together `/api/health`, `/api/scan` and local assumptions.
+
+## `POST /api/admin/coinglass/capability`
+
+Purpose: protected readonly CoinGlass Hobbyist live capability probe. It uses a small allowlisted endpoint set and is only for diagnosing whether the paid contract-deep-scan endpoints are really available in production.
+
+Auth:
+
+- Requires `Authorization: Bearer <CRON_SECRET>`.
+- Does not expose `COINGLASS_API_KEY`.
+- Does not write to the database.
+- Does not generate signals, evidence, trade plans or ranking changes.
+
+Response shape:
+
+- `ok`: request status.
+- `capability.mode`: `coinglass_hobbyist_live_capability_probe`.
+- `capability.deepScanStatus`: runtime status for contract deep scan.
+- `capability.endpointStatuses`: per-endpoint status, safe message, http/code, sample shape and whether the endpoint can feed deep-scan evidence.
+- `capability.operatorHint`: plain-language next action for operations.
 
 ## `GET /api/radar/business-capability`
 

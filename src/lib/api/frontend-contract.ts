@@ -1060,6 +1060,14 @@ function latencyStatusToFeed(status: DataSourceState["latencyStatus"]): DataSour
   return "partial";
 }
 
+function coinGlassRuntimeStatusToFeed(
+  status: BackendContract["sourceAudit"]["coinGlassCapability"]["deepScanStatus"],
+): DataSourceState["feed"] {
+  if (status === "ready") return "live";
+  if (status === "auth_error" || status === "failed" || status === "not_configured") return "failed";
+  return "partial";
+}
+
 function latencyProbe(
   backend: BackendContract,
   name: DataSourceState["name"],
@@ -1282,6 +1290,7 @@ export function buildFrontendRadarContract({
   const candidateSignals = buildCandidateRadarSignals({ backend, existingSignals: liveSignals, now, snapshot });
   const visibleSignals = [...liveSignals, ...candidateSignals];
   const coinGlassLatencyStatus = sourceLatencyStatus(backend, "CoinGlass");
+  const coinGlassRuntime = backend.sourceAudit.coinGlassCapability;
   const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
   const coinGlassRequestFailure = backend.sourceAudit.coinGlassDeepScan.requestFailures?.[0];
   const scannableAssets = Math.max(0, coverage.eligibleAssets);
@@ -1332,14 +1341,13 @@ export function buildFrontendRadarContract({
     dataSources: resource([
       dataSourceRow({
         name: "CoinGlass",
-        feed: latencyStatusToFeed(coinGlassLatencyStatus),
+        feed: coinGlassRuntimeStatusToFeed(coinGlassRuntime.deepScanStatus),
         latencyMs: sourceLatencyMs(backend, "CoinGlass"),
         latencyStatus: coinGlassLatencyStatus,
         lastUpdate: sourceLatencyUpdatedAt(backend, "CoinGlass", snapshot.metadata.generatedAt),
         note: coinGlassRequestFailure
           ? `深扫端点失败：${coinGlassRequestFailure.symbol} ${coinGlassRequestFailure.error} code=${coinGlassRequestFailure.code ?? "unknown"}；公开轻扫继续运行，但不能生成衍生品证据。`
-          : latencyProbe(backend, "CoinGlass")?.detail ??
-            `深扫 ${backend.sourceAudit.coinGlassDeepScan.cleanRows}/${backend.sourceAudit.coinGlassDeepScan.rawRows} 行可用，延迟探针待写入`,
+          : `${coinGlassRuntime.operatorHint} 深扫 ${backend.sourceAudit.coinGlassDeepScan.cleanRows}/${backend.sourceAudit.coinGlassDeepScan.rawRows} 行可用。`,
       }),
       ...(["Binance", "OKX", "Bybit"] as const).map((name) => {
         const sourceRow = backend.sourceAudit.publicDiscovery.sources.find((item) =>
