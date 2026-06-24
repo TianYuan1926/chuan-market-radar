@@ -701,6 +701,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - **图表与 logo 最终验收**：2026-06-24 已补强 Token Dossier 图表真相字段：`chart.status`、`tradingViewSymbol`、`tradingViewUrl`、`availableTimeframes`、`overlaySource` 和 `canUseMockCandles=false`。TradingView 主图、K 线 overlay 与 v3 关键位/Forward Map/交易计划来源必须明确；前端不得用模拟 K 线冒充真实行情。真实 token logo、fallback 和多周期交互仍需逐页验收，不能只看 API 有字段。
 - **生产 smoke 覆盖升级**：2026-06-24 已扩展 `deploy/scripts/prod-smoke.sh`。公网 smoke 除页面、health、radar、leaderboard、review、backend 合同外，还会从真实成交额榜抽样检查 `/api/frontend/token-dossier` 的图表真相字段，要求 `chart.canUseMockCandles=false` 且 TradingView symbol 合法；同时检查 `/api/frontend/external-intel` 是否返回合法 source plan 和“不绕过登录/付费墙/验证码/robots”等采集边界。该脚本只能证明“当前部署版本”是否健康；本地提交未 push、腾讯云未 `git pull + docker build/up` 前，不能把本地修复说成线上已完成。
 - **前端真实数据防回归审计**：2026-06-24 已补仓库卫生测试，继续禁止活跃页面把 `mock-data.ts` 当市场事实源，禁止静态 placeholder logo 冒充真实 logo，要求 Token Dossier 图表和 external-intel 合同保持在生产 smoke 中。允许保留的本地存储只限登录会话、声音偏好、启动动画和宠物/彩蛋/日记离线兜底；任何市场价格、榜单、信号、扫描、分析、复盘结论都必须来自后端合同或明确 empty/partial/waiting。
+- **复盘进化展示边界**：2026-06-24 复盘页已直接展示 `reviewStats` 和 `aiReviewStats`，包括总样本、已关闭样本、证据级样本、待验证样本、样本状态、胜率是否可统计、MFE/MAE、AI 已复核/降级/未启用数量和 evidence 绑定保护。复盘页必须明确“样本不足/样本收集中/AI 不替代规则引擎”，不能把长期样本校准、影子权重或自动进化包装成已成熟实战能力。
 
 ### P2：后续增强但不能抢 P0/P1 优先级
 

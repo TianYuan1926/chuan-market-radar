@@ -1,6 +1,6 @@
 'use client'
 
-import { Activity, Layers3, SearchX, Sparkles } from 'lucide-react'
+import { Activity, Bot, Layers3, SearchX, ShieldCheck, Sparkles } from 'lucide-react'
 import {
   type ReviewContract,
 } from '@/lib/radar-contract'
@@ -15,9 +15,101 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
   const archetypes = contract?.strategyArchetypes ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端策略分型契约' })
   const missed = contract?.missedDetections ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端漏判复查契约' })
   const suggestions = contract?.evolutionSuggestions ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端进化建议契约' })
+  const reviewStats = contract?.reviewStats ?? resource({
+    closedSamples: 0,
+    evidenceSamples: 0,
+    maeAvg: 0,
+    mfeAvg: 0,
+    pendingSamples: 0,
+    sampleStatus: 'empty' as const,
+    summary: '未传入后端复盘统计契约',
+    totalSamples: 0,
+    winRate: null,
+  }, 'empty', { source: 'outcome-review', reason: '未传入后端复盘统计契约' })
+  const aiReviewStats = contract?.aiReviewStats ?? resource({
+    disabled: 0,
+    fallback: 0,
+    reviewed: 0,
+    total: 0,
+    unboundFallbackProtected: true,
+  }, 'empty', { source: 'ai-reviewer', reason: '未传入后端 AI 复核契约' })
+
+  const sampleStatusLabel: Record<typeof reviewStats.data.sampleStatus, string> = {
+    collecting: '样本收集中',
+    empty: '暂无样本',
+    statistically_thin: '样本偏薄',
+    usable: '可统计',
+  }
 
   return (
     <div className="mt-5 space-y-5">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Panel title="复盘样本门禁" icon={ShieldCheck} right={<StatusBadge status={reviewStats.status} />}>
+          <div className="space-y-4 px-5 py-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                ['总样本', reviewStats.data.totalSamples],
+                ['已关闭', reviewStats.data.closedSamples],
+                ['证据级', reviewStats.data.evidenceSamples],
+                ['待验证', reviewStats.data.pendingSamples],
+              ].map(([label, value]) => (
+                <div key={label} className="border border-border bg-secondary/20 p-3">
+                  <div className="text-[11px] text-muted-foreground">{label}</div>
+                  <div className="mt-1 font-mono text-lg font-semibold">{value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="border border-border bg-secondary/20 p-3">
+                <div className="text-[11px] text-muted-foreground">统计状态</div>
+                <div className="mt-1 text-sm font-semibold">
+                  {sampleStatusLabel[reviewStats.data.sampleStatus]}
+                </div>
+              </div>
+              <div className="border border-border bg-secondary/20 p-3">
+                <div className="text-[11px] text-muted-foreground">胜率</div>
+                <div className="mt-1 font-mono text-sm font-semibold">
+                  {reviewStats.data.winRate === null ? '样本不足' : `${reviewStats.data.winRate}%`}
+                </div>
+              </div>
+              <div className="border border-border bg-secondary/20 p-3">
+                <div className="text-[11px] text-muted-foreground">MFE / MAE</div>
+                <div className="mt-1 font-mono text-sm font-semibold">
+                  +{reviewStats.data.mfeAvg}% / {reviewStats.data.maeAvg}%
+                </div>
+              </div>
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {reviewStats.data.summary}
+            </p>
+          </div>
+        </Panel>
+
+        <Panel title="AI 反证复核状态" icon={Bot} right={<StatusBadge status={aiReviewStats.status} />}>
+          <div className="space-y-4 px-5 py-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                ['总记录', aiReviewStats.data.total],
+                ['已复核', aiReviewStats.data.reviewed],
+                ['降级/失败', aiReviewStats.data.fallback],
+                ['未启用', aiReviewStats.data.disabled],
+              ].map(([label, value]) => (
+                <div key={label} className="border border-border bg-secondary/20 p-3">
+                  <div className="text-[11px] text-muted-foreground">{label}</div>
+                  <div className="mt-1 font-mono text-lg font-semibold">{value}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {aiReviewStats.reason ?? 'AI 只做反证、漏洞检查和中文解释，不能替代规则引擎，不能绕过 RR、Risk Gate 或结构失效。'}
+            </p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Evidence 绑定保护：{aiReviewStats.data.unboundFallbackProtected ? '开启' : '未开启'}
+            </p>
+          </div>
+        </Panel>
+      </div>
+
       {/* 信号生命周期 + MFE/MAE */}
       <Panel title="信号生命周期 · MFE / MAE" icon={Activity}>
         <div className="px-5 py-4">

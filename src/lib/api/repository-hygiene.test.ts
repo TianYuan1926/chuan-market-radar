@@ -918,10 +918,15 @@ test("token avatar uses real logo lookup before generated fallback and no static
 
 test("review page restores rank visibility without rendering the legacy mock review center", () => {
   const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
+  const reviewEvolutionSource = readFileSync(resolve(process.cwd(), "src/components/review/review-evolution.tsx"), "utf8");
 
   assert.match(reviewPageSource, /RankBanner/);
   assert.match(reviewPageSource, /<RankBanner/);
   assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
+  assert.match(reviewEvolutionSource, /复盘样本门禁/);
+  assert.match(reviewEvolutionSource, /AI 反证复核状态/);
+  assert.match(reviewEvolutionSource, /样本不足/);
+  assert.match(reviewEvolutionSource, /不能替代规则引擎/);
 });
 
 test("signal table does not fabricate lifecycle prices or frontend trade plans", () => {
