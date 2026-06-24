@@ -194,14 +194,13 @@ export function IntroRadar({ tokens }: { tokens?: Token[] } = {}) {
         )}
       </div>
 
-      {/* 右侧：实时异动日志 */}
+      {/* 右侧：雷达流程演示日志 */}
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
           <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-neon opacity-75" />
             <span className="relative inline-flex size-2 rounded-full bg-neon" />
           </span>
-          实时捕获 · LIVE
+          雷达流程演示
         </div>
         <div className="mt-4 divide-y divide-border border border-border bg-card/60">
           {log.length === 0 ? (

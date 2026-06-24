@@ -15,10 +15,9 @@ export function MarketHeatmap({ tokens }: { tokens: Token[] }) {
         <span className="font-semibold">市场热力</span>
         <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
           <span className="relative flex size-1.5">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-up opacity-70" />
             <span className="relative inline-flex size-1.5 rounded-full bg-up" />
           </span>
-          实时
+          行情快照
         </span>
       </div>
       <div className="grid grid-cols-3 gap-2 p-3">
@@ -41,7 +40,7 @@ function HeatCell({
 }) {
   const q = useLiveQuote(id)
   const up = q.change24h >= 0
-  // 颜色强度随涨跌幅大小实时变化
+  // 颜色强度跟随后端行情快照变化。
   const mag = Math.min(1, Math.abs(q.change24h) / 80)
   const hue = up ? 155 : 20
   return (

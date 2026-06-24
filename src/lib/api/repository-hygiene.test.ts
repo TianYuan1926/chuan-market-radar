@@ -819,6 +819,9 @@ test("live feed subscribes to backend SSE events before falling back to SSR card
   assert.match(liveFeedSource, /useSignalFeed/);
   assert.match(liveFeedSource, /eventToAlert/);
   assert.match(liveFeedSource, /eventItems\.length > 0 \? eventItems : cardItems/);
+  assert.match(liveFeedSource, /SNAPSHOT/);
+  assert.match(liveFeedSource, /feedMode === 'live'/);
+  assert.doesNotMatch(liveFeedSource, /<span className="font-semibold">实时预警<\/span>/u);
 });
 
 test("market overview does not label derived altcoin temperature as real fear greed data", () => {
@@ -827,6 +830,50 @@ test("market overview does not label derived altcoin temperature as real fear gr
   assert.match(marketClientSource, /山寨温度/);
   assert.match(marketClientSource, /由宏观合同推导/);
   assert.doesNotMatch(marketClientSource, /label="贪婪指数"/);
+});
+
+test("visual preview panels do not overstate backend realtime capability", () => {
+  const homePageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
+  const heatmapSource = readFileSync(resolve(process.cwd(), "src/components/market-heatmap.tsx"), "utf8");
+  const introRadarSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-radar.tsx"), "utf8");
+
+  assert.match(homePageSource, /按成熟度展示候选、证据信号与风险提示/u);
+  assert.match(heatmapSource, /行情快照/u);
+  assert.match(introRadarSource, /雷达流程演示/u);
+  assert.doesNotMatch(homePageSource, /风险提示实时推送/u);
+  assert.doesNotMatch(heatmapSource, />\s*实时\s*</u);
+  assert.doesNotMatch(introRadarSource, /实时捕获 · LIVE/u);
+});
+
+test("market page participation advice comes from backend contract status instead of a hardcoded action phrase", () => {
+  const marketClientSource = readFileSync(resolve(process.cwd(), "src/app/market/market-page-client.tsx"), "utf8");
+
+  assert.match(marketClientSource, /marketAdviceFromContracts/);
+  assert.match(marketClientSource, /radar\.macroAltEnv\.status/);
+  assert.match(marketClientSource, /radar\.derivatives\.status/);
+  assert.match(marketClientSource, /radar\.scanProof\.status/);
+  assert.match(marketClientSource, /数据异常 · 只观察/u);
+  assert.match(marketClientSource, /数据降级 · 等待确认/u);
+  assert.doesNotMatch(marketClientSource, /适度参与/u);
+});
+
+test("market page does not use fake-live number hooks for backend snapshot metrics", () => {
+  const marketClientSource = readFileSync(resolve(process.cwd(), "src/app/market/market-page-client.tsx"), "utf8");
+
+  assert.doesNotMatch(marketClientSource, /useLiveNumber/);
+  assert.doesNotMatch(marketClientSource, /LiveStat/);
+  assert.doesNotMatch(marketClientSource, /volatility=/);
+  assert.doesNotMatch(marketClientSource, /Math\.random/);
+});
+
+test("signals page status chip reflects signal resource status instead of hardcoded live", () => {
+  const signalsPageSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
+
+  assert.match(signalsPageSource, /SIGNAL_STATUS_LABEL/);
+  assert.match(signalsPageSource, /SIGNAL_STATUS_CLASS/);
+  assert.match(signalsPageSource, /const signalStatus = displaySignals\.status/);
+  assert.match(signalsPageSource, /SIGNAL_STATUS_LABEL\[signalStatus\]/);
+  assert.doesNotMatch(signalsPageSource, /bg-neon-soft[^\\n]+LIVE/u);
 });
 
 test("frontend contract pages render dynamically instead of freezing build-time data", () => {

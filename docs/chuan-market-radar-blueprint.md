@@ -368,6 +368,10 @@ RawSource
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
 - `/dashboard` 系统运行状态来自后端合同状态，不允许硬写“正常”。
 - 全市场扫描证明头部状态来自 `scanProof.status`，不允许硬显示绿色健康。
+- `/market` 综合参与建议来自宏观、衍生品、扫描和数据源合同状态，不允许硬写“适度参与”。
+- `/market` 快照指标只展示后端合同值，不允许用前端随机波动制造“实时感”。
+- `/signals` 状态标签来自 `radarSignals.status` 与候选 fallback 后资源状态，不允许硬写 `LIVE`。
+- 首页、介绍动画、热力图等辅助展示不得用“实时/LIVE”包装非实时合同快照或视觉演示。
 - 复盘 outcome、missed opportunity、daily mover、forward map review 基础。
 - AI 反证边界。
 - 个人仓位镜头。

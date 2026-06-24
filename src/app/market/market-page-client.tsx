@@ -4,9 +4,9 @@ import { SiteNav } from '@/components/site-nav'
 import { SessionBar } from '@/components/session-bar'
 import { Panel, PageHeader } from '@/components/panel'
 import { MarketMacroDerivatives } from '@/components/market/macro-derivatives'
-import { LiveValue, LiveStat } from '@/components/live-value'
-import { useLiveNumber } from '@/lib/use-live-number'
+import { LiveValue } from '@/components/live-value'
 import type { Token } from '@/lib/frontend-market-types'
+import type { DataStatus } from '@/lib/data-status'
 import { fmtCap } from '@/lib/display-format'
 import {
   derivativesResourceToCoinglassData,
@@ -25,6 +25,27 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+function marketAdviceFromContracts({
+  regime,
+  deleverageRisk,
+  statuses,
+}: {
+  regime: '顺风' | '逆风' | '震荡'
+  deleverageRisk: '低' | '中' | '高'
+  statuses: DataStatus[]
+}) {
+  if (statuses.some((status) => status === 'failed' || status === 'error')) {
+    return { label: '数据异常 · 只观察', tone: 'var(--down)' }
+  }
+  if (statuses.some((status) => status !== 'live')) {
+    return { label: '数据降级 · 等待确认', tone: 'var(--sig-pump)' }
+  }
+  if (regime === '逆风') return { label: '逆风 · 降低进攻', tone: 'var(--down)' }
+  if (regime === '震荡') return { label: '震荡 · 等待确认', tone: 'var(--sig-pump)' }
+  if (deleverageRisk === '高') return { label: '顺风但拥挤 · 谨慎验证', tone: 'var(--sig-pump)' }
+  return { label: '顺风 · 可筛选计划', tone: 'var(--up)' }
+}
+
 export function MarketPageClient({
   radar,
   tokens,
@@ -35,6 +56,16 @@ export function MarketPageClient({
   const env = macroResourceToMarketEnv(radar.macroAltEnv, radar.derivatives, tokens)
   const dq = scanProofResourceToDataQuality(radar.scanProof, radar.dataSources)
   const cg = derivativesResourceToCoinglassData(radar.derivatives, radar.apiUsage, tokens)
+  const marketAdvice = marketAdviceFromContracts({
+    regime: env.regime,
+    deleverageRisk: env.deleverageRisk,
+    statuses: [
+      radar.macroAltEnv.status,
+      radar.derivatives.status,
+      radar.scanProof.status,
+      radar.dataSources.status,
+    ],
+  })
 
   const regimeTone =
     env.regime === '顺风'
@@ -124,11 +155,11 @@ export function MarketPageClient({
                 <span
                   className="px-2 py-0.5 font-semibold"
                   style={{
-                    color: regimeTone,
-                    background: `color-mix(in oklch, ${regimeTone} 14%, transparent)`,
+                    color: marketAdvice.tone,
+                    background: `color-mix(in oklch, ${marketAdvice.tone} 14%, transparent)`,
                   }}
                 >
-                  {env.regime} · 适度参与
+                  {marketAdvice.label}
                 </span>
               </div>
             </div>
@@ -150,28 +181,24 @@ export function MarketPageClient({
                 base={cg.oiChange}
                 format={(n) => `${n > 0 ? '+' : ''}${n.toFixed(2)}%`}
                 tone="var(--up)"
-                volatility={0.04}
               />
               <LiveDataCell
                 label="资金费率"
                 base={cg.funding}
                 format={(n) => `${n > 0 ? '+' : ''}${n.toFixed(4)}%`}
                 tone={cg.funding > 0 ? 'var(--up)' : 'var(--down)'}
-                volatility={0.05}
               />
               <LiveDataCell
                 label="多空比"
                 base={cg.longShortRatio}
                 format={(n) => n.toFixed(2)}
                 tone="var(--up)"
-                volatility={0.02}
               />
               <LiveDataCell
                 label="主动买卖比"
                 base={cg.takerBuySell}
                 format={(n) => n.toFixed(2)}
                 tone="var(--up)"
-                volatility={0.02}
               />
               <DataCell label="合约成交量" value={`$${fmtCap(cg.futVolume)}`} />
               <DataCell
@@ -222,12 +249,12 @@ export function MarketPageClient({
           }
         >
           <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
-            <LiveCountCell label="原始数据" base={dq.raw} volatility={0.015} />
-            <LiveCountCell label="清洗后数据" base={dq.cleaned} tone="var(--up)" volatility={0.015} />
-            <LiveCountCell label="重复币种处理" base={dq.duplicates} volatility={0.03} />
-            <LiveCountCell label="被过滤数据" base={dq.filtered} volatility={0.03} />
-            <LiveCountCell label="数据缺失" base={dq.missing} tone="var(--sig-pump)" volatility={0.05} />
-            <LiveCountCell label="数据延迟" base={dq.delayMs} suffix="ms" tone="var(--sig-pump)" volatility={0.08} />
+            <LiveCountCell label="原始数据" base={dq.raw} />
+            <LiveCountCell label="清洗后数据" base={dq.cleaned} tone="var(--up)" />
+            <LiveCountCell label="重复币种处理" base={dq.duplicates} />
+            <LiveCountCell label="被过滤数据" base={dq.filtered} />
+            <LiveCountCell label="数据缺失" base={dq.missing} tone="var(--sig-pump)" />
+            <LiveCountCell label="数据延迟" base={dq.delayMs} suffix="ms" tone="var(--sig-pump)" />
             <DataCell
               label="降级状态"
               value={dq.degraded ? '是' : '否'}
@@ -238,7 +265,6 @@ export function MarketPageClient({
               base={dq.trust}
               format={(n) => `${n.toFixed(1)}%`}
               tone="var(--neon)"
-              volatility={0.006}
             />
           </div>
         </Panel>
@@ -281,12 +307,9 @@ function BigStat({
       </div>
       <div className="mt-2 font-mono text-2xl font-bold" style={{ color: tone }}>
         {typeof liveBase === 'number' ? (
-          <LiveStat
-            base={liveBase}
+          <LiveValue
+            value={liveBase}
             format={(n) => `${Math.round(n)}`}
-            volatility={0.02}
-            min={0}
-            max={100}
           />
         ) : (
           value
@@ -315,11 +338,6 @@ function CoinState({
   icon?: React.ComponentType<{ className?: string }>
 }) {
   const up = change >= 0
-  const livePrice = useLiveNumber(price, {
-    volatility: 0.0012,
-    intervalMs: 2000,
-    drift: true,
-  })
   return (
     <div className="bg-card px-5 py-4">
       <div className="flex items-center gap-1.5 text-sm font-semibold">
@@ -336,7 +354,7 @@ function CoinState({
         </span>
       </div>
       <LiveValue
-        value={livePrice}
+        value={price}
         format={(n) =>
           `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         }
@@ -372,19 +390,17 @@ function DataCell({
   )
 }
 
-// 实时计数格：整数计数随推送跳动（用于数据质量面板）
+// 后端计数格：只展示合同给出的最新值，不制造随机跳动。
 function LiveCountCell({
   label,
   base,
   tone,
   suffix = '',
-  volatility = 0.01,
 }: {
   label: string
   base: number
   tone?: string
   suffix?: string
-  volatility?: number
 }) {
   return (
     <div className="bg-card px-5 py-4">
@@ -393,33 +409,28 @@ function LiveCountCell({
         className="mt-1 block font-mono text-lg font-bold"
         style={tone ? { color: tone } : undefined}
       >
-        <LiveStat
-          base={base}
+        <LiveValue
+          value={base}
           format={(n) => `${Math.round(n).toLocaleString('en-US')}${suffix}`}
-          volatility={volatility}
           flash={false}
-          drift
         />
       </span>
     </div>
   )
 }
 
-// 实时数据格：数值随推送跳动并闪烁
+// 后端数据格：只展示合同给出的最新值，数值变化时再做补间。
 function LiveDataCell({
   label,
   base,
   format,
   tone,
-  volatility = 0.02,
 }: {
   label: string
   base: number
   format: (n: number) => string
   tone?: string
-  volatility?: number
 }) {
-  const v = useLiveNumber(base, { volatility, intervalMs: 2400, drift: true })
   return (
     <div className="bg-card px-5 py-4">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -427,7 +438,7 @@ function LiveDataCell({
         className="mt-1 block font-mono text-lg font-bold"
         style={tone ? { color: tone } : undefined}
       >
-        <LiveValue value={v} format={format} />
+        <LiveValue value={base} format={format} />
       </span>
     </div>
   )
@@ -442,13 +453,7 @@ function Meter({
   value: number
   danger?: boolean
 }) {
-  const live = useLiveNumber(value, {
-    volatility: 0.02,
-    intervalMs: 4200,
-    min: 0,
-    max: 100,
-  })
-  const display = Math.round(live)
+  const display = Math.round(value)
   const tone = danger
     ? display > 70
       ? 'var(--down)'
@@ -461,7 +466,7 @@ function Meter({
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
         <LiveValue
-          value={live}
+          value={value}
           format={(n) => `${Math.round(n)}/100`}
           flash={false}
           className="font-mono font-semibold"
@@ -472,7 +477,7 @@ function Meter({
           className="relative h-full origin-left animate-bar-grow transition-all duration-700"
           style={{ width: `${display}%`, background: tone }}
         >
-          {/* 流动高光，强化"实时数据"观感 */}
+          {/* 流动高光只表示当前指标处于系统监控中，不代表随机实时行情。 */}
           <span
             className="absolute inset-y-0 w-1/3"
             style={{

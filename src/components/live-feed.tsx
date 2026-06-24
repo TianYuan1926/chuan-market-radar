@@ -36,7 +36,7 @@ type Alert = {
 
 function timeLabel(ts: number) {
   if (!Number.isFinite(ts)) {
-    return '实时'
+    return '时间未知'
   }
   return new Date(ts).toLocaleTimeString('zh-CN', {
     hour: '2-digit',
@@ -70,20 +70,28 @@ export function LiveFeed({ cards }: { cards: SignalCard[] }) {
   }))
   const eventItems = liveEvents.slice(0, 9).map(eventToAlert)
   const items = eventItems.length > 0 ? eventItems : cardItems
+  const feedMode = eventItems.length > 0 ? 'live' : cardItems.length > 0 ? 'snapshot' : 'empty'
 
   return (
     <div className="rounded-2xl border border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <Radio className="size-4 animate-pulse text-down" />
-        <span className="font-semibold">实时预警</span>
-        <span className="ml-auto rounded bg-down/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-down">
-          LIVE
+        <Radio className={cn('size-4', feedMode === 'live' ? 'animate-pulse text-down' : 'text-muted-foreground')} />
+        <span className="font-semibold">预警流</span>
+        <span className={cn(
+          'ml-auto rounded px-2 py-0.5 text-[10px] font-bold tracking-wide',
+          feedMode === 'live'
+            ? 'bg-down/15 text-down'
+            : feedMode === 'snapshot'
+              ? 'bg-neon/10 text-neon'
+              : 'bg-secondary text-muted-foreground',
+        )}>
+          {feedMode === 'live' ? 'LIVE' : feedMode === 'snapshot' ? 'SNAPSHOT' : 'EMPTY'}
         </span>
       </div>
       <div className="max-h-[440px] divide-y divide-border/60 overflow-y-auto">
         {items.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            暂无实时预警
+            暂无预警事件
           </div>
         )}
         {items.map((it, idx) => {

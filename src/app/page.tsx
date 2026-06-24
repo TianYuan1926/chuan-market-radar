@@ -123,7 +123,7 @@ export default async function HomePage() {
 
             {/* 信号池 */}
             <Reveal delay={80}>
-              <BentoCard href="/signals" title="信号池" desc="看涨/看跌信号与风险提示实时推送。">
+              <BentoCard href="/signals" title="信号池" desc="按成熟度展示候选、证据信号与风险提示。">
                 <EqualizerMotif />
               </BentoCard>
             </Reveal>

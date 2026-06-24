@@ -16,8 +16,42 @@ import {
   getLeaderboardContractForPage,
   getRadarContractForPage,
 } from '@/lib/frontend-contract-server'
+import type { DataStatus } from '@/lib/data-status'
 
 export const dynamic = 'force-dynamic'
+
+const SIGNAL_STATUS_LABEL: Record<DataStatus, string> = {
+  loading: 'LOADING',
+  live: 'LIVE',
+  cached: 'CACHED',
+  stale: 'STALE',
+  partial: 'PARTIAL',
+  empty: 'EMPTY',
+  error: 'ERROR',
+  failed: 'FAILED',
+}
+
+const SIGNAL_STATUS_CLASS: Record<DataStatus, string> = {
+  loading: 'bg-secondary text-muted-foreground',
+  live: 'bg-neon-soft text-neon',
+  cached: 'bg-neon/10 text-neon',
+  stale: 'bg-[oklch(0.8_0.15_75)]/15 text-[oklch(0.82_0.15_75)]',
+  partial: 'bg-[oklch(0.8_0.15_75)]/15 text-[oklch(0.82_0.15_75)]',
+  empty: 'bg-secondary text-muted-foreground',
+  error: 'bg-down/15 text-down',
+  failed: 'bg-down/15 text-down',
+}
+
+const SIGNAL_DOT_CLASS: Record<DataStatus, string> = {
+  loading: 'bg-muted-foreground',
+  live: 'bg-neon',
+  cached: 'bg-neon',
+  stale: 'bg-[oklch(0.82_0.15_75)]',
+  partial: 'bg-[oklch(0.82_0.15_75)]',
+  empty: 'bg-muted-foreground',
+  error: 'bg-down',
+  failed: 'bg-down',
+}
 
 export default async function SignalsPage() {
   const [radar, tickerLeaderboard] = await Promise.all([
@@ -26,6 +60,7 @@ export default async function SignalsPage() {
   ])
   const tickerRows = tickerLeaderboard.data
   const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
+  const signalStatus = displaySignals.status
   const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
   const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
   const sniperTargets = radarSignalsToSniperTargets(radar.radarSignals.data, tickerRows)
@@ -51,9 +86,9 @@ export default async function SignalsPage() {
 
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl font-bold tracking-tight">候选信号池</h1>
-              <span className="flex items-center gap-1.5 bg-neon-soft px-2 py-0.5 text-[10px] font-bold tracking-wide text-neon">
-                <span className="size-1.5 animate-pulse rounded-full bg-neon" />
-                LIVE
+              <span className={`flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold tracking-wide ${SIGNAL_STATUS_CLASS[signalStatus]}`}>
+                <span className={`size-1.5 rounded-full ${signalStatus === 'live' ? 'animate-pulse' : ''} ${SIGNAL_DOT_CLASS[signalStatus]}`} />
+                {SIGNAL_STATUS_LABEL[signalStatus]}
               </span>
               <span className="text-[13px] text-muted-foreground">
                 点击任意一行可展开币种详情、后端证据与计划状态
