@@ -5,8 +5,9 @@ import { ScanProof } from '@/components/scan-proof'
 import { DashboardRadarControl } from '@/components/dashboard/radar-control'
 import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
-import { LivePrice, LiveStat, LiveQuotePct } from '@/components/live-value'
+import { LivePrice, LiveQuotePct } from '@/components/live-value'
 import { POOL_META } from '@/lib/frontend-market-types'
+import type { DataStatus } from '@/lib/data-status'
 import {
   macroResourceToMarketEnv,
   radarSignalsToSignalCards,
@@ -29,6 +30,41 @@ import {
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
+
+function systemStatusFromContracts({
+  statuses,
+  sourceFeeds,
+}: {
+  statuses: DataStatus[]
+  sourceFeeds: Array<'live' | 'cached' | 'partial' | 'stale' | 'failed'>
+}) {
+  const failed = statuses.some((status) => status === 'failed' || status === 'error') ||
+    sourceFeeds.some((feed) => feed === 'failed')
+  const degraded = failed
+    ? false
+    : statuses.some((status) => status !== 'live') ||
+      sourceFeeds.some((feed) => feed !== 'live')
+
+  if (failed) {
+    return {
+      label: '异常',
+      tone: 'var(--down)',
+      pulse: 'bg-down',
+    }
+  }
+  if (degraded) {
+    return {
+      label: '降级',
+      tone: 'var(--sig-pump)',
+      pulse: 'bg-[var(--sig-pump)]',
+    }
+  }
+  return {
+    label: '正常',
+    tone: 'var(--up)',
+    pulse: 'bg-up',
+  }
+}
 
 export default async function DashboardPage() {
   const [radar, tickerLeaderboard] = await Promise.all([
@@ -57,13 +93,25 @@ export default async function DashboardPage() {
 
   const onlineSources = radar.dataSources.data.filter((source) => source.feed === 'live').length
   const totalSources = radar.dataSources.data.length
+  const systemStatus = systemStatusFromContracts({
+    statuses: [
+      radar.scanProof.status,
+      radar.deepScanQueue.status,
+      radar.coreChainGovernance.status,
+      radar.radarSignals.status,
+      radar.apiUsage.status,
+      radar.dataSources.status,
+    ],
+    sourceFeeds: radar.dataSources.data.map((source) => source.feed),
+  })
   const overview = [
     {
       label: '系统运行状态',
-      value: '正常',
+      value: systemStatus.label,
       icon: Activity,
-      tone: 'var(--up)',
+      tone: systemStatus.tone,
       sub: `${onlineSources}/${totalSources || 0} 数据源在线`,
+      pulseClass: systemStatus.pulse,
     },
     {
       label: '候选池展示',
@@ -80,7 +128,7 @@ export default async function DashboardPage() {
       icon: Gauge,
       tone: 'var(--neon)',
       sub: `轻扫 ${scan.scanned.toLocaleString()} · 深扫 ${radar.scanProof.data.deepScanned.toLocaleString()}`,
-      live: true,
+      count: true,
     },
     {
       label: '大盘环境',
@@ -135,16 +183,7 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <div className="mt-2 font-mono text-3xl font-bold tracking-tight">
-                {s.live ? (
-                  <LiveStat
-                    base={s.value as number}
-                    decimals={1}
-                    volatility={0.012}
-                    min={0}
-                    max={100}
-                    flash={false}
-                  />
-                ) : s.count ? (
+                {s.count ? (
                   <CountUp value={s.value as number} />
                 ) : (
                   s.value
@@ -155,7 +194,7 @@ export default async function DashboardPage() {
               </div>
               <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <span
-                  className="size-1.5 animate-pulse rounded-full"
+                  className={`size-1.5 animate-pulse rounded-full ${s.pulseClass ?? ''}`}
                   style={{ background: s.tone }}
                 />
                 {s.sub}

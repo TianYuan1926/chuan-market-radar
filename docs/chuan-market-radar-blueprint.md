@@ -327,6 +327,7 @@ RawSource
 - 当前生产数据库：本机 PostgreSQL。
 - 当前缓存/锁/队列底座：本机 Redis。
 - 当前反向代理：Caddy。
+- 当前展示事实源：v0 前端 UI 作为当前展示事实源，只读消费 `/api/frontend/*` 合同，不负责生成交易判断。
 - Vercel / Neon：只保留为旧回滚路径，不再作为新功能默认约束。
 
 标准发布流程：
@@ -358,11 +359,15 @@ RawSource
 - 信号成熟度分层。
 - 多周期硬门控。
 - Evidence Engine v2。
-- Market Reading / Key Level / Forward Map / Pattern Library MVP。
+- Altcoin Trend Radar v3 分析层：Market Reading Engine、Key Level Engine、Forward Level Map、Pattern Library MVP。
+- v3 复盘事件：`trend_switch_review`、`forward_map_review`。
 - RR / Risk Gate。
 - TradingView 主图合同。
 - 前端合同：radar、leaderboard、token dossier、review、journal、kline、external intel。
 - `coreChainGovernance` 后端和前端合同。
+- `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
+- `/dashboard` 系统运行状态来自后端合同状态，不允许硬写“正常”。
+- 全市场扫描证明头部状态来自 `scanProof.status`，不允许硬显示绿色健康。
 - 复盘 outcome、missed opportunity、daily mover、forward map review 基础。
 - AI 反证边界。
 - 个人仓位镜头。
@@ -390,7 +395,6 @@ RawSource
 
 ### P0：核心链路可见化与清理
 
-- 把 `coreChainGovernance` 做成前端可见体检面板。
 - 全站页面、组件、接口逐项标记：核心 / 辅助 / 降级 / 合并 / 重构 / 删除。
 - 删除或降级不服务核心链路的展示。
 - 防止前端展示能力强于后端真实能力。

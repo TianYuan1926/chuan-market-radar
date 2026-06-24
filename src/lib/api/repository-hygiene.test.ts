@@ -218,6 +218,39 @@ test("v0 frontend handoff keeps old visual artifacts removed and records the han
   assert.match(charterSource, /v0 前端 UI/);
 });
 
+test("dashboard exposes core chain governance as a visible backend contract panel", () => {
+  const dashboardPageSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+  const radarControlSource = readFileSync(resolve(process.cwd(), "src/components/dashboard/radar-control.tsx"), "utf8");
+
+  assert.match(dashboardPageSource, /<DashboardRadarControl contract=\{radar\}/);
+  assert.match(radarControlSource, /coreChainGovernance/);
+  assert.match(radarControlSource, /核心链路体检/u);
+  assert.match(radarControlSource, /全市场发现 → 复盘进化/u);
+  assert.match(radarControlSource, /cleanupRules/);
+  assert.match(radarControlSource, /canCreateTradeSignal:\s*false/);
+  assert.doesNotMatch(radarControlSource, /getCoreChainGovernance\(/);
+});
+
+test("dashboard runtime overview is derived from backend contract state without fake live movement", () => {
+  const dashboardPageSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
+
+  assert.match(dashboardPageSource, /systemStatusFromContracts/);
+  assert.match(dashboardPageSource, /radar\.scanProof\.status/);
+  assert.match(dashboardPageSource, /radar\.dataSources\.data\.map/);
+  assert.doesNotMatch(dashboardPageSource, /value:\s*['"]正常['"]/u);
+  assert.doesNotMatch(dashboardPageSource, /LiveStat/);
+});
+
+test("scan proof header reflects scan resource status instead of hardcoded green healthy state", () => {
+  const scanProofSource = readFileSync(resolve(process.cwd(), "src/components/scan-proof.tsx"), "utf8");
+
+  assert.match(scanProofSource, /scanRuntimeLabel/);
+  assert.match(scanProofSource, /SCAN_DOT_TONE/);
+  assert.match(scanProofSource, /scanProof\?\.status/);
+  assert.match(scanProofSource, /<StatusBadge status=\{scanProof\.status\}/);
+  assert.doesNotMatch(scanProofSource, /bg-up[^\\n]+扫描正常/u);
+});
+
 test("frontend contract routes are read-only and cannot trigger scans", () => {
   const directSnapshotRoutePaths = [
     "src/app/api/frontend/token-dossier/route.ts",

@@ -8,12 +8,14 @@ import {
 } from '@/lib/frontend-market-types'
 import { fmtCap } from '@/lib/display-format'
 import type { ApiUsageState, DataSourceState, ScanProofData } from '@/lib/radar-contract'
+import type { DataStatus } from '@/lib/data-status'
 import type { Resource } from '@/lib/data-status'
 import {
   dataSourcesResourceToExchangeCoverage,
   scanProofResourceToScanState,
 } from '@/lib/frontend-display-adapters'
 import { LiveValue } from './live-value'
+import { StatusBadge } from './data-state'
 import { useLiveNumber } from '@/lib/use-live-number'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +44,25 @@ const EMPTY_SCAN: ScanState = {
   mode: '轻扫',
 }
 
+const SCAN_DOT_TONE: Record<DataStatus, string> = {
+  loading: 'bg-muted-foreground',
+  live: 'bg-up',
+  cached: 'bg-neon',
+  stale: 'bg-[var(--sig-pump)]',
+  partial: 'bg-[var(--sig-pump)]',
+  empty: 'bg-muted-foreground',
+  error: 'bg-down',
+  failed: 'bg-down',
+}
+
+function scanRuntimeLabel(status: DataStatus, mode: ScanState['mode']) {
+  if (status === 'failed' || status === 'error') return '扫描异常'
+  if (status === 'empty') return '暂无扫描'
+  if (status === 'loading') return '扫描加载中'
+  if (status === 'partial' || status === 'stale' || status === 'cached') return `${mode}降级`
+  return `${mode}中`
+}
+
 export function ScanProof({
   scanProof,
   dataSources,
@@ -54,6 +75,7 @@ export function ScanProof({
   const scan: ScanState = scanProof
     ? scanProofResourceToScanState(scanProof, apiUsage)
     : EMPTY_SCAN
+  const scanStatus = scanProof?.status ?? 'empty'
   const exchanges = dataSources
     ? dataSourcesResourceToExchangeCoverage(dataSources)
     : []
@@ -98,10 +120,13 @@ export function ScanProof({
         <h2 className="font-semibold">全市场扫描证明</h2>
         <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="relative flex size-1.5">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-up opacity-70" />
-            <span className="relative inline-flex size-1.5 rounded-full bg-up" />
+            {scanStatus === 'live' && (
+              <span className={`absolute inline-flex size-full animate-ping rounded-full ${SCAN_DOT_TONE[scanStatus]} opacity-70`} />
+            )}
+            <span className={`relative inline-flex size-1.5 rounded-full ${SCAN_DOT_TONE[scanStatus]}`} />
           </span>
-          {scan.mode}中 · 批次 {scan.batch}/{scan.totalBatches}
+          {scanRuntimeLabel(scanStatus, scan.mode)} · 批次 {scan.batch}/{scan.totalBatches}
+          {scanProof && <StatusBadge status={scanProof.status} />}
         </span>
       </div>
 

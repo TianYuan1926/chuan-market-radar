@@ -17,7 +17,10 @@ import {
   Database,
   CircleDot,
   Timer,
+  Route,
+  ShieldCheck,
 } from 'lucide-react'
+import type { CoreChainGovernanceReport, CoreReadinessStatus } from '@/lib/api/core-chain-governance'
 
 const CAP_STATUS_TONE: Record<string, string> = {
   active: 'text-up border-up/40 bg-up/10',
@@ -42,6 +45,20 @@ const FEED_LABEL: Record<string, string> = {
   stale: '过期',
   partial: '部分',
   failed: '失败',
+}
+const CORE_STATUS_TONE: Record<CoreReadinessStatus, string> = {
+  ready: 'text-up border-up/40 bg-up/10',
+  watch: 'text-neon border-neon/40 bg-neon/10',
+  partial: 'text-[oklch(0.8_0.15_75)] border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10',
+  collecting: 'text-muted-foreground border-border bg-secondary/30',
+  blocked: 'text-down border-down/40 bg-down/10',
+}
+const CORE_STATUS_LABEL: Record<CoreReadinessStatus, string> = {
+  ready: '已就绪',
+  watch: '观察中',
+  partial: '部分可用',
+  collecting: '采集中',
+  blocked: '阻塞',
 }
 
 const EMPTY_SOURCE = {
@@ -80,11 +97,32 @@ const EMPTY_QUEUE = resource<DeepScanQueue>(
 
 const EMPTY_CAPABILITIES = resource<CapabilityStage[]>([], 'empty', EMPTY_SOURCE)
 const EMPTY_SOURCES = resource<DataSourceState[]>([], 'empty', EMPTY_SOURCE)
+const EMPTY_GOVERNANCE = resource<CoreChainGovernanceReport>({
+  schemaVersion: 'core-chain-governance.v1',
+  generatedAt: '',
+  allowedUse: 'product_governance_only',
+  canAutoExecute: false,
+  canCreateTradeSignal: false,
+  canMutateLiveRanking: false,
+  coreObjective: '快速全市场覆盖扫描、发现机会、给出策略、自我提升。',
+  chain: [],
+  featureTriage: [],
+  pageRoles: [],
+  readiness: {
+    blockedSteps: 0,
+    coreReadySteps: 0,
+    totalSteps: 0,
+    status: 'collecting',
+  },
+  cleanupRules: [],
+  operatingSequence: [],
+}, 'empty', EMPTY_SOURCE)
 
 export function DashboardRadarControl({ contract }: { contract?: RadarContract } = {}) {
   const scan = contract?.scanProof ?? EMPTY_SCAN
   const queue = contract?.deepScanQueue ?? EMPTY_QUEUE
   const caps = contract?.capabilityStages ?? EMPTY_CAPABILITIES
+  const governance = contract?.coreChainGovernance ?? EMPTY_GOVERNANCE
   const sources = contract?.dataSources ?? EMPTY_SOURCES
 
   const sp = scan.data
@@ -199,7 +237,92 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
         </div>
       </section>
 
-      {/* 三、系统能力总控（核心链路阶段） */}
+      {/* 三、核心链路体检 */}
+      <section className="border border-border bg-card lg:col-span-2">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <span className="h-3.5 w-1 bg-neon" />
+          <Route className="size-4 text-neon" />
+          <h2 className="font-semibold">核心链路体检</h2>
+          <span className="ml-auto mr-2 text-xs text-muted-foreground">
+            全市场发现 → 复盘进化
+          </span>
+          <StatusBadge status={governance.status} />
+        </div>
+        <div className="p-5">
+          <ResourceBoundary resource={governance} isEmpty={(d) => d.chain.length === 0}>
+            {(g) => (
+              <div className="space-y-4">
+                <div className="grid gap-2.5 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="size-4 text-neon" />
+                      <span className="text-sm font-semibold">唯一核心</span>
+                      <span className={`ml-auto border px-1.5 py-0.5 text-[10px] ${CORE_STATUS_TONE[g.readiness.status]}`}>
+                        {CORE_STATUS_LABEL[g.readiness.status]}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {g.coreObjective}
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <MetricPill label="环节" value={g.readiness.totalSteps} />
+                      <MetricPill label="就绪" value={g.readiness.coreReadySteps} />
+                      <MetricPill label="阻塞" value={g.readiness.blockedSteps} />
+                    </div>
+                  </div>
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="text-sm font-semibold">清理规则</div>
+                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {g.cleanupRules.slice(0, 4).map((rule) => (
+                        <li key={rule} className="flex gap-2">
+                          <span className="mt-1 size-1.5 shrink-0 bg-neon" />
+                          <span>{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+                  {g.chain.map((step, i) => (
+                    <div
+                      key={step.id}
+                      className="data-tile tile-in border border-border bg-secondary/30 p-3"
+                      style={{ ['--i' as string]: i }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="grid size-5 place-items-center border border-neon/40 font-mono text-[10px] text-neon">
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0 truncate text-sm font-semibold">{step.title}</span>
+                        <span className={`ml-auto shrink-0 border px-1.5 py-0.5 text-[10px] ${CORE_STATUS_TONE[step.status]}`}>
+                          {CORE_STATUS_LABEL[step.status]}
+                        </span>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {step.summary}
+                      </p>
+                      {step.blockers.length > 0 ? (
+                        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-down">
+                          {step.blockers[0]}
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-[11px] text-up">当前无阻塞</p>
+                      )}
+                      <p className="mt-2 line-clamp-2 border-t border-border pt-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {step.guardrail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <FreshnessTag {...governance} className="block" />
+              </div>
+            )}
+          </ResourceBoundary>
+        </div>
+      </section>
+
+      {/* 四、系统能力总控（核心链路阶段） */}
       <section className="border border-border bg-card lg:col-span-2">
         <div className="flex items-center gap-2 border-b border-border px-5 py-3">
           <span className="h-3.5 w-1 bg-neon" />
@@ -236,7 +359,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
         </div>
       </section>
 
-      {/* 四、数据源状态 */}
+      {/* 五、数据源状态 */}
       <section className="border border-border bg-card lg:col-span-2">
         <div className="flex items-center gap-2 border-b border-border px-5 py-3">
           <span className="h-3.5 w-1 bg-neon" />
@@ -271,6 +394,15 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
           </ResourceBoundary>
         </div>
       </section>
+    </div>
+  )
+}
+
+function MetricPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border border-border bg-background/40 px-2 py-1.5">
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="font-mono text-lg font-bold text-foreground">{value}</div>
     </div>
   )
 }
