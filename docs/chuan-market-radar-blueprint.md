@@ -18,6 +18,7 @@
 - 当前不把单一指标当作买卖信号。
 - 当前不把 AI 输出当作最终裁决。
 - 当前不接入清算热力图，不实现清算区、heatmap provider 或潜在清算区交易模块。
+- 当前不通过爬虫绕过付费套餐、登录、验证码、Cloudflare、防爬、会员墙、robots.txt 禁止路径或网站明确禁止的抓取规则；CoinGlass 清算热力图等付费能力只能走官方 API 和套餐权限，不能用网页爬取替代。
 - 当前不把演示数据、缓存数据或缺字段数据说成真实生产级数据。
 - 当前不做中国大陆访问专项优化，不做 ICP 备案、大陆云服务器或大陆 CDN 路线；站点主线切换为腾讯云香港单机部署，Vercel/Neon 只保留为旧线上回滚路径。
 
@@ -44,6 +45,7 @@
 18. **预览种子默认关闭**：任何 mock、seed、演示复盘和样例信号默认不能注入真实 repository 或活跃页面。只有显式设置 `ENABLE_PREVIEW_SEED_DATA=true` 的本地预览才允许加载样例数据；生产、降级和无数据库模式都不能把样例数据说成真实记录。
 19. **蓝图清理硬规则**：每次重要搭建收尾时，必须同步清理蓝图和字段映射：已经验证完成的项目从“未完成/待验证”移到“已完成/已验证”，仍未完成的项目必须保留原因、下一步、验证方式；旧规则如果被新架构覆盖，必须标记替换或删除，不能让历史计划、当前代码和生产事实互相打架。
 20. **个人仓位镜头规则**：本网站是为用户本人定制的合约雷达，交易计划展示和复盘统计必须提供独立的个人仓位镜头：BTC 与 ETH 杠杆固定 `150x`；其他山寨币按交易所允许的最高杠杆换算；仓位模式按全仓语境提示风险；每次入场初始保证金按总资金 `0.3%` 计算。该规则只用于把既有结构计划换算为保证金占用、名义仓位、止损亏损、目标收益、ROE、爆仓距离语义和复盘归因展示；不改变 Evidence、Risk Gate、`3:1` 结构 RR、趋势阶段、结构止损、人工复核边界，也不能新增自动下单或交易所下单权限。若交易所实际最高杠杆未知，前端必须显示 `waiting/unavailable` 或“等待交易所杠杆上限”，不能臆造。
+21. **合法外部情报规则**：后续新增爬虫或采集能力只允许接入安全、稳定、实际有意义的数据：官方 API/WebSocket、官方 RSS/公告、robots.txt 允许的低频公开页面和有明确授权的数据源。所有外部事件必须先标准化为 `ExternalEvent`，再转成 `EvidenceItem` 或 `Risk` 背景进入 Evidence / Risk Gate / Review；不得直接生成交易结论，不得保存付费全文或受版权保护全文，不得抓个人隐私，不得绕过权限。
 
 ## 不可偏移核心目标
 
@@ -583,6 +585,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - **部署验收不只看容器启动**：必须看 `web` 是否 healthy、Postgres/Redis 是否 healthy、Worker 是否持续运行、`/api/health` 是否 ready、前端合同接口是否能读到后端数据。
 - **公网验收必须查业务合同**：生产验收必须至少检查 `/api/health`、`/api/frontend/radar-contract`、`/api/frontend/leaderboard?kind=volume`、`/api/frontend/review-contract` 和 `/api/radar/backend-contract`。如果页面能打开但 contract 空、榜单空、深扫状态不可信，不能说部署完成。
 - **回滚路径**：生产发布失败时，优先回到上一个已知可用 Git 提交并重建容器；不得在服务器上边猜边改。
+- **当前部署自动化状态（2026-06-24）**：发布主流程仍是 GitHub -> 腾讯云 pull/build/up，但本机到 GitHub 和腾讯云 SSH 链路存在网络/握手不稳定；OrcaTerm 仍是临时兜底。后续必须把 GitHub 远端检查、SSH 连接、服务器提交号核对、日志打包和回滚脚本继续做成稳定自动化，不能把“手动能部署”说成“一键部署已完全可靠”。
 
 ## 沟通规则
 
@@ -667,6 +670,40 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 | 阶段 6B：每日异动归因复盘 | 逻辑、数据源适配器、抓取写入服务、受保护 API、公开只读 API、腾讯云 Worker 主线触发、外部 cron 回滚策略、schema、repository、公开复盘面板、历史样本选择、单样本详情、只读关联摘要、规则校准建议、校准候选入复盘队列、按 tag 汇总的只读校准反馈趋势、人工回测候选链路、历史样本验证层、策略版本草案链路、人工确认记录、确认后表现反馈基础、策略版本长周期表现/回滚边界、阈值画像、手动回滚计划、K 线回测低成本计划边界、K 线缓存持久化、受保护低频填充 MVP、缓存 K 线验证结果、observedAt 事件窗口回测、outcome executor 复盘写回基础、只读权重变更审计、人工执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁已落地 | 尚未完成自动权重调整；自动调整必须等待更多 outcome 样本、真实权重接入扫描引擎和真实回滚验证更成熟 |
 | 阶段 7：告警系统 | 网页内基础、站内事件、重复抑制、静默时段、浏览器通知、提示音、Settings 抽屉本地告警控制、站内告警历史筛选、已读、归档、恢复和信号档案告警联动已落地；明确不接 Telegram/Webhook | 尚未完成告警历史持久化和更细提示音音色 |
 | 阶段 8：前端融合 | v0 前端 UI 已作为当前展示事实源接入；旧首页占位页已被替换；已新增 `/api/frontend/radar-contract`、`/api/frontend/token-dossier`、`/api/frontend/leaderboard`、`/api/frontend/review-contract`、`/api/frontend/kline-contract` 五个前端只读适配接口；已新增 `/api/frontend/journal-contract` 前端读写合同；Token 详情页 K 线面板已接真实 OHLCV 合同并禁止生成模拟蜡烛；交易日记抽屉已从 localStorage-only 升级为 Postgres-backed、localStorage 兜底；2026-06-23 已补榜单事实源/排序/来源说明、K 线多源级联失败边界、上游请求超时护栏、分析报告分层和 evidence sourceId；2026-06-23 继续修复榜单跨交易所口径：涨幅榜取同币种最高 24h 涨幅、跌幅榜取同币种最低 24h 涨幅、成交额榜聚合跨交易所 24h 成交额；Token Dossier 汇报已扩展到关键位、Forward Map、趋势分数、位置/RR、回踩/反抽、趋势完整度、确认清单和人工复核边界；K 线合同已新增只读 overlay，能输出/绘制后端 v3 关键位、Forward Map、结构止损和 TP 目标线；2026-06-23 已完成 active frontend mock 事实源清理：活跃页面/组件不再从 `mock-data.ts` 导入市场事实或 UI 类型，`frontend-market-types.ts` 承接展示类型，`sniper-data.ts` 仅保留类型/显示 helper，旧 `ReviewCenter` 和 `SystemCenter` mock 面板已删除，并新增仓库卫生测试防回归；腾讯服务器内部和服务器公网侧已验证 leaderboard 与 K 线合同可返回 | 仍需前端继续消费更多真实字段：资金流、更多复盘统计、TradingView 兜底和更高级图表交互；本机直连公网 IP 偶发超时和 Caddy 重启期 Docker DNS 短暂 502 需继续纳入生产稳定性观察；保证 UI 1:1 不被重写 |
+
+## 2026-06-24 当前生产事实与未完成总控
+
+本节是当前继续搭建的优先事实源，优先级高于历史阶段记录。历史阶段只作为施工索引；实际下一步以本节 P0/P1/P2 为准，避免长上下文导致重复做、漏做或把旧问题当新问题。
+
+### 当前已验收生产事实
+
+- 公网生产 smoke 已通过：`/`、`/dashboard`、`/signals`、`/leaderboard`、`/market`、`/review`、`/system` 均返回 200。
+- `/api/health` 当前为 `ready`，数据源为 `coinglass`，数据库为 `ready`，扫描新鲜度为 `fresh`。
+- 全市场轻扫当前覆盖 `593/593`，`scanProof.coverage=100`；这表示公开轻扫覆盖，不等于 CoinGlass 已深扫全市场。
+- CoinGlass 深扫当前恢复可用：生产 smoke 显示 `planned=24`、`rawRows=594`、`cleanRows=45`、`failureSample=[]`。
+- 当前深扫证明显示 `deepScanned=45`、`awaitingDeepScan=548`；深扫是轮转确认层，不是一次性全市场重扫。
+- `/api/frontend/leaderboard?kind=volume/gainers/losers` 当前均返回 `live` 且 50 行 public ticker 结果，行内带 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。
+- `/api/frontend/review-contract` 当前可返回，但真实生命周期样本、策略分型胜率和进化统计仍处在样本收集阶段，不等于复盘进化已成熟。
+
+### P0：必须先根治的问题
+
+1. **总控与单币档案状态不一致**：生产验收发现 `radar-contract` 中 BTC/ETH 可出现 `TRADE_PLAN_READY`，但 `/api/frontend/token-dossier?symbol=BTC` 返回 `BLOCKED` 且 `tradePlan=null`。同一币种在总控和详情页不能给出互相冲突的成熟度、Risk Gate 或交易计划状态。下一步必须统一信号选择、dossier 构建、maturity 判定和 Risk Gate 来源。
+2. **个人仓位镜头线上展示未完全验收**：本地已实现 `positionLens`，测试、typecheck、build 已通过；但生产单币档案在 `tradePlan=null` 时看不到 `positionLens`，因此不能宣称线上展示闭环已完成。修复 P0-1 后，必须用一个真实 `TRADE_PLAN_READY` 标的验收 `tradePlan.positionLens` 是否稳定输出。
+
+### P1：当前未完成清单
+
+- **前端合同一致性验收**：`RadarContract`、`TokenDossier`、`Leaderboard`、`ReviewContract` 对同一 symbol 的状态、价格、成熟度、Risk Gate、tradePlan 和 freshness 必须一致，不能各自解释。
+- **真实复盘样本闭环**：当前 outcome、signal lifecycle、strategy archetype 仍缺真实样本；系统只能说“复盘框架已落地，样本收集中”，不能说已经完成自我进化。
+- **AI 生产复核**：AI evidence-id bound 边界已完成，但生产模型、多模型对照、成本统计和复盘校准未完成；当前 AI disabled 不能包装成已运行能力。
+- **合法外部事件情报层**：第一到第三档合法数据源已进入蓝图，但 `ExternalEvent`、`SourceFetchRun`、DEX Screener collector、交易所公告 collector、token identity collector、链上低频 collector 和事件转 Evidence/Risk 仍未实现。
+- **部署自动化稳定性**：GitHub 远端检查和 SSH 自动部署仍受本机网络/服务器 SSH 握手影响；OrcaTerm 能兜底，但不能替代长期自动部署。
+- **资金流与主动买卖流**：稳定 CVD、taker buy/sell、真实资金流数据源仍未完整接入；未稳定前只能显示 partial/waiting。
+- **图表与 logo 最终验收**：TradingView 主图、K 线 overlay、真实 token logo、fallback 和多周期交互仍需逐页验收，不能只看 API 有字段。
+
+### P2：后续增强但不能抢 P0/P1 优先级
+
+- 交互式多周期图表、更专业成交量分布、谐波低权重提示、长期状态池胜率排序、自动调度校准、告警历史持久化和提示音细化。
+- 这些增强必须复用现有 Evidence / Risk Gate / Review / Frontend Contract，不允许另起一套平行逻辑。
 
 ## 当前已落地模块
 
@@ -926,6 +963,31 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - `/api/radar/backend-contract` 是扫描后端契约：它只读复用已有 snapshot 和 health，不新增 CoinGlass 请求，不写数据库，不生成交易信号。前端若空间有限，必须用分页、滚动、筛选或数量提示承接候选，不允许静默隐藏候选导致“扫到了但看不见”。
 - `scanProof.rotationAudit` 是“扫描有没有卡死在少数币”的硬证明。前端必须展示锚点槽、山寨轮转槽、动态优先级槽、长尾探索槽、排队候选、预计完整轮转时间和饥饿风险；不允许只展示本轮少数深扫币，导致用户误判系统没有全市场轻扫。
 - `analysis.signalMaturity` 是“这条信息成熟到哪一步”的硬证明。前端主信号区必须只读取 `mainSignalSymbols` 或 maturity 为 `EVIDENCE_SIGNAL / TRADE_PLAN_READY` 的信号；`DEEP_SCAN_CANDIDATE` 必须放进候选验证区并标注“验证中”；`LIGHT_SCAN_MARK` 只能用于覆盖证明、调度说明和数量统计，不得做成交易卡片。
+
+### 未完整落地：合法外部事件情报层
+
+当前只完成了蓝图规则和数据源分档，尚未实现业务代码。该层后续必须按“先安全、再稳定、再有交易意义”的顺序接入，不能把网页爬虫当作绕过数据权限的工具。
+
+必须新增或复用的对象：
+
+- `RawSource`：合法来源注册，记录来源类型、授权方式、robots/terms 状态、频率限制和能否保存内容。
+- `SourceFetchRun`：每次采集运行记录，保存请求时间、结果、错误、行数、延迟和是否 partial。
+- `ExternalEvent`：标准化事件，如 `LISTING_EVENT`、`DELIST_RISK`、`DEX_VOLUME_SPIKE`、`LIQUIDITY_CHANGE`、`WHALE_FLOW`、`UNLOCK_EVENT`、`SECURITY_RISK`、`NARRATIVE_CATALYST`。
+- `EvidenceItem / RiskEvent` 映射：所有事件必须先转成证据或风险背景，再进入 Evidence Fusion / Strategy Engine / Risk Gate / Review。
+
+未完成采集器：
+
+- DEX Screener collector：新 pair、新币、DEX 成交量、流动性变化、买卖压力、profile/logo。
+- Exchange Announcement collector：Binance/OKX/Bybit 上币、上合约、下架、维护、暂停充提、杠杆调整和规则变化。
+- Token Identity collector：CoinGecko、Token Lists、Trust Wallet Assets 等 logo、名称、链、合约地址和同名币去污染。
+- Macro/On-chain low-frequency collector：DefiLlama、CoinGecko global、区块浏览器 API 的稳定币、TVL、BTC.D/TOTAL2/TOTAL3、巨鲸/供应/LP 风险。
+- Project/Public Risk collector：项目官方 RSS/GitHub release、安全公告和已确认风险事件。
+
+验收标准：
+
+- 不接第四档高风险爬虫，不爬 CoinGlass 网页清算图，不爬 TradingView/X/Telegram/Discord 非授权内容，不保存付费全文或个人隐私。
+- 所有事件在前端必须显示来源、时间、新鲜度、可信度和是否只做风险/催化剂背景。
+- 事件不能直接生成交易计划；没有结构、量能、衍生品、RR 和 Risk Gate 支持时，只能输出观察、等待或风险提示。
 - 当 CoinGlass 深扫端点返回套餐限制、401、空结果或全部请求失败时，前端不得空白，也不得把轻扫候选包装成策略信号。正确做法是把 public light scan Top 候选映射为 `DEEP_SCAN_CANDIDATE / 验证中`，明确 `whyBlocked=等待深扫、结构、Evidence/Risk Gate`，不展示入场、止损、目标位和 AI 复核结论。
 - 前端合同里的 `scanProof.coverage` 只允许表示“全市场轻扫覆盖率”，不能再用 CoinGlass 深扫比例冒充全市场覆盖；CoinGlass 深扫比例必须单独走 `scanProof.deepCoverage`、`deepScanned`、`awaitingDeepScan` 和 scan stability 文案。页面允许同时展示“轻扫已覆盖全市场”和“深扫因套餐/配额/端点返回而 partial”，两者不能混为一个数字。
 - `analysis.timeframeGate` 是“为什么这条信号不能交易”的硬证明。前端必须把 `WAIT_HIGH_TIMEFRAME_BREAK` 显示为等待高周期突破/回踩确认，把 `WATCH_ONLY` 显示为只观察，不允许把被硬门控拦截的信号包装成可执行计划。
@@ -1251,6 +1313,46 @@ CoinGlass 业余会员 API：
 
 这些公开数据主要用于 universe、全市场轻扫、OHLCV、多周期 K 线、技术指标、市场宽度和交易所交叉验证。它们可以承担第一层发现和结构预筛，但不能替代 CoinGlass 深扫中的多交易所资金质量确认；也不能绕过 Evidence Engine、Risk Gate 或复盘验证。
 
+### 合法外部事件情报源（未完成）
+
+后续只接入以下三档合法、稳定且对核心目标有实际意义的数据。它们必须服务“提前发现山寨机会、解释催化剂、识别风险、辅助复盘”，不能成为孤立资讯面板。
+
+第一档：必做数据，直接服务扫描和分析底座：
+
+- Binance / OKX / Bybit 官方公开 API 或 WebSocket：全市场合约 ticker、K 线、交易对列表、funding、OI、可用 taker 主动成交数据。用途是全市场轻扫、真实涨跌榜、多周期结构、成交量异动、资金费率和持仓变化。
+- CoinGlass 官方 API：只接当前套餐允许的 OI、funding、多空比、合约市场、supported pairs、supported exchanges、账户能力和可用的衍生品端点。用途是候选深扫、资金质量确认和拥挤风险解释；不能爬 CoinGlass 网页绕过套餐。
+- Token identity 数据：CoinGecko、DEX Screener、Token Lists、Trust Wallet Assets 等合法来源。用途是 logo、名称、链、合约地址、交易所映射和同名币去污染。
+
+第二档：强烈建议数据，用于提前发现山寨和催化剂：
+
+- DEX Screener 官方 API：新 pair、新币、DEX 成交量、流动性变化、买卖压力和 boosted/profile 信息。用途是发现链上先动、合约后动的山寨机会。
+- 交易所官方公告 / RSS / 公开页面：上币、上合约、下架、维护、暂停充提、杠杆调整、资金费率规则变化。用途是事件催化剂和风险拦截。
+- DefiLlama / CoinGecko global 等宏观公开 API：稳定币流入流出、BTC.D、ETH.D、TOTAL2、TOTAL3、TVL 和市场宽度。用途是山寨季顺逆风锚点，不降低 `3:1` RR 门槛。
+
+第三档：可做但低频，只做辅助和风险背景：
+
+- 项目官网 blog、Medium RSS、GitHub release、官方文档更新：只抓标题、时间、URL、摘要和标签，不保存全文。用途是项目催化剂和活跃度背景。
+- Etherscan / BscScan / Arbiscan 等区块浏览器 API：大额转账、CEX 入金/出金、合约创建、mint、供应变化、LP 增减和解锁相关线索。用途是巨鲸/供应/流动性风险，不直接决定方向。
+- 安全事件和公开风险源：官方安全公告、审计方公开 RSS、已确认漏洞事件。用途是 `SECURITY_RISK` 或 `BLOCKING` 证据。
+
+明确不进入搭建计划的第四档：
+
+- CoinGlass 网页清算热力图截图/DOM 爬取、TradingView 网页数据爬取、X/Twitter 网页爬取、Telegram/Discord 非授权爬取、付费新闻全文、会员墙内容、个人隐私数据和任何绕过防爬/登录/验证码的抓取。
+- 若未来确实需要 CoinGlass liquidation heatmap，只能在官方 API 和套餐权限允许后，作为“流动性风险辅助层”重新设计；仍不能作为目标位、方向依据或交易计划主依据。
+
+外部事件进入系统的固定链路：
+
+```text
+RawSource
+-> SourceFetchRun
+-> ExternalEvent
+-> EvidenceItem / RiskEvent
+-> Evidence Fusion
+-> Strategy Engine / Risk Gate
+-> Report
+-> Review Outcome
+```
+
 ## 单机部署与稳定性原则
 
 - 腾讯云单机生产目标使用 `docker-compose.yml` 编排 `web`、`postgres`、`redis`、`scanner-worker`、`coinglass-worker`、`signal-worker`、`dynamic-scan-scheduler` 和 `caddy`。
@@ -1310,22 +1412,25 @@ CoinGlass 业余会员 API：
 6. CoinGlass Hobbyist 能力白名单与深扫价值最大化
    -> 先固化官方支持/不支持清单，再做令牌桶、深扫优先级、防漏网配额、资金质量验证、拥挤/假突破风险；禁止接入 Hobbyist 不支持端点
 
-7. 数据可视化契约与前端承接
+7. 合法外部事件情报层
+   -> 接入第一到第三档合法数据源：交易所公开数据、CoinGlass 官方 API、DEX Screener、交易所公告、CoinGecko/Token Lists、DefiLlama、区块浏览器 API、项目官方 RSS/GitHub release；全部转为 ExternalEvent/Evidence/Risk，不直接喊单，不接第四档高风险爬虫
+
+8. 数据可视化契约与前端承接
    -> Scan Proof、Source Status、Candidate Deep Scan、Signal Dossier Evidence、Macro Weather、Review Evolution 六类可视化，确保后端数据不被首页 Top N 静默隐藏
 
-8. Evidence / Strategy / Risk Gate 实战闭环
+9. Evidence / Strategy / Risk Gate 实战闭环
    -> 所有数据转 EvidenceItem，最终由 Strategy/Risk Gate 生成条件化计划或不参与原因
 
-9. 复盘进化闭环
+10. 复盘进化闭环
    -> outcome、missed opportunity、每日异动、Forward Map review、人工校准、策略版本审计
 
-10. 新前端与真实数据融合
+11. 新前端与真实数据融合
    -> 重新设计首页和功能区，消费统一后端契约，不使用旧前端或 mock 业务逻辑
 
-11. 运行互动、提示音和 DIY 设置
+12. 运行互动、提示音和 DIY 设置
    -> 只保留真实运行状态、扫描动效、数据新鲜度、提示音、静默时段和可关闭设置
 
-12. 长期运维、监控、备份和性能优化
+13. 长期运维、监控、备份和性能优化
    -> Postgres 备份、日志归档、Worker 心跳、Redis 队列监控、资源水位、错误告警、部署回滚和容量复盘
 ```
 
