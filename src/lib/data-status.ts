@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // 每个真实数据板块都必须携带一个 DataStatus，前端据此渲染
 // loading / error / empty / stale / partial / cached / live / failed。
-// 后端接入时：把 mock getter 换成真实 fetch，返回同样的 Resource<T> 形状即可。
+// 后端接入时：读取真实后端合同，返回同样的 Resource<T> 形状即可。
 // ============================================================
 
 export type DataStatus =
@@ -44,7 +44,7 @@ export const DATA_STATUS_META: Record<
   failed: { label: '数据源失败', tone: 'down' },
 }
 
-// 便捷构造器：mock 阶段用它包装数据，语义清晰
+// 便捷构造器：统一包装真实、缓存、partial、empty 和 failed 数据。
 export function resource<T>(
   data: T,
   status: DataStatus = 'live',

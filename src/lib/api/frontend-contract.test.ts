@@ -396,6 +396,115 @@ function backendContract(): BackendContract {
         frontendContracts: [],
         operatingRules: [],
       },
+      coreChainGovernance: {
+        schemaVersion: "core-chain-governance.v1",
+        generatedAt: "2026-06-21T08:00:00.000Z",
+        allowedUse: "product_governance_only",
+        canAutoExecute: false,
+        canCreateTradeSignal: false,
+        canMutateLiveRanking: false,
+        coreObjective: "提前发现有潜力的山寨币异动，并判断它有没有交易价值。",
+        chain: [
+          {
+            id: "full_market_discovery",
+            title: "全市场发现",
+            status: "ready",
+            summary: "公开交易所轻扫覆盖正常",
+            requiredEvidence: ["全市场 universe", "轻扫覆盖"],
+            blockers: [],
+            nextAction: "继续轮转",
+            guardrail: "轻扫不直接交易",
+          },
+          {
+            id: "candidate_filtering",
+            title: "候选筛选",
+            status: "partial",
+            summary: "候选和信号分层展示",
+            requiredEvidence: ["成熟度", "轮换状态"],
+            blockers: [],
+            nextAction: "继续验证",
+            guardrail: "候选不进狙击榜",
+          },
+          {
+            id: "deep_scan_verification",
+            title: "深扫验证",
+            status: "ready",
+            summary: "CoinGlass 深扫可用",
+            requiredEvidence: ["OI", "Funding"],
+            blockers: [],
+            nextAction: "继续监控",
+            guardrail: "partial 必须明示",
+          },
+          {
+            id: "structure_analysis",
+            title: "结构分析",
+            status: "partial",
+            summary: "等待更多多周期样本",
+            requiredEvidence: ["多周期结构", "关键位"],
+            blockers: ["样本薄"],
+            nextAction: "继续积累",
+            guardrail: "低周期不推翻高周期",
+          },
+          {
+            id: "risk_reward_gate",
+            title: "风险赔率",
+            status: "ready",
+            summary: "RR gate 已启用",
+            requiredEvidence: ["RR >= 3:1"],
+            blockers: [],
+            nextAction: "继续拦截低赔率",
+            guardrail: "低于 3:1 不就绪",
+          },
+          {
+            id: "trade_plan_readiness",
+            title: "交易计划",
+            status: "partial",
+            summary: "计划就绪由后端决定",
+            requiredEvidence: ["入场", "止损", "目标", "失效"],
+            blockers: [],
+            nextAction: "等待证据完整",
+            guardrail: "前端不编计划",
+          },
+          {
+            id: "review_evolution",
+            title: "复盘进化",
+            status: "collecting",
+            summary: "样本积累中",
+            requiredEvidence: ["MFE/MAE", "TP/SL"],
+            blockers: ["样本不足"],
+            nextAction: "继续追踪",
+            guardrail: "不自动调权",
+          },
+        ],
+        featureTriage: [
+          {
+            id: "mock_market_facts",
+            label: "mock 数据冒充真实数据",
+            classification: "delete",
+            action: "delete",
+            reason: "会污染实战判断",
+            linkedSteps: ["full_market_discovery"],
+            guardrail: "mock 不进 active 页面",
+          },
+        ],
+        pageRoles: [
+          {
+            route: "/token/[id]",
+            role: "core",
+            job: "单币交易判断档案",
+            mustShow: ["证据链", "Risk Gate"],
+            mustNotShow: ["前端编入场"],
+          },
+        ],
+        readiness: {
+          blockedSteps: 0,
+          coreReadySteps: 3,
+          status: "partial",
+          totalSteps: 7,
+        },
+        cleanupRules: ["mock、旧缓存、0 值不能冒充真实数据。"],
+        operatingSequence: ["大盘是否允许做山寨", "RR 是否至少 3:1"],
+      },
       evolution: {
         allowedUse: "research_only",
         canAutoAdjustWeights: false,
@@ -527,6 +636,16 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.match(radar.scanProof.reason ?? "", /轻扫覆盖率/);
   assert.match(radar.scanProof.reason ?? "", /深扫占比/);
   assert.equal(radar.deepScanQueue.data.currentBatch.includes("TIA"), true);
+  assert.equal(radar.coreChainGovernance.status, "partial");
+  assert.equal(radar.coreChainGovernance.data.schemaVersion, "core-chain-governance.v1");
+  assert.equal(radar.coreChainGovernance.data.allowedUse, "product_governance_only");
+  assert.equal(radar.coreChainGovernance.data.canCreateTradeSignal, false);
+  assert.equal(radar.coreChainGovernance.data.chain.length, 7);
+  assert.ok(radar.coreChainGovernance.data.featureTriage.some((item) =>
+    item.id === "mock_market_facts" &&
+    item.action === "delete"
+  ));
+  assert.match(radar.coreChainGovernance.reason ?? "", /不生成交易信号/);
   assert.equal(radar.radarSignals.data[0]?.symbol, "TIA");
   assert.equal(radar.radarSignals.data[0]?.direction, "多");
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");

@@ -30,6 +30,7 @@ import {
 } from "../risk/personal-position-lens";
 import type { BackendContract } from "./backend-contract";
 import type { BusinessCapabilityStage } from "./business-capability";
+import type { CoreChainGovernanceReport } from "./core-chain-governance";
 import type { KlineOverlay } from "../chart-types";
 
 export type DataStatus =
@@ -357,6 +358,7 @@ export type RadarContract = {
   scanProof: Resource<ScanProofData>;
   deepScanQueue: Resource<DeepScanQueue>;
   capabilityStages: Resource<CapabilityStage[]>;
+  coreChainGovernance: Resource<CoreChainGovernanceReport>;
   dataSources: Resource<DataSourceState[]>;
   apiUsage: Resource<ApiUsageState>;
   dataPipeline: Resource<DataPipelineState>;
@@ -1376,6 +1378,19 @@ export function buildFrontendRadarContract({
       marketStatusToResourceStatus(backend.analysis.businessCapability.status === "operational" ? "ready" : "partial"),
       { ageSec, source: "signal-worker" },
     ),
+    coreChainGovernance: resource(
+      backend.analysis.coreChainGovernance,
+      backend.analysis.coreChainGovernance.readiness.status === "blocked"
+        ? "partial"
+        : backend.analysis.coreChainGovernance.readiness.status === "ready"
+          ? status
+          : "partial",
+      {
+        ageSec,
+        source: "backend-contract",
+        reason: "核心链路治理只用于判断功能是否服务实战链路，不生成交易信号、不修改排序、不自动下单。",
+      },
+    ),
     dataSources: resource([
       dataSourceRow({
         name: "CoinGlass",
@@ -2173,13 +2188,30 @@ function buildAnalysisReportSections({
   const timeframeGateItems = timeframeGateReportItems(signal);
   const trendContextItems = trendContextReportItems(dossier);
   const v3Plan = dossier.strategyV3?.tradePlan;
+  const currentConclusion = tradePlan
+    ? "后端已生成交易计划；仍必须人工复核，不自动下单。"
+    : blockedReasons.length > 0
+      ? `当前不能交易：${blockedReasons.slice(0, 3).join("；")}。`
+      : "当前仅能观察，等待结构、证据、RR 和风控同时满足。";
+  const watchReason = signal
+    ? signal.summary
+    : "后端没有找到该币种的成熟信号；不能因为页面打开了就生成方向。";
+  const canTradeNow = tradePlan
+    ? `可以进入人工计划复核；结构 RR=${tradePlan.rr}:1，入场必须满足：${tradePlan.entryCondition}。`
+    : "不能给交易计划；缺失交易计划时，前端不得补入场、止损或目标。";
+  const failureMode = [
+    ...blockedReasons.slice(0, 2),
+    ...counter.slice(0, 2).map((item) => item.detail),
+  ].filter(Boolean).join("；") || "暂无明确反证，但样本和数据源状态仍需要继续观察。";
 
   return [
     {
       key: "facts",
-      title: "盘面事实",
+      title: "当前结论",
       status: signal ? "ready" : "empty",
       items: [
+        { detail: currentConclusion, label: "一句话结论", sourceId: "report:current-conclusion" },
+        { detail: watchReason, label: "为什么看", sourceId: signal ? "signal:summary" : "signal:missing" },
         { detail: displaySymbol(dossier.symbol), label: "标的", sourceId: "dossier:symbol" },
         { detail: tokenDirectionCn(signal?.direction), label: "方向", sourceId: "signal:direction" },
         { detail: signal?.summary ?? "后端未找到成熟信号", label: "状态", sourceId: "signal:summary" },
@@ -2197,23 +2229,31 @@ function buildAnalysisReportSections({
     },
     {
       key: "supportive_evidence",
-      title: "支持证据",
+      title: "为什么值得看",
       status: evidence.length > 0 ? "ready" : "empty",
       items: [
+        {
+          detail: evidence.length > 0
+            ? `已有 ${evidence.length} 条支持证据；它们只能说明值得继续看，不能单独等于交易。`
+            : "暂无支持证据；该币不能被包装成机会。",
+          label: "支持力度",
+          sourceId: "evidence:supportive-count",
+        },
         ...trendContextItems,
         ...forwardItems,
         ...evidence.map((item) => ({
-        detail: item.detail,
-        label: `${item.label} · 权重 ${item.weight}`,
-        sourceId: item.sourceId,
+          detail: item.detail,
+          label: `${item.label} · 权重 ${item.weight}`,
+          sourceId: item.sourceId,
         })),
       ],
     },
     {
       key: "counter_evidence",
-      title: "反证风险",
+      title: "哪里可能错",
       status: counter.length > 0 || timeframeGateItems.length > 0 ? "partial" : "empty",
       items: [
+        { detail: failureMode, label: "主要失效点", sourceId: "report:failure-mode" },
         ...timeframeGateItems,
         ...counter.map((item) => ({
           detail: item.detail,
@@ -2224,22 +2264,29 @@ function buildAnalysisReportSections({
     },
     {
       key: "risk_gate",
-      title: "风险门控",
+      title: "现在能不能做",
       status: blockedReasons.length > 0 ? "blocked" : "ready",
       items: blockedReasons.length > 0
-        ? blockedReasons.map((reason, index) => ({
-          detail: reason,
-          label: `阻断 ${index + 1}`,
-          sourceId: `risk-gate:blocker:${index + 1}`,
-        }))
-        : [{ detail: "未发现阻断交易计划的 Risk Gate 原因。", label: "风控状态", sourceId: "risk-gate:allow" }],
+        ? [
+          { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
+          ...blockedReasons.map((reason, index) => ({
+            detail: reason,
+            label: `阻断 ${index + 1}`,
+            sourceId: `risk-gate:blocker:${index + 1}`,
+          })),
+        ]
+        : [
+          { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
+          { detail: "未发现阻断交易计划的 Risk Gate 原因。", label: "风控状态", sourceId: "risk-gate:allow" },
+        ],
     },
     {
       key: "trade_plan",
-      title: "交易计划",
+      title: "怎么做",
       status: tradePlan ? "ready" : "blocked",
       items: tradePlan
         ? [
+          { detail: canTradeNow, label: "操作前提", sourceId: "trade-plan:decision" },
           { detail: v3Plan?.summary ?? "后端已生成交易计划", label: "计划摘要", sourceId: "trade-plan:summary" },
           { detail: tradePlan.entryCondition, label: "入场条件", sourceId: "trade-plan:entry" },
           { detail: tradePlan.stop, label: "止损/失效", sourceId: "trade-plan:stop" },

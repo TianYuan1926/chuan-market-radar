@@ -59,6 +59,7 @@ from `mock-data.ts` now live in `src/lib/frontend-market-types.ts`.
 | `deepScanQueue.highPriority` | stage two queue or pending priority assets | connected | shows dynamic priority |
 | `deepScanQueue.coldExploration` | `backend.scanProof.allocation.coldExplorationAssets` | connected | prevents only large caps being visible |
 | `capabilityStages` | `backend.analysis.businessCapability.stages` | connected | describes readiness, not proof of live profitability |
+| `coreChainGovernance` | `backend.analysis.coreChainGovernance` | connected | product governance only; classifies core/supporting/downgraded/merge/rebuild/delete and page obligations against the core chain |
 | `dataSources` | `backend.sourceAudit.coinGlassCapability` + `backend.sourceAudit` + `backend.runtime.sourceLatency` | connected/partial | CoinGlass feed status comes from runtime capability first; source latency probes come from Redis; missing probes are shown as partial, never as fake `0ms` |
 | `apiUsage.usedToday` | `backend.runtime.apiUsage` | connected/partial | CoinGlass Redis daily usage counter; unconfigured Redis is explicit |
 | `apiUsage.remainingToday` | `backend.runtime.apiUsage` | connected/partial | daily budget minus Redis daily counter |
@@ -125,7 +126,7 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | `counter` | conflicting/blocking `EvidencePoint[]` | connected | used for AI/review context |
 | `riskGate` | risk/timeframe/blocker summary | connected | controls whether plan can show |
 | `tradePlan` | `strategyV3.tradePlan` | connected/partial | eligible v3 plans map to entry/stop/TP/RR; missing or blocked plans render no trade plan |
-| `reportSections` | `strategyV3`, evidence ledger, trade plan and review boundaries | connected/partial | facts/support/counter/risk/plan/review sections include key levels, Forward Map, trend scores, location/RR, reaction quality, trend integrity and confirmation checklist; frontend must not invent missing reasoning |
+| `reportSections` | `strategyV3`, evidence ledger, trade plan and review boundaries | connected/partial | sections are written as plain trading questions: current conclusion, why watch, where it may fail, can it trade now, how to act, review/AI boundary. They still include key levels, Forward Map, trend scores, location/RR, reaction quality, trend integrity and confirmation checklist; frontend must not invent missing reasoning |
 | `aiReview` | rule-based review boundary text and model counter-evidence review | connected/partial | AI review is env-gated, high-value only, evidence-id bound, and cannot override strategy |
 | K-line panel | `/api/frontend/kline-contract` + `buildFrontendKlineContract()` from public OHLCV/cache + optional `SignalBackendDossier.strategyV3` | connected | maps backend candles to front chart candles and optional v3 overlays; no generated candles, no frontend-created trading decision |
 | fund flow panel | `RadarContract.fundFlow` | partial | shows honest waiting/partial state until a real taker/CVD/source is connected |

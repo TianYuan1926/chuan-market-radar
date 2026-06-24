@@ -12,6 +12,7 @@ This document defines the readonly backend surfaces that future UI rebuilds shou
 - Outcome statistics are only valid for mature samples: `EVIDENCE_SIGNAL` and `TRADE_PLAN_READY`. Light marks, deep candidates and legacy samples with missing maturity must not be used as hit-rate proof.
 - BTC.D/TOTAL2/TOTAL3 are macro-weather anchors only. They can explain altcoin headwind/tailwind but cannot reduce the `3:1` minimum RR rule or create a trade plan.
 - Strategy, report and UI layers must not mutate live ranking, auto-adjust weights or auto-execute trades.
+- Core chain governance is mandatory. Every visible feature must be classified as core, supporting, downgraded, merge, rebuild or delete against the chain: full-market discovery -> candidate filtering -> deep-scan verification -> structure analysis -> risk/reward gate -> trade-plan readiness -> review evolution.
 - Missing data must stay visible as `null`, `missing`, `empty`, `blocked`, `collecting` or equivalent explicit states.
 - Frontend views must not silently truncate candidates. If UI space is limited, expose pagination, scrolling, tabs, filters or a count.
 
@@ -41,6 +42,7 @@ Response shape:
 - `contract.analysis.timeframeGate`: counts, blocked symbols, blockers and conflict timeframes for multi-timeframe hard-gate decisions.
 - `contract.analysis.v3StrategyLoop`: live v3 plans, risk-gate blocks and missing v3 count.
 - `contract.analysis.businessCapability`: `business-capability.v1` readonly business loop report covering signal lifecycle, outcome rules, candidate rotation, maturity layers, shadow tracking, strategy-family stats, historical replay, AI counter review and evolution suggestions.
+- `contract.analysis.coreChainGovernance`: `core-chain-governance.v1` readonly product governance report covering the seven core chain steps, feature triage, page roles, cleanup rules and operating sequence.
 - `contract.analysis.evolution`: readonly strategy evolution boundary.
 - `contract.apiSurfaces`: stable API surface names for frontend integration.
 - `contract.guardrails`: non-negotiable execution and UI-safety boundaries.
@@ -58,6 +60,7 @@ Primary use:
 - `timeframeGate` is the frontend-safe answer to "why is a signal waiting instead of actionable": `WAIT_HIGH_TIMEFRAME_BREAK` means `1h/4h` pressure has not cleared; `WATCH_ONLY` means `1d/1w` double conflict makes the setup observation-only.
 - `sourceAudit.macroMarket` is the frontend-safe answer to "is the altcoin environment favorable": it can display BTC dominance, TOTAL2 and TOTAL3 as headwind/tailwind context, but it must never be shown as an entry trigger or as permission to lower the `3:1` RR floor.
 - `businessCapability` is the frontend-safe answer to "which core business abilities are actually working": each stage exposes status, score, evidence, next action and guardrail. A UI must not hide collecting/disabled/blocked stages behind polished cards.
+- `coreChainGovernance` is the frontend-safe answer to "does this page or feature serve the core objective": it classifies feature value, required evidence, page obligations and cleanup rules. It must not be used to create trading signals.
 - Operations panels can read one object instead of stitching together `/api/health`, `/api/scan` and local assumptions.
 
 ## `POST /api/admin/coinglass/capability`
@@ -90,7 +93,7 @@ Important boundary:
 
 ## `GET /api/radar/business-capability`
 
-Purpose: one readonly business-capability loop for the nine backend abilities that decide whether the site is becoming useful in practice, not just visually busy.
+Purpose: one readonly business-capability loop for the fourteen backend abilities that decide whether the site is becoming useful in practice, not just visually busy. The seven-step product core chain is exposed through `contract.analysis.coreChainGovernance` on `/api/radar/backend-contract`.
 
 Response shape:
 
@@ -98,8 +101,8 @@ Response shape:
 - `businessCapability.schemaVersion`: currently `business-capability.v1`.
 - `businessCapability.status`: overall loop status: `collecting`, `partial`, `watch`, `operational` or `blocked`.
 - `businessCapability.readinessScore`: 0-100 summary of the current business loop.
-- `businessCapability.stages`: nine fixed stages:
-  `signal_lifecycle`, `outcome_standard`, `candidate_rotation`, `signal_maturity`, `shadow_tracking`, `strategy_family_stats`, `historical_case_replay`, `ai_counter_review`, `evolution_suggestions`.
+- `businessCapability.stages`: fourteen fixed stages:
+  `source_truth`, `full_market_discovery`, `candidate_rotation`, `deep_scan_verification`, `signal_maturity`, `analysis_reasoning`, `risk_reward_gate`, `signal_lifecycle`, `outcome_standard`, `historical_case_replay`, `strategy_family_stats`, `shadow_tracking`, `ai_counter_review`, `evolution_suggestions`.
 - `businessCapability.gaps`: top missing or blocked items.
 - `businessCapability.nextActions`: next backend or operations actions.
 - `businessCapability.frontendContracts`: UI obligations for showing real capability state.

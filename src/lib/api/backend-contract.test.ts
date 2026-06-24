@@ -635,6 +635,25 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
     contract.analysis.businessCapability.stages.some((stage) => stage.id === "candidate_rotation"),
   );
   assert.ok(contract.analysis.businessCapability.frontendContracts.some((item) => /主信号区/u.test(item)));
+  assert.equal(contract.analysis.coreChainGovernance.schemaVersion, "core-chain-governance.v1");
+  assert.equal(contract.analysis.coreChainGovernance.canCreateTradeSignal, false);
+  assert.deepEqual(contract.analysis.coreChainGovernance.chain.map((step) => step.id), [
+    "full_market_discovery",
+    "candidate_filtering",
+    "deep_scan_verification",
+    "structure_analysis",
+    "risk_reward_gate",
+    "trade_plan_readiness",
+    "review_evolution",
+  ]);
+  assert.ok(contract.analysis.coreChainGovernance.featureTriage.some((item) =>
+    item.id === "mock_market_facts" &&
+    item.action === "delete"
+  ));
+  assert.ok(contract.analysis.coreChainGovernance.pageRoles.some((page) =>
+    page.route === "/token/[id]" &&
+    page.role === "core"
+  ));
   assert.equal(contract.analysis.evolution.canAutoAdjustWeights, false);
   assert.equal(contract.apiSurfaces.businessCapability, "/api/radar/business-capability");
   assert.ok(contract.guardrails.includes("no_silent_ui_truncation"));

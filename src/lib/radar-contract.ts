@@ -11,6 +11,7 @@
 // 演示市场事实，避免 mock 数据被误当成真实扫描、信号或复盘结果。
 // ============================================================
 
+import type { CoreChainGovernanceReport } from './api/core-chain-governance'
 import { resource, type Resource } from './data-status'
 
 const LEGACY_SOURCE = 'legacy-radar-contract'
@@ -77,7 +78,7 @@ export function getDeepScanQueue(): Resource<DeepScanQueue> {
 }
 
 // ============================================================
-// 三、系统能力总控（9 个阶段）
+// 三、系统能力总控（后端 14 阶段 + 核心链路治理）
 // ============================================================
 export type CapabilityStage = {
   key: string
@@ -89,6 +90,31 @@ export type CapabilityStage = {
 
 export function getCapabilityStages(): Resource<CapabilityStage[]> {
   return legacyEmptyResource([])
+}
+
+export function getCoreChainGovernance(): Resource<CoreChainGovernanceReport> {
+  return legacyEmptyResource({
+    schemaVersion: 'core-chain-governance.v1',
+    generatedAt: '等待后端契约',
+    allowedUse: 'product_governance_only',
+    canAutoExecute: false,
+    canCreateTradeSignal: false,
+    canMutateLiveRanking: false,
+    coreObjective: '提前发现有潜力的山寨币异动，并判断它有没有交易价值。',
+    chain: [],
+    featureTriage: [],
+    pageRoles: [],
+    readiness: {
+      blockedSteps: 0,
+      coreReadySteps: 0,
+      status: 'collecting',
+      totalSteps: 7,
+    },
+    cleanupRules: [
+      '旧同步 getter 已停用。页面必须读取真实后端契约后再展示功能治理状态。',
+    ],
+    operatingSequence: [],
+  })
 }
 
 // ============================================================
@@ -588,6 +614,7 @@ export type RadarContract = {
   scanProof: Resource<ScanProofData>
   deepScanQueue: Resource<DeepScanQueue>
   capabilityStages: Resource<CapabilityStage[]>
+  coreChainGovernance: Resource<CoreChainGovernanceReport>
   dataSources: Resource<DataSourceState[]>
   apiUsage: Resource<ApiUsageState>
   dataPipeline: Resource<DataPipelineState>
@@ -605,6 +632,7 @@ export function getRadarContract(): RadarContract {
     scanProof: getScanProof(),
     deepScanQueue: getDeepScanQueue(),
     capabilityStages: getCapabilityStages(),
+    coreChainGovernance: getCoreChainGovernance(),
     dataSources: getDataSources(),
     apiUsage: getApiUsage(),
     dataPipeline: getDataPipeline(),

@@ -3,6 +3,10 @@ import {
   buildBusinessCapabilityReport,
   type BusinessCapabilityReport,
 } from "./business-capability";
+import {
+  buildCoreChainGovernanceReport,
+  type CoreChainGovernanceReport,
+} from "./core-chain-governance";
 import type {
   TimeframeHardGateAction,
   TimeframeHardGateBlocker,
@@ -190,6 +194,7 @@ export type BackendContract = {
   };
   analysis: {
     businessCapability: BusinessCapabilityReport;
+    coreChainGovernance: CoreChainGovernanceReport;
     evolution: {
       allowedUse: "research_only";
       canAutoAdjustWeights: false;
@@ -444,6 +449,11 @@ export function buildBackendContract({
     health,
     snapshot,
   });
+  const coreChainGovernance = buildCoreChainGovernanceReport({
+    businessCapability,
+    health,
+    snapshot,
+  });
 
   return {
     schemaVersion: "backend-contract.v1",
@@ -589,6 +599,7 @@ export function buildBackendContract({
     },
     analysis: {
       businessCapability,
+      coreChainGovernance,
       evolution: {
         allowedUse: "research_only",
         canAutoAdjustWeights: false,
