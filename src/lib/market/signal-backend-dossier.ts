@@ -41,6 +41,10 @@ export type SignalBackendDossier = {
     timeframe: MarketSignal["timeframe"];
     updatedAt: string;
   } | null;
+  execution?: {
+    maxLeverage: number | null;
+    maxLeverageSource: "coinglass_instrument_tag" | "fixed_btc_eth" | "unknown";
+  };
   strategyV3: StrategyV3Dossier | null;
 };
 
@@ -72,6 +76,48 @@ function signalMatches(signal: MarketSignal, symbol: string) {
   const signalSymbol = normalizeComparableSymbol(signal.symbol);
 
   return signalSymbol === targetSymbol || signalSymbol.replace(/USDT$/u, "") === targetBase;
+}
+
+function maxLeverageFromTags(tags: string[]) {
+  for (const tag of tags) {
+    const match = /^lev:(\d+(?:\.\d+)?)$/u.exec(tag.trim());
+    if (!match) {
+      continue;
+    }
+
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function executionContext(snapshot: MarketRadarSnapshot, symbol: string): SignalBackendDossier["execution"] {
+  const targetSymbol = normalizeComparableSymbol(symbol);
+  const targetBase = targetSymbol.replace(/USDT$/u, "");
+
+  if (targetBase === "BTC" || targetBase === "ETH") {
+    return {
+      maxLeverage: 150,
+      maxLeverageSource: "fixed_btc_eth",
+    };
+  }
+
+  const matches = snapshot.instruments.filter((instrument) =>
+    normalizeComparableSymbol(instrument.symbol) === targetSymbol ||
+    normalizeComparableSymbol(instrument.symbol).replace(/USDT$/u, "") === targetBase
+  );
+  const maxLeverage = matches
+    .map((instrument) => maxLeverageFromTags(instrument.tags))
+    .filter((value): value is number => value !== null)
+    .sort((left, right) => right - left)[0] ?? null;
+
+  return {
+    maxLeverage,
+    maxLeverageSource: maxLeverage ? "coinglass_instrument_tag" : "unknown",
+  };
 }
 
 function availableTimeframes(signal: MarketSignal) {
@@ -202,6 +248,7 @@ export function buildSignalBackendDossier({
           updatedAt: signal.updatedAt,
         }
       : null,
+    execution: executionContext(snapshot, signal?.symbol ?? symbol),
     strategyV3: signal?.strategyV3 ?? null,
   };
 }

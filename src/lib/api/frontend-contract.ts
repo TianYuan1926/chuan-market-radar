@@ -23,6 +23,10 @@ import type {
   ScanLightScanCandidate,
 } from "../market/types";
 import { isCryptoFuturesUnderlying } from "../market/asset-class-filter";
+import {
+  buildPersonalPositionLens,
+  type PersonalPositionLens,
+} from "../risk/personal-position-lens";
 import type { BackendContract } from "./backend-contract";
 import type { BusinessCapabilityStage } from "./business-capability";
 import type { KlineOverlay } from "../chart-types";
@@ -145,6 +149,7 @@ export type TradePlanData = {
   tp2: string;
   tp3: string;
   rr: number;
+  positionLens: PersonalPositionLens;
   scaleOut: string;
   invalidation: string;
   allowChase: boolean;
@@ -1901,7 +1906,17 @@ function priceText(value: number | null | undefined) {
   return value >= 100 ? value.toFixed(2) : value.toFixed(6).replace(/0+$/u, "").replace(/\.$/u, "");
 }
 
-function tradePlanFromV3(plan: StrategyV3TradePlan | undefined): TradePlanData | null {
+function tradePlanFromV3({
+  altcoinMaxLeverage,
+  currentPrice,
+  plan,
+  symbol,
+}: {
+  altcoinMaxLeverage?: number | null;
+  currentPrice: number | null;
+  plan: StrategyV3TradePlan | undefined;
+  symbol: string;
+}): TradePlanData | null {
   if (!plan || !plan.isPlanEligible || plan.rewardRisk === null || plan.rewardRisk < 3) {
     return null;
   }
@@ -1920,6 +1935,18 @@ function tradePlanFromV3(plan: StrategyV3TradePlan | undefined): TradePlanData |
     tp2: priceText(plan.targets[1] ?? plan.targets[0]),
     tp3: priceText(plan.targets[2] ?? plan.targets.at(-1) ?? plan.targets[0]),
     rr: round(plan.rewardRisk, 2),
+    positionLens: buildPersonalPositionLens({
+      entryPrice: currentPrice,
+      profile: {
+        altcoinLeverage: altcoinMaxLeverage,
+        btcEthLeverage: 150,
+        marginFraction: 0.003,
+      },
+      side: plan.direction,
+      stopPrice: plan.structuralStop,
+      symbol,
+      targetPrice: plan.targets[0],
+    }),
     scaleOut: plan.takeProfitPlan,
     invalidation: plan.invalidation,
     allowChase: false,
@@ -2159,6 +2186,18 @@ function buildAnalysisReportSections({
           { detail: tradePlan.stop, label: "止损/失效", sourceId: "trade-plan:stop" },
           { detail: `${tradePlan.tp1} / ${tradePlan.tp2} / ${tradePlan.tp3}`, label: "目标区", sourceId: "trade-plan:targets" },
           { detail: `${tradePlan.rr}:1`, label: "盈亏比", sourceId: "trade-plan:rr" },
+          {
+            detail: tradePlan.positionLens.summary,
+            label: "个人仓位镜头",
+            sourceId: "trade-plan:position-lens",
+          },
+          {
+            detail: tradePlan.positionLens.status === "ready"
+              ? `名义仓位约占总资金 ${tradePlan.positionLens.notionalPerEquity}%；止损约 -${tradePlan.positionLens.stopLossPctOfEquity}% 总资金 / ROE -${tradePlan.positionLens.stopLossRoe}%；TP1 约 +${tradePlan.positionLens.targetProfitPctOfEquity}% 总资金 / ROE ${tradePlan.positionLens.targetRoe}%。`
+              : tradePlan.positionLens.summary,
+            label: "杠杆结果换算",
+            sourceId: "trade-plan:position-lens-result",
+          },
           { detail: tradePlan.scaleOut, label: "分批止盈", sourceId: "trade-plan:scale-out" },
           { detail: v3Plan?.positionSizing ?? "等待仓位提示", label: "仓位规则", sourceId: "trade-plan:position-sizing" },
           {
@@ -2205,7 +2244,12 @@ export function buildFrontendTokenDossierContract({
   const evidence = dossier.evidence.items.filter((item) => item.polarity === "supportive");
   const counter = dossier.evidence.items.filter((item) => item.polarity === "conflicting" || item.polarity === "blocking");
   const v3Plan = dossier.strategyV3?.tradePlan;
-  const tradePlan = tradePlanFromV3(v3Plan);
+  const tradePlan = tradePlanFromV3({
+    altcoinMaxLeverage: dossier.execution?.maxLeverage ?? null,
+    currentPrice: dossier.strategyV3?.currentPrice ?? null,
+    plan: v3Plan,
+    symbol: dossier.symbol,
+  });
   const blockedReasons = [
     ...hardBlockedReasons,
     ...(signal ? v3TradePlanBlockers(v3Plan) : []),

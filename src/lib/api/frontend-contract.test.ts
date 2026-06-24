@@ -1067,6 +1067,10 @@ test("buildFrontendKlineContract exposes readonly v3 chart overlays from backend
       recentEvents: [],
       totalEvents: 0,
     },
+    execution: {
+      maxLeverage: 50,
+      maxLeverageSource: "coinglass_instrument_tag",
+    },
     signal: {
       confidence: 84,
       direction: "long",
@@ -1191,6 +1195,10 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
       recentEvents: [],
       totalEvents: 0,
     },
+    execution: {
+      maxLeverage: 50,
+      maxLeverageSource: "coinglass_instrument_tag",
+    },
     signal: {
       confidence: 84,
       direction: "long",
@@ -1251,6 +1259,10 @@ test("buildFrontendTokenDossierContract maps real v3 key levels without fabricat
     journal: {
       recentEvents: [],
       totalEvents: 0,
+    },
+    execution: {
+      maxLeverage: 50,
+      maxLeverageSource: "coinglass_instrument_tag",
     },
     signal: {
       confidence: 84,
@@ -1354,6 +1366,10 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
     journal: {
       recentEvents: [],
       totalEvents: 0,
+    },
+    execution: {
+      maxLeverage: 50,
+      maxLeverageSource: "coinglass_instrument_tag",
     },
     signal: {
       confidence: 84,
@@ -1527,6 +1543,12 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   assert.equal(res.data.tradePlan?.tp3, "10.2");
   assert.equal(res.data.tradePlan?.rr, 3.4);
   assert.equal(res.data.tradePlan?.allowChase, false);
+  assert.equal(res.data.tradePlan?.positionLens.status, "ready");
+  assert.equal(res.data.tradePlan?.positionLens.leverage, 50);
+  assert.equal(res.data.tradePlan?.positionLens.leverageSource, "exchange_max");
+  assert.equal(res.data.tradePlan?.positionLens.marginFractionPercent, 0.3);
+  assert.equal(res.data.tradePlan?.positionLens.notionalPerEquity, 15);
+  assert.match(res.data.tradePlan?.positionLens.summary ?? "", /不改变结构 RR/);
   assert.equal(
     res.data.reportSections
       .find((section) => section.key === "facts")
@@ -1551,6 +1573,13 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
       ?.items.find((item) => item.sourceId === "trade-plan:confirmation-checklist")
       ?.detail ?? "",
     /突破 8\.28/,
+  );
+  assert.match(
+    res.data.reportSections
+      .find((section) => section.key === "trade_plan")
+      ?.items.find((item) => item.sourceId === "trade-plan:position-lens")
+      ?.detail ?? "",
+    /个人仓位镜头/,
   );
   assert.match(
     res.data.reportSections

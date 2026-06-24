@@ -171,6 +171,23 @@ export type RiskGateResult = {
   allowTradePlan: boolean
   reasons: string[] // 不允许时的明确原因
 }
+export type PersonalPositionLens = {
+  status: 'ready' | 'waiting_leverage' | 'waiting_equity' | 'waiting_price'
+  marginFraction: number
+  marginFractionPercent: number
+  leverage: number | null
+  leverageSource: 'btc_eth_fixed' | 'exchange_max' | 'unknown'
+  entryPrice: number | null
+  stopPrice: number | null
+  targetPrice: number | null
+  structuralRewardRisk: number | null
+  notionalPerEquity: number | null
+  stopLossPctOfEquity: number | null
+  targetProfitPctOfEquity: number | null
+  stopLossRoe: number | null
+  targetRoe: number | null
+  summary: string
+}
 export type TradePlanData = {
   bias: '多' | '空' | '观望'
   entryCondition: string
@@ -179,6 +196,7 @@ export type TradePlanData = {
   tp2: string
   tp3: string
   rr: number
+  positionLens: PersonalPositionLens
   scaleOut: string // 分批止盈
   invalidation: string // 失效条件
   allowChase: boolean // 是否允许追单

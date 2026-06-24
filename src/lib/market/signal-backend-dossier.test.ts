@@ -36,7 +36,20 @@ function snapshot(): MarketRadarSnapshot {
         total: 4,
       },
     },
-    instruments: [],
+    instruments: [
+      {
+        id: "BINANCE:ARBUSDT",
+        symbol: "ARBUSDT",
+        baseAsset: "ARB",
+        quoteAsset: "USDT",
+        exchange: "BINANCE",
+        marketType: "perpetual",
+        isActive: true,
+        volume24hUsd: 10_000_000,
+        tags: ["coinglass", "Binance", "lev:50"],
+        lastSeenAt: "2026-06-19T08:00:00.000Z",
+      },
+    ],
     journalEvents: [
       {
         id: "journal-arb-track",
@@ -244,6 +257,8 @@ test("buildSignalBackendDossier returns chart context, levels, evidence and read
   assert.equal(dossier.strategyV3?.keyLevels.length, 2);
   assert.equal(dossier.strategyV3?.forwardLevels.length, 1);
   assert.equal(dossier.strategyV3?.tradePlan?.rewardRisk, 3.4);
+  assert.equal(dossier.execution?.maxLeverage, 50);
+  assert.equal(dossier.execution?.maxLeverageSource, "coinglass_instrument_tag");
   assert.equal(dossier.evidence.supportiveCount, 1);
   assert.equal(dossier.evidence.conflictingCount, 1);
   assert.equal(dossier.journal.recentEvents.length, 1);
