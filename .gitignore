@@ -19,6 +19,7 @@ pnpm-debug.log*
 .codex/
 .playwright-mcp/
 .superpowers/
+.worktrees/
 .tmp/
 chuan-radar-*.png
 skills-lock.json
