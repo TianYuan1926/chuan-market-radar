@@ -643,6 +643,81 @@ export function getScanStability(): Resource<ScanStabilityState> {
   })
 }
 
+export type LightScanQualityCheckStatus = 'blocked' | 'pass' | 'watch'
+
+export type LightScanQualityCheck = {
+  detail: string
+  evidence: string[]
+  key: string
+  label: string
+  status: LightScanQualityCheckStatus
+}
+
+export type LightScanQualityCandidate = {
+  changePercent: number
+  reasons: string[]
+  score: number
+  state: 'COLD' | 'HOT' | 'PRE_TREND' | 'WARM'
+  symbol: string
+  volatilityPercent: number
+  volumeWindowUsd: number | null
+}
+
+export type LightScanQualityState = {
+  ageSec: number | null
+  canCreateTradeSignal: false
+  checks: LightScanQualityCheck[]
+  coverage: {
+    acceptedCount: number
+    averagePriorityScore: number
+    candidateCount: number
+    hotCandidateCount: number
+    preTrendCandidateCount: number
+    rollingWindowCandidateCount: number
+    topCandidateCount: number
+    universeCount: number
+    zScoreCandidateCount: number
+  }
+  generatedAt: string
+  guardrails: string[]
+  schemaVersion: 'light-scan-quality.v1'
+  source: string
+  staleAfterSec: number
+  status: 'blocked' | 'healthy' | 'watch'
+  summary: string
+  topCandidates: LightScanQualityCandidate[]
+}
+
+export function getLightScanQuality(): Resource<LightScanQualityState> {
+  return legacyEmptyResource({
+    ageSec: null,
+    canCreateTradeSignal: false,
+    checks: [],
+    coverage: {
+      acceptedCount: 0,
+      averagePriorityScore: 0,
+      candidateCount: 0,
+      hotCandidateCount: 0,
+      preTrendCandidateCount: 0,
+      rollingWindowCandidateCount: 0,
+      topCandidateCount: 0,
+      universeCount: 0,
+      zScoreCandidateCount: 0,
+    },
+    generatedAt: '',
+    guardrails: [
+      '旧同步 getter 已停用。页面必须读取真实后端契约后再展示轻扫质量。',
+      '轻扫质量不能生成交易计划。',
+    ],
+    schemaVersion: 'light-scan-quality.v1',
+    source: 'legacy-radar-contract',
+    staleAfterSec: 180,
+    status: 'blocked',
+    summary: '等待真实 lightScanQuality 契约。',
+    topCandidates: [],
+  })
+}
+
 // ============================================================
 // 端点组合 getter —— 与后端 4 个适配接口一一对应
 // ------------------------------------------------------------
@@ -668,6 +743,7 @@ export type RadarContract = {
   derivatives: Resource<DerivativesState>
   fundFlow: Resource<FundFlowState>
   scanStability: Resource<ScanStabilityState>
+  lightScanQuality: Resource<LightScanQualityState>
   realtimeCapability: Resource<RealtimeCapabilityState>
   serviceNodes: Resource<ServiceNode[]>
 }
@@ -687,6 +763,7 @@ export function getRadarContract(): RadarContract {
     derivatives: getDerivatives(),
     fundFlow: getFundFlow(),
     scanStability: getScanStability(),
+    lightScanQuality: getLightScanQuality(),
     realtimeCapability: getRealtimeCapability(),
     serviceNodes: getServiceNodes(),
   }

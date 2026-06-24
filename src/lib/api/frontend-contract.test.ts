@@ -662,6 +662,9 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.scanStability.status, "live");
   assert.equal(radar.scanStability.data.status, "healthy");
   assert.match(radar.scanStability.reason ?? "", /不能直接生成交易信号/);
+  assert.equal(radar.lightScanQuality.data.schemaVersion, "light-scan-quality.v1");
+  assert.equal(radar.lightScanQuality.data.canCreateTradeSignal, false);
+  assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "decision_boundary" && check.status === "pass"));
   assert.equal(radar.realtimeCapability.status, "live");
   assert.equal(radar.realtimeCapability.data.schemaVersion, "realtime-capability.v1");
   assert.equal(radar.realtimeCapability.data.lanes.length >= 7, true);
@@ -730,6 +733,82 @@ test("buildFrontendRadarContract exposes realtime capability boundaries and Coin
   assert.equal(coinGlassLane?.status, "failed");
   assert.match(coinGlassLane?.guardrail ?? "", /不突破套餐限制/);
   assert.equal(radar.realtimeCapability.data.lanes.every((lane) => lane.canCreateTradeSignal === false), true);
+});
+
+test("buildFrontendRadarContract exposes light scan quality without granting trading authority", () => {
+  const backend = backendContract();
+  backend.runtime.runtimeProbes.workers = [
+    {
+      ageSec: 2,
+      detail: "websocket light scan heartbeat ok",
+      key: "websocket-light-worker",
+      lastSeenAt: "2026-06-21T08:00:08.000Z",
+      name: "websocket-light-worker",
+      status: "healthy",
+      task: "light-scan",
+    },
+  ];
+  backend.scanProof.lightScan = {
+    acceptedCount: 720,
+    candidateCount: 2,
+    generatedAt: "2026-06-21T08:00:08.000Z",
+    requestCount: 0,
+    source: "websocket-light-scan",
+    status: "ready",
+    topCandidates: [
+      {
+        baseAsset: "TIA",
+        changePercent24h: 1.8,
+        distanceFromHighPercent: 1.2,
+        distanceFromLowPercent: 7.4,
+        price: 7.84,
+        reasons: ["websocket_sliding_window", "volume_zscore_spike", "compression_volume_accumulation"],
+        score: 91,
+        state: "PRE_TREND",
+        symbol: "TIAUSDT",
+        volume24hUsd: 1_200_000,
+        volumeSource: "rolling_window",
+        volumeWindowMs: 900_000,
+        volumeWindowUsd: 1_200_000,
+        volatilityPercent: 2.1,
+      },
+      {
+        baseAsset: "WIF",
+        changePercent24h: 3.2,
+        distanceFromHighPercent: 0.8,
+        distanceFromLowPercent: 8.1,
+        price: 1.82,
+        reasons: ["websocket_sliding_window", "price_impulse"],
+        score: 73,
+        state: "HOT",
+        symbol: "WIFUSDT",
+        volume24hUsd: 900_000,
+        volumeSource: "rolling_window",
+        volumeWindowMs: 900_000,
+        volumeWindowUsd: 900_000,
+        volatilityPercent: 4.3,
+      },
+    ],
+    universeCount: 720,
+  };
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: { WS_LIGHT_SCAN_STALE_AFTER_MS: "180000" },
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.lightScanQuality.status, "live");
+  assert.equal(radar.lightScanQuality.data.status, "healthy");
+  assert.equal(radar.lightScanQuality.data.canCreateTradeSignal, false);
+  assert.equal(radar.lightScanQuality.data.coverage.rollingWindowCandidateCount, 2);
+  assert.equal(radar.lightScanQuality.data.coverage.zScoreCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.preTrendCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.hotCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.topCandidates[0]?.symbol, "TIA");
+  assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "volume_zscore" && check.status === "pass"));
+  assert.ok(radar.lightScanQuality.data.guardrails.some((rule) => /不能生成交易计划/.test(rule)));
 });
 
 test("buildFrontendRadarContract recalculates stale persisted signal maturity", () => {

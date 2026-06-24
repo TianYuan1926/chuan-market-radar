@@ -161,12 +161,42 @@ print(
     ),
 )
 
-required_contract_keys = ["scanProof", "deepScanQueue", "radarSignals", "serviceNodes", "dataSources", "realtimeCapability"]
+required_contract_keys = ["scanProof", "deepScanQueue", "radarSignals", "serviceNodes", "dataSources", "lightScanQuality", "realtimeCapability"]
 for key in required_contract_keys:
     if key not in contract:
         errors.append(f"/api/frontend/radar-contract: missing contract.{key}")
 if scan_proof.get("scannable", 0) >= 100 and scan_proof.get("lightScanned", 0) >= scan_proof.get("scannable", 0) and scan_proof.get("coverage", 0) < 95:
     errors.append("/api/frontend/radar-contract: light scan coverage is inconsistent with scannable/lightScanned counts")
+
+light_scan_quality = contract.get("lightScanQuality") or {}
+light_scan_quality_data = light_scan_quality.get("data") or {}
+light_scan_quality_coverage = light_scan_quality_data.get("coverage") or {}
+light_scan_quality_checks = light_scan_quality_data.get("checks") or []
+print(
+    "light-scan-quality",
+    json.dumps(
+        {
+            "status": light_scan_quality.get("status"),
+            "qualityStatus": light_scan_quality_data.get("status"),
+            "ageSec": light_scan_quality_data.get("ageSec"),
+            "accepted": light_scan_quality_coverage.get("acceptedCount"),
+            "candidates": light_scan_quality_coverage.get("candidateCount"),
+            "rollingWindowCandidates": light_scan_quality_coverage.get("rollingWindowCandidateCount"),
+            "zScoreCandidates": light_scan_quality_coverage.get("zScoreCandidateCount"),
+        },
+        ensure_ascii=False,
+    ),
+)
+if light_scan_quality_data.get("schemaVersion") != "light-scan-quality.v1":
+    errors.append("/api/frontend/radar-contract: lightScanQuality schemaVersion is missing")
+if light_scan_quality_data.get("canCreateTradeSignal") is not False:
+    errors.append("/api/frontend/radar-contract: lightScanQuality must not create trade signals")
+if not light_scan_quality_checks:
+    errors.append("/api/frontend/radar-contract: lightScanQuality checks are missing")
+if not any(check.get("key") == "decision_boundary" and check.get("status") == "pass" for check in light_scan_quality_checks):
+    errors.append("/api/frontend/radar-contract: lightScanQuality missing decision boundary check")
+if positive_number(scan_proof.get("lightScanned")) and not positive_number(light_scan_quality_coverage.get("acceptedCount")):
+    errors.append("/api/frontend/radar-contract: lightScanQuality acceptedCount is inconsistent with scanProof")
 
 realtime_capability = contract.get("realtimeCapability") or {}
 realtime_data = realtime_capability.get("data") or {}

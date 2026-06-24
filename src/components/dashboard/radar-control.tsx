@@ -4,6 +4,7 @@ import {
   type CapabilityStage,
   type DataSourceState,
   type DeepScanQueue,
+  type LightScanQualityState,
   type RadarContract,
   type RealtimeCapabilityState,
   type ScanProofData,
@@ -92,6 +93,16 @@ const FEATURE_CLASS_TONE: Record<CoreFeatureClass, string> = {
   rebuild: 'text-[oklch(0.8_0.15_75)] border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10',
   delete: 'text-down border-down/40 bg-down/10',
 }
+const QUALITY_CHECK_TONE: Record<string, string> = {
+  pass: 'text-up border-up/40 bg-up/10',
+  watch: 'text-[oklch(0.8_0.15_75)] border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10',
+  blocked: 'text-down border-down/40 bg-down/10',
+}
+const QUALITY_CHECK_LABEL: Record<string, string> = {
+  pass: '通过',
+  watch: '观察',
+  blocked: '阻塞',
+}
 
 const EMPTY_SOURCE = {
   source: 'frontend-contract',
@@ -129,6 +140,33 @@ const EMPTY_QUEUE = resource<DeepScanQueue>(
 
 const EMPTY_CAPABILITIES = resource<CapabilityStage[]>([], 'empty', EMPTY_SOURCE)
 const EMPTY_SOURCES = resource<DataSourceState[]>([], 'empty', EMPTY_SOURCE)
+const EMPTY_LIGHT_SCAN_QUALITY = resource<LightScanQualityState>({
+  ageSec: null,
+  canCreateTradeSignal: false,
+  checks: [],
+  coverage: {
+    acceptedCount: 0,
+    averagePriorityScore: 0,
+    candidateCount: 0,
+    hotCandidateCount: 0,
+    preTrendCandidateCount: 0,
+    rollingWindowCandidateCount: 0,
+    topCandidateCount: 0,
+    universeCount: 0,
+    zScoreCandidateCount: 0,
+  },
+  generatedAt: '',
+  guardrails: [
+    '等待后端轻扫质量契约。',
+    '轻扫质量不能生成交易计划。',
+  ],
+  schemaVersion: 'light-scan-quality.v1',
+  source: 'frontend-contract',
+  staleAfterSec: 180,
+  status: 'blocked',
+  summary: '等待后端轻扫质量契约。',
+  topCandidates: [],
+}, 'empty', EMPTY_SOURCE)
 const EMPTY_REALTIME = resource<RealtimeCapabilityState>({
   schemaVersion: 'realtime-capability.v1',
   secondLevelOnline: false,
@@ -166,6 +204,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
   const caps = contract?.capabilityStages ?? EMPTY_CAPABILITIES
   const governance = contract?.coreChainGovernance ?? EMPTY_GOVERNANCE
   const sources = contract?.dataSources ?? EMPTY_SOURCES
+  const lightScanQuality = contract?.lightScanQuality ?? EMPTY_LIGHT_SCAN_QUALITY
   const realtime = contract?.realtimeCapability ?? EMPTY_REALTIME
 
   const sp = scan.data
@@ -276,6 +315,110 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
             </div>
           </div>
           <FreshnessTag {...queue} className="block" />
+          </ResourceBoundary>
+        </div>
+      </section>
+
+      {/* 三、轻扫质量诊断 */}
+      <section className="border border-border bg-card lg:col-span-2">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <span className="h-3.5 w-1 bg-neon" />
+          <Activity className="size-4 text-neon" />
+          <h2 className="font-semibold">轻扫质量诊断</h2>
+          <span className="ml-auto mr-2 text-xs text-muted-foreground">
+            发现层可靠性，不生成交易计划
+          </span>
+          <StatusBadge status={lightScanQuality.status} />
+        </div>
+        <div className="p-5">
+          <ResourceBoundary resource={lightScanQuality} isEmpty={(d) => d.checks.length === 0}>
+            {(quality) => (
+              <div className="space-y-4">
+                <div className="grid gap-2.5 lg:grid-cols-[0.85fr_1.15fr]">
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`size-2 rounded-full ${quality.status === 'healthy' ? 'bg-up animate-pulse' : quality.status === 'watch' ? 'bg-[oklch(0.8_0.15_75)]' : 'bg-down'}`} />
+                      <span className="text-sm font-semibold">
+                        {quality.status === 'healthy' ? '轻扫健康' : quality.status === 'watch' ? '轻扫观察' : '轻扫阻塞'}
+                      </span>
+                      <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+                        age {quality.ageSec ?? '—'}s / stale {quality.staleAfterSec}s
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {quality.summary}
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <MetricPill label="覆盖" value={quality.coverage.acceptedCount} />
+                      <MetricPill label="候选" value={quality.coverage.candidateCount} />
+                      <MetricPill label="z-score" value={quality.coverage.zScoreCandidateCount} />
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                      <MetricPill label="窗口" value={quality.coverage.rollingWindowCandidateCount} />
+                      <MetricPill label="预启动" value={quality.coverage.preTrendCandidateCount} />
+                      <MetricPill label="均分" value={quality.coverage.averagePriorityScore} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {quality.checks.map((check) => (
+                      <div key={check.key} className="border border-border bg-secondary/25 p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-0 truncate text-sm font-semibold">{check.label}</span>
+                          <span className={`ml-auto shrink-0 border px-1.5 py-0.5 text-[10px] ${QUALITY_CHECK_TONE[check.status]}`}>
+                            {QUALITY_CHECK_LABEL[check.status]}
+                          </span>
+                        </div>
+                        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                          {check.detail}
+                        </p>
+                        <p className="mt-2 line-clamp-1 border-t border-border pt-2 font-mono text-[10px] text-muted-foreground">
+                          {check.evidence.slice(0, 2).join(' · ')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-2.5 xl:grid-cols-[1.1fr_0.9fr]">
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="text-sm font-semibold">强候选样本</div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {quality.topCandidates.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">当前没有轻扫候选样本</span>
+                      ) : quality.topCandidates.map((candidate) => (
+                        <div key={candidate.symbol} className="border border-border bg-background/40 p-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-neon">{candidate.symbol}</span>
+                            <span className="ml-auto font-mono text-[11px] text-foreground">{candidate.score}</span>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
+                            <span>{candidate.state}</span>
+                            <span>{candidate.changePercent}%</span>
+                          </div>
+                          <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">
+                            {candidate.reasons.slice(0, 2).join(' / ')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="text-sm font-semibold">轻扫硬边界</div>
+                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {quality.guardrails.map((rule) => (
+                        <li key={rule} className="flex gap-2">
+                          <span className="mt-1 size-1.5 shrink-0 bg-neon" />
+                          <span>{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <FreshnessTag {...lightScanQuality} className="block" />
+              </div>
+            )}
           </ResourceBoundary>
         </div>
       </section>

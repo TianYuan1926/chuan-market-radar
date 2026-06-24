@@ -33,7 +33,7 @@ from `mock-data.ts` now live in `src/lib/frontend-market-types.ts`.
 | Page | Main frontend surfaces | Current backend source | Status | Missing / next work |
 | --- | --- | --- | --- | --- |
 | `/` | intro stats, radar display, ticker/session display | `getRadarContractForPage()` + `getLeaderboardContractForPage('volume')` | connected | intro copy is static; acceptable because it is product explanation, not market fact |
-| `/dashboard` | scan proof, overview cards, current candidates, risk reminders, backend radar control | `RadarContract` + volume leaderboard | connected | risk reminders are derived from signal cards; exact backend alert stream is not wired yet |
+| `/dashboard` | scan proof, overview cards, current candidates, risk reminders, backend radar control, realtime and light-scan quality diagnostics | `RadarContract` + volume leaderboard | connected | risk reminders are derived from signal cards; exact backend alert stream is not wired yet |
 | `/signals` | sniper board, maturity pool, anomaly table, live feed, heatmap | `RadarContract.radarSignals` + leaderboard candidate display + `/api/frontend/live-events` or `/api/frontend/live-events/stream` | connected with candidate fallback | event feed is read-only archive/runtime data; SSE transport is available and must not trigger scans |
 | `/leaderboard` | seven market leaderboards, price ticker, table | `getAllLeaderboardContractsForPage()` | connected/production smoke verified | gainers pick the strongest same-symbol venue move, losers pick the weakest same-symbol venue move, volume aggregates same-symbol cross-venue volume; each row exposes source/sort/venue; if public tickers are unavailable they degrade honestly to scanner snapshot/candidate context; market cap is unknown and must show `待补齐`; no fake cap allowed; still needs timestamp-level comparison against the chosen external reference board |
 | `/market` | macro environment, derivatives, data quality, market tokens | `RadarContract.macroAltEnv`, `derivatives`, `fundFlow`, `dataSources`, `apiUsage`, leaderboards | connected/partial | source latency is wired; taker/CVD/real fund-flow source is not wired and must show partial |
@@ -72,6 +72,8 @@ from `mock-data.ts` now live in `src/lib/frontend-market-types.ts`.
 | `derivatives` | `snapshot.derivatives` aggregate | partial | OI/funding/long-short connected; `takerBuySellStatus=not_connected` until a true source exists |
 | `fundFlow` | current derivative context + explicit missing source metadata | partial | UI may show context only; cannot create trade signals and must expose missing taker/CVD/real flow |
 | `scanStability` | `backend.runtime.scanStability` from archives, coverage and runtime probes | connected | operations diagnostic only; cannot generate trade signals |
+| `lightScanQuality` | `backend.scanProof.lightScan` + `backend.runtime.runtimeProbes` | connected | discovery quality only; shows freshness, rolling-window candidates, z-score candidates, worker status and guardrails; cannot generate trade signals |
+| `realtimeCapability` | `backend.runtime.runtimeProbes` + source/capability reports | connected | realtime taxonomy only; second-level lanes may discover anomalies but all lanes must keep `canCreateTradeSignal=false` |
 | `serviceNodes` | `backend.runtime.runtimeProbes`, repository mode and web runtime | connected/partial | Redis and worker heartbeat probes are wired; status depends on live worker reports and Redis availability |
 
 ## 2026-06-23 Frontend Gaps Added To Backlog

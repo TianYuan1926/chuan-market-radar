@@ -150,6 +150,7 @@
 - Macro Weather 的 BTC.D / TOTAL2 / TOTAL3 只做山寨环境顺逆风说明；不得降低 `3:1` 最低赔率，也不能直接生成方向或交易计划。
 - `/api/health` 会把 quota 与 coverage 汇总为 `scanEconomy`；系统状态面板必须显示“扫描经济 / 今日预算 / 剩余额度 / 请求/轮 / 批次上限 / 层级覆盖 / 不新增请求”，该面板只读展示，不触发额外 CoinGlass 请求。
 - `/api/health.scanStability` 会把扫描归档、覆盖率、Redis 和 worker 心跳汇总为扫描稳定性诊断；该字段只用于运维排错，不允许前端或策略层把它当作交易信号。
+- `/api/frontend/radar-contract.lightScanQuality` 会把轻扫数据新鲜度、coverage、rolling-window 候选、volume z-score 候选和 websocket worker 心跳汇总为发现层质量诊断；该字段只能解释候选发现可靠性，不能生成交易计划。
 - `/api/health.reviewStatistics` 会从真实复盘样本派生统计；样本少时必须显示 collecting/empty，不能据此自动调权。
 - `/api/frontend/live-events/stream` 是 SSE 只读事件流，只能复用归档/心跳事件合同，不能触发扫描、不能调用 CoinGlass。
 - `RadarContract.fundFlow` 当前是 partial/waiting 合同，未接 taker/CVD/真实资金流源前不得显示成 live。

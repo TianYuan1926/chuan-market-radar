@@ -354,6 +354,51 @@ export type ScanStabilityState = {
   summary: string;
 };
 
+export type LightScanQualityCheckStatus = "blocked" | "pass" | "watch";
+
+export type LightScanQualityCheck = {
+  detail: string;
+  evidence: string[];
+  key: string;
+  label: string;
+  status: LightScanQualityCheckStatus;
+};
+
+export type LightScanQualityCandidate = {
+  changePercent: number;
+  reasons: string[];
+  score: number;
+  state: ScanLightScanCandidate["state"];
+  symbol: string;
+  volatilityPercent: number;
+  volumeWindowUsd: number | null;
+};
+
+export type LightScanQualityState = {
+  ageSec: number | null;
+  canCreateTradeSignal: false;
+  checks: LightScanQualityCheck[];
+  coverage: {
+    acceptedCount: number;
+    averagePriorityScore: number;
+    candidateCount: number;
+    hotCandidateCount: number;
+    preTrendCandidateCount: number;
+    rollingWindowCandidateCount: number;
+    topCandidateCount: number;
+    universeCount: number;
+    zScoreCandidateCount: number;
+  };
+  generatedAt: string;
+  guardrails: string[];
+  schemaVersion: "light-scan-quality.v1";
+  source: string;
+  staleAfterSec: number;
+  status: "blocked" | "healthy" | "watch";
+  summary: string;
+  topCandidates: LightScanQualityCandidate[];
+};
+
 export type RealtimeCadenceBand =
   | "second_level"
   | "fast_refresh"
@@ -397,6 +442,7 @@ export type RadarContract = {
   derivatives: Resource<DerivativesState>;
   fundFlow: Resource<FundFlowState>;
   scanStability: Resource<ScanStabilityState>;
+  lightScanQuality: Resource<LightScanQualityState>;
   realtimeCapability: Resource<RealtimeCapabilityState>;
   serviceNodes: Resource<ServiceNode[]>;
 };
@@ -456,7 +502,7 @@ type FrontendKlineRepository = Pick<
 >;
 
 type FrontendContractEnv = Partial<Record<
-  "COINGLASS_DAILY_REQUEST_BUDGET" | "COINGLASS_REQUEST_INTERVAL_MS",
+  "COINGLASS_DAILY_REQUEST_BUDGET" | "COINGLASS_REQUEST_INTERVAL_MS" | "WS_LIGHT_SCAN_STALE_AFTER_MS",
   string
 >>;
 
@@ -1141,6 +1187,165 @@ function runtimeWorker(backend: BackendContract, key: string) {
   return backend.runtime.runtimeProbes.workers.find((worker) => worker.key === key || worker.name === key);
 }
 
+function positiveEnvMs(env: FrontendContractEnv, key: keyof FrontendContractEnv, fallback: number) {
+  const parsed = Number(env[key] ?? "");
+
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
+}
+
+function lightScanQualityStatus(checks: LightScanQualityCheck[]): LightScanQualityState["status"] {
+  if (checks.some((check) => check.status === "blocked")) {
+    return "blocked";
+  }
+
+  if (checks.some((check) => check.status === "watch")) {
+    return "watch";
+  }
+
+  return "healthy";
+}
+
+function lightScanQualityResourceStatus(status: LightScanQualityState["status"]): DataStatus {
+  if (status === "healthy") return "live";
+
+  return "partial";
+}
+
+function checkStatusFromWorker(status: BackendContract["runtime"]["runtimeProbes"]["workers"][number]["status"] | undefined): LightScanQualityCheckStatus {
+  if (status === "healthy") return "pass";
+  if (status === "degraded") return "watch";
+  if (status === "down") return "blocked";
+  return "watch";
+}
+
+function averageScore(candidates: ScanLightScanCandidate[]) {
+  if (candidates.length === 0) return 0;
+
+  return Math.round(candidates.reduce((total, candidate) => total + candidate.score, 0) / candidates.length);
+}
+
+function buildLightScanQuality({
+  backend,
+  env,
+  now,
+}: {
+  backend: BackendContract;
+  env: FrontendContractEnv;
+  now: Date;
+}): LightScanQualityState {
+  const lightScan = backend.scanProof.lightScan;
+  const websocketWorker = runtimeWorker(backend, "websocket-light-worker");
+  const staleAfterSec = Math.round(positiveEnvMs(env, "WS_LIGHT_SCAN_STALE_AFTER_MS", 180_000) / 1000);
+  const ageSec = diffSeconds(lightScan.generatedAt, now) ?? null;
+  const topCandidates = lightScan.topCandidates ?? [];
+  const rollingWindowCandidates = topCandidates.filter((candidate) =>
+    candidate.volumeSource === "rolling_window" || candidate.reasons.includes("websocket_sliding_window")
+  );
+  const zScoreCandidates = topCandidates.filter((candidate) => candidate.reasons.includes("volume_zscore_spike"));
+  const hotCandidates = topCandidates.filter((candidate) => candidate.state === "HOT");
+  const preTrendCandidates = topCandidates.filter((candidate) => candidate.state === "PRE_TREND");
+  const lightScanReady = lightScan.status === "ready" || lightScan.status === "partial";
+  const fresh = ageSec !== null && ageSec <= staleAfterSec;
+  const workerStatus = checkStatusFromWorker(websocketWorker?.status);
+  const checks: LightScanQualityCheck[] = [
+    {
+      detail: lightScanReady
+        ? `轻扫状态 ${lightScan.status}，可作为候选发现层。`
+        : `轻扫状态 ${lightScan.status}，不能当作正常覆盖。`,
+      evidence: [`source=${lightScan.source}`, `accepted=${lightScan.acceptedCount}`, `universe=${lightScan.universeCount}`],
+      key: "light_scan_source",
+      label: "轻扫源状态",
+      status: lightScanReady ? "pass" : "blocked",
+    },
+    {
+      detail: fresh
+        ? `轻扫快照 ${ageSec}s 内更新。`
+        : `轻扫快照已超过 ${staleAfterSec}s 或缺失更新时间。`,
+      evidence: [`generatedAt=${lightScan.generatedAt}`, `ageSec=${ageSec ?? "unknown"}`, `staleAfterSec=${staleAfterSec}`],
+      key: "freshness",
+      label: "数据新鲜度",
+      status: fresh ? "pass" : "watch",
+    },
+    {
+      detail: websocketWorker?.detail ?? "等待 websocket-light-worker 心跳；REST 公开轻扫可兜底，但不能伪装成秒级。",
+      evidence: [
+        `worker=${websocketWorker?.status ?? "unknown"}`,
+        `redis=${backend.runtime.runtimeProbes.redis.status}`,
+      ],
+      key: "websocket_worker",
+      label: "WebSocket worker",
+      status: workerStatus,
+    },
+    {
+      detail: rollingWindowCandidates.length > 0
+        ? `${rollingWindowCandidates.length} 个 top candidate 来自 rolling-window/秒级窗口。`
+        : "当前 top candidate 未体现 rolling-window 证据；可继续用公开榜单候选，但要标注非秒级。",
+      evidence: [`rollingWindowCandidates=${rollingWindowCandidates.length}`, `topCandidates=${topCandidates.length}`],
+      key: "rolling_window_signal",
+      label: "滑动窗口证据",
+      status: rollingWindowCandidates.length > 0 ? "pass" : "watch",
+    },
+    {
+      detail: zScoreCandidates.length > 0
+        ? `${zScoreCandidates.length} 个候选带有 volume z-score 异常。`
+        : "当前未出现 volume z-score 异常；这不是故障，只代表没有秒级放量候选。",
+      evidence: [`zScoreCandidates=${zScoreCandidates.length}`, `candidateCount=${lightScan.candidateCount}`],
+      key: "volume_zscore",
+      label: "成交量 z-score",
+      status: zScoreCandidates.length > 0 ? "pass" : "watch",
+    },
+    {
+      detail: "轻扫质量诊断只能影响候选发现和调度解释，不能直接生成交易信号或交易计划。",
+      evidence: ["canCreateTradeSignal=false", "LIGHT_SCAN_MARK stays discovery only"],
+      key: "decision_boundary",
+      label: "交易边界",
+      status: "pass",
+    },
+  ];
+  const status = lightScanQualityStatus(checks);
+
+  return {
+    ageSec,
+    canCreateTradeSignal: false,
+    checks,
+    coverage: {
+      acceptedCount: lightScan.acceptedCount,
+      averagePriorityScore: averageScore(topCandidates),
+      candidateCount: lightScan.candidateCount,
+      hotCandidateCount: hotCandidates.length,
+      preTrendCandidateCount: preTrendCandidates.length,
+      rollingWindowCandidateCount: rollingWindowCandidates.length,
+      topCandidateCount: topCandidates.length,
+      universeCount: lightScan.universeCount,
+      zScoreCandidateCount: zScoreCandidates.length,
+    },
+    generatedAt: lightScan.generatedAt ?? now.toISOString(),
+    guardrails: [
+      "轻扫质量只解释发现层可靠性，不能生成交易计划。",
+      "rolling-window、z-score、盘口/成交异常只能推高候选优先级，必须等待深扫、结构和 Risk Gate。",
+      "WebSocket 缺失时必须显示 watch/partial，不能用动画或缓存冒充秒级在线。",
+    ],
+    schemaVersion: "light-scan-quality.v1",
+    source: lightScan.source ?? "unknown-light-scan",
+    staleAfterSec,
+    status,
+    summary: status === "healthy"
+      ? "轻扫发现层健康，秒级/快速候选可用于调度深扫。"
+      : status === "watch"
+        ? "轻扫发现层可用但存在观察项；候选可继续展示为验证中，不能升级为交易计划。"
+        : "轻扫发现层阻塞；必须降级显示并排查数据源或 worker。",
+    topCandidates: topCandidates.slice(0, 8).map((candidate) => ({
+      changePercent: round(candidate.changePercent24h),
+      reasons: candidate.reasons,
+      score: candidate.score,
+      state: candidate.state,
+      symbol: displaySymbol(candidate.symbol),
+      volatilityPercent: round(candidate.volatilityPercent),
+      volumeWindowUsd: typeof candidate.volumeWindowUsd === "number" ? round(candidate.volumeWindowUsd, 0) : null,
+    })),
+  };
+}
+
 function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadarSnapshot, now: Date): RealtimeCapabilityState {
   const websocketWorker = runtimeWorker(backend, "websocket-light-worker");
   const scannerWorker = runtimeWorker(backend, "scanner-worker");
@@ -1522,6 +1727,7 @@ export function buildFrontendRadarContract({
   const deepCoverage = scannableAssets > 0
     ? (Math.max(0, cleanDeepScanRows) / scannableAssets) * 100
     : coverage.coveragePercent;
+  const lightScanQuality = buildLightScanQuality({ backend, env, now });
 
   return {
     scanProof: resource({
@@ -1698,6 +1904,15 @@ export function buildFrontendRadarContract({
         ageSec,
         source: "system-health",
         reason: backend.runtime.scanStability.guardrail,
+      },
+    ),
+    lightScanQuality: resource(
+      lightScanQuality,
+      lightScanQualityResourceStatus(lightScanQuality.status),
+      {
+        ageSec: lightScanQuality.ageSec ?? ageSec,
+        source: lightScanQuality.source,
+        reason: "轻扫质量诊断只用于发现层可靠性、候选调度解释和运维排查，不能生成交易计划。",
       },
     ),
     realtimeCapability: resource(

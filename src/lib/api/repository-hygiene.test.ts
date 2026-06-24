@@ -252,6 +252,28 @@ test("dashboard exposes realtime capability boundaries instead of fake realtime 
   assert.doesNotMatch(radarControlSource, /秒级.*交易计划就绪/u);
 });
 
+test("dashboard exposes light scan quality diagnostics without promoting light scan to trade plans", () => {
+  const radarControlSource = readFileSync(resolve(process.cwd(), "src/components/dashboard/radar-control.tsx"), "utf8");
+  const frontendContractSource = readFileSync(resolve(process.cwd(), "src/lib/api/frontend-contract.ts"), "utf8");
+  const legacyContractSource = readFileSync(resolve(process.cwd(), "src/lib/radar-contract.ts"), "utf8");
+
+  assert.match(frontendContractSource, /LightScanQualityState/);
+  assert.match(frontendContractSource, /light-scan-quality\.v1/);
+  assert.match(frontendContractSource, /rollingWindowCandidateCount/);
+  assert.match(frontendContractSource, /zScoreCandidateCount/);
+  assert.match(frontendContractSource, /canCreateTradeSignal:\s*false/);
+  assert.match(frontendContractSource, /轻扫质量诊断只用于发现层可靠性/u);
+
+  assert.match(legacyContractSource, /getLightScanQuality/);
+  assert.match(legacyContractSource, /轻扫质量不能生成交易计划/u);
+
+  assert.match(radarControlSource, /lightScanQuality/);
+  assert.match(radarControlSource, /轻扫质量诊断/u);
+  assert.match(radarControlSource, /发现层可靠性，不生成交易计划/u);
+  assert.match(radarControlSource, /rollingWindowCandidateCount/);
+  assert.doesNotMatch(radarControlSource, /轻扫质量.*计划就绪/u);
+});
+
 test("dashboard runtime overview is derived from backend contract state without fake live movement", () => {
   const dashboardPageSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
 
