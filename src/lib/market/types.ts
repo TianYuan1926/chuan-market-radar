@@ -425,6 +425,14 @@ export type ScanLightScanCandidate = {
   changePercent24h: number;
   distanceFromHighPercent: number;
   distanceFromLowPercent: number;
+  microstructure?: {
+    buyPressureUsd: number;
+    cvdProxyUsd: number;
+    pressureSide: "buy" | "neutral" | "sell";
+    proxyQuality: "rolling_price_volume_proxy";
+    sellPressureUsd: number;
+    tradeFlowImbalance: number;
+  };
   price?: number;
   reasons: string[];
   score: number;

@@ -366,6 +366,8 @@ export type LightScanQualityCheck = {
 
 export type LightScanQualityCandidate = {
   changePercent: number;
+  flowImbalance: number | null;
+  pressureSide: "buy" | "neutral" | "sell" | null;
   reasons: string[];
   score: number;
   state: ScanLightScanCandidate["state"];
@@ -381,10 +383,13 @@ export type LightScanQualityState = {
   coverage: {
     acceptedCount: number;
     averagePriorityScore: number;
+    buyPressureCandidateCount: number;
     candidateCount: number;
+    cvdProxyCandidateCount: number;
     hotCandidateCount: number;
     preTrendCandidateCount: number;
     rollingWindowCandidateCount: number;
+    sellPressureCandidateCount: number;
     topCandidateCount: number;
     universeCount: number;
     zScoreCandidateCount: number;
@@ -1242,6 +1247,11 @@ function buildLightScanQuality({
     candidate.volumeSource === "rolling_window" || candidate.reasons.includes("websocket_sliding_window")
   );
   const zScoreCandidates = topCandidates.filter((candidate) => candidate.reasons.includes("volume_zscore_spike"));
+  const cvdProxyCandidates = topCandidates.filter((candidate) =>
+    candidate.microstructure?.proxyQuality === "rolling_price_volume_proxy"
+  );
+  const buyPressureCandidates = topCandidates.filter((candidate) => candidate.microstructure?.pressureSide === "buy");
+  const sellPressureCandidates = topCandidates.filter((candidate) => candidate.microstructure?.pressureSide === "sell");
   const hotCandidates = topCandidates.filter((candidate) => candidate.state === "HOT");
   const preTrendCandidates = topCandidates.filter((candidate) => candidate.state === "PRE_TREND");
   const lightScanReady = lightScan.status === "ready" || lightScan.status === "partial";
@@ -1295,6 +1305,19 @@ function buildLightScanQuality({
       status: zScoreCandidates.length > 0 ? "pass" : "watch",
     },
     {
+      detail: cvdProxyCandidates.length > 0
+        ? `${cvdProxyCandidates.length} 个候选带有 rolling price/volume 主动买卖压力 proxy。`
+        : "当前没有候选携带主动买卖/CVD proxy 样本；这只能说明当前候选来自非秒级或尚无足够窗口样本。",
+      evidence: [
+        `cvdProxyCandidates=${cvdProxyCandidates.length}`,
+        `buyPressureCandidates=${buyPressureCandidates.length}`,
+        `sellPressureCandidates=${sellPressureCandidates.length}`,
+      ],
+      key: "cvd_proxy_quality",
+      label: "主动买卖/CVD proxy",
+      status: cvdProxyCandidates.length > 0 ? "pass" : "watch",
+    },
+    {
       detail: "轻扫质量诊断只能影响候选发现和调度解释，不能直接生成交易信号或交易计划。",
       evidence: ["canCreateTradeSignal=false", "LIGHT_SCAN_MARK stays discovery only"],
       key: "decision_boundary",
@@ -1311,10 +1334,13 @@ function buildLightScanQuality({
     coverage: {
       acceptedCount: lightScan.acceptedCount,
       averagePriorityScore: averageScore(topCandidates),
+      buyPressureCandidateCount: buyPressureCandidates.length,
       candidateCount: lightScan.candidateCount,
+      cvdProxyCandidateCount: cvdProxyCandidates.length,
       hotCandidateCount: hotCandidates.length,
       preTrendCandidateCount: preTrendCandidates.length,
       rollingWindowCandidateCount: rollingWindowCandidates.length,
+      sellPressureCandidateCount: sellPressureCandidates.length,
       topCandidateCount: topCandidates.length,
       universeCount: lightScan.universeCount,
       zScoreCandidateCount: zScoreCandidates.length,
@@ -1336,6 +1362,10 @@ function buildLightScanQuality({
         : "轻扫发现层阻塞；必须降级显示并排查数据源或 worker。",
     topCandidates: topCandidates.slice(0, 8).map((candidate) => ({
       changePercent: round(candidate.changePercent24h),
+      flowImbalance: typeof candidate.microstructure?.tradeFlowImbalance === "number"
+        ? round(candidate.microstructure.tradeFlowImbalance, 4)
+        : null,
+      pressureSide: candidate.microstructure?.pressureSide ?? null,
       reasons: candidate.reasons,
       score: candidate.score,
       state: candidate.state,

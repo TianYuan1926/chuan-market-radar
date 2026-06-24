@@ -37,6 +37,18 @@ function snapshot(): MarketRadarSnapshot {
               source: "binance",
               status: "ok",
             },
+            {
+              instrumentCount: 150,
+              requestCount: 1,
+              source: "okx",
+              status: "ok",
+            },
+            {
+              instrumentCount: 160,
+              requestCount: 1,
+              source: "bybit",
+              status: "ok",
+            },
           ],
         },
         requests: {
@@ -92,6 +104,14 @@ function snapshot(): MarketRadarSnapshot {
             state: "PRE_TREND",
             symbol: "ARBUSDT",
             volume24hUsd: 92_000_000,
+            microstructure: {
+              buyPressureUsd: 680_000,
+              cvdProxyUsd: 420_000,
+              pressureSide: "buy",
+              proxyQuality: "rolling_price_volume_proxy",
+              sellPressureUsd: 260_000,
+              tradeFlowImbalance: 0.4565,
+            },
             volatilityPercent: 8.2,
           },
         ],
@@ -486,6 +506,26 @@ function health(): SystemHealthReport {
       ],
       status: "partial",
     },
+    runtimeProbes: {
+      generatedAt: "2026-06-19T08:01:00.000Z",
+      redis: {
+        checkedAt: "2026-06-19T08:01:00.000Z",
+        detail: "Redis 可读，运行心跳探针可用。",
+        status: "healthy",
+      },
+      staleAfterSeconds: 900,
+      workers: [
+        {
+          ageSec: 5,
+          detail: "websocket light scan heartbeat ok",
+          key: "websocket-light-worker",
+          lastSeenAt: "2026-06-19T08:00:55.000Z",
+          name: "websocket-light-worker",
+          status: "healthy",
+          task: "websocket-light-snapshot",
+        },
+      ],
+    },
     macroMarket: {
       ageMinutes: 11,
       allowedUse: "macro_context_only",
@@ -656,6 +696,12 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   ));
   assert.equal(contract.analysis.coreChainGovernance.p0Completion.percent, 100);
   assert.equal(contract.analysis.coreChainGovernance.p0Completion.status, "ready");
+  assert.equal(contract.analysis.coreChainGovernance.p1Completion.percent, 100);
+  assert.equal(contract.analysis.coreChainGovernance.p1Completion.status, "ready");
+  assert.ok(contract.analysis.coreChainGovernance.p1Completion.checks.some((check) =>
+    check.key === "microstructure_proxy" &&
+    check.status === "pass"
+  ));
   assert.ok(contract.analysis.coreChainGovernance.apiRoles.some((api) =>
     api.route === "/api/frontend/radar-contract" &&
     api.mustNotDo.some((item) => /触发扫描/u.test(item))

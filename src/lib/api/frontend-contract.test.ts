@@ -519,6 +519,20 @@ function backendContract(): BackendContract {
           status: "ready",
           summary: "P0 测试合同已闭环。",
         },
+        p1Completion: {
+          checks: [
+            {
+              key: "public_light_scan_ready",
+              label: "公开轻扫可用",
+              status: "pass",
+              detail: "测试合同已覆盖轻扫。",
+            },
+          ],
+          percent: 100,
+          remaining: [],
+          status: "ready",
+          summary: "P1 测试合同已闭环。",
+        },
         readiness: {
           blockedSteps: 0,
           coreReadySteps: 3,
@@ -666,6 +680,8 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.coreChainGovernance.data.chain.length, 7);
   assert.equal(radar.coreChainGovernance.data.p0Completion.percent, 100);
   assert.equal(radar.coreChainGovernance.data.p0Completion.status, "ready");
+  assert.equal(radar.coreChainGovernance.data.p1Completion.percent, 100);
+  assert.equal(radar.coreChainGovernance.data.p1Completion.status, "ready");
   assert.ok(radar.coreChainGovernance.data.apiRoles.some((api) => api.route === "/api/frontend/radar-contract"));
   assert.ok(radar.coreChainGovernance.data.featureTriage.some((item) =>
     item.id === "mock_market_facts" &&
@@ -797,6 +813,14 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
         volumeWindowMs: 900_000,
         volumeWindowUsd: 1_200_000,
         volatilityPercent: 2.1,
+        microstructure: {
+          buyPressureUsd: 780_000,
+          cvdProxyUsd: 560_000,
+          pressureSide: "buy",
+          proxyQuality: "rolling_price_volume_proxy",
+          sellPressureUsd: 220_000,
+          tradeFlowImbalance: 0.4667,
+        },
       },
       {
         baseAsset: "WIF",
@@ -813,6 +837,14 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
         volumeWindowMs: 900_000,
         volumeWindowUsd: 900_000,
         volatilityPercent: 4.3,
+        microstructure: {
+          buyPressureUsd: 200_000,
+          cvdProxyUsd: -500_000,
+          pressureSide: "sell",
+          proxyQuality: "rolling_price_volume_proxy",
+          sellPressureUsd: 700_000,
+          tradeFlowImbalance: -0.5556,
+        },
       },
     ],
     universeCount: 720,
@@ -830,10 +862,16 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
   assert.equal(radar.lightScanQuality.data.canCreateTradeSignal, false);
   assert.equal(radar.lightScanQuality.data.coverage.rollingWindowCandidateCount, 2);
   assert.equal(radar.lightScanQuality.data.coverage.zScoreCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.cvdProxyCandidateCount, 2);
+  assert.equal(radar.lightScanQuality.data.coverage.buyPressureCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.sellPressureCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.coverage.preTrendCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.coverage.hotCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.symbol, "TIA");
+  assert.equal(radar.lightScanQuality.data.topCandidates[0]?.pressureSide, "buy");
+  assert.equal(radar.lightScanQuality.data.topCandidates[0]?.flowImbalance, 0.4667);
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "volume_zscore" && check.status === "pass"));
+  assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "cvd_proxy_quality" && check.status === "pass"));
   assert.ok(radar.lightScanQuality.data.guardrails.some((rule) => /不能生成交易计划/.test(rule)));
 });
 

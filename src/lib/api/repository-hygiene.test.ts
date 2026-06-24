@@ -229,6 +229,8 @@ test("dashboard exposes core chain governance as a visible backend contract pane
   assert.match(radarControlSource, /cleanupRules/);
   assert.match(radarControlSource, /P0 完成度/u);
   assert.match(radarControlSource, /p0Completion/);
+  assert.match(radarControlSource, /P1 快速扫描/u);
+  assert.match(radarControlSource, /p1Completion/);
   assert.match(radarControlSource, /功能分级/u);
   assert.match(radarControlSource, /featureTriage/);
   assert.doesNotMatch(radarControlSource, /featureTriage\.slice\(0,\s*8\)/);
@@ -267,6 +269,8 @@ test("dashboard exposes light scan quality diagnostics without promoting light s
   assert.match(frontendContractSource, /light-scan-quality\.v1/);
   assert.match(frontendContractSource, /rollingWindowCandidateCount/);
   assert.match(frontendContractSource, /zScoreCandidateCount/);
+  assert.match(frontendContractSource, /cvdProxyCandidateCount/);
+  assert.match(frontendContractSource, /cvd_proxy_quality/);
   assert.match(frontendContractSource, /canCreateTradeSignal:\s*false/);
   assert.match(frontendContractSource, /轻扫质量诊断只用于发现层可靠性/u);
 
@@ -1031,6 +1035,9 @@ test("production smoke keeps token chart and external intelligence truth checks"
   assert.match(smokeSource, /\/api\/frontend\/token-dossier\?symbol=/);
   assert.match(smokeSource, /canUseMockCandles/);
   assert.match(smokeSource, /must be false/);
+  assert.match(smokeSource, /p1_completion/);
+  assert.match(smokeSource, /P1 fast scan completion is not ready/);
+  assert.match(smokeSource, /cvd_proxy_quality/);
   assert.match(smokeSource, /TV_SYMBOL_RE/);
   assert.match(smokeSource, /\/api\/frontend\/external-intel/);
   assert.match(smokeSource, /sourcePlan/);

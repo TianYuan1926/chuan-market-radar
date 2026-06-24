@@ -62,8 +62,14 @@ test("createWebSocketLightScanAccumulator promotes volume z-score spikes without
   assert.equal(snapshot.priorityCandidates[0]?.volumeSource, "rolling_window");
   assert.equal(snapshot.priorityCandidates[0]?.volumeWindowMs, 15 * 60_000);
   assert.equal(snapshot.priorityCandidates[0]?.volumeWindowUsd, 1_250_000);
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.proxyQuality, "rolling_price_volume_proxy");
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.pressureSide, "buy");
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.buyPressureUsd, 350_000);
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.cvdProxyUsd, 350_000);
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("volume_zscore_spike"));
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("price_impulse"));
+  assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("trade_flow_proxy_imbalance"));
+  assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("cvd_proxy_positive"));
   assert.equal(snapshot.instruments[0]?.exchange, "BINANCE");
   assert.equal(snapshot.tickers[0]?.changePercent24h, 4.95);
 });

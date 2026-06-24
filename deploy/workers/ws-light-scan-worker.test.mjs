@@ -217,9 +217,14 @@ test("createLightScanAccumulator promotes a 15m volume z-score spike into Redis 
   assert.equal(snapshot.priorityCandidates[0]?.volumeSource, "rolling_window");
   assert.equal(snapshot.priorityCandidates[0]?.volumeWindowMs, 15 * 60 * 1000);
   assert.equal(snapshot.priorityCandidates[0]?.volumeWindowUsd, 920_000);
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.proxyQuality, "rolling_price_volume_proxy");
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.pressureSide, "buy");
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.buyPressureUsd, 920_000);
+  assert.equal(snapshot.priorityCandidates[0]?.microstructure?.cvdProxyUsd, 920_000);
   assert.equal(snapshot.instruments.some((item) => item.symbol === "COINUSDT"), false);
   assert.equal(snapshot.priorityCandidates[0]?.state, "HOT");
   assert.match(snapshot.priorityCandidates[0]?.reasons.join(","), /volume_zscore_spike/);
+  assert.match(snapshot.priorityCandidates[0]?.reasons.join(","), /cvd_proxy_positive/);
 });
 
 test("buildSubscriptionChunks caps WebSocket subscription payload size", () => {

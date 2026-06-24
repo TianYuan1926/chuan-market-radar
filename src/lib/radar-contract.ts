@@ -112,6 +112,13 @@ export function getCoreChainGovernance(): Resource<CoreChainGovernanceReport> {
       status: 'blocked',
       summary: '等待真实后端核心链路治理契约。',
     },
+    p1Completion: {
+      checks: [],
+      percent: 0,
+      remaining: ['等待真实后端 P1 快速扫描完成度契约。'],
+      status: 'blocked',
+      summary: '等待真实后端 P1 快速扫描完成度契约。',
+    },
     readiness: {
       blockedSteps: 0,
       coreReadySteps: 0,
@@ -663,6 +670,8 @@ export type LightScanQualityCheck = {
 
 export type LightScanQualityCandidate = {
   changePercent: number
+  flowImbalance: number | null
+  pressureSide: 'buy' | 'neutral' | 'sell' | null
   reasons: string[]
   score: number
   state: 'COLD' | 'HOT' | 'PRE_TREND' | 'WARM'
@@ -678,10 +687,13 @@ export type LightScanQualityState = {
   coverage: {
     acceptedCount: number
     averagePriorityScore: number
+    buyPressureCandidateCount: number
     candidateCount: number
+    cvdProxyCandidateCount: number
     hotCandidateCount: number
     preTrendCandidateCount: number
     rollingWindowCandidateCount: number
+    sellPressureCandidateCount: number
     topCandidateCount: number
     universeCount: number
     zScoreCandidateCount: number
@@ -704,10 +716,13 @@ export function getLightScanQuality(): Resource<LightScanQualityState> {
     coverage: {
       acceptedCount: 0,
       averagePriorityScore: 0,
+      buyPressureCandidateCount: 0,
       candidateCount: 0,
+      cvdProxyCandidateCount: 0,
       hotCandidateCount: 0,
       preTrendCandidateCount: 0,
       rollingWindowCandidateCount: 0,
+      sellPressureCandidateCount: 0,
       topCandidateCount: 0,
       universeCount: 0,
       zScoreCandidateCount: 0,

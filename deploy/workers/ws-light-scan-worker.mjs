@@ -247,7 +247,7 @@ function candidateState({ absChange, volumeZScore }) {
   return "COLD";
 }
 
-function candidateReasons({ absChange, state, volumeZScore }) {
+function candidateReasons({ absChange, flowImbalance, state, volumeZScore }) {
   const reasons = ["websocket_sliding_window"];
 
   if (volumeZScore >= 2) {
@@ -260,6 +260,18 @@ function candidateReasons({ absChange, state, volumeZScore }) {
 
   if (absChange >= 2) {
     reasons.push("price_impulse");
+  }
+
+  if (Math.abs(flowImbalance) >= 0.25) {
+    reasons.push("trade_flow_proxy_imbalance");
+  }
+
+  if (flowImbalance >= 0.25) {
+    reasons.push("cvd_proxy_positive");
+  }
+
+  if (flowImbalance <= -0.25) {
+    reasons.push("cvd_proxy_negative");
   }
 
   return reasons;
@@ -286,13 +298,54 @@ function volumeDelta({ event, state }) {
   return 0;
 }
 
-function updateWindow({ current, event, startMs, volumeUsd }) {
+function pressureBuckets({ price, previousPrice, volumeUsd }) {
+  if (volumeUsd <= 0 || !previousPrice || previousPrice <= 0) {
+    return {
+      buyPressureUsd: 0,
+      flatPressureUsd: Math.max(0, volumeUsd),
+      sellPressureUsd: 0,
+    };
+  }
+
+  if (price > previousPrice) {
+    return {
+      buyPressureUsd: volumeUsd,
+      flatPressureUsd: 0,
+      sellPressureUsd: 0,
+    };
+  }
+
+  if (price < previousPrice) {
+    return {
+      buyPressureUsd: 0,
+      flatPressureUsd: 0,
+      sellPressureUsd: volumeUsd,
+    };
+  }
+
+  return {
+    buyPressureUsd: 0,
+    flatPressureUsd: volumeUsd,
+    sellPressureUsd: 0,
+  };
+}
+
+function updateWindow({ current, event, previousPrice, startMs, volumeUsd }) {
+  const pressure = pressureBuckets({
+    price: event.price,
+    previousPrice,
+    volumeUsd,
+  });
+
   if (!current) {
     return {
+      buyPressureUsd: pressure.buyPressureUsd,
       closePrice: event.price,
+      flatPressureUsd: pressure.flatPressureUsd,
       highPrice: event.price,
       lowPrice: event.price,
       openPrice: event.price,
+      sellPressureUsd: pressure.sellPressureUsd,
       startMs,
       volumeUsd,
     };
@@ -300,9 +353,12 @@ function updateWindow({ current, event, startMs, volumeUsd }) {
 
   return {
     ...current,
+    buyPressureUsd: current.buyPressureUsd + pressure.buyPressureUsd,
     closePrice: event.price,
+    flatPressureUsd: current.flatPressureUsd + pressure.flatPressureUsd,
     highPrice: Math.max(current.highPrice, event.price),
     lowPrice: Math.min(current.lowPrice, event.price),
+    sellPressureUsd: current.sellPressureUsd + pressure.sellPressureUsd,
     volumeUsd: current.volumeUsd + volumeUsd,
   };
 }
@@ -315,6 +371,28 @@ function rolloverWindow({ currentWindow, history, maxBaselineWindows }) {
   return [...history, currentWindow].slice(-maxBaselineWindows);
 }
 
+function microstructureFromWindow(window) {
+  const buyPressureUsd = round(window.buyPressureUsd, 0);
+  const sellPressureUsd = round(window.sellPressureUsd, 0);
+  const volumeUsd = Math.max(1, window.volumeUsd);
+  const cvdProxyUsd = buyPressureUsd - sellPressureUsd;
+  const tradeFlowImbalance = round(cvdProxyUsd / volumeUsd, 4);
+  const pressureSide = tradeFlowImbalance > 0.15
+    ? "buy"
+    : tradeFlowImbalance < -0.15
+      ? "sell"
+      : "neutral";
+
+  return {
+    buyPressureUsd,
+    cvdProxyUsd: round(cvdProxyUsd, 0),
+    pressureSide,
+    proxyQuality: "rolling_price_volume_proxy",
+    sellPressureUsd,
+    tradeFlowImbalance,
+  };
+}
+
 function buildCandidate({ state, window, windowMs, z }) {
   const openPrice = window.openPrice > 0 ? window.openPrice : state.lastPrice;
   const changePercent = openPrice > 0 ? ((window.closePrice - openPrice) / openPrice) * 100 : 0;
@@ -323,10 +401,12 @@ function buildCandidate({ state, window, windowMs, z }) {
     ? ((window.highPrice - window.lowPrice) / window.closePrice) * 100
     : 0;
   const stateValue = candidateState({ absChange, volumeZScore: z });
+  const microstructure = microstructureFromWindow(window);
   const score = Math.round(
     Math.max(0, z) * 18 +
     Math.min(30, absChange * 4) +
     logVolumeScore(window.volumeUsd) +
+    Math.min(8, Math.abs(microstructure.tradeFlowImbalance) * 12) +
     (stateValue === "PRE_TREND" ? 10 : 0),
   );
 
@@ -339,8 +419,14 @@ function buildCandidate({ state, window, windowMs, z }) {
     distanceFromLowPercent: window.lowPrice > 0
       ? round(((window.closePrice - window.lowPrice) / window.lowPrice) * 100)
       : 100,
+    microstructure,
     price: round(window.closePrice, 8),
-    reasons: candidateReasons({ absChange, state: stateValue, volumeZScore: z }),
+    reasons: candidateReasons({
+      absChange,
+      flowImbalance: microstructure.tradeFlowImbalance,
+      state: stateValue,
+      volumeZScore: z,
+    }),
     score,
     state: stateValue,
     symbol: state.symbol,
@@ -455,6 +541,7 @@ export function createLightScanAccumulator({
       const currentWindow = updateWindow({
         current: isSameWindow ? previous.currentWindow : null,
         event: { ...event, price, symbol },
+        previousPrice: previous?.lastPrice,
         startMs,
         volumeUsd: delta,
       });
@@ -504,6 +591,7 @@ export function createLightScanAccumulator({
           notes: [
             `websocket light scan worker window ${Math.round(windowMs / 60000)}m`,
             `volume z-score threshold ${zScoreThreshold}`,
+            "trade flow and CVD proxy use rolling price/volume direction; discovery only",
             "snapshot is scheduling input; CoinGlass deep scan and Evidence gate still required",
           ],
           priorityCandidates,

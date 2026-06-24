@@ -147,10 +147,13 @@ const EMPTY_LIGHT_SCAN_QUALITY = resource<LightScanQualityState>({
   coverage: {
     acceptedCount: 0,
     averagePriorityScore: 0,
+    buyPressureCandidateCount: 0,
     candidateCount: 0,
+    cvdProxyCandidateCount: 0,
     hotCandidateCount: 0,
     preTrendCandidateCount: 0,
     rollingWindowCandidateCount: 0,
+    sellPressureCandidateCount: 0,
     topCandidateCount: 0,
     universeCount: 0,
     zScoreCandidateCount: 0,
@@ -195,6 +198,13 @@ const EMPTY_GOVERNANCE = resource<CoreChainGovernanceReport>({
     remaining: ['等待真实后端核心链路治理契约。'],
     status: 'blocked',
     summary: '等待真实后端核心链路治理契约。',
+  },
+  p1Completion: {
+    checks: [],
+    percent: 0,
+    remaining: ['等待真实后端 P1 快速扫描完成度契约。'],
+    status: 'blocked',
+    summary: '等待真实后端 P1 快速扫描完成度契约。',
   },
   readiness: {
     blockedSteps: 0,
@@ -366,6 +376,11 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                       <MetricPill label="预启动" value={quality.coverage.preTrendCandidateCount} />
                       <MetricPill label="均分" value={quality.coverage.averagePriorityScore} />
                     </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                      <MetricPill label="CVD proxy" value={quality.coverage.cvdProxyCandidateCount} />
+                      <MetricPill label="买压" value={quality.coverage.buyPressureCandidateCount} />
+                      <MetricPill label="卖压" value={quality.coverage.sellPressureCandidateCount} />
+                    </div>
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -403,6 +418,10 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                           <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
                             <span>{candidate.state}</span>
                             <span>{candidate.changePercent}%</span>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
+                            <span>{candidate.pressureSide ?? 'proxy—'}</span>
+                            <span>{candidate.flowImbalance ?? '—'}</span>
                           </div>
                           <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">
                             {candidate.reasons.slice(0, 2).join(' / ')}
@@ -552,6 +571,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                       <MetricPill label="阻塞" value={g.readiness.blockedSteps} />
                     </div>
                   </div>
+                  <div className="grid gap-2.5 sm:grid-cols-2">
                   <div className="border border-border bg-secondary/25 p-3">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">P0 完成度</span>
@@ -570,6 +590,26 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                         </div>
                       ))}
                     </div>
+                  </div>
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">P1 快速扫描</span>
+                      <span className={`ml-auto border px-1.5 py-0.5 text-[10px] ${g.p1Completion.status === 'ready' ? 'border-up/40 bg-up/10 text-up' : 'border-down/40 bg-down/10 text-down'}`}>
+                        {g.p1Completion.percent}%
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      {g.p1Completion.summary}
+                    </p>
+                    <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                      {g.p1Completion.checks.map((check) => (
+                        <div key={check.key} className="flex items-center gap-2 text-[11px]">
+                          <span className={`size-1.5 shrink-0 ${check.status === 'pass' ? 'bg-up' : 'bg-down'}`} />
+                          <span className="min-w-0 truncate text-muted-foreground">{check.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   </div>
                 </div>
 

@@ -171,6 +171,7 @@ if scan_proof.get("scannable", 0) >= 100 and scan_proof.get("lightScanned", 0) >
 core_chain_governance = contract.get("coreChainGovernance") or {}
 core_chain_data = core_chain_governance.get("data") or {}
 p0_completion = core_chain_data.get("p0Completion") or {}
+p1_completion = core_chain_data.get("p1Completion") or {}
 api_roles = core_chain_data.get("apiRoles") or []
 print(
     "core-chain-governance",
@@ -180,6 +181,8 @@ print(
             "schemaVersion": core_chain_data.get("schemaVersion"),
             "p0Percent": p0_completion.get("percent"),
             "p0Status": p0_completion.get("status"),
+            "p1Percent": p1_completion.get("percent"),
+            "p1Status": p1_completion.get("status"),
             "apiRoles": len(api_roles),
         },
         ensure_ascii=False,
@@ -189,6 +192,8 @@ if core_chain_data.get("schemaVersion") != "core-chain-governance.v1":
     errors.append("/api/frontend/radar-contract: coreChainGovernance schemaVersion is missing")
 if p0_completion.get("percent") != 100 or p0_completion.get("status") != "ready":
     errors.append("/api/frontend/radar-contract: P0 core governance completion is not ready")
+if p1_completion.get("percent") != 100 or p1_completion.get("status") != "ready":
+    errors.append("/api/frontend/radar-contract: P1 fast scan completion is not ready")
 if not any(api.get("route") == "/api/frontend/radar-contract" for api in api_roles):
     errors.append("/api/frontend/radar-contract: P0 apiRoles missing frontend radar contract")
 if core_chain_data.get("canCreateTradeSignal") is not False:
@@ -209,6 +214,9 @@ print(
             "candidates": light_scan_quality_coverage.get("candidateCount"),
             "rollingWindowCandidates": light_scan_quality_coverage.get("rollingWindowCandidateCount"),
             "zScoreCandidates": light_scan_quality_coverage.get("zScoreCandidateCount"),
+            "cvdProxyCandidates": light_scan_quality_coverage.get("cvdProxyCandidateCount"),
+            "buyPressureCandidates": light_scan_quality_coverage.get("buyPressureCandidateCount"),
+            "sellPressureCandidates": light_scan_quality_coverage.get("sellPressureCandidateCount"),
         },
         ensure_ascii=False,
     ),
@@ -221,6 +229,8 @@ if not light_scan_quality_checks:
     errors.append("/api/frontend/radar-contract: lightScanQuality checks are missing")
 if not any(check.get("key") == "decision_boundary" and check.get("status") == "pass" for check in light_scan_quality_checks):
     errors.append("/api/frontend/radar-contract: lightScanQuality missing decision boundary check")
+if not any(check.get("key") == "cvd_proxy_quality" for check in light_scan_quality_checks):
+    errors.append("/api/frontend/radar-contract: lightScanQuality missing CVD proxy quality check")
 if positive_number(scan_proof.get("lightScanned")) and not positive_number(light_scan_quality_coverage.get("acceptedCount")):
     errors.append("/api/frontend/radar-contract: lightScanQuality acceptedCount is inconsistent with scanProof")
 

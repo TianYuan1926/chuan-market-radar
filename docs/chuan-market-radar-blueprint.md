@@ -401,6 +401,7 @@ RawSource
 - 页面 `/`、`/dashboard`、`/signals`、`/leaderboard`、`/market`、`/review`、`/system` 返回 200。
 - `/api/frontend/radar-contract` 返回 `core-chain-governance.v1`。
 - `/api/frontend/radar-contract` 返回 `realtime-capability.v1` 和 `light-scan-quality.v1`。
+- `/api/frontend/radar-contract` 返回 `coreChainGovernance.p1Completion`，用于证明 P1 快速全市场发现层是否闭环。
 - `/api/radar/backend-contract` 返回 `core-chain-governance.v1`。
 - 生产 smoke 显示 public leaderboards live，token dossier 图表 `canUseMockCandles=false`。
 
@@ -429,14 +430,33 @@ RawSource
 
 ### P1：快速全市场扫描继续增强
 
-- 验证 WebSocket 秒级轻扫的长期覆盖率和稳定性。
-- 补充秒级盘口、主动成交和 CVD proxy 质量指标；这些只能进入异常发现和候选排序，不能直接生成交易计划。
-- 防止固定币长期霸占深扫位。
-- 强化长尾冷门探索。
-- 增强状态池历史表现排序。
-- 增加长周期漏网统计。
-- 继续最大化 Binance / OKX / Bybit public data。
-- 继续最大化 CoinGlass Hobbyist 请求价值，但不能突破套餐限制。
+状态：已建立 P1 完成度事实源，后续只做长期样本维护和 P2 质量增强。
+
+完成标准：
+
+- `coreChainGovernance.p1Completion.percent=100` 且 `status=ready`。
+- P0 必须先闭环；P1 不能绕过核心链路治理。
+- WebSocket / public light scan 必须有状态、覆盖、候选、freshness 和 worker 心跳。
+- 秒级发现层必须输出 rolling-window、volume z-score、主动买卖/CVD proxy 等质量指标。
+- CVD proxy 只能来自 rolling price/volume direction，只能用于异常发现和候选排序，不能冒充真实逐笔 CVD。
+- 深扫轮转必须有公平性证明，不能让 BTC/ETH/SOL 等固定币长期霸占非锚点深扫位。
+- 长尾探索必须保底，未进入深扫不代表淘汰。
+- 状态池、历史复盘、missed opportunity 和动态优先级可以参与调度，但不能直接改交易结论。
+- Binance / OKX / Bybit public data 都要作为快速发现层来源。
+- CoinGlass Hobbyist 只做资金质量确认和深扫验证，请求必须受预算、pacing 和套餐边界保护。
+
+已落地：
+
+- `ScanLightScanCandidate.microstructure`：`buyPressureUsd`、`sellPressureUsd`、`cvdProxyUsd`、`tradeFlowImbalance`、`pressureSide`。
+- `lightScanQuality.v1`：新增 `cvdProxyCandidateCount`、`buyPressureCandidateCount`、`sellPressureCandidateCount` 和 `cvd_proxy_quality` 检查。
+- `coreChainGovernance.p1Completion`：新增 P1 完成度、检查项、剩余项和 summary。
+- `/dashboard` 核心链路体检显示 P1 快速扫描完成度。
+
+硬边界：
+
+- 轻扫、盘口/成交 proxy、CVD proxy、榜单和轮转调度都不能生成交易计划。
+- 没有 Evidence、结构、RR、Risk Gate、失效条件和复盘追踪时，任何币都不能进入交易计划就绪。
+- 如果 WebSocket、公开源或 CoinGlass 降级，页面必须显示 partial/failed，不允许用动画、旧缓存或 0 值冒充正常。
 
 ### P2：机会发现质量增强
 

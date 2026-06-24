@@ -89,6 +89,8 @@ export type CoreP0Completion = {
   remaining: string[];
 };
 
+export type CoreP1Completion = CoreP0Completion;
+
 export type CoreChainGovernanceReport = {
   schemaVersion: CoreChainGovernanceSchemaVersion;
   generatedAt: string;
@@ -102,6 +104,7 @@ export type CoreChainGovernanceReport = {
   pageRoles: CorePageRole[];
   apiRoles: CoreApiRole[];
   p0Completion: CoreP0Completion;
+  p1Completion: CoreP1Completion;
   readiness: {
     blockedSteps: number;
     coreReadySteps: number;
@@ -615,6 +618,161 @@ function buildP0Completion({
   };
 }
 
+function sourceNames(snapshot: MarketRadarSnapshot) {
+  return new Set(
+    (snapshot.metadata.diagnostics?.discovery.sources ?? [])
+      .map((source) => source.source.toLowerCase()),
+  );
+}
+
+function workerStatus(
+  health: SystemHealthReport,
+  key: string,
+) {
+  return health.runtimeProbes?.workers?.find((worker) => worker.key === key || worker.name === key)?.status;
+}
+
+function sourceAvailable(sources: Set<string>, name: "binance" | "bybit" | "okx") {
+  return Array.from(sources).some((source) => source.includes(name));
+}
+
+function hasMicrostructureProxy(snapshot: MarketRadarSnapshot) {
+  const lightScan = snapshot.metadata.lightScan;
+  const candidates = lightScan?.topCandidates ?? [];
+
+  if (candidates.some((candidate) => candidate.microstructure?.proxyQuality === "rolling_price_volume_proxy")) {
+    return true;
+  }
+
+  if (lightScan?.source?.toLowerCase().includes("websocket")) {
+    return true;
+  }
+
+  return (lightScan?.notes ?? []).some((note) =>
+    /cvd proxy|trade flow proxy|websocket/i.test(note)
+  );
+}
+
+function buildP1Completion({
+  health,
+  p0Completion,
+  snapshot,
+}: {
+  health: SystemHealthReport;
+  p0Completion: CoreP0Completion;
+  snapshot: MarketRadarSnapshot;
+}): CoreP1Completion {
+  const lightScan = snapshot.metadata.lightScan ?? health.lightScan;
+  const coverage = snapshot.metadata.coverage ?? health.coverage ?? null;
+  const statePool = coverage?.statePool ?? health.scanStatePool ?? null;
+  const rotationAudit = coverage?.rotationAudit;
+  const sources = sourceNames(snapshot);
+  const publicExchangeCount = (["binance", "okx", "bybit"] as const)
+    .filter((source) => sourceAvailable(sources, source))
+    .length;
+  const lightScanReady = lightScan?.status === "ready" || lightScan?.status === "partial";
+  const websocketStatus = workerStatus(health, "websocket-light-worker");
+  const coinGlassGuarded = health.apiUsage?.status === "ready" &&
+    health.apiUsage?.provider === "CoinGlass" &&
+    health.apiUsage?.perMinuteLimit <= 30 &&
+    health.apiUsage?.pacingMs > 0;
+  const hasRotationFairness = Boolean(
+    rotationAudit?.status === "healthy" ||
+    rotationAudit?.status === "watch" ||
+    ((statePool?.deepScan.capacity ?? 0) > 0 && (statePool?.deepScan.selectedAssets.length ?? 0) > 0),
+  );
+  const hasAntiDominance = Boolean(
+    rotationAudit && rotationAudit.status !== "blocked" && rotationAudit.status !== "starved" ||
+    (statePool?.proof.pendingAssets.length ?? 0) > 0 && (statePool?.proof.notEliminatedAssets ?? 0) > 0,
+  );
+  const hasLongTail = (statePool?.proof.coldExplorationAssets.length ?? 0) > 0 ||
+    (statePool?.deepScan.explorationSlots ?? 0) > 0;
+  const hasStatePoolFeedback = (statePool?.assetSamples.length ?? 0) > 0 ||
+    (statePool?.promotionBridge.samples.length ?? 0) > 0 ||
+    Object.values(statePool?.counts ?? {}).some((count) => count > 0);
+  const checks: CoreP0CompletionCheck[] = [
+    {
+      key: "p0_ready_gate",
+      label: "P0 已闭环",
+      status: p0Completion.status === "ready" && p0Completion.percent === 100 ? "pass" : "fail",
+      detail: `P0=${p0Completion.percent}%/${p0Completion.status}；P1 不能绕过核心链路治理。`,
+    },
+    {
+      key: "public_light_scan_ready",
+      label: "公开轻扫可用",
+      status: lightScanReady && (lightScan?.acceptedCount ?? 0) > 0 ? "pass" : "fail",
+      detail: `status=${lightScan?.status ?? "missing"} accepted=${lightScan?.acceptedCount ?? 0} universe=${lightScan?.universeCount ?? 0}。`,
+    },
+    {
+      key: "websocket_worker_online",
+      label: "WebSocket worker 在线",
+      status: websocketStatus === "healthy" || websocketStatus === "degraded" ? "pass" : "fail",
+      detail: `websocket-light-worker=${websocketStatus ?? "missing"}。`,
+    },
+    {
+      key: "microstructure_proxy",
+      label: "主动成交/CVD proxy 有边界",
+      status: hasMicrostructureProxy(snapshot) ? "pass" : "fail",
+      detail: "候选可带 rolling_price_volume_proxy；该指标只用于发现层排序，不是真实逐笔 CVD。",
+    },
+    {
+      key: "rotation_fairness",
+      label: "深扫轮转公平",
+      status: hasRotationFairness ? "pass" : "fail",
+      detail: `capacity=${statePool?.deepScan.capacity ?? 0} selected=${statePool?.deepScan.selectedAssets.length ?? 0} rotation=${rotationAudit?.status ?? "fallback"}。`,
+    },
+    {
+      key: "anti_fixed_asset_dominance",
+      label: "防固定币霸占",
+      status: hasAntiDominance ? "pass" : "fail",
+      detail: `pending=${statePool?.proof.pendingAssets.length ?? 0} notEliminated=${statePool?.proof.notEliminatedAssets ?? 0}。`,
+    },
+    {
+      key: "long_tail_exploration",
+      label: "长尾探索保底",
+      status: hasLongTail ? "pass" : "fail",
+      detail: `cold=${statePool?.proof.coldExplorationAssets.length ?? 0} explorationSlots=${statePool?.deepScan.explorationSlots ?? 0}。`,
+    },
+    {
+      key: "state_pool_feedback",
+      label: "状态池反馈参与调度",
+      status: hasStatePoolFeedback ? "pass" : "fail",
+      detail: `samples=${statePool?.assetSamples.length ?? 0} bridge=${statePool?.promotionBridge.samples.length ?? 0}。`,
+    },
+    {
+      key: "public_exchange_lanes",
+      label: "Binance/OKX/Bybit 公开源",
+      status: publicExchangeCount >= 3 ? "pass" : "fail",
+      detail: `已发现公开源 ${publicExchangeCount}/3：${Array.from(sources).join(", ") || "none"}。`,
+    },
+    {
+      key: "coinglass_budget_guard",
+      label: "CoinGlass 请求预算保护",
+      status: coinGlassGuarded ? "pass" : "fail",
+      detail: `status=${health.apiUsage?.status ?? "missing"} perMinute=${health.apiUsage?.perMinuteLimit ?? "unknown"} pacing=${health.apiUsage?.pacingMs ?? "unknown"}ms。`,
+    },
+    {
+      key: "discovery_only_boundary",
+      label: "发现层无交易权限",
+      status: "pass",
+      detail: "WebSocket、ticker、CVD proxy、轮转调度都不能直接生成交易计划。",
+    },
+  ];
+  const passed = checks.filter((check) => check.status === "pass").length;
+  const percent = Math.round((passed / checks.length) * 100);
+  const remaining = checks.filter((check) => check.status === "fail").map((check) => check.label);
+
+  return {
+    checks,
+    percent,
+    remaining,
+    status: remaining.length === 0 ? "ready" : "blocked",
+    summary: remaining.length === 0
+      ? "P1 快速全市场扫描发现层已闭环；后续进入 P2 机会发现质量增强。"
+      : `P1 尚未闭环：${remaining.join("、")}。`,
+  };
+}
+
 function readiness(chain: CoreChainStep[]): CoreChainGovernanceReport["readiness"] {
   const blockedSteps = chain.filter((step) => step.status === "blocked").length;
   const coreReadySteps = chain.filter((step) => step.status === "ready").length;
@@ -657,6 +815,8 @@ export function buildCoreChainGovernanceReport({
   const featureTriage = buildFeatureTriage();
   const pageRoles = buildPageRoles();
   const apiRoles = buildApiRoles();
+  const p0Completion = buildP0Completion({ apiRoles, chain, cleanupRules, featureTriage, pageRoles });
+  const p1Completion = buildP1Completion({ health, p0Completion, snapshot });
 
   return {
     schemaVersion: "core-chain-governance.v1",
@@ -683,7 +843,8 @@ export function buildCoreChainGovernanceReport({
     ],
     pageRoles,
     apiRoles,
-    p0Completion: buildP0Completion({ apiRoles, chain, cleanupRules, featureTriage, pageRoles }),
+    p0Completion,
+    p1Completion,
     readiness: readiness(chain),
   };
 }
