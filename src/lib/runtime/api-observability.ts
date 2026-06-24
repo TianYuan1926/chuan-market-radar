@@ -54,7 +54,7 @@ const latencyTtlSeconds = 60 * 60 * 24;
 const apiUsageTtlSeconds = 60 * 60 * 72;
 const defaultDailyBudget = 3_000;
 const defaultMinuteLimit = 30;
-const defaultPacingMs = 2_200;
+const defaultPacingMs = 3_000;
 
 const latencySources = [
   { id: "coinglass", name: "CoinGlass" },

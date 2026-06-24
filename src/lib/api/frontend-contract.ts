@@ -1415,7 +1415,7 @@ export function buildFrontendRadarContract({
       usedToday: observedApiUsage?.usedToday ?? 0,
       remainingToday: observedApiUsage?.remainingToday ?? dailyBudget,
       perMinuteLimit: observedApiUsage?.perMinuteLimit ?? 30,
-      pacingMs: observedApiUsage?.pacingMs ?? Number(env.COINGLASS_REQUEST_INTERVAL_MS ?? 2_200),
+      pacingMs: observedApiUsage?.pacingMs ?? Number(env.COINGLASS_REQUEST_INTERVAL_MS ?? 3_000),
       throttled: observedApiUsage?.throttled ?? false,
       source: observedApiUsage?.source ?? "unconfigured",
     }, apiUsageStatusToResourceStatus(observedApiUsage?.status), {

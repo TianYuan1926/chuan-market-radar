@@ -73,7 +73,7 @@
 - `COINGLASS_DAILY_REQUEST_BUDGET`: 主扫描每日 CoinGlass 请求预算，推荐 `3000`；`24 * 96 = 2304` 次/日，保留失败重试和手动刷新余量。
 - `COINGLASS_MAX_CONCURRENCY`: CoinGlass 主扫描受控并发，默认 `6`；只在 `COINGLASS_REQUEST_INTERVAL_MS=0` 时生效。生产必须保留 pacing，因此实际会串行请求。
 - `COINGLASS_MINUTE_REQUEST_LIMIT`: CoinGlass 每分钟调用上限，Hobbyist 当前按 `30` 配置；扫描协调器会用 Redis/内存令牌桶阻止超限。
-- `COINGLASS_REQUEST_INTERVAL_MS`: CoinGlass 请求间隔，默认 `2200`；按 Hobbyist `30/min` 设计，主深扫和 daily mover 都必须 pacing，避免瞬时打爆限速。
+- `COINGLASS_REQUEST_INTERVAL_MS`: CoinGlass 请求间隔，默认 `3000`；按 Hobbyist `30/min` 保守设计，主深扫和 daily mover 都必须 pacing，避免瞬时打爆限速。
 - `SCAN_LOCK_TTL_SECONDS`: 单次扫描锁过期时间，默认 `600` 秒；用于避免 worker、手动刷新和页面读取同时触发深扫。
 - `COINGLASS_DAILY_MOVER_MAX_ASSETS`: 每次每日异动抓取最多请求多少个基础币，免费阶段默认 `8`
 - `COINGLASS_DAILY_MOVER_LIMIT_PER_SIDE`: 每侧最多保留多少个涨跌幅样本，默认 `10`
@@ -140,7 +140,7 @@
 - 当前分批队列按 UTC 日内扫描窗口轮转。GitHub Actions 外部扫描 cron 与应用 cadence 对齐为 15 分钟；推荐 batch size 为 `24`，每轮约扫 BTC/ETH + 22 个山寨标的。
 - CoinGlass provider 会先用 Binance public futures `exchangeInfo`、OKX public instruments、Bybit V5 public instruments 发现 USDT 永续合约，再按 `COINGLASS_BATCH_SIZE` 低频请求 CoinGlass；单个交易所发现失败会降级为 source note，全部发现失败时回退到配置白名单。
 - `COINGLASS_DAILY_REQUEST_BUDGET` 会把过大的 `COINGLASS_BATCH_SIZE` 自动压回每日预算允许值。旧值 `300` 会把 15 分钟 cadence 下的安全批次压到约 `3`，导致长期只扫 BTC/ETH + 1 个山寨；当前推荐 `3000`，线上 metadata notes 应显示 `quota guard: requested batch 24 kept`。
-- `COINGLASS_REQUEST_INTERVAL_MS` 不能随意设为 `0`。只有本地测试或明确排查才可关闭 pacing；生产默认 `2200ms`，用于保护 CoinGlass Hobbyist 30/min 限速并给探针/手动刷新留余量。
+- `COINGLASS_REQUEST_INTERVAL_MS` 不能随意设为 `0`。只有本地测试或明确排查才可关闭 pacing；生产默认 `3000ms`，用于保护 CoinGlass Hobbyist 30/min 限速并给探针/手动刷新留余量。
 - 生产 CoinGlass key 更换必须用 `npm run production:update-coinglass-key` 或同等安全流程：隐藏输入或本地环境变量传入，只更新服务器 `.env.production`，自动备份、重建相关容器并跑受保护能力体检；不得把真实 key 写进仓库、聊天、日志或命令输出。
 - 2026-06-23 旧生产探针曾显示旧 `COINGLASS_API_KEY` 对合约深扫端点返回 `Upgrade plan`。验收时必须先看 `/api/health.coinGlassRuntimeCapability`、`/api/radar/backend-contract.sourceAudit.coinGlassCapability`，必要时用 `Authorization: Bearer <CRON_SECRET>` 调用 `POST /api/admin/coinglass/capability`。如果结果仍为 `upgrade_required`、`auth_error`、`rate_limited`、`param_error`、`empty` 或 0 clean rows，必须判定为 CoinGlass 付费深扫未就绪或请求参数待修，不是系统没运行；公共轻扫和榜单仍可用，但不能生成 CoinGlass 衍生品 Evidence 或交易计划。
 - `REDIS_URL` 存在时主扫描会优先使用 Redis 做跨容器扫描锁和 CoinGlass 分钟级令牌桶；Redis 不可用时自动降级为进程内锁，但多容器防重能力会变弱。

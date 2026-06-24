@@ -687,7 +687,7 @@ test("buildFrontendRadarContract defaults CoinGlass budget to Hobbyist productio
   });
 
   assert.equal(radar.apiUsage.data.remainingToday, 3000);
-  assert.equal(radar.apiUsage.data.pacingMs, 2200);
+  assert.equal(radar.apiUsage.data.pacingMs, 3000);
 });
 
 test("buildFrontendRadarContract uses observed source latency when probes exist", () => {

@@ -161,7 +161,7 @@ test("getConfiguredMarketProvider returns CoinGlass provider when enabled", () =
 });
 
 test("getConfiguredMarketProvider defaults to conservative CoinGlass pacing", () => {
-  assert.equal(defaultCoinGlassRequestIntervalMs, 2_200);
+  assert.equal(defaultCoinGlassRequestIntervalMs, 3_000);
 });
 
 test("createConfiguredPublicLightScanProvider merges websocket Redis snapshots before REST fallback", async () => {
