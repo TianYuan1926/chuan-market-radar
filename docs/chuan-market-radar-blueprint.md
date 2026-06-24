@@ -698,7 +698,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - **合法外部事件情报层**：2026-06-24 已落地基础合同：`ExternalEvent`、`SourceFetchRun`、合法 source plan、事件标准化、事件转 `EXTERNAL_EVENT` 证据候选和只读 `GET /api/frontend/external-intel`。该层只允许 context-only，不保存原始全文，不绕过登录/付费墙/验证码/robots，不直接生成交易信号。DEX Screener collector、交易所公告 collector、token identity collector、链上低频 collector 尚未启用，前端必须显示 empty/collector 未启用，不能伪装成实时外部情报。
 - **部署自动化稳定性**：GitHub 远端检查和 SSH 自动部署仍受本机网络/服务器 SSH 握手影响；OrcaTerm 能兜底，但不能替代长期自动部署。
 - **资金流与主动买卖流**：2026-06-24 已补强前端资金流合同边界：`derivatives/fundFlow` 必须分别暴露 `connectedFields`、`unavailableFields` 和 `decisionBoundary`。当前真实可用字段是 OI、Funding 和 Long/Short 上下文；稳定 CVD、taker buy/sell、真实资金流数据源仍未完整接入。未稳定前只能显示 partial/waiting，不能生成或放大交易信号。
-- **图表与 logo 最终验收**：TradingView 主图、K 线 overlay、真实 token logo、fallback 和多周期交互仍需逐页验收，不能只看 API 有字段。
+- **图表与 logo 最终验收**：2026-06-24 已补强 Token Dossier 图表真相字段：`chart.status`、`tradingViewSymbol`、`tradingViewUrl`、`availableTimeframes`、`overlaySource` 和 `canUseMockCandles=false`。TradingView 主图、K 线 overlay 与 v3 关键位/Forward Map/交易计划来源必须明确；前端不得用模拟 K 线冒充真实行情。真实 token logo、fallback 和多周期交互仍需逐页验收，不能只看 API 有字段。
 
 ### P2：后续增强但不能抢 P0/P1 优先级
 

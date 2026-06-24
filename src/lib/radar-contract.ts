@@ -214,10 +214,21 @@ export type AnalysisReportSection = {
   items: { label: string; detail: string; sourceId?: string }[]
 }
 
+export type TokenChartIntegrity = {
+  availableTimeframes: string[]
+  canUseMockCandles: false
+  overlaySource: 'v3_key_levels_forward_map_trade_plan' | 'none'
+  selectedTimeframe: string
+  status: 'ready' | 'partial' | 'empty'
+  tradingViewSymbol: string | null
+  tradingViewUrl: string | null
+}
+
 export type TokenDossier = {
   symbol: string
   direction: '看多' | '看空' | '中性'
   maturity: SignalMaturity
+  chart: TokenChartIntegrity
   structures: TfStructure[]
   evidence: EvidenceItem[]
   counter: CounterItem[]
@@ -233,6 +244,15 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
     symbol: symbol.toUpperCase(),
     direction: '中性',
     maturity: 'LIGHT_SCAN_MARK',
+    chart: {
+      availableTimeframes: [],
+      canUseMockCandles: false,
+      overlaySource: 'none',
+      selectedTimeframe: '4h',
+      status: 'empty',
+      tradingViewSymbol: null,
+      tradingViewUrl: null,
+    },
     structures: [],
     evidence: [],
     counter: [],

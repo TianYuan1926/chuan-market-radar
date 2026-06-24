@@ -1362,6 +1362,10 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
   assert.equal(res.data.symbol, "TIA");
   assert.equal(res.data.direction, "看多");
   assert.equal(res.data.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(res.data.chart.status, "partial");
+  assert.equal(res.data.chart.canUseMockCandles, false);
+  assert.equal(res.data.chart.tradingViewSymbol, "BINANCE:TIAUSDT.P");
+  assert.equal(res.data.chart.overlaySource, "none");
   assert.equal(res.data.tradePlan, null);
   assert.equal(res.data.riskGate.allowTradePlan, false);
   assert.match(res.data.riskGate.reasons.join("；"), /等待后端结构化交易计划/);
@@ -1478,6 +1482,8 @@ test("buildFrontendTokenDossierContract maps real v3 key levels without fabricat
   assert.equal(oneHour?.resistance, 8.26);
   assert.equal(fourHour?.support, 0);
   assert.equal(fourHour?.resistance, 0);
+  assert.equal(res.data.chart.status, "ready");
+  assert.equal(res.data.chart.overlaySource, "v3_key_levels_forward_map_trade_plan");
 });
 
 test("buildFrontendTokenDossierContract maps backend v3 trade plan without frontend fabrication", () => {
@@ -1672,6 +1678,8 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   });
 
   assert.equal(res.data.maturity, "TRADE_PLAN_READY");
+  assert.equal(res.data.chart.status, "ready");
+  assert.equal(res.data.chart.canUseMockCandles, false);
   assert.equal(res.data.riskGate.allowTradePlan, true);
   assert.deepEqual(res.data.riskGate.reasons, []);
   assert.equal(res.data.tradePlan?.bias, "多");

@@ -174,10 +174,21 @@ export type AnalysisReportSection = {
   }[];
 };
 
+export type TokenChartIntegrity = {
+  availableTimeframes: string[];
+  canUseMockCandles: false;
+  overlaySource: "v3_key_levels_forward_map_trade_plan" | "none";
+  selectedTimeframe: string;
+  status: "ready" | "partial" | "empty";
+  tradingViewSymbol: string | null;
+  tradingViewUrl: string | null;
+};
+
 export type TokenDossier = {
   symbol: string;
   direction: "看多" | "看空" | "中性";
   maturity: SignalMaturity;
+  chart: TokenChartIntegrity;
   structures: TfStructure[];
   evidence: EvidenceItem[];
   counter: CounterItem[];
@@ -1916,6 +1927,32 @@ function structureFromDossier(dossier: SignalBackendDossier, basePrice: number):
   });
 }
 
+function chartIntegrityFromDossier(dossier: SignalBackendDossier): TokenChartIntegrity {
+  const hasTradingView = Boolean(dossier.chart.tradingView?.symbol && dossier.chart.tradingView?.url);
+  const hasV3Overlays = Boolean(
+    dossier.strategyV3 &&
+    (
+      dossier.strategyV3.keyLevels.length > 0 ||
+      dossier.strategyV3.forwardLevels.length > 0 ||
+      dossier.strategyV3.tradePlan
+    ),
+  );
+
+  return {
+    availableTimeframes: [...dossier.chart.availableTimeframes],
+    canUseMockCandles: false,
+    overlaySource: hasV3Overlays ? "v3_key_levels_forward_map_trade_plan" : "none",
+    selectedTimeframe: dossier.chart.selectedTimeframe ?? dossier.chart.availableTimeframes[0] ?? "4h",
+    status: hasTradingView
+      ? hasV3Overlays
+        ? "ready"
+        : "partial"
+      : "empty",
+    tradingViewSymbol: dossier.chart.tradingView?.symbol ?? null,
+    tradingViewUrl: dossier.chart.tradingView?.url ?? null,
+  };
+}
+
 function priceText(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return "等待目标位";
@@ -2297,6 +2334,7 @@ export function buildFrontendTokenDossierContract({
           ? "TRADE_PLAN_READY"
           : "EVIDENCE_SIGNAL"
       : "INVALIDATED",
+    chart: chartIntegrityFromDossier(dossier),
     structures: structureFromDossier(dossier, basePrice),
     evidence: evidenceItems,
     counter: counterItems,
