@@ -581,9 +581,11 @@ test("stage 8 token signal archive uses backend dossier and honest empty state i
   assert.match(signalArchiveSource, /Resource/);
   assert.match(signalArchiveSource, /dossier\?:\s*Resource<TokenDossier>/);
   assert.match(signalArchiveSource, /dossierToArchive/);
+  assert.match(signalArchiveSource, /dossierState/);
   assert.match(signalArchiveSource, /dossier\?\.data/);
   assert.match(signalArchiveSource, /系统不会用模拟证据、模拟关键位或模拟交易计划补位/);
   assert.match(signalArchiveSource, /后端结构化研究输出/);
+  assert.doesNotMatch(signalArchiveSource, /value="活跃"/);
   assert.doesNotMatch(signalArchiveSource, /getTokenArchive/);
   assert.doesNotMatch(signalArchiveSource, /系统模拟推演/);
 });

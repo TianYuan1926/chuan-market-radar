@@ -621,7 +621,16 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
   assert.equal(contract.analysis.v3StrategyLoop.readinessBuckets[0]?.bucket, "manual_review_ready");
   assert.equal(contract.analysis.businessCapability.schemaVersion, "business-capability.v1");
   assert.equal(contract.analysis.businessCapability.canAutoExecute, false);
-  assert.equal(contract.analysis.businessCapability.stages.length, 9);
+  assert.equal(contract.analysis.businessCapability.stages.length, 14);
+  assert.ok(
+    contract.analysis.businessCapability.stages.some((stage) => stage.id === "source_truth"),
+  );
+  assert.ok(
+    contract.analysis.businessCapability.stages.some((stage) => stage.id === "deep_scan_verification"),
+  );
+  assert.ok(
+    contract.analysis.businessCapability.stages.some((stage) => stage.id === "analysis_reasoning"),
+  );
   assert.ok(
     contract.analysis.businessCapability.stages.some((stage) => stage.id === "candidate_rotation"),
   );

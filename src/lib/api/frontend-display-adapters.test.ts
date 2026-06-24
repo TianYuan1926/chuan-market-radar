@@ -61,6 +61,8 @@ test("empty mature signals still render candidate cards and tokens", () => {
   );
   assert.ok(cards.every((card) => card.category !== "sniper"));
   assert.ok(cards.every((card) => card.odds === 0));
+  assert.ok(cards.every((card) => card.sourceKind === "leaderboard_candidate"));
+  assert.ok(cards.every((card) => card.maturity === "DEEP_SCAN_CANDIDATE"));
 });
 
 test("leaderboard tokens use real row price and never metric value as price", () => {

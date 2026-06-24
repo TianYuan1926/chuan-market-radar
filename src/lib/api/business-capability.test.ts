@@ -280,7 +280,7 @@ function health(): SystemHealthReport {
   } as unknown as SystemHealthReport;
 }
 
-test("buildBusinessCapabilityReport exposes the nine backend business capabilities", () => {
+test("buildBusinessCapabilityReport exposes the full core radar business chain", () => {
   const report = buildBusinessCapabilityReport({
     health: health(),
     snapshot: snapshot(),
@@ -290,20 +290,25 @@ test("buildBusinessCapabilityReport exposes the nine backend business capabiliti
   assert.equal(report.allowedUse, "research_only");
   assert.equal(report.canAutoExecute, false);
   assert.equal(report.canAutoAdjustWeights, false);
-  assert.equal(report.stages.length, 9);
+  assert.equal(report.stages.length, 14);
   assert.deepEqual(report.stages.map((stage) => stage.id), [
+    "source_truth",
+    "full_market_discovery",
+    "candidate_rotation",
+    "deep_scan_verification",
+    "signal_maturity",
+    "analysis_reasoning",
+    "risk_reward_gate",
     "signal_lifecycle",
     "outcome_standard",
-    "candidate_rotation",
-    "signal_maturity",
-    "shadow_tracking",
-    "strategy_family_stats",
     "historical_case_replay",
+    "strategy_family_stats",
+    "shadow_tracking",
     "ai_counter_review",
     "evolution_suggestions",
   ]);
+  assert.match(report.operatingRules.join("\n"), /扫描 -> 候选 -> 深扫 -> 结构分析 -> 风险赔率 -> 交易计划 -> 复盘进化/);
   assert.equal(report.stages.find((stage) => stage.id === "ai_counter_review")?.status, "ready");
   assert.match(report.operatingRules.join("\n"), /最低 3:1 盈亏比是下限/);
-  assert.match(report.frontendContracts.join("\n"), /不能只展示漂亮卡片/);
+  assert.match(report.frontendContracts.join("\n"), /事实源、覆盖、候选、深扫、分析、风控、复盘/u);
 });
-

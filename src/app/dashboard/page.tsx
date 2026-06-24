@@ -41,6 +41,10 @@ export default async function DashboardPage() {
   const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
   const scan = scanProofResourceToScanState(radar.scanProof, radar.apiUsage)
   const env = macroResourceToMarketEnv(radar.macroAltEnv, radar.derivatives, tokens)
+  const matureSignalCount = radar.radarSignals.data.filter(
+    (signal) => signal.maturity === 'EVIDENCE_SIGNAL' || signal.maturity === 'TRADE_PLAN_READY',
+  ).length
+  const candidateDisplayCount = Math.max(0, displaySignals.data.length - matureSignalCount)
 
   const sniper = cards
     .filter((c) => c.category === 'sniper')
@@ -51,7 +55,6 @@ export default async function DashboardPage() {
     .filter((c) => c.poolStatus === 'high_risk' || c.type === 'CRASH')
     .slice(0, 4)
 
-  const bull = tokens.filter((t) => t.trend === 'bull').length
   const onlineSources = radar.dataSources.data.filter((source) => source.feed === 'live').length
   const totalSources = radar.dataSources.data.length
   const overview = [
@@ -63,11 +66,11 @@ export default async function DashboardPage() {
       sub: `${onlineSources}/${totalSources || 0} 数据源在线`,
     },
     {
-      label: '活跃候选信号',
-      value: cards.length,
+      label: '候选池展示',
+      value: displaySignals.data.length,
       icon: Crosshair,
       tone: 'var(--neon)',
-      sub: `多头 ${bull} · 实时更新`,
+      sub: `成熟 ${matureSignalCount} · 候选 ${candidateDisplayCount}`,
       count: true,
     },
     {

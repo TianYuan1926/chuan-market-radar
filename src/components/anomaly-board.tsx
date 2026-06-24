@@ -76,8 +76,21 @@ function direction(card: SignalCard): 'long' | 'short' {
 // 证据说明文案：只解释后端卡片字段，不生成交易结论。
 function analysisLogic(card: SignalCard): string[] {
   const t = card.token
+  const candidateOnly =
+    card.sourceKind === 'leaderboard_candidate' ||
+    card.maturity === 'LIGHT_SCAN_MARK' ||
+    card.maturity === 'DEEP_SCAN_CANDIDATE'
+
+  if (candidateOnly) {
+    return [
+      `${card.exchange} ${card.market} 展示排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
+      `当前只是${card.maturity === 'DEEP_SCAN_CANDIDATE' ? '深扫候选' : '轻扫/榜单候选'}，风险等级 ${card.riskLevel}，RR 未就绪，状态 ${POOL_META[card.poolStatus].label}。`,
+      '候选只说明“值得继续验证”，不是交易信号；必须等待结构、衍生品、证据融合、Risk Gate 和 3:1 以上赔率全部通过。',
+    ]
+  }
+
   return [
-    `${card.exchange} ${card.market} 后端卡片评分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
+    `${card.exchange} ${card.market} 展示排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
     `方向状态 ${direction(card) === 'long' ? '偏多' : '偏空'}，风险等级 ${card.riskLevel}，RR ${card.odds || '未就绪'}，候选状态 ${POOL_META[card.poolStatus].label}。`,
     card.category === 'sniper'
       ? '该标的已进入最终计划候选；具体计划字段必须以单币档案中的后端结构化计划为准。'
@@ -218,7 +231,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           <span className="text-muted-foreground">排序</span>
           {(
             [
-              ['score', '评分'],
+              ['score', '排序分'],
               ['sentiment', '情绪'],
               ['cap', '市值'],
               ['age', '最新'],
@@ -239,7 +252,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           ))}
         </div>
         <span className="ml-auto font-mono text-[13px] text-muted-foreground">
-          {rows.length} 条信号
+          {rows.length} 条候选/信号
         </span>
       </div>
 
@@ -285,7 +298,11 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             const isStar = starred[card.id]
             const isOpen = open === card.id
             const logic = analysisLogic(card)
-            const planReady = card.category === 'sniper' && card.odds >= 3
+            const candidateOnly =
+              card.sourceKind === 'leaderboard_candidate' ||
+              card.maturity === 'LIGHT_SCAN_MARK' ||
+              card.maturity === 'DEEP_SCAN_CANDIDATE'
+            const planReady = card.maturity === 'TRADE_PLAN_READY' && card.category === 'sniper' && card.odds >= 3
             return (
               <div
                 key={card.id}
@@ -403,14 +420,14 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                     <div>
                       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                         <Crosshair className="size-4 text-neon" />
-                        信号详情
+                        {candidateOnly ? '候选详情' : '信号详情'}
                       </div>
                       <p className="text-[13px] leading-relaxed text-muted-foreground">
                         {card.desc}
                       </p>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
                         <Stat
-                          label="信号评分"
+                          label="展示排序分"
                           value={`${card.score}/100`}
                           tone="var(--neon)"
                         />
@@ -445,7 +462,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                     <div className="lg:border-l lg:border-border lg:pl-4">
                       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                         <Brain className="size-4 text-neon" />
-                        后端证据说明
+                        {candidateOnly ? '候选验证说明' : '后端证据说明'}
                       </div>
                       <ul className="space-y-1.5">
                         {logic.map((l, i) => (

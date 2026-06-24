@@ -155,9 +155,9 @@ v3 的核心不是“预测涨跌”，而是：
    - 这些复盘样本先进入人工确认和只读校准，不允许自动改真实权重。
    - 2026-06-17 已完成 MVP：`runForwardMapReviewExecutor` 可读取已保存的 v3 事前地图，拉取后续公开 OHLCV，写入 `forward_map_review` 和 `key_level_reaction_review` journal 事件，并记录受保护执行批次；该链路只读，不自动改权重。
    - 2026-06-17 已完成健康摘要 MVP：`/api/health` 现在暴露 `v3ForwardMapReviews`，系统健康面板展示事前地图数量、最近执行、完成/跳过/失败分布、存储迁移状态和只读边界，用于判断 v3 复盘引擎是否真的在运转。若当前生产 Postgres 或旧 Neon 回滚库还没有迁移 `v3_forward_map_snapshots`，首页必须降级提示“待迁移”，不能 500。
-   - 2026-06-21 已完成业务能力总控 MVP：`buildBusinessCapabilityReport` 和 `/api/radar/business-capability` 把信号生命周期、复盘判定标准、候选池公平轮换、信号成熟度分层、影子实盘追踪、策略分型统计、历史案例回放、AI 反证复核和进化建议系统统一暴露为 `business-capability.v1`。该接口只读、研究用途，不触发额外 CoinGlass 请求，不自动下单，不自动改权重，不改变实时排序。
-   - 前端重建时必须读取业务能力总控状态：每个板块至少能看到 `status`、`score`、`summary`、`evidence`、`nextAction` 和 `guardrail`。如果某项还在收集样本或被禁用，必须明确展示，不能用漂亮 UI 掩盖“还没实战验证”的事实。
-   - 业务能力总控固定 9 项：`signal_lifecycle`、`outcome_standard`、`candidate_rotation`、`signal_maturity`、`shadow_tracking`、`strategy_family_stats`、`historical_case_replay`、`ai_counter_review`、`evolution_suggestions`。后续新增复盘或进化能力必须接入这条链，不能成为孤立面板。
+   - 2026-06-24 已完成业务能力总控核心链路升级：`buildBusinessCapabilityReport` 和 `/api/radar/business-capability` 不再只是复盘/进化面板，而是统一暴露 `source_truth`、`full_market_discovery`、`candidate_rotation`、`deep_scan_verification`、`signal_maturity`、`analysis_reasoning`、`risk_reward_gate`、`signal_lifecycle`、`outcome_standard`、`historical_case_replay`、`strategy_family_stats`、`shadow_tracking`、`ai_counter_review` 和 `evolution_suggestions` 14 个阶段。该接口只读、研究用途，不触发额外 CoinGlass 请求，不自动下单，不自动改权重，不改变实时排序。
+   - 前端重建时必须读取业务能力总控状态：每个板块至少能看到 `status`、`score`、`summary`、`evidence`、`nextAction` 和 `guardrail`。如果某项还在收集样本、被阻断、只处于候选或被禁用，必须明确展示，不能用漂亮 UI 掩盖“还没实战验证”的事实。
+   - 业务能力总控固定为核心雷达链：事实源 -> 全市场发现 -> 候选轮换 -> 深扫验证 -> 信号成熟度 -> 分析推理 -> 赔率风控 -> 信号生命周期 -> 复盘判定 -> 历史回放 -> 策略分型 -> 影子追踪 -> AI 反证 -> 进化建议。后续新增能力必须挂到这条链上，不能成为孤立面板。
 
 ### v3 必须剔除或降级的旧方向
 
@@ -465,6 +465,7 @@ Postgres 使用边界：
 - 前端不得用 mock 冒充真实扫描、真实 K 线、真实信号、真实运行状态；未接真实数据的模块必须保留可见降级/占位语义。
 - 前端必须清楚区分全市场资产池、当前扫描批次、当前候选信号、深扫候选、人工复盘样本和策略演化样本。
 - 前端不能因为布局、分页、Top N、折叠或视觉选择，让用户误以为系统只扫描了当前可见的几个币。
+- 前端允许用榜单候选、轻扫候选或深扫候选补充“候选/异动表格”展示，但必须标记为 `DEEP_SCAN_CANDIDATE`、`验证中` 或 `候选`，不得进入狙击榜，不得显示完整交易计划，不得把展示排序分写成交易信号评分。只有后端成熟度达到 `EVIDENCE_SIGNAL` 或 `TRADE_PLAN_READY` 的数据，才允许进入主信号区；只有 `TRADE_PLAN_READY` 且结构 RR 达标的标的，才允许进入狙击榜。
 - UI 设计由外部前端工具负责；Codex 负责让 UI 消费真实后端数据并保持 1:1 视觉不被破坏。
 - 2026-06-22 起，前后端全量对接以 `docs/frontend-backend-field-map.md` 为字段级施工基线。任何新增对接、删改 mapper、补接口或改空状态前，必须先核对该字段地图，避免“页面看起来接了、实际字段半接或两张皮”。
 - 2026-06-23 起，页面切换流畅性按核心功能处理。服务端页面读取 `RadarContract`、榜单、复盘等只读合同必须使用短 TTL 缓存和 in-flight 合并，避免一次页面切换重复聚合相同 snapshot、重复扫描公开榜单或误触 CoinGlass。该缓存只能服务展示层，不能覆盖扫描事实源、不能写入数据库、不能让 stale 数据冒充 live。
@@ -1809,7 +1810,7 @@ RawSource
    - `.env.example` 只允许使用占位符：`CHUAN_SESSION_PASSWORD`、`CHUAN_SESSION_SECRET`、`CHUAN_SESSION_TTL_SECONDS`、`FRONTEND_UI_STATE_*`。真实密码、API key 和 session secret 不得写入仓库。
    - 私有登录不是交易权限，不接交易所下单 API，不做自动交易；它只保护个人站点访问。
 
-32. **Phase Backend-5：九阶段后端对接、稳定性和生产验收合同（已落地）**
+32. **Phase Backend-5：核心后端对接、稳定性和生产验收合同（已落地）**
    - 新增 `ScanStabilityReport`，从扫描归档、覆盖率、Redis 状态和 worker 心跳生成扫描稳定性诊断；该报告只能用于运维和排错，不能直接生成交易信号。
    - `/api/health`、`/api/radar/backend-contract` 和 `RadarContract.scanStability` 必须暴露扫描稳定性状态、分数、问题列表和只读边界。前端如果显示“系统在运转”，必须优先使用这些字段，而不是动画或静态文案。
    - 新增 `ReviewStatisticsReport`，从真实 `journal_events` outcome 样本统计样本数、已关闭样本、待跟踪样本、MFE/MAE、胜率和样本状态；样本少时必须输出 `empty/collecting/statistically_thin`，不能假装已经具备稳定胜率。
@@ -1819,7 +1820,7 @@ RawSource
    - 单机部署环境变量、`docker-compose.yml` 和 `deploy/scripts/bootstrap-prod-env.sh` 必须同步私有模式、前端 UI 状态、实时事件限流、worker 心跳、AI/扫描相关变量。真实密钥只写服务器 `.env.production`，不得写入仓库。
    - 新增生产全量验收脚本 `deploy/scripts/production-full-verify.sh`，统一检查 compose、迁移、健康、前端合同、只读事件、UI 状态、扫描触发、公开 smoke、worker 日志和备份 dry run。
    - 新增 PostgreSQL 恢复脚本 `deploy/scripts/restore-postgres.sh`，必须显式设置 `CONFIRM_RESTORE=yes` 才能恢复，避免误覆盖生产数据。
-   - 当前九阶段结论：后端合同、扫描稳定性、复盘统计、AI 统计、事件流、单机验收和恢复路径已形成闭环；剩余业务事实缺口是稳定资金流源。没有稳定来源前，前端只能显示 partial/waiting。
+   - 2026-06-24 校准：旧“九阶段”表述已废弃，业务能力总控按 14 阶段核心雷达链展示。当前后端合同、扫描稳定性、复盘统计、AI 统计、事件流、单机验收和恢复路径已形成闭环；剩余业务事实缺口仍包括稳定资金流源、长期样本验证和深扫/公开源运行态持续观察。没有稳定来源前，前端只能显示 partial/waiting。
 
 33. **Phase Backend-6：生产根因治理与数据污染防线**
    - 生产发布脚本必须在 `docker compose up -d --build` 后自动调用 `/api/admin/persistence/migrate`；数据库迁移是发布流程的一部分，不能靠手动记忆。

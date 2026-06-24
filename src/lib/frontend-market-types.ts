@@ -48,6 +48,15 @@ export type SignalCard = {
   token: Token
   type: SignalType
   category: SignalCategory
+  maturity:
+    | 'LIGHT_SCAN_MARK'
+    | 'DEEP_SCAN_CANDIDATE'
+    | 'EVIDENCE_SIGNAL'
+    | 'TRADE_PLAN_READY'
+    | 'BLOCKED'
+    | 'INVALIDATED'
+    | 'COOLDOWN'
+  sourceKind: 'backend_signal' | 'leaderboard_candidate'
   poolStatus: PoolStatus
   score: number
   riskLevel: '低' | '中' | '高' | '极高'

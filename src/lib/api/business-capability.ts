@@ -10,13 +10,18 @@ export type BusinessCapabilitySchemaVersion = "business-capability.v1";
 
 export type BusinessCapabilityStageId =
   | "ai_counter_review"
+  | "analysis_reasoning"
   | "candidate_rotation"
+  | "deep_scan_verification"
   | "evolution_suggestions"
+  | "full_market_discovery"
   | "historical_case_replay"
   | "outcome_standard"
+  | "risk_reward_gate"
   | "shadow_tracking"
   | "signal_lifecycle"
   | "signal_maturity"
+  | "source_truth"
   | "strategy_family_stats";
 
 export type BusinessCapabilityStageStatus =
@@ -86,6 +91,87 @@ function maturityCounts(snapshot: MarketRadarSnapshot): Record<SignalMaturitySta
 
 function maturityStage(signal: MarketSignal) {
   return signal.maturity?.stage ?? "DEEP_SCAN_CANDIDATE";
+}
+
+function sourceTruthStage(health: SystemHealthReport): BusinessCapabilityStage {
+  const dataSource = health.dataSource ?? {
+    activeSource: "mock",
+    configuredProvider: "unknown",
+    mode: "demo",
+    status: "fallback",
+  };
+  const persistence = health.persistence ?? {
+    databaseDriver: "memory",
+    databaseStatus: "unavailable",
+    durable: false,
+  };
+  const coinGlass = health.coinGlassRuntimeCapability ?? {
+    deepScanStatus: "not_requested",
+    keyConfigured: false,
+  };
+  const sourceReady = dataSource.status === "ready" && dataSource.mode === "live";
+  const databaseReady = persistence.databaseStatus === "ready" && persistence.durable;
+  const coinGlassReady = coinGlass.keyConfigured &&
+    coinGlass.deepScanStatus !== "auth_error" &&
+    coinGlass.deepScanStatus !== "not_configured";
+  const status: BusinessCapabilityStageStatus = sourceReady && databaseReady && coinGlassReady
+    ? "ready"
+    : dataSource.status === "missing_key" || coinGlass.deepScanStatus === "auth_error"
+      ? "blocked"
+      : "partial";
+
+  return {
+    id: "source_truth",
+    title: "事实源边界",
+    status,
+    score: clampScore(statusScore(status) + (databaseReady ? 5 : -12) + (coinGlassReady ? 5 : -8)),
+    summary: `当前事实源 ${dataSource.activeSource} / ${dataSource.mode}，数据库 ${persistence.databaseStatus}，CoinGlass ${coinGlass.deepScanStatus}。`,
+    evidence: [
+      `configuredProvider=${dataSource.configuredProvider}`,
+      `databaseDriver=${persistence.databaseDriver}`,
+      `coinGlassKeyConfigured=${coinGlass.keyConfigured}`,
+    ],
+    nextAction: status === "ready"
+      ? "继续保持所有页面展示 source/status/age，不允许 mock 或旧缓存冒充实时数据。"
+      : "先修复事实源、数据库或 CoinGlass 认证状态，再扩展分析和前端展示。",
+    guardrail: "页面必须明确 live/cached/partial/stale/failed；未知数据只能显示等待或不可用，不能补假值。",
+  };
+}
+
+function fullMarketDiscoveryStage(health: SystemHealthReport): BusinessCapabilityStage {
+  const light = health.lightScan;
+  const coverage = health.fullMarketCoverage?.coverage ?? {
+    batchLabel: "unknown",
+    coveragePercent: health.coverage?.coveragePercent ?? 0,
+    eligible: health.coverage?.eligible ?? 0,
+    nextBatchLabel: "unknown",
+    pending: health.coverage?.pending ?? 0,
+    scanned: health.coverage?.scanned ?? 0,
+    total: health.coverage?.total ?? 0,
+  };
+  const lightReady = light?.status === "ready" && (light.acceptedCount ?? 0) > 0;
+  const hasUniverse = coverage.eligible > 0 || coverage.total > 0;
+  const fullMarketStatus = health.fullMarketCoverage?.status ?? "preview";
+  const status: BusinessCapabilityStageStatus = !hasUniverse || fullMarketStatus === "blocked"
+    ? "blocked"
+    : lightReady && (fullMarketStatus === "rotating" || fullMarketStatus === "complete")
+      ? "ready"
+      : "partial";
+
+  return {
+    id: "full_market_discovery",
+    title: "全市场发现",
+    status,
+    score: clampScore(statusScore(status) + Math.min(10, Math.round(coverage.coveragePercent / 10))),
+    summary: `轻扫 accepted=${light?.acceptedCount ?? 0}/${light?.universeCount ?? coverage.total}，本轮覆盖 ${coverage.scanned}/${coverage.eligible}，待轮转 ${coverage.pending}。`,
+    evidence: [
+      `lightScanStatus=${light?.status ?? "missing"}`,
+      `source=${light?.source ?? "unknown"}`,
+      `batch=${coverage.batchLabel}, next=${coverage.nextBatchLabel}`,
+    ],
+    nextAction: health.fullMarketCoverage?.operatorHint ?? "补齐 fullMarketCoverage/lightScan 后再判断全市场发现质量。",
+    guardrail: "轻扫只负责发现异常和调度候选；不能直接生成交易计划，未进入深扫也不代表淘汰。",
+  };
 }
 
 function outcomeLifecycleStage({
@@ -192,6 +278,45 @@ function candidateRotationStage({
   };
 }
 
+function deepScanVerificationStage(health: SystemHealthReport): BusinessCapabilityStage {
+  const requests = health.scanDiagnostics?.requests;
+  const planned = requests?.coinGlassRequestsPlanned ?? 0;
+  const clean = requests?.cleanRows ?? 0;
+  const raw = requests?.rawRows ?? 0;
+  const failures = requests?.requestFailures?.length ?? 0;
+  const coinGlass = health.coinGlassRuntimeCapability ?? {
+    canCreateDerivativeEvidence: false,
+    deepScanStatus: "not_requested",
+    minuteLimit: 30,
+    operatorHint: "CoinGlass runtime capability missing from health report.",
+  };
+  const runtimeStatus = coinGlass.deepScanStatus;
+  const status: BusinessCapabilityStageStatus = clean > 0 && runtimeStatus === "ready"
+    ? "ready"
+    : runtimeStatus === "auth_error" || runtimeStatus === "not_configured"
+      ? "blocked"
+      : planned > 0 || raw > 0
+        ? "watch"
+        : "collecting";
+
+  return {
+    id: "deep_scan_verification",
+    title: "深扫验证",
+    status,
+    score: clampScore(statusScore(status) + Math.min(12, clean * 2) - Math.min(20, failures * 4)),
+    summary: `CoinGlass 计划请求 ${planned}，原始行 ${raw}，清洗可用 ${clean}，失败 ${failures}，状态 ${runtimeStatus}。`,
+    evidence: [
+      `minuteLimit=${coinGlass.minuteLimit}`,
+      `canCreateDerivativeEvidence=${coinGlass.canCreateDerivativeEvidence}`,
+      `operatorHint=${coinGlass.operatorHint}`,
+    ],
+    nextAction: clean > 0
+      ? "继续用 CoinGlass 做付费衍生品确认，并用公开交易所数据交叉验证。"
+      : "优先修复 CoinGlass 深扫可用性；公开交易所深扫只能标为 public verification，不能冒充 CoinGlass。",
+    guardrail: "没有真实衍生品深扫证据时，只能保留验证中候选，不得输出完整交易计划。",
+  };
+}
+
 function signalMaturityStage({
   health,
   snapshot,
@@ -223,6 +348,96 @@ function signalMaturityStage({
       : "继续深扫候选，等待结构、衍生品和 RR 证据补齐。",
     guardrail: health.signalMaturity?.guardrail ??
       "LIGHT_SCAN_MARK 只做调度输入，不能直接展示成交易机会。",
+  };
+}
+
+function analysisReasoningStage(health: SystemHealthReport): BusinessCapabilityStage {
+  const loop = {
+    ...(health.v3StrategyLoop ?? {}),
+    live: health.v3StrategyLoop?.live ?? {
+      blockedPlans: 0,
+      conflictSignals: 0,
+      forwardLevels: 0,
+      keyLevels: 0,
+      missingV3Signals: 0,
+      readyPlans: 0,
+      riskGateBlocked: 0,
+      totalSignals: 0,
+      v3Signals: 0,
+    },
+    operatorHint: health.v3StrategyLoop?.operatorHint ?? "v3StrategyLoop missing from health report.",
+    readinessBuckets: health.v3StrategyLoop?.readinessBuckets ?? [],
+    status: health.v3StrategyLoop?.status ?? "collecting",
+  };
+  const live = loop.live;
+  const status: BusinessCapabilityStageStatus = loop.status === "blocked"
+    ? "blocked"
+    : live.totalSignals === 0
+      ? "collecting"
+      : live.v3Signals > 0
+        ? "ready"
+        : "partial";
+
+  return {
+    id: "analysis_reasoning",
+    title: "分析推理链",
+    status,
+    score: clampScore(
+      statusScore(status) +
+      Math.min(10, live.keyLevels) +
+      Math.min(8, live.forwardLevels) -
+      Math.min(16, live.missingV3Signals * 2),
+    ),
+    summary: `当前信号 ${live.totalSignals}，v3 覆盖 ${live.v3Signals}，关键位 ${live.keyLevels}，Forward Map ${live.forwardLevels}，缺失 ${live.missingV3Signals}。`,
+    evidence: [
+      `status=${loop.status}`,
+      `readinessBuckets=${loop.readinessBuckets.map((bucket) => `${bucket.bucket}:${bucket.count}`).join(", ") || "none"}`,
+    ],
+    nextAction: loop.operatorHint,
+    guardrail: "分析必须按大盘环境、相对强弱、多周期结构、关键位、量能、衍生品、指标辅助、反证和风险门控顺序走；单一指标不能直接出结论。",
+  };
+}
+
+function riskRewardGateStage({
+  health,
+  snapshot,
+}: {
+  health: SystemHealthReport;
+  snapshot: MarketRadarSnapshot;
+}): BusinessCapabilityStage {
+  const loop = {
+    ...(health.v3StrategyLoop ?? {}),
+    canMutateLiveRanking: false,
+    live: health.v3StrategyLoop?.live ?? {
+      blockedPlans: 0,
+      readyPlans: 0,
+      riskGateBlocked: 0,
+      totalSignals: 0,
+    },
+  };
+  const live = loop.live;
+  const riskGateOn = snapshot.metadata.riskGate === "on";
+  const status: BusinessCapabilityStageStatus = !riskGateOn
+    ? "blocked"
+    : live.totalSignals === 0
+      ? "collecting"
+      : "ready";
+
+  return {
+    id: "risk_reward_gate",
+    title: "赔率风控门",
+    status,
+    score: clampScore(statusScore(status) + Math.min(10, live.riskGateBlocked + live.blockedPlans) + Math.min(8, live.readyPlans * 2)),
+    summary: `Risk Gate=${snapshot.metadata.riskGate}，计划就绪 ${live.readyPlans}，风控拦截 ${live.riskGateBlocked}，计划阻断 ${live.blockedPlans}。`,
+    evidence: [
+      `minimumRR=3:1`,
+      `canAutoExecute=false`,
+      `canMutateLiveRanking=${loop.canMutateLiveRanking}`,
+    ],
+    nextAction: live.readyPlans > 0
+      ? "计划就绪标的必须继续在单币档案展示入场触发、止损、目标、失效条件和个人仓位镜头。"
+      : "继续等待结构、证据和 3:1 以上赔率同时满足；不要为了让前端有内容降低门槛。",
+    guardrail: "3:1 是最低结构赔率下限，不是固定目标；低于 3:1、RiskScore 过高或高周期冲突时不得输出交易计划。",
   };
 }
 
@@ -432,13 +647,18 @@ export function buildBusinessCapabilityReport({
   snapshot: MarketRadarSnapshot;
 }): BusinessCapabilityReport {
   const stages = [
+    sourceTruthStage(health),
+    fullMarketDiscoveryStage(health),
+    candidateRotationStage({ health, snapshot }),
+    deepScanVerificationStage(health),
+    signalMaturityStage({ health, snapshot }),
+    analysisReasoningStage(health),
+    riskRewardGateStage({ health, snapshot }),
     outcomeLifecycleStage({ health, snapshot }),
     outcomeStandardStage(health),
-    candidateRotationStage({ health, snapshot }),
-    signalMaturityStage({ health, snapshot }),
-    shadowTrackingStage(health),
-    strategyFamilyStatsStage(health),
     historicalCaseReplayStage(health),
+    strategyFamilyStatsStage(health),
+    shadowTrackingStage(health),
     aiReviewStage(snapshot),
     evolutionSuggestionsStage(health),
   ];
@@ -465,7 +685,7 @@ export function buildBusinessCapabilityReport({
     canAutoExecute: false,
     canMutateLiveRanking: false,
     frontendContracts: [
-      "前端必须展示能力状态、样本数、阻断项和下一步，不能只展示漂亮卡片。",
+      "前端必须展示事实源、覆盖、候选、深扫、分析、风控、复盘状态，不能只展示漂亮卡片。",
       "主信号区只能展示 EVIDENCE_SIGNAL / TRADE_PLAN_READY；LIGHT_SCAN_MARK 只能作为覆盖数量。",
       "历史回放和进化建议必须标明 research_only，不能暗示自动调权或自动下单。",
     ],
@@ -473,6 +693,7 @@ export function buildBusinessCapabilityReport({
     mode: "business_capability_loop_v1",
     nextActions,
     operatingRules: [
+      "所有功能必须服务扫描 -> 候选 -> 深扫 -> 结构分析 -> 风险赔率 -> 交易计划 -> 复盘进化这条主链。",
       "规则引擎先给结构化结论，AI 只做反证复核。",
       "复盘系统可以提出人工建议，不能自动修改实时权重。",
       "最低 3:1 盈亏比是下限，不是固定目标；低于 3:1 不能输出交易计划。",

@@ -24,9 +24,52 @@ const RISK_TONE: Record<string, string> = {
   高: 'var(--down)',
   极高: 'var(--down)',
 }
+const MATURITY_LABEL: Record<string, string> = {
+  LIGHT_SCAN_MARK: '轻扫标记',
+  DEEP_SCAN_CANDIDATE: '深扫候选',
+  EVIDENCE_SIGNAL: '证据信号',
+  TRADE_PLAN_READY: '计划就绪',
+  BLOCKED: '已阻断',
+  INVALIDATED: '已失效',
+  COOLDOWN: '冷却观察',
+}
 
 function validLevel(value: number | undefined) {
   return Number.isFinite(value) && value !== undefined && value > 0 ? value : 0
+}
+
+function dossierState(dossier: Resource<TokenDossier> | undefined) {
+  const data = dossier?.data
+  if (!data) {
+    return {
+      caption: '等待后端证据链',
+      label: '等待证据链',
+      tone: 'var(--muted-foreground)',
+    }
+  }
+
+  if (data.tradePlan && data.riskGate.allowTradePlan) {
+    return {
+      caption: '计划就绪 · 等待人工复核',
+      label: '计划就绪',
+      tone: 'var(--up)',
+    }
+  }
+
+  if (!data.riskGate.allowTradePlan && data.riskGate.reasons.length > 0) {
+    return {
+      caption: '风控拦截 · 只观察',
+      label: '风控拦截',
+      tone: 'var(--down)',
+    }
+  }
+
+  const label = MATURITY_LABEL[data.maturity] ?? data.maturity
+  return {
+    caption: `${label} · 等待条件补齐`,
+    label,
+    tone: data.maturity === 'EVIDENCE_SIGNAL' ? 'var(--neon)' : 'var(--muted-foreground)',
+  }
 }
 
 export function dossierToArchive(
@@ -88,6 +131,7 @@ export function SignalArchive({
   dossier?: Resource<TokenDossier>
 }) {
   const a = dossierToArchive(dossier)
+  const state = dossierState(dossier)
 
   if (!a) {
     return (
@@ -117,13 +161,13 @@ export function SignalArchive({
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-up opacity-70" />
             <span className="relative inline-flex size-1.5 rounded-full bg-up" />
           </span>
-          信号活跃 · 持续追踪中
+          {state.caption}
         </span>
       </div>
 
       {/* 概览四联 */}
       <div className="grid grid-cols-2 border-b border-border lg:grid-cols-4">
-        <Overview label="当前信号状态" value="活跃" tone="var(--up)" border />
+        <Overview label="当前信号状态" value={state.label} tone={state.tone} border />
         <Overview
           label="方向倾向"
           value={a.direction}

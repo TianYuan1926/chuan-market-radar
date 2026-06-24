@@ -199,13 +199,15 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
         </div>
       </section>
 
-      {/* 三、系统能力总控（9 阶段） */}
+      {/* 三、系统能力总控（核心链路阶段） */}
       <section className="border border-border bg-card lg:col-span-2">
         <div className="flex items-center gap-2 border-b border-border px-5 py-3">
           <span className="h-3.5 w-1 bg-neon" />
           <Cpu className="size-4 text-neon" />
           <h2 className="font-semibold">系统能力总控</h2>
-          <span className="ml-auto mr-2 text-xs text-muted-foreground">9 个能力阶段</span>
+          <span className="ml-auto mr-2 text-xs text-muted-foreground">
+            {caps.data.length} 个核心阶段
+          </span>
           <StatusBadge status={caps.status} />
         </div>
         <div className="p-5">

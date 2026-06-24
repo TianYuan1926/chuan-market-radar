@@ -504,6 +504,10 @@ function descFor(signal: RadarSignal) {
   return signal.whySelected
 }
 
+function signalSourceKind(signal: RadarSignal): SignalCard['sourceKind'] {
+  return signal.id.startsWith('candidate-') ? 'leaderboard_candidate' : 'backend_signal'
+}
+
 export function radarSignalsToTokens(signals: RadarSignal[], tickerRows: TickerRows = []): Token[] {
   const tickerLookup = priceBySymbol(tickerRows)
 
@@ -525,6 +529,8 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
         token,
         type,
         category: categoryFor(signal),
+        maturity: signal.maturity,
+        sourceKind: signalSourceKind(signal),
         poolStatus: poolStatusFor(signal),
         score,
         riskLevel: signal.risk,
