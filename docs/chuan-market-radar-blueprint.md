@@ -366,6 +366,7 @@ RawSource
 - 前端合同：radar、leaderboard、token dossier、review、journal、kline、external intel。
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
+- `/dashboard` 已展示 `coreChainGovernance.featureTriage` 功能分级和 `pageRoles` 页面职责。
 - `/dashboard` 系统运行状态来自后端合同状态，不允许硬写“正常”。
 - 全市场扫描证明头部状态来自 `scanProof.status`，不允许硬显示绿色健康。
 - `/market` 综合参与建议来自宏观、衍生品、扫描和数据源合同状态，不允许硬写“适度参与”。

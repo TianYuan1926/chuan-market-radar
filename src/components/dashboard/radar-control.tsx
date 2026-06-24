@@ -19,8 +19,14 @@ import {
   Timer,
   Route,
   ShieldCheck,
+  ClipboardList,
 } from 'lucide-react'
-import type { CoreChainGovernanceReport, CoreReadinessStatus } from '@/lib/api/core-chain-governance'
+import type {
+  CoreChainGovernanceReport,
+  CoreFeatureAction,
+  CoreFeatureClass,
+  CoreReadinessStatus,
+} from '@/lib/api/core-chain-governance'
 
 const CAP_STATUS_TONE: Record<string, string> = {
   active: 'text-up border-up/40 bg-up/10',
@@ -59,6 +65,30 @@ const CORE_STATUS_LABEL: Record<CoreReadinessStatus, string> = {
   partial: '部分可用',
   collecting: '采集中',
   blocked: '阻塞',
+}
+const FEATURE_CLASS_LABEL: Record<CoreFeatureClass, string> = {
+  core: '核心',
+  supporting: '辅助',
+  downgraded: '降级',
+  merge: '合并',
+  rebuild: '重构',
+  delete: '删除',
+}
+const FEATURE_ACTION_LABEL: Record<CoreFeatureAction, string> = {
+  delete: '删除',
+  downgrade: '降级',
+  keep: '保留',
+  merge: '合并',
+  rebuild: '重构',
+  strengthen: '做强',
+}
+const FEATURE_CLASS_TONE: Record<CoreFeatureClass, string> = {
+  core: 'text-up border-up/40 bg-up/10',
+  supporting: 'text-neon border-neon/40 bg-neon/10',
+  downgraded: 'text-[oklch(0.8_0.15_75)] border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10',
+  merge: 'text-neon border-neon/40 bg-neon/10',
+  rebuild: 'text-[oklch(0.8_0.15_75)] border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10',
+  delete: 'text-down border-down/40 bg-down/10',
 }
 
 const EMPTY_SOURCE = {
@@ -314,6 +344,55 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                       </p>
                     </div>
                   ))}
+                </div>
+
+                <div className="grid gap-2.5 xl:grid-cols-[1.1fr_0.9fr]">
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="size-4 text-neon" />
+                      <span className="text-sm font-semibold">功能分级</span>
+                      <span className="ml-auto text-[11px] text-muted-foreground">
+                        核心 / 辅助 / 清理
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {g.featureTriage.slice(0, 8).map((item) => (
+                        <div key={item.id} className="border border-border bg-background/40 p-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="min-w-0 truncate text-xs font-semibold">{item.label}</span>
+                            <span className={`ml-auto shrink-0 border px-1.5 py-0.5 text-[10px] ${FEATURE_CLASS_TONE[item.classification]}`}>
+                              {FEATURE_CLASS_LABEL[item.classification]}
+                            </span>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                            {FEATURE_ACTION_LABEL[item.action]}：{item.reason}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="text-sm font-semibold">页面职责</div>
+                    <div className="mt-3 space-y-2">
+                      {g.pageRoles.map((page) => (
+                        <div key={page.route} className="border border-border bg-background/40 p-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-neon">{page.route}</span>
+                            <span className="ml-auto border border-border bg-secondary/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              {page.role === 'core' ? '核心页' : '辅助页'}
+                            </span>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                            {page.job}
+                          </p>
+                          <p className="mt-1 line-clamp-1 text-[10px] text-down">
+                            禁止：{page.mustNotShow.slice(0, 2).join(' / ')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <FreshnessTag {...governance} className="block" />
               </div>

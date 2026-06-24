@@ -227,6 +227,10 @@ test("dashboard exposes core chain governance as a visible backend contract pane
   assert.match(radarControlSource, /核心链路体检/u);
   assert.match(radarControlSource, /全市场发现 → 复盘进化/u);
   assert.match(radarControlSource, /cleanupRules/);
+  assert.match(radarControlSource, /功能分级/u);
+  assert.match(radarControlSource, /featureTriage/);
+  assert.match(radarControlSource, /页面职责/u);
+  assert.match(radarControlSource, /pageRoles/);
   assert.match(radarControlSource, /canCreateTradeSignal:\s*false/);
   assert.doesNotMatch(radarControlSource, /getCoreChainGovernance\(/);
 });
