@@ -474,6 +474,7 @@ export function getMacroAltEnv(): Resource<MacroAltEnv> {
 // 十二、CoinGlass 衍生品状态（不做清算热力图 / 不做清算目标位）
 // ============================================================
 export type DerivativesState = {
+  connectedFields: string[]
   oiChange: number // OI 变化 %
   funding: number // 资金费率 %
   longShortRatio: number // 多空比
@@ -482,10 +483,12 @@ export type DerivativesState = {
   exchangeCoverage: number // 交易所覆盖数
   totalExchanges: number
   lastUpdate: string
+  unavailableFields: string[]
 }
 
 export function getDerivatives(): Resource<DerivativesState> {
   return legacyEmptyResource({
+    connectedFields: [],
     oiChange: 0,
     funding: 0,
     longShortRatio: 0,
@@ -494,6 +497,7 @@ export function getDerivatives(): Resource<DerivativesState> {
     exchangeCoverage: 0,
     totalExchanges: 0,
     lastUpdate: '等待后端契约',
+    unavailableFields: ['open_interest', 'funding_rate', 'long_short_ratio', 'taker_buy_sell', 'cvd_proxy', 'real_fund_flow'],
   })
 }
 
@@ -501,6 +505,8 @@ export type FundFlowState = {
   allowedUse: 'market_context_only'
   canCreateTradeSignal: false
   detail: string
+  connectedFields: string[]
+  decisionBoundary: string
   source: 'coinglass_derivatives' | 'not_connected'
   status: 'partial' | 'waiting_source'
   takerBuySellAvailable: boolean
@@ -511,6 +517,8 @@ export function getFundFlow(): Resource<FundFlowState> {
   return legacyEmptyResource({
     allowedUse: 'market_context_only',
     canCreateTradeSignal: false,
+    connectedFields: [],
+    decisionBoundary: '资金流只读展示，不能单独生成交易信号。',
     detail: LEGACY_DISABLED_REASON,
     source: 'not_connected',
     status: 'waiting_source',

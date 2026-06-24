@@ -531,8 +531,13 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.radarSignals.data[0]?.rr, 3.2);
   assert.equal(radar.fundFlow.status, "partial");
   assert.equal(radar.fundFlow.data.canCreateTradeSignal, false);
+  assert.deepEqual(radar.fundFlow.data.connectedFields, ["open_interest", "funding_rate", "long_short_ratio"]);
+  assert.match(radar.fundFlow.data.decisionBoundary, /不能生成或放大交易信号/);
   assert.equal(radar.fundFlow.data.takerBuySellAvailable, false);
+  assert.deepEqual(radar.fundFlow.data.unavailableFields, ["taker_buy_sell", "cvd_proxy", "real_fund_flow"]);
+  assert.deepEqual(radar.derivatives.data.connectedFields, ["open_interest", "funding_rate", "long_short_ratio"]);
   assert.equal(radar.derivatives.data.takerBuySellStatus, "not_connected");
+  assert.deepEqual(radar.derivatives.data.unavailableFields, ["taker_buy_sell", "cvd_proxy", "real_fund_flow"]);
   assert.equal(radar.scanStability.status, "live");
   assert.equal(radar.scanStability.data.status, "healthy");
   assert.match(radar.scanStability.reason ?? "", /不能直接生成交易信号/);

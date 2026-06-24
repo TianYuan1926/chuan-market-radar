@@ -697,7 +697,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - **AI 生产复核**：AI evidence-id bound 边界已完成；2026-06-24 已收紧前端 AI 复核统计状态语义：无 AI 复核记录输出 empty，只有 disabled/fallback 记录时输出 partial，存在真实 reviewed 记录才输出 live。生产模型、多模型对照、成本统计和复盘校准仍未完成；当前 AI disabled 不能包装成已运行能力。
 - **合法外部事件情报层**：第一到第三档合法数据源已进入蓝图，但 `ExternalEvent`、`SourceFetchRun`、DEX Screener collector、交易所公告 collector、token identity collector、链上低频 collector 和事件转 Evidence/Risk 仍未实现。
 - **部署自动化稳定性**：GitHub 远端检查和 SSH 自动部署仍受本机网络/服务器 SSH 握手影响；OrcaTerm 能兜底，但不能替代长期自动部署。
-- **资金流与主动买卖流**：稳定 CVD、taker buy/sell、真实资金流数据源仍未完整接入；未稳定前只能显示 partial/waiting。
+- **资金流与主动买卖流**：2026-06-24 已补强前端资金流合同边界：`derivatives/fundFlow` 必须分别暴露 `connectedFields`、`unavailableFields` 和 `decisionBoundary`。当前真实可用字段是 OI、Funding 和 Long/Short 上下文；稳定 CVD、taker buy/sell、真实资金流数据源仍未完整接入。未稳定前只能显示 partial/waiting，不能生成或放大交易信号。
 - **图表与 logo 最终验收**：TradingView 主图、K 线 overlay、真实 token logo、fallback 和多周期交互仍需逐页验收，不能只看 API 有字段。
 
 ### P2：后续增强但不能抢 P0/P1 优先级

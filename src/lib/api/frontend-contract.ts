@@ -307,6 +307,7 @@ export type MacroAltEnv = {
 };
 
 export type DerivativesState = {
+  connectedFields: string[];
   oiChange: number;
   funding: number;
   longShortRatio: number;
@@ -315,12 +316,15 @@ export type DerivativesState = {
   exchangeCoverage: number;
   totalExchanges: number;
   lastUpdate: string;
+  unavailableFields: string[];
 };
 
 export type FundFlowState = {
   allowedUse: "market_context_only";
   canCreateTradeSignal: false;
   detail: string;
+  connectedFields: string[];
+  decisionBoundary: string;
   source: "coinglass_derivatives" | "not_connected";
   status: "partial" | "waiting_source";
   takerBuySellAvailable: boolean;
@@ -1200,8 +1204,14 @@ function buildDerivatives(snapshot: MarketRadarSnapshot): DerivativesState {
     .map((item) => item.updatedAt)
     .sort()
     .at(-1) ?? snapshot.metadata.generatedAt;
+  const hasDerivatives = snapshot.derivatives.length > 0;
+  const hasLongShort = snapshot.derivatives.some((item) => Number.isFinite(item.longShortRatio ?? NaN));
 
   return {
+    connectedFields: [
+      ...(hasDerivatives ? ["open_interest", "funding_rate"] : []),
+      ...(hasLongShort ? ["long_short_ratio"] : []),
+    ],
     oiChange: round(average(snapshot.derivatives.map((item) => item.openInterestChangePercent)), 2),
     funding: round(average(snapshot.derivatives.map((item) => item.fundingRate)) * 100, 4),
     longShortRatio: round(average(snapshot.derivatives.map((item) => item.longShortRatio ?? 0)), 2),
@@ -1210,15 +1220,22 @@ function buildDerivatives(snapshot: MarketRadarSnapshot): DerivativesState {
     exchangeCoverage: uniqueExchanges.size,
     totalExchanges: 3,
     lastUpdate: timeLabel(latest),
+    unavailableFields: ["taker_buy_sell", "cvd_proxy", "real_fund_flow"],
   };
 }
 
 function buildFundFlowState(snapshot: MarketRadarSnapshot): FundFlowState {
   const hasDerivativeContext = snapshot.derivatives.length > 0;
+  const hasLongShort = snapshot.derivatives.some((item) => Number.isFinite(item.longShortRatio ?? NaN));
 
   return {
     allowedUse: "market_context_only",
     canCreateTradeSignal: false,
+    connectedFields: [
+      ...(hasDerivativeContext ? ["open_interest", "funding_rate"] : []),
+      ...(hasLongShort ? ["long_short_ratio"] : []),
+    ],
+    decisionBoundary: "资金流仅能作为市场上下文和风险提示；未接真实 taker/CVD 前，不能生成或放大交易信号。",
     detail: hasDerivativeContext
       ? "已接 OI、Funding、Long/Short 等衍生品上下文；主动买卖和 CVD 仍等待真实稳定源。"
       : "当前没有可用衍生品上下文，资金流只能显示等待数据源。",

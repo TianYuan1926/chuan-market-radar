@@ -46,6 +46,7 @@ const EMPTY_MACRO = resource<MacroAltEnv>(
 
 const EMPTY_DERIVATIVES = resource<DerivativesState>(
   {
+    connectedFields: [],
     oiChange: 0,
     funding: 0,
     longShortRatio: 0,
@@ -54,6 +55,7 @@ const EMPTY_DERIVATIVES = resource<DerivativesState>(
     exchangeCoverage: 0,
     totalExchanges: 0,
     lastUpdate: '—',
+    unavailableFields: ['open_interest', 'funding_rate', 'long_short_ratio', 'taker_buy_sell', 'cvd_proxy', 'real_fund_flow'],
   },
   'empty',
   EMPTY_META,
