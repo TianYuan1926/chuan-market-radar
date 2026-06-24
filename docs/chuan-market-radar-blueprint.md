@@ -695,7 +695,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - **前端合同一致性线上验收**：本地已新增 RadarContract 与 TokenDossier 同源 snapshot 一致性测试，覆盖“旧 ready 字段降级”和“真实 v3 ready plan + positionLens 输出”两种关键路径；生产部署后仍需公网验证同一 symbol 的状态、价格、成熟度、Risk Gate、tradePlan 和 freshness 一致。
 - **真实复盘样本闭环**：2026-06-24 已收紧前端复盘合同状态语义：`sampleStatus=empty` 输出 empty，`collecting/statistically_thin` 输出 partial，只有 `usable` 才能输出 live；策略分型、复盘统计和漏判归因不能在样本不足时伪装成统计结论。当前 outcome、signal lifecycle、strategy archetype 仍缺长期真实样本；系统只能说“复盘框架已落地，样本收集中”，不能说已经完成自我进化。
 - **AI 生产复核**：AI evidence-id bound 边界已完成；2026-06-24 已收紧前端 AI 复核统计状态语义：无 AI 复核记录输出 empty，只有 disabled/fallback 记录时输出 partial，存在真实 reviewed 记录才输出 live。生产模型、多模型对照、成本统计和复盘校准仍未完成；当前 AI disabled 不能包装成已运行能力。
-- **合法外部事件情报层**：第一到第三档合法数据源已进入蓝图，但 `ExternalEvent`、`SourceFetchRun`、DEX Screener collector、交易所公告 collector、token identity collector、链上低频 collector 和事件转 Evidence/Risk 仍未实现。
+- **合法外部事件情报层**：2026-06-24 已落地基础合同：`ExternalEvent`、`SourceFetchRun`、合法 source plan、事件标准化、事件转 `EXTERNAL_EVENT` 证据候选和只读 `GET /api/frontend/external-intel`。该层只允许 context-only，不保存原始全文，不绕过登录/付费墙/验证码/robots，不直接生成交易信号。DEX Screener collector、交易所公告 collector、token identity collector、链上低频 collector 尚未启用，前端必须显示 empty/collector 未启用，不能伪装成实时外部情报。
 - **部署自动化稳定性**：GitHub 远端检查和 SSH 自动部署仍受本机网络/服务器 SSH 握手影响；OrcaTerm 能兜底，但不能替代长期自动部署。
 - **资金流与主动买卖流**：2026-06-24 已补强前端资金流合同边界：`derivatives/fundFlow` 必须分别暴露 `connectedFields`、`unavailableFields` 和 `decisionBoundary`。当前真实可用字段是 OI、Funding 和 Long/Short 上下文；稳定 CVD、taker buy/sell、真实资金流数据源仍未完整接入。未稳定前只能显示 partial/waiting，不能生成或放大交易信号。
 - **图表与 logo 最终验收**：TradingView 主图、K 线 overlay、真实 token logo、fallback 和多周期交互仍需逐页验收，不能只看 API 有字段。
