@@ -59,6 +59,9 @@ test("createWebSocketLightScanAccumulator promotes volume z-score spikes without
   assert.equal(snapshot.priorityCandidates[0]?.price, 1.06);
   assert.equal(snapshot.instruments.some((item) => item.symbol === "COINUSDT"), false);
   assert.equal(snapshot.priorityCandidates[0]?.state, "HOT");
+  assert.equal(snapshot.priorityCandidates[0]?.volumeSource, "rolling_window");
+  assert.equal(snapshot.priorityCandidates[0]?.volumeWindowMs, 15 * 60_000);
+  assert.equal(snapshot.priorityCandidates[0]?.volumeWindowUsd, 1_250_000);
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("volume_zscore_spike"));
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("price_impulse"));
   assert.equal(snapshot.instruments[0]?.exchange, "BINANCE");

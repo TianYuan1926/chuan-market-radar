@@ -431,6 +431,9 @@ export type ScanLightScanCandidate = {
   state: "COLD" | "HOT" | "PRE_TREND" | "WARM";
   symbol: string;
   volume24hUsd: number;
+  volumeSource?: "24h_ticker" | "rolling_window";
+  volumeWindowMs?: number;
+  volumeWindowUsd?: number;
   volatilityPercent: number;
 };
 

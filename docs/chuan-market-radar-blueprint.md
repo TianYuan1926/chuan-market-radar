@@ -729,6 +729,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 1. **涨幅榜/跌幅榜真实性缺口**：当前前端涨幅榜和跌幅榜与用户对照的真实市场榜单不一致。后续必须明确榜单事实源、排序口径、交易所范围、过滤规则、更新时间和 partial 状态；不能把候选池、轻扫候选或内部排序直接伪装成“全市场真实涨跌幅榜”。
    - 2026-06-23 已完成合同修复：`/api/frontend/leaderboard` 对 `gainers/losers/volume` 优先读取 public market ticker；同一币种跨交易所重复时，`gainers` 取最高 24h 涨幅，`losers` 取最低 24h 涨幅，`volume` 聚合跨交易所 24h 成交额并使用主成交场价格；每行输出 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。如果 public ticker 不可用，降级为 scanner snapshot 或 light-scan candidate，并在 `reason` 中明确“不能当作真实全市场涨跌幅榜”。
+   - 2026-06-24 板块 1 审查补充：WebSocket 轻扫的成交额是滑动窗口成交额，不是 24h 成交额；Composite public light scan 不允许把 WebSocket ticker 混入 `gainers/losers/volume` 市场榜单。WebSocket 只用于候选发现、z-score 异动和深扫排序输入；市场榜单必须优先使用 Binance/OKX/Bybit REST public 24h ticker，缺失时必须明确 partial/fallback。
    - 2026-06-23 腾讯服务器生产验证：`/api/frontend/leaderboard?kind=volume/gainers/losers` 均可返回 `live`、50 行 public ticker 结果；榜单行已带来源和排序口径。后续仍需与指定外部参考榜在同一时间戳做抽样对账，确认交易所口径差异。
 2. **实时展示边界缺口**：前端需要明确哪些区域可以实时展示，哪些只能准实时或缓存展示。可实时展示的区域必须来自 WebSocket/SSE/Redis 最新快照或明确的 runtime heartbeat；不能用定时动画、跳动数字或旧缓存冒充实时。
    - 2026-06-23 已完成第一轮合同修复：榜单和 K 线面板开始展示 `StatusBadge` 与 `FreshnessTag`；K 线失败、partial、empty 会显示 `DegradeNotice`，不再用假蜡烛填充。
@@ -904,6 +905,7 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 - 2026-06-21 已落地 CoinGlass 请求 pacing MVP，并在 2026-06-23 生产复测后把默认值从 `500ms` 加固到 `2200ms`。原因是 Hobbyist 为 `30 调用/分钟`，`500ms` 对 24 个候选会形成过高瞬时速率并触发 `429 Too Many Requests`。主深扫、能力探针和 daily mover 的 CoinGlass 请求必须按间隔排队；该 pacing 只服务稳定性，不提高策略信号等级，也不绕过每日预算、分钟限速、缓存和失败降级。
 - 2026-06-21 已落地复盘命中标准 MVP：outcome tracker 改为按信号周期使用验证窗口，`15m/30m` 等短周期默认看 `4h`，`1h` 默认看 `24h`，`4h+` 默认看 `4d`；生命周期事件会写入 `outcomeMetrics`，包括 entry、stop、TP1、MFE、MAE、评估 K 线数量和验证窗口。只有 `EVIDENCE_SIGNAL` 与 `TRADE_PLAN_READY` 的 outcome 样本进入人工校准统计；`LIGHT_SCAN_MARK`、`DEEP_SCAN_CANDIDATE` 和缺成熟度旧样本不能污染胜率。
 - 2026-06-21 已落地 WebSocket 轻扫常驻 worker MVP：新增 `deploy/workers/ws-light-scan-worker.mjs`，支持 Binance USD-M 全市场 ticker、OKX USDT SWAP ticker、Bybit linear USDT ticker，事件进入 15m 滑动窗口后生成成交额 z-score、价格脉冲、压缩放量候选，并按 `WS_LIGHT_SCAN_SNAPSHOT_INTERVAL_SECONDS` 写入 Redis 快照。主扫描配置层会优先读取 Redis WebSocket 快照，快照缺失或过期时回退到 REST public light scan。该能力只负责全市场候选发现和 CoinGlass 深扫排序，不直接生成 EvidenceItem、交易方向或交易计划。
+- 2026-06-24 已补齐 WebSocket 轻扫成交额口径：`ScanLightScanCandidate` 新增 `volumeSource`、`volumeWindowMs`、`volumeWindowUsd`。`volumeSource=rolling_window` 时代表 15m 滑动窗口成交额，只能用于异动发现；`volumeSource=24h_ticker` 才能作为市场榜单和流动性排序的 24h 成交额依据。Composite 合并时 REST 24h ticker 优先级高于 WebSocket 窗口 ticker，防止榜单和流动性判断被窗口数据污染。
 - 2026-06-21 已落地 BTC.D / TOTAL2 / TOTAL3 宏观锚点 MVP：Macro Weather 支持 `altcoinMacro` 输入，计算 BTC Dominance 趋势、TOTAL2、TOTAL3、24h 变化和山寨环境顺逆风。该锚点只解释山寨资金环境，BTC.D 上行时提高风险提示，BTC.D 下行且 TOTAL2/TOTAL3 扩张时解释顺风；不得降低 `3:1` 最低赔率，不得直接生成买卖方向。
 - CoinGlass provider 已在 metadata notes 中输出每个 discovery source、tiered universe、exchange coverage、quota、repository priority hints、dynamic priority 和 tier policy，便于线上检查当前币池结构。
 

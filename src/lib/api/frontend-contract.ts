@@ -1312,7 +1312,7 @@ export function buildFrontendRadarContract({
   const source = snapshot.metadata.source;
   const coverage = backend.scanProof.fullMarket;
   const allocation = backend.scanProof.allocation;
-  const dailyBudget = Math.max(1, Number(env.COINGLASS_DAILY_REQUEST_BUDGET ?? 300));
+  const dailyBudget = Math.max(1, Number(env.COINGLASS_DAILY_REQUEST_BUDGET ?? 3_000));
   const observedApiUsage = backend.runtime.apiUsage;
   const derivatives = buildDerivatives(snapshot);
   const tradeReady = snapshot.signals.some((signal) => maturityForSignal(signal) === "TRADE_PLAN_READY");

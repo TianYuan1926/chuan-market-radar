@@ -405,6 +405,9 @@ test("createCompositePublicLightScanProvider merges Binance and OKX candidates w
                 state: "HOT",
                 symbol: "ARBUSDT",
                 volume24hUsd: 42_000_000,
+                volumeSource: "rolling_window",
+                volumeWindowMs: 15 * 60_000,
+                volumeWindowUsd: 42_000_000,
                 volatilityPercent: 8,
               },
             ],
@@ -453,6 +456,7 @@ test("createCompositePublicLightScanProvider merges Binance and OKX candidates w
                 state: "HOT",
                 symbol: "ARBUSDT",
                 volume24hUsd: 39_000_000,
+                volumeSource: "24h_ticker",
                 volatilityPercent: 7,
               },
             ],
@@ -494,10 +498,88 @@ test("createCompositePublicLightScanProvider merges Binance and OKX candidates w
   assert.equal(result.diagnostics.acceptedCount, 2);
   assert.equal(result.priorityCandidates.length, 1);
   assert.equal(result.priorityCandidates[0]?.symbol, "ARBUSDT");
+  assert.equal(result.priorityCandidates[0]?.volume24hUsd, 39_000_000);
+  assert.equal(result.priorityCandidates[0]?.volumeSource, "24h_ticker");
+  assert.equal(result.priorityCandidates[0]?.volumeWindowUsd, undefined);
   assert.match(result.priorityCandidates[0]?.reasons.join(" ") ?? "", /cross_exchange_light_scan/u);
   assert.match(result.diagnostics.notes.join("\n"), /binance-test ready 2\/2 accepted/u);
   assert.match(result.diagnostics.notes.join("\n"), /okx-test ready 1\/1 accepted/u);
   assert.match(result.diagnostics.notes.join("\n"), /blocked-test failed 0\/0 accepted/u);
+});
+
+test("createCompositePublicLightScanProvider keeps WebSocket window tickers out of market ticker boards", async () => {
+  const provider = createCompositePublicLightScanProvider({
+    providers: [
+      {
+        id: "ws-test",
+        label: "WebSocket Test",
+        async scan() {
+          return {
+            diagnostics: {
+              acceptedCount: 1,
+              candidateCount: 1,
+              generatedAt: "2026-06-20T00:00:00.000Z",
+              notes: ["15m window"],
+              requestCount: 0,
+              source: "websocket-light-scan",
+              status: "ready",
+              topCandidates: [],
+              universeCount: 1,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [{
+              changePercent24h: 5,
+              exchange: "BINANCE",
+              high24h: 1.1,
+              low24h: 1,
+              price: 1.05,
+              symbol: "ARBUSDT",
+              updatedAt: "2026-06-20T00:00:05.000Z",
+              volume24hUsd: 1_250_000,
+            }],
+          };
+        },
+      },
+      {
+        id: "rest-test",
+        label: "REST Test",
+        async scan() {
+          return {
+            diagnostics: {
+              acceptedCount: 1,
+              candidateCount: 1,
+              generatedAt: "2026-06-20T00:00:00.000Z",
+              notes: ["24h ticker"],
+              requestCount: 1,
+              source: "binance-public-futures-24h",
+              status: "ready",
+              topCandidates: [],
+              universeCount: 1,
+            },
+            instruments: [],
+            priorityCandidates: [],
+            tickers: [{
+              changePercent24h: 2.5,
+              exchange: "BINANCE",
+              high24h: 1.2,
+              low24h: 0.9,
+              price: 1.05,
+              symbol: "ARBUSDT",
+              updatedAt: "2026-06-20T00:00:00.000Z",
+              volume24hUsd: 42_000_000,
+            }],
+          };
+        },
+      },
+    ],
+  });
+
+  const result = await provider.scan();
+
+  assert.equal(result.tickers.length, 1);
+  assert.equal(result.tickers[0]?.changePercent24h, 2.5);
+  assert.equal(result.tickers[0]?.volume24hUsd, 42_000_000);
 });
 
 test("disabledPublicLightScanProvider keeps tests and previews offline", async () => {

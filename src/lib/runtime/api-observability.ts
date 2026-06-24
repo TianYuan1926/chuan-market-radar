@@ -52,7 +52,7 @@ const apiUsagePrefix = "chuan:api-usage:coinglass:";
 const latencyPrefix = "chuan:data-source-latency:";
 const latencyTtlSeconds = 60 * 60 * 24;
 const apiUsageTtlSeconds = 60 * 60 * 72;
-const defaultDailyBudget = 300;
+const defaultDailyBudget = 3_000;
 const defaultMinuteLimit = 30;
 const defaultPacingMs = 2_200;
 

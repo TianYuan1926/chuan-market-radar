@@ -676,6 +676,20 @@ test("buildFrontendRadarContract uses observed CoinGlass usage instead of planne
   assert.match(radar.apiUsage.reason ?? "", /Redis daily counter/);
 });
 
+test("buildFrontendRadarContract defaults CoinGlass budget to Hobbyist production value", () => {
+  const backend = backendContract();
+  delete (backend.runtime as Partial<typeof backend.runtime>).apiUsage;
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: {},
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.apiUsage.data.remainingToday, 3000);
+  assert.equal(radar.apiUsage.data.pacingMs, 2200);
+});
+
 test("buildFrontendRadarContract uses observed source latency when probes exist", () => {
   const backend = backendContract();
   backend.runtime.sourceLatency = {

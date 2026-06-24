@@ -70,6 +70,17 @@ test("CoinGlass API usage is explicitly unconfigured when Redis is absent", asyn
   assert.match(report.apiUsage.detail, /REDIS_URL/);
 });
 
+test("CoinGlass API usage falls back to Hobbyist production daily budget", async () => {
+  const report = await readApiObservabilityReport({
+    env: {},
+    now: new Date("2026-06-22T03:12:00.000Z"),
+  });
+
+  assert.equal(report.apiUsage.status, "unconfigured");
+  assert.equal(report.apiUsage.dailyBudget, 3000);
+  assert.equal(report.apiUsage.remainingToday, 3000);
+});
+
 test("data source latency reads recorded probes and keeps missing sources partial", async () => {
   const client = createMemoryClient();
 

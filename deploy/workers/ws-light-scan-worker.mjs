@@ -315,7 +315,7 @@ function rolloverWindow({ currentWindow, history, maxBaselineWindows }) {
   return [...history, currentWindow].slice(-maxBaselineWindows);
 }
 
-function buildCandidate({ state, window, z }) {
+function buildCandidate({ state, window, windowMs, z }) {
   const openPrice = window.openPrice > 0 ? window.openPrice : state.lastPrice;
   const changePercent = openPrice > 0 ? ((window.closePrice - openPrice) / openPrice) * 100 : 0;
   const absChange = Math.abs(changePercent);
@@ -345,6 +345,9 @@ function buildCandidate({ state, window, z }) {
     state: stateValue,
     symbol: state.symbol,
     volume24hUsd: round(window.volumeUsd),
+    volumeSource: "rolling_window",
+    volumeWindowMs: windowMs,
+    volumeWindowUsd: round(window.volumeUsd),
     volatilityPercent: round(volatilityPercent),
   };
 }
@@ -477,7 +480,7 @@ export function createLightScanAccumulator({
           }
 
           const z = zScore(window.volumeUsd, state.history.map((item) => item.volumeUsd));
-          const candidate = buildCandidate({ state, window, z });
+          const candidate = buildCandidate({ state, window, windowMs, z });
 
           if (window.volumeUsd < minCandidateVolumeUsd && z < zScoreThreshold) {
             return null;

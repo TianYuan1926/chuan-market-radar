@@ -370,6 +370,7 @@ function candidateFromTicker(ticker: MarketTicker): ScanLightScanCandidate {
     state,
     symbol: ticker.symbol,
     volume24hUsd: Math.round(ticker.volume24hUsd),
+    volumeSource: "24h_ticker",
     volatilityPercent: Math.round(volatility * 100) / 100,
   };
 }
@@ -931,7 +932,22 @@ function mergeCompositeCandidates(
 
     existing.sourceCount += 1;
     existing.score = Math.max(existing.score, candidate.score) + 8;
-    existing.volume24hUsd = Math.max(existing.volume24hUsd, candidate.volume24hUsd);
+    const existingVolumeSource = existing.volumeSource ?? "24h_ticker";
+    const candidateVolumeSource = candidate.volumeSource ?? "24h_ticker";
+
+    if (candidateVolumeSource === "24h_ticker") {
+      if (existingVolumeSource !== "24h_ticker" || candidate.volume24hUsd > existing.volume24hUsd) {
+        existing.volume24hUsd = candidate.volume24hUsd;
+      }
+      existing.volumeSource = "24h_ticker";
+      existing.volumeWindowMs = undefined;
+      existing.volumeWindowUsd = undefined;
+    } else if (existingVolumeSource !== "24h_ticker" && candidate.volume24hUsd > existing.volume24hUsd) {
+      existing.volume24hUsd = candidate.volume24hUsd;
+      existing.volumeSource = candidate.volumeSource;
+      existing.volumeWindowMs = candidate.volumeWindowMs;
+      existing.volumeWindowUsd = candidate.volumeWindowUsd;
+    }
     existing.reasons = [...new Set([
       ...existing.reasons,
       ...candidate.reasons,
@@ -960,6 +976,9 @@ function mergeCompositeCandidates(
       state: candidate.state,
       symbol: candidate.symbol,
       volume24hUsd: candidate.volume24hUsd,
+      volumeSource: candidate.volumeSource,
+      volumeWindowMs: candidate.volumeWindowMs,
+      volumeWindowUsd: candidate.volumeWindowUsd,
       volatilityPercent: candidate.volatilityPercent,
     }));
 }
@@ -984,7 +1003,9 @@ export function createCompositePublicLightScanProvider({
       const instruments = [...new Map(
         results.flatMap((result) => result.instruments).map((instrument) => [instrument.id, instrument]),
       ).values()];
-      const tickers = results.flatMap((result) => result.tickers);
+      const tickerResults = results.filter((result) => result.diagnostics.source !== "websocket-light-scan");
+      const tickers = (tickerResults.some((result) => result.tickers.length > 0) ? tickerResults : results)
+        .flatMap((result) => result.tickers);
       const priorityCandidates = mergeCompositeCandidates(
         results.flatMap((result) => result.priorityCandidates),
         maxPriorityCandidates,
