@@ -364,6 +364,7 @@ RawSource
 - RR / Risk Gate。
 - TradingView 主图合同。
 - 前端合同：radar、leaderboard、token dossier、review、journal、kline、external intel。
+- 合法外部情报基础：DEX Screener latest boosts 与 CoinGecko trending collector，可生成 context-only ExternalEvent 和 EvidenceCandidate，不直接生成交易信号。
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
 - `/dashboard` 已展示 `coreChainGovernance.featureTriage` 功能分级和 `pageRoles` 页面职责。
@@ -441,7 +442,8 @@ RawSource
 
 ### P5：合法外部情报
 
-- 接 DEX Screener 官方 API 作为早期观察池。
+- DEX Screener 已有 latest boosts 基础 collector；后续补 pair enrichment、流动性变化、链/地址到 symbol 的映射。
+- CoinGecko trending 已有基础 collector；后续补 token identity / logo / symbol mapping 的稳定映射。
 - 接交易所官方公告和 RSS。
 - 接 Token identity / logo / symbol mapping 数据源。
 - 接宏观公开 API：BTC.D、TOTAL2、TOTAL3、稳定币流动性等。

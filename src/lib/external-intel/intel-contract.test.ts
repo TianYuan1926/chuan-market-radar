@@ -61,7 +61,7 @@ test("buildExternalIntelContract reports empty until collectors produce normaliz
   const empty = buildExternalIntelContract();
 
   assert.equal(empty.status, "empty");
-  assert.match(empty.reason ?? "", /collector 尚未启用/);
+  assert.match(empty.reason ?? "", /collector 尚未产生事件/);
 
   const live = buildExternalIntelContract({
     events: [
@@ -86,4 +86,23 @@ test("buildExternalIntelContract reports empty until collectors produce normaliz
   assert.equal(live.status, "live");
   assert.equal(live.data.events.length, 1);
   assert.equal(live.data.evidenceCandidates[0]?.canCreateTradeSignal, false);
+});
+
+test("buildExternalIntelContract reports failed collector runs without fake events", () => {
+  const failed = buildExternalIntelContract({
+    latestRuns: [{
+      id: "failed-run",
+      sourceId: "dex_screener_public_api",
+      startedAt: "2026-06-24T08:00:00.000Z",
+      finishedAt: "2026-06-24T08:00:01.000Z",
+      status: "failed",
+      rowsRead: 0,
+      rowsAccepted: 0,
+      error: "HTTP 429",
+    }],
+  });
+
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.data.events.length, 0);
+  assert.match(failed.reason ?? "", /不使用旧数据或假事件/);
 });

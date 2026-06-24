@@ -4,6 +4,7 @@ export type ExternalIntelSourceId =
   | "binance_announcements"
   | "okx_announcements"
   | "dex_screener_public_api"
+  | "coingecko_trending"
   | "coingecko_coin_list"
   | "defillama_public_api"
   | "project_official_rss"
@@ -128,7 +129,7 @@ const sourcePlan: ExternalIntelSourcePlan[] = [
     id: "dex_screener_public_api",
     label: "DEX Screener Public API",
     tier: "authorized_public_api",
-    enabledByDefault: false,
+    enabledByDefault: true,
     maxFrequencyMinutes: 15,
     allowedUse: "context_only",
     canCreateTradeSignal: false,
@@ -149,6 +150,19 @@ const sourcePlan: ExternalIntelSourcePlan[] = [
     requiresLogin: false,
     avoidsPaywall: true,
     notes: ["用于 token identity、logo、名称和合约映射校验。"],
+  },
+  {
+    id: "coingecko_trending",
+    label: "CoinGecko Trending Search",
+    tier: "official_api",
+    enabledByDefault: true,
+    maxFrequencyMinutes: 30,
+    allowedUse: "context_only",
+    canCreateTradeSignal: false,
+    mustRespectRobots: true,
+    requiresLogin: false,
+    avoidsPaywall: true,
+    notes: ["读取公开 trending search，只作为市场关注度背景，不等于推荐。"],
   },
   {
     id: "defillama_public_api",
@@ -266,7 +280,9 @@ export function buildExternalIntelContract({
 } = {}): Resource<ExternalIntelContract> {
   const normalizedEvents = events.map((event) => normalizeExternalEvent(event));
   const hasFailures = latestRuns.some((run) => run.status === "failed" || run.status === "partial");
-  const status = normalizedEvents.length > 0 ? (hasFailures ? "partial" : "live") : "empty";
+  const status = normalizedEvents.length > 0
+    ? hasFailures ? "partial" : "live"
+    : hasFailures ? "failed" : "empty";
 
   return resource(
     {
@@ -287,7 +303,9 @@ export function buildExternalIntelContract({
       source: "external-intel",
       reason: normalizedEvents.length > 0
         ? "已标准化外部事件；仍只作为上下文，不直接喊单。"
-        : "合法外部情报基础层已就绪，collector 尚未启用。",
+        : hasFailures
+          ? "外部情报 collector 已启用但本轮失败；不使用旧数据或假事件填充。"
+          : "合法外部情报基础层已就绪，collector 尚未产生事件。",
     },
   );
 }
