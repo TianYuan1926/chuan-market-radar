@@ -43,25 +43,19 @@ function uniqueReasons(reasons: SignalMaturityReason[]) {
   return [...new Set(reasons)];
 }
 
+function v3TradePlanStatusReady(status: string | undefined) {
+  return status === "READY_LONG" || status === "READY_SHORT";
+}
+
 function v3PlanEligible(signal: MarketSignal) {
   const tradePlan = signal.strategyV3?.tradePlan;
 
   return signal.timeframeGate?.allowed !== false &&
     tradePlan?.isPlanEligible === true &&
+    v3TradePlanStatusReady(tradePlan.status) &&
     (tradePlan.rewardRisk ?? signal.strategy.riskReward) >= 3 &&
     signal.risk !== "high" &&
     signal.risk !== "blocked";
-}
-
-function legacyPlanEligible(signal: MarketSignal) {
-  return signal.timeframeGate?.allowed !== false &&
-    signal.strategy.status === "actionable" &&
-    signal.strategy.riskReward >= 3 &&
-    signal.risk !== "high" &&
-    signal.risk !== "blocked" &&
-    signal.state !== "invalidated" &&
-    signal.state !== "insufficient_data" &&
-    (signal.timeframeConflicts?.length ?? 0) === 0;
 }
 
 function hasStructuredEvidence(signal: MarketSignal) {
@@ -110,13 +104,6 @@ export function classifySignalMaturity(signal: MarketSignal): SignalMaturity {
     });
   }
 
-  if (legacyPlanEligible(signal)) {
-    return maturity({
-      stage: "TRADE_PLAN_READY",
-      reasons: uniqueReasons([...reasons, "eligible_legacy_trade_plan"]),
-    });
-  }
-
   if (hasStructuredEvidence(signal) && signal.state !== "insufficient_data") {
     return maturity({
       stage: "EVIDENCE_SIGNAL",
@@ -147,7 +134,7 @@ function emptyCounts(): Record<SignalMaturityStage, number> {
 }
 
 function maturityFor(signal: MarketSignal) {
-  return signal.maturity ?? classifySignalMaturity(signal);
+  return classifySignalMaturity(signal);
 }
 
 export function buildSignalMaturityDiagnostics({
@@ -199,9 +186,7 @@ export function buildSignalMaturityDiagnostics({
 export function applySignalMaturityToSnapshot<T extends { metadata: { lightScan?: { candidateCount: number }; signalMaturity?: SignalMaturityDiagnostics }; signals: MarketSignal[] }>(
   snapshot: T,
 ): T {
-  const signals = snapshot.signals.map((signal) => (
-    signal.maturity ? signal : applySignalMaturity(signal)
-  ));
+  const signals = snapshot.signals.map((signal) => applySignalMaturity(signal));
 
   return {
     ...snapshot,

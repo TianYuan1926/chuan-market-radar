@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "../analysis/types";
+import type { StrategyV3Dossier, StrategyV3TradePlan } from "../analysis/v3/types";
 import {
   applySignalMaturity,
   buildSignalMaturityDiagnostics,
@@ -39,6 +40,44 @@ function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
       targets: ["R1"],
     },
     ...overrides,
+  };
+}
+
+function strategyV3WithTradePlan(overrides: Partial<StrategyV3TradePlan> = {}): StrategyV3Dossier {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    currentPrice: 1,
+    forwardLevels: [],
+    guardrails: ["readonly"],
+    keyLevels: [],
+    primaryTimeframe: "1h",
+    source: "existing_ohlcv_key_level_mvp",
+    sourceTimeframes: ["15m", "1h"],
+    summary: "v3",
+    symbol: "ENAUSDT",
+    tradePlan: {
+      allowedUse: "research_only",
+      blockedBy: [],
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      confirmationChecklist: ["retest"],
+      direction: "long",
+      entryZone: "0.98-1.02",
+      hasAutoExecution: false,
+      invalidation: "0.95 lost",
+      isPlanEligible: true,
+      manualReviewRequired: true,
+      positionSizing: "small",
+      rewardRisk: 3.6,
+      status: "READY_LONG",
+      structuralStop: 0.95,
+      summary: "manual plan ready",
+      takeProfitPlan: "scale out",
+      targets: [1.1, 1.2],
+      ...overrides,
+    },
   };
 }
 
@@ -97,40 +136,7 @@ test("classifySignalMaturity only promotes eligible plans to TRADE_PLAN_READY", 
       status: "actionable",
       targets: ["R1", "R2"],
     },
-    strategyV3: {
-      allowedUse: "research_only",
-      canAutoAdjustWeights: false,
-      canMutateLiveRanking: false,
-      currentPrice: 1,
-      forwardLevels: [],
-      guardrails: ["readonly"],
-      keyLevels: [],
-      primaryTimeframe: "1h",
-      source: "existing_ohlcv_key_level_mvp",
-      sourceTimeframes: ["15m", "1h"],
-      summary: "v3",
-      symbol: "ENAUSDT",
-      tradePlan: {
-        allowedUse: "research_only",
-        blockedBy: [],
-        canAutoAdjustWeights: false,
-        canMutateLiveRanking: false,
-        confirmationChecklist: ["retest"],
-        direction: "long",
-        entryZone: "0.98-1.02",
-        hasAutoExecution: false,
-        invalidation: "0.95 lost",
-        isPlanEligible: true,
-        manualReviewRequired: true,
-        positionSizing: "small",
-        rewardRisk: 3.6,
-        status: "READY_LONG",
-        structuralStop: 0.95,
-        summary: "manual plan ready",
-        takeProfitPlan: "scale out",
-        targets: [1.1, 1.2],
-      },
-    },
+    strategyV3: strategyV3WithTradePlan(),
   }));
 
   assert.equal(ready.stage, "TRADE_PLAN_READY");
@@ -138,6 +144,49 @@ test("classifySignalMaturity only promotes eligible plans to TRADE_PLAN_READY", 
   assert.equal(ready.canAttachTradePlan, true);
   assert.equal(ready.canRequestAiReview, true);
   assert.ok(ready.reasons.includes("eligible_v3_trade_plan"));
+});
+
+test("classifySignalMaturity does not promote v3 plans that are eligible but not ready", () => {
+  const waiting = classifySignalMaturity(signal({
+    state: "near_trigger",
+    strategy: {
+      bias: "long",
+      entry: "retest",
+      invalidation: "range lost",
+      positionHint: "manual only",
+      riskReward: 3.6,
+      status: "actionable",
+      targets: ["R1", "R2"],
+    },
+    strategyV3: strategyV3WithTradePlan({
+      status: "WAIT_PULLBACK",
+      summary: "等待回踩确认",
+    }),
+  }));
+
+  assert.equal(waiting.stage, "EVIDENCE_SIGNAL");
+  assert.equal(waiting.canAttachTradePlan, false);
+  assert.ok(waiting.reasons.includes("trade_plan_not_ready"));
+});
+
+test("applySignalMaturity recalculates stale persisted maturity", () => {
+  const recalculated = applySignalMaturity(signal({
+    maturity: {
+      canAttachTradePlan: true,
+      canEnterMainSignalArea: true,
+      canRequestAiReview: true,
+      label: "交易计划就绪",
+      reasons: ["eligible_v3_trade_plan"],
+      stage: "TRADE_PLAN_READY",
+    },
+    strategyV3: strategyV3WithTradePlan({
+      status: "WAIT_PULLBACK",
+      summary: "等待回踩确认",
+    }),
+  }));
+
+  assert.equal(recalculated.maturity?.stage, "EVIDENCE_SIGNAL");
+  assert.equal(recalculated.maturity?.canAttachTradePlan, false);
 });
 
 test("classifySignalMaturity does not promote trade plans blocked by timeframe gate", () => {
@@ -161,40 +210,7 @@ test("classifySignalMaturity does not promote trade plans blocked by timeframe g
       mode: "multi_timeframe_hard_gate_v1",
       summary: "1h/4h 结构未确认，只能等待高周期突破。",
     },
-    strategyV3: {
-      allowedUse: "research_only",
-      canAutoAdjustWeights: false,
-      canMutateLiveRanking: false,
-      currentPrice: 1,
-      forwardLevels: [],
-      guardrails: ["readonly"],
-      keyLevels: [],
-      primaryTimeframe: "1h",
-      source: "existing_ohlcv_key_level_mvp",
-      sourceTimeframes: ["15m", "1h"],
-      summary: "v3",
-      symbol: "ENAUSDT",
-      tradePlan: {
-        allowedUse: "research_only",
-        blockedBy: [],
-        canAutoAdjustWeights: false,
-        canMutateLiveRanking: false,
-        confirmationChecklist: ["retest"],
-        direction: "long",
-        entryZone: "0.98-1.02",
-        hasAutoExecution: false,
-        invalidation: "0.95 lost",
-        isPlanEligible: true,
-        manualReviewRequired: true,
-        positionSizing: "small",
-        rewardRisk: 3.6,
-        status: "READY_LONG",
-        structuralStop: 0.95,
-        summary: "manual plan ready",
-        takeProfitPlan: "scale out",
-        targets: [1.1, 1.2],
-      },
-    },
+    strategyV3: strategyV3WithTradePlan(),
   }));
 
   assert.equal(gated.stage, "EVIDENCE_SIGNAL");
@@ -225,6 +241,7 @@ test("buildSignalMaturityDiagnostics exposes counts and main-signal symbols", ()
           status: "actionable",
           targets: ["R1"],
         },
+        strategyV3: strategyV3WithTradePlan(),
         symbol: "SUIUSDT",
       })),
     ],

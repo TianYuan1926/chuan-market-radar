@@ -48,14 +48,6 @@ function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
       takeProfitPlan: "TP1 40% / TP2 40% / TP3 20%",
       noChase: true,
     },
-    maturity: {
-      canAttachTradePlan: true,
-      canEnterMainSignalArea: true,
-      canRequestAiReview: true,
-      label: "计划就绪",
-      reasons: ["eligible_v3_trade_plan"],
-      stage: "TRADE_PLAN_READY",
-    },
     ...overrides,
   };
 }
@@ -493,7 +485,7 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.deepScanQueue.data.currentBatch.includes("TIA"), true);
   assert.equal(radar.radarSignals.data[0]?.symbol, "TIA");
   assert.equal(radar.radarSignals.data[0]?.direction, "多");
-  assert.equal(radar.radarSignals.data[0]?.maturity, "TRADE_PLAN_READY");
+  assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
   assert.equal(radar.radarSignals.data[0]?.rr, 3.2);
   assert.equal(radar.fundFlow.status, "partial");
   assert.equal(radar.fundFlow.data.canCreateTradeSignal, false);
@@ -502,6 +494,29 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.scanStability.status, "live");
   assert.equal(radar.scanStability.data.status, "healthy");
   assert.match(radar.scanStability.reason ?? "", /不能直接生成交易信号/);
+});
+
+test("buildFrontendRadarContract recalculates stale persisted signal maturity", () => {
+  const radar = buildFrontendRadarContract({
+    backend: backendContract(),
+    snapshot: snapshot([
+      signal({
+        maturity: {
+          canAttachTradePlan: true,
+          canEnterMainSignalArea: true,
+          canRequestAiReview: true,
+          label: "交易计划就绪",
+          reasons: ["eligible_v3_trade_plan"],
+          stage: "TRADE_PLAN_READY",
+        },
+      }),
+    ]),
+    env: { COINGLASS_DAILY_REQUEST_BUDGET: "300" },
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(radar.radarSignals.data[0]?.whyBlocked, null);
 });
 
 test("buildFrontendRadarContract uses observed CoinGlass usage instead of planned requests", () => {

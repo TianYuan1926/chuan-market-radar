@@ -23,6 +23,7 @@ import type {
   ScanLightScanCandidate,
 } from "../market/types";
 import { isCryptoFuturesUnderlying } from "../market/asset-class-filter";
+import { classifySignalMaturity } from "../market/signal-maturity";
 import {
   buildPersonalPositionLens,
   type PersonalPositionLens,
@@ -903,7 +904,7 @@ function maturityForSignal(signal: MarketSignal): SignalMaturity {
   if (lifecycleStatusReason(signal).length > 0) {
     return "BLOCKED";
   }
-  return signal.maturity?.stage ?? (signal.evidence.length > 0 ? "EVIDENCE_SIGNAL" : "DEEP_SCAN_CANDIDATE");
+  return classifySignalMaturity(signal).stage;
 }
 
 function evidenceKind(layer: EvidencePoint["layer"]) {

@@ -230,7 +230,7 @@ function strategyV3LessonTags(signal: MarketSignal) {
 }
 
 function signalMaturityStage(signal: MarketSignal) {
-  return signal.maturity?.stage ?? classifySignalMaturity(signal).stage;
+  return classifySignalMaturity(signal).stage;
 }
 
 export function buildJournalEntryFromSignal(

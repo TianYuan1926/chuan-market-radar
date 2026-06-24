@@ -687,8 +687,8 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### P0：必须先根治的问题
 
-1. **总控与单币档案状态不一致**：生产验收发现 `radar-contract` 中 BTC/ETH 可出现 `TRADE_PLAN_READY`，但 `/api/frontend/token-dossier?symbol=BTC` 返回 `BLOCKED` 且 `tradePlan=null`。同一币种在总控和详情页不能给出互相冲突的成熟度、Risk Gate 或交易计划状态。下一步必须统一信号选择、dossier 构建、maturity 判定和 Risk Gate 来源。
-2. **个人仓位镜头线上展示未完全验收**：本地已实现 `positionLens`，测试、typecheck、build 已通过；但生产单币档案在 `tradePlan=null` 时看不到 `positionLens`，因此不能宣称线上展示闭环已完成。修复 P0-1 后，必须用一个真实 `TRADE_PLAN_READY` 标的验收 `tradePlan.positionLens` 是否稳定输出。
+1. **总控与单币档案状态一致性**：2026-06-24 已完成代码层修复。`TRADE_PLAN_READY` 只能由当前规则重新计算产生，且必须满足 v3 结构化交易计划 `status=READY_LONG/READY_SHORT`、`isPlanEligible=true`、RR 不低于 `3:1`、风险门控和多周期门控通过；旧快照、旧 journal 或手写 `maturity` 字段不能覆盖当前规则。`RadarContract`、AI 复核入口、Journal lifecycle 和 Snapshot maturity 都必须重新计算成熟度，避免总控显示“计划就绪”而 Token Dossier `tradePlan=null`。本地验证：`npm run test:market` 616/616 + worker 11/11 通过，`npm run typecheck` 通过。下一步是部署后用生产真实信号再次验收 `radar-contract` 与 `/api/frontend/token-dossier?symbol=...` 对同一 symbol 的成熟度、Risk Gate 和 tradePlan 一致。
+2. **个人仓位镜头线上展示未完全验收**：本地已实现 `positionLens`，测试、typecheck、build 已通过；但生产单币档案只有在真实 `tradePlan` 存在时才能展示。修复 P0-1 后，必须用一个真实 `TRADE_PLAN_READY` 标的验收 `tradePlan.positionLens` 是否稳定输出；如果生产暂时没有计划就绪标的，前端必须显示 waiting/blocked 原因，不能伪造 position lens。
 
 ### P1：当前未完成清单
 

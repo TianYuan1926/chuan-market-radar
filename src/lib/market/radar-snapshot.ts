@@ -315,7 +315,7 @@ export async function enrichSnapshotWithAiReviews(
   const context = { metadata: snapshot.metadata };
   const signals = await Promise.all(
     snapshot.signals.map(async (signal, index) => {
-      const maturity = signal.maturity ?? classifySignalMaturity(signal);
+      const maturity = classifySignalMaturity(signal);
 
       if (maturity.canRequestAiReview === false) {
         return {
