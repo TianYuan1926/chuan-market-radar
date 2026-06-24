@@ -1350,7 +1350,11 @@ export function buildFrontendRadarContract({
       lastScanAt: timeLabel(snapshot.metadata.generatedAt),
       nextScanCountdownSec: scanCountdown(snapshot, now),
       stuck: snapshot.metadata.status === "failed" || coverage.status === "blocked",
-    }, status, { ageSec, source }),
+    }, status, {
+      ageSec,
+      source,
+      reason: "轻扫覆盖率表示公开交易所全市场快速过筛覆盖；深扫占比表示本轮 CoinGlass 衍生品确认覆盖。深扫是轮转确认层，不是一次性全市场重扫。",
+    }),
     deepScanQueue: resource({
       currentBatch: normalizeAssetList(allocation.selectedAssets),
       nextBatch: normalizeAssetList(allocation.nextBatchAssets),

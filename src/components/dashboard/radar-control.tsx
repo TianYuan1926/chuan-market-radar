@@ -137,6 +137,11 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                 style={{ width: `${sp.coverage}%` }}
               />
             </div>
+            {scan.reason && (
+              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                {scan.reason}
+              </p>
+            )}
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs">
             <span className="flex items-center gap-1.5 text-muted-foreground">

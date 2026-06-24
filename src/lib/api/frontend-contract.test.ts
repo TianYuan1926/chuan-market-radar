@@ -524,6 +524,8 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.scanProof.data.deepScanned, 24);
   assert.equal(radar.scanProof.data.coverage, 100);
   assert.equal(radar.scanProof.data.deepCoverage, 3.3);
+  assert.match(radar.scanProof.reason ?? "", /轻扫覆盖率/);
+  assert.match(radar.scanProof.reason ?? "", /深扫占比/);
   assert.equal(radar.deepScanQueue.data.currentBatch.includes("TIA"), true);
   assert.equal(radar.radarSignals.data[0]?.symbol, "TIA");
   assert.equal(radar.radarSignals.data[0]?.direction, "多");

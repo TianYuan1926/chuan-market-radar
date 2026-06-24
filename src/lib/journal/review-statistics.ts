@@ -92,36 +92,36 @@ function percent(numerator: number, denominator: number) {
   return round((numerator / denominator) * 100, 1);
 }
 
-function sampleStatus(total: number, closed: number): ReviewStatisticsReport["sampleStatus"] {
+function sampleStatus(total: number, closed: number, evidenceLevel: number): ReviewStatisticsReport["sampleStatus"] {
   if (total === 0) {
     return "empty";
   }
 
-  if (closed < 10) {
+  if (closed < 10 || evidenceLevel < 10) {
     return "collecting";
   }
 
-  if (closed < 30) {
+  if (closed < 30 || evidenceLevel < 30) {
     return "statistically_thin";
   }
 
   return "usable";
 }
 
-function statusSummary(status: ReviewStatisticsReport["sampleStatus"], closed: number) {
+function statusSummary(status: ReviewStatisticsReport["sampleStatus"], closed: number, evidenceLevel: number) {
   if (status === "empty") {
     return "还没有可统计的复盘样本。";
   }
 
   if (status === "collecting") {
-    return `已关闭样本 ${closed} 条，仍处于收集阶段，不能据此调整权重。`;
+    return `已关闭样本 ${closed} 条，证据级样本 ${evidenceLevel} 条，仍处于收集阶段，不能据此调整权重。`;
   }
 
   if (status === "statistically_thin") {
-    return `已关闭样本 ${closed} 条，可用于人工观察，但样本仍偏薄。`;
+    return `已关闭样本 ${closed} 条，证据级样本 ${evidenceLevel} 条，可用于人工观察，但样本仍偏薄。`;
   }
 
-  return `已关闭样本 ${closed} 条，可进入人工策略复核，不自动调权。`;
+  return `已关闭样本 ${closed} 条，证据级样本 ${evidenceLevel} 条，可进入人工策略复核，不自动调权。`;
 }
 
 export function buildReviewStatisticsReport(
@@ -136,7 +136,8 @@ export function buildReviewStatisticsReport(
   const wins = resolved.filter(isWinLike);
   const expiredExcluded = resolved.length;
   const rawResolved = reviewEvents.filter((event) => event.outcomeStatus && event.outcomeStatus !== "pending");
-  const status = sampleStatus(reviewEvents.length, closed.length);
+  const evidenceLevel = reviewEvents.filter(isEvidenceLevel).length;
+  const status = sampleStatus(reviewEvents.length, closed.length, evidenceLevel);
   const mfeValues = withMetrics.map((event) => event.outcomeMetrics?.mfePercent ?? 0);
   const maeValues = withMetrics.map((event) => event.outcomeMetrics?.maePercent ?? 0);
   const statuses: SignalOutcomeStatus[] = ["partial_win", "saved", "loss", "expired", "pending"];
@@ -168,13 +169,13 @@ export function buildReviewStatisticsReport(
     sampleStatus: status,
     samples: {
       closed: closed.length,
-      evidenceLevel: reviewEvents.filter(isEvidenceLevel).length,
+      evidenceLevel,
       pending: pending.length,
       total: reviewEvents.length,
       tradePlanReady: reviewEvents.filter((event) => event.signalMaturityStage === "TRADE_PLAN_READY").length,
       withMetrics: withMetrics.length,
     },
-    summary: statusSummary(status, closed.length),
+    summary: statusSummary(status, closed.length, evidenceLevel),
     winRate: {
       expiredExcludedPercent: percent(wins.length, expiredExcluded),
       rawResolvedPercent: percent(wins.length, rawResolved.length),

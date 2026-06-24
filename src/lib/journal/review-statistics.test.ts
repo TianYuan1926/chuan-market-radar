@@ -82,3 +82,19 @@ test("buildReviewStatisticsReport reports empty samples without pretending readi
   assert.equal(report.winRate.expiredExcludedPercent, null);
   assert.match(report.summary, /还没有可统计/);
 });
+
+test("buildReviewStatisticsReport does not mark non-evidence samples usable", () => {
+  const samples = Array.from({ length: 40 }, (_, index) => event({
+    id: `closed-${index}`,
+    outcomeStatus: index % 2 === 0 ? "saved" : "loss",
+    reviewStatus: "closed",
+    signalMaturityStage: "DEEP_SCAN_CANDIDATE",
+    symbol: `ALT${index}USDT`,
+  }));
+  const report = buildReviewStatisticsReport(samples, new Date("2026-06-21T09:00:00.000Z"));
+
+  assert.equal(report.samples.closed, 40);
+  assert.equal(report.samples.evidenceLevel, 0);
+  assert.equal(report.sampleStatus, "collecting");
+  assert.match(report.summary, /证据级样本 0 条/);
+});
