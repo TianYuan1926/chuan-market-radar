@@ -80,7 +80,8 @@ export default async function DashboardPage() {
   const matureSignalCount = radar.radarSignals.data.filter(
     (signal) => signal.maturity === 'EVIDENCE_SIGNAL' || signal.maturity === 'TRADE_PLAN_READY',
   ).length
-  const candidateDisplayCount = Math.max(0, displaySignals.data.length - matureSignalCount)
+  const reviewOnlyCount = displaySignals.data.filter((signal) => signal.maturity === 'REVIEW_ONLY').length
+  const candidateDisplayCount = Math.max(0, displaySignals.data.length - matureSignalCount - reviewOnlyCount)
 
   const sniper = cards
     .filter((c) => c.category === 'sniper')
@@ -118,7 +119,7 @@ export default async function DashboardPage() {
       value: displaySignals.data.length,
       icon: Crosshair,
       tone: 'var(--neon)',
-      sub: `成熟 ${matureSignalCount} · 候选 ${candidateDisplayCount}`,
+      sub: `成熟 ${matureSignalCount} · 候选 ${candidateDisplayCount} · 复盘 ${reviewOnlyCount}`,
       count: true,
     },
     {

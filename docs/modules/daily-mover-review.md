@@ -16,7 +16,8 @@
 当前已落地的是低频抓取、只读归因、关联复盘、v3 漏判复盘、校准候选队列、人工回测候选链路、策略版本只读表现层、K 线缓存填充基础、缓存 K 线验证结果、observedAt 事件窗口回测、outcome 健康状态展示、只读策略权重回测校准 MVP、只读策略权重变更审计 MVP、人工权重变更执行记录写入入口、只读 registry、影子策略权重层、影子表现评估和真实权重启用门禁：
 
 - `DailyMover`：上榜资产样本。
-- `PreMoveWindow`：上榜前 `1h / 4h / 24h / 3d` 观察窗口。
+- `PreMoveWindow`：上榜前 `1h / 3h / 4h / 6h / 12h / 24h / 3d` 观察窗口。
+- `DailyMoverPreMovePattern`：输出最佳启动前窗口、早期预警分、可解释线索和漏判原因；用于回答“为什么没有提前看到”，不能反向包装成追涨杀跌信号。
 - `MoverAttribution`：成交量、持仓、资金费率、爆仓、前置漂移等归因。
 - `RadarMoverReview`：雷达已发现、漏判或不可学习样本判断。
 - `DailyMoverSnapshot`：每日涨跌幅榜快照。

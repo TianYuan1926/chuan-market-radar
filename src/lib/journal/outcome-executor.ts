@@ -204,6 +204,8 @@ function signalMaturityFromStage(stage?: SignalMaturityStage): SignalMaturity | 
       ? ["light_scan_only"]
       : stage === "DEEP_SCAN_CANDIDATE"
         ? ["trade_plan_not_ready"]
+        : stage === "REVIEW_ONLY"
+          ? ["late_move_review_only"]
         : ["has_structured_evidence"],
     stage,
   };

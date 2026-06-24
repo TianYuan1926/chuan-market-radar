@@ -49,6 +49,10 @@ test("daily mover review turns a caught gainer into a research sample instead of
   assert.ok(review.attribution.primaryDrivers.includes("volume_expansion"));
   assert.ok(review.attribution.primaryDrivers.includes("open_interest_expansion"));
   assert.equal(review.attribution.learnability, "learnable");
+  assert.equal(review.preMovePattern?.bestWindow, "4h");
+  assert.equal(review.preMovePattern?.type, "volume_oi_build_up");
+  assert.ok((review.preMovePattern?.earlyWarningScore ?? 0) >= 80);
+  assert.deepEqual(review.preMovePattern?.missedBecause, []);
   assert.match(review.guardrail, /不用于追涨杀跌/);
 });
 
@@ -84,8 +88,12 @@ test("daily mover review records a miss when pre-move evidence existed without a
 
   assert.equal(review.radarReview.status, "missed");
   assert.ok(review.radarReview.improvementTags.includes("review_volume_oi_weight"));
+  assert.ok(review.radarReview.improvementTags.includes("review_pre_move_window_weight"));
   assert.ok(review.radarReview.improvementTags.includes("review_short_side_detection"));
   assert.equal(review.attribution.evidenceStrength, "strong");
+  assert.equal(review.preMovePattern?.bestWindow, "24h");
+  assert.ok((review.preMovePattern?.missedBecause.length ?? 0) >= 2);
+  assert.match(review.preMovePattern?.missedBecause.join(" ") ?? "", /晋级条件|候选池/);
 });
 
 test("daily mover review marks low-liquidity one-off moves as not learnable", () => {
@@ -122,6 +130,8 @@ test("daily mover review marks low-liquidity one-off moves as not learnable", ()
   assert.equal(review.radarReview.status, "not_learnable");
   assert.deepEqual(review.radarReview.improvementTags, []);
   assert.ok(review.attribution.primaryDrivers.includes("low_liquidity_or_one_off"));
+  assert.equal(review.preMovePattern?.type, "no_reliable_premark");
+  assert.equal(review.preMovePattern?.earlyWarningScore, 0);
 });
 
 test("daily mover review does not classify liquidation alone as a primary driver", () => {
@@ -144,7 +154,7 @@ test("daily mover review does not classify liquidation alone as a primary driver
         window: "4h",
         startedAt: "2026-06-13T20:00:00.000Z",
         endedAt: observedAt,
-        priceChangePercent: 2.2,
+        priceChangePercent: 5.2,
         volumeChangePercent: 18,
         openInterestChangePercent: 2,
         fundingRate: 0.0001,
@@ -157,4 +167,61 @@ test("daily mover review does not classify liquidation alone as a primary driver
   assert.equal(review.attribution.primaryDrivers.some((driver) => (driver as string) === "liquidation_pressure"), false);
   assert.deepEqual(review.attribution.primaryDrivers, ["pre_move_drift"]);
   assert.equal(review.attribution.evidenceStrength, "medium");
+  assert.equal(review.preMovePattern?.type, "early_drift_before_move");
+});
+
+test("daily mover review compares 3h 6h and 12h windows for early warning quality", () => {
+  const review = buildDailyMoverReview({
+    mover: {
+      id: "mover-arb-2026-06-14",
+      symbol: "ARB",
+      exchange: "BINANCE",
+      direction: "gainer",
+      rank: 5,
+      observedAt,
+      priceChangePercent: 22.5,
+      volume24hUsd: 160_000_000,
+      openInterestChangePercent: 18,
+      fundingRate: 0.0002,
+    },
+    preMoveWindows: [
+      {
+        window: "3h",
+        startedAt: "2026-06-13T21:00:00.000Z",
+        endedAt: observedAt,
+        priceChangePercent: 1.1,
+        volumeChangePercent: 42,
+        openInterestChangePercent: 6,
+        fundingRate: 0.0001,
+        radarSignalIds: [],
+      },
+      {
+        window: "6h",
+        startedAt: "2026-06-13T18:00:00.000Z",
+        endedAt: observedAt,
+        priceChangePercent: 2.8,
+        volumeChangePercent: 112,
+        openInterestChangePercent: 16,
+        fundingRate: 0.0002,
+        radarSignalIds: [],
+      },
+      {
+        window: "12h",
+        startedAt: "2026-06-13T12:00:00.000Z",
+        endedAt: observedAt,
+        priceChangePercent: 13.4,
+        volumeChangePercent: 130,
+        openInterestChangePercent: 17,
+        fundingRate: 0.0002,
+        radarSignalIds: [],
+      },
+    ],
+    radarSignals: [],
+  });
+
+  assert.equal(review.preMovePattern?.bestWindow, "6h");
+  assert.equal(review.preMovePattern?.type, "quiet_accumulation_before_move");
+  assert.ok((review.preMovePattern?.earlyWarningScore ?? 0) >= 55);
+  assert.ok(review.radarReview.improvementTags.includes("review_pre_move_window_weight"));
+  assert.match(review.preMovePattern?.clues.join(" ") ?? "", /6h 成交量提前放大/);
 });

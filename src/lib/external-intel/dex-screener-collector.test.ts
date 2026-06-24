@@ -32,6 +32,9 @@ test("DEX Screener collector maps latest boosts into context-only external event
   assert.equal(result.events[0]?.sourceId, "dex_screener_public_api");
   assert.equal(result.events[0]?.kind, "NARRATIVE_CATALYST");
   assert.equal(result.events[0]?.impact, "bullish_context");
+  assert.equal(result.events[0]?.tokenIdentity?.chainId, "solana");
+  assert.equal(result.events[0]?.tokenIdentity?.contractAddress, "So11111111111111111111111111111111111111112");
+  assert.equal(result.events[0]?.tokenIdentity?.mappingStatus, "partial");
   assert.equal(result.events[0]?.allowedUse, "context_only");
   assert.equal(result.events[0]?.canCreateTradeSignal, false);
   assert.equal(result.events[0]?.rawBodyStored, false);

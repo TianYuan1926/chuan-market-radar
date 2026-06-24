@@ -40,6 +40,7 @@ const MATURITY_BONUS: Record<Maturity, number> = {
   LIGHT_SCAN_MARK: -12,
   DEEP_SCAN_CANDIDATE: 0,
   EVIDENCE_SIGNAL: 12,
+  REVIEW_ONLY: -10,
   TRADE_PLAN_READY: 22,
   BLOCKED: -16,
   INVALIDATED: -28,
@@ -99,6 +100,7 @@ function scoreFor(signal: RadarSignal) {
 function typeFor(signal: RadarSignal): SignalType {
   if (signal.maturity === 'INVALIDATED' || signal.direction === '空') return 'CRASH'
   if (signal.maturity === 'BLOCKED') return signal.risk === '极高' ? 'LIQ' : 'WHALE'
+  if (signal.maturity === 'REVIEW_ONLY') return 'FLOW'
   if (signal.maturity === 'TRADE_PLAN_READY') return 'BREAK'
   if (signal.maturity === 'EVIDENCE_SIGNAL') return 'FLOW'
   if (signal.maturity === 'DEEP_SCAN_CANDIDATE') return 'WHALE'
@@ -116,6 +118,7 @@ function categoryFor(signal: RadarSignal): SignalCategory {
 
 function poolStatusFor(signal: RadarSignal): PoolStatus {
   if (signal.maturity === 'INVALIDATED' || signal.maturity === 'COOLDOWN') return 'expired'
+  if (signal.maturity === 'REVIEW_ONLY') return 'high_risk'
   if (signal.maturity === 'BLOCKED') {
     if (signal.risk === '高' || signal.risk === '极高') return 'high_risk'
     return 'low_odds'
@@ -176,9 +179,16 @@ function changeForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
   return 0
 }
 
-function maturityForLeaderboardRow(row: LeaderboardRow): Maturity {
+function isOverextendedLeaderboardMover(row: LeaderboardRow, kind: LeaderboardKind) {
+  return (kind === 'gainers' || kind === 'losers') &&
+    !row.hasSignal &&
+    Math.abs(row.value) >= 15
+}
+
+function maturityForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind): Maturity {
   if (row.blocked) return 'BLOCKED'
   if (row.hasSignal) return 'EVIDENCE_SIGNAL'
+  if (isOverextendedLeaderboardMover(row, kind)) return 'REVIEW_ONLY'
   if (row.deepScanned || row.inCandidatePool) return 'DEEP_SCAN_CANDIDATE'
   return 'LIGHT_SCAN_MARK'
 }
@@ -206,6 +216,7 @@ function whyForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
   if (row.awaitingScan) flags.push('等待深扫')
   if (row.hasSignal) flags.push('已有证据融合信号')
   if (row.blocked) flags.push('Risk Gate 拦截')
+  if (isOverextendedLeaderboardMover(row, kind)) flags.push('已大幅发生，只做复盘观察，禁止追单')
 
   return `${metric[kind]}${flags.length ? `；${flags.join('；')}` : '；等待扫描验证'}`
 }
@@ -216,9 +227,10 @@ export function leaderboardRowsToCandidateSignals(
 ): RadarSignal[] {
   return rows.map((row, index) => {
     const symbol = row.symbol.toUpperCase()
-    const maturity = maturityForLeaderboardRow(row)
+    const maturity = maturityForLeaderboardRow(row, kind)
     const evidenceCount = row.hasSignal ? 3 : row.deepScanned ? 2 : row.inCandidatePool ? 1 : 1
     const blocked = row.blocked || maturity === 'BLOCKED'
+    const reviewOnly = maturity === 'REVIEW_ONLY'
 
     return {
       id: `candidate-${kind}-${symbol}`,
@@ -227,13 +239,15 @@ export function leaderboardRowsToCandidateSignals(
       direction: directionForLeaderboardRow(row, kind),
       maturity,
       rr: null,
-      risk: blocked ? '高' : kind === 'funding_hot' ? '中' : '低',
+      risk: blocked || reviewOnly ? '高' : kind === 'funding_hot' ? '中' : '低',
       evidenceCount,
-      counterCount: blocked ? 2 : 0,
+      counterCount: blocked || reviewOnly ? 2 : 0,
       freshness: 'live',
       whySelected: whyForLeaderboardRow(row, kind),
       whyBlocked: blocked
         ? 'Risk Gate 已标记，不能直接生成交易计划'
+        : reviewOnly
+          ? '榜单只说明行情已经大幅发生；未完成启动前证据融合，进入复盘样本，不允许追涨追跌。'
         : '候选阶段只代表发现异动，未完成证据融合和 3:1 赔率验证，不能当作交易计划',
       updatedMinAgo: Math.min(index, 59),
     }

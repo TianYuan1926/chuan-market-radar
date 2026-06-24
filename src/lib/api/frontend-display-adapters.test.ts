@@ -43,10 +43,10 @@ test("leaderboard rows become visible candidate signals without trade plans", ()
   assert.equal(signals.length, 2);
   assert.deepEqual(
     signals.map((signal) => signal.maturity),
-    ["DEEP_SCAN_CANDIDATE", "DEEP_SCAN_CANDIDATE"],
+    ["REVIEW_ONLY", "DEEP_SCAN_CANDIDATE"],
   );
   assert.ok(signals.every((signal) => signal.rr === null));
-  assert.ok(signals.every((signal) => signal.whyBlocked?.includes("不能当作交易计划")));
+  assert.ok(signals.every((signal) => /不能当作交易计划|不允许追涨追跌/u.test(signal.whyBlocked ?? "")));
 });
 
 test("empty mature signals still render candidate cards and tokens", () => {

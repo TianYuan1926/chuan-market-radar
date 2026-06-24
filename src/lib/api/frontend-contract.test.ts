@@ -555,6 +555,7 @@ function backendContract(): BackendContract {
           LIGHT_SCAN_MARK: 33,
           DEEP_SCAN_CANDIDATE: 4,
           EVIDENCE_SIGNAL: 1,
+          REVIEW_ONLY: 0,
           TRADE_PLAN_READY: 1,
         },
         guardrail: "轻扫标记不交易",
@@ -2080,6 +2081,160 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
       ?.items.find((item) => item.sourceId === "trade-plan:manual-review")
       ?.detail ?? "",
     /不自动下单/,
+  );
+});
+
+test("buildFrontendTokenDossierContract turns late avoid-chase dossiers into review-only without a trade plan", () => {
+  const dossier: SignalBackendDossier = {
+    found: true,
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    guardrails: ["report_is_translation_only"],
+    symbol: "TIAUSDT",
+    chart: {
+      availableTimeframes: ["1h"],
+      selectedTimeframe: "1h",
+      tradingView: {
+        interval: "1h",
+        symbol: "BINANCE:TIAUSDT.P",
+        url: "https://www.tradingview.com/chart/?symbol=BINANCE%3ATIAUSDT.P",
+      },
+    },
+    evidence: {
+      conflictingCount: 0,
+      items: signal().evidence,
+      neutralCount: 0,
+      supportiveCount: 2,
+      total: 3,
+    },
+    journal: {
+      recentEvents: [],
+      totalEvents: 0,
+    },
+    execution: {
+      maxLeverage: 50,
+      maxLeverageSource: "coinglass_instrument_tag",
+    },
+    signal: {
+      confidence: 84,
+      direction: "long",
+      exchange: "BINANCE",
+      id: "sig-tia",
+      risk: "medium",
+      state: "near_trigger",
+      summary: "已经大幅拉升后出现追高风险",
+      timeframe: "1h",
+      updatedAt: "2026-06-21T08:00:00.000Z",
+    },
+    strategyV3: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 9.8,
+      forwardLevels: [],
+      guardrails: ["research_only"],
+      keyLevels: [],
+      primaryTimeframe: "1h",
+      source: "existing_ohlcv_key_level_mvp",
+      sourceTimeframes: ["1h"],
+      summary: "v3 关键位地图",
+      symbol: "TIAUSDT",
+      trendContext: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        conflicts: [],
+        decision: "AVOID_CHASE_LONG",
+        guardrail: "只读趋势上下文",
+        locationRiskReward: {
+          allowedUse: "research_only",
+          canAutoAdjustWeights: false,
+          canMutateLiveRanking: false,
+          currentPrice: 9.8,
+          direction: "long",
+          hasTradeSignal: false,
+          isTradeEligible: true,
+          minRewardRisk: 3,
+          nearestTarget: 11.2,
+          positionQuality: "CHASE_RISK",
+          rewardRisk: 3.4,
+          riskFlags: ["chase_risk"],
+          stopDistance: 0.2,
+          stopDistancePercent: 2.04,
+          structuralStop: 9.6,
+          summary: "位置已经偏追，等待回踩。",
+          targetDistance: 1.4,
+          targetDistancePercent: 14.29,
+          targetLevelId: "tia-r1",
+          stopLevelId: "tia-s1",
+        },
+        nextStep: "已经追高，只做复盘观察，等待重新回到结构位。",
+        noParticipationReasons: ["位置/RR：当前位置偏追，等待回踩或反抽到更优区域。"],
+        riskGate: {
+          allowed: true,
+          blockedBy: [],
+          mode: "readonly_v3_risk_gate",
+        },
+        scores: {
+          longPreTrendScore: 34,
+          shortPreTrendScore: 12,
+          longTrendEnergyScore: 82,
+          shortTrendEnergyScore: 8,
+          riskScore: 72,
+          trendHoldScore: 32,
+          exhaustionScore: 85,
+        },
+        state: "LONG_EXHAUSTION",
+        summary: "多头衰竭/追高风险区。",
+        timeframes: [],
+        trendIntegrity: {
+          allowedUse: "research_only",
+          canAutoAdjustWeights: false,
+          canMutateLiveRanking: false,
+          direction: "long",
+          evidence: ["上影线衰竭"],
+          hasTradeSignal: false,
+          integrityScore: 35,
+          riskFlags: ["upper_wick_exhaustion"],
+          status: "EXHAUSTION_RISK",
+          summary: "趋势完整度进入衰竭风险。",
+        },
+      },
+      tradePlan: {
+        allowedUse: "research_only",
+        blockedBy: [],
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        confirmationChecklist: ["等待回踩"],
+        direction: "long",
+        entryZone: "9.60 - 9.80",
+        hasAutoExecution: false,
+        invalidation: "跌回 9.20",
+        isPlanEligible: true,
+        manualReviewRequired: true,
+        positionSizing: "轻仓确认",
+        rewardRisk: 3.4,
+        status: "READY_LONG",
+        structuralStop: 9.6,
+        summary: "旧计划残留，不应在追高区展示为可交易。",
+        takeProfitPlan: "等待",
+        targets: [11.2],
+      },
+    },
+  };
+
+  const res = buildFrontendTokenDossierContract({
+    dossier,
+    basePrice: 9.8,
+    now: new Date("2026-06-21T08:00:05.000Z"),
+  });
+
+  assert.equal(res.data.maturity, "REVIEW_ONLY");
+  assert.equal(res.data.tradePlan, null);
+  assert.equal(res.data.riskGate.allowTradePlan, false);
+  assert.match(res.data.riskGate.reasons.join("；"), /复盘观察|追高|衰竭/);
+  assert.match(
+    res.data.reportSections.find((section) => section.key === "trade_plan")?.items[0]?.detail ?? "",
+    /不得生成入场、止损、目标/,
   );
 });
 

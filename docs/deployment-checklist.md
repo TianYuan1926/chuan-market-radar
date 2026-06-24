@@ -199,6 +199,7 @@
 - `/api/health` 的 `health.macroMarket` 必须显示 `status`、`source`、`ageMinutes`、`btcDominancePercent`、`total2MarketCapUsd`、`total3MarketCapUsd` 和 “不能直接生成交易方向” 边界。
 - `bash deploy/scripts/production-verify.sh` 应在服务器上通过；本地没有 Docker 时不能用本地结果替代服务器验收。
 - `bash deploy/scripts/production-full-verify.sh` 应在服务器上通过；它会统一检查 compose、迁移、health、frontend contracts、只读事件、UI state、扫描触发、worker 日志和备份 dry run。
+- `npm run production:preflight` 是本地发布前闸门，应在推送和生产部署前通过；它统一运行 typecheck、market/worker tests、lint 和 build。
 - `npm run production:ssh-check` 应能从本机连通腾讯云 SSH，并确认远端项目目录和 Git 提交；不通时优先修 SSH，不把 OrcaTerm 手工复制当长期部署方案。
 - `npm run production:deploy` 是本机到腾讯云生产的标准发布入口：本地 GitHub 同步检查、SSH 预检、服务器 `git pull --ff-only`、Docker Compose 重建、内部 health、公网 smoke。
 - `npm run production:smoke` 应能检查公网页面、`/api/health`、前端 radar contract、leaderboard、review contract 和 backend contract；如果只页面 200 但合同为空，不能算完成。

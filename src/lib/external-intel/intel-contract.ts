@@ -29,6 +29,17 @@ export type ExternalIntelEventKind =
 
 export type ExternalIntelImpact = "bullish_context" | "bearish_context" | "risk_context" | "neutral_context";
 
+export type ExternalTokenIdentity = {
+  chainId?: string;
+  coingeckoId?: string;
+  confidence: number;
+  contractAddress?: string;
+  imageUrl?: string;
+  mappingStatus: "mapped" | "partial" | "unmapped";
+  name?: string;
+  symbol?: string;
+};
+
 export type ExternalIntelSourcePlan = {
   id: ExternalIntelSourceId;
   label: string;
@@ -60,6 +71,7 @@ export type ExternalEvent = {
   sourceId: ExternalIntelSourceId;
   kind: ExternalIntelEventKind;
   symbol?: string;
+  tokenIdentity?: ExternalTokenIdentity;
   title: string;
   summary: string;
   sourceUrl?: string;
@@ -71,10 +83,15 @@ export type ExternalEvent = {
   rawBodyStored: false;
 };
 
-export type ExternalEventInput = Omit<ExternalEvent, "allowedUse" | "canCreateTradeSignal" | "confidence" | "rawBodyStored" | "summary" | "title"> & {
+export type ExternalTokenIdentityInput = Partial<Omit<ExternalTokenIdentity, "confidence" | "mappingStatus">> & {
+  confidence?: number;
+};
+
+export type ExternalEventInput = Omit<ExternalEvent, "allowedUse" | "canCreateTradeSignal" | "confidence" | "rawBodyStored" | "summary" | "title" | "tokenIdentity"> & {
   confidence?: number;
   summary?: string;
   title?: string;
+  tokenIdentity?: ExternalTokenIdentityInput;
 };
 
 export type ExternalIntelEvidenceCandidate = {
@@ -83,6 +100,8 @@ export type ExternalIntelEvidenceCandidate = {
   direction: "BULLISH" | "BEARISH" | "RISK" | "NEUTRAL";
   label: string;
   summary: string;
+  symbol?: string;
+  tokenIdentity?: ExternalTokenIdentity;
   allowedUse: "context_only";
   canCreateTradeSignal: false;
   riskOnly: boolean;
@@ -226,6 +245,71 @@ function normalizeSymbol(symbol: string | undefined) {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeLooseText(value: string | undefined) {
+  const normalized = (value ?? "").replace(/\s+/g, " ").trim();
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeChainId(value: string | undefined) {
+  const normalized = (value ?? "").replace(/[^a-z0-9_-]/giu, "").toLowerCase();
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeContractAddress(value: string | undefined) {
+  const normalized = (value ?? "").trim();
+
+  if (!normalized || /[\s<>"'`]/u.test(normalized)) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeImageUrl(value: string | undefined) {
+  const normalized = (value ?? "").trim();
+
+  if (!/^https:\/\//iu.test(normalized)) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeExternalTokenIdentity(
+  identity: ExternalTokenIdentityInput | undefined,
+  fallbackSymbol: string | undefined,
+): ExternalTokenIdentity | undefined {
+  const symbol = normalizeSymbol(identity?.symbol ?? fallbackSymbol);
+  const chainId = normalizeChainId(identity?.chainId);
+  const contractAddress = normalizeContractAddress(identity?.contractAddress);
+  const coingeckoId = normalizeLooseText(identity?.coingeckoId)?.toLowerCase();
+  const imageUrl = normalizeImageUrl(identity?.imageUrl);
+  const name = normalizeLooseText(identity?.name);
+
+  if (!symbol && !chainId && !contractAddress && !coingeckoId && !imageUrl && !name) {
+    return undefined;
+  }
+
+  const mappingStatus: ExternalTokenIdentity["mappingStatus"] = symbol && (coingeckoId || (chainId && contractAddress))
+    ? "mapped"
+    : symbol || chainId || contractAddress || coingeckoId || imageUrl || name
+      ? "partial"
+      : "unmapped";
+
+  return {
+    chainId,
+    coingeckoId,
+    confidence: clampConfidence(identity?.confidence ?? (mappingStatus === "mapped" ? 80 : 45)),
+    contractAddress,
+    imageUrl,
+    mappingStatus,
+    name,
+    symbol,
+  };
+}
+
 function sourceAllowed(sourceId: ExternalIntelSourceId) {
   return sourcePlan.some((source) => source.id === sourceId);
 }
@@ -238,6 +322,8 @@ export function normalizeExternalEvent(input: ExternalEventInput): ExternalEvent
   if (!sourceAllowed(input.sourceId)) {
     throw new Error(`Unsupported external intel source: ${input.sourceId}`);
   }
+  const symbol = normalizeSymbol(input.symbol);
+  const tokenIdentity = normalizeExternalTokenIdentity(input.tokenIdentity, symbol);
 
   return {
     ...input,
@@ -246,7 +332,8 @@ export function normalizeExternalEvent(input: ExternalEventInput): ExternalEvent
     confidence: clampConfidence(input.confidence),
     rawBodyStored: false,
     summary: clampText(input.summary, input.title ?? input.kind),
-    symbol: normalizeSymbol(input.symbol),
+    symbol: tokenIdentity?.symbol ?? symbol,
+    tokenIdentity,
     title: clampText(input.title, input.kind),
   };
 }
@@ -265,6 +352,8 @@ export function externalEventToEvidenceCandidate(event: ExternalEvent): External
     direction: directionFromImpact(event.impact),
     label: `${event.kind}${event.symbol ? `:${event.symbol}` : ""}`,
     summary: event.summary,
+    symbol: event.symbol,
+    tokenIdentity: event.tokenIdentity,
     allowedUse: "context_only",
     canCreateTradeSignal: false,
     riskOnly: event.impact === "risk_context" || event.kind === "SECURITY_RISK" || event.kind === "DELIST_RISK",

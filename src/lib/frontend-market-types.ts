@@ -52,6 +52,7 @@ export type SignalCard = {
     | 'LIGHT_SCAN_MARK'
     | 'DEEP_SCAN_CANDIDATE'
     | 'EVIDENCE_SIGNAL'
+    | 'REVIEW_ONLY'
     | 'TRADE_PLAN_READY'
     | 'BLOCKED'
     | 'INVALIDATED'

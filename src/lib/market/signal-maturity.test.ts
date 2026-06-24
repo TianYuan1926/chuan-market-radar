@@ -169,6 +169,58 @@ test("classifySignalMaturity does not promote v3 plans that are eligible but not
   assert.ok(waiting.reasons.includes("trade_plan_not_ready"));
 });
 
+test("classifySignalMaturity routes late no-chase setups to REVIEW_ONLY instead of TRADE_PLAN_READY", () => {
+  const late = classifySignalMaturity(signal({
+    state: "near_trigger",
+    strategy: {
+      bias: "long",
+      entry: "retest",
+      invalidation: "range lost",
+      positionHint: "manual only",
+      riskReward: 4.2,
+      status: "actionable",
+      targets: ["R1", "R2"],
+    },
+    strategyV3: {
+      ...strategyV3WithTradePlan(),
+      trendContext: {
+        allowedUse: "research_only",
+        canAutoAdjustWeights: false,
+        canMutateLiveRanking: false,
+        conflicts: [],
+        decision: "AVOID_CHASE_LONG",
+        guardrail: "v3 trend context is readonly",
+        nextStep: "已经追高，只做复盘观察，等待重新回到结构位。",
+        noParticipationReasons: ["位置/RR：当前位置偏追，等待回踩或反抽到更优区域。"],
+        riskGate: {
+          allowed: true,
+          blockedBy: [],
+          mode: "readonly_v3_risk_gate",
+        },
+        scores: {
+          exhaustionScore: 82,
+          longPreTrendScore: 38,
+          longTrendEnergyScore: 75,
+          riskScore: 68,
+          shortPreTrendScore: 12,
+          shortTrendEnergyScore: 8,
+          trendHoldScore: 35,
+        },
+        state: "LONG_EXHAUSTION",
+        summary: "已进入多头衰竭/追高风险区。",
+        timeframes: [],
+      },
+    },
+  }));
+
+  assert.equal(late.stage, "REVIEW_ONLY");
+  assert.equal(late.canEnterMainSignalArea, false);
+  assert.equal(late.canAttachTradePlan, false);
+  assert.equal(late.canRequestAiReview, false);
+  assert.ok(late.reasons.includes("late_move_review_only"));
+  assert.ok(late.reasons.includes("no_chase_review_only"));
+});
+
 test("applySignalMaturity recalculates stale persisted maturity", () => {
   const recalculated = applySignalMaturity(signal({
     maturity: {
@@ -250,6 +302,7 @@ test("buildSignalMaturityDiagnostics exposes counts and main-signal symbols", ()
   assert.equal(diagnostics.counts.LIGHT_SCAN_MARK, 12);
   assert.equal(diagnostics.counts.DEEP_SCAN_CANDIDATE, 1);
   assert.equal(diagnostics.counts.EVIDENCE_SIGNAL, 1);
+  assert.equal(diagnostics.counts.REVIEW_ONLY, 0);
   assert.equal(diagnostics.counts.TRADE_PLAN_READY, 1);
   assert.deepEqual(diagnostics.mainSignalSymbols, ["TIAUSDT", "SUIUSDT"]);
   assert.deepEqual(diagnostics.candidateLaneSymbols, ["COLDUSDT"]);

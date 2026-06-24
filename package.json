@@ -9,6 +9,7 @@
     "compose:up": "docker compose --env-file .env.production up -d --build",
     "compose:down": "docker compose --env-file .env.production down",
     "production:git-sync": "bash deploy/scripts/verify-git-sync.sh",
+    "production:preflight": "bash deploy/scripts/production-preflight.sh",
     "production:ssh-check": "bash deploy/scripts/check-prod-ssh.sh",
     "production:deploy": "bash deploy/scripts/tencent-prod-deploy.sh",
     "production:smoke": "bash deploy/scripts/prod-smoke.sh",

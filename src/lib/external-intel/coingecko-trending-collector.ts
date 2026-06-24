@@ -16,6 +16,8 @@ type CoingeckoTrendingCoin = {
     id?: unknown;
     name?: unknown;
     symbol?: unknown;
+    small?: unknown;
+    thumb?: unknown;
     market_cap_rank?: unknown;
     data?: {
       price_change_percentage_24h?: {
@@ -65,6 +67,7 @@ function trendingCoinToEvent(row: CoingeckoTrendingCoin, index: number, observed
   const id = asString(item.id);
   const symbol = asString(item.symbol).toUpperCase();
   const name = asString(item.name);
+  const imageUrl = asString(item.small) || asString(item.thumb);
   const rank = asFiniteNumber(item.market_cap_rank);
   const change24h = asFiniteNumber(item.data?.price_change_percentage_24h?.usd);
   const volume = asFiniteNumber(item.data?.total_volume);
@@ -82,6 +85,13 @@ function trendingCoinToEvent(row: CoingeckoTrendingCoin, index: number, observed
     sourceId: "coingecko_trending",
     kind: "NARRATIVE_CATALYST",
     symbol: symbol || undefined,
+    tokenIdentity: {
+      coingeckoId: id || undefined,
+      confidence: id && symbol ? 85 : 55,
+      imageUrl: imageUrl || undefined,
+      name: name || undefined,
+      symbol: symbol || undefined,
+    },
     title: `CoinGecko 热门关注 · ${symbol || name || id}`,
     summary: [
       `${name || symbol || id} 出现在 CoinGecko trending search。`,

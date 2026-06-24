@@ -85,6 +85,7 @@ function maturityCounts(snapshot: MarketRadarSnapshot): Record<SignalMaturitySta
     DEEP_SCAN_CANDIDATE: 0,
     EVIDENCE_SIGNAL: snapshot.signals.filter((signal) => signal.maturity?.stage === "EVIDENCE_SIGNAL").length,
     LIGHT_SCAN_MARK: snapshot.metadata.lightScan?.candidateCount ?? 0,
+    REVIEW_ONLY: snapshot.signals.filter((signal) => signal.maturity?.stage === "REVIEW_ONLY").length,
     TRADE_PLAN_READY: snapshot.signals.filter((signal) => signal.maturity?.stage === "TRADE_PLAN_READY").length,
   };
 }

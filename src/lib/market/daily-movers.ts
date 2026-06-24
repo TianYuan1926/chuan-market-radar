@@ -20,7 +20,7 @@ export type DailyMover = {
 };
 
 export type PreMoveWindow = {
-  window: "1h" | "4h" | "24h" | "3d";
+  window: "1h" | "3h" | "4h" | "6h" | "12h" | "24h" | "3d";
   startedAt: string;
   endedAt: string;
   priceChangePercent: number;
@@ -57,6 +57,21 @@ export type RadarMoverReview = {
   improvementTags: string[];
 };
 
+export type PreMovePatternType =
+  | "early_drift_before_move"
+  | "funding_crowding_before_move"
+  | "no_reliable_premark"
+  | "quiet_accumulation_before_move"
+  | "volume_oi_build_up";
+
+export type DailyMoverPreMovePattern = {
+  bestWindow: PreMoveWindow["window"] | null;
+  clues: string[];
+  earlyWarningScore: number;
+  missedBecause: string[];
+  type: PreMovePatternType;
+};
+
 export type DailyMoverReview = {
   id: string;
   symbol: string;
@@ -65,6 +80,7 @@ export type DailyMoverReview = {
   allowedUse: "research_only";
   guardrail: string;
   attribution: MoverAttribution;
+  preMovePattern?: DailyMoverPreMovePattern;
   radarReview: RadarMoverReview;
 };
 
@@ -104,6 +120,10 @@ function isLowLiquidityOrOneOff(mover: DailyMover) {
 
 function unique<T>(values: T[]) {
   return [...new Set(values)];
+}
+
+function clampScore(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function matchedRadarSignalIds(
@@ -183,11 +203,195 @@ function learnability(
   return strength === "strong" ? "learnable" : "watchlist";
 }
 
+function preMoveWindowScore(window: PreMoveWindow) {
+  const volumeChange = Math.abs(window.volumeChangePercent ?? 0);
+  const openInterestChange = Math.abs(window.openInterestChangePercent ?? 0);
+  const funding = Math.abs(window.fundingRate ?? 0);
+  const drift = Math.abs(window.priceChangePercent);
+
+  let score = 0;
+
+  if (volumeChange >= 150) {
+    score += 30;
+  } else if (volumeChange >= 100) {
+    score += 24;
+  } else if (volumeChange >= 50) {
+    score += 14;
+  } else if (volumeChange >= 25) {
+    score += 7;
+  }
+
+  if (openInterestChange >= 25) {
+    score += 24;
+  } else if (openInterestChange >= 15) {
+    score += 18;
+  } else if (openInterestChange >= 8) {
+    score += 10;
+  }
+
+  if (funding >= 0.001) {
+    score += 12;
+  } else if (funding >= 0.0005) {
+    score += 8;
+  }
+
+  if (drift >= 1.5 && drift <= 8) {
+    score += 16;
+  } else if (drift > 8 && drift <= 12) {
+    score += 6;
+  } else if (drift > 12) {
+    score -= 15;
+  }
+
+  if (window.radarSignalIds.length > 0) {
+    score += 18;
+  }
+
+  return clampScore(score);
+}
+
+function bestPreMoveWindow(preMoveWindows: PreMoveWindow[]) {
+  return [...preMoveWindows].sort((first, second) => (
+    preMoveWindowScore(second) - preMoveWindowScore(first)
+  ))[0];
+}
+
+function preMoveClues(window: PreMoveWindow | undefined, matchedSignalIds: string[]) {
+  if (!window) {
+    return [];
+  }
+
+  const clues: string[] = [];
+  const volumeChange = Math.abs(window.volumeChangePercent ?? 0);
+  const openInterestChange = Math.abs(window.openInterestChangePercent ?? 0);
+  const funding = Math.abs(window.fundingRate ?? 0);
+  const drift = Math.abs(window.priceChangePercent);
+
+  if (volumeChange >= 50) {
+    clues.push(`${window.window} 成交量提前放大 ${volumeChange.toFixed(1)}%`);
+  }
+
+  if (openInterestChange >= 8) {
+    clues.push(`${window.window} OI 提前变化 ${openInterestChange.toFixed(1)}%`);
+  }
+
+  if (funding >= 0.0005) {
+    clues.push(`${window.window} Funding 已出现拥挤倾向`);
+  }
+
+  if (drift >= 1.5 && drift <= 8) {
+    clues.push(`${window.window} 价格已有可学习的启动前漂移`);
+  }
+
+  if (matchedSignalIds.length > 0) {
+    clues.push("雷达在启动前窗口留下过匹配信号");
+  } else if (window.radarSignalIds.length === 0) {
+    clues.push("启动前窗口没有关联雷达信号");
+  }
+
+  return clues;
+}
+
+function preMovePatternType(window: PreMoveWindow | undefined, score: number): PreMovePatternType {
+  if (!window) {
+    return "no_reliable_premark";
+  }
+
+  const volumeChange = Math.abs(window.volumeChangePercent ?? 0);
+  const openInterestChange = Math.abs(window.openInterestChangePercent ?? 0);
+  const funding = Math.abs(window.fundingRate ?? 0);
+  const drift = Math.abs(window.priceChangePercent);
+
+  if (score < 25 && !(drift >= 1.5 && drift <= 8)) {
+    return "no_reliable_premark";
+  }
+
+  if (drift <= 3 && volumeChange >= 50 && openInterestChange >= 8) {
+    return "quiet_accumulation_before_move";
+  }
+
+  if (volumeChange >= 50 || openInterestChange >= 15) {
+    return "volume_oi_build_up";
+  }
+
+  if (funding >= 0.0005) {
+    return "funding_crowding_before_move";
+  }
+
+  if (drift >= 1.5 && drift <= 8) {
+    return "early_drift_before_move";
+  }
+
+  return "no_reliable_premark";
+}
+
+function preMoveMissedBecause(
+  window: PreMoveWindow | undefined,
+  score: number,
+  matchedSignalIds: string[],
+) {
+  if (!window || matchedSignalIds.length > 0 || score < 25) {
+    return [];
+  }
+
+  const reasons: string[] = [];
+  const volumeChange = Math.abs(window.volumeChangePercent ?? 0);
+  const openInterestChange = Math.abs(window.openInterestChangePercent ?? 0);
+  const drift = Math.abs(window.priceChangePercent);
+
+  if (score >= 55) {
+    reasons.push("启动前窗口已有较强征兆，但雷达没有留下成熟信号，需复核轻扫到深扫的晋级条件。");
+  }
+
+  if (volumeChange >= 50 || openInterestChange >= 8) {
+    reasons.push("成交量或 OI 提前变化没有获得足够排序权重，需复核候选池优先级。");
+  }
+
+  if (window.radarSignalIds.length === 0) {
+    reasons.push("窗口内没有关联 radarSignalId，需复核全市场覆盖、信号持久化和轮换公平性。");
+  }
+
+  if (drift > 8) {
+    reasons.push("价格在复盘窗口内已经明显先动，需检查提醒是否过晚。");
+  }
+
+  return unique(reasons);
+}
+
+function buildPreMovePattern(
+  mover: DailyMover,
+  preMoveWindows: PreMoveWindow[],
+  matchedSignalIds: string[],
+): DailyMoverPreMovePattern {
+  if (isLowLiquidityOrOneOff(mover)) {
+    return {
+      bestWindow: null,
+      clues: ["低流动性或单点事件样本，不纳入可学习启动前征兆。"],
+      earlyWarningScore: 0,
+      missedBecause: [],
+      type: "no_reliable_premark",
+    };
+  }
+
+  const bestWindow = bestPreMoveWindow(preMoveWindows);
+  const score = bestWindow ? preMoveWindowScore(bestWindow) : 0;
+  const type = preMovePatternType(bestWindow, score);
+
+  return {
+    bestWindow: type === "no_reliable_premark" ? null : bestWindow?.window ?? null,
+    clues: preMoveClues(bestWindow, matchedSignalIds),
+    earlyWarningScore: score,
+    missedBecause: preMoveMissedBecause(bestWindow, score, matchedSignalIds),
+    type,
+  };
+}
+
 function improvementTags(
   mover: DailyMover,
   drivers: MoverDriver[],
   matchedSignalIds: string[],
   learnabilityValue: MoverAttribution["learnability"],
+  preMovePattern: DailyMoverPreMovePattern,
 ) {
   if (matchedSignalIds.length > 0 || learnabilityValue === "not_learnable") {
     return [];
@@ -197,6 +401,10 @@ function improvementTags(
 
   if (drivers.includes("volume_expansion") || drivers.includes("open_interest_expansion")) {
     tags.push("review_volume_oi_weight");
+  }
+
+  if (preMovePattern.earlyWarningScore >= 50) {
+    tags.push("review_pre_move_window_weight");
   }
 
   if (mover.direction === "loser") {
@@ -219,6 +427,7 @@ export function buildDailyMoverReview({
   const strength = evidenceStrength(mover, drivers);
   const learnabilityValue = learnability(mover, strength);
   const matchedSignalIds = matchedRadarSignalIds(preMoveWindows, radarSignals, mover.symbol);
+  const preMovePattern = buildPreMovePattern(mover, preMoveWindows, matchedSignalIds);
   const radarStatus = learnabilityValue === "not_learnable"
     ? "not_learnable"
     : matchedSignalIds.length > 0
@@ -237,10 +446,11 @@ export function buildDailyMoverReview({
       evidenceStrength: strength,
       learnability: learnabilityValue,
     },
+    preMovePattern,
     radarReview: {
       status: radarStatus,
       matchedSignalIds,
-      improvementTags: improvementTags(mover, drivers, matchedSignalIds, learnabilityValue),
+      improvementTags: improvementTags(mover, drivers, matchedSignalIds, learnabilityValue, preMovePattern),
     },
   };
 }

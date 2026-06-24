@@ -196,9 +196,12 @@ frontend_ui_states
 如果是在本机直接部署腾讯云生产，优先使用：
 
 ```bash
+npm run production:preflight
 npm run production:ssh-check
 npm run production:deploy
 ```
+
+`production:preflight` 是本地发布前闸门，会按顺序运行 typecheck、market/worker tests、lint 和 build。它通过后再推送和部署；不要用单个页面可打开替代这个闸门。
 
 如果只是检查公网页面和 API 合同：
 

@@ -74,6 +74,7 @@ function snapshot(): MarketRadarSnapshot {
           DEEP_SCAN_CANDIDATE: 1,
           EVIDENCE_SIGNAL: 1,
           LIGHT_SCAN_MARK: 24,
+          REVIEW_ONLY: 0,
           TRADE_PLAN_READY: 0,
         },
         guardrail: "候选不能冒充交易计划。",

@@ -32,6 +32,8 @@ test("normalizeExternalEvent sanitizes text and never stores raw bodies", () => 
   });
 
   assert.equal(event.symbol, "TIAUSDT");
+  assert.equal(event.tokenIdentity?.symbol, "TIAUSDT");
+  assert.equal(event.tokenIdentity?.mappingStatus, "partial");
   assert.equal(event.allowedUse, "context_only");
   assert.equal(event.canCreateTradeSignal, false);
   assert.equal(event.rawBodyStored, false);
@@ -53,6 +55,8 @@ test("external events become context evidence candidates instead of trade signal
 
   assert.equal(candidate.family, "EXTERNAL_EVENT");
   assert.equal(candidate.direction, "RISK");
+  assert.equal(candidate.symbol, "ABCUSDT");
+  assert.equal(candidate.tokenIdentity?.symbol, "ABCUSDT");
   assert.equal(candidate.canCreateTradeSignal, false);
   assert.equal(candidate.riskOnly, true);
 });

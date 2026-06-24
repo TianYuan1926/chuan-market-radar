@@ -43,6 +43,7 @@ export type SignalMaturityStage =
   | "LIGHT_SCAN_MARK"
   | "DEEP_SCAN_CANDIDATE"
   | "EVIDENCE_SIGNAL"
+  | "REVIEW_ONLY"
   | "TRADE_PLAN_READY";
 
 export type SignalMaturityReason =
@@ -51,6 +52,8 @@ export type SignalMaturityReason =
   | "has_structured_evidence"
   | "insufficient_data"
   | "light_scan_only"
+  | "late_move_review_only"
+  | "no_chase_review_only"
   | "risk_gate_or_rr_blocked"
   | "timeframe_gate_blocked"
   | "trade_plan_not_ready";

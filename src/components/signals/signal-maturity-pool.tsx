@@ -44,6 +44,7 @@ type SortKey = 'maturity' | 'rr' | 'evidence' | 'recent'
 const MATURITY_ORDER: SignalMaturity[] = [
   'TRADE_PLAN_READY',
   'EVIDENCE_SIGNAL',
+  'REVIEW_ONLY',
   'DEEP_SCAN_CANDIDATE',
   'LIGHT_SCAN_MARK',
   'COOLDOWN',

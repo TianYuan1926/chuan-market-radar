@@ -19,6 +19,7 @@ const labels: Record<SignalMaturityStage, string> = {
   LIGHT_SCAN_MARK: "轻扫标记",
   DEEP_SCAN_CANDIDATE: "深扫候选",
   EVIDENCE_SIGNAL: "证据融合信号",
+  REVIEW_ONLY: "复盘观察",
   TRADE_PLAN_READY: "交易计划就绪",
 };
 
@@ -51,6 +52,7 @@ function v3PlanEligible(signal: MarketSignal) {
   const tradePlan = signal.strategyV3?.tradePlan;
 
   return signal.timeframeGate?.allowed !== false &&
+    !isReviewOnlySignal(signal) &&
     tradePlan?.isPlanEligible === true &&
     v3TradePlanStatusReady(tradePlan.status) &&
     (tradePlan.rewardRisk ?? signal.strategy.riskReward) >= 3 &&
@@ -64,6 +66,42 @@ function hasStructuredEvidence(signal: MarketSignal) {
     Boolean(signal.strategyV3?.trendContext) ||
     Boolean(signal.strategyV3?.keyLevels.length) ||
     Boolean(signal.strategyV3?.forwardLevels.length);
+}
+
+function isReviewOnlySignal(signal: MarketSignal) {
+  const trendContext = signal.strategyV3?.trendContext;
+  const location = trendContext?.locationRiskReward;
+  const integrity = trendContext?.trendIntegrity;
+
+  return trendContext?.decision === "AVOID_CHASE_LONG" ||
+    trendContext?.decision === "AVOID_CHASE_SHORT" ||
+    trendContext?.state === "LONG_EXHAUSTION" ||
+    trendContext?.state === "SHORT_EXHAUSTION" ||
+    location?.positionQuality === "CHASE_RISK" ||
+    location?.riskFlags.includes("chase_risk") === true ||
+    integrity?.status === "EXHAUSTION_RISK" ||
+    integrity?.riskFlags.includes("upper_wick_exhaustion") === true ||
+    integrity?.riskFlags.includes("lower_wick_exhaustion") === true;
+}
+
+function reviewOnlyReasons(signal: MarketSignal): SignalMaturityReason[] {
+  const trendContext = signal.strategyV3?.trendContext;
+  const location = trendContext?.locationRiskReward;
+  const integrity = trendContext?.trendIntegrity;
+  const reasons: SignalMaturityReason[] = ["late_move_review_only"];
+
+  if (
+    trendContext?.decision === "AVOID_CHASE_LONG" ||
+    trendContext?.decision === "AVOID_CHASE_SHORT" ||
+    location?.positionQuality === "CHASE_RISK" ||
+    location?.riskFlags.includes("chase_risk") === true ||
+    integrity?.riskFlags.includes("upper_wick_exhaustion") === true ||
+    integrity?.riskFlags.includes("lower_wick_exhaustion") === true
+  ) {
+    reasons.push("no_chase_review_only");
+  }
+
+  return uniqueReasons(reasons);
 }
 
 export function classifyLightScanMaturity(candidate: ScanLightScanCandidate): SignalMaturity {
@@ -95,6 +133,13 @@ export function classifySignalMaturity(signal: MarketSignal): SignalMaturity {
 
   if (signal.timeframeGate?.allowed === false) {
     reasons.push("timeframe_gate_blocked");
+  }
+
+  if (isReviewOnlySignal(signal)) {
+    return maturity({
+      stage: "REVIEW_ONLY",
+      reasons: uniqueReasons([...reasons, "has_structured_evidence", ...reviewOnlyReasons(signal)]),
+    });
   }
 
   if (v3PlanEligible(signal)) {
@@ -129,6 +174,7 @@ function emptyCounts(): Record<SignalMaturityStage, number> {
     LIGHT_SCAN_MARK: 0,
     DEEP_SCAN_CANDIDATE: 0,
     EVIDENCE_SIGNAL: 0,
+    REVIEW_ONLY: 0,
     TRADE_PLAN_READY: 0,
   };
 }
@@ -171,12 +217,13 @@ export function buildSignalMaturityDiagnostics({
   return {
     candidateLaneSymbols,
     counts,
-    guardrail: "轻扫标记不进入主信号区；深扫候选只能进候选/验证中区域；只有证据融合信号和交易计划就绪能进入主信号区。",
+    guardrail: "轻扫标记不进入主信号区；深扫候选只能进候选/验证中区域；复盘观察只用于解释晚到/追涨风险；只有证据融合信号和交易计划就绪能进入主信号区。",
     mainSignalSymbols,
     rules: [
       "LIGHT_SCAN_MARK is scheduling input only",
       "DEEP_SCAN_CANDIDATE is visible as verifying candidate only",
       "EVIDENCE_SIGNAL can enter the main signal area without a trade plan",
+      "REVIEW_ONLY is late/no-chase education and cannot attach a trade plan",
       "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
     ],
     tradePlanReadySymbols,

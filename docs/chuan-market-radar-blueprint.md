@@ -420,6 +420,10 @@ RawSource
 - `/dashboard` 已展示轻扫质量诊断：只解释发现层可靠性，不生成交易计划。
 - 生产 smoke 已校验 `lightScanQuality`：必须有 checks，且 `canCreateTradeSignal=false`。
 - 合法外部情报基础：DEX Screener latest boosts 与 CoinGecko trending collector，可生成 context-only ExternalEvent 和 EvidenceCandidate，不直接生成交易信号。
+- 外部情报 token identity 合同：DEX 事件可带 chain/contract，CoinGecko trending 可带 coingeckoId/logo/name/symbol，映射可信度必须显式展示；仍只能作为 context-only。
+- Daily Mover Review 已输出 `DailyMoverPreMovePattern`：最佳启动前窗口、早期预警分、前兆线索和漏判原因，用于研究“为什么没提前看到”。
+- `REVIEW_ONLY` 已接入雷达合同、单币档案、信号成熟度池、异常表解释和 dashboard 计数；晚到信号不会被包装成交易计划。
+- 本地发布前闸门 `npm run production:preflight` 已落地，统一运行 typecheck、market/worker tests、lint 和 build。
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
 - `/dashboard` 已展示 `coreChainGovernance.featureTriage` 功能分级和 `pageRoles` 页面职责。
@@ -510,17 +514,24 @@ RawSource
 
 ### P2：机会发现质量增强
 
+状态：已完成晚到信号拦截和 `REVIEW_ONLY` 接线；后续继续靠长期样本调优候选排序。
+
 目标：让系统更早发现“还没完全爆发、仍有布局价值”的山寨，而不是追着已经涨完/跌完的币给方向。
 
-必须做强：
+已落地：
+
+- 明确区分 early setup、active breakout、late trend、overextended、exhaustion risk。
+- 榜单、轻扫、深扫、证据、计划必须继续分层。
+- 轻扫和榜单发现的强波动币，如果已经错过最佳位置，优先进入复盘样本池，而不是交易计划。
+- v3 已给出的 `AVOID_CHASE_LONG/SHORT`、`LONG_EXHAUSTION/SHORT_EXHAUSTION`、`CHASE_RISK` 和衰竭风险会进入 `REVIEW_ONLY`。
+- 榜单 fallback 对无真实信号且 24h 波动过大的涨跌幅行降级为 `REVIEW_ONLY`，禁止追涨追跌。
+
+继续做强：
 
 - 候选排序继续减少追涨追跌浪费。
 - 对 24h 已大幅上涨的多头候选做 overextended cap；对 24h 已大幅下跌的空头候选做 breakdown exhaustion cap。
 - 波动率压缩、量能启动、相对强弱、关键位接近度、低位结构、突破前沿、回踩确认位继续提高权重。
-- 明确区分 early setup、active breakout、late trend、overextended、exhaustion risk。
-- 榜单、轻扫、深扫、证据、计划必须继续分层。
 - 每个未进入下一层的币需要能解释原因：未深扫、数据不足、位置太差、RR 不够、已经晚到、等待回踩、等待反抽。
-- 轻扫和榜单发现的强波动币，如果已经错过最佳位置，优先进入复盘样本池，而不是交易计划。
 
 验收标准：
 
@@ -530,6 +541,8 @@ RawSource
 - 狙击榜只出现仍有结构位置优势和 `RR >= 3:1` 的计划。
 
 ### P3：策略输出增强
+
+状态：已完成单币档案 `REVIEW_ONLY` 保护；后续继续增强策略表达的可读性和完整性。
 
 - 单币档案继续做强。
 - 多周期结构展示继续细化。
@@ -541,14 +554,17 @@ RawSource
 - 大涨后的多头默认输出等回踩/等二次确认/不追；大跌后的空头默认输出等反抽承压/等破位回踩/不追空。
 - 交易计划必须说明当前位置为什么仍然可做；不能只说趋势强。
 - 如果位置已经失去优势，必须输出 `AVOID_CHASE`、`WAIT_PULLBACK`、`WAIT_RETEST`、`REVIEW_ONLY` 或 `EXHAUSTION_RISK`。
+- 单币档案不得把已 late/no-chase 的 v3 plan 显示成可交易计划；必须清空 tradePlan 并展示复盘观察/风控原因。
 
 ### P4：复盘进化增强
+
+状态：Daily Mover 启动前窗口和漏判归因已增强；长期 outcome 和策略分型仍需继续积累。
 
 - 积累真实 outcome 样本。
 - 完整统计 MFE / MAE / TP first / SL first / timeout。
 - 强化 missed opportunity。
 - 强化 Daily Mover Review：每天把新增涨幅榜、跌幅榜、成交额榜和异常波动榜纳入复盘样本。
-- 对大涨/大跌币回看启动前 `1h / 3h / 6h / 12h / 24h` 的征兆。
+- 对大涨/大跌币已回看启动前 `1h / 3h / 4h / 6h / 12h / 24h / 3d` 的征兆，并输出最佳窗口、早期预警分、前兆线索和漏判原因。
 - 统计系统是否提前扫到、是否晚到、是否误拦截、是否因为轮转/阈值/数据源漏掉。
 - 建立 late signal 惩罚：涨完看多、跌深看空不能计为优质命中。
 - 建立 pre-move pattern 样本库：压缩、量能累积、相对强、Funding 中性、OI 温和变化、关键位临近等启动前征兆。
@@ -558,8 +574,10 @@ RawSource
 
 ### P5：合法外部情报
 
-- DEX Screener 已有 latest boosts 基础 collector；后续补 pair enrichment、流动性变化、链/地址到 symbol 的映射。
-- CoinGecko trending 已有基础 collector；后续补 token identity / logo / symbol mapping 的稳定映射。
+状态：基础 collector 和 token identity 合同已完成；后续继续补更多合法源和低频 enrich。
+
+- DEX Screener 已有 latest boosts 基础 collector；事件会带 chain/contract 作为 token identity。后续补 pair enrichment、流动性变化、链/地址到 symbol 的映射。
+- CoinGecko trending 已有基础 collector；事件会带 coingeckoId/logo/name/symbol 作为 token identity。后续补更稳定的跨源映射。
 - 接交易所官方公告和 RSS。
 - 接 Token identity / logo / symbol mapping 数据源。
 - 接宏观公开 API：BTC.D、TOTAL2、TOTAL3、稳定币流动性等。
@@ -567,7 +585,10 @@ RawSource
 
 ### P6：生产运维
 
+状态：本地发布前闸门、GitHub -> 腾讯云发布和 smoke 基础已完成；后续继续做恢复演练和长期报警。
+
 - 继续稳定 GitHub -> 腾讯云自动发布。
+- 发布前必须先跑 `npm run production:preflight`，再推送和生产部署。
 - 补齐回滚脚本。
 - 补齐日志打包。
 - 补齐 Postgres 备份和恢复演练。
@@ -575,6 +596,8 @@ RawSource
 - 持续检查服务器 HEAD 与 GitHub main 一致。
 
 ### P7：前端统一打磨
+
+状态：本轮只做真实状态接线，不重做设计；`REVIEW_ONLY` 已接入信号池、异常表、单币档案和 dashboard 计数。
 
 等核心链路稳定后再统一精修。
 

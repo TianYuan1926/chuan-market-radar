@@ -12,6 +12,7 @@ test("CoinGecko trending collector maps public trending rows into context-only e
             id: "bitcoin",
             name: "Bitcoin",
             symbol: "BTC",
+            small: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
             market_cap_rank: 1,
             data: {
               price_change_percentage_24h: { usd: 2.5 },
@@ -31,6 +32,9 @@ test("CoinGecko trending collector maps public trending rows into context-only e
   assert.equal(result.events[0]?.sourceId, "coingecko_trending");
   assert.equal(result.events[0]?.kind, "NARRATIVE_CATALYST");
   assert.equal(result.events[0]?.symbol, "BTC");
+  assert.equal(result.events[0]?.tokenIdentity?.coingeckoId, "bitcoin");
+  assert.equal(result.events[0]?.tokenIdentity?.imageUrl, "https://assets.coingecko.com/coins/images/1/small/bitcoin.png");
+  assert.equal(result.events[0]?.tokenIdentity?.mappingStatus, "mapped");
   assert.equal(result.events[0]?.impact, "neutral_context");
   assert.equal(result.events[0]?.canCreateTradeSignal, false);
   assert.match(result.events[0]?.summary ?? "", /不能单独生成交易结论/);

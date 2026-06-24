@@ -62,6 +62,7 @@ export type DailyMoverSelectedDetail = {
   learnability: DailyMoverReview["attribution"]["learnability"];
   evidenceStrength: DailyMoverReview["attribution"]["evidenceStrength"];
   primaryDrivers: DailyMoverReview["attribution"]["primaryDrivers"];
+  preMovePattern: DailyMoverReview["preMovePattern"] | null;
   improvementTags: string[];
   correlationStatus: DailyMoverCorrelationLink["status"];
   matchedScanIds: string[];
@@ -411,6 +412,7 @@ function detailReason(status: DailyMoverCorrelationLink["status"]) {
 
 function calibrationLabel(tag: string) {
   return {
+    review_pre_move_window_weight: "启动前窗口权重复核",
     review_short_side_detection: "空头检测复核",
     review_universe_coverage: "扫描覆盖复核",
     review_volume_oi_weight: "成交量/OI 权重复核",
@@ -419,6 +421,7 @@ function calibrationLabel(tag: string) {
 
 function calibrationRecommendation(tag: string) {
   return {
+    review_pre_move_window_weight: "候选建议：复核启动前 1h/3h/6h/12h/24h/3d 窗口的晋级条件，先验证更多样本，再考虑调整轻扫到深扫权重。",
     review_short_side_detection: "候选建议：复核下跌样本的方向识别，不用单个样本直接提高下跌方向权重。",
     review_universe_coverage: "候选建议：复核币种池覆盖和轮询优先级，先确认是否漏扫再考虑规则调整。",
     review_volume_oi_weight: "候选建议：复核成交量/OI 权重是否低估了提前扩张，必须用更多样本验证后再调整。",
@@ -1229,6 +1232,7 @@ function buildSelectedDetails(
       learnability: review.attribution.learnability,
       evidenceStrength: review.attribution.evidenceStrength,
       primaryDrivers: review.attribution.primaryDrivers,
+      preMovePattern: review.preMovePattern ?? null,
       improvementTags: review.radarReview.improvementTags,
       correlationStatus,
       matchedScanIds: link?.matchedScanIds ?? [],

@@ -76,10 +76,19 @@ function direction(card: SignalCard): 'long' | 'short' {
 // 证据说明文案：只解释后端卡片字段，不生成交易结论。
 function analysisLogic(card: SignalCard): string[] {
   const t = card.token
+  const reviewOnly = card.maturity === 'REVIEW_ONLY'
   const candidateOnly =
     card.sourceKind === 'leaderboard_candidate' ||
     card.maturity === 'LIGHT_SCAN_MARK' ||
     card.maturity === 'DEEP_SCAN_CANDIDATE'
+
+  if (reviewOnly) {
+    return [
+      `${card.exchange} ${card.market} 展示排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
+      `该标的已经进入复盘观察层，风险等级 ${card.riskLevel}，状态 ${POOL_META[card.poolStatus].label}，当前不生成交易计划。`,
+      '复盘观察只用于研究“行情为什么已经发生、系统是否提前看到、是否提醒太晚”，不能当作追涨追跌入口。',
+    ]
+  }
 
   if (candidateOnly) {
     return [

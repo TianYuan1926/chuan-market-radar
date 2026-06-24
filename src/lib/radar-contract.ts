@@ -199,6 +199,7 @@ export type SignalMaturity =
   | 'LIGHT_SCAN_MARK' // 轻扫标记
   | 'DEEP_SCAN_CANDIDATE' // 深扫候选
   | 'EVIDENCE_SIGNAL' // 证据融合信号
+  | 'REVIEW_ONLY' // 只做复盘观察
   | 'TRADE_PLAN_READY' // 交易计划就绪
   | 'BLOCKED' // 被 Risk Gate 拦截
   | 'INVALIDATED' // 结构失效
@@ -211,10 +212,11 @@ export const MATURITY_META: Record<
   LIGHT_SCAN_MARK: { label: '轻扫标记', short: '轻扫', tone: 'muted', order: 1 },
   DEEP_SCAN_CANDIDATE: { label: '深扫候选', short: '深扫', tone: 'neon', order: 2 },
   EVIDENCE_SIGNAL: { label: '证据信号', short: '证据', tone: 'neon', order: 3 },
-  TRADE_PLAN_READY: { label: '计划就绪', short: '就绪', tone: 'live', order: 4 },
-  BLOCKED: { label: 'Risk Gate 拦截', short: '拦截', tone: 'down', order: 5 },
-  INVALIDATED: { label: '结构失效', short: '失效', tone: 'down', order: 6 },
-  COOLDOWN: { label: '冷却中', short: '冷却', tone: 'warn', order: 7 },
+  REVIEW_ONLY: { label: '复盘观察', short: '复盘', tone: 'warn', order: 4 },
+  TRADE_PLAN_READY: { label: '计划就绪', short: '就绪', tone: 'live', order: 5 },
+  BLOCKED: { label: 'Risk Gate 拦截', short: '拦截', tone: 'down', order: 6 },
+  INVALIDATED: { label: '结构失效', short: '失效', tone: 'down', order: 7 },
+  COOLDOWN: { label: '冷却中', short: '冷却', tone: 'warn', order: 8 },
 }
 
 export type RadarSignal = {

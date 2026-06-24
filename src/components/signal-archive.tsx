@@ -28,6 +28,7 @@ const MATURITY_LABEL: Record<string, string> = {
   LIGHT_SCAN_MARK: '轻扫标记',
   DEEP_SCAN_CANDIDATE: '深扫候选',
   EVIDENCE_SIGNAL: '证据信号',
+  REVIEW_ONLY: '复盘观察',
   TRADE_PLAN_READY: '计划就绪',
   BLOCKED: '已阻断',
   INVALIDATED: '已失效',

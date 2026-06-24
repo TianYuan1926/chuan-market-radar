@@ -120,6 +120,7 @@ function calibrationBucket(event: JournalEvent): CalibrationBucket {
 function calibrationLabel(tag: string) {
   const labels: Record<string, string> = {
     review_funding_pressure: "资金费率复核",
+    review_pre_move_window_weight: "启动前窗口权重复核",
     review_short_side_detection: "空头识别复核",
     review_universe_coverage: "币池覆盖复核",
     review_volume_oi_weight: "成交量/OI 权重复核",

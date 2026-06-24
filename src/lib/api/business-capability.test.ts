@@ -74,6 +74,7 @@ function snapshot(): MarketRadarSnapshot {
           DEEP_SCAN_CANDIDATE: 1,
           EVIDENCE_SIGNAL: 1,
           LIGHT_SCAN_MARK: 36,
+          REVIEW_ONLY: 0,
           TRADE_PLAN_READY: 0,
         },
         guardrail: "轻扫标记不进入主信号区。",

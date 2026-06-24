@@ -85,6 +85,11 @@ function boostToEvent(row: DexScreenerBoostRow, index: number, observedAt: strin
     id: `dexscreener-boost-${chainId}-${tokenAddress}-${index}`,
     sourceId: "dex_screener_public_api",
     kind: "NARRATIVE_CATALYST",
+    tokenIdentity: {
+      chainId,
+      contractAddress: tokenAddress,
+      confidence: 55,
+    },
     title,
     summary,
     sourceUrl: sourceUrl || undefined,

@@ -1005,6 +1005,24 @@ function maturityForSignal(signal: MarketSignal): SignalMaturity {
   return classifySignalMaturity(signal).stage;
 }
 
+function reviewOnlyStatusReason(signal: MarketSignal) {
+  const maturity = classifySignalMaturity(signal);
+
+  if (maturity.stage !== "REVIEW_ONLY") {
+    return [];
+  }
+
+  const context = signal.strategyV3?.trendContext;
+  const plan = signal.strategyV3?.tradePlan;
+  const reasons = [
+    "行情已经进入追涨/追空或衰竭风险区，只做复盘观察，不生成交易计划",
+    context?.nextStep,
+    plan?.summary,
+  ].filter((item): item is string => Boolean(item));
+
+  return [...new Set(reasons)];
+}
+
 function evidenceKind(layer: EvidencePoint["layer"]) {
   return {
     ai_review: "ai",
@@ -1039,7 +1057,10 @@ function evidenceSourceId(item: EvidencePoint, index: number) {
 
 function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, now: Date): RadarSignal {
   const maturity = maturityForSignal(signal);
-  const blockers = lifecycleStatusReason(signal);
+  const blockers = [
+    ...lifecycleStatusReason(signal),
+    ...reviewOnlyStatusReason(signal),
+  ];
   const supportive = signal.evidence.filter((item) => item.polarity === "supportive");
   const counter = signal.evidence.filter((item) => item.polarity === "conflicting" || item.polarity === "blocking");
   const rr = signal.strategy.riskReward > 0 ? round(signal.strategy.riskReward, 2) : null;
@@ -2485,6 +2506,32 @@ function v3TradePlanBlockers(plan: StrategyV3TradePlan | undefined) {
   ].filter((item): item is string => Boolean(item));
 }
 
+function dossierReviewOnlyReasons(dossier: SignalBackendDossier) {
+  const context = dossier.strategyV3?.trendContext;
+  const location = context?.locationRiskReward;
+  const integrity = context?.trendIntegrity;
+  const isReviewOnly = context?.decision === "AVOID_CHASE_LONG" ||
+    context?.decision === "AVOID_CHASE_SHORT" ||
+    context?.state === "LONG_EXHAUSTION" ||
+    context?.state === "SHORT_EXHAUSTION" ||
+    location?.positionQuality === "CHASE_RISK" ||
+    location?.riskFlags.includes("chase_risk") === true ||
+    integrity?.status === "EXHAUSTION_RISK" ||
+    integrity?.riskFlags.includes("upper_wick_exhaustion") === true ||
+    integrity?.riskFlags.includes("lower_wick_exhaustion") === true;
+
+  if (!isReviewOnly) {
+    return [];
+  }
+
+  return [
+    "行情已进入追涨/追空或衰竭风险区，只能做复盘观察，不能生成交易计划",
+    context?.nextStep,
+    ...(context?.noParticipationReasons ?? []),
+    dossier.strategyV3?.tradePlan?.summary,
+  ].filter((item): item is string => Boolean(item));
+}
+
 function zoneText(zoneLow: number, zoneHigh: number) {
   const low = priceText(zoneLow);
   const high = priceText(zoneHigh);
@@ -2787,14 +2834,17 @@ export function buildFrontendTokenDossierContract({
   const evidence = dossier.evidence.items.filter((item) => item.polarity === "supportive");
   const counter = dossier.evidence.items.filter((item) => item.polarity === "conflicting" || item.polarity === "blocking");
   const v3Plan = dossier.strategyV3?.tradePlan;
-  const tradePlan = tradePlanFromV3({
+  const rawTradePlan = tradePlanFromV3({
     altcoinMaxLeverage: dossier.execution?.maxLeverage ?? null,
     currentPrice: dossier.strategyV3?.currentPrice ?? null,
     plan: v3Plan,
     symbol: dossier.symbol,
   });
+  const reviewOnlyReasons = dossierReviewOnlyReasons(dossier);
+  const tradePlan = reviewOnlyReasons.length > 0 ? null : rawTradePlan;
   const blockedReasons = [
     ...hardBlockedReasons,
+    ...reviewOnlyReasons,
     ...(signal ? v3TradePlanBlockers(v3Plan) : []),
   ];
   const evidenceItems = evidence.map((item, index) => ({
@@ -2818,6 +2868,8 @@ export function buildFrontendTokenDossierContract({
     maturity: signal
       ? hardBlockedReasons.length > 0 || v3Plan?.status === "BLOCKED"
         ? "BLOCKED"
+        : reviewOnlyReasons.length > 0
+          ? "REVIEW_ONLY"
         : tradePlan
           ? "TRADE_PLAN_READY"
           : "EVIDENCE_SIGNAL"
