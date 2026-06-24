@@ -134,6 +134,50 @@ export function getDataSources(): Resource<DataSourceState[]> {
 }
 
 // ============================================================
+// 四点五、实时能力分层
+// ============================================================
+export type RealtimeCadenceBand =
+  | 'second_level'
+  | 'fast_refresh'
+  | 'minute_level'
+  | 'low_frequency'
+  | 'review_cycle'
+
+export type RealtimeCapabilityLane = {
+  key: string
+  label: string
+  cadenceBand: RealtimeCadenceBand
+  cadenceLabel: string
+  status: Resource<unknown>['status']
+  source: string
+  metrics: string[]
+  allowedUse: 'anomaly_discovery' | 'candidate_refresh' | 'validation' | 'context' | 'review'
+  canCreateTradeSignal: false
+  guardrail: string
+  note: string
+}
+
+export type RealtimeCapabilityState = {
+  schemaVersion: 'realtime-capability.v1'
+  secondLevelOnline: boolean
+  summary: string
+  lanes: RealtimeCapabilityLane[]
+  boundaries: string[]
+}
+
+export function getRealtimeCapability(): Resource<RealtimeCapabilityState> {
+  return legacyEmptyResource({
+    schemaVersion: 'realtime-capability.v1',
+    secondLevelOnline: false,
+    summary: '等待后端实时能力契约。',
+    lanes: [],
+    boundaries: [
+      '旧同步 getter 已停用。页面必须读取真实后端契约后再展示实时能力。',
+    ],
+  })
+}
+
+// ============================================================
 // 五、信号成熟度分层
 // ============================================================
 export type SignalMaturity =
@@ -624,6 +668,7 @@ export type RadarContract = {
   derivatives: Resource<DerivativesState>
   fundFlow: Resource<FundFlowState>
   scanStability: Resource<ScanStabilityState>
+  realtimeCapability: Resource<RealtimeCapabilityState>
   serviceNodes: Resource<ServiceNode[]>
 }
 
@@ -642,6 +687,7 @@ export function getRadarContract(): RadarContract {
     derivatives: getDerivatives(),
     fundFlow: getFundFlow(),
     scanStability: getScanStability(),
+    realtimeCapability: getRealtimeCapability(),
     serviceNodes: getServiceNodes(),
   }
 }

@@ -161,12 +161,36 @@ print(
     ),
 )
 
-required_contract_keys = ["scanProof", "deepScanQueue", "radarSignals", "serviceNodes", "dataSources"]
+required_contract_keys = ["scanProof", "deepScanQueue", "radarSignals", "serviceNodes", "dataSources", "realtimeCapability"]
 for key in required_contract_keys:
     if key not in contract:
         errors.append(f"/api/frontend/radar-contract: missing contract.{key}")
 if scan_proof.get("scannable", 0) >= 100 and scan_proof.get("lightScanned", 0) >= scan_proof.get("scannable", 0) and scan_proof.get("coverage", 0) < 95:
     errors.append("/api/frontend/radar-contract: light scan coverage is inconsistent with scannable/lightScanned counts")
+
+realtime_capability = contract.get("realtimeCapability") or {}
+realtime_data = realtime_capability.get("data") or {}
+realtime_lanes = realtime_data.get("lanes") or []
+print(
+    "realtime-capability",
+    json.dumps(
+        {
+            "status": realtime_capability.get("status"),
+            "secondLevelOnline": realtime_data.get("secondLevelOnline"),
+            "lanes": len(realtime_lanes),
+            "failedLanes": [lane.get("key") for lane in realtime_lanes if lane.get("status") in {"failed", "error"}],
+        },
+        ensure_ascii=False,
+    ),
+)
+if realtime_data.get("schemaVersion") != "realtime-capability.v1":
+    errors.append("/api/frontend/radar-contract: realtimeCapability schemaVersion is missing")
+if not realtime_lanes:
+    errors.append("/api/frontend/radar-contract: realtimeCapability has no lanes")
+if any(lane.get("canCreateTradeSignal") is not False for lane in realtime_lanes):
+    errors.append("/api/frontend/radar-contract: realtimeCapability lanes must not create trade signals")
+if not any("秒级数据只负责发现异常" in str(rule) for rule in realtime_data.get("boundaries", [])):
+    errors.append("/api/frontend/radar-contract: realtimeCapability missing second-level boundary")
 
 sample_token_for_dossier = None
 for kind in ["volume", "gainers", "losers"]:

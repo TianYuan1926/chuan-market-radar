@@ -5,6 +5,7 @@ import {
   type DataSourceState,
   type DeepScanQueue,
   type RadarContract,
+  type RealtimeCapabilityState,
   type ScanProofData,
 } from '@/lib/radar-contract'
 import { resource } from '@/lib/data-status'
@@ -20,6 +21,7 @@ import {
   Route,
   ShieldCheck,
   ClipboardList,
+  Activity,
 } from 'lucide-react'
 import type {
   CoreChainGovernanceReport,
@@ -127,6 +129,16 @@ const EMPTY_QUEUE = resource<DeepScanQueue>(
 
 const EMPTY_CAPABILITIES = resource<CapabilityStage[]>([], 'empty', EMPTY_SOURCE)
 const EMPTY_SOURCES = resource<DataSourceState[]>([], 'empty', EMPTY_SOURCE)
+const EMPTY_REALTIME = resource<RealtimeCapabilityState>({
+  schemaVersion: 'realtime-capability.v1',
+  secondLevelOnline: false,
+  summary: '等待后端实时能力契约。',
+  lanes: [],
+  boundaries: [
+    '秒级数据只负责发现异常，不生成交易计划。',
+    '交易计划必须经过结构、证据、RR、Risk Gate 和失效条件。',
+  ],
+}, 'empty', EMPTY_SOURCE)
 const EMPTY_GOVERNANCE = resource<CoreChainGovernanceReport>({
   schemaVersion: 'core-chain-governance.v1',
   generatedAt: '',
@@ -154,6 +166,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
   const caps = contract?.capabilityStages ?? EMPTY_CAPABILITIES
   const governance = contract?.coreChainGovernance ?? EMPTY_GOVERNANCE
   const sources = contract?.dataSources ?? EMPTY_SOURCES
+  const realtime = contract?.realtimeCapability ?? EMPTY_REALTIME
 
   const sp = scan.data
 
@@ -263,6 +276,94 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
             </div>
           </div>
           <FreshnessTag {...queue} className="block" />
+          </ResourceBoundary>
+        </div>
+      </section>
+
+      {/* 三、实时能力分层 */}
+      <section className="border border-border bg-card lg:col-span-2">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <span className="h-3.5 w-1 bg-neon" />
+          <Activity className="size-4 text-neon" />
+          <h2 className="font-semibold">实时能力分层</h2>
+          <span className="ml-auto mr-2 text-xs text-muted-foreground">
+            秒级发现，不直接生成交易计划
+          </span>
+          <StatusBadge status={realtime.status} />
+        </div>
+        <div className="p-5">
+          <ResourceBoundary resource={realtime} isEmpty={(d) => d.lanes.length === 0}>
+            {(rt) => (
+              <div className="space-y-4">
+                <div className="grid gap-2.5 lg:grid-cols-[0.95fr_1.05fr]">
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`size-2 rounded-full ${rt.secondLevelOnline ? 'bg-up animate-pulse' : 'bg-[oklch(0.8_0.15_75)]'}`} />
+                      <span className="text-sm font-semibold">
+                        {rt.secondLevelOnline ? '秒级轻扫在线' : '秒级轻扫未完全在线'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {rt.summary}
+                    </p>
+                  </div>
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="text-sm font-semibold">硬边界</div>
+                    <ul className="mt-2 grid gap-1.5 text-xs leading-relaxed text-muted-foreground sm:grid-cols-2">
+                      {rt.boundaries.map((rule) => (
+                        <li key={rule} className="flex gap-2">
+                          <span className="mt-1 size-1.5 shrink-0 bg-neon" />
+                          <span>{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+                  {rt.lanes.map((lane, i) => (
+                    <div
+                      key={lane.key}
+                      className="data-tile tile-in border border-border bg-secondary/30 p-3"
+                      style={{ ['--i' as string]: i }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 truncate text-sm font-semibold">{lane.label}</span>
+                        <span className="ml-auto shrink-0 border border-border bg-background/40 px-1.5 py-0.5 font-mono text-[10px] text-neon">
+                          {lane.cadenceLabel}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className={`flex items-center gap-1 text-[11px] font-semibold ${FEED_TONE[lane.status] ?? 'text-muted-foreground'}`}>
+                          <span className="size-1.5 rounded-full bg-current" />
+                          {FEED_LABEL[lane.status] ?? lane.status}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {lane.allowedUse.replaceAll('_', ' ')}
+                        </span>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {lane.source}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {lane.metrics.slice(0, 4).map((metric) => (
+                          <span key={metric} className="border border-border bg-background/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            {metric}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="mt-2 line-clamp-2 border-t border-border pt-2 text-[11px] leading-relaxed text-down">
+                        {lane.guardrail}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
+                        {lane.note}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <FreshnessTag {...realtime} className="block" />
+              </div>
+            )}
           </ResourceBoundary>
         </div>
       </section>

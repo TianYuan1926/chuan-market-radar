@@ -354,6 +354,35 @@ export type ScanStabilityState = {
   summary: string;
 };
 
+export type RealtimeCadenceBand =
+  | "second_level"
+  | "fast_refresh"
+  | "minute_level"
+  | "low_frequency"
+  | "review_cycle";
+
+export type RealtimeCapabilityLane = {
+  key: string;
+  label: string;
+  cadenceBand: RealtimeCadenceBand;
+  cadenceLabel: string;
+  status: DataStatus;
+  source: string;
+  metrics: string[];
+  allowedUse: "anomaly_discovery" | "candidate_refresh" | "validation" | "context" | "review";
+  canCreateTradeSignal: false;
+  guardrail: string;
+  note: string;
+};
+
+export type RealtimeCapabilityState = {
+  schemaVersion: "realtime-capability.v1";
+  secondLevelOnline: boolean;
+  summary: string;
+  lanes: RealtimeCapabilityLane[];
+  boundaries: string[];
+};
+
 export type RadarContract = {
   scanProof: Resource<ScanProofData>;
   deepScanQueue: Resource<DeepScanQueue>;
@@ -368,6 +397,7 @@ export type RadarContract = {
   derivatives: Resource<DerivativesState>;
   fundFlow: Resource<FundFlowState>;
   scanStability: Resource<ScanStabilityState>;
+  realtimeCapability: Resource<RealtimeCapabilityState>;
   serviceNodes: Resource<ServiceNode[]>;
 };
 
@@ -1091,6 +1121,159 @@ function coinGlassRuntimeStatusToFeed(
   return "partial";
 }
 
+function workerStatusToDataStatus(status: BackendContract["runtime"]["runtimeProbes"]["workers"][number]["status"] | undefined): DataStatus {
+  if (status === "healthy") return "live";
+  if (status === "degraded") return "partial";
+  if (status === "down") return "failed";
+  return "stale";
+}
+
+function coinGlassDeepScanDataStatus(status: string | undefined): DataStatus {
+  if (status === "ready") return "live";
+  if (status === "not_configured" || status === "auth_error" || status === "upgrade_required" || status === "failed") {
+    return "failed";
+  }
+  if (status === "partial" || status === "limited") return "partial";
+  return "partial";
+}
+
+function runtimeWorker(backend: BackendContract, key: string) {
+  return backend.runtime.runtimeProbes.workers.find((worker) => worker.key === key || worker.name === key);
+}
+
+function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadarSnapshot, now: Date): RealtimeCapabilityState {
+  const websocketWorker = runtimeWorker(backend, "websocket-light-worker");
+  const scannerWorker = runtimeWorker(backend, "scanner-worker");
+  const coinglassWorker = runtimeWorker(backend, "coinglass-worker");
+  const signalWorker = runtimeWorker(backend, "signal-worker");
+  const macroWorker = runtimeWorker(backend, "macro-worker");
+  const lightScanStatus = marketStatusToResourceStatus(backend.scanProof.lightScan.status);
+  const websocketStatus = workerStatusToDataStatus(websocketWorker?.status);
+  const secondLevelOnline = websocketStatus === "live" && backend.runtime.runtimeProbes.redis.status === "healthy";
+  const coinGlassStatus = coinGlassDeepScanDataStatus(backend.sourceAudit.coinGlassCapability.deepScanStatus);
+  const scanAgeSec = diffSeconds(snapshot.metadata.generatedAt, now) ?? null;
+
+  return {
+    schemaVersion: "realtime-capability.v1",
+    secondLevelOnline,
+    summary: secondLevelOnline
+      ? "秒级轻扫链路在线；秒级数据只负责发现异常，不能直接生成交易计划。"
+      : "秒级轻扫链路未完全在线；页面必须显示 partial/failed，不能用动画冒充实时。",
+    lanes: [
+      {
+        key: "exchange_websocket_light_scan",
+        label: "交易所 WebSocket 秒级轻扫",
+        cadenceBand: "second_level",
+        cadenceLabel: "秒级",
+        status: websocketStatus,
+        source: "Binance/OKX/Bybit public WebSocket + Redis sliding window",
+        metrics: ["价格跳动", "成交量窗口", "15m volume z-score", "候选突变"],
+        allowedUse: "anomaly_discovery",
+        canCreateTradeSignal: false,
+        guardrail: "只负责发现异常和候选入池，不允许直接输出买卖方向。",
+        note: websocketWorker?.detail ?? "等待 websocket-light-worker 心跳。",
+      },
+      {
+        key: "frontend_live_events",
+        label: "站内候选与系统事件流",
+        cadenceBand: "second_level",
+        cadenceLabel: "2-30 秒 SSE",
+        status: backend.runtime.runtimeProbes.redis.status === "healthy" ? "live" : "partial",
+        source: "/api/frontend/live-events/stream",
+        metrics: ["候选变化", "信号变化", "扫描心跳", "worker 状态"],
+        allowedUse: "candidate_refresh",
+        canCreateTradeSignal: false,
+        guardrail: "事件流只通知状态变化，不触发扫描、不读取密钥、不生成交易结论。",
+        note: `redis=${backend.runtime.runtimeProbes.redis.status}; archive=${backend.runtime.persistedArchive ? "persisted" : "not_persisted"}`,
+      },
+      {
+        key: "public_market_board",
+        label: "公开交易所榜单与候选刷新",
+        cadenceBand: "fast_refresh",
+        cadenceLabel: "15-60 秒",
+        status: lightScanStatus,
+        source: backend.scanProof.lightScan.source ?? "public futures light scan",
+        metrics: ["涨跌幅榜", "成交额榜", "轻扫候选", "交易所覆盖"],
+        allowedUse: "candidate_refresh",
+        canCreateTradeSignal: false,
+        guardrail: "可刷新候选和榜单，但榜单不是推荐，轻扫标记不是交易信号。",
+        note: `accepted=${backend.scanProof.lightScan.acceptedCount}; universe=${backend.scanProof.lightScan.universeCount}; age=${scanAgeSec ?? "unknown"}s`,
+      },
+      {
+        key: "public_exchange_ohlcv",
+        label: "公开交易所 K 线与结构验证",
+        cadenceBand: "minute_level",
+        cadenceLabel: "1-5 分钟",
+        status: workerStatusToDataStatus(scannerWorker?.status),
+        source: "Binance/OKX/Bybit public OHLCV",
+        metrics: ["1m/5m/15m K线", "短周期结构", "波动率压缩", "关键位验证"],
+        allowedUse: "validation",
+        canCreateTradeSignal: false,
+        guardrail: "K 线结构必须进入 Evidence/Risk Gate；低周期不能推翻高周期。",
+        note: scannerWorker?.detail ?? "等待 scanner-worker 心跳。",
+      },
+      {
+        key: "coinglass_deep_scan",
+        label: "CoinGlass 衍生品深扫",
+        cadenceBand: "minute_level",
+        cadenceLabel: "5-15 分钟",
+        status: coinGlassStatus,
+        source: "CoinGlass Hobbyist paced deep scan",
+        metrics: ["OI", "Funding", "多空拥挤", "深扫 clean rows"],
+        allowedUse: "validation",
+        canCreateTradeSignal: false,
+        guardrail: "CoinGlass 是资金质量确认层，不做秒级全市场扫描，不突破套餐限制。",
+        note: coinglassWorker?.detail ?? backend.sourceAudit.coinGlassCapability.operatorHint,
+      },
+      {
+        key: "macro_external_context",
+        label: "宏观与外部情报",
+        cadenceBand: "low_frequency",
+        cadenceLabel: "5 分钟-小时级",
+        status: marketStatusToResourceStatus(backend.sourceAudit.macroMarket.status),
+        source: "macro worker + external intel collectors",
+        metrics: ["BTC.D", "TOTAL2/TOTAL3", "DEX/Trending/公告背景"],
+        allowedUse: "context",
+        canCreateTradeSignal: false,
+        guardrail: "宏观和外部事件只做背景与风险输入，不能直接喊单。",
+        note: macroWorker?.detail ?? backend.sourceAudit.macroMarket.operatorHint,
+      },
+      {
+        key: "review_evolution",
+        label: "复盘进化",
+        cadenceBand: "review_cycle",
+        cadenceLabel: "小时/日级",
+        status: backend.analysis.reviewStatistics.sampleStatus === "empty" ? "empty" : "partial",
+        source: "journal/outcome/review statistics",
+        metrics: ["MFE/MAE", "TP first", "SL first", "timeout", "漏判归因"],
+        allowedUse: "review",
+        canCreateTradeSignal: false,
+        guardrail: "复盘只能提出人工校准建议，不能自动修改实时权重。",
+        note: backend.analysis.reviewStatistics.summary,
+      },
+      {
+        key: "ai_counter_review",
+        label: "AI 反证复核",
+        cadenceBand: "review_cycle",
+        cadenceLabel: "成熟候选触发",
+        status: workerStatusToDataStatus(signalWorker?.status),
+        source: "AI reviewer boundary",
+        metrics: ["反证", "逻辑漏洞", "中文解释", "复盘归因"],
+        allowedUse: "review",
+        canCreateTradeSignal: false,
+        guardrail: "AI 只审查成熟候选，不能替代规则引擎或绕过 RR/Risk Gate。",
+        note: signalWorker?.detail ?? "等待 signal-worker 心跳。",
+      },
+    ],
+    boundaries: [
+      "秒级数据只负责发现异常，不生成交易计划。",
+      "CoinGlass、宏观、外部情报、AI、复盘不做秒级包装。",
+      "交易计划必须经过结构、证据、RR、Risk Gate 和失效条件。",
+      "前端实时感必须来自真实 stream、heartbeat 或数据新鲜度，不允许用假动画冒充。",
+    ],
+  };
+}
+
 function latencyProbe(
   backend: BackendContract,
   name: DataSourceState["name"],
@@ -1515,6 +1698,15 @@ export function buildFrontendRadarContract({
         ageSec,
         source: "system-health",
         reason: backend.runtime.scanStability.guardrail,
+      },
+    ),
+    realtimeCapability: resource(
+      buildRealtimeCapability(backend, snapshot, now),
+      backend.runtime.runtimeProbes.redis.status === "healthy" ? "live" : "partial",
+      {
+        ageSec,
+        source: "runtime-probes-and-scan-contract",
+        reason: "秒级层只用于发现异常和状态变化；分钟级和低频层负责验证、背景和复盘。",
       },
     ),
     serviceNodes: resource([

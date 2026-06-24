@@ -364,6 +364,9 @@ RawSource
 - RR / Risk Gate。
 - TradingView 主图合同。
 - 前端合同：radar、leaderboard、token dossier、review、journal、kline、external intel。
+- 实时能力分层合同：`realtimeCapability.v1` 已把秒级、15-60 秒、1-5 分钟、5-15 分钟、低频和复盘周期分清楚。
+- `/dashboard` 已展示实时能力分层：秒级 WebSocket / SSE 只用于发现异常和状态变化，不能直接生成交易计划。
+- 生产 smoke 已校验 `realtimeCapability`：必须有 lanes，且所有 lane 的 `canCreateTradeSignal=false`。
 - 合法外部情报基础：DEX Screener latest boosts 与 CoinGecko trending collector，可生成 context-only ExternalEvent 和 EvidenceCandidate，不直接生成交易信号。
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
@@ -407,7 +410,8 @@ RawSource
 
 ### P1：快速全市场扫描继续增强
 
-- 验证 WebSocket 长期覆盖率和稳定性。
+- 验证 WebSocket 秒级轻扫的长期覆盖率和稳定性。
+- 补充秒级盘口、主动成交和滑动窗口质量指标；这些只能进入异常发现和候选排序，不能直接生成交易计划。
 - 防止固定币长期霸占深扫位。
 - 强化长尾冷门探索。
 - 增强状态池历史表现排序。

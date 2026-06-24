@@ -235,6 +235,23 @@ test("dashboard exposes core chain governance as a visible backend contract pane
   assert.doesNotMatch(radarControlSource, /getCoreChainGovernance\(/);
 });
 
+test("dashboard exposes realtime capability boundaries instead of fake realtime claims", () => {
+  const radarControlSource = readFileSync(resolve(process.cwd(), "src/components/dashboard/radar-control.tsx"), "utf8");
+  const frontendContractSource = readFileSync(resolve(process.cwd(), "src/lib/api/frontend-contract.ts"), "utf8");
+
+  assert.match(frontendContractSource, /RealtimeCapabilityState/);
+  assert.match(frontendContractSource, /buildRealtimeCapability/);
+  assert.match(frontendContractSource, /canCreateTradeSignal:\s*false/);
+  assert.match(frontendContractSource, /秒级数据只负责发现异常/u);
+  assert.match(frontendContractSource, /CoinGlass 是资金质量确认层/u);
+
+  assert.match(radarControlSource, /realtimeCapability/);
+  assert.match(radarControlSource, /实时能力分层/u);
+  assert.match(radarControlSource, /秒级发现，不直接生成交易计划/u);
+  assert.match(radarControlSource, /硬边界/u);
+  assert.doesNotMatch(radarControlSource, /秒级.*交易计划就绪/u);
+});
+
 test("dashboard runtime overview is derived from backend contract state without fake live movement", () => {
   const dashboardPageSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
 

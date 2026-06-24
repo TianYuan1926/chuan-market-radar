@@ -662,6 +662,74 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.scanStability.status, "live");
   assert.equal(radar.scanStability.data.status, "healthy");
   assert.match(radar.scanStability.reason ?? "", /不能直接生成交易信号/);
+  assert.equal(radar.realtimeCapability.status, "live");
+  assert.equal(radar.realtimeCapability.data.schemaVersion, "realtime-capability.v1");
+  assert.equal(radar.realtimeCapability.data.lanes.length >= 7, true);
+  assert.equal(radar.realtimeCapability.data.lanes.every((lane) => lane.canCreateTradeSignal === false), true);
+  assert.ok(radar.realtimeCapability.data.lanes.some((lane) => lane.key === "exchange_websocket_light_scan" && lane.allowedUse === "anomaly_discovery"));
+  assert.ok(radar.realtimeCapability.data.boundaries.some((rule) => /秒级数据只负责发现异常/.test(rule)));
+  assert.match(radar.realtimeCapability.reason ?? "", /秒级层只用于发现异常/);
+});
+
+test("buildFrontendRadarContract exposes realtime capability boundaries and CoinGlass failures explicitly", () => {
+  const backend = backendContract();
+  backend.runtime.runtimeProbes.workers = [
+    {
+      ageSec: 3,
+      detail: "websocket light scan heartbeat ok",
+      key: "websocket-light-worker",
+      lastSeenAt: "2026-06-21T08:00:07.000Z",
+      name: "websocket-light-worker",
+      status: "healthy",
+      task: "light-scan",
+    },
+    {
+      ageSec: 4,
+      detail: "scanner worker heartbeat ok",
+      key: "scanner-worker",
+      lastSeenAt: "2026-06-21T08:00:06.000Z",
+      name: "scanner-worker",
+      status: "healthy",
+      task: "scan",
+    },
+  ];
+  backend.sourceAudit.coinGlassCapability = buildCoinGlassRuntimeCapabilityReport({
+    checkedAt: "2026-06-21T08:00:00.000Z",
+    diagnostics: {
+      cleanRows: 0,
+      coinGlassRequestsPlanned: 24,
+      rawRows: 0,
+      requestFailures: [
+        {
+          code: "401",
+          error: "Upgrade plan",
+          httpStatus: 200,
+          symbol: "BTC",
+        },
+      ],
+    },
+    env: {
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+  });
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: { COINGLASS_DAILY_REQUEST_BUDGET: "300" },
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  const websocketLane = radar.realtimeCapability.data.lanes.find((lane) => lane.key === "exchange_websocket_light_scan");
+  const coinGlassLane = radar.realtimeCapability.data.lanes.find((lane) => lane.key === "coinglass_deep_scan");
+
+  assert.equal(radar.realtimeCapability.data.secondLevelOnline, true);
+  assert.equal(websocketLane?.status, "live");
+  assert.equal(websocketLane?.canCreateTradeSignal, false);
+  assert.equal(coinGlassLane?.status, "failed");
+  assert.match(coinGlassLane?.guardrail ?? "", /不突破套餐限制/);
+  assert.equal(radar.realtimeCapability.data.lanes.every((lane) => lane.canCreateTradeSignal === false), true);
 });
 
 test("buildFrontendRadarContract recalculates stale persisted signal maturity", () => {
