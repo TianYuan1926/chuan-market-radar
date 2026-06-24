@@ -451,6 +451,7 @@ RawSource
 - `lightScanQuality.v1`：新增 `cvdProxyCandidateCount`、`buyPressureCandidateCount`、`sellPressureCandidateCount` 和 `cvd_proxy_quality` 检查。
 - `coreChainGovernance.p1Completion`：新增 P1 完成度、检查项、剩余项和 summary。
 - `/dashboard` 核心链路体检显示 P1 快速扫描完成度。
+- 生产 smoke 会等待并校验 `realtimeCapability.secondLevelOnline=true`；P1 不能在秒级通道未在线时假通过。
 
 硬边界：
 

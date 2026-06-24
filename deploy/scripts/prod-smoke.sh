@@ -6,6 +6,7 @@ STRICT_PROD_SMOKE="${STRICT_PROD_SMOKE:-false}"
 
 python3 - "${BASE_URL}" "${STRICT_PROD_SMOKE}" <<'PY'
 import json
+import os
 import re
 import sys
 import time
@@ -101,6 +102,42 @@ def positive_number(value) -> bool:
     return isinstance(value, (int, float)) and value > 0
 
 
+def p1_ready(contract) -> bool:
+    core_chain_governance = contract.get("coreChainGovernance") or {}
+    core_chain_data = core_chain_governance.get("data") or {}
+    p1_completion = core_chain_data.get("p1Completion") or {}
+
+    return p1_completion.get("percent") == 100 and p1_completion.get("status") == "ready"
+
+
+def second_level_online(contract) -> bool:
+    realtime_capability = contract.get("realtimeCapability") or {}
+    realtime_data = realtime_capability.get("data") or {}
+
+    return realtime_data.get("secondLevelOnline") is True
+
+
+def wait_for_p1_realtime(contract):
+    if not p1_ready(contract) or second_level_online(contract):
+        return contract
+
+    wait_seconds = int(os.environ.get("PROD_SMOKE_REALTIME_WAIT_SECONDS", "90"))
+    interval_seconds = int(os.environ.get("PROD_SMOKE_REALTIME_POLL_SECONDS", "5"))
+    deadline = time.time() + max(0, wait_seconds)
+
+    while time.time() < deadline:
+        print("realtime-capability wait: P1 ready but second-level lane not online yet")
+        time.sleep(max(1, interval_seconds))
+        retry_status, retry_ms, retry_body = fetch("/api/frontend/radar-contract", expect_json=True)
+        print(f"api /api/frontend/radar-contract retry: {retry_status} {retry_ms}ms")
+        retry_contract = retry_body.get("contract") or {}
+
+        if second_level_online(retry_contract) or not p1_ready(retry_contract):
+            return retry_contract
+
+    return contract
+
+
 print(f"== Public smoke: {base_url} ==")
 
 for page in ["/", "/dashboard", "/signals", "/leaderboard", "/market", "/review", "/system"]:
@@ -130,6 +167,7 @@ print(f"api /api/frontend/radar-contract: {radar_status} {radar_ms}ms")
 if not radar_body.get("ok"):
     errors.append("/api/frontend/radar-contract: ok is not true")
 contract = radar_body.get("contract") or {}
+contract = wait_for_p1_realtime(contract)
 validate_no_polluted_symbols("radar-contract", contract)
 scan_proof = ((contract.get("scanProof") or {}).get("data") or {})
 scan_stability = contract.get("scanStability") or {}
@@ -251,6 +289,8 @@ print(
 )
 if realtime_data.get("schemaVersion") != "realtime-capability.v1":
     errors.append("/api/frontend/radar-contract: realtimeCapability schemaVersion is missing")
+if p1_completion.get("percent") == 100 and p1_completion.get("status") == "ready" and realtime_data.get("secondLevelOnline") is not True:
+    errors.append("/api/frontend/radar-contract: P1 ready requires realtimeCapability.secondLevelOnline=true")
 if not realtime_lanes:
     errors.append("/api/frontend/radar-contract: realtimeCapability has no lanes")
 if any(lane.get("canCreateTradeSignal") is not False for lane in realtime_lanes):
