@@ -894,6 +894,28 @@ test("frontend subscribes to the read-only live event stream after auth", () => 
   assert.doesNotMatch(bridgeSource, /refreshMarketRadarSnapshot|\/api\/scan|COINGLASS_API_KEY/);
 });
 
+test("production smoke keeps token chart and external intelligence truth checks", () => {
+  const smokeSource = readFileSync(resolve(process.cwd(), "deploy/scripts/prod-smoke.sh"), "utf8");
+
+  assert.match(smokeSource, /\/api\/frontend\/token-dossier\?symbol=/);
+  assert.match(smokeSource, /canUseMockCandles/);
+  assert.match(smokeSource, /must be false/);
+  assert.match(smokeSource, /TV_SYMBOL_RE/);
+  assert.match(smokeSource, /\/api\/frontend\/external-intel/);
+  assert.match(smokeSource, /sourcePlan/);
+  assert.match(smokeSource, /不绕过/);
+  assert.match(smokeSource, /legal crawl guardrail/);
+});
+
+test("token avatar uses real logo lookup before generated fallback and no static placeholder logo", () => {
+  const avatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
+
+  assert.match(avatarSource, /assets\.coincap\.io\/assets\/icons/);
+  assert.match(avatarSource, /GeneratedAvatar/);
+  assert.match(avatarSource, /onError=\{\(\) => setFailed\(true\)\}/);
+  assert.doesNotMatch(avatarSource, /placeholder\.svg/);
+});
+
 test("review page restores rank visibility without rendering the legacy mock review center", () => {
   const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
 

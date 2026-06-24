@@ -124,7 +124,7 @@ export function TokenAvatar({
         }}
       >
         <img
-          src={url || '/placeholder.svg'}
+          src={url}
           alt={`${symbol} logo`}
           width={size}
           height={size}
