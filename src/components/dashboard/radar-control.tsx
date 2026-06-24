@@ -188,6 +188,14 @@ const EMPTY_GOVERNANCE = resource<CoreChainGovernanceReport>({
   chain: [],
   featureTriage: [],
   pageRoles: [],
+  apiRoles: [],
+  p0Completion: {
+    checks: [],
+    percent: 0,
+    remaining: ['等待真实后端核心链路治理契约。'],
+    status: 'blocked',
+    summary: '等待真实后端核心链路治理契约。',
+  },
   readiness: {
     blockedSteps: 0,
     coreReadySteps: 0,
@@ -545,15 +553,58 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                     </div>
                   </div>
                   <div className="border border-border bg-secondary/25 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">P0 完成度</span>
+                      <span className={`ml-auto border px-1.5 py-0.5 text-[10px] ${g.p0Completion.status === 'ready' ? 'border-up/40 bg-up/10 text-up' : 'border-down/40 bg-down/10 text-down'}`}>
+                        {g.p0Completion.percent}%
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      {g.p0Completion.summary}
+                    </p>
+                    <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                      {g.p0Completion.checks.map((check) => (
+                        <div key={check.key} className="flex items-center gap-2 text-[11px]">
+                          <span className={`size-1.5 shrink-0 ${check.status === 'pass' ? 'bg-up' : 'bg-down'}`} />
+                          <span className="min-w-0 truncate text-muted-foreground">{check.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-2.5 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div className="border border-border bg-secondary/25 p-3">
                     <div className="text-sm font-semibold">清理规则</div>
                     <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
-                      {g.cleanupRules.slice(0, 4).map((rule) => (
+                      {g.cleanupRules.map((rule) => (
                         <li key={rule} className="flex gap-2">
                           <span className="mt-1 size-1.5 shrink-0 bg-neon" />
                           <span>{rule}</span>
                         </li>
                       ))}
                     </ul>
+                  </div>
+
+                  <div className="border border-border bg-secondary/25 p-3">
+                    <div className="text-sm font-semibold">清理队列</div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {g.featureTriage
+                        .filter((item) => item.action === 'delete' || item.action === 'merge' || item.action === 'rebuild' || item.action === 'downgrade')
+                        .map((item) => (
+                          <div key={item.id} className="border border-border bg-background/40 p-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="min-w-0 truncate text-xs font-semibold">{item.label}</span>
+                              <span className={`ml-auto shrink-0 border px-1.5 py-0.5 text-[10px] ${FEATURE_CLASS_TONE[item.classification]}`}>
+                                {FEATURE_ACTION_LABEL[item.action]}
+                              </span>
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                              {item.guardrail}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
                   </div>
                 </div>
 
@@ -600,7 +651,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                       </span>
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {g.featureTriage.slice(0, 8).map((item) => (
+                      {g.featureTriage.map((item) => (
                         <div key={item.id} className="border border-border bg-background/40 p-2">
                           <div className="flex items-center gap-1.5">
                             <span className="min-w-0 truncate text-xs font-semibold">{item.label}</span>
@@ -636,6 +687,27 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+                <div className="border border-border bg-secondary/25 p-3">
+                  <div className="text-sm font-semibold">接口职责</div>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {g.apiRoles.map((api) => (
+                      <div key={api.route} className="border border-border bg-background/40 p-2">
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-0 truncate font-mono text-xs font-semibold text-neon">{api.route}</span>
+                          <span className="ml-auto border border-border bg-secondary/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            {api.role === 'core' ? '核心接口' : api.role === 'operations' ? '运维接口' : '辅助接口'}
+                          </span>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                          {api.job}
+                        </p>
+                        <p className="mt-1 line-clamp-1 text-[10px] text-down">
+                          禁止：{api.mustNotDo.slice(0, 2).join(' / ')}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <FreshnessTag {...governance} className="block" />

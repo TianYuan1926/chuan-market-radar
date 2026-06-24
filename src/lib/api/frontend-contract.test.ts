@@ -496,6 +496,29 @@ function backendContract(): BackendContract {
             mustNotShow: ["前端编入场"],
           },
         ],
+        apiRoles: [
+          {
+            route: "/api/frontend/radar-contract",
+            role: "core",
+            job: "前端雷达总控事实源",
+            mustReturn: ["scanProof", "coreChainGovernance"],
+            mustNotDo: ["触发扫描", "生成交易计划"],
+          },
+        ],
+        p0Completion: {
+          checks: [
+            {
+              key: "core_chain_visible",
+              label: "核心链路完整可见",
+              status: "pass",
+              detail: "测试合同已覆盖核心链路。",
+            },
+          ],
+          percent: 100,
+          remaining: [],
+          status: "ready",
+          summary: "P0 测试合同已闭环。",
+        },
         readiness: {
           blockedSteps: 0,
           coreReadySteps: 3,
@@ -641,6 +664,9 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.coreChainGovernance.data.allowedUse, "product_governance_only");
   assert.equal(radar.coreChainGovernance.data.canCreateTradeSignal, false);
   assert.equal(radar.coreChainGovernance.data.chain.length, 7);
+  assert.equal(radar.coreChainGovernance.data.p0Completion.percent, 100);
+  assert.equal(radar.coreChainGovernance.data.p0Completion.status, "ready");
+  assert.ok(radar.coreChainGovernance.data.apiRoles.some((api) => api.route === "/api/frontend/radar-contract"));
   assert.ok(radar.coreChainGovernance.data.featureTriage.some((item) =>
     item.id === "mock_market_facts" &&
     item.action === "delete"

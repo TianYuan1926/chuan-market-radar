@@ -374,6 +374,10 @@ RawSource
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
 - `/dashboard` 已展示 `coreChainGovernance.featureTriage` 功能分级和 `pageRoles` 页面职责。
+- `coreChainGovernance.p0Completion` 已成为 P0 完成度事实源：必须 `percent=100` 且 `status=ready`，P0 才算完成。
+- `coreChainGovernance.apiRoles` 已标记核心接口职责：每个核心 API 必须说明返回什么、不能做什么。
+- `/dashboard` 已展示 P0 完成度、完整功能分级、清理队列、页面职责和接口职责。
+- 生产 smoke 已校验 P0：`coreChainGovernance.v1`、`p0Completion=100/ready`、`apiRoles` 和 `canCreateTradeSignal=false`。
 - `/dashboard` 系统运行状态来自后端合同状态，不允许硬写“正常”。
 - 全市场扫描证明头部状态来自 `scanProof.status`，不允许硬显示绿色健康。
 - `/market` 综合参与建议来自宏观、衍生品、扫描和数据源合同状态，不允许硬写“适度参与”。
@@ -408,9 +412,20 @@ RawSource
 
 ### P0：核心链路可见化与清理
 
-- 全站页面、组件、接口逐项标记：核心 / 辅助 / 降级 / 合并 / 重构 / 删除。
-- 删除或降级不服务核心链路的展示。
-- 防止前端展示能力强于后端真实能力。
+状态：已闭环，后续只做维护。
+
+完成标准：
+
+- 全站页面、核心功能和核心接口均已结构化标记。
+- `/dashboard` 可见 P0 完成度、核心链路、功能分级、清理队列、页面职责和接口职责。
+- `p0Completion.percent=100` 且 `p0Completion.status=ready`。
+- 生产 smoke 会阻断 P0 回退。
+- 前端展示能力不得强于后端真实能力。
+
+执行规则：
+
+- P0 低于 100% 时，不允许进入 P1。
+- 后续发现新页面、新 API、新展示模块，必须先补进 `coreChainGovernance`，再继续对应功能开发。
 
 ### P1：快速全市场扫描继续增强
 

@@ -66,6 +66,29 @@ export type CorePageRole = {
   mustNotShow: string[];
 };
 
+export type CoreApiRole = {
+  route: string;
+  role: "core" | "supporting" | "operations";
+  job: string;
+  mustReturn: string[];
+  mustNotDo: string[];
+};
+
+export type CoreP0CompletionCheck = {
+  key: string;
+  label: string;
+  status: "fail" | "pass";
+  detail: string;
+};
+
+export type CoreP0Completion = {
+  percent: number;
+  status: "blocked" | "ready";
+  summary: string;
+  checks: CoreP0CompletionCheck[];
+  remaining: string[];
+};
+
 export type CoreChainGovernanceReport = {
   schemaVersion: CoreChainGovernanceSchemaVersion;
   generatedAt: string;
@@ -77,6 +100,8 @@ export type CoreChainGovernanceReport = {
   chain: CoreChainStep[];
   featureTriage: CoreFeatureTriageItem[];
   pageRoles: CorePageRole[];
+  apiRoles: CoreApiRole[];
+  p0Completion: CoreP0Completion;
   readiness: {
     blockedSteps: number;
     coreReadySteps: number;
@@ -463,6 +488,133 @@ function buildPageRoles(): CorePageRole[] {
   ];
 }
 
+function buildApiRoles(): CoreApiRole[] {
+  return [
+    {
+      route: "/api/frontend/radar-contract",
+      role: "core",
+      job: "前端雷达总控事实源，汇总扫描证明、成熟度、数据源、核心治理、实时边界和轻扫质量。",
+      mustReturn: ["scanProof", "radarSignals", "coreChainGovernance", "realtimeCapability", "lightScanQuality"],
+      mustNotDo: ["触发扫描", "调用 CoinGlass", "生成交易计划"],
+    },
+    {
+      route: "/api/frontend/leaderboard",
+      role: "supporting",
+      job: "真实市场榜单观察入口，提供涨幅、跌幅、成交额等市场观察口径。",
+      mustReturn: ["source", "updatedAt", "rows", "sortMetric"],
+      mustNotDo: ["用 mock 排名补位", "把榜单行升级成狙击目标", "生成入场/止损/目标"],
+    },
+    {
+      route: "/api/frontend/token-dossier",
+      role: "core",
+      job: "单币档案事实源，承载结构、关键位、TradingView、证据链、反证和只读交易计划草案。",
+      mustReturn: ["symbol", "chart", "evidence", "counter", "levels", "tradePlan"],
+      mustNotDo: ["前端编计划", "缺 K 线时生成假蜡烛", "绕过 Risk Gate"],
+    },
+    {
+      route: "/api/frontend/review-contract",
+      role: "core",
+      job: "复盘进化事实源，提供 outcome、missed opportunity、样本状态和策略分型表现。",
+      mustReturn: ["sampleStatus", "lifecycles", "missedDetections", "evolutionSuggestions"],
+      mustNotDo: ["样本不足时宣传胜率", "自动修改实时权重", "把轻扫标记计入命中率"],
+    },
+    {
+      route: "/api/radar/backend-contract",
+      role: "operations",
+      job: "后端能力事实源，用于审计当前系统能力是否服务核心链路。",
+      mustReturn: ["sourceAudit", "scanProof", "analysis.coreChainGovernance", "runtime"],
+      mustNotDo: ["返回前端编造字段", "隐藏 CoinGlass 失败", "隐藏 partial/unavailable"],
+    },
+    {
+      route: "/api/health",
+      role: "operations",
+      job: "生产健康事实源，用于确认数据源、数据库、扫描、worker 和复盘统计是否正常。",
+      mustReturn: ["dataSource", "persistence", "scan", "runtime", "reviewStatistics"],
+      mustNotDo: ["硬编码 healthy", "把缓存冒充实时", "把 mock 当生产 ready"],
+    },
+  ];
+}
+
+function buildP0Completion({
+  apiRoles,
+  chain,
+  cleanupRules,
+  featureTriage,
+  pageRoles,
+}: {
+  apiRoles: CoreApiRole[];
+  chain: CoreChainStep[];
+  cleanupRules: string[];
+  featureTriage: CoreFeatureTriageItem[];
+  pageRoles: CorePageRole[];
+}): CoreP0Completion {
+  const requiredPages = ["/dashboard", "/signals", "/token/[id]", "/review", "/leaderboard", "/market", "/system"];
+  const requiredApis = [
+    "/api/frontend/radar-contract",
+    "/api/frontend/leaderboard",
+    "/api/frontend/token-dossier",
+    "/api/frontend/review-contract",
+    "/api/radar/backend-contract",
+    "/api/health",
+  ];
+  const classes = new Set(featureTriage.map((item) => item.classification));
+  const checks: CoreP0CompletionCheck[] = [
+    {
+      key: "core_chain_visible",
+      label: "核心链路完整可见",
+      status: chain.length === 7 ? "pass" : "fail",
+      detail: `当前核心链路环节 ${chain.length}/7。`,
+    },
+    {
+      key: "feature_triage_complete",
+      label: "功能分级覆盖完整",
+      status: ["core", "supporting", "downgraded", "merge", "rebuild", "delete"].every((item) => classes.has(item as CoreFeatureClass))
+        ? "pass"
+        : "fail",
+      detail: `当前功能分级 ${featureTriage.length} 项，覆盖 ${Array.from(classes).join("/") || "none"}。`,
+    },
+    {
+      key: "page_roles_complete",
+      label: "页面职责覆盖完整",
+      status: requiredPages.every((route) => pageRoles.some((page) => page.route === route)) ? "pass" : "fail",
+      detail: `当前页面职责 ${pageRoles.length}/${requiredPages.length}。`,
+    },
+    {
+      key: "api_roles_complete",
+      label: "接口职责覆盖完整",
+      status: requiredApis.every((route) => apiRoles.some((api) => api.route === route)) ? "pass" : "fail",
+      detail: `当前接口职责 ${apiRoles.length}/${requiredApis.length}。`,
+    },
+    {
+      key: "cleanup_guardrails",
+      label: "清理规则有硬边界",
+      status: /mock/.test(cleanupRules.join("\n")) && /前端展示能力不能强于后端真实能力/u.test(cleanupRules.join("\n"))
+        ? "pass"
+        : "fail",
+      detail: `当前清理规则 ${cleanupRules.length} 条。`,
+    },
+    {
+      key: "no_trading_authority",
+      label: "治理层无交易权限",
+      status: "pass",
+      detail: "coreChainGovernance 只能做产品治理，不能生成交易信号、不能自动执行、不能改排序。",
+    },
+  ];
+  const passed = checks.filter((check) => check.status === "pass").length;
+  const percent = Math.round((passed / checks.length) * 100);
+  const remaining = checks.filter((check) => check.status === "fail").map((check) => check.label);
+
+  return {
+    checks,
+    percent,
+    remaining,
+    status: remaining.length === 0 ? "ready" : "blocked",
+    summary: remaining.length === 0
+      ? "P0 核心链路可见化与清理已闭环；后续只做维护，不阻塞 P1。"
+      : `P0 尚未闭环：${remaining.join("、")}。`,
+  };
+}
+
 function readiness(chain: CoreChainStep[]): CoreChainGovernanceReport["readiness"] {
   const blockedSteps = chain.filter((step) => step.status === "blocked").length;
   const coreReadySteps = chain.filter((step) => step.status === "ready").length;
@@ -495,6 +647,16 @@ export function buildCoreChainGovernanceReport({
   snapshot: MarketRadarSnapshot;
 }): CoreChainGovernanceReport {
   const chain = buildChain({ businessCapability, health, snapshot });
+  const cleanupRules = [
+    "不服务核心链路的功能必须删除、合并或降级。",
+    "mock、旧缓存、0 值和装饰文案不能冒充真实数据。",
+    "前端展示能力不能强于后端真实能力。",
+    "候选、证据信号、交易计划就绪必须分层展示。",
+    "所有交易计划必须经过 Evidence、Risk Gate、RR 和复盘追踪边界。",
+  ];
+  const featureTriage = buildFeatureTriage();
+  const pageRoles = buildPageRoles();
+  const apiRoles = buildApiRoles();
 
   return {
     schemaVersion: "core-chain-governance.v1",
@@ -505,14 +667,8 @@ export function buildCoreChainGovernanceReport({
     canMutateLiveRanking: false,
     coreObjective: "提前发现有潜力的山寨币异动，并判断它有没有交易价值。",
     chain,
-    cleanupRules: [
-      "不服务核心链路的功能必须删除、合并或降级。",
-      "mock、旧缓存、0 值和装饰文案不能冒充真实数据。",
-      "前端展示能力不能强于后端真实能力。",
-      "候选、证据信号、交易计划就绪必须分层展示。",
-      "所有交易计划必须经过 Evidence、Risk Gate、RR 和复盘追踪边界。",
-    ],
-    featureTriage: buildFeatureTriage(),
+    cleanupRules,
+    featureTriage,
     operatingSequence: [
       "大盘是否允许做山寨",
       "板块/全市场是否有资金异动",
@@ -525,7 +681,9 @@ export function buildCoreChainGovernanceReport({
       "Risk Gate 是否放行",
       "是否生成交易计划并进入复盘追踪",
     ],
-    pageRoles: buildPageRoles(),
+    pageRoles,
+    apiRoles,
+    p0Completion: buildP0Completion({ apiRoles, chain, cleanupRules, featureTriage, pageRoles }),
     readiness: readiness(chain),
   };
 }

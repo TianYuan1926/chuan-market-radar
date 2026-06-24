@@ -654,6 +654,12 @@ test("buildBackendContract exposes scan proof and allocation without adding UI a
     page.route === "/token/[id]" &&
     page.role === "core"
   ));
+  assert.equal(contract.analysis.coreChainGovernance.p0Completion.percent, 100);
+  assert.equal(contract.analysis.coreChainGovernance.p0Completion.status, "ready");
+  assert.ok(contract.analysis.coreChainGovernance.apiRoles.some((api) =>
+    api.route === "/api/frontend/radar-contract" &&
+    api.mustNotDo.some((item) => /触发扫描/u.test(item))
+  ));
   assert.equal(contract.analysis.evolution.canAutoAdjustWeights, false);
   assert.equal(contract.apiSurfaces.businessCapability, "/api/radar/business-capability");
   assert.ok(contract.guardrails.includes("no_silent_ui_truncation"));

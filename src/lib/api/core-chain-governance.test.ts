@@ -176,6 +176,15 @@ test("buildCoreChainGovernanceReport keeps the site centered on the trading-valu
     page.role === "core" &&
     page.mustShow.some((item) => /触发/u.test(item))
   ));
+  assert.ok(report.apiRoles.some((api) =>
+    api.route === "/api/frontend/radar-contract" &&
+    api.role === "core" &&
+    api.mustNotDo.some((item) => /生成交易计划/u.test(item))
+  ));
+  assert.equal(report.p0Completion.percent, 100);
+  assert.equal(report.p0Completion.status, "ready");
+  assert.deepEqual(report.p0Completion.remaining, []);
+  assert.ok(report.p0Completion.checks.every((check) => check.status === "pass"));
   assert.match(report.cleanupRules.join("\n"), /前端展示能力不能强于后端真实能力/u);
   assert.match(report.operatingSequence.join(" -> "), /RR 是否至少 3:1/u);
 });

@@ -104,6 +104,14 @@ export function getCoreChainGovernance(): Resource<CoreChainGovernanceReport> {
     chain: [],
     featureTriage: [],
     pageRoles: [],
+    apiRoles: [],
+    p0Completion: {
+      checks: [],
+      percent: 0,
+      remaining: ['等待真实后端核心链路治理契约。'],
+      status: 'blocked',
+      summary: '等待真实后端核心链路治理契约。',
+    },
     readiness: {
       blockedSteps: 0,
       coreReadySteps: 0,

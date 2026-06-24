@@ -161,12 +161,38 @@ print(
     ),
 )
 
-required_contract_keys = ["scanProof", "deepScanQueue", "radarSignals", "serviceNodes", "dataSources", "lightScanQuality", "realtimeCapability"]
+required_contract_keys = ["scanProof", "deepScanQueue", "radarSignals", "serviceNodes", "dataSources", "coreChainGovernance", "lightScanQuality", "realtimeCapability"]
 for key in required_contract_keys:
     if key not in contract:
         errors.append(f"/api/frontend/radar-contract: missing contract.{key}")
 if scan_proof.get("scannable", 0) >= 100 and scan_proof.get("lightScanned", 0) >= scan_proof.get("scannable", 0) and scan_proof.get("coverage", 0) < 95:
     errors.append("/api/frontend/radar-contract: light scan coverage is inconsistent with scannable/lightScanned counts")
+
+core_chain_governance = contract.get("coreChainGovernance") or {}
+core_chain_data = core_chain_governance.get("data") or {}
+p0_completion = core_chain_data.get("p0Completion") or {}
+api_roles = core_chain_data.get("apiRoles") or []
+print(
+    "core-chain-governance",
+    json.dumps(
+        {
+            "status": core_chain_governance.get("status"),
+            "schemaVersion": core_chain_data.get("schemaVersion"),
+            "p0Percent": p0_completion.get("percent"),
+            "p0Status": p0_completion.get("status"),
+            "apiRoles": len(api_roles),
+        },
+        ensure_ascii=False,
+    ),
+)
+if core_chain_data.get("schemaVersion") != "core-chain-governance.v1":
+    errors.append("/api/frontend/radar-contract: coreChainGovernance schemaVersion is missing")
+if p0_completion.get("percent") != 100 or p0_completion.get("status") != "ready":
+    errors.append("/api/frontend/radar-contract: P0 core governance completion is not ready")
+if not any(api.get("route") == "/api/frontend/radar-contract" for api in api_roles):
+    errors.append("/api/frontend/radar-contract: P0 apiRoles missing frontend radar contract")
+if core_chain_data.get("canCreateTradeSignal") is not False:
+    errors.append("/api/frontend/radar-contract: coreChainGovernance must not create trade signals")
 
 light_scan_quality = contract.get("lightScanQuality") or {}
 light_scan_quality_data = light_scan_quality.get("data") or {}
