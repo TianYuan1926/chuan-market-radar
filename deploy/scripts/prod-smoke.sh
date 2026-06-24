@@ -168,11 +168,14 @@ for key in required_contract_keys:
 if scan_proof.get("scannable", 0) >= 100 and scan_proof.get("lightScanned", 0) >= scan_proof.get("scannable", 0) and scan_proof.get("coverage", 0) < 95:
     errors.append("/api/frontend/radar-contract: light scan coverage is inconsistent with scannable/lightScanned counts")
 
+sample_token_for_dossier = None
 for kind in ["volume", "gainers", "losers"]:
     leaderboard_status, leaderboard_ms, leaderboard_body = fetch(f"/api/frontend/leaderboard?kind={kind}", expect_json=True)
     print(f"api /api/frontend/leaderboard?kind={kind}: {leaderboard_status} {leaderboard_ms}ms")
     leaderboard = leaderboard_body.get("leaderboard") or {}
     leaderboard_rows = leaderboard.get("data") or []
+    if kind == "volume" and leaderboard_rows:
+        sample_token_for_dossier = leaderboard_rows[0]
     validate_no_polluted_symbols(f"leaderboard-{kind}", leaderboard)
     print(
         f"leaderboard-{kind}",
@@ -204,10 +207,61 @@ for kind in ["volume", "gainers", "losers"]:
     if zero_or_missing_prices:
         errors.append(f"/api/frontend/leaderboard?kind={kind}: missing or zero prices for {zero_or_missing_prices[:12]}")
 
+if sample_token_for_dossier:
+    symbol = sample_token_for_dossier.get("symbol")
+    price = sample_token_for_dossier.get("price")
+    token_status, token_ms, token_body = fetch(f"/api/frontend/token-dossier?symbol={symbol}&basePrice={price}", expect_json=True)
+    print(f"api /api/frontend/token-dossier?symbol={symbol}: {token_status} {token_ms}ms")
+    if not token_body.get("ok"):
+        errors.append("/api/frontend/token-dossier: ok is not true")
+    token_dossier = (token_body.get("dossier") or {}).get("data") or {}
+    chart = token_dossier.get("chart") or {}
+    print(
+        "token-chart",
+        json.dumps(
+            {
+                "symbol": token_dossier.get("symbol"),
+                "chartStatus": chart.get("status"),
+                "tradingViewSymbol": chart.get("tradingViewSymbol"),
+                "overlaySource": chart.get("overlaySource"),
+                "canUseMockCandles": chart.get("canUseMockCandles"),
+            },
+            ensure_ascii=False,
+        ),
+    )
+    if chart.get("canUseMockCandles") is not False:
+        errors.append("/api/frontend/token-dossier: chart.canUseMockCandles must be false")
+    if chart.get("tradingViewSymbol") and not TV_SYMBOL_RE.fullmatch(str(chart.get("tradingViewSymbol"))):
+        errors.append(f"/api/frontend/token-dossier: invalid TradingView symbol {chart.get('tradingViewSymbol')}")
+
 review_status, review_ms, review_body = fetch("/api/frontend/review-contract", expect_json=True)
 print(f"api /api/frontend/review-contract: {review_status} {review_ms}ms")
 if not review_body.get("ok"):
     errors.append("/api/frontend/review-contract: ok is not true")
+
+external_status, external_ms, external_body = fetch("/api/frontend/external-intel", expect_json=True)
+print(f"api /api/frontend/external-intel: {external_status} {external_ms}ms")
+if not external_body.get("ok"):
+    errors.append("/api/frontend/external-intel: ok is not true")
+external_contract = external_body.get("contract") or {}
+external_data = external_contract.get("data") or {}
+external_sources = external_data.get("sourcePlan") or []
+external_guardrails = external_data.get("guardrails") or []
+print(
+    "external-intel",
+    json.dumps(
+        {
+            "status": external_contract.get("status"),
+            "sources": len(external_sources),
+            "events": len(external_data.get("events") or []),
+        },
+        ensure_ascii=False,
+    ),
+)
+if not external_sources:
+    errors.append("/api/frontend/external-intel: missing source plan")
+if not any("不绕过" in str(item) for item in external_guardrails):
+    errors.append("/api/frontend/external-intel: missing legal crawl guardrail")
 
 backend_status, backend_ms, backend_body = fetch("/api/radar/backend-contract", expect_json=True)
 print(f"api /api/radar/backend-contract: {backend_status} {backend_ms}ms")
