@@ -11,12 +11,16 @@ import {
   normalizeFrontendKlineSymbol,
 } from "./frontend-contract";
 import type { MarketRadarSnapshot } from "../market/types";
-import type { SignalBackendDossier } from "../market/signal-backend-dossier";
+import {
+  buildSignalBackendDossier,
+  type SignalBackendDossier,
+} from "../market/signal-backend-dossier";
 import type { OhlcvProvider } from "../market/ohlcv/types";
 import {
   buildCoinGlassRuntimeCapabilityReport,
   buildDataSourceCapabilityPlan,
 } from "../market/data-source-capabilities";
+import type { StrategyV3Dossier, StrategyV3TradePlan } from "../analysis/v3/types";
 
 function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
   return {
@@ -145,6 +149,44 @@ function snapshot(signals: MarketSignal[] = [signal()]): MarketRadarSnapshot {
         },
       },
     ],
+  };
+}
+
+function strategyV3WithTradePlan(overrides: Partial<StrategyV3TradePlan> = {}): StrategyV3Dossier {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    currentPrice: 7.84,
+    forwardLevels: [],
+    guardrails: ["readonly"],
+    keyLevels: [],
+    primaryTimeframe: "1h",
+    source: "existing_ohlcv_key_level_mvp",
+    sourceTimeframes: ["1h"],
+    summary: "v3 交易计划测试",
+    symbol: "TIAUSDT",
+    tradePlan: {
+      allowedUse: "research_only",
+      blockedBy: [],
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      confirmationChecklist: ["突破后回踩不破"],
+      direction: "long",
+      entryZone: "8.20 - 8.28",
+      hasAutoExecution: false,
+      invalidation: "1h 跌回 7.76",
+      isPlanEligible: true,
+      manualReviewRequired: true,
+      positionSizing: "轻仓确认",
+      rewardRisk: 3.4,
+      status: "READY_LONG",
+      structuralStop: 7.76,
+      summary: "等待突破确认",
+      takeProfitPlan: "TP1 减仓，TP2 锁定本金，TP3 趋势仓管理",
+      targets: [8.6, 9.15, 10.2],
+      ...overrides,
+    },
   };
 }
 
@@ -517,6 +559,83 @@ test("buildFrontendRadarContract recalculates stale persisted signal maturity", 
 
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
   assert.equal(radar.radarSignals.data[0]?.whyBlocked, null);
+});
+
+test("frontend radar and token dossier agree when a stale ready signal has no ready trade plan", () => {
+  const sharedSnapshot = snapshot([
+    signal({
+      maturity: {
+        canAttachTradePlan: true,
+        canEnterMainSignalArea: true,
+        canRequestAiReview: true,
+        label: "交易计划就绪",
+        reasons: ["eligible_v3_trade_plan"],
+        stage: "TRADE_PLAN_READY",
+      },
+    }),
+  ]);
+
+  const radar = buildFrontendRadarContract({
+    backend: backendContract(),
+    env: { COINGLASS_DAILY_REQUEST_BUDGET: "300" },
+    snapshot: sharedSnapshot,
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+  const dossier = buildFrontendTokenDossierContract({
+    basePrice: 7.84,
+    dossier: buildSignalBackendDossier({
+      snapshot: sharedSnapshot,
+      symbol: "TIAUSDT",
+    }),
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(dossier.data.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(dossier.data.tradePlan, null);
+  assert.deepEqual(dossier.data.riskGate.reasons, ["等待后端结构化交易计划"]);
+});
+
+test("frontend radar and token dossier agree when a real v3 plan is ready", () => {
+  const sharedSnapshot = snapshot([
+    signal({
+      strategyV3: strategyV3WithTradePlan(),
+    }),
+  ]);
+  sharedSnapshot.instruments = [
+    {
+      id: "BINANCE:TIAUSDT",
+      symbol: "TIAUSDT",
+      baseAsset: "TIA",
+      quoteAsset: "USDT",
+      exchange: "BINANCE",
+      marketType: "perpetual",
+      isActive: true,
+      volume24hUsd: 180_000_000,
+      tags: ["coinglass", "Binance", "lev:50"],
+      lastSeenAt: "2026-06-21T08:00:00.000Z",
+    },
+  ];
+
+  const radar = buildFrontendRadarContract({
+    backend: backendContract(),
+    env: { COINGLASS_DAILY_REQUEST_BUDGET: "300" },
+    snapshot: sharedSnapshot,
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+  const dossier = buildFrontendTokenDossierContract({
+    basePrice: 7.84,
+    dossier: buildSignalBackendDossier({
+      snapshot: sharedSnapshot,
+      symbol: "TIAUSDT",
+    }),
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.radarSignals.data[0]?.maturity, "TRADE_PLAN_READY");
+  assert.equal(dossier.data.maturity, "TRADE_PLAN_READY");
+  assert.equal(dossier.data.tradePlan?.positionLens.status, "ready");
+  assert.equal(dossier.data.tradePlan?.positionLens.marginFractionPercent, 0.3);
 });
 
 test("buildFrontendRadarContract uses observed CoinGlass usage instead of planned requests", () => {
@@ -1614,15 +1733,19 @@ test("buildFrontendReviewContract returns review resources from journal and capa
 
   assert.equal(review.signalLifecycles.status, "live");
   assert.equal(review.signalLifecycles.data[0]?.symbol, "TIA");
+  assert.equal(review.strategyArchetypes.status, "partial");
   assert.equal(review.strategyArchetypes.data.length > 0, true);
   assert.equal(review.strategyArchetypes.data[0]?.winRate, null);
   assert.equal(review.strategyArchetypes.data[0]?.avgRR, null);
   assert.equal(review.strategyArchetypes.data[0]?.samples, 0);
   assert.match(review.strategyArchetypes.data[0]?.commonFailure ?? "", /样本收集中/);
+  assert.equal(review.missedDetections.status, "empty");
   assert.equal(review.evolutionSuggestions.data[0]?.adopted, false);
+  assert.equal(review.reviewStats.status, "partial");
   assert.equal(review.reviewStats.data.totalSamples, 1);
   assert.equal(review.reviewStats.data.evidenceSamples, 1);
   assert.equal(review.reviewStats.data.winRate, null);
+  assert.equal(review.aiReviewStats.status, "empty");
   assert.equal(review.aiReviewStats.data.unboundFallbackProtected, true);
   assert.match(review.aiReviewStats.reason ?? "", /不替代规则引擎/);
 });

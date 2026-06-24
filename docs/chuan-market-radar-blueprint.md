@@ -687,14 +687,14 @@ V3.0 不定义为最终版，而定义为 **专业稳定底座版**。
 
 ### P0：必须先根治的问题
 
-1. **总控与单币档案状态一致性**：2026-06-24 已完成代码层修复。`TRADE_PLAN_READY` 只能由当前规则重新计算产生，且必须满足 v3 结构化交易计划 `status=READY_LONG/READY_SHORT`、`isPlanEligible=true`、RR 不低于 `3:1`、风险门控和多周期门控通过；旧快照、旧 journal 或手写 `maturity` 字段不能覆盖当前规则。`RadarContract`、AI 复核入口、Journal lifecycle 和 Snapshot maturity 都必须重新计算成熟度，避免总控显示“计划就绪”而 Token Dossier `tradePlan=null`。本地验证：`npm run test:market` 616/616 + worker 11/11 通过，`npm run typecheck` 通过。下一步是部署后用生产真实信号再次验收 `radar-contract` 与 `/api/frontend/token-dossier?symbol=...` 对同一 symbol 的成熟度、Risk Gate 和 tradePlan 一致。
-2. **个人仓位镜头线上展示未完全验收**：本地已实现 `positionLens`，测试、typecheck、build 已通过；但生产单币档案只有在真实 `tradePlan` 存在时才能展示。修复 P0-1 后，必须用一个真实 `TRADE_PLAN_READY` 标的验收 `tradePlan.positionLens` 是否稳定输出；如果生产暂时没有计划就绪标的，前端必须显示 waiting/blocked 原因，不能伪造 position lens。
+1. **总控与单币档案状态一致性**：2026-06-24 已完成代码层修复。`TRADE_PLAN_READY` 只能由当前规则重新计算产生，且必须满足 v3 结构化交易计划 `status=READY_LONG/READY_SHORT`、`isPlanEligible=true`、RR 不低于 `3:1`、风险门控和多周期门控通过；旧快照、旧 journal 或手写 `maturity` 字段不能覆盖当前规则。`RadarContract`、AI 复核入口、Journal lifecycle 和 Snapshot maturity 都必须重新计算成熟度，避免总控显示“计划就绪”而 Token Dossier `tradePlan=null`。本地验证：`npm run test:market` 618/618 + worker 11/11 通过，`npm run typecheck` 通过，`npm run build` 通过。下一步是部署后用生产真实信号再次验收 `radar-contract` 与 `/api/frontend/token-dossier?symbol=...` 对同一 symbol 的成熟度、Risk Gate 和 tradePlan 一致。
+2. **个人仓位镜头线上展示未完全验收**：本地已实现并完成合同级验证：同一份 snapshot 若没有真实 ready plan，Radar 和 Token Dossier 都输出 `EVIDENCE_SIGNAL` 且 `tradePlan=null`；若存在真实 v3 ready plan 且 instrument 带 `lev:50`，Token Dossier `tradePlan.positionLens.status=ready`，并按用户个人规则输出 `0.3%` 保证金镜头。生产单币档案只有在真实 `tradePlan` 存在时才能展示；如果生产暂时没有计划就绪标的，前端必须显示 waiting/blocked 原因，不能伪造 position lens。部署后仍需用真实生产标的做一次公网验收。
 
 ### P1：当前未完成清单
 
-- **前端合同一致性验收**：`RadarContract`、`TokenDossier`、`Leaderboard`、`ReviewContract` 对同一 symbol 的状态、价格、成熟度、Risk Gate、tradePlan 和 freshness 必须一致，不能各自解释。
-- **真实复盘样本闭环**：当前 outcome、signal lifecycle、strategy archetype 仍缺真实样本；系统只能说“复盘框架已落地，样本收集中”，不能说已经完成自我进化。
-- **AI 生产复核**：AI evidence-id bound 边界已完成，但生产模型、多模型对照、成本统计和复盘校准未完成；当前 AI disabled 不能包装成已运行能力。
+- **前端合同一致性线上验收**：本地已新增 RadarContract 与 TokenDossier 同源 snapshot 一致性测试，覆盖“旧 ready 字段降级”和“真实 v3 ready plan + positionLens 输出”两种关键路径；生产部署后仍需公网验证同一 symbol 的状态、价格、成熟度、Risk Gate、tradePlan 和 freshness 一致。
+- **真实复盘样本闭环**：2026-06-24 已收紧前端复盘合同状态语义：`sampleStatus=empty` 输出 empty，`collecting/statistically_thin` 输出 partial，只有 `usable` 才能输出 live；策略分型、复盘统计和漏判归因不能在样本不足时伪装成统计结论。当前 outcome、signal lifecycle、strategy archetype 仍缺长期真实样本；系统只能说“复盘框架已落地，样本收集中”，不能说已经完成自我进化。
+- **AI 生产复核**：AI evidence-id bound 边界已完成；2026-06-24 已收紧前端 AI 复核统计状态语义：无 AI 复核记录输出 empty，只有 disabled/fallback 记录时输出 partial，存在真实 reviewed 记录才输出 live。生产模型、多模型对照、成本统计和复盘校准仍未完成；当前 AI disabled 不能包装成已运行能力。
 - **合法外部事件情报层**：第一到第三档合法数据源已进入蓝图，但 `ExternalEvent`、`SourceFetchRun`、DEX Screener collector、交易所公告 collector、token identity collector、链上低频 collector 和事件转 Evidence/Risk 仍未实现。
 - **部署自动化稳定性**：GitHub 远端检查和 SSH 自动部署仍受本机网络/服务器 SSH 握手影响；OrcaTerm 能兜底，但不能替代长期自动部署。
 - **资金流与主动买卖流**：稳定 CVD、taker buy/sell、真实资金流数据源仍未完整接入；未稳定前只能显示 partial/waiting。

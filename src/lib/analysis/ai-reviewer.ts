@@ -324,13 +324,13 @@ export function buildAiReviewPrompt(signal: MarketSignal, context: AiReviewConte
     },
   };
   const payloadJson = JSON.stringify(payload, null, 2);
-	  const system = [
-	    "你是川 Market Radar 的 AI 反证复核层，必须先找反证，再给结论。",
-	    "你只能使用用户 payload 中的结构化 JSON，不得编造新闻、链上数据、盘口数据或未接入的数据源。",
-	    "你的作用是复核和解释，不是最终裁决；规则引擎和用户纪律仍然优先。",
-	    "你不得新增买卖方向、不得改变信号置信度、不得覆盖 Risk Gate 或失效条件。",
-	    "返回 JSON，不要返回 Markdown。",
-	  ].join("\n");
+  const system = [
+    "你是川 Market Radar 的 AI 反证复核层，必须先找反证，再给结论。",
+    "你只能使用用户 payload 中的结构化 JSON，不得编造新闻、链上数据、盘口数据或未接入的数据源。",
+    "你的作用是复核和解释，不是最终裁决；规则引擎和用户纪律仍然优先。",
+    "你不得新增买卖方向、不得改变信号置信度、不得覆盖 Risk Gate 或失效条件。",
+    "返回 JSON，不要返回 Markdown。",
+  ].join("\n");
   const user = [
     "Review this market signal with counter-evidence first.",
     "Return JSON keys: counterEvidence, fact, reasoning, judgment, strategy, failurePath, uncertainty, confidenceAdjustment.",

@@ -2352,6 +2352,32 @@ function buildAiReviewStats(snapshot: MarketRadarSnapshot): AiReviewStats {
   };
 }
 
+function aiReviewStatsResourceStatus(stats: AiReviewStats): DataStatus {
+  if (stats.total === 0) {
+    return "empty";
+  }
+
+  if (stats.reviewed > 0) {
+    return "live";
+  }
+
+  return "partial";
+}
+
+function reviewSampleStatusToResourceStatus(
+  status: BackendContract["analysis"]["reviewStatistics"]["sampleStatus"],
+): DataStatus {
+  if (status === "empty") {
+    return "empty";
+  }
+
+  if (status === "usable") {
+    return "live";
+  }
+
+  return "partial";
+}
+
 export function buildFrontendReviewContract({
   backend,
   snapshot,
@@ -2378,6 +2404,20 @@ export function buildFrontendReviewContract({
   const suggestions = backend.analysis.businessCapability.nextActions.length > 0
     ? backend.analysis.businessCapability.nextActions
     : backend.analysis.businessCapability.gaps;
+  const reviewSampleStatus = reviewSampleStatusToResourceStatus(backend.analysis.reviewStatistics.sampleStatus);
+  const aiReviewStats = buildAiReviewStats(snapshot);
+  const missedDetectionRows = snapshot.journalEvents
+    .filter((event) => event.result === "saved" || event.action === "trend_radar_review")
+    .slice(0, 20)
+    .map((event) => ({
+      symbol: displaySymbol(event.symbol),
+      hue: symbolHue(event.symbol),
+      move: round(event.outcomeMetrics?.mfePercent ?? 0, 2),
+      side: (event.direction === "short" ? "跌" : "涨") as "涨" | "跌",
+      reason: "证据不足" as const,
+      detail: event.note,
+      improvement: event.lessons?.[0] ?? "进入漏判复查队列，等待更多样本确认。",
+    }));
 
   return {
     signalLifecycles: resource(
@@ -2387,23 +2427,16 @@ export function buildFrontendReviewContract({
     ),
     strategyArchetypes: resource(
       archetypeStages.map(strategyArchetypeFromStage),
-      "live",
-      { ageSec, source: "signal-worker" },
+      reviewSampleStatus,
+      {
+        ageSec,
+        source: "signal-worker",
+        reason: backend.analysis.reviewStatistics.guardrail,
+      },
     ),
     missedDetections: resource(
-      snapshot.journalEvents
-        .filter((event) => event.result === "saved" || event.action === "trend_radar_review")
-        .slice(0, 20)
-        .map((event) => ({
-          symbol: displaySymbol(event.symbol),
-          hue: symbolHue(event.symbol),
-          move: round(event.outcomeMetrics?.mfePercent ?? 0, 2),
-          side: (event.direction === "short" ? "跌" : "涨") as "涨" | "跌",
-          reason: "证据不足" as const,
-          detail: event.note,
-          improvement: event.lessons?.[0] ?? "进入漏判复查队列，等待更多样本确认。",
-        })),
-      "partial",
+      missedDetectionRows,
+      missedDetectionRows.length > 0 ? "partial" : "empty",
       {
         ageSec,
         source: "signal-worker",
@@ -2432,7 +2465,7 @@ export function buildFrontendReviewContract({
         totalSamples: backend.analysis.reviewStatistics.samples.total,
         winRate: backend.analysis.reviewStatistics.winRate.expiredExcludedPercent,
       },
-      backend.analysis.reviewStatistics.sampleStatus === "empty" ? "empty" : "live",
+      reviewSampleStatus,
       {
         ageSec,
         source: "outcome-review",
@@ -2440,8 +2473,8 @@ export function buildFrontendReviewContract({
       },
     ),
     aiReviewStats: resource(
-      buildAiReviewStats(snapshot),
-      snapshot.signals.some((signal) => signal.aiReview?.status === "reviewed") ? "live" : "partial",
+      aiReviewStats,
+      aiReviewStatsResourceStatus(aiReviewStats),
       {
         ageSec,
         source: "ai-reviewer",
