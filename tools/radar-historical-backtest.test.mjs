@@ -122,6 +122,9 @@ test("historical replay returns lane baselines and findings without mutating sta
   assert.ok(result.laneMetrics.volume.count > 0);
   assert.ok(result.laneMetrics.random.count > 0);
   assert.ok(Array.isArray(result.findings));
+  assert.ok(result.diagnostics.radarScoreBuckets.length > 0);
+  assert.ok(Array.isArray(result.diagnostics.radarReasonMetrics));
+  assert.ok(Array.isArray(result.diagnostics.missedOpportunities));
   assert.deepEqual(result.symbolsUsed.sort(), ["ALPHAUSDT", "FLATUSDT", "LATEUSDT"]);
 });
 
@@ -150,4 +153,3 @@ test("historical markdown states research-only and no future-leak boundaries", (
   assert.match(markdown, /禁止偷看未来/);
   assert.match(markdown, /不是自动下单/);
 });
-

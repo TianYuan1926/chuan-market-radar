@@ -493,6 +493,7 @@ async function writeReports({ args, failures, result, sourceBySymbol, symbols })
 
   await writeFile(path.join(reportDir, "summary.md"), markdown, "utf8");
   await writeFile(path.join(reportDir, "findings.json"), JSON.stringify({
+    diagnostics: result.diagnostics,
     failures,
     findings: result.findings,
     generatedAt: result.generatedAt,

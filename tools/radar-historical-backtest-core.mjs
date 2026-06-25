@@ -329,6 +329,60 @@ function summarizeLane(name, selections) {
   };
 }
 
+function summarizeScoreBuckets(selections) {
+  const buckets = [
+    [0, 20],
+    [20, 40],
+    [40, 60],
+    [60, 80],
+    [80, 101],
+  ];
+
+  return buckets.map(([min, max]) => {
+    const bucketSelections = selections.filter((selection) => (
+      selection.feature.opportunityScore >= min &&
+      selection.feature.opportunityScore < max
+    ));
+    const summary = summarizeLane(`${min}-${max === 101 ? 100 : max}`, bucketSelections);
+
+    return {
+      avgMaePct: summary.avgMaePct,
+      avgMfePct: summary.avgMfePct,
+      count: summary.count,
+      hitRatePct: summary.hitRatePct,
+      label: `${min}-${max === 101 ? 100 : max}`,
+      lateRatePct: summary.lateRatePct,
+    };
+  });
+}
+
+function summarizeReasonMetrics(selections) {
+  const byReason = new Map();
+
+  for (const selection of selections) {
+    for (const reason of selection.feature.reasons) {
+      const current = byReason.get(reason) ?? [];
+      current.push(selection);
+      byReason.set(reason, current);
+    }
+  }
+
+  return [...byReason.entries()]
+    .map(([reason, reasonSelections]) => {
+      const summary = summarizeLane(reason, reasonSelections);
+
+      return {
+        avgMaePct: summary.avgMaePct,
+        avgMfePct: summary.avgMfePct,
+        count: summary.count,
+        hitRatePct: summary.hitRatePct,
+        lateRatePct: summary.lateRatePct,
+        reason,
+      };
+    })
+    .sort((left, right) => right.count - left.count || right.hitRatePct - left.hitRatePct);
+}
+
 function findCommonReplayTimes(candlesBySymbol, options) {
   const minHistoryBars = options.minHistoryBars ?? DEFAULT_BACKTEST_OPTIONS.minHistoryBars;
   const horizonBars = options.horizonBars ?? DEFAULT_BACKTEST_OPTIONS.horizonBars;
@@ -392,6 +446,7 @@ export function runHistoricalReplay(input) {
     radar: [],
     volume: [],
   };
+  const missedOpportunities = [];
   const replaySamples = [];
 
   for (const observedAt of replayTimes) {
@@ -427,6 +482,7 @@ export function runHistoricalReplay(input) {
     const topRandom = [...features]
       .sort((left, right) => deterministicRandomScore(right.feature.symbol, observedAt) - deterministicRandomScore(left.feature.symbol, observedAt))
       .slice(0, options.topN);
+    const radarSymbols = new Set(topRadar.map((item) => item.feature.symbol));
 
     const lanes = [
       ["radar", topRadar],
@@ -442,6 +498,26 @@ export function runHistoricalReplay(input) {
         if (outcome) {
           selections[lane].push(selectionRecord(lane, item.feature, outcome));
         }
+      }
+    }
+
+    for (const item of features) {
+      if (radarSymbols.has(item.feature.symbol)) {
+        continue;
+      }
+
+      const outcome = evaluateHistoricalOutcome(item.candles, item.index, item.feature, options);
+
+      if (outcome?.hit && !outcome.lateAtSelection) {
+        missedOpportunities.push({
+          change24hPct: item.feature.change24hPct,
+          direction: item.feature.direction,
+          mfePct: outcome.mfePct,
+          observedAt,
+          opportunityScore: item.feature.opportunityScore,
+          reasons: item.feature.reasons,
+          symbol: item.feature.symbol,
+        });
       }
     }
 
@@ -500,6 +576,13 @@ export function runHistoricalReplay(input) {
   }
 
   return {
+    diagnostics: {
+      missedOpportunities: missedOpportunities
+        .sort((left, right) => right.mfePct - left.mfePct)
+        .slice(0, 50),
+      radarReasonMetrics: summarizeReasonMetrics(selections.radar),
+      radarScoreBuckets: summarizeScoreBuckets(selections.radar),
+    },
     findings,
     generatedAt: new Date().toISOString(),
     laneMetrics,
@@ -612,6 +695,48 @@ export function buildHistoricalBacktestMarkdown(result, meta = {}) {
     for (const finding of result.findings) {
       lines.push(`- ${finding.id} [${finding.severity}] ${finding.title}：${finding.detail}`);
     }
+  }
+
+  lines.push(
+    "",
+    "## 诊断拆解",
+    "",
+    "### 雷达分数区间",
+    "",
+    "| 分数区间 | 样本数 | 命中率 | 平均 MFE | 平均 MAE | 偏晚率 |",
+    "|---|---:|---:|---:|---:|---:|",
+  );
+
+  for (const bucket of result.diagnostics.radarScoreBuckets) {
+    lines.push(`| ${bucket.label} | ${bucket.count} | ${bucket.hitRatePct}% | ${bucket.avgMfePct}% | ${bucket.avgMaePct}% | ${bucket.lateRatePct}% |`);
+  }
+
+  lines.push(
+    "",
+    "### 雷达原因标签",
+    "",
+    "| 原因 | 样本数 | 命中率 | 平均 MFE | 平均 MAE | 偏晚率 |",
+    "|---|---:|---:|---:|---:|---:|",
+  );
+
+  for (const metric of result.diagnostics.radarReasonMetrics.slice(0, 12)) {
+    lines.push(`| ${metric.reason} | ${metric.count} | ${metric.hitRatePct}% | ${metric.avgMfePct}% | ${metric.avgMaePct}% | ${metric.lateRatePct}% |`);
+  }
+
+  lines.push(
+    "",
+    "### 漏掉的未来机会",
+    "",
+    "| 时间 | 币种 | 方向 | 后续 MFE | 当时分数 | 当时 24h 涨跌 | 当时原因 |",
+    "|---|---|---|---:|---:|---:|---|",
+  );
+
+  for (const miss of result.diagnostics.missedOpportunities.slice(0, 20)) {
+    lines.push(`| ${miss.observedAt} | ${miss.symbol} | ${miss.direction} | ${miss.mfePct}% | ${miss.opportunityScore} | ${miss.change24hPct}% | ${miss.reasons.join(", ") || "无"} |`);
+  }
+
+  if (result.diagnostics.missedOpportunities.length === 0) {
+    lines.push("| - | - | - | - | - | - | 本轮没有记录到未选中的未来命中机会 |");
   }
 
   lines.push(

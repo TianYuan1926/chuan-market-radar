@@ -139,7 +139,7 @@ reports/historical-backtest/<日期时间>/
 包含：
 
 - `summary.md`：中文读数报告。
-- `findings.json`：机器可读问题清单、各基线指标、失败 symbol。
+- `findings.json`：机器可读问题清单、各基线指标、失败 symbol、分数区间诊断、原因标签诊断和漏掉的未来机会。
 - `samples.csv`：每个回放点的候选、分数、MFE、MAE、命中和偏晚标签。
 
 ## 历史回放边界
