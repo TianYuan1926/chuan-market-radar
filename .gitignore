@@ -22,6 +22,7 @@ pnpm-debug.log*
 .worktrees/
 .tmp/
 chuan-radar-*.png
+deploy/diagnostics/
 skills-lock.json
 
 # local design/reference screenshots

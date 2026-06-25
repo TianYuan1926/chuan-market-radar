@@ -110,6 +110,16 @@ export type ExternalIntelEvidenceCandidate = {
 export type ExternalIntelContract = {
   schemaVersion: "external-intel.v1";
   guardrails: string[];
+  quality: {
+    activeSources: number;
+    enabledSources: number;
+    eventsWithIdentity: number;
+    failedRuns: number;
+    mappedIdentities: number;
+    partialRuns: number;
+    successfulRuns: number;
+    summary: string;
+  };
   sourcePlan: ExternalIntelSourcePlan[];
   latestRuns: SourceFetchRun[];
   events: ExternalEvent[];
@@ -369,6 +379,13 @@ export function buildExternalIntelContract({
 } = {}): Resource<ExternalIntelContract> {
   const normalizedEvents = events.map((event) => normalizeExternalEvent(event));
   const hasFailures = latestRuns.some((run) => run.status === "failed" || run.status === "partial");
+  const enabledSources = sourcePlan.filter((source) => source.enabledByDefault).length;
+  const successfulRuns = latestRuns.filter((run) => run.status === "success").length;
+  const partialRuns = latestRuns.filter((run) => run.status === "partial").length;
+  const failedRuns = latestRuns.filter((run) => run.status === "failed").length;
+  const activeSources = new Set(latestRuns.map((run) => run.sourceId)).size;
+  const eventsWithIdentity = normalizedEvents.filter((event) => event.tokenIdentity).length;
+  const mappedIdentities = normalizedEvents.filter((event) => event.tokenIdentity?.mappingStatus === "mapped").length;
   const status = normalizedEvents.length > 0
     ? hasFailures ? "partial" : "live"
     : hasFailures ? "failed" : "empty";
@@ -382,6 +399,20 @@ export function buildExternalIntelContract({
         "不保存付费全文、受版权保护全文、个人隐私或无法追溯来源的内容。",
         "任何 ExternalEvent 都不能直接生成交易计划，必须先进入 Evidence / Risk Gate / Review。",
       ],
+      quality: {
+        activeSources,
+        enabledSources,
+        eventsWithIdentity,
+        failedRuns,
+        mappedIdentities,
+        partialRuns,
+        successfulRuns,
+        summary: normalizedEvents.length > 0
+          ? `外部情报本轮 ${normalizedEvents.length} 条，带 identity ${eventsWithIdentity} 条，mapped ${mappedIdentities} 条；只做上下文。`
+          : hasFailures
+            ? `外部情报 collector 失败 ${failedRuns}、partial ${partialRuns}；不补假事件。`
+            : "外部情报源已定义，等待 collector 产生真实事件。",
+      },
       sourcePlan: buildExternalIntelSourcePlan(),
       latestRuns,
       events: normalizedEvents,

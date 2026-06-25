@@ -265,6 +265,67 @@ export type RadarSignal = {
   discovery?: DiscoveryFact | null
 }
 
+export type OpportunityQualityCandidate = {
+  symbol: string
+  maturity: SignalMaturity
+  phase: DiscoveryOpportunityPhase | null
+  earlyOpportunityScore: number | null
+  overextensionRisk: DiscoveryOverextensionRisk | null
+  whySelected: string
+  whyBlocked: string | null
+  nextAction: string
+}
+
+export type OpportunityQualityState = {
+  schemaVersion: 'opportunity-quality.v1'
+  status: 'healthy' | 'watch' | 'blocked'
+  summary: string
+  counts: {
+    blocked: number
+    breakoutWatch: number
+    deepScanCandidate: number
+    earlySetup: number
+    evidenceSignal: number
+    lateMove: number
+    reviewOnly: number
+    totalVisible: number
+    tradePlanReady: number
+    waitingPullbackOrRetest: number
+  }
+  antiChase: {
+    blockedLateSignals: number
+    guardrails: string[]
+  }
+  nextActions: string[]
+  topCandidates: OpportunityQualityCandidate[]
+}
+
+export function getOpportunityQuality(): Resource<OpportunityQualityState> {
+  return legacyEmptyResource({
+    schemaVersion: 'opportunity-quality.v1',
+    status: 'blocked',
+    summary: '等待真实机会质量契约。',
+    counts: {
+      blocked: 0,
+      breakoutWatch: 0,
+      deepScanCandidate: 0,
+      earlySetup: 0,
+      evidenceSignal: 0,
+      lateMove: 0,
+      reviewOnly: 0,
+      totalVisible: 0,
+      tradePlanReady: 0,
+      waitingPullbackOrRetest: 0,
+    },
+    antiChase: {
+      blockedLateSignals: 0,
+      guardrails: ['等待真实机会质量契约。'],
+    },
+    nextActions: [],
+    topCandidates: [],
+  })
+}
+
 export function getRadarSignals(): Resource<RadarSignal[]> {
   return legacyEmptyResource([])
 }
@@ -351,9 +412,22 @@ export type TokenDossier = {
   evidence: EvidenceItem[]
   counter: CounterItem[]
   riskGate: RiskGateResult
+  strategyReadiness: TokenStrategyReadiness
   tradePlan: TradePlanData | null // 被拦截时为 null
   aiReview: AiReviewData
   reportSections: AnalysisReportSection[]
+}
+
+export type TokenStrategyReadiness = {
+  schemaVersion: 'token-strategy-readiness.v1'
+  status: 'ready' | 'blocked' | 'watch' | 'review_only'
+  canTradeNow: boolean
+  summary: string
+  nextAction: string
+  missingPieces: string[]
+  guardrails: string[]
+  positionLensStatus: PersonalPositionLens['status'] | 'not_applicable'
+  personalLens: string
 }
 
 export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDossier> {
@@ -399,6 +473,17 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
     riskGate: {
       allowTradePlan: false,
       reasons: [LEGACY_DISABLED_REASON],
+    },
+    strategyReadiness: {
+      schemaVersion: 'token-strategy-readiness.v1',
+      status: 'blocked',
+      canTradeNow: false,
+      summary: '等待真实单币策略就绪契约。',
+      nextAction: '等待后端契约。',
+      missingPieces: [LEGACY_DISABLED_REASON],
+      guardrails: ['前端不得补交易计划。'],
+      positionLensStatus: 'not_applicable',
+      personalLens: '尚未生成交易计划。',
     },
     tradePlan: null,
     aiReview: {
@@ -803,6 +888,89 @@ export function getLightScanQuality(): Resource<LightScanQualityState> {
   })
 }
 
+export type DeepScanQualityState = {
+  schemaVersion: 'deep-scan-quality.v1'
+  status: 'healthy' | 'watch' | 'blocked'
+  summary: string
+  plannedAssets: number
+  plannedRequests: number
+  rawRows: number
+  cleanRows: number
+  cleanRate: number
+  failedAssets: string[]
+  requestFailures: Array<{
+    code: string | null
+    error: string
+    symbol: string
+  }>
+  boundary: string
+  guardrails: string[]
+}
+
+export function getDeepScanQuality(): Resource<DeepScanQualityState> {
+  return legacyEmptyResource({
+    schemaVersion: 'deep-scan-quality.v1',
+    status: 'blocked',
+    summary: '等待真实深扫质量契约。',
+    plannedAssets: 0,
+    plannedRequests: 0,
+    rawRows: 0,
+    cleanRows: 0,
+    cleanRate: 0,
+    failedAssets: [],
+    requestFailures: [],
+    boundary: 'CoinGlass 深扫状态必须来自后端真实审计。',
+    guardrails: ['不得用公开源冒充 CoinGlass。'],
+  })
+}
+
+export type MacroReadinessState = {
+  schemaVersion: 'macro-readiness.v1'
+  status: 'healthy' | 'watch' | 'blocked'
+  summary: string
+  riskMode: MacroAltEnv['riskMode']
+  availableFields: string[]
+  missingFields: string[]
+  guardrails: string[]
+}
+
+export function getMacroReadiness(): Resource<MacroReadinessState> {
+  return legacyEmptyResource({
+    schemaVersion: 'macro-readiness.v1',
+    status: 'blocked',
+    summary: '等待真实宏观准备度契约。',
+    riskMode: '防守',
+    availableFields: [],
+    missingFields: ['btc_dominance', 'total2', 'total3'],
+    guardrails: ['宏观只做背景，不能直接生成个币方向。'],
+  })
+}
+
+export type OpsReliabilityCheck = {
+  key: string
+  label: string
+  status: 'pass' | 'watch' | 'blocked'
+  detail: string
+}
+
+export type OpsReliabilityState = {
+  schemaVersion: 'ops-reliability.v1'
+  status: 'healthy' | 'watch' | 'blocked'
+  summary: string
+  checks: OpsReliabilityCheck[]
+  nextActions: string[]
+}
+
+export function getOpsReliability(): Resource<OpsReliabilityState> {
+  return legacyEmptyResource({
+    schemaVersion: 'ops-reliability.v1',
+    status: 'blocked',
+    summary: '等待真实生产可靠性契约。',
+    checks: [],
+    nextActions: [],
+  })
+}
+
 // ============================================================
 // 端点组合 getter —— 与后端 4 个适配接口一一对应
 // ------------------------------------------------------------
@@ -830,6 +998,10 @@ export type RadarContract = {
   scanStability: Resource<ScanStabilityState>
   lightScanQuality: Resource<LightScanQualityState>
   realtimeCapability: Resource<RealtimeCapabilityState>
+  opportunityQuality: Resource<OpportunityQualityState>
+  deepScanQuality: Resource<DeepScanQualityState>
+  macroReadiness: Resource<MacroReadinessState>
+  opsReliability: Resource<OpsReliabilityState>
   serviceNodes: Resource<ServiceNode[]>
 }
 
@@ -850,6 +1022,10 @@ export function getRadarContract(): RadarContract {
     scanStability: getScanStability(),
     lightScanQuality: getLightScanQuality(),
     realtimeCapability: getRealtimeCapability(),
+    opportunityQuality: getOpportunityQuality(),
+    deepScanQuality: getDeepScanQuality(),
+    macroReadiness: getMacroReadiness(),
+    opsReliability: getOpsReliability(),
     serviceNodes: getServiceNodes(),
   }
 }
@@ -896,6 +1072,14 @@ export type AiReviewStats = {
 }
 
 export type DiscoveryReviewState = {
+  calibration: {
+    earlyOutcomeLink: 'ready' | 'collecting'
+    lateSignalPenalty: 'active' | 'collecting'
+    mfeMaeLink: 'ready' | 'collecting'
+    notes: string[]
+    status: 'usable' | 'collecting' | 'empty'
+    summary: string
+  }
   cvdProxyCandidateCount: number
   earlyOpportunityCount: number
   guardrails: string[]
@@ -942,6 +1126,14 @@ export function getDiscoveryReview(): Resource<DiscoveryReviewState> {
   return resource(
     {
       cvdProxyCandidateCount: 0,
+      calibration: {
+        earlyOutcomeLink: 'collecting',
+        lateSignalPenalty: 'collecting',
+        mfeMaeLink: 'collecting',
+        notes: [],
+        status: 'empty',
+        summary: '等待真实提前发现校准契约。',
+      },
       earlyOpportunityCount: 0,
       guardrails: [
         '旧同步 getter 已停用。页面必须读取真实后端复盘契约。',

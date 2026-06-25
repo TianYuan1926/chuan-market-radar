@@ -210,6 +210,7 @@
 - OI、Funding、多空比只能作为资金质量和拥挤证据。
 - CoinGlass 返回 `Upgrade plan`、鉴权失败、限速、空数据或 0 clean rows，必须进入 health、metadata、backend-contract 和前端数据源说明。
 - 公共交易所 fallback 必须标注为公开源，不能冒充 CoinGlass。
+- `deep-scan-quality.v1` 必须展示 planned、raw、clean、clean rate、failed assets、request failures 和边界说明；深扫失败不能被写成“市场无机会”。
 
 ### 合法外部情报
 
@@ -352,6 +353,7 @@ RawSource
 - TOTAL2 / TOTAL3。
 - Funding / OI 背景。
 - ETF / fear & greed 如真实接入才展示。
+- `macro-readiness.v1` 必须说明 BTC.D、TOTAL2、TOTAL3 哪些真实可用、哪些缺失；宏观状态只能影响顺风/逆风背景，不能直接给个币方向。
 
 不能直接给个币买卖方向，不能降低 RR 门槛。
 
@@ -530,7 +532,7 @@ RawSource
 
 ### P2：机会发现质量增强
 
-状态：已完成晚到信号拦截、发现层展示和 `REVIEW_ONLY` 接线；后续继续靠长期样本调优候选排序。
+状态：已完成机会质量合同和前端可见化；后续只靠长期样本继续调优候选排序。
 
 目标：让系统更早发现“还没完全爆发、仍有布局价值”的山寨，而不是追着已经涨完/跌完的币给方向。
 
@@ -542,13 +544,15 @@ RawSource
 - v3 已给出的 `AVOID_CHASE_LONG/SHORT`、`LONG_EXHAUSTION/SHORT_EXHAUSTION`、`CHASE_RISK` 和衰竭风险会进入 `REVIEW_ONLY`。
 - 榜单 fallback 对无真实信号且 24h 波动过大的涨跌幅行降级为 `REVIEW_ONLY`，禁止追涨追跌。
 - 单币档案和信号池已显示轻扫阶段、提前分、主动买卖压力、CVD proxy 和延展风险，让“已经涨完/跌完”的样本不会被误读为好位置。
+- `opportunityQuality.v1` 已接入 `/api/frontend/radar-contract`：统一展示启动前、突破观察、证据信号、计划就绪、晚到、拦截、等待回踩/反抽等数量。
+- `/dashboard` 已展示“机会质量与执行边界”：明确候选下一步、追涨追跌拦截数量和狙击榜只允许 `TRADE_PLAN_READY`。
 
 继续做强：
 
-- 候选排序继续减少追涨追跌浪费。
+- 候选排序继续根据真实 outcome 减少追涨追跌浪费。
 - 对 24h 已大幅上涨的多头候选做 overextended cap；对 24h 已大幅下跌的空头候选做 breakdown exhaustion cap。
 - 波动率压缩、量能启动、相对强弱、关键位接近度、低位结构、突破前沿、回踩确认位继续提高权重。
-- 每个未进入下一层的币需要能解释原因：未深扫、数据不足、位置太差、RR 不够、已经晚到、等待回踩、等待反抽。
+- 每个未进入下一层的币需要继续沉淀更细原因：未深扫、数据不足、位置太差、RR 不够、已经晚到、等待回踩、等待反抽。
 
 验收标准：
 
@@ -559,7 +563,7 @@ RawSource
 
 ### P3：策略输出增强
 
-状态：已完成单币档案 `REVIEW_ONLY` 保护和发现层解释；后续继续增强结构计划表达的可读性和完整性。
+状态：已完成单币策略就绪合同、`REVIEW_ONLY` 保护、发现层解释和个人仓位镜头显式展示；后续继续增强结构计划表达。
 
 - 单币档案继续做强。
 - 多周期结构展示继续细化。
@@ -573,10 +577,12 @@ RawSource
 - 交易计划必须说明当前位置为什么仍然可做；不能只说趋势强。
 - 如果位置已经失去优势，必须输出 `AVOID_CHASE`、`WAIT_PULLBACK`、`WAIT_RETEST`、`REVIEW_ONLY` 或 `EXHAUSTION_RISK`。
 - 单币档案不得把已 late/no-chase 的 v3 plan 显示成可交易计划；必须清空 tradePlan 并展示复盘观察/风控原因。
+- `token-strategy-readiness.v1` 已接入单币档案：单独说明现在能不能做、缺什么、下一步等什么、个人仓位镜头是否适用。
+- 个人仓位镜头仍只在后端结构交易计划生成后展示，不改变结构 RR、Evidence、Risk Gate 或自动执行边界。
 
 ### P4：复盘进化增强
 
-状态：Daily Mover 启动前窗口、漏判归因和提前发现复盘面板已增强；长期 outcome 和策略分型仍需继续积累。
+状态：Daily Mover 启动前窗口、漏判归因、提前发现复盘和提前发现校准合同已增强；长期 outcome 和策略分型仍需继续积累。
 
 - 积累真实 outcome 样本。
 - 完整统计 MFE / MAE / TP first / SL first / timeout。
@@ -590,13 +596,15 @@ RawSource
 - 人工校准和回滚验证。
 - 真实权重建议只能人工确认后生效，不能自动改实时权重。
 - `/review` 已展示 `discoveryReview`：轻扫候选数量、early/late/CVD proxy/missed review 样本和复盘关注点。
+- `discoveryReview.calibration` 已接入 `/review`：明确 early -> outcome、late signal penalty、MFE/MAE 关联是否可用，样本不足时必须显示 collecting/empty。
 
 ### P5：合法外部情报
 
-状态：基础 collector 和 token identity 合同已完成；后续继续补更多合法源和低频 enrich。
+状态：基础 collector、token identity 合同和外部情报质量摘要已完成；后续继续补更多合法源和低频 enrich。
 
 - DEX Screener 已有 latest boosts 基础 collector；事件会带 chain/contract 作为 token identity。后续补 pair enrichment、流动性变化、链/地址到 symbol 的映射。
 - CoinGecko trending 已有基础 collector；事件会带 coingeckoId/logo/name/symbol 作为 token identity。后续补更稳定的跨源映射。
+- `external-intel.v1.quality` 已展示 enabled/active source、成功/失败 run、identity/mapped 数量；失败时不补假事件。
 - 接交易所官方公告和 RSS。
 - 接 Token identity / logo / symbol mapping 数据源。
 - 接宏观公开 API：BTC.D、TOTAL2、TOTAL3、稳定币流动性等。
@@ -604,15 +612,16 @@ RawSource
 
 ### P6：生产运维
 
-状态：本地发布前闸门、GitHub -> 腾讯云发布和 smoke 基础已完成；后续继续做恢复演练和长期报警。
+状态：本地发布前闸门、GitHub -> 腾讯云发布、smoke、日志打包脚本和回滚脚本已完成；后续继续做恢复演练和长期报警。
 
 - 继续稳定 GitHub -> 腾讯云自动发布。
 - 发布前必须先跑 `npm run production:preflight`，再推送和生产部署。
-- 补齐回滚脚本。
-- 补齐日志打包。
+- 回滚脚本：`npm run production:rollback`，必须显式设置 `ROLLBACK_TO`。
+- 日志打包：`npm run production:logs`，输出 `deploy/diagnostics/prod-logs-*.txt`。
 - 补齐 Postgres 备份和恢复演练。
 - 补齐 worker 长期异常告警。
 - 持续检查服务器 HEAD 与 GitHub main 一致。
+- `ops-reliability.v1` 已接入 `/api/frontend/radar-contract` 和 `/dashboard`：统一展示 Postgres、Redis、worker、CoinGlass 预算、深扫质量和扫描稳定性。
 
 ### P7：前端统一打磨
 

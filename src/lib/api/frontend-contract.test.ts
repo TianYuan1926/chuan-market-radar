@@ -708,6 +708,20 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.lightScanQuality.data.schemaVersion, "light-scan-quality.v1");
   assert.equal(radar.lightScanQuality.data.canCreateTradeSignal, false);
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "decision_boundary" && check.status === "pass"));
+  assert.equal(radar.opportunityQuality.data.schemaVersion, "opportunity-quality.v1");
+  assert.equal(radar.opportunityQuality.data.counts.evidenceSignal, 1);
+  assert.equal(radar.opportunityQuality.data.counts.tradePlanReady, 0);
+  assert.ok(radar.opportunityQuality.data.antiChase.guardrails.some((rule) => /狙击榜只允许/.test(rule)));
+  assert.match(radar.opportunityQuality.reason ?? "", /机会质量只判断提前性/);
+  assert.equal(radar.deepScanQuality.data.schemaVersion, "deep-scan-quality.v1");
+  assert.equal(radar.deepScanQuality.data.cleanRows, 24);
+  assert.equal(radar.deepScanQuality.data.cleanRate, 100);
+  assert.match(radar.deepScanQuality.data.boundary, /不能写成市场无机会/);
+  assert.equal(radar.macroReadiness.data.schemaVersion, "macro-readiness.v1");
+  assert.equal(radar.macroReadiness.data.availableFields.includes("btc_dominance"), true);
+  assert.match(radar.macroReadiness.reason ?? "", /宏观只做山寨环境背景/);
+  assert.equal(radar.opsReliability.data.schemaVersion, "ops-reliability.v1");
+  assert.ok(radar.opsReliability.data.checks.some((check) => check.key === "postgres" && check.status === "pass"));
   assert.equal(radar.realtimeCapability.status, "live");
   assert.equal(radar.realtimeCapability.data.schemaVersion, "realtime-capability.v1");
   assert.equal(radar.realtimeCapability.data.lanes.length >= 7, true);
@@ -2111,6 +2125,11 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   assert.equal(res.data.chart.canUseMockCandles, false);
   assert.equal(res.data.riskGate.allowTradePlan, true);
   assert.deepEqual(res.data.riskGate.reasons, []);
+  assert.equal(res.data.strategyReadiness.schemaVersion, "token-strategy-readiness.v1");
+  assert.equal(res.data.strategyReadiness.status, "ready");
+  assert.equal(res.data.strategyReadiness.canTradeNow, true);
+  assert.equal(res.data.strategyReadiness.positionLensStatus, "ready");
+  assert.match(res.data.strategyReadiness.personalLens, /不改变结构 RR/);
   assert.equal(res.data.tradePlan?.bias, "多");
   assert.equal(res.data.tradePlan?.entryCondition, "8.20 - 8.28");
   assert.match(res.data.tradePlan?.stop ?? "", /7\.76/);
@@ -2313,6 +2332,9 @@ test("buildFrontendTokenDossierContract turns late avoid-chase dossiers into rev
   assert.equal(res.data.maturity, "REVIEW_ONLY");
   assert.equal(res.data.tradePlan, null);
   assert.equal(res.data.riskGate.allowTradePlan, false);
+  assert.equal(res.data.strategyReadiness.status, "review_only");
+  assert.equal(res.data.strategyReadiness.canTradeNow, false);
+  assert.match(res.data.strategyReadiness.summary, /晚到|延展/);
   assert.match(res.data.riskGate.reasons.join("；"), /复盘观察|追高|衰竭/);
   assert.match(
     res.data.reportSections.find((section) => section.key === "trade_plan")?.items[0]?.detail ?? "",
@@ -2384,6 +2406,10 @@ test("buildFrontendReviewContract returns review resources from journal and capa
   assert.equal(review.discoveryReview.data.earlyOpportunityCount, 1);
   assert.equal(review.discoveryReview.data.lateMoveCount, 1);
   assert.equal(review.discoveryReview.data.cvdProxyCandidateCount, 1);
+  assert.equal(review.discoveryReview.data.calibration.status, "collecting");
+  assert.equal(review.discoveryReview.data.calibration.earlyOutcomeLink, "ready");
+  assert.equal(review.discoveryReview.data.calibration.lateSignalPenalty, "active");
+  assert.ok(review.discoveryReview.data.calibration.notes.some((note) => /不自动改实时权重/.test(note)));
   assert.ok(review.discoveryReview.data.guardrails.some((rule) => /晚到涨跌榜样本/.test(rule)));
   assert.equal(review.aiReviewStats.status, "empty");
   assert.equal(review.aiReviewStats.data.unboundFallbackProtected, true);

@@ -66,6 +66,8 @@ test("buildExternalIntelContract reports empty until collectors produce normaliz
 
   assert.equal(empty.status, "empty");
   assert.match(empty.reason ?? "", /collector 尚未产生事件/);
+  assert.equal(empty.data.quality.enabledSources >= 2, true);
+  assert.match(empty.data.quality.summary, /等待 collector/);
 
   const live = buildExternalIntelContract({
     events: [
@@ -90,6 +92,8 @@ test("buildExternalIntelContract reports empty until collectors produce normaliz
   assert.equal(live.status, "live");
   assert.equal(live.data.events.length, 1);
   assert.equal(live.data.evidenceCandidates[0]?.canCreateTradeSignal, false);
+  assert.equal(live.data.quality.eventsWithIdentity, 1);
+  assert.match(live.data.quality.summary, /只做上下文/);
 });
 
 test("buildExternalIntelContract reports failed collector runs without fake events", () => {
@@ -108,5 +112,6 @@ test("buildExternalIntelContract reports failed collector runs without fake even
 
   assert.equal(failed.status, "failed");
   assert.equal(failed.data.events.length, 0);
+  assert.equal(failed.data.quality.failedRuns, 1);
   assert.match(failed.reason ?? "", /不使用旧数据或假事件/);
 });

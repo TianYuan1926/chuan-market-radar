@@ -16,6 +16,14 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
   const missed = contract?.missedDetections ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端漏判复查契约' })
   const suggestions = contract?.evolutionSuggestions ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端进化建议契约' })
   const discoveryReview = contract?.discoveryReview ?? resource({
+    calibration: {
+      earlyOutcomeLink: 'collecting' as const,
+      lateSignalPenalty: 'collecting' as const,
+      mfeMaeLink: 'collecting' as const,
+      notes: [],
+      status: 'empty' as const,
+      summary: '未传入后端提前发现校准契约',
+    },
     cvdProxyCandidateCount: 0,
     earlyOpportunityCount: 0,
     guardrails: ['未传入后端提前发现复盘契约'],
@@ -139,6 +147,37 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
           <p className="text-xs leading-relaxed text-muted-foreground">
             {discoveryReview.data.summary}
           </p>
+          <div className="border border-border bg-secondary/20 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-xs font-semibold">提前发现校准</div>
+              <span
+                className={cn(
+                  'border px-1.5 py-0.5 font-mono text-[10px]',
+                  discoveryReview.data.calibration.status === 'usable'
+                    ? 'border-up/40 bg-up/10 text-up'
+                    : discoveryReview.data.calibration.status === 'collecting'
+                      ? 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]'
+                      : 'border-border bg-muted/40 text-muted-foreground',
+                )}
+              >
+                {discoveryReview.data.calibration.status}
+              </span>
+              <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                early→outcome {discoveryReview.data.calibration.earlyOutcomeLink} · late penalty {discoveryReview.data.calibration.lateSignalPenalty} · MFE/MAE {discoveryReview.data.calibration.mfeMaeLink}
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {discoveryReview.data.calibration.summary}
+            </p>
+            <ul className="mt-2 grid gap-1.5 text-[11px] leading-relaxed text-muted-foreground lg:grid-cols-3">
+              {discoveryReview.data.calibration.notes.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="mt-1.5 size-1.5 shrink-0 bg-neon" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <div className="grid gap-3 lg:grid-cols-2">
             <div className="border border-border bg-secondary/20 p-3">
               <div className="text-xs font-semibold">复盘重点</div>

@@ -137,6 +137,70 @@ export function TokenDossier({
         )}
       </div>
 
+      {/* 策略就绪判断 */}
+      <div className="border-b border-border px-6 py-5">
+        <h3 className="flex items-center gap-2 text-sm font-semibold">
+          {d.strategyReadiness.canTradeNow ? (
+            <ShieldCheck className="size-4 text-up" />
+          ) : (
+            <Lock className="size-4 text-down" />
+          )}
+          策略就绪判断
+          <span
+            className={cn(
+              'ml-auto border px-1.5 py-0.5 font-mono text-[10px]',
+              d.strategyReadiness.status === 'ready'
+                ? 'border-up/40 bg-up/10 text-up'
+                : d.strategyReadiness.status === 'review_only'
+                  ? 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]'
+                  : 'border-down/40 bg-down/10 text-down',
+            )}
+          >
+            {d.strategyReadiness.status}
+          </span>
+        </h3>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="border border-border bg-secondary/20 p-3">
+            <div className="text-xs font-semibold">
+              {d.strategyReadiness.canTradeNow ? '当前可进入人工计划复核' : '当前不能交易'}
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {d.strategyReadiness.summary}
+            </p>
+            <p className="mt-2 border-l-2 border-border pl-3 text-[11px] leading-relaxed text-muted-foreground">
+              下一步：{d.strategyReadiness.nextAction}
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-xs font-semibold">还缺什么</div>
+              <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                {(d.strategyReadiness.missingPieces.length > 0 ? d.strategyReadiness.missingPieces : ['无缺失，等待人工复核']).slice(0, 6).map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="mt-1.5 size-1.5 shrink-0 bg-down" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-xs font-semibold">个人仓位镜头</div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                {d.strategyReadiness.personalLens}
+              </p>
+              <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+                status: {d.strategyReadiness.positionLensStatus}
+              </p>
+              <ul className="mt-2 space-y-1 text-[10px] leading-relaxed text-muted-foreground">
+                {d.strategyReadiness.guardrails.slice(0, 3).map((item) => (
+                  <li key={item}>· {item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 分层分析报告 */}
       {d.reportSections.length > 0 && (
         <div className="border-b border-border px-6 py-5">

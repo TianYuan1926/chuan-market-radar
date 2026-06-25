@@ -4,7 +4,11 @@ import {
   type CapabilityStage,
   type DataSourceState,
   type DeepScanQueue,
+  type DeepScanQualityState,
   type LightScanQualityState,
+  type MacroReadinessState,
+  type OpportunityQualityState,
+  type OpsReliabilityState,
   type RadarContract,
   type RealtimeCapabilityState,
   type ScanStabilityState,
@@ -24,6 +28,8 @@ import {
   ShieldCheck,
   ClipboardList,
   Activity,
+  Target,
+  ServerCog,
 } from 'lucide-react'
 import type {
   CoreChainGovernanceReport,
@@ -195,6 +201,59 @@ const EMPTY_REALTIME = resource<RealtimeCapabilityState>({
     '交易计划必须经过结构、证据、RR、Risk Gate 和失效条件。',
   ],
 }, 'empty', EMPTY_SOURCE)
+const EMPTY_OPPORTUNITY_QUALITY = resource<OpportunityQualityState>({
+  schemaVersion: 'opportunity-quality.v1',
+  status: 'blocked',
+  summary: '等待后端机会质量契约。',
+  counts: {
+    blocked: 0,
+    breakoutWatch: 0,
+    deepScanCandidate: 0,
+    earlySetup: 0,
+    evidenceSignal: 0,
+    lateMove: 0,
+    reviewOnly: 0,
+    totalVisible: 0,
+    tradePlanReady: 0,
+    waitingPullbackOrRetest: 0,
+  },
+  antiChase: {
+    blockedLateSignals: 0,
+    guardrails: ['等待真实机会质量契约。'],
+  },
+  nextActions: [],
+  topCandidates: [],
+}, 'empty', EMPTY_SOURCE)
+const EMPTY_DEEP_SCAN_QUALITY = resource<DeepScanQualityState>({
+  schemaVersion: 'deep-scan-quality.v1',
+  status: 'blocked',
+  summary: '等待后端深扫质量契约。',
+  plannedAssets: 0,
+  plannedRequests: 0,
+  rawRows: 0,
+  cleanRows: 0,
+  cleanRate: 0,
+  failedAssets: [],
+  requestFailures: [],
+  boundary: '等待后端 CoinGlass 深扫审计。',
+  guardrails: ['不得用公开源冒充 CoinGlass。'],
+}, 'empty', EMPTY_SOURCE)
+const EMPTY_MACRO_READINESS = resource<MacroReadinessState>({
+  schemaVersion: 'macro-readiness.v1',
+  status: 'blocked',
+  summary: '等待后端宏观准备度契约。',
+  riskMode: '防守',
+  availableFields: [],
+  missingFields: ['btc_dominance', 'total2', 'total3'],
+  guardrails: ['宏观只做背景，不能直接给个币方向。'],
+}, 'empty', EMPTY_SOURCE)
+const EMPTY_OPS_RELIABILITY = resource<OpsReliabilityState>({
+  schemaVersion: 'ops-reliability.v1',
+  status: 'blocked',
+  summary: '等待后端生产可靠性契约。',
+  checks: [],
+  nextActions: [],
+}, 'empty', EMPTY_SOURCE)
 const EMPTY_GOVERNANCE = resource<CoreChainGovernanceReport>({
   schemaVersion: 'core-chain-governance.v1',
   generatedAt: '',
@@ -240,6 +299,10 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
   const scanStability = contract?.scanStability ?? EMPTY_SCAN_STABILITY
   const lightScanQuality = contract?.lightScanQuality ?? EMPTY_LIGHT_SCAN_QUALITY
   const realtime = contract?.realtimeCapability ?? EMPTY_REALTIME
+  const opportunityQuality = contract?.opportunityQuality ?? EMPTY_OPPORTUNITY_QUALITY
+  const deepScanQuality = contract?.deepScanQuality ?? EMPTY_DEEP_SCAN_QUALITY
+  const macroReadiness = contract?.macroReadiness ?? EMPTY_MACRO_READINESS
+  const opsReliability = contract?.opsReliability ?? EMPTY_OPS_RELIABILITY
 
   const sp = scan.data
 
@@ -409,6 +472,148 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
               </div>
             )}
           </ResourceBoundary>
+        </div>
+      </section>
+
+      {/* 二点六、机会质量 / 深扫质量 / 运维底座 */}
+      <section className="border border-border bg-card lg:col-span-2">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <span className="h-3.5 w-1 bg-neon" />
+          <Target className="size-4 text-neon" />
+          <h2 className="font-semibold">机会质量与执行边界</h2>
+          <span className="ml-auto mr-2 text-xs text-muted-foreground">
+            提前发现优先，不追已经发生的行情
+          </span>
+          <StatusBadge status={opportunityQuality.status} />
+        </div>
+        <div className="grid gap-3 p-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <ResourceBoundary resource={opportunityQuality}>
+            {(quality) => (
+              <div className="space-y-3 border border-border bg-secondary/25 p-3">
+                <div className="flex items-center gap-2">
+                  <span className={`size-2 rounded-full ${quality.status === 'healthy' ? 'bg-up animate-pulse' : quality.status === 'watch' ? 'bg-[oklch(0.8_0.15_75)]' : 'bg-down'}`} />
+                  <span className="text-sm font-semibold">
+                    {quality.status === 'healthy' ? '机会发现可用' : quality.status === 'watch' ? '机会等待确认' : '机会层阻塞'}
+                  </span>
+                  <span className="ml-auto font-mono text-xs text-muted-foreground">
+                    visible {quality.counts.totalVisible}
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {quality.summary}
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
+                  <MetricPill label="启动前" value={quality.counts.earlySetup} />
+                  <MetricPill label="突破观察" value={quality.counts.breakoutWatch} />
+                  <MetricPill label="证据" value={quality.counts.evidenceSignal} />
+                  <MetricPill label="计划" value={quality.counts.tradePlanReady} />
+                  <MetricPill label="晚到" value={quality.counts.lateMove} />
+                  <MetricPill label="拦截" value={quality.counts.blocked} />
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {quality.topCandidates.slice(0, 6).map((candidate) => (
+                    <div key={`${candidate.symbol}-${candidate.maturity}`} className="border border-border bg-background/40 p-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-neon">{candidate.symbol}</span>
+                        <span className="ml-auto border border-border bg-secondary/30 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                          {candidate.maturity}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1 font-mono text-[10px] text-muted-foreground">
+                        <span>phase {candidate.phase ?? '—'}</span>
+                        <span>early {candidate.earlyOpportunityScore ?? '—'}</span>
+                        <span>risk {candidate.overextensionRisk ?? '—'}</span>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {candidate.nextAction}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-border pt-3">
+                  <div className="text-xs font-semibold">追涨追跌拦截</div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    已拦截晚到/过热样本 {quality.antiChase.blockedLateSignals} 个。{quality.antiChase.guardrails[0]}
+                  </p>
+                </div>
+                <FreshnessTag {...opportunityQuality} className="block" />
+              </div>
+            )}
+          </ResourceBoundary>
+
+          <div className="grid gap-3">
+            <ResourceBoundary resource={deepScanQuality}>
+              {(deep) => (
+                <div className="border border-border bg-secondary/25 p-3">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="size-4 text-neon" />
+                    <span className="text-sm font-semibold">CoinGlass 深扫质量</span>
+                    <StatusBadge status={deepScanQuality.status} className="ml-auto" />
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{deep.summary}</p>
+                  <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                    <MetricPill label="资产" value={deep.plannedAssets} />
+                    <MetricPill label="请求" value={deep.plannedRequests} />
+                    <MetricPill label="clean" value={deep.cleanRows} />
+                    <MetricPill label="rate" value={deep.cleanRate} suffix="%" />
+                  </div>
+                  {deep.requestFailures.length > 0 && (
+                    <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-down">
+                      {deep.requestFailures.slice(0, 2).map((failure) => `${failure.symbol}:${failure.error}`).join(' / ')}
+                    </p>
+                  )}
+                  <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">{deep.boundary}</p>
+                </div>
+              )}
+            </ResourceBoundary>
+
+            <ResourceBoundary resource={macroReadiness}>
+              {(macro) => (
+                <div className="border border-border bg-secondary/25 p-3">
+                  <div className="flex items-center gap-2">
+                    <Route className="size-4 text-neon" />
+                    <span className="text-sm font-semibold">宏观准备度</span>
+                    <StatusBadge status={macroReadiness.status} className="ml-auto" />
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{macro.summary}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {macro.availableFields.map((field) => (
+                      <span key={field} className="border border-up/35 bg-up/10 px-1.5 py-0.5 font-mono text-[10px] text-up">{field}</span>
+                    ))}
+                    {macro.missingFields.map((field) => (
+                      <span key={field} className="border border-down/35 bg-down/10 px-1.5 py-0.5 font-mono text-[10px] text-down">{field}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </ResourceBoundary>
+
+            <ResourceBoundary resource={opsReliability}>
+              {(ops) => (
+                <div className="border border-border bg-secondary/25 p-3">
+                  <div className="flex items-center gap-2">
+                    <ServerCog className="size-4 text-neon" />
+                    <span className="text-sm font-semibold">生产可靠性</span>
+                    <StatusBadge status={opsReliability.status} className="ml-auto" />
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{ops.summary}</p>
+                  <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                    {ops.checks.map((check) => (
+                      <div key={check.key} className="border border-border bg-background/40 p-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold">{check.label}</span>
+                          <span className={`ml-auto border px-1.5 py-0.5 text-[10px] ${QUALITY_CHECK_TONE[check.status]}`}>
+                            {QUALITY_CHECK_LABEL[check.status]}
+                          </span>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{check.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </ResourceBoundary>
+          </div>
         </div>
       </section>
 
@@ -911,11 +1116,11 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
   )
 }
 
-function MetricPill({ label, value }: { label: string; value: number }) {
+function MetricPill({ label, suffix = '', value }: { label: string; suffix?: string; value: number }) {
   return (
     <div className="border border-border bg-background/40 px-2 py-1.5">
       <div className="text-[10px] text-muted-foreground">{label}</div>
-      <div className="font-mono text-lg font-bold text-foreground">{value}</div>
+      <div className="font-mono text-lg font-bold text-foreground">{value}{suffix}</div>
     </div>
   )
 }

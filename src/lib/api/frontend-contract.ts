@@ -143,6 +143,41 @@ export type RadarSignal = {
   discovery?: DiscoveryFact | null;
 };
 
+export type OpportunityQualityCandidate = {
+  symbol: string;
+  maturity: SignalMaturity;
+  phase: ScanLightScanCandidate["opportunityPhase"] | null;
+  earlyOpportunityScore: number | null;
+  overextensionRisk: ScanLightScanCandidate["overextensionRisk"] | null;
+  whySelected: string;
+  whyBlocked: string | null;
+  nextAction: string;
+};
+
+export type OpportunityQualityState = {
+  schemaVersion: "opportunity-quality.v1";
+  status: "healthy" | "watch" | "blocked";
+  summary: string;
+  counts: {
+    blocked: number;
+    breakoutWatch: number;
+    deepScanCandidate: number;
+    earlySetup: number;
+    evidenceSignal: number;
+    lateMove: number;
+    reviewOnly: number;
+    totalVisible: number;
+    tradePlanReady: number;
+    waitingPullbackOrRetest: number;
+  };
+  antiChase: {
+    blockedLateSignals: number;
+    guardrails: string[];
+  };
+  nextActions: string[];
+  topCandidates: OpportunityQualityCandidate[];
+};
+
 export type TfStructure = {
   tf: "15m" | "1h" | "4h" | "1d";
   phase: string;
@@ -226,9 +261,22 @@ export type TokenDossier = {
   evidence: EvidenceItem[];
   counter: CounterItem[];
   riskGate: RiskGateResult;
+  strategyReadiness: TokenStrategyReadiness;
   tradePlan: TradePlanData | null;
   aiReview: AiReviewData;
   reportSections: AnalysisReportSection[];
+};
+
+export type TokenStrategyReadiness = {
+  schemaVersion: "token-strategy-readiness.v1";
+  status: "ready" | "blocked" | "watch" | "review_only";
+  canTradeNow: boolean;
+  summary: string;
+  nextAction: string;
+  missingPieces: string[];
+  guardrails: string[];
+  positionLensStatus: PersonalPositionLens["status"] | "not_applicable";
+  personalLens: string;
 };
 
 export type SignalLifecycle = {
@@ -470,6 +518,50 @@ export type RealtimeCapabilityState = {
   boundaries: string[];
 };
 
+export type DeepScanQualityState = {
+  schemaVersion: "deep-scan-quality.v1";
+  status: "healthy" | "watch" | "blocked";
+  summary: string;
+  plannedAssets: number;
+  plannedRequests: number;
+  rawRows: number;
+  cleanRows: number;
+  cleanRate: number;
+  failedAssets: string[];
+  requestFailures: Array<{
+    code: string | null;
+    error: string;
+    symbol: string;
+  }>;
+  boundary: string;
+  guardrails: string[];
+};
+
+export type MacroReadinessState = {
+  schemaVersion: "macro-readiness.v1";
+  status: "healthy" | "watch" | "blocked";
+  summary: string;
+  riskMode: MacroAltEnv["riskMode"];
+  availableFields: string[];
+  missingFields: string[];
+  guardrails: string[];
+};
+
+export type OpsReliabilityCheck = {
+  key: string;
+  label: string;
+  status: "pass" | "watch" | "blocked";
+  detail: string;
+};
+
+export type OpsReliabilityState = {
+  schemaVersion: "ops-reliability.v1";
+  status: "healthy" | "watch" | "blocked";
+  summary: string;
+  checks: OpsReliabilityCheck[];
+  nextActions: string[];
+};
+
 export type RadarContract = {
   scanProof: Resource<ScanProofData>;
   deepScanQueue: Resource<DeepScanQueue>;
@@ -486,6 +578,10 @@ export type RadarContract = {
   scanStability: Resource<ScanStabilityState>;
   lightScanQuality: Resource<LightScanQualityState>;
   realtimeCapability: Resource<RealtimeCapabilityState>;
+  opportunityQuality: Resource<OpportunityQualityState>;
+  deepScanQuality: Resource<DeepScanQualityState>;
+  macroReadiness: Resource<MacroReadinessState>;
+  opsReliability: Resource<OpsReliabilityState>;
   serviceNodes: Resource<ServiceNode[]>;
 };
 
@@ -502,6 +598,14 @@ export type ReviewStatsData = {
 };
 
 export type DiscoveryReviewState = {
+  calibration: {
+    earlyOutcomeLink: "ready" | "collecting";
+    lateSignalPenalty: "active" | "collecting";
+    mfeMaeLink: "ready" | "collecting";
+    notes: string[];
+    status: "usable" | "collecting" | "empty";
+    summary: string;
+  };
   cvdProxyCandidateCount: number;
   earlyOpportunityCount: number;
   guardrails: string[];
@@ -1966,6 +2070,250 @@ function normalizeAssetList(values: string[] | undefined) {
     );
 }
 
+function resourceStatusFromOpportunity(status: OpportunityQualityState["status"]): DataStatus {
+  if (status === "healthy") return "live";
+  if (status === "blocked") return "failed";
+  return "partial";
+}
+
+function nextActionForOpportunity(signal: RadarSignal) {
+  if (signal.maturity === "TRADE_PLAN_READY") {
+    return "可进入人工复核；仍不得自动下单。";
+  }
+  if (signal.maturity === "EVIDENCE_SIGNAL") {
+    return signal.whyBlocked ?? "继续等待 Risk Gate、RR、关键位和触发条件完整。";
+  }
+  if (signal.maturity === "DEEP_SCAN_CANDIDATE") {
+    return "等待 CoinGlass/公开衍生品深扫、结构和 Risk Gate。";
+  }
+  if (signal.maturity === "REVIEW_ONLY") {
+    return "只进复盘或等待回踩/反抽重构，不追。";
+  }
+  if (signal.maturity === "BLOCKED") {
+    return signal.whyBlocked ?? "被 Risk Gate 拦截，等待阻断原因解除。";
+  }
+  return signal.whyBlocked ?? "继续观察，不生成交易计划。";
+}
+
+function buildOpportunityQuality(visibleSignals: RadarSignal[]): OpportunityQualityState {
+  const earlySetup = visibleSignals.filter((signal) => signal.discovery?.opportunityPhase === "early_setup").length;
+  const breakoutWatch = visibleSignals.filter((signal) => signal.discovery?.opportunityPhase === "breakout_watch").length;
+  const lateMove = visibleSignals.filter((signal) =>
+    signal.maturity === "REVIEW_ONLY" ||
+    signal.discovery?.opportunityPhase === "late_move" ||
+    signal.discovery?.overextensionRisk === "high"
+  ).length;
+  const waitingPullbackOrRetest = visibleSignals.filter((signal) =>
+    /回踩|反抽|retest|pullback|等待突破|等待确认/iu.test(`${signal.whyBlocked ?? ""} ${signal.whySelected}`)
+  ).length;
+  const tradePlanReady = visibleSignals.filter((signal) => signal.maturity === "TRADE_PLAN_READY").length;
+  const evidenceSignal = visibleSignals.filter((signal) => signal.maturity === "EVIDENCE_SIGNAL").length;
+  const deepScanCandidate = visibleSignals.filter((signal) => signal.maturity === "DEEP_SCAN_CANDIDATE").length;
+  const blocked = visibleSignals.filter((signal) => signal.maturity === "BLOCKED").length;
+  const reviewOnly = visibleSignals.filter((signal) => signal.maturity === "REVIEW_ONLY").length;
+  const blockedLateSignals = visibleSignals.filter((signal) =>
+    signal.maturity === "REVIEW_ONLY" ||
+    /追涨|追空|晚到|过热|跌深|衰竭/iu.test(signal.whyBlocked ?? "")
+  ).length;
+  const status: OpportunityQualityState["status"] =
+    tradePlanReady > 0 || earlySetup > 0 || evidenceSignal > 0
+      ? "healthy"
+      : visibleSignals.length > 0
+        ? "watch"
+        : "blocked";
+
+  return {
+    schemaVersion: "opportunity-quality.v1",
+    status,
+    summary: status === "healthy"
+      ? `当前有 ${earlySetup} 个启动前候选、${evidenceSignal} 个证据信号、${tradePlanReady} 个计划就绪；系统优先看仍有位置优势的机会。`
+      : status === "watch"
+        ? `当前有 ${visibleSignals.length} 个可见候选，但尚未形成可交易计划；宁可等待，不用晚到行情补位。`
+        : "当前没有可展示候选；页面必须空态展示，不能用 mock 或旧缓存补位。",
+    counts: {
+      blocked,
+      breakoutWatch,
+      deepScanCandidate,
+      earlySetup,
+      evidenceSignal,
+      lateMove,
+      reviewOnly,
+      totalVisible: visibleSignals.length,
+      tradePlanReady,
+      waitingPullbackOrRetest,
+    },
+    antiChase: {
+      blockedLateSignals,
+      guardrails: [
+        "已经大涨看多、已经大跌看空默认不是机会，优先等待回踩/反抽或进入复盘。",
+        "轻扫、榜单和 CVD proxy 只能提升候选优先级，不能直接生成交易计划。",
+        "狙击榜只允许 TRADE_PLAN_READY；候选不能补位。",
+      ],
+    },
+    nextActions: [
+      earlySetup > 0 ? "优先把启动前候选送入深扫和结构确认。" : "继续等待启动前候选，不追已经发生的大波动。",
+      blockedLateSignals > 0 ? "晚到样本进入复盘，回看启动前 1h/3h/6h/12h 线索。" : "继续保持追涨追跌拦截。",
+      tradePlanReady > 0 ? "计划就绪只进入人工复核，不自动执行。" : "无计划时前端保持空态或验证中，不编策略。",
+    ],
+    topCandidates: visibleSignals.slice(0, 10).map((signal) => ({
+      symbol: signal.symbol,
+      maturity: signal.maturity,
+      phase: signal.discovery?.opportunityPhase ?? null,
+      earlyOpportunityScore: signal.discovery?.earlyOpportunityScore ?? null,
+      overextensionRisk: signal.discovery?.overextensionRisk ?? null,
+      whySelected: signal.whySelected,
+      whyBlocked: signal.whyBlocked,
+      nextAction: nextActionForOpportunity(signal),
+    })),
+  };
+}
+
+function buildDeepScanQuality(backend: BackendContract): DeepScanQualityState {
+  const audit = backend.sourceAudit.coinGlassDeepScan;
+  const capability = backend.sourceAudit.coinGlassCapability;
+  const plannedAssets = audit.plannedAssets.length || backend.scanProof.deepScan.plannedAssets.length;
+  const plannedRequests = audit.plannedRequests || backend.scanProof.deepScan.coinGlassRequestsPlanned;
+  const rawRows = audit.rawRows || backend.scanProof.deepScan.rawRows;
+  const cleanRows = audit.cleanRows || backend.scanProof.deepScan.cleanRows;
+  const cleanRate = rawRows > 0 ? round((cleanRows / rawRows) * 100, 1) : 0;
+  const failures = (audit.requestFailures ?? []).map((failure) => ({
+    code: typeof failure.code === "string" ? failure.code : failure.code === undefined ? null : String(failure.code),
+    error: String(failure.error ?? "unknown error"),
+    symbol: displaySymbol(String(failure.symbol ?? "UNKNOWN")),
+  }));
+  const status: DeepScanQualityState["status"] =
+    capability.deepScanStatus === "ready" && cleanRows > 0
+      ? "healthy"
+      : rawRows > 0 || plannedRequests > 0
+        ? "watch"
+        : "blocked";
+
+  return {
+    schemaVersion: "deep-scan-quality.v1",
+    status,
+    summary: status === "healthy"
+      ? `CoinGlass 深扫可用：${cleanRows}/${rawRows} 行通过清洗，clean rate ${cleanRate}%。`
+      : status === "watch"
+        ? `深扫处于观察状态：计划 ${plannedRequests} 次请求，raw ${rawRows}，clean ${cleanRows}；必须标注 partial。`
+        : `深扫阻塞：${capability.operatorHint}`,
+    plannedAssets,
+    plannedRequests,
+    rawRows,
+    cleanRows,
+    cleanRate,
+    failedAssets: audit.failedPlannedAssets.map(displaySymbol),
+    requestFailures: failures,
+    boundary: "CoinGlass 是付费资金质量确认层；失败时不能写成市场无机会，也不能用公开源冒充 CoinGlass。",
+    guardrails: [
+      "Hobbyist 限速必须通过 pacing、预算和缓存保护。",
+      "cleanRows=0 时不能生成衍生品证据交易计划。",
+      "公开交易所 fallback 必须标注为公开源，只能作为验证补充。",
+    ],
+  };
+}
+
+function buildMacroReadiness(backend: BackendContract, macro: MacroAltEnv): MacroReadinessState {
+  const source = backend.sourceAudit.macroMarket;
+  const fields = [
+    ["btc_dominance", source.btcDominancePercent],
+    ["total2", source.total2MarketCapUsd],
+    ["total3", source.total3MarketCapUsd],
+  ] as const;
+  const availableFields = fields.filter(([, value]) => Number.isFinite(value ?? NaN)).map(([key]) => key);
+  const missingFields = fields.filter(([, value]) => !Number.isFinite(value ?? NaN)).map(([key]) => key);
+  const status: MacroReadinessState["status"] =
+    source.status === "ready" && missingFields.length === 0
+      ? "healthy"
+      : source.status === "unavailable" || source.status === "empty"
+        ? "blocked"
+        : "watch";
+
+  return {
+    schemaVersion: "macro-readiness.v1",
+    status,
+    summary: status === "healthy"
+      ? `宏观山寨环境可用：BTC.D ${macro.btcDominance}% ${macro.btcDominanceTrend}，风险模式 ${macro.riskMode}。`
+      : status === "watch"
+        ? `宏观数据部分可用，缺失 ${missingFields.join(" / ") || "无"}；只能作为背景，不能直接给个币方向。`
+        : "宏观数据不可用；山寨机会必须降级显示，不能假装顺风。",
+    riskMode: macro.riskMode,
+    availableFields,
+    missingFields,
+    guardrails: [
+      "BTC.D/TOTAL2/TOTAL3 只判断山寨顺风逆风，不降低 3:1 RR。",
+      "宏观顺风不等于个币可交易；仍要过结构、证据和 Risk Gate。",
+      "宏观缺失必须显示 partial/unavailable。",
+    ],
+  };
+}
+
+function buildOpsReliability(backend: BackendContract, deepScanQuality: DeepScanQualityState): OpsReliabilityState {
+  const workers = backend.runtime.runtimeProbes.workers;
+  const downWorkers = workers.filter((worker) => worker.status === "down");
+  const staleWorkers = workers.filter((worker) => worker.status === "degraded");
+  const checks: OpsReliabilityCheck[] = [
+    {
+      key: "postgres",
+      label: "Postgres",
+      status: backend.runtime.repositoryMode === "database" ? "pass" : "blocked",
+      detail: `repository=${backend.runtime.repositoryMode}`,
+    },
+    {
+      key: "redis",
+      label: "Redis",
+      status: backend.runtime.runtimeProbes.redis.status === "healthy" ? "pass" : "blocked",
+      detail: backend.runtime.runtimeProbes.redis.detail,
+    },
+    {
+      key: "workers",
+      label: "Worker 心跳",
+      status: downWorkers.length > 0 ? "blocked" : staleWorkers.length > 0 ? "watch" : "pass",
+      detail: `healthy=${workers.filter((worker) => worker.status === "healthy").length}; degraded=${staleWorkers.length}; down=${downWorkers.length}`,
+    },
+    {
+      key: "api_budget",
+      label: "CoinGlass 预算",
+      status: backend.runtime.apiUsage?.throttled ? "watch" : backend.runtime.apiUsage?.status === "unavailable" ? "blocked" : "pass",
+      detail: backend.runtime.apiUsage?.detail ?? "api usage counter unavailable",
+    },
+    {
+      key: "deep_scan",
+      label: "深扫质量",
+      status: deepScanQuality.status === "healthy" ? "pass" : deepScanQuality.status === "watch" ? "watch" : "blocked",
+      detail: deepScanQuality.summary,
+    },
+    {
+      key: "scan_stability",
+      label: "扫描稳定性",
+      status: backend.runtime.scanStability.status === "healthy"
+        ? "pass"
+        : backend.runtime.scanStability.status === "watch"
+          ? "watch"
+          : "blocked",
+      detail: backend.runtime.scanStability.summary,
+    },
+  ];
+  const blocked = checks.filter((check) => check.status === "blocked").length;
+  const watch = checks.filter((check) => check.status === "watch").length;
+  const status: OpsReliabilityState["status"] = blocked > 0 ? "blocked" : watch > 0 ? "watch" : "healthy";
+
+  return {
+    schemaVersion: "ops-reliability.v1",
+    status,
+    summary: status === "healthy"
+      ? "生产底座健康：数据库、Redis、worker、预算和扫描稳定性均通过。"
+      : status === "watch"
+        ? "生产底座可用但有观察项；上线前必须看具体 check。"
+        : "生产底座存在阻塞项；不能把页面状态包装成完全正常。",
+    checks,
+    nextActions: [
+      "发布前继续运行 production:preflight。",
+      "上线后运行 production:deploy 和 production:smoke。",
+      "定期执行 Postgres 备份/恢复 dry run 和日志打包。",
+    ],
+  };
+}
+
 export function buildFrontendRadarContract({
   backend,
   snapshot,
@@ -2008,6 +2356,11 @@ export function buildFrontendRadarContract({
     ? (Math.max(0, cleanDeepScanRows) / scannableAssets) * 100
     : coverage.coveragePercent;
   const lightScanQuality = buildLightScanQuality({ backend, env, now });
+  const opportunityQuality = buildOpportunityQuality(visibleSignals);
+  const deepScanQuality = buildDeepScanQuality(backend);
+  const macroAltEnv = buildMacro(backend);
+  const macroReadiness = buildMacroReadiness(backend, macroAltEnv);
+  const opsReliability = buildOpsReliability(backend, deepScanQuality);
 
   return {
     scanProof: resource({
@@ -2141,7 +2494,7 @@ export function buildFrontendRadarContract({
       },
     ),
     macroAltEnv: resource(
-      buildMacro(backend),
+      macroAltEnv,
       marketStatusToResourceStatus(backend.sourceAudit.macroMarket.status),
       {
         ageSec: backend.sourceAudit.macroMarket.ageMinutes === null ? undefined : backend.sourceAudit.macroMarket.ageMinutes * 60,
@@ -2202,6 +2555,42 @@ export function buildFrontendRadarContract({
         ageSec,
         source: "runtime-probes-and-scan-contract",
         reason: "秒级层只用于发现异常和状态变化；分钟级和低频层负责验证、背景和复盘。",
+      },
+    ),
+    opportunityQuality: resource(
+      opportunityQuality,
+      resourceStatusFromOpportunity(opportunityQuality.status),
+      {
+        ageSec,
+        source: "signal-maturity+light-scan",
+        reason: "机会质量只判断提前性、成熟度和追涨追跌拦截；不能绕过 Evidence、RR 或 Risk Gate。",
+      },
+    ),
+    deepScanQuality: resource(
+      deepScanQuality,
+      deepScanQuality.status === "healthy" ? "live" : deepScanQuality.status === "watch" ? "partial" : "failed",
+      {
+        ageSec,
+        source: "coinglass-deep-scan-audit",
+        reason: deepScanQuality.boundary,
+      },
+    ),
+    macroReadiness: resource(
+      macroReadiness,
+      macroReadiness.status === "healthy" ? "live" : macroReadiness.status === "watch" ? "partial" : "failed",
+      {
+        ageSec: backend.sourceAudit.macroMarket.ageMinutes === null ? undefined : backend.sourceAudit.macroMarket.ageMinutes * 60,
+        source: backend.sourceAudit.macroMarket.source ?? "macro-market",
+        reason: "宏观只做山寨环境背景，不能直接给个币买卖方向。",
+      },
+    ),
+    opsReliability: resource(
+      opsReliability,
+      opsReliability.status === "healthy" ? "live" : opsReliability.status === "watch" ? "partial" : "failed",
+      {
+        ageSec,
+        source: "runtime-probes+scan-stability",
+        reason: "生产可靠性只说明系统是否稳定运行，不生成交易判断。",
       },
     ),
     serviceNodes: resource([
@@ -3054,6 +3443,62 @@ function buildAnalysisReportSections({
   ];
 }
 
+function buildTokenStrategyReadiness({
+  blockedReasons,
+  discovery,
+  tradePlan,
+}: {
+  blockedReasons: string[];
+  discovery: DiscoveryFact;
+  tradePlan: TradePlanData | null;
+}): TokenStrategyReadiness {
+  if (tradePlan) {
+    return {
+      schemaVersion: "token-strategy-readiness.v1",
+      status: "ready",
+      canTradeNow: true,
+      summary: `交易计划已由后端生成：方向 ${tradePlan.bias}，结构 RR ${tradePlan.rr}:1；仍必须人工复核，不自动下单。`,
+      nextAction: `只在满足入场条件时复核：${tradePlan.entryCondition}`,
+      missingPieces: [],
+      guardrails: [
+        "结构 RR 已先通过，个人杠杆只做收益/风险换算。",
+        "禁止追单；触发条件没到就不做。",
+        "任何失效条件触发都必须退出计划。",
+      ],
+      positionLensStatus: tradePlan.positionLens.status,
+      personalLens: tradePlan.positionLens.summary,
+    };
+  }
+
+  const isReviewOnly = discovery.opportunityPhase === "late_move" || discovery.overextensionRisk === "high" ||
+    blockedReasons.some((reason) => /追涨|追空|晚到|过热|跌深|衰竭|REVIEW_ONLY/iu.test(reason));
+  const missingPieces = blockedReasons.length > 0
+    ? blockedReasons.slice(0, 8)
+    : [
+      "等待结构、证据、RR、Risk Gate 和失效条件同时满足。",
+    ];
+
+  return {
+    schemaVersion: "token-strategy-readiness.v1",
+    status: isReviewOnly ? "review_only" : missingPieces.length > 0 ? "blocked" : "watch",
+    canTradeNow: false,
+    summary: isReviewOnly
+      ? "当前更像晚到或延展行情，只能进入复盘/等待回踩或反抽重构，不能追。"
+      : "当前没有后端交易计划；前端不得补入场、止损或目标。",
+    nextAction: isReviewOnly
+      ? "回看启动前窗口，等待新结构给出更好的位置。"
+      : "继续等深扫、结构、RR 和 Risk Gate 完整。",
+    missingPieces,
+    guardrails: [
+      "没有 tradePlan 时不允许显示交易计划。",
+      "方向偏多/偏空不代表当前位置可做。",
+      "RR 仍按结构价格距离计算，个人杠杆只在计划生成后换算展示。",
+    ],
+    positionLensStatus: "not_applicable",
+    personalLens: "尚未生成交易计划，个人仓位镜头不适用。",
+  };
+}
+
 export function buildFrontendTokenDossierContract({
   basePrice = 1,
   dossier,
@@ -3123,6 +3568,11 @@ export function buildFrontendTokenDossierContract({
       allowTradePlan: tradePlan !== null,
       reasons: tradePlan ? [] : blockedReasons,
     },
+    strategyReadiness: buildTokenStrategyReadiness({
+      blockedReasons,
+      discovery,
+      tradePlan,
+    }),
     tradePlan,
     aiReview: {
       reviewed: signal?.timeframeGate !== undefined || dossier.evidence.total > 0,
@@ -3220,6 +3670,7 @@ function buildDiscoveryReviewState(
   missedDetectionCount: number,
 ): DiscoveryReviewState {
   const topCandidates = backend.scanProof.lightScan.topCandidates ?? [];
+  const reviewStats = backend.analysis.reviewStatistics;
   const earlyOpportunityCount = topCandidates.filter((candidate) =>
     candidate.opportunityPhase === "early_setup" || (candidate.earlyOpportunityScore ?? 0) >= 55
   ).length;
@@ -3227,8 +3678,30 @@ function buildDiscoveryReviewState(
     candidate.opportunityPhase === "late_move" || candidate.overextensionRisk === "high"
   ).length;
   const cvdProxyCandidateCount = topCandidates.filter(candidateHasCvdProxy).length;
+  const hasOutcomeSamples = reviewStats.samples.withMetrics > 0 || reviewStats.samples.evidenceLevel > 0;
+  const hasClosedSamples = reviewStats.samples.closed > 0;
+  const calibrationStatus: DiscoveryReviewState["calibration"]["status"] =
+    hasOutcomeSamples && (earlyOpportunityCount > 0 || lateMoveCount > 0)
+      ? hasClosedSamples ? "usable" : "collecting"
+      : "empty";
 
   return {
+    calibration: {
+      earlyOutcomeLink: hasOutcomeSamples && earlyOpportunityCount > 0 ? "ready" : "collecting",
+      lateSignalPenalty: lateMoveCount > 0 ? "active" : "collecting",
+      mfeMaeLink: hasOutcomeSamples ? "ready" : "collecting",
+      notes: [
+        "earlyOpportunityScore 只能通过后续 MFE/MAE、TP/SL 和超时样本校准。",
+        "late_move 不计为优质提前命中；它用于惩罚晚到提示和训练等待规则。",
+        "复盘建议只能人工确认，不自动改实时权重。",
+      ],
+      status: calibrationStatus,
+      summary: calibrationStatus === "usable"
+        ? "提前发现校准已有可用闭环样本，可开始观察分型表现。"
+        : calibrationStatus === "collecting"
+          ? "提前发现校准正在收集 outcome；可以展示方向，但不能宣传稳定命中率。"
+          : "提前发现校准暂无足够 outcome；只能显示样本状态。",
+    },
     cvdProxyCandidateCount,
     earlyOpportunityCount,
     guardrails: [

@@ -12,6 +12,8 @@
     "production:preflight": "bash deploy/scripts/production-preflight.sh",
     "production:ssh-check": "bash deploy/scripts/check-prod-ssh.sh",
     "production:deploy": "bash deploy/scripts/tencent-prod-deploy.sh",
+    "production:logs": "bash deploy/scripts/collect-prod-logs.sh",
+    "production:rollback": "bash deploy/scripts/production-rollback.sh",
     "production:smoke": "bash deploy/scripts/prod-smoke.sh",
     "deployment:env-plan": "tsc -p tsconfig.market-test.json && node .tmp/market-tests/scripts/vercel-env-plan.js",
     "start": "next start",
