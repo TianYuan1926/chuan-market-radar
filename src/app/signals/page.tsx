@@ -5,7 +5,6 @@ import { SignalMaturityPool } from '@/components/signals/signal-maturity-pool'
 import { LiveFeed } from '@/components/live-feed'
 import { MarketHeatmap } from '@/components/market-heatmap'
 import { SessionBar } from '@/components/session-bar'
-import { JournalLauncher } from '@/components/journal-launcher'
 import {
   radarSignalsToSignalCards,
   radarSignalsToSniperTargets,
@@ -107,8 +106,6 @@ export default async function SignalsPage() {
         </div>
       </main>
 
-      {/* 交易日记浮动抽屉：默认收起为右侧标签，不遮挡信号信息 */}
-      <JournalLauncher />
     </div>
   )
 }

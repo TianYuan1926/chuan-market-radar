@@ -2,9 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, Search, ChevronDown } from 'lucide-react'
 import { ChuanLogo } from './chuan-logo'
-import { SoundToggle } from './sound-toggle'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -53,27 +51,12 @@ export function SiteNav() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1">
-          <SoundToggle />
-          <button
-            aria-label="搜索"
-            className="grid size-8 place-items-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Search className="size-4" />
-          </button>
-          <button
-            aria-label="通知"
-            className="relative grid size-8 place-items-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Bell className="size-4" />
-            <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-neon" />
-          </button>
-          <button className="ml-1 flex items-center gap-1.5 border border-border bg-secondary/50 py-1 pl-1 pr-2 text-[13px] font-medium transition-colors hover:border-neon/40">
+          <div className="ml-1 flex items-center gap-1.5 border border-border bg-secondary/50 py-1 pl-1 pr-2 text-[13px] font-medium">
             <span className="grid size-6 place-items-center bg-neon font-mono text-xs font-bold text-[var(--primary-foreground)]">
               川
             </span>
-            <span className="hidden sm:inline">用户</span>
-            <ChevronDown className="size-3.5 text-muted-foreground" />
-          </button>
+            <span className="hidden sm:inline">实战雷达</span>
+          </div>
         </div>
       </div>
     </header>

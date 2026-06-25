@@ -1,10 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { SiteLoader } from '@/components/site-loader'
-import { PetRobot } from '@/components/pet-robot'
-import { GlobalSignalFeed } from '@/components/global-signal-feed'
-import { EasterEggSystem } from '@/components/easter-egg-system'
 import { LoginTerminal } from '@/components/auth/login-terminal'
 import { FrontendLiveEventBridge } from '@/components/frontend-live-event-bridge'
 
@@ -39,9 +35,8 @@ async function readServerAuth() {
 
 /**
  * 全站身份门禁：
- * 1. 启动动画（SiteLoader）始终最先播放，盖在最上层；
- * 2. 动画消失后，未登录则只渲染登录终端，无法浏览任何页面内容；
- * 3. 登录成功后才放行站点内容与川宝 / 信号流 / 彩蛋等全局装饰。
+ * 1. 未登录只渲染登录终端，无法浏览任何页面内容；
+ * 2. 登录成功后放行站点内容与实时事件桥。
  *
  * 注意：后端私有模式关闭时直接放行；开启后以 /api/auth/session 的
  * 服务端会话为准。本地登录态只作为接口不可达时的临时兜底。
@@ -74,19 +69,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* 启动动画始终最先播放，z-index 最高，盖住下方的登录/内容 */}
-      <SiteLoader />
-
       {authed === null ? null : authed ? (
         <>
           {children}
           <FrontendLiveEventBridge />
-          <GlobalSignalFeed />
-          <PetRobot />
-          <EasterEggSystem />
         </>
       ) : (
-        // 未登录：启动动画结束后只显示登录终端，强制登录
         <LoginTerminal />
       )}
     </>

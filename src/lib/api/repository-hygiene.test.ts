@@ -160,7 +160,7 @@ test("local dev preview uses webpack to match the production CSS pipeline", () =
   assert.match(devScript, /--webpack/);
 });
 
-test("v0 frontend shell is restored without touching backend API routes", () => {
+test("core frontend shell redirects home to radar control without touching backend API routes", () => {
   const pageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const cssSource = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
   const radarComponentDir = resolve(process.cwd(), "src/components/radar");
@@ -184,12 +184,12 @@ test("v0 frontend shell is restored without touching backend API routes", () => 
     "src/app/api/frontend/ui-state/route.ts",
   ];
 
-  assert.match(pageSource, /IntroHero/);
-  assert.match(pageSource, /CHUANSCAN|虚拟货币异动检测/u);
+  assert.match(pageSource, /redirect\('\/dashboard'\)/);
   assert.match(cssSource, /@import 'tailwindcss'/);
   assert.match(cssSource, /--background:/);
   assert.equal(radarComponentFiles.length, 0, "src/components/radar should contain no active frontend files");
   assert.doesNotMatch(pageSource, /@\/components\/radar/);
+  assert.doesNotMatch(pageSource, /IntroHero|IntroRadar|IntroPipeline|RankLadder|Faq|Personas/);
   assert.doesNotMatch(pageSource, /getReadableMarketRadarSnapshot/);
   assert.doesNotMatch(pageSource, /buildSystemHealthReport/);
   assert.doesNotMatch(pageSource, /appPersistenceRepository/);
@@ -549,7 +549,7 @@ test("frontend data truth contract blocks active mock market facts", () => {
   const liveNumberSource = readFileSync(resolve(process.cwd(), "src/lib/use-live-number.ts"), "utf8");
   const displayFormatSource = readFileSync(resolve(process.cwd(), "src/lib/display-format.ts"), "utf8");
   const trainingEngineSource = readFileSync(resolve(process.cwd(), "src/lib/training-engine.ts"), "utf8");
-  const petRobotSource = readFileSync(resolve(process.cwd(), "src/components/pet-robot.tsx"), "utf8");
+  const authGateSource = readFileSync(resolve(process.cwd(), "src/components/auth/auth-gate.tsx"), "utf8");
   const leaderboardSource = readFileSync(resolve(process.cwd(), "src/components/leaderboard-table.tsx"), "utf8");
   const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
   const appRepositorySource = readFileSync(resolve(process.cwd(), "src/lib/persistence/app-repository.ts"), "utf8");
@@ -574,7 +574,7 @@ test("frontend data truth contract blocks active mock market facts", () => {
 
   assert.match(trainingEngineSource, /setTrainingPool/);
   assert.doesNotMatch(trainingEngineSource, /getSniperTargets|getSignalCards/);
-  assert.doesNotMatch(petRobotSource, /startTrainingEngine/);
+  assert.doesNotMatch(authGateSource, /PetRobot|EasterEggSystem|GlobalSignalFeed|SiteLoader/);
 
   assert.match(displayFormatSource, /fmtKnownCap/);
   assert.match(leaderboardSource, /fmtKnownCap/);
@@ -803,34 +803,18 @@ test("stage 8 review and system pages do not render legacy mock centers", () => 
   assert.doesNotMatch(systemPageSource, /<SessionBar\s*\/>/);
 });
 
-test("stage 8 homepage uses backend contract data and removes old demo claims", () => {
+test("core homepage redirects to radar control and removes marketing shell claims", () => {
   const homePageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
-  const introSectionsSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-sections.tsx"), "utf8");
-  const introHeroSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-hero.tsx"), "utf8");
-  const introPipelineSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-pipeline.tsx"), "utf8");
-  const siteLoaderSource = readFileSync(resolve(process.cwd(), "src/components/site-loader.tsx"), "utf8");
   const layoutSource = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8");
 
-  assert.match(homePageSource, /getRadarContractForPage/);
-  assert.match(homePageSource, /radarSignalsToTokens/);
-  assert.match(homePageSource, /export default async function HomePage/);
-  assert.match(homePageSource, /<SessionBar tokens=\{tokens\}/);
-  assert.match(homePageSource, /后端契约数据/);
+  assert.match(homePageSource, /redirect\('\/dashboard'\)/);
+  assert.doesNotMatch(homePageSource, /getRadarContractForPage/);
+  assert.doesNotMatch(homePageSource, /radarSignalsToTokens/);
+  assert.match(homePageSource, /export default function HomePage/);
   assert.doesNotMatch(homePageSource, /<SessionBar\s*\/>/);
   assert.doesNotMatch(homePageSource, /数据均为模拟演示/);
   assert.doesNotMatch(homePageSource, /15600|99\.9|200ms|毫秒级/);
-
-  assert.match(introSectionsSource, /分层扫描/);
-  assert.match(introSectionsSource, /CoinGlass/);
-  assert.match(introSectionsSource, /交易所合约/);
-  assert.match(introSectionsSource, /显式标注/);
-  assert.doesNotMatch(
-    introSectionsSource,
-    /模拟演示数据|毫秒级|不足 200ms|2400\+|链上转账|社交热度|即刻推送/,
-  );
-  assert.doesNotMatch(introHeroSource, /毫秒级|链上异动/);
-  assert.doesNotMatch(introPipelineSource, /毫秒级/);
-  assert.doesNotMatch(siteLoaderSource, /链上异动|链上数据源/);
+  assert.doesNotMatch(homePageSource, /IntroHero|IntroRadar|IntroPipeline|HowItWorks|FeatureGrid|Personas|RankLadder|Faq/);
   assert.doesNotMatch(layoutSource, /链上资金异动/);
 });
 
@@ -889,14 +873,11 @@ test("market overview does not label derived altcoin temperature as real fear gr
 test("visual preview panels do not overstate backend realtime capability", () => {
   const homePageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
   const heatmapSource = readFileSync(resolve(process.cwd(), "src/components/market-heatmap.tsx"), "utf8");
-  const introRadarSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-radar.tsx"), "utf8");
 
-  assert.match(homePageSource, /按成熟度展示候选、证据信号与风险提示/u);
+  assert.match(homePageSource, /redirect\('\/dashboard'\)/);
   assert.match(heatmapSource, /行情快照/u);
-  assert.match(introRadarSource, /雷达流程演示/u);
   assert.doesNotMatch(homePageSource, /风险提示实时推送/u);
   assert.doesNotMatch(heatmapSource, />\s*实时\s*</u);
-  assert.doesNotMatch(introRadarSource, /实时捕获 · LIVE/u);
 });
 
 test("market page participation advice comes from backend contract status instead of a hardcoded action phrase", () => {
@@ -1055,12 +1036,11 @@ test("token avatar uses real logo lookup before generated fallback and no static
   assert.doesNotMatch(avatarSource, /placeholder\.svg/);
 });
 
-test("review page restores rank visibility without rendering the legacy mock review center", () => {
+test("review page stays focused on review evolution without rank decoration", () => {
   const reviewPageSource = readFileSync(resolve(process.cwd(), "src/app/review/page.tsx"), "utf8");
   const reviewEvolutionSource = readFileSync(resolve(process.cwd(), "src/components/review/review-evolution.tsx"), "utf8");
 
-  assert.match(reviewPageSource, /RankBanner/);
-  assert.match(reviewPageSource, /<RankBanner/);
+  assert.doesNotMatch(reviewPageSource, /RankBanner|rank-training/);
   assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
   assert.match(reviewEvolutionSource, /复盘样本门禁/);
   assert.match(reviewEvolutionSource, /提前发现复盘/);
@@ -1076,8 +1056,6 @@ test("signal table does not fabricate lifecycle prices or frontend trade plans",
   const dashboardPageSource = readFileSync(resolve(process.cwd(), "src/app/dashboard/page.tsx"), "utf8");
   const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
   const signalsPageSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
-  const introSectionsSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-sections.tsx"), "utf8");
-  const introRadarSource = readFileSync(resolve(process.cwd(), "src/components/intro/intro-radar.tsx"), "utf8");
 
   assert.doesNotMatch(anomalyBoardSource, /function entryPlan|const plan = entryPlan/);
   assert.doesNotMatch(anomalyBoardSource, /建议入场|目标位|仓位管理|链上换手|AI 分析逻辑|推送后涨幅|推送后跌幅/);
@@ -1093,16 +1071,15 @@ test("signal table does not fabricate lifecycle prices or frontend trade plans",
   assert.doesNotMatch(dashboardPageSource, /本轮深扫占比/);
   assert.doesNotMatch(homePageSource, /实力交易者/);
   assert.doesNotMatch(signalsPageSource, /入场策略/);
-  assert.doesNotMatch(introSectionsSource, /建议入场区间|杠杆建议|主力净流入\/流出|链上数据|精准出手|资金净流向|入场窗口与目标价/);
-  assert.doesNotMatch(introRadarSource, /资金净流入/);
+  assert.doesNotMatch(homePageSource, /建议入场区间|杠杆建议|主力净流入\/流出|链上数据|精准出手|资金净流向|入场窗口与目标价/);
   assert.doesNotMatch(tokenPageSource, /主力资金|净流入/);
-  assert.match(homePageSource, /轻扫覆盖率/);
+  assert.match(homePageSource, /redirect\('\/dashboard'\)/);
   assert.match(dashboardPageSource, /轻扫覆盖率/);
 });
 
 test("legacy radar contract getters are disabled instead of returning static market facts", () => {
   const radarContractSource = readFileSync(resolve(process.cwd(), "src/lib/radar-contract.ts"), "utf8");
-  const siteLoaderSource = readFileSync(resolve(process.cwd(), "src/components/site-loader.tsx"), "utf8");
+  const authGateSource = readFileSync(resolve(process.cwd(), "src/components/auth/auth-gate.tsx"), "utf8");
   const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
   const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
   const scanProofSource = readFileSync(resolve(process.cwd(), "src/components/scan-proof.tsx"), "utf8");
@@ -1113,8 +1090,7 @@ test("legacy radar contract getters are disabled instead of returning static mar
   assert.doesNotMatch(radarContractSource, /const RADAR_SIGNALS|function mkRows/);
   assert.doesNotMatch(radarContractSource, /QPS 1\.2k|主从同步|社媒情绪源|数据均为模拟演示/);
 
-  assert.match(siteLoaderSource, /SERVER FACT/);
-  assert.doesNotMatch(siteLoaderSource, /87\.6%|5\/6 LINKED|v4\.2 LOADED/);
+  assert.doesNotMatch(authGateSource, /SiteLoader/);
 
   assert.match(scanProofSource, /轻扫覆盖/);
   assert.doesNotMatch(scanProofSource, />覆盖率</);

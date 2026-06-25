@@ -1,6 +1,5 @@
 import { SiteNav } from '@/components/site-nav'
 import { ReviewEvolution } from '@/components/review/review-evolution'
-import { RankBanner } from '@/components/rank-training'
 import { getReviewContractForPage } from '@/lib/frontend-contract-server'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +18,6 @@ export default async function ReviewPage() {
           </p>
         </header>
         <div className="space-y-6">
-          <RankBanner />
           <ReviewEvolution contract={review} />
         </div>
 
