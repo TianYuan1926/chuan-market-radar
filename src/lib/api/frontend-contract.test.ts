@@ -793,7 +793,7 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
   ];
   backend.scanProof.lightScan = {
     acceptedCount: 720,
-    candidateCount: 2,
+    candidateCount: 3,
     generatedAt: "2026-06-21T08:00:08.000Z",
     requestCount: 0,
     source: "websocket-light-scan",
@@ -853,6 +853,30 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
           tradeFlowImbalance: -0.5556,
         },
       },
+      {
+        baseAsset: "REZ",
+        changePercent24h: 0.65,
+        distanceFromHighPercent: 0,
+        distanceFromLowPercent: 0.65,
+        earlyOpportunityScore: 72,
+        opportunityPhase: "early_setup",
+        overextensionRisk: "low",
+        price: 0.002956,
+        reasons: [
+          "websocket_sliding_window",
+          "volume_zscore_spike",
+          "trade_flow_proxy_imbalance",
+          "cvd_proxy_positive",
+        ],
+        score: 88,
+        state: "PRE_TREND",
+        symbol: "REZUSDT",
+        volume24hUsd: 3_261,
+        volumeSource: "rolling_window",
+        volumeWindowMs: 900_000,
+        volumeWindowUsd: 3_261,
+        volatilityPercent: 0.64,
+      },
     ],
     universeCount: 720,
   };
@@ -867,20 +891,23 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
   assert.equal(radar.lightScanQuality.status, "live");
   assert.equal(radar.lightScanQuality.data.status, "healthy");
   assert.equal(radar.lightScanQuality.data.canCreateTradeSignal, false);
-  assert.equal(radar.lightScanQuality.data.coverage.rollingWindowCandidateCount, 2);
-  assert.equal(radar.lightScanQuality.data.coverage.zScoreCandidateCount, 1);
-  assert.equal(radar.lightScanQuality.data.coverage.cvdProxyCandidateCount, 2);
-  assert.equal(radar.lightScanQuality.data.coverage.buyPressureCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.rollingWindowCandidateCount, 3);
+  assert.equal(radar.lightScanQuality.data.coverage.zScoreCandidateCount, 2);
+  assert.equal(radar.lightScanQuality.data.coverage.cvdProxyCandidateCount, 3);
+  assert.equal(radar.lightScanQuality.data.coverage.buyPressureCandidateCount, 2);
   assert.equal(radar.lightScanQuality.data.coverage.sellPressureCandidateCount, 1);
-  assert.equal(radar.lightScanQuality.data.coverage.earlyOpportunityCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.earlyOpportunityCandidateCount, 2);
   assert.equal(radar.lightScanQuality.data.coverage.lateMoveCandidateCount, 1);
-  assert.equal(radar.lightScanQuality.data.coverage.preTrendCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.preTrendCandidateCount, 2);
   assert.equal(radar.lightScanQuality.data.coverage.hotCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.symbol, "TIA");
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.opportunityPhase, "early_setup");
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.earlyOpportunityScore, 86);
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.pressureSide, "buy");
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.flowImbalance, 0.4667);
+  assert.equal(radar.lightScanQuality.data.topCandidates[2]?.symbol, "REZ");
+  assert.equal(radar.lightScanQuality.data.topCandidates[2]?.pressureSide, "buy");
+  assert.equal(radar.lightScanQuality.data.topCandidates[2]?.flowImbalance, null);
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "volume_zscore" && check.status === "pass"));
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "cvd_proxy_quality" && check.status === "pass"));
   assert.ok(radar.lightScanQuality.data.guardrails.some((rule) => /不能生成交易计划/.test(rule)));

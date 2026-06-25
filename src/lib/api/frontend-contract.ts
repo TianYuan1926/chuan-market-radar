@@ -1255,6 +1255,30 @@ function averageScore(candidates: ScanLightScanCandidate[]) {
   return Math.round(candidates.reduce((total, candidate) => total + candidate.score, 0) / candidates.length);
 }
 
+function candidateReasonSet(candidate: ScanLightScanCandidate) {
+  return new Set(candidate.reasons.map((reason) => reason.toLowerCase()));
+}
+
+function candidateHasCvdProxy(candidate: ScanLightScanCandidate) {
+  if (candidate.microstructure) return true;
+
+  const reasons = candidateReasonSet(candidate);
+
+  return reasons.has("trade_flow_proxy_imbalance") ||
+    reasons.has("cvd_proxy_positive") ||
+    reasons.has("cvd_proxy_negative");
+}
+
+function candidatePressureSide(candidate: ScanLightScanCandidate) {
+  if (candidate.microstructure?.pressureSide) return candidate.microstructure.pressureSide;
+
+  const reasons = candidateReasonSet(candidate);
+  if (reasons.has("cvd_proxy_positive")) return "buy";
+  if (reasons.has("cvd_proxy_negative")) return "sell";
+
+  return null;
+}
+
 function buildLightScanQuality({
   backend,
   env,
@@ -1273,9 +1297,9 @@ function buildLightScanQuality({
     candidate.volumeSource === "rolling_window" || candidate.reasons.includes("websocket_sliding_window")
   );
   const zScoreCandidates = topCandidates.filter((candidate) => candidate.reasons.includes("volume_zscore_spike"));
-  const cvdProxyCandidates = topCandidates.filter((candidate) => Boolean(candidate.microstructure));
-  const buyPressureCandidates = topCandidates.filter((candidate) => candidate.microstructure?.pressureSide === "buy");
-  const sellPressureCandidates = topCandidates.filter((candidate) => candidate.microstructure?.pressureSide === "sell");
+  const cvdProxyCandidates = topCandidates.filter(candidateHasCvdProxy);
+  const buyPressureCandidates = topCandidates.filter((candidate) => candidatePressureSide(candidate) === "buy");
+  const sellPressureCandidates = topCandidates.filter((candidate) => candidatePressureSide(candidate) === "sell");
   const hotCandidates = topCandidates.filter((candidate) => candidate.state === "HOT");
   const preTrendCandidates = topCandidates.filter((candidate) => candidate.state === "PRE_TREND");
   const earlyOpportunityCandidates = topCandidates.filter((candidate) =>
@@ -1414,7 +1438,7 @@ function buildLightScanQuality({
         : null,
       opportunityPhase: candidate.opportunityPhase ?? null,
       overextensionRisk: candidate.overextensionRisk ?? null,
-      pressureSide: candidate.microstructure?.pressureSide ?? null,
+      pressureSide: candidatePressureSide(candidate),
       reasons: candidate.reasons,
       score: candidate.score,
       state: candidate.state,

@@ -503,6 +503,7 @@ RawSource
 
 - `ScanLightScanCandidate.microstructure`：`buyPressureUsd`、`sellPressureUsd`、`cvdProxyUsd`、`tradeFlowImbalance`、`pressureSide`。
 - WebSocket worker 已接入 public taker trade 流：Binance `aggTrade`、OKX `trades`、Bybit `publicTrade`；`proxyQuality=taker_trade_proxy` 时使用真实成交方向估算买卖压力，`proxyQuality=rolling_price_volume_proxy` 时为 ticker 兜底推断。
+- 前端合同必须同时识别 `microstructure` 字段和 `trade_flow_proxy_imbalance` / `cvd_proxy_positive` / `cvd_proxy_negative` reason 标签；禁止出现后端已有 CVD proxy 证据、前端质量统计仍显示 0 的“两张皮”状态。
 - `lightScanQuality.v1`：新增 `cvdProxyCandidateCount`、`buyPressureCandidateCount`、`sellPressureCandidateCount` 和 `cvd_proxy_quality` 检查。
 - `coreChainGovernance.p1Completion`：新增 P1 完成度、检查项、剩余项和 summary。
 - `/dashboard` 核心链路体检显示 P1 快速扫描完成度。
