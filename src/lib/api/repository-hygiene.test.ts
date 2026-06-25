@@ -915,6 +915,7 @@ test("frontend contract pages render dynamically instead of freezing build-time 
 
 test("single-server deployment scripts expose current runtime contracts and recovery commands", () => {
   const composeSource = readFileSync(resolve(process.cwd(), "docker-compose.yml"), "utf8");
+  const dockerfileSource = readFileSync(resolve(process.cwd(), "Dockerfile"), "utf8");
   const bootstrapSource = readFileSync(resolve(process.cwd(), "deploy/scripts/bootstrap-prod-env.sh"), "utf8");
   const verifyPath = "deploy/scripts/production-full-verify.sh";
   const gitSyncPath = "deploy/scripts/verify-git-sync.sh";
@@ -943,7 +944,12 @@ test("single-server deployment scripts expose current runtime contracts and reco
   assert.equal(existsSync(resolve(process.cwd(), verifyPath)), true, `${verifyPath} must exist`);
   assert.equal(existsSync(resolve(process.cwd(), gitSyncPath)), true, `${gitSyncPath} must exist`);
   assert.equal(existsSync(resolve(process.cwd(), restorePath)), true, `${restorePath} must exist`);
+  assert.equal(existsSync(resolve(process.cwd(), "tools/run-professional-backtest.mjs")), true);
   assert.match(packageJson.scripts?.["production:git-sync"] ?? "", /verify-git-sync\.sh/);
+  assert.match(packageJson.scripts?.["build:market-cli"] ?? "", /tsconfig\.market-test\.json/);
+  assert.match(packageJson.scripts?.["backtest:professional"] ?? "", /tools\/run-professional-backtest\.mjs/);
+  assert.match(dockerfileSource, /npm run build:market-cli/);
+  assert.match(dockerfileSource, /\/app\/\.tmp\/market-tests/);
   assert.match(verifySource, /verify-git-sync\.sh/);
   assert.match(gitSyncSource, /git ls-remote/);
   assert.match(gitSyncSource, /ALLOW_UNTRACKED/);
