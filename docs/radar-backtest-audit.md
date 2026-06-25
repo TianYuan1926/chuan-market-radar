@@ -153,6 +153,8 @@ reports/historical-backtest/<日期时间>/
 
 页面只读报告，不触发回测，不写数据库，不自动改实时权重。
 
+生产部署要求：腾讯云 Docker 的 `web` 服务必须把 `/app/reports` 挂到持久化 volume。历史回放报告不能只写在容器临时层，否则下一次 `docker compose up --build` 后前端会重新变成“暂无历史回测报告”。
+
 ## 历史回放边界
 
 - 不写数据库。

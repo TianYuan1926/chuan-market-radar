@@ -107,6 +107,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - reports-data:/app/reports
     healthcheck:
       test:
         [
@@ -224,4 +226,5 @@ volumes:
   caddy-config:
   caddy-data:
   postgres-data:
+  reports-data:
   redis-data:
