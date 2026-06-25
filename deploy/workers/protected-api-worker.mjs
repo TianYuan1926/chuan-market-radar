@@ -57,6 +57,7 @@ const profiles = {
       "daily-mover-ingest",
       "/api/admin/daily-movers/ingest",
       numberFromEnv("DAILY_MOVER_INTERVAL_SECONDS", 86_400),
+      true,
     ),
     protectedPost(
       "daily-mover-kline-cache-fill",

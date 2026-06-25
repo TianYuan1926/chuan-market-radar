@@ -17,6 +17,7 @@
     "production:logs": "bash deploy/scripts/collect-prod-logs.sh",
     "production:rollback": "bash deploy/scripts/production-rollback.sh",
     "production:smoke": "bash deploy/scripts/prod-smoke.sh",
+    "backtest:audit": "node tools/radar-backtest-audit.mjs",
     "deployment:env-plan": "tsc -p tsconfig.market-test.json && node .tmp/market-tests/scripts/vercel-env-plan.js",
     "start": "next start",
     "smoke:server": "bash deploy/scripts/smoke-test.sh",
