@@ -7,6 +7,7 @@ import type {
 import {
   buildProfessionalBacktestAuditCase,
   summarizeProfessionalBacktestRound,
+  type ProfessionalAuditDerivativesInput,
   type ProfessionalAuditFinding,
   type ProfessionalAuditRemediation,
   type ProfessionalBacktestAuditCase,
@@ -23,8 +24,16 @@ export type ProfessionalReplayOptions = {
 export type ProfessionalReplayInput = {
   baseInterval: Extract<Timeframe, "15m">;
   candlesBySymbol: Map<string, Candle[]>;
+  derivativesBySymbol?: Map<string, ProfessionalDerivativePoint[]>;
   generatedAt?: string;
   options?: ProfessionalReplayOptions;
+};
+
+export type ProfessionalDerivativePoint = {
+  fundingRate?: number;
+  observedAt: string;
+  openInterestUsd?: number;
+  source: "coinglass" | "public_exchange";
 };
 
 export type ProfessionalReplayReport = {
@@ -34,6 +43,7 @@ export type ProfessionalReplayReport = {
   guardrails: string[];
   input: {
     baseInterval: Timeframe;
+    derivativesSymbolsUsed: number;
     horizonBars: number;
     replayTimes: number;
     symbolsUsed: string[];
@@ -145,6 +155,146 @@ function topFindings(cases: ProfessionalBacktestAuditCase[]) {
     .slice(0, 100);
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function sortDerivativePoints(points: ProfessionalDerivativePoint[] = []) {
+  return [...points]
+    .filter((point) => Number.isFinite(Date.parse(point.observedAt)))
+    .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt));
+}
+
+function latestDerivativePointAt(points: ProfessionalDerivativePoint[], observedMs: number, field: "fundingRate" | "openInterestUsd") {
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index];
+
+    if (!point) {
+      continue;
+    }
+
+    const timestamp = Date.parse(point.observedAt);
+
+    if (timestamp <= observedMs && isFiniteNumber(point[field])) {
+      return point;
+    }
+  }
+
+  return null;
+}
+
+function previousOpenInterestPoint(points: ProfessionalDerivativePoint[], observedMs: number, currentMs: number) {
+  const preferredCutoff = observedMs - 24 * 60 * 60_000;
+  let fallback: ProfessionalDerivativePoint | null = null;
+
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index];
+
+    if (!point || !isFiniteNumber(point.openInterestUsd)) {
+      continue;
+    }
+
+    const timestamp = Date.parse(point.observedAt);
+
+    if (timestamp >= currentMs || timestamp > observedMs) {
+      continue;
+    }
+
+    if (!fallback) {
+      fallback = point;
+    }
+
+    if (timestamp <= preferredCutoff) {
+      return point;
+    }
+  }
+
+  return fallback;
+}
+
+function fundingZScore(points: ProfessionalDerivativePoint[], current: ProfessionalDerivativePoint, observedMs: number) {
+  if (!isFiniteNumber(current.fundingRate)) {
+    return undefined;
+  }
+
+  const currentMs = Date.parse(current.observedAt);
+  const samples = points
+    .filter((point) => {
+      const timestamp = Date.parse(point.observedAt);
+
+      return timestamp <= observedMs &&
+        timestamp < currentMs &&
+        isFiniteNumber(point.fundingRate);
+    })
+    .slice(-30)
+    .map((point) => point.fundingRate as number);
+
+  if (samples.length < 3) {
+    return Number((current.fundingRate * 10_000).toFixed(2));
+  }
+
+  const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+  const variance = samples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / samples.length;
+  const deviation = Math.sqrt(variance);
+
+  if (deviation <= 0) {
+    return 0;
+  }
+
+  return Number(((current.fundingRate - mean) / deviation).toFixed(2));
+}
+
+export function buildReplayDerivativesInput(
+  points: ProfessionalDerivativePoint[] | undefined,
+  observedAt: string,
+): ProfessionalAuditDerivativesInput {
+  const observedMs = Date.parse(observedAt);
+
+  if (!Number.isFinite(observedMs)) {
+    return {
+      source: "unavailable",
+      status: "unavailable",
+    };
+  }
+
+  const sorted = sortDerivativePoints(points);
+  const currentFunding = latestDerivativePointAt(sorted, observedMs, "fundingRate");
+  const currentOpenInterest = latestDerivativePointAt(sorted, observedMs, "openInterestUsd");
+  const source = currentFunding?.source ?? currentOpenInterest?.source;
+  const input: ProfessionalAuditDerivativesInput = {
+    source: source ?? "unavailable",
+    status: "unavailable",
+  };
+
+  if (currentFunding) {
+    const zScore = fundingZScore(sorted, currentFunding, observedMs);
+
+    if (isFiniteNumber(zScore)) {
+      input.fundingRateZScore = zScore;
+    }
+  }
+
+  if (currentOpenInterest && isFiniteNumber(currentOpenInterest.openInterestUsd)) {
+    const currentMs = Date.parse(currentOpenInterest.observedAt);
+    const previous = previousOpenInterestPoint(sorted, observedMs, currentMs);
+
+    if (previous && isFiniteNumber(previous.openInterestUsd) && previous.openInterestUsd > 0) {
+      input.openInterestChangePercent = Number((((currentOpenInterest.openInterestUsd - previous.openInterestUsd) / previous.openInterestUsd) * 100).toFixed(2));
+    }
+  }
+
+  const hasFunding = isFiniteNumber(input.fundingRateZScore);
+  const hasOpenInterest = isFiniteNumber(input.openInterestChangePercent);
+
+  if (hasFunding && hasOpenInterest) {
+    input.status = "live";
+  } else if (hasFunding || hasOpenInterest) {
+    input.status = "partial";
+  }
+
+  return input;
+}
+
 export function runProfessionalReplay(input: ProfessionalReplayInput): ProfessionalReplayReport {
   const options = normalizeOptions(input.options);
   const replayIndexes = commonReplayIndexes(input.candlesBySymbol, options);
@@ -169,6 +319,7 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
 
       casesAtTime.push(buildProfessionalBacktestAuditCase({
         candlesByTimeframe: buildReplayCandlesByTimeframe(history),
+        derivatives: buildReplayDerivativesInput(input.derivativesBySymbol?.get(symbol), observed.openTime),
         exchange: "binance-public-futures",
         futureCandles: future,
         moveThresholdPct: options.moveThresholdPct,
@@ -206,6 +357,7 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
     ],
     input: {
       baseInterval: input.baseInterval,
+      derivativesSymbolsUsed: input.derivativesBySymbol?.size ?? 0,
       horizonBars: options.horizonBars,
       replayTimes: replayIndexes.length,
       symbolsUsed: [...input.candlesBySymbol.keys()],

@@ -9,16 +9,30 @@ import type {
 } from "../lib/market/ohlcv/types";
 import {
   runProfessionalReplay,
+  type ProfessionalDerivativePoint,
 } from "../lib/backtest/professional-replay";
 
 const BINANCE_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 const BINANCE_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
+const BINANCE_FUNDING_RATE_URL = "https://fapi.binance.com/fapi/v1/fundingRate";
+const BINANCE_OPEN_INTEREST_HIST_URL = "https://futures.binance.com/futures/data/openInterestHist";
 
 type BinanceExchangeSymbolRow = {
   contractType?: string;
   quoteAsset?: string;
   status?: string;
   symbol?: string;
+};
+
+type BinanceFundingRateRow = {
+  fundingRate?: string | number;
+  fundingTime?: string | number;
+};
+
+type BinanceOpenInterestHistRow = {
+  sumOpenInterest?: string | number;
+  sumOpenInterestValue?: string | number;
+  timestamp?: string | number;
 };
 
 type CliOptions = {
@@ -166,6 +180,52 @@ function normalizeKline(row: unknown): Candle | null {
   return candle;
 }
 
+function numberOrUndefined(value: unknown) {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function isoFromMs(value: unknown) {
+  const ms = Number(value);
+
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return null;
+  }
+
+  return new Date(ms).toISOString();
+}
+
+function normalizeFunding(row: BinanceFundingRateRow): ProfessionalDerivativePoint | null {
+  const observedAt = isoFromMs(row.fundingTime);
+  const fundingRate = numberOrUndefined(row.fundingRate);
+
+  if (!observedAt || fundingRate === undefined) {
+    return null;
+  }
+
+  return {
+    fundingRate,
+    observedAt,
+    source: "public_exchange",
+  };
+}
+
+function normalizeOpenInterest(row: BinanceOpenInterestHistRow): ProfessionalDerivativePoint | null {
+  const observedAt = isoFromMs(row.timestamp);
+  const openInterestUsd = numberOrUndefined(row.sumOpenInterestValue ?? row.sumOpenInterest);
+
+  if (!observedAt || openInterestUsd === undefined || openInterestUsd <= 0) {
+    return null;
+  }
+
+  return {
+    observedAt,
+    openInterestUsd,
+    source: "public_exchange",
+  };
+}
+
 async function fetchBinanceCandles(symbol: string, options: CliOptions) {
   const candles: Candle[] = [];
   const stepMs = 15 * 60_000;
@@ -221,6 +281,130 @@ async function fetchBinanceCandles(symbol: string, options: CliOptions) {
     .sort((left, right) => Date.parse(left.openTime) - Date.parse(right.openTime));
 }
 
+async function fetchBinanceFunding(symbol: string, startTime: number, endTime: number) {
+  const params = new URLSearchParams({
+    endTime: String(endTime),
+    limit: "1000",
+    startTime: String(startTime),
+    symbol,
+  });
+  const response = await fetch(`${BINANCE_FUNDING_RATE_URL}?${params.toString()}`, {
+    headers: {
+      "user-agent": "chuan-radar-professional-backtest/2.0",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${symbol} funding returned ${response.status}`);
+  }
+
+  const rows = await response.json();
+
+  if (!Array.isArray(rows)) {
+    throw new Error(`${symbol} funding returned non-array payload`);
+  }
+
+  return rows
+    .map((row) => normalizeFunding(row as BinanceFundingRateRow))
+    .filter((row): row is ProfessionalDerivativePoint => Boolean(row));
+}
+
+async function fetchBinanceOpenInterestHistory(symbol: string, startTime: number, endTime: number, options: CliOptions) {
+  const points: ProfessionalDerivativePoint[] = [];
+  let cursor = startTime;
+
+  while (cursor < endTime) {
+    const params = new URLSearchParams({
+      endTime: String(endTime),
+      limit: "500",
+      period: "15m",
+      startTime: String(cursor),
+      symbol,
+    });
+    const response = await fetch(`${BINANCE_OPEN_INTEREST_HIST_URL}?${params.toString()}`, {
+      headers: {
+        "user-agent": "chuan-radar-professional-backtest/2.0",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`${symbol} openInterestHist returned ${response.status}`);
+    }
+
+    const rows = await response.json();
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      break;
+    }
+
+    for (const row of rows) {
+      const point = normalizeOpenInterest(row as BinanceOpenInterestHistRow);
+
+      if (point) {
+        points.push(point);
+      }
+    }
+
+    const lastTimestamp = Number((rows.at(-1) as BinanceOpenInterestHistRow | undefined)?.timestamp);
+
+    if (!Number.isFinite(lastTimestamp) || lastTimestamp <= cursor) {
+      break;
+    }
+
+    cursor = lastTimestamp + 15 * 60_000;
+
+    if (options.requestDelayMs > 0) {
+      await delay(options.requestDelayMs);
+    }
+  }
+
+  return points;
+}
+
+function mergeDerivativePoints(points: ProfessionalDerivativePoint[]) {
+  const merged = new Map<string, ProfessionalDerivativePoint>();
+
+  for (const point of points) {
+    const existing = merged.get(point.observedAt);
+
+    merged.set(point.observedAt, {
+      fundingRate: existing?.fundingRate ?? point.fundingRate,
+      observedAt: point.observedAt,
+      openInterestUsd: existing?.openInterestUsd ?? point.openInterestUsd,
+      source: existing?.source ?? point.source,
+    });
+  }
+
+  return [...merged.values()]
+    .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt));
+}
+
+async function fetchBinanceDerivatives(symbol: string, candles: Candle[], options: CliOptions) {
+  const first = candles[0];
+  const last = candles.at(-1);
+
+  if (!first || !last) {
+    return [];
+  }
+
+  const startTime = Date.parse(first.openTime);
+  const endTime = Date.parse(last.closeTime);
+
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
+    return [];
+  }
+
+  const funding = await fetchBinanceFunding(symbol, startTime, endTime);
+
+  if (options.requestDelayMs > 0) {
+    await delay(options.requestDelayMs);
+  }
+
+  const openInterest = await fetchBinanceOpenInterestHistory(symbol, startTime, endTime, options);
+
+  return mergeDerivativePoints([...funding, ...openInterest]);
+}
+
 async function fetchCandlesBySymbol(symbols: string[], options: CliOptions) {
   const candlesBySymbol = new Map<string, Candle[]>();
   const failures: Array<{ error: string; symbol: string }> = [];
@@ -254,6 +438,48 @@ async function fetchCandlesBySymbol(symbols: string[], options: CliOptions) {
   };
 }
 
+async function fetchDerivativesBySymbol(candlesBySymbol: Map<string, Candle[]>, options: CliOptions) {
+  const derivativesBySymbol = new Map<string, ProfessionalDerivativePoint[]>();
+  const failures: Array<{ error: string; symbol: string }> = [];
+  const entries = [...candlesBySymbol.entries()];
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const [symbol, candles] = entries[index] ?? [];
+
+    if (!symbol || !candles) {
+      continue;
+    }
+
+    process.stdout.write(`[${index + 1}/${entries.length}] ${symbol} professional audit derivatives\r`);
+
+    try {
+      const derivatives = await fetchBinanceDerivatives(symbol, candles, options);
+
+      if (derivatives.length > 0) {
+        derivativesBySymbol.set(symbol, derivatives);
+      } else {
+        failures.push({ error: "empty derivatives response", symbol });
+      }
+    } catch (error) {
+      failures.push({
+        error: `derivatives: ${error instanceof Error ? error.message : String(error)}`,
+        symbol,
+      });
+    }
+
+    if (options.requestDelayMs > 0) {
+      await delay(options.requestDelayMs);
+    }
+  }
+
+  process.stdout.write("\n");
+
+  return {
+    derivativesBySymbol,
+    failures,
+  };
+}
+
 function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failures: Array<{ error: string; symbol: string }>) {
   const lines = [
     "# Professional Strategy Backtest Audit v2",
@@ -266,8 +492,9 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     "",
     "## 输入",
     "",
-    `- 数据源：binance-public-futures 15m klines`,
+    `- 数据源：binance-public-futures 15m klines + public funding/open interest`,
     `- 使用币种：${report.input.symbolsUsed.length}`,
+    `- 已注入历史衍生品币种：${report.input.derivativesSymbolsUsed}`,
     `- 回放点：${report.input.replayTimes}`,
     `- 每轮候选：${report.input.topN}`,
     `- 验证窗口：${report.input.horizonBars} 根 15m K 线`,
@@ -337,9 +564,15 @@ async function main() {
     throw new Error("No historical candles fetched. Check network or reduce symbol scope.");
   }
 
+  const {
+    derivativesBySymbol,
+    failures: derivativeFailures,
+  } = await fetchDerivativesBySymbol(candlesBySymbol, options);
+
   const report = runProfessionalReplay({
     baseInterval: "15m",
     candlesBySymbol,
+    derivativesBySymbol,
     options: {
       horizonBars: 96,
       maxCasesInReport: 300,
@@ -348,7 +581,7 @@ async function main() {
       topN: options.topN,
     },
   });
-  const reportDir = await writeReport(options, report, failures);
+  const reportDir = await writeReport(options, report, [...failures, ...derivativeFailures]);
 
   console.log(`professional-backtest-audit report: ${reportDir}`);
   console.log(`cases=${report.roundSummary.cases} highFindings=${report.roundSummary.highSeverityFindings} planReady=${report.roundSummary.planReadyCount}`);

@@ -214,8 +214,10 @@ reports/professional-backtest-audit/<日期时间>/
 - `applySignalMaturity`
 - v3 关键位、结构、多周期、RR、交易计划和成熟度分类
 
-当前首版 v2 仍会明确标注的缺口：
+当前 v2 的衍生品接入边界：
 
-- CoinGlass 历史 OI/Funding/多空拥挤未注入时，报告必须输出 `PBA-DERIVATIVES-*`。
+- v2 会尝试注入 Binance 公开永续历史 Funding/Open Interest，来源必须标记为 `public_exchange`。
+- 公开交易所历史衍生品只能证明“历史 OI/Funding 审计链路可用”，不能冒充 CoinGlass 付费深扫。
+- CoinGlass 历史 OI/Funding/多空拥挤未注入或公开交易所历史衍生品拉取失败时，报告必须输出 `PBA-DERIVATIVES-*` 或 fetch failure。
 - 输入只有公共 K 线时，扫描层只能审计历史样本，不等于完整生产 universe 调度。
 - 本机网络如果无法访问交易所历史接口，应在腾讯云服务器运行该命令。
