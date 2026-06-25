@@ -157,3 +157,88 @@ test("historical backtest readonly parses latest report into frontend state", as
     await rm(root, { force: true, recursive: true });
   }
 });
+
+test("historical backtest readonly exposes professional audit v2 findings", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "chuan-pba-ready-"));
+
+  try {
+    await writeReport(
+      root,
+      "professional-report",
+      {
+        cases: [
+          {
+            symbol: "TIAUSDT",
+          },
+        ],
+        findings: [
+          {
+            detail: "历史衍生品快照缺失，无法验证 OI/Funding 是否支持当时信号。",
+            id: "PBA-DERIVATIVES-001",
+            layer: "derivatives",
+            nextAction: "接入 CoinGlass 或公开交易所历史衍生品快照后重跑。",
+            rootCause: "回测只能看到 K 线，不能看到当时资金质量。",
+            severity: "high",
+            title: "历史衍生品证据未参与专业回测",
+          },
+        ],
+        generatedAt: "2026-06-25T08:00:00.000Z",
+        guardrails: [
+          "专业回测审计只验证系统能力，不承诺未来收益。",
+          "AI 只能解释证据，不能替代规则引擎。",
+        ],
+        input: {
+          baseInterval: "15m",
+          horizonBars: 96,
+          topN: 10,
+        },
+        remediationPlan: [
+          {
+            acceptanceCriteria: "连续两轮报告不再出现 PBA-DERIVATIVES-001。",
+            action: "补齐历史 OI/Funding 快照源，并将其注入专业回测。",
+            canAutoApply: false,
+            layer: "derivatives",
+            priority: "P0",
+            targetModule: "src/lib/backtest/professional-audit.ts",
+          },
+        ],
+        roundSummary: {
+          cases: 1,
+          highSeverityFindings: 1,
+          planReadyCount: 0,
+          testedCapabilities: 6,
+        },
+        schemaVersion: "professional-backtest-audit-report.v2",
+        summary: "专业回测 v2 发现高优先级问题：历史衍生品证据缺失。",
+      },
+      `# Professional Backtest Audit v2
+
+## 输入
+
+- 数据源：binance-public-futures
+- 周期：15m
+- 未来验证窗口：96 根 K 线
+- 每轮候选数：10
+`,
+      new Date("2026-06-25T08:00:00.000Z"),
+    );
+
+    const result = await getLatestHistoricalBacktestResource({
+      now: new Date("2026-06-25T08:05:00.000Z"),
+      roots: [root],
+    });
+
+    assert.equal(result.status, "partial");
+    assert.equal(result.data.status, "degraded");
+    assert.equal(result.data.auditV2?.schemaVersion, "professional-backtest-audit-report.v2");
+    assert.equal(result.data.auditV2?.cases, 1);
+    assert.equal(result.data.auditV2?.highSeverityFindings, 1);
+    assert.equal(result.data.auditV2?.findings[0]?.id, "PBA-DERIVATIVES-001");
+    assert.equal(result.data.auditV2?.remediationPlan[0]?.priority, "P0");
+    assert.match(result.data.summary, /历史衍生品证据缺失/);
+    assert.match(result.data.nextAction, /补齐历史 OI\/Funding/);
+    assert.equal(result.ageSec, 300);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});

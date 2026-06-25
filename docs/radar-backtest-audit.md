@@ -1,11 +1,12 @@
 # 雷达回测与审计体系
 
-本文定义两类不同工具，不能混用：
+本文定义三类不同工具，不能混用：
 
 - `backtest:audit`：当前线上状态审计。它读取现有真实接口，检查系统现在是否在扫、是否分层、是否存在假数据或误导展示。
-- `backtest:historical`：历史时间点回放。它读取历史 K 线，在过去每个时间点只使用当时之前的数据打分，再看后续是否真的出现行情。
+- `backtest:historical`：历史时间点回放 smoke test。它读取历史 K 线，在过去每个时间点只使用当时之前的数据打分，再看后续是否真的出现行情。它只验证早期评分和历史数据回放，不代表完整分析推理能力。
+- `professional-backtest-audit v2`：专业回测审计系统。它必须复用真实扫描、分析、技术指标、结构、多周期、衍生品、RR、交易计划和复盘链路，用来全面审计网站核心能力。
 
-二者都不是量化收益宣传，都不能自动下单，都不能自动改策略权重。
+三者都不是量化收益宣传，都不能自动下单，都不能自动改策略权重。
 
 ## 当前状态审计目标
 
@@ -164,3 +165,57 @@ reports/historical-backtest/<日期时间>/
 - 不用未来数据参与当时的候选评分。
 - 不把涨跌幅榜大波动直接当交易信号。
 - 如果雷达没有跑赢基线，报告必须明确暴露问题，不能包装成成功。
+
+## 专业回测审计 v2
+
+详细规范见 `docs/backtest-v2/PROFESSIONAL_BACKTEST_AUDIT_SPEC.md`。
+
+专业回测审计 v2 的目标不是只看命中率，而是全面回答：
+
+- 系统是否真的提前发现山寨币机会。
+- 扫描、候选、深扫、证据、计划哪一层失效。
+- 技术指标是否帮助判断，还是制造噪音。
+- 结构、多周期、衍生品、RR 是否真正提高信号质量。
+- 哪些机会被漏掉，哪些垃圾信号被放过。
+- 下一轮具体该修什么。
+
+旧版 `backtest:historical` 后续只作为 smoke test 和回放基础设施验证；任何“网站核心分析能力是否可靠”的判断，必须以专业回测审计 v2 报告为准。
+
+### 专业回测审计 v2 命令
+
+```bash
+npm run backtest:professional
+```
+
+常用参数：
+
+```bash
+npm run backtest:professional -- --days 7 --max-symbols 40 --top-n 10
+npm run backtest:professional -- --days 30 --max-symbols 180 --top-n 24
+```
+
+默认输出到：
+
+```text
+reports/professional-backtest-audit/<日期时间>/
+```
+
+包含：
+
+- `summary.md`：中文审计报告，必须包含问题和整改方案。
+- `findings.json`：机器可读专业审计结果，schema 为 `professional-backtest-audit-report.v2`。
+
+当前首版 v2 已经复用生产链路：
+
+- `analyzeMarketAnomaly`
+- `buildTechnicalEvidence`
+- `buildTimeframeProfile`
+- `buildSignalTrendRadarV3Dossier`
+- `applySignalMaturity`
+- v3 关键位、结构、多周期、RR、交易计划和成熟度分类
+
+当前首版 v2 仍会明确标注的缺口：
+
+- CoinGlass 历史 OI/Funding/多空拥挤未注入时，报告必须输出 `PBA-DERIVATIVES-*`。
+- 输入只有公共 K 线时，扫描层只能审计历史样本，不等于完整生产 universe 调度。
+- 本机网络如果无法访问交易所历史接口，应在腾讯云服务器运行该命令。

@@ -3,6 +3,9 @@ import path from "node:path";
 import { resource, type Resource } from "../data-status";
 import type {
   HistoricalBacktestFinding,
+  HistoricalBacktestAuditV2Finding,
+  HistoricalBacktestAuditV2Remediation,
+  HistoricalBacktestAuditV2State,
   HistoricalBacktestLaneMetric,
   HistoricalBacktestMissedOpportunity,
   HistoricalBacktestReasonMetric,
@@ -15,6 +18,7 @@ import {
 } from "./frontend-contract";
 
 const DEFAULT_REPORT_ROOTS = [
+  "reports/professional-backtest-audit",
   "reports/historical-backtest",
   "tmp/chuan-historical-backtest-medium",
   "tmp/chuan-historical-backtest-smoke",
@@ -96,6 +100,55 @@ function normalizeFinding(value: unknown): HistoricalBacktestFinding {
     id: stringValue(item.id, "HBT-UNKNOWN"),
     severity: severity === "high" || severity === "medium" || severity === "low" ? severity : "medium",
     title: stringValue(item.title, "历史回测发现未命名问题"),
+  };
+}
+
+function normalizeAuditV2Finding(value: unknown): HistoricalBacktestAuditV2Finding {
+  const item = asObject(value);
+  const severity = stringValue(item.severity);
+
+  return {
+    detail: stringValue(item.detail, "没有详细说明。"),
+    id: stringValue(item.id, "PBA-UNKNOWN"),
+    layer: stringValue(item.layer, "review"),
+    nextAction: stringValue(item.nextAction, "等待下一轮整改方案。"),
+    rootCause: stringValue(item.rootCause, "未标注根因。"),
+    severity: severity === "high" || severity === "medium" || severity === "low" ? severity : "medium",
+    title: stringValue(item.title, "专业回测发现未命名问题"),
+  };
+}
+
+function normalizeAuditV2Remediation(value: unknown): HistoricalBacktestAuditV2Remediation {
+  const item = asObject(value);
+  const priority = stringValue(item.priority);
+
+  return {
+    acceptanceCriteria: stringValue(item.acceptanceCriteria, "未定义验收标准。"),
+    action: stringValue(item.action, "未定义整改动作。"),
+    canAutoApply: false,
+    layer: stringValue(item.layer, "review"),
+    priority: priority === "P0" || priority === "P1" || priority === "P2" ? priority : "P1",
+    targetModule: stringValue(item.targetModule, "unknown"),
+  };
+}
+
+function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestAuditV2State | undefined {
+  if (payload.schemaVersion !== "professional-backtest-audit-report.v2") {
+    return undefined;
+  }
+
+  const roundSummary = asObject(payload.roundSummary);
+
+  return {
+    schemaVersion: "professional-backtest-audit-report.v2",
+    cases: numericValue(roundSummary.cases),
+    findings: asArray(payload.findings).map(normalizeAuditV2Finding).slice(0, 100),
+    guardrails: asArray(payload.guardrails).map((item) => stringValue(item)).filter(Boolean),
+    highSeverityFindings: numericValue(roundSummary.highSeverityFindings),
+    planReadyCount: numericValue(roundSummary.planReadyCount),
+    remediationPlan: asArray(payload.remediationPlan).map(normalizeAuditV2Remediation).slice(0, 30),
+    summary: stringValue(payload.summary, "专业回测 v2 暂无总结。"),
+    testedCapabilities: numericValue(roundSummary.testedCapabilities),
   };
 }
 
@@ -330,9 +383,10 @@ export async function getLatestHistoricalBacktestResource(
     const parsedSummary = parseSummaryInput(summaryMarkdown);
     const findings = asArray(payload.findings).map(normalizeFinding);
     const failures = asArray(payload.failures);
+    const auditV2 = normalizeAuditV2(payload);
     const state: HistoricalBacktestState = {
       schemaVersion: "historical-backtest.v1",
-      status: findings.some((finding) => finding.severity === "high") || failures.length > 0 ? "degraded" : "ready",
+      status: auditV2?.highSeverityFindings || findings.some((finding) => finding.severity === "high") || failures.length > 0 ? "degraded" : "ready",
       generatedAt: stringValue(payload.generatedAt) || null,
       reportId: path.basename(candidate.dir),
       input: {
@@ -365,11 +419,12 @@ export async function getLatestHistoricalBacktestResource(
         "回测结论不能自动修改实时权重，必须人工复核。",
         "样本不足或未跑赢基线时，前端必须明确提示，不得包装成已验证能力。",
       ],
+      auditV2,
     };
     const completedState = {
       ...state,
-      summary: buildSummary(state),
-      nextAction: buildNextAction(state),
+      summary: auditV2?.summary ?? buildSummary(state),
+      nextAction: auditV2?.remediationPlan[0]?.action ?? buildNextAction(state),
     };
     const status = completedState.status === "degraded" ? "partial" : "cached";
 

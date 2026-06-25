@@ -755,6 +755,37 @@ export type HistoricalBacktestMissedOpportunity = {
   symbol: string;
 };
 
+export type HistoricalBacktestAuditV2Finding = {
+  detail: string;
+  id: string;
+  layer: string;
+  nextAction: string;
+  rootCause: string;
+  severity: "high" | "medium" | "low";
+  title: string;
+};
+
+export type HistoricalBacktestAuditV2Remediation = {
+  acceptanceCriteria: string;
+  action: string;
+  canAutoApply: false;
+  layer: string;
+  priority: "P0" | "P1" | "P2";
+  targetModule: string;
+};
+
+export type HistoricalBacktestAuditV2State = {
+  schemaVersion: "professional-backtest-audit-report.v2";
+  cases: number;
+  highSeverityFindings: number;
+  planReadyCount: number;
+  testedCapabilities: number;
+  summary: string;
+  findings: HistoricalBacktestAuditV2Finding[];
+  remediationPlan: HistoricalBacktestAuditV2Remediation[];
+  guardrails: string[];
+};
+
 export type HistoricalBacktestState = {
   schemaVersion: "historical-backtest.v1";
   status: "empty" | "ready" | "degraded";
@@ -785,6 +816,7 @@ export type HistoricalBacktestState = {
   summary: string;
   nextAction: string;
   guardrails: string[];
+  auditV2?: HistoricalBacktestAuditV2State;
 };
 
 export type ReviewContract = {

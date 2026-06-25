@@ -19,6 +19,7 @@
     "production:smoke": "bash deploy/scripts/prod-smoke.sh",
     "backtest:audit": "node tools/radar-backtest-audit.mjs",
     "backtest:historical": "node tools/radar-historical-backtest.mjs",
+    "backtest:professional": "tsc -p tsconfig.market-test.json && node .tmp/market-tests/scripts/professional-backtest-audit.js",
     "deployment:env-plan": "tsc -p tsconfig.market-test.json && node .tmp/market-tests/scripts/vercel-env-plan.js",
     "start": "next start",
     "smoke:server": "bash deploy/scripts/smoke-test.sh",

@@ -393,6 +393,83 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                     </div>
                   </div>
 
+                  {data.auditV2 ? (
+                    <div className="border border-border bg-secondary/20 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-xs font-semibold">专业回测审计 v2</div>
+                        <span
+                          className={cn(
+                            'border px-1.5 py-0.5 font-mono text-[10px]',
+                            data.auditV2.highSeverityFindings > 0
+                              ? 'border-down/40 bg-down/10 text-down'
+                              : 'border-up/40 bg-up/10 text-up',
+                          )}
+                        >
+                          {data.auditV2.highSeverityFindings > 0 ? '需要整改' : '继续扩大样本'}
+                        </span>
+                        <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                          cases {data.auditV2.cases} · ready {data.auditV2.planReadyCount} · tested {data.auditV2.testedCapabilities}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                        {data.auditV2.summary}
+                      </p>
+                      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                        <div className="border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">问题归因</div>
+                          <div className="mt-2 space-y-2">
+                            {data.auditV2.findings.slice(0, 5).map((finding) => (
+                              <div key={finding.id} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      'border px-1.5 py-0.5 font-mono text-[10px]',
+                                      finding.severity === 'high'
+                                        ? 'border-down/40 bg-down/10 text-down'
+                                        : 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]',
+                                    )}
+                                  >
+                                    {finding.severity}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-muted-foreground">{finding.id}</span>
+                                  <span className="ml-auto font-mono text-[10px] text-muted-foreground">{finding.layer}</span>
+                                </div>
+                                <div className="mt-1 text-[11px] font-semibold">{finding.title}</div>
+                                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  根因：{finding.rootCause}
+                                </p>
+                                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  下一步：{finding.nextAction}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">整改方案</div>
+                          <div className="mt-2 space-y-2">
+                            {data.auditV2.remediationPlan.slice(0, 5).map((item) => (
+                              <div key={`${item.priority}-${item.targetModule}`} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="border border-neon/40 bg-neon/10 px-1.5 py-0.5 font-mono text-[10px] text-neon">
+                                    {item.priority}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-muted-foreground">{item.targetModule}</span>
+                                </div>
+                                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  {item.action}
+                                </p>
+                                <p className="mt-1 border-l border-border pl-2 text-[10px] leading-relaxed text-muted-foreground">
+                                  验收：{item.acceptanceCriteria}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <ul className="grid gap-1.5 text-[11px] leading-relaxed text-muted-foreground lg:grid-cols-2">
                     {data.guardrails.map((rule) => (
                       <li key={rule} className="flex gap-2">
