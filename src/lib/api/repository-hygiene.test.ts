@@ -923,6 +923,7 @@ test("single-server deployment scripts expose current runtime contracts and reco
   const verifySource = readFileSync(resolve(process.cwd(), verifyPath), "utf8");
   const gitSyncSource = readFileSync(resolve(process.cwd(), gitSyncPath), "utf8");
   const restoreSource = readFileSync(resolve(process.cwd(), restorePath), "utf8");
+  const reviewEvolutionSource = readFileSync(resolve(process.cwd(), "src/components/review/review-evolution.tsx"), "utf8");
   const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
     scripts?: Record<string, string>;
   };
@@ -950,6 +951,7 @@ test("single-server deployment scripts expose current runtime contracts and reco
   assert.match(packageJson.scripts?.["backtest:professional"] ?? "", /tools\/run-professional-backtest\.mjs/);
   assert.match(dockerfileSource, /npm run build:market-cli/);
   assert.match(dockerfileSource, /\/app\/\.tmp\/market-tests/);
+  assert.match(reviewEvolutionSource, /!data\.auditV2 && \(data\.status === 'empty' \|\| data\.lanes\.radar\.count === 0\)/);
   assert.match(verifySource, /verify-git-sync\.sh/);
   assert.match(gitSyncSource, /git ls-remote/);
   assert.match(gitSyncSource, /ALLOW_UNTRACKED/);

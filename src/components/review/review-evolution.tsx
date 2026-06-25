@@ -206,7 +206,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
           </div>
           <ResourceBoundary
             resource={historicalBacktest}
-            isEmpty={(data) => data.status === 'empty' || data.lanes.radar.count === 0}
+            isEmpty={(data) => !data.auditV2 && (data.status === 'empty' || data.lanes.radar.count === 0)}
             emptyText="暂无历史回测报告"
           >
             {(data) => {
