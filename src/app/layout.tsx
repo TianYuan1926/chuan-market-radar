@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono, Sora } from 'next/font/google'
 import { AuthGate } from '@/components/auth/auth-gate'
@@ -41,7 +40,6 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased" suppressHydrationWarning>
         <AuthGate>{children}</AuthGate>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )

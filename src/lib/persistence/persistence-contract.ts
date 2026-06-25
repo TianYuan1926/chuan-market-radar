@@ -174,7 +174,7 @@ export type PersistedMacroMarketSnapshotRecord = {
   updated_at: string;
 };
 
-export type FrontendUiStateKind = "pet_progress" | "egg_progress" | "ui_preferences";
+export type FrontendUiStateKind = "ui_preferences";
 
 export type FrontendUiStateEntry<TPayload = Record<string, unknown>> = {
   kind: FrontendUiStateKind;

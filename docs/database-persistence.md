@@ -39,7 +39,7 @@
 - `ohlcv_candle_cache`: 公开 OHLCV candles 有界缓存，用于复盘、技术指标和趋势档案
 - `scan_asset_states`: 每个币的深扫轮换账本，记录上次深扫、连续跳过、近期深扫次数、状态池、被动态优先级挤占和选中/跳过原因
 - `macro_market_snapshots`: BTC.D、ETH.D、TOTAL2、TOTAL3 和总市值宏观快照，只作为山寨环境锚点，不生成交易信号
-- `frontend_ui_states`: 宠物、彩蛋和前端偏好状态；只允许作为 UI 状态，不能生成交易信号、不能改变扫描排序、不能自动调权
+- `frontend_ui_states`: 前端 UI 偏好状态；只允许作为 UI 状态，不能生成交易信号、不能改变扫描排序、不能自动调权
 
 每张表都带 `scope` 字段。当前腾讯云单机生产建议使用 `chuan-prod`；私有登录只控制访问，不改变分析数据归属。
 
@@ -55,7 +55,7 @@
 8. 每日异动归因复盘写入 `daily_mover_snapshots`、`daily_mover_assets`、`mover_attribution_reviews`、`radar_miss_reviews`，后续由数据源适配器和定时任务触发。
 9. 扫描 refresh 持久化时同步 upsert `scan_asset_states`，用于下一轮 repository priority hints 和轮换公平性。
 10. 受保护 `POST /api/admin/macro/ingest` 写入 `macro_market_snapshots`，供 Macro Weather 和 `/api/health.macroMarket` 读取。
-11. `/api/frontend/ui-state` 写入 `frontend_ui_states`，用于宠物、彩蛋和 UI 偏好跨设备保存；该表不进入分析、扫描和交易计划链路。
+11. `/api/frontend/ui-state` 写入 `frontend_ui_states`，仅用于 UI 偏好跨设备保存；该表不进入分析、扫描和交易计划链路。
 12. 保留内存 fallback，只能作为数据库失败时的临时降级，不能在 UI 上说成永久保存。
 
 ## Neon 环境变量
@@ -105,7 +105,7 @@ Vercel 生产环境建议先填这几项：
 - `addScanArchive()` 会保存扫描摘要和轻量 replay frame；`getScanReplayFrame()` 和 `compareLatestScanArchives()` 负责回放与最近两轮对比。
 - `addDailyMoverSnapshot()` 会保存每日涨跌幅榜快照、上榜资产、归因复盘和雷达命中/漏判结果；`listDailyMoverSnapshots()` 与 `getDailyMoverSnapshot()` 负责读取复盘样本。
 - `addMacroMarketSnapshot()` 会保存 CoinGecko global 宏观快照；`listMacroMarketSnapshots()` 和 `getLatestMacroMarketSnapshot()` 负责读取 BTC.D/TOTAL2/TOTAL3 环境锚点。
-- `upsertFrontendUiState()` 和 `getFrontendUiState()` 只服务前端体验状态，不允许进入交易证据、信号成熟度、扫描调度和权重调整。
+- `upsertFrontendUiState()` 和 `getFrontendUiState()` 只服务前端 UI 偏好，不允许进入交易证据、信号成熟度、扫描调度和权重调整。
 - `buildSystemHealthReport()` 会把当前 repository 模式暴露给页面和 `/api/health`，避免只填环境变量却误以为已经持久化。
 - 所有 SQL 写入都使用参数数组，不拼接用户输入。
 

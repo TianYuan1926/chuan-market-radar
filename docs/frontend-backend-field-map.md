@@ -160,8 +160,6 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 
 | Frontend state | Backend source | Current status | Notes |
 | --- | --- | --- | --- |
-| pet progress | `GET/POST /api/frontend/ui-state?kind=pet_progress` stored in `frontend_ui_states` | connected | UI state only; cannot create trade signals, mutate live ranking, or auto-adjust weights |
-| easter egg progress | `GET/POST /api/frontend/ui-state?kind=egg_progress` stored in `frontend_ui_states` | connected | localStorage remains offline fallback |
 | UI preferences | `GET/POST /api/frontend/ui-state?kind=ui_preferences` stored in `frontend_ui_states` | reserved | available for later frontend settings, not market facts |
 
 ## System Data Gaps
@@ -178,7 +176,7 @@ Completed system probes:
 - Binance/OKX/Bybit/CoinGlass source latency probes are connected through Redis-backed source latency probes.
 - `/api/frontend/live-events` exposes read-only archive/runtime events and never triggers scans.
 - `/api/frontend/live-events/stream` exposes the same read-only event contract over SSE; it never triggers scans and never calls CoinGlass.
-- `/api/frontend/ui-state` persists pet/easter/frontend preferences in `frontend_ui_states` as UI-only data.
+- `/api/frontend/ui-state` persists frontend preferences in `frontend_ui_states` as UI-only data.
 - `/api/auth/session` provides optional private mode with signed HTTP-only cookie sessions.
 - Real AI review adapter is wired as an optional, evidence-id-bound reviewer; it cannot override the strategy engine.
 - AI counter-evidence review is evidence-id bound: prompts include `trace.signalId` and `trace.evidenceIds`, and model counter-evidence with unbound ids falls back instead of becoming reviewed.

@@ -542,32 +542,32 @@ test("memory repository stores and reads macro market snapshots newest first", a
   assert.equal(latest?.canCreateTradeSignal, false);
 });
 
-test("memory repository stores frontend UI state separately from trading data", async () => {
+test("memory repository stores frontend UI preferences separately from trading data", async () => {
   const repository = createMemoryPersistenceRepository();
   const entry = {
     allowedUse: "ui_state_only" as const,
     canAutoAdjustWeights: false as const,
     canCreateTradeSignal: false as const,
     canMutateLiveRanking: false as const,
-    kind: "egg_progress" as const,
+    kind: "ui_preferences" as const,
     payload: {
-      unlocked: {
-        chuan: 1_797_870_000_000,
-      },
+      density: "compact",
+      language: "zh-CN",
+      theme: "radar",
     },
     updatedAt: "2026-06-22T10:00:00.000Z",
     version: "frontend-ui-state.v1" as const,
   };
 
   await repository.upsertFrontendUiState(entry);
-  const stored = await repository.getFrontendUiState<typeof entry.payload>("egg_progress");
+  const stored = await repository.getFrontendUiState<typeof entry.payload>("ui_preferences");
   const journal = await repository.listJournalEvents();
 
-  assert.equal(stored?.kind, "egg_progress");
+  assert.equal(stored?.kind, "ui_preferences");
   assert.equal(stored?.allowedUse, "ui_state_only");
   assert.equal(stored?.canCreateTradeSignal, false);
   assert.equal(stored?.canMutateLiveRanking, false);
-  assert.equal(stored?.payload.unlocked.chuan, 1_797_870_000_000);
+  assert.equal(stored?.payload.density, "compact");
   assert.deepEqual(journal, []);
 });
 
@@ -999,20 +999,18 @@ test("postgres repository writes and reads macro market snapshots through durabl
   assert.deepEqual(client.calls[2]?.params, ["chuan-public", 1]);
 });
 
-test("postgres repository writes and reads frontend UI state through durable tables", async () => {
+test("postgres repository writes and reads frontend UI preferences through durable tables", async () => {
   const client = new RecordingSqlClient();
   const entry = {
     allowedUse: "ui_state_only" as const,
     canAutoAdjustWeights: false as const,
     canCreateTradeSignal: false as const,
     canMutateLiveRanking: false as const,
-    kind: "pet_progress" as const,
+    kind: "ui_preferences" as const,
     payload: {
-      exp: 180,
-      streak: 5,
-      totalRight: 9,
-      totalWrong: 2,
-      wrongStreak: 0,
+      density: "compact",
+      language: "zh-CN",
+      theme: "radar",
     },
     updatedAt: "2026-06-22T10:00:00.000Z",
     version: "frontend-ui-state.v1" as const,
@@ -1026,7 +1024,7 @@ test("postgres repository writes and reads frontend UI state through durable tab
           can_auto_adjust_weights: false,
           can_create_trade_signal: false,
           can_mutate_live_ranking: false,
-          kind: "pet_progress",
+          kind: "ui_preferences",
           payload: entry.payload,
           scope: "chuan-public",
           updated_at: entry.updatedAt,
@@ -1038,22 +1036,22 @@ test("postgres repository writes and reads frontend UI state through durable tab
   const repository = createPostgresPersistenceRepository({ client, scope: "chuan-public" });
 
   const written = await repository.upsertFrontendUiState(entry);
-  const stored = await repository.getFrontendUiState<typeof entry.payload>("pet_progress");
+  const stored = await repository.getFrontendUiState<typeof entry.payload>("ui_preferences");
 
-  assert.equal(written.kind, "pet_progress");
-  assert.equal(stored?.payload.exp, 180);
+  assert.equal(written.kind, "ui_preferences");
+  assert.equal(stored?.payload.density, "compact");
   assert.equal(stored?.canCreateTradeSignal, false);
   assert.match(client.calls[0]?.sql ?? "", /insert into frontend_ui_states/i);
   assert.match(client.calls[0]?.sql ?? "", /on conflict \(scope, kind\) do update/i);
   assert.match(client.calls[1]?.sql ?? "", /select \* from frontend_ui_states/i);
   assert.deepEqual(client.calls[0]?.params.slice(0, 5), [
     "chuan-public",
-    "pet_progress",
+    "ui_preferences",
     "2026-06-22T10:00:00.000Z",
     "frontend-ui-state.v1",
     "ui_state_only",
   ]);
-  assert.deepEqual(client.calls[1]?.params, ["chuan-public", "pet_progress"]);
+  assert.deepEqual(client.calls[1]?.params, ["chuan-public", "ui_preferences"]);
 });
 
 test("postgres repository writes and reads v3 forward map snapshots through durable tables", async () => {

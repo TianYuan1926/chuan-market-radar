@@ -11,7 +11,7 @@ All market-facing UI must be one of these states:
 - Backend fact: data produced by backend contract routes or server-side contract readers.
 - Derived display: formatting, sorting, grouping, or visual adaptation of backend facts.
 - Honest empty state: backend returned no qualifying data, and the UI says so.
-- UI state: local preferences, animation state, sound setting, pet/easter-egg state.
+- UI state: local preferences only. Animation, sound, pet, and easter-egg state cannot re-enter active pages unless they directly serve scan, alert, review discipline, or another core chain requirement.
 
 Anything else is forbidden for active pages.
 

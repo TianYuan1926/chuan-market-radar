@@ -424,19 +424,17 @@ test("macro market snapshots round-trip through a database-ready record", () => 
   assert.deepEqual(macroMarketSnapshotRecordToSnapshot(record), snapshot);
 });
 
-test("frontend UI state round-trips without becoming trading evidence", () => {
+test("frontend UI preferences round-trip without becoming trading evidence", () => {
   const entry = {
     allowedUse: "ui_state_only" as const,
     canAutoAdjustWeights: false as const,
     canCreateTradeSignal: false as const,
     canMutateLiveRanking: false as const,
-    kind: "pet_progress" as const,
+    kind: "ui_preferences" as const,
     payload: {
-      exp: 120,
-      streak: 4,
-      totalRight: 8,
-      totalWrong: 1,
-      wrongStreak: 0,
+      density: "compact",
+      language: "zh-CN",
+      theme: "radar",
     },
     updatedAt: "2026-06-22T10:00:00.000Z",
     version: "frontend-ui-state.v1" as const,
@@ -444,12 +442,12 @@ test("frontend UI state round-trips without becoming trading evidence", () => {
   const record = frontendUiStateToRecord(entry, scope);
 
   assert.equal(record.scope, scope);
-  assert.equal(record.kind, "pet_progress");
+  assert.equal(record.kind, "ui_preferences");
   assert.equal(record.allowed_use, "ui_state_only");
   assert.equal(record.can_create_trade_signal, false);
   assert.equal(record.can_mutate_live_ranking, false);
   assert.equal(record.can_auto_adjust_weights, false);
-  assert.equal(record.payload.exp, 120);
+  assert.equal(record.payload.density, "compact");
   assert.deepEqual(frontendUiStateRecordToEntry(record), entry);
 });
 

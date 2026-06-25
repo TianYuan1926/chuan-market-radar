@@ -69,7 +69,7 @@ restore frontend source from user ui package
 - 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链、API 用量、数据源延迟、AI evidence-id 绑定复审。
 - 已接：复盘样本统计合同、AI 复核统计合同、扫描稳定性合同。
 - 半接：主力资金流。当前只展示 OI/Funding/多空比上下文和 taker/CVD 未接入状态，不能伪装成真实资金流。
-- 已接：宠物/彩蛋跨设备持久化通过 `/api/frontend/ui-state` 写入 `frontend_ui_states`；真实登录鉴权通过 `/api/auth/session` 和可选私有模式完成。
+- 已接：UI 偏好可通过 `/api/frontend/ui-state?kind=ui_preferences` 写入 `frontend_ui_states`；真实登录鉴权通过 `/api/auth/session` 和可选私有模式完成。
 
 ## 阶段 2：后端接口对齐
 
@@ -198,7 +198,7 @@ mapper 硬规则：
 - `mock-data.ts` 只允许保留为隔离预览/测试辅助，不再给活跃市场页面提供事实或 UI 类型。
 - UI 展示类型已拆到 `src/lib/frontend-market-types.ts`。
 - `sniper-data.ts` 只保留类型和纯显示 helper，不能生成狙击目标、入场价、止损、目标位、随机结局或复盘样本。
-- `pet-store.ts`、`egg-store.ts` 属于 UI 状态，已接 `/api/frontend/ui-state`，localStorage 只作为离线/失败兜底。
+- 宠物、彩蛋、声音和训练引擎相关前端状态已从生产主线删除；`/api/frontend/ui-state` 只保留 `ui_preferences`。
 - `journal-store.ts` 已接 `/api/frontend/journal-contract`，localStorage 只作为失败兜底。
 
 已完成清理：

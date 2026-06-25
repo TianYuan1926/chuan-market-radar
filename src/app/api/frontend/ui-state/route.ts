@@ -14,11 +14,7 @@ const frontendUiStateRateLimiter = new MemoryRateLimiter({
   windowMs: 60_000,
 });
 
-const validKinds: FrontendUiStateKind[] = [
-  "pet_progress",
-  "egg_progress",
-  "ui_preferences",
-];
+const validKinds: FrontendUiStateKind[] = ["ui_preferences"];
 const maxPayloadBytes = Number(process.env.FRONTEND_UI_STATE_MAX_BYTES ?? 32_768);
 
 function clientKey(request: NextRequest) {

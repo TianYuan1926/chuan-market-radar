@@ -548,7 +548,6 @@ test("frontend data truth contract blocks active mock market facts", () => {
   const journalStoreSource = readFileSync(resolve(process.cwd(), "src/lib/journal-store.ts"), "utf8");
   const liveNumberSource = readFileSync(resolve(process.cwd(), "src/lib/use-live-number.ts"), "utf8");
   const displayFormatSource = readFileSync(resolve(process.cwd(), "src/lib/display-format.ts"), "utf8");
-  const trainingEngineSource = readFileSync(resolve(process.cwd(), "src/lib/training-engine.ts"), "utf8");
   const authGateSource = readFileSync(resolve(process.cwd(), "src/components/auth/auth-gate.tsx"), "utf8");
   const leaderboardSource = readFileSync(resolve(process.cwd(), "src/components/leaderboard-table.tsx"), "utf8");
   const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
@@ -572,8 +571,6 @@ test("frontend data truth contract blocks active mock market facts", () => {
   assert.match(liveNumberSource, /mirrors the latest backend-provided value only/);
   assert.doesNotMatch(liveNumberSource, /Math\.random|setInterval|随机游走/);
 
-  assert.match(trainingEngineSource, /setTrainingPool/);
-  assert.doesNotMatch(trainingEngineSource, /getSniperTargets|getSignalCards/);
   assert.doesNotMatch(authGateSource, /PetRobot|EasterEggSystem|GlobalSignalFeed|SiteLoader/);
 
   assert.match(displayFormatSource, /fmtKnownCap/);
