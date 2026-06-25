@@ -654,6 +654,8 @@ RawSource
 
 二批清理状态：已完成生产无关状态库清理。`pet-store.ts`、`egg-store.ts`、`pet-brain.ts`、`training-engine.ts`、`ranks.ts`、`sound.ts` 已删除；`/api/frontend/ui-state` 只允许 `ui_preferences`，`frontend_ui_states` 只作为前端偏好表，不再承载宠物、彩蛋、声音或训练状态。
 
+三批清理状态：已完成前端可见层物理清理。旧前端 mock 市场事实源 `src/lib/mock-data.ts` 已删除；未挂载的 `manual-journal.tsx`、`journal-stats.tsx`、`river-canvas.tsx`、`sparkline.tsx`、`components/ui/button.tsx` 已删除；旧介绍页、启动页、Hero 手掌美元、宠物、段位、训练卡、river 背景相关 CSS 已从 `globals.css` 清理；无用 `@base-ui/react` 和 `class-variance-authority` 依赖已移除。生产主界面只保留服务扫描、候选、深扫、分析、策略、复盘和系统健康的页面与组件。
+
 等核心链路稳定后再统一精修。
 
 重点不是“更花”，而是：

@@ -183,19 +183,18 @@ mapper 硬规则：
 目标：不让 mock 混进真实展示。
 
 重点处理：
-- `mock-data.ts`
 - `sniper-data.ts`
 - `signal-feed.ts`
 - `live-store.ts`
 
 处理方式：
-- 可以保留给开发预览。
+- 不再保留旧前端 mock 市场事实文件作为开发预览。
 - 真实页面不能默认读它们。
 - 没有数据时显示空状态，不 fallback 到假数据。
 
 当前保留原因：
 
-- `mock-data.ts` 只允许保留为隔离预览/测试辅助，不再给活跃市场页面提供事实或 UI 类型。
+- 旧前端 mock 市场事实文件已物理删除，不能再作为隔离预览或测试辅助恢复。
 - UI 展示类型已拆到 `src/lib/frontend-market-types.ts`。
 - `sniper-data.ts` 只保留类型和纯显示 helper，不能生成狙击目标、入场价、止损、目标位、随机结局或复盘样本。
 - 宠物、彩蛋、声音和训练引擎相关前端状态已从生产主线删除；`/api/frontend/ui-state` 只保留 `ui_preferences`。
@@ -203,15 +202,14 @@ mapper 硬规则：
 
 已完成清理：
 
-1. 活跃页面和组件不再从 `mock-data.ts` 导入市场事实或展示类型。
+1. 活跃页面和组件不再从旧 mock 市场事实文件导入市场事实或展示类型。
 2. `sniper-data.ts` 已移除 `getSniperTargets()`、随机目标、随机策略和 mock outcome。
 3. 旧 `ReviewCenter` / `SystemCenter` 大型 mock 面板已删除。
-4. 已新增 repository hygiene 测试，阻止活跃前端文件重新导入 `mock-data.ts` 作为市场事实源。
+4. 已新增 repository hygiene 测试，阻止旧 mock 市场事实文件恢复并进入活跃前端。
 
 仍保留边界：
 
-1. `mock-data.ts` 是否物理删除需单独确认，当前可作为隔离预览/测试材料保留。
-2. 任何新 UI 页面如果需要展示类型，必须从 `frontend-market-types.ts` 或后端 contract 类型读取，不能回头依赖 `mock-data.ts`。
+1. 任何新 UI 页面如果需要展示类型，必须从 `frontend-market-types.ts` 或后端 contract 类型读取，不能回头依赖 mock 市场事实源。
 
 ## 阶段 6：真实空状态验收
 

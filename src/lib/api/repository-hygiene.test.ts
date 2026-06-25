@@ -815,10 +815,11 @@ test("core homepage redirects to radar control and removes marketing shell claim
   assert.doesNotMatch(layoutSource, /链上资金异动/);
 });
 
-test("active frontend files do not import mock-data as a market fact source", () => {
+test("old frontend mock market facts stay deleted and cannot feed active pages", () => {
+  assert.equal(existsSync(resolve(process.cwd(), "src/lib/mock-data.ts")), false);
+
   const activeRoots = ["src/app", "src/components", "src/lib"];
   const allowed = new Set([
-    "src/lib/mock-data.ts",
     "src/lib/market/providers/mock-market-provider.ts",
     "src/lib/market/providers/mock-market-provider.test.ts",
   ]);

@@ -6,8 +6,7 @@
 
 ## 当前结论
 
-2026-06-23 更新：第一轮前端真实数据接线已经完成，活跃页面不再直接读取
-`src/lib/mock-data.ts` 作为市场事实源，也不再通过旧同步 mock getter 伪造主展示。
+2026-06-23 更新：第一轮前端真实数据接线已经完成，活跃页面不再直接读取旧 mock 市场事实源，也不再通过旧同步 mock getter 伪造主展示。
 旧 `ReviewCenter` / `SystemCenter` 大型 mock 面板已删除，`sniper-data.ts` 已降级为
 类型和纯显示 helper。
 

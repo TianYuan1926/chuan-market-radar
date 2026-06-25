@@ -24,9 +24,9 @@ All active pages must receive market facts from one of these paths:
 - `GET/POST/DELETE /api/auth/session`
 - `POST /api/admin/runtime/heartbeat` protected worker heartbeat writer
 
-Mock files may remain as isolated preview helpers only. Active market pages must
-not use them as fact sources. Shared UI display types that were formerly imported
-from `mock-data.ts` now live in `src/lib/frontend-market-types.ts`.
+Old frontend mock market-fact files are deleted. Active market pages must not use
+mock files as fact sources. Shared UI display types now live in
+`src/lib/frontend-market-types.ts`.
 
 ## Page Contract Map
 
@@ -91,8 +91,8 @@ from `mock-data.ts` now live in `src/lib/frontend-market-types.ts`.
   `getCandles`; chart candles now use `src/lib/chart-types.ts`.
 - Shared number formatters were moved to `src/lib/display-format.ts`.
 - Shared frontend display types were moved to `src/lib/frontend-market-types.ts`
-  so active market components no longer import `mock-data.ts` for either types
-  or facts.
+  so active market components no longer import deleted mock market files for
+  either types or facts.
 - `src/lib/sniper-data.ts` is now type/display-helper only; it no longer creates
   mock sniper targets, random theses, frontend entry/stop/target, or random
   outcome samples.

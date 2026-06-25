@@ -215,17 +215,6 @@
     stroke-dashoffset: -1000;
   }
 }
-@keyframes river-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: translateY(0);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-6px);
-  }
-}
 @keyframes grid-drift {
   from {
     background-position: 0 0;
@@ -260,14 +249,6 @@
   100% {
     transform: scale(2.4);
     opacity: 0;
-  }
-}
-@keyframes scan-line {
-  0% {
-    transform: translateY(-100%);
-  }
-  100% {
-    transform: translateY(100%);
   }
 }
 /* 川 标志：每根竖条像音频均衡器一样高低跳动 */
@@ -365,8 +346,7 @@
   50% { transform: rotate(180deg) scale(1.18); opacity: 0.85; }
 }
 
-/* ===== 介绍页专属动效 ===== */
-/* 雷达扇形扫描旋转 */
+/* 登录雷达扇形扫描旋转 */
 @keyframes radar-rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -375,185 +355,8 @@
   animation: radar-rotate 6s linear infinite;
   transform-origin: center;
 }
-/* 异动光点出现脉冲 */
-@keyframes blip-in {
-  0% { transform: scale(0); opacity: 0; }
-  40% { transform: scale(1.5); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.9; }
-}
-/* 管线粒子从左流向右 */
-@keyframes pipe-flow {
-  0% { offset-distance: 0%; opacity: 0; }
-  8% { opacity: 1; }
-  92% { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
-/* 滚动揭示：上浮淡入（JS 触发 .is-in 时播放） */
-.reveal {
-  opacity: 0;
-  transform: translateY(28px);
-  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: var(--reveal-delay, 0ms);
-}
-.reveal.is-in {
-  opacity: 1;
-  transform: translateY(0);
-}
-/* 解密标题：字符闪烁过渡 */
-@keyframes glyph-flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-/* 数字纵向滚动条幕（年代感大数字背景） */
-@keyframes drift-down {
-  from { transform: translateY(-50%); }
-  to { transform: translateY(0); }
-}
-/* ===== 标题「扫描锁定」动画：加密字形快闪 → 被扫描光束逐字锁定弹入并发光 ===== */
-/* 字符锁定：从模糊错位的加密字形，snap 到真字并琥珀闪光 */
-@keyframes char-lock {
-  0% {
-    opacity: 0;
-    transform: translateY(0.16em) scale(1.35);
-    filter: blur(6px);
-    color: var(--neon);
-    text-shadow: 0 0 24px var(--neon);
-  }
-  55% {
-    opacity: 1;
-    transform: translateY(0) scale(1.08);
-    filter: blur(0.4px);
-    color: var(--neon);
-    text-shadow: 0 0 22px var(--neon-soft);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-    text-shadow: 0 0 0 transparent;
-  }
-}
-/* 加密字形占位的微闪（锁定前） */
-@keyframes glyph-scan {
-  0%, 100% { opacity: 0.35; transform: translateY(0); }
-  50% { opacity: 0.7; transform: translateY(-0.04em); }
-}
-/* 金色标题字符入场：只做位移/缩放/模糊，不碰 color，避免破坏 background-clip:text */
-@keyframes char-rise {
-  0% { opacity: 0; transform: translateY(0.16em) scale(1.35); filter: blur(6px); }
-  55% { opacity: 1; transform: translateY(0) scale(1.08); filter: blur(0.4px); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-}
-/* 标题下方扫描光束横扫 */
-@keyframes title-beam {
-  0% { transform: translateX(-120%); opacity: 0; }
-  12% { opacity: 1; }
-  88% { opacity: 1; }
-  100% { transform: translateX(120%); opacity: 0; }
-}
-/* 漂浮加密币徽章：上下浮动 + 轻微旋转 */
-@keyframes crypto-bob {
-  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
-  50% { transform: translateY(-14px) rotate(calc(var(--rot, 0deg) + 6deg)); }
-}
-/* 手掌辉光呼吸 */
-@keyframes palm-glow {
-  0%, 100% { opacity: 0.5; transform: translate(-50%, 0) scale(1); }
-  50% { opacity: 0.85; transform: translate(-50%, 0) scale(1.06); }
-}
-/* 手掌缓慢上浮入场 */
-@keyframes palm-rise {
-  0% { opacity: 0; transform: translateY(40px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-/* 手掌托举钞票的持续悬浮（入场后循环），营造美金被托起的呼吸感 */
-@keyframes palm-float {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-12px) scale(1.012); }
-}
-/* 手部「微微想握住」：缓慢收拢的握力张弛，横向微缩 + 极轻上提，似手指将合未合 */
-@keyframes hand-grip {
-  0%, 100% { transform: translateY(0) scaleX(1) scaleY(1); }
-  45% { transform: translateY(-4px) scaleX(0.975) scaleY(1.018); }
-  60% { transform: translateY(-5px) scaleX(0.972) scaleY(1.02); }
-}
-/* 漂浮美元主层：整体上下浮动 + 轻微旋转，钞票如失重般飘动 */
-@keyframes cash-drift {
-  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-  33% { transform: translateY(-16px) rotate(-1.4deg) scale(1.01); }
-  66% { transform: translateY(8px) rotate(1.2deg) scale(0.995); }
-}
-/* 漂浮美元远景层：反向、更慢，制造视差层次 */
-@keyframes cash-drift-far {
-  0%, 100% { transform: translateY(0) rotate(0deg) scale(1.04); }
-  50% { transform: translateY(14px) rotate(1.6deg) scale(1.05); }
-}
-/* 钞票上的光扫：一束高光自下而上掠过手心钞票 */
-@keyframes cash-sheen {
-  0% { transform: translateY(40%); opacity: 0; }
-  30% { opacity: 0.55; }
-  70% { opacity: 0.55; }
-  100% { transform: translateY(-60%); opacity: 0; }
-}
-
-/* ===== 加密货币「液态黄金」标题：金属流光，模拟金币/钞票被光照流动的质感 ===== */
-@keyframes gold-flow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-.crypto-gold-text {
-  background-image: linear-gradient(
-    100deg,
-    oklch(0.7 0.13 65) 0%,
-    oklch(0.86 0.13 88) 16%,
-    oklch(0.97 0.05 95) 30%,
-    oklch(0.82 0.17 62) 46%,
-    oklch(0.98 0.04 98) 60%,
-    oklch(0.78 0.16 60) 78%,
-    oklch(0.9 0.12 86) 100%
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  animation: gold-flow 4.5s linear infinite;
-  filter: drop-shadow(0 2px 18px oklch(0.7 0.16 62 / 0.45));
-}
-@media (prefers-reduced-motion: reduce) {
-  .crypto-gold-text { animation: none; }
-}
-
-/* ===== 启动页：电影级雷达启动序列 ===== */
-/* 雷达环逐圈扩张 */
-@keyframes boot-ring {
-  0% { transform: scale(0.2); opacity: 0; }
-  30% { opacity: 0.8; }
-  100% { transform: scale(1); opacity: 0.25; }
-}
-/* 雷达 ping 扩散 */
-@keyframes boot-ping {
-  0% { transform: scale(0.3); opacity: 0.9; }
-  100% { transform: scale(2.6); opacity: 0; }
-}
-/* 雷达扫描臂旋转 */
-@keyframes boot-sweep {
-  to { transform: rotate(360deg); }
-}
-/* 终端启动日志逐行滑入 */
-@keyframes boot-log {
-  0% { opacity: 0; transform: translateX(-8px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-/* ��度环描边 */
-@keyframes boot-progress {
-  from { stroke-dashoffset: var(--dash, 339); }
-  to { stroke-dashoffset: 0; }
-}
 @media (prefers-reduced-motion: reduce) {
   .animate-radar-rotate { animation: none !important; }
-  .reveal { opacity: 1 !important; transform: none !important; }
 }
 
 /* ===== 联动标语：一束霓虹之光自上而下贯穿两句，使「大道至简 / 知行合一」连成一体 ===== */
@@ -587,36 +390,9 @@
   animation: linked-sweep 4.5s ease-in-out infinite;
 }
 
-/* ===== 网站启动动画 ===== */
-@keyframes loader-bar {
-  0%, 100% { transform: scaleY(0.3); }
-  50% { transform: scaleY(1); }
-}
-@keyframes loader-out {
-  to { opacity: 0; visibility: hidden; }
-}
-@keyframes loader-rise {
-  0% { opacity: 0; transform: translateY(14px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-@keyframes loader-line {
-  0% { width: 0; }
-  100% { width: 100%; }
-}
 @keyframes paper-in {
   0% { opacity: 0; transform: translateY(16px); }
   100% { opacity: 1; transform: translateY(0); }
-}
-/* 手掌主图：缓慢呼吸式浮动，带轻微透视 */
-@keyframes hero-float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-14px) rotate(-0.6deg); }
-}
-/* 掌心上升的美元微粒 */
-@keyframes cash-rise {
-  0% { opacity: 0; transform: translateY(0) scale(0.8); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-90px) scale(1.05); }
 }
 
 /* 纸张感面板：单一连续表面 + 顶部细光线 + 极淡纹理 */
@@ -750,131 +526,6 @@
   animation: colon-blink 1s steps(1, end) infinite;
 }
 
-/* 宠物机器人：待机轻浮 */
-@keyframes pet-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-6px) rotate(-1.5deg); }
-}
-.animate-pet-bob {
-  animation: pet-bob 3.4s ease-in-out infinite;
-}
-/* 答对：开心跳跃 */
-@keyframes pet-hop {
-  0% { transform: translateY(0) scale(1); }
-  30% { transform: translateY(-14px) scale(1.06); }
-  55% { transform: translateY(0) scale(0.97); }
-  75% { transform: translateY(-5px) scale(1.02); }
-  100% { transform: translateY(0) scale(1); }
-}
-.animate-pet-hop {
-  animation: pet-hop 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-}
-/* 答错：沮丧摇头 */
-@keyframes pet-shake {
-  0%, 100% { transform: translateX(0) rotate(0deg); }
-  20% { transform: translateX(-5px) rotate(-4deg); }
-  40% { transform: translateX(5px) rotate(4deg); }
-  60% { transform: translateX(-4px) rotate(-3deg); }
-  80% { transform: translateX(4px) rotate(3deg); }
-}
-.animate-pet-shake {
-  animation: pet-shake 0.6s ease-in-out;
-}
-/* 升段：兴奋旋转弹跳 */
-@keyframes pet-celebrate {
-  0% { transform: translateY(0) scale(1) rotate(0deg); }
-  25% { transform: translateY(-18px) scale(1.12) rotate(8deg); }
-  50% { transform: translateY(-6px) scale(1.05) rotate(-8deg); }
-  75% { transform: translateY(-12px) scale(1.08) rotate(5deg); }
-  100% { transform: translateY(0) scale(1) rotate(0deg); }
-}
-.animate-pet-celebrate {
-  animation: pet-celebrate 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-}
-/* 气泡弹出 */
-@keyframes bubble-pop {
-  0% { opacity: 0; transform: translateY(6px) scale(0.85); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-.animate-bubble-pop {
-  animation: bubble-pop 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-/* 经验飘字 */
-@keyframes exp-float {
-  0% { opacity: 0; transform: translateY(0) scale(0.8); }
-  20% { opacity: 1; transform: translateY(-8px) scale(1.05); }
-  100% { opacity: 0; transform: translateY(-44px) scale(1); }
-}
-.animate-exp-float {
-  animation: exp-float 1.4s ease-out forwards;
-}
-
-/* ============ 段位徽章特效 ============ */
-/* 缓慢旋转（光环 / 准星 / 轨道） */
-@keyframes badge-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.badge-spin {
-  animation: badge-spin 9s linear infinite;
-  transform-origin: center;
-}
-.badge-spin-rev {
-  animation: badge-spin 14s linear infinite reverse;
-  transform-origin: center;
-}
-/* 呼吸辉光 */
-@keyframes badge-glow {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.9; }
-}
-.badge-glow {
-  animation: badge-glow 2.6s ease-in-out infinite;
-}
-/* 准星红点闪烁 */
-@keyframes badge-blink {
-  0%, 60%, 100% { opacity: 1; }
-  70%, 90% { opacity: 0.15; }
-}
-.badge-blink {
-  animation: badge-blink 1.8s steps(1, end) infinite;
-}
-/* 高光扫过 */
-@keyframes badge-shimmer {
-  0% { transform: translateX(-120%) skewX(-18deg); }
-  100% { transform: translateX(220%) skewX(-18deg); }
-}
-.badge-shimmer {
-  animation: badge-shimmer 2.8s ease-in-out infinite;
-}
-/* 传奇放射脉冲 */
-@keyframes badge-pulse-scale {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.12); opacity: 0.85; }
-}
-.badge-pulse-scale {
-  animation: badge-pulse-scale 2.8s ease-in-out infinite;
-  transform-origin: center;
-}
-
-/* 自动评判：下一题倒计时条 */
-@keyframes countdown-bar {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
-}
-.animate-countdown {
-  animation: countdown-bar 2.8s linear forwards;
-  transform-origin: left;
-}
-/* 自动评判：分析中扫描脉冲 */
-@keyframes analyze-sweep {
-  0% { transform: translateX(-110%); }
-  100% { transform: translateX(360%); }
-}
-.animate-analyze-sweep {
-  animation: analyze-sweep 1.1s ease-in-out infinite;
-}
-
 /* 狙击榜：新目标锁定入场（准星收拢 + 高亮闪烁） */
 @keyframes target-lock {
   0% { transform: scale(1.06); opacity: 0; }
@@ -908,18 +559,11 @@
 @media (prefers-reduced-motion: reduce) {
   .flash-up, .flash-down, .row-flash-up, .row-flash-down, .row-flash-neon,
   .tick-up, .tick-down, .animate-update-pop, .animate-colon-blink,
-  .animate-pet-bob, .animate-pet-hop, .animate-pet-shake,
-  .animate-pet-celebrate, .badge-spin, .badge-spin-rev, .badge-glow,
-  .badge-blink, .badge-shimmer, .badge-pulse-scale,
-  .animate-countdown, .animate-analyze-sweep,
   .animate-target-lock, .animate-scope-spin, .animate-scan-line {
     animation: none !important;
   }
 }
 
-.animate-river {
-  animation: river-pulse 3.2s ease-in-out infinite;
-}
 .animate-ticker {
   animation: ticker 100s linear infinite;
 }
