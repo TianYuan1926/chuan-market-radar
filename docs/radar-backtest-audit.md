@@ -36,7 +36,8 @@ npm run backtest:audit -- --base-url http://43.161.202.227 --limit 20 --min-move
 
 ```bash
 cd /home/ubuntu/apps/chuan-market-radar
-npm run backtest:audit -- --base-url http://127.0.0.1:3000
+sudo docker compose --env-file .env.production exec -T web \
+  npm run backtest:audit -- --base-url http://127.0.0.1:3000 --out /tmp/chuan-radar-audit
 ```
 
 ## 输出
