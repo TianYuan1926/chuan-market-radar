@@ -366,7 +366,10 @@ export type LightScanQualityCheck = {
 
 export type LightScanQualityCandidate = {
   changePercent: number;
+  earlyOpportunityScore: number | null;
   flowImbalance: number | null;
+  opportunityPhase: ScanLightScanCandidate["opportunityPhase"] | null;
+  overextensionRisk: ScanLightScanCandidate["overextensionRisk"] | null;
   pressureSide: "buy" | "neutral" | "sell" | null;
   reasons: string[];
   score: number;
@@ -386,7 +389,9 @@ export type LightScanQualityState = {
     buyPressureCandidateCount: number;
     candidateCount: number;
     cvdProxyCandidateCount: number;
+    earlyOpportunityCandidateCount: number;
     hotCandidateCount: number;
+    lateMoveCandidateCount: number;
     preTrendCandidateCount: number;
     rollingWindowCandidateCount: number;
     sellPressureCandidateCount: number;
@@ -1275,6 +1280,12 @@ function buildLightScanQuality({
   const sellPressureCandidates = topCandidates.filter((candidate) => candidate.microstructure?.pressureSide === "sell");
   const hotCandidates = topCandidates.filter((candidate) => candidate.state === "HOT");
   const preTrendCandidates = topCandidates.filter((candidate) => candidate.state === "PRE_TREND");
+  const earlyOpportunityCandidates = topCandidates.filter((candidate) =>
+    (candidate.earlyOpportunityScore ?? 0) >= 55 || candidate.opportunityPhase === "early_setup"
+  );
+  const lateMoveCandidates = topCandidates.filter((candidate) =>
+    candidate.overextensionRisk === "high" || candidate.opportunityPhase === "late_move"
+  );
   const lightScanReady = lightScan.status === "ready" || lightScan.status === "partial";
   const fresh = ageSec !== null && ageSec <= staleAfterSec;
   const workerStatus = checkStatusFromWorker(websocketWorker?.status);
@@ -1339,6 +1350,18 @@ function buildLightScanQuality({
       status: cvdProxyCandidates.length > 0 ? "pass" : "watch",
     },
     {
+      detail: earlyOpportunityCandidates.length > 0
+        ? `${earlyOpportunityCandidates.length} 个候选带有启动前机会分，可优先调度深扫。`
+        : "当前没有明确启动前机会样本；系统应继续扫描，不得用已爆发行情补位。",
+      evidence: [
+        `earlyOpportunityCandidates=${earlyOpportunityCandidates.length}`,
+        `lateMoveCandidates=${lateMoveCandidates.length}`,
+      ],
+      key: "early_opportunity_score",
+      label: "提前机会分",
+      status: earlyOpportunityCandidates.length > 0 ? "pass" : "watch",
+    },
+    {
       detail: "轻扫质量诊断只能影响候选发现和调度解释，不能直接生成交易信号或交易计划。",
       evidence: ["canCreateTradeSignal=false", "LIGHT_SCAN_MARK stays discovery only"],
       key: "decision_boundary",
@@ -1358,7 +1381,9 @@ function buildLightScanQuality({
       buyPressureCandidateCount: buyPressureCandidates.length,
       candidateCount: lightScan.candidateCount,
       cvdProxyCandidateCount: cvdProxyCandidates.length,
+      earlyOpportunityCandidateCount: earlyOpportunityCandidates.length,
       hotCandidateCount: hotCandidates.length,
+      lateMoveCandidateCount: lateMoveCandidates.length,
       preTrendCandidateCount: preTrendCandidates.length,
       rollingWindowCandidateCount: rollingWindowCandidates.length,
       sellPressureCandidateCount: sellPressureCandidates.length,
@@ -1383,9 +1408,14 @@ function buildLightScanQuality({
         : "轻扫发现层阻塞；必须降级显示并排查数据源或 worker。",
     topCandidates: topCandidates.slice(0, 8).map((candidate) => ({
       changePercent: round(candidate.changePercent24h),
+      earlyOpportunityScore: typeof candidate.earlyOpportunityScore === "number"
+        ? round(candidate.earlyOpportunityScore, 0)
+        : null,
       flowImbalance: typeof candidate.microstructure?.tradeFlowImbalance === "number"
         ? round(candidate.microstructure.tradeFlowImbalance, 4)
         : null,
+      opportunityPhase: candidate.opportunityPhase ?? null,
+      overextensionRisk: candidate.overextensionRisk ?? null,
       pressureSide: candidate.microstructure?.pressureSide ?? null,
       reasons: candidate.reasons,
       score: candidate.score,

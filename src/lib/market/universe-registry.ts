@@ -43,9 +43,11 @@ export type UniversePriorityHint = {
   consecutiveSkipped?: number;
   deepScanCount1h?: number;
   deepScanCount24h?: number;
+  earlyOpportunityScore?: number;
   historicalSampleSize?: number;
   historicalWinRate?: number;
   missedOpportunityCount?: number;
+  overextensionRiskScore?: number;
   recentDeepScanPenalty?: number;
   recentSignalCount?: number;
   rotationAgeBoost?: number;
@@ -546,9 +548,11 @@ type InternalPriorityDecision = UniversePriorityDecision & {
 const priorityReasons: UniversePriorityReason[] = [
   "anomaly",
   "cooldown_review",
+  "early_opportunity",
   "history",
   "liquidity",
   "missed_opportunity",
+  "overextended_move",
   "recent_signal",
   "recent_deep_scan",
   "rotation_age",
@@ -597,6 +601,7 @@ function dynamicPriorityDecision(
   const reasons: UniversePriorityReason[] = [];
   const anomalyBoost = Math.round(clampPercent(hint.anomalyScore) * 5_000);
   const cooldownReviewCount = clampNumber(hint.cooldownReviewCount, 0, 100);
+  const earlyOpportunityBoost = Math.round(clampPercent(hint.earlyOpportunityScore) * 6_500);
   const historicalSampleSize = clampNumber(hint.historicalSampleSize, 0, 100);
   const historicalConfidence = Math.min(1, historicalSampleSize / 20);
   const historicalBoost = Math.round(
@@ -609,6 +614,7 @@ function dynamicPriorityDecision(
     Math.min(5, clampNumber(hint.recentSignalCount, 0, 100)) * 30_000,
   );
   const rotationAgeBoost = Math.round(clampNumber(hint.rotationAgeBoost, 0, 2_000_000));
+  const overextensionPenalty = Math.round(clampPercent(hint.overextensionRiskScore) * 4_000);
   const recentDeepScanPenalty = Math.round(clampNumber(hint.recentDeepScanPenalty, 0, 2_000_000));
   const liquidityBoost = asset.volume24hUsd > 0
     ? Math.min(60_000, Math.round(Math.log10(asset.volume24hUsd) * 6_000))
@@ -623,12 +629,20 @@ function dynamicPriorityDecision(
     reasons.push("cooldown_review");
   }
 
+  if (earlyOpportunityBoost !== 0) {
+    reasons.push("early_opportunity");
+  }
+
   if (historicalSampleSize > 0) {
     reasons.push("history");
   }
 
   if (missedOpportunityBoost !== 0) {
     reasons.push("missed_opportunity");
+  }
+
+  if (overextensionPenalty !== 0) {
+    reasons.push("overextended_move");
   }
 
   if (recentSignalBoost !== 0) {
@@ -652,9 +666,9 @@ function dynamicPriorityDecision(
   }
 
   const cooldownPenalty = Math.round(Math.min(6, cooldownReviewCount) * 120_000);
-  const dynamicBoost = anomalyBoost + historicalBoost + missedOpportunityBoost +
+  const dynamicBoost = anomalyBoost + earlyOpportunityBoost + historicalBoost + missedOpportunityBoost +
     recentSignalBoost + rotationAgeBoost + liquidityBoost + coverageBoost -
-    cooldownPenalty - recentDeepScanPenalty;
+    cooldownPenalty - overextensionPenalty - recentDeepScanPenalty;
 
   return {
     asset,

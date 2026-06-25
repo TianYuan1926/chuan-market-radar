@@ -307,6 +307,7 @@ test("planUniverseScan exposes priority admission metadata within the same reque
       {
         symbol: "ARBUSDT",
         anomalyScore: 92,
+        earlyOpportunityScore: 78,
         historicalSampleSize: 20,
         historicalWinRate: 0.75,
         recentSignalCount: 4,
@@ -329,6 +330,7 @@ test("planUniverseScan exposes priority admission metadata within the same reque
   assert.equal(plan.dynamicPriority.candidates[1]?.status, "queued");
   assert.match(plan.dynamicPriority.candidates[1]?.statusReason ?? "", /等待后续批次/);
   assert.equal(plan.dynamicPriority.reasonCounts.anomaly, 2);
+  assert.equal(plan.dynamicPriority.reasonCounts.early_opportunity, 1);
   assert.equal(plan.dynamicPriority.reasonCounts.recent_signal, 2);
   assert.equal(plan.dynamicPriority.reasonCounts.history, 1);
 });

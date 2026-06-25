@@ -51,9 +51,11 @@ type AssetPriorityAccumulator = {
   consecutiveSkipped: number;
   deepScanCount1h: number;
   deepScanCount24h: number;
+  earlyOpportunityScore: number;
   historicalPositive: number;
   historicalSamples: number;
   missedOpportunities: number;
+  overextensionRiskScore: number;
   recentDeepScanPenalty: number;
   recentSignalCount: number;
   rotationAgeBoost: number;
@@ -104,9 +106,11 @@ function getAccumulator(
     consecutiveSkipped: 0,
     deepScanCount1h: 0,
     deepScanCount24h: 0,
+    earlyOpportunityScore: 0,
     historicalPositive: 0,
     historicalSamples: 0,
     missedOpportunities: 0,
+    overextensionRiskScore: 0,
     recentDeepScanPenalty: 0,
     recentSignalCount: 0,
     rotationAgeBoost: 0,
@@ -288,9 +292,40 @@ function dailyMoverAnomalyScore(mover: DailyMover, review?: DailyMoverReview) {
   const rankBoost = Math.max(0, 12 - mover.rank * 2);
   const oiBoost = Math.min(12, Math.abs(mover.openInterestChangePercent ?? 0) / 2);
   const volumeBoost = mover.volume24hUsd >= 20_000_000 ? 10 : 0;
+  const preMoveBoost = review?.preMovePattern?.earlyWarningScore
+    ? Math.min(24, review.preMovePattern.earlyWarningScore * 0.3)
+    : 0;
 
   return moveMagnitude + rankBoost + oiBoost + volumeBoost +
-    evidenceStrengthBoost(review) + radarReviewBoost(review);
+    preMoveBoost + evidenceStrengthBoost(review) + radarReviewBoost(review);
+}
+
+function dailyMoverEarlyOpportunityScore(mover: DailyMover, review?: DailyMoverReview) {
+  const score = review?.preMovePattern?.earlyWarningScore ?? 0;
+  const matchedBeforeMove = (review?.radarReview.matchedSignalIds.length ?? 0) > 0;
+  const learnableMiss = review?.radarReview.status === "missed" && score >= 50;
+  const modestPreMove = Math.abs(mover.priceChangePercent) <= 25 && score >= 40;
+
+  if (matchedBeforeMove || learnableMiss || modestPreMove) {
+    return Math.round(Math.min(100, Math.max(0, score)));
+  }
+
+  return 0;
+}
+
+function dailyMoverOverextensionRiskScore(mover: DailyMover, review?: DailyMoverReview) {
+  const score = review?.preMovePattern?.earlyWarningScore ?? 0;
+  const magnitude = Math.abs(mover.priceChangePercent);
+
+  if (magnitude >= 30 && score < 50) {
+    return Math.round(Math.min(100, magnitude));
+  }
+
+  if (magnitude >= 45) {
+    return Math.round(Math.min(100, magnitude * 0.8));
+  }
+
+  return 0;
 }
 
 function addDailyMoverHints(
@@ -317,6 +352,14 @@ function addDailyMoverHints(
       }
 
       accumulator.anomalyScore += dailyMoverAnomalyScore(mover, review);
+      accumulator.earlyOpportunityScore = Math.max(
+        accumulator.earlyOpportunityScore,
+        dailyMoverEarlyOpportunityScore(mover, review),
+      );
+      accumulator.overextensionRiskScore = Math.max(
+        accumulator.overextensionRiskScore,
+        dailyMoverOverextensionRiskScore(mover, review),
+      );
       accumulator.recentSignalCount += 1;
 
       if (review?.radarReview.status === "missed") {
@@ -388,15 +431,19 @@ function hintRank(hint: UniversePriorityHint) {
   const historyAdjustment = typeof hint.historicalWinRate === "number"
     ? (hint.historicalWinRate - 0.5) * 40
     : 0;
+  const earlyOpportunityBoost = (hint.earlyOpportunityScore ?? 0) * 1.5;
   const missedOpportunityBoost = (hint.missedOpportunityCount ?? 0) * 100;
+  const overextensionPenalty = (hint.overextensionRiskScore ?? 0) * 1.2;
   const cooldownPenalty = (hint.cooldownReviewCount ?? 0) * 100;
 
   return (hint.anomalyScore ?? 0) * 4 +
+    earlyOpportunityBoost +
     (hint.recentSignalCount ?? 0) * 12 +
     (hint.historicalSampleSize ?? 0) * 4 +
     historyAdjustment +
     (hint.rotationAgeBoost ?? 0) / 10_000 +
     missedOpportunityBoost -
+    overextensionPenalty -
     cooldownPenalty -
     (hint.recentDeepScanPenalty ?? 0) / 10_000;
 }
@@ -413,9 +460,11 @@ function toHint(accumulator: AssetPriorityAccumulator): UniversePriorityHint {
     consecutiveSkipped: accumulator.consecutiveSkipped || undefined,
     deepScanCount1h: accumulator.deepScanCount1h || undefined,
     deepScanCount24h: accumulator.deepScanCount24h || undefined,
+    earlyOpportunityScore: accumulator.earlyOpportunityScore || undefined,
     historicalSampleSize: accumulator.historicalSamples || undefined,
     historicalWinRate,
     missedOpportunityCount: accumulator.missedOpportunities || undefined,
+    overextensionRiskScore: accumulator.overextensionRiskScore || undefined,
     recentDeepScanPenalty: accumulator.recentDeepScanPenalty || undefined,
     recentSignalCount: accumulator.recentSignalCount || undefined,
     rotationAgeBoost: accumulator.rotationAgeBoost || undefined,
@@ -445,6 +494,7 @@ export function buildUniversePriorityHints({
     .map(toHint)
     .filter((hint) =>
       (hint.anomalyScore ?? 0) > 0 ||
+      (hint.earlyOpportunityScore ?? 0) > 0 ||
       (hint.rotationAgeBoost ?? 0) > 0 ||
       (hint.recentDeepScanPenalty ?? 0) > 0 ||
       (hint.recentSignalCount ?? 0) > 0 ||

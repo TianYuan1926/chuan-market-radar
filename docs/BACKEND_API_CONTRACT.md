@@ -32,6 +32,7 @@ Response shape:
 - `contract.runtime`: scan trigger, cache status, repository mode and archive persistence.
 - `contract.scanProof.fullMarket`: total, eligible, scanned, pending, coverage percent and coverage status.
 - `contract.scanProof.lightScan`: public light scan status, universe size, accepted count, candidate count and top candidates.
+- `contract.scanProof.lightScan.topCandidates[]`: discovery-only candidates may include `earlyOpportunityScore`, `opportunityPhase` and `overextensionRisk`. These fields can raise or lower deep-scan scheduling priority, but must not create a trade plan.
 - `contract.scanProof.deepScan`: planned assets, request count, raw/clean/primary row counts, empty assets and rejected rows.
 - `contract.scanProof.allocation`: state-pool bucket assignment for the current deep-scan batch.
 - `contract.scanProof.twoStageAllocation`: two-stage deep-scan allocation proof, including anchor/context slots, dynamic-priority slots, rotation slots, cold-exploration reserve slots and queued priority assets.
@@ -54,6 +55,8 @@ Primary use:
 - Frontend panels should read `contract.dataSourceCapabilities` before showing CoinGlass-derived visuals. Supported Hobbyist families can be displayed as active/available when configured; unsupported families must show `unsupported_by_hobbyist`, `disabled_by_blueprint`, `partial`, `stale` or equivalent visible states instead of hidden failures.
 - Frontend source panels must read `contract.sourceAudit.coinGlassCapability.deepScanStatus` before showing CoinGlass as live. `Upgrade plan`, auth failure, rate limit, parameter error or empty rows must be visible as partial/failed; public light scan may continue, but it must not be shown as CoinGlass derivative evidence.
 - The two-stage allocation proof is the frontend-safe answer to "why these assets now": stage one discovers and ranks candidates from public light scan and repository hints; stage two spends the limited CoinGlass deep-scan slots while preserving at least one long-tail exploration slot when capacity allows.
+- `early_opportunity` is a scheduling reason, not a trade reason. It means the system found pre-move traits such as compression, rising volume or a learnable missed pre-move pattern. The asset still needs deep scan, evidence fusion, structure validation and Risk Gate before it can become `TRADE_PLAN_READY`.
+- `late_move` or high `overextensionRisk` must be shown as late/review context. It can remain useful for Daily Mover Review, but cannot be promoted into a trade plan by the frontend.
 - Assets listed in `queuedPriorityAssets` are not eliminated. They remain in the priority queue, rotation pool, revive watch or cold exploration pool for later batches.
 - `rotationAudit` is the frontend-safe answer to "is the scan stuck on a few coins": it must show non-anchor slot count, queued priority assets, selected long-tail assets, estimated full-cycle time and any starvation warning instead of silently implying that hidden assets do not exist.
 - `signalMaturity` is the frontend-safe answer to "is this a real signal or just a scan mark": trade-plan panels must use `TRADE_PLAN_READY`; evidence panels can show `EVIDENCE_SIGNAL`; late/no-chase panels must show `REVIEW_ONLY` as research-only; verifying candidate panels can show `candidateLaneSymbols`; light-scan marks should be shown only as coverage/discovery counts.

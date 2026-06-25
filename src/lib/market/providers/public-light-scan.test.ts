@@ -199,9 +199,13 @@ test("createBinancePublicLightScanProvider converts public futures tickers into 
   assert.equal(result.diagnostics.acceptedCount, 2);
   assert.equal(result.instruments.length, 2);
   assert.deepEqual(result.instruments.map((item) => item.symbol), ["ARBUSDT", "SUIUSDT"]);
-  assert.deepEqual(result.priorityCandidates.map((item) => item.symbol), ["ARBUSDT", "SUIUSDT"]);
-  assert.equal(result.priorityCandidates[0]?.state, "HOT");
-  assert.equal(result.priorityCandidates[1]?.state, "PRE_TREND");
+  assert.deepEqual(result.priorityCandidates.map((item) => item.symbol), ["SUIUSDT", "ARBUSDT"]);
+  assert.equal(result.priorityCandidates[0]?.state, "PRE_TREND");
+  assert.equal(result.priorityCandidates[0]?.opportunityPhase, "early_setup");
+  assert.ok((result.priorityCandidates[0]?.earlyOpportunityScore ?? 0) >= 55);
+  assert.equal(result.priorityCandidates[1]?.state, "HOT");
+  assert.equal(result.priorityCandidates[1]?.opportunityPhase, "breakout_watch");
+  assert.equal(result.priorityCandidates[1]?.overextensionRisk, "low");
   assert.equal(result.tickers[0]?.exchange, "BINANCE");
 });
 
@@ -243,7 +247,11 @@ test("createBinancePublicLightScanProvider caps overextended 24h movers below co
 
   assert.deepEqual(result.priorityCandidates.map((item) => item.symbol), ["COILUSDT", "MOONUSDT"]);
   assert.equal(result.priorityCandidates[0]?.state, "PRE_TREND");
+  assert.equal(result.priorityCandidates[0]?.opportunityPhase, "early_setup");
+  assert.ok((result.priorityCandidates[0]?.earlyOpportunityScore ?? 0) >= 55);
   assert.ok(result.priorityCandidates[0]?.reasons.includes("compression_priority"));
+  assert.equal(result.priorityCandidates[1]?.opportunityPhase, "late_move");
+  assert.equal(result.priorityCandidates[1]?.overextensionRisk, "high");
   assert.ok(result.priorityCandidates[1]?.reasons.includes("overextended_move_capped"));
 });
 

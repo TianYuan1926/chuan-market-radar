@@ -424,6 +424,7 @@ RawSource
 - Daily Mover Review 已输出 `DailyMoverPreMovePattern`：最佳启动前窗口、早期预警分、前兆线索和漏判原因，用于研究“为什么没提前看到”。
 - `REVIEW_ONLY` 已接入雷达合同、单币档案、信号成熟度池、异常表解释和 dashboard 计数；晚到信号不会被包装成交易计划。
 - 本地发布前闸门 `npm run production:preflight` 已落地，统一运行 typecheck、market/worker tests、lint 和 build。
+- P8 提前发现质量层已落地：public light scan 和 websocket light scan 会输出 `earlyOpportunityScore`、`opportunityPhase` 和 `overextensionRisk`；Daily Mover 的启动前复盘会进入 repository priority hints 的 `early_opportunity` 调度原因。
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
 - `/dashboard` 已展示 `coreChainGovernance.featureTriage` 功能分级和 `pageRoles` 页面职责。
@@ -610,6 +611,38 @@ RawSource
 - 不截断关键解释。
 - 不把 partial 伪装成 ready。
 - 动效只服务运行感。
+
+### P8：提前发现质量层
+
+状态：已完成第一轮落地；后续靠真实样本继续校准阈值。
+
+目标：让系统优先找到“还没完全爆发、仍可能有较好位置”的山寨，而不是只追踪已经大涨或大跌的标的。
+
+已落地：
+
+- `ScanLightScanCandidate` 新增：
+  - `earlyOpportunityScore`：启动前机会分，只用于候选排序和深扫调度解释。
+  - `opportunityPhase`：`early_setup / breakout_watch / late_move / neutral_watch`。
+  - `overextensionRisk`：`low / medium / high`。
+- WebSocket 秒级轻扫会对 PRE_TREND、压缩放量、低位移、主动买卖 proxy、窗口波动做早期机会评分。
+- WebSocket 秒级轻扫会对 15m 窗口内大幅位移并贴近窗口极值的币标为 `late_move`，降低其早期机会分。
+- Public REST 轻扫会对 24h 压缩、低位移、靠近关键边缘且未过度延展的币加分；对 24h 大幅延展样本加 `overextended_move_capped`。
+- Daily Mover Review 的 `preMovePattern.earlyWarningScore` 会转成 repository priority hints 的 `earlyOpportunityScore`。
+- `planUniverseScan` 动态优先级新增 `early_opportunity` reason，用于把历史漏判里的启动前征兆反哺到深扫排序。
+- `/api/frontend/radar-contract.lightScanQuality` 会展示早期机会候选数、late move 候选数和每个 top candidate 的阶段。
+
+硬边界：
+
+- `earlyOpportunityScore` 不能生成交易计划。
+- `early_opportunity` 只能影响深扫调度优先级，不能绕过 Evidence、结构分析、RR 和 Risk Gate。
+- `late_move` 不是做反向交易信号，只说明该币更适合复盘或等待回踩/反抽。
+- 前端显示 early score 时必须同时保留轻扫边界：轻扫是发现层，不是交易结论。
+
+后续继续做：
+
+- 用真实 outcome 样本校准早期机会分阈值。
+- 对 long / short 分别校准 `late_move` 位置边界。
+- 把早期机会候选和后续 MFE/MAE 做更细的复盘关联。
 
 ## 9. 个人仓位镜头
 

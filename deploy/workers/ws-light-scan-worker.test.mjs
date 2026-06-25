@@ -225,6 +225,49 @@ test("createLightScanAccumulator promotes a 15m volume z-score spike into Redis 
   assert.equal(snapshot.priorityCandidates[0]?.state, "HOT");
   assert.match(snapshot.priorityCandidates[0]?.reasons.join(","), /volume_zscore_spike/);
   assert.match(snapshot.priorityCandidates[0]?.reasons.join(","), /cvd_proxy_positive/);
+  assert.ok(snapshot.priorityCandidates[0]?.earlyOpportunityScore >= 0);
+  assert.ok(["breakout_watch", "early_setup", "late_move", "neutral_watch"].includes(snapshot.priorityCandidates[0]?.opportunityPhase));
+});
+
+test("createLightScanAccumulator marks intrawindow overextension for review instead of early opportunity", () => {
+  const accumulator = createLightScanAccumulator({
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date("2026-06-21T01:01:00.000Z"),
+    windowMs: 15 * 60 * 1000,
+    zScoreThreshold: 1.5,
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    accumulator.ingest({
+      eventTime: new Date(Date.UTC(2026, 5, 21, 0, index * 15, 0)).toISOString(),
+      exchange: "BINANCE",
+      price: 1,
+      quoteVolume24hUsd: 100_000 + index * 80_000,
+      symbol: "LATEUSDT",
+    });
+  }
+
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:00:00.000Z",
+    exchange: "BINANCE",
+    price: 1,
+    quoteVolume24hUsd: 800_000,
+    symbol: "LATEUSDT",
+  });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:01:00.000Z",
+    exchange: "BINANCE",
+    price: 1.08,
+    quoteVolume24hUsd: 1_200_000,
+    symbol: "LATEUSDT",
+  });
+
+  const late = accumulator.snapshot().priorityCandidates.find((candidate) => candidate.symbol === "LATEUSDT");
+
+  assert.equal(late?.opportunityPhase, "late_move");
+  assert.equal(late?.overextensionRisk, "high");
+  assert.match(late?.reasons.join(",") ?? "", /intrawindow_overextended_capped/);
 });
 
 test("buildSubscriptionChunks caps WebSocket subscription payload size", () => {

@@ -126,9 +126,11 @@ export type ScanTierPolicy = {
 export type ScanPriorityReason =
   | "anomaly"
   | "cooldown_review"
+  | "early_opportunity"
   | "history"
   | "liquidity"
   | "missed_opportunity"
+  | "overextended_move"
   | "recent_signal"
   | "recent_deep_scan"
   | "rotation_age"
@@ -425,6 +427,7 @@ export type ScanLightScanCandidate = {
   changePercent24h: number;
   distanceFromHighPercent: number;
   distanceFromLowPercent: number;
+  earlyOpportunityScore?: number;
   microstructure?: {
     buyPressureUsd: number;
     cvdProxyUsd: number;
@@ -433,6 +436,8 @@ export type ScanLightScanCandidate = {
     sellPressureUsd: number;
     tradeFlowImbalance: number;
   };
+  opportunityPhase?: "breakout_watch" | "early_setup" | "late_move" | "neutral_watch";
+  overextensionRisk?: "high" | "low" | "medium";
   price?: number;
   reasons: string[];
   score: number;

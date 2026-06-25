@@ -672,7 +672,10 @@ export type LightScanQualityCheck = {
 
 export type LightScanQualityCandidate = {
   changePercent: number
+  earlyOpportunityScore: number | null
   flowImbalance: number | null
+  opportunityPhase: 'breakout_watch' | 'early_setup' | 'late_move' | 'neutral_watch' | null
+  overextensionRisk: 'high' | 'low' | 'medium' | null
   pressureSide: 'buy' | 'neutral' | 'sell' | null
   reasons: string[]
   score: number
@@ -692,7 +695,9 @@ export type LightScanQualityState = {
     buyPressureCandidateCount: number
     candidateCount: number
     cvdProxyCandidateCount: number
+    earlyOpportunityCandidateCount: number
     hotCandidateCount: number
+    lateMoveCandidateCount: number
     preTrendCandidateCount: number
     rollingWindowCandidateCount: number
     sellPressureCandidateCount: number
@@ -721,7 +726,9 @@ export function getLightScanQuality(): Resource<LightScanQualityState> {
       buyPressureCandidateCount: 0,
       candidateCount: 0,
       cvdProxyCandidateCount: 0,
+      earlyOpportunityCandidateCount: 0,
       hotCandidateCount: 0,
+      lateMoveCandidateCount: 0,
       preTrendCandidateCount: 0,
       rollingWindowCandidateCount: 0,
       sellPressureCandidateCount: 0,

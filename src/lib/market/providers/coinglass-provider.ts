@@ -411,6 +411,12 @@ function lightScanPriorityHints(lightScan: PublicLightScanResult): UniversePrior
   return lightScan.priorityCandidates.slice(0, 24).map((candidate) => ({
     anomalyScore: Math.min(100, Math.max(0, candidate.score)),
     baseAsset: candidate.baseAsset,
+    earlyOpportunityScore: candidate.earlyOpportunityScore,
+    overextensionRiskScore: candidate.overextensionRisk === "high"
+      ? 85
+      : candidate.overextensionRisk === "medium"
+        ? 45
+        : undefined,
     recentSignalCount: candidate.state === "HOT" ? 2 : 1,
     symbol: candidate.symbol,
   }));

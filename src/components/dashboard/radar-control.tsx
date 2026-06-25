@@ -150,7 +150,9 @@ const EMPTY_LIGHT_SCAN_QUALITY = resource<LightScanQualityState>({
     buyPressureCandidateCount: 0,
     candidateCount: 0,
     cvdProxyCandidateCount: 0,
+    earlyOpportunityCandidateCount: 0,
     hotCandidateCount: 0,
+    lateMoveCandidateCount: 0,
     preTrendCandidateCount: 0,
     rollingWindowCandidateCount: 0,
     sellPressureCandidateCount: 0,
@@ -416,13 +418,16 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                             <span className="ml-auto font-mono text-[11px] text-foreground">{candidate.score}</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
-                            <span>{candidate.state}</span>
+                            <span>{candidate.opportunityPhase ?? candidate.state}</span>
                             <span>{candidate.changePercent}%</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
                             <span>{candidate.pressureSide ?? 'proxy—'}</span>
-                            <span>{candidate.flowImbalance ?? '—'}</span>
+                            <span>early {candidate.earlyOpportunityScore ?? '—'}</span>
                           </div>
+                          {candidate.overextensionRisk === 'high' ? (
+                            <div className="mt-1 font-mono text-[10px] text-warning">late / review only</div>
+                          ) : null}
                           <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">
                             {candidate.reasons.slice(0, 2).join(' / ')}
                           </p>

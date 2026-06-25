@@ -187,6 +187,79 @@ function logVolumeScore(volume24hUsd: number) {
   return Math.min(35, Math.max(0, Math.log10(Math.max(1, volume24hUsd)) * 3));
 }
 
+function overextensionRisk({
+  changePercent24h,
+  distanceHigh,
+  distanceLow,
+}: {
+  changePercent24h: number;
+  distanceHigh: number;
+  distanceLow: number;
+}): NonNullable<ScanLightScanCandidate["overextensionRisk"]> {
+  const absChange = Math.abs(changePercent24h);
+  const extendedAtEdge = (changePercent24h > 0 && distanceHigh <= 3) ||
+    (changePercent24h < 0 && distanceLow <= 3);
+
+  if (absChange >= 15 && extendedAtEdge) {
+    return "high";
+  }
+
+  if (absChange >= 10 || (absChange >= 7 && extendedAtEdge)) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function earlyOpportunityScore(candidate: {
+  changePercent24h: number;
+  distanceHigh: number;
+  distanceLow: number;
+  state: ScanLightScanCandidate["state"];
+  volume24hUsd: number;
+  volatility: number;
+}) {
+  const absChange = Math.abs(candidate.changePercent24h);
+  const edgeButNotExtended = (candidate.distanceHigh <= 4 || candidate.distanceLow <= 4) && absChange <= 6;
+  const lowDisplacement = absChange <= 3 ? Math.max(0, 18 - absChange * 3) : 0;
+  const compression = candidate.state === "PRE_TREND"
+    ? 36
+    : candidate.volatility <= 5 && absChange <= 4
+      ? 18
+      : 0;
+  const liquidity = Math.min(18, logVolumeScore(candidate.volume24hUsd) / 2);
+  const edge = edgeButNotExtended ? 12 : 0;
+  const overextension = overextensionRisk(candidate);
+  const penalty = overextension === "high"
+    ? 45
+    : overextension === "medium"
+      ? 20
+      : 0;
+
+  return Math.round(Math.max(0, Math.min(100, compression + lowDisplacement + liquidity + edge - penalty)));
+}
+
+function opportunityPhase(candidate: {
+  changePercent24h: number;
+  earlyOpportunityScore: number;
+  overextensionRisk: NonNullable<ScanLightScanCandidate["overextensionRisk"]>;
+  state: ScanLightScanCandidate["state"];
+}): NonNullable<ScanLightScanCandidate["opportunityPhase"]> {
+  if (candidate.overextensionRisk === "high") {
+    return "late_move";
+  }
+
+  if (candidate.state === "PRE_TREND" || candidate.earlyOpportunityScore >= 55) {
+    return "early_setup";
+  }
+
+  if (candidate.state === "HOT" && Math.abs(candidate.changePercent24h) <= 10) {
+    return "breakout_watch";
+  }
+
+  return "neutral_watch";
+}
+
 function candidateState({
   changePercent24h,
   volume24hUsd,
@@ -217,6 +290,8 @@ function candidateReasons(candidate: {
   changePercent24h: number;
   distanceHigh: number;
   distanceLow: number;
+  earlyOpportunityScore: number;
+  overextensionRisk: NonNullable<ScanLightScanCandidate["overextensionRisk"]>;
   state: ScanLightScanCandidate["state"];
   volume24hUsd: number;
   volatility: number;
@@ -235,8 +310,16 @@ function candidateReasons(candidate: {
     reasons.push("compression_priority");
   }
 
+  if (candidate.earlyOpportunityScore >= 55) {
+    reasons.push("early_opportunity_watch");
+  }
+
   if (Math.abs(candidate.changePercent24h) > 15) {
     reasons.push("overextended_move_capped");
+  }
+
+  if (candidate.overextensionRisk === "high") {
+    reasons.push("late_move_review_priority");
   }
 
   if (candidate.volume24hUsd >= 20_000_000) {
@@ -258,6 +341,8 @@ function priorityScore(candidate: {
   changePercent24h: number;
   distanceHigh: number;
   distanceLow: number;
+  earlyOpportunityScore: number;
+  overextensionRisk: NonNullable<ScanLightScanCandidate["overextensionRisk"]>;
   state: ScanLightScanCandidate["state"];
   volume24hUsd: number;
   volatility: number;
@@ -271,12 +356,15 @@ function priorityScore(candidate: {
   }[candidate.state];
   const edgeBoost = candidate.distanceHigh <= 3 || candidate.distanceLow <= 3 ? 12 : 0;
   const compressionBoost = candidate.state === "PRE_TREND" && candidate.volatility <= 5 ? 14 : 0;
+  const earlyOpportunityBoost = Math.min(24, candidate.earlyOpportunityScore * 0.35);
   const cappedMoveBoost = Math.min(30, Math.min(absChange, 15) * 2);
   const isPositiveHighExtension = candidate.changePercent24h > 15 && candidate.distanceHigh <= 3;
   const isNegativeLowExtension = candidate.changePercent24h < -15 && candidate.distanceLow <= 3;
-  const overextensionPenalty = absChange > 15
-    ? Math.min(45, (absChange - 15) * 1.2 + (isPositiveHighExtension || isNegativeLowExtension ? 12 : 0))
-    : 0;
+  const overextensionPenalty = candidate.overextensionRisk === "high"
+    ? Math.min(55, (Math.max(0, absChange - 12) * 1.5) + (isPositiveHighExtension || isNegativeLowExtension ? 18 : 0))
+    : candidate.overextensionRisk === "medium"
+      ? 14
+      : 0;
 
   return Math.round(
     stateBoost +
@@ -284,7 +372,8 @@ function priorityScore(candidate: {
     logVolumeScore(candidate.volume24hUsd) +
     Math.min(15, candidate.volatility) +
     edgeBoost +
-    compressionBoost -
+    compressionBoost +
+    earlyOpportunityBoost -
     overextensionPenalty,
   );
 }
@@ -343,10 +432,31 @@ function candidateFromTicker(ticker: MarketTicker): ScanLightScanCandidate {
     volume24hUsd: ticker.volume24hUsd,
     volatility,
   });
+  const risk = overextensionRisk({
+    changePercent24h: ticker.changePercent24h,
+    distanceHigh,
+    distanceLow,
+  });
+  const earlyScore = earlyOpportunityScore({
+    changePercent24h: ticker.changePercent24h,
+    distanceHigh,
+    distanceLow,
+    state,
+    volume24hUsd: ticker.volume24hUsd,
+    volatility,
+  });
+  const phase = opportunityPhase({
+    changePercent24h: ticker.changePercent24h,
+    earlyOpportunityScore: earlyScore,
+    overextensionRisk: risk,
+    state,
+  });
   const score = priorityScore({
     changePercent24h: ticker.changePercent24h,
     distanceHigh,
     distanceLow,
+    earlyOpportunityScore: earlyScore,
+    overextensionRisk: risk,
     state,
     volume24hUsd: ticker.volume24hUsd,
     volatility,
@@ -357,11 +467,16 @@ function candidateFromTicker(ticker: MarketTicker): ScanLightScanCandidate {
     changePercent24h: ticker.changePercent24h,
     distanceFromHighPercent: Math.round(distanceHigh * 100) / 100,
     distanceFromLowPercent: Math.round(distanceLow * 100) / 100,
+    earlyOpportunityScore: earlyScore,
+    opportunityPhase: phase,
+    overextensionRisk: risk,
     price: ticker.price,
     reasons: candidateReasons({
       changePercent24h: ticker.changePercent24h,
       distanceHigh,
       distanceLow,
+      earlyOpportunityScore: earlyScore,
+      overextensionRisk: risk,
       state,
       volume24hUsd: ticker.volume24hUsd,
       volatility,

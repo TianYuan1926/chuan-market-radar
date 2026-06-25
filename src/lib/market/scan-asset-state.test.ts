@@ -40,10 +40,12 @@ function coverage(overrides: Partial<ScanCoverage> = {}): ScanCoverage {
       reasonCounts: {
         anomaly: 1,
         cooldown_review: 0,
+        early_opportunity: 0,
         history: 0,
         liquidity: 1,
         missed_opportunity: 0,
         recent_deep_scan: 0,
+        overextended_move: 0,
         recent_signal: 1,
         rotation_age: 0,
         venue_coverage: 1,

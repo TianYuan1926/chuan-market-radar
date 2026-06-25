@@ -247,7 +247,62 @@ function candidateState({ absChange, volumeZScore }) {
   return "COLD";
 }
 
-function candidateReasons({ absChange, flowImbalance, state, volumeZScore }) {
+function overextensionRisk({ absChange, closeNearExtreme }) {
+  if (absChange >= 6 && closeNearExtreme) {
+    return "high";
+  }
+
+  if (absChange >= 4 || (absChange >= 3 && closeNearExtreme)) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function earlyOpportunityScore({
+  absChange,
+  flowImbalance,
+  overextension,
+  state,
+  volatilityPercent,
+  volumeUsd,
+  volumeZScore,
+}) {
+  const compression = state === "PRE_TREND"
+    ? 38
+    : volatilityPercent <= 2.5 && absChange <= 2
+      ? 18
+      : 0;
+  const lowDisplacement = absChange <= 2 ? Math.max(0, 18 - absChange * 5) : 0;
+  const volume = Math.min(24, Math.max(0, volumeZScore) * 10);
+  const liquidity = Math.min(12, logVolumeScore(volumeUsd) / 2);
+  const pressure = Math.min(8, Math.abs(flowImbalance) * 16);
+  const penalty = overextension === "high"
+    ? 45
+    : overextension === "medium"
+      ? 18
+      : 0;
+
+  return Math.round(Math.max(0, Math.min(100, compression + lowDisplacement + volume + liquidity + pressure - penalty)));
+}
+
+function opportunityPhase({ absChange, earlyScore, overextension, state }) {
+  if (overextension === "high") {
+    return "late_move";
+  }
+
+  if (state === "PRE_TREND" || earlyScore >= 60) {
+    return "early_setup";
+  }
+
+  if (state === "HOT" && absChange <= 4) {
+    return "breakout_watch";
+  }
+
+  return "neutral_watch";
+}
+
+function candidateReasons({ absChange, earlyScore, flowImbalance, overextension, state, volumeZScore }) {
   const reasons = ["websocket_sliding_window"];
 
   if (volumeZScore >= 2) {
@@ -258,8 +313,16 @@ function candidateReasons({ absChange, flowImbalance, state, volumeZScore }) {
     reasons.push("compression_volume_accumulation");
   }
 
+  if (earlyScore >= 60) {
+    reasons.push("early_opportunity_watch");
+  }
+
   if (absChange >= 2) {
     reasons.push("price_impulse");
+  }
+
+  if (overextension === "high") {
+    reasons.push("intrawindow_overextended_capped");
   }
 
   if (Math.abs(flowImbalance) >= 0.25) {
@@ -400,30 +463,56 @@ function buildCandidate({ state, window, windowMs, z }) {
   const volatilityPercent = window.closePrice > 0
     ? ((window.highPrice - window.lowPrice) / window.closePrice) * 100
     : 0;
+  const distanceHigh = window.highPrice > 0
+    ? ((window.highPrice - window.closePrice) / window.highPrice) * 100
+    : 100;
+  const distanceLow = window.lowPrice > 0
+    ? ((window.closePrice - window.lowPrice) / window.lowPrice) * 100
+    : 100;
+  const closeNearExtreme = distanceHigh <= 1 || distanceLow <= 1;
   const stateValue = candidateState({ absChange, volumeZScore: z });
   const microstructure = microstructureFromWindow(window);
+  const risk = overextensionRisk({ absChange, closeNearExtreme });
+  const earlyScore = earlyOpportunityScore({
+    absChange,
+    flowImbalance: microstructure.tradeFlowImbalance,
+    overextension: risk,
+    state: stateValue,
+    volatilityPercent,
+    volumeUsd: window.volumeUsd,
+    volumeZScore: z,
+  });
+  const phase = opportunityPhase({
+    absChange,
+    earlyScore,
+    overextension: risk,
+    state: stateValue,
+  });
   const score = Math.round(
     Math.max(0, z) * 18 +
     Math.min(30, absChange * 4) +
     logVolumeScore(window.volumeUsd) +
     Math.min(8, Math.abs(microstructure.tradeFlowImbalance) * 12) +
-    (stateValue === "PRE_TREND" ? 10 : 0),
+    (stateValue === "PRE_TREND" ? 10 : 0) +
+    Math.min(22, earlyScore * 0.3) -
+    (risk === "high" ? 30 : risk === "medium" ? 12 : 0),
   );
 
   return {
     baseAsset: baseFromSymbol(state.symbol),
     changePercent24h: round(changePercent),
-    distanceFromHighPercent: window.highPrice > 0
-      ? round(((window.highPrice - window.closePrice) / window.highPrice) * 100)
-      : 100,
-    distanceFromLowPercent: window.lowPrice > 0
-      ? round(((window.closePrice - window.lowPrice) / window.lowPrice) * 100)
-      : 100,
+    distanceFromHighPercent: round(distanceHigh),
+    distanceFromLowPercent: round(distanceLow),
+    earlyOpportunityScore: earlyScore,
     microstructure,
+    opportunityPhase: phase,
+    overextensionRisk: risk,
     price: round(window.closePrice, 8),
     reasons: candidateReasons({
       absChange,
+      earlyScore,
       flowImbalance: microstructure.tradeFlowImbalance,
+      overextension: risk,
       state: stateValue,
       volumeZScore: z,
     }),

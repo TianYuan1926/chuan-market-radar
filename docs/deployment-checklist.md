@@ -152,11 +152,13 @@
 - `/api/health.scanStability` 会把扫描归档、覆盖率、Redis 和 worker 心跳汇总为扫描稳定性诊断；该字段只用于运维排错，不允许前端或策略层把它当作交易信号。
 - `/api/frontend/radar-contract.coreChainGovernance.p0Completion` 是 P0 核心链路可见化与清理的验收事实源；生产 smoke 必须看到 `percent=100`、`status=ready`、`apiRoles` 存在且 `canCreateTradeSignal=false`。
 - `/api/frontend/radar-contract.lightScanQuality` 会把轻扫数据新鲜度、coverage、rolling-window 候选、volume z-score 候选和 websocket worker 心跳汇总为发现层质量诊断；该字段只能解释候选发现可靠性，不能生成交易计划。
+- `/api/frontend/radar-contract.lightScanQuality` 必须暴露早期机会候选和 late move 候选：`earlyOpportunityCandidateCount`、`lateMoveCandidateCount`、top candidate 的 `earlyOpportunityScore/opportunityPhase/overextensionRisk`。这些字段只影响候选排序和深扫调度解释，不能直接生成交易计划。
 - `/api/health.reviewStatistics` 会从真实复盘样本派生统计；样本少时必须显示 collecting/empty，不能据此自动调权。
 - `/api/frontend/live-events/stream` 是 SSE 只读事件流，只能复用归档/心跳事件合同，不能触发扫描、不能调用 CoinGlass。
 - `RadarContract.fundFlow` 当前是 partial/waiting 合同，未接 taker/CVD/真实资金流源前不得显示成 live。
 - Universe planner 会把资产分成 anchor/core/active/long_tail；BTC/ETH 每轮固定，配置白名单和高流动性币优先，未验证流动性的长尾币默认每 8 个扫描窗口抽样一次。线上检查 metadata notes 时应能看到 `tiered universe` 和 `tier policy`。
 - Universe planner 支持 dynamic priority hints；异常分、历史有效性、近期信号、流动性、交易所覆盖质量、可学习漏判和冷却复盘会进入非 anchor 轮转槽排序，但不能挤掉 BTC/ETH，也不能突破 quota 批次。线上检查 metadata notes 时应能看到 `dynamic priority`。
+- Universe planner 的 dynamic priority 支持 `early_opportunity` reason；它来自 light scan 早期机会分或 Daily Mover 启动前复盘，只能让候选更早进入深扫，不能绕过 Evidence/Risk Gate。
 - 默认 CoinGlass provider 会从 repository 读取扫描归档、复盘 journal outcome、每日异动归因样本和 v3 trend review 样本，生成 repository priority hints 后再创建扫描计划。线上检查 metadata notes 时应能看到 `repository priority hints`。
 - Universe coverage 会输出 `exchangeCoverage` 和 `exchangeCoverageSummary`，把币种分为 `major_three`、`multi_exchange`、`single_exchange`、`unlisted`；线上检查 metadata notes 时应能看到 `exchange coverage` 汇总。
 - 当前主扫描会拒绝 UNKNOWN 交易所、非 USDT 或报价字段冲突的 CoinGlass 行，并在 metadata notes 中输出 raw、clean、primary 和过滤原因统计；线上检查时不要只看候选数量，也要看过滤原因是否异常放大。

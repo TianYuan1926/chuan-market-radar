@@ -94,7 +94,35 @@ test("createWebSocketLightScanAccumulator detects pre-trend compression with ris
 
   assert.equal(snapshot.priorityCandidates[0]?.symbol, "SUIUSDT");
   assert.equal(snapshot.priorityCandidates[0]?.state, "PRE_TREND");
+  assert.equal(snapshot.priorityCandidates[0]?.opportunityPhase, "early_setup");
+  assert.ok((snapshot.priorityCandidates[0]?.earlyOpportunityScore ?? 0) >= 60);
+  assert.equal(snapshot.priorityCandidates[0]?.overextensionRisk, "low");
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("compression_volume_accumulation"));
+  assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("early_opportunity_watch"));
+});
+
+test("createWebSocketLightScanAccumulator caps intrawindow overextension as late move", () => {
+  const accumulator = createWebSocketLightScanAccumulator({
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date(start + 61 * 60_000),
+    windowMs: 15 * 60_000,
+    zScoreThreshold: 1.5,
+  });
+
+  for (const minutes of [0, 15, 30, 45]) {
+    accumulator.ingest(event({ minutes, price: 1, quoteVolumeDeltaUsd: 80_000, symbol: "LATEUSDT" }));
+  }
+
+  accumulator.ingest(event({ minutes: 60, price: 1.0, quoteVolumeDeltaUsd: 400_000, symbol: "LATEUSDT" }));
+  accumulator.ingest(event({ minutes: 61, price: 1.08, quoteVolumeDeltaUsd: 400_000, symbol: "LATEUSDT" }));
+
+  const snapshot = accumulator.snapshot();
+  const late = snapshot.priorityCandidates.find((candidate) => candidate.symbol === "LATEUSDT");
+
+  assert.equal(late?.opportunityPhase, "late_move");
+  assert.equal(late?.overextensionRisk, "high");
+  assert.ok(late?.reasons.includes("intrawindow_overextended_capped"));
 });
 
 test("createWebSocketLightScanProvider sanitizes stale Redis snapshots before exposing them", async () => {

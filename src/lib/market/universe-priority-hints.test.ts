@@ -110,6 +110,13 @@ function dailyMoverSnapshot(): DailyMoverSnapshot {
           matchedSignalIds: [],
           improvementTags: ["review_volume_oi_weight"],
         },
+        preMovePattern: {
+          bestWindow: "6h",
+          clues: ["6h 成交量提前放大", "OI 温和抬升"],
+          earlyWarningScore: 82,
+          missedBecause: ["候选池未提前晋级"],
+          type: "volume_oi_build_up",
+        },
       },
       {
         id: "mover-dust-2026-06-15",
@@ -169,6 +176,13 @@ function missedMoverSnapshot(symbol: string): DailyMoverSnapshot {
           status: "missed",
           matchedSignalIds: [],
           improvementTags: ["review_missed_altcoin_priority"],
+        },
+        preMovePattern: {
+          bestWindow: "4h",
+          clues: ["4h 成交量提前放大", "Funding 仍中性"],
+          earlyWarningScore: 76,
+          missedBecause: ["轻扫看到但深扫排序不足"],
+          type: "quiet_accumulation_before_move",
         },
       },
     ],
@@ -249,6 +263,7 @@ test("buildUniversePriorityHints merges archives journal outcomes and daily move
   assert.ok(hintsBySymbol.get("ARBUSDT")?.recentSignalCount ?? 0 >= 2);
   assert.equal(hintsBySymbol.get("ENAUSDT")?.historicalWinRate, 0);
   assert.ok(hintsBySymbol.get("SOLUSDT")?.anomalyScore ?? 0 >= 70);
+  assert.ok(hintsBySymbol.get("SOLUSDT")?.earlyOpportunityScore ?? 0 >= 80);
   assert.ok(hintsBySymbol.get("SOLUSDT")?.recentSignalCount ?? 0 >= 1);
 });
 
@@ -274,6 +289,7 @@ test("buildUniversePriorityHints promotes learnable misses and cools repeated fa
 
   assert.equal(symbols[0], "PONKEUSDT");
   assert.equal(hintsBySymbol.get("PONKEUSDT")?.missedOpportunityCount, 2);
+  assert.ok(hintsBySymbol.get("PONKEUSDT")?.earlyOpportunityScore ?? 0 >= 70);
   assert.equal(hintsBySymbol.get("LOSSYUSDT")?.cooldownReviewCount, 3);
   assert.ok(symbols.indexOf("LOSSYUSDT") > symbols.indexOf("PONKEUSDT"));
 });

@@ -804,6 +804,9 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
         changePercent24h: 1.8,
         distanceFromHighPercent: 1.2,
         distanceFromLowPercent: 7.4,
+        earlyOpportunityScore: 86,
+        opportunityPhase: "early_setup",
+        overextensionRisk: "low",
         price: 7.84,
         reasons: ["websocket_sliding_window", "volume_zscore_spike", "compression_volume_accumulation"],
         score: 91,
@@ -828,6 +831,9 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
         changePercent24h: 3.2,
         distanceFromHighPercent: 0.8,
         distanceFromLowPercent: 8.1,
+        earlyOpportunityScore: 12,
+        opportunityPhase: "late_move",
+        overextensionRisk: "high",
         price: 1.82,
         reasons: ["websocket_sliding_window", "price_impulse"],
         score: 73,
@@ -866,9 +872,13 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
   assert.equal(radar.lightScanQuality.data.coverage.cvdProxyCandidateCount, 2);
   assert.equal(radar.lightScanQuality.data.coverage.buyPressureCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.coverage.sellPressureCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.earlyOpportunityCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.lateMoveCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.coverage.preTrendCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.coverage.hotCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.symbol, "TIA");
+  assert.equal(radar.lightScanQuality.data.topCandidates[0]?.opportunityPhase, "early_setup");
+  assert.equal(radar.lightScanQuality.data.topCandidates[0]?.earlyOpportunityScore, 86);
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.pressureSide, "buy");
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.flowImbalance, 0.4667);
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "volume_zscore" && check.status === "pass"));
