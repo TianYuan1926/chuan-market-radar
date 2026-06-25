@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -123,11 +124,12 @@ export function TokenAvatar({
           boxShadow: '0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 12px oklch(0 0 0 / 0.25)',
         }}
       >
-        <img
+        <Image
           src={url}
           alt={`${symbol} logo`}
           width={size}
           height={size}
+          unoptimized
           loading="lazy"
           className="size-full object-cover"
           onError={() => setFailed(true)}
