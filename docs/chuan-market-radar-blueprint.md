@@ -258,6 +258,8 @@ RawSource
 - 数据源状态。
 - 最近扫描时间。
 - 故障和 partial 原因。
+- 轻扫质量：rolling-window、volume z-score、主动买卖/CVD proxy、worker heartbeat 和发现层边界。
+- 扫描稳定性：锁、缓存、worker 心跳、数据新鲜度和稳定性问题。
 
 不能用动画替代运行证明。
 
@@ -271,6 +273,7 @@ RawSource
 - 计划就绪。
 - 被拦截。
 - 已失效。
+- 发现层事实：轻扫阶段、提前分、主动买卖压力、CVD proxy、proxy 质量和晚到风险。
 
 狙击榜只放 `TRADE_PLAN_READY`。候选池可以满，狙击榜可以空。
 
@@ -294,6 +297,7 @@ RawSource
 - 分批止盈怎么做。
 - 判断错了在哪里失效。
 - 后续如何复盘。
+- 发现层 / 主动成交：该币是否被轻扫提前命中、当前处于启动前/突破观察/晚到、主动买卖压力、CVD proxy 和该证据能不能用于交易计划。
 
 没有后端结构化计划时，前端不得补交易计划。
 
@@ -312,6 +316,7 @@ RawSource
 - 系统当时是否扫到这些币；如果扫到但没升级，原因是什么。
 - 如果系统没扫到，是轻扫、候选排序、深扫轮转、分析推理还是数据源哪一层漏掉。
 - 晚到信号是否被正确降级为等待、拦截或复盘，而不是误推成交易计划。
+- 提前发现复盘：轻扫候选中 early setup、late move、CVD proxy 样本和漏判复盘样本数量。
 
 样本不足必须显示 collecting / statistically thin，不能宣传稳定胜率。
 
@@ -425,6 +430,11 @@ RawSource
 - `REVIEW_ONLY` 已接入雷达合同、单币档案、信号成熟度池、异常表解释和 dashboard 计数；晚到信号不会被包装成交易计划。
 - 本地发布前闸门 `npm run production:preflight` 已落地，统一运行 typecheck、market/worker tests、lint 和 build。
 - P8 提前发现质量层已落地：public light scan 和 websocket light scan 会输出 `earlyOpportunityScore`、`opportunityPhase` 和 `overextensionRisk`；Daily Mover 的启动前复盘会进入 repository priority hints 的 `early_opportunity` 调度原因。
+- 发现层合同已接入前端主页面：`radarSignals.discovery`、`tokenDossier.discovery` 和 `review.discoveryReview` 已把轻扫阶段、提前分、主动买卖压力、CVD proxy、proxy 质量、晚到风险和决策边界展示出来。
+- `/dashboard` 已展示 `scanStability`：锁、缓存、worker 心跳、数据新鲜度和稳定性问题不再只藏在后端。
+- `/signals` 已展示候选发现层事实，晚到/高延展候选会降级为 `REVIEW_ONLY`，不能冒充狙击机会。
+- `/token/[id]` 已展示“发现层 / 主动成交”，并明确 CVD proxy 只能用于发现和排序，不能单独生成交易计划。
+- `/review` 已展示“提前发现复盘”，用于观察 early/late/CVD proxy/missed review 样本积累。
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
 - `/dashboard` 已展示 `coreChainGovernance.featureTriage` 功能分级和 `pageRoles` 页面职责。
@@ -461,7 +471,7 @@ RawSource
 
 这些数字会随市场和扫描轮次变化；以最新 health、backend-contract、radar-contract 和 production smoke 为准。
 
-## 8. 当前未完成
+## 8. 当前路线与剩余工作
 
 只列真实还需要做的核心工作，不列装饰性想法。
 
@@ -484,7 +494,7 @@ RawSource
 
 ### P1：快速全市场扫描继续增强
 
-状态：已建立 P1 完成度事实源，后续只做长期样本维护和 P2 质量增强。
+状态：已闭环到前端可见层，后续只做长期样本维护和 P2 质量增强。
 
 完成标准：
 
@@ -505,8 +515,11 @@ RawSource
 - WebSocket worker 已接入 public taker trade 流：Binance `aggTrade`、OKX `trades`、Bybit `publicTrade`；`proxyQuality=taker_trade_proxy` 时使用真实成交方向估算买卖压力，`proxyQuality=rolling_price_volume_proxy` 时为 ticker 兜底推断。
 - 前端合同必须同时识别 `microstructure` 字段和 `trade_flow_proxy_imbalance` / `cvd_proxy_positive` / `cvd_proxy_negative` reason 标签；禁止出现后端已有 CVD proxy 证据、前端质量统计仍显示 0 的“两张皮”状态。
 - `lightScanQuality.v1`：新增 `cvdProxyCandidateCount`、`buyPressureCandidateCount`、`sellPressureCandidateCount` 和 `cvd_proxy_quality` 检查。
+- `radarSignals.discovery`：把 top candidate 的阶段、提前分、主动买卖压力、CVD proxy、proxy 质量和晚到风险暴露给前端。
+- `/signals` 成熟度池已显示发现层事实；高延展/晚到候选会以 `REVIEW_ONLY` 或只复盘语义展示。
 - `coreChainGovernance.p1Completion`：新增 P1 完成度、检查项、剩余项和 summary。
 - `/dashboard` 核心链路体检显示 P1 快速扫描完成度。
+- `/dashboard` 扫描稳定性面板显示 Redis 锁、缓存、worker 心跳和新鲜度问题。
 - 生产 smoke 会等待并校验 `realtimeCapability.secondLevelOnline=true`；P1 不能在秒级通道未在线时假通过。
 
 硬边界：
@@ -517,7 +530,7 @@ RawSource
 
 ### P2：机会发现质量增强
 
-状态：已完成晚到信号拦截和 `REVIEW_ONLY` 接线；后续继续靠长期样本调优候选排序。
+状态：已完成晚到信号拦截、发现层展示和 `REVIEW_ONLY` 接线；后续继续靠长期样本调优候选排序。
 
 目标：让系统更早发现“还没完全爆发、仍有布局价值”的山寨，而不是追着已经涨完/跌完的币给方向。
 
@@ -528,6 +541,7 @@ RawSource
 - 轻扫和榜单发现的强波动币，如果已经错过最佳位置，优先进入复盘样本池，而不是交易计划。
 - v3 已给出的 `AVOID_CHASE_LONG/SHORT`、`LONG_EXHAUSTION/SHORT_EXHAUSTION`、`CHASE_RISK` 和衰竭风险会进入 `REVIEW_ONLY`。
 - 榜单 fallback 对无真实信号且 24h 波动过大的涨跌幅行降级为 `REVIEW_ONLY`，禁止追涨追跌。
+- 单币档案和信号池已显示轻扫阶段、提前分、主动买卖压力、CVD proxy 和延展风险，让“已经涨完/跌完”的样本不会被误读为好位置。
 
 继续做强：
 
@@ -545,13 +559,14 @@ RawSource
 
 ### P3：策略输出增强
 
-状态：已完成单币档案 `REVIEW_ONLY` 保护；后续继续增强策略表达的可读性和完整性。
+状态：已完成单币档案 `REVIEW_ONLY` 保护和发现层解释；后续继续增强结构计划表达的可读性和完整性。
 
 - 单币档案继续做强。
 - 多周期结构展示继续细化。
 - 关键位、Forward Map、支撑压力、失效线、目标区继续增强。
 - 技术指标解释继续保持低权重辅助。
 - 资金流、Taker、CVD proxy 未稳定前继续显示 partial。
+- 单币档案已单独展示“发现层 / 主动成交”，让 discovery evidence 与 strategy evidence 分层，避免把轻扫证据误当交易计划。
 - TradingView 与后端关键位/计划展示继续明确边界。
 - 单币档案必须把“方向”和“可交易性”分开展示。
 - 大涨后的多头默认输出等回踩/等二次确认/不追；大跌后的空头默认输出等反抽承压/等破位回踩/不追空。
@@ -561,7 +576,7 @@ RawSource
 
 ### P4：复盘进化增强
 
-状态：Daily Mover 启动前窗口和漏判归因已增强；长期 outcome 和策略分型仍需继续积累。
+状态：Daily Mover 启动前窗口、漏判归因和提前发现复盘面板已增强；长期 outcome 和策略分型仍需继续积累。
 
 - 积累真实 outcome 样本。
 - 完整统计 MFE / MAE / TP first / SL first / timeout。
@@ -574,6 +589,7 @@ RawSource
 - 策略分型表现统计。
 - 人工校准和回滚验证。
 - 真实权重建议只能人工确认后生效，不能自动改实时权重。
+- `/review` 已展示 `discoveryReview`：轻扫候选数量、early/late/CVD proxy/missed review 样本和复盘关注点。
 
 ### P5：合法外部情报
 

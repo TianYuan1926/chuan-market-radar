@@ -7,6 +7,7 @@ import {
   type LightScanQualityState,
   type RadarContract,
   type RealtimeCapabilityState,
+  type ScanStabilityState,
   type ScanProofData,
 } from '@/lib/radar-contract'
 import { resource } from '@/lib/data-status'
@@ -172,6 +173,18 @@ const EMPTY_LIGHT_SCAN_QUALITY = resource<LightScanQualityState>({
   summary: '等待后端轻扫质量契约。',
   topCandidates: [],
 }, 'empty', EMPTY_SOURCE)
+const EMPTY_SCAN_STABILITY = resource<ScanStabilityState>({
+  issues: [
+    {
+      code: 'missing_contract',
+      detail: '未收到后端扫描稳定性契约。',
+      severity: 'watch',
+    },
+  ],
+  score: 0,
+  status: 'watch',
+  summary: '等待后端扫描稳定性契约。',
+}, 'empty', EMPTY_SOURCE)
 const EMPTY_REALTIME = resource<RealtimeCapabilityState>({
   schemaVersion: 'realtime-capability.v1',
   secondLevelOnline: false,
@@ -224,6 +237,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
   const caps = contract?.capabilityStages ?? EMPTY_CAPABILITIES
   const governance = contract?.coreChainGovernance ?? EMPTY_GOVERNANCE
   const sources = contract?.dataSources ?? EMPTY_SOURCES
+  const scanStability = contract?.scanStability ?? EMPTY_SCAN_STABILITY
   const lightScanQuality = contract?.lightScanQuality ?? EMPTY_LIGHT_SCAN_QUALITY
   const realtime = contract?.realtimeCapability ?? EMPTY_REALTIME
 
@@ -335,6 +349,65 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
             </div>
           </div>
           <FreshnessTag {...queue} className="block" />
+          </ResourceBoundary>
+        </div>
+      </section>
+
+      {/* 二点五、扫描稳定性 */}
+      <section className="border border-border bg-card lg:col-span-2">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <span className="h-3.5 w-1 bg-neon" />
+          <ShieldCheck className="size-4 text-neon" />
+          <h2 className="font-semibold">扫描稳定性</h2>
+          <span className="ml-auto mr-2 text-xs text-muted-foreground">
+            只做运维诊断，不生成交易信号
+          </span>
+          <StatusBadge status={scanStability.status} />
+        </div>
+        <div className="p-5">
+          <ResourceBoundary resource={scanStability}>
+            {(stability) => (
+              <div className="grid gap-3 lg:grid-cols-[0.65fr_1.35fr]">
+                <div className="border border-border bg-secondary/25 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">
+                      {stability.status === 'healthy' ? '稳定' : stability.status === 'watch' ? '观察' : '阻塞'}
+                    </span>
+                    <span className="font-mono text-lg font-bold text-neon">{stability.score}</span>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    {stability.summary}
+                  </p>
+                  <FreshnessTag {...scanStability} className="mt-2 block" />
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {stability.issues.length === 0 ? (
+                    <div className="border border-up/35 bg-up/10 p-3 text-xs text-up">
+                      当前没有扫描稳定性问题。
+                    </div>
+                  ) : stability.issues.map((issue) => (
+                    <div key={`${issue.code}-${issue.detail}`} className="border border-border bg-secondary/25 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 truncate font-mono text-xs font-semibold">{issue.code}</span>
+                        <span className={`ml-auto border px-1.5 py-0.5 text-[10px] ${
+                          issue.severity === 'critical'
+                            ? 'border-down/40 bg-down/10 text-down'
+                            : issue.severity === 'watch'
+                              ? 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]'
+                              : 'border-neon/40 bg-neon/10 text-neon'
+                        }`}
+                        >
+                          {issue.severity}
+                        </span>
+                      </div>
+                      <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                        {issue.detail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </ResourceBoundary>
         </div>
       </section>

@@ -128,7 +128,7 @@ async function readPageBackendUncached() {
   };
 }
 
-async function readPageBackend() {
+export async function readPageBackend() {
   return readThroughTtlCache(
     pageBackendCache,
     ttlMsFromEnv("FRONTEND_BACKEND_CONTRACT_CACHE_TTL_MS", 5_000),
@@ -209,11 +209,12 @@ export async function getTokenDossierContractForPage(
   symbol: string,
   basePrice = 1,
 ): Promise<Resource<TokenDossier>> {
-  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
-    allowRefresh: false,
-    trigger: "page_ssr",
+  const { backend, snapshot } = await readPageBackend();
+  const dossier = buildSignalBackendDossier({
+    lightScanCandidates: backend.scanProof.lightScan.topCandidates,
+    snapshot,
+    symbol,
   });
-  const dossier = buildSignalBackendDossier({ snapshot, symbol });
 
   return buildFrontendTokenDossierContract({
     basePrice,
@@ -225,11 +226,12 @@ export async function getKlineContractForPage(
   symbol: string,
   interval: OhlcvInterval = "4h",
 ): Promise<KlineContractResource> {
-  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
-    allowRefresh: false,
-    trigger: "page_ssr",
+  const { backend, snapshot } = await readPageBackend();
+  const dossier = buildSignalBackendDossier({
+    lightScanCandidates: backend.scanProof.lightScan.topCandidates,
+    snapshot,
+    symbol,
   });
-  const dossier = buildSignalBackendDossier({ snapshot, symbol });
 
   return buildFrontendKlineContract({
     dossier,

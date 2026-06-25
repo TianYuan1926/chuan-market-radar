@@ -305,12 +305,11 @@ test("scan proof header reflects scan resource status instead of hardcoded green
 });
 
 test("frontend contract routes are read-only and cannot trigger scans", () => {
-  const directSnapshotRoutePaths = [
-    "src/app/api/frontend/token-dossier/route.ts",
-  ];
+  const directSnapshotRoutePaths = [] as const;
   const cachedGetterRoutePaths = [
     ["src/app/api/frontend/radar-contract/route.ts", "getRadarContractForPage"],
     ["src/app/api/frontend/leaderboard/route.ts", "getLeaderboardContractForPage"],
+    ["src/app/api/frontend/token-dossier/route.ts", "readPageBackend"],
     ["src/app/api/frontend/review-contract/route.ts", "getReviewContractForPage"],
   ] as const;
   const frontendContractServerSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-contract-server.ts"), "utf8");
@@ -476,6 +475,8 @@ test("review and system backend carrier panels receive server-side contracts", (
   assert.match(reviewEvolutionSource, /contract\?\.strategyArchetypes\s*\?\?/);
   assert.match(reviewEvolutionSource, /contract\?\.missedDetections\s*\?\?/);
   assert.match(reviewEvolutionSource, /contract\?\.evolutionSuggestions\s*\?\?/);
+  assert.match(reviewEvolutionSource, /contract\?\.discoveryReview\s*\?\?/);
+  assert.match(reviewEvolutionSource, /提前发现复盘/u);
   assert.doesNotMatch(reviewEvolutionSource, /getSignalLifecycles|getStrategyArchetypes|getMissedDetections|getEvolutionSuggestions/);
 
   assert.match(systemStatusSource, /contract\?:\s*RadarContract/);
@@ -1062,6 +1063,7 @@ test("review page restores rank visibility without rendering the legacy mock rev
   assert.match(reviewPageSource, /<RankBanner/);
   assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
   assert.match(reviewEvolutionSource, /复盘样本门禁/);
+  assert.match(reviewEvolutionSource, /提前发现复盘/);
   assert.match(reviewEvolutionSource, /AI 反证复核状态/);
   assert.match(reviewEvolutionSource, /样本不足/);
   assert.match(reviewEvolutionSource, /不能替代规则引擎/);

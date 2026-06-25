@@ -2,7 +2,7 @@ import type { Timeframe } from "@/lib/analysis/types";
 import type { StrategyV3Dossier } from "@/lib/analysis/v3/types";
 import type { JournalEvent, MarketSignal } from "../analysis/types";
 import { buildTradingViewUrl, toTradingViewSymbol } from "./tradingview-links";
-import type { MarketRadarSnapshot } from "./types";
+import type { MarketRadarSnapshot, ScanLightScanCandidate } from "./types";
 
 export type SignalBackendDossier = {
   found: boolean;
@@ -28,6 +28,10 @@ export type SignalBackendDossier = {
   journal: {
     recentEvents: JournalEvent[];
     totalEvents: number;
+  };
+  discovery?: {
+    candidate: ScanLightScanCandidate | null;
+    source: "light_scan_top_candidate" | "not_in_light_scan_top_candidates";
   };
   signal: {
     confidence: number;
@@ -174,6 +178,32 @@ function journalSummary({
   };
 }
 
+function lightScanCandidateMatches(candidate: ScanLightScanCandidate, symbol: string) {
+  const targetSymbol = normalizeComparableSymbol(symbol);
+  const targetBase = targetSymbol.replace(/USDT$/u, "");
+  const candidateSymbol = normalizeComparableSymbol(candidate.symbol);
+  const candidateBase = normalizeComparableSymbol(candidate.baseAsset).replace(/USDT$/u, "");
+
+  return candidateSymbol === targetSymbol ||
+    candidateSymbol.replace(/USDT$/u, "") === targetBase ||
+    candidateBase === targetBase;
+}
+
+function discoveryContext({
+  lightScanCandidates = [],
+  symbol,
+}: {
+  lightScanCandidates?: ScanLightScanCandidate[];
+  symbol: string;
+}): SignalBackendDossier["discovery"] {
+  const candidate = lightScanCandidates.find((item) => lightScanCandidateMatches(item, symbol)) ?? null;
+
+  return {
+    candidate,
+    source: candidate ? "light_scan_top_candidate" : "not_in_light_scan_top_candidates",
+  };
+}
+
 function chartContext(signal: MarketSignal | null): SignalBackendDossier["chart"] {
   if (!signal) {
     return {
@@ -209,9 +239,11 @@ function chartContext(signal: MarketSignal | null): SignalBackendDossier["chart"
 }
 
 export function buildSignalBackendDossier({
+  lightScanCandidates,
   snapshot,
   symbol,
 }: {
+  lightScanCandidates?: ScanLightScanCandidate[];
   snapshot: MarketRadarSnapshot;
   symbol: string;
 }): SignalBackendDossier {
@@ -233,6 +265,10 @@ export function buildSignalBackendDossier({
     journal: journalSummary({
       signal,
       snapshot,
+    }),
+    discovery: discoveryContext({
+      lightScanCandidates,
+      symbol: signal?.symbol ?? symbol,
     }),
     signal: signal
       ? {

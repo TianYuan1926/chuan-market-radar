@@ -219,6 +219,35 @@ export const MATURITY_META: Record<
   COOLDOWN: { label: '冷却中', short: '冷却', tone: 'warn', order: 8 },
 }
 
+export type DiscoveryPressureSide = 'buy' | 'neutral' | 'sell'
+export type DiscoveryProxyQuality = 'reason_tag_proxy' | 'rolling_price_volume_proxy' | 'taker_trade_proxy'
+export type DiscoveryOpportunityPhase = 'breakout_watch' | 'early_setup' | 'late_move' | 'neutral_watch'
+export type DiscoveryOverextensionRisk = 'high' | 'low' | 'medium'
+export type DiscoveryCandidateState = 'COLD' | 'HOT' | 'PRE_TREND' | 'WARM'
+
+export type DiscoveryFact = {
+  buyPressureUsd: number | null
+  changePercent24h: number | null
+  cvdProxyUsd: number | null
+  decisionBoundary: string
+  earlyOpportunityScore: number | null
+  flowImbalance: number | null
+  foundInLightScan: boolean
+  opportunityPhase: DiscoveryOpportunityPhase | null
+  overextensionRisk: DiscoveryOverextensionRisk | null
+  pressureSide: DiscoveryPressureSide | null
+  proxyQuality: DiscoveryProxyQuality | null
+  reasons: string[]
+  score: number | null
+  sellPressureUsd: number | null
+  source: 'light_scan_top_candidate' | 'not_in_light_scan_top_candidates'
+  state: DiscoveryCandidateState | null
+  summary: string
+  symbol: string
+  volume24hUsd: number | null
+  volumeWindowUsd: number | null
+}
+
 export type RadarSignal = {
   id: string
   symbol: string
@@ -233,6 +262,7 @@ export type RadarSignal = {
   whySelected: string // 为什么入选
   whyBlocked: string | null // 为什么不能交易（无则 null）
   updatedMinAgo: number
+  discovery?: DiscoveryFact | null
 }
 
 export function getRadarSignals(): Resource<RadarSignal[]> {
@@ -316,6 +346,7 @@ export type TokenDossier = {
   direction: '看多' | '看空' | '中性'
   maturity: SignalMaturity
   chart: TokenChartIntegrity
+  discovery: DiscoveryFact
   structures: TfStructure[]
   evidence: EvidenceItem[]
   counter: CounterItem[]
@@ -339,6 +370,28 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
       status: 'empty',
       tradingViewSymbol: null,
       tradingViewUrl: null,
+    },
+    discovery: {
+      buyPressureUsd: null,
+      changePercent24h: null,
+      cvdProxyUsd: null,
+      decisionBoundary: LEGACY_DISABLED_REASON,
+      earlyOpportunityScore: null,
+      flowImbalance: null,
+      foundInLightScan: false,
+      opportunityPhase: null,
+      overextensionRisk: null,
+      pressureSide: null,
+      proxyQuality: null,
+      reasons: [],
+      score: null,
+      sellPressureUsd: null,
+      source: 'not_in_light_scan_top_candidates',
+      state: null,
+      summary: '等待真实后端发现层契约。',
+      symbol: symbol.toUpperCase(),
+      volume24hUsd: null,
+      volumeWindowUsd: null,
     },
     structures: [],
     evidence: [],
@@ -818,6 +871,7 @@ export type ReviewContract = {
   missedDetections: Resource<MissedDetection[]>
   evolutionSuggestions: Resource<EvolutionSuggestion[]>
   reviewStats: Resource<ReviewStatsData>
+  discoveryReview: Resource<DiscoveryReviewState>
   aiReviewStats: Resource<AiReviewStats>
 }
 
@@ -839,6 +893,17 @@ export type AiReviewStats = {
   reviewed: number
   total: number
   unboundFallbackProtected: boolean
+}
+
+export type DiscoveryReviewState = {
+  cvdProxyCandidateCount: number
+  earlyOpportunityCount: number
+  guardrails: string[]
+  lateMoveCount: number
+  missedDetectionCount: number
+  reviewFocus: string[]
+  summary: string
+  totalLightCandidates: number
 }
 
 export function getReviewStats(): Resource<ReviewStatsData> {
@@ -873,6 +938,25 @@ export function getAiReviewStats(): Resource<AiReviewStats> {
   )
 }
 
+export function getDiscoveryReview(): Resource<DiscoveryReviewState> {
+  return resource(
+    {
+      cvdProxyCandidateCount: 0,
+      earlyOpportunityCount: 0,
+      guardrails: [
+        '旧同步 getter 已停用。页面必须读取真实后端复盘契约。',
+      ],
+      lateMoveCount: 0,
+      missedDetectionCount: 0,
+      reviewFocus: [],
+      summary: '等待真实提前发现复盘契约。',
+      totalLightCandidates: 0,
+    },
+    'empty',
+    { ageSec: 30, source: 'light-scan-review', reason: '未传入后端提前发现复盘契约' },
+  )
+}
+
 export function getReviewContract(): ReviewContract {
   return {
     signalLifecycles: getSignalLifecycles(),
@@ -880,6 +964,7 @@ export function getReviewContract(): ReviewContract {
     missedDetections: getMissedDetections(),
     evolutionSuggestions: getEvolutionSuggestions(),
     reviewStats: getReviewStats(),
+    discoveryReview: getDiscoveryReview(),
     aiReviewStats: getAiReviewStats(),
   }
 }

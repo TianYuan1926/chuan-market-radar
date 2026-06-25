@@ -39,6 +39,22 @@ const RISK_TONE: Record<RadarSignal['risk'], string> = {
   高: 'text-down',
   极高: 'text-down',
 }
+const PRESSURE_LABEL: Record<NonNullable<RadarSignal['discovery']>['pressureSide'] & string, string> = {
+  buy: '买压',
+  neutral: '均衡',
+  sell: '卖压',
+}
+const PHASE_LABEL: Record<NonNullable<RadarSignal['discovery']>['opportunityPhase'] & string, string> = {
+  breakout_watch: '突破观察',
+  early_setup: '启动前',
+  late_move: '已晚到',
+  neutral_watch: '中性观察',
+}
+const PROXY_LABEL: Record<NonNullable<RadarSignal['discovery']>['proxyQuality'] & string, string> = {
+  reason_tag_proxy: '标签代理',
+  rolling_price_volume_proxy: '价量代理',
+  taker_trade_proxy: '主动成交',
+}
 
 type SortKey = 'maturity' | 'rr' | 'evidence' | 'recent'
 const MATURITY_ORDER: SignalMaturity[] = [
@@ -258,6 +274,40 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
         </span>
         <span className="text-muted-foreground">{s.updatedMinAgo}m 前</span>
       </div>
+
+      {s.discovery?.foundInLightScan ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+          <span className="border border-neon/35 bg-neon/10 px-1.5 py-0.5 text-neon">
+            发现层 {PHASE_LABEL[s.discovery.opportunityPhase ?? 'neutral_watch']}
+          </span>
+          <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-muted-foreground">
+            提前分 {s.discovery.earlyOpportunityScore ?? '—'}
+          </span>
+          <span
+            className={cn(
+              'border px-1.5 py-0.5',
+              s.discovery.pressureSide === 'buy'
+                ? 'border-up/35 bg-up/10 text-up'
+                : s.discovery.pressureSide === 'sell'
+                  ? 'border-down/35 bg-down/10 text-down'
+                  : 'border-border bg-secondary/40 text-muted-foreground',
+            )}
+          >
+            {PRESSURE_LABEL[s.discovery.pressureSide ?? 'neutral']}
+          </span>
+          <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-muted-foreground">
+            CVD {s.discovery.flowImbalance ?? '—'}
+          </span>
+          <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-muted-foreground">
+            {s.discovery.proxyQuality ? PROXY_LABEL[s.discovery.proxyQuality] : '无代理'}
+          </span>
+          {s.discovery.overextensionRisk === 'high' ? (
+            <span className="border border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 px-1.5 py-0.5 text-[oklch(0.82_0.15_75)]">
+              晚到只复盘
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* 为何入选 / 为何不可交易 */}
       <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">

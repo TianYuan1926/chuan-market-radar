@@ -9,6 +9,7 @@ import {
   Lock,
   Check,
   X,
+  Activity,
 } from 'lucide-react'
 import type { TokenDossier as TokenDossierData } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'
@@ -85,6 +86,55 @@ export function TokenDossier({
             )
           })}
         </div>
+      </div>
+
+      {/* 发现层 / 主动成交 */}
+      <div className="border-b border-border px-6 py-5">
+        <h3 className="flex items-center gap-2 text-sm font-semibold">
+          <Activity className="size-4 text-neon" />
+          发现层 / 主动成交
+        </h3>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <DiscoveryCell
+            index={0}
+            label="轻扫命中"
+            value={d.discovery.foundInLightScan ? '已命中' : '未命中'}
+            tone={d.discovery.foundInLightScan ? 'up' : 'muted'}
+          />
+          <DiscoveryCell
+            index={1}
+            label="阶段 / 提前分"
+            value={`${phaseLabel(d.discovery.opportunityPhase)} / ${d.discovery.earlyOpportunityScore ?? '—'}`}
+            tone={d.discovery.opportunityPhase === 'late_move' ? 'warn' : d.discovery.foundInLightScan ? 'neon' : 'muted'}
+          />
+          <DiscoveryCell
+            index={2}
+            label="买卖压力"
+            value={`${pressureLabel(d.discovery.pressureSide)} · CVD ${d.discovery.flowImbalance ?? '—'}`}
+            tone={d.discovery.pressureSide === 'buy' ? 'up' : d.discovery.pressureSide === 'sell' ? 'down' : 'muted'}
+          />
+          <DiscoveryCell
+            index={3}
+            label="延展风险"
+            value={overextensionLabel(d.discovery.overextensionRisk)}
+            tone={d.discovery.overextensionRisk === 'high' ? 'warn' : d.discovery.overextensionRisk === 'low' ? 'up' : 'muted'}
+          />
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+          {d.discovery.summary}
+        </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          {d.discovery.decisionBoundary}
+        </p>
+        {d.discovery.reasons.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {d.discovery.reasons.slice(0, 8).map((reason) => (
+              <span key={reason} className="border border-border bg-secondary/30 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                {reason}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 分层分析报告 */}
@@ -292,6 +342,58 @@ export function TokenDossier({
 
 function levelText(value: number) {
   return Number.isFinite(value) && value > 0 ? String(value) : '待补齐'
+}
+
+function phaseLabel(value: TokenDossierData['discovery']['opportunityPhase']) {
+  if (value === 'early_setup') return '启动前'
+  if (value === 'breakout_watch') return '突破观察'
+  if (value === 'late_move') return '已晚到'
+  if (value === 'neutral_watch') return '中性观察'
+  return '等待'
+}
+
+function pressureLabel(value: TokenDossierData['discovery']['pressureSide']) {
+  if (value === 'buy') return '主动买压'
+  if (value === 'sell') return '主动卖压'
+  if (value === 'neutral') return '买卖均衡'
+  return '未确认'
+}
+
+function overextensionLabel(value: TokenDossierData['discovery']['overextensionRisk']) {
+  if (value === 'high') return '高 · 只复盘/等回踩'
+  if (value === 'medium') return '中 · 必须等确认'
+  if (value === 'low') return '低'
+  return '等待'
+}
+
+function DiscoveryCell({
+  index = 0,
+  label,
+  tone = 'muted',
+  value,
+}: {
+  index?: number
+  label: string
+  tone?: 'up' | 'down' | 'neon' | 'warn' | 'muted'
+  value: string
+}) {
+  const toneClass = {
+    down: 'text-down',
+    muted: 'text-muted-foreground',
+    neon: 'text-neon',
+    up: 'text-up',
+    warn: 'text-[oklch(0.82_0.15_75)]',
+  }[tone]
+
+  return (
+    <div
+      style={{ ['--i' as string]: index }}
+      className="data-tile tile-in border border-border bg-secondary/20 px-3 py-2.5"
+    >
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={cn('mt-1 font-mono text-sm font-semibold', toneClass)}>{value}</div>
+    </div>
+  )
 }
 
 function PlanCell({

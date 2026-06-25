@@ -96,6 +96,36 @@ export type SignalMaturity =
   | "INVALIDATED"
   | "COOLDOWN";
 
+export type DiscoveryPressureSide = "buy" | "neutral" | "sell";
+
+export type DiscoveryProxyQuality =
+  | "reason_tag_proxy"
+  | "rolling_price_volume_proxy"
+  | "taker_trade_proxy";
+
+export type DiscoveryFact = {
+  buyPressureUsd: number | null;
+  changePercent24h: number | null;
+  cvdProxyUsd: number | null;
+  decisionBoundary: string;
+  earlyOpportunityScore: number | null;
+  flowImbalance: number | null;
+  foundInLightScan: boolean;
+  opportunityPhase: ScanLightScanCandidate["opportunityPhase"] | null;
+  overextensionRisk: ScanLightScanCandidate["overextensionRisk"] | null;
+  pressureSide: DiscoveryPressureSide | null;
+  proxyQuality: DiscoveryProxyQuality | null;
+  reasons: string[];
+  score: number | null;
+  sellPressureUsd: number | null;
+  source: "light_scan_top_candidate" | "not_in_light_scan_top_candidates";
+  state: ScanLightScanCandidate["state"] | null;
+  summary: string;
+  symbol: string;
+  volume24hUsd: number | null;
+  volumeWindowUsd: number | null;
+};
+
 export type RadarSignal = {
   id: string;
   symbol: string;
@@ -110,6 +140,7 @@ export type RadarSignal = {
   whySelected: string;
   whyBlocked: string | null;
   updatedMinAgo: number;
+  discovery?: DiscoveryFact | null;
 };
 
 export type TfStructure = {
@@ -190,6 +221,7 @@ export type TokenDossier = {
   direction: "看多" | "看空" | "中性";
   maturity: SignalMaturity;
   chart: TokenChartIntegrity;
+  discovery: DiscoveryFact;
   structures: TfStructure[];
   evidence: EvidenceItem[];
   counter: CounterItem[];
@@ -469,6 +501,17 @@ export type ReviewStatsData = {
   winRate: number | null;
 };
 
+export type DiscoveryReviewState = {
+  cvdProxyCandidateCount: number;
+  earlyOpportunityCount: number;
+  guardrails: string[];
+  lateMoveCount: number;
+  missedDetectionCount: number;
+  reviewFocus: string[];
+  summary: string;
+  totalLightCandidates: number;
+};
+
 export type AiReviewStats = {
   disabled: number;
   fallback: number;
@@ -483,6 +526,7 @@ export type ReviewContract = {
   missedDetections: Resource<MissedDetection[]>;
   evolutionSuggestions: Resource<EvolutionSuggestion[]>;
   reviewStats: Resource<ReviewStatsData>;
+  discoveryReview: Resource<DiscoveryReviewState>;
   aiReviewStats: Resource<AiReviewStats>;
 };
 
@@ -1086,10 +1130,14 @@ function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, n
     whySelected: signal.summary || supportive[0]?.value || "已进入后端证据链",
     whyBlocked: blockers.length > 0 ? blockers.join("；") : null,
     updatedMinAgo: diffMinutes(signal.updatedAt, now),
+    discovery: null,
   };
 }
 
 function riskForLightCandidate(candidate: ScanLightScanCandidate): RadarSignal["risk"] {
+  if (candidate.overextensionRisk === "high" || candidate.opportunityPhase === "late_move") {
+    return "高";
+  }
   if (candidate.state === "HOT") {
     return "高";
   }
@@ -1097,6 +1145,31 @@ function riskForLightCandidate(candidate: ScanLightScanCandidate): RadarSignal["
     return "低";
   }
   return "中";
+}
+
+function maturityForLightCandidate(candidate: ScanLightScanCandidate): SignalMaturity {
+  if (candidate.overextensionRisk === "high" || candidate.opportunityPhase === "late_move") {
+    return "REVIEW_ONLY";
+  }
+
+  return "DEEP_SCAN_CANDIDATE";
+}
+
+function whySelectedForLightCandidate(candidate: ScanLightScanCandidate) {
+  const reasons = candidate.reasons.length > 0
+    ? candidate.reasons.slice(0, 5).join(" / ")
+    : "public light scan candidate";
+  const discovery = discoveryFactFromCandidate(candidate);
+
+  return `轻扫发现：${discovery.summary}；原因 ${reasons}`;
+}
+
+function whyBlockedForLightCandidate(candidate: ScanLightScanCandidate) {
+  if (candidate.overextensionRisk === "high" || candidate.opportunityPhase === "late_move") {
+    return "行情已进入晚到/延展风险区，只能作为复盘样本或等待回踩重构，不能当作追单机会。";
+  }
+
+  return "仅完成轻扫/候选层验证；等待 CoinGlass/公开衍生品深扫、盘面结构和 Evidence/Risk Gate，不能生成交易计划。";
 }
 
 function buildLightCandidateRadarSignal({
@@ -1111,24 +1184,23 @@ function buildLightCandidateRadarSignal({
   scanGeneratedAt: string;
 }): RadarSignal {
   const symbol = displaySymbol(candidate.symbol);
-  const reasons = candidate.reasons.length > 0
-    ? candidate.reasons.join(" / ")
-    : "public light scan candidate";
+  const discovery = discoveryFactFromCandidate(candidate);
 
   return {
     id: `light:${candidate.symbol}`,
     symbol,
     hue: symbolHue(candidate.symbol),
     direction: "观察",
-    maturity: "DEEP_SCAN_CANDIDATE",
+    maturity: maturityForLightCandidate(candidate),
     rr: null,
     risk: riskForLightCandidate(candidate),
     evidenceCount: candidate.reasons.length,
     counterCount: 0,
     freshness,
-    whySelected: `轻扫候选：${candidate.state}，${reasons}`,
-    whyBlocked: "仅完成轻扫/候选层验证；等待 CoinGlass 深扫、盘面结构和 Evidence/Risk Gate，不能生成交易计划。",
+    whySelected: whySelectedForLightCandidate(candidate),
+    whyBlocked: whyBlockedForLightCandidate(candidate),
     updatedMinAgo: diffMinutes(scanGeneratedAt, now),
+    discovery,
   };
 }
 
@@ -1277,6 +1349,111 @@ function candidatePressureSide(candidate: ScanLightScanCandidate) {
   if (reasons.has("cvd_proxy_negative")) return "sell";
 
   return null;
+}
+
+function candidateProxyQuality(candidate: ScanLightScanCandidate): DiscoveryProxyQuality | null {
+  if (candidate.microstructure?.proxyQuality) return candidate.microstructure.proxyQuality;
+  if (candidateHasCvdProxy(candidate)) return "reason_tag_proxy";
+
+  return null;
+}
+
+function discoveryPhaseLabel(phase: ScanLightScanCandidate["opportunityPhase"] | null | undefined) {
+  if (phase === "early_setup") return "启动前";
+  if (phase === "breakout_watch") return "突破观察";
+  if (phase === "late_move") return "已经晚到";
+  if (phase === "neutral_watch") return "中性观察";
+  return "等待阶段判定";
+}
+
+function pressureSideLabel(side: DiscoveryPressureSide | null | undefined) {
+  if (side === "buy") return "主动买压";
+  if (side === "sell") return "主动卖压";
+  if (side === "neutral") return "买卖均衡";
+  return "主动成交不足";
+}
+
+function discoverySummary(candidate: ScanLightScanCandidate) {
+  const phase = discoveryPhaseLabel(candidate.opportunityPhase);
+  const pressure = pressureSideLabel(candidatePressureSide(candidate));
+  const earlyScore = typeof candidate.earlyOpportunityScore === "number"
+    ? `提前分 ${round(candidate.earlyOpportunityScore, 0)}`
+    : "提前分待补";
+  const risk = candidate.overextensionRisk === "high"
+    ? "延展风险高，只能复盘或等回踩"
+    : candidate.overextensionRisk === "medium"
+      ? "延展风险中，必须等结构确认"
+      : "延展风险低或待确认";
+
+  return `${phase} · ${pressure} · ${earlyScore} · ${risk}`;
+}
+
+function discoveryFactFromCandidate(candidate: ScanLightScanCandidate): DiscoveryFact {
+  return {
+    buyPressureUsd: typeof candidate.microstructure?.buyPressureUsd === "number"
+      ? round(candidate.microstructure.buyPressureUsd, 0)
+      : null,
+    changePercent24h: round(candidate.changePercent24h, 2),
+    cvdProxyUsd: typeof candidate.microstructure?.cvdProxyUsd === "number"
+      ? round(candidate.microstructure.cvdProxyUsd, 0)
+      : null,
+    decisionBoundary: "发现层只负责说明为什么进入候选；不能直接生成方向、入场、止损或目标。",
+    earlyOpportunityScore: typeof candidate.earlyOpportunityScore === "number"
+      ? round(candidate.earlyOpportunityScore, 0)
+      : null,
+    flowImbalance: typeof candidate.microstructure?.tradeFlowImbalance === "number"
+      ? round(candidate.microstructure.tradeFlowImbalance, 4)
+      : null,
+    foundInLightScan: true,
+    opportunityPhase: candidate.opportunityPhase ?? null,
+    overextensionRisk: candidate.overextensionRisk ?? null,
+    pressureSide: candidatePressureSide(candidate),
+    proxyQuality: candidateProxyQuality(candidate),
+    reasons: candidate.reasons,
+    score: round(candidate.score, 0),
+    sellPressureUsd: typeof candidate.microstructure?.sellPressureUsd === "number"
+      ? round(candidate.microstructure.sellPressureUsd, 0)
+      : null,
+    source: "light_scan_top_candidate",
+    state: candidate.state,
+    summary: discoverySummary(candidate),
+    symbol: displaySymbol(candidate.symbol),
+    volume24hUsd: round(candidate.volume24hUsd, 0),
+    volumeWindowUsd: typeof candidate.volumeWindowUsd === "number" ? round(candidate.volumeWindowUsd, 0) : null,
+  };
+}
+
+function emptyDiscoveryFact(symbol: string): DiscoveryFact {
+  const display = displaySymbol(symbol);
+
+  return {
+    buyPressureUsd: null,
+    changePercent24h: null,
+    cvdProxyUsd: null,
+    decisionBoundary: "未进入当前轻扫 Top 候选时，页面不能补造发现层证据。",
+    earlyOpportunityScore: null,
+    flowImbalance: null,
+    foundInLightScan: false,
+    opportunityPhase: null,
+    overextensionRisk: null,
+    pressureSide: null,
+    proxyQuality: null,
+    reasons: [],
+    score: null,
+    sellPressureUsd: null,
+    source: "not_in_light_scan_top_candidates",
+    state: null,
+    summary: `${display} 未进入当前轻扫 Top 候选；如有成熟信号，以证据链和 Risk Gate 为准。`,
+    symbol: display,
+    volume24hUsd: null,
+    volumeWindowUsd: null,
+  };
+}
+
+function discoveryFactFromDossier(dossier: SignalBackendDossier): DiscoveryFact {
+  return dossier.discovery?.candidate
+    ? discoveryFactFromCandidate(dossier.discovery.candidate)
+    : emptyDiscoveryFact(dossier.symbol);
 }
 
 function buildLightScanQuality({
@@ -1724,7 +1901,7 @@ function buildDerivatives(snapshot: MarketRadarSnapshot): DerivativesState {
     exchangeCoverage: uniqueExchanges.size,
     totalExchanges: 3,
     lastUpdate: timeLabel(latest),
-    unavailableFields: ["taker_buy_sell", "cvd_proxy", "real_fund_flow"],
+    unavailableFields: ["exchange_native_taker_buy_sell", "exchange_native_cvd", "real_fund_flow"],
   };
 }
 
@@ -1741,12 +1918,12 @@ function buildFundFlowState(snapshot: MarketRadarSnapshot): FundFlowState {
     ],
     decisionBoundary: "资金流仅能作为市场上下文和风险提示；未接真实 taker/CVD 前，不能生成或放大交易信号。",
     detail: hasDerivativeContext
-      ? "已接 OI、Funding、Long/Short 等衍生品上下文；主动买卖和 CVD 仍等待真实稳定源。"
+      ? "已接 OI、Funding、Long/Short 等衍生品上下文；轻扫发现层可展示 public trade/CVD proxy，但它不是交易所原生资金流证据。"
       : "当前没有可用衍生品上下文，资金流只能显示等待数据源。",
     source: hasDerivativeContext ? "coinglass_derivatives" : "not_connected",
     status: hasDerivativeContext ? "partial" : "waiting_source",
     takerBuySellAvailable: false,
-    unavailableFields: ["taker_buy_sell", "cvd_proxy", "real_fund_flow"],
+    unavailableFields: ["exchange_native_taker_buy_sell", "exchange_native_cvd", "real_fund_flow"],
   };
 }
 
@@ -1978,7 +2155,7 @@ export function buildFrontendRadarContract({
         ageSec,
         source: "coinglass",
         reason: snapshot.derivatives.length > 0
-          ? "OI/Funding/多空比已接入；主动买卖和 CVD 暂未接真实源。"
+          ? "OI/Funding/多空比已接入；主动成交/CVD proxy 在轻扫发现层展示，不能冒充交易所原生资金流。"
           : "当前快照未包含衍生品明细。",
       },
     ),
@@ -1988,7 +2165,7 @@ export function buildFrontendRadarContract({
       {
         ageSec,
         source: "coinglass",
-        reason: "资金流只能展示已接真实字段；未接 taker/CVD 时必须显示等待数据源。",
+        reason: "资金流只能展示已接真实字段；light-scan CVD proxy 只能用于发现层，不等于原生资金流。",
       },
     ),
     scanStability: resource(
@@ -2709,12 +2886,14 @@ function buildAnalysisReportSections({
   blockedReasons,
   counter,
   dossier,
+  discovery,
   evidence,
   tradePlan,
 }: {
   blockedReasons: string[];
   counter: CounterItem[];
   dossier: SignalBackendDossier;
+  discovery: DiscoveryFact;
   evidence: EvidenceItem[];
   tradePlan: TradePlanData | null;
 }): AnalysisReportSection[] {
@@ -2753,6 +2932,7 @@ function buildAnalysisReportSections({
         { detail: signal?.summary ?? "后端未找到成熟信号", label: "状态", sourceId: "signal:summary" },
         { detail: signal?.timeframe ?? "等待信号周期", label: "信号周期", sourceId: "signal:timeframe" },
         { detail: String(signal?.confidence ?? "等待评分"), label: "置信度", sourceId: "signal:confidence" },
+        { detail: discovery.summary, label: "发现层状态", sourceId: `discovery:${discovery.source}` },
         { detail: dossier.strategyV3?.summary ?? "等待 v3 趋势地图", label: "v3 摘要", sourceId: "v3:summary" },
         { detail: priceText(dossier.strategyV3?.currentPrice), label: "当前价", sourceId: "v3:current-price" },
         {
@@ -2774,6 +2954,13 @@ function buildAnalysisReportSections({
             : "暂无支持证据；该币不能被包装成机会。",
           label: "支持力度",
           sourceId: "evidence:supportive-count",
+        },
+        {
+          detail: discovery.foundInLightScan
+            ? `轻扫发现层命中；${discovery.summary}；原因 ${discovery.reasons.slice(0, 4).join(" / ") || "等待原因标签"}。`
+            : discovery.summary,
+          label: "提前发现证据",
+          sourceId: `discovery:${discovery.source}`,
         },
         ...trendContextItems,
         ...forwardItems,
@@ -2913,6 +3100,7 @@ export function buildFrontendTokenDossierContract({
     label: item.label,
     detail: item.value,
   }));
+  const discovery = discoveryFactFromDossier(dossier);
 
   return resource({
     symbol: displaySymbol(dossier.symbol),
@@ -2927,6 +3115,7 @@ export function buildFrontendTokenDossierContract({
           : "EVIDENCE_SIGNAL"
       : "INVALIDATED",
     chart: chartIntegrityFromDossier(dossier),
+    discovery,
     structures: structureFromDossier(dossier, basePrice),
     evidence: evidenceItems,
     counter: counterItems,
@@ -2945,6 +3134,7 @@ export function buildFrontendTokenDossierContract({
       blockedReasons,
       counter: counterItems,
       dossier,
+      discovery,
       evidence: evidenceItems,
       tradePlan,
     }),
@@ -3025,6 +3215,39 @@ function reviewSampleStatusToResourceStatus(
   return "partial";
 }
 
+function buildDiscoveryReviewState(
+  backend: BackendContract,
+  missedDetectionCount: number,
+): DiscoveryReviewState {
+  const topCandidates = backend.scanProof.lightScan.topCandidates ?? [];
+  const earlyOpportunityCount = topCandidates.filter((candidate) =>
+    candidate.opportunityPhase === "early_setup" || (candidate.earlyOpportunityScore ?? 0) >= 55
+  ).length;
+  const lateMoveCount = topCandidates.filter((candidate) =>
+    candidate.opportunityPhase === "late_move" || candidate.overextensionRisk === "high"
+  ).length;
+  const cvdProxyCandidateCount = topCandidates.filter(candidateHasCvdProxy).length;
+
+  return {
+    cvdProxyCandidateCount,
+    earlyOpportunityCount,
+    guardrails: [
+      "复盘只评估系统是否提前发现，不允许把晚到涨跌榜样本改写成追单信号。",
+      "轻扫标记不计入命中率；只有 EVIDENCE_SIGNAL / TRADE_PLAN_READY 才进入策略表现统计。",
+      "复盘建议必须人工确认，不能自动修改实时权重。",
+    ],
+    lateMoveCount,
+    missedDetectionCount,
+    reviewFocus: [
+      "启动前 3h/6h/12h 是否有压缩、量能和主动成交线索。",
+      "晚到样本为什么没有在更早阶段进入候选池。",
+      "买压/卖压 CVD proxy 对后续 MFE/MAE 是否有解释力。",
+    ],
+    summary: `当前轻扫 Top 样本 ${topCandidates.length} 个：启动前 ${earlyOpportunityCount}，晚到 ${lateMoveCount}，CVD proxy ${cvdProxyCandidateCount}，漏判复查 ${missedDetectionCount}。`,
+    totalLightCandidates: topCandidates.length,
+  };
+}
+
 export function buildFrontendReviewContract({
   backend,
   snapshot,
@@ -3065,6 +3288,7 @@ export function buildFrontendReviewContract({
       detail: event.note,
       improvement: event.lessons?.[0] ?? "进入漏判复查队列，等待更多样本确认。",
     }));
+  const discoveryReview = buildDiscoveryReviewState(backend, missedDetectionRows.length);
 
   return {
     signalLifecycles: resource(
@@ -3117,6 +3341,15 @@ export function buildFrontendReviewContract({
         ageSec,
         source: "outcome-review",
         reason: backend.analysis.reviewStatistics.guardrail,
+      },
+    ),
+    discoveryReview: resource(
+      discoveryReview,
+      discoveryReview.totalLightCandidates > 0 || discoveryReview.missedDetectionCount > 0 ? "partial" : "empty",
+      {
+        ageSec,
+        source: "light-scan-review",
+        reason: "提前发现复盘只用于评估扫描是否提前，不生成实时交易结论。",
       },
     ),
     aiReviewStats: resource(

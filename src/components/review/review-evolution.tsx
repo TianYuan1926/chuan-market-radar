@@ -15,6 +15,16 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
   const archetypes = contract?.strategyArchetypes ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端策略分型契约' })
   const missed = contract?.missedDetections ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端漏判复查契约' })
   const suggestions = contract?.evolutionSuggestions ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端进化建议契约' })
+  const discoveryReview = contract?.discoveryReview ?? resource({
+    cvdProxyCandidateCount: 0,
+    earlyOpportunityCount: 0,
+    guardrails: ['未传入后端提前发现复盘契约'],
+    lateMoveCount: 0,
+    missedDetectionCount: 0,
+    reviewFocus: [],
+    summary: '未传入后端提前发现复盘契约',
+    totalLightCandidates: 0,
+  }, 'empty', { source: 'light-scan-review', reason: '未传入后端提前发现复盘契约' })
   const reviewStats = contract?.reviewStats ?? resource({
     closedSamples: 0,
     evidenceSamples: 0,
@@ -109,6 +119,53 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
           </div>
         </Panel>
       </div>
+
+      <Panel title="提前发现复盘" icon={Sparkles} right={<StatusBadge status={discoveryReview.status} />}>
+        <div className="space-y-4 px-5 py-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {[
+              ['轻扫样本', discoveryReview.data.totalLightCandidates],
+              ['启动前', discoveryReview.data.earlyOpportunityCount],
+              ['晚到样本', discoveryReview.data.lateMoveCount],
+              ['CVD proxy', discoveryReview.data.cvdProxyCandidateCount],
+              ['漏判复查', discoveryReview.data.missedDetectionCount],
+            ].map(([label, value]) => (
+              <div key={label} className="border border-border bg-secondary/20 p-3">
+                <div className="text-[11px] text-muted-foreground">{label}</div>
+                <div className="mt-1 font-mono text-lg font-semibold">{value}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {discoveryReview.data.summary}
+          </p>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-xs font-semibold">复盘重点</div>
+              <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+                {discoveryReview.data.reviewFocus.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="mt-1.5 size-1.5 shrink-0 bg-neon" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-xs font-semibold">硬边界</div>
+              <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+                {discoveryReview.data.guardrails.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="mt-1.5 size-1.5 shrink-0 bg-down" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <FreshnessTag ageSec={discoveryReview.ageSec} source={discoveryReview.source} />
+        </div>
+      </Panel>
 
       {/* 信号生命周期 + MFE/MAE */}
       <Panel title="信号生命周期 · MFE / MAE" icon={Activity}>

@@ -698,10 +698,10 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.deepEqual(radar.fundFlow.data.connectedFields, ["open_interest", "funding_rate", "long_short_ratio"]);
   assert.match(radar.fundFlow.data.decisionBoundary, /不能生成或放大交易信号/);
   assert.equal(radar.fundFlow.data.takerBuySellAvailable, false);
-  assert.deepEqual(radar.fundFlow.data.unavailableFields, ["taker_buy_sell", "cvd_proxy", "real_fund_flow"]);
+  assert.deepEqual(radar.fundFlow.data.unavailableFields, ["exchange_native_taker_buy_sell", "exchange_native_cvd", "real_fund_flow"]);
   assert.deepEqual(radar.derivatives.data.connectedFields, ["open_interest", "funding_rate", "long_short_ratio"]);
   assert.equal(radar.derivatives.data.takerBuySellStatus, "not_connected");
-  assert.deepEqual(radar.derivatives.data.unavailableFields, ["taker_buy_sell", "cvd_proxy", "real_fund_flow"]);
+  assert.deepEqual(radar.derivatives.data.unavailableFields, ["exchange_native_taker_buy_sell", "exchange_native_cvd", "real_fund_flow"]);
   assert.equal(radar.scanStability.status, "live");
   assert.equal(radar.scanStability.data.status, "healthy");
   assert.match(radar.scanStability.reason ?? "", /不能直接生成交易信号/);
@@ -911,6 +911,14 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "volume_zscore" && check.status === "pass"));
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "cvd_proxy_quality" && check.status === "pass"));
   assert.ok(radar.lightScanQuality.data.guardrails.some((rule) => /不能生成交易计划/.test(rule)));
+  const lateMoveSignal = radar.radarSignals.data.find((item) => item.symbol === "WIF");
+  const earlySignal = radar.radarSignals.data.find((item) => item.symbol === "REZ");
+  assert.equal(lateMoveSignal?.maturity, "REVIEW_ONLY");
+  assert.equal(lateMoveSignal?.discovery?.pressureSide, "sell");
+  assert.match(lateMoveSignal?.whyBlocked ?? "", /晚到/);
+  assert.equal(earlySignal?.maturity, "DEEP_SCAN_CANDIDATE");
+  assert.equal(earlySignal?.discovery?.proxyQuality, "reason_tag_proxy");
+  assert.equal(earlySignal?.discovery?.earlyOpportunityScore, 72);
 });
 
 test("buildFrontendRadarContract recalculates stale persisted signal maturity", () => {
@@ -991,9 +999,39 @@ test("frontend radar and token dossier agree when a real v3 plan is ready", () =
       lastSeenAt: "2026-06-21T08:00:00.000Z",
     },
   ];
+  const backend = backendContract();
+  backend.scanProof.lightScan.topCandidates = [
+    {
+      baseAsset: "TIA",
+      changePercent24h: 1.8,
+      distanceFromHighPercent: 1.2,
+      distanceFromLowPercent: 7.4,
+      earlyOpportunityScore: 86,
+      opportunityPhase: "early_setup",
+      overextensionRisk: "low",
+      price: 7.84,
+      reasons: ["websocket_sliding_window", "volume_zscore_spike", "cvd_proxy_positive"],
+      score: 91,
+      state: "PRE_TREND",
+      symbol: "TIAUSDT",
+      volume24hUsd: 1_200_000,
+      volumeSource: "rolling_window",
+      volumeWindowMs: 900_000,
+      volumeWindowUsd: 1_200_000,
+      volatilityPercent: 2.1,
+      microstructure: {
+        buyPressureUsd: 780_000,
+        cvdProxyUsd: 560_000,
+        pressureSide: "buy",
+        proxyQuality: "taker_trade_proxy",
+        sellPressureUsd: 220_000,
+        tradeFlowImbalance: 0.4667,
+      },
+    },
+  ];
 
   const radar = buildFrontendRadarContract({
-    backend: backendContract(),
+    backend,
     env: { COINGLASS_DAILY_REQUEST_BUDGET: "300" },
     snapshot: sharedSnapshot,
     now: new Date("2026-06-21T08:00:10.000Z"),
@@ -1001,6 +1039,7 @@ test("frontend radar and token dossier agree when a real v3 plan is ready", () =
   const dossier = buildFrontendTokenDossierContract({
     basePrice: 7.84,
     dossier: buildSignalBackendDossier({
+      lightScanCandidates: backend.scanProof.lightScan.topCandidates,
       snapshot: sharedSnapshot,
       symbol: "TIAUSDT",
     }),
@@ -1011,6 +1050,12 @@ test("frontend radar and token dossier agree when a real v3 plan is ready", () =
   assert.equal(dossier.data.maturity, "TRADE_PLAN_READY");
   assert.equal(dossier.data.tradePlan?.positionLens.status, "ready");
   assert.equal(dossier.data.tradePlan?.positionLens.marginFractionPercent, 0.3);
+  assert.equal(dossier.data.discovery.foundInLightScan, true);
+  assert.equal(dossier.data.discovery.pressureSide, "buy");
+  assert.equal(dossier.data.discovery.proxyQuality, "taker_trade_proxy");
+  assert.ok(dossier.data.reportSections.some((section) =>
+    section.items.some((item) => item.sourceId === "discovery:light_scan_top_candidate")
+  ));
 });
 
 test("buildFrontendRadarContract uses observed CoinGlass usage instead of planned requests", () => {
@@ -2276,8 +2321,46 @@ test("buildFrontendTokenDossierContract turns late avoid-chase dossiers into rev
 });
 
 test("buildFrontendReviewContract returns review resources from journal and capability data", () => {
+  const backend = backendContract();
+  backend.scanProof.lightScan.topCandidates = [
+    {
+      baseAsset: "TIA",
+      changePercent24h: 1.8,
+      distanceFromHighPercent: 1.2,
+      distanceFromLowPercent: 7.4,
+      earlyOpportunityScore: 86,
+      opportunityPhase: "early_setup",
+      overextensionRisk: "low",
+      price: 7.84,
+      reasons: ["websocket_sliding_window", "volume_zscore_spike", "cvd_proxy_positive"],
+      score: 91,
+      state: "PRE_TREND",
+      symbol: "TIAUSDT",
+      volume24hUsd: 1_200_000,
+      volumeSource: "rolling_window",
+      volumeWindowMs: 900_000,
+      volumeWindowUsd: 1_200_000,
+      volatilityPercent: 2.1,
+    },
+    {
+      baseAsset: "WIF",
+      changePercent24h: 16.4,
+      distanceFromHighPercent: 0.4,
+      distanceFromLowPercent: 19.2,
+      earlyOpportunityScore: 10,
+      opportunityPhase: "late_move",
+      overextensionRisk: "high",
+      price: 1.82,
+      reasons: ["price_impulse"],
+      score: 72,
+      state: "HOT",
+      symbol: "WIFUSDT",
+      volume24hUsd: 900_000,
+      volatilityPercent: 6.2,
+    },
+  ];
   const review = buildFrontendReviewContract({
-    backend: backendContract(),
+    backend,
     snapshot: snapshot(),
     now: new Date("2026-06-21T08:00:10.000Z"),
   });
@@ -2296,6 +2379,12 @@ test("buildFrontendReviewContract returns review resources from journal and capa
   assert.equal(review.reviewStats.data.totalSamples, 1);
   assert.equal(review.reviewStats.data.evidenceSamples, 1);
   assert.equal(review.reviewStats.data.winRate, null);
+  assert.equal(review.discoveryReview.status, "partial");
+  assert.equal(review.discoveryReview.data.totalLightCandidates, 2);
+  assert.equal(review.discoveryReview.data.earlyOpportunityCount, 1);
+  assert.equal(review.discoveryReview.data.lateMoveCount, 1);
+  assert.equal(review.discoveryReview.data.cvdProxyCandidateCount, 1);
+  assert.ok(review.discoveryReview.data.guardrails.some((rule) => /晚到涨跌榜样本/.test(rule)));
   assert.equal(review.aiReviewStats.status, "empty");
   assert.equal(review.aiReviewStats.data.unboundFallbackProtected, true);
   assert.match(review.aiReviewStats.reason ?? "", /不替代规则引擎/);

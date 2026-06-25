@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildFrontendTokenDossierContract } from "@/lib/api/frontend-contract";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
-import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
+import { readPageBackend } from "@/lib/frontend-contract-server";
 import { buildSignalBackendDossier } from "@/lib/market/signal-backend-dossier";
 
 export const dynamic = "force-dynamic";
@@ -59,11 +59,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
-    allowRefresh: false,
-    trigger: "page_ssr",
+  const { backend, snapshot } = await readPageBackend();
+  const backendDossier = buildSignalBackendDossier({
+    lightScanCandidates: backend.scanProof.lightScan.topCandidates,
+    snapshot,
+    symbol,
   });
-  const backendDossier = buildSignalBackendDossier({ snapshot, symbol });
   const dossier = buildFrontendTokenDossierContract({
     basePrice: numericParam(request, "basePrice", 1),
     dossier: backendDossier,
