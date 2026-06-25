@@ -2128,6 +2128,10 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   assert.equal(res.data.strategyReadiness.schemaVersion, "token-strategy-readiness.v1");
   assert.equal(res.data.strategyReadiness.status, "ready");
   assert.equal(res.data.strategyReadiness.canTradeNow, true);
+  assert.equal(res.data.strategyReadiness.executionMap.schemaVersion, "token-execution-map.v1");
+  assert.equal(res.data.strategyReadiness.executionMap.tradabilityRead, "trade_plan_ready");
+  assert.equal(res.data.strategyReadiness.executionMap.positionQuality, "good");
+  assert.match(res.data.strategyReadiness.executionMap.chartBoundary, /TradingView/);
   assert.equal(res.data.strategyReadiness.positionLensStatus, "ready");
   assert.match(res.data.strategyReadiness.personalLens, /不改变结构 RR/);
   assert.equal(res.data.tradePlan?.bias, "多");
@@ -2334,6 +2338,9 @@ test("buildFrontendTokenDossierContract turns late avoid-chase dossiers into rev
   assert.equal(res.data.riskGate.allowTradePlan, false);
   assert.equal(res.data.strategyReadiness.status, "review_only");
   assert.equal(res.data.strategyReadiness.canTradeNow, false);
+  assert.equal(res.data.strategyReadiness.executionMap.tradabilityRead, "review_only");
+  assert.equal(res.data.strategyReadiness.executionMap.positionQuality, "late");
+  assert.ok(res.data.strategyReadiness.executionMap.waitFor.some((item) => /回踩|反抽/.test(item)));
   assert.match(res.data.strategyReadiness.summary, /晚到|延展/);
   assert.match(res.data.riskGate.reasons.join("；"), /复盘观察|追高|衰竭/);
   assert.match(
@@ -2411,6 +2418,13 @@ test("buildFrontendReviewContract returns review resources from journal and capa
   assert.equal(review.discoveryReview.data.calibration.lateSignalPenalty, "active");
   assert.ok(review.discoveryReview.data.calibration.notes.some((note) => /不自动改实时权重/.test(note)));
   assert.ok(review.discoveryReview.data.guardrails.some((rule) => /晚到涨跌榜样本/.test(rule)));
+  assert.equal(review.opportunityCalibration.status, "partial");
+  assert.equal(review.opportunityCalibration.data.schemaVersion, "opportunity-calibration.v1");
+  assert.equal(review.opportunityCalibration.data.sampleGate.minClosedSamples, 30);
+  assert.equal(review.opportunityCalibration.data.sampleGate.minMetricSamples, 15);
+  assert.equal(review.opportunityCalibration.data.thresholds.minimumStructuralRR, 3);
+  assert.ok(review.opportunityCalibration.data.segments.some((segment) => segment.key === "late_move"));
+  assert.ok(review.opportunityCalibration.data.guardrails.some((rule) => /不自动改实时权重/.test(rule)));
   assert.equal(review.aiReviewStats.status, "empty");
   assert.equal(review.aiReviewStats.data.unboundFallbackProtected, true);
   assert.match(review.aiReviewStats.reason ?? "", /不替代规则引擎/);

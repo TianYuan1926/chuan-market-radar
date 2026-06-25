@@ -199,6 +199,58 @@ export function TokenDossier({
             </div>
           </div>
         </div>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="border border-border bg-secondary/20 p-3">
+            <div className="text-xs font-semibold">执行地图</div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div>
+                <div className="text-[10px] text-muted-foreground">方向读取</div>
+                <div className="mt-1 font-mono text-[11px] font-semibold">
+                  {executionDirectionLabel(d.strategyReadiness.executionMap.directionRead)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground">可交易性</div>
+                <div className="mt-1 font-mono text-[11px] font-semibold">
+                  {tradabilityLabel(d.strategyReadiness.executionMap.tradabilityRead)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground">位置质量</div>
+                <div className="mt-1 font-mono text-[11px] font-semibold">
+                  {positionQualityLabel(d.strategyReadiness.executionMap.positionQuality)}
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 border-l-2 border-border pl-3 text-[11px] leading-relaxed text-muted-foreground">
+              {d.strategyReadiness.executionMap.chartBoundary}
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-xs font-semibold">等待什么</div>
+              <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                {d.strategyReadiness.executionMap.waitFor.slice(0, 5).map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <Check className="mt-0.5 size-3 shrink-0 text-up" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-xs font-semibold">哪里错就撤</div>
+              <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                {d.strategyReadiness.executionMap.invalidIf.slice(0, 5).map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <X className="mt-0.5 size-3 shrink-0 text-down" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 分层分析报告 */}
@@ -428,6 +480,27 @@ function overextensionLabel(value: TokenDossierData['discovery']['overextensionR
   if (value === 'medium') return '中 · 必须等确认'
   if (value === 'low') return '低'
   return '等待'
+}
+
+function executionDirectionLabel(value: TokenDossierData['strategyReadiness']['executionMap']['directionRead']) {
+  if (value === 'bullish') return '偏多'
+  if (value === 'bearish') return '偏空'
+  return '中性'
+}
+
+function tradabilityLabel(value: TokenDossierData['strategyReadiness']['executionMap']['tradabilityRead']) {
+  if (value === 'trade_plan_ready') return '计划就绪'
+  if (value === 'wait_confirmation') return '等确认'
+  if (value === 'wait_pullback_or_retest') return '等回踩/反抽'
+  if (value === 'review_only') return '只复盘'
+  return '被拦截'
+}
+
+function positionQualityLabel(value: TokenDossierData['strategyReadiness']['executionMap']['positionQuality']) {
+  if (value === 'good') return '位置可评估'
+  if (value === 'waiting') return '等待更好位置'
+  if (value === 'late') return '已晚到'
+  return '未知'
 }
 
 function DiscoveryCell({

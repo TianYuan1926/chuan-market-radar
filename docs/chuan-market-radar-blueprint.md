@@ -428,15 +428,20 @@ RawSource
 - 生产 smoke 已校验 `lightScanQuality`：必须有 checks，且 `canCreateTradeSignal=false`。
 - 合法外部情报基础：DEX Screener latest boosts 与 CoinGecko trending collector，可生成 context-only ExternalEvent 和 EvidenceCandidate，不直接生成交易信号。
 - 外部情报 token identity 合同：DEX 事件可带 chain/contract，CoinGecko trending 可带 coingeckoId/logo/name/symbol，映射可信度必须显式展示；仍只能作为 context-only。
+- 外部情报源就绪合同：`external-intel.v1.sourceReadiness` 已显示每个合法源是 live、waiting、disabled、partial 还是 failed，所有源 `canCreateTradeSignal=false`。
 - Daily Mover Review 已输出 `DailyMoverPreMovePattern`：最佳启动前窗口、早期预警分、前兆线索和漏判原因，用于研究“为什么没提前看到”。
 - `REVIEW_ONLY` 已接入雷达合同、单币档案、信号成熟度池、异常表解释和 dashboard 计数；晚到信号不会被包装成交易计划。
 - 本地发布前闸门 `npm run production:preflight` 已落地，统一运行 typecheck、market/worker tests、lint 和 build。
+- 生产依赖审计脚本 `npm run production:audit` 已落地，默认 high/critical 阻断，moderate 作为非阻断发现输出。
+- 生产演练脚本 `npm run production:drill` 已落地：检查远端服务、生成 Postgres 备份、验证恢复保护和备份可读性，不会误恢复真实库。
 - P8 提前发现质量层已落地：public light scan 和 websocket light scan 会输出 `earlyOpportunityScore`、`opportunityPhase` 和 `overextensionRisk`；Daily Mover 的启动前复盘会进入 repository priority hints 的 `early_opportunity` 调度原因。
 - 发现层合同已接入前端主页面：`radarSignals.discovery`、`tokenDossier.discovery` 和 `review.discoveryReview` 已把轻扫阶段、提前分、主动买卖压力、CVD proxy、proxy 质量、晚到风险和决策边界展示出来。
+- 单币执行地图 `token-execution-map.v1` 已接入后端合同和单币档案：方向读取、可交易性、位置质量、等待条件、失效条件和 TradingView 边界必须由后端输出，前端只展示。
 - `/dashboard` 已展示 `scanStability`：锁、缓存、worker 心跳、数据新鲜度和稳定性问题不再只藏在后端。
 - `/signals` 已展示候选发现层事实，晚到/高延展候选会降级为 `REVIEW_ONLY`，不能冒充狙击机会。
 - `/token/[id]` 已展示“发现层 / 主动成交”，并明确 CVD proxy 只能用于发现和排序，不能单独生成交易计划。
 - `/review` 已展示“提前发现复盘”，用于观察 early/late/CVD proxy/missed review 样本积累。
+- `/review` 已展示 `opportunityCalibration.v1`：启动前、突破观察、晚到、CVD proxy 四类机会样本的门禁、阈值和只读校准边界。
 - `coreChainGovernance` 后端和前端合同。
 - `/dashboard` 已展示 `coreChainGovernance` 核心链路体检面板。
 - `/dashboard` 已展示 `coreChainGovernance.featureTriage` 功能分级和 `pageRoles` 页面职责。
@@ -532,7 +537,7 @@ RawSource
 
 ### P2：机会发现质量增强
 
-状态：已完成机会质量合同和前端可见化；后续只靠长期样本继续调优候选排序。
+状态：已完成机会质量合同、执行边界展示和前端可见化；后续只靠长期样本继续调优候选排序。
 
 目标：让系统更早发现“还没完全爆发、仍有布局价值”的山寨，而不是追着已经涨完/跌完的币给方向。
 
@@ -549,10 +554,9 @@ RawSource
 
 继续做强：
 
-- 候选排序继续根据真实 outcome 减少追涨追跌浪费。
-- 对 24h 已大幅上涨的多头候选做 overextended cap；对 24h 已大幅下跌的空头候选做 breakdown exhaustion cap。
-- 波动率压缩、量能启动、相对强弱、关键位接近度、低位结构、突破前沿、回踩确认位继续提高权重。
-- 每个未进入下一层的币需要继续沉淀更细原因：未深扫、数据不足、位置太差、RR 不够、已经晚到、等待回踩、等待反抽。
+- 长期样本阶段继续根据真实 outcome 减少追涨追跌浪费。
+- 每个未进入下一层的币继续沉淀更细原因：未深扫、数据不足、位置太差、RR 不够、已经晚到、等待回踩、等待反抽。
+- 阈值调整只能在 `opportunityCalibration.v1` 样本门禁通过后人工确认，不能自动改实时权重。
 
 验收标准：
 
@@ -563,7 +567,7 @@ RawSource
 
 ### P3：策略输出增强
 
-状态：已完成单币策略就绪合同、`REVIEW_ONLY` 保护、发现层解释和个人仓位镜头显式展示；后续继续增强结构计划表达。
+状态：已完成单币策略就绪合同、单币执行地图、`REVIEW_ONLY` 保护、发现层解释和个人仓位镜头显式展示；后续继续增强结构计划表达。
 
 - 单币档案继续做强。
 - 多周期结构展示继续细化。
@@ -578,11 +582,12 @@ RawSource
 - 如果位置已经失去优势，必须输出 `AVOID_CHASE`、`WAIT_PULLBACK`、`WAIT_RETEST`、`REVIEW_ONLY` 或 `EXHAUSTION_RISK`。
 - 单币档案不得把已 late/no-chase 的 v3 plan 显示成可交易计划；必须清空 tradePlan 并展示复盘观察/风控原因。
 - `token-strategy-readiness.v1` 已接入单币档案：单独说明现在能不能做、缺什么、下一步等什么、个人仓位镜头是否适用。
+- `token-execution-map.v1` 已接入单币档案：单独说明方向读取、可交易性、位置质量、等待条件、失效条件和 TradingView 边界。
 - 个人仓位镜头仍只在后端结构交易计划生成后展示，不改变结构 RR、Evidence、Risk Gate 或自动执行边界。
 
 ### P4：复盘进化增强
 
-状态：Daily Mover 启动前窗口、漏判归因、提前发现复盘和提前发现校准合同已增强；长期 outcome 和策略分型仍需继续积累。
+状态：Daily Mover 启动前窗口、漏判归因、提前发现复盘和机会校准合同已增强；长期 outcome 和策略分型仍需继续积累。
 
 - 积累真实 outcome 样本。
 - 完整统计 MFE / MAE / TP first / SL first / timeout。
@@ -597,14 +602,16 @@ RawSource
 - 真实权重建议只能人工确认后生效，不能自动改实时权重。
 - `/review` 已展示 `discoveryReview`：轻扫候选数量、early/late/CVD proxy/missed review 样本和复盘关注点。
 - `discoveryReview.calibration` 已接入 `/review`：明确 early -> outcome、late signal penalty、MFE/MAE 关联是否可用，样本不足时必须显示 collecting/empty。
+- `opportunityCalibration.v1` 已接入 `/review`：固定样本门禁、早期分阈值、晚到惩罚和 RR 下限只读展示；样本不足时不能宣传胜率或自动改权重。
 
 ### P5：合法外部情报
 
-状态：基础 collector、token identity 合同和外部情报质量摘要已完成；后续继续补更多合法源和低频 enrich。
+状态：基础 collector、token identity 合同、外部情报质量摘要和源就绪状态已完成；后续继续补更多合法源和低频 enrich。
 
 - DEX Screener 已有 latest boosts 基础 collector；事件会带 chain/contract 作为 token identity。后续补 pair enrichment、流动性变化、链/地址到 symbol 的映射。
 - CoinGecko trending 已有基础 collector；事件会带 coingeckoId/logo/name/symbol 作为 token identity。后续补更稳定的跨源映射。
 - `external-intel.v1.quality` 已展示 enabled/active source、成功/失败 run、identity/mapped 数量；失败时不补假事件。
+- `external-intel.v1.sourceReadiness` 已展示每个源的 live/waiting/disabled/failed/partial 状态和下一步动作；未启用或失败源不能被前端包装成可用数据。
 - 接交易所官方公告和 RSS。
 - 接 Token identity / logo / symbol mapping 数据源。
 - 接宏观公开 API：BTC.D、TOTAL2、TOTAL3、稳定币流动性等。
@@ -612,13 +619,14 @@ RawSource
 
 ### P6：生产运维
 
-状态：本地发布前闸门、GitHub -> 腾讯云发布、smoke、日志打包脚本和回滚脚本已完成；后续继续做恢复演练和长期报警。
+状态：本地发布前闸门、GitHub -> 腾讯云发布、smoke、日志打包、回滚、依赖审计和备份恢复演练脚本已完成；后续继续做真实周期演练和长期报警。
 
 - 继续稳定 GitHub -> 腾讯云自动发布。
 - 发布前必须先跑 `npm run production:preflight`，再推送和生产部署。
 - 回滚脚本：`npm run production:rollback`，必须显式设置 `ROLLBACK_TO`。
 - 日志打包：`npm run production:logs`，输出 `deploy/diagnostics/prod-logs-*.txt`。
-- 补齐 Postgres 备份和恢复演练。
+- 依赖审计：`npm run production:audit`，默认 high/critical 阻断，moderate 输出为待评估风险。
+- 备份恢复演练：`npm run production:drill`，生成 Postgres 备份、验证恢复保护和备份可读性，不直接恢复生产库。
 - 补齐 worker 长期异常告警。
 - 持续检查服务器 HEAD 与 GitHub main 一致。
 - `ops-reliability.v1` 已接入 `/api/frontend/radar-contract` 和 `/dashboard`：统一展示 Postgres、Redis、worker、CoinGlass 预算、深扫质量和扫描稳定性。

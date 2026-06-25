@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildExternalIntelContract,
+  buildExternalIntelSourceReadiness,
   buildExternalIntelSourcePlan,
   externalEventToEvidenceCandidate,
   normalizeExternalEvent,
@@ -16,6 +17,21 @@ test("external intel source plan only contains safe context-only sources", () =>
   assert.equal(sources.every((source) => source.requiresLogin === false), true);
   assert.equal(sources.every((source) => source.avoidsPaywall === true), true);
   assert.equal(sources.every((source) => source.mustRespectRobots === true), true);
+});
+
+test("external intel source readiness shows waiting and disabled sources without creating signals", () => {
+  const readiness = buildExternalIntelSourceReadiness();
+
+  assert.equal(readiness.length >= 7, true);
+  assert.equal(readiness.every((source) => source.canCreateTradeSignal === false), true);
+  assert.equal(
+    readiness.find((source) => source.sourceId === "dex_screener_public_api")?.status,
+    "waiting",
+  );
+  assert.equal(
+    readiness.find((source) => source.sourceId === "binance_announcements")?.status,
+    "disabled",
+  );
 });
 
 test("normalizeExternalEvent sanitizes text and never stores raw bodies", () => {
@@ -67,6 +83,7 @@ test("buildExternalIntelContract reports empty until collectors produce normaliz
   assert.equal(empty.status, "empty");
   assert.match(empty.reason ?? "", /collector 尚未产生事件/);
   assert.equal(empty.data.quality.enabledSources >= 2, true);
+  assert.equal(empty.data.sourceReadiness.every((source) => source.canCreateTradeSignal === false), true);
   assert.match(empty.data.quality.summary, /等待 collector/);
 
   const live = buildExternalIntelContract({
@@ -113,5 +130,9 @@ test("buildExternalIntelContract reports failed collector runs without fake even
   assert.equal(failed.status, "failed");
   assert.equal(failed.data.events.length, 0);
   assert.equal(failed.data.quality.failedRuns, 1);
+  assert.equal(
+    failed.data.sourceReadiness.find((source) => source.sourceId === "dex_screener_public_api")?.status,
+    "failed",
+  );
   assert.match(failed.reason ?? "", /不使用旧数据或假事件/);
 });

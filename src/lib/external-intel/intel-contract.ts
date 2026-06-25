@@ -66,6 +66,15 @@ export type SourceFetchRun = {
   error?: string;
 };
 
+export type ExternalIntelSourceReadiness = {
+  sourceId: ExternalIntelSourceId;
+  label: string;
+  status: "live" | "waiting" | "disabled" | "failed" | "partial";
+  latestRunStatus: SourceFetchRun["status"] | "none";
+  nextAction: string;
+  canCreateTradeSignal: false;
+};
+
 export type ExternalEvent = {
   id: string;
   sourceId: ExternalIntelSourceId;
@@ -121,6 +130,7 @@ export type ExternalIntelContract = {
     summary: string;
   };
   sourcePlan: ExternalIntelSourcePlan[];
+  sourceReadiness: ExternalIntelSourceReadiness[];
   latestRuns: SourceFetchRun[];
   events: ExternalEvent[];
   evidenceCandidates: ExternalIntelEvidenceCandidate[];
@@ -328,6 +338,54 @@ export function buildExternalIntelSourcePlan() {
   return sourcePlan.map((source) => ({ ...source, notes: [...source.notes] }));
 }
 
+function latestRunForSource(
+  latestRuns: SourceFetchRun[],
+  sourceId: ExternalIntelSourceId,
+): SourceFetchRun | undefined {
+  return latestRuns
+    .filter((run) => run.sourceId === sourceId)
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+}
+
+export function buildExternalIntelSourceReadiness(
+  latestRuns: SourceFetchRun[] = [],
+): ExternalIntelSourceReadiness[] {
+  return sourcePlan.map((source) => {
+    const latestRun = latestRunForSource(latestRuns, source.id);
+    const status: ExternalIntelSourceReadiness["status"] = latestRun
+      ? latestRun.status === "success"
+        ? "live"
+        : latestRun.status === "partial"
+          ? "partial"
+          : latestRun.status === "failed"
+            ? "failed"
+            : source.enabledByDefault
+              ? "waiting"
+              : "disabled"
+      : source.enabledByDefault
+        ? "waiting"
+        : "disabled";
+    const nextAction = status === "live"
+      ? "保持低频合法采集，只作为上下文和复盘入口。"
+      : status === "partial"
+        ? "检查部分失败原因，不能用旧数据或空值补齐。"
+        : status === "failed"
+          ? `修复 collector：${latestRun?.error ?? "未知失败"}。`
+          : status === "waiting"
+            ? "等待 collector 产生真实事件；前端显示 waiting，不能造事件。"
+            : "未启用。接入前必须确认公开 API/RSS、robots 和频率限制。";
+
+    return {
+      sourceId: source.id,
+      label: source.label,
+      status,
+      latestRunStatus: latestRun?.status ?? "none",
+      nextAction,
+      canCreateTradeSignal: false,
+    };
+  });
+}
+
 export function normalizeExternalEvent(input: ExternalEventInput): ExternalEvent {
   if (!sourceAllowed(input.sourceId)) {
     throw new Error(`Unsupported external intel source: ${input.sourceId}`);
@@ -414,6 +472,7 @@ export function buildExternalIntelContract({
             : "外部情报源已定义，等待 collector 产生真实事件。",
       },
       sourcePlan: buildExternalIntelSourcePlan(),
+      sourceReadiness: buildExternalIntelSourceReadiness(latestRuns),
       latestRuns,
       events: normalizedEvents,
       evidenceCandidates: normalizedEvents.map(externalEventToEvidenceCandidate),

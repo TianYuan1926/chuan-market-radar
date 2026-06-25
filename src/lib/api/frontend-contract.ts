@@ -275,8 +275,20 @@ export type TokenStrategyReadiness = {
   nextAction: string;
   missingPieces: string[];
   guardrails: string[];
+  executionMap: TokenExecutionMap;
   positionLensStatus: PersonalPositionLens["status"] | "not_applicable";
   personalLens: string;
+};
+
+export type TokenExecutionMap = {
+  schemaVersion: "token-execution-map.v1";
+  directionRead: "bullish" | "bearish" | "neutral";
+  tradabilityRead: "trade_plan_ready" | "wait_confirmation" | "wait_pullback_or_retest" | "review_only" | "blocked";
+  positionQuality: "good" | "waiting" | "late" | "unknown";
+  waitFor: string[];
+  invalidIf: string[];
+  chartBoundary: string;
+  manualReviewRequired: true;
 };
 
 export type SignalLifecycle = {
@@ -616,6 +628,37 @@ export type DiscoveryReviewState = {
   totalLightCandidates: number;
 };
 
+export type OpportunityCalibrationSegment = {
+  key: "early_setup" | "breakout_watch" | "late_move" | "cvd_proxy";
+  label: string;
+  currentCandidates: number;
+  closedSamples: number;
+  metricSamples: number;
+  interpretation: string;
+  nextAction: string;
+};
+
+export type OpportunityCalibrationState = {
+  schemaVersion: "opportunity-calibration.v1";
+  status: "usable" | "collecting" | "empty";
+  summary: string;
+  sampleGate: {
+    minClosedSamples: number;
+    minMetricSamples: number;
+    closedSamples: number;
+    metricSamples: number;
+    ready: boolean;
+  };
+  thresholds: {
+    earlyHotScore: number;
+    earlyWarmScore: number;
+    lateMoveHighRisk: string;
+    minimumStructuralRR: number;
+  };
+  segments: OpportunityCalibrationSegment[];
+  guardrails: string[];
+};
+
 export type AiReviewStats = {
   disabled: number;
   fallback: number;
@@ -631,6 +674,7 @@ export type ReviewContract = {
   evolutionSuggestions: Resource<EvolutionSuggestion[]>;
   reviewStats: Resource<ReviewStatsData>;
   discoveryReview: Resource<DiscoveryReviewState>;
+  opportunityCalibration: Resource<OpportunityCalibrationState>;
   aiReviewStats: Resource<AiReviewStats>;
 };
 
@@ -3452,6 +3496,12 @@ function buildTokenStrategyReadiness({
   discovery: DiscoveryFact;
   tradePlan: TradePlanData | null;
 }): TokenStrategyReadiness {
+  const executionMap = buildTokenExecutionMap({
+    blockedReasons,
+    discovery,
+    tradePlan,
+  });
+
   if (tradePlan) {
     return {
       schemaVersion: "token-strategy-readiness.v1",
@@ -3465,6 +3515,7 @@ function buildTokenStrategyReadiness({
         "禁止追单；触发条件没到就不做。",
         "任何失效条件触发都必须退出计划。",
       ],
+      executionMap,
       positionLensStatus: tradePlan.positionLens.status,
       personalLens: tradePlan.positionLens.summary,
     };
@@ -3494,8 +3545,66 @@ function buildTokenStrategyReadiness({
       "方向偏多/偏空不代表当前位置可做。",
       "RR 仍按结构价格距离计算，个人杠杆只在计划生成后换算展示。",
     ],
+    executionMap,
     positionLensStatus: "not_applicable",
     personalLens: "尚未生成交易计划，个人仓位镜头不适用。",
+  };
+}
+
+function buildTokenExecutionMap({
+  blockedReasons,
+  discovery,
+  tradePlan,
+}: {
+  blockedReasons: string[];
+  discovery: DiscoveryFact;
+  tradePlan: TradePlanData | null;
+}): TokenExecutionMap {
+  const blockedText = blockedReasons.join(" / ");
+  const reviewOnly = discovery.opportunityPhase === "late_move" || discovery.overextensionRisk === "high" ||
+    /追涨|追空|晚到|过热|跌深|衰竭|REVIEW_ONLY/iu.test(blockedText);
+  const waitPullback = reviewOnly || /回踩|反抽|pullback|retest|二次确认/iu.test(blockedText);
+  const directionRead: TokenExecutionMap["directionRead"] = tradePlan?.bias === "多"
+    ? "bullish"
+    : tradePlan?.bias === "空"
+      ? "bearish"
+      : "neutral";
+  const tradabilityRead: TokenExecutionMap["tradabilityRead"] = tradePlan
+    ? "trade_plan_ready"
+    : reviewOnly
+      ? "review_only"
+      : waitPullback
+        ? "wait_pullback_or_retest"
+        : blockedReasons.length > 0
+          ? "blocked"
+          : "wait_confirmation";
+  const positionQuality: TokenExecutionMap["positionQuality"] = tradePlan
+    ? "good"
+    : reviewOnly
+      ? "late"
+      : discovery.opportunityPhase === "early_setup" || discovery.opportunityPhase === "breakout_watch"
+        ? "waiting"
+        : "unknown";
+
+  return {
+    schemaVersion: "token-execution-map.v1",
+    directionRead,
+    tradabilityRead,
+    positionQuality,
+    waitFor: tradePlan
+      ? [tradePlan.entryCondition, "人工复核结构、成交和失效条件后再执行。"]
+      : waitPullback
+        ? ["等待回踩/反抽后重新确认结构 RR。", "等待新的失效线靠近价格，不追已经延展的行情。"]
+        : ["等待深扫、结构、RR、Risk Gate 和失效条件完整。"],
+    invalidIf: tradePlan
+      ? [tradePlan.invalidation, "任何反证覆盖支持证据时撤销计划。"]
+      : blockedReasons.length > 0
+        ? blockedReasons.slice(0, 4)
+        : ["证据不足、RR 不够或高周期冲突时不生成计划。"],
+    chartBoundary: tradePlan
+      ? `TradingView 只做看图和人工复核；后端计划边界为入场 ${tradePlan.entryCondition} / 止损 ${tradePlan.stop} / 目标 ${tradePlan.tp1}-${tradePlan.tp3}。`
+      : "TradingView 只做看图；没有后端 tradePlan 时，前端不得补入场、止损和目标。",
+    manualReviewRequired: true,
   };
 }
 
@@ -3721,6 +3830,96 @@ function buildDiscoveryReviewState(
   };
 }
 
+function opportunityCalibrationResourceStatus(status: OpportunityCalibrationState["status"]): DataStatus {
+  if (status === "usable") return "live";
+  if (status === "collecting") return "partial";
+  return "empty";
+}
+
+function buildOpportunityCalibrationState(
+  backend: BackendContract,
+  discoveryReview: DiscoveryReviewState,
+): OpportunityCalibrationState {
+  const reviewStats = backend.analysis.reviewStatistics;
+  const closedSamples = reviewStats.samples.closed;
+  const metricSamples = reviewStats.samples.withMetrics;
+  const minClosedSamples = 30;
+  const minMetricSamples = 15;
+  const ready = closedSamples >= minClosedSamples && metricSamples >= minMetricSamples;
+  const hasLiveInput = discoveryReview.totalLightCandidates > 0 || closedSamples > 0 || metricSamples > 0 ||
+    discoveryReview.missedDetectionCount > 0;
+  const status: OpportunityCalibrationState["status"] = ready ? "usable" : hasLiveInput ? "collecting" : "empty";
+  const sharedClosed = Math.min(closedSamples, Math.max(0, reviewStats.samples.evidenceLevel));
+  const sharedMetrics = Math.min(metricSamples, Math.max(0, reviewStats.samples.withMetrics));
+
+  return {
+    schemaVersion: "opportunity-calibration.v1",
+    status,
+    summary: ready
+      ? `机会校准样本门槛已通过：已关闭 ${closedSamples}，带 MFE/MAE ${metricSamples}；可以开始观察阈值表现，但仍需人工确认。`
+      : hasLiveInput
+        ? `机会校准正在收集：已关闭 ${closedSamples}/${minClosedSamples}，带 MFE/MAE ${metricSamples}/${minMetricSamples}；阈值不能自动改。`
+        : "机会校准暂无样本；只能显示规则边界，不能宣传命中率。",
+    sampleGate: {
+      minClosedSamples,
+      minMetricSamples,
+      closedSamples,
+      metricSamples,
+      ready,
+    },
+    thresholds: {
+      earlyHotScore: 75,
+      earlyWarmScore: 55,
+      lateMoveHighRisk: "late_move 或 overextensionRisk=high 必须降级为复盘/等待回踩反抽。",
+      minimumStructuralRR: 3,
+    },
+    segments: [
+      {
+        key: "early_setup",
+        label: "启动前候选",
+        currentCandidates: discoveryReview.earlyOpportunityCount,
+        closedSamples: sharedClosed,
+        metricSamples: sharedMetrics,
+        interpretation: "只验证系统是否更早发现，不直接提高交易等级。",
+        nextAction: "关联后续 MFE/MAE、TP/SL 顺序和超时样本，校准 earlyOpportunityScore。",
+      },
+      {
+        key: "breakout_watch",
+        label: "突破观察",
+        currentCandidates: Math.max(0, discoveryReview.totalLightCandidates - discoveryReview.earlyOpportunityCount - discoveryReview.lateMoveCount),
+        closedSamples: sharedClosed,
+        metricSamples: sharedMetrics,
+        interpretation: "验证突破前沿是否还有位置优势，不能只因突破就追。",
+        nextAction: "统计突破后是否给出回踩/二次确认机会，避免晚到追单。",
+      },
+      {
+        key: "late_move",
+        label: "晚到样本",
+        currentCandidates: discoveryReview.lateMoveCount,
+        closedSamples: sharedClosed,
+        metricSamples: sharedMetrics,
+        interpretation: "晚到样本用于惩罚追涨追跌，不计入优质提前命中。",
+        nextAction: "回看启动前窗口，找出未早扫到的原因：轮转、阈值、数据源或结构门控。",
+      },
+      {
+        key: "cvd_proxy",
+        label: "主动成交 proxy",
+        currentCandidates: discoveryReview.cvdProxyCandidateCount,
+        closedSamples: sharedClosed,
+        metricSamples: sharedMetrics,
+        interpretation: "CVD proxy 只评估买卖压力对后续波动的解释力，不冒充官方 CVD。",
+        nextAction: "把 buy/sell pressure 与 MFE/MAE 做相关性观察，样本足够后再人工调整权重。",
+      },
+    ],
+    guardrails: [
+      "校准结果只读，不自动改实时权重。",
+      "样本不足时只能显示 collecting/empty，不能展示胜率承诺。",
+      "early score 只影响发现和深扫优先级，不能绕过 Evidence、RR 和 Risk Gate。",
+      "late_move 只能做复盘和等待重构，不能反向生成交易计划。",
+    ],
+  };
+}
+
 export function buildFrontendReviewContract({
   backend,
   snapshot,
@@ -3762,6 +3961,7 @@ export function buildFrontendReviewContract({
       improvement: event.lessons?.[0] ?? "进入漏判复查队列，等待更多样本确认。",
     }));
   const discoveryReview = buildDiscoveryReviewState(backend, missedDetectionRows.length);
+  const opportunityCalibration = buildOpportunityCalibrationState(backend, discoveryReview);
 
   return {
     signalLifecycles: resource(
@@ -3823,6 +4023,15 @@ export function buildFrontendReviewContract({
         ageSec,
         source: "light-scan-review",
         reason: "提前发现复盘只用于评估扫描是否提前，不生成实时交易结论。",
+      },
+    ),
+    opportunityCalibration: resource(
+      opportunityCalibration,
+      opportunityCalibrationResourceStatus(opportunityCalibration.status),
+      {
+        ageSec,
+        source: "outcome-calibration",
+        reason: opportunityCalibration.summary,
       },
     ),
     aiReviewStats: resource(

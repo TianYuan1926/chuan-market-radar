@@ -426,8 +426,20 @@ export type TokenStrategyReadiness = {
   nextAction: string
   missingPieces: string[]
   guardrails: string[]
+  executionMap: TokenExecutionMap
   positionLensStatus: PersonalPositionLens['status'] | 'not_applicable'
   personalLens: string
+}
+
+export type TokenExecutionMap = {
+  schemaVersion: 'token-execution-map.v1'
+  directionRead: 'bullish' | 'bearish' | 'neutral'
+  tradabilityRead: 'trade_plan_ready' | 'wait_confirmation' | 'wait_pullback_or_retest' | 'review_only' | 'blocked'
+  positionQuality: 'good' | 'waiting' | 'late' | 'unknown'
+  waitFor: string[]
+  invalidIf: string[]
+  chartBoundary: string
+  manualReviewRequired: true
 }
 
 export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDossier> {
@@ -482,6 +494,16 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
       nextAction: '等待后端契约。',
       missingPieces: [LEGACY_DISABLED_REASON],
       guardrails: ['前端不得补交易计划。'],
+      executionMap: {
+        schemaVersion: 'token-execution-map.v1',
+        directionRead: 'neutral',
+        tradabilityRead: 'blocked',
+        positionQuality: 'unknown',
+        waitFor: ['等待真实单币执行地图契约。'],
+        invalidIf: ['证据不足、RR 不够或高周期冲突时不生成计划。'],
+        chartBoundary: '等待真实后端 tradePlan；TradingView 只能用于人工看图复核。',
+        manualReviewRequired: true,
+      },
       positionLensStatus: 'not_applicable',
       personalLens: '尚未生成交易计划。',
     },
@@ -1048,6 +1070,7 @@ export type ReviewContract = {
   evolutionSuggestions: Resource<EvolutionSuggestion[]>
   reviewStats: Resource<ReviewStatsData>
   discoveryReview: Resource<DiscoveryReviewState>
+  opportunityCalibration: Resource<OpportunityCalibrationState>
   aiReviewStats: Resource<AiReviewStats>
 }
 
@@ -1088,6 +1111,37 @@ export type DiscoveryReviewState = {
   reviewFocus: string[]
   summary: string
   totalLightCandidates: number
+}
+
+export type OpportunityCalibrationSegment = {
+  key: 'early_setup' | 'breakout_watch' | 'late_move' | 'cvd_proxy'
+  label: string
+  currentCandidates: number
+  closedSamples: number
+  metricSamples: number
+  interpretation: string
+  nextAction: string
+}
+
+export type OpportunityCalibrationState = {
+  schemaVersion: 'opportunity-calibration.v1'
+  status: 'usable' | 'collecting' | 'empty'
+  summary: string
+  sampleGate: {
+    minClosedSamples: number
+    minMetricSamples: number
+    closedSamples: number
+    metricSamples: number
+    ready: boolean
+  }
+  thresholds: {
+    earlyHotScore: number
+    earlyWarmScore: number
+    lateMoveHighRisk: string
+    minimumStructuralRR: number
+  }
+  segments: OpportunityCalibrationSegment[]
+  guardrails: string[]
 }
 
 export function getReviewStats(): Resource<ReviewStatsData> {
@@ -1149,6 +1203,36 @@ export function getDiscoveryReview(): Resource<DiscoveryReviewState> {
   )
 }
 
+export function getOpportunityCalibration(): Resource<OpportunityCalibrationState> {
+  return resource(
+    {
+      schemaVersion: 'opportunity-calibration.v1',
+      status: 'empty',
+      summary: '等待真实机会校准契约；不能用空样本宣传命中率。',
+      sampleGate: {
+        minClosedSamples: 30,
+        minMetricSamples: 15,
+        closedSamples: 0,
+        metricSamples: 0,
+        ready: false,
+      },
+      thresholds: {
+        earlyHotScore: 75,
+        earlyWarmScore: 55,
+        lateMoveHighRisk: 'late_move 或 overextensionRisk=high 必须降级为复盘/等待回踩反抽。',
+        minimumStructuralRR: 3,
+      },
+      segments: [],
+      guardrails: [
+        '校准结果只读，不自动改实时权重。',
+        '样本不足时只能显示 collecting/empty，不能展示胜率承诺。',
+      ],
+    },
+    'empty',
+    { ageSec: 30, source: 'outcome-calibration', reason: '未传入后端机会校准契约' },
+  )
+}
+
 export function getReviewContract(): ReviewContract {
   return {
     signalLifecycles: getSignalLifecycles(),
@@ -1157,6 +1241,7 @@ export function getReviewContract(): ReviewContract {
     evolutionSuggestions: getEvolutionSuggestions(),
     reviewStats: getReviewStats(),
     discoveryReview: getDiscoveryReview(),
+    opportunityCalibration: getOpportunityCalibration(),
     aiReviewStats: getAiReviewStats(),
   }
 }

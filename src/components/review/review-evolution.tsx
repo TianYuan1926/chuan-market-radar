@@ -33,6 +33,26 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
     summary: '未传入后端提前发现复盘契约',
     totalLightCandidates: 0,
   }, 'empty', { source: 'light-scan-review', reason: '未传入后端提前发现复盘契约' })
+  const opportunityCalibration = contract?.opportunityCalibration ?? resource({
+    guardrails: ['未传入后端机会校准契约'],
+    sampleGate: {
+      closedSamples: 0,
+      metricSamples: 0,
+      minClosedSamples: 30,
+      minMetricSamples: 15,
+      ready: false,
+    },
+    schemaVersion: 'opportunity-calibration.v1' as const,
+    segments: [],
+    status: 'empty' as const,
+    summary: '未传入后端机会校准契约',
+    thresholds: {
+      earlyHotScore: 75,
+      earlyWarmScore: 55,
+      lateMoveHighRisk: 'late_move 或 overextensionRisk=high 必须降级为复盘/等待回踩反抽。',
+      minimumStructuralRR: 3,
+    },
+  }, 'empty', { source: 'outcome-calibration', reason: '未传入后端机会校准契约' })
   const reviewStats = contract?.reviewStats ?? resource({
     closedSamples: 0,
     evidenceSamples: 0,
@@ -177,6 +197,60 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                 </li>
               ))}
             </ul>
+          </div>
+          <div className="border border-border bg-secondary/20 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-xs font-semibold">机会校准门禁</div>
+              <StatusBadge status={opportunityCalibration.status} />
+              <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                closed {opportunityCalibration.data.sampleGate.closedSamples}/{opportunityCalibration.data.sampleGate.minClosedSamples}
+                {' · '}
+                MFE/MAE {opportunityCalibration.data.sampleGate.metricSamples}/{opportunityCalibration.data.sampleGate.minMetricSamples}
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {opportunityCalibration.data.summary}
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {opportunityCalibration.data.segments.map((segment) => (
+                <div key={segment.key} className="border border-border bg-background/40 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold">{segment.label}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {segment.currentCandidates}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                    {segment.interpretation}
+                  </p>
+                  <p className="mt-1.5 border-l border-border pl-2 text-[10px] leading-relaxed text-muted-foreground">
+                    {segment.nextAction}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              <div className="border border-border bg-background/40 p-2.5">
+                <div className="text-[11px] font-semibold">固定阈值</div>
+                <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
+                  early hot ≥ {opportunityCalibration.data.thresholds.earlyHotScore} · early warm ≥ {opportunityCalibration.data.thresholds.earlyWarmScore} · RR ≥ {opportunityCalibration.data.thresholds.minimumStructuralRR}:1
+                </p>
+                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                  {opportunityCalibration.data.thresholds.lateMoveHighRisk}
+                </p>
+              </div>
+              <div className="border border-border bg-background/40 p-2.5">
+                <div className="text-[11px] font-semibold">校准边界</div>
+                <ul className="mt-1.5 space-y-1 text-[10px] leading-relaxed text-muted-foreground">
+                  {opportunityCalibration.data.guardrails.slice(0, 4).map((rule) => (
+                    <li key={rule}>· {rule}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="mt-3">
+              <FreshnessTag ageSec={opportunityCalibration.ageSec} source={opportunityCalibration.source} />
+            </div>
           </div>
           <div className="grid gap-3 lg:grid-cols-2">
             <div className="border border-border bg-secondary/20 p-3">
