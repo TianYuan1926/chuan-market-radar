@@ -404,7 +404,6 @@ test("signals visual widgets derive from backend radar signals", () => {
   const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
   const sniperDataSource = readFileSync(resolve(process.cwd(), "src/lib/sniper-data.ts"), "utf8");
   const sniperBoardSource = readFileSync(resolve(process.cwd(), "src/components/sniper-board.tsx"), "utf8");
-  const liveFeedSource = readFileSync(resolve(process.cwd(), "src/components/live-feed.tsx"), "utf8");
   const liveStoreSource = readFileSync(resolve(process.cwd(), "src/lib/live-store.ts"), "utf8");
 
   assert.match(adapterSource, /radarSignalsToSignalCards/);
@@ -419,6 +418,7 @@ test("signals visual widgets derive from backend radar signals", () => {
   assert.match(signalsSource, /const displaySignals = withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
   assert.match(signalsSource, /<SignalMaturityPool signals=\{displaySignals\}/);
   assert.match(signalsSource, /<SniperBoard targets=\{sniperTargets\}/);
+  assert.doesNotMatch(signalsSource, /<LiveFeed|<MarketHeatmap/);
   assert.doesNotMatch(signalsSource, /getTokens|getSignalCards/);
 
   assert.match(sniperBoardSource, /targets\?:\s*SniperTarget\[\]/);
@@ -428,12 +428,8 @@ test("signals visual widgets derive from backend radar signals", () => {
   assert.doesNotMatch(sniperBoardSource, /setTimeout/);
   assert.doesNotMatch(sniperDataSource, /getSniperTargets|getSignalCards|mulberry32|Math\.random/);
   assert.match(sniperDataSource, /纯显示 helper/);
-  assert.match(liveFeedSource, /useSignalFeed/);
-  assert.match(liveFeedSource, /eventItems\.length > 0 \? eventItems : cardItems/);
-  assert.match(liveFeedSource, /items\.length === 0/);
-  assert.doesNotMatch(liveFeedSource, /Math\.random/);
-  assert.doesNotMatch(liveFeedSource, /setInterval/);
-  assert.doesNotMatch(liveFeedSource, /巨鲸入场|\$3,280|空单爆仓 \$4,200/);
+  assert.equal(existsSync(resolve(process.cwd(), "src/components/live-feed.tsx")), false);
+  assert.equal(existsSync(resolve(process.cwd(), "src/components/market-heatmap.tsx")), false);
   assert.match(liveStoreSource, /upsertLiveQuotes/);
   assert.doesNotMatch(liveStoreSource, /fallbackQuoteForId/);
 });
@@ -549,7 +545,7 @@ test("frontend data truth contract blocks active mock market facts", () => {
   const liveNumberSource = readFileSync(resolve(process.cwd(), "src/lib/use-live-number.ts"), "utf8");
   const displayFormatSource = readFileSync(resolve(process.cwd(), "src/lib/display-format.ts"), "utf8");
   const authGateSource = readFileSync(resolve(process.cwd(), "src/components/auth/auth-gate.tsx"), "utf8");
-  const leaderboardSource = readFileSync(resolve(process.cwd(), "src/components/leaderboard-table.tsx"), "utf8");
+  const marketLeaderboardsSource = readFileSync(resolve(process.cwd(), "src/components/leaderboard/market-leaderboards.tsx"), "utf8");
   const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
   const appRepositorySource = readFileSync(resolve(process.cwd(), "src/lib/persistence/app-repository.ts"), "utf8");
   const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
@@ -574,7 +570,7 @@ test("frontend data truth contract blocks active mock market facts", () => {
   assert.doesNotMatch(authGateSource, /PetRobot|EasterEggSystem|GlobalSignalFeed|SiteLoader/);
 
   assert.match(displayFormatSource, /fmtKnownCap/);
-  assert.match(leaderboardSource, /fmtKnownCap/);
+  assert.match(marketLeaderboardsSource, /formatPrice/);
   assert.match(anomalyBoardSource, /fmtKnownCap/);
   assert.match(tokenPageSource, /fmtKnownCap/);
   assert.doesNotMatch(anomalyBoardSource, /AI 模拟推演/);
@@ -628,8 +624,7 @@ test("frontend backend field map records current wiring gaps before refinement",
   assert.match(integrationPlan, /\/api\/auth\/session/);
 });
 
-test("stage 8 global ticker bars can receive backend-derived tokens", () => {
-  const priceTickerSource = readFileSync(resolve(process.cwd(), "src/components/price-ticker.tsx"), "utf8");
+test("visible pages keep backend-derived tokens on core surfaces only", () => {
   const sessionBarSource = readFileSync(resolve(process.cwd(), "src/components/session-bar.tsx"), "utf8");
   const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
   const leaderboardSource = readFileSync(resolve(process.cwd(), "src/app/leaderboard/page.tsx"), "utf8");
@@ -638,18 +633,14 @@ test("stage 8 global ticker bars can receive backend-derived tokens", () => {
   assert.match(adapterSource, /leaderboardRowsToTokens/);
   assert.match(adapterSource, /mergeTokensBySymbol/);
 
-  assert.match(priceTickerSource, /tokens\?:\s*Token\[\]/);
-  assert.match(priceTickerSource, /tokens\s*\?\?\s*\[\]/);
-  assert.doesNotMatch(priceTickerSource, /getTokens\(\)/);
   assert.match(sessionBarSource, /tokens\?:\s*Token\[\]/);
   assert.match(sessionBarSource, /tokens\s*\?\?\s*\[\]/);
   assert.doesNotMatch(sessionBarSource, /getTokens\(\)/);
 
   assert.match(signalsSource, /<SessionBar tokens=\{tokens\}/);
-  assert.match(leaderboardSource, /leaderboardRowsToTokens/);
-  assert.match(leaderboardSource, /mergeTokensBySymbol/);
-  assert.match(leaderboardSource, /<PriceTicker tokens=\{tickerTokens\}/);
-  assert.match(leaderboardSource, /<LeaderboardTable tokens=\{tableTokens\}/);
+  assert.match(leaderboardSource, /<MarketLeaderboards initialLeaderboards=\{leaderboards\}/);
+  assert.match(leaderboardSource, /每日异动复盘榜/u);
+  assert.doesNotMatch(leaderboardSource, /PriceTicker|LeaderboardTable|tickerTokens|tableTokens/);
   assert.doesNotMatch(leaderboardSource, /getTokens\(\)/);
   assert.doesNotMatch(leaderboardSource, /数据均为模拟演示/);
 });
@@ -849,15 +840,12 @@ test("leaderboard price display does not present missing prices as zero", () => 
   assert.doesNotMatch(leaderboardSource, /\$\{row\.price\.toLocaleString\(\)\}/);
 });
 
-test("live feed subscribes to backend SSE events before falling back to SSR cards", () => {
-  const liveFeedSource = readFileSync(resolve(process.cwd(), "src/components/live-feed.tsx"), "utf8");
+test("non-core visible feed and heatmap widgets stay deleted from active frontend", () => {
+  const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
 
-  assert.match(liveFeedSource, /useSignalFeed/);
-  assert.match(liveFeedSource, /eventToAlert/);
-  assert.match(liveFeedSource, /eventItems\.length > 0 \? eventItems : cardItems/);
-  assert.match(liveFeedSource, /快照/);
-  assert.match(liveFeedSource, /feedMode === 'live'/);
-  assert.doesNotMatch(liveFeedSource, /<span className="font-semibold">实时预警<\/span>/u);
+  assert.equal(existsSync(resolve(process.cwd(), "src/components/live-feed.tsx")), false);
+  assert.equal(existsSync(resolve(process.cwd(), "src/components/market-heatmap.tsx")), false);
+  assert.doesNotMatch(signalsSource, /LiveFeed|MarketHeatmap/);
 });
 
 test("market overview does not label derived altcoin temperature as real fear greed data", () => {
@@ -870,12 +858,10 @@ test("market overview does not label derived altcoin temperature as real fear gr
 
 test("visual preview panels do not overstate backend realtime capability", () => {
   const homePageSource = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
-  const heatmapSource = readFileSync(resolve(process.cwd(), "src/components/market-heatmap.tsx"), "utf8");
 
   assert.match(homePageSource, /redirect\('\/dashboard'\)/);
-  assert.match(heatmapSource, /行情快照/u);
   assert.doesNotMatch(homePageSource, /风险提示实时推送/u);
-  assert.doesNotMatch(heatmapSource, />\s*实时\s*</u);
+  assert.equal(existsSync(resolve(process.cwd(), "src/components/market-heatmap.tsx")), false);
 });
 
 test("market page participation advice comes from backend contract status instead of a hardcoded action phrase", () => {

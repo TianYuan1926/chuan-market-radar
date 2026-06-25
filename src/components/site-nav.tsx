@@ -6,12 +6,12 @@ import { ChuanLogo } from './chuan-logo'
 import { cn } from '@/lib/utils'
 
 const NAV = [
-  { href: '/dashboard', label: '雷达总控' },
-  { href: '/signals', label: '信号池' },
-  { href: '/leaderboard', label: '榜单' },
-  { href: '/market', label: '大盘数据' },
+  { href: '/dashboard', label: '作战总控' },
+  { href: '/signals', label: '候选验证' },
+  { href: '/leaderboard', label: '异动复盘榜' },
+  { href: '/market', label: '环境门控' },
   { href: '/review', label: '复盘进化' },
-  { href: '/system', label: '系统' },
+  { href: '/system', label: '数据源健康' },
 ]
 
 export function SiteNav() {
@@ -22,6 +22,10 @@ export function SiteNav() {
         <Link href="/" className="flex items-center">
           <ChuanLogo size={26} withText />
         </Link>
+
+        <div className="hidden border-l border-border pl-3 text-[11px] font-medium text-muted-foreground xl:block">
+          全市场发现 → 深扫验证 → 策略计划 → 复盘进化
+        </div>
 
         <div className="mx-3 hidden h-5 w-px bg-border md:block" />
 

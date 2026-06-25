@@ -34,8 +34,8 @@
 | 页面 / 组件 | 当前入口 | 后端已有来源 | 对接方式 | 空状态规则 |
 | --- | --- | --- | --- | --- |
 | `/dashboard` | `getTokens()` / `getSignalCards()` / `getScanState()` / `getMarketEnv()` | `getRadarContractForPage()` + leaderboard contract | 页面改为 async，读取 radar contract 和榜单，再用 adapter 转成当前 UI 所需 tokens/cards | 无达标候选时展示扫描证明和“暂无达标候选”，不塞 mock |
-| `/signals` | `getTokens()` / `getSignalCards()` | `getRadarContractForPage()` + `getLeaderboardContractForPage('volume')` | 页面读取真实 signals 和候选榜，传给 `SniperBoard`、`SignalMaturityPool`、`AnomalyBoard`、`LiveFeed`、`MarketHeatmap` | 无证据融合信号时说明“当前无达标信号”，但展示扫描覆盖 |
-| `/leaderboard` | `getTokens()` | `getAllLeaderboardContractsForPage()` | 页面读取 7 类榜单，传给榜单组件；基础表格用真实 leaderboard 转 token | 无榜单行时展示数据状态和原因 |
+| `/signals` | `getTokens()` / `getSignalCards()` | `getRadarContractForPage()` + `getLeaderboardContractForPage('volume')` | 页面读取真实 signals 和候选榜，只传给 `SniperBoard`、`SignalMaturityPool`、`AnomalyBoard` 三个核心承载位；旧 `LiveFeed`、`MarketHeatmap` 已删除 | 无证据融合信号时说明“当前无达标信号”，但展示扫描覆盖 |
+| `/leaderboard` | `getTokens()` | `getAllLeaderboardContractsForPage()` | 页面读取 7 类榜单，只传给 `MarketLeaderboards`；旧滚动 ticker 和第二套基础表格已删除 | 无榜单行时展示数据状态和原因 |
 | `/market` | `getMarketEnv()` / `getDataQuality()` / `getCoinglass()` | `getRadarContractForPage()` | 页面读取 `macroAltEnv`、`derivatives`、`dataSources`、`apiUsage` | 宏观或衍生品缺失时展示 partial/empty，不生成假指标 |
 | `/token/[id]` | `getToken()` / `getTokens()` / `getSignals()` | `getRadarContractForPage()` + `getTokenDossierContractForPage()` | 用真实榜单/信号定位 token；dossier 走后端单币接口 | 后端未覆盖该币时显示未覆盖或 404，不生成假档案 |
 | `/review` | `ReviewEvolution` + manual journal drawer | `getReviewContractForPage()` + `/api/frontend/journal-contract` | 已接真实合同；旧 `ReviewCenter` mock 面板已删除 | 无复盘样本时显示暂无样本，不造历史 |

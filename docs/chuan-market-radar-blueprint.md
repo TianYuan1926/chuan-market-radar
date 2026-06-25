@@ -656,6 +656,8 @@ RawSource
 
 三批清理状态：已完成前端可见层物理清理。旧前端 mock 市场事实源 `src/lib/mock-data.ts` 已删除；未挂载的 `manual-journal.tsx`、`journal-stats.tsx`、`river-canvas.tsx`、`sparkline.tsx`、`components/ui/button.tsx` 已删除；旧介绍页、启动页、Hero 手掌美元、宠物、段位、训练卡、river 背景相关 CSS 已从 `globals.css` 清理；无用 `@base-ui/react` 和 `class-variance-authority` 依赖已移除。生产主界面只保留服务扫描、候选、深扫、分析、策略、复盘和系统健康的页面与组件。
 
+四批清理状态：已完成真实可见页面收束。顶部导航改为作战链路语言：作战总控、候选验证、异动复盘榜、环境门控、复盘进化、数据源健康。`/signals` 去掉右侧 `LiveFeed` 和 `MarketHeatmap` 辅助面板，只保留狙击榜、信号成熟度池和异动候选明细；`/leaderboard` 去掉滚动 ticker 和第二套基础表格，只保留 `MarketLeaderboards` 作为真实榜单与复盘样本入口。`price-ticker.tsx`、`leaderboard-table.tsx`、`live-feed.tsx`、`market-heatmap.tsx` 已删除，避免非核心可见层回流。
+
 等核心链路稳定后再统一精修。
 
 重点不是“更花”，而是：

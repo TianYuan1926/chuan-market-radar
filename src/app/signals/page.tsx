@@ -2,8 +2,6 @@ import { SiteNav } from '@/components/site-nav'
 import { AnomalyBoard } from '@/components/anomaly-board'
 import { SniperBoard } from '@/components/sniper-board'
 import { SignalMaturityPool } from '@/components/signals/signal-maturity-pool'
-import { LiveFeed } from '@/components/live-feed'
-import { MarketHeatmap } from '@/components/market-heatmap'
 import { SessionBar } from '@/components/session-bar'
 import {
   radarSignalsToSignalCards,
@@ -70,39 +68,49 @@ export default async function SignalsPage() {
       <SessionBar tokens={tokens} />
 
       <main className="mx-auto max-w-[1560px] px-4 py-5 sm:px-6">
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-          {/* 候选信号池表格 */}
-          <div className="min-w-0">
-            {/* 狙击榜：通过最终筛选的精选目标（与复盘进化引擎共用数据源） */}
-            <div className="mb-5">
-              <SniperBoard targets={sniperTargets} />
-            </div>
-
-            {/* 信号成熟度池：按成熟度分层，支持搜索/筛选/排序/滚动（后端承载位） */}
-            <div className="mb-5">
-              <SignalMaturityPool signals={displaySignals} />
-            </div>
-
+        <div className="space-y-5">
+          <section className="border border-border bg-card px-5 py-4">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight">候选信号池</h1>
+              <h1 className="text-xl font-bold tracking-tight">候选验证台</h1>
               <span className={`flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold tracking-wide ${SIGNAL_STATUS_CLASS[signalStatus]}`}>
                 <span className={`size-1.5 rounded-full ${signalStatus === 'live' ? 'animate-pulse' : ''} ${SIGNAL_DOT_CLASS[signalStatus]}`} />
                 {SIGNAL_STATUS_LABEL[signalStatus]}
               </span>
               <span className="text-[13px] text-muted-foreground">
-                点击任意一行可展开币种详情、后端证据与计划状态
+                轻扫只负责发现异常；只有证据融合和交易计划就绪才允许进入狙击榜
               </span>
             </div>
-            <div className="mt-4">
-              <AnomalyBoard cards={cards} />
+            <div className="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-4">
+              <div className="border border-border bg-secondary/30 px-3 py-2">
+                轻扫标记：后台调度，不当交易信号
+              </div>
+              <div className="border border-border bg-secondary/30 px-3 py-2">
+                深扫候选：验证中，只能观察
+              </div>
+              <div className="border border-border bg-secondary/30 px-3 py-2">
+                证据信号：有结构和数据支撑
+              </div>
+              <div className="border border-border bg-secondary/30 px-3 py-2">
+                计划就绪：RR 和风控通过
+              </div>
             </div>
-          </div>
+          </section>
 
-          {/* 右侧辅助面板 */}
-          <aside className="space-y-5">
-            <LiveFeed cards={cards} />
-            <MarketHeatmap tokens={tokens} />
-          </aside>
+          {/* 狙击榜：通过最终筛选的精选目标（与复盘进化引擎共用数据源） */}
+          <SniperBoard targets={sniperTargets} />
+
+          {/* 信号成熟度池：按成熟度分层，支持搜索/筛选/排序/滚动（后端承载位） */}
+          <SignalMaturityPool signals={displaySignals} />
+
+          <section>
+            <div className="mb-3 flex flex-wrap items-center gap-2.5">
+              <h2 className="text-lg font-bold tracking-tight">异动候选明细</h2>
+              <span className="text-[13px] text-muted-foreground">
+                点击任意一行展开币种详情、后端证据与计划状态
+              </span>
+            </div>
+            <AnomalyBoard cards={cards} />
+          </section>
         </div>
       </main>
 
