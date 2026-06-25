@@ -361,12 +361,44 @@ function volumeDelta({ event, state }) {
   return 0;
 }
 
-function pressureBuckets({ price, previousPrice, volumeUsd }) {
+function pressureBuckets({ price, previousPrice, takerSide, volumeUsd }) {
   if (volumeUsd <= 0 || !previousPrice || previousPrice <= 0) {
+    if (takerSide === "buy") {
+      return {
+        buyPressureUsd: volumeUsd,
+        flatPressureUsd: 0,
+        sellPressureUsd: 0,
+      };
+    }
+
+    if (takerSide === "sell") {
+      return {
+        buyPressureUsd: 0,
+        flatPressureUsd: 0,
+        sellPressureUsd: volumeUsd,
+      };
+    }
+
     return {
       buyPressureUsd: 0,
       flatPressureUsd: Math.max(0, volumeUsd),
       sellPressureUsd: 0,
+    };
+  }
+
+  if (takerSide === "buy") {
+    return {
+      buyPressureUsd: volumeUsd,
+      flatPressureUsd: 0,
+      sellPressureUsd: 0,
+    };
+  }
+
+  if (takerSide === "sell") {
+    return {
+      buyPressureUsd: 0,
+      flatPressureUsd: 0,
+      sellPressureUsd: volumeUsd,
     };
   }
 
@@ -394,13 +426,18 @@ function pressureBuckets({ price, previousPrice, volumeUsd }) {
 }
 
 function updateWindow({ current, event, previousPrice, startMs, volumeUsd }) {
+  const flowSource = event.flowSource === "trade" ? "trade" : "ticker";
   const pressure = pressureBuckets({
     price: event.price,
     previousPrice,
+    takerSide: event.takerSide,
     volumeUsd,
   });
 
   if (!current) {
+    const tradeVolumeUsd = flowSource === "trade" ? volumeUsd : 0;
+    const tickerInferredVolumeUsd = flowSource === "ticker" ? volumeUsd : 0;
+
     return {
       buyPressureUsd: pressure.buyPressureUsd,
       closePrice: event.price,
@@ -410,9 +447,20 @@ function updateWindow({ current, event, previousPrice, startMs, volumeUsd }) {
       openPrice: event.price,
       sellPressureUsd: pressure.sellPressureUsd,
       startMs,
-      volumeUsd,
+      tickerInferredVolumeUsd,
+      tradeBuyPressureUsd: flowSource === "trade" ? pressure.buyPressureUsd : 0,
+      tradeFlatPressureUsd: flowSource === "trade" ? pressure.flatPressureUsd : 0,
+      tradeSellPressureUsd: flowSource === "trade" ? pressure.sellPressureUsd : 0,
+      tradeVolumeUsd,
+      volumeUsd: tradeVolumeUsd > 0 ? tradeVolumeUsd : tickerInferredVolumeUsd,
     };
   }
+
+  const tickerInferredVolumeUsd = current.tickerInferredVolumeUsd + (flowSource === "ticker" ? volumeUsd : 0);
+  const tradeBuyPressureUsd = current.tradeBuyPressureUsd + (flowSource === "trade" ? pressure.buyPressureUsd : 0);
+  const tradeFlatPressureUsd = current.tradeFlatPressureUsd + (flowSource === "trade" ? pressure.flatPressureUsd : 0);
+  const tradeSellPressureUsd = current.tradeSellPressureUsd + (flowSource === "trade" ? pressure.sellPressureUsd : 0);
+  const tradeVolumeUsd = current.tradeVolumeUsd + (flowSource === "trade" ? volumeUsd : 0);
 
   return {
     ...current,
@@ -422,7 +470,12 @@ function updateWindow({ current, event, previousPrice, startMs, volumeUsd }) {
     highPrice: Math.max(current.highPrice, event.price),
     lowPrice: Math.min(current.lowPrice, event.price),
     sellPressureUsd: current.sellPressureUsd + pressure.sellPressureUsd,
-    volumeUsd: current.volumeUsd + volumeUsd,
+    tickerInferredVolumeUsd,
+    tradeBuyPressureUsd,
+    tradeFlatPressureUsd,
+    tradeSellPressureUsd,
+    tradeVolumeUsd,
+    volumeUsd: tradeVolumeUsd > 0 ? tradeVolumeUsd : tickerInferredVolumeUsd,
   };
 }
 
@@ -435,9 +488,10 @@ function rolloverWindow({ currentWindow, history, maxBaselineWindows }) {
 }
 
 function microstructureFromWindow(window) {
-  const buyPressureUsd = round(window.buyPressureUsd, 0);
-  const sellPressureUsd = round(window.sellPressureUsd, 0);
-  const volumeUsd = Math.max(1, window.volumeUsd);
+  const hasTradeFlow = window.tradeVolumeUsd > 0;
+  const buyPressureUsd = round(hasTradeFlow ? window.tradeBuyPressureUsd : window.buyPressureUsd, 0);
+  const sellPressureUsd = round(hasTradeFlow ? window.tradeSellPressureUsd : window.sellPressureUsd, 0);
+  const volumeUsd = Math.max(1, hasTradeFlow ? window.tradeVolumeUsd : window.volumeUsd);
   const cvdProxyUsd = buyPressureUsd - sellPressureUsd;
   const tradeFlowImbalance = round(cvdProxyUsd / volumeUsd, 4);
   const pressureSide = tradeFlowImbalance > 0.15
@@ -450,7 +504,7 @@ function microstructureFromWindow(window) {
     buyPressureUsd,
     cvdProxyUsd: round(cvdProxyUsd, 0),
     pressureSide,
-    proxyQuality: "rolling_price_volume_proxy",
+    proxyQuality: hasTradeFlow ? "taker_trade_proxy" : "rolling_price_volume_proxy",
     sellPressureUsd,
     tradeFlowImbalance,
   };
@@ -641,7 +695,7 @@ export function createLightScanAccumulator({
         history,
         lastEventAt: new Date(eventTime).toISOString(),
         lastPrice: price,
-        lastQuoteVolume24hUsd: finiteNumber(event.quoteVolume24hUsd),
+        lastQuoteVolume24hUsd: finiteNumber(event.quoteVolume24hUsd) || previous?.lastQuoteVolume24hUsd,
         symbol,
       });
     },
@@ -680,7 +734,7 @@ export function createLightScanAccumulator({
           notes: [
             `websocket light scan worker window ${Math.round(windowMs / 60000)}m`,
             `volume z-score threshold ${zScoreThreshold}`,
-            "trade flow and CVD proxy use rolling price/volume direction; discovery only",
+            "trade flow and CVD proxy prefer public taker trade streams and fall back to rolling price/volume direction; discovery only",
             "snapshot is scheduling input; CoinGlass deep scan and Evidence gate still required",
           ],
           priorityCandidates,
@@ -717,9 +771,44 @@ export function parseBinanceTickerMessage(raw) {
       return {
         eventTime: eventTimeFromMs(row?.E),
         exchange: "BINANCE",
+        flowSource: "ticker",
         price,
         quoteVolume24hUsd: finiteNumber(row?.q),
         symbol,
+      };
+    })
+    .filter(Boolean);
+}
+
+export function parseBinanceAggTradeMessage(raw) {
+  const payload = safeJsonParse(raw);
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload?.data
+      ? [payload.data]
+      : payload?.e === "aggTrade"
+        ? [payload]
+        : [];
+
+  return rows
+    .map((row) => {
+      const symbol = normalizedSymbol(row?.s);
+      const price = finiteNumber(row?.p);
+      const quantity = finiteNumber(row?.q);
+      const quoteVolumeDeltaUsd = price * quantity;
+
+      if (!isUsdtPerpLikeSymbol(symbol) || price <= 0 || quoteVolumeDeltaUsd <= 0) {
+        return null;
+      }
+
+      return {
+        eventTime: eventTimeFromMs(row?.E ?? row?.T),
+        exchange: "BINANCE",
+        flowSource: "trade",
+        price,
+        quoteVolumeDeltaUsd,
+        symbol,
+        takerSide: row?.m === true ? "sell" : "buy",
       };
     })
     .filter(Boolean);
@@ -779,9 +868,45 @@ export function parseOkxTickerMessage(raw) {
       return {
         eventTime: eventTimeFromMs(row?.ts),
         exchange: "OKX",
+        flowSource: "ticker",
         price,
         quoteVolume24hUsd: finiteNumber(row?.volCcy24h) * price,
         symbol,
+      };
+    })
+    .filter(Boolean);
+}
+
+export function parseOkxTradeMessage(raw) {
+  const payloadText = payloadToString(raw);
+
+  if (payloadText === "ping" || payloadText === "pong") {
+    return [];
+  }
+
+  const payload = safeJsonParse(payloadText);
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+
+  return rows
+    .map((row) => {
+      const symbol = okxSymbolFromInstId(row?.instId);
+      const price = finiteNumber(row?.px);
+      const size = finiteNumber(row?.sz);
+      const side = String(row?.side ?? "").trim().toLowerCase();
+      const quoteVolumeDeltaUsd = price * size;
+
+      if (!isUsdtPerpLikeSymbol(symbol) || price <= 0 || quoteVolumeDeltaUsd <= 0) {
+        return null;
+      }
+
+      return {
+        eventTime: eventTimeFromMs(row?.ts),
+        exchange: "OKX",
+        flowSource: "trade",
+        price,
+        quoteVolumeDeltaUsd,
+        symbol,
+        takerSide: side === "buy" ? "buy" : side === "sell" ? "sell" : "unknown",
       };
     })
     .filter(Boolean);
@@ -803,9 +928,39 @@ export function parseBybitTickerMessage(raw) {
       return {
         eventTime: eventTimeFromMs(row?.ts ?? payload?.ts),
         exchange: "BYBIT",
+        flowSource: "ticker",
         price,
         quoteVolume24hUsd: finiteNumber(row?.turnover24h),
         symbol,
+      };
+    })
+    .filter(Boolean);
+}
+
+export function parseBybitPublicTradeMessage(raw) {
+  const payload = safeJsonParse(raw);
+  const rows = Array.isArray(payload?.data) ? payload.data : payload?.data ? [payload.data] : [];
+
+  return rows
+    .map((row) => {
+      const symbol = normalizedSymbol(row?.s ?? row?.symbol ?? String(payload?.topic ?? "").replace(/^publicTrade\./, ""));
+      const price = finiteNumber(row?.p ?? row?.price);
+      const size = finiteNumber(row?.v ?? row?.size);
+      const side = String(row?.S ?? row?.side ?? "").trim().toLowerCase();
+      const quoteVolumeDeltaUsd = price * size;
+
+      if (!isUsdtPerpLikeSymbol(symbol) || price <= 0 || quoteVolumeDeltaUsd <= 0) {
+        return null;
+      }
+
+      return {
+        eventTime: eventTimeFromMs(row?.T ?? row?.ts ?? payload?.ts),
+        exchange: "BYBIT",
+        flowSource: "trade",
+        price,
+        quoteVolumeDeltaUsd,
+        symbol,
+        takerSide: side === "buy" ? "buy" : side === "sell" ? "sell" : "unknown",
       };
     })
     .filter(Boolean);
@@ -944,6 +1099,7 @@ async function buildSources() {
   const exchanges = splitCsv(process.env.WS_LIGHT_SCAN_EXCHANGES ?? "BINANCE,OKX,BYBIT");
   const symbolLimit = positiveNumberFromEnv("WS_LIGHT_SCAN_SYMBOL_LIMIT_PER_EXCHANGE", 500);
   const subscribeChunkSize = positiveNumberFromEnv("WS_LIGHT_SCAN_SUBSCRIBE_CHUNK_SIZE", 40);
+  const tradeStreamsEnabled = booleanFromEnv("WS_LIGHT_SCAN_TRADE_STREAMS_ENABLED", true);
   const sources = [];
 
   if (exchanges.includes("BINANCE")) {
@@ -952,10 +1108,27 @@ async function buildSources() {
       sources.push({
         allowedSymbols: new Set(symbols),
         exchange: "BINANCE",
+        kind: "ticker",
         parser: parseBinanceTickerMessage,
         subscribeMessages: [],
         url: process.env.BINANCE_WS_TICKER_URL ?? "wss://fstream.binance.com/ws/!ticker@arr",
       });
+
+      if (tradeStreamsEnabled) {
+        const subscribeMessages = buildSubscriptionChunks(
+          symbols.map((symbol) => `${symbol.toLowerCase()}@aggTrade`),
+          subscribeChunkSize,
+        ).map((params, index) => JSON.stringify({ id: index + 1, method: "SUBSCRIBE", params }));
+
+        sources.push({
+          allowedSymbols: new Set(symbols),
+          exchange: "BINANCE",
+          kind: "trades",
+          parser: parseBinanceAggTradeMessage,
+          subscribeMessages,
+          url: process.env.BINANCE_WS_TRADE_URL ?? "wss://fstream.binance.com/ws",
+        });
+      }
     } catch (error) {
       log("source-discovery-failed", { exchange: "BINANCE", error: errorMessage(error) });
     }
@@ -972,10 +1145,27 @@ async function buildSources() {
       sources.push({
         allowedSymbols: new Set(instIds.map(okxSymbolFromInstId).filter(Boolean)),
         exchange: "OKX",
+        kind: "ticker",
         parser: parseOkxTickerMessage,
         subscribeMessages,
         url: process.env.OKX_WS_PUBLIC_URL ?? "wss://ws.okx.com:8443/ws/v5/public",
       });
+
+      if (tradeStreamsEnabled) {
+        const tradeSubscribeMessages = buildSubscriptionChunks(
+          instIds.map((instId) => ({ channel: "trades", instId })),
+          subscribeChunkSize,
+        ).map((args) => JSON.stringify({ op: "subscribe", args }));
+
+        sources.push({
+          allowedSymbols: new Set(instIds.map(okxSymbolFromInstId).filter(Boolean)),
+          exchange: "OKX",
+          kind: "trades",
+          parser: parseOkxTradeMessage,
+          subscribeMessages: tradeSubscribeMessages,
+          url: process.env.OKX_WS_PUBLIC_URL ?? "wss://ws.okx.com:8443/ws/v5/public",
+        });
+      }
     } catch (error) {
       log("source-discovery-failed", { exchange: "OKX", error: errorMessage(error) });
     }
@@ -992,10 +1182,27 @@ async function buildSources() {
       sources.push({
         allowedSymbols: new Set(symbols),
         exchange: "BYBIT",
+        kind: "ticker",
         parser: parseBybitTickerMessage,
         subscribeMessages,
         url: process.env.BYBIT_WS_PUBLIC_URL ?? "wss://stream.bybit.com/v5/public/linear",
       });
+
+      if (tradeStreamsEnabled) {
+        const tradeSubscribeMessages = buildSubscriptionChunks(
+          symbols.map((symbol) => `publicTrade.${symbol}`),
+          subscribeChunkSize,
+        ).map((args) => JSON.stringify({ op: "subscribe", args }));
+
+        sources.push({
+          allowedSymbols: new Set(symbols),
+          exchange: "BYBIT",
+          kind: "trades",
+          parser: parseBybitPublicTradeMessage,
+          subscribeMessages: tradeSubscribeMessages,
+          url: process.env.BYBIT_WS_PUBLIC_URL ?? "wss://stream.bybit.com/v5/public/linear",
+        });
+      }
     } catch (error) {
       log("source-discovery-failed", { exchange: "BYBIT", error: errorMessage(error) });
     }
@@ -1090,6 +1297,7 @@ function connectSource({ accumulator, reconnectMs, source }) {
   const connect = () => {
     log("source-connecting", {
       exchange: source.exchange,
+      kind: source.kind ?? "unknown",
       subscriptions: source.subscribeMessages.length,
       url: source.url,
     });
@@ -1097,7 +1305,7 @@ function connectSource({ accumulator, reconnectMs, source }) {
     socket = new WebSocket(source.url);
 
     socket.addEventListener("open", () => {
-      log("source-open", { exchange: source.exchange });
+      log("source-open", { exchange: source.exchange, kind: source.kind ?? "unknown" });
 
       for (const message of source.subscribeMessages) {
         socket.send(message);
@@ -1121,13 +1329,14 @@ function connectSource({ accumulator, reconnectMs, source }) {
       log("source-closed", {
         code: event.code,
         exchange: source.exchange,
+        kind: source.kind ?? "unknown",
         reason: event.reason,
       });
       setTimeout(connect, reconnectMs);
     });
 
     socket.addEventListener("error", () => {
-      log("source-error", { exchange: source.exchange });
+      log("source-error", { exchange: source.exchange, kind: source.kind ?? "unknown" });
     });
   };
 

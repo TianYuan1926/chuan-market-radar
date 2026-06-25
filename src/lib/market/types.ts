@@ -432,7 +432,7 @@ export type ScanLightScanCandidate = {
     buyPressureUsd: number;
     cvdProxyUsd: number;
     pressureSide: "buy" | "neutral" | "sell";
-    proxyQuality: "rolling_price_volume_proxy";
+    proxyQuality: "rolling_price_volume_proxy" | "taker_trade_proxy";
     sellPressureUsd: number;
     tradeFlowImbalance: number;
   };

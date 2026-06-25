@@ -1273,9 +1273,7 @@ function buildLightScanQuality({
     candidate.volumeSource === "rolling_window" || candidate.reasons.includes("websocket_sliding_window")
   );
   const zScoreCandidates = topCandidates.filter((candidate) => candidate.reasons.includes("volume_zscore_spike"));
-  const cvdProxyCandidates = topCandidates.filter((candidate) =>
-    candidate.microstructure?.proxyQuality === "rolling_price_volume_proxy"
-  );
+  const cvdProxyCandidates = topCandidates.filter((candidate) => Boolean(candidate.microstructure));
   const buyPressureCandidates = topCandidates.filter((candidate) => candidate.microstructure?.pressureSide === "buy");
   const sellPressureCandidates = topCandidates.filter((candidate) => candidate.microstructure?.pressureSide === "sell");
   const hotCandidates = topCandidates.filter((candidate) => candidate.state === "HOT");
@@ -1338,7 +1336,7 @@ function buildLightScanQuality({
     },
     {
       detail: cvdProxyCandidates.length > 0
-        ? `${cvdProxyCandidates.length} 个候选带有 rolling price/volume 主动买卖压力 proxy。`
+        ? `${cvdProxyCandidates.length} 个候选带有主动买卖/CVD proxy；优先使用 public taker trade，缺失时回退到 rolling price/volume。`
         : "当前没有候选携带主动买卖/CVD proxy 样本；这只能说明当前候选来自非秒级或尚无足够窗口样本。",
       evidence: [
         `cvdProxyCandidates=${cvdProxyCandidates.length}`,

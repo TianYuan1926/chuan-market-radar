@@ -492,7 +492,7 @@ RawSource
 - P0 必须先闭环；P1 不能绕过核心链路治理。
 - WebSocket / public light scan 必须有状态、覆盖、候选、freshness 和 worker 心跳。
 - 秒级发现层必须输出 rolling-window、volume z-score、主动买卖/CVD proxy 等质量指标。
-- CVD proxy 只能来自 rolling price/volume direction，只能用于异常发现和候选排序，不能冒充真实逐笔 CVD。
+- CVD proxy 优先来自 Binance `aggTrade`、OKX `trades`、Bybit `publicTrade` 等 public taker trade 流；trade 流缺失时才回退到 rolling price/volume direction。它只能用于异常发现和候选排序，不能冒充交易所官方完整 CVD，也不能直接生成交易计划。
 - 深扫轮转必须有公平性证明，不能让 BTC/ETH/SOL 等固定币长期霸占非锚点深扫位。
 - 长尾探索必须保底，未进入深扫不代表淘汰。
 - 状态池、历史复盘、missed opportunity 和动态优先级可以参与调度，但不能直接改交易结论。
@@ -502,6 +502,7 @@ RawSource
 已落地：
 
 - `ScanLightScanCandidate.microstructure`：`buyPressureUsd`、`sellPressureUsd`、`cvdProxyUsd`、`tradeFlowImbalance`、`pressureSide`。
+- WebSocket worker 已接入 public taker trade 流：Binance `aggTrade`、OKX `trades`、Bybit `publicTrade`；`proxyQuality=taker_trade_proxy` 时使用真实成交方向估算买卖压力，`proxyQuality=rolling_price_volume_proxy` 时为 ticker 兜底推断。
 - `lightScanQuality.v1`：新增 `cvdProxyCandidateCount`、`buyPressureCandidateCount`、`sellPressureCandidateCount` 和 `cvd_proxy_quality` 检查。
 - `coreChainGovernance.p1Completion`：新增 P1 完成度、检查项、剩余项和 summary。
 - `/dashboard` 核心链路体检显示 P1 快速扫描完成度。
@@ -625,6 +626,7 @@ RawSource
   - `opportunityPhase`：`early_setup / breakout_watch / late_move / neutral_watch`。
   - `overextensionRisk`：`low / medium / high`。
 - WebSocket 秒级轻扫会对 PRE_TREND、压缩放量、低位移、主动买卖 proxy、窗口波动做早期机会评分。
+- WebSocket 秒级轻扫的主动买卖 proxy 优先使用 public taker trade 流；ticker 推断只作为兜底，前端必须通过 `proxyQuality` 区分。
 - WebSocket 秒级轻扫会对 15m 窗口内大幅位移并贴近窗口极值的币标为 `late_move`，降低其早期机会分。
 - Public REST 轻扫会对 24h 压缩、低位移、靠近关键边缘且未过度延展的币加分；对 24h 大幅延展样本加 `overextended_move_capped`。
 - Daily Mover Review 的 `preMovePattern.earlyWarningScore` 会转成 repository priority hints 的 `earlyOpportunityScore`。

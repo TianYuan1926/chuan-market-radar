@@ -5,10 +5,12 @@ import { isCryptoFuturesUnderlying } from "./asset-class-filter";
 export type WebSocketTickerEvent = {
   eventTime: string;
   exchange: ExchangeId;
+  flowSource?: "ticker" | "trade";
   price: number;
   quoteVolume24hUsd?: number;
   quoteVolumeDeltaUsd?: number;
   symbol: string;
+  takerSide?: "buy" | "sell" | "unknown";
 };
 
 export type WebSocketLightScanWindow = {
@@ -20,6 +22,11 @@ export type WebSocketLightScanWindow = {
   openPrice: number;
   sellPressureUsd: number;
   startMs: number;
+  tickerInferredVolumeUsd: number;
+  tradeBuyPressureUsd: number;
+  tradeFlatPressureUsd: number;
+  tradeSellPressureUsd: number;
+  tradeVolumeUsd: number;
   volumeUsd: number;
 };
 
@@ -164,17 +171,51 @@ function volumeDelta({
 function pressureBuckets({
   price,
   previousPrice,
+  takerSide,
   volumeUsd,
 }: {
   price: number;
   previousPrice: number | undefined;
+  takerSide?: WebSocketTickerEvent["takerSide"];
   volumeUsd: number;
 }) {
   if (volumeUsd <= 0 || !previousPrice || previousPrice <= 0) {
+    if (takerSide === "buy") {
+      return {
+        buyPressureUsd: volumeUsd,
+        flatPressureUsd: 0,
+        sellPressureUsd: 0,
+      };
+    }
+
+    if (takerSide === "sell") {
+      return {
+        buyPressureUsd: 0,
+        flatPressureUsd: 0,
+        sellPressureUsd: volumeUsd,
+      };
+    }
+
     return {
       buyPressureUsd: 0,
       flatPressureUsd: Math.max(0, volumeUsd),
       sellPressureUsd: 0,
+    };
+  }
+
+  if (takerSide === "buy") {
+    return {
+      buyPressureUsd: volumeUsd,
+      flatPressureUsd: 0,
+      sellPressureUsd: 0,
+    };
+  }
+
+  if (takerSide === "sell") {
+    return {
+      buyPressureUsd: 0,
+      flatPressureUsd: 0,
+      sellPressureUsd: volumeUsd,
     };
   }
 
@@ -214,13 +255,18 @@ function updateWindow({
   startMs: number;
   volumeUsd: number;
 }): WebSocketLightScanWindow {
+  const flowSource = event.flowSource === "trade" ? "trade" : "ticker";
   const pressure = pressureBuckets({
     price: event.price,
     previousPrice,
+    takerSide: event.takerSide,
     volumeUsd,
   });
 
   if (!current) {
+    const tradeVolumeUsd = flowSource === "trade" ? volumeUsd : 0;
+    const tickerInferredVolumeUsd = flowSource === "ticker" ? volumeUsd : 0;
+
     return {
       buyPressureUsd: pressure.buyPressureUsd,
       closePrice: event.price,
@@ -230,9 +276,20 @@ function updateWindow({
       openPrice: event.price,
       sellPressureUsd: pressure.sellPressureUsd,
       startMs,
-      volumeUsd,
+      tickerInferredVolumeUsd,
+      tradeBuyPressureUsd: flowSource === "trade" ? pressure.buyPressureUsd : 0,
+      tradeFlatPressureUsd: flowSource === "trade" ? pressure.flatPressureUsd : 0,
+      tradeSellPressureUsd: flowSource === "trade" ? pressure.sellPressureUsd : 0,
+      tradeVolumeUsd,
+      volumeUsd: tradeVolumeUsd > 0 ? tradeVolumeUsd : tickerInferredVolumeUsd,
     };
   }
+
+  const tickerInferredVolumeUsd = current.tickerInferredVolumeUsd + (flowSource === "ticker" ? volumeUsd : 0);
+  const tradeBuyPressureUsd = current.tradeBuyPressureUsd + (flowSource === "trade" ? pressure.buyPressureUsd : 0);
+  const tradeFlatPressureUsd = current.tradeFlatPressureUsd + (flowSource === "trade" ? pressure.flatPressureUsd : 0);
+  const tradeSellPressureUsd = current.tradeSellPressureUsd + (flowSource === "trade" ? pressure.sellPressureUsd : 0);
+  const tradeVolumeUsd = current.tradeVolumeUsd + (flowSource === "trade" ? volumeUsd : 0);
 
   return {
     ...current,
@@ -242,7 +299,12 @@ function updateWindow({
     highPrice: Math.max(current.highPrice, event.price),
     lowPrice: Math.min(current.lowPrice, event.price),
     sellPressureUsd: current.sellPressureUsd + pressure.sellPressureUsd,
-    volumeUsd: current.volumeUsd + volumeUsd,
+    tickerInferredVolumeUsd,
+    tradeBuyPressureUsd,
+    tradeFlatPressureUsd,
+    tradeSellPressureUsd,
+    tradeVolumeUsd,
+    volumeUsd: tradeVolumeUsd > 0 ? tradeVolumeUsd : tickerInferredVolumeUsd,
   };
 }
 
@@ -416,9 +478,10 @@ function candidateReasons({
 }
 
 function microstructureFromWindow(window: WebSocketLightScanWindow): NonNullable<ScanLightScanCandidate["microstructure"]> {
-  const buyPressureUsd = round(window.buyPressureUsd, 0);
-  const sellPressureUsd = round(window.sellPressureUsd, 0);
-  const volumeUsd = Math.max(1, window.volumeUsd);
+  const hasTradeFlow = window.tradeVolumeUsd > 0;
+  const buyPressureUsd = round(hasTradeFlow ? window.tradeBuyPressureUsd : window.buyPressureUsd, 0);
+  const sellPressureUsd = round(hasTradeFlow ? window.tradeSellPressureUsd : window.sellPressureUsd, 0);
+  const volumeUsd = Math.max(1, hasTradeFlow ? window.tradeVolumeUsd : window.volumeUsd);
   const cvdProxyUsd = buyPressureUsd - sellPressureUsd;
   const tradeFlowImbalance = round(cvdProxyUsd / volumeUsd, 4);
   const pressureSide: NonNullable<ScanLightScanCandidate["microstructure"]>["pressureSide"] =
@@ -430,7 +493,7 @@ function microstructureFromWindow(window: WebSocketLightScanWindow): NonNullable
     buyPressureUsd,
     cvdProxyUsd: round(cvdProxyUsd, 0),
     pressureSide,
-    proxyQuality: "rolling_price_volume_proxy",
+    proxyQuality: hasTradeFlow ? "taker_trade_proxy" : "rolling_price_volume_proxy",
     sellPressureUsd,
     tradeFlowImbalance,
   };
@@ -644,7 +707,7 @@ export function createWebSocketLightScanAccumulator({
         history,
         lastEventAt: new Date(eventTime).toISOString(),
         lastPrice: price,
-        lastQuoteVolume24hUsd: event.quoteVolume24hUsd,
+        lastQuoteVolume24hUsd: event.quoteVolume24hUsd ?? previous?.lastQuoteVolume24hUsd,
         symbol,
       });
     },
@@ -684,7 +747,7 @@ export function createWebSocketLightScanAccumulator({
           notes: [
             `websocket light scan window ${Math.round(windowMs / 60000)}m`,
             `volume z-score threshold ${zScoreThreshold}`,
-            "trade flow and CVD proxy use rolling price/volume direction; discovery only",
+            "trade flow and CVD proxy prefer public taker trade streams and fall back to rolling price/volume direction; discovery only",
             "snapshot is scheduling input; deep scan and evidence gate still required",
           ],
           priorityCandidates,

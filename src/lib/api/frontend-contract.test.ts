@@ -821,7 +821,7 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
           buyPressureUsd: 780_000,
           cvdProxyUsd: 560_000,
           pressureSide: "buy",
-          proxyQuality: "rolling_price_volume_proxy",
+          proxyQuality: "taker_trade_proxy",
           sellPressureUsd: 220_000,
           tradeFlowImbalance: 0.4667,
         },

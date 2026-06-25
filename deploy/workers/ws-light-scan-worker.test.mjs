@@ -8,8 +8,11 @@ import {
   discoverBybitSymbols,
   discoverOkxSymbols,
   filterTickerEventsByAllowedSymbols,
+  parseBinanceAggTradeMessage,
   parseBinanceTickerMessage,
+  parseBybitPublicTradeMessage,
   parseBybitTickerMessage,
+  parseOkxTradeMessage,
   parseOkxTickerMessage,
 } from "./ws-light-scan-worker.mjs";
 
@@ -22,6 +25,7 @@ test("parseBinanceTickerMessage converts USD-M all ticker events into light scan
   assert.deepEqual(events, [{
     eventTime: "2026-12-20T09:46:40.000Z",
     exchange: "BINANCE",
+    flowSource: "ticker",
     price: 7.42,
     quoteVolume24hUsd: 4_200_000,
     symbol: "TIAUSDT",
@@ -35,6 +39,56 @@ test("parseBinanceTickerMessage accepts Buffer WebSocket payloads", () => {
 
   assert.equal(events[0]?.symbol, "SUIUSDT");
   assert.equal(events[0]?.price, 0.88);
+});
+
+test("trade parsers convert public taker trades into CVD proxy events", () => {
+  assert.deepEqual(parseBinanceAggTradeMessage(JSON.stringify({
+    E: 1_797_760_000_000,
+    T: 1_797_760_000_000,
+    e: "aggTrade",
+    m: false,
+    p: "1.25",
+    q: "1000",
+    s: "ARBUSDT",
+  })), [{
+    eventTime: "2026-12-20T09:46:40.000Z",
+    exchange: "BINANCE",
+    flowSource: "trade",
+    price: 1.25,
+    quoteVolumeDeltaUsd: 1250,
+    symbol: "ARBUSDT",
+    takerSide: "buy",
+  }]);
+
+  assert.deepEqual(parseOkxTradeMessage(JSON.stringify({
+    arg: { channel: "trades", instId: "SUI-USDT-SWAP" },
+    data: [
+      { instId: "SUI-USDT-SWAP", px: "2.5", side: "sell", sz: "200", ts: "1797760000000" },
+    ],
+  })), [{
+    eventTime: "2026-12-20T09:46:40.000Z",
+    exchange: "OKX",
+    flowSource: "trade",
+    price: 2.5,
+    quoteVolumeDeltaUsd: 500,
+    symbol: "SUIUSDT",
+    takerSide: "sell",
+  }]);
+
+  assert.deepEqual(parseBybitPublicTradeMessage(JSON.stringify({
+    data: [
+      { S: "Buy", T: 1_797_760_000_000, p: "0.42", s: "ENAUSDT", v: "3000" },
+    ],
+    topic: "publicTrade.ENAUSDT",
+  })), [{
+    eventTime: "2026-12-20T09:46:40.000Z",
+    exchange: "BYBIT",
+    flowSource: "trade",
+    price: 0.42,
+    quoteVolumeDeltaUsd: 1260,
+    symbol: "ENAUSDT",
+    takerSide: "buy",
+  }]);
 });
 
 test("ticker parsers reject tokenized stocks and commodities before light scan", () => {
@@ -73,6 +127,7 @@ test("parseOkxTickerMessage converts USDT swap ticker events into light scan eve
   assert.deepEqual(events, [{
     eventTime: "2026-12-20T09:46:40.000Z",
     exchange: "OKX",
+    flowSource: "ticker",
     price: 7.5,
     quoteVolume24hUsd: 750_000,
     symbol: "TIAUSDT",
@@ -162,6 +217,7 @@ test("parseBybitTickerMessage converts linear ticker events into light scan even
   assert.deepEqual(events, [{
     eventTime: "2026-12-20T09:46:40.000Z",
     exchange: "BYBIT",
+    flowSource: "ticker",
     price: 0.42,
     quoteVolume24hUsd: 910_000,
     symbol: "ENAUSDT",
@@ -268,6 +324,61 @@ test("createLightScanAccumulator marks intrawindow overextension for review inst
   assert.equal(late?.opportunityPhase, "late_move");
   assert.equal(late?.overextensionRisk, "high");
   assert.match(late?.reasons.join(",") ?? "", /intrawindow_overextended_capped/);
+});
+
+test("createLightScanAccumulator uses public taker trades for CVD proxy when available", () => {
+  const accumulator = createLightScanAccumulator({
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date("2026-06-21T01:01:00.000Z"),
+    windowMs: 15 * 60 * 1000,
+    zScoreThreshold: 1.2,
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    accumulator.ingest({
+      eventTime: new Date(Date.UTC(2026, 5, 21, 0, index * 15, 0)).toISOString(),
+      exchange: "BINANCE",
+      price: 1,
+      quoteVolume24hUsd: 100_000 + index * 50_000,
+      symbol: "FLOWUSDT",
+    });
+  }
+
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:00:00.000Z",
+    exchange: "BINANCE",
+    price: 1.01,
+    quoteVolume24hUsd: 1_000_000,
+    symbol: "FLOWUSDT",
+  });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:00:10.000Z",
+    exchange: "BINANCE",
+    flowSource: "trade",
+    price: 1.011,
+    quoteVolumeDeltaUsd: 520_000,
+    symbol: "FLOWUSDT",
+    takerSide: "buy",
+  });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:00:20.000Z",
+    exchange: "BINANCE",
+    flowSource: "trade",
+    price: 1.012,
+    quoteVolumeDeltaUsd: 80_000,
+    symbol: "FLOWUSDT",
+    takerSide: "sell",
+  });
+
+  const flow = accumulator.snapshot().priorityCandidates.find((candidate) => candidate.symbol === "FLOWUSDT");
+
+  assert.equal(flow?.microstructure?.proxyQuality, "taker_trade_proxy");
+  assert.equal(flow?.microstructure?.buyPressureUsd, 520_000);
+  assert.equal(flow?.microstructure?.sellPressureUsd, 80_000);
+  assert.equal(flow?.microstructure?.cvdProxyUsd, 440_000);
+  assert.equal(flow?.microstructure?.pressureSide, "buy");
+  assert.match(flow?.reasons.join(",") ?? "", /cvd_proxy_positive/);
 });
 
 test("buildSubscriptionChunks caps WebSocket subscription payload size", () => {

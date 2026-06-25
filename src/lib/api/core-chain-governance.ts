@@ -641,7 +641,10 @@ function hasMicrostructureProxy(snapshot: MarketRadarSnapshot) {
   const lightScan = snapshot.metadata.lightScan;
   const candidates = lightScan?.topCandidates ?? [];
 
-  if (candidates.some((candidate) => candidate.microstructure?.proxyQuality === "rolling_price_volume_proxy")) {
+  if (candidates.some((candidate) =>
+    candidate.microstructure?.proxyQuality === "rolling_price_volume_proxy" ||
+    candidate.microstructure?.proxyQuality === "taker_trade_proxy"
+  )) {
     return true;
   }
 
@@ -714,7 +717,7 @@ function buildP1Completion({
       key: "microstructure_proxy",
       label: "主动成交/CVD proxy 有边界",
       status: hasMicrostructureProxy(snapshot) ? "pass" : "fail",
-      detail: "候选可带 rolling_price_volume_proxy；该指标只用于发现层排序，不是真实逐笔 CVD。",
+      detail: "候选可带 taker_trade_proxy 或 rolling_price_volume_proxy；该指标只用于发现层排序，不是真实官方 CVD。",
     },
     {
       key: "rotation_fairness",

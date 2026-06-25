@@ -7,6 +7,7 @@ This document defines the readonly backend surfaces that future UI rebuilds shou
 - These endpoints do not trigger extra CoinGlass requests beyond the existing snapshot refresh path.
 - Light scan output is discovery evidence only; it never creates trade decisions directly.
 - WebSocket light scan output is also discovery/scheduling input only. The production worker writes Redis snapshots from Binance/OKX/Bybit public ticker streams; stale or missing snapshots must degrade to REST public light scan instead of being presented as live.
+- WebSocket CVD proxy must expose its quality boundary. `proxyQuality=taker_trade_proxy` means public taker trade streams were used; `proxyQuality=rolling_price_volume_proxy` means ticker price/volume direction fallback. Neither is allowed to become official exchange CVD or a trade-plan trigger.
 - Signal maturity is mandatory: `LIGHT_SCAN_MARK` is backend discovery only, `DEEP_SCAN_CANDIDATE` is verification/candidate lane only, `REVIEW_ONLY` is late/no-chase education only, and `TRADE_PLAN_READY` is the only stage allowed to attach a full trade plan.
 - Multi-timeframe hard gate is mandatory: low-timeframe signals cannot override `1h/4h` structure conflict or `1d/1w` double conflict. A blocked gate can only produce wait/watch states, not trade-plan-ready output.
 - Outcome statistics are only valid for mature samples: `EVIDENCE_SIGNAL` and `TRADE_PLAN_READY`. `REVIEW_ONLY` can feed late-signal research, but light marks, deep candidates and legacy samples with missing maturity must not be used as hit-rate proof.

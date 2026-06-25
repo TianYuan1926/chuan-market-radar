@@ -9,22 +9,28 @@ import {
 const start = Date.parse("2026-06-21T00:00:00.000Z");
 
 function event({
+  flowSource,
   minutes,
   price,
   quoteVolumeDeltaUsd,
   symbol = "ARBUSDT",
+  takerSide,
 }: {
+  flowSource?: "ticker" | "trade";
   minutes: number;
   price: number;
   quoteVolumeDeltaUsd: number;
   symbol?: string;
+  takerSide?: "buy" | "sell" | "unknown";
 }) {
   return {
     eventTime: new Date(start + minutes * 60_000).toISOString(),
     exchange: "BINANCE" as const,
+    flowSource,
     price,
     quoteVolumeDeltaUsd,
     symbol,
+    takerSide,
   };
 }
 
@@ -123,6 +129,47 @@ test("createWebSocketLightScanAccumulator caps intrawindow overextension as late
   assert.equal(late?.opportunityPhase, "late_move");
   assert.equal(late?.overextensionRisk, "high");
   assert.ok(late?.reasons.includes("intrawindow_overextended_capped"));
+});
+
+test("createWebSocketLightScanAccumulator prefers taker trade flow for CVD proxy", () => {
+  const accumulator = createWebSocketLightScanAccumulator({
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date(start + 61 * 60_000),
+    windowMs: 15 * 60_000,
+    zScoreThreshold: 1.2,
+  });
+
+  for (const minutes of [0, 15, 30, 45]) {
+    accumulator.ingest(event({ minutes, price: 1, quoteVolumeDeltaUsd: 100_000, symbol: "FLOWUSDT" }));
+  }
+
+  accumulator.ingest(event({ minutes: 60, price: 1.01, quoteVolumeDeltaUsd: 900_000, symbol: "FLOWUSDT" }));
+  accumulator.ingest(event({
+    flowSource: "trade",
+    minutes: 60,
+    price: 1.011,
+    quoteVolumeDeltaUsd: 420_000,
+    symbol: "FLOWUSDT",
+    takerSide: "buy",
+  }));
+  accumulator.ingest(event({
+    flowSource: "trade",
+    minutes: 61,
+    price: 1.012,
+    quoteVolumeDeltaUsd: 120_000,
+    symbol: "FLOWUSDT",
+    takerSide: "sell",
+  }));
+
+  const flow = accumulator.snapshot().priorityCandidates.find((candidate) => candidate.symbol === "FLOWUSDT");
+
+  assert.equal(flow?.microstructure?.proxyQuality, "taker_trade_proxy");
+  assert.equal(flow?.microstructure?.buyPressureUsd, 420_000);
+  assert.equal(flow?.microstructure?.sellPressureUsd, 120_000);
+  assert.equal(flow?.microstructure?.cvdProxyUsd, 300_000);
+  assert.equal(flow?.microstructure?.pressureSide, "buy");
+  assert.ok(flow?.reasons.includes("cvd_proxy_positive"));
 });
 
 test("createWebSocketLightScanProvider sanitizes stale Redis snapshots before exposing them", async () => {

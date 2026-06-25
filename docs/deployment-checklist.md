@@ -83,6 +83,7 @@
 - `WS_LIGHT_SCAN_ENABLED`: 主扫描是否读取 Redis WebSocket 轻扫快照，默认 `true`；快照缺失或过期会回退到 REST public light scan。
 - `WS_LIGHT_SCAN_WORKER_ENABLED`: 常驻 WebSocket 轻扫 worker 是否启动，默认 `true`。
 - `WS_LIGHT_SCAN_EXCHANGES`: WebSocket 轻扫交易所，默认 `BINANCE,OKX,BYBIT`；Binance 使用全市场 ticker，OKX/Bybit 先公开发现 USDT 永续再订阅。
+- `WS_LIGHT_SCAN_TRADE_STREAMS_ENABLED`: 是否订阅 public taker trade 流，默认 `true`；开启后 Binance `aggTrade`、OKX `trades`、Bybit `publicTrade` 会优先用于买卖压力和 CVD proxy。
 - `WS_LIGHT_SCAN_REDIS_KEY`: Redis 快照 key，默认 `chuan:ws-light-scan:snapshot`。
 - `WS_LIGHT_SCAN_STALE_AFTER_MS`: 主扫描认为 WebSocket 快照过期的时间，默认 `180000`。
 - `WS_LIGHT_SCAN_SNAPSHOT_INTERVAL_SECONDS`: Worker 写 Redis 快照间隔，默认 `15`。
@@ -145,6 +146,7 @@
 - 2026-06-23 旧生产探针曾显示旧 `COINGLASS_API_KEY` 对合约深扫端点返回 `Upgrade plan`。验收时必须先看 `/api/health.coinGlassRuntimeCapability`、`/api/radar/backend-contract.sourceAudit.coinGlassCapability`，必要时用 `Authorization: Bearer <CRON_SECRET>` 调用 `POST /api/admin/coinglass/capability`。如果结果仍为 `upgrade_required`、`auth_error`、`rate_limited`、`param_error`、`empty` 或 0 clean rows，必须判定为 CoinGlass 付费深扫未就绪或请求参数待修，不是系统没运行；公共轻扫和榜单仍可用，但不能生成 CoinGlass 衍生品 Evidence 或交易计划。
 - `REDIS_URL` 存在时主扫描会优先使用 Redis 做跨容器扫描锁和 CoinGlass 分钟级令牌桶；Redis 不可用时自动降级为进程内锁，但多容器防重能力会变弱。
 - WebSocket 轻扫已具备常驻 worker：`websocket-light-worker` 会连接 Binance/OKX/Bybit public ticker 流并写 Redis 快照；主扫描优先读取新鲜快照，缺失或过期时自动回退到 REST public light scan。该层仍只是调度和候选发现，不能直接生成交易信号。
+- WebSocket 轻扫 worker 已接入 public taker trade 流：Binance `aggTrade`、OKX `trades`、Bybit `publicTrade`；`proxyQuality=taker_trade_proxy` 时使用真实成交方向估算 CVD proxy，`proxyQuality=rolling_price_volume_proxy` 时才是 ticker 方向兜底。
 - Macro Weather 已具备常驻 `macro-worker`：默认每小时请求受保护 `POST /api/admin/macro/ingest`，写入 `macro_market_snapshots`；该层只能提供 BTC.D/TOTAL2/TOTAL3 山寨环境锚点，不能直接生成交易方向、不能降低 `3:1` 最低 RR。
 - outcome 复盘统计只承认 `EVIDENCE_SIGNAL` 和 `TRADE_PLAN_READY`；轻扫标记、深扫候选和缺成熟度旧样本不能进入命中率或人工校准胜率。
 - Macro Weather 的 BTC.D / TOTAL2 / TOTAL3 只做山寨环境顺逆风说明；不得降低 `3:1` 最低赔率，也不能直接生成方向或交易计划。
