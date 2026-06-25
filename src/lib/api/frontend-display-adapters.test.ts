@@ -37,6 +37,34 @@ const rows: LeaderboardRow[] = [
   },
 ];
 
+function signalReads(
+  maturity: RadarSignal["maturity"],
+  overrides: Partial<RadarSignal["operatorRead"]> = {},
+): Pick<RadarSignal, "lifecycle" | "operatorRead"> {
+  return {
+    lifecycle: {
+      ageLabel: "1分钟前",
+      ageMin: 1,
+      firstSeenAt: "2026-06-25T00:00:00.000Z",
+      freshnessLabel: "刚出现",
+      lastUpdatedAt: "2026-06-25T00:00:00.000Z",
+      source: "current_signal_timestamp",
+      status: "new",
+      summary: "测试信号生命周期",
+    },
+    operatorRead: {
+      canTrade: maturity === "TRADE_PLAN_READY",
+      headline: maturity === "TRADE_PLAN_READY" ? "交易计划就绪" : "已有证据，但还不能直接做",
+      lane: maturity === "TRADE_PLAN_READY" ? "sniper" : "watch",
+      laneLabel: maturity === "TRADE_PLAN_READY" ? "狙击榜" : "重点观察",
+      nextAction: "测试下一步",
+      noTradeReason: maturity === "TRADE_PLAN_READY" ? null : "测试中未生成交易计划",
+      worthWatching: true,
+      ...overrides,
+    },
+  };
+}
+
 test("leaderboard rows become visible candidate signals without trade plans", () => {
   const signals = leaderboardRowsToCandidateSignals(rows, "gainers");
 
@@ -181,6 +209,7 @@ test("signal cards keep push price empty until backend lifecycle tracking provid
     whySelected: "真实证据融合信号",
     whyBlocked: null,
     updatedMinAgo: 1,
+    ...signalReads("EVIDENCE_SIGNAL"),
   };
 
   const cards = radarSignalsToSignalCards([signal], [
@@ -215,6 +244,7 @@ test("sniper targets do not fabricate frontend entry stop or target prices", () 
     whySelected: "后端证据融合已通过",
     whyBlocked: null,
     updatedMinAgo: 1,
+    ...signalReads("TRADE_PLAN_READY"),
   };
 
   const [target] = radarSignalsToSniperTargets([signal], [
@@ -255,6 +285,7 @@ test("signal resource fallback keeps real signals and appends missing candidates
     whySelected: "真实证据融合信号",
     whyBlocked: null,
     updatedMinAgo: 1,
+    ...signalReads("EVIDENCE_SIGNAL"),
   };
 
   const merged = withLeaderboardSignalFallback(

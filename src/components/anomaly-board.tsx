@@ -29,12 +29,12 @@ import { fmtKnownCap, fmtUsd } from '@/lib/display-format'
 import { cn } from '@/lib/utils'
 
 const TYPE_META: Record<SignalType, { label: string; cssVar: string }> = {
-  PUMP: { label: 'PUMP', cssVar: '--sig-pump' },
-  WHALE: { label: 'WHALE', cssVar: '--sig-whale' },
-  LIQ: { label: 'LIQ', cssVar: '--sig-liq' },
-  BREAK: { label: 'BREAK', cssVar: '--sig-break' },
-  FLOW: { label: 'FLOW', cssVar: '--sig-flow' },
-  CRASH: { label: 'CRASH', cssVar: '--sig-crash' },
+  PUMP: { label: '放量异动', cssVar: '--sig-pump' },
+  WHALE: { label: '资金异动', cssVar: '--sig-whale' },
+  LIQ: { label: '高风险', cssVar: '--sig-liq' },
+  BREAK: { label: '结构突破', cssVar: '--sig-break' },
+  FLOW: { label: '证据观察', cssVar: '--sig-flow' },
+  CRASH: { label: '下跌异动', cssVar: '--sig-crash' },
 }
 
 const POOL_TONE: Record<string, string> = {
@@ -57,15 +57,6 @@ const FILTERS: { id: PoolStatus | 'all'; label: string; hint?: string }[] = [
   { id: 'expired', label: '已失效', hint: '触发窗口已过或结构破坏，信号已失效' },
 ]
 
-// 最近更新的相对时间：基于后端 ageMin（距今分钟数），避免绝对时间戳显得过时
-function fmtAge(ageMin: number): string {
-  if (ageMin < 1) return '刚刚'
-  if (ageMin < 60) return `${ageMin} 分钟前`
-  const h = Math.floor(ageMin / 60)
-  const m = ageMin % 60
-  return m === 0 ? `${h} 小时前` : `${h} 小时 ${m} 分前`
-}
-
 // 多空方向
 function direction(card: SignalCard): 'long' | 'short' {
   if (card.poolStatus === 'short' || card.poolStatus === 'high_risk') return 'short'
@@ -76,6 +67,7 @@ function direction(card: SignalCard): 'long' | 'short' {
 // 证据说明文案：只解释后端卡片字段，不生成交易结论。
 function analysisLogic(card: SignalCard): string[] {
   const t = card.token
+  const read = card.operatorRead
   const reviewOnly = card.maturity === 'REVIEW_ONLY'
   const candidateOnly =
     card.sourceKind === 'leaderboard_candidate' ||
@@ -84,26 +76,24 @@ function analysisLogic(card: SignalCard): string[] {
 
   if (reviewOnly) {
     return [
-      `${card.exchange} ${card.market} 展示排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
-      `该标的已经进入复盘观察层，风险等级 ${card.riskLevel}，状态 ${POOL_META[card.poolStatus].label}，当前不生成交易计划。`,
-      '复盘观察只用于研究“行情为什么已经发生、系统是否提前看到、是否提醒太晚”，不能当作追涨追跌入口。',
+      `${read.headline}。排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，风险等级 ${card.riskLevel}。`,
+      `为什么不能做：${read.noTradeReason ?? '行情位置不适合直接追。'}`,
+      `下一步：${read.nextAction}`,
     ]
   }
 
   if (candidateOnly) {
     return [
-      `${card.exchange} ${card.market} 展示排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
-      `当前只是${card.maturity === 'DEEP_SCAN_CANDIDATE' ? '深扫候选' : '轻扫/榜单候选'}，风险等级 ${card.riskLevel}，RR 未就绪，状态 ${POOL_META[card.poolStatus].label}。`,
-      '候选只说明“值得继续验证”，不是交易信号；必须等待结构、衍生品、证据融合、Risk Gate 和 3:1 以上赔率全部通过。',
+      `${read.headline}。排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
+      `当前层级：${read.laneLabel}；是否值得盯：${read.worthWatching ? '值得观察' : '只做背景'}；当前不能交易。`,
+      `下一步：${read.nextAction}`,
     ]
   }
 
   return [
-    `${card.exchange} ${card.market} 展示排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
-    `方向状态 ${direction(card) === 'long' ? '偏多' : '偏空'}，风险等级 ${card.riskLevel}，RR ${card.odds || '未就绪'}，候选状态 ${POOL_META[card.poolStatus].label}。`,
-    card.category === 'sniper'
-      ? '该标的已进入最终计划候选；具体计划字段必须以单币档案中的后端结构化计划为准。'
-      : '后端未给出完整交易计划；列表页只展示观察状态，不生成计划字段。',
+    `${read.headline}。方向 ${direction(card) === 'long' ? '偏多' : '偏空'}，风险等级 ${card.riskLevel}，结构盈亏比 ${card.odds ? `${card.odds}:1` : '未就绪'}。`,
+    `是否可做：${read.canTrade ? '可进入人工计划复核' : '还不能做'}；位置/风控状态：${POOL_META[card.poolStatus].label}。`,
+    `下一步：${read.nextAction}`,
   ]
 }
 
@@ -351,13 +341,16 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                         </span>
                         {t.tags.includes('Alpha') && (
                           <span className="bg-[var(--neon-soft)] px-1 py-0.5 text-[9px] font-bold text-neon">
-                            Alpha
+                            重点
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] font-bold" style={{ color }}>
                           {meta.label}
+                        </span>
+                        <span className="border border-border bg-secondary/40 px-1 py-0.5 text-[9px] font-semibold leading-none text-muted-foreground">
+                          {card.operatorRead.laneLabel}
                         </span>
                         <span
                           className="px-1 py-0.5 text-[9px] font-semibold leading-none"
@@ -377,16 +370,16 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                   <span
                     className={cn(
                       'flex items-center justify-end gap-1.5 text-right font-mono',
-                      card.ageMin <= 8 ? 'text-up' : 'text-muted-foreground',
+                      card.lifecycle.status === 'new' ? 'text-up' : 'text-muted-foreground',
                     )}
                   >
-                    {card.ageMin <= 8 && (
+                    {card.lifecycle.status === 'new' && (
                       <span className="relative flex size-1.5" title="刚刚更新">
                         <span className="absolute inline-flex size-full animate-ping rounded-full bg-up opacity-70" />
                         <span className="relative inline-flex size-1.5 rounded-full bg-up" />
                       </span>
                     )}
-                    {fmtAge(card.ageMin)}
+                    {card.lifecycle.ageLabel}
                   </span>
                   <span className="text-right font-mono text-muted-foreground">
                     {card.pushPrice > 0 ? `$${fmtUsd(card.pushPrice)}` : '待追踪'}
@@ -455,6 +448,8 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                           value={POOL_META[card.poolStatus].label}
                           tone={POOL_TONE[POOL_META[card.poolStatus].tone]}
                         />
+                        <Stat label="信号新旧" value={card.lifecycle.freshnessLabel} />
+                        <Stat label="当前分区" value={card.operatorRead.laneLabel} />
                         <Stat label="交易所" value={card.exchange} />
                         <Stat label="市场" value={card.market} />
                       </div>
@@ -501,7 +496,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                             : 'var(--secondary)',
                         }}
                       >
-                        {planReady ? '计划候选 / Plan Candidate' : '观察中 / Watch Only'}
+                        {planReady ? '计划就绪' : card.operatorRead.laneLabel}
                       </div>
                       <dl className="space-y-1.5 text-[12px]">
                         <PlanRow
@@ -515,7 +510,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                           value={
                             planReady
                               ? '打开单币档案查看后端结构化建仓、止损、目标和失效条件。'
-                              : '等待证据融合、RR、Risk Gate 和多周期门控同时满足。'
+                              : '等待证据融合、结构盈亏比、风控门禁和多周期门控同时满足。'
                           }
                         />
                       </dl>

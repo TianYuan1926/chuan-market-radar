@@ -873,7 +873,7 @@ test("live feed subscribes to backend SSE events before falling back to SSR card
   assert.match(liveFeedSource, /useSignalFeed/);
   assert.match(liveFeedSource, /eventToAlert/);
   assert.match(liveFeedSource, /eventItems\.length > 0 \? eventItems : cardItems/);
-  assert.match(liveFeedSource, /SNAPSHOT/);
+  assert.match(liveFeedSource, /快照/);
   assert.match(liveFeedSource, /feedMode === 'live'/);
   assert.doesNotMatch(liveFeedSource, /<span className="font-semibold">实时预警<\/span>/u);
 });

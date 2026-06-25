@@ -1,4 +1,5 @@
 import { buildBackendContract } from "@/lib/api/backend-contract";
+import { getDailyMoverReadArchive } from "@/lib/api/daily-mover-readonly";
 import {
   buildFrontendKlineContract,
   buildFrontendLeaderboardContract,
@@ -242,10 +243,17 @@ export async function getKlineContractForPage(
 }
 
 export async function getReviewContractForPage(): Promise<ReviewContract> {
-  const { backend, snapshot } = await readPageBackend();
+  const [{ backend, snapshot }, dailyMoverArchive] = await Promise.all([
+    readPageBackend(),
+    getDailyMoverReadArchive({
+      limit: 7,
+      repository: appPersistenceRepository,
+    }),
+  ]);
 
   return buildFrontendReviewContract({
     backend,
+    dailyMoverArchive: dailyMoverArchive.body.ok ? dailyMoverArchive.body : null,
     snapshot,
   }) as unknown as ReviewContract;
 }

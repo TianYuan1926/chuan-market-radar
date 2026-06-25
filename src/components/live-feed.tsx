@@ -15,11 +15,20 @@ const TYPE_VAR: Record<SignalType, string> = {
   CRASH: '--sig-crash',
 }
 
+const TYPE_LABEL: Record<SignalType, string> = {
+  PUMP: '放量',
+  WHALE: '资金',
+  LIQ: '风险',
+  BREAK: '突破',
+  FLOW: '证据',
+  CRASH: '下跌',
+}
+
 const ALERT_TEXT: Record<SignalType, (card: SignalCard) => string> = {
   PUMP: (card) => `量能异动 ${card.volMult.toFixed(1)}x，等待证据链确认`,
   WHALE: (card) => `${card.poolStatus === 'waiting' ? '深扫候选' : '衍生品复核'} · ${card.desc}`,
   LIQ: (card) => `风险拥挤提示 · ${card.desc}`,
-  BREAK: (card) => `结构突破候选 · RR ${card.odds.toFixed(1)}:1`,
+  BREAK: (card) => `结构突破候选 · 盈亏比 ${card.odds.toFixed(1)}:1`,
   FLOW: (card) => `证据链更新 · ${card.score}/100`,
   CRASH: (card) => `下跌/风控候选 · ${card.desc}`,
 }
@@ -85,7 +94,7 @@ export function LiveFeed({ cards }: { cards: SignalCard[] }) {
               ? 'bg-neon/10 text-neon'
               : 'bg-secondary text-muted-foreground',
         )}>
-          {feedMode === 'live' ? 'LIVE' : feedMode === 'snapshot' ? 'SNAPSHOT' : 'EMPTY'}
+          {feedMode === 'live' ? '实时' : feedMode === 'snapshot' ? '快照' : '暂无'}
         </span>
       </div>
       <div className="max-h-[440px] divide-y divide-border/60 overflow-y-auto">
@@ -120,7 +129,7 @@ export function LiveFeed({ cards }: { cards: SignalCard[] }) {
                   className="rounded px-1.5 py-0.5 text-[10px] font-bold"
                   style={{ background: `color-mix(in oklch, ${color} 16%, transparent)`, color }}
                 >
-                  {it.type}
+                  {TYPE_LABEL[it.type]}
                 </span>
                 <span
                   className={cn(

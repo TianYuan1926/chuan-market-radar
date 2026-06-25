@@ -110,7 +110,7 @@ export function TokenDossier({
           <DiscoveryCell
             index={2}
             label="买卖压力"
-            value={`${pressureLabel(d.discovery.pressureSide)} · CVD ${d.discovery.flowImbalance ?? '—'}`}
+            value={`${pressureLabel(d.discovery.pressureSide)} · 主动买卖 ${d.discovery.flowImbalance ?? '—'}`}
             tone={d.discovery.pressureSide === 'buy' ? 'up' : d.discovery.pressureSide === 'sell' ? 'down' : 'muted'}
           />
           <DiscoveryCell
@@ -130,7 +130,7 @@ export function TokenDossier({
           <div className="mt-2 flex flex-wrap gap-1.5">
             {d.discovery.reasons.slice(0, 8).map((reason) => (
               <span key={reason} className="border border-border bg-secondary/30 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                {reason}
+                {displayEngineText(reason)}
               </span>
             ))}
           </div>
@@ -156,7 +156,7 @@ export function TokenDossier({
                   : 'border-down/40 bg-down/10 text-down',
             )}
           >
-            {d.strategyReadiness.status}
+            {strategyStatusLabel(d.strategyReadiness.status)}
           </span>
         </h3>
         <div className="mt-3 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
@@ -178,7 +178,7 @@ export function TokenDossier({
                 {(d.strategyReadiness.missingPieces.length > 0 ? d.strategyReadiness.missingPieces : ['无缺失，等待人工复核']).slice(0, 6).map((item) => (
                   <li key={item} className="flex gap-2">
                     <span className="mt-1.5 size-1.5 shrink-0 bg-down" />
-                    <span>{item}</span>
+                    <span>{displayEngineText(item)}</span>
                   </li>
                 ))}
               </ul>
@@ -188,12 +188,12 @@ export function TokenDossier({
               <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                 {d.strategyReadiness.personalLens}
               </p>
-              <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-                status: {d.strategyReadiness.positionLensStatus}
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                仓位镜头状态：{positionLensStatusLabel(d.strategyReadiness.positionLensStatus)}
               </p>
               <ul className="mt-2 space-y-1 text-[10px] leading-relaxed text-muted-foreground">
                 {d.strategyReadiness.guardrails.slice(0, 3).map((item) => (
-                  <li key={item}>· {item}</li>
+                  <li key={item}>· {displayEngineText(item)}</li>
                 ))}
               </ul>
             </div>
@@ -233,7 +233,7 @@ export function TokenDossier({
                 {d.strategyReadiness.executionMap.waitFor.slice(0, 5).map((item) => (
                   <li key={item} className="flex gap-2">
                     <Check className="mt-0.5 size-3 shrink-0 text-up" />
-                    <span>{item}</span>
+                    <span>{displayEngineText(item)}</span>
                   </li>
                 ))}
               </ul>
@@ -244,7 +244,7 @@ export function TokenDossier({
                 {d.strategyReadiness.executionMap.invalidIf.slice(0, 5).map((item) => (
                   <li key={item} className="flex gap-2">
                     <X className="mt-0.5 size-3 shrink-0 text-down" />
-                    <span>{item}</span>
+                    <span>{displayEngineText(item)}</span>
                   </li>
                 ))}
               </ul>
@@ -279,17 +279,17 @@ export function TokenDossier({
                           : 'border-border bg-muted/40 text-muted-foreground',
                     )}
                   >
-                    {section.status}
+                    {sectionStatusLabel(section.status)}
                   </span>
                 </div>
                 <ul className="mt-2 space-y-1.5">
                   {section.items.slice(0, 8).map((item) => (
                     <li key={`${section.key}-${item.label}-${item.sourceId}`} className="text-xs leading-relaxed">
                       <span className="font-semibold">{item.label}：</span>
-                      <span className="text-muted-foreground">{item.detail}</span>
+                      <span className="text-muted-foreground">{displayEngineText(item.detail)}</span>
                       {item.sourceId && (
-                        <span className="ml-1 font-mono text-[10px] text-muted-foreground/70">
-                          [{item.sourceId}]
+                        <span className="ml-1 text-[10px] text-muted-foreground/70" title={item.sourceId}>
+                          [后端证据链]
                         </span>
                       )}
                     </li>
@@ -326,11 +326,11 @@ export function TokenDossier({
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold">{e.label}</div>
                     <div className="text-xs leading-relaxed text-muted-foreground">
-                      {e.detail}
+                      {displayEngineText(e.detail)}
                     </div>
                     {e.sourceId && (
-                      <div className="mt-1 font-mono text-[10px] text-muted-foreground/70">
-                        source: {e.sourceId}
+                      <div className="mt-1 text-[10px] text-muted-foreground/70" title={e.sourceId}>
+                        来源：后端证据链
                       </div>
                     )}
                     {/* 权重占比条：入场增长 */}
@@ -361,11 +361,11 @@ export function TokenDossier({
                 <div>
                   <div className="text-xs font-semibold text-down">{c.label}</div>
                   <div className="text-xs leading-relaxed text-muted-foreground">
-                    {c.detail}
+                    {displayEngineText(c.detail)}
                   </div>
                   {c.sourceId && (
-                    <div className="mt-1 font-mono text-[10px] text-muted-foreground/70">
-                      source: {c.sourceId}
+                    <div className="mt-1 text-[10px] text-muted-foreground/70" title={c.sourceId}>
+                      来源：后端证据链
                     </div>
                   )}
                 </div>
@@ -375,18 +375,18 @@ export function TokenDossier({
         </div>
       </div>
 
-      {/* Risk Gate */}
+      {/* 风控门禁 */}
       <div className="border-b border-border px-6 py-5">
         <div className="flex items-center gap-2">
           {d.riskGate.allowTradePlan ? (
             <span className="inline-flex items-center gap-1.5 bg-up/15 px-2 py-1 text-xs font-semibold text-up">
               <Check className="size-3.5" />
-              风控放行 · 允许生成交易计划
+              风控门禁放行 · 允许生成交易计划
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 bg-down/15 px-2 py-1 text-xs font-semibold text-down">
               <Lock className="size-3.5" />
-              风控拦截 · 不可交易
+              风控门禁拦截 · 不可交易
             </span>
           )}
         </div>
@@ -398,7 +398,7 @@ export function TokenDossier({
                 className="flex items-center gap-2 text-xs text-muted-foreground"
               >
                 <X className="size-3.5 text-down" />
-                {r}
+                {displayEngineText(r)}
               </li>
             ))}
           </ul>
@@ -414,7 +414,7 @@ export function TokenDossier({
         {d.tradePlan ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <PlanCell index={0} label="方向" value={d.tradePlan.bias} />
-            <PlanCell index={1} label="盈亏比 RR" value={d.tradePlan.rr.toFixed(1)} highlight />
+            <PlanCell index={1} label="结构盈亏比" value={`${d.tradePlan.rr.toFixed(1)}:1`} highlight />
             <PlanCell index={2} label="是否允许追单" value={d.tradePlan.allowChase ? '允许' : '禁止'} />
             <PlanCell index={3} label="入场条件" value={d.tradePlan.entryCondition} wide />
             <PlanCell index={4} label="止损" value={d.tradePlan.stop} />
@@ -468,6 +468,27 @@ function phaseLabel(value: TokenDossierData['discovery']['opportunityPhase']) {
   return '等待'
 }
 
+function displayEngineText(value: string) {
+  const replacements: Array<[RegExp, string]> = [
+    [/\bRR\b/g, '结构盈亏比'],
+    [/Risk Gate/g, '风控门禁'],
+    [/Evidence/g, '证据融合'],
+    [/TradePlan/g, '交易计划'],
+    [/tradePlan/g, '交易计划'],
+    [/CVD proxy/g, '主动买卖代理'],
+    [/\bCVD\b/g, '主动买卖'],
+    [/REVIEW_ONLY/g, '只复盘'],
+    [/WAIT_PULLBACK/g, '等待回踩'],
+    [/WAIT_RETEST/g, '等待反抽'],
+    [/WATCH_ONLY/g, '仅观察'],
+    [/READY_LONG/g, '多头计划就绪'],
+    [/READY_SHORT/g, '空头计划就绪'],
+    [/BLOCKED/g, '已拦截'],
+  ]
+
+  return replacements.reduce((text, [pattern, next]) => text.replace(pattern, next), value)
+}
+
 function pressureLabel(value: TokenDossierData['discovery']['pressureSide']) {
   if (value === 'buy') return '主动买压'
   if (value === 'sell') return '主动卖压'
@@ -501,6 +522,28 @@ function positionQualityLabel(value: TokenDossierData['strategyReadiness']['exec
   if (value === 'waiting') return '等待更好位置'
   if (value === 'late') return '已晚到'
   return '未知'
+}
+
+function strategyStatusLabel(value: TokenDossierData['strategyReadiness']['status']) {
+  if (value === 'ready') return '计划就绪'
+  if (value === 'watch') return '观察中'
+  if (value === 'review_only') return '只复盘'
+  return '被拦截'
+}
+
+function sectionStatusLabel(value: TokenDossierData['reportSections'][number]['status']) {
+  if (value === 'ready') return '完整'
+  if (value === 'partial') return '部分'
+  if (value === 'blocked') return '拦截'
+  return '暂无'
+}
+
+function positionLensStatusLabel(value: TokenDossierData['strategyReadiness']['positionLensStatus']) {
+  if (value === 'ready') return '已可换算'
+  if (value === 'waiting_leverage') return '等待杠杆信息'
+  if (value === 'waiting_equity') return '等待资金信息'
+  if (value === 'waiting_price') return '等待价格信息'
+  return '不适用'
 }
 
 function DiscoveryCell({

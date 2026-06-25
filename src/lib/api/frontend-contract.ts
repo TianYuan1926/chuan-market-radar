@@ -31,6 +31,7 @@ import {
 import type { BackendContract } from "./backend-contract";
 import type { BusinessCapabilityStage } from "./business-capability";
 import type { CoreChainGovernanceReport } from "./core-chain-governance";
+import type { DailyMoverReadArchiveSuccess } from "./daily-mover-readonly";
 import type { KlineOverlay } from "../chart-types";
 
 export type DataStatus =
@@ -132,6 +133,8 @@ export type RadarSignal = {
   hue: number;
   direction: "多" | "空" | "观察";
   maturity: SignalMaturity;
+  lifecycle: SignalLifecycleRead;
+  operatorRead: SignalOperatorRead;
   rr: number | null;
   risk: "低" | "中" | "高" | "极高";
   evidenceCount: number;
@@ -141,6 +144,29 @@ export type RadarSignal = {
   whyBlocked: string | null;
   updatedMinAgo: number;
   discovery?: DiscoveryFact | null;
+};
+
+export type SignalLifecycleRead = {
+  firstSeenAt: string | null;
+  lastUpdatedAt: string | null;
+  ageMin: number;
+  ageLabel: string;
+  freshnessLabel: "刚出现" | "近期有效" | "旧信号" | "已过期";
+  status: "new" | "active" | "stale" | "expired";
+  source: "current_signal_timestamp" | "light_scan_snapshot" | "leaderboard_candidate";
+  summary: string;
+};
+
+export type SignalOperatorLane = "sniper" | "watch" | "validate" | "blocked" | "review";
+
+export type SignalOperatorRead = {
+  lane: SignalOperatorLane;
+  laneLabel: "狙击榜" | "重点观察" | "验证中" | "不看" | "只复盘";
+  worthWatching: boolean;
+  canTrade: boolean;
+  headline: string;
+  nextAction: string;
+  noTradeReason: string | null;
 };
 
 export type OpportunityQualityCandidate = {
@@ -667,6 +693,20 @@ export type AiReviewStats = {
   unboundFallbackProtected: boolean;
 };
 
+export type DailyMoverReviewState = {
+  schemaVersion: "daily-mover-review-status.v1";
+  status: "empty" | "collecting" | "usable";
+  snapshotCount: number;
+  selectedDetailCount: number;
+  missedReviewCount: number;
+  calibrationSuggestionCount: number;
+  latestSnapshotId: string | null;
+  latestObservedAt: string | null;
+  summary: string;
+  nextAction: string;
+  guardrails: string[];
+};
+
 export type ReviewContract = {
   signalLifecycles: Resource<SignalLifecycle[]>;
   strategyArchetypes: Resource<StrategyArchetype[]>;
@@ -675,6 +715,7 @@ export type ReviewContract = {
   reviewStats: Resource<ReviewStatsData>;
   discoveryReview: Resource<DiscoveryReviewState>;
   opportunityCalibration: Resource<OpportunityCalibrationState>;
+  dailyMoverReview: Resource<DailyMoverReviewState>;
   aiReviewStats: Resource<AiReviewStats>;
 };
 
@@ -1078,6 +1119,128 @@ function diffMinutes(from: string | null | undefined, now: Date) {
   return seconds === undefined ? 0 : Math.round(seconds / 60);
 }
 
+function ageLabel(ageMin: number) {
+  if (ageMin < 1) return "刚刚";
+  if (ageMin < 60) return `${ageMin} 分钟前`;
+  const hours = Math.floor(ageMin / 60);
+  const minutes = ageMin % 60;
+  if (hours < 24) return minutes === 0 ? `${hours} 小时前` : `${hours} 小时 ${minutes} 分前`;
+  const days = Math.floor(hours / 24);
+  return `${days} 天前`;
+}
+
+function lifecycleRead({
+  at,
+  now,
+  source,
+}: {
+  at: string | null | undefined;
+  now: Date;
+  source: SignalLifecycleRead["source"];
+}): SignalLifecycleRead {
+  const ageMin = diffMinutes(at, now);
+  const status: SignalLifecycleRead["status"] = ageMin <= 15
+    ? "new"
+    : ageMin <= 60
+      ? "active"
+      : ageMin <= 240
+        ? "stale"
+        : "expired";
+  const freshnessLabel: SignalLifecycleRead["freshnessLabel"] = status === "new"
+    ? "刚出现"
+    : status === "active"
+      ? "近期有效"
+      : status === "stale"
+        ? "旧信号"
+        : "已过期";
+
+  return {
+    firstSeenAt: at ?? null,
+    lastUpdatedAt: at ?? null,
+    ageMin,
+    ageLabel: ageLabel(ageMin),
+    freshnessLabel,
+    status,
+    source,
+    summary: `当前只基于${source === "light_scan_snapshot" ? "轻扫快照时间" : source === "leaderboard_candidate" ? "榜单快照时间" : "后端信号更新时间"}判断新旧：${freshnessLabel}，${ageLabel(ageMin)}。`,
+  };
+}
+
+function operatorReadForSignal({
+  blockedReasons,
+  discovery,
+  maturity,
+  rr,
+}: {
+  blockedReasons: string[];
+  discovery?: DiscoveryFact | null;
+  maturity: SignalMaturity;
+  rr: number | null;
+}): SignalOperatorRead {
+  if (maturity === "TRADE_PLAN_READY" && rr !== null && rr >= 3 && blockedReasons.length === 0) {
+    return {
+      lane: "sniper",
+      laneLabel: "狙击榜",
+      worthWatching: true,
+      canTrade: true,
+      headline: "交易计划就绪",
+      nextAction: "进入单币档案，人工复核入场、止损、目标和失效条件。",
+      noTradeReason: null,
+    };
+  }
+
+  if (maturity === "EVIDENCE_SIGNAL") {
+    return {
+      lane: "watch",
+      laneLabel: "重点观察",
+      worthWatching: true,
+      canTrade: false,
+      headline: "已有证据，但还不能直接做",
+      nextAction: "等待结构确认、结构盈亏比和风控门禁全部通过。",
+      noTradeReason: blockedReasons[0] ?? "尚未形成完整交易计划。",
+    };
+  }
+
+  if (maturity === "DEEP_SCAN_CANDIDATE" || maturity === "LIGHT_SCAN_MARK") {
+    const phase = discovery?.opportunityPhase === "early_setup"
+      ? "启动前候选"
+      : discovery?.opportunityPhase === "breakout_watch"
+        ? "突破观察候选"
+        : "等待验证候选";
+    return {
+      lane: "validate",
+      laneLabel: "验证中",
+      worthWatching: discovery?.opportunityPhase === "early_setup" || discovery?.opportunityPhase === "breakout_watch",
+      canTrade: false,
+      headline: phase,
+      nextAction: "等待深扫、盘面结构和证据融合，不允许当作交易信号。",
+      noTradeReason: "候选层只说明有异动，未完成交易计划条件。",
+    };
+  }
+
+  if (maturity === "REVIEW_ONLY") {
+    return {
+      lane: "review",
+      laneLabel: "只复盘",
+      worthWatching: false,
+      canTrade: false,
+      headline: "行情已经偏晚，只做复盘",
+      nextAction: "回看启动前窗口，研究系统是否提前看到，不追涨追跌。",
+      noTradeReason: blockedReasons[0] ?? "位置已经失去优势。",
+    };
+  }
+
+  return {
+    lane: "blocked",
+    laneLabel: "不看",
+    worthWatching: false,
+    canTrade: false,
+    headline: maturity === "INVALIDATED" ? "结构失效" : maturity === "COOLDOWN" ? "冷却观察" : "被风控拦截",
+    nextAction: "等待新的结构和证据重新进入候选。",
+    noTradeReason: blockedReasons[0] ?? "风控门禁、结构盈亏比、结构或数据完整性未通过。",
+  };
+}
+
 function timeLabel(value: string | null | undefined) {
   if (!value) {
     return "等待数据";
@@ -1178,10 +1341,10 @@ function riskCn(risk: RiskGrade | undefined): RadarSignal["risk"] {
 function lifecycleStatusReason(signal: MarketSignal) {
   const reasons: string[] = [];
   if (signal.risk === "blocked" || signal.strategy.status === "blocked") {
-    reasons.push("Risk Gate 拦截");
+    reasons.push("风控门禁拦截");
   }
   if (signal.strategy.riskReward > 0 && signal.strategy.riskReward < 3) {
-    reasons.push(`RR ${round(signal.strategy.riskReward, 2)} 低于最低 3:1 门槛`);
+    reasons.push(`结构盈亏比 ${round(signal.strategy.riskReward, 2)}:1 低于最低 3:1 门槛`);
   }
   if (signal.timeframeGate && !signal.timeframeGate.allowed) {
     reasons.push(signal.timeframeGate.summary || "高周期门控未通过");
@@ -1268,6 +1431,16 @@ function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, n
     hue: symbolHue(signal.symbol),
     direction: directionCn(signal.direction),
     maturity,
+    lifecycle: lifecycleRead({
+      at: signal.updatedAt,
+      now,
+      source: "current_signal_timestamp",
+    }),
+    operatorRead: operatorReadForSignal({
+      blockedReasons: blockers,
+      maturity,
+      rr,
+    }),
     rr,
     risk: riskCn(signal.risk),
     evidenceCount: supportive.length,
@@ -1317,7 +1490,7 @@ function whyBlockedForLightCandidate(candidate: ScanLightScanCandidate) {
     return "行情已进入晚到/延展风险区，只能作为复盘样本或等待回踩重构，不能当作追单机会。";
   }
 
-  return "仅完成轻扫/候选层验证；等待 CoinGlass/公开衍生品深扫、盘面结构和 Evidence/Risk Gate，不能生成交易计划。";
+  return "仅完成轻扫/候选层验证；等待 CoinGlass/公开衍生品深扫、盘面结构、证据融合和风控门禁，不能生成交易计划。";
 }
 
 function buildLightCandidateRadarSignal({
@@ -1333,20 +1506,33 @@ function buildLightCandidateRadarSignal({
 }): RadarSignal {
   const symbol = displaySymbol(candidate.symbol);
   const discovery = discoveryFactFromCandidate(candidate);
+  const maturity = maturityForLightCandidate(candidate);
+  const blocker = whyBlockedForLightCandidate(candidate);
 
   return {
     id: `light:${candidate.symbol}`,
     symbol,
     hue: symbolHue(candidate.symbol),
     direction: "观察",
-    maturity: maturityForLightCandidate(candidate),
+    maturity,
+    lifecycle: lifecycleRead({
+      at: scanGeneratedAt,
+      now,
+      source: "light_scan_snapshot",
+    }),
+    operatorRead: operatorReadForSignal({
+      blockedReasons: [blocker],
+      discovery,
+      maturity,
+      rr: null,
+    }),
     rr: null,
     risk: riskForLightCandidate(candidate),
     evidenceCount: candidate.reasons.length,
     counterCount: 0,
     freshness,
     whySelected: whySelectedForLightCandidate(candidate),
-    whyBlocked: whyBlockedForLightCandidate(candidate),
+    whyBlocked: blocker,
     updatedMinAgo: diffMinutes(scanGeneratedAt, now),
     discovery,
   };
@@ -1591,7 +1777,7 @@ function emptyDiscoveryFact(symbol: string): DiscoveryFact {
     sellPressureUsd: null,
     source: "not_in_light_scan_top_candidates",
     state: null,
-    summary: `${display} 未进入当前轻扫 Top 候选；如有成熟信号，以证据链和 Risk Gate 为准。`,
+    summary: `${display} 未进入当前轻扫 Top 候选；如有成熟信号，以证据链和风控门禁为准。`,
     symbol: display,
     volume24hUsd: null,
     volumeWindowUsd: null,
@@ -1676,24 +1862,24 @@ function buildLightScanQuality({
     },
     {
       detail: zScoreCandidates.length > 0
-        ? `${zScoreCandidates.length} 个候选带有 volume z-score 异常。`
-        : "当前未出现 volume z-score 异常；这不是故障，只代表没有秒级放量候选。",
+        ? `${zScoreCandidates.length} 个候选带有成交量标准差异常。`
+        : "当前未出现成交量标准差异常；这不是故障，只代表没有秒级放量候选。",
       evidence: [`zScoreCandidates=${zScoreCandidates.length}`, `candidateCount=${lightScan.candidateCount}`],
       key: "volume_zscore",
-      label: "成交量 z-score",
+      label: "成交量异常分",
       status: zScoreCandidates.length > 0 ? "pass" : "watch",
     },
     {
       detail: cvdProxyCandidates.length > 0
-        ? `${cvdProxyCandidates.length} 个候选带有主动买卖/CVD proxy；优先使用 public taker trade，缺失时回退到 rolling price/volume。`
-        : "当前没有候选携带主动买卖/CVD proxy 样本；这只能说明当前候选来自非秒级或尚无足够窗口样本。",
+        ? `${cvdProxyCandidates.length} 个候选带有主动买卖代理；优先使用公开主动成交，缺失时回退到滚动价格/成交量。`
+        : "当前没有候选携带主动买卖代理样本；这只能说明当前候选来自非秒级或尚无足够窗口样本。",
       evidence: [
         `cvdProxyCandidates=${cvdProxyCandidates.length}`,
         `buyPressureCandidates=${buyPressureCandidates.length}`,
         `sellPressureCandidates=${sellPressureCandidates.length}`,
       ],
       key: "cvd_proxy_quality",
-      label: "主动买卖/CVD proxy",
+      label: "主动买卖代理",
       status: cvdProxyCandidates.length > 0 ? "pass" : "watch",
     },
     {
@@ -1741,7 +1927,7 @@ function buildLightScanQuality({
     generatedAt: lightScan.generatedAt ?? now.toISOString(),
     guardrails: [
       "轻扫质量只解释发现层可靠性，不能生成交易计划。",
-      "rolling-window、z-score、盘口/成交异常只能推高候选优先级，必须等待深扫、结构和 Risk Gate。",
+      "滚动窗口、量能异常、盘口/成交异常只能推高候选优先级，必须等待深扫、结构和风控门禁。",
       "WebSocket 缺失时必须显示 watch/partial，不能用动画或缓存冒充秒级在线。",
     ],
     schemaVersion: "light-scan-quality.v1",
@@ -1800,7 +1986,7 @@ function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadar
         cadenceLabel: "秒级",
         status: websocketStatus,
         source: "Binance/OKX/Bybit public WebSocket + Redis sliding window",
-        metrics: ["价格跳动", "成交量窗口", "15m volume z-score", "候选突变"],
+        metrics: ["价格跳动", "成交量窗口", "15分钟成交量异常分", "候选突变"],
         allowedUse: "anomaly_discovery",
         canCreateTradeSignal: false,
         guardrail: "只负责发现异常和候选入池，不允许直接输出买卖方向。",
@@ -1842,7 +2028,7 @@ function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadar
         metrics: ["1m/5m/15m K线", "短周期结构", "波动率压缩", "关键位验证"],
         allowedUse: "validation",
         canCreateTradeSignal: false,
-        guardrail: "K 线结构必须进入 Evidence/Risk Gate；低周期不能推翻高周期。",
+        guardrail: "K 线结构必须进入证据融合和风控门禁；低周期不能推翻高周期。",
         note: scannerWorker?.detail ?? "等待 scanner-worker 心跳。",
       },
       {
@@ -1878,7 +2064,7 @@ function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadar
         cadenceLabel: "小时/日级",
         status: backend.analysis.reviewStatistics.sampleStatus === "empty" ? "empty" : "partial",
         source: "journal/outcome/review statistics",
-        metrics: ["MFE/MAE", "TP first", "SL first", "timeout", "漏判归因"],
+        metrics: ["最大浮盈/最大回撤", "先到目标", "先到止损", "超时", "漏判归因"],
         allowedUse: "review",
         canCreateTradeSignal: false,
         guardrail: "复盘只能提出人工校准建议，不能自动修改实时权重。",
@@ -1894,14 +2080,14 @@ function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadar
         metrics: ["反证", "逻辑漏洞", "中文解释", "复盘归因"],
         allowedUse: "review",
         canCreateTradeSignal: false,
-        guardrail: "AI 只审查成熟候选，不能替代规则引擎或绕过 RR/Risk Gate。",
+        guardrail: "AI 只审查成熟候选，不能替代规则引擎或绕过结构盈亏比/风控门禁。",
         note: signalWorker?.detail ?? "等待 signal-worker 心跳。",
       },
     ],
     boundaries: [
       "秒级数据只负责发现异常，不生成交易计划。",
       "CoinGlass、宏观、外部情报、AI、复盘不做秒级包装。",
-      "交易计划必须经过结构、证据、RR、Risk Gate 和失效条件。",
+      "交易计划必须经过结构、证据、结构盈亏比、风控门禁和失效条件。",
       "前端实时感必须来自真实 stream、heartbeat 或数据新鲜度，不允许用假动画冒充。",
     ],
   };
@@ -2064,9 +2250,9 @@ function buildFundFlowState(snapshot: MarketRadarSnapshot): FundFlowState {
       ...(hasDerivativeContext ? ["open_interest", "funding_rate"] : []),
       ...(hasLongShort ? ["long_short_ratio"] : []),
     ],
-    decisionBoundary: "资金流仅能作为市场上下文和风险提示；未接真实 taker/CVD 前，不能生成或放大交易信号。",
+    decisionBoundary: "资金流仅能作为市场上下文和风险提示；未接真实主动买卖数据前，不能生成或放大交易信号。",
     detail: hasDerivativeContext
-      ? "已接 OI、Funding、Long/Short 等衍生品上下文；轻扫发现层可展示 public trade/CVD proxy，但它不是交易所原生资金流证据。"
+      ? "已接 OI、Funding、多空比等衍生品上下文；轻扫发现层可展示公开成交主动买卖代理，但它不是交易所原生资金流证据。"
       : "当前没有可用衍生品上下文，资金流只能显示等待数据源。",
     source: hasDerivativeContext ? "coinglass_derivatives" : "not_connected",
     status: hasDerivativeContext ? "partial" : "waiting_source",
@@ -2125,16 +2311,16 @@ function nextActionForOpportunity(signal: RadarSignal) {
     return "可进入人工复核；仍不得自动下单。";
   }
   if (signal.maturity === "EVIDENCE_SIGNAL") {
-    return signal.whyBlocked ?? "继续等待 Risk Gate、RR、关键位和触发条件完整。";
+    return signal.whyBlocked ?? "继续等待风控门禁、结构盈亏比、关键位和触发条件完整。";
   }
   if (signal.maturity === "DEEP_SCAN_CANDIDATE") {
-    return "等待 CoinGlass/公开衍生品深扫、结构和 Risk Gate。";
+    return "等待 CoinGlass/公开衍生品深扫、结构和风控门禁。";
   }
   if (signal.maturity === "REVIEW_ONLY") {
     return "只进复盘或等待回踩/反抽重构，不追。";
   }
   if (signal.maturity === "BLOCKED") {
-    return signal.whyBlocked ?? "被 Risk Gate 拦截，等待阻断原因解除。";
+    return signal.whyBlocked ?? "被风控门禁拦截，等待阻断原因解除。";
   }
   return signal.whyBlocked ?? "继续观察，不生成交易计划。";
 }
@@ -2190,7 +2376,7 @@ function buildOpportunityQuality(visibleSignals: RadarSignal[]): OpportunityQual
       blockedLateSignals,
       guardrails: [
         "已经大涨看多、已经大跌看空默认不是机会，优先等待回踩/反抽或进入复盘。",
-        "轻扫、榜单和 CVD proxy 只能提升候选优先级，不能直接生成交易计划。",
+        "轻扫、榜单和主动买卖代理只能提升候选优先级，不能直接生成交易计划。",
         "狙击榜只允许 TRADE_PLAN_READY；候选不能补位。",
       ],
     },
@@ -2284,8 +2470,8 @@ function buildMacroReadiness(backend: BackendContract, macro: MacroAltEnv): Macr
     availableFields,
     missingFields,
     guardrails: [
-      "BTC.D/TOTAL2/TOTAL3 只判断山寨顺风逆风，不降低 3:1 RR。",
-      "宏观顺风不等于个币可交易；仍要过结构、证据和 Risk Gate。",
+      "BTC.D/TOTAL2/TOTAL3 只判断山寨顺风逆风，不降低 3:1 结构盈亏比。",
+      "宏观顺风不等于个币可交易；仍要过结构、证据和风控门禁。",
       "宏观缺失必须显示 partial/unavailable。",
     ],
   };
@@ -2533,7 +2719,7 @@ export function buildFrontendRadarContract({
         reason: liveSignals.length > 0
           ? undefined
           : candidateSignals.length > 0
-            ? "当前无 Evidence/TradePlan 信号；展示轻扫候选作为验证中队列，不生成交易计划。"
+            ? "当前无证据融合/交易计划信号；展示轻扫候选作为验证中队列，不生成交易计划。"
             : undefined,
       },
     ),
@@ -2552,7 +2738,7 @@ export function buildFrontendRadarContract({
         ageSec,
         source: "coinglass",
         reason: snapshot.derivatives.length > 0
-          ? "OI/Funding/多空比已接入；主动成交/CVD proxy 在轻扫发现层展示，不能冒充交易所原生资金流。"
+          ? "OI/Funding/多空比已接入；主动买卖代理在轻扫发现层展示，不能冒充交易所原生资金流。"
           : "当前快照未包含衍生品明细。",
       },
     ),
@@ -2562,7 +2748,7 @@ export function buildFrontendRadarContract({
       {
         ageSec,
         source: "coinglass",
-        reason: "资金流只能展示已接真实字段；light-scan CVD proxy 只能用于发现层，不等于原生资金流。",
+        reason: "资金流只能展示已接真实字段；轻扫主动买卖代理只能用于发现层，不等于原生资金流。",
       },
     ),
     scanStability: resource(
@@ -2607,7 +2793,7 @@ export function buildFrontendRadarContract({
       {
         ageSec,
         source: "signal-maturity+light-scan",
-        reason: "机会质量只判断提前性、成熟度和追涨追跌拦截；不能绕过 Evidence、RR 或 Risk Gate。",
+        reason: "机会质量只判断提前性、成熟度和追涨追跌拦截；不能绕过证据融合、结构盈亏比或风控门禁。",
       },
     ),
     deepScanQuality: resource(
@@ -3160,7 +3346,7 @@ function v3TradePlanBlockers(plan: StrategyV3TradePlan | undefined) {
 
   return [
     ...plan.blockedBy,
-    plan.rewardRisk !== null && plan.rewardRisk < 3 ? `RR ${round(plan.rewardRisk, 2)} 低于最低 3:1 门槛` : null,
+    plan.rewardRisk !== null && plan.rewardRisk < 3 ? `结构盈亏比 ${round(plan.rewardRisk, 2)}:1 低于最低 3:1 门槛` : null,
     plan.status === "WAIT_PULLBACK" ? "等待回踩确认" : null,
     plan.status === "WAIT_RETEST" ? "等待反抽确认" : null,
     plan.status === "WATCH_ONLY" ? "只观察，不生成交易计划" : null,
@@ -3203,7 +3389,103 @@ function zoneText(zoneLow: number, zoneHigh: number) {
 
 function keyLevelLabel(level: KeyLevel) {
   const direction = level.direction === "SUPPORT" ? "支撑" : level.direction === "RESISTANCE" ? "压力" : "双向位";
-  return `${level.timeframe} ${direction} · ${level.type}`;
+  return `${level.timeframe} ${direction} · ${keyLevelTypeLabel(level.type)}`;
+}
+
+function keyLevelTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    DYNAMIC_LEVEL: "动态均线/趋势位",
+    PSYCHOLOGICAL: "整数心理位",
+    RANGE_HIGH: "箱体上沿",
+    RANGE_LOW: "箱体下沿",
+    ROLE_FLIP: "支撑压力互换位",
+    STATE_CHANGE: "结构切换位",
+    SWING_HIGH: "前高",
+    SWING_LOW: "前低",
+    VOLUME_NODE: "成交密集位",
+  };
+  return labels[type] ?? engineText(type);
+}
+
+function levelStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    AHEAD: "尚未到达",
+    ARRIVED: "已到关键区",
+    BROKEN: "已跌破/突破失守",
+    CONFIRMED: "已确认",
+    INVALIDATED: "已失效",
+    POTENTIAL: "潜在关键位",
+    REACTION: "正在反应",
+    REACTION_STARTED: "反应开始",
+    RECLAIMED: "重新收回",
+    WEAKENING: "正在减弱",
+  };
+  return labels[status] ?? engineText(status);
+}
+
+function forwardRoleBusinessLabel(role: string) {
+  const labels: Record<string, string> = {
+    CURRENT_DEFENSE: "当前防守位",
+    FIRST_REBOUND_RESISTANCE: "第一反弹压力",
+    INVALIDATION_LEVEL: "失效位",
+    NEXT_REACTION_ZONE: "下一反应区",
+    SECOND_REBOUND_RESISTANCE: "第二反弹压力",
+    TREND_CHANGE_LEVEL: "趋势切换位",
+  };
+  return labels[role] ?? engineText(role);
+}
+
+function reactionStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    CONFIRMED: "反应确认",
+    FAILED: "反应失败",
+    NO_REACTION: "暂无反应",
+    REACTION_STARTED: "反应开始",
+    TOO_FAR_FROM_LEVEL: "离关键位太远",
+  };
+  return labels[status] ?? engineText(status);
+}
+
+function trendIntegrityStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    DAMAGED_TREND: "趋势受损",
+    EXHAUSTION_RISK: "衰竭风险",
+    HEALTHY_TREND: "趋势健康",
+    INSUFFICIENT_DATA: "数据不足",
+    RANGE_BOUND: "区间震荡",
+  };
+  return labels[status] ?? engineText(status);
+}
+
+function engineText(value: string | null | undefined) {
+  if (!value) {
+    return "等待定义";
+  }
+  const labels: Record<string, string> = {
+    bear_structure_broken: "空头结构被破坏",
+    bull_structure_broken: "多头结构被破坏",
+    chase_risk: "追涨/追空风险",
+    lower_wick_exhaustion: "下影线衰竭风险",
+    low_alignment: "多周期共振不足",
+    neutral_direction: "方向中性",
+    no_nearest_target: "缺少最近目标位",
+    no_recent_touch: "近期没有触碰关键位",
+    no_relevant_level: "缺少相关关键位",
+    no_structural_stop: "缺少结构止损",
+    resistance_reclaimed: "压力位被重新收回",
+    reward_risk_below_minimum: "结构盈亏比不足",
+    stop_distance_too_wide: "止损距离过宽",
+    support_lost: "支撑位失守",
+    upper_wick_exhaustion: "上影线衰竭风险",
+  };
+  return labels[value] ?? value.replace(/_/g, " ").toLowerCase();
+}
+
+function engineList(values: string[] | undefined) {
+  if (!values || values.length === 0) {
+    return "无";
+  }
+  return values.map(engineText).join(" / ");
 }
 
 function keyLevelReportItems(dossier: SignalBackendDossier): AnalysisReportSection["items"] {
@@ -3221,7 +3503,7 @@ function keyLevelReportItems(dossier: SignalBackendDossier): AnalysisReportSecti
     .slice(0, 4);
 
   return levels.map(({ level }, index) => ({
-    detail: `${zoneText(level.zoneLow, level.zoneHigh)}；状态 ${level.status}；关键分 ${level.keyScore}，共振 ${level.confluenceScore}；确认：${level.confirmationRules.join(" / ") || "等待确认"}；失效：${level.invalidationRule}`,
+      detail: `${zoneText(level.zoneLow, level.zoneHigh)}；状态 ${levelStatusLabel(level.status)}；关键分 ${level.keyScore}，共振 ${level.confluenceScore}；确认：${engineList(level.confirmationRules)}；失效：${engineText(level.invalidationRule)}`,
     label: keyLevelLabel(level),
     sourceId: `v3:key-level:${level.id || index + 1}`,
   }));
@@ -3229,14 +3511,14 @@ function keyLevelReportItems(dossier: SignalBackendDossier): AnalysisReportSecti
 
 function forwardRoleLabel(level: ForwardLevel) {
   const side = level.side === "SUPPORT" ? "支撑" : "压力";
-  return `${side} · ${level.role}`;
+  return `${side} · ${forwardRoleBusinessLabel(level.role)}`;
 }
 
 function forwardLevelReportItems(dossier: SignalBackendDossier): AnalysisReportSection["items"] {
   return (dossier.strategyV3?.forwardLevels ?? [])
     .slice(0, 4)
     .map((level, index) => ({
-      detail: `${zoneText(level.zoneLow, level.zoneHigh)}；状态 ${level.status}；权重 ${level.timeframeWeight}，关键分 ${level.keyScore}；原因：${level.reasons.join(" / ") || "等待后续反应"}；失效：${level.invalidationRules.join(" / ") || "等待定义"}`,
+      detail: `${zoneText(level.zoneLow, level.zoneHigh)}；状态 ${levelStatusLabel(level.status)}；权重 ${level.timeframeWeight}，关键分 ${level.keyScore}；原因：${engineList(level.reasons)}；失效：${engineList(level.invalidationRules)}`,
       label: forwardRoleLabel(level),
       sourceId: `v3:forward-level:${level.id || index + 1}`,
     }));
@@ -3245,7 +3527,7 @@ function forwardLevelReportItems(dossier: SignalBackendDossier): AnalysisReportS
 function timeframeGateReportItems(signal: SignalBackendDossier["signal"]): AnalysisReportSection["items"] {
   if (!signal?.timeframeGate) {
     return [{
-      detail: "当前信号没有触发多周期硬门控；仍需以后端风险门控和 RR 为准。",
+      detail: "当前信号没有触发多周期硬门控；仍需以后端风险门控和结构盈亏比为准。",
       label: "多周期门控",
       sourceId: "timeframe-gate:allow",
     }];
@@ -3254,7 +3536,7 @@ function timeframeGateReportItems(signal: SignalBackendDossier["signal"]): Analy
   const gate = signal.timeframeGate;
 
   return [{
-    detail: `${gate.summary}；动作 ${gate.action}；阻断：${gate.blockedBy.join(" / ") || "无"}；${gate.guardrail}`,
+    detail: `${gate.summary}；动作 ${engineText(gate.action)}；阻断：${engineList(gate.blockedBy)}；${gate.guardrail}`,
     label: gate.allowed ? "多周期门控放行" : "多周期门控拦截",
     sourceId: "timeframe-gate:summary",
   }];
@@ -3269,12 +3551,12 @@ function trendContextReportItems(dossier: SignalBackendDossier): AnalysisReportS
 
   const items: AnalysisReportSection["items"] = [
     {
-      detail: `${context.summary}；状态 ${context.state}；决策 ${context.decision}；下一步：${context.nextStep}`,
+      detail: `${context.summary}；阶段：${trendStateLabel(context.state)}；当前处理：${trendDecisionLabel(context.decision)}；下一步：${context.nextStep}`,
       label: "趋势状态机",
       sourceId: "v3:trend-context:state",
     },
     {
-      detail: `PreLong ${context.scores.longPreTrendScore} / EnergyLong ${context.scores.longTrendEnergyScore} / Risk ${context.scores.riskScore} / Hold ${context.scores.trendHoldScore} / Exhaustion ${context.scores.exhaustionScore}`,
+      detail: `多头启动前 ${context.scores.longPreTrendScore}；空头启动前 ${context.scores.shortPreTrendScore}；多头能量 ${context.scores.longTrendEnergyScore}；空头能量 ${context.scores.shortTrendEnergyScore}；风险 ${context.scores.riskScore}；趋势保持 ${context.scores.trendHoldScore}；衰竭 ${context.scores.exhaustionScore}`,
       label: "趋势评分",
       sourceId: "v3:trend-context:scores",
     },
@@ -3282,7 +3564,7 @@ function trendContextReportItems(dossier: SignalBackendDossier): AnalysisReportS
 
   if (context.locationRiskReward) {
     items.push({
-      detail: `${context.locationRiskReward.summary}；RR ${context.locationRiskReward.rewardRisk ?? "等待"}；结构止损 ${priceText(context.locationRiskReward.structuralStop)}；最近目标 ${priceText(context.locationRiskReward.nearestTarget)}`,
+      detail: `${context.locationRiskReward.summary}；结构盈亏比 ${context.locationRiskReward.rewardRisk ?? "等待"}；结构止损 ${priceText(context.locationRiskReward.structuralStop)}；最近目标 ${priceText(context.locationRiskReward.nearestTarget)}`,
       label: "位置与赔率",
       sourceId: "v3:location-rr",
     });
@@ -3290,7 +3572,7 @@ function trendContextReportItems(dossier: SignalBackendDossier): AnalysisReportS
 
   if (context.reactionQuality) {
     items.push({
-      detail: `${context.reactionQuality.summary}；状态 ${context.reactionQuality.status}；质量分 ${context.reactionQuality.qualityScore}；风险 ${context.reactionQuality.riskFlags.join(" / ") || "无"}`,
+      detail: `${context.reactionQuality.summary}；状态 ${reactionStatusLabel(context.reactionQuality.status)}；质量分 ${context.reactionQuality.qualityScore}；风险 ${engineList(context.reactionQuality.riskFlags)}`,
       label: "回踩/反抽质量",
       sourceId: "v3:reaction-quality",
     });
@@ -3298,7 +3580,7 @@ function trendContextReportItems(dossier: SignalBackendDossier): AnalysisReportS
 
   if (context.trendIntegrity) {
     items.push({
-      detail: `${context.trendIntegrity.summary}；状态 ${context.trendIntegrity.status}；完整度 ${context.trendIntegrity.integrityScore}；风险 ${context.trendIntegrity.riskFlags.join(" / ") || "无"}`,
+      detail: `${context.trendIntegrity.summary}；状态 ${trendIntegrityStatusLabel(context.trendIntegrity.status)}；完整度 ${context.trendIntegrity.integrityScore}；风险 ${engineList(context.trendIntegrity.riskFlags)}`,
       label: "趋势完整度",
       sourceId: "v3:trend-integrity",
     });
@@ -3313,6 +3595,52 @@ function trendContextReportItems(dossier: SignalBackendDossier): AnalysisReportS
   }
 
   return items;
+}
+
+function trendStateLabel(state: string) {
+  const labels: Record<string, string> = {
+    CONFLICT: "多空冲突",
+    INVALIDATED: "结构失效",
+    LONG_BREAKOUT: "多头突破",
+    LONG_EXHAUSTION: "多头衰竭风险",
+    LONG_PULLBACK_CONFIRM: "多头回踩确认",
+    LONG_TREND_ACCELERATION: "多头趋势加速",
+    PRE_TREND_LONG: "多头启动前",
+    PRE_TREND_SHORT: "空头启动前",
+    RANGE_COMPRESSION: "区间压缩",
+    RANGE_IDLE: "区间观察",
+    SHORT_BREAKDOWN: "空头破位",
+    SHORT_EXHAUSTION: "空头衰竭风险",
+    SHORT_RETEST_CONFIRM: "空头反抽确认",
+    SHORT_TREND_ACCELERATION: "空头趋势加速",
+  };
+
+  return labels[state] ?? state;
+}
+
+function trendDecisionLabel(decision: string) {
+  const labels: Record<string, string> = {
+    AVOID_CHASE_LONG: "不追多，等待回踩",
+    AVOID_CHASE_SHORT: "不追空，等待反抽",
+    CONFLICT_WAIT: "冲突等待",
+    INVALIDATED: "失效",
+    LONG_PLAN: "多头计划就绪",
+    NO_TRADE: "不交易",
+    PREPARE_LONG: "准备观察多头",
+    PREPARE_SHORT: "准备观察空头",
+    SHORT_PLAN: "空头计划就绪",
+    TAKE_PROFIT_LONG: "多头止盈管理",
+    TAKE_PROFIT_SHORT: "空头止盈管理",
+    TREND_HOLD_LONG: "多头趋势持有观察",
+    TREND_HOLD_SHORT: "空头趋势持有观察",
+    WAIT_LONG_BREAKOUT: "等待多头突破",
+    WAIT_LONG_PULLBACK: "等待多头回踩",
+    WAIT_SHORT_BREAKDOWN: "等待空头破位",
+    WAIT_SHORT_RETEST: "等待空头反抽",
+    WATCH_ONLY: "仅观察",
+  };
+
+  return labels[decision] ?? decision;
 }
 
 function buildAnalysisReportSections({
@@ -3340,12 +3668,12 @@ function buildAnalysisReportSections({
     ? "后端已生成交易计划；仍必须人工复核，不自动下单。"
     : blockedReasons.length > 0
       ? `当前不能交易：${blockedReasons.slice(0, 3).join("；")}。`
-      : "当前仅能观察，等待结构、证据、RR 和风控同时满足。";
+      : "当前仅能观察，等待结构、证据、结构盈亏比和风控同时满足。";
   const watchReason = signal
     ? signal.summary
     : "后端没有找到该币种的成熟信号；不能因为页面打开了就生成方向。";
   const canTradeNow = tradePlan
-    ? `可以进入人工计划复核；结构 RR=${tradePlan.rr}:1，入场必须满足：${tradePlan.entryCondition}。`
+    ? `可以进入人工计划复核；结构盈亏比 ${tradePlan.rr}:1，入场必须满足：${tradePlan.entryCondition}。`
     : "不能给交易计划；缺失交易计划时，前端不得补入场、止损或目标。";
   const failureMode = [
     ...blockedReasons.slice(0, 2),
@@ -3433,7 +3761,7 @@ function buildAnalysisReportSections({
         ]
         : [
           { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
-          { detail: "未发现阻断交易计划的 Risk Gate 原因。", label: "风控状态", sourceId: "risk-gate:allow" },
+          { detail: "未发现阻断交易计划的风控门禁原因。", label: "风控状态", sourceId: "risk-gate:allow" },
         ],
     },
     {
@@ -3473,7 +3801,7 @@ function buildAnalysisReportSections({
             sourceId: "trade-plan:manual-review",
           },
         ]
-        : [{ detail: "未通过 Risk Gate 或 RR 门槛，前端不得生成入场、止损、目标。", label: "未生成", sourceId: "trade-plan:blocked" }],
+        : [{ detail: "未通过风控门禁或结构盈亏比门槛，前端不得生成入场、止损、目标。", label: "未生成", sourceId: "trade-plan:blocked" }],
     },
     {
       key: "review_boundary",
@@ -3507,11 +3835,11 @@ function buildTokenStrategyReadiness({
       schemaVersion: "token-strategy-readiness.v1",
       status: "ready",
       canTradeNow: true,
-      summary: `交易计划已由后端生成：方向 ${tradePlan.bias}，结构 RR ${tradePlan.rr}:1；仍必须人工复核，不自动下单。`,
+      summary: `交易计划已由后端生成：方向 ${tradePlan.bias}，结构盈亏比 ${tradePlan.rr}:1；仍必须人工复核，不自动下单。`,
       nextAction: `只在满足入场条件时复核：${tradePlan.entryCondition}`,
       missingPieces: [],
       guardrails: [
-        "结构 RR 已先通过，个人杠杆只做收益/风险换算。",
+        "结构盈亏比已先通过，个人杠杆只做收益/风险换算。",
         "禁止追单；触发条件没到就不做。",
         "任何失效条件触发都必须退出计划。",
       ],
@@ -3526,7 +3854,7 @@ function buildTokenStrategyReadiness({
   const missingPieces = blockedReasons.length > 0
     ? blockedReasons.slice(0, 8)
     : [
-      "等待结构、证据、RR、Risk Gate 和失效条件同时满足。",
+      "等待结构、证据、结构盈亏比、风控门禁和失效条件同时满足。",
     ];
 
   return {
@@ -3538,12 +3866,12 @@ function buildTokenStrategyReadiness({
       : "当前没有后端交易计划；前端不得补入场、止损或目标。",
     nextAction: isReviewOnly
       ? "回看启动前窗口，等待新结构给出更好的位置。"
-      : "继续等深扫、结构、RR 和 Risk Gate 完整。",
+      : "继续等深扫、结构、结构盈亏比和风控门禁完整。",
     missingPieces,
     guardrails: [
       "没有 tradePlan 时不允许显示交易计划。",
       "方向偏多/偏空不代表当前位置可做。",
-      "RR 仍按结构价格距离计算，个人杠杆只在计划生成后换算展示。",
+      "结构盈亏比仍按结构价格距离计算，个人杠杆只在计划生成后换算展示。",
     ],
     executionMap,
     positionLensStatus: "not_applicable",
@@ -3594,13 +3922,13 @@ function buildTokenExecutionMap({
     waitFor: tradePlan
       ? [tradePlan.entryCondition, "人工复核结构、成交和失效条件后再执行。"]
       : waitPullback
-        ? ["等待回踩/反抽后重新确认结构 RR。", "等待新的失效线靠近价格，不追已经延展的行情。"]
-        : ["等待深扫、结构、RR、Risk Gate 和失效条件完整。"],
+        ? ["等待回踩/反抽后重新确认结构盈亏比。", "等待新的失效线靠近价格，不追已经延展的行情。"]
+        : ["等待深扫、结构、结构盈亏比、风控门禁和失效条件完整。"],
     invalidIf: tradePlan
       ? [tradePlan.invalidation, "任何反证覆盖支持证据时撤销计划。"]
       : blockedReasons.length > 0
         ? blockedReasons.slice(0, 4)
-        : ["证据不足、RR 不够或高周期冲突时不生成计划。"],
+        : ["证据不足、结构盈亏比不够或高周期冲突时不生成计划。"],
     chartBoundary: tradePlan
       ? `TradingView 只做看图和人工复核；后端计划边界为入场 ${tradePlan.entryCondition} / 止损 ${tradePlan.stop} / 目标 ${tradePlan.tp1}-${tradePlan.tp3}。`
       : "TradingView 只做看图；没有后端 tradePlan 时，前端不得补入场、止损和目标。",
@@ -3620,7 +3948,7 @@ export function buildFrontendTokenDossierContract({
   const signal = dossier.signal;
   const hardBlockedReasons = signal
     ? [
-      ...(signal.risk === "blocked" ? ["Risk Gate 拦截"] : []),
+      ...(signal.risk === "blocked" ? ["风控门禁拦截"] : []),
       ...(signal.timeframeGate && !signal.timeframeGate.allowed ? [signal.timeframeGate.summary] : []),
     ]
     : ["后端没有找到该币种的成熟信号"];
@@ -3800,7 +4128,7 @@ function buildDiscoveryReviewState(
       lateSignalPenalty: lateMoveCount > 0 ? "active" : "collecting",
       mfeMaeLink: hasOutcomeSamples ? "ready" : "collecting",
       notes: [
-        "earlyOpportunityScore 只能通过后续 MFE/MAE、TP/SL 和超时样本校准。",
+        "启动前评分只能通过后续最大浮盈/最大回撤、目标/止损先后顺序和超时样本校准。",
         "late_move 不计为优质提前命中；它用于惩罚晚到提示和训练等待规则。",
         "复盘建议只能人工确认，不自动改实时权重。",
       ],
@@ -3823,9 +4151,9 @@ function buildDiscoveryReviewState(
     reviewFocus: [
       "启动前 3h/6h/12h 是否有压缩、量能和主动成交线索。",
       "晚到样本为什么没有在更早阶段进入候选池。",
-      "买压/卖压 CVD proxy 对后续 MFE/MAE 是否有解释力。",
+      "买压/卖压主动买卖代理对后续最大浮盈/最大回撤是否有解释力。",
     ],
-    summary: `当前轻扫 Top 样本 ${topCandidates.length} 个：启动前 ${earlyOpportunityCount}，晚到 ${lateMoveCount}，CVD proxy ${cvdProxyCandidateCount}，漏判复查 ${missedDetectionCount}。`,
+    summary: `当前轻扫 Top 样本 ${topCandidates.length} 个：启动前 ${earlyOpportunityCount}，晚到 ${lateMoveCount}，主动买卖代理 ${cvdProxyCandidateCount}，漏判复查 ${missedDetectionCount}。`,
     totalLightCandidates: topCandidates.length,
   };
 }
@@ -3856,9 +4184,9 @@ function buildOpportunityCalibrationState(
     schemaVersion: "opportunity-calibration.v1",
     status,
     summary: ready
-      ? `机会校准样本门槛已通过：已关闭 ${closedSamples}，带 MFE/MAE ${metricSamples}；可以开始观察阈值表现，但仍需人工确认。`
+      ? `机会校准样本门槛已通过：已关闭 ${closedSamples}，带最大浮盈/最大回撤 ${metricSamples}；可以开始观察阈值表现，但仍需人工确认。`
       : hasLiveInput
-        ? `机会校准正在收集：已关闭 ${closedSamples}/${minClosedSamples}，带 MFE/MAE ${metricSamples}/${minMetricSamples}；阈值不能自动改。`
+        ? `机会校准正在收集：已关闭 ${closedSamples}/${minClosedSamples}，带最大浮盈/最大回撤 ${metricSamples}/${minMetricSamples}；阈值不能自动改。`
         : "机会校准暂无样本；只能显示规则边界，不能宣传命中率。",
     sampleGate: {
       minClosedSamples,
@@ -3881,7 +4209,7 @@ function buildOpportunityCalibrationState(
         closedSamples: sharedClosed,
         metricSamples: sharedMetrics,
         interpretation: "只验证系统是否更早发现，不直接提高交易等级。",
-        nextAction: "关联后续 MFE/MAE、TP/SL 顺序和超时样本，校准 earlyOpportunityScore。",
+        nextAction: "关联后续最大浮盈/最大回撤、目标/止损先后顺序和超时样本，校准启动前评分。",
       },
       {
         key: "breakout_watch",
@@ -3903,29 +4231,85 @@ function buildOpportunityCalibrationState(
       },
       {
         key: "cvd_proxy",
-        label: "主动成交 proxy",
+        label: "主动买卖代理",
         currentCandidates: discoveryReview.cvdProxyCandidateCount,
         closedSamples: sharedClosed,
         metricSamples: sharedMetrics,
-        interpretation: "CVD proxy 只评估买卖压力对后续波动的解释力，不冒充官方 CVD。",
-        nextAction: "把 buy/sell pressure 与 MFE/MAE 做相关性观察，样本足够后再人工调整权重。",
+        interpretation: "主动买卖代理只评估买卖压力对后续波动的解释力，不冒充官方主动成交差值。",
+        nextAction: "把买压/卖压与最大浮盈/最大回撤做相关性观察，样本足够后再人工调整权重。",
       },
     ],
     guardrails: [
       "校准结果只读，不自动改实时权重。",
       "样本不足时只能显示 collecting/empty，不能展示胜率承诺。",
-      "early score 只影响发现和深扫优先级，不能绕过 Evidence、RR 和 Risk Gate。",
+      "启动前评分只影响发现和深扫优先级，不能绕过证据融合、结构盈亏比和风控门禁。",
       "late_move 只能做复盘和等待重构，不能反向生成交易计划。",
+    ],
+  };
+}
+
+function buildDailyMoverReviewState(
+  archive?: DailyMoverReadArchiveSuccess | null,
+): DailyMoverReviewState {
+  if (!archive) {
+    return {
+      schemaVersion: "daily-mover-review-status.v1",
+      status: "empty",
+      snapshotCount: 0,
+      selectedDetailCount: 0,
+      missedReviewCount: 0,
+      calibrationSuggestionCount: 0,
+      latestSnapshotId: null,
+      latestObservedAt: null,
+      summary: "每日涨跌榜复盘归档未接入当前页面合同。",
+      nextAction: "读取 /api/daily-movers 或后端归档后，再展示真实样本状态。",
+      guardrails: [
+        "每日涨跌榜复盘只用于研究启动前征兆，不作为追涨追跌信号。",
+        "没有归档样本时必须显示暂无样本。",
+      ],
+    };
+  }
+
+  const snapshotCount = archive.snapshots.length;
+  const status: DailyMoverReviewState["status"] = snapshotCount === 0
+    ? "empty"
+    : archive.selectedDetails.length >= 10 || archive.missedAltcoinReviews.length > 0
+      ? "usable"
+      : "collecting";
+
+  return {
+    schemaVersion: "daily-mover-review-status.v1",
+    status,
+    snapshotCount,
+    selectedDetailCount: archive.selectedDetails.length,
+    missedReviewCount: archive.missedAltcoinReviews.length,
+    calibrationSuggestionCount: archive.calibrationSuggestions.length,
+    latestSnapshotId: archive.latestSnapshot?.id ?? null,
+    latestObservedAt: archive.latestSnapshot?.observedAt ?? null,
+    summary: snapshotCount === 0
+      ? "还没有真实每日涨跌榜快照；复盘进化不能宣传已学到涨跌榜规律。"
+      : `已归档 ${snapshotCount} 个每日异动快照，当前选中样本 ${archive.selectedDetails.length} 条，漏判复查 ${archive.missedAltcoinReviews.length} 条。`,
+    nextAction: snapshotCount === 0
+      ? "触发每日异动抓取，并补齐 K 线回看窗口。"
+      : status === "usable"
+        ? "继续积累样本，人工复核启动前共同征兆，暂不自动改权重。"
+        : "继续积累更多涨跌榜样本，至少覆盖多个交易日后再做规律判断。",
+    guardrails: [
+      archive.guardrail,
+      "每日涨跌榜用于复盘启动前征兆，不进入狙击榜。",
+      "任何校准建议都必须人工确认，不能自动改实时权重。",
     ],
   };
 }
 
 export function buildFrontendReviewContract({
   backend,
+  dailyMoverArchive,
   snapshot,
   now = new Date(),
 }: {
   backend: BackendContract;
+  dailyMoverArchive?: DailyMoverReadArchiveSuccess | null;
   snapshot: MarketRadarSnapshot;
   now?: Date;
 }): ReviewContract {
@@ -4032,6 +4416,19 @@ export function buildFrontendReviewContract({
         ageSec,
         source: "outcome-calibration",
         reason: opportunityCalibration.summary,
+      },
+    ),
+    dailyMoverReview: resource(
+      buildDailyMoverReviewState(dailyMoverArchive),
+      dailyMoverArchive
+        ? dailyMoverArchive.snapshots.length > 0
+          ? "partial"
+          : "empty"
+        : "empty",
+      {
+        ageSec,
+        source: "daily-mover-review",
+        reason: dailyMoverArchive?.guardrail ?? "每日涨跌榜复盘归档未接入当前页面合同。",
       },
     ),
     aiReviewStats: resource(

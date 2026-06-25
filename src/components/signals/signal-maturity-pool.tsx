@@ -182,7 +182,7 @@ export function SignalMaturityPool({ signals }: { signals?: Resource<RadarSignal
             className="bg-transparent text-foreground outline-none"
           >
             <option value="maturity">按成熟度</option>
-            <option value="rr">按赔率 RR</option>
+            <option value="rr">按结构盈亏比</option>
             <option value="evidence">按证据数</option>
             <option value="recent">按最新</option>
           </select>
@@ -250,13 +250,28 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
         <span className={cn('border px-1.5 py-0.5 text-[10px] font-semibold', TONE_CHIP[meta.tone])}>
           {meta.label}
         </span>
+        <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          {s.operatorRead.laneLabel}
+        </span>
+        <span
+          className={cn(
+            'border px-1.5 py-0.5 text-[10px] font-semibold',
+            s.lifecycle.status === 'new'
+              ? 'border-up/40 bg-up/10 text-up'
+              : s.lifecycle.status === 'active'
+                ? 'border-neon/40 bg-neon/10 text-neon'
+                : 'border-border bg-secondary/40 text-muted-foreground',
+          )}
+        >
+          {s.lifecycle.freshnessLabel}
+        </span>
         <ChevronRight className="ml-auto size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </div>
 
       {/* 关键指标行 */}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px]">
         <span className="text-muted-foreground">
-          RR <span className={cn('font-bold', s.rr ? 'text-foreground' : 'text-muted-foreground')}>{s.rr ?? '—'}</span>
+          结构盈亏比 <span className={cn('font-bold', s.rr ? 'text-foreground' : 'text-muted-foreground')}>{s.rr ? `${s.rr}:1` : '—'}</span>
         </span>
         <span className="text-muted-foreground">
           风险 <span className={cn('font-bold', RISK_TONE[s.risk])}>{s.risk}</span>
@@ -272,7 +287,7 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
         <span className={cn('text-muted-foreground', TONE_TEXT[s.freshness === 'live' ? 'live' : s.freshness === 'cached' ? 'neon' : 'warn'])}>
           数据 {s.freshness === 'live' ? '实时' : s.freshness === 'cached' ? '缓存' : '过期'}
         </span>
-        <span className="text-muted-foreground">{s.updatedMinAgo}m 前</span>
+        <span className="text-muted-foreground">{s.lifecycle.ageLabel}</span>
       </div>
 
       {s.discovery?.foundInLightScan ? (
@@ -296,7 +311,7 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
             {PRESSURE_LABEL[s.discovery.pressureSide ?? 'neutral']}
           </span>
           <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-muted-foreground">
-            CVD {s.discovery.flowImbalance ?? '—'}
+            主动买卖 {s.discovery.flowImbalance ?? '—'}
           </span>
           <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-muted-foreground">
             {s.discovery.proxyQuality ? PROXY_LABEL[s.discovery.proxyQuality] : '无代理'}
@@ -311,8 +326,12 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
 
       {/* 为何入选 / 为何不可交易 */}
       <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-        <span className="text-up">入选：</span>
-        {s.whySelected}
+        <span className="text-up">判断：</span>
+        {s.operatorRead.headline}。{s.whySelected}
+      </p>
+      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+        <span className="font-semibold">下一步：</span>
+        {s.operatorRead.nextAction}
       </p>
       {s.whyBlocked ? (
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-down/90">

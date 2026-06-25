@@ -254,6 +254,8 @@ export type RadarSignal = {
   hue: number
   direction: '多' | '空' | '观察'
   maturity: SignalMaturity
+  lifecycle: SignalLifecycleRead
+  operatorRead: SignalOperatorRead
   rr: number | null // 赔率，未就绪为 null
   risk: '低' | '中' | '高' | '极高'
   evidenceCount: number
@@ -263,6 +265,29 @@ export type RadarSignal = {
   whyBlocked: string | null // 为什么不能交易（无则 null）
   updatedMinAgo: number
   discovery?: DiscoveryFact | null
+}
+
+export type SignalLifecycleRead = {
+  firstSeenAt: string | null
+  lastUpdatedAt: string | null
+  ageMin: number
+  ageLabel: string
+  freshnessLabel: '刚出现' | '近期有效' | '旧信号' | '已过期'
+  status: 'new' | 'active' | 'stale' | 'expired'
+  source: 'current_signal_timestamp' | 'light_scan_snapshot' | 'leaderboard_candidate'
+  summary: string
+}
+
+export type SignalOperatorLane = 'sniper' | 'watch' | 'validate' | 'blocked' | 'review'
+
+export type SignalOperatorRead = {
+  lane: SignalOperatorLane
+  laneLabel: '狙击榜' | '重点观察' | '验证中' | '不看' | '只复盘'
+  worthWatching: boolean
+  canTrade: boolean
+  headline: string
+  nextAction: string
+  noTradeReason: string | null
 }
 
 export type OpportunityQualityCandidate = {
@@ -1071,6 +1096,7 @@ export type ReviewContract = {
   reviewStats: Resource<ReviewStatsData>
   discoveryReview: Resource<DiscoveryReviewState>
   opportunityCalibration: Resource<OpportunityCalibrationState>
+  dailyMoverReview: Resource<DailyMoverReviewState>
   aiReviewStats: Resource<AiReviewStats>
 }
 
@@ -1092,6 +1118,20 @@ export type AiReviewStats = {
   reviewed: number
   total: number
   unboundFallbackProtected: boolean
+}
+
+export type DailyMoverReviewState = {
+  schemaVersion: 'daily-mover-review-status.v1'
+  status: 'empty' | 'collecting' | 'usable'
+  snapshotCount: number
+  selectedDetailCount: number
+  missedReviewCount: number
+  calibrationSuggestionCount: number
+  latestSnapshotId: string | null
+  latestObservedAt: string | null
+  summary: string
+  nextAction: string
+  guardrails: string[]
 }
 
 export type DiscoveryReviewState = {
@@ -1233,6 +1273,29 @@ export function getOpportunityCalibration(): Resource<OpportunityCalibrationStat
   )
 }
 
+export function getDailyMoverReview(): Resource<DailyMoverReviewState> {
+  return resource(
+    {
+      schemaVersion: 'daily-mover-review-status.v1',
+      status: 'empty',
+      snapshotCount: 0,
+      selectedDetailCount: 0,
+      missedReviewCount: 0,
+      calibrationSuggestionCount: 0,
+      latestSnapshotId: null,
+      latestObservedAt: null,
+      summary: '等待真实每日涨跌榜复盘样本。',
+      nextAction: '先完成每日异动抓取和样本写入，再做启动前征兆归因。',
+      guardrails: [
+        '每日涨跌榜只做复盘研究，不作为追涨追跌信号。',
+        '没有快照时必须显示暂无样本，不能伪造涨跌榜复盘结论。',
+      ],
+    },
+    'empty',
+    { ageSec: 30, source: 'daily-mover-review', reason: '未传入后端每日异动复盘契约' },
+  )
+}
+
 export function getReviewContract(): ReviewContract {
   return {
     signalLifecycles: getSignalLifecycles(),
@@ -1242,6 +1305,7 @@ export function getReviewContract(): ReviewContract {
     reviewStats: getReviewStats(),
     discoveryReview: getDiscoveryReview(),
     opportunityCalibration: getOpportunityCalibration(),
+    dailyMoverReview: getDailyMoverReview(),
     aiReviewStats: getAiReviewStats(),
   }
 }

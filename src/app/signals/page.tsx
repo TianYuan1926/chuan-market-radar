@@ -21,14 +21,14 @@ import type { DataStatus } from '@/lib/data-status'
 export const dynamic = 'force-dynamic'
 
 const SIGNAL_STATUS_LABEL: Record<DataStatus, string> = {
-  loading: 'LOADING',
-  live: 'LIVE',
-  cached: 'CACHED',
-  stale: 'STALE',
-  partial: 'PARTIAL',
-  empty: 'EMPTY',
-  error: 'ERROR',
-  failed: 'FAILED',
+  loading: '加载中',
+  live: '实时',
+  cached: '缓存',
+  stale: '偏旧',
+  partial: '部分可用',
+  empty: '暂无',
+  error: '异常',
+  failed: '失败',
 }
 
 const SIGNAL_STATUS_CLASS: Record<DataStatus, string> = {

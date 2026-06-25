@@ -215,10 +215,75 @@ function whyForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
   if (row.deepScanned) flags.push('已完成深扫')
   if (row.awaitingScan) flags.push('等待深扫')
   if (row.hasSignal) flags.push('已有证据融合信号')
-  if (row.blocked) flags.push('Risk Gate 拦截')
+  if (row.blocked) flags.push('风控门禁拦截')
   if (isOverextendedLeaderboardMover(row, kind)) flags.push('已大幅发生，只做复盘观察，禁止追单')
 
   return `${metric[kind]}${flags.length ? `；${flags.join('；')}` : '；等待扫描验证'}`
+}
+
+function lifecycleForLeaderboardRow(row: LeaderboardRow, index: number): RadarSignal['lifecycle'] {
+  const updatedAt = row.updatedAt ?? null
+  const updatedMs = updatedAt ? new Date(updatedAt).getTime() : Number.NaN
+  const ageMin = Number.isFinite(updatedMs)
+    ? Math.max(0, Math.round((Date.now() - updatedMs) / 60_000))
+    : Math.min(index, 59)
+  const freshnessLabel: RadarSignal['lifecycle']['freshnessLabel'] =
+    ageMin <= 15 ? '刚出现' : ageMin <= 60 ? '近期有效' : ageMin <= 240 ? '旧信号' : '已过期'
+  const status: RadarSignal['lifecycle']['status'] =
+    ageMin <= 15 ? 'new' : ageMin <= 60 ? 'active' : ageMin <= 240 ? 'stale' : 'expired'
+
+  return {
+    firstSeenAt: updatedAt,
+    lastUpdatedAt: updatedAt,
+    ageMin,
+    ageLabel: timeLabelFromAge(ageMin),
+    freshnessLabel,
+    status,
+    source: 'leaderboard_candidate',
+    summary: `这是榜单候选的新旧判断：${freshnessLabel}，${timeLabelFromAge(ageMin)}。榜单候选不等于交易信号。`,
+  }
+}
+
+function operatorReadForLeaderboardRow(
+  row: LeaderboardRow,
+  maturity: Maturity,
+  kind: LeaderboardKind,
+): RadarSignal['operatorRead'] {
+  const overextended = isOverextendedLeaderboardMover(row, kind)
+
+  if (maturity === 'REVIEW_ONLY' || overextended) {
+    return {
+      lane: 'review',
+      laneLabel: '只复盘',
+      worthWatching: false,
+      canTrade: false,
+      headline: '涨跌已经明显，只做复盘样本',
+      nextAction: '回看启动前窗口，研究系统有没有提前发现。',
+      noTradeReason: '榜单说明行情已经发生，不能作为追涨追跌入口。',
+    }
+  }
+
+  if (maturity === 'EVIDENCE_SIGNAL') {
+    return {
+      lane: 'watch',
+      laneLabel: '重点观察',
+      worthWatching: true,
+      canTrade: false,
+      headline: '榜单命中且已有证据',
+      nextAction: '进入单币档案，看结构、结构盈亏比、风控是否能升级。',
+      noTradeReason: row.blocked ? '风控门禁已拦截。' : '尚未确认交易计划就绪。',
+    }
+  }
+
+  return {
+    lane: 'validate',
+    laneLabel: '验证中',
+    worthWatching: row.inCandidatePool || row.awaitingScan || row.deepScanned,
+    canTrade: false,
+    headline: row.inCandidatePool || row.awaitingScan ? '榜单候选，等待深扫' : '市场榜单观察',
+    nextAction: '等待全市场扫描和深扫验证，不允许直接当交易信号。',
+    noTradeReason: '缺少完整证据链、结构盈亏比和风控门禁放行。',
+  }
 }
 
 export function leaderboardRowsToCandidateSignals(
@@ -238,6 +303,8 @@ export function leaderboardRowsToCandidateSignals(
       hue: row.hue,
       direction: directionForLeaderboardRow(row, kind),
       maturity,
+      lifecycle: lifecycleForLeaderboardRow(row, index),
+      operatorRead: operatorReadForLeaderboardRow(row, maturity, kind),
       rr: null,
       risk: blocked || reviewOnly ? '高' : kind === 'funding_hot' ? '中' : '低',
       evidenceCount,
@@ -245,7 +312,7 @@ export function leaderboardRowsToCandidateSignals(
       freshness: 'live',
       whySelected: whyForLeaderboardRow(row, kind),
       whyBlocked: blocked
-        ? 'Risk Gate 已标记，不能直接生成交易计划'
+        ? '风控门禁已标记，不能直接生成交易计划'
         : reviewOnly
           ? '榜单只说明行情已经大幅发生；未完成启动前证据融合，进入复盘样本，不允许追涨追跌。'
         : '候选阶段只代表发现异动，未完成证据融合和 3:1 赔率验证，不能当作交易计划',
@@ -544,6 +611,8 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
         type,
         category: categoryFor(signal),
         maturity: signal.maturity,
+        lifecycle: signal.lifecycle,
+        operatorRead: signal.operatorRead,
         sourceKind: signalSourceKind(signal),
         poolStatus: poolStatusFor(signal),
         score,
@@ -585,20 +654,20 @@ export function radarSignalsToFeedSignals(signals: RadarSignal[], symbol: string
           : signal.direction === '多'
             ? 'bull'
             : 'neutral'
-      const rr = signal.rr ? `，RR ${signal.rr.toFixed(1)}` : ''
-      const status = signal.whyBlocked ? '风控拦截' : '证据更新'
+      const rr = signal.rr ? `，结构盈亏比 ${signal.rr.toFixed(1)}:1` : ''
+      const status = signal.operatorRead.headline
 
       return {
         id: `${signal.id}-feed-${index}`,
-        time: timeLabelFromAge(signal.updatedMinAgo),
+        time: signal.lifecycle.ageLabel,
         type,
-        title: `${signal.symbol} ${status} · ${signal.maturity}`,
-        body: `${descFor(signal)}${rr}。数据新鲜度：${signal.freshness}。`,
+        title: `${signal.symbol} ${status}`,
+        body: `${descFor(signal)}${rr}。新旧状态：${signal.lifecycle.freshnessLabel}。下一步：${signal.operatorRead.nextAction}`,
         tags: [
           signal.direction,
           signal.risk,
-          signal.maturity,
-          signal.whyBlocked ? 'Risk Gate' : '证据链',
+          signal.operatorRead.laneLabel,
+          signal.whyBlocked ? '风控拦截' : '证据链',
         ],
       }
     })
@@ -612,8 +681,8 @@ function sniperSignals(signal: RadarSignal): SniperSignal[] {
   return [
     { label: `证据 ${signal.evidenceCount} 条`, hit: signal.evidenceCount >= 3 },
     { label: `反证 ${signal.counterCount} 条`, hit: signal.counterCount <= 1 },
-    { label: `RR ${signal.rr ?? 0}`, hit: (signal.rr ?? 0) >= 3 },
-    { label: signal.whyBlocked ? 'Risk Gate 拦截' : 'Risk Gate 通过', hit: !signal.whyBlocked },
+    { label: `结构盈亏比 ${signal.rr ?? 0}:1`, hit: (signal.rr ?? 0) >= 3 },
+    { label: signal.whyBlocked ? '风控门禁拦截' : '风控门禁通过', hit: !signal.whyBlocked },
   ]
 }
 

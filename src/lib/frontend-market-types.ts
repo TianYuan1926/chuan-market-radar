@@ -57,6 +57,21 @@ export type SignalCard = {
     | 'BLOCKED'
     | 'INVALIDATED'
     | 'COOLDOWN'
+  lifecycle: {
+    ageLabel: string
+    freshnessLabel: string
+    status: 'new' | 'active' | 'stale' | 'expired'
+    summary: string
+  }
+  operatorRead: {
+    lane: 'sniper' | 'watch' | 'validate' | 'blocked' | 'review'
+    laneLabel: string
+    worthWatching: boolean
+    canTrade: boolean
+    headline: string
+    nextAction: string
+    noTradeReason: string | null
+  }
   sourceKind: 'backend_signal' | 'leaderboard_candidate'
   poolStatus: PoolStatus
   score: number

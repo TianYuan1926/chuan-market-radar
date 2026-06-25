@@ -198,7 +198,7 @@ const EMPTY_REALTIME = resource<RealtimeCapabilityState>({
   lanes: [],
   boundaries: [
     '秒级数据只负责发现异常，不生成交易计划。',
-    '交易计划必须经过结构、证据、RR、Risk Gate 和失效条件。',
+    '交易计划必须经过结构、证据、结构盈亏比、风控门禁和失效条件。',
   ],
 }, 'empty', EMPTY_SOURCE)
 const EMPTY_OPPORTUNITY_QUALITY = resource<OpportunityQualityState>({
@@ -649,7 +649,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                     <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                       <MetricPill label="覆盖" value={quality.coverage.acceptedCount} />
                       <MetricPill label="候选" value={quality.coverage.candidateCount} />
-                      <MetricPill label="z-score" value={quality.coverage.zScoreCandidateCount} />
+                      <MetricPill label="量能异常分" value={quality.coverage.zScoreCandidateCount} />
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                       <MetricPill label="窗口" value={quality.coverage.rollingWindowCandidateCount} />
@@ -657,7 +657,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                       <MetricPill label="均分" value={quality.coverage.averagePriorityScore} />
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                      <MetricPill label="CVD proxy" value={quality.coverage.cvdProxyCandidateCount} />
+                      <MetricPill label="主动买卖代理" value={quality.coverage.cvdProxyCandidateCount} />
                       <MetricPill label="买压" value={quality.coverage.buyPressureCandidateCount} />
                       <MetricPill label="卖压" value={quality.coverage.sellPressureCandidateCount} />
                     </div>

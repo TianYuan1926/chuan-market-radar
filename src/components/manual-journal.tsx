@@ -201,7 +201,7 @@ function JournalForm({ onDone }: { onDone: () => void }) {
         </button>
         {metrics && (
           <span className="font-mono text-xs text-muted-foreground">
-            仓位 {fmtUsd(metrics.positionValue)} · RR {metrics.riskReward.toFixed(2)}R
+            仓位 {fmtUsd(metrics.positionValue)} · 结构盈亏比 {metrics.riskReward.toFixed(2)}R
           </span>
         )}
       </div>

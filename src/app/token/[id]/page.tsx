@@ -254,7 +254,7 @@ export default async function TokenPage({
         {/* 信号档案：证据链 / 反证 / 关键位 / 失效条件 / 交易计划 */}
         <SignalArchive token={token} dossier={dossier} />
 
-        {/* 后端承载位：多周期结构 / 证据链 / 反证链 / Risk Gate / 交易计划 / AI 复核 */}
+        {/* 后端承载位：多周期结构 / 证据链 / 反证链 / 风控门禁 / 交易计划 / AI 复核 */}
         <TokenDossier symbol={token.symbol} basePrice={token.price} dossier={dossier} />
 
         <p className="mt-8 text-center text-xs text-muted-foreground">

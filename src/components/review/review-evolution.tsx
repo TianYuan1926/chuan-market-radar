@@ -53,6 +53,19 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
       minimumStructuralRR: 3,
     },
   }, 'empty', { source: 'outcome-calibration', reason: '未传入后端机会校准契约' })
+  const dailyMoverReview = contract?.dailyMoverReview ?? resource({
+    calibrationSuggestionCount: 0,
+    guardrails: ['未传入后端每日涨跌榜复盘契约'],
+    latestObservedAt: null,
+    latestSnapshotId: null,
+    missedReviewCount: 0,
+    nextAction: '等待真实每日涨跌榜复盘样本。',
+    schemaVersion: 'daily-mover-review-status.v1' as const,
+    selectedDetailCount: 0,
+    snapshotCount: 0,
+    status: 'empty' as const,
+    summary: '未传入后端每日涨跌榜复盘契约',
+  }, 'empty', { source: 'daily-mover-review', reason: '未传入后端每日涨跌榜复盘契约' })
   const reviewStats = contract?.reviewStats ?? resource({
     closedSamples: 0,
     evidenceSamples: 0,
@@ -111,7 +124,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                 </div>
               </div>
               <div className="border border-border bg-secondary/20 p-3">
-                <div className="text-[11px] text-muted-foreground">MFE / MAE</div>
+                <div className="text-[11px] text-muted-foreground">最大浮盈 / 最大回撤</div>
                 <div className="mt-1 font-mono text-sm font-semibold">
                   +{reviewStats.data.mfeAvg}% / {reviewStats.data.maeAvg}%
                 </div>
@@ -139,10 +152,10 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               ))}
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              {aiReviewStats.reason ?? 'AI 只做反证、漏洞检查和中文解释，不能替代规则引擎，不能绕过 RR、Risk Gate 或结构失效。'}
+              {aiReviewStats.reason ?? 'AI 只做反证、漏洞检查和中文解释，不能替代规则引擎，不能绕过结构盈亏比、风控门禁或结构失效。'}
             </p>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Evidence 绑定保护：{aiReviewStats.data.unboundFallbackProtected ? '开启' : '未开启'}
+              证据绑定保护：{aiReviewStats.data.unboundFallbackProtected ? '开启' : '未开启'}
             </p>
           </div>
         </Panel>
@@ -155,7 +168,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               ['轻扫样本', discoveryReview.data.totalLightCandidates],
               ['启动前', discoveryReview.data.earlyOpportunityCount],
               ['晚到样本', discoveryReview.data.lateMoveCount],
-              ['CVD proxy', discoveryReview.data.cvdProxyCandidateCount],
+              ['主动买卖代理', discoveryReview.data.cvdProxyCandidateCount],
               ['漏判复查', discoveryReview.data.missedDetectionCount],
             ].map(([label, value]) => (
               <div key={label} className="border border-border bg-secondary/20 p-3">
@@ -180,10 +193,10 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                       : 'border-border bg-muted/40 text-muted-foreground',
                 )}
               >
-                {discoveryReview.data.calibration.status}
+                {calibrationStatusLabel(discoveryReview.data.calibration.status)}
               </span>
               <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                early→outcome {discoveryReview.data.calibration.earlyOutcomeLink} · late penalty {discoveryReview.data.calibration.lateSignalPenalty} · MFE/MAE {discoveryReview.data.calibration.mfeMaeLink}
+                提前→结果 {readinessLabel(discoveryReview.data.calibration.earlyOutcomeLink)} · 晚到惩罚 {readinessLabel(discoveryReview.data.calibration.lateSignalPenalty)} · 最大浮盈/最大回撤 {readinessLabel(discoveryReview.data.calibration.mfeMaeLink)}
               </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
@@ -205,7 +218,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               <span className="ml-auto font-mono text-[10px] text-muted-foreground">
                 closed {opportunityCalibration.data.sampleGate.closedSamples}/{opportunityCalibration.data.sampleGate.minClosedSamples}
                 {' · '}
-                MFE/MAE {opportunityCalibration.data.sampleGate.metricSamples}/{opportunityCalibration.data.sampleGate.minMetricSamples}
+                最大浮盈/最大回撤 {opportunityCalibration.data.sampleGate.metricSamples}/{opportunityCalibration.data.sampleGate.minMetricSamples}
               </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
@@ -233,7 +246,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               <div className="border border-border bg-background/40 p-2.5">
                 <div className="text-[11px] font-semibold">固定阈值</div>
                 <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
-                  early hot ≥ {opportunityCalibration.data.thresholds.earlyHotScore} · early warm ≥ {opportunityCalibration.data.thresholds.earlyWarmScore} · RR ≥ {opportunityCalibration.data.thresholds.minimumStructuralRR}:1
+                  启动前强信号 ≥ {opportunityCalibration.data.thresholds.earlyHotScore} · 启动前温信号 ≥ {opportunityCalibration.data.thresholds.earlyWarmScore} · 结构盈亏比 ≥ {opportunityCalibration.data.thresholds.minimumStructuralRR}:1
                 </p>
                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                   {opportunityCalibration.data.thresholds.lateMoveHighRisk}
@@ -280,8 +293,8 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
         </div>
       </Panel>
 
-      {/* 信号生命周期 + MFE/MAE */}
-      <Panel title="信号生命周期 · MFE / MAE" icon={Activity}>
+      {/* 信号生命周期 + 最大浮盈/最大回撤 */}
+      <Panel title="信号生命周期 · 最大浮盈 / 最大回撤" icon={Activity}>
         <div className="px-5 py-4">
           <div className="mb-3 flex items-center justify-end gap-2">
             <StatusBadge status={lifecycles.status} />
@@ -295,7 +308,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                   <th className="py-2 font-medium">标的</th>
                   <th className="py-2 font-medium">出现</th>
                   <th className="py-2 text-center font-medium">结果</th>
-                  <th className="py-2 font-medium">MFE / MAE</th>
+                  <th className="py-2 font-medium">最大浮盈 / 最大回撤</th>
                 </tr>
               </thead>
               <tbody>
@@ -361,6 +374,54 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
         </div>
       </Panel>
 
+      <Panel title="每日涨跌榜复盘状态" icon={Activity} right={<StatusBadge status={dailyMoverReview.status} />}>
+        <div className="space-y-4 px-5 py-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ['快照数', dailyMoverReview.data.snapshotCount],
+              ['选中样本', dailyMoverReview.data.selectedDetailCount],
+              ['漏判复查', dailyMoverReview.data.missedReviewCount],
+              ['校准建议', dailyMoverReview.data.calibrationSuggestionCount],
+            ].map(([label, value]) => (
+              <div key={label} className="border border-border bg-secondary/20 p-3">
+                <div className="text-[11px] text-muted-foreground">{label}</div>
+                <div className="mt-1 font-mono text-lg font-semibold">{value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-[11px] text-muted-foreground">最近快照</div>
+              <div className="mt-1 text-xs font-semibold">
+                {dailyMoverReview.data.latestSnapshotId ?? '暂无真实快照'}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                {dailyMoverReview.data.latestObservedAt
+                  ? `观察时间：${dailyMoverReview.data.latestObservedAt}`
+                  : '没有快照时，系统不能声称已经完成每日涨跌榜复盘。'}
+              </p>
+            </div>
+            <div className="border border-border bg-secondary/20 p-3">
+              <div className="text-xs font-semibold">当前结论</div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {dailyMoverReview.data.summary}
+              </p>
+              <p className="mt-2 border-l-2 border-border pl-3 text-[11px] leading-relaxed text-muted-foreground">
+                下一步：{dailyMoverReview.data.nextAction}
+              </p>
+            </div>
+          </div>
+          <ul className="grid gap-1.5 text-[11px] leading-relaxed text-muted-foreground lg:grid-cols-3">
+            {dailyMoverReview.data.guardrails.map((item) => (
+              <li key={item} className="flex gap-2">
+                <span className="mt-1.5 size-1.5 shrink-0 bg-neon" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Panel>
+
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 策略分型 */}
         <Panel title="策略分型胜率" icon={Layers3} right={<StatusBadge status={archetypes.status} />}>
@@ -387,8 +448,8 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                   </div>
                   <span className="min-w-[96px] text-right font-mono text-[11px]">
                     {a.winRate === null || a.avgRR === null
-                      ? '胜率待统计 · RR 待统计'
-                      : `胜率 ${a.winRate}% · RR ${a.avgRR}`}
+                      ? '胜率待统计 · 盈亏比待统计'
+                      : `胜率 ${a.winRate}% · 盈亏比 ${a.avgRR}`}
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
@@ -498,4 +559,15 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
       </Panel>
     </div>
   )
+}
+
+function calibrationStatusLabel(value: 'usable' | 'collecting' | 'empty') {
+  if (value === 'usable') return '可使用'
+  if (value === 'collecting') return '样本收集中'
+  return '暂无样本'
+}
+
+function readinessLabel(value: 'ready' | 'collecting' | 'active') {
+  if (value === 'ready' || value === 'active') return '已接通'
+  return '收集中'
 }
