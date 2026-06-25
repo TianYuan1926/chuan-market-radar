@@ -625,6 +625,39 @@ function repositoryReadErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function repositoryReadTimeoutMs() {
+  const parsed = Number(process.env.SYSTEM_HEALTH_REPOSITORY_READ_TIMEOUT_MS);
+
+  if (!Number.isFinite(parsed)) {
+    return 2_500;
+  }
+
+  return Math.max(500, Math.min(10_000, Math.floor(parsed)));
+}
+
+async function readWithRepositoryTimeout<T>(
+  label: string,
+  read: () => Promise<T[]>,
+): Promise<T[]> {
+  const timeoutMs = repositoryReadTimeoutMs();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      read(),
+      new Promise<T[]>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${label} storage read timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 async function readRepositoryListSafely<T>(
   label: string,
   read: () => Promise<T[]>,
@@ -632,7 +665,7 @@ async function readRepositoryListSafely<T>(
   try {
     return {
       detail: `${label} storage is readable.`,
-      items: await read(),
+      items: await readWithRepositoryTimeout(label, read),
       status: "ready",
     };
   } catch (error) {
@@ -2372,7 +2405,10 @@ function strategyEvolutionLoopReport(
 
 async function readV3ForwardMapSnapshotsSafely(repository: PersistenceRepository) {
   try {
-    const snapshots = await repository.listV3ForwardMapSnapshots(240);
+    const snapshots = await readWithRepositoryTimeout(
+      "v3_forward_map_snapshots",
+      () => repository.listV3ForwardMapSnapshots(240),
+    );
 
     return {
       snapshots,

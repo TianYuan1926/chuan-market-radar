@@ -87,6 +87,33 @@ function positiveInt(value: unknown, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
+function runtimeProbeReadTimeoutMs(env: RuntimeHeartbeatEnv = {}) {
+  return Math.max(300, Math.min(10_000, positiveInt(env.RUNTIME_PROBE_READ_TIMEOUT_MS, 1_500)));
+}
+
+async function withRuntimeProbeTimeout<T>(
+  env: RuntimeHeartbeatEnv,
+  read: () => Promise<T>,
+): Promise<T> {
+  const timeoutMs = runtimeProbeReadTimeoutMs(env);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      read(),
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`runtime probe read timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export function runtimeHeartbeatTtlSeconds(env: RuntimeHeartbeatEnv = {}) {
   return positiveInt(env.WORKER_HEARTBEAT_TTL_SECONDS, defaultTtlSeconds);
 }
@@ -340,11 +367,31 @@ export async function readConfiguredRuntimeProbeReport(
   const client = createClient({ url: env.REDIS_URL }) as unknown as RuntimeHeartbeatClient;
 
   try {
-    return await readWorkerHeartbeatReport({
+    return await withRuntimeProbeTimeout(env, () => readWorkerHeartbeatReport({
       client,
       env,
       now,
-    });
+    }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown redis error";
+    const generatedAt = now.toISOString();
+    const staleAfterSeconds = runtimeHeartbeatStaleSeconds(env);
+
+    return {
+      generatedAt,
+      redis: {
+        checkedAt: generatedAt,
+        detail: `Redis 心跳读取失败：${message}`,
+        status: "down" as const,
+      },
+      staleAfterSeconds,
+      workers: defaultRuntimeWorkers.map((worker) => workerProbeFromHeartbeat({
+        heartbeat: null,
+        now,
+        staleAfterSeconds,
+        worker,
+      })),
+    };
   } finally {
     try {
       await client.quit?.();

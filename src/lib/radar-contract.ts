@@ -1097,6 +1097,7 @@ export type ReviewContract = {
   discoveryReview: Resource<DiscoveryReviewState>
   opportunityCalibration: Resource<OpportunityCalibrationState>
   dailyMoverReview: Resource<DailyMoverReviewState>
+  historicalBacktest: Resource<HistoricalBacktestState>
   aiReviewStats: Resource<AiReviewStats>
 }
 
@@ -1129,6 +1130,86 @@ export type DailyMoverReviewState = {
   calibrationSuggestionCount: number
   latestSnapshotId: string | null
   latestObservedAt: string | null
+  summary: string
+  nextAction: string
+  guardrails: string[]
+}
+
+export type HistoricalBacktestLaneMetric = {
+  avgMaePct: number
+  avgMfePct: number
+  avgOpportunityScore: number
+  count: number
+  falsePositiveRatePct: number
+  hitCount: number
+  hitRatePct: number
+  lane: 'radar' | 'momentum' | 'volume' | 'random'
+  lateCount: number
+  lateRatePct: number
+}
+
+export type HistoricalBacktestFinding = {
+  detail: string
+  id: string
+  severity: 'low' | 'medium' | 'high'
+  title: string
+}
+
+export type HistoricalBacktestScoreBucket = {
+  avgMaePct: number
+  avgMfePct: number
+  count: number
+  hitRatePct: number
+  label: string
+  lateRatePct: number
+}
+
+export type HistoricalBacktestReasonMetric = {
+  avgMaePct: number
+  avgMfePct: number
+  count: number
+  hitRatePct: number
+  lateRatePct: number
+  reason: string
+}
+
+export type HistoricalBacktestMissedOpportunity = {
+  change24hPct: number
+  direction: 'LONG' | 'SHORT'
+  mfePct: number
+  observedAt: string
+  opportunityScore: number
+  reasons: string[]
+  symbol: string
+}
+
+export type HistoricalBacktestState = {
+  schemaVersion: 'historical-backtest.v1'
+  status: 'empty' | 'ready' | 'degraded'
+  generatedAt: string | null
+  reportId: string | null
+  input: {
+    days: number | null
+    horizonBars: number | null
+    interval: string | null
+    moveThresholdPct: number | null
+    replayTimes: number | null
+    source: string | null
+    symbolsUsed: number
+    topN: number | null
+  }
+  lanes: {
+    momentum: HistoricalBacktestLaneMetric
+    radar: HistoricalBacktestLaneMetric
+    random: HistoricalBacktestLaneMetric
+    volume: HistoricalBacktestLaneMetric
+  }
+  findings: HistoricalBacktestFinding[]
+  diagnostics: {
+    missedOpportunities: HistoricalBacktestMissedOpportunity[]
+    radarReasonMetrics: HistoricalBacktestReasonMetric[]
+    radarScoreBuckets: HistoricalBacktestScoreBucket[]
+  }
   summary: string
   nextAction: string
   guardrails: string[]
@@ -1296,6 +1377,65 @@ export function getDailyMoverReview(): Resource<DailyMoverReviewState> {
   )
 }
 
+export function emptyHistoricalBacktestLaneMetric(
+  lane: HistoricalBacktestLaneMetric['lane'],
+): HistoricalBacktestLaneMetric {
+  return {
+    avgMaePct: 0,
+    avgMfePct: 0,
+    avgOpportunityScore: 0,
+    count: 0,
+    falsePositiveRatePct: 0,
+    hitCount: 0,
+    hitRatePct: 0,
+    lane,
+    lateCount: 0,
+    lateRatePct: 0,
+  }
+}
+
+export function getHistoricalBacktest(): Resource<HistoricalBacktestState> {
+  return resource(
+    {
+      schemaVersion: 'historical-backtest.v1',
+      status: 'empty',
+      generatedAt: null,
+      reportId: null,
+      input: {
+        days: null,
+        horizonBars: null,
+        interval: null,
+        moveThresholdPct: null,
+        replayTimes: null,
+        source: null,
+        symbolsUsed: 0,
+        topN: null,
+      },
+      lanes: {
+        momentum: emptyHistoricalBacktestLaneMetric('momentum'),
+        radar: emptyHistoricalBacktestLaneMetric('radar'),
+        random: emptyHistoricalBacktestLaneMetric('random'),
+        volume: emptyHistoricalBacktestLaneMetric('volume'),
+      },
+      findings: [],
+      diagnostics: {
+        missedOpportunities: [],
+        radarReasonMetrics: [],
+        radarScoreBuckets: [],
+      },
+      summary: '等待真实历史回测报告。',
+      nextAction: '先运行历史时间点回放，再由后端 review-contract 读取展示。',
+      guardrails: [
+        '历史回测只用于验证扫描逻辑，不是收益承诺。',
+        '没有报告时必须显示暂无数据，不能用模拟命中率补位。',
+        '回测结论不能自动修改实时权重，必须人工复核。',
+      ],
+    },
+    'empty',
+    { ageSec: 30, source: 'historical-backtest', reason: '旧同步 getter 不读取磁盘报告。' },
+  )
+}
+
 export function getReviewContract(): ReviewContract {
   return {
     signalLifecycles: getSignalLifecycles(),
@@ -1306,6 +1446,7 @@ export function getReviewContract(): ReviewContract {
     discoveryReview: getDiscoveryReview(),
     opportunityCalibration: getOpportunityCalibration(),
     dailyMoverReview: getDailyMoverReview(),
+    historicalBacktest: getHistoricalBacktest(),
     aiReviewStats: getAiReviewStats(),
   }
 }

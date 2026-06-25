@@ -707,6 +707,86 @@ export type DailyMoverReviewState = {
   guardrails: string[];
 };
 
+export type HistoricalBacktestLaneMetric = {
+  avgMaePct: number;
+  avgMfePct: number;
+  avgOpportunityScore: number;
+  count: number;
+  falsePositiveRatePct: number;
+  hitCount: number;
+  hitRatePct: number;
+  lane: "radar" | "momentum" | "volume" | "random";
+  lateCount: number;
+  lateRatePct: number;
+};
+
+export type HistoricalBacktestFinding = {
+  detail: string;
+  id: string;
+  severity: "low" | "medium" | "high";
+  title: string;
+};
+
+export type HistoricalBacktestScoreBucket = {
+  avgMaePct: number;
+  avgMfePct: number;
+  count: number;
+  hitRatePct: number;
+  label: string;
+  lateRatePct: number;
+};
+
+export type HistoricalBacktestReasonMetric = {
+  avgMaePct: number;
+  avgMfePct: number;
+  count: number;
+  hitRatePct: number;
+  lateRatePct: number;
+  reason: string;
+};
+
+export type HistoricalBacktestMissedOpportunity = {
+  change24hPct: number;
+  direction: "LONG" | "SHORT";
+  mfePct: number;
+  observedAt: string;
+  opportunityScore: number;
+  reasons: string[];
+  symbol: string;
+};
+
+export type HistoricalBacktestState = {
+  schemaVersion: "historical-backtest.v1";
+  status: "empty" | "ready" | "degraded";
+  generatedAt: string | null;
+  reportId: string | null;
+  input: {
+    days: number | null;
+    horizonBars: number | null;
+    interval: string | null;
+    moveThresholdPct: number | null;
+    replayTimes: number | null;
+    source: string | null;
+    symbolsUsed: number;
+    topN: number | null;
+  };
+  lanes: {
+    momentum: HistoricalBacktestLaneMetric;
+    radar: HistoricalBacktestLaneMetric;
+    random: HistoricalBacktestLaneMetric;
+    volume: HistoricalBacktestLaneMetric;
+  };
+  findings: HistoricalBacktestFinding[];
+  diagnostics: {
+    missedOpportunities: HistoricalBacktestMissedOpportunity[];
+    radarReasonMetrics: HistoricalBacktestReasonMetric[];
+    radarScoreBuckets: HistoricalBacktestScoreBucket[];
+  };
+  summary: string;
+  nextAction: string;
+  guardrails: string[];
+};
+
 export type ReviewContract = {
   signalLifecycles: Resource<SignalLifecycle[]>;
   strategyArchetypes: Resource<StrategyArchetype[]>;
@@ -716,6 +796,7 @@ export type ReviewContract = {
   discoveryReview: Resource<DiscoveryReviewState>;
   opportunityCalibration: Resource<OpportunityCalibrationState>;
   dailyMoverReview: Resource<DailyMoverReviewState>;
+  historicalBacktest: Resource<HistoricalBacktestState>;
   aiReviewStats: Resource<AiReviewStats>;
 };
 
@@ -4305,11 +4386,13 @@ function buildDailyMoverReviewState(
 export function buildFrontendReviewContract({
   backend,
   dailyMoverArchive,
+  historicalBacktest,
   snapshot,
   now = new Date(),
 }: {
   backend: BackendContract;
   dailyMoverArchive?: DailyMoverReadArchiveSuccess | null;
+  historicalBacktest?: Resource<HistoricalBacktestState>;
   snapshot: MarketRadarSnapshot;
   now?: Date;
 }): ReviewContract {
@@ -4431,6 +4514,14 @@ export function buildFrontendReviewContract({
         reason: dailyMoverArchive?.guardrail ?? "每日涨跌榜复盘归档未接入当前页面合同。",
       },
     ),
+    historicalBacktest: historicalBacktest ?? resource(
+      emptyHistoricalBacktestState("等待生成历史时间点回放报告。"),
+      "empty",
+      {
+        source: "historical-backtest",
+        reason: "尚未生成历史回测报告；页面不能展示未验证的命中率。",
+      },
+    ),
     aiReviewStats: resource(
       aiReviewStats,
       aiReviewStatsResourceStatus(aiReviewStats),
@@ -4440,5 +4531,60 @@ export function buildFrontendReviewContract({
         reason: "AI 只统计 evidence-id 绑定复核结果，不替代规则引擎。",
       },
     ),
+  };
+}
+
+export function emptyHistoricalBacktestLaneMetric(
+  lane: HistoricalBacktestLaneMetric["lane"],
+): HistoricalBacktestLaneMetric {
+  return {
+    avgMaePct: 0,
+    avgMfePct: 0,
+    avgOpportunityScore: 0,
+    count: 0,
+    falsePositiveRatePct: 0,
+    hitCount: 0,
+    hitRatePct: 0,
+    lane,
+    lateCount: 0,
+    lateRatePct: 0,
+  };
+}
+
+export function emptyHistoricalBacktestState(summary: string): HistoricalBacktestState {
+  return {
+    schemaVersion: "historical-backtest.v1",
+    status: "empty",
+    generatedAt: null,
+    reportId: null,
+    input: {
+      days: null,
+      horizonBars: null,
+      interval: null,
+      moveThresholdPct: null,
+      replayTimes: null,
+      source: null,
+      symbolsUsed: 0,
+      topN: null,
+    },
+    lanes: {
+      momentum: emptyHistoricalBacktestLaneMetric("momentum"),
+      radar: emptyHistoricalBacktestLaneMetric("radar"),
+      random: emptyHistoricalBacktestLaneMetric("random"),
+      volume: emptyHistoricalBacktestLaneMetric("volume"),
+    },
+    findings: [],
+    diagnostics: {
+      missedOpportunities: [],
+      radarReasonMetrics: [],
+      radarScoreBuckets: [],
+    },
+    summary,
+    nextAction: "先运行 npm run backtest:historical 生成真实报告，再在前端展示验证结果。",
+    guardrails: [
+      "历史回测只用于验证扫描逻辑，不是收益承诺。",
+      "没有报告时必须显示暂无数据，不能用模拟命中率补位。",
+      "回测结论不能自动修改实时权重，必须人工复核。",
+    ],
   };
 }

@@ -342,6 +342,39 @@ const optionalDailyMoverTableNames = [
   "v3_forward_map_snapshots",
 ];
 
+function dailyMoverPublicReadTimeoutMs() {
+  const parsed = Number(process.env.DAILY_MOVER_PUBLIC_READ_TIMEOUT_MS);
+
+  if (!Number.isFinite(parsed)) {
+    return 1_500;
+  }
+
+  return Math.max(300, Math.min(10_000, Math.floor(parsed)));
+}
+
+async function withDailyMoverPublicReadTimeout<T>(
+  label: string,
+  read: () => Promise<T>,
+): Promise<T> {
+  const timeoutMs = dailyMoverPublicReadTimeoutMs();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      read(),
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${label} public read timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export function normalizeDailyMoverReadLimit(value: DailyMoverReadLimitInput) {
   const parsed = typeof value === "number"
     ? value
@@ -1326,14 +1359,20 @@ function isMissingOptionalDailyMoverTable(error: unknown) {
     && optionalDailyMoverTableNames.some((tableName) => message.includes(tableName));
 }
 
-async function listDailyMoverSnapshotsForPublicRead(
-  repository: PersistenceRepository,
-  limit: number,
-) {
+function isPublicReadUnavailable(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+
+  return isMissingOptionalDailyMoverTable(error) || message.includes("public read timed out");
+}
+
+async function readPublicArray<T>(
+  label: string,
+  read: () => Promise<T[]>,
+): Promise<T[]> {
   try {
-    return await repository.listDailyMoverSnapshots(limit);
+    return await withDailyMoverPublicReadTimeout(label, read);
   } catch (error) {
-    if (isMissingOptionalDailyMoverTable(error)) {
+    if (isPublicReadUnavailable(error)) {
       return [];
     }
 
@@ -1341,14 +1380,14 @@ async function listDailyMoverSnapshotsForPublicRead(
   }
 }
 
-async function getDailyMoverSnapshotForPublicRead(
-  repository: PersistenceRepository,
-  id?: string,
-) {
+async function readPublicNullable<T>(
+  label: string,
+  read: () => Promise<T | null>,
+): Promise<T | null> {
   try {
-    return await repository.getDailyMoverSnapshot(id);
+    return await withDailyMoverPublicReadTimeout(label, read);
   } catch (error) {
-    if (isMissingOptionalDailyMoverTable(error)) {
+    if (isPublicReadUnavailable(error)) {
       return null;
     }
 
@@ -1356,32 +1395,30 @@ async function getDailyMoverSnapshotForPublicRead(
   }
 }
 
+async function listDailyMoverSnapshotsForPublicRead(
+  repository: PersistenceRepository,
+  limit: number,
+) {
+  return readPublicArray("daily_mover_snapshots", () => repository.listDailyMoverSnapshots(limit));
+}
+
+async function getDailyMoverSnapshotForPublicRead(
+  repository: PersistenceRepository,
+  id?: string,
+) {
+  return readPublicNullable("daily_mover_snapshot", () => repository.getDailyMoverSnapshot(id));
+}
+
 async function listOhlcvCandleCachesForPublicRead(
   repository: PersistenceRepository,
 ) {
-  try {
-    return await repository.listOhlcvCandleCaches(klineCacheReadLimit);
-  } catch (error) {
-    if (isMissingOptionalDailyMoverTable(error)) {
-      return [];
-    }
-
-    throw error;
-  }
+  return readPublicArray("ohlcv_candle_cache", () => repository.listOhlcvCandleCaches(klineCacheReadLimit));
 }
 
 async function listV3ForwardMapSnapshotsForPublicRead(
   repository: PersistenceRepository,
 ): Promise<V3ForwardMapSnapshot[]> {
-  try {
-    return await repository.listV3ForwardMapSnapshots(240);
-  } catch (error) {
-    if (isMissingOptionalDailyMoverTable(error)) {
-      return [];
-    }
-
-    throw error;
-  }
+  return readPublicArray("v3_forward_map_snapshots", () => repository.listV3ForwardMapSnapshots(240));
 }
 
 export async function getDailyMoverReadArchive({
@@ -1392,8 +1429,8 @@ export async function getDailyMoverReadArchive({
   const normalizedLimit = normalizeDailyMoverReadLimit(limit);
   const [snapshots, scanArchives, journalEvents, ohlcvCaches, v3ForwardMapSnapshots] = await Promise.all([
     listDailyMoverSnapshotsForPublicRead(repository, normalizedLimit),
-    repository.listScanArchives(correlationScanArchiveLimit),
-    repository.listJournalEvents(correlationJournalLimit),
+    readPublicArray("scan_archives", () => repository.listScanArchives(correlationScanArchiveLimit)),
+    readPublicArray("journal_events", () => repository.listJournalEvents(correlationJournalLimit)),
     listOhlcvCandleCachesForPublicRead(repository),
     listV3ForwardMapSnapshotsForPublicRead(repository),
   ]);
@@ -1402,7 +1439,10 @@ export async function getDailyMoverReadArchive({
     ? await getDailyMoverSnapshotForPublicRead(repository, id)
     : latestSnapshot;
   const replayFrames = (await Promise.all(
-    scanArchives.map((archive) => repository.getScanReplayFrame(archive.id)),
+    scanArchives.map((archive) => readPublicNullable(
+      `scan_replay_frame:${archive.id}`,
+      () => repository.getScanReplayFrame(archive.id),
+    )),
   )).filter((frame): frame is ScanReplayFrame => Boolean(frame));
   const retention = {
     storage: repository.mode,

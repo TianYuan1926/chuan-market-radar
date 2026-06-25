@@ -1,7 +1,8 @@
 'use client'
 
-import { Activity, Bot, Layers3, SearchX, ShieldCheck, Sparkles } from 'lucide-react'
+import { Activity, BarChart3, Bot, Layers3, SearchX, ShieldCheck, Sparkles } from 'lucide-react'
 import {
+  emptyHistoricalBacktestLaneMetric,
   type ReviewContract,
 } from '@/lib/radar-contract'
 import { resource } from '@/lib/data-status'
@@ -84,6 +85,40 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
     total: 0,
     unboundFallbackProtected: true,
   }, 'empty', { source: 'ai-reviewer', reason: '未传入后端 AI 复核契约' })
+  const historicalBacktest = contract?.historicalBacktest ?? resource({
+    schemaVersion: 'historical-backtest.v1' as const,
+    status: 'empty' as const,
+    generatedAt: null,
+    reportId: null,
+    input: {
+      days: null,
+      horizonBars: null,
+      interval: null,
+      moveThresholdPct: null,
+      replayTimes: null,
+      source: null,
+      symbolsUsed: 0,
+      topN: null,
+    },
+    lanes: {
+      momentum: emptyHistoricalBacktestLaneMetric('momentum'),
+      radar: emptyHistoricalBacktestLaneMetric('radar'),
+      random: emptyHistoricalBacktestLaneMetric('random'),
+      volume: emptyHistoricalBacktestLaneMetric('volume'),
+    },
+    findings: [],
+    diagnostics: {
+      missedOpportunities: [],
+      radarReasonMetrics: [],
+      radarScoreBuckets: [],
+    },
+    summary: '未传入后端历史回测契约',
+    nextAction: '先生成真实历史回测报告。',
+    guardrails: [
+      '历史回测只用于验证扫描逻辑，不是收益承诺。',
+      '没有报告时必须显示暂无数据，不能用模拟命中率补位。',
+    ],
+  }, 'empty', { source: 'historical-backtest', reason: '未传入后端历史回测契约' })
 
   const sampleStatusLabel: Record<typeof reviewStats.data.sampleStatus, string> = {
     collecting: '样本收集中',
@@ -160,6 +195,218 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
           </div>
         </Panel>
       </div>
+
+      <Panel title="历史回测验证" icon={BarChart3} right={<StatusBadge status={historicalBacktest.status} />}>
+        <div className="space-y-4 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
+              用历史时间点回放检查系统有没有“提前筛选优势”。这里显示真实报告；没有报告就空，不用假命中率填充。
+            </p>
+            <FreshnessTag ageSec={historicalBacktest.ageSec} source={historicalBacktest.source} />
+          </div>
+          <ResourceBoundary
+            resource={historicalBacktest}
+            isEmpty={(data) => data.status === 'empty' || data.lanes.radar.count === 0}
+            emptyText="暂无历史回测报告"
+          >
+            {(data) => {
+              const radar = data.lanes.radar
+              const momentum = data.lanes.momentum
+              const random = data.lanes.random
+              const volume = data.lanes.volume
+              const beatMomentum = radar.hitRatePct > momentum.hitRatePct
+              const beatRandom = radar.hitRatePct > random.hitRatePct
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                    <div className="border border-border bg-secondary/20 p-3">
+                      <div className="flex flex-wrap items-start gap-3">
+                        <div>
+                          <div className="text-xs font-semibold">本轮结论</div>
+                          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                            {data.summary}
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            'ml-auto border px-1.5 py-0.5 text-[10px] font-semibold',
+                            data.status === 'ready'
+                              ? 'border-up/40 bg-up/10 text-up'
+                              : 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]',
+                          )}
+                        >
+                          {data.status === 'ready' ? '可继续扩大样本' : '需要优先修正'}
+                        </span>
+                      </div>
+                      <p className="mt-3 border-l-2 border-border pl-3 text-[11px] leading-relaxed text-muted-foreground">
+                        下一步：{data.nextAction}
+                      </p>
+                    </div>
+                    <div className="border border-border bg-secondary/20 p-3">
+                      <div className="text-xs font-semibold">报告输入</div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 font-mono text-[11px] text-muted-foreground">
+                        <span>报告：{data.reportId ?? 'unknown'}</span>
+                        <span>周期：{data.input.interval ?? 'unknown'}</span>
+                        <span>天数：{formatNullableNumber(data.input.days)}</span>
+                        <span>币种：{data.input.symbolsUsed}</span>
+                        <span>回放点：{formatNullableNumber(data.input.replayTimes)}</span>
+                        <span>每轮：Top {formatNullableNumber(data.input.topN)}</span>
+                        <span>窗口：{formatNullableNumber(data.input.horizonBars)} 根</span>
+                        <span>阈值：{formatNullableNumber(data.input.moveThresholdPct)}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      ['雷达提前评分', radar, '核心系统'],
+                      ['24h 涨跌幅基线', momentum, beatMomentum ? '已跑赢' : '未跑赢'],
+                      ['成交额基线', volume, '市场热度对照'],
+                      ['随机基线', random, beatRandom ? '已跑赢' : '未跑赢'],
+                    ].map(([label, lane, caption]) => {
+                      const metric = lane as typeof radar
+                      return (
+                        <div key={String(label)} className="border border-border bg-secondary/20 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-muted-foreground">{String(label)}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground">{String(caption)}</span>
+                          </div>
+                          <div className="mt-2 font-mono text-lg font-semibold">
+                            {formatPct(metric.hitRatePct)}
+                          </div>
+                          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                            <span>样本 {metric.count}</span>
+                            <span>命中 {metric.hitCount}</span>
+                            <span>偏晚 {formatPct(metric.lateRatePct)}</span>
+                            <span>误报 {formatPct(metric.falsePositiveRatePct)}</span>
+                            <span>浮盈 {formatPct(metric.avgMfePct)}</span>
+                            <span>回撤 {formatPct(metric.avgMaePct)}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+                    <div className="border border-border bg-secondary/20 p-3">
+                      <div className="text-xs font-semibold">问题清单</div>
+                      {data.findings.length === 0 ? (
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                          本轮没有发现阻断级问题，但仍需要扩大币种和时间样本。
+                        </p>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          {data.findings.map((finding) => (
+                            <div key={finding.id} className="border border-border bg-background/40 p-2">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={cn(
+                                    'border px-1.5 py-0.5 font-mono text-[10px]',
+                                    finding.severity === 'high'
+                                      ? 'border-down/40 bg-down/10 text-down'
+                                      : 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]',
+                                  )}
+                                >
+                                  {finding.severity}
+                                </span>
+                                <span className="font-mono text-[10px] text-muted-foreground">{finding.id}</span>
+                              </div>
+                              <div className="mt-1 text-xs font-semibold">{finding.title}</div>
+                              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                                {finding.detail}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border border-border bg-secondary/20 p-3">
+                      <div className="text-xs font-semibold">雷达分数区间</div>
+                      <div className="mt-2 space-y-2">
+                        {data.diagnostics.radarScoreBuckets.map((bucket) => (
+                          <div key={bucket.label} className="grid grid-cols-[56px_1fr_88px] items-center gap-2 text-[11px]">
+                            <span className="font-mono text-muted-foreground">{bucket.label}</span>
+                            <div className="h-2 overflow-hidden bg-secondary">
+                              <span
+                                className="bar-fill block h-full bg-neon"
+                                style={{ width: `${Math.min(100, bucket.hitRatePct)}%` }}
+                              />
+                            </div>
+                            <span className="text-right font-mono">
+                              {formatPct(bucket.hitRatePct)} · {bucket.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="border border-border bg-secondary/20 p-3">
+                      <div className="text-xs font-semibold">原因标签表现</div>
+                      <div className="mt-2 space-y-2">
+                        {data.diagnostics.radarReasonMetrics.slice(0, 6).map((metric) => (
+                          <div key={metric.reason} className="border border-border bg-background/40 p-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold">{metric.reason}</span>
+                              <span className="font-mono text-[10px] text-muted-foreground">
+                                {metric.count} 样本
+                              </span>
+                            </div>
+                            <div className="mt-1.5 font-mono text-[10px] text-muted-foreground">
+                              命中 {formatPct(metric.hitRatePct)} · 浮盈 {formatPct(metric.avgMfePct)} · 回撤 {formatPct(metric.avgMaePct)} · 偏晚 {formatPct(metric.lateRatePct)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border border-border bg-secondary/20 p-3">
+                      <div className="text-xs font-semibold">漏掉的未来机会</div>
+                      {data.diagnostics.missedOpportunities.length === 0 ? (
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                          本轮没有记录到未选中的未来命中机会。
+                        </p>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          {data.diagnostics.missedOpportunities.slice(0, 6).map((miss) => (
+                            <div key={`${miss.observedAt}-${miss.symbol}`} className="border border-border bg-background/40 p-2">
+                              <div className="flex items-center gap-2">
+                                <TokenAvatar symbol={miss.symbol} hue={symbolHue(miss.symbol)} size={20} />
+                                <span className="font-mono text-[11px] font-semibold">{miss.symbol}</span>
+                                <span className={cn('font-mono text-[10px]', miss.direction === 'LONG' ? 'text-up' : 'text-down')}>
+                                  {miss.direction === 'LONG' ? '多' : '空'}
+                                </span>
+                                <span className="ml-auto font-mono text-[10px] text-up">
+                                  后续最大浮盈 {formatPct(miss.mfePct)}
+                                </span>
+                              </div>
+                              <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                                当时分数 {miss.opportunityScore} · 24h {formatPct(miss.change24hPct)} · {miss.reasons.join(' / ') || '无原因标签'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <ul className="grid gap-1.5 text-[11px] leading-relaxed text-muted-foreground lg:grid-cols-2">
+                    {data.guardrails.map((rule) => (
+                      <li key={rule} className="flex gap-2">
+                        <span className="mt-1.5 size-1.5 shrink-0 bg-neon" />
+                        <span>{rule}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }}
+          </ResourceBoundary>
+        </div>
+      </Panel>
 
       <Panel title="提前发现复盘" icon={Sparkles} right={<StatusBadge status={discoveryReview.status} />}>
         <div className="space-y-4 px-5 py-4">
@@ -570,4 +817,30 @@ function calibrationStatusLabel(value: 'usable' | 'collecting' | 'empty') {
 function readinessLabel(value: 'ready' | 'collecting' | 'active') {
   if (value === 'ready' || value === 'active') return '已接通'
   return '收集中'
+}
+
+function formatNullableNumber(value: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 'unknown'
+  }
+
+  return String(value)
+}
+
+function formatPct(value: number) {
+  if (!Number.isFinite(value)) {
+    return '0%'
+  }
+
+  return `${Math.round(value * 100) / 100}%`
+}
+
+function symbolHue(symbol: string) {
+  let hash = 0
+
+  for (const char of symbol) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  }
+
+  return hash % 360
 }

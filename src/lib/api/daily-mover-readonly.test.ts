@@ -1418,6 +1418,45 @@ test("getDailyMoverReadArchive degrades to an empty archive when daily mover tab
   assert.equal(result.body.retention.returned, 0);
 });
 
+test("getDailyMoverReadArchive times out slow public reads instead of blocking review pages", async () => {
+  const previousTimeout = process.env.DAILY_MOVER_PUBLIC_READ_TIMEOUT_MS;
+  process.env.DAILY_MOVER_PUBLIC_READ_TIMEOUT_MS = "500";
+  const repository = createMemoryPersistenceRepository({ scope: "chuan-prod" });
+  const never = () => new Promise<never>(() => {});
+  const slowRepository = {
+    ...repository,
+    mode: "database" as const,
+    getDailyMoverSnapshot: never,
+    listDailyMoverSnapshots: never,
+    listJournalEvents: never,
+    listOhlcvCandleCaches: never,
+    listScanArchives: never,
+    listV3ForwardMapSnapshots: never,
+  };
+
+  try {
+    const startedAt = Date.now();
+    const result = await getDailyMoverReadArchive({
+      repository: slowRepository,
+    });
+    const elapsedMs = Date.now() - startedAt;
+
+    assert.ok(elapsedMs < 2_000, `expected daily mover read timeout below 2s, got ${elapsedMs}ms`);
+    assert.equal(result.status, 200);
+    assert.equal(result.body.ok, true);
+    assert.equal(result.body.latestSnapshot, null);
+    assert.deepEqual(result.body.snapshots, []);
+    assert.equal(result.body.retention.storage, "database");
+    assert.equal(result.body.retention.returned, 0);
+  } finally {
+    if (previousTimeout === undefined) {
+      delete process.env.DAILY_MOVER_PUBLIC_READ_TIMEOUT_MS;
+    } else {
+      process.env.DAILY_MOVER_PUBLIC_READ_TIMEOUT_MS = previousTimeout;
+    }
+  }
+});
+
 test("getDailyMoverReadArchive returns 404 for a missing requested snapshot without hiding recent samples", async () => {
   const repository = createMemoryPersistenceRepository();
   await repository.addDailyMoverSnapshot(snapshot(

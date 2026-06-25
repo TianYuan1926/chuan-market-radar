@@ -57,15 +57,51 @@ type SnapshotArchiveOptions = {
   trigger?: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
 };
 
+function readonlySnapshotTimeoutMs() {
+  const parsed = Number(process.env.READONLY_SNAPSHOT_READ_TIMEOUT_MS);
+
+  if (!Number.isFinite(parsed)) {
+    return 1_500;
+  }
+
+  return Math.max(300, Math.min(10_000, Math.floor(parsed)));
+}
+
+async function withReadonlySnapshotTimeout<T>(
+  label: string,
+  read: () => Promise<T>,
+): Promise<T> {
+  const timeoutMs = readonlySnapshotTimeoutMs();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      read(),
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${label} read timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 async function archiveBundle(
   replayId?: string,
   repository: PersistenceRepository = appPersistenceRepository,
 ): Promise<ScanArchiveBundle> {
   try {
-    return await buildScanArchiveBundle(repository, replayId, {
-      listLimit: 8,
-      maxEntries: archiveMaxEntries,
-    });
+    return await withReadonlySnapshotTimeout(
+      "scan archive bundle",
+      () => buildScanArchiveBundle(repository, replayId, {
+        listLimit: 8,
+        maxEntries: archiveMaxEntries,
+      }),
+    );
   } catch {
     return {
       entries: [],
@@ -424,7 +460,10 @@ export async function getMarketRadarSnapshot(
     const cachedSnapshot = scanCache.get();
 
     if (!cachedSnapshot) {
-      const persistedSnapshot = await repository.getScanSnapshot() ?? await readDevSnapshotFile(repository);
+      const persistedSnapshot = await withReadonlySnapshotTimeout(
+        "latest scan snapshot",
+        () => repository.getScanSnapshot(),
+      ) ?? await readDevSnapshotFile(repository);
 
       if (!persistedSnapshot) {
         throw new Error("no-refresh read requested and no cached snapshot available");

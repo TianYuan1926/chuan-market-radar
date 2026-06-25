@@ -450,6 +450,58 @@ test("buildSystemHealthReport degrades instead of throwing when database tables 
   assert.match(report.guards.find((guard) => guard.id === "archive")?.detail ?? "", /scan_archives/);
 });
 
+test("buildSystemHealthReport times out slow repository reads instead of blocking frontend contracts", async () => {
+  const previousTimeout = process.env.SYSTEM_HEALTH_REPOSITORY_READ_TIMEOUT_MS;
+  process.env.SYSTEM_HEALTH_REPOSITORY_READ_TIMEOUT_MS = "500";
+  const baseRepository = createMemoryPersistenceRepository({ scope: "chuan-prod" });
+  const never = () => new Promise<never>(() => {});
+  const repository = {
+    ...baseRepository,
+    mode: "database" as const,
+    listJournalEvents: never,
+    listMacroMarketSnapshots: never,
+    listScanArchives: never,
+    listV3ForwardMapSnapshots: never,
+  };
+
+  const database: DatabaseClientDiagnostics = {
+    connectionStringEnv: "DATABASE_URL",
+    detail: "已启用 postgres SQL client，scope 为 chuan-prod，可写入远端数据库。",
+    driver: "postgres",
+    durable: true,
+    hasDatabaseUrl: true,
+    scope: "chuan-prod",
+    status: "ready",
+  };
+
+  try {
+    const startedAt = Date.now();
+    const report = await buildSystemHealthReport({
+      database,
+      env: { MARKET_DATA_PROVIDER: "mock" },
+      now: new Date("2026-06-12T10:04:30.000Z"),
+      repository,
+      snapshot: snapshot(),
+    });
+    const elapsedMs = Date.now() - startedAt;
+
+    assert.ok(elapsedMs < 2_000, `expected timeout guard below 2s, got ${elapsedMs}ms`);
+    assert.equal(report.level, "degraded");
+    assert.equal(report.archive.status, "unavailable");
+    assert.match(report.archive.detail, /timed out/);
+    assert.match(report.persistence.detail, /timed out/);
+    assert.equal(report.macroMarket.status, "unavailable");
+    assert.equal(report.v3ForwardMapReviews.storageStatus, "unavailable");
+    assert.match(report.v3ForwardMapReviews.storageDetail, /timed out/);
+  } finally {
+    if (previousTimeout === undefined) {
+      delete process.env.SYSTEM_HEALTH_REPOSITORY_READ_TIMEOUT_MS;
+    } else {
+      process.env.SYSTEM_HEALTH_REPOSITORY_READ_TIMEOUT_MS = previousTimeout;
+    }
+  }
+});
+
 test("buildSystemHealthReport escalates stale scans past the stale window", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
 

@@ -341,6 +341,50 @@ test("getReadableMarketRadarSnapshot can perform a no-refresh read for health ch
   assert.match(readable.metadata.notes.join("\n"), /no-refresh read/);
 });
 
+test("getReadableMarketRadarSnapshot degrades when no-refresh repository reads hang", async () => {
+  const previousTimeout = process.env.READONLY_SNAPSHOT_READ_TIMEOUT_MS;
+  process.env.READONLY_SNAPSHOT_READ_TIMEOUT_MS = "500";
+  const baseRepository = createMemoryPersistenceRepository();
+  const never = () => new Promise<never>(() => {});
+  const repository = {
+    ...baseRepository,
+    mode: "database" as const,
+    compareLatestScanArchives: never,
+    getScanReplayFrame: never,
+    getScanSnapshot: never,
+    listScanArchives: never,
+  };
+  const provider: MarketDataProvider = {
+    id: "mock",
+    label: "Unused Provider",
+    async fetchSnapshot() {
+      return snapshot([]);
+    },
+  };
+
+  try {
+    const startedAt = Date.now();
+    const readable = await getReadableMarketRadarSnapshot(provider, {
+      allowRefresh: false,
+      repository,
+      trigger: "page_ssr",
+    });
+    const elapsedMs = Date.now() - startedAt;
+
+    assert.ok(elapsedMs < 2_000, `expected snapshot timeout below 2s, got ${elapsedMs}ms`);
+    assert.equal(readable.metadata.status, "failed");
+    assert.equal(readable.metadata.runtime?.trigger, "page_ssr");
+    assert.match(readable.metadata.notes.join("\n"), /timed out/);
+    assert.equal(readable.archive?.entries.length, 0);
+  } finally {
+    if (previousTimeout === undefined) {
+      delete process.env.READONLY_SNAPSHOT_READ_TIMEOUT_MS;
+    } else {
+      process.env.READONLY_SNAPSHOT_READ_TIMEOUT_MS = previousTimeout;
+    }
+  }
+});
+
 test("getMarketRadarSnapshot reads without writing archives while refresh persists them", async () => {
   const repository = createMemoryPersistenceRepository();
   const provider: MarketDataProvider = {

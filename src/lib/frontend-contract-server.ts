@@ -9,6 +9,7 @@ import {
   type KlineContractResource,
 } from "@/lib/api/frontend-contract";
 import { buildSystemHealthReport } from "@/lib/api/system-health";
+import { getLatestHistoricalBacktestResource } from "@/lib/api/historical-backtest-readonly";
 import { getReadableMarketRadarSnapshot } from "@/lib/market/radar-snapshot";
 import { createCompositePublicLightScanProvider } from "@/lib/market/providers/public-light-scan";
 import { buildSignalBackendDossier } from "@/lib/market/signal-backend-dossier";
@@ -243,17 +244,19 @@ export async function getKlineContractForPage(
 }
 
 export async function getReviewContractForPage(): Promise<ReviewContract> {
-  const [{ backend, snapshot }, dailyMoverArchive] = await Promise.all([
+  const [{ backend, snapshot }, dailyMoverArchive, historicalBacktest] = await Promise.all([
     readPageBackend(),
     getDailyMoverReadArchive({
       limit: 7,
       repository: appPersistenceRepository,
     }),
+    getLatestHistoricalBacktestResource(),
   ]);
 
   return buildFrontendReviewContract({
     backend,
     dailyMoverArchive: dailyMoverArchive.body.ok ? dailyMoverArchive.body : null,
+    historicalBacktest,
     snapshot,
   }) as unknown as ReviewContract;
 }
