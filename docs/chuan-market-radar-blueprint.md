@@ -813,6 +813,7 @@ RawSource
 - 腾讯云 Docker 部署必须把 `/app/reports` 挂到持久化 volume；历史回放报告不能只存在容器临时层里，否则重建容器后前端会重新显示暂无报告。
 - 后续所有“系统是否真的有选币能力”的判断，必须优先看历史回放结果，而不是只看当前页面是否有信号。
 - 专业回测审计 v2 规范见 `docs/backtest-v2/PROFESSIONAL_BACKTEST_AUDIT_SPEC.md`。后续判断网站核心能力，必须使用专业回测审计 v2，而不是只看旧版 `backtest:historical`。
+- 专业回测测试方案见 `docs/backtest-v2/BACKTEST_TEST_PLAN.md`。该文档定义每轮正式回测到底要测试什么、如何抽样、如何对比基线、如何输出问题编号、根因和整改方案。
 - 专业回测审计 v2 必须复用真实扫描、分析、技术指标、结构、多周期、衍生品、RR、交易计划和复盘链路。它每轮必须输出问题清单、问题归因和下一轮整改方案。
 - 回测系统本身必须专业化；不能用轻量评分或单一命中率去判断完整交易分析系统是否可靠。
 - `npm run backtest:professional` 是专业回测审计 v2 的正式命令。它当前复用生产 `analyzeMarketAnomaly`、技术指标、多周期、v3 dossier、RR、交易计划和成熟度分类，并注入 Binance 公开永续历史 Funding/Open Interest 作为 `public_exchange` 衍生品证据。
@@ -835,13 +836,14 @@ RawSource
 
 最近一次正式专业审计样本：
 
-- 报告目录：`reports/professional-backtest-audit/2026-06-26T101525-282Z`。
+- 报告目录：`reports/professional-backtest-audit/2026-06-26T131107-959Z`。
 - 参数：10 个目标山寨、80 个候选币、每币 10 个历史节点、Top10、30 天 Binance public futures 15m K 线。
-- 结果：完成 100/100 节点，目标节点 radar 捕获 19/100，迟到 50/100，交易计划就绪 0。
-- 基线：radar 命中率 30.6%，random 29.9%，volume 28.1%，momentum 41.3%；radar 仅略高于 random，仍明显没跑赢 momentum，且 radar lane 迟到率 40.9%。
-- 新增归因：`PBA-SCAN-ROUND-MISSED-001` 已输出 13 个不晚到但未进 Top10 的机会样本，平均 radar 排名 31；主要漏判节点为 `pullback_retest`，主要币种类型为 `meme`。
-- 阻断问题：`PBA-SCAN-ROUND-001` 捕获率不足、`PBA-SCAN-ROUND-MISSED-001` 存在早期机会漏判、`PBA-TIMING-ROUND-001` 迟到率偏高、`PBA-RR-001` 结构盈亏比不足、`PBA-PLAN-001` 无计划就绪、`PBA-REVIEW-001` 部分样本先触发止损。
-- 结论：第一轮整改有小幅改善，但网站核心分析/扫描能力仍不能宣称实战可靠；下一步必须优先处理 pullback/retest 漏判、meme 高波动样本排序、结构止损/目标质量和交易计划生成质量。
+- 本轮先发现并修复一个回测适配器根因：历史 Open Interest 端点从会跳转官网 HTML 的 `futures.binance.com` 改为 `fapi.binance.com`，修复后拉取失败从 80 降为 0。`reports/professional-backtest-audit/2026-06-26T130404-571Z` 是端点错误暴露轮，只能作为故障记录，不能作为有效能力结论。
+- 结果：完成 100/100 节点，目标节点 radar 捕获 12/100，迟到 51/100，交易计划就绪 0。
+- 基线：radar 命中率 23.1%，random 23.7%，volume 22.9%，momentum 31.9%；radar 未跑赢 random，也明显没跑赢 momentum。虽然 radar lane 迟到率只有 4%，但 10x10 目标节点迟到率仍为 51%，说明候选排序和目标节点捕获仍不可靠。
+- 漏判归因：`PBA-SCAN-ROUND-MISSED-001` 输出 4 个不晚到但未进 Top10 的机会样本，平均 radar 排名 35；主要漏判节点仍集中在 `pullback_retest`。
+- 阻断问题：`PBA-SCAN-ROUND-001` 捕获率不足、`PBA-SCAN-ROUND-BASELINE-001` 未跑赢随机、`PBA-SCAN-ROUND-MISSED-001` 仍有早期机会漏判、`PBA-TIMING-ROUND-001` 迟到率偏高、`PBA-RR-001` 大量结构盈亏比不足、`PBA-PLAN-001` 无计划就绪、`PBA-REVIEW-001` 多个样本先触发止损。
+- 结论：当前网站仍不能宣称具备稳定实战选币能力。下一步必须优先整改候选排序、提前机会特征、pullback/retest 捕获、RR/结构目标质量、计划就绪条件和失败归因；在下一轮回测前不能把页面信号包装成可靠狙击结果。
 
 上一轮问题整改：
 
@@ -850,7 +852,8 @@ RawSource
 - 交易计划层增加最后质量防线：即使上游 location/RR 标记为可交易，只要结构止损缺失、止损/目标方向错误、RR 低于 3:1、或结构止损距离超过 6%，计划层必须阻断。
 - 专业审计已从单一 24h 验证窗口升级为分层窗口：small 节点默认验证未来 4h，medium 节点默认验证未来 24h，large 节点默认验证未来 96h；报告和 review 合同会保留每个节点的验证窗口。
 - 市场环境窗口已固化为分层口径：短周期 `4-24h`、中周期 `3-7 天`、长周期 `30-90 天`、大级别趋势 `1d + 1w`；默认 `30 天` 只代表长周期下限和回测取数默认值。
-- 本轮只做整改和常规验证，不自动开启下一轮完整专业回测。下一轮回测必须按流程先确认新币种池和时间节点，再执行“回测 -> 问题 -> 整改方案 -> 整改 -> 验证”。
+- 历史 Open Interest 适配器端点已修复为 `https://fapi.binance.com/futures/data/openInterestHist`，避免 302 HTML 被当作 JSON 解析，保证专业回测能真实注入公开 OI 历史。
+- 下一步必须按“回测 -> 问题 -> 整改方案 -> 整改 -> 验证”执行，不允许连续跑回测却不整改。
 
 验收不能只看代码通过，还要看：
 

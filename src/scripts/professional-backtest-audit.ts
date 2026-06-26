@@ -32,7 +32,7 @@ import {
 const BINANCE_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 const BINANCE_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
 const BINANCE_FUNDING_RATE_URL = "https://fapi.binance.com/fapi/v1/fundingRate";
-const BINANCE_OPEN_INTEREST_HIST_URL = "https://futures.binance.com/futures/data/openInterestHist";
+const BINANCE_OPEN_INTEREST_HIST_URL = "https://fapi.binance.com/futures/data/openInterestHist";
 
 type BinanceExchangeSymbolRow = {
   contractType?: string;
