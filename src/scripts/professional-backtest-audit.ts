@@ -507,9 +507,43 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     `- 交易计划就绪：${report.roundSummary.planReadyCount}`,
     `- 高优先级问题：${report.roundSummary.highSeverityFindings}`,
     "",
+    "## 基线对比",
+    "",
+    "| 通道 | 样本 | 命中率 | 迟到率 | 平均 MFE | 平均 MAE | 入选时已波动 | 成交量倍数 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|",
+  ];
+
+  for (const lane of ["radar", "momentum", "volume", "random"] as const) {
+    const metric = report.baselineMetrics[lane];
+
+    lines.push(`| ${lane} | ${metric.count} | ${metric.hitRatePct}% | ${metric.lateRatePct}% | ${metric.avgMfePct}% | ${metric.avgMaePct}% | ${metric.avgMoveAtSelectionPct}% | ${metric.avgVolumeRatio}x |`);
+  }
+
+  lines.push(
+    "",
+    "## 提前性审计",
+    "",
+    `- 提前样本：${report.timingMetrics.earlyCount} / ${report.timingMetrics.earlyRatePct}%`,
+    `- 迟到样本：${report.timingMetrics.lateCount} / ${report.timingMetrics.lateRatePct}%`,
+    `- 无交易计划样本：${report.timingMetrics.noPlanCount}`,
+    "",
+    "## 漏判机会样本",
+    "",
+  );
+
+  for (const miss of report.missedOpportunities.slice(0, 20)) {
+    lines.push(`- ${miss.symbol} ${miss.direction} observed=${miss.observedAt} MFE=${miss.mfePct}% MAE=${miss.maePct}% 入选前已波动=${miss.moveAtSelectionPct}% volume=${miss.volumeRatio}x：${miss.reason}`);
+  }
+
+  if (report.missedOpportunities.length === 0) {
+    lines.push("- 本轮没有发现 radar topN 外的可学习漏判机会；这不代表系统一定没有漏判，需要扩大样本验证。");
+  }
+
+  lines.push(
+    "",
     "## 问题清单",
     "",
-  ];
+  );
 
   for (const finding of report.findings.slice(0, 30)) {
     lines.push(`- ${finding.id} [${finding.severity}] ${finding.title}：${finding.detail} 下一步：${finding.nextAction}`);

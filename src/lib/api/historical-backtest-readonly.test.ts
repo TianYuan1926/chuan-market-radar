@@ -166,6 +166,60 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
       root,
       "professional-report",
       {
+        baselineMetrics: {
+          momentum: {
+            avgConfidence: 42,
+            avgMaePct: 3.2,
+            avgMfePct: 9.4,
+            avgMoveAtSelectionPct: 12,
+            avgVolumeRatio: 1.5,
+            count: 5,
+            hitCount: 2,
+            hitRatePct: 40,
+            lane: "momentum",
+            lateCount: 3,
+            lateRatePct: 60,
+          },
+          radar: {
+            avgConfidence: 62,
+            avgMaePct: 2.8,
+            avgMfePct: 11.4,
+            avgMoveAtSelectionPct: 4.5,
+            avgVolumeRatio: 1.8,
+            count: 5,
+            hitCount: 3,
+            hitRatePct: 60,
+            lane: "radar",
+            lateCount: 1,
+            lateRatePct: 20,
+          },
+          random: {
+            avgConfidence: 38,
+            avgMaePct: 4.1,
+            avgMfePct: 7.2,
+            avgMoveAtSelectionPct: 3.1,
+            avgVolumeRatio: 1.1,
+            count: 5,
+            hitCount: 1,
+            hitRatePct: 20,
+            lane: "random",
+            lateCount: 0,
+            lateRatePct: 0,
+          },
+          volume: {
+            avgConfidence: 44,
+            avgMaePct: 3.5,
+            avgMfePct: 8.5,
+            avgMoveAtSelectionPct: 5.5,
+            avgVolumeRatio: 2.2,
+            count: 5,
+            hitCount: 2,
+            hitRatePct: 40,
+            lane: "volume",
+            lateCount: 1,
+            lateRatePct: 20,
+          },
+        },
         cases: [
           {
             symbol: "TIAUSDT",
@@ -192,6 +246,19 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
           horizonBars: 96,
           topN: 10,
         },
+        missedOpportunities: [
+          {
+            confidence: 54,
+            direction: "long",
+            maePct: 2.1,
+            mfePct: 18.4,
+            moveAtSelectionPct: 2.8,
+            observedAt: "2026-06-24T10:00:00.000Z",
+            reason: "未进入 radar topN。",
+            symbol: "SUIUSDT",
+            volumeRatio: 1.9,
+          },
+        ],
         remediationPlan: [
           {
             acceptanceCriteria: "连续两轮报告不再出现 PBA-DERIVATIVES-001。",
@@ -210,6 +277,14 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
         },
         schemaVersion: "professional-backtest-audit-report.v2",
         summary: "专业回测 v2 发现高优先级问题：历史衍生品证据缺失。",
+        timingMetrics: {
+          earlyCount: 4,
+          earlyRatePct: 80,
+          lateCount: 1,
+          lateRatePct: 20,
+          noPlanCount: 5,
+          planReadyCount: 0,
+        },
       },
       `# Professional Backtest Audit v2
 
@@ -233,6 +308,9 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.auditV2?.schemaVersion, "professional-backtest-audit-report.v2");
     assert.equal(result.data.auditV2?.cases, 1);
     assert.equal(result.data.auditV2?.highSeverityFindings, 1);
+    assert.equal(result.data.auditV2?.baselineMetrics.radar.hitRatePct, 60);
+    assert.equal(result.data.auditV2?.timingMetrics.lateRatePct, 20);
+    assert.equal(result.data.auditV2?.missedOpportunities[0]?.symbol, "SUIUSDT");
     assert.equal(result.data.auditV2?.findings[0]?.id, "PBA-DERIVATIVES-001");
     assert.equal(result.data.auditV2?.remediationPlan[0]?.priority, "P0");
     assert.match(result.data.summary, /历史衍生品证据缺失/);

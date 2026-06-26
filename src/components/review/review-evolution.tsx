@@ -414,6 +414,36 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                         {data.auditV2.summary}
                       </p>
+                      <div className="mt-3 grid gap-2 md:grid-cols-4">
+                        {(['radar', 'momentum', 'volume', 'random'] as const).map((lane) => {
+                          const metric = data.auditV2?.baselineMetrics[lane]
+
+                          if (!metric) {
+                            return null
+                          }
+
+                          return (
+                            <div key={lane} className="border border-border bg-background/40 p-2">
+                              <div className="font-mono text-[10px] uppercase text-muted-foreground">{lane}</div>
+                              <div className="mt-1 text-sm font-semibold">{metric.hitRatePct}% 命中</div>
+                              <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                样本 {metric.count} · 迟到 {metric.lateRatePct}% · 入选已波动 {metric.avgMoveAtSelectionPct}%
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                        <span className="border border-border bg-background/40 px-2 py-1">
+                          提前样本 {data.auditV2.timingMetrics.earlyCount} / {data.auditV2.timingMetrics.earlyRatePct}%
+                        </span>
+                        <span className="border border-border bg-background/40 px-2 py-1">
+                          迟到样本 {data.auditV2.timingMetrics.lateCount} / {data.auditV2.timingMetrics.lateRatePct}%
+                        </span>
+                        <span className="border border-border bg-background/40 px-2 py-1">
+                          漏判机会 {data.auditV2.missedOpportunities.length}
+                        </span>
+                      </div>
                       <div className="mt-3 grid gap-3 lg:grid-cols-2">
                         <div className="border border-border bg-background/40 p-2">
                           <div className="text-[11px] font-semibold">问题归因</div>

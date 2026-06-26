@@ -132,23 +132,78 @@ function normalizeAuditV2Remediation(value: unknown): HistoricalBacktestAuditV2R
   };
 }
 
+function normalizeAuditV2LaneMetric(
+  lane: HistoricalBacktestAuditV2State["baselineMetrics"]["radar"]["lane"],
+  value: unknown,
+): HistoricalBacktestAuditV2State["baselineMetrics"]["radar"] {
+  const item = asObject(value);
+
+  return {
+    avgConfidence: numericValue(item.avgConfidence),
+    avgMaePct: numericValue(item.avgMaePct),
+    avgMfePct: numericValue(item.avgMfePct),
+    avgMoveAtSelectionPct: numericValue(item.avgMoveAtSelectionPct),
+    avgVolumeRatio: numericValue(item.avgVolumeRatio),
+    count: numericValue(item.count),
+    hitCount: numericValue(item.hitCount),
+    hitRatePct: numericValue(item.hitRatePct),
+    lane,
+    lateCount: numericValue(item.lateCount),
+    lateRatePct: numericValue(item.lateRatePct),
+  };
+}
+
+function normalizeAuditV2MissedOpportunity(value: unknown): HistoricalBacktestAuditV2State["missedOpportunities"][number] {
+  const item = asObject(value);
+  const direction = stringValue(item.direction);
+
+  return {
+    confidence: numericValue(item.confidence),
+    direction: direction === "short" ? "short" : "long",
+    maePct: numericValue(item.maePct),
+    mfePct: numericValue(item.mfePct),
+    moveAtSelectionPct: numericValue(item.moveAtSelectionPct),
+    observedAt: stringValue(item.observedAt),
+    reason: stringValue(item.reason, "该样本未进入 radar topN，需复盘覆盖率、排序或深扫槽位。"),
+    symbol: stringValue(item.symbol, "UNKNOWN"),
+    volumeRatio: numericValue(item.volumeRatio),
+  };
+}
+
 function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestAuditV2State | undefined {
   if (payload.schemaVersion !== "professional-backtest-audit-report.v2") {
     return undefined;
   }
 
   const roundSummary = asObject(payload.roundSummary);
+  const baselineMetrics = asObject(payload.baselineMetrics);
+  const timingMetrics = asObject(payload.timingMetrics);
 
   return {
     schemaVersion: "professional-backtest-audit-report.v2",
+    baselineMetrics: {
+      momentum: normalizeAuditV2LaneMetric("momentum", baselineMetrics.momentum),
+      radar: normalizeAuditV2LaneMetric("radar", baselineMetrics.radar),
+      random: normalizeAuditV2LaneMetric("random", baselineMetrics.random),
+      volume: normalizeAuditV2LaneMetric("volume", baselineMetrics.volume),
+    },
     cases: numericValue(roundSummary.cases),
     findings: asArray(payload.findings).map(normalizeAuditV2Finding).slice(0, 100),
     guardrails: asArray(payload.guardrails).map((item) => stringValue(item)).filter(Boolean),
     highSeverityFindings: numericValue(roundSummary.highSeverityFindings),
+    missedOpportunities: asArray(payload.missedOpportunities).map(normalizeAuditV2MissedOpportunity).slice(0, 50),
     planReadyCount: numericValue(roundSummary.planReadyCount),
     remediationPlan: asArray(payload.remediationPlan).map(normalizeAuditV2Remediation).slice(0, 30),
     summary: stringValue(payload.summary, "专业回测 v2 暂无总结。"),
     testedCapabilities: numericValue(roundSummary.testedCapabilities),
+    timingMetrics: {
+      earlyCount: numericValue(timingMetrics.earlyCount),
+      earlyRatePct: numericValue(timingMetrics.earlyRatePct),
+      lateCount: numericValue(timingMetrics.lateCount),
+      lateRatePct: numericValue(timingMetrics.lateRatePct),
+      noPlanCount: numericValue(timingMetrics.noPlanCount),
+      planReadyCount: numericValue(timingMetrics.planReadyCount),
+    },
   };
 }
 

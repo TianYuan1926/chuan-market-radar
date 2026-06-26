@@ -70,6 +70,12 @@ test("runProfessionalReplay produces professional v2 report with findings and re
   assert.ok(report.cases.length > 0);
   assert.ok(report.input.replayTimes > 0);
   assert.ok(report.roundSummary.cases > 0);
+  assert.ok(report.baselineMetrics.radar.count > 0);
+  assert.ok(report.baselineMetrics.momentum.count > 0);
+  assert.ok(report.baselineMetrics.volume.count > 0);
+  assert.ok(report.baselineMetrics.random.count > 0);
+  assert.equal(typeof report.timingMetrics.lateRatePct, "number");
+  assert.ok(Array.isArray(report.missedOpportunities));
   assert.ok(report.findings.some((item) => item.id.startsWith("PBA-")));
   assert.ok(report.remediationPlan.length > 0);
 });

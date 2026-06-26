@@ -1202,16 +1202,59 @@ export type HistoricalBacktestAuditV2Remediation = {
   targetModule: string
 }
 
+export type HistoricalBacktestAuditV2LaneMetric = {
+  avgConfidence: number
+  avgMaePct: number
+  avgMfePct: number
+  avgMoveAtSelectionPct: number
+  avgVolumeRatio: number
+  count: number
+  hitCount: number
+  hitRatePct: number
+  lane: 'momentum' | 'radar' | 'random' | 'volume'
+  lateCount: number
+  lateRatePct: number
+}
+
+export type HistoricalBacktestAuditV2TimingMetrics = {
+  earlyCount: number
+  earlyRatePct: number
+  lateCount: number
+  lateRatePct: number
+  noPlanCount: number
+  planReadyCount: number
+}
+
+export type HistoricalBacktestAuditV2MissedOpportunity = {
+  confidence: number
+  direction: 'long' | 'short'
+  maePct: number
+  mfePct: number
+  moveAtSelectionPct: number
+  observedAt: string
+  reason: string
+  symbol: string
+  volumeRatio: number
+}
+
 export type HistoricalBacktestAuditV2State = {
   schemaVersion: 'professional-backtest-audit-report.v2'
+  baselineMetrics: {
+    momentum: HistoricalBacktestAuditV2LaneMetric
+    radar: HistoricalBacktestAuditV2LaneMetric
+    random: HistoricalBacktestAuditV2LaneMetric
+    volume: HistoricalBacktestAuditV2LaneMetric
+  }
   cases: number
   highSeverityFindings: number
   planReadyCount: number
   testedCapabilities: number
   summary: string
   findings: HistoricalBacktestAuditV2Finding[]
+  missedOpportunities: HistoricalBacktestAuditV2MissedOpportunity[]
   remediationPlan: HistoricalBacktestAuditV2Remediation[]
   guardrails: string[]
+  timingMetrics: HistoricalBacktestAuditV2TimingMetrics
 }
 
 export type HistoricalBacktestState = {
