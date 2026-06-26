@@ -836,12 +836,12 @@ RawSource
 
 最近一次正式专业审计样本：
 
-- 报告目录：`reports/professional-backtest-audit/2026-06-26T131107-959Z`。
+- 报告目录：`reports/professional-backtest-audit/2026-06-26T132540-108Z`，生产容器路径为 `/app/reports/professional-backtest-audit/2026-06-26T132540-108Z`。
 - 参数：10 个目标山寨、80 个候选币、每币 10 个历史节点、Top10、30 天 Binance public futures 15m K 线。
 - 本轮先发现并修复一个回测适配器根因：历史 Open Interest 端点从会跳转官网 HTML 的 `futures.binance.com` 改为 `fapi.binance.com`，修复后拉取失败从 80 降为 0。`reports/professional-backtest-audit/2026-06-26T130404-571Z` 是端点错误暴露轮，只能作为故障记录，不能作为有效能力结论。
-- 结果：完成 100/100 节点，目标节点 radar 捕获 12/100，迟到 51/100，交易计划就绪 0。
-- 基线：radar 命中率 23.1%，random 23.7%，volume 22.9%，momentum 31.9%；radar 未跑赢 random，也明显没跑赢 momentum。虽然 radar lane 迟到率只有 4%，但 10x10 目标节点迟到率仍为 51%，说明候选排序和目标节点捕获仍不可靠。
-- 漏判归因：`PBA-SCAN-ROUND-MISSED-001` 输出 4 个不晚到但未进 Top10 的机会样本，平均 radar 排名 35；主要漏判节点仍集中在 `pullback_retest`。
+- 结果：生产服务器完成 100/100 节点，目标节点 radar 捕获 11/100，迟到 48/100，交易计划就绪 0，拉取失败 0。
+- 基线：radar 命中率 22.5%，random 19.2%，volume 23.5%，momentum 31.7%；radar 跑赢 random，但仍低于 volume 和 momentum。虽然 radar lane 迟到率只有 1.3%，但 10x10 目标节点迟到率仍为 48%，说明候选排序和目标节点捕获仍不可靠。
+- 漏判归因：`PBA-SCAN-ROUND-MISSED-001` 输出 11 个不晚到但未进 Top10 的机会样本，平均 radar 排名 27.36；主要漏判节点仍集中在 `pullback_retest`。
 - 阻断问题：`PBA-SCAN-ROUND-001` 捕获率不足、`PBA-SCAN-ROUND-BASELINE-001` 未跑赢随机、`PBA-SCAN-ROUND-MISSED-001` 仍有早期机会漏判、`PBA-TIMING-ROUND-001` 迟到率偏高、`PBA-RR-001` 大量结构盈亏比不足、`PBA-PLAN-001` 无计划就绪、`PBA-REVIEW-001` 多个样本先触发止损。
 - 结论：当前网站仍不能宣称具备稳定实战选币能力。下一步必须优先整改候选排序、提前机会特征、pullback/retest 捕获、RR/结构目标质量、计划就绪条件和失败归因；在下一轮回测前不能把页面信号包装成可靠狙击结果。
 
