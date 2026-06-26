@@ -2,9 +2,7 @@ import type {
   AiReviewBoundary,
   AiReviewSections,
   AiSignalReview,
-  EvidencePoint,
   MarketSignal,
-  StrategyPlan,
 } from "./types";
 
 export type AiReviewSnapshotMetadata = {
@@ -31,61 +29,7 @@ export type AiReviewContext = {
   metadata: AiReviewSnapshotMetadata;
 };
 
-export type AiReviewEnv = Partial<{
-  AI_REVIEW_ENABLED: string;
-  AI_PROVIDER: string;
-  AI_API_KEY: string;
-  AI_BASE_URL: string;
-  AI_MODEL: string;
-  AI_REVIEW_MAX_PROMPT_CHARS: string;
-  AI_REVIEW_MAX_SIGNALS: string;
-}>;
-
-export type AiReviewPromptPayload = {
-  signal: Pick<
-    MarketSignal,
-    | "confidence"
-    | "direction"
-    | "exchange"
-    | "id"
-    | "regime"
-    | "risk"
-    | "state"
-    | "summary"
-    | "symbol"
-    | "timeframe"
-    | "updatedAt"
-  > & {
-    strategy: Pick<
-      StrategyPlan,
-      | "bias"
-      | "entry"
-      | "invalidation"
-      | "targets"
-      | "riskReward"
-      | "positionHint"
-      | "status"
-      | "noChase"
-      | "confirmation"
-      | "counterEvidence"
-      | "riskControls"
-    >;
-  };
-  evidence: Array<EvidencePoint & { id: string }>;
-  snapshot: AiReviewSnapshotMetadata;
-  trace: {
-    evidenceIds: string[];
-    signalId: string;
-  };
-};
-
-export type AiReviewPrompt = {
-  system: string;
-  user: string;
-  payload: AiReviewPromptPayload;
-  payloadJson: string;
-};
-
+export type AiReviewEnv = Record<string, string | undefined>;
 export type AiReviewFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 type AiReviewBoundaryInput = Partial<{
@@ -100,59 +44,33 @@ type AiReviewBoundaryInput = Partial<{
 
 export type ReviewSignalWithAiOptions = {
   signal: MarketSignal;
-  context: AiReviewContext;
+  context?: AiReviewContext;
   env?: AiReviewEnv;
   fetcher?: AiReviewFetch;
   now?: () => Date;
 };
 
+const ruleProvider = "rule-engine";
+const ruleModel = "deterministic-counter-review-v1";
+const disabledReason = "external AI disabled by product decision";
+
 const disabledSections: AiReviewSections = {
-  fact: "AI 复核未启用。",
-  reasoning: "当前仅使用规则引擎和结构化证据。",
-  judgment: "不把 AI 作为最终裁决。",
-  strategy: "继续按规则策略和触发条件处理。",
-  failurePath: "AI 不可用时不能补充额外失败路径。",
-  uncertainty: "缺少模型反证复核。",
+  fact: "外部 AI 复核已取消。",
+  reasoning: "当前仅使用规则引擎、结构化证据和复盘样本边界。",
+  judgment: "不接入模型，不把 AI 作为最终裁决。",
+  strategy: "继续按规则策略、触发条件、风控门禁和失效条件处理。",
+  failurePath: "规则证据不足、结构失效或 RR 不足时，必须降级观察或失效。",
+  uncertainty: "规则反证不能替代长期回测样本和人工复盘。",
 };
-
-const fallbackSections: AiReviewSections = {
-  fact: "AI 复核失败。",
-  reasoning: "模型请求或解析失败，系统已回落到规则引擎。",
-  judgment: "不使用失败的模型输出。",
-  strategy: "继续按规则策略和反证清单执行。",
-  failurePath: "若规则证据被破坏，则按原失效条件处理。",
-  uncertainty: "本轮缺少可审计 AI 复核。",
-};
-
-const defaultMaxPromptChars = 12_000;
-const defaultMaxSignalsPerSnapshot = 3;
-
-function positiveInteger(value: string | undefined, fallback: number) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return fallback;
-  }
-
-  return Math.floor(parsed);
-}
-
-function maxPromptCharsFrom(env: AiReviewEnv) {
-  return positiveInteger(env.AI_REVIEW_MAX_PROMPT_CHARS, defaultMaxPromptChars);
-}
-
-function maxSignalsFrom(env: AiReviewEnv) {
-  return Math.min(8, positiveInteger(env.AI_REVIEW_MAX_SIGNALS, defaultMaxSignalsPerSnapshot));
-}
 
 function aiReviewBoundary({
   costStatus = "disabled",
-  maxPromptChars = defaultMaxPromptChars,
-  maxSignalsPerSnapshot = defaultMaxSignalsPerSnapshot,
-  model,
-  promptChars,
-  provider,
-  reason,
+  maxPromptChars = 0,
+  maxSignalsPerSnapshot = Number.MAX_SAFE_INTEGER,
+  model = ruleModel,
+  promptChars = 0,
+  provider = ruleProvider,
+  reason = disabledReason,
 }: AiReviewBoundaryInput = {}): AiReviewBoundary {
   return {
     allowedUse: "counter_evidence_review_only",
@@ -173,450 +91,118 @@ function aiReviewBoundary({
       allowedUse: "manual_replay_calibration_only",
       canAutoAdjustWeights: false,
       requiresOutcomeSample: true,
-      tag: "ai_counter_evidence_review",
+      tag: "rule_counter_evidence_review",
     },
-    summary: "AI 只做反证复核和不确定性说明，不能覆盖规则引擎、不能改排序、不能生成交易信号。",
+    summary: "外部 AI 已取消；当前只做代码规则反证复核和不确定性说明，不能覆盖规则引擎、不能改排序、不能生成交易信号。",
   };
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
-function textValue(value: unknown, fallback: string) {
-  if (typeof value === "string" && value.trim()) {
-    return value.trim();
-  }
-
-  if (Array.isArray(value)) {
-    const joined = value.filter((item): item is string => typeof item === "string").join("；");
-
-    return joined || fallback;
-  }
-
-  return fallback;
-}
-
-function stringArray(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.filter((item): item is string =>
-      typeof item === "string" && item.trim().length > 0
-    );
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    return [value.trim()];
-  }
-
-  return [];
 }
 
 function evidenceIdFor(signal: MarketSignal, index: number) {
   return `${signal.id}:evidence:${index}`;
 }
 
-function numberValue(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
-function boundedConfidenceAdjustment(value: unknown) {
-  const numeric = numberValue(value);
-
-  if (numeric === undefined) {
-    return undefined;
-  }
-
-  return Math.max(-25, Math.min(25, Math.round(numeric)));
-}
-
-function cleanJsonText(text: string) {
-  const withoutFence = text
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/i, "")
-    .trim();
-  const firstBrace = withoutFence.indexOf("{");
-  const lastBrace = withoutFence.lastIndexOf("}");
-
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-    return withoutFence;
-  }
-
-  return withoutFence.slice(firstBrace, lastBrace + 1);
-}
-
-function sanitizeStrategy(strategy: StrategyPlan) {
-  return {
-    bias: strategy.bias,
-    entry: strategy.entry,
-    invalidation: strategy.invalidation,
-    targets: strategy.targets,
-    riskReward: strategy.riskReward,
-    positionHint: strategy.positionHint,
-    status: strategy.status,
-    noChase: strategy.noChase,
-    confirmation: strategy.confirmation,
-    counterEvidence: strategy.counterEvidence,
-    riskControls: strategy.riskControls,
-  };
-}
-
-function sanitizeSignal(signal: MarketSignal): AiReviewPromptPayload["signal"] {
-  return {
-    id: signal.id,
-    symbol: signal.symbol,
-    exchange: signal.exchange,
-    direction: signal.direction,
-    state: signal.state,
-    timeframe: signal.timeframe,
-    regime: signal.regime,
-    confidence: signal.confidence,
-    risk: signal.risk,
-    updatedAt: signal.updatedAt,
-    summary: signal.summary,
-    strategy: sanitizeStrategy(signal.strategy),
-  };
-}
-
-function sanitizeEvidence(signal: MarketSignal) {
-  return signal.evidence.map((item, index) => ({
-    id: evidenceIdFor(signal, index),
-    label: item.label,
-    value: item.value,
-    layer: item.layer,
-    polarity: item.polarity,
-  }));
-}
-
-function sanitizeSnapshotMetadata(metadata: AiReviewSnapshotMetadata = {}): AiReviewSnapshotMetadata {
-  return {
-    id: metadata.id,
-    source: metadata.source,
-    status: metadata.status,
-    generatedAt: metadata.generatedAt,
-    cadenceMinutes: metadata.cadenceMinutes,
-    scannedCount: metadata.scannedCount,
-    anomalyCount: metadata.anomalyCount,
-    candidateCount: metadata.candidateCount,
-    riskGate: metadata.riskGate,
-    notes: metadata.notes,
-    coverage: metadata.coverage
-      ? {
-          coveragePercent: metadata.coverage.coveragePercent,
-          eligible: metadata.coverage.eligible,
-          pending: metadata.coverage.pending,
-          scanned: metadata.coverage.scanned,
-          total: metadata.coverage.total,
-        }
-      : undefined,
-  };
-}
-
-export function buildAiReviewPrompt(signal: MarketSignal, context: AiReviewContext): AiReviewPrompt {
-  const payload: AiReviewPromptPayload = {
-    signal: sanitizeSignal(signal),
-    evidence: sanitizeEvidence(signal),
-    snapshot: sanitizeSnapshotMetadata(context.metadata),
-    trace: {
-      evidenceIds: signal.evidence.map((_, index) => evidenceIdFor(signal, index)),
-      signalId: signal.id,
-    },
-  };
-  const payloadJson = JSON.stringify(payload, null, 2);
-  const system = [
-    "你是川 Market Radar 的 AI 反证复核层，必须先找反证，再给结论。",
-    "你只能使用用户 payload 中的结构化 JSON，不得编造新闻、链上数据、盘口数据或未接入的数据源。",
-    "你的作用是复核和解释，不是最终裁决；规则引擎和用户纪律仍然优先。",
-    "你不得新增买卖方向、不得改变信号置信度、不得覆盖 Risk Gate 或失效条件。",
-    "返回 JSON，不要返回 Markdown。",
-  ].join("\n");
-  const user = [
-    "Review this market signal with counter-evidence first.",
-    "Return JSON keys: counterEvidence, fact, reasoning, judgment, strategy, failurePath, uncertainty, confidenceAdjustment.",
-    "counterEvidence should be an array of { evidenceId, note } objects when possible.",
-    "只能引用 trace.evidenceIds 中列出的 evidenceId；不能引用 payload 外的新闻、链上、盘口或传闻。",
-    `Signal id: ${payload.trace.signalId}`,
-    "Payload:",
-    payloadJson,
-  ].join("\n\n");
-
-  return {
-    system,
-    user,
-    payload,
-    payloadJson,
-  };
-}
-
 export function disabledAiReview(reason: string, boundaryInput: AiReviewBoundaryInput = {}): AiSignalReview {
   return {
     status: "disabled",
     boundary: aiReviewBoundary({
-      costStatus: reason.includes("API_KEY") ? "missing_key" : "disabled",
+      costStatus: "disabled",
       reason,
       ...boundaryInput,
     }),
     reason,
-    counterEvidence: [`AI 复核未启用：${reason}`],
+    counterEvidence: [`规则反证未执行：${reason}`],
     sections: disabledSections,
   };
 }
 
-function fallbackAiReview(
-  reason: string,
-  provider?: string,
-  model?: string,
-  boundaryInput: AiReviewBoundaryInput = {},
-): AiSignalReview {
+function pushUnique(items: string[], value: string | undefined) {
+  const normalized = value?.trim();
+
+  if (normalized && !items.includes(normalized)) {
+    items.push(normalized);
+  }
+}
+
+function ruleCounterEvidence(signal: MarketSignal) {
+  const evidence: string[] = [];
+
+  for (const item of signal.evidence) {
+    if (item.polarity === "conflicting" || item.polarity === "blocking") {
+      pushUnique(evidence, `${item.label}：${item.value}`);
+    }
+  }
+
+  for (const item of signal.strategy.counterEvidence ?? []) {
+    pushUnique(evidence, item);
+  }
+
+  for (const item of signal.strategy.riskControls ?? []) {
+    pushUnique(evidence, `风控：${item}`);
+  }
+
+  if (signal.strategy.noChase) {
+    pushUnique(evidence, "禁止追单：当前位置已经不适合直接追入。");
+  }
+
+  if (signal.strategy.riskReward > 0 && signal.strategy.riskReward < 3) {
+    pushUnique(evidence, `结构盈亏比不足：当前 RR=${signal.strategy.riskReward.toFixed(2)}，低于 3:1 下限。`);
+  }
+
+  if (signal.risk === "blocked" || signal.risk === "high") {
+    pushUnique(evidence, `风险等级偏高：${signal.risk}。`);
+  }
+
+  if (signal.state === "invalidated") {
+    pushUnique(evidence, "结构已失效：不得继续按原信号处理。");
+  }
+
+  return evidence.slice(0, 8);
+}
+
+function ruleReviewSections(signal: MarketSignal, counterEvidence: string[]): AiReviewSections {
+  const hasCounter = counterEvidence.length > 0;
+
   return {
-    status: "fallback",
-    boundary: aiReviewBoundary({
-      costStatus: "fallback",
-      model,
-      provider,
-      reason,
-      ...boundaryInput,
-    }),
-    reason,
-    provider,
-    model,
-    counterEvidence: ["AI 复核失败，当前只采用规则引擎反证和风险控制。"],
-    sections: fallbackSections,
+    fact: hasCounter
+      ? `规则反证发现 ${counterEvidence.length} 条风险或反向证据。`
+      : "规则反证未发现明确硬伤。",
+    reasoning: "复核只使用当前信号的结构化证据、策略反证、风控项、RR 和成熟度，不读取外部模型。",
+    judgment: hasCounter
+      ? "需要继续按风控门禁和触发条件等待，不能因为单一信号直接行动。"
+      : "可维持原规则引擎判断，但仍不能绕过 RR、关键位和失效条件。",
+    strategy: signal.strategy.status === "actionable"
+      ? "只有触发条件、止损、目标和失效条件同时满足时，交易计划才可进入人工复核。"
+      : "当前优先观察或等待确认，不生成额外方向。",
+    failurePath: signal.strategy.invalidation || "若关键结构失效、RR 降低或风险门禁触发，则信号失效。",
+    uncertainty: "规则反证不能替代回测样本和人工复盘；异常案例仍需进入复盘进化系统。",
   };
 }
 
-type AiReviewParseMeta = Pick<AiSignalReview, "provider" | "model" | "reviewedAt" | "signalId"> & {
-  boundary?: AiReviewBoundary;
-  evidenceIds?: string[];
-};
-
-function counterEvidenceResult(
-  value: unknown,
-  meta: AiReviewParseMeta,
-): {
-  counterEvidence: string[];
-  invalidReason?: string;
-  referencedEvidenceIds: string[];
-} {
-  const allowed = new Set(meta.evidenceIds ?? []);
-  const counterEvidence: string[] = [];
-  const referencedEvidenceIds: string[] = [];
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      if (typeof item === "string" && item.trim()) {
-        counterEvidence.push(item.trim());
-        continue;
-      }
-
-      const record = asRecord(item);
-      const evidenceId = typeof record.evidenceId === "string" ? record.evidenceId.trim() : "";
-      const note = textValue(record.note ?? record.detail ?? record.value, "");
-
-      if (evidenceId) {
-        if (allowed.size > 0 && !allowed.has(evidenceId)) {
-          return {
-            counterEvidence: [],
-            invalidReason: `unbound evidence id: ${evidenceId}`,
-            referencedEvidenceIds: [],
-          };
-        }
-
-        referencedEvidenceIds.push(evidenceId);
-      } else if (allowed.size > 0 && Object.keys(record).length > 0) {
-        return {
-          counterEvidence: [],
-          invalidReason: "unbound evidence id: missing evidenceId",
-          referencedEvidenceIds: [],
-        };
-      }
-
-      if (note) {
-        counterEvidence.push(note);
-      }
-    }
-
-    return {
-      counterEvidence,
-      referencedEvidenceIds: [...new Set(referencedEvidenceIds)],
-    };
-  }
-
-  return {
-    counterEvidence: stringArray(value),
-    referencedEvidenceIds,
-  };
-}
-
-export function parseAiReviewResponse(
-  text: string,
-  meta: AiReviewParseMeta = {},
-): AiSignalReview {
-  try {
-    const parsed = asRecord(JSON.parse(cleanJsonText(text)));
-    const counter = counterEvidenceResult(parsed.counterEvidence, meta);
-
-    if (counter.invalidReason) {
-      return {
-        ...fallbackAiReview(counter.invalidReason, meta.provider, meta.model, {
-          ...meta.boundary?.cost,
-          costStatus: "fallback",
-        }),
-        evidenceIds: meta.evidenceIds,
-        signalId: meta.signalId,
-      };
-    }
-
-    return {
-      status: "reviewed",
-      boundary: meta.boundary ?? aiReviewBoundary({
-        costStatus: "within_budget",
-        model: meta.model,
-        provider: meta.provider,
-      }),
-      provider: meta.provider,
-      model: meta.model,
-      reviewedAt: meta.reviewedAt,
-      counterEvidence: counter.counterEvidence,
-      sections: {
-        fact: textValue(parsed.fact, "模型未提供事实层。"),
-        reasoning: textValue(parsed.reasoning, "模型未提供推理层。"),
-        judgment: textValue(parsed.judgment, "模型未提供判断层。"),
-        strategy: textValue(parsed.strategy, "模型未提供策略层。"),
-        failurePath: textValue(parsed.failurePath, "模型未提供失败路径。"),
-        uncertainty: textValue(parsed.uncertainty, "模型未提供不确定性。"),
-      },
-      confidenceAdjustment: boundedConfidenceAdjustment(parsed.confidenceAdjustment),
-      evidenceIds: meta.evidenceIds,
-      referencedEvidenceIds: counter.referencedEvidenceIds,
-      signalId: meta.signalId,
-    };
-  } catch (error) {
-    return fallbackAiReview(error instanceof Error ? error.message : "AI response parse failed", meta.provider, meta.model, {
-      ...meta.boundary?.cost,
-      costStatus: "fallback",
-    });
-  }
-}
-
-function modelContent(responsePayload: unknown) {
-  const payload = asRecord(responsePayload);
-  const choices = Array.isArray(payload.choices) ? payload.choices : [];
-  const firstChoice = asRecord(choices[0]);
-  const message = asRecord(firstChoice.message);
-  const content = message.content;
-
-  if (typeof content === "string") {
-    return content;
-  }
-
-  if (typeof payload.output_text === "string") {
-    return payload.output_text;
-  }
-
-  return undefined;
-}
-
-export async function reviewSignalWithAi({
+export async function reviewSignalWithRules({
   signal,
-  context,
-  env = {},
-  fetcher = fetch,
   now = () => new Date(),
 }: ReviewSignalWithAiOptions): Promise<AiSignalReview> {
-  const provider = env.AI_PROVIDER ?? "openai-compatible";
-  const model = env.AI_MODEL ?? "gpt-4.1-mini";
-  const baseUrl = env.AI_BASE_URL ?? "https://api.openai.com/v1/chat/completions";
-  const maxPromptChars = maxPromptCharsFrom(env);
-  const maxSignalsPerSnapshot = maxSignalsFrom(env);
+  const evidenceIds = signal.evidence.map((_, index) => evidenceIdFor(signal, index));
+  const counterEvidence = ruleCounterEvidence(signal);
 
-  if (env.AI_REVIEW_ENABLED !== "true") {
-    return disabledAiReview("AI_REVIEW_ENABLED is not true", {
-      maxPromptChars,
-      maxSignalsPerSnapshot,
-      model,
-      provider,
-    });
-  }
+  return {
+    status: "reviewed",
+    boundary: aiReviewBoundary({
+      costStatus: "within_budget",
+      reason: disabledReason,
+    }),
+    counterEvidence,
+    sections: ruleReviewSections(signal, counterEvidence),
+    provider: ruleProvider,
+    model: ruleModel,
+    reviewedAt: now().toISOString(),
+    confidenceAdjustment: counterEvidence.length > 0 ? -5 : 0,
+    evidenceIds,
+    referencedEvidenceIds: evidenceIds,
+    signalId: signal.id,
+  };
+}
 
-  if (!env.AI_API_KEY) {
-    return disabledAiReview("AI_API_KEY is missing", {
-      maxPromptChars,
-      maxSignalsPerSnapshot,
-      model,
-      provider,
-    });
-  }
-
-  const prompt = buildAiReviewPrompt(signal, context);
-  const promptChars = prompt.user.length + prompt.system.length;
-
-  if (promptChars > maxPromptChars) {
-    return disabledAiReview("AI review prompt exceeds budget guard", {
-      costStatus: "over_budget",
-      maxPromptChars,
-      maxSignalsPerSnapshot,
-      model,
-      promptChars,
-      provider,
-    });
-  }
-  const boundary = aiReviewBoundary({
-    costStatus: "within_budget",
-    maxPromptChars,
-    maxSignalsPerSnapshot,
-    model,
-    promptChars,
-    provider,
-  });
-
-  try {
-    const response = await fetcher(baseUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${env.AI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: prompt.system },
-          { role: "user", content: prompt.user },
-        ],
-        temperature: 0.1,
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!response.ok) {
-      return fallbackAiReview(`model request failed with ${response.status}`, provider, model, {
-        ...boundary.cost,
-        costStatus: "fallback",
-      });
-    }
-
-    const content = modelContent(await response.json());
-
-    if (!content) {
-      return fallbackAiReview("model response did not include message content", provider, model, {
-        ...boundary.cost,
-        costStatus: "fallback",
-      });
-    }
-
-    return parseAiReviewResponse(content, {
-      boundary,
-      evidenceIds: prompt.payload.trace.evidenceIds,
-      provider,
-      model,
-      reviewedAt: now().toISOString(),
-      signalId: prompt.payload.trace.signalId,
-    });
-  } catch (error) {
-    return fallbackAiReview(error instanceof Error ? error.message : "model request failed", provider, model, {
-      ...boundary.cost,
-      costStatus: "fallback",
-    });
-  }
+export async function reviewSignalWithAi(options: ReviewSignalWithAiOptions): Promise<AiSignalReview> {
+  return reviewSignalWithRules(options);
 }

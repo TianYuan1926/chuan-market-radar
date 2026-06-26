@@ -429,11 +429,11 @@ export function TokenDossier({
         )}
       </div>
 
-      {/* AI 复核 */}
+      {/* 规则反证复核 */}
       <div className="px-6 py-5">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Bot className="size-4 text-neon" />
-          AI 复核
+          规则反证复核
           {d.aiReview.suggestDowngrade && (
             <span className="bg-down/15 px-1.5 py-0.5 text-[10px] font-semibold text-down">
               建议降级

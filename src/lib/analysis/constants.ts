@@ -32,6 +32,6 @@ export const analysisLayerLabels: Record<AnalysisLayer, string> = {
   indicators: "技术指标",
   risk_reward: "赔率风控",
   flexibility: "灵活性校验",
-  ai_review: "AI 反证复核",
+  ai_review: "规则反证复核",
   lifecycle_review: "生命周期复盘",
 };

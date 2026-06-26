@@ -273,7 +273,7 @@ http://43.161.202.227
 - `/api/health.health.scanStability` 显示扫描稳定性。
 - `/api/health.health.reviewStatistics` 显示复盘样本状态。
 - `/api/frontend/radar-contract` 返回 scanProof、apiUsage、dataSources、fundFlow、scanStability。
-- `/api/frontend/review-contract` 返回 reviewStats 和 aiReviewStats。
+- `/api/frontend/review-contract` 返回 reviewStats 和 aiReviewStats；`aiReviewStats` 是兼容字段，当前表示规则反证统计，不表示外部 AI 调用。
 - `/api/frontend/live-events/stream` 是只读 SSE 事件流，不触发扫描。
 
 ## 数据库备份和恢复

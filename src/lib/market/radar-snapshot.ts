@@ -6,9 +6,7 @@ import {
 import { dirname, join } from "node:path";
 import {
   disabledAiReview,
-  reviewSignalWithAi,
-  type AiReviewEnv,
-  type AiReviewFetch,
+  reviewSignalWithRules,
 } from "../analysis/ai-reviewer";
 import { siteConfig } from "../config/site";
 import { appPersistenceRepository } from "../persistence/app-repository";
@@ -34,9 +32,6 @@ const archiveMaxEntries = 24;
 const devSnapshotPath = join(process.cwd(), ".next", "cache", "chuan-market-radar", "latest-snapshot.json");
 
 type AiReviewSnapshotOptions = {
-  env?: AiReviewEnv;
-  fetcher?: AiReviewFetch;
-  maxSignals?: number;
   now?: () => Date;
 };
 
@@ -113,18 +108,6 @@ async function archiveBundle(
       },
     };
   }
-}
-
-function envFromProcess(): AiReviewEnv {
-  return {
-    AI_REVIEW_ENABLED: process.env.AI_REVIEW_ENABLED,
-    AI_PROVIDER: process.env.AI_PROVIDER,
-    AI_API_KEY: process.env.AI_API_KEY,
-    AI_BASE_URL: process.env.AI_BASE_URL,
-    AI_MODEL: process.env.AI_MODEL,
-    AI_REVIEW_MAX_PROMPT_CHARS: process.env.AI_REVIEW_MAX_PROMPT_CHARS,
-    AI_REVIEW_MAX_SIGNALS: process.env.AI_REVIEW_MAX_SIGNALS,
-  };
 }
 
 function priorityHintNote(summary: Awaited<ReturnType<typeof buildUniversePriorityHintsFromRepository>>["summary"]) {
@@ -317,26 +300,6 @@ export async function buildRepositoryAwareMarketProvider({
   }
 }
 
-function reviewLimit(env: AiReviewEnv, explicit?: number) {
-  const parsed = Number(explicit ?? env.AI_REVIEW_MAX_SIGNALS ?? 3);
-
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return 1;
-  }
-
-  return Math.min(8, Math.floor(parsed));
-}
-
-function promptLimit(env: AiReviewEnv) {
-  const parsed = Number(env.AI_REVIEW_MAX_PROMPT_CHARS ?? 12_000);
-
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return 12_000;
-  }
-
-  return Math.floor(parsed);
-}
-
 export async function enrichSnapshotWithAiReviews(
   snapshot: MarketRadarSnapshot,
   options: AiReviewSnapshotOptions = {},
@@ -345,36 +308,18 @@ export async function enrichSnapshotWithAiReviews(
     return snapshot;
   }
 
-  const env = options.env ?? envFromProcess();
-  const enabled = env.AI_REVIEW_ENABLED === "true" && Boolean(env.AI_API_KEY);
-  const maxSignals = enabled ? reviewLimit(env, options.maxSignals) : snapshot.signals.length;
-  const context = { metadata: snapshot.metadata };
   const signals = await Promise.all(
-    snapshot.signals.map(async (signal, index) => {
+    snapshot.signals.map(async (signal) => {
       const maturity = classifySignalMaturity(signal);
 
       if (maturity.canRequestAiReview === false) {
         return {
           ...signal,
           maturity,
-          aiReview: disabledAiReview("SIGNAL_MATURITY_GATE: AI only reviews EVIDENCE_SIGNAL or TRADE_PLAN_READY", {
-            maxPromptChars: promptLimit(env),
-            maxSignalsPerSnapshot: maxSignals,
-            model: env.AI_MODEL ?? "gpt-4.1-mini",
-            provider: env.AI_PROVIDER ?? "openai-compatible",
-          }),
-        };
-      }
-
-      if (enabled && index >= maxSignals) {
-        return {
-          ...signal,
-          maturity,
-          aiReview: disabledAiReview("AI_REVIEW_MAX_SIGNALS budget guard", {
-            maxPromptChars: promptLimit(env),
-            maxSignalsPerSnapshot: maxSignals,
-            model: env.AI_MODEL ?? "gpt-4.1-mini",
-            provider: env.AI_PROVIDER ?? "openai-compatible",
+          aiReview: disabledAiReview("RULE_REVIEW_MATURITY_GATE: only EVIDENCE_SIGNAL or TRADE_PLAN_READY gets rule counter-review", {
+            maxSignalsPerSnapshot: snapshot.signals.length,
+            model: "deterministic-counter-review-v1",
+            provider: "rule-engine",
           }),
         };
       }
@@ -382,14 +327,11 @@ export async function enrichSnapshotWithAiReviews(
       return {
         ...signal,
         maturity,
-        aiReview: await reviewSignalWithAi({
+        aiReview: await reviewSignalWithRules({
           signal: {
             ...signal,
             maturity,
           },
-          context,
-          env,
-          fetcher: options.fetcher,
           now: options.now,
         }),
       };

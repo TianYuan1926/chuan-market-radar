@@ -164,7 +164,7 @@ export type AiReviewBoundary = {
     allowedUse: "manual_replay_calibration_only";
     canAutoAdjustWeights: false;
     requiresOutcomeSample: true;
-    tag: "ai_counter_evidence_review";
+    tag: "rule_counter_evidence_review";
   };
   summary: string;
 };

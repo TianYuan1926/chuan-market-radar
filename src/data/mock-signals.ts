@@ -130,7 +130,7 @@ export const mockSignals: MarketSignal[] = [
         polarity: "blocking",
       },
       {
-        label: "AI 反证",
+        label: "规则反证",
         value: "当前更像波动酝酿，不是可执行策略。",
         layer: "ai_review",
         polarity: "conflicting",

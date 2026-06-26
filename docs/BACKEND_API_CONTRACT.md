@@ -43,7 +43,7 @@ Response shape:
 - `contract.analysis.signalMaturity`: counts and symbol lists for `LIGHT_SCAN_MARK`, `DEEP_SCAN_CANDIDATE`, `EVIDENCE_SIGNAL`, `REVIEW_ONLY`, `TRADE_PLAN_READY`, blocked, cooldown and invalidated states.
 - `contract.analysis.timeframeGate`: counts, blocked symbols, blockers and conflict timeframes for multi-timeframe hard-gate decisions.
 - `contract.analysis.v3StrategyLoop`: live v3 plans, risk-gate blocks and missing v3 count.
-- `contract.analysis.businessCapability`: `business-capability.v1` readonly business loop report covering signal lifecycle, outcome rules, candidate rotation, maturity layers, shadow tracking, strategy-family stats, historical replay, AI counter review and evolution suggestions.
+- `contract.analysis.businessCapability`: `business-capability.v1` readonly business loop report covering signal lifecycle, outcome rules, candidate rotation, maturity layers, shadow tracking, strategy-family stats, historical replay, rule counter review and evolution suggestions.
 - `contract.analysis.coreChainGovernance`: `core-chain-governance.v1` readonly product governance report covering the seven core chain steps, feature triage, page roles, cleanup rules and operating sequence.
 - `contract.analysis.evolution`: readonly strategy evolution boundary.
 - `contract.apiSurfaces`: stable API surface names for frontend integration.
@@ -116,7 +116,7 @@ Primary use:
 
 - Frontend rebuilds should show these stages as system capability status, not as trading calls.
 - The UI should expose sample counts, disabled/collecting states and next actions instead of implying that every module is fully battle-tested.
-- AI review is only a bounded counter-evidence review for mature signals; it is not a full-market AI scanner.
+- External AI review has been removed. Rule review is only a bounded counter-evidence review for mature signals; it is not a full-market scanner and cannot override the strategy engine.
 
 ## `GET /api/radar/dossier?symbol=SYMBOL`
 

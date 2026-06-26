@@ -2,17 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "./types";
 import {
-  type AiReviewPromptPayload,
-  buildAiReviewPrompt,
   disabledAiReview,
-  parseAiReviewResponse,
   reviewSignalWithAi,
+  reviewSignalWithRules,
 } from "./ai-reviewer";
 
-type AiReviewParseMeta = NonNullable<Parameters<typeof parseAiReviewResponse>[1]>;
-
 const baseSignal: MarketSignal = {
-  id: "ena-ai-review",
+  id: "ena-rule-review",
   symbol: "ENAUSDT",
   exchange: "BINANCE",
   direction: "long",
@@ -44,105 +40,54 @@ const baseSignal: MarketSignal = {
     targets: ["前高流动性区"],
     riskReward: 3.1,
     positionHint: "等待确认，禁止追单",
+    counterEvidence: ["高周期仍未完全站稳。"],
+    noChase: true,
   },
 };
 
-const baseContext = {
-  metadata: {
-    id: "scan-ai-review",
-    source: "coinglass" as const,
-    status: "ready" as const,
-    generatedAt: "2026-06-14T12:00:00.000+08:00",
-    cadenceMinutes: 15,
-    scannedCount: 24,
-    anomalyCount: 3,
-    candidateCount: 2,
-    riskGate: "on" as const,
-    notes: ["coverage 12/48"],
-  },
-};
+test("disabledAiReview exposes a visible rule boundary without requiring AI config", () => {
+  const review = disabledAiReview("RULE_REVIEW_MATURITY_GATE");
 
-test("buildAiReviewPrompt sends only structured signal evidence and snapshot metadata", () => {
-  const unsafeSignal = {
-    ...baseSignal,
-    secretExchangeToken: "super-secret-token",
-  } as MarketSignal & { secretExchangeToken: string };
-  const unsafeContext = {
-    ...baseContext,
-    apiKey: "leaky-key",
-    journalEvents: [{ note: "private journal" }],
-    derivatives: [{ fundingRate: 0.02 }],
-  };
-
-  const prompt = buildAiReviewPrompt(unsafeSignal, unsafeContext);
-
-  assert.match(prompt.system, /先找反证/);
-  assert.match(prompt.user, /counter-evidence first/i);
-  assert.deepEqual(Object.keys(prompt.payload).sort(), ["evidence", "signal", "snapshot", "trace"].sort());
-  assert.deepEqual(Object.keys(prompt.payload.signal).sort(), [
-    "confidence",
-    "direction",
-    "exchange",
-    "id",
-    "regime",
-    "risk",
-    "state",
-    "strategy",
-    "summary",
-    "symbol",
-    "timeframe",
-    "updatedAt",
-  ].sort());
-  assert.doesNotMatch(prompt.user, /super-secret-token|leaky-key|private journal|fundingRate/);
+  assert.equal(review.status, "disabled");
+  assert.equal(review.boundary.canOverrideDecision, false);
+  assert.equal(review.boundary.canCreateTradeSignal, false);
+  assert.equal(review.boundary.canAutoExecute, false);
+  assert.equal(review.boundary.cost.provider, "rule-engine");
+  assert.equal(review.boundary.cost.model, "deterministic-counter-review-v1");
+  assert.match(review.sections.fact, /外部 AI 复核已取消/);
+  assert.match(review.counterEvidence[0] ?? "", /规则反证未执行/);
 });
 
-test("buildAiReviewPrompt binds every model input to the signal id and evidence ids", () => {
-  const prompt = buildAiReviewPrompt(baseSignal, baseContext);
-  const payload: AiReviewPromptPayload = prompt.payload;
-
-  assert.equal(payload.trace.signalId, "ena-ai-review");
-  assert.deepEqual(payload.trace.evidenceIds, [
-    "ena-ai-review:evidence:0",
-    "ena-ai-review:evidence:1",
-  ]);
-  assert.deepEqual(payload.evidence.map((item) => item.id), [
-    "ena-ai-review:evidence:0",
-    "ena-ai-review:evidence:1",
-  ]);
-  assert.match(prompt.user, /ena-ai-review:evidence:0/);
-  assert.match(prompt.user, /只能引用 trace\.evidenceIds/);
-});
-
-test("disabledAiReview and missing AI_API_KEY return a visible disabled boundary", async () => {
-  const disabled = disabledAiReview("AI_API_KEY is missing");
-  const review = await reviewSignalWithAi({
+test("reviewSignalWithRules reviews mature signals using deterministic counter-evidence", async () => {
+  const review = await reviewSignalWithRules({
     signal: baseSignal,
-    context: baseContext,
-    env: { AI_REVIEW_ENABLED: "true" },
-    fetcher: async () => new Response("{}"),
+    now: () => new Date("2026-06-14T12:01:00.000Z"),
   });
 
-  assert.equal(disabled.status, "disabled");
-  assert.equal(disabled.boundary.canOverrideDecision, false);
-  assert.equal(disabled.boundary.canCreateTradeSignal, false);
-  assert.equal(disabled.boundary.cost.status, "missing_key");
-  assert.equal(review.status, "disabled");
-  assert.match(review.reason ?? "", /AI_API_KEY/);
-  assert.equal(review.boundary.cost.status, "missing_key");
-  assert.equal(review.boundary.replayCalibration.tag, "ai_counter_evidence_review");
-  assert.equal(review.sections.fact, "AI 复核未启用。");
+  assert.equal(review.status, "reviewed");
+  assert.equal(review.provider, "rule-engine");
+  assert.equal(review.model, "deterministic-counter-review-v1");
+  assert.equal(review.reviewedAt, "2026-06-14T12:01:00.000Z");
+  assert.equal(review.boundary.cost.status, "within_budget");
+  assert.equal(review.boundary.canMutateLiveRanking, false);
+  assert.deepEqual(review.evidenceIds, [
+    "ena-rule-review:evidence:0",
+    "ena-rule-review:evidence:1",
+  ]);
+  assert.ok(review.counterEvidence.some((item) => item.includes("BTC/ETH 环境逆风")));
+  assert.ok(review.counterEvidence.some((item) => item.includes("禁止追单")));
+  assert.equal(review.confidenceAdjustment, -5);
 });
 
-test("reviewSignalWithAi blocks over-budget prompts before calling the model", async () => {
+test("reviewSignalWithAi remains as compatibility alias but never calls external fetch", async () => {
   let called = false;
   const review = await reviewSignalWithAi({
     signal: baseSignal,
-    context: baseContext,
     env: {
       AI_REVIEW_ENABLED: "true",
       AI_API_KEY: "test-key",
-      AI_REVIEW_MAX_PROMPT_CHARS: "10",
-      AI_REVIEW_MAX_SIGNALS: "2",
+      AI_BASE_URL: "https://ai.example.test/v1/chat/completions",
+      AI_MODEL: "review-model",
     },
     fetcher: async () => {
       called = true;
@@ -152,129 +97,27 @@ test("reviewSignalWithAi blocks over-budget prompts before calling the model", a
   });
 
   assert.equal(called, false);
-  assert.equal(review.status, "disabled");
-  assert.equal(review.boundary.cost.status, "over_budget");
-  assert.equal(review.boundary.cost.maxPromptChars, 10);
-  assert.equal(review.boundary.cost.maxSignalsPerSnapshot, 2);
-  assert.equal(review.boundary.canMutateLiveRanking, false);
+  assert.equal(review.status, "reviewed");
+  assert.equal(review.provider, "rule-engine");
+  assert.equal(review.boundary.cost.reason, "external AI disabled by product decision");
+  assert.doesNotMatch(JSON.stringify(review), /test-key|ai\.example|review-model/);
 });
 
-test("reviewSignalWithAi falls back when an OpenAI-compatible model request fails", async () => {
-  const review = await reviewSignalWithAi({
-    signal: baseSignal,
-    context: baseContext,
-    env: {
-      AI_REVIEW_ENABLED: "true",
-      AI_API_KEY: "test-key",
-      AI_BASE_URL: "https://ai.example.test/v1/chat/completions",
-      AI_MODEL: "review-model",
-    },
-    fetcher: async () => {
-      throw new Error("model offline");
+test("rule review blocks weak RR through counter-evidence instead of model output", async () => {
+  const review = await reviewSignalWithRules({
+    signal: {
+      ...baseSignal,
+      risk: "high",
+      strategy: {
+        ...baseSignal.strategy,
+        noChase: false,
+        riskReward: 1.8,
+      },
     },
   });
-
-  assert.equal(review.status, "fallback");
-  assert.equal(review.boundary.cost.status, "fallback");
-  assert.equal(review.boundary.canOverrideDecision, false);
-  assert.match(review.reason ?? "", /model offline/);
-  assert.ok(review.counterEvidence.some((item: string) => item.includes("规则引擎")));
-});
-
-test("parseAiReviewResponse normalizes fact reasoning judgment strategy failure path and uncertainty", () => {
-  const review = parseAiReviewResponse(JSON.stringify({
-    counterEvidence: ["BTC 没有同步走强", "突破后未回踩确认"],
-    fact: "ENA 放量接近箱体上沿。",
-    reasoning: "量能支持观察，但大盘和触发条件不足。",
-    judgment: "等待确认，不追。",
-    strategy: "只在回踩不破后进入候选。",
-    failurePath: "跌回箱体内部则失效。",
-    uncertainty: "缺少更高周期确认。",
-    confidenceAdjustment: -8,
-  }));
 
   assert.equal(review.status, "reviewed");
-  assert.equal(review.boundary.allowedUse, "counter_evidence_review_only");
-  assert.equal(review.boundary.canOverrideDecision, false);
-  assert.equal(review.boundary.canAutoExecute, false);
-  assert.deepEqual(review.counterEvidence, ["BTC 没有同步走强", "突破后未回踩确认"]);
-  assert.equal(review.sections.fact, "ENA 放量接近箱体上沿。");
-  assert.equal(review.sections.reasoning, "量能支持观察，但大盘和触发条件不足。");
-  assert.equal(review.sections.judgment, "等待确认，不追。");
-  assert.equal(review.sections.strategy, "只在回踩不破后进入候选。");
-  assert.equal(review.sections.failurePath, "跌回箱体内部则失效。");
-  assert.equal(review.sections.uncertainty, "缺少更高周期确认。");
-  assert.equal(review.confidenceAdjustment, -8);
-});
-
-test("parseAiReviewResponse falls back when model counter-evidence is not tied to allowed evidence ids", () => {
-  const review = parseAiReviewResponse(JSON.stringify({
-    counterEvidence: [
-      { evidenceId: "made-up-market-fact", note: "外部消息说要突破" },
-    ],
-    fact: "模型引用了 payload 外证据。",
-    reasoning: "这不允许。",
-    judgment: "应降级。",
-    strategy: "等待。",
-    failurePath: "失效。",
-    uncertainty: "未知。",
-  }), {
-    evidenceIds: ["ena-ai-review:evidence:0"],
-    signalId: "ena-ai-review",
-  } satisfies AiReviewParseMeta);
-
-  assert.equal(review.status, "fallback");
-  assert.match(review.reason ?? "", /unbound evidence id/);
-  assert.equal(review.signalId, "ena-ai-review");
-  assert.deepEqual(review.evidenceIds, ["ena-ai-review:evidence:0"]);
-});
-
-test("reviewSignalWithAi uses OpenAI-compatible chat completions without exposing the API key", async () => {
-  let requestUrl = "";
-  let requestBody = "";
-  let authHeader = "";
-  const modelAnswer = JSON.stringify({
-    counterEvidence: [{ evidenceId: "ena-ai-review:evidence:1", note: "资金费率拥挤度需要继续确认" }],
-    fact: "候选信号包含量能和结构证据。",
-    reasoning: "支持证据存在，但反证要求等待触发。",
-    judgment: "观察，不直接触发。",
-    strategy: "等待回踩确认。",
-    failurePath: "跌回突破位则失效。",
-    uncertainty: "高周期确认不足。",
-  });
-
-  const review = await reviewSignalWithAi({
-    signal: baseSignal,
-    context: baseContext,
-    env: {
-      AI_REVIEW_ENABLED: "true",
-      AI_API_KEY: "test-key",
-      AI_BASE_URL: "https://ai.example.test/v1/chat/completions",
-      AI_MODEL: "review-model",
-    },
-    fetcher: async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = input.toString();
-      requestBody = init?.body?.toString() ?? "";
-      authHeader = new Headers(init?.headers).get("authorization") ?? "";
-
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: modelAnswer } }],
-      }));
-    },
-  });
-
-  assert.equal(requestUrl, "https://ai.example.test/v1/chat/completions");
-  assert.equal(authHeader, "Bearer test-key");
-  assert.match(requestBody, /review-model/);
-  assert.match(requestBody, /counter-evidence first/i);
-  assert.doesNotMatch(JSON.stringify(review), /test-key/);
-  assert.equal(review.status, "reviewed");
-  assert.deepEqual(review.counterEvidence, ["资金费率拥挤度需要继续确认"]);
-  assert.equal(review.signalId, "ena-ai-review");
-  assert.deepEqual(review.referencedEvidenceIds, ["ena-ai-review:evidence:1"]);
-  assert.equal(review.boundary.cost.status, "within_budget");
-  assert.equal(review.boundary.cost.model, "review-model");
-  assert.equal(review.boundary.cost.provider, "openai-compatible");
-  assert.equal(review.boundary.replayCalibration.allowedUse, "manual_replay_calibration_only");
-  assert.equal(review.sections.failurePath, "跌回突破位则失效。");
+  assert.ok(review.counterEvidence.some((item) => item.includes("结构盈亏比不足")));
+  assert.ok(review.counterEvidence.some((item) => item.includes("风险等级偏高")));
+  assert.match(review.sections.judgment, /风控门禁|触发条件/);
 });

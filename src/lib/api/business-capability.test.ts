@@ -154,17 +154,17 @@ function snapshot(): MarketRadarSnapshot {
             cost: {
               maxPromptChars: 12_000,
               maxSignalsPerSnapshot: 3,
-              model: "gpt-test",
-              provider: "openai-compatible",
+              model: "deterministic-counter-review-v1",
+              provider: "rule-engine",
               status: "within_budget",
             },
             replayCalibration: {
               allowedUse: "manual_replay_calibration_only",
               canAutoAdjustWeights: false,
               requiresOutcomeSample: true,
-              tag: "ai_counter_evidence_review",
+              tag: "rule_counter_evidence_review",
             },
-            summary: "AI 只做反证复核。",
+            summary: "外部 AI 已取消；当前只做代码规则反证复核。",
           },
           counterEvidence: ["1h 压力仍需确认"],
           sections: {

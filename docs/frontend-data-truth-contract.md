@@ -21,7 +21,7 @@ Anything else is forbidden for active pages.
 - Randomly generated prices, volume, market cap, hit rate, or PnL.
 - Seed journal entries that look like real trades.
 - Mock review samples shown as if they came from the review/evolution system.
-- Fake whale alerts, fake liquidation alerts, fake chain-flow alerts, or fake AI conclusions.
+- Fake whale alerts, fake liquidation alerts, fake chain-flow alerts, or fake model/rule-review conclusions.
 - Showing `0` for unavailable market cap when the real meaning is unknown.
 - Polluted symbols or non-crypto underlyings, including Chinese text assets, tokenized stocks, commodities, non-USDT contracts, or any invalid symbol that slipped through old cache/database state.
 

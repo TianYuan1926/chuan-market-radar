@@ -84,7 +84,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
     reviewed: 0,
     total: 0,
     unboundFallbackProtected: true,
-  }, 'empty', { source: 'ai-reviewer', reason: '未传入后端 AI 复核契约' })
+  }, 'empty', { source: 'rule-reviewer', reason: '未传入后端规则反证复核契约' })
   const historicalBacktest = contract?.historicalBacktest ?? resource({
     schemaVersion: 'historical-backtest.v1' as const,
     status: 'empty' as const,
@@ -171,14 +171,14 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
           </div>
         </Panel>
 
-        <Panel title="AI 反证复核状态" icon={Bot} right={<StatusBadge status={aiReviewStats.status} />}>
+        <Panel title="规则反证复核状态" icon={Bot} right={<StatusBadge status={aiReviewStats.status} />}>
           <div className="space-y-4 px-5 py-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
                 ['总记录', aiReviewStats.data.total],
-                ['已复核', aiReviewStats.data.reviewed],
-                ['降级/失败', aiReviewStats.data.fallback],
-                ['未启用', aiReviewStats.data.disabled],
+                ['规则已复核', aiReviewStats.data.reviewed],
+                ['降级/异常', aiReviewStats.data.fallback],
+                ['未满足成熟度', aiReviewStats.data.disabled],
               ].map(([label, value]) => (
                 <div key={label} className="border border-border bg-secondary/20 p-3">
                   <div className="text-[11px] text-muted-foreground">{label}</div>
@@ -187,7 +187,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               ))}
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              {aiReviewStats.reason ?? 'AI 只做反证、漏洞检查和中文解释，不能替代规则引擎，不能绕过结构盈亏比、风控门禁或结构失效。'}
+              {aiReviewStats.reason ?? '外部 AI 已取消；当前由代码规则做反证、漏洞检查和中文模板解释，不能替代规则引擎，不能绕过结构盈亏比、风控门禁或结构失效。'}
             </p>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
               证据绑定保护：{aiReviewStats.data.unboundFallbackProtected ? '开启' : '未开启'}

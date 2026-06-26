@@ -125,11 +125,11 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | `maturity` | signal blockers and maturity | connected/partial | blocked if risk/timeframe gate blocks |
 | `structures` | `strategyV3.keyLevels` and available timeframes | partial | real key levels if present; missing OHLCV shows waiting state |
 | `evidence` | supportive `EvidencePoint[]` | connected | traceable to backend evidence ledger |
-| `counter` | conflicting/blocking `EvidencePoint[]` | connected | used for AI/review context |
+| `counter` | conflicting/blocking `EvidencePoint[]` | connected | used for rule review context |
 | `riskGate` | risk/timeframe/blocker summary | connected | controls whether plan can show |
 | `tradePlan` | `strategyV3.tradePlan` | connected/partial | eligible v3 plans map to entry/stop/TP/RR; missing or blocked plans render no trade plan |
-| `reportSections` | `strategyV3`, evidence ledger, trade plan and review boundaries | connected/partial | sections are written as plain trading questions: current conclusion, why watch, where it may fail, can it trade now, how to act, review/AI boundary. They still include key levels, Forward Map, trend scores, location/RR, reaction quality, trend integrity and confirmation checklist; frontend must not invent missing reasoning |
-| `aiReview` | rule-based review boundary text and model counter-evidence review | connected/partial | AI review is env-gated, high-value only, evidence-id bound, and cannot override strategy |
+| `reportSections` | `strategyV3`, evidence ledger, trade plan and review boundaries | connected/partial | sections are written as plain trading questions: current conclusion, why watch, where it may fail, can it trade now, how to act, review boundary. They still include key levels, Forward Map, trend scores, location/RR, reaction quality, trend integrity and confirmation checklist; frontend must not invent missing reasoning |
+| `aiReview` | rule-based counter-evidence review boundary | connected/partial | field name remains for compatibility; external AI is removed, rule review is high-value only, evidence-id bound, and cannot override strategy |
 | K-line panel | `/api/frontend/kline-contract` + `buildFrontendKlineContract()` from public OHLCV/cache + optional `SignalBackendDossier.strategyV3` | connected | maps backend candles to front chart candles and optional v3 overlays; no generated candles, no frontend-created trading decision |
 | fund flow panel | `RadarContract.fundFlow` | partial | shows honest waiting/partial state until a real taker/CVD/source is connected |
 
@@ -142,7 +142,7 @@ must never become `TRADE_PLAN_READY` by frontend calculation.
 | `missedDetections` | selected journal review events | partial | needs more outcome samples and missed-opportunity ingestion |
 | `evolutionSuggestions` | business capability next actions/gaps | connected/partial | suggestions are read-only; must not auto-change live weights |
 | `reviewStats` | `backend.analysis.reviewStatistics` from journal outcome samples | connected/partial | sample-size aware; research only, no auto weight changes |
-| `aiReviewStats` | `snapshot.signals[].aiReview` | connected/partial | evidence-id-bound review count; AI cannot override strategy |
+| `aiReviewStats` | `snapshot.signals[].aiReview` | connected/partial | field name remains for compatibility; evidence-id-bound rule review count; rule review cannot override strategy |
 
 ## Manual Journal Contract Field Map
 
@@ -178,8 +178,8 @@ Completed system probes:
 - `/api/frontend/live-events/stream` exposes the same read-only event contract over SSE; it never triggers scans and never calls CoinGlass.
 - `/api/frontend/ui-state` persists frontend preferences in `frontend_ui_states` as UI-only data.
 - `/api/auth/session` provides optional private mode with signed HTTP-only cookie sessions.
-- Real AI review adapter is wired as an optional, evidence-id-bound reviewer; it cannot override the strategy engine.
-- AI counter-evidence review is evidence-id bound: prompts include `trace.signalId` and `trace.evidenceIds`, and model counter-evidence with unbound ids falls back instead of becoming reviewed.
+- External AI review has been removed; `aiReview` remains only as a compatibility field for deterministic rule counter-review.
+- Rule counter-evidence review is evidence-id bound and cannot override the strategy engine.
 - `/api/admin/runtime/heartbeat` stores protected worker heartbeats in Redis.
 - `scanner-worker`, `coinglass-worker`, `signal-worker`, `dynamic-scan-scheduler`, `macro-worker`, and `websocket-light-worker` report task state through the heartbeat endpoint.
 - `/api/health`, `/api/radar/backend-contract`, `/api/frontend/radar-contract`, and SSR page contracts expose runtime probes through `runtimeProbes` and `RadarContract.serviceNodes`.

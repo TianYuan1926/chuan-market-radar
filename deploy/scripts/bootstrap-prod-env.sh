@@ -129,14 +129,8 @@ OUTCOME_EXECUTOR_EVENT_LIMIT=80
 V3_FORWARD_MAP_REVIEW_LIMIT=80
 STRATEGY_WEIGHT_ACTIVATION_MODE=disabled
 
-# AI analysis provider, default disabled
-AI_REVIEW_ENABLED=false
-AI_PROVIDER=
-AI_API_KEY=
-AI_BASE_URL=
-AI_MODEL=
-AI_REVIEW_MAX_SIGNALS=3
-AI_REVIEW_MAX_PROMPT_CHARS=12000
+# External AI review is intentionally removed.
+# Counter-evidence review runs through deterministic code rules and needs no secret.
 
 # Legacy/rollback adapters. Keep empty unless intentionally using them again.
 SUPABASE_URL=

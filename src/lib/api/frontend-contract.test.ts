@@ -1812,7 +1812,7 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
   assert.equal(res.data.tradePlan, null);
   assert.equal(res.data.riskGate.allowTradePlan, false);
   assert.match(res.data.riskGate.reasons.join("；"), /等待后端结构化交易计划/);
-  assert.equal(res.data.aiReview.note.includes("AI 仅对反证进行复核"), true);
+  assert.equal(res.data.aiReview.note.includes("规则反证检查漏洞"), true);
   assert.equal(res.data.structures.every((item) => item.support === 0 && item.resistance === 0), true);
   assert.equal(res.data.reportSections.some((section) => section.key === "facts"), true);
   assert.equal(res.data.reportSections.some((section) => section.key === "risk_gate"), true);

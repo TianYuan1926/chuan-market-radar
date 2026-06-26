@@ -66,8 +66,8 @@ restore frontend source from user ui package
 当前审计基线：
 
 - 详见 `docs/frontend-backend-field-map.md`。
-- 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链、API 用量、数据源延迟、AI evidence-id 绑定复审。
-- 已接：复盘样本统计合同、AI 复核统计合同、扫描稳定性合同。
+- 已接：扫描证明、深扫队列、候选/成熟信号、榜单、宏观环境、衍生品聚合、系统基础健康、复盘基础合同、单币证据链、API 用量、数据源延迟、规则反证 evidence-id 绑定复审。
+- 已接：复盘样本统计合同、规则反证统计合同、扫描稳定性合同。
 - 半接：主力资金流。当前只展示 OI/Funding/多空比上下文和 taker/CVD 未接入状态，不能伪装成真实资金流。
 - 已接：UI 偏好可通过 `/api/frontend/ui-state?kind=ui_preferences` 写入 `frontend_ui_states`；真实登录鉴权通过 `/api/auth/session` 和可选私有模式完成。
 
@@ -98,7 +98,7 @@ restore frontend source from user ui package
 - `/api/admin/runtime/heartbeat` + `RadarContract.serviceNodes`：worker 通过受保护接口写 Redis 心跳，系统页读取真实 Redis/worker 运行探针，不再硬写在线状态。
 - `RadarContract.scanStability`：从扫描归档、覆盖率、Redis 和 worker 心跳生成扫描稳定性诊断；只做运维诊断，不能生成交易信号。
 - `ReviewContract.reviewStats`：从真实 journal outcome 样本生成复盘统计；样本不足时必须显示 collecting/empty，不能自动调权。
-- `ReviewContract.aiReviewStats`：统计 evidence-id 绑定的 AI 复核状态；AI 不能替代规则引擎。
+- `ReviewContract.aiReviewStats`：字段名保留兼容；统计 evidence-id 绑定的规则反证状态，规则反证不能替代规则引擎。
 - `/api/frontend/leaderboard`：public market ticker 模式下，`gainers` 取同币种最高 24h 涨幅，`losers` 取同币种最低 24h 涨幅，`volume` 聚合同币种跨交易所 24h 成交额；每行必须带 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。
 - `/api/frontend/token-dossier`：`reportSections` 已纳入 v3 关键位、Forward Map、趋势状态、趋势分数、位置/RR、回踩/反抽质量、趋势完整度、交易计划确认清单、分批止盈和人工复核边界。
 - `/api/frontend/kline-contract`：在保持 `data` 为真实蜡烛数组的前提下，新增只读 `overlays/overlayStatus/tradingView`，把后端 v3 关键位、Forward Map、结构止损和目标位提供给图表层。
@@ -128,7 +128,7 @@ mapper 硬规则：
 - 榜单候选可以用于展示“候选/等待验证”，不能在前端升级成交易计划。
 - Token 详情不得用前端价格推导伪造完整交易计划；精确交易计划必须来自 `strategyV3.tradePlan`，缺失或被阻断时显示无交易计划。
 - 资金流缺 taker/CVD 时必须显示 partial/waiting，不能用 `0`、随机数或旧 mock 当真实数据。
-- 扫描稳定性、复盘统计、AI 统计只能解释系统状态，不能改变候选排序、Risk Gate 或交易计划。
+- 扫描稳定性、复盘统计、规则反证统计只能解释系统状态，不能改变候选排序、Risk Gate 或交易计划。
 
 ## 阶段 4：逐页对接
 

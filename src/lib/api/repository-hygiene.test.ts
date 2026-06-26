@@ -608,7 +608,7 @@ test("frontend backend field map records current wiring gaps before refinement",
   assert.match(fieldMap, /Redis health probe and worker heartbeat probe/);
   assert.match(fieldMap, /\/api\/frontend\/live-events\/stream/);
   assert.match(fieldMap, /SSE transport is available/);
-  assert.match(fieldMap, /AI counter-evidence review is evidence-id bound/);
+  assert.match(fieldMap, /Rule counter-evidence review is evidence-id bound/);
 
   assert.match(integrationPlan, /docs\/frontend-backend-field-map\.md/);
   assert.match(integrationPlan, /当前已经完成的基础/);
@@ -1036,7 +1036,7 @@ test("review page stays focused on review evolution without rank decoration", ()
   assert.doesNotMatch(reviewPageSource, /ReviewCenter/);
   assert.match(reviewEvolutionSource, /复盘样本门禁/);
   assert.match(reviewEvolutionSource, /提前发现复盘/);
-  assert.match(reviewEvolutionSource, /AI 反证复核状态/);
+  assert.match(reviewEvolutionSource, /规则反证复核状态/);
   assert.match(reviewEvolutionSource, /样本不足/);
   assert.match(reviewEvolutionSource, /不能替代规则引擎/);
 });

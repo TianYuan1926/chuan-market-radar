@@ -356,7 +356,7 @@ export function getRadarSignals(): Resource<RadarSignal[]> {
 }
 
 // ============================================================
-// 六、单币：多周期结构 / 证据链 / 反证链 / Risk Gate / 交易计划 / AI 复核
+// 六、单币：多周期结构 / 证据链 / 反证链 / Risk Gate / 交易计划 / 规则反证复核
 // ============================================================
 export type TfStructure = {
   tf: '15m' | '1h' | '4h' | '1d'
@@ -408,7 +408,7 @@ export type AiReviewData = {
   reviewed: boolean
   findings: string[] // 发现的反证
   suggestDowngrade: boolean
-  note: string // AI 只复核不下结论的声明
+  note: string // 规则反证只复核不下结论的声明
 }
 export type AnalysisReportSection = {
   key: 'facts' | 'supportive_evidence' | 'counter_evidence' | 'risk_gate' | 'trade_plan' | 'review_boundary'
@@ -1368,7 +1368,7 @@ export function getAiReviewStats(): Resource<AiReviewStats> {
       unboundFallbackProtected: true,
     },
     'partial',
-    { ageSec: 30, source: 'ai-reviewer', reason: 'AI 只统计 evidence-id 绑定复核结果，不替代规则引擎。' },
+    { ageSec: 30, source: 'rule-reviewer', reason: '规则反证只统计 evidence-id 绑定复核结果，不替代规则引擎。' },
   )
 }
 

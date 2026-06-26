@@ -559,18 +559,18 @@ function aiReviewStage(snapshot: MarketRadarSnapshot): BusinessCapabilityStage {
 
   return {
     id: "ai_counter_review",
-    title: "AI 反证复核",
+    title: "规则反证复核",
     status,
     score: clampScore(statusScore(status) + Math.min(10, statusCounts.reviewed * 3)),
-    summary: `可复核成熟信号 ${reviewableSignals.length}，已复核 ${statusCounts.reviewed}，fallback ${statusCounts.fallback}，禁用 ${statusCounts.disabled}。`,
+    summary: `可复核成熟信号 ${reviewableSignals.length}，规则已复核 ${statusCounts.reviewed}，异常 ${statusCounts.fallback}，未满足成熟度 ${statusCounts.disabled}。`,
     evidence: [
       `maxSignalsPerSnapshot=${firstBoundary?.cost.maxSignalsPerSnapshot ?? "unknown"}`,
       `costStatus=${firstBoundary?.cost.status ?? "missing"}`,
     ],
     nextAction: status === "disabled"
-      ? "如需启用，配置 AI_REVIEW_ENABLED 和 AI_API_KEY；AI 只复核成熟信号，不扫全市场。"
-      : "继续限制 AI 只做反证、失败路径和不确定性提示。",
-    guardrail: "AI 不能创建交易信号，不能覆盖规则引擎，不能改实时排序和权重。",
+      ? "等待 EVIDENCE_SIGNAL 或 TRADE_PLAN_READY 后触发规则反证；外部 AI 已取消。"
+      : "继续限制规则反证只做漏洞、失败路径和不确定性提示。",
+    guardrail: "规则反证不能创建交易信号，不能覆盖主规则引擎，不能改实时排序和权重。",
   };
 }
 
@@ -630,7 +630,7 @@ function operatorHint(status: BusinessCapabilityReport["status"]) {
   }
 
   if (status === "watch") {
-    return "业务闭环已经连起来，但仍有样本量、影子观察或 AI 复核边界需要继续观察。";
+    return "业务闭环已经连起来，但仍有样本量、影子观察或规则反证边界需要继续观察。";
   }
 
   if (status === "partial") {
@@ -695,7 +695,7 @@ export function buildBusinessCapabilityReport({
     nextActions,
     operatingRules: [
       "所有功能必须服务扫描 -> 候选 -> 深扫 -> 结构分析 -> 风险赔率 -> 交易计划 -> 复盘进化这条主链。",
-      "规则引擎先给结构化结论，AI 只做反证复核。",
+      "规则引擎先给结构化结论，外部 AI 已取消；反证复核由代码规则完成。",
       "复盘系统可以提出人工建议，不能自动修改实时权重。",
       "最低 3:1 盈亏比是下限，不是固定目标；低于 3:1 不能输出交易计划。",
       "所有业务能力必须接入扫描、分析、复盘同一条链，不能做成两张皮。",

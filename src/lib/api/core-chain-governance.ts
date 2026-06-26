@@ -383,12 +383,12 @@ function buildFeatureTriage(): CoreFeatureTriageItem[] {
     },
     {
       id: "ai_counter_review",
-      label: "AI 反证",
+      label: "规则反证",
       classification: "supporting",
       action: "keep",
-      reason: "只审查高价值候选，找漏洞和反证。",
+      reason: "外部 AI 已取消，由代码规则审查高价值候选，找漏洞和反证。",
       linkedSteps: ["structure_analysis", "trade_plan_readiness", "review_evolution"],
-      guardrail: "AI 不能替代规则引擎，不能扫全市场喊方向。",
+      guardrail: "规则反证不能替代主规则引擎，不能扫全市场喊方向。",
     },
     {
       id: "alerts",

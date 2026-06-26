@@ -85,64 +85,39 @@ function snapshot(signals: MarketSignal[] = [signal()]): MarketRadarSnapshot {
   };
 }
 
-test("enrichSnapshotWithAiReviews attaches a visible disabled AI review when AI is not configured", async () => {
-  let fetchCount = 0;
+test("enrichSnapshotWithAiReviews attaches rule review without external AI config", async () => {
   const enriched = await enrichSnapshotWithAiReviews(snapshot(), {
-    env: {},
-    fetcher: async () => {
-      fetchCount += 1;
-      return new Response("{}");
-    },
-  });
-
-  assert.equal(fetchCount, 0);
-  assert.equal(enriched.signals[0]?.aiReview?.status, "disabled");
-  assert.match(enriched.signals[0]?.aiReview?.reason ?? "", /AI_REVIEW_ENABLED/);
-});
-
-test("enrichSnapshotWithAiReviews keeps the snapshot usable when the model fails", async () => {
-  const enriched = await enrichSnapshotWithAiReviews(snapshot(), {
-    env: {
-      AI_REVIEW_ENABLED: "true",
-      AI_API_KEY: "test-key",
-      AI_MODEL: "review-model",
-      AI_BASE_URL: "https://ai.example.test/v1/chat/completions",
-    },
-    fetcher: async () => {
-      throw new Error("model offline");
-    },
-  });
-
-  assert.equal(enriched.signals.length, 1);
-  assert.equal(enriched.signals[0]?.aiReview?.status, "fallback");
-  assert.match(enriched.signals[0]?.aiReview?.reason ?? "", /model offline/);
-});
-
-test("enrichSnapshotWithAiReviews marks signals beyond AI budget as visible disabled reviews", async () => {
-  const enriched = await enrichSnapshotWithAiReviews(snapshot([
-    signal({ id: "ai-budget-1", symbol: "TIAUSDT" }),
-    signal({ id: "ai-budget-2", symbol: "SUIUSDT" }),
-  ]), {
-    env: {
-      AI_REVIEW_ENABLED: "true",
-      AI_API_KEY: "test-key",
-      AI_MODEL: "review-model",
-      AI_REVIEW_MAX_SIGNALS: "1",
-    },
-    fetcher: async () => new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify({ counterEvidence: ["等待反证"], judgment: "只复核" }) } }],
-    })),
+    now: () => new Date("2026-06-14T12:01:00.000Z"),
   });
 
   assert.equal(enriched.signals[0]?.aiReview?.status, "reviewed");
-  assert.equal(enriched.signals[1]?.aiReview?.status, "disabled");
-  assert.match(enriched.signals[1]?.aiReview?.reason ?? "", /MAX_SIGNALS/);
-  assert.equal(enriched.signals[1]?.aiReview?.boundary.cost.maxSignalsPerSnapshot, 1);
+  assert.equal(enriched.signals[0]?.aiReview?.provider, "rule-engine");
+  assert.equal(enriched.signals[0]?.aiReview?.model, "deterministic-counter-review-v1");
+});
+
+test("enrichSnapshotWithAiReviews ignores stale AI env and keeps using rules", async () => {
+  const enriched = await enrichSnapshotWithAiReviews(snapshot(), {
+    now: () => new Date("2026-06-14T12:02:00.000Z"),
+  });
+
+  assert.equal(enriched.signals.length, 1);
+  assert.equal(enriched.signals[0]?.aiReview?.status, "reviewed");
+  assert.equal(enriched.signals[0]?.aiReview?.boundary.cost.reason, "external AI disabled by product decision");
+});
+
+test("enrichSnapshotWithAiReviews reviews every mature signal without AI budget caps", async () => {
+  const enriched = await enrichSnapshotWithAiReviews(snapshot([
+    signal({ id: "ai-budget-1", symbol: "TIAUSDT" }),
+    signal({ id: "ai-budget-2", symbol: "SUIUSDT" }),
+  ]));
+
+  assert.equal(enriched.signals[0]?.aiReview?.status, "reviewed");
+  assert.equal(enriched.signals[1]?.aiReview?.status, "reviewed");
+  assert.equal(enriched.signals[1]?.aiReview?.boundary.cost.maxSignalsPerSnapshot, Number.MAX_SAFE_INTEGER);
   assert.equal(enriched.signals[1]?.aiReview?.boundary.canCreateTradeSignal, false);
 });
 
 test("enrichSnapshotWithAiReviews skips model calls for signals below evidence maturity", async () => {
-  let fetchCount = 0;
   const enriched = await enrichSnapshotWithAiReviews(snapshot([
     signal({
       evidence: [],
@@ -159,21 +134,12 @@ test("enrichSnapshotWithAiReviews skips model calls for signals below evidence m
       symbol: "COLDUSDT",
     }),
   ]), {
-    env: {
-      AI_REVIEW_ENABLED: "true",
-      AI_API_KEY: "test-key",
-      AI_MODEL: "review-model",
-    },
-    fetcher: async () => {
-      fetchCount += 1;
-      return new Response("{}");
-    },
+    now: () => new Date("2026-06-14T12:03:00.000Z"),
   });
 
-  assert.equal(fetchCount, 0);
   assert.equal(enriched.signals[0]?.maturity?.stage, "DEEP_SCAN_CANDIDATE");
   assert.equal(enriched.signals[0]?.aiReview?.status, "disabled");
-  assert.match(enriched.signals[0]?.aiReview?.reason ?? "", /SIGNAL_MATURITY_GATE/);
+  assert.match(enriched.signals[0]?.aiReview?.reason ?? "", /RULE_REVIEW_MATURITY_GATE/);
 });
 
 test("buildRepositoryAwareMarketProvider injects durable priority hints into the default provider", async () => {

@@ -4,7 +4,7 @@ This document defines v3 hard gates for Altcoin Trend Radar v3.
 
 ## Goal
 
-Risk Gate decides whether a setup is allowed to become a trade plan. It has priority over PreTrendScore, TrendEnergyScore, technical indicators, and AI review.
+Risk Gate decides whether a setup is allowed to become a trade plan. It has priority over PreTrendScore, TrendEnergyScore, technical indicators, and rule counter-review.
 
 ## Hard Gates
 

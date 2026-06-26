@@ -104,13 +104,7 @@
 - `MACRO_INGEST_INTERVAL_SECONDS`: 单机 macro-worker 抓取 BTC.D/TOTAL2/TOTAL3 宏观快照间隔，默认 `3600`
 - `SUPABASE_URL`: Supabase 项目地址
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase 服务端密钥
-- `AI_REVIEW_ENABLED`: 设为 `true` 才会启用服务端 AI 复核；默认关闭
-- `AI_PROVIDER`: AI 供应商标识，默认按 OpenAI-compatible 处理
-- `AI_API_KEY`: AI API Key
-- `AI_BASE_URL`: OpenAI-compatible chat completions endpoint
-- `AI_MODEL`: AI 复核模型名
-- `AI_REVIEW_MAX_SIGNALS`: 每轮最多复核几个候选，默认 `3`
-- `AI_REVIEW_MAX_PROMPT_CHARS`: 单个复核 prompt 最大字符数，默认 `12000`
+- 外部 AI 复核已取消：生产环境不需要 `AI_API_KEY`、`AI_REVIEW_ENABLED`、`AI_PROVIDER`、`AI_BASE_URL` 或 `AI_MODEL`。反证复核由代码规则完成。
 
 ## GitHub Actions Secrets
 
@@ -176,10 +170,10 @@
 - 分析层会对指标矩阵与 `1h/4h` 结构 profile 做基础校准；线上信号可能出现 `指标/周期反证` 或 `指标/周期同向校验` evidence，它们只做小幅加权/降权，不允许替代触发、失效和赔率检查。
 - 线上检查 metadata notes 时应能看到 `ohlcv multi-timeframe`；如果部分周期失败，应同时看到对应 `ohlcv unavailable`，但 `/api/scan` 不应因此失败。
 - OHLCV provider 失败时必须降级为信号数据质量提示，不能让 CoinGlass 衍生品扫描崩溃。
-- AI 复核只在服务端执行，浏览器端不会接触 `AI_API_KEY`。
-- AI 复核默认关闭；缺少 `AI_REVIEW_ENABLED=true` 或 `AI_API_KEY` 时，信号会显示 disabled 状态，不会隐藏复核边界。
-- AI 模型请求失败、解析失败或超出 prompt budget 时，系统会回落到规则引擎，不允许页面崩溃，也不能把失败模型输出当成判断。
-- AI 复核必须先找反证，再输出事实、推理、判断、策略、失败路径和不确定性；它只能复核和解释，不能替代规则引擎做最终裁决。
+- 外部 AI 复核已取消，浏览器端和服务端都不应依赖 `AI_API_KEY`。
+- 规则反证复核只对成熟信号执行，不满足成熟度时必须显示 disabled/未满足成熟度。
+- 规则反证复核失败时必须回落到主规则引擎，不允许页面崩溃，也不能把失败复核包装成判断。
+- 规则反证必须先找反证，再输出事实、推理、判断、策略、失败路径和不确定性；它只能复核和解释，不能替代规则引擎做最终裁决。
 - 告警策略当前在浏览器侧运行，不需要新增服务端环境变量；浏览器 Notification API 只会在用户主动开启告警后请求权限。
 - 告警声音受静默时段控制；静默时段只关闭声音，不隐藏事件中心日志。
 - 告警去重按同币种同状态抑制短窗口重复提醒，避免 Vercel/浏览器刷新时重复轰炸用户。
@@ -222,7 +216,7 @@
 - 数据库接入前不要承诺复盘记录、扫描归档、段位分数永久保存。
 - 告警上线前，确认浏览器通知权限不是首屏自动请求，且静默时段内事件仍进入事件中心。
 - 继续下一阶段前，先检查蓝图的阶段状态总览，确认没有把“基础已落地”误说成“完整专业闭环已完成”。
-- 每轮部署前，确认 README/蓝图/部署清单描述和实际代码一致，尤其是数据源、AI、数据库、告警、全市场覆盖和多周期融合状态。
+- 每轮部署前，确认 README/蓝图/部署清单描述和实际代码一致，尤其是数据源、规则反证、数据库、告警、全市场覆盖和多周期融合状态。
 - 免费预览部署完成后，用 GitHub Actions 外部 cron 每 15 分钟请求线上 `/api/scan`；Vercel Hobby 内置 Cron 不支持这个频率。
 - 每日异动归因复盘自动运行使用 `.github/workflows/chuan-daily-movers.yml` 每日低频请求 `/api/admin/daily-movers/ingest`，不要配置高频任务。
 - v3 Forward Map 复盘自动运行使用 `.github/workflows/chuan-v3-forward-map-review.yml` 每 6 小时请求 `/api/admin/v3/forward-map-reviews/run`，只写只读复盘样本，不自动改权重。

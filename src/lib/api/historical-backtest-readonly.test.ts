@@ -239,7 +239,7 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
         generatedAt: "2026-06-25T08:00:00.000Z",
         guardrails: [
           "专业回测审计只验证系统能力，不承诺未来收益。",
-          "AI 只能解释证据，不能替代规则引擎。",
+          "规则反证只能解释证据，不能替代规则引擎。",
         ],
         input: {
           baseInterval: "15m",

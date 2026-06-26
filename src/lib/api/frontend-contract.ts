@@ -2228,21 +2228,21 @@ function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadar
       },
       {
         key: "ai_counter_review",
-        label: "AI 反证复核",
+        label: "规则反证复核",
         cadenceBand: "review_cycle",
         cadenceLabel: "成熟候选触发",
         status: workerStatusToDataStatus(signalWorker?.status),
-        source: "AI reviewer boundary",
+        source: "rule-review boundary",
         metrics: ["反证", "逻辑漏洞", "中文解释", "复盘归因"],
         allowedUse: "review",
         canCreateTradeSignal: false,
-        guardrail: "AI 只审查成熟候选，不能替代规则引擎或绕过结构盈亏比/风控门禁。",
+        guardrail: "外部 AI 已取消；规则反证只审查成熟候选，不能替代主规则引擎或绕过结构盈亏比/风控门禁。",
         note: signalWorker?.detail ?? "等待 signal-worker 心跳。",
       },
     ],
     boundaries: [
       "秒级数据只负责发现异常，不生成交易计划。",
-      "CoinGlass、宏观、外部情报、AI、复盘不做秒级包装。",
+      "CoinGlass、宏观、外部情报、规则反证、复盘不做秒级包装。",
       "交易计划必须经过结构、证据、结构盈亏比、风控门禁和失效条件。",
       "前端实时感必须来自真实 stream、heartbeat 或数据新鲜度，不允许用假动画冒充。",
     ],
@@ -3961,11 +3961,11 @@ function buildAnalysisReportSections({
     },
     {
       key: "review_boundary",
-      title: "复盘与 AI 边界",
+      title: "复盘与规则反证边界",
       status: "partial",
       items: [
         { detail: `${dossier.journal.totalEvents} 条关联 journal / review 样本。`, label: "复盘样本", sourceId: "journal:samples" },
-        { detail: "AI 只做反证复核，不替代规则引擎，不直接给买卖方向。", label: "AI 边界", sourceId: "ai-review:boundary" },
+        { detail: "外部 AI 已取消；规则反证只检查漏洞和反向证据，不替代规则引擎，不直接给买卖方向。", label: "反证边界", sourceId: "rule-review:boundary" },
       ],
     },
   ];
@@ -4171,7 +4171,7 @@ export function buildFrontendTokenDossierContract({
       reviewed: signal?.timeframeGate !== undefined || dossier.evidence.total > 0,
       findings: counter.map((item) => item.value).slice(0, 5),
       suggestDowngrade: blockedReasons.length > 0,
-      note: "AI 仅对反证进行复核，不生成交易结论；最终判定以规则引擎为准。",
+      note: "外部 AI 已取消；当前只用规则反证检查漏洞，不生成交易结论；最终判定以规则引擎为准。",
     },
     reportSections: buildAnalysisReportSections({
       blockedReasons,
@@ -4602,8 +4602,8 @@ export function buildFrontendReviewContract({
       aiReviewStatsResourceStatus(aiReviewStats),
       {
         ageSec,
-        source: "ai-reviewer",
-        reason: "AI 只统计 evidence-id 绑定复核结果，不替代规则引擎。",
+        source: "rule-reviewer",
+        reason: "规则反证只统计成熟信号的证据绑定复核结果，不替代规则引擎。",
       },
     ),
   };
