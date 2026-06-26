@@ -72,6 +72,32 @@ function nullableNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeOpportunityLane(value: unknown): HistoricalBacktestAuditV2State["opportunityLaneMetrics"][number]["lane"] {
+  const lane = stringValue(value);
+
+  if (
+    lane === "early_setup" ||
+    lane === "higher_timeframe_context" ||
+    lane === "pullback_retest" ||
+    lane === "risk_review"
+  ) {
+    return lane;
+  }
+
+  return "early_setup";
+}
+
+function defaultOpportunityLaneLabel(lane: HistoricalBacktestAuditV2State["opportunityLaneMetrics"][number]["lane"]) {
+  const labels = {
+    early_setup: "启动前机会",
+    higher_timeframe_context: "大周期背景机会",
+    pullback_retest: "回踩/反抽确认机会",
+    risk_review: "风险复盘教材",
+  } satisfies Record<HistoricalBacktestAuditV2State["opportunityLaneMetrics"][number]["lane"], string>;
+
+  return labels[lane];
+}
+
 function normalizeLaneMetric(
   lane: HistoricalBacktestLaneMetric["lane"],
   value: unknown,
@@ -173,6 +199,7 @@ function auditV2LaneToHistoricalLane(
 function normalizeAuditV2MissedOpportunity(value: unknown): HistoricalBacktestAuditV2State["missedOpportunities"][number] {
   const item = asObject(value);
   const direction = stringValue(item.direction);
+  const opportunityLane = normalizeOpportunityLane(item.opportunityLane);
 
   return {
     coinType: stringValue(item.coinType, "unknown"),
@@ -184,10 +211,15 @@ function normalizeAuditV2MissedOpportunity(value: unknown): HistoricalBacktestAu
     moveAtSelectionPct: numericValue(item.moveAtSelectionPct),
     nodeRole: stringValue(item.nodeRole, "unknown"),
     observedAt: stringValue(item.observedAt),
+    opportunityLane,
+    opportunityLaneLabel: stringValue(item.opportunityLaneLabel, defaultOpportunityLaneLabel(opportunityLane)),
+    planBlockers: asArray(item.planBlockers).map((entry) => stringValue(entry)).filter(Boolean),
     radarRank: nullableNumber(item.radarRank),
     reason: stringValue(item.reason, "该样本未进入 radar topN，需复盘覆盖率、排序或深扫槽位。"),
+    rewardRisk: nullableNumber(item.rewardRisk),
     symbol: stringValue(item.symbol, "UNKNOWN"),
     timeframeBand: stringValue(item.timeframeBand, "unknown"),
+    tradePlanStatus: stringValue(item.tradePlanStatus, "UNCLASSIFIED"),
     validationWindowLabel: stringValue(item.validationWindowLabel, "未知"),
     volumeRatio: numericValue(item.volumeRatio),
   };
@@ -197,6 +229,8 @@ function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundPr
   const item = asObject(value);
   const direction = stringValue(item.direction);
   const timeframeBand = stringValue(item.timeframeBand);
+  const opportunityLane = normalizeOpportunityLane(item.opportunityLane);
+  const selectedLane = stringValue(item.selectedLane);
 
   return {
     capturedByRadar: Boolean(item.capturedByRadar),
@@ -214,14 +248,61 @@ function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundPr
     nodeIndex: numericValue(item.nodeIndex),
     nodeRole: stringValue(item.nodeRole, "unknown"),
     observedAt: stringValue(item.observedAt),
+    opportunityLane,
+    opportunityLaneLabel: stringValue(item.opportunityLaneLabel, defaultOpportunityLaneLabel(opportunityLane)),
+    opportunityLaneScore: numericValue(item.opportunityLaneScore),
+    planBlockers: asArray(item.planBlockers).map((entry) => stringValue(entry)).filter(Boolean),
     radarRank: nullableNumber(item.radarRank),
+    radarScore: numericValue(item.radarScore),
+    rewardRisk: nullableNumber(item.rewardRisk),
+    selectedAsOpportunity: Boolean(item.selectedAsOpportunity),
+    selectedLane: selectedLane === "early_setup" ||
+      selectedLane === "higher_timeframe_context" ||
+      selectedLane === "pullback_retest" ||
+      selectedLane === "risk_review"
+      ? selectedLane
+      : null,
     symbol: stringValue(item.symbol, "UNKNOWN"),
     timeframeBand: timeframeBand === "large" || timeframeBand === "medium" ? timeframeBand : "small",
+    tradePlanStatus: stringValue(item.tradePlanStatus, "UNCLASSIFIED"),
     validationWindowBars: numericValue(item.validationWindowBars),
     validationWindowHours: numericValue(item.validationWindowHours),
     validationWindowLabel: stringValue(item.validationWindowLabel, "未知"),
     topN: numericValue(item.topN),
     volumeRatio: numericValue(item.volumeRatio),
+  };
+}
+
+function normalizeAuditV2OpportunityLaneMetric(value: unknown): HistoricalBacktestAuditV2State["opportunityLaneMetrics"][number] {
+  const item = asObject(value);
+  const lane = normalizeOpportunityLane(item.lane);
+
+  return {
+    avgRadarRank: nullableNumber(item.avgRadarRank),
+    avgRadarScore: numericValue(item.avgRadarScore),
+    captureRatePct: numericValue(item.captureRatePct),
+    capturedCount: numericValue(item.capturedCount),
+    hitCount: numericValue(item.hitCount),
+    hitRatePct: numericValue(item.hitRatePct),
+    label: stringValue(item.label, defaultOpportunityLaneLabel(lane)),
+    lane,
+    lateCount: numericValue(item.lateCount),
+    lateRatePct: numericValue(item.lateRatePct),
+    missedEarlyHitCount: numericValue(item.missedEarlyHitCount),
+    planReadyCount: numericValue(item.planReadyCount),
+    selectedCount: numericValue(item.selectedCount),
+    totalNodes: numericValue(item.totalNodes),
+  };
+}
+
+function normalizeAuditV2PlanBlockerMetric(value: unknown): HistoricalBacktestAuditV2State["planBlockerMetrics"][number] {
+  const item = asObject(value);
+
+  return {
+    blocker: stringValue(item.blocker, "unknown"),
+    count: numericValue(item.count),
+    label: stringValue(item.label, stringValue(item.blocker, "未标注阻断原因")),
+    sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
   };
 }
 
@@ -293,6 +374,8 @@ function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestA
     guardrails: asArray(payload.guardrails).map((item) => stringValue(item)).filter(Boolean),
     highSeverityFindings: numericValue(roundSummary.highSeverityFindings),
     missedOpportunities: asArray(payload.missedOpportunities).map(normalizeAuditV2MissedOpportunity).slice(0, 50),
+    opportunityLaneMetrics: asArray(payload.opportunityLaneMetrics).map(normalizeAuditV2OpportunityLaneMetric),
+    planBlockerMetrics: asArray(payload.planBlockerMetrics).map(normalizeAuditV2PlanBlockerMetric).slice(0, 20),
     planReadyCount: numericValue(roundSummary.planReadyCount),
     remediationPlan: asArray(payload.remediationPlan).map(normalizeAuditV2Remediation).slice(0, 30),
     summary: stringValue(payload.summary, "专业回测 v2 暂无总结。"),

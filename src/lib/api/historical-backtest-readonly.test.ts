@@ -247,9 +247,18 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
               nodeIndex: 120,
               nodeRole: "pre_move",
               observedAt: "2026-06-24T10:00:00.000Z",
+              opportunityLane: "early_setup",
+              opportunityLaneLabel: "启动前机会",
+              opportunityLaneScore: 82.5,
+              planBlockers: ["reward_risk_below_minimum"],
               radarRank: 2,
+              radarScore: 74.2,
+              rewardRisk: 2.4,
+              selectedAsOpportunity: true,
+              selectedLane: "early_setup",
               symbol: "SUIUSDT",
               timeframeBand: "small",
+              tradePlanStatus: "WAIT_PULLBACK",
               validationWindowBars: 16,
               validationWindowHours: 4,
               validationWindowLabel: "4h",
@@ -309,12 +318,43 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
             moveAtSelectionPct: 2.8,
             nodeRole: "pullback_retest",
             observedAt: "2026-06-24T10:00:00.000Z",
+            opportunityLane: "pullback_retest",
+            opportunityLaneLabel: "回踩/反抽确认机会",
+            planBlockers: ["reaction_not_confirmed"],
             radarRank: 27,
             reason: "未进入 radar topN。",
+            rewardRisk: 3.4,
             symbol: "SUIUSDT",
             timeframeBand: "medium",
+            tradePlanStatus: "WAIT_PULLBACK",
             validationWindowLabel: "24h",
             volumeRatio: 1.9,
+          },
+        ],
+        opportunityLaneMetrics: [
+          {
+            avgRadarRank: 2,
+            avgRadarScore: 74.2,
+            captureRatePct: 100,
+            capturedCount: 1,
+            hitCount: 1,
+            hitRatePct: 100,
+            label: "启动前机会",
+            lane: "early_setup",
+            lateCount: 0,
+            lateRatePct: 0,
+            missedEarlyHitCount: 0,
+            planReadyCount: 0,
+            selectedCount: 1,
+            totalNodes: 1,
+          },
+        ],
+        planBlockerMetrics: [
+          {
+            blocker: "reward_risk_below_minimum",
+            count: 1,
+            label: "结构盈亏比低于 3:1",
+            sampleSymbols: ["SUIUSDT"],
           },
         ],
         remediationPlan: [
@@ -374,12 +414,19 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.symbol, "SUIUSDT");
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.radarRank, 27);
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.nodeRole, "pullback_retest");
+    assert.equal(result.data.auditV2?.missedOpportunities[0]?.opportunityLane, "pullback_retest");
+    assert.equal(result.data.auditV2?.missedOpportunities[0]?.tradePlanStatus, "WAIT_PULLBACK");
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.validationWindowLabel, "24h");
+    assert.equal(result.data.auditV2?.opportunityLaneMetrics[0]?.lane, "early_setup");
+    assert.equal(result.data.auditV2?.opportunityLaneMetrics[0]?.captureRatePct, 100);
+    assert.equal(result.data.auditV2?.planBlockerMetrics[0]?.label, "结构盈亏比低于 3:1");
     assert.equal(result.data.auditV2?.findings[0]?.id, "PBA-DERIVATIVES-001");
     assert.equal(result.data.auditV2?.remediationPlan[0]?.priority, "P0");
     assert.equal(result.data.progress?.schemaVersion, "professional-backtest-audit-round-progress.v1");
     assert.equal(result.data.progress?.candidateUniverseSize, 80);
     assert.equal(result.data.progress?.nodes[0]?.nodeRole, "pre_move");
+    assert.equal(result.data.progress?.nodes[0]?.opportunityLane, "early_setup");
+    assert.equal(result.data.progress?.nodes[0]?.selectedAsOpportunity, true);
     assert.equal(result.data.progress?.nodes[0]?.validationWindowLabel, "4h");
     assert.equal(result.data.auditV2?.auditRound?.plannedSymbols[0]?.symbol, "SUIUSDT");
     assert.match(result.data.summary, /历史衍生品证据缺失/);

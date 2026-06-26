@@ -41,6 +41,12 @@ export type ProfessionalDerivativePoint = {
 
 export type ProfessionalReplayLaneName = "momentum" | "radar" | "random" | "volume";
 
+export type ProfessionalAuditOpportunityLaneName =
+  | "early_setup"
+  | "higher_timeframe_context"
+  | "pullback_retest"
+  | "risk_review";
+
 export type ProfessionalReplayLaneMetric = {
   avgConfidence: number;
   avgMaePct: number;
@@ -64,6 +70,30 @@ export type ProfessionalReplayTimingMetrics = {
   planReadyCount: number;
 };
 
+export type ProfessionalAuditOpportunityLaneMetric = {
+  avgRadarRank: number | null;
+  avgRadarScore: number;
+  captureRatePct: number;
+  capturedCount: number;
+  hitCount: number;
+  hitRatePct: number;
+  label: string;
+  lane: ProfessionalAuditOpportunityLaneName;
+  lateCount: number;
+  lateRatePct: number;
+  missedEarlyHitCount: number;
+  planReadyCount: number;
+  selectedCount: number;
+  totalNodes: number;
+};
+
+export type ProfessionalAuditPlanBlockerMetric = {
+  blocker: string;
+  count: number;
+  label: string;
+  sampleSymbols: string[];
+};
+
 export type ProfessionalReplayMissedOpportunity = {
   coinType?: string;
   coinTypeLabel?: string;
@@ -74,10 +104,15 @@ export type ProfessionalReplayMissedOpportunity = {
   moveAtSelectionPct: number;
   nodeRole?: string;
   observedAt: string;
+  opportunityLane?: ProfessionalAuditOpportunityLaneName;
+  opportunityLaneLabel?: string;
+  planBlockers?: string[];
   radarRank?: number | null;
   reason: string;
+  rewardRisk?: number | null;
   symbol: string;
   timeframeBand?: string;
+  tradePlanStatus?: string;
   validationWindowLabel?: string;
   volumeRatio: number;
 };
@@ -98,6 +133,8 @@ export type ProfessionalReplayReport = {
     topN: number;
   };
   missedOpportunities: ProfessionalReplayMissedOpportunity[];
+  opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
+  planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
   remediationPlan: ProfessionalAuditRemediation[];
   roundSummary: ReturnType<typeof summarizeProfessionalBacktestRound>;
   schemaVersion: "professional-backtest-audit-report.v2";
@@ -900,6 +937,8 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
       topN: options.topN,
     },
     missedOpportunities: topMissedOpportunities,
+    opportunityLaneMetrics: [],
+    planBlockerMetrics: [],
     remediationPlan,
     roundSummary,
     schemaVersion: "professional-backtest-audit-report.v2",

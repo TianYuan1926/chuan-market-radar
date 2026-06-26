@@ -797,6 +797,30 @@ export type HistoricalBacktestAuditV2TimingMetrics = {
   planReadyCount: number;
 };
 
+export type HistoricalBacktestAuditOpportunityLaneMetric = {
+  avgRadarRank: number | null;
+  avgRadarScore: number;
+  captureRatePct: number;
+  capturedCount: number;
+  hitCount: number;
+  hitRatePct: number;
+  label: string;
+  lane: "early_setup" | "higher_timeframe_context" | "pullback_retest" | "risk_review";
+  lateCount: number;
+  lateRatePct: number;
+  missedEarlyHitCount: number;
+  planReadyCount: number;
+  selectedCount: number;
+  totalNodes: number;
+};
+
+export type HistoricalBacktestAuditPlanBlockerMetric = {
+  blocker: string;
+  count: number;
+  label: string;
+  sampleSymbols: string[];
+};
+
 export type HistoricalBacktestAuditV2MissedOpportunity = {
   coinType: string;
   coinTypeLabel: string;
@@ -807,10 +831,15 @@ export type HistoricalBacktestAuditV2MissedOpportunity = {
   moveAtSelectionPct: number;
   nodeRole: string;
   observedAt: string;
+  opportunityLane: HistoricalBacktestAuditOpportunityLaneMetric["lane"];
+  opportunityLaneLabel: string;
+  planBlockers: string[];
   radarRank: number | null;
   reason: string;
+  rewardRisk: number | null;
   symbol: string;
   timeframeBand: string;
+  tradePlanStatus: string;
   validationWindowLabel: string;
   volumeRatio: number;
 };
@@ -831,9 +860,18 @@ export type HistoricalBacktestAuditRoundNode = {
   nodeIndex: number;
   nodeRole: string;
   observedAt: string;
+  opportunityLane: HistoricalBacktestAuditOpportunityLaneMetric["lane"];
+  opportunityLaneLabel: string;
+  opportunityLaneScore: number;
+  planBlockers: string[];
   radarRank: number | null;
+  radarScore: number;
+  rewardRisk: number | null;
+  selectedAsOpportunity: boolean;
+  selectedLane: HistoricalBacktestAuditOpportunityLaneMetric["lane"] | null;
   symbol: string;
   timeframeBand: "large" | "medium" | "small";
+  tradePlanStatus: string;
   validationWindowBars: number;
   validationWindowHours: number;
   validationWindowLabel: string;
@@ -880,6 +918,8 @@ export type HistoricalBacktestAuditV2State = {
   summary: string;
   findings: HistoricalBacktestAuditV2Finding[];
   missedOpportunities: HistoricalBacktestAuditV2MissedOpportunity[];
+  opportunityLaneMetrics: HistoricalBacktestAuditOpportunityLaneMetric[];
+  planBlockerMetrics: HistoricalBacktestAuditPlanBlockerMetric[];
   remediationPlan: HistoricalBacktestAuditV2Remediation[];
   guardrails: string[];
   timingMetrics: HistoricalBacktestAuditV2TimingMetrics;

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  professionalAuditOpportunityQuotas,
+  professionalAuditPlanBlockerLabel,
   professionalAuditRadarScore,
   resolveProfessionalAuditHorizonBarsByBand,
+  selectProfessionalAuditOpportunityCandidates,
 } from "./professional-audit-round";
 
 test("resolveProfessionalAuditHorizonBarsByBand keeps small medium large validation windows distinct", () => {
@@ -163,4 +166,51 @@ test("professionalAuditRadarScore rewards controlled volume impulse without chas
     controlledImpulse > exhaustedImpulse,
     `expected controlled impulse score ${controlledImpulse} to beat exhausted impulse score ${exhaustedImpulse}`,
   );
+});
+
+test("professionalAuditOpportunityQuotas reserves Top10 slots for early pullback and higher timeframe lanes", () => {
+  assert.deepEqual(professionalAuditOpportunityQuotas(10), {
+    early_setup: 4,
+    higher_timeframe_context: 2,
+    pullback_retest: 4,
+    risk_review: 0,
+  });
+});
+
+test("selectProfessionalAuditOpportunityCandidates excludes risk review from actionable top slots", () => {
+  const item = (
+    symbol: string,
+    opportunityLane: "early_setup" | "higher_timeframe_context" | "pullback_retest" | "risk_review",
+    opportunityLaneScore: number,
+    confidence = 60,
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence,
+      },
+    },
+    opportunityLane,
+    opportunityLaneScore,
+    radarScore: opportunityLaneScore,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("LATEUSDT", "risk_review", 999, 99),
+    item("EARLY1USDT", "early_setup", 80),
+    item("EARLY2USDT", "early_setup", 70),
+    item("PULL1USDT", "pullback_retest", 75),
+    item("PULL2USDT", "pullback_retest", 65),
+    item("HTF1USDT", "higher_timeframe_context", 60),
+  ], 4);
+
+  assert.equal(selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "LATEUSDT"), false);
+  assert.equal(selected.selected.length, 4);
+  assert.ok(selected.ranked.findIndex((entry) => entry.auditCase.inputSummary.symbol === "LATEUSDT") > 3);
+});
+
+test("professionalAuditPlanBlockerLabel maps rr blockers to readable Chinese", () => {
+  assert.equal(professionalAuditPlanBlockerLabel("reward_risk_below_minimum"), "结构盈亏比低于 3:1");
+  assert.equal(professionalAuditPlanBlockerLabel("reward_risk_2.40R_below_3R"), "结构盈亏比不足或未知");
 });

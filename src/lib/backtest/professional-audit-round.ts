@@ -15,6 +15,9 @@ import {
 import {
   buildReplayCandlesByTimeframe,
   buildReplayDerivativesInput,
+  type ProfessionalAuditOpportunityLaneMetric,
+  type ProfessionalAuditOpportunityLaneName,
+  type ProfessionalAuditPlanBlockerMetric,
   type ProfessionalDerivativePoint,
   type ProfessionalReplayLaneMetric,
   type ProfessionalReplayLaneName,
@@ -69,9 +72,18 @@ export type ProfessionalAuditRoundNode = {
   nodeIndex: number;
   nodeRole: ProfessionalAuditRoundNodeRole;
   observedAt: string;
+  opportunityLane: ProfessionalAuditOpportunityLaneName;
+  opportunityLaneLabel: string;
+  opportunityLaneScore: number;
+  planBlockers: string[];
   radarRank: number | null;
+  radarScore: number;
+  rewardRisk: number | null;
+  selectedAsOpportunity: boolean;
+  selectedLane: ProfessionalAuditOpportunityLaneName | null;
   symbol: string;
   timeframeBand: ProfessionalAuditRoundTimeframeBand;
+  tradePlanStatus: string;
   validationWindowBars: number;
   validationWindowHours: number;
   validationWindowLabel: string;
@@ -126,9 +138,14 @@ type CandidateAtNode = {
   maePct: number;
   mfePct: number;
   movePct: number;
+  opportunityLane: ProfessionalAuditOpportunityLaneName;
+  opportunityLaneScore: number;
+  planBlockers: string[];
   radarScore: number;
   randomScore: number;
   rangePositionPct: number;
+  rewardRisk: number | null;
+  tradePlanStatus: string;
   volumeRatio: number;
 };
 
@@ -147,6 +164,66 @@ const defaultGuardrails = [
   "每个样本必须输出捕获、迟到、命中、回撤和问题归因，不用命中率包装系统能力。",
   "回测只用于找扫描和推理缺陷，不自动下单，不自动改实时权重。",
 ];
+
+const opportunityLaneLabels: Record<ProfessionalAuditOpportunityLaneName, string> = {
+  early_setup: "启动前机会",
+  higher_timeframe_context: "大周期背景机会",
+  pullback_retest: "回踩/反抽确认机会",
+  risk_review: "风险复盘教材",
+};
+
+const planBlockerLabels: Record<string, string> = {
+  bear_structure_broken: "空头结构已破坏",
+  bull_structure_broken: "多头结构已破坏",
+  chase_risk: "追涨/追空风险",
+  high_weight_conflict: "高权重证据冲突",
+  invalid_nearest_target: "最近目标无效",
+  invalid_structural_stop: "结构止损无效",
+  location_rr: "缺少位置/结构盈亏比",
+  lower_wick_exhaustion: "下影线衰竭风险",
+  neutral_direction: "方向不明确",
+  no_nearest_target: "缺少最近目标",
+  no_structural_stop: "缺少结构止损",
+  reaction_not_confirmed: "回踩/反抽反应未确认",
+  resistance_reclaimed: "价格重新站回压力位",
+  reward_risk_below_minimum: "结构盈亏比低于 3:1",
+  reward_risk_unknown: "结构盈亏比未知",
+  risk_gate_blocked: "风控门禁拦截",
+  risk_score_high: "风险评分过高",
+  stale_data: "数据过期",
+  stop_distance_too_wide: "止损距离过宽",
+  structure_invalidated: "结构已经失效",
+  trade_plan_not_eligible: "交易计划未满足门禁",
+  trend_integrity_not_healthy: "趋势完整度不健康",
+  upper_wick_exhaustion: "上影线衰竭风险",
+};
+
+export function professionalAuditOpportunityLaneLabel(lane: ProfessionalAuditOpportunityLaneName) {
+  return opportunityLaneLabels[lane];
+}
+
+export function professionalAuditPlanBlockerLabel(blocker: string) {
+  if (planBlockerLabels[blocker]) {
+    return planBlockerLabels[blocker];
+  }
+
+  if (/reward[_ -]?risk|rr|赔率/iu.test(blocker)) {
+    return "结构盈亏比不足或未知";
+  }
+
+  if (/reaction/iu.test(blocker)) {
+    return "反应确认不足";
+  }
+
+  if (/risk[_ -]?gate|blocked/iu.test(blocker)) {
+    return "风控门禁拦截";
+  }
+
+  return blocker
+    .replaceAll("_", " ")
+    .replaceAll(/\s+/gu, " ")
+    .trim();
+}
 
 const nodeRoles: Array<{
   band: ProfessionalAuditRoundTimeframeBand;
@@ -278,6 +355,179 @@ function isMemeLikeSymbol(symbol: string) {
   const base = symbol.replace(/USDT$/u, "").toUpperCase();
 
   return /^(1000|PEPE|BONK|SHIB|DOGE|WIF|FLOKI|MEME|BOME|POPCAT|TURBO|BRETT)/u.test(base);
+}
+
+export type ProfessionalAuditOpportunityClassifyInput = {
+  compressionPct: number;
+  direction: "long" | "short";
+  lateAtSelection: boolean;
+  movePct: number;
+  nodeRole?: ProfessionalAuditRoundNodeRole;
+  rangePositionPct: number;
+  timeframeBand: ProfessionalAuditRoundTimeframeBand;
+  volumeRatio: number;
+};
+
+export function classifyProfessionalAuditOpportunityLane(input: ProfessionalAuditOpportunityClassifyInput): ProfessionalAuditOpportunityLaneName {
+  const absMove = Math.abs(input.movePct);
+  const role = input.nodeRole;
+
+  if (
+    input.lateAtSelection ||
+    role === "late_extension" ||
+    role === "fakeout_or_invalidation" ||
+    (input.direction === "long" && input.rangePositionPct >= 88) ||
+    (input.direction === "short" && input.rangePositionPct <= 12) ||
+    absMove >= 10
+  ) {
+    return "risk_review";
+  }
+
+  if (input.timeframeBand === "large" || role === "large_context") {
+    return "higher_timeframe_context";
+  }
+
+  const pullbackZone = input.direction === "long"
+    ? input.rangePositionPct >= 24 && input.rangePositionPct <= 62
+    : input.rangePositionPct >= 38 && input.rangePositionPct <= 76;
+  const controlledMove = absMove >= 2 && absMove <= 8.5;
+
+  if (
+    role === "pullback_retest" ||
+    role === "trend_acceleration" ||
+    (pullbackZone && controlledMove && input.volumeRatio >= 0.85)
+  ) {
+    return "pullback_retest";
+  }
+
+  return "early_setup";
+}
+
+function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput & { radarScore: number }) {
+  const absMove = Math.abs(input.movePct);
+  const nonExtremeLocationScore = input.direction === "long"
+    ? bandScore(input.rangePositionPct, 16, 38, 84)
+    : bandScore(input.rangePositionPct, 16, 62, 84);
+
+  if (input.lateAtSelection) {
+    return round(input.radarScore - 100 - absMove * 2, 4);
+  }
+
+  const lane = classifyProfessionalAuditOpportunityLane(input);
+
+  if (lane === "early_setup") {
+    return round(input.radarScore + (100 - input.compressionPct) * 0.32 + bandScore(input.volumeRatio, 0.65, 1.35, 2.5) * 10 - absMove * 1.2, 4);
+  }
+
+  if (lane === "pullback_retest") {
+    return round(input.radarScore + nonExtremeLocationScore * 14 + bandScore(absMove, 1.5, 4.5, 8.5) * 8, 4);
+  }
+
+  if (lane === "higher_timeframe_context") {
+    return round(input.radarScore + (100 - input.compressionPct) * 0.16 + nonExtremeLocationScore * 8, 4);
+  }
+
+  return round(input.radarScore - 80, 4);
+}
+
+export function professionalAuditOpportunityQuotas(topN: number): Record<ProfessionalAuditOpportunityLaneName, number> {
+  const normalized = Math.max(1, Math.round(topN));
+
+  if (normalized === 1) {
+    return {
+      early_setup: 1,
+      higher_timeframe_context: 0,
+      pullback_retest: 0,
+      risk_review: 0,
+    };
+  }
+
+  const early = Math.max(1, Math.floor(normalized * 0.4));
+  const pullback = Math.max(1, Math.floor(normalized * 0.4));
+  const higher = Math.max(0, normalized - early - pullback);
+
+  return {
+    early_setup: early,
+    higher_timeframe_context: higher,
+    pullback_retest: pullback,
+    risk_review: 0,
+  };
+}
+
+type OpportunityRankable = {
+  auditCase: {
+    inputSummary: {
+      symbol: string;
+    };
+    signal: {
+      confidence: number;
+    };
+  };
+  opportunityLane: ProfessionalAuditOpportunityLaneName;
+  opportunityLaneScore: number;
+  radarScore: number;
+};
+
+function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
+  return [...items].sort((left, right) =>
+    right.opportunityLaneScore - left.opportunityLaneScore ||
+    right.radarScore - left.radarScore ||
+    right.auditCase.signal.confidence - left.auditCase.signal.confidence ||
+    left.auditCase.inputSummary.symbol.localeCompare(right.auditCase.inputSummary.symbol)
+  );
+}
+
+export function selectProfessionalAuditOpportunityCandidates<T extends OpportunityRankable>(items: T[], topN: number) {
+  const quotas = professionalAuditOpportunityQuotas(topN);
+  const selected: T[] = [];
+  const selectedSymbols = new Set<string>();
+  const actionableLanes: ProfessionalAuditOpportunityLaneName[] = [
+    "early_setup",
+    "pullback_retest",
+    "higher_timeframe_context",
+  ];
+
+  for (const lane of actionableLanes) {
+    const laneItems = rankOpportunityCandidates(items.filter((item) => item.opportunityLane === lane));
+
+    for (const item of laneItems.slice(0, quotas[lane])) {
+      selected.push(item);
+      selectedSymbols.add(item.auditCase.inputSummary.symbol);
+    }
+  }
+
+  const remainingActionable = rankOpportunityCandidates(
+    items.filter((item) =>
+      item.opportunityLane !== "risk_review" &&
+      !selectedSymbols.has(item.auditCase.inputSummary.symbol)
+    ),
+  );
+
+  for (const item of remainingActionable) {
+    if (selected.length >= topN) {
+      break;
+    }
+
+    selected.push(item);
+    selectedSymbols.add(item.auditCase.inputSummary.symbol);
+  }
+
+  const selectedSet = new Set(selected.map((item) => item.auditCase.inputSummary.symbol));
+  const ranked = [
+    ...selected,
+    ...rankOpportunityCandidates(
+      items.filter((item) =>
+        item.opportunityLane !== "risk_review" &&
+        !selectedSet.has(item.auditCase.inputSummary.symbol)
+      ),
+    ),
+    ...rankOpportunityCandidates(items.filter((item) => item.opportunityLane === "risk_review")),
+  ];
+
+  return {
+    ranked,
+    selected,
+  };
 }
 
 export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInput) {
@@ -647,6 +897,51 @@ function isLateAtSelection(movePct: number, positionPct: number, direction: "lon
   return extendedMove || extendedLocation;
 }
 
+function tradePlanStatus(signal: MarketSignal) {
+  return signal.strategyV3?.tradePlan?.status ?? signal.maturity?.stage ?? "UNCLASSIFIED";
+}
+
+function tradePlanRewardRisk(signal: MarketSignal) {
+  const rewardRisk = signal.strategyV3?.tradePlan?.rewardRisk ?? signal.strategy?.riskReward ?? null;
+
+  return typeof rewardRisk === "number" && Number.isFinite(rewardRisk) ? round(rewardRisk, 2) : null;
+}
+
+function tradePlanBlockers(signal: MarketSignal) {
+  const blockers = new Set<string>();
+  const tradePlan = signal.strategyV3?.tradePlan;
+
+  if (!signal.strategyV3) {
+    blockers.add("missing_strategy_v3");
+  }
+
+  if (!tradePlan) {
+    blockers.add("missing_trade_plan");
+  } else {
+    for (const blocker of tradePlan.blockedBy) {
+      blockers.add(blocker);
+    }
+
+    const rewardRisk = tradePlan.rewardRisk;
+
+    if (rewardRisk === null || !Number.isFinite(rewardRisk)) {
+      blockers.add("reward_risk_unknown");
+    } else if (rewardRisk < 3) {
+      blockers.add("reward_risk_below_minimum");
+    }
+
+    if (!tradePlan.isPlanEligible && tradePlan.blockedBy.length === 0) {
+      blockers.add("trade_plan_not_eligible");
+    }
+  }
+
+  if (signal.maturity?.stage !== "TRADE_PLAN_READY" && blockers.size === 0) {
+    blockers.add("trade_plan_not_ready");
+  }
+
+  return [...blockers];
+}
+
 function buildCandidateAtNode({
   candles,
   derivatives,
@@ -693,6 +988,26 @@ function buildCandidateAtNode({
   const currentRangePositionPct = round(rangePositionPct(history));
   const currentVolumeRatio = round(volumeRatio(history));
   const lateAtSelection = isLateAtSelection(movePct, currentRangePositionPct, direction, moveThresholdPct);
+  const radarScore = professionalAuditRadarScore({
+    compressionPct: currentCompressionPct,
+    confidence: auditCase.signal.confidence,
+    direction,
+    lateAtSelection,
+    movePct,
+    rangePositionPct: currentRangePositionPct,
+    symbol,
+    timeframeBand,
+    volumeRatio: currentVolumeRatio,
+  });
+  const opportunityLane = classifyProfessionalAuditOpportunityLane({
+    compressionPct: currentCompressionPct,
+    direction,
+    lateAtSelection,
+    movePct,
+    rangePositionPct: currentRangePositionPct,
+    timeframeBand,
+    volumeRatio: currentVolumeRatio,
+  });
   const outcome = replayOutcome({
     direction,
     entry: observed.close,
@@ -709,19 +1024,23 @@ function buildCandidateAtNode({
     maePct: outcome.maePct,
     mfePct: outcome.mfePct,
     movePct,
-    radarScore: professionalAuditRadarScore({
+    opportunityLane,
+    opportunityLaneScore: opportunityLaneScore({
       compressionPct: currentCompressionPct,
-      confidence: auditCase.signal.confidence,
       direction,
       lateAtSelection,
       movePct,
+      radarScore,
       rangePositionPct: currentRangePositionPct,
-      symbol,
       timeframeBand,
       volumeRatio: currentVolumeRatio,
     }),
+    planBlockers: tradePlanBlockers(auditCase.signal),
+    radarScore,
     randomScore: deterministicRandomScore(symbol, observed.openTime),
     rangePositionPct: currentRangePositionPct,
+    rewardRisk: tradePlanRewardRisk(auditCase.signal),
+    tradePlanStatus: tradePlanStatus(auditCase.signal),
     volumeRatio: currentVolumeRatio,
   };
 }
@@ -763,6 +1082,72 @@ function summarizeLane(lane: ProfessionalReplayLaneName, selections: CandidateAt
     lateCount,
     lateRatePct: round((lateCount / selections.length) * 100),
   };
+}
+
+function summarizeOpportunityLane(
+  lane: ProfessionalAuditOpportunityLaneName,
+  nodes: ProfessionalAuditRoundNode[],
+): ProfessionalAuditOpportunityLaneMetric {
+  const laneNodes = nodes.filter((node) => node.opportunityLane === lane);
+  const captured = laneNodes.filter((node) => node.capturedByRadar);
+  const hitCount = laneNodes.filter((node) => node.hit).length;
+  const lateCount = laneNodes.filter((node) => node.lateAtSelection).length;
+  const ranks = laneNodes
+    .map((node) => node.radarRank)
+    .filter((rank): rank is number => typeof rank === "number" && Number.isFinite(rank));
+
+  return {
+    avgRadarRank: ranks.length > 0 ? round(mean(ranks)) : null,
+    avgRadarScore: round(mean(laneNodes.map((node) => node.radarScore))),
+    captureRatePct: laneNodes.length > 0 ? round((captured.length / laneNodes.length) * 100) : 0,
+    capturedCount: captured.length,
+    hitCount,
+    hitRatePct: laneNodes.length > 0 ? round((hitCount / laneNodes.length) * 100) : 0,
+    label: opportunityLaneLabels[lane],
+    lane,
+    lateCount,
+    lateRatePct: laneNodes.length > 0 ? round((lateCount / laneNodes.length) * 100) : 0,
+    missedEarlyHitCount: laneNodes.filter((node) => !node.capturedByRadar && node.hit && !node.lateAtSelection).length,
+    planReadyCount: laneNodes.filter((node) => node.maturity === "TRADE_PLAN_READY").length,
+    selectedCount: captured.length,
+    totalNodes: laneNodes.length,
+  };
+}
+
+function buildOpportunityLaneMetrics(nodes: ProfessionalAuditRoundNode[]) {
+  return ([
+    "early_setup",
+    "pullback_retest",
+    "higher_timeframe_context",
+    "risk_review",
+  ] as const).map((lane) => summarizeOpportunityLane(lane, nodes));
+}
+
+function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditPlanBlockerMetric[] {
+  const grouped = new Map<string, { count: number; sampleSymbols: string[] }>();
+
+  for (const node of nodes) {
+    for (const blocker of node.planBlockers) {
+      const current = grouped.get(blocker) ?? { count: 0, sampleSymbols: [] };
+
+      current.count += 1;
+
+      if (!current.sampleSymbols.includes(node.symbol) && current.sampleSymbols.length < 6) {
+        current.sampleSymbols.push(node.symbol);
+      }
+
+      grouped.set(blocker, current);
+    }
+  }
+
+  return [...grouped.entries()]
+    .map(([blocker, value]) => ({
+      blocker,
+      count: value.count,
+      label: professionalAuditPlanBlockerLabel(blocker),
+      sampleSymbols: value.sampleSymbols,
+    }))
+    .sort((left, right) => right.count - left.count || left.blocker.localeCompare(right.blocker));
 }
 
 function laneTop(candidates: CandidateAtNode[], lane: ProfessionalReplayLaneName, topN: number) {
@@ -867,24 +1252,31 @@ function aggregateFindings({
   baselineMetrics,
   candidateUniverseSize,
   nodes,
+  opportunityLaneMetrics,
+  planBlockerMetrics,
   topN,
 }: {
   baselineMetrics: Record<ProfessionalReplayLaneName, ProfessionalReplayLaneMetric>;
   candidateUniverseSize: number;
   nodes: ProfessionalAuditRoundNode[];
+  opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
+  planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
   topN: number;
 }) {
   const findings: ProfessionalAuditFinding[] = [];
   const radar = baselineMetrics.radar;
   const random = baselineMetrics.random;
   const momentum = baselineMetrics.momentum;
-  const captureRate = nodes.length > 0
-    ? nodes.filter((item) => item.capturedByRadar).length / nodes.length * 100
+  const actionableNodes = nodes.filter((item) => item.opportunityLane !== "risk_review");
+  const selectedNodes = nodes.filter((item) => item.selectedAsOpportunity);
+  const captureRate = actionableNodes.length > 0
+    ? actionableNodes.filter((item) => item.capturedByRadar).length / actionableNodes.length * 100
     : 0;
-  const lateRate = nodes.length > 0
-    ? nodes.filter((item) => item.lateAtSelection).length / nodes.length * 100
+  const lateRate = selectedNodes.length > 0
+    ? selectedNodes.filter((item) => item.lateAtSelection).length / selectedNodes.length * 100
     : 0;
-  const missedEarlyHits = nodes.filter((item) => !item.capturedByRadar && item.hit && !item.lateAtSelection);
+  const missedEarlyHits = actionableNodes.filter((item) => !item.capturedByRadar && item.hit && !item.lateAtSelection);
+  const topPlanBlocker = planBlockerMetrics[0] ?? null;
   const dominantLateRole = dominantGroup({
     keyFor: (node) => node.nodeRole,
     nodes,
@@ -925,9 +1317,9 @@ function aggregateFindings({
     }));
   }
 
-  if (nodes.length > 0 && captureRate < 45) {
+  if (actionableNodes.length > 0 && captureRate < 45) {
     findings.push(aggregateFinding({
-      detail: `10x10 目标节点 radar topN 捕获率 ${round(captureRate)}%，说明系统可能漏掉大量可学习机会。`,
+      detail: `可交易机会池 radar topN 捕获率 ${round(captureRate)}%。风险复盘样本已剔除，仍然偏低，说明系统可能漏掉真正有布局价值的节点。`,
       id: "PBA-SCAN-ROUND-001",
       layer: "scan",
       nextAction: "检查候选排序、轻扫优先级、深扫槽位轮换和已涨已跌 cap。",
@@ -939,7 +1331,7 @@ function aggregateFindings({
 
   if (lateRate >= 35) {
     findings.push(aggregateFinding({
-      detail: `10x10 目标节点迟到率 ${round(lateRate)}%，提示系统仍可能在涨完/跌完后才提示。最高迟到集中区：${dominantLateRole ? `${dominantLateRole.key} ${dominantLateRole.count}/${dominantLateRole.total} (${dominantLateRole.rate}%)` : "暂无可归因分组"}。`,
+      detail: `雷达实际选中样本迟到率 ${round(lateRate)}%，提示系统仍可能在涨完/跌完后才提示。所有节点最高迟到集中区：${dominantLateRole ? `${dominantLateRole.key} ${dominantLateRole.count}/${dominantLateRole.total} (${dominantLateRole.rate}%)` : "暂无可归因分组"}。`,
       id: "PBA-TIMING-ROUND-001",
       layer: "timing",
       nextAction: "强化启动前压缩、早期量能、主动买卖压力和低位关键位特征，降低 late move 权重。",
@@ -960,6 +1352,45 @@ function aggregateFindings({
       rootCause: "部分事前仍有布局价值的样本没有被 radar 排序推上来。",
       severity: "high",
       title: "10x10 审计存在未捕获的早期机会",
+    }));
+  }
+
+  const earlyLane = opportunityLaneMetrics.find((item) => item.lane === "early_setup");
+  const pullbackLane = opportunityLaneMetrics.find((item) => item.lane === "pullback_retest");
+
+  if (earlyLane && earlyLane.totalNodes > 0 && earlyLane.missedEarlyHitCount > 0) {
+    findings.push(aggregateFinding({
+      detail: `启动前机会池共有 ${earlyLane.totalNodes} 个节点，其中 ${earlyLane.missedEarlyHitCount} 个不晚到且事后命中但未被选中。`,
+      id: "PBA-SCAN-LANE-EARLY-001",
+      layer: "scan",
+      nextAction: "继续强化压缩、早期量能、主动买卖压力和靠近关键位的优先级。",
+      rootCause: "启动前机会分层仍没有稳定把早期样本推入 TopN。",
+      severity: "high",
+      title: "启动前机会池仍有漏判",
+    }));
+  }
+
+  if (pullbackLane && pullbackLane.totalNodes > 0 && pullbackLane.captureRatePct < 40) {
+    findings.push(aggregateFinding({
+      detail: `回踩/反抽确认机会池捕获率 ${pullbackLane.captureRatePct}%，低于 40%。这会导致系统错过更接近可执行位置的二次机会。`,
+      id: "PBA-SCAN-LANE-PULLBACK-001",
+      layer: "scan",
+      nextAction: "检查回踩区间、位置质量和缩量承接/反抽承压特征是否权重不足。",
+      rootCause: "回踩确认类机会没有获得足够深扫/排序名额。",
+      severity: "medium",
+      title: "回踩确认机会捕获不足",
+    }));
+  }
+
+  if (nodes.length > 0 && topPlanBlocker && nodes.every((node) => node.maturity !== "TRADE_PLAN_READY")) {
+    findings.push(aggregateFinding({
+      detail: `本轮没有交易计划就绪样本；最常见阻断是 ${topPlanBlocker.label}，出现 ${topPlanBlocker.count} 次，代表币种 ${topPlanBlocker.sampleSymbols.join(" / ") || "暂无"}。`,
+      id: "PBA-PLAN-BLOCKER-ROUND-001",
+      layer: "plan",
+      nextAction: "不要强行生成交易计划；先判断阻断是合理风控，还是结构/RR/确认规则过严导致错杀。",
+      rootCause: "证据链到交易计划之间的门禁没有形成可执行通过样本。",
+      severity: "high",
+      title: "交易计划未就绪原因需要专项处理",
     }));
   }
 
@@ -1034,6 +1465,39 @@ function aggregateRemediations(findings: ProfessionalAuditFinding[]): Profession
       layer: "scan",
       priority: "P0",
       targetModule: "professional audit missed opportunity calibration",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-SCAN-LANE-EARLY-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮启动前机会池 missedEarlyHitCount 下降，并且早期机会能进入固定配额。",
+      action: "把启动前机会池独立配额写入 radar TopN，不再让已涨完/已跌深样本抢占全部名额。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P0",
+      targetModule: "professional audit opportunity lane allocation",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-SCAN-LANE-PULLBACK-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮回踩/反抽确认机会池捕获率高于 40%，并能解释未捕获样本。",
+      action: "给回踩/反抽确认机会独立 TopN 配额，复查位置质量和缩量承接/反抽承压特征。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P1",
+      targetModule: "professional audit pullback lane allocation",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-PLAN-BLOCKER-ROUND-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮报告能按 blocker 说明计划未就绪原因，并区分合理风控与规则错杀。",
+      action: "把 tradePlan.blockedBy 聚合到专业回测报告，逐项复核 RR、结构止损、目标位和反应确认。",
+      canAutoApply: false,
+      layer: "plan",
+      priority: "P0",
+      targetModule: "professional audit trade plan blocker diagnostics",
     });
   }
 
@@ -1166,16 +1630,13 @@ export function runProfessionalAuditRound({
         continue;
       }
 
-      const topRadar = laneTop(candidatesAtNode, "radar", topN);
-      const radarRank = [...candidatesAtNode]
-        .sort((left, right) =>
-          right.radarScore - left.radarScore ||
-          right.auditCase.signal.confidence - left.auditCase.signal.confidence
-        )
-        .findIndex((candidate) => candidate.auditCase.inputSummary.symbol === symbolPlan.symbol) + 1;
-      const capturedByRadar = topRadar.some((candidate) => candidate.auditCase.inputSummary.symbol === symbolPlan.symbol);
+      const radarSelection = selectProfessionalAuditOpportunityCandidates(candidatesAtNode, topN);
+      const selectedTarget = radarSelection.selected.find((candidate) => candidate.auditCase.inputSummary.symbol === symbolPlan.symbol);
+      const rankedTargetIndex = radarSelection.ranked.findIndex((candidate) => candidate.auditCase.inputSummary.symbol === symbolPlan.symbol);
+      const radarRank = rankedTargetIndex >= 0 ? rankedTargetIndex + 1 : null;
+      const capturedByRadar = Boolean(selectedTarget);
 
-      laneSelections.radar.push(...topRadar);
+      laneSelections.radar.push(...radarSelection.selected);
       laneSelections.momentum.push(...laneTop(candidatesAtNode, "momentum", topN));
       laneSelections.volume.push(...laneTop(candidatesAtNode, "volume", topN));
       laneSelections.random.push(...laneTop(candidatesAtNode, "random", topN));
@@ -1197,9 +1658,18 @@ export function runProfessionalAuditRound({
         nodeIndex: selected.index,
         nodeRole: selected.role,
         observedAt: target.auditCase.inputSummary.observedAt,
-        radarRank: radarRank > 0 ? radarRank : null,
+        opportunityLane: target.opportunityLane,
+        opportunityLaneLabel: opportunityLaneLabels[target.opportunityLane],
+        opportunityLaneScore: target.opportunityLaneScore,
+        planBlockers: target.planBlockers,
+        radarRank,
+        radarScore: target.radarScore,
+        rewardRisk: target.rewardRisk,
+        selectedAsOpportunity: capturedByRadar,
+        selectedLane: selectedTarget?.opportunityLane ?? null,
         symbol: symbolPlan.symbol,
         timeframeBand: selected.band,
+        tradePlanStatus: target.tradePlanStatus,
         validationWindowBars: selected.horizonBars,
         validationWindowHours: round(selected.horizonBars / 4, 2),
         validationWindowLabel: validationWindowLabel(selected.horizonBars),
@@ -1229,25 +1699,34 @@ export function runProfessionalAuditRound({
     random: summarizeLane("random", laneSelections.random),
     volume: summarizeLane("volume", laneSelections.volume),
   };
-  const aggregate = aggregateFindings({ baselineMetrics, candidateUniverseSize, nodes, topN });
+  const opportunityLaneMetrics = buildOpportunityLaneMetrics(nodes);
+  const planBlockerMetrics = buildPlanBlockerMetrics(nodes);
+  const timingMetrics = {
+    earlyCount: nodes.filter((item) => item.selectedAsOpportunity && !item.lateAtSelection).length,
+    earlyRatePct: nodes.filter((item) => item.selectedAsOpportunity).length > 0
+      ? round(nodes.filter((item) => item.selectedAsOpportunity && !item.lateAtSelection).length / nodes.filter((item) => item.selectedAsOpportunity).length * 100)
+      : 0,
+    lateCount: nodes.filter((item) => item.selectedAsOpportunity && item.lateAtSelection).length,
+    lateRatePct: nodes.filter((item) => item.selectedAsOpportunity).length > 0
+      ? round(nodes.filter((item) => item.selectedAsOpportunity && item.lateAtSelection).length / nodes.filter((item) => item.selectedAsOpportunity).length * 100)
+      : 0,
+    noPlanCount: nodes.filter((item) => item.maturity !== "TRADE_PLAN_READY").length,
+    planReadyCount: nodes.filter((item) => item.maturity === "TRADE_PLAN_READY").length,
+  };
+  const aggregate = aggregateFindings({
+    baselineMetrics,
+    candidateUniverseSize,
+    nodes,
+    opportunityLaneMetrics,
+    planBlockerMetrics,
+    topN,
+  });
   const findings = sortFindings([...cases.flatMap((item) => item.findings), ...aggregate]);
   const baseSummary = summarizeProfessionalBacktestRound(cases);
   const highSeverityFindings = findings.filter((item) => item.severity === "high").length;
   const roundSummary = {
     ...baseSummary,
     highSeverityFindings,
-  };
-  const timingMetrics = {
-    earlyCount: nodes.filter((item) => !item.lateAtSelection).length,
-    earlyRatePct: nodes.length > 0
-      ? round(nodes.filter((item) => !item.lateAtSelection).length / nodes.length * 100)
-      : 0,
-    lateCount: nodes.filter((item) => item.lateAtSelection).length,
-    lateRatePct: nodes.length > 0
-      ? round(nodes.filter((item) => item.lateAtSelection).length / nodes.length * 100)
-      : 0,
-    noPlanCount: nodes.filter((item) => item.maturity !== "TRADE_PLAN_READY").length,
-    planReadyCount: nodes.filter((item) => item.maturity === "TRADE_PLAN_READY").length,
   };
   const missedOpportunities = nodes
     .filter((item) => !item.capturedByRadar && item.hit && !item.lateAtSelection)
@@ -1261,10 +1740,15 @@ export function runProfessionalAuditRound({
       moveAtSelectionPct: item.moveAtSelectionPct,
       nodeRole: item.nodeRole,
       observedAt: item.observedAt,
+      opportunityLane: item.opportunityLane,
+      opportunityLaneLabel: item.opportunityLaneLabel,
+      planBlockers: item.planBlockers,
       radarRank: item.radarRank,
       reason: `该目标节点事后达到波动阈值，但当时 radar 排名第 ${item.radarRank ?? "未知"}，未进入 Top${item.topN}；用于检查扫描覆盖、候选排序和深扫槽位。`,
+      rewardRisk: item.rewardRisk,
       symbol: item.symbol,
       timeframeBand: item.timeframeBand,
+      tradePlanStatus: item.tradePlanStatus,
       validationWindowLabel: item.validationWindowLabel,
       volumeRatio: item.volumeRatio,
     }));
@@ -1305,6 +1789,8 @@ export function runProfessionalAuditRound({
       topN,
     },
     missedOpportunities,
+    opportunityLaneMetrics,
+    planBlockerMetrics,
     remediationPlan,
     roundSummary,
     schemaVersion: "professional-backtest-audit-report.v2",

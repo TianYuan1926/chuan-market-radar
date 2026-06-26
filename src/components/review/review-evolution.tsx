@@ -46,12 +46,84 @@ const nodeRoleLabels: Record<string, string> = {
   trend_acceleration: '趋势加速',
 }
 
+const opportunityLaneLabels: Record<string, string> = {
+  early_setup: '启动前机会',
+  higher_timeframe_context: '大周期背景',
+  pullback_retest: '回踩/反抽确认',
+  risk_review: '风险复盘教材',
+}
+
+const planBlockerLabels: Record<string, string> = {
+  bear_structure_broken: '空头结构已破坏',
+  bull_structure_broken: '多头结构已破坏',
+  chase_risk: '追涨/追空风险',
+  high_weight_conflict: '高权重证据冲突',
+  invalid_nearest_target: '最近目标无效',
+  invalid_structural_stop: '结构止损无效',
+  location_rr: '缺少位置/结构盈亏比',
+  lower_wick_exhaustion: '下影线衰竭风险',
+  neutral_direction: '方向不明确',
+  no_nearest_target: '缺少最近目标',
+  no_structural_stop: '缺少结构止损',
+  reaction_not_confirmed: '回踩/反抽反应未确认',
+  resistance_reclaimed: '价格重新站回压力位',
+  reward_risk_below_minimum: '结构盈亏比低于 3:1',
+  reward_risk_unknown: '结构盈亏比未知',
+  risk_gate_blocked: '风控门禁拦截',
+  risk_score_high: '风险评分过高',
+  stale_data: '数据过期',
+  stop_distance_too_wide: '止损距离过宽',
+  structure_invalidated: '结构已经失效',
+  trade_plan_not_eligible: '交易计划未满足门禁',
+  trend_integrity_not_healthy: '趋势完整度不健康',
+  upper_wick_exhaustion: '上影线衰竭风险',
+}
+
+const tradePlanStatusLabels: Record<string, string> = {
+  BLOCKED: '被风控拦截',
+  EVIDENCE_SIGNAL: '证据信号',
+  INVALIDATED: '结构失效',
+  REVIEW_ONLY: '只做复盘',
+  TRADE_PLAN_READY: '交易计划就绪',
+  WATCH_ONLY: '只观察',
+  WAIT_BREAKOUT: '等待突破',
+  WAIT_PULLBACK: '等待回踩',
+}
+
 function readableLayer(layer: string) {
   return layerLabels[layer] ?? layer
 }
 
 function readableNodeRole(role: string) {
   return nodeRoleLabels[role] ?? role
+}
+
+function readableOpportunityLane(lane: string, fallback?: string) {
+  return fallback || opportunityLaneLabels[lane] || lane
+}
+
+function readablePlanBlocker(blocker: string) {
+  if (planBlockerLabels[blocker]) {
+    return planBlockerLabels[blocker]
+  }
+
+  if (/reward[_ -]?risk|rr|赔率/iu.test(blocker)) {
+    return '结构盈亏比不足或未知'
+  }
+
+  if (/reaction/iu.test(blocker)) {
+    return '反应确认不足'
+  }
+
+  if (/risk[_ -]?gate|blocked/iu.test(blocker)) {
+    return '风控门禁拦截'
+  }
+
+  return blocker.replaceAll('_', ' ')
+}
+
+function readableTradePlanStatus(status: string) {
+  return tradePlanStatusLabels[status] ?? status.replaceAll('_', ' ')
 }
 
 export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}) {
@@ -332,7 +404,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                   </span>
                                 </div>
                                 <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                                  {node.nodeRole} · {node.timeframeBand} · rank {node.radarRank ?? '-'} · MFE {node.mfePct}% · MAE {node.maePct}%
+                                  {readableNodeRole(node.nodeRole)} · {readableOpportunityLane(node.opportunityLane, node.opportunityLaneLabel)} · {node.timeframeBand} · 排名 {node.radarRank ?? '-'} · 最大浮盈 {node.mfePct}% · 最大回撤 {node.maePct}%
                                 </div>
                               </div>
                             ))}
@@ -567,6 +639,50 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           漏判机会 {data.auditV2.missedOpportunities.length}
                         </span>
                       </div>
+                      {data.auditV2.opportunityLaneMetrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">机会池表现</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                            {data.auditV2.opportunityLaneMetrics.map((metric) => (
+                              <div key={metric.lane} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {readableOpportunityLane(metric.lane, metric.label)}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-muted-foreground">
+                                    {metric.selectedCount}/{metric.totalNodes}
+                                  </span>
+                                </div>
+                                <div className="mt-1 text-sm font-semibold">{metric.captureRatePct}% 捕获</div>
+                                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                                  <span>命中 {metric.hitRatePct}%</span>
+                                  <span>迟到 {metric.lateRatePct}%</span>
+                                  <span>漏判 {metric.missedEarlyHitCount}</span>
+                                  <span>就绪 {metric.planReadyCount}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {data.auditV2.planBlockerMetrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">交易计划未就绪卡点</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {data.auditV2.planBlockerMetrics.slice(0, 6).map((metric) => (
+                              <div key={metric.blocker} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-semibold">{readablePlanBlocker(metric.blocker) || metric.label}</span>
+                                  <span className="font-mono text-[10px] text-muted-foreground">{metric.count}</span>
+                                </div>
+                                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  代表币种：{metric.sampleSymbols.join(' / ') || '暂无'}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       {data.auditV2.missedOpportunities.length > 0 ? (
                         <div className="mt-3 border border-border bg-background/40 p-2">
                           <div className="text-[11px] font-semibold">漏判机会样本</div>
@@ -582,10 +698,11 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                   </span>
                                 </div>
                                 <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                                  节点：{readableNodeRole(miss.nodeRole)} · 验证窗口 {miss.validationWindowLabel} · 最大浮盈 {miss.mfePct}% · 最大回撤 {miss.maePct}%
+                                  节点：{readableNodeRole(miss.nodeRole)} · {readableOpportunityLane(miss.opportunityLane, miss.opportunityLaneLabel)} · 验证窗口 {miss.validationWindowLabel} · 最大浮盈 {miss.mfePct}% · 最大回撤 {miss.maePct}%
                                 </div>
                                 <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                                  入选前已波动 {miss.moveAtSelectionPct}% · 成交量倍数 {miss.volumeRatio}x
+                                  入选前已波动 {miss.moveAtSelectionPct}% · 成交量倍数 {miss.volumeRatio}x · 计划状态 {readableTradePlanStatus(miss.tradePlanStatus)}
+                                  {miss.planBlockers.length > 0 ? ` · 卡点 ${miss.planBlockers.slice(0, 2).map(readablePlanBlocker).join(' / ')}` : ''}
                                 </div>
                               </div>
                             ))}

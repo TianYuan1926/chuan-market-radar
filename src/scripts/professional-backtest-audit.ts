@@ -23,6 +23,7 @@ import {
   type ProfessionalDerivativePoint,
 } from "../lib/backtest/professional-replay";
 import {
+  professionalAuditPlanBlockerLabel,
   runProfessionalAuditRound,
   type ProfessionalAuditRoundCoinType,
   type ProfessionalAuditRoundProgress,
@@ -33,6 +34,13 @@ const BINANCE_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo
 const BINANCE_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
 const BINANCE_FUNDING_RATE_URL = "https://fapi.binance.com/fapi/v1/fundingRate";
 const BINANCE_OPEN_INTEREST_HIST_URL = "https://fapi.binance.com/futures/data/openInterestHist";
+
+function readablePlanBlockers(blockers: string[] | undefined, limit?: number) {
+  const items = blockers ?? [];
+  const visible = typeof limit === "number" ? items.slice(0, limit) : items;
+
+  return visible.map((blocker) => professionalAuditPlanBlockerLabel(blocker));
+}
 
 type BinanceExchangeSymbolRow = {
   contractType?: string;
@@ -783,6 +791,12 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     random: "随机基线",
     volume: "成交量基线",
   };
+  const opportunityLaneLabel: Record<string, string> = {
+    early_setup: "启动前机会",
+    higher_timeframe_context: "大周期背景机会",
+    pullback_retest: "回踩/反抽确认机会",
+    risk_review: "风险复盘教材",
+  };
   const severityLabel: Record<string, string> = {
     high: "高优先级",
     low: "低优先级",
@@ -877,6 +891,36 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     "",
   );
 
+  if (report.opportunityLaneMetrics.length > 0) {
+    lines.push(
+      "## 机会分层审计",
+      "",
+      "| 机会池 | 节点 | 入选 | 捕获率 | 命中率 | 迟到率 | 漏判早期命中 | 计划就绪 | 平均排名 | 平均雷达分 |",
+      "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    );
+
+    for (const metric of report.opportunityLaneMetrics) {
+      lines.push(`| ${metric.label || opportunityLaneLabel[metric.lane] || metric.lane} | ${metric.totalNodes} | ${metric.selectedCount} | ${metric.captureRatePct}% | ${metric.hitRatePct}% | ${metric.lateRatePct}% | ${metric.missedEarlyHitCount} | ${metric.planReadyCount} | ${metric.avgRadarRank ?? "-"} | ${metric.avgRadarScore} |`);
+    }
+
+    lines.push("");
+  }
+
+  if (report.planBlockerMetrics.length > 0) {
+    lines.push(
+      "## 交易计划未就绪原因",
+      "",
+      "| 阻断原因 | 次数 | 代表币种 |",
+      "|---|---:|---|",
+    );
+
+    for (const metric of report.planBlockerMetrics.slice(0, 12)) {
+      lines.push(`| ${professionalAuditPlanBlockerLabel(metric.blocker)} | ${metric.count} | ${metric.sampleSymbols.join(" / ") || "-"} |`);
+    }
+
+    lines.push("");
+  }
+
   if (report.auditRound) {
     const captured = report.auditRound.nodes.filter((node) => node.capturedByRadar).length;
     const captureRate = report.auditRound.nodes.length > 0
@@ -893,12 +937,12 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
       `- 已完成节点：${report.auditRound.completedNodes}/${report.auditRound.totalNodes}`,
       `- radar topN 捕获：${captured}/${report.auditRound.nodes.length} (${captureRate}%)`,
       "",
-      "| 币种 | 类型 | 节点 | 周期 | 验证窗口 | 捕获 | 排名 | 迟到 | MFE | MAE | 成熟度 |",
-      "|---|---|---|---|---|---|---:|---|---:|---:|---|",
+      "| 币种 | 类型 | 节点 | 机会池 | 周期 | 验证窗口 | 捕获 | 排名 | 迟到 | MFE | MAE | 成熟度 | 计划卡点 |",
+      "|---|---|---|---|---|---|---|---:|---|---:|---:|---|---|",
     );
 
     for (const node of report.auditRound.nodes.slice(0, 50)) {
-      lines.push(`| ${node.symbol} | ${node.coinTypeLabel} | ${nodeRoleLabel[node.nodeRole] ?? node.nodeRole} | ${node.timeframeBand} | ${node.validationWindowLabel} | ${node.capturedByRadar ? "是" : "否"} | ${node.radarRank ?? "-"} | ${node.lateAtSelection ? "是" : "否"} | ${node.mfePct}% | ${node.maePct}% | ${node.maturity} |`);
+      lines.push(`| ${node.symbol} | ${node.coinTypeLabel} | ${nodeRoleLabel[node.nodeRole] ?? node.nodeRole} | ${node.opportunityLaneLabel ?? opportunityLaneLabel[node.opportunityLane] ?? node.opportunityLane} | ${node.timeframeBand} | ${node.validationWindowLabel} | ${node.capturedByRadar ? "是" : "否"} | ${node.radarRank ?? "-"} | ${node.lateAtSelection ? "是" : "否"} | ${node.mfePct}% | ${node.maePct}% | ${node.maturity} | ${readablePlanBlockers(node.planBlockers, 2).join(" / ") || "-"} |`);
     }
 
     lines.push("");
@@ -913,8 +957,10 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     const rank = typeof miss.radarRank === "number" ? `当时排名第 ${miss.radarRank}` : "当时排名未知";
     const node = miss.nodeRole ? `节点=${nodeRoleLabel[miss.nodeRole] ?? miss.nodeRole}` : "节点未知";
     const windowLabel = miss.validationWindowLabel ? `验证窗口=${miss.validationWindowLabel}` : "验证窗口未知";
+    const lane = miss.opportunityLaneLabel ? `机会池=${miss.opportunityLaneLabel}` : "";
+    const blocker = miss.planBlockers?.length ? `计划卡点=${readablePlanBlockers(miss.planBlockers, 3).join(" / ")}` : "";
 
-    lines.push(`- ${miss.symbol} ${miss.direction === "short" ? "偏空" : "偏多"} ${rank} ${node} ${windowLabel} MFE=${miss.mfePct}% MAE=${miss.maePct}% 入选前已波动=${miss.moveAtSelectionPct}% 成交量=${miss.volumeRatio}x：${miss.reason}`);
+    lines.push(`- ${miss.symbol} ${miss.direction === "short" ? "偏空" : "偏多"} ${rank} ${node} ${lane} ${windowLabel} MFE=${miss.mfePct}% MAE=${miss.maePct}% 入选前已波动=${miss.moveAtSelectionPct}% 成交量=${miss.volumeRatio}x ${blocker}：${miss.reason}`);
   }
 
   if (report.missedOpportunities.length === 0) {
