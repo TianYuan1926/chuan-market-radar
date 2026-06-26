@@ -65,14 +65,20 @@ export type ProfessionalReplayTimingMetrics = {
 };
 
 export type ProfessionalReplayMissedOpportunity = {
+  coinType?: string;
+  coinTypeLabel?: string;
   confidence: number;
   direction: "long" | "short";
   maePct: number;
   mfePct: number;
   moveAtSelectionPct: number;
+  nodeRole?: string;
   observedAt: string;
+  radarRank?: number | null;
   reason: string;
   symbol: string;
+  timeframeBand?: string;
+  validationWindowLabel?: string;
   volumeRatio: number;
 };
 

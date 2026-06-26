@@ -777,6 +777,29 @@ async function fetchDerivativesBySymbol(
 }
 
 function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failures: Array<{ error: string; symbol: string }>) {
+  const laneLabel: Record<string, string> = {
+    momentum: "动量基线",
+    radar: "雷达排序",
+    random: "随机基线",
+    volume: "成交量基线",
+  };
+  const severityLabel: Record<string, string> = {
+    high: "高优先级",
+    low: "低优先级",
+    medium: "中优先级",
+  };
+  const nodeRoleLabel: Record<string, string> = {
+    breakout_edge: "突破边缘",
+    early_volume_expansion: "早期放量",
+    fakeout_or_invalidation: "假突破/失效",
+    large_context: "大周期背景",
+    late_extension: "晚到延伸",
+    medium_swing: "中周期波段",
+    neutral_random: "中性随机",
+    pre_move: "启动前",
+    pullback_retest: "回踩确认",
+    trend_acceleration: "趋势加速",
+  };
   const auditWindowSummary = report.auditRound
     ? [...new Map(report.auditRound.nodes.map((node) => [node.timeframeBand, node.validationWindowLabel])).entries()]
       .sort(([left], [right]) => {
@@ -787,6 +810,21 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
       .map(([band, label]) => `${band}=${label}`)
       .join(" / ")
     : "";
+  const groupedFindings = [...report.findings.reduce((map, finding) => {
+    const current = map.get(finding.id) ?? {
+      count: 0,
+      finding,
+      samples: [] as string[],
+    };
+
+    current.count += 1;
+    if (current.samples.length < 3) {
+      current.samples.push(finding.detail);
+    }
+    map.set(finding.id, current);
+
+    return map;
+  }, new Map<string, { count: number; finding: typeof report.findings[number]; samples: string[] }>()).values()];
   const lines = [
     "# Professional Strategy Backtest Audit v2",
     "",
@@ -826,7 +864,7 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
   for (const lane of ["radar", "momentum", "volume", "random"] as const) {
     const metric = report.baselineMetrics[lane];
 
-    lines.push(`| ${lane} | ${metric.count} | ${metric.hitRatePct}% | ${metric.lateRatePct}% | ${metric.avgMfePct}% | ${metric.avgMaePct}% | ${metric.avgMoveAtSelectionPct}% | ${metric.avgVolumeRatio}x |`);
+    lines.push(`| ${laneLabel[lane]} | ${metric.count} | ${metric.hitRatePct}% | ${metric.lateRatePct}% | ${metric.avgMfePct}% | ${metric.avgMaePct}% | ${metric.avgMoveAtSelectionPct}% | ${metric.avgVolumeRatio}x |`);
   }
 
   lines.push(
@@ -860,7 +898,7 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     );
 
     for (const node of report.auditRound.nodes.slice(0, 50)) {
-      lines.push(`| ${node.symbol} | ${node.coinTypeLabel} | ${node.nodeRole} | ${node.timeframeBand} | ${node.validationWindowLabel} | ${node.capturedByRadar ? "是" : "否"} | ${node.radarRank ?? "-"} | ${node.lateAtSelection ? "是" : "否"} | ${node.mfePct}% | ${node.maePct}% | ${node.maturity} |`);
+      lines.push(`| ${node.symbol} | ${node.coinTypeLabel} | ${nodeRoleLabel[node.nodeRole] ?? node.nodeRole} | ${node.timeframeBand} | ${node.validationWindowLabel} | ${node.capturedByRadar ? "是" : "否"} | ${node.radarRank ?? "-"} | ${node.lateAtSelection ? "是" : "否"} | ${node.mfePct}% | ${node.maePct}% | ${node.maturity} |`);
     }
 
     lines.push("");
@@ -872,7 +910,11 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
   );
 
   for (const miss of report.missedOpportunities.slice(0, 20)) {
-    lines.push(`- ${miss.symbol} ${miss.direction} observed=${miss.observedAt} MFE=${miss.mfePct}% MAE=${miss.maePct}% 入选前已波动=${miss.moveAtSelectionPct}% volume=${miss.volumeRatio}x：${miss.reason}`);
+    const rank = typeof miss.radarRank === "number" ? `当时排名第 ${miss.radarRank}` : "当时排名未知";
+    const node = miss.nodeRole ? `节点=${nodeRoleLabel[miss.nodeRole] ?? miss.nodeRole}` : "节点未知";
+    const windowLabel = miss.validationWindowLabel ? `验证窗口=${miss.validationWindowLabel}` : "验证窗口未知";
+
+    lines.push(`- ${miss.symbol} ${miss.direction === "short" ? "偏空" : "偏多"} ${rank} ${node} ${windowLabel} MFE=${miss.mfePct}% MAE=${miss.maePct}% 入选前已波动=${miss.moveAtSelectionPct}% 成交量=${miss.volumeRatio}x：${miss.reason}`);
   }
 
   if (report.missedOpportunities.length === 0) {
@@ -885,11 +927,14 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     "",
   );
 
-  for (const finding of report.findings.slice(0, 30)) {
-    lines.push(`- ${finding.id} [${finding.severity}] ${finding.title}：${finding.detail} 下一步：${finding.nextAction}`);
+  for (const group of groupedFindings.slice(0, 18)) {
+    const { finding } = group;
+    const sample = group.samples.length > 0 ? ` 代表样本：${group.samples.join(" / ")}` : "";
+
+    lines.push(`- ${finding.id} [${severityLabel[finding.severity] ?? finding.severity}] x${group.count} ${finding.title}：${finding.detail}${sample} 下一步：${finding.nextAction}`);
   }
 
-  if (report.findings.length === 0) {
+  if (groupedFindings.length === 0) {
     lines.push("- 本轮没有发现问题；仍需扩大样本和接入历史衍生品继续验证。");
   }
 

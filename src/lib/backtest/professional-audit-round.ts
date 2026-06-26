@@ -252,6 +252,7 @@ export type ProfessionalAuditRadarRankInput = {
   movePct: number;
   rangePositionPct: number;
   symbol: string;
+  timeframeBand?: ProfessionalAuditRoundTimeframeBand;
   volumeRatio: number;
 };
 
@@ -281,6 +282,27 @@ function isMemeLikeSymbol(symbol: string) {
 
 export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInput) {
   const absMove = Math.abs(input.movePct);
+  const band = input.timeframeBand ?? "medium";
+  const horizonWeights = {
+    large: {
+      compression: 1.1,
+      controlledImpulse: 0.45,
+      lowVolumeCompression: 1.35,
+      quietAccumulation: 1.25,
+    },
+    medium: {
+      compression: 1,
+      controlledImpulse: 0.85,
+      lowVolumeCompression: 0.8,
+      quietAccumulation: 0.85,
+    },
+    small: {
+      compression: 0.8,
+      controlledImpulse: 1.05,
+      lowVolumeCompression: 0.15,
+      quietAccumulation: 0.35,
+    },
+  }[band];
   const pullbackPositionScore = input.direction === "long"
     ? bandScore(input.rangePositionPct, 18, 34, 54)
     : bandScore(input.rangePositionPct, 46, 66, 82);
@@ -291,9 +313,21 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
       : absMove <= 9
         ? 4
         : 0;
-  const compressionScore = clamp((70 - input.compressionPct) / 70, 0, 1) * 14;
+  const compressionScore = clamp((70 - input.compressionPct) / 70, 0, 1) * 14 * horizonWeights.compression;
   const earlyVolumeScore = input.volumeRatio >= 1.1
     ? clamp((input.volumeRatio - 1.1) * 8, 0, 12)
+    : 0;
+  const nonExtremeLocationScore = input.direction === "long"
+    ? bandScore(input.rangePositionPct, 16, 38, 84)
+    : bandScore(input.rangePositionPct, 16, 62, 84);
+  const quietAccumulationScore = !input.lateAtSelection && absMove <= 2.5
+    ? (nonExtremeLocationScore * 14 + bandScore(input.volumeRatio, 0.55, 1.25, 2.1) * 8) * horizonWeights.quietAccumulation
+    : 0;
+  const controlledImpulseScore = !input.lateAtSelection && absMove > 2 && absMove <= 6.5 && input.volumeRatio >= 1.2
+    ? (nonExtremeLocationScore * 8 + clamp((input.volumeRatio - 1.2) * 3, 0, 10)) * horizonWeights.controlledImpulse
+    : 0;
+  const lowVolumeCompressionScore = !input.lateAtSelection && absMove <= 4 && input.volumeRatio < 1 && input.compressionPct <= 38
+    ? nonExtremeLocationScore * 8 * horizonWeights.lowVolumeCompression
     : 0;
   const pullbackRetestBonus = pullbackPositionScore > 0
     ? pullbackPositionScore * 18 + moderateMoveScore
@@ -321,6 +355,9 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
     pullbackRetestBonus +
     compressionScore +
     earlyVolumeScore +
+    quietAccumulationScore +
+    controlledImpulseScore +
+    lowVolumeCompressionScore +
     memeEarlyBonus -
     latePenalty -
     chasePenalty -
@@ -617,6 +654,7 @@ function buildCandidateAtNode({
   index,
   moveThresholdPct,
   symbol,
+  timeframeBand,
 }: {
   candles: Candle[];
   derivatives?: ProfessionalDerivativePoint[];
@@ -624,6 +662,7 @@ function buildCandidateAtNode({
   index: number;
   moveThresholdPct: number;
   symbol: string;
+  timeframeBand: ProfessionalAuditRoundTimeframeBand;
 }): CandidateAtNode | null {
   const observed = candles[index];
 
@@ -678,6 +717,7 @@ function buildCandidateAtNode({
       movePct,
       rangePositionPct: currentRangePositionPct,
       symbol,
+      timeframeBand,
       volumeRatio: currentVolumeRatio,
     }),
     randomScore: deterministicRandomScore(symbol, observed.openTime),
@@ -1112,6 +1152,7 @@ export function runProfessionalAuditRound({
           index: selected.index,
           moveThresholdPct,
           symbol,
+          timeframeBand: selected.band,
         });
 
         if (candidate) {
@@ -1211,14 +1252,20 @@ export function runProfessionalAuditRound({
   const missedOpportunities = nodes
     .filter((item) => !item.capturedByRadar && item.hit && !item.lateAtSelection)
     .map((item) => ({
+      coinType: item.coinType,
+      coinTypeLabel: item.coinTypeLabel,
       confidence: item.confidence,
       direction: item.direction,
       maePct: item.maePct,
       mfePct: item.mfePct,
       moveAtSelectionPct: item.moveAtSelectionPct,
+      nodeRole: item.nodeRole,
       observedAt: item.observedAt,
-      reason: "该目标节点事后达到波动阈值，但没有进入 radar topN；用于检查扫描覆盖、候选排序和深扫槽位。",
+      radarRank: item.radarRank,
+      reason: `该目标节点事后达到波动阈值，但当时 radar 排名第 ${item.radarRank ?? "未知"}，未进入 Top${item.topN}；用于检查扫描覆盖、候选排序和深扫槽位。`,
       symbol: item.symbol,
+      timeframeBand: item.timeframeBand,
+      validationWindowLabel: item.validationWindowLabel,
       volumeRatio: item.volumeRatio,
     }));
   const remediationPlan = uniqueRemediations(cases, aggregateRemediations(aggregate));

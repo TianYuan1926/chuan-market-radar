@@ -154,19 +154,41 @@ function normalizeAuditV2LaneMetric(
   };
 }
 
+function auditV2LaneToHistoricalLane(
+  metric: HistoricalBacktestAuditV2State["baselineMetrics"]["radar"],
+): HistoricalBacktestLaneMetric {
+  return {
+    ...emptyHistoricalBacktestLaneMetric(metric.lane),
+    avgMaePct: metric.avgMaePct,
+    avgMfePct: metric.avgMfePct,
+    avgOpportunityScore: metric.avgConfidence,
+    count: metric.count,
+    hitCount: metric.hitCount,
+    hitRatePct: metric.hitRatePct,
+    lateCount: metric.lateCount,
+    lateRatePct: metric.lateRatePct,
+  };
+}
+
 function normalizeAuditV2MissedOpportunity(value: unknown): HistoricalBacktestAuditV2State["missedOpportunities"][number] {
   const item = asObject(value);
   const direction = stringValue(item.direction);
 
   return {
+    coinType: stringValue(item.coinType, "unknown"),
+    coinTypeLabel: stringValue(item.coinTypeLabel, "未分类"),
     confidence: numericValue(item.confidence),
     direction: direction === "short" ? "short" : "long",
     maePct: numericValue(item.maePct),
     mfePct: numericValue(item.mfePct),
     moveAtSelectionPct: numericValue(item.moveAtSelectionPct),
+    nodeRole: stringValue(item.nodeRole, "unknown"),
     observedAt: stringValue(item.observedAt),
+    radarRank: nullableNumber(item.radarRank),
     reason: stringValue(item.reason, "该样本未进入 radar topN，需复盘覆盖率、排序或深扫槽位。"),
     symbol: stringValue(item.symbol, "UNKNOWN"),
+    timeframeBand: stringValue(item.timeframeBand, "unknown"),
+    validationWindowLabel: stringValue(item.validationWindowLabel, "未知"),
     volumeRatio: numericValue(item.volumeRatio),
   };
 }
@@ -577,6 +599,14 @@ export async function getLatestHistoricalBacktestResource(
     const failures = asArray(payload.failures);
     const auditV2 = normalizeAuditV2(payload);
     const progress = auditV2?.auditRound ?? latestProgress;
+    const v2HistoricalLanes = auditV2
+      ? {
+        momentum: auditV2LaneToHistoricalLane(auditV2.baselineMetrics.momentum),
+        radar: auditV2LaneToHistoricalLane(auditV2.baselineMetrics.radar),
+        random: auditV2LaneToHistoricalLane(auditV2.baselineMetrics.random),
+        volume: auditV2LaneToHistoricalLane(auditV2.baselineMetrics.volume),
+      }
+      : null;
     const state: HistoricalBacktestState = {
       schemaVersion: "historical-backtest.v1",
       status: auditV2?.highSeverityFindings || findings.some((finding) => finding.severity === "high") || failures.length > 0 ? "degraded" : "ready",
@@ -593,10 +623,10 @@ export async function getLatestHistoricalBacktestResource(
         topN: nullableNumber(optionsPayload.topN) ?? parsedSummary.topN,
       },
       lanes: {
-        momentum: normalizeLaneMetric("momentum", laneMetrics.momentum),
-        radar: normalizeLaneMetric("radar", laneMetrics.radar),
-        random: normalizeLaneMetric("random", laneMetrics.random),
-        volume: normalizeLaneMetric("volume", laneMetrics.volume),
+        momentum: v2HistoricalLanes?.momentum ?? normalizeLaneMetric("momentum", laneMetrics.momentum),
+        radar: v2HistoricalLanes?.radar ?? normalizeLaneMetric("radar", laneMetrics.radar),
+        random: v2HistoricalLanes?.random ?? normalizeLaneMetric("random", laneMetrics.random),
+        volume: v2HistoricalLanes?.volume ?? normalizeLaneMetric("volume", laneMetrics.volume),
       },
       findings,
       diagnostics: {

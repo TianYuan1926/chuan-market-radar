@@ -108,3 +108,59 @@ test("professionalAuditRadarScore handles short retest opportunities directional
     `expected short retest score ${shortRetest} to beat already dumped score ${alreadyDumpedShort}`,
   );
 });
+
+test("professionalAuditRadarScore promotes quiet accumulation before the move", () => {
+  const quietSetup = professionalAuditRadarScore({
+    compressionPct: 31,
+    confidence: 58,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.4,
+    rangePositionPct: 42,
+    symbol: "HYPEUSDT",
+    volumeRatio: 0.82,
+  });
+  const obviousMomentum = professionalAuditRadarScore({
+    compressionPct: 62,
+    confidence: 72,
+    direction: "long",
+    lateAtSelection: true,
+    movePct: 11.6,
+    rangePositionPct: 89,
+    symbol: "HYPEUSDT",
+    volumeRatio: 2.2,
+  });
+
+  assert.ok(
+    quietSetup > obviousMomentum,
+    `expected quiet setup score ${quietSetup} to beat obvious momentum score ${obviousMomentum}`,
+  );
+});
+
+test("professionalAuditRadarScore rewards controlled volume impulse without chasing", () => {
+  const controlledImpulse = professionalAuditRadarScore({
+    compressionPct: 46,
+    confidence: 59,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 4.8,
+    rangePositionPct: 58,
+    symbol: "AAVEUSDT",
+    volumeRatio: 4.6,
+  });
+  const exhaustedImpulse = professionalAuditRadarScore({
+    compressionPct: 70,
+    confidence: 78,
+    direction: "long",
+    lateAtSelection: true,
+    movePct: 15.2,
+    rangePositionPct: 94,
+    symbol: "AAVEUSDT",
+    volumeRatio: 5.1,
+  });
+
+  assert.ok(
+    controlledImpulse > exhaustedImpulse,
+    `expected controlled impulse score ${controlledImpulse} to beat exhausted impulse score ${exhaustedImpulse}`,
+  );
+});

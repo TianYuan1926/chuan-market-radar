@@ -300,14 +300,20 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
         },
         missedOpportunities: [
           {
+            coinType: "layer1_layer2",
+            coinTypeLabel: "L1 / L2",
             confidence: 54,
             direction: "long",
             maePct: 2.1,
             mfePct: 18.4,
             moveAtSelectionPct: 2.8,
+            nodeRole: "pullback_retest",
             observedAt: "2026-06-24T10:00:00.000Z",
+            radarRank: 27,
             reason: "未进入 radar topN。",
             symbol: "SUIUSDT",
+            timeframeBand: "medium",
+            validationWindowLabel: "24h",
             volumeRatio: 1.9,
           },
         ],
@@ -361,8 +367,14 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.auditV2?.cases, 1);
     assert.equal(result.data.auditV2?.highSeverityFindings, 1);
     assert.equal(result.data.auditV2?.baselineMetrics.radar.hitRatePct, 60);
+    assert.equal(result.data.lanes.radar.count, 5);
+    assert.equal(result.data.lanes.radar.hitRatePct, 60);
+    assert.equal(result.data.lanes.radar.avgOpportunityScore, 62);
     assert.equal(result.data.auditV2?.timingMetrics.lateRatePct, 20);
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.symbol, "SUIUSDT");
+    assert.equal(result.data.auditV2?.missedOpportunities[0]?.radarRank, 27);
+    assert.equal(result.data.auditV2?.missedOpportunities[0]?.nodeRole, "pullback_retest");
+    assert.equal(result.data.auditV2?.missedOpportunities[0]?.validationWindowLabel, "24h");
     assert.equal(result.data.auditV2?.findings[0]?.id, "PBA-DERIVATIVES-001");
     assert.equal(result.data.auditV2?.remediationPlan[0]?.priority, "P0");
     assert.equal(result.data.progress?.schemaVersion, "professional-backtest-audit-round-progress.v1");

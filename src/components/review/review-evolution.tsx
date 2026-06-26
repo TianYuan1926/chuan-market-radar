@@ -11,6 +11,49 @@ import { FreshnessTag, StatusBadge, ResourceBoundary } from '@/components/data-s
 import { TokenAvatar } from '@/components/token-avatar'
 import { cn } from '@/lib/utils'
 
+const backtestLaneLabels = {
+  momentum: '动量基线',
+  radar: '雷达排序',
+  random: '随机基线',
+  volume: '成交量基线',
+} as const
+
+const severityLabels = {
+  high: '高优先级',
+  low: '低优先级',
+  medium: '中优先级',
+} as const
+
+const layerLabels: Record<string, string> = {
+  data: '数据层',
+  derivatives: '衍生品',
+  plan: '交易计划',
+  review: '复盘层',
+  scan: '扫描排序',
+  timing: '提前性',
+}
+
+const nodeRoleLabels: Record<string, string> = {
+  breakout_edge: '突破边缘',
+  early_volume_expansion: '早期放量',
+  fakeout_or_invalidation: '假突破/失效',
+  large_context: '大周期背景',
+  late_extension: '晚到延伸',
+  medium_swing: '中周期波段',
+  neutral_random: '中性随机',
+  pre_move: '启动前',
+  pullback_retest: '回踩确认',
+  trend_acceleration: '趋势加速',
+}
+
+function readableLayer(layer: string) {
+  return layerLabels[layer] ?? layer
+}
+
+function readableNodeRole(role: string) {
+  return nodeRoleLabels[role] ?? role
+}
+
 export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}) {
   const lifecycles = contract?.signalLifecycles ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端复盘契约' })
   const archetypes = contract?.strategyArchetypes ?? resource([], 'empty', { source: 'review-contract', reason: '未传入后端策略分型契约' })
@@ -488,7 +531,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           {data.auditV2.highSeverityFindings > 0 ? '需要整改' : '继续扩大样本'}
                         </span>
                         <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                          cases {data.auditV2.cases} · ready {data.auditV2.planReadyCount} · tested {data.auditV2.testedCapabilities}
+                          样本 {data.auditV2.cases} · 计划就绪 {data.auditV2.planReadyCount} · 能力项 {data.auditV2.testedCapabilities}
                         </span>
                       </div>
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
@@ -504,7 +547,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
 
                           return (
                             <div key={lane} className="border border-border bg-background/40 p-2">
-                              <div className="font-mono text-[10px] uppercase text-muted-foreground">{lane}</div>
+                              <div className="text-[10px] text-muted-foreground">{backtestLaneLabels[lane]}</div>
                               <div className="mt-1 text-sm font-semibold">{metric.hitRatePct}% 命中</div>
                               <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                 样本 {metric.count} · 迟到 {metric.lateRatePct}% · 入选已波动 {metric.avgMoveAtSelectionPct}%
@@ -524,6 +567,31 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           漏判机会 {data.auditV2.missedOpportunities.length}
                         </span>
                       </div>
+                      {data.auditV2.missedOpportunities.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">漏判机会样本</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2">
+                            {data.auditV2.missedOpportunities.slice(0, 6).map((miss) => (
+                              <div key={`${miss.symbol}-${miss.observedAt}-${miss.nodeRole}`} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center gap-2">
+                                  <TokenAvatar symbol={miss.symbol} hue={symbolHue(miss.symbol)} size={18} />
+                                  <span className="font-mono text-[11px] font-semibold">{miss.symbol}</span>
+                                  <span className="text-[10px] text-muted-foreground">{miss.coinTypeLabel}</span>
+                                  <span className="ml-auto border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                    当时排名 {miss.radarRank ?? '未知'}
+                                  </span>
+                                </div>
+                                <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  节点：{readableNodeRole(miss.nodeRole)} · 验证窗口 {miss.validationWindowLabel} · 最大浮盈 {miss.mfePct}% · 最大回撤 {miss.maePct}%
+                                </div>
+                                <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  入选前已波动 {miss.moveAtSelectionPct}% · 成交量倍数 {miss.volumeRatio}x
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="mt-3 grid gap-3 lg:grid-cols-2">
                         <div className="border border-border bg-background/40 p-2">
                           <div className="text-[11px] font-semibold">问题归因</div>
@@ -539,10 +607,10 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                         : 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]',
                                     )}
                                   >
-                                    {finding.severity}
+                                    {severityLabels[finding.severity]}
                                   </span>
                                   <span className="font-mono text-[10px] text-muted-foreground">{finding.id}</span>
-                                  <span className="ml-auto font-mono text-[10px] text-muted-foreground">{finding.layer}</span>
+                                  <span className="ml-auto text-[10px] text-muted-foreground">{readableLayer(finding.layer)}</span>
                                 </div>
                                 <div className="mt-1 text-[11px] font-semibold">{finding.title}</div>
                                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
@@ -564,7 +632,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                   <span className="border border-neon/40 bg-neon/10 px-1.5 py-0.5 font-mono text-[10px] text-neon">
                                     {item.priority}
                                   </span>
-                                  <span className="font-mono text-[10px] text-muted-foreground">{item.targetModule}</span>
+                                  <span className="text-[10px] text-muted-foreground">{readableLayer(item.layer)}</span>
                                 </div>
                                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                   {item.action}
