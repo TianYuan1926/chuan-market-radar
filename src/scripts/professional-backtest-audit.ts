@@ -15,6 +15,10 @@ import type {
   Candle,
 } from "../lib/market/ohlcv/types";
 import {
+  defaultLongMarketEnvironmentDays,
+  describeMarketEnvironmentWindows,
+} from "../lib/analysis/market-environment-windows";
+import {
   runProfessionalReplay,
   type ProfessionalDerivativePoint,
 } from "../lib/backtest/professional-replay";
@@ -70,7 +74,7 @@ Professional Strategy Backtest Audit Engine v2.
 It replays historical public futures candles through the production analysis chain.
 
 Options:
-  --days 30                         Historical window, default 30
+  --days 30                         Historical kline fetch window, default 30; long market environment default starts at 30d
   --max-symbols 120                 Max Binance USDT perpetual symbols, default 120
   --top-n 20                        Candidates per replay point, default 20
   --audit-round                     Run strict 10-type x N-node professional audit round
@@ -87,6 +91,9 @@ Examples:
   npm run backtest:professional -- --days 7 --max-symbols 40 --top-n 10
   npm run backtest:professional -- --days 30 --max-symbols 180 --top-n 24
   npm run backtest:professional -- --audit-round --days 30 --audit-symbols 10 --candidate-symbols 80 --nodes-per-symbol 10 --top-n 10
+
+Market environment windows:
+  ${describeMarketEnvironmentWindows()}
 `);
 }
 
@@ -796,6 +803,8 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     `- 已注入历史衍生品币种：${report.input.derivativesSymbolsUsed}`,
     `- 回放点：${report.input.replayTimes}`,
     `- 每轮候选：${report.input.topN}`,
+    `- 市场环境窗口：${describeMarketEnvironmentWindows()}`,
+    `- 长周期默认：${defaultLongMarketEnvironmentDays()} 天；这是默认下限，不是唯一长周期判断。`,
     report.auditRound
       ? `- 验证窗口：${auditWindowSummary || "按节点周期分层"}`
       : `- 验证窗口：${report.input.horizonBars} 根 15m K 线`,
