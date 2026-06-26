@@ -250,6 +250,9 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
               radarRank: 2,
               symbol: "SUIUSDT",
               timeframeBand: "small",
+              validationWindowBars: 16,
+              validationWindowHours: 4,
+              validationWindowLabel: "4h",
               topN: 10,
               volumeRatio: 1.7,
             },
@@ -365,6 +368,7 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.progress?.schemaVersion, "professional-backtest-audit-round-progress.v1");
     assert.equal(result.data.progress?.candidateUniverseSize, 80);
     assert.equal(result.data.progress?.nodes[0]?.nodeRole, "pre_move");
+    assert.equal(result.data.progress?.nodes[0]?.validationWindowLabel, "4h");
     assert.equal(result.data.auditV2?.auditRound?.plannedSymbols[0]?.symbol, "SUIUSDT");
     assert.match(result.data.summary, /历史衍生品证据缺失/);
     assert.match(result.data.nextAction, /补齐历史 OI\/Funding/);

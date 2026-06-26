@@ -56,11 +56,11 @@ function trendContext(overrides: Partial<StrategyV3TrendContext> = {}): Strategy
       minRewardRisk: 3,
       nearestTarget: 130,
       positionQuality: "GOOD_LOCATION",
-      rewardRisk: 4.03,
+      rewardRisk: 4.38,
       riskFlags: [],
-      stopDistance: 7.2,
-      stopDistancePercent: 6.72,
-      structuralStop: 100,
+      stopDistance: 5.2,
+      stopDistancePercent: 4.85,
+      structuralStop: 102,
       summary: "位置合格",
       targetDistance: 22.8,
       targetDistancePercent: 21.27,
@@ -127,9 +127,9 @@ test("buildV3TradePlan creates a readonly long draft only when RR reaction trend
   assert.equal(plan.isPlanEligible, true);
   assert.equal(plan.hasAutoExecution, false);
   assert.equal(plan.canMutateLiveRanking, false);
-  assert.equal(plan.structuralStop, 100);
+  assert.equal(plan.structuralStop, 102);
   assert.deepEqual(plan.targets, [130]);
-  assert.equal(plan.rewardRisk, 4.03);
+  assert.equal(plan.rewardRisk, 4.38);
   assert.match(plan.summary, /只读|多头/);
   assert.match(plan.confirmationChecklist.join(" / "), /回踩|趋势完整度|Risk Gate/);
 });
@@ -156,6 +156,64 @@ test("buildV3TradePlan blocks the draft when reward risk is below the minimum", 
   assert.equal(plan.status, "BLOCKED");
   assert.equal(plan.isPlanEligible, false);
   assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
+});
+
+test("buildV3TradePlan blocks stale eligible context when structural stop is too wide", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 107.2,
+    signal: signal({ direction: "long" }),
+    trendContext: trendContext({
+      locationRiskReward: {
+        ...trendContext().locationRiskReward!,
+        isTradeEligible: true,
+        rewardRisk: 4.03,
+        riskFlags: [],
+        stopDistance: 7.2,
+        stopDistancePercent: 6.72,
+        structuralStop: 100,
+      },
+      riskGate: {
+        allowed: true,
+        blockedBy: [],
+        mode: "readonly_v3_risk_gate",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "BLOCKED");
+  assert.equal(plan.isPlanEligible, false);
+  assert.ok(plan.blockedBy.includes("stop_distance_too_wide"));
+});
+
+test("buildV3TradePlan blocks stale eligible context when stop or target is on the wrong side", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 107.2,
+    signal: signal({ direction: "short" }),
+    trendContext: trendContext({
+      locationRiskReward: {
+        ...trendContext().locationRiskReward!,
+        currentPrice: 107.2,
+        direction: "short",
+        isTradeEligible: true,
+        nearestTarget: 130,
+        rewardRisk: 4,
+        riskFlags: [],
+        stopDistance: 3,
+        stopDistancePercent: 2.8,
+        structuralStop: 102,
+      },
+      riskGate: {
+        allowed: true,
+        blockedBy: [],
+        mode: "readonly_v3_risk_gate",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "BLOCKED");
+  assert.equal(plan.isPlanEligible, false);
+  assert.ok(plan.blockedBy.includes("invalid_structural_stop"));
+  assert.ok(plan.blockedBy.includes("invalid_nearest_target"));
 });
 
 test("buildV3TradePlan waits for pullback confirmation before drafting a long plan", () => {

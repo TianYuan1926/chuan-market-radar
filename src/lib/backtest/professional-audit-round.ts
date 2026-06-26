@@ -72,6 +72,9 @@ export type ProfessionalAuditRoundNode = {
   radarRank: number | null;
   symbol: string;
   timeframeBand: ProfessionalAuditRoundTimeframeBand;
+  validationWindowBars: number;
+  validationWindowHours: number;
+  validationWindowLabel: string;
   topN: number;
   volumeRatio: number;
 };
@@ -106,6 +109,7 @@ export type ProfessionalAuditRoundOptions = {
   candidateUniverseSize?: number;
   generatedAt?: string;
   horizonBars?: number;
+  horizonBarsByBand?: Partial<Record<ProfessionalAuditRoundTimeframeBand, number>>;
   moveThresholdPct?: number;
   nodesPerSymbol: number;
   onProgress?: (progress: ProfessionalAuditRoundProgress) => void;
@@ -115,13 +119,16 @@ export type ProfessionalAuditRoundOptions = {
 
 type CandidateAtNode = {
   auditCase: ProfessionalBacktestAuditCase;
+  compressionPct: number;
   direction: "long" | "short";
   hit: boolean;
   lateAtSelection: boolean;
   maePct: number;
   mfePct: number;
   movePct: number;
+  radarScore: number;
   randomScore: number;
+  rangePositionPct: number;
   volumeRatio: number;
 };
 
@@ -157,6 +164,12 @@ const nodeRoles: Array<{
   { band: "large", role: "large_context" },
 ];
 
+export const defaultProfessionalAuditHorizonBarsByBand: Record<ProfessionalAuditRoundTimeframeBand, number> = {
+  large: 384,
+  medium: 96,
+  small: 16,
+};
+
 function round(value: number, digits = 2) {
   if (!Number.isFinite(value)) {
     return 0;
@@ -165,6 +178,36 @@ function round(value: number, digits = 2) {
   const factor = 10 ** digits;
 
   return Math.round(value * factor) / factor;
+}
+
+function normalizeHorizonBars(value: unknown, fallback: number) {
+  const parsed = Math.round(Number(value));
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function resolveProfessionalAuditHorizonBarsByBand(
+  input?: Partial<Record<ProfessionalAuditRoundTimeframeBand, number>>,
+) {
+  return {
+    large: normalizeHorizonBars(input?.large, defaultProfessionalAuditHorizonBarsByBand.large),
+    medium: normalizeHorizonBars(input?.medium, defaultProfessionalAuditHorizonBarsByBand.medium),
+    small: normalizeHorizonBars(input?.small, defaultProfessionalAuditHorizonBarsByBand.small),
+  } satisfies Record<ProfessionalAuditRoundTimeframeBand, number>;
+}
+
+function validationWindowLabel(horizonBars: number) {
+  const hours = horizonBars / 4;
+
+  if (hours >= 24 && Number.isInteger(hours / 24)) {
+    return `${hours / 24}d`;
+  }
+
+  if (Number.isInteger(hours)) {
+    return `${hours}h`;
+  }
+
+  return `${round(hours, 2)}h`;
 }
 
 function percentChange(from: number, to: number) {
@@ -199,6 +242,92 @@ function deterministicRandomScore(symbol: string, observedAt: string) {
   }
 
   return (hash >>> 0) / 0xffffffff;
+}
+
+export type ProfessionalAuditRadarRankInput = {
+  compressionPct: number;
+  confidence: number;
+  direction: "long" | "short";
+  lateAtSelection: boolean;
+  movePct: number;
+  rangePositionPct: number;
+  symbol: string;
+  volumeRatio: number;
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function bandScore(value: number, low: number, ideal: number, high: number) {
+  if (!Number.isFinite(value) || value < low || value > high) {
+    return 0;
+  }
+
+  const spread = value <= ideal ? ideal - low : high - ideal;
+
+  if (spread <= 0) {
+    return 1;
+  }
+
+  return clamp(1 - Math.abs(value - ideal) / spread, 0, 1);
+}
+
+function isMemeLikeSymbol(symbol: string) {
+  const base = symbol.replace(/USDT$/u, "").toUpperCase();
+
+  return /^(1000|PEPE|BONK|SHIB|DOGE|WIF|FLOKI|MEME|BOME|POPCAT|TURBO|BRETT)/u.test(base);
+}
+
+export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInput) {
+  const absMove = Math.abs(input.movePct);
+  const pullbackPositionScore = input.direction === "long"
+    ? bandScore(input.rangePositionPct, 18, 34, 54)
+    : bandScore(input.rangePositionPct, 46, 66, 82);
+  const moderateMoveScore = absMove <= 3
+    ? 14
+    : absMove <= 6
+      ? 10
+      : absMove <= 9
+        ? 4
+        : 0;
+  const compressionScore = clamp((70 - input.compressionPct) / 70, 0, 1) * 14;
+  const earlyVolumeScore = input.volumeRatio >= 1.1
+    ? clamp((input.volumeRatio - 1.1) * 8, 0, 12)
+    : 0;
+  const pullbackRetestBonus = pullbackPositionScore > 0
+    ? pullbackPositionScore * 18 + moderateMoveScore
+    : 0;
+  const latePenalty = input.lateAtSelection ? 42 : 0;
+  const chasePenalty = absMove >= 15
+    ? 32
+    : absMove >= 10
+      ? 20
+      : absMove >= 7
+        ? 10
+        : 0;
+  const extremeLocationPenalty = input.direction === "long"
+    ? input.rangePositionPct >= 88 ? 18 : 0
+    : input.rangePositionPct <= 12 ? 18 : 0;
+  const memePenalty = isMemeLikeSymbol(input.symbol) && (input.lateAtSelection || absMove >= 8)
+    ? 14
+    : 0;
+  const memeEarlyBonus = isMemeLikeSymbol(input.symbol) && !input.lateAtSelection && absMove <= 6 && input.volumeRatio >= 1.25
+    ? 6
+    : 0;
+
+  return round(
+    input.confidence +
+    pullbackRetestBonus +
+    compressionScore +
+    earlyVolumeScore +
+    memeEarlyBonus -
+    latePenalty -
+    chasePenalty -
+    extremeLocationPenalty -
+    memePenalty,
+    4,
+  );
 }
 
 function volumeRatio(history: Candle[]) {
@@ -342,20 +471,26 @@ function roleScore(role: ProfessionalAuditRoundNodeRole, stats: NodeStats) {
   }
 }
 
-function selectNodeIndexes(candles: Candle[], nodesPerSymbol: number, horizonBars: number) {
+function selectNodeIndexes(
+  candles: Candle[],
+  nodesPerSymbol: number,
+  horizonBarsByBand: Record<ProfessionalAuditRoundTimeframeBand, number>,
+) {
   const minHistory = 96;
-  const candidates: NodeStats[] = [];
+  const minHorizonBars = Math.min(...Object.values(horizonBarsByBand));
+  const baseCandidates: NodeStats[] = [];
 
-  for (let index = minHistory; index < candles.length - horizonBars; index += 4) {
-    const stats = nodeStats(candles, index, horizonBars);
+  for (let index = minHistory; index < candles.length - minHorizonBars; index += 4) {
+    const stats = nodeStats(candles, index, horizonBarsByBand.small);
 
     if (stats) {
-      candidates.push(stats);
+      baseCandidates.push(stats);
     }
   }
 
   const selected: Array<{
     band: ProfessionalAuditRoundTimeframeBand;
+    horizonBars: number;
     index: number;
     role: ProfessionalAuditRoundNodeRole;
   }> = [];
@@ -363,8 +498,12 @@ function selectNodeIndexes(candles: Candle[], nodesPerSymbol: number, horizonBar
   const roles = nodeRoles.slice(0, nodesPerSymbol);
 
   for (const role of roles) {
-    const best = [...candidates]
+    const horizonBars = horizonBarsByBand[role.band];
+    const best = baseCandidates
       .filter((item) => !used.has(item.index))
+      .filter((item) => item.index < candles.length - horizonBars)
+      .map((item) => nodeStats(candles, item.index, horizonBars))
+      .filter((item): item is NodeStats => Boolean(item))
       .sort((left, right) => roleScore(role.role, right) - roleScore(role.role, left))[0];
 
     if (!best) {
@@ -373,6 +512,7 @@ function selectNodeIndexes(candles: Candle[], nodesPerSymbol: number, horizonBar
 
     selected.push({
       band: role.band,
+      horizonBars,
       index: best.index,
       role: role.role,
     });
@@ -380,7 +520,7 @@ function selectNodeIndexes(candles: Candle[], nodesPerSymbol: number, horizonBar
   }
 
   if (selected.length < nodesPerSymbol) {
-    const fallback = [...candidates]
+    const fallback = [...baseCandidates]
       .filter((item) => !used.has(item.index))
       .sort((left, right) => left.index - right.index);
     const needed = nodesPerSymbol - selected.length;
@@ -395,6 +535,7 @@ function selectNodeIndexes(candles: Candle[], nodesPerSymbol: number, horizonBar
 
       selected.push({
         band: "small",
+        horizonBars: horizonBarsByBand.small,
         index: item.index,
         role: "neutral_random",
       });
@@ -509,6 +650,10 @@ function buildCandidateAtNode({
   });
   const movePct = priorMovePct(history);
   const direction = directionFor(auditCase.signal, movePct);
+  const currentCompressionPct = round(compressionPct(history));
+  const currentRangePositionPct = round(rangePositionPct(history));
+  const currentVolumeRatio = round(volumeRatio(history));
+  const lateAtSelection = isLateAtSelection(movePct, currentRangePositionPct, direction, moveThresholdPct);
   const outcome = replayOutcome({
     direction,
     entry: observed.close,
@@ -518,14 +663,26 @@ function buildCandidateAtNode({
 
   return {
     auditCase,
+    compressionPct: currentCompressionPct,
     direction,
     hit: outcome.hit,
-    lateAtSelection: isLateAtSelection(movePct, rangePositionPct(history), direction, moveThresholdPct),
+    lateAtSelection,
     maePct: outcome.maePct,
     mfePct: outcome.mfePct,
     movePct,
+    radarScore: professionalAuditRadarScore({
+      compressionPct: currentCompressionPct,
+      confidence: auditCase.signal.confidence,
+      direction,
+      lateAtSelection,
+      movePct,
+      rangePositionPct: currentRangePositionPct,
+      symbol,
+      volumeRatio: currentVolumeRatio,
+    }),
     randomScore: deterministicRandomScore(symbol, observed.openTime),
-    volumeRatio: round(volumeRatio(history)),
+    rangePositionPct: currentRangePositionPct,
+    volumeRatio: currentVolumeRatio,
   };
 }
 
@@ -582,7 +739,8 @@ function laneTop(candidates: CandidateAtNode[], lane: ProfessionalReplayLaneName
       return right.randomScore - left.randomScore;
     }
 
-    return right.auditCase.signal.confidence - left.auditCase.signal.confidence;
+    return right.radarScore - left.radarScore ||
+      right.auditCase.signal.confidence - left.auditCase.signal.confidence;
   });
 
   return sorted.slice(0, topN);
@@ -899,7 +1057,14 @@ export function runProfessionalAuditRound({
   options: ProfessionalAuditRoundOptions;
 }): ProfessionalReplayReport {
   const generatedAt = options.generatedAt ?? new Date().toISOString();
-  const horizonBars = Math.max(1, Math.round(options.horizonBars ?? 96));
+  const legacyHorizonBars = Math.max(1, Math.round(options.horizonBars ?? 96));
+  const horizonBarsByBand = resolveProfessionalAuditHorizonBarsByBand(
+    options.horizonBarsByBand ?? {
+      large: options.horizonBars,
+      medium: options.horizonBars,
+      small: options.horizonBars,
+    },
+  );
   const moveThresholdPct = Math.max(0.1, options.moveThresholdPct ?? 10);
   const nodesPerSymbol = Math.max(1, Math.min(10, Math.round(options.nodesPerSymbol)));
   const topN = Math.max(1, Math.round(options.topN));
@@ -934,7 +1099,7 @@ export function runProfessionalAuditRound({
       continue;
     }
 
-    const selectedNodes = selectNodeIndexes(candles, nodesPerSymbol, horizonBars);
+    const selectedNodes = selectNodeIndexes(candles, nodesPerSymbol, horizonBarsByBand);
 
     for (const selected of selectedNodes) {
       const candidatesAtNode: CandidateAtNode[] = [];
@@ -943,7 +1108,7 @@ export function runProfessionalAuditRound({
         const candidate = buildCandidateAtNode({
           candles: candidateCandles,
           derivatives: derivativesBySymbol?.get(symbol),
-          horizonBars,
+          horizonBars: selected.horizonBars,
           index: selected.index,
           moveThresholdPct,
           symbol,
@@ -962,7 +1127,10 @@ export function runProfessionalAuditRound({
 
       const topRadar = laneTop(candidatesAtNode, "radar", topN);
       const radarRank = [...candidatesAtNode]
-        .sort((left, right) => right.auditCase.signal.confidence - left.auditCase.signal.confidence)
+        .sort((left, right) =>
+          right.radarScore - left.radarScore ||
+          right.auditCase.signal.confidence - left.auditCase.signal.confidence
+        )
         .findIndex((candidate) => candidate.auditCase.inputSummary.symbol === symbolPlan.symbol) + 1;
       const capturedByRadar = topRadar.some((candidate) => candidate.auditCase.inputSummary.symbol === symbolPlan.symbol);
 
@@ -991,6 +1159,9 @@ export function runProfessionalAuditRound({
         radarRank: radarRank > 0 ? radarRank : null,
         symbol: symbolPlan.symbol,
         timeframeBand: selected.band,
+        validationWindowBars: selected.horizonBars,
+        validationWindowHours: round(selected.horizonBars / 4, 2),
+        validationWindowLabel: validationWindowLabel(selected.horizonBars),
         topN,
         volumeRatio: target.volumeRatio,
       });
@@ -1081,7 +1252,7 @@ export function runProfessionalAuditRound({
     input: {
       baseInterval: "15m",
       derivativesSymbolsUsed: derivativesBySymbol?.size ?? 0,
-      horizonBars,
+      horizonBars: legacyHorizonBars,
       replayTimes: nodes.length,
       symbolsUsed: [...candlesBySymbol.keys()],
       topN,

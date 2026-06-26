@@ -1256,6 +1256,9 @@ export type HistoricalBacktestAuditRoundNode = {
   radarRank: number | null
   symbol: string
   timeframeBand: 'large' | 'medium' | 'small'
+  validationWindowBars: number
+  validationWindowHours: number
+  validationWindowLabel: string
   topN: number
   volumeRatio: number
 }

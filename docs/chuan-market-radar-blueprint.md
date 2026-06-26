@@ -814,6 +814,7 @@ RawSource
 - 专业回测 v2 必须输出漏判和迟到的具体归因：节点类型、币种类型、目标在 radar 排序中的名次、主要迟到集中区、未捕获但不晚到的机会样本。只给总命中率或总迟到率不算完成审计。
 - `npm run backtest:professional-round` 是 10 类山寨、每币 10 个历史节点的正式专业审计轮次。默认必须采用“10 个目标币 + 80 个候选币 + Top10”的大池竞争协议。
 - 专业审计必须把目标币池和候选排序池分开：目标币用于测试，候选池用于模拟全市场筛选压力。禁止用“10 个币选 Top10”证明扫描有效。
+- 专业审计节点必须按小/中/大分层验证窗口执行，不能所有节点统一只看 24h：默认 small=4h、medium=24h、large=96h。每个节点必须输出 `validationWindowBars`、`validationWindowHours` 和 `validationWindowLabel`，前端和报告不得隐藏该边界。
 - 如果候选池数量不大于 TopN，专业回测必须输出 `PBA-SCAN-ROUND-DESIGN-001`，该轮捕获率和基线对比不能作为系统能力证明。
 - `/review` 历史回测面板必须展示专业审计进度：状态、目标币、候选池大小、完成节点、当前币、当前节点和最近捕获结果。
 - 专业回测 v2 必须是生产 Docker 镜像内可执行能力，不允许只停留在本地开发环境。Docker 构建必须执行 `npm run build:market-cli` 并复制 `.tmp/market-tests`；`npm run backtest:professional` 通过 `tools/run-professional-backtest.mjs` 统一入口运行，避免服务器缺少 TypeScript dev 依赖或 CLI 编译产物时前端长期看不到 v2 报告。
@@ -830,6 +831,14 @@ RawSource
 - 新增归因：`PBA-SCAN-ROUND-MISSED-001` 已输出 13 个不晚到但未进 Top10 的机会样本，平均 radar 排名 31；主要漏判节点为 `pullback_retest`，主要币种类型为 `meme`。
 - 阻断问题：`PBA-SCAN-ROUND-001` 捕获率不足、`PBA-SCAN-ROUND-MISSED-001` 存在早期机会漏判、`PBA-TIMING-ROUND-001` 迟到率偏高、`PBA-RR-001` 结构盈亏比不足、`PBA-PLAN-001` 无计划就绪、`PBA-REVIEW-001` 部分样本先触发止损。
 - 结论：第一轮整改有小幅改善，但网站核心分析/扫描能力仍不能宣称实战可靠；下一步必须优先处理 pullback/retest 漏判、meme 高波动样本排序、结构止损/目标质量和交易计划生成质量。
+
+上一轮问题整改：
+
+- 专业回测 radar 排名不再只按 `signal.confidence` 排序；已加入 `professionalAuditRadarScore`，优先识别不晚到的回踩/反抽再确认、压缩、早期放量样本。
+- 已对已经大幅涨跌、位置极端、高波动 meme 追涨样本做降权，避免回测继续把“涨完/跌完才提示”的样本当作核心能力。
+- 交易计划层增加最后质量防线：即使上游 location/RR 标记为可交易，只要结构止损缺失、止损/目标方向错误、RR 低于 3:1、或结构止损距离超过 6%，计划层必须阻断。
+- 专业审计已从单一 24h 验证窗口升级为分层窗口：small 节点默认验证未来 4h，medium 节点默认验证未来 24h，large 节点默认验证未来 96h；报告和 review 合同会保留每个节点的验证窗口。
+- 本轮只做整改和常规验证，不自动开启下一轮完整专业回测。下一轮回测必须按流程先确认新币种池和时间节点，再执行“回测 -> 问题 -> 整改方案 -> 整改 -> 验证”。
 
 验收不能只看代码通过，还要看：
 

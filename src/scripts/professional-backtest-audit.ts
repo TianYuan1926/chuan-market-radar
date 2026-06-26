@@ -53,10 +53,13 @@ type CliOptions = {
   auditSymbols: number;
   candidateSymbols: number;
   days: number;
+  largeHorizonHours: number;
   maxSymbols: number;
+  mediumHorizonHours: number;
   nodesPerSymbol: number;
   out: string;
   requestDelayMs: number;
+  smallHorizonHours: number;
   topN: number;
 };
 
@@ -74,6 +77,9 @@ Options:
   --audit-symbols 10                Symbols in audit round, default 10
   --candidate-symbols 80            Candidate universe for audit round ranking, default 80
   --nodes-per-symbol 10             Historical nodes per symbol, default 10
+  --small-horizon-hours 4           Small-node validation window, default 4h
+  --medium-horizon-hours 24         Medium-node validation window, default 24h
+  --large-horizon-hours 96          Large-node validation window, default 96h
   --request-delay-ms 80             Delay between upstream requests, default 80
   --out reports/professional-backtest-audit
 
@@ -117,10 +123,13 @@ function readArgs(argv: string[]): CliOptions & { help: boolean } {
     candidateSymbols: Math.max(1, Math.round(positiveNumber(args["candidate-symbols"], 80))),
     days: positiveNumber(args.days, 30),
     help: args.help === true,
+    largeHorizonHours: positiveNumber(args["large-horizon-hours"], 96),
     maxSymbols: Math.max(1, Math.round(positiveNumber(args["max-symbols"], 120))),
+    mediumHorizonHours: positiveNumber(args["medium-horizon-hours"], 24),
     nodesPerSymbol: Math.max(1, Math.min(10, Math.round(positiveNumber(args["nodes-per-symbol"], 10)))),
     out: typeof args.out === "string" ? args.out : "reports/professional-backtest-audit",
     requestDelayMs: Math.max(0, Math.round(positiveNumber(args["request-delay-ms"], 80))),
+    smallHorizonHours: positiveNumber(args["small-horizon-hours"], 4),
     topN: Math.max(1, Math.round(positiveNumber(args["top-n"], 20))),
   };
 }
@@ -761,6 +770,16 @@ async function fetchDerivativesBySymbol(
 }
 
 function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failures: Array<{ error: string; symbol: string }>) {
+  const auditWindowSummary = report.auditRound
+    ? [...new Map(report.auditRound.nodes.map((node) => [node.timeframeBand, node.validationWindowLabel])).entries()]
+      .sort(([left], [right]) => {
+        const order = { large: 3, medium: 2, small: 1 } as const;
+
+        return order[right as keyof typeof order] - order[left as keyof typeof order];
+      })
+      .map(([band, label]) => `${band}=${label}`)
+      .join(" / ")
+    : "";
   const lines = [
     "# Professional Strategy Backtest Audit v2",
     "",
@@ -777,7 +796,9 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     `- 已注入历史衍生品币种：${report.input.derivativesSymbolsUsed}`,
     `- 回放点：${report.input.replayTimes}`,
     `- 每轮候选：${report.input.topN}`,
-    `- 验证窗口：${report.input.horizonBars} 根 15m K 线`,
+    report.auditRound
+      ? `- 验证窗口：${auditWindowSummary || "按节点周期分层"}`
+      : `- 验证窗口：${report.input.horizonBars} 根 15m K 线`,
     `- 拉取失败：${failures.length}`,
     "",
     "## 结论",
@@ -825,12 +846,12 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
       `- 已完成节点：${report.auditRound.completedNodes}/${report.auditRound.totalNodes}`,
       `- radar topN 捕获：${captured}/${report.auditRound.nodes.length} (${captureRate}%)`,
       "",
-      "| 币种 | 类型 | 节点 | 周期 | 捕获 | 排名 | 迟到 | MFE | MAE | 成熟度 |",
-      "|---|---|---|---|---|---:|---|---:|---:|---|",
+      "| 币种 | 类型 | 节点 | 周期 | 验证窗口 | 捕获 | 排名 | 迟到 | MFE | MAE | 成熟度 |",
+      "|---|---|---|---|---|---|---:|---|---:|---:|---|",
     );
 
     for (const node of report.auditRound.nodes.slice(0, 50)) {
-      lines.push(`| ${node.symbol} | ${node.coinTypeLabel} | ${node.nodeRole} | ${node.timeframeBand} | ${node.capturedByRadar ? "是" : "否"} | ${node.radarRank ?? "-"} | ${node.lateAtSelection ? "是" : "否"} | ${node.mfePct}% | ${node.maePct}% | ${node.maturity} |`);
+      lines.push(`| ${node.symbol} | ${node.coinTypeLabel} | ${node.nodeRole} | ${node.timeframeBand} | ${node.validationWindowLabel} | ${node.capturedByRadar ? "是" : "否"} | ${node.radarRank ?? "-"} | ${node.lateAtSelection ? "是" : "否"} | ${node.mfePct}% | ${node.maePct}% | ${node.maturity} |`);
     }
 
     lines.push("");
@@ -945,7 +966,11 @@ async function main() {
       derivativesBySymbol,
       options: {
         generatedAt: new Date().toISOString(),
-        horizonBars: 96,
+        horizonBarsByBand: {
+          large: Math.max(1, Math.round(options.largeHorizonHours * 4)),
+          medium: Math.max(1, Math.round(options.mediumHorizonHours * 4)),
+          small: Math.max(1, Math.round(options.smallHorizonHours * 4)),
+        },
         moveThresholdPct: 10,
         nodesPerSymbol: options.nodesPerSymbol,
         onProgress: (progress) => writeAuditProgress(options, progress),

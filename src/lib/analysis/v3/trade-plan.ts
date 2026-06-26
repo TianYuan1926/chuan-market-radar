@@ -38,6 +38,64 @@ function waitStatus(direction: V3LocationDirection): V3TradePlanStatus {
   return direction === "short" ? "WAIT_RETEST" : "WAIT_PULLBACK";
 }
 
+const minimumPlanRewardRisk = 3;
+const maximumPlanStopDistancePercent = 6;
+
+function planQualityFlags({
+  currentPrice,
+  direction,
+  trendContext,
+}: {
+  currentPrice: number;
+  direction: V3LocationDirection;
+  trendContext: StrategyV3TrendContext;
+}) {
+  const location = trendContext.locationRiskReward;
+
+  if (!location || direction === "neutral") {
+    return [];
+  }
+
+  const flags: string[] = [];
+  const minRewardRisk = Math.max(minimumPlanRewardRisk, location.minRewardRisk);
+  const structuralStop = location.structuralStop;
+  const target = location.nearestTarget;
+
+  if (structuralStop === null || !Number.isFinite(structuralStop)) {
+    flags.push("no_structural_stop");
+  } else if (direction === "long" && structuralStop >= currentPrice) {
+    flags.push("invalid_structural_stop");
+  } else if (direction === "short" && structuralStop <= currentPrice) {
+    flags.push("invalid_structural_stop");
+  }
+
+  if (target === null || !Number.isFinite(target)) {
+    flags.push("no_nearest_target");
+  } else if (direction === "long" && target <= currentPrice) {
+    flags.push("invalid_nearest_target");
+  } else if (direction === "short" && target >= currentPrice) {
+    flags.push("invalid_nearest_target");
+  }
+
+  if (
+    location.rewardRisk === null ||
+    !Number.isFinite(location.rewardRisk) ||
+    location.rewardRisk < minRewardRisk
+  ) {
+    flags.push("reward_risk_below_minimum");
+  }
+
+  if (
+    !Number.isFinite(location.stopDistancePercent) ||
+    location.stopDistancePercent <= 0 ||
+    location.stopDistancePercent > maximumPlanStopDistancePercent
+  ) {
+    flags.push("stop_distance_too_wide");
+  }
+
+  return [...new Set(flags)];
+}
+
 function basePlan({
   blockedBy,
   currentPrice,
@@ -162,11 +220,18 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
     });
   }
 
-  if (!location.isTradeEligible || !input.trendContext.riskGate.allowed) {
+  const planQualityBlockedBy = planQualityFlags({
+    currentPrice: input.currentPrice,
+    direction,
+    trendContext: input.trendContext,
+  });
+
+  if (!location.isTradeEligible || !input.trendContext.riskGate.allowed || planQualityBlockedBy.length > 0) {
     return basePlan({
       blockedBy: [
         ...location.riskFlags,
         ...input.trendContext.riskGate.blockedBy,
+        ...planQualityBlockedBy,
       ],
       currentPrice: input.currentPrice,
       direction,

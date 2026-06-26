@@ -195,6 +195,9 @@ function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundPr
     radarRank: nullableNumber(item.radarRank),
     symbol: stringValue(item.symbol, "UNKNOWN"),
     timeframeBand: timeframeBand === "large" || timeframeBand === "medium" ? timeframeBand : "small",
+    validationWindowBars: numericValue(item.validationWindowBars),
+    validationWindowHours: numericValue(item.validationWindowHours),
+    validationWindowLabel: stringValue(item.validationWindowLabel, "未知"),
     topN: numericValue(item.topN),
     volumeRatio: numericValue(item.volumeRatio),
   };
