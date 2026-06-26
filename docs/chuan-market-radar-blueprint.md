@@ -2,7 +2,7 @@
 
 > 本文是 `/Users/chuan/Documents/web` 的长期事实源。后续新增、删除、优化、重构、部署、前端接线和数据源接入，都必须先对照本文。本文不再保存历史施工流水账；历史细节看 Git history 和专项文档。
 
-> 最后整理日期：2026-06-25。当前阶段：腾讯云香港单机生产主线，GitHub `main` 为代码正本。
+> 最后整理日期：2026-06-26。当前阶段：腾讯云香港单机生产主线，GitHub `main` 为代码正本。
 
 ## 0. 唯一核心
 
@@ -440,6 +440,7 @@ RawSource
 - 轻扫质量诊断合同：`lightScanQuality.v1` 已展示数据新鲜度、覆盖、候选、滚动窗口、成交量异常分、worker 心跳和交易边界。
 - `/dashboard` 已展示轻扫质量诊断：只解释发现层可靠性，不生成交易计划。
 - 生产 smoke 已校验 `lightScanQuality`：必须有 checks，且 `canCreateTradeSignal=false`。
+- 专业回测审计 v2 已接入 10x10 审计轮次：10 类目标山寨、每币最多 10 个历史节点、候选大池竞争、`latest-progress.json` 实时进度和 `/review` 前端展示。正式审计默认 10 个目标币、80 个候选币、Top10，避免“10 个币选 Top10”的自欺式捕获率。
 - 合法外部情报基础：DEX Screener latest boosts 与 CoinGecko trending collector，可生成 context-only ExternalEvent 和 EvidenceCandidate，不直接生成交易信号。
 - 外部情报 token identity 合同：DEX 事件可带 chain/contract，CoinGecko trending 可带 coingeckoId/logo/name/symbol，映射可信度必须显式展示；仍只能作为 context-only。
 - 外部情报源就绪合同：`external-intel.v1.sourceReadiness` 已显示每个合法源是 live、waiting、disabled、partial 还是 failed，所有源 `canCreateTradeSignal=false`。
@@ -448,7 +449,7 @@ RawSource
 - 本地发布前闸门 `npm run production:preflight` 已落地，统一运行 typecheck、market/worker tests、lint 和 build。
 - 生产依赖审计脚本 `npm run production:audit` 已落地，默认 high/critical 阻断，moderate 作为非阻断发现输出。
 - 生产演练脚本 `npm run production:drill` 已落地：检查远端服务、生成 Postgres 备份、验证恢复保护和备份可读性，不会误恢复真实库。
-- P8 提前发现质量层已落地：public light scan 和 websocket light scan 会输出 `earlyOpportunityScore`、`opportunityPhase` 和 `overextensionRisk`；Daily Mover 的启动前复盘会进入 repository priority hints 的 `early_opportunity` 调度原因。
+- P8 提前发现质量层已落地：public light scan 和 websocket light scan 会输出 `earlyOpportunityScore`、`opportunityPhase` 和 `overextensionRisk`；Daily Mover 的启动前复盘会进入 repository priority hints 的 `early_opportunity` 调度原因。第一轮整改已把 WebSocket 轻扫排序改为启动前优先、晚到硬 cap，并把分析引擎置信度接入提前性加分与晚到惩罚。
 - 发现层合同已接入前端主页面：`radarSignals.discovery`、`tokenDossier.discovery` 和 `review.discoveryReview` 已把轻扫阶段、提前分、主动买卖压力、主动买卖代理质量、晚到风险和决策边界展示出来。
 - 信号生命周期和可交易性阅读层已接入：`radarSignals.lifecycle` 负责“刚出现/近期有效/旧信号/已过期”，`radarSignals.operatorRead` 负责“狙击榜/重点观察/验证中/不看/只复盘”和下一步动作。
 - 单币分析报告已完成第一轮用户可读化：前端不再把 `sourceId`、内部状态枚举和英文调试名作为主解释，普通报告只展示中文业务结论，内部 ID 仅作为 hover/title 辅助。
@@ -554,7 +555,7 @@ RawSource
 
 ### P2：机会发现质量增强
 
-状态：已完成机会质量合同、执行边界展示和前端可见化；后续只靠长期样本继续调优候选排序。
+状态：已完成机会质量合同、执行边界展示和前端可见化；已完成第一轮候选排序和晚到降权整改；后续继续用专业回测和真实 outcome 校准。
 
 目标：让系统更早发现“还没完全爆发、仍有布局价值”的山寨，而不是追着已经涨完/跌完的币给方向。
 
@@ -568,6 +569,9 @@ RawSource
 - 单币档案和信号池已显示轻扫阶段、提前分、主动买卖压力、主动买卖代理和延展风险，让“已经涨完/跌完”的样本不会被误读为好位置。
 - `opportunityQuality.v1` 已接入 `/api/frontend/radar-contract`：统一展示启动前、突破观察、证据信号、计划就绪、晚到、拦截、等待回踩/反抽等数量。
 - `/dashboard` 已展示“机会质量与执行边界”：明确候选下一步、追涨追跌拦截数量和狙击榜只允许 `TRADE_PLAN_READY`。
+- WebSocket 轻扫排序已从“涨幅/成交额优先”改为“启动前机会优先”：压缩放量、低位移、主动买卖代理加权；15m 窗口内大幅位移且贴近极值的 late move 会被 score cap，保留为发现/复盘样本但不能抢核心深扫位。
+- 生产分析引擎 `analyzeMarketAnomaly` 已接入提前性校验与晚到惩罚：有量能、压缩、位置仍好且无 1h/4h 硬冲突才加分；已经大幅偏离启动区会降为观察/复盘，不能因为方向正确就进入 near trigger。
+- 证据链已输出“提前性校验”和“晚到风险”，报告必须解释为什么优先观察或为什么不追。
 
 继续做强：
 
@@ -674,7 +678,7 @@ RawSource
 
 ### P8：提前发现质量层
 
-状态：已完成第一轮落地；后续靠真实样本继续校准阈值。
+状态：已完成第一轮落地和第一轮整改；后续靠真实样本继续校准阈值。
 
 目标：让系统优先找到“还没完全爆发、仍可能有较好位置”的山寨，而不是只追踪已经大涨或大跌的标的。
 
@@ -687,6 +691,8 @@ RawSource
 - WebSocket 秒级轻扫会对预启动、压缩放量、低位移、主动买卖代理、窗口波动做早期机会评分。
 - WebSocket 秒级轻扫的主动买卖代理优先使用公开主动成交流；ticker 推断只作为兜底，前端必须通过 `proxyQuality` 区分。
 - WebSocket 秒级轻扫会对 15m 窗口内大幅位移并贴近窗口极值的币标为 `late_move`，降低其早期机会分。
+- WebSocket 秒级轻扫排序已硬性降低 late move 抢位能力：`overextensionRisk=high` 的候选必须被 score cap，不能因为瞬时涨跌幅和成交额大就压过启动前候选。
+- 分析引擎置信度已加入 `earlyOpportunity` 与 `lateMovePenalty`：高周期结构冲突时不给提前性加分；成交量不足时不给提前性加分；晚到惩罚会影响 state、risk、summary 和 evidence。
 - Public REST 轻扫会对 24h 压缩、低位移、靠近关键边缘且未过度延展的币加分；对 24h 大幅延展样本加 `overextended_move_capped`。
 - Daily Mover Review 的 `preMovePattern.earlyWarningScore` 会转成 repository priority hints 的 `earlyOpportunityScore`。
 - `planUniverseScan` 动态优先级新增 `early_opportunity` reason，用于把历史漏判里的启动前征兆反哺到深扫排序。
@@ -704,6 +710,7 @@ RawSource
 - 用真实 outcome 样本校准早期机会分阈值。
 - 对 long / short 分别校准 `late_move` 位置边界。
 - 把早期机会候选和后续最大浮盈/最大回撤做更细的复盘关联。
+- 继续用 `backtest:professional-round` 检查整改是否真的降低迟到率、提高早期捕获率；如果雷达仍跑不赢 momentum，不能宣称提前发现能力成熟。
 
 ## 9. 个人仓位镜头
 
@@ -804,10 +811,25 @@ RawSource
 - 如果某个币历史 Funding/OI 拉取失败，报告必须保留 `PBA-DERIVATIVES-*` 或 fetch failure，不能静默把衍生品能力标记为已验证。
 - 专业回测 v2 必须输出 radar / momentum / volume / random 四条基线对比，至少包含样本数、命中率、迟到率、平均 MFE、平均 MAE、入选时已波动幅度和成交量倍数；如果 radar 没有跑赢 random 或长期跑不赢 momentum，必须输出 `PBA-SCAN-BASELINE-*`。
 - 专业回测 v2 必须输出提前性审计和漏判机会样本：提前/迟到数量、迟到率、无计划样本数、未进入 radar topN 但事后达到阈值的机会样本。漏判样本只能用于复盘校准，不能自动改实时权重。
+- 专业回测 v2 必须输出漏判和迟到的具体归因：节点类型、币种类型、目标在 radar 排序中的名次、主要迟到集中区、未捕获但不晚到的机会样本。只给总命中率或总迟到率不算完成审计。
+- `npm run backtest:professional-round` 是 10 类山寨、每币 10 个历史节点的正式专业审计轮次。默认必须采用“10 个目标币 + 80 个候选币 + Top10”的大池竞争协议。
+- 专业审计必须把目标币池和候选排序池分开：目标币用于测试，候选池用于模拟全市场筛选压力。禁止用“10 个币选 Top10”证明扫描有效。
+- 如果候选池数量不大于 TopN，专业回测必须输出 `PBA-SCAN-ROUND-DESIGN-001`，该轮捕获率和基线对比不能作为系统能力证明。
+- `/review` 历史回测面板必须展示专业审计进度：状态、目标币、候选池大小、完成节点、当前币、当前节点和最近捕获结果。
 - 专业回测 v2 必须是生产 Docker 镜像内可执行能力，不允许只停留在本地开发环境。Docker 构建必须执行 `npm run build:market-cli` 并复制 `.tmp/market-tests`；`npm run backtest:professional` 通过 `tools/run-professional-backtest.mjs` 统一入口运行，避免服务器缺少 TypeScript dev 依赖或 CLI 编译产物时前端长期看不到 v2 报告。
 - `/review` 的历史回测面板必须兼容 `auditV2`，展示专业回测 v2 的基线对比、提前性、漏判机会、问题归因和整改方案；如果只有旧版历史回放报告，则只能显示 v1 能力边界。
 - `/review` 判空必须优先识别 `auditV2`。专业回测 v2 不依赖旧版 `lanes.radar.count`，不能因为旧版 lane 为 0 就把 v2 报告显示成“暂无历史回测报告”。
 - `historical-backtest-readonly` 必须有 v2 回归测试，确保 `professional-backtest-audit-report.v2` 生成后能进入 `/api/frontend/review-contract` 和 `/review`，不能出现“报告存在但前端看不到”的断层。
+
+最近一次正式专业审计样本：
+
+- 报告目录：`reports/professional-backtest-audit/2026-06-26T101525-282Z`。
+- 参数：10 个目标山寨、80 个候选币、每币 10 个历史节点、Top10、30 天 Binance public futures 15m K 线。
+- 结果：完成 100/100 节点，目标节点 radar 捕获 19/100，迟到 50/100，交易计划就绪 0。
+- 基线：radar 命中率 30.6%，random 29.9%，volume 28.1%，momentum 41.3%；radar 仅略高于 random，仍明显没跑赢 momentum，且 radar lane 迟到率 40.9%。
+- 新增归因：`PBA-SCAN-ROUND-MISSED-001` 已输出 13 个不晚到但未进 Top10 的机会样本，平均 radar 排名 31；主要漏判节点为 `pullback_retest`，主要币种类型为 `meme`。
+- 阻断问题：`PBA-SCAN-ROUND-001` 捕获率不足、`PBA-SCAN-ROUND-MISSED-001` 存在早期机会漏判、`PBA-TIMING-ROUND-001` 迟到率偏高、`PBA-RR-001` 结构盈亏比不足、`PBA-PLAN-001` 无计划就绪、`PBA-REVIEW-001` 部分样本先触发止损。
+- 结论：第一轮整改有小幅改善，但网站核心分析/扫描能力仍不能宣称实战可靠；下一步必须优先处理 pullback/retest 漏判、meme 高波动样本排序、结构止损/目标质量和交易计划生成质量。
 
 验收不能只看代码通过，还要看：
 

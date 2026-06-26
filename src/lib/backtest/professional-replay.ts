@@ -12,6 +12,9 @@ import {
   type ProfessionalAuditRemediation,
   type ProfessionalBacktestAuditCase,
 } from "./professional-audit";
+import type {
+  ProfessionalAuditRoundProgress,
+} from "./professional-audit-round";
 
 export type ProfessionalReplayOptions = {
   horizonBars?: number;
@@ -74,6 +77,7 @@ export type ProfessionalReplayMissedOpportunity = {
 };
 
 export type ProfessionalReplayReport = {
+  auditRound?: ProfessionalAuditRoundProgress;
   baselineMetrics: Record<ProfessionalReplayLaneName, ProfessionalReplayLaneMetric>;
   cases: ProfessionalBacktestAuditCase[];
   findings: ProfessionalAuditFinding[];
@@ -183,14 +187,20 @@ function uniqueRemediations(cases: ProfessionalBacktestAuditCase[]) {
 }
 
 function sortFindings(findings: ProfessionalAuditFinding[]) {
-  return findings
-    .sort((left, right) => {
-      const severityWeight = { high: 3, medium: 2, low: 1 };
+  const severityWeight = { high: 3, medium: 2, low: 1 };
+  const aggregateWeight = (finding: ProfessionalAuditFinding) =>
+    finding.id.startsWith("PBA-SCAN-BASELINE") ||
+    finding.id.startsWith("PBA-TIMING-LATE") ||
+    finding.id.startsWith("PBA-SCAN-MISSED")
+      ? 1
+      : 0;
 
-      return severityWeight[right.severity] - severityWeight[left.severity] ||
-        left.id.localeCompare(right.id);
-    })
-    .slice(0, 100);
+  return findings
+    .sort((left, right) =>
+      severityWeight[right.severity] - severityWeight[left.severity] ||
+      aggregateWeight(right) - aggregateWeight(left) ||
+      left.id.localeCompare(right.id)
+    );
 }
 
 function topFindings(cases: ProfessionalBacktestAuditCase[]) {

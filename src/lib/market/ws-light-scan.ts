@@ -399,6 +399,63 @@ function earlyOpportunityScore({
   return Math.round(Math.max(0, Math.min(100, compression + lowDisplacement + volume + liquidity + pressure - penalty)));
 }
 
+function candidateRankingScore({
+  absChange,
+  earlyScore,
+  microstructure,
+  risk,
+  state,
+  volumeUsd,
+  volumeZScore,
+}: {
+  absChange: number;
+  earlyScore: number;
+  microstructure: NonNullable<ScanLightScanCandidate["microstructure"]>;
+  risk: NonNullable<ScanLightScanCandidate["overextensionRisk"]>;
+  state: ScanLightScanCandidate["state"];
+  volumeUsd: number;
+  volumeZScore: number;
+}) {
+  const earlyPriority = Math.min(46, earlyScore * 0.58);
+  const volumeAcceleration = Math.min(26, Math.max(0, volumeZScore) * 11);
+  const liquidity = Math.min(18, logVolumeScore(volumeUsd) * 0.65);
+  const flowQuality = Math.min(12, Math.abs(microstructure.tradeFlowImbalance) * 18);
+  const displacement = absChange <= 2
+    ? 12
+    : absChange <= 4
+      ? 6
+      : -Math.min(22, (absChange - 4) * 5);
+  const stateBonus = state === "PRE_TREND"
+    ? 18
+    : state === "HOT" && risk === "low"
+      ? 8
+      : 0;
+  const overextensionPenalty = risk === "high"
+    ? 72
+    : risk === "medium"
+      ? 28
+      : 0;
+  const raw = Math.round(
+    earlyPriority +
+    volumeAcceleration +
+    liquidity +
+    flowQuality +
+    displacement +
+    stateBonus -
+    overextensionPenalty,
+  );
+
+  if (risk === "high") {
+    return Math.max(0, Math.min(42, raw));
+  }
+
+  if (risk === "medium") {
+    return Math.max(0, Math.min(68, raw));
+  }
+
+  return Math.max(0, raw);
+}
+
 function opportunityPhase({
   absChange,
   earlyScore,
@@ -541,15 +598,15 @@ function buildCandidate({
     overextension: risk,
     state: candidateStateValue,
   });
-  const score = Math.round(
-    Math.max(0, z) * 18 +
-    Math.min(30, absChange * 4) +
-    logVolumeScore(window.volumeUsd) +
-    Math.min(8, Math.abs(microstructure.tradeFlowImbalance) * 12) +
-    (candidateStateValue === "PRE_TREND" ? 10 : 0) +
-    Math.min(22, earlyScore * 0.3) -
-    (risk === "high" ? 30 : risk === "medium" ? 12 : 0),
-  );
+  const score = candidateRankingScore({
+    absChange,
+    earlyScore,
+    microstructure,
+    risk,
+    state: candidateStateValue,
+    volumeUsd: window.volumeUsd,
+    volumeZScore: z,
+  });
 
   return {
     baseAsset: baseFromSymbol(state.symbol),

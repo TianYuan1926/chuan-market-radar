@@ -220,6 +220,55 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
             lateRatePct: 20,
           },
         },
+        auditRound: {
+          candidateUniverseSize: 80,
+          completedAt: "2026-06-25T08:10:00.000Z",
+          completedNodes: 1,
+          currentNodeRole: null,
+          currentSymbol: null,
+          generatedAt: "2026-06-25T08:00:00.000Z",
+          guardrails: [
+            "审计节点可以用未来结果做测试标签，但分析引擎在 observedAt 只能读取历史数据。",
+          ],
+          nodes: [
+            {
+              capturedByRadar: true,
+              coinType: "layer1_layer2",
+              coinTypeLabel: "L1 / L2",
+              confidence: 66,
+              direction: "long",
+              findingCount: 1,
+              hit: true,
+              lateAtSelection: false,
+              maePct: 2.4,
+              maturity: "DEEP_SCAN_CANDIDATE",
+              mfePct: 16.2,
+              moveAtSelectionPct: 2.1,
+              nodeIndex: 120,
+              nodeRole: "pre_move",
+              observedAt: "2026-06-24T10:00:00.000Z",
+              radarRank: 2,
+              symbol: "SUIUSDT",
+              timeframeBand: "small",
+              topN: 10,
+              volumeRatio: 1.7,
+            },
+          ],
+          nodesPerSymbol: 10,
+          phase: "completed",
+          plannedSymbols: [
+            {
+              coinType: "layer1_layer2",
+              coinTypeLabel: "L1 / L2",
+              symbol: "SUIUSDT",
+            },
+          ],
+          schemaVersion: "professional-backtest-audit-round-progress.v1",
+          status: "completed",
+          summary: "10x10 专业审计完成。",
+          totalNodes: 10,
+          updatedAt: "2026-06-25T08:10:00.000Z",
+        },
         cases: [
           {
             symbol: "TIAUSDT",
@@ -313,9 +362,58 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.symbol, "SUIUSDT");
     assert.equal(result.data.auditV2?.findings[0]?.id, "PBA-DERIVATIVES-001");
     assert.equal(result.data.auditV2?.remediationPlan[0]?.priority, "P0");
+    assert.equal(result.data.progress?.schemaVersion, "professional-backtest-audit-round-progress.v1");
+    assert.equal(result.data.progress?.candidateUniverseSize, 80);
+    assert.equal(result.data.progress?.nodes[0]?.nodeRole, "pre_move");
+    assert.equal(result.data.auditV2?.auditRound?.plannedSymbols[0]?.symbol, "SUIUSDT");
     assert.match(result.data.summary, /历史衍生品证据缺失/);
     assert.match(result.data.nextAction, /补齐历史 OI\/Funding/);
     assert.equal(result.ageSec, 300);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("historical backtest readonly exposes running professional audit progress without final report", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "chuan-pba-progress-"));
+
+  try {
+    await writeFile(path.join(root, "latest-progress.json"), JSON.stringify({
+      candidateUniverseSize: 80,
+      completedAt: null,
+      completedNodes: 3,
+      currentNodeRole: "early_volume_expansion",
+      currentSymbol: "SUIUSDT",
+      generatedAt: "2026-06-25T08:00:00.000Z",
+      guardrails: ["回测只用于找问题。"],
+      nodes: [],
+      nodesPerSymbol: 10,
+      phase: "evaluating_nodes",
+      plannedSymbols: [
+        {
+          coinType: "layer1_layer2",
+          coinTypeLabel: "L1 / L2",
+          symbol: "SUIUSDT",
+        },
+      ],
+      schemaVersion: "professional-backtest-audit-round-progress.v1",
+      status: "running",
+      summary: "正在审计 SUIUSDT 3/10。",
+      totalNodes: 10,
+      updatedAt: "2026-06-25T08:03:00.000Z",
+    }, null, 2), "utf8");
+
+    const result = await getLatestHistoricalBacktestResource({
+      now: new Date("2026-06-25T08:04:00.000Z"),
+      roots: [root],
+    });
+
+    assert.equal(result.status, "partial");
+    assert.equal(result.data.progress?.status, "running");
+    assert.equal(result.data.progress?.candidateUniverseSize, 80);
+    assert.equal(result.data.progress?.currentSymbol, "SUIUSDT");
+    assert.equal(result.data.input.replayTimes, 3);
+    assert.equal(result.ageSec, 60);
   } finally {
     await rm(root, { force: true, recursive: true });
   }

@@ -1,7 +1,14 @@
 import {
+  execFile,
+} from "node:child_process";
+import {
   mkdir,
   writeFile,
 } from "node:fs/promises";
+import {
+  mkdirSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import type {
@@ -11,6 +18,12 @@ import {
   runProfessionalReplay,
   type ProfessionalDerivativePoint,
 } from "../lib/backtest/professional-replay";
+import {
+  runProfessionalAuditRound,
+  type ProfessionalAuditRoundCoinType,
+  type ProfessionalAuditRoundProgress,
+  type ProfessionalAuditRoundSymbolPlan,
+} from "../lib/backtest/professional-audit-round";
 
 const BINANCE_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 const BINANCE_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
@@ -36,8 +49,12 @@ type BinanceOpenInterestHistRow = {
 };
 
 type CliOptions = {
+  auditRound: boolean;
+  auditSymbols: number;
+  candidateSymbols: number;
   days: number;
   maxSymbols: number;
+  nodesPerSymbol: number;
   out: string;
   requestDelayMs: number;
   topN: number;
@@ -53,12 +70,17 @@ Options:
   --days 30                         Historical window, default 30
   --max-symbols 120                 Max Binance USDT perpetual symbols, default 120
   --top-n 20                        Candidates per replay point, default 20
+  --audit-round                     Run strict 10-type x N-node professional audit round
+  --audit-symbols 10                Symbols in audit round, default 10
+  --candidate-symbols 80            Candidate universe for audit round ranking, default 80
+  --nodes-per-symbol 10             Historical nodes per symbol, default 10
   --request-delay-ms 80             Delay between upstream requests, default 80
   --out reports/professional-backtest-audit
 
 Examples:
   npm run backtest:professional -- --days 7 --max-symbols 40 --top-n 10
   npm run backtest:professional -- --days 30 --max-symbols 180 --top-n 24
+  npm run backtest:professional -- --audit-round --days 30 --audit-symbols 10 --candidate-symbols 80 --nodes-per-symbol 10 --top-n 10
 `);
 }
 
@@ -90,9 +112,13 @@ function readArgs(argv: string[]): CliOptions & { help: boolean } {
   }
 
   return {
+    auditRound: args["audit-round"] === true,
+    auditSymbols: Math.max(1, Math.round(positiveNumber(args["audit-symbols"], 10))),
+    candidateSymbols: Math.max(1, Math.round(positiveNumber(args["candidate-symbols"], 80))),
     days: positiveNumber(args.days, 30),
     help: args.help === true,
     maxSymbols: Math.max(1, Math.round(positiveNumber(args["max-symbols"], 120))),
+    nodesPerSymbol: Math.max(1, Math.min(10, Math.round(positiveNumber(args["nodes-per-symbol"], 10)))),
     out: typeof args.out === "string" ? args.out : "reports/professional-backtest-audit",
     requestDelayMs: Math.max(0, Math.round(positiveNumber(args["request-delay-ms"], 80))),
     topN: Math.max(1, Math.round(positiveNumber(args["top-n"], 20))),
@@ -105,8 +131,88 @@ function positiveNumber(value: unknown, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function errorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const cause = error.cause instanceof Error
+    ? `; cause=${error.cause.message}`
+    : "";
+
+  return `${error.message}${cause}`;
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function curlProxyArgs(proxy: string) {
+  if (proxy.startsWith("socks5h://")) {
+    return ["--socks5-hostname", proxy.slice("socks5h://".length)];
+  }
+
+  if (proxy.startsWith("socks5://")) {
+    return ["--socks5-hostname", proxy.slice("socks5://".length)];
+  }
+
+  return ["--proxy", proxy];
+}
+
+async function fetchJson(url: string, context: string) {
+  const curlProxy = process.env.BACKTEST_CURL_PROXY?.trim();
+
+  if (curlProxy) {
+    return new Promise<unknown>((resolve, reject) => {
+      execFile(
+        "curl",
+        [
+          "--fail",
+          "--location",
+          "--max-time",
+          String(Number(process.env.BACKTEST_CURL_MAX_TIME_SEC ?? 60)),
+          "--silent",
+          "--show-error",
+          ...curlProxyArgs(curlProxy),
+          url,
+        ],
+        {
+          maxBuffer: 128 * 1024 * 1024,
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(new Error(`${context} curl failed: ${stderr.trim() || error.message}`));
+            return;
+          }
+
+          try {
+            const body = stdout.trim();
+
+            if (!body) {
+              reject(new Error(`${context} returned empty response body`));
+              return;
+            }
+
+            resolve(JSON.parse(body));
+          } catch (parseError) {
+            reject(new Error(`${context} returned invalid JSON: ${errorMessage(parseError)}`));
+          }
+        },
+      );
+    });
+  }
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": "chuan-radar-professional-backtest/2.0",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${context} returned ${response.status}`);
+  }
+
+  return response.json();
 }
 
 function timestampSlug(date = new Date()) {
@@ -121,17 +227,7 @@ function normalizeSymbol(value: unknown) {
 }
 
 async function discoverBinanceSymbols(maxSymbols: number) {
-  const response = await fetch(BINANCE_EXCHANGE_INFO_URL, {
-    headers: {
-      "user-agent": "chuan-radar-professional-backtest/2.0",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Binance exchangeInfo returned ${response.status}`);
-  }
-
-  const payload = await response.json();
+  const payload = await fetchJson(BINANCE_EXCHANGE_INFO_URL, "Binance exchangeInfo");
   const rows: BinanceExchangeSymbolRow[] = Array.isArray(payload?.symbols) ? payload.symbols : [];
 
   return rows
@@ -142,6 +238,172 @@ async function discoverBinanceSymbols(maxSymbols: number) {
     .filter(Boolean)
     .sort()
     .slice(0, maxSymbols);
+}
+
+const auditCoinTypeLabels: Record<ProfessionalAuditRoundCoinType, string> = {
+  ai_depin: "AI / Depin",
+  defi: "DeFi",
+  exchange_infra: "交易所/基础设施",
+  gaming: "GameFi",
+  large_liquid_alt: "高流动性主流山寨",
+  layer1_layer2: "L1 / L2",
+  long_tail: "长尾小币",
+  meme: "Meme 高波动",
+  midcap_trend: "中市值趋势币",
+  new_hot_listing: "新上市/热点币",
+};
+
+const auditSeeds: Record<ProfessionalAuditRoundCoinType, string[]> = {
+  ai_depin: ["FETUSDT", "TAOUSDT", "RENDERUSDT", "WLDUSDT", "ARKMUSDT", "AIUSDT"],
+  defi: ["AAVEUSDT", "UNIUSDT", "MKRUSDT", "PENDLEUSDT", "ENAUSDT", "LDOUSDT"],
+  exchange_infra: ["BNBUSDT", "OKBUSDT", "GTUSDT", "CAKEUSDT", "RUNEUSDT", "DYDXUSDT"],
+  gaming: ["GALAUSDT", "PIXELUSDT", "IMXUSDT", "RONINUSDT", "SANDUSDT", "AXSUSDT"],
+  large_liquid_alt: ["SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT"],
+  layer1_layer2: ["SUIUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "SEIUSDT", "TIAUSDT"],
+  long_tail: ["1000PEPEUSDT", "1000BONKUSDT", "BICOUSDT", "CELRUSDT", "JASMYUSDT", "TRUUSDT"],
+  meme: ["1000PEPEUSDT", "DOGEUSDT", "WIFUSDT", "1000FLOKIUSDT", "1000BONKUSDT", "PNUTUSDT"],
+  midcap_trend: ["ONDOUSDT", "INJUSDT", "HYPEUSDT", "JUPUSDT", "WUSDT", "PYTHUSDT"],
+  new_hot_listing: ["HYPEUSDT", "WUSDT", "JUPUSDT", "ZROUSDT", "STRKUSDT", "ENAUSDT"],
+};
+
+const auditTypeOrder: ProfessionalAuditRoundCoinType[] = [
+  "large_liquid_alt",
+  "layer1_layer2",
+  "defi",
+  "meme",
+  "ai_depin",
+  "gaming",
+  "exchange_infra",
+  "new_hot_listing",
+  "midcap_trend",
+  "long_tail",
+];
+
+function deterministicSymbolScore(symbol: string) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < symbol.length; index += 1) {
+    hash ^= symbol.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function buildAuditSymbolPlan(symbols: string[], targetCount: number): ProfessionalAuditRoundSymbolPlan[] {
+  const available = new Set(symbols.filter((symbol) => !["BTCUSDT", "ETHUSDT"].includes(symbol)));
+  const used = new Set<string>();
+  const plan: ProfessionalAuditRoundSymbolPlan[] = [];
+
+  for (const coinType of auditTypeOrder) {
+    const symbol = auditSeeds[coinType].find((seed) => available.has(seed) && !used.has(seed));
+
+    if (!symbol) {
+      continue;
+    }
+
+    used.add(symbol);
+    plan.push({
+      coinType,
+      coinTypeLabel: auditCoinTypeLabels[coinType],
+      symbol,
+    });
+
+    if (plan.length >= targetCount) {
+      return plan;
+    }
+  }
+
+  const fallback = [...available]
+    .filter((symbol) => !used.has(symbol))
+    .sort((left, right) => deterministicSymbolScore(left) - deterministicSymbolScore(right));
+
+  for (const symbol of fallback) {
+    const coinType: ProfessionalAuditRoundCoinType = "long_tail";
+    plan.push({
+      coinType,
+      coinTypeLabel: auditCoinTypeLabels[coinType],
+      symbol,
+    });
+
+    if (plan.length >= targetCount) {
+      break;
+    }
+  }
+
+  return plan;
+}
+
+function buildAuditCandidateUniverse(
+  symbols: string[],
+  auditPlan: ProfessionalAuditRoundSymbolPlan[],
+  targetCount: number,
+) {
+  const requiredSymbols = auditPlan.map((item) => item.symbol);
+  const required = new Set(requiredSymbols);
+  const candidateLimit = Math.max(requiredSymbols.length, targetCount);
+  const filler = symbols
+    .filter((symbol) => symbol && !["BTCUSDT", "ETHUSDT"].includes(symbol))
+    .filter((symbol) => !required.has(symbol))
+    .sort((left, right) => deterministicSymbolScore(left) - deterministicSymbolScore(right));
+
+  return [...requiredSymbols, ...filler]
+    .slice(0, candidateLimit);
+}
+
+function progressPath(options: CliOptions) {
+  return path.join(process.cwd(), options.out, "latest-progress.json");
+}
+
+function writeAuditProgress(options: CliOptions, progress: ProfessionalAuditRoundProgress) {
+  const file = progressPath(options);
+
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify(progress, null, 2), "utf8");
+}
+
+function writePhaseProgress({
+  candidateUniverseSize = 0,
+  currentSymbol,
+  options,
+  phase,
+  plannedSymbols,
+  summary,
+}: {
+  candidateUniverseSize?: number;
+  currentSymbol: string | null;
+  options: CliOptions;
+  phase: ProfessionalAuditRoundProgress["phase"];
+  plannedSymbols: ProfessionalAuditRoundSymbolPlan[];
+  summary: string;
+}) {
+  if (!options.auditRound) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  writeAuditProgress(options, {
+    candidateUniverseSize,
+    completedAt: null,
+    completedNodes: 0,
+    currentNodeRole: null,
+    currentSymbol,
+    generatedAt: now,
+    guardrails: [
+      "回测只用于找扫描和推理缺陷，不自动下单。",
+      "没有进度文件时前端必须显示暂无或过期，不能造假。",
+    ],
+    nodes: [],
+    nodesPerSymbol: options.nodesPerSymbol,
+    phase,
+    plannedSymbols,
+    schemaVersion: "professional-backtest-audit-round-progress.v1",
+    status: "running",
+    summary,
+    totalNodes: plannedSymbols.length * options.nodesPerSymbol,
+    updatedAt: now,
+  });
 }
 
 function normalizeKline(row: unknown): Candle | null {
@@ -240,17 +502,7 @@ async function fetchBinanceCandles(symbol: string, options: CliOptions) {
       startTime: String(cursor),
       symbol,
     });
-    const response = await fetch(`${BINANCE_KLINES_URL}?${params.toString()}`, {
-      headers: {
-        "user-agent": "chuan-radar-professional-backtest/2.0",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`${symbol} klines returned ${response.status}`);
-    }
-
-    const rows = await response.json();
+    const rows = await fetchJson(`${BINANCE_KLINES_URL}?${params.toString()}`, `${symbol} klines`);
 
     if (!Array.isArray(rows) || rows.length === 0) {
       break;
@@ -288,17 +540,7 @@ async function fetchBinanceFunding(symbol: string, startTime: number, endTime: n
     startTime: String(startTime),
     symbol,
   });
-  const response = await fetch(`${BINANCE_FUNDING_RATE_URL}?${params.toString()}`, {
-    headers: {
-      "user-agent": "chuan-radar-professional-backtest/2.0",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`${symbol} funding returned ${response.status}`);
-  }
-
-  const rows = await response.json();
+  const rows = await fetchJson(`${BINANCE_FUNDING_RATE_URL}?${params.toString()}`, `${symbol} funding`);
 
   if (!Array.isArray(rows)) {
     throw new Error(`${symbol} funding returned non-array payload`);
@@ -321,17 +563,7 @@ async function fetchBinanceOpenInterestHistory(symbol: string, startTime: number
       startTime: String(cursor),
       symbol,
     });
-    const response = await fetch(`${BINANCE_OPEN_INTEREST_HIST_URL}?${params.toString()}`, {
-      headers: {
-        "user-agent": "chuan-radar-professional-backtest/2.0",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`${symbol} openInterestHist returned ${response.status}`);
-    }
-
-    const rows = await response.json();
+    const rows = await fetchJson(`${BINANCE_OPEN_INTEREST_HIST_URL}?${params.toString()}`, `${symbol} openInterestHist`);
 
     if (!Array.isArray(rows) || rows.length === 0) {
       break;
@@ -384,34 +616,67 @@ async function fetchBinanceDerivatives(symbol: string, candles: Candle[], option
   const last = candles.at(-1);
 
   if (!first || !last) {
-    return [];
+    return {
+      failures: ["missing candle range"],
+      points: [],
+    };
   }
 
   const startTime = Date.parse(first.openTime);
   const endTime = Date.parse(last.closeTime);
 
   if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
-    return [];
+    return {
+      failures: ["invalid candle timestamp range"],
+      points: [],
+    };
   }
 
-  const funding = await fetchBinanceFunding(symbol, startTime, endTime);
+  const failures: string[] = [];
+  let funding: ProfessionalDerivativePoint[] = [];
+  let openInterest: ProfessionalDerivativePoint[] = [];
+
+  try {
+    funding = await fetchBinanceFunding(symbol, startTime, endTime);
+  } catch (error) {
+    failures.push(`funding: ${errorMessage(error)}`);
+  }
 
   if (options.requestDelayMs > 0) {
     await delay(options.requestDelayMs);
   }
 
-  const openInterest = await fetchBinanceOpenInterestHistory(symbol, startTime, endTime, options);
+  try {
+    openInterest = await fetchBinanceOpenInterestHistory(symbol, startTime, endTime, options);
+  } catch (error) {
+    failures.push(`openInterestHist: ${errorMessage(error)}`);
+  }
 
-  return mergeDerivativePoints([...funding, ...openInterest]);
+  return {
+    failures,
+    points: mergeDerivativePoints([...funding, ...openInterest]),
+  };
 }
 
-async function fetchCandlesBySymbol(symbols: string[], options: CliOptions) {
+async function fetchCandlesBySymbol(
+  symbols: string[],
+  options: CliOptions,
+  auditPlan: ProfessionalAuditRoundSymbolPlan[] = [],
+) {
   const candlesBySymbol = new Map<string, Candle[]>();
   const failures: Array<{ error: string; symbol: string }> = [];
 
   for (let index = 0; index < symbols.length; index += 1) {
     const symbol = symbols[index];
 
+    writePhaseProgress({
+      candidateUniverseSize: symbols.length,
+      currentSymbol: symbol ?? null,
+      options,
+      phase: "fetching_candles",
+      plannedSymbols: auditPlan,
+      summary: `正在拉取历史 K 线 ${index + 1}/${symbols.length}：${symbol}`,
+    });
     process.stdout.write(`[${index + 1}/${symbols.length}] ${symbol} professional audit klines\r`);
 
     try {
@@ -424,7 +689,7 @@ async function fetchCandlesBySymbol(symbols: string[], options: CliOptions) {
       }
     } catch (error) {
       failures.push({
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
         symbol,
       });
     }
@@ -438,7 +703,11 @@ async function fetchCandlesBySymbol(symbols: string[], options: CliOptions) {
   };
 }
 
-async function fetchDerivativesBySymbol(candlesBySymbol: Map<string, Candle[]>, options: CliOptions) {
+async function fetchDerivativesBySymbol(
+  candlesBySymbol: Map<string, Candle[]>,
+  options: CliOptions,
+  auditPlan: ProfessionalAuditRoundSymbolPlan[] = [],
+) {
   const derivativesBySymbol = new Map<string, ProfessionalDerivativePoint[]>();
   const failures: Array<{ error: string; symbol: string }> = [];
   const entries = [...candlesBySymbol.entries()];
@@ -450,19 +719,30 @@ async function fetchDerivativesBySymbol(candlesBySymbol: Map<string, Candle[]>, 
       continue;
     }
 
+    writePhaseProgress({
+      candidateUniverseSize: candlesBySymbol.size,
+      currentSymbol: symbol,
+      options,
+      phase: "fetching_derivatives",
+      plannedSymbols: auditPlan,
+      summary: `正在拉取历史 Funding/OI ${index + 1}/${entries.length}：${symbol}`,
+    });
     process.stdout.write(`[${index + 1}/${entries.length}] ${symbol} professional audit derivatives\r`);
 
     try {
       const derivatives = await fetchBinanceDerivatives(symbol, candles, options);
 
-      if (derivatives.length > 0) {
-        derivativesBySymbol.set(symbol, derivatives);
+      if (derivatives.points.length > 0) {
+        derivativesBySymbol.set(symbol, derivatives.points);
       } else {
         failures.push({ error: "empty derivatives response", symbol });
       }
+      for (const failure of derivatives.failures) {
+        failures.push({ error: `derivatives: ${failure}`, symbol });
+      }
     } catch (error) {
       failures.push({
-        error: `derivatives: ${error instanceof Error ? error.message : String(error)}`,
+        error: `derivatives: ${errorMessage(error)}`,
         symbol,
       });
     }
@@ -493,7 +773,7 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     "## 输入",
     "",
     `- 数据源：binance-public-futures 15m klines + public funding/open interest`,
-    `- 使用币种：${report.input.symbolsUsed.length}`,
+    `- 候选池币种：${report.input.symbolsUsed.length}`,
     `- 已注入历史衍生品币种：${report.input.derivativesSymbolsUsed}`,
     `- 回放点：${report.input.replayTimes}`,
     `- 每轮候选：${report.input.topN}`,
@@ -527,6 +807,36 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     `- 迟到样本：${report.timingMetrics.lateCount} / ${report.timingMetrics.lateRatePct}%`,
     `- 无交易计划样本：${report.timingMetrics.noPlanCount}`,
     "",
+  );
+
+  if (report.auditRound) {
+    const captured = report.auditRound.nodes.filter((node) => node.capturedByRadar).length;
+    const captureRate = report.auditRound.nodes.length > 0
+      ? Number(((captured / report.auditRound.nodes.length) * 100).toFixed(2))
+      : 0;
+
+    lines.push(
+      "## 10x10 专业审计轮次",
+      "",
+      `- 状态：${report.auditRound.status}`,
+      `- 计划币种：${report.auditRound.plannedSymbols.length}`,
+      `- 候选池币种：${report.auditRound.candidateUniverseSize}`,
+      `- 每币节点：${report.auditRound.nodesPerSymbol}`,
+      `- 已完成节点：${report.auditRound.completedNodes}/${report.auditRound.totalNodes}`,
+      `- radar topN 捕获：${captured}/${report.auditRound.nodes.length} (${captureRate}%)`,
+      "",
+      "| 币种 | 类型 | 节点 | 周期 | 捕获 | 排名 | 迟到 | MFE | MAE | 成熟度 |",
+      "|---|---|---|---|---|---:|---|---:|---:|---|",
+    );
+
+    for (const node of report.auditRound.nodes.slice(0, 50)) {
+      lines.push(`| ${node.symbol} | ${node.coinTypeLabel} | ${node.nodeRole} | ${node.timeframeBand} | ${node.capturedByRadar ? "是" : "否"} | ${node.radarRank ?? "-"} | ${node.lateAtSelection ? "是" : "否"} | ${node.mfePct}% | ${node.maePct}% | ${node.maturity} |`);
+    }
+
+    lines.push("");
+  }
+
+  lines.push(
     "## 漏判机会样本",
     "",
   );
@@ -579,6 +889,10 @@ async function writeReport(options: CliOptions, report: ReturnType<typeof runPro
     ...report,
     failures,
   }, null, 2), "utf8");
+  if (report.auditRound) {
+    await writeFile(path.join(reportDir, "progress.json"), JSON.stringify(report.auditRound, null, 2), "utf8");
+    writeAuditProgress(options, report.auditRound);
+  }
 
   return reportDir;
 }
@@ -591,8 +905,30 @@ async function main() {
     return;
   }
 
-  const symbols = await discoverBinanceSymbols(options.maxSymbols);
-  const { candlesBySymbol, failures } = await fetchCandlesBySymbol(symbols, options);
+  const discoveredSymbols = await discoverBinanceSymbols(options.auditRound ? 2000 : options.maxSymbols);
+  const auditPlan = options.auditRound
+    ? buildAuditSymbolPlan(discoveredSymbols, options.auditSymbols)
+    : [];
+  const symbols = options.auditRound
+    ? buildAuditCandidateUniverse(discoveredSymbols, auditPlan, options.candidateSymbols)
+    : discoveredSymbols;
+
+  if (options.auditRound && auditPlan.length === 0) {
+    throw new Error("No audit-round altcoin symbols selected. Check Binance futures discovery.");
+  }
+
+  if (options.auditRound) {
+    writePhaseProgress({
+      candidateUniverseSize: symbols.length,
+      currentSymbol: null,
+      options,
+      phase: "planning",
+      plannedSymbols: auditPlan,
+      summary: `已选择 ${auditPlan.length} 个不同类型山寨币，在 ${symbols.length} 个候选币池中执行 ${auditPlan.length * options.nodesPerSymbol} 个节点。`,
+    });
+  }
+
+  const { candlesBySymbol, failures } = await fetchCandlesBySymbol(symbols, options, auditPlan);
 
   if (candlesBySymbol.size === 0) {
     throw new Error("No historical candles fetched. Check network or reduce symbol scope.");
@@ -601,20 +937,35 @@ async function main() {
   const {
     derivativesBySymbol,
     failures: derivativeFailures,
-  } = await fetchDerivativesBySymbol(candlesBySymbol, options);
+  } = await fetchDerivativesBySymbol(candlesBySymbol, options, auditPlan);
 
-  const report = runProfessionalReplay({
-    baseInterval: "15m",
-    candlesBySymbol,
-    derivativesBySymbol,
-    options: {
-      horizonBars: 96,
-      maxCasesInReport: 300,
-      moveThresholdPct: 10,
-      stepBars: 4,
-      topN: options.topN,
-    },
-  });
+  const report = options.auditRound
+    ? runProfessionalAuditRound({
+      candlesBySymbol,
+      derivativesBySymbol,
+      options: {
+        generatedAt: new Date().toISOString(),
+        horizonBars: 96,
+        moveThresholdPct: 10,
+        nodesPerSymbol: options.nodesPerSymbol,
+        onProgress: (progress) => writeAuditProgress(options, progress),
+        candidateUniverseSize: candlesBySymbol.size,
+        symbols: auditPlan.filter((item) => candlesBySymbol.has(item.symbol)),
+        topN: options.topN,
+      },
+    })
+    : runProfessionalReplay({
+      baseInterval: "15m",
+      candlesBySymbol,
+      derivativesBySymbol,
+      options: {
+        horizonBars: 96,
+        maxCasesInReport: 300,
+        moveThresholdPct: 10,
+        stepBars: 4,
+        topN: options.topN,
+      },
+    });
   const reportDir = await writeReport(options, report, [...failures, ...derivativeFailures]);
 
   console.log(`professional-backtest-audit report: ${reportDir}`);
@@ -626,6 +977,40 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  const message = errorMessage(error);
+
+  try {
+    const options = readArgs(process.argv.slice(2));
+
+    if (options.auditRound) {
+      const now = new Date().toISOString();
+
+          writeAuditProgress(options, {
+            candidateUniverseSize: 0,
+            completedAt: now,
+        completedNodes: 0,
+        currentNodeRole: null,
+        currentSymbol: null,
+        generatedAt: now,
+        guardrails: [
+          "回测失败必须暴露真实原因，不能用旧报告或 0 值冒充已完成。",
+          "如果本机无法访问交易所 API，应在腾讯云或可访问公开交易所 API 的环境运行。",
+        ],
+        nodes: [],
+        nodesPerSymbol: options.nodesPerSymbol,
+        phase: "failed",
+        plannedSymbols: [],
+        schemaVersion: "professional-backtest-audit-round-progress.v1",
+        status: "failed",
+        summary: `专业回测轮次失败：${message}`,
+        totalNodes: options.auditSymbols * options.nodesPerSymbol,
+        updatedAt: now,
+      });
+    }
+  } catch {
+    // Keep the original failure visible even if progress writing also fails.
+  }
+
+  console.error(message);
   process.exit(1);
 });

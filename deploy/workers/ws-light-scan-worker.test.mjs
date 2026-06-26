@@ -285,6 +285,74 @@ test("createLightScanAccumulator promotes a 15m volume z-score spike into Redis 
   assert.ok(["breakout_watch", "early_setup", "late_move", "neutral_watch"].includes(snapshot.priorityCandidates[0]?.opportunityPhase));
 });
 
+test("createLightScanAccumulator ranks early compression ahead of late extensions", () => {
+  const accumulator = createLightScanAccumulator({
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date("2026-06-21T01:01:00.000Z"),
+    windowMs: 15 * 60 * 1000,
+    zScoreThreshold: 1.5,
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    const eventTime = new Date(Date.UTC(2026, 5, 21, 0, index * 15, 0)).toISOString();
+
+    accumulator.ingest({
+      eventTime,
+      exchange: "BINANCE",
+      price: 2,
+      quoteVolume24hUsd: 100_000 + index * 70_000,
+      symbol: "EARLYUSDT",
+    });
+    accumulator.ingest({
+      eventTime,
+      exchange: "BINANCE",
+      price: 1,
+      quoteVolume24hUsd: 100_000 + index * 70_000,
+      symbol: "LATEUSDT",
+    });
+  }
+
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:00:00.000Z",
+    exchange: "BINANCE",
+    price: 2.01,
+    quoteVolume24hUsd: 720_000,
+    symbol: "EARLYUSDT",
+  });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:01:00.000Z",
+    exchange: "BINANCE",
+    price: 2.02,
+    quoteVolume24hUsd: 870_000,
+    symbol: "EARLYUSDT",
+  });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:00:00.000Z",
+    exchange: "BINANCE",
+    price: 1,
+    quoteVolume24hUsd: 900_000,
+    symbol: "LATEUSDT",
+  });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:01:00.000Z",
+    exchange: "BINANCE",
+    price: 1.08,
+    quoteVolume24hUsd: 1_400_000,
+    symbol: "LATEUSDT",
+  });
+
+  const snapshot = accumulator.snapshot();
+  const early = snapshot.priorityCandidates.find((candidate) => candidate.symbol === "EARLYUSDT");
+  const late = snapshot.priorityCandidates.find((candidate) => candidate.symbol === "LATEUSDT");
+
+  assert.equal(snapshot.priorityCandidates[0]?.symbol, "EARLYUSDT");
+  assert.equal(early?.opportunityPhase, "early_setup");
+  assert.equal(late?.opportunityPhase, "late_move");
+  assert.ok(early.score > late.score);
+  assert.ok(late.score <= 42);
+});
+
 test("createLightScanAccumulator marks intrawindow overextension for review instead of early opportunity", () => {
   const accumulator = createLightScanAccumulator({
     maxBaselineWindows: 4,

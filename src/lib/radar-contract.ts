@@ -1237,8 +1237,55 @@ export type HistoricalBacktestAuditV2MissedOpportunity = {
   volumeRatio: number
 }
 
+export type HistoricalBacktestAuditRoundNode = {
+  capturedByRadar: boolean
+  coinType: string
+  coinTypeLabel: string
+  confidence: number
+  direction: 'long' | 'short'
+  findingCount: number
+  hit: boolean
+  lateAtSelection: boolean
+  maePct: number
+  maturity: string
+  mfePct: number
+  moveAtSelectionPct: number
+  nodeIndex: number
+  nodeRole: string
+  observedAt: string
+  radarRank: number | null
+  symbol: string
+  timeframeBand: 'large' | 'medium' | 'small'
+  topN: number
+  volumeRatio: number
+}
+
+export type HistoricalBacktestAuditRoundProgress = {
+  candidateUniverseSize: number
+  completedAt: string | null
+  completedNodes: number
+  currentNodeRole: string | null
+  currentSymbol: string | null
+  generatedAt: string
+  guardrails: string[]
+  nodes: HistoricalBacktestAuditRoundNode[]
+  nodesPerSymbol: number
+  phase: 'completed' | 'evaluating_nodes' | 'failed' | 'fetching_candles' | 'fetching_derivatives' | 'idle' | 'planning'
+  plannedSymbols: Array<{
+    coinType: string
+    coinTypeLabel: string
+    symbol: string
+  }>
+  schemaVersion: 'professional-backtest-audit-round-progress.v1'
+  status: 'completed' | 'failed' | 'running'
+  summary: string
+  totalNodes: number
+  updatedAt: string
+}
+
 export type HistoricalBacktestAuditV2State = {
   schemaVersion: 'professional-backtest-audit-report.v2'
+  auditRound?: HistoricalBacktestAuditRoundProgress
   baselineMetrics: {
     momentum: HistoricalBacktestAuditV2LaneMetric
     radar: HistoricalBacktestAuditV2LaneMetric
@@ -1288,6 +1335,7 @@ export type HistoricalBacktestState = {
   nextAction: string
   guardrails: string[]
   auditV2?: HistoricalBacktestAuditV2State
+  progress?: HistoricalBacktestAuditRoundProgress
 }
 
 export type DiscoveryReviewState = {

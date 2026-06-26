@@ -107,6 +107,36 @@ test("createWebSocketLightScanAccumulator detects pre-trend compression with ris
   assert.ok(snapshot.priorityCandidates[0]?.reasons.includes("early_opportunity_watch"));
 });
 
+test("createWebSocketLightScanAccumulator ranks early setups ahead of late extensions", () => {
+  const accumulator = createWebSocketLightScanAccumulator({
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date(start + 61 * 60_000),
+    windowMs: 15 * 60_000,
+    zScoreThreshold: 1.5,
+  });
+
+  for (const minutes of [0, 15, 30, 45]) {
+    accumulator.ingest(event({ minutes, price: 2, quoteVolumeDeltaUsd: 80_000, symbol: "EARLYUSDT" }));
+    accumulator.ingest(event({ minutes, price: 1, quoteVolumeDeltaUsd: 80_000, symbol: "LATEUSDT" }));
+  }
+
+  accumulator.ingest(event({ minutes: 60, price: 2.01, quoteVolumeDeltaUsd: 360_000, symbol: "EARLYUSDT" }));
+  accumulator.ingest(event({ minutes: 61, price: 2.02, quoteVolumeDeltaUsd: 130_000, symbol: "EARLYUSDT" }));
+  accumulator.ingest(event({ minutes: 60, price: 1, quoteVolumeDeltaUsd: 500_000, symbol: "LATEUSDT" }));
+  accumulator.ingest(event({ minutes: 61, price: 1.08, quoteVolumeDeltaUsd: 500_000, symbol: "LATEUSDT" }));
+
+  const snapshot = accumulator.snapshot();
+  const early = snapshot.priorityCandidates.find((candidate) => candidate.symbol === "EARLYUSDT");
+  const late = snapshot.priorityCandidates.find((candidate) => candidate.symbol === "LATEUSDT");
+
+  assert.equal(snapshot.priorityCandidates[0]?.symbol, "EARLYUSDT");
+  assert.equal(early?.opportunityPhase, "early_setup");
+  assert.equal(late?.opportunityPhase, "late_move");
+  assert.ok((early?.score ?? 0) > (late?.score ?? 0));
+  assert.ok((late?.score ?? 0) <= 42);
+});
+
 test("createWebSocketLightScanAccumulator caps intrawindow overextension as late move", () => {
   const accumulator = createWebSocketLightScanAccumulator({
     maxBaselineWindows: 4,

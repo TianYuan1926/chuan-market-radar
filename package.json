@@ -21,6 +21,7 @@
     "backtest:historical": "node tools/radar-historical-backtest.mjs",
     "build:market-cli": "tsc -p tsconfig.market-test.json",
     "backtest:professional": "node tools/run-professional-backtest.mjs",
+    "backtest:professional-round": "node tools/run-professional-backtest.mjs -- --audit-round --days 30 --audit-symbols 10 --candidate-symbols 80 --nodes-per-symbol 10 --top-n 10",
     "deployment:env-plan": "tsc -p tsconfig.market-test.json && node .tmp/market-tests/scripts/vercel-env-plan.js",
     "start": "next start",
     "smoke:server": "bash deploy/scripts/smoke-test.sh",

@@ -5,6 +5,7 @@ import type {
   HistoricalBacktestFinding,
   HistoricalBacktestAuditV2Finding,
   HistoricalBacktestAuditV2Remediation,
+  HistoricalBacktestAuditRoundProgress,
   HistoricalBacktestAuditV2State,
   HistoricalBacktestLaneMetric,
   HistoricalBacktestMissedOpportunity,
@@ -170,6 +171,80 @@ function normalizeAuditV2MissedOpportunity(value: unknown): HistoricalBacktestAu
   };
 }
 
+function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundProgress["nodes"][number] {
+  const item = asObject(value);
+  const direction = stringValue(item.direction);
+  const timeframeBand = stringValue(item.timeframeBand);
+
+  return {
+    capturedByRadar: Boolean(item.capturedByRadar),
+    coinType: stringValue(item.coinType, "unknown"),
+    coinTypeLabel: stringValue(item.coinTypeLabel, "未分类"),
+    confidence: numericValue(item.confidence),
+    direction: direction === "short" ? "short" : "long",
+    findingCount: numericValue(item.findingCount),
+    hit: Boolean(item.hit),
+    lateAtSelection: Boolean(item.lateAtSelection),
+    maePct: numericValue(item.maePct),
+    maturity: stringValue(item.maturity, "UNCLASSIFIED"),
+    mfePct: numericValue(item.mfePct),
+    moveAtSelectionPct: numericValue(item.moveAtSelectionPct),
+    nodeIndex: numericValue(item.nodeIndex),
+    nodeRole: stringValue(item.nodeRole, "unknown"),
+    observedAt: stringValue(item.observedAt),
+    radarRank: nullableNumber(item.radarRank),
+    symbol: stringValue(item.symbol, "UNKNOWN"),
+    timeframeBand: timeframeBand === "large" || timeframeBand === "medium" ? timeframeBand : "small",
+    topN: numericValue(item.topN),
+    volumeRatio: numericValue(item.volumeRatio),
+  };
+}
+
+function normalizeAuditRoundProgress(value: unknown): HistoricalBacktestAuditRoundProgress | undefined {
+  const item = asObject(value);
+
+  if (item.schemaVersion !== "professional-backtest-audit-round-progress.v1") {
+    return undefined;
+  }
+
+  const phase = stringValue(item.phase);
+  const status = stringValue(item.status);
+
+  return {
+    candidateUniverseSize: numericValue(item.candidateUniverseSize),
+    completedAt: stringValue(item.completedAt) || null,
+    completedNodes: numericValue(item.completedNodes),
+    currentNodeRole: stringValue(item.currentNodeRole) || null,
+    currentSymbol: stringValue(item.currentSymbol) || null,
+    generatedAt: stringValue(item.generatedAt),
+    guardrails: asArray(item.guardrails).map((rule) => stringValue(rule)).filter(Boolean),
+    nodes: asArray(item.nodes).map(normalizeAuditRoundNode).slice(0, 120),
+    nodesPerSymbol: numericValue(item.nodesPerSymbol),
+    phase: phase === "completed" ||
+      phase === "evaluating_nodes" ||
+      phase === "failed" ||
+      phase === "fetching_candles" ||
+      phase === "fetching_derivatives" ||
+      phase === "planning"
+      ? phase
+      : "idle",
+    plannedSymbols: asArray(item.plannedSymbols).map((entry) => {
+      const symbol = asObject(entry);
+
+      return {
+        coinType: stringValue(symbol.coinType, "unknown"),
+        coinTypeLabel: stringValue(symbol.coinTypeLabel, "未分类"),
+        symbol: stringValue(symbol.symbol, "UNKNOWN"),
+      };
+    }),
+    schemaVersion: "professional-backtest-audit-round-progress.v1",
+    status: status === "completed" || status === "failed" ? status : "running",
+    summary: stringValue(item.summary, "专业回测轮次正在准备。"),
+    totalNodes: numericValue(item.totalNodes),
+    updatedAt: stringValue(item.updatedAt),
+  };
+}
+
 function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestAuditV2State | undefined {
   if (payload.schemaVersion !== "professional-backtest-audit-report.v2") {
     return undefined;
@@ -181,6 +256,7 @@ function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestA
 
   return {
     schemaVersion: "professional-backtest-audit-report.v2",
+    auditRound: normalizeAuditRoundProgress(payload.auditRound),
     baselineMetrics: {
       momentum: normalizeAuditV2LaneMetric("momentum", baselineMetrics.momentum),
       radar: normalizeAuditV2LaneMetric("radar", baselineMetrics.radar),
@@ -408,14 +484,72 @@ async function readOptionalText(file: string) {
   }
 }
 
+async function readLatestProgress(roots: string[]) {
+  const candidates = await Promise.all(roots.map(async (root) => {
+    const file = path.join(root, "latest-progress.json");
+
+    try {
+      const details = await stat(file);
+      const raw = await readFile(file, "utf8");
+      const progress = normalizeAuditRoundProgress(JSON.parse(raw));
+
+      if (!progress) {
+        return null;
+      }
+
+      return {
+        mtimeMs: details.mtimeMs,
+        progress,
+      };
+    } catch {
+      return null;
+    }
+  }));
+
+  return candidates
+    .filter((item): item is { mtimeMs: number; progress: HistoricalBacktestAuditRoundProgress } => Boolean(item))
+    .sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.progress;
+}
+
 export async function getLatestHistoricalBacktestResource(
   options: HistoricalBacktestReadonlyOptions = {},
 ): Promise<Resource<HistoricalBacktestState>> {
   const now = options.now ?? new Date();
   const roots = resolveReportRoots(options);
-  const candidate = await findLatestReportCandidate(roots);
+  const [candidate, latestProgress] = await Promise.all([
+    findLatestReportCandidate(roots),
+    readLatestProgress(roots),
+  ]);
 
   if (!candidate) {
+    if (latestProgress) {
+      return resource(
+        {
+          ...emptyHistoricalBacktestState(latestProgress.summary),
+          generatedAt: latestProgress.generatedAt || null,
+          input: {
+            days: null,
+            horizonBars: null,
+            interval: "15m",
+            moveThresholdPct: null,
+            replayTimes: latestProgress.completedNodes,
+            source: "professional-backtest-audit-round-progress.v1",
+            symbolsUsed: latestProgress.plannedSymbols.length,
+            topN: latestProgress.nodes[0]?.topN ?? null,
+          },
+          progress: latestProgress,
+          status: latestProgress.status === "failed" ? "degraded" : "empty",
+        },
+        latestProgress.status === "running" ? "partial" : "cached",
+        {
+          ageSec: ageSeconds(latestProgress.updatedAt, now),
+          source: "professional-backtest-progress",
+          reason: latestProgress.summary,
+          updatedAt: latestProgress.updatedAt,
+        },
+      );
+    }
+
     return resource(
       emptyHistoricalBacktestState("尚未找到历史回测报告。"),
       "empty",
@@ -439,6 +573,7 @@ export async function getLatestHistoricalBacktestResource(
     const findings = asArray(payload.findings).map(normalizeFinding);
     const failures = asArray(payload.failures);
     const auditV2 = normalizeAuditV2(payload);
+    const progress = auditV2?.auditRound ?? latestProgress;
     const state: HistoricalBacktestState = {
       schemaVersion: "historical-backtest.v1",
       status: auditV2?.highSeverityFindings || findings.some((finding) => finding.severity === "high") || failures.length > 0 ? "degraded" : "ready",
@@ -475,6 +610,7 @@ export async function getLatestHistoricalBacktestResource(
         "样本不足或未跑赢基线时，前端必须明确提示，不得包装成已验证能力。",
       ],
       auditV2,
+      progress,
     };
     const completedState = {
       ...state,

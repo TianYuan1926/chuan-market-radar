@@ -206,7 +206,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
           </div>
           <ResourceBoundary
             resource={historicalBacktest}
-            isEmpty={(data) => !data.auditV2 && (data.status === 'empty' || data.lanes.radar.count === 0)}
+            isEmpty={(data) => !data.progress && !data.auditV2 && (data.status === 'empty' || data.lanes.radar.count === 0)}
             emptyText="暂无历史回测报告"
           >
             {(data) => {
@@ -219,6 +219,86 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
 
               return (
                 <div className="space-y-4">
+                  {data.progress ? (
+                    <div className="border border-neon/30 bg-neon/5 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-xs font-semibold">专业回测轮次进度</div>
+                        <span
+                          className={cn(
+                            'border px-1.5 py-0.5 font-mono text-[10px]',
+                            data.progress.status === 'completed'
+                              ? 'border-up/40 bg-up/10 text-up'
+                              : data.progress.status === 'failed'
+                                ? 'border-down/40 bg-down/10 text-down'
+                                : 'border-neon/40 bg-neon/10 text-neon',
+                          )}
+                        >
+                          {data.progress.status === 'completed' ? '已完成' : data.progress.status === 'failed' ? '失败' : '运行中'}
+                        </span>
+                        <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                          {data.progress.completedNodes}/{data.progress.totalNodes} · {data.progress.phase}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                        {data.progress.summary}
+                      </p>
+                      <div className="mt-3 h-2 overflow-hidden bg-secondary">
+                        <span
+                          className="bar-fill block h-full bg-neon"
+                          style={{ width: `${progressPct(data.progress.completedNodes, data.progress.totalNodes)}%` }}
+                        />
+                      </div>
+                      <div className="mt-3 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+                        <div className="border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">当前任务</div>
+                          <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                            <span>当前币：{data.progress.currentSymbol ?? '等待'}</span>
+                            <span>节点：{data.progress.currentNodeRole ?? '等待'}</span>
+                            <span>每币节点：{data.progress.nodesPerSymbol}</span>
+                            <span>计划币种：{data.progress.plannedSymbols.length}</span>
+                            <span>候选池：{data.progress.candidateUniverseSize}</span>
+                          </div>
+                        </div>
+                        <div className="border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">10 类山寨样本</div>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {data.progress.plannedSymbols.map((item) => (
+                              <span key={item.symbol} className="border border-border bg-secondary/20 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                                {item.symbol} · {item.coinTypeLabel}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      {data.progress.nodes.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-[11px] font-semibold">已完成节点</div>
+                            <span className="font-mono text-[10px] text-muted-foreground">
+                              捕获率 {progressCapturePct(data.progress.nodes)}%
+                            </span>
+                          </div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                            {data.progress.nodes.slice(-8).map((node) => (
+                              <div key={`${node.symbol}-${node.observedAt}-${node.nodeRole}`} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center gap-2">
+                                  <TokenAvatar symbol={node.symbol} hue={symbolHue(node.symbol)} size={18} />
+                                  <span className="font-mono text-[10px] font-semibold">{node.symbol}</span>
+                                  <span className={cn('ml-auto font-mono text-[10px]', node.capturedByRadar ? 'text-up' : 'text-down')}>
+                                    {node.capturedByRadar ? '已捕获' : '未捕获'}
+                                  </span>
+                                </div>
+                                <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  {node.nodeRole} · {node.timeframeBand} · rank {node.radarRank ?? '-'} · MFE {node.mfePct}% · MAE {node.maePct}%
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
                     <div className="border border-border bg-secondary/20 p-3">
                       <div className="flex flex-wrap items-start gap-3">
@@ -940,6 +1020,22 @@ function formatPct(value: number) {
   }
 
   return `${Math.round(value * 100) / 100}%`
+}
+
+function progressPct(completed: number, total: number) {
+  if (!Number.isFinite(completed) || !Number.isFinite(total) || total <= 0) {
+    return 0
+  }
+
+  return Math.max(0, Math.min(100, Math.round((completed / total) * 10000) / 100))
+}
+
+function progressCapturePct(nodes: Array<{ capturedByRadar: boolean }>) {
+  if (nodes.length === 0) {
+    return 0
+  }
+
+  return Math.round((nodes.filter((node) => node.capturedByRadar).length / nodes.length) * 10000) / 100
 }
 
 function symbolHue(symbol: string) {

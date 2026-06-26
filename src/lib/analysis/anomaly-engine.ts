@@ -63,10 +63,12 @@ export type MarketAnchorContext = {
 
 type ScoreBreakdown = {
   compression: number;
+  earlyOpportunity: number;
   volume: number;
   openInterest: number;
   structure: number;
   riskReward: number;
+  lateMovePenalty: number;
   fundingPenalty: number;
   regimePenalty: number;
   marketContextPenalty: number;
@@ -291,14 +293,79 @@ function indicatorTimeframeCalibration(input: MarketAnomalyInput): IndicatorTime
   };
 }
 
+function earlyOpportunityBonus(input: MarketAnomalyInput) {
+  if (
+    input.directionBias === "neutral" ||
+    input.structureLocation === "middle" ||
+    structureTimeframeConflict(input) ||
+    input.volumeRatio < 1.25
+  ) {
+    return 0;
+  }
+
+  const absMove = Math.abs(input.priceChangePercent);
+  const compression = input.volatilityCompressionPercentile <= 28
+    ? 7
+    : input.volatilityCompressionPercentile <= 42
+      ? 4
+      : 0;
+  const volume = input.volumeRatio >= 1.25
+    ? Math.min(5, (input.volumeRatio - 1.15) * 4)
+    : 0;
+  const lowDisplacement = absMove <= 3
+    ? 5
+    : absMove <= 5
+      ? 2
+      : 0;
+  const position = input.structureLocation === "support" ||
+    input.structureLocation === "resistance" ||
+    input.structureLocation === "range_edge" ||
+    input.structureLocation === "breakout_edge"
+    ? 3
+    : 0;
+
+  return clamp(compression + volume + lowDisplacement + position, 0, 16);
+}
+
+function lateMovePenalty(input: MarketAnomalyInput) {
+  if (input.directionBias === "neutral") {
+    return 0;
+  }
+
+  const absMove = Math.abs(input.priceChangePercent);
+  const directionalEdge = input.structureLocation === "breakout_edge";
+  const hotAndExpanded = input.volatilityCompressionPercentile >= 70 && absMove >= 6;
+  let penalty = 0;
+
+  if (absMove >= 12) {
+    penalty += 24;
+  } else if (absMove >= 8) {
+    penalty += 17;
+  } else if (absMove >= 6) {
+    penalty += 10;
+  }
+
+  if (directionalEdge && absMove >= 6) {
+    penalty += 6;
+  }
+
+  if (hotAndExpanded) {
+    penalty += 5;
+  }
+
+  return clamp(penalty, 0, 32);
+}
+
 function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
   const rr = riskReward(input);
   const indicatorCalibration = indicatorTimeframeCalibration(input);
   const compression = clamp(100 - input.volatilityCompressionPercentile);
+  const earlyOpportunity = earlyOpportunityBonus(input);
   const volume = clamp((input.volumeRatio - 1) * 62);
   const openInterest = clamp(input.openInterestChangePercent * 9);
   const structure = structureScores[input.structureLocation];
   const riskRewardScore = clamp((rr - 1.1) * 38);
+  const latePenalty = lateMovePenalty(input);
   const fundingPenalty = Math.max(0, Math.abs(input.fundingRateZScore) - 1.1) * 10;
   const regimePenalty = regimeConflict(input.regime, input.directionBias) ? 6 : 0;
   const marketContextPenalty = marketContextConflict(input) ? 14 : 0;
@@ -308,10 +375,12 @@ function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
 
   return {
     compression,
+    earlyOpportunity,
     volume,
     openInterest,
     structure,
     riskReward: riskRewardScore,
+    lateMovePenalty: latePenalty,
     fundingPenalty,
     regimePenalty,
     marketContextPenalty,
@@ -325,10 +394,12 @@ function scoreBreakdown(input: MarketAnomalyInput): ScoreBreakdown {
 function confidence(input: MarketAnomalyInput, scores: ScoreBreakdown) {
   const raw =
     scores.compression * 0.2 +
+    scores.earlyOpportunity * 0.85 +
     scores.volume * 0.18 +
     scores.openInterest * 0.16 +
     scores.structure * 0.24 +
     scores.riskReward * 0.22 -
+    scores.lateMovePenalty -
     scores.fundingPenalty -
     scores.regimePenalty -
     scores.marketContextPenalty +
@@ -345,9 +416,14 @@ function confidence(input: MarketAnomalyInput, scores: ScoreBreakdown) {
 
 function stateFor(input: MarketAnomalyInput, score: number, timeframeGate: TimeframeHardGate): SignalState {
   const rr = riskReward(input);
+  const latePenalty = lateMovePenalty(input);
 
   if (input.dataQualityScore < 0.6) {
     return "insufficient_data";
+  }
+
+  if (latePenalty >= 17) {
+    return score >= 45 ? "normal_watch" : "no_trade";
   }
 
   if (input.structureLocation === "middle" && rr < 2.2) {
@@ -383,9 +459,14 @@ function stateFor(input: MarketAnomalyInput, score: number, timeframeGate: Timef
 
 function riskFor(input: MarketAnomalyInput, state: SignalState): RiskGrade {
   const rr = riskReward(input);
+  const latePenalty = lateMovePenalty(input);
 
   if (state === "insufficient_data") {
     return "blocked";
+  }
+
+  if (latePenalty >= 17) {
+    return "high";
   }
 
   if (input.structureLocation === "middle" || rr < 1.6 || Math.abs(input.fundingRateZScore) > 2) {
@@ -417,6 +498,8 @@ function directionFor(input: MarketAnomalyInput, state: SignalState): SignalDire
 
 function evidenceFor(input: MarketAnomalyInput, timeframeGate: TimeframeHardGate): EvidencePoint[] {
   const rr = riskReward(input);
+  const earlyScore = earlyOpportunityBonus(input);
+  const latePenalty = lateMovePenalty(input);
   const evidence: EvidencePoint[] = [
     {
       label: `波动率分位 ${input.volatilityCompressionPercentile}`,
@@ -464,6 +547,24 @@ function evidenceFor(input: MarketAnomalyInput, timeframeGate: TimeframeHardGate
       polarity: rr >= 2.5 ? "supportive" : "blocking",
     },
   ];
+
+  if (earlyScore >= 10) {
+    evidence.push({
+      label: "提前性校验",
+      value: `价格尚未大幅偏离启动区，压缩/量能/结构位置组合得到 ${rounded(earlyScore, 1)} 分；优先作为启动前候选观察。`,
+      layer: "structure_location",
+      polarity: "supportive",
+    });
+  }
+
+  if (latePenalty >= 10) {
+    evidence.push({
+      label: "晚到风险",
+      value: `价格已经明显偏离启动区，晚到惩罚 ${rounded(latePenalty, 1)} 分；方向可以记录，但默认不追，只等回踩/反抽或进入复盘。`,
+      layer: "risk_reward",
+      polarity: "blocking",
+    });
+  }
 
   if (input.dataQualityScore < 0.6) {
     evidence.unshift({
@@ -547,6 +648,10 @@ function evidenceFor(input: MarketAnomalyInput, timeframeGate: TimeframeHardGate
 }
 
 function summaryFor(input: MarketAnomalyInput, state: SignalState, timeframeGate: TimeframeHardGate) {
+  if (lateMovePenalty(input) >= 17) {
+    return "方向异动已经发生，但价格明显偏离启动区，当前只做观察或复盘，不追多也不追空。";
+  }
+
   if (state === "insufficient_data") {
     return "关键数据不足，本轮只进入记录池，不给交易判断。";
   }

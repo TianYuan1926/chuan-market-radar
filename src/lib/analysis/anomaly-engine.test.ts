@@ -46,6 +46,33 @@ test("analyzeMarketAnomaly promotes compressed edge setups without requiring tre
   assert.ok(signal.evidence.some((item: EvidencePoint) => item.layer === "derivatives"));
 });
 
+test("analyzeMarketAnomaly downgrades late extended moves even when direction is correct", () => {
+  const signal = analyzeMarketAnomaly({
+    ...baseInput,
+    id: "late-extension",
+    symbol: "LATEUSDT",
+    priceChangePercent: 12.4,
+    volumeRatio: 2.4,
+    volatilityCompressionPercentile: 82,
+    projectedMovePercent: 14,
+    distanceToInvalidationPercent: 2,
+    structureLocation: "breakout_edge",
+  });
+
+  assert.notEqual(signal.state, "near_trigger");
+  assert.equal(signal.risk, "high");
+  assert.ok(signal.confidence < 74);
+  assert.match(signal.summary, /不追|复盘/);
+  assert.ok(
+    signal.evidence.some(
+      (item: EvidencePoint) =>
+        item.label === "晚到风险" &&
+        item.layer === "risk_reward" &&
+        item.polarity === "blocking",
+    ),
+  );
+});
+
 test("analyzeMarketAnomaly keeps middle-location anomalies as observation instead of trade signals", () => {
   const signal = analyzeMarketAnomaly({
     ...baseInput,
