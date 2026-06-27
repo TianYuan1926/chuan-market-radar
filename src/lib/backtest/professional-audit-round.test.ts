@@ -193,6 +193,48 @@ test("professionalAuditRadarScore rewards controlled volume impulse without chas
   );
 });
 
+test("professionalAuditRadarScore rewards controlled breakout-edge setup before full extension", () => {
+  const controlledBreakoutEdge = professionalAuditRadarScore({
+    compressionPct: 32,
+    confidence: 58,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 2.1,
+    rangePositionPct: 74,
+    symbol: "SEIUSDT",
+    volumeRatio: 1.35,
+  });
+  const quietMiddle = professionalAuditRadarScore({
+    compressionPct: 31,
+    confidence: 62,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.4,
+    rangePositionPct: 42,
+    symbol: "SEIUSDT",
+    volumeRatio: 0.82,
+  });
+  const lateExtension = professionalAuditRadarScore({
+    compressionPct: 60,
+    confidence: 76,
+    direction: "long",
+    lateAtSelection: true,
+    movePct: 11.2,
+    rangePositionPct: 91,
+    symbol: "SEIUSDT",
+    volumeRatio: 2.4,
+  });
+
+  assert.ok(
+    controlledBreakoutEdge >= 95,
+    `expected controlled breakout-edge ${controlledBreakoutEdge} to reach a competitive pre-breakout score; quiet middle was ${quietMiddle}`,
+  );
+  assert.ok(
+    controlledBreakoutEdge > lateExtension,
+    `expected controlled breakout-edge ${controlledBreakoutEdge} to beat late extension ${lateExtension}`,
+  );
+});
+
 test("professionalAuditOpportunityQuotas reserves Top10 slots for early pullback and higher timeframe lanes", () => {
   assert.deepEqual(professionalAuditOpportunityQuotas(10), {
     early_setup: 4,

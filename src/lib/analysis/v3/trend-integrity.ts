@@ -36,6 +36,19 @@ function countAlignedTimeframes(timeframes: TrendTimeframeContext[], direction: 
   ).length;
 }
 
+function countStructures(marketReadings: MarketReadingContext[], structure: MarketReadingContext["structure"]) {
+  return marketReadings.filter((reading) => reading.structure === structure).length;
+}
+
+function structureBalance(input: EvaluateV3TrendIntegrityInput) {
+  return {
+    downReadings: countStructures(input.marketReadings, "DOWN_SEQUENCE"),
+    longAligned: countAlignedTimeframes(input.timeframes, "long"),
+    shortAligned: countAlignedTimeframes(input.timeframes, "short"),
+    upReadings: countStructures(input.marketReadings, "UP_SEQUENCE"),
+  };
+}
+
 function result({
   direction,
   evidence,
@@ -110,10 +123,15 @@ function latestWickRisk(candles: Candle[], side: "lower" | "upper") {
 }
 
 function evaluateLong(input: EvaluateV3TrendIntegrityInput, events: Set<MarketReadingEventType>) {
-  if (hasEvent(events, ["LL", "BOS_DOWN", "CHOCH_DOWN"])) {
+  const balance = structureBalance(input);
+  const hasBearBreak = hasEvent(events, ["BOS_DOWN", "CHOCH_DOWN"]);
+  const hasBearSequence = hasEvent(events, ["LL"]) && balance.downReadings > balance.upReadings;
+  const bearContextDominates = balance.shortAligned > balance.longAligned && balance.downReadings >= balance.upReadings;
+
+  if ((hasBearBreak || hasBearSequence) && (bearContextDominates || balance.longAligned === 0)) {
     return result({
       direction: "long",
-      evidence: ["多头方向下出现 LL/BOS_DOWN/CHOCH_DOWN，HH/HL 序列被破坏。"],
+      evidence: ["多头方向下当前结构和周期共同转弱，HH/HL 序列被破坏。"],
       integrityScore: 0,
       riskFlags: ["bull_structure_broken"],
       status: "DAMAGED_TREND",
@@ -148,10 +166,15 @@ function evaluateLong(input: EvaluateV3TrendIntegrityInput, events: Set<MarketRe
 }
 
 function evaluateShort(input: EvaluateV3TrendIntegrityInput, events: Set<MarketReadingEventType>) {
-  if (hasEvent(events, ["HH", "BOS_UP", "CHOCH_UP"])) {
+  const balance = structureBalance(input);
+  const hasBullBreak = hasEvent(events, ["BOS_UP", "CHOCH_UP"]);
+  const hasBullSequence = hasEvent(events, ["HH"]) && balance.upReadings > balance.downReadings;
+  const bullContextDominates = balance.longAligned > balance.shortAligned && balance.upReadings >= balance.downReadings;
+
+  if ((hasBullBreak || hasBullSequence) && (bullContextDominates || balance.shortAligned === 0)) {
     return result({
       direction: "short",
-      evidence: ["空头方向下出现 HH/BOS_UP/CHOCH_UP，LH/LL 序列被破坏。"],
+      evidence: ["空头方向下当前结构和周期共同转强，LH/LL 序列被破坏。"],
       integrityScore: 0,
       riskFlags: ["bear_structure_broken"],
       status: "DAMAGED_TREND",

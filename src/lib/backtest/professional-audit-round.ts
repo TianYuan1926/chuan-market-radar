@@ -580,6 +580,16 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
   const controlledImpulseScore = !input.lateAtSelection && absMove > 2 && absMove <= 6.5 && input.volumeRatio >= 1.2
     ? (nonExtremeLocationScore * 8 + clamp((input.volumeRatio - 1.2) * 3, 0, 10)) * horizonWeights.controlledImpulse
     : 0;
+  const breakoutEdgePositionScore = input.direction === "long"
+    ? bandScore(input.rangePositionPct, 58, 74, 86)
+    : bandScore(input.rangePositionPct, 14, 26, 42);
+  const controlledBreakoutEdgeScore = !input.lateAtSelection && absMove >= 1 && absMove <= 6.5 && input.compressionPct <= 55 && input.volumeRatio >= 1.05
+    ? (
+      breakoutEdgePositionScore * 18 +
+      clamp((55 - input.compressionPct) / 55, 0, 1) * 6 +
+      bandScore(input.volumeRatio, 1.05, 1.45, 2.4) * 8
+    ) * horizonWeights.controlledImpulse
+    : 0;
   const lowVolumeCompressionScore = !input.lateAtSelection && absMove <= 4 && input.volumeRatio < 1 && input.compressionPct <= 38
     ? nonExtremeLocationScore * 8 * horizonWeights.lowVolumeCompression
     : 0;
@@ -611,6 +621,7 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
     earlyVolumeScore +
     quietAccumulationScore +
     controlledImpulseScore +
+    controlledBreakoutEdgeScore +
     lowVolumeCompressionScore +
     memeEarlyBonus -
     latePenalty -

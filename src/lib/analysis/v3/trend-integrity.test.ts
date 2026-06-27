@@ -152,6 +152,43 @@ test("evaluateV3TrendIntegrity marks a long trend as damaged when structure brea
   assert.ok(result.riskFlags.includes("bull_structure_broken"));
 });
 
+test("evaluateV3TrendIntegrity does not kill a long setup because of stale lower-timeframe LL when higher context recovered", () => {
+  const result = evaluateV3TrendIntegrity({
+    candles: healthyLongCandles,
+    direction: "long",
+    marketReadings: [
+      reading("DOWN_SEQUENCE", ["LL"]),
+      reading("UP_SEQUENCE", ["HH", "HL", "BOS_UP"]),
+    ],
+    timeframes: [timeframe("UPTREND"), timeframe("RANGE")],
+  });
+
+  assert.notEqual(result.status, "DAMAGED_TREND");
+  assert.equal(result.riskFlags.includes("bull_structure_broken"), false);
+  assert.ok(result.integrityScore > 0);
+});
+
+test("evaluateV3TrendIntegrity does not kill a short setup because of stale lower-timeframe HH when higher context rolled over", () => {
+  const result = evaluateV3TrendIntegrity({
+    candles: [
+      candle(0, { open: 108, high: 109, low: 106, close: 107 }),
+      candle(1, { open: 107, high: 108, low: 103, close: 104 }),
+      candle(2, { open: 104, high: 105, low: 101, close: 102 }),
+      candle(3, { open: 102, high: 103, low: 98, close: 99 }),
+    ],
+    direction: "short",
+    marketReadings: [
+      reading("UP_SEQUENCE", ["HH"]),
+      reading("DOWN_SEQUENCE", ["LH", "LL", "BOS_DOWN"]),
+    ],
+    timeframes: [timeframe("DOWNTREND"), timeframe("RANGE")],
+  });
+
+  assert.notEqual(result.status, "DAMAGED_TREND");
+  assert.equal(result.riskFlags.includes("bear_structure_broken"), false);
+  assert.ok(result.integrityScore > 0);
+});
+
 test("evaluateV3TrendIntegrity treats fake breakout as exhaustion risk, not as a short signal", () => {
   const result = evaluateV3TrendIntegrity({
     candles: healthyLongCandles,

@@ -170,6 +170,30 @@ test("short outcome uses entry as denominator for MFE and MAE", () => {
   assert.equal(outcome?.firstEvent, "TP");
 });
 
+test("professional audit does not report a blocked non-ready plan as released stop-loss failure", () => {
+  const caseResult = buildProfessionalBacktestAuditCase({
+    candlesByTimeframe: {
+      "15m": rangeSeries(140, (index) => index < 100 ? 1 + Math.sin(index / 8) * 0.035 : 0.914 + Math.sin(index / 5) * 0.002),
+      "1h": rangeSeries(80, (index) => index < 56 ? 1 + Math.sin(index / 7) * 0.03 : 0.916 + Math.sin(index / 4) * 0.002),
+      "4h": rangeSeries(60, (index) => index < 42 ? 1 + Math.sin(index / 6) * 0.026 : 0.918 + Math.sin(index / 4) * 0.002),
+    },
+    derivatives: {
+      status: "partial",
+    },
+    futureCandles: [
+      { ...candle(141, 0.85), low: 0.82, high: 0.93 },
+      { ...candle(142, 0.83), low: 0.8, high: 0.9 },
+    ],
+    observedAt: "2026-01-02T00:00:00.000Z",
+    symbol: "BLOCKEDUSDT",
+  });
+
+  assert.notEqual(caseResult.signal.maturity?.stage, "TRADE_PLAN_READY");
+  assert.equal(caseResult.outcome?.firstEvent, "SL");
+  assert.equal(caseResult.findings.some((item) => item.id === "PBA-REVIEW-001"), false);
+  assert.ok(caseResult.findings.some((item) => item.id === "PBA-REVIEW-BLOCKED-001" && item.severity === "low"));
+});
+
 test("round summary counts findings and plan-ready samples", () => {
   const first = buildProfessionalBacktestAuditCase({
     candlesByTimeframe: {

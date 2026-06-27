@@ -558,7 +558,7 @@ function buildFindings(
     }));
   }
 
-  if (outcome?.firstEvent === "SL") {
+  if (outcome?.firstEvent === "SL" && signal.maturity?.stage === "TRADE_PLAN_READY") {
     findings.push(finding({
       detail: `未来窗口先触发结构止损，MFE ${outcome.mfePct}%，MAE ${outcome.maePct}%。`,
       id: "PBA-REVIEW-001",
@@ -567,6 +567,16 @@ function buildFindings(
       rootCause: "信号放行后优先命中失效条件。",
       severity: "high",
       title: "历史结果先触发止损",
+    }));
+  } else if (outcome?.firstEvent === "SL") {
+    findings.push(finding({
+      detail: `该样本未达到交易计划就绪，但未来窗口会先触发结构止损，MFE ${outcome.mfePct}%，MAE ${outcome.maePct}%。这只能用于复盘反证，不能算作已放行计划失败。`,
+      id: "PBA-REVIEW-BLOCKED-001",
+      layer: "review",
+      nextAction: "保留为反证样本，复查方向、入场触发和止损位质量；不要把未就绪计划包装成交易计划。",
+      rootCause: "未就绪样本的理论止损被未来价格触发，但系统本应阻断该计划。",
+      severity: "low",
+      title: "未就绪计划的止损反证样本",
     }));
   }
 
