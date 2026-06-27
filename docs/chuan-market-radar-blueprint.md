@@ -945,6 +945,14 @@ RawSource
 - 本轮最关键漏判样本是 `WIFUSDT`：机会池为启动前机会，方向空，回测节点 `2026-06-22T13:15:00.000Z`，后续最大浮盈 10.42%、最大回撤 1.95%、RR 3.18，但 radar 排名只有 45，且交易计划被“结构优势不足，继续观察区间边界和量能变化”阻断。下一轮整改必须优先解释为什么一个 RR 足够且后续有效的样本被结构门控和排序共同漏掉。
 - 结论：本轮属于“局部提升但仍未达标”。当前状态仍是“可运行但不完整”，不能称为完整完成，也不能把前端信号当成可靠实战参考。下一轮不能直接继续跑回测，必须先整改：`WIFUSDT` 漏判根因、`reward_risk_unknown` 增加、计划就绪为 0、回踩/反抽捕获率倒退和结构门控过严/过粗的问题。
 
+2026-06-27 第三轮问题整改：
+
+- 已把 `RANGE_IDLE` / `RANGE_COMPRESSION` 下的“结构优势不足、区间压缩尚未给出方向”从硬 Risk Gate 阻断中拆出：这类状态仍写入解释和等待条件，但不再把 RR 合格、无硬风险的样本直接打成 `BLOCKED`。
+- 已新增条件计划语义：RR 合格但结构仍未确认的样本输出 `WAIT_PULLBACK` 或 `WAIT_RETEST`，并标记 `structure_confirmation_pending`；它仍不能进入 `TRADE_PLAN_READY`，但不再和垃圾信号混成同一种阻断。
+- 已把当时可见的 RR 质量接入专业回测机会排序：`rewardRisk >= 3` 的早期机会、回踩/反抽机会和大周期机会会获得排序加分；该加分只读取 observedAt 之前已生成的交易计划/RR，不读取未来 MFE/MAE。
+- 已修正回测计划卡点统计：方向中性的 `WATCH_ONLY` 样本不再额外统计为 `reward_risk_unknown`，避免把“方向未定”伪装成“RR 算不出来”。
+- 本轮已新增回归测试覆盖以上四类问题，并通过 `npm run test:market`、`npm run lint`、`npm run build`。下一轮正式回测必须重点验收：`reward_risk_unknown` 是否下降、`structure_confirmation_pending` 是否替代无意义 BLOCKED、WIF 类 RR 合格样本排名是否前移、回踩/反抽捕获率是否恢复，以及 `TRADE_PLAN_READY` 是否在不降低 3:1 门槛的情况下合理恢复。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

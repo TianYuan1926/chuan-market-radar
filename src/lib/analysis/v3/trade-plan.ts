@@ -242,6 +242,23 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
     });
   }
 
+  if (
+    input.trendContext.state === "RANGE_IDLE" ||
+    input.trendContext.state === "RANGE_COMPRESSION"
+  ) {
+    return basePlan({
+      blockedBy: ["structure_confirmation_pending"],
+      currentPrice: input.currentPrice,
+      direction,
+      isPlanEligible: false,
+      status: waitStatus(direction),
+      summary: direction === "long"
+        ? "v3 计划草案：RR 合格，但结构还未确认，等待突破或回踩承接后再进入人工复核。"
+        : "v3 计划草案：RR 合格，但结构还未确认，等待跌破或反抽承压后再进入人工复核。",
+      trendContext: input.trendContext,
+    });
+  }
+
   if (reaction.status !== "CONFIRMED") {
     return basePlan({
       blockedBy: reaction.riskFlags.length > 0 ? reaction.riskFlags : ["reaction_not_confirmed"],

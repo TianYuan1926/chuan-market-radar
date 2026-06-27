@@ -9,8 +9,10 @@ import {
   resolveProfessionalAuditHorizonBarsByBand,
   selectProfessionalAuditNodeIndexes,
   selectProfessionalAuditOpportunityCandidates,
+  tradePlanBlockers,
 } from "./professional-audit-round";
 import type { Candle } from "../market/ohlcv/types";
+import type { MarketSignal } from "../analysis/types";
 
 function candle(index: number, close: number, volume = 100): Candle {
   const time = Date.UTC(2026, 0, 1, 0, index * 15);
@@ -272,6 +274,70 @@ test("opportunityLaneScore promotes explicit early setup nodes over generic neut
   assert.ok(preMove > generic + 20, `expected pre-move score ${preMove} to clearly beat generic score ${generic}`);
 });
 
+test("opportunityLaneScore promotes RR-qualified early setups without using future outcome", () => {
+  const rrQualified = opportunityLaneScore({
+    compressionPct: 52,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -3.6,
+    nodeRole: "medium_swing",
+    radarScore: 42,
+    rangePositionPct: 64,
+    rewardRisk: 3.18,
+    timeframeBand: "medium",
+    tradePlanStatus: "WAIT_RETEST",
+    volumeRatio: 1.13,
+  });
+  const rrUnknown = opportunityLaneScore({
+    compressionPct: 52,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -3.6,
+    nodeRole: "medium_swing",
+    radarScore: 42,
+    rangePositionPct: 64,
+    rewardRisk: null,
+    timeframeBand: "medium",
+    tradePlanStatus: "BLOCKED",
+    volumeRatio: 1.13,
+  });
+
+  assert.ok(
+    rrQualified > rrUnknown + 12,
+    `expected RR-qualified setup ${rrQualified} to clearly beat unknown-RR setup ${rrUnknown}`,
+  );
+});
+
+test("selectProfessionalAuditOpportunityCandidates lets strong RR-qualified early setups compete for Top10", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    radarScore = opportunityLaneScore,
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    radarScore,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("GENERIC1USDT", 61),
+    item("GENERIC2USDT", 60),
+    item("GENERIC3USDT", 59),
+    item("GENERIC4USDT", 58),
+    item("WIFUSDT", 74, 42),
+    item("GENERIC5USDT", 57),
+  ], 4);
+
+  assert.ok(selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "WIFUSDT"));
+});
+
 test("classifyProfessionalAuditOpportunityLane honors target node roles without turning late extensions into opportunities", () => {
   assert.equal(classifyProfessionalAuditOpportunityLane({
     compressionPct: 28,
@@ -366,4 +432,27 @@ test("professionalAuditPlanBlockerLabel maps rr blockers to readable Chinese", (
   assert.equal(professionalAuditPlanBlockerLabel("reward_risk_2.40R_below_3R"), "结构盈亏比不足或未知");
   assert.equal(professionalAuditPlanBlockerLabel("support_lost"), "支撑位失守");
   assert.equal(professionalAuditPlanBlockerLabel("trade_plan_not_ready"), "交易计划未就绪");
+});
+
+test("tradePlanBlockers does not count neutral watch-only samples as reward-risk unknown", () => {
+  const blockers = tradePlanBlockers({
+    direction: "neutral",
+    maturity: {
+      canAttachTradePlan: false,
+      canEnterMainSignalArea: true,
+      canRequestAiReview: true,
+      label: "证据融合信号",
+      reasons: ["has_structured_evidence"],
+      stage: "EVIDENCE_SIGNAL",
+    },
+    strategyV3: {
+      tradePlan: {
+        blockedBy: ["neutral_direction"],
+        rewardRisk: null,
+        status: "WATCH_ONLY",
+      },
+    },
+  } as unknown as MarketSignal);
+
+  assert.deepEqual(blockers, ["neutral_direction"]);
 });

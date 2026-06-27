@@ -193,6 +193,7 @@ const planBlockerLabels: Record<string, string> = {
   risk_score_high: "风险评分过高",
   stale_data: "数据过期",
   stop_distance_too_wide: "止损距离过宽",
+  structure_confirmation_pending: "结构确认仍在等待",
   structure_invalidated: "结构已经失效",
   support_lost: "支撑位失守",
   trade_plan_not_eligible: "交易计划未满足门禁",
@@ -406,7 +407,11 @@ export function classifyProfessionalAuditOpportunityLane(input: ProfessionalAudi
   return "early_setup";
 }
 
-export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput & { radarScore: number }) {
+export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput & {
+  radarScore: number;
+  rewardRisk?: number | null;
+  tradePlanStatus?: string;
+}) {
   const absMove = Math.abs(input.movePct);
   const nonExtremeLocationScore = input.direction === "long"
     ? bandScore(input.rangePositionPct, 16, 38, 84)
@@ -418,6 +423,12 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
       : input.nodeRole === "breakout_edge" && absMove <= 6.5 && input.compressionPct <= 58
         ? 16 + nonExtremeLocationScore * 8
         : 0;
+  const rrQualityBonus = typeof input.rewardRisk === "number" && Number.isFinite(input.rewardRisk) && input.rewardRisk >= 3
+    ? Math.min(22, 10 + (Math.min(input.rewardRisk, 5) - 3) * 6)
+    : 0;
+  const conditionalPlanBonus = input.tradePlanStatus === "WAIT_RETEST" || input.tradePlanStatus === "WAIT_PULLBACK"
+    ? 4
+    : 0;
 
   if (input.lateAtSelection) {
     return round(input.radarScore - 100 - absMove * 2, 4);
@@ -431,15 +442,15 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
       : 0;
     const controlledLocationBonus = nonExtremeLocationScore * 10;
 
-    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus - absMove * 0.9, 4);
+    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus + rrQualityBonus + conditionalPlanBonus - absMove * 0.9, 4);
   }
 
   if (lane === "pullback_retest") {
-    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8, 4);
+    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + rrQualityBonus + conditionalPlanBonus, 4);
   }
 
   if (lane === "higher_timeframe_context") {
-    return round(input.radarScore + (100 - input.compressionPct) * 0.28 + nonExtremeLocationScore * 16 + bandScore(absMove, 0, 1.8, 6.5) * 8, 4);
+    return round(input.radarScore + (100 - input.compressionPct) * 0.28 + nonExtremeLocationScore * 16 + bandScore(absMove, 0, 1.8, 6.5) * 8 + rrQualityBonus + conditionalPlanBonus, 4);
   }
 
   return round(input.radarScore - 80, 4);
@@ -921,9 +932,10 @@ function tradePlanRewardRisk(signal: MarketSignal) {
   return typeof rewardRisk === "number" && Number.isFinite(rewardRisk) ? round(rewardRisk, 2) : null;
 }
 
-function tradePlanBlockers(signal: MarketSignal) {
+export function tradePlanBlockers(signal: MarketSignal) {
   const blockers = new Set<string>();
   const tradePlan = signal.strategyV3?.tradePlan;
+  const hasDirectionalPlan = signal.direction === "long" || signal.direction === "short";
 
   if (!signal.strategyV3) {
     blockers.add("missing_strategy_v3");
@@ -938,9 +950,9 @@ function tradePlanBlockers(signal: MarketSignal) {
 
     const rewardRisk = tradePlan.rewardRisk;
 
-    if (rewardRisk === null || !Number.isFinite(rewardRisk)) {
+    if (hasDirectionalPlan && (rewardRisk === null || !Number.isFinite(rewardRisk))) {
       blockers.add("reward_risk_unknown");
-    } else if (rewardRisk < 3) {
+    } else if (hasDirectionalPlan && typeof rewardRisk === "number" && Number.isFinite(rewardRisk) && rewardRisk < 3) {
       blockers.add("reward_risk_below_minimum");
     }
 
@@ -1050,7 +1062,9 @@ function buildCandidateAtNode({
       movePct,
       radarScore,
       rangePositionPct: currentRangePositionPct,
+      rewardRisk: tradePlanRewardRisk(auditCase.signal),
       timeframeBand,
+      tradePlanStatus: tradePlanStatus(auditCase.signal),
       volumeRatio: currentVolumeRatio,
     }),
     planBlockers: tradePlanBlockers(auditCase.signal),

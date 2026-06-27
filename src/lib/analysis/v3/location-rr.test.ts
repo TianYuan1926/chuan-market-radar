@@ -188,3 +188,35 @@ test("buildStrategyV3TrendContext folds location reward risk into the readonly r
   assert.ok(context.riskGate.blockedBy.includes("reward_risk_below_minimum"));
   assert.match(context.noParticipationReasons.join(" / "), /盈亏比/);
 });
+
+test("buildStrategyV3TrendContext treats range-idle structure as soft wait when RR and hard gates are clean", () => {
+  const rangeCandles = [100, 100.8, 99.6, 100.5, 99.8, 100.7, 100.1, 100.4]
+    .map((close, index) => ({
+      ...candle(index, close),
+      high: close + 0.12,
+      low: close - 0.38,
+      open: close - 0.16,
+    }));
+  const context = buildStrategyV3TrendContext({
+    candlesByTimeframe: {
+      "15m": rangeCandles,
+      "1h": rangeCandles,
+    },
+    currentPrice: 100,
+    keyLevels: [
+      level({ direction: "SUPPORT", id: "support", zoneLow: 98, zoneHigh: 99, midPrice: 98.5, type: "RANGE_LOW" }),
+      level({ direction: "RESISTANCE", id: "target", zoneLow: 110, zoneHigh: 112, midPrice: 111, type: "RANGE_HIGH" }),
+    ],
+    signal: signal({ direction: "long" }),
+    sourceTimeframes: ["15m", "1h"],
+    symbol: "TESTUSDT",
+  });
+
+  assert.equal(context.locationRiskReward?.isTradeEligible, true);
+  assert.ok(context.state === "RANGE_IDLE" || context.state === "RANGE_COMPRESSION");
+  assert.ok(context.noParticipationReasons.some((reason) =>
+    reason.includes("结构优势不足") || reason.includes("区间压缩")
+  ));
+  assert.equal(context.riskGate.allowed, true);
+  assert.equal(context.riskGate.blockedBy.some((reason) => reason.includes("结构优势不足")), false);
+});

@@ -382,6 +382,19 @@ function noParticipationReasons(
   return reasons;
 }
 
+function isSoftWaitReason(reason: string) {
+  return reason.includes("结构优势不足") ||
+    reason.includes("区间压缩尚未给出方向");
+}
+
+function hardNoParticipationBlocker(reason: string) {
+  if (isSoftWaitReason(reason)) {
+    return null;
+  }
+
+  return reason.split("：")[0] ?? reason;
+}
+
 export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextInput): StrategyV3TrendContext {
   const timeframes = input.sourceTimeframes
     .map((timeframe) => timeframeContext(timeframe, input.candlesByTimeframe[timeframe] ?? []))
@@ -429,7 +442,9 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     ...locationRiskReward.riskFlags,
     ...hardReactionFlags,
     ...hardTrendIntegrityFlags,
-    ...noParticipation.map((reason) => reason.split("：")[0] ?? reason),
+    ...noParticipation
+      .map(hardNoParticipationBlocker)
+      .filter((reason): reason is string => Boolean(reason)),
   ];
 
   return {
@@ -445,7 +460,7 @@ export function buildStrategyV3TrendContext(input: BuildStrategyV3TrendContextIn
     noParticipationReasons: noParticipation,
     reactionQuality,
     riskGate: {
-      allowed: noParticipation.length === 0,
+      allowed: blockedBy.length === 0,
       blockedBy: [...new Set(blockedBy)],
       mode: "readonly_v3_risk_gate",
     },

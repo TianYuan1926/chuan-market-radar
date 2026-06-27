@@ -234,6 +234,54 @@ test("buildV3TradePlan waits for pullback confirmation before drafting a long pl
   assert.match(plan.summary, /等待回踩/);
 });
 
+test("buildV3TradePlan keeps RR-qualified range-idle setups as conditional wait plans, not blocked or ready", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 107.2,
+    signal: signal({ direction: "short" }),
+    trendContext: trendContext({
+      decision: "WATCH_ONLY",
+      nextStep: "结构优势不足，继续观察区间边界和量能变化。",
+      noParticipationReasons: ["结构优势不足，继续观察区间边界和量能变化。"],
+      state: "RANGE_IDLE",
+      locationRiskReward: {
+        ...trendContext().locationRiskReward!,
+        currentPrice: 107.2,
+        direction: "short",
+        isTradeEligible: true,
+        nearestTarget: 92,
+        rewardRisk: 3.18,
+        riskFlags: [],
+        stopDistance: 4.8,
+        stopDistancePercent: 4.48,
+        structuralStop: 112,
+        targetDistance: 15.2,
+        targetDistancePercent: 14.18,
+      },
+      reactionQuality: {
+        ...trendContext().reactionQuality!,
+        direction: "short",
+        status: "CONFIRMED",
+      },
+      riskGate: {
+        allowed: true,
+        blockedBy: [],
+        mode: "readonly_v3_risk_gate",
+      },
+      trendIntegrity: {
+        ...trendContext().trendIntegrity!,
+        direction: "short",
+        status: "HEALTHY_TREND",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "WAIT_RETEST");
+  assert.equal(plan.isPlanEligible, false);
+  assert.equal(plan.rewardRisk, 3.18);
+  assert.ok(plan.blockedBy.includes("structure_confirmation_pending"));
+  assert.match(plan.summary, /结构还未确认|等待/);
+});
+
 test("buildV3TradePlan never turns exhaustion risk into an opposite execution signal", () => {
   const plan = buildV3TradePlan({
     currentPrice: 107.2,
