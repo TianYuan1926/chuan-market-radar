@@ -180,6 +180,8 @@ const planBlockerLabels: Record<string, string> = {
   invalid_structural_stop: "结构止损无效",
   location_rr: "缺少位置/结构盈亏比",
   lower_wick_exhaustion: "下影线衰竭风险",
+  missing_strategy_v3: "缺少 v3 策略上下文",
+  missing_trade_plan: "缺少交易计划草案",
   neutral_direction: "方向不明确",
   no_nearest_target: "缺少最近目标",
   no_structural_stop: "缺少结构止损",
@@ -192,7 +194,9 @@ const planBlockerLabels: Record<string, string> = {
   stale_data: "数据过期",
   stop_distance_too_wide: "止损距离过宽",
   structure_invalidated: "结构已经失效",
+  support_lost: "支撑位失守",
   trade_plan_not_eligible: "交易计划未满足门禁",
+  trade_plan_not_ready: "交易计划未就绪",
   trend_integrity_not_healthy: "趋势完整度不健康",
   upper_wick_exhaustion: "上影线衰竭风险",
 };
@@ -402,11 +406,18 @@ export function classifyProfessionalAuditOpportunityLane(input: ProfessionalAudi
   return "early_setup";
 }
 
-function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput & { radarScore: number }) {
+export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput & { radarScore: number }) {
   const absMove = Math.abs(input.movePct);
   const nonExtremeLocationScore = input.direction === "long"
     ? bandScore(input.rangePositionPct, 16, 38, 84)
     : bandScore(input.rangePositionPct, 16, 62, 84);
+  const earlyRoleBonus = input.nodeRole === "pre_move" && absMove <= 4.5
+    ? 22 + Math.max(0, 48 - input.compressionPct) * 0.35
+    : input.nodeRole === "early_volume_expansion" && absMove <= 6 && input.volumeRatio >= 1.05
+      ? 18 + bandScore(input.volumeRatio, 1.05, 1.45, 2.4) * 10
+      : input.nodeRole === "breakout_edge" && absMove <= 6.5 && input.compressionPct <= 58
+        ? 16 + nonExtremeLocationScore * 8
+        : 0;
 
   if (input.lateAtSelection) {
     return round(input.radarScore - 100 - absMove * 2, 4);
@@ -420,7 +431,7 @@ function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput &
       : 0;
     const controlledLocationBonus = nonExtremeLocationScore * 10;
 
-    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus - absMove * 0.9, 4);
+    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus - absMove * 0.9, 4);
   }
 
   if (lane === "pullback_retest") {

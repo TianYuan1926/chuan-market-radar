@@ -2,6 +2,7 @@ import {
   execFile,
 } from "node:child_process";
 import {
+  readFile,
   mkdir,
   writeFile,
 } from "node:fs/promises";
@@ -25,10 +26,13 @@ import {
 import {
   professionalAuditPlanBlockerLabel,
   runProfessionalAuditRound,
-  type ProfessionalAuditRoundCoinType,
   type ProfessionalAuditRoundProgress,
   type ProfessionalAuditRoundSymbolPlan,
 } from "../lib/backtest/professional-audit-round";
+import {
+  buildAuditCandidateUniverse,
+  buildAuditSymbolPlan,
+} from "../lib/backtest/professional-audit-symbol-plan";
 
 const BINANCE_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 const BINANCE_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
@@ -264,119 +268,24 @@ async function discoverBinanceSymbols(maxSymbols: number) {
     .slice(0, maxSymbols);
 }
 
-const auditCoinTypeLabels: Record<ProfessionalAuditRoundCoinType, string> = {
-  ai_depin: "AI / Depin",
-  defi: "DeFi",
-  exchange_infra: "交易所/基础设施",
-  gaming: "GameFi",
-  large_liquid_alt: "高流动性主流山寨",
-  layer1_layer2: "L1 / L2",
-  long_tail: "长尾小币",
-  meme: "Meme 高波动",
-  midcap_trend: "中市值趋势币",
-  new_hot_listing: "新上市/热点币",
-};
-
-const auditSeeds: Record<ProfessionalAuditRoundCoinType, string[]> = {
-  ai_depin: ["FETUSDT", "TAOUSDT", "RENDERUSDT", "WLDUSDT", "ARKMUSDT", "AIUSDT"],
-  defi: ["AAVEUSDT", "UNIUSDT", "MKRUSDT", "PENDLEUSDT", "ENAUSDT", "LDOUSDT"],
-  exchange_infra: ["BNBUSDT", "OKBUSDT", "GTUSDT", "CAKEUSDT", "RUNEUSDT", "DYDXUSDT"],
-  gaming: ["GALAUSDT", "PIXELUSDT", "IMXUSDT", "RONINUSDT", "SANDUSDT", "AXSUSDT"],
-  large_liquid_alt: ["SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT"],
-  layer1_layer2: ["SUIUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "SEIUSDT", "TIAUSDT"],
-  long_tail: ["1000PEPEUSDT", "1000BONKUSDT", "BICOUSDT", "CELRUSDT", "JASMYUSDT", "TRUUSDT"],
-  meme: ["1000PEPEUSDT", "DOGEUSDT", "WIFUSDT", "1000FLOKIUSDT", "1000BONKUSDT", "PNUTUSDT"],
-  midcap_trend: ["ONDOUSDT", "INJUSDT", "HYPEUSDT", "JUPUSDT", "WUSDT", "PYTHUSDT"],
-  new_hot_listing: ["HYPEUSDT", "WUSDT", "JUPUSDT", "ZROUSDT", "STRKUSDT", "ENAUSDT"],
-};
-
-const auditTypeOrder: ProfessionalAuditRoundCoinType[] = [
-  "large_liquid_alt",
-  "layer1_layer2",
-  "defi",
-  "meme",
-  "ai_depin",
-  "gaming",
-  "exchange_infra",
-  "new_hot_listing",
-  "midcap_trend",
-  "long_tail",
-];
-
-function deterministicSymbolScore(symbol: string) {
-  let hash = 2166136261;
-
-  for (let index = 0; index < symbol.length; index += 1) {
-    hash ^= symbol.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return hash >>> 0;
-}
-
-function buildAuditSymbolPlan(symbols: string[], targetCount: number): ProfessionalAuditRoundSymbolPlan[] {
-  const available = new Set(symbols.filter((symbol) => !["BTCUSDT", "ETHUSDT"].includes(symbol)));
-  const used = new Set<string>();
-  const plan: ProfessionalAuditRoundSymbolPlan[] = [];
-
-  for (const coinType of auditTypeOrder) {
-    const symbol = auditSeeds[coinType].find((seed) => available.has(seed) && !used.has(seed));
-
-    if (!symbol) {
-      continue;
-    }
-
-    used.add(symbol);
-    plan.push({
-      coinType,
-      coinTypeLabel: auditCoinTypeLabels[coinType],
-      symbol,
-    });
-
-    if (plan.length >= targetCount) {
-      return plan;
-    }
-  }
-
-  const fallback = [...available]
-    .filter((symbol) => !used.has(symbol))
-    .sort((left, right) => deterministicSymbolScore(left) - deterministicSymbolScore(right));
-
-  for (const symbol of fallback) {
-    const coinType: ProfessionalAuditRoundCoinType = "long_tail";
-    plan.push({
-      coinType,
-      coinTypeLabel: auditCoinTypeLabels[coinType],
-      symbol,
-    });
-
-    if (plan.length >= targetCount) {
-      break;
-    }
-  }
-
-  return plan;
-}
-
-function buildAuditCandidateUniverse(
-  symbols: string[],
-  auditPlan: ProfessionalAuditRoundSymbolPlan[],
-  targetCount: number,
-) {
-  const requiredSymbols = auditPlan.map((item) => item.symbol);
-  const required = new Set(requiredSymbols);
-  const candidateLimit = Math.max(requiredSymbols.length, targetCount);
-  const filler = symbols
-    .filter((symbol) => symbol && !["BTCUSDT", "ETHUSDT"].includes(symbol))
-    .filter((symbol) => !required.has(symbol))
-    .sort((left, right) => deterministicSymbolScore(left) - deterministicSymbolScore(right));
-
-  return [...requiredSymbols, ...filler]
-    .slice(0, candidateLimit);
-}
-
 function progressPath(options: CliOptions) {
   return path.join(process.cwd(), options.out, "latest-progress.json");
+}
+
+async function previousAuditRoundSymbols(options: CliOptions) {
+  if (!options.auditRound) {
+    return [];
+  }
+
+  try {
+    const payload = JSON.parse(await readFile(progressPath(options), "utf8")) as Partial<ProfessionalAuditRoundProgress>;
+
+    return (payload.plannedSymbols ?? [])
+      .map((item) => item.symbol)
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 function writeAuditProgress(options: CliOptions, progress: ProfessionalAuditRoundProgress) {
@@ -1027,11 +936,22 @@ async function main() {
   }
 
   const discoveredSymbols = await discoverBinanceSymbols(options.auditRound ? 2000 : options.maxSymbols);
+  const previousRoundSymbols = await previousAuditRoundSymbols(options);
+  const roundSeed = `${new Date().toISOString().slice(0, 13)}:${previousRoundSymbols.join(",")}`;
   const auditPlan = options.auditRound
-    ? buildAuditSymbolPlan(discoveredSymbols, options.auditSymbols)
+    ? buildAuditSymbolPlan({
+      avoidedSymbols: previousRoundSymbols,
+      roundSeed,
+      symbols: discoveredSymbols,
+      targetCount: options.auditSymbols,
+    })
     : [];
   const symbols = options.auditRound
-    ? buildAuditCandidateUniverse(discoveredSymbols, auditPlan, options.candidateSymbols)
+    ? buildAuditCandidateUniverse({
+      auditPlan,
+      symbols: discoveredSymbols,
+      targetCount: options.candidateSymbols,
+    })
     : discoveredSymbols;
 
   if (options.auditRound && auditPlan.length === 0) {
@@ -1045,7 +965,7 @@ async function main() {
       options,
       phase: "planning",
       plannedSymbols: auditPlan,
-      summary: `已选择 ${auditPlan.length} 个不同类型山寨币，在 ${symbols.length} 个候选币池中执行 ${auditPlan.length * options.nodesPerSymbol} 个节点。`,
+      summary: `已选择 ${auditPlan.length} 个不同类型山寨币，在 ${symbols.length} 个候选币池中执行 ${auditPlan.length * options.nodesPerSymbol} 个节点。本轮已避让上一轮目标币 ${previousRoundSymbols.length} 个。`,
     });
   }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classifyProfessionalAuditOpportunityLane,
+  opportunityLaneScore,
   professionalAuditOpportunityQuotas,
   professionalAuditPlanBlockerLabel,
   professionalAuditRadarScore,
@@ -244,6 +245,33 @@ test("professionalAuditOpportunityQuotas reserves Top10 slots for early pullback
   });
 });
 
+test("opportunityLaneScore promotes explicit early setup nodes over generic neutral nodes", () => {
+  const preMove = opportunityLaneScore({
+    compressionPct: 30,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.4,
+    nodeRole: "pre_move",
+    radarScore: 72,
+    rangePositionPct: 42,
+    timeframeBand: "small",
+    volumeRatio: 0.9,
+  });
+  const generic = opportunityLaneScore({
+    compressionPct: 30,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.4,
+    nodeRole: "neutral_random",
+    radarScore: 72,
+    rangePositionPct: 42,
+    timeframeBand: "small",
+    volumeRatio: 0.9,
+  });
+
+  assert.ok(preMove > generic + 20, `expected pre-move score ${preMove} to clearly beat generic score ${generic}`);
+});
+
 test("classifyProfessionalAuditOpportunityLane honors target node roles without turning late extensions into opportunities", () => {
   assert.equal(classifyProfessionalAuditOpportunityLane({
     compressionPct: 28,
@@ -336,4 +364,6 @@ test("selectProfessionalAuditOpportunityCandidates excludes risk review from act
 test("professionalAuditPlanBlockerLabel maps rr blockers to readable Chinese", () => {
   assert.equal(professionalAuditPlanBlockerLabel("reward_risk_below_minimum"), "结构盈亏比低于 3:1");
   assert.equal(professionalAuditPlanBlockerLabel("reward_risk_2.40R_below_3R"), "结构盈亏比不足或未知");
+  assert.equal(professionalAuditPlanBlockerLabel("support_lost"), "支撑位失守");
+  assert.equal(professionalAuditPlanBlockerLabel("trade_plan_not_ready"), "交易计划未就绪");
 });
