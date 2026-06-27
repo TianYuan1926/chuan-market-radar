@@ -86,6 +86,42 @@ function uniqueLevels(levels: KeyLevel[]) {
   });
 }
 
+function selectBalancedLevels(levels: KeyLevel[], currentPrice: number) {
+  const supports = levels
+    .filter((level) => level.direction === "SUPPORT" && level.zoneHigh < currentPrice)
+    .sort((first, second) => second.zoneHigh - first.zoneHigh || second.keyScore - first.keyScore)
+    .slice(0, 5);
+  const resistances = levels
+    .filter((level) => level.direction === "RESISTANCE" && level.zoneLow > currentPrice)
+    .sort((first, second) => first.zoneLow - second.zoneLow || second.keyScore - first.keyScore)
+    .slice(0, 5);
+  const arrivedOrBroken = levels
+    .filter((level) => level.status === "ARRIVED" || level.status === "BROKEN" || level.direction === "BOTH")
+    .sort((first, second) => second.keyScore - first.keyScore || second.confluenceScore - first.confluenceScore)
+    .slice(0, 4);
+  const selected: KeyLevel[] = [];
+  const seen = new Set<string>();
+
+  for (const level of [...supports, ...resistances, ...arrivedOrBroken, ...levels]) {
+    if (seen.has(level.id)) {
+      continue;
+    }
+
+    selected.push(level);
+    seen.add(level.id);
+
+    if (selected.length >= 12) {
+      break;
+    }
+  }
+
+  return selected.sort((first, second) =>
+    Math.abs(first.midPrice - currentPrice) - Math.abs(second.midPrice - currentPrice) ||
+    second.keyScore - first.keyScore ||
+    second.confluenceScore - first.confluenceScore
+  );
+}
+
 function primaryTimeframe(signal: MarketSignal, sourceTimeframes: SupportedTrendTimeframe[]): TrendTimeframe {
   if (isTrendTimeframe(signal.timeframe) && sourceTimeframes.includes(signal.timeframe)) {
     return signal.timeframe;
@@ -113,16 +149,14 @@ export function buildSignalTrendRadarV3Dossier(
     return null;
   }
 
-  const keyLevels = uniqueLevels(sourceTimeframes.flatMap((timeframe) =>
+  const keyLevels = selectBalancedLevels(uniqueLevels(sourceTimeframes.flatMap((timeframe) =>
     buildKeyLevels({
       candles: input.candlesByTimeframe[timeframe] ?? [],
       currentPrice,
       symbol: input.signal.symbol,
       timeframe,
     })
-  ))
-    .sort((first, second) => second.keyScore - first.keyScore || second.confluenceScore - first.confluenceScore)
-    .slice(0, 12);
+  )), currentPrice);
   const forwardLevels = buildForwardLevelMap({
     currentPrice,
     levels: keyLevels,

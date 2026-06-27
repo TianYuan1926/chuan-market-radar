@@ -138,6 +138,7 @@ type CandidateAtNode = {
   maePct: number;
   mfePct: number;
   movePct: number;
+  nodeRole?: ProfessionalAuditRoundNodeRole;
   opportunityLane: ProfessionalAuditOpportunityLaneName;
   opportunityLaneScore: number;
   planBlockers: string[];
@@ -939,6 +940,7 @@ function buildCandidateAtNode({
   horizonBars,
   index,
   moveThresholdPct,
+  nodeRole,
   symbol,
   timeframeBand,
 }: {
@@ -947,6 +949,7 @@ function buildCandidateAtNode({
   horizonBars: number;
   index: number;
   moveThresholdPct: number;
+  nodeRole?: ProfessionalAuditRoundNodeRole;
   symbol: string;
   timeframeBand: ProfessionalAuditRoundTimeframeBand;
 }): CandidateAtNode | null {
@@ -995,6 +998,7 @@ function buildCandidateAtNode({
     direction,
     lateAtSelection,
     movePct,
+    nodeRole,
     rangePositionPct: currentRangePositionPct,
     timeframeBand,
     volumeRatio: currentVolumeRatio,
@@ -1015,6 +1019,7 @@ function buildCandidateAtNode({
     maePct: outcome.maePct,
     mfePct: outcome.mfePct,
     movePct,
+    nodeRole,
     opportunityLane,
     opportunityLaneScore: opportunityLaneScore({
       compressionPct: currentCompressionPct,
@@ -1682,6 +1687,7 @@ export function runProfessionalAuditRound({
           horizonBars: selected.horizonBars,
           index: selected.index,
           moveThresholdPct,
+          nodeRole: symbol === symbolPlan.symbol ? selected.role : undefined,
           symbol,
           timeframeBand: selected.band,
         });

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  classifyProfessionalAuditOpportunityLane,
   professionalAuditOpportunityQuotas,
   professionalAuditPlanBlockerLabel,
   professionalAuditRadarScore,
@@ -199,6 +200,39 @@ test("professionalAuditOpportunityQuotas reserves Top10 slots for early pullback
     pullback_retest: 3,
     risk_review: 0,
   });
+});
+
+test("classifyProfessionalAuditOpportunityLane honors target node roles without turning late extensions into opportunities", () => {
+  assert.equal(classifyProfessionalAuditOpportunityLane({
+    compressionPct: 28,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.2,
+    nodeRole: "pre_move",
+    rangePositionPct: 44,
+    timeframeBand: "small",
+    volumeRatio: 0.92,
+  }), "early_setup");
+  assert.equal(classifyProfessionalAuditOpportunityLane({
+    compressionPct: 44,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 4.2,
+    nodeRole: "pullback_retest",
+    rangePositionPct: 48,
+    timeframeBand: "medium",
+    volumeRatio: 0.88,
+  }), "pullback_retest");
+  assert.equal(classifyProfessionalAuditOpportunityLane({
+    compressionPct: 70,
+    direction: "long",
+    lateAtSelection: true,
+    movePct: 14,
+    nodeRole: "pre_move",
+    rangePositionPct: 92,
+    timeframeBand: "small",
+    volumeRatio: 3,
+  }), "risk_review");
 });
 
 test("selectProfessionalAuditNodeIndexes does not let future horizon candles change scan points", () => {

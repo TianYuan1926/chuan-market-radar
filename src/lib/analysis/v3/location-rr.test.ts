@@ -115,6 +115,24 @@ test("evaluateV3LocationRiskReward accepts long setups with a nearby structural 
   assert.deepEqual(result.riskFlags, []);
 });
 
+test("evaluateV3LocationRiskReward uses the first traceable target that satisfies 3R instead of killing a setup at the nearest minor resistance", () => {
+  const result = evaluateV3LocationRiskReward({
+    currentPrice: 100,
+    direction: "long",
+    keyLevels: [
+      level({ direction: "SUPPORT", id: "support", zoneLow: 98, zoneHigh: 99, midPrice: 98.5, type: "RANGE_LOW" }),
+      level({ direction: "RESISTANCE", id: "minor-resistance", zoneLow: 103, zoneHigh: 104, midPrice: 103.5, type: "SWING_HIGH" }),
+      level({ direction: "RESISTANCE", id: "major-resistance", zoneLow: 108, zoneHigh: 110, midPrice: 109, type: "RANGE_HIGH" }),
+    ],
+  });
+
+  assert.equal(result.isTradeEligible, true);
+  assert.equal(result.nearestTarget, 108);
+  assert.equal(result.rewardRisk, 4);
+  assert.equal(result.targetLevelId, "major-resistance");
+  assert.deepEqual(result.riskFlags, []);
+});
+
 test("evaluateV3LocationRiskReward blocks shorts when nearby support destroys downside reward", () => {
   const result = evaluateV3LocationRiskReward({
     currentPrice: 100,
@@ -128,6 +146,24 @@ test("evaluateV3LocationRiskReward blocks shorts when nearby support destroys do
   assert.equal(result.isTradeEligible, false);
   assert.equal(result.rewardRisk, 0.5);
   assert.ok(result.riskFlags.includes("reward_risk_below_minimum"));
+});
+
+test("evaluateV3LocationRiskReward uses deeper support for shorts when the nearest support is only TP1 noise", () => {
+  const result = evaluateV3LocationRiskReward({
+    currentPrice: 100,
+    direction: "short",
+    keyLevels: [
+      level({ direction: "RESISTANCE", id: "resistance", zoneLow: 101, zoneHigh: 102, midPrice: 101.5, type: "RANGE_HIGH" }),
+      level({ direction: "SUPPORT", id: "minor-support", zoneLow: 96, zoneHigh: 98, midPrice: 97, type: "SWING_LOW" }),
+      level({ direction: "SUPPORT", id: "major-support", zoneLow: 91, zoneHigh: 93, midPrice: 92, type: "RANGE_LOW" }),
+    ],
+  });
+
+  assert.equal(result.isTradeEligible, true);
+  assert.equal(result.nearestTarget, 93);
+  assert.equal(result.rewardRisk, 3.5);
+  assert.equal(result.targetLevelId, "major-support");
+  assert.deepEqual(result.riskFlags, []);
 });
 
 test("buildStrategyV3TrendContext folds location reward risk into the readonly risk gate", () => {

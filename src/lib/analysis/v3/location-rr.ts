@@ -44,6 +44,60 @@ function resistancesAbove(currentPrice: number, levels: KeyLevel[]) {
     .sort((left, right) => left.zoneLow - right.zoneLow || right.keyScore - left.keyScore);
 }
 
+function targetRewardRisk({
+  currentPrice,
+  direction,
+  stopDistance,
+  target,
+}: {
+  currentPrice: number;
+  direction: V3LocationDirection;
+  stopDistance: number;
+  target: KeyLevel;
+}) {
+  if (stopDistance <= 0) {
+    return null;
+  }
+
+  const targetDistance = direction === "long"
+    ? target.zoneLow - currentPrice
+    : direction === "short"
+      ? currentPrice - target.zoneHigh
+      : 0;
+
+  return targetDistance > 0 ? round(targetDistance / stopDistance) : null;
+}
+
+function firstTradableTarget({
+  currentPrice,
+  direction,
+  minRewardRisk,
+  stopDistance,
+  targets,
+}: {
+  currentPrice: number;
+  direction: V3LocationDirection;
+  minRewardRisk: number;
+  stopDistance: number;
+  targets: KeyLevel[];
+}) {
+  const candidates = targets
+    .map((target) => ({
+      rewardRisk: targetRewardRisk({
+        currentPrice,
+        direction,
+        stopDistance,
+        target,
+      }),
+      target,
+    }))
+    .filter((item): item is { rewardRisk: number; target: KeyLevel } => item.rewardRisk !== null);
+
+  return candidates.find((item) => item.rewardRisk >= minRewardRisk)?.target
+    ?? candidates[0]?.target
+    ?? null;
+}
+
 function positionQuality(flags: V3LocationRiskFlag[]): V3PositionQuality {
   if (flags.includes("neutral_direction")) {
     return "NEUTRAL_DIRECTION";
@@ -78,7 +132,7 @@ function summaryFor(result: Omit<StrategyV3LocationRiskReward, "summary">) {
   }
 
   if (result.nearestTarget === null) {
-    return "v3 位置/RR：缺少前方目标位，只能观察，不能输出交易计划。";
+    return "v3 位置/RR：缺少可追溯的前方结构目标，只能观察，不能输出交易计划。";
   }
 
   if (result.rewardRisk === null) {
@@ -93,7 +147,7 @@ function summaryFor(result: Omit<StrategyV3LocationRiskReward, "summary">) {
     return `v3 位置/RR：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远，等待更好回踩/反抽。`;
   }
 
-  return `v3 位置/RR：结构止损清楚，最近目标支持 ${result.rewardRisk}:1，位置质量合格。`;
+  return `v3 位置/RR：结构止损清楚，前方结构目标支持 ${result.rewardRisk}:1，位置质量合格。`;
 }
 
 export function evaluateV3LocationRiskReward({
@@ -109,17 +163,14 @@ export function evaluateV3LocationRiskReward({
     riskFlags.push("neutral_direction");
   }
 
-  const support = supportsBelow(currentPrice, keyLevels)[0] ?? null;
-  const resistance = resistancesAbove(currentPrice, keyLevels)[0] ?? null;
+  const supports = supportsBelow(currentPrice, keyLevels);
+  const resistances = resistancesAbove(currentPrice, keyLevels);
+  const support = supports[0] ?? null;
+  const resistance = resistances[0] ?? null;
   const structuralStop = direction === "long"
     ? support?.zoneLow ?? null
     : direction === "short"
       ? resistance?.zoneHigh ?? null
-      : null;
-  const nearestTarget = direction === "long"
-    ? resistance?.zoneLow ?? null
-    : direction === "short"
-      ? support?.zoneHigh ?? null
       : null;
   const stopDistance = structuralStop === null
     ? 0
@@ -128,6 +179,28 @@ export function evaluateV3LocationRiskReward({
       : direction === "short"
         ? structuralStop - currentPrice
         : 0;
+  const target = direction === "long"
+    ? firstTradableTarget({
+      currentPrice,
+      direction,
+      minRewardRisk,
+      stopDistance,
+      targets: resistances,
+    })
+    : direction === "short"
+      ? firstTradableTarget({
+        currentPrice,
+        direction,
+        minRewardRisk,
+        stopDistance,
+        targets: supports,
+      })
+      : null;
+  const nearestTarget = direction === "long"
+    ? target?.zoneLow ?? null
+    : direction === "short"
+      ? target?.zoneHigh ?? null
+      : null;
   const targetDistance = nearestTarget === null
     ? 0
     : direction === "long"
@@ -177,7 +250,7 @@ export function evaluateV3LocationRiskReward({
     structuralStop: structuralStop === null ? null : roundPrice(structuralStop),
     targetDistance: roundPrice(Math.max(0, targetDistance)),
     targetDistancePercent,
-    targetLevelId: direction === "long" ? resistance?.id ?? null : support?.id ?? null,
+    targetLevelId: target?.id ?? null,
     stopLevelId: direction === "long" ? support?.id ?? null : resistance?.id ?? null,
   };
 
