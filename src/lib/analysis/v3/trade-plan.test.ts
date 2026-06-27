@@ -280,6 +280,10 @@ test("buildV3TradePlan keeps RR-qualified range-idle setups as conditional wait 
   assert.equal(plan.rewardRisk, 3.18);
   assert.ok(plan.blockedBy.includes("structure_confirmation_pending"));
   assert.match(plan.summary, /结构还未确认|等待/);
+  assert.match(plan.entryZone, /等待靠近压力后的承压确认|跌破后反抽不过/);
+  assert.match(plan.entryZone, /结构止损 112\.00/);
+  assert.match(plan.entryZone, /第一目标 92\.000000/);
+  assert.match(plan.entryZone, /RR 3\.180000:1/);
 });
 
 test("buildV3TradePlan never turns exhaustion risk into an opposite execution signal", () => {

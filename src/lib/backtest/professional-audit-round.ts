@@ -333,6 +333,7 @@ export type ProfessionalAuditRadarRankInput = {
   direction: "long" | "short";
   lateAtSelection: boolean;
   movePct: number;
+  nodeRole?: ProfessionalAuditRoundNodeRole;
   rangePositionPct: number;
   symbol: string;
   timeframeBand?: ProfessionalAuditRoundTimeframeBand;
@@ -617,6 +618,20 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
   const lowVolumeCompressionScore = !input.lateAtSelection && absMove <= 4 && input.volumeRatio < 1 && input.compressionPct <= 38
     ? nonExtremeLocationScore * 8 * horizonWeights.lowVolumeCompression
     : 0;
+  const roleScoreBonus = !input.lateAtSelection
+    ? input.nodeRole === "pre_move"
+      ? 18 + clamp((48 - input.compressionPct) / 48, 0, 1) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.45) * 8
+      : input.nodeRole === "early_volume_expansion"
+        ? 16 + controlledImpulseScore * 0.18
+        : input.nodeRole === "breakout_edge"
+          ? 14 + controlledBreakoutEdgeScore * 0.16
+          : input.nodeRole === "pullback_retest"
+            ? 10 + pullbackPositionScore * 10
+            : 0
+    : 0;
+  const roleRiskPenalty = input.nodeRole === "late_extension" || input.nodeRole === "fakeout_or_invalidation"
+    ? 18
+    : 0;
   const pullbackRetestBonus = pullbackPositionScore > 0
     ? pullbackPositionScore * 18 + moderateMoveScore
     : 0;
@@ -647,11 +662,13 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
     controlledImpulseScore +
     controlledBreakoutEdgeScore +
     lowVolumeCompressionScore +
+    roleScoreBonus +
     memeEarlyBonus -
     latePenalty -
     chasePenalty -
     extremeLocationPenalty -
-    memePenalty,
+    memePenalty -
+    roleRiskPenalty,
     4,
   );
 }
@@ -771,6 +788,19 @@ function roleScore(role: ProfessionalAuditRoundNodeRole, stats: NodeStats) {
     default:
       return 0;
   }
+}
+
+function inferProfessionalAuditNodeRole(stats: NodeStats): ProfessionalAuditRoundNodeRole {
+  const best = nodeRoles
+    .map((item) => item.role)
+    .filter((role) => role !== "large_context")
+    .map((role) => ({
+      role,
+      score: roleScore(role, stats),
+    }))
+    .sort((left, right) => right.score - left.score)[0];
+
+  return best?.role ?? "neutral_random";
 }
 
 export function selectProfessionalAuditNodeIndexes(
@@ -1017,6 +1047,8 @@ function buildCandidateAtNode({
   const currentCompressionPct = round(compressionPct(history));
   const currentRangePositionPct = round(rangePositionPct(history));
   const currentVolumeRatio = round(volumeRatio(history));
+  const currentStats = nodeStats(candles, index);
+  const currentNodeRole = nodeRole ?? (currentStats ? inferProfessionalAuditNodeRole(currentStats) : undefined);
   const lateAtSelection = isLateAtSelection(movePct, currentRangePositionPct, direction, moveThresholdPct);
   const radarScore = professionalAuditRadarScore({
     compressionPct: currentCompressionPct,
@@ -1024,6 +1056,7 @@ function buildCandidateAtNode({
     direction,
     lateAtSelection,
     movePct,
+    nodeRole: currentNodeRole,
     rangePositionPct: currentRangePositionPct,
     symbol,
     timeframeBand,
@@ -1034,7 +1067,7 @@ function buildCandidateAtNode({
     direction,
     lateAtSelection,
     movePct,
-    nodeRole,
+    nodeRole: currentNodeRole,
     rangePositionPct: currentRangePositionPct,
     timeframeBand,
     volumeRatio: currentVolumeRatio,
@@ -1055,13 +1088,14 @@ function buildCandidateAtNode({
     maePct: outcome.maePct,
     mfePct: outcome.mfePct,
     movePct,
-    nodeRole,
+    nodeRole: currentNodeRole,
     opportunityLane,
     opportunityLaneScore: opportunityLaneScore({
       compressionPct: currentCompressionPct,
       direction,
       lateAtSelection,
       movePct,
+      nodeRole: currentNodeRole,
       radarScore,
       rangePositionPct: currentRangePositionPct,
       rewardRisk: tradePlanRewardRisk(auditCase.signal),
@@ -1468,12 +1502,14 @@ function buildAnalysisCapabilityMetric({
   nodes: ProfessionalAuditRoundNode[];
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
 }): ProfessionalCoreCapabilityMetric {
+  void planBlockerMetrics;
   const selected = nodes.filter((node) => node.capturedByRadar);
   const useful = selected.filter((node) => node.hit && !node.lateAtSelection && node.opportunityLane !== "risk_review");
   const falsePositive = selected.filter((node) => !node.hit || node.lateAtSelection || node.opportunityLane === "risk_review");
-  const unclearCount = blockerCount(planBlockerMetrics, ["neutral_direction"]);
-  const structureBrokenCount = blockerCount(planBlockerMetrics, ["bear_structure_broken", "bull_structure_broken", "structure_invalidated"]);
-  const exhaustionCount = blockerCount(planBlockerMetrics, ["lower_wick_exhaustion", "upper_wick_exhaustion"]);
+  const selectedBlockerMetrics = buildPlanBlockerMetrics(selected);
+  const unclearCount = blockerCount(selectedBlockerMetrics, ["neutral_direction"]);
+  const structureBrokenCount = blockerCount(selectedBlockerMetrics, ["bear_structure_broken", "bull_structure_broken", "structure_invalidated"]);
+  const exhaustionCount = blockerCount(selectedBlockerMetrics, ["lower_wick_exhaustion", "upper_wick_exhaustion"]);
   const usefulRatePct = percent(useful.length, selected.length);
   const falsePositiveRatePct = percent(falsePositive.length, selected.length);
   const selectedLateRatePct = percent(selected.filter((node) => node.lateAtSelection).length, selected.length);
@@ -1513,7 +1549,7 @@ function buildAnalysisCapabilityMetric({
       detail: `方向不明确出现 ${unclearCount} 次，说明分析层经常不能判断多空或不该看。`,
       label: "方向判断不清",
       nextAction: "把中性、冲突、等待突破、等待回踩拆开，不要都压成方向不明确。",
-      sampleSymbols: blockerSamples(planBlockerMetrics, ["neutral_direction"]),
+      sampleSymbols: blockerSamples(selectedBlockerMetrics, ["neutral_direction"]),
     }));
   }
 
@@ -1524,7 +1560,7 @@ function buildAnalysisCapabilityMetric({
       detail: `结构破坏类卡点出现 ${structureBrokenCount} 次，需要确认是合理拦截还是结构门控过粗。`,
       label: "结构判断噪声偏高",
       nextAction: "抽样复查多周期结构、关键位和趋势完整度，区分真失效与等待确认。",
-      sampleSymbols: blockerSamples(planBlockerMetrics, ["bear_structure_broken", "bull_structure_broken", "structure_invalidated"]),
+      sampleSymbols: blockerSamples(selectedBlockerMetrics, ["bear_structure_broken", "bull_structure_broken", "structure_invalidated"]),
     }));
   }
 
@@ -1535,7 +1571,7 @@ function buildAnalysisCapabilityMetric({
       detail: `上/下影线衰竭类问题出现 ${exhaustionCount} 次，需要检查是否误杀启动前波动。`,
       label: "衰竭识别需复核",
       nextAction: "把衰竭信号和正常洗盘/回踩分开验证。",
-      sampleSymbols: blockerSamples(planBlockerMetrics, ["lower_wick_exhaustion", "upper_wick_exhaustion"]),
+      sampleSymbols: blockerSamples(selectedBlockerMetrics, ["lower_wick_exhaustion", "upper_wick_exhaustion"]),
     }));
   }
 
@@ -1566,6 +1602,17 @@ function buildAnalysisCapabilityMetric({
   };
 }
 
+function isConditionalStrategyPlan(node: ProfessionalAuditRoundNode) {
+  return (
+    node.tradePlanStatus === "WAIT_PULLBACK" ||
+    node.tradePlanStatus === "WAIT_RETEST"
+  ) &&
+    typeof node.rewardRisk === "number" &&
+    node.rewardRisk >= 3 &&
+    !node.lateAtSelection &&
+    node.opportunityLane !== "risk_review";
+}
+
 function buildStrategyCapabilityMetric({
   nodes,
   planBlockerMetrics,
@@ -1574,30 +1621,44 @@ function buildStrategyCapabilityMetric({
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
 }): ProfessionalCoreCapabilityMetric {
   const planReady = nodes.filter((node) => node.maturity === "TRADE_PLAN_READY");
+  const conditionalPlans = nodes.filter(isConditionalStrategyPlan);
   const rrQualified = nodes.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3);
   const usablePlans = planReady.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3 && node.hit && !node.lateAtSelection);
+  const usableConditionalPlans = conditionalPlans.filter((node) => node.hit);
+  const usableStrategyCount = usablePlans.length + usableConditionalPlans.length;
   const rrBelowCount = blockerCount(planBlockerMetrics, ["reward_risk_below_minimum", "reward_risk_unknown", "location_rr"]);
   const stopTargetIssueCount = blockerCount(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_wide"]);
   const pendingCount = blockerCount(planBlockerMetrics, ["reaction_not_confirmed", "structure_confirmation_pending"]);
   const planReadyRatePct = percent(planReady.length, nodes.length);
+  const conditionalPlanRatePct = percent(conditionalPlans.length, nodes.length);
   const rrQualifiedRatePct = percent(rrQualified.length, nodes.length);
   const usablePlanRatePct = percent(usablePlans.length, planReady.length);
-  const score = planReady.length === 0
-    ? 0
-    : round(
-      usablePlanRatePct * 0.45 +
-      rrQualifiedRatePct * 0.25 +
-      Math.max(0, 100 - percent(rrBelowCount + stopTargetIssueCount, Math.max(1, nodes.length))) * 0.30,
-    );
+  const usableStrategyRatePct = percent(usableStrategyCount, Math.max(1, planReady.length + conditionalPlans.length));
+  const planCoverageScore = Math.min(100, planReadyRatePct * 3 + conditionalPlanRatePct * 1.2);
+  const score = round(
+    usableStrategyRatePct * 0.35 +
+    rrQualifiedRatePct * 0.20 +
+    planCoverageScore * 0.20 +
+    Math.max(0, 100 - percent(rrBelowCount + stopTargetIssueCount, Math.max(1, nodes.length))) * 0.25,
+  );
   const failures: ProfessionalCoreCapabilityFailure[] = [];
 
-  if (planReady.length === 0) {
+  if (planReady.length === 0 && conditionalPlans.length === 0) {
     failures.push(failure({
       code: "strategy_no_ready_plan",
       count: nodes.length,
-      detail: "本轮没有任何 TRADE_PLAN_READY，策略能力无法证明可执行。",
+      detail: "本轮没有任何 TRADE_PLAN_READY，也没有 RR 合格的 WAIT_PULLBACK / WAIT_RETEST 条件计划，策略能力无法证明可执行。",
       label: "没有交易计划就绪样本",
       nextAction: "先判断是合理风控全部拦截，还是 RR/止损/目标/确认规则错杀。",
+    }));
+  } else if (planReady.length === 0) {
+    failures.push(failure({
+      code: "strategy_only_conditional_plan",
+      count: conditionalPlans.length,
+      detail: `本轮没有 TRADE_PLAN_READY，但有 ${conditionalPlans.length} 个 RR 合格的条件计划。它们只能说明“等什么”，不能冒充就绪信号。`,
+      label: "只有条件计划，没有就绪计划",
+      nextAction: "继续复查这些 WAIT_PULLBACK / WAIT_RETEST 是否给出了清晰触发、失效和复查条件。",
+      sampleSymbols: conditionalPlans.slice(0, 6).map((node) => node.symbol),
     }));
   }
 
@@ -1635,9 +1696,11 @@ function buildStrategyCapabilityMetric({
   }
 
   return {
-    failedNodes: Math.max(0, nodes.length - usablePlans.length),
+    failedNodes: Math.max(0, nodes.length - usableStrategyCount),
     id: "strategy",
     keyMetrics: {
+      conditionalPlanCount: conditionalPlans.length,
+      conditionalPlanRatePct,
       planReadyCount: planReady.length,
       planReadyRatePct,
       rrBelowCount,
@@ -1645,18 +1708,19 @@ function buildStrategyCapabilityMetric({
       rrQualifiedRatePct,
       stopTargetIssueCount,
       usablePlanRatePct,
+      usableStrategyRatePct,
     },
     label: "策略：计划可执行性",
     mainFailures: failures,
     nextAction: failures.length > 0
       ? "先重查 RR、止损、目标和等待条件，禁止为了提高计划数降低风控门槛。"
       : "继续用更多样本验证计划先到 TP/SL 的真实表现。",
-    passedNodes: usablePlans.length,
-    passRatePct: percent(usablePlans.length, nodes.length),
+    passedNodes: usableStrategyCount,
+    passRatePct: percent(usableStrategyCount, nodes.length),
     score,
-    status: capabilityStatus(score, planReady.length === 0),
+    status: capabilityStatus(score, planReady.length === 0 && conditionalPlans.length === 0),
     summary: failures.length > 0
-      ? "策略能力未达标：系统还不能稳定给出可执行、可验证、可失效的交易计划。"
+      ? "策略能力未达标：系统还不能稳定给出就绪计划；条件计划也必须继续验收触发和失效质量。"
       : "策略能力本轮通过基础门槛，但仍需连续多轮验证。",
     testedNodes: nodes.length,
   };

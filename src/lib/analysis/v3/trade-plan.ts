@@ -117,10 +117,13 @@ function basePlan({
   const structuralStop = location?.structuralStop ?? null;
   const target = location?.nearestTarget ?? null;
   const directionText = directionLabel(direction);
+  const riskMap = structuralStop !== null && target !== null
+    ? `结构止损 ${priceLabel(structuralStop)}，第一目标 ${priceLabel(target)}，RR ${priceLabel(location?.rewardRisk ?? null)}:1`
+    : "结构止损或目标仍待确认";
   const entryContext = direction === "long"
-    ? "等待支撑回踩承接仍有效后人工确认"
+    ? "等待靠近支撑后的承接确认，或突破后回踩不破再人工复核"
     : direction === "short"
-      ? "等待压力反抽承压仍有效后人工确认"
+      ? "等待靠近压力后的承压确认，或跌破后反抽不过再人工复核"
       : "等待方向明确";
 
   return {
@@ -135,7 +138,7 @@ function basePlan({
       "趋势完整度保持健康",
     ],
     direction,
-    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}。`,
+    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。`,
     hasAutoExecution: false,
     invalidation: `结构失效：${priceLabel(structuralStop)} 被有效跌破/收复后计划作废。`,
     isPlanEligible,

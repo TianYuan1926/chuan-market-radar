@@ -169,6 +169,40 @@ test("professionalAuditRadarScore promotes quiet accumulation before the move", 
   );
 });
 
+test("professionalAuditRadarScore promotes inferred pre-move roles without promoting fakeout or late roles", () => {
+  const baseInput = {
+    compressionPct: 30,
+    confidence: 61,
+    direction: "long" as const,
+    lateAtSelection: false,
+    movePct: 1.8,
+    rangePositionPct: 43,
+    symbol: "PYTHUSDT",
+    volumeRatio: 0.86,
+  };
+  const preMove = professionalAuditRadarScore({
+    ...baseInput,
+    nodeRole: "pre_move",
+  });
+  const neutral = professionalAuditRadarScore({
+    ...baseInput,
+    nodeRole: "neutral_random",
+  });
+  const fakeout = professionalAuditRadarScore({
+    ...baseInput,
+    nodeRole: "fakeout_or_invalidation",
+  });
+
+  assert.ok(
+    preMove > neutral + 18,
+    `expected pre-move role score ${preMove} to clearly beat neutral ${neutral}`,
+  );
+  assert.ok(
+    preMove > fakeout + 35,
+    `expected pre-move role score ${preMove} to clearly beat fakeout ${fakeout}`,
+  );
+});
+
 test("professionalAuditRadarScore rewards controlled volume impulse without chasing", () => {
   const controlledImpulse = professionalAuditRadarScore({
     compressionPct: 46,
