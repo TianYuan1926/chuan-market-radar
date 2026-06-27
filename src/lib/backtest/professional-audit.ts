@@ -198,6 +198,20 @@ function directionFromCandles(candles: Candle[]): SignalDirection {
   }
 
   const change = percentChange(recent[0].close, latest(recent)?.close ?? recent[0].close);
+  const range = rangeStats(tail(candles, Math.min(96, candles.length)));
+  const current = latest(recent);
+  const upperWick = current ? Math.max(0, current.high - Math.max(current.open, current.close)) : 0;
+  const lowerWick = current ? Math.max(0, Math.min(current.open, current.close) - current.low) : 0;
+  const rejectionFromHigh = range.closePosition >= 82 && (change < 3 || upperWick > lowerWick * 1.35);
+  const rejectionFromLow = range.closePosition <= 18 && (change > -3 || lowerWick > upperWick * 1.35);
+
+  if (rejectionFromHigh) {
+    return "short";
+  }
+
+  if (rejectionFromLow) {
+    return "long";
+  }
 
   if (change <= -1.2) {
     return "short";
@@ -207,9 +221,15 @@ function directionFromCandles(candles: Candle[]): SignalDirection {
     return "long";
   }
 
-  const position = rangeStats(tail(candles, Math.min(96, candles.length))).closePosition;
+  if (range.closePosition <= 34) {
+    return "long";
+  }
 
-  return position >= 50 ? "long" : "short";
+  if (range.closePosition >= 66) {
+    return "short";
+  }
+
+  return "neutral";
 }
 
 function structureLocationFor(direction: SignalDirection, closePosition: number): StructureLocation {

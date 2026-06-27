@@ -54,11 +54,14 @@ export type ProfessionalReplayLaneMetric = {
   avgMoveAtSelectionPct: number;
   avgVolumeRatio: number;
   count: number;
+  earlyHitCount: number;
+  earlyHitRatePct: number;
   hitCount: number;
   hitRatePct: number;
   lane: ProfessionalReplayLaneName;
   lateCount: number;
   lateRatePct: number;
+  qualityScore: number;
 };
 
 export type ProfessionalReplayTimingMetrics = {
@@ -442,11 +445,14 @@ function emptyLaneMetric(lane: ProfessionalReplayLaneName): ProfessionalReplayLa
     avgMoveAtSelectionPct: 0,
     avgVolumeRatio: 0,
     count: 0,
+    earlyHitCount: 0,
+    earlyHitRatePct: 0,
     hitCount: 0,
     hitRatePct: 0,
     lane,
     lateCount: 0,
     lateRatePct: 0,
+    qualityScore: 0,
   };
 }
 
@@ -457,19 +463,38 @@ function summarizeLane(lane: ProfessionalReplayLaneName, selections: Professiona
 
   const hitCount = selections.filter((item) => item.hit).length;
   const lateCount = selections.filter((item) => item.lateAtSelection).length;
+  const earlySelections = selections.filter((item) => !item.lateAtSelection);
+  const earlyHitCount = earlySelections.filter((item) => item.hit).length;
+  const hitRatePct = roundNumber((hitCount / selections.length) * 100);
+  const lateRatePct = roundNumber((lateCount / selections.length) * 100);
+  const earlyHitRatePct = earlySelections.length > 0 ? roundNumber((earlyHitCount / earlySelections.length) * 100) : 0;
+  const avgMfePct = roundNumber(mean(selections.map((item) => item.mfePct)));
+  const avgMaePct = roundNumber(mean(selections.map((item) => item.maePct)));
+  const avgMoveAtSelectionPct = roundNumber(mean(selections.map((item) => item.movePct)));
+  const qualityScore = roundNumber(
+    hitRatePct +
+    earlyHitRatePct * 0.7 +
+    avgMfePct * 0.35 -
+    avgMaePct * 0.45 -
+    lateRatePct * 0.35 -
+    avgMoveAtSelectionPct * 0.15,
+  );
 
   return {
     avgConfidence: roundNumber(mean(selections.map((item) => item.confidence))),
-    avgMaePct: roundNumber(mean(selections.map((item) => item.maePct))),
-    avgMfePct: roundNumber(mean(selections.map((item) => item.mfePct))),
-    avgMoveAtSelectionPct: roundNumber(mean(selections.map((item) => item.movePct))),
+    avgMaePct,
+    avgMfePct,
+    avgMoveAtSelectionPct,
     avgVolumeRatio: roundNumber(mean(selections.map((item) => item.volumeRatio))),
     count: selections.length,
+    earlyHitCount,
+    earlyHitRatePct,
     hitCount,
-    hitRatePct: roundNumber((hitCount / selections.length) * 100),
+    hitRatePct,
     lane,
     lateCount,
-    lateRatePct: roundNumber((lateCount / selections.length) * 100),
+    lateRatePct,
+    qualityScore,
   };
 }
 
@@ -536,9 +561,21 @@ function buildAggregateFindings({
     }));
   }
 
-  if (radar.count > 0 && random.count > 0 && radar.hitRatePct <= random.hitRatePct) {
+  if (radar.count > 0 && radar.hitRatePct < 8) {
     findings.push(aggregateFinding({
-      detail: `radar=${radar.hitRatePct}% random=${random.hitRatePct}%。这说明当前雷达暂时没有证明自己比随机选币更强。`,
+      detail: `radar 原始命中率 ${radar.hitRatePct}%，提前命中率 ${radar.earlyHitRatePct}%，质量分 ${radar.qualityScore}。这说明系统虽然可能更早、更少追涨，但绝对捕捉强度仍不足。`,
+      id: "PBA-SCAN-HIT-001",
+      layer: "scan",
+      nextAction: "强化量能刚启动、主动买卖压力、关键位靠近和相对强弱特征。",
+      rootCause: "当前雷达排序对后续可观波动的识别强度不足。",
+      severity: "high",
+      title: "雷达绝对命中率不足",
+    }));
+  }
+
+  if (radar.count > 0 && random.count > 0 && radar.qualityScore <= random.qualityScore) {
+    findings.push(aggregateFinding({
+      detail: `radar 质量分=${radar.qualityScore}，random 质量分=${random.qualityScore}。这说明当前雷达暂时没有证明自己比随机选币更强。`,
       id: "PBA-SCAN-BASELINE-001",
       layer: "scan",
       nextAction: "优先检查候选排序、提前性特征、过度追涨拦截和深扫晋级规则。",
@@ -548,9 +585,9 @@ function buildAggregateFindings({
     }));
   }
 
-  if (radar.count > 0 && momentum.count > 0 && radar.hitRatePct <= momentum.hitRatePct) {
+  if (radar.count > 0 && momentum.count > 0 && radar.qualityScore <= momentum.qualityScore) {
     findings.push(aggregateFinding({
-      detail: `radar=${radar.hitRatePct}% momentum=${momentum.hitRatePct}%。如果长期如此，系统更像追涨榜过滤器，不是提前发现雷达。`,
+      detail: `radar 质量分=${radar.qualityScore}，momentum 质量分=${momentum.qualityScore}。如果长期如此，系统更像追涨榜过滤器，不是提前发现雷达。`,
       id: "PBA-SCAN-BASELINE-002",
       layer: "scan",
       nextAction: "提高压缩、量能启动、相对强弱和低位关键位权重，降低已大涨大跌样本排序权重。",
@@ -592,7 +629,7 @@ function aggregateRemediations(findings: ProfessionalAuditFinding[]) {
 
   if (findings.some((item) => item.id.startsWith("PBA-SCAN-BASELINE"))) {
     remediations.push({
-      acceptanceCriteria: "同一批样本重跑时，radar lane 的命中率必须高于 random，并持续追踪是否高于 momentum。",
+      acceptanceCriteria: "同一批样本重跑时，radar lane 的质量分必须高于 random，并持续追踪原始命中率、提前命中率和是否高于 momentum。",
       action: "重整候选排序和提前性特征，把压缩、量能累积、相对强弱、低位关键位加入优先级审计。",
       canAutoApply: false,
       layer: "scan",

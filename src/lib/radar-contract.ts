@@ -1209,11 +1209,14 @@ export type HistoricalBacktestAuditV2LaneMetric = {
   avgMoveAtSelectionPct: number
   avgVolumeRatio: number
   count: number
+  earlyHitCount: number
+  earlyHitRatePct: number
   hitCount: number
   hitRatePct: number
   lane: 'momentum' | 'radar' | 'random' | 'volume'
   lateCount: number
   lateRatePct: number
+  qualityScore: number
 }
 
 export type HistoricalBacktestAuditV2TimingMetrics = {

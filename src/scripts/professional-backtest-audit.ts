@@ -871,14 +871,14 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     "",
     "## 基线对比",
     "",
-    "| 通道 | 样本 | 命中率 | 迟到率 | 平均 MFE | 平均 MAE | 入选时已波动 | 成交量倍数 |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|",
+    "| 通道 | 样本 | 命中率 | 提前命中率 | 迟到率 | 质量分 | 平均 MFE | 平均 MAE | 入选时已波动 | 成交量倍数 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
 
   for (const lane of ["radar", "momentum", "volume", "random"] as const) {
     const metric = report.baselineMetrics[lane];
 
-    lines.push(`| ${laneLabel[lane]} | ${metric.count} | ${metric.hitRatePct}% | ${metric.lateRatePct}% | ${metric.avgMfePct}% | ${metric.avgMaePct}% | ${metric.avgMoveAtSelectionPct}% | ${metric.avgVolumeRatio}x |`);
+    lines.push(`| ${laneLabel[lane]} | ${metric.count} | ${metric.hitRatePct}% | ${metric.earlyHitRatePct}% | ${metric.lateRatePct}% | ${metric.qualityScore} | ${metric.avgMfePct}% | ${metric.avgMaePct}% | ${metric.avgMoveAtSelectionPct}% | ${metric.avgVolumeRatio}x |`);
   }
 
   lines.push(

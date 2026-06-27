@@ -1044,11 +1044,14 @@ function emptyLaneMetric(lane: ProfessionalReplayLaneName): ProfessionalReplayLa
     avgMoveAtSelectionPct: 0,
     avgVolumeRatio: 0,
     count: 0,
+    earlyHitCount: 0,
+    earlyHitRatePct: 0,
     hitCount: 0,
     hitRatePct: 0,
     lane,
     lateCount: 0,
     lateRatePct: 0,
+    qualityScore: 0,
   };
 }
 
@@ -1059,19 +1062,38 @@ function summarizeLane(lane: ProfessionalReplayLaneName, selections: CandidateAt
 
   const hitCount = selections.filter((item) => item.hit).length;
   const lateCount = selections.filter((item) => item.lateAtSelection).length;
+  const earlySelections = selections.filter((item) => !item.lateAtSelection);
+  const earlyHitCount = earlySelections.filter((item) => item.hit).length;
+  const hitRatePct = round((hitCount / selections.length) * 100);
+  const lateRatePct = round((lateCount / selections.length) * 100);
+  const earlyHitRatePct = earlySelections.length > 0 ? round((earlyHitCount / earlySelections.length) * 100) : 0;
+  const avgMfePct = round(mean(selections.map((item) => item.mfePct)));
+  const avgMaePct = round(mean(selections.map((item) => item.maePct)));
+  const avgMoveAtSelectionPct = round(mean(selections.map((item) => Math.abs(item.movePct))));
+  const qualityScore = round(
+    hitRatePct +
+    earlyHitRatePct * 0.7 +
+    avgMfePct * 0.35 -
+    avgMaePct * 0.45 -
+    lateRatePct * 0.35 -
+    avgMoveAtSelectionPct * 0.15,
+  );
 
   return {
     avgConfidence: round(mean(selections.map((item) => item.auditCase.signal.confidence))),
-    avgMaePct: round(mean(selections.map((item) => item.maePct))),
-    avgMfePct: round(mean(selections.map((item) => item.mfePct))),
-    avgMoveAtSelectionPct: round(mean(selections.map((item) => Math.abs(item.movePct)))),
+    avgMaePct,
+    avgMfePct,
+    avgMoveAtSelectionPct,
     avgVolumeRatio: round(mean(selections.map((item) => item.volumeRatio))),
     count: selections.length,
+    earlyHitCount,
+    earlyHitRatePct,
     hitCount,
-    hitRatePct: round((hitCount / selections.length) * 100),
+    hitRatePct,
     lane,
     lateCount,
-    lateRatePct: round((lateCount / selections.length) * 100),
+    lateRatePct,
+    qualityScore,
   };
 }
 
@@ -1385,9 +1407,21 @@ function aggregateFindings({
     }));
   }
 
-  if (radar.count > 0 && random.count > 0 && radar.hitRatePct <= random.hitRatePct) {
+  if (radar.count > 0 && radar.hitRatePct < 8) {
     findings.push(aggregateFinding({
-      detail: `radar=${radar.hitRatePct}% random=${random.hitRatePct}%。系统没有证明比随机更强。`,
+      detail: `radar 原始命中率 ${radar.hitRatePct}%，提前命中率 ${radar.earlyHitRatePct}%，质量分 ${radar.qualityScore}。这说明系统虽然可能更早、更少追涨，但绝对捕捉强度仍不足。`,
+      id: "PBA-SCAN-ROUND-HIT-001",
+      layer: "scan",
+      nextAction: "继续强化量能刚启动、主动买卖压力、关键位靠近和相对强弱特征；下一轮重点看质量分和提前命中率是否同步提升。",
+      rootCause: "当前雷达排序对后续可观波动的识别强度不足。",
+      severity: "high",
+      title: "10x10 审计雷达绝对命中率不足",
+    }));
+  }
+
+  if (radar.count > 0 && random.count > 0 && radar.qualityScore <= random.qualityScore) {
+    findings.push(aggregateFinding({
+      detail: `radar 质量分=${radar.qualityScore}，random 质量分=${random.qualityScore}；radar 命中率=${radar.hitRatePct}%，提前命中率=${radar.earlyHitRatePct}%，迟到率=${radar.lateRatePct}%。系统没有证明比随机更强。`,
       id: "PBA-SCAN-ROUND-BASELINE-001",
       layer: "scan",
       nextAction: "先修候选排序和提前性特征，再扩大测试样本。",
@@ -1395,17 +1429,37 @@ function aggregateFindings({
       severity: "high",
       title: "10x10 审计未跑赢随机基线",
     }));
+  } else if (radar.count > 0 && random.count > 0 && radar.hitRatePct <= random.hitRatePct) {
+    findings.push(aggregateFinding({
+      detail: `radar 原始命中率 ${radar.hitRatePct}% 低于 random ${random.hitRatePct}%，但质量分 ${radar.qualityScore} 高于 random ${random.qualityScore}，说明雷达更早/更少追涨；仍需提高绝对命中率。`,
+      id: "PBA-SCAN-ROUND-BASELINE-001A",
+      layer: "scan",
+      nextAction: "保留提前性优势，同时提高量能/结构确认强度，避免只做到“早但不够准”。",
+      rootCause: "提前性约束降低了追涨命中，但有效波动捕捉还不够。",
+      severity: "medium",
+      title: "10x10 审计原始命中率低于随机但提前质量较好",
+    }));
   }
 
-  if (radar.count > 0 && momentum.count > 0 && radar.hitRatePct <= momentum.hitRatePct) {
+  if (radar.count > 0 && momentum.count > 0 && radar.qualityScore <= momentum.qualityScore) {
     findings.push(aggregateFinding({
-      detail: `radar=${radar.hitRatePct}% momentum=${momentum.hitRatePct}%。系统更像追涨过滤器，而不是提前发现雷达。`,
+      detail: `radar 质量分=${radar.qualityScore}，momentum 质量分=${momentum.qualityScore}；momentum 迟到率=${momentum.lateRatePct}%。如果雷达质量分也输给动量，系统没有证明自己能提前过滤追涨噪声。`,
       id: "PBA-SCAN-ROUND-BASELINE-002",
       layer: "scan",
       nextAction: "复查波动压缩、相对强弱、启动前量能和关键位靠近程度的权重。",
       rootCause: "提前发现特征没有跑赢简单动量榜。",
       severity: "medium",
       title: "10x10 审计未跑赢动量基线",
+    }));
+  } else if (radar.count > 0 && momentum.count > 0 && radar.hitRatePct <= momentum.hitRatePct) {
+    findings.push(aggregateFinding({
+      detail: `momentum 原始命中率 ${momentum.hitRatePct}% 高于 radar ${radar.hitRatePct}%，但 momentum 迟到率 ${momentum.lateRatePct}%，radar 质量分 ${radar.qualityScore}。该结果说明动量更会追已发生行情，不能直接证明雷达失败。`,
+      id: "PBA-SCAN-ROUND-BASELINE-002A",
+      layer: "scan",
+      nextAction: "继续把动量强但迟到的样本归为复盘教材，把雷达优化重点放在提前命中率和低回撤上。",
+      rootCause: "动量基线包含大量晚到样本，原始命中率不等于可交易优势。",
+      severity: "low",
+      title: "10x10 审计原始命中率低于动量但需按提前质量解释",
     }));
   }
 
@@ -1414,6 +1468,17 @@ function aggregateFindings({
 
 function aggregateRemediations(findings: ProfessionalAuditFinding[]): ProfessionalAuditRemediation[] {
   const remediations: ProfessionalAuditRemediation[] = [];
+
+  if (findings.some((item) => item.id === "PBA-SCAN-ROUND-HIT-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮同样 10x10 样本 radar 质量分高于 random，且原始命中率、提前命中率至少有一项改善。",
+      action: "强化量能刚启动、主动买卖代理、关键位靠近和相对强弱特征；继续保留追涨/追空拦截。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P0",
+      targetModule: "professional audit radar quality scoring",
+    });
+  }
 
   if (findings.some((item) => item.id === "PBA-SCAN-ROUND-001")) {
     remediations.push({
@@ -1434,6 +1499,17 @@ function aggregateRemediations(findings: ProfessionalAuditFinding[]): Profession
       layer: "data",
       priority: "P0",
       targetModule: "professional audit round candidate universe",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-SCAN-ROUND-BASELINE-001" || item.id === "PBA-SCAN-ROUND-BASELINE-001A")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮报告同时展示原始命中率、提前命中率、迟到率和质量分；radar 质量分必须高于 random。",
+      action: "用质量分替代单一命中率做基线判断，避免把追涨随机样本误判为更优。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P0",
+      targetModule: "professional audit baseline comparison",
     });
   }
 

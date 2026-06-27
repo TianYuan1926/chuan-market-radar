@@ -172,11 +172,14 @@ function normalizeAuditV2LaneMetric(
     avgMoveAtSelectionPct: numericValue(item.avgMoveAtSelectionPct),
     avgVolumeRatio: numericValue(item.avgVolumeRatio),
     count: numericValue(item.count),
+    earlyHitCount: numericValue(item.earlyHitCount),
+    earlyHitRatePct: numericValue(item.earlyHitRatePct),
     hitCount: numericValue(item.hitCount),
     hitRatePct: numericValue(item.hitRatePct),
     lane,
     lateCount: numericValue(item.lateCount),
     lateRatePct: numericValue(item.lateRatePct),
+    qualityScore: numericValue(item.qualityScore),
   };
 }
 
@@ -541,6 +544,9 @@ function buildSummary(state: HistoricalBacktestState) {
   const radar = state.lanes.radar;
   const momentum = state.lanes.momentum;
   const random = state.lanes.random;
+  const auditRadar = state.auditV2?.baselineMetrics.radar;
+  const auditMomentum = state.auditV2?.baselineMetrics.momentum;
+  const auditRandom = state.auditV2?.baselineMetrics.random;
 
   if (radar.count === 0) {
     return "历史回测报告没有有效雷达样本，不能判断筛选能力。";
@@ -548,6 +554,18 @@ function buildSummary(state: HistoricalBacktestState) {
 
   if (state.findings.some((finding) => finding.severity === "high")) {
     return "历史回测发现高优先级问题：当前扫描评分还不能证明有稳定筛选优势。";
+  }
+
+  if (auditRadar && auditMomentum && auditRandom) {
+    if (auditRadar.qualityScore <= auditMomentum.qualityScore) {
+      return `雷达质量分 ${auditRadar.qualityScore} 未跑赢 24h 涨跌幅基线 ${auditMomentum.qualityScore}，说明提前发现评分仍需继续打磨。`;
+    }
+
+    if (auditRadar.qualityScore <= auditRandom.qualityScore) {
+      return `雷达质量分 ${auditRadar.qualityScore} 未跑赢随机基线 ${auditRandom.qualityScore}，当前不能作为实战筛选优势证明。`;
+    }
+
+    return `雷达质量分 ${auditRadar.qualityScore}，提前命中率 ${auditRadar.earlyHitRatePct}%，偏晚率 ${auditRadar.lateRatePct}%，本轮回放暂时优于随机基线，但仍需扩大样本继续验证。`;
   }
 
   if (radar.hitRatePct <= momentum.hitRatePct) {

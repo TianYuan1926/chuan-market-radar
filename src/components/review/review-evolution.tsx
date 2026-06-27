@@ -329,8 +329,15 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               const momentum = data.lanes.momentum
               const random = data.lanes.random
               const volume = data.lanes.volume
-              const beatMomentum = radar.hitRatePct > momentum.hitRatePct
-              const beatRandom = radar.hitRatePct > random.hitRatePct
+              const auditRadar = data.auditV2?.baselineMetrics.radar
+              const auditMomentum = data.auditV2?.baselineMetrics.momentum
+              const auditRandom = data.auditV2?.baselineMetrics.random
+              const beatMomentum = auditRadar && auditMomentum
+                ? auditRadar.qualityScore > auditMomentum.qualityScore
+                : radar.hitRatePct > momentum.hitRatePct
+              const beatRandom = auditRadar && auditRandom
+                ? auditRadar.qualityScore > auditRandom.qualityScore
+                : radar.hitRatePct > random.hitRatePct
 
               return (
                 <div className="space-y-4">
@@ -620,9 +627,9 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           return (
                             <div key={lane} className="border border-border bg-background/40 p-2">
                               <div className="text-[10px] text-muted-foreground">{backtestLaneLabels[lane]}</div>
-                              <div className="mt-1 text-sm font-semibold">{metric.hitRatePct}% 命中</div>
+                              <div className="mt-1 text-sm font-semibold">质量分 {metric.qualityScore}</div>
                               <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                                样本 {metric.count} · 迟到 {metric.lateRatePct}% · 入选已波动 {metric.avgMoveAtSelectionPct}%
+                                命中 {metric.hitRatePct}% · 提前命中 {metric.earlyHitRatePct}% · 迟到 {metric.lateRatePct}% · 入选已波动 {metric.avgMoveAtSelectionPct}%
                               </div>
                             </div>
                           )
