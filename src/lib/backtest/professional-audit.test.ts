@@ -69,6 +69,26 @@ test("professional audit marks derivatives as tested only when historical deriva
   assert.equal(caseResult.findings.some((item) => item.id === "PBA-DERIVATIVES-001"), false);
 });
 
+test("professional audit treats partial historical derivatives as partial, not missing", () => {
+  const caseResult = buildProfessionalBacktestAuditCase({
+    candlesByTimeframe: {
+      "15m": series(140, 1, 0.001),
+      "1h": series(80, 0.95, 0.002),
+      "4h": series(60, 0.9, 0.003),
+    },
+    derivatives: {
+      fundingRateZScore: 0.4,
+      source: "public_exchange",
+      status: "partial",
+    },
+    observedAt: "2026-01-02T00:00:00.000Z",
+    symbol: "PARTIALUSDT",
+  });
+
+  assert.ok(caseResult.capabilities.some((item) => item.layer === "derivatives" && item.status === "partial"));
+  assert.equal(caseResult.findings.some((item) => item.id === "PBA-DERIVATIVES-001"), false);
+});
+
 test("short outcome uses entry as denominator for MFE and MAE", () => {
   const signalCase = buildProfessionalBacktestAuditCase({
     candlesByTimeframe: {

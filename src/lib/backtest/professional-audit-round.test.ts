@@ -5,8 +5,32 @@ import {
   professionalAuditPlanBlockerLabel,
   professionalAuditRadarScore,
   resolveProfessionalAuditHorizonBarsByBand,
+  selectProfessionalAuditNodeIndexes,
   selectProfessionalAuditOpportunityCandidates,
 } from "./professional-audit-round";
+import type { Candle } from "../market/ohlcv/types";
+
+function candle(index: number, close: number, volume = 100): Candle {
+  const time = Date.UTC(2026, 0, 1, 0, index * 15);
+
+  return {
+    close,
+    closeTime: new Date(time + 15 * 60_000 - 1).toISOString(),
+    high: close * 1.01,
+    low: close * 0.99,
+    open: close * 0.998,
+    openTime: new Date(time).toISOString(),
+    volume,
+  };
+}
+
+function sidewaysSeries(count: number) {
+  return Array.from({ length: count }, (_, index) => {
+    const wave = Math.sin(index / 9) * 0.015;
+
+    return candle(index, 1 + wave, 100 + Math.cos(index / 5) * 12);
+  });
+}
 
 test("resolveProfessionalAuditHorizonBarsByBand keeps small medium large validation windows distinct", () => {
   assert.deepEqual(resolveProfessionalAuditHorizonBarsByBand(), {
@@ -171,10 +195,33 @@ test("professionalAuditRadarScore rewards controlled volume impulse without chas
 test("professionalAuditOpportunityQuotas reserves Top10 slots for early pullback and higher timeframe lanes", () => {
   assert.deepEqual(professionalAuditOpportunityQuotas(10), {
     early_setup: 4,
-    higher_timeframe_context: 2,
-    pullback_retest: 4,
+    higher_timeframe_context: 3,
+    pullback_retest: 3,
     risk_review: 0,
   });
+});
+
+test("selectProfessionalAuditNodeIndexes does not let future horizon candles change scan points", () => {
+  const candles = sidewaysSeries(260);
+  const alteredFuture = candles.map((item, index) =>
+    index >= candles.length - 16
+      ? {
+        ...item,
+        close: item.close * 1.8,
+        high: item.high * 2.2,
+        low: item.low * 0.7,
+        volume: item.volume * 12,
+      }
+      : item
+  );
+  const horizons = resolveProfessionalAuditHorizonBarsByBand();
+  const original = selectProfessionalAuditNodeIndexes(candles, 10, horizons);
+  const altered = selectProfessionalAuditNodeIndexes(alteredFuture, 10, horizons);
+
+  assert.deepEqual(
+    altered.map((item) => ({ band: item.band, index: item.index, role: item.role })),
+    original.map((item) => ({ band: item.band, index: item.index, role: item.role })),
+  );
 });
 
 test("selectProfessionalAuditOpportunityCandidates excludes risk review from actionable top slots", () => {

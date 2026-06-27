@@ -151,8 +151,6 @@ type CandidateAtNode = {
 
 type NodeStats = {
   compressionPct: number;
-  futureMovePct: number;
-  futureVolatilityPct: number;
   index: number;
   priorMovePct: number;
   rangePositionPct: number;
@@ -416,15 +414,20 @@ function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput &
   const lane = classifyProfessionalAuditOpportunityLane(input);
 
   if (lane === "early_setup") {
-    return round(input.radarScore + (100 - input.compressionPct) * 0.32 + bandScore(input.volumeRatio, 0.65, 1.35, 2.5) * 10 - absMove * 1.2, 4);
+    const lowVolumeCompressionBonus = input.compressionPct <= 42 && input.volumeRatio <= 1.05
+      ? bandScore(input.volumeRatio, 0.35, 0.82, 1.15) * 16
+      : 0;
+    const controlledLocationBonus = nonExtremeLocationScore * 10;
+
+    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus - absMove * 0.9, 4);
   }
 
   if (lane === "pullback_retest") {
-    return round(input.radarScore + nonExtremeLocationScore * 14 + bandScore(absMove, 1.5, 4.5, 8.5) * 8, 4);
+    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8, 4);
   }
 
   if (lane === "higher_timeframe_context") {
-    return round(input.radarScore + (100 - input.compressionPct) * 0.16 + nonExtremeLocationScore * 8, 4);
+    return round(input.radarScore + (100 - input.compressionPct) * 0.28 + nonExtremeLocationScore * 16 + bandScore(absMove, 0, 1.8, 6.5) * 8, 4);
   }
 
   return round(input.radarScore - 80, 4);
@@ -443,7 +446,7 @@ export function professionalAuditOpportunityQuotas(topN: number): Record<Profess
   }
 
   const early = Math.max(1, Math.floor(normalized * 0.4));
-  const pullback = Math.max(1, Math.floor(normalized * 0.4));
+  const pullback = Math.max(1, Math.floor(normalized * 0.3));
   const higher = Math.max(0, normalized - early - pullback);
 
   return {
@@ -677,30 +680,7 @@ function priorMovePct(history: Candle[]) {
   return percentChange(past.close, current.close);
 }
 
-function futureStats(entry: number, future: Candle[]) {
-  if (entry <= 0 || future.length === 0) {
-    return {
-      futureMovePct: 0,
-      futureVolatilityPct: 0,
-      maxDownPct: 0,
-      maxUpPct: 0,
-    };
-  }
-
-  const futureHigh = Math.max(...future.map((candle) => candle.high));
-  const futureLow = Math.min(...future.map((candle) => candle.low));
-  const maxUpPct = percentChange(entry, futureHigh);
-  const maxDownPct = percentChange(futureLow, entry);
-
-  return {
-    futureMovePct: Math.max(maxUpPct, maxDownPct),
-    futureVolatilityPct: maxUpPct + maxDownPct,
-    maxDownPct,
-    maxUpPct,
-  };
-}
-
-function nodeStats(candles: Candle[], index: number, horizonBars: number): NodeStats | null {
+function nodeStats(candles: Candle[], index: number): NodeStats | null {
   const observed = candles[index];
 
   if (!observed) {
@@ -708,18 +688,13 @@ function nodeStats(candles: Candle[], index: number, horizonBars: number): NodeS
   }
 
   const history = candles.slice(0, index + 1);
-  const futureCandles = candles.slice(index + 1, index + 1 + horizonBars);
 
-  if (history.length < 96 || futureCandles.length === 0) {
+  if (history.length < 96) {
     return null;
   }
 
-  const future = futureStats(observed.close, futureCandles);
-
   return {
     compressionPct: round(compressionPct(history)),
-    futureMovePct: round(future.futureMovePct),
-    futureVolatilityPct: round(future.futureVolatilityPct),
     index,
     priorMovePct: round(priorMovePct(history)),
     rangePositionPct: round(rangePositionPct(history)),
@@ -729,36 +704,40 @@ function nodeStats(candles: Candle[], index: number, horizonBars: number): NodeS
 
 function roleScore(role: ProfessionalAuditRoundNodeRole, stats: NodeStats) {
   const priorAbs = Math.abs(stats.priorMovePct);
-  const future = stats.futureMovePct;
   const edge = Math.abs(stats.rangePositionPct - 50);
+  const compressionTightness = 100 - stats.compressionPct;
+  const controlledMoveScore = bandScore(priorAbs, 0.5, 3.5, 8.5) * 20;
+  const quietVolumeScore = bandScore(stats.volumeRatio, 0.55, 1.05, 1.8) * 18;
+  const activeVolumeScore = bandScore(stats.volumeRatio, 1.05, 1.8, 4.5) * 18;
+  const middleLocationScore = bandScore(stats.rangePositionPct, 22, 50, 78) * 18;
 
   switch (role) {
     case "pre_move":
-      return future * 4 - priorAbs * 3 + (100 - stats.compressionPct) * 0.4;
+      return compressionTightness * 0.55 + quietVolumeScore + middleLocationScore - priorAbs * 1.2;
     case "early_volume_expansion":
-      return future * 3 + stats.volumeRatio * 8 - priorAbs * 2;
+      return activeVolumeScore + compressionTightness * 0.35 + controlledMoveScore - Math.max(0, priorAbs - 7) * 2;
     case "breakout_edge":
-      return edge * 1.5 + future * 2 - Math.max(0, priorAbs - 8) * 2;
+      return edge * 1.5 + activeVolumeScore + compressionTightness * 0.18 - Math.max(0, priorAbs - 8) * 2;
     case "pullback_retest":
-      return future * 2 - Math.abs(edge - 20) - Math.max(0, priorAbs - 12);
+      return controlledMoveScore + quietVolumeScore * 0.6 - Math.abs(edge - 18) - Math.max(0, priorAbs - 10);
     case "trend_acceleration":
-      return future * 2 + priorAbs + stats.volumeRatio * 4;
+      return controlledMoveScore + activeVolumeScore + priorAbs * 0.6 - Math.max(0, priorAbs - 10) * 2;
     case "late_extension":
-      return priorAbs * 3 + edge - future;
+      return priorAbs * 3 + edge + Math.max(0, stats.volumeRatio - 1.4) * 8;
     case "fakeout_or_invalidation":
-      return stats.futureVolatilityPct * 2 + edge - Math.min(future, 20);
+      return edge * 1.4 + Math.max(0, stats.compressionPct - 62) * 0.6 + Math.max(0, stats.volumeRatio - 2.5) * 8;
     case "neutral_random":
-      return 30 - future - priorAbs - stats.volumeRatio;
+      return 30 - priorAbs - Math.abs(stats.volumeRatio - 1) * 3 - edge * 0.2;
     case "medium_swing":
-      return future * 2 + Math.abs(stats.rangePositionPct - 50) * 0.5;
+      return controlledMoveScore + Math.abs(stats.rangePositionPct - 50) * 0.45 + compressionTightness * 0.12;
     case "large_context":
-      return stats.index * 0.01 + future + (100 - stats.compressionPct) * 0.1;
+      return stats.index * 0.01 + compressionTightness * 0.22 + middleLocationScore * 0.7;
     default:
       return 0;
   }
 }
 
-function selectNodeIndexes(
+export function selectProfessionalAuditNodeIndexes(
   candles: Candle[],
   nodesPerSymbol: number,
   horizonBarsByBand: Record<ProfessionalAuditRoundTimeframeBand, number>,
@@ -768,7 +747,7 @@ function selectNodeIndexes(
   const baseCandidates: NodeStats[] = [];
 
   for (let index = minHistory; index < candles.length - minHorizonBars; index += 4) {
-    const stats = nodeStats(candles, index, horizonBarsByBand.small);
+    const stats = nodeStats(candles, index);
 
     if (stats) {
       baseCandidates.push(stats);
@@ -784,12 +763,22 @@ function selectNodeIndexes(
   const used = new Set<number>();
   const roles = nodeRoles.slice(0, nodesPerSymbol);
 
-  for (const role of roles) {
+  for (let roleIndex = 0; roleIndex < roles.length; roleIndex += 1) {
+    const role = roles[roleIndex];
+
+    if (!role) {
+      continue;
+    }
+
     const horizonBars = horizonBarsByBand[role.band];
-    const best = baseCandidates
+    const bucketStart = Math.floor((roleIndex / Math.max(1, roles.length)) * baseCandidates.length);
+    const bucketEnd = Math.max(bucketStart + 1, Math.floor(((roleIndex + 1) / Math.max(1, roles.length)) * baseCandidates.length));
+    const bucket = baseCandidates.slice(bucketStart, bucketEnd);
+    const pool = bucket.length > 0 ? bucket : baseCandidates;
+    const best = pool
       .filter((item) => !used.has(item.index))
       .filter((item) => item.index < candles.length - horizonBars)
-      .map((item) => nodeStats(candles, item.index, horizonBars))
+      .map((item) => nodeStats(candles, item.index))
       .filter((item): item is NodeStats => Boolean(item))
       .sort((left, right) => roleScore(role.role, right) - roleScore(role.role, left))[0];
 
@@ -834,6 +823,8 @@ function selectNodeIndexes(
     .sort((left, right) => left.index - right.index)
     .slice(0, nodesPerSymbol);
 }
+
+const selectNodeIndexes = selectProfessionalAuditNodeIndexes;
 
 function directionFor(signal: MarketSignal, movePct: number): "long" | "short" {
   if (signal.direction === "short") {

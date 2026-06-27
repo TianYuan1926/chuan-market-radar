@@ -462,13 +462,19 @@ function buildCapabilities(
   const timeframeCount = Object.values(input.candlesByTimeframe).filter((candles) => (candles?.length ?? 0) >= 3).length;
   const hasV3 = Boolean(signal.strategyV3);
   const rr = signal.strategyV3?.tradePlan?.rewardRisk ?? signal.strategy.riskReward ?? null;
+  const derivativesStatus = input.derivatives?.status ?? "unavailable";
+  const derivativesDetail = derivativesStatus === "live"
+    ? "已注入历史 Funding 和 OI 字段。"
+    : derivativesStatus === "partial"
+      ? "已注入部分历史衍生品字段；只能辅助审计，不能当完整衍生品验证。"
+      : "未注入历史 OI/Funding 数据。";
 
   return [
     capability("scan", "partial", "本轮审计输入来自历史样本，不等同于完整生产 universe 调度；只能审计单次回放点。"),
     capability("indicator", signal.evidence.some((item) => item.layer === "indicators") ? "tested" : "unavailable", "已通过生产 buildTechnicalEvidence 生成指标证据。"),
     capability("structure", hasV3 ? "tested" : "partial", hasV3 ? "已通过 v3 key levels / market reading 构建结构上下文。" : "v3 结构上下文不足。"),
     capability("timeframe", timeframeCount >= 3 ? "tested" : "partial", `本轮提供 ${timeframeCount} 个有效周期。`),
-    capability("derivatives", input.derivatives?.status === "live" ? "tested" : input.derivatives?.status === "partial" ? "partial" : "unavailable", input.derivatives?.status === "live" ? "已注入历史衍生品字段。" : "未注入完整历史 OI/Funding/多空拥挤数据。"),
+    capability("derivatives", derivativesStatus === "live" ? "tested" : derivativesStatus === "partial" ? "partial" : "unavailable", derivativesDetail),
     capability("rr", typeof rr === "number" ? "tested" : "partial", typeof rr === "number" ? `已生成结构 RR：${rr}:1。` : "未生成结构 RR。"),
     capability("plan", signal.maturity?.stage === "TRADE_PLAN_READY" ? "tested" : "partial", `当前成熟度：${signal.maturity?.label ?? "未分类"}。`),
   ];
@@ -482,7 +488,7 @@ function buildFindings(
   const findings: ProfessionalAuditFinding[] = [];
   const rr = signal.strategyV3?.tradePlan?.rewardRisk ?? signal.strategy.riskReward ?? null;
 
-  if (input.derivatives?.status !== "live") {
+  if ((input.derivatives?.status ?? "unavailable") === "unavailable") {
     findings.push(finding({
       detail: "本轮无法验证 OI、Funding、多空拥挤是否提高了信号质量。",
       id: "PBA-DERIVATIVES-001",
