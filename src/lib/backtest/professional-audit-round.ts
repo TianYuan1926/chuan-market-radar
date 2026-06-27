@@ -15,6 +15,8 @@ import {
 import {
   buildReplayCandlesByTimeframe,
   buildReplayDerivativesInput,
+  type ProfessionalCoreCapabilityFailure,
+  type ProfessionalCoreCapabilityMetric,
   type ProfessionalAuditOpportunityLaneMetric,
   type ProfessionalAuditOpportunityLaneName,
   type ProfessionalAuditPlanBlockerMetric,
@@ -1302,6 +1304,412 @@ function averageRadarRank(nodes: ProfessionalAuditRoundNode[]) {
   return ranks.length > 0 ? round(mean(ranks)) : null;
 }
 
+function percent(count: number, total: number) {
+  return total > 0 ? round(count / total * 100) : 0;
+}
+
+function capabilityStatus(
+  score: number,
+  hardFail: boolean,
+): ProfessionalCoreCapabilityMetric["status"] {
+  if (hardFail || score < 50) {
+    return "fail";
+  }
+
+  if (score < 75) {
+    return "watch";
+  }
+
+  return "pass";
+}
+
+function blockerCount(metrics: ProfessionalAuditPlanBlockerMetric[], blockers: string[]) {
+  return metrics
+    .filter((metric) => blockers.includes(metric.blocker))
+    .reduce((sum, metric) => sum + metric.count, 0);
+}
+
+function blockerSamples(metrics: ProfessionalAuditPlanBlockerMetric[], blockers: string[]) {
+  const symbols: string[] = [];
+
+  for (const metric of metrics.filter((item) => blockers.includes(item.blocker))) {
+    for (const symbol of metric.sampleSymbols) {
+      if (!symbols.includes(symbol) && symbols.length < 6) {
+        symbols.push(symbol);
+      }
+    }
+  }
+
+  return symbols;
+}
+
+function failure({
+  code,
+  count,
+  detail,
+  label,
+  nextAction,
+  sampleSymbols = [],
+}: Omit<ProfessionalCoreCapabilityFailure, "sampleSymbols"> & { sampleSymbols?: string[] }): ProfessionalCoreCapabilityFailure {
+  return {
+    code,
+    count,
+    detail,
+    label,
+    nextAction,
+    sampleSymbols,
+  };
+}
+
+function buildScanCapabilityMetric({
+  baselineMetrics,
+  nodes,
+  opportunityLaneMetrics,
+}: {
+  baselineMetrics: Record<ProfessionalReplayLaneName, ProfessionalReplayLaneMetric>;
+  nodes: ProfessionalAuditRoundNode[];
+  opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
+}): ProfessionalCoreCapabilityMetric {
+  const actionableNodes = nodes.filter((node) => node.opportunityLane !== "risk_review");
+  const captured = actionableNodes.filter((node) => node.capturedByRadar);
+  const earlyUsefulCaptured = actionableNodes.filter((node) => node.capturedByRadar && node.hit && !node.lateAtSelection);
+  const missedEarlyHit = actionableNodes.filter((node) => !node.capturedByRadar && node.hit && !node.lateAtSelection);
+  const earlyLane = opportunityLaneMetrics.find((item) => item.lane === "early_setup");
+  const radar = baselineMetrics.radar;
+  const random = baselineMetrics.random;
+  const qualityAdvantage = radar.qualityScore - random.qualityScore;
+  const captureRatePct = percent(captured.length, actionableNodes.length);
+  const earlyCaptureRatePct = earlyLane?.captureRatePct ?? 0;
+  const lateRatePct = radar.lateRatePct;
+  const qualityComponent = clamp(50 + qualityAdvantage * 8, 0, 100);
+  const score = round(
+    captureRatePct * 0.34 +
+    earlyCaptureRatePct * 0.30 +
+    qualityComponent * 0.22 +
+    (100 - lateRatePct) * 0.14,
+  );
+  const failures: ProfessionalCoreCapabilityFailure[] = [];
+
+  if (captureRatePct < 45) {
+    failures.push(failure({
+      code: "scan_capture_low",
+      count: actionableNodes.length - captured.length,
+      detail: `可交易机会池 TopN 捕获率只有 ${captureRatePct}%，说明真正值得测的节点没有稳定进前排。`,
+      label: "机会捕获率不足",
+      nextAction: "先复查候选排序和深扫名额分配，不要继续叠加新功能。",
+      sampleSymbols: actionableNodes.filter((node) => !node.capturedByRadar).slice(0, 6).map((node) => node.symbol),
+    }));
+  }
+
+  if (earlyLane && earlyLane.totalNodes > 0 && earlyLane.captureRatePct < 30) {
+    failures.push(failure({
+      code: "scan_early_capture_low",
+      count: earlyLane.totalNodes - earlyLane.capturedCount,
+      detail: `启动前机会捕获率只有 ${earlyLane.captureRatePct}%，这直接违背“提前感知”的核心目标。`,
+      label: "启动前机会捕获不足",
+      nextAction: "提高压缩、早期放量、靠近关键位和相对强弱在扫描排序里的优先级。",
+      sampleSymbols: actionableNodes.filter((node) => node.opportunityLane === "early_setup" && !node.capturedByRadar).slice(0, 6).map((node) => node.symbol),
+    }));
+  }
+
+  if (radar.count > 0 && random.count > 0 && radar.qualityScore <= random.qualityScore) {
+    failures.push(failure({
+      code: "scan_not_better_than_random",
+      count: radar.count,
+      detail: `雷达质量分 ${radar.qualityScore} 没有跑赢随机 ${random.qualityScore}。`,
+      label: "没有证明强于随机",
+      nextAction: "冻结其它整改，先重构扫描排序目标函数。",
+    }));
+  }
+
+  if (missedEarlyHit.length > 0) {
+    failures.push(failure({
+      code: "scan_missed_early_hit",
+      count: missedEarlyHit.length,
+      detail: `${missedEarlyHit.length} 个不晚到且事后命中的样本没有进 TopN。`,
+      label: "漏掉早期有效机会",
+      nextAction: "把这些样本作为下一轮扫描排序校准集。",
+      sampleSymbols: missedEarlyHit.slice(0, 6).map((node) => node.symbol),
+    }));
+  }
+
+  return {
+    failedNodes: Math.max(0, actionableNodes.length - earlyUsefulCaptured.length),
+    id: "scan",
+    keyMetrics: {
+      actionableNodes: actionableNodes.length,
+      captureRatePct,
+      earlyCaptureRatePct,
+      lateRatePct,
+      missedEarlyHitCount: missedEarlyHit.length,
+      radarQualityScore: radar.qualityScore,
+      randomQualityScore: random.qualityScore,
+    },
+    label: "扫描：提前发现能力",
+    mainFailures: failures,
+    nextAction: failures.length > 0
+      ? "先重整候选排序和提前机会识别，不做 UI 或其它功能扩展。"
+      : "继续扩大样本验证扫描稳定性。",
+    passedNodes: earlyUsefulCaptured.length,
+    passRatePct: percent(earlyUsefulCaptured.length, actionableNodes.length),
+    score,
+    status: capabilityStatus(score, failures.some((item) => item.code === "scan_not_better_than_random" || item.code === "scan_early_capture_low")),
+    summary: failures.length > 0
+      ? "扫描能力未达标：系统还不能稳定把启动前机会提前推到前排。"
+      : "扫描能力本轮通过基础门槛，但仍需连续多轮验证。",
+    testedNodes: actionableNodes.length,
+  };
+}
+
+function buildAnalysisCapabilityMetric({
+  nodes,
+  planBlockerMetrics,
+}: {
+  nodes: ProfessionalAuditRoundNode[];
+  planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
+}): ProfessionalCoreCapabilityMetric {
+  const selected = nodes.filter((node) => node.capturedByRadar);
+  const useful = selected.filter((node) => node.hit && !node.lateAtSelection && node.opportunityLane !== "risk_review");
+  const falsePositive = selected.filter((node) => !node.hit || node.lateAtSelection || node.opportunityLane === "risk_review");
+  const unclearCount = blockerCount(planBlockerMetrics, ["neutral_direction"]);
+  const structureBrokenCount = blockerCount(planBlockerMetrics, ["bear_structure_broken", "bull_structure_broken", "structure_invalidated"]);
+  const exhaustionCount = blockerCount(planBlockerMetrics, ["lower_wick_exhaustion", "upper_wick_exhaustion"]);
+  const usefulRatePct = percent(useful.length, selected.length);
+  const falsePositiveRatePct = percent(falsePositive.length, selected.length);
+  const selectedLateRatePct = percent(selected.filter((node) => node.lateAtSelection).length, selected.length);
+  const score = round(
+    usefulRatePct * 0.46 +
+    (100 - falsePositiveRatePct) * 0.22 +
+    (100 - selectedLateRatePct) * 0.18 +
+    Math.max(0, 100 - percent(unclearCount + structureBrokenCount, Math.max(1, nodes.length))) * 0.14,
+  );
+  const failures: ProfessionalCoreCapabilityFailure[] = [];
+
+  if (selected.length === 0) {
+    failures.push(failure({
+      code: "analysis_no_selected_nodes",
+      count: nodes.length,
+      detail: "扫描没有选出任何可审计节点，无法判断分析能力。",
+      label: "没有可分析样本",
+      nextAction: "先修扫描捕获，再评估分析。",
+    }));
+  }
+
+  if (selected.length > 0 && usefulRatePct < 25) {
+    failures.push(failure({
+      code: "analysis_useful_rate_low",
+      count: selected.length - useful.length,
+      detail: `被雷达选中的节点里，真正不晚到且事后有效的比例只有 ${usefulRatePct}%。`,
+      label: "分析有效率不足",
+      nextAction: "复查方向判断、过热识别、结构状态和机会成熟度分类。",
+      sampleSymbols: falsePositive.slice(0, 6).map((node) => node.symbol),
+    }));
+  }
+
+  if (unclearCount > nodes.length * 0.2) {
+    failures.push(failure({
+      code: "analysis_direction_unclear",
+      count: unclearCount,
+      detail: `方向不明确出现 ${unclearCount} 次，说明分析层经常不能判断多空或不该看。`,
+      label: "方向判断不清",
+      nextAction: "把中性、冲突、等待突破、等待回踩拆开，不要都压成方向不明确。",
+      sampleSymbols: blockerSamples(planBlockerMetrics, ["neutral_direction"]),
+    }));
+  }
+
+  if (structureBrokenCount > nodes.length * 0.15) {
+    failures.push(failure({
+      code: "analysis_structure_gate_noise",
+      count: structureBrokenCount,
+      detail: `结构破坏类卡点出现 ${structureBrokenCount} 次，需要确认是合理拦截还是结构门控过粗。`,
+      label: "结构判断噪声偏高",
+      nextAction: "抽样复查多周期结构、关键位和趋势完整度，区分真失效与等待确认。",
+      sampleSymbols: blockerSamples(planBlockerMetrics, ["bear_structure_broken", "bull_structure_broken", "structure_invalidated"]),
+    }));
+  }
+
+  if (exhaustionCount > nodes.length * 0.1) {
+    failures.push(failure({
+      code: "analysis_exhaustion_noise",
+      count: exhaustionCount,
+      detail: `上/下影线衰竭类问题出现 ${exhaustionCount} 次，需要检查是否误杀启动前波动。`,
+      label: "衰竭识别需复核",
+      nextAction: "把衰竭信号和正常洗盘/回踩分开验证。",
+      sampleSymbols: blockerSamples(planBlockerMetrics, ["lower_wick_exhaustion", "upper_wick_exhaustion"]),
+    }));
+  }
+
+  return {
+    failedNodes: Math.max(0, selected.length - useful.length),
+    id: "analysis",
+    keyMetrics: {
+      directionUnclearCount: unclearCount,
+      falsePositiveRatePct,
+      selectedLateRatePct,
+      selectedNodes: selected.length,
+      structureBrokenCount,
+      usefulRatePct,
+    },
+    label: "分析：判断机会质量",
+    mainFailures: failures,
+    nextAction: failures.length > 0
+      ? "先抽样复核被选中节点的方向、结构、成熟度和反证，不急着改策略输出。"
+      : "继续扩大样本验证分析判断稳定性。",
+    passedNodes: useful.length,
+    passRatePct: usefulRatePct,
+    score,
+    status: capabilityStatus(score, selected.length === 0 || usefulRatePct < 15),
+    summary: failures.length > 0
+      ? "分析能力未达标：系统还不能稳定判断被扫到的币到底值不值得看。"
+      : "分析能力本轮通过基础门槛，但仍需连续多轮验证。",
+    testedNodes: selected.length,
+  };
+}
+
+function buildStrategyCapabilityMetric({
+  nodes,
+  planBlockerMetrics,
+}: {
+  nodes: ProfessionalAuditRoundNode[];
+  planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
+}): ProfessionalCoreCapabilityMetric {
+  const planReady = nodes.filter((node) => node.maturity === "TRADE_PLAN_READY");
+  const rrQualified = nodes.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3);
+  const usablePlans = planReady.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3 && node.hit && !node.lateAtSelection);
+  const rrBelowCount = blockerCount(planBlockerMetrics, ["reward_risk_below_minimum", "reward_risk_unknown", "location_rr"]);
+  const stopTargetIssueCount = blockerCount(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_wide"]);
+  const pendingCount = blockerCount(planBlockerMetrics, ["reaction_not_confirmed", "structure_confirmation_pending"]);
+  const planReadyRatePct = percent(planReady.length, nodes.length);
+  const rrQualifiedRatePct = percent(rrQualified.length, nodes.length);
+  const usablePlanRatePct = percent(usablePlans.length, planReady.length);
+  const score = planReady.length === 0
+    ? 0
+    : round(
+      usablePlanRatePct * 0.45 +
+      rrQualifiedRatePct * 0.25 +
+      Math.max(0, 100 - percent(rrBelowCount + stopTargetIssueCount, Math.max(1, nodes.length))) * 0.30,
+    );
+  const failures: ProfessionalCoreCapabilityFailure[] = [];
+
+  if (planReady.length === 0) {
+    failures.push(failure({
+      code: "strategy_no_ready_plan",
+      count: nodes.length,
+      detail: "本轮没有任何 TRADE_PLAN_READY，策略能力无法证明可执行。",
+      label: "没有交易计划就绪样本",
+      nextAction: "先判断是合理风控全部拦截，还是 RR/止损/目标/确认规则错杀。",
+    }));
+  }
+
+  if (rrBelowCount > nodes.length * 0.25) {
+    failures.push(failure({
+      code: "strategy_rr_blocked",
+      count: rrBelowCount,
+      detail: `结构盈亏比不足或未知类卡点出现 ${rrBelowCount} 次。`,
+      label: "结构盈亏比卡点过多",
+      nextAction: "复查目标位生成、止损位选择和等待更好位置的表达，不降低 3:1 门槛。",
+      sampleSymbols: blockerSamples(planBlockerMetrics, ["reward_risk_below_minimum", "reward_risk_unknown", "location_rr"]),
+    }));
+  }
+
+  if (stopTargetIssueCount > nodes.length * 0.1) {
+    failures.push(failure({
+      code: "strategy_stop_target_issue",
+      count: stopTargetIssueCount,
+      detail: `止损/目标位质量问题出现 ${stopTargetIssueCount} 次。`,
+      label: "止损目标质量不足",
+      nextAction: "先修关键位、结构止损和目标位投射，再谈策略准确率。",
+      sampleSymbols: blockerSamples(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_wide"]),
+    }));
+  }
+
+  if (pendingCount > nodes.length * 0.1) {
+    failures.push(failure({
+      code: "strategy_confirmation_pending",
+      count: pendingCount,
+      detail: `等待确认类卡点出现 ${pendingCount} 次，需要把“不能做”和“等什么”讲清楚。`,
+      label: "确认条件表达不足",
+      nextAction: "把 WAIT_PULLBACK / WAIT_RETEST 的触发条件、失效条件和复查点输出清楚。",
+      sampleSymbols: blockerSamples(planBlockerMetrics, ["reaction_not_confirmed", "structure_confirmation_pending"]),
+    }));
+  }
+
+  return {
+    failedNodes: Math.max(0, nodes.length - usablePlans.length),
+    id: "strategy",
+    keyMetrics: {
+      planReadyCount: planReady.length,
+      planReadyRatePct,
+      rrBelowCount,
+      rrQualifiedCount: rrQualified.length,
+      rrQualifiedRatePct,
+      stopTargetIssueCount,
+      usablePlanRatePct,
+    },
+    label: "策略：计划可执行性",
+    mainFailures: failures,
+    nextAction: failures.length > 0
+      ? "先重查 RR、止损、目标和等待条件，禁止为了提高计划数降低风控门槛。"
+      : "继续用更多样本验证计划先到 TP/SL 的真实表现。",
+    passedNodes: usablePlans.length,
+    passRatePct: percent(usablePlans.length, nodes.length),
+    score,
+    status: capabilityStatus(score, planReady.length === 0),
+    summary: failures.length > 0
+      ? "策略能力未达标：系统还不能稳定给出可执行、可验证、可失效的交易计划。"
+      : "策略能力本轮通过基础门槛，但仍需连续多轮验证。",
+    testedNodes: nodes.length,
+  };
+}
+
+function buildCoreCapabilityMetrics({
+  baselineMetrics,
+  nodes,
+  opportunityLaneMetrics,
+  planBlockerMetrics,
+}: {
+  baselineMetrics: Record<ProfessionalReplayLaneName, ProfessionalReplayLaneMetric>;
+  nodes: ProfessionalAuditRoundNode[];
+  opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
+  planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
+}): ProfessionalCoreCapabilityMetric[] {
+  return [
+    buildScanCapabilityMetric({
+      baselineMetrics,
+      nodes,
+      opportunityLaneMetrics,
+    }),
+    buildAnalysisCapabilityMetric({
+      nodes,
+      planBlockerMetrics,
+    }),
+    buildStrategyCapabilityMetric({
+      nodes,
+      planBlockerMetrics,
+    }),
+  ];
+}
+
+function buildCoreCapabilityFindings(metrics: ProfessionalCoreCapabilityMetric[]): ProfessionalAuditFinding[] {
+  return metrics.flatMap((metric): ProfessionalAuditFinding[] => {
+    if (metric.status === "pass") {
+      return [];
+    }
+
+    const firstFailure = metric.mainFailures[0];
+
+    return [aggregateFinding({
+      detail: `${metric.summary} 分数 ${metric.score}，通过率 ${metric.passRatePct}%。${firstFailure ? `主要问题：${firstFailure.label}，${firstFailure.detail}` : ""}`,
+      id: `PBA-CORE-${metric.id.toUpperCase()}-001`,
+      layer: metric.id === "scan" ? "scan" : metric.id === "analysis" ? "structure" : "plan",
+      nextAction: metric.nextAction,
+      rootCause: firstFailure?.detail ?? "三大核心能力没有达到本轮验收门槛。",
+      severity: metric.status === "fail" ? "high" : "medium",
+      title: `${metric.label}未达标`,
+    })];
+  });
+}
+
 function aggregateFindings({
   baselineMetrics,
   candidateUniverseSize,
@@ -1810,6 +2218,12 @@ export function runProfessionalAuditRound({
   };
   const opportunityLaneMetrics = buildOpportunityLaneMetrics(nodes);
   const planBlockerMetrics = buildPlanBlockerMetrics(nodes);
+  const coreCapabilityMetrics = buildCoreCapabilityMetrics({
+    baselineMetrics,
+    nodes,
+    opportunityLaneMetrics,
+    planBlockerMetrics,
+  });
   const timingMetrics = {
     earlyCount: nodes.filter((item) => item.selectedAsOpportunity && !item.lateAtSelection).length,
     earlyRatePct: nodes.filter((item) => item.selectedAsOpportunity).length > 0
@@ -1830,7 +2244,8 @@ export function runProfessionalAuditRound({
     planBlockerMetrics,
     topN,
   });
-  const findings = sortFindings([...cases.flatMap((item) => item.findings), ...aggregate]);
+  const coreFindings = buildCoreCapabilityFindings(coreCapabilityMetrics);
+  const findings = sortFindings([...cases.flatMap((item) => item.findings), ...aggregate, ...coreFindings]);
   const baseSummary = summarizeProfessionalBacktestRound(cases);
   const highSeverityFindings = findings.filter((item) => item.severity === "high").length;
   const roundSummary = {
@@ -1861,7 +2276,7 @@ export function runProfessionalAuditRound({
       validationWindowLabel: item.validationWindowLabel,
       volumeRatio: item.volumeRatio,
     }));
-  const remediationPlan = uniqueRemediations(cases, aggregateRemediations(aggregate));
+  const remediationPlan = uniqueRemediations(cases, aggregateRemediations([...aggregate, ...coreFindings]));
   const completedAt = new Date().toISOString();
   const auditRound = buildProgress({
     candidateUniverseSize,
@@ -1898,6 +2313,7 @@ export function runProfessionalAuditRound({
       topN,
     },
     missedOpportunities,
+    coreCapabilityMetrics,
     opportunityLaneMetrics,
     planBlockerMetrics,
     remediationPlan,

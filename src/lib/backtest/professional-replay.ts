@@ -97,6 +97,34 @@ export type ProfessionalAuditPlanBlockerMetric = {
   sampleSymbols: string[];
 };
 
+export type ProfessionalCoreCapabilityId = "analysis" | "scan" | "strategy";
+
+export type ProfessionalCoreCapabilityStatus = "fail" | "pass" | "watch";
+
+export type ProfessionalCoreCapabilityFailure = {
+  code: string;
+  count: number;
+  detail: string;
+  label: string;
+  nextAction: string;
+  sampleSymbols: string[];
+};
+
+export type ProfessionalCoreCapabilityMetric = {
+  failedNodes: number;
+  id: ProfessionalCoreCapabilityId;
+  keyMetrics: Record<string, number | string | null>;
+  label: string;
+  mainFailures: ProfessionalCoreCapabilityFailure[];
+  nextAction: string;
+  passedNodes: number;
+  passRatePct: number;
+  score: number;
+  status: ProfessionalCoreCapabilityStatus;
+  summary: string;
+  testedNodes: number;
+};
+
 export type ProfessionalReplayMissedOpportunity = {
   coinType?: string;
   coinTypeLabel?: string;
@@ -136,6 +164,7 @@ export type ProfessionalReplayReport = {
     topN: number;
   };
   missedOpportunities: ProfessionalReplayMissedOpportunity[];
+  coreCapabilityMetrics: ProfessionalCoreCapabilityMetric[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
   remediationPlan: ProfessionalAuditRemediation[];
@@ -974,6 +1003,7 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
       topN: options.topN,
     },
     missedOpportunities: topMissedOpportunities,
+    coreCapabilityMetrics: [],
     opportunityLaneMetrics: [],
     planBlockerMetrics: [],
     remediationPlan,

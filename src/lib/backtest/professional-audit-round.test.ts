@@ -7,6 +7,7 @@ import {
   professionalAuditPlanBlockerLabel,
   professionalAuditRadarScore,
   resolveProfessionalAuditHorizonBarsByBand,
+  runProfessionalAuditRound,
   selectProfessionalAuditNodeIndexes,
   selectProfessionalAuditOpportunityCandidates,
   tradePlanBlockers,
@@ -455,4 +456,40 @@ test("tradePlanBlockers does not count neutral watch-only samples as reward-risk
   } as unknown as MarketSignal);
 
   assert.deepEqual(blockers, ["neutral_direction"]);
+});
+
+test("runProfessionalAuditRound reports scan analysis and strategy core capability scorecards", () => {
+  const candlesBySymbol = new Map<string, Candle[]>([
+    ["TIAUSDT", sidewaysSeries(260)],
+    ["ARBUSDT", sidewaysSeries(260).map((item, index) => ({
+      ...item,
+      close: item.close * (1 + Math.sin(index / 13) * 0.01),
+      high: item.high * (1 + Math.sin(index / 13) * 0.01),
+      low: item.low * (1 + Math.sin(index / 13) * 0.01),
+      open: item.open * (1 + Math.sin(index / 13) * 0.01),
+    }))],
+  ]);
+  const report = runProfessionalAuditRound({
+    candlesBySymbol,
+    options: {
+      candidateUniverseSize: 2,
+      generatedAt: "2026-01-10T00:00:00.000Z",
+      nodesPerSymbol: 2,
+      symbols: [{
+        coinType: "layer1_layer2",
+        coinTypeLabel: "L1 / L2",
+        symbol: "TIAUSDT",
+      }],
+      topN: 1,
+    },
+  });
+
+  assert.deepEqual(report.coreCapabilityMetrics.map((item) => item.id), ["scan", "analysis", "strategy"]);
+  for (const metric of report.coreCapabilityMetrics) {
+    assert.ok(["fail", "pass", "watch"].includes(metric.status));
+    assert.equal(typeof metric.score, "number");
+    assert.equal(typeof metric.summary, "string");
+    assert.ok(metric.summary.length > 0);
+  }
+  assert.ok(report.findings.some((item) => item.id.startsWith("PBA-CORE-")));
 });

@@ -723,6 +723,11 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     pullback_retest: "回踩确认",
     trend_acceleration: "趋势加速",
   };
+  const coreStatusLabel: Record<string, string> = {
+    fail: "不合格",
+    pass: "通过",
+    watch: "观察",
+  };
   const auditWindowSummary = report.auditRound
     ? [...new Map(report.auditRound.nodes.map((node) => [node.timeframeBand, node.validationWindowLabel])).entries()]
       .sort(([left], [right]) => {
@@ -778,11 +783,34 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     `- 交易计划就绪：${report.roundSummary.planReadyCount}`,
     `- 高优先级问题：${report.roundSummary.highSeverityFindings}`,
     "",
+    "## 三大核心能力审计",
+    "",
+    "本轮只按三个核心判断系统是否有实战参考价值：扫描能不能提前感知、分析能不能判断对、策略能不能给出可执行计划。",
+    "",
+    "| 核心能力 | 状态 | 分数 | 通过率 | 测试节点 | 主要问题 | 下一步 |",
+    "|---|---|---:|---:|---:|---|---|",
+  ];
+
+  if (report.coreCapabilityMetrics.length > 0) {
+    for (const metric of report.coreCapabilityMetrics) {
+      const mainFailure = metric.mainFailures[0];
+      const failureText = mainFailure
+        ? `${mainFailure.label}：${mainFailure.detail}`
+        : metric.summary;
+
+      lines.push(`| ${metric.label} | ${coreStatusLabel[metric.status] ?? metric.status} | ${metric.score} | ${metric.passRatePct}% | ${metric.testedNodes} | ${failureText} | ${metric.nextAction} |`);
+    }
+  } else {
+    lines.push("| 扫描/分析/策略 | 不可用 | 0 | 0% | 0 | 本轮报告缺少三大核心成绩单 | 先升级专业回测报告合同 |");
+  }
+
+  lines.push(
+    "",
     "## 基线对比",
     "",
     "| 通道 | 样本 | 命中率 | 提前命中率 | 迟到率 | 质量分 | 平均 MFE | 平均 MAE | 入选时已波动 | 成交量倍数 |",
     "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
-  ];
+  );
 
   for (const lane of ["radar", "momentum", "volume", "random"] as const) {
     const metric = report.baselineMetrics[lane];
