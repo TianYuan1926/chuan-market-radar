@@ -367,6 +367,20 @@ function isMemeLikeSymbol(symbol: string) {
   return /^(1000|PEPE|BONK|SHIB|DOGE|WIF|FLOKI|MEME|BOME|POPCAT|TURBO|BRETT)/u.test(base);
 }
 
+function discoveryRadarComponent(score: number) {
+  const normalized = clamp(score, 0, 140);
+
+  if (normalized <= 55) {
+    return normalized;
+  }
+
+  if (normalized <= 85) {
+    return 55 + (normalized - 55) * 0.48;
+  }
+
+  return Math.min(78, 69.4 + (normalized - 85) * 0.16);
+}
+
 export type ProfessionalAuditOpportunityClassifyInput = {
   compressionPct: number;
   direction: "long" | "short";
@@ -420,6 +434,7 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   tradePlanStatus?: string;
 }) {
   const absMove = Math.abs(input.movePct);
+  const radarComponent = discoveryRadarComponent(input.radarScore);
   const nonExtremeLocationScore = input.direction === "long"
     ? bandScore(input.rangePositionPct, 16, 38, 84)
     : bandScore(input.rangePositionPct, 16, 62, 84);
@@ -453,10 +468,13 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   )
     ? 6
     : 0;
+  const genericNeutralPenalty = input.nodeRole === "neutral_random" && absMove <= 2 && input.volumeRatio <= 1.05
+    ? 16
+    : 0;
   const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus - structuralBlockerPenalty;
 
   if (input.lateAtSelection) {
-    return round(input.radarScore - 100 - absMove * 2, 4);
+    return round(radarComponent - 100 - absMove * 2, 4);
   }
 
   const lane = classifyProfessionalAuditOpportunityLane(input);
@@ -467,18 +485,18 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
       : 0;
     const controlledLocationBonus = nonExtremeLocationScore * 10;
 
-    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus + planViabilityAdjustment - absMove * 0.9, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
   }
 
   if (lane === "pullback_retest") {
-    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + planViabilityAdjustment, 4);
+    return round(radarComponent + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + planViabilityAdjustment, 4);
   }
 
   if (lane === "higher_timeframe_context") {
-    return round(input.radarScore + (100 - input.compressionPct) * 0.28 + nonExtremeLocationScore * 16 + bandScore(absMove, 0, 1.8, 6.5) * 8 + planViabilityAdjustment, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.28 + nonExtremeLocationScore * 16 + bandScore(absMove, 0, 1.8, 6.5) * 8 + planViabilityAdjustment, 4);
   }
 
-  return round(input.radarScore - 80, 4);
+  return round(radarComponent - 80, 4);
 }
 
 export function professionalAuditOpportunityQuotas(topN: number): Record<ProfessionalAuditOpportunityLaneName, number> {

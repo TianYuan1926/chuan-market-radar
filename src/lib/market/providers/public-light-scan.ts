@@ -366,7 +366,7 @@ function priorityScore(candidate: {
       ? 14
       : 0;
 
-  return Math.round(
+  const raw = Math.round(
     stateBoost +
     cappedMoveBoost +
     logVolumeScore(candidate.volume24hUsd) +
@@ -376,6 +376,16 @@ function priorityScore(candidate: {
     earlyOpportunityBoost -
     overextensionPenalty,
   );
+
+  if (candidate.overextensionRisk === "high") {
+    return Math.max(0, Math.min(42, raw));
+  }
+
+  if (candidate.overextensionRisk === "medium") {
+    return Math.max(0, Math.min(72, raw));
+  }
+
+  return Math.max(0, raw);
 }
 
 function tickerFromRow(row: BinanceFutures24hTickerRow, updatedAt: string): MarketTicker | null {

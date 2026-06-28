@@ -474,6 +474,36 @@ test("selectProfessionalAuditOpportunityCandidates lets strong RR-qualified earl
   assert.ok(selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "WIFUSDT"));
 });
 
+test("opportunityLaneScore compresses raw radar noise so real early setups are not crowded out", () => {
+  const quietEarlySetup = opportunityLaneScore({
+    compressionPct: 30,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.2,
+    nodeRole: "pre_move",
+    radarScore: 52,
+    rangePositionPct: 42,
+    timeframeBand: "small",
+    volumeRatio: 0.86,
+  });
+  const noisyGenericSetup = opportunityLaneScore({
+    compressionPct: 60,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1,
+    nodeRole: "neutral_random",
+    radarScore: 130,
+    rangePositionPct: 42,
+    timeframeBand: "small",
+    volumeRatio: 0.98,
+  });
+
+  assert.ok(
+    quietEarlySetup > noisyGenericSetup,
+    `expected true early setup ${quietEarlySetup} to outrank noisy generic score ${noisyGenericSetup}`,
+  );
+});
+
 test("classifyProfessionalAuditOpportunityLane honors target node roles without turning late extensions into opportunities", () => {
   assert.equal(classifyProfessionalAuditOpportunityLane({
     compressionPct: 28,

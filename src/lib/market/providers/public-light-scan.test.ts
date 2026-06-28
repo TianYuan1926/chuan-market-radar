@@ -255,6 +255,48 @@ test("createBinancePublicLightScanProvider caps overextended 24h movers below co
   assert.ok(result.priorityCandidates[1]?.reasons.includes("overextended_move_capped"));
 });
 
+test("createBinancePublicLightScanProvider caps medium extensions below quiet early setups", async () => {
+  const provider = createBinancePublicLightScanProvider({
+    now: () => new Date("2026-06-21T00:00:00.000Z"),
+    fetcher: async (input) => {
+      if (input.toString().includes("exchangeInfo")) {
+        return response({
+          symbols: [
+            { symbol: "RUNUSDT", contractType: "PERPETUAL", status: "TRADING", baseAsset: "RUN", quoteAsset: "USDT", underlyingType: "COIN" },
+            { symbol: "BASEUSDT", contractType: "PERPETUAL", status: "TRADING", baseAsset: "BASE", quoteAsset: "USDT", underlyingType: "COIN" },
+          ],
+        });
+      }
+
+      return response([
+        {
+          symbol: "RUNUSDT",
+          lastPrice: "1.12",
+          highPrice: "1.13",
+          lowPrice: "1.00",
+          priceChangePercent: "12",
+          quoteVolume: "90000000",
+        },
+        {
+          symbol: "BASEUSDT",
+          lastPrice: "1.02",
+          highPrice: "1.05",
+          lowPrice: "1.00",
+          priceChangePercent: "1.3",
+          quoteVolume: "36000000",
+        },
+      ]);
+    },
+  });
+
+  const result = await provider.scan();
+
+  assert.deepEqual(result.priorityCandidates.map((item) => item.symbol), ["BASEUSDT", "RUNUSDT"]);
+  assert.equal(result.priorityCandidates[0]?.opportunityPhase, "early_setup");
+  assert.equal(result.priorityCandidates[1]?.overextensionRisk, "medium");
+  assert.ok((result.priorityCandidates[1]?.score ?? 0) <= 72);
+});
+
 test("createBinancePublicLightScanProvider returns a typed failure without throwing", async () => {
   const provider = createBinancePublicLightScanProvider({
     fetcher: async () => response({ error: "blocked" }, false, 451),
