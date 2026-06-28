@@ -1240,9 +1240,36 @@ export type HistoricalBacktestAuditOpportunityLaneMetric = {
   lateCount: number
   lateRatePct: number
   missedEarlyHitCount: number
+  missedEarlyQualityHitCount: number
   planReadyCount: number
+  qualityHitCount: number
+  qualityHitRatePct: number
   selectedCount: number
   totalNodes: number
+}
+
+export type HistoricalBacktestAuditCoreFailure = {
+  code: string
+  count: number
+  detail: string
+  label: string
+  nextAction: string
+  sampleSymbols: string[]
+}
+
+export type HistoricalBacktestAuditCoreCapabilityMetric = {
+  failedNodes: number
+  id: 'analysis' | 'scan' | 'strategy'
+  keyMetrics: Record<string, number | string | null>
+  label: string
+  mainFailures: HistoricalBacktestAuditCoreFailure[]
+  nextAction: string
+  passedNodes: number
+  passRatePct: number
+  score: number
+  status: 'fail' | 'pass' | 'watch'
+  summary: string
+  testedNodes: number
 }
 
 export type HistoricalBacktestAuditPlanBlockerMetric = {
@@ -1295,6 +1322,7 @@ export type HistoricalBacktestAuditRoundNode = {
   opportunityLaneLabel: string
   opportunityLaneScore: number
   planBlockers: string[]
+  qualityHit: boolean
   radarRank: number | null
   radarScore: number
   rewardRisk: number | null
@@ -1349,6 +1377,7 @@ export type HistoricalBacktestAuditV2State = {
   summary: string
   findings: HistoricalBacktestAuditV2Finding[]
   missedOpportunities: HistoricalBacktestAuditV2MissedOpportunity[]
+  coreCapabilityMetrics: HistoricalBacktestAuditCoreCapabilityMetric[]
   opportunityLaneMetrics: HistoricalBacktestAuditOpportunityLaneMetric[]
   planBlockerMetrics: HistoricalBacktestAuditPlanBlockerMetric[]
   remediationPlan: HistoricalBacktestAuditV2Remediation[]

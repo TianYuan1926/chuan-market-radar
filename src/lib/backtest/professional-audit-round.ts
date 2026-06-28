@@ -78,6 +78,7 @@ export type ProfessionalAuditRoundNode = {
   opportunityLaneLabel: string;
   opportunityLaneScore: number;
   planBlockers: string[];
+  qualityHit: boolean;
   radarRank: number | null;
   radarScore: number;
   rewardRisk: number | null;
@@ -144,6 +145,7 @@ type CandidateAtNode = {
   opportunityLane: ProfessionalAuditOpportunityLaneName;
   opportunityLaneScore: number;
   planBlockers: string[];
+  qualityHit: boolean;
   radarScore: number;
   randomScore: number;
   rangePositionPct: number;
@@ -957,7 +959,30 @@ function replayOutcome({
     hit: mfePct >= moveThresholdPct,
     maePct: round(maePct),
     mfePct: round(mfePct),
+    qualityHit: isQualityHit({
+      maePct,
+      mfePct,
+      moveThresholdPct,
+    }),
   };
+}
+
+function isQualityHit({
+  maePct,
+  mfePct,
+  moveThresholdPct,
+}: {
+  maePct: number;
+  mfePct: number;
+  moveThresholdPct: number;
+}) {
+  const minimumQualityMovePct = Math.max(2, Math.min(4, moveThresholdPct * 0.3));
+
+  return (
+    mfePct >= minimumQualityMovePct &&
+    mfePct >= Math.max(maePct * 1.35, minimumQualityMovePct) &&
+    maePct <= Math.max(4.5, minimumQualityMovePct * 1.5)
+  );
 }
 
 function isLateAtSelection(movePct: number, positionPct: number, direction: "long" | "short", moveThresholdPct: number) {
@@ -1178,6 +1203,7 @@ function buildCandidateAtNode({
       volumeRatio: currentVolumeRatio,
     }),
     planBlockers,
+    qualityHit: outcome.qualityHit,
     radarScore,
     randomScore: deterministicRandomScore(symbol, observed.openTime),
     rangePositionPct: currentRangePositionPct,
@@ -1255,6 +1281,7 @@ function summarizeOpportunityLane(
   const laneNodes = nodes.filter((node) => node.opportunityLane === lane);
   const captured = laneNodes.filter((node) => node.capturedByRadar);
   const hitCount = laneNodes.filter((node) => node.hit).length;
+  const qualityHitCount = laneNodes.filter((node) => node.qualityHit).length;
   const lateCount = laneNodes.filter((node) => node.lateAtSelection).length;
   const ranks = laneNodes
     .map((node) => node.radarRank)
@@ -1272,7 +1299,10 @@ function summarizeOpportunityLane(
     lateCount,
     lateRatePct: laneNodes.length > 0 ? round((lateCount / laneNodes.length) * 100) : 0,
     missedEarlyHitCount: laneNodes.filter((node) => !node.capturedByRadar && node.hit && !node.lateAtSelection).length,
+    missedEarlyQualityHitCount: laneNodes.filter((node) => !node.capturedByRadar && node.qualityHit && !node.lateAtSelection).length,
     planReadyCount: laneNodes.filter((node) => node.maturity === "TRADE_PLAN_READY").length,
+    qualityHitCount,
+    qualityHitRatePct: laneNodes.length > 0 ? round((qualityHitCount / laneNodes.length) * 100) : 0,
     selectedCount: captured.length,
     totalNodes: laneNodes.length,
   };
@@ -1480,8 +1510,13 @@ function buildScanCapabilityMetric({
 }): ProfessionalCoreCapabilityMetric {
   const actionableNodes = nodes.filter((node) => node.opportunityLane !== "risk_review");
   const captured = actionableNodes.filter((node) => node.capturedByRadar);
-  const earlyUsefulCaptured = actionableNodes.filter((node) => node.capturedByRadar && node.hit && !node.lateAtSelection);
+  const earlyUsefulCaptured = actionableNodes.filter((node) =>
+    node.capturedByRadar &&
+    (node.hit || node.qualityHit) &&
+    !node.lateAtSelection
+  );
   const missedEarlyHit = actionableNodes.filter((node) => !node.capturedByRadar && node.hit && !node.lateAtSelection);
+  const missedEarlyQualityHit = actionableNodes.filter((node) => !node.capturedByRadar && node.qualityHit && !node.lateAtSelection);
   const earlyLane = opportunityLaneMetrics.find((item) => item.lane === "early_setup");
   const radar = baselineMetrics.radar;
   const random = baselineMetrics.random;
@@ -1533,11 +1568,11 @@ function buildScanCapabilityMetric({
   if (missedEarlyHit.length > 0) {
     failures.push(failure({
       code: "scan_missed_early_hit",
-      count: missedEarlyHit.length,
-      detail: `${missedEarlyHit.length} 个不晚到且事后命中的样本没有进 TopN。`,
+      count: missedEarlyHit.length + missedEarlyQualityHit.length,
+      detail: `${missedEarlyHit.length} 个不晚到且事后大行情命中的样本、${missedEarlyQualityHit.length} 个质量命中的样本没有进 TopN。`,
       label: "漏掉早期有效机会",
       nextAction: "把这些样本作为下一轮扫描排序校准集。",
-      sampleSymbols: missedEarlyHit.slice(0, 6).map((node) => node.symbol),
+      sampleSymbols: [...missedEarlyHit, ...missedEarlyQualityHit].slice(0, 6).map((node) => node.symbol),
     }));
   }
 
@@ -1550,6 +1585,7 @@ function buildScanCapabilityMetric({
       earlyCaptureRatePct,
       lateRatePct,
       missedEarlyHitCount: missedEarlyHit.length,
+      missedEarlyQualityHitCount: missedEarlyQualityHit.length,
       radarQualityScore: radar.qualityScore,
       randomQualityScore: random.qualityScore,
     },
@@ -1578,8 +1614,8 @@ function buildAnalysisCapabilityMetric({
 }): ProfessionalCoreCapabilityMetric {
   void planBlockerMetrics;
   const selected = nodes.filter((node) => node.capturedByRadar);
-  const useful = selected.filter((node) => node.hit && !node.lateAtSelection && node.opportunityLane !== "risk_review");
-  const falsePositive = selected.filter((node) => !node.hit || node.lateAtSelection || node.opportunityLane === "risk_review");
+  const useful = selected.filter((node) => (node.hit || node.qualityHit) && !node.lateAtSelection && node.opportunityLane !== "risk_review");
+  const falsePositive = selected.filter((node) => !(node.hit || node.qualityHit) || node.lateAtSelection || node.opportunityLane === "risk_review");
   const selectedBlockerMetrics = buildPlanBlockerMetrics(selected);
   const unclearCount = blockerCount(selectedBlockerMetrics, ["neutral_direction"]);
   const directionPendingCount = blockerCount(selectedBlockerMetrics, ["direction_pending_quiet_setup"]);
@@ -1699,8 +1735,8 @@ function buildStrategyCapabilityMetric({
   const planReady = nodes.filter((node) => node.maturity === "TRADE_PLAN_READY");
   const conditionalPlans = nodes.filter(isConditionalStrategyPlan);
   const rrQualified = nodes.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3);
-  const usablePlans = planReady.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3 && node.hit && !node.lateAtSelection);
-  const usableConditionalPlans = conditionalPlans.filter((node) => node.hit);
+  const usablePlans = planReady.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3 && (node.hit || node.qualityHit) && !node.lateAtSelection);
+  const usableConditionalPlans = conditionalPlans.filter((node) => node.hit || node.qualityHit);
   const usableStrategyCount = usablePlans.length + usableConditionalPlans.length;
   const rrBelowCount = blockerCount(planBlockerMetrics, ["reward_risk_below_minimum", "reward_risk_unknown", "location_rr"]);
   const stopTargetIssueCount = blockerCount(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_wide"]);
@@ -1878,6 +1914,7 @@ function aggregateFindings({
     ? selectedNodes.filter((item) => item.lateAtSelection).length / selectedNodes.length * 100
     : 0;
   const missedEarlyHits = actionableNodes.filter((item) => !item.capturedByRadar && item.hit && !item.lateAtSelection);
+  const missedEarlyQualityHits = actionableNodes.filter((item) => !item.capturedByRadar && item.qualityHit && !item.lateAtSelection);
   const topPlanBlocker = planBlockerMetrics[0] ?? null;
   const dominantLateRole = dominantGroup({
     keyFor: (node) => node.nodeRole,
@@ -1887,12 +1924,12 @@ function aggregateFindings({
   const dominantMissedRole = dominantGroup({
     keyFor: (node) => node.nodeRole,
     nodes,
-    predicate: (node) => !node.capturedByRadar && node.hit && !node.lateAtSelection,
+    predicate: (node) => !node.capturedByRadar && (node.hit || node.qualityHit) && !node.lateAtSelection,
   });
   const dominantMissedCoinType = dominantGroup({
     keyFor: (node) => node.coinType,
     nodes,
-    predicate: (node) => !node.capturedByRadar && node.hit && !node.lateAtSelection,
+    predicate: (node) => !node.capturedByRadar && (node.hit || node.qualityHit) && !node.lateAtSelection,
   });
 
   if (nodes.length === 0) {
@@ -1943,11 +1980,12 @@ function aggregateFindings({
     }));
   }
 
-  if (missedEarlyHits.length > 0) {
-    const avgRank = averageRadarRank(missedEarlyHits);
+  if (missedEarlyHits.length > 0 || missedEarlyQualityHits.length > 0) {
+    const missedUseful = [...missedEarlyHits, ...missedEarlyQualityHits];
+    const avgRank = averageRadarRank(missedUseful);
 
     findings.push(aggregateFinding({
-      detail: `发现 ${missedEarlyHits.length} 个事后命中且不晚到、但未进入 radar topN 的机会样本。平均排序名次 ${avgRank ?? "无"}；主要节点 ${dominantMissedRole ? `${dominantMissedRole.key} ${dominantMissedRole.count}/${dominantMissedRole.total}` : "暂无"}；主要币种类型 ${dominantMissedCoinType ? `${dominantMissedCoinType.key} ${dominantMissedCoinType.count}/${dominantMissedCoinType.total}` : "暂无"}。`,
+      detail: `发现 ${missedEarlyHits.length} 个事后大行情命中、${missedEarlyQualityHits.length} 个质量命中且不晚到、但未进入 radar topN 的机会样本。平均排序名次 ${avgRank ?? "无"}；主要节点 ${dominantMissedRole ? `${dominantMissedRole.key} ${dominantMissedRole.count}/${dominantMissedRole.total}` : "暂无"}；主要币种类型 ${dominantMissedCoinType ? `${dominantMissedCoinType.key} ${dominantMissedCoinType.count}/${dominantMissedCoinType.total}` : "暂无"}。`,
       id: "PBA-SCAN-ROUND-MISSED-001",
       layer: "scan",
       nextAction: "把未捕获但不晚到的样本优先送入复盘进化，用于修正候选排序、深扫槽位和结构门控。",
@@ -1960,9 +1998,9 @@ function aggregateFindings({
   const earlyLane = opportunityLaneMetrics.find((item) => item.lane === "early_setup");
   const pullbackLane = opportunityLaneMetrics.find((item) => item.lane === "pullback_retest");
 
-  if (earlyLane && earlyLane.totalNodes > 0 && earlyLane.missedEarlyHitCount > 0) {
+  if (earlyLane && earlyLane.totalNodes > 0 && (earlyLane.missedEarlyHitCount > 0 || earlyLane.missedEarlyQualityHitCount > 0)) {
     findings.push(aggregateFinding({
-      detail: `启动前机会池共有 ${earlyLane.totalNodes} 个节点，其中 ${earlyLane.missedEarlyHitCount} 个不晚到且事后命中但未被选中。`,
+      detail: `启动前机会池共有 ${earlyLane.totalNodes} 个节点，其中 ${earlyLane.missedEarlyHitCount} 个大行情命中、${earlyLane.missedEarlyQualityHitCount} 个质量命中但未被选中。`,
       id: "PBA-SCAN-LANE-EARLY-001",
       layer: "scan",
       nextAction: "继续强化压缩、早期量能、主动买卖压力和靠近关键位的优先级。",
@@ -2319,6 +2357,7 @@ export function runProfessionalAuditRound({
         opportunityLaneLabel: opportunityLaneLabels[target.opportunityLane],
         opportunityLaneScore: target.opportunityLaneScore,
         planBlockers: target.planBlockers,
+        qualityHit: target.qualityHit,
         radarRank,
         radarScore: target.radarScore,
         rewardRisk: target.rewardRisk,
@@ -2393,7 +2432,7 @@ export function runProfessionalAuditRound({
     highSeverityFindings,
   };
   const missedOpportunities = nodes
-    .filter((item) => !item.capturedByRadar && item.hit && !item.lateAtSelection)
+    .filter((item) => !item.capturedByRadar && (item.hit || item.qualityHit) && !item.lateAtSelection)
     .map((item) => ({
       coinType: item.coinType,
       coinTypeLabel: item.coinTypeLabel,
@@ -2408,7 +2447,7 @@ export function runProfessionalAuditRound({
       opportunityLaneLabel: item.opportunityLaneLabel,
       planBlockers: item.planBlockers,
       radarRank: item.radarRank,
-      reason: `该目标节点事后达到波动阈值，但当时 radar 排名第 ${item.radarRank ?? "未知"}，未进入 Top${item.topN}；用于检查扫描覆盖、候选排序和深扫槽位。`,
+      reason: `该目标节点事后${item.hit ? "达到大行情阈值" : "达到质量命中阈值"}，但当时 radar 排名第 ${item.radarRank ?? "未知"}，未进入 Top${item.topN}；用于检查扫描覆盖、候选排序和深扫槽位。`,
       rewardRisk: item.rewardRisk,
       symbol: item.symbol,
       timeframeBand: item.timeframeBand,

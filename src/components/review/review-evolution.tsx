@@ -73,8 +73,15 @@ const planBlockerLabels: Record<string, string> = {
   risk_score_high: '风险评分过高',
   stale_data: '数据过期',
   stop_distance_too_wide: '止损距离过宽',
+  direction_pending_quiet_setup: '方向待确认的安静早期机会',
+  missing_strategy_v3: '缺少 v3 策略上下文',
+  missing_trade_plan: '缺少交易计划草案',
+  no_recent_touch: '近期没有回踩/触碰关键位',
+  structure_confirmation_pending: '结构确认仍在等待',
   structure_invalidated: '结构已经失效',
+  support_lost: '支撑位失守',
   trade_plan_not_eligible: '交易计划未满足门禁',
+  trade_plan_not_ready: '交易计划未就绪',
   trend_integrity_not_healthy: '趋势完整度不健康',
   upper_wick_exhaustion: '上影线衰竭风险',
 }
@@ -412,6 +419,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                 </div>
                                 <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                   {readableNodeRole(node.nodeRole)} · {readableOpportunityLane(node.opportunityLane, node.opportunityLaneLabel)} · {node.timeframeBand} · 排名 {node.radarRank ?? '-'} · 最大浮盈 {node.mfePct}% · 最大回撤 {node.maePct}%
+                                  {node.qualityHit ? ' · 质量命中' : ''}
                                 </div>
                               </div>
                             ))}
@@ -616,6 +624,51 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                         {data.auditV2.summary}
                       </p>
+                      {data.auditV2.coreCapabilityMetrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">核心能力验收</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-3">
+                            {data.auditV2.coreCapabilityMetrics.map((metric) => {
+                              const primaryFailure = metric.mainFailures[0]
+
+                              return (
+                                <div key={metric.id} className="border border-border bg-secondary/20 p-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-semibold">{metric.label}</span>
+                                    <span
+                                      className={cn(
+                                        'border px-1.5 py-0.5 font-mono text-[10px]',
+                                        metric.status === 'pass'
+                                          ? 'border-up/40 bg-up/10 text-up'
+                                          : metric.status === 'watch'
+                                            ? 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]'
+                                            : 'border-down/40 bg-down/10 text-down',
+                                      )}
+                                    >
+                                      {metric.status === 'pass' ? '通过' : metric.status === 'watch' ? '观察' : '未达标'}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 font-mono text-lg font-semibold">{metric.score}</div>
+                                  <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                                    <span>通过 {metric.passRatePct}%</span>
+                                    <span>节点 {metric.testedNodes}</span>
+                                    <span>有效 {metric.passedNodes}</span>
+                                    <span>失败 {metric.failedNodes}</span>
+                                  </div>
+                                  <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                                    {metric.summary}
+                                  </p>
+                                  {primaryFailure ? (
+                                    <p className="mt-1 border-l border-down/40 pl-2 text-[10px] leading-relaxed text-muted-foreground">
+                                      主要问题：{primaryFailure.label}。{primaryFailure.nextAction}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="mt-3 grid gap-2 md:grid-cols-4">
                         {(['radar', 'momentum', 'volume', 'random'] as const).map((lane) => {
                           const metric = data.auditV2?.baselineMetrics[lane]
@@ -663,8 +716,10 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                 <div className="mt-1 text-sm font-semibold">{metric.captureRatePct}% 捕获</div>
                                 <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
                                   <span>命中 {metric.hitRatePct}%</span>
+                                  <span>质量 {metric.qualityHitRatePct}%</span>
                                   <span>迟到 {metric.lateRatePct}%</span>
                                   <span>漏判 {metric.missedEarlyHitCount}</span>
+                                  <span>质漏 {metric.missedEarlyQualityHitCount}</span>
                                   <span>就绪 {metric.planReadyCount}</span>
                                 </div>
                               </div>

@@ -251,6 +251,7 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
               opportunityLaneLabel: "启动前机会",
               opportunityLaneScore: 82.5,
               planBlockers: ["reward_risk_below_minimum"],
+              qualityHit: true,
               radarRank: 2,
               radarScore: 74.2,
               rewardRisk: 2.4,
@@ -331,6 +332,34 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
             volumeRatio: 1.9,
           },
         ],
+        coreCapabilityMetrics: [
+          {
+            failedNodes: 6,
+            id: "scan",
+            keyMetrics: {
+              captureRatePct: 40,
+              missedEarlyQualityHitCount: 1,
+            },
+            label: "扫描：提前发现能力",
+            mainFailures: [
+              {
+                code: "scan_capture_low",
+                count: 6,
+                detail: "机会捕获率不足。",
+                label: "机会捕获率不足",
+                nextAction: "复查候选排序。",
+                sampleSymbols: ["SUIUSDT"],
+              },
+            ],
+            nextAction: "先修扫描。",
+            passedNodes: 4,
+            passRatePct: 40,
+            score: 52,
+            status: "watch",
+            summary: "扫描能力仍需继续验证。",
+            testedNodes: 10,
+          },
+        ],
         opportunityLaneMetrics: [
           {
             avgRadarRank: 2,
@@ -344,7 +373,10 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
             lateCount: 0,
             lateRatePct: 0,
             missedEarlyHitCount: 0,
+            missedEarlyQualityHitCount: 1,
             planReadyCount: 0,
+            qualityHitCount: 1,
+            qualityHitRatePct: 100,
             selectedCount: 1,
             totalNodes: 1,
           },
@@ -417,8 +449,11 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.opportunityLane, "pullback_retest");
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.tradePlanStatus, "WAIT_PULLBACK");
     assert.equal(result.data.auditV2?.missedOpportunities[0]?.validationWindowLabel, "24h");
+    assert.equal(result.data.auditV2?.coreCapabilityMetrics[0]?.id, "scan");
+    assert.equal(result.data.auditV2?.coreCapabilityMetrics[0]?.mainFailures[0]?.label, "机会捕获率不足");
     assert.equal(result.data.auditV2?.opportunityLaneMetrics[0]?.lane, "early_setup");
     assert.equal(result.data.auditV2?.opportunityLaneMetrics[0]?.captureRatePct, 100);
+    assert.equal(result.data.auditV2?.opportunityLaneMetrics[0]?.qualityHitRatePct, 100);
     assert.equal(result.data.auditV2?.planBlockerMetrics[0]?.label, "结构盈亏比低于 3:1");
     assert.equal(result.data.auditV2?.findings[0]?.id, "PBA-DERIVATIVES-001");
     assert.equal(result.data.auditV2?.remediationPlan[0]?.priority, "P0");
@@ -426,6 +461,7 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.progress?.candidateUniverseSize, 80);
     assert.equal(result.data.progress?.nodes[0]?.nodeRole, "pre_move");
     assert.equal(result.data.progress?.nodes[0]?.opportunityLane, "early_setup");
+    assert.equal(result.data.progress?.nodes[0]?.qualityHit, true);
     assert.equal(result.data.progress?.nodes[0]?.selectedAsOpportunity, true);
     assert.equal(result.data.progress?.nodes[0]?.validationWindowLabel, "4h");
     assert.equal(result.data.auditV2?.auditRound?.plannedSymbols[0]?.symbol, "SUIUSDT");

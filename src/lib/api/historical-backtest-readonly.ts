@@ -255,6 +255,7 @@ function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundPr
     opportunityLaneLabel: stringValue(item.opportunityLaneLabel, defaultOpportunityLaneLabel(opportunityLane)),
     opportunityLaneScore: numericValue(item.opportunityLaneScore),
     planBlockers: asArray(item.planBlockers).map((entry) => stringValue(entry)).filter(Boolean),
+    qualityHit: Boolean(item.qualityHit),
     radarRank: nullableNumber(item.radarRank),
     radarScore: numericValue(item.radarScore),
     rewardRisk: nullableNumber(item.rewardRisk),
@@ -292,9 +293,52 @@ function normalizeAuditV2OpportunityLaneMetric(value: unknown): HistoricalBackte
     lateCount: numericValue(item.lateCount),
     lateRatePct: numericValue(item.lateRatePct),
     missedEarlyHitCount: numericValue(item.missedEarlyHitCount),
+    missedEarlyQualityHitCount: numericValue(item.missedEarlyQualityHitCount),
     planReadyCount: numericValue(item.planReadyCount),
+    qualityHitCount: numericValue(item.qualityHitCount),
+    qualityHitRatePct: numericValue(item.qualityHitRatePct),
     selectedCount: numericValue(item.selectedCount),
     totalNodes: numericValue(item.totalNodes),
+  };
+}
+
+function normalizeAuditV2CoreFailure(value: unknown): HistoricalBacktestAuditV2State["coreCapabilityMetrics"][number]["mainFailures"][number] {
+  const item = asObject(value);
+
+  return {
+    code: stringValue(item.code, "unknown"),
+    count: numericValue(item.count),
+    detail: stringValue(item.detail, "未提供问题细节。"),
+    label: stringValue(item.label, "未标注问题"),
+    nextAction: stringValue(item.nextAction, "继续复核该能力项。"),
+    sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
+  };
+}
+
+function normalizeAuditV2CoreCapabilityMetric(value: unknown): HistoricalBacktestAuditV2State["coreCapabilityMetrics"][number] {
+  const item = asObject(value);
+  const id = stringValue(item.id);
+  const status = stringValue(item.status);
+  const keyMetrics = asObject(item.keyMetrics);
+
+  return {
+    failedNodes: numericValue(item.failedNodes),
+    id: id === "analysis" || id === "strategy" ? id : "scan",
+    keyMetrics: Object.fromEntries(
+      Object.entries(keyMetrics).map(([key, metricValue]) => [
+        key,
+        typeof metricValue === "number" || typeof metricValue === "string" || metricValue === null ? metricValue : stringValue(metricValue),
+      ]),
+    ),
+    label: stringValue(item.label, "核心能力"),
+    mainFailures: asArray(item.mainFailures).map(normalizeAuditV2CoreFailure).slice(0, 6),
+    nextAction: stringValue(item.nextAction, "继续扩大样本验证。"),
+    passedNodes: numericValue(item.passedNodes),
+    passRatePct: numericValue(item.passRatePct),
+    score: numericValue(item.score),
+    status: status === "pass" || status === "watch" ? status : "fail",
+    summary: stringValue(item.summary, "核心能力暂无总结。"),
+    testedNodes: numericValue(item.testedNodes),
   };
 }
 
@@ -377,6 +421,7 @@ function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestA
     guardrails: asArray(payload.guardrails).map((item) => stringValue(item)).filter(Boolean),
     highSeverityFindings: numericValue(roundSummary.highSeverityFindings),
     missedOpportunities: asArray(payload.missedOpportunities).map(normalizeAuditV2MissedOpportunity).slice(0, 50),
+    coreCapabilityMetrics: asArray(payload.coreCapabilityMetrics).map(normalizeAuditV2CoreCapabilityMetric),
     opportunityLaneMetrics: asArray(payload.opportunityLaneMetrics).map(normalizeAuditV2OpportunityLaneMetric),
     planBlockerMetrics: asArray(payload.planBlockerMetrics).map(normalizeAuditV2PlanBlockerMetric).slice(0, 20),
     planReadyCount: numericValue(roundSummary.planReadyCount),

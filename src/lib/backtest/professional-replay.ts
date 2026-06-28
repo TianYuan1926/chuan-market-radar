@@ -85,7 +85,10 @@ export type ProfessionalAuditOpportunityLaneMetric = {
   lateCount: number;
   lateRatePct: number;
   missedEarlyHitCount: number;
+  missedEarlyQualityHitCount: number;
   planReadyCount: number;
+  qualityHitCount: number;
+  qualityHitRatePct: number;
   selectedCount: number;
   totalNodes: number;
 };

@@ -832,12 +832,12 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     lines.push(
       "## 机会分层审计",
       "",
-      "| 机会池 | 节点 | 入选 | 捕获率 | 命中率 | 迟到率 | 漏判早期命中 | 计划就绪 | 平均排名 | 平均雷达分 |",
-      "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+      "| 机会池 | 节点 | 入选 | 捕获率 | 大行情命中 | 质量命中 | 迟到率 | 漏判大行情 | 漏判质量 | 计划就绪 | 平均排名 | 平均雷达分 |",
+      "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     );
 
     for (const metric of report.opportunityLaneMetrics) {
-      lines.push(`| ${metric.label || opportunityLaneLabel[metric.lane] || metric.lane} | ${metric.totalNodes} | ${metric.selectedCount} | ${metric.captureRatePct}% | ${metric.hitRatePct}% | ${metric.lateRatePct}% | ${metric.missedEarlyHitCount} | ${metric.planReadyCount} | ${metric.avgRadarRank ?? "-"} | ${metric.avgRadarScore} |`);
+      lines.push(`| ${metric.label || opportunityLaneLabel[metric.lane] || metric.lane} | ${metric.totalNodes} | ${metric.selectedCount} | ${metric.captureRatePct}% | ${metric.hitRatePct}% | ${metric.qualityHitRatePct}% | ${metric.lateRatePct}% | ${metric.missedEarlyHitCount} | ${metric.missedEarlyQualityHitCount} | ${metric.planReadyCount} | ${metric.avgRadarRank ?? "-"} | ${metric.avgRadarScore} |`);
     }
 
     lines.push("");
