@@ -175,6 +175,17 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function backtestFetchTimeoutMs() {
+  const parsed = Number(
+    process.env.BACKTEST_FETCH_TIMEOUT_MS ??
+      Number(process.env.BACKTEST_CURL_MAX_TIME_SEC ?? 60) * 1_000,
+  );
+
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.max(1_000, Math.floor(parsed))
+    : 60_000;
+}
+
 function curlProxyArgs(proxy: string) {
   if (proxy.startsWith("socks5h://")) {
     return ["--socks5-hostname", proxy.slice("socks5h://".length)];
@@ -230,11 +241,26 @@ async function fetchJson(url: string, context: string) {
     });
   }
 
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": "chuan-radar-professional-backtest/2.0",
-    },
-  });
+  const timeoutMs = backtestFetchTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort(new Error(`${context} timed out after ${timeoutMs}ms`));
+  }, timeoutMs);
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        "user-agent": "chuan-radar-professional-backtest/2.0",
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    throw new Error(`${context} fetch failed: ${errorMessage(error)}`);
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(`${context} returned ${response.status}`);
@@ -1044,9 +1070,7 @@ async function main() {
   console.log(`professional-backtest-audit report: ${reportDir}`);
   console.log(`cases=${report.roundSummary.cases} highFindings=${report.roundSummary.highSeverityFindings} planReady=${report.roundSummary.planReadyCount}`);
 
-  if (report.roundSummary.highSeverityFindings > 0) {
-    process.exitCode = 2;
-  }
+  process.exit(report.roundSummary.highSeverityFindings > 0 ? 2 : 0);
 }
 
 main().catch((error) => {

@@ -1057,6 +1057,16 @@ RawSource
 - 本轮修正：`opportunityLaneScore` 改为只对 `early_setup` 使用 discovery radar component；`pullback_retest`、`higher_timeframe_context` 和 late/risk review 恢复原 raw radar 结构分逻辑。新增回归测试确保回踩/反抽分数不会再被启动前去噪 cap 误伤。
 - 下一轮正式回测验收：回踩/反抽捕获率必须恢复到接近或高于第五轮 60%；启动前机会捕获率不能低于第六轮 12.77%；高优先级问题必须低于 72，并优先观察是否低于第五轮 58。若策略仍为 0，下一步单独处理条件计划触发/止损/目标表达。
 
+2026-06-28 第七轮正式回测与回测系统稳定性修正：
+
+- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T182939-311Z`：100/100 节点，候选池 80，高优先级问题 67，`TRADE_PLAN_READY` 为 2。目标币为 `AVAXUSDT`、`ARBUSDT`、`UNIUSDT`、`1000BONKUSDT`、`FETUSDT`、`GALAUSDT`、`CAKEUSDT`、`JUPUSDT`、`HYPEUSDT`、`CELRUSDT`，与上一轮继续轮换。
+- 对比第六轮 `/app/reports/professional-backtest-audit/2026-06-28T180934-330Z`：高优先级问题从 72 降到 67，交易计划就绪从 0 恢复到 2；扫描分数从 47.97 到 49.15，分析分数从 43.58 到 54.82，策略分数从 30.37 到 32.07；回踩/反抽捕获率从 45.83% 恢复到 61.9%，说明“只压缩 early_setup，不误伤 pullback_retest”的修正确实有效。
+- 第七轮仍未达标，状态继续标记为“可运行但不完整”：扫描通过率 9.46%，分析通过率 35%，策略通过率 2%；启动前机会捕获率仅 13.21%，虽然高于第六轮 12.77%，但仍远低于实战要求。当前前端信号仍不能作为可靠实战参考。
+- 本轮最常见计划卡点：结构盈亏比低于 `3:1` 30 次、结构确认仍在等待 25 次、位置/RR 不足或未知 25 次、追涨/追空风险 15 次、方向待确认的安静早期机会 15 次。下一轮不得降低 `3:1` 门槛，而要把“启动前值得盯但方向未确认”的等待条件、触发条件、失效条件讲清楚。
+- 同时发现回测 CLI 稳定性问题：报告已经写完、`latest-progress.json` 显示 completed，但 Node 进程没有退出。根因边界是 CLI 原生 `fetch` 缺少 AbortController 超时，并且报告写完后只设置 `process.exitCode`，可能被连接池或挂起资源拖住。该问题会影响“每轮回测自动闭环”，必须现场修复。
+- 本轮整改：`src/scripts/professional-backtest-audit.ts` 原生 fetch 增加 `BACKTEST_FETCH_TIMEOUT_MS`/`BACKTEST_CURL_MAX_TIME_SEC` 硬超时；报告写完后显式 `process.exit(0|2)`，保证有问题时以 2 退出、无高优先级问题时以 0 退出。新增仓库卫生测试固定这条防线，禁止回测任务写完报告后继续挂住。
+- 下一轮核心整改方向：扫描层继续提高 `early_setup` 捕获率；分析层把“方向未确认、结构等待、真正失效”拆得更清楚；策略层补强条件计划表达，特别是等待什么价格行为、突破/回踩如何确认、止损和目标如何失效。仍禁止为了提高计划就绪数而放松最低 `3:1`。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

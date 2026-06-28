@@ -1092,3 +1092,13 @@ test("legacy radar contract getters are disabled instead of returning static mar
   assert.match(sniperBoardSource, /hasTrackedPushPrice/);
   assert.match(sniperBoardSource, /待追踪/);
 });
+
+test("professional backtest cli has hard network timeout and exits after writing report", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/scripts/professional-backtest-audit.ts"), "utf8");
+
+  assert.match(source, /function backtestFetchTimeoutMs/);
+  assert.match(source, /new AbortController\(\)/);
+  assert.match(source, /BACKTEST_FETCH_TIMEOUT_MS/);
+  assert.match(source, /controller\.abort/);
+  assert.match(source, /process\.exit\(report\.roundSummary\.highSeverityFindings > 0 \? 2 : 0\)/);
+});
