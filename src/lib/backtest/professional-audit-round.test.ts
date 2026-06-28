@@ -4,6 +4,7 @@ import {
   classifyProfessionalAuditOpportunityLane,
   opportunityLaneScore,
   professionalAuditOpportunityQuotas,
+  professionalAuditContextualPlanBlockers,
   professionalAuditPlanBlockerLabel,
   professionalAuditRadarScore,
   resolveProfessionalAuditHorizonBarsByBand,
@@ -169,6 +170,38 @@ test("professionalAuditRadarScore promotes quiet accumulation before the move", 
   );
 });
 
+test("professionalAuditRadarScore promotes WUSDT-like quiet pre-signal setups before they become obvious", () => {
+  const quietPreSignal = professionalAuditRadarScore({
+    compressionPct: 54,
+    confidence: 50,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 0.11,
+    nodeRole: "neutral_random",
+    rangePositionPct: 49,
+    symbol: "WUSDT",
+    timeframeBand: "medium",
+    volumeRatio: 0.82,
+  });
+  const genericNeutralDrift = professionalAuditRadarScore({
+    compressionPct: 76,
+    confidence: 56,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 0.24,
+    nodeRole: "neutral_random",
+    rangePositionPct: 51,
+    symbol: "GENERICUSDT",
+    timeframeBand: "medium",
+    volumeRatio: 1,
+  });
+
+  assert.ok(
+    quietPreSignal > genericNeutralDrift + 20,
+    `expected quiet pre-signal score ${quietPreSignal} to clearly beat generic drift ${genericNeutralDrift}`,
+  );
+});
+
 test("professionalAuditRadarScore promotes inferred pre-move roles without promoting fakeout or late roles", () => {
   const baseInput = {
     compressionPct: 30,
@@ -275,8 +308,8 @@ test("professionalAuditRadarScore rewards controlled breakout-edge setup before 
 
 test("professionalAuditOpportunityQuotas reserves Top10 slots for early pullback and higher timeframe lanes", () => {
   assert.deepEqual(professionalAuditOpportunityQuotas(10), {
-    early_setup: 4,
-    higher_timeframe_context: 3,
+    early_setup: 5,
+    higher_timeframe_context: 2,
     pullback_retest: 3,
     risk_review: 0,
   });
@@ -490,6 +523,50 @@ test("tradePlanBlockers does not count neutral watch-only samples as reward-risk
   } as unknown as MarketSignal);
 
   assert.deepEqual(blockers, ["neutral_direction"]);
+});
+
+test("professionalAuditContextualPlanBlockers separates quiet direction-pending setups from useless neutral signals", () => {
+  const signal = {
+    direction: "neutral",
+    maturity: {
+      canAttachTradePlan: false,
+      canEnterMainSignalArea: true,
+      canRequestAiReview: true,
+      label: "证据融合信号",
+      reasons: ["has_structured_evidence"],
+      stage: "EVIDENCE_SIGNAL",
+    },
+    strategyV3: {
+      tradePlan: {
+        blockedBy: ["neutral_direction"],
+        rewardRisk: null,
+        status: "WATCH_ONLY",
+      },
+    },
+  } as unknown as MarketSignal;
+  const blockers = professionalAuditContextualPlanBlockers(signal, {
+    compressionPct: 54,
+    lateAtSelection: false,
+    movePct: 0.11,
+    nodeRole: "neutral_random",
+    opportunityLane: "early_setup",
+    rangePositionPct: 49,
+    volumeRatio: 0.82,
+  });
+  const genericBlockers = professionalAuditContextualPlanBlockers(signal, {
+    compressionPct: 82,
+    lateAtSelection: false,
+    movePct: 0.11,
+    nodeRole: "neutral_random",
+    opportunityLane: "early_setup",
+    rangePositionPct: 49,
+    volumeRatio: 0.82,
+  });
+
+  assert.equal(blockers.includes("neutral_direction"), false);
+  assert.ok(blockers.includes("direction_pending_quiet_setup"));
+  assert.ok(blockers.includes("structure_confirmation_pending"));
+  assert.deepEqual(genericBlockers, ["neutral_direction"]);
 });
 
 test("runProfessionalAuditRound reports scan analysis and strategy core capability scorecards", () => {

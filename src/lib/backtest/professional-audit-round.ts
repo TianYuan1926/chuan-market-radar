@@ -184,6 +184,7 @@ const planBlockerLabels: Record<string, string> = {
   lower_wick_exhaustion: "下影线衰竭风险",
   missing_strategy_v3: "缺少 v3 策略上下文",
   missing_trade_plan: "缺少交易计划草案",
+  direction_pending_quiet_setup: "方向待确认的安静早期机会",
   neutral_direction: "方向不明确",
   no_nearest_target: "缺少最近目标",
   no_structural_stop: "缺少结构止损",
@@ -471,7 +472,7 @@ export function professionalAuditOpportunityQuotas(topN: number): Record<Profess
     };
   }
 
-  const early = Math.max(1, Math.floor(normalized * 0.4));
+  const early = Math.max(1, Math.floor(normalized * 0.5));
   const pullback = Math.max(1, Math.floor(normalized * 0.3));
   const higher = Math.max(0, normalized - early - pullback);
 
@@ -602,6 +603,17 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
   const quietAccumulationScore = !input.lateAtSelection && absMove <= 2.5
     ? (nonExtremeLocationScore * 14 + bandScore(input.volumeRatio, 0.55, 1.25, 2.1) * 8) * horizonWeights.quietAccumulation
     : 0;
+  const quietPreSignalScore = !input.lateAtSelection &&
+    absMove <= 1.35 &&
+    input.volumeRatio >= 0.55 &&
+    input.volumeRatio <= 1.08 &&
+    input.compressionPct <= 68
+    ? (
+      nonExtremeLocationScore * 22 +
+      bandScore(input.volumeRatio, 0.62, 0.86, 1.08) * 14 +
+      clamp((68 - input.compressionPct) / 68, 0, 1) * 10
+    ) * horizonWeights.quietAccumulation
+    : 0;
   const controlledImpulseScore = !input.lateAtSelection && absMove > 2 && absMove <= 6.5 && input.volumeRatio >= 1.2
     ? (nonExtremeLocationScore * 8 + clamp((input.volumeRatio - 1.2) * 3, 0, 10)) * horizonWeights.controlledImpulse
     : 0;
@@ -659,6 +671,7 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
     compressionScore +
     earlyVolumeScore +
     quietAccumulationScore +
+    quietPreSignalScore +
     controlledImpulseScore +
     controlledBreakoutEdgeScore +
     lowVolumeCompressionScore +
@@ -1000,6 +1013,58 @@ export function tradePlanBlockers(signal: MarketSignal) {
   return [...blockers];
 }
 
+type ProfessionalAuditTradePlanBlockerContext = {
+  compressionPct: number;
+  lateAtSelection: boolean;
+  movePct: number;
+  nodeRole?: ProfessionalAuditRoundNodeRole;
+  opportunityLane: ProfessionalAuditOpportunityLaneName;
+  rangePositionPct: number;
+  volumeRatio: number;
+};
+
+function isQuietDirectionPendingSetup(context: ProfessionalAuditTradePlanBlockerContext) {
+  const absMove = Math.abs(context.movePct);
+  const nonExtremeLocation = context.rangePositionPct >= 18 && context.rangePositionPct <= 82;
+  const quietVolume = context.volumeRatio >= 0.5 && context.volumeRatio <= 1.15;
+  const quietRole =
+    context.nodeRole === "pre_move" ||
+    context.nodeRole === "neutral_random" ||
+    context.nodeRole === "medium_swing" ||
+    context.nodeRole === undefined;
+
+  return (
+    context.opportunityLane === "early_setup" &&
+    !context.lateAtSelection &&
+    absMove <= 1.6 &&
+    context.compressionPct <= 70 &&
+    quietVolume &&
+    nonExtremeLocation &&
+    quietRole
+  );
+}
+
+export function professionalAuditContextualPlanBlockers(
+  signal: MarketSignal,
+  context: ProfessionalAuditTradePlanBlockerContext,
+) {
+  const blockers = tradePlanBlockers(signal);
+
+  if (
+    signal.direction === "neutral" &&
+    blockers.includes("neutral_direction") &&
+    isQuietDirectionPendingSetup(context)
+  ) {
+    return [
+      ...blockers.filter((blocker) => blocker !== "neutral_direction"),
+      "direction_pending_quiet_setup",
+      "structure_confirmation_pending",
+    ].filter((blocker, index, list) => list.indexOf(blocker) === index);
+  }
+
+  return blockers;
+}
+
 function buildCandidateAtNode({
   candles,
   derivatives,
@@ -1072,6 +1137,15 @@ function buildCandidateAtNode({
     timeframeBand,
     volumeRatio: currentVolumeRatio,
   });
+  const planBlockers = professionalAuditContextualPlanBlockers(auditCase.signal, {
+    compressionPct: currentCompressionPct,
+    lateAtSelection,
+    movePct,
+    nodeRole: currentNodeRole,
+    opportunityLane,
+    rangePositionPct: currentRangePositionPct,
+    volumeRatio: currentVolumeRatio,
+  });
   const outcome = replayOutcome({
     direction,
     entry: observed.close,
@@ -1103,7 +1177,7 @@ function buildCandidateAtNode({
       tradePlanStatus: tradePlanStatus(auditCase.signal),
       volumeRatio: currentVolumeRatio,
     }),
-    planBlockers: tradePlanBlockers(auditCase.signal),
+    planBlockers,
     radarScore,
     randomScore: deterministicRandomScore(symbol, observed.openTime),
     rangePositionPct: currentRangePositionPct,
@@ -1508,6 +1582,7 @@ function buildAnalysisCapabilityMetric({
   const falsePositive = selected.filter((node) => !node.hit || node.lateAtSelection || node.opportunityLane === "risk_review");
   const selectedBlockerMetrics = buildPlanBlockerMetrics(selected);
   const unclearCount = blockerCount(selectedBlockerMetrics, ["neutral_direction"]);
+  const directionPendingCount = blockerCount(selectedBlockerMetrics, ["direction_pending_quiet_setup"]);
   const structureBrokenCount = blockerCount(selectedBlockerMetrics, ["bear_structure_broken", "bull_structure_broken", "structure_invalidated"]);
   const exhaustionCount = blockerCount(selectedBlockerMetrics, ["lower_wick_exhaustion", "upper_wick_exhaustion"]);
   const usefulRatePct = percent(useful.length, selected.length);
@@ -1579,6 +1654,7 @@ function buildAnalysisCapabilityMetric({
     failedNodes: Math.max(0, selected.length - useful.length),
     id: "analysis",
     keyMetrics: {
+      directionPendingQuietSetupCount: directionPendingCount,
       directionUnclearCount: unclearCount,
       falsePositiveRatePct,
       selectedLateRatePct,
