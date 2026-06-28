@@ -437,21 +437,14 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     ? 4
     : 0;
   const blockers = input.planBlockers ?? [];
-  const hardRiskPenalty = Math.min(
-    28,
+  const structuralBlockerPenalty = Math.min(
+    12,
     blockers.filter((blocker) =>
       blocker === "bear_structure_broken" ||
       blocker === "bull_structure_broken" ||
-      blocker === "chase_risk" ||
-      blocker === "lower_wick_exhaustion" ||
       blocker === "resistance_reclaimed" ||
-      blocker === "reward_risk_below_minimum" ||
-      blocker === "stop_distance_too_wide" ||
-      blocker === "support_lost" ||
-      blocker === "upper_wick_exhaustion" ||
-      blocker === "位置/RR" ||
-      blocker === "反抽质量"
-    ).length * 8,
+      blocker === "support_lost"
+    ).length * 4,
   );
   const softWaitBonus = blockers.some((blocker) =>
     blocker === "direction_pending_quiet_setup" ||
@@ -460,7 +453,7 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   )
     ? 6
     : 0;
-  const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus - hardRiskPenalty;
+  const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus - structuralBlockerPenalty;
 
   if (input.lateAtSelection) {
     return round(input.radarScore - 100 - absMove * 2, 4);
@@ -2474,8 +2467,10 @@ export function runProfessionalAuditRound({
       observedAt: item.observedAt,
       opportunityLane: item.opportunityLane,
       opportunityLaneLabel: item.opportunityLaneLabel,
+      opportunityLaneScore: item.opportunityLaneScore,
       planBlockers: item.planBlockers,
       radarRank: item.radarRank,
+      radarScore: item.radarScore,
       reason: `该目标节点事后${item.hit ? "达到大行情阈值" : "达到质量命中阈值"}，但当时 radar 排名第 ${item.radarRank ?? "未知"}，未进入 Top${item.topN}；用于检查扫描覆盖、候选排序和深扫槽位。`,
       rewardRisk: item.rewardRisk,
       symbol: item.symbol,

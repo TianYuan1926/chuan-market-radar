@@ -412,6 +412,38 @@ test("opportunityLaneScore promotes soft waiting setups over hard-blocked noisy 
   );
 });
 
+test("opportunityLaneScore does not bury discovery candidates for strategy-only blockers", () => {
+  const common = {
+    compressionPct: 46,
+    direction: "long" as const,
+    lateAtSelection: false,
+    movePct: 2.2,
+    nodeRole: "early_volume_expansion" as const,
+    radarScore: 74,
+    rangePositionPct: 48,
+    rewardRisk: null,
+    timeframeBand: "small" as const,
+    tradePlanStatus: "BLOCKED",
+    volumeRatio: 1.32,
+  };
+  const plainDiscovery = opportunityLaneScore(common);
+  const strategyBlockedDiscovery = opportunityLaneScore({
+    ...common,
+    planBlockers: [
+      "reward_risk_below_minimum",
+      "stop_distance_too_wide",
+      "chase_risk",
+      "位置/RR",
+    ],
+  });
+
+  assert.equal(
+    strategyBlockedDiscovery,
+    plainDiscovery,
+    "scanner awareness should not be reduced by RR/stop/chase blockers; strategy gate handles those later",
+  );
+});
+
 test("selectProfessionalAuditOpportunityCandidates lets strong RR-qualified early setups compete for Top10", () => {
   const item = (
     symbol: string,

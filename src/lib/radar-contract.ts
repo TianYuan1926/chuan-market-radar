@@ -1291,8 +1291,10 @@ export type HistoricalBacktestAuditV2MissedOpportunity = {
   observedAt: string
   opportunityLane: HistoricalBacktestAuditOpportunityLaneMetric['lane']
   opportunityLaneLabel: string
+  opportunityLaneScore: number
   planBlockers: string[]
   radarRank: number | null
+  radarScore: number
   reason: string
   rewardRisk: number | null
   symbol: string
