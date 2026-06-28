@@ -504,6 +504,25 @@ test("opportunityLaneScore compresses raw radar noise so real early setups are n
   );
 });
 
+test("opportunityLaneScore keeps pullback retest ranking from being compressed by early setup noise caps", () => {
+  const pullbackRetest = opportunityLaneScore({
+    compressionPct: 48,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 4.1,
+    nodeRole: "pullback_retest",
+    radarScore: 118,
+    rangePositionPct: 44,
+    timeframeBand: "medium",
+    volumeRatio: 0.92,
+  });
+
+  assert.ok(
+    pullbackRetest > 135,
+    `expected pullback retest score ${pullbackRetest} to preserve its structural radar strength`,
+  );
+});
+
 test("classifyProfessionalAuditOpportunityLane honors target node roles without turning late extensions into opportunities", () => {
   assert.equal(classifyProfessionalAuditOpportunityLane({
     compressionPct: 28,
