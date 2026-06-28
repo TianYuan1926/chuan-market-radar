@@ -1015,6 +1015,18 @@ RawSource
 - 机会池审计新增 `qualityHitCount`、`qualityHitRatePct`、`missedEarlyQualityHitCount`。正式报告和前端复盘页必须同时展示大行情命中、质量命中、漏判大行情、漏判质量命中，禁止只展示一个“命中 0%”造成误读。
 - 本轮常规验证已通过 `npm run typecheck` 和 `npm run test:market`。本地 `npm run backtest:professional-round` 因本机访问 Binance 超时失败，下一轮正式能力验收必须在腾讯云生产容器运行。
 
+2026-06-28 第三轮正式回测与排序整改：
+
+- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T161032-693Z`：100/100 节点，候选池 80，高优先级问题 63，`TRADE_PLAN_READY` 为 0。报告已通过 `/api/frontend/review-contract` 透出，三大核心成绩单可在前端复盘合同中读取。
+- 本轮仍未达标，状态继续标记为“可运行但不完整”：扫描分数 51.72、通过率 11.11%；分析分数 52.78、通过率 32%；策略分数 35.91、通过率 4%。不能把当前前端信号当成可靠实战参考。
+- 对比上一轮 `/app/reports/professional-backtest-audit/2026-06-28T140803-653Z`：高优先级问题从 66 降到 63，radar 原始命中率从 4.3% 提升到 7.32%，提前命中率从 4.3% 提升到 7.32%，radar 质量分从 6.69 提升到 10.92，启动前机会捕获率从 10% 提升到 13.04%，回踩/反抽捕获率从 72% 提升到 73.08%。这说明 `qualityHit` 和核心成绩单修复有效，但提升幅度仍不足。
+- 本轮关键缺陷：启动前机会质量命中率 19.57%，但漏判质量命中 6 个；回踩/反抽质量命中率 26.92%，漏判质量命中 2 个；交易计划就绪仍为 0。说明系统能够识别部分提前机会，但还不能稳定把“RR 合格、只差结构确认”的样本推到前排并转成清晰条件计划。
+- 本轮典型漏判：`ENAUSDT` 启动前机会，RR 4.79，状态 `WAIT_PULLBACK`，卡在 `structure_confirmation_pending`，但 radar 排名第 23；`RENDERUSDT` 启动前机会，RR 4.73，状态 `WAIT_RETEST`，卡在 `reaction_not_confirmed`，但 radar 排名第 21；`HYPEUSDT` 启动前机会，RR 3.56，但被反抽质量卡点阻断，排名第 43。下一轮必须验证这些“可等待、RR 合格”的样本是否前移。
+- 本轮计划卡点 Top：结构盈亏比低于 `3:1` 30 次、结构确认仍在等待 26 次、位置/RR 不足或未知 24 次、方向待确认的安静早期机会 15 次、多头结构已破坏 14 次、追涨/追空风险 13 次、止损距离过宽 13 次、方向不明确 11 次。
+- 本轮整改：机会排序新增“计划可行性修正”。`rewardRisk >= 3`、`WAIT_PULLBACK`、`WAIT_RETEST`、`structure_confirmation_pending`、`reaction_not_confirmed`、`direction_pending_quiet_setup` 会提高机会池排序；`reward_risk_below_minimum`、`stop_distance_too_wide`、`chase_risk`、结构破坏、支撑/压力失效、上下影线衰竭等硬卡点会降低排序。该修正只使用 `observedAt` 之前已经生成的交易计划、RR 和卡点，不使用未来 MFE/MAE。
+- 风控边界不变：本轮没有降低 `3:1`，没有把等待确认样本升级成 `TRADE_PLAN_READY`，没有让前端或回测系统伪造交易计划。等待确认只能说明“值得盯”和“等什么”，不能冒充可立即执行。
+- 本轮常规验证已通过 `npm run typecheck`、`npm run test:market`、`npm run lint`、`npm run build`。下一步必须部署到腾讯云后重新运行正式回测，验收 `ENAUSDT` / `RENDERUSDT` / `HYPEUSDT` 类样本是否前移、硬阻断噪声是否下降、交易计划就绪是否在不降低风控门槛的情况下改善。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

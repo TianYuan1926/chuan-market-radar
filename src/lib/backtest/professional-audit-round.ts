@@ -414,6 +414,7 @@ export function classifyProfessionalAuditOpportunityLane(input: ProfessionalAudi
 }
 
 export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput & {
+  planBlockers?: string[];
   radarScore: number;
   rewardRisk?: number | null;
   tradePlanStatus?: string;
@@ -435,6 +436,31 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   const conditionalPlanBonus = input.tradePlanStatus === "WAIT_RETEST" || input.tradePlanStatus === "WAIT_PULLBACK"
     ? 4
     : 0;
+  const blockers = input.planBlockers ?? [];
+  const hardRiskPenalty = Math.min(
+    28,
+    blockers.filter((blocker) =>
+      blocker === "bear_structure_broken" ||
+      blocker === "bull_structure_broken" ||
+      blocker === "chase_risk" ||
+      blocker === "lower_wick_exhaustion" ||
+      blocker === "resistance_reclaimed" ||
+      blocker === "reward_risk_below_minimum" ||
+      blocker === "stop_distance_too_wide" ||
+      blocker === "support_lost" ||
+      blocker === "upper_wick_exhaustion" ||
+      blocker === "位置/RR" ||
+      blocker === "反抽质量"
+    ).length * 8,
+  );
+  const softWaitBonus = blockers.some((blocker) =>
+    blocker === "direction_pending_quiet_setup" ||
+    blocker === "reaction_not_confirmed" ||
+    blocker === "structure_confirmation_pending"
+  )
+    ? 6
+    : 0;
+  const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus - hardRiskPenalty;
 
   if (input.lateAtSelection) {
     return round(input.radarScore - 100 - absMove * 2, 4);
@@ -448,15 +474,15 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
       : 0;
     const controlledLocationBonus = nonExtremeLocationScore * 10;
 
-    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus + rrQualityBonus + conditionalPlanBonus - absMove * 0.9, 4);
+    return round(input.radarScore + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus + planViabilityAdjustment - absMove * 0.9, 4);
   }
 
   if (lane === "pullback_retest") {
-    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + rrQualityBonus + conditionalPlanBonus, 4);
+    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + planViabilityAdjustment, 4);
   }
 
   if (lane === "higher_timeframe_context") {
-    return round(input.radarScore + (100 - input.compressionPct) * 0.28 + nonExtremeLocationScore * 16 + bandScore(absMove, 0, 1.8, 6.5) * 8 + rrQualityBonus + conditionalPlanBonus, 4);
+    return round(input.radarScore + (100 - input.compressionPct) * 0.28 + nonExtremeLocationScore * 16 + bandScore(absMove, 0, 1.8, 6.5) * 8 + planViabilityAdjustment, 4);
   }
 
   return round(input.radarScore - 80, 4);
@@ -1171,6 +1197,8 @@ function buildCandidateAtNode({
     rangePositionPct: currentRangePositionPct,
     volumeRatio: currentVolumeRatio,
   });
+  const rewardRisk = tradePlanRewardRisk(auditCase.signal);
+  const tradePlanStatusValue = tradePlanStatus(auditCase.signal);
   const outcome = replayOutcome({
     direction,
     entry: observed.close,
@@ -1195,11 +1223,12 @@ function buildCandidateAtNode({
       lateAtSelection,
       movePct,
       nodeRole: currentNodeRole,
+      planBlockers,
       radarScore,
       rangePositionPct: currentRangePositionPct,
-      rewardRisk: tradePlanRewardRisk(auditCase.signal),
+      rewardRisk,
       timeframeBand,
-      tradePlanStatus: tradePlanStatus(auditCase.signal),
+      tradePlanStatus: tradePlanStatusValue,
       volumeRatio: currentVolumeRatio,
     }),
     planBlockers,
@@ -1207,8 +1236,8 @@ function buildCandidateAtNode({
     radarScore,
     randomScore: deterministicRandomScore(symbol, observed.openTime),
     rangePositionPct: currentRangePositionPct,
-    rewardRisk: tradePlanRewardRisk(auditCase.signal),
-    tradePlanStatus: tradePlanStatus(auditCase.signal),
+    rewardRisk,
+    tradePlanStatus: tradePlanStatusValue,
     volumeRatio: currentVolumeRatio,
   };
 }

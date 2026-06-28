@@ -376,6 +376,42 @@ test("opportunityLaneScore promotes RR-qualified early setups without using futu
   );
 });
 
+test("opportunityLaneScore promotes soft waiting setups over hard-blocked noisy setups", () => {
+  const softWaitingSetup = opportunityLaneScore({
+    compressionPct: 52,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 3.4,
+    nodeRole: "breakout_edge",
+    planBlockers: ["structure_confirmation_pending"],
+    radarScore: 86,
+    rangePositionPct: 54,
+    rewardRisk: 4.2,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 1.08,
+  });
+  const hardBlockedSetup = opportunityLaneScore({
+    compressionPct: 52,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 3.4,
+    nodeRole: "early_volume_expansion",
+    planBlockers: ["reward_risk_below_minimum", "stop_distance_too_wide", "chase_risk"],
+    radarScore: 92,
+    rangePositionPct: 54,
+    rewardRisk: 1.2,
+    timeframeBand: "small",
+    tradePlanStatus: "BLOCKED",
+    volumeRatio: 1.8,
+  });
+
+  assert.ok(
+    softWaitingSetup > hardBlockedSetup,
+    `expected soft waiting setup ${softWaitingSetup} to outrank hard-blocked noisy setup ${hardBlockedSetup}`,
+  );
+});
+
 test("selectProfessionalAuditOpportunityCandidates lets strong RR-qualified early setups compete for Top10", () => {
   const item = (
     symbol: string,
