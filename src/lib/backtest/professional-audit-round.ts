@@ -189,6 +189,8 @@ const planBlockerLabels: Record<string, string> = {
   direction_pending_quiet_setup: "方向待确认的安静早期机会",
   neutral_direction: "方向不明确",
   no_nearest_target: "缺少最近目标",
+  no_recent_touch: "近期没有触碰关键位",
+  no_relevant_level: "缺少可验证关键位",
   no_structural_stop: "缺少结构止损",
   reaction_not_confirmed: "回踩/反抽反应未确认",
   resistance_reclaimed: "价格重新站回压力位",
@@ -205,6 +207,10 @@ const planBlockerLabels: Record<string, string> = {
   trade_plan_not_ready: "交易计划未就绪",
   trend_integrity_not_healthy: "趋势完整度不健康",
   upper_wick_exhaustion: "上影线衰竭风险",
+  "位置/RR": "结构盈亏比不足或未知",
+  "反抽质量": "反抽承压质量不足",
+  "周期冲突": "多周期结构冲突",
+  "回踩质量": "回踩承接质量不足",
 };
 
 export function professionalAuditOpportunityLaneLabel(lane: ProfessionalAuditOpportunityLaneName) {
@@ -222,6 +228,14 @@ export function professionalAuditPlanBlockerLabel(blocker: string) {
 
   if (/reaction/iu.test(blocker)) {
     return "反应确认不足";
+  }
+
+  if (/recent[_ -]?touch|touch|关键位/iu.test(blocker)) {
+    return "近期没有触碰关键位";
+  }
+
+  if (/level/iu.test(blocker)) {
+    return "缺少可验证关键位";
   }
 
   if (/risk[_ -]?gate|blocked/iu.test(blocker)) {
@@ -437,6 +451,7 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   const nonExtremeLocationScore = input.direction === "long"
     ? bandScore(input.rangePositionPct, 16, 38, 84)
     : bandScore(input.rangePositionPct, 16, 62, 84);
+  const lane = classifyProfessionalAuditOpportunityLane(input);
   const earlyRoleBonus = input.nodeRole === "pre_move" && absMove <= 4.5
     ? 22 + Math.max(0, 48 - input.compressionPct) * 0.35
     : input.nodeRole === "early_volume_expansion" && absMove <= 6 && input.volumeRatio >= 1.05
@@ -448,18 +463,18 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     ? Math.min(22, 10 + (Math.min(input.rewardRisk, 5) - 3) * 6)
     : 0;
   const conditionalPlanBonus = input.tradePlanStatus === "WAIT_RETEST" || input.tradePlanStatus === "WAIT_PULLBACK"
-    ? 8
-    : 0;
+      ? 8
+      : 0;
   const blockers = input.planBlockers ?? [];
-  const structuralBlockerPenalty = Math.min(
-    12,
-    blockers.filter((blocker) =>
+  const structuralBlockerCount = blockers.filter((blocker) =>
       blocker === "bear_structure_broken" ||
       blocker === "bull_structure_broken" ||
       blocker === "resistance_reclaimed" ||
       blocker === "support_lost"
-    ).length * 4,
-  );
+  ).length;
+  const structuralBlockerPenalty = lane === "early_setup"
+    ? Math.min(4, structuralBlockerCount * 1.5)
+    : Math.min(12, structuralBlockerCount * 4);
   const softWaitBonus = blockers.some((blocker) =>
     blocker === "direction_pending_quiet_setup" ||
     blocker === "reaction_not_confirmed" ||
@@ -476,13 +491,38 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   const genericNeutralPenalty = input.nodeRole === "neutral_random" && absMove <= 2 && input.volumeRatio <= 1.05
     ? 16
     : 0;
+  const controlledEarlyVolumeBonus = input.nodeRole === "early_volume_expansion" &&
+      !input.lateAtSelection &&
+      absMove >= 1.1 &&
+      absMove <= 5.8 &&
+      input.volumeRatio >= 1.1 &&
+      input.volumeRatio <= 2.8 &&
+      input.compressionPct <= 68
+    ? 12 + bandScore(input.volumeRatio, 1.1, 1.55, 2.8) * 12 + nonExtremeLocationScore * 6
+    : 0;
+  const breakoutEdgeReadinessBonus = input.nodeRole === "breakout_edge" &&
+      !input.lateAtSelection &&
+      absMove >= 0.8 &&
+      absMove <= 5.8 &&
+      input.volumeRatio >= 1.02 &&
+      input.volumeRatio <= 2.5 &&
+      input.compressionPct <= 62
+    ? 10 + bandScore(input.volumeRatio, 1.02, 1.35, 2.5) * 8 + nonExtremeLocationScore * 8
+    : 0;
+  const mediumSwingSetupBonus = input.nodeRole === "medium_swing" &&
+      input.timeframeBand === "medium" &&
+      !input.lateAtSelection &&
+      absMove <= 4.8 &&
+      input.volumeRatio >= 0.65 &&
+      input.volumeRatio <= 2.4 &&
+      input.compressionPct <= 72
+    ? 8 + nonExtremeLocationScore * 8 + bandScore(absMove, 0.2, 2.2, 4.8) * 6
+    : 0;
   const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus + quietDirectionPendingBonus - structuralBlockerPenalty;
 
   if (input.lateAtSelection) {
     return round(input.radarScore - 100 - absMove * 2, 4);
   }
-
-  const lane = classifyProfessionalAuditOpportunityLane(input);
 
   if (lane === "early_setup") {
     const lowVolumeCompressionBonus = input.compressionPct <= 42 && input.volumeRatio <= 1.05
@@ -497,11 +537,11 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     const controlledLocationBonus = nonExtremeLocationScore * 10;
     const radarComponent = discoveryRadarComponent(input.radarScore);
 
-    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + controlledLocationBonus + earlyRoleBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + breakoutEdgeReadinessBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
   }
 
   if (lane === "pullback_retest") {
-    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + planViabilityAdjustment, 4);
+    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + mediumSwingSetupBonus * 0.8 + planViabilityAdjustment, 4);
   }
 
   if (lane === "higher_timeframe_context") {

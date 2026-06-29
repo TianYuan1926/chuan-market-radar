@@ -444,6 +444,77 @@ test("opportunityLaneScore does not bury discovery candidates for strategy-only 
   );
 });
 
+test("opportunityLaneScore keeps early structural-discovery candidates visible even before strategy confirmation", () => {
+  const common = {
+    compressionPct: 54,
+    direction: "long" as const,
+    lateAtSelection: false,
+    movePct: 3.1,
+    nodeRole: "early_volume_expansion" as const,
+    radarScore: 66,
+    rangePositionPct: 52,
+    rewardRisk: null,
+    timeframeBand: "small" as const,
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 1.48,
+  };
+  const cleanEarly = opportunityLaneScore(common);
+  const structurallyUnconfirmed = opportunityLaneScore({
+    ...common,
+    planBlockers: ["bull_structure_broken", "structure_confirmation_pending"],
+  });
+
+  assert.ok(
+    structurallyUnconfirmed >= cleanEarly - 5,
+    `expected early discovery score ${structurallyUnconfirmed} to stay close to clean score ${cleanEarly}`,
+  );
+});
+
+test("opportunityLaneScore promotes controlled early volume and breakout edge over generic drift", () => {
+  const controlledVolume = opportunityLaneScore({
+    compressionPct: 50,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 3.4,
+    nodeRole: "early_volume_expansion",
+    radarScore: 58,
+    rangePositionPct: 49,
+    timeframeBand: "small",
+    volumeRatio: 1.55,
+  });
+  const breakoutEdge = opportunityLaneScore({
+    compressionPct: 48,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 3,
+    nodeRole: "breakout_edge",
+    radarScore: 58,
+    rangePositionPct: 66,
+    timeframeBand: "small",
+    volumeRatio: 1.24,
+  });
+  const genericDrift = opportunityLaneScore({
+    compressionPct: 62,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.2,
+    nodeRole: "neutral_random",
+    radarScore: 76,
+    rangePositionPct: 50,
+    timeframeBand: "small",
+    volumeRatio: 1,
+  });
+
+  assert.ok(
+    controlledVolume > genericDrift,
+    `expected controlled early volume ${controlledVolume} to beat generic drift ${genericDrift}`,
+  );
+  assert.ok(
+    breakoutEdge > genericDrift,
+    `expected breakout edge ${breakoutEdge} to beat generic drift ${genericDrift}`,
+  );
+});
+
 test("selectProfessionalAuditOpportunityCandidates lets strong RR-qualified early setups compete for Top10", () => {
   const item = (
     symbol: string,
@@ -652,6 +723,10 @@ test("professionalAuditPlanBlockerLabel maps rr blockers to readable Chinese", (
   assert.equal(professionalAuditPlanBlockerLabel("reward_risk_2.40R_below_3R"), "结构盈亏比不足或未知");
   assert.equal(professionalAuditPlanBlockerLabel("support_lost"), "支撑位失守");
   assert.equal(professionalAuditPlanBlockerLabel("trade_plan_not_ready"), "交易计划未就绪");
+  assert.equal(professionalAuditPlanBlockerLabel("no_recent_touch"), "近期没有触碰关键位");
+  assert.equal(professionalAuditPlanBlockerLabel("no_relevant_level"), "缺少可验证关键位");
+  assert.equal(professionalAuditPlanBlockerLabel("位置/RR"), "结构盈亏比不足或未知");
+  assert.equal(professionalAuditPlanBlockerLabel("周期冲突"), "多周期结构冲突");
 });
 
 test("tradePlanBlockers does not count neutral watch-only samples as reward-risk unknown", () => {

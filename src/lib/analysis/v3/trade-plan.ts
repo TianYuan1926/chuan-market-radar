@@ -57,6 +57,45 @@ function waitTriggerText(direction: V3LocationDirection, status: V3TradePlanStat
   return "触发条件：方向未明确前只观察，不能生成多空计划。";
 }
 
+function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
+  const unique = [...new Set(blockedBy)];
+  const notes: string[] = [];
+
+  if (unique.includes("structure_confirmation_pending")) {
+    notes.push(
+      direction === "short"
+        ? "结构等待点：先等有效跌破支撑，或反抽支撑失败，不能在中间位置直接追空。"
+        : "结构等待点：先等有效突破压力，或回踩支撑承接，不能在中间位置直接追多。",
+    );
+  }
+
+  if (unique.includes("no_recent_touch")) {
+    notes.push("位置等待点：价格还没有重新触碰关键位，暂时只能观察，不能把中间位置当入场位。");
+  }
+
+  if (unique.includes("no_relevant_level") || unique.includes("location_rr")) {
+    notes.push("关键位等待点：支撑、压力或箱体边界还不清楚，先补关键位再谈计划。");
+  }
+
+  if (unique.includes("reaction_not_confirmed")) {
+    notes.push(
+      direction === "short"
+        ? "反应等待点：需要看到反抽承压、上影线或收盘继续弱，才允许复核空头计划。"
+        : "反应等待点：需要看到回踩承接、下影线或收盘重新走强，才允许复核多头计划。",
+    );
+  }
+
+  if (unique.includes("reward_risk_below_minimum") || unique.includes("stop_distance_too_wide")) {
+    notes.push("赔率等待点：当前止损距离或目标空间不合格，等价格更靠近防守位或目标位重新打开。");
+  }
+
+  if (notes.length === 0) {
+    return "";
+  }
+
+  return notes.join(" ");
+}
+
 function invalidationText({
   structuralStop,
   direction,
@@ -163,6 +202,7 @@ function basePlan({
       : "等待方向明确";
   const waitTrigger = waitTriggerText(direction, status);
   const isWaitPlan = status === "WAIT_PULLBACK" || status === "WAIT_RETEST";
+  const waitReview = isWaitPlan ? waitReviewText(blockedBy, direction) : "";
 
   return {
     allowedUse: "research_only",
@@ -173,11 +213,12 @@ function basePlan({
       "Risk Gate 已通过或阻断原因已明确",
       "位置/RR 不低于 3:1",
       isWaitPlan ? waitTrigger : "入场触发已经确认或无需等待触发",
+      isWaitPlan && waitReview ? waitReview : "等待原因已经拆分到结构、位置、反应或赔率",
       "回踩/反抽质量已确认",
       "趋势完整度保持健康",
     ],
     direction,
-    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。${isWaitPlan ? waitTrigger : ""}`,
+    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。${isWaitPlan ? `${waitTrigger}${waitReview ? ` ${waitReview}` : ""}` : ""}`,
     hasAutoExecution: false,
     invalidation: invalidationText({ direction, structuralStop }),
     isPlanEligible,
