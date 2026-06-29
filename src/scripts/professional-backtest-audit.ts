@@ -2,8 +2,10 @@ import {
   execFile,
 } from "node:child_process";
 import {
+  readdir,
   readFile,
   mkdir,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import {
@@ -719,7 +721,207 @@ async function fetchDerivativesBySymbol(
   };
 }
 
-function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failures: Array<{ error: string; symbol: string }>) {
+type RoundTrendComparisonMetric = {
+  current: number | null;
+  delta: number | null;
+  label: string;
+  previous: number | null;
+  status: "flat" | "improved" | "regressed" | "unavailable";
+};
+
+type RoundTrendComparison = {
+  metrics: RoundTrendComparisonMetric[];
+  previousReportId: string | null;
+  summary: string;
+};
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function arrayValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function metricNumber(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function valueFromPath(report: unknown, pathKey: string) {
+  const parts = pathKey.split(".");
+  let current: unknown = report;
+
+  for (const part of parts) {
+    current = objectValue(current)[part];
+  }
+
+  return metricNumber(current);
+}
+
+function coreScoreFrom(report: unknown, id: "analysis" | "scan" | "strategy") {
+  const item = arrayValue(objectValue(report).coreCapabilityMetrics)
+    .map(objectValue)
+    .find((metric) => metric.id === id);
+
+  return metricNumber(item?.score);
+}
+
+function opportunityLaneCaptureFrom(report: unknown, lane: string) {
+  const item = arrayValue(objectValue(report).opportunityLaneMetrics)
+    .map(objectValue)
+    .find((metric) => metric.lane === lane);
+
+  return metricNumber(item?.captureRatePct);
+}
+
+function compareMetric({
+  current,
+  higherIsBetter,
+  label,
+  previous,
+}: {
+  current: number | null;
+  higherIsBetter: boolean;
+  label: string;
+  previous: number | null;
+}): RoundTrendComparisonMetric {
+  if (current === null || previous === null) {
+    return {
+      current,
+      delta: null,
+      label,
+      previous,
+      status: "unavailable",
+    };
+  }
+
+  const delta = Number((current - previous).toFixed(2));
+  const improved = higherIsBetter ? delta > 0 : delta < 0;
+
+  return {
+    current,
+    delta,
+    label,
+    previous,
+    status: Math.abs(delta) < 0.01 ? "flat" : improved ? "improved" : "regressed",
+  };
+}
+
+async function latestPreviousProfessionalReport(options: CliOptions) {
+  const root = path.join(process.cwd(), options.out);
+  let entries;
+
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  const candidates: Array<{ id: string; mtimeMs: number; payload: Record<string, unknown> }> = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const findingsPath = path.join(root, entry.name, "findings.json");
+
+    try {
+      const details = await stat(findingsPath);
+      const payload = JSON.parse(await readFile(findingsPath, "utf8")) as Record<string, unknown>;
+
+      if (payload.schemaVersion !== "professional-backtest-audit-report.v2") {
+        continue;
+      }
+
+      candidates.push({
+        id: entry.name,
+        mtimeMs: details.mtimeMs,
+        payload,
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  return candidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0] ?? null;
+}
+
+async function buildRoundTrendComparison(options: CliOptions, report: ReturnType<typeof runProfessionalReplay>): Promise<RoundTrendComparison> {
+  const previous = await latestPreviousProfessionalReport(options);
+
+  if (!previous) {
+    return {
+      metrics: [],
+      previousReportId: null,
+      summary: "没有找到上一轮专业回测报告，本轮无法做趋势对比。",
+    };
+  }
+
+  const previousReport = previous.payload;
+  const metrics = [
+    compareMetric({
+      current: valueFromPath(report, "roundSummary.highSeverityFindings"),
+      higherIsBetter: false,
+      label: "高优先级问题",
+      previous: valueFromPath(previousReport, "roundSummary.highSeverityFindings"),
+    }),
+    compareMetric({
+      current: valueFromPath(report, "roundSummary.planReadyCount"),
+      higherIsBetter: true,
+      label: "交易计划就绪",
+      previous: valueFromPath(previousReport, "roundSummary.planReadyCount"),
+    }),
+    compareMetric({
+      current: coreScoreFrom(report, "scan"),
+      higherIsBetter: true,
+      label: "扫描分数",
+      previous: coreScoreFrom(previousReport, "scan"),
+    }),
+    compareMetric({
+      current: coreScoreFrom(report, "analysis"),
+      higherIsBetter: true,
+      label: "分析分数",
+      previous: coreScoreFrom(previousReport, "analysis"),
+    }),
+    compareMetric({
+      current: coreScoreFrom(report, "strategy"),
+      higherIsBetter: true,
+      label: "策略分数",
+      previous: coreScoreFrom(previousReport, "strategy"),
+    }),
+    compareMetric({
+      current: valueFromPath(report, "baselineMetrics.radar.qualityScore"),
+      higherIsBetter: true,
+      label: "雷达质量分",
+      previous: valueFromPath(previousReport, "baselineMetrics.radar.qualityScore"),
+    }),
+    compareMetric({
+      current: opportunityLaneCaptureFrom(report, "early_setup"),
+      higherIsBetter: true,
+      label: "启动前捕获率",
+      previous: opportunityLaneCaptureFrom(previousReport, "early_setup"),
+    }),
+    compareMetric({
+      current: valueFromPath(report, "waitPlanMetrics.usefulWaitRatePct"),
+      higherIsBetter: true,
+      label: "等待计划有效率",
+      previous: valueFromPath(previousReport, "waitPlanMetrics.usefulWaitRatePct"),
+    }),
+  ];
+  const improved = metrics.filter((metric) => metric.status === "improved").length;
+  const regressed = metrics.filter((metric) => metric.status === "regressed").length;
+
+  return {
+    metrics,
+    previousReportId: previous.id,
+    summary: `对比上一轮 ${previous.id}：${improved} 项提升，${regressed} 项退步，其余持平或不可比。`,
+  };
+}
+
+function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failures: Array<{ error: string; symbol: string }>, trendComparison: RoundTrendComparison) {
   const laneLabel: Record<string, string> = {
     momentum: "动量基线",
     radar: "雷达排序",
@@ -832,6 +1034,33 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
 
   lines.push(
     "",
+    "## 对比上一轮",
+    "",
+    `- ${trendComparison.summary}`,
+  );
+
+  if (trendComparison.metrics.length > 0) {
+    lines.push(
+      "",
+      "| 指标 | 上一轮 | 本轮 | 变化 | 结论 |",
+      "|---|---:|---:|---:|---|",
+    );
+
+    for (const metric of trendComparison.metrics) {
+      const label = metric.status === "improved"
+        ? "提升"
+        : metric.status === "regressed"
+          ? "退步"
+          : metric.status === "flat"
+            ? "持平"
+            : "不可比";
+
+      lines.push(`| ${metric.label} | ${metric.previous ?? "-"} | ${metric.current ?? "-"} | ${metric.delta ?? "-"} | ${label} |`);
+    }
+  }
+
+  lines.push(
+    "",
     "## 基线对比",
     "",
     "| 通道 | 样本 | 命中率 | 提前命中率 | 迟到率 | 质量分 | 平均 MFE | 平均 MAE | 入选时已波动 | 成交量倍数 |",
@@ -879,6 +1108,66 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
 
     for (const metric of report.planBlockerMetrics.slice(0, 12)) {
       lines.push(`| ${professionalAuditPlanBlockerLabel(metric.blocker)} | ${metric.count} | ${metric.sampleSymbols.join(" / ") || "-"} |`);
+    }
+
+    lines.push("");
+  }
+
+  lines.push(
+    "## WAIT 条件计划后验",
+    "",
+    `- 条件计划总数：${report.waitPlanMetrics.totalWaitPlans}`,
+    `- 已触发：${report.waitPlanMetrics.triggeredCount}`,
+    `- 先到目标：${report.waitPlanMetrics.targetFirstCount} / ${report.waitPlanMetrics.usefulWaitRatePct}%`,
+    `- 先到止损：${report.waitPlanMetrics.stopFirstCount} / ${report.waitPlanMetrics.badWaitRatePct}%`,
+    `- 未触发：${report.waitPlanMetrics.notTriggeredCount} / ${report.waitPlanMetrics.noTradeRatePct}%`,
+    `- 触发后超时：${report.waitPlanMetrics.timeoutCount}`,
+    `- 缺少结构位：${report.waitPlanMetrics.missingLevelCount}`,
+    "",
+  );
+
+  if (report.pressureTestMetrics.length > 0) {
+    lines.push(
+      "## 全市场候选池压力测试",
+      "",
+      "| 档位 | 选中数 | 候选压力 | 捕获率 | 提前捕获 | 质量命中 | 漏判质量机会 |",
+      "|---|---:|---:|---:|---:|---:|---:|",
+    );
+
+    for (const metric of report.pressureTestMetrics) {
+      lines.push(`| ${metric.label} | ${metric.selectedCount} | ${metric.universePressurePct}% | ${metric.captureRatePct}% | ${metric.earlyCaptureRatePct}% | ${metric.qualityHitRatePct}% | ${metric.missedEarlyQualityHitCount} |`);
+    }
+
+    lines.push("");
+  }
+
+  if (report.marketRegimeMetrics.length > 0) {
+    lines.push(
+      "## 市场状态分组审计",
+      "",
+      "| 市场状态 | 节点 | 捕获率 | 质量命中 | 迟到率 | 平均排名 | 代表币种 |",
+      "|---|---:|---:|---:|---:|---:|---|",
+    );
+
+    for (const metric of report.marketRegimeMetrics) {
+      lines.push(`| ${metric.label} | ${metric.totalNodes} | ${metric.captureRatePct}% | ${metric.qualityHitRatePct}% | ${metric.lateRatePct}% | ${metric.avgRadarRank ?? "-"} | ${metric.sampleSymbols.join(" / ") || "-"} |`);
+    }
+
+    lines.push("");
+  }
+
+  if (report.ruleStabilityMetrics.length > 0) {
+    lines.push(
+      "## 规则稳定性审计",
+      "",
+      "| 规则/卡点 | 状态 | 稳定分 | 出现 | 漏判质量机会 | 已选有效 | 代表币种 |",
+      "|---|---|---:|---:|---:|---:|---|",
+    );
+
+    for (const metric of report.ruleStabilityMetrics.slice(0, 12)) {
+      const status = metric.status === "stable" ? "稳定" : metric.status === "watch" ? "观察" : "不稳定";
+
+      lines.push(`| ${metric.label} | ${status} | ${metric.stabilityScore} | ${metric.occurrenceCount} | ${metric.missedQualityHitCount} | ${metric.selectedUsefulCount} | ${metric.sampleSymbols.join(" / ") || "-"} |`);
     }
 
     lines.push("");
@@ -966,12 +1255,14 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
 
 async function writeReport(options: CliOptions, report: ReturnType<typeof runProfessionalReplay>, failures: Array<{ error: string; symbol: string }>) {
   const reportDir = path.join(process.cwd(), options.out, timestampSlug());
+  const roundTrendComparison = await buildRoundTrendComparison(options, report);
 
   await mkdir(reportDir, { recursive: true });
-  await writeFile(path.join(reportDir, "summary.md"), reportMarkdown(report, failures), "utf8");
+  await writeFile(path.join(reportDir, "summary.md"), reportMarkdown(report, failures, roundTrendComparison), "utf8");
   await writeFile(path.join(reportDir, "findings.json"), JSON.stringify({
     ...report,
     failures,
+    roundTrendComparison,
   }, null, 2), "utf8");
   if (report.auditRound) {
     await writeFile(path.join(reportDir, "progress.json"), JSON.stringify(report.auditRound, null, 2), "utf8");

@@ -276,6 +276,7 @@ function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundPr
     validationWindowLabel: stringValue(item.validationWindowLabel, "未知"),
     topN: numericValue(item.topN),
     volumeRatio: numericValue(item.volumeRatio),
+    waitPlanEvaluation: normalizeWaitPlanEvaluation(item.waitPlanEvaluation),
   };
 }
 
@@ -355,6 +356,124 @@ function normalizeAuditV2PlanBlockerMetric(value: unknown): HistoricalBacktestAu
   };
 }
 
+function normalizeWaitPlanEvaluation(value: unknown): HistoricalBacktestAuditRoundProgress["nodes"][number]["waitPlanEvaluation"] {
+  const item = asObject(value);
+  const status = stringValue(item.status);
+  const outcome = stringValue(item.outcome);
+
+  return {
+    barsToTrigger: nullableNumber(item.barsToTrigger),
+    label: stringValue(item.label, "不是等待型计划"),
+    maxAdverseAfterTriggerPct: nullableNumber(item.maxAdverseAfterTriggerPct),
+    maxFavorableAfterTriggerPct: nullableNumber(item.maxFavorableAfterTriggerPct),
+    outcome: outcome === "bad_wait" ||
+      outcome === "inconclusive" ||
+      outcome === "no_trade" ||
+      outcome === "useful_wait"
+      ? outcome
+      : "not_applicable",
+    reason: stringValue(item.reason, "该节点没有等待计划后验。"),
+    status: status === "missing_plan_levels" ||
+      status === "not_triggered" ||
+      status === "triggered_sl_first" ||
+      status === "triggered_timeout" ||
+      status === "triggered_tp_first"
+      ? status
+      : "not_wait_plan",
+    stopHit: Boolean(item.stopHit),
+    targetHit: Boolean(item.targetHit),
+    triggerObservedAt: stringValue(item.triggerObservedAt) || null,
+    triggerPrice: nullableNumber(item.triggerPrice),
+  };
+}
+
+function normalizeWaitPlanMetrics(value: unknown): HistoricalBacktestAuditV2State["waitPlanMetrics"] {
+  const item = asObject(value);
+
+  return {
+    badWaitRatePct: numericValue(item.badWaitRatePct),
+    label: stringValue(item.label, "等待型计划后验"),
+    missingLevelCount: numericValue(item.missingLevelCount),
+    noTradeRatePct: numericValue(item.noTradeRatePct),
+    notTriggeredCount: numericValue(item.notTriggeredCount),
+    stopFirstCount: numericValue(item.stopFirstCount),
+    targetFirstCount: numericValue(item.targetFirstCount),
+    timeoutCount: numericValue(item.timeoutCount),
+    totalWaitPlans: numericValue(item.totalWaitPlans),
+    triggeredCount: numericValue(item.triggeredCount),
+    usefulWaitRatePct: numericValue(item.usefulWaitRatePct),
+  };
+}
+
+function normalizePressureMetric(value: unknown): HistoricalBacktestAuditV2State["pressureTestMetrics"][number] {
+  const item = asObject(value);
+
+  return {
+    captureRatePct: numericValue(item.captureRatePct),
+    earlyCaptureRatePct: numericValue(item.earlyCaptureRatePct),
+    label: stringValue(item.label, "TopN"),
+    missedEarlyQualityHitCount: numericValue(item.missedEarlyQualityHitCount),
+    qualityHitRatePct: numericValue(item.qualityHitRatePct),
+    selectedCount: numericValue(item.selectedCount),
+    topN: numericValue(item.topN),
+    universePressurePct: numericValue(item.universePressurePct),
+  };
+}
+
+function normalizeMarketRegimeMetric(value: unknown): HistoricalBacktestAuditV2State["marketRegimeMetrics"][number] {
+  const item = asObject(value);
+
+  return {
+    avgRadarRank: nullableNumber(item.avgRadarRank),
+    captureRatePct: numericValue(item.captureRatePct),
+    label: stringValue(item.label, "未分类市场状态"),
+    lateRatePct: numericValue(item.lateRatePct),
+    qualityHitRatePct: numericValue(item.qualityHitRatePct),
+    regime: stringValue(item.regime, "unknown"),
+    sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
+    totalNodes: numericValue(item.totalNodes),
+  };
+}
+
+function normalizeRuleStabilityMetric(value: unknown): HistoricalBacktestAuditV2State["ruleStabilityMetrics"][number] {
+  const item = asObject(value);
+  const status = stringValue(item.status);
+
+  return {
+    blocker: stringValue(item.blocker, "unknown"),
+    label: stringValue(item.label, "未标注规则"),
+    missedQualityHitCount: numericValue(item.missedQualityHitCount),
+    occurrenceCount: numericValue(item.occurrenceCount),
+    sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
+    selectedUsefulCount: numericValue(item.selectedUsefulCount),
+    stabilityScore: numericValue(item.stabilityScore),
+    status: status === "stable" || status === "unstable" ? status : "watch",
+  };
+}
+
+function normalizeRoundTrendMetric(value: unknown): HistoricalBacktestAuditV2State["roundTrendComparison"]["metrics"][number] {
+  const item = asObject(value);
+  const status = stringValue(item.status);
+
+  return {
+    current: nullableNumber(item.current),
+    delta: nullableNumber(item.delta),
+    label: stringValue(item.label, "未命名指标"),
+    previous: nullableNumber(item.previous),
+    status: status === "improved" || status === "regressed" || status === "flat" ? status : "unavailable",
+  };
+}
+
+function normalizeRoundTrendComparison(value: unknown): HistoricalBacktestAuditV2State["roundTrendComparison"] {
+  const item = asObject(value);
+
+  return {
+    metrics: asArray(item.metrics).map(normalizeRoundTrendMetric),
+    previousReportId: stringValue(item.previousReportId) || null,
+    summary: stringValue(item.summary, "没有找到上一轮专业回测报告，本轮无法做趋势对比。"),
+  };
+}
+
 function normalizeAuditRoundProgress(value: unknown): HistoricalBacktestAuditRoundProgress | undefined {
   const item = asObject(value);
 
@@ -426,6 +545,11 @@ function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestA
     coreCapabilityMetrics: asArray(payload.coreCapabilityMetrics).map(normalizeAuditV2CoreCapabilityMetric),
     opportunityLaneMetrics: asArray(payload.opportunityLaneMetrics).map(normalizeAuditV2OpportunityLaneMetric),
     planBlockerMetrics: asArray(payload.planBlockerMetrics).map(normalizeAuditV2PlanBlockerMetric).slice(0, 20),
+    waitPlanMetrics: normalizeWaitPlanMetrics(payload.waitPlanMetrics),
+    pressureTestMetrics: asArray(payload.pressureTestMetrics).map(normalizePressureMetric).slice(0, 8),
+    marketRegimeMetrics: asArray(payload.marketRegimeMetrics).map(normalizeMarketRegimeMetric).slice(0, 12),
+    ruleStabilityMetrics: asArray(payload.ruleStabilityMetrics).map(normalizeRuleStabilityMetric).slice(0, 12),
+    roundTrendComparison: normalizeRoundTrendComparison(payload.roundTrendComparison),
     planReadyCount: numericValue(roundSummary.planReadyCount),
     remediationPlan: asArray(payload.remediationPlan).map(normalizeAuditV2Remediation).slice(0, 30),
     summary: stringValue(payload.summary, "专业回测 v2 暂无总结。"),

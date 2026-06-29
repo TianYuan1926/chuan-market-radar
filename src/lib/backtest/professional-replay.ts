@@ -100,6 +100,75 @@ export type ProfessionalAuditPlanBlockerMetric = {
   sampleSymbols: string[];
 };
 
+export type ProfessionalAuditWaitPlanEvaluationStatus =
+  | "missing_plan_levels"
+  | "not_triggered"
+  | "not_wait_plan"
+  | "triggered_sl_first"
+  | "triggered_timeout"
+  | "triggered_tp_first";
+
+export type ProfessionalAuditWaitPlanEvaluation = {
+  barsToTrigger: number | null;
+  label: string;
+  maxAdverseAfterTriggerPct: number | null;
+  maxFavorableAfterTriggerPct: number | null;
+  outcome: "bad_wait" | "inconclusive" | "no_trade" | "not_applicable" | "useful_wait";
+  reason: string;
+  status: ProfessionalAuditWaitPlanEvaluationStatus;
+  stopHit: boolean;
+  targetHit: boolean;
+  triggerObservedAt: string | null;
+  triggerPrice: number | null;
+};
+
+export type ProfessionalAuditWaitPlanMetric = {
+  badWaitRatePct: number;
+  label: string;
+  missingLevelCount: number;
+  noTradeRatePct: number;
+  notTriggeredCount: number;
+  stopFirstCount: number;
+  targetFirstCount: number;
+  timeoutCount: number;
+  totalWaitPlans: number;
+  triggeredCount: number;
+  usefulWaitRatePct: number;
+};
+
+export type ProfessionalAuditPressureTestMetric = {
+  captureRatePct: number;
+  earlyCaptureRatePct: number;
+  label: string;
+  missedEarlyQualityHitCount: number;
+  qualityHitRatePct: number;
+  selectedCount: number;
+  topN: number;
+  universePressurePct: number;
+};
+
+export type ProfessionalAuditMarketRegimeMetric = {
+  avgRadarRank: number | null;
+  captureRatePct: number;
+  label: string;
+  lateRatePct: number;
+  qualityHitRatePct: number;
+  regime: string;
+  sampleSymbols: string[];
+  totalNodes: number;
+};
+
+export type ProfessionalAuditRuleStabilityMetric = {
+  blocker: string;
+  label: string;
+  missedQualityHitCount: number;
+  occurrenceCount: number;
+  sampleSymbols: string[];
+  selectedUsefulCount: number;
+  stabilityScore: number;
+  status: "stable" | "unstable" | "watch";
+};
+
 export type ProfessionalCoreCapabilityId = "analysis" | "scan" | "strategy";
 
 export type ProfessionalCoreCapabilityStatus = "fail" | "pass" | "watch";
@@ -170,6 +239,10 @@ export type ProfessionalReplayReport = {
   coreCapabilityMetrics: ProfessionalCoreCapabilityMetric[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
+  waitPlanMetrics: ProfessionalAuditWaitPlanMetric;
+  pressureTestMetrics: ProfessionalAuditPressureTestMetric[];
+  marketRegimeMetrics: ProfessionalAuditMarketRegimeMetric[];
+  ruleStabilityMetrics: ProfessionalAuditRuleStabilityMetric[];
   remediationPlan: ProfessionalAuditRemediation[];
   roundSummary: ReturnType<typeof summarizeProfessionalBacktestRound>;
   schemaVersion: "professional-backtest-audit-report.v2";
@@ -1009,6 +1082,22 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
     coreCapabilityMetrics: [],
     opportunityLaneMetrics: [],
     planBlockerMetrics: [],
+    waitPlanMetrics: {
+      badWaitRatePct: 0,
+      label: "等待型计划后验",
+      missingLevelCount: 0,
+      noTradeRatePct: 0,
+      notTriggeredCount: 0,
+      stopFirstCount: 0,
+      targetFirstCount: 0,
+      timeoutCount: 0,
+      totalWaitPlans: 0,
+      triggeredCount: 0,
+      usefulWaitRatePct: 0,
+    },
+    pressureTestMetrics: [],
+    marketRegimeMetrics: [],
+    ruleStabilityMetrics: [],
     remediationPlan,
     roundSummary,
     schemaVersion: "professional-backtest-audit-report.v2",

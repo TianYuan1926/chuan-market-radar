@@ -851,6 +851,87 @@ export type HistoricalBacktestAuditPlanBlockerMetric = {
   sampleSymbols: string[];
 };
 
+export type HistoricalBacktestAuditWaitPlanEvaluation = {
+  barsToTrigger: number | null;
+  label: string;
+  maxAdverseAfterTriggerPct: number | null;
+  maxFavorableAfterTriggerPct: number | null;
+  outcome: "bad_wait" | "inconclusive" | "no_trade" | "not_applicable" | "useful_wait";
+  reason: string;
+  status:
+    | "missing_plan_levels"
+    | "not_triggered"
+    | "not_wait_plan"
+    | "triggered_sl_first"
+    | "triggered_timeout"
+    | "triggered_tp_first";
+  stopHit: boolean;
+  targetHit: boolean;
+  triggerObservedAt: string | null;
+  triggerPrice: number | null;
+};
+
+export type HistoricalBacktestAuditWaitPlanMetric = {
+  badWaitRatePct: number;
+  label: string;
+  missingLevelCount: number;
+  noTradeRatePct: number;
+  notTriggeredCount: number;
+  stopFirstCount: number;
+  targetFirstCount: number;
+  timeoutCount: number;
+  totalWaitPlans: number;
+  triggeredCount: number;
+  usefulWaitRatePct: number;
+};
+
+export type HistoricalBacktestAuditPressureMetric = {
+  captureRatePct: number;
+  earlyCaptureRatePct: number;
+  label: string;
+  missedEarlyQualityHitCount: number;
+  qualityHitRatePct: number;
+  selectedCount: number;
+  topN: number;
+  universePressurePct: number;
+};
+
+export type HistoricalBacktestAuditMarketRegimeMetric = {
+  avgRadarRank: number | null;
+  captureRatePct: number;
+  label: string;
+  lateRatePct: number;
+  qualityHitRatePct: number;
+  regime: string;
+  sampleSymbols: string[];
+  totalNodes: number;
+};
+
+export type HistoricalBacktestAuditRuleStabilityMetric = {
+  blocker: string;
+  label: string;
+  missedQualityHitCount: number;
+  occurrenceCount: number;
+  sampleSymbols: string[];
+  selectedUsefulCount: number;
+  stabilityScore: number;
+  status: "stable" | "unstable" | "watch";
+};
+
+export type HistoricalBacktestAuditRoundTrendMetric = {
+  current: number | null;
+  delta: number | null;
+  label: string;
+  previous: number | null;
+  status: "flat" | "improved" | "regressed" | "unavailable";
+};
+
+export type HistoricalBacktestAuditRoundTrendComparison = {
+  metrics: HistoricalBacktestAuditRoundTrendMetric[];
+  previousReportId: string | null;
+  summary: string;
+};
+
 export type HistoricalBacktestAuditV2MissedOpportunity = {
   coinType: string;
   coinTypeLabel: string;
@@ -910,6 +991,7 @@ export type HistoricalBacktestAuditRoundNode = {
   validationWindowLabel: string;
   topN: number;
   volumeRatio: number;
+  waitPlanEvaluation: HistoricalBacktestAuditWaitPlanEvaluation;
 };
 
 export type HistoricalBacktestAuditRoundProgress = {
@@ -954,6 +1036,11 @@ export type HistoricalBacktestAuditV2State = {
   coreCapabilityMetrics: HistoricalBacktestAuditCoreCapabilityMetric[];
   opportunityLaneMetrics: HistoricalBacktestAuditOpportunityLaneMetric[];
   planBlockerMetrics: HistoricalBacktestAuditPlanBlockerMetric[];
+  waitPlanMetrics: HistoricalBacktestAuditWaitPlanMetric;
+  pressureTestMetrics: HistoricalBacktestAuditPressureMetric[];
+  marketRegimeMetrics: HistoricalBacktestAuditMarketRegimeMetric[];
+  ruleStabilityMetrics: HistoricalBacktestAuditRuleStabilityMetric[];
+  roundTrendComparison: HistoricalBacktestAuditRoundTrendComparison;
   remediationPlan: HistoricalBacktestAuditV2Remediation[];
   guardrails: string[];
   timingMetrics: HistoricalBacktestAuditV2TimingMetrics;

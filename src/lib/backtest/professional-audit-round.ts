@@ -15,11 +15,16 @@ import {
 import {
   buildReplayCandlesByTimeframe,
   buildReplayDerivativesInput,
+  type ProfessionalAuditMarketRegimeMetric,
   type ProfessionalCoreCapabilityFailure,
   type ProfessionalCoreCapabilityMetric,
   type ProfessionalAuditOpportunityLaneMetric,
   type ProfessionalAuditOpportunityLaneName,
   type ProfessionalAuditPlanBlockerMetric,
+  type ProfessionalAuditPressureTestMetric,
+  type ProfessionalAuditRuleStabilityMetric,
+  type ProfessionalAuditWaitPlanEvaluation,
+  type ProfessionalAuditWaitPlanMetric,
   type ProfessionalDerivativePoint,
   type ProfessionalReplayLaneMetric,
   type ProfessionalReplayLaneName,
@@ -92,6 +97,7 @@ export type ProfessionalAuditRoundNode = {
   validationWindowLabel: string;
   topN: number;
   volumeRatio: number;
+  waitPlanEvaluation: ProfessionalAuditWaitPlanEvaluation;
 };
 
 export type ProfessionalAuditRoundProgress = {
@@ -152,6 +158,7 @@ type CandidateAtNode = {
   rewardRisk: number | null;
   tradePlanStatus: string;
   volumeRatio: number;
+  waitPlanEvaluation: ProfessionalAuditWaitPlanEvaluation;
 };
 
 type NodeStats = {
@@ -1091,6 +1098,186 @@ function tradePlanRewardRisk(signal: MarketSignal) {
   return typeof rewardRisk === "number" && Number.isFinite(rewardRisk) ? round(rewardRisk, 2) : null;
 }
 
+function notWaitPlanEvaluation(): ProfessionalAuditWaitPlanEvaluation {
+  return {
+    barsToTrigger: null,
+    label: "不是等待型计划",
+    maxAdverseAfterTriggerPct: null,
+    maxFavorableAfterTriggerPct: null,
+    outcome: "not_applicable",
+    reason: "该节点不是 WAIT_PULLBACK / WAIT_RETEST 条件计划，不进入等待触发后验。",
+    status: "not_wait_plan",
+    stopHit: false,
+    targetHit: false,
+    triggerObservedAt: null,
+    triggerPrice: null,
+  };
+}
+
+function missingWaitPlanLevelsEvaluation(): ProfessionalAuditWaitPlanEvaluation {
+  return {
+    barsToTrigger: null,
+    label: "等待计划缺少结构位",
+    maxAdverseAfterTriggerPct: null,
+    maxFavorableAfterTriggerPct: null,
+    outcome: "inconclusive",
+    reason: "等待计划缺少结构止损或第一目标，无法做 TP/SL 先后验证。",
+    status: "missing_plan_levels",
+    stopHit: false,
+    targetHit: false,
+    triggerObservedAt: null,
+    triggerPrice: null,
+  };
+}
+
+function evaluateWaitPlan({
+  direction,
+  entry,
+  future,
+  signal,
+}: {
+  direction: "long" | "short";
+  entry: number;
+  future: Candle[];
+  signal: MarketSignal;
+}): ProfessionalAuditWaitPlanEvaluation {
+  const tradePlan = signal.strategyV3?.tradePlan;
+  const status = tradePlan?.status;
+
+  if (status !== "WAIT_PULLBACK" && status !== "WAIT_RETEST") {
+    return notWaitPlanEvaluation();
+  }
+
+  if (!tradePlan) {
+    return notWaitPlanEvaluation();
+  }
+
+  const structuralStop = tradePlan.structuralStop;
+  const target = tradePlan.targets[0] ?? null;
+
+  if (
+    structuralStop === null ||
+    target === null ||
+    !Number.isFinite(structuralStop) ||
+    !Number.isFinite(target)
+  ) {
+    return missingWaitPlanLevelsEvaluation();
+  }
+
+  const validLongMap = direction === "long" && structuralStop < entry && target > entry;
+  const validShortMap = direction === "short" && structuralStop > entry && target < entry;
+
+  if (!validLongMap && !validShortMap) {
+    return missingWaitPlanLevelsEvaluation();
+  }
+
+  const stopDistance = Math.abs(entry - structuralStop);
+  const triggerPrice = direction === "long"
+    ? entry - stopDistance * 0.35
+    : entry + stopDistance * 0.35;
+  const triggerIndex = future.findIndex((candle) => direction === "long"
+    ? candle.low <= triggerPrice && candle.close >= triggerPrice
+    : candle.high >= triggerPrice && candle.close <= triggerPrice);
+
+  if (triggerIndex < 0) {
+    return {
+      barsToTrigger: null,
+      label: "等待未触发",
+      maxAdverseAfterTriggerPct: null,
+      maxFavorableAfterTriggerPct: null,
+      outcome: "no_trade",
+      reason: "验证窗口内没有回踩/反抽到计划触发区，等待计划避免了追单，但不能证明策略已命中。",
+      status: "not_triggered",
+      stopHit: false,
+      targetHit: false,
+      triggerObservedAt: null,
+      triggerPrice: round(triggerPrice, 8),
+    };
+  }
+
+  const triggered = future[triggerIndex];
+  const afterTrigger = future.slice(triggerIndex);
+  let firstEvent: "sl" | "timeout" | "tp" = "timeout";
+  let maxFavorableAfterTriggerPct = 0;
+  let maxAdverseAfterTriggerPct = 0;
+
+  for (const candle of afterTrigger) {
+    const favorable = direction === "long"
+      ? percentChange(triggerPrice, candle.high)
+      : percentChange(candle.low, triggerPrice);
+    const adverse = direction === "long"
+      ? percentChange(candle.low, triggerPrice)
+      : percentChange(triggerPrice, candle.high);
+
+    maxFavorableAfterTriggerPct = Math.max(maxFavorableAfterTriggerPct, favorable);
+    maxAdverseAfterTriggerPct = Math.max(maxAdverseAfterTriggerPct, adverse);
+
+    const stopHit = direction === "long" ? candle.low <= structuralStop : candle.high >= structuralStop;
+    const targetHit = direction === "long" ? candle.high >= target : candle.low <= target;
+
+    if (firstEvent === "timeout" && stopHit && targetHit) {
+      firstEvent = "sl";
+      break;
+    }
+
+    if (firstEvent === "timeout" && stopHit) {
+      firstEvent = "sl";
+      break;
+    }
+
+    if (firstEvent === "timeout" && targetHit) {
+      firstEvent = "tp";
+      break;
+    }
+  }
+
+  if (firstEvent === "tp") {
+    return {
+      barsToTrigger: triggerIndex + 1,
+      label: "等待触发后先到目标",
+      maxAdverseAfterTriggerPct: round(maxAdverseAfterTriggerPct),
+      maxFavorableAfterTriggerPct: round(maxFavorableAfterTriggerPct),
+      outcome: "useful_wait",
+      reason: "等待计划触发后先到第一目标，说明该 WAIT 条件在本样本里有交易价值。",
+      status: "triggered_tp_first",
+      stopHit: false,
+      targetHit: true,
+      triggerObservedAt: triggered?.openTime ?? null,
+      triggerPrice: round(triggerPrice, 8),
+    };
+  }
+
+  if (firstEvent === "sl") {
+    return {
+      barsToTrigger: triggerIndex + 1,
+      label: "等待触发后先到止损",
+      maxAdverseAfterTriggerPct: round(maxAdverseAfterTriggerPct),
+      maxFavorableAfterTriggerPct: round(maxFavorableAfterTriggerPct),
+      outcome: "bad_wait",
+      reason: "等待计划触发后先打结构止损，说明该等待条件或结构位质量需要复查。",
+      status: "triggered_sl_first",
+      stopHit: true,
+      targetHit: false,
+      triggerObservedAt: triggered?.openTime ?? null,
+      triggerPrice: round(triggerPrice, 8),
+    };
+  }
+
+  return {
+    barsToTrigger: triggerIndex + 1,
+    label: "等待触发后超时",
+    maxAdverseAfterTriggerPct: round(maxAdverseAfterTriggerPct),
+    maxFavorableAfterTriggerPct: round(maxFavorableAfterTriggerPct),
+    outcome: "inconclusive",
+    reason: "等待计划触发后在验证窗口内未先到目标或止损，需要更长窗口或人工复核。",
+    status: "triggered_timeout",
+    stopHit: false,
+    targetHit: false,
+    triggerObservedAt: triggered?.openTime ?? null,
+    triggerPrice: round(triggerPrice, 8),
+  };
+}
+
 export function tradePlanBlockers(signal: MarketSignal) {
   const blockers = new Set<string>();
   const tradePlan = signal.strategyV3?.tradePlan;
@@ -1268,6 +1455,12 @@ function buildCandidateAtNode({
     future,
     moveThresholdPct,
   });
+  const waitPlanEvaluation = evaluateWaitPlan({
+    direction,
+    entry: observed.close,
+    future,
+    signal: auditCase.signal,
+  });
 
   return {
     auditCase,
@@ -1302,6 +1495,7 @@ function buildCandidateAtNode({
     rewardRisk,
     tradePlanStatus: tradePlanStatusValue,
     volumeRatio: currentVolumeRatio,
+    waitPlanEvaluation,
   };
 }
 
@@ -1434,6 +1628,207 @@ function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): Professio
       sampleSymbols: value.sampleSymbols,
     }))
     .sort((left, right) => right.count - left.count || left.blocker.localeCompare(right.blocker));
+}
+
+function buildWaitPlanMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditWaitPlanMetric {
+  const waitNodes = nodes.filter((node) =>
+    node.tradePlanStatus === "WAIT_PULLBACK" ||
+    node.tradePlanStatus === "WAIT_RETEST"
+  );
+  const triggered = waitNodes.filter((node) =>
+    node.waitPlanEvaluation.status === "triggered_tp_first" ||
+    node.waitPlanEvaluation.status === "triggered_sl_first" ||
+    node.waitPlanEvaluation.status === "triggered_timeout"
+  );
+  const targetFirst = waitNodes.filter((node) => node.waitPlanEvaluation.status === "triggered_tp_first");
+  const stopFirst = waitNodes.filter((node) => node.waitPlanEvaluation.status === "triggered_sl_first");
+  const timeout = waitNodes.filter((node) => node.waitPlanEvaluation.status === "triggered_timeout");
+  const notTriggered = waitNodes.filter((node) => node.waitPlanEvaluation.status === "not_triggered");
+  const missing = waitNodes.filter((node) => node.waitPlanEvaluation.status === "missing_plan_levels");
+
+  return {
+    badWaitRatePct: percent(stopFirst.length, waitNodes.length),
+    label: "等待型计划后验",
+    missingLevelCount: missing.length,
+    noTradeRatePct: percent(notTriggered.length, waitNodes.length),
+    notTriggeredCount: notTriggered.length,
+    stopFirstCount: stopFirst.length,
+    targetFirstCount: targetFirst.length,
+    timeoutCount: timeout.length,
+    totalWaitPlans: waitNodes.length,
+    triggeredCount: triggered.length,
+    usefulWaitRatePct: percent(targetFirst.length, waitNodes.length),
+  };
+}
+
+function buildPressureTestMetrics(nodes: ProfessionalAuditRoundNode[], topN: number, candidateUniverseSize: number): ProfessionalAuditPressureTestMetric[] {
+  const actionable = nodes.filter((node) => node.opportunityLane !== "risk_review");
+  const thresholds = [...new Set([
+    Math.max(1, Math.min(topN, candidateUniverseSize)),
+    Math.max(1, Math.min(topN * 2, candidateUniverseSize)),
+    Math.max(1, Math.min(topN * 3, candidateUniverseSize)),
+  ])];
+
+  return thresholds.map((threshold) => {
+    const selected = actionable.filter((node) => typeof node.radarRank === "number" && node.radarRank <= threshold);
+    const earlySelected = selected.filter((node) => !node.lateAtSelection);
+    const earlyTotal = actionable.filter((node) => !node.lateAtSelection);
+    const missedEarlyQualityHitCount = actionable.filter((node) =>
+      !(typeof node.radarRank === "number" && node.radarRank <= threshold) &&
+      node.qualityHit &&
+      !node.lateAtSelection
+    ).length;
+
+    return {
+      captureRatePct: percent(selected.length, actionable.length),
+      earlyCaptureRatePct: percent(earlySelected.length, earlyTotal.length),
+      label: `Top${threshold}`,
+      missedEarlyQualityHitCount,
+      qualityHitRatePct: percent(selected.filter((node) => node.qualityHit).length, selected.length),
+      selectedCount: selected.length,
+      topN: threshold,
+      universePressurePct: percent(threshold, candidateUniverseSize),
+    };
+  });
+}
+
+function marketRegimeForNode(node: ProfessionalAuditRoundNode) {
+  const absMove = Math.abs(node.moveAtSelectionPct);
+
+  if (node.lateAtSelection || node.opportunityLane === "risk_review") {
+    return {
+      label: "已延展/高风险",
+      regime: "extended_or_risk",
+    };
+  }
+
+  if (node.opportunityLane === "early_setup" && absMove <= 3 && node.volumeRatio <= 1.2) {
+    return {
+      label: "安静压缩启动前",
+      regime: "quiet_compression",
+    };
+  }
+
+  if (node.opportunityLane === "early_setup" && node.volumeRatio > 1.2) {
+    return {
+      label: "早期放量启动",
+      regime: "early_volume_expansion",
+    };
+  }
+
+  if (node.opportunityLane === "pullback_retest") {
+    return {
+      label: "回踩/反抽确认",
+      regime: "pullback_retest",
+    };
+  }
+
+  if (node.opportunityLane === "higher_timeframe_context" || node.timeframeBand === "large") {
+    return {
+      label: "大周期背景",
+      regime: "higher_timeframe_context",
+    };
+  }
+
+  return {
+    label: "普通震荡样本",
+    regime: "neutral_chop",
+  };
+}
+
+function buildMarketRegimeMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditMarketRegimeMetric[] {
+  const grouped = new Map<string, { label: string; nodes: ProfessionalAuditRoundNode[] }>();
+
+  for (const node of nodes) {
+    const regime = marketRegimeForNode(node);
+    const current = grouped.get(regime.regime) ?? { label: regime.label, nodes: [] };
+
+    current.nodes.push(node);
+    grouped.set(regime.regime, current);
+  }
+
+  return [...grouped.entries()]
+    .map(([regime, value]) => {
+      const ranks = value.nodes
+        .map((node) => node.radarRank)
+        .filter((rank): rank is number => typeof rank === "number" && Number.isFinite(rank));
+
+      return {
+        avgRadarRank: ranks.length > 0 ? round(mean(ranks)) : null,
+        captureRatePct: percent(value.nodes.filter((node) => node.capturedByRadar).length, value.nodes.length),
+        label: value.label,
+        lateRatePct: percent(value.nodes.filter((node) => node.lateAtSelection).length, value.nodes.length),
+        qualityHitRatePct: percent(value.nodes.filter((node) => node.qualityHit).length, value.nodes.length),
+        regime,
+        sampleSymbols: [...new Set(value.nodes.map((node) => node.symbol))].slice(0, 6),
+        totalNodes: value.nodes.length,
+      };
+    })
+    .sort((left, right) => right.totalNodes - left.totalNodes || left.regime.localeCompare(right.regime));
+}
+
+function buildRuleStabilityMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditRuleStabilityMetric[] {
+  const grouped = new Map<string, {
+    missedQualityHitCount: number;
+    occurrenceCount: number;
+    sampleSymbols: string[];
+    selectedUsefulCount: number;
+  }>();
+
+  for (const node of nodes) {
+    for (const blocker of node.planBlockers) {
+      const current = grouped.get(blocker) ?? {
+        missedQualityHitCount: 0,
+        occurrenceCount: 0,
+        sampleSymbols: [],
+        selectedUsefulCount: 0,
+      };
+
+      current.occurrenceCount += 1;
+
+      if (!node.capturedByRadar && node.qualityHit && !node.lateAtSelection) {
+        current.missedQualityHitCount += 1;
+      }
+
+      if (node.capturedByRadar && (node.hit || node.qualityHit) && !node.lateAtSelection) {
+        current.selectedUsefulCount += 1;
+      }
+
+      if (!current.sampleSymbols.includes(node.symbol) && current.sampleSymbols.length < 6) {
+        current.sampleSymbols.push(node.symbol);
+      }
+
+      grouped.set(blocker, current);
+    }
+  }
+
+  return [...grouped.entries()]
+    .map(([blocker, value]) => {
+      const instability = percent(value.missedQualityHitCount, value.occurrenceCount);
+      const stabilityScore = clamp(100 - instability + Math.min(12, value.selectedUsefulCount * 2), 0, 100);
+      const status: ProfessionalAuditRuleStabilityMetric["status"] = stabilityScore < 60
+        ? "unstable"
+        : stabilityScore < 80
+          ? "watch"
+          : "stable";
+
+      return {
+        blocker,
+        label: professionalAuditPlanBlockerLabel(blocker),
+        missedQualityHitCount: value.missedQualityHitCount,
+        occurrenceCount: value.occurrenceCount,
+        sampleSymbols: value.sampleSymbols,
+        selectedUsefulCount: value.selectedUsefulCount,
+        stabilityScore: round(stabilityScore),
+        status,
+      };
+    })
+    .filter((item) => item.occurrenceCount >= 2 || item.missedQualityHitCount > 0)
+    .sort((left, right) =>
+      left.stabilityScore - right.stabilityScore ||
+      right.missedQualityHitCount - left.missedQualityHitCount ||
+      right.occurrenceCount - left.occurrenceCount
+    );
 }
 
 function laneTop(candidates: CandidateAtNode[], lane: ProfessionalReplayLaneName, topN: number) {
@@ -1981,17 +2376,23 @@ function buildCoreCapabilityFindings(metrics: ProfessionalCoreCapabilityMetric[]
 function aggregateFindings({
   baselineMetrics,
   candidateUniverseSize,
+  marketRegimeMetrics,
   nodes,
   opportunityLaneMetrics,
   planBlockerMetrics,
+  pressureTestMetrics,
   topN,
+  waitPlanMetrics,
 }: {
   baselineMetrics: Record<ProfessionalReplayLaneName, ProfessionalReplayLaneMetric>;
   candidateUniverseSize: number;
+  marketRegimeMetrics: ProfessionalAuditMarketRegimeMetric[];
   nodes: ProfessionalAuditRoundNode[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
+  pressureTestMetrics: ProfessionalAuditPressureTestMetric[];
   topN: number;
+  waitPlanMetrics: ProfessionalAuditWaitPlanMetric;
 }) {
   const findings: ProfessionalAuditFinding[] = [];
   const radar = baselineMetrics.radar;
@@ -2123,6 +2524,68 @@ function aggregateFindings({
       rootCause: "证据链到交易计划之间的门禁没有形成可执行通过样本。",
       severity: "high",
       title: "交易计划未就绪原因需要专项处理",
+    }));
+  }
+
+  if (waitPlanMetrics.totalWaitPlans > 0 && waitPlanMetrics.missingLevelCount > 0) {
+    findings.push(aggregateFinding({
+      detail: `${waitPlanMetrics.missingLevelCount} 个 WAIT_PULLBACK / WAIT_RETEST 条件计划缺少结构止损或第一目标，无法验证触发后 TP/SL 先后。`,
+      id: "PBA-PLAN-WAIT-LEVELS-001",
+      layer: "plan",
+      nextAction: "先修等待型计划的结构止损、第一目标和 RR 输出，再讨论计划命中率。",
+      rootCause: "条件计划只有等待语义，没有足够结构位用于后验验证。",
+      severity: "high",
+      title: "等待型计划缺少可验证结构位",
+    }));
+  }
+
+  if (waitPlanMetrics.totalWaitPlans > 0 && waitPlanMetrics.badWaitRatePct >= 35) {
+    findings.push(aggregateFinding({
+      detail: `等待型计划共 ${waitPlanMetrics.totalWaitPlans} 个，触发后先到止损 ${waitPlanMetrics.stopFirstCount} 个，占 ${waitPlanMetrics.badWaitRatePct}%。`,
+      id: "PBA-PLAN-WAIT-QUALITY-001",
+      layer: "plan",
+      nextAction: "复核 WAIT_PULLBACK / WAIT_RETEST 的触发区间、止损位置和反应确认条件，不能只写“等待”。",
+      rootCause: "等待条件触发后质量不足，可能是触发太早、结构止损错误或目标投射不合理。",
+      severity: "high",
+      title: "等待型计划触发后质量不足",
+    }));
+  }
+
+  const topPressure = pressureTestMetrics[0];
+  const relaxedPressure = pressureTestMetrics.at(-1);
+
+  if (
+    topPressure &&
+    relaxedPressure &&
+    relaxedPressure.missedEarlyQualityHitCount < topPressure.missedEarlyQualityHitCount
+  ) {
+    findings.push(aggregateFinding({
+      detail: `Top${topPressure.topN} 漏判质量机会 ${topPressure.missedEarlyQualityHitCount} 个；放宽到 Top${relaxedPressure.topN} 后为 ${relaxedPressure.missedEarlyQualityHitCount} 个。说明部分机会不是没识别，而是排序/名额压力下排不上。`,
+      id: "PBA-SCAN-PRESSURE-001",
+      layer: "scan",
+      nextAction: "检查 TopN 槽位、机会池配额和固定币/普通噪声占位，不要把问题误判为分析完全不会识别。",
+      rootCause: "全市场压力下 TopN 名额不足或排序权重仍不够精准。",
+      severity: "medium",
+      title: "全市场候选池压力导致机会排不上",
+    }));
+  }
+
+  const weakRegime = marketRegimeMetrics.find((metric) =>
+    metric.regime !== "extended_or_risk" &&
+    metric.totalNodes >= 5 &&
+    metric.qualityHitRatePct >= 20 &&
+    metric.captureRatePct < 25
+  );
+
+  if (weakRegime) {
+    findings.push(aggregateFinding({
+      detail: `${weakRegime.label} 有 ${weakRegime.totalNodes} 个节点，质量命中率 ${weakRegime.qualityHitRatePct}%，但捕获率只有 ${weakRegime.captureRatePct}%。代表币种：${weakRegime.sampleSymbols.join(" / ") || "暂无"}。`,
+      id: "PBA-SCAN-REGIME-001",
+      layer: "scan",
+      nextAction: "按市场状态分组修正扫描排序，不要用一套权重同时处理压缩、放量、回踩和大周期样本。",
+      rootCause: "某类市场状态下有质量机会，但当前雷达没有稳定把它推到前排。",
+      severity: "medium",
+      title: "市场状态分组暴露扫描弱区",
     }));
   }
 
@@ -2284,6 +2747,39 @@ function aggregateRemediations(findings: ProfessionalAuditFinding[]): Profession
       layer: "plan",
       priority: "P0",
       targetModule: "professional audit trade plan blocker diagnostics",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-PLAN-WAIT-LEVELS-001" || item.id === "PBA-PLAN-WAIT-QUALITY-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮 WAIT_PULLBACK / WAIT_RETEST 必须输出可验证结构位，并展示触发后先到 TP/SL/超时的统计。",
+      action: "把等待型计划从空泛文案升级为可后验计划：触发区、结构止损、第一目标、失效和复查条件必须完整。",
+      canAutoApply: false,
+      layer: "plan",
+      priority: "P0",
+      targetModule: "wait plan trigger validation",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-SCAN-PRESSURE-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮 Top10/Top20/Top30 压力表显示漏判质量机会随名额变化的原因，并减少 Top10 漏判。",
+      action: "按全市场候选压力复查 TopN 配额和排序，不让普通噪声或固定币挤掉早期质量机会。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P1",
+      targetModule: "candidate pressure ranking audit",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-SCAN-REGIME-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮市场状态分组表能说明每类状态捕获率，并让弱势分组捕获率改善或明确降级理由。",
+      action: "按压缩、早期放量、回踩确认、大周期背景分开调权，不再用同一套评分处理所有状态。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P1",
+      targetModule: "market regime grouped ranking audit",
     });
   }
 
@@ -2463,6 +2959,7 @@ export function runProfessionalAuditRound({
         validationWindowLabel: validationWindowLabel(selected.horizonBars),
         topN,
         volumeRatio: target.volumeRatio,
+        waitPlanEvaluation: target.waitPlanEvaluation,
       });
 
       options.onProgress?.(buildProgress({
@@ -2489,6 +2986,10 @@ export function runProfessionalAuditRound({
   };
   const opportunityLaneMetrics = buildOpportunityLaneMetrics(nodes);
   const planBlockerMetrics = buildPlanBlockerMetrics(nodes);
+  const waitPlanMetrics = buildWaitPlanMetrics(nodes);
+  const pressureTestMetrics = buildPressureTestMetrics(nodes, topN, candidateUniverseSize);
+  const marketRegimeMetrics = buildMarketRegimeMetrics(nodes);
+  const ruleStabilityMetrics = buildRuleStabilityMetrics(nodes);
   const coreCapabilityMetrics = buildCoreCapabilityMetrics({
     baselineMetrics,
     nodes,
@@ -2510,10 +3011,13 @@ export function runProfessionalAuditRound({
   const aggregate = aggregateFindings({
     baselineMetrics,
     candidateUniverseSize,
+    marketRegimeMetrics,
     nodes,
     opportunityLaneMetrics,
     planBlockerMetrics,
+    pressureTestMetrics,
     topN,
+    waitPlanMetrics,
   });
   const coreFindings = buildCoreCapabilityFindings(coreCapabilityMetrics);
   const findings = sortFindings([...cases.flatMap((item) => item.findings), ...aggregate, ...coreFindings]);
@@ -2589,6 +3093,10 @@ export function runProfessionalAuditRound({
     coreCapabilityMetrics,
     opportunityLaneMetrics,
     planBlockerMetrics,
+    waitPlanMetrics,
+    pressureTestMetrics,
+    marketRegimeMetrics,
+    ruleStabilityMetrics,
     remediationPlan,
     roundSummary,
     schemaVersion: "professional-backtest-audit-report.v2",

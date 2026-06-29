@@ -830,4 +830,10 @@ test("runProfessionalAuditRound reports scan analysis and strategy core capabili
     assert.ok(metric.summary.length > 0);
   }
   assert.ok(report.findings.some((item) => item.id.startsWith("PBA-CORE-")));
+  assert.equal(report.waitPlanMetrics.label, "等待型计划后验");
+  assert.ok(Array.isArray(report.pressureTestMetrics));
+  assert.ok(report.pressureTestMetrics.length > 0);
+  assert.ok(Array.isArray(report.marketRegimeMetrics));
+  assert.ok(Array.isArray(report.ruleStabilityMetrics));
+  assert.ok(report.auditRound?.nodes.every((node) => node.waitPlanEvaluation.status));
 });

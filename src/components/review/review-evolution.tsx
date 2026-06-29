@@ -699,6 +699,73 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           漏判机会 {data.auditV2.missedOpportunities.length}
                         </span>
                       </div>
+                      {data.auditV2.roundTrendComparison.metrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">对比上一轮</div>
+                          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                            {data.auditV2.roundTrendComparison.summary}
+                          </p>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                            {data.auditV2.roundTrendComparison.metrics.slice(0, 8).map((metric) => (
+                              <div key={metric.label} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-muted-foreground">{metric.label}</span>
+                                  <span
+                                    className={cn(
+                                      'border px-1.5 py-0.5 font-mono text-[10px]',
+                                      metric.status === 'improved'
+                                        ? 'border-up/40 bg-up/10 text-up'
+                                        : metric.status === 'regressed'
+                                          ? 'border-down/40 bg-down/10 text-down'
+                                          : 'border-border bg-background/40 text-muted-foreground',
+                                    )}
+                                  >
+                                    {metric.status === 'improved' ? '提升' : metric.status === 'regressed' ? '退步' : metric.status === 'flat' ? '持平' : '不可比'}
+                                  </span>
+                                </div>
+                                <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                                  上轮 {metric.previous ?? '-'} · 本轮 {metric.current ?? '-'} · 变化 {metric.delta ?? '-'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {data.auditV2.waitPlanMetrics.totalWaitPlans > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">WAIT 条件计划后验</div>
+                          <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+                            <div className="border border-border bg-secondary/20 p-2 text-[10px] text-muted-foreground">
+                              总数 <span className="font-mono text-foreground">{data.auditV2.waitPlanMetrics.totalWaitPlans}</span>
+                            </div>
+                            <div className="border border-border bg-secondary/20 p-2 text-[10px] text-muted-foreground">
+                              先到目标 <span className="font-mono text-up">{data.auditV2.waitPlanMetrics.targetFirstCount} / {data.auditV2.waitPlanMetrics.usefulWaitRatePct}%</span>
+                            </div>
+                            <div className="border border-border bg-secondary/20 p-2 text-[10px] text-muted-foreground">
+                              先到止损 <span className="font-mono text-down">{data.auditV2.waitPlanMetrics.stopFirstCount} / {data.auditV2.waitPlanMetrics.badWaitRatePct}%</span>
+                            </div>
+                            <div className="border border-border bg-secondary/20 p-2 text-[10px] text-muted-foreground">
+                              未触发 <span className="font-mono text-foreground">{data.auditV2.waitPlanMetrics.notTriggeredCount}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      {data.auditV2.pressureTestMetrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">全市场候选压力</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-3">
+                            {data.auditV2.pressureTestMetrics.map((metric) => (
+                              <div key={metric.label} className="border border-border bg-secondary/20 p-2">
+                                <div className="text-[10px] text-muted-foreground">{metric.label} · 候选压力 {metric.universePressurePct}%</div>
+                                <div className="mt-1 text-sm font-semibold">{metric.captureRatePct}% 捕获</div>
+                                <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  提前 {metric.earlyCaptureRatePct}% · 质量 {metric.qualityHitRatePct}% · 漏判质量 {metric.missedEarlyQualityHitCount}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       {data.auditV2.opportunityLaneMetrics.length > 0 ? (
                         <div className="mt-3 border border-border bg-background/40 p-2">
                           <div className="text-[11px] font-semibold">机会池表现</div>
@@ -740,6 +807,62 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                   代表币种：{metric.sampleSymbols.join(' / ') || '暂无'}
                                 </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {data.auditV2.marketRegimeMetrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">市场状态分组</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {data.auditV2.marketRegimeMetrics.slice(0, 6).map((metric) => (
+                              <div key={metric.regime} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-muted-foreground">{metric.label}</span>
+                                  <span className="font-mono text-[10px] text-muted-foreground">{metric.totalNodes} 节点</span>
+                                </div>
+                                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                                  <span>捕获 {metric.captureRatePct}%</span>
+                                  <span>质量 {metric.qualityHitRatePct}%</span>
+                                  <span>迟到 {metric.lateRatePct}%</span>
+                                  <span>均排 {metric.avgRadarRank ?? '-'}</span>
+                                </div>
+                                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  {metric.sampleSymbols.join(' / ') || '暂无代表币种'}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {data.auditV2.ruleStabilityMetrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="text-[11px] font-semibold">规则稳定性</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {data.auditV2.ruleStabilityMetrics.slice(0, 6).map((metric) => (
+                              <div key={metric.blocker} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-semibold">{metric.label}</span>
+                                  <span
+                                    className={cn(
+                                      'border px-1.5 py-0.5 font-mono text-[10px]',
+                                      metric.status === 'stable'
+                                        ? 'border-up/40 bg-up/10 text-up'
+                                        : metric.status === 'unstable'
+                                          ? 'border-down/40 bg-down/10 text-down'
+                                          : 'border-border bg-background/40 text-muted-foreground',
+                                    )}
+                                  >
+                                    {metric.status === 'stable' ? '稳定' : metric.status === 'unstable' ? '不稳定' : '观察'}
+                                  </span>
+                                </div>
+                                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                                  <span>稳定分 {metric.stabilityScore}</span>
+                                  <span>出现 {metric.occurrenceCount}</span>
+                                  <span>漏质 {metric.missedQualityHitCount}</span>
+                                  <span>有效 {metric.selectedUsefulCount}</span>
+                                </div>
                               </div>
                             ))}
                           </div>
