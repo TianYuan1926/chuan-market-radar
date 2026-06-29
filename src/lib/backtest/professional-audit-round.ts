@@ -496,7 +496,27 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     ? 10 + nonExtremeLocationScore * 8
     : 0;
   const genericNeutralPenalty = input.nodeRole === "neutral_random" && absMove <= 2 && input.volumeRatio <= 1.05
-    ? 16
+    ? input.compressionPct <= 55 && nonExtremeLocationScore >= 0.45 && input.volumeRatio >= 0.58 && input.volumeRatio <= 0.98
+      ? 2
+      : 16
+    : 0;
+  const quietNeutralCompressionBonus = input.nodeRole === "neutral_random" &&
+      !input.lateAtSelection &&
+      absMove <= 2.4 &&
+      input.compressionPct <= 56 &&
+      input.volumeRatio >= 0.58 &&
+      input.volumeRatio <= 1.02 &&
+      nonExtremeLocationScore >= 0.42
+    ? 12 + nonExtremeLocationScore * 8 + bandScore(input.volumeRatio, 0.58, 0.82, 1.02) * 8
+    : 0;
+  const dryUpCompressionSetupBonus = !input.lateAtSelection &&
+      lane === "early_setup" &&
+      absMove <= 3.4 &&
+      input.compressionPct <= 62 &&
+      input.volumeRatio >= 0.42 &&
+      input.volumeRatio <= 0.9 &&
+      nonExtremeLocationScore >= 0.35
+    ? 10 + nonExtremeLocationScore * 8 + bandScore(input.volumeRatio, 0.42, 0.68, 0.9) * 10
     : 0;
   const controlledEarlyVolumeBonus = input.nodeRole === "early_volume_expansion" &&
       !input.lateAtSelection &&
@@ -569,7 +589,7 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     const controlledLocationBonus = nonExtremeLocationScore * 10;
     const radarComponent = discoveryRadarComponent(input.radarScore);
 
-    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + quietEarlyVolumeSetupBonus + breakoutEdgeReadinessBonus + quietBreakoutEdgeSetupBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + quietNeutralCompressionBonus + dryUpCompressionSetupBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + quietEarlyVolumeSetupBonus + breakoutEdgeReadinessBonus + quietBreakoutEdgeSetupBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
   }
 
   if (lane === "pullback_retest") {
@@ -1155,24 +1175,31 @@ function missingWaitPlanLevelsEvaluation(): ProfessionalAuditWaitPlanEvaluation 
   };
 }
 
-function waitPlanTriggerObserved({
+export function waitPlanTriggerObserved({
   candle,
   direction,
+  stopDistance,
   triggerPrice,
 }: {
   candle: Candle;
   direction: "long" | "short";
+  stopDistance: number;
   triggerPrice: number;
 }) {
+  const range = Math.max(candle.high - candle.low, Number.EPSILON);
+  const minReaction = stopDistance * 0.12;
+
   if (direction === "long") {
     return candle.low <= triggerPrice &&
-      candle.close >= triggerPrice &&
-      candle.close >= candle.open;
+      candle.close >= triggerPrice + minReaction &&
+      candle.close >= candle.open &&
+      (candle.close - candle.low) / range >= 0.56;
   }
 
   return candle.high >= triggerPrice &&
-    candle.close <= triggerPrice &&
-    candle.close <= candle.open;
+    candle.close <= triggerPrice - minReaction &&
+    candle.close <= candle.open &&
+    (candle.high - candle.close) / range >= 0.56;
 }
 
 function evaluateWaitPlan({
@@ -1223,6 +1250,7 @@ function evaluateWaitPlan({
   const triggerIndex = future.findIndex((candle) => waitPlanTriggerObserved({
     candle,
     direction,
+    stopDistance,
     triggerPrice,
   }));
 

@@ -12,6 +12,7 @@ import {
   selectProfessionalAuditNodeIndexes,
   selectProfessionalAuditOpportunityCandidates,
   tradePlanBlockers,
+  waitPlanTriggerObserved,
 } from "./professional-audit-round";
 import type { Candle } from "../market/ohlcv/types";
 import type { MarketSignal } from "../analysis/types";
@@ -643,6 +644,68 @@ test("opportunityLaneScore promotes quiet direction-pending pre-ignition setups 
     quietPending > genericHigherRaw,
     `expected quiet pending setup ${quietPending} to outrank generic raw-score noise ${genericHigherRaw}`,
   );
+});
+
+test("opportunityLaneScore does not punish quiet neutral compression as generic noise", () => {
+  const quietNeutralCompression = opportunityLaneScore({
+    compressionPct: 48,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -0.9,
+    nodeRole: "neutral_random",
+    radarScore: 50,
+    rangePositionPct: 59,
+    timeframeBand: "small",
+    volumeRatio: 0.78,
+  });
+  const genericNeutralNoise = opportunityLaneScore({
+    compressionPct: 64,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -0.9,
+    nodeRole: "neutral_random",
+    radarScore: 50,
+    rangePositionPct: 59,
+    timeframeBand: "small",
+    volumeRatio: 1.02,
+  });
+
+  assert.ok(
+    quietNeutralCompression > genericNeutralNoise + 20,
+    `expected quiet neutral compression ${quietNeutralCompression} to beat generic noise ${genericNeutralNoise}`,
+  );
+});
+
+test("waitPlanTriggerObserved requires a structural reaction, not just a level touch", () => {
+  const weakTouch = {
+    close: 96.05,
+    closeTime: "2026-01-01T00:14:59.999Z",
+    high: 98,
+    low: 95.8,
+    open: 96,
+    openTime: "2026-01-01T00:00:00.000Z",
+    volume: 100,
+  };
+  const confirmedReaction = {
+    ...weakTouch,
+    close: 96.8,
+    high: 97,
+    low: 95.8,
+    open: 96.1,
+  };
+
+  assert.equal(waitPlanTriggerObserved({
+    candle: weakTouch,
+    direction: "long",
+    stopDistance: 4,
+    triggerPrice: 96,
+  }), false);
+  assert.equal(waitPlanTriggerObserved({
+    candle: confirmedReaction,
+    direction: "long",
+    stopDistance: 4,
+    triggerPrice: 96,
+  }), true);
 });
 
 test("opportunityLaneScore keeps pullback retest ranking from being compressed by early setup noise caps", () => {
