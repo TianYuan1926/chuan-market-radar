@@ -470,6 +470,41 @@ test("opportunityLaneScore keeps early structural-discovery candidates visible e
   );
 });
 
+test("opportunityLaneScore promotes quiet early-volume wait setups that need confirmation", () => {
+  const quietWaiting = opportunityLaneScore({
+    compressionPct: 58,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -2.8,
+    nodeRole: "early_volume_expansion",
+    planBlockers: ["direction_pending_quiet_setup", "structure_confirmation_pending"],
+    radarScore: 58,
+    rangePositionPct: 60,
+    rewardRisk: null,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_RETEST",
+    volumeRatio: 0.92,
+  });
+  const generic = opportunityLaneScore({
+    compressionPct: 58,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -2.8,
+    nodeRole: "neutral_random",
+    radarScore: 58,
+    rangePositionPct: 60,
+    rewardRisk: null,
+    timeframeBand: "small",
+    tradePlanStatus: "BLOCKED",
+    volumeRatio: 0.92,
+  });
+
+  assert.ok(
+    quietWaiting > generic + 18,
+    `expected quiet early-volume waiting setup ${quietWaiting} to beat generic setup ${generic}`,
+  );
+});
+
 test("opportunityLaneScore promotes controlled early volume and breakout edge over generic drift", () => {
   const controlledVolume = opportunityLaneScore({
     compressionPct: 50,
@@ -794,6 +829,41 @@ test("professionalAuditContextualPlanBlockers separates quiet direction-pending 
   assert.ok(blockers.includes("direction_pending_quiet_setup"));
   assert.ok(blockers.includes("structure_confirmation_pending"));
   assert.deepEqual(genericBlockers, ["neutral_direction"]);
+});
+
+test("professionalAuditContextualPlanBlockers turns untouched early setups into wait-for-reaction blockers", () => {
+  const signal = {
+    direction: "long",
+    maturity: {
+      canAttachTradePlan: true,
+      canEnterMainSignalArea: true,
+      canRequestAiReview: true,
+      label: "证据融合信号",
+      reasons: ["has_structured_evidence"],
+      stage: "EVIDENCE_SIGNAL",
+    },
+    strategyV3: {
+      tradePlan: {
+        blockedBy: ["no_recent_touch"],
+        isPlanEligible: false,
+        rewardRisk: 3.4,
+        status: "WAIT_PULLBACK",
+      },
+    },
+  } as unknown as MarketSignal;
+  const blockers = professionalAuditContextualPlanBlockers(signal, {
+    compressionPct: 54,
+    lateAtSelection: false,
+    movePct: 2.1,
+    nodeRole: "breakout_edge",
+    opportunityLane: "early_setup",
+    rangePositionPct: 52,
+    volumeRatio: 0.94,
+  });
+
+  assert.equal(blockers.includes("no_recent_touch"), false);
+  assert.ok(blockers.includes("reaction_not_confirmed"));
+  assert.ok(blockers.includes("structure_confirmation_pending"));
 });
 
 test("runProfessionalAuditRound reports scan analysis and strategy core capability scorecards", () => {

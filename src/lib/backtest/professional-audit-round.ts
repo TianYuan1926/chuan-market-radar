@@ -507,6 +507,18 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
       input.compressionPct <= 68
     ? 12 + bandScore(input.volumeRatio, 1.1, 1.55, 2.8) * 12 + nonExtremeLocationScore * 6
     : 0;
+  const quietEarlyVolumeSetupBonus = input.nodeRole === "early_volume_expansion" &&
+      !input.lateAtSelection &&
+      absMove <= 4.2 &&
+      input.volumeRatio >= 0.55 &&
+      input.volumeRatio <= 1.25 &&
+      input.compressionPct <= 70 &&
+      blockers.some((blocker) =>
+        blocker === "direction_pending_quiet_setup" ||
+        blocker === "structure_confirmation_pending"
+      )
+    ? 14 + nonExtremeLocationScore * 8 + bandScore(input.volumeRatio, 0.55, 0.95, 1.25) * 10
+    : 0;
   const breakoutEdgeReadinessBonus = input.nodeRole === "breakout_edge" &&
       !input.lateAtSelection &&
       absMove >= 0.8 &&
@@ -515,6 +527,19 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
       input.volumeRatio <= 2.5 &&
       input.compressionPct <= 62
     ? 10 + bandScore(input.volumeRatio, 1.02, 1.35, 2.5) * 8 + nonExtremeLocationScore * 8
+    : 0;
+  const quietBreakoutEdgeSetupBonus = input.nodeRole === "breakout_edge" &&
+      !input.lateAtSelection &&
+      absMove <= 4.8 &&
+      input.volumeRatio >= 0.55 &&
+      input.volumeRatio <= 1.22 &&
+      input.compressionPct <= 68 &&
+      nonExtremeLocationScore >= 0.35 &&
+      blockers.some((blocker) =>
+        blocker === "reaction_not_confirmed" ||
+        blocker === "structure_confirmation_pending"
+      )
+    ? 12 + nonExtremeLocationScore * 10 + bandScore(input.volumeRatio, 0.55, 0.9, 1.22) * 8
     : 0;
   const mediumSwingSetupBonus = input.nodeRole === "medium_swing" &&
       input.timeframeBand === "medium" &&
@@ -544,7 +569,7 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     const controlledLocationBonus = nonExtremeLocationScore * 10;
     const radarComponent = discoveryRadarComponent(input.radarScore);
 
-    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + breakoutEdgeReadinessBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + quietEarlyVolumeSetupBonus + breakoutEdgeReadinessBonus + quietBreakoutEdgeSetupBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
   }
 
   if (lane === "pullback_retest") {
@@ -1130,6 +1155,26 @@ function missingWaitPlanLevelsEvaluation(): ProfessionalAuditWaitPlanEvaluation 
   };
 }
 
+function waitPlanTriggerObserved({
+  candle,
+  direction,
+  triggerPrice,
+}: {
+  candle: Candle;
+  direction: "long" | "short";
+  triggerPrice: number;
+}) {
+  if (direction === "long") {
+    return candle.low <= triggerPrice &&
+      candle.close >= triggerPrice &&
+      candle.close >= candle.open;
+  }
+
+  return candle.high >= triggerPrice &&
+    candle.close <= triggerPrice &&
+    candle.close <= candle.open;
+}
+
 function evaluateWaitPlan({
   direction,
   entry,
@@ -1173,11 +1218,13 @@ function evaluateWaitPlan({
 
   const stopDistance = Math.abs(entry - structuralStop);
   const triggerPrice = direction === "long"
-    ? entry - stopDistance * 0.35
-    : entry + stopDistance * 0.35;
-  const triggerIndex = future.findIndex((candle) => direction === "long"
-    ? candle.low <= triggerPrice && candle.close >= triggerPrice
-    : candle.high >= triggerPrice && candle.close <= triggerPrice);
+    ? entry - stopDistance * 0.65
+    : entry + stopDistance * 0.65;
+  const triggerIndex = future.findIndex((candle) => waitPlanTriggerObserved({
+    candle,
+    direction,
+    triggerPrice,
+  }));
 
   if (triggerIndex < 0) {
     return {
@@ -1186,7 +1233,7 @@ function evaluateWaitPlan({
       maxAdverseAfterTriggerPct: null,
       maxFavorableAfterTriggerPct: null,
       outcome: "no_trade",
-      reason: "验证窗口内没有回踩/反抽到计划触发区，等待计划避免了追单，但不能证明策略已命中。",
+      reason: "验证窗口内没有靠近结构位并出现方向反应的回踩/反抽，等待计划避免了追单，但不能证明策略已命中。",
       status: "not_triggered",
       stopHit: false,
       targetHit: false,
@@ -1345,6 +1392,27 @@ function isQuietDirectionPendingSetup(context: ProfessionalAuditTradePlanBlocker
   );
 }
 
+function isEarlyUntouchedWaitingSetup(context: ProfessionalAuditTradePlanBlockerContext) {
+  const absMove = Math.abs(context.movePct);
+  const nonExtremeLocation = context.rangePositionPct >= 18 && context.rangePositionPct <= 82;
+  const relevantRole =
+    context.nodeRole === "pre_move" ||
+    context.nodeRole === "early_volume_expansion" ||
+    context.nodeRole === "breakout_edge" ||
+    context.nodeRole === "medium_swing";
+
+  return (
+    context.opportunityLane === "early_setup" &&
+    !context.lateAtSelection &&
+    absMove <= 4.8 &&
+    context.compressionPct <= 72 &&
+    context.volumeRatio >= 0.45 &&
+    context.volumeRatio <= 1.45 &&
+    nonExtremeLocation &&
+    relevantRole
+  );
+}
+
 export function professionalAuditContextualPlanBlockers(
   signal: MarketSignal,
   context: ProfessionalAuditTradePlanBlockerContext,
@@ -1359,6 +1427,14 @@ export function professionalAuditContextualPlanBlockers(
     return [
       ...blockers.filter((blocker) => blocker !== "neutral_direction"),
       "direction_pending_quiet_setup",
+      "structure_confirmation_pending",
+    ].filter((blocker, index, list) => list.indexOf(blocker) === index);
+  }
+
+  if (blockers.includes("no_recent_touch") && isEarlyUntouchedWaitingSetup(context)) {
+    return [
+      ...blockers.filter((blocker) => blocker !== "no_recent_touch"),
+      "reaction_not_confirmed",
       "structure_confirmation_pending",
     ].filter((blocker, index, list) => list.indexOf(blocker) === index);
   }
