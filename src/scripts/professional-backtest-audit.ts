@@ -32,9 +32,18 @@ import {
   type ProfessionalAuditRoundSymbolPlan,
 } from "../lib/backtest/professional-audit-round";
 import {
+  runGoldenCases,
+} from "../lib/backtest/golden-case-runner";
+import {
   buildAuditCandidateUniverse,
   buildAuditSymbolPlan,
 } from "../lib/backtest/professional-audit-symbol-plan";
+import type {
+  ProfessionalAuditMode,
+  ProfessionalJudgeSystemLane,
+  ProfessionalJudgeSystemSnapshot,
+  ProfessionalReplayReport,
+} from "../lib/backtest/professional-replay";
 
 const BINANCE_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo";
 const BINANCE_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
@@ -67,6 +76,7 @@ type BinanceOpenInterestHistRow = {
 };
 
 type CliOptions = {
+  auditMode: ProfessionalAuditMode;
   auditRound: boolean;
   auditSymbols: number;
   candidateSymbols: number;
@@ -77,6 +87,7 @@ type CliOptions = {
   nodesPerSymbol: number;
   out: string;
   requestDelayMs: number;
+  requireGoldenPass: boolean;
   smallHorizonHours: number;
   topN: number;
 };
@@ -91,6 +102,8 @@ Options:
   --days 30                         Historical kline fetch window, default 30; long market environment default starts at 30d
   --max-symbols 120                 Max Binance USDT perpetual symbols, default 120
   --top-n 20                        Candidates per replay point, default 20
+  --audit-mode full                 Audit mode: full | scan | analysis | strategy, default full
+  --require-golden-pass             Block formal audit unless golden cases pass
   --audit-round                     Run strict 10-type x N-node professional audit round
   --audit-symbols 10                Symbols in audit round, default 10
   --candidate-symbols 80            Candidate universe for audit round ranking, default 80
@@ -139,6 +152,7 @@ function readArgs(argv: string[]): CliOptions & { help: boolean } {
   }
 
   return {
+    auditMode: readAuditMode(args["audit-mode"]),
     auditRound: args["audit-round"] === true,
     auditSymbols: Math.max(1, Math.round(positiveNumber(args["audit-symbols"], 10))),
     candidateSymbols: Math.max(1, Math.round(positiveNumber(args["candidate-symbols"], 80))),
@@ -150,9 +164,18 @@ function readArgs(argv: string[]): CliOptions & { help: boolean } {
     nodesPerSymbol: Math.max(1, Math.min(10, Math.round(positiveNumber(args["nodes-per-symbol"], 10)))),
     out: typeof args.out === "string" ? args.out : "reports/professional-backtest-audit",
     requestDelayMs: Math.max(0, Math.round(positiveNumber(args["request-delay-ms"], 80))),
+    requireGoldenPass: args["require-golden-pass"] === true,
     smallHorizonHours: positiveNumber(args["small-horizon-hours"], 4),
     topN: Math.max(1, Math.round(positiveNumber(args["top-n"], 20))),
   };
+}
+
+function readAuditMode(value: unknown): ProfessionalAuditMode {
+  if (value === "scan" || value === "analysis" || value === "strategy" || value === "full") {
+    return value;
+  }
+
+  return "full";
 }
 
 function positiveNumber(value: unknown, fallback: number) {
@@ -993,6 +1016,7 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     "## 输入",
     "",
     `- 数据源：binance-public-futures 15m klines + public funding/open interest`,
+    `- 审计模式：${report.auditMode ?? "full"}`,
     `- 候选池币种：${report.input.symbolsUsed.length}`,
     `- 已注入历史衍生品币种：${report.input.derivativesSymbolsUsed}`,
     `- 回放点：${report.input.replayTimes}`,
@@ -1011,13 +1035,40 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     `- 交易计划就绪：${report.roundSummary.planReadyCount}`,
     `- 高优先级问题：${report.roundSummary.highSeverityFindings}`,
     "",
+    "## 裁判系统状态",
+    "",
+    `- 状态：${report.judgeSystem?.statusLabel ?? "可运行但不完整"}`,
+    `- 摘要：${report.judgeSystem?.summary ?? "本报告尚未写入裁判系统状态。"}`,
+    "",
+    "| 环节 | 状态 | 来源 | 说明 |",
+    "|---|---|---|---|",
+  ];
+
+  if (report.judgeSystem?.lanes.length) {
+    for (const lane of report.judgeSystem.lanes) {
+      const status = lane.status === "pass"
+        ? "通过"
+        : lane.status === "fail"
+          ? "不合格"
+          : lane.status === "watch"
+            ? "观察"
+            : "等待";
+
+      lines.push(`| ${lane.label} | ${status} | ${lane.source} | ${lane.summary} |`);
+    }
+  } else {
+    lines.push("| 裁判系统 | 等待 | report | 旧报告缺少裁判系统字段，需要重新运行金样本和专项审计。 |");
+  }
+
+  lines.push(
+    "",
     "## 三大核心能力审计",
     "",
     "本轮只按三个核心判断系统是否有实战参考价值：扫描能不能提前感知、分析能不能判断对、策略能不能给出可执行计划。",
     "",
     "| 核心能力 | 状态 | 分数 | 通过率 | 测试节点 | 主要问题 | 下一步 |",
     "|---|---|---:|---:|---:|---|---|",
-  ];
+  );
 
   if (report.coreCapabilityMetrics.length > 0) {
     for (const metric of report.coreCapabilityMetrics) {
@@ -1261,6 +1312,7 @@ async function writeReport(options: CliOptions, report: ReturnType<typeof runPro
   await writeFile(path.join(reportDir, "summary.md"), reportMarkdown(report, failures, roundTrendComparison), "utf8");
   await writeFile(path.join(reportDir, "findings.json"), JSON.stringify({
     ...report,
+    auditMode: options.auditMode,
     failures,
     roundTrendComparison,
   }, null, 2), "utf8");
@@ -1272,6 +1324,149 @@ async function writeReport(options: CliOptions, report: ReturnType<typeof runPro
   return reportDir;
 }
 
+function focusedAuditShouldFail(report: ProfessionalReplayReport, mode: ProfessionalAuditMode) {
+  if (mode === "full") {
+    return report.roundSummary.highSeverityFindings > 0;
+  }
+
+  const metric = report.coreCapabilityMetrics.find((item) => item.id === mode);
+
+  if (!metric) {
+    return true;
+  }
+
+  return metric.status === "fail";
+}
+
+function runGoldenGate() {
+  const golden = runGoldenCases();
+
+  return golden;
+}
+
+function enforceGoldenGate(options: CliOptions) {
+  if (!options.requireGoldenPass) {
+    return;
+  }
+
+  const golden = runGoldenGate();
+
+  if (golden.status !== "passed") {
+    const failed = golden.results
+      .filter((result) => !result.passed)
+      .map((result) => result.fixture.id)
+      .join(", ");
+
+    throw new Error(`Golden cases failed; formal audit is blocked. failed=${failed}`);
+  }
+}
+
+function metricForMode(report: ProfessionalReplayReport, mode: Exclude<ProfessionalAuditMode, "full">) {
+  return report.coreCapabilityMetrics.find((item) => item.id === mode);
+}
+
+function judgeLaneStatusFromMetric(metric: ReturnType<typeof metricForMode>) {
+  if (!metric) {
+    return "waiting" as const;
+  }
+
+  return metric.status;
+}
+
+function buildJudgeSystemSnapshot(
+  report: ProfessionalReplayReport,
+  auditMode: ProfessionalAuditMode,
+): ProfessionalJudgeSystemSnapshot {
+  const golden = runGoldenGate();
+  const scan = metricForMode(report, "scan");
+  const analysis = metricForMode(report, "analysis");
+  const strategy = metricForMode(report, "strategy");
+  const generatedAt = report.generatedAt;
+  const lanes: ProfessionalJudgeSystemLane[] = [
+    {
+      id: "golden_cases",
+      label: "金样本基础逻辑",
+      source: "executable-fixtures",
+      status: golden.status === "passed" ? "pass" : "fail",
+      summary: golden.status === "passed"
+        ? `基础逻辑样本 ${golden.passed}/${golden.total} 通过。`
+        : `基础逻辑样本失败 ${golden.failed}/${golden.total}，禁止继续包装正式审计。`,
+      updatedAt: generatedAt,
+    },
+    {
+      id: "scan_audit",
+      label: "扫描提前性审计",
+      source: auditMode === "scan" ? "current-report" : "latest-report-or-current-core-metric",
+      status: judgeLaneStatusFromMetric(scan),
+      summary: scan?.summary ?? "尚未生成扫描专项审计报告。",
+      updatedAt: generatedAt,
+    },
+    {
+      id: "analysis_audit",
+      label: "分析判断审计",
+      source: auditMode === "analysis" ? "current-report" : "latest-report-or-current-core-metric",
+      status: judgeLaneStatusFromMetric(analysis),
+      summary: analysis?.summary ?? "尚未生成分析专项审计报告。",
+      updatedAt: generatedAt,
+    },
+    {
+      id: "strategy_audit",
+      label: "策略计划审计",
+      source: auditMode === "strategy" ? "current-report" : "latest-report-or-current-core-metric",
+      status: judgeLaneStatusFromMetric(strategy),
+      summary: strategy?.summary ?? "尚未生成策略专项审计报告。",
+      updatedAt: generatedAt,
+    },
+    {
+      id: "formal_audit",
+      label: "正式综合审计",
+      source: auditMode === "full" ? "current-report" : "not-current-mode",
+      status: auditMode !== "full"
+        ? "waiting"
+        : report.roundSummary.highSeverityFindings > 0
+          ? "fail"
+          : "watch",
+      summary: auditMode !== "full"
+        ? "等待金样本和三个专项审计通过后再跑正式综合审计。"
+        : report.roundSummary.highSeverityFindings > 0
+          ? `正式审计仍有 ${report.roundSummary.highSeverityFindings} 个高优先级问题。`
+          : "正式审计没有高优先级问题，但仍需 shadow-live 长期样本确认。",
+      updatedAt: generatedAt,
+    },
+    {
+      id: "shadow_live",
+      label: "影子实盘验证",
+      source: "review-contract",
+      status: "waiting",
+      summary: "等待生产候选写入影子跟踪样本；不能据此自动改权重或生成交易。",
+      updatedAt: generatedAt,
+    },
+  ];
+  const failing = lanes.filter((lane) => lane.status === "fail");
+  const waiting = lanes.filter((lane) => lane.status === "waiting");
+  const statusLabel: ProfessionalJudgeSystemSnapshot["statusLabel"] = failing.length > 0
+    ? "不能支撑实战"
+    : waiting.length > 0
+      ? "可运行但不完整"
+      : "临时验证版";
+
+  return {
+    guardrails: [
+      "正式回测不是第一调试工具，必须先过金样本和专项审计。",
+      "扫描、分析、策略三项必须分开验收，不能用综合分掩盖短板。",
+      "影子实盘只做纸面验证，不能自动交易，不能自动改实时权重。",
+    ],
+    lanes,
+    schemaVersion: "core-judge-system.v1",
+    statusLabel,
+    summary: statusLabel === "不能支撑实战"
+      ? `裁判系统发现 ${failing.length} 个核心阻断项，先整改再继续正式回测。`
+      : statusLabel === "可运行但不完整"
+        ? `裁判系统可运行，但还有 ${waiting.length} 个环节等待报告或生产样本。`
+        : "裁判系统具备临时验证能力，仍需扩大样本和影子实盘确认。",
+  };
+}
+
 async function main() {
   const options = readArgs(process.argv.slice(2));
 
@@ -1279,6 +1474,8 @@ async function main() {
     usage();
     return;
   }
+
+  enforceGoldenGate(options);
 
   const discoveredSymbols = await discoverBinanceSymbols(options.auditRound ? 2000 : options.maxSymbols);
   const previousRoundSymbols = await previousAuditRoundSymbols(options);
@@ -1356,12 +1553,14 @@ async function main() {
         topN: options.topN,
       },
     });
+  report.auditMode = options.auditMode;
+  report.judgeSystem = buildJudgeSystemSnapshot(report, options.auditMode);
   const reportDir = await writeReport(options, report, [...failures, ...derivativeFailures]);
 
   console.log(`professional-backtest-audit report: ${reportDir}`);
   console.log(`cases=${report.roundSummary.cases} highFindings=${report.roundSummary.highSeverityFindings} planReady=${report.roundSummary.planReadyCount}`);
 
-  process.exit(report.roundSummary.highSeverityFindings > 0 ? 2 : 0);
+  process.exit(focusedAuditShouldFail(report, options.auditMode) ? 2 : 0);
 }
 
 main().catch((error) => {

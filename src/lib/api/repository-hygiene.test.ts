@@ -1095,10 +1095,20 @@ test("legacy radar contract getters are disabled instead of returning static mar
 
 test("professional backtest cli has hard network timeout and exits after writing report", () => {
   const source = readFileSync(resolve(process.cwd(), "src/scripts/professional-backtest-audit.ts"), "utf8");
+  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
 
   assert.match(source, /function backtestFetchTimeoutMs/);
   assert.match(source, /new AbortController\(\)/);
   assert.match(source, /BACKTEST_FETCH_TIMEOUT_MS/);
   assert.match(source, /controller\.abort/);
-  assert.match(source, /process\.exit\(report\.roundSummary\.highSeverityFindings > 0 \? 2 : 0\)/);
+  assert.match(source, /function focusedAuditShouldFail/);
+  assert.match(source, /function enforceGoldenGate/);
+  assert.match(source, /process\.exit\(focusedAuditShouldFail\(report, options\.auditMode\) \? 2 : 0\)/);
+  assert.match(packageJson.scripts?.["backtest:golden"] ?? "", /golden-case-audit\.js/);
+  assert.match(packageJson.scripts?.["backtest:scan-audit"] ?? "", /--audit-mode scan/);
+  assert.match(packageJson.scripts?.["backtest:analysis-audit"] ?? "", /--audit-mode analysis/);
+  assert.match(packageJson.scripts?.["backtest:strategy-audit"] ?? "", /--audit-mode strategy/);
+  assert.match(packageJson.scripts?.["backtest:formal"] ?? "", /--require-golden-pass/);
 });

@@ -2,6 +2,25 @@
 
 本文定义 Strategy Engine v2 的黄金测试场景。后续实现必须把这些场景转化为测试，防止系统变成单指标喊单器。
 
+## 可执行状态
+
+黄金案例已进入可执行裁判系统：
+
+- 固定事实源：`src/lib/backtest/golden-case-fixtures.ts`
+- 裁判逻辑：`src/lib/backtest/golden-case-runner.ts`
+- 回归测试：`src/lib/backtest/golden-case-runner.test.ts`
+- 命令：`npm run backtest:golden`
+
+黄金案例不是收益回测，也不读取外部行情。它只验证基础交易法则有没有被改坏：
+
+- RR 低于 `3:1` 不能生成交易计划。
+- 高周期压力不能被低周期看多推翻。
+- 已涨完/已跌深不能追单。
+- WAIT 条件没有有效触发时不能冒充入场。
+- 只有结构、资金质量、RR 和风险门控同时通过的优质突破，才允许进入 `TRADE_PLAN_READY`。
+
+后续正式 10x10 回测前必须先跑黄金案例；黄金案例失败时，禁止启动正式回测。
+
 每个场景至少需要验证：
 
 - 输入事实。

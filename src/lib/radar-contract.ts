@@ -1445,6 +1445,29 @@ export type HistoricalBacktestAuditRoundProgress = {
   updatedAt: string
 }
 
+export type CoreJudgeSystemLane = {
+  id:
+    | 'analysis_audit'
+    | 'formal_audit'
+    | 'golden_cases'
+    | 'scan_audit'
+    | 'shadow_live'
+    | 'strategy_audit'
+  label: string
+  source: string
+  status: 'fail' | 'pass' | 'waiting' | 'watch'
+  summary: string
+  updatedAt?: string
+}
+
+export type CoreJudgeSystemState = {
+  guardrails: string[]
+  lanes: CoreJudgeSystemLane[]
+  schemaVersion: 'core-judge-system.v1'
+  statusLabel: '不能支撑实战' | '可运行但不完整' | '完整完成' | '等待外部条件' | '临时验证版'
+  summary: string
+}
+
 export type HistoricalBacktestAuditV2State = {
   schemaVersion: 'professional-backtest-audit-report.v2'
   auditRound?: HistoricalBacktestAuditRoundProgress
@@ -1461,6 +1484,7 @@ export type HistoricalBacktestAuditV2State = {
   summary: string
   findings: HistoricalBacktestAuditV2Finding[]
   missedOpportunities: HistoricalBacktestAuditV2MissedOpportunity[]
+  judgeSystem?: CoreJudgeSystemState
   coreCapabilityMetrics: HistoricalBacktestAuditCoreCapabilityMetric[]
   opportunityLaneMetrics: HistoricalBacktestAuditOpportunityLaneMetric[]
   planBlockerMetrics: HistoricalBacktestAuditPlanBlockerMetric[]

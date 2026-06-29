@@ -76,6 +76,11 @@ const profiles = {
       "/api/admin/v3/forward-map-reviews/run",
       numberFromEnv("V3_FORWARD_MAP_INTERVAL_SECONDS", 21_600),
     ),
+    protectedPost(
+      "shadow-live-tracker",
+      "/api/admin/shadow-live/run",
+      numberFromEnv("SHADOW_LIVE_INTERVAL_SECONDS", 3_600),
+    ),
   ],
   dynamic: [
     publicGet(

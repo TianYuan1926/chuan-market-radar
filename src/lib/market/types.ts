@@ -534,6 +534,7 @@ export type ScanRuntimeDiagnostics = {
     | "radar_get"
     | "readiness_get"
     | "scan_get"
+    | "shadow_live_admin"
     | "unknown";
 };
 

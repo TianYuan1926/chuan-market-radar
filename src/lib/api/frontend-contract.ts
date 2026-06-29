@@ -1017,6 +1017,29 @@ export type HistoricalBacktestAuditRoundProgress = {
   updatedAt: string;
 };
 
+export type CoreJudgeSystemLane = {
+  id:
+    | "analysis_audit"
+    | "formal_audit"
+    | "golden_cases"
+    | "scan_audit"
+    | "shadow_live"
+    | "strategy_audit";
+  label: string;
+  source: string;
+  status: "fail" | "pass" | "waiting" | "watch";
+  summary: string;
+  updatedAt?: string;
+};
+
+export type CoreJudgeSystemState = {
+  guardrails: string[];
+  lanes: CoreJudgeSystemLane[];
+  schemaVersion: "core-judge-system.v1";
+  statusLabel: "不能支撑实战" | "可运行但不完整" | "完整完成" | "等待外部条件" | "临时验证版";
+  summary: string;
+};
+
 export type HistoricalBacktestAuditV2State = {
   schemaVersion: "professional-backtest-audit-report.v2";
   auditRound?: HistoricalBacktestAuditRoundProgress;
@@ -1033,6 +1056,7 @@ export type HistoricalBacktestAuditV2State = {
   summary: string;
   findings: HistoricalBacktestAuditV2Finding[];
   missedOpportunities: HistoricalBacktestAuditV2MissedOpportunity[];
+  judgeSystem?: CoreJudgeSystemState;
   coreCapabilityMetrics: HistoricalBacktestAuditCoreCapabilityMetric[];
   opportunityLaneMetrics: HistoricalBacktestAuditOpportunityLaneMetric[];
   planBlockerMetrics: HistoricalBacktestAuditPlanBlockerMetric[];
@@ -4676,6 +4700,58 @@ function buildDailyMoverReviewState(
   };
 }
 
+function withShadowLiveJudgeStatus(
+  historicalBacktest: Resource<HistoricalBacktestState> | undefined,
+  snapshot: MarketRadarSnapshot,
+  now: Date,
+) {
+  if (!historicalBacktest?.data.auditV2?.judgeSystem) {
+    return historicalBacktest;
+  }
+
+  const shadowEvents = snapshot.journalEvents.filter((event) =>
+    event.sourceId?.startsWith("shadow-live:") ||
+    event.lessons?.includes("shadow_live_tracking")
+  );
+  const pending = shadowEvents.filter((event) => event.reviewStatus === "tracking" || event.outcomeStatus === "pending").length;
+  const closed = shadowEvents.length - pending;
+  const judgeSystem: CoreJudgeSystemState = {
+    ...historicalBacktest.data.auditV2.judgeSystem,
+    lanes: historicalBacktest.data.auditV2.judgeSystem.lanes.map((lane) => {
+      if (lane.id !== "shadow_live") {
+        return lane;
+      }
+
+      return {
+        ...lane,
+        source: "journal-shadow-live",
+        status: shadowEvents.length > 0 ? "watch" : "waiting",
+        summary: shadowEvents.length > 0
+          ? `已写入 ${shadowEvents.length} 个影子实盘纸面样本，待验证 ${pending} 个，已关闭 ${closed} 个。`
+          : "尚未写入生产候选的影子实盘样本。",
+        updatedAt: now.toISOString(),
+      };
+    }),
+  };
+
+  return resource(
+    {
+      ...historicalBacktest.data,
+      auditV2: {
+        ...historicalBacktest.data.auditV2,
+        judgeSystem,
+      },
+    },
+    historicalBacktest.status,
+    {
+      ageSec: historicalBacktest.ageSec,
+      reason: historicalBacktest.reason,
+      source: historicalBacktest.source,
+      updatedAt: historicalBacktest.updatedAt,
+    },
+  );
+}
+
 export function buildFrontendReviewContract({
   backend,
   dailyMoverArchive,
@@ -4708,6 +4784,7 @@ export function buildFrontendReviewContract({
     : backend.analysis.businessCapability.gaps;
   const reviewSampleStatus = reviewSampleStatusToResourceStatus(backend.analysis.reviewStatistics.sampleStatus);
   const aiReviewStats = buildAiReviewStats(snapshot);
+  const historicalBacktestWithShadowLive = withShadowLiveJudgeStatus(historicalBacktest, snapshot, now);
   const missedDetectionRows = snapshot.journalEvents
     .filter((event) => event.result === "saved" || event.action === "trend_radar_review")
     .slice(0, 20)
@@ -4807,7 +4884,7 @@ export function buildFrontendReviewContract({
         reason: dailyMoverArchive?.guardrail ?? "每日涨跌榜复盘归档未接入当前页面合同。",
       },
     ),
-    historicalBacktest: historicalBacktest ?? resource(
+    historicalBacktest: historicalBacktestWithShadowLive ?? resource(
       emptyHistoricalBacktestState("等待生成历史时间点回放报告。"),
       "empty",
       {

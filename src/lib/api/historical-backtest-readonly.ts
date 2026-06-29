@@ -1,7 +1,10 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { resource, type Resource } from "../data-status";
+import { runGoldenCases } from "../backtest/golden-case-runner";
 import type {
+  CoreJudgeSystemLane,
+  CoreJudgeSystemState,
   HistoricalBacktestFinding,
   HistoricalBacktestAuditV2Finding,
   HistoricalBacktestAuditV2Remediation,
@@ -29,6 +32,13 @@ type HistoricalBacktestReportCandidate = {
   dir: string;
   findingsPath: string;
   mtimeMs: number;
+};
+
+type AuditMode = "analysis" | "full" | "scan" | "strategy";
+
+type AuditModeReport = {
+  candidate: HistoricalBacktestReportCandidate;
+  payload: Record<string, unknown>;
 };
 
 type HistoricalBacktestReadonlyOptions = {
@@ -474,6 +484,177 @@ function normalizeRoundTrendComparison(value: unknown): HistoricalBacktestAuditV
   };
 }
 
+function normalizeJudgeLane(value: unknown): CoreJudgeSystemLane {
+  const item = asObject(value);
+  const id = stringValue(item.id);
+  const status = stringValue(item.status);
+
+  return {
+    id: id === "analysis_audit" ||
+      id === "formal_audit" ||
+      id === "scan_audit" ||
+      id === "shadow_live" ||
+      id === "strategy_audit"
+      ? id
+      : "golden_cases",
+    label: stringValue(item.label, "核心裁判环节"),
+    source: stringValue(item.source, "unknown"),
+    status: status === "pass" || status === "watch" || status === "waiting" ? status : "fail",
+    summary: stringValue(item.summary, "该环节暂无说明。"),
+    updatedAt: stringValue(item.updatedAt) || undefined,
+  };
+}
+
+function normalizeJudgeSystem(value: unknown): CoreJudgeSystemState | undefined {
+  const item = asObject(value);
+
+  if (item.schemaVersion !== "core-judge-system.v1") {
+    return undefined;
+  }
+
+  const statusLabel = stringValue(item.statusLabel);
+
+  return {
+    guardrails: asArray(item.guardrails).map((rule) => stringValue(rule)).filter(Boolean),
+    lanes: asArray(item.lanes).map(normalizeJudgeLane),
+    schemaVersion: "core-judge-system.v1",
+    statusLabel: statusLabel === "完整完成" ||
+      statusLabel === "临时验证版" ||
+      statusLabel === "等待外部条件" ||
+      statusLabel === "不能支撑实战"
+      ? statusLabel
+      : "可运行但不完整",
+    summary: stringValue(item.summary, "裁判系统状态未完整写入。"),
+  };
+}
+
+function auditModeFromPayload(payload: Record<string, unknown>): AuditMode {
+  const value = stringValue(payload.auditMode);
+
+  if (value === "scan" || value === "analysis" || value === "strategy" || value === "full") {
+    return value;
+  }
+
+  return "full";
+}
+
+function coreMetricStatusFromPayload(payload: Record<string, unknown>, mode: Exclude<AuditMode, "full">): CoreJudgeSystemLane["status"] {
+  const metric = asArray(payload.coreCapabilityMetrics)
+    .map(asObject)
+    .find((item) => item.id === mode);
+  const status = stringValue(metric?.status);
+
+  if (status === "pass" || status === "watch") {
+    return status;
+  }
+
+  return metric ? "fail" : "waiting";
+}
+
+function coreMetricSummaryFromPayload(payload: Record<string, unknown>, mode: Exclude<AuditMode, "full">) {
+  const metric = asArray(payload.coreCapabilityMetrics)
+    .map(asObject)
+    .find((item) => item.id === mode);
+
+  return stringValue(metric?.summary) || "尚未生成该专项审计报告。";
+}
+
+function buildJudgeSystemFromReports(
+  latestByMode: Partial<Record<AuditMode, AuditModeReport>>,
+  currentPayload: Record<string, unknown>,
+): CoreJudgeSystemState {
+  const existing = normalizeJudgeSystem(currentPayload.judgeSystem);
+
+  if (existing) {
+    return existing;
+  }
+
+  const currentMode = auditModeFromPayload(currentPayload);
+  const reportFor = (mode: AuditMode) => latestByMode[mode]?.payload ?? (currentMode === mode ? currentPayload : undefined);
+  const generatedAtFor = (mode: AuditMode) => stringValue(reportFor(mode)?.generatedAt) || undefined;
+  const golden = runGoldenCases();
+  const fullReport = reportFor("full");
+  const fullSummary = asObject(fullReport?.roundSummary);
+  const highSeverityFindings = numericValue(fullSummary.highSeverityFindings);
+  const lanes: CoreJudgeSystemLane[] = [
+    {
+      id: "golden_cases",
+      label: "金样本基础逻辑",
+      source: "executable-fixtures",
+      status: golden.status === "passed" ? "pass" : "fail",
+      summary: golden.status === "passed"
+        ? `基础逻辑样本 ${golden.passed}/${golden.total} 通过。`
+        : `基础逻辑样本失败 ${golden.failed}/${golden.total}，禁止包装正式审计。`,
+    },
+    {
+      id: "scan_audit",
+      label: "扫描提前性审计",
+      source: reportFor("scan") ? "professional-backtest-report" : "missing-report",
+      status: reportFor("scan") ? coreMetricStatusFromPayload(reportFor("scan")!, "scan") : "waiting",
+      summary: reportFor("scan") ? coreMetricSummaryFromPayload(reportFor("scan")!, "scan") : "尚未生成扫描专项审计报告。",
+      updatedAt: generatedAtFor("scan"),
+    },
+    {
+      id: "analysis_audit",
+      label: "分析判断审计",
+      source: reportFor("analysis") ? "professional-backtest-report" : "missing-report",
+      status: reportFor("analysis") ? coreMetricStatusFromPayload(reportFor("analysis")!, "analysis") : "waiting",
+      summary: reportFor("analysis") ? coreMetricSummaryFromPayload(reportFor("analysis")!, "analysis") : "尚未生成分析专项审计报告。",
+      updatedAt: generatedAtFor("analysis"),
+    },
+    {
+      id: "strategy_audit",
+      label: "策略计划审计",
+      source: reportFor("strategy") ? "professional-backtest-report" : "missing-report",
+      status: reportFor("strategy") ? coreMetricStatusFromPayload(reportFor("strategy")!, "strategy") : "waiting",
+      summary: reportFor("strategy") ? coreMetricSummaryFromPayload(reportFor("strategy")!, "strategy") : "尚未生成策略专项审计报告。",
+      updatedAt: generatedAtFor("strategy"),
+    },
+    {
+      id: "formal_audit",
+      label: "正式综合审计",
+      source: fullReport ? "professional-backtest-report" : "missing-report",
+      status: fullReport ? (highSeverityFindings > 0 ? "fail" : "watch") : "waiting",
+      summary: fullReport
+        ? highSeverityFindings > 0
+          ? `正式审计仍有 ${highSeverityFindings} 个高优先级问题。`
+          : "正式审计没有高优先级问题，但仍需 shadow-live 长期样本确认。"
+        : "等待金样本和三个专项审计通过后再跑正式综合审计。",
+      updatedAt: generatedAtFor("full"),
+    },
+    {
+      id: "shadow_live",
+      label: "影子实盘验证",
+      source: "review-contract",
+      status: "waiting",
+      summary: "等待生产候选写入影子跟踪样本；该状态不允许自动交易或自动改权重。",
+    },
+  ];
+  const failing = lanes.filter((lane) => lane.status === "fail");
+  const waiting = lanes.filter((lane) => lane.status === "waiting");
+  const statusLabel: CoreJudgeSystemState["statusLabel"] = failing.length > 0
+    ? "不能支撑实战"
+    : waiting.length > 0
+      ? "可运行但不完整"
+      : "临时验证版";
+
+  return {
+    guardrails: [
+      "正式回测不是第一调试工具，必须先过金样本和专项审计。",
+      "扫描、分析、策略三项必须分开验收，不能用综合分掩盖短板。",
+      "影子实盘只做纸面验证，不能自动交易，不能自动改实时权重。",
+    ],
+    lanes,
+    schemaVersion: "core-judge-system.v1",
+    statusLabel,
+    summary: statusLabel === "不能支撑实战"
+      ? `裁判系统发现 ${failing.length} 个核心阻断项，先整改再继续正式回测。`
+      : statusLabel === "可运行但不完整"
+        ? `裁判系统可运行，但还有 ${waiting.length} 个环节等待报告或生产样本。`
+        : "裁判系统具备临时验证能力，仍需扩大样本和影子实盘确认。",
+  };
+}
+
 function normalizeAuditRoundProgress(value: unknown): HistoricalBacktestAuditRoundProgress | undefined {
   const item = asObject(value);
 
@@ -542,6 +723,7 @@ function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestA
     guardrails: asArray(payload.guardrails).map((item) => stringValue(item)).filter(Boolean),
     highSeverityFindings: numericValue(roundSummary.highSeverityFindings),
     missedOpportunities: asArray(payload.missedOpportunities).map(normalizeAuditV2MissedOpportunity).slice(0, 50),
+    judgeSystem: normalizeJudgeSystem(payload.judgeSystem),
     coreCapabilityMetrics: asArray(payload.coreCapabilityMetrics).map(normalizeAuditV2CoreCapabilityMetric),
     opportunityLaneMetrics: asArray(payload.opportunityLaneMetrics).map(normalizeAuditV2OpportunityLaneMetric),
     planBlockerMetrics: asArray(payload.planBlockerMetrics).map(normalizeAuditV2PlanBlockerMetric).slice(0, 20),
@@ -666,6 +848,36 @@ async function findLatestReportCandidate(roots: string[]) {
   const candidates = (await Promise.all(roots.map(listReportCandidates))).flat();
 
   return candidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0] ?? null;
+}
+
+async function readLatestReportsByAuditMode(roots: string[]): Promise<Partial<Record<AuditMode, AuditModeReport>>> {
+  const candidates = (await Promise.all(roots.map(listReportCandidates))).flat()
+    .sort((left, right) => right.mtimeMs - left.mtimeMs);
+  const reports: Partial<Record<AuditMode, AuditModeReport>> = {};
+
+  for (const candidate of candidates) {
+    if (reports.scan && reports.analysis && reports.strategy && reports.full) {
+      break;
+    }
+
+    try {
+      const payload = asObject(JSON.parse(await readFile(candidate.findingsPath, "utf8")));
+
+      if (payload.schemaVersion !== "professional-backtest-audit-report.v2") {
+        continue;
+      }
+
+      const mode = auditModeFromPayload(payload);
+
+      if (!reports[mode]) {
+        reports[mode] = { candidate, payload };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return reports;
 }
 
 function parseSummaryInput(markdown: string): ParsedSummaryInput {
@@ -813,9 +1025,10 @@ export async function getLatestHistoricalBacktestResource(
 ): Promise<Resource<HistoricalBacktestState>> {
   const now = options.now ?? new Date();
   const roots = resolveReportRoots(options);
-  const [candidate, latestProgress] = await Promise.all([
+  const [candidate, latestProgress, latestByMode] = await Promise.all([
     findLatestReportCandidate(roots),
     readLatestProgress(roots),
+    readLatestReportsByAuditMode(roots),
   ]);
 
   if (!candidate) {
@@ -869,7 +1082,11 @@ export async function getLatestHistoricalBacktestResource(
     const parsedSummary = parseSummaryInput(summaryMarkdown);
     const findings = asArray(payload.findings).map(normalizeFinding);
     const failures = asArray(payload.failures);
-    const auditV2 = normalizeAuditV2(payload);
+    const judgeSystem = buildJudgeSystemFromReports(latestByMode, payload);
+    const auditV2 = normalizeAuditV2({
+      ...payload,
+      judgeSystem,
+    });
     const progress = auditV2?.auditRound ?? latestProgress;
     const v2HistoricalLanes = auditV2
       ? {

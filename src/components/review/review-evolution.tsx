@@ -97,6 +97,22 @@ const tradePlanStatusLabels: Record<string, string> = {
   WAIT_PULLBACK: '等待回踩',
 }
 
+const judgeLaneLabels: Record<string, string> = {
+  analysis_audit: '分析判断',
+  formal_audit: '正式审计',
+  golden_cases: '金样本',
+  scan_audit: '扫描提前性',
+  shadow_live: '影子实盘',
+  strategy_audit: '策略计划',
+}
+
+const judgeLaneStatusLabels: Record<string, string> = {
+  fail: '不合格',
+  pass: '通过',
+  waiting: '等待',
+  watch: '观察',
+}
+
 function readableLayer(layer: string) {
   return layerLabels[layer] ?? layer
 }
@@ -624,6 +640,54 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                         {data.auditV2.summary}
                       </p>
+                      {data.auditV2.judgeSystem ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-[11px] font-semibold">核心能力裁判系统</div>
+                            <span
+                              className={cn(
+                                'border px-1.5 py-0.5 text-[10px] font-semibold',
+                                data.auditV2.judgeSystem.statusLabel === '不能支撑实战'
+                                  ? 'border-down/40 bg-down/10 text-down'
+                                  : data.auditV2.judgeSystem.statusLabel === '可运行但不完整'
+                                    ? 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]'
+                                    : 'border-up/40 bg-up/10 text-up',
+                              )}
+                            >
+                              {data.auditV2.judgeSystem.statusLabel}
+                            </span>
+                          </div>
+                          <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                            {data.auditV2.judgeSystem.summary}
+                          </p>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {data.auditV2.judgeSystem.lanes.map((lane) => (
+                              <div key={lane.id} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-semibold">{judgeLaneLabels[lane.id] ?? lane.label}</span>
+                                  <span
+                                    className={cn(
+                                      'border px-1.5 py-0.5 font-mono text-[10px]',
+                                      lane.status === 'pass'
+                                        ? 'border-up/40 bg-up/10 text-up'
+                                        : lane.status === 'fail'
+                                          ? 'border-down/40 bg-down/10 text-down'
+                                          : lane.status === 'watch'
+                                            ? 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]'
+                                            : 'border-border bg-background/40 text-muted-foreground',
+                                    )}
+                                  >
+                                    {judgeLaneStatusLabels[lane.status] ?? lane.status}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  {lane.summary}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       {data.auditV2.coreCapabilityMetrics.length > 0 ? (
                         <div className="mt-3 border border-border bg-background/40 p-2">
                           <div className="text-[11px] font-semibold">核心能力验收</div>

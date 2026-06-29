@@ -171,7 +171,34 @@ export type ProfessionalAuditRuleStabilityMetric = {
 
 export type ProfessionalCoreCapabilityId = "analysis" | "scan" | "strategy";
 
+export type ProfessionalAuditMode = "analysis" | "full" | "scan" | "strategy";
+
 export type ProfessionalCoreCapabilityStatus = "fail" | "pass" | "watch";
+
+export type ProfessionalJudgeSystemLaneId =
+  | "analysis_audit"
+  | "formal_audit"
+  | "golden_cases"
+  | "scan_audit"
+  | "shadow_live"
+  | "strategy_audit";
+
+export type ProfessionalJudgeSystemLane = {
+  id: ProfessionalJudgeSystemLaneId;
+  label: string;
+  source: string;
+  status: "fail" | "pass" | "waiting" | "watch";
+  summary: string;
+  updatedAt?: string;
+};
+
+export type ProfessionalJudgeSystemSnapshot = {
+  guardrails: string[];
+  lanes: ProfessionalJudgeSystemLane[];
+  schemaVersion: "core-judge-system.v1";
+  statusLabel: "不能支撑实战" | "可运行但不完整" | "完整完成" | "等待外部条件" | "临时验证版";
+  summary: string;
+};
 
 export type ProfessionalCoreCapabilityFailure = {
   code: string;
@@ -221,6 +248,7 @@ export type ProfessionalReplayMissedOpportunity = {
 };
 
 export type ProfessionalReplayReport = {
+  auditMode?: ProfessionalAuditMode;
   auditRound?: ProfessionalAuditRoundProgress;
   baselineMetrics: Record<ProfessionalReplayLaneName, ProfessionalReplayLaneMetric>;
   cases: ProfessionalBacktestAuditCase[];
@@ -235,6 +263,7 @@ export type ProfessionalReplayReport = {
     symbolsUsed: string[];
     topN: number;
   };
+  judgeSystem?: ProfessionalJudgeSystemSnapshot;
   missedOpportunities: ProfessionalReplayMissedOpportunity[];
   coreCapabilityMetrics: ProfessionalCoreCapabilityMetric[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
