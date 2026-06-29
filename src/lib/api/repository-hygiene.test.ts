@@ -1112,3 +1112,12 @@ test("professional backtest cli has hard network timeout and exits after writing
   assert.match(packageJson.scripts?.["backtest:strategy-audit"] ?? "", /--audit-mode strategy/);
   assert.match(packageJson.scripts?.["backtest:formal"] ?? "", /--require-golden-pass/);
 });
+
+test("review contract reads current journal events instead of stale scan snapshot events", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/lib/frontend-contract-server.ts"), "utf8");
+
+  assert.match(source, /function readCurrentJournalEventsForReview/);
+  assert.match(source, /appPersistenceRepository\.listJournalEvents\(120\)/);
+  assert.match(source, /const reviewSnapshot = \{[\s\S]*\.\.\.snapshot,[\s\S]*journalEvents,/);
+  assert.match(source, /snapshot: reviewSnapshot/);
+});

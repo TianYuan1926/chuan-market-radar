@@ -162,6 +162,14 @@ async function readPublicMarketBoard() {
   );
 }
 
+async function readCurrentJournalEventsForReview() {
+  try {
+    return await appPersistenceRepository.listJournalEvents(120);
+  } catch {
+    return [];
+  }
+}
+
 export async function getRadarContractForPage(): Promise<RadarContract> {
   const { backend, snapshot } = await readPageBackend();
 
@@ -244,19 +252,24 @@ export async function getKlineContractForPage(
 }
 
 export async function getReviewContractForPage(): Promise<ReviewContract> {
-  const [{ backend, snapshot }, dailyMoverArchive, historicalBacktest] = await Promise.all([
+  const [{ backend, snapshot }, dailyMoverArchive, historicalBacktest, journalEvents] = await Promise.all([
     readPageBackend(),
     getDailyMoverReadArchive({
       limit: 7,
       repository: appPersistenceRepository,
     }),
     getLatestHistoricalBacktestResource(),
+    readCurrentJournalEventsForReview(),
   ]);
+  const reviewSnapshot = {
+    ...snapshot,
+    journalEvents,
+  };
 
   return buildFrontendReviewContract({
     backend,
     dailyMoverArchive: dailyMoverArchive.body.ok ? dailyMoverArchive.body : null,
     historicalBacktest,
-    snapshot,
+    snapshot: reviewSnapshot,
   }) as unknown as ReviewContract;
 }
