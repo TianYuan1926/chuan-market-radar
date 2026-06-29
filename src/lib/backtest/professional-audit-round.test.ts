@@ -12,6 +12,7 @@ import {
   selectProfessionalAuditNodeIndexes,
   selectProfessionalAuditOpportunityCandidates,
   tradePlanBlockers,
+  waitPlanTriggerPrice,
   waitPlanTriggerObserved,
 } from "./professional-audit-round";
 import type { Candle } from "../market/ohlcv/types";
@@ -780,6 +781,38 @@ test("waitPlanTriggerObserved requires a structural reaction, not just a level t
     stopDistance: 4,
     triggerPrice: 96,
   }), true);
+});
+
+test("waitPlanTriggerPrice anchors wait entries closer to the structural level", () => {
+  assert.equal(waitPlanTriggerPrice({
+    direction: "long",
+    entry: 100,
+    structuralStop: 94,
+  }), 95.32);
+  assert.equal(waitPlanTriggerPrice({
+    direction: "short",
+    entry: 100,
+    structuralStop: 106,
+  }), 104.68);
+});
+
+test("waitPlanTriggerObserved rejects weak reactions that previously created premature wait entries", () => {
+  const weakReaction = {
+    close: 96.5,
+    closeTime: "2026-01-01T00:14:59.999Z",
+    high: 97,
+    low: 95.8,
+    open: 96.1,
+    openTime: "2026-01-01T00:00:00.000Z",
+    volume: 100,
+  };
+
+  assert.equal(waitPlanTriggerObserved({
+    candle: weakReaction,
+    direction: "long",
+    stopDistance: 4,
+    triggerPrice: 96,
+  }), false);
 });
 
 test("opportunityLaneScore keeps pullback retest ranking from being compressed by early setup noise caps", () => {

@@ -1252,19 +1252,50 @@ export function waitPlanTriggerObserved({
   triggerPrice: number;
 }) {
   const range = Math.max(candle.high - candle.low, Number.EPSILON);
-  const minReaction = stopDistance * 0.12;
+  const minReaction = stopDistance * 0.18;
 
   if (direction === "long") {
     return candle.low <= triggerPrice &&
       candle.close >= triggerPrice + minReaction &&
       candle.close >= candle.open &&
-      (candle.close - candle.low) / range >= 0.56;
+      (candle.close - candle.low) / range >= 0.62;
   }
 
   return candle.high >= triggerPrice &&
     candle.close <= triggerPrice - minReaction &&
     candle.close <= candle.open &&
-    (candle.high - candle.close) / range >= 0.56;
+    (candle.high - candle.close) / range >= 0.62;
+}
+
+export function waitPlanTriggerPrice({
+  direction,
+  entry,
+  structuralStop,
+}: {
+  direction: "long" | "short";
+  entry: number;
+  structuralStop: number;
+}) {
+  const stopDistance = Math.abs(entry - structuralStop);
+  const structuralReactionRatio = 0.78;
+
+  return direction === "long"
+    ? entry - stopDistance * structuralReactionRatio
+    : entry + stopDistance * structuralReactionRatio;
+}
+
+function waitPlanTriggerPreservesStructuralStop({
+  candle,
+  direction,
+  structuralStop,
+}: {
+  candle: Candle;
+  direction: "long" | "short";
+  structuralStop: number;
+}) {
+  return direction === "long"
+    ? candle.low > structuralStop
+    : candle.high < structuralStop;
 }
 
 function evaluateWaitPlan({
@@ -1309,15 +1340,24 @@ function evaluateWaitPlan({
   }
 
   const stopDistance = Math.abs(entry - structuralStop);
-  const triggerPrice = direction === "long"
-    ? entry - stopDistance * 0.65
-    : entry + stopDistance * 0.65;
-  const triggerIndex = future.findIndex((candle) => waitPlanTriggerObserved({
-    candle,
+  const triggerPrice = waitPlanTriggerPrice({
     direction,
-    stopDistance,
-    triggerPrice,
-  }));
+    entry,
+    structuralStop,
+  });
+  const triggerIndex = future.findIndex((candle) =>
+    waitPlanTriggerPreservesStructuralStop({
+      candle,
+      direction,
+      structuralStop,
+    }) &&
+    waitPlanTriggerObserved({
+      candle,
+      direction,
+      stopDistance,
+      triggerPrice,
+    })
+  );
 
   if (triggerIndex < 0) {
     return {
@@ -1326,7 +1366,7 @@ function evaluateWaitPlan({
       maxAdverseAfterTriggerPct: null,
       maxFavorableAfterTriggerPct: null,
       outcome: "no_trade",
-      reason: "验证窗口内没有靠近结构位并出现方向反应的回踩/反抽，等待计划避免了追单，但不能证明策略已命中。",
+      reason: "验证窗口内没有靠近结构位、未刺破结构止损且出现方向反应的回踩/反抽，等待计划避免了追单，但不能证明策略已命中。",
       status: "not_triggered",
       stopHit: false,
       targetHit: false,
@@ -1394,7 +1434,7 @@ function evaluateWaitPlan({
       maxAdverseAfterTriggerPct: round(maxAdverseAfterTriggerPct),
       maxFavorableAfterTriggerPct: round(maxFavorableAfterTriggerPct),
       outcome: "bad_wait",
-      reason: "等待计划触发后先打结构止损，说明该等待条件或结构位质量需要复查。",
+      reason: "等待计划触发后先打结构止损，说明该等待条件、结构位质量或触发反应强度需要复查。",
       status: "triggered_sl_first",
       stopHit: true,
       targetHit: false,

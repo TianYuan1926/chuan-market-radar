@@ -44,14 +44,14 @@ const maximumPlanStopDistancePercent = 6;
 function waitTriggerText(direction: V3LocationDirection, status: V3TradePlanStatus) {
   if (direction === "long") {
     return status === "WAIT_RETEST"
-      ? "触发条件：突破关键压力后，回踩不跌回压力下方，并且 15m/1h 收盘重新站稳，才进入人工复核。"
-      : "触发条件：回踩关键支撑后不破，15m/1h 出现承接，低点不再刷新，才进入人工复核。";
+      ? "触发条件：突破关键压力后，回踩不跌回压力下方，触发K线不能刺破结构止损，并且 15m/1h 收盘重新站稳，才进入人工复核。"
+      : "触发条件：回踩关键支撑后不破，触发K线不能刺破结构止损，15m/1h 出现承接，低点不再刷新，才进入人工复核。";
   }
 
   if (direction === "short") {
     return status === "WAIT_PULLBACK"
-      ? "触发条件：跌破关键支撑后，反抽无法收回支撑上方，并且 15m/1h 收盘继续承压，才进入人工复核。"
-      : "触发条件：反抽关键压力后不过，15m/1h 出现承压，高点不再刷新，才进入人工复核。";
+      ? "触发条件：跌破关键支撑后，反抽无法收回支撑上方，触发K线不能刺破结构止损，并且 15m/1h 收盘继续承压，才进入人工复核。"
+      : "触发条件：反抽关键压力后不过，触发K线不能刺破结构止损，15m/1h 出现承压，高点不再刷新，才进入人工复核。";
   }
 
   return "触发条件：方向未明确前只观察，不能生成多空计划。";
@@ -213,6 +213,7 @@ function basePlan({
       "Risk Gate 已通过或阻断原因已明确",
       "位置/RR 不低于 3:1",
       isWaitPlan ? waitTrigger : "入场触发已经确认或无需等待触发",
+      isWaitPlan ? "触发K线不能先刺破结构止损，否则只记录为失效观察，不视为入场触发。" : "结构止损未被触发前，执行条件保持有效。",
       isWaitPlan && waitReview ? waitReview : "等待原因已经拆分到结构、位置、反应或赔率",
       "回踩/反抽质量已确认",
       "趋势完整度保持健康",
