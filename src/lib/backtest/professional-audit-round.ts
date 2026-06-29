@@ -448,7 +448,7 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     ? Math.min(22, 10 + (Math.min(input.rewardRisk, 5) - 3) * 6)
     : 0;
   const conditionalPlanBonus = input.tradePlanStatus === "WAIT_RETEST" || input.tradePlanStatus === "WAIT_PULLBACK"
-    ? 4
+    ? 8
     : 0;
   const blockers = input.planBlockers ?? [];
   const structuralBlockerPenalty = Math.min(
@@ -467,10 +467,16 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   )
     ? 6
     : 0;
+  const quietDirectionPendingBonus = blockers.includes("direction_pending_quiet_setup") &&
+      absMove <= 3.5 &&
+      input.compressionPct <= 62 &&
+      input.volumeRatio <= 1.18
+    ? 10 + nonExtremeLocationScore * 8
+    : 0;
   const genericNeutralPenalty = input.nodeRole === "neutral_random" && absMove <= 2 && input.volumeRatio <= 1.05
     ? 16
     : 0;
-  const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus - structuralBlockerPenalty;
+  const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus + quietDirectionPendingBonus - structuralBlockerPenalty;
 
   if (input.lateAtSelection) {
     return round(input.radarScore - 100 - absMove * 2, 4);
@@ -482,10 +488,16 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     const lowVolumeCompressionBonus = input.compressionPct <= 42 && input.volumeRatio <= 1.05
       ? bandScore(input.volumeRatio, 0.35, 0.82, 1.15) * 16
       : 0;
+    const quietPreIgnitionBonus = input.nodeRole !== "neutral_random" &&
+        absMove <= 2.8 &&
+        input.compressionPct <= 55 &&
+        input.volumeRatio <= 1.12
+      ? 14 + nonExtremeLocationScore * 6 + bandScore(input.volumeRatio, 0.45, 0.82, 1.12) * 8
+      : 0;
     const controlledLocationBonus = nonExtremeLocationScore * 10;
     const radarComponent = discoveryRadarComponent(input.radarScore);
 
-    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + controlledLocationBonus + earlyRoleBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + controlledLocationBonus + earlyRoleBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
   }
 
   if (lane === "pullback_retest") {
@@ -511,7 +523,7 @@ export function professionalAuditOpportunityQuotas(topN: number): Record<Profess
     };
   }
 
-  const early = Math.max(1, Math.floor(normalized * 0.5));
+  const early = Math.max(1, Math.floor(normalized * 0.6));
   const pullback = Math.max(1, Math.floor(normalized * 0.3));
   const higher = Math.max(0, normalized - early - pullback);
 

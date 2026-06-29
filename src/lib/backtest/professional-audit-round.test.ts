@@ -308,8 +308,8 @@ test("professionalAuditRadarScore rewards controlled breakout-edge setup before 
 
 test("professionalAuditOpportunityQuotas reserves Top10 slots for early pullback and higher timeframe lanes", () => {
   assert.deepEqual(professionalAuditOpportunityQuotas(10), {
-    early_setup: 5,
-    higher_timeframe_context: 2,
+    early_setup: 6,
+    higher_timeframe_context: 1,
     pullback_retest: 3,
     risk_review: 0,
   });
@@ -501,6 +501,41 @@ test("opportunityLaneScore compresses raw radar noise so real early setups are n
   assert.ok(
     quietEarlySetup > noisyGenericSetup,
     `expected true early setup ${quietEarlySetup} to outrank noisy generic score ${noisyGenericSetup}`,
+  );
+});
+
+test("opportunityLaneScore promotes quiet direction-pending pre-ignition setups without future data", () => {
+  const quietPending = opportunityLaneScore({
+    compressionPct: 38,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.1,
+    nodeRole: "pre_move",
+    planBlockers: ["direction_pending_quiet_setup", "structure_confirmation_pending"],
+    radarScore: 48,
+    rangePositionPct: 46,
+    rewardRisk: 3.4,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 0.78,
+  });
+  const genericHigherRaw = opportunityLaneScore({
+    compressionPct: 58,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 2.2,
+    nodeRole: "neutral_random",
+    radarScore: 96,
+    rangePositionPct: 48,
+    rewardRisk: null,
+    timeframeBand: "small",
+    tradePlanStatus: "WATCH_ONLY",
+    volumeRatio: 1.02,
+  });
+
+  assert.ok(
+    quietPending > genericHigherRaw,
+    `expected quiet pending setup ${quietPending} to outrank generic raw-score noise ${genericHigherRaw}`,
   );
 });
 

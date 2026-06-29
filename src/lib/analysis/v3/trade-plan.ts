@@ -41,6 +41,42 @@ function waitStatus(direction: V3LocationDirection): V3TradePlanStatus {
 const minimumPlanRewardRisk = 3;
 const maximumPlanStopDistancePercent = 6;
 
+function waitTriggerText(direction: V3LocationDirection, status: V3TradePlanStatus) {
+  if (direction === "long") {
+    return status === "WAIT_RETEST"
+      ? "触发条件：突破关键压力后，回踩不跌回压力下方，并且 15m/1h 收盘重新站稳，才进入人工复核。"
+      : "触发条件：回踩关键支撑后不破，15m/1h 出现承接，低点不再刷新，才进入人工复核。";
+  }
+
+  if (direction === "short") {
+    return status === "WAIT_PULLBACK"
+      ? "触发条件：跌破关键支撑后，反抽无法收回支撑上方，并且 15m/1h 收盘继续承压，才进入人工复核。"
+      : "触发条件：反抽关键压力后不过，15m/1h 出现承压，高点不再刷新，才进入人工复核。";
+  }
+
+  return "触发条件：方向未明确前只观察，不能生成多空计划。";
+}
+
+function invalidationText({
+  structuralStop,
+  direction,
+}: {
+  structuralStop: number | null;
+  direction: V3LocationDirection;
+}) {
+  const stop = priceLabel(structuralStop);
+
+  if (direction === "long") {
+    return `结构失效：有效跌破结构止损 ${stop}，或突破后重新跌回箱体，计划作废。`;
+  }
+
+  if (direction === "short") {
+    return `结构失效：有效收回结构止损 ${stop}，或跌破后重新站回箱体，计划作废。`;
+  }
+
+  return "结构失效：方向未明确，暂不生成失效价。";
+}
+
 function planQualityFlags({
   currentPrice,
   direction,
@@ -125,6 +161,8 @@ function basePlan({
     : direction === "short"
       ? "等待靠近压力后的承压确认，或跌破后反抽不过再人工复核"
       : "等待方向明确";
+  const waitTrigger = waitTriggerText(direction, status);
+  const isWaitPlan = status === "WAIT_PULLBACK" || status === "WAIT_RETEST";
 
   return {
     allowedUse: "research_only",
@@ -134,13 +172,14 @@ function basePlan({
     confirmationChecklist: [
       "Risk Gate 已通过或阻断原因已明确",
       "位置/RR 不低于 3:1",
+      isWaitPlan ? waitTrigger : "入场触发已经确认或无需等待触发",
       "回踩/反抽质量已确认",
       "趋势完整度保持健康",
     ],
     direction,
-    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。`,
+    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。${isWaitPlan ? waitTrigger : ""}`,
     hasAutoExecution: false,
-    invalidation: `结构失效：${priceLabel(structuralStop)} 被有效跌破/收复后计划作废。`,
+    invalidation: invalidationText({ direction, structuralStop }),
     isPlanEligible,
     manualReviewRequired: true,
     positionSizing: isPlanEligible ? "只允许小仓试错，禁止追单；仓位需按结构止损距离反推。" : "未满足门控，不给仓位建议。",
