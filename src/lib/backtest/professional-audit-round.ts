@@ -539,6 +539,16 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
       )
     ? 14 + nonExtremeLocationScore * 8 + bandScore(input.volumeRatio, 0.55, 0.95, 1.25) * 10
     : 0;
+  const earlyVolumeTransitionBonus = input.nodeRole === "early_volume_expansion" &&
+      !input.lateAtSelection &&
+      absMove >= 0.8 &&
+      absMove <= 5.2 &&
+      input.volumeRatio >= 0.62 &&
+      input.volumeRatio <= 1.12 &&
+      input.compressionPct <= 72 &&
+      nonExtremeLocationScore >= 0.25
+    ? 16 + nonExtremeLocationScore * 8 + bandScore(input.volumeRatio, 0.62, 0.92, 1.12) * 10
+    : 0;
   const breakoutEdgeReadinessBonus = input.nodeRole === "breakout_edge" &&
       !input.lateAtSelection &&
       absMove >= 0.8 &&
@@ -589,7 +599,7 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     const controlledLocationBonus = nonExtremeLocationScore * 10;
     const radarComponent = discoveryRadarComponent(input.radarScore);
 
-    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + quietNeutralCompressionBonus + dryUpCompressionSetupBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + quietEarlyVolumeSetupBonus + breakoutEdgeReadinessBonus + quietBreakoutEdgeSetupBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + quietNeutralCompressionBonus + dryUpCompressionSetupBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + quietEarlyVolumeSetupBonus + earlyVolumeTransitionBonus + breakoutEdgeReadinessBonus + quietBreakoutEdgeSetupBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
   }
 
   if (lane === "pullback_retest") {
@@ -638,8 +648,37 @@ type OpportunityRankable = {
   };
   opportunityLane: ProfessionalAuditOpportunityLaneName;
   opportunityLaneScore: number;
+  nodeRole?: ProfessionalAuditRoundNodeRole;
+  movePct?: number;
   radarScore: number;
+  volumeRatio?: number;
 };
+
+function isEarlyVolumeOpportunity(item: OpportunityRankable) {
+  const absMove = typeof item.movePct === "number" && Number.isFinite(item.movePct)
+    ? Math.abs(item.movePct)
+    : null;
+  const volumeRatio = typeof item.volumeRatio === "number" && Number.isFinite(item.volumeRatio)
+    ? item.volumeRatio
+    : null;
+
+  return (
+    item.opportunityLane !== "risk_review" &&
+    item.nodeRole === "early_volume_expansion" &&
+    (absMove === null || absMove <= 6.2) &&
+    (volumeRatio === null || (volumeRatio >= 0.42 && volumeRatio <= 2.8))
+  );
+}
+
+function professionalAuditEarlyVolumeQuota(topN: number) {
+  const normalized = Math.max(1, Math.round(topN));
+
+  if (normalized <= 2) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor(normalized * 0.2));
+}
 
 function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
   return [...items].sort((left, right) =>
@@ -652,20 +691,45 @@ function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
 
 export function selectProfessionalAuditOpportunityCandidates<T extends OpportunityRankable>(items: T[], topN: number) {
   const quotas = professionalAuditOpportunityQuotas(topN);
+  const earlyVolumeQuota = professionalAuditEarlyVolumeQuota(topN);
   const selected: T[] = [];
   const selectedSymbols = new Set<string>();
+  const selectedLaneCounts: Record<ProfessionalAuditOpportunityLaneName, number> = {
+    early_setup: 0,
+    higher_timeframe_context: 0,
+    pullback_retest: 0,
+    risk_review: 0,
+  };
+  const pushSelected = (item: T) => {
+    if (selected.length >= topN || selectedSymbols.has(item.auditCase.inputSummary.symbol)) {
+      return false;
+    }
+
+    selected.push(item);
+    selectedSymbols.add(item.auditCase.inputSummary.symbol);
+    selectedLaneCounts[item.opportunityLane] += 1;
+
+    return true;
+  };
   const actionableLanes: ProfessionalAuditOpportunityLaneName[] = [
     "early_setup",
     "pullback_retest",
     "higher_timeframe_context",
   ];
 
+  for (const item of rankOpportunityCandidates(items.filter(isEarlyVolumeOpportunity)).slice(0, earlyVolumeQuota)) {
+    pushSelected(item);
+  }
+
   for (const lane of actionableLanes) {
     const laneItems = rankOpportunityCandidates(items.filter((item) => item.opportunityLane === lane));
 
-    for (const item of laneItems.slice(0, quotas[lane])) {
-      selected.push(item);
-      selectedSymbols.add(item.auditCase.inputSummary.symbol);
+    for (const item of laneItems) {
+      if (selected.length >= topN || selectedLaneCounts[lane] >= quotas[lane]) {
+        break;
+      }
+
+      pushSelected(item);
     }
   }
 
@@ -683,6 +747,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
 
     selected.push(item);
     selectedSymbols.add(item.auditCase.inputSummary.symbol);
+    selectedLaneCounts[item.opportunityLane] += 1;
   }
 
   const selectedSet = new Set(selected.map((item) => item.auditCase.inputSummary.symbol));

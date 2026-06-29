@@ -506,6 +506,36 @@ test("opportunityLaneScore promotes quiet early-volume wait setups that need con
   );
 });
 
+test("opportunityLaneScore promotes transition early-volume nodes before they become chase signals", () => {
+  const transitionEarlyVolume = opportunityLaneScore({
+    compressionPct: 56,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 3.4,
+    nodeRole: "early_volume_expansion",
+    radarScore: 58,
+    rangePositionPct: 70,
+    timeframeBand: "small",
+    volumeRatio: 0.92,
+  });
+  const genericRawNoise = opportunityLaneScore({
+    compressionPct: 62,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.2,
+    nodeRole: "neutral_random",
+    radarScore: 96,
+    rangePositionPct: 50,
+    timeframeBand: "small",
+    volumeRatio: 1.02,
+  });
+
+  assert.ok(
+    transitionEarlyVolume > genericRawNoise,
+    `expected transition early-volume score ${transitionEarlyVolume} to beat generic raw noise ${genericRawNoise}`,
+  );
+});
+
 test("opportunityLaneScore promotes controlled early volume and breakout edge over generic drift", () => {
   const controlledVolume = opportunityLaneScore({
     compressionPct: 50,
@@ -579,6 +609,50 @@ test("selectProfessionalAuditOpportunityCandidates lets strong RR-qualified earl
   ], 4);
 
   assert.ok(selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "WIFUSDT"));
+});
+
+test("selectProfessionalAuditOpportunityCandidates reserves a TopN slot for early-volume discovery", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      movePct?: number;
+      nodeRole?: "early_volume_expansion" | "neutral_random" | "pre_move";
+      radarScore?: number;
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    radarScore: options.radarScore ?? opportunityLaneScore,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("GENERIC1USDT", 94, { nodeRole: "neutral_random" }),
+    item("GENERIC2USDT", 93, { nodeRole: "neutral_random" }),
+    item("GENERIC3USDT", 92, { nodeRole: "neutral_random" }),
+    item("GENERIC4USDT", 91, { nodeRole: "neutral_random" }),
+    item("EARLYVOLUSDT", 62, {
+      movePct: 3.2,
+      nodeRole: "early_volume_expansion",
+      volumeRatio: 0.92,
+    }),
+  ], 4);
+
+  assert.ok(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "EARLYVOLUSDT"),
+    "expected early-volume discovery to survive TopN selection even when generic raw scores are higher",
+  );
 });
 
 test("opportunityLaneScore compresses raw radar noise so real early setups are not crowded out", () => {
