@@ -574,11 +574,37 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
   const mediumSwingSetupBonus = input.nodeRole === "medium_swing" &&
       input.timeframeBand === "medium" &&
       !input.lateAtSelection &&
-      absMove <= 4.8 &&
-      input.volumeRatio >= 0.65 &&
-      input.volumeRatio <= 2.4 &&
+      absMove <= 5.8 &&
+      input.volumeRatio >= 0.55 &&
+      input.volumeRatio <= 2.6 &&
       input.compressionPct <= 72
-    ? 8 + nonExtremeLocationScore * 8 + bandScore(absMove, 0.2, 2.2, 4.8) * 6
+    ? 14 + nonExtremeLocationScore * 10 + bandScore(absMove, 0.2, 2.6, 5.8) * 8
+    : 0;
+  const trendAccelerationSetupBonus = input.nodeRole === "trend_acceleration" &&
+      input.timeframeBand === "medium" &&
+      !input.lateAtSelection &&
+      absMove >= 1.2 &&
+      absMove <= 7.2 &&
+      input.volumeRatio >= 0.8 &&
+      input.volumeRatio <= 3.2 &&
+      input.compressionPct <= 78 &&
+      nonExtremeLocationScore >= 0.28
+    ? 12 + nonExtremeLocationScore * 8 + bandScore(input.volumeRatio, 0.8, 1.45, 3.2) * 10 + bandScore(absMove, 1.2, 4.4, 7.2) * 6
+    : 0;
+  const quietCompressionPriorityBonus = !input.lateAtSelection &&
+      lane === "early_setup" &&
+      absMove <= 3.4 &&
+      input.compressionPct <= 58 &&
+      input.volumeRatio >= 0.42 &&
+      input.volumeRatio <= 1.18 &&
+      nonExtremeLocationScore >= 0.35 &&
+      (
+        input.nodeRole === "pre_move" ||
+        input.nodeRole === "neutral_random" ||
+        input.nodeRole === "medium_swing" ||
+        input.nodeRole === undefined
+      )
+    ? 12 + nonExtremeLocationScore * 8 + bandScore(input.volumeRatio, 0.42, 0.82, 1.18) * 10
     : 0;
   const planViabilityAdjustment = rrQualityBonus + conditionalPlanBonus + softWaitBonus + quietDirectionPendingBonus - structuralBlockerPenalty;
 
@@ -599,11 +625,11 @@ export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassify
     const controlledLocationBonus = nonExtremeLocationScore * 10;
     const radarComponent = discoveryRadarComponent(input.radarScore);
 
-    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + quietNeutralCompressionBonus + dryUpCompressionSetupBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + quietEarlyVolumeSetupBonus + earlyVolumeTransitionBonus + breakoutEdgeReadinessBonus + quietBreakoutEdgeSetupBonus + mediumSwingSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
+    return round(radarComponent + (100 - input.compressionPct) * 0.42 + bandScore(input.volumeRatio, 0.55, 1.25, 2.5) * 12 + lowVolumeCompressionBonus + quietPreIgnitionBonus + quietNeutralCompressionBonus + dryUpCompressionSetupBonus + quietCompressionPriorityBonus + controlledLocationBonus + earlyRoleBonus + controlledEarlyVolumeBonus + quietEarlyVolumeSetupBonus + earlyVolumeTransitionBonus + breakoutEdgeReadinessBonus + quietBreakoutEdgeSetupBonus + mediumSwingSetupBonus + trendAccelerationSetupBonus + planViabilityAdjustment - absMove * 0.9 - genericNeutralPenalty, 4);
   }
 
   if (lane === "pullback_retest") {
-    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + mediumSwingSetupBonus * 0.8 + planViabilityAdjustment, 4);
+    return round(input.radarScore + nonExtremeLocationScore * 16 + bandScore(absMove, 1.2, 4.2, 8.5) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.8) * 8 + mediumSwingSetupBonus * 0.8 + trendAccelerationSetupBonus * 0.9 + planViabilityAdjustment, 4);
   }
 
   if (lane === "higher_timeframe_context") {
@@ -646,11 +672,17 @@ type OpportunityRankable = {
       confidence: number;
     };
   };
+  compressionPct?: number;
+  lateAtSelection?: boolean;
+  movePct?: number;
   opportunityLane: ProfessionalAuditOpportunityLaneName;
   opportunityLaneScore: number;
   nodeRole?: ProfessionalAuditRoundNodeRole;
-  movePct?: number;
+  rangePositionPct?: number;
   radarScore: number;
+  rewardRisk?: number | null;
+  timeframeBand?: ProfessionalAuditRoundTimeframeBand;
+  tradePlanStatus?: string;
   volumeRatio?: number;
 };
 
@@ -670,6 +702,70 @@ function isEarlyVolumeOpportunity(item: OpportunityRankable) {
   );
 }
 
+function isQuietCompressionOpportunity(item: OpportunityRankable) {
+  const absMove = typeof item.movePct === "number" && Number.isFinite(item.movePct)
+    ? Math.abs(item.movePct)
+    : null;
+  const volumeRatio = typeof item.volumeRatio === "number" && Number.isFinite(item.volumeRatio)
+    ? item.volumeRatio
+    : null;
+  const compressionPct = typeof item.compressionPct === "number" && Number.isFinite(item.compressionPct)
+    ? item.compressionPct
+    : null;
+  const rangePositionPct = typeof item.rangePositionPct === "number" && Number.isFinite(item.rangePositionPct)
+    ? item.rangePositionPct
+    : null;
+  const quietRole =
+    item.nodeRole === "pre_move" ||
+    item.nodeRole === "neutral_random" ||
+    item.nodeRole === "medium_swing" ||
+    item.nodeRole === undefined;
+
+  return (
+    item.opportunityLane === "early_setup" &&
+    item.lateAtSelection !== true &&
+    quietRole &&
+    (absMove === null || absMove <= 3.4) &&
+    (volumeRatio === null || (volumeRatio >= 0.42 && volumeRatio <= 1.18)) &&
+    (compressionPct === null || compressionPct <= 58) &&
+    (rangePositionPct === null || (rangePositionPct >= 18 && rangePositionPct <= 82))
+  );
+}
+
+function isMediumSwingOpportunity(item: OpportunityRankable) {
+  const absMove = typeof item.movePct === "number" && Number.isFinite(item.movePct)
+    ? Math.abs(item.movePct)
+    : null;
+  const volumeRatio = typeof item.volumeRatio === "number" && Number.isFinite(item.volumeRatio)
+    ? item.volumeRatio
+    : null;
+
+  return (
+    item.opportunityLane !== "risk_review" &&
+    item.lateAtSelection !== true &&
+    item.nodeRole === "medium_swing" &&
+    (absMove === null || absMove <= 5.8) &&
+    (volumeRatio === null || (volumeRatio >= 0.55 && volumeRatio <= 2.6))
+  );
+}
+
+function isTrendAccelerationOpportunity(item: OpportunityRankable) {
+  const absMove = typeof item.movePct === "number" && Number.isFinite(item.movePct)
+    ? Math.abs(item.movePct)
+    : null;
+  const volumeRatio = typeof item.volumeRatio === "number" && Number.isFinite(item.volumeRatio)
+    ? item.volumeRatio
+    : null;
+
+  return (
+    item.opportunityLane !== "risk_review" &&
+    item.lateAtSelection !== true &&
+    item.nodeRole === "trend_acceleration" &&
+    (absMove === null || (absMove >= 1.2 && absMove <= 7.2)) &&
+    (volumeRatio === null || (volumeRatio >= 0.8 && volumeRatio <= 3.2))
+  );
+}
+
 function professionalAuditEarlyVolumeQuota(topN: number) {
   const normalized = Math.max(1, Math.round(topN));
 
@@ -678,6 +774,16 @@ function professionalAuditEarlyVolumeQuota(topN: number) {
   }
 
   return Math.max(1, Math.floor(normalized * 0.2));
+}
+
+function professionalAuditPrioritySliceQuota(topN: number) {
+  const normalized = Math.max(1, Math.round(topN));
+
+  if (normalized <= 3) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor(normalized * 0.15));
 }
 
 function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
@@ -692,6 +798,7 @@ function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
 export function selectProfessionalAuditOpportunityCandidates<T extends OpportunityRankable>(items: T[], topN: number) {
   const quotas = professionalAuditOpportunityQuotas(topN);
   const earlyVolumeQuota = professionalAuditEarlyVolumeQuota(topN);
+  const prioritySliceQuota = professionalAuditPrioritySliceQuota(topN);
   const selected: T[] = [];
   const selectedSymbols = new Set<string>();
   const selectedLaneCounts: Record<ProfessionalAuditOpportunityLaneName, number> = {
@@ -717,9 +824,26 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
     "higher_timeframe_context",
   ];
 
+  const pushPrioritySlice = (predicate: (item: T) => boolean, quota: number) => {
+    let pushed = 0;
+
+    for (const item of rankOpportunityCandidates(items.filter(predicate))) {
+      if (selected.length >= topN || pushed >= quota) {
+        break;
+      }
+
+      if (pushSelected(item)) {
+        pushed += 1;
+      }
+    }
+  };
+
+  pushPrioritySlice(isQuietCompressionOpportunity, prioritySliceQuota);
   for (const item of rankOpportunityCandidates(items.filter(isEarlyVolumeOpportunity)).slice(0, earlyVolumeQuota)) {
     pushSelected(item);
   }
+  pushPrioritySlice(isMediumSwingOpportunity, prioritySliceQuota);
+  pushPrioritySlice(isTrendAccelerationOpportunity, prioritySliceQuota);
 
   for (const lane of actionableLanes) {
     const laneItems = rankOpportunityCandidates(items.filter((item) => item.opportunityLane === lane));
@@ -843,11 +967,15 @@ export function professionalAuditRadarScore(input: ProfessionalAuditRadarRankInp
       ? 18 + clamp((48 - input.compressionPct) / 48, 0, 1) * 10 + bandScore(input.volumeRatio, 0.45, 0.95, 1.45) * 8
       : input.nodeRole === "early_volume_expansion"
         ? 16 + controlledImpulseScore * 0.18
-        : input.nodeRole === "breakout_edge"
-          ? 14 + controlledBreakoutEdgeScore * 0.16
-          : input.nodeRole === "pullback_retest"
-            ? 10 + pullbackPositionScore * 10
-            : 0
+          : input.nodeRole === "breakout_edge"
+            ? 14 + controlledBreakoutEdgeScore * 0.16
+            : input.nodeRole === "pullback_retest"
+              ? 10 + pullbackPositionScore * 10
+              : input.nodeRole === "medium_swing"
+                ? 10 + moderateMoveScore + nonExtremeLocationScore * 8
+                : input.nodeRole === "trend_acceleration"
+                  ? 8 + moderateMoveScore + controlledImpulseScore * 0.14
+                  : 0
     : 0;
   const roleRiskPenalty = input.nodeRole === "late_extension" || input.nodeRole === "fakeout_or_invalidation"
     ? 18

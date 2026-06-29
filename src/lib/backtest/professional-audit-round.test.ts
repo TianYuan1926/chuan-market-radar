@@ -656,6 +656,113 @@ test("selectProfessionalAuditOpportunityCandidates reserves a TopN slot for earl
   );
 });
 
+test("selectProfessionalAuditOpportunityCandidates reserves a TopN slot for quiet compression discovery", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      compressionPct?: number;
+      movePct?: number;
+      nodeRole?: "neutral_random" | "pre_move";
+      radarScore?: number;
+      rangePositionPct?: number;
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    compressionPct: options.compressionPct,
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    radarScore: options.radarScore ?? opportunityLaneScore,
+    rangePositionPct: options.rangePositionPct,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("GENERIC1USDT", 98, { nodeRole: "neutral_random", volumeRatio: 1.4 }),
+    item("GENERIC2USDT", 97, { nodeRole: "neutral_random", volumeRatio: 1.35 }),
+    item("GENERIC3USDT", 96, { nodeRole: "neutral_random", volumeRatio: 1.3 }),
+    item("GENERIC4USDT", 95, { nodeRole: "neutral_random", volumeRatio: 1.25 }),
+    item("QUIETUSDT", 62, {
+      compressionPct: 46,
+      movePct: 0.8,
+      nodeRole: "pre_move",
+      rangePositionPct: 48,
+      volumeRatio: 0.78,
+    }),
+  ], 4);
+
+  assert.ok(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "QUIETUSDT"),
+    "expected quiet compression discovery to survive TopN selection before it becomes obvious",
+  );
+});
+
+test("selectProfessionalAuditOpportunityCandidates reserves slots for medium swing and trend acceleration discovery", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      movePct?: number;
+      nodeRole?: "medium_swing" | "neutral_random" | "trend_acceleration";
+      opportunityLane?: "early_setup" | "pullback_retest";
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: options.opportunityLane ?? "early_setup" as const,
+    opportunityLaneScore,
+    radarScore: opportunityLaneScore,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("GENERIC1USDT", 110, { nodeRole: "neutral_random" }),
+    item("GENERIC2USDT", 109, { nodeRole: "neutral_random" }),
+    item("GENERIC3USDT", 108, { nodeRole: "neutral_random" }),
+    item("GENERIC4USDT", 107, { nodeRole: "neutral_random" }),
+    item("GENERIC5USDT", 106, { nodeRole: "neutral_random" }),
+    item("SWINGUSDT", 74, {
+      movePct: 3.4,
+      nodeRole: "medium_swing",
+      volumeRatio: 0.86,
+    }),
+    item("TRENDUSDT", 73, {
+      movePct: 5.2,
+      nodeRole: "trend_acceleration",
+      opportunityLane: "pullback_retest",
+      volumeRatio: 1.42,
+    }),
+  ], 6);
+
+  assert.ok(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "SWINGUSDT"),
+    "expected medium swing discovery to survive TopN selection",
+  );
+  assert.ok(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "TRENDUSDT"),
+    "expected trend acceleration discovery to survive TopN selection",
+  );
+});
+
 test("opportunityLaneScore compresses raw radar noise so real early setups are not crowded out", () => {
   const quietEarlySetup = opportunityLaneScore({
     compressionPct: 30,
@@ -683,6 +790,57 @@ test("opportunityLaneScore compresses raw radar noise so real early setups are n
   assert.ok(
     quietEarlySetup > noisyGenericSetup,
     `expected true early setup ${quietEarlySetup} to outrank noisy generic score ${noisyGenericSetup}`,
+  );
+});
+
+test("opportunityLaneScore promotes medium swing and trend acceleration before they become late signals", () => {
+  const mediumSwing = opportunityLaneScore({
+    compressionPct: 58,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 3.6,
+    nodeRole: "medium_swing",
+    radarScore: 58,
+    rangePositionPct: 44,
+    rewardRisk: 3.2,
+    timeframeBand: "medium",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 0.88,
+  });
+  const trendAcceleration = opportunityLaneScore({
+    compressionPct: 66,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 5.4,
+    nodeRole: "trend_acceleration",
+    radarScore: 62,
+    rangePositionPct: 57,
+    rewardRisk: 3.4,
+    timeframeBand: "medium",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 1.46,
+  });
+  const genericNoise = opportunityLaneScore({
+    compressionPct: 64,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.1,
+    nodeRole: "neutral_random",
+    radarScore: 94,
+    rangePositionPct: 50,
+    rewardRisk: null,
+    timeframeBand: "small",
+    tradePlanStatus: "WATCH_ONLY",
+    volumeRatio: 1.02,
+  });
+
+  assert.ok(
+    mediumSwing > genericNoise,
+    `expected medium swing score ${mediumSwing} to outrank generic noise ${genericNoise}`,
+  );
+  assert.ok(
+    trendAcceleration > genericNoise,
+    `expected trend acceleration score ${trendAcceleration} to outrank generic noise ${genericNoise}`,
   );
 });
 
