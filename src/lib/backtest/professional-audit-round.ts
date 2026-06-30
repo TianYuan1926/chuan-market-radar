@@ -813,15 +813,30 @@ function isConditionalWaitOpportunity(item: OpportunityRankable) {
   );
 }
 
-function hasHardStructureBlocker(item: OpportunityRankable) {
-  const blockers = item.planBlockers ?? [];
+const hardStructureBlockers = new Set([
+  "bear_structure_broken",
+  "bull_structure_broken",
+  "resistance_reclaimed",
+  "support_lost",
+]);
 
-  return blockers.some((blocker) =>
-    blocker === "bull_structure_broken" ||
-    blocker === "bear_structure_broken" ||
-    blocker === "support_lost" ||
-    blocker === "resistance_reclaimed"
-  );
+const scanOpportunityDisqualifyingBlockers = new Set([
+  ...hardStructureBlockers,
+  "chase_risk",
+  "reward_risk_below_minimum",
+  "stop_distance_too_wide",
+]);
+
+function hasHardStructureBlocker(item: Pick<OpportunityRankable, "planBlockers">) {
+  return (item.planBlockers ?? []).some((blocker) => hardStructureBlockers.has(blocker));
+}
+
+export function isScanActionableOpportunityNode(node: Pick<ProfessionalAuditRoundNode, "opportunityLane" | "planBlockers">) {
+  if (node.opportunityLane === "risk_review") {
+    return false;
+  }
+
+  return !node.planBlockers.some((blocker) => scanOpportunityDisqualifyingBlockers.has(blocker));
 }
 
 function professionalAuditEarlyVolumeQuota(topN: number) {
@@ -2163,7 +2178,10 @@ function summarizeOpportunityLane(
   lane: ProfessionalAuditOpportunityLaneName,
   nodes: ProfessionalAuditRoundNode[],
 ): ProfessionalAuditOpportunityLaneMetric {
-  const laneNodes = nodes.filter((node) => node.opportunityLane === lane);
+  const laneNodes = nodes.filter((node) =>
+    node.opportunityLane === lane &&
+    (lane === "risk_review" || isScanActionableOpportunityNode(node))
+  );
   const captured = laneNodes.filter((node) => node.capturedByRadar);
   const hitCount = laneNodes.filter((node) => node.hit).length;
   const qualityHitCount = laneNodes.filter((node) => node.qualityHit).length;
@@ -2316,7 +2334,7 @@ export function buildWaitPlanMetrics(nodes: ProfessionalAuditRoundNode[]): Profe
 }
 
 function buildPressureTestMetrics(nodes: ProfessionalAuditRoundNode[], topN: number, candidateUniverseSize: number): ProfessionalAuditPressureTestMetric[] {
-  const actionable = nodes.filter((node) => node.opportunityLane !== "risk_review");
+  const actionable = nodes.filter(isScanActionableOpportunityNode);
   const thresholds = [...new Set([
     Math.max(1, Math.min(topN, candidateUniverseSize)),
     Math.max(1, Math.min(topN * 2, candidateUniverseSize)),
@@ -2649,7 +2667,7 @@ function buildScanCapabilityMetric({
   nodes: ProfessionalAuditRoundNode[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
 }): ProfessionalCoreCapabilityMetric {
-  const actionableNodes = nodes.filter((node) => node.opportunityLane !== "risk_review");
+  const actionableNodes = nodes.filter(isScanActionableOpportunityNode);
   const captured = actionableNodes.filter((node) => node.capturedByRadar);
   const earlyUsefulCaptured = actionableNodes.filter((node) =>
     node.capturedByRadar &&
@@ -2678,7 +2696,7 @@ function buildScanCapabilityMetric({
     failures.push(failure({
       code: "scan_capture_low",
       count: actionableNodes.length - captured.length,
-      detail: `可交易机会池 TopN 捕获率只有 ${captureRatePct}%，说明真正值得测的节点没有稳定进前排。`,
+      detail: `结构可行动机会池 TopN 捕获率只有 ${captureRatePct}%，说明真正值得测的节点没有稳定进前排。`,
       label: "机会捕获率不足",
       nextAction: "先复查候选排序和深扫名额分配，不要继续叠加新功能。",
       sampleSymbols: actionableNodes.filter((node) => !node.capturedByRadar).slice(0, 6).map((node) => node.symbol),
@@ -3047,7 +3065,7 @@ function aggregateFindings({
   const radar = baselineMetrics.radar;
   const random = baselineMetrics.random;
   const momentum = baselineMetrics.momentum;
-  const actionableNodes = nodes.filter((item) => item.opportunityLane !== "risk_review");
+  const actionableNodes = nodes.filter(isScanActionableOpportunityNode);
   const selectedNodes = nodes.filter((item) => item.selectedAsOpportunity);
   const captureRate = actionableNodes.length > 0
     ? actionableNodes.filter((item) => item.capturedByRadar).length / actionableNodes.length * 100
@@ -3065,12 +3083,12 @@ function aggregateFindings({
   });
   const dominantMissedRole = dominantGroup({
     keyFor: (node) => node.nodeRole,
-    nodes,
+    nodes: actionableNodes,
     predicate: (node) => !node.capturedByRadar && (node.hit || node.qualityHit) && !node.lateAtSelection,
   });
   const dominantMissedCoinType = dominantGroup({
     keyFor: (node) => node.coinType,
-    nodes,
+    nodes: actionableNodes,
     predicate: (node) => !node.capturedByRadar && (node.hit || node.qualityHit) && !node.lateAtSelection,
   });
 
@@ -3100,7 +3118,7 @@ function aggregateFindings({
 
   if (actionableNodes.length > 0 && captureRate < 45) {
     findings.push(aggregateFinding({
-      detail: `可交易机会池 radar topN 捕获率 ${round(captureRate)}%。风险复盘样本已剔除，仍然偏低，说明系统可能漏掉真正有布局价值的节点。`,
+      detail: `结构可行动机会池 radar topN 捕获率 ${round(captureRate)}%。风险复盘、硬结构破坏、RR 不足、止损过宽和追涨追空样本已剔除，仍然偏低，说明系统可能漏掉真正有布局价值的节点。`,
       id: "PBA-SCAN-ROUND-001",
       layer: "scan",
       nextAction: "检查候选排序、轻扫优先级、深扫槽位轮换和已涨已跌 cap。",

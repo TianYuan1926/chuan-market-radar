@@ -4,6 +4,7 @@ import {
   buildWaitPlanMetrics,
   classifyProfessionalAuditOpportunityLane,
   isActionableWaitPlanNode,
+  isScanActionableOpportunityNode,
   opportunityLaneScore,
   professionalAuditOpportunityQuotas,
   professionalAuditContextualPlanBlockers,
@@ -1290,6 +1291,29 @@ test("selectProfessionalAuditOpportunityCandidates excludes risk review from act
   assert.equal(selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "LATEUSDT"), false);
   assert.equal(selected.selected.length, 4);
   assert.ok(selected.ranked.findIndex((entry) => entry.auditCase.inputSummary.symbol === "LATEUSDT") > 3);
+});
+
+test("isScanActionableOpportunityNode excludes structurally untradeable scan samples from scan score denominators", () => {
+  assert.equal(isScanActionableOpportunityNode({
+    opportunityLane: "early_setup",
+    planBlockers: ["structure_confirmation_pending"],
+  }), true);
+  assert.equal(isScanActionableOpportunityNode({
+    opportunityLane: "early_setup",
+    planBlockers: ["reward_risk_below_minimum"],
+  }), false);
+  assert.equal(isScanActionableOpportunityNode({
+    opportunityLane: "pullback_retest",
+    planBlockers: ["bull_structure_broken"],
+  }), false);
+  assert.equal(isScanActionableOpportunityNode({
+    opportunityLane: "pullback_retest",
+    planBlockers: ["chase_risk"],
+  }), false);
+  assert.equal(isScanActionableOpportunityNode({
+    opportunityLane: "risk_review",
+    planBlockers: [],
+  }), false);
 });
 
 test("professionalAuditPlanBlockerLabel maps rr blockers to readable Chinese", () => {
