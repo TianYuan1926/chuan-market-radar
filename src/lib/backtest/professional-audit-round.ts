@@ -255,6 +255,177 @@ export function professionalAuditPlanBlockerLabel(blocker: string) {
     .trim();
 }
 
+type PlanBlockerCategory = ProfessionalAuditPlanBlockerMetric["category"];
+type PlanBlockerDiagnosis = ProfessionalAuditPlanBlockerMetric["diagnosis"];
+
+const planBlockerCategoryMap: Record<PlanBlockerCategory, string[]> = {
+  confirmation: [
+    "direction_pending_quiet_setup",
+    "no_recent_touch",
+    "reaction_not_confirmed",
+    "structure_confirmation_pending",
+  ],
+  data: [
+    "missing_strategy_v3",
+    "missing_trade_plan",
+    "stale_data",
+  ],
+  direction: [
+    "neutral_direction",
+  ],
+  plan_state: [
+    "trade_plan_not_eligible",
+    "trade_plan_not_ready",
+  ],
+  risk: [
+    "chase_risk",
+    "high_weight_conflict",
+    "lower_wick_exhaustion",
+    "risk_gate_blocked",
+    "risk_score_high",
+    "upper_wick_exhaustion",
+  ],
+  rr: [
+    "location_rr",
+    "reward_risk_below_minimum",
+    "reward_risk_unknown",
+    "位置/RR",
+  ],
+  stop_target: [
+    "invalid_nearest_target",
+    "invalid_structural_stop",
+    "no_nearest_target",
+    "no_structural_stop",
+    "stop_distance_too_wide",
+  ],
+  structure: [
+    "bear_structure_broken",
+    "bull_structure_broken",
+    "no_relevant_level",
+    "resistance_reclaimed",
+    "structure_invalidated",
+    "support_lost",
+    "trend_integrity_not_healthy",
+    "反抽质量",
+    "周期冲突",
+    "回踩质量",
+  ],
+  unknown: [],
+};
+
+export function professionalAuditPlanBlockerCategory(blocker: string): PlanBlockerCategory {
+  for (const [category, blockers] of Object.entries(planBlockerCategoryMap) as Array<[PlanBlockerCategory, string[]]>) {
+    if (blockers.includes(blocker)) {
+      return category;
+    }
+  }
+
+  if (/reward[_ -]?risk|rr|赔率/iu.test(blocker)) {
+    return "rr";
+  }
+
+  if (/target|stop|止损|目标/iu.test(blocker)) {
+    return "stop_target";
+  }
+
+  if (/reaction|confirm|touch|确认|触碰/iu.test(blocker)) {
+    return "confirmation";
+  }
+
+  if (/risk|wick|chase|风控|追/iu.test(blocker)) {
+    return "risk";
+  }
+
+  if (/structure|support|resistance|结构|支撑|压力/iu.test(blocker)) {
+    return "structure";
+  }
+
+  return "unknown";
+}
+
+const planBlockerCategoryLabels: Record<PlanBlockerCategory, string> = {
+  confirmation: "确认条件",
+  data: "数据缺口",
+  direction: "方向判断",
+  plan_state: "计划状态",
+  risk: "风险门禁",
+  rr: "结构盈亏比",
+  stop_target: "止损/目标位",
+  structure: "盘面结构",
+  unknown: "未归类",
+};
+
+const planBlockerDiagnosisLabels: Record<PlanBlockerDiagnosis, string> = {
+  needs_data_audit: "需要补数据，不可当成策略结论",
+  needs_level_audit: "疑似关键位/RR 规则错杀，优先复查",
+  needs_strategy_audit: "需要策略规则专项复查",
+  needs_wait_audit: "需要等待计划触发质量专项复查",
+  possible_false_kill: "疑似规则错杀，必须复核样本",
+  reasonable_guardrail: "更像合理风控拦截，暂不强行放行",
+};
+
+export function professionalAuditPlanBlockerCategoryLabel(category: PlanBlockerCategory) {
+  return planBlockerCategoryLabels[category];
+}
+
+export function professionalAuditPlanBlockerDiagnosisLabel(diagnosis: PlanBlockerDiagnosis) {
+  return planBlockerDiagnosisLabels[diagnosis];
+}
+
+function professionalAuditPlanBlockerDiagnosis({
+  category,
+  capturedCount,
+  conditionalWaitCount,
+  count,
+  lateCount,
+  qualityHitCount,
+  riskReviewCount,
+}: {
+  category: PlanBlockerCategory;
+  capturedCount: number;
+  conditionalWaitCount: number;
+  count: number;
+  lateCount: number;
+  qualityHitCount: number;
+  riskReviewCount: number;
+}): PlanBlockerDiagnosis {
+  const qualityRate = count > 0 ? qualityHitCount / count : 0;
+  const capturedRate = count > 0 ? capturedCount / count : 0;
+  const lateRate = count > 0 ? lateCount / count : 0;
+  const riskReviewRate = count > 0 ? riskReviewCount / count : 0;
+
+  if (category === "data") {
+    return "needs_data_audit";
+  }
+
+  if (category === "confirmation") {
+    return qualityHitCount > 0 || conditionalWaitCount > 0
+      ? "needs_wait_audit"
+      : "needs_strategy_audit";
+  }
+
+  if (category === "rr" || category === "stop_target") {
+    if (qualityHitCount > 0 || capturedRate >= 0.25) {
+      return "needs_level_audit";
+    }
+    return "reasonable_guardrail";
+  }
+
+  if (category === "direction" || category === "plan_state" || category === "unknown") {
+    return qualityRate >= 0.2 ? "possible_false_kill" : "needs_strategy_audit";
+  }
+
+  if (category === "structure") {
+    return qualityRate >= 0.2 && lateRate < 0.5 ? "possible_false_kill" : "reasonable_guardrail";
+  }
+
+  if (category === "risk") {
+    return riskReviewRate >= 0.3 || lateRate >= 0.35 ? "reasonable_guardrail" : "needs_strategy_audit";
+  }
+
+  return "needs_strategy_audit";
+}
+
 const nodeRoles: Array<{
   band: ProfessionalAuditRoundTimeframeBand;
   role: ProfessionalAuditRoundNodeRole;
@@ -2246,17 +2417,54 @@ function buildOpportunityLaneMetrics(nodes: ProfessionalAuditRoundNode[]) {
   ] as const).map((lane) => summarizeOpportunityLane(lane, nodes));
 }
 
-function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditPlanBlockerMetric[] {
-  const grouped = new Map<string, { count: number; sampleSymbols: string[] }>();
+export function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditPlanBlockerMetric[] {
+  const grouped = new Map<string, {
+    capturedCount: number;
+    conditionalWaitCount: number;
+    count: number;
+    lateCount: number;
+    qualityHitCount: number;
+    riskReviewCount: number;
+    sampleContexts: ProfessionalAuditPlanBlockerMetric["sampleContexts"];
+    sampleSymbols: string[];
+  }>();
 
   for (const node of nodes) {
     for (const blocker of node.planBlockers) {
-      const current = grouped.get(blocker) ?? { count: 0, sampleSymbols: [] };
+      const current = grouped.get(blocker) ?? {
+        capturedCount: 0,
+        conditionalWaitCount: 0,
+        count: 0,
+        lateCount: 0,
+        qualityHitCount: 0,
+        riskReviewCount: 0,
+        sampleContexts: [],
+        sampleSymbols: [],
+      };
 
       current.count += 1;
+      current.capturedCount += node.capturedByRadar ? 1 : 0;
+      current.conditionalWaitCount += node.tradePlanStatus === "WAIT_PULLBACK" || node.tradePlanStatus === "WAIT_RETEST" ? 1 : 0;
+      current.lateCount += node.lateAtSelection ? 1 : 0;
+      current.qualityHitCount += node.qualityHit ? 1 : 0;
+      current.riskReviewCount += node.opportunityLane === "risk_review" ? 1 : 0;
 
       if (!current.sampleSymbols.includes(node.symbol) && current.sampleSymbols.length < 6) {
         current.sampleSymbols.push(node.symbol);
+      }
+
+      if (current.sampleContexts.length < 6) {
+        current.sampleContexts.push({
+          capturedByRadar: node.capturedByRadar,
+          hit: node.hit,
+          lateAtSelection: node.lateAtSelection,
+          nodeRole: node.nodeRole,
+          opportunityLane: node.opportunityLane,
+          qualityHit: node.qualityHit,
+          rewardRisk: node.rewardRisk,
+          symbol: node.symbol,
+          tradePlanStatus: node.tradePlanStatus,
+        });
       }
 
       grouped.set(blocker, current);
@@ -2264,12 +2472,33 @@ function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): Professio
   }
 
   return [...grouped.entries()]
-    .map(([blocker, value]) => ({
-      blocker,
-      count: value.count,
-      label: professionalAuditPlanBlockerLabel(blocker),
-      sampleSymbols: value.sampleSymbols,
-    }))
+    .map(([blocker, value]) => {
+      const category = professionalAuditPlanBlockerCategory(blocker);
+      const diagnosis = professionalAuditPlanBlockerDiagnosis({
+        category,
+        capturedCount: value.capturedCount,
+        conditionalWaitCount: value.conditionalWaitCount,
+        count: value.count,
+        lateCount: value.lateCount,
+        qualityHitCount: value.qualityHitCount,
+        riskReviewCount: value.riskReviewCount,
+      });
+
+      return {
+        blocker,
+        capturedCount: value.capturedCount,
+        category,
+        conditionalWaitCount: value.conditionalWaitCount,
+        count: value.count,
+        diagnosis,
+        label: professionalAuditPlanBlockerLabel(blocker),
+        lateCount: value.lateCount,
+        qualityHitCount: value.qualityHitCount,
+        riskReviewCount: value.riskReviewCount,
+        sampleContexts: value.sampleContexts,
+        sampleSymbols: value.sampleSymbols,
+      };
+    })
     .sort((left, right) => right.count - left.count || left.blocker.localeCompare(right.blocker));
 }
 
@@ -3210,7 +3439,7 @@ function aggregateFindings({
 
   if (nodes.length > 0 && topPlanBlocker && nodes.every((node) => node.maturity !== "TRADE_PLAN_READY")) {
     findings.push(aggregateFinding({
-      detail: `本轮没有交易计划就绪样本；最常见阻断是 ${topPlanBlocker.label}，出现 ${topPlanBlocker.count} 次，代表币种 ${topPlanBlocker.sampleSymbols.join(" / ") || "暂无"}。`,
+      detail: `本轮没有交易计划就绪样本；最常见阻断是 ${topPlanBlocker.label}，类别 ${professionalAuditPlanBlockerCategoryLabel(topPlanBlocker.category)}，诊断 ${professionalAuditPlanBlockerDiagnosisLabel(topPlanBlocker.diagnosis)}，出现 ${topPlanBlocker.count} 次；其中质量命中 ${topPlanBlocker.qualityHitCount} 次、已被雷达捕获 ${topPlanBlocker.capturedCount} 次、条件等待 ${topPlanBlocker.conditionalWaitCount} 次，代表币种 ${topPlanBlocker.sampleSymbols.join(" / ") || "暂无"}。`,
       id: "PBA-PLAN-BLOCKER-ROUND-001",
       layer: "plan",
       nextAction: "不要强行生成交易计划；先判断阻断是合理风控，还是结构/RR/确认规则过严导致错杀。",

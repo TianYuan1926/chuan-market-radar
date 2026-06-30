@@ -95,8 +95,41 @@ export type ProfessionalAuditOpportunityLaneMetric = {
 
 export type ProfessionalAuditPlanBlockerMetric = {
   blocker: string;
+  capturedCount: number;
+  category:
+    | "confirmation"
+    | "data"
+    | "direction"
+    | "plan_state"
+    | "risk"
+    | "rr"
+    | "stop_target"
+    | "structure"
+    | "unknown";
+  conditionalWaitCount: number;
   count: number;
+  diagnosis:
+    | "needs_data_audit"
+    | "needs_level_audit"
+    | "needs_strategy_audit"
+    | "needs_wait_audit"
+    | "possible_false_kill"
+    | "reasonable_guardrail";
   label: string;
+  lateCount: number;
+  qualityHitCount: number;
+  riskReviewCount: number;
+  sampleContexts: Array<{
+    capturedByRadar: boolean;
+    hit: boolean;
+    lateAtSelection: boolean;
+    nodeRole: string;
+    opportunityLane: ProfessionalAuditOpportunityLaneName;
+    qualityHit: boolean;
+    rewardRisk: number | null;
+    symbol: string;
+    tradePlanStatus: string;
+  }>;
   sampleSymbols: string[];
 };
 

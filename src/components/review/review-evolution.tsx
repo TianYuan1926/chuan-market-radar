@@ -86,6 +86,27 @@ const planBlockerLabels: Record<string, string> = {
   upper_wick_exhaustion: '上影线衰竭风险',
 }
 
+const planBlockerCategoryLabels: Record<string, string> = {
+  confirmation: '确认条件',
+  data: '数据缺口',
+  direction: '方向判断',
+  plan_state: '计划状态',
+  risk: '风险门禁',
+  rr: '结构盈亏比',
+  stop_target: '止损/目标位',
+  structure: '盘面结构',
+  unknown: '未归类',
+}
+
+const planBlockerDiagnosisLabels: Record<string, string> = {
+  needs_data_audit: '需要补数据',
+  needs_level_audit: '疑似关键位/RR 错杀',
+  needs_strategy_audit: '需要策略专项复查',
+  needs_wait_audit: '需要 WAIT 触发质量复查',
+  possible_false_kill: '疑似规则错杀',
+  reasonable_guardrail: '更像合理风控',
+}
+
 const tradePlanStatusLabels: Record<string, string> = {
   BLOCKED: '被风控拦截',
   EVIDENCE_SIGNAL: '证据信号',
@@ -143,6 +164,14 @@ function readablePlanBlocker(blocker: string) {
   }
 
   return blocker.replaceAll('_', ' ')
+}
+
+function readablePlanBlockerCategory(category: string) {
+  return planBlockerCategoryLabels[category] ?? category
+}
+
+function readablePlanBlockerDiagnosis(diagnosis: string) {
+  return planBlockerDiagnosisLabels[diagnosis] ?? diagnosis.replaceAll('_', ' ')
 }
 
 function readableTradePlanStatus(status: string) {
@@ -888,9 +917,32 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                   <span className="text-[10px] font-semibold">{readablePlanBlocker(metric.blocker) || metric.label}</span>
                                   <span className="font-mono text-[10px] text-muted-foreground">{metric.count}</span>
                                 </div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  <span className="border border-border px-1 py-0.5 text-[9px] text-muted-foreground">
+                                    {readablePlanBlockerCategory(metric.category)}
+                                  </span>
+                                  <span className={cn(
+                                    'border px-1 py-0.5 text-[9px]',
+                                    metric.diagnosis === 'reasonable_guardrail'
+                                      ? 'border-emerald-500/30 text-emerald-300'
+                                      : 'border-amber-500/30 text-amber-300',
+                                  )}>
+                                    {readablePlanBlockerDiagnosis(metric.diagnosis)}
+                                  </span>
+                                </div>
+                                <div className="mt-1 grid grid-cols-3 gap-1 font-mono text-[9px] text-muted-foreground">
+                                  <span>质中 {metric.qualityHitCount}</span>
+                                  <span>等待 {metric.conditionalWaitCount}</span>
+                                  <span>已捕 {metric.capturedCount}</span>
+                                </div>
                                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                   代表币种：{metric.sampleSymbols.join(' / ') || '暂无'}
                                 </p>
+                                {metric.sampleContexts.length > 0 ? (
+                                  <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+                                    样本：{metric.sampleContexts.slice(0, 2).map((sample) => `${sample.symbol}/${readableTradePlanStatus(sample.tradePlanStatus)}/${sample.qualityHit ? '质量命中' : '未命中'}`).join('；')}
+                                  </p>
+                                ) : null}
                               </div>
                             ))}
                           </div>

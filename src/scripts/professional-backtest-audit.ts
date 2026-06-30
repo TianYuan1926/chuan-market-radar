@@ -26,6 +26,8 @@ import {
   type ProfessionalDerivativePoint,
 } from "../lib/backtest/professional-replay";
 import {
+  professionalAuditPlanBlockerCategoryLabel,
+  professionalAuditPlanBlockerDiagnosisLabel,
   professionalAuditPlanBlockerLabel,
   runProfessionalAuditRound,
   type ProfessionalAuditRoundProgress,
@@ -1153,12 +1155,12 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     lines.push(
       "## 交易计划未就绪原因",
       "",
-      "| 阻断原因 | 次数 | 代表币种 |",
-      "|---|---:|---|",
+      "| 阻断原因 | 类别 | 诊断 | 次数 | 质量命中 | 条件等待 | 已捕获 | 代表币种 |",
+      "|---|---|---|---:|---:|---:|---:|---|",
     );
 
     for (const metric of report.planBlockerMetrics.slice(0, 12)) {
-      lines.push(`| ${professionalAuditPlanBlockerLabel(metric.blocker)} | ${metric.count} | ${metric.sampleSymbols.join(" / ") || "-"} |`);
+      lines.push(`| ${professionalAuditPlanBlockerLabel(metric.blocker)} | ${professionalAuditPlanBlockerCategoryLabel(metric.category)} | ${professionalAuditPlanBlockerDiagnosisLabel(metric.diagnosis)} | ${metric.count} | ${metric.qualityHitCount} | ${metric.conditionalWaitCount} | ${metric.capturedCount} | ${metric.sampleSymbols.join(" / ") || "-"} |`);
     }
 
     lines.push("");

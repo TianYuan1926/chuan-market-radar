@@ -384,8 +384,26 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
         planBlockerMetrics: [
           {
             blocker: "reward_risk_below_minimum",
+            capturedCount: 1,
+            category: "rr",
+            conditionalWaitCount: 1,
             count: 1,
+            diagnosis: "needs_level_audit",
             label: "结构盈亏比低于 3:1",
+            lateCount: 0,
+            qualityHitCount: 1,
+            riskReviewCount: 0,
+            sampleContexts: [{
+              capturedByRadar: true,
+              hit: true,
+              lateAtSelection: false,
+              nodeRole: "pre_move",
+              opportunityLane: "early_setup",
+              qualityHit: true,
+              rewardRisk: 2.7,
+              symbol: "SUIUSDT",
+              tradePlanStatus: "WAIT_PULLBACK",
+            }],
             sampleSymbols: ["SUIUSDT"],
           },
         ],
@@ -455,6 +473,10 @@ test("historical backtest readonly exposes professional audit v2 findings", asyn
     assert.equal(result.data.auditV2?.opportunityLaneMetrics[0]?.captureRatePct, 100);
     assert.equal(result.data.auditV2?.opportunityLaneMetrics[0]?.qualityHitRatePct, 100);
     assert.equal(result.data.auditV2?.planBlockerMetrics[0]?.label, "结构盈亏比低于 3:1");
+    assert.equal(result.data.auditV2?.planBlockerMetrics[0]?.category, "rr");
+    assert.equal(result.data.auditV2?.planBlockerMetrics[0]?.diagnosis, "needs_level_audit");
+    assert.equal(result.data.auditV2?.planBlockerMetrics[0]?.qualityHitCount, 1);
+    assert.equal(result.data.auditV2?.planBlockerMetrics[0]?.sampleContexts[0]?.tradePlanStatus, "WAIT_PULLBACK");
     assert.equal(result.data.auditV2?.findings[0]?.id, "PBA-DERIVATIVES-001");
     assert.equal(result.data.auditV2?.remediationPlan[0]?.priority, "P0");
     assert.equal(result.data.progress?.schemaVersion, "professional-backtest-audit-round-progress.v1");

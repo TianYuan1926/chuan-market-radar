@@ -846,8 +846,26 @@ export type HistoricalBacktestAuditCoreCapabilityMetric = {
 
 export type HistoricalBacktestAuditPlanBlockerMetric = {
   blocker: string;
+  capturedCount: number;
+  category: string;
+  conditionalWaitCount: number;
   count: number;
+  diagnosis: string;
   label: string;
+  lateCount: number;
+  qualityHitCount: number;
+  riskReviewCount: number;
+  sampleContexts: Array<{
+    capturedByRadar: boolean;
+    hit: boolean;
+    lateAtSelection: boolean;
+    nodeRole: string;
+    opportunityLane: string;
+    qualityHit: boolean;
+    rewardRisk: number | null;
+    symbol: string;
+    tradePlanStatus: string;
+  }>;
   sampleSymbols: string[];
 };
 

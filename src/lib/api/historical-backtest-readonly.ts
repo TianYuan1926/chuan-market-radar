@@ -360,8 +360,30 @@ function normalizeAuditV2PlanBlockerMetric(value: unknown): HistoricalBacktestAu
 
   return {
     blocker: stringValue(item.blocker, "unknown"),
+    capturedCount: numericValue(item.capturedCount),
+    category: stringValue(item.category, "unknown"),
+    conditionalWaitCount: numericValue(item.conditionalWaitCount),
     count: numericValue(item.count),
+    diagnosis: stringValue(item.diagnosis, "needs_strategy_audit"),
     label: stringValue(item.label, stringValue(item.blocker, "未标注阻断原因")),
+    lateCount: numericValue(item.lateCount),
+    qualityHitCount: numericValue(item.qualityHitCount),
+    riskReviewCount: numericValue(item.riskReviewCount),
+    sampleContexts: asArray(item.sampleContexts).map((entry) => {
+      const context = asObject(entry);
+
+      return {
+        capturedByRadar: context.capturedByRadar === true,
+        hit: context.hit === true,
+        lateAtSelection: context.lateAtSelection === true,
+        nodeRole: stringValue(context.nodeRole, "unknown"),
+        opportunityLane: stringValue(context.opportunityLane, "unknown"),
+        qualityHit: context.qualityHit === true,
+        rewardRisk: nullableNumber(context.rewardRisk),
+        symbol: stringValue(context.symbol, "UNKNOWN"),
+        tradePlanStatus: stringValue(context.tradePlanStatus, "UNKNOWN"),
+      };
+    }).filter((entry) => entry.symbol !== "UNKNOWN").slice(0, 6),
     sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
   };
 }

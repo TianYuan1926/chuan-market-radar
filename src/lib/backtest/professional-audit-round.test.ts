@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildPlanBlockerMetrics,
   buildWaitPlanMetrics,
   classifyProfessionalAuditOpportunityLane,
   isActionableWaitPlanNode,
@@ -1557,6 +1558,87 @@ test("professionalAuditContextualPlanBlockers turns untouched early setups into 
   assert.ok(blockers.includes("structure_confirmation_pending"));
 });
 
+test("buildPlanBlockerMetrics classifies blockers and separates likely false kills from guardrails", () => {
+  const auditNode = (overrides: Partial<ProfessionalAuditRoundNode>): ProfessionalAuditRoundNode => ({
+    capturedByRadar: true,
+    coinType: "midcap_trend",
+    coinTypeLabel: "中盘趋势",
+    confidence: 70,
+    direction: "long",
+    findingCount: 0,
+    hit: false,
+    lateAtSelection: false,
+    maePct: 1,
+    maturity: "EVIDENCE_SIGNAL",
+    mfePct: 4,
+    moveAtSelectionPct: 1.2,
+    nodeIndex: 1,
+    nodeRole: "pre_move",
+    observedAt: "2026-01-01T00:00:00.000Z",
+    opportunityLane: "early_setup",
+    opportunityLaneLabel: "启动前机会",
+    opportunityLaneScore: 82,
+    planBlockers: ["reward_risk_below_minimum"],
+    qualityHit: true,
+    radarRank: 3,
+    radarScore: 120,
+    rewardRisk: 2.8,
+    selectedAsOpportunity: true,
+    selectedLane: "early_setup",
+    symbol: "TESTUSDT",
+    timeframeBand: "small",
+    topN: 10,
+    tradePlanStatus: "WAIT_PULLBACK",
+    validationWindowBars: 16,
+    validationWindowHours: 4,
+    validationWindowLabel: "4h",
+    volumeRatio: 1.4,
+    waitPlanEvaluation: {
+      barsToTrigger: null,
+      diagnosticFlags: [],
+      label: "不是等待型计划",
+      maxAdverseAfterTriggerPct: null,
+      maxFavorableAfterTriggerPct: null,
+      outcome: "not_applicable",
+      postTriggerRewardRisk: null,
+      reason: "test",
+      status: "not_wait_plan",
+      stopHit: false,
+      targetHit: false,
+      triggerObservedAt: null,
+      triggerPrice: null,
+      triggerQualityScore: null,
+    },
+    ...overrides,
+  });
+
+  const metrics = buildPlanBlockerMetrics([
+    auditNode({ symbol: "RRUSDT" }),
+    auditNode({
+      lateAtSelection: true,
+      nodeRole: "late_extension",
+      opportunityLane: "risk_review",
+      opportunityLaneLabel: "风险复盘教材",
+      planBlockers: ["chase_risk"],
+      qualityHit: false,
+      symbol: "LATEUSDT",
+      tradePlanStatus: "BLOCKED",
+    }),
+  ]);
+  const rrMetric = metrics.find((metric) => metric.blocker === "reward_risk_below_minimum");
+  const chaseMetric = metrics.find((metric) => metric.blocker === "chase_risk");
+
+  assert.equal(rrMetric?.category, "rr");
+  assert.equal(rrMetric?.diagnosis, "needs_level_audit");
+  assert.equal(rrMetric?.qualityHitCount, 1);
+  assert.equal(rrMetric?.conditionalWaitCount, 1);
+  assert.equal(rrMetric?.sampleContexts[0]?.symbol, "RRUSDT");
+  assert.equal(chaseMetric?.category, "risk");
+  assert.equal(chaseMetric?.diagnosis, "reasonable_guardrail");
+  assert.equal(chaseMetric?.lateCount, 1);
+  assert.equal(chaseMetric?.riskReviewCount, 1);
+});
+
 test("runProfessionalAuditRound reports scan analysis and strategy core capability scorecards", () => {
   const candlesBySymbol = new Map<string, Candle[]>([
     ["TIAUSDT", sidewaysSeries(260)],
@@ -1596,5 +1678,11 @@ test("runProfessionalAuditRound reports scan analysis and strategy core capabili
   assert.ok(report.pressureTestMetrics.length > 0);
   assert.ok(Array.isArray(report.marketRegimeMetrics));
   assert.ok(Array.isArray(report.ruleStabilityMetrics));
+  if (report.planBlockerMetrics[0]) {
+    assert.equal(typeof report.planBlockerMetrics[0].category, "string");
+    assert.equal(typeof report.planBlockerMetrics[0].diagnosis, "string");
+    assert.equal(typeof report.planBlockerMetrics[0].qualityHitCount, "number");
+    assert.ok(Array.isArray(report.planBlockerMetrics[0].sampleContexts));
+  }
   assert.ok(report.auditRound?.nodes.every((node) => node.waitPlanEvaluation.status));
 });
