@@ -768,6 +768,122 @@ test("selectProfessionalAuditOpportunityCandidates reserves slots for medium swi
   );
 });
 
+test("selectProfessionalAuditOpportunityCandidates reserves slots for quiet pending early setups", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      movePct?: number;
+      planBlockers?: string[];
+      rewardRisk?: number;
+      tradePlanStatus?: "WATCH_ONLY" | "WAIT_PULLBACK";
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    lateAtSelection: false,
+    movePct: options.movePct,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    planBlockers: options.planBlockers,
+    radarScore: opportunityLaneScore,
+    rewardRisk: options.rewardRisk,
+    tradePlanStatus: options.tradePlanStatus,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("GENERIC1USDT", 155),
+    item("GENERIC2USDT", 154),
+    item("GENERIC3USDT", 153),
+    item("GENERIC4USDT", 152),
+    item("GENERIC5USDT", 151),
+    item("GENERIC6USDT", 150),
+    item("QUIETPENDINGUSDT", 82, {
+      movePct: 0.6,
+      planBlockers: ["direction_pending_quiet_setup", "structure_confirmation_pending"],
+      tradePlanStatus: "WATCH_ONLY",
+      volumeRatio: 0.92,
+    }),
+  ], 4);
+
+  assert.ok(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "QUIETPENDINGUSDT"),
+    "expected quiet pending early setup to survive TopN selection",
+  );
+});
+
+test("selectProfessionalAuditOpportunityCandidates reserves slots for RR-qualified conditional wait plans", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      movePct?: number;
+      opportunityLane?: "early_setup" | "pullback_retest";
+      planBlockers?: string[];
+      rewardRisk?: number;
+      tradePlanStatus?: "WAIT_PULLBACK" | "WAIT_RETEST";
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    lateAtSelection: false,
+    movePct: options.movePct,
+    opportunityLane: options.opportunityLane ?? "early_setup" as const,
+    opportunityLaneScore,
+    planBlockers: options.planBlockers,
+    radarScore: opportunityLaneScore,
+    rewardRisk: options.rewardRisk,
+    tradePlanStatus: options.tradePlanStatus,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("GENERIC1USDT", 160),
+    item("GENERIC2USDT", 159),
+    item("GENERIC3USDT", 158),
+    item("GENERIC4USDT", 157),
+    item("GENERIC5USDT", 156),
+    item("GENERIC6USDT", 155),
+    item("WAITRRUSDT", 84, {
+      movePct: 3.1,
+      planBlockers: ["structure_confirmation_pending"],
+      rewardRisk: 3.6,
+      tradePlanStatus: "WAIT_PULLBACK",
+      volumeRatio: 1.08,
+    }),
+    item("BROKENWAITUSDT", 170, {
+      movePct: 2.4,
+      planBlockers: ["bull_structure_broken"],
+      rewardRisk: 5.2,
+      tradePlanStatus: "WAIT_PULLBACK",
+      volumeRatio: 0.9,
+    }),
+  ], 4);
+
+  assert.ok(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "WAITRRUSDT"),
+    "expected RR-qualified conditional wait plan to survive TopN selection",
+  );
+  assert.equal(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "BROKENWAITUSDT"),
+    false,
+    "expected structurally broken wait plan not to be promoted by the conditional quota",
+  );
+});
+
 test("opportunityLaneScore compresses raw radar noise so real early setups are not crowded out", () => {
   const quietEarlySetup = opportunityLaneScore({
     compressionPct: 30,

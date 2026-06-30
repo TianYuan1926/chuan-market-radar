@@ -680,6 +680,7 @@ type OpportunityRankable = {
   nodeRole?: ProfessionalAuditRoundNodeRole;
   rangePositionPct?: number;
   radarScore: number;
+  planBlockers?: string[];
   rewardRisk?: number | null;
   timeframeBand?: ProfessionalAuditRoundTimeframeBand;
   tradePlanStatus?: string;
@@ -766,6 +767,63 @@ function isTrendAccelerationOpportunity(item: OpportunityRankable) {
   );
 }
 
+function isQuietPendingOpportunity(item: OpportunityRankable) {
+  const absMove = typeof item.movePct === "number" && Number.isFinite(item.movePct)
+    ? Math.abs(item.movePct)
+    : null;
+  const volumeRatio = typeof item.volumeRatio === "number" && Number.isFinite(item.volumeRatio)
+    ? item.volumeRatio
+    : null;
+  const blockers = item.planBlockers ?? [];
+
+  return (
+    item.opportunityLane === "early_setup" &&
+    item.lateAtSelection !== true &&
+    blockers.includes("direction_pending_quiet_setup") &&
+    blockers.includes("structure_confirmation_pending") &&
+    (absMove === null || absMove <= 2.2) &&
+    (volumeRatio === null || (volumeRatio >= 0.48 && volumeRatio <= 1.18))
+  );
+}
+
+function isConditionalWaitOpportunity(item: OpportunityRankable) {
+  const absMove = typeof item.movePct === "number" && Number.isFinite(item.movePct)
+    ? Math.abs(item.movePct)
+    : null;
+  const volumeRatio = typeof item.volumeRatio === "number" && Number.isFinite(item.volumeRatio)
+    ? item.volumeRatio
+    : null;
+  const rewardRisk = typeof item.rewardRisk === "number" && Number.isFinite(item.rewardRisk)
+    ? item.rewardRisk
+    : null;
+  const blockers = item.planBlockers ?? [];
+
+  return (
+    item.opportunityLane !== "risk_review" &&
+    item.lateAtSelection !== true &&
+    (item.tradePlanStatus === "WAIT_PULLBACK" || item.tradePlanStatus === "WAIT_RETEST") &&
+    rewardRisk !== null &&
+    rewardRisk >= 3 &&
+    !blockers.includes("bull_structure_broken") &&
+    !blockers.includes("bear_structure_broken") &&
+    !blockers.includes("support_lost") &&
+    !blockers.includes("resistance_reclaimed") &&
+    (absMove === null || absMove <= 5.2) &&
+    (volumeRatio === null || (volumeRatio >= 0.45 && volumeRatio <= 2.4))
+  );
+}
+
+function hasHardStructureBlocker(item: OpportunityRankable) {
+  const blockers = item.planBlockers ?? [];
+
+  return blockers.some((blocker) =>
+    blocker === "bull_structure_broken" ||
+    blocker === "bear_structure_broken" ||
+    blocker === "support_lost" ||
+    blocker === "resistance_reclaimed"
+  );
+}
+
 function professionalAuditEarlyVolumeQuota(topN: number) {
   const normalized = Math.max(1, Math.round(topN));
 
@@ -786,6 +844,26 @@ function professionalAuditPrioritySliceQuota(topN: number) {
   return Math.max(1, Math.floor(normalized * 0.15));
 }
 
+function professionalAuditQuietPendingQuota(topN: number) {
+  const normalized = Math.max(1, Math.round(topN));
+
+  if (normalized <= 4) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor(normalized * 0.2));
+}
+
+function professionalAuditConditionalWaitQuota(topN: number) {
+  const normalized = Math.max(1, Math.round(topN));
+
+  if (normalized <= 5) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor(normalized * 0.18));
+}
+
 function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
   return [...items].sort((left, right) =>
     right.opportunityLaneScore - left.opportunityLaneScore ||
@@ -797,8 +875,10 @@ function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
 
 export function selectProfessionalAuditOpportunityCandidates<T extends OpportunityRankable>(items: T[], topN: number) {
   const quotas = professionalAuditOpportunityQuotas(topN);
+  const conditionalWaitQuota = professionalAuditConditionalWaitQuota(topN);
   const earlyVolumeQuota = professionalAuditEarlyVolumeQuota(topN);
   const prioritySliceQuota = professionalAuditPrioritySliceQuota(topN);
+  const quietPendingQuota = professionalAuditQuietPendingQuota(topN);
   const selected: T[] = [];
   const selectedSymbols = new Set<string>();
   const selectedLaneCounts: Record<ProfessionalAuditOpportunityLaneName, number> = {
@@ -827,7 +907,10 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   const pushPrioritySlice = (predicate: (item: T) => boolean, quota: number) => {
     let pushed = 0;
 
-    for (const item of rankOpportunityCandidates(items.filter(predicate))) {
+    for (const item of rankOpportunityCandidates(items.filter((entry) =>
+      predicate(entry) &&
+      !hasHardStructureBlocker(entry)
+    ))) {
       if (selected.length >= topN || pushed >= quota) {
         break;
       }
@@ -839,14 +922,22 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   };
 
   pushPrioritySlice(isQuietCompressionOpportunity, prioritySliceQuota);
-  for (const item of rankOpportunityCandidates(items.filter(isEarlyVolumeOpportunity)).slice(0, earlyVolumeQuota)) {
+  pushPrioritySlice(isQuietPendingOpportunity, quietPendingQuota);
+  pushPrioritySlice(isConditionalWaitOpportunity, conditionalWaitQuota);
+  for (const item of rankOpportunityCandidates(items.filter((entry) =>
+    isEarlyVolumeOpportunity(entry) &&
+    !hasHardStructureBlocker(entry)
+  )).slice(0, earlyVolumeQuota)) {
     pushSelected(item);
   }
   pushPrioritySlice(isMediumSwingOpportunity, prioritySliceQuota);
   pushPrioritySlice(isTrendAccelerationOpportunity, prioritySliceQuota);
 
   for (const lane of actionableLanes) {
-    const laneItems = rankOpportunityCandidates(items.filter((item) => item.opportunityLane === lane));
+    const laneItems = rankOpportunityCandidates(items.filter((item) =>
+      item.opportunityLane === lane &&
+      !hasHardStructureBlocker(item)
+    ));
 
     for (const item of laneItems) {
       if (selected.length >= topN || selectedLaneCounts[lane] >= quotas[lane]) {
@@ -860,6 +951,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   const remainingActionable = rankOpportunityCandidates(
     items.filter((item) =>
       item.opportunityLane !== "risk_review" &&
+      !hasHardStructureBlocker(item) &&
       !selectedSymbols.has(item.auditCase.inputSummary.symbol)
     ),
   );
@@ -880,6 +972,14 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
     ...rankOpportunityCandidates(
       items.filter((item) =>
         item.opportunityLane !== "risk_review" &&
+        !hasHardStructureBlocker(item) &&
+        !selectedSet.has(item.auditCase.inputSummary.symbol)
+      ),
+    ),
+    ...rankOpportunityCandidates(
+      items.filter((item) =>
+        item.opportunityLane !== "risk_review" &&
+        hasHardStructureBlocker(item) &&
         !selectedSet.has(item.auditCase.inputSummary.symbol)
       ),
     ),
