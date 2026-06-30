@@ -696,11 +696,13 @@ function isEarlyVolumeOpportunity(item: OpportunityRankable) {
     : null;
 
   return (
-    item.opportunityLane !== "risk_review" &&
+    item.opportunityLane === "early_setup" &&
     item.lateAtSelection !== true &&
     item.nodeRole === "early_volume_expansion" &&
     (absMove === null || absMove <= 6.2) &&
-    (volumeRatio === null || (volumeRatio >= 0.42 && volumeRatio <= 2.8))
+    volumeRatio !== null &&
+    volumeRatio > 1.2 &&
+    volumeRatio <= 2.8
   );
 }
 
@@ -953,14 +955,14 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   };
 
   pushPrioritySlice(isQuietCompressionOpportunity, quietCompressionQuota);
-  pushPrioritySlice(isQuietPendingOpportunity, quietPendingQuota);
-  pushPrioritySlice(isConditionalWaitOpportunity, conditionalWaitQuota);
   for (const item of rankOpportunityCandidates(items.filter((entry) =>
     isEarlyVolumeOpportunity(entry) &&
     !hasScanDisqualifyingBlocker(entry)
   )).slice(0, earlyVolumeQuota)) {
     pushSelected(item);
   }
+  pushPrioritySlice(isQuietPendingOpportunity, quietPendingQuota);
+  pushPrioritySlice(isConditionalWaitOpportunity, conditionalWaitQuota);
   pushPrioritySlice(isMediumSwingOpportunity, prioritySliceQuota);
   pushPrioritySlice(isTrendAccelerationOpportunity, prioritySliceQuota);
 

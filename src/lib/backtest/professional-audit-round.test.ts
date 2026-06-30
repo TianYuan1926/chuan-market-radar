@@ -652,13 +652,64 @@ test("selectProfessionalAuditOpportunityCandidates reserves a TopN slot for earl
     item("EARLYVOLUSDT", 62, {
       movePct: 3.2,
       nodeRole: "early_volume_expansion",
-      volumeRatio: 0.92,
+      volumeRatio: 1.34,
     }),
   ], 4);
 
   assert.ok(
     selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "EARLYVOLUSDT"),
     "expected early-volume discovery to survive TopN selection even when generic raw scores are higher",
+  );
+});
+
+test("selectProfessionalAuditOpportunityCandidates does not spend early-volume slot on low-volume impostors", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      movePct?: number;
+      nodeRole?: "early_volume_expansion" | "neutral_random";
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    radarScore: opportunityLaneScore,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("LOWVOLUMEUSDT", 160, {
+      movePct: 1.4,
+      nodeRole: "early_volume_expansion",
+      volumeRatio: 0.92,
+    }),
+    item("TRUEVOLUMEUSDT", 72, {
+      movePct: 2.7,
+      nodeRole: "early_volume_expansion",
+      volumeRatio: 1.44,
+    }),
+    item("GENERICUSDT", 95, {
+      movePct: 1.2,
+      nodeRole: "neutral_random",
+      volumeRatio: 1.4,
+    }),
+  ], 1);
+
+  assert.deepEqual(
+    selected.selected.map((entry) => entry.auditCase.inputSummary.symbol),
+    ["TRUEVOLUMEUSDT"],
+    "expected the protected early-volume slot to require actual volume expansion above the regime threshold",
   );
 });
 
@@ -773,7 +824,7 @@ test("selectProfessionalAuditOpportunityCandidates protects Top10 early discover
     item("EARLYVOL1USDT", 80, {
       movePct: 2.4,
       nodeRole: "early_volume_expansion",
-      volumeRatio: 1.18,
+      volumeRatio: 1.28,
     }),
     item("EARLYVOL2USDT", 79, {
       movePct: 3.2,
