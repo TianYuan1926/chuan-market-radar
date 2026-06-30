@@ -203,6 +203,31 @@ test("evaluateStrategyV3Readiness blocks reward risk below three to one", () => 
   assert.match(report.summary, /3:1/);
 });
 
+test("evaluateStrategyV3Readiness separates structural level quality from generic risk gate blocks", () => {
+  const report = evaluateStrategyV3Readiness(signal({
+    strategyV3: dossier({
+      tradePlan: tradePlan({
+        blockedBy: ["no_structural_stop", "no_nearest_target", "stop_distance_too_wide"],
+        isPlanEligible: false,
+        rewardRisk: 3.4,
+        status: "BLOCKED",
+      }),
+      trendContext: trendContext({
+        riskGate: {
+          allowed: false,
+          blockedBy: ["no_structural_stop", "no_nearest_target"],
+          mode: "readonly_v3_risk_gate",
+        },
+      }),
+    }),
+  }));
+
+  assert.equal(report.bucket, "level_quality_blocked");
+  assert.equal(report.canEnterManualReview, false);
+  assert.match(report.summary, /关键位|结构止损|目标位/);
+  assert.match(report.nextStep, /结构止损|目标位/);
+});
+
 test("evaluateStrategyV3Readiness keeps waiting setups out of manual readiness", () => {
   const report = evaluateStrategyV3Readiness(signal({
     strategyV3: dossier({

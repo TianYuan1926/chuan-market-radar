@@ -1357,7 +1357,14 @@ RawSource
 - 诊断结论固定为：更像合理风控、疑似规则错杀、疑似关键位/RR 错杀、需要 WAIT 触发质量复查、需要策略专项复查、需要补数据。
 - Markdown 专业回测报告和 `/review` 复盘面板必须展示这些诊断字段，不能再只展示英文 blocker 或纯次数。
 - 本地验收已通过：`npm run build:market-cli`、专业回测审计单测 46/46、历史回测只读合同 4/4、`npm run typecheck`、`npm run lint`、`npm run test:market` 739 + 15 + 4、`npm run build`。
-- 下一步固定为：结构目标和结构止损质量专项。重点处理 `needs_level_audit`、`needs_wait_audit` 和 `possible_false_kill` 指向的样本，先判断关键位/RR/WAIT 触发是否错杀，再考虑交易计划就绪恢复。
+2026-07-01 策略根因包：结构目标和结构止损质量专项已落地：
+
+- 本轮只处理“为什么交易计划因为关键位、结构止损、目标位被拦截时看不懂”的问题；不放宽 `3:1` RR，不降低风控门禁，不把缺结构位的计划推进到狙击榜。
+- `evaluateStrategyV3Readiness` 已新增 `level_quality_blocked` 分桶，把 `no_structural_stop`、`no_nearest_target`、`invalid_structural_stop`、`invalid_nearest_target`、`stop_distance_too_wide` 从普通风控阻断里拆出来。
+- 交易计划草案已补中文结构解释：缺结构止损时说明不能用随手价格当止损；目标位缺失时说明不能硬编 TP；目标/止损方向错误时要求重建支撑压力；止损过宽时要求等待更靠近防守位或更近有效结构。
+- 这次修复的价值是让报告能区分：是 RR 本身不足、关键位质量不足、等待确认不足，还是普通 Risk Gate 阻断。它仍然是诊断和整改基础，不代表策略已经能稳定实战。
+- 本地验收已通过：`npm run build:market-cli`，专项 `readiness/trade-plan` 测试 14/14，`npm run typecheck`，`npm run lint`，`npm run test:market` 741 + 15 + 4，`npm run build`。
+- 下一步固定为：生产专项复验。重点看 `level_quality_blocked` 是否真实进入健康/后台合同，是否能把“止损/目标质量问题”从 RR blocker 和 Risk Gate blocker 中拆出来；如果复验仍显示 WAIT 后验 0 或 `TRADE_PLAN_READY` 为 0，再继续修关键位生成质量和 WAIT 触发后顺向延续。
 
 验收不能只看代码通过，还要看：
 

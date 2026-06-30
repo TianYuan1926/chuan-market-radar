@@ -3,6 +3,7 @@ import type { MarketSignal } from "../types";
 export type StrategyV3ReadinessBucket =
   | "conflict_wait"
   | "invalidated"
+  | "level_quality_blocked"
   | "manual_review_ready"
   | "missing_v3"
   | "risk_gate_blocked"
@@ -25,12 +26,25 @@ export type StrategyV3ReadinessReport = {
 const bucketLabels: Record<StrategyV3ReadinessBucket, string> = {
   conflict_wait: "周期冲突等待",
   invalidated: "结构失效",
+  level_quality_blocked: "关键位质量阻断",
   manual_review_ready: "可人工复核",
   missing_v3: "缺 v3 地图",
   risk_gate_blocked: "风控阻断",
   rr_blocked: "赔率不足",
   wait_reaction: "等待回踩/反抽",
 };
+
+const levelQualityBlockers = new Set([
+  "invalid_nearest_target",
+  "invalid_structural_stop",
+  "no_nearest_target",
+  "no_structural_stop",
+  "stop_distance_too_wide",
+]);
+
+function hasLevelQualityBlocker(blockers: string[]) {
+  return blockers.some((blocker) => levelQualityBlockers.has(blocker));
+}
 
 function baseReport({
   blockers,
@@ -113,6 +127,16 @@ export function evaluateStrategyV3Readiness(signal: MarketSignal): StrategyV3Rea
       nextStep: "等待更靠近结构止损的位置，或者放弃该位置。",
       score: 35,
       summary: "v3 赔率不足 3:1，不能进入实战复核。",
+    });
+  }
+
+  if (hasLevelQualityBlocker(blockedBy)) {
+    return baseReport({
+      blockers: blockedBy,
+      bucket: "level_quality_blocked",
+      nextStep: "先修结构止损、目标位和关键位投射质量；不能把缺目标、缺止损或止损过宽的计划推进到人工复核。",
+      score: 32,
+      summary: "v3 关键位质量不足，结构止损或目标位还不能支撑实战复核。",
     });
   }
 

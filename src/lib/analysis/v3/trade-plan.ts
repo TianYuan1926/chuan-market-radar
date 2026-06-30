@@ -77,6 +77,22 @@ function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
     notes.push("关键位等待点：支撑、压力或箱体边界还不清楚，先补关键位再谈计划。");
   }
 
+  if (unique.includes("no_structural_stop")) {
+    notes.push("结构止损质量：当前没有可验证防守位，不能用随手画的价格当止损。");
+  }
+
+  if (unique.includes("invalid_structural_stop")) {
+    notes.push("结构止损质量：止损位置和方向相反，说明当前关键位映射错误，必须重建支撑/压力。");
+  }
+
+  if (unique.includes("no_nearest_target")) {
+    notes.push("目标位质量：前方没有可追溯目标位，不能为了生成计划硬编 TP。");
+  }
+
+  if (unique.includes("invalid_nearest_target")) {
+    notes.push("目标位质量：目标位在错误方向，当前目标投射无效，必须重新识别前高/前低或箱体边界。");
+  }
+
   if (unique.includes("reaction_not_confirmed")) {
     notes.push(
       direction === "short"
@@ -87,6 +103,10 @@ function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
 
   if (unique.includes("reward_risk_below_minimum") || unique.includes("stop_distance_too_wide")) {
     notes.push("赔率等待点：当前止损距离或目标空间不合格，等价格更靠近防守位或目标位重新打开。");
+  }
+
+  if (unique.includes("stop_distance_too_wide")) {
+    notes.push("结构止损质量：止损距离过宽会把小波动变成大亏损，必须等更靠近防守位或改用更近的有效结构。");
   }
 
   if (notes.length === 0) {
@@ -202,7 +222,7 @@ function basePlan({
       : "等待方向明确";
   const waitTrigger = waitTriggerText(direction, status);
   const isWaitPlan = status === "WAIT_PULLBACK" || status === "WAIT_RETEST";
-  const waitReview = isWaitPlan ? waitReviewText(blockedBy, direction) : "";
+  const qualityReview = waitReviewText(blockedBy, direction);
 
   return {
     allowedUse: "research_only",
@@ -214,12 +234,12 @@ function basePlan({
       "位置/RR 不低于 3:1",
       isWaitPlan ? waitTrigger : "入场触发已经确认或无需等待触发",
       isWaitPlan ? "触发K线不能先刺破结构止损，否则只记录为失效观察，不视为入场触发。" : "结构止损未被触发前，执行条件保持有效。",
-      isWaitPlan && waitReview ? waitReview : "等待原因已经拆分到结构、位置、反应或赔率",
+      qualityReview || "等待原因已经拆分到结构、位置、反应或赔率",
       "回踩/反抽质量已确认",
       "趋势完整度保持健康",
     ],
     direction,
-    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。${isWaitPlan ? `${waitTrigger}${waitReview ? ` ${waitReview}` : ""}` : ""}`,
+    entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。${isWaitPlan ? waitTrigger : ""}${qualityReview ? ` ${qualityReview}` : ""}`,
     hasAutoExecution: false,
     invalidation: invalidationText({ direction, structuralStop }),
     isPlanEligible,

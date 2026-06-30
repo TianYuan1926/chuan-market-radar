@@ -185,6 +185,42 @@ test("buildV3TradePlan blocks stale eligible context when structural stop is too
   assert.ok(plan.blockedBy.includes("stop_distance_too_wide"));
 });
 
+test("buildV3TradePlan explains structural stop and target quality blockers in Chinese", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 107.2,
+    signal: signal({ direction: "short" }),
+    trendContext: trendContext({
+      locationRiskReward: {
+        ...trendContext().locationRiskReward!,
+        currentPrice: 107.2,
+        direction: "short",
+        isTradeEligible: false,
+        nearestTarget: 130,
+        rewardRisk: 3.5,
+        riskFlags: ["no_structural_stop", "no_nearest_target"],
+        stopDistance: 0,
+        stopDistancePercent: 0,
+        structuralStop: null,
+        targetDistance: 0,
+        targetDistancePercent: 0,
+      },
+      riskGate: {
+        allowed: false,
+        blockedBy: ["no_structural_stop", "no_nearest_target"],
+        mode: "readonly_v3_risk_gate",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "BLOCKED");
+  assert.equal(plan.isPlanEligible, false);
+  assert.ok(plan.blockedBy.includes("no_structural_stop"));
+  assert.ok(plan.blockedBy.includes("no_nearest_target"));
+  assert.match(plan.entryZone, /结构止损质量/);
+  assert.match(plan.entryZone, /目标位质量/);
+  assert.ok(plan.confirmationChecklist.some((item) => /不能用随手画的价格当止损/.test(item)));
+});
+
 test("buildV3TradePlan blocks stale eligible context when stop or target is on the wrong side", () => {
   const plan = buildV3TradePlan({
     currentPrice: 107.2,
