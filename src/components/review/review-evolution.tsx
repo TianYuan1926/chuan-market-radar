@@ -812,6 +812,26 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                               未触发 <span className="font-mono text-foreground">{data.auditV2.waitPlanMetrics.notTriggeredCount}</span>
                             </div>
                           </div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-[0.8fr_1.2fr]">
+                            <div className="border border-border bg-secondary/20 p-2 text-[10px] text-muted-foreground">
+                              平均触发质量{' '}
+                              <span className="font-mono text-foreground">
+                                {data.auditV2.waitPlanMetrics.avgTriggerQualityScore ?? '暂无'}
+                              </span>
+                            </div>
+                            {data.auditV2.waitPlanMetrics.diagnosticBreakdown.length > 0 ? (
+                              <div className="border border-border bg-secondary/20 p-2 text-[10px] text-muted-foreground">
+                                <div className="font-semibold text-foreground">主要失败诊断</div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {data.auditV2.waitPlanMetrics.diagnosticBreakdown.slice(0, 4).map((item) => (
+                                    <span key={item.code} className="border border-border bg-background/50 px-2 py-1">
+                                      {item.label} · {item.count}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       ) : null}
                       {data.auditV2.pressureTestMetrics.length > 0 ? (

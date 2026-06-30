@@ -926,8 +926,8 @@ test("waitPlanTriggerObserved requires a structural reaction, not just a level t
   };
   const confirmedReaction = {
     ...weakTouch,
-    close: 96.8,
-    high: 97,
+    close: 97.2,
+    high: 97.4,
     low: 95.8,
     open: 96.1,
   };
@@ -1015,16 +1015,19 @@ test("wait plan metrics only audit actionable non-late non-risk-review wait plan
     volumeRatio: 1.2,
     waitPlanEvaluation: {
       barsToTrigger: 4,
+      diagnosticFlags: ["stop_first_after_trigger", "adverse_pressure_dominates_after_trigger"],
       label: "等待触发后先到止损",
       maxAdverseAfterTriggerPct: 1.1,
       maxFavorableAfterTriggerPct: 0.5,
       outcome: "bad_wait",
+      postTriggerRewardRisk: 4.1,
       reason: "test",
       status: "triggered_sl_first",
       stopHit: true,
       targetHit: false,
       triggerObservedAt: "2026-01-01T01:00:00.000Z",
       triggerPrice: 1,
+      triggerQualityScore: 78,
     },
     ...overrides,
   });
@@ -1060,6 +1063,9 @@ test("wait plan metrics only audit actionable non-late non-risk-review wait plan
   assert.equal(metrics.totalWaitPlans, 1);
   assert.equal(metrics.stopFirstCount, 1);
   assert.equal(metrics.badWaitRatePct, 100);
+  assert.equal(metrics.avgTriggerQualityScore, 78);
+  assert.equal(metrics.diagnosticBreakdown[0]?.code, "adverse_pressure_dominates_after_trigger");
+  assert.equal(metrics.diagnosticBreakdown.find((item) => item.code === "stop_first_after_trigger")?.label, "触发后先打结构止损");
 });
 
 test("opportunityLaneScore keeps pullback retest ranking from being compressed by early setup noise caps", () => {

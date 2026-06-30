@@ -1339,34 +1339,44 @@ function tradePlanRewardRisk(signal: MarketSignal) {
 function notWaitPlanEvaluation(): ProfessionalAuditWaitPlanEvaluation {
   return {
     barsToTrigger: null,
+    diagnosticFlags: [],
     label: "不是等待型计划",
     maxAdverseAfterTriggerPct: null,
     maxFavorableAfterTriggerPct: null,
     outcome: "not_applicable",
+    postTriggerRewardRisk: null,
     reason: "该节点不是 WAIT_PULLBACK / WAIT_RETEST 条件计划，不进入等待触发后验。",
     status: "not_wait_plan",
     stopHit: false,
     targetHit: false,
     triggerObservedAt: null,
     triggerPrice: null,
+    triggerQualityScore: null,
   };
 }
 
 function missingWaitPlanLevelsEvaluation(): ProfessionalAuditWaitPlanEvaluation {
   return {
     barsToTrigger: null,
+    diagnosticFlags: ["missing_plan_levels"],
     label: "等待计划缺少结构位",
     maxAdverseAfterTriggerPct: null,
     maxFavorableAfterTriggerPct: null,
     outcome: "inconclusive",
+    postTriggerRewardRisk: null,
     reason: "等待计划缺少结构止损或第一目标，无法做 TP/SL 先后验证。",
     status: "missing_plan_levels",
     stopHit: false,
     targetHit: false,
     triggerObservedAt: null,
     triggerPrice: null,
+    triggerQualityScore: null,
   };
 }
+
+const minimumWaitTriggerReactionRatio = 0.28;
+const minimumWaitTriggerCloseFromExtremeRatio = 0.68;
+const waitTriggerStructuralReactionRatio = 0.78;
 
 export function waitPlanTriggerObserved({
   candle,
@@ -1380,19 +1390,19 @@ export function waitPlanTriggerObserved({
   triggerPrice: number;
 }) {
   const range = Math.max(candle.high - candle.low, Number.EPSILON);
-  const minReaction = stopDistance * 0.18;
+  const minReaction = stopDistance * minimumWaitTriggerReactionRatio;
 
   if (direction === "long") {
     return candle.low <= triggerPrice &&
       candle.close >= triggerPrice + minReaction &&
       candle.close >= candle.open &&
-      (candle.close - candle.low) / range >= 0.62;
+      (candle.close - candle.low) / range >= minimumWaitTriggerCloseFromExtremeRatio;
   }
 
   return candle.high >= triggerPrice &&
     candle.close <= triggerPrice - minReaction &&
     candle.close <= candle.open &&
-    (candle.high - candle.close) / range >= 0.62;
+    (candle.high - candle.close) / range >= minimumWaitTriggerCloseFromExtremeRatio;
 }
 
 export function waitPlanTriggerPrice({
@@ -1405,11 +1415,10 @@ export function waitPlanTriggerPrice({
   structuralStop: number;
 }) {
   const stopDistance = Math.abs(entry - structuralStop);
-  const structuralReactionRatio = 0.78;
 
   return direction === "long"
-    ? entry - stopDistance * structuralReactionRatio
-    : entry + stopDistance * structuralReactionRatio;
+    ? entry - stopDistance * waitTriggerStructuralReactionRatio
+    : entry + stopDistance * waitTriggerStructuralReactionRatio;
 }
 
 function waitPlanTriggerPreservesStructuralStop({
@@ -1424,6 +1433,105 @@ function waitPlanTriggerPreservesStructuralStop({
   return direction === "long"
     ? candle.low > structuralStop
     : candle.high < structuralStop;
+}
+
+function postTriggerRewardRisk({
+  direction,
+  structuralStop,
+  target,
+  triggerPrice,
+}: {
+  direction: "long" | "short";
+  structuralStop: number;
+  target: number;
+  triggerPrice: number;
+}) {
+  const stopDistance = Math.abs(triggerPrice - structuralStop);
+  const targetDistance = direction === "long" ? target - triggerPrice : triggerPrice - target;
+
+  return stopDistance > 0 && targetDistance > 0 ? round(targetDistance / stopDistance, 2) : null;
+}
+
+function waitTriggerQualityScore({
+  direction,
+  candle,
+  stopDistance,
+  triggerPrice,
+}: {
+  direction: "long" | "short";
+  candle: Candle;
+  stopDistance: number;
+  triggerPrice: number;
+}) {
+  const range = Math.max(candle.high - candle.low, Number.EPSILON);
+  const reactionRatio = direction === "long"
+    ? (candle.close - triggerPrice) / Math.max(stopDistance, Number.EPSILON)
+    : (triggerPrice - candle.close) / Math.max(stopDistance, Number.EPSILON);
+  const closeFromExtremeRatio = direction === "long"
+    ? (candle.close - candle.low) / range
+    : (candle.high - candle.close) / range;
+  const bodyAligned = direction === "long" ? candle.close >= candle.open : candle.close <= candle.open;
+  const score = reactionRatio * 55 + closeFromExtremeRatio * 35 + (bodyAligned ? 10 : 0);
+
+  return round(Math.max(0, Math.min(100, score)), 2);
+}
+
+function waitPlanDiagnosticFlags({
+  maxAdverseAfterTriggerPct,
+  maxFavorableAfterTriggerPct,
+  postTriggerRr,
+  status,
+  triggerQualityScore,
+}: {
+  maxAdverseAfterTriggerPct: number | null;
+  maxFavorableAfterTriggerPct: number | null;
+  postTriggerRr: number | null;
+  status: ProfessionalAuditWaitPlanEvaluation["status"];
+  triggerQualityScore: number | null;
+}) {
+  const flags: string[] = [];
+
+  if (status === "missing_plan_levels") {
+    flags.push("missing_plan_levels");
+  }
+
+  if (status === "not_triggered") {
+    flags.push("no_valid_reaction");
+  }
+
+  if (status === "triggered_sl_first") {
+    flags.push("stop_first_after_trigger");
+  }
+
+  if (status === "triggered_timeout") {
+    flags.push("triggered_but_no_resolution");
+  }
+
+  if (postTriggerRr !== null && postTriggerRr < 3) {
+    flags.push("post_trigger_rr_below_minimum");
+  }
+
+  if (triggerQualityScore !== null && triggerQualityScore < 72) {
+    flags.push("trigger_reaction_not_strong_enough");
+  }
+
+  if (
+    maxAdverseAfterTriggerPct !== null &&
+    maxFavorableAfterTriggerPct !== null &&
+    maxAdverseAfterTriggerPct > maxFavorableAfterTriggerPct
+  ) {
+    flags.push("adverse_pressure_dominates_after_trigger");
+  }
+
+  if (
+    status === "triggered_sl_first" &&
+    maxFavorableAfterTriggerPct !== null &&
+    maxFavorableAfterTriggerPct < 1
+  ) {
+    flags.push("no_follow_through_after_trigger");
+  }
+
+  return [...new Set(flags)];
 }
 
 function evaluateWaitPlan({
@@ -1488,23 +1596,50 @@ function evaluateWaitPlan({
   );
 
   if (triggerIndex < 0) {
+    const postTriggerRr = postTriggerRewardRisk({
+      direction,
+      structuralStop,
+      target,
+      triggerPrice,
+    });
     return {
       barsToTrigger: null,
+      diagnosticFlags: waitPlanDiagnosticFlags({
+        maxAdverseAfterTriggerPct: null,
+        maxFavorableAfterTriggerPct: null,
+        postTriggerRr,
+        status: "not_triggered",
+        triggerQualityScore: null,
+      }),
       label: "等待未触发",
       maxAdverseAfterTriggerPct: null,
       maxFavorableAfterTriggerPct: null,
       outcome: "no_trade",
+      postTriggerRewardRisk: postTriggerRr,
       reason: "验证窗口内没有靠近结构位、未刺破结构止损且出现方向反应的回踩/反抽，等待计划避免了追单，但不能证明策略已命中。",
       status: "not_triggered",
       stopHit: false,
       targetHit: false,
       triggerObservedAt: null,
       triggerPrice: round(triggerPrice, 8),
+      triggerQualityScore: null,
     };
   }
 
   const triggered = future[triggerIndex];
   const afterTrigger = future.slice(triggerIndex);
+  const triggerQuality = waitTriggerQualityScore({
+    candle: triggered,
+    direction,
+    stopDistance,
+    triggerPrice,
+  });
+  const postTriggerRr = postTriggerRewardRisk({
+    direction,
+    structuralStop,
+    target,
+    triggerPrice,
+  });
   let firstEvent: "sl" | "timeout" | "tp" = "timeout";
   let maxFavorableAfterTriggerPct = 0;
   let maxAdverseAfterTriggerPct = 0;
@@ -1542,47 +1677,74 @@ function evaluateWaitPlan({
   if (firstEvent === "tp") {
     return {
       barsToTrigger: triggerIndex + 1,
+      diagnosticFlags: waitPlanDiagnosticFlags({
+        maxAdverseAfterTriggerPct,
+        maxFavorableAfterTriggerPct,
+        postTriggerRr,
+        status: "triggered_tp_first",
+        triggerQualityScore: triggerQuality,
+      }),
       label: "等待触发后先到目标",
       maxAdverseAfterTriggerPct: round(maxAdverseAfterTriggerPct),
       maxFavorableAfterTriggerPct: round(maxFavorableAfterTriggerPct),
       outcome: "useful_wait",
+      postTriggerRewardRisk: postTriggerRr,
       reason: "等待计划触发后先到第一目标，说明该 WAIT 条件在本样本里有交易价值。",
       status: "triggered_tp_first",
       stopHit: false,
       targetHit: true,
       triggerObservedAt: triggered?.openTime ?? null,
       triggerPrice: round(triggerPrice, 8),
+      triggerQualityScore: triggerQuality,
     };
   }
 
   if (firstEvent === "sl") {
     return {
       barsToTrigger: triggerIndex + 1,
+      diagnosticFlags: waitPlanDiagnosticFlags({
+        maxAdverseAfterTriggerPct,
+        maxFavorableAfterTriggerPct,
+        postTriggerRr,
+        status: "triggered_sl_first",
+        triggerQualityScore: triggerQuality,
+      }),
       label: "等待触发后先到止损",
       maxAdverseAfterTriggerPct: round(maxAdverseAfterTriggerPct),
       maxFavorableAfterTriggerPct: round(maxFavorableAfterTriggerPct),
       outcome: "bad_wait",
+      postTriggerRewardRisk: postTriggerRr,
       reason: "等待计划触发后先打结构止损，说明该等待条件、结构位质量或触发反应强度需要复查。",
       status: "triggered_sl_first",
       stopHit: true,
       targetHit: false,
       triggerObservedAt: triggered?.openTime ?? null,
       triggerPrice: round(triggerPrice, 8),
+      triggerQualityScore: triggerQuality,
     };
   }
 
   return {
     barsToTrigger: triggerIndex + 1,
+    diagnosticFlags: waitPlanDiagnosticFlags({
+      maxAdverseAfterTriggerPct,
+      maxFavorableAfterTriggerPct,
+      postTriggerRr,
+      status: "triggered_timeout",
+      triggerQualityScore: triggerQuality,
+    }),
     label: "等待触发后超时",
     maxAdverseAfterTriggerPct: round(maxAdverseAfterTriggerPct),
     maxFavorableAfterTriggerPct: round(maxFavorableAfterTriggerPct),
     outcome: "inconclusive",
+    postTriggerRewardRisk: postTriggerRr,
     reason: "等待计划触发后在验证窗口内未先到目标或止损，需要更长窗口或人工复核。",
     status: "triggered_timeout",
     stopHit: false,
     targetHit: false,
     triggerObservedAt: triggered?.openTime ?? null,
     triggerPrice: round(triggerPrice, 8),
+    triggerQualityScore: triggerQuality,
   };
 }
 
@@ -1981,6 +2143,21 @@ export function isActionableWaitPlanNode(node: Pick<
     node.opportunityLane !== "risk_review";
 }
 
+function waitPlanDiagnosticLabel(code: string) {
+  const labels: Record<string, string> = {
+    adverse_pressure_dominates_after_trigger: "触发后反向压力更强",
+    missing_plan_levels: "缺少结构止损或第一目标",
+    no_follow_through_after_trigger: "触发后没有顺向延续",
+    no_valid_reaction: "没有有效回踩/反抽反应",
+    post_trigger_rr_below_minimum: "触发后结构盈亏比低于 3:1",
+    stop_first_after_trigger: "触发后先打结构止损",
+    trigger_reaction_not_strong_enough: "触发 K 线反应强度不足",
+    triggered_but_no_resolution: "触发后目标/止损都未验证",
+  };
+
+  return labels[code] ?? code;
+}
+
 export function buildWaitPlanMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditWaitPlanMetric {
   const waitNodes = nodes.filter(isActionableWaitPlanNode);
   const triggered = waitNodes.filter((node) =>
@@ -1993,9 +2170,38 @@ export function buildWaitPlanMetrics(nodes: ProfessionalAuditRoundNode[]): Profe
   const timeout = waitNodes.filter((node) => node.waitPlanEvaluation.status === "triggered_timeout");
   const notTriggered = waitNodes.filter((node) => node.waitPlanEvaluation.status === "not_triggered");
   const missing = waitNodes.filter((node) => node.waitPlanEvaluation.status === "missing_plan_levels");
+  const triggerQualityScores = triggered
+    .map((node) => node.waitPlanEvaluation.triggerQualityScore)
+    .filter((score): score is number => typeof score === "number" && Number.isFinite(score));
+  const diagnosticMap = new Map<string, { code: string; count: number; sampleSymbols: Set<string> }>();
+
+  for (const node of waitNodes) {
+    for (const code of node.waitPlanEvaluation.diagnosticFlags) {
+      const item = diagnosticMap.get(code) ?? {
+        code,
+        count: 0,
+        sampleSymbols: new Set<string>(),
+      };
+
+      item.count += 1;
+      item.sampleSymbols.add(node.symbol);
+      diagnosticMap.set(code, item);
+    }
+  }
 
   return {
+    avgTriggerQualityScore: triggerQualityScores.length > 0
+      ? round(triggerQualityScores.reduce((sum, score) => sum + score, 0) / triggerQualityScores.length)
+      : null,
     badWaitRatePct: percent(stopFirst.length, waitNodes.length),
+    diagnosticBreakdown: [...diagnosticMap.values()]
+      .sort((left, right) => right.count - left.count || left.code.localeCompare(right.code))
+      .map((item) => ({
+        code: item.code,
+        count: item.count,
+        label: waitPlanDiagnosticLabel(item.code),
+        sampleSymbols: [...item.sampleSymbols].slice(0, 5),
+      })),
     label: "等待型计划后验",
     missingLevelCount: missing.length,
     noTradeRatePct: percent(notTriggered.length, waitNodes.length),
@@ -2883,12 +3089,17 @@ function aggregateFindings({
   }
 
   if (waitPlanMetrics.totalWaitPlans > 0 && waitPlanMetrics.badWaitRatePct >= 35) {
+    const topDiagnostics = waitPlanMetrics.diagnosticBreakdown
+      .slice(0, 3)
+      .map((item) => `${item.label} ${item.count} 次`)
+      .join("，") || "暂无细分诊断";
+
     findings.push(aggregateFinding({
-      detail: `等待型计划共 ${waitPlanMetrics.totalWaitPlans} 个，触发后先到止损 ${waitPlanMetrics.stopFirstCount} 个，占 ${waitPlanMetrics.badWaitRatePct}%。`,
+      detail: `等待型计划共 ${waitPlanMetrics.totalWaitPlans} 个，触发后先到止损 ${waitPlanMetrics.stopFirstCount} 个，占 ${waitPlanMetrics.badWaitRatePct}%。主要诊断：${topDiagnostics}。平均触发质量 ${waitPlanMetrics.avgTriggerQualityScore ?? "无"}。`,
       id: "PBA-PLAN-WAIT-QUALITY-001",
       layer: "plan",
-      nextAction: "复核 WAIT_PULLBACK / WAIT_RETEST 的触发区间、止损位置和反应确认条件，不能只写“等待”。",
-      rootCause: "等待条件触发后质量不足，可能是触发太早、结构止损错误或目标投射不合理。",
+      nextAction: "按诊断项分别复核触发反应强度、触发后 RR、结构止损、第一目标和反向压力，不能只写“等待”。",
+      rootCause: "等待条件触发后质量不足，已拆分为触发反应、触发后 RR、顺向延续和反向压力诊断。",
       severity: "high",
       title: "等待型计划触发后质量不足",
     }));

@@ -110,20 +110,32 @@ export type ProfessionalAuditWaitPlanEvaluationStatus =
 
 export type ProfessionalAuditWaitPlanEvaluation = {
   barsToTrigger: number | null;
+  diagnosticFlags: string[];
   label: string;
   maxAdverseAfterTriggerPct: number | null;
   maxFavorableAfterTriggerPct: number | null;
   outcome: "bad_wait" | "inconclusive" | "no_trade" | "not_applicable" | "useful_wait";
+  postTriggerRewardRisk: number | null;
   reason: string;
   status: ProfessionalAuditWaitPlanEvaluationStatus;
   stopHit: boolean;
   targetHit: boolean;
   triggerObservedAt: string | null;
   triggerPrice: number | null;
+  triggerQualityScore: number | null;
+};
+
+export type ProfessionalAuditWaitPlanDiagnosticMetric = {
+  code: string;
+  count: number;
+  label: string;
+  sampleSymbols: string[];
 };
 
 export type ProfessionalAuditWaitPlanMetric = {
   badWaitRatePct: number;
+  diagnosticBreakdown: ProfessionalAuditWaitPlanDiagnosticMetric[];
+  avgTriggerQualityScore: number | null;
   label: string;
   missingLevelCount: number;
   noTradeRatePct: number;
@@ -1112,7 +1124,9 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
     opportunityLaneMetrics: [],
     planBlockerMetrics: [],
     waitPlanMetrics: {
+      avgTriggerQualityScore: null,
       badWaitRatePct: 0,
+      diagnosticBreakdown: [],
       label: "等待型计划后验",
       missingLevelCount: 0,
       noTradeRatePct: 0,

@@ -373,6 +373,7 @@ function normalizeWaitPlanEvaluation(value: unknown): HistoricalBacktestAuditRou
 
   return {
     barsToTrigger: nullableNumber(item.barsToTrigger),
+    diagnosticFlags: asArray(item.diagnosticFlags).map((entry) => stringValue(entry)).filter(Boolean),
     label: stringValue(item.label, "不是等待型计划"),
     maxAdverseAfterTriggerPct: nullableNumber(item.maxAdverseAfterTriggerPct),
     maxFavorableAfterTriggerPct: nullableNumber(item.maxFavorableAfterTriggerPct),
@@ -382,6 +383,7 @@ function normalizeWaitPlanEvaluation(value: unknown): HistoricalBacktestAuditRou
       outcome === "useful_wait"
       ? outcome
       : "not_applicable",
+    postTriggerRewardRisk: nullableNumber(item.postTriggerRewardRisk),
     reason: stringValue(item.reason, "该节点没有等待计划后验。"),
     status: status === "missing_plan_levels" ||
       status === "not_triggered" ||
@@ -394,6 +396,18 @@ function normalizeWaitPlanEvaluation(value: unknown): HistoricalBacktestAuditRou
     targetHit: Boolean(item.targetHit),
     triggerObservedAt: stringValue(item.triggerObservedAt) || null,
     triggerPrice: nullableNumber(item.triggerPrice),
+    triggerQualityScore: nullableNumber(item.triggerQualityScore),
+  };
+}
+
+function normalizeWaitPlanDiagnostic(value: unknown): HistoricalBacktestAuditV2State["waitPlanMetrics"]["diagnosticBreakdown"][number] {
+  const item = asObject(value);
+
+  return {
+    code: stringValue(item.code, "unknown"),
+    count: numericValue(item.count),
+    label: stringValue(item.label, stringValue(item.code, "未标注诊断")),
+    sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
   };
 }
 
@@ -401,7 +415,9 @@ function normalizeWaitPlanMetrics(value: unknown): HistoricalBacktestAuditV2Stat
   const item = asObject(value);
 
   return {
+    avgTriggerQualityScore: nullableNumber(item.avgTriggerQualityScore),
     badWaitRatePct: numericValue(item.badWaitRatePct),
+    diagnosticBreakdown: asArray(item.diagnosticBreakdown).map(normalizeWaitPlanDiagnostic),
     label: stringValue(item.label, "等待型计划后验"),
     missingLevelCount: numericValue(item.missingLevelCount),
     noTradeRatePct: numericValue(item.noTradeRatePct),

@@ -853,10 +853,12 @@ export type HistoricalBacktestAuditPlanBlockerMetric = {
 
 export type HistoricalBacktestAuditWaitPlanEvaluation = {
   barsToTrigger: number | null;
+  diagnosticFlags: string[];
   label: string;
   maxAdverseAfterTriggerPct: number | null;
   maxFavorableAfterTriggerPct: number | null;
   outcome: "bad_wait" | "inconclusive" | "no_trade" | "not_applicable" | "useful_wait";
+  postTriggerRewardRisk: number | null;
   reason: string;
   status:
     | "missing_plan_levels"
@@ -869,10 +871,20 @@ export type HistoricalBacktestAuditWaitPlanEvaluation = {
   targetHit: boolean;
   triggerObservedAt: string | null;
   triggerPrice: number | null;
+  triggerQualityScore: number | null;
+};
+
+export type HistoricalBacktestAuditWaitPlanDiagnosticMetric = {
+  code: string;
+  count: number;
+  label: string;
+  sampleSymbols: string[];
 };
 
 export type HistoricalBacktestAuditWaitPlanMetric = {
+  avgTriggerQualityScore: number | null;
   badWaitRatePct: number;
+  diagnosticBreakdown: HistoricalBacktestAuditWaitPlanDiagnosticMetric[];
   label: string;
   missingLevelCount: number;
   noTradeRatePct: number;
