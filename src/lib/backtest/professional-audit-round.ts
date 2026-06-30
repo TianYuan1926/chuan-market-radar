@@ -1967,11 +1967,22 @@ function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): Professio
     .sort((left, right) => right.count - left.count || left.blocker.localeCompare(right.blocker));
 }
 
-function buildWaitPlanMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditWaitPlanMetric {
-  const waitNodes = nodes.filter((node) =>
+export function isActionableWaitPlanNode(node: Pick<
+  ProfessionalAuditRoundNode,
+  "lateAtSelection" | "opportunityLane" | "rewardRisk" | "tradePlanStatus"
+>) {
+  return (
     node.tradePlanStatus === "WAIT_PULLBACK" ||
     node.tradePlanStatus === "WAIT_RETEST"
-  );
+  ) &&
+    typeof node.rewardRisk === "number" &&
+    node.rewardRisk >= 3 &&
+    !node.lateAtSelection &&
+    node.opportunityLane !== "risk_review";
+}
+
+export function buildWaitPlanMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditWaitPlanMetric {
+  const waitNodes = nodes.filter(isActionableWaitPlanNode);
   const triggered = waitNodes.filter((node) =>
     node.waitPlanEvaluation.status === "triggered_tp_first" ||
     node.waitPlanEvaluation.status === "triggered_sl_first" ||
@@ -2539,14 +2550,7 @@ function buildAnalysisCapabilityMetric({
 }
 
 function isConditionalStrategyPlan(node: ProfessionalAuditRoundNode) {
-  return (
-    node.tradePlanStatus === "WAIT_PULLBACK" ||
-    node.tradePlanStatus === "WAIT_RETEST"
-  ) &&
-    typeof node.rewardRisk === "number" &&
-    node.rewardRisk >= 3 &&
-    !node.lateAtSelection &&
-    node.opportunityLane !== "risk_review";
+  return isActionableWaitPlanNode(node);
 }
 
 function buildStrategyCapabilityMetric({
@@ -2560,7 +2564,9 @@ function buildStrategyCapabilityMetric({
   const conditionalPlans = nodes.filter(isConditionalStrategyPlan);
   const rrQualified = nodes.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3);
   const usablePlans = planReady.filter((node) => typeof node.rewardRisk === "number" && node.rewardRisk >= 3 && (node.hit || node.qualityHit) && !node.lateAtSelection);
-  const usableConditionalPlans = conditionalPlans.filter((node) => node.hit || node.qualityHit);
+  const usableConditionalPlans = conditionalPlans.filter((node) =>
+    node.waitPlanEvaluation.status === "triggered_tp_first"
+  );
   const usableStrategyCount = usablePlans.length + usableConditionalPlans.length;
   const rrBelowCount = blockerCount(planBlockerMetrics, ["reward_risk_below_minimum", "reward_risk_unknown", "location_rr"]);
   const stopTargetIssueCount = blockerCount(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_wide"]);

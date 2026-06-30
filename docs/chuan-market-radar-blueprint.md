@@ -1253,6 +1253,15 @@ RawSource
 
 下一步固定为：先修策略专项失败，再复查扫描提前性，不做前端打磨、不跑 formal 刷分、不新增非核心功能。
 
+2026-06-30 策略专项失败根因整改：
+
+- 生产策略专项报告 `/app/reports/professional-backtest-audit/2026-06-29T173258-402Z` 显示：策略专项 `fail`，100 个样本中 `TRADE_PLAN_READY` 只有 1 个，WAIT 条件计划 14 个，触发 8 个，先到目标 0 个，先到止损 8 个。
+- 根因不能简单归结为“计划数量太少”。本次确认两个更具体的问题：第一，WAIT 后验把 `risk_review` 风险复盘教材和晚到样本也纳入等待计划质量统计，污染策略评分；第二，策略能力统计把“未来大行情出现过”的条件计划当成有用，未严格要求该 WAIT 计划真实触发后先到目标。
+- 已修正专业回测口径：WAIT 后验只统计可行动等待计划，即 `WAIT_PULLBACK` / `WAIT_RETEST`、`rewardRisk >= 3`、非晚到、非 `risk_review` 的节点。风险复盘教材仍可用于复盘学习，但不能参与可交易 WAIT 质量评分。
+- 已修正策略能力口径：RR 合格的条件计划不能因为未来有过 `hit` / `qualityHit` 就算策略有效；只有 `waitPlanEvaluation.status === "triggered_tp_first"` 才能计入有用条件计划。`not_triggered` 是“没有交易”，`triggered_sl_first` 是坏等待，二者都不能包装成策略成功。
+- 风控边界不变：最低结构 RR 仍为 `3:1`，`WAIT_PULLBACK` / `WAIT_RETEST` 仍不是 `TRADE_PLAN_READY`，不能为了提高策略分数降低止损、目标、方向确认或风险门禁。
+- 已补充回归测试：风险复盘教材、晚到样本、RR 不足样本不得进入 WAIT 后验统计。下一轮策略专项验收必须看干净口径下的 `waitPlanMetrics`，不能再用被风险教材污染的 WAIT 数据判断策略能力。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

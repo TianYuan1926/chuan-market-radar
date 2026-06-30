@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildWaitPlanMetrics,
   classifyProfessionalAuditOpportunityLane,
+  isActionableWaitPlanNode,
   opportunityLaneScore,
   professionalAuditOpportunityQuotas,
   professionalAuditContextualPlanBlockers,
@@ -14,6 +16,9 @@ import {
   tradePlanBlockers,
   waitPlanTriggerPrice,
   waitPlanTriggerObserved,
+} from "./professional-audit-round";
+import type {
+  ProfessionalAuditRoundNode,
 } from "./professional-audit-round";
 import type { Candle } from "../market/ohlcv/types";
 import type { MarketSignal } from "../analysis/types";
@@ -971,6 +976,90 @@ test("waitPlanTriggerObserved rejects weak reactions that previously created pre
     stopDistance: 4,
     triggerPrice: 96,
   }), false);
+});
+
+test("wait plan metrics only audit actionable non-late non-risk-review wait plans", () => {
+  const waitNode = (overrides: Partial<ProfessionalAuditRoundNode>): ProfessionalAuditRoundNode => ({
+    capturedByRadar: true,
+    coinType: "midcap_trend",
+    coinTypeLabel: "中盘趋势",
+    confidence: 70,
+    direction: "long",
+    findingCount: 0,
+    hit: false,
+    lateAtSelection: false,
+    maePct: 1,
+    maturity: "EVIDENCE_SIGNAL",
+    mfePct: 2,
+    moveAtSelectionPct: 2,
+    nodeIndex: 1,
+    nodeRole: "pullback_retest",
+    observedAt: "2026-01-01T00:00:00.000Z",
+    opportunityLane: "pullback_retest",
+    opportunityLaneLabel: "回踩/反抽确认机会",
+    opportunityLaneScore: 80,
+    planBlockers: ["reaction_not_confirmed"],
+    qualityHit: false,
+    radarRank: 1,
+    radarScore: 120,
+    rewardRisk: 4,
+    selectedAsOpportunity: true,
+    selectedLane: "pullback_retest",
+    symbol: "TESTUSDT",
+    timeframeBand: "medium",
+    topN: 10,
+    tradePlanStatus: "WAIT_PULLBACK",
+    validationWindowBars: 96,
+    validationWindowHours: 24,
+    validationWindowLabel: "24h",
+    volumeRatio: 1.2,
+    waitPlanEvaluation: {
+      barsToTrigger: 4,
+      label: "等待触发后先到止损",
+      maxAdverseAfterTriggerPct: 1.1,
+      maxFavorableAfterTriggerPct: 0.5,
+      outcome: "bad_wait",
+      reason: "test",
+      status: "triggered_sl_first",
+      stopHit: true,
+      targetHit: false,
+      triggerObservedAt: "2026-01-01T01:00:00.000Z",
+      triggerPrice: 1,
+    },
+    ...overrides,
+  });
+  const actionable = waitNode({ symbol: "ACTIONUSDT" });
+  const riskReview = waitNode({
+    lateAtSelection: true,
+    nodeRole: "late_extension",
+    opportunityLane: "risk_review",
+    opportunityLaneLabel: "风险复盘教材",
+    symbol: "RISKUSDT",
+  });
+  const lateButNotRiskReview = waitNode({
+    lateAtSelection: true,
+    symbol: "LATEUSDT",
+  });
+  const rrBelow = waitNode({
+    rewardRisk: 2.4,
+    symbol: "RRLOWUSDT",
+  });
+
+  assert.equal(isActionableWaitPlanNode(actionable), true);
+  assert.equal(isActionableWaitPlanNode(riskReview), false);
+  assert.equal(isActionableWaitPlanNode(lateButNotRiskReview), false);
+  assert.equal(isActionableWaitPlanNode(rrBelow), false);
+
+  const metrics = buildWaitPlanMetrics([
+    actionable,
+    riskReview,
+    lateButNotRiskReview,
+    rrBelow,
+  ]);
+
+  assert.equal(metrics.totalWaitPlans, 1);
+  assert.equal(metrics.stopFirstCount, 1);
+  assert.equal(metrics.badWaitRatePct, 100);
 });
 
 test("opportunityLaneScore keeps pullback retest ranking from being compressed by early setup noise caps", () => {
