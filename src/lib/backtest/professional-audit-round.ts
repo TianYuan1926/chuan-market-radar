@@ -697,6 +697,7 @@ function isEarlyVolumeOpportunity(item: OpportunityRankable) {
 
   return (
     item.opportunityLane !== "risk_review" &&
+    item.lateAtSelection !== true &&
     item.nodeRole === "early_volume_expansion" &&
     (absMove === null || absMove <= 6.2) &&
     (volumeRatio === null || (volumeRatio >= 0.42 && volumeRatio <= 2.8))
@@ -831,12 +832,16 @@ function hasHardStructureBlocker(item: Pick<OpportunityRankable, "planBlockers">
   return (item.planBlockers ?? []).some((blocker) => hardStructureBlockers.has(blocker));
 }
 
+function hasScanDisqualifyingBlocker(item: Pick<OpportunityRankable, "planBlockers">) {
+  return (item.planBlockers ?? []).some((blocker) => scanOpportunityDisqualifyingBlockers.has(blocker));
+}
+
 export function isScanActionableOpportunityNode(node: Pick<ProfessionalAuditRoundNode, "opportunityLane" | "planBlockers">) {
   if (node.opportunityLane === "risk_review") {
     return false;
   }
 
-  return !node.planBlockers.some((blocker) => scanOpportunityDisqualifyingBlockers.has(blocker));
+  return !hasScanDisqualifyingBlocker(node);
 }
 
 function professionalAuditEarlyVolumeQuota(topN: number) {
@@ -846,7 +851,17 @@ function professionalAuditEarlyVolumeQuota(topN: number) {
     return 1;
   }
 
-  return Math.max(1, Math.floor(normalized * 0.2));
+  return Math.max(1, Math.floor(normalized * 0.3));
+}
+
+function professionalAuditQuietCompressionQuota(topN: number) {
+  const normalized = Math.max(1, Math.round(topN));
+
+  if (normalized <= 4) {
+    return 1;
+  }
+
+  return Math.max(2, Math.floor(normalized * 0.25));
 }
 
 function professionalAuditPrioritySliceQuota(topN: number) {
@@ -893,6 +908,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   const conditionalWaitQuota = professionalAuditConditionalWaitQuota(topN);
   const earlyVolumeQuota = professionalAuditEarlyVolumeQuota(topN);
   const prioritySliceQuota = professionalAuditPrioritySliceQuota(topN);
+  const quietCompressionQuota = professionalAuditQuietCompressionQuota(topN);
   const quietPendingQuota = professionalAuditQuietPendingQuota(topN);
   const selected: T[] = [];
   const selectedSymbols = new Set<string>();
@@ -924,7 +940,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
 
     for (const item of rankOpportunityCandidates(items.filter((entry) =>
       predicate(entry) &&
-      !hasHardStructureBlocker(entry)
+      !hasScanDisqualifyingBlocker(entry)
     ))) {
       if (selected.length >= topN || pushed >= quota) {
         break;
@@ -936,12 +952,12 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
     }
   };
 
-  pushPrioritySlice(isQuietCompressionOpportunity, prioritySliceQuota);
+  pushPrioritySlice(isQuietCompressionOpportunity, quietCompressionQuota);
   pushPrioritySlice(isQuietPendingOpportunity, quietPendingQuota);
   pushPrioritySlice(isConditionalWaitOpportunity, conditionalWaitQuota);
   for (const item of rankOpportunityCandidates(items.filter((entry) =>
     isEarlyVolumeOpportunity(entry) &&
-    !hasHardStructureBlocker(entry)
+    !hasScanDisqualifyingBlocker(entry)
   )).slice(0, earlyVolumeQuota)) {
     pushSelected(item);
   }
@@ -951,7 +967,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   for (const lane of actionableLanes) {
     const laneItems = rankOpportunityCandidates(items.filter((item) =>
       item.opportunityLane === lane &&
-      !hasHardStructureBlocker(item)
+      !hasScanDisqualifyingBlocker(item)
     ));
 
     for (const item of laneItems) {
@@ -966,7 +982,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   const remainingActionable = rankOpportunityCandidates(
     items.filter((item) =>
       item.opportunityLane !== "risk_review" &&
-      !hasHardStructureBlocker(item) &&
+      !hasScanDisqualifyingBlocker(item) &&
       !selectedSymbols.has(item.auditCase.inputSummary.symbol)
     ),
   );
@@ -987,6 +1003,14 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
     ...rankOpportunityCandidates(
       items.filter((item) =>
         item.opportunityLane !== "risk_review" &&
+        !hasScanDisqualifyingBlocker(item) &&
+        !selectedSet.has(item.auditCase.inputSummary.symbol)
+      ),
+    ),
+    ...rankOpportunityCandidates(
+      items.filter((item) =>
+        item.opportunityLane !== "risk_review" &&
+        hasScanDisqualifyingBlocker(item) &&
         !hasHardStructureBlocker(item) &&
         !selectedSet.has(item.auditCase.inputSummary.symbol)
       ),

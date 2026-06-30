@@ -713,6 +713,83 @@ test("selectProfessionalAuditOpportunityCandidates reserves a TopN slot for quie
   );
 });
 
+test("selectProfessionalAuditOpportunityCandidates protects Top10 early discovery slots from non-actionable noise", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      compressionPct?: number;
+      movePct?: number;
+      nodeRole?: "early_volume_expansion" | "neutral_random" | "pre_move";
+      planBlockers?: string[];
+      radarScore?: number;
+      rangePositionPct?: number;
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    compressionPct: options.compressionPct,
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    planBlockers: options.planBlockers,
+    radarScore: options.radarScore ?? opportunityLaneScore,
+    rangePositionPct: options.rangePositionPct,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    ...Array.from({ length: 12 }, (_, index) => item(`RRNOISE${index}USDT`, 240 - index, {
+      movePct: 1.5,
+      nodeRole: "neutral_random",
+      planBlockers: index % 2 === 0 ? ["reward_risk_below_minimum"] : ["chase_risk"],
+      volumeRatio: 1,
+    })),
+    item("CLEAN1USDT", 120, { nodeRole: "neutral_random", volumeRatio: 1.4 }),
+    item("CLEAN2USDT", 119, { nodeRole: "neutral_random", volumeRatio: 1.35 }),
+    item("CLEAN3USDT", 118, { nodeRole: "neutral_random", volumeRatio: 1.3 }),
+    item("QUIET1USDT", 82, {
+      compressionPct: 42,
+      movePct: 0.7,
+      nodeRole: "pre_move",
+      rangePositionPct: 48,
+      volumeRatio: 0.76,
+    }),
+    item("QUIET2USDT", 81, {
+      compressionPct: 44,
+      movePct: 0.9,
+      nodeRole: "neutral_random",
+      rangePositionPct: 52,
+      volumeRatio: 0.82,
+    }),
+    item("EARLYVOL1USDT", 80, {
+      movePct: 2.4,
+      nodeRole: "early_volume_expansion",
+      volumeRatio: 1.18,
+    }),
+    item("EARLYVOL2USDT", 79, {
+      movePct: 3.2,
+      nodeRole: "early_volume_expansion",
+      volumeRatio: 1.55,
+    }),
+  ], 10);
+  const selectedSymbols = selected.selected.map((entry) => entry.auditCase.inputSummary.symbol);
+
+  assert.ok(selectedSymbols.includes("QUIET1USDT"));
+  assert.ok(selectedSymbols.includes("QUIET2USDT"));
+  assert.ok(selectedSymbols.includes("EARLYVOL1USDT"));
+  assert.ok(selectedSymbols.includes("EARLYVOL2USDT"));
+  assert.equal(selectedSymbols.some((symbol) => symbol.startsWith("RRNOISE")), false);
+});
+
 test("selectProfessionalAuditOpportunityCandidates reserves slots for medium swing and trend acceleration discovery", () => {
   const item = (
     symbol: string,
