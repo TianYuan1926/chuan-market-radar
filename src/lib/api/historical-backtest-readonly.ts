@@ -2,6 +2,9 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { resource, type Resource } from "../data-status";
 import { runGoldenCases } from "../backtest/golden-case-runner";
+import {
+  professionalAuditPlanBlockerCategory,
+} from "../backtest/professional-audit-round";
 import type {
   CoreJudgeSystemLane,
   CoreJudgeSystemState,
@@ -355,17 +358,36 @@ function normalizeAuditV2CoreCapabilityMetric(value: unknown): HistoricalBacktes
   };
 }
 
+function fallbackPlanBlockerDiagnosis(category: string) {
+  if (category === "data") {
+    return "needs_data_audit";
+  }
+  if (category === "confirmation") {
+    return "needs_wait_audit";
+  }
+  if (category === "rr" || category === "stop_target") {
+    return "needs_level_audit";
+  }
+  if (category === "risk" || category === "structure") {
+    return "reasonable_guardrail";
+  }
+  return "needs_strategy_audit";
+}
+
 function normalizeAuditV2PlanBlockerMetric(value: unknown): HistoricalBacktestAuditV2State["planBlockerMetrics"][number] {
   const item = asObject(value);
+  const blocker = stringValue(item.blocker, "unknown");
+  const category = stringValue(item.category) || professionalAuditPlanBlockerCategory(blocker);
+  const diagnosis = stringValue(item.diagnosis) || fallbackPlanBlockerDiagnosis(category);
 
   return {
-    blocker: stringValue(item.blocker, "unknown"),
+    blocker,
     capturedCount: numericValue(item.capturedCount),
-    category: stringValue(item.category, "unknown"),
+    category,
     conditionalWaitCount: numericValue(item.conditionalWaitCount),
     count: numericValue(item.count),
-    diagnosis: stringValue(item.diagnosis, "needs_strategy_audit"),
-    label: stringValue(item.label, stringValue(item.blocker, "未标注阻断原因")),
+    diagnosis,
+    label: stringValue(item.label, blocker === "unknown" ? "未标注阻断原因" : blocker),
     lateCount: numericValue(item.lateCount),
     qualityHitCount: numericValue(item.qualityHitCount),
     riskReviewCount: numericValue(item.riskReviewCount),
