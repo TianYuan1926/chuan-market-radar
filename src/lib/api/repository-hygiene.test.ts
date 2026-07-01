@@ -949,6 +949,11 @@ test("single-server deployment scripts expose current runtime contracts and reco
   assert.match(packageJson.scripts?.["production:git-sync"] ?? "", /verify-git-sync\.sh/);
   assert.match(packageJson.scripts?.["build:market-cli"] ?? "", /tsconfig\.market-test\.json/);
   assert.match(packageJson.scripts?.["backtest:professional"] ?? "", /tools\/run-professional-backtest\.mjs/);
+  assert.match(packageJson.scripts?.["backtest:professional"] ?? "", /--audit-round/);
+  assert.match(packageJson.scripts?.["backtest:professional"] ?? "", /--candidate-symbols 80/);
+  assert.match(packageJson.scripts?.["backtest:professional"] ?? "", /--top-n 10/);
+  assert.match(packageJson.scripts?.["backtest:professional-legacy"] ?? "", /tools\/run-professional-backtest\.mjs/);
+  assert.doesNotMatch(packageJson.scripts?.["backtest:professional-legacy"] ?? "", /--audit-round/);
   assert.match(dockerfileSource, /npm run build:market-cli/);
   assert.match(dockerfileSource, /\/app\/\.tmp\/market-tests/);
   assert.match(reviewEvolutionSource, /!data\.auditV2 && \(data\.status === 'empty' \|\| data\.lanes\.radar\.count === 0\)/);

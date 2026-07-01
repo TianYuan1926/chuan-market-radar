@@ -1390,6 +1390,16 @@ RawSource
 - 本地验收已通过：`npm run build:market-cli`，v3 定向测试 18/18，`npm run typecheck`，`npm run lint`，`npm run test:market` 745 + 15 + 4，`npm run build`。
 - 下一轮生产策略专项复验必须看：低 RR / 止损过宽样本是否更多转为清晰 WAIT 条件；WAIT 后验是否减少“刚触发就先止损”；`TRADE_PLAN_READY` 是否仍只给完整证据计划。
 
+2026-07-01 专业回测入口修正：
+
+- 生产容器曾执行 `npm run backtest:professional` 生成报告 `/app/reports/professional-backtest-audit/2026-07-01T033214-250Z`：300 个样本、高优先级问题 242、`TRADE_PLAN_READY=0`。该报告能证明系统仍不合格，但不能作为完整诊断报告使用，因为三大核心成绩单、机会池指标、计划阻断聚合和关键位/RR 专项为空。
+- 根因确认：`backtest:professional` 默认仍走旧 `professional-replay` 路径；新的 10x10 专业审计路径已经能输出 `coreCapabilityMetrics`、`opportunityLaneMetrics`、`planBlockerMetrics`、`levelQualityMetrics`，但正式命令没有默认使用它。
+- 已修正正式入口：`npm run backtest:professional` 默认执行 `--audit-round --days 30 --audit-symbols 10 --candidate-symbols 80 --nodes-per-symbol 10 --top-n 10`，即正式 10 类山寨、80 候选池、Top10 大池竞争协议。
+- 旧 replay 路径保留为 `npm run backtest:professional-legacy`，只能用于兼容或临时大范围粗扫，不能作为判断扫描、分析、策略三大核心能力是否合格的正式依据。
+- 已补仓库卫生测试，强制 `backtest:professional` 包含 `--audit-round`、`--candidate-symbols 80` 和 `--top-n 10`，防止正式命令再次退回半成品报告路径。
+- 本地验收已通过：`npm run build:market-cli`、`repository-hygiene.test.js` 50/50、`npm run typecheck`、`npm run lint`、`npm run test:market` 745 + 15 + 4、`npm run build`。
+- 下一次生产能力复验必须重新运行修正后的 `npm run backtest:professional`，不能继续引用 `/app/reports/professional-backtest-audit/2026-07-01T033214-250Z` 作为完整诊断依据。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。
