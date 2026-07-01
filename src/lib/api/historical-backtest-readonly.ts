@@ -111,6 +111,40 @@ function defaultOpportunityLaneLabel(lane: HistoricalBacktestAuditV2State["oppor
   return labels[lane];
 }
 
+function normalizeOpportunityQuality(
+  value: unknown,
+): HistoricalBacktestAuditV2State["opportunityQualityMetrics"][number]["id"] {
+  const id = stringValue(value);
+
+  if (
+    id === "fakeout_risk" ||
+    id === "late_move" ||
+    id === "noise" ||
+    id === "premium_early_setup" ||
+    id === "trade_plan_ready" ||
+    id === "watch_only"
+  ) {
+    return id;
+  }
+
+  return "noise";
+}
+
+function defaultOpportunityQualityLabel(
+  id: HistoricalBacktestAuditV2State["opportunityQualityMetrics"][number]["id"],
+) {
+  const labels = {
+    fakeout_risk: "假突破风险",
+    late_move: "已经晚了",
+    noise: "噪音",
+    premium_early_setup: "优质启动前",
+    trade_plan_ready: "可生成交易计划",
+    watch_only: "值得观察但不能做",
+  } satisfies Record<HistoricalBacktestAuditV2State["opportunityQualityMetrics"][number]["id"], string>;
+
+  return labels[id];
+}
+
 function normalizeLaneMetric(
   lane: HistoricalBacktestLaneMetric["lane"],
   value: unknown,
@@ -216,6 +250,7 @@ function normalizeAuditV2MissedOpportunity(value: unknown): HistoricalBacktestAu
   const item = asObject(value);
   const direction = stringValue(item.direction);
   const opportunityLane = normalizeOpportunityLane(item.opportunityLane);
+  const opportunityQuality = normalizeOpportunityQuality(item.opportunityQuality);
 
   return {
     coinType: stringValue(item.coinType, "unknown"),
@@ -230,6 +265,8 @@ function normalizeAuditV2MissedOpportunity(value: unknown): HistoricalBacktestAu
     opportunityLane,
     opportunityLaneLabel: stringValue(item.opportunityLaneLabel, defaultOpportunityLaneLabel(opportunityLane)),
     opportunityLaneScore: numericValue(item.opportunityLaneScore),
+    opportunityQuality,
+    opportunityQualityLabel: stringValue(item.opportunityQualityLabel, defaultOpportunityQualityLabel(opportunityQuality)),
     planBlockers: asArray(item.planBlockers).map((entry) => stringValue(entry)).filter(Boolean),
     radarRank: nullableNumber(item.radarRank),
     radarScore: numericValue(item.radarScore),
@@ -248,6 +285,7 @@ function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundPr
   const direction = stringValue(item.direction);
   const timeframeBand = stringValue(item.timeframeBand);
   const opportunityLane = normalizeOpportunityLane(item.opportunityLane);
+  const opportunityQuality = normalizeOpportunityQuality(item.opportunityQuality);
   const selectedLane = stringValue(item.selectedLane);
 
   return {
@@ -269,6 +307,8 @@ function normalizeAuditRoundNode(value: unknown): HistoricalBacktestAuditRoundPr
     opportunityLane,
     opportunityLaneLabel: stringValue(item.opportunityLaneLabel, defaultOpportunityLaneLabel(opportunityLane)),
     opportunityLaneScore: numericValue(item.opportunityLaneScore),
+    opportunityQuality,
+    opportunityQualityLabel: stringValue(item.opportunityQualityLabel, defaultOpportunityQualityLabel(opportunityQuality)),
     planBlockers: asArray(item.planBlockers).map((entry) => stringValue(entry)).filter(Boolean),
     qualityHit: Boolean(item.qualityHit),
     radarRank: nullableNumber(item.radarRank),
@@ -314,6 +354,33 @@ function normalizeAuditV2OpportunityLaneMetric(value: unknown): HistoricalBackte
     qualityHitCount: numericValue(item.qualityHitCount),
     qualityHitRatePct: numericValue(item.qualityHitRatePct),
     selectedCount: numericValue(item.selectedCount),
+    totalNodes: numericValue(item.totalNodes),
+  };
+}
+
+function normalizeAuditV2OpportunityQualityMetric(
+  value: unknown,
+): HistoricalBacktestAuditV2State["opportunityQualityMetrics"][number] {
+  const item = asObject(value);
+  const id = normalizeOpportunityQuality(item.id);
+
+  return {
+    avgRadarRank: nullableNumber(item.avgRadarRank),
+    capturedCount: numericValue(item.capturedCount),
+    captureRatePct: numericValue(item.captureRatePct),
+    conditionalWaitCount: numericValue(item.conditionalWaitCount),
+    falsePositiveCount: numericValue(item.falsePositiveCount),
+    falsePositiveRatePct: numericValue(item.falsePositiveRatePct),
+    hitCount: numericValue(item.hitCount),
+    id,
+    label: stringValue(item.label, defaultOpportunityQualityLabel(id)),
+    lateCount: numericValue(item.lateCount),
+    missedQualityHitCount: numericValue(item.missedQualityHitCount),
+    nextAction: stringValue(item.nextAction, "等待下一轮整改。"),
+    planReadyCount: numericValue(item.planReadyCount),
+    qualityHitCount: numericValue(item.qualityHitCount),
+    qualityHitRatePct: numericValue(item.qualityHitRatePct),
+    sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
     totalNodes: numericValue(item.totalNodes),
   };
 }
@@ -812,6 +879,7 @@ function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestA
     judgeSystem: normalizeJudgeSystem(payload.judgeSystem),
     coreCapabilityMetrics: asArray(payload.coreCapabilityMetrics).map(normalizeAuditV2CoreCapabilityMetric),
     opportunityLaneMetrics: asArray(payload.opportunityLaneMetrics).map(normalizeAuditV2OpportunityLaneMetric),
+    opportunityQualityMetrics: asArray(payload.opportunityQualityMetrics).map(normalizeAuditV2OpportunityQualityMetric),
     planBlockerMetrics: asArray(payload.planBlockerMetrics).map(normalizeAuditV2PlanBlockerMetric).slice(0, 20),
     levelQualityMetrics: asArray(payload.levelQualityMetrics).map(normalizeAuditV2LevelQualityMetric).slice(0, 12),
     waitPlanMetrics: normalizeWaitPlanMetrics(payload.waitPlanMetrics),

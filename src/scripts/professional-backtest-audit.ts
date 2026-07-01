@@ -39,6 +39,7 @@ import {
 import {
   buildAuditCandidateUniverse,
   buildAuditSymbolPlan,
+  defaultAuditSeedSymbols,
 } from "../lib/backtest/professional-audit-symbol-plan";
 import type {
   ProfessionalAuditMode,
@@ -309,7 +310,17 @@ function normalizeSymbol(value: unknown) {
 }
 
 async function discoverBinanceSymbols(maxSymbols: number) {
-  const payload = await fetchJson(BINANCE_EXCHANGE_INFO_URL, "Binance exchangeInfo");
+  let payload: Awaited<ReturnType<typeof fetchJson>>;
+
+  try {
+    payload = await fetchJson(BINANCE_EXCHANGE_INFO_URL, "Binance exchangeInfo");
+  } catch (error) {
+    const fallback = defaultAuditSeedSymbols().slice(0, maxSymbols);
+    console.warn(`Binance exchangeInfo fetch failed, using static audit seed universe for symbol discovery only: ${errorMessage(error)}`);
+
+    return fallback;
+  }
+
   const rows: BinanceExchangeSymbolRow[] = Array.isArray(payload?.symbols) ? payload.symbols : [];
 
   return rows
@@ -806,6 +817,18 @@ function opportunityLaneCaptureFrom(report: unknown, lane: string) {
   return metricNumber(item?.captureRatePct);
 }
 
+function opportunityQualityValueFrom(
+  report: unknown,
+  id: string,
+  key: "captureRatePct" | "capturedCount" | "falsePositiveRatePct" | "missedQualityHitCount",
+) {
+  const item = arrayValue(objectValue(report).opportunityQualityMetrics)
+    .map(objectValue)
+    .find((metric) => metric.id === id);
+
+  return metricNumber(item?.[key]);
+}
+
 function compareMetric({
   current,
   higherIsBetter,
@@ -933,6 +956,30 @@ async function buildRoundTrendComparison(options: CliOptions, report: ReturnType
       higherIsBetter: true,
       label: "启动前捕获率",
       previous: opportunityLaneCaptureFrom(previousReport, "early_setup"),
+    }),
+    compareMetric({
+      current: opportunityQualityValueFrom(report, "premium_early_setup", "captureRatePct"),
+      higherIsBetter: true,
+      label: "优质启动前捕获率",
+      previous: opportunityQualityValueFrom(previousReport, "premium_early_setup", "captureRatePct"),
+    }),
+    compareMetric({
+      current: opportunityQualityValueFrom(report, "noise", "capturedCount"),
+      higherIsBetter: false,
+      label: "噪音入选数量",
+      previous: opportunityQualityValueFrom(previousReport, "noise", "capturedCount"),
+    }),
+    compareMetric({
+      current: opportunityQualityValueFrom(report, "late_move", "capturedCount"),
+      higherIsBetter: false,
+      label: "迟到入选数量",
+      previous: opportunityQualityValueFrom(previousReport, "late_move", "capturedCount"),
+    }),
+    compareMetric({
+      current: opportunityQualityValueFrom(report, "fakeout_risk", "capturedCount"),
+      higherIsBetter: false,
+      label: "假突破入选数量",
+      previous: opportunityQualityValueFrom(previousReport, "fakeout_risk", "capturedCount"),
     }),
     compareMetric({
       current: valueFromPath(report, "waitPlanMetrics.usefulWaitRatePct"),
@@ -1151,6 +1198,21 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
 
     for (const metric of report.opportunityLaneMetrics) {
       lines.push(`| ${metric.label || opportunityLaneLabel[metric.lane] || metric.lane} | ${metric.totalNodes} | ${metric.selectedCount} | ${metric.captureRatePct}% | ${metric.hitRatePct}% | ${metric.qualityHitRatePct}% | ${metric.lateRatePct}% | ${metric.missedEarlyHitCount} | ${metric.missedEarlyQualityHitCount} | ${metric.planReadyCount} | ${metric.avgRadarRank ?? "-"} | ${metric.avgRadarScore} |`);
+    }
+
+    lines.push("");
+  }
+
+  if (report.opportunityQualityMetrics.length > 0) {
+    lines.push(
+      "## 六类机会质量审计",
+      "",
+      "| 机会质量 | 节点 | 入选 | 捕获率 | 质量命中 | 假阳性 | 迟到 | 条件等待 | 计划就绪 | 漏判质量 | 平均排名 | 代表币种 | 下一步 |",
+      "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+    );
+
+    for (const metric of report.opportunityQualityMetrics) {
+      lines.push(`| ${metric.label} | ${metric.totalNodes} | ${metric.capturedCount} | ${metric.captureRatePct}% | ${metric.qualityHitRatePct}% | ${metric.falsePositiveRatePct}% / ${metric.falsePositiveCount} | ${metric.lateCount} | ${metric.conditionalWaitCount} | ${metric.planReadyCount} | ${metric.missedQualityHitCount} | ${metric.avgRadarRank ?? "-"} | ${metric.sampleSymbols.join(" / ") || "-"} | ${metric.nextAction} |`);
     }
 
     lines.push("");
@@ -1536,7 +1598,36 @@ async function main() {
   const { candlesBySymbol, failures } = await fetchCandlesBySymbol(symbols, options, auditPlan);
 
   if (candlesBySymbol.size === 0) {
-    throw new Error("No historical candles fetched. Check network or reduce symbol scope.");
+    const sampleFailures = failures.slice(0, 8).map((item) => `${item.symbol}: ${item.error}`);
+    const detail = sampleFailures.join(" | ") || "no failure details";
+    const now = new Date().toISOString();
+
+    if (options.auditRound) {
+      writeAuditProgress(options, {
+        candidateUniverseSize: symbols.length,
+        completedAt: now,
+        completedNodes: 0,
+        currentNodeRole: null,
+        currentSymbol: null,
+        generatedAt: now,
+        guardrails: [
+          "回测必须使用真实历史 K 线，不能用 mock 或旧数据冒充。",
+          "当所有 K 线拉取失败时，前端必须显示失败原因，而不是显示旧报告为最新结果。",
+        ],
+        nodes: [],
+        nodesPerSymbol: options.nodesPerSymbol,
+        phase: "failed",
+        plannedSymbols: auditPlan,
+        schemaVersion: "professional-backtest-audit-round-progress.v1",
+        status: "failed",
+        summary: `正式回测未能拉取任何真实历史 K 线。失败样本：${detail}`,
+        totalNodes: auditPlan.length * options.nodesPerSymbol,
+        updatedAt: now,
+      });
+    }
+
+    console.error(`Historical candle fetch failures: ${detail}`);
+    throw new Error(`No historical candles fetched. Sample failures: ${detail}`);
   }
 
   const {

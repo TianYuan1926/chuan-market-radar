@@ -53,6 +53,15 @@ const opportunityLaneLabels: Record<string, string> = {
   risk_review: '风险复盘教材',
 }
 
+const opportunityQualityLabels: Record<string, string> = {
+  fakeout_risk: '假突破风险',
+  late_move: '已经晚了',
+  noise: '噪音',
+  premium_early_setup: '优质启动前',
+  trade_plan_ready: '可生成交易计划',
+  watch_only: '值得观察但不能做',
+}
+
 const planBlockerLabels: Record<string, string> = {
   bear_structure_broken: '空头结构已破坏',
   bull_structure_broken: '多头结构已破坏',
@@ -144,6 +153,10 @@ function readableNodeRole(role: string) {
 
 function readableOpportunityLane(lane: string, fallback?: string) {
   return fallback || opportunityLaneLabels[lane] || lane
+}
+
+function readableOpportunityQuality(id: string, fallback?: string) {
+  return fallback || opportunityQualityLabels[id] || id.replaceAll('_', ' ')
 }
 
 function readablePlanBlocker(blocker: string) {
@@ -907,6 +920,54 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           </div>
                         </div>
                       ) : null}
+                      {data.auditV2.opportunityQualityMetrics.length > 0 ? (
+                        <div className="mt-3 border border-border bg-background/40 p-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <div className="text-[11px] font-semibold">六类机会质量审计</div>
+                              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                                直接检查系统是否提前发现、是否误推旧信号、噪音或假突破。
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {data.auditV2.opportunityQualityMetrics.map((metric) => (
+                              <div key={metric.id} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-semibold">
+                                    {readableOpportunityQuality(metric.id, metric.label)}
+                                  </span>
+                                  <span className="font-mono text-[10px] text-muted-foreground">
+                                    {metric.capturedCount}/{metric.totalNodes}
+                                  </span>
+                                </div>
+                                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                                  <span>捕获 {metric.captureRatePct}%</span>
+                                  <span>质量 {metric.qualityHitRatePct}%</span>
+                                  <span>假阳 {metric.falsePositiveRatePct}%</span>
+                                  <span>迟到 {metric.lateCount}</span>
+                                  <span>等待 {metric.conditionalWaitCount}</span>
+                                  <span>计划 {metric.planReadyCount}</span>
+                                  <span>漏质 {metric.missedQualityHitCount}</span>
+                                  <span>均排 {metric.avgRadarRank ?? '暂无'}</span>
+                                </div>
+                                {metric.sampleSymbols.length > 0 ? (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {metric.sampleSymbols.slice(0, 5).map((symbol) => (
+                                      <span key={symbol} className="border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                                        {symbol}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <div className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                                  {metric.nextAction}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       {data.auditV2.planBlockerMetrics.length > 0 ? (
                         <div className="mt-3 border border-border bg-background/40 p-2">
                           <div className="text-[11px] font-semibold">交易计划未就绪卡点</div>
@@ -1048,7 +1109,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                                   </span>
                                 </div>
                                 <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                                  节点：{readableNodeRole(miss.nodeRole)} · {readableOpportunityLane(miss.opportunityLane, miss.opportunityLaneLabel)} · 验证窗口 {miss.validationWindowLabel} · 最大浮盈 {miss.mfePct}% · 最大回撤 {miss.maePct}%
+                                  节点：{readableNodeRole(miss.nodeRole)} · {readableOpportunityLane(miss.opportunityLane, miss.opportunityLaneLabel)} · {readableOpportunityQuality(miss.opportunityQuality, miss.opportunityQualityLabel)} · 验证窗口 {miss.validationWindowLabel} · 最大浮盈 {miss.mfePct}% · 最大回撤 {miss.maePct}%
                                 </div>
                                 <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                   入选前已波动 {miss.moveAtSelectionPct}% · 成交量倍数 {miss.volumeRatio}x · 计划状态 {readableTradePlanStatus(miss.tradePlanStatus)}

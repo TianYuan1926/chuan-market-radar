@@ -93,6 +93,34 @@ export type ProfessionalAuditOpportunityLaneMetric = {
   totalNodes: number;
 };
 
+export type ProfessionalAuditOpportunityQualityId =
+  | "fakeout_risk"
+  | "late_move"
+  | "noise"
+  | "premium_early_setup"
+  | "trade_plan_ready"
+  | "watch_only";
+
+export type ProfessionalAuditOpportunityQualityMetric = {
+  avgRadarRank: number | null;
+  capturedCount: number;
+  captureRatePct: number;
+  conditionalWaitCount: number;
+  falsePositiveCount: number;
+  falsePositiveRatePct: number;
+  hitCount: number;
+  id: ProfessionalAuditOpportunityQualityId;
+  label: string;
+  lateCount: number;
+  missedQualityHitCount: number;
+  nextAction: string;
+  planReadyCount: number;
+  qualityHitCount: number;
+  qualityHitRatePct: number;
+  sampleSymbols: string[];
+  totalNodes: number;
+};
+
 export type ProfessionalAuditPlanBlockerMetric = {
   blocker: string;
   capturedCount: number;
@@ -309,6 +337,8 @@ export type ProfessionalReplayMissedOpportunity = {
   observedAt: string;
   opportunityLane?: ProfessionalAuditOpportunityLaneName;
   opportunityLaneLabel?: string;
+  opportunityQuality?: ProfessionalAuditOpportunityQualityId;
+  opportunityQualityLabel?: string;
   planBlockers?: string[];
   radarRank?: number | null;
   reason: string;
@@ -340,6 +370,7 @@ export type ProfessionalReplayReport = {
   missedOpportunities: ProfessionalReplayMissedOpportunity[];
   coreCapabilityMetrics: ProfessionalCoreCapabilityMetric[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
+  opportunityQualityMetrics: ProfessionalAuditOpportunityQualityMetric[];
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
   levelQualityMetrics: ProfessionalAuditLevelQualityMetric[];
   waitPlanMetrics: ProfessionalAuditWaitPlanMetric;
@@ -1184,6 +1215,7 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
     missedOpportunities: topMissedOpportunities,
     coreCapabilityMetrics: [],
     opportunityLaneMetrics: [],
+    opportunityQualityMetrics: [],
     planBlockerMetrics: [],
     waitPlanMetrics: {
       avgTriggerQualityScore: null,

@@ -820,6 +820,34 @@ export type HistoricalBacktestAuditOpportunityLaneMetric = {
   totalNodes: number;
 };
 
+export type HistoricalBacktestAuditOpportunityQualityId =
+  | "fakeout_risk"
+  | "late_move"
+  | "noise"
+  | "premium_early_setup"
+  | "trade_plan_ready"
+  | "watch_only";
+
+export type HistoricalBacktestAuditOpportunityQualityMetric = {
+  avgRadarRank: number | null;
+  capturedCount: number;
+  captureRatePct: number;
+  conditionalWaitCount: number;
+  falsePositiveCount: number;
+  falsePositiveRatePct: number;
+  hitCount: number;
+  id: HistoricalBacktestAuditOpportunityQualityId;
+  label: string;
+  lateCount: number;
+  missedQualityHitCount: number;
+  nextAction: string;
+  planReadyCount: number;
+  qualityHitCount: number;
+  qualityHitRatePct: number;
+  sampleSymbols: string[];
+  totalNodes: number;
+};
+
 export type HistoricalBacktestAuditCoreFailure = {
   code: string;
   count: number;
@@ -994,6 +1022,8 @@ export type HistoricalBacktestAuditV2MissedOpportunity = {
   opportunityLane: HistoricalBacktestAuditOpportunityLaneMetric["lane"];
   opportunityLaneLabel: string;
   opportunityLaneScore: number;
+  opportunityQuality: HistoricalBacktestAuditOpportunityQualityId;
+  opportunityQualityLabel: string;
   planBlockers: string[];
   radarRank: number | null;
   radarScore: number;
@@ -1025,6 +1055,8 @@ export type HistoricalBacktestAuditRoundNode = {
   opportunityLane: HistoricalBacktestAuditOpportunityLaneMetric["lane"];
   opportunityLaneLabel: string;
   opportunityLaneScore: number;
+  opportunityQuality: HistoricalBacktestAuditOpportunityQualityId;
+  opportunityQualityLabel: string;
   planBlockers: string[];
   qualityHit: boolean;
   radarRank: number | null;
@@ -1108,6 +1140,7 @@ export type HistoricalBacktestAuditV2State = {
   judgeSystem?: CoreJudgeSystemState;
   coreCapabilityMetrics: HistoricalBacktestAuditCoreCapabilityMetric[];
   opportunityLaneMetrics: HistoricalBacktestAuditOpportunityLaneMetric[];
+  opportunityQualityMetrics: HistoricalBacktestAuditOpportunityQualityMetric[];
   planBlockerMetrics: HistoricalBacktestAuditPlanBlockerMetric[];
   levelQualityMetrics: HistoricalBacktestAuditLevelQualityMetric[];
   waitPlanMetrics: HistoricalBacktestAuditWaitPlanMetric;

@@ -42,6 +42,10 @@ const auditTypeOrder: ProfessionalAuditRoundCoinType[] = [
   "long_tail",
 ];
 
+export function defaultAuditSeedSymbols() {
+  return [...new Set(Object.values(auditSeeds).flat())].sort();
+}
+
 export function deterministicSymbolScore(symbol: string, seed = "") {
   let hash = 2166136261;
   const input = `${seed}:${symbol}`;

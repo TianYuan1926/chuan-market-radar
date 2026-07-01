@@ -24,6 +24,8 @@ import {
   type ProfessionalAuditOpportunityLaneName,
   type ProfessionalAuditPlanBlockerMetric,
   type ProfessionalAuditPressureTestMetric,
+  type ProfessionalAuditOpportunityQualityId,
+  type ProfessionalAuditOpportunityQualityMetric,
   type ProfessionalAuditRuleStabilityMetric,
   type ProfessionalAuditWaitPlanEvaluation,
   type ProfessionalAuditWaitPlanMetric,
@@ -84,6 +86,8 @@ export type ProfessionalAuditRoundNode = {
   opportunityLane: ProfessionalAuditOpportunityLaneName;
   opportunityLaneLabel: string;
   opportunityLaneScore: number;
+  opportunityQuality: ProfessionalAuditOpportunityQualityId;
+  opportunityQualityLabel: string;
   planBlockers: string[];
   qualityHit: boolean;
   radarRank: number | null;
@@ -152,6 +156,8 @@ type CandidateAtNode = {
   nodeRole?: ProfessionalAuditRoundNodeRole;
   opportunityLane: ProfessionalAuditOpportunityLaneName;
   opportunityLaneScore: number;
+  opportunityQuality: ProfessionalAuditOpportunityQualityId;
+  opportunityQualityLabel: string;
   planBlockers: string[];
   qualityHit: boolean;
   radarScore: number;
@@ -182,6 +188,24 @@ const opportunityLaneLabels: Record<ProfessionalAuditOpportunityLaneName, string
   higher_timeframe_context: "大周期背景机会",
   pullback_retest: "回踩/反抽确认机会",
   risk_review: "风险复盘教材",
+};
+
+const opportunityQualityLabels: Record<ProfessionalAuditOpportunityQualityId, string> = {
+  fakeout_risk: "假突破风险",
+  late_move: "已经晚了",
+  noise: "噪音",
+  premium_early_setup: "优质启动前",
+  trade_plan_ready: "可生成交易计划",
+  watch_only: "值得观察但不能做",
+};
+
+const opportunityQualityNextActions: Record<ProfessionalAuditOpportunityQualityId, string> = {
+  fakeout_risk: "只做风险提示和等待确认，不能把未确认突破/跌破包装成交易计划。",
+  late_move: "降级为等待回踩/反抽或复盘教材，不允许进入狙击榜。",
+  noise: "过滤低质量波动，要求至少形成结构、量能、位置或相对强弱共振再进入候选。",
+  premium_early_setup: "优先检查是否进入 TopN、是否得到深扫验证，以及是否清楚写出下一步确认条件。",
+  trade_plan_ready: "继续后验 TP/SL、MFE/MAE 和失效条件，验证计划不是纸面可行。",
+  watch_only: "保留观察价值，但必须说清缺什么、等什么、什么情况升级或失效。",
 };
 
 const planBlockerLabels: Record<string, string> = {
@@ -224,6 +248,10 @@ const planBlockerLabels: Record<string, string> = {
 
 export function professionalAuditOpportunityLaneLabel(lane: ProfessionalAuditOpportunityLaneName) {
   return opportunityLaneLabels[lane];
+}
+
+export function professionalAuditOpportunityQualityLabel(id: ProfessionalAuditOpportunityQualityId) {
+  return opportunityQualityLabels[id];
 }
 
 export function professionalAuditPlanBlockerLabel(blocker: string) {
@@ -619,6 +647,161 @@ export function classifyProfessionalAuditOpportunityLane(input: ProfessionalAudi
   }
 
   return "early_setup";
+}
+
+export type ProfessionalAuditOpportunityQualityInput = ProfessionalAuditOpportunityClassifyInput & {
+  maturity?: string;
+  opportunityLane: ProfessionalAuditOpportunityLaneName;
+  planBlockers?: string[];
+  rewardRisk?: number | null;
+  tradePlanStatus?: string;
+};
+
+const qualityHardStructureBlockers = new Set([
+  "bear_structure_broken",
+  "bull_structure_broken",
+  "resistance_reclaimed",
+  "support_lost",
+  "structure_invalidated",
+]);
+
+const qualitySoftWaitBlockers = new Set([
+  "direction_pending_quiet_setup",
+  "reaction_not_confirmed",
+  "structure_confirmation_pending",
+  "trade_plan_not_ready",
+]);
+
+const qualityOverheatBlockers = new Set([
+  "chase_risk",
+  "risk_score_high",
+  "upper_wick_exhaustion",
+  "lower_wick_exhaustion",
+]);
+
+function qualityBlockers(input: Pick<ProfessionalAuditOpportunityQualityInput, "planBlockers">) {
+  return input.planBlockers ?? [];
+}
+
+function hasQualityHardStructureBlocker(input: Pick<ProfessionalAuditOpportunityQualityInput, "planBlockers">) {
+  return qualityBlockers(input).some((blocker) => qualityHardStructureBlockers.has(blocker));
+}
+
+function hasQualitySoftWaitBlocker(input: Pick<ProfessionalAuditOpportunityQualityInput, "planBlockers">) {
+  return qualityBlockers(input).some((blocker) => qualitySoftWaitBlockers.has(blocker));
+}
+
+function hasQualityFakeoutRisk(input: ProfessionalAuditOpportunityQualityInput) {
+  const blockers = qualityBlockers(input);
+  const absMove = Math.abs(input.movePct);
+  const extremeForDirection = input.direction === "long"
+    ? input.rangePositionPct >= 86
+    : input.rangePositionPct <= 14;
+
+  return (
+    input.nodeRole === "fakeout_or_invalidation" ||
+    blockers.includes("structure_invalidated") ||
+    blockers.includes("support_lost") ||
+    blockers.includes("resistance_reclaimed") ||
+    (extremeForDirection && blockers.some((blocker) => qualityOverheatBlockers.has(blocker))) ||
+    (absMove >= 8.5 && blockers.some((blocker) => blocker === "chase_risk" || blocker === "risk_score_high"))
+  );
+}
+
+function qualityEvidenceCount(input: ProfessionalAuditOpportunityQualityInput) {
+  const absMove = Math.abs(input.movePct);
+  const rrQualified = typeof input.rewardRisk === "number" && Number.isFinite(input.rewardRisk) && input.rewardRisk >= 3;
+  const nonExtremeLocation = input.direction === "long"
+    ? input.rangePositionPct >= 16 && input.rangePositionPct <= 82
+    : input.rangePositionPct >= 18 && input.rangePositionPct <= 84;
+  const controlledVolume = input.volumeRatio >= 0.45 && input.volumeRatio <= 2.6;
+  const constructiveRole =
+    input.nodeRole === "pre_move" ||
+    input.nodeRole === "early_volume_expansion" ||
+    input.nodeRole === "breakout_edge" ||
+    input.nodeRole === "medium_swing" ||
+    input.nodeRole === "pullback_retest" ||
+    input.nodeRole === "trend_acceleration";
+
+  let count = 0;
+
+  if (input.compressionPct <= 62) {
+    count += 1;
+  }
+
+  if (controlledVolume) {
+    count += 1;
+  }
+
+  if (nonExtremeLocation) {
+    count += 1;
+  }
+
+  if (constructiveRole) {
+    count += 1;
+  }
+
+  if (input.opportunityLane === "early_setup" || input.opportunityLane === "pullback_retest") {
+    count += 1;
+  }
+
+  if (rrQualified || input.tradePlanStatus === "WAIT_PULLBACK" || input.tradePlanStatus === "WAIT_RETEST") {
+    count += 1;
+  }
+
+  if (absMove <= 5.8 && !input.lateAtSelection) {
+    count += 1;
+  }
+
+  return count;
+}
+
+export function classifyProfessionalAuditOpportunityQuality(
+  input: ProfessionalAuditOpportunityQualityInput,
+): ProfessionalAuditOpportunityQualityId {
+  const absMove = Math.abs(input.movePct);
+  const rrQualified = typeof input.rewardRisk === "number" && Number.isFinite(input.rewardRisk) && input.rewardRisk >= 3;
+  const planReady =
+    input.maturity === "TRADE_PLAN_READY" ||
+    input.tradePlanStatus === "TRADE_PLAN_READY" ||
+    input.tradePlanStatus === "PLAN_READY";
+  const hardStructureBlocker = hasQualityHardStructureBlocker(input);
+  const fakeoutRisk = hasQualityFakeoutRisk(input);
+  const evidenceCount = qualityEvidenceCount(input);
+
+  if (planReady && rrQualified && !input.lateAtSelection && !fakeoutRisk && !hardStructureBlocker) {
+    return "trade_plan_ready";
+  }
+
+  if (fakeoutRisk) {
+    return "fakeout_risk";
+  }
+
+  if (
+    input.lateAtSelection ||
+    input.opportunityLane === "risk_review" ||
+    input.nodeRole === "late_extension" ||
+    absMove >= 10
+  ) {
+    return "late_move";
+  }
+
+  if (
+    evidenceCount >= 5 &&
+    !hardStructureBlocker &&
+    absMove <= 6.2
+  ) {
+    return "premium_early_setup";
+  }
+
+  if (
+    !hardStructureBlocker &&
+    (hasQualitySoftWaitBlocker(input) || evidenceCount >= 3)
+  ) {
+    return "watch_only";
+  }
+
+  return "noise";
 }
 
 export function opportunityLaneScore(input: ProfessionalAuditOpportunityClassifyInput & {
@@ -2300,6 +2483,21 @@ function buildCandidateAtNode({
   });
   const rewardRisk = tradePlanRewardRisk(auditCase.signal);
   const tradePlanStatusValue = tradePlanStatus(auditCase.signal);
+  const opportunityQuality = classifyProfessionalAuditOpportunityQuality({
+    compressionPct: currentCompressionPct,
+    direction,
+    lateAtSelection,
+    maturity: auditCase.signal.maturity?.stage,
+    movePct,
+    nodeRole: currentNodeRole,
+    opportunityLane,
+    planBlockers,
+    rangePositionPct: currentRangePositionPct,
+    rewardRisk,
+    timeframeBand,
+    tradePlanStatus: tradePlanStatusValue,
+    volumeRatio: currentVolumeRatio,
+  });
   const outcome = replayOutcome({
     direction,
     entry: observed.close,
@@ -2338,6 +2536,8 @@ function buildCandidateAtNode({
       tradePlanStatus: tradePlanStatusValue,
       volumeRatio: currentVolumeRatio,
     }),
+    opportunityQuality,
+    opportunityQualityLabel: opportunityQualityLabels[opportunityQuality],
     planBlockers,
     qualityHit: outcome.qualityHit,
     radarScore,
@@ -2455,6 +2655,67 @@ function buildOpportunityLaneMetrics(nodes: ProfessionalAuditRoundNode[]) {
     "higher_timeframe_context",
     "risk_review",
   ] as const).map((lane) => summarizeOpportunityLane(lane, nodes));
+}
+
+function summarizeOpportunityQuality(
+  id: ProfessionalAuditOpportunityQualityId,
+  nodes: ProfessionalAuditRoundNode[],
+): ProfessionalAuditOpportunityQualityMetric {
+  const qualityNodes = nodes.filter((node) => node.opportunityQuality === id);
+  const captured = qualityNodes.filter((node) => node.capturedByRadar);
+  const hitCount = qualityNodes.filter((node) => node.hit).length;
+  const qualityHitCount = qualityNodes.filter((node) => node.qualityHit).length;
+  const lateCount = qualityNodes.filter((node) => node.lateAtSelection).length;
+  const planReadyCount = qualityNodes.filter((node) => node.maturity === "TRADE_PLAN_READY").length;
+  const conditionalWaitCount = qualityNodes.filter((node) =>
+    node.tradePlanStatus === "WAIT_PULLBACK" || node.tradePlanStatus === "WAIT_RETEST"
+  ).length;
+  const falsePositive = captured.filter((node) =>
+    id === "noise" ||
+    id === "late_move" ||
+    id === "fakeout_risk" ||
+    !(node.hit || node.qualityHit) ||
+    node.lateAtSelection
+  );
+  const missedQualityHit = qualityNodes.filter((node) =>
+    !node.capturedByRadar &&
+    (node.hit || node.qualityHit) &&
+    !node.lateAtSelection
+  );
+  const ranks = qualityNodes
+    .map((node) => node.radarRank)
+    .filter((rank): rank is number => typeof rank === "number" && Number.isFinite(rank));
+
+  return {
+    avgRadarRank: ranks.length > 0 ? round(mean(ranks)) : null,
+    capturedCount: captured.length,
+    captureRatePct: percent(captured.length, qualityNodes.length),
+    conditionalWaitCount,
+    falsePositiveCount: falsePositive.length,
+    falsePositiveRatePct: percent(falsePositive.length, captured.length),
+    hitCount,
+    id,
+    label: opportunityQualityLabels[id],
+    lateCount,
+    missedQualityHitCount: missedQualityHit.length,
+    nextAction: opportunityQualityNextActions[id],
+    planReadyCount,
+    qualityHitCount,
+    qualityHitRatePct: percent(qualityHitCount, qualityNodes.length),
+    sampleSymbols: qualityNodes.slice(0, 8).map((node) => node.symbol),
+    totalNodes: qualityNodes.length,
+  };
+}
+
+function buildOpportunityQualityMetrics(nodes: ProfessionalAuditRoundNode[]) {
+  return ([
+    "premium_early_setup",
+    "watch_only",
+    "trade_plan_ready",
+    "fakeout_risk",
+    "late_move",
+    "noise",
+  ] as const).map((id) => summarizeOpportunityQuality(id, nodes));
 }
 
 export function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): ProfessionalAuditPlanBlockerMetric[] {
@@ -3456,6 +3717,7 @@ function aggregateFindings({
   marketRegimeMetrics,
   nodes,
   opportunityLaneMetrics,
+  opportunityQualityMetrics,
   planBlockerMetrics,
   pressureTestMetrics,
   topN,
@@ -3466,6 +3728,7 @@ function aggregateFindings({
   marketRegimeMetrics: ProfessionalAuditMarketRegimeMetric[];
   nodes: ProfessionalAuditRoundNode[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
+  opportunityQualityMetrics: ProfessionalAuditOpportunityQualityMetric[];
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
   pressureTestMetrics: ProfessionalAuditPressureTestMetric[];
   topN: number;
@@ -3567,6 +3830,12 @@ function aggregateFindings({
 
   const earlyLane = opportunityLaneMetrics.find((item) => item.lane === "early_setup");
   const pullbackLane = opportunityLaneMetrics.find((item) => item.lane === "pullback_retest");
+  const premiumQuality = opportunityQualityMetrics.find((item) => item.id === "premium_early_setup");
+  const watchOnlyQuality = opportunityQualityMetrics.find((item) => item.id === "watch_only");
+  const tradePlanReadyQuality = opportunityQualityMetrics.find((item) => item.id === "trade_plan_ready");
+  const fakeoutQuality = opportunityQualityMetrics.find((item) => item.id === "fakeout_risk");
+  const lateQuality = opportunityQualityMetrics.find((item) => item.id === "late_move");
+  const noiseQuality = opportunityQualityMetrics.find((item) => item.id === "noise");
 
   if (earlyLane && earlyLane.totalNodes > 0 && (earlyLane.missedEarlyHitCount > 0 || earlyLane.missedEarlyQualityHitCount > 0)) {
     findings.push(aggregateFinding({
@@ -3577,6 +3846,78 @@ function aggregateFindings({
       rootCause: "启动前机会分层仍没有稳定把早期样本推入 TopN。",
       severity: "high",
       title: "启动前机会池仍有漏判",
+    }));
+  }
+
+  if (premiumQuality && premiumQuality.totalNodes > 0 && premiumQuality.captureRatePct < 45) {
+    findings.push(aggregateFinding({
+      detail: `优质启动前样本 ${premiumQuality.totalNodes} 个，雷达只捕获 ${premiumQuality.capturedCount} 个，捕获率 ${premiumQuality.captureRatePct}%；漏掉的质量命中 ${premiumQuality.missedQualityHitCount} 个，代表币种 ${premiumQuality.sampleSymbols.join(" / ") || "暂无"}。`,
+      id: "PBA-QUALITY-PREMIUM-MISSED-001",
+      layer: "scan",
+      nextAction: "把布林带/波动压缩、早期量能、相对强弱、靠近关键位和深扫轮换一起纳入排序校准，不再只追 24h 涨跌幅。",
+      rootCause: "系统没有稳定把真正接近启动前的机会推入前排。",
+      severity: premiumQuality.captureRatePct < 25 ? "high" : "medium",
+      title: "优质启动前机会捕获不足",
+    }));
+  }
+
+  if (watchOnlyQuality && watchOnlyQuality.totalNodes > 0 && watchOnlyQuality.falsePositiveRatePct >= 45) {
+    findings.push(aggregateFinding({
+      detail: `值得观察但不能做的样本被选中 ${watchOnlyQuality.capturedCount} 个，假阳性率 ${watchOnlyQuality.falsePositiveRatePct}%。这类信号必须讲清“缺什么、等什么”，不能包装成狙击目标。`,
+      id: "PBA-QUALITY-WATCH-AMBIGUOUS-001",
+      layer: "structure",
+      nextAction: "把观察级信号和交易计划级信号彻底分层，前端展示必须避免让观察信号看起来像可直接执行。",
+      rootCause: "信号成熟度表达不够硬，观察信号仍可能污染主信号区。",
+      severity: "medium",
+      title: "观察级信号容易被误读",
+    }));
+  }
+
+  if (tradePlanReadyQuality && tradePlanReadyQuality.totalNodes > 0 && tradePlanReadyQuality.falsePositiveRatePct > 0) {
+    findings.push(aggregateFinding({
+      detail: `交易计划就绪样本 ${tradePlanReadyQuality.totalNodes} 个，其中被捕获后仍有 ${tradePlanReadyQuality.falsePositiveCount} 个假阳性。计划就绪必须继续追踪 TP/SL、MFE/MAE 和失效条件。`,
+      id: "PBA-QUALITY-PLAN-FALSE-POSITIVE-001",
+      layer: "plan",
+      nextAction: "抽样复查交易计划的入场触发、止损、目标、RR 和失效条件，优先修正计划质量而不是增加计划数量。",
+      rootCause: "可执行计划层仍存在质量不稳定。",
+      severity: tradePlanReadyQuality.falsePositiveRatePct >= 35 ? "high" : "medium",
+      title: "交易计划就绪样本仍有假阳性",
+    }));
+  }
+
+  if (fakeoutQuality && fakeoutQuality.capturedCount > 0) {
+    findings.push(aggregateFinding({
+      detail: `假突破风险样本被雷达选中 ${fakeoutQuality.capturedCount} 个，代表币种 ${fakeoutQuality.sampleSymbols.join(" / ") || "暂无"}。这些样本只能做风险提示或等待确认。`,
+      id: "PBA-QUALITY-FAKEOUT-SELECTED-001",
+      layer: "structure",
+      nextAction: "把未确认突破/跌破、长影线衰竭、结构失效重新站回等条件前置为硬门控。",
+      rootCause: "假突破风险没有被稳定挡在交易计划外。",
+      severity: fakeoutQuality.capturedCount >= 3 ? "high" : "medium",
+      title: "假突破风险进入候选前排",
+    }));
+  }
+
+  if (lateQuality && lateQuality.capturedCount > 0) {
+    findings.push(aggregateFinding({
+      detail: `已经晚了的样本被雷达选中 ${lateQuality.capturedCount} 个，假阳性率 ${lateQuality.falsePositiveRatePct}%，代表币种 ${lateQuality.sampleSymbols.join(" / ") || "暂无"}。`,
+      id: "PBA-QUALITY-LATE-SELECTED-001",
+      layer: "timing",
+      nextAction: "把已涨/已跌过多、位置过远、RR 不足和追涨追空风险从排序层降权，不要等策略层才拦截。",
+      rootCause: "扫描层仍会把事后行情、末端行情推上来。",
+      severity: lateQuality.capturedCount >= 3 ? "high" : "medium",
+      title: "已迟到机会仍被推上前排",
+    }));
+  }
+
+  if (noiseQuality && noiseQuality.capturedCount > 0) {
+    findings.push(aggregateFinding({
+      detail: `噪音样本被雷达选中 ${noiseQuality.capturedCount} 个，假阳性率 ${noiseQuality.falsePositiveRatePct}%。噪音不应进入主信号区。`,
+      id: "PBA-QUALITY-NOISE-SELECTED-001",
+      layer: "scan",
+      nextAction: "提高最小证据门槛，要求结构、位置、量能、相对强弱或衍生品至少形成多项共振。",
+      rootCause: "轻扫异常和低质量波动仍可能污染深扫/主信号。",
+      severity: noiseQuality.capturedCount >= 3 ? "high" : "medium",
+      title: "噪音样本进入候选前排",
     }));
   }
 
@@ -3821,6 +4162,72 @@ function aggregateRemediations(findings: ProfessionalAuditFinding[]): Profession
     });
   }
 
+  if (findings.some((item) => item.id === "PBA-QUALITY-PREMIUM-MISSED-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮优质启动前机会捕获率高于 45%，且漏判质量命中数量下降。",
+      action: "把优质启动前分类作为扫描排序校准目标，优先修压缩、早期量能、相对强弱、关键位靠近和轮换公平性。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P0",
+      targetModule: "premium early setup ranking calibration",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-QUALITY-WATCH-AMBIGUOUS-001")) {
+    remediations.push({
+      acceptanceCriteria: "前端和报告能清楚区分观察级、证据信号和交易计划；观察级不进入狙击榜。",
+      action: "加强信号成熟度分层，把 watch_only 明确标为等待条件，不允许生成完整交易计划。",
+      canAutoApply: false,
+      layer: "structure",
+      priority: "P1",
+      targetModule: "signal maturity and watch-only contract",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-QUALITY-PLAN-FALSE-POSITIVE-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮交易计划就绪样本假阳性率下降，并逐笔输出触发、止损、目标、失效和 MFE/MAE。",
+      action: "复查 TRADE_PLAN_READY 的结构位、RR、触发确认和风险门控，不通过就降级为等待或观察。",
+      canAutoApply: false,
+      layer: "plan",
+      priority: "P0",
+      targetModule: "trade plan ready quality gate",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-QUALITY-FAKEOUT-SELECTED-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮假突破风险样本不进入交易计划，进入候选时必须显示等待确认或风险提示。",
+      action: "把假突破、长影线衰竭、失守后收回、突破未确认等条件前置为硬门控。",
+      canAutoApply: false,
+      layer: "structure",
+      priority: "P0",
+      targetModule: "fakeout and invalidation gate",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-QUALITY-LATE-SELECTED-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮 late_move 被捕获数量下降，已涨/已跌过多样本只能输出等待回踩/反抽或复盘教材。",
+      action: "在扫描排序层加入已发生行情降权，避免把末端行情送入狙击榜。",
+      canAutoApply: false,
+      layer: "timing",
+      priority: "P0",
+      targetModule: "anti-late and anti-chase ranking gate",
+    });
+  }
+
+  if (findings.some((item) => item.id === "PBA-QUALITY-NOISE-SELECTED-001")) {
+    remediations.push({
+      acceptanceCriteria: "下一轮 noise 被捕获数量下降；没有至少两到三项证据共振的样本不能进入主信号区。",
+      action: "提高低质量波动过滤门槛，轻扫异常只做调度，不直接变成用户可见信号。",
+      canAutoApply: false,
+      layer: "scan",
+      priority: "P0",
+      targetModule: "noise filter and evidence threshold",
+    });
+  }
+
   if (findings.some((item) => item.id === "PBA-PLAN-BLOCKER-ROUND-001")) {
     remediations.push({
       acceptanceCriteria: "下一轮报告能按 blocker 说明计划未就绪原因，并区分合理风控与规则错杀。",
@@ -4026,6 +4433,8 @@ export function runProfessionalAuditRound({
         opportunityLane: target.opportunityLane,
         opportunityLaneLabel: opportunityLaneLabels[target.opportunityLane],
         opportunityLaneScore: target.opportunityLaneScore,
+        opportunityQuality: target.opportunityQuality,
+        opportunityQualityLabel: target.opportunityQualityLabel,
         planBlockers: target.planBlockers,
         qualityHit: target.qualityHit,
         radarRank,
@@ -4067,6 +4476,7 @@ export function runProfessionalAuditRound({
     volume: summarizeLane("volume", laneSelections.volume),
   };
   const opportunityLaneMetrics = buildOpportunityLaneMetrics(nodes);
+  const opportunityQualityMetrics = buildOpportunityQualityMetrics(nodes);
   const planBlockerMetrics = buildPlanBlockerMetrics(nodes);
   const levelQualityMetrics = buildLevelQualityMetrics(planBlockerMetrics);
   const waitPlanMetrics = buildWaitPlanMetrics(nodes);
@@ -4097,6 +4507,7 @@ export function runProfessionalAuditRound({
     marketRegimeMetrics,
     nodes,
     opportunityLaneMetrics,
+    opportunityQualityMetrics,
     planBlockerMetrics,
     pressureTestMetrics,
     topN,
@@ -4125,6 +4536,8 @@ export function runProfessionalAuditRound({
       opportunityLane: item.opportunityLane,
       opportunityLaneLabel: item.opportunityLaneLabel,
       opportunityLaneScore: item.opportunityLaneScore,
+      opportunityQuality: item.opportunityQuality,
+      opportunityQualityLabel: item.opportunityQualityLabel,
       planBlockers: item.planBlockers,
       radarRank: item.radarRank,
       radarScore: item.radarScore,
@@ -4175,6 +4588,7 @@ export function runProfessionalAuditRound({
     missedOpportunities,
     coreCapabilityMetrics,
     opportunityLaneMetrics,
+    opportunityQualityMetrics,
     planBlockerMetrics,
     levelQualityMetrics,
     waitPlanMetrics,

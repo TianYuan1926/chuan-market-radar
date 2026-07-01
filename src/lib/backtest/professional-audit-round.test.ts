@@ -5,6 +5,7 @@ import {
   buildPlanBlockerMetrics,
   buildWaitPlanMetrics,
   classifyProfessionalAuditOpportunityLane,
+  classifyProfessionalAuditOpportunityQuality,
   isActionableWaitPlanNode,
   isScanActionableOpportunityNode,
   opportunityLaneScore,
@@ -1311,6 +1312,8 @@ test("wait plan metrics only audit actionable non-late non-risk-review wait plan
     opportunityLane: "pullback_retest",
     opportunityLaneLabel: "回踩/反抽确认机会",
     opportunityLaneScore: 80,
+    opportunityQuality: "watch_only",
+    opportunityQualityLabel: "值得观察但不能做",
     planBlockers: ["reaction_not_confirmed"],
     qualityHit: false,
     radarRank: 1,
@@ -1431,6 +1434,114 @@ test("classifyProfessionalAuditOpportunityLane honors target node roles without 
     timeframeBand: "small",
     volumeRatio: 3,
   }), "risk_review");
+});
+
+test("classifyProfessionalAuditOpportunityQuality separates early setups, watch-only, late, fakeout and ready plans", () => {
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 36,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.8,
+    nodeRole: "pre_move",
+    opportunityLane: "early_setup",
+    planBlockers: ["structure_confirmation_pending"],
+    rangePositionPct: 42,
+    rewardRisk: 3.4,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 0.88,
+  }), "premium_early_setup");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 44,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -2.4,
+    nodeRole: "breakout_edge",
+    opportunityLane: "early_setup",
+    planBlockers: ["structure_confirmation_pending"],
+    rangePositionPct: 58,
+    rewardRisk: 2.4,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_RETEST",
+    volumeRatio: 1.12,
+  }), "premium_early_setup");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 68,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 6.4,
+    nodeRole: "medium_swing",
+    opportunityLane: "pullback_retest",
+    planBlockers: ["reaction_not_confirmed"],
+    rangePositionPct: 88,
+    rewardRisk: 2.7,
+    timeframeBand: "medium",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 3.1,
+  }), "watch_only");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 58,
+    direction: "long",
+    lateAtSelection: false,
+    maturity: "TRADE_PLAN_READY",
+    movePct: 3.2,
+    nodeRole: "pullback_retest",
+    opportunityLane: "pullback_retest",
+    planBlockers: [],
+    rangePositionPct: 52,
+    rewardRisk: 3.6,
+    timeframeBand: "medium",
+    tradePlanStatus: "TRADE_PLAN_READY",
+    volumeRatio: 1.2,
+  }), "trade_plan_ready");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 74,
+    direction: "long",
+    lateAtSelection: true,
+    movePct: 13,
+    nodeRole: "late_extension",
+    opportunityLane: "risk_review",
+    planBlockers: [],
+    rangePositionPct: 92,
+    rewardRisk: 1.4,
+    timeframeBand: "small",
+    tradePlanStatus: "BLOCKED",
+    volumeRatio: 3.4,
+  }), "late_move");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 61,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -5.1,
+    nodeRole: "fakeout_or_invalidation",
+    opportunityLane: "risk_review",
+    planBlockers: ["support_lost"],
+    rangePositionPct: 8,
+    rewardRisk: 3.2,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_RETEST",
+    volumeRatio: 1.7,
+  }), "fakeout_risk");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 82,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 0.4,
+    nodeRole: "neutral_random",
+    opportunityLane: "early_setup",
+    planBlockers: ["neutral_direction"],
+    rangePositionPct: 5,
+    rewardRisk: null,
+    timeframeBand: "small",
+    tradePlanStatus: "WATCH_ONLY",
+    volumeRatio: 0.18,
+  }), "noise");
 });
 
 test("selectProfessionalAuditNodeIndexes does not let future horizon candles change scan points", () => {
@@ -1645,6 +1756,8 @@ test("buildPlanBlockerMetrics classifies blockers and separates likely false kil
     opportunityLane: "early_setup",
     opportunityLaneLabel: "启动前机会",
     opportunityLaneScore: 82,
+    opportunityQuality: "premium_early_setup",
+    opportunityQualityLabel: "优质启动前",
     planBlockers: ["reward_risk_below_minimum"],
     qualityHit: true,
     radarRank: 3,
