@@ -1436,6 +1436,14 @@ RawSource
 - 这条规则服务 `目标位/止损位质量复核`，目的是减少“止损距离过宽”和“目标/防守位错配”，不能用来降低 `3:1 RR`，也不能让前端把等待位包装成可交易信号。
 - 下一轮生产回测必须重点观察：`stop_distance_too_wide` 是否下降、RR 合格率是否提升、WAIT 计划是否仍然 0% 有效。
 
+2026-07-01 生产扫描锁误挡修复规则：
+
+- 生产验收发现：腾讯云 `scanner-worker` 调用 `/api/scan` 返回 200，但实际 `status=served_cache`，原因是 `coinglass scan already running`；页面和健康层继续读 20 分钟以上旧快照，导致 `/api/health` 为 degraded。
+- 根因：扫描协调器在 Redis 短暂不可用时会回退到内存锁；如果 `afterScan` 时 Redis 恢复成功，旧实现只释放 Redis 锁，未释放内存兜底锁，导致后续扫描被误判为“仍在运行”。
+- 新规则：Redis + 内存兜底扫描协调器的 `afterScan` 必须始终释放 fallback 内存锁；Redis 释放失败不能让内存锁残留。扫描接口必须继续返回 `status` 和 `error`，便于区分 `updated` 与 `served_cache`。
+- 该规则直接服务全市场扫描新鲜度：禁止在扫描锁异常时用旧快照冒充新扫描，也禁止在 health degraded 时继续开展专业回测。
+- 下一轮生产验收必须先确认：手动 `/api/scan` 可返回 `status=updated`，`/api/health` 从 aging/degraded 恢复到 fresh/ready，再运行专业回测。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

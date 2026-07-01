@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createFailoverScanCoordinator,
   createMemoryScanCoordinator,
   createRedisScanCoordinatorFromClient,
 } from "./scan-coordinator";
@@ -146,4 +147,54 @@ test("createRedisScanCoordinatorFromClient stores scan locks and minute budget c
   assert.equal(second.allowed, false);
   assert.match(second.allowed ? "" : second.reason, /minute budget/);
   assert.equal(values.get("scan:coinglass:minute:2026-06-20T00:00:00.000Z"), "4");
+});
+
+test("createFailoverScanCoordinator releases fallback memory locks even when primary recovers before afterScan", async () => {
+  const fallback = createMemoryScanCoordinator({
+    coinGlassMinuteLimit: 30,
+    estimatedCoinGlassRequests: 4,
+    lockTtlMs: 600_000,
+  });
+  const recoveredPrimary = createMemoryScanCoordinator({
+    coinGlassMinuteLimit: 30,
+    estimatedCoinGlassRequests: 4,
+    lockTtlMs: 600_000,
+  });
+  let primaryAvailable = false;
+  const coordinator = createFailoverScanCoordinator({
+    fallback,
+    primary: async () => {
+      if (!primaryAvailable) {
+        throw new Error("redis temporarily unavailable");
+      }
+
+      return recoveredPrimary;
+    },
+  });
+  const context = {
+    cadenceMinutes: 15 as const,
+    forceRefresh: true,
+    now: new Date("2026-06-20T00:00:00.000Z"),
+    providerId: "coinglass" as const,
+    trigger: "cron_post" as const,
+  };
+
+  const first = await coordinator.beforeScan(context);
+
+  assert.equal(first.allowed, true);
+
+  primaryAvailable = true;
+
+  if (first.allowed) {
+    await coordinator.afterScan(first.token, { status: "updated" });
+  }
+
+  primaryAvailable = false;
+
+  const second = await coordinator.beforeScan({
+    ...context,
+    now: new Date("2026-06-20T00:00:30.000Z"),
+  });
+
+  assert.equal(second.allowed, true);
 });

@@ -239,6 +239,34 @@ export type ScanCoordinatorEnv = {
   [key: string]: string | undefined;
 };
 
+export function createFailoverScanCoordinator({
+  fallback,
+  primary,
+}: {
+  fallback: ScanCoordinator;
+  primary: () => Promise<ScanCoordinator>;
+}): ScanCoordinator {
+  return {
+    async beforeScan(context) {
+      try {
+        return await (await primary()).beforeScan(context);
+      } catch {
+        return fallback.beforeScan(context);
+      }
+    },
+
+    async afterScan(token, context) {
+      try {
+        await (await primary()).afterScan(token, context);
+      } catch {
+        // Redis is best effort here; the fallback lock still must be released.
+      } finally {
+        await fallback.afterScan(token, context);
+      }
+    },
+  };
+}
+
 export function createScanCoordinatorFromEnv(env: ScanCoordinatorEnv = process.env): ScanCoordinator {
   const options = {
     coinGlassMinuteLimit: positiveInt(env.COINGLASS_MINUTE_REQUEST_LIMIT, 30),
@@ -264,21 +292,8 @@ export function createScanCoordinatorFromEnv(env: ScanCoordinatorEnv = process.e
     return redisCoordinatorPromise;
   }
 
-  return {
-    async beforeScan(context) {
-      try {
-        return await (await redisCoordinator()).beforeScan(context);
-      } catch {
-        return memoryCoordinator.beforeScan(context);
-      }
-    },
-
-    async afterScan(token, context) {
-      try {
-        await (await redisCoordinator()).afterScan(token, context);
-      } catch {
-        await memoryCoordinator.afterScan(token, context);
-      }
-    },
-  };
+  return createFailoverScanCoordinator({
+    fallback: memoryCoordinator,
+    primary: redisCoordinator,
+  });
 }
