@@ -1444,6 +1444,23 @@ RawSource
 - 该规则直接服务全市场扫描新鲜度：禁止在扫描锁异常时用旧快照冒充新扫描，也禁止在 health degraded 时继续开展专业回测。
 - 下一轮生产验收必须先确认：手动 `/api/scan` 可返回 `status=updated`，`/api/health` 从 aging/degraded 恢复到 fresh/ready，再运行专业回测。
 
+2026-07-01 生产扫描锁修复验收与新一轮回测结果：
+
+- 腾讯云已同步 GitHub `main` 到 `5ff1f3fd`，Docker Compose 重建后 web healthy；手动 `/api/scan` 二次复测返回 `status=updated`，最新扫描 `generatedAt=2026-07-01T05:27:21.934Z`，`/api/health` 为 `ready/fresh`，扫描锁误挡旧快照问题已被生产验证修复。
+- 生产 smoke：`/api/health` 200 ready，`/api/frontend/radar-contract` 200，`/api/radar/backend-contract` 200，`/review` 页面 200。
+- 随后运行正式专业回测报告 `/app/reports/professional-backtest-audit/2026-07-01T053502-350Z`：100 个节点，高优先级问题 71，`TRADE_PLAN_READY=0`，整体仍是 `不能支撑实战`。
+- 与上一轮 `/app/reports/professional-backtest-audit/2026-07-01T043656-584Z` 相比，本轮样本池不同，不能做单变量归因；但事实结果是：扫描分 54.59 -> 49.22，启动前捕获 27.27% -> 16.67%，策略分 23.94 -> 19.84，分析分 50.73 -> 71.96。
+- 当前主要卡点：`reward_risk_below_minimum` 37 次、`位置/RR` 34 次、`stop_distance_too_wide` 21 次、`chase_risk` 21 次、`bull_structure_broken` 17 次；WAIT 计划 11 个，3 个触发但 0 个先到目标，`usefulWaitRatePct=0`。
+- 下一步必须继续策略层根治：先复查目标位/止损位投射为何仍导致低 RR 和宽止损，再修 WAIT 触发质量。禁止把 `WATCH_ONLY` 或 `WAIT_*` 包装成狙击榜就绪信号，禁止降低 `3:1 RR`。
+
+2026-07-01 专业回测扫描选择规则修正：
+
+- 新发现的问题：专业回测的候选选择层把 `reward_risk_below_minimum`、`stop_distance_too_wide`、`chase_risk` 这类策略层拦截器当成扫描淘汰条件，导致一部分“已经出现早期异动、但暂时不能下交易计划”的币没有进入 TopN 扫描候选。
+- 修正原则：扫描可见性和交易可执行性必须分离。扫描层负责回答“有没有值得继续看的异动”，策略层再回答“现在能不能做、怎么做、哪里失效”。
+- 现在 `reward_risk_below_minimum`、`stop_distance_too_wide`、`chase_risk` 只属于策略层拦截，不再直接作为扫描统计淘汰条件；但只有具备明确早期特征的样本才允许保留可见性，例如早期放量、安静压缩、待确认早期结构、趋势加速或中周期摆动。
+- 仍然硬拦截：`support_lost`、`resistance_reclaimed`、`bull_structure_broken`、`bear_structure_broken` 和 `risk_review` 不能通过候选选择伪装成机会。
+- 本地验证已覆盖：真实早期发现即使被 RR/止损/追高策略拦截，也必须能进入扫描候选；普通高分噪音不能挤掉早期发现；结构失效样本不能进入候选。生产回测指标必须等腾讯云重跑后再写入，不允许用本机网络失败结果冒充结论。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

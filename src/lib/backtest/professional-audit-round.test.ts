@@ -843,6 +843,72 @@ test("selectProfessionalAuditOpportunityCandidates protects Top10 early discover
   assert.equal(selectedSymbols.some((symbol) => symbol.startsWith("RRNOISE")), false);
 });
 
+test("selectProfessionalAuditOpportunityCandidates keeps real early discoveries visible despite strategy-only blockers", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      compressionPct?: number;
+      movePct?: number;
+      nodeRole?: "early_volume_expansion" | "neutral_random";
+      planBlockers?: string[];
+      rangePositionPct?: number;
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    compressionPct: options.compressionPct,
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    planBlockers: options.planBlockers,
+    radarScore: opportunityLaneScore,
+    rangePositionPct: options.rangePositionPct,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("GENERIC1USDT", 155, { nodeRole: "neutral_random", volumeRatio: 1 }),
+    item("GENERIC2USDT", 154, { nodeRole: "neutral_random", volumeRatio: 1 }),
+    item("GENERIC3USDT", 153, { nodeRole: "neutral_random", volumeRatio: 1 }),
+    item("GENERIC4USDT", 152, { nodeRole: "neutral_random", volumeRatio: 1 }),
+    item("REALDISCOVERYUSDT", 82, {
+      compressionPct: 52,
+      movePct: 2.7,
+      nodeRole: "early_volume_expansion",
+      planBlockers: ["reward_risk_below_minimum", "stop_distance_too_wide", "chase_risk"],
+      rangePositionPct: 50,
+      volumeRatio: 1.42,
+    }),
+    item("BROKENDISCOVERYUSDT", 200, {
+      compressionPct: 50,
+      movePct: 2.4,
+      nodeRole: "early_volume_expansion",
+      planBlockers: ["support_lost"],
+      rangePositionPct: 50,
+      volumeRatio: 1.5,
+    }),
+  ], 4);
+
+  assert.ok(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "REALDISCOVERYUSDT"),
+    "expected real early discovery to stay visible even when strategy layer blocks immediate entry",
+  );
+  assert.equal(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "BROKENDISCOVERYUSDT"),
+    false,
+    "expected structurally invalidated discovery not to be promoted by scan selection",
+  );
+});
+
 test("selectProfessionalAuditOpportunityCandidates reserves slots for medium swing and trend acceleration discovery", () => {
   const item = (
     symbol: string,
@@ -1431,7 +1497,7 @@ test("isScanActionableOpportunityNode excludes structurally untradeable scan sam
   assert.equal(isScanActionableOpportunityNode({
     opportunityLane: "early_setup",
     planBlockers: ["reward_risk_below_minimum"],
-  }), false);
+  }), true);
   assert.equal(isScanActionableOpportunityNode({
     opportunityLane: "pullback_retest",
     planBlockers: ["bull_structure_broken"],
@@ -1439,7 +1505,7 @@ test("isScanActionableOpportunityNode excludes structurally untradeable scan sam
   assert.equal(isScanActionableOpportunityNode({
     opportunityLane: "pullback_retest",
     planBlockers: ["chase_risk"],
-  }), false);
+  }), true);
   assert.equal(isScanActionableOpportunityNode({
     opportunityLane: "risk_review",
     planBlockers: [],

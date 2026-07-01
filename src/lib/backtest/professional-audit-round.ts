@@ -996,8 +996,7 @@ const hardStructureBlockers = new Set([
   "support_lost",
 ]);
 
-const scanOpportunityDisqualifyingBlockers = new Set([
-  ...hardStructureBlockers,
+const strategyOnlyScanVisibleBlockers = new Set([
   "chase_risk",
   "reward_risk_below_minimum",
   "stop_distance_too_wide",
@@ -1008,7 +1007,46 @@ function hasHardStructureBlocker(item: Pick<OpportunityRankable, "planBlockers">
 }
 
 function hasScanDisqualifyingBlocker(item: Pick<OpportunityRankable, "planBlockers">) {
-  return (item.planBlockers ?? []).some((blocker) => scanOpportunityDisqualifyingBlockers.has(blocker));
+  return hasHardStructureBlocker(item);
+}
+
+function hasStrategyOnlyScanVisibleBlocker(item: Pick<OpportunityRankable, "planBlockers">) {
+  return (item.planBlockers ?? []).some((blocker) => strategyOnlyScanVisibleBlockers.has(blocker));
+}
+
+function isStrategyBlockedDiscoveryCandidate(item: OpportunityRankable) {
+  const hasMeasuredQuietCompression =
+    typeof item.compressionPct === "number" &&
+    Number.isFinite(item.compressionPct) &&
+    typeof item.rangePositionPct === "number" &&
+    Number.isFinite(item.rangePositionPct) &&
+    typeof item.volumeRatio === "number" &&
+    Number.isFinite(item.volumeRatio) &&
+    isQuietCompressionOpportunity(item);
+
+  return (
+    hasStrategyOnlyScanVisibleBlocker(item) &&
+    (
+      hasMeasuredQuietCompression ||
+      isEarlyVolumeOpportunity(item) ||
+      isQuietPendingOpportunity(item) ||
+      isConditionalWaitOpportunity(item) ||
+      isMediumSwingOpportunity(item) ||
+      isTrendAccelerationOpportunity(item)
+    )
+  );
+}
+
+function isScanSelectionEligible(item: OpportunityRankable) {
+  if (hasScanDisqualifyingBlocker(item)) {
+    return false;
+  }
+
+  if (!hasStrategyOnlyScanVisibleBlocker(item)) {
+    return true;
+  }
+
+  return isStrategyBlockedDiscoveryCandidate(item);
 }
 
 export function isScanActionableOpportunityNode(node: Pick<ProfessionalAuditRoundNode, "opportunityLane" | "planBlockers">) {
@@ -1115,7 +1153,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
 
     for (const item of rankOpportunityCandidates(items.filter((entry) =>
       predicate(entry) &&
-      !hasScanDisqualifyingBlocker(entry)
+      isScanSelectionEligible(entry)
     ))) {
       if (selected.length >= topN || pushed >= quota) {
         break;
@@ -1130,7 +1168,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   pushPrioritySlice(isQuietCompressionOpportunity, quietCompressionQuota);
   for (const item of rankOpportunityCandidates(items.filter((entry) =>
     isEarlyVolumeOpportunity(entry) &&
-    !hasScanDisqualifyingBlocker(entry)
+    isScanSelectionEligible(entry)
   )).slice(0, earlyVolumeQuota)) {
     pushSelected(item);
   }
@@ -1142,7 +1180,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   for (const lane of actionableLanes) {
     const laneItems = rankOpportunityCandidates(items.filter((item) =>
       item.opportunityLane === lane &&
-      !hasScanDisqualifyingBlocker(item)
+      isScanSelectionEligible(item)
     ));
 
     for (const item of laneItems) {
@@ -1157,7 +1195,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   const remainingActionable = rankOpportunityCandidates(
     items.filter((item) =>
       item.opportunityLane !== "risk_review" &&
-      !hasScanDisqualifyingBlocker(item) &&
+      isScanSelectionEligible(item) &&
       !selectedSymbols.has(item.auditCase.inputSummary.symbol)
     ),
   );
@@ -1178,14 +1216,14 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
     ...rankOpportunityCandidates(
       items.filter((item) =>
         item.opportunityLane !== "risk_review" &&
-        !hasScanDisqualifyingBlocker(item) &&
+        isScanSelectionEligible(item) &&
         !selectedSet.has(item.auditCase.inputSummary.symbol)
       ),
     ),
     ...rankOpportunityCandidates(
       items.filter((item) =>
         item.opportunityLane !== "risk_review" &&
-        hasScanDisqualifyingBlocker(item) &&
+        !isScanSelectionEligible(item) &&
         !hasHardStructureBlocker(item) &&
         !selectedSet.has(item.auditCase.inputSummary.symbol)
       ),
