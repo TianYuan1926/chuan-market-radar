@@ -109,6 +109,14 @@ function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
     notes.push("结构止损质量：止损距离过宽会把小波动变成大亏损，必须等更靠近防守位或改用更近的有效结构。");
   }
 
+  if (unique.includes("bull_structure_broken")) {
+    notes.push("结构修复等待点：多头结构短线受损，必须重新站回关键位并形成承接，不能把破位后的反抽直接当入场。");
+  }
+
+  if (unique.includes("bear_structure_broken")) {
+    notes.push("结构修复等待点：空头结构短线受损，必须重新跌回关键位并形成承压，不能把收复后的回落直接当入场。");
+  }
+
   if (notes.length === 0) {
     return "";
   }
@@ -120,6 +128,35 @@ function isWaitEntryOnlyBlocker(blocker: string) {
   return blocker === "reward_risk_below_minimum" ||
     blocker === "stop_distance_too_wide" ||
     blocker === "chase_risk";
+}
+
+function isReactionFailureBlocker(blocker: string) {
+  return blocker === "support_lost" || blocker === "resistance_reclaimed";
+}
+
+function structureRepairEligible({
+  direction,
+  trendContext,
+}: {
+  direction: V3LocationDirection;
+  trendContext: StrategyV3TrendContext;
+}) {
+  const location = trendContext.locationRiskReward;
+  const reaction = trendContext.reactionQuality;
+
+  if (!location || !reaction || direction === "neutral") {
+    return false;
+  }
+
+  const minRewardRisk = Math.max(minimumPlanRewardRisk, location.minRewardRisk);
+  const locationQualityOk = location.isTradeEligible &&
+    location.rewardRisk !== null &&
+    Number.isFinite(location.rewardRisk) &&
+    location.rewardRisk >= minRewardRisk;
+  const reactionAlreadyFailed = reaction.status === "FAILED" ||
+    reaction.riskFlags.some(isReactionFailureBlocker);
+
+  return locationQualityOk && !reactionAlreadyFailed;
 }
 
 function invalidationText({
@@ -324,8 +361,28 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
   }
 
   if (integrity.status === "DAMAGED_TREND") {
+    const blockedBy = [
+      ...integrity.riskFlags,
+      ...input.trendContext.riskGate.blockedBy,
+      ...reaction.riskFlags,
+    ];
+
+    if (structureRepairEligible({ direction, trendContext: input.trendContext })) {
+      return basePlan({
+        blockedBy,
+        currentPrice: input.currentPrice,
+        direction,
+        isPlanEligible: false,
+        status: waitStatus(direction),
+        summary: direction === "long"
+          ? "v3 计划草案：多头结构短线受损，不给现价交易计划；等待重新站回关键位并确认承接后再人工复核。"
+          : "v3 计划草案：空头结构短线受损，不给现价交易计划；等待重新跌回关键位并确认承压后再人工复核。",
+        trendContext: input.trendContext,
+      });
+    }
+
     return basePlan({
-      blockedBy: integrity.riskFlags,
+      blockedBy,
       currentPrice: input.currentPrice,
       direction,
       isPlanEligible: false,

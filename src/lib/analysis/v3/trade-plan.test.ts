@@ -331,6 +331,76 @@ test("buildV3TradePlan blocks stale eligible context when stop or target is on t
   assert.ok(plan.blockedBy.includes("invalid_nearest_target"));
 });
 
+test("buildV3TradePlan converts an RR-qualified damaged trend into a structure-repair wait plan", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 107.2,
+    signal: signal({ direction: "long" }),
+    trendContext: trendContext({
+      reactionQuality: {
+        ...trendContext().reactionQuality!,
+        qualityScore: 52,
+        riskFlags: [],
+        status: "REACTION_STARTED",
+        summary: "回踩开始但还没确认",
+      },
+      riskGate: {
+        allowed: false,
+        blockedBy: ["bull_structure_broken"],
+        mode: "readonly_v3_risk_gate",
+      },
+      trendIntegrity: {
+        ...trendContext().trendIntegrity!,
+        evidence: ["短周期出现 CHOCH_DOWN，但上方目标和结构止损仍清楚。"],
+        integrityScore: 24,
+        riskFlags: ["bull_structure_broken"],
+        status: "DAMAGED_TREND",
+        summary: "多头结构短线受损，等待重新修复。",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "WAIT_PULLBACK");
+  assert.equal(plan.isPlanEligible, false);
+  assert.equal(plan.rewardRisk, 4.38);
+  assert.ok(plan.blockedBy.includes("bull_structure_broken"));
+  assert.match(plan.summary, /结构受损|等待/);
+  assert.match(plan.entryZone, /重新站回|结构修复|人工复核/);
+  assert.equal(plan.hasAutoExecution, false);
+});
+
+test("buildV3TradePlan still blocks a damaged trend when the reaction already failed", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 107.2,
+    signal: signal({ direction: "long" }),
+    trendContext: trendContext({
+      reactionQuality: {
+        ...trendContext().reactionQuality!,
+        qualityScore: 12,
+        riskFlags: ["support_lost"],
+        status: "FAILED",
+        summary: "支撑失守，承接失败。",
+      },
+      riskGate: {
+        allowed: false,
+        blockedBy: ["bull_structure_broken", "support_lost"],
+        mode: "readonly_v3_risk_gate",
+      },
+      trendIntegrity: {
+        ...trendContext().trendIntegrity!,
+        integrityScore: 0,
+        riskFlags: ["bull_structure_broken"],
+        status: "DAMAGED_TREND",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "BLOCKED");
+  assert.equal(plan.isPlanEligible, false);
+  assert.ok(plan.blockedBy.includes("bull_structure_broken"));
+  assert.ok(plan.blockedBy.includes("support_lost"));
+  assert.match(plan.summary, /趋势完整度已破坏|阻断/);
+});
+
 test("buildV3TradePlan waits for pullback confirmation before drafting a long plan", () => {
   const plan = buildV3TradePlan({
     currentPrice: 107.2,

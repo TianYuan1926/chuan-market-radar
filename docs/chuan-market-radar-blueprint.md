@@ -1400,6 +1400,25 @@ RawSource
 - 本地验收已通过：`npm run build:market-cli`、`repository-hygiene.test.js` 50/50、`npm run typecheck`、`npm run lint`、`npm run test:market` 745 + 15 + 4、`npm run build`。
 - 下一次生产能力复验必须重新运行修正后的 `npm run backtest:professional`，不能继续引用 `/app/reports/professional-backtest-audit/2026-07-01T033214-250Z` 作为完整诊断依据。
 
+2026-07-01 修正后生产专业回测结果：
+
+- 腾讯云生产容器重新执行修正后的 `npm run backtest:professional`，确认命令已走正式 `--audit-round` 协议：80 候选池、10 个目标山寨、每币 10 个节点、Top10。
+- 生产报告 `/app/reports/professional-backtest-audit/2026-07-01T040310-984Z`：100 个节点，高优先级问题 76，`TRADE_PLAN_READY=1`，裁判状态仍是 `不能支撑实战`。
+- 三大核心成绩单已恢复：扫描分 61.47 但失败，启动前机会捕获率只有 26.92%；分析分 62.07，状态为 watch，需要连续多轮验证；策略分 19.03，失败，计划就绪率 1%，可用策略率 0%。
+- 机会池结果：启动前机会捕获率 26.92%，回踩/反抽确认机会捕获率 88.24%，风险复盘教材捕获率 0%。这说明系统更擅长发现已经有回踩/反抽确认的机会，对真正启动前机会仍不够早。
+- 计划卡点 Top：`reward_risk_below_minimum` 41 次，`位置/RR` 26 次，`bull_structure_broken` 24 次，`structure_confirmation_pending` 20 次，`chase_risk` 16 次，`stop_distance_too_wide` 16 次。
+- 关键位/RR 专项显示：结构盈亏比低于 `3:1` 的 41 个样本中有 16 个后验质量命中，需要抽样复核目标位和止损位；目标位投射过近/空间不足的 26 个样本中有 9 个质量命中；止损距离过宽的 16 个样本中有 6 个质量命中。
+- WAIT 后验仍不合格：7 个等待计划，1 个触发，0 个先到目标，1 个先到止损，6 个未触发，有效率 0%。等待更优入场价规则没有降低风控，但还没有证明能形成有效交易计划。
+- 下一步固定为：`关键位/RR 抽样复核 -> 目标位投射修正 -> 结构破坏误伤复查 -> 启动前机会排序增强`。禁止做 UI 打磨或新增功能来掩盖核心能力不足。
+
+2026-07-01 结构破坏误伤修复规则已落地：
+
+- 生产回测发现 `bull_structure_broken` 24 次，其中 12 个后验质量命中，说明“趋势完整度受损”存在把可等待机会直接硬杀的风险。
+- 新规则：`bull_structure_broken` / `bear_structure_broken` 不能直接转成交易计划；但如果结构 RR 已合格、止损目标有效、反应尚未失败，则输出 `WAIT_PULLBACK` / `WAIT_RETEST`，等待结构重新修复和人工复核。
+- 仍然硬阻断的情况：`support_lost`、`resistance_reclaimed`、反应状态为 `FAILED`、结构止损/目标无效、RR 不足 `3:1`、止损距离过宽。
+- 这次修复的目标不是提高 `TRADE_PLAN_READY` 数量，而是减少“可等待机会被误判为完全无效”的问题；当前网站核心能力仍必须继续通过生产专业回测验证，不能称为实战达标。
+- 下一轮回测必须重点观察：`bull_structure_broken` / `bear_structure_broken` 的硬阻断数量是否下降，条件等待计划是否增加，以及 WAIT 触发后是否仍然先止损。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。
