@@ -158,6 +158,85 @@ test("buildV3TradePlan blocks the draft when reward risk is below the minimum", 
   assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
 });
 
+test("buildV3TradePlan converts a low-RR long setup into a wait-entry plan when a valid pullback price exists", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 100,
+    signal: signal({ direction: "long" }),
+    trendContext: trendContext({
+      locationRiskReward: {
+        ...trendContext().locationRiskReward!,
+        currentPrice: 100,
+        isTradeEligible: false,
+        nearestTarget: 105,
+        rewardRisk: 1.25,
+        riskFlags: ["reward_risk_below_minimum"],
+        stopDistance: 4,
+        stopDistancePercent: 4,
+        structuralStop: 96,
+        targetDistance: 5,
+        targetDistancePercent: 5,
+        waitEntryPrice: 98.25,
+        waitEntryReason: "wait_for_minimum_rr",
+        waitEntryRewardRisk: 3,
+        waitEntryStopDistancePercent: 2.29,
+      },
+      riskGate: {
+        allowed: false,
+        blockedBy: ["reward_risk_below_minimum"],
+        mode: "readonly_v3_risk_gate",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "WAIT_PULLBACK");
+  assert.equal(plan.isPlanEligible, false);
+  assert.equal(plan.rewardRisk, 3);
+  assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
+  assert.match(plan.summary, /不追多/);
+  assert.match(plan.summary, /98\.25/);
+  assert.match(plan.entryZone, /等待入场 98\.250000/);
+});
+
+test("buildV3TradePlan converts a low-RR short setup into a wait-entry plan when a valid retest price exists", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 100,
+    signal: signal({ direction: "short" }),
+    trendContext: trendContext({
+      locationRiskReward: {
+        ...trendContext().locationRiskReward!,
+        currentPrice: 100,
+        direction: "short",
+        isTradeEligible: false,
+        nearestTarget: 98,
+        rewardRisk: 0.5,
+        riskFlags: ["reward_risk_below_minimum"],
+        stopDistance: 4,
+        stopDistancePercent: 4,
+        structuralStop: 104,
+        targetDistance: 2,
+        targetDistancePercent: 2,
+        waitEntryPrice: 102.5,
+        waitEntryReason: "wait_for_minimum_rr",
+        waitEntryRewardRisk: 3,
+        waitEntryStopDistancePercent: 1.46,
+      },
+      riskGate: {
+        allowed: false,
+        blockedBy: ["reward_risk_below_minimum"],
+        mode: "readonly_v3_risk_gate",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "WAIT_RETEST");
+  assert.equal(plan.isPlanEligible, false);
+  assert.equal(plan.rewardRisk, 3);
+  assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
+  assert.match(plan.summary, /不追空/);
+  assert.match(plan.summary, /102\.50/);
+  assert.match(plan.entryZone, /等待入场 102\.50/);
+});
+
 test("buildV3TradePlan blocks stale eligible context when structural stop is too wide", () => {
   const plan = buildV3TradePlan({
     currentPrice: 107.2,

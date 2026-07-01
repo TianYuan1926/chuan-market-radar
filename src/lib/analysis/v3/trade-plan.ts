@@ -116,6 +116,12 @@ function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
   return notes.join(" ");
 }
 
+function isWaitEntryOnlyBlocker(blocker: string) {
+  return blocker === "reward_risk_below_minimum" ||
+    blocker === "stop_distance_too_wide" ||
+    blocker === "chase_risk";
+}
+
 function invalidationText({
   structuralStop,
   direction,
@@ -199,6 +205,8 @@ function basePlan({
   status,
   summary,
   trendContext,
+  waitEntryPrice = null,
+  waitEntryRewardRisk = null,
 }: {
   blockedBy: string[];
   currentPrice: number;
@@ -207,13 +215,16 @@ function basePlan({
   status: V3TradePlanStatus;
   summary: string;
   trendContext: StrategyV3TrendContext;
+  waitEntryPrice?: number | null;
+  waitEntryRewardRisk?: number | null;
 }): StrategyV3TradePlan {
   const location = trendContext.locationRiskReward;
   const structuralStop = location?.structuralStop ?? null;
   const target = location?.nearestTarget ?? null;
+  const effectiveRewardRisk = waitEntryRewardRisk ?? location?.rewardRisk ?? null;
   const directionText = directionLabel(direction);
   const riskMap = structuralStop !== null && target !== null
-    ? `结构止损 ${priceLabel(structuralStop)}，第一目标 ${priceLabel(target)}，RR ${priceLabel(location?.rewardRisk ?? null)}:1`
+    ? `${waitEntryPrice !== null ? `等待入场 ${priceLabel(waitEntryPrice)}，` : ""}结构止损 ${priceLabel(structuralStop)}，第一目标 ${priceLabel(target)}，RR ${priceLabel(effectiveRewardRisk)}:1`
     : "结构止损或目标仍待确认";
   const entryContext = direction === "long"
     ? "等待靠近支撑后的承接确认，或突破后回踩不破再人工复核"
@@ -245,7 +256,7 @@ function basePlan({
     isPlanEligible,
     manualReviewRequired: true,
     positionSizing: isPlanEligible ? "只允许小仓试错，禁止追单；仓位需按结构止损距离反推。" : "未满足门控，不给仓位建议。",
-    rewardRisk: location?.rewardRisk ?? null,
+    rewardRisk: effectiveRewardRisk,
     status,
     structuralStop,
     summary,
@@ -331,12 +342,36 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
   });
 
   if (!location.isTradeEligible || !input.trendContext.riskGate.allowed || planQualityBlockedBy.length > 0) {
+    const blockedBy = [
+      ...location.riskFlags,
+      ...input.trendContext.riskGate.blockedBy,
+      ...planQualityBlockedBy,
+    ];
+    const hardBlockers = [...new Set(blockedBy)].filter((blocker) => !isWaitEntryOnlyBlocker(blocker));
+    const hasValidWaitEntry = location.waitEntryPrice !== null &&
+      location.waitEntryPrice !== undefined &&
+      location.waitEntryRewardRisk !== null &&
+      location.waitEntryRewardRisk !== undefined &&
+      location.waitEntryRewardRisk >= Math.max(minimumPlanRewardRisk, location.minRewardRisk);
+
+    if (hasValidWaitEntry && hardBlockers.length === 0) {
+      return basePlan({
+        blockedBy: [...new Set(blockedBy)],
+        currentPrice: input.currentPrice,
+        direction,
+        isPlanEligible: false,
+        status: waitStatus(direction),
+        summary: direction === "long"
+          ? `v3 计划草案：当前位置不追多，等待回踩到 ${priceLabel(location.waitEntryPrice ?? null)} 附近，RR 重新达到 ${priceLabel(location.waitEntryRewardRisk ?? null)}:1 后再人工复核。`
+          : `v3 计划草案：当前位置不追空，等待反抽到 ${priceLabel(location.waitEntryPrice ?? null)} 附近，RR 重新达到 ${priceLabel(location.waitEntryRewardRisk ?? null)}:1 后再人工复核。`,
+        trendContext: input.trendContext,
+        waitEntryPrice: location.waitEntryPrice,
+        waitEntryRewardRisk: location.waitEntryRewardRisk,
+      });
+    }
+
     return basePlan({
-      blockedBy: [
-        ...location.riskFlags,
-        ...input.trendContext.riskGate.blockedBy,
-        ...planQualityBlockedBy,
-      ],
+      blockedBy,
       currentPrice: input.currentPrice,
       direction,
       isPlanEligible: false,

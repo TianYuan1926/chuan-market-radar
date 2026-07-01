@@ -1380,6 +1380,16 @@ RawSource
 - 本地专项验收已通过：`npm run build:market-cli`、`professional-audit-round.test.js` 47/47。
 - 下一步固定为：基于 `levelQualityMetrics` 的真实样本继续修“目标位投射”和“结构止损距离”规则。目标是减少质量命中样本被 RR/关键位错杀，但仍维持 `3:1` 最低门槛和结构失效保护。
 
+2026-07-01 策略根因包：等待更优入场价规则已落地：
+
+- 本轮只处理策略层“当前位置已经失去赔率优势，但回踩/反抽到更好位置后可能重新满足结构盈亏比”的问题；不改变扫描排序，不放宽 `3:1`，不把 WAIT 包装成 `TRADE_PLAN_READY`。
+- `evaluateV3LocationRiskReward` 已新增等待入场价计算：当当前位置 `RR < 3:1`，或结构止损距离超过 6% 时，系统会基于当前结构止损和最近目标反推一个更合理的等待价。
+- 多头只能等待更低、更靠近结构止损、仍在目标下方的位置；空头只能等待更高、更靠近结构止损、仍在目标上方的位置。无效等待价必须返回空，不能硬编入场。
+- `buildV3TradePlan` 已区分“硬阻断”和“只适合等待更好价格”：如果唯一问题是 `reward_risk_below_minimum`、`stop_distance_too_wide` 或 `chase_risk`，且反推等待价能重新达到 `RR >= 3:1`，计划状态只能是 `WAIT_PULLBACK` / `WAIT_RETEST`，不能是 `READY_LONG` / `READY_SHORT`。
+- 该规则直接服务“不要等涨完/跌完才提示”的核心目标：当前价格不合格时，系统必须讲清楚“不追，等哪里”，而不是只给一句低 RR 阻断，也不能为了产生计划去追价。
+- 本地验收已通过：`npm run build:market-cli`，v3 定向测试 18/18，`npm run typecheck`，`npm run lint`，`npm run test:market` 745 + 15 + 4，`npm run build`。
+- 下一轮生产策略专项复验必须看：低 RR / 止损过宽样本是否更多转为清晰 WAIT 条件；WAIT 后验是否减少“刚触发就先止损”；`TRADE_PLAN_READY` 是否仍只给完整证据计划。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

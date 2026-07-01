@@ -68,6 +68,152 @@ function targetRewardRisk({
   return targetDistance > 0 ? round(targetDistance / stopDistance) : null;
 }
 
+function rewardRiskAtEntry({
+  direction,
+  entry,
+  structuralStop,
+  target,
+}: {
+  direction: V3LocationDirection;
+  entry: number;
+  structuralStop: number;
+  target: number;
+}) {
+  const stopDistance = direction === "long"
+    ? entry - structuralStop
+    : direction === "short"
+      ? structuralStop - entry
+      : 0;
+  const targetDistance = direction === "long"
+    ? target - entry
+    : direction === "short"
+      ? entry - target
+      : 0;
+
+  return stopDistance > 0 && targetDistance > 0
+    ? round(targetDistance / stopDistance)
+    : null;
+}
+
+function stopDistancePercentAtEntry({
+  direction,
+  entry,
+  structuralStop,
+}: {
+  direction: V3LocationDirection;
+  entry: number;
+  structuralStop: number;
+}) {
+  const distance = direction === "long"
+    ? entry - structuralStop
+    : direction === "short"
+      ? structuralStop - entry
+      : 0;
+
+  return percent(Math.max(0, distance), entry);
+}
+
+function waitEntryForMinimumQuality({
+  currentPrice,
+  direction,
+  maxStopDistancePercent,
+  minRewardRisk,
+  nearestTarget,
+  rewardRisk,
+  stopDistancePercent,
+  structuralStop,
+}: {
+  currentPrice: number;
+  direction: V3LocationDirection;
+  maxStopDistancePercent: number;
+  minRewardRisk: number;
+  nearestTarget: number | null;
+  rewardRisk: number | null;
+  stopDistancePercent: number;
+  structuralStop: number | null;
+}) {
+  if (
+    direction === "neutral" ||
+    structuralStop === null ||
+    nearestTarget === null ||
+    !Number.isFinite(structuralStop) ||
+    !Number.isFinite(nearestTarget)
+  ) {
+    return {
+      waitEntryPrice: null,
+      waitEntryReason: null,
+      waitEntryRewardRisk: null,
+      waitEntryStopDistancePercent: null,
+    };
+  }
+
+  const needsBetterRewardRisk = rewardRisk === null || rewardRisk < minRewardRisk;
+  const needsCloserStop = stopDistancePercent > maxStopDistancePercent;
+
+  if (!needsBetterRewardRisk && !needsCloserStop) {
+    return {
+      waitEntryPrice: null,
+      waitEntryReason: null,
+      waitEntryRewardRisk: null,
+      waitEntryStopDistancePercent: null,
+    };
+  }
+
+  const maxStopDistanceRatio = Math.max(0.001, maxStopDistancePercent / 100);
+  const rrBoundary = direction === "long"
+    ? (nearestTarget + minRewardRisk * structuralStop) / (minRewardRisk + 1)
+    : (minRewardRisk * structuralStop + nearestTarget) / (minRewardRisk + 1);
+  const stopDistanceBoundary = direction === "long"
+    ? structuralStop / (1 - maxStopDistanceRatio)
+    : structuralStop / (1 + maxStopDistanceRatio);
+  const rawEntry = direction === "long"
+    ? Math.min(
+      currentPrice,
+      needsBetterRewardRisk ? rrBoundary : currentPrice,
+      needsCloserStop ? stopDistanceBoundary : currentPrice,
+    )
+    : Math.max(
+      currentPrice,
+      needsBetterRewardRisk ? rrBoundary : currentPrice,
+      needsCloserStop ? stopDistanceBoundary : currentPrice,
+    );
+  const validEntry = direction === "long"
+    ? rawEntry > structuralStop && rawEntry < nearestTarget && rawEntry < currentPrice
+    : rawEntry < structuralStop && rawEntry > nearestTarget && rawEntry > currentPrice;
+
+  if (!validEntry) {
+    return {
+      waitEntryPrice: null,
+      waitEntryReason: null,
+      waitEntryRewardRisk: null,
+      waitEntryStopDistancePercent: null,
+    };
+  }
+
+  const waitEntryRewardRisk = rewardRiskAtEntry({
+    direction,
+    entry: rawEntry,
+    structuralStop,
+    target: nearestTarget,
+  });
+  const waitEntryStopDistancePercent = stopDistancePercentAtEntry({
+    direction,
+    entry: rawEntry,
+    structuralStop,
+  });
+
+  return {
+    waitEntryPrice: roundPrice(rawEntry),
+    waitEntryReason: needsBetterRewardRisk && needsCloserStop
+      ? "wait_for_rr_and_stop_distance"
+      : needsBetterRewardRisk
+        ? "wait_for_minimum_rr"
+        : "wait_for_closer_structural_stop",
+    waitEntryRewardRisk,
+    waitEntryStopDistancePercent,
+  };
+}
+
 function firstTradableTarget({
   currentPrice,
   direction,
@@ -140,11 +286,15 @@ function summaryFor(result: Omit<StrategyV3LocationRiskReward, "summary">) {
   }
 
   if (result.rewardRisk < result.minRewardRisk) {
-    return `v3 位置/RR：当前盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1，Risk Gate 阻断。`;
+    return result.waitEntryPrice !== null && result.waitEntryPrice !== undefined
+      ? `v3 位置/RR：当前位置盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1；只允许等待 ${result.waitEntryPrice} 附近，预计 RR ${result.waitEntryRewardRisk}:1 后再复核。`
+      : `v3 位置/RR：当前盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1，Risk Gate 阻断。`;
   }
 
   if (result.riskFlags.includes("chase_risk")) {
-    return `v3 位置/RR：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远，等待更好回踩/反抽。`;
+    return result.waitEntryPrice !== null && result.waitEntryPrice !== undefined
+      ? `v3 位置/RR：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远；等待 ${result.waitEntryPrice} 附近把止损距离压到 ${result.waitEntryStopDistancePercent}% 后再复核。`
+      : `v3 位置/RR：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远，等待更好回踩/反抽。`;
   }
 
   return `v3 位置/RR：结构止损清楚，前方结构目标支持 ${result.rewardRisk}:1，位置质量合格。`;
@@ -231,6 +381,16 @@ export function evaluateV3LocationRiskReward({
     riskFlags.push("stop_distance_too_wide");
     riskFlags.push("chase_risk");
   }
+  const waitEntry = waitEntryForMinimumQuality({
+    currentPrice,
+    direction,
+    maxStopDistancePercent,
+    minRewardRisk,
+    nearestTarget,
+    rewardRisk,
+    stopDistancePercent,
+    structuralStop,
+  });
 
   const baseResult = {
     allowedUse: "research_only" as const,
@@ -252,6 +412,7 @@ export function evaluateV3LocationRiskReward({
     targetDistancePercent,
     targetLevelId: target?.id ?? null,
     stopLevelId: direction === "long" ? support?.id ?? null : resistance?.id ?? null,
+    ...waitEntry,
   };
 
   return {

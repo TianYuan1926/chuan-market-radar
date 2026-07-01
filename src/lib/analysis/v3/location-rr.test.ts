@@ -96,7 +96,12 @@ test("evaluateV3LocationRiskReward blocks long setups when the nearest resistanc
   assert.equal(result.structuralStop, 96);
   assert.equal(result.nearestTarget, 105);
   assert.ok(result.riskFlags.includes("reward_risk_below_minimum"));
+  assert.equal(result.waitEntryPrice, 98.25);
+  assert.equal(result.waitEntryReason, "wait_for_minimum_rr");
+  assert.equal(result.waitEntryRewardRisk, 3);
+  assert.equal(result.waitEntryStopDistancePercent, 2.29);
   assert.match(result.summary, /3:1|盈亏比/);
+  assert.match(result.summary, /等待 98\.25/);
 });
 
 test("evaluateV3LocationRiskReward accepts long setups with a nearby structural stop and distant target", () => {
@@ -145,7 +150,33 @@ test("evaluateV3LocationRiskReward blocks shorts when nearby support destroys do
 
   assert.equal(result.isTradeEligible, false);
   assert.equal(result.rewardRisk, 0.5);
+  assert.equal(result.waitEntryPrice, 102.5);
+  assert.equal(result.waitEntryReason, "wait_for_minimum_rr");
+  assert.equal(result.waitEntryRewardRisk, 3);
+  assert.equal(result.waitEntryStopDistancePercent, 1.46);
   assert.ok(result.riskFlags.includes("reward_risk_below_minimum"));
+  assert.match(result.summary, /等待 102\.5/);
+});
+
+test("evaluateV3LocationRiskReward proposes a closer long entry when stop distance is too wide but RR is still valid", () => {
+  const result = evaluateV3LocationRiskReward({
+    currentPrice: 107.2,
+    direction: "long",
+    keyLevels: [
+      level({ direction: "SUPPORT", zoneLow: 100, zoneHigh: 102, midPrice: 101, type: "RANGE_LOW" }),
+      level({ direction: "RESISTANCE", zoneLow: 130, zoneHigh: 132, midPrice: 131, type: "RANGE_HIGH" }),
+    ],
+  });
+
+  assert.equal(result.isTradeEligible, false);
+  assert.equal(result.rewardRisk, 3.17);
+  assert.equal(result.waitEntryPrice, 106.38);
+  assert.equal(result.waitEntryReason, "wait_for_closer_structural_stop");
+  assert.equal(result.waitEntryRewardRisk, 3.7);
+  assert.equal(result.waitEntryStopDistancePercent, 6);
+  assert.ok(result.riskFlags.includes("stop_distance_too_wide"));
+  assert.ok(result.riskFlags.includes("chase_risk"));
+  assert.match(result.summary, /等待 106\.38/);
 });
 
 test("evaluateV3LocationRiskReward uses deeper support for shorts when the nearest support is only TP1 noise", () => {

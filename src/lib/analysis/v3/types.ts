@@ -243,6 +243,10 @@ export type StrategyV3LocationRiskReward = {
   targetDistancePercent: number;
   targetLevelId: string | null;
   stopLevelId: string | null;
+  waitEntryPrice?: number | null;
+  waitEntryReason?: string | null;
+  waitEntryRewardRisk?: number | null;
+  waitEntryStopDistancePercent?: number | null;
 };
 
 export type V3ReactionStatus =
