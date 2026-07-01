@@ -410,6 +410,32 @@ function normalizeAuditV2PlanBlockerMetric(value: unknown): HistoricalBacktestAu
   };
 }
 
+function normalizeAuditV2LevelQualityMetric(value: unknown): HistoricalBacktestAuditV2State["levelQualityMetrics"][number] {
+  const item = asObject(value);
+  const blocker = stringValue(item.blocker, "unknown");
+  const category = stringValue(item.category) || professionalAuditPlanBlockerCategory(blocker);
+  const diagnosis = stringValue(item.diagnosis) || fallbackPlanBlockerDiagnosis(category);
+
+  return {
+    blocker,
+    capturedCount: numericValue(item.capturedCount),
+    category,
+    conditionalWaitCount: numericValue(item.conditionalWaitCount),
+    count: numericValue(item.count),
+    diagnosis,
+    label: stringValue(item.label, blocker === "unknown" ? "未标注阻断原因" : blocker),
+    lateCount: numericValue(item.lateCount),
+    nextAction: stringValue(item.nextAction, "先人工抽样确认关键位/RR 卡点，再决定是否修规则。"),
+    primaryReason: stringValue(item.primaryReason, "unknown_level_issue"),
+    primaryReasonLabel: stringValue(item.primaryReasonLabel, "关键位/RR 问题未细分"),
+    qualityHitCount: numericValue(item.qualityHitCount),
+    qualityHitRatePct: numericValue(item.qualityHitRatePct),
+    riskReviewCount: numericValue(item.riskReviewCount),
+    sampleContexts: normalizeAuditV2PlanBlockerMetric(item).sampleContexts,
+    sampleSymbols: asArray(item.sampleSymbols).map((entry) => stringValue(entry)).filter(Boolean),
+  };
+}
+
 function normalizeWaitPlanEvaluation(value: unknown): HistoricalBacktestAuditRoundProgress["nodes"][number]["waitPlanEvaluation"] {
   const item = asObject(value);
   const status = stringValue(item.status);
@@ -787,6 +813,7 @@ function normalizeAuditV2(payload: Record<string, unknown>): HistoricalBacktestA
     coreCapabilityMetrics: asArray(payload.coreCapabilityMetrics).map(normalizeAuditV2CoreCapabilityMetric),
     opportunityLaneMetrics: asArray(payload.opportunityLaneMetrics).map(normalizeAuditV2OpportunityLaneMetric),
     planBlockerMetrics: asArray(payload.planBlockerMetrics).map(normalizeAuditV2PlanBlockerMetric).slice(0, 20),
+    levelQualityMetrics: asArray(payload.levelQualityMetrics).map(normalizeAuditV2LevelQualityMetric).slice(0, 12),
     waitPlanMetrics: normalizeWaitPlanMetrics(payload.waitPlanMetrics),
     pressureTestMetrics: asArray(payload.pressureTestMetrics).map(normalizePressureMetric).slice(0, 8),
     marketRegimeMetrics: asArray(payload.marketRegimeMetrics).map(normalizeMarketRegimeMetric).slice(0, 12),

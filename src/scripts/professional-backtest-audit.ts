@@ -1171,6 +1171,21 @@ function reportMarkdown(report: ReturnType<typeof runProfessionalReplay>, failur
     lines.push("");
   }
 
+  if (report.levelQualityMetrics.length > 0) {
+    lines.push(
+      "## 关键位/RR 质量专项",
+      "",
+      "| 阻断原因 | 主根因 | 次数 | 质量命中 | 已捕获 | 迟到/风险 | 代表币种 | 下一步 |",
+      "|---|---|---:|---:|---:|---:|---|---|",
+    );
+
+    for (const metric of report.levelQualityMetrics.slice(0, 10)) {
+      lines.push(`| ${metric.label} | ${metric.primaryReasonLabel} | ${metric.count} | ${metric.qualityHitCount} / ${metric.qualityHitRatePct}% | ${metric.capturedCount} | ${metric.lateCount + metric.riskReviewCount} | ${metric.sampleSymbols.join(" / ") || "-"} | ${metric.nextAction} |`);
+    }
+
+    lines.push("");
+  }
+
   lines.push(
     "## WAIT 条件计划后验",
     "",

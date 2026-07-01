@@ -18,6 +18,8 @@ import {
   type ProfessionalAuditMarketRegimeMetric,
   type ProfessionalCoreCapabilityFailure,
   type ProfessionalCoreCapabilityMetric,
+  type ProfessionalAuditLevelQualityMetric,
+  type ProfessionalAuditLevelQualityReason,
   type ProfessionalAuditOpportunityLaneMetric,
   type ProfessionalAuditOpportunityLaneName,
   type ProfessionalAuditPlanBlockerMetric,
@@ -2502,6 +2504,121 @@ export function buildPlanBlockerMetrics(nodes: ProfessionalAuditRoundNode[]): Pr
     .sort((left, right) => right.count - left.count || left.blocker.localeCompare(right.blocker));
 }
 
+const levelQualityReasonLabels: Record<ProfessionalAuditLevelQualityReason, string> = {
+  level_missing_or_invalid: "关键位缺失或无效",
+  quality_hit_needs_manual_review: "质量命中但被关键位/RR 阻断",
+  reasonable_late_or_risk_block: "迟到或风险复盘，阻断更合理",
+  rr_below_minimum: "结构盈亏比低于 3:1",
+  stop_too_wide: "结构止损距离过宽",
+  target_projection_too_near: "目标位投射过近或空间不足",
+  unknown_level_issue: "关键位/RR 问题未细分",
+};
+
+function levelQualityReasonFor(metric: ProfessionalAuditPlanBlockerMetric): ProfessionalAuditLevelQualityReason {
+  if (
+    metric.blocker === "no_nearest_target" ||
+    metric.blocker === "no_structural_stop" ||
+    metric.blocker === "invalid_nearest_target" ||
+    metric.blocker === "invalid_structural_stop"
+  ) {
+    return "level_missing_or_invalid";
+  }
+
+  if (metric.blocker === "stop_distance_too_wide") {
+    return "stop_too_wide";
+  }
+
+  if (metric.blocker === "reward_risk_below_minimum") {
+    return "rr_below_minimum";
+  }
+
+  if (
+    metric.blocker === "location_rr" ||
+    metric.blocker === "reward_risk_unknown" ||
+    metric.blocker === "位置/RR"
+  ) {
+    return "target_projection_too_near";
+  }
+
+  if (metric.qualityHitCount > 0) {
+    return "quality_hit_needs_manual_review";
+  }
+
+  if (metric.lateCount + metric.riskReviewCount >= Math.max(1, Math.ceil(metric.count * 0.5))) {
+    return "reasonable_late_or_risk_block";
+  }
+
+  return "unknown_level_issue";
+}
+
+function levelQualityNextAction(metric: ProfessionalAuditPlanBlockerMetric, reason: ProfessionalAuditLevelQualityReason) {
+  const qualityPrefix = metric.qualityHitCount > 0
+    ? `其中 ${metric.qualityHitCount} 个质量命中样本被阻断，必须抽样复核；`
+    : "";
+
+  if (reason === "level_missing_or_invalid") {
+    return `${qualityPrefix}优先复查结构止损、最近目标和关键位有效性，缺位时维持阻断，不允许补假目标。`;
+  }
+
+  if (reason === "stop_too_wide") {
+    return `${qualityPrefix}复查止损是否被放到过远结构位；若只能用宽止损，就改成等待更好位置，不能降低 RR。`;
+  }
+
+  if (reason === "rr_below_minimum") {
+    return `${qualityPrefix}复查目标投射和止损距离；若真实 RR 仍低于 3:1，不降低 3:1 门槛，继续阻断并输出等待条件。`;
+  }
+
+  if (reason === "target_projection_too_near") {
+    return `${qualityPrefix}检查是否只用了最近小目标误杀空间；必须寻找可追溯前方结构目标，仍不足 3:1 则阻断。`;
+  }
+
+  if (reason === "quality_hit_needs_manual_review") {
+    return "质量命中但被关键位/RR 阻断，逐样本复核目标位、止损位、方向和观察时间，确认是不是规则错杀。";
+  }
+
+  if (reason === "reasonable_late_or_risk_block") {
+    return "样本偏迟到或属于风险复盘，暂时维持阻断；只作为反面教材，不提升为交易计划。";
+  }
+
+  return "先人工抽样确认卡点语义，再决定是补关键位规则还是保留阻断。";
+}
+
+export function buildLevelQualityMetrics(planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[]): ProfessionalAuditLevelQualityMetric[] {
+  return planBlockerMetrics
+    .filter((metric) =>
+      metric.diagnosis === "needs_level_audit" ||
+      metric.category === "rr" ||
+      metric.category === "stop_target"
+    )
+    .map((metric) => {
+      const primaryReason = levelQualityReasonFor(metric);
+
+      return {
+        blocker: metric.blocker,
+        capturedCount: metric.capturedCount,
+        category: metric.category,
+        conditionalWaitCount: metric.conditionalWaitCount,
+        count: metric.count,
+        diagnosis: metric.diagnosis,
+        label: metric.label,
+        lateCount: metric.lateCount,
+        nextAction: levelQualityNextAction(metric, primaryReason),
+        primaryReason,
+        primaryReasonLabel: levelQualityReasonLabels[primaryReason],
+        qualityHitCount: metric.qualityHitCount,
+        qualityHitRatePct: percent(metric.qualityHitCount, metric.count),
+        riskReviewCount: metric.riskReviewCount,
+        sampleContexts: metric.sampleContexts,
+        sampleSymbols: metric.sampleSymbols,
+      };
+    })
+    .sort((left, right) =>
+      right.qualityHitCount - left.qualityHitCount ||
+      right.count - left.count ||
+      left.blocker.localeCompare(right.blocker)
+    );
+}
+
 export function isActionableWaitPlanNode(node: Pick<
   ProfessionalAuditRoundNode,
   "lateAtSelection" | "opportunityLane" | "rewardRisk" | "tradePlanStatus"
@@ -3913,6 +4030,7 @@ export function runProfessionalAuditRound({
   };
   const opportunityLaneMetrics = buildOpportunityLaneMetrics(nodes);
   const planBlockerMetrics = buildPlanBlockerMetrics(nodes);
+  const levelQualityMetrics = buildLevelQualityMetrics(planBlockerMetrics);
   const waitPlanMetrics = buildWaitPlanMetrics(nodes);
   const pressureTestMetrics = buildPressureTestMetrics(nodes, topN, candidateUniverseSize);
   const marketRegimeMetrics = buildMarketRegimeMetrics(nodes);
@@ -4020,6 +4138,7 @@ export function runProfessionalAuditRound({
     coreCapabilityMetrics,
     opportunityLaneMetrics,
     planBlockerMetrics,
+    levelQualityMetrics,
     waitPlanMetrics,
     pressureTestMetrics,
     marketRegimeMetrics,

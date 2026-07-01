@@ -1297,6 +1297,25 @@ export type HistoricalBacktestAuditPlanBlockerMetric = {
   sampleSymbols: string[]
 }
 
+export type HistoricalBacktestAuditLevelQualityMetric = {
+  blocker: string
+  capturedCount: number
+  category: string
+  conditionalWaitCount: number
+  count: number
+  diagnosis: string
+  label: string
+  lateCount: number
+  nextAction: string
+  primaryReason: string
+  primaryReasonLabel: string
+  qualityHitCount: number
+  qualityHitRatePct: number
+  riskReviewCount: number
+  sampleContexts: HistoricalBacktestAuditPlanBlockerMetric['sampleContexts']
+  sampleSymbols: string[]
+}
+
 export type HistoricalBacktestAuditWaitPlanEvaluation = {
   barsToTrigger: number | null
   diagnosticFlags: string[]
@@ -1518,6 +1537,7 @@ export type HistoricalBacktestAuditV2State = {
   coreCapabilityMetrics: HistoricalBacktestAuditCoreCapabilityMetric[]
   opportunityLaneMetrics: HistoricalBacktestAuditOpportunityLaneMetric[]
   planBlockerMetrics: HistoricalBacktestAuditPlanBlockerMetric[]
+  levelQualityMetrics: HistoricalBacktestAuditLevelQualityMetric[]
   waitPlanMetrics: HistoricalBacktestAuditWaitPlanMetric
   pressureTestMetrics: HistoricalBacktestAuditPressureMetric[]
   marketRegimeMetrics: HistoricalBacktestAuditMarketRegimeMetric[]

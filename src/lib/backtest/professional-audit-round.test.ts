@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildLevelQualityMetrics,
   buildPlanBlockerMetrics,
   buildWaitPlanMetrics,
   classifyProfessionalAuditOpportunityLane,
@@ -1639,6 +1640,70 @@ test("buildPlanBlockerMetrics classifies blockers and separates likely false kil
   assert.equal(chaseMetric?.riskReviewCount, 1);
 });
 
+test("buildLevelQualityMetrics splits RR stop and target blockers into actionable diagnostics", () => {
+  const metrics = buildLevelQualityMetrics([
+    {
+      blocker: "reward_risk_below_minimum",
+      capturedCount: 1,
+      category: "rr",
+      conditionalWaitCount: 1,
+      count: 3,
+      diagnosis: "needs_level_audit",
+      label: "结构盈亏比低于 3:1",
+      lateCount: 0,
+      qualityHitCount: 2,
+      riskReviewCount: 0,
+      sampleContexts: [{
+        capturedByRadar: true,
+        hit: true,
+        lateAtSelection: false,
+        nodeRole: "pre_move",
+        opportunityLane: "early_setup",
+        qualityHit: true,
+        rewardRisk: 2.4,
+        symbol: "RRUSDT",
+        tradePlanStatus: "WAIT_PULLBACK",
+      }],
+      sampleSymbols: ["RRUSDT"],
+    },
+    {
+      blocker: "stop_distance_too_wide",
+      capturedCount: 0,
+      category: "stop_target",
+      conditionalWaitCount: 0,
+      count: 2,
+      diagnosis: "needs_level_audit",
+      label: "止损距离过宽",
+      lateCount: 0,
+      qualityHitCount: 0,
+      riskReviewCount: 0,
+      sampleContexts: [],
+      sampleSymbols: ["WIDEUSDT"],
+    },
+    {
+      blocker: "位置/RR",
+      capturedCount: 0,
+      category: "rr",
+      conditionalWaitCount: 0,
+      count: 1,
+      diagnosis: "needs_level_audit",
+      label: "结构盈亏比不足或未知",
+      lateCount: 0,
+      qualityHitCount: 0,
+      riskReviewCount: 0,
+      sampleContexts: [],
+      sampleSymbols: ["TARGETUSDT"],
+    },
+  ]);
+
+  assert.equal(metrics[0]?.blocker, "reward_risk_below_minimum");
+  assert.equal(metrics[0]?.primaryReason, "rr_below_minimum");
+  assert.equal(metrics[0]?.qualityHitRatePct, 66.67);
+  assert.match(metrics[0]?.nextAction ?? "", /不降低 3:1/);
+  assert.equal(metrics.find((metric) => metric.blocker === "stop_distance_too_wide")?.primaryReason, "stop_too_wide");
+  assert.equal(metrics.find((metric) => metric.blocker === "位置/RR")?.primaryReason, "target_projection_too_near");
+});
+
 test("runProfessionalAuditRound reports scan analysis and strategy core capability scorecards", () => {
   const candlesBySymbol = new Map<string, Candle[]>([
     ["TIAUSDT", sidewaysSeries(260)],
@@ -1678,6 +1743,7 @@ test("runProfessionalAuditRound reports scan analysis and strategy core capabili
   assert.ok(report.pressureTestMetrics.length > 0);
   assert.ok(Array.isArray(report.marketRegimeMetrics));
   assert.ok(Array.isArray(report.ruleStabilityMetrics));
+  assert.ok(Array.isArray(report.levelQualityMetrics));
   if (report.planBlockerMetrics[0]) {
     assert.equal(typeof report.planBlockerMetrics[0].category, "string");
     assert.equal(typeof report.planBlockerMetrics[0].diagnosis, "string");

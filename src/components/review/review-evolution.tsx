@@ -948,6 +948,35 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           </div>
                         </div>
                       ) : null}
+                      {data.auditV2.levelQualityMetrics.length > 0 ? (
+                        <div className="mt-3 border border-amber-500/25 bg-amber-500/5 p-2">
+                          <div className="text-[11px] font-semibold">关键位/RR 质量专项</div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {data.auditV2.levelQualityMetrics.slice(0, 6).map((metric) => (
+                              <div key={metric.blocker} className="border border-border bg-secondary/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-semibold">{readablePlanBlocker(metric.blocker) || metric.label}</span>
+                                  <span className="font-mono text-[10px] text-muted-foreground">{metric.count}</span>
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  <span className="border border-amber-500/30 px-1 py-0.5 text-[9px] text-amber-300">
+                                    {metric.primaryReasonLabel}
+                                  </span>
+                                  <span className="border border-border px-1 py-0.5 text-[9px] text-muted-foreground">
+                                    质量命中 {metric.qualityHitCount} / {metric.qualityHitRatePct}%
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                                  {metric.nextAction}
+                                </p>
+                                <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+                                  代表币种：{metric.sampleSymbols.join(' / ') || '暂无'}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       {data.auditV2.marketRegimeMetrics.length > 0 ? (
                         <div className="mt-3 border border-border bg-background/40 p-2">
                           <div className="text-[11px] font-semibold">市场状态分组</div>

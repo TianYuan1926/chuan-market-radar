@@ -133,6 +133,34 @@ export type ProfessionalAuditPlanBlockerMetric = {
   sampleSymbols: string[];
 };
 
+export type ProfessionalAuditLevelQualityReason =
+  | "level_missing_or_invalid"
+  | "quality_hit_needs_manual_review"
+  | "reasonable_late_or_risk_block"
+  | "rr_below_minimum"
+  | "stop_too_wide"
+  | "target_projection_too_near"
+  | "unknown_level_issue";
+
+export type ProfessionalAuditLevelQualityMetric = {
+  blocker: string;
+  capturedCount: number;
+  category: ProfessionalAuditPlanBlockerMetric["category"];
+  conditionalWaitCount: number;
+  count: number;
+  diagnosis: ProfessionalAuditPlanBlockerMetric["diagnosis"];
+  label: string;
+  lateCount: number;
+  nextAction: string;
+  primaryReason: ProfessionalAuditLevelQualityReason;
+  primaryReasonLabel: string;
+  qualityHitCount: number;
+  qualityHitRatePct: number;
+  riskReviewCount: number;
+  sampleContexts: ProfessionalAuditPlanBlockerMetric["sampleContexts"];
+  sampleSymbols: string[];
+};
+
 export type ProfessionalAuditWaitPlanEvaluationStatus =
   | "missing_plan_levels"
   | "not_triggered"
@@ -313,6 +341,7 @@ export type ProfessionalReplayReport = {
   coreCapabilityMetrics: ProfessionalCoreCapabilityMetric[];
   opportunityLaneMetrics: ProfessionalAuditOpportunityLaneMetric[];
   planBlockerMetrics: ProfessionalAuditPlanBlockerMetric[];
+  levelQualityMetrics: ProfessionalAuditLevelQualityMetric[];
   waitPlanMetrics: ProfessionalAuditWaitPlanMetric;
   pressureTestMetrics: ProfessionalAuditPressureTestMetric[];
   marketRegimeMetrics: ProfessionalAuditMarketRegimeMetric[];
@@ -1174,6 +1203,7 @@ export function runProfessionalReplay(input: ProfessionalReplayInput): Professio
     pressureTestMetrics: [],
     marketRegimeMetrics: [],
     ruleStabilityMetrics: [],
+    levelQualityMetrics: [],
     remediationPlan,
     roundSummary,
     schemaVersion: "professional-backtest-audit-report.v2",
