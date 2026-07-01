@@ -1367,7 +1367,10 @@ RawSource
 - 生产策略专项复验报告 `/app/reports/professional-backtest-audit/2026-07-01T001549-077Z`：100 个节点，高优先级问题 54，`TRADE_PLAN_READY` 为 0，裁判系统仍是 `不能支撑实战`。对比上一轮 `/app/reports/professional-backtest-audit/2026-06-30T161455-116Z`：高优先级问题 65 -> 54，扫描分数 60.51 -> 66.84，策略分数 20.44 -> 30.61，启动前捕获率 33.33% -> 40.74%，但分析分数 67.44 -> 57.49，WAIT 有效率仍为 0。
 - 本轮复验暴露一个数据层根因：Binance 公共 `openInterestHist` 对时间窗口严格，30 天请求会返回 400，导致 80 个候选的历史 OI 全部失败。已将历史 OI 请求起点夹到 29 天窗口内，避免 30 天窗口触发 400；这不使用未来数据，也不把最新 OI 回填到历史节点。
 - 已补仓库卫生测试固定该边界：专业回测 CLI 必须保留 OI 29 天窗口夹取、硬网络超时、报告后显式退出。新增本地验收：`npm run build:market-cli`、`repository-hygiene.test.js` 50/50、`npm run typecheck`、`npm run lint`、`npm run test:market` 741 + 15 + 4、`npm run build`。
-- 下一步固定为：部署 OI 修复后重跑生产策略专项复验。只有确认 `openInterestHist` 不再 80/80 失败，才继续判断策略分数、`TRADE_PLAN_READY` 和 WAIT 有效率；否则当前策略审计仍是数据不完整条件下的结论。
+- OI 修复上线后生产策略专项复验报告 `/app/reports/professional-backtest-audit/2026-07-01T004225-282Z`：`openInterestHist` 失败 0，Funding 失败 0，说明历史衍生品数据窗口问题已修复。该轮 100 个节点，高优先级问题 65，`TRADE_PLAN_READY` 为 0，裁判系统仍是 `不能支撑实战`。
+- 对比上一轮 `/app/reports/professional-backtest-audit/2026-07-01T001549-077Z`：高优先级问题 54 -> 65，扫描分数 66.84 -> 59.06，分析分数 57.49 -> 51.84，策略分数 30.61 -> 24.39，启动前捕获率 40.74% -> 34.38%，WAIT 有效率仍为 0。该退步是在 OI 数据恢复和样本轮换后的真实结果，不能用“数据缺失”解释。
+- 当前首要根因重新收敛为策略层：RR/关键位质量仍是最大阻断，`reward_risk_below_minimum` 30 次，`位置/RR` 26 次，`structure_confirmation_pending` 20 次，`neutral_direction` 18 次，`bull_structure_broken` 15 次，`stop_distance_too_wide` 15 次。
+- 下一步固定为：关键位/RR 质量样本专项。先抽取 `needs_level_audit` 中的质量命中样本，判断到底是目标位投射太近、结构止损太宽、方向错误，还是应该维持阻断；同时继续禁止降低 `3:1` RR 或把 WAIT 冒充成交易计划就绪。
 
 验收不能只看代码通过，还要看：
 
