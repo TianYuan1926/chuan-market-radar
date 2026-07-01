@@ -89,6 +89,24 @@ function makeLevel({
   });
   const distanceScore = Math.max(0, 100 - Math.abs(currentPrice - price) / Math.max(price, 1) * 1000);
   const typeScore = type === "RANGE_HIGH" || type === "RANGE_LOW" ? 82 : 72;
+  const roleFlipReasons = direction === "SUPPORT"
+    ? [
+      `${timeframe} role-flip support generated after price broke above a prior resistance.`,
+      `突破压力后的回踩防守位，只能作为等待承接确认的结构依据。`,
+    ]
+    : [
+      `${timeframe} role-flip resistance generated after price broke below a prior support.`,
+      `跌破支撑后的反抽压力位，只能作为等待承压确认的结构依据。`,
+    ];
+  const roleFlipConfirmationRules = direction === "SUPPORT"
+    ? [
+      "Retest the flipped zone without closing back below zoneLow.",
+      "回踩该区间后重新收回 zoneHigh，并形成更高低点。",
+    ]
+    : [
+      "Retest the flipped zone without closing back above zoneHigh.",
+      "反抽该区间后重新跌回 zoneLow，并形成更低高点。",
+    ];
 
   return {
     id: `${symbol}-${timeframe}-${type.toLowerCase()}-${roundPrice(price)}`,
@@ -103,23 +121,63 @@ function makeLevel({
     reactionScore: status === "ARRIVED" ? 38 : status === "BROKEN" ? 20 : 0,
     confluenceScore: type === "RANGE_HIGH" || type === "RANGE_LOW" ? 68 : 48,
     status,
-    reasons: [
-      `${timeframe} ${type.replaceAll("_", " ").toLowerCase()} generated from recent OHLCV structure.`,
-      `Zone width uses ATR-like candle range memory instead of a single point.`,
-    ],
-    confirmationRules: direction === "SUPPORT"
-      ? [
-        "Price reclaims zoneHigh after entering the support zone.",
-        "A higher low forms on the execution timeframe.",
-      ]
+    reasons: type === "ROLE_FLIP"
+      ? roleFlipReasons
       : [
-        "Price fails to close above zoneHigh or re-enters below zoneLow.",
-        "A lower high forms after rejection.",
+        `${timeframe} ${type.replaceAll("_", " ").toLowerCase()} generated from recent OHLCV structure.`,
+        `Zone width uses ATR-like candle range memory instead of a single point.`,
       ],
+    confirmationRules: type === "ROLE_FLIP"
+      ? roleFlipConfirmationRules
+      : direction === "SUPPORT"
+        ? [
+          "Price reclaims zoneHigh after entering the support zone.",
+          "A higher low forms on the execution timeframe.",
+        ]
+        : [
+          "Price fails to close above zoneHigh or re-enters below zoneLow.",
+          "A lower high forms after rejection.",
+        ],
     invalidationRule: direction === "SUPPORT"
       ? `Close below ${zoneLow} invalidates this support zone.`
       : `Close above ${zoneHigh} and retest hold invalidates this resistance zone.`,
   };
+}
+
+function roleFlipLevelsFrom({
+  candles,
+  currentPrice,
+  levels,
+  symbol,
+  timeframe,
+}: BuildKeyLevelsInput & { levels: KeyLevel[] }) {
+  return levels.flatMap((level) => {
+    if (level.direction === "RESISTANCE" && currentPrice > level.zoneHigh) {
+      return makeLevel({
+        candles,
+        currentPrice,
+        direction: "SUPPORT",
+        price: level.zoneHigh,
+        symbol,
+        timeframe,
+        type: "ROLE_FLIP",
+      });
+    }
+
+    if (level.direction === "SUPPORT" && currentPrice < level.zoneLow) {
+      return makeLevel({
+        candles,
+        currentPrice,
+        direction: "RESISTANCE",
+        price: level.zoneLow,
+        symbol,
+        timeframe,
+        type: "ROLE_FLIP",
+      });
+    }
+
+    return [];
+  });
 }
 
 function uniqueByRoundedPrice(levels: KeyLevel[]) {
@@ -204,7 +262,17 @@ export function buildKeyLevels({
       type: "RANGE_LOW",
     }),
   ];
-  const levels = uniqueByRoundedPrice([...rangeLevels, ...swingLevels]);
+  const baseLevels = uniqueByRoundedPrice([...rangeLevels, ...swingLevels]);
+  const levels = uniqueByRoundedPrice([
+    ...baseLevels,
+    ...roleFlipLevelsFrom({
+      candles,
+      currentPrice,
+      levels: baseLevels,
+      symbol,
+      timeframe,
+    }),
+  ]);
   const supports = levels
     .filter((level) => level.direction === "SUPPORT")
     .sort((first, second) => second.keyScore - first.keyScore || second.midPrice - first.midPrice)

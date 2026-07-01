@@ -90,3 +90,41 @@ test("buildKeyLevels marks a broken resistance after price closes above the zone
 
   assert.ok(levels.some((level) => level.direction === "RESISTANCE" && level.status === "BROKEN"));
 });
+
+test("buildKeyLevels creates a role-flip support when price breaks above a prior resistance", () => {
+  const levels = buildKeyLevels({
+    candles,
+    currentPrice: 130,
+    symbol: "TESTUSDT",
+    timeframe: "4h",
+  });
+  const roleFlipSupport = levels.find((level) =>
+    level.type === "ROLE_FLIP" &&
+    level.direction === "SUPPORT" &&
+    level.zoneHigh < 130
+  );
+
+  assert.ok(roleFlipSupport);
+  assert.equal(roleFlipSupport.status, "POTENTIAL");
+  assert.ok(roleFlipSupport.reasons.some((reason) => /role.?flip|突破压力/iu.test(reason)));
+  assert.ok(roleFlipSupport.confirmationRules.some((rule) => /回踩|retest|reclaim/iu.test(rule)));
+});
+
+test("buildKeyLevels creates a role-flip resistance when price breaks below a prior support", () => {
+  const levels = buildKeyLevels({
+    candles,
+    currentPrice: 80,
+    symbol: "TESTUSDT",
+    timeframe: "4h",
+  });
+  const roleFlipResistance = levels.find((level) =>
+    level.type === "ROLE_FLIP" &&
+    level.direction === "RESISTANCE" &&
+    level.zoneLow > 80
+  );
+
+  assert.ok(roleFlipResistance);
+  assert.equal(roleFlipResistance.status, "POTENTIAL");
+  assert.ok(roleFlipResistance.reasons.some((reason) => /role.?flip|跌破支撑/iu.test(reason)));
+  assert.ok(roleFlipResistance.confirmationRules.some((rule) => /反抽|retest|reject/iu.test(rule)));
+});

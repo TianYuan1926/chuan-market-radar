@@ -176,6 +176,11 @@ test("buildSignalTrendRadarV3Dossier promotes market-reading BOS into readonly l
   assert.equal(dossier.trendContext.marketReadings?.some((reading) =>
     reading.events.some((event) => event.type === "BOS_UP")
   ), true);
+  assert.equal(dossier.keyLevels.some((level) =>
+    level.type === "ROLE_FLIP" &&
+    level.direction === "SUPPORT" &&
+    level.zoneHigh < 12.6
+  ), true);
   assert.match(dossier.trendContext.nextStep, /回踩|承接/);
 });
 
