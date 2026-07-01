@@ -1364,7 +1364,10 @@ RawSource
 - 交易计划草案已补中文结构解释：缺结构止损时说明不能用随手价格当止损；目标位缺失时说明不能硬编 TP；目标/止损方向错误时要求重建支撑压力；止损过宽时要求等待更靠近防守位或更近有效结构。
 - 这次修复的价值是让报告能区分：是 RR 本身不足、关键位质量不足、等待确认不足，还是普通 Risk Gate 阻断。它仍然是诊断和整改基础，不代表策略已经能稳定实战。
 - 本地验收已通过：`npm run build:market-cli`，专项 `readiness/trade-plan` 测试 14/14，`npm run typecheck`，`npm run lint`，`npm run test:market` 741 + 15 + 4，`npm run build`。
-- 下一步固定为：生产专项复验。重点看 `level_quality_blocked` 是否真实进入健康/后台合同，是否能把“止损/目标质量问题”从 RR blocker 和 Risk Gate blocker 中拆出来；如果复验仍显示 WAIT 后验 0 或 `TRADE_PLAN_READY` 为 0，再继续修关键位生成质量和 WAIT 触发后顺向延续。
+- 生产策略专项复验报告 `/app/reports/professional-backtest-audit/2026-07-01T001549-077Z`：100 个节点，高优先级问题 54，`TRADE_PLAN_READY` 为 0，裁判系统仍是 `不能支撑实战`。对比上一轮 `/app/reports/professional-backtest-audit/2026-06-30T161455-116Z`：高优先级问题 65 -> 54，扫描分数 60.51 -> 66.84，策略分数 20.44 -> 30.61，启动前捕获率 33.33% -> 40.74%，但分析分数 67.44 -> 57.49，WAIT 有效率仍为 0。
+- 本轮复验暴露一个数据层根因：Binance 公共 `openInterestHist` 对时间窗口严格，30 天请求会返回 400，导致 80 个候选的历史 OI 全部失败。已将历史 OI 请求起点夹到 29 天窗口内，避免 30 天窗口触发 400；这不使用未来数据，也不把最新 OI 回填到历史节点。
+- 已补仓库卫生测试固定该边界：专业回测 CLI 必须保留 OI 29 天窗口夹取、硬网络超时、报告后显式退出。新增本地验收：`npm run build:market-cli`、`repository-hygiene.test.js` 50/50、`npm run typecheck`、`npm run lint`、`npm run test:market` 741 + 15 + 4、`npm run build`。
+- 下一步固定为：部署 OI 修复后重跑生产策略专项复验。只有确认 `openInterestHist` 不再 80/80 失败，才继续判断策略分数、`TRADE_PLAN_READY` 和 WAIT 有效率；否则当前策略审计仍是数据不完整条件下的结论。
 
 验收不能只看代码通过，还要看：
 

@@ -51,6 +51,7 @@ const BINANCE_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo
 const BINANCE_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines";
 const BINANCE_FUNDING_RATE_URL = "https://fapi.binance.com/fapi/v1/fundingRate";
 const BINANCE_OPEN_INTEREST_HIST_URL = "https://fapi.binance.com/futures/data/openInterestHist";
+const BINANCE_OPEN_INTEREST_MAX_LOOKBACK_MS = 29 * 24 * 60 * 60_000;
 
 function readablePlanBlockers(blockers: string[] | undefined, limit?: number) {
   const items = blockers ?? [];
@@ -474,6 +475,10 @@ function normalizeOpenInterest(row: BinanceOpenInterestHistRow): ProfessionalDer
   };
 }
 
+function binanceOpenInterestStartTime(startTime: number, endTime: number) {
+  return Math.max(startTime, endTime - BINANCE_OPEN_INTEREST_MAX_LOOKBACK_MS);
+}
+
 async function fetchBinanceCandles(symbol: string, options: CliOptions) {
   const candles: Candle[] = [];
   const stepMs = 15 * 60_000;
@@ -539,7 +544,7 @@ async function fetchBinanceFunding(symbol: string, startTime: number, endTime: n
 
 async function fetchBinanceOpenInterestHistory(symbol: string, startTime: number, endTime: number, options: CliOptions) {
   const points: ProfessionalDerivativePoint[] = [];
-  let cursor = startTime;
+  let cursor = binanceOpenInterestStartTime(startTime, endTime);
 
   while (cursor < endTime) {
     const params = new URLSearchParams({

@@ -1103,6 +1103,9 @@ test("professional backtest cli has hard network timeout and exits after writing
   assert.match(source, /new AbortController\(\)/);
   assert.match(source, /BACKTEST_FETCH_TIMEOUT_MS/);
   assert.match(source, /controller\.abort/);
+  assert.match(source, /BINANCE_OPEN_INTEREST_MAX_LOOKBACK_MS = 29 \* 24 \* 60 \* 60_000/);
+  assert.match(source, /function binanceOpenInterestStartTime/);
+  assert.match(source, /let cursor = binanceOpenInterestStartTime\(startTime, endTime\)/);
   assert.match(source, /function focusedAuditShouldFail/);
   assert.match(source, /function enforceGoldenGate/);
   assert.match(source, /process\.exit\(focusedAuditShouldFail\(report, options\.auditMode\) \? 2 : 0\)/);
