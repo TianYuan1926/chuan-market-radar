@@ -1184,7 +1184,15 @@ const hardStructureBlockers = new Set([
 const strategyOnlyScanVisibleBlockers = new Set([
   "chase_risk",
   "reward_risk_below_minimum",
+  "stop_distance_too_tight",
   "stop_distance_too_wide",
+]);
+
+const severeStrategyBlockerCompanions = new Set([
+  "reward_risk_below_minimum",
+  "stop_distance_too_tight",
+  "stop_distance_too_wide",
+  "位置/RR",
 ]);
 
 function hasHardStructureBlocker(item: Pick<OpportunityRankable, "planBlockers">) {
@@ -1199,7 +1207,17 @@ function hasStrategyOnlyScanVisibleBlocker(item: Pick<OpportunityRankable, "plan
   return (item.planBlockers ?? []).some((blocker) => strategyOnlyScanVisibleBlockers.has(blocker));
 }
 
+function hasSevereStrategyBlockerCluster(item: Pick<OpportunityRankable, "planBlockers">) {
+  const blockers = item.planBlockers ?? [];
+
+  return blockers.includes("chase_risk") && blockers.some((blocker) => severeStrategyBlockerCompanions.has(blocker));
+}
+
 function isStrategyBlockedDiscoveryCandidate(item: OpportunityRankable) {
+  if (hasSevereStrategyBlockerCluster(item) && !isQuietCompressionOpportunity(item)) {
+    return false;
+  }
+
   const hasMeasuredQuietCompression =
     typeof item.compressionPct === "number" &&
     Number.isFinite(item.compressionPct) &&
@@ -1292,6 +1310,16 @@ function professionalAuditConditionalWaitQuota(topN: number) {
   return Math.max(1, Math.floor(normalized * 0.18));
 }
 
+function professionalAuditPriorityBudget(topN: number) {
+  const normalized = Math.max(1, Math.round(topN));
+
+  if (normalized < 8) {
+    return normalized;
+  }
+
+  return Math.max(1, normalized - Math.max(2, Math.floor(normalized * 0.3)));
+}
+
 function rankOpportunityCandidates<T extends OpportunityRankable>(items: T[]) {
   return [...items].sort((left, right) =>
     right.opportunityLaneScore - left.opportunityLaneScore ||
@@ -1308,6 +1336,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   const prioritySliceQuota = professionalAuditPrioritySliceQuota(topN);
   const quietCompressionQuota = professionalAuditQuietCompressionQuota(topN);
   const quietPendingQuota = professionalAuditQuietPendingQuota(topN);
+  const priorityBudget = professionalAuditPriorityBudget(topN);
   const selected: T[] = [];
   const selectedSymbols = new Set<string>();
   const selectedLaneCounts: Record<ProfessionalAuditOpportunityLaneName, number> = {
@@ -1340,7 +1369,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
       predicate(entry) &&
       isScanSelectionEligible(entry)
     ))) {
-      if (selected.length >= topN || pushed >= quota) {
+      if (selected.length >= topN || selected.length >= priorityBudget || pushed >= quota) {
         break;
       }
 
@@ -1351,12 +1380,7 @@ export function selectProfessionalAuditOpportunityCandidates<T extends Opportuni
   };
 
   pushPrioritySlice(isQuietCompressionOpportunity, quietCompressionQuota);
-  for (const item of rankOpportunityCandidates(items.filter((entry) =>
-    isEarlyVolumeOpportunity(entry) &&
-    isScanSelectionEligible(entry)
-  )).slice(0, earlyVolumeQuota)) {
-    pushSelected(item);
-  }
+  pushPrioritySlice(isEarlyVolumeOpportunity, earlyVolumeQuota);
   pushPrioritySlice(isQuietPendingOpportunity, quietPendingQuota);
   pushPrioritySlice(isConditionalWaitOpportunity, conditionalWaitQuota);
   pushPrioritySlice(isMediumSwingOpportunity, prioritySliceQuota);

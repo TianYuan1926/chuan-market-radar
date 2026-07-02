@@ -886,9 +886,17 @@ test("selectProfessionalAuditOpportunityCandidates keeps real early discoveries 
       compressionPct: 52,
       movePct: 2.7,
       nodeRole: "early_volume_expansion",
-      planBlockers: ["reward_risk_below_minimum", "stop_distance_too_wide", "chase_risk"],
+      planBlockers: ["reward_risk_below_minimum", "stop_distance_too_wide"],
       rangePositionPct: 50,
       volumeRatio: 1.42,
+    }),
+    item("CHASEDISCOVERYUSDT", 210, {
+      compressionPct: 52,
+      movePct: 4.8,
+      nodeRole: "early_volume_expansion",
+      planBlockers: ["reward_risk_below_minimum", "stop_distance_too_wide", "chase_risk"],
+      rangePositionPct: 76,
+      volumeRatio: 2.4,
     }),
     item("BROKENDISCOVERYUSDT", 200, {
       compressionPct: 50,
@@ -908,6 +916,131 @@ test("selectProfessionalAuditOpportunityCandidates keeps real early discoveries 
     selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "BROKENDISCOVERYUSDT"),
     false,
     "expected structurally invalidated discovery not to be promoted by scan selection",
+  );
+  assert.equal(
+    selected.selected.some((entry) => entry.auditCase.inputSummary.symbol === "CHASEDISCOVERYUSDT"),
+    false,
+    "expected chase-risk plus poor RR/stop cluster not to consume scarce TopN discovery slots",
+  );
+});
+
+test("selectProfessionalAuditOpportunityCandidates leaves Top10 room for high-quality lane sorting after protected slices", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      compressionPct?: number;
+      movePct?: number;
+      nodeRole?: "breakout_edge" | "early_volume_expansion" | "medium_swing" | "neutral_random" | "pre_move" | "trend_acceleration";
+      opportunityLane?: "early_setup" | "pullback_retest";
+      planBlockers?: string[];
+      radarScore?: number;
+      rangePositionPct?: number;
+      rewardRisk?: number;
+      tradePlanStatus?: "WAIT_PULLBACK" | "WAIT_RETEST" | "WATCH_ONLY";
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    compressionPct: options.compressionPct,
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: options.opportunityLane ?? "early_setup" as const,
+    opportunityLaneScore,
+    planBlockers: options.planBlockers,
+    radarScore: options.radarScore ?? opportunityLaneScore,
+    rangePositionPct: options.rangePositionPct,
+    rewardRisk: options.rewardRisk,
+    tradePlanStatus: options.tradePlanStatus,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("QUIET1USDT", 90, {
+      compressionPct: 42,
+      movePct: 0.8,
+      nodeRole: "pre_move",
+      rangePositionPct: 48,
+      volumeRatio: 0.76,
+    }),
+    item("QUIET2USDT", 89, {
+      compressionPct: 44,
+      movePct: 1,
+      nodeRole: "neutral_random",
+      rangePositionPct: 50,
+      volumeRatio: 0.82,
+    }),
+    item("EARLYVOL1USDT", 88, {
+      compressionPct: 56,
+      movePct: 2.3,
+      nodeRole: "early_volume_expansion",
+      rangePositionPct: 44,
+      volumeRatio: 1.36,
+    }),
+    item("EARLYVOL2USDT", 87, {
+      compressionPct: 58,
+      movePct: 2.8,
+      nodeRole: "early_volume_expansion",
+      rangePositionPct: 46,
+      volumeRatio: 1.52,
+    }),
+    item("EARLYVOL3USDT", 86, {
+      compressionPct: 60,
+      movePct: 3.1,
+      nodeRole: "early_volume_expansion",
+      rangePositionPct: 48,
+      volumeRatio: 1.7,
+    }),
+    item("QUIETPENDING1USDT", 85, {
+      movePct: 0.9,
+      planBlockers: ["direction_pending_quiet_setup", "structure_confirmation_pending"],
+      tradePlanStatus: "WATCH_ONLY",
+      volumeRatio: 0.92,
+    }),
+    item("QUIETPENDING2USDT", 84, {
+      movePct: 1.1,
+      planBlockers: ["direction_pending_quiet_setup", "structure_confirmation_pending"],
+      tradePlanStatus: "WATCH_ONLY",
+      volumeRatio: 0.88,
+    }),
+    item("WAITRRUSDT", 83, {
+      movePct: 3.1,
+      planBlockers: ["structure_confirmation_pending"],
+      rewardRisk: 3.4,
+      tradePlanStatus: "WAIT_PULLBACK",
+      volumeRatio: 1.08,
+    }),
+    item("SWINGUSDT", 82, {
+      movePct: 3.2,
+      nodeRole: "medium_swing",
+      volumeRatio: 0.86,
+    }),
+    item("TRENDUSDT", 81, {
+      movePct: 5,
+      nodeRole: "trend_acceleration",
+      opportunityLane: "pullback_retest",
+      volumeRatio: 1.44,
+    }),
+    item("BREAKOUTEDGEUSDT", 210, {
+      compressionPct: 52,
+      movePct: 3,
+      nodeRole: "breakout_edge",
+      rangePositionPct: 55,
+      volumeRatio: 1.42,
+    }),
+  ], 10);
+  const symbols = selected.selected.map((entry) => entry.auditCase.inputSummary.symbol);
+
+  assert.ok(
+    symbols.includes("BREAKOUTEDGEUSDT"),
+    "expected protected slices to leave Top10 room for the highest-quality lane-sorted breakout edge",
   );
 });
 

@@ -1673,6 +1673,23 @@ RawSource
   4. 分析层降低假阳性：方向不明确的样本必须更清楚地停在观察层，不能继续向策略层输送。
   5. 下一轮回测验收重点不是交易计划数量，而是：Top10/Top20 捕获率、优质启动前漏判数、false positive、RR 阻断是否更合理。
 
+### 2026-07-02 TopN 保底入口预算修复
+
+- 本轮服务核心链路：`全市场发现 -> 候选筛选 -> 回测验证`。
+- 根因：上一轮回测显示一部分机会并非完全识别不到，而是排在 Top10 外。复查候选选择器发现：安静压缩、早期放量、安静待确认、条件 WAIT、中周期波段、趋势加速等多个“保底入口”在 Top10 时可能直接吃满全部名额，导致后续普通机会池排序没有空间，`breakout_edge` 这类高质量节点即使分数高也可能排不上前排。
+- 已完成整改：
+  - 新增 TopN 保底入口总预算：当 `TopN >= 8` 时，优先保底入口最多占用约 70% 名额，必须给主机会池排序保留空间。
+  - 早期放量保底改为走统一预算控制，不再绕过总预算直接抢位。
+  - 新增严重策略阻断组合降级：`chase_risk` 同时伴随 `reward_risk_below_minimum`、`stop_distance_too_wide`、`stop_distance_too_tight` 或 `位置/RR` 时，默认不得占用稀缺 TopN 发现席位；安静压缩观察例外仍可留在观察层，不直接变交易计划。
+  - `stop_distance_too_tight` 被纳入策略层可见阻断，不再隐形穿透扫描选择。
+- 风控边界：本轮只修“谁能进入前排候选/审计”，不放宽 `3:1`，不增加 `TRADE_PLAN_READY`，不把 WAIT 或观察层包装成交易计划。
+- 本地验收已通过：`npm run test:market`、`npm run typecheck`、`npm run lint`、`npm run build`、`npm run backtest:golden`。
+- 下一轮正式回测必须重点看：
+  - Top10/Top20/Top30 捕获率是否改善，尤其是优质启动前和 `breakout_edge`、`early_volume_expansion`、`pullback_retest`。
+  - `premium_early_setup` 漏判数是否下降。
+  - 假突破/追单风险样本是否减少进入前排。
+  - 如果扫描仍退步，下一步必须检查 `opportunityLaneScore` 本身，而不是继续加保底入口。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。
