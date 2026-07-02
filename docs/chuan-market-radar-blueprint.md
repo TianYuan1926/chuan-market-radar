@@ -1603,6 +1603,33 @@ RawSource
   - `TRADE_PLAN_READY` 是否在不降低 `3:1` 门槛下合理恢复。
   - 若策略分继续低于扫描/分析分，下一轮继续复查目标位选择和结构止损质量，而不是继续新增 UI。
 
+### 2026-07-02 策略触发价整改后正式回测
+
+- 有效生产回测事实：腾讯云生产容器运行 `npm run backtest:formal`，生成报告 `/app/reports/professional-backtest-audit/2026-07-02T040137-584Z`；本地同步副本位于 `reports/professional-backtest-audit/2026-07-02T040137-584Z`。
+- 本轮输入：80 个候选币，10 个目标币，每币 10 个节点，共 100 个历史回放点；历史 K 线、Funding、Open Interest 拉取失败 0；目标币为 `XRPUSDT`、`TIAUSDT`、`UNIUSDT`、`WIFUSDT`、`FETUSDT`、`PIXELUSDT`、`CAKEUSDT`、`ZROUSDT`、`ONDOUSDT`、`BICOUSDT`。
+- 总结论：裁判系统仍给出 `不能支撑实战`；100 个样本中高优先级问题 56 个，`TRADE_PLAN_READY` 为 0。
+- 对比上一轮 `2026-07-02T025357-643Z`：
+  - 高优先级问题 72 -> 56，明显下降。
+  - 扫描分数 59.48 -> 76.54，扫描进入 `pass`，启动前捕获率 33.33% -> 64.29%。
+  - 分析分数 63.68 -> 54.24，回落到 `watch`；被选中节点 false positive 仍高。
+  - 策略分数 20.01 -> 32.3，有提升但仍 `fail`；`TRADE_PLAN_READY` 1 -> 0，不能视为策略合格。
+  - WAIT 计划有效率 0% -> 10%，说明触发价整改让部分 WAIT 计划变得可验证；但坏 WAIT 率从 22.22% 升到 45%，说明触发质量和止损/目标质量仍有严重问题。
+- 三大核心结果：
+  - 扫描：`pass`，分数 76.54，结构可行动机会池 TopN 捕获率 62.5%，启动前机会捕获率 64.29%，仍需连续多轮验证。
+  - 分析：`watch`，分数 54.24，有效判断率 33.33%，false positive 66.67%，说明分析层仍会把不少“看起来像机会”的节点放进重点观察。
+  - 策略：`fail`，分数 32.3，条件计划 20 个，交易计划就绪 0，可用策略率 10%。策略层仍不能稳定给出可执行计划。
+- 本轮暴露的新根因：
+  - WAIT 计划从“不可验证”变成“可验证”后，主要问题转为触发后先打止损：20 个 WAIT 中 14 个触发，2 个先到目标，9 个先到止损，3 个超时。
+  - `stop_first_after_trigger` 9 次，样本包括 `XRPUSDT`、`UNIUSDT`、`WIFUSDT`、`FETUSDT`、`CAKEUSDT`，说明当前触发条件过早或结构止损位置不合理。
+  - `trigger_reaction_not_strong_enough` 5 次、`no_follow_through_after_trigger` 2 次，说明“触发 K 线反应强度”和“触发后延续”需要进入策略门控。
+  - `structure_confirmation_pending` 27 次、`趋势完整度` 21 次、`bull_structure_broken` 16 次，其中包含质量命中样本，说明趋势完整度和结构修复规则仍可能误杀，也可能把风险复盘样本误保留成 WAIT。
+- 下一轮整改顺序：
+  1. 先修 WAIT 触发质量：触发不能只看靠近 plannedEntryPrice，必须加入反应强度、收盘位置、后续确认或二次确认条件。
+  2. 复查结构止损：触发价和止损距离不能过近到正常噪音就扫损，也不能过远导致 RR 虚高。
+  3. 复查 `bull_structure_broken` / `趋势完整度` 的软硬门控：风险复盘教材不能混进有效 WAIT；但高质量结构修复样本也不能全部误杀。
+  4. 分析层需要降低 false positive，不允许扫描分提升后把更多弱质量节点推给策略层消化。
+  5. 下一轮仍不做 UI、美化或新增外部功能；只围绕扫描、分析、策略三大核心继续。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。
