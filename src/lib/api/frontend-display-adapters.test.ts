@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resource } from "../data-status";
 import {
+  dashboardRuntimeStatusLabelFromContracts,
   leaderboardRowsToTokens,
   mergeTokensBySymbol,
   leaderboardRowsToCandidateSignals,
@@ -36,6 +37,30 @@ const rows: LeaderboardRow[] = [
     awaitingScan: false,
   },
 ];
+
+test("dashboard runtime status only reflects production runtime resources", () => {
+  assert.equal(
+    dashboardRuntimeStatusLabelFromContracts({
+      statuses: ["live", "live", "live"],
+      sourceFeeds: ["live", "live", "live", "live"],
+    }),
+    "正常",
+  );
+  assert.equal(
+    dashboardRuntimeStatusLabelFromContracts({
+      statuses: ["live", "partial", "live"],
+      sourceFeeds: ["live", "live"],
+    }),
+    "降级",
+  );
+  assert.equal(
+    dashboardRuntimeStatusLabelFromContracts({
+      statuses: ["live", "live"],
+      sourceFeeds: ["live", "failed"],
+    }),
+    "异常",
+  );
+});
 
 function signalReads(
   maturity: RadarSignal["maturity"],

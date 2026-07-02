@@ -1554,6 +1554,14 @@ RawSource
 - 本地正式回测未完成：`npm run backtest:formal` 能进入 53 个候选币拉取阶段，但所有 Binance K 线请求在本地网络超时，失败样本包括 `XRPUSDT`、`OPUSDT`、`UNIUSDT` 等，错误为 `Connect Timeout Error`。当前不能生成新一轮有效正式报告，状态为 `等待外部条件`，不是系统通过。
 - 下一步：需要在能访问交易所历史 K 线的环境运行正式回测，优先是腾讯云生产容器；如果生产也无法访问，必须增加合法稳定的历史 K 线数据源或代理层，不能用 mock 或旧报告冒充。
 
+### 2026-07-02 生产总控状态误报修复
+
+- 生产事实：腾讯云已同步 `73d421c2`，`web`、Postgres、Redis、Caddy 均正常；`/api/health` 返回 `ready`，`/api/frontend/radar-contract` 返回真实扫描合同。
+- 问题：Dashboard 顶部“系统运行状态”把 `coreChainGovernance` 这类长期能力报告的 `partial` 状态和实时运行链路混在一起，导致出现“4/4 数据源在线但系统降级”的矛盾展示。
+- 根因：运行健康、长期能力缺口、无交易计划就绪信号是三类不同信息；不能全部混进一个运行状态灯。
+- 已修复：Dashboard 顶部运行状态只看生产运行链路：`scanProof`、`deepScanQueue`、`apiUsage`、`dataSources`、`scanStability` 和数据源 feed；`coreChainGovernance`、`radarSignals` 等长期能力和交易机会状态继续在各自面板独立展示。
+- 新规则：运行状态灯回答“系统有没有正常跑”；能力总控回答“核心能力还有哪些缺口”；候选/狙击榜回答“当前有没有可看的机会”。三者不得互相污染。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

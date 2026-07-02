@@ -22,12 +22,13 @@ import type {
   ScanProofData,
 } from './radar-contract'
 import type { SniperSignal, SniperTarget } from './sniper-data'
-import type { Resource } from './data-status'
+import type { DataStatus, Resource } from './data-status'
 
 type Direction = RadarSignal['direction']
 type Maturity = RadarSignal['maturity']
 type TickerRows = LeaderboardRow[]
 type TickerLookup = Map<string, LeaderboardRow>
+type DataSourceFeed = DataSourceState['feed']
 
 const RISK_PENALTY: Record<RadarSignal['risk'], number> = {
   低: 0,
@@ -53,6 +54,26 @@ function clamp(value: number, min: number, max: number) {
 
 function positiveNumber(value: number | undefined | null) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
+}
+
+export type DashboardRuntimeStatusLabel = '正常' | '降级' | '异常'
+
+export function dashboardRuntimeStatusLabelFromContracts({
+  sourceFeeds,
+  statuses,
+}: {
+  sourceFeeds: DataSourceFeed[]
+  statuses: DataStatus[]
+}): DashboardRuntimeStatusLabel {
+  const failed = statuses.some((status) => status === 'failed' || status === 'error') ||
+    sourceFeeds.some((feed) => feed === 'failed')
+
+  if (failed) return '异常'
+
+  const degraded = statuses.some((status) => status !== 'live') ||
+    sourceFeeds.some((feed) => feed !== 'live')
+
+  return degraded ? '降级' : '正常'
 }
 
 function priceBySymbol(tickerRows: TickerRows = []) {

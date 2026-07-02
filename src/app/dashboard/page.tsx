@@ -7,8 +7,8 @@ import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveQuotePct } from '@/components/live-value'
 import { POOL_META } from '@/lib/frontend-market-types'
-import type { DataStatus } from '@/lib/data-status'
 import {
+  dashboardRuntimeStatusLabelFromContracts,
   macroResourceToMarketEnv,
   radarSignalsToSignalCards,
   radarSignalsToTokens,
@@ -31,28 +31,15 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-function systemStatusFromContracts({
-  statuses,
-  sourceFeeds,
-}: {
-  statuses: DataStatus[]
-  sourceFeeds: Array<'live' | 'cached' | 'partial' | 'stale' | 'failed'>
-}) {
-  const failed = statuses.some((status) => status === 'failed' || status === 'error') ||
-    sourceFeeds.some((feed) => feed === 'failed')
-  const degraded = failed
-    ? false
-    : statuses.some((status) => status !== 'live') ||
-      sourceFeeds.some((feed) => feed !== 'live')
-
-  if (failed) {
+function systemStatusTone(label: ReturnType<typeof dashboardRuntimeStatusLabelFromContracts>) {
+  if (label === '异常') {
     return {
       label: '异常',
       tone: 'var(--down)',
       pulse: 'bg-down',
     }
   }
-  if (degraded) {
+  if (label === '降级') {
     return {
       label: '降级',
       tone: 'var(--sig-pump)',
@@ -94,17 +81,18 @@ export default async function DashboardPage() {
 
   const onlineSources = radar.dataSources.data.filter((source) => source.feed === 'live').length
   const totalSources = radar.dataSources.data.length
-  const systemStatus = systemStatusFromContracts({
+  const systemStatus = systemStatusTone(dashboardRuntimeStatusLabelFromContracts({
+    // 这里只判断生产运行链路，不把“长期能力缺口/没有计划就绪信号”误算成系统故障。
+    // 长期能力缺口由“系统能力总控”独立展示。
     statuses: [
       radar.scanProof.status,
       radar.deepScanQueue.status,
-      radar.coreChainGovernance.status,
-      radar.radarSignals.status,
       radar.apiUsage.status,
       radar.dataSources.status,
+      radar.scanStability.status,
     ],
     sourceFeeds: radar.dataSources.data.map((source) => source.feed),
-  })
+  }))
   const overview = [
     {
       label: '系统运行状态',
