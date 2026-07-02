@@ -205,10 +205,12 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
       status: 'empty' as const,
       summary: '未传入后端提前发现校准契约',
     },
+    bookPressureCandidateCount: 0,
     cvdProxyCandidateCount: 0,
     earlyOpportunityCount: 0,
     guardrails: ['未传入后端提前发现复盘契约'],
     lateMoveCount: 0,
+    largeTakerTradeCandidateCount: 0,
     missedDetectionCount: 0,
     reviewFocus: [],
     summary: '未传入后端提前发现复盘契约',
@@ -1192,13 +1194,15 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
       </Panel>
 
       <Panel title="提前发现复盘" icon={Sparkles} right={<StatusBadge status={discoveryReview.status} />}>
-        <div className="space-y-4 px-5 py-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="space-y-4 px-5 py-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
             {[
               ['轻扫样本', discoveryReview.data.totalLightCandidates],
               ['启动前', discoveryReview.data.earlyOpportunityCount],
               ['晚到样本', discoveryReview.data.lateMoveCount],
               ['主动买卖代理', discoveryReview.data.cvdProxyCandidateCount],
+              ['盘口压力', discoveryReview.data.bookPressureCandidateCount],
+              ['主动大单', discoveryReview.data.largeTakerTradeCandidateCount],
               ['漏判复查', discoveryReview.data.missedDetectionCount],
             ].map(([label, value]) => (
               <div key={label} className="border border-border bg-secondary/20 p-3">

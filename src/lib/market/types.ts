@@ -429,11 +429,22 @@ export type ScanLightScanCandidate = {
   distanceFromLowPercent: number;
   earlyOpportunityScore?: number;
   microstructure?: {
+    bookAskUsd?: number;
+    bookBidUsd?: number;
+    bookImbalance?: number;
+    bookPressureSide?: "buy" | "neutral" | "sell";
+    bookProxyQuality?: "book_ticker_proxy" | "ticker_bbo_proxy";
     buyPressureUsd: number;
     cvdProxyUsd: number;
+    largeBuyTradeUsd?: number;
+    largeSellTradeUsd?: number;
+    largeTakerTradeCount?: number;
+    largeTakerTradeSide?: "buy" | "neutral" | "sell";
+    largeTakerTradeUsd?: number;
     pressureSide: "buy" | "neutral" | "sell";
     proxyQuality: "rolling_price_volume_proxy" | "taker_trade_proxy";
     sellPressureUsd: number;
+    spreadBps?: number;
     tradeFlowImbalance: number;
   };
   opportunityPhase?: "breakout_watch" | "early_setup" | "late_move" | "neutral_watch";
@@ -460,6 +471,25 @@ export type ScanLightScanDiagnostics = {
   status: "disabled" | "failed" | "partial" | "ready";
   topCandidates: ScanLightScanCandidate[];
   universeCount: number;
+};
+
+export type ScanLightScanAnomalyFrame = {
+  bookImbalance: number | null;
+  bookPressureSide: "buy" | "neutral" | "sell" | null;
+  changePercent: number;
+  cvdProxyUsd: number | null;
+  generatedAt: string;
+  largeTakerTradeSide: "buy" | "neutral" | "sell" | null;
+  largeTakerTradeUsd: number | null;
+  opportunityPhase: ScanLightScanCandidate["opportunityPhase"] | null;
+  overextensionRisk: ScanLightScanCandidate["overextensionRisk"] | null;
+  pressureSide: "buy" | "neutral" | "sell" | null;
+  price: number | null;
+  reasonCodes: string[];
+  score: number;
+  spreadBps: number | null;
+  symbol: string;
+  volumeWindowUsd: number | null;
 };
 
 export type ScanDataQualityStatus =

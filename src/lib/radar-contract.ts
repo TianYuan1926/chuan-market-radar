@@ -221,11 +221,17 @@ export const MATURITY_META: Record<
 
 export type DiscoveryPressureSide = 'buy' | 'neutral' | 'sell'
 export type DiscoveryProxyQuality = 'reason_tag_proxy' | 'rolling_price_volume_proxy' | 'taker_trade_proxy'
+export type DiscoveryBookProxyQuality = 'book_ticker_proxy' | 'ticker_bbo_proxy'
 export type DiscoveryOpportunityPhase = 'breakout_watch' | 'early_setup' | 'late_move' | 'neutral_watch'
 export type DiscoveryOverextensionRisk = 'high' | 'low' | 'medium'
 export type DiscoveryCandidateState = 'COLD' | 'HOT' | 'PRE_TREND' | 'WARM'
 
 export type DiscoveryFact = {
+  bookAskUsd: number | null
+  bookBidUsd: number | null
+  bookImbalance: number | null
+  bookPressureSide: DiscoveryPressureSide | null
+  bookProxyQuality: DiscoveryBookProxyQuality | null
   buyPressureUsd: number | null
   changePercent24h: number | null
   cvdProxyUsd: number | null
@@ -240,6 +246,12 @@ export type DiscoveryFact = {
   reasons: string[]
   score: number | null
   sellPressureUsd: number | null
+  largeBuyTradeUsd: number | null
+  largeSellTradeUsd: number | null
+  largeTakerTradeCount: number | null
+  largeTakerTradeSide: DiscoveryPressureSide | null
+  largeTakerTradeUsd: number | null
+  spreadBps: number | null
   source: 'light_scan_top_candidate' | 'not_in_light_scan_top_candidates'
   state: DiscoveryCandidateState | null
   summary: string
@@ -483,6 +495,11 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
       tradingViewUrl: null,
     },
     discovery: {
+      bookAskUsd: null,
+      bookBidUsd: null,
+      bookImbalance: null,
+      bookPressureSide: null,
+      bookProxyQuality: null,
       buyPressureUsd: null,
       changePercent24h: null,
       cvdProxyUsd: null,
@@ -497,6 +514,12 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
       reasons: [],
       score: null,
       sellPressureUsd: null,
+      largeBuyTradeUsd: null,
+      largeSellTradeUsd: null,
+      largeTakerTradeCount: null,
+      largeTakerTradeSide: null,
+      largeTakerTradeUsd: null,
+      spreadBps: null,
       source: 'not_in_light_scan_top_candidates',
       state: null,
       summary: '等待真实后端发现层契约。',
@@ -856,9 +879,13 @@ export type LightScanQualityCheck = {
 }
 
 export type LightScanQualityCandidate = {
+  bookImbalance: number | null
+  bookPressureSide: 'buy' | 'neutral' | 'sell' | null
   changePercent: number
   earlyOpportunityScore: number | null
   flowImbalance: number | null
+  largeTakerTradeSide: 'buy' | 'neutral' | 'sell' | null
+  largeTakerTradeUsd: number | null
   opportunityPhase: 'breakout_watch' | 'early_setup' | 'late_move' | 'neutral_watch' | null
   overextensionRisk: 'high' | 'low' | 'medium' | null
   pressureSide: 'buy' | 'neutral' | 'sell' | null
@@ -877,12 +904,14 @@ export type LightScanQualityState = {
   coverage: {
     acceptedCount: number
     averagePriorityScore: number
+    bookPressureCandidateCount: number
     buyPressureCandidateCount: number
     candidateCount: number
     cvdProxyCandidateCount: number
     earlyOpportunityCandidateCount: number
     hotCandidateCount: number
     lateMoveCandidateCount: number
+    largeTakerTradeCandidateCount: number
     preTrendCandidateCount: number
     rollingWindowCandidateCount: number
     sellPressureCandidateCount: number
@@ -908,12 +937,14 @@ export function getLightScanQuality(): Resource<LightScanQualityState> {
     coverage: {
       acceptedCount: 0,
       averagePriorityScore: 0,
+      bookPressureCandidateCount: 0,
       buyPressureCandidateCount: 0,
       candidateCount: 0,
       cvdProxyCandidateCount: 0,
       earlyOpportunityCandidateCount: 0,
       hotCandidateCount: 0,
       lateMoveCandidateCount: 0,
+      largeTakerTradeCandidateCount: 0,
       preTrendCandidateCount: 0,
       rollingWindowCandidateCount: 0,
       sellPressureCandidateCount: 0,
@@ -1624,10 +1655,12 @@ export type DiscoveryReviewState = {
     status: 'usable' | 'collecting' | 'empty'
     summary: string
   }
+  bookPressureCandidateCount: number
   cvdProxyCandidateCount: number
   earlyOpportunityCount: number
   guardrails: string[]
   lateMoveCount: number
+  largeTakerTradeCandidateCount: number
   missedDetectionCount: number
   reviewFocus: string[]
   summary: string
@@ -1700,6 +1733,7 @@ export function getAiReviewStats(): Resource<AiReviewStats> {
 export function getDiscoveryReview(): Resource<DiscoveryReviewState> {
   return resource(
     {
+      bookPressureCandidateCount: 0,
       cvdProxyCandidateCount: 0,
       calibration: {
         earlyOutcomeLink: 'collecting',
@@ -1714,6 +1748,7 @@ export function getDiscoveryReview(): Resource<DiscoveryReviewState> {
         '旧同步 getter 已停用。页面必须读取真实后端复盘契约。',
       ],
       lateMoveCount: 0,
+      largeTakerTradeCandidateCount: 0,
       missedDetectionCount: 0,
       reviewFocus: [],
       summary: '等待真实提前发现复盘契约。',

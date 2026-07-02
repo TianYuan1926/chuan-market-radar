@@ -316,6 +316,16 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
           <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-muted-foreground">
             {s.discovery.proxyQuality ? PROXY_LABEL[s.discovery.proxyQuality] : '无代理'}
           </span>
+          {s.discovery.bookPressureSide ? (
+            <span className="border border-border bg-secondary/40 px-1.5 py-0.5 text-muted-foreground">
+              盘口 {PRESSURE_LABEL[s.discovery.bookPressureSide]}
+            </span>
+          ) : null}
+          {s.discovery.largeTakerTradeUsd ? (
+            <span className="border border-neon/35 bg-neon/10 px-1.5 py-0.5 text-neon">
+              主动大单 ${Math.round(s.discovery.largeTakerTradeUsd / 1000)}k
+            </span>
+          ) : null}
           {s.discovery.overextensionRisk === 'high' ? (
             <span className="border border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 px-1.5 py-0.5 text-[oklch(0.82_0.15_75)]">
               晚到只复盘

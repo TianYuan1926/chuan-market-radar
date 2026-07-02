@@ -9,6 +9,7 @@ import {
   discoverOkxSymbols,
   filterTickerEventsByAllowedSymbols,
   parseBinanceAggTradeMessage,
+  parseBinanceBookTickerMessage,
   parseBinanceTickerMessage,
   parseBybitPublicTradeMessage,
   parseBybitTickerMessage,
@@ -88,6 +89,28 @@ test("trade parsers convert public taker trades into CVD proxy events", () => {
     quoteVolumeDeltaUsd: 1260,
     symbol: "ENAUSDT",
     takerSide: "buy",
+  }]);
+});
+
+test("parseBinanceBookTickerMessage converts bookTicker rows into orderbook pressure events", () => {
+  assert.deepEqual(parseBinanceBookTickerMessage(JSON.stringify({
+    E: 1_797_760_000_000,
+    a: "1.002",
+    A: "100000",
+    b: "1.000",
+    B: "300000",
+    s: "ARBUSDT",
+  })), [{
+    bestAskPrice: 1.002,
+    bestAskQuantity: 100_000,
+    bestBidPrice: 1,
+    bestBidQuantity: 300_000,
+    bookSource: "book_ticker",
+    eventTime: "2026-12-20T09:46:40.000Z",
+    exchange: "BINANCE",
+    flowSource: "book",
+    price: 1.001,
+    symbol: "ARBUSDT",
   }]);
 });
 
@@ -447,6 +470,62 @@ test("createLightScanAccumulator uses public taker trades for CVD proxy when ava
   assert.equal(flow?.microstructure?.cvdProxyUsd, 440_000);
   assert.equal(flow?.microstructure?.pressureSide, "buy");
   assert.match(flow?.reasons.join(",") ?? "", /cvd_proxy_positive/);
+});
+
+test("createLightScanAccumulator exposes orderbook pressure and large taker trade proxies", () => {
+  const accumulator = createLightScanAccumulator({
+    largeTakerTradeUsd: 100_000,
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date("2026-06-21T01:01:00.000Z"),
+    windowMs: 15 * 60 * 1000,
+    zScoreThreshold: 1.2,
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    accumulator.ingest({
+      eventTime: new Date(Date.UTC(2026, 5, 21, 0, index * 15, 0)).toISOString(),
+      exchange: "BINANCE",
+      price: 1,
+      quoteVolume24hUsd: 100_000 + index * 50_000,
+      symbol: "BOOKUSDT",
+    });
+  }
+
+  accumulator.ingest({
+    bestAskPrice: 1.002,
+    bestAskQuantity: 80_000,
+    bestBidPrice: 1,
+    bestBidQuantity: 260_000,
+    bookSource: "book_ticker",
+    eventTime: "2026-06-21T01:00:00.000Z",
+    exchange: "BINANCE",
+    flowSource: "book",
+    price: 1.001,
+    symbol: "BOOKUSDT",
+  });
+  accumulator.ingest({
+    eventTime: "2026-06-21T01:00:10.000Z",
+    exchange: "BINANCE",
+    flowSource: "trade",
+    price: 1.01,
+    quoteVolumeDeltaUsd: 420_000,
+    symbol: "BOOKUSDT",
+    takerSide: "buy",
+  });
+
+  const snapshot = accumulator.snapshot();
+  const candidate = snapshot.priorityCandidates.find((item) => item.symbol === "BOOKUSDT");
+
+  assert.equal(candidate?.microstructure?.bookProxyQuality, "book_ticker_proxy");
+  assert.equal(candidate?.microstructure?.bookPressureSide, "buy");
+  assert.ok((candidate?.microstructure?.bookImbalance ?? 0) > 0.2);
+  assert.equal(candidate?.microstructure?.largeTakerTradeUsd, 420_000);
+  assert.equal(candidate?.microstructure?.largeTakerTradeSide, "buy");
+  assert.match(candidate?.reasons.join(",") ?? "", /orderbook_buy_pressure/);
+  assert.match(candidate?.reasons.join(",") ?? "", /large_taker_buy_trade/);
+  assert.equal(snapshot.anomalyFrames?.[0]?.symbol, "BOOKUSDT");
+  assert.equal(snapshot.anomalyFrames?.[0]?.bookPressureSide, "buy");
 });
 
 test("buildSubscriptionChunks caps WebSocket subscription payload size", () => {

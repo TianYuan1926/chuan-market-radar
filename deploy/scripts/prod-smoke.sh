@@ -255,6 +255,8 @@ print(
             "cvdProxyCandidates": light_scan_quality_coverage.get("cvdProxyCandidateCount"),
             "buyPressureCandidates": light_scan_quality_coverage.get("buyPressureCandidateCount"),
             "sellPressureCandidates": light_scan_quality_coverage.get("sellPressureCandidateCount"),
+            "bookPressureCandidates": light_scan_quality_coverage.get("bookPressureCandidateCount"),
+            "largeTakerTradeCandidates": light_scan_quality_coverage.get("largeTakerTradeCandidateCount"),
         },
         ensure_ascii=False,
     ),
@@ -269,6 +271,10 @@ if not any(check.get("key") == "decision_boundary" and check.get("status") == "p
     errors.append("/api/frontend/radar-contract: lightScanQuality missing decision boundary check")
 if not any(check.get("key") == "cvd_proxy_quality" for check in light_scan_quality_checks):
     errors.append("/api/frontend/radar-contract: lightScanQuality missing CVD proxy quality check")
+if not any(check.get("key") == "orderbook_pressure_proxy" for check in light_scan_quality_checks):
+    errors.append("/api/frontend/radar-contract: lightScanQuality missing orderbook pressure check")
+if not any(check.get("key") == "large_taker_trade_proxy" for check in light_scan_quality_checks):
+    errors.append("/api/frontend/radar-contract: lightScanQuality missing large taker trade check")
 if positive_number(scan_proof.get("lightScanned")) and not positive_number(light_scan_quality_coverage.get("acceptedCount")):
     errors.append("/api/frontend/radar-contract: lightScanQuality acceptedCount is inconsistent with scanProof")
 

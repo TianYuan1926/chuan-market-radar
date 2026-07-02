@@ -15,8 +15,15 @@ function event({
   quoteVolumeDeltaUsd,
   symbol = "ARBUSDT",
   takerSide,
+  book,
 }: {
-  flowSource?: "ticker" | "trade";
+  book?: {
+    askPrice: number;
+    askQuantity: number;
+    bidPrice: number;
+    bidQuantity: number;
+  };
+  flowSource?: "book" | "ticker" | "trade";
   minutes: number;
   price: number;
   quoteVolumeDeltaUsd: number;
@@ -26,6 +33,11 @@ function event({
   return {
     eventTime: new Date(start + minutes * 60_000).toISOString(),
     exchange: "BINANCE" as const,
+    bestAskPrice: book?.askPrice,
+    bestAskQuantity: book?.askQuantity,
+    bestBidPrice: book?.bidPrice,
+    bestBidQuantity: book?.bidQuantity,
+    bookSource: book ? "book_ticker" as const : undefined,
     flowSource,
     price,
     quoteVolumeDeltaUsd,
@@ -200,6 +212,56 @@ test("createWebSocketLightScanAccumulator prefers taker trade flow for CVD proxy
   assert.equal(flow?.microstructure?.cvdProxyUsd, 300_000);
   assert.equal(flow?.microstructure?.pressureSide, "buy");
   assert.ok(flow?.reasons.includes("cvd_proxy_positive"));
+});
+
+test("createWebSocketLightScanAccumulator carries orderbook pressure and large taker trade proxies", () => {
+  const accumulator = createWebSocketLightScanAccumulator({
+    largeTakerTradeUsd: 100_000,
+    maxBaselineWindows: 4,
+    minCandidateVolumeUsd: 50_000,
+    now: () => new Date(start + 61 * 60_000),
+    windowMs: 15 * 60_000,
+    zScoreThreshold: 1.2,
+  });
+
+  for (const minutes of [0, 15, 30, 45]) {
+    accumulator.ingest(event({ minutes, price: 1, quoteVolumeDeltaUsd: 100_000, symbol: "BOOKUSDT" }));
+  }
+
+  accumulator.ingest(event({
+    book: {
+      askPrice: 1.002,
+      askQuantity: 80_000,
+      bidPrice: 1,
+      bidQuantity: 260_000,
+    },
+    flowSource: "book",
+    minutes: 60,
+    price: 1.001,
+    quoteVolumeDeltaUsd: 0,
+    symbol: "BOOKUSDT",
+  }));
+  accumulator.ingest(event({
+    flowSource: "trade",
+    minutes: 60,
+    price: 1.01,
+    quoteVolumeDeltaUsd: 420_000,
+    symbol: "BOOKUSDT",
+    takerSide: "buy",
+  }));
+
+  const snapshot = accumulator.snapshot();
+  const candidate = snapshot.priorityCandidates.find((item) => item.symbol === "BOOKUSDT");
+
+  assert.equal(candidate?.microstructure?.bookProxyQuality, "book_ticker_proxy");
+  assert.equal(candidate?.microstructure?.bookPressureSide, "buy");
+  assert.ok((candidate?.microstructure?.bookImbalance ?? 0) > 0.2);
+  assert.equal(candidate?.microstructure?.largeTakerTradeUsd, 420_000);
+  assert.equal(candidate?.microstructure?.largeTakerTradeSide, "buy");
+  assert.ok(candidate?.reasons.includes("orderbook_buy_pressure"));
+  assert.ok(candidate?.reasons.includes("large_taker_buy_trade"));
+  assert.equal(snapshot.anomalyFrames?.[0]?.symbol, "BOOKUSDT");
+  assert.equal(snapshot.anomalyFrames?.[0]?.bookPressureSide, "buy");
 });
 
 test("createWebSocketLightScanProvider sanitizes stale Redis snapshots before exposing them", async () => {

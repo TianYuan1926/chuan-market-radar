@@ -6,6 +6,7 @@ const defaultMaxBaselineWindows = 12;
 const defaultMaxPriorityCandidates = 48;
 const defaultMinCandidateVolumeUsd = 250_000;
 const defaultZScoreThreshold = 2;
+const defaultLargeTakerTradeUsd = 100_000;
 const defaultSnapshotKey = "chuan:ws-light-scan:snapshot";
 const appInternalUrl = String(process.env.APP_INTERNAL_URL ?? "http://web:3000").replace(/\/+$/, "");
 const cronSecret = process.env.CRON_SECRET ?? "";
@@ -261,7 +262,9 @@ function overextensionRisk({ absChange, closeNearExtreme }) {
 
 function earlyOpportunityScore({
   absChange,
+  bookImbalance = 0,
   flowImbalance,
+  largeTakerTradeCount = 0,
   overextension,
   state,
   volatilityPercent,
@@ -277,13 +280,15 @@ function earlyOpportunityScore({
   const volume = Math.min(24, Math.max(0, volumeZScore) * 10);
   const liquidity = Math.min(12, logVolumeScore(volumeUsd) / 2);
   const pressure = Math.min(8, Math.abs(flowImbalance) * 16);
+  const bookPressure = Math.min(6, Math.abs(bookImbalance) * 12);
+  const largeTradePulse = largeTakerTradeCount > 0 ? 4 : 0;
   const penalty = overextension === "high"
     ? 45
     : overextension === "medium"
       ? 18
       : 0;
 
-  return Math.round(Math.max(0, Math.min(100, compression + lowDisplacement + volume + liquidity + pressure - penalty)));
+  return Math.round(Math.max(0, Math.min(100, compression + lowDisplacement + volume + liquidity + pressure + bookPressure + largeTradePulse - penalty)));
 }
 
 function candidateRankingScore({
@@ -299,6 +304,13 @@ function candidateRankingScore({
   const volumeAcceleration = Math.min(26, Math.max(0, volumeZScore) * 11);
   const liquidity = Math.min(18, logVolumeScore(volumeUsd) * 0.65);
   const flowQuality = Math.min(12, Math.abs(microstructure.tradeFlowImbalance) * 18);
+  const bookQuality = Math.min(10, Math.abs(microstructure.bookImbalance ?? 0) * 18);
+  const largeTradeQuality = Math.min(
+    8,
+    (microstructure.largeTakerTradeCount ?? 0) > 0
+      ? 4 + Math.log10(Math.max(1, microstructure.largeTakerTradeUsd ?? 0))
+      : 0,
+  );
   const displacement = absChange <= 2
     ? 12
     : absChange <= 4
@@ -319,6 +331,8 @@ function candidateRankingScore({
     volumeAcceleration +
     liquidity +
     flowQuality +
+    bookQuality +
+    largeTradeQuality +
     displacement +
     stateBonus -
     overextensionPenalty,
@@ -351,7 +365,18 @@ function opportunityPhase({ absChange, earlyScore, overextension, state }) {
   return "neutral_watch";
 }
 
-function candidateReasons({ absChange, earlyScore, flowImbalance, overextension, state, volumeZScore }) {
+function candidateReasons({
+  absChange,
+  bookImbalance,
+  earlyScore,
+  flowImbalance,
+  largeTakerTradeSide,
+  largeTakerTradeUsd,
+  overextension,
+  spreadBps,
+  state,
+  volumeZScore,
+}) {
   const reasons = ["websocket_sliding_window"];
 
   if (volumeZScore >= 2) {
@@ -384,6 +409,34 @@ function candidateReasons({ absChange, earlyScore, flowImbalance, overextension,
 
   if (flowImbalance <= -0.25) {
     reasons.push("cvd_proxy_negative");
+  }
+
+  if (Math.abs(bookImbalance) >= 0.2) {
+    reasons.push("orderbook_pressure_proxy");
+  }
+
+  if (bookImbalance >= 0.2) {
+    reasons.push("orderbook_buy_pressure");
+  }
+
+  if (bookImbalance <= -0.2) {
+    reasons.push("orderbook_sell_pressure");
+  }
+
+  if (spreadBps >= 10) {
+    reasons.push("spread_widening_watch");
+  }
+
+  if (largeTakerTradeUsd > 0) {
+    reasons.push("large_taker_trade_proxy");
+  }
+
+  if (largeTakerTradeSide === "buy") {
+    reasons.push("large_taker_buy_trade");
+  }
+
+  if (largeTakerTradeSide === "sell") {
+    reasons.push("large_taker_sell_trade");
   }
 
   return reasons;
@@ -474,7 +527,61 @@ function pressureBuckets({ price, previousPrice, takerSide, volumeUsd }) {
   };
 }
 
-function updateWindow({ current, event, previousPrice, startMs, volumeUsd }) {
+function sideFromImbalance(value, threshold = 0.15) {
+  if (value > threshold) {
+    return "buy";
+  }
+
+  if (value < -threshold) {
+    return "sell";
+  }
+
+  return "neutral";
+}
+
+function bookSnapshotFromEvent(event) {
+  const bidPrice = finiteNumber(event.bestBidPrice);
+  const bidQuantity = finiteNumber(event.bestBidQuantity);
+  const askPrice = finiteNumber(event.bestAskPrice);
+  const askQuantity = finiteNumber(event.bestAskQuantity);
+  const hasTwoSidedBook = bidPrice > 0 && askPrice > 0 && askPrice >= bidPrice;
+  const bidUsd = bidPrice * Math.max(0, bidQuantity);
+  const askUsd = askPrice * Math.max(0, askQuantity);
+  const depthUsd = bidUsd + askUsd;
+  const midPrice = hasTwoSidedBook ? (bidPrice + askPrice) / 2 : 0;
+  const spreadBps = hasTwoSidedBook && midPrice > 0 ? ((askPrice - bidPrice) / midPrice) * 10_000 : 0;
+  const bookImbalance = depthUsd > 0 ? (bidUsd - askUsd) / depthUsd : 0;
+  const source = depthUsd > 0 || spreadBps > 0
+    ? event.bookSource === "ticker_bbo" ? "ticker_bbo_proxy" : "book_ticker_proxy"
+    : "";
+
+  return {
+    bookAskUsd: askUsd,
+    bookBidUsd: bidUsd,
+    bookImbalance: round(bookImbalance, 4),
+    bookPressureSide: sideFromImbalance(bookImbalance),
+    bookProxyQuality: source,
+    spreadBps: round(spreadBps, 2),
+  };
+}
+
+function largeTradeFromEvent({ event, largeTakerTradeUsd, volumeUsd }) {
+  if (event.flowSource !== "trade" || volumeUsd < largeTakerTradeUsd) {
+    return {
+      count: 0,
+      side: "neutral",
+      usd: 0,
+    };
+  }
+
+  return {
+    count: 1,
+    side: event.takerSide === "buy" ? "buy" : event.takerSide === "sell" ? "sell" : "neutral",
+    usd: volumeUsd,
+  };
+}
+
+function updateWindow({ current, event, largeTakerTradeUsd, previousPrice, startMs, volumeUsd }) {
   const flowSource = event.flowSource === "trade" ? "trade" : "ticker";
   const pressure = pressureBuckets({
     price: event.price,
@@ -482,19 +589,32 @@ function updateWindow({ current, event, previousPrice, startMs, volumeUsd }) {
     takerSide: event.takerSide,
     volumeUsd,
   });
+  const book = bookSnapshotFromEvent(event);
+  const largeTrade = largeTradeFromEvent({ event, largeTakerTradeUsd, volumeUsd });
 
   if (!current) {
     const tradeVolumeUsd = flowSource === "trade" ? volumeUsd : 0;
     const tickerInferredVolumeUsd = flowSource === "ticker" ? volumeUsd : 0;
 
     return {
+      bookAskUsd: book.bookAskUsd,
+      bookBidUsd: book.bookBidUsd,
+      bookImbalance: book.bookImbalance,
+      bookPressureSide: book.bookPressureSide,
+      bookProxyQuality: book.bookProxyQuality,
       buyPressureUsd: pressure.buyPressureUsd,
       closePrice: event.price,
       flatPressureUsd: pressure.flatPressureUsd,
       highPrice: event.price,
+      largeBuyTradeUsd: largeTrade.side === "buy" ? largeTrade.usd : 0,
+      largeSellTradeUsd: largeTrade.side === "sell" ? largeTrade.usd : 0,
+      largeTakerTradeCount: largeTrade.count,
+      largeTakerTradeSide: largeTrade.side,
+      largeTakerTradeUsd: largeTrade.usd,
       lowPrice: event.price,
       openPrice: event.price,
       sellPressureUsd: pressure.sellPressureUsd,
+      spreadBps: book.spreadBps,
       startMs,
       tickerInferredVolumeUsd,
       tradeBuyPressureUsd: flowSource === "trade" ? pressure.buyPressureUsd : 0,
@@ -510,15 +630,31 @@ function updateWindow({ current, event, previousPrice, startMs, volumeUsd }) {
   const tradeFlatPressureUsd = current.tradeFlatPressureUsd + (flowSource === "trade" ? pressure.flatPressureUsd : 0);
   const tradeSellPressureUsd = current.tradeSellPressureUsd + (flowSource === "trade" ? pressure.sellPressureUsd : 0);
   const tradeVolumeUsd = current.tradeVolumeUsd + (flowSource === "trade" ? volumeUsd : 0);
+  const hasBookUpdate = Boolean(book.bookProxyQuality);
+  const largeTakerTradeUsdValue = Math.max(current.largeTakerTradeUsd ?? 0, largeTrade.usd);
+  const largeTakerTradeSide = largeTrade.usd > (current.largeTakerTradeUsd ?? 0)
+    ? largeTrade.side
+    : current.largeTakerTradeSide ?? "neutral";
 
   return {
     ...current,
+    bookAskUsd: hasBookUpdate ? book.bookAskUsd : current.bookAskUsd ?? 0,
+    bookBidUsd: hasBookUpdate ? book.bookBidUsd : current.bookBidUsd ?? 0,
+    bookImbalance: hasBookUpdate ? book.bookImbalance : current.bookImbalance ?? 0,
+    bookPressureSide: hasBookUpdate ? book.bookPressureSide : current.bookPressureSide ?? "neutral",
+    bookProxyQuality: hasBookUpdate ? book.bookProxyQuality : current.bookProxyQuality ?? "",
     buyPressureUsd: current.buyPressureUsd + pressure.buyPressureUsd,
     closePrice: event.price,
     flatPressureUsd: current.flatPressureUsd + pressure.flatPressureUsd,
     highPrice: Math.max(current.highPrice, event.price),
+    largeBuyTradeUsd: (current.largeBuyTradeUsd ?? 0) + (largeTrade.side === "buy" ? largeTrade.usd : 0),
+    largeSellTradeUsd: (current.largeSellTradeUsd ?? 0) + (largeTrade.side === "sell" ? largeTrade.usd : 0),
+    largeTakerTradeCount: (current.largeTakerTradeCount ?? 0) + largeTrade.count,
+    largeTakerTradeSide,
+    largeTakerTradeUsd: largeTakerTradeUsdValue,
     lowPrice: Math.min(current.lowPrice, event.price),
     sellPressureUsd: current.sellPressureUsd + pressure.sellPressureUsd,
+    spreadBps: hasBookUpdate ? book.spreadBps : current.spreadBps ?? 0,
     tickerInferredVolumeUsd,
     tradeBuyPressureUsd,
     tradeFlatPressureUsd,
@@ -550,11 +686,22 @@ function microstructureFromWindow(window) {
       : "neutral";
 
   return {
+    bookAskUsd: round(window.bookAskUsd ?? 0, 0),
+    bookBidUsd: round(window.bookBidUsd ?? 0, 0),
+    bookImbalance: round(window.bookImbalance ?? 0, 4),
+    bookPressureSide: window.bookPressureSide ?? "neutral",
+    bookProxyQuality: window.bookProxyQuality || undefined,
     buyPressureUsd,
     cvdProxyUsd: round(cvdProxyUsd, 0),
+    largeBuyTradeUsd: round(window.largeBuyTradeUsd ?? 0, 0),
+    largeSellTradeUsd: round(window.largeSellTradeUsd ?? 0, 0),
+    largeTakerTradeCount: window.largeTakerTradeCount ?? 0,
+    largeTakerTradeSide: window.largeTakerTradeSide ?? "neutral",
+    largeTakerTradeUsd: round(window.largeTakerTradeUsd ?? 0, 0),
     pressureSide,
     proxyQuality: hasTradeFlow ? "taker_trade_proxy" : "rolling_price_volume_proxy",
     sellPressureUsd,
+    spreadBps: round(window.spreadBps ?? 0, 2),
     tradeFlowImbalance,
   };
 }
@@ -578,7 +725,9 @@ function buildCandidate({ state, window, windowMs, z }) {
   const risk = overextensionRisk({ absChange, closeNearExtreme });
   const earlyScore = earlyOpportunityScore({
     absChange,
+    bookImbalance: microstructure.bookImbalance ?? 0,
     flowImbalance: microstructure.tradeFlowImbalance,
+    largeTakerTradeCount: microstructure.largeTakerTradeCount ?? 0,
     overextension: risk,
     state: stateValue,
     volatilityPercent,
@@ -613,9 +762,13 @@ function buildCandidate({ state, window, windowMs, z }) {
     price: round(window.closePrice, 8),
     reasons: candidateReasons({
       absChange,
+      bookImbalance: microstructure.bookImbalance ?? 0,
       earlyScore,
       flowImbalance: microstructure.tradeFlowImbalance,
+      largeTakerTradeSide: microstructure.largeTakerTradeSide ?? "neutral",
+      largeTakerTradeUsd: microstructure.largeTakerTradeUsd ?? 0,
       overextension: risk,
+      spreadBps: microstructure.spreadBps ?? 0,
       state: stateValue,
       volumeZScore: z,
     }),
@@ -697,7 +850,29 @@ function diagnostics({ candidateCount, generatedAt, notes, priorityCandidates, s
   };
 }
 
+function anomalyFrameFromCandidate(candidate, generatedAt) {
+  return {
+    bookImbalance: candidate.microstructure?.bookImbalance ?? null,
+    bookPressureSide: candidate.microstructure?.bookPressureSide ?? null,
+    changePercent: candidate.changePercent24h,
+    cvdProxyUsd: candidate.microstructure?.cvdProxyUsd ?? null,
+    generatedAt,
+    largeTakerTradeSide: candidate.microstructure?.largeTakerTradeSide ?? null,
+    largeTakerTradeUsd: candidate.microstructure?.largeTakerTradeUsd ?? null,
+    opportunityPhase: candidate.opportunityPhase ?? null,
+    overextensionRisk: candidate.overextensionRisk ?? null,
+    pressureSide: candidate.microstructure?.pressureSide ?? null,
+    price: candidate.price ?? null,
+    reasonCodes: candidate.reasons,
+    score: candidate.score,
+    spreadBps: candidate.microstructure?.spreadBps ?? null,
+    symbol: candidate.symbol,
+    volumeWindowUsd: candidate.volumeWindowUsd ?? null,
+  };
+}
+
 export function createLightScanAccumulator({
+  largeTakerTradeUsd = defaultLargeTakerTradeUsd,
   maxBaselineWindows = defaultMaxBaselineWindows,
   maxPriorityCandidates = defaultMaxPriorityCandidates,
   minCandidateVolumeUsd = defaultMinCandidateVolumeUsd,
@@ -733,6 +908,7 @@ export function createLightScanAccumulator({
       const currentWindow = updateWindow({
         current: isSameWindow ? previous.currentWindow : null,
         event: { ...event, price, symbol },
+        largeTakerTradeUsd,
         previousPrice: previous?.lastPrice,
         startMs,
         volumeUsd: delta,
@@ -777,6 +953,7 @@ export function createLightScanAccumulator({
       const status = allStates.length > 0 ? "ready" : "failed";
 
       return {
+        anomalyFrames: priorityCandidates.slice(0, 24).map((candidate) => anomalyFrameFromCandidate(candidate, generatedAt)),
         diagnostics: diagnostics({
           candidateCount: priorityCandidates.length,
           generatedAt,
@@ -784,6 +961,7 @@ export function createLightScanAccumulator({
             `websocket light scan worker window ${Math.round(windowMs / 60000)}m`,
             `volume z-score threshold ${zScoreThreshold}`,
             "trade flow and CVD proxy prefer public taker trade streams and fall back to rolling price/volume direction; discovery only",
+            "book pressure and large taker trade proxy are discovery evidence only and cannot create trade plans",
             "snapshot is scheduling input; CoinGlass deep scan and Evidence gate still required",
           ],
           priorityCandidates,
@@ -863,6 +1041,49 @@ export function parseBinanceAggTradeMessage(raw) {
     .filter(Boolean);
 }
 
+export function parseBinanceBookTickerMessage(raw) {
+  const payload = safeJsonParse(raw);
+  const rows = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : payload?.data
+        ? [payload.data]
+        : payload?.s
+          ? [payload]
+        : [];
+
+  return rows
+    .map((row) => {
+      const symbol = normalizedSymbol(row?.s);
+      const bestBidPrice = finiteNumber(row?.b);
+      const bestBidQuantity = finiteNumber(row?.B);
+      const bestAskPrice = finiteNumber(row?.a);
+      const bestAskQuantity = finiteNumber(row?.A);
+      const price = bestBidPrice > 0 && bestAskPrice > 0
+        ? (bestBidPrice + bestAskPrice) / 2
+        : Math.max(bestBidPrice, bestAskPrice);
+
+      if (!isUsdtPerpLikeSymbol(symbol) || price <= 0) {
+        return null;
+      }
+
+      return {
+        bestAskPrice,
+        bestAskQuantity,
+        bestBidPrice,
+        bestBidQuantity,
+        bookSource: "book_ticker",
+        eventTime: eventTimeFromMs(row?.E ?? row?.T),
+        exchange: "BINANCE",
+        flowSource: "book",
+        price,
+        symbol,
+      };
+    })
+    .filter(Boolean);
+}
+
 function okxSymbolFromInstId(instId) {
   const value = String(instId ?? "").trim().toUpperCase();
 
@@ -909,12 +1130,24 @@ export function parseOkxTickerMessage(raw) {
 
       const symbol = okxSymbolFromInstId(row?.instId);
       const price = finiteNumber(row?.last);
+      const bestAskPrice = finiteNumber(row?.askPx);
+      const bestAskQuantity = finiteNumber(row?.askSz);
+      const bestBidPrice = finiteNumber(row?.bidPx);
+      const bestBidQuantity = finiteNumber(row?.bidSz);
+      const hasBook = bestAskPrice > 0 && bestAskQuantity > 0 && bestBidPrice > 0 && bestBidQuantity > 0;
 
       if (!isUsdtPerpLikeSymbol(symbol) || price <= 0) {
         return null;
       }
 
       return {
+        ...(hasBook ? {
+          bestAskPrice,
+          bestAskQuantity,
+          bestBidPrice,
+          bestBidQuantity,
+          bookSource: "ticker_bbo",
+        } : {}),
         eventTime: eventTimeFromMs(row?.ts),
         exchange: "OKX",
         flowSource: "ticker",
@@ -969,12 +1202,24 @@ export function parseBybitTickerMessage(raw) {
     .map((row) => {
       const symbol = normalizedSymbol(row?.symbol ?? String(payload?.topic ?? "").replace(/^tickers\./, ""));
       const price = finiteNumber(row?.lastPrice);
+      const bestAskPrice = finiteNumber(row?.ask1Price);
+      const bestAskQuantity = finiteNumber(row?.ask1Size);
+      const bestBidPrice = finiteNumber(row?.bid1Price);
+      const bestBidQuantity = finiteNumber(row?.bid1Size);
+      const hasBook = bestAskPrice > 0 && bestAskQuantity > 0 && bestBidPrice > 0 && bestBidQuantity > 0;
 
       if (!isUsdtPerpLikeSymbol(symbol) || price <= 0) {
         return null;
       }
 
       return {
+        ...(hasBook ? {
+          bestAskPrice,
+          bestAskQuantity,
+          bestBidPrice,
+          bestBidQuantity,
+          bookSource: "ticker_bbo",
+        } : {}),
         eventTime: eventTimeFromMs(row?.ts ?? payload?.ts),
         exchange: "BYBIT",
         flowSource: "ticker",
@@ -1149,6 +1394,7 @@ async function buildSources() {
   const symbolLimit = positiveNumberFromEnv("WS_LIGHT_SCAN_SYMBOL_LIMIT_PER_EXCHANGE", 500);
   const subscribeChunkSize = positiveNumberFromEnv("WS_LIGHT_SCAN_SUBSCRIBE_CHUNK_SIZE", 40);
   const tradeStreamsEnabled = booleanFromEnv("WS_LIGHT_SCAN_TRADE_STREAMS_ENABLED", true);
+  const bookStreamsEnabled = booleanFromEnv("WS_LIGHT_SCAN_BOOK_STREAMS_ENABLED", true);
   const sources = [];
 
   if (exchanges.includes("BINANCE")) {
@@ -1162,6 +1408,17 @@ async function buildSources() {
         subscribeMessages: [],
         url: process.env.BINANCE_WS_TICKER_URL ?? "wss://fstream.binance.com/ws/!ticker@arr",
       });
+
+      if (bookStreamsEnabled) {
+        sources.push({
+          allowedSymbols: new Set(symbols),
+          exchange: "BINANCE",
+          kind: "book",
+          parser: parseBinanceBookTickerMessage,
+          subscribeMessages: [],
+          url: process.env.BINANCE_WS_BOOK_TICKER_URL ?? "wss://fstream.binance.com/ws/!bookTicker",
+        });
+      }
 
       if (tradeStreamsEnabled) {
         const subscribeMessages = buildSubscriptionChunks(
@@ -1414,6 +1671,7 @@ export async function runWorker() {
   const ttlSeconds = positiveNumberFromEnv("WS_LIGHT_SCAN_SNAPSHOT_TTL_SECONDS", 20 * 60);
   const reconnectMs = positiveNumberFromEnv("WS_LIGHT_SCAN_RECONNECT_SECONDS", 10) * 1000;
   const accumulator = createLightScanAccumulator({
+    largeTakerTradeUsd: positiveNumberFromEnv("WS_LIGHT_SCAN_LARGE_TAKER_TRADE_USD", defaultLargeTakerTradeUsd),
     maxPriorityCandidates: positiveNumberFromEnv("WS_LIGHT_SCAN_MAX_PRIORITY_CANDIDATES", defaultMaxPriorityCandidates),
     minCandidateVolumeUsd: nonNegativeNumberFromEnv("WS_LIGHT_SCAN_MIN_CANDIDATE_VOLUME_USD", defaultMinCandidateVolumeUsd),
     windowMs: positiveNumberFromEnv("WS_LIGHT_SCAN_WINDOW_MS", defaultWindowMs),

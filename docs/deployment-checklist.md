@@ -84,6 +84,8 @@
 - `WS_LIGHT_SCAN_WORKER_ENABLED`: 常驻 WebSocket 轻扫 worker 是否启动，默认 `true`。
 - `WS_LIGHT_SCAN_EXCHANGES`: WebSocket 轻扫交易所，默认 `BINANCE,OKX,BYBIT`；Binance 使用全市场 ticker，OKX/Bybit 先公开发现 USDT 永续再订阅。
 - `WS_LIGHT_SCAN_TRADE_STREAMS_ENABLED`: 是否订阅 public taker trade 流，默认 `true`；开启后 Binance `aggTrade`、OKX `trades`、Bybit `publicTrade` 会优先用于买卖压力和 CVD proxy。
+- `WS_LIGHT_SCAN_BOOK_STREAMS_ENABLED`: 是否启用盘口/BBO 压力代理，默认 `true`；Binance 使用全市场 `bookTicker`，OKX/Bybit 从 ticker BBO 字段提取。
+- `WS_LIGHT_SCAN_LARGE_TAKER_TRADE_USD`: 单笔主动大单代理阈值，默认 `100000` 美元；只用于发现层和候选排序，不生成交易计划。
 - `WS_LIGHT_SCAN_REDIS_KEY`: Redis 快照 key，默认 `chuan:ws-light-scan:snapshot`。
 - `WS_LIGHT_SCAN_STALE_AFTER_MS`: 主扫描认为 WebSocket 快照过期的时间，默认 `180000`。
 - `WS_LIGHT_SCAN_SNAPSHOT_INTERVAL_SECONDS`: Worker 写 Redis 快照间隔，默认 `15`。

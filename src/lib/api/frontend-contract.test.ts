@@ -832,11 +832,22 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
         volumeWindowUsd: 1_200_000,
         volatilityPercent: 2.1,
         microstructure: {
+          bookAskUsd: 180_000,
+          bookBidUsd: 520_000,
+          bookImbalance: 0.4857,
+          bookPressureSide: "buy",
+          bookProxyQuality: "book_ticker_proxy",
           buyPressureUsd: 780_000,
           cvdProxyUsd: 560_000,
+          largeBuyTradeUsd: 420_000,
+          largeSellTradeUsd: 0,
+          largeTakerTradeCount: 1,
+          largeTakerTradeSide: "buy",
+          largeTakerTradeUsd: 420_000,
           pressureSide: "buy",
           proxyQuality: "taker_trade_proxy",
           sellPressureUsd: 220_000,
+          spreadBps: 2.1,
           tradeFlowImbalance: 0.4667,
         },
       },
@@ -908,6 +919,8 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
   assert.equal(radar.lightScanQuality.data.coverage.rollingWindowCandidateCount, 3);
   assert.equal(radar.lightScanQuality.data.coverage.zScoreCandidateCount, 2);
   assert.equal(radar.lightScanQuality.data.coverage.cvdProxyCandidateCount, 3);
+  assert.equal(radar.lightScanQuality.data.coverage.bookPressureCandidateCount, 1);
+  assert.equal(radar.lightScanQuality.data.coverage.largeTakerTradeCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.coverage.buyPressureCandidateCount, 2);
   assert.equal(radar.lightScanQuality.data.coverage.sellPressureCandidateCount, 1);
   assert.equal(radar.lightScanQuality.data.coverage.earlyOpportunityCandidateCount, 2);
@@ -919,11 +932,15 @@ test("buildFrontendRadarContract exposes light scan quality without granting tra
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.earlyOpportunityScore, 86);
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.pressureSide, "buy");
   assert.equal(radar.lightScanQuality.data.topCandidates[0]?.flowImbalance, 0.4667);
+  assert.equal(radar.lightScanQuality.data.topCandidates[0]?.bookPressureSide, "buy");
+  assert.equal(radar.lightScanQuality.data.topCandidates[0]?.largeTakerTradeUsd, 420_000);
   assert.equal(radar.lightScanQuality.data.topCandidates[2]?.symbol, "REZ");
   assert.equal(radar.lightScanQuality.data.topCandidates[2]?.pressureSide, "buy");
   assert.equal(radar.lightScanQuality.data.topCandidates[2]?.flowImbalance, null);
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "volume_zscore" && check.status === "pass"));
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "cvd_proxy_quality" && check.status === "pass"));
+  assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "orderbook_pressure_proxy" && check.status === "pass"));
+  assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "large_taker_trade_proxy" && check.status === "pass"));
   assert.ok(radar.lightScanQuality.data.guardrails.some((rule) => /不能生成交易计划/.test(rule)));
   const lateMoveSignal = radar.radarSignals.data.find((item) => item.symbol === "WIF");
   const earlySignal = radar.radarSignals.data.find((item) => item.symbol === "REZ");
@@ -2370,6 +2387,25 @@ test("buildFrontendReviewContract returns review resources from journal and capa
       volumeWindowMs: 900_000,
       volumeWindowUsd: 1_200_000,
       volatilityPercent: 2.1,
+      microstructure: {
+        bookAskUsd: 180_000,
+        bookBidUsd: 520_000,
+        bookImbalance: 0.4857,
+        bookPressureSide: "buy",
+        bookProxyQuality: "book_ticker_proxy",
+        buyPressureUsd: 780_000,
+        cvdProxyUsd: 560_000,
+        largeBuyTradeUsd: 420_000,
+        largeSellTradeUsd: 0,
+        largeTakerTradeCount: 1,
+        largeTakerTradeSide: "buy",
+        largeTakerTradeUsd: 420_000,
+        pressureSide: "buy",
+        proxyQuality: "taker_trade_proxy",
+        sellPressureUsd: 220_000,
+        spreadBps: 2.1,
+        tradeFlowImbalance: 0.4667,
+      },
     },
     {
       baseAsset: "WIF",
@@ -2413,6 +2449,8 @@ test("buildFrontendReviewContract returns review resources from journal and capa
   assert.equal(review.discoveryReview.data.earlyOpportunityCount, 1);
   assert.equal(review.discoveryReview.data.lateMoveCount, 1);
   assert.equal(review.discoveryReview.data.cvdProxyCandidateCount, 1);
+  assert.equal(review.discoveryReview.data.bookPressureCandidateCount, 1);
+  assert.equal(review.discoveryReview.data.largeTakerTradeCandidateCount, 1);
   assert.equal(review.discoveryReview.data.calibration.status, "collecting");
   assert.equal(review.discoveryReview.data.calibration.earlyOutcomeLink, "ready");
   assert.equal(review.discoveryReview.data.calibration.lateSignalPenalty, "active");

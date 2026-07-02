@@ -110,7 +110,7 @@ export function TokenDossier({
           <DiscoveryCell
             index={2}
             label="买卖压力"
-            value={`${pressureLabel(d.discovery.pressureSide)} · 主动买卖 ${d.discovery.flowImbalance ?? '—'}`}
+            value={`${pressureLabel(d.discovery.pressureSide)} · 盘口 ${pressureLabel(d.discovery.bookPressureSide)} · 主动买卖 ${d.discovery.flowImbalance ?? '—'}`}
             tone={d.discovery.pressureSide === 'buy' ? 'up' : d.discovery.pressureSide === 'sell' ? 'down' : 'muted'}
           />
           <DiscoveryCell
@@ -571,7 +571,7 @@ function DiscoveryCell({
       className="data-tile tile-in border border-border bg-secondary/20 px-3 py-2.5"
     >
       <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className={cn('mt-1 font-mono text-sm font-semibold', toneClass)}>{value}</div>
+      <div className={cn('mt-1 break-words font-mono text-xs font-semibold leading-snug', toneClass)}>{value}</div>
     </div>
   )
 }

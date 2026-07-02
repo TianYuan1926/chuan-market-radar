@@ -105,6 +105,11 @@ export type DiscoveryProxyQuality =
   | "taker_trade_proxy";
 
 export type DiscoveryFact = {
+  bookAskUsd: number | null;
+  bookBidUsd: number | null;
+  bookImbalance: number | null;
+  bookPressureSide: DiscoveryPressureSide | null;
+  bookProxyQuality: "book_ticker_proxy" | "ticker_bbo_proxy" | null;
   buyPressureUsd: number | null;
   changePercent24h: number | null;
   cvdProxyUsd: number | null;
@@ -120,6 +125,12 @@ export type DiscoveryFact = {
   score: number | null;
   sellPressureUsd: number | null;
   source: "light_scan_top_candidate" | "not_in_light_scan_top_candidates";
+  largeBuyTradeUsd: number | null;
+  largeSellTradeUsd: number | null;
+  largeTakerTradeCount: number | null;
+  largeTakerTradeSide: DiscoveryPressureSide | null;
+  largeTakerTradeUsd: number | null;
+  spreadBps: number | null;
   state: ScanLightScanCandidate["state"] | null;
   summary: string;
   symbol: string;
@@ -483,9 +494,13 @@ export type LightScanQualityCheck = {
 };
 
 export type LightScanQualityCandidate = {
+  bookImbalance: number | null;
+  bookPressureSide: "buy" | "neutral" | "sell" | null;
   changePercent: number;
   earlyOpportunityScore: number | null;
   flowImbalance: number | null;
+  largeTakerTradeSide: "buy" | "neutral" | "sell" | null;
+  largeTakerTradeUsd: number | null;
   opportunityPhase: ScanLightScanCandidate["opportunityPhase"] | null;
   overextensionRisk: ScanLightScanCandidate["overextensionRisk"] | null;
   pressureSide: "buy" | "neutral" | "sell" | null;
@@ -504,12 +519,14 @@ export type LightScanQualityState = {
   coverage: {
     acceptedCount: number;
     averagePriorityScore: number;
+    bookPressureCandidateCount: number;
     buyPressureCandidateCount: number;
     candidateCount: number;
     cvdProxyCandidateCount: number;
     earlyOpportunityCandidateCount: number;
     hotCandidateCount: number;
     lateMoveCandidateCount: number;
+    largeTakerTradeCandidateCount: number;
     preTrendCandidateCount: number;
     rollingWindowCandidateCount: number;
     sellPressureCandidateCount: number;
@@ -644,10 +661,12 @@ export type DiscoveryReviewState = {
     status: "usable" | "collecting" | "empty";
     summary: string;
   };
+  bookPressureCandidateCount: number;
   cvdProxyCandidateCount: number;
   earlyOpportunityCount: number;
   guardrails: string[];
   lateMoveCount: number;
+  largeTakerTradeCandidateCount: number;
   missedDetectionCount: number;
   reviewFocus: string[];
   summary: string;
@@ -1248,6 +1267,15 @@ function round(value: number, digits = 2) {
   }
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
+}
+
+function formatCompactUsd(value: number) {
+  const abs = Math.abs(value);
+
+  if (abs >= 1_000_000_000) return `$${round(value / 1_000_000_000, 2)}B`;
+  if (abs >= 1_000_000) return `$${round(value / 1_000_000, 2)}M`;
+  if (abs >= 1_000) return `$${round(value / 1_000, 1)}K`;
+  return `$${round(value, 0)}`;
 }
 
 function safeNumber(value: unknown, fallback = 0) {
@@ -2173,6 +2201,36 @@ function candidateProxyQuality(candidate: ScanLightScanCandidate): DiscoveryProx
   return null;
 }
 
+function candidateHasBookPressure(candidate: ScanLightScanCandidate) {
+  if (typeof candidate.microstructure?.bookImbalance === "number" && Math.abs(candidate.microstructure.bookImbalance) >= 0.2) {
+    return true;
+  }
+
+  const reasons = candidateReasonSet(candidate);
+
+  return reasons.has("orderbook_pressure_proxy") ||
+    reasons.has("orderbook_buy_pressure") ||
+    reasons.has("orderbook_sell_pressure");
+}
+
+function candidateHasLargeTakerTrade(candidate: ScanLightScanCandidate) {
+  if ((candidate.microstructure?.largeTakerTradeUsd ?? 0) > 0) {
+    return true;
+  }
+
+  return candidateReasonSet(candidate).has("large_taker_trade_proxy");
+}
+
+function candidateBookPressureSide(candidate: ScanLightScanCandidate): DiscoveryPressureSide | null {
+  if (candidate.microstructure?.bookPressureSide) return candidate.microstructure.bookPressureSide;
+
+  const reasons = candidateReasonSet(candidate);
+  if (reasons.has("orderbook_buy_pressure")) return "buy";
+  if (reasons.has("orderbook_sell_pressure")) return "sell";
+
+  return null;
+}
+
 function discoveryPhaseLabel(phase: ScanLightScanCandidate["opportunityPhase"] | null | undefined) {
   if (phase === "early_setup") return "启动前";
   if (phase === "breakout_watch") return "突破观察";
@@ -2191,20 +2249,35 @@ function pressureSideLabel(side: DiscoveryPressureSide | null | undefined) {
 function discoverySummary(candidate: ScanLightScanCandidate) {
   const phase = discoveryPhaseLabel(candidate.opportunityPhase);
   const pressure = pressureSideLabel(candidatePressureSide(candidate));
+  const bookPressure = pressureSideLabel(candidateBookPressureSide(candidate));
   const earlyScore = typeof candidate.earlyOpportunityScore === "number"
     ? `提前分 ${round(candidate.earlyOpportunityScore, 0)}`
     : "提前分待补";
+  const largeTrade = (candidate.microstructure?.largeTakerTradeUsd ?? 0) > 0
+    ? `大单 ${formatCompactUsd(candidate.microstructure?.largeTakerTradeUsd ?? 0)}`
+    : "大单不足";
   const risk = candidate.overextensionRisk === "high"
     ? "延展风险高，只能复盘或等回踩"
     : candidate.overextensionRisk === "medium"
       ? "延展风险中，必须等结构确认"
       : "延展风险低或待确认";
 
-  return `${phase} · ${pressure} · ${earlyScore} · ${risk}`;
+  return `${phase} · ${pressure} · 盘口${bookPressure} · ${largeTrade} · ${earlyScore} · ${risk}`;
 }
 
 function discoveryFactFromCandidate(candidate: ScanLightScanCandidate): DiscoveryFact {
   return {
+    bookAskUsd: typeof candidate.microstructure?.bookAskUsd === "number"
+      ? round(candidate.microstructure.bookAskUsd, 0)
+      : null,
+    bookBidUsd: typeof candidate.microstructure?.bookBidUsd === "number"
+      ? round(candidate.microstructure.bookBidUsd, 0)
+      : null,
+    bookImbalance: typeof candidate.microstructure?.bookImbalance === "number"
+      ? round(candidate.microstructure.bookImbalance, 4)
+      : null,
+    bookPressureSide: candidateBookPressureSide(candidate),
+    bookProxyQuality: candidate.microstructure?.bookProxyQuality ?? null,
     buyPressureUsd: typeof candidate.microstructure?.buyPressureUsd === "number"
       ? round(candidate.microstructure.buyPressureUsd, 0)
       : null,
@@ -2229,6 +2302,22 @@ function discoveryFactFromCandidate(candidate: ScanLightScanCandidate): Discover
     sellPressureUsd: typeof candidate.microstructure?.sellPressureUsd === "number"
       ? round(candidate.microstructure.sellPressureUsd, 0)
       : null,
+    largeBuyTradeUsd: typeof candidate.microstructure?.largeBuyTradeUsd === "number"
+      ? round(candidate.microstructure.largeBuyTradeUsd, 0)
+      : null,
+    largeSellTradeUsd: typeof candidate.microstructure?.largeSellTradeUsd === "number"
+      ? round(candidate.microstructure.largeSellTradeUsd, 0)
+      : null,
+    largeTakerTradeCount: typeof candidate.microstructure?.largeTakerTradeCount === "number"
+      ? candidate.microstructure.largeTakerTradeCount
+      : null,
+    largeTakerTradeSide: candidate.microstructure?.largeTakerTradeSide ?? null,
+    largeTakerTradeUsd: typeof candidate.microstructure?.largeTakerTradeUsd === "number"
+      ? round(candidate.microstructure.largeTakerTradeUsd, 0)
+      : null,
+    spreadBps: typeof candidate.microstructure?.spreadBps === "number"
+      ? round(candidate.microstructure.spreadBps, 2)
+      : null,
     source: "light_scan_top_candidate",
     state: candidate.state,
     summary: discoverySummary(candidate),
@@ -2242,6 +2331,11 @@ function emptyDiscoveryFact(symbol: string): DiscoveryFact {
   const display = displaySymbol(symbol);
 
   return {
+    bookAskUsd: null,
+    bookBidUsd: null,
+    bookImbalance: null,
+    bookPressureSide: null,
+    bookProxyQuality: null,
     buyPressureUsd: null,
     changePercent24h: null,
     cvdProxyUsd: null,
@@ -2256,6 +2350,12 @@ function emptyDiscoveryFact(symbol: string): DiscoveryFact {
     reasons: [],
     score: null,
     sellPressureUsd: null,
+    largeBuyTradeUsd: null,
+    largeSellTradeUsd: null,
+    largeTakerTradeCount: null,
+    largeTakerTradeSide: null,
+    largeTakerTradeUsd: null,
+    spreadBps: null,
     source: "not_in_light_scan_top_candidates",
     state: null,
     summary: `${display} 未进入当前轻扫 Top 候选；如有成熟信号，以证据链和风控门禁为准。`,
@@ -2290,6 +2390,8 @@ function buildLightScanQuality({
   );
   const zScoreCandidates = topCandidates.filter((candidate) => candidate.reasons.includes("volume_zscore_spike"));
   const cvdProxyCandidates = topCandidates.filter(candidateHasCvdProxy);
+  const bookPressureCandidates = topCandidates.filter(candidateHasBookPressure);
+  const largeTakerTradeCandidates = topCandidates.filter(candidateHasLargeTakerTrade);
   const buyPressureCandidates = topCandidates.filter((candidate) => candidatePressureSide(candidate) === "buy");
   const sellPressureCandidates = topCandidates.filter((candidate) => candidatePressureSide(candidate) === "sell");
   const hotCandidates = topCandidates.filter((candidate) => candidate.state === "HOT");
@@ -2364,6 +2466,30 @@ function buildLightScanQuality({
       status: cvdProxyCandidates.length > 0 ? "pass" : "watch",
     },
     {
+      detail: bookPressureCandidates.length > 0
+        ? `${bookPressureCandidates.length} 个候选带有盘口/BBO 压力代理，可辅助识别临界吃单与挂单厚度变化。`
+        : "当前没有候选携带盘口压力代理；这不是故障，但说明发现层暂时只能依赖成交和价格窗口。",
+      evidence: [
+        `bookPressureCandidates=${bookPressureCandidates.length}`,
+        `topCandidates=${topCandidates.length}`,
+      ],
+      key: "orderbook_pressure_proxy",
+      label: "盘口压力代理",
+      status: bookPressureCandidates.length > 0 ? "pass" : "watch",
+    },
+    {
+      detail: largeTakerTradeCandidates.length > 0
+        ? `${largeTakerTradeCandidates.length} 个候选出现单笔主动大单代理；只能作为异动发现证据。`
+        : "当前没有单笔主动大单样本；系统继续观察，不得补造扫单信号。",
+      evidence: [
+        `largeTakerTradeCandidates=${largeTakerTradeCandidates.length}`,
+        `threshold=WS_LIGHT_SCAN_LARGE_TAKER_TRADE_USD`,
+      ],
+      key: "large_taker_trade_proxy",
+      label: "主动大单代理",
+      status: largeTakerTradeCandidates.length > 0 ? "pass" : "watch",
+    },
+    {
       detail: earlyOpportunityCandidates.length > 0
         ? `${earlyOpportunityCandidates.length} 个候选带有启动前机会分，可优先调度深扫。`
         : "当前没有明确启动前机会样本；系统应继续扫描，不得用已爆发行情补位。",
@@ -2392,12 +2518,14 @@ function buildLightScanQuality({
     coverage: {
       acceptedCount: lightScan.acceptedCount,
       averagePriorityScore: averageScore(topCandidates),
+      bookPressureCandidateCount: bookPressureCandidates.length,
       buyPressureCandidateCount: buyPressureCandidates.length,
       candidateCount: lightScan.candidateCount,
       cvdProxyCandidateCount: cvdProxyCandidates.length,
       earlyOpportunityCandidateCount: earlyOpportunityCandidates.length,
       hotCandidateCount: hotCandidates.length,
       lateMoveCandidateCount: lateMoveCandidates.length,
+      largeTakerTradeCandidateCount: largeTakerTradeCandidates.length,
       preTrendCandidateCount: preTrendCandidates.length,
       rollingWindowCandidateCount: rollingWindowCandidates.length,
       sellPressureCandidateCount: sellPressureCandidates.length,
@@ -2427,6 +2555,14 @@ function buildLightScanQuality({
         : null,
       flowImbalance: typeof candidate.microstructure?.tradeFlowImbalance === "number"
         ? round(candidate.microstructure.tradeFlowImbalance, 4)
+        : null,
+      bookImbalance: typeof candidate.microstructure?.bookImbalance === "number"
+        ? round(candidate.microstructure.bookImbalance, 4)
+        : null,
+      bookPressureSide: candidateBookPressureSide(candidate),
+      largeTakerTradeSide: candidate.microstructure?.largeTakerTradeSide ?? null,
+      largeTakerTradeUsd: typeof candidate.microstructure?.largeTakerTradeUsd === "number"
+        ? round(candidate.microstructure.largeTakerTradeUsd, 0)
         : null,
       opportunityPhase: candidate.opportunityPhase ?? null,
       overextensionRisk: candidate.overextensionRisk ?? null,
@@ -4597,6 +4733,8 @@ function buildDiscoveryReviewState(
     candidate.opportunityPhase === "late_move" || candidate.overextensionRisk === "high"
   ).length;
   const cvdProxyCandidateCount = topCandidates.filter(candidateHasCvdProxy).length;
+  const bookPressureCandidateCount = topCandidates.filter(candidateHasBookPressure).length;
+  const largeTakerTradeCandidateCount = topCandidates.filter(candidateHasLargeTakerTrade).length;
   const hasOutcomeSamples = reviewStats.samples.withMetrics > 0 || reviewStats.samples.evidenceLevel > 0;
   const hasClosedSamples = reviewStats.samples.closed > 0;
   const calibrationStatus: DiscoveryReviewState["calibration"]["status"] =
@@ -4621,6 +4759,7 @@ function buildDiscoveryReviewState(
           ? "提前发现校准正在收集 outcome；可以展示方向，但不能宣传稳定命中率。"
           : "提前发现校准暂无足够 outcome；只能显示样本状态。",
     },
+    bookPressureCandidateCount,
     cvdProxyCandidateCount,
     earlyOpportunityCount,
     guardrails: [
@@ -4629,13 +4768,14 @@ function buildDiscoveryReviewState(
       "复盘建议必须人工确认，不能自动修改实时权重。",
     ],
     lateMoveCount,
+    largeTakerTradeCandidateCount,
     missedDetectionCount,
     reviewFocus: [
-      "启动前 3h/6h/12h 是否有压缩、量能和主动成交线索。",
+      "启动前 3h/6h/12h 是否有压缩、量能、主动成交、盘口压力和单笔主动大单线索。",
       "晚到样本为什么没有在更早阶段进入候选池。",
-      "买压/卖压主动买卖代理对后续最大浮盈/最大回撤是否有解释力。",
+      "买压/卖压、盘口偏斜和主动大单代理对后续最大浮盈/最大回撤是否有解释力。",
     ],
-    summary: `当前轻扫 Top 样本 ${topCandidates.length} 个：启动前 ${earlyOpportunityCount}，晚到 ${lateMoveCount}，主动买卖代理 ${cvdProxyCandidateCount}，漏判复查 ${missedDetectionCount}。`,
+    summary: `当前轻扫 Top 样本 ${topCandidates.length} 个：启动前 ${earlyOpportunityCount}，晚到 ${lateMoveCount}，主动买卖代理 ${cvdProxyCandidateCount}，盘口压力 ${bookPressureCandidateCount}，主动大单 ${largeTakerTradeCandidateCount}，漏判复查 ${missedDetectionCount}。`,
     totalLightCandidates: topCandidates.length,
   };
 }

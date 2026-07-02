@@ -154,12 +154,14 @@ const EMPTY_LIGHT_SCAN_QUALITY = resource<LightScanQualityState>({
   coverage: {
     acceptedCount: 0,
     averagePriorityScore: 0,
+    bookPressureCandidateCount: 0,
     buyPressureCandidateCount: 0,
     candidateCount: 0,
     cvdProxyCandidateCount: 0,
     earlyOpportunityCandidateCount: 0,
     hotCandidateCount: 0,
     lateMoveCandidateCount: 0,
+    largeTakerTradeCandidateCount: 0,
     preTrendCandidateCount: 0,
     rollingWindowCandidateCount: 0,
     sellPressureCandidateCount: 0,
@@ -661,6 +663,10 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                       <MetricPill label="买压" value={quality.coverage.buyPressureCandidateCount} />
                       <MetricPill label="卖压" value={quality.coverage.sellPressureCandidateCount} />
                     </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+                      <MetricPill label="盘口压力" value={quality.coverage.bookPressureCandidateCount} />
+                      <MetricPill label="主动大单" value={quality.coverage.largeTakerTradeCandidateCount} />
+                    </div>
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -702,6 +708,10 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                           <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
                             <span>{candidate.pressureSide ?? 'proxy—'}</span>
                             <span>early {candidate.earlyOpportunityScore ?? '—'}</span>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
+                            <span>book {candidate.bookPressureSide ?? '—'}</span>
+                            <span>big {candidate.largeTakerTradeUsd ? `$${Math.round(candidate.largeTakerTradeUsd / 1000)}k` : '—'}</span>
                           </div>
                           {candidate.overextensionRisk === 'high' ? (
                             <div className="mt-1 font-mono text-[10px] text-warning">late / review only</div>

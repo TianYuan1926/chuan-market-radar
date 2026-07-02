@@ -538,7 +538,7 @@ RawSource
 - `coreChainGovernance.p1Completion.percent=100` 且 `status=ready`。
 - P0 必须先闭环；P1 不能绕过核心链路治理。
 - WebSocket / public light scan 必须有状态、覆盖、候选、freshness 和 worker 心跳。
-- 秒级发现层必须输出滚动窗口、成交量异常分、主动买卖代理等质量指标。
+- 秒级发现层必须输出滚动窗口、成交量异常分、主动买卖代理、盘口压力代理、主动大单代理等质量指标。
 - 主动买卖代理优先来自 Binance `aggTrade`、OKX `trades`、Bybit `publicTrade` 等公开主动成交流；成交流缺失时才回退到滚动价格/成交量方向推断。它只能用于异常发现和候选排序，不能冒充交易所官方完整资金流，也不能直接生成交易计划。
 - 深扫轮转必须有公平性证明，不能让 BTC/ETH/SOL 等固定币长期霸占非锚点深扫位。
 - 长尾探索必须保底，未进入深扫不代表淘汰。
@@ -548,10 +548,13 @@ RawSource
 
 已落地：
 
-- `ScanLightScanCandidate.microstructure`：`buyPressureUsd`、`sellPressureUsd`、`cvdProxyUsd`、`tradeFlowImbalance`、`pressureSide`。
+- `ScanLightScanCandidate.microstructure`：`buyPressureUsd`、`sellPressureUsd`、`cvdProxyUsd`、`tradeFlowImbalance`、`pressureSide`、`bookBidUsd`、`bookAskUsd`、`bookImbalance`、`bookPressureSide`、`bookProxyQuality`、`spreadBps`、`largeTakerTradeUsd`、`largeTakerTradeSide`、`largeTakerTradeCount`。
 - WebSocket worker 已接入 public taker trade 流：Binance `aggTrade`、OKX `trades`、Bybit `publicTrade`；`proxyQuality=taker_trade_proxy` 时使用真实成交方向估算买卖压力，`proxyQuality=rolling_price_volume_proxy` 时为 ticker 兜底推断。
-- 前端合同必须同时识别 `microstructure` 字段和 `trade_flow_proxy_imbalance` / `cvd_proxy_positive` / `cvd_proxy_negative` reason 标签；禁止出现后端已有主动买卖代理证据、前端质量统计仍显示 0 的“两张皮”状态。
-- `lightScanQuality.v1`：新增 `cvdProxyCandidateCount`、`buyPressureCandidateCount`、`sellPressureCandidateCount` 和 `cvd_proxy_quality` 检查。
+- WebSocket worker 已接入 Binance `!bookTicker` 盘口流；OKX/Bybit ticker 只有包含正数 bid/ask 时才暴露 BBO 代理。`bookProxyQuality=book_ticker_proxy/ticker_bbo_proxy` 只代表公开盘口代理，不代表完整盘口深度。
+- WebSocket worker 已接入单笔主动成交阈值：`WS_LIGHT_SCAN_LARGE_TAKER_TRADE_USD` 默认 `100000`；超过阈值的公开主动成交会进入 `largeTakerTrade*` 字段。
+- `snapshot.anomalyFrames`：保存 top 异常帧，供前端和复盘查看“当时为什么被发现”，字段包含价格、窗口成交额、主动买卖代理、盘口偏斜、主动大单、阶段和 reason。
+- 前端合同必须同时识别 `microstructure` 字段和 `trade_flow_proxy_imbalance` / `cvd_proxy_positive` / `cvd_proxy_negative` / `orderbook_pressure_proxy` / `large_taker_trade_proxy` reason 标签；禁止出现后端已有发现证据、前端质量统计仍显示 0 的“两张皮”状态。
+- `lightScanQuality.v1`：新增 `cvdProxyCandidateCount`、`buyPressureCandidateCount`、`sellPressureCandidateCount`、`bookPressureCandidateCount`、`largeTakerTradeCandidateCount` 和 `cvd_proxy_quality` / `orderbook_pressure_proxy` / `large_taker_trade_proxy` 检查。
 - `radarSignals.discovery`：把 top candidate 的阶段、提前分、主动买卖压力、主动买卖代理质量和晚到风险暴露给前端。
 - `/signals` 成熟度池已显示发现层事实；高延展/晚到候选会以 `REVIEW_ONLY` 或只复盘语义展示。
 - `coreChainGovernance.p1Completion`：新增 P1 完成度、检查项、剩余项和 summary。
@@ -561,7 +564,8 @@ RawSource
 
 硬边界：
 
-- 轻扫、盘口/成交代理、主动买卖代理、榜单和轮转调度都不能生成交易计划。
+- 轻扫、盘口/成交代理、主动买卖代理、主动大单代理、榜单和轮转调度都不能生成交易计划。
+- 盘口压力代理只使用公开 BBO / ticker BBO，不是完整订单簿深度；主动大单代理只记录公开主动成交阈值，不等同于真实机构订单、扫单结论或方向保证。
 - 没有证据融合、结构、结构盈亏比、风控门禁、失效条件和复盘追踪时，任何币都不能进入交易计划就绪。
 - 如果 WebSocket、公开源或 CoinGlass 降级，页面必须显示 partial/failed，不允许用动画、旧缓存或 0 值冒充正常。
 
@@ -578,10 +582,10 @@ RawSource
 - 轻扫和榜单发现的强波动币，如果已经错过最佳位置，优先进入复盘样本池，而不是交易计划。
 - v3 已给出的 `AVOID_CHASE_LONG/SHORT`、`LONG_EXHAUSTION/SHORT_EXHAUSTION`、`CHASE_RISK` 和衰竭风险会进入 `REVIEW_ONLY`。
 - 榜单 fallback 对无真实信号且 24h 波动过大的涨跌幅行降级为 `REVIEW_ONLY`，禁止追涨追跌。
-- 单币档案和信号池已显示轻扫阶段、提前分、主动买卖压力、主动买卖代理和延展风险，让“已经涨完/跌完”的样本不会被误读为好位置。
+- 单币档案和信号池已显示轻扫阶段、提前分、主动买卖压力、主动买卖代理、盘口压力代理、主动大单代理和延展风险，让“已经涨完/跌完”的样本不会被误读为好位置。
 - `opportunityQuality.v1` 已接入 `/api/frontend/radar-contract`：统一展示启动前、突破观察、证据信号、计划就绪、晚到、拦截、等待回踩/反抽等数量。
 - `/dashboard` 已展示“机会质量与执行边界”：明确候选下一步、追涨追跌拦截数量和狙击榜只允许 `TRADE_PLAN_READY`。
-- WebSocket 轻扫排序已从“涨幅/成交额优先”改为“启动前机会优先”：压缩放量、低位移、主动买卖代理加权；15m 窗口内大幅位移且贴近极值的 late move 会被 score cap，保留为发现/复盘样本但不能抢核心深扫位。
+- WebSocket 轻扫排序已从“涨幅/成交额优先”改为“启动前机会优先”：压缩放量、低位移、主动买卖代理、盘口压力代理、主动大单代理加权；15m 窗口内大幅位移且贴近极值的 late move 会被 score cap，保留为发现/复盘样本但不能抢核心深扫位。
 - 生产分析引擎 `analyzeMarketAnomaly` 已接入提前性校验与晚到惩罚：有量能、压缩、位置仍好且无 1h/4h 硬冲突才加分；已经大幅偏离启动区会降为观察/复盘，不能因为方向正确就进入 near trigger。
 - 证据链已输出“提前性校验”和“晚到风险”，报告必须解释为什么优先观察或为什么不追。
 
@@ -633,7 +637,7 @@ RawSource
 - 策略分型表现统计。
 - 人工校准和回滚验证。
 - 真实权重建议只能人工确认后生效，不能自动改实时权重。
-- `/review` 已展示 `discoveryReview`：轻扫候选数量、启动前/晚到/主动买卖代理/漏判复查样本和复盘关注点。
+- `/review` 已展示 `discoveryReview`：轻扫候选数量、启动前/晚到/主动买卖代理/盘口压力代理/主动大单代理/漏判复查样本和复盘关注点。
 - `discoveryReview.calibration` 已接入 `/review`：明确提前发现到结果、晚到惩罚、最大浮盈/最大回撤关联是否可用，样本不足时必须显示 collecting/empty。
 - `opportunityCalibration.v1` 已接入 `/review`：固定样本门禁、早期分阈值、晚到惩罚和结构盈亏比下限只读展示；样本不足时不能宣传胜率或自动改权重。
 
@@ -700,19 +704,22 @@ RawSource
   - `earlyOpportunityScore`：启动前机会分，只用于候选排序和深扫调度解释。
   - `opportunityPhase`：`early_setup / breakout_watch / late_move / neutral_watch`。
   - `overextensionRisk`：`low / medium / high`。
-- WebSocket 秒级轻扫会对预启动、压缩放量、低位移、主动买卖代理、窗口波动做早期机会评分。
+- WebSocket 秒级轻扫会对预启动、压缩放量、低位移、主动买卖代理、盘口压力代理、主动大单代理、窗口波动做早期机会评分。
 - WebSocket 秒级轻扫的主动买卖代理优先使用公开主动成交流；ticker 推断只作为兜底，前端必须通过 `proxyQuality` 区分。
+- WebSocket 秒级轻扫的盘口压力代理优先使用 Binance `!bookTicker`；OKX/Bybit 只在 ticker 自带正数 bid/ask 时启用。没有真实盘口字段时不能用 0 值冒充。
+- WebSocket 秒级轻扫的主动大单代理使用公开主动成交金额阈值，默认 `100000 USDT`；它只说明当前窗口出现较大主动成交，不说明必然启动或必然反转。
 - WebSocket 秒级轻扫会对 15m 窗口内大幅位移并贴近窗口极值的币标为 `late_move`，降低其早期机会分。
 - WebSocket 秒级轻扫排序已硬性降低 late move 抢位能力：`overextensionRisk=high` 的候选必须被 score cap，不能因为瞬时涨跌幅和成交额大就压过启动前候选。
 - 分析引擎置信度已加入 `earlyOpportunity` 与 `lateMovePenalty`：高周期结构冲突时不给提前性加分；成交量不足时不给提前性加分；晚到惩罚会影响 state、risk、summary 和 evidence。
 - Public REST 轻扫会对 24h 压缩、低位移、靠近关键边缘且未过度延展的币加分；对 24h 大幅延展样本加 `overextended_move_capped`。
 - Daily Mover Review 的 `preMovePattern.earlyWarningScore` 会转成 repository priority hints 的 `earlyOpportunityScore`。
 - `planUniverseScan` 动态优先级新增 `early_opportunity` reason，用于把历史漏判里的启动前征兆反哺到深扫排序。
-- `/api/frontend/radar-contract.lightScanQuality` 会展示早期机会候选数、late move 候选数和每个 top candidate 的阶段。
+- `/api/frontend/radar-contract.lightScanQuality` 会展示早期机会候选数、late move 候选数、主动买卖代理候选数、盘口压力候选数、主动大单候选数和每个 top candidate 的阶段。
 
 硬边界：
 
 - `earlyOpportunityScore` 不能生成交易计划。
+- 盘口压力代理、主动大单代理和 CVD proxy 都不能单独生成交易计划，也不能绕过多周期结构、关键位、结构盈亏比和风控门禁。
 - `early_opportunity` 只能影响深扫调度优先级，不能绕过证据融合、结构分析、结构盈亏比和风控门禁。
 - `late_move` 不是做反向交易信号，只说明该币更适合复盘或等待回踩/反抽。
 - 前端显示 early score 时必须同时保留轻扫边界：轻扫是发现层，不是交易结论。

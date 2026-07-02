@@ -1,6 +1,7 @@
 import type {
   ContractInstrument,
   MarketTicker,
+  ScanLightScanAnomalyFrame,
   ScanLightScanCandidate,
   ScanLightScanDiagnostics,
 } from "../types";
@@ -15,6 +16,7 @@ export const BYBIT_PUBLIC_LINEAR_TICKERS_URL = "https://api.bybit.com/v5/market/
 export const DEFAULT_PUBLIC_LIGHT_SCAN_TIMEOUT_MS = 4_000;
 
 export type PublicLightScanResult = {
+  anomalyFrames?: ScanLightScanAnomalyFrame[];
   diagnostics: ScanLightScanDiagnostics;
   instruments: ContractInstrument[];
   priorityCandidates: ScanLightScanCandidate[];
