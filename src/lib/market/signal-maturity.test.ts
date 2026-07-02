@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarketSignal } from "../analysis/types";
-import type { StrategyV3Dossier, StrategyV3TradePlan } from "../analysis/v3/types";
+import type { StrategyV3Dossier, StrategyV3TradePlan, StrategyV3TrendContext } from "../analysis/v3/types";
 import {
   applySignalMaturity,
   buildSignalMaturityDiagnostics,
@@ -43,6 +43,85 @@ function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
   };
 }
 
+function confirmedTrendContext(overrides: Partial<StrategyV3TrendContext> = {}): StrategyV3TrendContext {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    conflicts: [],
+    decision: "LONG_PLAN",
+    guardrail: "readonly v3 context",
+    locationRiskReward: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 1,
+      direction: "long",
+      hasTradeSignal: false,
+      isTradeEligible: true,
+      minRewardRisk: 3,
+      nearestTarget: 1.2,
+      positionQuality: "GOOD_LOCATION",
+      rewardRisk: 3.6,
+      riskFlags: [],
+      stopDistance: 0.05,
+      stopDistancePercent: 5,
+      structuralStop: 0.95,
+      summary: "位置合格",
+      targetDistance: 0.2,
+      targetDistancePercent: 20,
+      targetLevelId: "target-1",
+      stopLevelId: "stop-1",
+    },
+    marketReadings: [],
+    nextStep: "按计划人工确认。",
+    noParticipationReasons: [],
+    reactionQuality: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      direction: "long",
+      evidence: ["关键位反应确认。"],
+      hasTradeSignal: false,
+      qualityScore: 76,
+      riskFlags: [],
+      status: "CONFIRMED",
+      summary: "反应确认",
+      touchedLevelId: "stop-1",
+    },
+    riskGate: {
+      allowed: true,
+      blockedBy: [],
+      mode: "readonly_v3_risk_gate",
+    },
+    scores: {
+      exhaustionScore: 18,
+      longPreTrendScore: 74,
+      longTrendEnergyScore: 78,
+      riskScore: 24,
+      shortPreTrendScore: 16,
+      shortTrendEnergyScore: 10,
+      trendHoldScore: 72,
+    },
+    state: "LONG_BREAKOUT",
+    summary: "v3 context confirmed",
+    timeframes: [],
+    trendIntegrity: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      direction: "long",
+      evidence: ["趋势结构完整。"],
+      hasTradeSignal: false,
+      integrityScore: 78,
+      riskFlags: [],
+      status: "HEALTHY_TREND",
+      summary: "趋势完整",
+    },
+    ...overrides,
+  };
+}
+
 function strategyV3WithTradePlan(overrides: Partial<StrategyV3TradePlan> = {}): StrategyV3Dossier {
   return {
     allowedUse: "research_only",
@@ -57,6 +136,7 @@ function strategyV3WithTradePlan(overrides: Partial<StrategyV3TradePlan> = {}): 
     sourceTimeframes: ["15m", "1h"],
     summary: "v3",
     symbol: "ENAUSDT",
+    trendContext: confirmedTrendContext(),
     tradePlan: {
       allowedUse: "research_only",
       blockedBy: [],
@@ -167,6 +247,35 @@ test("classifySignalMaturity does not promote v3 plans that are eligible but not
   assert.equal(waiting.stage, "EVIDENCE_SIGNAL");
   assert.equal(waiting.canAttachTradePlan, false);
   assert.ok(waiting.reasons.includes("trade_plan_not_ready"));
+});
+
+test("classifySignalMaturity requires confirmed reaction and healthy trend before TRADE_PLAN_READY", () => {
+  const unconfirmed = classifySignalMaturity(signal({
+    state: "near_trigger",
+    strategy: {
+      bias: "long",
+      entry: "retest",
+      invalidation: "range lost",
+      positionHint: "manual only",
+      riskReward: 3.6,
+      status: "actionable",
+      targets: ["R1", "R2"],
+    },
+    strategyV3: {
+      ...strategyV3WithTradePlan(),
+      trendContext: confirmedTrendContext({
+        reactionQuality: {
+          ...confirmedTrendContext().reactionQuality!,
+          status: "REACTION_STARTED",
+          summary: "只是开始反应，还没确认。",
+        },
+      }),
+    },
+  }));
+
+  assert.equal(unconfirmed.stage, "EVIDENCE_SIGNAL");
+  assert.equal(unconfirmed.canAttachTradePlan, false);
+  assert.ok(unconfirmed.reasons.includes("trade_plan_not_ready"));
 });
 
 test("classifySignalMaturity routes late no-chase setups to REVIEW_ONLY instead of TRADE_PLAN_READY", () => {

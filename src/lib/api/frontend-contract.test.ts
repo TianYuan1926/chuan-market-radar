@@ -20,7 +20,7 @@ import {
   buildCoinGlassRuntimeCapabilityReport,
   buildDataSourceCapabilityPlan,
 } from "../market/data-source-capabilities";
-import type { StrategyV3Dossier, StrategyV3TradePlan } from "../analysis/v3/types";
+import type { StrategyV3Dossier, StrategyV3TradePlan, StrategyV3TrendContext } from "../analysis/v3/types";
 
 function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
   return {
@@ -152,6 +152,85 @@ function snapshot(signals: MarketSignal[] = [signal()]): MarketRadarSnapshot {
   };
 }
 
+function confirmedTrendContext(overrides: Partial<StrategyV3TrendContext> = {}): StrategyV3TrendContext {
+  return {
+    allowedUse: "research_only",
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    conflicts: [],
+    decision: "LONG_PLAN",
+    guardrail: "只读趋势上下文",
+    locationRiskReward: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 7.84,
+      direction: "long",
+      hasTradeSignal: false,
+      isTradeEligible: true,
+      minRewardRisk: 3,
+      nearestTarget: 10.2,
+      positionQuality: "GOOD_LOCATION",
+      rewardRisk: 3.4,
+      riskFlags: [],
+      stopDistance: 0.08,
+      stopDistancePercent: 1.02,
+      structuralStop: 7.76,
+      summary: "贴近突破位，赔率达标",
+      targetDistance: 2.36,
+      targetDistancePercent: 30.1,
+      targetLevelId: "tia-fwd-r1",
+      stopLevelId: "tia-s1",
+    },
+    marketReadings: [],
+    nextStep: "等待突破后回踩确认",
+    noParticipationReasons: [],
+    reactionQuality: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      direction: "long",
+      evidence: ["回踩不破"],
+      hasTradeSignal: false,
+      qualityScore: 76,
+      riskFlags: [],
+      status: "CONFIRMED",
+      summary: "回踩质量确认",
+      touchedLevelId: "tia-r1",
+    },
+    riskGate: {
+      allowed: true,
+      blockedBy: [],
+      mode: "readonly_v3_risk_gate",
+    },
+    scores: {
+      longPreTrendScore: 82,
+      shortPreTrendScore: 12,
+      longTrendEnergyScore: 74,
+      shortTrendEnergyScore: 8,
+      riskScore: 28,
+      trendHoldScore: 66,
+      exhaustionScore: 21,
+    },
+    state: "LONG_BREAKOUT",
+    summary: "多头趋势切换确认",
+    timeframes: [],
+    trendIntegrity: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      direction: "long",
+      evidence: ["HH/HL 未破坏"],
+      hasTradeSignal: false,
+      integrityScore: 70,
+      riskFlags: [],
+      status: "HEALTHY_TREND",
+      summary: "趋势完整度健康",
+    },
+    ...overrides,
+  };
+}
+
 function strategyV3WithTradePlan(overrides: Partial<StrategyV3TradePlan> = {}): StrategyV3Dossier {
   return {
     allowedUse: "research_only",
@@ -166,6 +245,7 @@ function strategyV3WithTradePlan(overrides: Partial<StrategyV3TradePlan> = {}): 
     sourceTimeframes: ["1h"],
     summary: "v3 交易计划测试",
     symbol: "TIAUSDT",
+    trendContext: confirmedTrendContext(),
     tradePlan: {
       allowedUse: "research_only",
       blockedBy: [],
@@ -2074,8 +2154,8 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
           hasTradeSignal: false,
           qualityScore: 76,
           riskFlags: [],
-          status: "REACTION_STARTED",
-          summary: "回踩质量正在形成",
+          status: "CONFIRMED",
+          summary: "回踩质量确认",
           touchedLevelId: "tia-r1",
         },
         riskGate: {

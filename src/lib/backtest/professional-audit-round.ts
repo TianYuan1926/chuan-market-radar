@@ -758,6 +758,111 @@ function qualityEvidenceCount(input: ProfessionalAuditOpportunityQualityInput) {
   return count;
 }
 
+function qualityEvidenceProfile(input: ProfessionalAuditOpportunityQualityInput) {
+  const absMove = Math.abs(input.movePct);
+  const rrQualified = typeof input.rewardRisk === "number" && Number.isFinite(input.rewardRisk) && input.rewardRisk >= 3;
+  const waitPlan = input.tradePlanStatus === "WAIT_PULLBACK" || input.tradePlanStatus === "WAIT_RETEST";
+  const quietRole =
+    input.nodeRole === "pre_move" ||
+    input.nodeRole === "medium_swing" ||
+    input.nodeRole === "neutral_random";
+  const impulseRole =
+    input.nodeRole === "early_volume_expansion" ||
+    input.nodeRole === "breakout_edge" ||
+    input.nodeRole === "pullback_retest" ||
+    input.nodeRole === "trend_acceleration";
+  const constructiveRole =
+    quietRole ||
+    impulseRole;
+  const strongCompression = input.compressionPct <= 58;
+  const veryStrongCompression = input.compressionPct <= 48;
+  const controlledVolume = input.volumeRatio >= 0.48 && input.volumeRatio <= 2.35;
+  const quietVolumeAligned = quietRole && input.volumeRatio >= 0.48 && input.volumeRatio <= 1.2;
+  const impulseVolumeAligned = impulseRole && input.volumeRatio >= 0.82 && input.volumeRatio <= 2.35;
+  const roleVolumeAligned = quietVolumeAligned || impulseVolumeAligned;
+  const nonExtremeLocation = input.direction === "long"
+    ? input.rangePositionPct >= 16 && input.rangePositionPct <= 78
+    : input.rangePositionPct >= 22 && input.rangePositionPct <= 84;
+  const favorableLocation = input.direction === "long"
+    ? input.rangePositionPct >= 22 && input.rangePositionPct <= 64
+    : input.rangePositionPct >= 36 && input.rangePositionPct <= 78;
+  const controlledMove = absMove <= 5.2;
+  const veryControlledMove = absMove <= 3.4;
+  const overheatByLocation = input.direction === "long"
+    ? input.rangePositionPct >= 82
+    : input.rangePositionPct <= 18;
+  const noOverheat =
+    !qualityBlockers(input).some((blocker) => qualityOverheatBlockers.has(blocker)) &&
+    input.volumeRatio <= 2.65 &&
+    !overheatByLocation;
+  const neutralAmbiguous =
+    qualityBlockers(input).includes("neutral_direction") &&
+    !(veryStrongCompression && quietVolumeAligned && veryControlledMove);
+
+  let score = 0;
+
+  if (strongCompression) {
+    score += veryStrongCompression ? 24 : 18;
+  }
+
+  if (roleVolumeAligned) {
+    score += 16;
+  } else if (controlledVolume) {
+    score += 8;
+  }
+
+  if (favorableLocation) {
+    score += 16;
+  } else if (nonExtremeLocation) {
+    score += 8;
+  }
+
+  if (constructiveRole) {
+    score += 14;
+  }
+
+  if (input.opportunityLane === "early_setup" || input.opportunityLane === "pullback_retest") {
+    score += 8;
+  }
+
+  if (rrQualified) {
+    score += 12;
+  } else if (waitPlan) {
+    score += 8;
+  }
+
+  if (veryControlledMove) {
+    score += 10;
+  } else if (controlledMove) {
+    score += 6;
+  }
+
+  if (noOverheat) {
+    score += 10;
+  }
+
+  if (hasQualitySoftWaitBlocker(input)) {
+    score -= 4;
+  }
+
+  if (neutralAmbiguous) {
+    score -= 18;
+  }
+
+  return {
+    controlledMove,
+    constructiveRole,
+    neutralAmbiguous,
+    noOverheat,
+    nonExtremeLocation,
+    roleVolumeAligned,
+    rrQualified,
+    score,
+    strongCompression,
+    waitPlan,
+  };
+}
+
 export function classifyProfessionalAuditOpportunityQuality(
   input: ProfessionalAuditOpportunityQualityInput,
 ): ProfessionalAuditOpportunityQualityId {
@@ -770,8 +875,20 @@ export function classifyProfessionalAuditOpportunityQuality(
   const hardStructureBlocker = hasQualityHardStructureBlocker(input);
   const fakeoutRisk = hasQualityFakeoutRisk(input);
   const evidenceCount = qualityEvidenceCount(input);
+  const profile = qualityEvidenceProfile(input);
 
-  if (planReady && rrQualified && !input.lateAtSelection && !fakeoutRisk && !hardStructureBlocker) {
+  if (
+    planReady &&
+    rrQualified &&
+    !input.lateAtSelection &&
+    !fakeoutRisk &&
+    !hardStructureBlocker &&
+    !hasQualitySoftWaitBlocker(input) &&
+    profile.score >= 78 &&
+    profile.noOverheat &&
+    profile.nonExtremeLocation &&
+    profile.roleVolumeAligned
+  ) {
     return "trade_plan_ready";
   }
 
@@ -789,9 +906,16 @@ export function classifyProfessionalAuditOpportunityQuality(
   }
 
   if (
-    evidenceCount >= 5 &&
+    profile.score >= 72 &&
+    profile.strongCompression &&
+    profile.constructiveRole &&
+    profile.controlledMove &&
+    profile.noOverheat &&
+    profile.nonExtremeLocation &&
+    !profile.neutralAmbiguous &&
+    (profile.rrQualified || profile.waitPlan) &&
     !hardStructureBlocker &&
-    absMove <= 6.2
+    absMove <= (input.nodeRole === "pullback_retest" || input.nodeRole === "trend_acceleration" ? 6.2 : 5.2)
   ) {
     return "premium_early_setup";
   }
@@ -1031,6 +1155,7 @@ type OpportunityRankable = {
     };
   };
   compressionPct?: number;
+  direction?: "long" | "short";
   lateAtSelection?: boolean;
   movePct?: number;
   opportunityLane: ProfessionalAuditOpportunityLaneName;
@@ -1103,7 +1228,7 @@ function opportunityCandidateEvidenceScore(item: OpportunityRankable) {
   } else if (item.opportunityQuality === "late_move") {
     score -= 100;
   } else if (item.opportunityQuality === "premium_early_setup") {
-    score += 22;
+    score += 18;
   } else if (item.opportunityQuality === "trade_plan_ready") {
     score += 28;
   } else if (item.opportunityQuality === "watch_only") {
@@ -1117,6 +1242,10 @@ function opportunityCandidateEvidenceScore(item: OpportunityRankable) {
   if (absMove !== null) {
     score += bandScore(absMove, 0.15, 2.8, 6.8) * 18;
     score -= Math.max(0, absMove - 7.2) * 3;
+
+    if (absMove <= 4.8) {
+      score += 5;
+    }
   }
 
   if (compressionPct !== null) {
@@ -1136,6 +1265,17 @@ function opportunityCandidateEvidenceScore(item: OpportunityRankable) {
   }
 
   score += nonExtremeLocationScore * 14;
+
+  if (
+    rangePositionPct !== null &&
+    item.direction !== undefined &&
+    (
+      (item.direction === "long" && rangePositionPct >= 82) ||
+      (item.direction === "short" && rangePositionPct <= 18)
+    )
+  ) {
+    score -= 20;
+  }
 
   if (item.nodeRole === "pre_move") {
     score += 20;
@@ -1160,7 +1300,7 @@ function opportunityCandidateEvidenceScore(item: OpportunityRankable) {
   }
 
   if (item.tradePlanStatus === "WAIT_PULLBACK" || item.tradePlanStatus === "WAIT_RETEST") {
-    score += 8;
+    score += isConditionalWaitOpportunity(item) ? 8 : 2;
   }
 
   if (
@@ -3476,6 +3616,7 @@ function missedReasonForNode(node: ProfessionalAuditRoundNode): ProfessionalAudi
     opportunityLane: node.opportunityLane,
     opportunityLaneScore: node.opportunityLaneScore,
     opportunityQuality: node.opportunityQuality,
+    direction: node.direction,
     planBlockers: node.planBlockers,
     radarScore: node.radarScore,
     rewardRisk: node.rewardRisk,

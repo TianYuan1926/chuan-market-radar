@@ -48,14 +48,35 @@ function v3TradePlanStatusReady(status: string | undefined) {
   return status === "READY_LONG" || status === "READY_SHORT";
 }
 
+function v3ExecutionContextConfirmed(signal: MarketSignal) {
+  const trendContext = signal.strategyV3?.trendContext;
+  const location = trendContext?.locationRiskReward;
+  const reaction = trendContext?.reactionQuality;
+  const integrity = trendContext?.trendIntegrity;
+
+  return trendContext !== undefined &&
+    trendContext.riskGate.allowed === true &&
+    (trendContext.conflicts.length === 0 || trendContext.conflicts.every((item) => item.trim().length === 0)) &&
+    location?.isTradeEligible === true &&
+    location.riskFlags.length === 0 &&
+    reaction?.status === "CONFIRMED" &&
+    reaction.qualityScore >= 65 &&
+    reaction.riskFlags.length === 0 &&
+    integrity?.status === "HEALTHY_TREND" &&
+    integrity.integrityScore >= 60 &&
+    integrity.riskFlags.length === 0;
+}
+
 function v3PlanEligible(signal: MarketSignal) {
   const tradePlan = signal.strategyV3?.tradePlan;
 
   return signal.timeframeGate?.allowed !== false &&
     !isReviewOnlySignal(signal) &&
     tradePlan?.isPlanEligible === true &&
+    tradePlan.blockedBy.length === 0 &&
     v3TradePlanStatusReady(tradePlan.status) &&
     (tradePlan.rewardRisk ?? signal.strategy.riskReward) >= 3 &&
+    v3ExecutionContextConfirmed(signal) &&
     signal.risk !== "high" &&
     signal.risk !== "blocked";
 }

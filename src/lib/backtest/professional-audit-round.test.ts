@@ -1759,6 +1759,21 @@ test("classifyProfessionalAuditOpportunityQuality separates early setups, watch-
   }), "premium_early_setup");
 
   assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 61,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 4.9,
+    nodeRole: "medium_swing",
+    opportunityLane: "early_setup",
+    planBlockers: [],
+    rangePositionPct: 66,
+    rewardRisk: 3.2,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 2.55,
+  }), "watch_only");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
     compressionPct: 68,
     direction: "long",
     lateAtSelection: false,
@@ -1788,6 +1803,22 @@ test("classifyProfessionalAuditOpportunityQuality separates early setups, watch-
     tradePlanStatus: "TRADE_PLAN_READY",
     volumeRatio: 1.2,
   }), "trade_plan_ready");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 44,
+    direction: "long",
+    lateAtSelection: false,
+    maturity: "TRADE_PLAN_READY",
+    movePct: 2.1,
+    nodeRole: "pullback_retest",
+    opportunityLane: "pullback_retest",
+    planBlockers: ["reaction_not_confirmed"],
+    rangePositionPct: 48,
+    rewardRisk: 3.7,
+    timeframeBand: "medium",
+    tradePlanStatus: "TRADE_PLAN_READY",
+    volumeRatio: 1.05,
+  }), "premium_early_setup");
 
   assert.equal(classifyProfessionalAuditOpportunityQuality({
     compressionPct: 74,
