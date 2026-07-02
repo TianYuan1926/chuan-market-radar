@@ -1216,6 +1216,101 @@ test("selectProfessionalAuditOpportunityCandidates reserves slots for RR-qualifi
   );
 });
 
+test("selectProfessionalAuditOpportunityCandidates uses unified evidence quality before raw score noise", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      compressionPct?: number;
+      movePct?: number;
+      nodeRole?: "early_volume_expansion" | "neutral_random";
+      opportunityQuality?: "premium_early_setup" | "watch_only";
+      rangePositionPct?: number;
+      volumeRatio?: number;
+    } = {},
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    compressionPct: options.compressionPct,
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    opportunityQuality: options.opportunityQuality,
+    radarScore: opportunityLaneScore,
+    rangePositionPct: options.rangePositionPct,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("RAWNOISEUSDT", 170, {
+      compressionPct: 78,
+      movePct: 1.1,
+      nodeRole: "neutral_random",
+      opportunityQuality: "watch_only",
+      rangePositionPct: 50,
+      volumeRatio: 1,
+    }),
+    item("TRUEEARLYUSDT", 82, {
+      compressionPct: 44,
+      movePct: 2.4,
+      nodeRole: "early_volume_expansion",
+      opportunityQuality: "premium_early_setup",
+      rangePositionPct: 48,
+      volumeRatio: 1.42,
+    }),
+  ], 1);
+
+  assert.deepEqual(
+    selected.selected.map((entry) => entry.auditCase.inputSummary.symbol),
+    ["TRUEEARLYUSDT"],
+    "expected real early evidence quality to beat high raw-score generic noise",
+  );
+});
+
+test("selectProfessionalAuditOpportunityCandidates blocks noise quality from actionable TopN", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    opportunityQuality: "noise" | "premium_early_setup",
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    compressionPct: opportunityQuality === "noise" ? 80 : 46,
+    lateAtSelection: false,
+    movePct: opportunityQuality === "noise" ? 0.9 : 2.2,
+    nodeRole: "early_volume_expansion" as const,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    opportunityQuality,
+    radarScore: opportunityLaneScore,
+    rangePositionPct: 50,
+    volumeRatio: opportunityQuality === "noise" ? 1 : 1.38,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("NOISEUSDT", 240, "noise"),
+    item("PREMIUMUSDT", 76, "premium_early_setup"),
+  ], 1);
+
+  assert.deepEqual(
+    selected.selected.map((entry) => entry.auditCase.inputSummary.symbol),
+    ["PREMIUMUSDT"],
+    "expected noise quality to stay out of scarce actionable TopN slots",
+  );
+});
+
 test("opportunityLaneScore compresses raw radar noise so real early setups are not crowded out", () => {
   const quietEarlySetup = opportunityLaneScore({
     compressionPct: 30,

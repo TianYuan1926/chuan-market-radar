@@ -333,6 +333,8 @@ export type ProfessionalReplayMissedOpportunity = {
   direction: "long" | "short";
   maePct: number;
   mfePct: number;
+  missedReasonCode?: string;
+  missedReasonLabel?: string;
   moveAtSelectionPct: number;
   nodeRole?: string;
   observedAt: string;
