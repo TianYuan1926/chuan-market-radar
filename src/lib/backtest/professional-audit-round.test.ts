@@ -1311,6 +1311,80 @@ test("selectProfessionalAuditOpportunityCandidates blocks noise quality from act
   );
 });
 
+test("selectProfessionalAuditOpportunityCandidates does not let weak structure repair occupy scarce TopN", () => {
+  const item = (
+    symbol: string,
+    opportunityLaneScore: number,
+    options: {
+      compressionPct: number;
+      direction: "long" | "short";
+      movePct: number;
+      nodeRole: "pre_move" | "early_volume_expansion";
+      opportunityQuality: "premium_early_setup" | "watch_only";
+      planBlockers?: string[];
+      rangePositionPct: number;
+      rewardRisk?: number;
+      tradePlanStatus?: string;
+      volumeRatio: number;
+    },
+  ) => ({
+    auditCase: {
+      inputSummary: {
+        symbol,
+      },
+      signal: {
+        confidence: 60,
+      },
+    },
+    compressionPct: options.compressionPct,
+    direction: options.direction,
+    lateAtSelection: false,
+    movePct: options.movePct,
+    nodeRole: options.nodeRole,
+    opportunityLane: "early_setup" as const,
+    opportunityLaneScore,
+    opportunityQuality: options.opportunityQuality,
+    planBlockers: options.planBlockers ?? [],
+    radarScore: opportunityLaneScore,
+    rangePositionPct: options.rangePositionPct,
+    rewardRisk: options.rewardRisk,
+    tradePlanStatus: options.tradePlanStatus,
+    volumeRatio: options.volumeRatio,
+  });
+  const selected = selectProfessionalAuditOpportunityCandidates([
+    item("WEAKREPAIRUSDT", 220, {
+      compressionPct: 44,
+      direction: "long",
+      movePct: 1.7,
+      nodeRole: "pre_move",
+      opportunityQuality: "watch_only",
+      planBlockers: ["structure_repair_pending"],
+      rangePositionPct: 80,
+      rewardRisk: 3.6,
+      tradePlanStatus: "WAIT_PULLBACK",
+      volumeRatio: 0.82,
+    }),
+    item("REALSTARTUSDT", 82, {
+      compressionPct: 40,
+      direction: "short",
+      movePct: -2.2,
+      nodeRole: "early_volume_expansion",
+      opportunityQuality: "premium_early_setup",
+      planBlockers: ["structure_repair_pending"],
+      rangePositionPct: 58,
+      rewardRisk: 3.8,
+      tradePlanStatus: "WAIT_RETEST",
+      volumeRatio: 1.28,
+    }),
+  ], 1);
+
+  assert.deepEqual(
+    selected.selected.map((entry) => entry.auditCase.inputSummary.symbol),
+    ["REALSTARTUSDT"],
+    "expected only constructive structure repair to occupy scarce TopN",
+  );
+});
+
 test("opportunityLaneScore compresses raw radar noise so real early setups are not crowded out", () => {
   const quietEarlySetup = opportunityLaneScore({
     compressionPct: 30,
@@ -1864,6 +1938,70 @@ test("classifyProfessionalAuditOpportunityQuality separates early setups, watch-
     tradePlanStatus: "WATCH_ONLY",
     volumeRatio: 0.18,
   }), "noise");
+});
+
+test("classifyProfessionalAuditOpportunityQuality requires evidence resonance for premium early setups", () => {
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 42,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.2,
+    nodeRole: "neutral_random",
+    opportunityLane: "early_setup",
+    planBlockers: ["structure_confirmation_pending"],
+    rangePositionPct: 46,
+    rewardRisk: 3.5,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 0.86,
+  }), "watch_only");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 42,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 2.2,
+    nodeRole: "early_volume_expansion",
+    opportunityLane: "early_setup",
+    planBlockers: ["structure_confirmation_pending"],
+    rangePositionPct: 48,
+    rewardRisk: 3.5,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 1.34,
+  }), "premium_early_setup");
+});
+
+test("classifyProfessionalAuditOpportunityQuality splits structure repair into constructive and observation-only cases", () => {
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 44,
+    direction: "long",
+    lateAtSelection: false,
+    movePct: 1.8,
+    nodeRole: "pre_move",
+    opportunityLane: "early_setup",
+    planBlockers: ["structure_repair_pending"],
+    rangePositionPct: 80,
+    rewardRisk: 3.6,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_PULLBACK",
+    volumeRatio: 0.82,
+  }), "watch_only");
+
+  assert.equal(classifyProfessionalAuditOpportunityQuality({
+    compressionPct: 40,
+    direction: "short",
+    lateAtSelection: false,
+    movePct: -2.1,
+    nodeRole: "early_volume_expansion",
+    opportunityLane: "early_setup",
+    planBlockers: ["structure_repair_pending"],
+    rangePositionPct: 58,
+    rewardRisk: 3.8,
+    timeframeBand: "small",
+    tradePlanStatus: "WAIT_RETEST",
+    volumeRatio: 1.28,
+  }), "premium_early_setup");
 });
 
 test("selectProfessionalAuditNodeIndexes does not let future horizon candles change scan points", () => {

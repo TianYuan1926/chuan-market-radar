@@ -205,7 +205,7 @@ const opportunityQualityNextActions: Record<ProfessionalAuditOpportunityQualityI
   noise: "过滤低质量波动，要求至少形成结构、量能、位置或相对强弱共振再进入候选。",
   premium_early_setup: "优先检查是否进入 TopN、是否得到深扫验证，以及是否清楚写出下一步确认条件。",
   trade_plan_ready: "继续后验 TP/SL、MFE/MAE 和失效条件，验证计划不是纸面可行。",
-  watch_only: "保留观察价值，但必须说清缺什么、等什么、什么情况升级或失效。",
+  watch_only: "必须写清升级条件和失效条件；若压缩、放量、位置、结构和计划条件不能形成强组合，就只保留观察，不抢 TopN。",
 };
 
 const planBlockerLabels: Record<string, string> = {
@@ -672,6 +672,7 @@ const qualitySoftWaitBlockers = new Set([
   "direction_pending_quiet_setup",
   "reaction_not_confirmed",
   "structure_confirmation_pending",
+  "structure_repair_pending",
   "trade_plan_not_ready",
 ]);
 
@@ -709,6 +710,10 @@ function hasQualityFakeoutRisk(input: ProfessionalAuditOpportunityQualityInput) 
     (extremeForDirection && blockers.some((blocker) => qualityOverheatBlockers.has(blocker))) ||
     (absMove >= 8.5 && blockers.some((blocker) => blocker === "chase_risk" || blocker === "risk_score_high"))
   );
+}
+
+function hasStructureRepairPending(input: Pick<ProfessionalAuditOpportunityQualityInput, "planBlockers">) {
+  return qualityBlockers(input).includes("structure_repair_pending");
 }
 
 function qualityEvidenceCount(input: ProfessionalAuditOpportunityQualityInput) {
@@ -853,6 +858,7 @@ function qualityEvidenceProfile(input: ProfessionalAuditOpportunityQualityInput)
   return {
     controlledMove,
     constructiveRole,
+    favorableLocation,
     neutralAmbiguous,
     noOverheat,
     nonExtremeLocation,
@@ -861,6 +867,79 @@ function qualityEvidenceProfile(input: ProfessionalAuditOpportunityQualityInput)
     score,
     strongCompression,
     waitPlan,
+  };
+}
+
+function startupFamilyProfile(input: ProfessionalAuditOpportunityQualityInput) {
+  const profile = qualityEvidenceProfile(input);
+  const absMove = Math.abs(input.movePct);
+  const blockers = qualityBlockers(input);
+  const compressionFamily = input.compressionPct <= 58;
+  const volumeFamily = profile.roleVolumeAligned;
+  const locationFamily = profile.favorableLocation || (
+    input.nodeRole === "breakout_edge" &&
+    (
+      input.direction === "long"
+        ? input.rangePositionPct >= 54 && input.rangePositionPct <= 84
+        : input.rangePositionPct >= 16 && input.rangePositionPct <= 46
+    )
+  );
+  const structureFamily = profile.constructiveRole && input.nodeRole !== "neutral_random";
+  const planFamily = profile.rrQualified || profile.waitPlan;
+  const controlledMoveFamily = !input.lateAtSelection && absMove <= (
+    input.nodeRole === "pullback_retest" ||
+    input.nodeRole === "trend_acceleration"
+      ? 6.2
+      : 5.2
+  );
+  const cleanRiskFamily =
+    profile.noOverheat &&
+    !hasQualityHardStructureBlocker(input) &&
+    !hasQualityFakeoutRisk(input) &&
+    !blockers.includes("neutral_direction");
+  const familyCount = [
+    compressionFamily,
+    volumeFamily,
+    locationFamily,
+    structureFamily,
+    planFamily,
+    controlledMoveFamily,
+    cleanRiskFamily,
+  ].filter(Boolean).length;
+  const strongCombo =
+    familyCount >= 6 &&
+    compressionFamily &&
+    volumeFamily &&
+    locationFamily &&
+    structureFamily &&
+    planFamily &&
+    controlledMoveFamily &&
+    cleanRiskFamily &&
+    profile.score >= 74;
+  const constructiveRepair =
+    hasStructureRepairPending(input) &&
+    strongCombo &&
+    profile.rrQualified &&
+    !blockers.some((blocker) =>
+      blocker === "reaction_not_confirmed" ||
+      blocker === "direction_pending_quiet_setup" ||
+      blocker === "neutral_direction" ||
+      blocker === "chase_risk" ||
+      blocker === "risk_score_high"
+    );
+
+  return {
+    ...profile,
+    cleanRiskFamily,
+    compressionFamily,
+    constructiveRepair,
+    controlledMoveFamily,
+    familyCount,
+    locationFamily,
+    planFamily,
+    strongCombo,
+    structureFamily,
+    volumeFamily,
   };
 }
 
@@ -876,7 +955,7 @@ export function classifyProfessionalAuditOpportunityQuality(
   const hardStructureBlocker = hasQualityHardStructureBlocker(input);
   const fakeoutRisk = hasQualityFakeoutRisk(input);
   const evidenceCount = qualityEvidenceCount(input);
-  const profile = qualityEvidenceProfile(input);
+  const profile = startupFamilyProfile(input);
 
   if (
     planReady &&
@@ -907,14 +986,15 @@ export function classifyProfessionalAuditOpportunityQuality(
   }
 
   if (
-    profile.score >= 72 &&
-    profile.strongCompression &&
-    profile.constructiveRole &&
-    profile.controlledMove &&
-    profile.noOverheat &&
-    profile.nonExtremeLocation &&
+    hasStructureRepairPending(input) &&
+    !profile.constructiveRepair
+  ) {
+    return evidenceCount >= 4 && !hardStructureBlocker ? "watch_only" : "noise";
+  }
+
+  if (
+    profile.strongCombo &&
     !profile.neutralAmbiguous &&
-    (profile.rrQualified || profile.waitPlan) &&
     !hardStructureBlocker &&
     absMove <= (input.nodeRole === "pullback_retest" || input.nodeRole === "trend_acceleration" ? 6.2 : 5.2)
   ) {
@@ -1201,6 +1281,103 @@ function absMoveFor(item: Pick<OpportunityRankable, "movePct">) {
   return movePct === null ? null : Math.abs(movePct);
 }
 
+function rankableHasStructureRepairPending(item: Pick<OpportunityRankable, "planBlockers">) {
+  return (item.planBlockers ?? []).includes("structure_repair_pending");
+}
+
+function isStrongStartupEvidenceCombination(item: OpportunityRankable) {
+  const absMove = absMoveFor(item);
+  const compressionPct = finiteNumber(item.compressionPct);
+  const rangePositionPct = finiteNumber(item.rangePositionPct);
+  const volumeRatio = finiteNumber(item.volumeRatio);
+  const rewardRisk = finiteNumber(item.rewardRisk);
+  const blockers = item.planBlockers ?? [];
+  const direction = item.direction ?? "long";
+  const role = item.nodeRole;
+  const quietRole =
+    role === "pre_move" ||
+    role === "medium_swing" ||
+    role === "neutral_random" ||
+    role === undefined;
+  const impulseRole =
+    role === "early_volume_expansion" ||
+    role === "breakout_edge" ||
+    role === "pullback_retest" ||
+    role === "trend_acceleration";
+  const compressionFamily = compressionPct !== null && compressionPct <= 58;
+  const volumeFamily = volumeRatio !== null && (
+    (quietRole && volumeRatio >= 0.48 && volumeRatio <= 1.18) ||
+    (impulseRole && volumeRatio >= 0.82 && volumeRatio <= 2.35)
+  );
+  const locationFamily = rangePositionPct !== null && (
+    direction === "long"
+      ? (
+        (rangePositionPct >= 22 && rangePositionPct <= 66) ||
+        (role === "breakout_edge" && rangePositionPct >= 54 && rangePositionPct <= 84)
+      )
+      : (
+        (rangePositionPct >= 34 && rangePositionPct <= 78) ||
+        (role === "breakout_edge" && rangePositionPct >= 16 && rangePositionPct <= 46)
+      )
+  );
+  const structureFamily =
+    role === "pre_move" ||
+    role === "early_volume_expansion" ||
+    role === "breakout_edge" ||
+    role === "medium_swing" ||
+    role === "pullback_retest" ||
+    role === "trend_acceleration";
+  const planFamily =
+    (rewardRisk !== null && rewardRisk >= 3) ||
+    item.tradePlanStatus === "WAIT_PULLBACK" ||
+    item.tradePlanStatus === "WAIT_RETEST";
+  const controlledMoveFamily =
+    item.lateAtSelection !== true &&
+    (absMove === null || absMove <= (role === "pullback_retest" || role === "trend_acceleration" ? 6.2 : 5.2));
+  const cleanRiskFamily =
+    item.lateAtSelection !== true &&
+    item.opportunityLane !== "risk_review" &&
+    !hasHardStructureBlocker(item) &&
+    !blockers.includes("neutral_direction") &&
+    !blockers.includes("chase_risk") &&
+    !blockers.includes("risk_score_high") &&
+    !blockers.includes("support_lost") &&
+    !blockers.includes("resistance_reclaimed");
+  const familyCount = [
+    compressionFamily,
+    volumeFamily,
+    locationFamily,
+    structureFamily,
+    planFamily,
+    controlledMoveFamily,
+    cleanRiskFamily,
+  ].filter(Boolean).length;
+
+  return (
+    familyCount >= 6 &&
+    compressionFamily &&
+    volumeFamily &&
+    locationFamily &&
+    structureFamily &&
+    controlledMoveFamily &&
+    cleanRiskFamily
+  );
+}
+
+function isConstructiveStructureRepairCandidate(item: OpportunityRankable) {
+  const rewardRisk = finiteNumber(item.rewardRisk);
+  const blockers = item.planBlockers ?? [];
+
+  return (
+    rankableHasStructureRepairPending(item) &&
+    isStrongStartupEvidenceCombination(item) &&
+    rewardRisk !== null &&
+    rewardRisk >= 3 &&
+    !blockers.includes("reaction_not_confirmed") &&
+    !blockers.includes("direction_pending_quiet_setup")
+  );
+}
+
 function opportunityCandidateEvidenceScore(item: OpportunityRankable) {
   const absMove = absMoveFor(item);
   const compressionPct = finiteNumber(item.compressionPct);
@@ -1211,6 +1388,8 @@ function opportunityCandidateEvidenceScore(item: OpportunityRankable) {
   const nonExtremeLocationScore = rangePositionPct === null
     ? 0.55
     : bandScore(rangePositionPct, 18, 50, 82);
+  const strongStartupCombination = isStrongStartupEvidenceCombination(item);
+  const constructiveRepair = isConstructiveStructureRepairCandidate(item);
 
   if (item.lateAtSelection === true || item.opportunityLane === "risk_review") {
     return -120;
@@ -1229,11 +1408,15 @@ function opportunityCandidateEvidenceScore(item: OpportunityRankable) {
   } else if (item.opportunityQuality === "late_move") {
     score -= 100;
   } else if (item.opportunityQuality === "premium_early_setup") {
-    score += 18;
+    score += strongStartupCombination ? 22 : -24;
   } else if (item.opportunityQuality === "trade_plan_ready") {
     score += 28;
   } else if (item.opportunityQuality === "watch_only") {
-    score += 8;
+    score += strongStartupCombination ? 6 : -18;
+  }
+
+  if (rankableHasStructureRepairPending(item)) {
+    score += constructiveRepair ? 6 : -30;
   }
 
   if (hasSevereStrategyBlockerCluster(item) && !isQuietCompressionOpportunity(item)) {
@@ -1532,6 +1715,20 @@ function isScanSelectionEligible(item: OpportunityRankable) {
   }
 
   if (hasScanDisqualifyingBlocker(item)) {
+    return false;
+  }
+
+  if (rankableHasStructureRepairPending(item) && !isConstructiveStructureRepairCandidate(item)) {
+    return false;
+  }
+
+  if (
+    item.opportunityQuality === "watch_only" &&
+    !isStrongStartupEvidenceCombination(item) &&
+    !isConditionalWaitOpportunity(item) &&
+    !isMediumSwingOpportunity(item) &&
+    !isTrendAccelerationOpportunity(item)
+  ) {
     return false;
   }
 
