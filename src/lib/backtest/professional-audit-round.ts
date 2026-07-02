@@ -232,6 +232,7 @@ const planBlockerLabels: Record<string, string> = {
   risk_gate_blocked: "风控门禁拦截",
   risk_score_high: "风险评分过高",
   stale_data: "数据过期",
+  stop_distance_too_tight: "止损距离过近",
   stop_distance_too_wide: "止损距离过宽",
   structure_confirmation_pending: "结构确认仍在等待",
   structure_invalidated: "结构已经失效",
@@ -326,6 +327,7 @@ const planBlockerCategoryMap: Record<PlanBlockerCategory, string[]> = {
     "invalid_structural_stop",
     "no_nearest_target",
     "no_structural_stop",
+    "stop_distance_too_tight",
     "stop_distance_too_wide",
   ],
   structure: [
@@ -1912,6 +1914,9 @@ function missingWaitPlanLevelsEvaluation(): ProfessionalAuditWaitPlanEvaluation 
 const minimumWaitTriggerReactionRatio = 0.28;
 const minimumWaitTriggerCloseFromExtremeRatio = 0.68;
 const waitTriggerStructuralReactionRatio = 0.78;
+const waitTriggerFollowThroughWindowBars = 4;
+const minimumWaitFollowThroughReactionRatio = 0.16;
+const minimumWaitFollowThroughCloseFromExtremeRatio = 0.58;
 
 export function waitPlanTriggerObserved({
   candle,
@@ -1984,6 +1989,59 @@ function waitPlanTriggerPreservesStructuralStop({
     : candle.high < structuralStop;
 }
 
+export function waitPlanFollowThroughConfirmed({
+  direction,
+  future,
+  initialTriggerIndex,
+  stopDistance,
+  structuralStop,
+  triggerPrice,
+}: {
+  direction: "long" | "short";
+  future: Candle[];
+  initialTriggerIndex: number;
+  stopDistance: number;
+  structuralStop: number;
+  triggerPrice: number;
+}) {
+  const maxIndex = Math.min(future.length - 1, initialTriggerIndex + waitTriggerFollowThroughWindowBars);
+  const minReaction = stopDistance * minimumWaitFollowThroughReactionRatio;
+
+  for (let index = initialTriggerIndex + 1; index <= maxIndex; index += 1) {
+    const candle = future[index];
+
+    if (!candle) {
+      continue;
+    }
+
+    if (!waitPlanTriggerPreservesStructuralStop({ candle, direction, structuralStop })) {
+      return null;
+    }
+
+    const range = Math.max(candle.high - candle.low, Number.EPSILON);
+
+    if (direction === "long") {
+      const closeFromLow = (candle.close - candle.low) / range;
+      const holdsTrigger = candle.close >= triggerPrice + minReaction;
+      const bodyAligned = candle.close >= candle.open;
+
+      if (holdsTrigger && bodyAligned && closeFromLow >= minimumWaitFollowThroughCloseFromExtremeRatio) {
+        return index;
+      }
+    } else {
+      const closeFromHigh = (candle.high - candle.close) / range;
+      const holdsTrigger = candle.close <= triggerPrice - minReaction;
+      const bodyAligned = candle.close <= candle.open;
+
+      if (holdsTrigger && bodyAligned && closeFromHigh >= minimumWaitFollowThroughCloseFromExtremeRatio) {
+        return index;
+      }
+    }
+  }
+
+  return null;
+}
+
 function postTriggerRewardRisk({
   direction,
   structuralStop,
@@ -2026,12 +2084,14 @@ function waitTriggerQualityScore({
 }
 
 function waitPlanDiagnosticFlags({
+  followThroughMissing = false,
   maxAdverseAfterTriggerPct,
   maxFavorableAfterTriggerPct,
   postTriggerRr,
   status,
   triggerQualityScore,
 }: {
+  followThroughMissing?: boolean;
   maxAdverseAfterTriggerPct: number | null;
   maxFavorableAfterTriggerPct: number | null;
   postTriggerRr: number | null;
@@ -2046,6 +2106,10 @@ function waitPlanDiagnosticFlags({
 
   if (status === "not_triggered") {
     flags.push("no_valid_reaction");
+  }
+
+  if (followThroughMissing) {
+    flags.push("trigger_followthrough_missing");
   }
 
   if (status === "triggered_sl_first") {
@@ -2131,7 +2195,7 @@ function evaluateWaitPlan({
     plannedEntryPrice: tradePlan.plannedEntryPrice,
     structuralStop,
   });
-  const triggerIndex = future.findIndex((candle) =>
+  const initialTriggerIndex = future.findIndex((candle) =>
     waitPlanTriggerPreservesStructuralStop({
       candle,
       direction,
@@ -2145,7 +2209,7 @@ function evaluateWaitPlan({
     })
   );
 
-  if (triggerIndex < 0) {
+  if (initialTriggerIndex < 0) {
     const postTriggerRr = postTriggerRewardRisk({
       direction,
       structuralStop,
@@ -2176,8 +2240,59 @@ function evaluateWaitPlan({
     };
   }
 
-  const triggered = future[triggerIndex];
-  const afterTrigger = future.slice(triggerIndex);
+  const confirmationIndex = waitPlanFollowThroughConfirmed({
+    direction,
+    future,
+    initialTriggerIndex,
+    stopDistance,
+    structuralStop,
+    triggerPrice,
+  });
+
+  if (confirmationIndex === null) {
+    const initialTrigger = future[initialTriggerIndex];
+    const initialQuality = initialTrigger
+      ? waitTriggerQualityScore({
+        candle: initialTrigger,
+        direction,
+        stopDistance,
+        triggerPrice,
+      })
+      : null;
+    const postTriggerRr = postTriggerRewardRisk({
+      direction,
+      structuralStop,
+      target,
+      triggerPrice,
+    });
+
+    return {
+      barsToTrigger: null,
+      diagnosticFlags: waitPlanDiagnosticFlags({
+        followThroughMissing: true,
+        maxAdverseAfterTriggerPct: null,
+        maxFavorableAfterTriggerPct: null,
+        postTriggerRr,
+        status: "not_triggered",
+        triggerQualityScore: initialQuality,
+      }),
+      label: "等待未完成二次确认",
+      maxAdverseAfterTriggerPct: null,
+      maxFavorableAfterTriggerPct: null,
+      outcome: "no_trade",
+      postTriggerRewardRisk: postTriggerRr,
+      reason: "验证窗口内出现初步触发反应，但后续 1h 内没有二次确认；等待计划避免提前入场，不能算作已触发交易。",
+      status: "not_triggered",
+      stopHit: false,
+      targetHit: false,
+      triggerObservedAt: initialTrigger?.openTime ?? null,
+      triggerPrice: round(triggerPrice, 8),
+      triggerQualityScore: initialQuality,
+    };
+  }
+
+  const triggered = future[confirmationIndex];
+  const afterTrigger = future.slice(confirmationIndex + 1);
   const triggerQuality = waitTriggerQualityScore({
     candle: triggered,
     direction,
@@ -2226,7 +2341,7 @@ function evaluateWaitPlan({
 
   if (firstEvent === "tp") {
     return {
-      barsToTrigger: triggerIndex + 1,
+      barsToTrigger: confirmationIndex + 1,
       diagnosticFlags: waitPlanDiagnosticFlags({
         maxAdverseAfterTriggerPct,
         maxFavorableAfterTriggerPct,
@@ -2251,7 +2366,7 @@ function evaluateWaitPlan({
 
   if (firstEvent === "sl") {
     return {
-      barsToTrigger: triggerIndex + 1,
+      barsToTrigger: confirmationIndex + 1,
       diagnosticFlags: waitPlanDiagnosticFlags({
         maxAdverseAfterTriggerPct,
         maxFavorableAfterTriggerPct,
@@ -2275,7 +2390,7 @@ function evaluateWaitPlan({
   }
 
   return {
-    barsToTrigger: triggerIndex + 1,
+    barsToTrigger: confirmationIndex + 1,
     diagnosticFlags: waitPlanDiagnosticFlags({
       maxAdverseAfterTriggerPct,
       maxFavorableAfterTriggerPct,
@@ -2823,6 +2938,7 @@ const levelQualityReasonLabels: Record<ProfessionalAuditLevelQualityReason, stri
   quality_hit_needs_manual_review: "质量命中但被关键位/RR 阻断",
   reasonable_late_or_risk_block: "迟到或风险复盘，阻断更合理",
   rr_below_minimum: "结构盈亏比低于 3:1",
+  stop_too_tight: "结构止损距离过近",
   stop_too_wide: "结构止损距离过宽",
   target_projection_too_near: "目标位投射过近或空间不足",
   unknown_level_issue: "关键位/RR 问题未细分",
@@ -2840,6 +2956,10 @@ function levelQualityReasonFor(metric: ProfessionalAuditPlanBlockerMetric): Prof
 
   if (metric.blocker === "stop_distance_too_wide") {
     return "stop_too_wide";
+  }
+
+  if (metric.blocker === "stop_distance_too_tight") {
+    return "stop_too_tight";
   }
 
   if (metric.blocker === "reward_risk_below_minimum") {
@@ -2876,6 +2996,10 @@ function levelQualityNextAction(metric: ProfessionalAuditPlanBlockerMetric, reas
 
   if (reason === "stop_too_wide") {
     return `${qualityPrefix}复查止损是否被放到过远结构位；若只能用宽止损，就改成等待更好位置，不能降低 RR。`;
+  }
+
+  if (reason === "stop_too_tight") {
+    return `${qualityPrefix}复查止损是否贴得过近；若止损只是普通噪音区间，必须等待二次确认或改用更有效结构位。`;
   }
 
   if (reason === "rr_below_minimum") {
@@ -2955,6 +3079,7 @@ function waitPlanDiagnosticLabel(code: string) {
     no_valid_reaction: "没有有效回踩/反抽反应",
     post_trigger_rr_below_minimum: "触发后结构盈亏比低于 3:1",
     stop_first_after_trigger: "触发后先打结构止损",
+    trigger_followthrough_missing: "初步触发后缺少二次确认",
     trigger_reaction_not_strong_enough: "触发 K 线反应强度不足",
     triggered_but_no_resolution: "触发后目标/止损都未验证",
   };
@@ -3579,7 +3704,7 @@ function buildStrategyCapabilityMetric({
   );
   const usableStrategyCount = usablePlans.length + usableConditionalPlans.length;
   const rrBelowCount = blockerCount(planBlockerMetrics, ["reward_risk_below_minimum", "reward_risk_unknown", "location_rr"]);
-  const stopTargetIssueCount = blockerCount(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_wide"]);
+  const stopTargetIssueCount = blockerCount(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_tight", "stop_distance_too_wide"]);
   const pendingCount = blockerCount(planBlockerMetrics, ["reaction_not_confirmed", "structure_confirmation_pending"]);
   const planReadyRatePct = percent(planReady.length, nodes.length);
   const conditionalPlanRatePct = percent(conditionalPlans.length, nodes.length);
@@ -3632,7 +3757,7 @@ function buildStrategyCapabilityMetric({
       detail: `止损/目标位质量问题出现 ${stopTargetIssueCount} 次。`,
       label: "止损目标质量不足",
       nextAction: "先修关键位、结构止损和目标位投射，再谈策略准确率。",
-      sampleSymbols: blockerSamples(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_wide"]),
+      sampleSymbols: blockerSamples(planBlockerMetrics, ["no_nearest_target", "no_structural_stop", "invalid_nearest_target", "invalid_structural_stop", "stop_distance_too_tight", "stop_distance_too_wide"]),
     }));
   }
 

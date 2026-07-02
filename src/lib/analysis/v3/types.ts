@@ -211,6 +211,7 @@ export type V3LocationRiskFlag =
   | "no_nearest_target"
   | "no_structural_stop"
   | "reward_risk_below_minimum"
+  | "stop_distance_too_tight"
   | "stop_distance_too_wide";
 
 export type V3PositionQuality =

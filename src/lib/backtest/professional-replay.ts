@@ -166,6 +166,7 @@ export type ProfessionalAuditLevelQualityReason =
   | "quality_hit_needs_manual_review"
   | "reasonable_late_or_risk_block"
   | "rr_below_minimum"
+  | "stop_too_tight"
   | "stop_too_wide"
   | "target_projection_too_near"
   | "unknown_level_issue";

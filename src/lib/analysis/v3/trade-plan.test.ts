@@ -464,7 +464,7 @@ test("buildV3TradePlan keeps RR-qualified range-idle setups as conditional wait 
 
   assert.equal(plan.status, "WAIT_RETEST");
   assert.equal(plan.isPlanEligible, false);
-  assert.equal(plan.plannedEntryPrice, 107.2);
+  assert.equal(plan.plannedEntryPrice, null);
   assert.equal(plan.rewardRisk, 3.18);
   assert.ok(plan.blockedBy.includes("structure_confirmation_pending"));
   assert.match(plan.summary, /结构还未确认|等待/);

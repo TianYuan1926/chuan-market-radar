@@ -1630,6 +1630,23 @@ RawSource
   4. 分析层需要降低 false positive，不允许扫描分提升后把更多弱质量节点推给策略层消化。
   5. 下一轮仍不做 UI、美化或新增外部功能；只围绕扫描、分析、策略三大核心继续。
 
+### 2026-07-02 WAIT 二次确认与止损噪音修复
+
+- 本轮服务核心链路：`结构分析 -> 风险赔率 -> 条件计划 -> 回测验证`。
+- 根因：上一轮 WAIT 计划已能被验证，但 20 个 WAIT 中 14 个触发、9 个先止损，说明系统把“触碰关键位 + 单根 K 线反应”过早当成触发，且部分结构止损距离过近会制造虚高 RR。
+- 已完成整改：
+  - WAIT 计划不再默认把当前价写成 `plannedEntryPrice`。只有位置/RR 模块给出明确等待价时才写入计划触发价；结构仍待确认但没有明确等待价时，回测会退回结构位附近的保守触发模型。
+  - WAIT 后验新增二次确认：先出现初步回踩/反抽反应后，还必须在 4 根 15m K 线内继续收盘确认，且不能刺破结构止损，才算真正触发。没有二次确认的样本记为 `not_triggered`，并标记 `trigger_followthrough_missing`。
+  - 位置/RR 新增 `stop_distance_too_tight` 风控：止损距离过近时即使表面 RR 很高，也不能进入交易计划，避免普通噪音扫损被包装成高赔率机会。
+  - 回测报告、阻断分类和前端合同已补齐 `stop_distance_too_tight`、`trigger_followthrough_missing` 的中文标签，避免页面继续露出代码名。
+- 风控边界：没有降低最低 `3:1` 结构 RR，没有把 WAIT 计划包装成 `TRADE_PLAN_READY`，没有允许自动下单或自动改权重。
+- 本地验收已通过：`npm run test:market`、`npm run backtest:golden`、`npm run lint`、`npm run build`。
+- 下一轮正式回测必须重点看：
+  - WAIT `stopFirstCount` 和 `badWaitRatePct` 是否下降。
+  - `notTriggeredCount` 是否合理上升；如果只是把失败计划全部改成不触发，需要继续复查是否过度保守。
+  - `trigger_followthrough_missing` 是否成为主要诊断；若是，说明二次确认过滤正在生效，但还要评估是否错过优质早期机会。
+  - `TRADE_PLAN_READY` 不应靠放松 RR 增加；如果仍为 0，下一步继续修目标位投射、结构止损和假阳性过滤。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

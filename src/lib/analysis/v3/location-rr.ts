@@ -11,6 +11,7 @@ export type EvaluateV3LocationRiskRewardInput = {
   direction: V3LocationDirection;
   keyLevels: KeyLevel[];
   maxStopDistancePercent?: number;
+  minStopDistancePercent?: number;
   minRewardRisk?: number;
 };
 
@@ -261,6 +262,10 @@ function positionQuality(flags: V3LocationRiskFlag[]): V3PositionQuality {
     return "POOR_RR";
   }
 
+  if (flags.includes("stop_distance_too_tight")) {
+    return "WATCH_LOCATION";
+  }
+
   if (flags.includes("chase_risk") || flags.includes("stop_distance_too_wide")) {
     return "CHASE_RISK";
   }
@@ -285,6 +290,10 @@ function summaryFor(result: Omit<StrategyV3LocationRiskReward, "summary">) {
     return "v3 位置/RR：结构止损或目标距离无效，只能观察。";
   }
 
+  if (result.riskFlags.includes("stop_distance_too_tight")) {
+    return "v3 位置/RR：结构止损距离过近，容易被正常噪音扫损；只允许继续观察或等待更清晰结构。";
+  }
+
   if (result.rewardRisk < result.minRewardRisk) {
     return result.waitEntryPrice !== null && result.waitEntryPrice !== undefined
       ? `v3 位置/RR：当前位置盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1；只允许等待 ${result.waitEntryPrice} 附近，预计 RR ${result.waitEntryRewardRisk}:1 后再复核。`
@@ -305,6 +314,7 @@ export function evaluateV3LocationRiskReward({
   direction,
   keyLevels,
   maxStopDistancePercent = 6,
+  minStopDistancePercent = 0.35,
   minRewardRisk = 3,
 }: EvaluateV3LocationRiskRewardInput): StrategyV3LocationRiskReward {
   const riskFlags: V3LocationRiskFlag[] = [];
@@ -372,6 +382,10 @@ export function evaluateV3LocationRiskReward({
     : null;
   const stopDistancePercent = percent(stopDistance, currentPrice);
   const targetDistancePercent = percent(targetDistance, currentPrice);
+
+  if (direction !== "neutral" && stopDistance > 0 && stopDistancePercent < minStopDistancePercent) {
+    riskFlags.push("stop_distance_too_tight");
+  }
 
   if (rewardRisk !== null && rewardRisk < minRewardRisk) {
     riskFlags.push("reward_risk_below_minimum");

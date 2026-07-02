@@ -3955,6 +3955,7 @@ function engineText(value: string | null | undefined) {
     no_structural_stop: "缺少结构止损",
     resistance_reclaimed: "压力位被重新收回",
     reward_risk_below_minimum: "结构盈亏比不足",
+    stop_distance_too_tight: "止损距离过近",
     stop_distance_too_wide: "止损距离过宽",
     support_lost: "支撑位失守",
     upper_wick_exhaustion: "上影线衰竭风险",

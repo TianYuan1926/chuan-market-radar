@@ -120,6 +120,23 @@ test("evaluateV3LocationRiskReward accepts long setups with a nearby structural 
   assert.deepEqual(result.riskFlags, []);
 });
 
+test("evaluateV3LocationRiskReward blocks noise-tight structural stops even when headline RR looks high", () => {
+  const result = evaluateV3LocationRiskReward({
+    currentPrice: 100,
+    direction: "long",
+    keyLevels: [
+      level({ direction: "SUPPORT", zoneLow: 99.8, zoneHigh: 99.9, midPrice: 99.85, type: "RANGE_LOW" }),
+      level({ direction: "RESISTANCE", zoneLow: 104, zoneHigh: 105, midPrice: 104.5, type: "RANGE_HIGH" }),
+    ],
+  });
+
+  assert.equal(result.isTradeEligible, false);
+  assert.equal(result.rewardRisk, 20);
+  assert.ok(result.riskFlags.includes("stop_distance_too_tight"));
+  assert.equal(result.positionQuality, "WATCH_LOCATION");
+  assert.match(result.summary, /止损距离过近|噪音/);
+});
+
 test("evaluateV3LocationRiskReward uses the first traceable target that satisfies 3R instead of killing a setup at the nearest minor resistance", () => {
   const result = evaluateV3LocationRiskReward({
     currentPrice: 100,

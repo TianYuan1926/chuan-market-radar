@@ -105,6 +105,10 @@ function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
     notes.push("赔率等待点：当前止损距离或目标空间不合格，等价格更靠近防守位或目标位重新打开。");
   }
 
+  if (unique.includes("stop_distance_too_tight")) {
+    notes.push("结构止损质量：止损距离过近容易被普通波动扫掉，必须等待更清晰的防守位或二次确认。");
+  }
+
   if (unique.includes("stop_distance_too_wide")) {
     notes.push("结构止损质量：止损距离过宽会把小波动变成大亏损，必须等更靠近防守位或改用更近的有效结构。");
   }
@@ -231,6 +235,14 @@ function planQualityFlags({
     flags.push("stop_distance_too_wide");
   }
 
+  if (
+    Number.isFinite(location.stopDistancePercent) &&
+    location.stopDistancePercent > 0 &&
+    location.stopDistancePercent < 0.35
+  ) {
+    flags.push("stop_distance_too_tight");
+  }
+
   return [...new Set(flags)];
 }
 
@@ -271,7 +283,7 @@ function basePlan({
   const waitTrigger = waitTriggerText(direction, status);
   const isWaitPlan = status === "WAIT_PULLBACK" || status === "WAIT_RETEST";
   const qualityReview = waitReviewText(blockedBy, direction);
-  const plannedEntryPrice = waitEntryPrice ?? (isWaitPlan || isPlanEligible ? currentPrice : null);
+  const plannedEntryPrice = waitEntryPrice ?? (isPlanEligible ? currentPrice : null);
 
   return {
     allowedUse: "research_only",

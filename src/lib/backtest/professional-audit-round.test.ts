@@ -18,6 +18,7 @@ import {
   selectProfessionalAuditNodeIndexes,
   selectProfessionalAuditOpportunityCandidates,
   tradePlanBlockers,
+  waitPlanFollowThroughConfirmed,
   waitPlanTriggerPrice,
   waitPlanTriggerObserved,
 } from "./professional-audit-round";
@@ -1305,6 +1306,53 @@ test("waitPlanTriggerObserved rejects weak reactions that previously created pre
     stopDistance: 4,
     triggerPrice: 96,
   }), false);
+});
+
+test("waitPlanFollowThroughConfirmed requires a second confirmation after the first wait trigger", () => {
+  const initialTrigger = {
+    close: 97.35,
+    closeTime: "2026-01-01T00:14:59.999Z",
+    high: 97.6,
+    low: 95.8,
+    open: 96.2,
+    openTime: "2026-01-01T00:00:00.000Z",
+    volume: 100,
+  };
+  const weakFollowThrough = {
+    close: 96.1,
+    closeTime: "2026-01-01T00:29:59.999Z",
+    high: 97.1,
+    low: 95.9,
+    open: 96.6,
+    openTime: "2026-01-01T00:15:00.000Z",
+    volume: 110,
+  };
+  const confirmedFollowThrough = {
+    close: 96.82,
+    closeTime: "2026-01-01T00:44:59.999Z",
+    high: 97,
+    low: 96,
+    open: 96.2,
+    openTime: "2026-01-01T00:30:00.000Z",
+    volume: 120,
+  };
+
+  assert.equal(waitPlanFollowThroughConfirmed({
+    direction: "long",
+    future: [initialTrigger, weakFollowThrough],
+    initialTriggerIndex: 0,
+    stopDistance: 4,
+    structuralStop: 94,
+    triggerPrice: 96,
+  }), null);
+  assert.equal(waitPlanFollowThroughConfirmed({
+    direction: "long",
+    future: [initialTrigger, weakFollowThrough, confirmedFollowThrough],
+    initialTriggerIndex: 0,
+    stopDistance: 4,
+    structuralStop: 94,
+    triggerPrice: 96,
+  }), 2);
 });
 
 test("wait plan metrics only audit actionable non-late non-risk-review wait plans", () => {
