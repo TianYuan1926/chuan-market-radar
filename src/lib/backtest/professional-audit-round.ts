@@ -2418,7 +2418,7 @@ function waitPlanDiagnosticFlags({
     flags.push("missing_plan_levels");
   }
 
-  if (status === "not_triggered") {
+  if (status === "not_triggered" && !followThroughMissing) {
     flags.push("no_valid_reaction");
   }
 

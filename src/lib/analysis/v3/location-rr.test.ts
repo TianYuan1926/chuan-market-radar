@@ -155,6 +155,57 @@ test("evaluateV3LocationRiskReward uses the first traceable target that satisfie
   assert.deepEqual(result.riskFlags, []);
 });
 
+test("evaluateV3LocationRiskReward can project a dynamic extension target beyond a minor resistance without lowering 3R", () => {
+  const result = evaluateV3LocationRiskReward({
+    currentPrice: 100,
+    direction: "long",
+    keyLevels: [
+      level({ direction: "SUPPORT", id: "support", zoneLow: 98, zoneHigh: 99, midPrice: 98.5, type: "RANGE_LOW" }),
+      level({
+        direction: "RESISTANCE",
+        id: "minor-resistance",
+        keyScore: 58,
+        zoneLow: 103,
+        zoneHigh: 104,
+        midPrice: 103.5,
+        type: "SWING_HIGH",
+      }),
+    ],
+  });
+
+  assert.equal(result.isTradeEligible, true);
+  assert.equal(result.nearestTarget, 106.2);
+  assert.equal(result.rewardRisk, 3.1);
+  assert.equal(result.targetLevelId, "dynamic_long_extension_3r");
+  assert.deepEqual(result.riskFlags, []);
+  assert.match(result.summary, /3\.1:1|位置质量合格/);
+});
+
+test("evaluateV3LocationRiskReward does not project through a major blocking resistance", () => {
+  const result = evaluateV3LocationRiskReward({
+    currentPrice: 100,
+    direction: "long",
+    keyLevels: [
+      level({ direction: "SUPPORT", id: "support", zoneLow: 98, zoneHigh: 99, midPrice: 98.5, type: "RANGE_LOW" }),
+      level({
+        direction: "RESISTANCE",
+        id: "major-range-high",
+        keyScore: 90,
+        zoneLow: 103,
+        zoneHigh: 104,
+        midPrice: 103.5,
+        type: "RANGE_HIGH",
+      }),
+    ],
+  });
+
+  assert.equal(result.isTradeEligible, false);
+  assert.equal(result.nearestTarget, 103);
+  assert.equal(result.rewardRisk, 1.5);
+  assert.equal(result.targetLevelId, "major-range-high");
+  assert.ok(result.riskFlags.includes("reward_risk_below_minimum"));
+});
+
 test("evaluateV3LocationRiskReward blocks shorts when nearby support destroys downside reward", () => {
   const result = evaluateV3LocationRiskReward({
     currentPrice: 100,

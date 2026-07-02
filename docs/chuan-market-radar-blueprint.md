@@ -1842,6 +1842,30 @@ RawSource
   3. 分析层保持当前严门槛，不立即放宽 `premium_early_setup`；先检查漏判样本，确认是“合理过滤”还是“过度收紧”。
   4. 下一轮回测验收：策略分数必须回升，WAIT 有效率必须改善，扫描分数不能继续低于 53.98，`premium_early_setup` 假阳性不能反弹。
 
+### 2026-07-02 P3.1 策略层根因修复
+
+- 服务核心链路：`结构分析 -> 风险赔率 -> 交易计划 -> 回测复盘`。
+- 已完成：
+  - `location-rr` 新增动态扩展目标：当自然近端小级别目标不足以满足最低 `3:1`，且结构止损清楚、止损距离未过宽、前方不是高分重大压力/支撑时，允许用结构止损距离推导 `3R+` 的动态扩展目标。
+  - 动态扩展目标只用于空间/RR 评估，不单独构成交易信号；仍必须经过趋势、反应确认、风险门控和成熟度分层。
+  - 若前方是高分 `RANGE_HIGH` / `RANGE_LOW` / `ROLE_FLIP`，禁止用动态扩展目标穿越重大结构位，仍按 RR 不足或等待处理。
+  - WAIT 计划回测诊断修正：初步触发但缺少二次确认，不再混入“没有有效反应”，方便区分“完全没触发”和“触发质量不足”。
+- 不允许误读：
+  - 这不是降低 `3:1`，也不是放宽风控。
+  - 这不是允许前端生成目标位。
+  - 这不是证明策略已经可实战，只是修复 P3 发现的目标投射和等待诊断缺陷。
+- 本地验证：
+  - `npm run build:market-cli` 通过。
+  - `node --test .tmp/market-tests/lib/analysis/v3/location-rr.test.js` 通过 11/11。
+  - `node --test .tmp/market-tests/lib/backtest/professional-audit-round.test.js` 通过 54/54。
+  - `npm run test:market` 通过：核心测试 763/763，worker 测试 17/17，历史回测烟测 4/4。
+  - `npm run typecheck` 通过。
+- 下一步必须跑新一轮正式回测：
+  - 重点看策略分数是否回升。
+  - 重点看 `reward_risk_below_minimum`、`target_projection_too_near`、`stop_distance_too_wide` 是否下降。
+  - 重点看 WAIT 计划是否从“没触发/诊断混乱”变成可解释的触发质量分布。
+  - 如果扫描分数继续下降，说明 P3/P3.1 只修策略，不足以解决 Top10 发现能力，必须回到扫描排序主干。
+
 ### 2026-07-02 Caddy 单上游健康检查修复
 
 - 发现方式：正式回测收尾验收时，本地公网访问 `/api/health` 出现超时；服务器本机访问 Caddy 和 web 容器内部 `/api/health` 均为 200。

@@ -218,12 +218,14 @@ function waitEntryForMinimumQuality({
 function firstTradableTarget({
   currentPrice,
   direction,
+  maxStopDistancePercent,
   minRewardRisk,
   stopDistance,
   targets,
 }: {
   currentPrice: number;
   direction: V3LocationDirection;
+  maxStopDistancePercent: number;
   minRewardRisk: number;
   stopDistance: number;
   targets: KeyLevel[];
@@ -240,9 +242,102 @@ function firstTradableTarget({
     }))
     .filter((item): item is { rewardRisk: number; target: KeyLevel } => item.rewardRisk !== null);
 
-  return candidates.find((item) => item.rewardRisk >= minRewardRisk)?.target
-    ?? candidates[0]?.target
-    ?? null;
+  const traceableTarget = candidates.find((item) => item.rewardRisk >= minRewardRisk)?.target;
+
+  if (traceableTarget) {
+    return traceableTarget;
+  }
+
+  return dynamicExtensionTarget({
+    currentPrice,
+    direction,
+    maxStopDistancePercent,
+    minRewardRisk,
+    nearestNaturalTarget: candidates[0]?.target ?? null,
+    stopDistance,
+  }) ?? candidates[0]?.target ?? null;
+}
+
+function isMajorBlockingLevel(level: KeyLevel | null) {
+  if (!level) {
+    return false;
+  }
+
+  return level.keyScore >= 80 && (
+    level.type === "RANGE_HIGH" ||
+    level.type === "RANGE_LOW" ||
+    level.type === "ROLE_FLIP"
+  );
+}
+
+function dynamicExtensionTarget({
+  currentPrice,
+  direction,
+  maxStopDistancePercent,
+  minRewardRisk,
+  nearestNaturalTarget,
+  stopDistance,
+}: {
+  currentPrice: number;
+  direction: V3LocationDirection;
+  maxStopDistancePercent: number;
+  minRewardRisk: number;
+  nearestNaturalTarget: KeyLevel | null;
+  stopDistance: number;
+}) {
+  if (direction === "neutral" || currentPrice <= 0 || stopDistance <= 0) {
+    return null;
+  }
+
+  if (percent(stopDistance, currentPrice) > maxStopDistancePercent * 1.25) {
+    return null;
+  }
+
+  if (isMajorBlockingLevel(nearestNaturalTarget)) {
+    return null;
+  }
+
+  const projectedPrice = direction === "long"
+    ? currentPrice + stopDistance * (minRewardRisk + 0.1)
+    : currentPrice - stopDistance * (minRewardRisk + 0.1);
+
+  if (projectedPrice <= 0) {
+    return null;
+  }
+
+  const zonePad = Math.max(projectedPrice * 0.0015, stopDistance * 0.04);
+  const zoneLow = direction === "long"
+    ? projectedPrice
+    : Math.max(0, projectedPrice - zonePad);
+  const zoneHigh = direction === "long"
+    ? projectedPrice + zonePad
+    : projectedPrice;
+
+  return {
+    confirmationRules: [
+      "必须先突破/跌破前方近端小级别结构，不能在阻力/支撑前追单。",
+      "动态扩展目标只用于 RR 评估，不能替代真实突破确认。",
+    ],
+    confluenceScore: nearestNaturalTarget ? Math.min(55, nearestNaturalTarget.confluenceScore) : 45,
+    direction: direction === "long" ? "RESISTANCE" : "SUPPORT",
+    id: `dynamic_${direction}_extension_${minRewardRisk}r`,
+    invalidationRule: direction === "long"
+      ? "重新跌回近端结构下方或放量上攻失败，动态扩展目标失效。"
+      : "重新站回近端结构上方或放量下破失败，动态扩展目标失效。",
+    keyScore: nearestNaturalTarget ? Math.min(68, nearestNaturalTarget.keyScore) : 58,
+    midPrice: roundPrice((zoneLow + zoneHigh) / 2),
+    reactionScore: 0,
+    reasons: [
+      "自然目标不足以满足最低 3:1，按结构止损距离推导动态扩展目标。",
+      "该目标只证明空间可能，不单独构成交易信号。",
+    ],
+    status: "POTENTIAL",
+    symbol: nearestNaturalTarget?.symbol ?? "UNKNOWN",
+    timeframe: nearestNaturalTarget?.timeframe ?? "1h",
+    type: "DYNAMIC_LEVEL",
+    zoneHigh: roundPrice(zoneHigh),
+    zoneLow: roundPrice(zoneLow),
+  } satisfies KeyLevel;
 }
 
 function positionQuality(flags: V3LocationRiskFlag[]): V3PositionQuality {
@@ -306,6 +401,10 @@ function summaryFor(result: Omit<StrategyV3LocationRiskReward, "summary">) {
       : `v3 位置/RR：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远，等待更好回踩/反抽。`;
   }
 
+  if (result.targetLevelId?.startsWith("dynamic_")) {
+    return `v3 位置/RR：近端小级别目标不足，按结构止损距离推导动态扩展目标，空间支持 ${result.rewardRisk}:1；该目标只能作为空间评估，仍需突破/回踩确认。`;
+  }
+
   return `v3 位置/RR：结构止损清楚，前方结构目标支持 ${result.rewardRisk}:1，位置质量合格。`;
 }
 
@@ -344,6 +443,7 @@ export function evaluateV3LocationRiskReward({
       currentPrice,
       direction,
       minRewardRisk,
+      maxStopDistancePercent,
       stopDistance,
       targets: resistances,
     })
@@ -352,6 +452,7 @@ export function evaluateV3LocationRiskReward({
         currentPrice,
         direction,
         minRewardRisk,
+        maxStopDistancePercent,
         stopDistance,
         targets: supports,
       })
