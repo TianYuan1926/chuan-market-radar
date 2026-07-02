@@ -121,6 +121,14 @@ function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
     notes.push("结构修复等待点：空头结构短线受损，必须重新跌回关键位并形成承压，不能把收复后的回落直接当入场。");
   }
 
+  if (unique.includes("structure_repair_pending")) {
+    notes.push(
+      direction === "short"
+        ? "结构修复等待点：空头还在修复确认阶段，必须看到反抽承压或重新跌回关键位，不能直接追空。"
+        : "结构修复等待点：多头还在修复确认阶段，必须看到回踩承接或重新站回关键位，不能直接追多。",
+    );
+  }
+
   if (notes.length === 0) {
     return "";
   }
@@ -297,7 +305,7 @@ function basePlan({
       isWaitPlan ? "触发K线不能先刺破结构止损，否则只记录为失效观察，不视为入场触发。" : "结构止损未被触发前，执行条件保持有效。",
       qualityReview || "等待原因已经拆分到结构、位置、反应或赔率",
       "回踩/反抽质量已确认",
-      "趋势完整度保持健康",
+      "趋势完整度保持健康；如果处于结构修复等待，只允许等待确认，不允许直接执行。",
     ],
     direction,
     entryZone: `${directionText}计划草案：${priceLabel(currentPrice)} 附近，${entryContext}；${riskMap}。${isWaitPlan ? waitTrigger : ""}${qualityReview ? ` ${qualityReview}` : ""}`,
@@ -402,6 +410,50 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
       isPlanEligible: false,
       status: "BLOCKED",
       summary: "v3 计划草案：趋势完整度已破坏，计划阻断。",
+      trendContext: input.trendContext,
+    });
+  }
+
+  if (integrity.status === "STRUCTURE_REPAIR_PENDING") {
+    const blockedBy = [
+      ...integrity.riskFlags,
+      ...input.trendContext.riskGate.blockedBy,
+      ...reaction.riskFlags,
+    ];
+
+    if (reaction.status === "FAILED" || reaction.riskFlags.some(isReactionFailureBlocker)) {
+      return basePlan({
+        blockedBy,
+        currentPrice: input.currentPrice,
+        direction,
+        isPlanEligible: false,
+        status: "BLOCKED",
+        summary: "v3 计划草案：结构处于修复等待，但回踩/反抽反应已经失败，计划阻断。",
+        trendContext: input.trendContext,
+      });
+    }
+
+    if (structureRepairEligible({ direction, trendContext: input.trendContext })) {
+      return basePlan({
+        blockedBy,
+        currentPrice: input.currentPrice,
+        direction,
+        isPlanEligible: false,
+        status: waitStatus(direction),
+        summary: direction === "long"
+          ? "v3 计划草案：多头处于结构修复等待，不给现价交易计划；等待重新站回关键位、回踩承接和二次确认后再人工复核。"
+          : "v3 计划草案：空头处于结构修复等待，不给现价交易计划；等待重新跌回关键位、反抽承压和二次确认后再人工复核。",
+        trendContext: input.trendContext,
+      });
+    }
+
+    return basePlan({
+      blockedBy,
+      currentPrice: input.currentPrice,
+      direction,
+      isPlanEligible: false,
+      status: "WATCH_ONLY",
+      summary: "v3 计划草案：结构处于修复等待，但关键位、RR 或反应质量还不够，只观察。",
       trendContext: input.trendContext,
     });
   }

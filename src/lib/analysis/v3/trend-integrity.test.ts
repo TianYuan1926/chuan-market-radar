@@ -168,6 +168,23 @@ test("evaluateV3TrendIntegrity does not kill a long setup because of stale lower
   assert.ok(result.integrityScore > 0);
 });
 
+test("evaluateV3TrendIntegrity marks long structure repair pending instead of hard kill when repair evidence exists", () => {
+  const result = evaluateV3TrendIntegrity({
+    candles: healthyLongCandles,
+    direction: "long",
+    marketReadings: [
+      reading("DOWN_SEQUENCE", ["LL", "CHOCH_DOWN"]),
+      reading("UP_SEQUENCE", ["HH", "HL"]),
+    ],
+    timeframes: [timeframe("DOWNTREND"), timeframe("COMPRESSING")],
+  });
+
+  assert.equal(result.status, "STRUCTURE_REPAIR_PENDING");
+  assert.equal(result.riskFlags.includes("bull_structure_broken"), false);
+  assert.ok(result.riskFlags.includes("structure_repair_pending"));
+  assert.match(result.summary, /修复等待/);
+});
+
 test("evaluateV3TrendIntegrity does not kill a short setup because of stale lower-timeframe HH when higher context rolled over", () => {
   const result = evaluateV3TrendIntegrity({
     candles: [
@@ -187,6 +204,28 @@ test("evaluateV3TrendIntegrity does not kill a short setup because of stale lowe
   assert.notEqual(result.status, "DAMAGED_TREND");
   assert.equal(result.riskFlags.includes("bear_structure_broken"), false);
   assert.ok(result.integrityScore > 0);
+});
+
+test("evaluateV3TrendIntegrity marks short structure repair pending instead of hard kill when repair evidence exists", () => {
+  const result = evaluateV3TrendIntegrity({
+    candles: [
+      candle(0, { open: 108, high: 109, low: 106, close: 107 }),
+      candle(1, { open: 107, high: 108, low: 103, close: 104 }),
+      candle(2, { open: 104, high: 105, low: 101, close: 102 }),
+      candle(3, { open: 102, high: 103, low: 98, close: 99 }),
+    ],
+    direction: "short",
+    marketReadings: [
+      reading("UP_SEQUENCE", ["HH", "CHOCH_UP"]),
+      reading("DOWN_SEQUENCE", ["LH", "LL"]),
+    ],
+    timeframes: [timeframe("UPTREND"), timeframe("COMPRESSING")],
+  });
+
+  assert.equal(result.status, "STRUCTURE_REPAIR_PENDING");
+  assert.equal(result.riskFlags.includes("bear_structure_broken"), false);
+  assert.ok(result.riskFlags.includes("structure_repair_pending"));
+  assert.match(result.summary, /修复等待/);
 });
 
 test("evaluateV3TrendIntegrity treats fake breakout as exhaustion risk, not as a short signal", () => {

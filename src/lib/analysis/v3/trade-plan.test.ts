@@ -370,6 +370,53 @@ test("buildV3TradePlan converts an RR-qualified damaged trend into a structure-r
   assert.equal(plan.hasAutoExecution, false);
 });
 
+test("buildV3TradePlan converts structure repair pending into a wait plan, not a ready plan", () => {
+  const plan = buildV3TradePlan({
+    currentPrice: 107.2,
+    signal: signal({ direction: "short" }),
+    trendContext: trendContext({
+      locationRiskReward: {
+        ...trendContext().locationRiskReward!,
+        currentPrice: 107.2,
+        direction: "short",
+        nearestTarget: 82,
+        rewardRisk: 3.2,
+        structuralStop: 115,
+        targetDistance: 25.2,
+        targetDistancePercent: 23.51,
+      },
+      reactionQuality: {
+        ...trendContext().reactionQuality!,
+        direction: "short",
+        qualityScore: 55,
+        riskFlags: [],
+        status: "REACTION_STARTED",
+        summary: "反抽开始但还没确认",
+      },
+      riskGate: {
+        allowed: true,
+        blockedBy: [],
+        mode: "readonly_v3_risk_gate",
+      },
+      trendIntegrity: {
+        ...trendContext().trendIntegrity!,
+        direction: "short",
+        evidence: ["空头结构进入修复等待。"],
+        integrityScore: 42,
+        riskFlags: ["structure_repair_pending"],
+        status: "STRUCTURE_REPAIR_PENDING",
+        summary: "空头结构修复等待。",
+      },
+    }),
+  });
+
+  assert.equal(plan.status, "WAIT_RETEST");
+  assert.equal(plan.isPlanEligible, false);
+  assert.ok(plan.blockedBy.includes("structure_repair_pending"));
+  assert.match(plan.summary, /结构修复等待|人工复核/);
+  assert.equal(plan.hasAutoExecution, false);
+});
+
 test("buildV3TradePlan still blocks a damaged trend when the reaction already failed", () => {
   const plan = buildV3TradePlan({
     currentPrice: 107.2,

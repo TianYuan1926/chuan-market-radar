@@ -1908,6 +1908,34 @@ RawSource
   4. WAIT 计划降噪：区分“等待观察”和“可交易等待计划”；没有明确触发、止损、目标和二次确认的 WAIT 不能进入策略有效性统计。
   5. 下一轮回测验收：交易计划就绪不强求数量，但 `strategy score` 必须继续上升，`premium_early_setup` 假阳性必须下降，WAIT 计划必须出现可解释的有效样本或被降级。
 
+### 2026-07-02 P3.2 趋势完整度误杀修复
+
+- 服务核心链路：`结构分析 -> 风险赔率 -> 交易计划 -> 回测复盘`。
+- 根因：P3.1 正式回测显示 `趋势完整度`、`bull_structure_broken`、`bear_structure_broken` 仍会把部分质量命中样本硬杀。原逻辑缺少“结构修复等待”状态，容易把低周期旧破位、混合结构、修复中的回踩/反抽机会直接归为趋势破坏。
+- 已完成整改：
+  - `trend-integrity` 新增 `STRUCTURE_REPAIR_PENDING`，用于表达“不是健康趋势，也不是彻底失效，只能等待关键位重新确认”。
+  - 真正硬阻断仍保留：只有相反结构与相反周期共同占优、且缺少修复证据时，才输出 `bull_structure_broken` 或 `bear_structure_broken`。
+  - 多头和空头对称处理：下跌趋势里的短线反弹不会自动变多头计划；上涨趋势里的短线回落也不会自动变空头计划。修复状态只能进入等待确认。
+  - `riskGate` 不再把 `structure_repair_pending` 当硬阻断，但会把它作为中文等待原因暴露；前端和报告必须显示为“结构修复等待”。
+  - `trade-plan` 对 `STRUCTURE_REPAIR_PENDING` 只输出 `WAIT_PULLBACK` / `WAIT_RETEST` 或 `WATCH_ONLY`，绝不输出 `READY_LONG` / `READY_SHORT`。
+- 不允许误读：
+  - 这不是放松趋势完整度。
+  - 这不是允许破位后直接抄底或摸顶。
+  - 这不是降低 `3:1` RR，也不是绕过反应确认和风险门控。
+  - 这只是把“可等待修复”和“已经破坏”拆开，减少误杀，同时保留人工复核边界。
+- 本地验证：
+  - `npm run build:market-cli` 通过。
+  - `node --test .tmp/market-tests/lib/analysis/v3/trend-integrity.test.js` 通过 8/8。
+  - `node --test .tmp/market-tests/lib/analysis/v3/trade-plan.test.js` 通过 13/13。
+  - `node --test .tmp/market-tests/lib/backtest/professional-audit-round.test.js` 通过 54/54。
+  - `npm run test:market` 通过：核心测试 766/766，worker 测试 17/17，历史回测烟测 4/4。
+  - `npm run typecheck` 通过。
+- 下一轮正式回测验收：
+  - `bull_structure_broken` / `bear_structure_broken` 硬阻断数量应该下降。
+  - `structure_repair_pending` 应该只进入等待或观察，不得出现在交易计划就绪样本里。
+  - WAIT 计划有效率必须改善；如果仍为 0，要继续查等待触发、二次确认和止损目标逻辑。
+  - 分析分数和策略分数必须一起看，不能用增加 WAIT 数量伪造改善。
+
 ### 2026-07-02 Caddy 单上游健康检查修复
 
 - 发现方式：正式回测收尾验收时，本地公网访问 `/api/health` 出现超时；服务器本机访问 Caddy 和 web 容器内部 `/api/health` 均为 200。

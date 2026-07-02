@@ -49,6 +49,18 @@ function structureBalance(input: EvaluateV3TrendIntegrityInput) {
   };
 }
 
+function longRepairEvidence(events: Set<MarketReadingEventType>, balance: ReturnType<typeof structureBalance>) {
+  return hasEvent(events, ["BOS_UP", "CHOCH_UP", "HH", "HL"]) ||
+    balance.upReadings > 0 ||
+    balance.longAligned > 0;
+}
+
+function shortRepairEvidence(events: Set<MarketReadingEventType>, balance: ReturnType<typeof structureBalance>) {
+  return hasEvent(events, ["BOS_DOWN", "CHOCH_DOWN", "LH", "LL"]) ||
+    balance.downReadings > 0 ||
+    balance.shortAligned > 0;
+}
+
 function result({
   direction,
   evidence,
@@ -126,9 +138,12 @@ function evaluateLong(input: EvaluateV3TrendIntegrityInput, events: Set<MarketRe
   const balance = structureBalance(input);
   const hasBearBreak = hasEvent(events, ["BOS_DOWN", "CHOCH_DOWN"]);
   const hasBearSequence = hasEvent(events, ["LL"]) && balance.downReadings > balance.upReadings;
-  const bearContextDominates = balance.shortAligned > balance.longAligned && balance.downReadings >= balance.upReadings;
+  const noRepairEvidence = !longRepairEvidence(events, balance);
+  const bearContextDominates = balance.shortAligned >= 2 &&
+    balance.shortAligned > balance.longAligned &&
+    balance.downReadings > balance.upReadings;
 
-  if ((hasBearBreak || hasBearSequence) && (bearContextDominates || balance.longAligned === 0)) {
+  if ((hasBearBreak || hasBearSequence) && (bearContextDominates || noRepairEvidence)) {
     return result({
       direction: "long",
       evidence: ["多头方向下当前结构和周期共同转弱，HH/HL 序列被破坏。"],
@@ -136,6 +151,17 @@ function evaluateLong(input: EvaluateV3TrendIntegrityInput, events: Set<MarketRe
       riskFlags: ["bull_structure_broken"],
       status: "DAMAGED_TREND",
       summary: "v3 趋势完整度：多头结构受损，不能把回调当作健康承接。",
+    });
+  }
+
+  if (hasBearBreak || hasBearSequence) {
+    return result({
+      direction: "long",
+      evidence: ["出现过向下破坏，但盘面仍存在修复线索；需要重新站回关键位并确认承接。"],
+      integrityScore: 42,
+      riskFlags: ["structure_repair_pending"],
+      status: "STRUCTURE_REPAIR_PENDING",
+      summary: "v3 趋势完整度：多头不是健康趋势，也不是彻底失效；只能按结构修复等待处理。",
     });
   }
 
@@ -169,9 +195,12 @@ function evaluateShort(input: EvaluateV3TrendIntegrityInput, events: Set<MarketR
   const balance = structureBalance(input);
   const hasBullBreak = hasEvent(events, ["BOS_UP", "CHOCH_UP"]);
   const hasBullSequence = hasEvent(events, ["HH"]) && balance.upReadings > balance.downReadings;
-  const bullContextDominates = balance.longAligned > balance.shortAligned && balance.upReadings >= balance.downReadings;
+  const noRepairEvidence = !shortRepairEvidence(events, balance);
+  const bullContextDominates = balance.longAligned >= 2 &&
+    balance.longAligned > balance.shortAligned &&
+    balance.upReadings > balance.downReadings;
 
-  if ((hasBullBreak || hasBullSequence) && (bullContextDominates || balance.shortAligned === 0)) {
+  if ((hasBullBreak || hasBullSequence) && (bullContextDominates || noRepairEvidence)) {
     return result({
       direction: "short",
       evidence: ["空头方向下当前结构和周期共同转强，LH/LL 序列被破坏。"],
@@ -179,6 +208,17 @@ function evaluateShort(input: EvaluateV3TrendIntegrityInput, events: Set<MarketR
       riskFlags: ["bear_structure_broken"],
       status: "DAMAGED_TREND",
       summary: "v3 趋势完整度：空头结构受损，不能把反弹当作健康承压。",
+    });
+  }
+
+  if (hasBullBreak || hasBullSequence) {
+    return result({
+      direction: "short",
+      evidence: ["出现过向上收复，但盘面仍存在回落修复线索；需要重新跌回关键位并确认承压。"],
+      integrityScore: 42,
+      riskFlags: ["structure_repair_pending"],
+      status: "STRUCTURE_REPAIR_PENDING",
+      summary: "v3 趋势完整度：空头不是健康趋势，也不是彻底失效；只能按结构修复等待处理。",
     });
   }
 

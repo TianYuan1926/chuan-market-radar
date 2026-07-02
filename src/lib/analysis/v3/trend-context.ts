@@ -359,6 +359,10 @@ function noParticipationReasons(
     reasons.push("趋势完整度：空头 LH/LL 序列被破坏，禁止把反弹当作健康承压。");
   }
 
+  if (trendIntegrity?.riskFlags.includes("structure_repair_pending")) {
+    reasons.push("趋势完整度：结构处于修复等待，只能等待关键位重新确认，不能直接生成执行计划。");
+  }
+
   if (trendIntegrity?.riskFlags.includes("upper_wick_exhaustion")) {
     reasons.push("趋势完整度：上攻后出现假突破或上影线衰竭，禁止追高。");
   }
@@ -384,7 +388,8 @@ function noParticipationReasons(
 
 function isSoftWaitReason(reason: string) {
   return reason.includes("结构优势不足") ||
-    reason.includes("区间压缩尚未给出方向");
+    reason.includes("区间压缩尚未给出方向") ||
+    reason.includes("结构处于修复等待");
 }
 
 function hardNoParticipationBlocker(reason: string) {

@@ -236,6 +236,7 @@ const planBlockerLabels: Record<string, string> = {
   stop_distance_too_wide: "止损距离过宽",
   structure_confirmation_pending: "结构确认仍在等待",
   structure_invalidated: "结构已经失效",
+  structure_repair_pending: "结构修复等待",
   support_lost: "支撑位失守",
   trade_plan_not_eligible: "交易计划未满足门禁",
   trade_plan_not_ready: "交易计划未就绪",

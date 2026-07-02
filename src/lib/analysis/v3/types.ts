@@ -282,7 +282,8 @@ export type V3TrendIntegrityStatus =
   | "EXHAUSTION_RISK"
   | "HEALTHY_TREND"
   | "INSUFFICIENT_DATA"
-  | "RANGE_BOUND";
+  | "RANGE_BOUND"
+  | "STRUCTURE_REPAIR_PENDING";
 
 export type V3TrendIntegrityRiskFlag =
   | "bear_structure_broken"
@@ -290,6 +291,7 @@ export type V3TrendIntegrityRiskFlag =
   | "insufficient_market_reading"
   | "lower_wick_exhaustion"
   | "low_alignment"
+  | "structure_repair_pending"
   | "upper_wick_exhaustion";
 
 export type StrategyV3TrendIntegrity = {
