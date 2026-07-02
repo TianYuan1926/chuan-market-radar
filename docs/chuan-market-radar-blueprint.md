@@ -1722,6 +1722,14 @@ RawSource
   4. 策略层同步修关键位/RR：保留 `3:1` 门槛，但改进前方目标位投射、结构止损位选择、等待入场价和失效条件。
   5. 下一轮正式回测验收：Top10 捕获率必须高于 31.58%，启动前捕获率必须高于 21.43%，优质启动前捕获率必须高于 33.33%，高优先级问题必须低于 78；若仍失败，必须输出样本级原因，不能再说“继续调权重”。
 
+### 2026-07-02 Caddy 单上游健康检查修复
+
+- 发现方式：正式回测收尾验收时，本地公网访问 `/api/health` 出现超时；服务器本机访问 Caddy 和 web 容器内部 `/api/health` 均为 200。
+- 根因：Caddy 日志显示 Docker DNS 偶发 `lookup web on 127.0.0.11:53: server misbehaving`，active health check 会把唯一 upstream `web:3000` 短暂标为不可用，导致公网请求出现 502/503 或超时。
+- 已完成修复：`deploy/caddy/Caddyfile` 移除 Caddy active health check，保留 `lb_try_duration` 和 `lb_try_interval`；web 是否健康由 Docker Compose `healthcheck` 和生产验收脚本负责。
+- 边界：这只修公网稳定性，不改变扫描、分析、策略结论；不能把生产访问稳定等同于分析系统可实战。
+- 后续验收：每次部署后仍必须同时检查服务器本机 Caddy 入口、web 内部 `/api/health`、公网 `/api/health`、关键前端页面和 Caddy 日志。
+
 验收不能只看代码通过，还要看：
 
 - 生产页面是否 200。

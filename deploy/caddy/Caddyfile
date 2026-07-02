@@ -10,8 +10,7 @@
   reverse_proxy web:3000 {
     lb_try_duration 10s
     lb_try_interval 250ms
-    health_uri /api/health
-    health_interval 30s
-    health_timeout 5s
+    # Docker Compose already health-checks the only web upstream.
+    # Caddy active checks can mark the whole site down during transient Docker DNS hiccups.
   }
 }
