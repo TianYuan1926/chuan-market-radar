@@ -271,6 +271,7 @@ function basePlan({
   const waitTrigger = waitTriggerText(direction, status);
   const isWaitPlan = status === "WAIT_PULLBACK" || status === "WAIT_RETEST";
   const qualityReview = waitReviewText(blockedBy, direction);
+  const plannedEntryPrice = waitEntryPrice ?? (isWaitPlan || isPlanEligible ? currentPrice : null);
 
   return {
     allowedUse: "research_only",
@@ -292,6 +293,7 @@ function basePlan({
     invalidation: invalidationText({ direction, structuralStop }),
     isPlanEligible,
     manualReviewRequired: true,
+    plannedEntryPrice,
     positionSizing: isPlanEligible ? "只允许小仓试错，禁止追单；仓位需按结构止损距离反推。" : "未满足门控，不给仓位建议。",
     rewardRisk: effectiveRewardRisk,
     status,

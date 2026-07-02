@@ -190,6 +190,7 @@ test("buildV3TradePlan converts a low-RR long setup into a wait-entry plan when 
 
   assert.equal(plan.status, "WAIT_PULLBACK");
   assert.equal(plan.isPlanEligible, false);
+  assert.equal(plan.plannedEntryPrice, 98.25);
   assert.equal(plan.rewardRisk, 3);
   assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
   assert.match(plan.summary, /不追多/);
@@ -230,6 +231,7 @@ test("buildV3TradePlan converts a low-RR short setup into a wait-entry plan when
 
   assert.equal(plan.status, "WAIT_RETEST");
   assert.equal(plan.isPlanEligible, false);
+  assert.equal(plan.plannedEntryPrice, 102.5);
   assert.equal(plan.rewardRisk, 3);
   assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
   assert.match(plan.summary, /不追空/);
@@ -462,6 +464,7 @@ test("buildV3TradePlan keeps RR-qualified range-idle setups as conditional wait 
 
   assert.equal(plan.status, "WAIT_RETEST");
   assert.equal(plan.isPlanEligible, false);
+  assert.equal(plan.plannedEntryPrice, 107.2);
   assert.equal(plan.rewardRisk, 3.18);
   assert.ok(plan.blockedBy.includes("structure_confirmation_pending"));
   assert.match(plan.summary, /结构还未确认|等待/);

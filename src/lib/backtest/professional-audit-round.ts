@@ -1943,12 +1943,26 @@ export function waitPlanTriggerObserved({
 export function waitPlanTriggerPrice({
   direction,
   entry,
+  plannedEntryPrice,
   structuralStop,
 }: {
   direction: "long" | "short";
   entry: number;
+  plannedEntryPrice?: number | null;
   structuralStop: number;
 }) {
+  if (
+    typeof plannedEntryPrice === "number" &&
+    Number.isFinite(plannedEntryPrice) &&
+    (
+      direction === "long"
+        ? plannedEntryPrice > structuralStop && plannedEntryPrice <= entry
+        : plannedEntryPrice < structuralStop && plannedEntryPrice >= entry
+    )
+  ) {
+    return plannedEntryPrice;
+  }
+
   const stopDistance = Math.abs(entry - structuralStop);
 
   return direction === "long"
@@ -2114,6 +2128,7 @@ function evaluateWaitPlan({
   const triggerPrice = waitPlanTriggerPrice({
     direction,
     entry,
+    plannedEntryPrice: tradePlan.plannedEntryPrice,
     structuralStop,
   });
   const triggerIndex = future.findIndex((candle) =>

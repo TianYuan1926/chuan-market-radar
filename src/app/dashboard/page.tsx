@@ -8,11 +8,11 @@ import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveQuotePct } from '@/components/live-value'
 import { POOL_META } from '@/lib/frontend-market-types'
 import {
-  dashboardRuntimeStatusLabelFromContracts,
   macroResourceToMarketEnv,
   radarSignalsToSignalCards,
   radarSignalsToTokens,
   scanProofResourceToScanState,
+  systemStatusFromContracts,
   withLeaderboardSignalFallback,
 } from '@/lib/frontend-display-adapters'
 import {
@@ -31,7 +31,7 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-function systemStatusTone(label: ReturnType<typeof dashboardRuntimeStatusLabelFromContracts>) {
+function systemStatusTone(label: ReturnType<typeof systemStatusFromContracts>) {
   if (label === '异常') {
     return {
       label: '异常',
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
 
   const onlineSources = radar.dataSources.data.filter((source) => source.feed === 'live').length
   const totalSources = radar.dataSources.data.length
-  const systemStatus = systemStatusTone(dashboardRuntimeStatusLabelFromContracts({
+  const systemStatus = systemStatusTone(systemStatusFromContracts({
     // 这里只判断生产运行链路，不把“长期能力缺口/没有计划就绪信号”误算成系统故障。
     // 长期能力缺口由“系统能力总控”独立展示。
     statuses: [

@@ -76,6 +76,8 @@ export function dashboardRuntimeStatusLabelFromContracts({
   return degraded ? '降级' : '正常'
 }
 
+export const systemStatusFromContracts = dashboardRuntimeStatusLabelFromContracts
+
 function priceBySymbol(tickerRows: TickerRows = []) {
   const rows = new Map<string, LeaderboardRow>()
 

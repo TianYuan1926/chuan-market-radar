@@ -324,6 +324,7 @@ export type StrategyV3TradePlan = {
   invalidation: string;
   isPlanEligible: boolean;
   manualReviewRequired: true;
+  plannedEntryPrice?: number | null;
   positionSizing: string;
   rewardRisk: number | null;
   status: V3TradePlanStatus;

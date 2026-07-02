@@ -1273,6 +1273,21 @@ test("waitPlanTriggerPrice anchors wait entries closer to the structural level",
   }), 104.68);
 });
 
+test("waitPlanTriggerPrice uses the explicit planned entry when the strategy provides one", () => {
+  assert.equal(waitPlanTriggerPrice({
+    direction: "long",
+    entry: 100,
+    plannedEntryPrice: 98.25,
+    structuralStop: 96,
+  }), 98.25);
+  assert.equal(waitPlanTriggerPrice({
+    direction: "short",
+    entry: 100,
+    plannedEntryPrice: 102.5,
+    structuralStop: 104,
+  }), 102.5);
+});
+
 test("waitPlanTriggerObserved rejects weak reactions that previously created premature wait entries", () => {
   const weakReaction = {
     close: 96.5,
