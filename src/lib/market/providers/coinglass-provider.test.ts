@@ -363,8 +363,6 @@ test("CoinGlass provider promotes dynamic priority hints when rotating capacity 
       {
         symbol: "ARBUSDT",
         anomalyScore: 96,
-        historicalSampleSize: 10,
-        historicalWinRate: 0.7,
         recentSignalCount: 2,
       },
     ],

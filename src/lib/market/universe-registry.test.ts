@@ -263,8 +263,6 @@ test("planUniverseScan keeps the only rotating slot available for rotation when 
       {
         symbol: "ARBUSDT",
         anomalyScore: 94,
-        historicalSampleSize: 12,
-        historicalWinRate: 0.72,
         recentSignalCount: 3,
       },
     ],
@@ -308,8 +306,6 @@ test("planUniverseScan exposes priority admission metadata within the same reque
         symbol: "ARBUSDT",
         anomalyScore: 92,
         earlyOpportunityScore: 78,
-        historicalSampleSize: 20,
-        historicalWinRate: 0.75,
         recentSignalCount: 4,
       },
       {
@@ -332,7 +328,6 @@ test("planUniverseScan exposes priority admission metadata within the same reque
   assert.equal(plan.dynamicPriority.reasonCounts.anomaly, 2);
   assert.equal(plan.dynamicPriority.reasonCounts.early_opportunity, 1);
   assert.equal(plan.dynamicPriority.reasonCounts.recent_signal, 2);
-  assert.equal(plan.dynamicPriority.reasonCounts.history, 1);
 });
 
 test("planUniverseScan preserves exploration when priority hints are crowded", () => {
@@ -352,7 +347,7 @@ test("planUniverseScan preserves exploration when priority hints are crowded", (
     priorityHints: [
       { symbol: "ARBUSDT", anomalyScore: 95, recentSignalCount: 4 },
       { symbol: "OPUSDT", anomalyScore: 92, recentSignalCount: 3 },
-      { symbol: "MANTAUSDT", anomalyScore: 90, historicalSampleSize: 6, historicalWinRate: 0.67 },
+      { symbol: "MANTAUSDT", anomalyScore: 90, recentSignalCount: 2 },
       { symbol: "TIAUSDT", anomalyScore: 88, recentSignalCount: 2 },
       { symbol: "WIFUSDT", anomalyScore: 86, recentSignalCount: 2 },
     ],
@@ -393,7 +388,7 @@ test("buildCoverageReport exposes scan rotation audit for frontend and operation
   const plan = planUniverseScan(registry, 4, new Date("2026-06-14T00:00:00.000Z"), {
     priorityHints: [
       { symbol: "ARBUSDT", anomalyScore: 94, recentSignalCount: 2 },
-      { symbol: "MANTAUSDT", anomalyScore: 88, missedOpportunityCount: 1 },
+      { symbol: "MANTAUSDT", anomalyScore: 88, recentSignalCount: 1 },
     ],
   });
   const coverage = buildCoverageReport(registry, plan);
@@ -405,7 +400,7 @@ test("buildCoverageReport exposes scan rotation audit for frontend and operation
   assert.match(coverage.rotationAudit?.operatorHint ?? "", /轮转/);
 });
 
-test("planUniverseScan ranks missed opportunity hints above stale familiar archive pressure", () => {
+test("planUniverseScan ignores backtest and review outcome fields in production ranking", () => {
   const registry = buildUniverseRegistry(
     ["SOL", "ENA"],
     [
@@ -422,29 +417,22 @@ test("planUniverseScan ranks missed opportunity hints above stale familiar archi
       {
         symbol: "LOSSYUSDT",
         anomalyScore: 100,
-        cooldownReviewCount: 4,
-        historicalSampleSize: 4,
-        historicalWinRate: 0,
         recentSignalCount: 5,
       },
       {
         symbol: "PONKEUSDT",
         anomalyScore: 72,
-        missedOpportunityCount: 2,
         recentSignalCount: 2,
       },
       { symbol: "MANTAUSDT", anomalyScore: 60, recentSignalCount: 1 },
     ],
   });
 
-  assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "PONKE");
-  assert.ok(plan.dynamicPriority.topAssets[0]?.reasons.includes("missed_opportunity"));
-  assert.ok(plan.dynamicPriority.reasonCounts.missed_opportunity);
-  assert.ok(plan.dynamicPriority.reasonCounts.cooldown_review);
-  assert.ok(
-    (plan.dynamicPriority.topAssets.find((asset) => asset.baseAsset === "LOSSY")?.score ?? 0) <
-      (plan.dynamicPriority.topAssets.find((asset) => asset.baseAsset === "OLD")?.score ?? 0),
-  );
+  assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "OLD");
+  assert.deepEqual(plan.dynamicPriority.topAssets[0]?.reasons.sort(), ["anomaly", "liquidity", "recent_signal"].sort());
+  assert.equal("missed_opportunity" in plan.dynamicPriority.reasonCounts, false);
+  assert.equal("history" in plan.dynamicPriority.reasonCounts, false);
+  assert.equal("cooldown_review" in plan.dynamicPriority.reasonCounts, false);
 });
 
 test("planUniverseScan uses persistent rotation hints to avoid repeatedly deep scanning the same asset", () => {

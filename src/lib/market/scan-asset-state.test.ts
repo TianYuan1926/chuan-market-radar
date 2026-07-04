@@ -39,11 +39,8 @@ function coverage(overrides: Partial<ScanCoverage> = {}): ScanCoverage {
       enabled: true,
       reasonCounts: {
         anomaly: 1,
-        cooldown_review: 0,
         early_opportunity: 0,
-        history: 0,
         liquidity: 1,
-        missed_opportunity: 0,
         recent_deep_scan: 0,
         overextended_move: 0,
         recent_signal: 1,
@@ -104,8 +101,7 @@ function coverage(overrides: Partial<ScanCoverage> = {}): ScanCoverage {
         COOLDOWN: 0,
         DEEP_QUEUE: 3,
         HOT: 0,
-        REVIVE_WATCH: 0,
-        WARM: 0,
+      WARM: 0,
       },
       deepScan: {
         anchorSlots: 2,

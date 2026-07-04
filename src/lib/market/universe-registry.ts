@@ -39,14 +39,10 @@ export type UniverseTierPolicy = ScanTierPolicy;
 export type UniversePriorityHint = {
   anomalyScore?: number;
   baseAsset?: string;
-  cooldownReviewCount?: number;
   consecutiveSkipped?: number;
   deepScanCount1h?: number;
   deepScanCount24h?: number;
   earlyOpportunityScore?: number;
-  historicalSampleSize?: number;
-  historicalWinRate?: number;
-  missedOpportunityCount?: number;
   overextensionRiskScore?: number;
   recentDeepScanPenalty?: number;
   recentSignalCount?: number;
@@ -167,14 +163,6 @@ function clampPercent(value: number | undefined) {
     : value;
 
   return clampNumber(normalized, 0, 100);
-}
-
-function clampRatio(value: number | undefined) {
-  const normalized = typeof value === "number" && value > 1 && value <= 100
-    ? value / 100
-    : value;
-
-  return clampNumber(normalized, 0, 1);
 }
 
 function emptyExchangeCoverageSummary(): ExchangeCoverageSummary {
@@ -547,11 +535,8 @@ type InternalPriorityDecision = UniversePriorityDecision & {
 
 const priorityReasons: UniversePriorityReason[] = [
   "anomaly",
-  "cooldown_review",
   "early_opportunity",
-  "history",
   "liquidity",
-  "missed_opportunity",
   "overextended_move",
   "recent_signal",
   "recent_deep_scan",
@@ -600,16 +585,7 @@ function dynamicPriorityDecision(
 ): InternalPriorityDecision {
   const reasons: UniversePriorityReason[] = [];
   const anomalyBoost = Math.round(clampPercent(hint.anomalyScore) * 5_000);
-  const cooldownReviewCount = clampNumber(hint.cooldownReviewCount, 0, 100);
   const earlyOpportunityBoost = Math.round(clampPercent(hint.earlyOpportunityScore) * 6_500);
-  const historicalSampleSize = clampNumber(hint.historicalSampleSize, 0, 100);
-  const historicalConfidence = Math.min(1, historicalSampleSize / 20);
-  const historicalBoost = Math.round(
-    (clampRatio(hint.historicalWinRate) - 0.5) * 400_000 * historicalConfidence,
-  );
-  const missedOpportunityBoost = Math.round(
-    Math.min(4, clampNumber(hint.missedOpportunityCount, 0, 100)) * 250_000,
-  );
   const recentSignalBoost = Math.round(
     Math.min(5, clampNumber(hint.recentSignalCount, 0, 100)) * 30_000,
   );
@@ -625,20 +601,8 @@ function dynamicPriorityDecision(
     reasons.push("anomaly");
   }
 
-  if (cooldownReviewCount > 0) {
-    reasons.push("cooldown_review");
-  }
-
   if (earlyOpportunityBoost !== 0) {
     reasons.push("early_opportunity");
-  }
-
-  if (historicalSampleSize > 0) {
-    reasons.push("history");
-  }
-
-  if (missedOpportunityBoost !== 0) {
-    reasons.push("missed_opportunity");
   }
 
   if (overextensionPenalty !== 0) {
@@ -665,10 +629,9 @@ function dynamicPriorityDecision(
     reasons.push("venue_coverage");
   }
 
-  const cooldownPenalty = Math.round(Math.min(6, cooldownReviewCount) * 120_000);
-  const dynamicBoost = anomalyBoost + earlyOpportunityBoost + historicalBoost + missedOpportunityBoost +
+  const dynamicBoost = anomalyBoost + earlyOpportunityBoost +
     recentSignalBoost + rotationAgeBoost + liquidityBoost + coverageBoost -
-    cooldownPenalty - overextensionPenalty - recentDeepScanPenalty;
+    overextensionPenalty - recentDeepScanPenalty;
 
   return {
     asset,
@@ -813,9 +776,7 @@ function twoStageSlotKind(
   }
 
   if (source === "dynamic_priority") {
-    return priorityReasons.includes("history") || priorityReasons.includes("recent_signal")
-      ? "revive_priority"
-      : "hot_priority";
+    return "hot_priority";
   }
 
   if (source === "exploration_reserve" || asset.tier === "long_tail") {
@@ -832,7 +793,6 @@ function twoStageReason(kind: ScanTwoStageSlotKind) {
     core_rotation: "核心流动性层常规轮转。",
     hot_priority: "来自 public light scan / repository hints 的高优先级异动。",
     long_tail_exploration: "冷门探索保底，避免前置漏斗过死。",
-    revive_priority: "来自历史、复盘或近期信号的复活观察。",
   }[kind];
 }
 

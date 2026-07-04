@@ -125,11 +125,8 @@ export type ScanTierPolicy = {
 
 export type ScanPriorityReason =
   | "anomaly"
-  | "cooldown_review"
   | "early_opportunity"
-  | "history"
   | "liquidity"
-  | "missed_opportunity"
   | "overextended_move"
   | "recent_signal"
   | "recent_deep_scan"
@@ -160,7 +157,6 @@ export type ScanStatePoolKey =
   | "COOLDOWN"
   | "DEEP_QUEUE"
   | "HOT"
-  | "REVIVE_WATCH"
   | "WARM";
 
 export type ScanStatePoolReason =
@@ -172,7 +168,6 @@ export type ScanStatePoolReason =
   | "derivative_activity"
   | "dynamic_priority"
   | "light_scan_pending"
-  | "recent_or_historical_review"
   | "signal_candidate"
   | "tier_rotation"
   | "volume_price_anomaly";
@@ -309,8 +304,7 @@ export type ScanTwoStageSlotKind =
   | "active_rotation"
   | "core_rotation"
   | "hot_priority"
-  | "long_tail_exploration"
-  | "revive_priority";
+  | "long_tail_exploration";
 
 export type ScanTwoStageSlot = {
   baseAsset: string;

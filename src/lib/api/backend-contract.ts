@@ -341,10 +341,6 @@ function allocationBucket({
     return "hot";
   }
 
-  if (sample?.state === "REVIVE_WATCH") {
-    return "revive_watch";
-  }
-
   if (sample?.state === "COLD") {
     return "cold_exploration";
   }

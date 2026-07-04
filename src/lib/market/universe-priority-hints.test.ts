@@ -258,16 +258,14 @@ test("buildUniversePriorityHints merges archives journal outcomes and daily move
   assert.equal(report.summary.journalEventsRead, 3);
   assert.equal(report.summary.dailyMoverSnapshotsRead, 1);
   assert.equal(hintsBySymbol.has("DUSTUSDT"), false);
-  assert.equal(hintsBySymbol.get("ARBUSDT")?.historicalSampleSize, 1);
-  assert.equal(hintsBySymbol.get("ARBUSDT")?.historicalWinRate, 1);
   assert.ok(hintsBySymbol.get("ARBUSDT")?.recentSignalCount ?? 0 >= 2);
-  assert.equal(hintsBySymbol.get("ENAUSDT")?.historicalWinRate, 0);
-  assert.ok(hintsBySymbol.get("SOLUSDT")?.anomalyScore ?? 0 >= 70);
-  assert.ok(hintsBySymbol.get("SOLUSDT")?.earlyOpportunityScore ?? 0 >= 80);
-  assert.ok(hintsBySymbol.get("SOLUSDT")?.recentSignalCount ?? 0 >= 1);
+  assert.equal(report.summary.sourceCounts.dailyMovers, 0);
+  assert.equal(report.summary.sourceCounts.journalOutcomes, 0);
+  assert.equal(report.summary.sourceCounts.trendRadarReviews, 0);
+  assert.equal(hintsBySymbol.has("SOLUSDT"), false);
 });
 
-test("buildUniversePriorityHints promotes learnable misses and cools repeated failed reviews", () => {
+test("buildUniversePriorityHints keeps review outcomes observer-only for production ranking", () => {
   const report = buildUniversePriorityHints({
     archives: [
       archive("scan-old-1", ["OLDUSDT", "LOSSYUSDT"]),
@@ -287,11 +285,12 @@ test("buildUniversePriorityHints promotes learnable misses and cools repeated fa
   const symbols = report.hints.map((hint) => hint.symbol);
   const hintsBySymbol = new Map(report.hints.map((hint) => [hint.symbol, hint]));
 
-  assert.equal(symbols[0], "PONKEUSDT");
-  assert.equal(hintsBySymbol.get("PONKEUSDT")?.missedOpportunityCount, 2);
-  assert.ok(hintsBySymbol.get("PONKEUSDT")?.earlyOpportunityScore ?? 0 >= 70);
-  assert.equal(hintsBySymbol.get("LOSSYUSDT")?.cooldownReviewCount, 3);
-  assert.ok(symbols.indexOf("LOSSYUSDT") > symbols.indexOf("PONKEUSDT"));
+  assert.equal(hintsBySymbol.has("PONKEUSDT"), false);
+  assert.equal(hintsBySymbol.get("LOSSYUSDT")?.recentSignalCount, 4);
+  assert.equal(report.summary.sourceCounts.dailyMovers, 0);
+  assert.equal(report.summary.sourceCounts.journalOutcomes, 0);
+  assert.equal(report.summary.sourceCounts.trendRadarReviews, 0);
+  assert.equal(symbols.includes("OLDUSDT"), true);
 });
 
 test("buildUniversePriorityHintsFromRepository reads bounded durable samples", async () => {
@@ -315,8 +314,8 @@ test("buildUniversePriorityHintsFromRepository reads bounded durable samples", a
   const tia = report.hints.find((hint) => hint.symbol === "TIAUSDT");
 
   assert.ok(tia);
-  assert.equal(tia.historicalSampleSize, 1);
-  assert.equal(tia.historicalWinRate, 1);
+  assert.equal("historicalSampleSize" in tia, false);
+  assert.equal("historicalWinRate" in tia, false);
   assert.equal(report.summary.archivesRead, 1);
   assert.equal(report.summary.repositoryMode, "memory");
 });

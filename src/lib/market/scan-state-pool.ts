@@ -29,7 +29,6 @@ const stateOrder: ScanStatePoolKey[] = [
   "CANDIDATE",
   "DEEP_QUEUE",
   "HOT",
-  "REVIVE_WATCH",
   "WARM",
   "COLD",
   "COOLDOWN",
@@ -43,7 +42,6 @@ const laneLabels: Record<ScanStatePoolKey, string> = {
   COOLDOWN: "冷却池",
   DEEP_QUEUE: "深扫队列",
   HOT: "热池",
-  REVIVE_WATCH: "复活观察",
   WARM: "温池",
 };
 
@@ -55,7 +53,6 @@ const laneCadenceHints: Record<ScanStatePoolKey, string> = {
   COOLDOWN: "等待降温",
   DEEP_QUEUE: "本轮深扫",
   HOT: "优先插队",
-  REVIVE_WATCH: "复盘复活",
   WARM: "中频轮转",
 };
 
@@ -67,7 +64,6 @@ const laneOperatorHints: Record<ScanStatePoolKey, string> = {
   COOLDOWN: "过热、风险高或结构失效，等待降温、回踩或反抽修复。",
   DEEP_QUEUE: "本轮已经消耗 CoinGlass 名额，需要把结果转成证据或降频。",
   HOT: "出现明显价格/量能/OI 异动，优先观察但不等于可追。",
-  REVIVE_WATCH: "来自复盘、历史或近期信号的漏网复查，不自动调权。",
   WARM: "有流动性、覆盖或优先级迹象，继续中频轮转。",
 };
 
@@ -80,7 +76,6 @@ function emptyCounts(): ScanStatePoolCounts {
     COOLDOWN: 0,
     DEEP_QUEUE: 0,
     HOT: 0,
-    REVIVE_WATCH: 0,
     WARM: 0,
   };
 }
@@ -91,10 +86,6 @@ function normalizeSymbol(symbol: string) {
 
 function symbolFromBaseAsset(baseAsset: string) {
   return `${baseAsset.toUpperCase()}USDT`;
-}
-
-function hasReviewPriority(reasons: string[]) {
-  return reasons.includes("history") || reasons.includes("recent_signal");
 }
 
 function appendReason(
@@ -323,12 +314,6 @@ function marketActivityState({
   const change = Math.abs(ticker?.changePercent24h ?? 0);
   const oiChange = Math.abs(derivative?.openInterestChangePercent ?? 0);
 
-  if (hasReviewPriority(dynamicReasons)) {
-    appendReason(reasons, "recent_or_historical_review");
-
-    return "REVIVE_WATCH";
-  }
-
   if (change >= 4) {
     appendReason(reasons, "volume_price_anomaly");
 
@@ -367,7 +352,6 @@ function nextActionForState(state: ScanStatePoolKey) {
     COOLDOWN: "等待降温或结构修复",
     DEEP_QUEUE: "把本轮深扫结果转成证据",
     HOT: "观察是否有结构确认，禁止直接追",
-    REVIVE_WATCH: "用复盘样本验证是否漏判",
     WARM: "继续轮转，出现多入口证据再晋级",
   }[state];
 }
@@ -418,10 +402,9 @@ function buildDeepScanProof(
     .filter((sample) =>
       !sample.selectedThisRound &&
       (sample.state === "BATTLE_READY" ||
-        sample.state === "BATTLE_WATCH" ||
-        sample.state === "CANDIDATE" ||
-        sample.state === "HOT" ||
-        sample.state === "REVIVE_WATCH")
+      sample.state === "BATTLE_WATCH" ||
+      sample.state === "CANDIDATE" ||
+        sample.state === "HOT")
     )
     .map((sample) => sample.baseAsset)
     .slice(0, 12);
@@ -438,7 +421,7 @@ function buildDeepScanProof(
     guardrail: "深扫名额只来自本轮 batchPlan，不因状态池展示增加 CoinGlass 请求。",
     hotSlots: selectedSamples.filter((sample) => sample.state === "HOT").length,
     queuedAssets,
-    reviveSlots: selectedSamples.filter((sample) => sample.state === "REVIVE_WATCH").length,
+    reviveSlots: 0,
     selectedAssets,
   };
 }
@@ -523,7 +506,7 @@ export function buildScanStatePoolReport({
     .map((sample) => sample.baseAsset)
     .slice(0, 8);
   const reviveWatchAssets = samples
-    .filter((sample) => sample.state === "REVIVE_WATCH")
+    .filter(() => false)
     .map((sample) => sample.baseAsset)
     .slice(0, 8);
   const sortedSamples = [...samples].sort((left, right) =>
@@ -553,7 +536,7 @@ export function buildScanStatePoolReport({
       nextBatchAssets: batchPlan.pendingAssets.slice(0, 10),
       notEliminatedAssets: registry.assets.length,
       notes: [
-        "前置层不是硬漏斗，未进入深扫的资产保留在 COLD/WARM/REVIVE_WATCH 等状态池。",
+        "前置层不是硬漏斗，未进入深扫的资产保留在 COLD/WARM 等状态池。",
         "BATTLE_READY 仍需 RR、失效条件、RiskScore 和证据冲突检查。",
         "DEEP_QUEUE 容量来自 COINGLASS_BATCH_SIZE 与预算，不由前端展示扩张。",
       ],

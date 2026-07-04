@@ -277,7 +277,6 @@ function snapshot(): MarketRadarSnapshot {
             COOLDOWN: 0,
             DEEP_QUEUE: 0,
             HOT: 1,
-            REVIVE_WATCH: 0,
             WARM: 0,
           },
           deepScan: {

@@ -789,7 +789,7 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
             {
               baseAsset: "ENA",
               dynamicBoost: 192_000,
-              reasons: ["anomaly", "history", "recent_signal"],
+              reasons: ["anomaly", "recent_signal"],
               score: 312_000,
               staticPriority: 120_000,
               status: "selected",
@@ -810,11 +810,8 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
           enabled: true,
           reasonCounts: {
             anomaly: 2,
-            cooldown_review: 0,
             early_opportunity: 0,
-            history: 1,
             liquidity: 1,
-            missed_opportunity: 0,
             recent_deep_scan: 0,
             overextended_move: 0,
             recent_signal: 1,
@@ -827,7 +824,7 @@ test("buildSystemHealthReport exposes structured universe coverage", async () =>
             {
               baseAsset: "ENA",
               dynamicBoost: 192_000,
-              reasons: ["anomaly", "history", "recent_signal"],
+              reasons: ["anomaly", "recent_signal"],
               score: 312_000,
               staticPriority: 120_000,
               symbol: "ENAUSDT",

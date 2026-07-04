@@ -105,8 +105,6 @@ test("buildScanStatePoolReport keeps the whole universe in state pools instead o
       },
       {
         symbol: "OPUSDT",
-        historicalSampleSize: 18,
-        historicalWinRate: 0.64,
         recentSignalCount: 2,
       },
     ],
@@ -132,7 +130,7 @@ test("buildScanStatePoolReport keeps the whole universe in state pools instead o
   assert.equal(report.proof.universeAssets, registry.assets.length);
   assert.equal(report.proof.notEliminatedAssets, registry.assets.length);
   assert.equal(report.counts.BATTLE_READY, 1);
-  assert.equal(report.counts.REVIVE_WATCH, 1);
+  assert.equal(report.counts.WARM, 1);
   assert.ok(report.counts.COLD >= 1);
   assert.ok(report.deepScan.selectedAssets.includes("ARB"));
   assert.ok(report.deepScan.queuedAssets.includes("OP"));

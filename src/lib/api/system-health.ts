@@ -1017,11 +1017,8 @@ function fullMarketPriorityExplanation(coverage: ScanCoverage) {
 
 const highPriorityReasonLabels: Record<ScanPriorityReason, string> = {
   anomaly: "异动",
-  cooldown_review: "冷却复盘",
   early_opportunity: "启动前机会",
-  history: "复盘",
   liquidity: "流动性",
-  missed_opportunity: "漏判复查",
   overextended_move: "过度延展",
   recent_deep_scan: "近期已深扫",
   recent_signal: "近期信号",

@@ -393,11 +393,8 @@ test("refreshMarketRadarSnapshot persists scan asset rotation states from covera
               enabled: true,
               reasonCounts: {
                 anomaly: 1,
-                cooldown_review: 0,
                 early_opportunity: 0,
-                history: 0,
                 liquidity: 0,
-                missed_opportunity: 0,
                 recent_deep_scan: 0,
                 overextended_move: 0,
                 recent_signal: 1,
