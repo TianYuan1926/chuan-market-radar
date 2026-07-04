@@ -404,7 +404,8 @@ function buildDeepScanProof(
       (sample.state === "BATTLE_READY" ||
       sample.state === "BATTLE_WATCH" ||
       sample.state === "CANDIDATE" ||
-        sample.state === "HOT")
+      sample.state === "HOT" ||
+      sample.state === "WARM")
     )
     .map((sample) => sample.baseAsset)
     .slice(0, 12);

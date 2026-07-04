@@ -6,6 +6,7 @@ import {
   normalizeUniverseAsset,
   planUniverseScan,
 } from "./universe-registry";
+import type { UniversePriorityHint } from "./universe-registry";
 import type { ContractInstrument } from "./types";
 import { buildStaticFuturesUniverseSeed } from "./providers/static-futures-universe-seed";
 
@@ -405,20 +406,27 @@ test("planUniverseScan ignores backtest and review outcome fields in production 
     ["SOL", "ENA"],
     [
       instrument("OLD", { volume24hUsd: 90_000_000 }),
-      instrument("LOSSY", { volume24hUsd: 95_000_000 }),
+      instrument("LOSSY", { volume24hUsd: 90_000_000 }),
       instrument("PONKE", { volume24hUsd: 15_000_000 }),
       instrument("MANTA", { volume24hUsd: 45_000_000 }),
     ],
   );
+  const lossyHintWithForbiddenReviewFields = {
+    symbol: "LOSSYUSDT",
+    anomalyScore: 85,
+    recentSignalCount: 5,
+    historicalWinRate: 1,
+    historicalSampleSize: 99,
+    missedOpportunityCount: 8,
+    qualityHit: true,
+    mfePct: 30,
+    maePct: 2,
+  } as unknown as UniversePriorityHint;
   const plan = planUniverseScan(registry, 5, new Date("2026-06-16T00:00:00.000Z"), {
     dynamicPrioritySlots: 2,
     priorityHints: [
       { symbol: "OLDUSDT", anomalyScore: 100, recentSignalCount: 5 },
-      {
-        symbol: "LOSSYUSDT",
-        anomalyScore: 100,
-        recentSignalCount: 5,
-      },
+      lossyHintWithForbiddenReviewFields,
       {
         symbol: "PONKEUSDT",
         anomalyScore: 72,
@@ -429,10 +437,23 @@ test("planUniverseScan ignores backtest and review outcome fields in production 
   });
 
   assert.equal(plan.dynamicPriority.topAssets[0]?.baseAsset, "OLD");
-  assert.deepEqual(plan.dynamicPriority.topAssets[0]?.reasons.sort(), ["anomaly", "liquidity", "recent_signal"].sort());
+  assert.deepEqual(plan.dynamicPriority.topAssets[0]?.reasons.sort(), [
+    "anomaly",
+    "liquidity",
+    "recent_signal",
+    "venue_coverage",
+  ].sort());
   assert.equal("missed_opportunity" in plan.dynamicPriority.reasonCounts, false);
   assert.equal("history" in plan.dynamicPriority.reasonCounts, false);
   assert.equal("cooldown_review" in plan.dynamicPriority.reasonCounts, false);
+  assert.equal(
+    plan.dynamicPriority.topAssets.some((asset) =>
+      asset.reasons.some((reason) =>
+        ["missed_opportunity", "history", "cooldown_review"].includes(reason)
+      )
+    ),
+    false,
+  );
 });
 
 test("planUniverseScan uses persistent rotation hints to avoid repeatedly deep scanning the same asset", () => {
