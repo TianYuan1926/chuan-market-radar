@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="${ROOT_DIR_OVERRIDE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
 STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
@@ -20,10 +20,21 @@ if command -v docker >/dev/null 2>&1; then
   fi
 fi
 
+run_node() {
+  if command -v node >/dev/null 2>&1; then
+    node "$@"
+  elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
+    "${compose_cmd[@]}" exec -T web node "$@"
+  else
+    echo "ERROR: node is unavailable on host and web container is unavailable." >&2
+    return 127
+  fi
+}
+
 write_json() {
   local path="$1"
   local url="$2"
-  node - "${url}" "${OUT_DIR}/${path}" <<'NODE'
+  run_node - "${url}" "${OUT_DIR}/${path}" <<'NODE'
 const url = process.argv[2];
 const out = process.argv[3];
 const fs = require("node:fs");
@@ -81,7 +92,7 @@ else
   echo "docker compose unavailable or env file missing" > "${OUT_DIR}/docker-compose-ps.txt"
 fi
 
-node - "${OUT_DIR}" <<'NODE'
+run_node - "${OUT_DIR}" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 const outDir = process.argv[2];

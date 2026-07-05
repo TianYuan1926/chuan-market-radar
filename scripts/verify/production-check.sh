@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="${ROOT_DIR_OVERRIDE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
 STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-true}"
@@ -17,8 +17,19 @@ if command -v docker >/dev/null 2>&1; then
   fi
 fi
 
+run_node() {
+  if command -v node >/dev/null 2>&1; then
+    node "$@"
+  elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
+    "${compose_cmd[@]}" exec -T web node "$@"
+  else
+    echo "ERROR: node is unavailable on host and web container is unavailable." >&2
+    return 127
+  fi
+}
+
 echo "== Production API contract check: ${BASE_URL} =="
-node - "${BASE_URL}" "${STRICT_SCAN_FRESHNESS}" <<'NODE'
+run_node - "${BASE_URL}" "${STRICT_SCAN_FRESHNESS}" <<'NODE'
 const baseUrl = process.argv[2].replace(/\/$/, "");
 const strictScanFreshness = ["1", "true", "yes", "on"].includes(String(process.argv[3]).toLowerCase());
 

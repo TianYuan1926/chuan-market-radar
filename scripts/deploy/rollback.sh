@@ -22,6 +22,14 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+VERIFY_SCRIPT="$(mktemp)"
+cp "${ROOT_DIR}/scripts/verify/production-check.sh" "${VERIFY_SCRIPT}"
+chmod +x "${VERIFY_SCRIPT}"
+cleanup() {
+  rm -f "${VERIFY_SCRIPT}"
+}
+trap cleanup EXIT
+
 if docker ps >/dev/null 2>&1; then
   COMPOSE=(docker compose --env-file "${ENV_FILE}")
 elif sudo -n docker ps >/dev/null 2>&1; then
@@ -42,6 +50,6 @@ echo "after-checkout=$(git rev-parse HEAD)"
 "${COMPOSE[@]}" ps
 
 STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-false}" BASE_URL="${BASE_URL}" ENV_FILE="${ENV_FILE}" \
-  bash "${ROOT_DIR}/scripts/verify/production-check.sh"
+  ROOT_DIR_OVERRIDE="${ROOT_DIR}" bash "${VERIFY_SCRIPT}"
 
 echo "rollback ok: $(git rev-parse HEAD)"
