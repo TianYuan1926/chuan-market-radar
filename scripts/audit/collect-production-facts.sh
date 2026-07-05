@@ -136,8 +136,8 @@ const summary = {
   },
   backend: {
     httpOk: backend?.ok ?? false,
-    fullMarketStatus: backend?.body?.scanProof?.fullMarket?.status ?? null,
-    deepScanStatus: backend?.body?.scanProof?.deepScan?.status ?? null,
+    fullMarketStatus: backend?.body?.contract?.scanProof?.fullMarket?.status ?? null,
+    deepScanStatus: backend?.body?.contract?.scanProof?.deepScan?.status ?? null,
   },
 };
 

@@ -119,7 +119,7 @@ assert(radarBody.contract?.coreChainGovernance, "radar-contract missing coreChai
 
 const backendBody = await fetchJson("/api/radar/backend-contract");
 assert(backendBody.ok !== false, "backend-contract ok is false");
-assert(backendBody.scanProof, "backend-contract missing scanProof");
+assert(backendBody.contract?.scanProof, "backend-contract missing contract.scanProof");
 
 const businessBody = await fetchJson("/api/radar/business-capability");
 assert(businessBody.ok !== false, "business-capability ok is false");
