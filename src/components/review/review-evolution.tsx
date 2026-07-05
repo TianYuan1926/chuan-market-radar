@@ -118,7 +118,7 @@ const planBlockerDiagnosisLabels: Record<string, string> = {
 
 const tradePlanStatusLabels: Record<string, string> = {
   BLOCKED: '被风控拦截',
-  EVIDENCE_SIGNAL: '证据信号',
+  EVIDENCE_SIGNAL: '证据观察',
   INVALIDATED: '结构失效',
   REVIEW_ONLY: '只做复盘',
   TRADE_PLAN_READY: '交易计划就绪',

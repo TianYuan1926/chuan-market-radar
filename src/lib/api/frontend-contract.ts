@@ -28,6 +28,12 @@ import {
   buildPersonalPositionLens,
   type PersonalPositionLens,
 } from "../risk/personal-position-lens";
+import {
+  canAttachTradePlan,
+  canEnterSniper,
+  definitionForMaturity,
+  nonMisleadingNoTradeReason,
+} from "../signal-state-semantics";
 import type { BackendContract } from "./backend-contract";
 import type { BusinessCapabilityStage } from "./business-capability";
 import type { CoreChainGovernanceReport } from "./core-chain-governance";
@@ -1686,27 +1692,45 @@ function operatorReadForSignal({
   maturity: SignalMaturity;
   rr: number | null;
 }): SignalOperatorRead {
-  if (maturity === "TRADE_PLAN_READY" && rr !== null && rr >= 3 && blockedReasons.length === 0) {
+  const state = definitionForMaturity(maturity);
+  const noTradeReason = nonMisleadingNoTradeReason(maturity, blockedReasons[0] ?? null);
+
+  if (canEnterSniper({ maturity, rr, whyBlocked: blockedReasons.length > 0 ? blockedReasons.join("；") : null })) {
     return {
-      lane: "sniper",
-      laneLabel: "狙击榜",
+      lane: state.lane,
+      laneLabel: state.laneLabel,
       worthWatching: true,
-      canTrade: true,
+      canTrade: state.canTrade,
       headline: "交易计划就绪",
       nextAction: "进入单币档案，人工复核入场、止损、目标和失效条件。",
       noTradeReason: null,
     };
   }
 
-  if (maturity === "EVIDENCE_SIGNAL") {
+  if (maturity === "TRADE_PLAN_READY") {
+    const rrReason = rr === null || rr < 3
+      ? "API 归一化拦截：交易计划就绪状态缺少合格的 3:1 结构盈亏比。"
+      : null;
     return {
-      lane: "watch",
-      laneLabel: "重点观察",
+      lane: "blocked",
+      laneLabel: "不看",
       worthWatching: true,
       canTrade: false,
-      headline: "已有证据，但还不能直接做",
+      headline: "计划状态待复核，暂不能交易",
+      nextAction: "进入单币档案核对 RR、风控门禁、入场、止损、目标和失效条件。",
+      noTradeReason: blockedReasons[0] ?? rrReason ?? "API 归一化拦截：计划状态与风控条件不一致。",
+    };
+  }
+
+  if (maturity === "EVIDENCE_SIGNAL") {
+    return {
+      lane: state.lane,
+      laneLabel: state.laneLabel,
+      worthWatching: true,
+      canTrade: state.canTrade,
+      headline: "已有证据观察，但还不能直接做",
       nextAction: "等待结构确认、结构盈亏比和风控门禁全部通过。",
-      noTradeReason: blockedReasons[0] ?? "尚未形成完整交易计划。",
+      noTradeReason,
     };
   }
 
@@ -1717,36 +1741,36 @@ function operatorReadForSignal({
         ? "突破观察候选"
         : "等待验证候选";
     return {
-      lane: "validate",
-      laneLabel: "验证中",
+      lane: state.lane,
+      laneLabel: state.laneLabel,
       worthWatching: discovery?.opportunityPhase === "early_setup" || discovery?.opportunityPhase === "breakout_watch",
-      canTrade: false,
+      canTrade: state.canTrade,
       headline: phase,
       nextAction: "等待深扫、盘面结构和证据融合，不允许当作交易信号。",
-      noTradeReason: "候选层只说明有异动，未完成交易计划条件。",
+      noTradeReason,
     };
   }
 
   if (maturity === "REVIEW_ONLY") {
     return {
-      lane: "review",
-      laneLabel: "只复盘",
+      lane: state.lane,
+      laneLabel: state.laneLabel,
       worthWatching: false,
-      canTrade: false,
+      canTrade: state.canTrade,
       headline: "行情已经偏晚，只做复盘",
       nextAction: "回看启动前窗口，研究系统是否提前看到，不追涨追跌。",
-      noTradeReason: blockedReasons[0] ?? "位置已经失去优势。",
+      noTradeReason,
     };
   }
 
   return {
-    lane: "blocked",
-    laneLabel: "不看",
+    lane: state.lane,
+    laneLabel: state.laneLabel,
     worthWatching: false,
-    canTrade: false,
+    canTrade: state.canTrade,
     headline: maturity === "INVALIDATED" ? "结构失效" : maturity === "COOLDOWN" ? "冷却观察" : "被风控拦截",
     nextAction: "等待新的结构和证据重新进入候选。",
-    noTradeReason: blockedReasons[0] ?? "风控门禁、结构盈亏比、结构或数据完整性未通过。",
+    noTradeReason,
   };
 }
 
@@ -1933,6 +1957,15 @@ function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, n
   const supportive = signal.evidence.filter((item) => item.polarity === "supportive");
   const counter = signal.evidence.filter((item) => item.polarity === "conflicting" || item.polarity === "blocking");
   const rr = signal.strategy.riskReward > 0 ? round(signal.strategy.riskReward, 2) : null;
+  const blockerText = canEnterSniper({ maturity, rr, whyBlocked: blockers.length > 0 ? blockers.join("；") : null })
+    ? null
+    : blockers.length > 0
+    ? blockers.join("；")
+    : maturity === "TRADE_PLAN_READY" && (rr === null || rr < 3)
+      ? "API 归一化拦截：交易计划就绪状态缺少合格的 3:1 结构盈亏比。"
+      : canAttachTradePlan(maturity)
+        ? null
+        : nonMisleadingNoTradeReason(maturity, null);
 
   return {
     id: signal.id,
@@ -1958,7 +1991,7 @@ function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, n
       ? "live"
       : sourceStatusToFeed(snapshot.metadata.status),
     whySelected: signal.summary || supportive[0]?.value || "已进入后端证据链",
-    whyBlocked: blockers.length > 0 ? blockers.join("；") : null,
+    whyBlocked: blockerText,
     updatedMinAgo: diffMinutes(signal.updatedAt, now),
     discovery: null,
   };
@@ -2973,7 +3006,7 @@ function buildOpportunityQuality(visibleSignals: RadarSignal[]): OpportunityQual
     schemaVersion: "opportunity-quality.v1",
     status,
     summary: status === "healthy"
-      ? `当前有 ${earlySetup} 个启动前候选、${evidenceSignal} 个证据信号、${tradePlanReady} 个计划就绪；系统优先看仍有位置优势的机会。`
+      ? `当前有 ${earlySetup} 个启动前候选、${evidenceSignal} 个证据观察、${tradePlanReady} 个计划就绪；系统优先看仍有位置优势的机会。`
       : status === "watch"
         ? `当前有 ${visibleSignals.length} 个可见候选，但尚未形成可交易计划；宁可等待，不用晚到行情补位。`
         : "当前没有可展示候选；页面必须空态展示，不能用 mock 或旧缓存补位。",

@@ -4,6 +4,7 @@ import type {
   SignalMaturityReason,
   SignalMaturityStage,
 } from "../analysis/types";
+import { MATURITY_DISPLAY_META } from "../signal-state-semantics";
 import type { ScanLightScanCandidate } from "./types";
 
 export type SignalMaturityDiagnostics = {
@@ -16,11 +17,11 @@ export type SignalMaturityDiagnostics = {
 };
 
 const labels: Record<SignalMaturityStage, string> = {
-  LIGHT_SCAN_MARK: "轻扫标记",
-  DEEP_SCAN_CANDIDATE: "深扫候选",
-  EVIDENCE_SIGNAL: "证据融合信号",
-  REVIEW_ONLY: "复盘观察",
-  TRADE_PLAN_READY: "交易计划就绪",
+  LIGHT_SCAN_MARK: MATURITY_DISPLAY_META.LIGHT_SCAN_MARK.label,
+  DEEP_SCAN_CANDIDATE: MATURITY_DISPLAY_META.DEEP_SCAN_CANDIDATE.label,
+  EVIDENCE_SIGNAL: MATURITY_DISPLAY_META.EVIDENCE_SIGNAL.label,
+  REVIEW_ONLY: MATURITY_DISPLAY_META.REVIEW_ONLY.label,
+  TRADE_PLAN_READY: MATURITY_DISPLAY_META.TRADE_PLAN_READY.userLabel,
 };
 
 function maturity({
@@ -238,7 +239,7 @@ export function buildSignalMaturityDiagnostics({
   return {
     candidateLaneSymbols,
     counts,
-    guardrail: "轻扫标记不进入主信号区；深扫候选只能进候选/验证中区域；复盘观察只用于解释晚到/追涨风险；只有证据融合信号和交易计划就绪能进入主信号区。",
+    guardrail: "轻扫标记不进入主信号区；深扫候选只能进候选/验证中区域；复盘观察只用于解释晚到/追涨风险；只有证据观察和交易计划就绪能进入主信号区。",
     mainSignalSymbols,
     rules: [
       "LIGHT_SCAN_MARK is scheduling input only",

@@ -1052,7 +1052,7 @@ test("buildFrontendRadarContract recalculates stale persisted signal maturity", 
   });
 
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
-  assert.equal(radar.radarSignals.data[0]?.whyBlocked, null);
+  assert.match(radar.radarSignals.data[0]?.whyBlocked ?? "", /不能进狙击榜|不能附带完整计划/);
 });
 
 test("frontend radar and token dossier agree when a stale ready signal has no ready trade plan", () => {

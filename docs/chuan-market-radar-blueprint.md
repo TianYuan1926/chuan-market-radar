@@ -138,6 +138,41 @@
 
 狙击榜只允许 `TRADE_PLAN_READY`。没有就空着，不能用候选补位。
 
+### 3.1 统一语义系统（2026-07-05）
+
+本项目的状态语义事实源固定为：
+
+- 代码：`src/lib/signal-state-semantics.ts`
+- 文档：`STATE_DEFINITION_MAP.md`
+- 文档：`DATA_FLOW_TRUTH_MAP.md`
+- 文档：`MISLEADING_RISK_LAYER.md`
+
+工程硬规则：
+
+- `WAIT` 只表示等待确认，不能展示为已触发。
+- `WATCH` 只表示观察或复盘，不生成入场、止损、目标。
+- `CANDIDATE` 只表示值得验证，不是信号。
+- `SIGNAL` / `EVIDENCE_SIGNAL` 只表示证据观察，不是可交易信号。
+- `TRADE_PLAN_READY` 是唯一能进入狙击榜和附完整交易计划的状态。
+- `BLOCKED` / `INVALIDATED` / `COOLDOWN` 必须明确说明阻断、失效或冷却原因。
+
+用户可读文案固定：
+
+- `EVIDENCE_SIGNAL` 显示为“证据观察”，不能显示为“买卖信号”。
+- `TRADE_PLAN_READY` 显示为“交易计划就绪”。
+- `LIGHT_SCAN_MARK` 显示为“轻扫发现”。
+- `DEEP_SCAN_CANDIDATE` 显示为“深扫候选”。
+- `Risk Gate` 显示为“风控门禁”。
+- `RR` 显示为“结构盈亏比”。
+
+不可误导化要求：
+
+- 前端显示必须等于 API 输出和后端真实状态。
+- 前端不得用榜单、候选、缓存或 fallback 补成交易机会。
+- API 必须对 `TRADE_PLAN_READY` 做二次防御：没有 `RR >= 3`、存在阻断原因或缺完整计划时，必须输出不可交易原因。
+- 非 `TRADE_PLAN_READY` 状态必须带清楚的不可交易原因或边界说明。
+- `Alpha`、星标、狙击榜、完整交易计划只能用于真实 `TRADE_PLAN_READY`。
+
 所有前端展示必须同时表达两个结论：
 
 1. 方向：偏多、偏空、中性、冲突。

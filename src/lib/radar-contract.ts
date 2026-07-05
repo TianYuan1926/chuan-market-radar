@@ -13,6 +13,7 @@
 
 import type { CoreChainGovernanceReport } from './api/core-chain-governance'
 import { resource, type Resource } from './data-status'
+import { MATURITY_DISPLAY_META } from './signal-state-semantics'
 
 const LEGACY_SOURCE = 'legacy-radar-contract'
 const LEGACY_DISABLED_REASON =
@@ -198,26 +199,17 @@ export function getRealtimeCapability(): Resource<RealtimeCapabilityState> {
 export type SignalMaturity =
   | 'LIGHT_SCAN_MARK' // 轻扫标记
   | 'DEEP_SCAN_CANDIDATE' // 深扫候选
-  | 'EVIDENCE_SIGNAL' // 证据融合信号
+  | 'EVIDENCE_SIGNAL' // 证据观察
   | 'REVIEW_ONLY' // 只做复盘观察
   | 'TRADE_PLAN_READY' // 交易计划就绪
-  | 'BLOCKED' // 被 Risk Gate 拦截
+  | 'BLOCKED' // 被风控门禁拦截
   | 'INVALIDATED' // 结构失效
   | 'COOLDOWN' // 冷却中
 
 export const MATURITY_META: Record<
   SignalMaturity,
   { label: string; short: string; tone: 'live' | 'neon' | 'warn' | 'down' | 'muted'; order: number }
-> = {
-  LIGHT_SCAN_MARK: { label: '轻扫标记', short: '轻扫', tone: 'muted', order: 1 },
-  DEEP_SCAN_CANDIDATE: { label: '深扫候选', short: '深扫', tone: 'neon', order: 2 },
-  EVIDENCE_SIGNAL: { label: '证据信号', short: '证据', tone: 'neon', order: 3 },
-  REVIEW_ONLY: { label: '复盘观察', short: '复盘', tone: 'warn', order: 4 },
-  TRADE_PLAN_READY: { label: '计划就绪', short: '就绪', tone: 'live', order: 5 },
-  BLOCKED: { label: 'Risk Gate 拦截', short: '拦截', tone: 'down', order: 6 },
-  INVALIDATED: { label: '结构失效', short: '失效', tone: 'down', order: 7 },
-  COOLDOWN: { label: '冷却中', short: '冷却', tone: 'warn', order: 8 },
-}
+> = MATURITY_DISPLAY_META
 
 export type DiscoveryPressureSide = 'buy' | 'neutral' | 'sell'
 export type DiscoveryProxyQuality = 'reason_tag_proxy' | 'rolling_price_volume_proxy' | 'taker_trade_proxy'
@@ -368,7 +360,7 @@ export function getRadarSignals(): Resource<RadarSignal[]> {
 }
 
 // ============================================================
-// 六、单币：多周期结构 / 证据链 / 反证链 / Risk Gate / 交易计划 / 规则反证复核
+// 六、单币：多周期结构 / 证据链 / 反证链 / 风控门禁 / 交易计划 / 规则反证复核
 // ============================================================
 export type TfStructure = {
   tf: '15m' | '1h' | '4h' | '1d'
@@ -747,7 +739,7 @@ export type LeaderboardRow = {
   inCandidatePool: boolean // 是否进候选池
   deepScanned: boolean // 是否已深扫
   hasSignal: boolean // 是否有信号
-  blocked: boolean // 是否被 Risk Gate 拦截
+  blocked: boolean // 是否被风控门禁拦截
   awaitingScan: boolean // 是否等待下一轮扫描
 }
 

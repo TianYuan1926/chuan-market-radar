@@ -23,6 +23,11 @@ import type {
 } from './radar-contract'
 import type { SniperSignal, SniperTarget } from './sniper-data'
 import type { DataStatus, Resource } from './data-status'
+import {
+  canEnterSniper,
+  definitionForMaturity,
+  nonMisleadingNoTradeReason,
+} from './signal-state-semantics'
 
 type Direction = RadarSignal['direction']
 type Maturity = RadarSignal['maturity']
@@ -131,7 +136,7 @@ function typeFor(signal: RadarSignal): SignalType {
 }
 
 function categoryFor(signal: RadarSignal): SignalCategory {
-  if (signal.maturity === 'TRADE_PLAN_READY' && signal.rr !== null && signal.rr >= 3 && !signal.whyBlocked) {
+  if (canEnterSniper({ maturity: signal.maturity, rr: signal.rr, whyBlocked: signal.whyBlocked })) {
     return 'sniper'
   }
   if (signal.direction === '多') return 'bull'
@@ -173,7 +178,7 @@ function tokenFor(
   const trend = trendFor(signal.direction)
   const tags: Token['tags'] = ['合约', '异常活跃']
 
-  if (signal.maturity === 'TRADE_PLAN_READY') tags.push('Alpha')
+  if (canEnterSniper({ maturity: signal.maturity, rr: signal.rr, whyBlocked: signal.whyBlocked })) tags.push('Alpha')
   if (signal.maturity === 'BLOCKED') tags.push('FOMO')
   if (signal.direction === '多') tags.push('利多')
 
@@ -237,7 +242,7 @@ function whyForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
   if (row.inCandidatePool) flags.push('已进入候选池')
   if (row.deepScanned) flags.push('已完成深扫')
   if (row.awaitingScan) flags.push('等待深扫')
-  if (row.hasSignal) flags.push('已有证据融合信号')
+  if (row.hasSignal) flags.push('已有证据观察')
   if (row.blocked) flags.push('风控门禁拦截')
   if (isOverextendedLeaderboardMover(row, kind)) flags.push('已大幅发生，只做复盘观察，禁止追单')
 
@@ -273,13 +278,14 @@ function operatorReadForLeaderboardRow(
   kind: LeaderboardKind,
 ): RadarSignal['operatorRead'] {
   const overextended = isOverextendedLeaderboardMover(row, kind)
+  const state = definitionForMaturity(maturity)
 
   if (maturity === 'REVIEW_ONLY' || overextended) {
     return {
-      lane: 'review',
-      laneLabel: '只复盘',
+      lane: state.lane,
+      laneLabel: state.laneLabel,
       worthWatching: false,
-      canTrade: false,
+      canTrade: state.canTrade,
       headline: '涨跌已经明显，只做复盘样本',
       nextAction: '回看启动前窗口，研究系统有没有提前发现。',
       noTradeReason: '榜单说明行情已经发生，不能作为追涨追跌入口。',
@@ -288,24 +294,24 @@ function operatorReadForLeaderboardRow(
 
   if (maturity === 'EVIDENCE_SIGNAL') {
     return {
-      lane: 'watch',
-      laneLabel: '重点观察',
+      lane: state.lane,
+      laneLabel: state.laneLabel,
       worthWatching: true,
-      canTrade: false,
-      headline: '榜单命中且已有证据',
+      canTrade: state.canTrade,
+      headline: '榜单命中且已有证据观察',
       nextAction: '进入单币档案，看结构、结构盈亏比、风控是否能升级。',
-      noTradeReason: row.blocked ? '风控门禁已拦截。' : '尚未确认交易计划就绪。',
+      noTradeReason: row.blocked ? '风控门禁已拦截。' : state.boundary,
     }
   }
 
   return {
-    lane: 'validate',
-    laneLabel: '验证中',
+    lane: state.lane,
+    laneLabel: state.laneLabel,
     worthWatching: row.inCandidatePool || row.awaitingScan || row.deepScanned,
-    canTrade: false,
+    canTrade: state.canTrade,
     headline: row.inCandidatePool || row.awaitingScan ? '榜单候选，等待深扫' : '市场榜单观察',
     nextAction: '等待全市场扫描和深扫验证，不允许直接当交易信号。',
-    noTradeReason: '缺少完整证据链、结构盈亏比和风控门禁放行。',
+    noTradeReason: state.boundary,
   }
 }
 
@@ -334,11 +340,14 @@ export function leaderboardRowsToCandidateSignals(
       counterCount: blocked || reviewOnly ? 2 : 0,
       freshness: 'live',
       whySelected: whyForLeaderboardRow(row, kind),
-      whyBlocked: blocked
-        ? '风控门禁已标记，不能直接生成交易计划'
-        : reviewOnly
-          ? '榜单只说明行情已经大幅发生；未完成启动前证据融合，进入复盘样本，不允许追涨追跌。'
-        : '候选阶段只代表发现异动，未完成证据融合和 3:1 赔率验证，不能当作交易计划',
+      whyBlocked: nonMisleadingNoTradeReason(
+        maturity,
+        blocked
+          ? '风控门禁已标记，不能直接生成交易计划'
+          : reviewOnly
+            ? '榜单只说明行情已经大幅发生；未完成启动前证据融合，进入复盘样本，不允许追涨追跌。'
+            : '候选阶段只代表发现异动，未完成证据融合和 3:1 赔率验证，不能当作交易计划',
+      ),
       updatedMinAgo: Math.min(index, 59),
     }
   })
@@ -367,7 +376,7 @@ export function withLeaderboardSignalFallback(
       ? `${signals.source ?? 'signal-worker'}+leaderboard`
       : signals.source,
     reason: data.length > signals.data.length
-      ? `${signals.reason ? `${signals.reason}；` : ''}当前无成熟信号时展示全市场候选，候选不等于交易计划`
+      ? `${signals.reason ? `${signals.reason}；` : ''}额外展示榜单观察源候选；候选不等于交易计划；它们只进入候选验证区，不进入狙击榜，不生成交易计划`
       : signals.reason,
   }
 }
@@ -381,8 +390,7 @@ export function leaderboardRowsToTokens(
     const change24h = changeForLeaderboardRow(row, kind)
     const tags: Token['tags'] = ['合约']
 
-    if (row.hasSignal) tags.push('异常活跃')
-    if (row.inCandidatePool) tags.push('Alpha')
+    if (row.hasSignal || row.inCandidatePool || row.deepScanned) tags.push('异常活跃')
     if (change24h > 0) tags.push('利多')
     if (row.blocked) tags.push('FOMO')
 

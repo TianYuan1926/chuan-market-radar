@@ -11,6 +11,7 @@ import type { Token, TokenArchive } from '@/lib/frontend-market-types'
 import { fmtUsd } from '@/lib/display-format'
 import type { Resource } from '@/lib/data-status'
 import type { TokenDossier } from '@/lib/radar-contract'
+import { MATURITY_DISPLAY_META } from '@/lib/signal-state-semantics'
 import { cn } from '@/lib/utils'
 
 const DIR_TONE: Record<string, string> = {
@@ -25,14 +26,14 @@ const RISK_TONE: Record<string, string> = {
   极高: 'var(--down)',
 }
 const MATURITY_LABEL: Record<string, string> = {
-  LIGHT_SCAN_MARK: '轻扫标记',
-  DEEP_SCAN_CANDIDATE: '深扫候选',
-  EVIDENCE_SIGNAL: '证据信号',
-  REVIEW_ONLY: '复盘观察',
-  TRADE_PLAN_READY: '计划就绪',
-  BLOCKED: '已阻断',
-  INVALIDATED: '已失效',
-  COOLDOWN: '冷却观察',
+  LIGHT_SCAN_MARK: MATURITY_DISPLAY_META.LIGHT_SCAN_MARK.label,
+  DEEP_SCAN_CANDIDATE: MATURITY_DISPLAY_META.DEEP_SCAN_CANDIDATE.label,
+  EVIDENCE_SIGNAL: MATURITY_DISPLAY_META.EVIDENCE_SIGNAL.label,
+  REVIEW_ONLY: MATURITY_DISPLAY_META.REVIEW_ONLY.label,
+  TRADE_PLAN_READY: MATURITY_DISPLAY_META.TRADE_PLAN_READY.label,
+  BLOCKED: MATURITY_DISPLAY_META.BLOCKED.label,
+  INVALIDATED: MATURITY_DISPLAY_META.INVALIDATED.label,
+  COOLDOWN: MATURITY_DISPLAY_META.COOLDOWN.label,
 }
 
 function validLevel(value: number | undefined) {
