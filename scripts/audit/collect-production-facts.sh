@@ -12,7 +12,6 @@ cd "${ROOT_DIR}"
 mkdir -p "${OUT_DIR}"
 
 compose_cmd=()
-node_runner=()
 capture_base_url="${BASE_URL%/}"
 if command -v docker >/dev/null 2>&1; then
   if docker ps >/dev/null 2>&1; then
@@ -22,56 +21,62 @@ if command -v docker >/dev/null 2>&1; then
   fi
 fi
 
-if command -v node >/dev/null 2>&1; then
-  node_runner=(node)
-elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
-  node_runner=("${compose_cmd[@]}" exec -T web node)
-  if [[ "${capture_base_url}" == "http://127.0.0.1" || "${capture_base_url}" == "http://localhost" ]]; then
-    capture_base_url="http://127.0.0.1:3000"
-  fi
-fi
-
-run_node() {
-  if [[ ${#node_runner[@]} -gt 0 ]]; then
-    "${node_runner[@]}" "$@"
-  else
-    echo "ERROR: node is unavailable on host and web container is unavailable." >&2
-    return 127
-  fi
-}
-
 write_json() {
   local path="$1"
   local url="$2"
-  run_node - "${url}" "${OUT_DIR}/${path}" <<'NODE'
-const url = process.argv[2];
-const out = process.argv[3];
-const fs = require("node:fs");
+  local out="${OUT_DIR}/${path}"
+  local raw="${out}.raw"
+  local status
 
-fetch(url, {
-  headers: {
-    "cache-control": "no-store",
-    "user-agent": "chuan-production-facts/1.0",
-  },
-}).then(async (response) => {
-  const text = await response.text();
-  fs.writeFileSync(out, JSON.stringify({
-    status: response.status,
-    ok: response.ok,
-    capturedAt: new Date().toISOString(),
-    body: text ? JSON.parse(text) : null,
-  }, null, 2));
-  process.exit(response.ok ? 0 : 1);
-}).catch((error) => {
-  fs.writeFileSync(out, JSON.stringify({
-    status: 0,
-    ok: false,
-    capturedAt: new Date().toISOString(),
-    error: String(error && error.message ? error.message : error),
-  }, null, 2));
-  process.exit(1);
-});
-NODE
+  status="$(
+    curl -sS \
+      -H "cache-control: no-store" \
+      -H "user-agent: chuan-production-facts/1.0" \
+      -w "%{http_code}" \
+      -o "${raw}" \
+      "${url}" || printf "000"
+  )"
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "${raw}" "${out}" "${status}" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+
+raw_path, out_path, status_text = sys.argv[1:4]
+try:
+    status = int(status_text)
+except ValueError:
+    status = 0
+
+try:
+    with open(raw_path, "r", encoding="utf-8") as handle:
+        text = handle.read()
+except FileNotFoundError:
+    text = ""
+
+try:
+    body = json.loads(text) if text else None
+except json.JSONDecodeError:
+    body = {"raw": text[:4000]}
+
+payload = {
+    "status": status,
+    "ok": 200 <= status < 300,
+    "capturedAt": datetime.now(timezone.utc).isoformat(),
+    "body": body,
+}
+
+with open(out_path, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, indent=2)
+    handle.write("\n")
+PY
+    rm -f "${raw}"
+  else
+    mv "${raw}" "${out}"
+  fi
+
+  [[ "${status}" =~ ^2 ]]
 }
 
 {
@@ -102,47 +107,63 @@ else
   echo "docker compose unavailable or env file missing" > "${OUT_DIR}/docker-compose-ps.txt"
 fi
 
-run_node - "${OUT_DIR}" <<'NODE'
-const fs = require("node:fs");
-const path = require("node:path");
-const outDir = process.argv[2];
+if command -v python3 >/dev/null 2>&1; then
+  python3 - "${OUT_DIR}" <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
 
-function readJson(name) {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(outDir, name), "utf8"));
-  } catch {
-    return null;
-  }
+out_dir = sys.argv[1]
+
+def read_json(name):
+    try:
+        with open(os.path.join(out_dir, name), "r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return None
+
+def pick(obj, path):
+    current = obj
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+health = read_json("health.json")
+radar = read_json("radar-contract.json")
+backend = read_json("backend-contract.json")
+
+summary = {
+    "capturedAt": datetime.now(timezone.utc).isoformat(),
+    "health": {
+        "httpOk": bool(health.get("ok")) if isinstance(health, dict) else False,
+        "level": pick(health, ["body", "health", "level"]),
+        "scanFreshness": pick(health, ["body", "health", "scan", "freshness"]),
+        "activeSource": pick(health, ["body", "health", "dataSource", "activeSource"]),
+        "databaseStatus": pick(health, ["body", "health", "persistence", "databaseStatus"]),
+    },
+    "radar": {
+        "httpOk": bool(radar.get("ok")) if isinstance(radar, dict) else False,
+        "scanProofStatus": pick(radar, ["body", "contract", "scanProof", "status"]),
+        "radarSignalsStatus": pick(radar, ["body", "contract", "radarSignals", "status"]),
+        "source": pick(radar, ["body", "contract", "radarSignals", "source"]),
+    },
+    "backend": {
+        "httpOk": bool(backend.get("ok")) if isinstance(backend, dict) else False,
+        "fullMarketStatus": pick(backend, ["body", "contract", "scanProof", "fullMarket", "status"]),
+        "deepScanStatus": pick(backend, ["body", "contract", "scanProof", "deepScan", "status"]),
+    },
 }
 
-const health = readJson("health.json");
-const radar = readJson("radar-contract.json");
-const backend = readJson("backend-contract.json");
-
-const summary = {
-  capturedAt: new Date().toISOString(),
-  health: {
-    httpOk: health?.ok ?? false,
-    level: health?.body?.health?.level ?? null,
-    scanFreshness: health?.body?.health?.scan?.freshness ?? null,
-    activeSource: health?.body?.health?.dataSource?.activeSource ?? null,
-    databaseStatus: health?.body?.health?.persistence?.databaseStatus ?? null,
-  },
-  radar: {
-    httpOk: radar?.ok ?? false,
-    scanProofStatus: radar?.body?.contract?.scanProof?.status ?? null,
-    radarSignalsStatus: radar?.body?.contract?.radarSignals?.status ?? null,
-    source: radar?.body?.contract?.radarSignals?.source ?? null,
-  },
-  backend: {
-    httpOk: backend?.ok ?? false,
-    fullMarketStatus: backend?.body?.contract?.scanProof?.fullMarket?.status ?? null,
-    deepScanStatus: backend?.body?.contract?.scanProof?.deepScan?.status ?? null,
-  },
-};
-
-fs.writeFileSync(path.join(outDir, "scan-status-summary.json"), JSON.stringify(summary, null, 2));
-NODE
+with open(os.path.join(out_dir, "scan-status-summary.json"), "w", encoding="utf-8") as handle:
+    json.dump(summary, handle, ensure_ascii=False, indent=2)
+    handle.write("\n")
+PY
+else
+  echo '{"error":"python3 unavailable; summary skipped"}' > "${OUT_DIR}/scan-status-summary.json"
+fi
 
 ARCHIVE_PATH="${OUT_ROOT}/production-facts-${STAMP}.tar.gz"
 tar -C "${OUT_ROOT}" -czf "${ARCHIVE_PATH}" "${STAMP}"
