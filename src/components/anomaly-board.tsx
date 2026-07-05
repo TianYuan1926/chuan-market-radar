@@ -16,6 +16,7 @@ import {
   Radio,
 } from 'lucide-react'
 import { TokenAvatar } from './token-avatar'
+import { UiInformationLayerBlock } from './ui-information-layers'
 import { LiveValue } from './live-value'
 import { useLiveQuote, usePrimeLiveQuotes } from '@/lib/live-store'
 import { useLatestSignal } from '@/lib/signal-feed'
@@ -26,6 +27,7 @@ import {
   type PoolStatus,
 } from '@/lib/frontend-market-types'
 import { fmtKnownCap, fmtUsd } from '@/lib/display-format'
+import { buildUiInformationLayers, type UiDecisionState } from '@/lib/ui-schema-guard'
 import { cn } from '@/lib/utils'
 
 const TYPE_META: Record<SignalType, { label: string; cssVar: string }> = {
@@ -56,46 +58,6 @@ const FILTERS: { id: PoolStatus | 'all'; label: string; hint?: string }[] = [
   { id: 'insufficient', label: '数据不足', hint: '数据样本不足，信号可信度有限，仅作观察' },
   { id: 'expired', label: '已失效', hint: '触发窗口已过或结构破坏，信号已失效' },
 ]
-
-// 多空方向
-function direction(card: SignalCard): 'long' | 'short' {
-  if (card.poolStatus === 'short' || card.poolStatus === 'high_risk') return 'short'
-  if (card.poolStatus === 'long') return 'long'
-  return card.token.trend === 'bear' ? 'short' : 'long'
-}
-
-// 证据说明文案：只解释后端卡片字段，不生成交易结论。
-function analysisLogic(card: SignalCard): string[] {
-  const t = card.token
-  const read = card.operatorRead
-  const reviewOnly = card.maturity === 'REVIEW_ONLY'
-  const candidateOnly =
-    card.sourceKind === 'leaderboard_candidate' ||
-    card.maturity === 'LIGHT_SCAN_MARK' ||
-    card.maturity === 'DEEP_SCAN_CANDIDATE'
-
-  if (reviewOnly) {
-    return [
-      `${read.headline}。排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，风险等级 ${card.riskLevel}。`,
-      `为什么不能做：${read.noTradeReason ?? '行情位置不适合直接追。'}`,
-      `下一步：${read.nextAction}`,
-    ]
-  }
-
-  if (candidateOnly) {
-    return [
-      `${read.headline}。排序分 ${card.score}/100，异常强度 ${t.anomalyScore}/100，量能倍数 ×${card.volMult}。`,
-      `当前层级：${read.laneLabel}；是否值得盯：${read.worthWatching ? '值得观察' : '只做背景'}；当前不能交易。`,
-      `下一步：${read.nextAction}`,
-    ]
-  }
-
-  return [
-    `${read.headline}。方向 ${direction(card) === 'long' ? '偏多' : '偏空'}，风险等级 ${card.riskLevel}，结构盈亏比 ${card.odds ? `${card.odds}:1` : '未就绪'}。`,
-    `是否可做：${read.canTrade ? '可进入人工计划复核' : '还不能做'}；位置/风控状态：${POOL_META[card.poolStatus].label}。`,
-    `下一步：${read.nextAction}`,
-  ]
-}
 
 const COLS =
   'grid-cols-[28px_36px_minmax(140px,1.4fr)_repeat(2,minmax(80px,0.9fr))_repeat(3,minmax(72px,0.8fr))_minmax(56px,0.6fr)_minmax(80px,0.8fr)_repeat(2,52px)_28px]'
@@ -296,12 +258,38 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             const color = `var(${meta.cssVar})`
             const isStar = starred[card.id]
             const isOpen = open === card.id
-            const logic = analysisLogic(card)
             const candidateOnly =
               card.sourceKind === 'leaderboard_candidate' ||
               card.maturity === 'LIGHT_SCAN_MARK' ||
               card.maturity === 'DEEP_SCAN_CANDIDATE'
             const planReady = card.maturity === 'TRADE_PLAN_READY' && card.category === 'sniper' && card.odds >= 3
+            const decision: UiDecisionState = planReady
+              ? 'TRADE'
+              : card.poolStatus === 'expired' || card.poolStatus === 'high_risk' || card.poolStatus === 'low_odds'
+                ? 'BLOCKED'
+                : candidateOnly || card.maturity === 'EVIDENCE_SIGNAL'
+                  ? 'WAIT'
+                  : 'OBSERVE'
+            const layers = buildUiInformationLayers({
+              decision,
+              reason: card.operatorRead.headline,
+              evidence: {
+                OFI: 'n/a',
+                OI: 'n/a',
+                Funding: 'n/a',
+                Whale: 'n/a',
+                Volume: card.token.volume24h > 0 ? card.token.volume24h : 'n/a',
+                Price: card.token.price > 0 ? card.token.price : 'n/a',
+              },
+              technical: [
+                { label: '排序分', value: `${card.score}/100` },
+                { label: '结构盈亏比', value: card.odds > 0 ? `${card.odds}:1` : 'n/a' },
+                { label: '异常强度', value: `${card.token.anomalyScore}/100` },
+                { label: '量能倍数', value: `x${card.volMult}` },
+                { label: '风险等级', value: card.riskLevel },
+                { label: '新旧状态', value: card.lifecycle.freshnessLabel },
+              ],
+            })
             return (
               <div
                 key={card.id}
@@ -462,23 +450,16 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       </Link>
                     </div>
 
-                    {/* 后端证据说明 */}
+                    {/* 四层信息结构 */}
                     <div className="lg:border-l lg:border-border lg:pl-4">
                       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                         <Brain className="size-4 text-neon" />
-                        {candidateOnly ? '候选验证说明' : '后端证据说明'}
+                        四层信息结构
                       </div>
-                      <ul className="space-y-1.5">
-                        {logic.map((l, i) => (
-                          <li
-                            key={i}
-                            className="flex gap-1.5 text-[13px] leading-relaxed text-muted-foreground"
-                          >
-                            <span className="mt-1.5 size-1 shrink-0 rounded-full bg-neon" />
-                            {l}
-                          </li>
-                        ))}
-                      </ul>
+                      <UiInformationLayerBlock layers={layers} />
+                      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+                        下一步：{card.operatorRead.nextAction}
+                      </p>
                     </div>
 
                     {/* 计划状态 */}

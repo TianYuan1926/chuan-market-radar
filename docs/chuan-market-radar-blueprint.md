@@ -93,6 +93,32 @@
 
 例外：系统中心、开发诊断、接口返回和测试代码可以保留内部字段名，但必须避免让它们冒充用户可读分析结论。
 
+### 全站四层信息架构硬规则
+
+所有面向用户的核心展示必须统一拆成四层，防止“结论、解释、证据、指标”混在一起：
+
+```text
+L1：决策层 Decision
+L2：解释层 Reason
+L3：证据层 Evidence
+L4：技术层 Technical
+```
+
+执行事实源：
+
+- 规则文档：`INFORMATION_ARCHITECTURE_MAP.md`
+- UI 守卫：`src/lib/ui-schema-guard.ts`
+- UI 组件：`src/components/ui-information-layers.tsx`
+- 回归测试：`src/lib/api/ui-schema-guard.test.ts`
+
+硬规则：
+
+- L1 只能输出 `TRADE / WAIT / BLOCKED / OBSERVE`，不得写解释、指标、方向理由或证据。
+- L2 必须是纯中文、最多 3 行，只解释业务原因，不得出现指标、英文内部枚举或代码字段。
+- L3 固定为 `OFI / OI / Funding / Whale / Volume / Price` 六类结构化证据，只放值，不写中文解释。
+- L4 放 `RSI / EMA / MACD / Z-score / ATR / 模型评分 / 结构盈亏比 / 风险等级` 等技术细节，默认折叠。
+- `UI_SCHEMA_GUARD` 检测到中英文混层、指标进入 L1/L2、L3 缺字段或 L4 未折叠时，必须阻断展示或降级展示，不能让页面看起来比后端更聪明。
+
 ## 2. 不做什么
 
 硬禁止：
@@ -460,6 +486,40 @@ RawSource
 
 服务器不是写代码的地方。紧急服务器热修后，必须立刻同步回本地和 GitHub。
 
+### 自动化部署与生产证据链
+
+自动化部署事实源：
+
+- 流程文档：`DEPLOYMENT_AUTOMATION_MAP.md`
+- GitHub Actions：`.github/workflows/production.yml`
+- 自动部署：`scripts/deploy/auto-deploy.sh`
+- 自动回滚：`scripts/deploy/rollback.sh`
+- 生产验证：`scripts/verify/production-check.sh`
+- 安全检查：`scripts/verify/security-check.sh`
+- 生产证据采集：`scripts/audit/collect-production-facts.sh`
+
+标准自动化链路：
+
+```text
+GitHub main
+-> GitHub Actions 基础门禁
+-> 腾讯云服务器 git pull --ff-only
+-> Docker Compose 重建
+-> 生产 health / API / Postgres / Redis / worker 验证
+-> 失败自动回滚上一版本
+-> 成功生成生产证据包
+-> GitHub Artifact 保存证据
+```
+
+自动化边界：
+
+- 默认不运行 migration。
+- 默认不清数据库。
+- 默认不删除 Postgres / Redis / reports volume。
+- 默认不输出 `.env.production`、API key、数据库连接串、SSH 私钥、cookie、token。
+- GitHub Actions 自动部署需要显式配置 `TENCENT_HOST`、`TENCENT_USER`、`TENCENT_PORT`、`TENCENT_APP_DIR`、`TENCENT_SSH_KEY`、`PRODUCTION_BASE_URL`。
+- 如果 GitHub secrets 缺失，CI 可以完成测试，但部署必须明确失败原因，不能假装已上线。
+
 ### 当前已落地
 
 已落地的能力只表示“有基础”，不表示“实战已经成熟”。
@@ -487,6 +547,8 @@ RawSource
 - 轻扫质量诊断合同：`lightScanQuality.v1` 已展示数据新鲜度、覆盖、候选、滚动窗口、成交量异常分、worker 心跳和交易边界。
 - `/dashboard` 已展示轻扫质量诊断：只解释发现层可靠性，不生成交易计划。
 - 生产 smoke 已校验 `lightScanQuality`：必须有 checks，且 `canCreateTradeSignal=false`。
+- 全站四层信息架构基础已落地：候选成熟度池、异动候选展开区、单币档案顶部摘要已接入 `UI_SCHEMA_GUARD`，雷达总控内部状态已做中文业务映射。
+- 自动化部署基础已落地：GitHub Actions 生产门禁、腾讯云自动部署脚本、生产验证脚本、自动回滚脚本、安全检查脚本和生产证据采集脚本已加入代码库。
 - 专业回测审计 v2 已接入 10x10 审计轮次：10 类目标山寨、每币最多 10 个历史节点、候选大池竞争、`latest-progress.json` 实时进度和 `/review` 前端展示。正式审计默认 10 个目标币、80 个候选币、Top10，避免“10 个币选 Top10”的自欺式捕获率。
 - 合法外部情报基础：DEX Screener latest boosts 与 CoinGecko trending collector，可生成 context-only ExternalEvent 和 EvidenceCandidate，不直接生成交易信号。
 - 外部情报 token identity 合同：DEX 事件可带 chain/contract，CoinGecko trending 可带 coingeckoId/logo/name/symbol，映射可信度必须显式展示；仍只能作为 context-only。

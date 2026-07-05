@@ -14,6 +14,8 @@ import {
 import type { TokenDossier as TokenDossierData } from '@/lib/radar-contract'
 import type { Resource } from '@/lib/data-status'
 import { FreshnessTag, StatusBadge } from '@/components/data-state'
+import { UiInformationLayerBlock } from '@/components/ui-information-layers'
+import { buildUiInformationLayers, type UiDecisionState } from '@/lib/ui-schema-guard'
 import { cn } from '@/lib/utils'
 
 export function TokenDossier({
@@ -34,6 +36,34 @@ export function TokenDossier({
         ? 'text-down'
         : 'text-muted-foreground'
 
+  const decision: UiDecisionState = d.strategyReadiness.canTradeNow
+    ? 'TRADE'
+    : d.strategyReadiness.status === 'blocked' || d.strategyReadiness.status === 'review_only'
+      ? 'BLOCKED'
+      : d.strategyReadiness.status === 'watch'
+        ? 'WAIT'
+        : 'OBSERVE'
+  const layeredInfo = buildUiInformationLayers({
+    decision,
+    reason: d.strategyReadiness.summary,
+    evidence: {
+      OFI: d.discovery.flowImbalance ?? 'n/a',
+      OI: 'n/a',
+      Funding: 'n/a',
+      Whale: d.discovery.largeTakerTradeUsd ?? 'n/a',
+      Volume: d.discovery.volumeWindowUsd ?? d.discovery.volume24hUsd ?? 'n/a',
+      Price: d.discovery.changePercent24h ?? 'n/a',
+    },
+    technical: [
+      { label: '成熟度', value: d.maturity },
+      { label: '方向', value: d.direction },
+      { label: '结构盈亏比', value: d.tradePlan ? `${d.tradePlan.rr.toFixed(1)}:1` : 'n/a' },
+      { label: '风控门禁', value: d.riskGate.allowTradePlan ? '通过' : '拦截' },
+      { label: '证据数', value: d.evidence.length },
+      { label: '反证数', value: d.counter.length },
+    ],
+  })
+
   return (
     <section className="sheet mt-5">
       {/* 抬头 */}
@@ -48,6 +78,14 @@ export function TokenDossier({
           <FreshnessTag ageSec={res.ageSec} source={res.source} />
         </span>
       </header>
+
+      <div className="border-b border-border px-6 py-5">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <ShieldCheck className="size-4 text-neon" />
+          四层决策摘要
+        </h3>
+        <UiInformationLayerBlock layers={layeredInfo} />
+      </div>
 
       {/* 多周期结构 */}
       <div className="border-b border-border px-6 py-5">

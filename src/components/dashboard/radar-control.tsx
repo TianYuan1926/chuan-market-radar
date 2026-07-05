@@ -110,6 +110,34 @@ const QUALITY_CHECK_LABEL: Record<string, string> = {
   watch: '观察',
   blocked: '阻塞',
 }
+const DISCOVERY_PHASE_LABEL: Record<string, string> = {
+  breakout_watch: '突破观察',
+  early_setup: '启动前',
+  late_move: '已晚到',
+  neutral_watch: '中性观察',
+}
+const OVEREXTENSION_RISK_LABEL: Record<string, string> = {
+  high: '高',
+  low: '低',
+  medium: '中',
+}
+const PRESSURE_SIDE_LABEL: Record<string, string> = {
+  buy: '买压',
+  neutral: '均衡',
+  sell: '卖压',
+}
+const ALLOWED_USE_LABEL: Record<string, string> = {
+  anomaly_discovery: '异常发现',
+  candidate_refresh: '候选刷新',
+  validation: '验证',
+  context: '背景',
+  review: '复盘',
+}
+
+function labelFrom(map: Record<string, string>, value: string | null | undefined, fallback = '—') {
+  if (!value) return fallback
+  return map[value] ?? value
+}
 
 const EMPTY_SOURCE = {
   source: 'frontend-contract',
@@ -498,7 +526,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                     {quality.status === 'healthy' ? '机会发现可用' : quality.status === 'watch' ? '机会等待确认' : '机会层阻塞'}
                   </span>
                   <span className="ml-auto font-mono text-xs text-muted-foreground">
-                    visible {quality.counts.totalVisible}
+                    展示 {quality.counts.totalVisible}
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
@@ -522,9 +550,9 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                         </span>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1 font-mono text-[10px] text-muted-foreground">
-                        <span>phase {candidate.phase ?? '—'}</span>
-                        <span>early {candidate.earlyOpportunityScore ?? '—'}</span>
-                        <span>risk {candidate.overextensionRisk ?? '—'}</span>
+                        <span>阶段 {labelFrom(DISCOVERY_PHASE_LABEL, candidate.phase)}</span>
+                        <span>提前分 {candidate.earlyOpportunityScore ?? '—'}</span>
+                        <span>延展风险 {labelFrom(OVEREXTENSION_RISK_LABEL, candidate.overextensionRisk)}</span>
                       </div>
                       <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
                         {candidate.nextAction}
@@ -556,8 +584,8 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                   <div className="mt-3 grid grid-cols-4 gap-2 text-center">
                     <MetricPill label="资产" value={deep.plannedAssets} />
                     <MetricPill label="请求" value={deep.plannedRequests} />
-                    <MetricPill label="clean" value={deep.cleanRows} />
-                    <MetricPill label="rate" value={deep.cleanRate} suffix="%" />
+                    <MetricPill label="有效行" value={deep.cleanRows} />
+                    <MetricPill label="有效率" value={deep.cleanRate} suffix="%" />
                   </div>
                   {deep.requestFailures.length > 0 && (
                     <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-down">
@@ -642,7 +670,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                         {quality.status === 'healthy' ? '轻扫健康' : quality.status === 'watch' ? '轻扫观察' : '轻扫阻塞'}
                       </span>
                       <span className="ml-auto font-mono text-[11px] text-muted-foreground">
-                        age {quality.ageSec ?? '—'}s / stale {quality.staleAfterSec}s
+                        延迟 {quality.ageSec ?? '—'}s / 过期阈值 {quality.staleAfterSec}s
                       </span>
                     </div>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -702,19 +730,19 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                             <span className="ml-auto font-mono text-[11px] text-foreground">{candidate.score}</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
-                            <span>{candidate.opportunityPhase ?? candidate.state}</span>
+                            <span>{labelFrom(DISCOVERY_PHASE_LABEL, candidate.opportunityPhase) || candidate.state}</span>
                             <span>{candidate.changePercent}%</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
-                            <span>{candidate.pressureSide ?? 'proxy—'}</span>
-                            <span>early {candidate.earlyOpportunityScore ?? '—'}</span>
+                            <span>{labelFrom(PRESSURE_SIDE_LABEL, candidate.pressureSide, '代理未确认')}</span>
+                            <span>提前分 {candidate.earlyOpportunityScore ?? '—'}</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
-                            <span>book {candidate.bookPressureSide ?? '—'}</span>
-                            <span>big {candidate.largeTakerTradeUsd ? `$${Math.round(candidate.largeTakerTradeUsd / 1000)}k` : '—'}</span>
+                            <span>盘口 {labelFrom(PRESSURE_SIDE_LABEL, candidate.bookPressureSide)}</span>
+                            <span>大单 {candidate.largeTakerTradeUsd ? `$${Math.round(candidate.largeTakerTradeUsd / 1000)}k` : '—'}</span>
                           </div>
                           {candidate.overextensionRisk === 'high' ? (
-                            <div className="mt-1 font-mono text-[10px] text-warning">late / review only</div>
+                            <div className="mt-1 text-[10px] text-warning">已晚到，仅复盘</div>
                           ) : null}
                           <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">
                             {candidate.reasons.slice(0, 2).join(' / ')}
@@ -802,7 +830,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                           {FEED_LABEL[lane.status] ?? lane.status}
                         </span>
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {lane.allowedUse.replaceAll('_', ' ')}
+                          {labelFrom(ALLOWED_USE_LABEL, lane.allowedUse)}
                         </span>
                       </div>
                       <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">

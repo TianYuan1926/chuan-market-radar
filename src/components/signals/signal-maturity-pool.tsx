@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { TokenAvatar } from '@/components/token-avatar'
 import { StatusBadge, ResourceBoundary } from '@/components/data-state'
+import { UiInformationLayerBlock } from '@/components/ui-information-layers'
 import {
   MATURITY_META,
   type SignalMaturity,
   type RadarSignal,
 } from '@/lib/radar-contract'
+import { buildSignalUiLayers } from '@/lib/ui-schema-guard'
 import type { Resource } from '@/lib/data-status'
 import { resource } from '@/lib/data-status'
 import { Search, ArrowUpDown, ChevronRight, ShieldX, CheckCircle2, Layers } from 'lucide-react'
@@ -236,6 +238,7 @@ function FilterChip({
 function SignalRow({ signal: s }: { signal: RadarSignal }) {
   const meta = MATURITY_META[s.maturity]
   const tradable = s.maturity === 'TRADE_PLAN_READY'
+  const layers = buildSignalUiLayers(s)
   return (
     <Link
       href={`/token/${s.symbol.toLowerCase()}`}
@@ -334,14 +337,9 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
         </div>
       ) : null}
 
-      {/* 为何入选 / 为何不可交易 */}
-      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-        <span className="text-up">判断：</span>
-        {s.operatorRead.headline}。{s.whySelected}
-      </p>
+      <UiInformationLayerBlock layers={layers} className="mt-2" />
       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-        <span className="font-semibold">下一步：</span>
-        {s.operatorRead.nextAction}
+        下一步：{s.operatorRead.nextAction}
       </p>
       {s.whyBlocked ? (
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-down/90">
