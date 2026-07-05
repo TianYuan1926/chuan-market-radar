@@ -9,6 +9,8 @@ STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-true}"
 cd "${ROOT_DIR}"
 
 compose_cmd=()
+node_runner=()
+api_base_url="${BASE_URL%/}"
 if command -v docker >/dev/null 2>&1; then
   if docker ps >/dev/null 2>&1; then
     compose_cmd=(docker compose --env-file "${ENV_FILE}")
@@ -17,19 +19,26 @@ if command -v docker >/dev/null 2>&1; then
   fi
 fi
 
+if command -v node >/dev/null 2>&1; then
+  node_runner=(node)
+elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
+  node_runner=("${compose_cmd[@]}" exec -T web node)
+  if [[ "${api_base_url}" == "http://127.0.0.1" || "${api_base_url}" == "http://localhost" ]]; then
+    api_base_url="http://127.0.0.1:3000"
+  fi
+fi
+
 run_node() {
-  if command -v node >/dev/null 2>&1; then
-    node "$@"
-  elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
-    "${compose_cmd[@]}" exec -T web node "$@"
+  if [[ ${#node_runner[@]} -gt 0 ]]; then
+    "${node_runner[@]}" "$@"
   else
     echo "ERROR: node is unavailable on host and web container is unavailable." >&2
     return 127
   fi
 }
 
-echo "== Production API contract check: ${BASE_URL} =="
-run_node - "${BASE_URL}" "${STRICT_SCAN_FRESHNESS}" <<'NODE'
+echo "== Production API contract check: ${api_base_url} =="
+run_node - "${api_base_url}" "${STRICT_SCAN_FRESHNESS}" <<'NODE'
 const baseUrl = process.argv[2].replace(/\/$/, "");
 const strictScanFreshness = ["1", "true", "yes", "on"].includes(String(process.argv[3]).toLowerCase());
 

@@ -12,6 +12,8 @@ cd "${ROOT_DIR}"
 mkdir -p "${OUT_DIR}"
 
 compose_cmd=()
+node_runner=()
+capture_base_url="${BASE_URL%/}"
 if command -v docker >/dev/null 2>&1; then
   if docker ps >/dev/null 2>&1; then
     compose_cmd=(docker compose --env-file "${ENV_FILE}")
@@ -20,11 +22,18 @@ if command -v docker >/dev/null 2>&1; then
   fi
 fi
 
+if command -v node >/dev/null 2>&1; then
+  node_runner=(node)
+elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
+  node_runner=("${compose_cmd[@]}" exec -T web node)
+  if [[ "${capture_base_url}" == "http://127.0.0.1" || "${capture_base_url}" == "http://localhost" ]]; then
+    capture_base_url="http://127.0.0.1:3000"
+  fi
+fi
+
 run_node() {
-  if command -v node >/dev/null 2>&1; then
-    node "$@"
-  elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
-    "${compose_cmd[@]}" exec -T web node "$@"
+  if [[ ${#node_runner[@]} -gt 0 ]]; then
+    "${node_runner[@]}" "$@"
   else
     echo "ERROR: node is unavailable on host and web container is unavailable." >&2
     return 127
@@ -70,17 +79,18 @@ NODE
   echo "gitHead=$(git rev-parse HEAD 2>/dev/null || true)"
   echo "gitBranch=$(git branch --show-current 2>/dev/null || true)"
   echo "baseUrl=${BASE_URL}"
+  echo "captureBaseUrl=${capture_base_url}"
 } > "${OUT_DIR}/deployment-summary.txt"
 
 git status --short > "${OUT_DIR}/git-status.txt" || true
 git log -5 --oneline > "${OUT_DIR}/git-log.txt" || true
 
 echo "== API snapshots =="
-write_json "health.json" "${BASE_URL%/}/api/health"
-write_json "radar-contract.json" "${BASE_URL%/}/api/frontend/radar-contract"
-write_json "backend-contract.json" "${BASE_URL%/}/api/radar/backend-contract"
-write_json "business-capability.json" "${BASE_URL%/}/api/radar/business-capability"
-write_json "review-contract.json" "${BASE_URL%/}/api/frontend/review-contract" || true
+write_json "health.json" "${capture_base_url}/api/health"
+write_json "radar-contract.json" "${capture_base_url}/api/frontend/radar-contract"
+write_json "backend-contract.json" "${capture_base_url}/api/radar/backend-contract"
+write_json "business-capability.json" "${capture_base_url}/api/radar/business-capability"
+write_json "review-contract.json" "${capture_base_url}/api/frontend/review-contract" || true
 
 if [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
   echo "== Compose snapshots =="
