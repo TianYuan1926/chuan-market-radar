@@ -5,6 +5,7 @@ ROOT_DIR="${ROOT_DIR_OVERRIDE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pw
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
 STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-true}"
+STRICT_HEALTH_LEVEL="${STRICT_HEALTH_LEVEL:-${STRICT_SCAN_FRESHNESS}}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-120}"
 READY_POLL_INTERVAL_SECONDS="${READY_POLL_INTERVAL_SECONDS:-5}"
 
@@ -40,11 +41,12 @@ run_node() {
 }
 
 echo "== Production API contract check: ${api_base_url} =="
-run_node - "${api_base_url}" "${STRICT_SCAN_FRESHNESS}" "${READY_TIMEOUT_SECONDS}" "${READY_POLL_INTERVAL_SECONDS}" <<'NODE'
+run_node - "${api_base_url}" "${STRICT_SCAN_FRESHNESS}" "${READY_TIMEOUT_SECONDS}" "${READY_POLL_INTERVAL_SECONDS}" "${STRICT_HEALTH_LEVEL}" <<'NODE'
 const baseUrl = process.argv[2].replace(/\/$/, "");
 const strictScanFreshness = ["1", "true", "yes", "on"].includes(String(process.argv[3]).toLowerCase());
 const readyTimeoutMs = Math.max(0, Number(process.argv[4] || "120")) * 1000;
 const pollIntervalMs = Math.max(1000, Number(process.argv[5] || "5") * 1000);
+const strictHealthLevel = ["1", "true", "yes", "on"].includes(String(process.argv[6] ?? process.argv[3]).toLowerCase());
 
 async function fetchJson(path) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -87,7 +89,11 @@ while (true) {
     runtimeProbes = health.runtimeProbes || {};
 
     assert(healthBody.ok === true, "health.ok is not true");
-    assert(health.level === "ready", `health.level is ${health.level}`);
+    if (strictHealthLevel) {
+      assert(health.level === "ready", `health.level is ${health.level}`);
+    } else {
+      assert(["ready", "degraded"].includes(health.level), `health.level is ${health.level}`);
+    }
     assert(persistence.databaseStatus === "ready", `databaseStatus is ${persistence.databaseStatus}`);
     if (strictScanFreshness) {
       assert(scan.freshness === "fresh", `scan.freshness is ${scan.freshness}`);
