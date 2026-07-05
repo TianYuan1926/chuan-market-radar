@@ -193,6 +193,11 @@ test("buildV3TradePlan converts a low-RR long setup into a wait-entry plan when 
   assert.equal(plan.plannedEntryPrice, 98.25);
   assert.equal(plan.rewardRisk, 3);
   assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
+  assert.match(plan.plannedEntryZone ?? "", /98\.250000|结构止损 96\.000000/);
+  assert.match(plan.triggerCondition ?? "", /触发条件：回踩关键支撑后不破/);
+  assert.match(plan.secondaryConfirmation ?? "", /二次确认/);
+  assert.match(plan.waitReason ?? "", /不追多|3:1/);
+  assert.match(plan.whyNotNow ?? "", /现在不能直接做/);
   assert.match(plan.summary, /不追多/);
   assert.match(plan.summary, /98\.25/);
   assert.match(plan.entryZone, /等待入场 98\.250000/);
@@ -234,6 +239,11 @@ test("buildV3TradePlan converts a low-RR short setup into a wait-entry plan when
   assert.equal(plan.plannedEntryPrice, 102.5);
   assert.equal(plan.rewardRisk, 3);
   assert.ok(plan.blockedBy.includes("reward_risk_below_minimum"));
+  assert.match(plan.plannedEntryZone ?? "", /102\.50|结构止损 104\.00/);
+  assert.match(plan.triggerCondition ?? "", /触发条件：反抽关键压力后不过/);
+  assert.match(plan.secondaryConfirmation ?? "", /二次确认/);
+  assert.match(plan.waitReason ?? "", /不追空|3:1/);
+  assert.match(plan.whyNotNow ?? "", /现在不能直接做/);
   assert.match(plan.summary, /不追空/);
   assert.match(plan.summary, /102\.50/);
   assert.match(plan.entryZone, /等待入场 102\.50/);
@@ -365,6 +375,10 @@ test("buildV3TradePlan converts an RR-qualified damaged trend into a structure-r
   assert.equal(plan.isPlanEligible, false);
   assert.equal(plan.rewardRisk, 4.38);
   assert.ok(plan.blockedBy.includes("bull_structure_broken"));
+  assert.ok(plan.blockedBy.includes("constructive_repair_wait"));
+  assert.match(plan.waitReason ?? "", /结构处于修复等待/);
+  assert.match(plan.triggerCondition ?? "", /触发条件：回踩关键支撑后不破/);
+  assert.match(plan.secondaryConfirmation ?? "", /后续 1h/);
   assert.match(plan.summary, /结构受损|等待/);
   assert.match(plan.entryZone, /重新站回|结构修复|人工复核/);
   assert.equal(plan.hasAutoExecution, false);
@@ -413,6 +427,10 @@ test("buildV3TradePlan converts structure repair pending into a wait plan, not a
   assert.equal(plan.status, "WAIT_RETEST");
   assert.equal(plan.isPlanEligible, false);
   assert.ok(plan.blockedBy.includes("structure_repair_pending"));
+  assert.ok(plan.blockedBy.includes("constructive_repair_wait"));
+  assert.match(plan.waitReason ?? "", /结构处于修复等待/);
+  assert.match(plan.triggerCondition ?? "", /触发条件：反抽关键压力后不过/);
+  assert.match(plan.secondaryConfirmation ?? "", /后续 1h/);
   assert.match(plan.summary, /结构修复等待|人工复核/);
   assert.equal(plan.hasAutoExecution, false);
 });
@@ -514,6 +532,9 @@ test("buildV3TradePlan keeps RR-qualified range-idle setups as conditional wait 
   assert.equal(plan.plannedEntryPrice, null);
   assert.equal(plan.rewardRisk, 3.18);
   assert.ok(plan.blockedBy.includes("structure_confirmation_pending"));
+  assert.match(plan.plannedEntryZone ?? "", /无固定等待价|112\.00/);
+  assert.match(plan.waitReason ?? "", /结构还没完成/);
+  assert.match(plan.whyNotNow ?? "", /现在不能直接做/);
   assert.match(plan.summary, /结构还未确认|等待/);
   assert.match(plan.entryZone, /等待靠近压力后的承压确认|跌破后反抽不过/);
   assert.match(plan.entryZone, /触发条件：反抽关键压力后不过/);

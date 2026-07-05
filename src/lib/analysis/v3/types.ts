@@ -327,14 +327,19 @@ export type StrategyV3TradePlan = {
   invalidation: string;
   isPlanEligible: boolean;
   manualReviewRequired: true;
+  plannedEntryZone?: string | null;
   plannedEntryPrice?: number | null;
   positionSizing: string;
   rewardRisk: number | null;
+  secondaryConfirmation?: string | null;
   status: V3TradePlanStatus;
   structuralStop: number | null;
   summary: string;
   takeProfitPlan: string;
   targets: number[];
+  triggerCondition?: string | null;
+  waitReason?: string | null;
+  whyNotNow?: string | null;
 };
 
 export type V3PatternBias =

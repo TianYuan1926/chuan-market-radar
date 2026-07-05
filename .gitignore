@@ -44,6 +44,40 @@ skills-lock.json
 # local/production backups
 /backups/
 
+# Audit / evidence packages
+audit-round-*/
+audit-full-handoff/
+audit-handoff/
+*-handoff.zip
+audit-*.zip
+audit_round_*.md
+audit-round-*.zip
+*.zip
+project-context-for-chatgpt/
+
+# Local evidence and logs
+*.log
+*.exitcode
+*.raw.log
+raw/
+api-samples/
+test-results/
+docker/
+redis/
+db/
+logs/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+.next/
+dist/
+build/
+node_modules/
+
 # system
 .DS_Store
 Thumbs.db

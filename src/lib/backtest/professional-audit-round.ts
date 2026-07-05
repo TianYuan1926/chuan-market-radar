@@ -220,6 +220,7 @@ const planBlockerLabels: Record<string, string> = {
   missing_strategy_v3: "缺少 v3 策略上下文",
   missing_trade_plan: "缺少交易计划草案",
   direction_pending_quiet_setup: "方向待确认的安静早期机会",
+  constructive_repair_wait: "建设性结构修复等待",
   neutral_direction: "方向不明确",
   no_nearest_target: "缺少最近目标",
   no_recent_touch: "近期没有触碰关键位",
@@ -2571,6 +2572,10 @@ function postTriggerRewardRisk({
   return stopDistance > 0 && targetDistance > 0 ? round(targetDistance / stopDistance, 2) : null;
 }
 
+function priceDistancePercent(distance: number, basePrice: number) {
+  return basePrice > 0 ? round(Math.abs(distance) / basePrice * 100, 2) : 0;
+}
+
 function waitTriggerQualityScore({
   direction,
   candle,
@@ -2601,6 +2606,9 @@ function waitPlanDiagnosticFlags({
   maxFavorableAfterTriggerPct,
   postTriggerRr,
   status,
+  stopDistancePercent = null,
+  structureInvalidatedBeforeTrigger = false,
+  targetDistancePercent = null,
   triggerQualityScore,
 }: {
   followThroughMissing?: boolean;
@@ -2608,6 +2616,9 @@ function waitPlanDiagnosticFlags({
   maxFavorableAfterTriggerPct: number | null;
   postTriggerRr: number | null;
   status: ProfessionalAuditWaitPlanEvaluation["status"];
+  stopDistancePercent?: number | null;
+  structureInvalidatedBeforeTrigger?: boolean;
+  targetDistancePercent?: number | null;
   triggerQualityScore: number | null;
 }) {
   const flags: string[] = [];
@@ -2617,7 +2628,12 @@ function waitPlanDiagnosticFlags({
   }
 
   if (status === "not_triggered" && !followThroughMissing) {
+    flags.push("trigger_not_reached");
     flags.push("no_valid_reaction");
+  }
+
+  if (structureInvalidatedBeforeTrigger) {
+    flags.push("structure_invalidated_before_trigger");
   }
 
   if (followThroughMissing) {
@@ -2634,6 +2650,20 @@ function waitPlanDiagnosticFlags({
 
   if (postTriggerRr !== null && postTriggerRr < 3) {
     flags.push("post_trigger_rr_below_minimum");
+  }
+
+  if (stopDistancePercent !== null && stopDistancePercent < 0.35) {
+    flags.push("stop_too_close_to_entry");
+  }
+
+  if (
+    targetDistancePercent !== null &&
+    (
+      targetDistancePercent > 35 ||
+      (postTriggerRr !== null && postTriggerRr > 8 && status !== "triggered_tp_first")
+    )
+  ) {
+    flags.push("target_too_far_or_unrealistic");
   }
 
   if (triggerQualityScore !== null && triggerQualityScore < 72) {
@@ -2701,6 +2731,7 @@ function evaluateWaitPlan({
   }
 
   const stopDistance = Math.abs(entry - structuralStop);
+  const stopDistancePercent = priceDistancePercent(stopDistance, entry);
   const triggerPrice = waitPlanTriggerPrice({
     direction,
     entry,
@@ -2722,27 +2753,37 @@ function evaluateWaitPlan({
   );
 
   if (initialTriggerIndex < 0) {
+    const invalidationBeforeTrigger = future.some((candle) =>
+      direction === "long" ? candle.low <= structuralStop : candle.high >= structuralStop
+    );
     const postTriggerRr = postTriggerRewardRisk({
       direction,
       structuralStop,
       target,
       triggerPrice,
     });
+    const targetDistancePercent = priceDistancePercent(target - triggerPrice, triggerPrice);
+
     return {
       barsToTrigger: null,
       diagnosticFlags: waitPlanDiagnosticFlags({
         maxAdverseAfterTriggerPct: null,
         maxFavorableAfterTriggerPct: null,
         postTriggerRr,
+        stopDistancePercent,
         status: "not_triggered",
+        structureInvalidatedBeforeTrigger: invalidationBeforeTrigger,
+        targetDistancePercent,
         triggerQualityScore: null,
       }),
-      label: "等待未触发",
+      label: invalidationBeforeTrigger ? "结构先失效，等待未触发" : "等待未触发",
       maxAdverseAfterTriggerPct: null,
       maxFavorableAfterTriggerPct: null,
       outcome: "no_trade",
       postTriggerRewardRisk: postTriggerRr,
-      reason: "验证窗口内没有靠近结构位、未刺破结构止损且出现方向反应的回踩/反抽，等待计划避免了追单，但不能证明策略已命中。",
+      reason: invalidationBeforeTrigger
+        ? "验证窗口内在有效触发前先刺破/收回结构止损，说明该等待条件应视为结构失效，而不是未命中交易。"
+        : "验证窗口内没有靠近结构位、未刺破结构止损且出现方向反应的回踩/反抽，等待计划避免了追单，但不能证明策略已命中。",
       status: "not_triggered",
       stopHit: false,
       targetHit: false,
@@ -2777,6 +2818,7 @@ function evaluateWaitPlan({
       target,
       triggerPrice,
     });
+    const targetDistancePercent = priceDistancePercent(target - triggerPrice, triggerPrice);
 
     return {
       barsToTrigger: null,
@@ -2785,7 +2827,9 @@ function evaluateWaitPlan({
         maxAdverseAfterTriggerPct: null,
         maxFavorableAfterTriggerPct: null,
         postTriggerRr,
+        stopDistancePercent,
         status: "not_triggered",
+        targetDistancePercent,
         triggerQualityScore: initialQuality,
       }),
       label: "等待未完成二次确认",
@@ -2817,6 +2861,7 @@ function evaluateWaitPlan({
     target,
     triggerPrice,
   });
+  const targetDistancePercent = priceDistancePercent(target - triggerPrice, triggerPrice);
   let firstEvent: "sl" | "timeout" | "tp" = "timeout";
   let maxFavorableAfterTriggerPct = 0;
   let maxAdverseAfterTriggerPct = 0;
@@ -2858,7 +2903,9 @@ function evaluateWaitPlan({
         maxAdverseAfterTriggerPct,
         maxFavorableAfterTriggerPct,
         postTriggerRr,
+        stopDistancePercent,
         status: "triggered_tp_first",
+        targetDistancePercent,
         triggerQualityScore: triggerQuality,
       }),
       label: "等待触发后先到目标",
@@ -2883,7 +2930,9 @@ function evaluateWaitPlan({
         maxAdverseAfterTriggerPct,
         maxFavorableAfterTriggerPct,
         postTriggerRr,
+        stopDistancePercent,
         status: "triggered_sl_first",
+        targetDistancePercent,
         triggerQualityScore: triggerQuality,
       }),
       label: "等待触发后先到止损",
@@ -2907,7 +2956,9 @@ function evaluateWaitPlan({
       maxAdverseAfterTriggerPct,
       maxFavorableAfterTriggerPct,
       postTriggerRr,
+      stopDistancePercent,
       status: "triggered_timeout",
+      targetDistancePercent,
       triggerQualityScore: triggerQuality,
     }),
     label: "等待触发后超时",
@@ -3590,8 +3641,12 @@ function waitPlanDiagnosticLabel(code: string) {
     no_follow_through_after_trigger: "触发后没有顺向延续",
     no_valid_reaction: "没有有效回踩/反抽反应",
     post_trigger_rr_below_minimum: "触发后结构盈亏比低于 3:1",
+    stop_too_close_to_entry: "触发价距离结构止损过近",
     stop_first_after_trigger: "触发后先打结构止损",
+    structure_invalidated_before_trigger: "有效触发前结构先失效",
+    target_too_far_or_unrealistic: "第一目标过远或不现实",
     trigger_followthrough_missing: "初步触发后缺少二次确认",
+    trigger_not_reached: "没有到达有效触发区",
     trigger_reaction_not_strong_enough: "触发 K 线反应强度不足",
     triggered_but_no_resolution: "触发后目标/止损都未验证",
   };

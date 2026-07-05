@@ -1696,7 +1696,14 @@ test("wait plan metrics only audit actionable non-late non-risk-review wait plan
     volumeRatio: 1.2,
     waitPlanEvaluation: {
       barsToTrigger: 4,
-      diagnosticFlags: ["stop_first_after_trigger", "adverse_pressure_dominates_after_trigger"],
+      diagnosticFlags: [
+        "stop_first_after_trigger",
+        "adverse_pressure_dominates_after_trigger",
+        "trigger_not_reached",
+        "structure_invalidated_before_trigger",
+        "stop_too_close_to_entry",
+        "target_too_far_or_unrealistic",
+      ],
       label: "等待触发后先到止损",
       maxAdverseAfterTriggerPct: 1.1,
       maxFavorableAfterTriggerPct: 0.5,
@@ -1747,6 +1754,10 @@ test("wait plan metrics only audit actionable non-late non-risk-review wait plan
   assert.equal(metrics.avgTriggerQualityScore, 78);
   assert.equal(metrics.diagnosticBreakdown[0]?.code, "adverse_pressure_dominates_after_trigger");
   assert.equal(metrics.diagnosticBreakdown.find((item) => item.code === "stop_first_after_trigger")?.label, "触发后先打结构止损");
+  assert.equal(metrics.diagnosticBreakdown.find((item) => item.code === "trigger_not_reached")?.label, "没有到达有效触发区");
+  assert.equal(metrics.diagnosticBreakdown.find((item) => item.code === "structure_invalidated_before_trigger")?.label, "有效触发前结构先失效");
+  assert.equal(metrics.diagnosticBreakdown.find((item) => item.code === "stop_too_close_to_entry")?.label, "触发价距离结构止损过近");
+  assert.equal(metrics.diagnosticBreakdown.find((item) => item.code === "target_too_far_or_unrealistic")?.label, "第一目标过远或不现实");
 });
 
 test("opportunityLaneScore keeps pullback retest ranking from being compressed by early setup noise caps", () => {

@@ -57,6 +57,117 @@ function waitTriggerText(direction: V3LocationDirection, status: V3TradePlanStat
   return "触发条件：方向未明确前只观察，不能生成多空计划。";
 }
 
+function secondaryConfirmationText(direction: V3LocationDirection, status: V3TradePlanStatus) {
+  if (status !== "WAIT_PULLBACK" && status !== "WAIT_RETEST") {
+    return "二次确认：当前不是等待型计划，执行前仍需人工复核触发、失效和反证。";
+  }
+
+  if (direction === "long") {
+    return "二次确认：初步触发后，后续 1h 内至少再出现一根 15m 收盘维持在触发区上方、低点不再刷新，并且不能先打结构止损。";
+  }
+
+  if (direction === "short") {
+    return "二次确认：初步触发后，后续 1h 内至少再出现一根 15m 收盘维持在触发区下方、高点不再刷新，并且不能先打结构止损。";
+  }
+
+  return "二次确认：方向未明确前不做多空复核。";
+}
+
+function waitReasonText({
+  blockedBy,
+  direction,
+  isPlanEligible,
+  status,
+}: {
+  blockedBy: string[];
+  direction: V3LocationDirection;
+  isPlanEligible: boolean;
+  status: V3TradePlanStatus;
+}) {
+  if (status !== "WAIT_PULLBACK" && status !== "WAIT_RETEST") {
+    return isPlanEligible ? null : "当前不是等待型计划，阻断原因以 blockedBy 为准。";
+  }
+
+  const unique = [...new Set(blockedBy)];
+  const reasonParts: string[] = [];
+
+  if (unique.includes("reward_risk_below_minimum") || unique.includes("stop_distance_too_wide") || unique.includes("chase_risk")) {
+    reasonParts.push(direction === "short"
+      ? "当前位置不追空，必须等反抽到更靠近结构止损的位置，让 RR 重新达到 3:1。"
+      : "当前位置不追多，必须等回踩到更靠近结构止损的位置，让 RR 重新达到 3:1。");
+  }
+
+  if (unique.includes("structure_confirmation_pending")) {
+    reasonParts.push(direction === "short"
+      ? "结构还没完成跌破/反抽确认，不能把区间内部波动当空头计划。"
+      : "结构还没完成突破/回踩确认，不能把区间内部波动当多头计划。");
+  }
+
+  if (unique.includes("structure_repair_pending") || unique.includes("bull_structure_broken") || unique.includes("bear_structure_broken")) {
+    reasonParts.push("结构处于修复等待，只能等待重新站回/跌回关键位后的二次确认。");
+  }
+
+  if (unique.includes("reaction_not_confirmed") || unique.includes("no_recent_touch") || unique.includes("no_relevant_level")) {
+    reasonParts.push(direction === "short"
+      ? "反抽承压尚未确认，必须先看到关键位附近的有效反应。"
+      : "回踩承接尚未确认，必须先看到关键位附近的有效反应。");
+  }
+
+  return reasonParts.length > 0
+    ? reasonParts.join(" ")
+    : "等待型计划只说明下一步验证条件，不等于交易计划就绪。";
+}
+
+function plannedEntryZoneText({
+  currentPrice,
+  direction,
+  structuralStop,
+  waitEntryPrice,
+}: {
+  currentPrice: number;
+  direction: V3LocationDirection;
+  structuralStop: number | null;
+  waitEntryPrice: number | null;
+}) {
+  if (direction === "neutral") {
+    return null;
+  }
+
+  if (waitEntryPrice !== null) {
+    return direction === "short"
+      ? `计划等待反抽到 ${priceLabel(waitEntryPrice)} 附近；必须仍低于结构止损 ${priceLabel(structuralStop)}，且不能重新收回关键位。`
+      : `计划等待回踩到 ${priceLabel(waitEntryPrice)} 附近；必须仍高于结构止损 ${priceLabel(structuralStop)}，且不能跌破关键位。`;
+  }
+
+  if (structuralStop !== null) {
+    return direction === "short"
+      ? `无固定等待价；只在当前价 ${priceLabel(currentPrice)} 附近出现跌破后反抽不过，且结构止损 ${priceLabel(structuralStop)} 未被收回时复核。`
+      : `无固定等待价；只在当前价 ${priceLabel(currentPrice)} 附近出现突破后回踩不破，且结构止损 ${priceLabel(structuralStop)} 未被跌破时复核。`;
+  }
+
+  return "等待区缺少结构止损，不能作为可行动 WAIT。";
+}
+
+function whyNotNowText({
+  blockedBy,
+  isPlanEligible,
+  status,
+}: {
+  blockedBy: string[];
+  isPlanEligible: boolean;
+  status: V3TradePlanStatus;
+}) {
+  if (isPlanEligible) {
+    return null;
+  }
+
+  if (status === "WAIT_PULLBACK" || status === "WAIT_RETEST") {
+    return `现在不能直接做：${waitReviewText(blockedBy, "neutral") || "还缺触发、二次确认或位置质量；WAIT 只允许等待，不允许执行。"}`;
+  }
+
+  return `现在不能直接做：${[...new Set(blockedBy)].join(" / ") || "计划未满足门控"}`;
+}
+
 function waitReviewText(blockedBy: string[], direction: V3LocationDirection) {
   const unique = [...new Set(blockedBy)];
   const notes: string[] = [];
@@ -292,10 +403,17 @@ function basePlan({
   const isWaitPlan = status === "WAIT_PULLBACK" || status === "WAIT_RETEST";
   const qualityReview = waitReviewText(blockedBy, direction);
   const plannedEntryPrice = waitEntryPrice ?? (isPlanEligible ? currentPrice : null);
+  const plannedEntryZone = plannedEntryZoneText({
+    currentPrice,
+    direction,
+    structuralStop,
+    waitEntryPrice,
+  });
+  const uniqueBlockedBy = [...new Set(blockedBy)];
 
   return {
     allowedUse: "research_only",
-    blockedBy: [...new Set(blockedBy)],
+    blockedBy: uniqueBlockedBy,
     canAutoAdjustWeights: false,
     canMutateLiveRanking: false,
     confirmationChecklist: [
@@ -313,9 +431,11 @@ function basePlan({
     invalidation: invalidationText({ direction, structuralStop }),
     isPlanEligible,
     manualReviewRequired: true,
+    plannedEntryZone,
     plannedEntryPrice,
     positionSizing: isPlanEligible ? "只允许小仓试错，禁止追单；仓位需按结构止损距离反推。" : "未满足门控，不给仓位建议。",
     rewardRisk: effectiveRewardRisk,
+    secondaryConfirmation: secondaryConfirmationText(direction, status),
     status,
     structuralStop,
     summary,
@@ -323,6 +443,18 @@ function basePlan({
       ? "目标位待确认，不能制定分批止盈。"
       : `第一目标 ${priceLabel(target)}；到达前不得移动失效条件，触达后只做分批管理。`,
     targets: target === null ? [] : [target],
+    triggerCondition: isWaitPlan ? waitTrigger : "执行触发：计划已就绪时仍需人工确认当前价格、结构止损、第一目标和反证未变化。",
+    waitReason: waitReasonText({
+      blockedBy: uniqueBlockedBy,
+      direction,
+      isPlanEligible,
+      status,
+    }),
+    whyNotNow: whyNotNowText({
+      blockedBy: uniqueBlockedBy,
+      isPlanEligible,
+      status,
+    }),
   };
 }
 
@@ -391,7 +523,7 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
 
     if (structureRepairEligible({ direction, trendContext: input.trendContext })) {
       return basePlan({
-        blockedBy,
+        blockedBy: [...blockedBy, "constructive_repair_wait"],
         currentPrice: input.currentPrice,
         direction,
         isPlanEligible: false,
@@ -435,7 +567,7 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
 
     if (structureRepairEligible({ direction, trendContext: input.trendContext })) {
       return basePlan({
-        blockedBy,
+        blockedBy: [...blockedBy, "constructive_repair_wait"],
         currentPrice: input.currentPrice,
         direction,
         isPlanEligible: false,
