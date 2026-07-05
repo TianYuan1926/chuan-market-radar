@@ -5,6 +5,8 @@ ROOT_DIR="${ROOT_DIR_OVERRIDE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pw
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
 STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-true}"
+READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-120}"
+READY_POLL_INTERVAL_SECONDS="${READY_POLL_INTERVAL_SECONDS:-5}"
 
 cd "${ROOT_DIR}"
 
@@ -38,9 +40,11 @@ run_node() {
 }
 
 echo "== Production API contract check: ${api_base_url} =="
-run_node - "${api_base_url}" "${STRICT_SCAN_FRESHNESS}" <<'NODE'
+run_node - "${api_base_url}" "${STRICT_SCAN_FRESHNESS}" "${READY_TIMEOUT_SECONDS}" "${READY_POLL_INTERVAL_SECONDS}" <<'NODE'
 const baseUrl = process.argv[2].replace(/\/$/, "");
 const strictScanFreshness = ["1", "true", "yes", "on"].includes(String(process.argv[3]).toLowerCase());
+const readyTimeoutMs = Math.max(0, Number(process.argv[4] || "120")) * 1000;
+const pollIntervalMs = Math.max(1000, Number(process.argv[5] || "5") * 1000);
 
 async function fetchJson(path) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -66,18 +70,40 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const healthBody = await fetchJson("/api/health");
-const health = healthBody.health || {};
-const scan = health.scan || {};
-const persistence = health.persistence || {};
-const runtimeProbes = health.runtimeProbes || {};
+const deadline = Date.now() + readyTimeoutMs;
+let healthBody;
+let health;
+let scan;
+let persistence;
+let runtimeProbes;
+let lastReadinessError;
 
-assert(healthBody.ok === true, "health.ok is not true");
-assert(health.level === "ready", `health.level is ${health.level}`);
-assert(persistence.databaseStatus === "ready", `databaseStatus is ${persistence.databaseStatus}`);
-if (strictScanFreshness) {
-  assert(scan.freshness === "fresh", `scan.freshness is ${scan.freshness}`);
+while (true) {
+  try {
+    healthBody = await fetchJson("/api/health");
+    health = healthBody.health || {};
+    scan = health.scan || {};
+    persistence = health.persistence || {};
+    runtimeProbes = health.runtimeProbes || {};
+
+    assert(healthBody.ok === true, "health.ok is not true");
+    assert(health.level === "ready", `health.level is ${health.level}`);
+    assert(persistence.databaseStatus === "ready", `databaseStatus is ${persistence.databaseStatus}`);
+    if (strictScanFreshness) {
+      assert(scan.freshness === "fresh", `scan.freshness is ${scan.freshness}`);
+    }
+    break;
+  } catch (error) {
+    lastReadinessError = error;
+    if (Date.now() >= deadline) {
+      throw error;
+    }
+    console.error(`waiting for ready: ${error.message}`);
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
 }
+
+void lastReadinessError;
 
 const radarBody = await fetchJson("/api/frontend/radar-contract");
 assert(radarBody.ok === true, "radar-contract ok is not true");
