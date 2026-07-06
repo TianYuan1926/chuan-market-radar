@@ -5,8 +5,22 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 ROLLBACK_TO="${ROLLBACK_TO:-${1:-}}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
+ROLLBACK_MODE="${ROLLBACK_MODE:-dry_run}"
+CONFIRM_ROLLBACK="${CONFIRM_ROLLBACK:-false}"
 
 cd "${ROOT_DIR}"
+
+echo "rollback_mode=${ROLLBACK_MODE}"
+echo "confirm_rollback=${CONFIRM_ROLLBACK}"
+
+if [[ "${ROLLBACK_MODE}" != "production_rollback" || "${CONFIRM_ROLLBACK}" != "true" ]]; then
+  echo "DRY-RUN: no production rollback will be executed."
+  echo "DRY-RUN: set ROLLBACK_MODE=production_rollback CONFIRM_ROLLBACK=true only after explicit user approval."
+  echo "current=$(git rev-parse HEAD 2>/dev/null || true)"
+  echo "target=${ROLLBACK_TO:-unset}"
+  git status --short || true
+  exit 0
+fi
 
 if [[ -z "${ROLLBACK_TO}" && -f "${ROOT_DIR}/.deploy-state/previous-head" ]]; then
   ROLLBACK_TO="$(cat "${ROOT_DIR}/.deploy-state/previous-head")"

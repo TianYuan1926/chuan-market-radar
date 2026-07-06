@@ -1,0 +1,20 @@
+{
+  "dryRun": true,
+  "generatedAt": "2026-07-06T08:38:22.905Z",
+  "kind": "production-health",
+  "status": "pass",
+  "summary": "dry-run 只验证脚本、字段规则、输出结构和安全门禁；未访问生产服务。",
+  "checks": [
+    {
+      "key": "http_200",
+      "ok": true,
+      "detail": "dry-run 未访问网络"
+    },
+    {
+      "key": "health_ready",
+      "ok": true,
+      "detail": "dry-run 结构检查通过"
+    }
+  ],
+  "productionDeployExecuted": false
+}

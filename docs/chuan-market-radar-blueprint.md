@@ -481,15 +481,17 @@ RawSource
 ```text
 本地改代码
 -> 本地测试和构建
--> 提交并推送到 GitHub main
--> 腾讯服务器 git pull origin main
--> docker compose build/up 重启
+-> 提交并推送到 GitHub 安全分支
+-> GPT / 用户验收
+-> 明确授权后合并 main
+-> 明确授权后腾讯服务器 git pull origin main
+-> 明确授权后 docker compose build/up 重启
 -> 服务器健康检查和页面/API 验收
 ```
 
 自动发布硬规则：
 
-- 后续完整交付包完成后，默认由 Codex 自动执行 GitHub 提交、推送、腾讯云同步、Docker 重建/重启和生产验收，不再每次等待用户手动推送。
+- 默认只允许提交并推送安全分支；未经用户明确授权，不允许 push main，不允许部署腾讯云。
 - 自动发布前必须先完成对应测试、构建和蓝图更新；验证不通过时禁止推送和部署。
 - 自动发布不得提交 `.env`、真实 API key、服务器密码、数据库密码、SSH 私钥或其它敏感信息。
 - 如果 GitHub 登录、SSH 认证、腾讯云权限、网络或第三方服务导致自动发布失败，必须直接汇报具体阻断点、已完成到哪一步、下一步需要用户提供什么。
@@ -512,18 +514,19 @@ RawSource
 标准自动化链路：
 
 ```text
-GitHub main
+GitHub 安全分支
 -> GitHub Actions 基础门禁
--> 腾讯云服务器 git pull --ff-only
--> Docker Compose 重建
--> 生产 health / API / Postgres / Redis / worker 验证
--> 失败自动回滚上一版本
--> 成功生成生产证据包
--> GitHub Artifact 保存证据
+-> production observability dry-run
+-> 生成证据包和 GitHub Artifact
+-> GPT / 用户验收
+-> 明确授权后进入 main 合并和腾讯云生产部署
 ```
 
 自动化边界：
 
+- `.github/workflows/production.yml` 默认只允许手动 `workflow_dispatch`，不监听 `push main` 自动部署。
+- `npm run production:deploy` 和 `npm run production:rollback` 默认 dry-run。
+- 真实部署必须显式使用 manual 命令和确认变量。
 - 默认不运行 migration。
 - 默认不清数据库。
 - 默认不删除 Postgres / Redis / reports volume。
@@ -2187,6 +2190,6 @@ GitHub main
 
 1. 跑对应测试和构建。
 2. 更新蓝图：已完成移出未完成，旧规则删除或替换。
-3. 默认自动提交并推送到 GitHub `main`，除非用户明确要求本轮不推送。
-4. 默认自动按生产发布流程同步部署到腾讯云，除非用户明确要求本轮只做本地改动。
+3. 默认提交并推送安全分支；不得默认 push `main`。
+4. 腾讯云生产部署必须单独获得用户明确授权；不得默认部署。
 5. 汇报完成了什么、验证了什么、发现了什么、剩余什么。

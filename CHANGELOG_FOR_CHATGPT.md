@@ -514,3 +514,62 @@ P0 阻断：
 ### 下一轮建议
 
 完成 3.2 基础门禁、证据包、safe branch push 后，再进入第 3 步后续实战能力提升；不要直接部署生产，除非单独进入部署验收轮。
+
+## 2026-07-06 - 第 4 步生产级自运行与观测闭环系统
+
+### 本轮目标
+
+建立生产观测 dry-run、生产 smoke/status/evidence 脚本、GitHub Actions 手动门禁、回滚 dry-run 和 GPT 交接证据包。核心目标是让系统可验证、可追踪、可审计，而不是新增交易功能。
+
+### 修改范围
+
+- `.github/workflows/production.yml`：取消 `push main` 自动生产部署，改为手动 `workflow_dispatch`；默认只跑质量门禁和 dry-run 证据包。
+- `scripts/production/observability.mjs`：新增 health / smoke / status / evidence 统一生产观测脚本。
+- `scripts/deploy/auto-deploy.sh`：默认 dry-run；真实部署必须显式 `DEPLOY_MODE=production_deploy CONFIRM_DEPLOY=true`。
+- `scripts/deploy/rollback.sh`：默认 dry-run；真实回滚必须显式 `ROLLBACK_MODE=production_rollback CONFIRM_ROLLBACK=true`。
+- `package.json`：新增 `production:health`、`production:status` 等脚本；危险部署/回滚入口改为默认 dry-run。
+- `docs/deployment/PRODUCTION_OBSERVABILITY.md`、`docs/deployment/ROLLBACK_PLAN.md`：新增生产观测和回滚运行手册。
+- `docs/chuan-market-radar-blueprint.md`、`PROJECT_CONTEXT_FOR_CHATGPT.md`：更新部署治理事实，删除默认 push main / 默认腾讯云部署旧规则。
+- `phase4-production-observability/**`：生成第 4 步 Agent 报告和 dry-run 证据。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改，3:1 结构盈亏比门槛不变。
+- 交易计划：未改；production smoke 新增 unifiedDecision / readyPlan / overlay 防误导检查。
+- 复盘进化：未改，保持 research-only。
+
+### 测试结果
+
+本轮应跑完整门禁：
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:market`
+- `npm run build`
+- `npm run backtest:golden`
+- `npm run ci:forbidden-files`
+- `npm run ci:secret-patterns`
+- `npm run production:health -- --dry-run`
+- `npm run production:smoke -- --dry-run`
+- `npm run production:status -- --dry-run`
+- `npm run production:evidence -- --dry-run`
+
+最终结果以 `phase4-production-observability/test-results.md` 和本轮交付报告为准。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume，未运行 formal。
+
+### 风险与遗留问题
+
+- 本轮修复了 workflow 旧风险：`push main` 不再自动真实部署。
+- 当前仍不能说系统支撑实战交易；本轮只建设生产观测和证据链。
+- 真实腾讯云自动部署仍需用户单独授权和生产部署验收轮。
+
+### 下一轮建议
+
+先把第 4 步交给 GPT 做验收复查；通过后再决定是否进入真实腾讯云部署验证。

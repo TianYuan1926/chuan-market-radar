@@ -1,0 +1,7 @@
+{
+  "dryRun": true,
+  "generatedAt": "2026-07-06T08:38:22.949Z",
+  "source": "api/health.dataSource",
+  "guardrail": "CoinGlass / public exchange 失败必须显示 partial/waiting/unavailable，不能写成无机会。",
+  "status": "not_run_dry_run_only"
+}

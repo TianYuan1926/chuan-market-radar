@@ -1,21 +1,36 @@
-name: Market Radar Production
+name: Market Radar Production Governance
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry_run only validates gates and evidence. production_deploy requires explicit confirmation."
+        required: true
+        default: dry_run
+        type: choice
+        options:
+          - dry_run
+          - production_prepare
+          - production_deploy
+      confirm_deploy:
+        description: "Type DEPLOY_PRODUCTION to allow production_deploy. Other values keep dry-run behavior."
+        required: false
+        default: ""
+      target_url:
+        description: "Production base URL for read-only checks. Leave blank for dry-run."
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: market-radar-production
+  group: market-radar-production-governance
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Test and build
+  quality-gate:
+    name: Quality gate
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -53,62 +68,58 @@ jobs:
         run: npm run backtest:golden
 
       - name: Security check
-        run: bash scripts/verify/security-check.sh
+        run: npm run security:check
 
-  deploy:
-    name: Deploy Tencent production
+  production-observability:
+    name: Production observability dry-run
     runs-on: ubuntu-latest
-    needs: validate
-    timeout-minutes: 35
+    needs: quality-gate
+    timeout-minutes: 15
     env:
-      TENCENT_HOST: ${{ secrets.TENCENT_HOST }}
-      TENCENT_USER: ${{ secrets.TENCENT_USER }}
-      TENCENT_PORT: ${{ secrets.TENCENT_PORT }}
-      TENCENT_APP_DIR: ${{ secrets.TENCENT_APP_DIR }}
-      TENCENT_SSH_KEY: ${{ secrets.TENCENT_SSH_KEY }}
-      PRODUCTION_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+      PHASE4_OUTPUT_DIR: phase4-production-observability
+      MARKET_RADAR_BASE_URL: ${{ inputs.target_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate deployment secrets
-        run: |
-          test -n "${TENCENT_HOST}"
-          test -n "${TENCENT_USER}"
-          test -n "${TENCENT_SSH_KEY}"
-          test -n "${PRODUCTION_BASE_URL}"
-          echo "deployment secrets present"
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-      - name: Prepare SSH
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${TENCENT_SSH_KEY}" > ~/.ssh/market-radar-prod
-          chmod 600 ~/.ssh/market-radar-prod
-          ssh-keyscan -p "${TENCENT_PORT:-22}" "${TENCENT_HOST}" >> ~/.ssh/known_hosts
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Remote deploy with rollback
-        run: |
-          port="${TENCENT_PORT:-22}"
-          app_dir="${TENCENT_APP_DIR:-/home/ubuntu/apps/chuan-market-radar}"
-          ssh -p "${port}" -i ~/.ssh/market-radar-prod "${TENCENT_USER}@${TENCENT_HOST}" \
-            "cd '${app_dir}' && \
-             git fetch origin main && \
-             git checkout main && \
-             git pull --ff-only origin main && \
-             chmod +x scripts/deploy/auto-deploy.sh scripts/deploy/rollback.sh scripts/verify/production-check.sh scripts/audit/collect-production-facts.sh && \
-             BASE_URL='${PRODUCTION_BASE_URL}' AUTO_ROLLBACK=true STRICT_SCAN_FRESHNESS=true RUN_PRODUCTION_FACTS=true bash scripts/deploy/auto-deploy.sh"
+      - name: Generate production evidence dry-run
+        run: npm run production:evidence -- --dry-run
 
-      - name: Download production evidence artifact
-        run: |
-          port="${TENCENT_PORT:-22}"
-          app_dir="${TENCENT_APP_DIR:-/home/ubuntu/apps/chuan-market-radar}"
-          remote_path="$(ssh -p "${port}" -i ~/.ssh/market-radar-prod "${TENCENT_USER}@${TENCENT_HOST}" "cd '${app_dir}' && ls -t reports/production-facts/production-facts-*.tar.gz | head -1")"
-          test -n "${remote_path}"
-          scp -P "${port}" -i ~/.ssh/market-radar-prod "${TENCENT_USER}@${TENCENT_HOST}:${app_dir}/${remote_path}" ./production-facts.tar.gz
-
-      - name: Upload production evidence artifact
+      - name: Upload dry-run evidence
         uses: actions/upload-artifact@v4
         with:
-          name: market-radar-production-facts
-          path: production-facts.tar.gz
+          name: market-radar-production-observability-dry-run
+          path: phase4-production-observability/
           if-no-files-found: error
+
+  production-deploy-gate:
+    name: Manual production deploy gate
+    runs-on: ubuntu-latest
+    needs:
+      - quality-gate
+      - production-observability
+    if: ${{ inputs.mode == 'production_deploy' }}
+    timeout-minutes: 5
+    steps:
+      - name: Require explicit deploy confirmation
+        run: |
+          if [ "${{ inputs.confirm_deploy }}" != "DEPLOY_PRODUCTION" ]; then
+            echo "Production deploy blocked: confirm_deploy must be DEPLOY_PRODUCTION."
+            exit 1
+          fi
+          echo "Production deploy confirmation accepted."
+
+      - name: Stop before real deployment
+        run: |
+          echo "This workflow intentionally does not SSH or deploy by default."
+          echo "Use the documented self-hosted runner or server-side script after explicit user approval."
+          exit 1

@@ -1,0 +1,27 @@
+{
+  "dryRun": true,
+  "generatedAt": "2026-07-06T08:38:22.949Z",
+  "checks": [
+    {
+      "key": "unified_decision_required",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    },
+    {
+      "key": "ready_requires_ready_plan",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    },
+    {
+      "key": "non_ready_has_no_ready_plan",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    },
+    {
+      "key": "non_live_has_no_ready_trade_plan_overlay",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    }
+  ],
+  "status": "pass"
+}

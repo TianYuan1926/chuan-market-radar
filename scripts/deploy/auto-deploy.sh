@@ -9,6 +9,8 @@ BASE_URL="${BASE_URL:-http://127.0.0.1}"
 AUTO_ROLLBACK="${AUTO_ROLLBACK:-true}"
 STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-true}"
 RUN_PRODUCTION_FACTS="${RUN_PRODUCTION_FACTS:-true}"
+DEPLOY_MODE="${DEPLOY_MODE:-dry_run}"
+CONFIRM_DEPLOY="${CONFIRM_DEPLOY:-false}"
 STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
 DEPLOY_LOG_DIR="${DEPLOY_LOG_DIR:-${ROOT_DIR}/reports/deploy}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-${ROOT_DIR}/.deploy-state}"
@@ -17,6 +19,27 @@ cd "${ROOT_DIR}"
 mkdir -p "${DEPLOY_LOG_DIR}" "${DEPLOY_STATE_DIR}"
 LOG_FILE="${DEPLOY_LOG_DIR}/auto-deploy-${STAMP}.log"
 exec > >(tee -a "${LOG_FILE}") 2>&1
+
+echo "deploy_mode=${DEPLOY_MODE}"
+echo "confirm_deploy=${CONFIRM_DEPLOY}"
+echo "remote=${REMOTE_NAME}/${REMOTE_BRANCH}"
+echo "base_url=${BASE_URL}"
+
+if [[ "${DEPLOY_MODE}" != "production_deploy" || "${CONFIRM_DEPLOY}" != "true" ]]; then
+  echo "DRY-RUN: no production deploy will be executed."
+  echo "DRY-RUN: set DEPLOY_MODE=production_deploy CONFIRM_DEPLOY=true only after explicit user approval."
+  echo "current_head=$(git rev-parse HEAD 2>/dev/null || true)"
+  git status --short || true
+  if [[ -f "${ENV_FILE}" ]]; then
+    echo "env_file_present=yes"
+  else
+    echo "env_file_present=no"
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    docker compose --version || true
+  fi
+  exit 0
+fi
 
 rollback_on_failure() {
   local exit_code=$?

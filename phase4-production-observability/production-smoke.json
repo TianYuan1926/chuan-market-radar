@@ -1,0 +1,30 @@
+{
+  "dryRun": true,
+  "generatedAt": "2026-07-06T08:38:22.906Z",
+  "kind": "production-smoke",
+  "status": "pass",
+  "summary": "dry-run 只验证脚本、字段规则、输出结构和安全门禁；未访问生产服务。",
+  "checks": [
+    {
+      "key": "unified_decision_required",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    },
+    {
+      "key": "ready_requires_ready_plan",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    },
+    {
+      "key": "non_ready_has_no_ready_plan",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    },
+    {
+      "key": "non_live_has_no_ready_trade_plan_overlay",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    }
+  ],
+  "productionDeployExecuted": false
+}

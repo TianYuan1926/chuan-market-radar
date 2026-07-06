@@ -1,0 +1,18 @@
+{
+  "dryRun": true,
+  "generatedAt": "2026-07-06T08:38:22.949Z",
+  "checks": [
+    {
+      "key": "non_ready_has_no_ready_plan",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    },
+    {
+      "key": "non_live_has_no_ready_trade_plan_overlay",
+      "ok": true,
+      "detail": "dry-run 规则存在"
+    }
+  ],
+  "guardrail": "WAIT / WATCH / CANDIDATE 不得展示成 READY；非 live Kline 不显示 ready trade plan overlay。",
+  "status": "pass"
+}

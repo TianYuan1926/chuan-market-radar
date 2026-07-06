@@ -1,0 +1,12 @@
+{
+  "dryRun": true,
+  "generatedAt": "2026-07-06T08:38:22.906Z",
+  "git": {
+    "branch": "phase4-production-observability",
+    "head": "f0e3086359d2bed4c21b6bcaebae34cdb7bc27d2",
+    "statusShort": "M .github/workflows/production.yml\n M CHANGELOG_FOR_CHATGPT.md\n M PROJECT_CONTEXT_FOR_CHATGPT.md\n M docs/chuan-market-radar-blueprint.md\n M package.json\n M scripts/deploy/auto-deploy.sh\n M scripts/deploy/rollback.sh\n?? docs/deployment/\n?? phase4-production-observability/\n?? scripts/production/"
+  },
+  "productionDeployExecuted": false,
+  "status": "pass",
+  "summary": "本地 dry-run 完成；未访问生产、未部署。"
+}
