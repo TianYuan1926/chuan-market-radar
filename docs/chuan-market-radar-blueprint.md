@@ -2,7 +2,7 @@
 
 > 本文是 `/Users/chuan/Documents/web` 的长期事实源。后续新增、删除、优化、重构、部署、前端接线和数据源接入，都必须先对照本文。本文不再保存历史施工流水账；历史细节看 Git history 和专项文档。
 
-> 最后整理日期：2026-07-06。当前阶段：第 4.1 步证据包自包含性、Commit 对齐与部署授权前收口；腾讯云香港单机生产主线，GitHub `main` 为代码正本，但本阶段只允许推安全分支，不默认部署生产。
+> 最后整理日期：2026-07-06。当前阶段：第 4.2 步腾讯云部署授权审查与真实生产部署准备；腾讯云香港单机生产主线，GitHub `main` 为代码正本，但本阶段只允许推安全分支，不 push main，不默认部署生产。
 
 ## 0. 唯一核心
 
@@ -2135,6 +2135,23 @@ GitHub 安全分支
 - 新增长期部署授权清单：`docs/DEPLOYMENT_AUTHORIZATION_CHECKLIST.md`。
 - 本轮结论只能是“本地工程建设、dry-run、evidence validation、报告和证据包完成，可交给 GPT 做第 4.1 验收复查”。
 - 本轮不能写成“已部署腾讯云”“已生产验证”“可 shadow tracking”“可支撑实战交易”。
+
+### 2026-07-06 第 4.2 步腾讯云部署授权审查事实
+
+- 当前安全分支：`phase4-2-tencent-deploy-readiness`。
+- 第 4.1 基线：`phase4-1-evidence-commit-alignment` / `7913e4cf5bdaec77c757c590723abf7a4fb034c1`。
+- 本轮只做腾讯云真实部署前的授权审查和准备：部署路径、Secrets / Runner、目标目录、备份、部署后验证、回滚、证据包。
+- 本轮允许修改部署准备、观测证据、CI 防误提交和上下文文档；不修改扫描、分析、策略、前端交易逻辑、数据库、Redis、worker 业务行为。
+- 新增第 4.2 证据入口：`npm run production:deploy-readiness`。
+- 新增第 4.2 证据校验入口：`npm run production:deploy-readiness:validate`。
+- 第 4.2 证据目录和 zip 必须保持 ignored / untracked：`phase4-2-tencent-deploy-readiness/`、`phase4-2-tencent-deploy-readiness.zip`。
+- `.gitignore` 和 `scripts/ci/check-forbidden-files.sh` 必须阻断第 4.2 evidence artifact 进入 Git。
+- 当前推荐真实部署方式：用户明确授权后，腾讯云服务器自拉 `main` + Docker Compose 构建/启动 + production smoke/evidence 验证。
+- self-hosted runner 作为后续自动化目标，本轮不安装、不配置、不写入 token。
+- GitHub Actions 当前不允许 `push main` 自动真实部署；生产 workflow 保持手动触发和 dry-run / gate。
+- 真实部署前必须确认服务器目标目录、生产 HEAD、Docker Compose、`.env.production` 存在性、Caddy 入口、Postgres、Redis、worker 和 reports volume。
+- 本轮结论只能是“本地第 4.2 部署授权准备和证据包完成，可交给 GPT 做第 4.2 验收复查，可在通过后请求用户授权真实部署”。
+- 本轮不能写成“已部署腾讯云”“已同步生产”“可 shadow tracking”“可支撑实战交易”。
 
 验收不能只看代码通过，还要看：
 

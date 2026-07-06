@@ -632,3 +632,69 @@ P0 阻断：
 ### 下一轮建议
 
 先把第 4.1 证据包交给 GPT 做验收复查；通过后再由用户决定是否进入腾讯云生产部署授权审查。
+
+## 2026-07-06 - 第 4.2 步腾讯云部署授权审查与真实生产部署准备
+
+### 本轮目标
+
+完成真实腾讯云部署前的授权审查和部署准备：确认推荐部署路径、Secrets / Runner 边界、服务器目标目录、部署前备份、部署后验证、回滚失败处理、证据包和防误提交规则。本轮不是部署轮。
+
+### 修改范围
+
+- `scripts/production/deploy-readiness.mjs`：新增第 4.2 部署准备证据生成和校验入口。
+- `package.json`：新增 `production:deploy-readiness` 和 `production:deploy-readiness:validate`。
+- `.gitignore`：补充第 4.2 evidence 目录和 zip 防误提交规则。
+- `scripts/ci/check-forbidden-files.sh`：阻断第 4.2 evidence artifact 被 Git 跟踪。
+- `docs/AUTO_DEPLOY_EVIDENCE_CHAIN.md`：明确当前不再默认 push main 自动部署，4.2 只做授权准备。
+- `docs/TENCENT_RUNNER_SETUP.md`：明确 self-hosted runner 尚未安装，本轮只列 secret 名称和权限边界。
+- `docs/PRODUCTION_DEPLOYMENT_RUNBOOK.md`：明确真实部署必须单独授权，推荐服务器自拉 main + Docker Compose。
+- `docs/deployment/PRODUCTION_OBSERVABILITY.md`：补充 4.2 部署准备证据命令。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`、`docs/chuan-market-radar-blueprint.md`：更新 4.2 当前事实和边界。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+- 工程部署链路：增强，补齐真实部署前授权审查、Runbook、备份、验证、回滚和证据包。
+
+### 测试结果
+
+本轮必须跑：
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:market`
+- `npm run build`
+- `npm run backtest:golden`
+- `npm run ci:forbidden-files`
+- `npm run ci:secret-patterns`
+- `npm run security:check`
+- `npm run production:health -- --dry-run`
+- `npm run production:smoke -- --dry-run`
+- `npm run production:status -- --dry-run`
+- `npm run production:evidence -- --dry-run`
+- `npm run production:evidence:validate -- --zip <production-evidence.zip>`
+- `npm run production:deploy-readiness`
+- `npm run production:deploy-readiness:validate`
+
+最终结果以第 4.2 交付报告和 `phase4-2-tencent-deploy-readiness/` 证据包为准。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume，未运行 formal。
+
+### 风险与遗留问题
+
+- 本轮只证明部署准备和授权审查完整，不证明生产已经同步。
+- self-hosted runner 尚未安装和验收；真实自动部署仍需单独任务。
+- 真实腾讯云部署前必须由用户明确授权，并现场确认服务器目标目录、生产 HEAD、Docker Compose、`.env.production`、Caddy、Postgres、Redis、worker 和 reports volume。
+- 当前系统仍不能写成支撑实战交易。
+
+### 下一轮建议
+
+先把第 4.2 证据包交给 GPT 做验收复查；通过后再由用户明确决定是否进入真实腾讯云部署执行任务。

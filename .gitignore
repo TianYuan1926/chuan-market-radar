@@ -67,6 +67,8 @@ system-convergence-final-validation/
 phase3-capability-improvement/greps/
 phase4-1-evidence-commit-alignment/
 phase4-1-evidence-commit-alignment.zip
+phase4-2-tencent-deploy-readiness/
+phase4-2-tencent-deploy-readiness.zip
 
 # Local evidence and logs
 *.log

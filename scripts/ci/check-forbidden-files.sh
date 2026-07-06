@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-forbidden_regex='^(audit-[^/]*|audit-round-[^/]*|audit-full-handoff|audit-handoff|audit-core-system-self-check[^/]*|system-convergence-remediation[^/]*|system-convergence-validation[^/]*|phase4-1-evidence-commit-alignment[^/]*)/|\.(zip|tar|tar\.gz|tgz|log|exitcode|raw\.log)$|^(raw|api-samples|node_modules|\.next|dist|build|docker|redis|db|logs|evidence|reports)/|(^|/)\.env($|\.)|(^|/)[^/]+\.env($|\.)'
+forbidden_regex='^(audit-[^/]*|audit-round-[^/]*|audit-full-handoff|audit-handoff|audit-core-system-self-check[^/]*|system-convergence-remediation[^/]*|system-convergence-validation[^/]*|phase4-1-evidence-commit-alignment[^/]*|phase4-2-tencent-deploy-readiness[^/]*)/|\.(zip|tar|tar\.gz|tgz|log|exitcode|raw\.log)$|^(raw|api-samples|node_modules|\.next|dist|build|docker|redis|db|logs|evidence|reports)/|(^|/)\.env($|\.)|(^|/)[^/]+\.env($|\.)'
 
 violations="$(
   git ls-files |

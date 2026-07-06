@@ -52,7 +52,7 @@ DEPLOY_MODE=production_deploy CONFIRM_DEPLOY=true npm run production:deploy:manu
 
 ## 证据包
 
-`npm run production:evidence -- --dry-run` 会在 `phase4-production-observability/` 下生成：
+`npm run production:evidence -- --dry-run` 会按当前分支和 `PHASE4_OUTPUT_DIR` 生成证据。第 4.1 分支默认输出 `phase4-1-evidence-commit-alignment/`；其它分支默认回落到 `phase4-production-observability/`。第 4.2 部署准备另有 `npm run production:deploy-readiness` 生成部署授权证据包。
 
 - `system-status.json`
 - `production-health.json`
@@ -67,3 +67,12 @@ DEPLOY_MODE=production_deploy CONFIRM_DEPLOY=true npm run production:deploy:manu
 - `production-evidence.zip`
 
 `production-evidence.zip` 是交给用户/GPT 审计的证据包，不能进入 Git。
+
+## 第 4.2 部署准备证据
+
+```bash
+npm run production:deploy-readiness
+npm run production:deploy-readiness:validate
+```
+
+第 4.2 证据只证明部署授权审查、Runbook、Secrets/Runner、备份、验证、回滚方案准备完成，不证明腾讯云已经部署。

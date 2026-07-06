@@ -779,3 +779,49 @@ GitHub Actions / self-hosted runner：
 - 可以交给 GPT 做第 4.1 验收复查。
 - 仍需用户明确授权才可进入腾讯云真实部署。
 - 当前系统仍不能写成支撑实战交易。
+
+## 2026-07-06 第 4.2 步腾讯云部署授权准备补充
+
+第 4.2 步只做真实部署前的授权审查和部署准备，不做生产部署，不改扫描、分析、策略、前端交易展示或数据库。
+
+本轮事实：
+
+- 安全分支：`phase4-2-tencent-deploy-readiness`。
+- 第 4.1 基线分支：`phase4-1-evidence-commit-alignment`。
+- 第 4.1 基线 commit：`7913e4cf5bdaec77c757c590723abf7a4fb034c1`。
+- 证据生成脚本：`scripts/production/deploy-readiness.mjs`。
+- 证据生成命令：`npm run production:deploy-readiness`。
+- 证据验证命令：`npm run production:deploy-readiness:validate`。
+- 证据输出目录：`phase4-2-tencent-deploy-readiness/`，该目录为 ignored/untracked artifact，不进入 Git。
+- 证据包：`phase4-2-tencent-deploy-readiness.zip`，不进入 Git。
+- 第 4.2 evidence 内必须包含部署授权清单、Secrets/Runner 清单、腾讯云部署 Runbook、部署前备份、部署后验证、回滚失败处理、测试结果、grep 证据、剩余风险和下一步。
+
+第 4.2 步必须保证：
+
+- 不 push main。
+- 不部署腾讯云。
+- 不运行 `npm run backtest:formal`。
+- 不运行 migration。
+- 不动 Postgres、Redis 或 Docker volume。
+- 不输出真实 secret、API key、DATABASE_URL、CRON_SECRET、SSH 私钥、cookie 或 token。
+- 证据包只能证明部署准备和授权审查完成，不能证明生产已同步。
+- 真实部署前必须由用户明确授权，并重新确认腾讯云目标目录、生产 HEAD、Docker Compose、`.env.production`、Caddy、Postgres、Redis、worker 和 reports volume。
+
+当前推荐部署方式：
+
+```text
+GPT / 用户验收第 4.2 证据
+-> 用户明确授权
+-> 合并或推进 GitHub main
+-> 腾讯云服务器自拉 main
+-> Docker Compose 构建和启动
+-> health / smoke / evidence / rollback guard 验证
+```
+
+当前真实状态：
+
+- 本轮目标是腾讯云真实部署前准备。
+- 可以交给 GPT 做第 4.2 验收复查。
+- 通过后可以请求用户授权真实部署。
+- 未授权前不能部署腾讯云，不能进入 shadow tracking。
+- 当前系统仍不能写成支撑实战交易。
