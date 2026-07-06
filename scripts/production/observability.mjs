@@ -104,6 +104,7 @@ function parseArgs(argv) {
     outDir: defaultOutputDir(),
     sourceBranch: "",
     sourceCommit: "",
+    remoteCommit: "",
     zipPath: "",
   };
 
@@ -123,6 +124,9 @@ function parseArgs(argv) {
     if (argv[index] === "--source-commit" && argv[index + 1]) {
       args.sourceCommit = argv[index + 1];
     }
+    if (argv[index] === "--remote-commit" && argv[index + 1]) {
+      args.remoteCommit = argv[index + 1];
+    }
   }
 
   if (!COMMANDS.has(args.command)) {
@@ -136,6 +140,9 @@ function parseArgs(argv) {
   }
   if (args.sourceCommit) {
     process.env.MARKET_RADAR_SOURCE_COMMIT = args.sourceCommit;
+  }
+  if (args.remoteCommit) {
+    process.env.MARKET_RADAR_REMOTE_COMMIT = args.remoteCommit;
   }
 
   return args;
@@ -213,7 +220,7 @@ function gitMetadata() {
   const trackedStatus = gitValue(["status", "--porcelain", "--untracked-files=no"]);
   const untrackedStatus = gitValue(["status", "--porcelain"]);
   const remoteBranch = `origin/${branch || PHASE41_BRANCH}`;
-  const remoteCommit = branch ? gitRemoteCommit(branch) : "";
+  const remoteCommit = process.env.MARKET_RADAR_REMOTE_COMMIT || (branch ? gitRemoteCommit(branch) : "");
   return {
     base_branch: PHASE41_BASE_BRANCH,
     base_commit_expected: PHASE41_BASE_COMMIT,
