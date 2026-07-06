@@ -65,6 +65,8 @@ system-convergence-remediation-*/
 system-convergence-validation/
 system-convergence-final-validation/
 phase3-capability-improvement/greps/
+phase4-1-evidence-commit-alignment/
+phase4-1-evidence-commit-alignment.zip
 
 # Local evidence and logs
 *.log

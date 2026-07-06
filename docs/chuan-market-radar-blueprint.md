@@ -2,7 +2,7 @@
 
 > 本文是 `/Users/chuan/Documents/web` 的长期事实源。后续新增、删除、优化、重构、部署、前端接线和数据源接入，都必须先对照本文。本文不再保存历史施工流水账；历史细节看 Git history 和专项文档。
 
-> 最后整理日期：2026-07-05。当前阶段：P1 系统收敛整改，腾讯云香港单机生产主线，GitHub `main` 为代码正本。
+> 最后整理日期：2026-07-06。当前阶段：第 4.1 步证据包自包含性、Commit 对齐与部署授权前收口；腾讯云香港单机生产主线，GitHub `main` 为代码正本，但本阶段只允许推安全分支，不默认部署生产。
 
 ## 0. 唯一核心
 
@@ -2122,6 +2122,19 @@ GitHub 安全分支
 - mock provider 隔离收敛：生产 provider registry 必须 fail-closed。真实数据源未配置时返回 `unconfigured`，不得静态 import 或 fallback 到 `mock-market-provider`。
 - CI / docs / scripts 提交链路收敛：forbidden-files 必须阻断 audit、remediation、validation、zip、tar、tgz、log、raw、reports、env 等禁入资产；secret-patterns 不得整体跳过 Markdown，只允许 `[REDACTED]` 和示例占位文本。
 - 边界不变：没有降低最低 `3:1` RR，没有新增自动下单，没有让 review/backtest 影响 production ranking，没有让候选进入计划复核区，没有让前端补 entry/stop/target。
+
+### 2026-07-06 第 4.1 步证据链收口事实
+
+- 当前安全分支：`phase4-1-evidence-commit-alignment`。
+- 第 4 步基线：`phase4-production-observability` / `cd279008e3a9f55a3bf7485e80632cd3ec2e93a9`。
+- 本轮只修改部署、观测、evidence、guard 和上下文文档；不修改扫描、分析、策略、前端交易逻辑、数据库、Redis 或 worker 业务行为。
+- `production-evidence.zip` 必须自包含，能单独交给 GPT 审计。
+- `phase4-1-summary.json`、`system-status.json`、`gpt-handoff-summary.md`、`production-deployment-report.md` 必须指向最终安全分支 HEAD。
+- `production:evidence` 生成物必须在 clean tracked worktree 上生成，保持 untracked/ignored，不得进入 Git。
+- 新增验证入口：`npm run production:evidence:validate -- --zip <production-evidence.zip>`。
+- 新增长期部署授权清单：`docs/DEPLOYMENT_AUTHORIZATION_CHECKLIST.md`。
+- 本轮结论只能是“本地工程建设、dry-run、evidence validation、报告和证据包完成，可交给 GPT 做第 4.1 验收复查”。
+- 本轮不能写成“已部署腾讯云”“已生产验证”“可 shadow tracking”“可支撑实战交易”。
 
 验收不能只看代码通过，还要看：
 

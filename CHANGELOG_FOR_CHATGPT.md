@@ -573,3 +573,62 @@ P0 阻断：
 ### 下一轮建议
 
 先把第 4 步交给 GPT 做验收复查；通过后再决定是否进入真实腾讯云部署验证。
+
+## 2026-07-06 - 第 4.1 步证据包自包含性、Commit 对齐与部署授权前收口
+
+### 本轮目标
+
+修复第 4 步生产证据链的自证缺口：`production-evidence.zip` 必须自包含，证据内的 branch / commit / worktree 状态必须指向最终安全分支 HEAD，并新增证据验证入口。
+
+### 修改范围
+
+- `scripts/production/observability.mjs`：重写 evidence 生成和 validate 流程，生成完整 handoff、部署报告、rollback plan、测试结果、grep 证据、风险、下一步、summary、manifest 和 agent 报告。
+- `package.json`：新增 `production:evidence:validate`。
+- `.gitignore` 与 `scripts/ci/check-forbidden-files.sh`：补充第 4.1 evidence artifact 防误提交规则。
+- `docs/DEPLOYMENT_AUTHORIZATION_CHECKLIST.md`：新增部署授权前长期检查清单。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`、`docs/chuan-market-radar-blueprint.md`：更新 4.1 证据链事实和部署边界。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+- 工程证据链：增强，防止 dry-run evidence、commit、handoff、部署报告互相不一致。
+
+### 测试结果
+
+本轮必须跑：
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:market`
+- `npm run build`
+- `npm run backtest:golden`
+- `npm run ci:forbidden-files`
+- `npm run ci:secret-patterns`
+- `npm run security:check`
+- `npm run production:health -- --dry-run`
+- `npm run production:smoke -- --dry-run`
+- `npm run production:status -- --dry-run`
+- `npm run production:evidence -- --dry-run`
+- `npm run production:evidence:validate -- --zip <production-evidence.zip>`
+
+最终结果以第 4.1 交付报告和证据包为准。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume，未运行 formal。
+
+### 风险与遗留问题
+
+- 本轮只证明本地证据链和 dry-run 可审计，不证明生产部署成功。
+- 真实腾讯云部署仍需用户明确授权和单独生产验收。
+- 当前系统仍不能写成支撑实战交易。
+
+### 下一轮建议
+
+先把第 4.1 证据包交给 GPT 做验收复查；通过后再由用户决定是否进入腾讯云生产部署授权审查。

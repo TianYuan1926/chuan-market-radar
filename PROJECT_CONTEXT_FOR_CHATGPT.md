@@ -748,3 +748,34 @@ GitHub Actions / self-hosted runner：
 - 证据目录：`phase4-production-observability/`。
 - 证据包：`phase4-production-observability.zip` 和目录内 `production-evidence.zip` 只用于用户/GPT 审计，不应进入 Git。
 - 当前真实状态：本轮只能证明本地工程观测链路可执行，不能证明腾讯云已部署新代码，也不能证明系统支撑实战交易。
+
+## 2026-07-06 第 4.1 步证据链收口补充
+
+第 4.1 步只修生产证据链，不改扫描、分析、策略、图表、前端交易展示或数据库。
+
+本轮事实：
+
+- 安全分支：`phase4-1-evidence-commit-alignment`。
+- 基线分支：`phase4-production-observability`。
+- 基线 commit：`cd279008e3a9f55a3bf7485e80632cd3ec2e93a9`。
+- 证据生成脚本：`scripts/production/observability.mjs`。
+- 证据验证命令：`npm run production:evidence:validate -- --zip <production-evidence.zip>`。
+- 证据输出目录：`phase4-1-evidence-commit-alignment/`，该目录为 ignored/untracked artifact，不进入 Git。
+- 内层证据包：`phase4-1-evidence-commit-alignment/production-evidence.zip`，必须能单独交给 GPT 审计。
+- 外层证据包：`phase4-1-evidence-commit-alignment.zip`，不进入 Git。
+- 部署授权清单：`docs/DEPLOYMENT_AUTHORIZATION_CHECKLIST.md` 与 evidence 内 `DEPLOYMENT_AUTHORIZATION_CHECKLIST.md`。
+
+第 4.1 步必须保证：
+
+- `phase4-1-summary.json.source_commit` 等于当前安全分支 HEAD。
+- `system-status.json.git.commit` 等于当前安全分支 HEAD。
+- `gpt-handoff-summary.md` 与 `production-deployment-report.md` 明确写入当前 commit。
+- `production-evidence.zip` 不包含 `pending_commit`、`等待 Agent`、`placeholder`、`TODO`、`待补充` 或旧第 3.2 commit 作为当前 HEAD。
+- dry-run 和真实生产部署必须区分；本轮仍不能写成已经部署腾讯云。
+
+当前真实状态：
+
+- 本轮目标是部署授权前证据收口。
+- 可以交给 GPT 做第 4.1 验收复查。
+- 仍需用户明确授权才可进入腾讯云真实部署。
+- 当前系统仍不能写成支撑实战交易。
