@@ -64,6 +64,7 @@ system-convergence-remediation/
 system-convergence-remediation-*/
 system-convergence-validation/
 system-convergence-final-validation/
+phase3-capability-improvement/greps/
 
 # Local evidence and logs
 *.log
