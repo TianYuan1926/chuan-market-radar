@@ -535,7 +535,7 @@ test("sniper board stays visible when backend has no trade-plan-ready targets", 
 
   assert.doesNotMatch(sniperBoardSource, /if \(pool\.length === 0\) return null/);
   assert.match(sniperBoardSource, /暂无通过最终筛选/);
-  assert.match(sniperBoardSource, /等待证据融合、赔率和风控同时满足/);
+  assert.match(sniperBoardSource, /等待证据融合、赔率、风控和失效条件同时满足/);
 });
 
 test("frontend data truth contract blocks active mock market facts", () => {
@@ -639,7 +639,8 @@ test("visible pages keep backend-derived tokens on core surfaces only", () => {
 
   assert.match(signalsSource, /<SessionBar tokens=\{tokens\}/);
   assert.match(leaderboardSource, /<MarketLeaderboards initialLeaderboards=\{leaderboards\}/);
-  assert.match(leaderboardSource, /每日异动复盘榜/u);
+  assert.match(leaderboardSource, /PAGE_DISPLAY_NAMES\.leaderboard/u);
+  assert.match(leaderboardSource, /强弱观察榜|PAGE_DISPLAY_NAMES\.leaderboard/u);
   assert.doesNotMatch(leaderboardSource, /PriceTicker|LeaderboardTable|tickerTokens|tableTokens/);
   assert.doesNotMatch(leaderboardSource, /getTokens\(\)/);
   assert.doesNotMatch(leaderboardSource, /数据均为模拟演示/);
@@ -1056,12 +1057,14 @@ test("signal table does not fabricate lifecycle prices or frontend trade plans",
 
   assert.doesNotMatch(anomalyBoardSource, /function entryPlan|const plan = entryPlan/);
   assert.doesNotMatch(anomalyBoardSource, /建议入场|目标位|仓位管理|链上换手|AI 分析逻辑|推送后涨幅|推送后跌幅/);
-  assert.match(anomalyBoardSource, /后端未给出完整交易计划/);
+  assert.match(anomalyBoardSource, /后端未给出完整计划/);
   assert.match(anomalyBoardSource, /单币档案/);
   assert.match(anomalyBoardSource, /追踪/);
 
   assert.doesNotMatch(sniperBoardSource, /建仓区间|止损|目标位|entryLow|entryHigh|target1|target2|card\.stop|card\.target/);
   assert.match(sniperBoardSource, /后端完整计划/);
+  assert.match(sniperBoardSource, /MODULE_DISPLAY_NAMES\.planReadyBoard/);
+  assert.match(sniperBoardSource, /证据完整度/);
   assert.match(sniperBoardSource, /追踪/);
 
   assert.doesNotMatch(homePageSource, /扫描覆盖率/);

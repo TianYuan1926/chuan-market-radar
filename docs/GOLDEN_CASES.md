@@ -179,7 +179,7 @@
 
 - `LOCATION_RR / RISK`
 - `StrategyDecision = WATCH_ONLY` 或 `NO_SETUP`
-- 禁止输出交易信号。
+- 禁止输出交易计划。
 
 ## 9. 突破后跌回箱体
 
@@ -195,7 +195,7 @@
 - `PRICE_STRUCTURE / RISK` 或 `BEARISH`
 - `MarketStage = INVALIDATED`
 - `StrategyDecision = INVALIDATED`
-- 必须移出可交易候选，保留复盘样本。
+- 必须移出候选观察，保留复盘样本。
 
 ## 10. 高位衰竭
 

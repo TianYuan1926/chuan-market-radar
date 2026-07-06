@@ -26,12 +26,12 @@ test("evidence signal is an observation state, not a trade state", () => {
   assert.equal(definition.canTrade, false);
   assert.equal(definition.canEnterSniper, false);
   assert.equal(canAttachTradePlan("EVIDENCE_SIGNAL"), false);
-  assert.match(definition.boundary, /不能.*狙击榜/u);
+  assert.match(definition.boundary, /不能.*计划就绪区/u);
 });
 
 test("candidate and waiting states always return a non-misleading no-trade reason", () => {
   assert.match(nonMisleadingNoTradeReason("LIGHT_SCAN_MARK"), /调度|主信号区/u);
-  assert.match(nonMisleadingNoTradeReason("DEEP_SCAN_CANDIDATE"), /验证|交易信号/u);
+  assert.match(nonMisleadingNoTradeReason("DEEP_SCAN_CANDIDATE"), /验证|执行依据/u);
   assert.match(nonMisleadingNoTradeReason("COOLDOWN"), /冷却/u);
 });
 

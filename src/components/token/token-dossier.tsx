@@ -16,6 +16,7 @@ import type { Resource } from '@/lib/data-status'
 import { FreshnessTag, StatusBadge } from '@/components/data-state'
 import { UiInformationLayerBlock } from '@/components/ui-information-layers'
 import { buildUiInformationLayers, type UiDecisionState } from '@/lib/ui-schema-guard'
+import { displayMaturityName } from '@/lib/ui-schema/display-names'
 import { cn } from '@/lib/utils'
 
 export function TokenDossier({
@@ -47,17 +48,17 @@ export function TokenDossier({
     decision,
     reason: d.strategyReadiness.summary,
     evidence: {
-      OFI: d.discovery.flowImbalance ?? 'n/a',
-      OI: 'n/a',
-      Funding: 'n/a',
-      Whale: d.discovery.largeTakerTradeUsd ?? 'n/a',
-      Volume: d.discovery.volumeWindowUsd ?? d.discovery.volume24hUsd ?? 'n/a',
-      Price: d.discovery.changePercent24h ?? 'n/a',
+      OFI: d.discovery.flowImbalance ?? '暂无',
+      OI: '暂无',
+      Funding: '暂无',
+      Whale: d.discovery.largeTakerTradeUsd ?? '暂无',
+      Volume: d.discovery.volumeWindowUsd ?? d.discovery.volume24hUsd ?? '暂无',
+      Price: d.discovery.changePercent24h ?? '暂无',
     },
     technical: [
-      { label: '成熟度', value: d.maturity },
+      { label: '成熟度', value: displayMaturityName(d.maturity) },
       { label: '方向', value: d.direction },
-      { label: '结构盈亏比', value: d.tradePlan ? `${d.tradePlan.rr.toFixed(1)}:1` : 'n/a' },
+      { label: '结构盈亏比', value: d.tradePlan ? `${d.tradePlan.rr.toFixed(1)}:1` : '暂无' },
       { label: '风控门禁', value: d.riskGate.allowTradePlan ? '通过' : '拦截' },
       { label: '证据数', value: d.evidence.length },
       { label: '反证数', value: d.counter.length },
@@ -248,7 +249,7 @@ export function TokenDossier({
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-muted-foreground">可交易性</div>
+                <div className="text-[10px] text-muted-foreground">执行门禁</div>
                 <div className="mt-1 font-mono text-[11px] font-semibold">
                   {tradabilityLabel(d.strategyReadiness.executionMap.tradabilityRead)}
                 </div>
@@ -462,7 +463,7 @@ export function TokenDossier({
           </div>
         ) : (
           <div className="mt-3 border border-dashed border-down/40 bg-down/5 px-4 py-4 text-xs leading-relaxed text-muted-foreground">
-            当前信号被风控拦截，未生成交易计划。待拦截原因解除后，后端将下发完整入场 / 止损 / 目标 / 仓位方案。
+            当前观察被风控拦截，未生成交易计划。待拦截原因解除后，后端将下发完整入场 / 止损 / 目标 / 仓位方案。
           </div>
         )}
       </div>
@@ -517,8 +518,8 @@ function displayEngineText(value: string) {
     [/\bCVD\b/g, '主动买卖'],
     [/EVIDENCE_SIGNAL/g, '证据观察'],
     [/TRADE_PLAN_READY/g, '交易计划就绪'],
-    [/DEEP_SCAN_CANDIDATE/g, '深扫候选'],
-    [/LIGHT_SCAN_MARK/g, '轻扫发现'],
+    [/DEEP_SCAN_CANDIDATE/g, '深度确认'],
+    [/LIGHT_SCAN_MARK/g, '快速轻扫'],
     [/REVIEW_ONLY/g, '只复盘'],
     [/WAIT_PULLBACK/g, '等待回踩'],
     [/WAIT_RETEST/g, '等待反抽'],

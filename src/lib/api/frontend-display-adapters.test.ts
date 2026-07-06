@@ -81,7 +81,7 @@ function signalReads(
       canTrade: maturity === "TRADE_PLAN_READY",
       headline: maturity === "TRADE_PLAN_READY" ? "交易计划就绪" : "已有证据，但还不能直接做",
       lane: maturity === "TRADE_PLAN_READY" ? "sniper" : "watch",
-      laneLabel: maturity === "TRADE_PLAN_READY" ? "狙击榜" : "重点观察",
+      laneLabel: maturity === "TRADE_PLAN_READY" ? "计划就绪区" : "重点观察",
       nextAction: "测试下一步",
       noTradeReason: maturity === "TRADE_PLAN_READY" ? null : "测试中未生成交易计划",
       worthWatching: true,

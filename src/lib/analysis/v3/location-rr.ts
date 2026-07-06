@@ -316,7 +316,7 @@ function dynamicExtensionTarget({
   return {
     confirmationRules: [
       "必须先突破/跌破前方近端小级别结构，不能在阻力/支撑前追单。",
-      "动态扩展目标只用于 RR 评估，不能替代真实突破确认。",
+      "动态扩展目标只用于结构盈亏比评估，不能替代真实突破确认。",
     ],
     confluenceScore: nearestNaturalTarget ? Math.min(55, nearestNaturalTarget.confluenceScore) : 45,
     direction: direction === "long" ? "RESISTANCE" : "SUPPORT",
@@ -329,7 +329,7 @@ function dynamicExtensionTarget({
     reactionScore: 0,
     reasons: [
       "自然目标不足以满足最低 3:1，按结构止损距离推导动态扩展目标。",
-      "该目标只证明空间可能，不单独构成交易信号。",
+      "该目标只证明空间可能，不单独构成交易计划。",
     ],
     status: "POTENTIAL",
     symbol: nearestNaturalTarget?.symbol ?? "UNKNOWN",
@@ -370,42 +370,42 @@ function positionQuality(flags: V3LocationRiskFlag[]): V3PositionQuality {
 
 function summaryFor(result: Omit<StrategyV3LocationRiskReward, "summary">) {
   if (result.direction === "neutral") {
-    return "v3 位置/RR：方向中性，不建立多空盈亏比模型。";
+    return "v3 位置/结构盈亏比：方向中性，不建立多空盈亏比模型。";
   }
 
   if (result.structuralStop === null) {
-    return "v3 位置/RR：缺少结构止损位，只能观察，不能输出交易计划。";
+    return "v3 位置/结构盈亏比：缺少结构止损位，只能观察，不能输出交易计划。";
   }
 
   if (result.nearestTarget === null) {
-    return "v3 位置/RR：缺少可追溯的前方结构目标，只能观察，不能输出交易计划。";
+    return "v3 位置/结构盈亏比：缺少可追溯的前方结构目标，只能观察，不能输出交易计划。";
   }
 
   if (result.rewardRisk === null) {
-    return "v3 位置/RR：结构止损或目标距离无效，只能观察。";
+    return "v3 位置/结构盈亏比：结构止损或目标距离无效，只能观察。";
   }
 
   if (result.riskFlags.includes("stop_distance_too_tight")) {
-    return "v3 位置/RR：结构止损距离过近，容易被正常噪音扫损；只允许继续观察或等待更清晰结构。";
+    return "v3 位置/结构盈亏比：结构止损距离过近，容易被正常噪音扫损；只允许继续观察或等待更清晰结构。";
   }
 
   if (result.rewardRisk < result.minRewardRisk) {
     return result.waitEntryPrice !== null && result.waitEntryPrice !== undefined
-      ? `v3 位置/RR：当前位置盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1；只允许等待 ${result.waitEntryPrice} 附近，预计 RR ${result.waitEntryRewardRisk}:1 后再复核。`
-      : `v3 位置/RR：当前盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1，Risk Gate 阻断。`;
+      ? `v3 位置/结构盈亏比：当前位置盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1；只允许等待 ${result.waitEntryPrice} 附近，预计结构盈亏比 ${result.waitEntryRewardRisk}:1 后再复核。`
+      : `v3 位置/结构盈亏比：当前盈亏比 ${result.rewardRisk}:1 低于 ${result.minRewardRisk}:1，Risk Gate 阻断。`;
   }
 
   if (result.riskFlags.includes("chase_risk")) {
     return result.waitEntryPrice !== null && result.waitEntryPrice !== undefined
-      ? `v3 位置/RR：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远；等待 ${result.waitEntryPrice} 附近把止损距离压到 ${result.waitEntryStopDistancePercent}% 后再复核。`
-      : `v3 位置/RR：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远，等待更好回踩/反抽。`;
+      ? `v3 位置/结构盈亏比：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远；等待 ${result.waitEntryPrice} 附近把止损距离压到 ${result.waitEntryStopDistancePercent}% 后再复核。`
+      : `v3 位置/结构盈亏比：盈亏比 ${result.rewardRisk}:1 合格，但离结构止损较远，等待更好回踩/反抽。`;
   }
 
   if (result.targetLevelId?.startsWith("dynamic_")) {
-    return `v3 位置/RR：近端小级别目标不足，按结构止损距离推导动态扩展目标，空间支持 ${result.rewardRisk}:1；该目标只能作为空间评估，仍需突破/回踩确认。`;
+    return `v3 位置/结构盈亏比：近端小级别目标不足，按结构止损距离推导动态扩展目标，空间支持 ${result.rewardRisk}:1；该目标只能作为空间评估，仍需突破/回踩确认。`;
   }
 
-  return `v3 位置/RR：结构止损清楚，前方结构目标支持 ${result.rewardRisk}:1，位置质量合格。`;
+  return `v3 位置/结构盈亏比：结构止损清楚，前方结构目标支持 ${result.rewardRisk}:1，位置质量合格。`;
 }
 
 export function evaluateV3LocationRiskReward({

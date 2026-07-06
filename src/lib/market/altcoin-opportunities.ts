@@ -370,7 +370,7 @@ function buildDailyMoverItem(detail: DailyMoverOpportunityDetail): AltcoinOpport
     score: detail.evidenceStrength === "strong" ? 62 : detail.evidenceStrength === "medium" ? 54 : 42,
     source: "daily_mover",
     stateLabel: "覆盖线索",
-    strategyHint: "先补扫描覆盖和复盘样本，不直接生成交易信号",
+    strategyHint: "先补扫描覆盖和复盘样本，不直接生成交易计划",
     summary: detail.whyMissed,
     symbol: detail.symbol,
   };

@@ -51,12 +51,12 @@ function emptyLeaderboard(kind: LeaderboardKind) {
   )
 }
 
-// 扫描状态标记（候选池 / 深扫 / 信号 / 拦截 / 待扫）
+// 扫描状态标记（候选池 / 深扫 / 证据观察 / 拦截 / 待扫）
 function StatusFlags({ row }: { row: LeaderboardRow }) {
   const flags: { label: string; cls: string; show: boolean }[] = [
     { label: '候选池', cls: 'border-neon/40 bg-neon/10 text-neon', show: row.inCandidatePool },
     { label: '已深扫', cls: 'border-up/40 bg-up/10 text-up', show: row.deepScanned },
-    { label: '有信号', cls: 'border-up/50 bg-up/15 text-up font-semibold', show: row.hasSignal },
+    { label: '证据观察', cls: 'border-up/50 bg-up/15 text-up font-semibold', show: row.hasSignal },
     { label: '已拦截', cls: 'border-down/40 bg-down/10 text-down', show: row.blocked },
     { label: '待扫描', cls: 'border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 text-[oklch(0.82_0.15_75)]', show: row.awaitingScan },
   ]
@@ -166,7 +166,7 @@ export function MarketLeaderboards({
       </div>
       <div className="border-t border-border px-5 py-2 text-center">
         <span className="text-[11px] text-muted-foreground">
-          {res.reason ?? '榜单状态标记反映该币当前是否进入扫描/候选/信号流程'}
+          {res.reason ?? '榜单状态标记反映该币当前是否进入扫描、候选或观察流程'}
         </span>
       </div>
     </section>

@@ -13,6 +13,7 @@
 
 import type { CoreChainGovernanceReport } from './api/core-chain-governance'
 import { resource, type Resource } from './data-status'
+import type { ResearchOnlyLifecycleRecord } from './review/research-only-boundary'
 import { MATURITY_DISPLAY_META } from './signal-state-semantics'
 
 const LEGACY_SOURCE = 'legacy-radar-contract'
@@ -66,6 +67,16 @@ export type DeepScanQueue = {
   highPriority: string[] // 高优先级排队
   coldExploration: string[] // 冷门探索
   longUnscanned: { symbol: string; idleMin: number }[] // 长时间未扫
+  metrics: {
+    deepScanCoveragePercent: number
+    pendingCount: number
+    oldestPendingAge: number
+    estimatedCycleMinutes: number
+    highPriorityPendingCount: number
+    skippedLowPriorityCount: number
+    servedCache: boolean
+    guardrail: string
+  }
 }
 
 export function getDeepScanQueue(): Resource<DeepScanQueue> {
@@ -75,6 +86,16 @@ export function getDeepScanQueue(): Resource<DeepScanQueue> {
     highPriority: [],
     coldExploration: [],
     longUnscanned: [],
+    metrics: {
+      deepScanCoveragePercent: 0,
+      pendingCount: 0,
+      oldestPendingAge: 0,
+      estimatedCycleMinutes: 0,
+      highPriorityPendingCount: 0,
+      skippedLowPriorityCount: 0,
+      servedCache: false,
+      guardrail: '旧同步 getter 已停用。深扫轮转指标必须读取真实后端契约。',
+    },
   })
 }
 
@@ -276,7 +297,7 @@ export type SignalLifecycleRead = {
   lastUpdatedAt: string | null
   ageMin: number
   ageLabel: string
-  freshnessLabel: '刚出现' | '近期有效' | '旧信号' | '已过期'
+  freshnessLabel: '刚出现' | '近期有效' | '旧观察' | '已过期'
   status: 'new' | 'active' | 'stale' | 'expired'
   source: 'current_signal_timestamp' | 'light_scan_snapshot' | 'leaderboard_candidate'
   summary: string
@@ -286,7 +307,7 @@ export type SignalOperatorLane = 'sniper' | 'watch' | 'validate' | 'blocked' | '
 
 export type SignalOperatorRead = {
   lane: SignalOperatorLane
-  laneLabel: '狙击榜' | '重点观察' | '验证中' | '不看' | '只复盘'
+  laneLabel: '计划就绪区' | '重点观察' | '验证中' | '不看' | '只复盘'
   worthWatching: boolean
   canTrade: boolean
   headline: string
@@ -540,7 +561,7 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
         tradabilityRead: 'blocked',
         positionQuality: 'unknown',
         waitFor: ['等待真实单币执行地图契约。'],
-        invalidIf: ['证据不足、RR 不够或高周期冲突时不生成计划。'],
+        invalidIf: ['证据不足、结构盈亏比不够或高周期冲突时不生成计划。'],
         chartBoundary: '等待真实后端 tradePlan；TradingView 只能用于人工看图复核。',
         manualReviewRequired: true,
       },
@@ -559,7 +580,7 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
 }
 
 // ============================================================
-// 七、复盘：信号生命周期 / MFE-MAE / 策略分型 / 漏判复查 / 进化建议
+// 七、复盘：观察生命周期 / MFE-MAE / 策略分型 / 漏判复查 / 进化建议
 // ============================================================
 export type SignalLifecycle = {
   id: string
@@ -579,6 +600,10 @@ export type SignalLifecycle = {
 }
 
 export function getSignalLifecycles(): Resource<SignalLifecycle[]> {
+  return legacyEmptyResource([])
+}
+
+export function getResearchOnlyLifecycles(): Resource<ResearchOnlyLifecycleRecord[]> {
   return legacyEmptyResource([])
 }
 
@@ -825,7 +850,7 @@ export function getFundFlow(): Resource<FundFlowState> {
     allowedUse: 'market_context_only',
     canCreateTradeSignal: false,
     connectedFields: [],
-    decisionBoundary: '资金流只读展示，不能单独生成交易信号。',
+    decisionBoundary: '资金流只读展示，不能单独生成交易计划。',
     detail: LEGACY_DISABLED_REASON,
     source: 'not_connected',
     status: 'waiting_source',
@@ -1113,6 +1138,7 @@ export function getLeaderboardContract(kind: LeaderboardKind): Resource<Leaderbo
 // 4) GET /api/frontend/review-contract
 export type ReviewContract = {
   signalLifecycles: Resource<SignalLifecycle[]>
+  researchOnlyLifecycles: Resource<ResearchOnlyLifecycleRecord[]>
   strategyArchetypes: Resource<StrategyArchetype[]>
   missedDetections: Resource<MissedDetection[]>
   evolutionSuggestions: Resource<EvolutionSuggestion[]>
@@ -1866,6 +1892,7 @@ export function getHistoricalBacktest(): Resource<HistoricalBacktestState> {
 export function getReviewContract(): ReviewContract {
   return {
     signalLifecycles: getSignalLifecycles(),
+    researchOnlyLifecycles: getResearchOnlyLifecycles(),
     strategyArchetypes: getStrategyArchetypes(),
     missedDetections: getMissedDetections(),
     evolutionSuggestions: getEvolutionSuggestions(),

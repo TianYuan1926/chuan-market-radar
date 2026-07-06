@@ -224,13 +224,13 @@ function buildChain({
         statusFromStage(stage(businessCapability, "candidate_rotation")),
         statusFromStage(stage(businessCapability, "signal_maturity")),
       ]),
-      summary: `轻扫 ${counts.LIGHT_SCAN_MARK}，深扫候选 ${counts.DEEP_SCAN_CANDIDATE}，证据信号 ${counts.EVIDENCE_SIGNAL}，计划就绪 ${counts.TRADE_PLAN_READY}。`,
+      summary: `轻扫 ${counts.LIGHT_SCAN_MARK}，深扫候选 ${counts.DEEP_SCAN_CANDIDATE}，证据观察 ${counts.EVIDENCE_SIGNAL}，计划就绪 ${counts.TRADE_PLAN_READY}。`,
       requiredEvidence: ["信号成熟度", "候选池轮换状态", "为什么进入/为什么排队"],
       blockers: counts.DEEP_SCAN_CANDIDATE + counts.EVIDENCE_SIGNAL + counts.TRADE_PLAN_READY > 0
         ? []
         : ["当前没有可展示候选，必须显示真实空态，不允许 mock 补位。"],
-      nextAction: "继续保证候选、证据信号和计划就绪分层展示，不让候选冒充狙击目标。",
-      guardrail: "LIGHT_SCAN_MARK 和 DEEP_SCAN_CANDIDATE 不能进入狙击榜。",
+      nextAction: "继续保证候选、证据观察和计划就绪分层展示，不让候选冒充后端计划样本。",
+      guardrail: "LIGHT_SCAN_MARK 和 DEEP_SCAN_CANDIDATE 不能进入计划就绪区。",
     },
     stepFromStage({
       id: "deep_scan_verification",
@@ -250,22 +250,22 @@ function buildChain({
       id: "risk_reward_gate",
       title: "风险赔率",
       stage: stage(businessCapability, "risk_reward_gate"),
-      requiredEvidence: ["结构止损", "目标位", "RR >= 3:1", "Risk Gate 阻断原因"],
+      requiredEvidence: ["结构止损", "目标位", "结构盈亏比 >= 3:1", "Risk Gate 阻断原因"],
       guardrail: "3:1 是最低结构赔率下限，不是固定目标；低于 3:1 禁止计划就绪。",
     }),
     {
       id: "trade_plan_readiness",
       title: "交易计划",
       status: tradePlanStatus,
-      summary: `计划就绪 ${counts.TRADE_PLAN_READY}，证据信号 ${counts.EVIDENCE_SIGNAL}。`,
+      summary: `计划就绪 ${counts.TRADE_PLAN_READY}，证据观察 ${counts.EVIDENCE_SIGNAL}。`,
       requiredEvidence: ["入场触发", "止损", "目标", "分批止盈", "失效条件", "复盘追踪"],
       blockers: counts.TRADE_PLAN_READY > 0
         ? []
-        : ["当前没有 TRADE_PLAN_READY，狙击榜必须允许为空。"],
+        : ["当前没有 TRADE_PLAN_READY，计划就绪区必须允许为空。"],
       nextAction: counts.TRADE_PLAN_READY > 0
         ? "把完整计划集中到单币档案，不在列表页二次推导价格。"
-        : "继续等待证据、结构、RR 和风控同时满足。",
-      guardrail: "只有 TRADE_PLAN_READY 能进狙击榜；前端不能编入场、止损或目标。",
+        : "继续等待证据、结构、结构盈亏比和风控同时满足。",
+      guardrail: "只有 TRADE_PLAN_READY 能进计划就绪区；前端不能编入场、止损或目标。",
     },
     {
       id: "review_evolution",
@@ -305,7 +305,7 @@ function buildFeatureTriage(): CoreFeatureTriageItem[] {
       label: "候选池",
       classification: "core",
       action: "strengthen",
-      reason: "负责承接值得继续验证的币，必须和狙击榜分开。",
+      reason: "负责承接值得继续验证的币，必须和计划就绪区分开。",
       linkedSteps: ["candidate_filtering"],
       guardrail: "候选只能标验证中，不能包装成推荐。",
     },
@@ -334,7 +334,7 @@ function buildFeatureTriage(): CoreFeatureTriageItem[] {
       action: "strengthen",
       reason: "负责阻断低赔率和高风险机会。",
       linkedSteps: ["risk_reward_gate"],
-      guardrail: "RR 低于 3:1 直接拦截。",
+      guardrail: "结构盈亏比低于 3:1 直接拦截。",
     },
     {
       id: "token_dossier",
@@ -361,7 +361,7 @@ function buildFeatureTriage(): CoreFeatureTriageItem[] {
       action: "keep",
       reason: "用于观察市场热度，不等于推荐。",
       linkedSteps: ["full_market_discovery"],
-      guardrail: "榜单必须标注口径和来源，不能进入狙击榜。",
+      guardrail: "榜单必须标注口径和来源，不能进入计划就绪区。",
     },
     {
       id: "macro_context",
@@ -370,7 +370,7 @@ function buildFeatureTriage(): CoreFeatureTriageItem[] {
       action: "keep",
       reason: "用于判断山寨顺风逆风。",
       linkedSteps: ["structure_analysis", "risk_reward_gate"],
-      guardrail: "宏观环境不能直接生成方向，也不能降低 RR 门槛。",
+      guardrail: "宏观环境不能直接生成方向，也不能降低结构盈亏比门槛。",
     },
     {
       id: "dex_watch",
@@ -379,7 +379,7 @@ function buildFeatureTriage(): CoreFeatureTriageItem[] {
       action: "downgrade",
       reason: "有助于早期观察，但不能直接进入合约交易计划。",
       linkedSteps: ["full_market_discovery", "candidate_filtering"],
-      guardrail: "DEX 只进观察池，不能进狙击榜。",
+      guardrail: "DEX 只进观察池，不能进计划就绪区。",
     },
     {
       id: "ai_counter_review",
@@ -444,15 +444,15 @@ function buildPageRoles(): CorePageRole[] {
       route: "/dashboard",
       role: "core",
       job: "系统作战面板，证明系统是否真的在扫描和运行。",
-      mustShow: ["覆盖数", "轻扫数", "候选数", "深扫数", "证据信号数", "计划就绪数", "数据源状态"],
+      mustShow: ["覆盖数", "轻扫数", "候选数", "深扫数", "证据观察数", "计划就绪数", "数据源状态"],
       mustNotShow: ["无来源的成功状态", "动画替代运行证明"],
     },
     {
       route: "/signals",
       role: "core",
-      job: "候选池和狙击榜分层展示。",
+      job: "候选池和计划就绪区分层展示。",
       mustShow: ["成熟度", "为什么入池", "为什么不能交易", "是否计划就绪"],
-      mustNotShow: ["候选冒充狙击目标", "无 RR 的交易计划"],
+      mustNotShow: ["候选冒充后端计划样本", "无结构盈亏比的交易计划"],
     },
     {
       route: "/token/[id]",
@@ -506,7 +506,7 @@ function buildApiRoles(): CoreApiRole[] {
       role: "supporting",
       job: "真实市场榜单观察入口，提供涨幅、跌幅、成交额等市场观察口径。",
       mustReturn: ["source", "updatedAt", "rows", "sortMetric"],
-      mustNotDo: ["用 mock 排名补位", "把榜单行升级成狙击目标", "生成入场/止损/目标"],
+      mustNotDo: ["用 mock 排名补位", "把榜单行升级成后端计划样本", "生成入场/止损/目标"],
     },
     {
       route: "/api/frontend/token-dossier",
@@ -601,7 +601,7 @@ function buildP0Completion({
       key: "no_trading_authority",
       label: "治理层无交易权限",
       status: "pass",
-      detail: "coreChainGovernance 只能做产品治理，不能生成交易信号、不能自动执行、不能改排序。",
+      detail: "coreChainGovernance 只能做产品治理，不能生成交易计划、不能自动执行、不能改排序。",
     },
   ];
   const passed = checks.filter((check) => check.status === "pass").length;
@@ -813,8 +813,8 @@ export function buildCoreChainGovernanceReport({
     "不服务核心链路的功能必须删除、合并或降级。",
     "mock、旧缓存、0 值和装饰文案不能冒充真实数据。",
     "前端展示能力不能强于后端真实能力。",
-    "候选、证据信号、交易计划就绪必须分层展示。",
-    "所有交易计划必须经过 Evidence、Risk Gate、RR 和复盘追踪边界。",
+    "候选、证据观察、交易计划就绪必须分层展示。",
+    "所有交易计划必须经过 Evidence、Risk Gate、结构盈亏比和复盘追踪边界。",
   ];
   const featureTriage = buildFeatureTriage();
   const pageRoles = buildPageRoles();
@@ -841,7 +841,7 @@ export function buildCoreChainGovernanceReport({
       "是否靠近关键位",
       "量能和衍生品是否确认",
       "多周期是否冲突",
-      "RR 是否至少 3:1",
+      "结构盈亏比是否至少 3:1",
       "Risk Gate 是否放行",
       "是否生成交易计划并进入复盘追踪",
     ],

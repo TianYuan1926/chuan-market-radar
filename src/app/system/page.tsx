@@ -9,6 +9,7 @@ import {
   radarSignalsToTokens,
   withLeaderboardSignalFallback,
 } from '@/lib/frontend-display-adapters'
+import { PAGE_DISPLAY_NAMES } from '@/lib/ui-schema/display-names'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +30,7 @@ export default async function SystemPage() {
       <SessionBar tokens={tokens} />
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <header className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">系统中心</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{PAGE_DISPLAY_NAMES.system}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             告警流、服务健康监控与扫描/告警偏好设置
           </p>

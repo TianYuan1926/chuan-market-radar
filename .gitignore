@@ -45,21 +45,32 @@ skills-lock.json
 /backups/
 
 # Audit / evidence packages
+audit-*/
 audit-round-*/
 audit-full-handoff/
 audit-handoff/
+audit-core-system-self-check/
+audit-core-system-self-check*/
 *-handoff.zip
 audit-*.zip
 audit_round_*.md
 audit-round-*.zip
 *.zip
+*.tar
+*.tar.gz
+*.tgz
 project-context-for-chatgpt/
+system-convergence-remediation/
+system-convergence-remediation-*/
+system-convergence-validation/
+system-convergence-final-validation/
 
 # Local evidence and logs
 *.log
 *.exitcode
 *.raw.log
 raw/
+evidence/
 api-samples/
 test-results/
 docker/

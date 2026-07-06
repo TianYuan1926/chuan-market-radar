@@ -19,7 +19,13 @@ import {
   radarSignalsToFeedSignals,
   radarSignalsToTokens,
 } from '@/lib/frontend-display-adapters'
+import type {
+  LeaderboardKind,
+  LeaderboardRow,
+} from '@/lib/radar-contract'
+import type { Resource } from '@/lib/data-status'
 import { fmtCap, fmtKnownCap, fmtUsd } from '@/lib/display-format'
+import { PAGE_DISPLAY_NAMES } from '@/lib/ui-schema/display-names'
 import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -37,9 +43,9 @@ export default async function TokenPage({
     getAllLeaderboardContractsForPage(),
   ])
   const tickerRows = tickerLeaderboard.data
-  const leaderboardTokens = Object.entries(allLeaderboards).flatMap(([kind, rows]) =>
-    leaderboardRowsToTokens(rows?.data ?? [], kind as Parameters<typeof leaderboardRowsToTokens>[1])
-  )
+  const leaderboardTokens = (
+    Object.entries(allLeaderboards) as [LeaderboardKind, Resource<LeaderboardRow[]> | undefined][]
+  ).flatMap(([kind, rows]) => leaderboardRowsToTokens(rows?.data ?? [], kind))
   const backendTokens = mergeTokensBySymbol(
     radarSignalsToTokens(radar.radarSignals.data, tickerRows),
     leaderboardTokens,
@@ -75,7 +81,7 @@ export default async function TokenPage({
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          返回信号池
+          返回{PAGE_DISPLAY_NAMES.signals}
         </Link>
 
         {/* 一张纸：所有信息汇于单一连续表面 */}
@@ -91,7 +97,7 @@ export default async function TokenPage({
                 <h1 className="font-mono text-2xl font-bold">{token.symbol}</h1>
                 {token.tags.includes('Alpha') && (
                   <span className="bg-[var(--chart-4)]/15 px-1.5 py-0.5 text-[10px] font-medium text-[var(--chart-4)]">
-                    Alpha
+                    重点观察
                   </span>
                 )}
               </div>
@@ -207,6 +213,12 @@ export default async function TokenPage({
                       : s.type === 'bear'
                         ? 'text-down'
                         : 'text-muted-foreground'
+                  const directionLabel =
+                    s.type === 'bull'
+                      ? '异动看涨观察'
+                      : s.type === 'bear'
+                        ? '异动看空观察'
+                        : '异动中性观察'
                   return (
                     <div
                       key={s.id}
@@ -224,7 +236,7 @@ export default async function TokenPage({
                           )}
                         >
                           <Icon className="size-3.5" />
-                          异动看涨监控
+                          {directionLabel}
                         </span>
                       </div>
                       <h4 className="mt-2 text-sm font-semibold leading-snug transition-colors group-hover:text-neon">
@@ -251,7 +263,7 @@ export default async function TokenPage({
           </div>
         </div>
 
-        {/* 信号档案：证据链 / 反证 / 关键位 / 失效条件 / 交易计划 */}
+        {/* 证据档案：证据链 / 反证 / 关键位 / 失效条件 / 交易计划 */}
         <SignalArchive token={token} dossier={dossier} />
 
         {/* 后端承载位：多周期结构 / 证据链 / 反证链 / 风控门禁 / 交易计划 / 规则反证复核 */}

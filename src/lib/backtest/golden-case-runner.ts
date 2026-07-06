@@ -193,7 +193,7 @@ export function evaluateGoldenCase(fixture: GoldenCaseFixture): GoldenCaseDecisi
       maturity: "TRADE_PLAN_READY",
       riskScore: risk,
       status: direction === "short" ? "READY_SHORT" : "READY_LONG",
-      summary: "结构、资金质量、RR 和风险门控通过；仍然只允许人工复核，不自动执行。",
+      summary: "结构、资金质量、结构盈亏比和风险门控通过；仍然只允许人工复核，不自动执行。",
     };
   }
 
@@ -231,7 +231,7 @@ export function evaluateGoldenCase(fixture: GoldenCaseFixture): GoldenCaseDecisi
       maturity: "EVIDENCE_SIGNAL",
       riskScore: risk,
       status: "BLOCKED",
-      summary: "结构方向不等于能交易；RR 低于 3:1 必须拦截。",
+      summary: "结构方向不等于能交易；结构盈亏比低于 3:1 必须拦截。",
     };
   }
 

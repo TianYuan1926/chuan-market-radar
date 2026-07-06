@@ -38,8 +38,8 @@
 - `radar_miss_reviews`: 雷达是否提前发现、漏判原因和改进标签
 - `ohlcv_candle_cache`: 公开 OHLCV candles 有界缓存，用于复盘、技术指标和趋势档案
 - `scan_asset_states`: 每个币的深扫轮换账本，记录上次深扫、连续跳过、近期深扫次数、状态池、被动态优先级挤占和选中/跳过原因
-- `macro_market_snapshots`: BTC.D、ETH.D、TOTAL2、TOTAL3 和总市值宏观快照，只作为山寨环境锚点，不生成交易信号
-- `frontend_ui_states`: 前端 UI 偏好状态；只允许作为 UI 状态，不能生成交易信号、不能改变扫描排序、不能自动调权
+- `macro_market_snapshots`: BTC.D、ETH.D、TOTAL2、TOTAL3 和总市值宏观快照，只作为山寨环境锚点，不生成交易计划
+- `frontend_ui_states`: 前端 UI 偏好状态；只允许作为 UI 状态，不能生成交易计划、不能改变扫描排序、不能自动调权
 
 每张表都带 `scope` 字段。当前腾讯云单机生产建议使用 `chuan-prod`；私有登录只控制访问，不改变分析数据归属。
 
@@ -63,7 +63,7 @@
 Vercel 生产环境建议先填这几项：
 
 - `DATABASE_DRIVER=neon`
-- `DATABASE_URL=postgresql://...neon.tech/...`
+- `DATABASE_URL=[REDACTED]`
 - `PERSISTENCE_SCOPE=public-demo`
 
 不要把 `DATABASE_URL` 写进客户端组件，也不要改成 `NEXT_PUBLIC_DATABASE_URL`。

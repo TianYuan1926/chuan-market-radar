@@ -31,7 +31,7 @@ export const rankTiers: RankTier[] = [
   { id: "cold-start", label: "冷启动", minXp: 0 },
   { id: "observer", label: "观察席", minXp: 20 },
   { id: "discipline", label: "纪律席", minXp: 60 },
-  { id: "sniper", label: "狙击席", minXp: 120 },
+  { id: "sniper", label: "计划席", minXp: 120 },
   { id: "operator", label: "主理席", minXp: 220 },
   { id: "chuan-black", label: "川牌黑卡", minXp: 360 },
 ];

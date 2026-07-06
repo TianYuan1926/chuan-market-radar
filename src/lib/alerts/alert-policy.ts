@@ -345,7 +345,7 @@ export function buildAlertEvent(
 
   return {
     actionHint: actionHintForSignal(signal, severity),
-    detail: `${signal.summary} / RR ${signal.strategy.riskReward.toFixed(2)} / ${signal.timeframe}`,
+    detail: `${signal.summary} / 结构盈亏比 ${signal.strategy.riskReward.toFixed(2)}:1 / ${signal.timeframe}`,
     generatedAt: metadata.generatedAt,
     id: `${metadata.scanId}:alert:${signal.symbol}:${signal.state}`,
     severity,

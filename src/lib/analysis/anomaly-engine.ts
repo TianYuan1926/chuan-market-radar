@@ -542,7 +542,7 @@ function evidenceFor(input: MarketAnomalyInput, timeframeGate: TimeframeHardGate
       value:
         rr >= 2.5
           ? "潜在空间大于失效距离，符合低风险高回报筛选方向。"
-          : "潜在空间不足或止损距离偏远，不适合给交易信号。",
+          : "潜在空间不足或止损距离偏远，不适合生成交易计划。",
       layer: "risk_reward",
       polarity: rr >= 2.5 ? "supportive" : "blocking",
     },
@@ -614,7 +614,7 @@ function evidenceFor(input: MarketAnomalyInput, timeframeGate: TimeframeHardGate
       label: contextConflicts ? "BTC/ETH 环境逆风" : "BTC/ETH 环境校验",
       value: contextConflicts
         ? "BTC/ETH 锚点与当前方向不一致，本轮降权为等待确认，但不一刀切否定。"
-        : "BTC/ETH 锚点没有明显逆风，当前信号仍按自身结构继续评估。",
+        : "BTC/ETH 锚点没有明显逆风，当前观察仍按自身结构继续评估。",
       layer: "market_regime",
       polarity: contextConflicts ? "conflicting" : "neutral",
     });

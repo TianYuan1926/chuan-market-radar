@@ -2,6 +2,7 @@ import { Trophy } from 'lucide-react'
 import { SiteNav } from '@/components/site-nav'
 import { MarketLeaderboards } from '@/components/leaderboard/market-leaderboards'
 import { getAllLeaderboardContractsForPage } from '@/lib/frontend-contract-server'
+import { PAGE_DISPLAY_NAMES } from '@/lib/ui-schema/display-names'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export default async function LeaderboardPage() {
             <Trophy className="size-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">每日异动复盘榜</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{PAGE_DISPLAY_NAMES.leaderboard}</h1>
             <p className="text-sm text-muted-foreground">
               记录真实涨跌幅、成交额、强弱和衍生品排行，用于发现机会与复盘启动前征兆
             </p>
@@ -30,14 +31,14 @@ export default async function LeaderboardPage() {
             榜单只用于市场观察和复盘研究，不等于交易推荐
           </div>
           <div className="border border-border bg-card px-3 py-2">
-            每个币会标记是否进入候选池、深扫、信号或拦截
+            每个币会标记是否进入候选池、深扫、证据观察或拦截
           </div>
           <div className="border border-border bg-card px-3 py-2">
             涨跌幅异常会进入复盘样本，用来反查启动前共同特征
           </div>
         </div>
 
-        {/* 后端承载位：7 类全市场榜单 + 候选池/深扫/信号/拦截标记 */}
+        {/* 后端承载位：7 类全市场榜单 + 候选池/深扫/证据观察/拦截标记 */}
         <div className="mt-6">
           <MarketLeaderboards initialLeaderboards={leaderboards} />
         </div>

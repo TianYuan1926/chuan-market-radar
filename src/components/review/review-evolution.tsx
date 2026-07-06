@@ -109,9 +109,9 @@ const planBlockerCategoryLabels: Record<string, string> = {
 
 const planBlockerDiagnosisLabels: Record<string, string> = {
   needs_data_audit: '需要补数据',
-  needs_level_audit: '疑似关键位/RR 错杀',
+  needs_level_audit: '疑似关键位/结构盈亏比错杀',
   needs_strategy_audit: '需要策略专项复查',
-  needs_wait_audit: '需要 WAIT 触发质量复查',
+  needs_wait_audit: '需要等待条件触发质量复查',
   possible_false_kill: '疑似规则错杀',
   reasonable_guardrail: '更像合理风控',
 }
@@ -928,7 +928,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                             <div>
                               <div className="text-[11px] font-semibold">六类机会质量审计</div>
                               <div className="mt-0.5 text-[10px] text-muted-foreground">
-                                直接检查系统是否提前发现、是否误推旧信号、噪音或假突破。
+                                直接检查系统是否提前发现、是否误推旧观察、噪音或假突破。
                               </div>
                             </div>
                           </div>
@@ -1013,7 +1013,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                       ) : null}
                       {data.auditV2.levelQualityMetrics.length > 0 ? (
                         <div className="mt-3 border border-amber-500/25 bg-amber-500/5 p-2">
-                          <div className="text-[11px] font-semibold">关键位/RR 质量专项</div>
+                          <div className="text-[11px] font-semibold">关键位/结构盈亏比质量专项</div>
                           <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                             {data.auditV2.levelQualityMetrics.slice(0, 6).map((metric) => (
                               <div key={metric.blocker} className="border border-border bg-secondary/20 p-2">
@@ -1250,7 +1250,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               <div className="text-xs font-semibold">机会校准门禁</div>
               <StatusBadge status={opportunityCalibration.status} />
               <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                closed {opportunityCalibration.data.sampleGate.closedSamples}/{opportunityCalibration.data.sampleGate.minClosedSamples}
+                已闭合样本 {opportunityCalibration.data.sampleGate.closedSamples}/{opportunityCalibration.data.sampleGate.minClosedSamples}
                 {' · '}
                 最大浮盈/最大回撤 {opportunityCalibration.data.sampleGate.metricSamples}/{opportunityCalibration.data.sampleGate.minMetricSamples}
               </span>
@@ -1280,7 +1280,7 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               <div className="border border-border bg-background/40 p-2.5">
                 <div className="text-[11px] font-semibold">固定阈值</div>
                 <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
-                  启动前强信号 ≥ {opportunityCalibration.data.thresholds.earlyHotScore} · 启动前温信号 ≥ {opportunityCalibration.data.thresholds.earlyWarmScore} · 结构盈亏比 ≥ {opportunityCalibration.data.thresholds.minimumStructuralRR}:1
+                  启动前强观察 ≥ {opportunityCalibration.data.thresholds.earlyHotScore} · 启动前温观察 ≥ {opportunityCalibration.data.thresholds.earlyWarmScore} · 结构盈亏比 ≥ {opportunityCalibration.data.thresholds.minimumStructuralRR}:1
                 </p>
                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                   {opportunityCalibration.data.thresholds.lateMoveHighRisk}
@@ -1327,8 +1327,8 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
         </div>
       </Panel>
 
-      {/* 信号生命周期 + 最大浮盈/最大回撤 */}
-      <Panel title="信号生命周期 · 最大浮盈 / 最大回撤" icon={Activity}>
+      {/* 观察生命周期 + 最大浮盈/最大回撤 */}
+      <Panel title="观察生命周期 · 最大浮盈 / 最大回撤" icon={Activity}>
         <div className="px-5 py-4">
           <div className="mb-3 flex items-center justify-end gap-2">
             <StatusBadge status={lifecycles.status} />

@@ -309,7 +309,7 @@ function detectFibonacciPullback(symbol: string, timeframe: TrendTimeframe, cand
       confidence: 72,
       evidence: [
         `${symbol} ${timeframe} 从 ${round(lowPoint.price)} 上冲至 ${round(highPoint.price)} 后回撤到 0.382-0.618 区。`,
-        "Fibonacci 只用于位置/RR 参考，不能单独确认做多。",
+        "Fibonacci 只用于位置/结构盈亏比参考，不能单独确认做多。",
       ],
       invalidationHint: `跌破 0.618 回撤附近 ${round(zoneLow)} 后，Fibonacci 承接上下文失效。`,
       timeframe,
@@ -330,7 +330,7 @@ function detectFibonacciPullback(symbol: string, timeframe: TrendTimeframe, cand
       confidence: 72,
       evidence: [
         `${symbol} ${timeframe} 从 ${round(highPoint.price)} 下跌至 ${round(lowPoint.price)} 后反抽到 0.382-0.618 区。`,
-        "Fibonacci 只用于位置/RR 参考，不能单独确认做空。",
+        "Fibonacci 只用于位置/结构盈亏比参考，不能单独确认做空。",
       ],
       invalidationHint: `站上 0.618 反抽附近 ${round(zoneHigh)} 后，Fibonacci 承压上下文失效。`,
       timeframe,
@@ -510,7 +510,7 @@ export function buildV3PatternLibrary({
     maxWeightPercent: 10,
     patterns: patterns.slice(0, 4),
     summary: dominantPattern
-      ? `v3 形态辅助：${dominantPattern.type} 被识别为 ${dominantPattern.bias}，只作为低权重上下文，不能覆盖结构、位置/RR 和 Risk Gate。`
+      ? `v3 形态辅助：${dominantPattern.type} 被识别为 ${dominantPattern.bias}，只作为低权重上下文，不能覆盖结构、位置/结构盈亏比和 Risk Gate。`
       : "v3 形态辅助：未识别到足够清晰的常用形态，等待更多盘面结构。",
   };
 }

@@ -1,9 +1,9 @@
 import { SiteNav } from "@/components/site-nav";
 
 const blocks = [
-  "雷达总控",
-  "候选信号",
-  "榜单合同",
+  "雷达驾驶舱",
+  "候选观察",
+  "强弱观察榜",
   "系统状态",
   "复盘摘要",
   "数据源探针",

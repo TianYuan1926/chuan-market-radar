@@ -160,9 +160,9 @@ export type TokenArchive = {
   risk: '低' | '中' | '高' | '极高'
   evidence: { label: string; weight: number; detail: string }[]
   counterEvidence: { label: string; detail: string }[]
-  keyLevels: { support: number; resistance: number; invalidation: number; targets: number[] }
-  invalidation: string
-  plan: {
+  keyLevels: { support: number; resistance: number; invalidation?: number; targets: number[] }
+  invalidation?: string
+  plan?: {
     bias: string
     entry: string
     stop: string

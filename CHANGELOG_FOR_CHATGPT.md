@@ -263,3 +263,96 @@ P0 阻断：
 - 核对 GitHub main、本地 HEAD、腾讯云 HEAD 是否一致。
 - 采集生产 `/api/health`、frontend contracts、backend contract、Docker 服务、DB schema/counts、Redis keyspace/heartbeat。
 - 只有 P0 关闭后，才进入扫描、分析、策略或 UI 优化。
+
+## 2026-07-06 - 第 2.1 步 P1 补充收敛整改
+
+### 本轮目标
+
+修复第 2 步验收复查暴露的 5 个阻断型 P1：Token READY 单一事实源不够硬、Dashboard 四层信息结构不够严格、候选池文案容易误导、CI/docs/scripts 提交范围不完整、mock provider 隔离仍是运行时 gate 而不是 import 隔离。
+
+### 修改范围
+
+- Token dossier 合同和后端 dossier：READY 必须来自后端 maturity fact、完整 trade plan 和 risk gate，不允许前端根据 v3 草案自行升级。
+- Dashboard 与共享 UI 信息层：落地 L1/L2/L3/L4 四层结构，L1 只展示中文决策标签。
+- Signals / anomaly / plan review 文案：收敛为“验证候选、证据观察、计划复核区、后端计划门禁”，避免候选或 WAIT 被读成可执行信号。
+- Provider registry：真实 provider 未配置时 fail-closed 到 `unconfigured`，不再静态导入 mock provider。
+- CI guard / docs / `.gitignore`：阻断 audit/evidence/zip/log/raw/env 误提交，secret pattern 扫描覆盖 Markdown 并允许 `[REDACTED]` 示例。
+
+### 核心链路影响
+
+- 候选筛选：候选和观察项的前端语义更清楚，不能冒充计划就绪。
+- 交易计划：`TRADE_PLAN_READY` 事实源更硬，Token 页面不能自行生成或升级计划。
+- 复盘进化：research-only / backtest 边界未放宽，本轮没有让复盘影响生产排序。
+
+### 测试结果
+
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test:market`：通过，市场核心 777 pass，worker 17 pass，historical smoke 4 pass。
+- `npm run build`：通过。
+- `npm run backtest:golden`：通过，16/16。
+- `npm run ci:forbidden-files`：通过。
+- `npm run ci:secret-patterns`：通过。
+- `npm run backtest:formal`：未运行，本轮不是能力验收轮。
+
+### 是否部署
+
+未部署。未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume。
+
+### 风险与遗留问题
+
+- 本轮未发现新 P0。
+- 历史文档和历史回测记录里仍存在“狙击榜”等旧词，作为历史事实保留；当前可见生产语义已改为“计划复核区”。
+- 当前系统仍不能支撑实战，本轮只完成语义和事实源收敛，不证明扫描、分析、策略能力达标。
+
+### 下一轮建议
+
+进入第 2.1 步整改后验收复查：只读验证 5 个 P1 是否真实关闭，不部署，不跑 formal，不 push main。
+
+## 2026-07-06 - 第 2 步最终复查 + 中文命名体系收口
+
+### 本轮目标
+
+验证第 2.1 步 P1 补充收敛整改是否真实生效，并完成中文命名体系收口，避免候选、观察、WAIT、READY 被用户误读。
+
+### 修改范围
+
+- 中文命名：页面名、模块名、状态名集中到 `src/lib/ui-schema/display-names.ts` 和状态词典。
+- 前端文案：Dashboard、Review、Signals、Token、Anomaly、SniperBoard 等核心展示收敛为“候选观察 / 证据观察 / 计划就绪区 / 观察生命周期”。
+- 合同文案：`旧信号` 改为 `旧观察`，`RR` 在用户说明中改为 `结构盈亏比`。
+- 测试保护：更新状态词典、repository hygiene、frontend contract、core governance、trade-plan 测试断言。
+- Git 安全：`.gitignore` 增加 `system-convergence-final-validation/`，防止本轮证据目录进入 GitHub。
+
+### 核心链路影响
+
+- 候选筛选：候选和证据观察的用户语义更清楚，不能冒充计划就绪。
+- 风险赔率：继续保持结构盈亏比最低 3:1，未降低门槛。
+- 交易计划：`TRADE_PLAN_READY` 仍是计划就绪区唯一入口，前端不生成入场、止损、目标。
+- 复盘进化：保持 research-only，未让 review/backtest 影响 production ranking。
+
+### 测试结果
+
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test:market`：通过，市场核心 777 pass，worker 17 pass，historical smoke 4 pass。
+- `npm run build`：通过。
+- `npm run backtest:golden`：通过，16/16。
+- `npm run ci:forbidden-files`：通过。
+- `npm run ci:secret-patterns`：通过。
+- `npm run backtest:formal`：未运行，本轮不是正式能力验收轮。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume。
+
+### 风险与遗留问题
+
+- 本轮未发现新 P0。
+- 阻断型 P1：无。
+- P2：旧 `SniperTarget` 类型仍保留 entry/stop/target 字段，当前 UI 不用它生成价格计划，但后续应单独清理。
+- P2：`production.yml` push main 会尝试生产部署，本轮禁止 push main。
+- 当前系统仍不能支撑实战，本轮只证明本地收敛验收通过。
+
+### 下一轮建议
+
+进入第 3 步：围绕扫描、分析、策略三大核心做实战能力提升和正式样本验证。

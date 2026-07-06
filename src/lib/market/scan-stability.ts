@@ -209,7 +209,7 @@ export function buildScanStabilityReport({
 
   return {
     generatedAt: now.toISOString(),
-    guardrail: "扫描稳定性报告只用于运维诊断；不能直接生成交易信号。",
+    guardrail: "扫描稳定性报告只用于运维诊断；不能直接生成交易计划。",
     issues,
     rotation: {
       coveragePercent: Number(coveragePercent.toFixed(2)),

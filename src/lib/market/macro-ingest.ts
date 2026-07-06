@@ -125,7 +125,7 @@ export async function runMacroMarketIngest({
   return {
     notes: [
       `macro ingest: stored ${storedSnapshot.source} snapshot ${storedSnapshot.id}`,
-      "macro guardrail: BTC.D/TOTAL2/TOTAL3 are environment context only; no trade signal, no auto weights, no RR downgrade.",
+      "macro guardrail: BTC.D/TOTAL2/TOTAL3 只作为市场环境上下文；不生成交易计划、不自动调权、不降低结构盈亏比门槛。",
       `repository storage: ${repository.mode}`,
     ],
     scope: repository.scope,

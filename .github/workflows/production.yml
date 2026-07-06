@@ -31,6 +31,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Forbidden file guard
+        run: npm run ci:forbidden-files
+
+      - name: Secret pattern guard
+        run: npm run ci:secret-patterns
+
       - name: Typecheck
         run: npm run typecheck
 

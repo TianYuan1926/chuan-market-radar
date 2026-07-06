@@ -172,8 +172,8 @@ function decisionForMaturity({
 function fallbackReasonForDecision(decision: UiDecisionState) {
   if (decision === 'TRADE') return '交易计划已经通过风控，仍需人工复核后执行。'
   if (decision === 'WAIT') return '当前值得继续观察，但还缺少触发或风控确认。'
-  if (decision === 'BLOCKED') return '当前被风控或位置拦截，不能直接交易。'
-  return '当前只用于观察和筛选，不构成交易信号。'
+  if (decision === 'BLOCKED') return '当前被风控或位置拦截，不能直接执行。'
+  return '当前只用于观察和筛选，不构成交易计划。'
 }
 
 export function buildUiInformationLayers({

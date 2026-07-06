@@ -14,7 +14,7 @@ type Props = {
 // bottom 统一基线，顶部圆角收口。
 const BARS = [
   { x: 26, top: 46, accent: false }, // 左竖（短）
-  { x: 45, top: 22, accent: true }, // 中竖（最高、最亮、带信号点）
+  { x: 45, top: 22, accent: true }, // 中竖（最高、最亮、带雷达亮点）
   { x: 64, top: 36, accent: false }, // 右竖（中等）
 ]
 const BASE = 80 // 竖条基线
@@ -22,7 +22,7 @@ const BAR_W = 11
 
 /**
  * 川 品牌标志：直角方框内三道竖条，硬朗、清晰、等高错落。
- * 中竖顶端有跳动的信号点，一道雷达扫描线自上而下扫过，呼应「异动雷达」。
+ * 中竖顶端有跳动的雷达亮点，一道雷达扫描线自上而下扫过，呼应「异动雷达」。
  */
 export function ChuanLogo({
   size = 34,
@@ -113,7 +113,7 @@ export function ChuanLogo({
                     fillOpacity={b.accent ? 1 : 0.78}
                     style={{ filter: 'drop-shadow(0 0 3px var(--neon-soft))' }}
                   />
-                  {/* 中竖顶端信号点 */}
+                  {/* 中竖顶端雷达亮点 */}
                   {b.accent && (
                     <circle
                       cx={b.x + BAR_W / 2}

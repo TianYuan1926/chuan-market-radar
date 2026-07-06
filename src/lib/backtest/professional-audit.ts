@@ -495,7 +495,7 @@ function buildCapabilities(
     capability("structure", hasV3 ? "tested" : "partial", hasV3 ? "已通过 v3 key levels / market reading 构建结构上下文。" : "v3 结构上下文不足。"),
     capability("timeframe", timeframeCount >= 3 ? "tested" : "partial", `本轮提供 ${timeframeCount} 个有效周期。`),
     capability("derivatives", derivativesStatus === "live" ? "tested" : derivativesStatus === "partial" ? "partial" : "unavailable", derivativesDetail),
-    capability("rr", typeof rr === "number" ? "tested" : "partial", typeof rr === "number" ? `已生成结构 RR：${rr}:1。` : "未生成结构 RR。"),
+    capability("rr", typeof rr === "number" ? "tested" : "partial", typeof rr === "number" ? `已生成结构盈亏比：${rr}:1。` : "未生成结构盈亏比。"),
     capability("plan", signal.maturity?.stage === "TRADE_PLAN_READY" ? "tested" : "partial", `当前成熟度：${signal.maturity?.label ?? "未分类"}。`),
   ];
 }
@@ -535,8 +535,8 @@ function buildFindings(
   if (typeof rr !== "number" || rr < 3) {
     findings.push(finding({
       detail: typeof rr === "number"
-        ? `当前结构 RR ${rr}:1 低于最低 3:1。`
-        : "本轮无法得到结构 RR。",
+        ? `当前结构盈亏比 ${rr}:1 低于最低 3:1。`
+        : "本轮无法得到结构盈亏比。",
       id: "PBA-RR-001",
       layer: "rr",
       nextAction: "把该样本归入等待更好位置或结构目标缺失，不允许进入交易计划就绪。",
@@ -548,10 +548,10 @@ function buildFindings(
 
   if (signal.maturity?.stage !== "TRADE_PLAN_READY") {
     findings.push(finding({
-      detail: `当前成熟度为 ${signal.maturity?.label ?? "未分类"}，不能当作狙击榜交易计划。`,
+      detail: `当前成熟度为 ${signal.maturity?.label ?? "未分类"}，不能当作计划就绪区交易计划。`,
       id: "PBA-PLAN-001",
       layer: "plan",
-      nextAction: "前端和回测报告必须把候选、证据信号、交易计划分开展示。",
+      nextAction: "前端和回测报告必须把候选观察、证据观察、交易计划分开展示。",
       rootCause: "证据链或风险门控尚未满足交易计划就绪。",
       severity: "medium",
       title: "信号未达到交易计划就绪",
@@ -692,7 +692,7 @@ function buildRemediations(findings: ProfessionalAuditFinding[]) {
       "P0",
       "strategy v3 trade plan audit",
       "把低于 3:1、缺止损、缺目标、追涨追跌的样本全部归类，禁止进入计划就绪统计。",
-      "TRADE_PLAN_READY 样本必须全部具有结构止损、目标、RR 和失效条件。",
+      "TRADE_PLAN_READY 样本必须全部具有结构止损、目标、结构盈亏比和失效条件。",
     ));
   }
 

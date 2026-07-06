@@ -112,7 +112,7 @@ test("buildScanStabilityReport marks healthy rotation and does not create tradin
   assert.equal(report.rotation.scannedAssets, 72);
   assert.equal(report.rotation.estimatedFullCycleMinutes, 450);
   assert.equal(report.runtime.workerHealthy, 1);
-  assert.match(report.guardrail, /不能直接生成交易信号/);
+  assert.match(report.guardrail, /不能直接生成交易计划/);
 });
 
 test("buildScanStabilityReport blocks stale scans and missing worker heartbeats", () => {

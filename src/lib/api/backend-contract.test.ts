@@ -155,7 +155,7 @@ function snapshot(): MarketRadarSnapshot {
             "BTC/ETH 是大盘锚点，不和山寨轮转名额混算。",
             "动态优先级只能占用部分非锚点名额，不能长期吃光常规轮转。",
           ],
-          guardrail: "轮转审计只解释扫描分配健康度，不增加请求、不生成交易信号、不绕过 Evidence/Risk Gate。",
+          guardrail: "轮转审计只解释扫描分配健康度，不增加请求、不生成交易计划、不绕过 Evidence/Risk Gate。",
           mode: "scan_rotation_audit_v1",
           operatorHint: "轮转可用但有排队或周期偏长风险，前端必须展示排队资产和完整轮转周期。",
           priorityQueue: {

@@ -29,6 +29,10 @@ import {
   type PersonalPositionLens,
 } from "../risk/personal-position-lens";
 import {
+  createResearchOnlyLifecycleRecord,
+  type ResearchOnlyLifecycleRecord,
+} from "../review/research-only-boundary";
+import {
   canAttachTradePlan,
   canEnterSniper,
   definitionForMaturity,
@@ -78,6 +82,16 @@ export type DeepScanQueue = {
   highPriority: string[];
   coldExploration: string[];
   longUnscanned: { symbol: string; idleMin: number }[];
+  metrics: {
+    deepScanCoveragePercent: number;
+    pendingCount: number;
+    oldestPendingAge: number;
+    estimatedCycleMinutes: number;
+    highPriorityPendingCount: number;
+    skippedLowPriorityCount: number;
+    servedCache: boolean;
+    guardrail: string;
+  };
 };
 
 export type CapabilityStage = {
@@ -102,6 +116,21 @@ export type SignalMaturity =
   | "BLOCKED"
   | "INVALIDATED"
   | "COOLDOWN";
+
+const SIGNAL_MATURITY_VALUES = new Set<SignalMaturity>([
+  "LIGHT_SCAN_MARK",
+  "DEEP_SCAN_CANDIDATE",
+  "EVIDENCE_SIGNAL",
+  "REVIEW_ONLY",
+  "TRADE_PLAN_READY",
+  "BLOCKED",
+  "INVALIDATED",
+  "COOLDOWN",
+]);
+
+function isSignalMaturity(value: unknown): value is SignalMaturity {
+  return typeof value === "string" && SIGNAL_MATURITY_VALUES.has(value as SignalMaturity);
+}
 
 export type DiscoveryPressureSide = "buy" | "neutral" | "sell";
 
@@ -168,7 +197,7 @@ export type SignalLifecycleRead = {
   lastUpdatedAt: string | null;
   ageMin: number;
   ageLabel: string;
-  freshnessLabel: "刚出现" | "近期有效" | "旧信号" | "已过期";
+  freshnessLabel: "刚出现" | "近期有效" | "旧观察" | "已过期";
   status: "new" | "active" | "stale" | "expired";
   source: "current_signal_timestamp" | "light_scan_snapshot" | "leaderboard_candidate";
   summary: string;
@@ -178,7 +207,7 @@ export type SignalOperatorLane = "sniper" | "watch" | "validate" | "blocked" | "
 
 export type SignalOperatorRead = {
   lane: SignalOperatorLane;
-  laneLabel: "狙击榜" | "重点观察" | "验证中" | "不看" | "只复盘";
+  laneLabel: "计划就绪区" | "重点观察" | "验证中" | "不看" | "只复盘";
   worthWatching: boolean;
   canTrade: boolean;
   headline: string;
@@ -1214,6 +1243,7 @@ export type HistoricalBacktestState = {
 
 export type ReviewContract = {
   signalLifecycles: Resource<SignalLifecycle[]>;
+  researchOnlyLifecycles: Resource<ResearchOnlyLifecycleRecord[]>;
   strategyArchetypes: Resource<StrategyArchetype[]>;
   missedDetections: Resource<MissedDetection[]>;
   evolutionSuggestions: Resource<EvolutionSuggestion[]>;
@@ -1666,7 +1696,7 @@ function lifecycleRead({
     : status === "active"
       ? "近期有效"
       : status === "stale"
-        ? "旧信号"
+        ? "旧观察"
         : "已过期";
 
   return {
@@ -1717,7 +1747,7 @@ function operatorReadForSignal({
       worthWatching: true,
       canTrade: false,
       headline: "计划状态待复核，暂不能交易",
-      nextAction: "进入单币档案核对 RR、风控门禁、入场、止损、目标和失效条件。",
+      nextAction: "进入单币档案核对结构盈亏比、风控门禁、入场、止损、目标和失效条件。",
       noTradeReason: blockedReasons[0] ?? rrReason ?? "API 归一化拦截：计划状态与风控条件不一致。",
     };
   }
@@ -1746,7 +1776,7 @@ function operatorReadForSignal({
       worthWatching: discovery?.opportunityPhase === "early_setup" || discovery?.opportunityPhase === "breakout_watch",
       canTrade: state.canTrade,
       headline: phase,
-      nextAction: "等待深扫、盘面结构和证据融合，不允许当作交易信号。",
+      nextAction: "等待深扫、盘面结构和证据融合，不允许当作交易计划。",
       noTradeReason,
     };
   }
@@ -2535,7 +2565,7 @@ function buildLightScanQuality({
       status: earlyOpportunityCandidates.length > 0 ? "pass" : "watch",
     },
     {
-      detail: "轻扫质量诊断只能影响候选发现和调度解释，不能直接生成交易信号或交易计划。",
+      detail: "轻扫质量诊断只能影响候选发现和调度解释，不能直接生成交易计划。",
       evidence: ["canCreateTradeSignal=false", "LIGHT_SCAN_MARK stays discovery only"],
       key: "decision_boundary",
       label: "交易边界",
@@ -2665,7 +2695,7 @@ function buildRealtimeCapability(backend: BackendContract, snapshot: MarketRadar
         metrics: ["涨跌幅榜", "成交额榜", "轻扫候选", "交易所覆盖"],
         allowedUse: "candidate_refresh",
         canCreateTradeSignal: false,
-        guardrail: "可刷新候选和榜单，但榜单不是推荐，轻扫标记不是交易信号。",
+        guardrail: "可刷新候选和榜单，但榜单不是推荐，轻扫标记不是交易计划。",
         note: `accepted=${backend.scanProof.lightScan.acceptedCount}; universe=${backend.scanProof.lightScan.universeCount}; age=${scanAgeSec ?? "unknown"}s`,
       },
       {
@@ -2900,7 +2930,7 @@ function buildFundFlowState(snapshot: MarketRadarSnapshot): FundFlowState {
       ...(hasDerivativeContext ? ["open_interest", "funding_rate"] : []),
       ...(hasLongShort ? ["long_short_ratio"] : []),
     ],
-    decisionBoundary: "资金流仅能作为市场上下文和风险提示；未接真实主动买卖数据前，不能生成或放大交易信号。",
+    decisionBoundary: "资金流仅能作为市场上下文和风险提示；未接真实主动买卖数据前，不能生成或放大交易计划。",
     detail: hasDerivativeContext
       ? "已接 OI、Funding、多空比等衍生品上下文；轻扫发现层可展示公开成交主动买卖代理，但它不是交易所原生资金流证据。"
       : "当前没有可用衍生品上下文，资金流只能显示等待数据源。",
@@ -3027,7 +3057,7 @@ function buildOpportunityQuality(visibleSignals: RadarSignal[]): OpportunityQual
       guardrails: [
         "已经大涨看多、已经大跌看空默认不是机会，优先等待回踩/反抽或进入复盘。",
         "轻扫、榜单和主动买卖代理只能提升候选优先级，不能直接生成交易计划。",
-        "狙击榜只允许 TRADE_PLAN_READY；候选不能补位。",
+        "计划就绪区只允许 TRADE_PLAN_READY；候选不能补位。",
       ],
     },
     nextActions: [
@@ -3241,6 +3271,21 @@ export function buildFrontendRadarContract({
   const macroAltEnv = buildMacro(backend);
   const macroReadiness = buildMacroReadiness(backend, macroAltEnv);
   const opsReliability = buildOpsReliability(backend, deepScanQuality);
+  const deepScanPendingAssets = normalizeAssetList(allocation.pendingAssets);
+  const longUnscannedAssets = deepScanPendingAssets.slice(0, 8).map((symbol, index) => ({
+    symbol,
+    idleMin: (index + 1) * snapshot.metadata.cadenceMinutes,
+  }));
+  const highPriorityPendingCount = backend.scanProof.rotationAudit?.priorityQueue.queuedCount ??
+    backend.scanProof.twoStageAllocation?.stageTwo.queuedPriorityAssets.length ??
+    0;
+  const skippedLowPriorityCount = Math.max(
+    0,
+    deepScanPendingAssets.length - highPriorityPendingCount - Math.max(0, allocation.coldExplorationAssets.length),
+  );
+  const estimatedCycleMinutes = backend.scanProof.rotationAudit?.timing.estimatedFullCycleMinutes ??
+    coverage.totalBatches * snapshot.metadata.cadenceMinutes;
+  const oldestPendingAge = longUnscannedAssets.reduce((max, item) => Math.max(max, item.idleMin), 0);
 
   return {
     scanProof: resource({
@@ -3264,10 +3309,19 @@ export function buildFrontendRadarContract({
       nextBatch: normalizeAssetList(allocation.nextBatchAssets),
       highPriority: normalizeAssetList(backend.scanProof.twoStageAllocation?.stageTwo.queuedPriorityAssets ?? allocation.pendingAssets),
       coldExploration: normalizeAssetList(allocation.coldExplorationAssets),
-      longUnscanned: normalizeAssetList(allocation.pendingAssets).slice(0, 8).map((symbol, index) => ({
-        symbol,
-        idleMin: (index + 1) * snapshot.metadata.cadenceMinutes,
-      })),
+      longUnscanned: longUnscannedAssets,
+      metrics: {
+        deepScanCoveragePercent: round(deepCoverage, 1),
+        pendingCount: deepScanPendingAssets.length,
+        oldestPendingAge,
+        estimatedCycleMinutes,
+        highPriorityPendingCount,
+        skippedLowPriorityCount,
+        servedCache: backend.runtime.cacheStatus === "served_cache",
+        guardrail: backend.runtime.cacheStatus === "served_cache"
+          ? "当前返回缓存快照，不代表刚完成深扫；候选不得因此升级为计划就绪。"
+          : "深扫轮转指标只说明验证队列状态，不生成交易计划。",
+      },
     }, status, { ageSec, source: "dynamic-scan-scheduler" }),
     capabilityStages: resource(
       backend.analysis.businessCapability.stages.map((stage) => ({
@@ -3290,7 +3344,7 @@ export function buildFrontendRadarContract({
       {
         ageSec,
         source: "backend-contract",
-        reason: "核心链路治理只用于判断功能是否服务实战链路，不生成交易信号、不修改排序、不自动下单。",
+        reason: "核心链路治理只用于判断功能是否服务实战链路，不生成交易计划、不修改排序、不自动下单。",
       },
     ),
     dataSources: resource([
@@ -4178,7 +4232,7 @@ function forwardLevelReportItems(dossier: SignalBackendDossier): AnalysisReportS
 function timeframeGateReportItems(signal: SignalBackendDossier["signal"]): AnalysisReportSection["items"] {
   if (!signal?.timeframeGate) {
     return [{
-      detail: "当前信号没有触发多周期硬门控；仍需以后端风险门控和结构盈亏比为准。",
+      detail: "当前观察没有触发多周期硬门控；仍需以后端风险门控和结构盈亏比为准。",
       label: "多周期门控",
       sourceId: "timeframe-gate:allow",
     }];
@@ -4343,7 +4397,7 @@ function buildAnalysisReportSections({
         { detail: tokenDirectionCn(signal?.direction), label: "方向", sourceId: "signal:direction" },
         { detail: signal?.summary ?? "后端未找到成熟信号", label: "状态", sourceId: "signal:summary" },
         { detail: signal?.timeframe ?? "等待信号周期", label: "信号周期", sourceId: "signal:timeframe" },
-        { detail: String(signal?.confidence ?? "等待评分"), label: "置信度", sourceId: "signal:confidence" },
+        { detail: String(signal?.confidence ?? "等待评分"), label: "证据完整度", sourceId: "signal:confidence" },
         { detail: discovery.summary, label: "发现层状态", sourceId: `discovery:${discovery.source}` },
         { detail: dossier.strategyV3?.summary ?? "等待 v3 趋势地图", label: "v3 摘要", sourceId: "v3:summary" },
         { detail: priceText(dossier.strategyV3?.currentPrice), label: "当前价", sourceId: "v3:current-price" },
@@ -4597,6 +4651,8 @@ export function buildFrontendTokenDossierContract({
   now?: Date;
 }): Resource<TokenDossier> {
   const signal = dossier.signal;
+  const backendMaturity = signal?.maturity?.stage ?? null;
+  const backendReady = backendMaturity === "TRADE_PLAN_READY";
   const hardBlockedReasons = signal
     ? [
       ...(signal.risk === "blocked" ? ["风控门禁拦截"] : []),
@@ -4613,10 +4669,18 @@ export function buildFrontendTokenDossierContract({
     symbol: dossier.symbol,
   });
   const reviewOnlyReasons = dossierReviewOnlyReasons(dossier);
-  const tradePlan = reviewOnlyReasons.length > 0 ? null : rawTradePlan;
+  const tradePlan = backendReady && reviewOnlyReasons.length === 0 ? rawTradePlan : null;
+  const maturityFactReasons = signal
+    ? backendMaturity
+      ? backendReady
+        ? []
+        : [`后端成熟度事实为 ${backendMaturity}，Token 页面不得自行升级为交易计划就绪。`]
+      : ["后端 maturity fact 缺失，Token 页面不得根据 v3 草案自行升级为交易计划就绪。"]
+    : [];
   const blockedReasons = [
     ...hardBlockedReasons,
     ...reviewOnlyReasons,
+    ...maturityFactReasons,
     ...(signal ? v3TradePlanBlockers(v3Plan) : []),
   ];
   const evidenceItems = evidence.map((item, index) => ({
@@ -4643,9 +4707,13 @@ export function buildFrontendTokenDossierContract({
         ? "BLOCKED"
         : reviewOnlyReasons.length > 0
           ? "REVIEW_ONLY"
-        : tradePlan
-          ? "TRADE_PLAN_READY"
-          : "EVIDENCE_SIGNAL"
+        : backendReady
+          ? tradePlan
+            ? "TRADE_PLAN_READY"
+            : "BLOCKED"
+          : isSignalMaturity(backendMaturity)
+            ? backendMaturity
+            : "BLOCKED"
       : "INVALIDATED",
     chart: chartIntegrityFromDossier(dossier),
     discovery,
@@ -4951,10 +5019,40 @@ function buildDailyMoverReviewState(
         : "继续积累更多涨跌榜样本，至少覆盖多个交易日后再做规律判断。",
     guardrails: [
       archive.guardrail,
-      "每日涨跌榜用于复盘启动前征兆，不进入狙击榜。",
+      "每日涨跌榜用于复盘启动前征兆，不进入计划就绪区。",
       "任何校准建议都必须人工确认，不能自动改实时权重。",
     ],
   };
+}
+
+function researchOnlyLifecycleFromSignal(signal: MarketSignal): ResearchOnlyLifecycleRecord {
+  return createResearchOnlyLifecycleRecord({
+    id: `current-signal:${signal.id}`,
+    symbol: displaySymbol(signal.symbol),
+    stage: maturityForSignal(signal),
+    observedAt: signal.updatedAt,
+    source: "current_signal",
+    metrics: {
+      invalidated: signal.state === "invalidated",
+    },
+  });
+}
+
+function researchOnlyLifecycleFromJournal(event: JournalEvent): ResearchOnlyLifecycleRecord {
+  return createResearchOnlyLifecycleRecord({
+    id: `journal-shadow:${event.id}`,
+    symbol: displaySymbol(event.symbol),
+    stage: event.signalMaturityStage ?? "OBSERVE",
+    observedAt: event.createdAt,
+    source: "journal_shadow",
+    metrics: {
+      mfePercent: event.outcomeMetrics?.mfePercent ?? null,
+      maePercent: event.outcomeMetrics?.maePercent ?? null,
+      invalidated: event.invalidationHit ?? null,
+      missedOpportunity: event.result === "saved" ? true : null,
+      falsePositive: event.result === "loss" ? true : null,
+    },
+  });
 }
 
 function withShadowLiveJudgeStatus(
@@ -5042,6 +5140,16 @@ export function buildFrontendReviewContract({
   const reviewSampleStatus = reviewSampleStatusToResourceStatus(backend.analysis.reviewStatistics.sampleStatus);
   const aiReviewStats = buildAiReviewStats(snapshot);
   const historicalBacktestWithShadowLive = withShadowLiveJudgeStatus(historicalBacktest, snapshot, now);
+  const researchOnlyLifecycleRows = [
+    ...snapshot.signals.map(researchOnlyLifecycleFromSignal),
+    ...snapshot.journalEvents
+      .filter((event) =>
+        event.allowedUse === "research_only" ||
+        event.sourceId?.startsWith("shadow-live:") ||
+        event.lessons?.includes("shadow_live_tracking")
+      )
+      .map(researchOnlyLifecycleFromJournal),
+  ].slice(0, 80);
   const missedDetectionRows = snapshot.journalEvents
     .filter((event) => event.result === "saved" || event.action === "trend_radar_review")
     .slice(0, 20)
@@ -5062,6 +5170,15 @@ export function buildFrontendReviewContract({
       lifecycleEvents.map(lifecycleFromJournal),
       lifecycleEvents.length > 0 ? "live" : "empty",
       { ageSec, source: "signal-worker" },
+    ),
+    researchOnlyLifecycles: resource(
+      researchOnlyLifecycleRows,
+      researchOnlyLifecycleRows.length > 0 ? "partial" : "empty",
+      {
+        ageSec,
+        source: "review-research-only",
+        reason: "生产候选、证据观察、等待条件、风控阻断、计划就绪样本只进入 research-only 生命周期，不改实时排序。",
+      },
     ),
     strategyArchetypes: resource(
       archetypeStages.map(strategyArchetypeFromStage),

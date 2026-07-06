@@ -3,6 +3,7 @@ import { SiteNav } from '@/components/site-nav'
 import { SessionBar } from '@/components/session-bar'
 import { ScanProof } from '@/components/scan-proof'
 import { DashboardRadarControl } from '@/components/dashboard/radar-control'
+import { UiInformationLayerBlock } from '@/components/ui-information-layers'
 import { TokenAvatar } from '@/components/token-avatar'
 import { CountUp } from '@/components/count-up'
 import { LivePrice, LiveQuotePct } from '@/components/live-value'
@@ -19,6 +20,12 @@ import {
   getLeaderboardContractForPage,
   getRadarContractForPage,
 } from '@/lib/frontend-contract-server'
+import { PAGE_DISPLAY_NAMES } from '@/lib/ui-schema/display-names'
+import type {
+  DataSourceState,
+  RadarSignal,
+} from '@/lib/radar-contract'
+import { buildUiInformationLayers, type UiDecisionState } from '@/lib/ui-schema-guard'
 import {
   Activity,
   ArrowRight,
@@ -53,6 +60,41 @@ function systemStatusTone(label: ReturnType<typeof systemStatusFromContracts>) {
   }
 }
 
+function dataStatusLabel(status: string) {
+  return {
+    cached: '缓存',
+    empty: '暂无',
+    error: '异常',
+    failed: '失败',
+    live: '实时',
+    loading: '加载',
+    partial: '部分',
+    stale: '偏旧',
+  }[status] ?? '未知'
+}
+
+function dashboardDecision({
+  candidateCount,
+  planReadyCount,
+  status,
+}: {
+  candidateCount: number
+  planReadyCount: number
+  status: ReturnType<typeof systemStatusTone>
+}): UiDecisionState {
+  if (status.label === '异常') return 'BLOCKED'
+  if (planReadyCount > 0) return 'TRADE'
+  if (candidateCount > 0) return 'WAIT'
+  return status.label === '降级' ? 'BLOCKED' : 'OBSERVE'
+}
+
+function dashboardReason(decision: UiDecisionState) {
+  if (decision === 'TRADE') return '已有后端完整计划进入复核区，仍需人工检查结构、失效条件和风险。'
+  if (decision === 'WAIT') return '当前有候选或证据观察项，但还缺少完整计划确认，不能直接执行。'
+  if (decision === 'BLOCKED') return '运行链路或数据状态存在异常，先检查数据源、缓存和深扫队列。'
+  return '系统正在扫描市场，当前没有通过完整验证的计划样本。'
+}
+
 export default async function DashboardPage() {
   const [radar, tickerLeaderboard] = await Promise.all([
     getRadarContractForPage(),
@@ -65,9 +107,12 @@ export default async function DashboardPage() {
   const scan = scanProofResourceToScanState(radar.scanProof, radar.apiUsage)
   const env = macroResourceToMarketEnv(radar.macroAltEnv, radar.derivatives, tokens)
   const matureSignalCount = radar.radarSignals.data.filter(
-    (signal) => signal.maturity === 'EVIDENCE_SIGNAL' || signal.maturity === 'TRADE_PLAN_READY',
+    (signal: RadarSignal) => signal.maturity === 'EVIDENCE_SIGNAL' || signal.maturity === 'TRADE_PLAN_READY',
   ).length
-  const reviewOnlyCount = displaySignals.data.filter((signal) => signal.maturity === 'REVIEW_ONLY').length
+  const planReadyCount = radar.radarSignals.data.filter(
+    (signal: RadarSignal) => signal.maturity === 'TRADE_PLAN_READY',
+  ).length
+  const reviewOnlyCount = displaySignals.data.filter((signal: RadarSignal) => signal.maturity === 'REVIEW_ONLY').length
   const candidateDisplayCount = Math.max(0, displaySignals.data.length - matureSignalCount - reviewOnlyCount)
 
   const sniper = cards
@@ -79,10 +124,10 @@ export default async function DashboardPage() {
     .filter((c) => c.poolStatus === 'high_risk' || c.type === 'CRASH')
     .slice(0, 4)
 
-  const onlineSources = radar.dataSources.data.filter((source) => source.feed === 'live').length
+  const onlineSources = radar.dataSources.data.filter((source: DataSourceState) => source.feed === 'live').length
   const totalSources = radar.dataSources.data.length
   const systemStatus = systemStatusTone(systemStatusFromContracts({
-    // 这里只判断生产运行链路，不把“长期能力缺口/没有计划就绪信号”误算成系统故障。
+    // 这里只判断生产运行链路，不把“长期能力缺口/没有计划就绪样本”误算成系统故障。
     // 长期能力缺口由“系统能力总控”独立展示。
     statuses: [
       radar.scanProof.status,
@@ -91,8 +136,36 @@ export default async function DashboardPage() {
       radar.dataSources.status,
       radar.scanStability.status,
     ],
-    sourceFeeds: radar.dataSources.data.map((source) => source.feed),
+    sourceFeeds: radar.dataSources.data.map((source: DataSourceState) => source.feed),
   }))
+  const decision = dashboardDecision({
+    candidateCount: candidateDisplayCount + matureSignalCount + reviewOnlyCount,
+    planReadyCount,
+    status: systemStatus,
+  })
+  const dashboardLayers = buildUiInformationLayers({
+    decision,
+    reason: dashboardReason(decision),
+    evidence: {
+      OFI: radar.deepScanQueue.data.metrics.pendingCount,
+      OI: candidateDisplayCount,
+      Funding: radar.scanProof.status,
+      Whale: planReadyCount,
+      Volume: scan.scanned,
+      Price: scan.coverage,
+    },
+    technical: [
+      { label: 'scanProof.status', value: radar.scanProof.status },
+      { label: 'scanProof.statusLabel', value: dataStatusLabel(radar.scanProof.status) },
+      { label: 'deepScanQueue.status', value: radar.deepScanQueue.status },
+      { label: 'dataSources.status', value: radar.dataSources.status },
+      { label: 'source.online', value: `${onlineSources}/${totalSources || 0}` },
+      { label: 'coverage.percent', value: scan.coverage },
+      { label: 'deep.pending', value: radar.deepScanQueue.data.metrics.pendingCount },
+      { label: 'evidence.observation.count', value: matureSignalCount },
+      { label: 'plan.ready.count', value: planReadyCount },
+    ],
+  })
   const overview = [
     {
       label: '系统运行状态',
@@ -103,11 +176,11 @@ export default async function DashboardPage() {
       pulseClass: systemStatus.pulse,
     },
     {
-      label: '候选池展示',
+      label: '机会验证池',
       value: displaySignals.data.length,
       icon: Crosshair,
       tone: 'var(--neon)',
-      sub: `成熟 ${matureSignalCount} · 候选 ${candidateDisplayCount} · 复盘 ${reviewOnlyCount}`,
+      sub: `证据观察 ${matureSignalCount} · 候选 ${candidateDisplayCount} · 复盘 ${reviewOnlyCount}`,
       count: true,
     },
     {
@@ -137,7 +210,7 @@ export default async function DashboardPage() {
         {/* 标题 */}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">雷达总控</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight">{PAGE_DISPLAY_NAMES.dashboard}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               全市场扫描运行状态、重点候选与风险一览
             </p>
@@ -146,51 +219,67 @@ export default async function DashboardPage() {
             href="/signals"
             className="group flex items-center gap-1.5 border border-border px-4 py-2 text-sm font-semibold transition-colors hover:border-neon/40"
           >
-            进入候选信号池
+            进入机会观察池
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
 
-        {/* 系统运行状态概览 */}
-        <div className="mt-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          {overview.map((s, i) => (
-            <div
-              key={s.label}
-              className="hover-lift animate-float-up group border border-border bg-card p-4 hover:border-neon/40"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-muted-foreground">{s.label}</span>
-                <span
-                  className="grid size-7 place-items-center transition-transform group-hover:scale-110"
-                  style={{
-                    background: `color-mix(in oklch, ${s.tone} 14%, transparent)`,
-                    color: s.tone,
-                  }}
+        {/* Dashboard 四层信息结构：先给决策，再给中文原因、结构化证据和折叠技术层。 */}
+        <section className="mt-5 border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-3.5 w-1 bg-neon" />
+            <h2 className="font-semibold">系统决策总览</h2>
+            <span className="ml-auto text-xs text-muted-foreground">
+              候选不等于计划，缓存不等于实时
+            </span>
+          </div>
+          <UiInformationLayerBlock layers={dashboardLayers} />
+
+          <details className="mt-3 border border-border bg-secondary/20 p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
+              展开运行指标
+            </summary>
+            <div className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+              {overview.map((s, i) => (
+                <div
+                  key={s.label}
+                  className="hover-lift animate-float-up group border border-border bg-card p-4 hover:border-neon/40"
+                  style={{ animationDelay: `${i * 60}ms` }}
                 >
-                  <s.icon className="size-3.5" />
-                </span>
-              </div>
-              <div className="mt-2 font-mono text-3xl font-bold tracking-tight">
-                {s.count ? (
-                  <CountUp value={s.value as number} />
-                ) : (
-                  s.value
-                )}
-                {s.suffix && (
-                  <span className="ml-0.5 text-base text-muted-foreground">{s.suffix}</span>
-                )}
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span
-                  className={`size-1.5 animate-pulse rounded-full ${s.pulseClass ?? ''}`}
-                  style={{ background: s.tone }}
-                />
-                {s.sub}
-              </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-muted-foreground">{s.label}</span>
+                    <span
+                      className="grid size-7 place-items-center transition-transform group-hover:scale-110"
+                      style={{
+                        background: `color-mix(in oklch, ${s.tone} 14%, transparent)`,
+                        color: s.tone,
+                      }}
+                    >
+                      <s.icon className="size-3.5" />
+                    </span>
+                  </div>
+                  <div className="mt-2 font-mono text-3xl font-bold tracking-tight">
+                    {s.count ? (
+                      <CountUp value={s.value as number} />
+                    ) : (
+                      s.value
+                    )}
+                    {s.suffix && (
+                      <span className="ml-0.5 text-base text-muted-foreground">{s.suffix}</span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span
+                      className={`size-1.5 animate-pulse rounded-full ${s.pulseClass ?? ''}`}
+                      style={{ background: s.tone }}
+                    />
+                    {s.sub}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </details>
+        </section>
 
         {/* 扫描证明 */}
         <div className="mt-5">
@@ -208,18 +297,18 @@ export default async function DashboardPage() {
 
         {/* 重点候选 + 风险提醒 */}
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-          {/* 当前重点候选 */}
+          {/* 当前计划就绪目标 */}
           <section className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-5 py-3">
               <span className="h-3.5 w-1 bg-neon" />
               <Crosshair className="size-4 text-neon" />
-              <h2 className="font-semibold">当前重点候选</h2>
-              <span className="ml-auto text-xs text-muted-foreground">狙击榜 Top 5</span>
+              <h2 className="font-semibold">当前计划就绪目标</h2>
+              <span className="ml-auto text-xs text-muted-foreground">只显示后端计划就绪样本</span>
             </div>
             <div className="divide-y divide-border">
               {sniper.length === 0 && (
                 <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                  当前没有满足证据、赔率和风控要求的狙击目标
+                  当前没有满足证据、赔率、风控和失效条件要求的后端计划样本
                 </div>
               )}
               {sniper.map((c, i) => (
@@ -279,7 +368,7 @@ export default async function DashboardPage() {
             <div className="divide-y divide-border">
               {risks.length === 0 && (
                 <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                  当前无高危信号
+                  当前无高危风险样本
                 </div>
               )}
               {risks.map((c, i) => (

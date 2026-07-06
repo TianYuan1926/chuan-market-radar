@@ -246,7 +246,7 @@ function syntheticEvidence(signal: MarketSignal): EvidenceItem[] {
       weightHint: 0.24,
       dataFreshness: "fresh",
       fact: `当前赔率 ${signal.strategy.riskReward.toFixed(2)}R，低于 3:1 硬门槛。`,
-      reasoning: "Risk gate 只允许低风险高回报机会；赔率不足不能输出交易信号。",
+      reasoning: "Risk gate 只允许低风险高回报机会；赔率不足不能输出交易计划。",
     });
   }
 

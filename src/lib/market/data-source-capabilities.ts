@@ -305,7 +305,7 @@ export function buildCoinGlassRuntimeCapabilityReport({
     ],
     guardrails: [
       "运行态能力来自本轮扫描诊断或受保护体检，不等同于官方文档白名单。",
-      "deepScanStatus 不是交易信号，只决定 CoinGlass 衍生品证据是否可用。",
+      "deepScanStatus 不是交易计划，只决定 CoinGlass 衍生品证据是否可用。",
       "Upgrade plan、鉴权失败、限速、空返回都必须显示为 partial/unavailable，不能解释成市场没有机会。",
     ],
     keyConfigured,
@@ -596,29 +596,29 @@ function visualizationContracts(): DataVisualizationContract[] {
     {
       guardrail: "必须显示支持/不支持/partial/stale，不能让用户误以为 CoinGlass 是全市场发现源。",
       id: "scan_proof",
-      label: "Scan Proof",
+      label: "扫描证明",
       purpose: "证明系统正在扫全市场，并说明 CoinGlass 深扫预算用在哪里。",
       requiredFields: ["sourceStatus", "supportedExchanges", "supportedPairs", "budget", "batchPlan", "hiddenCounts"],
     },
     {
       guardrail: "展示账号和数据源状态，不展示任何密钥。",
       id: "source_status",
-      label: "Source Status",
+      label: "数据源状态",
       purpose: "说明 Binance/OKX/CoinGlass 当前是否可用、是否降级。",
       requiredFields: ["provider", "plan", "minuteLimit", "status", "fallbackBehavior"],
     },
     {
       guardrail: "只对候选深扫，不对全市场盲扫。",
       id: "candidate_deep_scan",
-      label: "Candidate Deep Scan",
+      label: "候选深扫",
       purpose: "展示 OI、Funding、Taker、多空拥挤和交易所分布。",
       requiredFields: ["symbol", "oi", "funding", "takerBuySell", "longShort", "exchangeDistribution"],
     },
     {
       guardrail: "所有图表必须能追溯到 EvidenceItem 或明确标记 unavailable。",
       id: "signal_dossier_evidence",
-      label: "Signal Dossier Evidence",
-      purpose: "把单币结构、关键位、衍生品、Risk Gate 和 RR 放到同一个档案里。",
+      label: "单币档案证据",
+      purpose: "把单币结构、关键位、衍生品、Risk Gate 和结构盈亏比放到同一个档案里。",
       requiredFields: ["symbol", "structure", "keyLevels", "oi", "funding", "taker", "riskGate", "rewardRisk"],
     },
     {

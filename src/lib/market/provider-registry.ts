@@ -1,6 +1,5 @@
 import type { MarketDataProvider } from "@/lib/market/types";
 import { createClient } from "redis";
-import { mockMarketProvider } from "./providers/mock-market-provider";
 import { createCoinGlassProvider, type CoinGlassProviderOptions } from "./providers/coinglass-provider";
 import { createPublicFuturesUniverseDiscoveryProvider } from "./providers/public-futures-universe-discovery";
 import {
@@ -33,6 +32,55 @@ export const defaultCoinGlassBatchSize = 24;
 export const defaultCoinGlassDailyRequestBudget = 3_000;
 export const defaultCoinGlassMaxConcurrency = 6;
 export const defaultCoinGlassRequestIntervalMs = 3_000;
+
+const unconfiguredMarketProvider: MarketDataProvider = {
+  id: "unconfigured",
+  label: "Unconfigured Market Provider",
+  async fetchSnapshot() {
+    const generatedAt = new Date().toISOString();
+
+    return {
+      metadata: {
+        id: "unconfigured-market-provider",
+        mode: "manual",
+        status: "failed",
+        source: "unconfigured",
+        isRealtime: false,
+        cadenceMinutes: 15,
+        scannedCount: 0,
+        anomalyCount: 0,
+        candidateCount: 0,
+        riskGate: "on",
+        generatedAt,
+        nextScanAt: generatedAt,
+        staleAfterMinutes: 0,
+        notes: [
+          "market provider is unconfigured",
+          "production registry is fail-closed and does not fallback to mock",
+        ],
+      },
+      instrumentPool: {
+        instruments: [],
+        rejected: [],
+        summary: {
+          total: 0,
+          accepted: 0,
+          rejected: 0,
+          duplicatesRemoved: 0,
+          minVolume24hUsd: 0,
+          quoteAssets: ["USDT"],
+          marketTypes: ["perpetual"],
+        },
+      },
+      instruments: [],
+      tickers: [],
+      derivatives: [],
+      heatmap: [],
+      signals: [],
+      journalEvents: [],
+    };
+  },
+};
 
 let websocketLightScanRedisClientPromise: Promise<{
   get: (key: string) => Promise<string | null>;
@@ -188,5 +236,5 @@ export function getConfiguredMarketProvider(
     });
   }
 
-  return mockMarketProvider;
+  return unconfiguredMarketProvider;
 }

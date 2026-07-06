@@ -18,10 +18,11 @@ import { LiveValue } from './live-value'
 import { useLiveQuote } from '@/lib/live-store'
 import { fmtUsd } from '@/lib/display-format'
 import { sideLabel, type SniperTarget } from '@/lib/sniper-data'
+import { MODULE_DISPLAY_NAMES } from '@/lib/ui-schema/display-names'
 import { cn } from '@/lib/utils'
 
 export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
-  // Only backend-provided trade-plan-ready targets can enter the sniper board.
+  // Only backend-provided trade-plan-ready targets can enter the plan review board.
   const pool = useMemo(() => targets ?? [], [targets])
 
   const locked = useMemo(() => pool.slice(0, 8), [pool])
@@ -44,13 +45,13 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
         </span>
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight">
-            <span className="sniper-title">狙击榜</span>
+            <span className="sniper-title">{MODULE_DISPLAY_NAMES.planReadyBoard}</span>
             <span className="bg-neon px-1.5 py-0.5 font-mono text-[10px] font-bold text-background">
-              SNIPER
+              计划就绪
             </span>
           </h2>
           <p className="text-[12px] text-muted-foreground">
-            通过后端证据融合、赔率和风控筛选的高置信目标
+            只展示后端证据、赔率、风控和失效条件齐全的完整计划样本
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3 font-mono text-xs">
@@ -85,9 +86,9 @@ export function SniperBoard({ targets }: { targets?: SniperTarget[] }) {
               <Crosshair className="size-4" />
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-semibold">暂无通过最终筛选的狙击目标</div>
+              <div className="text-sm font-semibold">暂无通过最终筛选的后端计划样本</div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                等待证据融合、赔率和风控同时满足。候选币仍会在下方信号池继续展示，不会被隐藏。
+                等待证据融合、赔率、风控和失效条件同时满足。验证候选仍会在下方候选区继续展示，不会被隐藏。
               </p>
             </div>
           </div>
@@ -161,10 +162,10 @@ function SniperCard({
         <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </div>
 
-      {/* 置信度条 */}
+      {/* 证据完整度条 */}
       <div className="mt-2.5 pl-1.5">
         <div className="flex items-center justify-between font-mono text-[10px]">
-          <span className="text-muted-foreground">置信度</span>
+          <span className="text-muted-foreground">证据完整度</span>
           <span className="text-neon">{card.confidence}%</span>
         </div>
         <div className="mt-1 h-1 overflow-hidden bg-secondary">
@@ -217,7 +218,7 @@ function SniperCard({
         </div>
       </div>
 
-      {/* 多维信号清单 */}
+      {/* 多维证据清单 */}
       <div className="mt-2.5 flex flex-wrap gap-1 pl-1.5">
         {card.signals.map((s) => (
           <span

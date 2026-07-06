@@ -57,7 +57,7 @@ const laneCadenceHints: Record<ScanStatePoolKey, string> = {
 };
 
 const laneOperatorHints: Record<ScanStatePoolKey, string> = {
-  BATTLE_READY: "接近完整计划，但仍必须经过 RR、风险门和失效条件。",
+  BATTLE_READY: "接近完整计划，但仍必须经过结构盈亏比、风险门和失效条件。",
   BATTLE_WATCH: "方向或位置仍差确认，不允许提前抢跑。",
   CANDIDATE: "已有候选证据，等待结构、位置和资金质量继续确认。",
   COLD: "未删除，只是降频轻扫，保留冷门探索入口。",
@@ -538,7 +538,7 @@ export function buildScanStatePoolReport({
       notEliminatedAssets: registry.assets.length,
       notes: [
         "前置层不是硬漏斗，未进入深扫的资产保留在 COLD/WARM 等状态池。",
-        "BATTLE_READY 仍需 RR、失效条件、RiskScore 和证据冲突检查。",
+        "BATTLE_READY 仍需结构盈亏比、失效条件、RiskScore 和证据冲突检查。",
         "DEEP_QUEUE 容量来自 COINGLASS_BATCH_SIZE 与预算，不由前端展示扩张。",
       ],
       pendingAssets: batchPlan.pendingAssets.slice(0, 10),
@@ -547,7 +547,7 @@ export function buildScanStatePoolReport({
       universeAssets: registry.assets.length,
     },
     promotionBridge: {
-      guardrail: "晋级桥只读取 v2/v3 已有结论生成解释，不新增交易信号、不改实时排序、不绕过 Risk Gate。",
+      guardrail: "晋级桥只读取 v2/v3 已有结论生成解释，不新增交易计划、不改实时排序、不绕过 Risk Gate。",
       samples: promotionSamples.slice(0, 8),
       summary: {
         blockedByRisk: promotionSamples.filter((sample) => sample.blockers.some((blocker) => /门控|风险|追单/u.test(blocker))).length,

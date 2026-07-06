@@ -29,6 +29,10 @@ import type {
 import type { Resource } from "@/lib/data-status";
 import type { PublicLightScanResult } from "@/lib/market/providers/public-light-scan";
 
+export {
+  dataStatusToHealthLevel,
+} from "@/lib/contracts/frontend-health-level";
+
 const leaderboardKinds: LeaderboardKind[] = [
   "gainers",
   "losers",
@@ -97,18 +101,6 @@ const publicMarketBoardCache: TimedMemoryCache<PublicMarketBoardPayload> = {
   expiresAt: 0,
   hasValue: false,
 };
-
-export function dataStatusToHealthLevel(status: Resource<unknown>["status"]) {
-  if (status === "failed" || status === "error") {
-    return "blocked";
-  }
-
-  if (status === "live" || status === "cached") {
-    return "ready";
-  }
-
-  return "degraded";
-}
 
 async function readPageBackendUncached() {
   const snapshot = await getReadableMarketRadarSnapshot(undefined, {

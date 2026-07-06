@@ -96,7 +96,7 @@ restore frontend source from user ui package
 - `/api/frontend/kline-contract?symbol=...&tf=...`：给 Token 详情页真实 K 线；页面侧通过 `getKlineContractForPage()` 直接读取同一合同，不再生成模拟蜡烛。
 - `/api/frontend/journal-contract`：给交易日记抽屉读取/写入真实 Postgres 日记；写入 `manual_trade` 事件，`rankDelta=0`，不自动调权。
 - `/api/admin/runtime/heartbeat` + `RadarContract.serviceNodes`：worker 通过受保护接口写 Redis 心跳，系统页读取真实 Redis/worker 运行探针，不再硬写在线状态。
-- `RadarContract.scanStability`：从扫描归档、覆盖率、Redis 和 worker 心跳生成扫描稳定性诊断；只做运维诊断，不能生成交易信号。
+- `RadarContract.scanStability`：从扫描归档、覆盖率、Redis 和 worker 心跳生成扫描稳定性诊断；只做运维诊断，不能生成交易计划。
 - `ReviewContract.reviewStats`：从真实 journal outcome 样本生成复盘统计；样本不足时必须显示 collecting/empty，不能自动调权。
 - `ReviewContract.aiReviewStats`：字段名保留兼容；统计 evidence-id 绑定的规则反证状态，规则反证不能替代规则引擎。
 - `/api/frontend/leaderboard`：public market ticker 模式下，`gainers` 取同币种最高 24h 涨幅，`losers` 取同币种最低 24h 涨幅，`volume` 聚合同币种跨交易所 24h 成交额；每行必须带 `source/sourceLabel/venueScope/sortKey/rankingScope/updatedAt`。
@@ -115,7 +115,7 @@ restore frontend source from user ui package
 主要转换：
 - 扫描状态 -> 雷达总控
 - 达标信号 -> 信号池
-- 高成熟度信号 -> 狙击榜
+- 高成熟度信号 -> 计划就绪区
 - 候选池 / 市场数据 -> 榜单
 - 单币证据链 -> 代币详情
 - 扫描归档 -> 复盘中心
@@ -142,7 +142,7 @@ mapper 硬规则：
 
 ### `/signals`
 
-- 狙击榜只展示符合条件的标的。
+- 计划就绪区只展示符合条件的标的。
 - 信号池只展示成熟度达标的信号。
 - 异动表格展示轻扫、候选或异动记录。
 - 没有数据时说明原因和扫描状态。
@@ -228,7 +228,7 @@ mapper 硬规则：
 ```text
 没有数据却塞 mock
 后端有数据但前端空
-轻扫标记冒充交易信号
+轻扫标记冒充交易计划
 旧缓存冒充实时数据
 空白页面没有解释
 ```

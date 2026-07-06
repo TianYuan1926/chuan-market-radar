@@ -161,7 +161,7 @@ test("buildCoreChainGovernanceReport keeps the site centered on the trading-valu
     "review_evolution",
   ]);
   assert.equal(report.chain.find((step) => step.id === "trade_plan_readiness")?.status, "partial");
-  assert.match(report.chain.find((step) => step.id === "candidate_filtering")?.guardrail ?? "", /不能进入狙击榜/u);
+  assert.match(report.chain.find((step) => step.id === "candidate_filtering")?.guardrail ?? "", /不能进入计划就绪区/u);
   assert.ok(report.featureTriage.some((item) =>
     item.id === "mock_market_facts" &&
     item.classification === "delete" &&
@@ -187,5 +187,5 @@ test("buildCoreChainGovernanceReport keeps the site centered on the trading-valu
   assert.deepEqual(report.p0Completion.remaining, []);
   assert.ok(report.p0Completion.checks.every((check) => check.status === "pass"));
   assert.match(report.cleanupRules.join("\n"), /前端展示能力不能强于后端真实能力/u);
-  assert.match(report.operatingSequence.join(" -> "), /RR 是否至少 3:1/u);
+  assert.match(report.operatingSequence.join(" -> "), /结构盈亏比是否至少 3:1/u);
 });

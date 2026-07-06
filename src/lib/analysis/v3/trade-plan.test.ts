@@ -540,7 +540,7 @@ test("buildV3TradePlan keeps RR-qualified range-idle setups as conditional wait 
   assert.match(plan.entryZone, /触发条件：反抽关键压力后不过/);
   assert.match(plan.entryZone, /结构止损 112\.00/);
   assert.match(plan.entryZone, /第一目标 92\.000000/);
-  assert.match(plan.entryZone, /RR 3\.180000:1/);
+  assert.match(plan.entryZone, /结构盈亏比 3\.180000:1/);
   assert.match(plan.invalidation, /有效收回结构止损 112\.00|重新站回箱体/);
   assert.ok(plan.confirmationChecklist.some((item) => /15m\/1h/.test(item)));
 });

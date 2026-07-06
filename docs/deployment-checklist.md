@@ -141,13 +141,13 @@
 - 生产 CoinGlass key 更换必须用 `npm run production:update-coinglass-key` 或同等安全流程：隐藏输入或本地环境变量传入，只更新服务器 `.env.production`，自动备份、重建相关容器并跑受保护能力体检；不得把真实 key 写进仓库、聊天、日志或命令输出。
 - 2026-06-23 旧生产探针曾显示旧 `COINGLASS_API_KEY` 对合约深扫端点返回 `Upgrade plan`。验收时必须先看 `/api/health.coinGlassRuntimeCapability`、`/api/radar/backend-contract.sourceAudit.coinGlassCapability`，必要时用 `Authorization: Bearer <CRON_SECRET>` 调用 `POST /api/admin/coinglass/capability`。如果结果仍为 `upgrade_required`、`auth_error`、`rate_limited`、`param_error`、`empty` 或 0 clean rows，必须判定为 CoinGlass 付费深扫未就绪或请求参数待修，不是系统没运行；公共轻扫和榜单仍可用，但不能生成 CoinGlass 衍生品 Evidence 或交易计划。
 - `REDIS_URL` 存在时主扫描会优先使用 Redis 做跨容器扫描锁和 CoinGlass 分钟级令牌桶；Redis 不可用时自动降级为进程内锁，但多容器防重能力会变弱。
-- WebSocket 轻扫已具备常驻 worker：`websocket-light-worker` 会连接 Binance/OKX/Bybit public ticker 流并写 Redis 快照；主扫描优先读取新鲜快照，缺失或过期时自动回退到 REST public light scan。该层仍只是调度和候选发现，不能直接生成交易信号。
+- WebSocket 轻扫已具备常驻 worker：`websocket-light-worker` 会连接 Binance/OKX/Bybit public ticker 流并写 Redis 快照；主扫描优先读取新鲜快照，缺失或过期时自动回退到 REST public light scan。该层仍只是调度和候选发现，不能直接生成交易计划。
 - WebSocket 轻扫 worker 已接入 public taker trade 流：Binance `aggTrade`、OKX `trades`、Bybit `publicTrade`；`proxyQuality=taker_trade_proxy` 时使用真实成交方向估算 CVD proxy，`proxyQuality=rolling_price_volume_proxy` 时才是 ticker 方向兜底。
 - Macro Weather 已具备常驻 `macro-worker`：默认每小时请求受保护 `POST /api/admin/macro/ingest`，写入 `macro_market_snapshots`；该层只能提供 BTC.D/TOTAL2/TOTAL3 山寨环境锚点，不能直接生成交易方向、不能降低 `3:1` 最低 RR。
 - outcome 复盘统计只承认 `EVIDENCE_SIGNAL` 和 `TRADE_PLAN_READY`；轻扫标记、深扫候选和缺成熟度旧样本不能进入命中率或人工校准胜率。
 - Macro Weather 的 BTC.D / TOTAL2 / TOTAL3 只做山寨环境顺逆风说明；不得降低 `3:1` 最低赔率，也不能直接生成方向或交易计划。
 - `/api/health` 会把 quota 与 coverage 汇总为 `scanEconomy`；系统状态面板必须显示“扫描经济 / 今日预算 / 剩余额度 / 请求/轮 / 批次上限 / 层级覆盖 / 不新增请求”，该面板只读展示，不触发额外 CoinGlass 请求。
-- `/api/health.scanStability` 会把扫描归档、覆盖率、Redis 和 worker 心跳汇总为扫描稳定性诊断；该字段只用于运维排错，不允许前端或策略层把它当作交易信号。
+- `/api/health.scanStability` 会把扫描归档、覆盖率、Redis 和 worker 心跳汇总为扫描稳定性诊断；该字段只用于运维排错，不允许前端或策略层把它当作交易计划。
 - `/api/frontend/radar-contract.coreChainGovernance.p0Completion` 是 P0 核心链路可见化与清理的验收事实源；生产 smoke 必须看到 `percent=100`、`status=ready`、`apiRoles` 存在且 `canCreateTradeSignal=false`。
 - `/api/frontend/radar-contract.lightScanQuality` 会把轻扫数据新鲜度、coverage、rolling-window 候选、volume z-score 候选和 websocket worker 心跳汇总为发现层质量诊断；该字段只能解释候选发现可靠性，不能生成交易计划。
 - `/api/frontend/radar-contract.lightScanQuality` 必须暴露早期机会候选和 late move 候选：`earlyOpportunityCandidateCount`、`lateMoveCandidateCount`、top candidate 的 `earlyOpportunityScore/opportunityPhase/overextensionRisk`。这些字段只影响候选排序和深扫调度解释，不能直接生成交易计划。
@@ -167,7 +167,7 @@
 - 真实权重启用门禁只从现有健康报告、影子权重、影子表现和人工执行记录派生；`STRATEGY_WEIGHT_ACTIVATION_MODE` 可选值为 `disabled|shadow|manual`，默认 `disabled`，当前只影响 `/api/health` 和系统状态面板解释，不接入扫描引擎、不新增 Neon 表、不触发外部请求。
 - 公开 OHLCV provider 当前使用 Binance public futures K 线边界；该数据源不需要 API key，但只能作为 K 线和技术指标数据源，不能替代 CoinGlass 衍生品数据。
 - CoinGlass provider 会对受限主候选拉取 `1m/5m/15m/30m/1h/4h/1d/1w` 公开 K 线，生成 timeframe profile 并补充技术指标证据；当前最多处理 8 个主候选，避免免费阶段请求尖峰。
-- 技术指标证据当前包含 EMA、RSI、ATR、Bollinger、VWAP、Swing、MACD、近似成交量分布和多周期指标矩阵摘要；这些都只进入证据层，不直接触发交易信号。
+- 技术指标证据当前包含 EMA、RSI、ATR、Bollinger、VWAP、Swing、MACD、近似成交量分布和多周期指标矩阵摘要；这些都只进入证据层，不直接触发交易计划。
 - 策略卡存在 `多周期指标矩阵` 证据时，会展示紧凑指标矩阵和 POC/价值区摘要；线上检查时应确认该 UI 只作为证据展示，不把单一指标当作交易触发。
 - 分析层会对指标矩阵与 `1h/4h` 结构 profile 做基础校准；线上信号可能出现 `指标/周期反证` 或 `指标/周期同向校验` evidence，它们只做小幅加权/降权，不允许替代触发、失效和赔率检查。
 - 线上检查 metadata notes 时应能看到 `ohlcv multi-timeframe`；如果部分周期失败，应同时看到对应 `ohlcv unavailable`，但 `/api/scan` 不应因此失败。

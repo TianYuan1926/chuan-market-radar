@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   defaultCoinGlassBatchSize,
@@ -142,11 +143,18 @@ test("getConfiguredMarketProvider attaches default OHLCV so production scans can
   }
 });
 
-test("getConfiguredMarketProvider stays on mock unless CoinGlass is explicitly enabled with a key", () => {
-  assert.equal(getConfiguredMarketProvider({}).id, "mock");
+test("getConfiguredMarketProvider fails closed instead of falling back to mock", () => {
+  assert.equal(getConfiguredMarketProvider({}).id, "unconfigured");
   assert.equal(getConfiguredMarketProvider({
     MARKET_DATA_PROVIDER: "coinglass",
-  }).id, "mock");
+  }).id, "unconfigured");
+});
+
+test("production provider registry does not statically import mock provider", () => {
+  const source = readFileSync("src/lib/market/provider-registry.ts", "utf8");
+
+  assert.doesNotMatch(source, /mock-market-provider/u);
+  assert.doesNotMatch(source, /mockMarketProvider/u);
 });
 
 test("getConfiguredMarketProvider returns CoinGlass provider when enabled", () => {

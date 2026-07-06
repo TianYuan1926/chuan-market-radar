@@ -37,11 +37,11 @@ export const DATA_STATUS_META: Record<
   loading: { label: '加载中', tone: 'muted', pulse: true },
   live: { label: '实时', tone: 'live', pulse: true },
   cached: { label: '缓存', tone: 'neon' },
-  stale: { label: '已过期', tone: 'warn' },
-  partial: { label: '部分缺失', tone: 'warn' },
+  stale: { label: '数据过期', tone: 'warn' },
+  partial: { label: '部分可用', tone: 'warn' },
   empty: { label: '暂无数据', tone: 'muted' },
   error: { label: '加载失败', tone: 'down' },
-  failed: { label: '数据源失败', tone: 'down' },
+  failed: { label: '数据失败', tone: 'down' },
 }
 
 // 便捷构造器：统一包装真实、缓存、partial、empty 和 failed 数据。

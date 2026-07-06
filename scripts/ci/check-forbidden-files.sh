@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+forbidden_regex='^(audit-[^/]*|audit-round-[^/]*|audit-full-handoff|audit-handoff|audit-core-system-self-check[^/]*|system-convergence-remediation[^/]*|system-convergence-validation[^/]*)/|\.(zip|tar|tar\.gz|tgz|log|exitcode|raw\.log)$|^(raw|api-samples|node_modules|\.next|dist|build|docker|redis|db|logs|evidence|reports)/|(^|/)\.env($|\.)|(^|/)[^/]+\.env($|\.)'
+
+violations="$(
+  git ls-files |
+    grep -E "${forbidden_regex}" |
+    grep -vE '(^|/)\.env\.example$' || true
+)"
+
+if [[ -n "${violations}" ]]; then
+  echo "Forbidden files are tracked by Git. Stop before commit:"
+  echo "${violations}"
+  exit 1
+fi
+
+echo "Forbidden tracked file check passed."

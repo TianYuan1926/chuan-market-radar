@@ -319,27 +319,27 @@ function noParticipationReasons(
 
   if (locationRiskReward) {
     if (locationRiskReward.riskFlags.includes("neutral_direction")) {
-      reasons.push("位置/RR：方向中性，不建立多空交易计划。");
+      reasons.push("位置/结构盈亏比：方向中性，不建立多空交易计划。");
     }
 
     if (locationRiskReward.riskFlags.includes("no_structural_stop")) {
-      reasons.push("位置/RR：缺少结构止损位。");
+      reasons.push("位置/结构盈亏比：缺少结构止损位。");
     }
 
     if (locationRiskReward.riskFlags.includes("no_nearest_target")) {
-      reasons.push("位置/RR：缺少前方目标位。");
+      reasons.push("位置/结构盈亏比：缺少前方目标位。");
     }
 
     if (locationRiskReward.riskFlags.includes("reward_risk_below_minimum")) {
-      reasons.push(`位置/RR：当前盈亏比 ${locationRiskReward.rewardRisk ?? "无效"}:1 低于 ${locationRiskReward.minRewardRisk}:1。`);
+      reasons.push(`位置/结构盈亏比：当前盈亏比 ${locationRiskReward.rewardRisk ?? "无效"}:1 低于 ${locationRiskReward.minRewardRisk}:1。`);
     }
 
     if (locationRiskReward.riskFlags.includes("stop_distance_too_wide")) {
-      reasons.push(`位置/RR：结构止损距离 ${locationRiskReward.stopDistancePercent}% 过远，追入风险偏高。`);
+      reasons.push(`位置/结构盈亏比：结构止损距离 ${locationRiskReward.stopDistancePercent}% 过远，追入风险偏高。`);
     }
 
     if (locationRiskReward.riskFlags.includes("chase_risk")) {
-      reasons.push("位置/RR：当前位置偏追，等待回踩或反抽到更优区域。");
+      reasons.push("位置/结构盈亏比：当前位置偏追，等待回踩或反抽到更优区域。");
     }
   }
 

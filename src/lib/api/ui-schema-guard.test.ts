@@ -38,7 +38,7 @@ test('UI schema guard blocks technical terms and English in L2', () => {
 test('UI schema guard blocks Chinese explanation inside L3 evidence values', () => {
   const layers = buildUiInformationLayers({
     decision: 'OBSERVE',
-    reason: '当前只用于观察，不构成交易信号。',
+    reason: '当前只用于观察，不构成交易计划。',
     evidence: { OI: '资金增加' },
   })
 

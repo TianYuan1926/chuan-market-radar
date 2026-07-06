@@ -75,7 +75,7 @@ const EMPTY_SIGNALS = resource<RadarSignal[]>(
   'empty',
   {
     source: 'frontend-contract',
-    reason: '未收到后端信号契约，禁止使用演示信号兜底',
+    reason: '未收到后端观察契约，禁止使用演示样本兜底',
   },
 )
 
@@ -88,7 +88,7 @@ export function SignalMaturityPool({ signals }: { signals?: Resource<RadarSignal
   const [dirFilter, setDirFilter] = useState<RadarSignal['direction'] | 'ALL'>('ALL')
   const [sortKey, setSortKey] = useState<SortKey>('maturity')
 
-  // 各成熟度计数
+  // 各成熟度计数；这是候选验证层，不是执行依据数量。
   const counts = useMemo(() => {
     const m = new Map<SignalMaturity, number>()
     for (const s of all) m.set(s.maturity, (m.get(s.maturity) ?? 0) + 1)
@@ -118,7 +118,7 @@ export function SignalMaturityPool({ signals }: { signals?: Resource<RadarSignal
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
         <span className="h-3.5 w-1 bg-neon" />
         <Layers className="size-4 text-neon" />
-        <h2 className="font-semibold">信号成熟度池</h2>
+        <h2 className="font-semibold">验证成熟度池</h2>
         <StatusBadge status={res.status} />
         <span className="ml-auto text-xs text-muted-foreground">
           共 {all.length} 条 · 展示 {filtered.length} 条
@@ -191,16 +191,16 @@ export function SignalMaturityPool({ signals }: { signals?: Resource<RadarSignal
         </label>
       </div>
 
-      {/* 信号列表：可滚动，支持任意数量（不写死 Top5） */}
+      {/* 观察列表：可滚动，支持任意数量（不写死 Top5） */}
       <div className="px-5 pt-3">
-        <ResourceBoundary resource={res} isEmpty={() => all.length === 0} emptyText="暂无信号">
+        <ResourceBoundary resource={res} isEmpty={() => all.length === 0} emptyText="暂无验证候选">
           <div
             key={`${maturityFilter}-${dirFilter}-${sortKey}`}
             className="fade-swap -mx-5 max-h-[640px] divide-y divide-border overflow-y-auto"
           >
             {filtered.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                没有符合条件的信号
+                没有符合条件的验证候选
               </div>
             ) : (
               filtered.map((s) => <SignalRow key={s.id} signal={s} />)
@@ -343,11 +343,11 @@ function SignalRow({ signal: s }: { signal: RadarSignal }) {
       </p>
       {s.whyBlocked ? (
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-down/90">
-          <span className="font-semibold">不可交易：</span>
+          <span className="font-semibold">禁止执行：</span>
           {s.whyBlocked}
         </p>
       ) : tradable ? (
-        <p className="mt-1 text-xs font-medium text-up">交易计划就绪，可进入详情查看入场/止损/目标</p>
+        <p className="mt-1 text-xs font-medium text-up">后端计划已生成，进入单币档案人工复核入场、止损、目标和失效条件</p>
       ) : null}
     </Link>
   )

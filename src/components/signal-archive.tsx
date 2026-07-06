@@ -83,9 +83,15 @@ export function dossierToArchive(
   const mainStructure = data.structures.find((item) => item.tf === '4h') ?? data.structures[0]
   const support = validLevel(mainStructure?.support)
   const resistance = validLevel(mainStructure?.resistance)
-  const invalidation = data.tradePlan
+  const hasTradePlan = Boolean(data.tradePlan && data.riskGate.allowTradePlan)
+  const invalidation = hasTradePlan && data.tradePlan
     ? Number(data.tradePlan.stop.match(/[\d.]+/)?.[0] ?? support)
-    : support
+    : undefined
+  const targets = hasTradePlan && data.tradePlan
+    ? [data.tradePlan.tp1, data.tradePlan.tp2, data.tradePlan.tp3].map((value) =>
+        Number(value.match(/[\d.]+/)?.[0] ?? resistance),
+      )
+    : []
 
   return {
     direction: data.direction,
@@ -104,24 +110,18 @@ export function dossierToArchive(
       support,
       resistance,
       invalidation,
-      targets: data.tradePlan
-        ? [data.tradePlan.tp1, data.tradePlan.tp2, data.tradePlan.tp3].map((value) =>
-            Number(value.match(/[\d.]+/)?.[0] ?? resistance),
-          )
-        : resistance > 0 ? [resistance] : [],
+      targets,
     },
-    invalidation:
-      data.tradePlan?.invalidation ??
-      (data.riskGate.reasons.join('；') || '后端暂未生成失效条件'),
-    plan: {
-      bias: data.tradePlan?.bias ?? '观望',
-      entry: data.tradePlan?.entryCondition ?? '等待后端交易计划放行',
-      stop: data.tradePlan?.stop ?? '未生成',
-      targets: data.tradePlan
-        ? `${data.tradePlan.tp1} / ${data.tradePlan.tp2} / ${data.tradePlan.tp3}`
-        : '未生成',
-      position: data.tradePlan?.scaleOut ?? '风控拦截时不生成仓位计划',
-    },
+    invalidation: hasTradePlan ? data.tradePlan?.invalidation : undefined,
+    plan: hasTradePlan && data.tradePlan
+      ? {
+          bias: data.tradePlan.bias,
+          entry: data.tradePlan.entryCondition,
+          stop: data.tradePlan.stop,
+          targets: `${data.tradePlan.tp1} / ${data.tradePlan.tp2} / ${data.tradePlan.tp3}`,
+          position: data.tradePlan.scaleOut,
+        }
+      : undefined,
   }
 }
 
@@ -134,6 +134,9 @@ export function SignalArchive({
 }) {
   const a = dossierToArchive(dossier)
   const state = dossierState(dossier)
+  const dossierData = dossier?.data
+  const hasTradePlan = Boolean(dossierData?.tradePlan && dossierData.riskGate.allowTradePlan && a?.plan)
+  const noPlanReasons = dossierData?.riskGate.reasons ?? []
 
   if (!a) {
     return (
@@ -141,11 +144,11 @@ export function SignalArchive({
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
           <span className="h-3.5 w-1 bg-neon" />
           <Crosshair className="size-4 text-neon" />
-          <h2 className="font-semibold">信号档案</h2>
+          <h2 className="font-semibold">证据档案</h2>
           <span className="ml-auto text-xs text-muted-foreground">等待后端证据链</span>
         </div>
         <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-          当前标的没有完整后端信号档案。系统不会用模拟证据、模拟关键位或模拟交易计划补位。
+          当前标的没有完整后端证据档案。系统不会用模拟证据、模拟关键位或模拟交易计划补位。
         </div>
       </section>
     )
@@ -157,7 +160,7 @@ export function SignalArchive({
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
         <span className="h-3.5 w-1 bg-neon" />
         <Crosshair className="size-4 text-neon" />
-        <h2 className="font-semibold">信号档案</h2>
+        <h2 className="font-semibold">证据档案</h2>
         <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="relative flex size-1.5">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-up opacity-70" />
@@ -169,14 +172,14 @@ export function SignalArchive({
 
       {/* 概览四联 */}
       <div className="grid grid-cols-2 border-b border-border lg:grid-cols-4">
-        <Overview label="当前信号状态" value={state.label} tone={state.tone} border />
+        <Overview label="当前观察状态" value={state.label} tone={state.tone} border />
         <Overview
           label="方向倾向"
           value={a.direction}
           tone={DIR_TONE[a.direction]}
           border
         />
-        <Overview label="信号评分" value={`${a.score}/100`} tone="var(--neon)" border />
+        <Overview label="证据评分" value={`${a.score}/100`} tone="var(--neon)" border />
         <Overview label="风险等级" value={a.risk} tone={RISK_TONE[a.risk]} />
       </div>
 
@@ -238,10 +241,12 @@ export function SignalArchive({
           <div className="border-t border-border px-6 py-3">
             <div className="flex items-center gap-1.5 text-sm font-semibold">
               <ShieldAlert className="size-4 text-[var(--sig-pump)]" />
-              失效条件
+              {hasTradePlan ? '失效条件' : '风控 / 等待原因'}
             </div>
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              {a.invalidation}
+              {hasTradePlan
+                ? a.invalidation ?? '后端未返回失效说明'
+                : noPlanReasons.join('；') || '后端未生成交易计划，本档案只做观察参考。'}
             </p>
           </div>
         </div>
@@ -253,23 +258,40 @@ export function SignalArchive({
         <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
           <Level label="支撑位" value={a.keyLevels.support} tone="var(--up)" />
           <Level label="压力位" value={a.keyLevels.resistance} tone="var(--down)" />
-          <Level label="失效位" value={a.keyLevels.invalidation} tone="var(--sig-pump)" />
-          {a.keyLevels.targets.map((t, i) => (
-            <Level key={i} label={`目标 T${i + 1}`} value={t} tone="var(--neon)" />
-          ))}
+          {hasTradePlan ? (
+            <>
+              <Level label="失效位" value={a.keyLevels.invalidation ?? 0} tone="var(--sig-pump)" />
+              {a.keyLevels.targets.map((t, i) => (
+                <Level key={i} label={`计划目标 ${i + 1}`} value={t} tone="var(--neon)" />
+              ))}
+            </>
+          ) : (
+            <div className="bg-card px-4 py-3 sm:col-span-1 lg:col-span-4">
+              <div className="text-[11px] text-muted-foreground">结构参考边界</div>
+              <div className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                当前没有后端交易计划，只展示支撑/压力参考；不展示失效位、建议入场、止损或目标位。
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 交易计划草案 */}
+      {/* 后端交易计划 */}
       <div className="border-t border-border">
-        <SubHead icon={ClipboardList} tone="var(--neon)" title="交易计划草案" />
-        <dl className="divide-y divide-border/60">
-          <PlanRow label="操作倾向" value={a.plan.bias} />
-          <PlanRow label="建议入场" value={a.plan.entry} />
-          <PlanRow label="止损" value={a.plan.stop} tone="var(--down)" />
-          <PlanRow label="目标位" value={a.plan.targets} tone="var(--up)" />
-          <PlanRow label="仓位管理" value={a.plan.position} />
-        </dl>
+        <SubHead icon={ClipboardList} tone="var(--neon)" title={hasTradePlan ? '后端交易计划' : '是否具备交易计划'} />
+        {hasTradePlan ? (
+          <dl className="divide-y divide-border/60">
+            <PlanRow label="操作倾向" value={a.plan?.bias ?? '待补齐'} />
+            <PlanRow label="入场触发" value={a.plan?.entry ?? '待补齐'} />
+            <PlanRow label="结构止损" value={a.plan?.stop ?? '待补齐'} tone="var(--down)" />
+            <PlanRow label="计划目标" value={a.plan?.targets ?? '待补齐'} tone="var(--up)" />
+            <PlanRow label="仓位管理" value={a.plan?.position ?? '待补齐'} />
+          </dl>
+        ) : (
+          <div className="px-6 py-4 text-xs leading-relaxed text-muted-foreground">
+            后端未生成交易计划。本档案只展示观察证据、反证和结构参考；前端不会补写入场、止损或目标位。
+          </div>
+        )}
       </div>
 
       {/* TradingView 入口 */}

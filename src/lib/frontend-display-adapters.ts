@@ -256,7 +256,7 @@ function lifecycleForLeaderboardRow(row: LeaderboardRow, index: number): RadarSi
     ? Math.max(0, Math.round((Date.now() - updatedMs) / 60_000))
     : Math.min(index, 59)
   const freshnessLabel: RadarSignal['lifecycle']['freshnessLabel'] =
-    ageMin <= 15 ? '刚出现' : ageMin <= 60 ? '近期有效' : ageMin <= 240 ? '旧信号' : '已过期'
+    ageMin <= 15 ? '刚出现' : ageMin <= 60 ? '近期有效' : ageMin <= 240 ? '旧观察' : '已过期'
   const status: RadarSignal['lifecycle']['status'] =
     ageMin <= 15 ? 'new' : ageMin <= 60 ? 'active' : ageMin <= 240 ? 'stale' : 'expired'
 
@@ -268,7 +268,7 @@ function lifecycleForLeaderboardRow(row: LeaderboardRow, index: number): RadarSi
     freshnessLabel,
     status,
     source: 'leaderboard_candidate',
-    summary: `这是榜单候选的新旧判断：${freshnessLabel}，${timeLabelFromAge(ageMin)}。榜单候选不等于交易信号。`,
+    summary: `这是榜单候选的新旧判断：${freshnessLabel}，${timeLabelFromAge(ageMin)}。榜单候选不等于交易计划。`,
   }
 }
 
@@ -310,7 +310,7 @@ function operatorReadForLeaderboardRow(
     worthWatching: row.inCandidatePool || row.awaitingScan || row.deepScanned,
     canTrade: state.canTrade,
     headline: row.inCandidatePool || row.awaitingScan ? '榜单候选，等待深扫' : '市场榜单观察',
-    nextAction: '等待全市场扫描和深扫验证，不允许直接当交易信号。',
+    nextAction: '等待全市场扫描和深扫验证，不允许直接当交易计划。',
     noTradeReason: state.boundary,
   }
 }
@@ -376,7 +376,7 @@ export function withLeaderboardSignalFallback(
       ? `${signals.source ?? 'signal-worker'}+leaderboard`
       : signals.source,
     reason: data.length > signals.data.length
-      ? `${signals.reason ? `${signals.reason}；` : ''}额外展示榜单观察源候选；候选不等于交易计划；它们只进入候选验证区，不进入狙击榜，不生成交易计划`
+      ? `${signals.reason ? `${signals.reason}；` : ''}额外展示榜单观察源候选；候选不等于交易计划；它们只进入候选验证区，不进入计划就绪区，不生成交易计划`
       : signals.reason,
   }
 }

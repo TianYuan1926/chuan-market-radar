@@ -3,15 +3,16 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChuanLogo } from './chuan-logo'
+import { PAGE_DISPLAY_NAMES } from '@/lib/ui-schema/display-names'
 import { cn } from '@/lib/utils'
 
 const NAV = [
-  { href: '/dashboard', label: '作战总控' },
-  { href: '/signals', label: '候选验证' },
-  { href: '/leaderboard', label: '异动复盘榜' },
-  { href: '/market', label: '环境门控' },
-  { href: '/review', label: '复盘进化' },
-  { href: '/system', label: '数据源健康' },
+  { href: '/dashboard', label: PAGE_DISPLAY_NAMES.dashboard },
+  { href: '/signals', label: PAGE_DISPLAY_NAMES.signals },
+  { href: '/leaderboard', label: PAGE_DISPLAY_NAMES.leaderboard },
+  { href: '/market', label: PAGE_DISPLAY_NAMES.market },
+  { href: '/review', label: PAGE_DISPLAY_NAMES.review },
+  { href: '/system', label: PAGE_DISPLAY_NAMES.system },
 ]
 
 export function SiteNav() {

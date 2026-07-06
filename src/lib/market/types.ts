@@ -8,7 +8,8 @@ export type MarketDataSource =
   | "coinglass"
   | "exchange_public"
   | "coingecko"
-  | "composite";
+  | "composite"
+  | "unconfigured";
 
 export type MarketDataStatus = "ready" | "partial" | "stale" | "failed";
 

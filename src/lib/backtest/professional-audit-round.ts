@@ -201,7 +201,7 @@ const opportunityQualityLabels: Record<ProfessionalAuditOpportunityQualityId, st
 
 const opportunityQualityNextActions: Record<ProfessionalAuditOpportunityQualityId, string> = {
   fakeout_risk: "只做风险提示和等待确认，不能把未确认突破/跌破包装成交易计划。",
-  late_move: "降级为等待回踩/反抽或复盘教材，不允许进入狙击榜。",
+  late_move: "降级为等待回踩/反抽或复盘教材，不允许进入计划就绪区。",
   noise: "过滤低质量波动，要求至少形成结构、量能、位置或相对强弱共振再进入候选。",
   premium_early_setup: "优先检查是否进入 TopN、是否得到深扫验证，以及是否清楚写出下一步确认条件。",
   trade_plan_ready: "继续后验 TP/SL、MFE/MAE 和失效条件，验证计划不是纸面可行。",
@@ -4635,7 +4635,7 @@ function aggregateFindings({
 
   if (watchOnlyQuality && watchOnlyQuality.totalNodes > 0 && watchOnlyQuality.falsePositiveRatePct >= 45) {
     findings.push(aggregateFinding({
-      detail: `值得观察但不能做的样本被选中 ${watchOnlyQuality.capturedCount} 个，假阳性率 ${watchOnlyQuality.falsePositiveRatePct}%。这类信号必须讲清“缺什么、等什么”，不能包装成狙击目标。`,
+      detail: `值得观察但不能做的样本被选中 ${watchOnlyQuality.capturedCount} 个，假阳性率 ${watchOnlyQuality.falsePositiveRatePct}%。这类观察项必须讲清“缺什么、等什么”，不能包装成后端计划样本。`,
       id: "PBA-QUALITY-WATCH-AMBIGUOUS-001",
       layer: "structure",
       nextAction: "把观察级信号和交易计划级信号彻底分层，前端展示必须避免让观察信号看起来像可直接执行。",
@@ -4947,7 +4947,7 @@ function aggregateRemediations(findings: ProfessionalAuditFinding[]): Profession
 
   if (findings.some((item) => item.id === "PBA-QUALITY-WATCH-AMBIGUOUS-001")) {
     remediations.push({
-      acceptanceCriteria: "前端和报告能清楚区分观察级、证据信号和交易计划；观察级不进入狙击榜。",
+      acceptanceCriteria: "前端和报告能清楚区分观察级、证据观察和交易计划；观察级不进入计划就绪区。",
       action: "加强信号成熟度分层，把 watch_only 明确标为等待条件，不允许生成完整交易计划。",
       canAutoApply: false,
       layer: "structure",
@@ -4981,7 +4981,7 @@ function aggregateRemediations(findings: ProfessionalAuditFinding[]): Profession
   if (findings.some((item) => item.id === "PBA-QUALITY-LATE-SELECTED-001")) {
     remediations.push({
       acceptanceCriteria: "下一轮 late_move 被捕获数量下降，已涨/已跌过多样本只能输出等待回踩/反抽或复盘教材。",
-      action: "在扫描排序层加入已发生行情降权，避免把末端行情送入狙击榜。",
+      action: "在扫描排序层加入已发生行情降权，避免把末端行情送入计划就绪区。",
       canAutoApply: false,
       layer: "timing",
       priority: "P0",

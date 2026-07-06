@@ -15,6 +15,7 @@ import {
   type ScanProofData,
 } from '@/lib/radar-contract'
 import { resource } from '@/lib/data-status'
+import { displayMaturityName } from '@/lib/ui-schema/display-names'
 import { StatusBadge, FreshnessTag, ResourceBoundary } from '@/components/data-state'
 import { CountUp } from '@/components/count-up'
 import {
@@ -168,6 +169,16 @@ const EMPTY_QUEUE = resource<DeepScanQueue>(
     highPriority: [],
     coldExploration: [],
     longUnscanned: [],
+    metrics: {
+      deepScanCoveragePercent: 0,
+      pendingCount: 0,
+      oldestPendingAge: 0,
+      estimatedCycleMinutes: 0,
+      highPriorityPendingCount: 0,
+      skippedLowPriorityCount: 0,
+      servedCache: false,
+      guardrail: '等待后端深扫轮转指标契约。',
+    },
   },
   'empty',
   EMPTY_SOURCE,
@@ -421,6 +432,22 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
         </div>
         <div className="space-y-3 p-5">
           <ResourceBoundary resource={queue}>
+          <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+            <MetricChip label="深扫覆盖" value={`${queue.data.metrics.deepScanCoveragePercent}%`} />
+            <MetricChip label="等待数量" value={queue.data.metrics.pendingCount.toLocaleString()} />
+            <MetricChip label="最久等待" value={`${queue.data.metrics.oldestPendingAge}m`} />
+            <MetricChip label="预计轮转" value={`${queue.data.metrics.estimatedCycleMinutes}m`} />
+            <MetricChip label="高优先级排队" value={queue.data.metrics.highPriorityPendingCount.toLocaleString()} />
+            <MetricChip label="低优先级跳过" value={queue.data.metrics.skippedLowPriorityCount.toLocaleString()} />
+          </div>
+          {queue.data.metrics.servedCache ? (
+            <p className="border border-[oklch(0.8_0.15_75)]/40 bg-[oklch(0.8_0.15_75)]/10 px-2 py-1.5 text-xs leading-relaxed text-[oklch(0.82_0.15_75)]">
+              当前为缓存快照，不代表刚完成深扫；候选不会因此升级为计划就绪。
+            </p>
+          ) : null}
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {queue.data.metrics.guardrail}
+          </p>
           <QueueRow label="本轮深扫" symbols={queue.data.currentBatch} tone="neon" />
           <QueueRow label="下一批" symbols={queue.data.nextBatch} tone="muted" />
           <QueueRow label="高优先级" symbols={queue.data.highPriority} tone="up" />
@@ -453,7 +480,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
           <ShieldCheck className="size-4 text-neon" />
           <h2 className="font-semibold">扫描稳定性</h2>
           <span className="ml-auto mr-2 text-xs text-muted-foreground">
-            只做运维诊断，不生成交易信号
+            只做运维诊断，不生成交易计划
           </span>
           <StatusBadge status={scanStability.status} />
         </div>
@@ -546,7 +573,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-semibold text-neon">{candidate.symbol}</span>
                         <span className="ml-auto border border-border bg-secondary/30 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                          {candidate.maturity}
+                          {displayMaturityName(candidate.maturity)}
                         </span>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1 font-mono text-[10px] text-muted-foreground">
@@ -730,7 +757,7 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
                             <span className="ml-auto font-mono text-[11px] text-foreground">{candidate.score}</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
-                            <span>{labelFrom(DISCOVERY_PHASE_LABEL, candidate.opportunityPhase) || candidate.state}</span>
+                            <span>{labelFrom(DISCOVERY_PHASE_LABEL, candidate.opportunityPhase) || '状态未知'}</span>
                             <span>{candidate.changePercent}%</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
@@ -1150,6 +1177,15 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
           </ResourceBoundary>
         </div>
       </section>
+    </div>
+  )
+}
+
+function MetricChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-border bg-secondary/25 px-2 py-1.5">
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="mt-0.5 font-mono text-sm font-bold text-foreground">{value}</div>
     </div>
   )
 }

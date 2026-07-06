@@ -83,7 +83,7 @@ export const goldenCaseFixtures: GoldenCaseFixture[] = [
     title: "突破前临界",
   },
   {
-    description: "突破站稳、放量、OI 温和上升、Funding 未拥挤，RR 合格，允许计划就绪。",
+    description: "突破站稳、放量、OI 温和上升、Funding 未拥挤，结构盈亏比合格，允许计划就绪。",
     expected: {
       allowTradePlan: true,
       category: "breakout",
@@ -109,7 +109,7 @@ export const goldenCaseFixtures: GoldenCaseFixture[] = [
     title: "优质突破",
   },
   {
-    description: "价格已远离结构位，OI 暴涨，Funding 拥挤，RR 不足，只能避免追单。",
+    description: "价格已远离结构位，OI 暴涨，Funding 拥挤，结构盈亏比不足，只能避免追单。",
     expected: {
       allowTradePlan: false,
       category: "exhaustion",
@@ -186,7 +186,7 @@ export const goldenCaseFixtures: GoldenCaseFixture[] = [
     title: "OI 暴涨但价格滞涨",
   },
   {
-    description: "方向看多但目标太近、止损太远，RR 小于 3，必须拦截。",
+    description: "方向看多但目标太近、止损太远，结构盈亏比小于 3，必须拦截。",
     expected: {
       allowTradePlan: false,
       category: "rr_gate",
@@ -212,7 +212,7 @@ export const goldenCaseFixtures: GoldenCaseFixture[] = [
     title: "盈亏比不足",
   },
   {
-    description: "突破后跌回箱体，结构失效，必须移出可交易候选。",
+    description: "突破后跌回箱体，结构失效，必须移出交易计划就绪范围，只保留观察或复盘。",
     expected: {
       allowTradePlan: false,
       category: "fakeout",

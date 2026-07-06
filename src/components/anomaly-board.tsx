@@ -51,12 +51,12 @@ const FILTERS: { id: PoolStatus | 'all'; label: string; hint?: string }[] = [
   { id: 'all', label: '全部候选' },
   { id: 'long', label: '多头候选', hint: '趋势结构偏多、量价配合，后端证据倾向做多的候选' },
   { id: 'short', label: '空头候选', hint: '动能衰减或破位，后端证据倾向做空的候选' },
-  { id: 'waiting', label: '等待确认', hint: '信号雏形已现，等待放量/突破等确认条件' },
-  { id: 'near', label: '接近触发', hint: '距入场触发条件已非常接近，请重点关注' },
+  { id: 'waiting', label: '等待确认', hint: '异动雏形已现，等待放量/突破等后端确认条件' },
+  { id: 'near', label: '接近触发', hint: '接近后端验证条件，等待确认，不追入' },
   { id: 'high_risk', label: '高风险勿追', hint: '高位资金拥挤、风险极高，建议规避而非追入' },
   { id: 'low_odds', label: '赔率不足', hint: '潜在收益与风险不成比例，赔率偏低' },
-  { id: 'insufficient', label: '数据不足', hint: '数据样本不足，信号可信度有限，仅作观察' },
-  { id: 'expired', label: '已失效', hint: '触发窗口已过或结构破坏，信号已失效' },
+  { id: 'insufficient', label: '数据不足', hint: '数据样本不足，观察可信度有限，仅作观察' },
+  { id: 'expired', label: '已失效', hint: '触发窗口已过或结构破坏，观察已失效' },
 ]
 
 const COLS =
@@ -75,7 +75,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('score')
   const [page, setPage] = useState(1)
-  // 新信号通知：订阅全站信号源（提示音由全局服务统一播放，此处仅做视觉脉冲）
+  // 新异动通知：订阅全站发现源（提示音由全局服务统一播放，此处仅做视觉脉冲）
   const [signalPulse, setSignalPulse] = useState<{ symbol: string; id: number } | null>(null)
   const latestSignal = useLatestSignal()
 
@@ -157,7 +157,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           })}
         </div>
 
-        {/* 实时新信号指示 */}
+        {/* 实时新异动指示 */}
         <div
           className={cn(
             'ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold transition-all duration-300',
@@ -169,7 +169,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           <Radio className={cn('size-3.5', signalPulse && 'animate-pulse')} />
           {signalPulse ? (
             <span>
-              新信号 <span className="font-mono">{signalPulse.symbol}</span> 接入
+              新异动 <span className="font-mono">{signalPulse.symbol}</span> 接入
             </span>
           ) : (
             <span className="hidden sm:inline">实时监听中</span>
@@ -213,7 +213,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           ))}
         </div>
         <span className="ml-auto font-mono text-[13px] text-muted-foreground">
-          {rows.length} 条候选/信号
+          {rows.length} 条候选/观察项
         </span>
       </div>
 
@@ -274,16 +274,16 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
               decision,
               reason: card.operatorRead.headline,
               evidence: {
-                OFI: 'n/a',
-                OI: 'n/a',
-                Funding: 'n/a',
-                Whale: 'n/a',
-                Volume: card.token.volume24h > 0 ? card.token.volume24h : 'n/a',
-                Price: card.token.price > 0 ? card.token.price : 'n/a',
+                OFI: '暂无',
+                OI: '暂无',
+                Funding: '暂无',
+                Whale: '暂无',
+                Volume: card.token.volume24h > 0 ? card.token.volume24h : '暂无',
+                Price: card.token.price > 0 ? card.token.price : '暂无',
               },
               technical: [
                 { label: '排序分', value: `${card.score}/100` },
-                { label: '结构盈亏比', value: card.odds > 0 ? `${card.odds}:1` : 'n/a' },
+                { label: '结构盈亏比', value: card.odds > 0 ? `${card.odds}:1` : '暂无' },
                 { label: '异常强度', value: `${card.token.anomalyScore}/100` },
                 { label: '量能倍数', value: `x${card.volMult}` },
                 { label: '风险等级', value: card.riskLevel },
@@ -403,14 +403,14 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                   />
                 </div>
 
-                {/* 展开：详情 / 后端证据 / 计划状态 */}
+                {/* 展开：观察详情 / 后端证据 / 计划门禁 */}
                 {isOpen && (
                   <div className="animate-float-up grid gap-4 border-t border-border bg-background/60 px-4 py-4 lg:grid-cols-3">
                     {/* 详情 */}
                     <div>
                       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                         <Crosshair className="size-4 text-neon" />
-                        {candidateOnly ? '候选详情' : '信号详情'}
+                        {planReady ? '后端计划详情' : candidateOnly ? '候选详情' : '证据观察详情'}
                       </div>
                       <p className="text-[13px] leading-relaxed text-muted-foreground">
                         {card.desc}
@@ -436,7 +436,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                           value={POOL_META[card.poolStatus].label}
                           tone={POOL_TONE[POOL_META[card.poolStatus].tone]}
                         />
-                        <Stat label="信号新旧" value={card.lifecycle.freshnessLabel} />
+                        <Stat label="观察新旧" value={card.lifecycle.freshnessLabel} />
                         <Stat label="当前分区" value={card.operatorRead.laneLabel} />
                         <Stat label="交易所" value={card.exchange} />
                         <Stat label="市场" value={card.market} />
@@ -462,11 +462,11 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       </p>
                     </div>
 
-                    {/* 计划状态 */}
+                    {/* 后端计划门禁 */}
                     <div className="lg:border-l lg:border-border lg:pl-4">
                       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                         <Target className="size-4 text-neon" />
-                        交易计划状态
+                        后端计划门禁
                       </div>
                       <div
                         className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 text-[12px] font-bold"
@@ -482,7 +482,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       <dl className="space-y-1.5 text-[12px]">
                         <PlanRow
                           label="状态"
-                          value={planReady ? '已进入最终计划候选' : '后端未给出完整交易计划'}
+                          value={planReady ? '后端计划已生成，需人工复核' : '后端未给出完整计划'}
                           tone={planReady ? 'var(--up)' : 'var(--muted-foreground)'}
                         />
                         <PlanRow label="原因" value={card.desc} />

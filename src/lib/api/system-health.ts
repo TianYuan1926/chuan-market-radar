@@ -82,7 +82,7 @@ import type {
 
 export type SystemHealthLevel = "ready" | "preview" | "degraded" | "blocked";
 export type ScanFreshness = "fresh" | "aging" | "expired" | "unknown";
-export type DataSourceHealthStatus = "ready" | "preview" | "missing_key" | "fallback";
+export type DataSourceHealthStatus = "ready" | "preview" | "missing_key" | "fallback" | "unconfigured";
 
 export type SystemHealthGuard = {
   id: "data-source" | "persistence" | "freshness" | "archive";
@@ -1660,6 +1660,10 @@ function sourceStatus({
     return "fallback";
   }
 
+  if (activeSource === "unconfigured") {
+    return "unconfigured";
+  }
+
   return activeSource === "mock" ? "preview" : "ready";
 }
 
@@ -1670,6 +1674,10 @@ function sourceDetail(status: DataSourceHealthStatus, activeSource: MarketDataSo
 
   if (status === "fallback") {
     return `配置请求真实数据，但当前返回 ${activeSource}，需要检查 provider 启用条件。`;
+  }
+
+  if (status === "unconfigured") {
+    return "市场数据源未配置；生产 registry 已关闭 mock 回落，当前不能视为真实行情。";
   }
 
   if (status === "preview") {
@@ -2598,7 +2606,8 @@ export async function buildSystemHealthReport({
   const v3StrategyLoop = v3StrategyLoopReport(snapshot, journalEvents);
   const strategyEvolutionLoop = strategyEvolutionLoopReport(outcomes, v3StrategyLoop);
   const sourceLevel: SystemHealthLevel = providerStatus === "missing_key" ||
-      providerStatus === "fallback"
+      providerStatus === "fallback" ||
+      providerStatus === "unconfigured"
     ? "degraded"
     : providerStatus === "preview"
       ? "preview"

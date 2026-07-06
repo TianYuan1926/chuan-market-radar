@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { MarketSignal } from "../analysis/types";
+import type { MarketSignal, SignalMaturityStage } from "../analysis/types";
 import type { BackendContract } from "./backend-contract";
 import {
   buildFrontendKlineContract,
@@ -53,6 +53,17 @@ function signal(overrides: Partial<MarketSignal> = {}): MarketSignal {
       noChase: true,
     },
     ...overrides,
+  };
+}
+
+function signalMaturity(stage: SignalMaturityStage): NonNullable<MarketSignal["maturity"]> {
+  return {
+    canAttachTradePlan: stage === "TRADE_PLAN_READY",
+    canEnterMainSignalArea: stage !== "LIGHT_SCAN_MARK",
+    canRequestAiReview: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+    label: stage,
+    reasons: stage === "TRADE_PLAN_READY" ? ["eligible_v3_trade_plan"] : ["has_structured_evidence"],
+    stage,
   };
 }
 
@@ -314,7 +325,7 @@ function backendContract(): BackendContract {
       },
       scanStability: {
         generatedAt: "2026-06-21T08:00:00.000Z",
-        guardrail: "扫描稳定性报告只用于运维诊断；不能直接生成交易信号。",
+        guardrail: "扫描稳定性报告只用于运维诊断；不能直接生成交易计划。",
         issues: [],
         rotation: {
           coveragePercent: 42,
@@ -493,7 +504,7 @@ function backendContract(): BackendContract {
             requiredEvidence: ["全市场 universe", "轻扫覆盖"],
             blockers: [],
             nextAction: "继续轮转",
-            guardrail: "轻扫不直接交易",
+            guardrail: "轻扫不直接执行",
           },
           {
             id: "candidate_filtering",
@@ -503,7 +514,7 @@ function backendContract(): BackendContract {
             requiredEvidence: ["成熟度", "轮换状态"],
             blockers: [],
             nextAction: "继续验证",
-            guardrail: "候选不进狙击榜",
+            guardrail: "候选不进计划就绪区",
           },
           {
             id: "deep_scan_verification",
@@ -768,7 +779,7 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
     item.id === "mock_market_facts" &&
     item.action === "delete"
   ));
-  assert.match(radar.coreChainGovernance.reason ?? "", /不生成交易信号/);
+  assert.match(radar.coreChainGovernance.reason ?? "", /不生成交易计划/);
   assert.equal(radar.radarSignals.data[0]?.symbol, "TIA");
   assert.equal(radar.radarSignals.data[0]?.direction, "多");
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
@@ -776,7 +787,7 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.fundFlow.status, "partial");
   assert.equal(radar.fundFlow.data.canCreateTradeSignal, false);
   assert.deepEqual(radar.fundFlow.data.connectedFields, ["open_interest", "funding_rate", "long_short_ratio"]);
-  assert.match(radar.fundFlow.data.decisionBoundary, /不能生成或放大交易信号/);
+  assert.match(radar.fundFlow.data.decisionBoundary, /不能生成或放大交易计划/);
   assert.equal(radar.fundFlow.data.takerBuySellAvailable, false);
   assert.deepEqual(radar.fundFlow.data.unavailableFields, ["exchange_native_taker_buy_sell", "exchange_native_cvd", "real_fund_flow"]);
   assert.deepEqual(radar.derivatives.data.connectedFields, ["open_interest", "funding_rate", "long_short_ratio"]);
@@ -784,14 +795,14 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.deepEqual(radar.derivatives.data.unavailableFields, ["exchange_native_taker_buy_sell", "exchange_native_cvd", "real_fund_flow"]);
   assert.equal(radar.scanStability.status, "live");
   assert.equal(radar.scanStability.data.status, "healthy");
-  assert.match(radar.scanStability.reason ?? "", /不能直接生成交易信号/);
+  assert.match(radar.scanStability.reason ?? "", /不能直接生成交易计划/);
   assert.equal(radar.lightScanQuality.data.schemaVersion, "light-scan-quality.v1");
   assert.equal(radar.lightScanQuality.data.canCreateTradeSignal, false);
   assert.ok(radar.lightScanQuality.data.checks.some((check) => check.key === "decision_boundary" && check.status === "pass"));
   assert.equal(radar.opportunityQuality.data.schemaVersion, "opportunity-quality.v1");
   assert.equal(radar.opportunityQuality.data.counts.evidenceSignal, 1);
   assert.equal(radar.opportunityQuality.data.counts.tradePlanReady, 0);
-  assert.ok(radar.opportunityQuality.data.antiChase.guardrails.some((rule) => /狙击榜只允许/.test(rule)));
+  assert.ok(radar.opportunityQuality.data.antiChase.guardrails.some((rule) => /计划就绪区只允许/.test(rule)));
   assert.match(radar.opportunityQuality.reason ?? "", /机会质量只判断提前性/);
   assert.equal(radar.deepScanQuality.data.schemaVersion, "deep-scan-quality.v1");
   assert.equal(radar.deepScanQuality.data.cleanRows, 24);
@@ -1052,7 +1063,7 @@ test("buildFrontendRadarContract recalculates stale persisted signal maturity", 
   });
 
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
-  assert.match(radar.radarSignals.data[0]?.whyBlocked ?? "", /不能进狙击榜|不能附带完整计划/);
+  assert.match(radar.radarSignals.data[0]?.whyBlocked ?? "", /不能进计划就绪区|不能附带完整计划/);
 });
 
 test("frontend radar and token dossier agree when a stale ready signal has no ready trade plan", () => {
@@ -1087,12 +1098,16 @@ test("frontend radar and token dossier agree when a stale ready signal has no re
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
   assert.equal(dossier.data.maturity, "EVIDENCE_SIGNAL");
   assert.equal(dossier.data.tradePlan, null);
-  assert.deepEqual(dossier.data.riskGate.reasons, ["等待后端结构化交易计划"]);
+  assert.deepEqual(dossier.data.riskGate.reasons, [
+    "后端成熟度事实为 EVIDENCE_SIGNAL，Token 页面不得自行升级为交易计划就绪。",
+    "等待后端结构化交易计划",
+  ]);
 });
 
 test("frontend radar and token dossier agree when a real v3 plan is ready", () => {
   const sharedSnapshot = snapshot([
     signal({
+      maturity: signalMaturity("TRADE_PLAN_READY"),
       strategyV3: strategyV3WithTradePlan(),
     }),
   ]);
@@ -1755,6 +1770,7 @@ test("buildFrontendKlineContract exposes readonly v3 chart overlays from backend
       direction: "long",
       exchange: "BINANCE",
       id: "sig-tia",
+      maturity: signalMaturity("TRADE_PLAN_READY"),
       risk: "medium",
       state: "near_trigger",
       summary: "压缩突破",
@@ -1883,6 +1899,7 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
       direction: "long",
       exchange: "BINANCE",
       id: "sig-tia",
+      maturity: signalMaturity("TRADE_PLAN_READY"),
       risk: "medium",
       state: "near_trigger",
       summary: "压缩突破",
@@ -1901,14 +1918,14 @@ test("buildFrontendTokenDossierContract translates backend dossier without repor
   assert.equal(res.status, "live");
   assert.equal(res.data.symbol, "TIA");
   assert.equal(res.data.direction, "看多");
-  assert.equal(res.data.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(res.data.maturity, "BLOCKED");
   assert.equal(res.data.chart.status, "partial");
   assert.equal(res.data.chart.canUseMockCandles, false);
   assert.equal(res.data.chart.tradingViewSymbol, "BINANCE:TIAUSDT.P");
   assert.equal(res.data.chart.overlaySource, "none");
   assert.equal(res.data.tradePlan, null);
   assert.equal(res.data.riskGate.allowTradePlan, false);
-  assert.match(res.data.riskGate.reasons.join("；"), /等待后端结构化交易计划/);
+  assert.match(res.data.riskGate.reasons.join("；"), /maturity fact 缺失|等待后端结构化交易计划/);
   assert.equal(res.data.aiReview.note.includes("规则反证检查漏洞"), true);
   assert.equal(res.data.structures.every((item) => item.support === 0 && item.resistance === 0), true);
   assert.equal(res.data.reportSections.some((section) => section.key === "facts"), true);
@@ -1952,6 +1969,7 @@ test("buildFrontendTokenDossierContract maps real v3 key levels without fabricat
       direction: "long",
       exchange: "BINANCE",
       id: "sig-tia",
+      maturity: signalMaturity("TRADE_PLAN_READY"),
       risk: "medium",
       state: "near_trigger",
       summary: "压缩突破",
@@ -2061,6 +2079,7 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
       direction: "long",
       exchange: "BINANCE",
       id: "sig-tia",
+      maturity: signalMaturity("TRADE_PLAN_READY"),
       risk: "medium",
       state: "near_trigger",
       summary: "压缩突破",
@@ -2230,7 +2249,7 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   assert.equal(res.data.strategyReadiness.executionMap.positionQuality, "good");
   assert.match(res.data.strategyReadiness.executionMap.chartBoundary, /TradingView/);
   assert.equal(res.data.strategyReadiness.positionLensStatus, "ready");
-  assert.match(res.data.strategyReadiness.personalLens, /不改变结构 RR/);
+  assert.match(res.data.strategyReadiness.personalLens, /不改变结构盈亏比/);
   assert.equal(res.data.tradePlan?.bias, "多");
   assert.equal(res.data.tradePlan?.entryCondition, "8.20 - 8.28");
   assert.match(res.data.tradePlan?.stop ?? "", /7\.76/);
@@ -2244,7 +2263,7 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   assert.equal(res.data.tradePlan?.positionLens.leverageSource, "exchange_max");
   assert.equal(res.data.tradePlan?.positionLens.marginFractionPercent, 0.3);
   assert.equal(res.data.tradePlan?.positionLens.notionalPerEquity, 15);
-  assert.match(res.data.tradePlan?.positionLens.summary ?? "", /不改变结构 RR/);
+  assert.match(res.data.tradePlan?.positionLens.summary ?? "", /不改变结构盈亏比/);
   assert.equal(
     res.data.reportSections
       .find((section) => section.key === "facts")

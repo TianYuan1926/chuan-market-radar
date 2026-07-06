@@ -124,7 +124,7 @@ export function buildPersonalPositionLens({
       status: "waiting_leverage",
       stopLossPctOfEquity: null,
       stopLossRoe: null,
-      summary: "个人仓位镜头：山寨币需要交易所最高杠杆上限，未知时只展示结构 RR，不臆造实盘收益。",
+      summary: "个人仓位镜头：山寨币需要交易所最高杠杆上限，未知时只展示结构盈亏比，不臆造实盘收益。",
       targetProfitPctOfEquity: null,
       targetRoe: null,
     };
@@ -163,7 +163,7 @@ export function buildPersonalPositionLens({
     stopLossPctOfEquity: round(readyStopLossPctOfEquity, 4),
     stopLossRoe: round(readyStopLossRoe, 2),
     structuralRewardRisk: round(readyStructuralRewardRisk, 2),
-    summary: `个人仓位镜头：按总资金 ${round(marginFraction * 100, 3)}% 保证金、${leverage}x 杠杆换算；只换算结果，不改变结构 RR 和信号判断。`,
+    summary: `个人仓位镜头：按总资金 ${round(marginFraction * 100, 3)}% 保证金、${leverage}x 杠杆换算；只换算结果，不改变结构盈亏比和观察判断。`,
     targetProfitPctOfEquity: round(readyTargetProfitPctOfEquity, 4),
     targetRoe: round(readyTargetRoe, 2),
   };

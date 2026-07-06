@@ -769,7 +769,6 @@ function buildPriorityCandidates(
 function twoStageSlotKind(
   asset: UniverseAsset,
   source: ScanTwoStageSlot["source"],
-  priorityReasons: ScanPriorityReason[],
 ): ScanTwoStageSlotKind {
   if (source === "anchor") {
     return "anchor_context";
@@ -808,7 +807,7 @@ function buildTwoStageSlot({
   source: ScanTwoStageSlot["source"];
 }): ScanTwoStageSlot {
   const priorityReasons = decision?.reasons ?? [];
-  const kind = twoStageSlotKind(asset, source, priorityReasons);
+  const kind = twoStageSlotKind(asset, source);
 
   return {
     baseAsset: asset.baseAsset,
@@ -1002,7 +1001,7 @@ function buildScanRotationAudit({
       "当非锚点名额足够时，必须保留长尾探索入口。",
       "未进入本轮深扫只代表排队或低频轮转，不代表淘汰。",
     ],
-    guardrail: "轮转审计只解释扫描分配健康度，不增加请求、不生成交易信号、不绕过 Evidence/Risk Gate。",
+    guardrail: "轮转审计只解释扫描分配健康度，不增加请求、不生成交易计划、不绕过 Evidence/Risk Gate。",
     mode: "scan_rotation_audit_v1",
     operatorHint: rotationAuditOperatorHint(status),
     priorityQueue: {

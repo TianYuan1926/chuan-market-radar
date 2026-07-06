@@ -59,7 +59,7 @@ const disabledSections: AiReviewSections = {
   reasoning: "当前仅使用规则引擎、结构化证据和复盘样本边界。",
   judgment: "不接入模型，不把 AI 作为最终裁决。",
   strategy: "继续按规则策略、触发条件、风控门禁和失效条件处理。",
-  failurePath: "规则证据不足、结构失效或 RR 不足时，必须降级观察或失效。",
+  failurePath: "规则证据不足、结构失效或结构盈亏比不足时，必须降级观察或失效。",
   uncertainty: "规则反证不能替代长期回测样本和人工复盘。",
 };
 
@@ -93,7 +93,7 @@ function aiReviewBoundary({
       requiresOutcomeSample: true,
       tag: "rule_counter_evidence_review",
     },
-    summary: "外部 AI 已取消；当前只做代码规则反证复核和不确定性说明，不能覆盖规则引擎、不能改排序、不能生成交易信号。",
+    summary: "外部 AI 已取消；当前只做代码规则反证复核和不确定性说明，不能覆盖规则引擎、不能改排序、不能生成交易计划。",
   };
 }
 
@@ -145,7 +145,7 @@ function ruleCounterEvidence(signal: MarketSignal) {
   }
 
   if (signal.strategy.riskReward > 0 && signal.strategy.riskReward < 3) {
-    pushUnique(evidence, `结构盈亏比不足：当前 RR=${signal.strategy.riskReward.toFixed(2)}，低于 3:1 下限。`);
+    pushUnique(evidence, `结构盈亏比不足：当前 ${signal.strategy.riskReward.toFixed(2)}:1，低于 3:1 下限。`);
   }
 
   if (signal.risk === "blocked" || signal.risk === "high") {
@@ -166,14 +166,14 @@ function ruleReviewSections(signal: MarketSignal, counterEvidence: string[]): Ai
     fact: hasCounter
       ? `规则反证发现 ${counterEvidence.length} 条风险或反向证据。`
       : "规则反证未发现明确硬伤。",
-    reasoning: "复核只使用当前信号的结构化证据、策略反证、风控项、RR 和成熟度，不读取外部模型。",
+    reasoning: "复核只使用当前观察对象的结构化证据、策略反证、风控项、结构盈亏比和成熟度，不读取外部模型。",
     judgment: hasCounter
       ? "需要继续按风控门禁和触发条件等待，不能因为单一信号直接行动。"
-      : "可维持原规则引擎判断，但仍不能绕过 RR、关键位和失效条件。",
+      : "可维持原规则引擎判断，但仍不能绕过结构盈亏比、关键位和失效条件。",
     strategy: signal.strategy.status === "actionable"
       ? "只有触发条件、止损、目标和失效条件同时满足时，交易计划才可进入人工复核。"
       : "当前优先观察或等待确认，不生成额外方向。",
-    failurePath: signal.strategy.invalidation || "若关键结构失效、RR 降低或风险门禁触发，则信号失效。",
+    failurePath: signal.strategy.invalidation || "若关键结构失效、结构盈亏比降低或风险门禁触发，则观察失效。",
     uncertainty: "规则反证不能替代回测样本和人工复盘；异常案例仍需进入复盘进化系统。",
   };
 }

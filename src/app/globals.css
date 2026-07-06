@@ -177,7 +177,7 @@
     animation: sheen 5s linear infinite;
   }
 
-  /* 科技角框：四角描线，呼应"雷达/狙击"主题 */
+  /* 科技角框：四角描线，呼应"雷达"主题 */
   .frame {
     position: relative;
   }
@@ -297,7 +297,7 @@
   to { background-position: 220% center; }
 }
 
-/* 狙击榜标题：稳定的实心琥珀文字（始终清晰、绝不淡出），上方叠一道高光快速扫过 */
+/* 计划就绪区标题：稳定的实心琥珀文字（始终清晰、绝不淡出），上方叠一道高光快速扫过 */
 .sniper-title {
   position: relative;
   display: inline-block;
@@ -306,7 +306,7 @@
   text-shadow: 0 0 14px var(--neon-soft);
 }
 .sniper-title::after {
-  content: '狙击榜';
+  content: '计划就绪区';
   position: absolute;
   inset: 0;
   color: oklch(1 0 0);
@@ -526,7 +526,7 @@
   animation: colon-blink 1s steps(1, end) infinite;
 }
 
-/* 狙击榜：新目标锁定入场（准星收拢 + 高亮闪烁） */
+/* 计划就绪区：新样本锁定（准星收拢 + 高亮闪烁） */
 @keyframes target-lock {
   0% { transform: scale(1.06); opacity: 0; }
   40% { opacity: 1; }
@@ -536,7 +536,7 @@
 .animate-target-lock {
   animation: target-lock 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-/* 狙击榜：准星旋转扫描 */
+/* 计划就绪区：准星旋转扫描 */
 @keyframes scope-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -545,7 +545,7 @@
   animation: scope-spin 8s linear infinite;
   transform-origin: center;
 }
-/* 狙击榜：横向扫描线全幅扫过 */
+/* 计划就绪区：横向扫描线全幅扫过 */
 @keyframes scan-line {
   0% { transform: translateY(0); opacity: 0; }
   10% { opacity: 0.7; }

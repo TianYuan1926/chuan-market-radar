@@ -196,17 +196,17 @@ function outcomeLifecycleStage({
 
   return {
     id: "signal_lifecycle",
-    title: "信号生命周期",
+    title: "观察生命周期",
     status,
     score: clampScore(statusScore(status) + Math.min(10, maturedSignals.length * 2)),
-    summary: `当前 ${maturedSignals.length} 个成熟信号，${tracking} 个跟踪样本，${closed} 个已关闭样本。`,
+    summary: `当前 ${maturedSignals.length} 个成熟观察，${tracking} 个跟踪样本，${closed} 个已关闭样本。`,
     evidence: [
-      `成熟信号 ${maturedSignals.map((signal) => signal.symbol).slice(0, 6).join(", ") || "等待"}`,
+      `成熟观察 ${maturedSignals.map((signal) => signal.symbol).slice(0, 6).join(", ") || "等待"}`,
       `latestOutcomeAt=${health.outcomes.latestOutcomeAt ?? "none"}`,
     ],
     nextAction: closed > 0
       ? "继续让 outcome executor 复查到期样本，并把结果写回日记。"
-      : "优先把证据融合级信号写入跟踪队列，形成可复盘生命周期。",
+      : "优先把证据融合级观察写入跟踪队列，形成可复盘生命周期。",
     guardrail: "生命周期只记录触发、止损、目标、超时和 MFE/MAE，不做自动下单。",
   };
 }
@@ -339,14 +339,14 @@ function signalMaturityStage({
     title: "信号成熟度分层",
     status,
     score: statusScore(status),
-    summary: `轻扫 ${counts.LIGHT_SCAN_MARK}，深扫候选 ${counts.DEEP_SCAN_CANDIDATE}，证据信号 ${counts.EVIDENCE_SIGNAL}，计划就绪 ${counts.TRADE_PLAN_READY}。`,
+    summary: `轻扫 ${counts.LIGHT_SCAN_MARK}，深扫候选 ${counts.DEEP_SCAN_CANDIDATE}，证据观察 ${counts.EVIDENCE_SIGNAL}，计划就绪 ${counts.TRADE_PLAN_READY}。`,
     evidence: [
       `主信号区 ${mainSignals}`,
       `candidateLane=${snapshot.metadata.signalMaturity?.candidateLaneSymbols.slice(0, 6).join(", ") || "none"}`,
     ],
     nextAction: mainSignals > 0
-      ? "前端主信号区只展示证据融合信号和交易计划就绪信号。"
-      : "继续深扫候选，等待结构、衍生品和 RR 证据补齐。",
+      ? "前端主观察区只展示证据观察和交易计划就绪样本。"
+      : "继续深扫候选，等待结构、衍生品和结构盈亏比证据补齐。",
     guardrail: health.signalMaturity?.guardrail ??
       "LIGHT_SCAN_MARK 只做调度输入，不能直接展示成交易机会。",
   };
@@ -389,7 +389,7 @@ function analysisReasoningStage(health: SystemHealthReport): BusinessCapabilityS
       Math.min(8, live.forwardLevels) -
       Math.min(16, live.missingV3Signals * 2),
     ),
-    summary: `当前信号 ${live.totalSignals}，v3 覆盖 ${live.v3Signals}，关键位 ${live.keyLevels}，Forward Map ${live.forwardLevels}，缺失 ${live.missingV3Signals}。`,
+    summary: `当前观察 ${live.totalSignals}，v3 覆盖 ${live.v3Signals}，关键位 ${live.keyLevels}，Forward Map ${live.forwardLevels}，缺失 ${live.missingV3Signals}。`,
     evidence: [
       `status=${loop.status}`,
       `readinessBuckets=${loop.readinessBuckets.map((bucket) => `${bucket.bucket}:${bucket.count}`).join(", ") || "none"}`,
@@ -570,7 +570,7 @@ function aiReviewStage(snapshot: MarketRadarSnapshot): BusinessCapabilityStage {
     nextAction: status === "disabled"
       ? "等待 EVIDENCE_SIGNAL 或 TRADE_PLAN_READY 后触发规则反证；外部 AI 已取消。"
       : "继续限制规则反证只做漏洞、失败路径和不确定性提示。",
-    guardrail: "规则反证不能创建交易信号，不能覆盖主规则引擎，不能改实时排序和权重。",
+    guardrail: "规则反证不能创建交易计划，不能覆盖主规则引擎，不能改实时排序和权重。",
   };
 }
 

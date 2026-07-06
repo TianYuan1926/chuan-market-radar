@@ -238,7 +238,7 @@ export function buildV3PatternReviewStats(events: JournalEvent[]): V3PatternRevi
     allowedUse: "research_only",
     canAutoAdjustWeights: false,
     closedSamples,
-    guardrail: "v3 形态和交易计划复盘统计只能用于人工归因，不能自动改权重，不能改变实时排序，不能直接生成交易信号。",
+    guardrail: "v3 形态和交易计划复盘统计只能用于人工归因，不能自动改权重，不能改变实时排序，不能直接生成交易计划。",
     mode: "v3_pattern_trade_review_stats_mvp",
     nextStep: nextStepFor(status),
     patternBuckets,

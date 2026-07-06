@@ -1,6 +1,7 @@
 import type { Timeframe } from "@/lib/analysis/types";
 import type { StrategyV3Dossier } from "@/lib/analysis/v3/types";
 import type { JournalEvent, MarketSignal } from "../analysis/types";
+import { classifySignalMaturity } from "./signal-maturity";
 import { buildTradingViewUrl, toTradingViewSymbol } from "./tradingview-links";
 import type { MarketRadarSnapshot, ScanLightScanCandidate } from "./types";
 
@@ -38,6 +39,7 @@ export type SignalBackendDossier = {
     direction: MarketSignal["direction"];
     exchange: string;
     id: string;
+    maturity?: MarketSignal["maturity"];
     risk: MarketSignal["risk"];
     state: MarketSignal["state"];
     summary: string;
@@ -248,6 +250,7 @@ export function buildSignalBackendDossier({
   symbol: string;
 }): SignalBackendDossier {
   const signal = snapshot.signals.find((item) => signalMatches(item, symbol)) ?? null;
+  const maturity = signal ? classifySignalMaturity(signal) : null;
 
   return {
     found: signal !== null,
@@ -276,6 +279,7 @@ export function buildSignalBackendDossier({
           direction: signal.direction,
           exchange: signal.exchange,
           id: signal.id,
+          ...(maturity ? { maturity } : {}),
           risk: signal.risk,
           state: signal.state,
           summary: signal.summary,

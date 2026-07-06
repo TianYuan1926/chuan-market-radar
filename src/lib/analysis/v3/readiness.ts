@@ -84,7 +84,7 @@ export function evaluateStrategyV3Readiness(signal: MarketSignal): StrategyV3Rea
       bucket: "missing_v3",
       nextStep: "等待 OHLCV、关键位和 Forward Map 补齐后再复核。",
       score: 0,
-      summary: "当前信号没有完整 v3 上下文，只能按现有规则观察。",
+      summary: "当前观察没有完整 v3 上下文，只能按现有规则观察。",
     });
   }
 
@@ -175,6 +175,6 @@ export function evaluateStrategyV3Readiness(signal: MarketSignal): StrategyV3Rea
     bucket: "manual_review_ready",
     nextStep: "进入人工复核：再次检查触发、失效、仓位和反证，不自动下单。",
     score: 88,
-    summary: "v3 结构、位置/RR、回踩/反抽、趋势完整度和 Risk Gate 已形成可人工复核状态。",
+    summary: "v3 结构、位置/结构盈亏比、回踩/反抽、趋势完整度和 Risk Gate 已形成可人工复核状态。",
   });
 }

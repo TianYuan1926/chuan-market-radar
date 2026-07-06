@@ -93,8 +93,8 @@ function waitReasonText({
 
   if (unique.includes("reward_risk_below_minimum") || unique.includes("stop_distance_too_wide") || unique.includes("chase_risk")) {
     reasonParts.push(direction === "short"
-      ? "当前位置不追空，必须等反抽到更靠近结构止损的位置，让 RR 重新达到 3:1。"
-      : "当前位置不追多，必须等回踩到更靠近结构止损的位置，让 RR 重新达到 3:1。");
+      ? "当前位置不追空，必须等反抽到更靠近结构止损的位置，让结构盈亏比重新达到 3:1。"
+      : "当前位置不追多，必须等回踩到更靠近结构止损的位置，让结构盈亏比重新达到 3:1。");
   }
 
   if (unique.includes("structure_confirmation_pending")) {
@@ -392,7 +392,7 @@ function basePlan({
   const effectiveRewardRisk = waitEntryRewardRisk ?? location?.rewardRisk ?? null;
   const directionText = directionLabel(direction);
   const riskMap = structuralStop !== null && target !== null
-    ? `${waitEntryPrice !== null ? `等待入场 ${priceLabel(waitEntryPrice)}，` : ""}结构止损 ${priceLabel(structuralStop)}，第一目标 ${priceLabel(target)}，RR ${priceLabel(effectiveRewardRisk)}:1`
+    ? `${waitEntryPrice !== null ? `等待入场 ${priceLabel(waitEntryPrice)}，` : ""}结构止损 ${priceLabel(structuralStop)}，第一目标 ${priceLabel(target)}，结构盈亏比 ${priceLabel(effectiveRewardRisk)}:1`
     : "结构止损或目标仍待确认";
   const entryContext = direction === "long"
     ? "等待靠近支撑后的承接确认，或突破后回踩不破再人工复核"
@@ -585,7 +585,7 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
       direction,
       isPlanEligible: false,
       status: "WATCH_ONLY",
-      summary: "v3 计划草案：结构处于修复等待，但关键位、RR 或反应质量还不够，只观察。",
+      summary: "v3 计划草案：结构处于修复等待，但关键位、结构盈亏比或反应质量还不够，只观察。",
       trendContext: input.trendContext,
     });
   }
@@ -617,8 +617,8 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
         isPlanEligible: false,
         status: waitStatus(direction),
         summary: direction === "long"
-          ? `v3 计划草案：当前位置不追多，等待回踩到 ${priceLabel(location.waitEntryPrice ?? null)} 附近，RR 重新达到 ${priceLabel(location.waitEntryRewardRisk ?? null)}:1 后再人工复核。`
-          : `v3 计划草案：当前位置不追空，等待反抽到 ${priceLabel(location.waitEntryPrice ?? null)} 附近，RR 重新达到 ${priceLabel(location.waitEntryRewardRisk ?? null)}:1 后再人工复核。`,
+          ? `v3 计划草案：当前位置不追多，等待回踩到 ${priceLabel(location.waitEntryPrice ?? null)} 附近，结构盈亏比重新达到 ${priceLabel(location.waitEntryRewardRisk ?? null)}:1 后再人工复核。`
+          : `v3 计划草案：当前位置不追空，等待反抽到 ${priceLabel(location.waitEntryPrice ?? null)} 附近，结构盈亏比重新达到 ${priceLabel(location.waitEntryRewardRisk ?? null)}:1 后再人工复核。`,
         trendContext: input.trendContext,
         waitEntryPrice: location.waitEntryPrice,
         waitEntryRewardRisk: location.waitEntryRewardRisk,
@@ -631,7 +631,7 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
       direction,
       isPlanEligible: false,
       status: "BLOCKED",
-      summary: "v3 计划草案：位置/RR 或 Risk Gate 未通过，不能生成可执行草案。",
+      summary: "v3 计划草案：位置/结构盈亏比或 Risk Gate 未通过，不能生成可执行草案。",
       trendContext: input.trendContext,
     });
   }
@@ -647,8 +647,8 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
       isPlanEligible: false,
       status: waitStatus(direction),
       summary: direction === "long"
-        ? "v3 计划草案：RR 合格，但结构还未确认，等待突破或回踩承接后再进入人工复核。"
-        : "v3 计划草案：RR 合格，但结构还未确认，等待跌破或反抽承压后再进入人工复核。",
+        ? "v3 计划草案：结构盈亏比合格，但结构还未确认，等待突破或回踩承接后再进入人工复核。"
+        : "v3 计划草案：结构盈亏比合格，但结构还未确认，等待跌破或反抽承压后再进入人工复核。",
       trendContext: input.trendContext,
     });
   }
@@ -685,7 +685,7 @@ export function buildV3TradePlan(input: BuildV3TradePlanInput): StrategyV3TradeP
     direction,
     isPlanEligible: true,
     status: direction === "short" ? "READY_SHORT" : "READY_LONG",
-    summary: `v3 只读${directionLabel(direction)}计划草案：结构、位置/RR、回踩/反抽、趋势完整度和 Risk Gate 均通过；仍需人工确认，不自动下单。`,
+    summary: `v3 只读${directionLabel(direction)}计划草案：结构、位置/结构盈亏比、回踩/反抽、趋势完整度和 Risk Gate 均通过；仍需人工确认，不自动下单。`,
     trendContext: input.trendContext,
   });
 }
