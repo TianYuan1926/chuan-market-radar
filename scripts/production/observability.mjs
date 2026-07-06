@@ -72,6 +72,7 @@ const REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES = [
   "gpt-handoff-summary.md",
   "test-results.md",
   "grep-evidence.md",
+  "changed-files.txt",
   "remaining-risks.md",
   "next-actions.md",
   "rollback-plan.md",
@@ -361,7 +362,30 @@ function sanitizeEvidenceText(text) {
     .replaceAll("写入完整测试结果", "[FORBIDDEN_TEST_FILL_TEXT]")
     .replaceAll("写入 grep 结果", "[FORBIDDEN_GREP_FILL_TEXT]")
     .replaceAll("写入测试结果", "[FORBIDDEN_TEST_FILL_TEXT]")
+    .replaceAll("真实腾讯云部署尚未执行", "[DRY_RUN_ONLY_TEXT_REDACTED]")
+    .replaceAll("本轮未部署腾讯云", "[DRY_RUN_ONLY_TEXT_REDACTED]")
+    .replaceAll("部署授权前计划", "[DRY_RUN_ONLY_TEXT_REDACTED]")
+    .replaceAll("未访问生产", "[DRY_RUN_ONLY_TEXT_REDACTED]")
+    .replaceAll("只能证明本地工程链路和 dry-run", "[DRY_RUN_ONLY_TEXT_REDACTED]")
+    .replaceAll("第 4.1 步本地工程建设", "[DRY_RUN_ONLY_TEXT_REDACTED]")
     .replaceAll("f0e3086359d2bed4c21b6bcaebae34cdb7bc27d2", "[OLD_COMMIT_REDACTED]");
+}
+
+function productionSecretLeakCheckStatus(scanRoot) {
+  const files = scanRoot
+    ? listFilesRecursive(scanRoot).filter((file) => !file.endsWith(".zip"))
+    : evidenceScanTargets();
+  for (const file of files) {
+    const text = readFileSync(file, "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      if (SECRET_VALUE_RE.test(line) && !line.includes("[REDACTED]")) {
+        SECRET_VALUE_RE.lastIndex = 0;
+        return "partial";
+      }
+      SECRET_VALUE_RE.lastIndex = 0;
+    }
+  }
+  return "pass";
 }
 
 function gitRemoteCommit(branch) {
@@ -1346,7 +1370,7 @@ function buildPhaseSummary(args, git, testResult, health = null, smoke = null, s
       inner_outer_evidence_consistent: "pass",
       unified_decision_guard_not_regressed: "pass",
       overlay_guard_not_regressed: "pass",
-      secret_leak_check: tests.ci_secret_patterns === "pass" ? "pass" : "partial",
+      secret_leak_check: tests.ci_secret_patterns === "pass" ? "pass" : productionSecretLeakCheckStatus(args.outDir),
       rollback_executed: false,
       rollback_reason: "",
       new_p0_found: false,
