@@ -24,7 +24,6 @@ import type {
 import type { SniperSignal, SniperTarget } from './sniper-data'
 import type { DataStatus, Resource } from './data-status'
 import {
-  canEnterSniper,
   definitionForMaturity,
   nonMisleadingNoTradeReason,
 } from './signal-state-semantics'
@@ -136,7 +135,7 @@ function typeFor(signal: RadarSignal): SignalType {
 }
 
 function categoryFor(signal: RadarSignal): SignalCategory {
-  if (canEnterSniper({ maturity: signal.maturity, rr: signal.rr, whyBlocked: signal.whyBlocked })) {
+  if (signal.unifiedDecision.canTradeNow && signal.unifiedDecision.readyPlan !== null) {
     return 'sniper'
   }
   if (signal.direction === '多') return 'bull'
@@ -178,7 +177,7 @@ function tokenFor(
   const trend = trendFor(signal.direction)
   const tags: Token['tags'] = ['合约', '异常活跃']
 
-  if (canEnterSniper({ maturity: signal.maturity, rr: signal.rr, whyBlocked: signal.whyBlocked })) tags.push('Alpha')
+  if (signal.unifiedDecision.canTradeNow && signal.unifiedDecision.readyPlan !== null) tags.push('Alpha')
   if (signal.maturity === 'BLOCKED') tags.push('FOMO')
   if (signal.direction === '多') tags.push('利多')
 
@@ -197,6 +196,36 @@ function tokenFor(
     tags: [...new Set(tags)] as Token['tags'],
     anomalyScore: clamp(score + signal.evidenceCount * 2 - signal.counterCount * 2, 1, 100),
     trend,
+  }
+}
+
+function candidateGuardDecisionFor(maturity: Maturity, reason: string): RadarSignal['unifiedDecision'] {
+  const state = definitionForMaturity(maturity)
+  const decision: RadarSignal['unifiedDecision']['decision'] =
+    maturity === 'BLOCKED' || maturity === 'INVALIDATED' || maturity === 'REVIEW_ONLY'
+      ? 'BLOCKED'
+      : maturity === 'DEEP_SCAN_CANDIDATE' || maturity === 'EVIDENCE_SIGNAL' || maturity === 'COOLDOWN'
+        ? 'WAIT'
+        : 'OBSERVE'
+
+  return {
+    schemaVersion: 'signal-unified-decision.v1',
+    source: 'frontend_candidate_guard',
+    decision,
+    decisionLabel: decision === 'WAIT' ? '等待' : decision === 'BLOCKED' ? '拦截' : '观察',
+    allowedUse: 'backend_decision_only',
+    canAutoExecute: false,
+    canCreateTradePlanFromRegime: false,
+    canMutateLiveRanking: false,
+    canTradeNow: false,
+    reasons: [
+      `${state.label}：${state.boundary}`,
+      reason,
+    ],
+    blockerReasons: decision === 'BLOCKED' ? [reason] : [],
+    blockerCount: decision === 'BLOCKED' ? 1 : 0,
+    waitPlanReady: false,
+    readyPlan: null,
   }
 }
 
@@ -332,6 +361,10 @@ export function leaderboardRowsToCandidateSignals(
       hue: row.hue,
       direction: directionForLeaderboardRow(row, kind),
       maturity,
+      unifiedDecision: candidateGuardDecisionFor(
+        maturity,
+        '榜单观察源没有后端结构化交易计划，禁止进入计划就绪区。',
+      ),
       lifecycle: lifecycleForLeaderboardRow(row, index),
       operatorRead: operatorReadForLeaderboardRow(row, maturity, kind),
       rr: null,
@@ -654,7 +687,7 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
         market: '合约' as const,
         volMult: round(1 + signal.evidenceCount * 0.7 + Math.max(0, score - 60) / 15, 1),
         desc: descFor(signal),
-        starred: signal.maturity === 'TRADE_PLAN_READY',
+        starred: signal.unifiedDecision.canTradeNow,
         firstPush: timeLabelFromAge(ageMin + 15),
         lastPush: timeLabelFromAge(ageMin),
         // 没有后端生命周期触发价时必须保持 0，由 UI 显示“待追踪”。
@@ -719,10 +752,15 @@ function sniperSignals(signal: RadarSignal): SniperSignal[] {
 
 export function radarSignalsToSniperTargets(signals: RadarSignal[], tickerRows: TickerRows = []): SniperTarget[] {
   return radarSignalsToSignalCards(signals, tickerRows)
-    .filter((card) => card.category === 'sniper' && card.odds >= 3 && card.token.price > 0)
+    .filter((card) => {
+      const signal = signals.find((item) => item.id === card.id)
+      return Boolean(signal?.unifiedDecision.canTradeNow && signal.unifiedDecision.readyPlan && card.token.price > 0)
+    })
     .map((card) => {
       const signal = signals.find((item) => item.id === card.id)
+      const readyPlan = signal?.unifiedDecision.readyPlan ?? null
       const side = signal ? sniperSide(signal) : card.token.trend === 'bear' ? 'short' : 'long'
+      const targets = readyPlan?.targets ?? []
 
       return {
         id: card.id,
@@ -739,11 +777,11 @@ export function radarSignalsToSniperTargets(signals: RadarSignal[], tickerRows: 
         exchange: card.exchange,
         market: card.market,
         pushPrice: card.pushPrice,
-        entryLow: 0,
-        entryHigh: 0,
-        stop: 0,
-        target1: 0,
-        target2: 0,
+        entryLow: readyPlan?.plannedEntryPrice ?? 0,
+        entryHigh: readyPlan?.plannedEntryPrice ?? 0,
+        stop: readyPlan?.structuralStop ?? 0,
+        target1: targets[0] ?? 0,
+        target2: targets[1] ?? targets[0] ?? 0,
         thesis: card.desc,
         signals: signal ? sniperSignals(signal) : [],
         bullSentiment: card.bullSentiment,

@@ -66,6 +66,13 @@ type SortKey = 'score' | 'age' | 'cap' | 'sentiment'
 
 const PAGE_SIZE = 20
 
+function decisionFromOperatorRead(card: SignalCard): UiDecisionState {
+  if (card.operatorRead.lane === 'sniper' && card.maturity === 'TRADE_PLAN_READY') return 'TRADE'
+  if (card.operatorRead.lane === 'blocked' || card.operatorRead.lane === 'review') return 'BLOCKED'
+  if (card.operatorRead.lane === 'validate' || card.operatorRead.lane === 'watch') return 'WAIT'
+  return 'OBSERVE'
+}
+
 export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
   const liveTokens = useMemo(() => cards.map((card) => card.token), [cards])
   usePrimeLiveQuotes(liveTokens)
@@ -262,14 +269,8 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
               card.sourceKind === 'leaderboard_candidate' ||
               card.maturity === 'LIGHT_SCAN_MARK' ||
               card.maturity === 'DEEP_SCAN_CANDIDATE'
-            const planReady = card.maturity === 'TRADE_PLAN_READY' && card.category === 'sniper' && card.odds >= 3
-            const decision: UiDecisionState = planReady
-              ? 'TRADE'
-              : card.poolStatus === 'expired' || card.poolStatus === 'high_risk' || card.poolStatus === 'low_odds'
-                ? 'BLOCKED'
-                : candidateOnly || card.maturity === 'EVIDENCE_SIGNAL'
-                  ? 'WAIT'
-                  : 'OBSERVE'
+            const planReady = card.operatorRead.lane === 'sniper' && card.maturity === 'TRADE_PLAN_READY'
+            const decision = decisionFromOperatorRead(card)
             const layers = buildUiInformationLayers({
               decision,
               reason: card.operatorRead.headline,

@@ -63,6 +63,10 @@ test("buildUnifiedDecision blocks a READY-looking plan when backend maturity is 
   assert.equal(decision.decision, "BLOCKED");
   assert.equal(decision.readyPlan, null);
   assert.ok(decision.blockers.some((item) => item.reason === "backend_maturity_not_ready"));
+  assert.equal(
+    decision.blockers.every((item) => item.severity === "warning" || item.severity === "critical" || item.severity === "info"),
+    true,
+  );
 });
 
 test("buildUnifiedDecision blocks READY when RR stop target entry or blocker quality fails", () => {
@@ -89,6 +93,7 @@ test("buildUnifiedDecision blocks READY when RR stop target entry or blocker qua
       "plan_has_blockers",
     ],
   );
+  assert.equal(decision.blockers.every((item) => item.severity === "critical"), true);
 });
 
 test("buildUnifiedDecision preserves WAIT only when trigger invalidation confirmation and whyNotNow exist", () => {

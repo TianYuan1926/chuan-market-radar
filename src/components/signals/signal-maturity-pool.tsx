@@ -237,7 +237,7 @@ function FilterChip({
 
 function SignalRow({ signal: s }: { signal: RadarSignal }) {
   const meta = MATURITY_META[s.maturity]
-  const tradable = s.maturity === 'TRADE_PLAN_READY'
+  const tradable = s.unifiedDecision.canTradeNow && s.unifiedDecision.readyPlan !== null
   const layers = buildSignalUiLayers(s)
   return (
     <Link

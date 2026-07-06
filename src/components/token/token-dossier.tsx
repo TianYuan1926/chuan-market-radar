@@ -37,16 +37,10 @@ export function TokenDossier({
         ? 'text-down'
         : 'text-muted-foreground'
 
-  const decision: UiDecisionState = d.strategyReadiness.canTradeNow
-    ? 'TRADE'
-    : d.strategyReadiness.status === 'blocked' || d.strategyReadiness.status === 'review_only'
-      ? 'BLOCKED'
-      : d.strategyReadiness.status === 'watch'
-        ? 'WAIT'
-        : 'OBSERVE'
+  const decision: UiDecisionState = unifiedDecisionToUi(d.unifiedDecision.decision)
   const layeredInfo = buildUiInformationLayers({
     decision,
-    reason: d.strategyReadiness.summary,
+    reason: d.unifiedDecision.reasons[0] ?? d.strategyReadiness.summary,
     evidence: {
       OFI: d.discovery.flowImbalance ?? '暂无',
       OI: '暂无',
@@ -57,6 +51,8 @@ export function TokenDossier({
     },
     technical: [
       { label: '成熟度', value: displayMaturityName(d.maturity) },
+      { label: '决策源', value: d.unifiedDecision.source },
+      { label: '统一决策', value: d.unifiedDecision.decisionLabel },
       { label: '方向', value: d.direction },
       { label: '结构盈亏比', value: d.tradePlan ? `${d.tradePlan.rr.toFixed(1)}:1` : '暂无' },
       { label: '风控门禁', value: d.riskGate.allowTradePlan ? '通过' : '拦截' },
@@ -185,6 +181,9 @@ export function TokenDossier({
             <Lock className="size-4 text-down" />
           )}
           策略就绪判断
+          <span className="border border-border bg-secondary/30 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {d.unifiedDecision.decisionLabel} · {d.unifiedDecision.source}
+          </span>
           <span
             className={cn(
               'ml-auto border px-1.5 py-0.5 font-mono text-[10px]',
@@ -238,6 +237,27 @@ export function TokenDossier({
             </div>
           </div>
         </div>
+        {d.unifiedDecision.waitPlan && (
+          <div className="mt-3 border border-border bg-secondary/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
+            <div className="text-xs font-semibold text-foreground">统一等待条件</div>
+            <p className="mt-2">为什么现在不做：{d.unifiedDecision.waitPlan.whyNotNow}</p>
+            <p className="mt-1">触发：{d.unifiedDecision.waitPlan.trigger}</p>
+            <p className="mt-1">确认：{d.unifiedDecision.waitPlan.confirmation}</p>
+            <p className="mt-1">失效：{d.unifiedDecision.waitPlan.invalidation}</p>
+          </div>
+        )}
+        {d.unifiedDecision.blockers.length > 0 && (
+          <div className="mt-3 border border-border bg-secondary/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
+            <div className="text-xs font-semibold text-foreground">统一阻断原因</div>
+            <ul className="mt-2 space-y-1">
+              {d.unifiedDecision.blockers.slice(0, 5).map((item) => (
+                <li key={`${item.reason}:${item.unblockCondition}`}>
+                  [{item.severity}] {displayEngineText(item.reason)}：{item.unblockCondition}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="mt-3 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="border border-border bg-secondary/20 p-3">
             <div className="text-xs font-semibold">执行地图</div>
@@ -497,6 +517,13 @@ export function TokenDossier({
 
 function levelText(value: number) {
   return Number.isFinite(value) && value > 0 ? String(value) : '待补齐'
+}
+
+function unifiedDecisionToUi(value: TokenDossierData['unifiedDecision']['decision']): UiDecisionState {
+  if (value === 'TRADE_PLAN_READY') return 'TRADE'
+  if (value === 'WAIT') return 'WAIT'
+  if (value === 'BLOCKED') return 'BLOCKED'
+  return 'OBSERVE'
 }
 
 function phaseLabel(value: TokenDossierData['discovery']['opportunityPhase']) {

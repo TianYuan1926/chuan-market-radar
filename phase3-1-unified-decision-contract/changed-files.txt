@@ -1,0 +1,16 @@
+CHANGELOG_FOR_CHATGPT.md
+PROJECT_CONTEXT_FOR_CHATGPT.md
+src/app/dashboard/page.tsx
+src/components/anomaly-board.tsx
+src/components/signals/signal-maturity-pool.tsx
+src/components/token/token-dossier.tsx
+src/components/ui-schema/ui-layer-guard.test.ts
+src/lib/api/frontend-contract.test.ts
+src/lib/api/frontend-contract.ts
+src/lib/api/frontend-display-adapters.test.ts
+src/lib/api/ui-schema-guard.test.ts
+src/lib/decision/unified-decision-engine.test.ts
+src/lib/decision/unified-decision-engine.ts
+src/lib/frontend-display-adapters.ts
+src/lib/radar-contract.ts
+src/lib/ui-schema-guard.ts

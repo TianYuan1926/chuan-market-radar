@@ -279,6 +279,7 @@ export type RadarSignal = {
   hue: number
   direction: '多' | '空' | '观察'
   maturity: SignalMaturity
+  unifiedDecision: SignalUnifiedDecisionRead
   lifecycle: SignalLifecycleRead
   operatorRead: SignalOperatorRead
   rr: number | null // 赔率，未就绪为 null
@@ -290,6 +291,29 @@ export type RadarSignal = {
   whyBlocked: string | null // 为什么不能交易（无则 null）
   updatedMinAgo: number
   discovery?: DiscoveryFact | null
+}
+
+export type SignalUnifiedDecisionRead = {
+  schemaVersion: 'signal-unified-decision.v1'
+  source: 'unified_decision_engine' | 'frontend_candidate_guard'
+  decision: 'OBSERVE' | 'WAIT' | 'BLOCKED' | 'TRADE_PLAN_READY'
+  decisionLabel: '观察' | '等待' | '拦截' | '交易计划就绪'
+  allowedUse: 'backend_decision_only'
+  canAutoExecute: false
+  canCreateTradePlanFromRegime: false
+  canMutateLiveRanking: false
+  canTradeNow: boolean
+  reasons: string[]
+  blockerReasons: string[]
+  blockerCount: number
+  waitPlanReady: boolean
+  readyPlan: {
+    direction: 'long' | 'short'
+    plannedEntryPrice: number
+    rewardRisk: number
+    structuralStop: number
+    targets: number[]
+  } | null
 }
 
 export type SignalLifecycleRead = {
@@ -456,6 +480,7 @@ export type TokenDossier = {
   symbol: string
   direction: '看多' | '看空' | '中性'
   maturity: SignalMaturity
+  unifiedDecision: TokenUnifiedDecisionRead
   chart: TokenChartIntegrity
   discovery: DiscoveryFact
   structures: TfStructure[]
@@ -466,6 +491,43 @@ export type TokenDossier = {
   tradePlan: TradePlanData | null // 被拦截时为 null
   aiReview: AiReviewData
   reportSections: AnalysisReportSection[]
+}
+
+export type TokenUnifiedDecisionRead = {
+  schemaVersion: 'token-unified-decision.v1'
+  source: 'unified_decision_engine'
+  decision: 'OBSERVE' | 'WAIT' | 'BLOCKED' | 'TRADE_PLAN_READY'
+  decisionLabel: '观察' | '等待' | '拦截' | '交易计划就绪'
+  allowedUse: 'backend_decision_only'
+  canAutoExecute: false
+  canCreateTradePlanFromRegime: false
+  canMutateLiveRanking: false
+  canTradeNow: boolean
+  reasons: string[]
+  blockers: Array<{
+    reason: string
+    removable: boolean
+    severity: 'info' | 'warning' | 'critical'
+    unblockCondition: string
+  }>
+  waitPlan: {
+    confirmation: string
+    invalidation: string
+    trigger: string
+    whyNotNow: string
+  } | null
+  readyPlan: {
+    direction: 'long' | 'short'
+    plannedEntryPrice: number
+    rewardRisk: number
+    structuralStop: number
+    targets: number[]
+  } | null
+  marketRegimeContext: {
+    dataStatus: string
+    primary: string
+    warnings: string[]
+  }
 }
 
 export type TokenStrategyReadiness = {
@@ -498,6 +560,31 @@ export function getTokenDossier(symbol: string, basePrice = 1): Resource<TokenDo
     symbol: symbol.toUpperCase(),
     direction: '中性',
     maturity: 'LIGHT_SCAN_MARK',
+    unifiedDecision: {
+      schemaVersion: 'token-unified-decision.v1',
+      source: 'unified_decision_engine',
+      decision: 'BLOCKED',
+      decisionLabel: '拦截',
+      allowedUse: 'backend_decision_only',
+      canAutoExecute: false,
+      canCreateTradePlanFromRegime: false,
+      canMutateLiveRanking: false,
+      canTradeNow: false,
+      reasons: [LEGACY_DISABLED_REASON],
+      blockers: [{
+        reason: 'legacy_getter_disabled',
+        removable: true,
+        severity: 'critical',
+        unblockCondition: '页面必须读取 /api/frontend/* 或 frontend-contract-server 的真实后端契约。',
+      }],
+      waitPlan: null,
+      readyPlan: null,
+      marketRegimeContext: {
+        dataStatus: 'UNAVAILABLE',
+        primary: 'UNKNOWN',
+        warnings: ['旧同步 getter 不提供市场状态 context。'],
+      },
+    },
     chart: {
       availableTimeframes: [],
       canUseMockCandles: false,

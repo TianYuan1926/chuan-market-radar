@@ -76,3 +76,22 @@ test('signal layer builder never promotes non-ready evidence to TRADE', () => {
   assert.equal(ready.l1.decision, 'TRADE')
   assert.equal(validateUiInformationLayers(ready).ok, true)
 })
+
+test('unified decision blocks stale ready maturity in signal UI layers', () => {
+  const layers = buildSignalUiLayers({
+    maturity: 'TRADE_PLAN_READY',
+    rr: 9,
+    whyBlocked: null,
+    unifiedDecision: {
+      canTradeNow: false,
+      decision: 'BLOCKED',
+    },
+    operatorRead: {
+      headline: '计划状态待复核，暂不能交易',
+      lane: 'blocked',
+    },
+  })
+
+  assert.equal(layers.l1.decision, 'BLOCKED')
+  assert.equal(validateUiInformationLayers(layers).ok, true)
+})

@@ -65,7 +65,17 @@ test("dashboard runtime status only reflects production runtime resources", () =
 function signalReads(
   maturity: RadarSignal["maturity"],
   overrides: Partial<RadarSignal["operatorRead"]> = {},
-): Pick<RadarSignal, "lifecycle" | "operatorRead"> {
+  unifiedOverrides: Partial<RadarSignal["unifiedDecision"]> = {},
+): Pick<RadarSignal, "lifecycle" | "operatorRead" | "unifiedDecision"> {
+  const readyPlan: NonNullable<RadarSignal["unifiedDecision"]["readyPlan"]> = {
+    direction: "long",
+    plannedEntryPrice: 7.8,
+    rewardRisk: 3.4,
+    structuralStop: 7.2,
+    targets: [8.6, 9.1],
+  };
+  const canTradeNow = maturity === "TRADE_PLAN_READY";
+
   return {
     lifecycle: {
       ageLabel: "1分钟前",
@@ -86,6 +96,23 @@ function signalReads(
       noTradeReason: maturity === "TRADE_PLAN_READY" ? null : "测试中未生成交易计划",
       worthWatching: true,
       ...overrides,
+    },
+    unifiedDecision: {
+      schemaVersion: "signal-unified-decision.v1",
+      source: "unified_decision_engine",
+      decision: maturity === "TRADE_PLAN_READY" ? "TRADE_PLAN_READY" : maturity === "BLOCKED" ? "BLOCKED" : "WAIT",
+      decisionLabel: maturity === "TRADE_PLAN_READY" ? "交易计划就绪" : maturity === "BLOCKED" ? "拦截" : "等待",
+      allowedUse: "backend_decision_only",
+      canAutoExecute: false,
+      canCreateTradePlanFromRegime: false,
+      canMutateLiveRanking: false,
+      canTradeNow,
+      reasons: [canTradeNow ? "测试后端 readyPlan 已通过" : "测试中未生成交易计划"],
+      blockerReasons: [],
+      blockerCount: 0,
+      waitPlanReady: false,
+      readyPlan: canTradeNow ? readyPlan : null,
+      ...unifiedOverrides,
     },
   };
 }
@@ -254,7 +281,48 @@ test("signal cards keep push price empty until backend lifecycle tracking provid
   assert.equal(cards[0]?.pushPrice, 0);
 });
 
-test("sniper targets do not fabricate frontend entry stop or target prices", () => {
+test("sniper targets stay empty when unified decision has no ready plan", () => {
+  const signal: RadarSignal = {
+    id: "real-tia",
+    symbol: "TIA",
+    hue: 220,
+    direction: "多",
+    maturity: "TRADE_PLAN_READY",
+    rr: 3.4,
+    risk: "低",
+    evidenceCount: 6,
+    counterCount: 0,
+    freshness: "live",
+    whySelected: "后端证据融合已通过",
+    whyBlocked: null,
+    updatedMinAgo: 1,
+    ...signalReads("TRADE_PLAN_READY", {}, {
+      canTradeNow: false,
+      readyPlan: null,
+      decision: "BLOCKED",
+      decisionLabel: "拦截",
+      reasons: ["测试：缺少统一 readyPlan"],
+    }),
+  };
+
+  const targets = radarSignalsToSniperTargets([signal], [
+    {
+      symbol: "TIA",
+      hue: 220,
+      value: 12.4,
+      price: 7.842,
+      inCandidatePool: true,
+      deepScanned: true,
+      hasSignal: true,
+      blocked: false,
+      awaitingScan: false,
+    },
+  ]);
+
+  assert.equal(targets.length, 0);
+});
+
+test("sniper targets use only backend unified ready plan levels", () => {
   const signal: RadarSignal = {
     id: "real-tia",
     symbol: "TIA",
@@ -287,11 +355,11 @@ test("sniper targets do not fabricate frontend entry stop or target prices", () 
   ]);
 
   assert.equal(target?.pushPrice, 0);
-  assert.equal(target?.entryLow, 0);
-  assert.equal(target?.entryHigh, 0);
-  assert.equal(target?.stop, 0);
-  assert.equal(target?.target1, 0);
-  assert.equal(target?.target2, 0);
+  assert.equal(target?.entryLow, 7.8);
+  assert.equal(target?.entryHigh, 7.8);
+  assert.equal(target?.stop, 7.2);
+  assert.equal(target?.target1, 8.6);
+  assert.equal(target?.target2, 9.1);
   assert.match(target?.outcomeNote ?? "", /后端完整交易计划/);
 });
 

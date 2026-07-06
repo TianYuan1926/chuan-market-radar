@@ -1,0 +1,774 @@
+docs/UNIFIED_DECISION_ENGINE.md:15:TRADE_PLAN_READY
+docs/UNIFIED_DECISION_ENGINE.md:23:- `TRADE_PLAN_READY`：只有后端成熟 trade plan 满足所有硬条件才允许输出。
+docs/UNIFIED_DECISION_ENGINE.md:25:## 3. READY 硬门槛
+docs/UNIFIED_DECISION_ENGINE.md:27:`TRADE_PLAN_READY` 必须同时满足：
+docs/UNIFIED_DECISION_ENGINE.md:29:1. 后端成熟度为 `TRADE_PLAN_READY`。
+docs/UNIFIED_DECISION_ENGINE.md:30:2. v3 trade plan 状态为 `READY_LONG` 或 `READY_SHORT`。
+docs/UNIFIED_DECISION_ENGINE.md:38:10. 不允许由前端、market regime 或 review/backtest 推导 READY。
+docs/UNIFIED_DECISION_ENGINE.md:74:- 不直接生成 `TRADE_PLAN_READY`。
+docs/UNIFIED_DECISION_ENGINE.md:87:- 完整 READY 放行。
+docs/UNIFIED_DECISION_ENGINE.md:88:- 后端成熟度不足时阻断 READY。
+docs/UNIFIED_DECISION_ENGINE.md:89:- RR、结构止损、目标、入场价、blocker 缺陷时阻断 READY。
+src/lib/signal-state-semantics.test.ts:13:test("only a clean TRADE_PLAN_READY can enter sniper board", () => {
+src/lib/signal-state-semantics.test.ts:14:  assert.equal(canEnterSniper({ maturity: "TRADE_PLAN_READY", rr: 3, whyBlocked: null }), true);
+src/lib/signal-state-semantics.test.ts:15:  assert.equal(canEnterSniper({ maturity: "TRADE_PLAN_READY", rr: 2.99, whyBlocked: null }), false);
+src/lib/signal-state-semantics.test.ts:16:  assert.equal(canEnterSniper({ maturity: "TRADE_PLAN_READY", rr: 3, whyBlocked: "风控门禁拦截" }), false);
+docs/chuan-market-radar-blueprint.md:163:| `TRADE_PLAN_READY` | 证据、结构、结构盈亏比、风控都通过 | 是 | 是 | 是 |
+docs/chuan-market-radar-blueprint.md:169:计划就绪区只允许 `TRADE_PLAN_READY`。没有就空着，不能用候选补位。
+docs/chuan-market-radar-blueprint.md:191:- `TRADE_PLAN_READY` 是唯一能进入计划就绪区和附完整交易计划的状态。
+docs/chuan-market-radar-blueprint.md:197:- `TRADE_PLAN_READY` 显示为“交易计划就绪”。
+docs/chuan-market-radar-blueprint.md:207:- API 必须对 `TRADE_PLAN_READY` 做二次防御：没有 `RR >= 3`、存在阻断原因或缺完整计划时，必须输出不可交易原因。
+docs/chuan-market-radar-blueprint.md:208:- 非 `TRADE_PLAN_READY` 状态必须带清楚的不可交易原因或边界说明。
+docs/chuan-market-radar-blueprint.md:209:- `Alpha`、星标、计划就绪区、完整交易计划只能用于真实 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:369:计划就绪区只放 `TRADE_PLAN_READY`。候选池可以满，计划就绪区可以空。
+docs/chuan-market-radar-blueprint.md:695:- `/dashboard` 已展示“机会质量与执行边界”：明确候选下一步、追涨追跌拦截数量和计划就绪区只允许 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:937:- 每轮正式回测报告必须单独增加“对比上一轮是否提升”小节，不能只报告本轮数字。至少对比：radar 命中率、提前命中率、质量分、radar TopN 捕获率、启动前机会捕获率、大周期背景机会捕获率、迟到率、漏判早期命中数、`TRADE_PLAN_READY` 数量、高优先级问题数量、计划卡点 Top3、是否跑赢 random / volume / momentum。每项必须标注“提升 / 退步 / 持平 / 不可比”，并解释不可比原因。
+docs/chuan-market-radar-blueprint.md:1048:- 下一轮正式回测验收不能只看高危数量下降，必须重点看：`bull_structure_broken/bear_structure_broken` 是否合理下降、`PBA-REVIEW-001` 是否只代表真正计划就绪后的失败、启动前机会捕获率是否提升、radar 质量分是否继续跑赢 random/volume/momentum、`TRADE_PLAN_READY` 是否仍为 0 以及为什么。
+docs/chuan-market-radar-blueprint.md:1069:- 已新增条件计划语义：RR 合格但结构仍未确认的样本输出 `WAIT_PULLBACK` 或 `WAIT_RETEST`，并标记 `structure_confirmation_pending`；它仍不能进入 `TRADE_PLAN_READY`，但不再和垃圾信号混成同一种阻断。
+docs/chuan-market-radar-blueprint.md:1072:- 本轮已新增回归测试覆盖以上四类问题，并通过 `npm run test:market`、`npm run lint`、`npm run build`。下一轮正式回测必须重点验收：`reward_risk_unknown` 是否下降、`structure_confirmation_pending` 是否替代无意义 BLOCKED、WIF 类 RR 合格样本排名是否前移、回踩/反抽捕获率是否恢复，以及 `TRADE_PLAN_READY` 是否在不降低 3:1 门槛的情况下合理恢复。
+docs/chuan-market-radar-blueprint.md:1088:- 三大核心成绩单全部不合格：扫描分数 48.01、通过率 0%、可交易机会池 TopN 捕获率 24.29%、启动前机会捕获率 12.5%；分析分数 23.74、通过率 0%、被雷达选中的 17 个节点里真正不晚到且事后有效比例为 0%；策略分数 0、通过率 0%、`TRADE_PLAN_READY` 为 0。
+docs/chuan-market-radar-blueprint.md:1098:- 策略整改：策略成绩单必须区分 `TRADE_PLAN_READY` 和 RR 合格但结构待确认的 `WAIT_PULLBACK` / `WAIT_RETEST` 条件计划。条件计划可以证明系统知道“等什么”，但不能冒充已经可以执行的狙击计划。
+docs/chuan-market-radar-blueprint.md:1100:- 下一轮正式回测验收重点：启动前机会捕获率是否提升；被雷达选中节点的有效分析比例是否提升；条件计划是否能转化为更清楚的可执行触发/失效条件；`TRADE_PLAN_READY` 是否在不降低 `3:1` 门槛的情况下合理恢复。
+docs/chuan-market-radar-blueprint.md:1124:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T140803-653Z`：100/100 节点，候选池 80，高优先级问题 66，`TRADE_PLAN_READY` 为 0。目标币为 `ADAUSDT`、`SEIUSDT`、`LDOUSDT`、`1000PEPEUSDT`、`TAOUSDT`、`SANDUSDT`、`RUNEUSDT`、`ZROUSDT`、`JUPUSDT`、`1000BONKUSDT`。
+docs/chuan-market-radar-blueprint.md:1135:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T161032-693Z`：100/100 节点，候选池 80，高优先级问题 63，`TRADE_PLAN_READY` 为 0。报告已通过 `/api/frontend/review-contract` 透出，三大核心成绩单可在前端复盘合同中读取。
+docs/chuan-market-radar-blueprint.md:1142:- 风控边界不变：本轮没有降低 `3:1`，没有把等待确认样本升级成 `TRADE_PLAN_READY`，没有让前端或回测系统伪造交易计划。等待确认只能说明“值得盯”和“等什么”，不能冒充可立即执行。
+docs/chuan-market-radar-blueprint.md:1147:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T164930-295Z`：100/100 节点，候选池 80，高优先级问题 76，`TRADE_PLAN_READY` 为 0。该轮验证说明上一轮“计划可行性修正”没有达标，不能视为完成。
+docs/chuan-market-radar-blueprint.md:1153:- 风控边界不变：没有降低最低 `3:1` RR，没有把 `WAIT_PULLBACK` / `WAIT_RETEST` 升级成 `TRADE_PLAN_READY`，没有让扫描候选冒充交易计划。
+docs/chuan-market-radar-blueprint.md:1154:- 下一轮正式回测验收：高优先级问题必须低于 76；radar 质量分必须恢复并优于 random/volume；启动前机会捕获率必须从 8.7% 回升；`missedOpportunities` 必须带分数；若 `TRADE_PLAN_READY` 仍为 0，必须继续把条件计划触发/失效表达作为策略层独立问题处理，不能再牺牲扫描层。
+docs/chuan-market-radar-blueprint.md:1158:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T172947-742Z`：100/100 节点，候选池 80，高优先级问题 58，`TRADE_PLAN_READY` 为 2。对比第四轮，高优先级问题从 76 降到 58，交易计划就绪从 0 到 2，说明“策略门禁不得埋掉发现候选”的修正确实止住退化。
+docs/chuan-market-radar-blueprint.md:1168:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T180934-330Z`：100/100 节点，候选池 80，高优先级问题 72，`TRADE_PLAN_READY` 为 0。对比第五轮，高优先级问题从 58 增到 72，交易计划就绪从 2 降到 0，说明上一刀不能视为完成。
+docs/chuan-market-radar-blueprint.md:1177:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-28T182939-311Z`：100/100 节点，候选池 80，高优先级问题 67，`TRADE_PLAN_READY` 为 2。目标币为 `AVAXUSDT`、`ARBUSDT`、`UNIUSDT`、`1000BONKUSDT`、`FETUSDT`、`GALAUSDT`、`CAKEUSDT`、`JUPUSDT`、`HYPEUSDT`、`CELRUSDT`，与上一轮继续轮换。
+docs/chuan-market-radar-blueprint.md:1191:- 风控边界不变：最低结构 RR 仍为 `3:1`，`WAIT_PULLBACK` / `WAIT_RETEST` 仍不是 `TRADE_PLAN_READY`，方向未确认和结构未确认只能进入观察/等待，不能包装成计划就绪区可执行计划。
+docs/chuan-market-radar-blueprint.md:1192:- 下一轮正式回测验收：启动前机会捕获率必须高于第七轮 13.21%；回踩/反抽捕获率不能明显跌破第七轮 61.9%；高优先级问题应低于 67；`TRADE_PLAN_READY` 至少保持第七轮 2 个或清楚说明为什么风控拦截；等待型样本的触发/失效解释必须能让用户看懂。
+docs/chuan-market-radar-blueprint.md:1196:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-29T045947-955Z`：100/100 节点，候选池 80，历史 K 线和公开衍生品拉取失败 0，高优先级问题 71，`TRADE_PLAN_READY` 为 0。报告已通过 `/api/frontend/review-contract` 透出，前端复盘页可读取该轮结果。
+docs/chuan-market-radar-blueprint.md:1198:- 对比第七轮 `/app/reports/professional-backtest-audit/2026-06-28T182939-311Z`：启动前机会捕获率从 13.21% 提升到 14.58%，回踩/反抽捕获率从 61.9% 提升到 66.67%，分析分数从 54.82 到 54.95；但高优先级问题从 67 增到 71，`TRADE_PLAN_READY` 从 2 降到 0，策略分数从 32.07 降到 26.99，扫描通过率仍只有 11.11%。结论是“发现层小幅改善，策略层明显退步”。
+docs/chuan-market-radar-blueprint.md:1204:- 当前状态继续标记为“可运行但不完整”。下一轮整改顺序：先修策略层条件计划转化和止损/目标质量，再修启动前机会排序的漏判样本；不得降低 `3:1`，不得把 WAIT 样本包装成 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1213:- 风控边界不变：最低结构 RR 仍为 `3:1`，不把 WAIT 样本升级成 `TRADE_PLAN_READY`，不把候选包装成交易计划。
+docs/chuan-market-radar-blueprint.md:1218:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-29T065938-017Z`：100/100 节点，候选池 80，历史 K 线和公开衍生品拉取完成，高优先级问题 60，`TRADE_PLAN_READY` 为 0。`/api/frontend/review-contract` 已确认读取到该报告。
+docs/chuan-market-radar-blueprint.md:1225:- 下一轮整改优先级必须回到扫描核心：不能再泛泛改策略文案。优先处理启动前机会排序退步、TopN 槽位被非质量机会占用、`early_volume_expansion` / `breakout_edge` / `medium_swing` 质量样本排名仍在 18-60 名的问题。策略层继续保持 3:1 和 WAIT 边界，不允许为了提高 `TRADE_PLAN_READY` 数量放松风控。
+docs/chuan-market-radar-blueprint.md:1245:- 风控边界不变：最低结构 RR 仍为 `3:1`，`WAIT_PULLBACK` / `WAIT_RETEST` 仍不能进入 `TRADE_PLAN_READY`，不能为了提升计划数量放松止损、目标、方向和结构确认。
+docs/chuan-market-radar-blueprint.md:1249:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-29T111625-137Z`：100/100 节点，候选池 80，历史 K 线和公开衍生品拉取完成，高优先级问题 74，`TRADE_PLAN_READY` 为 0。该轮不能视为能力提升。
+docs/chuan-market-radar-blueprint.md:1254:- 下一轮验收必须优先看：启动前机会捕获率是否从 10.2% 回升、Top10 捕获率是否从 21.62% 回升、WAIT 先到止损比例是否下降、radar 质量分是否继续高于 random，同时不得降低 `3:1`、不得把 WAIT 包装成 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1258:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-29T114727-964Z`：100/100 节点，候选池 80，历史 K 线和公开衍生品拉取失败 0，高优先级问题 75，`TRADE_PLAN_READY` 为 0。
+docs/chuan-market-radar-blueprint.md:1273:- 风控边界不变：最低结构 RR 仍为 `3:1`；`WAIT_PULLBACK` / `WAIT_RETEST` 仍不能冒充 `TRADE_PLAN_READY`；早期放量进入 TopN 只代表“值得验证/复盘”，不代表可以人工复核后再决定。
+docs/chuan-market-radar-blueprint.md:1279:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-29T123421-848Z`：100/100 节点，候选池 80，历史 K 线和公开 Funding/OI 拉取失败 0，高优先级问题 67，`TRADE_PLAN_READY` 为 0。
+docs/chuan-market-radar-blueprint.md:1297:- 下一轮正式回测验收重点：`WAIT` 先止损数量是否下降、未触发是否合理上升、`TRADE_PLAN_READY` 是否仍保持严格、TopN 捕获率是否没有因等待计划加硬而明显退化。
+docs/chuan-market-radar-blueprint.md:1301:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-29T131616-110Z`：100/100 节点，候选池 80，历史 K 线和公开 Funding/OI 拉取失败 0，高优先级问题 66，`TRADE_PLAN_READY` 为 1。
+docs/chuan-market-radar-blueprint.md:1303:- 对比第十二轮 `/app/reports/professional-backtest-audit/2026-06-29T123421-848Z`：高优先级问题 67 -> 66，`TRADE_PLAN_READY` 0 -> 1，分析分数 59.22 -> 65.49，说明分析层和计划就绪数量有小幅改善。
+docs/chuan-market-radar-blueprint.md:1325:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-29T141603-023Z`：100/100 节点，候选池 80，历史 K 线和公开 Funding/OI 拉取失败 0，高优先级问题 57，`TRADE_PLAN_READY` 为 0。
+docs/chuan-market-radar-blueprint.md:1328:- 同时出现明确退步：`TRADE_PLAN_READY` 1 -> 0，分析分数 65.49 -> 52，策略分数 46.36 -> 37.68。说明当前系统更会把早期机会排进来，但还不能把机会稳定转成可执行计划。
+docs/chuan-market-radar-blueprint.md:1357:- 已落地影子实盘写入端点：`POST /api/admin/shadow-live/run`，由 `CRON_SECRET` 保护，写入 rank-neutral 纸面跟踪事件；它只做生产候选后验，不自动下单，不自动改权重，不把 `DEEP_SCAN_CANDIDATE` 或 `EVIDENCE_SIGNAL` 升级成 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1373:- 生产策略专项报告 `/app/reports/professional-backtest-audit/2026-06-29T173258-402Z` 显示：策略专项 `fail`，100 个样本中 `TRADE_PLAN_READY` 只有 1 个，WAIT 条件计划 14 个，触发 8 个，先到目标 0 个，先到止损 8 个。
+docs/chuan-market-radar-blueprint.md:1377:- 风控边界不变：最低结构 RR 仍为 `3:1`，`WAIT_PULLBACK` / `WAIT_RETEST` 仍不是 `TRADE_PLAN_READY`，不能为了提高策略分数降低止损、目标、方向确认或风险门禁。
+docs/chuan-market-radar-blueprint.md:1382:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-30T002812-710Z`：100/100 节点，候选池 80，高优先级问题 76，`TRADE_PLAN_READY` 为 1。
+docs/chuan-market-radar-blueprint.md:1390:- 本轮只处理策略专项中的 WAIT 条件计划质量，不改扫描排序，不降低结构盈亏比，不把 WAIT 包装成 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1395:- 已补充回归测试：弱反应不得触发 WAIT；WAIT 后验必须聚合诊断原因。下一轮策略专项复验重点看：`badWaitRatePct` 是否下降、`diagnosticBreakdown` 是否能定位失败根因、`triggered_sl_first` 是否减少、`not_triggered` 是否合理增加，以及 `TRADE_PLAN_READY` 是否仍遵守 3:1 和风控门禁。
+docs/chuan-market-radar-blueprint.md:1399:- 生产策略专项复验报告 `/app/reports/professional-backtest-audit/2026-06-30T130840-204Z` 显示：100 个节点、80 个候选池币种、高优先级问题 64 个，`TRADE_PLAN_READY` 为 0；扫描分数 57.09，分析分数 65.41，策略分数 26.77，整体仍是 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1401:- 本轮真实退步：`TRADE_PLAN_READY` 从 1 降到 0，扫描提前性从 61.05 降到 57.09，启动前捕获率从 41.03% 降到 28.57%。因此不能说系统已经支撑实战。
+docs/chuan-market-radar-blueprint.md:1406:- 下一轮生产策略专项复验必须看四个指标：启动前捕获率是否回升、Top10/Top20/Top30 漏判质量机会是否下降、硬结构破坏样本是否减少占位、`TRADE_PLAN_READY` 是否仍不被 WAIT 或破坏结构冒充。
+docs/chuan-market-radar-blueprint.md:1410:- 第二部分上线后的生产复验报告 `/app/reports/professional-backtest-audit/2026-06-30T134134-267Z` 显示：100 个节点、高优先级问题 74 个，`TRADE_PLAN_READY` 为 0；扫描分数 51.71，分析分数 67.86，策略分数 18.27，整体仍是 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1419:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-30T141242-870Z`：100 个节点、高优先级问题 67 个，`TRADE_PLAN_READY` 为 1，裁判系统仍给出 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1440:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-30T145228-929Z`：100 个节点、高优先级问题 66 个，`TRADE_PLAN_READY` 为 0，裁判系统仍给出 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1444:- `TRADE_PLAN_READY` 1 -> 0，说明扫描改善没有自动转化成可执行策略；策略专项仍失败，不能支撑实战。
+docs/chuan-market-radar-blueprint.md:1450:- 本轮只处理“早期放量启动”入口被挤掉的问题，不改 `3:1` 结构盈亏比，不放宽风控门禁，不把 WATCH/WAIT 包装成 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1456:- 下一轮生产策略专项复验必须重点看：早期放量启动捕获率是否从 4.55% 回升，Top10 捕获率是否维持 45% 以上，安静压缩捕获率是否不能被牺牲，以及 `TRADE_PLAN_READY` 是否仍不被候选/WAIT 冒充。
+docs/chuan-market-radar-blueprint.md:1460:- 腾讯云生产容器生成报告 `/app/reports/professional-backtest-audit/2026-06-30T161455-116Z`：100 个节点、高优先级问题 65 个，`TRADE_PLAN_READY` 为 0，裁判系统仍给出 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1482:- 生产策略专项复验报告 `/app/reports/professional-backtest-audit/2026-07-01T001549-077Z`：100 个节点，高优先级问题 54，`TRADE_PLAN_READY` 为 0，裁判系统仍是 `不能支撑实战`。对比上一轮 `/app/reports/professional-backtest-audit/2026-06-30T161455-116Z`：高优先级问题 65 -> 54，扫描分数 60.51 -> 66.84，策略分数 20.44 -> 30.61，启动前捕获率 33.33% -> 40.74%，但分析分数 67.44 -> 57.49，WAIT 有效率仍为 0。
+docs/chuan-market-radar-blueprint.md:1485:- OI 修复上线后生产策略专项复验报告 `/app/reports/professional-backtest-audit/2026-07-01T004225-282Z`：`openInterestHist` 失败 0，Funding 失败 0，说明历史衍生品数据窗口问题已修复。该轮 100 个节点，高优先级问题 65，`TRADE_PLAN_READY` 为 0，裁判系统仍是 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1500:- 本轮只处理策略层“当前位置已经失去赔率优势，但回踩/反抽到更好位置后可能重新满足结构盈亏比”的问题；不改变扫描排序，不放宽 `3:1`，不把 WAIT 包装成 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1503:- `buildV3TradePlan` 已区分“硬阻断”和“只适合等待更好价格”：如果唯一问题是 `reward_risk_below_minimum`、`stop_distance_too_wide` 或 `chase_risk`，且反推等待价能重新达到 `RR >= 3:1`，计划状态只能是 `WAIT_PULLBACK` / `WAIT_RETEST`，不能是 `READY_LONG` / `READY_SHORT`。
+docs/chuan-market-radar-blueprint.md:1506:- 下一轮生产策略专项复验必须看：低 RR / 止损过宽样本是否更多转为清晰 WAIT 条件；WAIT 后验是否减少“刚触发就先止损”；`TRADE_PLAN_READY` 是否仍只给完整证据计划。
+docs/chuan-market-radar-blueprint.md:1510:- 生产容器曾执行 `npm run backtest:professional` 生成报告 `/app/reports/professional-backtest-audit/2026-07-01T033214-250Z`：300 个样本、高优先级问题 242、`TRADE_PLAN_READY=0`。该报告能证明系统仍不合格，但不能作为完整诊断报告使用，因为三大核心成绩单、机会池指标、计划阻断聚合和关键位/RR 专项为空。
+docs/chuan-market-radar-blueprint.md:1521:- 生产报告 `/app/reports/professional-backtest-audit/2026-07-01T040310-984Z`：100 个节点，高优先级问题 76，`TRADE_PLAN_READY=1`，裁判状态仍是 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1534:- 这次修复的目标不是提高 `TRADE_PLAN_READY` 数量，而是减少“可等待机会被误判为完全无效”的问题；当前网站核心能力仍必须继续通过生产专业回测验证，不能称为实战达标。
+docs/chuan-market-radar-blueprint.md:1539:- 腾讯云生产容器报告 `/app/reports/professional-backtest-audit/2026-07-01T043656-584Z`：100 个节点，高优先级问题 64，`TRADE_PLAN_READY=0`，整体仍是 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1566:- 随后运行正式专业回测报告 `/app/reports/professional-backtest-audit/2026-07-01T053502-350Z`：100 个节点，高优先级问题 71，`TRADE_PLAN_READY=0`，整体仍是 `不能支撑实战`。
+docs/chuan-market-radar-blueprint.md:1605:- 这一层必须单独存在，不能被前端包装成“狙击信号”，也不能被后端直接丢掉。它应进入观察池、候选池或等待确认池，用于服务“提前发现”，但不能进入 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1647:- 风险门控：数据过期、方向不清、证据单一、高周期强压制未解决、假突破未确认、Funding/OI 拥挤、流动性差、止损/目标不清、RR 不足时，一律不能进入 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1686:- 总结论：裁判系统仍给出 `不能支撑实战`；100 个样本中高优先级问题 72 个，`TRADE_PLAN_READY` 只有 1 个。
+docs/chuan-market-radar-blueprint.md:1712:- 风控边界：没有降低最低 `3:1` 结构 RR，没有把 WAIT 计划包装成 `TRADE_PLAN_READY`，没有允许自动下单或自动改权重。
+docs/chuan-market-radar-blueprint.md:1718:  - `TRADE_PLAN_READY` 是否在不降低 `3:1` 门槛下合理恢复。
+docs/chuan-market-radar-blueprint.md:1725:- 总结论：裁判系统仍给出 `不能支撑实战`；100 个样本中高优先级问题 56 个，`TRADE_PLAN_READY` 为 0。
+docs/chuan-market-radar-blueprint.md:1730:  - 策略分数 20.01 -> 32.3，有提升但仍 `fail`；`TRADE_PLAN_READY` 1 -> 0，不能视为策略合格。
+docs/chuan-market-radar-blueprint.md:1757:- 风控边界：没有降低最低 `3:1` 结构 RR，没有把 WAIT 计划包装成 `TRADE_PLAN_READY`，没有允许自动下单或自动改权重。
+docs/chuan-market-radar-blueprint.md:1763:  - `TRADE_PLAN_READY` 不应靠放松 RR 增加；如果仍为 0，下一步继续修目标位投射、结构止损和假阳性过滤。
+docs/chuan-market-radar-blueprint.md:1769:- 总结论：裁判系统仍给出 `不能支撑实战`；100 个样本中高优先级问题 71 个，`TRADE_PLAN_READY=0`。
+docs/chuan-market-radar-blueprint.md:1800:- 风控边界：本轮只修“谁能进入前排候选/审计”，不放宽 `3:1`，不增加 `TRADE_PLAN_READY`，不把 WAIT 或观察层包装成交易计划。
+docs/chuan-market-radar-blueprint.md:1812:- 总结论：裁判系统仍给出 `不能支撑实战`；100 个样本中高优先级问题 78 个，`TRADE_PLAN_READY=0`。TopN 保底预算修复没有通过正式回测验收。
+docs/chuan-market-radar-blueprint.md:1826:  - 策略：不合格。`TRADE_PLAN_READY=0`，只有 13 个 RR 合格的条件计划；大量样本卡在 RR、止损、目标和确认条件。
+docs/chuan-market-radar-blueprint.md:1851:  - `WAIT_PULLBACK` / `WAIT_RETEST` 仍不能冒充 `TRADE_PLAN_READY`。
+docs/chuan-market-radar-blueprint.md:1886:  - `TRADE_PLAN_READY` 只有 1 个样本，且该样本假阳性率 100%。当前不能把交易计划就绪当作实战可用。
+docs/chuan-market-radar-blueprint.md:1892:  3. 再修策略层：`TRADE_PLAN_READY` 必须后验不再 100% 假阳性，WAIT 计划必须能证明触发条件和止损目标有效。
+docs/chuan-market-radar-blueprint.md:1899:- 根因：P2 正式回测显示扫描层已改善，但 `premium_early_setup` 假阳性率过高，`TRADE_PLAN_READY` 样本过少且假阳性。说明系统能更早看到一部分机会，但分析层和策略层没有足够严格地区分“值得观察”和“可以计划”。
+docs/chuan-market-radar-blueprint.md:1903:  - `TRADE_PLAN_READY` 必须同时满足：结构 RR 合格、无 plan blocker、风险门控通过、位置合格、关键位反应确认、趋势完整健康、无高周期门控阻断。
+docs/chuan-market-radar-blueprint.md:1917:  - `TRADE_PLAN_READY` 不能再出现 100% 假阳性。
+docs/chuan-market-radar-blueprint.md:1941:  - 策略：`不合格`，分数 20.12。没有 `TRADE_PLAN_READY`，只有 13 个 RR 合格条件计划，仍不能证明可执行。
+docs/chuan-market-radar-blueprint.md:2028:  - `trade-plan` 对 `STRUCTURE_REPAIR_PENDING` 只输出 `WAIT_PULLBACK` / `WAIT_RETEST` 或 `WATCH_ONLY`，绝不输出 `READY_LONG` / `READY_SHORT`。
+docs/chuan-market-radar-blueprint.md:2116:- Token 单币档案 READY 事实源收敛：单币页不得根据 v3 计划草案自行推导 `TRADE_PLAN_READY`；必须同时读取后端 `SignalBackendDossier.signal.maturity.stage === TRADE_PLAN_READY`、完整 trade plan 和 risk gate 结果。后端 maturity fact 缺失时只能输出 `BLOCKED` 或观察状态。
+src/lib/ui-schema-guard.ts:222:  unifiedDecision?: {
+src/lib/ui-schema-guard.ts:224:    decision?: 'OBSERVE' | 'WAIT' | 'BLOCKED' | 'TRADE_PLAN_READY'
+src/lib/ui-schema-guard.ts:248:  decision: NonNullable<UiSignalLike['unifiedDecision']> | null | undefined,
+src/lib/ui-schema-guard.ts:251:  if (decision.decision === 'TRADE_PLAN_READY') return decision.canTradeNow ? 'TRADE' : 'BLOCKED'
+src/lib/ui-schema-guard.ts:262:  if (lane === 'sniper' && maturity === 'TRADE_PLAN_READY') return 'TRADE'
+src/lib/ui-schema-guard.ts:269:  const decision = decisionForUnifiedDecision(signal.unifiedDecision) ??
+src/lib/radar-contract.ts:225:  | 'TRADE_PLAN_READY' // 交易计划就绪
+src/lib/radar-contract.ts:282:  unifiedDecision: SignalUnifiedDecisionRead
+src/lib/radar-contract.ts:298:  source: 'unified_decision_engine' | 'frontend_candidate_guard'
+src/lib/radar-contract.ts:299:  decision: 'OBSERVE' | 'WAIT' | 'BLOCKED' | 'TRADE_PLAN_READY'
+src/lib/radar-contract.ts:483:  unifiedDecision: TokenUnifiedDecisionRead
+src/lib/radar-contract.ts:498:  source: 'unified_decision_engine'
+src/lib/radar-contract.ts:499:  decision: 'OBSERVE' | 'WAIT' | 'BLOCKED' | 'TRADE_PLAN_READY'
+src/lib/radar-contract.ts:563:    unifiedDecision: {
+src/lib/radar-contract.ts:565:      source: 'unified_decision_engine',
+src/lib/radar-contract.ts:1013:    candidateCount: number
+src/lib/radar-contract.ts:1046:      candidateCount: 0,
+src/lib/radar-contract.ts:1364:  planReadyCount: number
+src/lib/radar-contract.ts:1380:  planReadyCount: number
+src/lib/radar-contract.ts:1569:  planReadyCount: number
+src/lib/radar-contract.ts:1699:  planReadyCount: number
+docs/superpowers/plans/2026-06-29-core-capability-judge-system.md:213:- If a case expects `WATCH_ONLY`, runner fails if strategy returns `TRADE_PLAN_READY`.
+docs/superpowers/plans/2026-06-29-core-capability-judge-system.md:253:- It does not fail because `TRADE_PLAN_READY=0`.
+docs/superpowers/plans/2026-06-29-core-capability-judge-system.md:425:- It never promotes `EVIDENCE_SIGNAL` into `TRADE_PLAN_READY`.
+src/lib/signal-state-semantics.ts:8:  | "TRADE_PLAN_READY"
+src/lib/signal-state-semantics.ts:19:  | "TRADE_PLAN_READY"
+src/lib/signal-state-semantics.ts:143:  TRADE_PLAN_READY: {
+src/lib/signal-state-semantics.ts:144:    state: "TRADE_PLAN_READY",
+src/lib/signal-state-semantics.ts:184:  TRADE_PLAN_READY: "TRADE_PLAN_READY",
+src/lib/signal-state-semantics.ts:239:  TRADE_PLAN_READY: {
+src/lib/signal-state-semantics.ts:244:    semanticState: "TRADE_PLAN_READY",
+docs/ACCOUNT_RISK_SIMULATOR.md:7:它必须在后端已经给出结构化计划之后使用，不能生成方向、入场、止损、目标，也不能把 WAIT / WATCH 升级成 `TRADE_PLAN_READY`。
+docs/BACKEND_API_CONTRACT.md:11:- Signal maturity is mandatory: `LIGHT_SCAN_MARK` is backend discovery only, `DEEP_SCAN_CANDIDATE` is verification/candidate lane only, `REVIEW_ONLY` is late/no-chase education only, and `TRADE_PLAN_READY` is the only stage allowed to attach a full trade plan.
+docs/BACKEND_API_CONTRACT.md:13:- Outcome statistics are only valid for mature samples: `EVIDENCE_SIGNAL` and `TRADE_PLAN_READY`. `REVIEW_ONLY` can feed late-signal research, but light marks, deep candidates and legacy samples with missing maturity must not be used as hit-rate proof.
+docs/BACKEND_API_CONTRACT.md:43:- `contract.analysis.signalMaturity`: counts and symbol lists for `LIGHT_SCAN_MARK`, `DEEP_SCAN_CANDIDATE`, `EVIDENCE_SIGNAL`, `REVIEW_ONLY`, `TRADE_PLAN_READY`, blocked, cooldown and invalidated states.
+docs/BACKEND_API_CONTRACT.md:59:- `early_opportunity` is a scheduling reason, not a trade reason. It means the system found pre-move traits such as compression, rising volume or a learnable missed pre-move pattern. The asset still needs deep scan, evidence fusion, structure validation and Risk Gate before it can become `TRADE_PLAN_READY`.
+docs/BACKEND_API_CONTRACT.md:63:- `signalMaturity` is the frontend-safe answer to "is this a real signal or just a scan mark": trade-plan panels must use `TRADE_PLAN_READY`; evidence panels can show `EVIDENCE_SIGNAL`; late/no-chase panels must show `REVIEW_ONLY` as research-only; verifying candidate panels can show `candidateLaneSymbols`; light-scan marks should be shown only as coverage/discovery counts.
+src/lib/market/scan-events.test.ts:9:    anomalyCount: 3,
+src/lib/market/scan-events.test.ts:10:    candidateCount: 2,
+src/lib/market/scan-events.test.ts:43:        anomalyCount: 1,
+src/lib/market/scan-events.test.ts:44:        candidateCount: 1,
+src/lib/market/radar-snapshot.ts:214:      anomalyCount: 0,
+src/lib/market/radar-snapshot.ts:216:      candidateCount: 0,
+src/lib/market/radar-snapshot.ts:319:          aiReview: disabledAiReview("RULE_REVIEW_MATURITY_GATE: only EVIDENCE_SIGNAL or TRADE_PLAN_READY gets rule counter-review", {
+docs/STATE_DICTIONARY.md:11:- 只有 `TRADE_PLAN_READY` 且后端风险门控通过，才允许进入计划就绪区。
+docs/STATE_DICTIONARY.md:25:| TRADE_PLAN_READY | 交易计划就绪 | 是 | 是 | 人工复核后执行 | high | 需后端入场、止损、目标、结构盈亏比、风控闸门全部通过 |
+docs/STATE_DICTIONARY.md:46:- 计划就绪区只允许 `TRADE_PLAN_READY` / `TRADE`。
+docs/GOLDEN_CASES.md:20:- 只有结构、资金质量、RR 和风险门控同时通过的优质突破，才允许进入 `TRADE_PLAN_READY`。
+src/lib/market/ws-light-scan.ts:853:  candidateCount,
+src/lib/market/ws-light-scan.ts:860:  candidateCount: number;
+src/lib/market/ws-light-scan.ts:869:    candidateCount,
+src/lib/market/ws-light-scan.ts:915:      candidateCount: priorityCandidates.length,
+src/lib/market/ws-light-scan.ts:1009:          candidateCount: priorityCandidates.length,
+src/lib/market/ws-light-scan.ts:1072:      candidateCount: 0,
+src/lib/market/scan-asset-state.test.ts:37:      candidateCount: 2,
+src/lib/market/scan-asset-state.test.ts:99:        BATTLE_READY: 0,
+docs/deployment-checklist.md:147:- outcome 复盘统计只承认 `EVIDENCE_SIGNAL` 和 `TRADE_PLAN_READY`；轻扫标记、深扫候选和缺成熟度旧样本不能进入命中率或人工校准胜率。
+src/lib/market/scan-archive.ts:71:    anomalyCount: snapshot.metadata.anomalyCount,
+src/lib/market/scan-archive.ts:72:    candidateCount: snapshot.metadata.candidateCount,
+src/lib/market/scan-archive.ts:89:    anomalyCount: snapshot.metadata.anomalyCount,
+src/lib/market/scan-archive.ts:90:    candidateCount: snapshot.metadata.candidateCount,
+src/lib/market/scan-archive.ts:132:    anomalyDelta: current.metadata.anomalyCount - previous.metadata.anomalyCount,
+src/lib/market/scan-archive.ts:133:    candidateDelta: current.metadata.candidateCount - previous.metadata.candidateCount,
+src/lib/market/scan-archive.ts:163:    anomalyDelta: current.anomalyCount - previous.anomalyCount,
+src/lib/market/scan-archive.ts:164:    candidateDelta: current.candidateCount - previous.candidateCount,
+docs/frontend-backend-field-map.md:117:must never become `TRADE_PLAN_READY` by frontend calculation.
+src/lib/market/universe-registry.ts:1168:      candidateCount: dynamicPriorityDecisions.length,
+src/lib/decision/unified-decision-engine.ts:12:  | "TRADE_PLAN_READY";
+src/lib/decision/unified-decision-engine.ts:18:  | "TRADE_PLAN_READY"
+src/lib/decision/unified-decision-engine.ts:101:      warnings: ["市场状态未接入；只能作为缺失 context，不能生成 READY。"],
+src/lib/decision/unified-decision-engine.ts:144:  const readyStatus = plan.status === "READY_LONG" || plan.status === "READY_SHORT";
+src/lib/decision/unified-decision-engine.ts:145:  const direction = plan.status === "READY_SHORT" ? "short" : plan.status === "READY_LONG" ? "long" : null;
+src/lib/decision/unified-decision-engine.ts:148:    blockers.push(blocker("trade_plan_not_ready_status", "后端 v3 trade plan 必须是 READY_LONG 或 READY_SHORT。", true, "critical"));
+src/lib/decision/unified-decision-engine.ts:193:        blocker("ready_numeric_fields_invalid", "READY 输出必须保留有效 plannedEntryPrice、rewardRisk 和 structuralStop。", true, "critical"),
+src/lib/decision/unified-decision-engine.ts:235:  const maturityBlocker = input.backendMaturity === "TRADE_PLAN_READY"
+src/lib/decision/unified-decision-engine.ts:239:      "只有后端 maturity=TRADE_PLAN_READY 且完整 trade plan 通过，才允许 READY。",
+src/lib/decision/unified-decision-engine.ts:273:  if (plan.status === "READY_LONG" || plan.status === "READY_SHORT") {
+src/lib/decision/unified-decision-engine.ts:282:        reasons: ["后端计划看似 READY，但没有通过统一决策引擎硬门槛。"],
+src/lib/decision/unified-decision-engine.ts:289:      decision: "TRADE_PLAN_READY",
+src/lib/market/scan-events.ts:67:  return `${entry.status} / scan ${entry.scannedCount} / anomaly ${entry.anomalyCount} / ${symbols}${
+src/lib/decision/unified-decision-engine.test.ts:28:    status: "READY_LONG",
+src/lib/decision/unified-decision-engine.test.ts:40:test("buildUnifiedDecision allows READY only with backend maturity full plan RR stop target and no blocker", () => {
+src/lib/decision/unified-decision-engine.test.ts:42:    backendMaturity: "TRADE_PLAN_READY",
+src/lib/decision/unified-decision-engine.test.ts:47:  assert.equal(decision.decision, "TRADE_PLAN_READY");
+src/lib/decision/unified-decision-engine.test.ts:56:test("buildUnifiedDecision blocks a READY-looking plan when backend maturity is not ready", () => {
+src/lib/decision/unified-decision-engine.test.ts:72:test("buildUnifiedDecision blocks READY when RR stop target entry or blocker quality fails", () => {
+src/lib/decision/unified-decision-engine.test.ts:74:    backendMaturity: "TRADE_PLAN_READY",
+src/lib/lifecycle/opportunity-lifecycle.ts:14:  "TRADE_PLAN_READY",
+src/lib/lifecycle/opportunity-lifecycle.ts:31:  EVIDENCE_OBSERVE: ["WAIT_CONDITION", "BLOCKED", "TRADE_PLAN_READY", "EXPIRED", "INVALIDATED"],
+src/lib/lifecycle/opportunity-lifecycle.ts:32:  WAIT_CONDITION: ["TRADE_PLAN_READY", "BLOCKED", "EXPIRED", "INVALIDATED"],
+src/lib/lifecycle/opportunity-lifecycle.ts:34:  TRADE_PLAN_READY: ["OUTCOME_REVIEWED", "INVALIDATED", "EXPIRED"],
+docs/MARKET_REGIME.md:31:READY
+docs/MARKET_REGIME.md:52:这些只作为 context，不直接影响 READY。
+docs/MARKET_REGIME.md:68:- 不能因为 `TREND_UP` 把 WAIT 升级 READY。
+docs/MARKET_REGIME.md:84:- 低流动性识别 `LOW_LIQUIDITY`，但不授予 READY 或排序权限。
+src/lib/market/universe-priority-hints.test.ts:23:    anomalyCount: topSymbols.length,
+src/lib/market/universe-priority-hints.test.ts:24:    candidateCount: topSymbols.length,
+src/lib/market/universe-priority-hints.test.ts:40:    anomalyCount: 1,
+src/lib/market/universe-priority-hints.test.ts:41:    candidateCount: 1,
+src/lib/market/provider-registry.ts:51:        anomalyCount: 0,
+src/lib/market/provider-registry.ts:52:        candidateCount: 0,
+src/lib/lifecycle/types.ts:8:  | "TRADE_PLAN_READY"
+src/lib/market/scan-stability.test.ts:33:    anomalyCount: 2,
+src/lib/market/scan-stability.test.ts:34:    candidateCount: 5,
+src/lib/market/scan-stability.test.ts:67:      anomalyCount: 2,
+src/lib/market/scan-stability.test.ts:69:      candidateCount: 5,
+docs/NAMING_STANDARD.md:54:| TRADE_PLAN_READY | 交易计划就绪 | 是，仍需人工复核 | 是 |
+docs/NAMING_STANDARD.md:106:- `TRADE_PLAN_READY` 是唯一允许进入计划就绪区的状态。
+docs/SINGLE_SOURCE_OF_TRUTH.md:7:| tradePlanReady | strategy / trade-plan / risk gate + backend maturity fact | 否 | 只有后端 `TRADE_PLAN_READY` 且完整计划有效时才就绪 |
+docs/SINGLE_SOURCE_OF_TRUTH.md:10:| candidateCount | scan proof / backend contract | 否 | 只读扫描层统计 |
+docs/SINGLE_SOURCE_OF_TRUTH.md:11:| anomalyCount | scan proof / backend contract | 否 | 不等于交易机会数量 |
+docs/SINGLE_SOURCE_OF_TRUTH.md:16:| WAIT / BLOCKED / TRADE_PLAN_READY | unified status dictionary + backend state | 否 | 文案统一从词典取 |
+src/lib/lifecycle/opportunity-lifecycle.test.ts:18:  "TRADE_PLAN_READY",
+src/lib/lifecycle/opportunity-lifecycle.test.ts:62:      status: "TRADE_PLAN_READY",
+src/lib/lifecycle/opportunity-lifecycle.test.ts:102:      status: "TRADE_PLAN_READY",
+src/lib/lifecycle/opportunity-lifecycle.test.ts:111:      status: "TRADE_PLAN_READY",
+src/lib/market/signal-maturity.test.ts:154:      status: "READY_LONG",
+src/lib/market/signal-maturity.test.ts:207:test("classifySignalMaturity only promotes eligible plans to TRADE_PLAN_READY", () => {
+src/lib/market/signal-maturity.test.ts:222:  assert.equal(ready.stage, "TRADE_PLAN_READY");
+src/lib/market/signal-maturity.test.ts:252:test("classifySignalMaturity requires confirmed reaction and healthy trend before TRADE_PLAN_READY", () => {
+src/lib/market/signal-maturity.test.ts:281:test("classifySignalMaturity routes late no-chase setups to REVIEW_ONLY instead of TRADE_PLAN_READY", () => {
+src/lib/market/signal-maturity.test.ts:341:      stage: "TRADE_PLAN_READY",
+src/lib/market/signal-maturity.test.ts:415:  assert.equal(diagnostics.counts.TRADE_PLAN_READY, 1);
+src/lib/market/scan-state-pool.ts:27:  "BATTLE_READY",
+src/lib/market/scan-state-pool.ts:38:  BATTLE_READY: "作战准备",
+src/lib/market/scan-state-pool.ts:49:  BATTLE_READY: "每轮复核",
+src/lib/market/scan-state-pool.ts:60:  BATTLE_READY: "接近完整计划，但仍必须经过结构盈亏比、风险门和失效条件。",
+src/lib/market/scan-state-pool.ts:72:    BATTLE_READY: 0,
+src/lib/market/scan-state-pool.ts:115:    return "BATTLE_READY";
+src/lib/market/scan-state-pool.ts:192:  if (suggestedState === "BATTLE_READY") {
+src/lib/market/scan-state-pool.ts:259:      ? "BATTLE_READY"
+src/lib/market/scan-state-pool.ts:262:        : currentState === "BATTLE_READY" || currentState === "BATTLE_WATCH"
+src/lib/market/scan-state-pool.ts:348:    BATTLE_READY: "检查入场、止损、目标和失效条件",
+src/lib/market/scan-state-pool.ts:372:  if (!selectedThisRound && (state === "BATTLE_READY" || reasons.includes("battle_ready"))) {
+src/lib/market/scan-state-pool.ts:460:      (sample.state === "BATTLE_READY" ||
+src/lib/market/scan-state-pool.ts:471:    sample.state === "BATTLE_READY" ||
+src/lib/market/scan-state-pool.ts:507:      sample.state === "BATTLE_READY" || sample.state === "BATTLE_WATCH"
+src/lib/market/scan-state-pool.ts:580:    const state = rawState === "BATTLE_READY" && !isSelected
+src/lib/market/scan-state-pool.ts:654:        "BATTLE_READY 仍需结构盈亏比、失效条件、RiskScore 和证据冲突检查。",
+src/lib/market/scan-state-pool.ts:668:        eligibleForBattle: promotionSamples.filter((sample) => sample.suggestedState === "BATTLE_READY").length,
+src/lib/market/types.ts:154:  | "BATTLE_READY"
+src/lib/market/types.ts:307:  candidateCount: number;
+src/lib/market/types.ts:474:  candidateCount: number;
+src/lib/market/types.ts:587:  anomalyCount: number;
+src/lib/market/types.ts:588:  candidateCount: number;
+src/lib/market/types.ts:609:  anomalyCount: number;
+src/lib/market/types.ts:610:  candidateCount: number;
+src/lib/market/types.ts:640:  anomalyCount: number;
+src/lib/market/types.ts:641:  candidateCount: number;
+src/lib/market/live-events.test.ts:15:    anomalyCount: 2,
+src/lib/market/live-events.test.ts:16:    candidateCount: 1,
+src/lib/market/live-events.test.ts:30:    anomalyCount: 2,
+src/lib/market/live-events.test.ts:32:    candidateCount: 1,
+src/lib/market/live-events.test.ts:80:      candidateCount: 1,
+src/lib/market/live-events.test.ts:86:      candidateCount: 1,
+src/lib/market/universe-registry.test.ts:323:  assert.equal(plan.dynamicPriority.candidateCount, 2);
+src/lib/market/scan-state-pool.test.ts:154:  assert.equal(report.counts.BATTLE_READY, 1);
+src/lib/market/scan-state-pool.test.ts:237:  assert.notEqual(sui.state, "BATTLE_READY");
+src/lib/market/scan-state-pool.test.ts:243:    sample.symbol === "SUIUSDT" && sample.state === "BATTLE_READY"
+src/lib/market/scan-state-pool.test.ts:333:  assert.equal(bridge.currentState, "BATTLE_READY");
+src/lib/market/providers/coinglass-provider.test.ts:64:          candidateCount: 1,
+src/lib/market/providers/coinglass-provider.test.ts:476:  assert.equal(snapshot.metadata.anomalyCount, 0);
+src/lib/market/radar-snapshot.test.ts:58:      anomalyCount: signals.length,
+src/lib/market/radar-snapshot.test.ts:59:      candidateCount: signals.length,
+src/lib/market/radar-snapshot.test.ts:162:    anomalyCount: 1,
+src/lib/market/radar-snapshot.test.ts:163:    candidateCount: 1,
+src/lib/market/radar-snapshot.test.ts:174:    anomalyCount: 1,
+src/lib/market/radar-snapshot.test.ts:175:    candidateCount: 1,
+src/lib/market/radar-snapshot.test.ts:391:              candidateCount: 1,
+docs/backtest-v2/BACKTEST_TEST_PLAN.md:74:| 交易计划 | 只有 TRADE_PLAN_READY 才能出计划，计划必须可执行可失效 | 候选信号被包装成狙击目标 |
+docs/backtest-v2/BACKTEST_TEST_PLAN.md:185:- `TRADE_PLAN_READY` 数量。
+docs/backtest-v2/BACKTEST_TEST_PLAN.md:235:- `TRADE_PLAN_READY` 数量。
+src/lib/market/ws-light-scan.test.ts:271:      candidateCount: 2,
+src/lib/market/ws-light-scan.test.ts:391:  assert.equal(result.diagnostics.candidateCount, 1);
+src/lib/market/scan-runtime.test.ts:19:    anomalyCount: 3,
+src/lib/market/scan-runtime.test.ts:20:    candidateCount: 1,
+src/lib/contracts/single-source-of-truth.test.ts:14:  "candidateCount",
+src/lib/contracts/single-source-of-truth.test.ts:15:  "anomalyCount",
+docs/OPPORTUNITY_LIFECYCLE.md:13:- `TRADE_PLAN_READY`：后端结构化计划就绪。
+src/lib/market/scan-archive-bundle.test.ts:18:    anomalyCount: id === "scan-b" ? 5 : 4,
+src/lib/market/scan-archive-bundle.test.ts:19:    candidateCount: topSymbols.length,
+src/lib/market/scan-archive-bundle.test.ts:38:    anomalyCount: id === "scan-b" ? 5 : 4,
+src/lib/market/scan-archive-bundle.test.ts:39:    candidateCount: symbols.length,
+docs/backtest-v2/PROFESSIONAL_BACKTEST_AUDIT_SPEC.md:165:只有 `TRADE_PLAN_READY` 可进入交易计划审计；其他状态只做候选或证据审计。
+docs/backtest-v2/PROFESSIONAL_BACKTEST_AUDIT_SPEC.md:250:- 计划就绪必须经过最后质量防线：结构止损、目标方向、RR、止损距离全部通过后才允许进入 `TRADE_PLAN_READY`；上游模块误标可交易时，计划层必须能再次阻断。
+src/lib/frontend-market-types.ts:56:    | 'TRADE_PLAN_READY'
+src/lib/market/universe-priority-hints.ts:134:      const activityWeight = Math.min(10, archive.candidateCount + archive.anomalyCount);
+src/lib/contracts/single-source-of-truth.ts:3:  | "candidateCount"
+src/lib/contracts/single-source-of-truth.ts:4:  | "anomalyCount"
+src/lib/contracts/single-source-of-truth.ts:52:    guardrail: "前端只能读取 TRADE_PLAN_READY；不能根据分数、结构盈亏比或文案自行升级。",
+src/lib/contracts/single-source-of-truth.ts:54:  candidateCount: {
+src/lib/contracts/single-source-of-truth.ts:55:    id: "candidateCount",
+src/lib/contracts/single-source-of-truth.ts:64:  anomalyCount: {
+src/lib/contracts/single-source-of-truth.ts:65:    id: "anomalyCount",
+src/lib/contracts/single-source-of-truth.ts:116:    sourceOfTruth: "TRADE_PLAN_READY radarSignals from backend contract",
+src/lib/api/historical-backtest-readonly.ts:353:    planReadyCount: numericValue(item.planReadyCount),
+src/lib/api/historical-backtest-readonly.ts:380:    planReadyCount: numericValue(item.planReadyCount),
+src/lib/api/historical-backtest-readonly.ts:890:    planReadyCount: numericValue(roundSummary.planReadyCount),
+src/lib/api/historical-backtest-readonly.ts:900:      planReadyCount: numericValue(timingMetrics.planReadyCount),
+src/lib/market/providers/public-light-scan.ts:508:    candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:562:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:583:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:617:            candidateCount: candidates.length,
+src/lib/market/providers/public-light-scan.ts:638:            candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:727:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:753:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:772:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:806:            candidateCount: candidates.length,
+src/lib/market/providers/public-light-scan.ts:827:            candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:907:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:936:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:955:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:989:            candidateCount: candidates.length,
+src/lib/market/providers/public-light-scan.ts:1010:            candidateCount: 0,
+src/lib/market/providers/public-light-scan.ts:1147:          candidateCount: priorityCandidates.length,
+src/lib/market/scan-archive.test.ts:53:      anomalyCount: 2,
+src/lib/market/scan-archive.test.ts:54:      candidateCount: signals.length,
+src/lib/market/scan-archive.test.ts:96:    anomalyCount: 2,
+src/lib/market/scan-archive.test.ts:97:    candidateCount: 2,
+src/lib/market/scan-archive.test.ts:162:  const previous = snapshot({ id: "scan-before", anomalyCount: 1, scannedCount: 20 }, [
+src/lib/market/scan-archive.test.ts:166:  const current = snapshot({ id: "scan-now", anomalyCount: 3, scannedCount: 24 }, [
+src/lib/market/scan-archive.test.ts:187:    anomalyCount: 1,
+src/lib/market/scan-archive.test.ts:195:    anomalyCount: 3,
+src/lib/api/deployment-readiness.test.ts:46:      anomalyCount: 4,
+src/lib/api/deployment-readiness.test.ts:48:      candidateCount: 4,
+src/lib/api/deployment-readiness.test.ts:115:        candidateCount: 0,
+src/lib/api/deployment-readiness.test.ts:478:        candidateCount: 0,
+src/scripts/professional-backtest-audit.ts:925:      current: valueFromPath(report, "roundSummary.planReadyCount"),
+src/scripts/professional-backtest-audit.ts:928:      previous: valueFromPath(previousReport, "roundSummary.planReadyCount"),
+src/scripts/professional-backtest-audit.ts:1089:    `- 交易计划就绪：${report.roundSummary.planReadyCount}`,
+src/scripts/professional-backtest-audit.ts:1200:      lines.push(`| ${metric.label || opportunityLaneLabel[metric.lane] || metric.lane} | ${metric.totalNodes} | ${metric.selectedCount} | ${metric.captureRatePct}% | ${metric.hitRatePct}% | ${metric.qualityHitRatePct}% | ${metric.lateRatePct}% | ${metric.missedEarlyHitCount} | ${metric.missedEarlyQualityHitCount} | ${metric.planReadyCount} | ${metric.avgRadarRank ?? "-"} | ${metric.avgRadarScore} |`);
+src/scripts/professional-backtest-audit.ts:1215:      lines.push(`| ${metric.label} | ${metric.totalNodes} | ${metric.capturedCount} | ${metric.captureRatePct}% | ${metric.qualityHitRatePct}% | ${metric.falsePositiveRatePct}% / ${metric.falsePositiveCount} | ${metric.lateCount} | ${metric.conditionalWaitCount} | ${metric.planReadyCount} | ${metric.missedQualityHitCount} | ${metric.avgRadarRank ?? "-"} | ${metric.sampleSymbols.join(" / ") || "-"} | ${metric.nextAction} |`);
+src/scripts/professional-backtest-audit.ts:1674:  console.log(`cases=${report.roundSummary.cases} highFindings=${report.roundSummary.highSeverityFindings} planReady=${report.roundSummary.planReadyCount}`);
+src/lib/market/providers/coinglass-provider.ts:1025:        anomalyCount: signals.length,
+src/lib/market/providers/coinglass-provider.ts:1026:        candidateCount: signals.length,
+src/lib/market/providers/coinglass-provider.ts:1045:          `public light scan: ${lightScan.diagnostics.source} ${lightScan.diagnostics.status} ${lightScan.diagnostics.acceptedCount}/${lightScan.diagnostics.universeCount} accepted, candidates ${lightScan.diagnostics.candidateCount}`,
+src/lib/analysis/types.ts:47:  | "TRADE_PLAN_READY";
+src/lib/api/ui-schema-guard.test.ts:66:    maturity: 'TRADE_PLAN_READY',
+src/lib/api/ui-schema-guard.test.ts:82:    maturity: 'TRADE_PLAN_READY',
+src/lib/api/ui-schema-guard.test.ts:85:    unifiedDecision: {
+src/lib/market/signal-backend-dossier.test.ts:16:      anomalyCount: 1,
+src/lib/market/signal-backend-dossier.test.ts:17:      candidateCount: 1,
+src/lib/market/signal-backend-dossier.test.ts:190:            status: "READY_LONG",
+src/lib/api/business-capability.ts:87:    LIGHT_SCAN_MARK: snapshot.metadata.lightScan?.candidateCount ?? 0,
+src/lib/api/business-capability.ts:89:    TRADE_PLAN_READY: snapshot.signals.filter((signal) => signal.maturity?.stage === "TRADE_PLAN_READY").length,
+src/lib/api/business-capability.ts:187:    maturityStage(signal) === "TRADE_PLAN_READY"
+src/lib/api/business-capability.ts:245:    guardrail: "只统计 EVIDENCE_SIGNAL / TRADE_PLAN_READY 等完整验证信号；轻扫标记不进入命中率。",
+src/lib/api/business-capability.ts:330:    counts.EVIDENCE_SIGNAL + counts.TRADE_PLAN_READY;
+src/lib/api/business-capability.ts:342:    summary: `轻扫 ${counts.LIGHT_SCAN_MARK}，深扫候选 ${counts.DEEP_SCAN_CANDIDATE}，证据观察 ${counts.EVIDENCE_SIGNAL}，计划就绪 ${counts.TRADE_PLAN_READY}。`,
+src/lib/api/business-capability.ts:551:    return stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY";
+src/lib/api/business-capability.ts:571:      ? "等待 EVIDENCE_SIGNAL 或 TRADE_PLAN_READY 后触发规则反证；外部 AI 已取消。"
+src/lib/api/business-capability.ts:690:      "主信号区只能展示 EVIDENCE_SIGNAL / TRADE_PLAN_READY；LIGHT_SCAN_MARK 只能作为覆盖数量。",
+src/lib/api/backend-contract.test.ts:21:      anomalyCount: 3,
+src/lib/api/backend-contract.test.ts:22:      candidateCount: 3,
+src/lib/api/backend-contract.test.ts:87:        candidateCount: 24,
+src/lib/api/backend-contract.test.ts:127:          TRADE_PLAN_READY: 0,
+src/lib/api/backend-contract.test.ts:136:          "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
+src/lib/api/backend-contract.test.ts:243:              state: "BATTLE_READY",
+src/lib/api/backend-contract.test.ts:276:            BATTLE_READY: 1,
+src/lib/api/backend-contract.test.ts:448:      anomalyCount: 3,
+src/lib/api/backend-contract.test.ts:450:      candidateCount: 3,
+src/lib/journal/strategy-weight-calibration.ts:47:  candidateCount: number;
+src/lib/journal/strategy-weight-calibration.ts:383:    candidateCount: candidates.length,
+src/lib/market/providers/public-light-scan.test.ts:424:              candidateCount: 2,
+src/lib/market/providers/public-light-scan.test.ts:475:              candidateCount: 1,
+src/lib/market/providers/public-light-scan.test.ts:524:              candidateCount: 0,
+src/lib/market/providers/public-light-scan.test.ts:570:              candidateCount: 1,
+src/lib/market/providers/public-light-scan.test.ts:601:              candidateCount: 1,
+src/lib/market/signal-maturity.ts:24:  TRADE_PLAN_READY: MATURITY_DISPLAY_META.TRADE_PLAN_READY.userLabel,
+src/lib/market/signal-maturity.ts:35:    canAttachTradePlan: stage === "TRADE_PLAN_READY",
+src/lib/market/signal-maturity.ts:36:    canEnterMainSignalArea: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+src/lib/market/signal-maturity.ts:37:    canRequestAiReview: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+src/lib/market/signal-maturity.ts:49:  return status === "READY_LONG" || status === "READY_SHORT";
+src/lib/market/signal-maturity.ts:169:      stage: "TRADE_PLAN_READY",
+src/lib/market/signal-maturity.ts:200:    TRADE_PLAN_READY: 0,
+src/lib/market/signal-maturity.ts:234:    if (current.stage === "TRADE_PLAN_READY") {
+src/lib/market/signal-maturity.ts:249:      "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
+src/lib/market/signal-maturity.ts:255:export function applySignalMaturityToSnapshot<T extends { metadata: { lightScan?: { candidateCount: number }; signalMaturity?: SignalMaturityDiagnostics }; signals: MarketSignal[] }>(
+src/lib/market/signal-maturity.ts:265:        lightScanMarkCount: snapshot.metadata.lightScan?.candidateCount ?? 0,
+src/lib/api/frontend-contract.test.ts:61:    canAttachTradePlan: stage === "TRADE_PLAN_READY",
+src/lib/api/frontend-contract.test.ts:63:    canRequestAiReview: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+src/lib/api/frontend-contract.test.ts:65:    reasons: stage === "TRADE_PLAN_READY" ? ["eligible_v3_trade_plan"] : ["has_structured_evidence"],
+src/lib/api/frontend-contract.test.ts:80:      anomalyCount: signals.length,
+src/lib/api/frontend-contract.test.ts:81:      candidateCount: signals.length,
+src/lib/api/frontend-contract.test.ts:275:      status: "READY_LONG",
+src/lib/api/frontend-contract.test.ts:373:        candidateCount: 33,
+src/lib/api/frontend-contract.test.ts:440:        candidateCount: 33,
+src/lib/api/frontend-contract.test.ts:651:          TRADE_PLAN_READY: 1,
+src/lib/api/frontend-contract.test.ts:902:    candidateCount: 3,
+src/lib/api/frontend-contract.test.ts:1058:          stage: "TRADE_PLAN_READY",
+src/lib/api/frontend-contract.test.ts:1067:  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.decision, "OBSERVE");
+src/lib/api/frontend-contract.test.ts:1068:  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.canTradeNow, false);
+src/lib/api/frontend-contract.test.ts:1081:        stage: "TRADE_PLAN_READY",
+src/lib/api/frontend-contract.test.ts:1102:  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.canTradeNow, false);
+src/lib/api/frontend-contract.test.ts:1114:      maturity: signalMaturity("TRADE_PLAN_READY"),
+src/lib/api/frontend-contract.test.ts:1179:  assert.equal(radar.radarSignals.data[0]?.maturity, "TRADE_PLAN_READY");
+src/lib/api/frontend-contract.test.ts:1180:  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.source, "unified_decision_engine");
+src/lib/api/frontend-contract.test.ts:1181:  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.decision, "TRADE_PLAN_READY");
+src/lib/api/frontend-contract.test.ts:1182:  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.readyPlan?.plannedEntryPrice, 8.24);
+src/lib/api/frontend-contract.test.ts:1183:  assert.equal(dossier.data.maturity, "TRADE_PLAN_READY");
+src/lib/api/frontend-contract.test.ts:1184:  assert.equal(dossier.data.unifiedDecision.decision, "TRADE_PLAN_READY");
+src/lib/api/frontend-contract.test.ts:1185:  assert.equal(dossier.data.unifiedDecision.source, "unified_decision_engine");
+src/lib/api/frontend-contract.test.ts:1186:  assert.equal(dossier.data.unifiedDecision.readyPlan?.plannedEntryPrice, 8.24);
+src/lib/api/frontend-contract.test.ts:1197:test("token dossier blocks stale READY drafts that fail unified decision planned entry guard", () => {
+src/lib/api/frontend-contract.test.ts:1200:      maturity: signalMaturity("TRADE_PLAN_READY"),
+src/lib/api/frontend-contract.test.ts:1214:  assert.equal(dossier.data.unifiedDecision.source, "unified_decision_engine");
+src/lib/api/frontend-contract.test.ts:1215:  assert.equal(dossier.data.unifiedDecision.decision, "BLOCKED");
+src/lib/api/frontend-contract.test.ts:1220:    dossier.data.unifiedDecision.blockers.some((item) => item.reason === "missing_planned_entry" && item.severity === "critical"),
+src/lib/api/frontend-contract.test.ts:1250:  assert.equal(dossier.data.unifiedDecision.decision, "WAIT");
+src/lib/api/frontend-contract.test.ts:1251:  assert.equal(dossier.data.unifiedDecision.waitPlan?.trigger, "回踩 8.20 - 8.28 后重新放量");
+src/lib/api/frontend-contract.test.ts:1470:        candidateCount: 1,
+src/lib/api/frontend-contract.test.ts:1533:        candidateCount: 0,
+src/lib/api/frontend-contract.test.ts:1855:      maturity: signalMaturity("TRADE_PLAN_READY"),
+src/lib/api/frontend-contract.test.ts:1924:        status: "READY_LONG",
+src/lib/api/frontend-contract.test.ts:1985:      maturity: signalMaturity("TRADE_PLAN_READY"),
+src/lib/api/frontend-contract.test.ts:2055:      maturity: signalMaturity("TRADE_PLAN_READY"),
+src/lib/api/frontend-contract.test.ts:2165:      maturity: signalMaturity("TRADE_PLAN_READY"),
+src/lib/api/frontend-contract.test.ts:2308:        status: "READY_LONG",
+src/lib/api/frontend-contract.test.ts:2323:  assert.equal(res.data.maturity, "TRADE_PLAN_READY");
+src/lib/api/frontend-contract.test.ts:2328:  assert.equal(res.data.unifiedDecision.source, "unified_decision_engine");
+src/lib/api/frontend-contract.test.ts:2329:  assert.equal(res.data.unifiedDecision.decision, "TRADE_PLAN_READY");
+src/lib/api/frontend-contract.test.ts:2330:  assert.equal(res.data.unifiedDecision.canTradeNow, true);
+src/lib/api/frontend-contract.test.ts:2331:  assert.equal(res.data.unifiedDecision.readyPlan?.plannedEntryPrice, 8.24);
+src/lib/api/frontend-contract.test.ts:2332:  assert.equal(res.data.unifiedDecision.readyPlan?.rewardRisk, 3.4);
+src/lib/api/frontend-contract.test.ts:2333:  assert.deepEqual(res.data.unifiedDecision.blockers, []);
+src/lib/api/frontend-contract.test.ts:2528:        status: "READY_LONG",
+src/lib/api/frontend-contract.test.ts:2544:  assert.equal(res.data.unifiedDecision.source, "unified_decision_engine");
+src/lib/api/frontend-contract.test.ts:2545:  assert.equal(res.data.unifiedDecision.decision, "BLOCKED");
+src/lib/api/historical-backtest-readonly.test.ts:379:            planReadyCount: 0,
+src/lib/api/historical-backtest-readonly.test.ts:400:            planReadyCount: 0,
+src/lib/api/historical-backtest-readonly.test.ts:446:          planReadyCount: 0,
+src/lib/api/historical-backtest-readonly.test.ts:457:          planReadyCount: 0,
+src/lib/market/providers/mock-market-provider.ts:347:    anomalyCount: signals.filter(
+src/lib/market/providers/mock-market-provider.ts:350:    candidateCount: signals.length,
+src/lib/journal/v3-pattern-review-stats.test.ts:36:      lessons: ["still_tracking", "v3_trade_READY_LONG", "v3_pattern_context", "v3_pattern_DOUBLE_BOTTOM"],
+src/lib/journal/v3-pattern-review-stats.test.ts:48:      lessons: ["still_tracking", "v3_trade_READY_LONG", "v3_pattern_context", "v3_pattern_DOUBLE_BOTTOM"],
+src/lib/journal/v3-pattern-review-stats.test.ts:88:  const readyLong = report.tradePlanBuckets.find((bucket) => bucket.tag === "READY_LONG");
+src/lib/analysis/v3/trade-plan-guard.test.ts:119:test("trade plan guard blocks low-RR plans instead of promoting them to READY", () => {
+src/lib/analysis/v3/trade-plan-guard.test.ts:186:  assert.notEqual(plan.status, "READY_LONG");
+src/lib/analysis/v3/trade-plan-guard.test.ts:187:  assert.notEqual(plan.status, "READY_SHORT");
+src/lib/api/core-chain-governance.ts:139:    LIGHT_SCAN_MARK: snapshot.metadata.lightScan?.candidateCount ?? 0,
+src/lib/api/core-chain-governance.ts:141:    TRADE_PLAN_READY: snapshot.signals.filter((signal) => signal.maturity?.stage === "TRADE_PLAN_READY").length,
+src/lib/api/core-chain-governance.ts:190:  const tradePlanStatus: CoreReadinessStatus = counts.TRADE_PLAN_READY > 0
+src/lib/api/core-chain-governance.ts:227:      summary: `轻扫 ${counts.LIGHT_SCAN_MARK}，深扫候选 ${counts.DEEP_SCAN_CANDIDATE}，证据观察 ${counts.EVIDENCE_SIGNAL}，计划就绪 ${counts.TRADE_PLAN_READY}。`,
+src/lib/api/core-chain-governance.ts:229:      blockers: counts.DEEP_SCAN_CANDIDATE + counts.EVIDENCE_SIGNAL + counts.TRADE_PLAN_READY > 0
+src/lib/api/core-chain-governance.ts:260:      summary: `计划就绪 ${counts.TRADE_PLAN_READY}，证据观察 ${counts.EVIDENCE_SIGNAL}。`,
+src/lib/api/core-chain-governance.ts:262:      blockers: counts.TRADE_PLAN_READY > 0
+src/lib/api/core-chain-governance.ts:264:        : ["当前没有 TRADE_PLAN_READY，计划就绪区必须允许为空。"],
+src/lib/api/core-chain-governance.ts:265:      nextAction: counts.TRADE_PLAN_READY > 0
+src/lib/api/core-chain-governance.ts:268:      guardrail: "只有 TRADE_PLAN_READY 能进计划就绪区；前端不能编入场、止损或目标。",
+src/lib/journal/shadow-live-signal-tracker.ts:31:  "TRADE_PLAN_READY",
+src/lib/journal/shadow-live-signal-tracker.ts:39:  TRADE_PLAN_READY: 4,
+src/lib/journal/shadow-live-signal-tracker.ts:72:      stage === "TRADE_PLAN_READY" ? "plan_ready_paper_tracking" : "candidate_tracking_only",
+src/lib/journal/shadow-live-signal-tracker.ts:120:  const planReadyCandidates = sorted.filter((signal) => maturityStage(signal) === "TRADE_PLAN_READY").length;
+src/lib/journal/shadow-live-signal-tracker.ts:129:      "DEEP_SCAN_CANDIDATE 或 EVIDENCE_SIGNAL 不允许被影子跟踪升级成 TRADE_PLAN_READY。",
+src/components/anomaly-board.tsx:70:  if (card.operatorRead.lane === 'sniper' && card.maturity === 'TRADE_PLAN_READY') return 'TRADE'
+src/components/anomaly-board.tsx:272:            const planReady = card.operatorRead.lane === 'sniper' && card.maturity === 'TRADE_PLAN_READY'
+src/lib/api/business-capability.test.ts:53:      anomalyCount: 4,
+src/lib/api/business-capability.test.ts:54:      candidateCount: 4,
+src/lib/api/business-capability.test.ts:62:        candidateCount: 36,
+src/lib/api/business-capability.test.ts:78:          TRADE_PLAN_READY: 0,
+src/lib/market/provider-registry.test.ts:107:              candidateCount: 0,
+src/lib/market/provider-registry.test.ts:186:            candidateCount: 0,
+src/lib/market/provider-registry.test.ts:206:            candidateCount: 1,
+src/lib/analysis/v3/forward-map-review-executor.test.ts:81:    anomalyCount: 1,
+src/lib/analysis/v3/forward-map-review-executor.test.ts:82:    candidateCount: 1,
+src/lib/analysis/v3/forward-map-review-executor.test.ts:97:    anomalyCount: 1,
+src/lib/analysis/v3/forward-map-review-executor.test.ts:98:    candidateCount: 1,
+src/lib/api/backend-contract.ts:82:      candidateCount: number;
+src/lib/api/backend-contract.ts:149:      candidateCount: number;
+src/lib/api/backend-contract.ts:332:  if (sample?.state === "BATTLE_READY") {
+src/lib/api/backend-contract.ts:428:      LIGHT_SCAN_MARK: lightScan?.candidateCount ?? 0,
+src/lib/api/backend-contract.ts:430:      TRADE_PLAN_READY: 0,
+src/lib/api/backend-contract.ts:439:      "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
+src/lib/api/backend-contract.ts:487:        candidateCount: lightScan?.candidateCount ?? 0,
+src/lib/api/backend-contract.ts:524:        lightScanCandidates: lightScan?.candidateCount ?? 0,
+src/lib/api/backend-contract.ts:554:        candidateCount: lightScan?.candidateCount ?? 0,
+src/components/dashboard/radar-control.tsx:198:    candidateCount: 0,
+src/components/dashboard/radar-control.tsx:708:                      <MetricPill label="候选" value={quality.coverage.candidateCount} />
+src/lib/analysis/v3/trade-plan.ts:687:    status: direction === "short" ? "READY_SHORT" : "READY_LONG",
+src/lib/api/frontend-display-adapters.test.ts:68:  unifiedOverrides: Partial<RadarSignal["unifiedDecision"]> = {},
+src/lib/api/frontend-display-adapters.test.ts:69:): Pick<RadarSignal, "lifecycle" | "operatorRead" | "unifiedDecision"> {
+src/lib/api/frontend-display-adapters.test.ts:70:  const readyPlan: NonNullable<RadarSignal["unifiedDecision"]["readyPlan"]> = {
+src/lib/api/frontend-display-adapters.test.ts:77:  const canTradeNow = maturity === "TRADE_PLAN_READY";
+src/lib/api/frontend-display-adapters.test.ts:91:      canTrade: maturity === "TRADE_PLAN_READY",
+src/lib/api/frontend-display-adapters.test.ts:92:      headline: maturity === "TRADE_PLAN_READY" ? "交易计划就绪" : "已有证据，但还不能直接做",
+src/lib/api/frontend-display-adapters.test.ts:93:      lane: maturity === "TRADE_PLAN_READY" ? "sniper" : "watch",
+src/lib/api/frontend-display-adapters.test.ts:94:      laneLabel: maturity === "TRADE_PLAN_READY" ? "计划就绪区" : "重点观察",
+src/lib/api/frontend-display-adapters.test.ts:96:      noTradeReason: maturity === "TRADE_PLAN_READY" ? null : "测试中未生成交易计划",
+src/lib/api/frontend-display-adapters.test.ts:100:    unifiedDecision: {
+src/lib/api/frontend-display-adapters.test.ts:102:      source: "unified_decision_engine",
+src/lib/api/frontend-display-adapters.test.ts:103:      decision: maturity === "TRADE_PLAN_READY" ? "TRADE_PLAN_READY" : maturity === "BLOCKED" ? "BLOCKED" : "WAIT",
+src/lib/api/frontend-display-adapters.test.ts:104:      decisionLabel: maturity === "TRADE_PLAN_READY" ? "交易计划就绪" : maturity === "BLOCKED" ? "拦截" : "等待",
+src/lib/api/frontend-display-adapters.test.ts:290:    maturity: "TRADE_PLAN_READY",
+src/lib/api/frontend-display-adapters.test.ts:299:    ...signalReads("TRADE_PLAN_READY", {}, {
+src/lib/api/frontend-display-adapters.test.ts:331:    maturity: "TRADE_PLAN_READY",
+src/lib/api/frontend-display-adapters.test.ts:340:    ...signalReads("TRADE_PLAN_READY"),
+src/components/signals/signal-maturity-pool.tsx:63:  'TRADE_PLAN_READY',
+src/components/signals/signal-maturity-pool.tsx:240:  const tradable = s.unifiedDecision.canTradeNow && s.unifiedDecision.readyPlan !== null
+src/lib/api/daily-mover-readonly.test.ts:138:    anomalyCount: 4,
+src/lib/api/daily-mover-readonly.test.ts:139:    candidateCount: topSymbols.length,
+src/lib/api/daily-mover-readonly.test.ts:154:    anomalyCount: 4,
+src/lib/api/daily-mover-readonly.test.ts:155:    candidateCount: 1,
+src/lib/analysis/v3/readiness.test.ts:128:    status: "READY_LONG",
+src/lib/api/frontend-contract.ts:130:  "TRADE_PLAN_READY",
+src/lib/api/frontend-contract.ts:187:  unifiedDecision: SignalUnifiedDecisionRead;
+src/lib/api/frontend-contract.ts:203:  source: "unified_decision_engine" | "frontend_candidate_guard";
+src/lib/api/frontend-contract.ts:353:  unifiedDecision: TokenUnifiedDecisionRead;
+src/lib/api/frontend-contract.ts:368:  source: "unified_decision_engine";
+src/lib/api/frontend-contract.ts:600:    candidateCount: number;
+src/lib/api/frontend-contract.ts:895:  planReadyCount: number;
+src/lib/api/frontend-contract.ts:911:  planReadyCount: number;
+src/lib/api/frontend-contract.ts:939:  planReadyCount: number;
+src/lib/api/frontend-contract.ts:1230:  planReadyCount: number;
+src/lib/api/frontend-contract.ts:1781:  if (maturity === "TRADE_PLAN_READY") {
+src/lib/api/frontend-contract.ts:2028:  const unifiedDecision = buildUnifiedDecision({
+src/lib/api/frontend-contract.ts:2034:  const unifiedDecisionRead = signalUnifiedDecisionRead(unifiedDecision);
+src/lib/api/frontend-contract.ts:2035:  const maturity: SignalMaturity = rawMaturity === "TRADE_PLAN_READY" && !unifiedDecisionRead.canTradeNow
+src/lib/api/frontend-contract.ts:2040:    ...(rawMaturity === "TRADE_PLAN_READY" && !unifiedDecisionRead.canTradeNow
+src/lib/api/frontend-contract.ts:2041:      ? unifiedDecision.reasons
+src/lib/api/frontend-contract.ts:2043:    ...(unifiedDecision.decision === "BLOCKED" ? unifiedDecisionRead.blockerReasons : []),
+src/lib/api/frontend-contract.ts:2052:    : maturity === "TRADE_PLAN_READY" && (rr === null || rr < 3)
+src/lib/api/frontend-contract.ts:2064:    unifiedDecision: unifiedDecisionRead,
+src/lib/api/frontend-contract.ts:2142:  const unifiedDecision = signalUnifiedDecisionRead(buildUnifiedDecision({
+src/lib/api/frontend-contract.ts:2155:    unifiedDecision,
+src/lib/api/frontend-contract.ts:2579:      evidence: [`zScoreCandidates=${zScoreCandidates.length}`, `candidateCount=${lightScan.candidateCount}`],
+src/lib/api/frontend-contract.ts:2652:      candidateCount: lightScan.candidateCount,
+src/lib/api/frontend-contract.ts:3056:  if (signal.maturity === "TRADE_PLAN_READY") {
+src/lib/api/frontend-contract.ts:3085:  const tradePlanReady = visibleSignals.filter((signal) => signal.maturity === "TRADE_PLAN_READY").length;
+src/lib/api/frontend-contract.ts:3126:        "计划就绪区只允许 TRADE_PLAN_READY；候选不能补位。",
+src/lib/api/frontend-contract.ts:3312:  const tradeReady = snapshot.signals.some((signal) => maturityForSignal(signal) === "TRADE_PLAN_READY");
+src/lib/api/frontend-contract.ts:4074:  if (plan.status !== "READY_LONG" && plan.status !== "READY_SHORT") {
+src/lib/api/frontend-contract.ts:4112:    plan.status === "READY_LONG" || plan.status === "READY_SHORT"
+src/lib/api/frontend-contract.ts:4151:function unifiedDecisionLabel(decision: UnifiedDecisionResult["decision"]): TokenUnifiedDecisionRead["decisionLabel"] {
+src/lib/api/frontend-contract.ts:4152:  if (decision === "TRADE_PLAN_READY") return "交易计划就绪";
+src/lib/api/frontend-contract.ts:4161:    source: "unified_decision_engine",
+src/lib/api/frontend-contract.ts:4163:    decisionLabel: unifiedDecisionLabel(decision.decision),
+src/lib/api/frontend-contract.ts:4168:    canTradeNow: decision.decision === "TRADE_PLAN_READY" && decision.readyPlan !== null,
+src/lib/api/frontend-contract.ts:4180:    source: "unified_decision_engine",
+src/lib/api/frontend-contract.ts:4182:    decisionLabel: unifiedDecisionLabel(decision.decision),
+src/lib/api/frontend-contract.ts:4187:    canTradeNow: decision.decision === "TRADE_PLAN_READY" && decision.readyPlan !== null,
+src/lib/api/frontend-contract.ts:4493:  unifiedDecision,
+src/lib/api/frontend-contract.ts:4501:  unifiedDecision: TokenUnifiedDecisionRead;
+src/lib/api/frontend-contract.ts:4513:    if (unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan) {
+src/lib/api/frontend-contract.ts:4514:      return `统一决策引擎输出等待：${unifiedDecision.waitPlan.whyNotNow}。`;
+src/lib/api/frontend-contract.ts:4516:    if (unifiedDecision.decision === "OBSERVE") {
+src/lib/api/frontend-contract.ts:4531:    if (unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan) {
+src/lib/api/frontend-contract.ts:4532:      return `不能交易；等待 ${unifiedDecision.waitPlan.trigger}，确认 ${unifiedDecision.waitPlan.confirmation}。`;
+src/lib/api/frontend-contract.ts:4610:      status: tradePlan ? "ready" : unifiedDecision.decision === "WAIT" ? "partial" : blockedReasons.length > 0 ? "blocked" : "empty",
+src/lib/api/frontend-contract.ts:4616:        : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+src/lib/api/frontend-contract.ts:4619:            { detail: unifiedDecision.waitPlan.whyNotNow, label: "为什么不做", sourceId: "unified-decision:wait:why-not-now" },
+src/lib/api/frontend-contract.ts:4620:            { detail: unifiedDecision.waitPlan.invalidation, label: "等待失效", sourceId: "unified-decision:wait:invalidation" },
+src/lib/api/frontend-contract.ts:4639:      status: tradePlan ? "ready" : unifiedDecision.decision === "WAIT" ? "partial" : "blocked",
+src/lib/api/frontend-contract.ts:4673:        : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+src/lib/api/frontend-contract.ts:4675:            { detail: unifiedDecision.waitPlan.trigger, label: "等待触发", sourceId: "unified-decision:wait:trigger" },
+src/lib/api/frontend-contract.ts:4676:            { detail: unifiedDecision.waitPlan.confirmation, label: "确认要求", sourceId: "unified-decision:wait:confirmation" },
+src/lib/api/frontend-contract.ts:4697:  unifiedDecision,
+src/lib/api/frontend-contract.ts:4702:  unifiedDecision: TokenUnifiedDecisionRead;
+src/lib/api/frontend-contract.ts:4708:    unifiedDecision,
+src/lib/api/frontend-contract.ts:4711:  if (unifiedDecision.canTradeNow && tradePlan) {
+src/lib/api/frontend-contract.ts:4720:        "交易计划就绪只来自 unified_decision_engine。",
+src/lib/api/frontend-contract.ts:4733:  const waitPlan = unifiedDecision.waitPlan;
+src/lib/api/frontend-contract.ts:4734:  const blockerPieces = unifiedDecision.blockers.map((item) => `${item.reason}：${item.unblockCondition}`);
+src/lib/api/frontend-contract.ts:4747:      : unifiedDecision.decision === "BLOCKED"
+src/lib/api/frontend-contract.ts:4751:    summary: unifiedDecision.decision === "WAIT" && waitPlan
+src/lib/api/frontend-contract.ts:4753:      : unifiedDecision.decision === "OBSERVE"
+src/lib/api/frontend-contract.ts:4758:    nextAction: unifiedDecision.decision === "WAIT" && waitPlan
+src/lib/api/frontend-contract.ts:4765:      "本页决策状态只读 unified_decision_engine。",
+src/lib/api/frontend-contract.ts:4780:  unifiedDecision,
+src/lib/api/frontend-contract.ts:4785:  unifiedDecision: TokenUnifiedDecisionRead;
+src/lib/api/frontend-contract.ts:4790:  const waitPullback = reviewOnly || unifiedDecision.decision === "WAIT" ||
+src/lib/api/frontend-contract.ts:4792:  const directionRead: TokenExecutionMap["directionRead"] = unifiedDecision.readyPlan?.direction === "long" || tradePlan?.bias === "多"
+src/lib/api/frontend-contract.ts:4794:    : unifiedDecision.readyPlan?.direction === "short" || tradePlan?.bias === "空"
+src/lib/api/frontend-contract.ts:4799:    : unifiedDecision.decision === "WAIT"
+src/lib/api/frontend-contract.ts:4801:      : unifiedDecision.decision === "OBSERVE"
+src/lib/api/frontend-contract.ts:4825:      : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+src/lib/api/frontend-contract.ts:4827:          unifiedDecision.waitPlan.trigger,
+src/lib/api/frontend-contract.ts:4828:          unifiedDecision.waitPlan.confirmation,
+src/lib/api/frontend-contract.ts:4836:      : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+src/lib/api/frontend-contract.ts:4837:        ? [unifiedDecision.waitPlan.invalidation, "WAIT 条件缺失或反证增强时撤销等待计划。"]
+src/lib/api/frontend-contract.ts:4859:  const backendReady = backendMaturity === "TRADE_PLAN_READY";
+src/lib/api/frontend-contract.ts:4880:  const unifiedDecision = buildUnifiedDecision({
+src/lib/api/frontend-contract.ts:4886:  const unifiedDecisionRead = tokenUnifiedDecisionRead(unifiedDecision);
+src/lib/api/frontend-contract.ts:4887:  const tradePlan = unifiedDecisionRead.canTradeNow ? rawTradePlan : null;
+src/lib/api/frontend-contract.ts:4899:    ...unifiedDecision.blockers.map((item) => `${item.reason}：${item.unblockCondition}`),
+src/lib/api/frontend-contract.ts:4900:    ...(unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+src/lib/api/frontend-contract.ts:4901:      ? [unifiedDecision.waitPlan.whyNotNow]
+src/lib/api/frontend-contract.ts:4925:      ? unifiedDecision.decision === "TRADE_PLAN_READY"
+src/lib/api/frontend-contract.ts:4926:        ? "TRADE_PLAN_READY"
+src/lib/api/frontend-contract.ts:4927:        : unifiedDecision.decision === "WAIT"
+src/lib/api/frontend-contract.ts:4931:        : unifiedDecision.decision === "OBSERVE"
+src/lib/api/frontend-contract.ts:4933:              ? backendMaturity === "TRADE_PLAN_READY"
+src/lib/api/frontend-contract.ts:4939:    unifiedDecision: unifiedDecisionRead,
+src/lib/api/frontend-contract.ts:4946:      allowTradePlan: unifiedDecisionRead.canTradeNow,
+src/lib/api/frontend-contract.ts:4947:      reasons: unifiedDecisionRead.canTradeNow ? [] : blockedReasons,
+src/lib/api/frontend-contract.ts:4952:      unifiedDecision: unifiedDecisionRead,
+src/lib/api/frontend-contract.ts:4969:      unifiedDecision: unifiedDecisionRead,
+src/lib/api/frontend-contract.ts:5092:      "轻扫标记不计入命中率；只有 EVIDENCE_SIGNAL / TRADE_PLAN_READY 才进入策略表现统计。",
+src/lib/journal/outcome-sample-admission.ts:39:      event.signalMaturityStage === "TRADE_PLAN_READY"
+src/components/ui-schema/ui-layer-guard.test.ts:56:    maturity: "TRADE_PLAN_READY",
+src/components/ui-schema/ui-layer-guard.test.ts:59:    unifiedDecision: {
+src/components/ui-schema/ui-layer-guard.test.ts:78:  assert.doesNotMatch(source, /planReadyCount > 0/u);
+src/components/ui-schema/ui-layer-guard.test.ts:79:  assert.doesNotMatch(source, /candidateCount > 0/u);
+src/components/review/review-evolution.tsx:124:  TRADE_PLAN_READY: '交易计划就绪',
+src/components/review/review-evolution.tsx:681:                          样本 {data.auditV2.cases} · 计划就绪 {data.auditV2.planReadyCount} · 能力项 {data.auditV2.testedCapabilities}
+src/components/review/review-evolution.tsx:918:                                  <span>就绪 {metric.planReadyCount}</span>
+src/components/review/review-evolution.tsx:952:                                  <span>计划 {metric.planReadyCount}</span>
+src/lib/api/deployment-readiness.ts:286:    detail: `扫描新鲜，当前 cadence=${health.scan.cadenceMinutes} 分钟，候选数=${health.scan.candidateCount}。`,
+src/lib/api/system-health.test.ts:22:      anomalyCount: 4,
+src/lib/api/system-health.test.ts:23:      candidateCount: 4,
+src/lib/api/system-health.test.ts:60:    anomalyCount: 4,
+src/lib/api/system-health.test.ts:61:    candidateCount: 4,
+src/lib/api/system-health.test.ts:96:    anomalyCount: 4,
+src/lib/api/system-health.test.ts:97:    candidateCount: 4,
+src/lib/api/system-health.test.ts:164:      status: "READY_LONG",
+src/lib/api/system-health.test.ts:649:        candidateCount: 36,
+src/lib/api/system-health.test.ts:678:          TRADE_PLAN_READY: 2,
+src/lib/api/system-health.test.ts:687:          "TRADE_PLAN_READY is the only maturity allowed to attach a structured trade plan",
+src/lib/api/system-health.test.ts:787:          candidateCount: 2,
+src/lib/api/system-health.test.ts:1312:      lessons: ["still_tracking", "v3_trade_READY_LONG", "v3_pattern_context", "v3_pattern_DOUBLE_BOTTOM"],
+src/lib/analysis/v3/types.ts:312:  | "READY_LONG"
+src/lib/analysis/v3/types.ts:313:  | "READY_SHORT"
+src/lib/api/core-chain-governance.test.ts:64:      anomalyCount: 3,
+src/lib/api/core-chain-governance.test.ts:65:      candidateCount: 3,
+src/lib/api/core-chain-governance.test.ts:78:          TRADE_PLAN_READY: 0,
+src/lib/api/core-chain-governance.test.ts:82:        rules: ["TRADE_PLAN_READY is the only sniper-board layer"],
+src/components/signal-archive.tsx:33:  TRADE_PLAN_READY: MATURITY_DISPLAY_META.TRADE_PLAN_READY.label,
+src/lib/journal/shadow-live-signal-tracker.test.ts:14:      canAttachTradePlan: stage === "TRADE_PLAN_READY",
+src/lib/journal/shadow-live-signal-tracker.test.ts:30:      status: stage === "TRADE_PLAN_READY" ? "waiting" : "observe_only",
+src/lib/journal/shadow-live-signal-tracker.test.ts:62:    assert.notEqual(entry.signalMaturityStage, "TRADE_PLAN_READY");
+src/lib/journal/shadow-live-signal-tracker.test.ts:71:      signal("TRADE_PLAN_READY", { confidence: 50, id: "ready-ena", symbol: "ENAUSDT" }),
+src/lib/journal/shadow-live-signal-tracker.test.ts:77:  assert.equal(report.entries[0]?.signalMaturityStage, "TRADE_PLAN_READY");
+src/components/token/token-dossier.tsx:40:  const decision: UiDecisionState = unifiedDecisionToUi(d.unifiedDecision.decision)
+src/components/token/token-dossier.tsx:43:    reason: d.unifiedDecision.reasons[0] ?? d.strategyReadiness.summary,
+src/components/token/token-dossier.tsx:54:      { label: '决策源', value: d.unifiedDecision.source },
+src/components/token/token-dossier.tsx:55:      { label: '统一决策', value: d.unifiedDecision.decisionLabel },
+src/components/token/token-dossier.tsx:185:            {d.unifiedDecision.decisionLabel} · {d.unifiedDecision.source}
+src/components/token/token-dossier.tsx:240:        {d.unifiedDecision.waitPlan && (
+src/components/token/token-dossier.tsx:243:            <p className="mt-2">为什么现在不做：{d.unifiedDecision.waitPlan.whyNotNow}</p>
+src/components/token/token-dossier.tsx:244:            <p className="mt-1">触发：{d.unifiedDecision.waitPlan.trigger}</p>
+src/components/token/token-dossier.tsx:245:            <p className="mt-1">确认：{d.unifiedDecision.waitPlan.confirmation}</p>
+src/components/token/token-dossier.tsx:246:            <p className="mt-1">失效：{d.unifiedDecision.waitPlan.invalidation}</p>
+src/components/token/token-dossier.tsx:249:        {d.unifiedDecision.blockers.length > 0 && (
+src/components/token/token-dossier.tsx:253:              {d.unifiedDecision.blockers.slice(0, 5).map((item) => (
+src/components/token/token-dossier.tsx:522:function unifiedDecisionToUi(value: TokenDossierData['unifiedDecision']['decision']): UiDecisionState {
+src/components/token/token-dossier.tsx:523:  if (value === 'TRADE_PLAN_READY') return 'TRADE'
+src/components/token/token-dossier.tsx:547:    [/TRADE_PLAN_READY/g, '交易计划就绪'],
+src/components/token/token-dossier.tsx:554:    [/READY_LONG/g, '多头计划就绪'],
+src/components/token/token-dossier.tsx:555:    [/READY_SHORT/g, '空头计划就绪'],
+src/lib/analysis/v3/trade-plan.test.ts:126:  assert.equal(plan.status, "READY_LONG");
+src/lib/api/system-health.ts:198:  candidateCount: number;
+src/lib/api/system-health.ts:480:    anomalyCount: number;
+src/lib/api/system-health.ts:482:    candidateCount: number;
+src/lib/api/system-health.ts:1011:      `本轮高优先级槽位 ${dynamicPriority.slotsUsed}/${dynamicPriority.slotsAvailable}，候选池 ${dynamicPriority.candidateCount} 个标的；未选中的高优先级标的保留到后续批次，不额外打 API。`,
+src/lib/api/system-health.ts:1077:    candidateCount: dynamicPriority?.candidateCount ?? 0,
+src/lib/api/system-health.ts:2659:      anomalyCount: metadata.anomalyCount,
+src/lib/api/system-health.ts:2661:      candidateCount: metadata.candidateCount,
+src/lib/journal/outcome-executor.ts:199:    canAttachTradePlan: stage === "TRADE_PLAN_READY",
+src/lib/journal/outcome-executor.ts:200:    canEnterMainSignalArea: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+src/lib/journal/outcome-executor.ts:201:    canRequestAiReview: stage === "EVIDENCE_SIGNAL" || stage === "TRADE_PLAN_READY",
+src/lib/journal/journal-entry.test.ts:153:        status: "READY_LONG",
+src/lib/journal/journal-entry.test.ts:165:  assert.ok(entry.lessons.includes("v3_trade_READY_LONG"));
+src/lib/journal/v3-pattern-review-stats.ts:102:    READY_LONG: "多头就绪",
+src/lib/journal/v3-pattern-review-stats.ts:103:    READY_SHORT: "空头就绪",
+src/lib/journal/review-statistics.test.ts:35:      signalMaturityStage: "TRADE_PLAN_READY",
+src/lib/journal/review-statistics.ts:73:    event.signalMaturityStage === "TRADE_PLAN_READY" ||
+src/lib/journal/review-statistics.ts:175:      tradePlanReady: reviewEvents.filter((event) => event.signalMaturityStage === "TRADE_PLAN_READY").length,
+src/lib/journal/outcome-sample-admission.test.ts:92:      signalMaturityStage: "TRADE_PLAN_READY",
+src/lib/market-regime/market-regime.ts:16:  | "READY"
+src/lib/market-regime/market-regime.ts:128:    warnings.push("流动性偏低，只能作为风险 context，不能直接阻断或生成 READY。");
+src/lib/market-regime/market-regime.ts:151:    warnings.push("山寨轮动只能提升背景解释，不能生成 READY 或污染 ranking。");
+src/lib/market-regime/market-regime.ts:161:  const dataStatus: MarketRegimeDataStatus = missingOptionalInputs > 0 ? "PARTIAL" : "READY";
+src/lib/market-regime/market-regime.ts:173:      : ["market regime 只作为 context，不直接生成 READY，不改变扫描排序。"],
+src/lib/market-regime/market-regime.test.ts:45:  assert.equal(regime.dataStatus, "READY");
+src/lib/market-regime/market-regime.test.ts:91:  assert.ok(regime.warnings.some((warning) => warning.includes("不能直接阻断或生成 READY")));
+src/lib/analysis/ai-reviewer.ts:15:  anomalyCount?: number;
+src/lib/analysis/ai-reviewer.ts:16:  candidateCount?: number;
+src/lib/frontend-display-adapters.ts:49:  TRADE_PLAN_READY: 22,
+src/lib/frontend-display-adapters.ts:131:  if (signal.maturity === 'TRADE_PLAN_READY') return 'BREAK'
+src/lib/frontend-display-adapters.ts:138:  if (signal.unifiedDecision.canTradeNow && signal.unifiedDecision.readyPlan !== null) {
+src/lib/frontend-display-adapters.ts:180:  if (signal.unifiedDecision.canTradeNow && signal.unifiedDecision.readyPlan !== null) tags.push('Alpha')
+src/lib/frontend-display-adapters.ts:202:function candidateGuardDecisionFor(maturity: Maturity, reason: string): RadarSignal['unifiedDecision'] {
+src/lib/frontend-display-adapters.ts:204:  const decision: RadarSignal['unifiedDecision']['decision'] =
+src/lib/frontend-display-adapters.ts:213:    source: 'frontend_candidate_guard',
+src/lib/frontend-display-adapters.ts:364:      unifiedDecision: candidateGuardDecisionFor(
+src/lib/frontend-display-adapters.ts:690:        starred: signal.unifiedDecision.canTradeNow,
+src/lib/frontend-display-adapters.ts:757:      return Boolean(signal?.unifiedDecision.canTradeNow && signal.unifiedDecision.readyPlan && card.token.price > 0)
+src/lib/frontend-display-adapters.ts:761:      const readyPlan = signal?.unifiedDecision.readyPlan ?? null
+src/lib/backtest/golden-case-runner.ts:193:      maturity: "TRADE_PLAN_READY",
+src/lib/backtest/golden-case-runner.ts:195:      status: direction === "short" ? "READY_SHORT" : "READY_LONG",
+src/lib/backtest/golden-case-runner.ts:264:  const actualAllowTradePlan = decision.maturity === "TRADE_PLAN_READY" &&
+src/lib/backtest/golden-case-runner.ts:265:    (decision.status === "READY_LONG" || decision.status === "READY_SHORT");
+src/lib/ui-schema/display-names.test.ts:29:  assert.equal(STATUS_DISPLAY_NAMES.TRADE_PLAN_READY, '交易计划就绪')
+src/lib/ui-schema/display-names.ts:49:  TRADE_PLAN_READY: '交易计划就绪',
+src/lib/backtest/golden-case-runner.test.ts:44:    assert.notEqual(decision.maturity, "TRADE_PLAN_READY");
+src/lib/backtest/golden-case-runner.test.ts:54:      .filter(({ decision }) => decision.maturity === "TRADE_PLAN_READY");
+src/lib/backtest/golden-case-runner.test.ts:57:    assert.equal(ready[0]?.decision.status, "READY_LONG");
+src/lib/ui-schema/status-dictionary.ts:9:  | "TRADE_PLAN_READY"
+src/lib/ui-schema/status-dictionary.ts:49:    descriptionCn: "仅表示页面 L1 决策层可展示交易计划就绪；计划就绪区准入仍以 TRADE_PLAN_READY 为唯一事实源。",
+src/lib/ui-schema/status-dictionary.ts:123:  TRADE_PLAN_READY: {
+src/lib/ui-schema/status-dictionary.ts:124:    internalStatus: "TRADE_PLAN_READY",
+src/lib/ui-schema/status-dictionary.ts:254:  "TRADE_PLAN_READY",
+src/lib/alerts/alert-policy.test.ts:105:      anomalyCount: 4,
+src/lib/alerts/alert-policy.test.ts:107:      candidateCount: 2,
+src/lib/alerts/alert-policy.test.ts:174:        candidateCount: 0,
+src/lib/alerts/alert-policy.test.ts:537:        candidateCount: 0,
+src/lib/ui-schema/status-dictionary.test.ts:48:  assert.equal(uiStatusLabel("TRADE_PLAN_READY"), "交易计划就绪");
+src/lib/ui-schema/status-dictionary.test.ts:62:  assert.doesNotThrow(() => assertCanEnterSniper("TRADE_PLAN_READY"));
+src/lib/ui-schema/status-dictionary.test.ts:63:  assert.doesNotThrow(() => assertCanShowTradePlan("TRADE_PLAN_READY"));
+src/lib/ui-schema/status-dictionary.test.ts:70:  assert.doesNotThrow(() => assertCanEnterSniper("TRADE_PLAN_READY"));
+src/lib/backtest/professional-audit.ts:125:  planReadyCount: number;
+src/lib/backtest/professional-audit.ts:499:    capability("plan", signal.maturity?.stage === "TRADE_PLAN_READY" ? "tested" : "partial", `当前成熟度：${signal.maturity?.label ?? "未分类"}。`),
+src/lib/backtest/professional-audit.ts:549:  if (signal.maturity?.stage !== "TRADE_PLAN_READY") {
+src/lib/backtest/professional-audit.ts:561:  if (outcome?.firstEvent === "SL" && signal.maturity?.stage === "TRADE_PLAN_READY") {
+src/lib/backtest/professional-audit.ts:695:      "TRADE_PLAN_READY 样本必须全部具有结构止损、目标、结构盈亏比和失效条件。",
+src/lib/backtest/professional-audit.ts:766:    planReadyCount: cases.filter((item) => item.signal.maturity?.stage === "TRADE_PLAN_READY").length,
+src/lib/backtest/professional-replay.ts:73:  planReadyCount: number;
+src/lib/backtest/professional-replay.ts:89:  planReadyCount: number;
+src/lib/backtest/professional-replay.ts:117:  planReadyCount: number;
+src/lib/backtest/professional-replay.ts:885:      acceptanceCriteria: "专业回测 v2 lateRatePct 连续样本低于 35%，且过度追涨样本不进入 TRADE_PLAN_READY。",
+src/lib/backtest/professional-replay.ts:1179:    noPlanCount: cases.filter((item) => item.signal.maturity?.stage !== "TRADE_PLAN_READY").length,
+src/lib/backtest/professional-replay.ts:1180:    planReadyCount: cases.filter((item) => item.signal.maturity?.stage === "TRADE_PLAN_READY").length,
+src/lib/backtest/professional-audit.test.ts:191:  assert.notEqual(caseResult.signal.maturity?.stage, "TRADE_PLAN_READY");
+src/lib/backtest/golden-case-fixtures.ts:92:      maturity: "TRADE_PLAN_READY",
+src/lib/backtest/golden-case-fixtures.ts:93:      status: "READY_LONG",
+src/lib/persistence/persistence-store.test.ts:70:    anomalyCount: 4,
+src/lib/persistence/persistence-store.test.ts:71:    candidateCount: 4,
+src/lib/persistence/persistence-store.test.ts:86:    anomalyCount: 4,
+src/lib/persistence/persistence-store.test.ts:87:    candidateCount: 4,
+src/lib/persistence/persistence-store.test.ts:118:      anomalyCount: summary.anomalyCount,
+src/lib/persistence/persistence-store.test.ts:119:      candidateCount: summary.candidateCount,
+src/lib/persistence/persistence-store.test.ts:710:              anomalyCount: 5,
+src/lib/persistence/persistence-store.test.ts:718:              anomalyCount: 5,
+src/lib/backtest/professional-audit-round.ts:953:    input.maturity === "TRADE_PLAN_READY" ||
+src/lib/backtest/professional-audit-round.ts:954:    input.tradePlanStatus === "TRADE_PLAN_READY" ||
+src/lib/backtest/professional-audit-round.ts:955:    input.tradePlanStatus === "PLAN_READY";
+src/lib/backtest/professional-audit-round.ts:3008:  if (signal.maturity?.stage !== "TRADE_PLAN_READY" && blockers.size === 0) {
+src/lib/backtest/professional-audit-round.ts:3336:    planReadyCount: laneNodes.filter((node) => node.maturity === "TRADE_PLAN_READY").length,
+src/lib/backtest/professional-audit-round.ts:3362:  const planReadyCount = qualityNodes.filter((node) => node.maturity === "TRADE_PLAN_READY").length;
+src/lib/backtest/professional-audit-round.ts:3395:    planReadyCount,
+src/lib/backtest/professional-audit-round.ts:4330:  const planReady = nodes.filter((node) => node.maturity === "TRADE_PLAN_READY");
+src/lib/backtest/professional-audit-round.ts:4359:      detail: "本轮没有任何 TRADE_PLAN_READY，也没有 RR 合格的 WAIT_PULLBACK / WAIT_RETEST 条件计划，策略能力无法证明可执行。",
+src/lib/backtest/professional-audit-round.ts:4367:      detail: `本轮没有 TRADE_PLAN_READY，但有 ${conditionalPlans.length} 个 RR 合格的条件计划。它们只能说明“等什么”，不能冒充就绪信号。`,
+src/lib/backtest/professional-audit-round.ts:4413:      planReadyCount: planReady.length,
+src/lib/backtest/professional-audit-round.ts:4708:  if (nodes.length > 0 && topPlanBlocker && nodes.every((node) => node.maturity !== "TRADE_PLAN_READY")) {
+src/lib/backtest/professional-audit-round.ts:4895:      acceptanceCriteria: "下一轮 10x10 迟到率低于 35%，late move 样本不进入 TRADE_PLAN_READY。",
+src/lib/backtest/professional-audit-round.ts:4962:      action: "复查 TRADE_PLAN_READY 的结构位、RR、触发确认和风险门控，不通过就降级为等待或观察。",
+src/lib/backtest/professional-audit-round.ts:5273:    noPlanCount: nodes.filter((item) => item.maturity !== "TRADE_PLAN_READY").length,
+src/lib/backtest/professional-audit-round.ts:5274:    planReadyCount: nodes.filter((item) => item.maturity === "TRADE_PLAN_READY").length,
+src/lib/review/research-only-boundary.ts:6:  | "TRADE_PLAN_READY"
+src/lib/persistence/persistence-contract.ts:267:    anomaly_count: summary.anomalyCount,
+src/lib/persistence/persistence-contract.ts:268:    candidate_count: summary.candidateCount,
+src/lib/persistence/persistence-contract.ts:289:    anomalyCount: record.anomaly_count,
+src/lib/persistence/persistence-contract.ts:290:    candidateCount: record.candidate_count,
+src/lib/persistence/persistence-contract.test.ts:77:    anomalyCount: 4,
+src/lib/persistence/persistence-contract.test.ts:78:    candidateCount: 4,
+src/lib/persistence/persistence-contract.test.ts:93:    anomalyCount: 4,
+src/lib/persistence/persistence-contract.test.ts:94:    candidateCount: 4,
+src/lib/backtest/professional-audit-round.test.ts:1880:    maturity: "TRADE_PLAN_READY",
+src/lib/backtest/professional-audit-round.test.ts:1888:    tradePlanStatus: "TRADE_PLAN_READY",
+src/lib/backtest/professional-audit-round.test.ts:1896:    maturity: "TRADE_PLAN_READY",
+src/lib/backtest/professional-audit-round.test.ts:1904:    tradePlanStatus: "TRADE_PLAN_READY",
+src/app/dashboard/page.tsx:102:    (signal: RadarSignal) => signal.maturity === 'EVIDENCE_SIGNAL' || signal.maturity === 'TRADE_PLAN_READY',
+src/app/dashboard/page.tsx:104:  const planReadyCount = radar.radarSignals.data.filter(
+src/app/dashboard/page.tsx:105:    (signal: RadarSignal) => signal.maturity === 'TRADE_PLAN_READY',
+src/app/dashboard/page.tsx:143:      Whale: planReadyCount,
+src/app/dashboard/page.tsx:156:      { label: 'plan.ready.count', value: planReadyCount },

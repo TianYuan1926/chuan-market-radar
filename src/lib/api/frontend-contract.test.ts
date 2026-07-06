@@ -269,6 +269,7 @@ function strategyV3WithTradePlan(overrides: Partial<StrategyV3TradePlan> = {}): 
       invalidation: "1h 跌回 7.76",
       isPlanEligible: true,
       manualReviewRequired: true,
+      plannedEntryPrice: 8.24,
       positionSizing: "轻仓确认",
       rewardRisk: 3.4,
       status: "READY_LONG",
@@ -1063,6 +1064,8 @@ test("buildFrontendRadarContract recalculates stale persisted signal maturity", 
   });
 
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.decision, "OBSERVE");
+  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.canTradeNow, false);
   assert.match(radar.radarSignals.data[0]?.whyBlocked ?? "", /不能进计划就绪区|不能附带完整计划/);
 });
 
@@ -1096,6 +1099,7 @@ test("frontend radar and token dossier agree when a stale ready signal has no re
   });
 
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
+  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.canTradeNow, false);
   assert.equal(dossier.data.maturity, "EVIDENCE_SIGNAL");
   assert.equal(dossier.data.tradePlan, null);
   assert.deepEqual(dossier.data.riskGate.reasons, [
@@ -1173,7 +1177,13 @@ test("frontend radar and token dossier agree when a real v3 plan is ready", () =
   });
 
   assert.equal(radar.radarSignals.data[0]?.maturity, "TRADE_PLAN_READY");
+  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.source, "unified_decision_engine");
+  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.decision, "TRADE_PLAN_READY");
+  assert.equal(radar.radarSignals.data[0]?.unifiedDecision.readyPlan?.plannedEntryPrice, 8.24);
   assert.equal(dossier.data.maturity, "TRADE_PLAN_READY");
+  assert.equal(dossier.data.unifiedDecision.decision, "TRADE_PLAN_READY");
+  assert.equal(dossier.data.unifiedDecision.source, "unified_decision_engine");
+  assert.equal(dossier.data.unifiedDecision.readyPlan?.plannedEntryPrice, 8.24);
   assert.equal(dossier.data.tradePlan?.positionLens.status, "ready");
   assert.equal(dossier.data.tradePlan?.positionLens.marginFractionPercent, 0.3);
   assert.equal(dossier.data.discovery.foundInLightScan, true);
@@ -1182,6 +1192,78 @@ test("frontend radar and token dossier agree when a real v3 plan is ready", () =
   assert.ok(dossier.data.reportSections.some((section) =>
     section.items.some((item) => item.sourceId === "discovery:light_scan_top_candidate")
   ));
+});
+
+test("token dossier blocks stale READY drafts that fail unified decision planned entry guard", () => {
+  const sharedSnapshot = snapshot([
+    signal({
+      maturity: signalMaturity("TRADE_PLAN_READY"),
+      strategyV3: strategyV3WithTradePlan({ plannedEntryPrice: null }),
+    }),
+  ]);
+
+  const dossier = buildFrontendTokenDossierContract({
+    basePrice: 7.84,
+    dossier: buildSignalBackendDossier({
+      snapshot: sharedSnapshot,
+      symbol: "TIAUSDT",
+    }),
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(dossier.data.unifiedDecision.source, "unified_decision_engine");
+  assert.equal(dossier.data.unifiedDecision.decision, "BLOCKED");
+  assert.equal(dossier.data.maturity, "BLOCKED");
+  assert.equal(dossier.data.riskGate.allowTradePlan, false);
+  assert.equal(dossier.data.tradePlan, null);
+  assert.equal(
+    dossier.data.unifiedDecision.blockers.some((item) => item.reason === "missing_planned_entry" && item.severity === "critical"),
+    true,
+  );
+  assert.match(dossier.data.strategyReadiness.summary, /统一决策引擎|后端交易计划/);
+});
+
+test("token dossier maps complete unified WAIT without fabricating a trade plan", () => {
+  const sharedSnapshot = snapshot([
+    signal({
+      maturity: signalMaturity("EVIDENCE_SIGNAL"),
+      strategyV3: strategyV3WithTradePlan({
+        isPlanEligible: false,
+        secondaryConfirmation: "回踩后 15m 收回 8.24",
+        status: "WAIT_PULLBACK",
+        triggerCondition: "回踩 8.20 - 8.28 后重新放量",
+        waitReason: "等待回踩确认",
+        whyNotNow: "突破后尚未回踩，当前位置追多不满足结构位置。",
+      }),
+    }),
+  ]);
+
+  const dossier = buildFrontendTokenDossierContract({
+    basePrice: 7.84,
+    dossier: buildSignalBackendDossier({
+      snapshot: sharedSnapshot,
+      symbol: "TIAUSDT",
+    }),
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(dossier.data.unifiedDecision.decision, "WAIT");
+  assert.equal(dossier.data.unifiedDecision.waitPlan?.trigger, "回踩 8.20 - 8.28 后重新放量");
+  assert.equal(dossier.data.tradePlan, null);
+  assert.equal(dossier.data.riskGate.allowTradePlan, false);
+  assert.equal(dossier.data.strategyReadiness.status, "watch");
+  assert.equal(dossier.data.strategyReadiness.executionMap.tradabilityRead, "wait_pullback_or_retest");
+  assert.match(dossier.data.strategyReadiness.nextAction, /等待触发/);
+  assert.equal(
+    dossier.data.reportSections.find((section) => section.key === "trade_plan")?.status,
+    "partial",
+  );
+  assert.equal(
+    dossier.data.reportSections
+      .find((section) => section.key === "trade_plan")
+      ?.items.some((item) => item.sourceId === "trade-plan:wait-boundary"),
+    true,
+  );
 });
 
 test("buildFrontendRadarContract uses observed CoinGlass usage instead of planned requests", () => {
@@ -1836,6 +1918,7 @@ test("buildFrontendKlineContract exposes readonly v3 chart overlays from backend
         invalidation: "跌回箱体",
         isPlanEligible: true,
         manualReviewRequired: true,
+        plannedEntryPrice: 8.24,
         positionSizing: "轻仓",
         rewardRisk: 3.4,
         status: "READY_LONG",
@@ -2219,6 +2302,7 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
         invalidation: "1h 跌回 7.76",
         isPlanEligible: true,
         manualReviewRequired: true,
+        plannedEntryPrice: 8.24,
         positionSizing: "轻仓确认",
         rewardRisk: 3.4,
         status: "READY_LONG",
@@ -2241,6 +2325,12 @@ test("buildFrontendTokenDossierContract maps backend v3 trade plan without front
   assert.equal(res.data.chart.canUseMockCandles, false);
   assert.equal(res.data.riskGate.allowTradePlan, true);
   assert.deepEqual(res.data.riskGate.reasons, []);
+  assert.equal(res.data.unifiedDecision.source, "unified_decision_engine");
+  assert.equal(res.data.unifiedDecision.decision, "TRADE_PLAN_READY");
+  assert.equal(res.data.unifiedDecision.canTradeNow, true);
+  assert.equal(res.data.unifiedDecision.readyPlan?.plannedEntryPrice, 8.24);
+  assert.equal(res.data.unifiedDecision.readyPlan?.rewardRisk, 3.4);
+  assert.deepEqual(res.data.unifiedDecision.blockers, []);
   assert.equal(res.data.strategyReadiness.schemaVersion, "token-strategy-readiness.v1");
   assert.equal(res.data.strategyReadiness.status, "ready");
   assert.equal(res.data.strategyReadiness.canTradeNow, true);
@@ -2432,6 +2522,7 @@ test("buildFrontendTokenDossierContract turns late avoid-chase dossiers into rev
         invalidation: "跌回 9.20",
         isPlanEligible: true,
         manualReviewRequired: true,
+        plannedEntryPrice: 9.7,
         positionSizing: "轻仓确认",
         rewardRisk: 3.4,
         status: "READY_LONG",
@@ -2449,7 +2540,9 @@ test("buildFrontendTokenDossierContract turns late avoid-chase dossiers into rev
     now: new Date("2026-06-21T08:00:05.000Z"),
   });
 
-  assert.equal(res.data.maturity, "REVIEW_ONLY");
+  assert.equal(res.data.maturity, "BLOCKED");
+  assert.equal(res.data.unifiedDecision.source, "unified_decision_engine");
+  assert.equal(res.data.unifiedDecision.decision, "BLOCKED");
   assert.equal(res.data.tradePlan, null);
   assert.equal(res.data.riskGate.allowTradePlan, false);
   assert.equal(res.data.strategyReadiness.status, "review_only");

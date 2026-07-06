@@ -603,7 +603,53 @@ GitHub Actions / self-hosted runner：
 
 下一轮优先级：
 
-进入第 3.1 步：把统一决策引擎接入 token dossier 后端合同，作为计划状态的唯一后端出口；仍不改 UI 美观、不改 scan 排序、不部署。
+进入第 3.1 步：把统一决策引擎接入 radar signal、signals/sniper 可见状态和 token dossier 合同，作为计划状态的唯一后端出口；仍不改 UI 美观、不改 scan 排序、不部署。
+
+## 2026-07-06 第 3.1 步统一决策引擎主链路接线与合同验收
+
+本节记录 2026-07-06 本地合同接线状态。该轮只做统一决策引擎到 radar signal、signals/sniper 可见状态和 token dossier 主链路的接线；不改 scan 排序、不改 RR 门槛、不部署、不运行 formal、不动数据库、不同步腾讯云。
+
+结论：
+
+- 当前系统仍不能支撑实战。
+- 本轮发现新 P0：否。
+- 是否 push main：否。
+- 是否部署腾讯云：否。
+- 是否可进入 3.1 验收复查：可以。
+
+本轮已完成的本地合同接线：
+
+- radar signal 和 `buildFrontendTokenDossierContract()` 均调用统一决策链路。
+- radar signal / token dossier 合同新增 `unifiedDecision`，包含 `decision`、`decisionLabel`、`source=unified_decision_engine`、`canTradeNow`、`blockerReasons`、`waitPlanReady`、`readyPlan`。
+- token dossier 前端 L1 决策只读 `unifiedDecision.decision`，不再用页面局部逻辑推导 TRADE / WAIT / BLOCKED。
+- signals / anomaly / sniper 可见状态不再用前端 category、odds、候选数量或计划数量自行推断 READY。
+- dashboard L1 只表达系统运行状态，不再把候选数量或计划数量包装成交易结论。
+- `tradePlan` 只在 `unifiedDecision.canTradeNow=true` 时暴露。
+- WAIT 只展示等待条件，不生成入场、止损、目标。
+- 修复 stale READY 风险：后端 maturity 残留为 `TRADE_PLAN_READY` 但没有完整后端计划时，token dossier 不再保留 visible `TRADE_PLAN_READY`。
+- READY 硬门槛 blocker 增加 severity，缺入场、缺结构止损、缺目标、RR 不足、plan blocker 等均为 critical。
+
+测试结果：
+
+- 定向合同/展示/guard 测试：52/52 通过。
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test:market`：通过，市场核心 807 pass，worker 17 pass，historical smoke 4 pass。
+- `npm run build`：通过。
+- `npm run backtest:golden`：通过，16/16。
+- `npm run ci:forbidden-files`：通过。
+- `npm run ci:secret-patterns`：通过。
+- `npm run backtest:formal`：未运行，本轮禁止。
+
+仍需说明：
+
+- 本轮只证明 radar signal、signals/sniper 可见状态和 token dossier 决策出口已接入统一决策链路。
+- Kline readonly overlays 仍需单独审计，避免图表视觉层比决策合同更强。
+- 本轮不证明腾讯云生产已同步。
+
+下一轮优先级：
+
+进入 3.1 验收复查，随后做 Kline / TradingView readonly overlay 边界审计，防止图表视觉层看起来强于统一决策合同。
 
 ## 附录 A：核心相关文档清单
 

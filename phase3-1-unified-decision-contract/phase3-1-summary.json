@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-07-06T06:15:09Z",
+  "phase": "3.1",
+  "task": "unified_decision_engine_mainline_contract_wiring",
+  "branch": "phase3-1-unified-decision-contract",
+  "base_branch": "phase3-capability-improvement",
+  "base_head": "13fbdd1f0acce25f5cf64818a825359101897868",
+  "modified_business_code": true,
+  "deployed_to_tencent_cloud": false,
+  "ran_formal": false,
+  "touched_database_redis_volume": false,
+  "pushed_main": false,
+  "pushed_safe_branch": true,
+  "unified_decision_engine_single_source": "partial",
+  "token_dossier_wired": "pass",
+  "radar_signal_wired": "pass",
+  "dashboard_no_local_decision_inference": "pass",
+  "signals_no_local_count_or_score_ready_inference": "pass",
+  "sniper_board_requires_unified_ready_plan": "pass",
+  "wait_quality_gate": "pass",
+  "blocked_reason_gate": "pass",
+  "trade_plan_ready_gate_not_loosened": "pass",
+  "market_regime_context_only": "pass",
+  "risk_simulator_read_only": "pass",
+  "research_review_isolated": "pass",
+  "frontend_does_not_generate_trade_plan": "pass",
+  "multi_agent_used": true,
+  "agents": {
+    "agent_0_git_safety": "pass",
+    "agent_a_decision_source_map": "pass",
+    "agent_b_backend_contract_wiring": "pass",
+    "agent_c_frontend_contract_display": "pass",
+    "agent_d_research_risk_regime_isolation": "pass",
+    "agent_e_tests_and_guards": "pass",
+    "agent_f_integration": "pass",
+    "agent_g_final_readonly_audit": "pass"
+  },
+  "agent_boundary_violations": [],
+  "tests": {
+    "targeted_contract_display_guard": "pass",
+    "targeted_contract_display_guard_count": "52/52",
+    "typecheck": "pass",
+    "lint": "pass",
+    "test_market": "pass: market_core_807 worker_17 historical_smoke_4",
+    "build": "pass",
+    "backtest_golden": "pass: 16/16",
+    "forbidden_files": "pass",
+    "secret_patterns": "pass",
+    "formal": "not_run"
+  },
+  "risks": {
+    "new_p0_found": false,
+    "remaining_p1": [
+      "kline readonly overlays need a separate visual readiness audit",
+      "production is not deployed from this branch yet"
+    ],
+    "remaining_p2": [
+      "normalized grep paths were required because project paths live under src"
+    ]
+  },
+  "verdict": {
+    "can_enter_phase3_1_validation": true,
+    "can_enter_phase4_directly": false,
+    "can_support_live_trading": false,
+    "requires_final_gate_before_validation": false,
+    "next_step": "enter 3.1 validation review; production deploy remains blocked until separately approved"
+  }
+}

@@ -24,6 +24,7 @@ export type BackendDecisionMaturity =
 export type UnifiedDecisionBlocker = {
   reason: string;
   removable: boolean;
+  severity: "info" | "warning" | "critical";
   unblockCondition: string;
 };
 
@@ -78,10 +79,16 @@ function unique(values: string[]) {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
 
-function blocker(reason: string, unblockCondition: string, removable = true): UnifiedDecisionBlocker {
+function blocker(
+  reason: string,
+  unblockCondition: string,
+  removable = true,
+  severity: UnifiedDecisionBlocker["severity"] = "warning",
+): UnifiedDecisionBlocker {
   return {
     reason,
     removable,
+    severity,
     unblockCondition,
   };
 }
@@ -138,31 +145,31 @@ function readyPlanFrom(plan: StrategyV3TradePlan, minimumRewardRisk: number): {
   const direction = plan.status === "READY_SHORT" ? "short" : plan.status === "READY_LONG" ? "long" : null;
 
   if (!readyStatus || !direction) {
-    blockers.push(blocker("trade_plan_not_ready_status", "后端 v3 trade plan 必须是 READY_LONG 或 READY_SHORT。", true));
+    blockers.push(blocker("trade_plan_not_ready_status", "后端 v3 trade plan 必须是 READY_LONG 或 READY_SHORT。", true, "critical"));
   }
 
   if (!plan.isPlanEligible) {
-    blockers.push(blocker("trade_plan_not_eligible", "后端计划必须明确 isPlanEligible=true。", true));
+    blockers.push(blocker("trade_plan_not_eligible", "后端计划必须明确 isPlanEligible=true。", true, "critical"));
   }
 
   if (!isFiniteNumber(plan.rewardRisk) || plan.rewardRisk < minimumRewardRisk) {
-    blockers.push(blocker("reward_risk_below_minimum", `结构盈亏比必须 >= ${minimumRewardRisk}:1。`, true));
+    blockers.push(blocker("reward_risk_below_minimum", `结构盈亏比必须 >= ${minimumRewardRisk}:1。`, true, "critical"));
   }
 
   if (!isFiniteNumber(plan.structuralStop)) {
-    blockers.push(blocker("missing_structural_stop", "必须有后端结构止损，不能由前端或 regime 推导。", true));
+    blockers.push(blocker("missing_structural_stop", "必须有后端结构止损，不能由前端或 regime 推导。", true, "critical"));
   }
 
   if (plan.targets.length === 0 || !plan.targets.every(isFiniteNumber)) {
-    blockers.push(blocker("missing_structural_target", "必须有后端结构目标位，不能硬编 TP。", true));
+    blockers.push(blocker("missing_structural_target", "必须有后端结构目标位，不能硬编 TP。", true, "critical"));
   }
 
   if (!isFiniteNumber(plan.plannedEntryPrice)) {
-    blockers.push(blocker("missing_planned_entry", "必须有后端 plannedEntryPrice。", true));
+    blockers.push(blocker("missing_planned_entry", "必须有后端 plannedEntryPrice。", true, "critical"));
   }
 
   if (plan.blockedBy.length > 0) {
-    blockers.push(blocker("plan_has_blockers", `先解除阻断：${unique(plan.blockedBy).join(" / ")}。`, true));
+    blockers.push(blocker("plan_has_blockers", `先解除阻断：${unique(plan.blockedBy).join(" / ")}。`, true, "critical"));
   }
 
   if (blockers.length > 0 || !direction) {
@@ -183,7 +190,7 @@ function readyPlanFrom(plan: StrategyV3TradePlan, minimumRewardRisk: number): {
   ) {
     return {
       blockers: [
-        blocker("ready_numeric_fields_invalid", "READY 输出必须保留有效 plannedEntryPrice、rewardRisk 和 structuralStop。", true),
+        blocker("ready_numeric_fields_invalid", "READY 输出必须保留有效 plannedEntryPrice、rewardRisk 和 structuralStop。", true, "critical"),
       ],
       readyPlan: null,
     };

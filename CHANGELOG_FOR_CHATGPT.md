@@ -408,4 +408,61 @@ P0 阻断：
 
 ### 下一轮建议
 
-第 3.1 步：把统一决策引擎接入 token dossier 后端合同，作为计划状态唯一后端出口。
+第 3.1 步：把统一决策引擎接入 radar signal、signals/sniper 可见状态和 token dossier 合同，作为计划状态唯一后端出口。
+
+## 2026-07-06 - 第 3.1 步统一决策引擎主链路接线与合同验收
+
+### 本轮目标
+
+把第 3 步新增的统一决策引擎接入 radar signal、signals/sniper 可见状态和 token dossier 主链路，让计划就绪状态来自后端统一决策结果，而不是前端用候选数量、分数、赔率或局部状态二次推导。
+
+### 修改范围
+
+- `src/lib/api/frontend-contract.ts`：新增 radar signal / token dossier `unifiedDecision` 合同字段，并接入 `buildUnifiedDecision()`。
+- `src/lib/radar-contract.ts`：legacy getter 增加 radar signal / token `unifiedDecision` 兼容字段。
+- `src/lib/frontend-display-adapters.ts`：sniper target 只允许从 `unifiedDecision.canTradeNow + readyPlan` 生成；榜单兜底候选标记为 `frontend_candidate_guard`。
+- `src/app/dashboard/page.tsx`：dashboard L1 只表达系统运行状态，不再用候选数量或计划数量推导 TRADE/WAIT。
+- `src/components/anomaly-board.tsx`：异动表不再用 category/odds 本地组合推断计划就绪。
+- `src/components/signals/signal-maturity-pool.tsx`：信号成熟度池计划提示读取 `unifiedDecision.canTradeNow + readyPlan`。
+- `src/components/token/token-dossier.tsx`：L1 决策、等待条件、阻断原因读取 `unifiedDecision`。
+- `src/lib/ui-schema-guard.ts`：信号 L1 决策优先读取 `unifiedDecision`，其次读取后端 `operatorRead.lane`，最后才使用成熟度兜底。
+- `src/lib/decision/unified-decision-engine.ts`：blocker 增加 severity，READY 硬门槛失败标为 critical。
+- `src/lib/api/frontend-contract.test.ts`、`src/lib/api/frontend-display-adapters.test.ts`、`src/lib/api/ui-schema-guard.test.ts`、`src/lib/decision/unified-decision-engine.test.ts`：新增 stale READY、WAIT、不伪造 trade plan、sniper 只读后端 readyPlan、blocker severity 测试。
+- `phase3-1-unified-decision-contract/**`：本轮脱敏证据和报告。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：保留 3:1 结构盈亏比门槛，未降低。
+- 交易计划：radar signal、sniper board 和 token dossier 的计划就绪现在必须经过统一决策引擎。
+- 复盘进化：保持 research-only，未影响 production ranking。
+
+### 测试结果
+
+- 定向合同/展示/guard 测试：52/52 通过。
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test:market`：通过，市场核心 807 pass，worker 17 pass，historical smoke 4 pass。
+- `npm run build`：通过。
+- `npm run backtest:golden`：通过，16/16。
+- `npm run ci:forbidden-files`：通过。
+- `npm run ci:secret-patterns`：通过。
+- `npm run backtest:formal`：未运行，本轮禁止。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume。
+
+### 风险与遗留问题
+
+- 本轮未发现新 P0。
+- P1：Kline readonly overlays 需要单独审计，避免图表视觉层看起来比决策合同更强。
+- P1：本分支尚未部署腾讯云，生产 API 是否呈现新合同需要后续部署轮验证。
+- 当前系统仍不能支撑实战，本轮只完成统一决策合同主链路接线，不证明真实市场胜率或策略命中能力。
+
+### 下一轮建议
+
+先做 3.1 验收复查；通过后进入 Kline / TradingView readonly overlay 边界审计，防止图表视觉层看起来强于统一决策合同。

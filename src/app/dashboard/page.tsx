@@ -74,25 +74,17 @@ function dataStatusLabel(status: string) {
 }
 
 function dashboardDecision({
-  candidateCount,
-  planReadyCount,
   status,
 }: {
-  candidateCount: number
-  planReadyCount: number
   status: ReturnType<typeof systemStatusTone>
 }): UiDecisionState {
   if (status.label === '异常') return 'BLOCKED'
-  if (planReadyCount > 0) return 'TRADE'
-  if (candidateCount > 0) return 'WAIT'
   return status.label === '降级' ? 'BLOCKED' : 'OBSERVE'
 }
 
 function dashboardReason(decision: UiDecisionState) {
-  if (decision === 'TRADE') return '已有后端完整计划进入复核区，仍需人工检查结构、失效条件和风险。'
-  if (decision === 'WAIT') return '当前有候选或证据观察项，但还缺少完整计划确认，不能直接执行。'
   if (decision === 'BLOCKED') return '运行链路或数据状态存在异常，先检查数据源、缓存和深扫队列。'
-  return '系统正在扫描市场，当前没有通过完整验证的计划样本。'
+  return '这里只判断系统运行状态；候选和计划数量只做统计，不生成交易结论。'
 }
 
 export default async function DashboardPage() {
@@ -139,8 +131,6 @@ export default async function DashboardPage() {
     sourceFeeds: radar.dataSources.data.map((source: DataSourceState) => source.feed),
   }))
   const decision = dashboardDecision({
-    candidateCount: candidateDisplayCount + matureSignalCount + reviewOnlyCount,
-    planReadyCount,
     status: systemStatus,
   })
   const dashboardLayers = buildUiInformationLayers({

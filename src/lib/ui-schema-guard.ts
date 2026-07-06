@@ -219,6 +219,10 @@ export function buildUiInformationLayers({
 
 export type UiSignalLike = {
   maturity: DisplaySignalMaturity
+  unifiedDecision?: {
+    canTradeNow?: boolean
+    decision?: 'OBSERVE' | 'WAIT' | 'BLOCKED' | 'TRADE_PLAN_READY'
+  } | null
   rr?: number | null
   whyBlocked?: string | null
   whySelected?: string | null
@@ -228,6 +232,7 @@ export type UiSignalLike = {
   freshness?: string
   operatorRead?: {
     headline?: string | null
+    lane?: 'sniper' | 'watch' | 'validate' | 'blocked' | 'review'
     nextAction?: string | null
   }
   discovery?: {
@@ -239,8 +244,31 @@ export type UiSignalLike = {
   } | null
 }
 
+function decisionForUnifiedDecision(
+  decision: NonNullable<UiSignalLike['unifiedDecision']> | null | undefined,
+): UiDecisionState | null {
+  if (!decision) return null
+  if (decision.decision === 'TRADE_PLAN_READY') return decision.canTradeNow ? 'TRADE' : 'BLOCKED'
+  if (decision.decision === 'WAIT') return 'WAIT'
+  if (decision.decision === 'BLOCKED') return 'BLOCKED'
+  if (decision.decision === 'OBSERVE') return 'OBSERVE'
+  return null
+}
+
+function decisionForOperatorLane(
+  lane: NonNullable<UiSignalLike['operatorRead']>['lane'] | null | undefined,
+  maturity: DisplaySignalMaturity,
+): UiDecisionState | null {
+  if (lane === 'sniper' && maturity === 'TRADE_PLAN_READY') return 'TRADE'
+  if (lane === 'blocked' || lane === 'review') return 'BLOCKED'
+  if (lane === 'validate' || lane === 'watch') return 'WAIT'
+  return null
+}
+
 export function buildSignalUiLayers(signal: UiSignalLike): UiInformationLayers {
-  const decision = decisionForMaturity({
+  const decision = decisionForUnifiedDecision(signal.unifiedDecision) ??
+    decisionForOperatorLane(signal.operatorRead?.lane, signal.maturity) ??
+    decisionForMaturity({
     maturity: signal.maturity,
     rr: signal.rr,
     whyBlocked: signal.whyBlocked,

@@ -25,6 +25,11 @@ import type {
 import { isCryptoFuturesUnderlying } from "../market/asset-class-filter";
 import { classifySignalMaturity } from "../market/signal-maturity";
 import {
+  buildUnifiedDecision,
+  type BackendDecisionMaturity,
+  type UnifiedDecisionResult,
+} from "../decision/unified-decision-engine";
+import {
   buildPersonalPositionLens,
   type PersonalPositionLens,
 } from "../risk/personal-position-lens";
@@ -179,6 +184,7 @@ export type RadarSignal = {
   hue: number;
   direction: "多" | "空" | "观察";
   maturity: SignalMaturity;
+  unifiedDecision: SignalUnifiedDecisionRead;
   lifecycle: SignalLifecycleRead;
   operatorRead: SignalOperatorRead;
   rr: number | null;
@@ -190,6 +196,23 @@ export type RadarSignal = {
   whyBlocked: string | null;
   updatedMinAgo: number;
   discovery?: DiscoveryFact | null;
+};
+
+export type SignalUnifiedDecisionRead = {
+  schemaVersion: "signal-unified-decision.v1";
+  source: "unified_decision_engine" | "frontend_candidate_guard";
+  decision: UnifiedDecisionResult["decision"];
+  decisionLabel: "观察" | "等待" | "拦截" | "交易计划就绪";
+  allowedUse: UnifiedDecisionResult["allowedUse"];
+  canAutoExecute: false;
+  canCreateTradePlanFromRegime: false;
+  canMutateLiveRanking: false;
+  canTradeNow: boolean;
+  reasons: string[];
+  blockerReasons: string[];
+  blockerCount: number;
+  waitPlanReady: boolean;
+  readyPlan: UnifiedDecisionResult["readyPlan"];
 };
 
 export type SignalLifecycleRead = {
@@ -327,6 +350,7 @@ export type TokenDossier = {
   symbol: string;
   direction: "看多" | "看空" | "中性";
   maturity: SignalMaturity;
+  unifiedDecision: TokenUnifiedDecisionRead;
   chart: TokenChartIntegrity;
   discovery: DiscoveryFact;
   structures: TfStructure[];
@@ -337,6 +361,23 @@ export type TokenDossier = {
   tradePlan: TradePlanData | null;
   aiReview: AiReviewData;
   reportSections: AnalysisReportSection[];
+};
+
+export type TokenUnifiedDecisionRead = {
+  schemaVersion: "token-unified-decision.v1";
+  source: "unified_decision_engine";
+  decision: UnifiedDecisionResult["decision"];
+  decisionLabel: "观察" | "等待" | "拦截" | "交易计划就绪";
+  allowedUse: UnifiedDecisionResult["allowedUse"];
+  canAutoExecute: false;
+  canCreateTradePlanFromRegime: false;
+  canMutateLiveRanking: false;
+  canTradeNow: boolean;
+  reasons: string[];
+  blockers: UnifiedDecisionResult["blockers"];
+  waitPlan: UnifiedDecisionResult["waitPlan"];
+  readyPlan: UnifiedDecisionResult["readyPlan"];
+  marketRegimeContext: UnifiedDecisionResult["marketRegimeContext"];
 };
 
 export type TokenStrategyReadiness = {
@@ -1979,11 +2020,28 @@ function evidenceSourceId(item: EvidencePoint, index: number) {
 }
 
 function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, now: Date): RadarSignal {
-  const maturity = maturityForSignal(signal);
-  const blockers = [
+  const rawMaturity = maturityForSignal(signal);
+  const baseBlockers = [
     ...lifecycleStatusReason(signal),
     ...reviewOnlyStatusReason(signal),
   ];
+  const unifiedDecision = buildUnifiedDecision({
+    backendMaturity: normalizeBackendDecisionMaturity(rawMaturity),
+    marketRegime: null,
+    symbol: signal.symbol,
+    tradePlan: planForUnifiedDecision(signal.strategyV3?.tradePlan, baseBlockers),
+  });
+  const unifiedDecisionRead = signalUnifiedDecisionRead(unifiedDecision);
+  const maturity: SignalMaturity = rawMaturity === "TRADE_PLAN_READY" && !unifiedDecisionRead.canTradeNow
+    ? "BLOCKED"
+    : rawMaturity;
+  const blockers = [
+    ...baseBlockers,
+    ...(rawMaturity === "TRADE_PLAN_READY" && !unifiedDecisionRead.canTradeNow
+      ? unifiedDecision.reasons
+      : []),
+    ...(unifiedDecision.decision === "BLOCKED" ? unifiedDecisionRead.blockerReasons : []),
+  ].filter((item, index, all) => item.trim().length > 0 && all.indexOf(item) === index);
   const supportive = signal.evidence.filter((item) => item.polarity === "supportive");
   const counter = signal.evidence.filter((item) => item.polarity === "conflicting" || item.polarity === "blocking");
   const rr = signal.strategy.riskReward > 0 ? round(signal.strategy.riskReward, 2) : null;
@@ -2003,6 +2061,7 @@ function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, n
     hue: symbolHue(signal.symbol),
     direction: directionCn(signal.direction),
     maturity,
+    unifiedDecision: unifiedDecisionRead,
     lifecycle: lifecycleRead({
       at: signal.updatedAt,
       now,
@@ -2080,6 +2139,12 @@ function buildLightCandidateRadarSignal({
   const discovery = discoveryFactFromCandidate(candidate);
   const maturity = maturityForLightCandidate(candidate);
   const blocker = whyBlockedForLightCandidate(candidate);
+  const unifiedDecision = signalUnifiedDecisionRead(buildUnifiedDecision({
+    backendMaturity: normalizeBackendDecisionMaturity(maturity),
+    marketRegime: null,
+    symbol,
+    tradePlan: null,
+  }));
 
   return {
     id: `light:${candidate.symbol}`,
@@ -2087,6 +2152,7 @@ function buildLightCandidateRadarSignal({
     hue: symbolHue(candidate.symbol),
     direction: "观察",
     maturity,
+    unifiedDecision,
     lifecycle: lifecycleRead({
       at: scanGeneratedAt,
       now,
@@ -4058,6 +4124,75 @@ function v3TradePlanBlockers(plan: StrategyV3TradePlan | undefined) {
   ].filter((item): item is string => Boolean(item));
 }
 
+function normalizeBackendDecisionMaturity(value: SignalMaturity | null | undefined): BackendDecisionMaturity {
+  return isSignalMaturity(value) ? value : "BLOCKED";
+}
+
+function planForUnifiedDecision(
+  plan: StrategyV3TradePlan | undefined,
+  blockingReasons: string[],
+): StrategyV3TradePlan | null {
+  if (!plan) {
+    return null;
+  }
+
+  if (blockingReasons.length === 0) {
+    return plan;
+  }
+
+  return {
+    ...plan,
+    blockedBy: [...new Set([...plan.blockedBy, ...blockingReasons])],
+    isPlanEligible: false,
+    status: "BLOCKED",
+  };
+}
+
+function unifiedDecisionLabel(decision: UnifiedDecisionResult["decision"]): TokenUnifiedDecisionRead["decisionLabel"] {
+  if (decision === "TRADE_PLAN_READY") return "交易计划就绪";
+  if (decision === "WAIT") return "等待";
+  if (decision === "BLOCKED") return "拦截";
+  return "观察";
+}
+
+function tokenUnifiedDecisionRead(decision: UnifiedDecisionResult): TokenUnifiedDecisionRead {
+  return {
+    schemaVersion: "token-unified-decision.v1",
+    source: "unified_decision_engine",
+    decision: decision.decision,
+    decisionLabel: unifiedDecisionLabel(decision.decision),
+    allowedUse: decision.allowedUse,
+    canAutoExecute: decision.canAutoExecute,
+    canCreateTradePlanFromRegime: decision.canCreateTradePlanFromRegime,
+    canMutateLiveRanking: decision.canMutateLiveRanking,
+    canTradeNow: decision.decision === "TRADE_PLAN_READY" && decision.readyPlan !== null,
+    reasons: decision.reasons,
+    blockers: decision.blockers,
+    waitPlan: decision.waitPlan,
+    readyPlan: decision.readyPlan,
+    marketRegimeContext: decision.marketRegimeContext,
+  };
+}
+
+function signalUnifiedDecisionRead(decision: UnifiedDecisionResult): SignalUnifiedDecisionRead {
+  return {
+    schemaVersion: "signal-unified-decision.v1",
+    source: "unified_decision_engine",
+    decision: decision.decision,
+    decisionLabel: unifiedDecisionLabel(decision.decision),
+    allowedUse: decision.allowedUse,
+    canAutoExecute: decision.canAutoExecute,
+    canCreateTradePlanFromRegime: decision.canCreateTradePlanFromRegime,
+    canMutateLiveRanking: decision.canMutateLiveRanking,
+    canTradeNow: decision.decision === "TRADE_PLAN_READY" && decision.readyPlan !== null,
+    reasons: decision.reasons,
+    blockerReasons: decision.blockers.map((item) => `${item.reason}：${item.unblockCondition}`),
+    blockerCount: decision.blockers.length,
+    waitPlanReady: decision.decision === "WAIT" && decision.waitPlan !== null,
+    readyPlan: decision.readyPlan,
+  };
+}
+
 function dossierReviewOnlyReasons(dossier: SignalBackendDossier) {
   const context = dossier.strategyV3?.trendContext;
   const location = context?.locationRiskReward;
@@ -4355,6 +4490,7 @@ function buildAnalysisReportSections({
   discovery,
   evidence,
   tradePlan,
+  unifiedDecision,
 }: {
   blockedReasons: string[];
   counter: CounterItem[];
@@ -4362,6 +4498,7 @@ function buildAnalysisReportSections({
   discovery: DiscoveryFact;
   evidence: EvidenceItem[];
   tradePlan: TradePlanData | null;
+  unifiedDecision: TokenUnifiedDecisionRead;
 }): AnalysisReportSection[] {
   const signal = dossier.signal;
   const keyLevelItems = keyLevelReportItems(dossier);
@@ -4369,17 +4506,33 @@ function buildAnalysisReportSections({
   const timeframeGateItems = timeframeGateReportItems(signal);
   const trendContextItems = trendContextReportItems(dossier);
   const v3Plan = dossier.strategyV3?.tradePlan;
-  const currentConclusion = tradePlan
-    ? "后端已生成交易计划；仍必须人工复核，不自动下单。"
-    : blockedReasons.length > 0
-      ? `当前不能交易：${blockedReasons.slice(0, 3).join("；")}。`
-      : "当前仅能观察，等待结构、证据、结构盈亏比和风控同时满足。";
+  const currentConclusion = (() => {
+    if (tradePlan) {
+      return "后端已生成交易计划；仍必须人工复核，不自动下单。";
+    }
+    if (unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan) {
+      return `统一决策引擎输出等待：${unifiedDecision.waitPlan.whyNotNow}。`;
+    }
+    if (unifiedDecision.decision === "OBSERVE") {
+      return "统一决策引擎输出观察：当前没有后端结构化交易计划。";
+    }
+    if (blockedReasons.length > 0) {
+      return `当前不能交易：${blockedReasons.slice(0, 3).join("；")}。`;
+    }
+    return "当前仅能观察，等待结构、证据、结构盈亏比和风控同时满足。";
+  })();
   const watchReason = signal
     ? signal.summary
     : "后端没有找到该币种的成熟信号；不能因为页面打开了就生成方向。";
-  const canTradeNow = tradePlan
-    ? `可以进入人工计划复核；结构盈亏比 ${tradePlan.rr}:1，入场必须满足：${tradePlan.entryCondition}。`
-    : "不能给交易计划；缺失交易计划时，前端不得补入场、止损或目标。";
+  const canTradeNow = (() => {
+    if (tradePlan) {
+      return `可以进入人工计划复核；结构盈亏比 ${tradePlan.rr}:1，入场必须满足：${tradePlan.entryCondition}。`;
+    }
+    if (unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan) {
+      return `不能交易；等待 ${unifiedDecision.waitPlan.trigger}，确认 ${unifiedDecision.waitPlan.confirmation}。`;
+    }
+    return "不能给交易计划；缺失交易计划时，前端不得补入场、止损或目标。";
+  })();
   const failureMode = [
     ...blockedReasons.slice(0, 2),
     ...counter.slice(0, 2).map((item) => item.detail),
@@ -4454,25 +4607,36 @@ function buildAnalysisReportSections({
     {
       key: "risk_gate",
       title: "现在能不能做",
-      status: blockedReasons.length > 0 ? "blocked" : "ready",
-      items: blockedReasons.length > 0
+      status: tradePlan ? "ready" : unifiedDecision.decision === "WAIT" ? "partial" : blockedReasons.length > 0 ? "blocked" : "empty",
+      items: tradePlan
         ? [
           { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
+          { detail: "统一决策引擎放行；仍必须人工复核，不自动下单。", label: "统一决策", sourceId: "unified-decision:ready" },
+        ]
+        : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+          ? [
+            { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
+            { detail: unifiedDecision.waitPlan.whyNotNow, label: "为什么不做", sourceId: "unified-decision:wait:why-not-now" },
+            { detail: unifiedDecision.waitPlan.invalidation, label: "等待失效", sourceId: "unified-decision:wait:invalidation" },
+          ]
+          : blockedReasons.length > 0
+            ? [
+              { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
           ...blockedReasons.map((reason, index) => ({
             detail: reason,
             label: `阻断 ${index + 1}`,
             sourceId: `risk-gate:blocker:${index + 1}`,
           })),
-        ]
-        : [
-          { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
-          { detail: "未发现阻断交易计划的风控门禁原因。", label: "风控状态", sourceId: "risk-gate:allow" },
-        ],
+            ]
+            : [
+              { detail: canTradeNow, label: "交易许可", sourceId: "risk-gate:decision" },
+              { detail: "统一决策引擎输出观察；未生成交易计划。", label: "统一决策", sourceId: "unified-decision:observe" },
+            ],
     },
     {
       key: "trade_plan",
       title: "怎么做",
-      status: tradePlan ? "ready" : "blocked",
+      status: tradePlan ? "ready" : unifiedDecision.decision === "WAIT" ? "partial" : "blocked",
       items: tradePlan
         ? [
           { detail: canTradeNow, label: "操作前提", sourceId: "trade-plan:decision" },
@@ -4506,7 +4670,13 @@ function buildAnalysisReportSections({
             sourceId: "trade-plan:manual-review",
           },
         ]
-        : [{ detail: "未通过风控门禁或结构盈亏比门槛，前端不得生成入场、止损、目标。", label: "未生成", sourceId: "trade-plan:blocked" }],
+        : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+          ? [
+            { detail: unifiedDecision.waitPlan.trigger, label: "等待触发", sourceId: "unified-decision:wait:trigger" },
+            { detail: unifiedDecision.waitPlan.confirmation, label: "确认要求", sourceId: "unified-decision:wait:confirmation" },
+            { detail: "WAIT 不是交易计划就绪；前端不得补入场、止损、目标。", label: "计划边界", sourceId: "trade-plan:wait-boundary" },
+          ]
+          : [{ detail: "未通过风控门禁或结构盈亏比门槛，前端不得生成入场、止损、目标。", label: "未生成", sourceId: "trade-plan:blocked" }],
     },
     {
       key: "review_boundary",
@@ -4524,26 +4694,30 @@ function buildTokenStrategyReadiness({
   blockedReasons,
   discovery,
   tradePlan,
+  unifiedDecision,
 }: {
   blockedReasons: string[];
   discovery: DiscoveryFact;
   tradePlan: TradePlanData | null;
+  unifiedDecision: TokenUnifiedDecisionRead;
 }): TokenStrategyReadiness {
   const executionMap = buildTokenExecutionMap({
     blockedReasons,
     discovery,
     tradePlan,
+    unifiedDecision,
   });
 
-  if (tradePlan) {
+  if (unifiedDecision.canTradeNow && tradePlan) {
     return {
       schemaVersion: "token-strategy-readiness.v1",
       status: "ready",
       canTradeNow: true,
-      summary: `交易计划已由后端生成：方向 ${tradePlan.bias}，结构盈亏比 ${tradePlan.rr}:1；仍必须人工复核，不自动下单。`,
+      summary: `统一决策引擎放行：方向 ${tradePlan.bias}，结构盈亏比 ${tradePlan.rr}:1；仍必须人工复核，不自动下单。`,
       nextAction: `只在满足入场条件时复核：${tradePlan.entryCondition}`,
       missingPieces: [],
       guardrails: [
+        "交易计划就绪只来自 unified_decision_engine。",
         "结构盈亏比已先通过，个人杠杆只做收益/风险换算。",
         "禁止追单；触发条件没到就不做。",
         "任何失效条件触发都必须退出计划。",
@@ -4556,24 +4730,39 @@ function buildTokenStrategyReadiness({
 
   const isReviewOnly = discovery.opportunityPhase === "late_move" || discovery.overextensionRisk === "high" ||
     blockedReasons.some((reason) => /追涨|追空|晚到|过热|跌深|衰竭|REVIEW_ONLY/iu.test(reason));
+  const waitPlan = unifiedDecision.waitPlan;
+  const blockerPieces = unifiedDecision.blockers.map((item) => `${item.reason}：${item.unblockCondition}`);
   const missingPieces = blockedReasons.length > 0
     ? blockedReasons.slice(0, 8)
+    : blockerPieces.length > 0
+      ? blockerPieces.slice(0, 8)
     : [
       "等待结构、证据、结构盈亏比、风控门禁和失效条件同时满足。",
     ];
 
   return {
     schemaVersion: "token-strategy-readiness.v1",
-    status: isReviewOnly ? "review_only" : missingPieces.length > 0 ? "blocked" : "watch",
+    status: isReviewOnly
+      ? "review_only"
+      : unifiedDecision.decision === "BLOCKED"
+        ? "blocked"
+        : "watch",
     canTradeNow: false,
-    summary: isReviewOnly
-      ? "当前更像晚到或延展行情，只能进入复盘/等待回踩或反抽重构，不能追。"
-      : "当前没有后端交易计划；前端不得补入场、止损或目标。",
-    nextAction: isReviewOnly
-      ? "回看启动前窗口，等待新结构给出更好的位置。"
-      : "继续等深扫、结构、结构盈亏比和风控门禁完整。",
+    summary: unifiedDecision.decision === "WAIT" && waitPlan
+      ? `统一决策引擎输出等待：${waitPlan.whyNotNow}`
+      : unifiedDecision.decision === "OBSERVE"
+        ? "统一决策引擎输出观察：当前没有后端结构化交易计划，不能补入场、止损或目标。"
+        : isReviewOnly
+          ? "当前更像晚到或延展行情，只能进入复盘/等待回踩或反抽重构，不能追。"
+          : "当前没有后端交易计划；前端不得补入场、止损或目标。",
+    nextAction: unifiedDecision.decision === "WAIT" && waitPlan
+      ? `等待触发：${waitPlan.trigger}；确认：${waitPlan.confirmation}`
+      : isReviewOnly
+        ? "回看启动前窗口，等待新结构给出更好的位置。"
+        : "继续等深扫、结构、结构盈亏比和风控门禁完整。",
     missingPieces,
     guardrails: [
+      "本页决策状态只读 unified_decision_engine。",
       "没有 tradePlan 时不允许显示交易计划。",
       "方向偏多/偏空不代表当前位置可做。",
       "结构盈亏比仍按结构价格距离计算，个人杠杆只在计划生成后换算展示。",
@@ -4588,29 +4777,36 @@ function buildTokenExecutionMap({
   blockedReasons,
   discovery,
   tradePlan,
+  unifiedDecision,
 }: {
   blockedReasons: string[];
   discovery: DiscoveryFact;
   tradePlan: TradePlanData | null;
+  unifiedDecision: TokenUnifiedDecisionRead;
 }): TokenExecutionMap {
   const blockedText = blockedReasons.join(" / ");
   const reviewOnly = discovery.opportunityPhase === "late_move" || discovery.overextensionRisk === "high" ||
     /追涨|追空|晚到|过热|跌深|衰竭|REVIEW_ONLY/iu.test(blockedText);
-  const waitPullback = reviewOnly || /回踩|反抽|pullback|retest|二次确认/iu.test(blockedText);
-  const directionRead: TokenExecutionMap["directionRead"] = tradePlan?.bias === "多"
+  const waitPullback = reviewOnly || unifiedDecision.decision === "WAIT" ||
+    /回踩|反抽|pullback|retest|二次确认/iu.test(blockedText);
+  const directionRead: TokenExecutionMap["directionRead"] = unifiedDecision.readyPlan?.direction === "long" || tradePlan?.bias === "多"
     ? "bullish"
-    : tradePlan?.bias === "空"
+    : unifiedDecision.readyPlan?.direction === "short" || tradePlan?.bias === "空"
       ? "bearish"
       : "neutral";
   const tradabilityRead: TokenExecutionMap["tradabilityRead"] = tradePlan
     ? "trade_plan_ready"
-    : reviewOnly
-      ? "review_only"
-      : waitPullback
-        ? "wait_pullback_or_retest"
-        : blockedReasons.length > 0
-          ? "blocked"
-          : "wait_confirmation";
+    : unifiedDecision.decision === "WAIT"
+      ? "wait_pullback_or_retest"
+      : unifiedDecision.decision === "OBSERVE"
+        ? "wait_confirmation"
+        : reviewOnly
+          ? "review_only"
+          : waitPullback
+            ? "wait_pullback_or_retest"
+            : blockedReasons.length > 0
+              ? "blocked"
+              : "wait_confirmation";
   const positionQuality: TokenExecutionMap["positionQuality"] = tradePlan
     ? "good"
     : reviewOnly
@@ -4626,14 +4822,22 @@ function buildTokenExecutionMap({
     positionQuality,
     waitFor: tradePlan
       ? [tradePlan.entryCondition, "人工复核结构、成交和失效条件后再执行。"]
+      : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+        ? [
+          unifiedDecision.waitPlan.trigger,
+          unifiedDecision.waitPlan.confirmation,
+          "WAIT 不是交易计划就绪，触发前不做。",
+        ]
       : waitPullback
         ? ["等待回踩/反抽后重新确认结构盈亏比。", "等待新的失效线靠近价格，不追已经延展的行情。"]
         : ["等待深扫、结构、结构盈亏比、风控门禁和失效条件完整。"],
     invalidIf: tradePlan
       ? [tradePlan.invalidation, "任何反证覆盖支持证据时撤销计划。"]
-      : blockedReasons.length > 0
-        ? blockedReasons.slice(0, 4)
-        : ["证据不足、结构盈亏比不够或高周期冲突时不生成计划。"],
+      : unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+        ? [unifiedDecision.waitPlan.invalidation, "WAIT 条件缺失或反证增强时撤销等待计划。"]
+        : blockedReasons.length > 0
+          ? blockedReasons.slice(0, 4)
+          : ["证据不足、结构盈亏比不够或高周期冲突时不生成计划。"],
     chartBoundary: tradePlan
       ? `TradingView 只做看图和人工复核；后端计划边界为入场 ${tradePlan.entryCondition} / 止损 ${tradePlan.stop} / 目标 ${tradePlan.tp1}-${tradePlan.tp3}。`
       : "TradingView 只做看图；没有后端 tradePlan 时，前端不得补入场、止损和目标。",
@@ -4669,7 +4873,18 @@ export function buildFrontendTokenDossierContract({
     symbol: dossier.symbol,
   });
   const reviewOnlyReasons = dossierReviewOnlyReasons(dossier);
-  const tradePlan = backendReady && reviewOnlyReasons.length === 0 ? rawTradePlan : null;
+  const forcedDecisionBlockers = [
+    ...hardBlockedReasons,
+    ...reviewOnlyReasons,
+  ];
+  const unifiedDecision = buildUnifiedDecision({
+    backendMaturity: normalizeBackendDecisionMaturity(backendMaturity),
+    marketRegime: null,
+    symbol: dossier.symbol,
+    tradePlan: planForUnifiedDecision(v3Plan, forcedDecisionBlockers),
+  });
+  const unifiedDecisionRead = tokenUnifiedDecisionRead(unifiedDecision);
+  const tradePlan = unifiedDecisionRead.canTradeNow ? rawTradePlan : null;
   const maturityFactReasons = signal
     ? backendMaturity
       ? backendReady
@@ -4681,8 +4896,12 @@ export function buildFrontendTokenDossierContract({
     ...hardBlockedReasons,
     ...reviewOnlyReasons,
     ...maturityFactReasons,
+    ...unifiedDecision.blockers.map((item) => `${item.reason}：${item.unblockCondition}`),
+    ...(unifiedDecision.decision === "WAIT" && unifiedDecision.waitPlan
+      ? [unifiedDecision.waitPlan.whyNotNow]
+      : []),
     ...(signal ? v3TradePlanBlockers(v3Plan) : []),
-  ];
+  ].filter((reason, index, all) => reason.trim().length > 0 && all.indexOf(reason) === index);
   const evidenceItems = evidence.map((item, index) => ({
     sourceId: evidenceSourceId(item, index),
     kind: evidenceKind(item.layer),
@@ -4703,30 +4922,34 @@ export function buildFrontendTokenDossierContract({
     symbol: displaySymbol(dossier.symbol),
     direction: tokenDirectionCn(signal?.direction),
     maturity: signal
-      ? hardBlockedReasons.length > 0 || v3Plan?.status === "BLOCKED"
-        ? "BLOCKED"
-        : reviewOnlyReasons.length > 0
-          ? "REVIEW_ONLY"
-        : backendReady
-          ? tradePlan
-            ? "TRADE_PLAN_READY"
-            : "BLOCKED"
-          : isSignalMaturity(backendMaturity)
+      ? unifiedDecision.decision === "TRADE_PLAN_READY"
+        ? "TRADE_PLAN_READY"
+        : unifiedDecision.decision === "WAIT"
+          ? isSignalMaturity(backendMaturity)
             ? backendMaturity
+            : "EVIDENCE_SIGNAL"
+        : unifiedDecision.decision === "OBSERVE"
+            ? isSignalMaturity(backendMaturity)
+              ? backendMaturity === "TRADE_PLAN_READY"
+                ? "BLOCKED"
+                : backendMaturity
+              : "DEEP_SCAN_CANDIDATE"
             : "BLOCKED"
       : "INVALIDATED",
+    unifiedDecision: unifiedDecisionRead,
     chart: chartIntegrityFromDossier(dossier),
     discovery,
     structures: structureFromDossier(dossier, basePrice),
     evidence: evidenceItems,
     counter: counterItems,
     riskGate: {
-      allowTradePlan: tradePlan !== null,
-      reasons: tradePlan ? [] : blockedReasons,
+      allowTradePlan: unifiedDecisionRead.canTradeNow,
+      reasons: unifiedDecisionRead.canTradeNow ? [] : blockedReasons,
     },
     strategyReadiness: buildTokenStrategyReadiness({
       blockedReasons,
       discovery,
+      unifiedDecision: unifiedDecisionRead,
       tradePlan,
     }),
     tradePlan,
@@ -4743,6 +4966,7 @@ export function buildFrontendTokenDossierContract({
       discovery,
       evidence: evidenceItems,
       tradePlan,
+      unifiedDecision: unifiedDecisionRead,
     }),
   }, dossier.found ? "live" : "empty", {
     ageSec: diffSeconds(dossier.generatedAt, now),

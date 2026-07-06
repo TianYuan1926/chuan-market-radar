@@ -51,11 +51,32 @@ test("evidence observation never becomes trade in UI layers", () => {
   assert.equal(validateUiInformationLayers(layers).ok, true);
 });
 
+test("unified decision blocks stale ready maturity in UI layers", () => {
+  const layers = buildSignalUiLayers({
+    maturity: "TRADE_PLAN_READY",
+    rr: 9,
+    whyBlocked: null,
+    unifiedDecision: {
+      canTradeNow: false,
+      decision: "BLOCKED",
+    },
+    operatorRead: {
+      headline: "计划状态待复核，暂不能交易",
+      lane: "blocked",
+    },
+  });
+
+  assert.equal(layers.l1.decision, "BLOCKED");
+  assert.equal(validateUiInformationLayers(layers).ok, true);
+});
+
 test("dashboard renders the shared four-layer block instead of raw top-level metrics only", () => {
   const source = readFileSync("src/app/dashboard/page.tsx", "utf8");
 
   assert.match(source, /UiInformationLayerBlock layers=\{dashboardLayers\}/u);
   assert.match(source, /dashboardDecision/u);
+  assert.doesNotMatch(source, /planReadyCount > 0/u);
+  assert.doesNotMatch(source, /candidateCount > 0/u);
   assert.match(source, /候选不等于计划，缓存不等于实时/u);
 });
 
