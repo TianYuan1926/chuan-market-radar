@@ -1,0 +1,21 @@
+ M CHANGELOG_FOR_CHATGPT.md
+ M PROJECT_CONTEXT_FOR_CHATGPT.md
+ M src/lib/api/backend-contract.test.ts
+ M src/lib/market/scan-asset-state.test.ts
+ M src/lib/market/scan-state-pool.test.ts
+ M src/lib/market/scan-state-pool.ts
+ M src/lib/market/types.ts
+ M tsconfig.market-test.json
+?? docs/ACCOUNT_RISK_SIMULATOR.md
+?? docs/MARKET_REGIME.md
+?? docs/MISSED_OPPORTUNITY_REVIEW.md
+?? docs/OPPORTUNITY_LIFECYCLE.md
+?? docs/UNIFIED_DECISION_ENGINE.md
+?? phase3-capability-improvement/
+?? src/lib/decision/
+?? src/lib/lifecycle/
+?? src/lib/market-regime/
+?? src/lib/review/missed-opportunity/
+?? src/lib/risk/account-risk-simulator.test.ts
+?? src/lib/risk/account-risk-simulator.ts
+?? src/lib/risk/account-risk-types.ts

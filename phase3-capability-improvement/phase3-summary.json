@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-07-06T12:12:17+08:00",
+  "modified_code": true,
+  "deployed": false,
+  "ran_formal": false,
+  "touched_database": false,
+  "git": {
+    "p1_baseline_branch": "p1-convergence-final-validation",
+    "p1_baseline_commit": "04363d58675c5fcf1439c208562e924532dc8244",
+    "phase3_branch": "phase3-capability-improvement",
+    "pushed_to_main": false,
+    "tencent_deployed": false
+  },
+  "capability": {
+    "deep_scan_priority": "pass",
+    "candidate_quality": "pass",
+    "missed_opportunity_review": "pass",
+    "wait_ready_quality": "pass",
+    "market_regime": "pass",
+    "account_risk_simulator": "pass",
+    "opportunity_lifecycle": "pass"
+  },
+  "tests": {
+    "typecheck": "pass",
+    "lint": "pass",
+    "test_market": "pass",
+    "build": "pass",
+    "backtest_golden": "pass",
+    "forbidden_files": "pass",
+    "secret_patterns": "pass",
+    "backtest_formal": "not_run"
+  },
+  "boundaries": {
+    "auto_trading_added": false,
+    "rr_lowered": false,
+    "review_mutates_production": false,
+    "frontend_generates_trade_plan": false,
+    "db_migration": false,
+    "production_deploy": false
+  },
+  "risks": {
+    "new_p0_found": false,
+    "remaining_p1_risks": [
+      "新增能力基础件尚未接入生产 API / 前端",
+      "深扫队列部分指标为估算，不是数据库真实 lastDeepScannedAt",
+      "missed opportunity / lifecycle 尚无真实样本积累"
+    ],
+    "remaining_p2_risks": [
+      "账户级风险模拟器尚未接入前端展示",
+      "市场状态识别尚未接入分析上下文",
+      "统一决策引擎尚未成为 token dossier 的唯一决策出口"
+    ]
+  },
+  "verdict": {
+    "can_enter_next_step": true,
+    "can_support_live_trading": false,
+    "next_step": "第 3.1 步：统一决策引擎接入 token dossier 后端合同"
+  }
+}

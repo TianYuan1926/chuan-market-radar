@@ -179,6 +179,7 @@ export type ScanStatePoolAssetSample = {
   baseAsset: string;
   cadenceHint: string;
   nextAction: string;
+  priorityReason: string;
   promotionBridge?: ScanPromotionBridgeSample;
   reasons: ScanStatePoolReason[];
   scannedThisRound: boolean;
@@ -230,12 +231,24 @@ export type ScanStatePoolReport = {
     anchorSlots: number;
     battleSlots: number;
     capacity: number;
+    deepScanCoveragePercent: number;
+    estimatedCycleMinutes: number;
     explorationSlots: number;
     guardrail: string;
+    highPriorityPendingCount: number;
     hotSlots: number;
+    oldestPendingAge: number;
+    pendingCount: number;
+    pendingQualitySamples: Array<{
+      baseAsset: string;
+      priorityReason: string;
+      state: ScanStatePoolKey;
+      symbol: string;
+    }>;
     queuedAssets: string[];
     reviveSlots: number;
     selectedAssets: string[];
+    skippedLowPriorityCount: number;
   };
   guardrail: string;
   lanes: ScanStatePoolLane[];

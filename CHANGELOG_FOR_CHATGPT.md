@@ -356,3 +356,56 @@ P0 阻断：
 ### 下一轮建议
 
 进入第 3 步：围绕扫描、分析、策略三大核心做实战能力提升和正式样本验证。
+
+## 2026-07-06 - 第 3 步实战能力提升
+
+### 本轮目标
+
+围绕“快速全市场扫描、发现机会、给出策略、自我提升”提升后端能力基础，不做 UI、不部署、不跑 formal、不动数据库。
+
+### 修改范围
+
+- 深扫优先级与候选质量：`src/lib/market/scan-state-pool.ts`、`src/lib/market/types.ts` 及相关测试。
+- 统一决策：新增 `src/lib/decision/unified-decision-engine.ts` 及测试。
+- 市场状态：新增 `src/lib/market-regime/market-regime.ts` 及测试。
+- 错失机会：新增 `src/lib/review/missed-opportunity/**`。
+- 机会生命周期：新增 `src/lib/lifecycle/**`。
+- 账户风险：新增 `src/lib/risk/account-risk-simulator.ts`、`account-risk-types.ts` 及测试。
+- 文档：新增 `docs/UNIFIED_DECISION_ENGINE.md`、`docs/MARKET_REGIME.md`、`docs/MISSED_OPPORTUNITY_REVIEW.md`、`docs/OPPORTUNITY_LIFECYCLE.md`、`docs/ACCOUNT_RISK_SIMULATOR.md`。
+- 证据：新增 `phase3-capability-improvement/**`。
+
+### 核心链路影响
+
+- 全市场发现：不改 WebSocket / universe / scan provider。
+- 候选筛选：新增深扫队列可观测字段和 `priorityReason`。
+- 深扫验证：不增加 API 预算，只增强 pending / coverage / cycle 证明。
+- 结构分析：新增市场状态 context 基础件，不直接给交易许可。
+- 风险赔率：新增账户级只读风险镜头，不改变 3:1 结构盈亏比。
+- 交易计划：新增统一决策引擎，锁住 WAIT / READY / BLOCKED 边界。
+- 复盘进化：新增 missed opportunity 与 lifecycle research-only 基础。
+
+### 测试结果
+
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test:market`：通过，市场核心 803 pass，worker 17 pass，historical smoke 4 pass。
+- `npm run build`：通过。
+- `npm run backtest:golden`：通过，16/16。
+- `npm run ci:forbidden-files`：通过。
+- `npm run ci:secret-patterns`：通过。
+- `npm run backtest:formal`：未运行，本轮禁止。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume。
+
+### 风险与遗留问题
+
+- 本轮未发现新 P0。
+- 本轮新增能力多为后端基础件，尚未接入生产 API / 前端展示。
+- 深扫队列部分指标是基于当前队列和 cadence 的估算，不是数据库真实 lastDeepScannedAt。
+- 当前系统仍不能支撑实战，本轮不证明候选 Top10、WAIT 转 READY 或策略命中能力已经达标。
+
+### 下一轮建议
+
+第 3.1 步：把统一决策引擎接入 token dossier 后端合同，作为计划状态唯一后端出口。

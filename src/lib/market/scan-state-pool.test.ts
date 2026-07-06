@@ -11,6 +11,28 @@ import {
 } from "./universe-registry";
 import type { ContractInstrument, DerivativeSnapshot, MarketTicker } from "./types";
 
+type DeepScanObservability = {
+  deepScanCoveragePercent: number;
+  estimatedCycleMinutes: number;
+  highPriorityPendingCount: number;
+  oldestPendingAge: number;
+  pendingCount: number;
+  pendingQualitySamples: Array<{
+    baseAsset: string;
+    priorityReason: string;
+    state: string;
+    symbol: string;
+  }>;
+  skippedLowPriorityCount: number;
+};
+
+type AssetSampleObservability = {
+  priorityReason: string;
+  selectedThisRound: boolean;
+  state: string;
+  symbol: string;
+};
+
 function instrument(
   baseAsset: string,
   overrides: Partial<ContractInstrument> = {},
@@ -134,6 +156,18 @@ test("buildScanStatePoolReport keeps the whole universe in state pools instead o
   assert.ok(report.counts.COLD >= 1);
   assert.ok(report.deepScan.selectedAssets.includes("ARB"));
   assert.ok(report.deepScan.queuedAssets.includes("OP"));
+  const deepScan = report.deepScan as typeof report.deepScan & DeepScanObservability;
+
+  assert.equal(deepScan.pendingCount, registry.assets.length - batchPlan.assets.length);
+  assert.equal(deepScan.deepScanCoveragePercent, 57.14);
+  assert.equal(deepScan.estimatedCycleMinutes, batchPlan.rotationAudit.timing.estimatedFullCycleMinutes);
+  assert.ok(deepScan.highPriorityPendingCount >= 1);
+  assert.ok(deepScan.skippedLowPriorityCount >= 0);
+  assert.ok(
+    deepScan.pendingQualitySamples.some((sample) =>
+      sample.baseAsset === "OP" && typeof sample.priorityReason === "string"
+    ),
+  );
   assert.match(report.guardrail, /不能永久删除/);
   assert.match(report.proof.notes.join(" "), /前置层不是硬漏斗/);
 });
@@ -158,7 +192,56 @@ test("buildFallbackScanStatePoolReport creates a degraded proof from coverage wi
   assert.equal(report.counts.COLD, 2);
   assert.deepEqual(report.deepScan.selectedAssets, ["BTC", "ETH"]);
   assert.deepEqual(report.deepScan.queuedAssets, ["SOL", "ARB"]);
+  const deepScan = report.deepScan as typeof report.deepScan & DeepScanObservability;
+
+  assert.equal(deepScan.deepScanCoveragePercent, 50);
+  assert.equal(deepScan.pendingCount, 2);
+  assert.equal(deepScan.oldestPendingAge, 30);
+  assert.equal(deepScan.estimatedCycleMinutes, 30);
+  assert.equal(deepScan.highPriorityPendingCount, 0);
+  assert.equal(deepScan.skippedLowPriorityCount, 2);
+  assert.equal(deepScan.pendingQualitySamples[0].priorityReason, "fallback_waiting_for_rotation");
   assert.match(report.deepScan.guardrail, /不增加请求/);
+  assert.match(report.deepScan.guardrail, /served_cache.*不等于重新完成深扫/);
+});
+
+test("buildScanStatePoolReport does not mark unselected pending assets as battle ready", () => {
+  const registry = buildUniverseRegistry(
+    ["TIA"],
+    [
+      instrument("TIA", { volume24hUsd: 120_000_000 }),
+      instrument("SUI", { volume24hUsd: 95_000_000 }),
+      instrument("ENA", { volume24hUsd: 92_000_000 }),
+    ],
+  );
+  const batchPlan = planUniverseScan(registry, 3, new Date("2026-06-19T00:00:00.000Z"), {
+    dynamicPrioritySlots: 0,
+  });
+  const report = buildScanStatePoolReport({
+    batchPlan,
+    registry,
+    signals: [
+      signal("SUIUSDT", {
+        state: "near_trigger",
+      }),
+    ],
+    tickers: [ticker("SUIUSDT", 1.2)],
+  });
+  const sui = report.assetSamples.find((sample) => sample.symbol === "SUIUSDT") as
+    | (typeof report.assetSamples[number] & AssetSampleObservability)
+    | undefined;
+
+  assert.ok(sui);
+  assert.equal(sui.selectedThisRound, false);
+  assert.equal(sui.state, "BATTLE_WATCH");
+  assert.notEqual(sui.state, "BATTLE_READY");
+  assert.equal(sui.priorityReason, "not_deep_scanned_ready_blocked");
+
+  const deepScan = report.deepScan as typeof report.deepScan & DeepScanObservability;
+
+  assert.ok(!deepScan.pendingQualitySamples.some((sample) =>
+    sample.symbol === "SUIUSDT" && sample.state === "BATTLE_READY"
+  ));
 });
 
 test("buildScanStatePoolReport exposes a read-only v2/v3 promotion bridge without mutating ranking", () => {

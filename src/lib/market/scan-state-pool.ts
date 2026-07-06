@@ -356,6 +356,62 @@ function nextActionForState(state: ScanStatePoolKey) {
   }[state];
 }
 
+function priorityReasonFor({
+  dynamicReasons,
+  reasons,
+  selectedThisRound,
+  state,
+  tier,
+}: {
+  dynamicReasons: string[];
+  reasons: ScanStatePoolReason[];
+  selectedThisRound: boolean;
+  state: ScanStatePoolKey;
+  tier?: ScanTierKey;
+}) {
+  if (!selectedThisRound && (state === "BATTLE_READY" || reasons.includes("battle_ready"))) {
+    return "not_deep_scanned_ready_blocked";
+  }
+
+  if (dynamicReasons.length > 0 || reasons.includes("dynamic_priority")) {
+    return `dynamic_priority:${dynamicReasons.join("|") || "hint"}`;
+  }
+
+  if (reasons.includes("volume_price_anomaly")) {
+    return "price_volume_anomaly";
+  }
+
+  if (reasons.includes("derivative_activity")) {
+    return "derivative_activity";
+  }
+
+  if (reasons.includes("battle_ready")) {
+    return "signal_near_trigger_after_deep_scan";
+  }
+
+  if (reasons.includes("battle_watch")) {
+    return "signal_waiting_confirmation";
+  }
+
+  if (reasons.includes("signal_candidate")) {
+    return "signal_candidate";
+  }
+
+  if (selectedThisRound) {
+    return tier === "long_tail" ? "long_tail_exploration" : "tier_rotation";
+  }
+
+  return "waiting_for_rotation";
+}
+
+function safePercent(numerator: number, denominator: number) {
+  if (denominator <= 0) {
+    return 0;
+  }
+
+  return Math.round((numerator / denominator) * 10_000) / 100;
+}
+
 function buildLane(
   id: ScanStatePoolKey,
   samples: ScanStatePoolAssetSample[],
@@ -410,21 +466,65 @@ function buildDeepScanProof(
     .map((sample) => sample.baseAsset)
     .slice(0, 12);
 
-  return {
+  const pendingSamples = samples.filter((sample) => !sample.selectedThisRound);
+  const highPriorityPendingSamples = pendingSamples.filter((sample) =>
+    sample.state === "BATTLE_READY" ||
+    sample.state === "BATTLE_WATCH" ||
+    sample.state === "CANDIDATE" ||
+    sample.state === "HOT" ||
+    sample.reasons.includes("dynamic_priority")
+  );
+  const lowPriorityPendingSamples = pendingSamples.filter((sample) =>
+    !highPriorityPendingSamples.includes(sample)
+  );
+  const estimatedCycleMinutes = batchPlan.rotationAudit.timing.estimatedFullCycleMinutes;
+  const cadenceMinutes = 15;
+  const oldestPendingAge = Math.max(
+    0,
+    Math.min(batchPlan.rotationAudit.timing.pendingNonAnchorAssets, pendingSamples.length) * cadenceMinutes,
+  );
+  const pendingQualitySamples = [...pendingSamples]
+    .sort((left, right) =>
+      Number(highPriorityPendingSamples.includes(right)) - Number(highPriorityPendingSamples.includes(left)) ||
+      stateOrder.indexOf(left.state) - stateOrder.indexOf(right.state) ||
+      left.baseAsset.localeCompare(right.baseAsset)
+    )
+    .slice(0, 12)
+    .map((sample) => ({
+      baseAsset: sample.baseAsset,
+      priorityReason: (
+        "priorityReason" in sample &&
+        typeof sample.priorityReason === "string"
+      )
+        ? sample.priorityReason
+        : sample.reasons[0] ?? "waiting_for_rotation",
+      state: sample.state,
+      symbol: sample.symbol,
+    }));
+  const deepScan = {
     anchorSlots: batchPlan.anchorAssets.length,
     battleSlots: selectedSamples.filter((sample) =>
       sample.state === "BATTLE_READY" || sample.state === "BATTLE_WATCH"
     ).length,
     capacity: batchPlan.requestsPlanned,
+    deepScanCoveragePercent: safePercent(selectedSamples.length, samples.length),
+    estimatedCycleMinutes,
     explorationSlots: selectedSamples.filter((sample) =>
       sample.state === "COLD" || sample.tier === "long_tail"
     ).length,
     guardrail: "深扫名额只来自本轮 batchPlan，不因状态池展示增加 CoinGlass 请求。",
+    highPriorityPendingCount: highPriorityPendingSamples.length,
     hotSlots: selectedSamples.filter((sample) => sample.state === "HOT").length,
+    oldestPendingAge,
+    pendingCount: pendingSamples.length,
+    pendingQualitySamples,
     queuedAssets,
     reviveSlots: 0,
     selectedAssets,
+    skippedLowPriorityCount: lowPriorityPendingSamples.length,
   };
+
+  return deepScan;
 }
 
 export function buildScanStatePoolReport({
@@ -467,7 +567,7 @@ export function buildScanStatePoolReport({
       appendReason(reasons, "dynamic_priority");
     }
 
-    const state = signal
+    const rawState = signal
       ? signalDrivenState(signal, reasons)
       : marketActivityState({
           derivative,
@@ -477,6 +577,16 @@ export function buildScanStatePoolReport({
           ticker,
           tier: asset.tier,
         });
+    const state = rawState === "BATTLE_READY" && !isSelected
+      ? "BATTLE_WATCH"
+      : rawState;
+    const priorityReason = priorityReasonFor({
+      dynamicReasons: dynamicCandidate?.reasons ?? [],
+      reasons,
+      selectedThisRound: isSelected,
+      state,
+      tier: asset.tier,
+    });
     const promotionBridge = signal
       ? buildPromotionBridgeSample({
         baseAsset: asset.baseAsset,
@@ -487,10 +597,11 @@ export function buildScanStatePoolReport({
 
     counts[state] += 1;
 
-    samples.push({
+    const sample = {
       baseAsset: asset.baseAsset,
       cadenceHint: laneCadenceHints[state],
       nextAction: nextActionForState(state),
+      priorityReason,
       promotionBridge,
       reasons,
       scannedThisRound: Boolean(ticker || signal || isSelected),
@@ -499,7 +610,9 @@ export function buildScanStatePoolReport({
       symbol,
       tier: asset.tier,
       venueCoverage: asset.venueCoverage,
-    });
+    };
+
+    samples.push(sample);
   }
 
   const coldExplorationAssets = samples
@@ -568,6 +681,35 @@ export function buildFallbackScanStatePoolReport(coverage: ScanCoverage): ScanSt
 
   const deepQueueSamples = coverage.scannedAssets.slice(0, 8);
   const coldSamples = coverage.pendingAssets.slice(0, 8);
+  const estimatedCycleMinutes = coverage.rotationAudit?.timing.estimatedFullCycleMinutes ??
+    coverage.totalBatches * 15;
+  const highPriorityPendingCount = coverage.rotationAudit?.priorityQueue.queuedCount ??
+    coverage.twoStageAllocation?.stageTwo.queuedPriorityAssets.length ??
+    0;
+  const skippedLowPriorityCount = Math.max(0, coverage.pending - highPriorityPendingCount);
+  const deepScan = {
+    anchorSlots: 0,
+    battleSlots: 0,
+    capacity: coverage.scanned,
+    deepScanCoveragePercent: coverage.coveragePercent,
+    estimatedCycleMinutes,
+    explorationSlots: 0,
+    guardrail: "缺少状态池 metadata 时，只从 coverage 构造降级证明，不增加请求；served_cache 只能说明返回缓存快照，不等于重新完成深扫。",
+    highPriorityPendingCount,
+    hotSlots: 0,
+    oldestPendingAge: Math.max(0, Math.min(coverage.pending, coldSamples.length) * 15),
+    pendingCount: coverage.pending,
+    pendingQualitySamples: coldSamples.map((baseAsset) => ({
+      baseAsset,
+      priorityReason: "fallback_waiting_for_rotation",
+      state: "COLD" as const,
+      symbol: symbolFromBaseAsset(baseAsset),
+    })),
+    queuedAssets: coldSamples,
+    reviveSlots: 0,
+    selectedAssets: deepQueueSamples,
+    skippedLowPriorityCount,
+  };
 
   return {
     assetSamples: [
@@ -575,6 +717,7 @@ export function buildFallbackScanStatePoolReport(coverage: ScanCoverage): ScanSt
         baseAsset,
         cadenceHint: laneCadenceHints.DEEP_QUEUE,
         nextAction: nextActionForState("DEEP_QUEUE"),
+        priorityReason: "fallback_coverage_selected",
         reasons: ["tier_rotation"] as ScanStatePoolReason[],
         scannedThisRound: true,
         selectedThisRound: true,
@@ -585,6 +728,7 @@ export function buildFallbackScanStatePoolReport(coverage: ScanCoverage): ScanSt
         baseAsset,
         cadenceHint: laneCadenceHints.COLD,
         nextAction: nextActionForState("COLD"),
+        priorityReason: "fallback_waiting_for_rotation",
         reasons: ["light_scan_pending"] as ScanStatePoolReason[],
         scannedThisRound: false,
         selectedThisRound: false,
@@ -593,17 +737,7 @@ export function buildFallbackScanStatePoolReport(coverage: ScanCoverage): ScanSt
       })),
     ],
     counts,
-    deepScan: {
-      anchorSlots: 0,
-      battleSlots: 0,
-      capacity: coverage.scanned,
-      explorationSlots: 0,
-      guardrail: "缺少状态池 metadata 时，只从 coverage 构造降级证明，不增加请求。",
-      hotSlots: 0,
-      queuedAssets: coldSamples,
-      reviveSlots: 0,
-      selectedAssets: deepQueueSamples,
-    },
+    deepScan,
     guardrail: "状态池降级报告只解释 coverage，不做交易判断。",
     lanes: [
       fallbackLane("DEEP_QUEUE", coverage.scanned, coverage.scanned, deepQueueSamples),

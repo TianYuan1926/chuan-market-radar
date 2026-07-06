@@ -563,6 +563,48 @@ GitHub Actions / self-hosted runner：
 
 进入第 3 步实战能力提升，只围绕扫描、分析、策略三大核心做正式样本验证和能力提升。
 
+## 2026-07-06 第 3 步实战能力提升
+
+本节记录 2026-07-06 本地能力提升状态。该轮只做后端能力基础件和测试保护；不改 UI、不部署、不运行 formal、不动数据库、不同步腾讯云。
+
+结论：
+
+- 当前系统仍不能支撑实战。
+- 本轮发现新 P0：否。
+- 是否 push main：否。
+- 是否部署腾讯云：否。
+- 是否可进入下一步受控接线：可以。
+
+本轮已完成的本地能力基础：
+
+- 深扫队列和候选质量证明增强：`deepScanCoveragePercent`、`pendingCount`、`oldestPendingAge`、`estimatedCycleMinutes`、`highPriorityPendingCount`、`skippedLowPriorityCount`、`priorityReason`。
+- 统一决策引擎：把后端 v3 trade plan 归一化为 `OBSERVE / WAIT / BLOCKED / TRADE_PLAN_READY`，并要求 READY 必须满足后端 maturity、结构止损、目标、入场、RR >= 3 和无 blocker。
+- 市场状态识别：新增 `TREND_UP / TREND_DOWN / RANGE / HIGH_VOLATILITY / LOW_LIQUIDITY / RISK_OFF / ALT_ROTATION / UNKNOWN`，只作为 `market_context_only`。
+- 错失机会复盘：新增 research-only missed opportunity 归因，覆盖 scan、light scan、deep scan、analysis、strategy、data source、market regime、frontend 等错失原因。
+- 机会生命周期：新增 research-only lifecycle，从 `DISCOVERED` 到 `OUTCOME_REVIEWED`，禁止 outcome 回写 production ranking。
+- 账户级风险模拟器：按 1500 USDT、3% 初始保证金、BTC/ETH 150x、山寨币交易所最高杠杆做只读风险镜头，不改变结构 RR 和策略门禁。
+
+测试结果：
+
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test:market`：通过，市场核心 803 pass，worker 17 pass，historical smoke 4 pass。
+- `npm run build`：通过。
+- `npm run backtest:golden`：通过，16/16。
+- `npm run ci:forbidden-files`：通过。
+- `npm run ci:secret-patterns`：通过。
+- `npm run backtest:formal`：未运行，本轮禁止。
+
+仍需说明：
+
+- 本轮新增能力多为后端基础件，尚未接入生产 API / 前端展示。
+- 本轮不证明真实市场样本下的候选 Top10、WAIT 转 READY 或策略命中能力。
+- 本轮不证明腾讯云生产已同步。
+
+下一轮优先级：
+
+进入第 3.1 步：把统一决策引擎接入 token dossier 后端合同，作为计划状态的唯一后端出口；仍不改 UI 美观、不改 scan 排序、不部署。
+
 ## 附录 A：核心相关文档清单
 
 建议外部审计员优先阅读这些文档，而不是一次性读完整 docs：
