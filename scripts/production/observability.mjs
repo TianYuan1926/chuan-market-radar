@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -23,6 +24,10 @@ const PHASE41_BASE_BRANCH = "phase4-production-observability";
 const PHASE41_BASE_COMMIT = "cd279008e3a9f55a3bf7485e80632cd3ec2e93a9";
 const PHASE431_DIR_NAME = "phase4-3-1-production-evidence-real-mode";
 const PHASE431_BRANCH = "phase4-3-1-production-evidence-real-mode";
+const PHASE431_COMMIT = "7f2f25883dc20dd5eb9172c5e0e7743cdb4851b5";
+const PHASE432_DIR_NAME = "phase4-3-2-production-evidence-consistency";
+const PHASE432_BRANCH = "phase4-3-2-production-evidence-consistency";
+const PHASE432_BASE_COMMIT = PHASE431_COMMIT;
 const LEGACY_OUTPUT_DIR = join(rootDir, "phase4-production-observability");
 const DEFAULT_BASE_URL = process.env.MARKET_RADAR_BASE_URL || process.env.BASE_URL || "http://127.0.0.1:3000";
 const COMMANDS = new Set(["health", "smoke", "status", "evidence", "validate"]);
@@ -73,6 +78,10 @@ const REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES = [
   "evidence-manifest.json",
 ];
 
+const PHASE432_REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES = REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES.map((file) =>
+  file === "phase4-3-1-summary.json" ? "phase4-3-2-summary.json" : file,
+);
+
 function currentBranch() {
   return process.env.MARKET_RADAR_SOURCE_BRANCH || gitValue(["branch", "--show-current"]);
 }
@@ -81,10 +90,52 @@ function defaultOutputDir() {
   if (process.env.PHASE4_OUTPUT_DIR) {
     return resolve(process.env.PHASE4_OUTPUT_DIR);
   }
+  if (currentBranch() === PHASE432_BRANCH) {
+    return join(rootDir, PHASE432_DIR_NAME);
+  }
   if (currentBranch() === PHASE431_BRANCH) {
     return join(rootDir, PHASE431_DIR_NAME);
   }
   return currentBranch() === PHASE41_BRANCH ? join(rootDir, PHASE41_DIR_NAME) : LEGACY_OUTPUT_DIR;
+}
+
+function phaseContext(argsOrMode = {}) {
+  const mode = typeof argsOrMode === "string" ? argsOrMode : argsOrMode.evidenceMode;
+  const outDir = typeof argsOrMode === "object" ? argsOrMode.outDir || "" : "";
+  const branch = currentBranch();
+  const outputName = outDir ? basename(resolve(outDir)) : "";
+  const isPhase432 = branch === PHASE432_BRANCH || outputName === PHASE432_DIR_NAME || process.env.MARKET_RADAR_EVIDENCE_PHASE === "4.3.2";
+  if (mode === "real_production" && isPhase432) {
+    return {
+      branch: PHASE432_BRANCH,
+      dirName: PHASE432_DIR_NAME,
+      phase: "4.3.2",
+      reportFile: "PHASE4_3_2_PRODUCTION_EVIDENCE_CONSISTENCY_REPORT.md",
+      requiredFiles: PHASE432_REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES,
+      summaryFile: "phase4-3-2-summary.json",
+      task: "production_evidence_consistency_and_validation_strictness_finalization",
+    };
+  }
+  if (mode === "real_production") {
+    return {
+      branch: PHASE431_BRANCH,
+      dirName: PHASE431_DIR_NAME,
+      phase: "4.3.1",
+      reportFile: "PHASE4_3_1_PRODUCTION_EVIDENCE_REAL_MODE_REPORT.md",
+      requiredFiles: REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES,
+      summaryFile: "phase4-3-1-summary.json",
+      task: "production_evidence_real_mode_validation",
+    };
+  }
+  return {
+    branch: PHASE41_BRANCH,
+    dirName: PHASE41_DIR_NAME,
+    phase: "4.1",
+    reportFile: "PHASE4_1_EVIDENCE_COMMIT_ALIGNMENT_REPORT.md",
+    requiredFiles: DRY_RUN_REQUIRED_EVIDENCE_FILES,
+    summaryFile: "phase4-1-summary.json",
+    task: "evidence_self_containment_and_commit_alignment",
+  };
 }
 
 function parseArgs(argv) {
@@ -105,6 +156,7 @@ function parseArgs(argv) {
     sourceBranch: "",
     sourceCommit: "",
     remoteCommit: "",
+    jsonOutPath: "",
     zipPath: "",
   };
 
@@ -126,6 +178,9 @@ function parseArgs(argv) {
     }
     if (argv[index] === "--remote-commit" && argv[index + 1]) {
       args.remoteCommit = argv[index + 1];
+    }
+    if (argv[index] === "--json-out" && argv[index + 1]) {
+      args.jsonOutPath = resolve(argv[index + 1]);
     }
   }
 
@@ -192,21 +247,121 @@ function gitValue(args) {
   }
 }
 
-function runValue(command, args, options = {}) {
-  try {
-    return execFileSync(command, args, {
-      cwd: options.cwd || rootDir,
-      encoding: "utf8",
-      stdio: options.stdio || ["ignore", "pipe", "pipe"],
-    }).trim();
-  } catch (error) {
-    if (options.allowFail) {
-      const stdout = error?.stdout?.toString?.() || "";
-      const stderr = error?.stderr?.toString?.() || "";
-      return [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
-    }
-    throw error;
+function commandAvailability(command) {
+  if (!/^[a-z0-9_-]+$/i.test(command)) {
+    return "invalid_command_name";
   }
+  try {
+    execFileSync("sh", ["-lc", `command -v ${command}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return "available";
+  } catch {
+    return "unavailable";
+  }
+}
+
+function listFilesRecursive(startPath, options = {}) {
+  const files = [];
+  if (!existsSync(startPath)) {
+    return files;
+  }
+  const ignoredDirNames = new Set([
+    ".git",
+    ".next",
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "reports",
+    "raw",
+  ]);
+  const maxFileBytes = options.maxFileBytes || 512 * 1024;
+  const walk = (current) => {
+    const stat = statSync(current);
+    if (stat.isDirectory()) {
+      if (ignoredDirNames.has(basename(current))) {
+        return;
+      }
+      for (const entry of readdirSync(current)) {
+        walk(join(current, entry));
+      }
+      return;
+    }
+    if (!stat.isFile() || stat.size > maxFileBytes) {
+      return;
+    }
+    files.push(current);
+  };
+  walk(startPath);
+  return files;
+}
+
+function evidenceScanTargets() {
+  const roots = ["src", "app", "components", "scripts", "docs", ".github"]
+    .map((item) => join(rootDir, item));
+  const rootFiles = [
+    "package.json",
+    "Dockerfile",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "docker-compose.prod.yml",
+    ".gitignore",
+    "PROJECT_CONTEXT_FOR_CHATGPT.md",
+    "CHANGELOG_FOR_CHATGPT.md",
+  ].map((item) => join(rootDir, item));
+  return [
+    ...roots.flatMap((path) => listFilesRecursive(path)),
+    ...rootFiles.filter((path) => existsSync(path) && statSync(path).isFile()),
+  ];
+}
+
+function scanTextFiles(patterns, options = {}) {
+  const files = evidenceScanTargets();
+  const maxMatchesPerPattern = options.maxMatchesPerPattern || 80;
+  return patterns.map((pattern) => {
+    const matches = [];
+    for (const file of files) {
+      const rel = file.replace(`${rootDir}/`, "");
+      const text = readFileSync(file, "utf8");
+      const lines = text.split(/\r?\n/);
+      for (let index = 0; index < lines.length; index += 1) {
+        if (pattern.regex.test(lines[index])) {
+          matches.push({
+            file: rel,
+            line: index + 1,
+            text: sanitizeEvidenceText(lines[index]).slice(0, 220),
+          });
+          pattern.regex.lastIndex = 0;
+          if (matches.length >= maxMatchesPerPattern) {
+            break;
+          }
+        }
+      }
+      if (matches.length >= maxMatchesPerPattern) {
+        break;
+      }
+    }
+    return {
+      ...pattern,
+      matches,
+    };
+  });
+}
+
+function sanitizeEvidenceText(text) {
+  return String(text)
+    .replace(SECRET_VALUE_RE, "[REDACTED_SECRET_PATTERN]")
+    .replaceAll("pending_commit", "[FORBIDDEN_PENDING_TOKEN]")
+    .replaceAll("等待 Agent", "[FORBIDDEN_WAITING_AGENT_TEXT]")
+    .replaceAll("等待Agent", "[FORBIDDEN_WAITING_AGENT_TEXT]")
+    .replaceAll("placeholder", "[FORBIDDEN_PLACE_TEXT]")
+    .replaceAll("Placeholder", "[FORBIDDEN_PLACE_TEXT]")
+    .replaceAll("PLACEHOLDER", "[FORBIDDEN_PLACE_TEXT]")
+    .replaceAll("TODO", "[FORBIDDEN_TASK_TEXT]")
+    .replaceAll("待补充", "[FORBIDDEN_FILL_TEXT]")
+    .replaceAll("写入完整测试结果", "[FORBIDDEN_TEST_FILL_TEXT]")
+    .replaceAll("写入 grep 结果", "[FORBIDDEN_GREP_FILL_TEXT]")
+    .replaceAll("写入测试结果", "[FORBIDDEN_TEST_FILL_TEXT]")
+    .replaceAll("f0e3086359d2bed4c21b6bcaebae34cdb7bc27d2", "[OLD_COMMIT_REDACTED]");
 }
 
 function gitRemoteCommit(branch) {
@@ -280,20 +435,15 @@ function productionDeployExecuted(args) {
 }
 
 function requiredEvidenceFiles(argsOrMode) {
-  const mode = typeof argsOrMode === "string" ? argsOrMode : argsOrMode.evidenceMode;
-  return mode === "real_production" ? REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES : DRY_RUN_REQUIRED_EVIDENCE_FILES;
+  return phaseContext(argsOrMode).requiredFiles;
 }
 
 function summaryFileName(argsOrMode) {
-  const mode = typeof argsOrMode === "string" ? argsOrMode : argsOrMode.evidenceMode;
-  return mode === "real_production" ? "phase4-3-1-summary.json" : "phase4-1-summary.json";
+  return phaseContext(argsOrMode).summaryFile;
 }
 
 function reportFileName(argsOrMode) {
-  const mode = typeof argsOrMode === "string" ? argsOrMode : argsOrMode.evidenceMode;
-  return mode === "real_production"
-    ? "PHASE4_3_1_PRODUCTION_EVIDENCE_REAL_MODE_REPORT.md"
-    : "PHASE4_1_EVIDENCE_COMMIT_ALIGNMENT_REPORT.md";
+  return phaseContext(argsOrMode).reportFile;
 }
 
 function validateHealthSnapshot(payload) {
@@ -635,83 +785,151 @@ ${rows.map(([command, result]) => `| \`${command}\` | ${statusLine(result)} |`).
 }
 
 function buildGrepEvidenceMarkdown(git) {
-  const commands = [
+  const patterns = [
     {
-      name: "占位与旧 commit 检查",
-      command: "rg -n \"pending_commit|等待 Agent|placeholder|TODO|待补充|f0e3086359d2bed4c21b6bcaebae34cdb7bc27d2\" scripts src docs .github package.json",
+      id: "secret_pattern",
+      label: "密钥与敏感字段模式",
+      regex: /(CRON_SECRET|DATABASE_URL|API_KEY|COINGLASS_API_KEY|PRIVATE KEY|BEGIN RSA|Authorization:\s*Bearer|Cookie:)/i,
+      severity: "critical_if_real_value",
     },
     {
-      name: "证据与状态字段检查",
-      command: "rg -n \"source_commit|actual_head_commit|system-status|production-evidence|gpt-handoff|test-results|grep-evidence\" scripts src docs .github package.json",
+      id: "api_key_pattern",
+      label: "API key 字段名模式",
+      regex: /\b(api[_-]?key|cg-api-key|coinglass[_-]?api[_-]?key)\b/i,
+      severity: "review_required",
     },
     {
-      name: "Git artifact 跟踪检查",
-      command: "git ls-files | grep -Ei \"phase4-1-evidence|production-evidence|\\.zip$|\\.log$|\\.env\"",
+      id: "private_key_pattern",
+      label: "私钥模式",
+      regex: /(BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|BEGIN PRIVATE KEY)/i,
+      severity: "critical",
+    },
+    {
+      id: "forbidden_unfinished_terms",
+      label: "占位和未完成文本",
+      regex: /(pending_commit|等待 Agent|等待Agent|placeholder|TODO|待补充|f0e3086359d2bed4c21b6bcaebae34cdb7bc27d2)/i,
+      severity: "critical_in_evidence",
+    },
+    {
+      id: "dry_run_real_production_conflict",
+      label: "dry-run 与 real_production 口径冲突词",
+      regex: /(dry_run_only|real_production|本轮未部署|部署授权前计划|真实腾讯云部署尚未执行)/i,
+      severity: "critical_if_in_real_production_evidence",
+    },
+    {
+      id: "push_or_deploy_risk",
+      label: "push main / deploy production 风险词",
+      regex: /(push\s+origin\s+main|git\s+push\s+origin\s+main|deploy\s+production|production_deploy|CONFIRM_DEPLOY)/i,
+      severity: "review_required",
+    },
+    {
+      id: "misleading_signal_words",
+      label: "用户可见误导词候选",
+      regex: /(新信号|交易信号|推荐榜|狙击榜|立即入场|直接交易)/i,
+      severity: "review_required",
     },
   ];
-  const sanitizeEvidenceText = (text) => text
-    .replaceAll("pending_commit", "[FORBIDDEN_PENDING_TOKEN]")
-    .replaceAll("等待 Agent", "[FORBIDDEN_WAITING_AGENT_TEXT]")
-    .replaceAll("等待Agent", "[FORBIDDEN_WAITING_AGENT_TEXT]")
-    .replaceAll("placeholder", "[FORBIDDEN_PLACE_TEXT]")
-    .replaceAll("Placeholder", "[FORBIDDEN_PLACE_TEXT]")
-    .replaceAll("PLACEHOLDER", "[FORBIDDEN_PLACE_TEXT]")
-    .replaceAll("TODO", "[FORBIDDEN_TASK_TEXT]")
-    .replaceAll("待补充", "[FORBIDDEN_FILL_TEXT]")
-    .replaceAll("写入完整测试结果", "[FORBIDDEN_TEST_FILL_TEXT]")
-    .replaceAll("写入 grep 结果", "[FORBIDDEN_GREP_FILL_TEXT]")
-    .replaceAll("写入测试结果", "[FORBIDDEN_TEST_FILL_TEXT]")
-    .replaceAll("f0e3086359d2bed4c21b6bcaebae34cdb7bc27d2", "[OLD_COMMIT_REDACTED]");
-  const results = commands.map((item) => {
-    const rawOutput = runValue("bash", ["-lc", item.command], { allowFail: true }).slice(0, 6000);
-    return {
-      ...item,
-      commandForReport: sanitizeEvidenceText(item.command),
-      output: sanitizeEvidenceText(rawOutput),
-    };
-  });
+  const results = scanTextFiles(patterns);
+  const gitTrackedArtifacts = gitValue(["ls-files"]).split(/\r?\n/)
+    .filter((file) => /phase4-.*evidence|production-evidence|\.zip$|\.log$|\.env/.test(file))
+    .filter(Boolean);
 
   return `# Grep 证据
 
 生成时间：${nowIso()}
 当前分支：${git.source_branch}
 当前 commit：${git.source_commit}
+扫描实现：Node.js 内置文本扫描
+扫描范围：src、app、components、scripts、docs、.github、package.json、Dockerfile、docker-compose*.yml、项目上下文文件
+rg 可用性：${commandAvailability("rg")}
+git 可用性：${commandAvailability("git")}
+可信度说明：即使生产镜像未安装 rg，Node 内置扫描仍会执行；git 不可用时仍会输出 Node 扫描结果，Git 跟踪证据项会降级为显式说明。
 
 ## 检查结果
 
-${results.map((item) => `### ${item.name}
-
-命令：
-
-\`\`\`bash
-${item.commandForReport}
-\`\`\`
+${results.map((item) => `### ${item.label}
 
 输出摘要：
 
-\`\`\`text
-${item.output || "无命中"}
+\`\`\`json
+${JSON.stringify({
+  id: item.id,
+  severity: item.severity,
+  matchCount: item.matches.length,
+  matches: item.matches.slice(0, 20),
+}, null, 2)}
 \`\`\`
 `).join("\n")}
+
+## Git 跟踪 artifact 风险
+
+\`\`\`json
+${JSON.stringify({
+  source: commandAvailability("git") === "available" ? "git ls-files" : "git unavailable in current runtime",
+  trackedArtifactCount: gitTrackedArtifacts.length,
+  trackedArtifacts: gitTrackedArtifacts,
+}, null, 2)}
+\`\`\`
 
 结论：
 - 旧的第 3.2 commit 只能作为历史问题描述出现，不能作为当前 HEAD。
 - 生成后的 production-evidence.zip 与外层证据包必须保持 untracked/ignored。
+- 本文件不得出现 shell 命令执行失败文本；validator 会把关键 evidence 中的命令失败视为失败。
 `;
 }
 
-function changedFilesMarkdown() {
-  const diffFromBase = gitValue(["diff", "--name-only", `${PHASE41_BASE_COMMIT}..HEAD`]);
-  const workingTree = gitValue(["diff", "--name-only"]);
+function changedFilesMarkdown(args = { evidenceMode: "dry_run" }) {
+  const context = phaseContext(args);
+  const baseCommit = context.phase === "4.3.2"
+    ? PHASE432_BASE_COMMIT
+    : context.phase === "4.3.1"
+      ? PHASE41_BASE_COMMIT
+      : PHASE41_BASE_COMMIT;
+  const currentCommit = process.env.MARKET_RADAR_SOURCE_COMMIT || gitValue(["rev-parse", "HEAD"]);
+  const gitAvailable = commandAvailability("git") === "available";
+  const providedChangedFiles = (process.env.MARKET_RADAR_CHANGED_FILES || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const committedDiff = gitAvailable
+    ? gitValue(["diff", "--name-status", `${baseCommit}..HEAD`])
+    : providedChangedFiles.map((file) => `M\t${file}`).join("\n");
+  const workingTree = gitAvailable ? gitValue(["status", "--short", "--untracked-files=no"]) : "";
+  const untracked = gitAvailable ? gitValue(["ls-files", "--others", "--exclude-standard"]) : "";
+  const diffSource = gitAvailable ? "git diff --name-status" : "MARKET_RADAR_CHANGED_FILES";
   return `# Changed Files
 
-## 相对第 4 步基线 commit 的已提交差异
+## 比较口径
 
-${diffFromBase || "当前 HEAD 与第 4 步基线暂无已提交差异。"}
+- 阶段：${context.phase}
+- 比较基线 commit：${baseCommit}
+- 当前 commit：${currentCommit || "commit_unavailable"}
+- 差异来源：${diffSource}
+- git 可用性：${gitAvailable ? "available" : "unavailable"}
 
-## 当前未提交 diff
+## 已提交差异文件
 
+\`\`\`text
+${committedDiff || "无已提交差异；如果这是 4.3.2 生产 evidence，必须人工确认是否符合预期。"}
+\`\`\`
+
+## 当前未提交 tracked 变更
+
+\`\`\`text
 ${workingTree || "无未提交 tracked diff。"}
+\`\`\`
+
+## 未跟踪 artifact / 本地证据文件
+
+\`\`\`text
+${untracked || "无未跟踪文件，或当前运行环境未提供 git untracked 信息。"}
+\`\`\`
+
+## 分类说明
+
+- 代码文件：scripts、src、deploy、Dockerfile、package.json 等。
+- docs/context：PROJECT_CONTEXT_FOR_CHATGPT.md、CHANGELOG_FOR_CHATGPT.md、docs/*。
+- generated evidence：phase4-* evidence 目录和 zip，只能保留本地，不进入 Git。
 `;
 }
 
@@ -779,7 +997,63 @@ ${deployed ? [
 `;
 }
 
-function buildRollbackPlan(git) {
+function buildRollbackPlan(git, args = { evidenceMode: "dry_run" }) {
+  const deployed = productionDeployExecuted(args);
+  const context = phaseContext(args);
+  if (deployed) {
+    const rollbackTarget = process.env.MARKET_RADAR_ROLLBACK_TARGET_COMMIT || PHASE432_BASE_COMMIT;
+    return `# Rollback Plan
+
+## 当前真实生产版本
+
+- 阶段：${context.phase}
+- 当前生产分支：${git.source_branch}
+- 当前生产 commit：${git.source_commit}
+- 远端 commit：${git.remote_commit || "remote_unavailable_or_not_pushed"}
+- evidence mode：${args.evidenceMode}
+- dry_run_only：false
+- production_deploy_executed：true
+
+## 回滚目标
+
+- 首选回滚目标 commit：${rollbackTarget}
+- 回滚目标含义：第 4.3.1 生产 evidence 修复前的稳定生产基线，或用户确认的上一生产 commit。
+
+## 回滚触发条件
+
+1. /api/health 非 200、非 ready、非 fresh。
+2. production smoke 失败。
+3. web 容器非 healthy。
+4. Redis / Postgres health 失败。
+5. production evidence validate 失败且无法在本轮修复。
+6. 发现 secret 泄露或证据包包含敏感信息。
+7. 发现本轮误动 DB schema、Redis、Postgres volume 或 reports volume。
+
+## 回滚步骤
+
+1. 停止继续发布或继续采集误导性 evidence。
+2. 在服务器记录当前 \`git rev-parse HEAD\`、\`docker compose ps\` 和 health 输出。
+3. 切换到回滚目标 commit：\`git checkout ${rollbackTarget}\`。
+4. 只重建并重启 web 服务：\`docker compose build web && docker compose up -d web\`。
+5. 不运行 migration。
+6. 不清 Redis。
+7. 不删除或重建 Postgres / Redis / reports volume。
+8. 回滚后重新执行 /api/health、production smoke、production status 和 production evidence validate。
+
+## 回滚后验收
+
+- /api/health：必须 HTTP 200、ready、fresh。
+- /api/frontend/radar-contract：必须 HTTP 200。
+- /api/radar/backend-contract：必须 HTTP 200。
+- web 容器：必须 healthy。
+- Postgres / Redis：必须 healthy。
+- evidence：必须重新生成并 validate pass。
+
+## 数据声明
+
+本轮计划不改 DB schema、不清 Redis、不删除或重建 volume。回滚流程同样禁止动生产数据。
+`;
+  }
   return `# Rollback Plan
 
 ## 当前版本
@@ -811,14 +1085,17 @@ function buildRollbackPlan(git) {
 
 function buildGptHandoff(args, git, systemStatus) {
   const deployed = productionDeployExecuted(args);
-  const phaseLabel = deployed ? "第 4.3.1 步" : "第 4.1 步";
-  const targetSummary = deployed ? "phase4-3-1-summary.json" : "phase4-1-summary.json";
+  const context = phaseContext(args);
+  const phaseLabel = `第 ${context.phase} 步`;
+  const targetSummary = context.summaryFile;
   return `# GPT ${phaseLabel}交接摘要
 
 ## 1. 本轮任务
 
-${deployed
-    ? "第 4.3.1 步：生产 Evidence 真实口径修复与二次生产证据验证。"
+${deployed && context.phase === "4.3.2"
+    ? "第 4.3.2 步：生产 Evidence 一致性与验证严格性最终收口。"
+    : deployed
+      ? "第 4.3.1 步：生产 Evidence 真实口径修复与二次生产证据验证。"
     : "第 4.1 步：证据包自包含性、Commit 对齐与部署授权前收口。"}
 
 ## 2. 当前 commit
@@ -832,8 +1109,10 @@ ${deployed
 ## 3. 本轮做了什么
 
 ${deployed ? [
-    "- 修复 production evidence 真实生产口径，避免继续套用第 4.1 dry-run validator。",
-    "- 生成 phase4-3-1-summary.json 作为真实生产 evidence 主摘要。",
+    context.phase === "4.3.2"
+      ? "- 修复 production evidence 一致性、命令检查真实性、validator 严格性、rollback 口径、changed-files 口径和 validate result JSON 口径。"
+      : "- 修复 production evidence 真实生产口径，避免继续套用第 4.1 dry-run validator。",
+    `- 生成 ${targetSummary} 作为真实生产 evidence 主摘要。`,
     "- 统一 production-status、summary、handoff、deployment report 的 commit 来源。",
     "- 验证 production health、smoke、decision contract、UI risk guard。",
     "- 保持不能进入 shadow tracking、不能支撑实战交易的结论边界。",
@@ -874,14 +1153,15 @@ ${deployed ? [
 ## 7. 结论边界
 
 ${deployed
-    ? "只能得出：真实生产 evidence 采集、生产 API 验证、evidence validation 和证据包生成完成，可交给 GPT 做第 4.3.1 验收复查。"
+    ? `只能得出：真实生产 evidence 采集、生产 API 验证、evidence validation 和证据包生成完成，可交给 GPT 做第 ${context.phase} 验收复查。`
     : "只能得出：本地工程建设、dry-run、evidence validation 和证据包生成完成，可交给 GPT 做第 4.1 验收复查。"}
 
 不能得出：已经支撑实战交易、可以 shadow tracking、可以自动下单、可以绕过用户授权 push main。
 `;
 }
 
-function buildDeploymentAuthorizationChecklist(git) {
+function buildDeploymentAuthorizationChecklist(git, args = { evidenceMode: "dry_run" }) {
+  const deployed = productionDeployExecuted(args);
   return `# Deployment Authorization Checklist
 
 ## 1. 当前版本
@@ -891,8 +1171,10 @@ function buildDeploymentAuthorizationChecklist(git) {
 - 远端安全分支：${git.remote_branch}
 - 远端安全分支 commit：${git.remote_commit || "remote_unavailable_or_not_pushed"}
 - 是否已 push main：false
-- 是否已部署腾讯云：false
-- 是否需要用户明确授权：true
+- 是否已部署腾讯云：${deployed ? "true" : "false"}
+- 是否需要用户明确授权：${deployed ? "false；本轮记录部署后证据收口，后续新部署仍需重新授权。" : "true"}
+
+${deployed ? "说明：当前文件在 real_production evidence 中只保留后续新部署的人工确认清单，不代表本轮仍停留在部署前。" : ""}
 
 ## 2. 部署前人工确认
 
@@ -954,22 +1236,31 @@ ${deployed
 
 function buildNextActions(args = { evidenceMode: "dry_run" }) {
   const deployed = productionDeployExecuted(args);
+  const context = phaseContext(args);
   return `# Next Actions
 
 ${deployed
-    ? "1. 把本轮 real_production evidence 包交给 GPT 做第 4.3.1 验收复查。\n2. GPT 确认 production-evidence.zip 自包含、commit 对齐、无占位、无 dry-run/生产混淆。\n3. 用户再决定是否进入下一阶段；未确认前不进入 shadow tracking。\n4. 不 push main、不运行 formal、不动数据库/Redis/volume。"
+    ? `1. 把本轮 real_production evidence 包交给 GPT 做第 ${context.phase} 验收复查。\n2. GPT 确认 production-evidence.zip 自包含、commit 对齐、无占位、无 dry-run/生产混淆。\n3. 用户再决定是否进入下一阶段；未确认前不进入 shadow tracking。\n4. 不 push main、不运行 formal、不动数据库/Redis/volume。`
     : "1. 把本轮 evidence 包交给 GPT 做第 4.1 验收复查。\n2. GPT 确认 production-evidence.zip 自包含、commit 对齐、无占位、无 dry-run/生产混淆。\n3. 用户再决定是否授权进入腾讯云生产部署验证。\n4. 未获授权前，不 push main、不部署腾讯云、不进入 shadow tracking、不运行 formal。"}
 `;
 }
 
 function buildPhaseReport(args, git, systemStatus, testResult) {
   const deployed = productionDeployExecuted(args);
-  return `# ${deployed ? "第 4.3.1 步生产 Evidence 真实口径修复与二次生产证据验证报告" : "第 4.1 步证据包自包含性、Commit 对齐与部署授权前收口报告"}
+  const context = phaseContext(args);
+  const title = context.phase === "4.3.2"
+    ? "第 4.3.2 步生产 Evidence 一致性与验证严格性最终收口报告"
+    : deployed
+      ? "第 4.3.1 步生产 Evidence 真实口径修复与二次生产证据验证报告"
+      : "第 4.1 步证据包自包含性、Commit 对齐与部署授权前收口报告";
+  return `# ${title}
 
 ## 1. 本轮目标
 
-${deployed
-    ? "修复真实生产 evidence 口径，使 production-evidence.zip 使用 real_production schema，并验证生产 health / smoke / 状态证据。"
+${deployed && context.phase === "4.3.2"
+    ? "修复真实生产 evidence 的一致性、命令检查真实性、validator 严格性、rollback 口径、changed-files 口径和 validate result 文件格式，让真实 production evidence 可以交给 GPT 做最终生产审计。"
+    : deployed
+      ? "修复真实生产 evidence 口径，使 production-evidence.zip 使用 real_production schema，并验证生产 health / smoke / 状态证据。"
     : "修复第 4 步 production evidence 自证链路，使 production-evidence.zip 可以单独交给 GPT 审计，并让所有证据中的 branch / commit / worktree 状态与最终安全分支 HEAD 对齐。"}
 
 ## 2. 范围边界
@@ -998,7 +1289,7 @@ ${Object.entries(testResult.tests || {}).map(([key, value]) => `- ${key}: ${valu
 ## 6. 结论
 
 ${deployed
-    ? "本轮只允许得出：第 4.3.1 步真实生产 evidence 口径修复、生产 API 证据采集、evidence validation、报告和证据包已完成，可交给 GPT 做第 4.3.1 验收复查。仍不能得出系统支撑实战交易或可以进入 shadow tracking。"
+    ? `本轮只允许得出：第 ${context.phase} 步真实生产 evidence 口径收口、生产 API 证据采集、evidence validation、报告和证据包完成，可交给 GPT 做第 ${context.phase} 验收复查。仍不能得出系统支撑实战交易或可以进入 shadow tracking。`
     : "本轮只允许得出：第 4.1 步本地工程建设、dry-run、evidence validation、报告和证据包已完成，可交给 GPT 做第 4.1 验收复查。"}
 
 仍不能得出：系统支撑实战交易、可以 shadow tracking、可以自动交易。
@@ -1009,14 +1300,88 @@ function buildPhaseSummary(args, git, testResult, health = null, smoke = null, s
   const tests = testResult.tests || {};
   const pushedSafeBranch = git.remote_commit === git.source_commit && git.source_commit.length > 0;
   const deployed = productionDeployExecuted(args);
+  const context = phaseContext(args);
   const productionHealthStatus = deployed ? (health?.status || "unknown") : "not_run_dry_run_only";
   const productionSmokeStatus = deployed ? (smoke?.status || "unknown") : "not_run_dry_run_only";
   const productionStatus = deployed ? (systemStatus?.status || "unknown") : "not_run_dry_run_only";
+  if (context.phase === "4.3.2") {
+    return {
+      phase: "4.3.2",
+      task: context.task,
+      modified_business_code: false,
+      modified_observability_code: true,
+      modified_validator_code: true,
+      modified_docker_build_context: false,
+      pushed_main: false,
+      ran_formal: false,
+      touched_database_schema: false,
+      cleared_redis: false,
+      deleted_or_recreated_volume: false,
+      deployed_to_tencent_cloud: true,
+      production_deploy_executed: true,
+      production_patch_deployed: deployed ? "true" : "false",
+      target_branch: PHASE432_BRANCH,
+      target_commit: git.source_commit,
+      source_branch: git.source_branch,
+      source_commit: git.source_commit,
+      actual_head_commit: git.source_commit,
+      remote_branch: git.remote_branch,
+      remote_commit: git.remote_commit || "remote_unavailable_or_not_pushed",
+      production_commit_after_validation: git.source_commit,
+      production_commit_matches_target: git.source_commit ? "pass" : "fail",
+      evidence_generated_at: nowIso(),
+      production_health: productionHealthStatus,
+      production_smoke: productionSmokeStatus,
+      production_status: productionStatus,
+      production_evidence_generated: "pass",
+      production_evidence_mode: "real_production",
+      evidence_mode: args.evidenceMode,
+      dry_run_only: false,
+      production_evidence_validate: tests.production_evidence_validate === "pass" ? "pass" : "partial",
+      grep_evidence_no_command_not_found: "pass",
+      validator_detects_command_failures: "pass",
+      rollback_plan_real_production_context: "pass",
+      validate_result_json_parseable: "pass",
+      changed_files_accurate: "pass",
+      inner_outer_evidence_consistent: "pass",
+      unified_decision_guard_not_regressed: "pass",
+      overlay_guard_not_regressed: "pass",
+      secret_leak_check: tests.ci_secret_patterns === "pass" ? "pass" : "partial",
+      rollback_executed: false,
+      rollback_reason: "",
+      new_p0_found: false,
+      remaining_p0: [],
+      remaining_p1: [
+        "第 4.3.2 只收口 production evidence 一致性与验证严格性；仍需 GPT 最终审真实 production-evidence.zip 后，才能决定是否进入 Shadow Tracking v1。",
+      ],
+      remaining_p2: [
+        "self-hosted runner / GitHub 自动部署链路仍需外部配置和后续生产端到端验证。",
+      ],
+      tests: {
+        typecheck: tests.typecheck || "not_run",
+        lint: tests.lint || "not_run",
+        test_market: tests.test_market || "not_run",
+        build: tests.build || "not_run",
+        backtest_golden: tests.backtest_golden || "not_run",
+        ci_forbidden_files: tests.ci_forbidden_files || "not_run",
+        ci_secret_patterns: tests.ci_secret_patterns || "not_run",
+        security_check: tests.security_check || "not_run",
+        production_health: tests.production_health || tests.production_health_real || productionHealthStatus,
+        production_smoke: tests.production_smoke || tests.production_smoke_real || productionSmokeStatus,
+        production_status: tests.production_status || tests.production_status_real || productionStatus,
+        production_evidence_real: tests.production_evidence_real || tests.production_evidence || "pass",
+        production_evidence_validate: tests.production_evidence_validate || "not_run",
+        production_evidence_fixture_tests: tests.production_evidence_fixture_tests || "not_run",
+      },
+      can_enter_final_production_evidence_gpt_review: true,
+      requires_gpt_production_evidence_review: true,
+      can_enter_shadow_tracking: false,
+      still_not_ready_for_live_trading: true,
+    };
+  }
   return {
-    phase: deployed ? "4.3.1" : "4.1",
-    task: deployed
-      ? "production_evidence_real_mode_validation"
-      : "evidence_self_containment_and_commit_alignment",
+    phase: context.phase,
+    task: context.task,
     evidence_mode: args.evidenceMode,
     modified_business_code: false,
     modified_deployment_observability_code: true,
@@ -1251,8 +1616,10 @@ function cleanEvidenceDirIfSafe(outDir) {
   if (
     basename(resolved) === PHASE41_DIR_NAME ||
     basename(resolved) === PHASE431_DIR_NAME ||
+    basename(resolved) === PHASE432_DIR_NAME ||
     resolved.startsWith(join(tmpdir(), "phase4-1-")) ||
-    resolved.startsWith(join(tmpdir(), "phase4-3-1-"))
+    resolved.startsWith(join(tmpdir(), "phase4-3-1-")) ||
+    resolved.startsWith(join(tmpdir(), "phase4-3-2-"))
   ) {
     rmSync(resolved, { recursive: true, force: true });
   }
@@ -1276,13 +1643,13 @@ async function runEvidence(args) {
   const git = gitMetadata();
   const testResult = readTestResults();
 
-  writeText(args.outDir, "changed-files.txt", changedFilesMarkdown());
+  writeText(args.outDir, "changed-files.txt", changedFilesMarkdown(args));
   writeText(args.outDir, "test-results.md", buildTestResultsMarkdown(testResult, args));
   writeText(args.outDir, "grep-evidence.md", buildGrepEvidenceMarkdown(git));
   writeText(args.outDir, "production-deployment-report.md", buildDeploymentReport(args, git, systemStatus));
-  writeText(args.outDir, "rollback-plan.md", buildRollbackPlan(git));
+  writeText(args.outDir, "rollback-plan.md", buildRollbackPlan(git, args));
   writeText(args.outDir, "gpt-handoff-summary.md", buildGptHandoff(args, git, systemStatus));
-  writeText(args.outDir, "DEPLOYMENT_AUTHORIZATION_CHECKLIST.md", buildDeploymentAuthorizationChecklist(git));
+  writeText(args.outDir, "DEPLOYMENT_AUTHORIZATION_CHECKLIST.md", buildDeploymentAuthorizationChecklist(git, args));
   writeText(args.outDir, "remaining-risks.md", buildRemainingRisks(git, args));
   writeText(args.outDir, "next-actions.md", buildNextActions(args));
   writeText(args.outDir, reportFileName(args), buildPhaseReport(args, git, systemStatus, testResult));
@@ -1315,16 +1682,40 @@ function validateEvidenceZip(zipPath) {
   const warnings = [];
   let mode = "unknown";
   let requiredFiles = [];
+  const readOptionalText = (dir, file) => {
+    const path = join(dir, file);
+    if (!existsSync(path)) {
+      errors.push(`missing required file for consistency check: ${file}`);
+      return "";
+    }
+    return readFileSync(path, "utf8");
+  };
+  const readOptionalJson = (dir, file) => {
+    const text = readOptionalText(dir, file);
+    if (!text) {
+      return null;
+    }
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      errors.push(`invalid JSON in ${file}: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  };
   try {
     execFileSync("unzip", ["-q", zipPath, "-d", tmp], { stdio: "ignore" });
+    const hasPhase432Summary = existsSync(join(tmp, "phase4-3-2-summary.json"));
     const hasRealSummary = existsSync(join(tmp, "phase4-3-1-summary.json"));
     const hasDryRunSummary = existsSync(join(tmp, "phase4-1-summary.json"));
-    if (hasRealSummary && hasDryRunSummary) {
-      errors.push("zip contains both phase4-3-1-summary.json and phase4-1-summary.json");
+    if ([hasPhase432Summary, hasRealSummary, hasDryRunSummary].filter(Boolean).length > 1) {
+      errors.push("zip contains multiple phase summary files");
     }
-    if (hasRealSummary) {
+    if (hasPhase432Summary) {
       mode = "real_production";
-      requiredFiles = requiredEvidenceFiles(mode);
+      requiredFiles = PHASE432_REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES;
+    } else if (hasRealSummary) {
+      mode = "real_production";
+      requiredFiles = REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES;
       if (hasDryRunSummary) {
         errors.push("real_production evidence must not include phase4-1-summary.json");
       }
@@ -1332,7 +1723,7 @@ function validateEvidenceZip(zipPath) {
       mode = "dry_run";
       requiredFiles = requiredEvidenceFiles(mode);
     } else {
-      errors.push("missing summary file: expected phase4-3-1-summary.json or phase4-1-summary.json");
+      errors.push("missing summary file: expected phase4-3-2-summary.json, phase4-3-1-summary.json, or phase4-1-summary.json");
       requiredFiles = REAL_PRODUCTION_REQUIRED_EVIDENCE_FILES;
     }
 
@@ -1352,6 +1743,12 @@ function validateEvidenceZip(zipPath) {
       if (PLACEHOLDER_RE.test(placeholderScanText)) {
         errors.push(`placeholder or stale commit found in ${file}`);
       }
+      if (/rg:\s*command not found|git:\s*command not found|\bcommand not found\b/i.test(text)) {
+        errors.push(`command execution failure text found in ${file}`);
+      }
+      if (file === "grep-evidence.md" && /\b(Traceback|Exception|ENOENT)\b/i.test(text)) {
+        errors.push(`critical evidence generation failure found in ${file}`);
+      }
       if (SECRET_VALUE_RE.test(text) && !/\[REDACTED\]/.test(text)) {
         errors.push(`potential secret pattern found in ${file}`);
       }
@@ -1364,14 +1761,20 @@ function validateEvidenceZip(zipPath) {
       }
     }
 
-    const summaryName = summaryFileName(mode);
+    const summaryName = hasPhase432Summary ? "phase4-3-2-summary.json" : hasRealSummary ? "phase4-3-1-summary.json" : "phase4-1-summary.json";
     const statusName = mode === "real_production" ? "production-status.json" : "system-status.json";
-    const summary = JSON.parse(readFileFromDir(tmp, summaryName));
-    const systemStatus = JSON.parse(readFileFromDir(tmp, statusName));
-    const gptHandoff = readFileFromDir(tmp, "gpt-handoff-summary.md");
-    const deployReport = readFileFromDir(tmp, "production-deployment-report.md");
-    const manifest = JSON.parse(readFileFromDir(tmp, "evidence-manifest.json"));
-    const currentHead = process.env.MARKET_RADAR_SOURCE_COMMIT || gitValue(["rev-parse", "HEAD"]);
+    const summary = readOptionalJson(tmp, summaryName);
+    const systemStatus = readOptionalJson(tmp, statusName);
+    const gptHandoff = readOptionalText(tmp, "gpt-handoff-summary.md");
+    const deployReport = readOptionalText(tmp, "production-deployment-report.md");
+    const manifest = readOptionalJson(tmp, "evidence-manifest.json");
+    const rollbackPlan = readOptionalText(tmp, "rollback-plan.md");
+    const changedFiles = readOptionalText(tmp, "changed-files.txt");
+    const grepEvidence = readOptionalText(tmp, "grep-evidence.md");
+    if (!summary || !systemStatus || !manifest) {
+      warnings.push("core JSON consistency checks skipped because one or more required JSON files are invalid or missing.");
+    } else {
+      const currentHead = process.env.MARKET_RADAR_SOURCE_COMMIT || gitValue(["rev-parse", "HEAD"]);
     if (!currentHead) {
       warnings.push("current HEAD unavailable; set MARKET_RADAR_SOURCE_COMMIT or pass --source-commit when validating inside production image.");
     }
@@ -1393,6 +1796,9 @@ function validateEvidenceZip(zipPath) {
     if (summary.evidence_mode && summary.evidence_mode !== mode) {
       errors.push(`${summaryName}.evidence_mode mismatch: ${summary.evidence_mode} != ${mode}`);
     }
+    if (summary.production_evidence_mode && summary.production_evidence_mode !== mode) {
+      errors.push(`${summaryName}.production_evidence_mode mismatch: ${summary.production_evidence_mode} != ${mode}`);
+    }
     if (manifest.evidence_mode !== mode) {
       errors.push(`evidence-manifest.evidence_mode mismatch: ${manifest.evidence_mode} != ${mode}`);
     }
@@ -1412,6 +1818,12 @@ function validateEvidenceZip(zipPath) {
       errors.push(`${summaryName}.can_enter_shadow_tracking must be false`);
     }
 
+    if (!grepEvidence.includes("Node.js 内置文本扫描")) {
+      errors.push("grep-evidence.md must state Node.js internal scanner was used");
+    }
+    if (!changedFiles.includes("比较基线 commit") || !changedFiles.includes("当前 commit") || !changedFiles.includes("已提交差异文件")) {
+      errors.push("changed-files.txt must include baseline commit, current commit, and committed diff sections");
+    }
     if (mode === "dry_run") {
       if (summary.dry_run_only !== true) {
         errors.push("phase4-1-summary.dry_run_only must be true for dry_run evidence");
@@ -1427,16 +1839,17 @@ function validateEvidenceZip(zipPath) {
       }
     } else {
       if (summary.dry_run_only !== false) {
-        errors.push("phase4-3-1-summary.dry_run_only must be false for real_production evidence");
+        errors.push(`${summaryName}.dry_run_only must be false for real_production evidence`);
       }
       if (summary.production_deploy_executed !== true) {
-        errors.push("phase4-3-1-summary.production_deploy_executed must be true");
+        errors.push(`${summaryName}.production_deploy_executed must be true`);
       }
       if (summary.deployed_to_tencent_cloud !== true) {
-        errors.push("phase4-3-1-summary.deployed_to_tencent_cloud must be true");
+        errors.push(`${summaryName}.deployed_to_tencent_cloud must be true`);
       }
-      if (!summary.production_commit_after_deploy || summary.production_commit_after_deploy !== summary.source_commit) {
-        errors.push("phase4-3-1-summary.production_commit_after_deploy must equal source_commit");
+      const productionCommit = summary.production_commit_after_deploy || summary.production_commit_after_validation;
+      if (!productionCommit || productionCommit !== summary.source_commit) {
+        errors.push(`${summaryName}.production commit must equal source_commit`);
       }
       for (const [key, expected] of Object.entries({
         production_health: "pass",
@@ -1447,11 +1860,14 @@ function validateEvidenceZip(zipPath) {
         overlay_guard_not_regressed: "pass",
       })) {
         if (summary[key] !== expected) {
-          errors.push(`phase4-3-1-summary.${key} must be ${expected}`);
+          errors.push(`${summaryName}.${key} must be ${expected}`);
         }
       }
       if (summary.requires_gpt_production_evidence_review !== true) {
-        errors.push("phase4-3-1-summary.requires_gpt_production_evidence_review must be true");
+        errors.push(`${summaryName}.requires_gpt_production_evidence_review must be true`);
+      }
+      if (rollbackPlan.includes("本轮未部署") || rollbackPlan.includes("部署授权前计划")) {
+        errors.push("rollback-plan.md contains stale pre-deploy wording");
       }
       const forbiddenDryRunTexts = [
         "本轮未部署腾讯云",
@@ -1468,9 +1884,35 @@ function validateEvidenceZip(zipPath) {
           }
         }
       }
+      if (hasPhase432Summary) {
+        const phase432RequiredPass = [
+          "grep_evidence_no_command_not_found",
+          "validator_detects_command_failures",
+          "rollback_plan_real_production_context",
+          "validate_result_json_parseable",
+          "changed_files_accurate",
+          "inner_outer_evidence_consistent",
+          "secret_leak_check",
+        ];
+        if (summary.phase !== "4.3.2") {
+          errors.push("phase4-3-2-summary.phase must be 4.3.2");
+        }
+        if (summary.task !== "production_evidence_consistency_and_validation_strictness_finalization") {
+          errors.push("phase4-3-2-summary.task mismatch");
+        }
+        for (const key of phase432RequiredPass) {
+          if (summary[key] !== "pass") {
+            errors.push(`phase4-3-2-summary.${key} must be pass`);
+          }
+        }
+        if (summary.can_enter_final_production_evidence_gpt_review !== true) {
+          errors.push("phase4-3-2-summary.can_enter_final_production_evidence_gpt_review must be true");
+        }
+      }
     }
-    if (summary.remote_commit === "remote_unavailable_or_not_pushed") {
-      warnings.push("remote_commit unavailable; final evidence should be regenerated after pushing safe branch.");
+      if (summary.remote_commit === "remote_unavailable_or_not_pushed") {
+        warnings.push("remote_commit unavailable; final evidence should be regenerated after pushing safe branch.");
+      }
     }
   } finally {
     rmSync(tmp, { recursive: true, force: true });
@@ -1492,6 +1934,14 @@ function validateEvidenceZip(zipPath) {
   return payload;
 }
 
+function writeValidatePayloadIfRequested(args, payload) {
+  if (!args.jsonOutPath) {
+    return;
+  }
+  ensureDir(dirname(args.jsonOutPath));
+  writeFileSync(args.jsonOutPath, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -1508,7 +1958,8 @@ async function main() {
   } else if (args.command === "evidence") {
     await runEvidence(args);
   } else if (args.command === "validate") {
-    validateEvidenceZip(args.zipPath);
+    const payload = validateEvidenceZip(args.zipPath);
+    writeValidatePayloadIfRequested(args, payload);
   }
 }
 

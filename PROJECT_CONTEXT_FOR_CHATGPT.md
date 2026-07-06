@@ -899,5 +899,38 @@ GPT / 用户验收第 4.2 证据
 当前真实状态：
 
 - 本地 evidence 工具链修复已通过基础门禁和 dry-run validate。
-- 仍需在腾讯云只重建 `web`，生成 `real_production` 口径 evidence 并 validate pass。
+- 第 4.3.1 已完成腾讯云 web-only 重建、`real_production` 口径 evidence 生成和 validate pass，但后续复核发现 evidence 附属文件仍有一致性问题。
+- 当前系统仍不能写成支撑实战交易，不能进入 shadow tracking。
+
+## 2026-07-07 第 4.3.2 步生产 Evidence 一致性与验证严格性最终收口
+
+第 4.3.2 步只修复生产 evidence 的一致性和 validator 严格性，不改扫描、分析、策略、前端交易逻辑、数据库 schema、Redis 或 Docker volume。
+
+本轮事实：
+
+- 安全分支：`phase4-3-2-production-evidence-consistency`。
+- 修复目标一：`grep-evidence.md` 不再依赖生产镜像是否安装 `rg`，改为 Node.js 内置文本扫描。
+- 修复目标二：`production:evidence:validate` 必须识别 grep/git 命令失败文本、占位文本、非法 JSON、changed-files 结构缺失、rollback 旧口径和多 summary 口径冲突。
+- 修复目标三：`production-evidence-validate-result.json` 必须是纯 JSON；命令日志单独放入 markdown。
+- 修复目标四：`changed-files.txt` 必须写清比较基线 commit、当前 commit、已提交差异、未提交 tracked 变更和未跟踪 artifact。
+- 修复目标五：真实生产 rollback plan 必须是部署后的回滚口径，不得继续写“本轮未部署 / 部署授权前计划”。
+- 新增定向测试：`npm run test:production-evidence`，覆盖好包通过、command failure fail、占位文本 fail、非法 JSON fail、changed-files 缺结构 fail、多 summary 冲突 fail。
+- 本轮本地基础门禁已通过：typecheck、lint、test:market、build、backtest:golden、forbidden-files、secret-patterns、security-check、test:production-evidence。
+
+第 4.3.2 必须保证：
+
+- 不 push main。
+- 不运行 `npm run backtest:formal`。
+- 不运行 migration。
+- 不修改数据库 schema。
+- 不清 Redis。
+- 不删除或重建 Docker volume。
+- 不接自动下单或交易所下单 API。
+- 不改 scan / analysis / strategy / UI 交易逻辑。
+- 不得把 evidence validate 写成交易能力成熟。
+
+当前真实状态：
+
+- 本地 evidence 生成和 validator 严格性已增强并通过本地门禁。
+- 仍需在腾讯云只重建 `web` 后重新生成 `phase4-3-2` real production evidence，并由 GPT 做最终生产 evidence 审计。
 - 当前系统仍不能写成支撑实战交易，不能进入 shadow tracking。

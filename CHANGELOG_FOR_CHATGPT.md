@@ -808,3 +808,58 @@ P0 阻断：
 ### 下一轮建议
 
 继续第 4.3.1 的腾讯云 web-only 重建、真实生产 evidence 生成和最终只读审计。
+
+## 2026-07-07 - 第 4.3.2 步生产 Evidence 一致性与验证严格性最终收口
+
+### 本轮目标
+
+修复第 4.3.1 真实 production evidence 的附属证据不一致问题：`grep-evidence.md` 出现命令缺失文本、validator 未识别命令失败、`rollback-plan.md` 残留部署前旧口径、`production-evidence-validate-result.json` 非纯 JSON、`changed-files.txt` 不准，以及内外层 evidence 口径需统一。
+
+### 修改范围
+
+- `scripts/production/observability.mjs`：新增第 4.3.2 evidence phase；`grep-evidence` 改为 Node.js 内置文本扫描；`changed-files` 增加基线/当前 commit/已提交差异/未提交 tracked/未跟踪 artifact 分区；真实生产 rollback plan 改为部署后回滚口径；validator 增加 command failure、占位、非法 JSON、changed-files、rollback、4.3.2 summary 和多 summary 冲突检查；validate 支持 `--json-out` 生成纯 JSON。
+- `scripts/production/observability.test.mjs`：新增 production evidence validator fixture 测试。
+- `package.json`：新增 `npm run test:production-evidence`。
+- `scripts/ci/check-secret-patterns.sh`、`scripts/verify/security-check.sh`：过滤源码里的 secret 检测正则定义误报，不放过真实 secret 文本。
+- `.gitignore`：补充第 4.3.2 evidence 目录和 zip，防止证据包误提交。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：补充第 4.3.2 当前事实。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+- 工程证据链：增强，生产 evidence 的一致性和 validator 严格性提高。
+
+### 测试结果
+
+本地已通过：
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:market`：810 market + 17 worker + 4 historical smoke
+- `npm run build`
+- `npm run backtest:golden`：16/16
+- `npm run ci:forbidden-files`
+- `npm run ci:secret-patterns`
+- `npm run security:check`
+- `npm run test:production-evidence`：6/6
+- dry-run `production:evidence` + `production:evidence:validate`：pass
+
+### 是否部署
+
+本段记录本地修复与门禁结果。第 4.3.2 后续真实 production evidence 仍需在腾讯云只重建 `web` 后重新生成；不允许动 Postgres / Redis / volume，不运行 migration，不运行 formal，不 push main。
+
+### 风险与遗留问题
+
+- 真实 production evidence 必须在腾讯云 web-only 重建后重新生成并 validate pass。
+- 第 4.3.2 完成后只能交给 GPT 做最终生产 evidence 审计，不能直接进入 shadow tracking。
+- 当前系统仍不能写成支撑实战交易。
+
+### 下一轮建议
+
+只做一个方向：在腾讯云只重建 `web`，生成第 4.3.2 real production evidence，验证通过后交给 GPT 做最终生产 evidence 审计。

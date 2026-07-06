@@ -26,6 +26,7 @@
     "production:evidence:legacy": "bash scripts/audit/collect-production-facts.sh",
     "production:evidence": "node scripts/production/observability.mjs evidence",
     "production:evidence:validate": "node scripts/production/observability.mjs validate",
+    "test:production-evidence": "node --test scripts/production/observability.test.mjs",
     "production:deploy-readiness": "node scripts/production/deploy-readiness.mjs generate",
     "production:deploy-readiness:validate": "node scripts/production/deploy-readiness.mjs validate",
     "security:check": "bash scripts/verify/security-check.sh",

@@ -27,6 +27,7 @@ secret_hits="$(
     | grep -vF 'assert.' \
     | grep -vF 'doesNotMatch' \
     | grep -vF 'match(' \
+    | grep -vE 'regex: .*(BEGIN|PRIVATE KEY)' \
     | grep -vE 'SECRET_RE|SECRET_VALUE_RE|secret_hits|git grep -nE' || true
 )"
 

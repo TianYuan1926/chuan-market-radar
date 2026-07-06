@@ -28,7 +28,9 @@ for pattern in "${patterns[@]}"; do
     ':!yarn.lock' >> "${raw_file}" || true
 done
 
-grep -vEi '\[REDACTED\]|REDACTED|example|placeholder|CHANGE_ME|changeme|dummy|your_|your-|<[^>]+>|示例|占位|禁止|不得|不输出|不要输出|do not|should not|not a real|fake value' "${raw_file}" > "${tmp_file}" || true
+grep -vEi '\[REDACTED\]|REDACTED|example|placeholder|CHANGE_ME|changeme|dummy|your_|your-|<[^>]+>|示例|占位|禁止|不得|不输出|不要输出|do not|should not|not a real|fake value' "${raw_file}" \
+  | grep -vEi 'regex: .*(BEGIN|PRIVATE KEY)|SECRET_VALUE_RE|BEGIN \(RSA\|OPENSSH\|PRIVATE\) KEY' \
+  > "${tmp_file}" || true
 
 if [[ -s "${tmp_file}" ]]; then
   echo "Potential secret patterns found in tracked source files:"
