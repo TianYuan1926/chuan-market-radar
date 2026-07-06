@@ -2,6 +2,62 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-06 - 第 4.3 步真实腾讯云部署执行与生产 Evidence 首包
+
+### 本轮目标
+
+在用户明确授权后，把腾讯云生产服务器同步到安全分支 `phase4-2-tencent-deploy-readiness` 的目标 commit `953def3363ec64efb8a859e7772c55e9a51f175c`，执行 Docker Compose build/up，并生成第一份真实生产 evidence。
+
+### 修改范围
+
+本轮没有修改业务代码。仅新增本地证据目录和防误提交规则：
+
+- `.gitignore`：新增 `phase4-3-production-deploy-first-evidence/` 和 zip 防误提交规则。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：补充第 4.3 真实生产部署事实。
+- `CHANGELOG_FOR_CHATGPT.md`：记录本轮部署事实。
+- `phase4-3-production-deploy-first-evidence/`：本地 evidence artifact，不进入 Git。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+- 工程部署链路：真实部署已执行，生产 health/API 已验证，production evidence 首包已生成。
+
+### 测试结果
+
+- Docker Compose build/up：通过。
+- 腾讯云生产 HEAD：`953def3363ec64efb8a859e7772c55e9a51f175c`，已对齐目标 commit。
+- `/api/health`：HTTP 200，最终 `ready / fresh`。
+- `/api/scan`：HTTP 200。
+- `/api/frontend/radar-contract`：HTTP 200。
+- `/api/radar/backend-contract`：HTTP 200。
+- `/api/frontend/kline-contract`：HTTP 200。
+- `/api/frontend/review-contract`：HTTP 200。
+- `production:evidence`：已通过 SSH tunnel 访问真实腾讯云 Caddy API 生成 `production-evidence.zip`。
+- `production:evidence:validate`：失败，原因是 validate 脚本仍要求第 4.1 dry-run 字段 `dry_run_only=true`，不适配第 4.3 真实生产 evidence。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+已部署腾讯云生产服务器，但未 push main。部署目标是安全分支 `phase4-2-tencent-deploy-readiness`。未运行 migration，未动 Postgres / Redis / Docker volume，未清 Redis，未运行 formal。
+
+### 风险与遗留问题
+
+- P1：生产镜像未包含 `scripts/production/observability.mjs`，容器内 production evidence 脚本无法直接运行。
+- P1：`production:evidence:validate` 仍是第 4.1 dry-run 口径，需要适配第 4.3 真实生产 evidence。
+- P1：`npm run security:check` 存在源码正则误报，安全总门禁不能写成全绿。
+- P2：本地直连腾讯云公网 IP 超时，本轮通过 SSH tunnel 采集真实生产 API；后续需单独确认用户公网访问稳定性。
+- 当前系统仍不能写成支撑实战交易，不能进入 shadow tracking。
+
+### 下一轮建议
+
+只做一个方向：修复 production evidence 工程链路，让生产镜像或专用 evidence runner 能直接生成并验证第 4.3 真实 production evidence。
+
 ## 2026-07-05 - 第三轮正式能力回测
 
 本轮性质：正式能力回测轮。
@@ -698,3 +754,57 @@ P0 阻断：
 ### 下一轮建议
 
 先把第 4.2 证据包交给 GPT 做验收复查；通过后再由用户明确决定是否进入真实腾讯云部署执行任务。
+
+## 2026-07-06 - 第 4.3.1 步生产 Evidence 真实口径修复
+
+### 本轮目标
+
+修复第 4.3 暴露的生产 evidence 工具链问题：`production:evidence:validate` 仍套用第 4.1 dry-run 口径，以及生产 Docker runner 镜像未包含 `scripts/production/*.mjs`。本轮只修 evidence / validator / Docker 工具链，不改扫描、分析、策略、前端交易逻辑、数据库或 Redis。
+
+### 修改范围
+
+- `scripts/production/observability.mjs`：新增 `dry_run` / `real_production` 双模式；real production 使用 `phase4-3-1-summary.json`，并按真实生产字段校验 health、smoke、status、evidence、guard 和“仍不能实战”的边界。
+- `Dockerfile`：runner 阶段只复制 `scripts/production`，并安装 `zip/unzip`，使生产容器内可以生成和验证 evidence。
+- `scripts/verify/security-check.sh`：修复安全检查把源码中 `SECRET_RE` 正则定义误判成真实 secret 的问题。
+- `.gitignore`：补充第 4.3 / 4.3.1 evidence 目录和 zip，防止证据包误提交。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：补充第 4.3.1 的当前事实。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+- 工程证据链：增强，真实生产 evidence 不再混用 dry-run 口径。
+
+### 测试结果
+
+本地已通过：
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:market`：810 market + 17 worker + 4 historical smoke
+- `npm run build`
+- `npm run backtest:golden`：16/16
+- `npm run ci:forbidden-files`
+- `npm run ci:secret-patterns`
+- `npm run security:check`
+- `npm run production:evidence -- --dry-run`
+- `npm run production:evidence:validate -- --zip <dry-run production-evidence.zip>`
+
+### 是否部署
+
+本地修复已完成，尚未在本段记录腾讯云最终 web-only 重建结果。第 4.3.1 后续必须只重建 `web`，不动 Postgres / Redis / volume，不运行 migration，不运行 formal，不 push main。
+
+### 风险与遗留问题
+
+- 真实 production evidence 必须在腾讯云 web 镜像重建后重新生成并 validate pass。
+- 当前系统仍不能写成支撑实战交易，不能进入 shadow tracking。
+- 本轮不允许把 evidence 工具链修复包装成交易能力提升。
+
+### 下一轮建议
+
+继续第 4.3.1 的腾讯云 web-only 重建、真实生产 evidence 生成和最终只读审计。

@@ -69,6 +69,10 @@ phase4-1-evidence-commit-alignment/
 phase4-1-evidence-commit-alignment.zip
 phase4-2-tencent-deploy-readiness/
 phase4-2-tencent-deploy-readiness.zip
+phase4-3-production-deploy-first-evidence/
+phase4-3-production-deploy-first-evidence.zip
+phase4-3-1-production-evidence-real-mode/
+phase4-3-1-production-evidence-real-mode.zip
 
 # Local evidence and logs
 *.log

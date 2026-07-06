@@ -825,3 +825,79 @@ GPT / 用户验收第 4.2 证据
 - 通过后可以请求用户授权真实部署。
 - 未授权前不能部署腾讯云，不能进入 shadow tracking。
 - 当前系统仍不能写成支撑实战交易。
+
+## 2026-07-06 第 4.3 步真实腾讯云部署执行补充
+
+第 4.3 步在用户明确授权后执行了真实腾讯云部署。部署目标不是 `main`，而是安全分支：
+
+- 目标分支：`phase4-2-tencent-deploy-readiness`
+- 目标 commit：`953def3363ec64efb8a859e7772c55e9a51f175c`
+- 腾讯云项目目录：`/home/ubuntu/apps/chuan-market-radar`
+
+本轮真实结果：
+
+- 腾讯云生产仓库已切换到 `phase4-2-tencent-deploy-readiness`。
+- 腾讯云生产 HEAD 已对齐 `953def3363ec64efb8a859e7772c55e9a51f175c`。
+- 已执行 Docker Compose build/up。
+- web 容器为 healthy。
+- Postgres / Redis 继续使用原有 volume，未删除、未重建、未清空。
+- `/api/health` 最终为 `ready / fresh`。
+- `/api/scan`、`/api/frontend/radar-contract`、`/api/radar/backend-contract`、`/api/frontend/kline-contract`、`/api/frontend/review-contract` 均返回 HTTP 200。
+- 已生成第 4.3 evidence 目录：`phase4-3-production-deploy-first-evidence/`。
+- 已生成 production evidence 首包：`phase4-3-production-deploy-first-evidence/production-evidence.zip`。
+- 已生成外层证据包：`phase4-3-production-deploy-first-evidence.zip`。
+
+第 4.3 剩余工程风险：
+
+- 生产镜像未包含 `scripts/production/observability.mjs`，因此不能直接在 web 容器内运行 production evidence 脚本。本轮改为本地脚本通过 SSH tunnel 访问腾讯云 Caddy 真实生产 API 采集 evidence。
+- `production:evidence:validate` 仍保留第 4.1 dry-run 口径，真实生产 evidence 会被 `dry_run_only must be true` 拦下。因此第 4.3 evidence validate 当前不能写成通过。
+- `npm run security:check` 存在源码正则误报风险，安全总门禁不能写成全绿。
+
+本轮明确没有做：
+
+- 未 push main。
+- 未运行 `npm run backtest:formal`。
+- 未运行 migration。
+- 未修改数据库 schema。
+- 未清 Redis。
+- 未删除或重建 Docker volume。
+- 未接自动下单或交易所下单 API。
+
+当前真实状态：
+
+- 生产部署已完成，生产 health/API 可用。
+- 生产 evidence 首包已生成。
+- 生产 evidence validate 链路仍有 P1 工具缺口，需要下一轮修复。
+- 当前系统仍不能写成支撑实战交易，不能进入 shadow tracking。
+
+## 2026-07-06 第 4.3.1 步生产 Evidence 真实口径修复补充
+
+第 4.3.1 步只修复第 4.3 暴露的生产 evidence 工具链问题，不改扫描、分析、策略、前端交易逻辑、数据库或 Redis。
+
+本轮事实：
+
+- 安全分支：`phase4-3-1-production-evidence-real-mode`。
+- 修复目标一：`production:evidence:validate` 支持 `dry_run` / `real_production` 两种 evidence 模式。
+- 修复目标二：真实生产 evidence 使用 `phase4-3-1-summary.json`，不再把第 4.3 真实生产证据伪装成 `phase4-1-summary.json`。
+- 修复目标三：Docker runner 镜像包含 `scripts/production/*.mjs` 和 `zip/unzip`，使生产容器内可以生成和验证 evidence。
+- 修复目标四：`security:check` 不再把源码里的 secret 检测正则定义误判为真实 secret。
+- 本轮本地基础门禁已通过：typecheck、lint、test:market、build、backtest:golden、forbidden-files、secret-patterns、security:check。
+- 本轮本地 dry-run evidence 与 validate 已通过。
+
+第 4.3.1 必须保证：
+
+- 不 push main。
+- 不运行 `npm run backtest:formal`。
+- 不运行 migration。
+- 不修改数据库 schema。
+- 不清 Redis。
+- 不删除或重建 Docker volume。
+- 不接自动下单或交易所下单 API。
+- 不改 scan / analysis / strategy / UI 交易逻辑。
+- 真实生产 evidence validate 未通过前，不得进入 shadow tracking。
+
+当前真实状态：
+
+- 本地 evidence 工具链修复已通过基础门禁和 dry-run validate。
+- 仍需在腾讯云只重建 `web`，生成 `real_production` 口径 evidence 并 validate pass。
+- 当前系统仍不能写成支撑实战交易，不能进入 shadow tracking。

@@ -26,7 +26,8 @@ secret_hits="$(
     | grep -vF '=.*' \
     | grep -vF 'assert.' \
     | grep -vF 'doesNotMatch' \
-    | grep -vF 'match(' || true
+    | grep -vF 'match(' \
+    | grep -vE 'SECRET_RE|SECRET_VALUE_RE|secret_hits|git grep -nE' || true
 )"
 
 if [[ -n "${secret_hits}" ]]; then
