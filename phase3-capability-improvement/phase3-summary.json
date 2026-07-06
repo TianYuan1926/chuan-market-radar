@@ -8,6 +8,8 @@
     "p1_baseline_branch": "p1-convergence-final-validation",
     "p1_baseline_commit": "04363d58675c5fcf1439c208562e924532dc8244",
     "phase3_branch": "phase3-capability-improvement",
+    "pushed_to_github_branch": true,
+    "git_push_target": "origin/phase3-capability-improvement",
     "pushed_to_main": false,
     "tencent_deployed": false
   },

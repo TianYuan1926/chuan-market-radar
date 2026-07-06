@@ -16,6 +16,7 @@
 - P1 收敛基线分支：`p1-convergence-final-validation`
 - P1 基线提交：`04363d58675c5fcf1439c208562e924532dc8244`
 - 第 3 步工作分支：`phase3-capability-improvement`
+- 是否推送 GitHub 安全分支：是，`origin/phase3-capability-improvement`
 - push main：否
 - 腾讯云部署：否
 - migration / DB / Redis / volume：否
