@@ -1,0 +1,49 @@
+docs/NAMING_STANDARD.md:75:- 新信号
+docs/NAMING_STANDARD.md:76:- 证据信号
+docs/NAMING_STANDARD.md:78:- 高置信信号
+docs/NAMING_STANDARD.md:79:- 交易信号
+docs/NAMING_STANDARD.md:80:- 推荐榜
+docs/NAMING_STANDARD.md:81:- 狙击榜
+docs/NAMING_STANDARD.md:82:- 狙击席
+docs/NAMING_STANDARD.md:83:- 可交易候选
+docs/NAMING_STANDARD.md:84:- 立即入场
+docs/NAMING_STANDARD.md:87:- 强推荐
+docs/NAMING_STANDARD.md:91:- 新信号 -> 新候选观察
+docs/NAMING_STANDARD.md:92:- 证据信号 -> 证据观察
+docs/NAMING_STANDARD.md:94:- 交易信号 -> 交易计划就绪 / 执行依据
+docs/NAMING_STANDARD.md:95:- 推荐榜 -> 强弱观察榜
+docs/NAMING_STANDARD.md:96:- 狙击榜 -> 计划就绪区
+docs/NAMING_STANDARD.md:97:- 狙击席 -> 计划就绪区
+docs/NAMING_STANDARD.md:98:- 可交易候选 -> 候选观察
+docs/NAMING_STANDARD.md:99:- 立即入场 / 直接交易 -> 人工复核后再决定
+docs/NAMING_STANDARD.md:105:- `CANDIDATE` 只能展示为“候选观察”，不能展示为可交易候选。
+src/lib/ui-schema/status-dictionary.test.ts:38:    forbiddenStatusDisplayMatches("EVIDENCE_SIGNAL", "这是交易信号，可以进狙击目标"),
+src/lib/ui-schema/status-dictionary.test.ts:39:    ["交易信号", "狙击目标"],
+src/lib/ui-schema/status-dictionary.test.ts:88:    () => assertNoForbiddenStatusDisplay("WAIT", "等待确认但这是交易信号"),
+src/lib/ui-schema/display-names.test.ts:52:    () => assertNoForbiddenUserVisibleTerms('这是证据信号，可以进入狙击榜'),
+src/lib/ui-schema/display-names.test.ts:56:    () => assertNoForbiddenUserVisibleTerms('推荐榜发现高置信信号'),
+src/lib/ui-schema/status-dictionary.ts:66:    forbiddenDisplayNames: ["交易信号", "狙击目标", "计划就绪"],
+src/lib/ui-schema/status-dictionary.ts:77:    forbiddenDisplayNames: ["交易信号", "狙击目标", "计划就绪"],
+src/lib/ui-schema/status-dictionary.ts:99:    forbiddenDisplayNames: ["交易信号", "狙击目标", "计划就绪"],
+src/lib/ui-schema/status-dictionary.ts:110:    forbiddenDisplayNames: ["交易信号", "买入信号", "卖出信号", "狙击目标", "计划就绪"],
+src/lib/ui-schema/status-dictionary.ts:121:    forbiddenDisplayNames: ["交易信号", "狙击目标", "计划就绪"],
+src/lib/ui-schema/display-names.ts:82:  '新信号',
+src/lib/ui-schema/display-names.ts:83:  '证据信号',
+src/lib/ui-schema/display-names.ts:85:  '高置信信号',
+src/lib/ui-schema/display-names.ts:86:  '交易信号',
+src/lib/ui-schema/display-names.ts:87:  '推荐榜',
+src/lib/ui-schema/display-names.ts:88:  '狙击榜',
+src/lib/ui-schema/display-names.ts:89:  '狙击席',
+src/lib/ui-schema/display-names.ts:90:  '可交易候选',
+src/lib/ui-schema/display-names.ts:91:  '立即入场',
+src/lib/ui-schema/display-names.ts:94:  '强推荐',
+src/lib/ui-schema/display-names.ts:98:  新信号: '新候选观察',
+src/lib/ui-schema/display-names.ts:99:  证据信号: '证据观察',
+src/lib/ui-schema/display-names.ts:101:  高置信信号: '高质量观察',
+src/lib/ui-schema/display-names.ts:102:  交易信号: '交易计划就绪',
+src/lib/ui-schema/display-names.ts:103:  推荐榜: '强弱观察榜',
+src/lib/ui-schema/display-names.ts:104:  狙击榜: '计划就绪区',
+src/lib/ui-schema/display-names.ts:105:  狙击席: '计划就绪区',
+src/lib/ui-schema/display-names.ts:106:  可交易候选: '候选观察',
+src/lib/ui-schema/display-names.ts:107:  立即入场: '等待人工复核',
+src/lib/ui-schema/display-names.ts:110:  强推荐: '重点观察',

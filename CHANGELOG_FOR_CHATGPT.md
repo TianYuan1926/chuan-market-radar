@@ -466,3 +466,51 @@ P0 阻断：
 ### 下一轮建议
 
 先做 3.1 验收复查；通过后进入 Kline / TradingView readonly overlay 边界审计，防止图表视觉层看起来强于统一决策合同。
+
+## 2026-07-06 - 第 3.2 步图表叠加层与严格单一事实源最终收口
+
+### 本轮目标
+
+修复 Kline / TradingView overlay 视觉层绕过统一决策引擎的问题，确保图表上的止损/TP 线只在后端统一决策真正输出 `TRADE_PLAN_READY` 且 Kline 数据新鲜时出现。
+
+### 修改范围
+
+- `src/lib/chart-types.ts`：为 `KlineOverlay` 增加语义字段和渲染过滤器，旧格式 `target/stop` 不再默认可渲染。
+- `src/lib/api/frontend-contract.ts`：Kline overlay 改为读取 `unified_decision_engine` 的 `readyPlan`；非 READY 只输出结构参考或等待条件；stale/cached/partial 不输出 ready plan overlay。
+- `src/components/kline-panel.tsx`：前端按数据状态过滤 overlay，非 live 不显示 ready trade plan。
+- `src/components/kline-chart.tsx`：图表绘制层再次过滤不合格 target/stop overlay。
+- `src/lib/radar-contract.ts`：同步 `TokenChartIntegrity.overlaySource` 类型。
+- `src/lib/api/frontend-contract.test.ts`：新增非 READY、WAIT、stale 三类 Kline overlay 反向测试。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：记录 3.2 当前事实和边界。
+- `phase3-2-overlay-single-source-finalization/**`：本轮报告和证据目录。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：Kline 可继续展示关键位/前方结构作为结构参考。
+- 风险赔率：未降低 3:1 门槛；RR 仍只由后端计划计算。
+- 交易计划：图表止损/TP 线现在必须来自统一决策引擎的 readyPlan，不能由 v3 草案直接展示。
+- 复盘进化：未改，保持 research-only。
+
+### 测试结果
+
+- 定向：`npm run build:market-cli && node --test .tmp/market-tests/lib/api/frontend-contract.test.js`：通过，32/32。
+- `npm run typecheck`：通过。
+- 其它基础门禁待本轮最终验收后补齐。
+- `npm run backtest:formal`：未运行，本轮禁止。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未运行 migration，未动 Postgres / Redis / volume。
+
+### 风险与遗留问题
+
+- 本轮修复前发现的图表 overlay 误导风险已在本地代码层收口。
+- 仍需跑完整基础门禁并生成 3.2 报告/证据包。
+- 当前系统仍不能支撑实战；本轮只修可见图表合同边界，不证明策略有效率。
+
+### 下一轮建议
+
+完成 3.2 基础门禁、证据包、safe branch push 后，再进入第 3 步后续实战能力提升；不要直接部署生产，除非单独进入部署验收轮。

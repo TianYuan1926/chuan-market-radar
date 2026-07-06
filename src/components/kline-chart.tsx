@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { ChartCandle, KlineOverlay, KlineOverlayTone } from '@/lib/chart-types'
+import { filterKlineOverlaysForDisplay, type ChartCandle, type KlineOverlay, type KlineOverlayTone } from '@/lib/chart-types'
 
 type Props = {
   candles: ChartCandle[]
   height?: number
   overlays?: KlineOverlay[]
+  allowReadyTradePlanOverlays?: boolean
 }
 
 const UP = 'oklch(0.78 0.17 155)'
@@ -36,7 +37,7 @@ function withAlpha(color: string, alpha: number) {
   return color.replace(/\/\s*[\d.]+\)/, `/ ${alpha})`)
 }
 
-export function KlineChart({ candles, height = 440, overlays = [] }: Props) {
+export function KlineChart({ candles, height = 440, overlays = [], allowReadyTradePlanOverlays = false }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hover, setHover] = useState<{ x: number; i: number } | null>(null)
@@ -73,7 +74,9 @@ export function KlineChart({ candles, height = 440, overlays = [] }: Props) {
     const priceH = height - padT - gap - volH - axisB
     const volTop = padT + priceH + gap
 
-    const visibleOverlays = overlays
+    const visibleOverlays = filterKlineOverlaysForDisplay(overlays, {
+      allowReadyTradePlan: allowReadyTradePlanOverlays,
+    })
       .filter((overlay) => Number.isFinite(overlay.price) && overlay.price > 0)
       .slice(0, 12)
     const overlayPrices = visibleOverlays.flatMap((overlay) =>
@@ -237,7 +240,7 @@ export function KlineChart({ candles, height = 440, overlays = [] }: Props) {
       ctx.fillStyle = 'oklch(0.96 0.005 250)'
       ctx.fillText(fmtP(hc.c), padL + plotW + 8, hy)
     }
-  }, [candles, width, height, hover, overlays])
+  }, [allowReadyTradePlanOverlays, candles, height, hover, overlays, width])
 
   const onMove = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect()

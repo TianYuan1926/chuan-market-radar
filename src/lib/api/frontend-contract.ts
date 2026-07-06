@@ -47,7 +47,10 @@ import type { BackendContract } from "./backend-contract";
 import type { BusinessCapabilityStage } from "./business-capability";
 import type { CoreChainGovernanceReport } from "./core-chain-governance";
 import type { DailyMoverReadArchiveSuccess } from "./daily-mover-readonly";
-import type { KlineOverlay } from "../chart-types";
+import {
+  filterKlineOverlaysForDisplay,
+  type KlineOverlay,
+} from "../chart-types";
 
 export type DataStatus =
   | "loading"
@@ -339,7 +342,7 @@ export type AnalysisReportSection = {
 export type TokenChartIntegrity = {
   availableTimeframes: string[];
   canUseMockCandles: false;
-  overlaySource: "v3_key_levels_forward_map_trade_plan" | "none";
+  overlaySource: "v3_key_levels_forward_map" | "v3_key_levels_forward_map_unified_ready_plan" | "none";
   selectedTimeframe: string;
   status: "ready" | "partial" | "empty";
   tradingViewSymbol: string | null;
@@ -1513,12 +1516,15 @@ function klineOverlayFromKeyLevel(level: KeyLevel): KlineChartOverlay | null {
   const kind = level.direction === "SUPPORT" ? "support" : "resistance";
 
   return {
+    allowedUse: "visual_reference_only",
     detail: `${level.timeframe} ${level.type} · ${level.status} · score ${level.keyScore}`,
     id: `key-level:${level.id}`,
     kind,
     label: kind === "support" ? "支撑" : "压力",
     price,
+    semanticRole: "structure_reference",
     sourceId: `v3:key-level:${level.id}`,
+    sourceDecision: "strategy_v3_structure_map",
     tone: kind,
     zoneHigh: level.zoneHigh,
     zoneLow: level.zoneLow,
@@ -1538,19 +1544,44 @@ function klineOverlayFromForwardLevel(level: ForwardLevel): KlineChartOverlay | 
       : "resistance";
 
   return {
+    allowedUse: "visual_reference_only",
     detail: `${level.role} · ${level.status} · score ${level.keyScore}`,
     id: `forward-level:${level.id}`,
     kind: level.role === "INVALIDATION_LEVEL" ? "invalidation" : "forward",
-    label: level.role === "INVALIDATION_LEVEL" ? "失效" : level.side === "SUPPORT" ? "前方支撑" : "前方压力",
+    label: level.role === "INVALIDATION_LEVEL" ? "失效观察" : level.side === "SUPPORT" ? "前方支撑" : "前方压力",
     price,
+    semanticRole: level.role === "INVALIDATION_LEVEL" ? "blocked_context" : "structure_reference",
     sourceId: `v3:forward-level:${level.id}`,
+    sourceDecision: "strategy_v3_structure_map",
     tone,
     zoneHigh: level.zoneHigh,
     zoneLow: level.zoneLow,
   };
 }
 
-function klineOverlaysFromTradePlan(plan: StrategyV3TradePlan | undefined): KlineChartOverlay[] {
+function buildDossierUnifiedDecision(dossier: SignalBackendDossier): UnifiedDecisionResult {
+  const signal = dossier.signal;
+  const backendMaturity = signal?.maturity?.stage ?? null;
+  const hardBlockedReasons = signal
+    ? [
+      ...(signal.risk === "blocked" ? ["风控门禁拦截"] : []),
+      ...(signal.timeframeGate && !signal.timeframeGate.allowed ? [signal.timeframeGate.summary] : []),
+    ]
+    : ["后端没有找到该币种的成熟信号"];
+  const forcedDecisionBlockers = [
+    ...hardBlockedReasons,
+    ...dossierReviewOnlyReasons(dossier),
+  ];
+
+  return buildUnifiedDecision({
+    backendMaturity: normalizeBackendDecisionMaturity(backendMaturity),
+    marketRegime: null,
+    symbol: dossier.symbol,
+    tradePlan: planForUnifiedDecision(dossier.strategyV3?.tradePlan, forcedDecisionBlockers),
+  });
+}
+
+function klineOverlaysFromReadyPlan(plan: NonNullable<UnifiedDecisionResult["readyPlan"]>): KlineChartOverlay[] {
   if (!plan) {
     return [];
   }
@@ -1559,12 +1590,15 @@ function klineOverlaysFromTradePlan(plan: StrategyV3TradePlan | undefined): Klin
   const stop = overlayPrice(plan.structuralStop);
   if (stop !== null) {
     overlays.push({
-      detail: plan.invalidation,
-      id: "trade-plan:stop",
+      allowedUse: "ready_trade_plan_only",
+      detail: `统一决策引擎放行；结构盈亏比 ${round(plan.rewardRisk, 2)}:1。`,
+      id: "unified-decision:ready-plan:stop",
       kind: "stop",
       label: "结构止损",
       price: stop,
-      sourceId: "trade-plan:stop",
+      semanticRole: "ready_trade_plan",
+      sourceDecision: "unified_decision_engine",
+      sourceId: "unified-decision:ready-plan:stop",
       tone: "risk",
     });
   }
@@ -1575,12 +1609,15 @@ function klineOverlaysFromTradePlan(plan: StrategyV3TradePlan | undefined): Klin
       return;
     }
     overlays.push({
-      detail: plan.takeProfitPlan,
-      id: `trade-plan:tp${index + 1}`,
+      allowedUse: "ready_trade_plan_only",
+      detail: `统一决策引擎放行；第 ${index + 1} 目标位。`,
+      id: `unified-decision:ready-plan:tp${index + 1}`,
       kind: "target",
       label: `TP${index + 1}`,
       price,
-      sourceId: `trade-plan:tp${index + 1}`,
+      semanticRole: "ready_trade_plan",
+      sourceDecision: "unified_decision_engine",
+      sourceId: `unified-decision:ready-plan:tp${index + 1}`,
       tone: "target",
     });
   });
@@ -1588,16 +1625,79 @@ function klineOverlaysFromTradePlan(plan: StrategyV3TradePlan | undefined): Klin
   return overlays;
 }
 
-function buildKlineOverlays(dossier: SignalBackendDossier | null | undefined): KlineChartOverlay[] {
+function klineOverlaysFromWaitPlan(
+  plan: StrategyV3TradePlan | undefined,
+  decision: UnifiedDecisionResult,
+): KlineChartOverlay[] {
+  if (!plan || decision.decision !== "WAIT" || !decision.waitPlan) {
+    return [];
+  }
+
+  const overlays: KlineChartOverlay[] = [];
+  const triggerPrice = overlayPrice(plan.plannedEntryPrice ?? null);
+  if (triggerPrice !== null) {
+    overlays.push({
+      allowedUse: "visual_reference_only",
+      detail: decision.waitPlan.trigger,
+      id: "unified-decision:wait:trigger",
+      kind: "forward",
+      label: "等待触发区",
+      price: triggerPrice,
+      semanticRole: "wait_condition",
+      sourceDecision: "unified_decision_engine",
+      sourceId: "unified-decision:wait:trigger",
+      tone: "neutral",
+    });
+  }
+
+  const invalidationPrice = overlayPrice(plan.structuralStop);
+  if (invalidationPrice !== null) {
+    overlays.push({
+      allowedUse: "visual_reference_only",
+      detail: decision.waitPlan.invalidation,
+      id: "unified-decision:wait:invalidation",
+      kind: "invalidation",
+      label: "等待失效参考",
+      price: invalidationPrice,
+      semanticRole: "wait_condition",
+      sourceDecision: "unified_decision_engine",
+      sourceId: "unified-decision:wait:invalidation",
+      tone: "risk",
+    });
+  }
+
+  return overlays;
+}
+
+function klineOverlayStatus(overlays: KlineChartOverlay[], dataStatus: DataStatus): DataStatus {
+  if (overlays.length === 0) {
+    return "empty";
+  }
+  return dataStatus === "live" ? "live" : dataStatus;
+}
+
+function buildKlineOverlays(
+  dossier: SignalBackendDossier | null | undefined,
+  dataStatus: DataStatus,
+): KlineChartOverlay[] {
   if (!dossier?.found || !dossier.strategyV3) {
     return [];
   }
 
-  return dedupeKlineOverlays([
+  const unifiedDecision = buildDossierUnifiedDecision(dossier);
+  const canShowReadyPlan = dataStatus === "live" &&
+    unifiedDecision.decision === "TRADE_PLAN_READY" &&
+    unifiedDecision.readyPlan !== null &&
+    unifiedDecision.blockers.length === 0;
+
+  return filterKlineOverlaysForDisplay(dedupeKlineOverlays([
     ...dossier.strategyV3.keyLevels.map(klineOverlayFromKeyLevel).filter((item): item is KlineChartOverlay => Boolean(item)),
     ...dossier.strategyV3.forwardLevels.map(klineOverlayFromForwardLevel).filter((item): item is KlineChartOverlay => Boolean(item)),
-    ...klineOverlaysFromTradePlan(dossier.strategyV3.tradePlan),
-  ]).slice(0, 16);
+    ...klineOverlaysFromWaitPlan(dossier.strategyV3.tradePlan, unifiedDecision),
+    ...(canShowReadyPlan && unifiedDecision.readyPlan ? klineOverlaysFromReadyPlan(unifiedDecision.readyPlan) : []),
+  ]), {
+    allowReadyTradePlan: canShowReadyPlan,
+  }).slice(0, 16);
 }
 
 function klineResource(
@@ -1608,12 +1708,12 @@ function klineResource(
   } = {},
 ): KlineContractResource {
   const { dossier, ...resourceExtra } = extra;
-  const overlays = buildKlineOverlays(dossier);
+  const overlays = buildKlineOverlays(dossier, status);
 
   return {
     ...resource(data, status, resourceExtra),
     overlays,
-    overlayStatus: overlays.length > 0 ? "live" : "empty",
+    overlayStatus: klineOverlayStatus(overlays, status),
     tradingView: dossier?.found ? dossier.chart.tradingView : undefined,
   };
 }
@@ -4024,19 +4124,22 @@ function structureFromDossier(dossier: SignalBackendDossier, basePrice: number):
 
 function chartIntegrityFromDossier(dossier: SignalBackendDossier): TokenChartIntegrity {
   const hasTradingView = Boolean(dossier.chart.tradingView?.symbol && dossier.chart.tradingView?.url);
-  const hasV3Overlays = Boolean(
+  const unifiedDecision = buildDossierUnifiedDecision(dossier);
+  const hasStructureOverlays = Boolean(
     dossier.strategyV3 &&
-    (
-      dossier.strategyV3.keyLevels.length > 0 ||
-      dossier.strategyV3.forwardLevels.length > 0 ||
-      dossier.strategyV3.tradePlan
-    ),
+    (dossier.strategyV3.keyLevels.length > 0 || dossier.strategyV3.forwardLevels.length > 0),
   );
+  const hasReadyPlanOverlay = unifiedDecision.decision === "TRADE_PLAN_READY" && unifiedDecision.readyPlan !== null;
+  const hasV3Overlays = hasStructureOverlays || hasReadyPlanOverlay;
 
   return {
     availableTimeframes: [...dossier.chart.availableTimeframes],
     canUseMockCandles: false,
-    overlaySource: hasV3Overlays ? "v3_key_levels_forward_map_trade_plan" : "none",
+    overlaySource: hasReadyPlanOverlay
+      ? "v3_key_levels_forward_map_unified_ready_plan"
+      : hasStructureOverlays
+        ? "v3_key_levels_forward_map"
+        : "none",
     selectedTimeframe: dossier.chart.selectedTimeframe ?? dossier.chart.availableTimeframes[0] ?? "4h",
     status: hasTradingView
       ? hasV3Overlays

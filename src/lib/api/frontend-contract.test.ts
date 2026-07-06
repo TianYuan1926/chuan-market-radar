@@ -15,7 +15,7 @@ import {
   buildSignalBackendDossier,
   type SignalBackendDossier,
 } from "../market/signal-backend-dossier";
-import type { OhlcvProvider } from "../market/ohlcv/types";
+import type { OhlcvCandleCacheEntry, OhlcvProvider } from "../market/ohlcv/types";
 import {
   buildCoinGlassRuntimeCapabilityReport,
   buildDataSourceCapabilityPlan,
@@ -744,6 +744,129 @@ function ohlcvProvider(): OhlcvProvider & { requests: Array<{ symbol: string; in
           },
         ],
       };
+    },
+  };
+}
+
+function klineOverlayDossier({
+  maturityStage = "TRADE_PLAN_READY",
+  planOverrides = {},
+}: {
+  maturityStage?: SignalMaturityStage;
+  planOverrides?: Partial<StrategyV3TradePlan>;
+} = {}): SignalBackendDossier {
+  const tradePlan: StrategyV3TradePlan = {
+    allowedUse: "research_only",
+    blockedBy: [],
+    canAutoAdjustWeights: false,
+    canMutateLiveRanking: false,
+    confirmationChecklist: ["突破站稳 8.2"],
+    direction: "long",
+    entryZone: "8.2 上方确认",
+    hasAutoExecution: false,
+    invalidation: "跌回箱体",
+    isPlanEligible: true,
+    manualReviewRequired: true,
+    plannedEntryPrice: 8.24,
+    positionSizing: "轻仓",
+    rewardRisk: 3.4,
+    status: "READY_LONG",
+    structuralStop: 7.72,
+    summary: "只读交易计划",
+    takeProfitPlan: "分批止盈",
+    targets: [8.6, 9.15, 10.2],
+    ...planOverrides,
+  };
+
+  return {
+    found: true,
+    generatedAt: "2026-06-21T08:00:00.000Z",
+    guardrails: ["report_is_translation_only"],
+    symbol: "TIAUSDT",
+    chart: {
+      availableTimeframes: ["1h"],
+      selectedTimeframe: "1h",
+      tradingView: {
+        interval: "1h",
+        symbol: "BINANCE:TIAUSDT.P",
+        url: "https://www.tradingview.com/chart/?symbol=BINANCE%3ATIAUSDT.P",
+      },
+    },
+    evidence: {
+      conflictingCount: 0,
+      items: signal().evidence,
+      neutralCount: 0,
+      supportiveCount: 2,
+      total: 3,
+    },
+    journal: {
+      recentEvents: [],
+      totalEvents: 0,
+    },
+    execution: {
+      maxLeverage: 50,
+      maxLeverageSource: "coinglass_instrument_tag",
+    },
+    signal: {
+      confidence: 84,
+      direction: "long",
+      exchange: "BINANCE",
+      id: "sig-tia",
+      maturity: signalMaturity(maturityStage),
+      risk: "medium",
+      state: "near_trigger",
+      summary: "压缩突破",
+      timeframe: "1h",
+      updatedAt: "2026-06-21T08:00:00.000Z",
+    },
+    strategyV3: {
+      allowedUse: "research_only",
+      canAutoAdjustWeights: false,
+      canMutateLiveRanking: false,
+      currentPrice: 7.84,
+      forwardLevels: [
+        {
+          id: "tia-forward-r1",
+          symbol: "TIAUSDT",
+          side: "RESISTANCE",
+          role: "NEXT_REACTION_ZONE",
+          zoneLow: 8.55,
+          zoneHigh: 8.65,
+          timeframeWeight: 70,
+          keyScore: 78,
+          status: "AHEAD",
+          reasons: ["前方反应区"],
+          confirmationRules: ["放量站上"],
+          invalidationRules: ["跌回突破位"],
+          sourceLevelIds: ["tia-r1"],
+        },
+      ],
+      guardrails: ["research_only"],
+      keyLevels: [
+        {
+          id: "tia-s1",
+          symbol: "TIAUSDT",
+          timeframe: "1h",
+          type: "RANGE_LOW",
+          zoneLow: 7.72,
+          zoneHigh: 7.82,
+          midPrice: 7.77,
+          direction: "SUPPORT",
+          keyScore: 80,
+          reactionScore: 55,
+          confluenceScore: 70,
+          status: "POTENTIAL",
+          reasons: ["箱体下沿"],
+          confirmationRules: ["回踩守住"],
+          invalidationRule: "跌破箱体",
+        },
+      ],
+      primaryTimeframe: "1h",
+      source: "existing_ohlcv_key_level_mvp",
+      sourceTimeframes: ["1h"],
+      summary: "v3 关键位地图",
+      symbol: "TIAUSDT",
+      tradePlan,
     },
   };
 }
@@ -1943,8 +2066,123 @@ test("buildFrontendKlineContract exposes readonly v3 chart overlays from backend
   assert.equal(kline.tradingView?.symbol, "BINANCE:TIAUSDT.P");
   assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "v3:key-level:tia-s1"), true);
   assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "v3:forward-level:tia-forward-r1"), true);
-  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "trade-plan:stop"), true);
-  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "trade-plan:tp1"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "unified-decision:ready-plan:stop"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "unified-decision:ready-plan:tp1"), true);
+  assert.equal(kline.overlays.every((overlay) =>
+    overlay.kind !== "target" && overlay.kind !== "stop" ||
+    overlay.semanticRole === "ready_trade_plan" && overlay.sourceDecision === "unified_decision_engine"
+  ), true);
+});
+
+test("buildFrontendKlineContract does not expose plan stop or targets when backend maturity is not ready", async () => {
+  const provider = ohlcvProvider();
+  const dossier = klineOverlayDossier({ maturityStage: "EVIDENCE_SIGNAL" });
+
+  const kline = await buildFrontendKlineContract({
+    dossier,
+    interval: "1h",
+    now: new Date("2026-06-21T08:01:30.000Z"),
+    ohlcvProvider: provider,
+    symbol: "TIA",
+  });
+
+  assert.equal(kline.status, "live");
+  assert.equal(kline.overlayStatus, "live");
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "v3:key-level:tia-s1"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "v3:forward-level:tia-forward-r1"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.kind === "stop" || overlay.kind === "target"), false);
+  assert.equal(kline.overlays.some((overlay) => overlay.semanticRole === "ready_trade_plan"), false);
+});
+
+test("buildFrontendKlineContract marks wait overlays as wait conditions without target or stop semantics", async () => {
+  const provider = ohlcvProvider();
+  const dossier = klineOverlayDossier({
+    maturityStage: "EVIDENCE_SIGNAL",
+    planOverrides: {
+      isPlanEligible: false,
+      secondaryConfirmation: "15m 收盘重新站稳等待区",
+      status: "WAIT_PULLBACK",
+      triggerCondition: "等待回踩 8.12 后重新放量",
+      waitReason: "当前位置距离结构止损偏远，不能追",
+      whyNotNow: "当前位置追入盈亏比不稳定",
+    },
+  });
+
+  const kline = await buildFrontendKlineContract({
+    dossier,
+    interval: "1h",
+    now: new Date("2026-06-21T08:01:30.000Z"),
+    ohlcvProvider: provider,
+    symbol: "TIA",
+  });
+
+  assert.equal(kline.status, "live");
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "unified-decision:wait:trigger"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "unified-decision:wait:invalidation"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.kind === "target" || overlay.kind === "stop"), false);
+  assert.equal(kline.overlays.every((overlay) => overlay.semanticRole !== "ready_trade_plan"), true);
+});
+
+test("buildFrontendKlineContract hides ready plan overlays when candles are stale", async () => {
+  const dossier = klineOverlayDossier();
+  const provider: OhlcvProvider = {
+    id: "failing-public-ohlcv",
+    label: "Failing Public OHLCV",
+    async fetchCandles(request) {
+      return {
+        ok: false,
+        error: "upstream failed",
+        interval: request.interval,
+        reason: "upstream_error",
+        source: "failing-public-ohlcv",
+        symbol: request.symbol,
+      };
+    },
+  };
+  const cachedEntry: OhlcvCandleCacheEntry = {
+    allowedUse: "research_only" as const,
+    cacheKey: "TIAUSDT:1h",
+    canAutoAdjustWeights: false as const,
+    candles: [
+      {
+        close: 7.2,
+        closeTime: "2026-06-21T07:59:59.999Z",
+        high: 7.3,
+        low: 7,
+        open: 7.1,
+        openTime: "2026-06-21T07:00:00.000Z",
+        volume: 1000,
+      },
+    ],
+    fetchedAt: "2026-06-21T07:00:00.000Z",
+    interval: "1h" as const,
+    source: "cached-public-ohlcv",
+    symbol: "TIAUSDT",
+  };
+  const repository = {
+    async getOhlcvCandleCache() {
+      return cachedEntry;
+    },
+    async upsertOhlcvCandleCache(entry: OhlcvCandleCacheEntry) {
+      return entry;
+    },
+  };
+
+  const kline = await buildFrontendKlineContract({
+    dossier,
+    interval: "1h",
+    maxCacheAgeMs: 1,
+    now: new Date("2026-06-21T09:00:00.000Z"),
+    ohlcvProvider: provider,
+    repository,
+    symbol: "TIA",
+  });
+
+  assert.equal(kline.status, "stale");
+  assert.equal(kline.overlayStatus, "stale");
+  assert.equal(kline.overlays.some((overlay) => overlay.sourceId === "v3:key-level:tia-s1"), true);
+  assert.equal(kline.overlays.some((overlay) => overlay.kind === "stop" || overlay.kind === "target"), false);
+  assert.equal(kline.overlays.some((overlay) => overlay.semanticRole === "ready_trade_plan"), false);
 });
 
 test("buildFrontendTokenDossierContract translates backend dossier without report-side decisions", () => {
@@ -2124,7 +2362,7 @@ test("buildFrontendTokenDossierContract maps real v3 key levels without fabricat
   assert.equal(fourHour?.support, 0);
   assert.equal(fourHour?.resistance, 0);
   assert.equal(res.data.chart.status, "ready");
-  assert.equal(res.data.chart.overlaySource, "v3_key_levels_forward_map_trade_plan");
+  assert.equal(res.data.chart.overlaySource, "v3_key_levels_forward_map");
 });
 
 test("buildFrontendTokenDossierContract maps backend v3 trade plan without frontend fabrication", () => {

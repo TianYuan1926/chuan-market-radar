@@ -2068,6 +2068,27 @@ function v3StrategyLoopOperatorHint(status: V3StrategyLoopStatus) {
   return "v3 实战闭环正在收集 live 地图、计划草案和复盘样本。";
 }
 
+function hasUnifiedReadyPlanFacts(signal: MarketRadarSnapshot["signals"][number]) {
+  const plan = signal.strategyV3?.tradePlan;
+  if (!plan) {
+    return false;
+  }
+
+  return signal.maturity?.stage === "TRADE_PLAN_READY" &&
+    (plan.status === "READY_LONG" || plan.status === "READY_SHORT") &&
+    plan.isPlanEligible === true &&
+    plan.blockedBy.length === 0 &&
+    typeof plan.plannedEntryPrice === "number" &&
+    Number.isFinite(plan.plannedEntryPrice) &&
+    typeof plan.structuralStop === "number" &&
+    Number.isFinite(plan.structuralStop) &&
+    typeof plan.rewardRisk === "number" &&
+    Number.isFinite(plan.rewardRisk) &&
+    plan.rewardRisk >= 3 &&
+    plan.targets.length > 0 &&
+    plan.targets.every((target) => Number.isFinite(target));
+}
+
 function v3StrategyLoopReport(snapshot: MarketRadarSnapshot, events: JournalEvent[]): V3StrategyLoopReport {
   const v3Signals = snapshot.signals.filter((signal) => signal.strategyV3);
   const reviewStats = buildV3PatternReviewStats(events);
@@ -2104,7 +2125,7 @@ function v3StrategyLoopReport(snapshot: MarketRadarSnapshot, events: JournalEven
     current.keyLevels += strategyV3.keyLevels.length;
     current.forwardLevels += strategyV3.forwardLevels.length;
 
-    if (strategyV3.tradePlan?.isPlanEligible) {
+    if (hasUnifiedReadyPlanFacts(signal)) {
       current.readyPlans += 1;
     } else if (strategyV3.tradePlan) {
       current.blockedPlans += 1;
@@ -2321,7 +2342,7 @@ function strategyEvolutionLoopReport(
   const stages: StrategyEvolutionLoopStage[] = [
     {
       count: v3StrategyLoop.live.v3Signals,
-      detail: `${v3StrategyLoop.live.keyLevels} 个关键位，${v3StrategyLoop.live.readyPlans} 个可读计划。`,
+      detail: `${v3StrategyLoop.live.keyLevels} 个关键位，${v3StrategyLoop.live.readyPlans} 个统一就绪计划。`,
       id: "v3_live",
       label: "v3 实时样本",
       status: strategyEvolutionLoopStageStatus({

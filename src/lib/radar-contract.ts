@@ -469,7 +469,7 @@ export type AnalysisReportSection = {
 export type TokenChartIntegrity = {
   availableTimeframes: string[]
   canUseMockCandles: false
-  overlaySource: 'v3_key_levels_forward_map_trade_plan' | 'none'
+  overlaySource: 'v3_key_levels_forward_map' | 'v3_key_levels_forward_map_unified_ready_plan' | 'none'
   selectedTimeframe: string
   status: 'ready' | 'partial' | 'empty'
   tradingViewSymbol: string | null

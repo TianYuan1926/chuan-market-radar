@@ -651,6 +651,40 @@ GitHub Actions / self-hosted runner：
 
 进入 3.1 验收复查，随后做 Kline / TradingView readonly overlay 边界审计，防止图表视觉层看起来强于统一决策合同。
 
+## 2026-07-06 第 3.2 步图表叠加层与严格单一事实源最终收口
+
+本节记录 2026-07-06 本地图表合同收口状态。该轮只修 Kline / TradingView overlay 与统一决策事实源的错位；不改 scan 排序、不改策略规则、不降低 RR、不部署、不运行 formal、不动数据库、不同步腾讯云。
+
+结论：
+
+- 当前系统仍不能支撑实战。
+- 本轮修复前发现 P0：Kline overlay 会把非 READY 的 v3 trade plan 草案显示成“结构止损 / TP”视觉线，可能与右侧“不能交易”结论冲突。
+- 本轮本地修复后：Kline overlay 的交易计划线只允许来自 `unified_decision_engine` 的 `readyPlan`。
+- 是否 push main：否。
+- 是否部署腾讯云：否。
+
+本轮已完成的本地合同收口：
+
+- `KlineOverlay` 增加 `semanticRole`、`allowedUse`、`sourceDecision`。
+- `target/stop` overlay 必须满足 `semanticRole=ready_trade_plan`、`allowedUse=ready_trade_plan_only`、`sourceDecision=unified_decision_engine` 才可渲染。
+- `buildFrontendKlineContract()` 不再无条件从 `dossier.strategyV3.tradePlan` 输出止损/TP。
+- 非 READY：只允许显示支撑、压力、前方结构、失效观察等结构参考。
+- WAIT：只允许显示“等待触发区 / 等待失效参考”，不得显示为入场、止损或 TP。
+- stale / partial / cached Kline 数据不允许显示 ready trade plan overlay。
+- `chartIntegrity.overlaySource` 不再把 v3 草案标记为 trade plan overlay；READY 图表计划线来源改为 `v3_key_levels_forward_map_unified_ready_plan`。
+
+定向验证：
+
+- `npm run build:market-cli && node --test .tmp/market-tests/lib/api/frontend-contract.test.js`：通过，32/32。
+- `npm run typecheck`：通过。
+- 完整基础门禁仍需在本轮最终报告中记录。
+
+仍需说明：
+
+- 本轮不证明腾讯云生产已同步。
+- 本轮不证明策略命中率或实战能力达标。
+- 后续能力提升仍需围绕扫描提前性、分析准确性、策略有效性和复盘闭环继续验收。
+
 ## 附录 A：核心相关文档清单
 
 建议外部审计员优先阅读这些文档，而不是一次性读完整 docs：

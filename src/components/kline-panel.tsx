@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { KlineChart } from './kline-chart'
 import { DegradeNotice, FreshnessTag, StatusBadge } from './data-state'
 import type { Timeframe } from '@/lib/analysis/types'
-import type { ChartCandle, KlineOverlay } from '@/lib/chart-types'
+import { filterKlineOverlaysForDisplay, type ChartCandle, type KlineOverlay } from '@/lib/chart-types'
 import type { DataStatus } from '@/lib/data-status'
 import {
   buildTradingViewWidgetEmbedUrl,
@@ -154,7 +154,9 @@ export function KlinePanel({
   }, [candles, initialAgeSec, initialOverlays, initialReason, initialSource, initialStatus, initialTradingView, initialUpdatedAt, symbol, tf])
 
   const displayCandles = remote.data
-  const displayOverlays = remote.overlays ?? []
+  const displayOverlays = filterKlineOverlaysForDisplay(remote.overlays, {
+    allowReadyTradePlan: remote.status === 'live',
+  })
   const activeInterval = TF_TO_INTERVAL[tf]
   const tradingViewSymbol = remote.tradingView?.symbol
     || (symbol ? toTradingViewSymbol({ exchange: 'BINANCE', symbol: normalizeTradingPair(symbol) }) : null)
@@ -250,7 +252,11 @@ export function KlinePanel({
           </>
         ) : displayCandles.length > 0 ? (
           <>
-            <KlineChart candles={displayCandles} overlays={displayOverlays} />
+            <KlineChart
+              allowReadyTradePlanOverlays={remote.status === 'live'}
+              candles={displayCandles}
+              overlays={displayOverlays}
+            />
             {displayOverlays.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {displayOverlays.slice(0, 8).map((overlay) => (
