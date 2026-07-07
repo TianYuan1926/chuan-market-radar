@@ -817,8 +817,8 @@ P0 阻断：
 
 ### 修改范围
 
-- `scripts/production/observability.mjs`：新增第 4.3.2 evidence phase；`grep-evidence` 改为 Node.js 内置文本扫描；`changed-files` 增加基线/当前 commit/已提交差异/未提交 tracked/未跟踪 artifact 分区；真实生产 rollback plan 改为部署后回滚口径；validator 增加 command failure、占位、非法 JSON、changed-files、rollback、4.3.2 summary 和多 summary 冲突检查；validate 支持 `--json-out` 生成纯 JSON。
-- `scripts/production/observability.test.mjs`：新增 production evidence validator fixture 测试。
+- `scripts/production/observability.mjs`：新增第 4.3.2 evidence phase；`grep-evidence` 改为 Node.js 内置文本扫描；`changed-files` 增加基线/当前 commit/已提交差异/未提交 tracked/未跟踪 artifact 分区；真实生产 rollback plan 改为部署后回滚口径；validator 增加 command failure、占位、非法 JSON、changed-files、rollback、4.3.2 summary 和多 summary 冲突检查；validate 支持 `--json-out` 生成纯 JSON；生产扫描 `partial` 时如实保留 partial，不误判成系统失败，也不冒充 pass；secret 检查改为逐行判断，避免把 evidence 中的规则名称误判为真实密钥。
+- `scripts/production/observability.test.mjs`：新增 production evidence validator fixture 测试，覆盖 4.3.2 partial 口径和真实 secret-like 文本拦截。
 - `package.json`：新增 `npm run test:production-evidence`。
 - `scripts/ci/check-secret-patterns.sh`、`scripts/verify/security-check.sh`：过滤源码里的 secret 检测正则定义误报，不放过真实 secret 文本。
 - `.gitignore`：补充第 4.3.2 evidence 目录和 zip，防止证据包误提交。
@@ -847,7 +847,7 @@ P0 阻断：
 - `npm run ci:forbidden-files`
 - `npm run ci:secret-patterns`
 - `npm run security:check`
-- `npm run test:production-evidence`：6/6
+- `npm run test:production-evidence`：9/9
 - dry-run `production:evidence` + `production:evidence:validate`：pass
 
 ### 是否部署

@@ -371,18 +371,35 @@ function sanitizeEvidenceText(text) {
     .replaceAll("f0e3086359d2bed4c21b6bcaebae34cdb7bc27d2", "[OLD_COMMIT_REDACTED]");
 }
 
+function hasUnredactedSecretValue(text, fileName = "") {
+  for (const line of String(text).split(/\r?\n/)) {
+    if (!SECRET_VALUE_RE.test(line)) {
+      SECRET_VALUE_RE.lastIndex = 0;
+      continue;
+    }
+    SECRET_VALUE_RE.lastIndex = 0;
+    if (line.includes("[REDACTED]")) {
+      continue;
+    }
+    if (
+      fileName === "grep-evidence.md" &&
+      /("id":\s*"secret_pattern"|"label":\s*"密钥与敏感字段模式"|critical_if_real_value)/.test(line)
+    ) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 function productionSecretLeakCheckStatus(scanRoot) {
   const files = scanRoot
     ? listFilesRecursive(scanRoot).filter((file) => !file.endsWith(".zip"))
     : evidenceScanTargets();
   for (const file of files) {
     const text = readFileSync(file, "utf8");
-    for (const line of text.split(/\r?\n/)) {
-      if (SECRET_VALUE_RE.test(line) && !line.includes("[REDACTED]")) {
-        SECRET_VALUE_RE.lastIndex = 0;
-        return "partial";
-      }
-      SECRET_VALUE_RE.lastIndex = 0;
+    if (hasUnredactedSecretValue(text, basename(file))) {
+      return "partial";
     }
   }
   return "pass";
@@ -500,11 +517,23 @@ function validateHealthSnapshot(payload) {
     },
   ];
 
+  const hardFailureKeys = new Set([
+    "http_200",
+    "health_ok",
+    "health_ready",
+    "database_ready",
+    "redis_not_failed",
+    "workers_not_failed",
+  ]);
+  const hardFailed = checks.some((check) => hardFailureKeys.has(check.key) && !check.ok);
+  const softPartial = checks.some((check) => !hardFailureKeys.has(check.key) && !check.ok);
+  const status = hardFailed ? "fail" : softPartial ? "partial" : "pass";
+
   return {
     checks,
     level: health.level ?? "unknown",
     scanFreshness: scan.freshness ?? "unknown",
-    status: checks.every((check) => check.ok) ? "pass" : "fail",
+    status,
   };
 }
 
@@ -604,7 +633,7 @@ async function runHealth(args) {
     validation,
   };
   writeJson(args.outDir, "production-health.json", payload);
-  if (validation.status !== "pass") {
+  if (validation.status === "fail") {
     process.exitCode = 1;
   }
   return payload;
@@ -1773,7 +1802,7 @@ function validateEvidenceZip(zipPath) {
       if (file === "grep-evidence.md" && /\b(Traceback|Exception|ENOENT)\b/i.test(text)) {
         errors.push(`critical evidence generation failure found in ${file}`);
       }
-      if (SECRET_VALUE_RE.test(text) && !/\[REDACTED\]/.test(text)) {
+      if (hasUnredactedSecretValue(text, file)) {
         errors.push(`potential secret pattern found in ${file}`);
       }
       if (file.endsWith(".json")) {
@@ -1875,16 +1904,31 @@ function validateEvidenceZip(zipPath) {
       if (!productionCommit || productionCommit !== summary.source_commit) {
         errors.push(`${summaryName}.production commit must equal source_commit`);
       }
-      for (const [key, expected] of Object.entries({
-        production_health: "pass",
-        production_smoke: "pass",
-        production_status: "pass",
-        production_evidence_generated: "pass",
-        unified_decision_guard_not_regressed: "pass",
-        overlay_guard_not_regressed: "pass",
-      })) {
-        if (summary[key] !== expected) {
-          errors.push(`${summaryName}.${key} must be ${expected}`);
+      const requiredPassKeys = hasPhase432Summary
+        ? [
+          "production_smoke",
+          "production_evidence_generated",
+          "unified_decision_guard_not_regressed",
+          "overlay_guard_not_regressed",
+        ]
+        : [
+          "production_health",
+          "production_smoke",
+          "production_status",
+          "production_evidence_generated",
+          "unified_decision_guard_not_regressed",
+          "overlay_guard_not_regressed",
+        ];
+      for (const key of requiredPassKeys) {
+        if (summary[key] !== "pass") {
+          errors.push(`${summaryName}.${key} must be pass`);
+        }
+      }
+      if (hasPhase432Summary) {
+        for (const key of ["production_health", "production_status"]) {
+          if (!["pass", "partial"].includes(summary[key])) {
+            errors.push(`${summaryName}.${key} must be pass or partial`);
+          }
         }
       }
       if (summary.requires_gpt_production_evidence_review !== true) {

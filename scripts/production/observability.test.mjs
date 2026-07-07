@@ -90,7 +90,7 @@ function generateDryRunEvidence(parentDir) {
   return join(evidenceDir, "production-evidence.zip");
 }
 
-async function withFixtureServer(callback) {
+async function withFixtureServer(callback, options = {}) {
   const server = createServer((request, response) => {
     const url = new URL(request.url || "/", "http://127.0.0.1");
     const bodyByPath = {
@@ -103,7 +103,7 @@ async function withFixtureServer(callback) {
             redis: { status: "ready" },
             workers: [{ key: "scanner-worker", status: "ready" }],
           },
-          scan: { freshness: "fresh", status: "ready" },
+          scan: options.scan || { freshness: "fresh", status: "ready" },
         },
       },
       "/api/frontend/radar-contract": {
@@ -146,7 +146,7 @@ async function withFixtureServer(callback) {
   }
 }
 
-async function generatePhase432Evidence(parentDir) {
+async function generatePhase432Evidence(parentDir, options = {}) {
   const evidenceDir = join(parentDir, "phase432");
   await withFixtureServer(async (baseUrl) => {
     await runNodeAsync([
@@ -158,7 +158,7 @@ async function generatePhase432Evidence(parentDir) {
       "--out-dir",
       evidenceDir,
     ]);
-  });
+  }, options);
   return join(evidenceDir, "production-evidence.zip");
 }
 
@@ -279,6 +279,37 @@ test("phase 4.3.2 production evidence includes changed files and redacts dry-run
     assert.match(changedFiles, /已提交差异文件/);
     assert.doesNotMatch(grepEvidence, /真实腾讯云部署尚未执行|本轮未部署腾讯云|部署授权前计划/);
     assert.equal(summary.secret_leak_check, "pass");
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("phase 4.3.2 production evidence preserves partial scan status without promoting it to pass", async () => {
+  const parent = makeTempDir();
+  try {
+    const zipPath = await generatePhase432Evidence(parent, { scan: { freshness: "fresh", status: "partial" } });
+    const parsed = validateZip(zipPath);
+    assert.equal(parsed.status, "pass");
+    const outDir = join(parent, "unzipped-partial");
+    unzipFixture(zipPath, outDir);
+    const summary = JSON.parse(readFileSync(join(outDir, "phase4-3-2-summary.json"), "utf8"));
+    assert.equal(summary.production_health, "partial");
+    assert.equal(summary.production_status, "partial");
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("production evidence validator still fails real unredacted secret-like values in grep evidence", () => {
+  const parent = makeTempDir();
+  try {
+    const validZip = generateDryRunEvidence(parent);
+    const badZip = mutateZip(validZip, parent, (dir) => {
+      const fakeSecretName = ["COINGLASS", "API", "KEY"].join("_");
+      writeFileSync(join(dir, "grep-evidence.md"), `${fakeSecretName}=not-a-real-key\n`);
+    });
+    const parsed = validateZip(badZip, { expectFailure: true });
+    assert.match(parsed.errors.join("\n"), /potential secret pattern found in grep-evidence\.md/);
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
