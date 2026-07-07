@@ -278,6 +278,8 @@ test("phase 4.3.2 production evidence includes changed files and redacts dry-run
     assert.match(changedFiles, /当前 commit/);
     assert.match(changedFiles, /已提交差异文件/);
     assert.doesNotMatch(grepEvidence, /真实腾讯云部署尚未执行|本轮未部署腾讯云|部署授权前计划/);
+    assert.doesNotMatch(grepEvidence, /DATABASE_URL\s*=|CRON_SECRET\s*=|COINGLASS_API_KEY\s*=/);
+    assert.match(grepEvidence, /\[REDACTED_SECRET_PATTERN\]/);
     assert.equal(summary.secret_leak_check, "pass");
   } finally {
     rmSync(parent, { recursive: true, force: true });

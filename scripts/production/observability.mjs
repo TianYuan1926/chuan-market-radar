@@ -348,9 +348,12 @@ function scanTextFiles(patterns, options = {}) {
   });
 }
 
+function redactSecretPatterns(text) {
+  return String(text).replace(new RegExp(SECRET_VALUE_RE.source, "gi"), "[REDACTED_SECRET_PATTERN]");
+}
+
 function sanitizeEvidenceText(text) {
-  return String(text)
-    .replace(SECRET_VALUE_RE, "[REDACTED_SECRET_PATTERN]")
+  return redactSecretPatterns(text)
     .replaceAll("pending_commit", "[FORBIDDEN_PENDING_TOKEN]")
     .replaceAll("等待 Agent", "[FORBIDDEN_WAITING_AGENT_TEXT]")
     .replaceAll("等待Agent", "[FORBIDDEN_WAITING_AGENT_TEXT]")

@@ -817,8 +817,8 @@ P0 阻断：
 
 ### 修改范围
 
-- `scripts/production/observability.mjs`：新增第 4.3.2 evidence phase；`grep-evidence` 改为 Node.js 内置文本扫描；`changed-files` 增加基线/当前 commit/已提交差异/未提交 tracked/未跟踪 artifact 分区；真实生产 rollback plan 改为部署后回滚口径；validator 增加 command failure、占位、非法 JSON、changed-files、rollback、4.3.2 summary 和多 summary 冲突检查；validate 支持 `--json-out` 生成纯 JSON；生产扫描 `partial` 时如实保留 partial，不误判成系统失败，也不冒充 pass；secret 检查改为逐行判断，避免把 evidence 中的规则名称误判为真实密钥。
-- `scripts/production/observability.test.mjs`：新增 production evidence validator fixture 测试，覆盖 4.3.2 partial 口径和真实 secret-like 文本拦截。
+- `scripts/production/observability.mjs`：新增第 4.3.2 evidence phase；`grep-evidence` 改为 Node.js 内置文本扫描；`changed-files` 增加基线/当前 commit/已提交差异/未提交 tracked/未跟踪 artifact 分区；真实生产 rollback plan 改为部署后回滚口径；validator 增加 command failure、占位、非法 JSON、changed-files、rollback、4.3.2 summary 和多 summary 冲突检查；validate 支持 `--json-out` 生成纯 JSON；生产扫描 `partial` 时如实保留 partial，不误判成系统失败，也不冒充 pass；secret 检查改为逐行判断，避免把 evidence 中的规则名称误判为真实密钥；追加修复 `grep-evidence.md` 同一行多个 secret 检测模式只脱敏第一个的问题。
+- `scripts/production/observability.test.mjs`：新增 production evidence validator fixture 测试，覆盖 4.3.2 partial 口径、真实 secret-like 文本拦截，以及生成的 grep evidence 不残留 `DATABASE_URL=` / `CRON_SECRET=` / `COINGLASS_API_KEY=` 字段模式。
 - `package.json`：新增 `npm run test:production-evidence`。
 - `scripts/ci/check-secret-patterns.sh`、`scripts/verify/security-check.sh`：过滤源码里的 secret 检测正则定义误报，不放过真实 secret 文本。
 - `.gitignore`：补充第 4.3.2 evidence 目录和 zip，防止证据包误提交。
@@ -847,12 +847,13 @@ P0 阻断：
 - `npm run ci:forbidden-files`
 - `npm run ci:secret-patterns`
 - `npm run security:check`
-- `npm run test:production-evidence`：9/9
+- `npm run test:production-evidence`：9/9，追加修复后通过
+- 追加修复后重新验证：typecheck、lint、test:market、build、backtest:golden、forbidden-files、secret-patterns、security-check 均通过；formal 未运行。
 - dry-run `production:evidence` + `production:evidence:validate`：pass
 
 ### 是否部署
 
-本段记录本地修复与门禁结果。第 4.3.2 后续真实 production evidence 仍需在腾讯云只重建 `web` 后重新生成；不允许动 Postgres / Redis / volume，不运行 migration，不运行 formal，不 push main。
+本段记录本地修复与门禁结果。追加修复前，腾讯云真实 evidence validate 已确认 `production_health` / `production_status` partial 口径可通过，但 `grep-evidence.md` 中源码 secret 检测规则文本仍被误判。追加修复后仍需重新跑本地门禁，并在腾讯云只重建 `web` 后重新生成真实 production evidence；不允许动 Postgres / Redis / volume，不运行 migration，不运行 formal，不 push main。
 
 ### 风险与遗留问题
 

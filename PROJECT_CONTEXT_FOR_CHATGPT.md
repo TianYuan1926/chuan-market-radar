@@ -914,6 +914,7 @@ GPT / 用户验收第 4.2 证据
 - 修复目标三：`production-evidence-validate-result.json` 必须是纯 JSON；命令日志单独放入 markdown。
 - 修复目标四：`changed-files.txt` 必须写清比较基线 commit、当前 commit、已提交差异、未提交 tracked 变更和未跟踪 artifact。
 - 修复目标五：真实生产 rollback plan 必须是部署后的回滚口径，不得继续写“本轮未部署 / 部署授权前计划”。
+- 追加修复目标六：`grep-evidence.md` 中来自源码的 secret 检测规则文本必须全局脱敏；同一行出现多个 `DATABASE_URL=` / `CRON_SECRET=` / `COINGLASS_API_KEY=` 等模式时，不允许只脱敏第一个。
 - 新增定向测试：`npm run test:production-evidence`，覆盖好包通过、command failure fail、占位文本 fail、非法 JSON fail、changed-files 缺结构 fail、多 summary 冲突 fail、4.3.2 扫描 partial 不冒充 pass、真实 secret-like 文本仍被拦截。
 - 第 4.3.2 evidence 口径：生产扫描为 `partial` 时必须如实写成 `partial`，允许交给 GPT 审计，但不得写成 full pass，也不得宣称生产能力已完整。
 - 本轮本地基础门禁已通过：typecheck、lint、test:market、build、backtest:golden、forbidden-files、secret-patterns、security-check、test:production-evidence。
@@ -933,5 +934,6 @@ GPT / 用户验收第 4.2 证据
 当前真实状态：
 
 - 本地 evidence 生成和 validator 严格性已增强并通过本地门禁。
+- 首次腾讯云 4.3.2 真实 evidence 验证发现 `grep-evidence.md` 脱敏口径仍需补强：问题来自源码规则文本误判，不是已确认的真实 secret 泄露；本轮必须重新提交安全分支、重建 web、重采 real production evidence 并 validate。
 - 仍需在腾讯云只重建 `web` 后重新生成 `phase4-3-2` real production evidence，并由 GPT 做最终生产 evidence 审计。
 - 当前系统仍不能写成支撑实战交易，不能进入 shadow tracking。
