@@ -21,6 +21,7 @@
     "src/lib/persistence/**/*.ts",
     "src/lib/review/**/*.ts",
     "src/lib/risk/**/*.ts",
+    "src/lib/shadow/**/*.ts",
     "src/lib/runtime/**/*.ts",
     "src/scripts/**/*.ts"
   ]

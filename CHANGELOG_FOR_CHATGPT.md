@@ -2,6 +2,175 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-07 - 第 5.1 步 Shadow Tracking v1 存储基线与 run manifest
+
+### 本轮目标
+
+建立 Shadow Tracking v1 的文件存储基线、run manifest、事件 JSONL、去重/迁移记录、1h/4h/24h checkpoint plan、latest.json/latest.md 和证据包。本轮不是启动 7-14 天长期 Shadow Tracking，不是策略优化，不是 UI 调整，不是生产部署。
+
+### 修改范围
+
+- `.gitignore`：补充 phase5 证据目录、Shadow JSONL/NDJSON/status 文件防误提交规则。
+- `scripts/ci/check-forbidden-files.sh`：补充 phase5 证据包和 Shadow 运行文件的禁止跟踪规则。
+- `package.json`：新增 `shadow:baseline`、`shadow:status`、`shadow:validate`、`shadow:report`。
+- `tsconfig.market-test.json`：把 `src/lib/shadow/**/*.ts` 纳入 market CLI/test 编译。
+- `src/lib/shadow/storage.ts`：新增 Shadow baseline storage 纯函数、去重、状态迁移、checkpoint plan、latest/report 和 validator。
+- `src/lib/shadow/storage.test.ts`：新增 Shadow storage 边界测试。
+- `src/scripts/shadow/shadow-tracking.ts`：新增 Shadow Tracking CLI。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：更新第 5.1 当前事实。
+- `CHANGELOG_FOR_CHATGPT.md`：记录本轮。
+- `docs/chuan-market-radar-blueprint.md`：更新当前阶段与 Shadow Tracking v1 边界。
+- `phase5-1-shadow-storage-run-manifest/`：本轮证据目录，不应提交 main。
+
+未修改 scan / analysis / strategy / UI 交易逻辑。未修改数据库 schema。未部署生产。未运行 formal。
+
+### 核心链路影响
+
+- 全市场发现：未改生产扫描逻辑，只从生产 `/api/scan` 捕获 baseline。
+- 候选筛选：未改生产排序，只把生产信号写入 research-only Shadow 事件。
+- 深扫验证：未改 CoinGlass 逻辑；production evidence validate 为 pass。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改；READY 不足时不做提升。
+- 复盘进化：新增 Shadow Tracking v1 存储基线，用于后续 1h/4h/24h 结果追踪；当前不回写生产。
+
+### 测试结果
+
+- `shadow:baseline`：pass，runId `shadow-20260707T134822Z`。
+- `shadow:status`：pass，`canStartShadowV1=true`，`shadowTrackingStarted=false`。
+- `shadow:validate`：pass，errors=[]，warnings=[]。
+- `shadow:report`：pass。
+- Shadow baseline：24 个事件、24 个唯一币种、72 个 pending checkpoint、READY=0、OBSERVE=16、WAIT=1、BLOCKED=7。
+- production evidence validate：pass，real_production，errors=[]，warnings=[]。
+- `typecheck`：pass。
+- `lint`：pass。
+- `test:market`：pass，market 817 pass、worker 17 pass、historical smoke 4 pass。
+- `build`：pass。
+- `backtest:golden`：pass，16/16。
+- `ci:forbidden-files`：pass。
+- `ci:secret-patterns`：pass。
+- `security:check`：pass。
+- `test:production-evidence`：pass，9/9。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。未 push main。未运行 migration，未动 Postgres / Redis / Docker volume，未清 Redis，未自动下单。
+
+### 风险与遗留问题
+
+- P1：第 5.1 只建立 baseline readiness；长期 7-14 天 Shadow Tracking 尚未启动。
+- P1：当前 baseline READY=0，不能包装成可交易信号已经成熟。
+- P2：生产 `/api/scan` 快照来自本轮单次采集；正式 Shadow Tracking 启动后需要持续追加事件和 checkpoint outcome。
+- P2：phase5 证据目录必须保持 ignored/untracked，提交时不能 `git add .`。
+- 当前系统仍不能写成支撑实战交易。
+
+### 下一轮建议
+
+只做一个方向：把第 5.1 证据包交给 GPT 审计；确认后再进入第 5.1-R 正式启动长期 Shadow Tracking。
+
+## 2026-07-07 - 第 5.0-R 步 CoinGlass 修复后的 Shadow Tracking 启动前生产基线复查
+
+### 本轮目标
+
+复查第 5.0.1 修复 CoinGlass key 后，腾讯云生产环境是否已经具备进入第 5.1 Shadow Tracking v1 的条件。本轮不是启动 Shadow Tracking，不是策略优化，不是 UI 调整，不是自动交易。
+
+### 修改范围
+
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：补充第 5.0-R 最新生产基线事实。
+- `CHANGELOG_FOR_CHATGPT.md`：记录本轮复查结果。
+- `phase5-0-rerun-after-coinglass-fix/`：本轮本地证据目录，不应提交到 main。
+
+未修改 scan / analysis / strategy / backtest 业务逻辑。未修改 UI。未修改数据库 schema。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：生产基线复查显示 CoinGlass invalid key 未复现，3 轮扫描均 `scannedCount > 0`。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+
+### 测试结果
+
+- 生产 HEAD：`ae6852cfa2a2c9c09faa5d41ae6f5c886f023679`。
+- 生产 API：`/api/health`、`/api/scan`、`/api/frontend/radar-contract`、`/api/radar/backend-contract`、`/api/frontend/review-contract` 均在 3 轮观测中 HTTP 200。
+- `/api/frontend/kline-contract`：首次用错误参数 `interval=15` 返回 400；按路由实际参数 `tf=4h` 复核 HTTP 200，status `live`，source `binance-public-futures`。
+- 连续扫描观测：3 轮 `scannedCount=28`，`candidateCount=23`，`anomalyCount=23`，`radarSignals=23`。
+- CoinGlass：invalid_key 0，429 0。
+- production smoke/status：pass。
+- 本地基础门禁：typecheck / lint / test:market / build / backtest:golden / ci:forbidden-files / ci:secret-patterns / security:check 均通过。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。未 push main。未运行 migration，未动 Postgres / Redis / Docker volume，未清 Redis，未自动下单。
+
+### 风险与遗留问题
+
+- P1：Shadow Tracking 专用 `reports/shadow-tracking/latest.json`、`latest.md`、`events/`、run manifest、1h/4h/24h 专用报告和 candidate status transition history 尚未完整，不能直接启动长期 Shadow Tracking。
+- P2：第 5.0.1 曾出现过单 symbol CoinGlass 429，本轮未复现，但后续仍需保留 pacing 观测。
+- P2：本轮 phase5 证据目录未专项 ignore，后续提交必须精确 stage，不能 `git add .`。
+- 当前系统仍不能写成支撑实战交易。
+
+### 下一轮建议
+
+只做一个方向：第 5.1 先做 Shadow Tracking v1 存储基线与 run manifest，继续保持 research-only，不做策略优化、不做 UI、不做实盘。
+
+## 2026-07-07 - 第 5.0.1 步腾讯云生产 CoinGlass API Key 注入 / 服务读取范围修复
+
+### 本轮目标
+
+修复第 5.0 基线发现的生产 CoinGlass 深扫鉴权失败问题。目标不是优化策略，也不是新增功能，而是确认生产 `.env.production`、Docker Compose、运行中容器和 CoinGlass capability probe 的真实链路一致。
+
+### 修改范围
+
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：补充第 5.0.1 最新生产事实快照。
+- `CHANGELOG_FOR_CHATGPT.md`：记录本轮生产根因、操作、验证结果和剩余风险。
+- `phase5-0-1-coinglass-prod-key-injection/`：本轮本地证据目录，不应提交到 main。
+
+未修改 scan / analysis / strategy / backtest 业务逻辑。未修改 UI。未修改数据库 schema。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：生产 CoinGlass 鉴权从 `auth_error` 恢复为 `ready`；深扫重新出现真实 `scannedCount`。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+
+### 测试结果
+
+- 生产 SSH：通过 SOCKS 代理连接腾讯云。
+- 生产 HEAD：`ae6852cfa2a2c9c09faa5d41ae6f5c886f023679`。
+- 生产 tracked 工作区：干净。
+- 重建前证据：服务器 `.env.production` 的 CoinGlass key 指纹与运行中容器指纹不一致；容器仍读旧 key，capability 为 `auth_error`。
+- 操作：只重建 app 容器 `web`、`scanner-worker`、`coinglass-worker`、`websocket-light-worker`、`signal-worker`、`dynamic-scan-scheduler`、`macro-worker`；未重建或删除 Postgres / Redis / volume。
+- 重建后证据：上述服务读取同一 CoinGlass key 指纹，真实 key 值未输出。
+- CoinGlass capability：HTTP 200，`deepScanStatus=ready`，可用端点包括 `futures_pairs_markets`、`open_interest_current`、`funding_current`，`taker_buy_sell_current` 仍不可用。
+- 生产 scan 基线：出现 `scannedCount=31`，不再是 invalid key 导致的 0 深扫。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+本轮没有 push main，没有同步新代码到生产。执行的是腾讯云生产 app 容器重建，让运行中服务读取现有 `.env.production`。未运行 migration，未动 Postgres / Redis / Docker volume，未清 Redis，未自动下单。
+
+### 风险与遗留问题
+
+- P1：最新一轮 scan 仍出现单个 CoinGlass `429 Too Many Requests`，导致 scan 可为 `partial`；这是限速/节流风险，不是 key 鉴权失败。
+- P1：`COINGLASS_MAX_CONCURRENCY=6` 与多服务触发 CoinGlass 能力/扫描时，仍需继续观察是否会放大 429。
+- P2：`COINGLASS_API_KEY` 目前通过共享 app env 注入到多个服务，虽然服务读取一致，但后续可收敛为最小必要注入范围。
+- P2：生产主机本身没有 `node`，生产证据脚本应优先在容器内执行或使用 Caddy/API 入口，不能再依赖 host `127.0.0.1:3000`。
+- 当前系统仍不能写成支撑实战交易；只能说 CoinGlass 鉴权断层已恢复，仍需完成 Shadow Tracking 前基线验收。
+
+### 下一轮建议
+
+只做一个方向：基于第 5.0.1 证据复跑 Shadow Tracking 启动前基线检查，重点观察 CoinGlass 429 是否持续、scan 是否能稳定 `ready/fresh/scannedCount>0`。
+
 ## 2026-07-06 - 第 4.3 步真实腾讯云部署执行与生产 Evidence 首包
 
 ### 本轮目标
@@ -864,3 +1033,56 @@ P0 阻断：
 ### 下一轮建议
 
 只做一个方向：在腾讯云只重建 `web`，生成第 4.3.2 real production evidence，验证通过后交给 GPT 做最终生产 evidence 审计。
+
+## 2026-07-07 - 第 5.1-R 步 Shadow Tracking v1 正式启动 PARTIAL
+
+### 本轮目标
+
+正式启动 Shadow Tracking v1：把生产 scan / analysis / strategy 输出写入 research-only 长期观察文件系统，生成 run manifest、first capture、checkpoint plan、runner lock/heartbeat、daily summary，并确保不影响生产排序、策略权重、前端 READY 或交易计划。
+
+### 修改范围
+
+- `src/lib/shadow/storage.ts`：支持第 5.1 baseline 与第 5.1-R live observation 双模式；新增 enrichment source/status/warnings 字段；保持 research-only、no live trading、no production mutation 边界。
+- `src/lib/shadow/enrichment.ts`：新增 unifiedDecision enrichment gate，要求整体覆盖率至少 80%，WAIT/BLOCKED/READY 细节覆盖 100%。
+- `src/scripts/shadow/shadow-tracking.ts`：新增 `start / stop / pause / resume / status / capture / checkpoint / daily-summary` CLI；`start` 必须先过 production health、production evidence、enrichment gate，失败时只写 preflight 证据，不启动假 run。
+- `src/lib/shadow/storage.test.ts`：覆盖 baseline fake start 被拒绝、5.1-R live manifest 合法。
+- `src/lib/shadow/enrichment.test.ts`：覆盖 scan embedded 优先、production contract enrichment、80% 覆盖门槛、非 OBSERVE 100% 细节门槛。
+- `package.json`：新增 Shadow runner 脚本入口。
+
+### 核心链路影响
+
+- 全市场发现：未改生产扫描。
+- 候选筛选：未改生产排序。
+- 深扫验证：未改 CoinGlass 或公开交易所数据源。
+- 结构分析：未改分析规则。
+- 风险赔率：未改 RR / 止损 / 目标。
+- 交易计划：未改 READY / WAIT / BLOCKED 生产逻辑。
+- 复盘进化：增强 Shadow Tracking 研究观察入口，但未成功启动长期样本采集。
+
+### 测试结果
+
+- `npm run typecheck`：pass
+- `npm run lint`：pass
+- `npm run test:market`：pass，市场核心 821 pass，worker 17 pass，historical smoke 4 pass
+- `npm run build`：pass
+- `npm run backtest:golden`：pass，16/16
+- `npm run ci:forbidden-files`：pass
+- `npm run ci:secret-patterns`：pass
+- `npm run security:check`：pass
+- `npm run test:production-evidence`：pass
+- `npm run shadow:validate`：pass
+
+### 是否部署
+
+未部署腾讯云，未 push main，未运行 formal，未动 Postgres / Redis / Docker volume。
+
+### 风险与遗留问题
+
+- 5.1-R 启动命令已执行，但结果为 `PARTIAL / preflight_failed`。
+- 阻断原因：当前执行环境访问生产公网入口失败，出现 `production_health_fetch_failed:fetch failed` 与 `enrichment_preflight_failed:fetch failed`。
+- 本轮没有生成 live run manifest，没有 first capture，没有 checkpoint plan，没有长期 runner lock/heartbeat；`shadowTrackingStarted=false`。
+- 不能把本轮写成“Shadow Tracking 已启动”，不能写成系统支撑实战交易。
+
+### 下一轮建议
+
+只做一个方向：第 5.1.1 在腾讯云服务器侧或稳定生产访问通道中启动 Shadow Runner，生成真实 lock、heartbeat、first capture、checkpoint plan 和 daily summary 证据。

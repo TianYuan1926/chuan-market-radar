@@ -2,7 +2,7 @@
 
 > 本文是 `/Users/chuan/Documents/web` 的长期事实源。后续新增、删除、优化、重构、部署、前端接线和数据源接入，都必须先对照本文。本文不再保存历史施工流水账；历史细节看 Git history 和专项文档。
 
-> 最后整理日期：2026-07-06。当前阶段：第 4.2 步腾讯云部署授权审查与真实生产部署准备；腾讯云香港单机生产主线，GitHub `main` 为代码正本，但本阶段只允许推安全分支，不 push main，不默认部署生产。
+> 最后整理日期：2026-07-07。当前阶段：第 5.1-R 步 Shadow Tracking v1 正式启动已进入 PARTIAL：启动代码、统一决策 enrichment gate、runner CLI 和测试保护已落地，但当前执行环境访问生产公网入口失败，长期 Shadow Tracking 尚未启动；腾讯云香港单机生产主线，GitHub `main` 为代码正本，但本阶段只允许推安全分支，不 push main，不默认部署生产。
 
 ## 0. 唯一核心
 
@@ -20,6 +20,34 @@
 4. **通过复盘持续自我提升**：追踪命中、失败、超时、漏判、错判和策略分型表现，让系统越来越准。
 
 任何功能如果不能明确服务这四件事之一，就必须删除、合并或降级。
+
+### 当前 Shadow Tracking v1 边界
+
+第 5.1 已建立 Shadow Tracking 的存储基线。第 5.1-R 已尝试正式启动，但被启动前门禁正确阻断，不代表已经启动长期跟踪。
+
+当前事实：
+
+- 存储根目录：`reports/shadow-tracking/`
+- 第 5.1 baseline runId：`shadow-20260707T134822Z`
+- 当前 5.1-R 结果：`PARTIAL / preflight_failed`
+- 当前 5.1-R 阻断原因：`production_health_fetch_failed:fetch failed`、`enrichment_preflight_failed:fetch failed`
+- 当前模式：`baseline_readiness`；5.1-R live observation run 未创建
+- `shadowTrackingStarted=false`
+- `stillNotReadyForLiveTrading=true`
+- production commit：`ae6852cfa2a2c9c09faa5d41ae6f5c886f023679`
+- production health：`pass`
+- production evidence validate：`pass`
+- baseline 捕获：24 个生产信号事件、24 个唯一币种、72 个 pending checkpoint
+- READY=0，不能包装成可交易信号成熟
+- 5.1-R 本地基础门禁：typecheck、lint、test:market、build、backtest:golden、forbidden-files、secret-patterns、security-check、test:production-evidence、shadow:validate 均通过
+
+硬规则：
+
+- 第 5.1-R 在 production health、production evidence、统一决策 enrichment gate 未全部通过前，不允许启动 7-14 天 Shadow Tracking。
+- 如果 `shadow:start` preflight 失败，只能写 PARTIAL 证据，不能伪造 `shadowTrackingStarted=true`。
+- Shadow 事件、checkpoint、outcome 只能用于 research/review。
+- Shadow 结果不得修改 scan ranking、analysis label、strategy readiness、RR、风控门禁、前端 READY 或生产权重。
+- 下一步应进入第 5.1.1：在腾讯云服务器侧或稳定生产访问通道中启动 Shadow Runner，并生成 lock、heartbeat、first capture、checkpoint plan 和 daily summary 证据。
 
 ### 提前性最高原则
 
