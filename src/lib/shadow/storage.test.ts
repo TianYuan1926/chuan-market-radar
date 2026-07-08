@@ -7,10 +7,14 @@ import {
   buildShadowLatest,
   buildShadowObservationEvent,
   buildShadowRunManifest,
+  checkpointStatusDistribution,
+  fillDueCheckpointOutcomes,
   validateShadowStoragePayload,
+  type ShadowCheckpointPriceWindowResult,
   type ShadowObservationEvent,
   type ShadowRunStatus,
 } from "./storage";
+import type { Candle } from "../market/ohlcv/types";
 
 const nowIso = "2026-07-07T13:00:00.000Z";
 const production = {
@@ -72,6 +76,32 @@ function event(symbol = "TIAUSDT", overrides: Partial<ShadowObservationEvent> = 
       },
     }).event,
     ...overrides,
+  };
+}
+
+function candle(openTime: string, closeTime: string, close: number, high = close, low = close): Candle {
+  return {
+    close,
+    closeTime,
+    high,
+    low,
+    open: close,
+    openTime,
+    volume: 1000,
+  };
+}
+
+function successPriceWindow(candles: Candle[]): ShadowCheckpointPriceWindowResult {
+  return {
+    ok: true,
+    candles,
+    dataFreshness: "historical",
+    exchange: "binance",
+    fetchedAt: "2026-07-07T14:02:00.000Z",
+    marketType: "usdt_perpetual_futures",
+    priceSource: "binance-public-futures-klines",
+    source: "binance-public-futures",
+    usedKlineInterval: "1m",
   };
 }
 
@@ -261,4 +291,161 @@ test("validator rejects baseline fake start and future outcome fill, but allows 
   });
 
   assert.equal(validLive.ok, true);
+});
+
+test("fillDueCheckpointOutcomes records due checkpoint with historical kline window only", async () => {
+  const events = [event("TIAUSDT", { priceAtObservation: 10 })];
+  const plan = buildCheckpointPlan("shadow-test-run", nowIso, events);
+  const result = await fillDueCheckpointOutcomes({
+    checkpointPlan: plan,
+    events,
+    fetchPriceWindow: async () => successPriceWindow([
+      candle("2026-07-07T12:59:00.000Z", "2026-07-07T13:00:00.000Z", 9, 30, 1),
+      candle("2026-07-07T13:01:00.000Z", "2026-07-07T13:02:00.000Z", 10.5, 10.8, 9.8),
+      candle("2026-07-07T13:30:00.000Z", "2026-07-07T13:31:00.000Z", 11, 12, 9.5),
+      candle("2026-07-07T14:00:00.000Z", "2026-07-07T14:01:00.000Z", 20, 30, 1),
+    ]),
+    nowIso: "2026-07-07T14:05:00.000Z",
+  });
+
+  assert.equal(result.dueCount, 1);
+  assert.equal(result.outcomesWritten.length, 1);
+  const outcome = result.outcomesWritten[0]!;
+  assert.equal(outcome.status, "recorded");
+  assert.equal(outcome.researchOnly, true);
+  assert.equal(outcome.mutatesProductionRanking, false);
+  assert.equal(outcome.canAutoAdjustWeights, false);
+  assert.equal(outcome.backfilled, true);
+  assert.equal(outcome.priceAtObservation, 10);
+  assert.equal(outcome.priceAtCheckpoint, 11);
+  assert.equal(outcome.rawMovePct, 10);
+  assert.equal(outcome.maxUpPctSinceObservation, 20);
+  assert.equal(outcome.maxDownPctSinceObservation, -5);
+  assert.equal(outcome.klineCount, 2);
+  assert.equal(outcome.dataWindowStart, "2026-07-07T13:02:00.000Z");
+  assert.equal(outcome.dataWindowEnd, "2026-07-07T13:31:00.000Z");
+  assert.equal(result.checkpointPlan.checkpoints[0]?.status, "recorded");
+  assert.equal(result.checkpointPlan.checkpoints[1]?.status, "pending");
+  assert.equal(checkpointStatusDistribution(result.checkpointPlan, "2026-07-07T14:05:00.000Z").recorded, 1);
+});
+
+test("fillDueCheckpointOutcomes marks missing priceAtObservation as pending_with_error without fake math", async () => {
+  const events = [event("TIAUSDT", { priceAtObservation: null })];
+  const plan = buildCheckpointPlan("shadow-test-run", nowIso, events);
+  let fetchCalls = 0;
+  const result = await fillDueCheckpointOutcomes({
+    checkpointPlan: plan,
+    events,
+    fetchPriceWindow: async () => {
+      fetchCalls += 1;
+      return successPriceWindow([]);
+    },
+    nowIso: "2026-07-07T14:05:00.000Z",
+  });
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(result.outcomesWritten.length, 1);
+  const outcome = result.outcomesWritten[0]!;
+  assert.equal(outcome.status, "pending_with_error");
+  assert.equal(outcome.errorReason, "MISSING_PRICE_AT_OBSERVATION");
+  assert.equal(outcome.manualReviewRequired, true);
+  assert.equal(outcome.shouldRetry, false);
+  assert.equal(outcome.rawMovePct, null);
+  assert.equal(outcome.priceAtCheckpoint, null);
+  assert.equal(result.checkpointPlan.checkpoints[0]?.status, "pending_with_error");
+});
+
+test("fillDueCheckpointOutcomes preserves not-due checkpoints as pending", async () => {
+  const events = [event("TIAUSDT", { priceAtObservation: 10 })];
+  const plan = buildCheckpointPlan("shadow-test-run", nowIso, events);
+  const result = await fillDueCheckpointOutcomes({
+    checkpointPlan: plan,
+    events,
+    fetchPriceWindow: async () => successPriceWindow([]),
+    nowIso: "2026-07-07T13:30:00.000Z",
+  });
+
+  assert.equal(result.dueCount, 0);
+  assert.equal(result.outcomesWritten.length, 0);
+  assert.equal(result.checkpointPlan.checkpoints.every((checkpoint) => checkpoint.status === "pending"), true);
+});
+
+test("fillDueCheckpointOutcomes keeps dry-run read-only while reporting proposed writes", async () => {
+  const events = [event("TIAUSDT", { priceAtObservation: 10 })];
+  const plan = buildCheckpointPlan("shadow-test-run", nowIso, events);
+  const result = await fillDueCheckpointOutcomes({
+    checkpointPlan: plan,
+    dryRun: true,
+    events,
+    fetchPriceWindow: async () => successPriceWindow([
+      candle("2026-07-07T13:01:00.000Z", "2026-07-07T13:02:00.000Z", 10.5),
+    ]),
+    nowIso: "2026-07-07T14:05:00.000Z",
+  });
+
+  assert.equal(result.dryRun, true);
+  assert.equal(result.outcomes.length, 0);
+  assert.equal(result.outcomesWritten.length, 1);
+  assert.equal(result.checkpointPlan.checkpoints[0]?.status, "pending");
+  assert.equal(plan.checkpoints[0]?.status, "pending");
+});
+
+test("fillDueCheckpointOutcomes is idempotent for already recorded outcomes", async () => {
+  const events = [event("TIAUSDT", { priceAtObservation: 10 })];
+  const plan = buildCheckpointPlan("shadow-test-run", nowIso, events);
+  const first = await fillDueCheckpointOutcomes({
+    checkpointPlan: plan,
+    events,
+    fetchPriceWindow: async () => successPriceWindow([
+      candle("2026-07-07T13:01:00.000Z", "2026-07-07T13:02:00.000Z", 11),
+    ]),
+    nowIso: "2026-07-07T14:05:00.000Z",
+  });
+
+  let fetchCalls = 0;
+  const second = await fillDueCheckpointOutcomes({
+    checkpointPlan: first.checkpointPlan,
+    events,
+    existingOutcomes: first.outcomes,
+    fetchPriceWindow: async () => {
+      fetchCalls += 1;
+      return successPriceWindow([]);
+    },
+    nowIso: "2026-07-07T14:10:00.000Z",
+  });
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(second.skippedExisting, 1);
+  assert.equal(second.outcomesWritten.length, 0);
+  assert.equal(second.outcomes.length, 1);
+  assert.equal(second.checkpointPlan.checkpoints[0]?.status, "recorded");
+});
+
+test("fillDueCheckpointOutcomes marks temporary price source failure as retryable pending_with_error", async () => {
+  const events = [event("TIAUSDT", { priceAtObservation: 10 })];
+  const plan = buildCheckpointPlan("shadow-test-run", nowIso, events);
+  const result = await fillDueCheckpointOutcomes({
+    checkpointPlan: plan,
+    events,
+    fetchPriceWindow: async () => ({
+      ok: false,
+      dataFreshness: "network_error",
+      error: "timeout",
+      errorReason: "DATA_SOURCE_UNAVAILABLE",
+      exchange: "binance",
+      fetchedAt: "2026-07-07T14:02:00.000Z",
+      marketType: "usdt_perpetual_futures",
+      priceSource: "binance-public-futures-klines",
+      shouldRetry: true,
+      source: "binance-public-futures",
+      usedKlineInterval: "1m",
+    }),
+    nowIso: "2026-07-07T14:05:00.000Z",
+  });
+
+  const outcome = result.outcomesWritten[0]!;
+  assert.equal(outcome.status, "pending_with_error");
+  assert.equal(outcome.errorReason, "DATA_SOURCE_UNAVAILABLE");
+  assert.equal(outcome.shouldRetry, true);
+  assert.equal(result.checkpointPlan.checkpoints[0]?.status, "pending_with_error");
 });

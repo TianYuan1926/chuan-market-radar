@@ -1,6 +1,8 @@
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, unlinkSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { BINANCE_FUTURES_KLINES_URL, normalizeBinanceKline } from "../../lib/market/ohlcv/public-exchange-provider";
+import type { Candle } from "../../lib/market/ohlcv/types";
 import {
   enrichShadowScanSignals,
   type ProductionContractBundle,
@@ -14,9 +16,14 @@ import {
   buildShadowLatestMarkdown,
   buildShadowObservationEvent,
   buildShadowRunManifest,
+  checkpointStatusDistribution,
   extractScanSignals,
+  fillDueCheckpointOutcomes,
+  mergeCheckpointPlans,
   validateShadowStoragePayload,
   type ShadowCheckpointPlan,
+  type ShadowCheckpointOutcome,
+  type ShadowCheckpointPriceWindowResult,
   type ShadowEventsManifest,
   type ShadowObservationEvent,
   type ShadowProductionStatus,
@@ -45,6 +52,7 @@ type CliOptions = {
   baseUrl: string;
   command: Command;
   commit: string;
+  dryRun: boolean;
   evidenceValidate: ShadowProductionStatus["evidenceValidate"];
   health: ShadowProductionStatus["health"];
   input?: string;
@@ -102,7 +110,9 @@ function ensureDir(path: string) {
 
 function writeJson(path: string, value: unknown) {
   ensureDir(dirname(path));
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const tempPath = `${path}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  renameSync(tempPath, path);
 }
 
 function writeText(path: string, value: string) {
@@ -122,6 +132,14 @@ function appendJsonl(path: string, rows: unknown[]) {
   if (rows.length === 0) return;
   ensureDir(dirname(path));
   appendFileSync(path, `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`, "utf8");
+}
+
+function writeJsonl(path: string, rows: unknown[]) {
+  ensureDir(dirname(path));
+  const content = rows.length > 0 ? `${rows.map((row) => JSON.stringify(row)).join("\n")}\n` : "";
+  const tempPath = `${path}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(tempPath, content, "utf8");
+  renameSync(tempPath, path);
 }
 
 function readJsonlIfExists<T>(path: string): T[] {
@@ -160,6 +178,7 @@ function parseArgs(argv: string[]): CliOptions {
     baseUrl: normalizeBaseUrl(process.env.SHADOW_PRODUCTION_BASE_URL || process.env.PRODUCTION_BASE_URL || "http://43.161.202.227"),
     command,
     commit: process.env.SHADOW_PRODUCTION_COMMIT || currentCommit(),
+    dryRun: false,
     evidenceValidate: parseEvidence(process.env.SHADOW_PRODUCTION_EVIDENCE_VALIDATE || ""),
     health: parseHealth(process.env.SHADOW_PRODUCTION_HEALTH || ""),
     noBackground: process.env.SHADOW_DISABLE_BACKGROUND === "true",
@@ -180,6 +199,8 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (item === "--evidence-validate" && next) {
       options.evidenceValidate = parseEvidence(next);
       index += 1;
+    } else if (item === "--dry-run") {
+      options.dryRun = true;
     } else if (item === "--health" && next) {
       options.health = parseHealth(next);
       index += 1;
@@ -211,6 +232,10 @@ function currentRunPath(options: CliOptions) {
   return join(options.outDir, currentRunFileName);
 }
 
+function legacyCurrentRunPath(options: CliOptions) {
+  return join(options.outDir, "manifests", currentRunFileName);
+}
+
 function lockPath(options: CliOptions) {
   return join(options.outDir, lockFileName);
 }
@@ -227,13 +252,49 @@ function runDir(options: CliOptions, runId: string) {
   return join(options.outDir, "runs", runId);
 }
 
+function checkpointPlanPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "checkpoint-plan.json");
+}
+
+function checkpointStatusPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "checkpoint-status.json");
+}
+
+function eventsManifestPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "shadow-events-manifest.json");
+}
+
+function legacyEventsManifestPath(options: CliOptions, runId: string) {
+  return join(options.outDir, "events", runId, "events-manifest.json");
+}
+
+function outcomesPath(options: CliOptions, manifest: ShadowRunManifest) {
+  return manifest.storage.outcomesPath || join(options.outDir, "outcomes", manifest.runId, "outcomes.jsonl");
+}
+
+function latestJsonPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "shadow-latest.json");
+}
+
+function legacyLatestJsonPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "latest.json");
+}
+
+function latestMdPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "shadow-latest.md");
+}
+
+function legacyLatestMdPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "latest.md");
+}
+
 function eventsPath(options: CliOptions, runId: string) {
   return join(options.outDir, "events", runId, "events.jsonl");
 }
 
 function getCurrentRunId(options: CliOptions) {
   if (options.runId) return options.runId;
-  const currentRun = asRecord(readJsonIfExists(currentRunPath(options)));
+  const currentRun = asRecord(readJsonIfExists(currentRunPath(options))) ?? asRecord(readJsonIfExists(legacyCurrentRunPath(options)));
   return asString(currentRun?.runId);
 }
 
@@ -241,10 +302,14 @@ function manifestPath(options: CliOptions, runId: string) {
   return join(runDir(options, runId), "shadow-run-manifest.json");
 }
 
+function legacyManifestPath(options: CliOptions, runId: string) {
+  return join(runDir(options, runId), "run-manifest.json");
+}
+
 function readManifest(options: CliOptions, runId?: string): ShadowRunManifest | null {
   const id = runId || getCurrentRunId(options);
   if (!id) return null;
-  const value = readJsonIfExists(manifestPath(options, id));
+  const value = readJsonIfExists(manifestPath(options, id)) ?? readJsonIfExists(legacyManifestPath(options, id));
   return value ? value as ShadowRunManifest : null;
 }
 
@@ -280,6 +345,32 @@ function readProductionEvidenceStatus(options: CliOptions): ShadowProductionStat
   }
 
   return "unknown";
+}
+
+function normalizeManifestForValidation(manifest: ShadowRunManifest): ShadowRunManifest {
+  return {
+    ...manifest,
+    boundaries: {
+      ...manifest.boundaries,
+      allowsParameterAutoTuning: false,
+      autoTradingEnabled: false,
+      mutatesProductionRanking: false,
+      mutatesStrategyWeights: false,
+      researchOnly: true,
+    },
+    canEnterLiveTrading: false,
+    stillNotReadyForLiveTrading: true,
+  };
+}
+
+function normalizeEventForValidation(event: ShadowObservationEvent): ShadowObservationEvent {
+  return {
+    ...event,
+    enrichmentSource: event.enrichmentSource ?? "scan_summary_fallback",
+    enrichmentStatus: event.enrichmentStatus ?? "missing",
+    enrichmentWarnings: event.enrichmentWarnings ?? ["legacy_shadow_event_missing_enrichment_fields"],
+    researchOnly: true,
+  };
 }
 
 async function fetchJson(options: CliOptions, path: string): Promise<unknown> {
@@ -334,6 +425,127 @@ async function fetchScan(options: CliOptions): Promise<ShadowScanInput> {
     return readJson(options.input) as ShadowScanInput;
   }
   return await fetchJson(options, "/api/scan") as ShadowScanInput;
+}
+
+function normalizedSymbol(value: string) {
+  return value.trim().toUpperCase().replace("/", "").replace("-", "");
+}
+
+function checkpointKlineInterval() {
+  return "1m";
+}
+
+function checkpointLimit(observedAt: string, dueAt: string) {
+  const start = Date.parse(observedAt);
+  const end = Date.parse(dueAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 1;
+  const minutes = Math.ceil((end - start) / 60_000) + 5;
+  return Math.max(1, Math.min(1500, minutes));
+}
+
+function binanceKlineUrl(symbol: string, observedAt: string, dueAt: string, interval: string) {
+  const params = new URLSearchParams({
+    endTime: String(Date.parse(dueAt)),
+    interval,
+    limit: String(checkpointLimit(observedAt, dueAt)),
+    startTime: String(Date.parse(observedAt)),
+    symbol: normalizedSymbol(symbol),
+  });
+  return `${process.env.SHADOW_BINANCE_FUTURES_KLINES_URL || BINANCE_FUTURES_KLINES_URL}?${params.toString()}`;
+}
+
+async function fetchCheckpointPriceWindow(
+  options: CliOptions,
+  checkpoint: { checkpointType: string; dueAt: string; observedAt: string; symbol: string },
+): Promise<ShadowCheckpointPriceWindowResult> {
+  const fetchedAt = nowIso();
+  const interval = checkpointKlineInterval();
+  const start = Date.parse(checkpoint.observedAt);
+  const end = Date.parse(checkpoint.dueAt);
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return {
+      ok: false,
+      dataFreshness: "invalid_window",
+      error: "observedAt/dueAt window is invalid",
+      errorReason: "INVALID_CHECKPOINT_WINDOW",
+      exchange: "binance",
+      fetchedAt,
+      marketType: "usdt_perpetual_futures",
+      priceSource: "binance-public-futures-klines",
+      shouldRetry: false,
+      source: "binance-public-futures",
+      usedKlineInterval: interval,
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs);
+  try {
+    const response = await fetch(binanceKlineUrl(checkpoint.symbol, checkpoint.observedAt, checkpoint.dueAt, interval), {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      return {
+        ok: false,
+        dataFreshness: response.status === 429 ? "rate_limited" : "unavailable",
+        error: `Binance futures klines returned ${response.status}`,
+        errorReason: "DATA_SOURCE_UNAVAILABLE",
+        exchange: "binance",
+        fetchedAt,
+        marketType: "usdt_perpetual_futures",
+        priceSource: "binance-public-futures-klines",
+        shouldRetry: response.status === 429 || response.status >= 500,
+        source: "binance-public-futures",
+        usedKlineInterval: interval,
+      };
+    }
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload)) {
+      return {
+        ok: false,
+        dataFreshness: "invalid_response",
+        error: "Binance futures klines returned non-array payload",
+        errorReason: "DATA_SOURCE_UNAVAILABLE",
+        exchange: "binance",
+        fetchedAt,
+        marketType: "usdt_perpetual_futures",
+        priceSource: "binance-public-futures-klines",
+        shouldRetry: true,
+        source: "binance-public-futures",
+        usedKlineInterval: interval,
+      };
+    }
+    const candles = payload.map((row) => normalizeBinanceKline(row)).filter((row): row is Candle => row !== null);
+    return {
+      ok: true,
+      candles,
+      dataFreshness: "historical",
+      exchange: "binance",
+      fetchedAt,
+      marketType: "usdt_perpetual_futures",
+      priceSource: "binance-public-futures-klines",
+      source: "binance-public-futures",
+      usedKlineInterval: interval,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      dataFreshness: "network_error",
+      error: error instanceof Error ? error.message : "Binance futures kline request failed",
+      errorReason: "DATA_SOURCE_UNAVAILABLE",
+      exchange: "binance",
+      fetchedAt,
+      marketType: "usdt_perpetual_futures",
+      priceSource: "binance-public-futures-klines",
+      shouldRetry: true,
+      source: "binance-public-futures",
+      usedKlineInterval: interval,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchContracts(options: CliOptions, signals: ShadowScanSignalInput[]): Promise<ProductionContractBundle> {
@@ -447,7 +659,8 @@ async function captureOnce(options: CliOptions, manifest: ShadowRunManifest): Pr
     runId: manifest.runId,
   });
   const allEvents = [...existingEvents, ...dedupe.primaryEvents];
-  const checkpointPlan = buildCheckpointPlan(manifest.runId, captureTime, allEvents);
+  const existingCheckpointPlan = readJsonIfExists(checkpointPlanPath(options, manifest.runId)) as ShadowCheckpointPlan | null;
+  const checkpointPlan = mergeCheckpointPlans(existingCheckpointPlan, buildCheckpointPlan(manifest.runId, captureTime, allEvents));
   const updatedManifest: ShadowRunManifest = {
     ...manifest,
     enrichment: {
@@ -486,10 +699,12 @@ async function captureOnce(options: CliOptions, manifest: ShadowRunManifest): Pr
   appendJsonl(join(runDir(options, manifest.runId), "observations.jsonl"), dedupe.primaryEvents);
   appendJsonl(join(runDir(options, manifest.runId), "transitions.jsonl"), dedupe.transitions);
   writeJson(manifestPath(options, manifest.runId), updatedManifest);
-  writeJson(join(runDir(options, manifest.runId), "checkpoint-plan.json"), checkpointPlan);
-  writeJson(join(runDir(options, manifest.runId), "shadow-events-manifest.json"), eventsManifest);
-  writeJson(join(runDir(options, manifest.runId), "shadow-latest.json"), latest);
-  writeText(join(runDir(options, manifest.runId), "shadow-latest.md"), buildShadowLatestMarkdown(latest));
+  writeJson(checkpointPlanPath(options, manifest.runId), checkpointPlan);
+  writeJson(eventsManifestPath(options, manifest.runId), eventsManifest);
+  writeJson(latestJsonPath(options, manifest.runId), latest);
+  writeJson(legacyLatestJsonPath(options, manifest.runId), latest);
+  writeText(latestMdPath(options, manifest.runId), buildShadowLatestMarkdown(latest));
+  writeText(legacyLatestMdPath(options, manifest.runId), buildShadowLatestMarkdown(latest));
   writeJson(join(runDir(options, manifest.runId), "enrichment-report.json"), enrichmentReport);
   writeJson(join(runDir(options, manifest.runId), "last-capture.json"), {
     capturedAt: captureTime,
@@ -582,10 +797,12 @@ async function commandBaseline(options: CliOptions) {
   const validation = validateShadowStoragePayload({ checkpointPlan, events: incoming, eventsManifest, latest, manifest });
   appendJsonl(eventsPath(options, manifest.runId), incoming);
   appendJsonl(join(runDir(options, manifest.runId), "observations.jsonl"), incoming);
-  writeJson(join(runDir(options, manifest.runId), "checkpoint-plan.json"), checkpointPlan);
-  writeJson(join(runDir(options, manifest.runId), "shadow-events-manifest.json"), eventsManifest);
-  writeJson(join(runDir(options, manifest.runId), "shadow-latest.json"), latest);
-  writeText(join(runDir(options, manifest.runId), "shadow-latest.md"), buildShadowLatestMarkdown(latest));
+  writeJson(checkpointPlanPath(options, manifest.runId), checkpointPlan);
+  writeJson(eventsManifestPath(options, manifest.runId), eventsManifest);
+  writeJson(latestJsonPath(options, manifest.runId), latest);
+  writeJson(legacyLatestJsonPath(options, manifest.runId), latest);
+  writeText(latestMdPath(options, manifest.runId), buildShadowLatestMarkdown(latest));
+  writeText(legacyLatestMdPath(options, manifest.runId), buildShadowLatestMarkdown(latest));
   writeJson(join(runDir(options, manifest.runId), "validation.json"), validation);
   console.log(JSON.stringify({ ok: validation.ok, runId: manifest.runId, validation }, null, 2));
   if (!validation.ok) process.exitCode = 1;
@@ -841,6 +1058,7 @@ async function commandRunLoop(options: CliOptions) {
       if (!current || current.status === "completed" || current.status === "aborted") break;
       if (current.status !== "paused") {
         await captureOnce(options, current);
+        await commandCheckpoint({ ...options, dryRun: false, runId: current.runId });
         writeJson(runStatePath(options), {
           heartbeatAt: nowIso(),
           pid: process.pid,
@@ -856,31 +1074,88 @@ async function commandRunLoop(options: CliOptions) {
   }
 }
 
-function commandCheckpoint(options: CliOptions) {
+function updateLatestCheckpointStats(options: CliOptions, manifest: ShadowRunManifest, checkpointPlan: ShadowCheckpointPlan, generatedAt: string) {
+  const latestPath = latestJsonPath(options, manifest.runId);
+  const legacyPath = legacyLatestJsonPath(options, manifest.runId);
+  const latest = (readJsonIfExists(latestPath) ?? readJsonIfExists(legacyPath)) as CaptureOnceResult["latest"] | null;
+  if (!latest) return null;
+  const status = checkpointStatusDistribution(checkpointPlan, generatedAt);
+  const updated = {
+    ...latest,
+    generatedAt,
+    stats: {
+      ...latest.stats,
+      checkpointsDue: status.due,
+      checkpointsDuePending: status.duePending,
+      checkpointsMissed: status.missed,
+      checkpointsPending: status.pending,
+      checkpointsPendingWithError: status.pendingWithError,
+      checkpointsPlanned: status.total,
+      checkpointsRecorded: status.recorded,
+    },
+  };
+  writeJson(latestPath, updated);
+  writeJson(legacyPath, updated);
+  writeJson(join(options.outDir, "latest.json"), updated);
+  writeText(latestMdPath(options, manifest.runId), buildShadowLatestMarkdown(updated));
+  writeText(legacyLatestMdPath(options, manifest.runId), buildShadowLatestMarkdown(updated));
+  writeText(join(options.outDir, "latest.md"), buildShadowLatestMarkdown(updated));
+  return updated;
+}
+
+async function commandCheckpoint(options: CliOptions) {
   const manifest = readManifest(options);
   if (!manifest) throw new Error("shadow_manifest_missing");
-  const checkpointPlan = readJsonIfExists(join(runDir(options, manifest.runId), "checkpoint-plan.json")) as ShadowCheckpointPlan | null;
+  const checkpointPlan = readJsonIfExists(checkpointPlanPath(options, manifest.runId)) as ShadowCheckpointPlan | null;
   if (!checkpointPlan) throw new Error("checkpoint_plan_missing");
-  const now = Date.now();
-  const due = checkpointPlan.checkpoints.filter((checkpoint) => checkpoint.status === "pending" && new Date(checkpoint.dueAt).getTime() <= now);
+  const events = readJsonlIfExists<ShadowObservationEvent>(eventsPath(options, manifest.runId));
+  const existingOutcomes = readJsonlIfExists<ShadowCheckpointOutcome>(outcomesPath(options, manifest));
+  const generatedAt = nowIso();
+  const beforeStatus = checkpointStatusDistribution(checkpointPlan, generatedAt);
+  const result = await fillDueCheckpointOutcomes({
+    checkpointPlan,
+    dryRun: options.dryRun,
+    events,
+    existingOutcomes,
+    fetchPriceWindow: async (checkpoint) => fetchCheckpointPriceWindow(options, checkpoint),
+    nowIso: generatedAt,
+  });
+  if (!options.dryRun) {
+    writeJson(checkpointPlanPath(options, manifest.runId), result.checkpointPlan);
+    writeJsonl(outcomesPath(options, manifest), result.outcomes);
+    updateLatestCheckpointStats(options, manifest, result.checkpointPlan, generatedAt);
+  }
+  const afterStatus = checkpointStatusDistribution(result.checkpointPlan, generatedAt);
   const status = {
-    generatedAt: nowIso(),
-    note: "第 5.1-R checkpoint 命令只报告到期项，不回填未来价格；价格归因必须走后续正式复盘规则。",
-    pending: checkpointPlan.checkpoints.filter((checkpoint) => checkpoint.status === "pending").length,
-    dueCount: due.length,
-    due: due.slice(0, 50),
+    after: afterStatus,
+    before: beforeStatus,
+    dryRun: options.dryRun,
+    generatedAt,
+    note: options.dryRun
+      ? "dry-run 只计算 checkpoint outcome 变化，不写 checkpoint-plan/outcomes/latest/daily-summary。"
+      : "checkpoint due sweep 已按 research-only 口径尝试回填 outcome；不能证明系统可实战。",
+    outcomesPath: outcomesPath(options, manifest),
+    outcomesWritten: result.outcomesWritten.length,
+    outcomesWrittenSample: result.outcomesWritten.slice(0, 25),
     researchOnly: true,
+    runId: manifest.runId,
+    skippedExisting: result.skippedExisting,
   };
-  writeJson(join(runDir(options, manifest.runId), "checkpoint-status.json"), status);
+  if (!options.dryRun) {
+    writeJson(checkpointStatusPath(options, manifest.runId), status);
+  }
   console.log(JSON.stringify(status, null, 2));
 }
 
 function commandDailySummary(options: CliOptions) {
   const manifest = readManifest(options);
   if (!manifest) throw new Error("shadow_manifest_missing");
-  const latest = readJsonIfExists(join(runDir(options, manifest.runId), "shadow-latest.json")) as CaptureOnceResult["latest"] | null;
-  const checkpointStatus = asRecord(readJsonIfExists(join(runDir(options, manifest.runId), "checkpoint-status.json")));
+  const latest = (readJsonIfExists(latestJsonPath(options, manifest.runId)) ?? readJsonIfExists(legacyLatestJsonPath(options, manifest.runId))) as CaptureOnceResult["latest"] | null;
+  const checkpointStatus = asRecord(readJsonIfExists(checkpointStatusPath(options, manifest.runId)));
+  const checkpointPlan = readJsonIfExists(checkpointPlanPath(options, manifest.runId)) as ShadowCheckpointPlan | null;
   const generatedAt = nowIso();
+  const status = checkpointPlan ? checkpointStatusDistribution(checkpointPlan, generatedAt) : null;
+  const statusAfter = asRecord(checkpointStatus?.after);
   const markdown = `# Shadow Tracking v1 daily summary
 
 生成时间：${generatedAt}
@@ -901,7 +1176,13 @@ function commandDailySummary(options: CliOptions) {
 - WAIT：${latest?.stats.waitCount ?? 0}
 - BLOCKED：${latest?.stats.blockedCount ?? 0}
 - READY：${latest?.stats.readyCount ?? 0}
-- checkpoints pending：${checkpointStatus?.pending ?? latest?.stats.checkpointsPlanned ?? 0}
+- checkpoints total：${status?.total ?? latest?.stats.checkpointsPlanned ?? 0}
+- checkpoints due：${status?.due ?? asNumber(statusAfter?.due) ?? latest?.stats.checkpointsDue ?? 0}
+- checkpoints due pending：${status?.duePending ?? asNumber(statusAfter?.duePending) ?? latest?.stats.checkpointsDuePending ?? 0}
+- checkpoints pending：${status?.pending ?? asNumber(statusAfter?.pending) ?? latest?.stats.checkpointsPending ?? latest?.stats.checkpointsPlanned ?? 0}
+- checkpoints recorded：${status?.recorded ?? asNumber(statusAfter?.recorded) ?? latest?.stats.checkpointsRecorded ?? 0}
+- checkpoints missed：${status?.missed ?? asNumber(statusAfter?.missed) ?? latest?.stats.checkpointsMissed ?? 0}
+- checkpoints pending_with_error：${status?.pendingWithError ?? asNumber(statusAfter?.pendingWithError) ?? latest?.stats.checkpointsPendingWithError ?? 0}
 
 ## 边界
 
@@ -919,7 +1200,9 @@ function commandReport(options: CliOptions) {
     console.log("Shadow Tracking 尚未生成当前 run。");
     return;
   }
-  const latestPath = join(runDir(options, manifest.runId), "shadow-latest.md");
+  const latestPath = existsSync(latestMdPath(options, manifest.runId))
+    ? latestMdPath(options, manifest.runId)
+    : legacyLatestMdPath(options, manifest.runId);
   const latest = existsSync(latestPath) ? readFileSync(latestPath, "utf8") : "Shadow latest report missing.\n";
   console.log(latest);
 }
@@ -929,10 +1212,15 @@ function commandValidate(options: CliOptions) {
   let result: CaptureOnceResult | null = null;
 
   if (manifest) {
-    const latest = readJsonIfExists(join(runDir(options, manifest.runId), "shadow-latest.json")) as CaptureOnceResult["latest"] | null;
-    const checkpointPlan = readJsonIfExists(join(runDir(options, manifest.runId), "checkpoint-plan.json")) as ShadowCheckpointPlan | null;
-    const eventsManifest = readJsonIfExists(join(runDir(options, manifest.runId), "shadow-events-manifest.json")) as ShadowEventsManifest | null;
+    const normalizedManifest = normalizeManifestForValidation(manifest);
+    const latest = (readJsonIfExists(latestJsonPath(options, manifest.runId)) ?? readJsonIfExists(legacyLatestJsonPath(options, manifest.runId))) as CaptureOnceResult["latest"] | null;
+    const checkpointPlan = readJsonIfExists(checkpointPlanPath(options, manifest.runId)) as ShadowCheckpointPlan | null;
+    const eventsManifest = (
+      readJsonIfExists(eventsManifestPath(options, manifest.runId)) ??
+      readJsonIfExists(legacyEventsManifestPath(options, manifest.runId))
+    ) as ShadowEventsManifest | null;
     if (latest && checkpointPlan && eventsManifest) {
+      const events = readJsonlIfExists<ShadowObservationEvent>(eventsPath(options, manifest.runId)).map(normalizeEventForValidation);
       result = {
         checkpointPlan,
         duplicateEvents: latest.stats.duplicatesSkipped,
@@ -956,10 +1244,10 @@ function commandValidate(options: CliOptions) {
           waitBlockedReadyCount: latest.stats.waitCount + latest.stats.blockedCount + latest.stats.readyCount,
           warnings: [],
         },
-        events: readJsonlIfExists<ShadowObservationEvent>(eventsPath(options, manifest.runId)),
+        events,
         eventsManifest,
         latest,
-        manifest,
+        manifest: normalizedManifest,
         transitions: readJsonlIfExists<ShadowStatusTransition>(join(runDir(options, manifest.runId), "transitions.jsonl")),
         warnings: latest.warnings,
       };
@@ -986,7 +1274,7 @@ async function main() {
       await commandCapture(options);
       break;
     case "checkpoint":
-      commandCheckpoint(options);
+      await commandCheckpoint(options);
       break;
     case "daily-summary":
       commandDailySummary(options);

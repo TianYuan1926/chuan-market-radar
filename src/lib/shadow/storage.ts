@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Candle } from "../market/ohlcv/types";
 
 export type ShadowDecision = "OBSERVE" | "WAIT" | "BLOCKED" | "TRADE_PLAN_READY" | "UNKNOWN";
 
@@ -149,25 +150,138 @@ export type ShadowStatusTransition = {
 };
 
 export type ShadowCheckpointType = "1h" | "4h" | "24h";
+export type ShadowCheckpointStatus = "pending" | "recorded" | "missed" | "pending_with_error";
+
+export type ShadowCheckpointErrorReason =
+  | "MISSING_PRICE_AT_OBSERVATION"
+  | "CHECKPOINT_EVENT_MISSING"
+  | "DATA_SOURCE_UNAVAILABLE"
+  | "NO_CANDLES_IN_WINDOW"
+  | "BACKFILL_WINDOW_EXCEEDED"
+  | "INVALID_CHECKPOINT_WINDOW";
 
 export type ShadowCheckpoint = {
   checkpointType: ShadowCheckpointType;
+  dataFreshness?: string;
+  dataSource?: string;
+  dataWindowEnd?: string | null;
+  dataWindowStart?: string | null;
   dueAt: string;
+  errorReason?: ShadowCheckpointErrorReason;
+  exchange?: string;
   eventId: string;
-  maxAdverseMove: null;
-  maxFavorableMove: null;
+  fetchedAt?: string;
+  klineCount?: number;
+  manualReviewRequired?: boolean;
+  marketType?: string;
+  maxAdverseMove: number | null;
+  maxDownPctSinceObservation?: number | null;
+  maxFavorableMove: number | null;
+  maxUpPctSinceObservation?: number | null;
   notes: string;
   observedAt: string;
-  priceAtCheckpoint: null;
+  priceAtCheckpoint: number | null;
   priceAtObservation: number | null;
-  status: "pending" | "recorded" | "missed" | "expired";
+  priceAtCheckpointSource?: string;
+  priceAtObservationSource?: string;
+  priceSource?: string;
+  rawMovePct?: number | null;
+  recordedAt?: string;
+  recordDelayMinutes?: number | null;
+  restoredPriceSource?: string;
+  shouldRetry?: boolean;
+  status: ShadowCheckpointStatus;
   symbol: string;
+  usedKlineInterval?: string;
 };
 
 export type ShadowCheckpointPlan = {
   checkpoints: ShadowCheckpoint[];
   createdAt: string;
   runId: string;
+};
+
+export type ShadowCheckpointOutcomeStatus = Exclude<ShadowCheckpointStatus, "pending">;
+
+export type ShadowCheckpointOutcome = {
+  backfilled: boolean;
+  canAutoAdjustWeights: false;
+  checkpointType: ShadowCheckpointType;
+  dataFreshness: string;
+  dataSource: string;
+  dataWindowEnd: string | null;
+  dataWindowStart: string | null;
+  dueAt: string;
+  errorReason?: ShadowCheckpointErrorReason;
+  eventId: string;
+  exchange: string;
+  fetchedAt: string;
+  klineCount: number;
+  manualReviewRequired: boolean;
+  marketType: string;
+  maxAdverseMove: number | null;
+  maxDownPctSinceObservation: number | null;
+  maxFavorableMove: number | null;
+  maxUpPctSinceObservation: number | null;
+  mutatesProductionRanking: false;
+  notes: string;
+  observedAt: string;
+  outcomeId: string;
+  priceAtCheckpoint: number | null;
+  priceAtCheckpointSource: string;
+  priceAtObservation: number | null;
+  priceAtObservationSource: string;
+  priceSource: string;
+  rawMovePct: number | null;
+  recordedAt: string;
+  recordDelayMinutes: number | null;
+  researchOnly: true;
+  restoredPriceSource?: string;
+  runId: string;
+  schemaVersion: "shadow-checkpoint-outcome.v1";
+  shouldRetry: boolean;
+  status: ShadowCheckpointOutcomeStatus;
+  symbol: string;
+  usedKlineInterval: string;
+};
+
+export type ShadowCheckpointPriceWindowSuccess = {
+  ok: true;
+  candles: Candle[];
+  dataFreshness: string;
+  exchange: string;
+  fetchedAt: string;
+  marketType: string;
+  priceSource: string;
+  source: string;
+  usedKlineInterval: string;
+};
+
+export type ShadowCheckpointPriceWindowFailure = {
+  ok: false;
+  dataFreshness: string;
+  error: string;
+  errorReason: ShadowCheckpointErrorReason;
+  exchange: string;
+  fetchedAt: string;
+  marketType: string;
+  priceSource: string;
+  shouldRetry: boolean;
+  source: string;
+  usedKlineInterval: string;
+};
+
+export type ShadowCheckpointPriceWindowResult = ShadowCheckpointPriceWindowSuccess | ShadowCheckpointPriceWindowFailure;
+
+export type FillDueCheckpointOutcomesResult = {
+  checkpointPlan: ShadowCheckpointPlan;
+  dueCount: number;
+  dryRun: boolean;
+  generatedAt: string;
+  outcomes: ShadowCheckpointOutcome[];
+  outcomesWritten: ShadowCheckpointOutcome[];
+  skippedExisting: number;
+  status: ReturnType<typeof checkpointStatusDistribution>;
 };
 
 export type ShadowEventsManifest = {
@@ -200,7 +314,13 @@ export type ShadowLatest = {
   shadowTrackingStarted: boolean;
   stats: {
     blockedCount: number;
+    checkpointsDue?: number;
+    checkpointsDuePending?: number;
+    checkpointsMissed?: number;
+    checkpointsPending?: number;
     checkpointsPlanned: number;
+    checkpointsPendingWithError?: number;
+    checkpointsRecorded?: number;
     duplicatesSkipped: number;
     eventsTotal: number;
     observeCount: number;
@@ -306,6 +426,12 @@ function asString(value: unknown): string {
 
 function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function round(value: number, digits = 8) {
+  const factor = 10 ** digits;
+
+  return Math.round(value * factor) / factor;
 }
 
 function plusHours(iso: string, hours: number) {
@@ -609,12 +735,437 @@ function checkpointFromEvent(event: ShadowObservationEvent, checkpointType: Shad
     eventId: event.eventId,
     maxAdverseMove: null,
     maxFavorableMove: null,
-    notes: "第 5.1 只生成 pending checkpoint，不回填未来价格。",
+    notes: "checkpoint 尚未到期或尚未完成 outcome 回填。",
     observedAt: event.observedAt,
     priceAtCheckpoint: null,
     priceAtObservation: event.priceAtObservation,
+    priceAtObservationSource: event.priceAtObservation === null ? "missing" : "production_scan_signal_price",
+    shouldRetry: true,
     status: "pending",
     symbol: event.symbol,
+  };
+}
+
+function checkpointKey(checkpoint: Pick<ShadowCheckpoint, "eventId" | "checkpointType">) {
+  return `${checkpoint.eventId}:${checkpoint.checkpointType}`;
+}
+
+export function shadowCheckpointOutcomeKey(outcome: Pick<ShadowCheckpointOutcome, "eventId" | "checkpointType">) {
+  return `${outcome.eventId}:${outcome.checkpointType}`;
+}
+
+export function mergeCheckpointPlans(existing: ShadowCheckpointPlan | null | undefined, next: ShadowCheckpointPlan): ShadowCheckpointPlan {
+  if (!existing || existing.runId !== next.runId) return next;
+  const existingByKey = new Map(existing.checkpoints.map((checkpoint) => [checkpointKey(checkpoint), checkpoint]));
+
+  return {
+    ...next,
+    checkpoints: next.checkpoints.map((checkpoint) => {
+      const previous = existingByKey.get(checkpointKey(checkpoint));
+
+      return previous
+        ? {
+          ...checkpoint,
+          ...previous,
+          dueAt: checkpoint.dueAt,
+          observedAt: checkpoint.observedAt,
+          priceAtObservation: previous.priceAtObservation ?? checkpoint.priceAtObservation,
+          symbol: checkpoint.symbol,
+        }
+        : checkpoint;
+    }),
+  };
+}
+
+export function checkpointStatusDistribution(checkpointPlan: ShadowCheckpointPlan, nowIso: string) {
+  const nowTime = Date.parse(nowIso);
+  const due = checkpointPlan.checkpoints.filter((checkpoint) => Date.parse(checkpoint.dueAt) <= nowTime);
+  const count = (status: ShadowCheckpointStatus) => checkpointPlan.checkpoints.filter((checkpoint) => checkpoint.status === status).length;
+
+  return {
+    due: due.length,
+    duePending: due.filter((checkpoint) => checkpoint.status === "pending").length,
+    missed: count("missed"),
+    pending: count("pending"),
+    pendingWithError: count("pending_with_error"),
+    recorded: count("recorded"),
+    total: checkpointPlan.checkpoints.length,
+  };
+}
+
+function outcomeId(runId: string, checkpoint: Pick<ShadowCheckpoint, "eventId" | "checkpointType">) {
+  return `shadow_outcome_${hash(`${runId}:${checkpoint.eventId}:${checkpoint.checkpointType}`)}`;
+}
+
+function recordDelayMinutes(recordedAt: string, dueAt: string) {
+  const recorded = Date.parse(recordedAt);
+  const due = Date.parse(dueAt);
+
+  if (!Number.isFinite(recorded) || !Number.isFinite(due)) return null;
+  return round((recorded - due) / 60_000, 2);
+}
+
+function outcomeBase({
+  checkpoint,
+  event,
+  generatedAt,
+  runId,
+}: {
+  checkpoint: ShadowCheckpoint;
+  event: ShadowObservationEvent | null;
+  generatedAt: string;
+  runId: string;
+}): Omit<ShadowCheckpointOutcome, "backfilled" | "dataFreshness" | "dataSource" | "dataWindowEnd" | "dataWindowStart" | "errorReason" | "exchange" | "fetchedAt" | "klineCount" | "manualReviewRequired" | "marketType" | "maxAdverseMove" | "maxDownPctSinceObservation" | "maxFavorableMove" | "maxUpPctSinceObservation" | "notes" | "priceAtCheckpoint" | "priceAtCheckpointSource" | "priceAtObservation" | "priceAtObservationSource" | "priceSource" | "rawMovePct" | "restoredPriceSource" | "shouldRetry" | "status" | "usedKlineInterval"> {
+  return {
+    canAutoAdjustWeights: false,
+    checkpointType: checkpoint.checkpointType,
+    dueAt: checkpoint.dueAt,
+    eventId: checkpoint.eventId,
+    mutatesProductionRanking: false,
+    observedAt: event?.observedAt ?? checkpoint.observedAt,
+    outcomeId: outcomeId(runId, checkpoint),
+    recordedAt: generatedAt,
+    recordDelayMinutes: recordDelayMinutes(generatedAt, checkpoint.dueAt),
+    researchOnly: true,
+    runId,
+    schemaVersion: "shadow-checkpoint-outcome.v1",
+    symbol: checkpoint.symbol,
+  };
+}
+
+function errorOutcome({
+  checkpoint,
+  dataFreshness = "unavailable",
+  errorReason,
+  event,
+  generatedAt,
+  manualReviewRequired,
+  notes,
+  runId,
+  shouldRetry,
+  status = "pending_with_error",
+}: {
+  checkpoint: ShadowCheckpoint;
+  dataFreshness?: string;
+  errorReason: ShadowCheckpointErrorReason;
+  event: ShadowObservationEvent | null;
+  generatedAt: string;
+  manualReviewRequired: boolean;
+  notes: string;
+  runId: string;
+  shouldRetry: boolean;
+  status?: "missed" | "pending_with_error";
+}): ShadowCheckpointOutcome {
+  return {
+    ...outcomeBase({ checkpoint, event, generatedAt, runId }),
+    backfilled: false,
+    dataFreshness,
+    dataSource: "none",
+    dataWindowEnd: null,
+    dataWindowStart: null,
+    errorReason,
+    exchange: "none",
+    fetchedAt: generatedAt,
+    klineCount: 0,
+    manualReviewRequired,
+    marketType: "none",
+    maxAdverseMove: null,
+    maxDownPctSinceObservation: null,
+    maxFavorableMove: null,
+    maxUpPctSinceObservation: null,
+    notes,
+    priceAtCheckpoint: null,
+    priceAtCheckpointSource: "unavailable",
+    priceAtObservation: checkpoint.priceAtObservation,
+    priceAtObservationSource: checkpoint.priceAtObservation === null ? "missing" : checkpoint.priceAtObservationSource ?? "checkpoint_plan",
+    priceSource: "none",
+    rawMovePct: null,
+    shouldRetry,
+    status,
+    usedKlineInterval: "none",
+  };
+}
+
+function candleCloseTime(candle: Candle) {
+  return candle.closeTime || candle.openTime;
+}
+
+function candlesInWindow(candles: Candle[], observedAt: string, dueAt: string) {
+  const start = Date.parse(observedAt);
+  const end = Date.parse(dueAt);
+
+  return [...candles]
+    .filter((candle) => {
+      const open = Date.parse(candle.openTime);
+      const close = Date.parse(candleCloseTime(candle));
+      return Number.isFinite(open) && Number.isFinite(close) && open >= start && close <= end;
+    })
+    .sort((left, right) => Date.parse(candleCloseTime(left)) - Date.parse(candleCloseTime(right)));
+}
+
+function recordedOutcome({
+  checkpoint,
+  event,
+  generatedAt,
+  priceWindow,
+  runId,
+}: {
+  checkpoint: ShadowCheckpoint;
+  event: ShadowObservationEvent;
+  generatedAt: string;
+  priceWindow: ShadowCheckpointPriceWindowSuccess;
+  runId: string;
+}): ShadowCheckpointOutcome | null {
+  const observed = checkpoint.priceAtObservation ?? event.priceAtObservation;
+  if (observed === null || observed <= 0) return null;
+  const windowCandles = candlesInWindow(priceWindow.candles, event.observedAt, checkpoint.dueAt);
+  if (windowCandles.length === 0) return null;
+  const last = windowCandles.at(-1)!;
+  const high = Math.max(...windowCandles.map((candle) => candle.high));
+  const low = Math.min(...windowCandles.map((candle) => candle.low));
+  const priceAtCheckpoint = last.close;
+  const maxUpPct = ((high - observed) / observed) * 100;
+  const maxDownPct = ((low - observed) / observed) * 100;
+
+  return {
+    ...outcomeBase({ checkpoint: { ...checkpoint, priceAtObservation: observed }, event, generatedAt, runId }),
+    backfilled: true,
+    dataFreshness: priceWindow.dataFreshness,
+    dataSource: "historical_kline_backfill",
+    dataWindowEnd: candleCloseTime(last),
+    dataWindowStart: candleCloseTime(windowCandles[0]!),
+    exchange: priceWindow.exchange,
+    fetchedAt: priceWindow.fetchedAt,
+    klineCount: windowCandles.length,
+    manualReviewRequired: false,
+    marketType: priceWindow.marketType,
+    maxAdverseMove: null,
+    maxDownPctSinceObservation: round(maxDownPct, 4),
+    maxFavorableMove: null,
+    maxUpPctSinceObservation: round(maxUpPct, 4),
+    notes: "已使用公开合约历史 K 线按 observedAt 到 dueAt 窗口回填 checkpoint outcome；不使用 dueAt 之后数据。",
+    priceAtCheckpoint: round(priceAtCheckpoint, 10),
+    priceAtCheckpointSource: priceWindow.priceSource,
+    priceAtObservation: round(observed, 10),
+    priceAtObservationSource: checkpoint.priceAtObservation === null ? "restored_from_observation_event" : checkpoint.priceAtObservationSource ?? "checkpoint_plan",
+    priceSource: priceWindow.priceSource,
+    rawMovePct: round(((priceAtCheckpoint - observed) / observed) * 100, 4),
+    ...(checkpoint.priceAtObservation === null ? { restoredPriceSource: "shadow_observation_event" } : {}),
+    shouldRetry: false,
+    status: "recorded",
+    usedKlineInterval: priceWindow.usedKlineInterval,
+  };
+}
+
+function checkpointFromOutcome(checkpoint: ShadowCheckpoint, outcome: ShadowCheckpointOutcome): ShadowCheckpoint {
+  return {
+    ...checkpoint,
+    dataFreshness: outcome.dataFreshness,
+    dataSource: outcome.dataSource,
+    dataWindowEnd: outcome.dataWindowEnd,
+    dataWindowStart: outcome.dataWindowStart,
+    errorReason: outcome.errorReason,
+    exchange: outcome.exchange,
+    fetchedAt: outcome.fetchedAt,
+    klineCount: outcome.klineCount,
+    manualReviewRequired: outcome.manualReviewRequired,
+    marketType: outcome.marketType,
+    maxAdverseMove: outcome.maxAdverseMove,
+    maxDownPctSinceObservation: outcome.maxDownPctSinceObservation,
+    maxFavorableMove: outcome.maxFavorableMove,
+    maxUpPctSinceObservation: outcome.maxUpPctSinceObservation,
+    notes: outcome.notes,
+    priceAtCheckpoint: outcome.priceAtCheckpoint,
+    priceAtCheckpointSource: outcome.priceAtCheckpointSource,
+    priceAtObservation: outcome.priceAtObservation,
+    priceAtObservationSource: outcome.priceAtObservationSource,
+    priceSource: outcome.priceSource,
+    rawMovePct: outcome.rawMovePct,
+    recordedAt: outcome.recordedAt,
+    recordDelayMinutes: outcome.recordDelayMinutes,
+    restoredPriceSource: outcome.restoredPriceSource,
+    shouldRetry: outcome.shouldRetry,
+    status: outcome.status,
+    usedKlineInterval: outcome.usedKlineInterval,
+  };
+}
+
+export async function fillDueCheckpointOutcomes({
+  checkpointPlan,
+  dryRun = false,
+  events,
+  existingOutcomes = [],
+  fetchPriceWindow,
+  maxBackfillWindowHours = 24 * 30,
+  nowIso,
+}: {
+  checkpointPlan: ShadowCheckpointPlan;
+  dryRun?: boolean;
+  events: ShadowObservationEvent[];
+  existingOutcomes?: ShadowCheckpointOutcome[];
+  fetchPriceWindow: (checkpoint: ShadowCheckpoint, event: ShadowObservationEvent) => Promise<ShadowCheckpointPriceWindowResult>;
+  maxBackfillWindowHours?: number;
+  nowIso: string;
+}): Promise<FillDueCheckpointOutcomesResult> {
+  const nowTime = Date.parse(nowIso);
+  const maxBackfillMs = maxBackfillWindowHours * 60 * 60 * 1000;
+  const eventsById = new Map(events.map((event) => [event.eventId, event]));
+  const outcomesByKey = new Map(existingOutcomes.map((outcome) => [shadowCheckpointOutcomeKey(outcome), outcome]));
+  const changedOutcomes = new Map<string, ShadowCheckpointOutcome>();
+  const updatedCheckpoints: ShadowCheckpoint[] = [];
+  let dueCount = 0;
+  let skippedExisting = 0;
+
+  for (const checkpoint of checkpointPlan.checkpoints) {
+    const key = checkpointKey(checkpoint);
+    const dueTime = Date.parse(checkpoint.dueAt);
+    const isDue = Number.isFinite(dueTime) && dueTime <= nowTime;
+    const existing = outcomesByKey.get(key);
+
+    if (existing && (existing.status === "recorded" || existing.status === "missed" || existing.shouldRetry === false)) {
+      skippedExisting += 1;
+      updatedCheckpoints.push(checkpointFromOutcome(checkpoint, existing));
+      continue;
+    }
+
+    if (checkpoint.status === "recorded" || checkpoint.status === "missed") {
+      updatedCheckpoints.push(checkpoint);
+      continue;
+    }
+
+    if (!isDue) {
+      updatedCheckpoints.push({ ...checkpoint, status: "pending" });
+      continue;
+    }
+
+    dueCount += 1;
+    const event = eventsById.get(checkpoint.eventId) ?? null;
+
+    if (!event) {
+      const outcome = errorOutcome({
+        checkpoint,
+        errorReason: "CHECKPOINT_EVENT_MISSING",
+        event,
+        generatedAt: nowIso,
+        manualReviewRequired: true,
+        notes: "checkpoint 对应 observation event 缺失，无法回填。",
+        runId: checkpointPlan.runId,
+        shouldRetry: false,
+      });
+      changedOutcomes.set(key, outcome);
+      updatedCheckpoints.push(checkpointFromOutcome(checkpoint, outcome));
+      continue;
+    }
+
+    const observed = checkpoint.priceAtObservation ?? event.priceAtObservation;
+    if (observed === null || observed <= 0) {
+      const outcome = errorOutcome({
+        checkpoint,
+        errorReason: "MISSING_PRICE_AT_OBSERVATION",
+        event,
+        generatedAt: nowIso,
+        manualReviewRequired: true,
+        notes: "缺少 priceAtObservation，禁止伪造检测价，不能计算 rawMove/MFE/MAE。",
+        runId: checkpointPlan.runId,
+        shouldRetry: false,
+      });
+      changedOutcomes.set(key, outcome);
+      updatedCheckpoints.push(checkpointFromOutcome(checkpoint, outcome));
+      continue;
+    }
+
+    if (nowTime - dueTime > maxBackfillMs) {
+      const outcome = errorOutcome({
+        checkpoint: { ...checkpoint, priceAtObservation: observed },
+        dataFreshness: "expired",
+        errorReason: "BACKFILL_WINDOW_EXCEEDED",
+        event,
+        generatedAt: nowIso,
+        manualReviewRequired: true,
+        notes: "checkpoint 超过最大可回填窗口，标记 missed，不再无限重试。",
+        runId: checkpointPlan.runId,
+        shouldRetry: false,
+        status: "missed",
+      });
+      changedOutcomes.set(key, outcome);
+      updatedCheckpoints.push(checkpointFromOutcome(checkpoint, outcome));
+      continue;
+    }
+
+    if (Date.parse(event.observedAt) > dueTime) {
+      const outcome = errorOutcome({
+        checkpoint: { ...checkpoint, priceAtObservation: observed },
+        errorReason: "INVALID_CHECKPOINT_WINDOW",
+        event,
+        generatedAt: nowIso,
+        manualReviewRequired: true,
+        notes: "observedAt 晚于 dueAt，checkpoint 窗口无效。",
+        runId: checkpointPlan.runId,
+        shouldRetry: false,
+      });
+      changedOutcomes.set(key, outcome);
+      updatedCheckpoints.push(checkpointFromOutcome(checkpoint, outcome));
+      continue;
+    }
+
+    const priceWindow = await fetchPriceWindow({ ...checkpoint, priceAtObservation: observed }, event);
+    if (!priceWindow.ok) {
+      const outcome = errorOutcome({
+        checkpoint: { ...checkpoint, priceAtObservation: observed },
+        dataFreshness: priceWindow.dataFreshness,
+        errorReason: priceWindow.errorReason,
+        event,
+        generatedAt: nowIso,
+        manualReviewRequired: !priceWindow.shouldRetry,
+        notes: `价格源不可用：${priceWindow.error}`,
+        runId: checkpointPlan.runId,
+        shouldRetry: priceWindow.shouldRetry,
+      });
+      changedOutcomes.set(key, outcome);
+      updatedCheckpoints.push(checkpointFromOutcome(checkpoint, outcome));
+      continue;
+    }
+
+    const outcome = recordedOutcome({
+      checkpoint: { ...checkpoint, priceAtObservation: observed },
+      event,
+      generatedAt: nowIso,
+      priceWindow,
+      runId: checkpointPlan.runId,
+    }) ?? errorOutcome({
+      checkpoint: { ...checkpoint, priceAtObservation: observed },
+      dataFreshness: priceWindow.dataFreshness,
+      errorReason: "NO_CANDLES_IN_WINDOW",
+      event,
+      generatedAt: nowIso,
+      manualReviewRequired: false,
+      notes: "公开合约 K 线返回成功，但 observedAt 到 dueAt 窗口内没有可用已收盘 K 线。",
+      runId: checkpointPlan.runId,
+      shouldRetry: true,
+    });
+    changedOutcomes.set(key, outcome);
+    updatedCheckpoints.push(checkpointFromOutcome(checkpoint, outcome));
+  }
+
+  const mergedOutcomes = new Map(outcomesByKey);
+  for (const [key, outcome] of changedOutcomes.entries()) {
+    mergedOutcomes.set(key, outcome);
+  }
+
+  const updatedPlan = {
+    ...checkpointPlan,
+    checkpoints: updatedCheckpoints,
+  };
+
+  return {
+    checkpointPlan: dryRun ? checkpointPlan : updatedPlan,
+    dueCount,
+    dryRun,
+    generatedAt: nowIso,
+    outcomes: dryRun ? existingOutcomes : [...mergedOutcomes.values()],
+    outcomesWritten: [...changedOutcomes.values()],
+    skippedExisting,
+    status: checkpointStatusDistribution(dryRun ? checkpointPlan : updatedPlan, nowIso),
   };
 }
 
@@ -710,6 +1261,7 @@ export function buildShadowLatest({
 }): ShadowLatest {
   const meta = scanMeta(scan);
   const count = (decision: ShadowDecision) => events.filter((event) => event.decision === decision).length;
+  const checkpointStats = checkpointStatusDistribution(checkpointPlan, manifest.updatedAt);
 
   return {
     canStartShadowV1: manifest.canStartShadowV1,
@@ -730,7 +1282,13 @@ export function buildShadowLatest({
     shadowTrackingStarted: manifest.shadowTrackingStarted,
     stats: {
       blockedCount: count("BLOCKED"),
+      checkpointsDue: checkpointStats.due,
+      checkpointsDuePending: checkpointStats.duePending,
+      checkpointsMissed: checkpointStats.missed,
+      checkpointsPending: checkpointStats.pending,
       checkpointsPlanned: checkpointPlan.checkpoints.length,
+      checkpointsPendingWithError: checkpointStats.pendingWithError,
+      checkpointsRecorded: checkpointStats.recorded,
       duplicatesSkipped: duplicateEvents,
       eventsTotal: events.length,
       observeCount: count("OBSERVE") + count("UNKNOWN"),
@@ -802,6 +1360,12 @@ export function buildShadowLatestMarkdown(latest: ShadowLatest): string {
 - 去重跳过：${latest.stats.duplicatesSkipped}
 - 状态迁移：${latest.stats.transitionsRecorded}
 - 待记录 checkpoint：${latest.stats.checkpointsPlanned}
+- checkpoint due：${latest.stats.checkpointsDue ?? 0}
+- checkpoint pending：${latest.stats.checkpointsPending ?? latest.stats.checkpointsPlanned}
+- checkpoint due pending：${latest.stats.checkpointsDuePending ?? 0}
+- checkpoint recorded：${latest.stats.checkpointsRecorded ?? 0}
+- checkpoint missed：${latest.stats.checkpointsMissed ?? 0}
+- checkpoint pending_with_error：${latest.stats.checkpointsPendingWithError ?? 0}
 
 ## Warning
 
@@ -860,12 +1424,35 @@ export function validateShadowStoragePayload({
     }
   }
 
+  const validationNow = Date.parse(latest.generatedAt || manifest.updatedAt || new Date().toISOString());
   for (const checkpoint of checkpointPlan.checkpoints) {
     if (!checkpoint.eventId) errors.push(`checkpoint_missing_event_id:${checkpoint.symbol}`);
     if (!checkpoint.dueAt) errors.push(`checkpoint_missing_due_at:${checkpoint.eventId}`);
-    if (checkpoint.status !== "pending") errors.push(`checkpoint_not_pending:${checkpoint.eventId}:${checkpoint.checkpointType}`);
-    if (checkpoint.priceAtCheckpoint !== null || checkpoint.maxFavorableMove !== null || checkpoint.maxAdverseMove !== null) {
+    if (!["pending", "recorded", "missed", "pending_with_error"].includes(checkpoint.status)) {
+      errors.push(`checkpoint_invalid_status:${checkpoint.eventId}:${checkpoint.checkpointType}:${checkpoint.status}`);
+    }
+    const dueTime = Date.parse(checkpoint.dueAt);
+    const isDue = Number.isFinite(dueTime) && dueTime <= validationNow;
+    if (checkpoint.status !== "pending" && !isDue) {
       errors.push(`checkpoint_future_outcome_filled:${checkpoint.eventId}:${checkpoint.checkpointType}`);
+    }
+    if (checkpoint.status === "pending" && (
+      checkpoint.priceAtCheckpoint !== null ||
+      checkpoint.rawMovePct !== undefined ||
+      checkpoint.maxUpPctSinceObservation !== undefined ||
+      checkpoint.maxDownPctSinceObservation !== undefined ||
+      checkpoint.recordedAt !== undefined
+    )) {
+      errors.push(`checkpoint_future_outcome_filled:${checkpoint.eventId}:${checkpoint.checkpointType}`);
+    }
+    if (checkpoint.status === "recorded" && (checkpoint.priceAtCheckpoint === null || checkpoint.rawMovePct === null || checkpoint.dataSource !== "historical_kline_backfill")) {
+      errors.push(`checkpoint_recorded_missing_outcome_fields:${checkpoint.eventId}:${checkpoint.checkpointType}`);
+    }
+    if (checkpoint.status === "pending_with_error" && !checkpoint.errorReason) {
+      errors.push(`checkpoint_error_missing_reason:${checkpoint.eventId}:${checkpoint.checkpointType}`);
+    }
+    if (checkpoint.status === "missed" && !checkpoint.errorReason) {
+      errors.push(`checkpoint_missed_missing_reason:${checkpoint.eventId}:${checkpoint.checkpointType}`);
     }
   }
 
