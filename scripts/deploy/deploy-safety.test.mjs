@@ -35,3 +35,11 @@ test("production evidence captures Shadow runner status and logs", () => {
   assert.match(facts, /logs --tail=120 .*shadow-runner/);
   assert.match(facts, /ps shadow-runner/);
 });
+
+test("Shadow runner uses Node as PID 1 so SIGTERM can clean its runtime lock", () => {
+  const compose = read("docker-compose.yml");
+  const shadowService = compose.match(/  shadow-runner:\n([\s\S]*?)\n  dynamic-scan-scheduler:/)?.[1] ?? "";
+
+  assert.match(shadowService, /command:\n\s+\[\n\s+"node",\n\s+"\.tmp\/market-tests\/scripts\/shadow\/shadow-tracking\.js",\n\s+"run-loop",/);
+  assert.doesNotMatch(shadowService, /"npm",\n\s+"run",\n\s+"shadow:prod:run-loop"/);
+});

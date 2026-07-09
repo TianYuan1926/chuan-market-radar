@@ -203,10 +203,9 @@ services:
     restart: unless-stopped
     command:
       [
-        "npm",
-        "run",
-        "shadow:prod:run-loop",
-        "--",
+        "node",
+        ".tmp/market-tests/scripts/shadow/shadow-tracking.js",
+        "run-loop",
         "--out-dir",
         "${SHADOW_REPORTS_DIR:-/app/reports/phase5-1-1-tencent-shadow-runner-start/shadow}",
         "--run-id",
