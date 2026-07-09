@@ -53,6 +53,8 @@ rollback_on_failure() {
       ENV_FILE="${ENV_FILE}" \
       BASE_URL="${BASE_URL}" \
       STRICT_SCAN_FRESHNESS="false" \
+      ROLLBACK_MODE="production_rollback" \
+      CONFIRM_ROLLBACK="true" \
       bash "${ROOT_DIR}/scripts/deploy/rollback.sh" || true
   fi
   exit "${exit_code}"

@@ -6,8 +6,9 @@ ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
 STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-true}"
 STRICT_HEALTH_LEVEL="${STRICT_HEALTH_LEVEL:-${STRICT_SCAN_FRESHNESS}}"
-READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-120}"
+READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-600}"
 READY_POLL_INTERVAL_SECONDS="${READY_POLL_INTERVAL_SECONDS:-5}"
+SHADOW_READY_TIMEOUT_SECONDS="${SHADOW_READY_TIMEOUT_SECONDS:-660}"
 
 cd "${ROOT_DIR}"
 
@@ -44,7 +45,7 @@ echo "== Production API contract check: ${api_base_url} =="
 run_node - "${api_base_url}" "${STRICT_SCAN_FRESHNESS}" "${READY_TIMEOUT_SECONDS}" "${READY_POLL_INTERVAL_SECONDS}" "${STRICT_HEALTH_LEVEL}" <<'NODE'
 const baseUrl = process.argv[2].replace(/\/$/, "");
 const strictScanFreshness = ["1", "true", "yes", "on"].includes(String(process.argv[3]).toLowerCase());
-const readyTimeoutMs = Math.max(0, Number(process.argv[4] || "120")) * 1000;
+const readyTimeoutMs = Math.max(0, Number(process.argv[4] || "600")) * 1000;
 const pollIntervalMs = Math.max(1000, Number(process.argv[5] || "5") * 1000);
 const strictHealthLevel = ["1", "true", "yes", "on"].includes(String(process.argv[6] ?? process.argv[3]).toLowerCase());
 
@@ -154,8 +155,24 @@ if [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
   echo "== Redis readiness =="
   "${compose_cmd[@]}" exec -T redis redis-cli ping
 
+  echo "== Shadow runner readiness =="
+  shadow_deadline=$((SECONDS + SHADOW_READY_TIMEOUT_SECONDS))
+  while true; do
+    if shadow_health_output="$("${compose_cmd[@]}" exec -T shadow-runner sh -lc 'node .tmp/market-tests/scripts/shadow/shadow-tracking.js health --out-dir "$SHADOW_REPORTS_DIR" --run-id "$SHADOW_RUN_ID"' 2>&1)"; then
+      printf '%s\n' "${shadow_health_output}"
+      break
+    fi
+    if (( SECONDS >= shadow_deadline )); then
+      echo "ERROR: shadow runner is not ready after ${SHADOW_READY_TIMEOUT_SECONDS}s." >&2
+      printf '%s\n' "${shadow_health_output}" >&2
+      exit 1
+    fi
+    echo "waiting for ready: shadow runner is not ready"
+    sleep "${READY_POLL_INTERVAL_SECONDS}"
+  done
+
   echo "== Worker status =="
-  "${compose_cmd[@]}" ps scanner-worker websocket-light-worker coinglass-worker signal-worker dynamic-scan-scheduler macro-worker
+  "${compose_cmd[@]}" ps scanner-worker websocket-light-worker coinglass-worker signal-worker dynamic-scan-scheduler macro-worker shadow-runner
 else
   echo "WARN: Docker compose check skipped; docker unavailable or env file missing."
 fi

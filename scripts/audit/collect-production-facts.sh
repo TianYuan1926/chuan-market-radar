@@ -100,7 +100,8 @@ write_json "review-contract.json" "${capture_base_url}/api/frontend/review-contr
 if [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
   echo "== Compose snapshots =="
   "${compose_cmd[@]}" ps > "${OUT_DIR}/docker-compose-ps.txt"
-  "${compose_cmd[@]}" logs --tail=120 web scanner-worker websocket-light-worker coinglass-worker signal-worker dynamic-scan-scheduler macro-worker > "${OUT_DIR}/docker-compose-logs-tail.txt" 2>&1 || true
+  "${compose_cmd[@]}" logs --tail=120 web scanner-worker websocket-light-worker coinglass-worker signal-worker dynamic-scan-scheduler macro-worker shadow-runner > "${OUT_DIR}/docker-compose-logs-tail.txt" 2>&1 || true
+  "${compose_cmd[@]}" ps shadow-runner > "${OUT_DIR}/shadow-runner-status.txt" 2>&1 || true
   "${compose_cmd[@]}" exec -T postgres sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "${OUT_DIR}/postgres-status.txt" 2>&1 || true
   "${compose_cmd[@]}" exec -T redis redis-cli ping > "${OUT_DIR}/redis-status.txt" 2>&1 || true
 else
