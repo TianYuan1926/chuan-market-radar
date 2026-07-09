@@ -1,4 +1,5 @@
 import type { JournalEvent, MarketSignal, SignalMaturityStage } from "@/lib/analysis/types";
+import type { CoinGlassRateLimitStateSnapshot } from "./providers/coinglass-client";
 import type { ScanQuotaPlan } from "./scan-quota";
 
 export type ExchangeId = "BINANCE" | "OKX" | "BYBIT" | "COINBASE" | "UNKNOWN";
@@ -513,6 +514,7 @@ export type ScanDataQualityStatus =
 export type ScanRequestDiagnostics = {
   acceptedInstruments: number;
   cleanRows: number;
+  coinglassBudget?: CoinGlassRateLimitStateSnapshot;
   coinGlassRequestsPlanned: number;
   duplicateSymbolGroups: number;
   emptyResultAssets: string[];
@@ -522,9 +524,17 @@ export type ScanRequestDiagnostics = {
   quoteUnsupportedRows: number;
   rawRows: number;
   requestFailures?: {
+    classification?: string;
     code?: string;
+    controlled?: boolean;
+    cooldownUntil?: string;
     error: string;
     httpStatus?: number;
+    rateLimit?: {
+      max?: number;
+      used?: number;
+    };
+    retryAfterMs?: number;
     symbol: string;
   }[];
   statusCounts: Record<ScanDataQualityStatus, number>;
@@ -548,6 +558,32 @@ export type ScanDiagnostics = {
   };
   requests: ScanRequestDiagnostics;
   v3Coverage: ScanV3CoverageDiagnostics;
+};
+
+export type ScanHealthStatus = "failed" | "partial" | "ready";
+
+export type ScanDeepHealthStatus =
+  | "auth_error"
+  | "degraded"
+  | "rate_limited"
+  | "ready"
+  | "unavailable"
+  | "upgrade_required";
+
+export type ScanHealthFreshness = "aging" | "fresh" | "stale" | "unknown";
+
+export type ScanHealthSegmentation = {
+  candidateScanStatus: ScanHealthStatus;
+  coinglassBudget?: CoinGlassRateLimitStateSnapshot;
+  coinglassStatus: ScanDeepHealthStatus;
+  coreScanCanProduceCandidates: boolean;
+  deepScanCanConfirmDerivatives: boolean | "partial";
+  deepScanStatus: ScanDeepHealthStatus;
+  publicScanStatus: ScanHealthStatus;
+  scanCriticalStatus: ScanHealthStatus;
+  scanDegradedReason: string[];
+  scanFreshness: ScanHealthFreshness;
+  scanStatus: MarketDataStatus;
 };
 
 export type ScanSignalMaturityDiagnostics = {
@@ -591,6 +627,7 @@ export type ScanMetadata = {
   nextScanAt: string;
   quota?: ScanQuotaPlan;
   diagnostics?: ScanDiagnostics;
+  health?: ScanHealthSegmentation;
   lightScan?: ScanLightScanDiagnostics;
   macroWeather?: import("./macro-weather").MacroWeatherReport;
   signalMaturity?: ScanSignalMaturityDiagnostics;

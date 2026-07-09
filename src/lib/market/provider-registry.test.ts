@@ -10,7 +10,12 @@ import {
   getConfiguredMarketProvider,
   parseBaseAssets,
 } from "./provider-registry";
+import { resetCoinGlassRateLimitStateForTest } from "./providers/coinglass-client";
 import type { ContractInstrument } from "./types";
+
+test.beforeEach(() => {
+  resetCoinGlassRateLimitStateForTest();
+});
 
 function instrument(baseAsset: string): ContractInstrument {
   return {

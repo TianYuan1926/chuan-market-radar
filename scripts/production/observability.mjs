@@ -435,9 +435,98 @@ function gitMetadata() {
   };
 }
 
+function opsProxyArg() {
+  const proxyUrl = process.env.OPS_PROXY_URL || "";
+  if (!proxyUrl) {
+    return "";
+  }
+  if (proxyUrl.startsWith("socks5://")) {
+    return proxyUrl.replace(/^socks5:\/\//, "socks5h://");
+  }
+  return proxyUrl;
+}
+
+function parseCurlJsonOutput(output) {
+  const marker = "\n__MARKET_RADAR_HTTP_STATUS__:";
+  const markerIndex = output.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    return {
+      bodyText: output,
+      status: null,
+    };
+  }
+  const bodyText = output.slice(0, markerIndex);
+  const rawStatus = output.slice(markerIndex + marker.length).trim().split(/\s+/)[0];
+  const status = Number.parseInt(rawStatus, 10);
+  return {
+    bodyText,
+    status: Number.isInteger(status) ? status : null,
+  };
+}
+
 async function fetchJson(baseUrl, path) {
   const url = `${baseUrl.replace(/\/$/, "")}${path}`;
   const startedAt = Date.now();
+  const proxy = opsProxyArg();
+  if (proxy) {
+    const curlArgs = [
+      "-sS",
+      "-L",
+      "-H",
+      "cache-control: no-store",
+      "-H",
+      "user-agent: market-radar-phase4-observability/1.1",
+      "--connect-timeout",
+      "12",
+      "--max-time",
+      "45",
+      "-x",
+      proxy,
+      "-w",
+      "\n__MARKET_RADAR_HTTP_STATUS__:%{http_code}",
+      url,
+    ];
+    let output = "";
+    try {
+      output = execFileSync("curl", curlArgs, {
+        encoding: "utf8",
+        maxBuffer: 10 * 1024 * 1024,
+      });
+    } catch (error) {
+      output = String(error?.stdout || "");
+      const parsed = parseCurlJsonOutput(output);
+      if (!parsed.status) {
+        return {
+          body: {
+            error: "curl_proxy_fetch_failed",
+            detail: String(error?.code || error?.status || "unknown_error").slice(0, 120),
+          },
+          latencyMs: Date.now() - startedAt,
+          ok: false,
+          path,
+          status: null,
+          transport: "curl_proxy",
+          url,
+        };
+      }
+    }
+    const { bodyText, status } = parseCurlJsonOutput(output);
+    let body = null;
+    try {
+      body = bodyText ? JSON.parse(bodyText) : null;
+    } catch {
+      body = { raw: bodyText.slice(0, 2000) };
+    }
+    return {
+      body: redact(body),
+      latencyMs: Date.now() - startedAt,
+      ok: Number.isInteger(status) && status >= 200 && status < 400,
+      path,
+      status,
+      transport: "curl_proxy",
+      url,
+    };
+  }
   const response = await fetch(url, {
     headers: {
       "cache-control": "no-store",
@@ -457,6 +546,7 @@ async function fetchJson(baseUrl, path) {
     ok: response.ok,
     path,
     status: response.status,
+    transport: "node_fetch",
     url,
   };
 }
@@ -494,15 +584,20 @@ function validateHealthSnapshot(payload) {
   const body = payload?.body || {};
   const health = body.health || {};
   const scan = health.scan || {};
+  const scanHealth = health.scanHealth || {};
   const persistence = health.persistence || {};
   const runtimeProbes = health.runtimeProbes || {};
   const workers = Array.isArray(runtimeProbes.workers) ? runtimeProbes.workers : [];
+  const scanStatus = scan.status ?? "unknown";
+  const scanFreshness = scan.freshness ?? "unknown";
+  const scanGate = scanGateFromHealth({ scan, scanFreshness, scanHealth, scanStatus });
   const checks = [
     { key: "http_200", ok: payload.ok === true, detail: `HTTP ${payload.status}` },
     { key: "health_ok", ok: body.ok === true, detail: `ok=${String(body.ok)}` },
     { key: "health_ready", ok: health.level === "ready", detail: `level=${health.level ?? "unknown"}` },
-    { key: "scan_ready", ok: scan.status === "ready", detail: `scan.status=${scan.status ?? "unknown"}` },
-    { key: "scan_fresh", ok: scan.freshness === "fresh", detail: `scan.freshness=${scan.freshness ?? "unknown"}` },
+    { key: "scan_ready", ok: scanStatus === "ready", detail: `scan.status=${scanStatus}` },
+    { key: "scan_gate_ready", ok: scanGate.ok, detail: scanGate.detail },
+    { key: "scan_fresh", ok: scanFreshness === "fresh", detail: `scan.freshness=${scanFreshness}` },
     {
       key: "database_ready",
       ok: persistence.databaseStatus === "ready",
@@ -518,6 +613,11 @@ function validateHealthSnapshot(payload) {
       ok: workers.every((worker) => worker.status !== "failed"),
       detail: `workers=${workers.map((worker) => `${worker.key}:${worker.status}`).join(",") || "unknown"}`,
     },
+    {
+      key: "workers_healthy",
+      ok: workers.every((worker) => ["healthy", "ready", "running", "online"].includes(worker.status)),
+      detail: `workers=${workers.map((worker) => `${worker.key}:${worker.status}`).join(",") || "unknown"}`,
+    },
   ];
 
   const hardFailureKeys = new Set([
@@ -528,15 +628,104 @@ function validateHealthSnapshot(payload) {
     "redis_not_failed",
     "workers_not_failed",
   ]);
+  const partialFailureKeys = new Set(["scan_fresh", "workers_healthy"]);
   const hardFailed = checks.some((check) => hardFailureKeys.has(check.key) && !check.ok);
-  const softPartial = checks.some((check) => !hardFailureKeys.has(check.key) && !check.ok);
-  const status = hardFailed ? "fail" : softPartial ? "partial" : "pass";
+  const partialFailed = checks.some((check) => partialFailureKeys.has(check.key) && !check.ok);
+  const status = hardFailed ? "fail" : partialFailed ? "partial" : "pass";
 
   return {
     checks,
     level: health.level ?? "unknown",
-    scanFreshness: scan.freshness ?? "unknown",
+    scanStatus,
+    scanFreshness,
+    scanAgeMinutes: scan.ageMinutes ?? null,
+    scanCandidateCount: scan.candidateCount ?? null,
+    scanAnomalyCount: scan.anomalyCount ?? null,
+    scanGate,
+    scanHealth,
+    warnings: checks.filter((check) => !check.ok && !hardFailureKeys.has(check.key) && !partialFailureKeys.has(check.key)),
     status,
+  };
+}
+
+function scanGateFromHealth({ scan, scanFreshness, scanHealth, scanStatus }) {
+  const scanCriticalStatus = scanHealth?.scanCriticalStatus ?? "unknown";
+  const publicScanStatus = scanHealth?.publicScanStatus ?? "unknown";
+  const coinglassStatus = scanHealth?.coinglassStatus ?? "unknown";
+  const coreScanCanProduceCandidates = scanHealth?.coreScanCanProduceCandidates;
+  const scannedCount = Number(scan?.scannedCount ?? 0);
+  const candidateCount = Number(scan?.candidateCount ?? 0);
+  const reasons = Array.isArray(scanHealth?.scanDegradedReason) ? scanHealth.scanDegradedReason : [];
+  const budget = scanHealth?.coinglassBudget || {};
+  const cooldownActive = Boolean(budget.cooldownUntil) ||
+    (Array.isArray(budget.rateLimitedEndpoints) && budget.rateLimitedEndpoints.length > 0) ||
+    reasons.includes("coinglass_rate_limited_controlled");
+  const controlledRateLimit = coinglassStatus === "rate_limited" && cooldownActive;
+  const uncontrolledRateLimit = coinglassStatus === "rate_limited" && !cooldownActive;
+
+  if (scanFreshness !== "fresh") {
+    return {
+      detail: `scan freshness is ${scanFreshness}`,
+      ok: false,
+      reason: "scan_freshness_not_fresh",
+    };
+  }
+
+  if (scannedCount <= 0) {
+    return {
+      detail: `scannedCount=${scannedCount}`,
+      ok: false,
+      reason: "scanned_count_zero",
+    };
+  }
+
+  if (publicScanStatus === "failed") {
+    return {
+      detail: "publicScanStatus=failed",
+      ok: false,
+      reason: "public_scan_failed",
+    };
+  }
+
+  if (coinglassStatus === "auth_error" || coinglassStatus === "upgrade_required") {
+    return {
+      detail: `coinglassStatus=${coinglassStatus}`,
+      ok: false,
+      reason: `coinglass_${coinglassStatus}`,
+    };
+  }
+
+  if (uncontrolledRateLimit) {
+    return {
+      detail: "coinglassStatus=rate_limited without cooldown/budget evidence",
+      ok: false,
+      reason: "coinglass_rate_limited_uncontrolled",
+    };
+  }
+
+  if (scanCriticalStatus === "failed") {
+    return {
+      detail: `scanCriticalStatus=${scanCriticalStatus}; reasons=${reasons.join(",") || "none"}`,
+      ok: false,
+      reason: "scan_critical_failed",
+    };
+  }
+
+  if (!scanHealth || Object.keys(scanHealth).length === 0) {
+    return {
+      detail: `legacy scan.status=${scanStatus}; scannedCount=${scannedCount}; candidateCount=${candidateCount}`,
+      ok: scanStatus === "ready",
+      reason: scanStatus === "ready" ? "legacy_scan_ready" : "legacy_scan_not_ready",
+    };
+  }
+
+  const ok = coreScanCanProduceCandidates !== false && (scanCriticalStatus === "ready" || scanCriticalStatus === "partial");
+
+  return {
+    controlledDegraded: controlledRateLimit || scanCriticalStatus === "partial",
+    detail: `critical=${scanCriticalStatus}; public=${publicScanStatus}; coinglass=${coinglassStatus}; scanned=${scannedCount}; candidates=${candidateCount}; cooldown=${budget.cooldownUntil ?? "none"}`,
+    ok,
+    reason: ok ? (controlledRateLimit ? "coinglass_rate_limit_controlled" : "scan_gate_ready") : "scan_gate_not_ready",
   };
 }
 
@@ -690,13 +879,17 @@ async function runSmoke(args) {
 }
 
 async function runStatus(args) {
-  const health = existsSync(join(args.outDir, "production-health.json"))
-    ? JSON.parse(readFileSync(join(args.outDir, "production-health.json"), "utf8"))
-    : await runHealth(args);
-  const smoke = existsSync(join(args.outDir, "production-smoke.json"))
-    ? JSON.parse(readFileSync(join(args.outDir, "production-smoke.json"), "utf8"))
-    : await runSmoke(args);
+  const health = await runHealth(args);
+  const smoke = await runSmoke(args);
   const git = gitMetadata();
+  const scanReady = args.dryRun || health.validation?.scanGate?.ok === true;
+  const statusChecks = [
+    { key: "production_health_pass", ok: health.status === "pass", detail: `production_health=${health.status}` },
+    { key: "production_smoke_pass", ok: smoke.status === "pass", detail: `production_smoke=${smoke.status}` },
+    { key: "scan_status_ready", ok: scanReady, detail: health.validation?.scanGate?.detail ?? `scan.status=${health.validation?.scanStatus ?? "unknown"}` },
+  ];
+  const statusHardFailed = health.status === "fail" || smoke.status === "fail";
+  const statusPassed = statusChecks.every((check) => check.ok);
 
   const systemStatus = {
     dryRun: args.dryRun,
@@ -714,7 +907,8 @@ async function runStatus(args) {
     },
     production_deploy_executed: productionDeployExecuted(args),
     productionDeployExecuted: productionDeployExecuted(args),
-    status: health.status === "pass" && smoke.status === "pass" ? "pass" : "partial",
+    checks: statusChecks,
+    status: statusHardFailed ? "fail" : statusPassed ? "pass" : "partial",
     summary: args.dryRun
       ? "本地 dry-run 完成；未访问生产、未部署、未触碰数据库/Redis/volume。"
       : "真实生产状态快照已采集；本报告只证明生产证据采集和验证，不代表系统已支撑实战交易。",
@@ -730,7 +924,14 @@ async function runStatus(args) {
     generatedAt: nowIso(),
     production_deploy_executed: productionDeployExecuted(args),
     source: "api/health + api/frontend/radar-contract",
-    status: args.dryRun ? "not_run_dry_run_only" : health.validation?.scanFreshness ?? "unknown",
+    status: args.dryRun ? "not_run_dry_run_only" : health.validation?.scanStatus ?? "unknown",
+    freshness: args.dryRun ? "not_run_dry_run_only" : health.validation?.scanFreshness ?? "unknown",
+    ageMinutes: args.dryRun ? null : health.validation?.scanAgeMinutes ?? null,
+    candidateCount: args.dryRun ? null : health.validation?.scanCandidateCount ?? null,
+    anomalyCount: args.dryRun ? null : health.validation?.scanAnomalyCount ?? null,
+    scanGate: args.dryRun ? null : health.validation?.scanGate ?? null,
+    scanHealth: args.dryRun ? null : health.validation?.scanHealth ?? null,
+    healthImpact: health.status,
     guardrail: "scan 状态只做生产观测，不生成交易计划。",
   });
   writeJson(args.outDir, "production-worker-status.json", {
@@ -1360,6 +1561,8 @@ function buildPhaseSummary(args, git, testResult, health = null, smoke = null, s
   const productionHealthStatus = deployed ? (health?.status || "unknown") : "not_run_dry_run_only";
   const productionSmokeStatus = deployed ? (smoke?.status || "unknown") : "not_run_dry_run_only";
   const productionStatus = deployed ? (systemStatus?.status || "unknown") : "not_run_dry_run_only";
+  const productionScanStatus = deployed ? (health?.validation?.scanStatus || "unknown") : "not_run_dry_run_only";
+  const productionScanFreshness = deployed ? (health?.validation?.scanFreshness || "unknown") : "not_run_dry_run_only";
   if (context.phase === "4.3.2") {
     return {
       phase: "4.3.2",
@@ -1389,6 +1592,8 @@ function buildPhaseSummary(args, git, testResult, health = null, smoke = null, s
       production_health: productionHealthStatus,
       production_smoke: productionSmokeStatus,
       production_status: productionStatus,
+      production_scan_status: productionScanStatus,
+      production_scan_freshness: productionScanFreshness,
       production_evidence_generated: "pass",
       production_evidence_mode: "real_production",
       evidence_mode: args.evidenceMode,
@@ -1422,9 +1627,11 @@ function buildPhaseSummary(args, git, testResult, health = null, smoke = null, s
         ci_forbidden_files: tests.ci_forbidden_files || "not_run",
         ci_secret_patterns: tests.ci_secret_patterns || "not_run",
         security_check: tests.security_check || "not_run",
-        production_health: tests.production_health || tests.production_health_real || productionHealthStatus,
+        production_health: productionHealthStatus,
         production_smoke: tests.production_smoke || tests.production_smoke_real || productionSmokeStatus,
-        production_status: tests.production_status || tests.production_status_real || productionStatus,
+        production_status: productionStatus,
+        production_scan_status: productionScanStatus,
+        production_scan_freshness: productionScanFreshness,
         production_evidence_real: tests.production_evidence_real || tests.production_evidence || "pass",
         production_evidence_validate: tests.production_evidence_validate || "not_run",
         production_evidence_fixture_tests: tests.production_evidence_fixture_tests || "not_run",
@@ -1474,6 +1681,8 @@ function buildPhaseSummary(args, git, testResult, health = null, smoke = null, s
     production_health: productionHealthStatus,
     production_smoke: productionSmokeStatus,
     production_status: productionStatus,
+    production_scan_status: productionScanStatus,
+    production_scan_freshness: productionScanFreshness,
     production_evidence_generated: "pass",
     multi_agent_used: true,
     agent_0_git_safety: "pass",
@@ -1499,9 +1708,11 @@ function buildPhaseSummary(args, git, testResult, health = null, smoke = null, s
       production_smoke_dry_run: tests.production_smoke_dry_run || "not_run",
       production_status_dry_run: tests.production_status_dry_run || "not_run",
       production_evidence_dry_run: tests.production_evidence_dry_run || "not_run",
-      production_health: tests.production_health || tests.production_health_real || (deployed ? productionHealthStatus : "not_run"),
+      production_health: deployed ? productionHealthStatus : (tests.production_health || tests.production_health_real || "not_run"),
       production_smoke: tests.production_smoke || tests.production_smoke_real || (deployed ? productionSmokeStatus : "not_run"),
-      production_status: tests.production_status || tests.production_status_real || (deployed ? productionStatus : "not_run"),
+      production_status: deployed ? productionStatus : (tests.production_status || tests.production_status_real || "not_run"),
+      production_scan_status: deployed ? productionScanStatus : "not_run",
+      production_scan_freshness: deployed ? productionScanFreshness : "not_run",
       production_evidence_real: tests.production_evidence_real || tests.production_evidence || (deployed ? "pass" : "not_run"),
       production_evidence_validate: tests.production_evidence_validate || "not_run",
     },
@@ -1824,6 +2035,8 @@ function validateEvidenceZip(zipPath) {
     const gptHandoff = readOptionalText(tmp, "gpt-handoff-summary.md");
     const deployReport = readOptionalText(tmp, "production-deployment-report.md");
     const manifest = readOptionalJson(tmp, "evidence-manifest.json");
+    const productionHealth = mode === "real_production" ? readOptionalJson(tmp, "production-health.json") : null;
+    const productionScan = mode === "real_production" ? readOptionalJson(tmp, "production-scan.json") : null;
     const rollbackPlan = readOptionalText(tmp, "rollback-plan.md");
     const changedFiles = readOptionalText(tmp, "changed-files.txt");
     const grepEvidence = readOptionalText(tmp, "grep-evidence.md");
@@ -1907,30 +2120,73 @@ function validateEvidenceZip(zipPath) {
       if (!productionCommit || productionCommit !== summary.source_commit) {
         errors.push(`${summaryName}.production commit must equal source_commit`);
       }
-      const requiredPassKeys = hasPhase432Summary
-        ? [
-          "production_smoke",
-          "production_evidence_generated",
-          "unified_decision_guard_not_regressed",
-          "overlay_guard_not_regressed",
-        ]
-        : [
-          "production_health",
-          "production_smoke",
-          "production_status",
-          "production_evidence_generated",
-          "unified_decision_guard_not_regressed",
-          "overlay_guard_not_regressed",
-        ];
+      const requiredPassKeys = [
+        "production_health",
+        "production_smoke",
+        "production_status",
+        "production_evidence_generated",
+        "unified_decision_guard_not_regressed",
+        "overlay_guard_not_regressed",
+      ];
       for (const key of requiredPassKeys) {
         if (summary[key] !== "pass") {
           errors.push(`${summaryName}.${key} must be pass`);
         }
       }
-      if (hasPhase432Summary) {
-        for (const key of ["production_health", "production_status"]) {
-          if (!["pass", "partial"].includes(summary[key])) {
-            errors.push(`${summaryName}.${key} must be pass or partial`);
+      if (productionScan) {
+        if (summary.production_scan_status !== productionScan.status) {
+          errors.push(`${summaryName}.production_scan_status must match production-scan.json.status`);
+        }
+        if (summary.production_scan_freshness !== productionScan.freshness) {
+          errors.push(`${summaryName}.production_scan_freshness must match production-scan.json.freshness`);
+        }
+        if (productionScan.status === "fresh") {
+          errors.push("production-scan.json.status must be scan.status, not scan freshness");
+        }
+        if (productionScan.freshness !== "fresh") {
+          errors.push("production-scan.json.freshness must be fresh for real_production evidence");
+        }
+        const scanGate = productionScan.scanGate || null;
+        const scanHealth = productionScan.scanHealth || null;
+        if (!scanGate || scanGate.ok !== true) {
+          errors.push("production-scan.json.scanGate.ok must be true for real_production evidence");
+        }
+        if (scanHealth?.coinglassStatus === "rate_limited") {
+          const budget = scanHealth.coinglassBudget || {};
+          const cooldownActive = Boolean(budget.cooldownUntil) ||
+            (Array.isArray(budget.rateLimitedEndpoints) && budget.rateLimitedEndpoints.length > 0) ||
+            scanGate?.reason === "coinglass_rate_limit_controlled";
+          if (!cooldownActive) {
+            errors.push("controlled CoinGlass rate_limited evidence must include cooldown/budget state");
+          }
+          if (scanHealth.scanCriticalStatus !== "ready" && scanHealth.scanCriticalStatus !== "partial") {
+            errors.push("controlled CoinGlass rate_limited evidence cannot pass when scanCriticalStatus is failed");
+          }
+        }
+        if (scanHealth?.coinglassStatus === "auth_error" || scanHealth?.coinglassStatus === "upgrade_required") {
+          errors.push(`CoinGlass ${scanHealth.coinglassStatus} cannot pass real_production evidence`);
+        }
+      }
+      if (productionHealth?.validation && productionScan) {
+        const healthScanStatus = productionHealth.validation.scanStatus;
+        const healthScanFreshness = productionHealth.validation.scanFreshness;
+        if (healthScanStatus && productionScan.status !== healthScanStatus) {
+          errors.push("production-scan.json.status must match production-health.json.validation.scanStatus");
+        }
+        if (healthScanFreshness && productionScan.freshness !== healthScanFreshness) {
+          errors.push("production-scan.json.freshness must match production-health.json.validation.scanFreshness");
+        }
+        if (healthScanStatus && summary.production_scan_status !== healthScanStatus) {
+          errors.push(`${summaryName}.production_scan_status must match production-health.json.validation.scanStatus`);
+        }
+        if (healthScanFreshness && summary.production_scan_freshness !== healthScanFreshness) {
+          errors.push(`${summaryName}.production_scan_freshness must match production-health.json.validation.scanFreshness`);
+        }
+      }
+      if (summary.tests && typeof summary.tests === "object") {
+        for (const key of ["production_health", "production_status", "production_scan_status", "production_scan_freshness"]) {
+          if (summary.tests[key] && summary[key] && summary.tests[key] !== summary[key]) {
+            errors.push(`${summaryName}.tests.${key} must match top-level ${key}`);
           }
         }
       }

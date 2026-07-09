@@ -72,6 +72,7 @@ import type {
   ScanCoverage,
   ScanArchiveSummary,
   ScanDynamicPriorityPlan,
+  ScanHealthSegmentation,
   ScanPriorityReason,
   ScanRotationAudit,
   ScanStatePoolReport,
@@ -488,6 +489,7 @@ export type SystemHealthReport = {
     status: MarketDataStatus;
     staleAfterMinutes: number;
   };
+  scanHealth: ScanHealthSegmentation;
   archive: {
     detail: string;
     entries: number;
@@ -774,6 +776,78 @@ function scanFreshness({
   }
 
   return "fresh";
+}
+
+function scanHealthFreshnessFromFreshness(freshness: ScanFreshness): ScanHealthSegmentation["scanFreshness"] {
+  if (freshness === "expired") {
+    return "stale";
+  }
+
+  return freshness;
+}
+
+function scanHealthFallback({
+  coinGlassRuntimeCapability,
+  freshness,
+  metadata,
+}: {
+  coinGlassRuntimeCapability: CoinGlassRuntimeCapabilityReport;
+  freshness: ScanFreshness;
+  metadata: MarketRadarSnapshot["metadata"];
+}): ScanHealthSegmentation {
+  const publicScanStatus = metadata.lightScan?.status === "ready"
+    ? "ready"
+    : metadata.lightScan?.status === "partial"
+      ? "partial"
+      : metadata.lightScan
+        ? "failed"
+        : metadata.scannedCount > 0
+          ? "partial"
+          : "failed";
+  const coinglassStatus = coinGlassRuntimeCapability.deepScanStatus === "ready"
+    ? "ready"
+    : coinGlassRuntimeCapability.deepScanStatus === "rate_limited"
+      ? "rate_limited"
+      : coinGlassRuntimeCapability.deepScanStatus === "auth_error"
+        ? "auth_error"
+        : coinGlassRuntimeCapability.deepScanStatus === "upgrade_required"
+          ? "upgrade_required"
+          : coinGlassRuntimeCapability.deepScanStatus === "empty" || coinGlassRuntimeCapability.deepScanStatus === "not_requested"
+            ? "unavailable"
+            : "degraded";
+  const coreScanCanProduceCandidates = publicScanStatus !== "failed" && metadata.scannedCount > 0 && metadata.candidateCount > 0;
+  const scanCriticalStatus = !coreScanCanProduceCandidates || coinglassStatus === "auth_error" || coinglassStatus === "upgrade_required"
+    ? "failed"
+    : publicScanStatus === "partial" || metadata.status === "partial"
+      ? "partial"
+      : "ready";
+  const reasons = [
+    publicScanStatus !== "ready" ? `public_scan_${publicScanStatus}` : null,
+    metadata.scannedCount <= 0 ? "scanned_count_zero" : null,
+    metadata.candidateCount <= 0 ? "candidate_count_zero" : null,
+    coinglassStatus === "auth_error" ? "coinglass_auth_error" : null,
+    coinglassStatus === "upgrade_required" ? "coinglass_upgrade_required" : null,
+    coinglassStatus === "rate_limited" ? "coinglass_rate_limited" : null,
+    coinglassStatus === "degraded" ? "coinglass_degraded" : null,
+    freshness !== "fresh" ? `scan_freshness_${freshness}` : null,
+  ].filter((item): item is string => Boolean(item));
+
+  return {
+    candidateScanStatus: metadata.candidateCount > 0 ? "ready" : coreScanCanProduceCandidates ? "partial" : "failed",
+    coinglassStatus,
+    coreScanCanProduceCandidates,
+    deepScanCanConfirmDerivatives: coinGlassRuntimeCapability.canCreateDerivativeEvidence
+      ? true
+      : coinglassStatus === "rate_limited" && (metadata.diagnostics?.requests.cleanRows ?? 0) > 0
+        ? "partial"
+        : false,
+    deepScanStatus: coinglassStatus,
+    publicScanStatus,
+    scanCriticalStatus,
+    scanDegradedReason: reasons,
+    scanFreshness: scanHealthFreshnessFromFreshness(freshness),
+    scanStatus: metadata.status,
+  };
 }
 
 function metadataNote(notes: string[], prefix: string) {
@@ -2589,6 +2663,11 @@ export async function buildSystemHealthReport({
   ]);
   const age = ageMinutes(metadata.generatedAt, now);
   const freshness = scanFreshness({ age, metadata });
+  const scanHealth = metadata.health ?? scanHealthFallback({
+    coinGlassRuntimeCapability,
+    freshness,
+    metadata,
+  });
   const providerStatus = sourceStatus({
     activeSource: metadata.source,
     configuredProvider,
@@ -2688,6 +2767,7 @@ export async function buildSystemHealthReport({
       status: metadata.status,
       staleAfterMinutes: metadata.staleAfterMinutes,
     },
+    scanHealth,
     archive: {
       detail: archiveRead.detail,
       entries: archiveEntries,

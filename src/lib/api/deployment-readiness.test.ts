@@ -54,6 +54,18 @@ function health(overrides: Partial<SystemHealthReport> = {}): SystemHealthReport
       status: "ready",
       staleAfterMinutes: 30,
     },
+    scanHealth: {
+      candidateScanStatus: "ready",
+      coinglassStatus: "ready",
+      coreScanCanProduceCandidates: true,
+      deepScanCanConfirmDerivatives: true,
+      deepScanStatus: "ready",
+      publicScanStatus: "ready",
+      scanCriticalStatus: "ready",
+      scanDegradedReason: [],
+      scanFreshness: "fresh",
+      scanStatus: "ready",
+    },
     archive: {
       detail: "scan_archives storage is readable.",
       entries: 1,

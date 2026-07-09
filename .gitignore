@@ -20,6 +20,7 @@ pnpm-debug.log*
 .playwright-mcp/
 .superpowers/
 .worktrees/
+.deploy-state/
 .tmp/
 chuan-radar-*.png
 deploy/diagnostics/

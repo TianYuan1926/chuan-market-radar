@@ -5,8 +5,13 @@ import {
   coinGlassRequestConcurrencyForTest,
   createCoinGlassProvider,
 } from "./coinglass-provider";
+import { resetCoinGlassRateLimitStateForTest } from "./coinglass-client";
 import type { Candle, OhlcvProvider } from "../ohlcv/types";
 import type { PublicLightScanProvider } from "./public-light-scan";
+
+test.beforeEach(() => {
+  resetCoinGlassRateLimitStateForTest();
+});
 
 function coinglassRow(symbol: string, overrides: Record<string, string | number> = {}) {
   return {
@@ -130,6 +135,52 @@ test("CoinGlass provider clamps request concurrency for Hobbyist-safe bursts", (
   assert.equal(coinGlassRequestConcurrencyForTest(0), 1);
   assert.equal(coinGlassRequestConcurrencyForTest(12), 12);
   assert.equal(coinGlassRequestConcurrencyForTest(99), 30);
+});
+
+test("CoinGlass provider keeps core scan ready when partial CoinGlass 429 is controlled", async () => {
+  resetCoinGlassRateLimitStateForTest();
+  const provider = createCoinGlassProvider({
+    apiKey: "test-key",
+    baseAssets: ["EDGE"],
+    batchSize: 3,
+    now: () => new Date("2026-06-21T00:00:00.000Z"),
+    publicLightScanProvider: publicLightScanProviderForTest(),
+    fetcher: async (input) => {
+      const url = new URL(input.toString());
+      const symbol = url.searchParams.get("symbol") ?? "";
+
+      if (symbol === "EDGE") {
+        return new Response(JSON.stringify({
+          code: "429",
+          msg: "Too Many Requests",
+          data: null,
+        }), {
+          status: 429,
+          headers: {
+            "Retry-After": "60",
+          },
+        });
+      }
+
+      return new Response(JSON.stringify({
+        code: "0",
+        msg: "success",
+        data: [coinglassRow(symbol)],
+      }));
+    },
+  });
+
+  const snapshot = await provider.fetchSnapshot();
+
+  assert.equal(snapshot.metadata.status, "ready");
+  assert.equal(snapshot.metadata.scannedCount > 0, true);
+  assert.equal(snapshot.metadata.health?.publicScanStatus, "ready");
+  assert.equal(snapshot.metadata.health?.coinglassStatus, "rate_limited");
+  assert.equal(snapshot.metadata.health?.scanCriticalStatus, "ready");
+  assert.equal(snapshot.metadata.health?.coreScanCanProduceCandidates, true);
+  assert.equal(snapshot.metadata.health?.deepScanCanConfirmDerivatives, "partial");
+  assert.match(snapshot.metadata.notes.join("\n"), /coinglass_rate_limited_controlled/u);
+  resetCoinGlassRateLimitStateForTest();
 });
 
 test("CoinGlass provider paces deep scan requests before hitting the API", async () => {

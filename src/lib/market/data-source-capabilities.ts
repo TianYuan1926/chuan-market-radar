@@ -133,7 +133,10 @@ export type CoinGlassRuntimeRequestDiagnostics = {
   coinGlassRequestsPlanned?: number;
   rawRows?: number;
   requestFailures?: Array<{
+    classification?: string;
     code?: string;
+    controlled?: boolean;
+    cooldownUntil?: string;
     error: string;
     httpStatus?: number;
     symbol: string;
@@ -197,10 +200,6 @@ function statusFromDeepScanDiagnostics(
     return "not_requested";
   }
 
-  if ((diagnostics.cleanRows ?? 0) > 0) {
-    return "ready";
-  }
-
   const failures = diagnostics.requestFailures ?? [];
   const classifiedFailures = failures.map((failure) =>
     classifyCoinGlassRuntimeFailure({
@@ -210,12 +209,12 @@ function statusFromDeepScanDiagnostics(
     })
   );
 
-  if (classifiedFailures.includes("upgrade_required")) {
-    return "upgrade_required";
-  }
-
   if (classifiedFailures.includes("auth_error")) {
     return "auth_error";
+  }
+
+  if (classifiedFailures.includes("upgrade_required")) {
+    return "upgrade_required";
   }
 
   if (classifiedFailures.includes("rate_limited")) {
@@ -228,6 +227,10 @@ function statusFromDeepScanDiagnostics(
 
   if ((diagnostics.rawRows ?? 0) === 0) {
     return "empty";
+  }
+
+  if ((diagnostics.cleanRows ?? 0) > 0) {
+    return "ready";
   }
 
   return "failed";
@@ -289,7 +292,8 @@ export function buildCoinGlassRuntimeCapabilityReport({
 
   return {
     accountPlan: "hobbyist",
-    canCreateDerivativeEvidence: deepScanStatus === "ready",
+    canCreateDerivativeEvidence: deepScanStatus === "ready" ||
+      (deepScanStatus === "rate_limited" && (diagnostics?.cleanRows ?? 0) > 0),
     checkedAt,
     deepScanStatus,
     endpointStatuses: [

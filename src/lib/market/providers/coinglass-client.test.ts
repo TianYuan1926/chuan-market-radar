@@ -3,10 +3,16 @@ import test from "node:test";
 import {
   CoinGlassApiError,
   buildCoinGlassUrl,
+  getCoinGlassRateLimitStateSnapshot,
   reserveCoinGlassGlobalRequestSlotForTest,
   requestCoinGlass,
   resetCoinGlassGlobalPaceForTest,
+  resetCoinGlassRateLimitStateForTest,
 } from "./coinglass-client";
+
+test.beforeEach(() => {
+  resetCoinGlassRateLimitStateForTest();
+});
 
 test("buildCoinGlassUrl appends query parameters and preserves the v4 base URL", () => {
   const url = buildCoinGlassUrl("/api/futures/pairs-markets", {
@@ -47,6 +53,8 @@ test("requestCoinGlass sends the CG-API-KEY header and returns response data", a
 });
 
 test("requestCoinGlass exposes API errors and rate-limit headers", async () => {
+  resetCoinGlassRateLimitStateForTest();
+
   await assert.rejects(
     () => requestCoinGlass({
       apiKey: "bad-key",
@@ -72,9 +80,120 @@ test("requestCoinGlass exposes API errors and rate-limit headers", async () => {
       assert.equal(error.httpStatus, 429);
       assert.equal(error.rateLimit?.max, 120);
       assert.equal(error.rateLimit?.used, 121);
+      assert.equal(error.controlled, true);
+      assert.ok(error.cooldownUntil);
       return true;
     },
   );
+
+  resetCoinGlassRateLimitStateForTest();
+});
+
+test("requestCoinGlass honors Retry-After by cooling down the endpoint", async () => {
+  resetCoinGlassRateLimitStateForTest();
+  let fetchCalls = 0;
+
+  await assert.rejects(
+    () => requestCoinGlass({
+      apiKey: "rate-limited",
+      path: "/api/futures/pairs-markets",
+      fetcher: async () => {
+        fetchCalls += 1;
+        return new Response(JSON.stringify({
+          code: "429",
+          msg: "Too Many Requests",
+          data: null,
+        }), {
+          status: 429,
+          headers: {
+            "Retry-After": "2",
+          },
+        });
+      },
+    }),
+    (error) => error instanceof CoinGlassApiError && error.retryAfterMs === 2_000,
+  );
+
+  await assert.rejects(
+    () => requestCoinGlass({
+      apiKey: "rate-limited",
+      path: "/api/futures/pairs-markets",
+      fetcher: async () => {
+        fetchCalls += 1;
+        return new Response(JSON.stringify({
+          code: "0",
+          data: [],
+        }));
+      },
+    }),
+    (error) => {
+      assert(error instanceof CoinGlassApiError);
+      assert.equal(error.httpStatus, 429);
+      assert.equal(error.controlled, true);
+      assert.match(error.message, /cooling down/u);
+      return true;
+    },
+  );
+
+  assert.equal(fetchCalls, 1);
+  assert.deepEqual(getCoinGlassRateLimitStateSnapshot().rateLimitedEndpoints, ["/api/futures/pairs-markets"]);
+  resetCoinGlassRateLimitStateForTest();
+});
+
+test("requestCoinGlass defers requests before fetch when the provider minute budget is exhausted", async () => {
+  resetCoinGlassRateLimitStateForTest();
+  const previousLimit = process.env.COINGLASS_MINUTE_REQUEST_LIMIT;
+  process.env.COINGLASS_MINUTE_REQUEST_LIMIT = "1";
+  let fetchCalls = 0;
+
+  try {
+    const first = await requestCoinGlass<{ ok: boolean }>({
+      apiKey: "configured",
+      path: "/api/futures/pairs-markets",
+      fetcher: async () => {
+        fetchCalls += 1;
+        return new Response(JSON.stringify({
+          code: "0",
+          data: { ok: true },
+        }));
+      },
+    });
+
+    assert.deepEqual(first, { ok: true });
+
+    await assert.rejects(
+      () => requestCoinGlass({
+        apiKey: "configured",
+        path: "/api/futures/pairs-markets",
+        fetcher: async () => {
+          fetchCalls += 1;
+          return new Response(JSON.stringify({
+            code: "0",
+            data: [],
+          }));
+        },
+      }),
+      (error) => {
+        assert(error instanceof CoinGlassApiError);
+        assert.equal(error.controlled, true);
+        assert.match(error.message, /minute budget exhausted/u);
+        return true;
+      },
+    );
+
+    assert.equal(fetchCalls, 1);
+    const snapshot = getCoinGlassRateLimitStateSnapshot();
+    assert.equal(snapshot.maxRequests, 1);
+    assert.equal(snapshot.usedRequests, 1);
+    assert.equal(snapshot.deferredRequests, 1);
+  } finally {
+    if (previousLimit === undefined) {
+      delete process.env.COINGLASS_MINUTE_REQUEST_LIMIT;
+    } else {
+      process.env.COINGLASS_MINUTE_REQUEST_LIMIT = previousLimit;
+    }
+    resetCoinGlassRateLimitStateForTest();
+  }
 });
 
 test("CoinGlass global pacing serializes concurrent request slots", async () => {

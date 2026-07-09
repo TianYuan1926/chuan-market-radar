@@ -114,6 +114,34 @@ test("buildCoinGlassRuntimeCapabilityReport only permits derivative evidence aft
   assert.equal(report.canCreateDerivativeEvidence, true);
 });
 
+test("buildCoinGlassRuntimeCapabilityReport exposes rate limit even when partial clean rows exist", () => {
+  const report = buildCoinGlassRuntimeCapabilityReport({
+    checkedAt: "2026-06-23T00:00:00.000Z",
+    diagnostics: {
+      cleanRows: 5,
+      coinGlassRequestsPlanned: 6,
+      rawRows: 8,
+      requestFailures: [
+        {
+          code: "429",
+          error: "Too Many Requests",
+          httpStatus: 429,
+          symbol: "EDGE",
+        },
+      ],
+    },
+    env: {
+      COINGLASS_API_KEY: "configured",
+      MARKET_DATA_PROVIDER: "coinglass",
+    },
+  });
+
+  assert.equal(report.deepScanStatus, "rate_limited");
+  assert.equal(report.canCreateDerivativeEvidence, true);
+  assert.equal(report.endpointStatuses[0]?.status, "rate_limited");
+  assert.match(report.operatorHint, /限速/u);
+});
+
 test("classifyCoinGlassRuntimeFailure keeps auth, rate limit and upgrade distinct", () => {
   assert.equal(classifyCoinGlassRuntimeFailure({ message: "Upgrade Plan" }), "upgrade_required");
   assert.equal(classifyCoinGlassRuntimeFailure({ httpStatus: 401, message: "Unauthorized" }), "auth_error");

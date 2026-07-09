@@ -101,9 +101,10 @@ async function withFixtureServer(callback, options = {}) {
           persistence: { databaseStatus: "ready" },
           runtimeProbes: {
             redis: { status: "ready" },
-            workers: [{ key: "scanner-worker", status: "ready" }],
+            workers: options.workers || [{ key: "scanner-worker", status: "ready" }],
           },
           scan: options.scan || { freshness: "fresh", status: "ready" },
+          scanHealth: options.scanHealth,
         },
       },
       "/api/frontend/radar-contract": {
@@ -286,17 +287,201 @@ test("phase 4.3.2 production evidence includes changed files and redacts dry-run
   }
 });
 
-test("phase 4.3.2 production evidence preserves partial scan status without promoting it to pass", async () => {
+test("phase 4.3.2 production evidence keeps partial scan separate and blocks production status pass", async () => {
   const parent = makeTempDir();
   try {
     const zipPath = await generatePhase432Evidence(parent, { scan: { freshness: "fresh", status: "partial" } });
+    const parsed = validateZip(zipPath, { expectFailure: true });
+    assert.equal(parsed.status, "fail");
+    assert.match(parsed.errors.join("\n"), /production_status must be pass/);
+    const outDir = join(parent, "unzipped-partial");
+    unzipFixture(zipPath, outDir);
+    const summary = JSON.parse(readFileSync(join(outDir, "phase4-3-2-summary.json"), "utf8"));
+    const productionScan = JSON.parse(readFileSync(join(outDir, "production-scan.json"), "utf8"));
+    assert.equal(summary.production_health, "pass");
+    assert.equal(summary.production_status, "partial");
+    assert.equal(summary.production_scan_status, "partial");
+    assert.equal(summary.production_scan_freshness, "fresh");
+    assert.equal(summary.tests.production_scan_status, "partial");
+    assert.equal(summary.tests.production_scan_freshness, "fresh");
+    assert.equal(productionScan.status, "partial");
+    assert.equal(productionScan.freshness, "fresh");
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("phase 4.3.2 production evidence allows controlled CoinGlass rate limit without weakening stale or core scan gates", async () => {
+  const parent = makeTempDir();
+  try {
+    const controlledScanHealth = {
+      candidateScanStatus: "ready",
+      coinglassBudget: {
+        budgetWindow: "1m",
+        cooldownUntil: new Date(Date.now() + 60_000).toISOString(),
+        deferredRequests: 1,
+        endpointBudgets: [{
+          cooldownUntil: new Date(Date.now() + 60_000).toISOString(),
+          endpoint: "/api/futures/pairs-markets",
+          maxRequests: 30,
+          remainingRequests: 0,
+          usedRequests: 30,
+        }],
+        maxRequests: 30,
+        provider: "coinglass",
+        rateLimitedEndpoints: ["/api/futures/pairs-markets"],
+        remainingRequests: 0,
+        usedRequests: 30,
+      },
+      coinglassStatus: "rate_limited",
+      coreScanCanProduceCandidates: true,
+      deepScanCanConfirmDerivatives: "partial",
+      deepScanStatus: "rate_limited",
+      publicScanStatus: "ready",
+      scanCriticalStatus: "ready",
+      scanDegradedReason: ["coinglass_rate_limited_controlled"],
+      scanFreshness: "fresh",
+      scanStatus: "partial",
+    };
+    const zipPath = await generatePhase432Evidence(parent, {
+      scan: {
+        anomalyCount: 4,
+        candidateCount: 3,
+        freshness: "fresh",
+        scannedCount: 8,
+        status: "partial",
+      },
+      scanHealth: controlledScanHealth,
+    });
     const parsed = validateZip(zipPath);
     assert.equal(parsed.status, "pass");
-    const outDir = join(parent, "unzipped-partial");
+    const outDir = join(parent, "unzipped-controlled");
+    unzipFixture(zipPath, outDir);
+    const summary = JSON.parse(readFileSync(join(outDir, "phase4-3-2-summary.json"), "utf8"));
+    const productionScan = JSON.parse(readFileSync(join(outDir, "production-scan.json"), "utf8"));
+    assert.equal(summary.production_status, "pass");
+    assert.equal(summary.production_scan_status, "partial");
+    assert.equal(productionScan.scanGate.reason, "coinglass_rate_limit_controlled");
+    assert.equal(productionScan.scanHealth.coinglassStatus, "rate_limited");
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("phase 4.3.2 production evidence rejects stale scan freshness", async () => {
+  const parent = makeTempDir();
+  try {
+    const zipPath = await generatePhase432Evidence(parent, { scan: { freshness: "stale", status: "ready" } });
+    const parsed = validateZip(zipPath, { expectFailure: true });
+    assert.match(parsed.errors.join("\n"), /production_health|production_status|freshness must be fresh/);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("phase 4.3.2 production evidence rejects stale worker heartbeat", async () => {
+  const parent = makeTempDir();
+  try {
+    const zipPath = await generatePhase432Evidence(parent, {
+      scan: { freshness: "fresh", status: "ready" },
+      workers: [{ key: "scanner-worker", status: "down" }],
+    });
+    const parsed = validateZip(zipPath, { expectFailure: true });
+    assert.match(parsed.errors.join("\n"), /production_health|production_status/);
+    const outDir = join(parent, "unzipped-worker-down");
     unzipFixture(zipPath, outDir);
     const summary = JSON.parse(readFileSync(join(outDir, "phase4-3-2-summary.json"), "utf8"));
     assert.equal(summary.production_health, "partial");
     assert.equal(summary.production_status, "partial");
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("production evidence validator rejects summary test status mismatches", async () => {
+  const parent = makeTempDir();
+  try {
+    const validZip = await generatePhase432Evidence(parent);
+    const badZip = mutateZip(validZip, parent, (dir) => {
+      const summaryPath = join(dir, "phase4-3-2-summary.json");
+      const summary = JSON.parse(readFileSync(summaryPath, "utf8"));
+      summary.tests.production_health = "partial";
+      writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+    });
+    const parsed = validateZip(badZip, { expectFailure: true });
+    assert.match(parsed.errors.join("\n"), /tests\.production_health must match top-level production_health/);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("production evidence validator rejects health and scan status mismatches", async () => {
+  const parent = makeTempDir();
+  try {
+    const validZip = await generatePhase432Evidence(parent, { scan: { freshness: "fresh", status: "partial" } });
+    const badZip = mutateZip(validZip, parent, (dir) => {
+      const healthPath = join(dir, "production-health.json");
+      const health = JSON.parse(readFileSync(healthPath, "utf8"));
+      health.validation.scanStatus = "ready";
+      writeFileSync(healthPath, JSON.stringify(health, null, 2));
+    });
+    const parsed = validateZip(badZip, { expectFailure: true });
+    assert.match(parsed.errors.join("\n"), /production-scan\.json\.status must match production-health\.json\.validation\.scanStatus/);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("production status regenerates current health and smoke instead of reusing stale files", async () => {
+  const parent = makeTempDir();
+  try {
+    const evidenceDir = join(parent, "status-regeneration");
+    mkdirSync(evidenceDir, { recursive: true });
+    writeFileSync(join(evidenceDir, "production-health.json"), JSON.stringify({
+      generatedAt: "2000-01-01T00:00:00.000Z",
+      status: "fail",
+      validation: {
+        scanFreshness: "stale",
+        scanStatus: "partial",
+      },
+    }, null, 2));
+    writeFileSync(join(evidenceDir, "production-smoke.json"), JSON.stringify({
+      generatedAt: "2000-01-01T00:00:00.000Z",
+      status: "fail",
+    }, null, 2));
+
+    await withFixtureServer(async (baseUrl) => {
+      await runNodeAsync([
+        "status",
+        "--mode",
+        "real_production",
+        "--base-url",
+        baseUrl,
+        "--out-dir",
+        evidenceDir,
+      ]);
+    }, {
+      scan: { freshness: "fresh", scannedCount: 24, status: "ready" },
+      scanHealth: {
+        candidateScanStatus: "ready",
+        coinglassStatus: "ready",
+        coreScanCanProduceCandidates: true,
+        deepScanCanConfirmDerivatives: true,
+        deepScanStatus: "ready",
+        publicScanStatus: "ready",
+        scanCriticalStatus: "ready",
+        scanDegradedReason: [],
+        scanFreshness: "fresh",
+        scanStatus: "ready",
+      },
+    });
+
+    const health = JSON.parse(readFileSync(join(evidenceDir, "production-health.json"), "utf8"));
+    const status = JSON.parse(readFileSync(join(evidenceDir, "production-status.json"), "utf8"));
+    assert.equal(health.status, "pass");
+    assert.equal(health.validation.scanFreshness, "fresh");
+    assert.equal(health.validation.scanStatus, "ready");
+    assert.equal(status.status, "pass");
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

@@ -1,5 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { BINANCE_FUTURES_KLINES_URL, normalizeBinanceKline } from "../../lib/market/ohlcv/public-exchange-provider";
 import type { Candle } from "../../lib/market/ohlcv/types";
@@ -32,12 +33,20 @@ import {
   type ShadowScanSignalInput,
   type ShadowStatusTransition,
 } from "../../lib/shadow/storage";
+import {
+  DEFAULT_SHADOW_RUNNER_HEARTBEAT_STALE_MS,
+  buildShadowRunnerRuntimeId,
+  deriveShadowRunnerRuntimeStatus,
+  type ShadowRunnerLock,
+  type ShadowRunnerState,
+} from "../../lib/shadow/runner-runtime";
 
 type Command =
   | "baseline"
   | "capture"
   | "checkpoint"
   | "daily-summary"
+  | "health"
   | "pause"
   | "report"
   | "resume"
@@ -83,6 +92,7 @@ const currentRunFileName = "current-run.json";
 const runStateFileName = "runner-state.json";
 const lockFileName = "runner.lock";
 const runnerLogFileName = "runner.log";
+const runnerCleanupLogFileName = "runner-lock-cleanup.jsonl";
 
 function asRecord(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null;
@@ -246,6 +256,10 @@ function runStatePath(options: CliOptions) {
 
 function runnerLogPath(options: CliOptions) {
   return join(options.outDir, runnerLogFileName);
+}
+
+function runnerLockCleanupLogPath(options: CliOptions) {
+  return join(options.outDir, runnerCleanupLogFileName);
 }
 
 function runDir(options: CliOptions, runId: string) {
@@ -861,20 +875,139 @@ function isPidAlive(pid: number) {
   }
 }
 
-function readLock(options: CliOptions) {
+function runnerHeartbeatStaleMs() {
+  const parsed = Number(process.env.SHADOW_RUNNER_HEARTBEAT_STALE_MS || DEFAULT_SHADOW_RUNNER_HEARTBEAT_STALE_MS);
+  return Number.isFinite(parsed) && parsed >= 60_000 ? parsed : DEFAULT_SHADOW_RUNNER_HEARTBEAT_STALE_MS;
+}
+
+function readLock(options: CliOptions): ShadowRunnerLock | null {
   const record = asRecord(readJsonIfExists(lockPath(options)));
   const pid = asNumber(record?.pid);
+  if (!record) return null;
   return {
+    heartbeatAt: asString(record.heartbeatAt) || undefined,
+    hostname: asString(record.hostname) || undefined,
+    mode: asString(record.mode) || undefined,
     pid,
     runId: asString(record?.runId),
     startedAt: asString(record?.startedAt),
+    runtimeId: asString(record.runtimeId) || undefined,
+    updatedAt: asString(record.updatedAt) || undefined,
   };
+}
+
+function readRunnerState(options: CliOptions): ShadowRunnerState | null {
+  const record = asRecord(readJsonIfExists(runStatePath(options)));
+  if (!record) return null;
+  return {
+    heartbeatAt: asString(record.heartbeatAt) || undefined,
+    hostname: asString(record.hostname) || undefined,
+    lastCaptureAt: asString(record.lastCaptureAt) || undefined,
+    lastCheckpointSweepAt: asString(record.lastCheckpointSweepAt) || undefined,
+    lastError: asString(record.lastError) || undefined,
+    pid: asNumber(record.pid) ?? undefined,
+    runId: asString(record.runId) || undefined,
+    runtimeId: asString(record.runtimeId) || undefined,
+    status: asString(record.status) || undefined,
+    updatedAt: asString(record.updatedAt) || undefined,
+  };
+}
+
+function lockPidAlive(lock: ShadowRunnerLock | null) {
+  if (!lock?.pid) return null;
+  if (lock.hostname && lock.hostname !== hostname()) return null;
+  return isPidAlive(lock.pid);
+}
+
+function derivedRunnerStatus(options: CliOptions, manifest = readManifest(options)) {
+  const lock = readLock(options);
+  const runnerState = readRunnerState(options);
+  return deriveShadowRunnerRuntimeStatus({
+    currentHostname: hostname(),
+    heartbeatStaleMs: runnerHeartbeatStaleMs(),
+    lock,
+    lockPidAlive: lockPidAlive(lock),
+    manifestStatus: manifest?.status ?? "",
+    nowMs: Date.now(),
+    runnerState,
+  });
+}
+
+function writeRunnerRuntime(
+  options: CliOptions,
+  {
+    lastCaptureAt,
+    lastCheckpointSweepAt,
+    lastError,
+    mode = "run-loop",
+    runId,
+    runtimeId,
+    status = "running",
+  }: {
+    lastCaptureAt?: string;
+    lastCheckpointSweepAt?: string;
+    lastError?: string;
+    mode?: string;
+    runId: string;
+    runtimeId: string;
+    status?: string;
+  },
+) {
+  const heartbeatAt = nowIso();
+  const payload = {
+    heartbeatAt,
+    hostname: hostname(),
+    ...(lastCaptureAt ? { lastCaptureAt } : {}),
+    ...(lastCheckpointSweepAt ? { lastCheckpointSweepAt } : {}),
+    ...(lastError ? { lastError } : {}),
+    mode,
+    pid: process.pid,
+    runId,
+    runtimeId,
+    status,
+    updatedAt: heartbeatAt,
+  };
+  writeJson(lockPath(options), {
+    heartbeatAt,
+    hostname: hostname(),
+    mode,
+    pid: process.pid,
+    runId,
+    runtimeId,
+    startedAt: runtimeId.split(":").slice(2).join(":") || heartbeatAt,
+    updatedAt: heartbeatAt,
+  });
+  writeJson(runStatePath(options), payload);
+  return payload;
+}
+
+function cleanupStaleLock(options: CliOptions, reason: string, lock: ShadowRunnerLock | null, runtimeStatus: ReturnType<typeof derivedRunnerStatus>) {
+  if (!lock || !existsSync(lockPath(options))) return false;
+  if (lock.pid && (!lock.hostname || lock.hostname === hostname()) && isPidAlive(lock.pid)) {
+    try {
+      process.kill(lock.pid, "SIGTERM");
+    } catch {
+      // Stale lock cleanup is best-effort; the cleanup record below is the durable proof.
+    }
+  }
+  appendJsonl(runnerLockCleanupLogPath(options), [{
+    cleanedAt: nowIso(),
+    lock,
+    reason,
+    runtimeStatus,
+  }]);
+  unlinkSync(lockPath(options));
+  return true;
 }
 
 async function commandStart(options: CliOptions) {
   const lock = readLock(options);
-  if (lock.pid && isPidAlive(lock.pid)) {
-    throw new Error(`shadow_runner_lock_exists:${lock.pid}:${lock.runId}`);
+  const existingStatus = derivedRunnerStatus(options);
+  if (existingStatus.status === "running" && lock?.pid) {
+    throw new Error(`shadow_runner_lock_exists:${lock.pid}:${lock.runId}:${existingStatus.reason}`);
+  }
+  if (existingStatus.recoverable) {
+    cleanupStaleLock(options, existingStatus.reason, lock, existingStatus);
   }
 
   const preflightResult = await preflight(options);
@@ -890,6 +1023,7 @@ async function commandStart(options: CliOptions) {
 
   const startTime = nowIso();
   const runId = options.runId || `shadow-v1-${utcStamp(startTime)}`;
+  const parentRuntimeId = buildShadowRunnerRuntimeId({ hostname: hostname(), pid: process.pid, startedAt: startTime });
   const manifest = buildShadowRunManifest({
     mode: "shadow_v1_live_observation",
     nowIso: startTime,
@@ -925,15 +1059,22 @@ async function commandStart(options: CliOptions) {
 
   const state = {
     heartbeatAt: nowIso(),
+    hostname: hostname(),
     pid: process.pid,
     runId,
+    runtimeId: parentRuntimeId,
     status: options.noBackground ? "running_no_background" : "running",
     updatedAt: nowIso(),
   };
   writeJson(lockPath(options), {
+    heartbeatAt: state.heartbeatAt,
+    hostname: hostname(),
+    mode: options.noBackground ? "foreground-start" : "detached-start",
     pid: process.pid,
     runId,
+    runtimeId: parentRuntimeId,
     startedAt: startTime,
+    updatedAt: state.updatedAt,
   });
   writeJson(runStatePath(options), state);
 
@@ -956,10 +1097,19 @@ async function commandStart(options: CliOptions) {
       detached: true,
       stdio: ["ignore", "ignore", "ignore"],
     });
+    const childStartedAt = nowIso();
+    const childRuntimeId = child.pid
+      ? buildShadowRunnerRuntimeId({ hostname: hostname(), pid: child.pid, startedAt: childStartedAt })
+      : parentRuntimeId;
     writeJson(lockPath(options), {
+      heartbeatAt: childStartedAt,
+      hostname: hostname(),
+      mode: "detached-child",
       pid: child.pid,
       runId,
-      startedAt: startTime,
+      runtimeId: childRuntimeId,
+      startedAt: childStartedAt,
+      updatedAt: childStartedAt,
     });
     child.unref();
   }
@@ -990,18 +1140,36 @@ async function commandCapture(options: CliOptions) {
 function commandStatus(options: CliOptions) {
   const manifest = readManifest(options);
   const lock = readLock(options);
-  const state = asRecord(readJsonIfExists(runStatePath(options)));
+  const state = readRunnerState(options);
+  const runtime = derivedRunnerStatus(options, manifest);
   const status = {
     currentRun: getCurrentRunId(options) || "",
+    effectiveStatus: runtime.status,
     lock: {
       ...lock,
-      alive: lock.pid ? isPidAlive(lock.pid) : false,
+      alive: lockPidAlive(lock),
     },
     manifest,
+    runtime,
     runnerState: state,
   };
   console.log(JSON.stringify(status, null, 2));
   writeJson(join(options.outDir, "shadow-status.json"), status);
+}
+
+function commandHealth(options: CliOptions) {
+  const manifest = readManifest(options);
+  const runtime = derivedRunnerStatus(options, manifest);
+  const result = {
+    generatedAt: nowIso(),
+    ok: runtime.status === "running" && runtime.heartbeatFresh,
+    runtime,
+    runId: runtime.runId || getCurrentRunId(options) || "",
+    stillNotReadyForLiveTrading: true,
+  };
+  writeJson(join(options.outDir, "shadow-runner-health.json"), result);
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.ok) process.exitCode = 1;
 }
 
 function updateManifestStatus(options: CliOptions, status: ShadowRunManifest["status"], reason: string) {
@@ -1025,7 +1193,7 @@ function updateManifestStatus(options: CliOptions, status: ShadowRunManifest["st
 
 function commandStop(options: CliOptions) {
   const lock = readLock(options);
-  if (lock.pid && isPidAlive(lock.pid)) {
+  if (lock?.pid && isPidAlive(lock.pid)) {
     try {
       process.kill(lock.pid, "SIGTERM");
     } catch {
@@ -1051,27 +1219,71 @@ async function commandRunLoop(options: CliOptions) {
   const intervalMs = Math.max(60_000, Number(process.env.SHADOW_CAPTURE_INTERVAL_MS || 5 * 60_000));
   const manifest = readManifest(options);
   if (!manifest) throw new Error("shadow_manifest_missing");
+  const startedAt = nowIso();
+  const runtimeId = buildShadowRunnerRuntimeId({ hostname: hostname(), pid: process.pid, startedAt });
+  const existingLock = readLock(options);
+  const existingStatus = derivedRunnerStatus(options, manifest);
+
+  if (existingStatus.status === "running") {
+    throw new Error(`shadow_runner_duplicate_active:${existingLock?.pid ?? "unknown"}:${existingStatus.reason}`);
+  }
+  if (existingStatus.recoverable) {
+    cleanupStaleLock(options, existingStatus.reason, existingLock, existingStatus);
+  }
+
+  let lastCaptureAt = asString(readRunnerState(options)?.lastCaptureAt) || undefined;
+  let lastCheckpointSweepAt = asString(readRunnerState(options)?.lastCheckpointSweepAt) || undefined;
+
+  const markRuntime = (status = "running", lastError?: string) => writeRunnerRuntime(options, {
+    lastCaptureAt,
+    lastCheckpointSweepAt,
+    lastError,
+    mode: "docker-run-loop",
+    runId: manifest.runId,
+    runtimeId,
+    status,
+  });
+
+  const shutdown = (signal: NodeJS.Signals) => {
+    markRuntime("stopped", `received_${signal}`);
+    const lock = readLock(options);
+    if (lock?.runtimeId === runtimeId && existsSync(lockPath(options))) unlinkSync(lockPath(options));
+    process.exit(0);
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+
+  markRuntime();
 
   while (true) {
     try {
       const current = readManifest(options, manifest.runId);
       if (!current || current.status === "completed" || current.status === "aborted") break;
       if (current.status !== "paused") {
-        await captureOnce(options, current);
+        markRuntime();
+        const capture = await captureOnce(options, current);
+        lastCaptureAt = capture.latest.generatedAt;
         await commandCheckpoint({ ...options, dryRun: false, runId: current.runId });
+        lastCheckpointSweepAt = nowIso();
+        commandDailySummary({ ...options, runId: current.runId });
         writeJson(runStatePath(options), {
-          heartbeatAt: nowIso(),
-          pid: process.pid,
-          runId: current.runId,
+          ...markRuntime(),
           status: "running",
-          updatedAt: nowIso(),
         });
+      } else {
+        markRuntime("paused");
       }
     } catch (error) {
-      appendFileSync(runnerLogPath(options), `${nowIso()} ${error instanceof Error ? error.stack || error.message : String(error)}\n`, "utf8");
+      const message = error instanceof Error ? error.stack || error.message : String(error);
+      appendFileSync(runnerLogPath(options), `${nowIso()} ${message}\n`, "utf8");
+      markRuntime("running_with_error", error instanceof Error ? error.message : String(error));
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, intervalMs));
   }
+
+  markRuntime("stopped", "manifest_completed_or_aborted");
+  const lock = readLock(options);
+  if (lock?.runtimeId === runtimeId && existsSync(lockPath(options))) unlinkSync(lockPath(options));
 }
 
 function updateLatestCheckpointStats(options: CliOptions, manifest: ShadowRunManifest, checkpointPlan: ShadowCheckpointPlan, generatedAt: string) {
@@ -1278,6 +1490,9 @@ async function main() {
       break;
     case "daily-summary":
       commandDailySummary(options);
+      break;
+    case "health":
+      commandHealth(options);
       break;
     case "pause":
       commandPause(options);

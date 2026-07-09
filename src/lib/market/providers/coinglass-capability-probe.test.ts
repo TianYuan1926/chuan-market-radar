@@ -5,6 +5,11 @@ import {
   coinGlassCapabilityProbeEndpointsForTest,
   runAdminCoinGlassCapabilityProbe,
 } from "./coinglass-capability-probe";
+import { resetCoinGlassRateLimitStateForTest } from "./coinglass-client";
+
+test.beforeEach(() => {
+  resetCoinGlassRateLimitStateForTest();
+});
 
 test("runAdminCoinGlassCapabilityProbe requires CRON_SECRET authorization", async () => {
   const missingSecret = await runAdminCoinGlassCapabilityProbe({

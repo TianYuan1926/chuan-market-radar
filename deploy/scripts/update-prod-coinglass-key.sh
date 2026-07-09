@@ -169,7 +169,7 @@ PY
 
 if [[ "${RESTART_AFTER_UPDATE}" == "true" ]]; then
   sudo docker compose --env-file "${ENV_FILE}" up -d --force-recreate \
-    web scanner-worker coinglass-worker signal-worker dynamic-scan-scheduler macro-worker >/tmp/chuan-coinglass-key-recreate.log
+    web scanner-worker websocket-light-worker coinglass-worker signal-worker dynamic-scan-scheduler macro-worker >/tmp/chuan-coinglass-key-recreate.log
   echo "containers recreated with updated env"
 fi
 

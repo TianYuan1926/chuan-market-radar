@@ -36,12 +36,22 @@ import type {
   MarketDataStatus,
   MarketDataProvider,
   MarketRadarSnapshot,
+  ScanDeepHealthStatus,
+  ScanHealthFreshness,
+  ScanHealthSegmentation,
   ScanMetadata,
   ScanRequestDiagnostics,
   ScanV3CoverageDiagnostics,
 } from "../types";
 import type { UniverseDiscoveryProvider } from "./binance-universe-discovery";
-import { CoinGlassApiError, requestCoinGlass } from "./coinglass-client";
+import {
+  CoinGlassApiError,
+  getCoinGlassRateLimitStateSnapshot,
+  requestCoinGlass,
+} from "./coinglass-client";
+import {
+  classifyCoinGlassRuntimeFailure,
+} from "../data-source-capabilities";
 import {
   type CoinGlassMarketRow,
   type CoinGlassMarketRowRejectionReason,
@@ -265,9 +275,17 @@ type PrimarySignalRowSelectionReport = {
 };
 
 type CoinGlassPairsMarketFailure = {
+  classification?: string;
   code?: string;
+  controlled?: boolean;
+  cooldownUntil?: string;
   error: string;
   httpStatus?: number;
+  rateLimit?: {
+    max?: number;
+    used?: number;
+  };
+  retryAfterMs?: number;
   symbol: string;
 };
 
@@ -431,9 +449,18 @@ function rowBaseAsset(row: CoinGlassMarketRow) {
 function coinGlassFailureFromError(symbol: string, error: unknown): CoinGlassPairsMarketFailure {
   if (error instanceof CoinGlassApiError) {
     return {
+      classification: classifyCoinGlassRuntimeFailure({
+        code: error.code,
+        httpStatus: error.httpStatus,
+        message: error.message,
+      }),
       code: error.code,
+      controlled: error.controlled,
+      cooldownUntil: error.cooldownUntil,
       error: error.message,
       httpStatus: error.httpStatus,
+      rateLimit: error.rateLimit,
+      retryAfterMs: error.retryAfterMs,
       symbol,
     };
   }
@@ -470,7 +497,143 @@ function metadataStatusFromCoinGlassResult({
   failures: CoinGlassPairsMarketFailure[];
   plannedRequests: number;
 }): MarketDataStatus {
-  return failures.length > 0 || (plannedRequests > 0 && cleanRows === 0) ? "partial" : "ready";
+  if (plannedRequests > 0 && cleanRows === 0) {
+    return "partial";
+  }
+
+  const hardFailure = failures.some((failure) =>
+    failure.classification === "auth_error" ||
+    failure.classification === "upgrade_required" ||
+    (failure.classification === "rate_limited" && failure.controlled !== true)
+  );
+
+  return hardFailure ? "partial" : "ready";
+}
+
+function scanHealthFreshnessFromMetadata(metadataStatus: MarketDataStatus): ScanHealthFreshness {
+  if (metadataStatus === "stale") {
+    return "stale";
+  }
+
+  if (metadataStatus === "failed") {
+    return "stale";
+  }
+
+  return "fresh";
+}
+
+function publicScanStatusFromLightScan(lightScan: PublicLightScanResult): ScanHealthSegmentation["publicScanStatus"] {
+  if (lightScan.diagnostics.status === "ready") {
+    return "ready";
+  }
+
+  if (lightScan.diagnostics.status === "partial") {
+    return "partial";
+  }
+
+  return "failed";
+}
+
+function scanDeepHealthStatusFromFailures({
+  cleanRows,
+  failures,
+  plannedRequests,
+}: {
+  cleanRows: number;
+  failures: CoinGlassPairsMarketFailure[];
+  plannedRequests: number;
+}): ScanDeepHealthStatus {
+  if (plannedRequests <= 0) {
+    return "unavailable";
+  }
+
+  if (failures.some((failure) => failure.classification === "auth_error")) {
+    return "auth_error";
+  }
+
+  if (failures.some((failure) => failure.classification === "upgrade_required")) {
+    return "upgrade_required";
+  }
+
+  if (failures.some((failure) => failure.classification === "rate_limited")) {
+    return "rate_limited";
+  }
+
+  if (cleanRows > 0 && failures.length === 0) {
+    return "ready";
+  }
+
+  if (cleanRows > 0) {
+    return "degraded";
+  }
+
+  return "unavailable";
+}
+
+function buildScanHealthSegmentation({
+  cleanRows,
+  failures,
+  lightScan,
+  metadataStatus,
+  plannedRequests,
+  primaryRows,
+  scannedCount,
+}: {
+  cleanRows: number;
+  failures: CoinGlassPairsMarketFailure[];
+  lightScan: PublicLightScanResult;
+  metadataStatus: MarketDataStatus;
+  plannedRequests: number;
+  primaryRows: number;
+  scannedCount: number;
+}): ScanHealthSegmentation {
+  const publicScanStatus = publicScanStatusFromLightScan(lightScan);
+  const deepScanStatus = scanDeepHealthStatusFromFailures({
+    cleanRows,
+    failures,
+    plannedRequests,
+  });
+  const controlledRateLimit = failures.some((failure) =>
+    failure.classification === "rate_limited" && failure.controlled === true && Boolean(failure.cooldownUntil)
+  );
+  const uncontrolledRateLimit = failures.some((failure) =>
+    failure.classification === "rate_limited" && failure.controlled !== true
+  );
+  const scanDegradedReason = [
+    publicScanStatus !== "ready" ? `public_scan_${publicScanStatus}` : null,
+    scannedCount <= 0 ? "scanned_count_zero" : null,
+    primaryRows <= 0 ? "candidate_rows_zero" : null,
+    deepScanStatus === "auth_error" ? "coinglass_auth_error" : null,
+    deepScanStatus === "upgrade_required" ? "coinglass_upgrade_required" : null,
+    deepScanStatus === "rate_limited" && controlledRateLimit ? "coinglass_rate_limited_controlled" : null,
+    deepScanStatus === "rate_limited" && uncontrolledRateLimit ? "coinglass_rate_limited_uncontrolled" : null,
+    deepScanStatus === "degraded" ? "coinglass_degraded" : null,
+    deepScanStatus === "unavailable" && plannedRequests > 0 ? "coinglass_unavailable" : null,
+  ].filter((item): item is string => Boolean(item));
+  const coreScanCanProduceCandidates = publicScanStatus !== "failed" && scannedCount > 0 && primaryRows > 0;
+  const hardDeepFailure = deepScanStatus === "auth_error" ||
+    deepScanStatus === "upgrade_required" ||
+    (deepScanStatus === "rate_limited" && !controlledRateLimit);
+  const scanCriticalStatus: ScanHealthSegmentation["scanCriticalStatus"] =
+    !coreScanCanProduceCandidates || hardDeepFailure ? "failed" : publicScanStatus === "partial" ? "partial" : "ready";
+
+  return {
+    candidateScanStatus: primaryRows > 0 ? "ready" : coreScanCanProduceCandidates ? "partial" : "failed",
+    coinglassBudget: getCoinGlassRateLimitStateSnapshot(),
+    coinglassStatus: deepScanStatus,
+    coreScanCanProduceCandidates,
+    deepScanCanConfirmDerivatives: deepScanStatus === "ready"
+      ? true
+      : deepScanStatus === "rate_limited" && controlledRateLimit && cleanRows > 0
+        ? "partial"
+        : false,
+    deepScanStatus,
+    publicScanStatus,
+    scanCriticalStatus,
+    scanDegradedReason,
+    scanFreshness: scanHealthFreshnessFromMetadata(metadataStatus),
+    scanStatus: metadataStatus,
+  };
 }
 
 function buildRequestDiagnostics({
@@ -502,6 +665,7 @@ function buildRequestDiagnostics({
   return {
     acceptedInstruments,
     cleanRows,
+    coinglassBudget: getCoinGlassRateLimitStateSnapshot(),
     coinGlassRequestsPlanned: batchAssets.length,
     duplicateSymbolGroups: primarySelectionDuplicateGroups,
     emptyResultAssets,
@@ -511,9 +675,14 @@ function buildRequestDiagnostics({
     quoteUnsupportedRows,
     rawRows: rawRows.length,
     requestFailures: failures.map((failure) => ({
+      classification: failure.classification,
       code: failure.code,
+      controlled: failure.controlled,
+      cooldownUntil: failure.cooldownUntil,
       error: failure.error,
       httpStatus: failure.httpStatus,
+      rateLimit: failure.rateLimit,
+      retryAfterMs: failure.retryAfterMs,
       symbol: failure.symbol,
     })),
     statusCounts: {
@@ -1007,6 +1176,15 @@ export function createCoinGlassProvider({
         failures: coinGlassFailures,
         plannedRequests: batchPlan.assets.length,
       });
+      const scanHealth = buildScanHealthSegmentation({
+        cleanRows: cleanMarketRows.length,
+        failures: coinGlassFailures,
+        lightScan,
+        metadataStatus,
+        plannedRequests: batchPlan.assets.length,
+        primaryRows: primarySignalRows.length,
+        scannedCount: instrumentPool.summary.accepted,
+      });
       const macroWeather = buildMacroWeather({
         altcoinMacro,
         derivatives,
@@ -1029,6 +1207,7 @@ export function createCoinGlassProvider({
         nextScanAt: generatedAt,
         quota,
         diagnostics: scanDiagnostics,
+        health: scanHealth,
         lightScan: lightScan.diagnostics,
         macroWeather,
         staleAfterMinutes: 30,
@@ -1051,6 +1230,13 @@ export function createCoinGlassProvider({
           coinGlassFailures.length
             ? `coinglass deep scan degraded: ${coinGlassFailures.length}/${batchPlan.assets.length} requests failed; public light scan preserved`
             : "coinglass deep scan: all planned requests returned",
+          `scan health segmentation: public ${scanHealth.publicScanStatus}, candidate ${scanHealth.candidateScanStatus}, coinglass ${scanHealth.coinglassStatus}, critical ${scanHealth.scanCriticalStatus}`,
+          scanHealth.scanDegradedReason.length
+            ? `scan degraded reasons: ${scanHealth.scanDegradedReason.join(",")}`
+            : "scan degraded reasons: none",
+          scanHealth.coinglassBudget
+            ? `coinglass budget: ${scanHealth.coinglassBudget.usedRequests}/${scanHealth.coinglassBudget.maxRequests} used, remaining ${scanHealth.coinglassBudget.remainingRequests}, deferred ${scanHealth.coinglassBudget.deferredRequests}, cooldown ${scanHealth.coinglassBudget.cooldownUntil ?? "none"}`
+            : "coinglass budget: unavailable",
           coinGlassFailures.length
             ? `coinglass request failures: ${compactCoinGlassFailures(coinGlassFailures)}`
             : "coinglass request failures: none",

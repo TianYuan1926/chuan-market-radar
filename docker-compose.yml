@@ -196,6 +196,42 @@ services:
       web:
         condition: service_healthy
 
+  shadow-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command:
+      [
+        "npm",
+        "run",
+        "shadow:prod:run-loop",
+        "--",
+        "--out-dir",
+        "${SHADOW_REPORTS_DIR:-/app/reports/phase5-1-1-tencent-shadow-runner-start/shadow}",
+        "--run-id",
+        "${SHADOW_RUN_ID:-shadow-v1-20260707T182114Z}",
+        "--base-url",
+        "${SHADOW_PRODUCTION_BASE_URL:-http://web:3000}",
+        "--commit",
+        "${SHADOW_PRODUCTION_COMMIT:-unknown}",
+        "--evidence-validate",
+        "${SHADOW_PRODUCTION_EVIDENCE_VALIDATE:-pass}",
+        "--health",
+        "${SHADOW_PRODUCTION_HEALTH:-pass}",
+      ]
+    environment:
+      <<: *app-env
+      APP_INTERNAL_URL: http://web:3000
+      SHADOW_CAPTURE_INTERVAL_MS: ${SHADOW_CAPTURE_INTERVAL_MS:-300000}
+      SHADOW_FETCH_TIMEOUT_MS: ${SHADOW_FETCH_TIMEOUT_MS:-12000}
+      SHADOW_RUNNER_HEARTBEAT_STALE_MS: ${SHADOW_RUNNER_HEARTBEAT_STALE_MS:-600000}
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - reports-data:/app/reports
+
   dynamic-scan-scheduler:
     build:
       context: .
