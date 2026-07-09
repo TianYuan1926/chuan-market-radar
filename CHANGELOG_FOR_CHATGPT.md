@@ -2,6 +2,625 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-10 - Market Radar Engineering Build & Production Runtime Blueprints v1.0
+
+### 本轮目标
+
+在 V3 实战就绪路线图之上，建立工程搭建蓝图与生产运行蓝图，使后续建设、生产值班、事故处理和外部审计使用同一套权威合同。
+
+### 修改范围
+
+- 新增 `docs/blueprints/README.md`。
+- 新增 `docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md`。
+- 新增 `docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md`。
+- 新增 `docs/blueprints/market-radar-blueprint-traceability.v1.json`。
+- 新增 `docs/blueprints/MARKET_RADAR_BLUEPRINT_V1_DELIVERY_REPORT.md`。
+- 将 `docs/chuan-market-radar-blueprint.md` 改为兼容总索引，同时完整保留下方历史详细事实。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md` 和本文。
+- 未修改任何业务代码、页面、API、DB、Redis、worker、Docker、Caddy、策略、RR 或 READY。
+
+### 核心链路影响
+
+- 工程蓝图把全市场发现、候选、深扫、结构、风险、计划、复盘映射为权威领域合同和模块所有权。
+- 运行蓝图定义服务依赖、稳态时钟、运行流程、状态机、SLO、降级矩阵、告警、runbook、发布和恢复。
+- 机器追踪矩阵将 7 个链路环节、G0-G8、当前路径、目标合同、运行检查和证据做成可解析 JSON。
+- 本轮不改变运行链路，只建立后续施工和生产验收的唯一参照。
+
+### 测试结果
+
+- JSON parse：pass。
+- 当前路径存在性：pass，缺失 0。
+- Compose 服务映射：pass，11 个。
+- 核心链路/Gate：pass，7 个环节、G0-G8 共 9 个。
+- Markdown H1/围栏、footnote、语义 placeholder、敏感值、diff-check：pass。
+- Mermaid 静态结构：13/13 有 `accTitle/accDescr`；本地未安装 renderer，本轮未声称完成视觉渲染测试。
+- `typecheck / lint / test:market / build / backtest:golden`：未运行；本轮没有代码改动，不继承为本轮 PASS。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未提交、未 push、未部署、未执行 migration/restore/rollback、未重启任何服务。蓝图状态为 `PROPOSED`。
+
+### 风险与遗留问题
+
+- 当前仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+- 蓝图完成不等于系统达到蓝图。
+- 公网 HTTP、前端事实污染、生命周期映射、重复 scan proof 和 release/evidence 对齐等 G0/P0 仍未修复。
+- 旧蓝图历史正文很长，但已明确降为低优先级事实保留区；后续不要继续向其中追加施工流水账。
+
+### 下一轮建议
+
+先审计并批准双蓝图；批准后只创建并实施 `WP-G0.1 - Frontend Truth Contract` 的独立计划。
+
+## 2026-07-10 - Market Radar Practical Readiness Master Plan v3
+
+### 本轮目标
+
+把第二份更全面的历史方案、第一份历史 Master Plan、v2、最新全系统审计和当前实时/代码事实合并为一份唯一、可验收、可分阶段执行的实战就绪方案，并逐项分辨已完成、部分完成、过时、延期和未开始任务。
+
+### 修改范围
+
+- 新增 `docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md`。
+- 新增 `docs/superpowers/plans/2026-07-10-market-radar-v3-current-state-matrix.json`，清洗历史方案 46 项任务。
+- 将 v2 标记为 `SUPERSEDED`，保留为审计历史。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md` 和本文。
+- 没有修改业务代码、scan/analysis/strategy/backtest、前端实现、API、Postgres、Redis、worker、生产配置或策略权重。
+
+### 核心链路影响
+
+- 本轮不改变运行中的核心链路，只重排后续建设与验收顺序。
+- G0 先处理事实污染、Outcome 生命周期、公网 HTTPS/private session 和发布证据；这些是所有实战能力的前提。
+- G1-G8 再依次处理可靠性、数据质量、提前发现、策略有效性、真实 Shadow、专业工作台、R4 模拟准入和 R5 长期治理。
+- CoinGlass 旧鉴权故障、worker all-down 和从零建页面已从当前主线移除；Coinalyze、截图、CSV 和外部 AI 被延期到有证据证明必要时。
+
+### 测试结果
+
+- 当前生产页面和 `/api/health`：通过 Microsoft Edge 只读核验；这是点样本，不是 production evidence PASS。
+- v3 Markdown 结构、46/46 项 JSON 解析与编号、100 分评分权重、G0-G8 阶段门禁、133 个现有文件引用、23 个未来新增文件分类、敏感值和 `git diff --check`：pass。
+- `typecheck / lint / test:market / build / backtest:golden`：本轮未运行，因为没有业务代码改动；不得继承为本轮 PASS。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未提交、未 push、未部署、未执行 migration、未重启服务。v3 是 `PROPOSED`，不代表已授权实施。
+
+### 风险与遗留问题
+
+- 当前等级仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+- 新 P0：生产公网入口为明文 HTTP，浏览器标记“不安全”。
+- 既有 P0：前端合成事实、unknown/null 假 0/假 long/假 timeout、重复扫描证明、release/evidence/Git 对齐未闭环。
+- 当前 READY=0、有效 MFE/MAE=0、Shadow approved/evaluated=0；不能用记录数量包装效果。
+
+### 下一轮建议
+
+v3 经审计批准后，只实施 `WP-G0.1 - Frontend Truth Contract`；完成并验收后再进入 G0.2。
+
+## 2026-07-10 - Market Radar Practical Readiness Master Plan v2
+
+### 本轮目标
+
+对照旧版 16 阶段 Master Plan 和最新全系统审计，生成一份真正以人工实战决策辅助准入为目标的详细后续建设方案。
+
+### 修改范围
+
+- 新增 `docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan.md`。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md` 和本文。
+- 没有修改业务代码、scan/analysis/strategy/backtest 实现、前端页面、API、Postgres、Redis、worker、生产配置或策略权重。
+- 未提交、未 push、未部署、未运行 formal。
+
+### 主要调整
+
+- 历史故障编号不再作为未来主线；改为 M0-M7 八个能力阶段。
+- 前端事实污染、production evidence 和 Git/content 对齐前移到 M0。
+- 备份恢复、SLO、安全、E2E 和负载基线前移到 M1。
+- 数据能力改为先 Quality Gateway / instrument identity / 配额调度，不默认购买新数据源。
+- 扫描、分析和策略必须经两个独立 holdout，Shadow 必须至少 60 天并满足样本门槛。
+- 定义 R0-R5 能力等级；R4 准入需 readiness >=85/100、单项达标且无任何硬否决项。
+- 付费 CoinGlass/Coinalyze 和服务器升级只能在遥测和 Shadow A/B 证明投入价值后建议。
+
+### 测试结果
+
+本轮只修改文档，不重复运行上轮已通过的代码门禁。已执行计划结构、文件路径、占位符、敏感字段和 `git diff --check` 复核。
+
+### 是否部署
+
+未部署。新计划状态为 `PROPOSED`，待用户/外部审计批准，不代表已授权任何实施。
+
+### 风险与遗留问题
+
+- 当前仍是 `可运行但不完整 / 不能支撑实战`。
+- 计划通过不等于任何能力已通过。
+- 进入 R4 的现实日历周期估计 6-9 个月，其中大部分时间是真实证据积累，不可压缩。
+
+### 下一轮建议
+
+请先审计并批准 v2。批准后只实施 `WP-M0.1 - Frontend Truth Contract Repair`。
+
+## 2026-07-10 - Market Radar Comprehensive System Audit & Enhancement Plan
+
+### 本轮目标
+
+以首席系统架构、CEX 量化研究系统、风险控制和产品负责人四个视角，对整个 Market Radar 做代码事实、数据流、系统行为和真实生产页面的综合审计；输出当前水平、与专业 CEX 合约雷达的差距、评分和六阶段强化路线。本轮只审计和设计，不实施强化。
+
+### 修改范围
+
+- 新增 `market-radar-comprehensive-system-audit/MARKET_RADAR_COMPREHENSIVE_AUDIT_REPORT.md`。
+- 新增 `market-radar-comprehensive-system-audit/market-radar-comprehensive-audit-summary.json`。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md` 和本文件。
+- 生成脱敏审计 zip，不包含 `.env`、secret、raw logs、业务行数据、node_modules、`.next`、dist 或 build。
+
+未修改业务代码、scan/analysis/strategy/backtest 逻辑、前端实现、API、数据库、Redis、worker、生产配置或策略权重；未提交、未 push、未部署、未运行 formal。
+
+### 核心链路影响
+
+- 全市场发现：确认三所公开轻扫和生产扫描真实可运行，但 coverage denominator 和深扫时效需统一。
+- 候选筛选：确认 TopN 排序和前端 candidate fallback 仍有事实污染风险。
+- 深扫验证：CoinGlass 当前 ready，但 clean rate、1/3 exchange coverage、约 23 小时轮转仍不足。
+- 结构分析：概念覆盖较全，但专业审计分析分 46.57，不合格。
+- 风险赔率：后端 RR>=3 和状态门禁严格；前端映射存在 P0。
+- 交易计划：最近专业审计 100 节点 READY=0，策略分 22.48。
+- 复盘进化：Shadow/Review 框架存在，但 recorded outcome、SYSTEM/USER/HYBRID 和真实 R 统计未闭环。
+
+### 测试结果
+
+- `npm run typecheck`：pass。
+- `npm run lint`：pass。
+- `npm run test:market`：pass，market 835/835、worker 17/17、historical 4/4。
+- `npm run build`：pass。
+- `npm run backtest:golden`：pass，16/16。
+- `npm run test:production-evidence`：pass，15/15。
+- `npm run ci:forbidden-files`：pass。
+- `npm run ci:secret-patterns`：pass。
+- `npm run security:check`：pass。
+- `npm run backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。未提交，未 push main，未修改腾讯云生产。本轮只通过 OrcaTerm 和 Edge 做只读生产核验。
+
+生产点样本：health ready，scan ready/fresh，scannedCount=38，candidateCount=24，六个业务 worker 当前 healthy。上一份正式 evidence 仍为 partial，本轮未重新生成，不能写成 evidence PASS。
+
+### 风险与遗留问题
+
+- P0：candidate display adapter 合成 direction/freshness/age/source/score/sentiment/volMult。
+- P0：Review 把 pending/unknown 映射成 timeout/0/long。
+- P0：market 把 light coverage 当 data trust，并把 unavailable 衍生品显示为 0。
+- P0：最终 production evidence 与 Git/content alignment 未闭环。
+- P1：深扫吞吐、专业扫描/分析/策略评分、Shadow outcome、Review 三模式未达标。
+- 当前综合评分 53/100，准确状态为“可运行但不完整 / 不能支撑实战”。
+
+### 下一轮建议
+
+只做 `Phase 1A - Frontend Truth Contract Repair`；先收口事实层和生产证据，再进入数据或策略强化。
+
+## 2026-07-09 - 第 5.1-H.1-R.2-SCAN-FIX-PROD 生产部署与扫描稳定性观察
+
+### 本轮目标
+
+把上一轮本地 SCAN-FIX 修复安全部署到腾讯云生产，并完成 30 分钟生产 scan 稳定性观察。
+
+### 修改范围
+
+- 生成证据目录：`phase5-1-h-1-r-2-scan-fix-prod-deploy-observation/`
+- 通过 Edge OrcaTerm 创建服务器外部备份、传输 bundle、校验 hash、应用 14 个 allowlist 文件。
+- 只重建并启动 `web`、`scanner-worker`、`coinglass-worker`、`dynamic-scan-scheduler`。
+- 生成 post-deploy validation、30 分钟 observation、production evidence validate 结果、summary JSON 和本轮报告。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md`、`CHANGELOG_FOR_CHATGPT.md`。
+
+未修改本轮 allowlist 之外代码，未修改策略逻辑，未修改 scan / analysis / strategy / UI 交易逻辑，未 push main，未运行 formal，未动数据库 schema，未清 Redis/Postgres/volume，未自动下单，未新增交易 API。
+
+### 核心链路影响
+
+- 全市场发现：部署后生产 API HTTP 200，但 scan 连续 30 分钟为 partial，`scannedCount=0`。
+- 候选筛选：部署后 `candidateCount=0`，没有有效候选输出。
+- 深扫验证：失败点为 CoinGlass 深扫 `auth_error`，`deepScanStatus=auth_error`、`coinglassStatus=auth_error`。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改。
+
+### 测试结果
+
+- `node --test scripts/production/observability.test.mjs`：pass，15/15。
+- `npm run typecheck`：pass。
+- `npm run lint`：pass。
+- `npm run test:market`：pass，market 835/835，worker 17/17，historical smoke 4/4。
+- `npm run build`：pass。
+- `npm run backtest:golden`：pass，16/16。
+- `npm run test:production-evidence`：pass，15/15。
+- `npm run ci:forbidden-files`：pass。
+- `npm run ci:secret-patterns`：pass。
+- `npm run security:check`：pass。
+- 本地公网 `npm run production:evidence`：fail，`fetch failed`；本地 curl 到 `43.161.202.227` 80/443 超时。
+- 服务器 web 容器内 production evidence：生成 pass，validate fail；失败原因为 production health/status 非 pass、scanGate 非 ok、CoinGlass `auth_error`。
+- `npm run backtest:formal`：未运行。
+
+### 是否部署
+
+已部署到腾讯云生产，但生产 scan health 未通过。
+
+- 服务器备份：已创建并移动到 `/home/ubuntu/market-radar-backups/...`。
+- bundle sha256：`52c072143ba9a004b5db150d9c04df5fcbe812d61b55ed9aa4f42e0fd07e3da9`。
+- allowlist：14/14 文件应用成功。
+- 首次 build：因备份目录在项目根导致扫描备份源码失败，已通过移出备份目录修复。
+- build/up 重试：通过。
+- 目标服务：`web`、`scanner-worker`、`coinglass-worker`、`dynamic-scan-scheduler` 已运行约 55 分钟；`web` healthy。
+
+30 分钟有效观察从 `2026-07-09T15:16:27Z` 到 `2026-07-09T15:46:33Z`，7/7 样本均为 HTTP 200 但 `scanStatus=partial`、`scannedCount=0`、`candidateCount=0`、`signalsCount=0`、`scanCriticalStatus=failed`、`coinglassStatus=auth_error`。
+
+### 风险与遗留问题
+
+- P1：生产 CoinGlass 仍为 `auth_error`，深扫不能产出候选。
+- P1：real production evidence validate 正确失败，不能进入 5.1-H.1-R.2-RERUN。
+- P1：生产 API HTTP 200 容易被误读为系统正常，但 scan 主链路持续失败。
+- P2：生产镜像内 current HEAD / remote commit 不可用，后续证据包仍需在安全分支发布后重新生成。
+
+### 下一轮建议
+
+唯一下一步：修复腾讯云生产 CoinGlass `auth_error` / 运行时 key 或 provider capability 问题，只重启必要服务，然后重跑 post-deploy validation、30 分钟观察和 real production evidence validate；不要进入 5.1-H.1-R.2-RERUN / 5.1-H / 5.2。
+
+## 2026-07-09 - 第 5.1-H.1-R.2-SCAN-FIX 生产扫描稳定性与 CoinGlass 限流根因修复
+
+### 本轮目标
+
+修复第 5.1-H.1-R.2-RERUN 阻断的生产扫描稳定性问题：CoinGlass 429 触发深扫降级、scan partial / aging、production evidence validate 失败。
+
+### 修改范围
+
+- `src/lib/market/providers/coinglass-client.ts`：新增 provider / endpoint request budget、Retry-After cooldown、429 controlled error、circuit breaker 和 rate-limit snapshot。
+- `src/lib/market/providers/coinglass-provider.ts`、`src/lib/market/types.ts`、`src/lib/market/data-source-capabilities.ts`：新增 scanHealth segmentation、controlled degraded 分类和 CoinGlass 429 证据表达。
+- `src/lib/api/system-health.ts`、`scripts/production/observability.mjs`：让 health / production evidence 使用更精确 scanGate，不再只依赖粗糙 `scan.status`。
+- 相关测试：补充 CoinGlass cooldown/budget、scan health、production evidence controlled rate-limit 回归保护。
+- 生成证据目录：`phase5-1-h-1-r-2-scan-fix-production-scan-stability/`。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md`、`CHANGELOG_FOR_CHATGPT.md`、`docs/chuan-market-radar-blueprint.md`。
+
+未修改交易策略逻辑、READY 规则、RR、overlay、production ranking、数据库 schema、Redis/Postgres/volume、自动下单或交易 API。未运行 formal，未 push main。
+
+### 核心链路影响
+
+- 全市场发现：增加 scan health 分层，公开扫描与 CoinGlass 深扫状态可区分。
+- 候选筛选：未改候选排序主逻辑；低优先级 defer / request dedupe 仍为 partial，需要生产观察后继续收口。
+- 深扫验证：CoinGlass 429 不再混成 auth_error 或“市场无机会”，受控 rate_limited 会带 cooldown / budget 证据。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改 Shadow outcome 逻辑。
+
+### 测试结果
+
+- `npm run typecheck`：pass。
+- `npm run lint`：pass。
+- `npm run test:market`：pass，market core 835 pass，worker 17 pass，historical smoke 4 pass。
+- `npm run build`：pass。
+- `npm run backtest:golden`：pass，16/16。
+- `npm run test:production-evidence`：pass，15/15。
+- `npm run ci:forbidden-files`：pass。
+- `npm run ci:secret-patterns`：pass。
+- `npm run security:check`：pass。
+- `npm run backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。当前腾讯云旧生产经代理可访问且 scan ready/fresh，但生产尚未暴露本轮新增 `scanHealth` 口径，不能证明本轮修复已生效。
+
+### 风险与遗留问题
+
+- P1：本轮修复未部署到腾讯云生产。
+- P1：未完成任务书要求的 30-60 分钟生产稳定性观察。
+- P1：生产未暴露本轮新增 scanHealth 口径，不能重跑第 5.1-H.1-R.2-RERUN。
+- P2：未来多 web 实例需要 Redis 分布式 provider budget。
+- P2：当前 worktree 含历史 dirty 文件，需要后续按轮次清理。
+
+### 下一轮建议
+
+只做一个方向：部署本轮 scan-fix 到腾讯云，只重建必要服务，不动 DB/Redis/volume；观察 30-60 分钟并重新生成 production evidence，validate pass 后再重跑第 5.1-H.1-R.2-RERUN。
+
+## 2026-07-09 - 第 5.1-H.1-R.2 步 Checkpoint Outcome 生产口径最终验收
+
+### 本轮目标
+
+验证生产 live Shadow Runner 的 checkpoint outcome 回填闭环是否真实可用，并确认是否可以进入第 5.1-H 24h Shadow Health Review。
+
+### 修改范围
+
+- 生成证据目录：`phase5-1-h-1-r-2-checkpoint-outcome-final-validation/`
+- 生成总报告、summary JSON、Agent 报告、runtime/checkpoint/runner-loop/production isolation 证据。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md`、`CHANGELOG_FOR_CHATGPT.md`、`docs/chuan-market-radar-blueprint.md`。
+
+本轮未修改业务代码、未修改 scan / analysis / strategy / UI 交易逻辑、未修改 checkpoint outcome core code、未 push main、未运行 formal、未动数据库 schema、未清 Redis/Postgres/volume、未开启自动交易。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改；生产 CoinGlass runtime 为 ready，Hobbyist 识别正常。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：manual checkpoint 回填链路通过，但 runner loop 自动 due sweep 未通过。
+
+### 测试结果
+
+- `test:production-evidence`：pass，14/14。
+- `ci:forbidden-files`：pass。
+- `ci:secret-patterns`：pass。
+- `security:check`：pass。
+- `typecheck`：pass。
+- `lint`：pass。
+- `test:market`：pass，market 827、worker 17、historical smoke 4。
+- `build`：pass。
+- `backtest:golden`：pass，16/16。
+- `shadow:validate`：pass。
+- `shadow:daily-summary`：pass。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。未 push main。未运行 migration，未动 Postgres / Redis / Docker volume。
+
+### 风险与遗留问题
+
+- P1：Shadow runner loop 未保持运行，runner lock pid 不存活且 heartbeat stale；本轮只能证明 manual checkpoint 闭环，不能证明自动 due sweep。
+- P2：腾讯云服务器 worktree 仍 dirty，content hash / deploy clean 口径仍 partial。
+- P2：旧 Shadow baseline 缺 `priceAtObservation`，导致到期 checkpoint 被正确标记为 `pending_with_error`，尚未产生 recorded/missed 样本。
+
+### 下一轮建议
+
+只做一个方向：修复 Shadow runner loop 启动/保活/自动 checkpoint due sweep，然后重跑第 5.1-H.1-R.2。
+
+## 2026-07-08 - 第 5.1-H.1-R.1 步 Production Evidence Health / Status Partial 收口
+
+### 本轮目标
+
+查清 production evidence validate 因 `production_health=partial` 和 `production_status=partial` 失败的真实原因；不得伪造 pass，不得弱化 validator，不得修改 scan / analysis / strategy / UI 交易逻辑。
+
+### 修改范围
+
+- `scripts/production/observability.mjs`：修复 evidence 采集口径，支持本地 ops 代理只读采集；production status 每次重新采集当前 health/smoke，不再复用旧文件；拆分 `scan.status` 与 `scan.freshness`；worker heartbeat down 会导致 health/status partial。
+- `scripts/production/observability.test.mjs`：新增 stale scan、worker down、stale 文件复用、summary/status 不一致等回归测试。
+- `scripts/ops/*`：本轮检查涉及 ops 脚本输出脱敏口径；proxy 原值不得进入报告。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`、`CHANGELOG_FOR_CHATGPT.md`、`docs/chuan-market-radar-blueprint.md`：更新当前真实状态。
+- 生成证据目录：`phase5-1-h-1-r-1-production-evidence-health-status-fix/`。
+
+未修改 scan 业务逻辑、analysis 业务逻辑、strategy 业务逻辑、UI 交易逻辑、READY 规则、overlay、数据库 schema、Redis、Postgres、volume 或自动交易接口。未运行 formal。未 push main。
+
+### 核心链路影响
+
+- 全市场发现：未改业务逻辑；生产公开发现层可访问，liveInstrumentCount=1315。
+- 候选筛选：未改。
+- 深扫验证：未改业务逻辑；本轮确认生产 CoinGlass 深扫实际为 `auth_error`，`cleanRows=0`，不能包装成市场无机会。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未改 checkpoint/outcome code；当前仍不能进入 5.1-H.1-R.2。
+
+### 测试结果
+
+- `ci:forbidden-files`：pass。
+- `ci:secret-patterns`：pass。
+- `security:check`：pass。
+- `typecheck`：pass。
+- `lint`：pass。
+- `test:production-evidence`：pass，14/14。
+- `test:market`：pass，market 827、worker 17、historical smoke 4。
+- `build`：pass。
+- `backtest:golden`：pass，16/16。
+- `production:evidence:validate`：fail，且失败是正确拦截：`production_health` 与 `production_status` 仍不是 pass。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。未 push main。未运行 migration，未动 Postgres / Redis / Docker volume，未清 Redis，未自动下单。
+
+### 风险与遗留问题
+
+- P1：生产 CoinGlass deep scan 鉴权失败，后端合同显示 `deepScanStatus=auth_error`，`/api/futures/pairs-markets` 返回 `Invalid API key provided`。
+- P1：生产 worker heartbeat 全部 down：scanner、websocket-light、coinglass、signal、dynamic-scan-scheduler、macro 均未收到心跳。
+- P1：`/api/scan` 当前 `status=partial`，`scannedCount=0`，`candidateCount=0`，`signals=0`。
+- P1：production evidence validate 仍 fail，因此不能进入 5.1-H.1-R.2。
+- P2：本轮未从服务器终端直接读取 server Git HEAD，只能记录为 unknown/partial。
+
+### 下一轮建议
+
+只做一个方向：先修复腾讯云生产 CoinGlass API key / 套餐鉴权与 worker heartbeat，然后重跑第 5.1-H.1-R.1。不要进入 5.2。
+
+## 2026-07-08 - 第 5.1-H.1-R 步 Checkpoint Outcome 回填生产口径验证（未应用生产）
+
+### 本轮目标
+
+把第 5.1-H.1 本地已验证的 checkpoint outcome 回填修复，安全应用到腾讯云 live Shadow Runner，并验证生产 run `shadow-v1-20260707T182114Z` 的到期 checkpoint 是否真实转为 `recorded / missed / pending_with_error`。
+
+### 修改范围
+
+- 推送 GitHub 安全分支：`codex/phase5-1-h-1-r-checkpoint-outcome-production-validation`
+- 安全分支 commit：`8518a14dcf03cd70e5470c3c9fd81e6e23a5dcb2`
+- commit 只包含：
+  - `src/lib/shadow/storage.ts`
+  - `src/scripts/shadow/shadow-tracking.ts`
+  - `src/lib/shadow/storage.test.ts`
+- 生成证据目录：`phase5-1-h-1-r-checkpoint-outcome-production-validation/`
+
+本轮未修改 scan / analysis / strategy / UI 交易逻辑。未 push main。未运行 formal。未动数据库 schema、Redis、Postgres 或 volume。未部署腾讯云。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：安全分支已准备 checkpoint outcome 修复，但尚未应用生产。
+
+### 测试结果
+
+- `typecheck`：pass。
+- `lint`：pass。
+- `ci:forbidden-files`：pass。
+- `ci:secret-patterns`：pass。
+- `security:check`：pass。
+- `shadow:validate`：pass。
+- `test:market`：pass，market 827、worker 17、historical smoke 4。
+- `build`：pass。
+- `backtest:golden`：pass，16/16。
+- 服务器 `shadow:checkpoint -- --dry-run`：未运行。
+- 服务器 `shadow:checkpoint`：未运行。
+- 服务器 production evidence validate：未运行。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。生产应用失败原因不是代码测试失败，而是没有可用服务器控制通道：
+
+- 直接 SSH 到腾讯云超时。
+- 通过本机代理进入 SSH 认证阶段后失败。
+- Codex 内置浏览器自动化未暴露 OrcaTerm 标签。
+
+公网 `/api/health` 经代理返回 ready/fresh，只能证明生产当前可访问，不能证明本轮修复已应用。
+
+### 风险与遗留问题
+
+- P1：未创建服务器备份，禁止声称生产应用完成。
+- P1：未同步腾讯云 worktree，未验证 server content hash。
+- P1：未执行服务器 dry-run/manual checkpoint/idempotency/runner-loop due sweep。
+- P1：未验证 production ranking not mutated / research-only isolation。
+- P2：安全分支已推送，但服务器仍需在可控终端中拉取并执行生产口径验证。
+
+### 下一轮建议
+
+只做一个方向：在可控腾讯云终端中应用安全分支并重跑第 5.1-H.1-R 服务器侧验证。不要进入 5.2。
+
+## 2026-07-08 - 第 5.1-H.1 步 Checkpoint Outcome 回填闭环修复
+
+### 本轮目标
+
+修复 Shadow checkpoint 到期后只停留在 pending、不写 outcome 的闭环问题。本轮目标是让到期 checkpoint 可以按真实数据和安全边界转为 `recorded`、`missed` 或 `pending_with_error`，并保持 research-only，不污染 production。
+
+### 修改范围
+
+- `src/lib/shadow/storage.ts`：新增 checkpoint outcome schema、状态分布、outcome writer、missing price/data source fail/idempotency/dry-run 逻辑、latest/daily summary checkpoint 状态统计。
+- `src/scripts/shadow/shadow-tracking.ts`：新增 `shadow:checkpoint -- --dry-run`、manual checkpoint 写入、Binance Futures 历史 K 线 price source adapter、atomic JSON/JSONL 写入、legacy storage 兼容、runner loop 每次 capture 后轻量 due sweep。
+- `src/lib/shadow/storage.test.ts`：新增 due checkpoint recorded、missing price pending_with_error、not due pending、dry-run 不变更、idempotency、data source fail 等测试。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`、`CHANGELOG_FOR_CHATGPT.md`、`docs/chuan-market-radar-blueprint.md`：更新当前事实与下一步边界。
+- `phase5-1-h-1-checkpoint-outcome-fix/`：本轮证据目录。
+
+未修改 scan / analysis / strategy / UI 交易逻辑。未降低 RR。未开启自动交易。未运行 formal。未动数据库 schema、Redis、Postgres 或 volume。未应用到腾讯云 Shadow Runner。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：增强 Shadow research-only checkpoint/outcome 记录闭环，为后续复盘样本提供基础；不回写生产排序，不自动调参。
+
+### 测试结果
+
+- 本地修复结论：`PARTIAL_LOCAL_FIX_READY`。
+- 本地验证 runId：`shadow-20260707T134822Z`。
+- 修复前：checkpoint total=72、due=48、duePending=48、recorded=0、missed=0、pending_with_error=0。
+- 修复后：checkpoint total=72、due=48、duePending=0、pending=24、recorded=0、missed=0、pending_with_error=48，`outcomes.jsonl` 写入 48 行。
+- recorded=0 的原因：本地 legacy baseline 缺少 `priceAtObservation`，系统正确标记为 `pending_with_error / MISSING_PRICE_AT_OBSERVATION`，没有伪造检测价或未来结果。
+- `shadow:checkpoint -- --dry-run`：pass，dry-run 未修改 checkpoint-plan/outcomes/latest/daily-summary。
+- `shadow:checkpoint`：pass，首次写入 48 行，后续重跑 `skippedExisting=48`、`outcomesWritten=0`。
+- `shadow:validate`：pass。
+- `shadow:daily-summary`：pass。
+- Shadow storage 单测：13/13 pass。
+- `typecheck`：pass。
+- `lint`：pass。
+- `test:market`：pass，market 827、worker 17、historical smoke 4。
+- `build`：pass。
+- `backtest:golden`：pass，16/16。
+- `ci:forbidden-files`：pass。
+- `ci:secret-patterns`：pass。
+- `security:check`：pass。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。未 push main。未同步腾讯云。未运行 migration，未动 Postgres / Redis / Docker volume，未清 Redis，未自动下单。
+
+### 风险与遗留问题
+
+- P1：本轮只完成本地修复，未应用到腾讯云 live Shadow Runner，因此不能写成生产 checkpoint 闭环通过。
+- P1：腾讯云 live run `shadow-v1-20260707T182114Z` 仍需在应用修复后重新验证 due checkpoint 是否下降、是否正确分类。
+- P1：旧 baseline 缺少 `priceAtObservation` 的 checkpoint 只能进入 `pending_with_error`，不能补算真实 outcome；未来 capture 必须保证 observation price 记录完整。
+- P2：本轮引入 Binance Futures historical kline adapter，后续生产应用时需观察公开接口限速和失败重试。
+
+### 下一轮建议
+
+只做一个方向：进入 `5.1-H.1-R`，把修复安全应用到腾讯云 research-only Shadow Runner，并验证生产 live run 的 checkpoint outcome 回填。不要进入 5.2。
+
+## 2026-07-08 - 第 5.1-H-R 步 Shadow Runner 24h 健康复查重跑
+
+### 本轮目标
+
+对第 5.1.1 已启动的 Shadow Runner 重跑 24 小时健康复查，优先使用腾讯云服务器内侧口径确认 runner、heartbeat、checkpoint、daily summary、production health 和 research-only 边界。
+
+### 修改范围
+
+- `phase5-1-h-r-shadow-24h-health-review/`：生成本轮 5.1-H-R 只读健康复查证据目录。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：更新 5.1-H-R 事实结论。
+- `CHANGELOG_FOR_CHATGPT.md`：记录本轮。
+- `docs/chuan-market-radar-blueprint.md`：更新 Shadow Tracking 当前边界。
+
+未修改 scan / analysis / strategy / UI 交易逻辑。未修改 Shadow runner core。未修改数据库 schema。未部署生产。未运行 formal。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：只读复查 Shadow Tracking 运行证据；不回写生产排序，不自动调参，不生成交易计划。
+
+### 测试结果
+
+- 结论：`PARTIAL_NOT_DUE`。
+- runId：`shadow-v1-20260707T182114Z`。
+- startedAt：`2026-07-07T18:21:14.045Z`。
+- 本轮服务器采集时间：`2026-07-08T06:25:07Z`。
+- 本轮采集时已运行约 12.06 小时，未满 24 小时。
+- 预计 24h 到期时间：`2026-07-08T18:21:14.045Z`。
+- runner：PID 737 alive，cmdline 为 `shadow-tracking.js run-loop`，lock/runId 一致，heartbeatAt `2026-07-08T06:21:27.798Z`，heartbeat fresh。
+- production API：服务器内侧 `/api/health`、`/api/scan`、`/api/radar/backend-contract` 均 HTTP 200；`/api/health` level=ready、freshness=fresh。
+- enrichment：gate pass，overallCoverage=1，nonObserveCoverage=1，READY=0。
+- checkpoint：pending=2436，dueCount=1323，未发现 fake outcome，但 1h/4h due checkpoint 仍 pending，outcome 回填闭环尚未证明可用。
+- `typecheck`：pass。
+- `lint`：pass。
+- `test:market`：pass，821 + worker 17 + historical 4。
+- `build`：pass。
+- `backtest:golden`：pass，16/16。
+- `ci:forbidden-files`：pass。
+- `ci:secret-patterns`：pass。
+- `security:check`：pass。
+- `test:production-evidence`：pass，9/9。
+- `ops:network-check`：pass under `OPS_PROXY_URL=socks5://127.0.0.1:7892`。
+- `ops:node-fetch-check`：pass under explicit proxy / curlFallback；direct 仍 partial。
+- `backtest:formal`：未运行。
+
+### 是否部署
+
+未部署。未 push main。未运行 migration，未动 Postgres / Redis / Docker volume，未清 Redis，未自动下单。
+
+### 风险与遗留问题
+
+- P1：Shadow run 未满 24 小时，不能完成 24h PASS 复查，不能进入 5.2。
+- P1：1h/4h due checkpoint 仍为 pending，尚未形成 outcome 回填闭环。
+- P1：Shadow manifest 的 production commit `45d854afafb9ba7931a30973bf8e553cd0b91f7d` 与服务器当前 HEAD `ae6852cfa2a2c9c09faa5d41ae6f5c886f023679` 不一致，后续正式 24h 验收需收口。
+- P1：腾讯云服务器 tracked 工作区存在未提交变更，后续部署/证据复现需要先收口。
+- P2：checkpoint plan / status 仍有“第 5.1 / 5.1-R pending checkpoint”旧文案残留，需要后续文案修复轮清理。
+- P2：默认 `/app/reports/shadow-tracking` 目录为空，本轮必须显式指定 out-dir 才能看到当前 runner；后续证据脚本需要固定该口径。
+- P2：服务器磁盘使用率约 84%，需要继续观察 reports/log 增长。
+
+### 下一轮建议
+
+只做一个方向：等 `2026-07-08T18:21:14.045Z` 之后重跑第 5.1-H；如果 checkpoint outcome 仍 pending，则先做“checkpoint outcome 闭环修复”，不要进入 5.2。
+
 ## 2026-07-07 - 第 5.1 步 Shadow Tracking v1 存储基线与 run manifest
 
 ### 本轮目标
@@ -978,6 +1597,105 @@ P0 阻断：
 
 继续第 4.3.1 的腾讯云 web-only 重建、真实生产 evidence 生成和最终只读审计。
 
+## 2026-07-08 - 第 5.1-H-pre 步 Checkpoint Due / Outcome 预检查
+
+### 本轮目标
+
+提前检查 Shadow checkpoint due / outcome 回填闭环，避免等正式 24h 后才发现 checkpoint runner 没有执行或 outcome 回填逻辑未接通。本轮不是 24h PASS，不是 5.2，不改策略、不改 UI、不部署、不跑 formal。
+
+### 修改范围
+
+- 生成 `phase5-1-h-pre-checkpoint-outcome-precheck/` 报告与证据包。
+- 更新 `PROJECT_CONTEXT_FOR_CHATGPT.md` 和 `docs/chuan-market-radar-blueprint.md`，固化当前真实状态。
+- 未修改 scan / analysis / strategy / unifiedDecision / overlay / RR / production ranking / DB schema / Redis / Postgres / volume。
+
+### 核心链路影响
+
+- 全市场发现：未改。
+- 候选筛选：未改。
+- 深扫验证：未改。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：发现 Shadow checkpoint outcome 回填闭环未接通，必须先做 5.1-H.1。
+
+### 测试结果
+
+- `OPS_PROXY_URL=socks5://127.0.0.1:7892 npm run ops:network-check`：pass，proxy 7/7 reachable；direct partial 不判 production fail。
+- `npm run ci:forbidden-files`：pass。
+- `npm run ci:secret-patterns`：pass。
+- `npm run security:check`：pass。
+- `npm run shadow:status`：pass，但本地默认 outDir 无当前生产 run，只能说明本地命令可执行。
+- `npm run shadow:validate`：pass。
+- `npm run shadow:checkpoint -- --dry-run`：fail；项目不支持 dry-run，且本地默认 outDir 缺当前生产 manifest。
+- `npm run shadow:daily-summary`：fail；本地默认 outDir 缺当前生产 manifest。
+- 腾讯云 web 容器显式 `--out-dir /app/reports/phase5-1-1-tencent-shadow-runner-start/shadow --run-id shadow-v1-20260707T182114Z` 执行 manual checkpoint / validate / daily-summary：可执行且安全，但只刷新 due report，不回填 outcome。
+- formal：未运行。
+
+### 是否部署
+
+未部署，未 push main，未运行 migration，未清 Redis / Postgres / volume，未自动下单。
+
+### 风险与遗留问题
+
+- P0：无新增。
+- P1：checkpoint outcome 闭环未实现/未证明；checkpoint total=2664、due=1464、pending=2664、recorded=0、missed=0、pending_with_error=0。
+- P1：runner loop 不调用 checkpoint；manual checkpoint 只写 `checkpoint-status.json`。
+- P1：`priceAtObservation` 当前缺失，`priceAtCheckpoint` 无价格源，`outcomesPath` 无实际 writer。
+- P2：本地默认 outDir 与生产 runner outDir 分裂，容易误判。
+- P2：checkpoint notes 仍残留旧阶段文案。
+
+### 下一轮建议
+
+只做一个方向：第 5.1-H.1 checkpoint outcome 回填闭环修复。修复必须保持 research-only，不得污染 production ranking，不得提前回填，不得用未来数据。
+
+## 2026-07-09 - 第 5.1-H.1-R.2-RERUN Checkpoint Outcome 生产口径最终验收重跑
+
+### 本轮目标
+
+在第 5.1-H.1-R.2-FIX 修复 Shadow Runner loop 后，重跑 Checkpoint Outcome 生产口径最终验收，确认是否可以进入第 5.1-H 24h Shadow Health Review。
+
+### 修改范围
+
+- 未修改业务代码、策略逻辑、扫描逻辑、前端交易展示、checkpoint outcome 逻辑或 runner loop。
+- 生成证据目录：`phase5-1-h-1-r-2-rerun-checkpoint-outcome-final-validation/`。
+- 更新项目上下文：`PROJECT_CONTEXT_FOR_CHATGPT.md`、`docs/chuan-market-radar-blueprint.md`、`CHANGELOG_FOR_CHATGPT.md`。
+
+### 核心链路影响
+
+- 全市场发现：未改逻辑；本轮发现生产 scan 回退为 partial/aging。
+- 候选筛选：未改。
+- 深扫验证：未改；本轮证据显示 CoinGlass 429 触发 scan partial。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改。
+- 复盘进化：未进入 checkpoint outcome 验收，因为 Step 0 运行健康失败。
+
+### 测试结果
+
+- production:evidence generate：pass
+- production:evidence validate：fail，原因 `phase4-3-1-summary.json.production_status must be pass`
+- test:production-evidence：pass
+- ci:forbidden-files：pass
+- ci:secret-patterns：pass
+- security:check：pass
+- typecheck / lint / test:market / build / backtest:golden：未运行，原因是任务书要求 Step 0 runtime health regression 时停止 checkpoint 验收
+- formal：未运行，任务禁止
+
+### 是否部署
+
+未部署。未 push main，未动数据库、Redis、Postgres 或 volume。
+
+### 风险与遗留问题
+
+- P0：无新增。
+- P1：生产 `scan.status=partial`，第二次复查 `scan.freshness=aging`；production evidence validate 失败，因此不能进入 5.1-H。
+- P2：SSH/OrcaTerm 自动通道仍不可用，服务器 Git HEAD / dirty worktree / content hash 未本轮复核；本地工作区原本存在 dirty tracked changes。
+
+### 下一轮建议
+
+只做一个方向：先恢复生产 `scan.status=ready` 并让 production evidence validate pass，然后从 Step 0 重跑 5.1-H.1-R.2-RERUN。
+
 ## 2026-07-07 - 第 4.3.2 步生产 Evidence 一致性与验证严格性最终收口
 
 ### 本轮目标
@@ -1086,3 +1804,169 @@ P0 阻断：
 ### 下一轮建议
 
 只做一个方向：第 5.1.1 在腾讯云服务器侧或稳定生产访问通道中启动 Shadow Runner，生成真实 lock、heartbeat、first capture、checkpoint plan 和 daily summary 证据。
+
+## 2026-07-08 - 第 5.1-H.1-R.1-FIX 生产运行健康根因修复
+
+### 本轮目标
+
+修复第 5.1-H.1-R.1 暴露的生产运行健康问题：CoinGlass auth_error、worker heartbeat 全 down、POST `/api/scan` 401、scan partial/scannedCount=0、production evidence health/status partial。
+
+### 修改范围
+
+- `deploy/scripts/update-prod-coinglass-key.sh`：recreate 列表加入 `websocket-light-worker`，避免 CoinGlass key 更新后该 worker 继续使用旧环境变量。
+- 腾讯云生产运行环境：安全注入新的 CoinGlass key，并重建 web 与全部 worker；未输出 key 原值。
+- 证据目录：生成 `phase5-1-h-1-r-1-fix-production-runtime-health/`，包含根因报告、before/after JSON、production evidence、validate 结果、安全审计和 Agent 报告。
+
+### 核心链路影响
+
+- 全市场发现：恢复生产 scan 正常刷新，`scannedCount` 从 0 恢复为大于 0。
+- 候选筛选：恢复候选输出；未改排序策略。
+- 深扫验证：CoinGlass auth_error 解除，Hobbyist 可用深扫端点恢复。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改 READY / WAIT / BLOCKED 规则。
+- 复盘进化：未改 checkpoint outcome；下一轮仍需做生产口径最终验收。
+
+### 测试结果
+
+- `npm run ci:forbidden-files`：pass
+- `npm run ci:secret-patterns`：pass
+- `npm run security:check`：pass
+- `npm run test:production-evidence`：pass
+- `npm run typecheck`：pass
+- `npm run lint`：pass
+- `npm run test:market`：pass
+- `npm run build`：pass
+- `npm run backtest:golden`：pass
+- production health/smoke/status/evidence：pass
+- production evidence validate：pass，errors=[]，warnings=[]
+- formal：未运行
+
+### 是否部署
+
+已在腾讯云生产运行环境安全更新 CoinGlass key 并重建必要容器。未 push main，未运行 migration，未修改数据库 schema，未清 Redis/Postgres，未删除或重建 volume。
+
+### 风险与遗留问题
+
+- P0：无新增。
+- P1：本轮 runtime health 无阻断 P1。
+- P2：服务器 Git worktree 仍为 dirty，后续部署/验收前需要收口；CoinGlass Hobbyist 仍有部分端点 blocked，必须继续显示能力边界。
+- 当前系统仍不能写成支撑实战交易，不能进入 5.2，不能进入实盘。
+
+### 下一轮建议
+
+只做一个方向：进入 `5.1-H.1-R.2 checkpoint outcome 生产口径最终验收`。
+
+## 2026-07-09 - 第 5.1-H.1-R.2-FIX Shadow Runner Loop 根因修复
+
+### 本轮目标
+
+根治 Shadow Runner 自动循环不持续运行的问题：修复 supervisor、lock、heartbeat、status 假 running、capture loop、auto checkpoint due sweep。
+
+### 修改范围
+
+- `src/lib/shadow/runner-runtime.ts`：新增 runner 真实运行态推导。
+- `src/lib/shadow/runner-runtime.test.ts`：新增 stale/dead/fresh/remote heartbeat 测试。
+- `src/scripts/shadow/shadow-tracking.ts`：`run-loop` 自持锁、写 heartbeat、自动 capture + checkpoint + daily-summary；新增 stale lock cleanup、duplicate guard、`health` command。
+- `docker-compose.yml`：新增 `shadow-runner` 服务，使用 `restart: unless-stopped`。
+- `Dockerfile`：runner 镜像复用 deps 阶段 node_modules 后 `npm prune --omit=dev`，避免生产构建二次 `npm ci` 网络超时。
+- `package.json`：新增 `shadow:prod:run-loop`、`shadow:prod:health`。
+- `phase5-1-h-1-r-2-fix-shadow-runner-loop/`：生成本轮报告、summary、production evidence 和脱敏证据包。
+
+### 核心链路影响
+
+- 全市场发现：未改生产扫描排序或信号生成。
+- 候选筛选：未改候选排序。
+- 深扫验证：未改 CoinGlass / 公开交易所数据逻辑。
+- 结构分析：未改。
+- 风险赔率：未改 RR / 止损 / 目标。
+- 交易计划：未改 READY / WAIT / BLOCKED 规则。
+- 复盘进化：修复 Shadow research-only runner 的长期采样和 checkpoint due sweep 运行基础。
+
+### 测试结果
+
+- `npm run build:market-cli`：pass
+- runner-runtime 定向测试：4 pass
+- runner-runtime + shadow storage：17 pass
+- `npm run typecheck`：pass
+- `npm run lint`：pass
+- `npm run test:market`：pass，市场核心 831 pass，worker 17 pass，historical smoke 4 pass
+- `npm run build`：pass
+- `npm run backtest:golden`：pass，16/16
+- `npm run ci:forbidden-files`：pass
+- `npm run ci:secret-patterns`：pass
+- `npm run security:check`：pass
+- `npm run test:production-evidence`：pass，14/14
+- `shadow:prod:validate`：pass
+- production smoke：pass
+- production evidence validate：real_production / pass / errors=[] / warnings=[]
+- formal：未运行
+
+### 是否部署
+
+已在腾讯云生产环境只重建并启动 `shadow-runner` 服务。未 push main，未运行 migration，未修改数据库 schema，未清 Redis/Postgres，未删除或重建 volume。
+
+### 风险与遗留问题
+
+- P0：无新增。
+- P1：本轮只证明 runner loop 根因修复；下一步必须重跑 `5.1-H.1-R.2 checkpoint outcome 生产口径最终验收`。
+- P2：服务器 Git worktree 仍有历史 dirty 状态；本轮生产侧通过文件覆盖 + `shadow-runner` 重建完成，后续需要用 Git 分支/部署链路收口。
+- 当前系统仍不能写成支撑实战交易，不能进入 5.2，不能进入实盘。
+
+### 下一轮建议
+
+只做一个方向：重跑 `5.1-H.1-R.2 checkpoint outcome 生产口径最终验收`。
+
+## 2026-07-09 - 第 5.1-DEPLOY-CHANNEL-FIX 腾讯云部署通道恢复诊断
+
+### 本轮目标
+
+恢复或诊断腾讯云部署通道，目标是至少恢复一条 Codex 可自动执行的服务器通道，并完成服务器只读 smoke。
+
+### 修改范围
+
+- `phase5-deploy-channel-fix/`：生成本轮部署通道诊断报告、summary、baseline、direct/SOCKS/OrcaTerm 诊断、只读 smoke 结果、已知问题、回归保护、安全审计、风险、下一步和 agent 报告。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md`：更新最新真实状态，明确本轮 PASS 来自 Edge OrcaTerm，不是 SSH。
+- `CHANGELOG_FOR_CHATGPT.md`：追加本轮摘要。
+
+未修改项目业务代码、scan / analysis / strategy / backtest / frontend / API 逻辑。
+
+### 核心链路影响
+
+- 全市场发现：未改；SCAN-FIX 仍不能写成已部署。
+- 候选筛选：未改。
+- 深扫验证：未改 CoinGlass 逻辑。
+- 结构分析：未改。
+- 风险赔率：未改。
+- 交易计划：未改 READY / WAIT / BLOCKED。
+- 复盘进化：未改 Shadow / backtest；本轮恢复后续生产验证所需的服务器只读/执行入口。
+
+### 测试结果
+
+- `npm run typecheck`：未运行，本轮未改项目代码。
+- `npm run lint`：未运行，本轮未改项目代码。
+- `npm run test:market`：未运行，本轮未改市场核心逻辑。
+- `npm run build`：未运行，本轮未改项目代码。
+- `npm run backtest:golden`：未运行，本轮未改回测或策略。
+- formal：未运行，且本轮禁止。
+- Chrome OrcaTerm：fail，Chrome 当前只有新标签页。
+- Edge OrcaTerm：pass，用户打开后 Codex 可通过 Computer Use 控制。
+- SSH direct：fail，直连 22 超时，未进入认证。
+- SSH SOCKS：partial，SOCKS 代理和 TCP 22 可达，但 SSH 在 KEX/banner 前后关闭，未进入 publickey 认证。
+- server readonly smoke：pass，经 Edge OrcaTerm 完成。观察到 `ubuntu@VM-0-9-ubuntu`、项目目录 `/home/ubuntu/apps/chuan-market-radar`、Docker 29.1.3、Docker Compose 2.40.3，`sudo -n docker compose ps` 显示 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务运行。
+
+### 是否部署
+
+未部署。未 push main，未同步腾讯云，未 rsync/scp，未 Docker build/up/restart，未运行 migration，未动 Postgres / Redis / volume。
+
+### 风险与遗留问题
+
+- P0：无新增。
+- P1：SCAN-FIX 仍未部署，不能宣称 `scanHealth` / CoinGlass budget / cooldown / circuit breaker 已在生产生效。
+- P1：direct SSH 超时；SOCKS TCP 22 可达但 SSH 在认证前关闭。当前恢复的是 OrcaTerm，不是 SSH。
+- P1：Edge OrcaTerm 依赖用户保持页面登录态和可控状态。
+- P2：Chrome 没有 OrcaTerm 标签；OrcaTerm 实际位于 Microsoft Edge。
+
+### 下一轮建议
+
+唯一下一步：使用当前 Edge OrcaTerm 通道重跑 `5.1-H.1-R.2-SCAN-FIX-PROD`，只部署 SCAN-FIX allowlist 文件，只重建必要服务，并做 30-60 分钟生产稳定性观察。

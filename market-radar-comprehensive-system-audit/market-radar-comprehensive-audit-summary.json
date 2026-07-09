@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "market-radar-comprehensive-audit.v1",
+  "generatedAt": "2026-07-10T04:46:42+08:00",
+  "mode": "audit_only",
+  "implementationChanged": false,
+  "productionChanged": false,
+  "overallStatus": "runnable_but_incomplete_not_live_trading_ready",
+  "overallScore": 53,
+  "scores": {
+    "architecture": 68,
+    "data": 44,
+    "scanner": 55,
+    "tradingIntelligence": 39,
+    "riskControl": 66,
+    "shadow": 32,
+    "review": 38,
+    "frontend": 54,
+    "engineering": 71,
+    "futureExpansion": 62
+  },
+  "productionPointInTime": {
+    "healthLevel": "ready",
+    "scanStatus": "ready",
+    "scanFreshness": "fresh",
+    "scannedCount": 38,
+    "candidateCount": 24,
+    "workersHealthy": 6,
+    "workersTotal": 6,
+    "finalEvidenceValidate": "not_recollected_in_audit_round"
+  },
+  "verification": {
+    "typecheck": "pass",
+    "lint": "pass",
+    "marketTests": "835/835 pass",
+    "workerTests": "17/17 pass",
+    "historicalTests": "4/4 pass",
+    "build": "pass",
+    "golden": "16/16 pass",
+    "productionEvidenceTests": "15/15 pass",
+    "forbiddenFiles": "pass",
+    "secretPatterns": "pass",
+    "securityCheck": "pass",
+    "formalBacktest": "not_run"
+  },
+  "criticalWeaknesses": [
+    "frontend_candidate_adapter_synthesizes_market_facts",
+    "review_pending_unknown_mapped_to_timeout_zero_long",
+    "light_scan_coverage_misused_as_data_trust",
+    "production_evidence_and_git_content_alignment_not_closed"
+  ],
+  "recommendedNextTask": "Phase 1A - Frontend Truth Contract Repair"
+}

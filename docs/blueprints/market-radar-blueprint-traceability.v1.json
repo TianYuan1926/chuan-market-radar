@@ -1,0 +1,608 @@
+{
+  "schemaVersion": "market-radar-blueprint-traceability.v1",
+  "status": "proposed",
+  "generatedAt": "2026-07-10T06:28:53+08:00",
+  "authority": {
+    "index": "docs/blueprints/README.md",
+    "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
+    "runtimeBlueprint": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
+    "readinessRoadmap": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md",
+    "currentContext": "PROJECT_CONTEXT_FOR_CHATGPT.md",
+    "changeLog": "CHANGELOG_FOR_CHATGPT.md"
+  },
+  "baseline": {
+    "date": "2026-07-10",
+    "currentReadinessLevel": "R1",
+    "currentStatus": "可运行但不完整 / 不能支撑实战",
+    "latestArchitectureAuditScore": 53,
+    "runtimePointSample": {
+      "healthGeneratedAt": "2026-07-09T21:56:21.405Z",
+      "healthLevel": "ready",
+      "transport": "http_direct_ip_browser_marked_not_secure",
+      "healthyBusinessWorkers": 6,
+      "acceptedPublicTickers": 1316,
+      "observedPublicTickers": 3113,
+      "websocketUniverse": 1273,
+      "lightScanEligible": 593,
+      "deepScanCoveragePercent": 7.4,
+      "deepScanRotationMinutes": 1410,
+      "tradePlanReady": 0,
+      "validMfeMaeSamples": 0,
+      "shadowApproved": 0,
+      "shadowEvaluated": 0
+    },
+    "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
+  },
+  "mission": {
+    "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
+    "executionBoundary": "人工决策辅助；不自动下单；不接交易所交易 API；不自动调权。"
+  },
+  "readinessLevels": [
+    {
+      "id": "R0",
+      "label": "不可信",
+      "allowedUse": "只能修复"
+    },
+    {
+      "id": "R1",
+      "label": "生产研究平台",
+      "allowedUse": "查看市场与研究问题"
+    },
+    {
+      "id": "R2",
+      "label": "Shadow 可验证",
+      "allowedUse": "记录当时判断与后续 outcome"
+    },
+    {
+      "id": "R3",
+      "label": "模拟决策辅助",
+      "allowedUse": "纸上决策与日志"
+    },
+    {
+      "id": "R4",
+      "label": "受控人工实战辅助",
+      "allowedUse": "作为人工决策的一项输入，不自动交易"
+    },
+    {
+      "id": "R5",
+      "label": "专业长期工作台",
+      "allowedUse": "R4 稳定维持至少 180 天后的长期运营"
+    }
+  ],
+  "currentServices": [
+    {
+      "id": "postgres",
+      "role": "durable_business_truth",
+      "required": true,
+      "currentVersion": "16-alpine"
+    },
+    {
+      "id": "redis",
+      "role": "runtime_snapshot_lock_quota_heartbeat",
+      "required": true,
+      "currentVersion": "7-alpine-aof"
+    },
+    {
+      "id": "web",
+      "role": "nextjs_pages_api_read_models",
+      "required": true,
+      "currentVersion": "next-16.2.9-node-22"
+    },
+    {
+      "id": "caddy",
+      "role": "tls_edge_reverse_proxy",
+      "required": true,
+      "currentVersion": "2-alpine"
+    },
+    {
+      "id": "scanner-worker",
+      "role": "scheduled_scan_trigger",
+      "required": true,
+      "defaultIntervalSeconds": 900
+    },
+    {
+      "id": "websocket-light-worker",
+      "role": "public_websocket_light_scan",
+      "required": true,
+      "defaultSnapshotIntervalSeconds": 15
+    },
+    {
+      "id": "coinglass-worker",
+      "role": "protected_source_and_daily_mover_jobs",
+      "required": true,
+      "defaultDailyMoverIntervalSeconds": 86400
+    },
+    {
+      "id": "signal-worker",
+      "role": "outcome_and_forward_map_jobs",
+      "required": true,
+      "defaultOutcomeIntervalSeconds": 3600
+    },
+    {
+      "id": "dynamic-scan-scheduler",
+      "role": "health_aware_scan_scheduling",
+      "required": true,
+      "defaultIntervalSeconds": 300
+    },
+    {
+      "id": "macro-worker",
+      "role": "market_context_ingest",
+      "required": true,
+      "defaultIntervalSeconds": 3600
+    },
+    {
+      "id": "shadow-runner",
+      "role": "research_observation_checkpoint_outcome",
+      "requiredFromLevel": "R2",
+      "defaultIntervalSeconds": 300
+    }
+  ],
+  "coreChain": [
+    {
+      "id": "market_discovery",
+      "label": "全市场发现",
+      "layer": "SCAN",
+      "gate": "G2",
+      "engineeringSections": [
+        "4.2",
+        "5.1",
+        "5.2",
+        "9"
+      ],
+      "runtimeSections": [
+        "5",
+        "6.1",
+        "10"
+      ],
+      "currentPaths": [
+        "src/lib/market/universe-registry.ts",
+        "src/lib/market/providers/public-futures-universe-discovery.ts",
+        "src/lib/market/providers/public-light-scan.ts",
+        "src/lib/market/ws-light-scan.ts",
+        "deploy/workers/ws-light-scan-worker.mjs"
+      ],
+      "targetContracts": [
+        "MarketFactEnvelope",
+        "InstrumentIdentity",
+        "ScanCycleProof"
+      ],
+      "runtimeChecks": [
+        "eligible universe coverage >=95%",
+        "light scan cycle P95 <=120s",
+        "WebSocket stale is never shown as live",
+        "instrument aliases have no silent conflicts"
+      ],
+      "evidence": [
+        "scan_cycle_proof",
+        "source_capability_report",
+        "instrument_identity_fixture",
+        "websocket_gap_report"
+      ],
+      "prohibitedInputs": [
+        "MFE",
+        "MAE",
+        "future outcome",
+        "qualityHit"
+      ]
+    },
+    {
+      "id": "candidate_selection",
+      "label": "候选筛选",
+      "layer": "SCAN",
+      "gate": "G3",
+      "engineeringSections": [
+        "5.4",
+        "6.1",
+        "9"
+      ],
+      "runtimeSections": [
+        "6.1",
+        "7.3",
+        "8"
+      ],
+      "currentPaths": [
+        "src/lib/market/scan-state-pool.ts",
+        "src/lib/market/scan-coordinator.ts",
+        "src/lib/market/universe-priority-hints.ts",
+        "src/lib/market/signal-maturity.ts",
+        "src/lib/market/scan-events.ts"
+      ],
+      "targetContracts": [
+        "CandidateEpisode",
+        "priority tier A/B/C",
+        "episode lifecycle"
+      ],
+      "runtimeChecks": [
+        "TopN capture and pre-move capture",
+        "late/noise share",
+        "no minimum candidate count",
+        "new trigger after close creates new episode"
+      ],
+      "evidence": [
+        "professional_scan_holdout",
+        "candidate_episode_trace",
+        "daily_movers_counterfactual"
+      ],
+      "prohibitedInputs": [
+        "future hit rate",
+        "review outcome",
+        "frontend ranking"
+      ]
+    },
+    {
+      "id": "deep_validation",
+      "label": "深扫验证",
+      "layer": "SCAN",
+      "gate": "G2",
+      "engineeringSections": [
+        "5.1",
+        "9",
+        "11"
+      ],
+      "runtimeSections": [
+        "5",
+        "7.2",
+        "10",
+        "17.2"
+      ],
+      "currentPaths": [
+        "src/lib/market/scan-batch-queue.ts",
+        "src/lib/market/scan-quota.ts",
+        "src/lib/market/providers/coinglass-client.ts",
+        "src/lib/market/providers/coinglass-provider.ts",
+        "src/lib/market/data-source-capabilities.ts"
+      ],
+      "targetContracts": [
+        "source capability registry",
+        "endpoint budget",
+        "Tier A/B deep validation SLA"
+      ],
+      "runtimeChecks": [
+        "Tier A P95 <=5m",
+        "Tier B P95 <=30m",
+        "rate_limited plan_limited auth_error transport_error remain distinct",
+        "CoinGlass failure does not zero public discovery"
+      ],
+      "evidence": [
+        "endpoint_completeness_report",
+        "quota_and_cooldown_report",
+        "tier_queue_age_report"
+      ],
+      "prohibitedInputs": [
+        "unsupported endpoint fallback labeled as CoinGlass",
+        "old deep facts labeled live"
+      ]
+    },
+    {
+      "id": "structure_analysis",
+      "label": "结构分析",
+      "layer": "ANALYSIS",
+      "gate": "G4",
+      "engineeringSections": [
+        "5.5",
+        "6.1",
+        "12"
+      ],
+      "runtimeSections": [
+        "6.1",
+        "7.3",
+        "9"
+      ],
+      "currentPaths": [
+        "src/lib/analysis/v3/market-reading-engine.ts",
+        "src/lib/analysis/v3/key-level-engine.ts",
+        "src/lib/analysis/v3/forward-level-map.ts",
+        "src/lib/analysis/v3/pattern-library.ts",
+        "src/lib/analysis/v3/readiness.ts"
+      ],
+      "targetContracts": [
+        "AnalysisReadModel",
+        "timeframe evidence",
+        "confirmation and contradiction chains"
+      ],
+      "runtimeChecks": [
+        "analysis score >=70 on two frozen holdouts",
+        "neutral remains neutral",
+        "missing evidence remains explicit",
+        "late and fakeout risk are visible"
+      ],
+      "evidence": [
+        "professional_analysis_audit",
+        "analysis_contract_fixtures",
+        "key_level_quality_report"
+      ],
+      "prohibitedOutputs": [
+        "entry",
+        "stop",
+        "target",
+        "trade plan"
+      ]
+    },
+    {
+      "id": "risk_reward",
+      "label": "风险赔率",
+      "layer": "STRATEGY",
+      "gate": "G4",
+      "engineeringSections": [
+        "5.6",
+        "6.1",
+        "18"
+      ],
+      "runtimeSections": [
+        "7.3",
+        "10",
+        "20"
+      ],
+      "currentPaths": [
+        "src/lib/analysis/v3/location-rr.ts",
+        "src/lib/analysis/v3/trade-plan.ts",
+        "src/lib/risk/account-risk-simulator.ts",
+        "src/lib/risk/personal-position-lens.ts",
+        "src/lib/analysis/v2/strategy/risk-gate.ts"
+      ],
+      "targetContracts": [
+        "structural RR",
+        "execution cost estimate",
+        "personal risk lens after structural plan"
+      ],
+      "runtimeChecks": [
+        "structural RR >=3 for READY",
+        "stop and target have structure sources",
+        "fee slippage funding are traceable",
+        "leverage does not change structural RR"
+      ],
+      "evidence": [
+        "risk_gate_contract",
+        "cost_sensitivity_report",
+        "ready_plan_audit"
+      ],
+      "prohibitedBehaviors": [
+        "lower RR to increase signal count",
+        "leverage bypasses Risk Gate",
+        "fabricated exchange max leverage"
+      ]
+    },
+    {
+      "id": "trade_plan",
+      "label": "交易计划",
+      "layer": "STRATEGY",
+      "gate": "G4",
+      "engineeringSections": [
+        "5.6",
+        "8",
+        "18"
+      ],
+      "runtimeSections": [
+        "6.2",
+        "7.3",
+        "9.2",
+        "20"
+      ],
+      "currentPaths": [
+        "src/lib/decision/unified-decision-engine.ts",
+        "src/lib/analysis/v3/trade-plan.ts",
+        "src/lib/market/signal-backend-dossier.ts",
+        "src/app/api/frontend/token-dossier/route.ts",
+        "src/components/token/token-dossier.tsx"
+      ],
+      "targetContracts": [
+        "StrategyDecisionReadModel",
+        "OBSERVE WAIT BLOCKED TRADE_PLAN_READY",
+        "authoritative backend read model"
+      ],
+      "runtimeChecks": [
+        "100% READY have trigger entry stop target RR invalidation cost",
+        "WAIT has trigger expiry invalidation whyNotNow",
+        "false READY = 0",
+        "frontend plan generation = 0"
+      ],
+      "evidence": [
+        "professional_strategy_audit",
+        "decision_contract_tests",
+        "frontend_truth_e2e"
+      ],
+      "prohibitedBehaviors": [
+        "candidate displayed as signal",
+        "WAIT displayed as READY",
+        "frontend-created trade levels"
+      ]
+    },
+    {
+      "id": "review_evolution",
+      "label": "复盘进化",
+      "layer": "SHADOW_REVIEW_BACKTEST",
+      "gate": "G5_G6_G7",
+      "engineeringSections": [
+        "5.7",
+        "7",
+        "17.2",
+        "18"
+      ],
+      "runtimeSections": [
+        "6.3",
+        "7.4",
+        "15",
+        "18",
+        "20"
+      ],
+      "currentPaths": [
+        "src/lib/shadow/storage.ts",
+        "src/lib/shadow/runner-runtime.ts",
+        "src/scripts/shadow/shadow-tracking.ts",
+        "src/lib/journal/outcome-tracker.ts",
+        "src/lib/journal/review-statistics.ts",
+        "src/components/review/review-evolution.tsx"
+      ],
+      "targetContracts": [
+        "ShadowObservation",
+        "ShadowOutcome",
+        "SYSTEM USER HYBRID review",
+        "frozen rule proposal lifecycle"
+      ],
+      "runtimeChecks": [
+        "continuous Shadow >=60 days",
+        "evaluable episodes >=500",
+        "triggered WAIT READY >=60",
+        "due completion >=99%",
+        "duplicate=0",
+        "no production mutation"
+      ],
+      "evidence": [
+        "shadow_run_registry",
+        "checkpoint_quality_report",
+        "daily_movers_hit_miss_control",
+        "paper_decision_log",
+        "readiness_evaluator"
+      ],
+      "prohibitedOutputs": [
+        "automatic production weight change",
+        "automatic READY promotion",
+        "future outcome in production"
+      ]
+    }
+  ],
+  "crossCutting": [
+    {
+      "id": "truth_contract",
+      "gate": "G0",
+      "currentPaths": [
+        "src/lib/frontend-display-adapters.ts",
+        "src/lib/api/frontend-contract.ts",
+        "src/components/scan-proof.tsx"
+      ],
+      "runtimeChecks": [
+        "fake zero = 0",
+        "fake live = 0",
+        "fake direction = 0",
+        "duplicate scan proof = 0"
+      ]
+    },
+    {
+      "id": "security",
+      "gate": "G0_G1",
+      "currentPaths": [
+        "deploy/caddy/Caddyfile",
+        "middleware.ts",
+        "src/lib/auth/private-session.ts",
+        "src/app/api/auth/session/route.ts",
+        "scripts/verify/security-check.sh"
+      ],
+      "runtimeChecks": [
+        "trusted HTTPS",
+        "private session fail closed",
+        "OWASP ASVS 5.0 Level 2 evidence",
+        "secret value hits = 0"
+      ]
+    },
+    {
+      "id": "release_identity",
+      "gate": "G0_G1",
+      "currentPaths": [
+        ".github/workflows/production.yml",
+        "scripts/deploy/auto-deploy.sh",
+        "scripts/deploy/rollback.sh",
+        "scripts/production/observability.mjs",
+        "src/lib/api/system-health.ts"
+      ],
+      "runtimeChecks": [
+        "Git commit image digest content hash releaseId align",
+        "current evidence is not expired",
+        "production tracked worktree clean",
+        "rollback target verified"
+      ]
+    },
+    {
+      "id": "reliability_recovery",
+      "gate": "G1",
+      "currentPaths": [
+        "deploy/scripts/backup-postgres.sh",
+        "deploy/scripts/restore-postgres.sh",
+        "deploy/scripts/production-drill.sh",
+        "src/lib/runtime/worker-heartbeat.ts",
+        "src/lib/runtime/api-observability.ts"
+      ],
+      "runtimeChecks": [
+        "30 day core API availability >=99.5%",
+        "RPO <=24h",
+        "RTO <=2h",
+        "restore drill age <=90 days",
+        "external uptime probe active"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "G0",
+      "label": "事实、安全、生命周期与发布收敛",
+      "status": "not_passed",
+      "blocks": [
+        "G2",
+        "G3",
+        "G4",
+        "R4"
+      ]
+    },
+    {
+      "id": "G1",
+      "label": "生产可靠性、恢复、安全与测试门禁",
+      "status": "not_passed"
+    },
+    {
+      "id": "G2",
+      "label": "数据质量、身份、时效与微观结构",
+      "status": "not_started_as_gate"
+    },
+    {
+      "id": "G3",
+      "label": "候选生命周期、强弱排序与提前发现",
+      "status": "not_started_as_gate"
+    },
+    {
+      "id": "G4",
+      "label": "分析、策略、关键位与风险有效性",
+      "status": "not_started_as_gate"
+    },
+    {
+      "id": "G5",
+      "label": "真实 Shadow、Outcome 与反过拟合",
+      "status": "not_started_as_gate"
+    },
+    {
+      "id": "G6",
+      "label": "专业工作台、复盘、提醒与操作性",
+      "status": "not_started_as_gate"
+    },
+    {
+      "id": "G7",
+      "label": "模拟决策与 R4 最终准入",
+      "status": "not_started_as_gate"
+    },
+    {
+      "id": "G8",
+      "label": "R5 持续治理、退化监控与成本决策",
+      "status": "not_started_as_gate"
+    }
+  ],
+  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.1 Frontend Truth Contract",
+  "documentValidation": {
+    "status": "pass",
+    "jsonParsed": true,
+    "mermaidDiagrams": 13,
+    "mermaidStructuralChecksPassed": 13,
+    "mermaidRendered": false,
+    "mermaidRenderBoundary": "No local Mermaid renderer is installed; visual rendering was not claimed.",
+    "currentPathMissing": 0,
+    "npmScriptReferenceMissing": 0,
+    "secretValueHits": 0,
+    "diffCheck": "pass"
+  },
+  "forbiddenShortcuts": [
+    "Run formal backtest as progress decoration",
+    "Use real money to replace software evidence",
+    "Lower RR or Risk Gate to increase plans",
+    "Add paid data source without measured marginal value",
+    "Perform visual redesign before truth contracts",
+    "Treat runtime ready as practical readiness",
+    "Treat historical evidence as current evidence"
+  ]
+}
