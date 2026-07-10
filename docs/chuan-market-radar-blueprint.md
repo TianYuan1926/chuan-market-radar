@@ -30,7 +30,7 @@
 
 ## C. 当前唯一下一入口
 
-`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 仍因生产 schema 尚未增加权威 Episode/Outcome 而未完成。implementation/rehearsal 已达到 `PASS_IMPLEMENTATION_AND_REHEARSAL`；后续 production add-schema 在只读 preflight 发现“应用角色即唯一 LOGIN 超级角色、无独立 migration LOGIN”后按门禁停止，结论为 `PARTIAL_MIGRATION_NOT_RUN`。当前没有自动授权的下一包；再次获得明确批准后才可进入：
+`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 仍因生产 schema 尚未增加权威 Episode/Outcome 而未完成。implementation/rehearsal 已达到 `PASS_IMPLEMENTATION_AND_REHEARSAL`；后续 production add-schema 在只读 preflight 发现“应用角色即唯一 LOGIN 超级角色、无独立 migration LOGIN”后停止，migration 未执行。执行中误生成 0 字节未跟踪文件曾使生产 worktree 变脏，虽已获批准删除并复核 clean，但按合同总状态为 `FAIL_PRODUCTION_BOUNDARY_VIOLATION`。当前没有自动授权的下一包；再次获得明确批准后才可进入：
 
 ```text
 WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION

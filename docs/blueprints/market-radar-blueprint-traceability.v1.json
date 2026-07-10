@@ -587,13 +587,16 @@
   "lastAttemptedWorkPackage": {
     "id": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA",
     "title": "Candidate Episode / Checkpoint / Outcome production additive schema deployment",
-    "status": "PARTIAL_MIGRATION_NOT_RUN",
+    "status": "FAIL_PRODUCTION_BOUNDARY_VIOLATION",
     "runtimeCodeChanged": false,
     "runtimeActivationStatus": "unchanged",
     "databaseSchemaChanged": false,
     "schemaCodeImplemented": true,
     "isolatedMigrationRun": false,
     "productionMigrationRun": false,
+    "productionWorktreeChangedTransiently": true,
+    "productionWorktreeFinalClean": true,
+    "boundaryViolation": "zero_byte_untracked_file_created_then_removed_with_explicit_user_approval",
     "productionDatabaseConnected": true,
     "productionDatabaseAccess": "read_only_preflight_only",
     "productionLoginRoleCount": 1,
@@ -609,7 +612,7 @@
     "evidence": {
       "path": "reports/wp-g0-2-migration-production-add-schema/WP_G0_2_MIGRATION_PRODUCTION_ADD_SCHEMA_REPORT.md",
       "storage": "local_ignored_artifact",
-      "note": "Production runtime and PostgreSQL read-only preflight evidence; migration stopped before backup, staging or DDL because no independent migration LOGIN identity exists."
+      "note": "Migration stopped before backup, staging or DDL because no independent migration LOGIN identity exists. Final verdict is boundary failure because a zero-byte untracked file was transiently created in the production repository, then removed with explicit user approval; final worktree is clean."
     }
   },
   "currentDesignPackage": {

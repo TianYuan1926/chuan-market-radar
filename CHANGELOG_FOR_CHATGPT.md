@@ -2201,7 +2201,7 @@ P0 阻断：
 
 只有再次获得用户明确批准后，才可进入 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA`；不得自动进入 shadow writer、backfill、read cutover、G1、R4 或实盘。
 
-## 2026-07-11 / WP-G0.2 Production Add-Schema Preflight Stop
+## 2026-07-11 / WP-G0.2 Production Add-Schema Boundary Failure
 
 ### 本轮目标
 
@@ -2211,7 +2211,7 @@ P0 阻断：
 
 - 通过 Edge OrcaTerm 执行生产身份、工作树、Compose、health、worker、Shadow、Postgres/Redis 和 production evidence 只读核验。
 - 执行 PostgreSQL catalog、连接、锁、事务、容量、角色能力和 Candidate schema 只读 preflight。
-- 生成本地脱敏 PARTIAL 证据包并更新治理文档。
+- 生成本地脱敏失败状态证据包并更新治理文档。
 - 未创建 production staging worktree、生产备份或异地副本；未执行 restore drill、migration、backfill、Feature Flag、读写切换、应用部署或重启。
 
 ### 核心链路影响
@@ -2238,7 +2238,8 @@ P0 阻断：
 - P0：应用运行身份拥有完整数据库超级权限，违反最小权限边界。
 - P0：没有独立 production migration LOGIN 身份，不能合规执行本包 DDL。
 - P1：未建立本次 migration 所需的加密异地备份与真实 restore drill 证据。
-- 当前状态：`PARTIAL_MIGRATION_NOT_RUN / R1 / 可运行但不完整 / 不能支撑实战`。
+- P0：OrcaTerm 误生成 0 字节未跟踪文件，曾使生产 worktree 变脏；文件已获批准删除且最终 clean，但合同要求总状态为 `FAIL_PRODUCTION_BOUNDARY_VIOLATION`。
+- 当前状态：`FAIL_PRODUCTION_BOUNDARY_VIOLATION / migration 未执行 / R1 / 可运行但不完整 / 不能支撑实战`。
 
 ### 下一轮建议
 

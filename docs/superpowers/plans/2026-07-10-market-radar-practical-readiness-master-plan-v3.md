@@ -235,7 +235,7 @@ interface MarketFactEnvelope<T> {
 
 ### WP-G0.2 Candidate Lifecycle and Outcome Truth
 
-**Current status (2026-07-11):** `PARTIAL_MIGRATION_NOT_RUN`
+**Current status (2026-07-11):** `FAIL_PRODUCTION_BOUNDARY_VIOLATION`
 
 Repository-wide audit confirmed that the production mutable journal/scan-state JSONB schema cannot enforce immutable Candidate Episodes or exactly-once terminal Outcomes. The separately authorized implementation/rehearsal package has now implemented the approved dormant schema/runtime foundation and passed isolated PostgreSQL rehearsal, but production migration, writer activation, backfill, read cutover and deployment remain false.
 
@@ -247,9 +247,11 @@ The proposed package freezes scope+instrument single-active Episode, split Check
 
 The user later authorized this independent package through the current execution contract. Eight additive migrations implement 8 tables/151 approved fields plus restricted procedures and seven NOLOGIN roles. Empty/previous-schema/repeat/checksum/concurrency/permission/rollback/restore tests passed only on local `wp_g0_2_rehearsal_*` databases. Production DB connected=false, production schema changed=false, production migration=false, production deployed=false, all production write/read flags=false. This scoped PASS does not complete WP-G0.2.
 
-**Production add-schema attempt (2026-07-11):** `PARTIAL_MIGRATION_NOT_RUN`
+**Production add-schema attempt (2026-07-11):** `FAIL_PRODUCTION_BOUNDARY_VIOLATION`; migration not run
 
 The production runtime baseline and PostgreSQL lock/capacity checks passed, but the migration identity Gate failed before backup or DDL. Production has one LOGIN database role; it is also the current application role and has SUPERUSER/CREATEDB/CREATEROLE/REPLICATION/BYPASSRLS. No independent migration LOGIN identity exists, while the seven approved Candidate roles are absent before migration and are NOLOGIN by design. The package therefore stopped before staging, backup, restore rehearsal and production migration. Production schema/application/runtime stayed unchanged.
+
+During OrcaTerm operation, a malformed command transiently created one zero-byte untracked file in the production repository. The event was disclosed immediately; after explicit user approval and a reconnect identity/HEAD check, only that file was removed and the final worktree was verified clean. Because the execution contract makes any production-worktree mutation an absolute boundary failure, the package verdict is FAIL even though no tracked file, schema, data or runtime changed.
 
 **Modify:**
 
