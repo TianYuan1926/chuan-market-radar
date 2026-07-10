@@ -206,6 +206,8 @@ interface MarketFactEnvelope<T> {
 
 ### WP-G0.1 Frontend Truth Contract
 
+**状态：** `completed_and_production_verified`（2026-07-10，`main@05e9530`）
+
 **Modify:**
 
 - `src/lib/frontend-display-adapters.ts`
@@ -911,13 +913,13 @@ R4 之后用户可自主决定是否做小范围人工验证。该步骤：
 
 ## 18. 当前唯一下一任务
 
-v3 批准后，先拆成独立执行计划：
+`WP-G0.1 Frontend Truth Contract` 已完成并通过生产验证。下一任务只拆成独立执行计划：
 
 ```text
-WP-G0.1 Frontend Truth Contract
+WP-G0.2 Candidate Lifecycle and Outcome Truth
 ```
 
-第二个任务才是 `WP-G0.2 Candidate Lifecycle and Outcome Truth`。HTTPS/private session 涉及域名外部条件，在 G0.1 进行时同时准备，但不和前端事实修复混成同一个代码包。
+HTTPS/private session 涉及域名外部条件，继续保留为独立 WP-G0.3，不和生命周期/outcome 真值修复混成同一个代码包。
 
 本轮不同时开始扫描排序、新模式、策略权重、Shadow v2、视觉重构或付费数据接入。
 

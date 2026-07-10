@@ -30,13 +30,13 @@
 
 ## C. 当前唯一下一入口
 
-V3 经用户与外部审计批准后，只允许先拆分并实施：
+`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。当前只允许拆分并实施：
 
 ```text
-WP-G0.1 Frontend Truth Contract
+WP-G0.2 Candidate Lifecycle and Outcome Truth
 ```
 
-不得并行启动扫描排序、策略权重、Shadow v2、视觉重构或付费数据接入。
+不得并行启动 HTTPS、扫描排序、策略权重、Shadow v2、视觉重构或付费数据接入。
 
 ## D. 旧版详细事实保留区
 

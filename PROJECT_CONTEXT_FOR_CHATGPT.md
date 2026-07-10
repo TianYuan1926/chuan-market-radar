@@ -8,24 +8,24 @@
 
 - 2026-07-10 已建立 Market Radar 双蓝图 v1.0：`docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md` 规定系统怎样搭建，`docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md` 规定系统怎样启动、稳态运行、降级、发布和恢复；`docs/blueprints/README.md` 是权威目录，`docs/blueprints/market-radar-blueprint-traceability.v1.json` 是机器追踪矩阵。
 - 现有 `docs/chuan-market-radar-blueprint.md` 已改为兼容总索引；旧版详细内容完整保留为低优先级历史事实区，避免丢失当前工作树中的未提交历史变化。发生冲突时，当前生产事实/current evidence -> 双蓝图 -> V3/追踪矩阵 -> context/changelog -> 历史蓝图。
-- 双蓝图状态为 `PROPOSED`，不证明目标能力已实现，也不授权代码、数据库、生产或策略变更。当前仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+- 双蓝图与 V3 顺序已获用户确认，但目标合同不证明能力已经实现，也不授权跳包、扩大范围或降低门禁。当前仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 工程蓝图以当前 Node 22、Next.js 16.2.9、React 19.2.7、PostgreSQL 16、Redis 7、Caddy 和 7 个 worker/runner 的单机 Compose 为基线；目标采用模块化单体 + 独立 worker，不为显得高级提前微服务化。
 - 运行蓝图定义 11 个 Compose 服务、启动顺序、周期任务、五类健康语义、7 个核心状态/流程图、初始 SLO、error budget、18 类降级、SEV0-SEV3、RB-01 至 RB-12、发布、备份恢复、容量和 R4 暂停政策。
 - 机器矩阵把 7 个核心链路环节、G0-G8、当前代码路径、目标合同、运行检查和证据逐项对应。首轮验证：JSON parse pass、当前路径缺失 0、Mermaid 13/13 有无障碍描述、敏感值 0、diff-check pass。
-- 本轮没有修改业务代码、前端、API、DB、Redis、worker、Docker、Caddy 或生产；未提交、push、部署、migration、restore、rollback、formal 或代码门禁重跑。
-- 双蓝图经用户/外部审计批准后，唯一下一入口仍是 `WP-G0.1 - Frontend Truth Contract`。
+- WP-G0.1 已修改前端只读事实合同与展示，并完成 GitHub `main` 和腾讯 `web` 部署；未修改 DB、Redis、worker、Caddy、strategy、backtest 或 secret，未运行 migration、restore、rollback 或 formal。
+- 双蓝图与 V3 路线已获用户确认；`WP-G0.1 - Frontend Truth Contract` 已在 `main@05e9530846b276cd1c56bc789b95c2540bfa83aa` 完成并部署验证。唯一下一入口是 `WP-G0.2 - Candidate Lifecycle and Outcome Truth`。
 - 2026-07-10 已把两份历史 Master Plan、v2、最新 `53/100` 全系统审计、当前代码和当前只读生产点样本合并为唯一建议版 `Market Radar Practical Readiness Master Plan v3`：`docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md`。v2 已标记 `SUPERSEDED`，只保留审计历史。
 - 历史方案的 46 项任务已逐项清洗为 completed / partial / superseded / deferred / not started，机器可读矩阵位于 `docs/superpowers/plans/2026-07-10-market-radar-v3-current-state-matrix.json`。CoinGlass 旧鉴权故障已归档为历史事故，不再冒充当前主阻断。
-- v3 状态为 `PROPOSED`，只是一份后续建设与验收方案，不授权业务代码、前端、API、数据库、Redis、worker、策略、生产或部署变更。
+- V3 是已确认的顺序化建设与验收方案，不是实战能力证明；每个 work package 仍需独立范围锁定、门禁、部署证据和人工审计。
 - 当前真实等级是 `R1 - 生产研究平台 / 可运行但不完整 / 不能支撑实战`。`53/100` 是最近架构审计分，不是实战 readiness 分。
-- 当前只读生产点样本：`/api/health.generatedAt=2026-07-09T21:56:21.405Z`、`level=ready`，六个业务 worker 当下 healthy；公开市场 accepted=1316 / observed=3113，WebSocket universe=1273，轻扫 eligible=593，深扫覆盖 7.4%，轮转约 1410 分钟，CoinGlass clean/raw=44/695。
+- 当前生产验收点样本：`/api/health` 为 `ready / fresh`，六个业务 worker 当下 healthy；公开市场 observed=3112、accepted=1316，scan eligible=593，current-cycle=24，deep-scanned=48。前端合同分别显示公开接受率 42.3%（accepted/observed）、当前周期覆盖率 4.0%（current-cycle/eligible）和深扫覆盖率 8.1%（deep/eligible）。
 - 当前公网入口仍为明文 `http://43.161.202.227`，浏览器标记“不安全”。这是新的 P0；Caddy 配置和 private-session 代码本地存在，不等于生产 HTTPS / private mode 已通过。
-- 当前信号页 total=59、`TRADE_PLAN_READY=0`；Review total=120、closed=36，但有效 MFE/MAE 样本为 0；Shadow approved/evaluated 均为 0，进化准备度 7/100。记录数量不能包装成有效 outcome 或实战能力。
-- 当前 P0 为：公网明文 HTTP；前端合成 direction/freshness/age/source/score 等事实；unknown/null 被映射成 0/long/timeout；重复且互相冲突的 scan proof；production release/evidence 与 commit/image/content 未形成单一正本。
+- 当前生产 frontend contract 返回 radarSignals=30、`TRADE_PLAN_READY=0`。WP-G0.1 未重新验收 Review 的 closed/evidence-grade/pending 与 MFE/MAE 分母，这些数字不得沿用旧快照冒充当前事实，必须在 WP-G0.2 重算并验收。
+- 当前活动 P0 为公网明文 HTTP，浏览器仍标记“不安全”。WP-G0.1 已关闭榜单升级为信号、前端合成 direction/freshness/age/source/score/sentiment/volMult、unknown price 显示为 0、重复 scan proof 和扫描分母混用；生命周期 unknown/timeout/MFE/MAE 真值问题属于下一包 WP-G0.2，不在本轮冒充已关闭。
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
-- 本轮没有修改运行代码或生产，没有提交、push、部署、migration、formal 或代码门禁重跑；只执行当前只读核验与文档结构/一致性检查。
-- v3 经用户/外部审计批准后，唯一下一任务是 `WP-G0.1 - Frontend Truth Contract`；不并行改扫描排序、策略权重、Shadow v2、视觉主题或付费数据接入。
+- WP-G0.1 已完成代码、测试、提交、push 和生产 `web` 验证；未运行 migration 或 formal，未修改或清理 Postgres/Redis/volume。
+- 唯一下一任务是 `WP-G0.2 - Candidate Lifecycle and Outcome Truth`；不并行改扫描排序、策略权重、Shadow v2、视觉主题、HTTPS 或付费数据接入。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
 - 第 5.1-DEPLOY-CHANNEL-FIX 证据显示：Chrome 里没有 OrcaTerm；用户打开 Microsoft Edge 中的腾讯云 OrcaTerm 后，Codex 通过 Computer Use 可控该页面，并以 `ubuntu@VM-0-9-ubuntu` 完成服务器只读 smoke。只读 smoke 覆盖 `whoami`、`hostname`、`pwd`、UTC date、`uname`、Docker/Compose 版本、项目目录访问、`ls -la`、`docker compose ps` / `sudo -n docker compose ps`。观察到 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务均在运行，web/postgres/redis 为 healthy。
@@ -1070,6 +1070,27 @@ GPT / 用户验收第 4.2 证据
 - 当前生产运行底座健康，但系统整体仍为 `可运行但不完整 / 不能支撑实战`。
 - 本轮只强化部署与运行真值，没有证明 G0-G9 工程蓝图已完成。
 - 下一轮从蓝图 `WP-G0.1 Frontend Truth Contract` 开始，只清理前端合成事实与未知值伪装，不得顺手修改策略或扫描排序。
+
+## 2026-07-10 WP-G0.1 Frontend Truth Contract
+
+本轮只收口前端事实合同与展示语义，没有修改 scan 排序、analysis 结论、strategy、RR 3:1、交易计划、backtest、数据库、Redis、worker 或 secret。
+
+当前事实：
+
+- `main` 生产代码提交为 `05e9530846b276cd1c56bc789b95c2540bfa83aa`；功能提交为 `0e086c7`，扫描分母生产回归修复为 `05e9530`。
+- leaderboard 只保留榜单和真实 ticker 价格用途，不再升级为 radar signal、signal card 或 signal token。
+- 前端不再合成 direction、freshness、age、source、score、sentiment、volume multiple、anomaly score 或 bull/bear trend；未知价格和不支持字段显示 `n/a`，不再用 0 冒充。
+- Dashboard、Signals、System 只消费后端 `radarSignals`；计划就绪为空时保持空，不用榜单补位。
+- 全站主定位由“实战雷达”收口为“研究雷达”；SCAN / ANALYSIS / STRATEGY / BACKTEST 权限边界未放宽。
+- 全市场扫描证明只保留一个权威组件。生产事实分别为 observed=3112、accepted=1316、eligible=593、current-cycle=24、deep=48；公开接受率 42.3% 以 observed 为分母，当前周期 4.0% 和深扫 8.1% 以 eligible 为分母。
+- 本地定向测试 96/96、typecheck、lint、test:market 836/836、worker 17/17、historical smoke 4/4、build、golden 16/16、forbidden-files、secret-patterns、security-check 全部通过；formal 未运行。
+- 腾讯生产只重建 `web`；未运行 migration，未修改或清理 Postgres/Redis，未删除或重建 volume。`/api/health` 为 ready/fresh，Postgres 接受连接，Redis PONG，全部 worker healthy，Shadow `heartbeatFresh/lockPidAlive/sameRuntime=true`。
+- 生产浏览器复核通过：页面显示“研究雷达”、单一扫描证明、三组明确分母和真实空计划状态。公网仍为明文 HTTP，是未关闭的 P0。
+- 脱敏生产证据目录：`/home/ubuntu/apps/chuan-market-radar/reports/production-facts/20260710T010527Z`。
+
+当前真实状态仍是：**可运行但不完整，不能支撑实战。**
+
+唯一下一任务：`WP-G0.2 Candidate Lifecycle and Outcome Truth`。只修 lifecycle/outcome/Review 真值，不并行处理 HTTPS、扫描排序、策略权重或视觉重构。
 
 ## 2026-07-09 第 5.1-H.1-R.2-FIX Shadow Runner Loop 根因修复
 

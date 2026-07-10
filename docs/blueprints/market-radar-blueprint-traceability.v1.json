@@ -583,7 +583,8 @@
       "status": "not_started_as_gate"
     }
   ],
-  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.1 Frontend Truth Contract",
+  "lastCompletedWorkPackage": "WP-G0.1 Frontend Truth Contract",
+  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2 Candidate Lifecycle and Outcome Truth",
   "documentValidation": {
     "status": "pass",
     "jsonParsed": true,

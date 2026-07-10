@@ -2025,3 +2025,49 @@ P0 阻断：
 ### 下一轮建议
 
 只进入蓝图首包 `WP-G0.1 Frontend Truth Contract`，先消除前端合成方向、伪 freshness、假 0 和未知值伪装。
+
+## 2026-07-10 / WP-G0.1 Frontend Truth Contract
+
+### 本轮目标
+
+关闭前端事实污染：榜单不得升级为信号，未知值不得伪装为 0 或固定事实，扫描证明必须只有一个权威入口并明确每个分母。
+
+### 修改范围
+
+- 前端合同、显示适配器、Dashboard / Signals / System 数据入口、扫描证明组件和相应回归测试。
+- 补充生产同形分母测试，锁定 observed / accepted / eligible / current-cycle / deep-scanned 五类数量与三类比率。
+- 未改 scan 排序、analysis、strategy、RR 3:1、交易计划、backtest、DB、Redis、worker、secret 或自动下单边界。
+
+### 核心链路影响
+
+- 全市场发现：展示 observed、accepted、eligible、current-cycle、deep-scanned 的真实口径，不改发现算法。
+- 候选筛选：榜单不再补成候选或信号；后端信号为空时前端保持空。
+- 深扫验证：只展示真实深扫计数和 eligible 分母，不改 CoinGlass 扫描。
+- 结构分析 / 风险赔率 / 交易计划 / 复盘进化：不改业务决策，只移除前端越权合成。
+
+### 测试结果
+
+- 定向前端合同与仓库真值测试：pass，96/96。
+- `npm run typecheck`：pass。
+- `npm run lint`：pass。
+- `npm run test:market`：pass，836/836；worker 17/17；historical smoke 4/4。
+- `npm run build`：pass。
+- `npm run backtest:golden`：pass，16/16。
+- forbidden-files / secret-patterns / security-check：pass。
+- formal：未运行。
+- 腾讯 Compose config、web build/recreate、health、Postgres、Redis、workers、Shadow supervisor、扫描分母合同和浏览器视觉复核：pass。
+
+### 是否部署
+
+已推功能分支和 GitHub `main`，生产应用提交 `05e9530846b276cd1c56bc789b95c2540bfa83aa`。腾讯只重建 `web`，未运行 migration，未修改数据库 schema，未清 Postgres/Redis，未删除或重建 volume。生产证据目录为 `/home/ubuntu/apps/chuan-market-radar/reports/production-facts/20260710T010527Z`。
+
+### 风险与遗留问题
+
+- P0：公网仍为明文 HTTP，浏览器标记“不安全”；本轮按范围未混入 HTTPS/private session。
+- WP-G0.1 的前端合成事实、假 0、榜单补信号、重复 scan proof 和扫描分母混用已关闭。
+- 生命周期 unknown/timeout、null MFE/MAE、closed/evidence-grade/pending 分母真值尚未收口，属于 WP-G0.2。
+- 当前系统仍为 `可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只做 `WP-G0.2 Candidate Lifecycle and Outcome Truth`。
