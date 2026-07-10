@@ -585,24 +585,31 @@
   ],
   "lastCompletedWorkPackage": "WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL (isolated scope only)",
   "lastAttemptedWorkPackage": {
-    "id": "WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL",
-    "title": "Candidate Episode / Checkpoint / Outcome authoritative schema implementation and isolated rehearsal",
-    "status": "PASS_IMPLEMENTATION_AND_REHEARSAL",
-    "runtimeCodeChanged": true,
-    "runtimeActivationStatus": "dormant_not_imported_by_production_api_or_workers",
+    "id": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA",
+    "title": "Candidate Episode / Checkpoint / Outcome production additive schema deployment",
+    "status": "PARTIAL_MIGRATION_NOT_RUN",
+    "runtimeCodeChanged": false,
+    "runtimeActivationStatus": "unchanged",
     "databaseSchemaChanged": false,
     "schemaCodeImplemented": true,
-    "isolatedMigrationRun": true,
+    "isolatedMigrationRun": false,
     "productionMigrationRun": false,
-    "productionDatabaseConnected": false,
+    "productionDatabaseConnected": true,
+    "productionDatabaseAccess": "read_only_preflight_only",
+    "productionLoginRoleCount": 1,
+    "applicationRoleIsOnlyLoginRole": true,
+    "applicationRoleHasSuperuserCapabilities": true,
+    "independentMigrationLoginRoleAvailable": false,
+    "backupCreated": false,
+    "restoreDrillRun": false,
     "deployed": false,
     "productionWriteFlagsEnabled": false,
     "productionReadCutover": false,
     "g0Complete": false,
     "evidence": {
-      "path": "reports/wp-g0-2-migration-implementation-and-rehearsal/WP_G0_2_MIGRATION_IMPLEMENTATION_REHEARSAL_REPORT.md",
+      "path": "reports/wp-g0-2-migration-production-add-schema/WP_G0_2_MIGRATION_PRODUCTION_ADD_SCHEMA_REPORT.md",
       "storage": "local_ignored_artifact",
-      "note": "Implementation and local PostgreSQL rehearsal evidence only; no production migration or deployment authority."
+      "note": "Production runtime and PostgreSQL read-only preflight evidence; migration stopped before backup, staging or DDL because no independent migration LOGIN identity exists."
     }
   },
   "currentDesignPackage": {
@@ -632,7 +639,7 @@
     }
   },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA only after new explicit user approval",
+  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION only after new explicit user approval",
   "nextWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
     "status": "pass",

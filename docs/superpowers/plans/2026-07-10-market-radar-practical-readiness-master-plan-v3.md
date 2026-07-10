@@ -235,7 +235,7 @@ interface MarketFactEnvelope<T> {
 
 ### WP-G0.2 Candidate Lifecycle and Outcome Truth
 
-**Current status (2026-07-10):** `PARTIAL_PRODUCTION_SCHEMA_MIGRATION_REQUIRED`
+**Current status (2026-07-11):** `PARTIAL_MIGRATION_NOT_RUN`
 
 Repository-wide audit confirmed that the production mutable journal/scan-state JSONB schema cannot enforce immutable Candidate Episodes or exactly-once terminal Outcomes. The separately authorized implementation/rehearsal package has now implemented the approved dormant schema/runtime foundation and passed isolated PostgreSQL rehearsal, but production migration, writer activation, backfill, read cutover and deployment remain false.
 
@@ -246,6 +246,10 @@ The proposed package freezes scope+instrument single-active Episode, split Check
 **Implementation/rehearsal status (2026-07-10):** `PASS_IMPLEMENTATION_AND_REHEARSAL`
 
 The user later authorized this independent package through the current execution contract. Eight additive migrations implement 8 tables/151 approved fields plus restricted procedures and seven NOLOGIN roles. Empty/previous-schema/repeat/checksum/concurrency/permission/rollback/restore tests passed only on local `wp_g0_2_rehearsal_*` databases. Production DB connected=false, production schema changed=false, production migration=false, production deployed=false, all production write/read flags=false. This scoped PASS does not complete WP-G0.2.
+
+**Production add-schema attempt (2026-07-11):** `PARTIAL_MIGRATION_NOT_RUN`
+
+The production runtime baseline and PostgreSQL lock/capacity checks passed, but the migration identity Gate failed before backup or DDL. Production has one LOGIN database role; it is also the current application role and has SUPERUSER/CREATEDB/CREATEROLE/REPLICATION/BYPASSRLS. No independent migration LOGIN identity exists, while the seven approved Candidate roles are absent before migration and are NOLOGIN by design. The package therefore stopped before staging, backup, restore rehearsal and production migration. Production schema/application/runtime stayed unchanged.
 
 **Modify:**
 
@@ -925,13 +929,13 @@ R4 之后用户可自主决定是否做小范围人工验证。该步骤：
 
 ## 18. 当前唯一下一建议
 
-`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成并通过生产验证的 Work Package。`WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL` 已在自身隔离范围达到 PASS，但 `WP-G0.2` 因生产 schema/writer/read path 均未改变而仍未完成。当前没有自动授权的下一任务；只有再次明确批准后才建议：
+`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成并通过生产验证的 Work Package。`WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL` 已在自身隔离范围达到 PASS；后续 production add-schema 因独立 migration 身份缺失在 preflight 停止，生产 schema/writer/read path 均未改变。`WP-G0.2` 仍未完成。当前没有自动授权的下一任务；只有再次明确批准后才建议：
 
 ```text
-WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA
+WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION
 ```
 
-该建议包只能在新的独立合同中授权生产加表；它不自动授权 shadow writer、backfill、authority/read cutover 或前端切换。HTTPS/private session 继续保留为独立 WP-G0.3，不和生命周期/outcome 真值修复混成同一个代码包。
+该建议包只允许建立与应用 runtime 隔离的最小权限 migration 身份、显式 production approval guard 和可审计 runner，并重新证明 artifact/role/backup 前置条件；它不授权生产加表本身，也不授权 shadow writer、backfill、authority/read cutover 或前端切换。完成后仍需重新审批并从 Step 0 重跑 production add-schema。HTTPS/private session 继续保留为独立 WP-G0.3。
 
 本轮不同时开始扫描排序、新模式、策略权重、Shadow v2、视觉重构或付费数据接入。
 

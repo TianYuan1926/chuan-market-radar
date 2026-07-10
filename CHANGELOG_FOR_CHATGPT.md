@@ -2200,3 +2200,46 @@ P0 阻断：
 ### 下一轮建议
 
 只有再次获得用户明确批准后，才可进入 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA`；不得自动进入 shadow writer、backfill、read cutover、G1、R4 或实盘。
+
+## 2026-07-11 / WP-G0.2 Production Add-Schema Preflight Stop
+
+### 本轮目标
+
+在不改变现有应用行为的前提下，对锁定提交 `e9604336c24fdc625437c43bba4d9a7688e58cd0` 执行生产 PostgreSQL 加表前置 Gate；只有全部 Gate 通过才允许 additive migration。
+
+### 修改范围
+
+- 通过 Edge OrcaTerm 执行生产身份、工作树、Compose、health、worker、Shadow、Postgres/Redis 和 production evidence 只读核验。
+- 执行 PostgreSQL catalog、连接、锁、事务、容量、角色能力和 Candidate schema 只读 preflight。
+- 生成本地脱敏 PARTIAL 证据包并更新治理文档。
+- 未创建 production staging worktree、生产备份或异地副本；未执行 restore drill、migration、backfill、Feature Flag、读写切换、应用部署或重启。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：发现 production authority schema 的 migration 身份前置条件不成立，Schema 继续缺失。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：无行为变化。
+
+### 测试结果
+
+- 锁定 source commit 与本地 8 个 migration checksum：pass。
+- production runtime baseline：pass，工作树 clean，health/scan ready/fresh，required workers healthy，Shadow heartbeat fresh。
+- production evidence validate：pass（显式对齐实际 application commit `0599f802...`）。
+- PostgreSQL lock/capacity：pass，9/100 connections，0 长事务，0 lock waiter，0 ungranted lock。
+- PostgreSQL migration identity Gate：fail；只有 1 个 LOGIN 角色且它是应用 SUPERUSER，独立 migration LOGIN 角色不存在。
+- backup/offsite/restore/rehearsal/migration/catalog-after/30-60m observation：not run，按 preflight 阻断停止。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。生产 Schema 未改变，应用 release/image 未改变，Web/Worker/Shadow/Postgres/Redis 未重启。生产 worktree 最终 clean。
+
+### 风险与遗留问题
+
+- P0：应用运行身份拥有完整数据库超级权限，违反最小权限边界。
+- P0：没有独立 production migration LOGIN 身份，不能合规执行本包 DDL。
+- P1：未建立本次 migration 所需的加密异地备份与真实 restore drill 证据。
+- 当前状态：`PARTIAL_MIGRATION_NOT_RUN / R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只建议另行审批 `WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION`；先收口独立 migration 身份和 production runner，再从 Step 0 重跑 add-schema。
