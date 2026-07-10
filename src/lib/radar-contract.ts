@@ -37,9 +37,11 @@ export type ScanProofData = {
   currentCycleScannedAssets: number // 当前调度周期实际处理的资产数
   deepScanned: number // 已深扫
   awaitingDeepScan: number // 等待深扫
-  lightCoveragePercent: number // accepted / eligible
+  lightAcceptancePercent: number // accepted / observed
+  currentCycleCoveragePercent: number // currentCycleScanned / eligible
   deepCoveragePercent: number // deepScanned / eligible
-  lightCoverageDenominator: 'eligible_assets'
+  lightAcceptanceDenominator: 'observed_assets'
+  currentCycleCoverageDenominator: 'eligible_assets'
   deepCoverageDenominator: 'eligible_assets'
   lastScanAt: string // 最近扫描时间
   nextScanCountdownSec: number // 下一轮扫描倒计时（秒）
@@ -54,9 +56,11 @@ export function getScanProof(): Resource<ScanProofData> {
     currentCycleScannedAssets: 0,
     deepScanned: 0,
     awaitingDeepScan: 0,
-    lightCoveragePercent: 0,
+    lightAcceptancePercent: 0,
+    currentCycleCoveragePercent: 0,
     deepCoveragePercent: 0,
-    lightCoverageDenominator: 'eligible_assets',
+    lightAcceptanceDenominator: 'observed_assets',
+    currentCycleCoverageDenominator: 'eligible_assets',
     deepCoverageDenominator: 'eligible_assets',
     lastScanAt: '等待后端契约',
     nextScanCountdownSec: 0,

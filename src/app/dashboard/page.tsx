@@ -173,12 +173,12 @@ export default async function DashboardPage() {
       count: true,
     },
     {
-      label: '轻扫覆盖率',
+      label: '当前周期覆盖',
       value: scan.coverage,
       suffix: '%',
       icon: Gauge,
       tone: 'var(--neon)',
-      sub: `轻扫 ${scan.scanned.toLocaleString()} · 深扫 ${radar.scanProof.data.deepScanned.toLocaleString()}`,
+      sub: `本周期 ${scan.scanned.toLocaleString()} · 深扫 ${radar.scanProof.data.deepScanned.toLocaleString()}`,
       count: true,
     },
     {

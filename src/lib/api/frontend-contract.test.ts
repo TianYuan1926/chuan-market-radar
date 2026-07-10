@@ -885,12 +885,14 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.scanProof.data.eligibleAssets, 720);
   assert.equal(radar.scanProof.data.currentCycleScannedAssets, 24);
   assert.equal(radar.scanProof.data.deepScanned, 24);
-  assert.equal(radar.scanProof.data.lightCoveragePercent, 100);
+  assert.equal(radar.scanProof.data.lightAcceptancePercent, 87.8);
+  assert.equal(radar.scanProof.data.currentCycleCoveragePercent, 3.3);
   assert.equal(radar.scanProof.data.deepCoveragePercent, 3.3);
-  assert.equal(radar.scanProof.data.lightCoverageDenominator, "eligible_assets");
+  assert.equal(radar.scanProof.data.lightAcceptanceDenominator, "observed_assets");
+  assert.equal(radar.scanProof.data.currentCycleCoverageDenominator, "eligible_assets");
   assert.equal(radar.scanProof.data.deepCoverageDenominator, "eligible_assets");
-  assert.match(radar.scanProof.reason ?? "", /轻扫覆盖率/);
-  assert.match(radar.scanProof.reason ?? "", /深扫占比/);
+  assert.match(radar.scanProof.reason ?? "", /公开轻扫接受率/);
+  assert.match(radar.scanProof.reason ?? "", /深扫覆盖率/);
   assert.equal(radar.deepScanQueue.data.currentBatch.includes("TIA"), true);
   assert.equal(radar.coreChainGovernance.status, "partial");
   assert.equal(radar.coreChainGovernance.data.schemaVersion, "core-chain-governance.v1");
@@ -948,6 +950,32 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.ok(radar.realtimeCapability.data.lanes.some((lane) => lane.key === "exchange_websocket_light_scan" && lane.allowedUse === "anomaly_discovery"));
   assert.ok(radar.realtimeCapability.data.boundaries.some((rule) => /秒级数据只负责发现异常/.test(rule)));
   assert.match(radar.realtimeCapability.reason ?? "", /秒级层只用于发现异常/);
+});
+
+test("scan proof keeps public observation and eligible-asset denominators separate", () => {
+  const backend = backendContract();
+  backend.scanProof.fullMarket.totalAssets = 593;
+  backend.scanProof.fullMarket.eligibleAssets = 593;
+  backend.scanProof.fullMarket.scannedAssets = 24;
+  backend.scanProof.lightScan.universeCount = 3_113;
+  backend.scanProof.lightScan.acceptedCount = 1_316;
+  backend.scanProof.deepScan.cleanRows = 46;
+
+  const radar = buildFrontendRadarContract({
+    backend,
+    snapshot: snapshot(),
+    env: {},
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(radar.scanProof.data.observedAssets, 3_113);
+  assert.equal(radar.scanProof.data.acceptedAssets, 1_316);
+  assert.equal(radar.scanProof.data.eligibleAssets, 593);
+  assert.equal(radar.scanProof.data.currentCycleScannedAssets, 24);
+  assert.equal(radar.scanProof.data.deepScanned, 46);
+  assert.equal(radar.scanProof.data.lightAcceptancePercent, 42.3);
+  assert.equal(radar.scanProof.data.currentCycleCoveragePercent, 4);
+  assert.equal(radar.scanProof.data.deepCoveragePercent, 7.8);
 });
 
 test("buildFrontendRadarContract exposes realtime capability boundaries and CoinGlass failures explicitly", () => {

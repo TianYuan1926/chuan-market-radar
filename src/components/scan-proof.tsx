@@ -49,9 +49,11 @@ const EMPTY_PROOF: ScanProofData = {
   currentCycleScannedAssets: 0,
   deepScanned: 0,
   awaitingDeepScan: 0,
-  lightCoveragePercent: 0,
+  lightAcceptancePercent: 0,
+  currentCycleCoveragePercent: 0,
   deepCoveragePercent: 0,
-  lightCoverageDenominator: 'eligible_assets',
+  lightAcceptanceDenominator: 'observed_assets',
+  currentCycleCoverageDenominator: 'eligible_assets',
   deepCoverageDenominator: 'eligible_assets',
   lastScanAt: 'n/a',
   nextScanCountdownSec: 0,
@@ -131,9 +133,9 @@ export function ScanProof({
       </div>
 
       <div className="grid gap-5 p-5 lg:grid-cols-[1.1fr_1fr]">
-        {/* 左：全市场轻扫覆盖 + 扫描进度 */}
+        {/* 左：公开轻扫接受 + 扫描进度 */}
         <div className="flex items-center gap-5">
-          <CoverageRing pct={scanAvailable ? proof.lightCoveragePercent : null} />
+          <CoverageRing pct={scanAvailable ? proof.lightAcceptancePercent : null} />
           <div className="space-y-3 text-sm">
             <Stat label="观察" value={countLabel(proof.observedAssets)} />
             <Stat label="轻扫接受" value={countLabel(proof.acceptedAssets)} tone="text-up" />
@@ -147,8 +149,8 @@ export function ScanProof({
             </div>
             <div className="text-[10px] leading-relaxed text-muted-foreground">
               {scanAvailable
-                ? `轻扫 ${proof.acceptedAssets}/${proof.eligibleAssets} · 深扫 ${proof.deepScanned}/${proof.eligibleAssets}`
-                : '轻扫与深扫分母 n/a'}
+                ? `公开接受 ${proof.acceptedAssets}/${proof.observedAssets} (${proof.lightAcceptancePercent.toFixed(1)}%) · 本周期 ${proof.currentCycleScannedAssets}/${proof.eligibleAssets} (${proof.currentCycleCoveragePercent.toFixed(1)}%) · 深扫 ${proof.deepScanned}/${proof.eligibleAssets} (${proof.deepCoveragePercent.toFixed(1)}%)`
+                : '公开接受、本周期与深扫分母 n/a'}
             </div>
           </div>
         </div>
@@ -271,7 +273,7 @@ function CoverageRing({ pct }: { pct: number | null }) {
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className="font-mono text-2xl font-bold text-neon">{pct === null ? 'n/a' : `${pct.toFixed(1)}%`}</span>
-        <span className="text-[10px] text-muted-foreground">轻扫覆盖</span>
+        <span className="text-[10px] text-muted-foreground">轻扫接受率</span>
       </div>
     </div>
   )

@@ -229,7 +229,7 @@ export function scanProofResourceToScanState(
   const batchSize = Math.max(1, scanned)
 
   return {
-    coverage: clamp(data.lightCoveragePercent, 0, 100),
+    coverage: clamp(data.currentCycleCoveragePercent, 0, 100),
     scanned,
     pending,
     total,

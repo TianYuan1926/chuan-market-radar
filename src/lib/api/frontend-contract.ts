@@ -78,9 +78,11 @@ export type ScanProofData = {
   currentCycleScannedAssets: number;
   deepScanned: number;
   awaitingDeepScan: number;
-  lightCoveragePercent: number;
+  lightAcceptancePercent: number;
+  currentCycleCoveragePercent: number;
   deepCoveragePercent: number;
-  lightCoverageDenominator: "eligible_assets";
+  lightAcceptanceDenominator: "observed_assets";
+  currentCycleCoverageDenominator: "eligible_assets";
   deepCoverageDenominator: "eligible_assets";
   lastScanAt: string;
   nextScanCountdownSec: number;
@@ -3429,14 +3431,15 @@ export function buildFrontendRadarContract({
   const coinGlassRuntime = backend.sourceAudit.coinGlassCapability;
   const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
   const coinGlassRequestFailure = backend.sourceAudit.coinGlassDeepScan.requestFailures?.[0];
-  const eligibleAssets = Math.max(0, coverage.eligibleAssets);
+  const observedAssets = Math.max(0, backend.scanProof.lightScan.universeCount);
   const acceptedAssets = Math.max(0, backend.scanProof.lightScan.acceptedCount);
+  const eligibleAssets = Math.max(0, coverage.eligibleAssets);
   const currentCycleScannedAssets = Math.max(0, coverage.scannedAssets);
-  const lightScannedAssets = eligibleAssets > 0
-    ? Math.min(eligibleAssets, acceptedAssets)
-    : acceptedAssets;
-  const lightCoverage = eligibleAssets > 0
-    ? (lightScannedAssets / eligibleAssets) * 100
+  const lightAcceptance = observedAssets > 0
+    ? (acceptedAssets / observedAssets) * 100
+    : 0;
+  const currentCycleCoverage = eligibleAssets > 0
+    ? (currentCycleScannedAssets / eligibleAssets) * 100
     : coverage.coveragePercent;
   const deepCoverage = eligibleAssets > 0
     ? (Math.max(0, cleanDeepScanRows) / eligibleAssets) * 100
@@ -3465,15 +3468,17 @@ export function buildFrontendRadarContract({
 
   return {
     scanProof: resource({
-      observedAssets: coverage.totalAssets,
+      observedAssets,
       acceptedAssets,
       eligibleAssets,
       currentCycleScannedAssets,
       deepScanned: cleanDeepScanRows,
       awaitingDeepScan: Math.max(0, eligibleAssets - Math.max(0, cleanDeepScanRows)),
-      lightCoveragePercent: round(Math.min(100, Math.max(0, lightCoverage)), 1),
+      lightAcceptancePercent: round(Math.max(0, lightAcceptance), 1),
+      currentCycleCoveragePercent: round(Math.max(0, currentCycleCoverage), 1),
       deepCoveragePercent: round(deepCoverage, 1),
-      lightCoverageDenominator: "eligible_assets" as const,
+      lightAcceptanceDenominator: "observed_assets" as const,
+      currentCycleCoverageDenominator: "eligible_assets" as const,
       deepCoverageDenominator: "eligible_assets" as const,
       lastScanAt: timeLabel(snapshot.metadata.generatedAt),
       nextScanCountdownSec: scanCountdown(snapshot, now),
@@ -3481,7 +3486,7 @@ export function buildFrontendRadarContract({
     }, status, {
       ageSec,
       source,
-      reason: "观察数、轻扫接受数、可扫描数、当前周期处理数和深扫数独立展示；轻扫覆盖率和深扫占比均以可扫描资产为分母。",
+      reason: "观察数、轻扫接受数、可扫描数、当前周期处理数和深扫数独立展示；公开轻扫接受率以观察资产为分母，当前周期覆盖率和深扫覆盖率以可扫描资产为分母。",
     }),
     deepScanQueue: resource({
       currentBatch: normalizeAssetList(allocation.selectedAssets),

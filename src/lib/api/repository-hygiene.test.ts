@@ -1075,7 +1075,7 @@ test("signal table does not fabricate lifecycle prices or frontend trade plans",
   assert.doesNotMatch(homePageSource, /建议入场区间|杠杆建议|主力净流入\/流出|链上数据|精准出手|资金净流向|入场窗口与目标价/);
   assert.doesNotMatch(tokenPageSource, /主力资金|净流入/);
   assert.match(homePageSource, /redirect\('\/dashboard'\)/);
-  assert.match(dashboardPageSource, /轻扫覆盖率/);
+  assert.match(dashboardPageSource, /当前周期覆盖/);
 });
 
 test("legacy radar contract getters are disabled instead of returning static market facts", () => {
@@ -1093,7 +1093,7 @@ test("legacy radar contract getters are disabled instead of returning static mar
 
   assert.doesNotMatch(authGateSource, /SiteLoader/);
 
-  assert.match(scanProofSource, /轻扫覆盖/);
+  assert.match(scanProofSource, /轻扫接受率/);
   assert.doesNotMatch(scanProofSource, />覆盖率</);
 
   assert.match(anomalyBoardSource, /待后端追踪/);
