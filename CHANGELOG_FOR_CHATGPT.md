@@ -2071,3 +2071,44 @@ P0 阻断：
 ### 下一轮建议
 
 只做 `WP-G0.2 Candidate Lifecycle and Outcome Truth`。
+
+## 2026-07-10 / WP-G0.2 Candidate Lifecycle and Outcome Truth Schema Stop
+
+### 本轮目标
+
+统一 Candidate Episode 生命周期、neutral/unknown/timeout、Shadow Outcome 五态和 Review 分母真值。
+
+### 修改范围
+
+- 只读审计 Candidate、Journal、Shadow、Review、Persistence、API、Frontend 和生产点样本。
+- 生成真值矩阵、source-of-truth map、allowlist、迁移提案和脱敏证据包。
+- 更新 context、changelog、traceability 和 V3 Work Package 状态。
+- 未修改任何 runtime code、数据库 schema、Docker/worker/Caddy、scan/analysis/strategy/READY/RR/ranking。
+
+### 核心链路影响
+
+- 候选筛选：确认缺少权威 Candidate Episode，现有状态不能证明 active/closed/retrigger/firstSeen 真值。
+- 复盘进化：确认 Outcome 五态、evidence-grade 和 Review 分母没有权威持久化闭环。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：未改。
+
+### 测试结果
+
+- 定向 baseline：pass，68/68。
+- `npm run typecheck`：pass。
+- lint/test:market/worker/historical/build/golden/forbidden/secret/security：schema stop 后未运行，不能写成通过。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。生产只读点样本仍为 clean `main@0599f802f261fe8e3c1982a07106f362bd62ac13`，health ready/fresh；该健康状态不证明 Candidate/Outcome 真值。未运行 migration，未清 Redis/Postgres，未删除或重建 volume。
+
+### 风险与遗留问题
+
+- P0：现有 schema 无法可靠表达不可变 Episode、单活跃约束、重触发继承和单终态 Outcome。
+- P0：neutral/unknown→long、null price/MFE/MAE→0、pending/error→timeout 和事件行分母污染仍存在。
+- P0（既有、范围外）：公网仍为明文 HTTP。
+- 当前状态：`PARTIAL_SCHEMA_MIGRATION_REQUIRED / R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只建议人工审查并批准独立的 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`；不得自动开始迁移、WP-G0.3、G1、R4 或实盘。

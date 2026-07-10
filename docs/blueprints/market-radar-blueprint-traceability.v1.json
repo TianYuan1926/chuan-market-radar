@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
   "status": "proposed",
-  "generatedAt": "2026-07-10T06:28:53+08:00",
+  "generatedAt": "2026-07-10T13:18:49+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -584,7 +584,24 @@
     }
   ],
   "lastCompletedWorkPackage": "WP-G0.1 Frontend Truth Contract",
-  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2 Candidate Lifecycle and Outcome Truth",
+  "lastAttemptedWorkPackage": {
+    "id": "WP-G0.2",
+    "title": "Candidate Lifecycle and Outcome Truth",
+    "status": "PARTIAL_SCHEMA_MIGRATION_REQUIRED",
+    "runtimeCodeChanged": false,
+    "databaseSchemaChanged": false,
+    "migrationRun": false,
+    "deployed": false,
+    "g0Complete": false,
+    "evidence": {
+      "path": "reports/wp-g0-2-candidate-lifecycle-outcome-truth/WP_G0_2_DELIVERY_REPORT.md",
+      "storage": "local_ignored_artifact",
+      "note": "The report directory is gitignored and is delivered as a local redacted ZIP; tracked governance files preserve the authoritative status."
+    }
+  },
+  "nextAuthorizedWorkPackageAfterApproval": null,
+  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL",
+  "nextWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
     "status": "pass",
     "jsonParsed": true,

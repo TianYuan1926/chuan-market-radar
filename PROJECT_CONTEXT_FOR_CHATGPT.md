@@ -13,19 +13,20 @@
 - 运行蓝图定义 11 个 Compose 服务、启动顺序、周期任务、五类健康语义、7 个核心状态/流程图、初始 SLO、error budget、18 类降级、SEV0-SEV3、RB-01 至 RB-12、发布、备份恢复、容量和 R4 暂停政策。
 - 机器矩阵把 7 个核心链路环节、G0-G8、当前代码路径、目标合同、运行检查和证据逐项对应。首轮验证：JSON parse pass、当前路径缺失 0、Mermaid 13/13 有无障碍描述、敏感值 0、diff-check pass。
 - WP-G0.1 已修改前端只读事实合同与展示，并完成 GitHub `main` 和腾讯 `web` 部署；未修改 DB、Redis、worker、Caddy、strategy、backtest 或 secret，未运行 migration、restore、rollback 或 formal。
-- 双蓝图与 V3 路线已获用户确认；`WP-G0.1 - Frontend Truth Contract` 已在 `main@05e9530846b276cd1c56bc789b95c2540bfa83aa` 完成并部署验证。唯一下一入口是 `WP-G0.2 - Candidate Lifecycle and Outcome Truth`。
+- `WP-G0.2 - Candidate Lifecycle and Outcome Truth` 已完成仓库、持久化、Review、前端和生产只读审计，结论为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`；现有 mutable JSONB journal/scan-state 结构不能在数据库层保证单活跃 Episode、不可变 firstSeen、重触发继承、append-only 历史和 Outcome 只终态一次。本轮依约停止运行时代码、migration 和部署。
+- 双蓝图与 V3 路线已获用户确认；`WP-G0.1 - Frontend Truth Contract` 仍是最后一个完整完成并部署验证的 Work Package。当前没有自动授权的下一包；唯一建议是单独审批 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`。
 - 2026-07-10 已把两份历史 Master Plan、v2、最新 `53/100` 全系统审计、当前代码和当前只读生产点样本合并为唯一建议版 `Market Radar Practical Readiness Master Plan v3`：`docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md`。v2 已标记 `SUPERSEDED`，只保留审计历史。
 - 历史方案的 46 项任务已逐项清洗为 completed / partial / superseded / deferred / not started，机器可读矩阵位于 `docs/superpowers/plans/2026-07-10-market-radar-v3-current-state-matrix.json`。CoinGlass 旧鉴权故障已归档为历史事故，不再冒充当前主阻断。
 - V3 是已确认的顺序化建设与验收方案，不是实战能力证明；每个 work package 仍需独立范围锁定、门禁、部署证据和人工审计。
 - 当前真实等级是 `R1 - 生产研究平台 / 可运行但不完整 / 不能支撑实战`。`53/100` 是最近架构审计分，不是实战 readiness 分。
 - 当前生产验收点样本：`/api/health` 为 `ready / fresh`，六个业务 worker 当下 healthy；公开市场 observed=3112、accepted=1316，scan eligible=593，current-cycle=24，deep-scanned=48。前端合同分别显示公开接受率 42.3%（accepted/observed）、当前周期覆盖率 4.0%（current-cycle/eligible）和深扫覆盖率 8.1%（deep/eligible）。
 - 当前公网入口仍为明文 `http://43.161.202.227`，浏览器标记“不安全”。这是新的 P0；Caddy 配置和 private-session 代码本地存在，不等于生产 HTTPS / private mode 已通过。
-- 当前生产 frontend contract 返回 radarSignals=30、`TRADE_PLAN_READY=0`。WP-G0.1 未重新验收 Review 的 closed/evidence-grade/pending 与 MFE/MAE 分母，这些数字不得沿用旧快照冒充当前事实，必须在 WP-G0.2 重算并验收。
-- 当前活动 P0 为公网明文 HTTP，浏览器仍标记“不安全”。WP-G0.1 已关闭榜单升级为信号、前端合成 direction/freshness/age/source/score/sentiment/volMult、unknown price 显示为 0、重复 scan proof 和扫描分母混用；生命周期 unknown/timeout/MFE/MAE 真值问题属于下一包 WP-G0.2，不在本轮冒充已关闭。
+- 当前生产 frontend contract 返回 radarSignals=30、`TRADE_PLAN_READY=0`。生产旧 Review 点样本为最新 120 条 journal event，其中 closed=51、claimed evidence=61、pending=59、MFE/MAE=0；这些状态会重叠且 null 会被补 0，只能作为 legacy diagnostics，不能作为 Candidate Episode/Outcome 权威分母。生产 active/closed episode 和五类 outcome 数量当前应为 unavailable，不得写成 0。
+- 当前活动 P0 包括公网明文 HTTP，以及 Candidate/Outcome 权威存储缺失。WP-G0.1 已关闭榜单升级为信号、部分前端合成事实、unknown price 显示为 0、重复 scan proof 和扫描分母混用；WP-G0.2 进一步确认 Review 路径仍存在 neutral/unknown→long、null MFE/MAE/price→0、pending/error→timeout 和事件行分母污染，尚未修复。
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
-- WP-G0.1 已完成代码、测试、提交、push 和生产 `web` 验证；未运行 migration 或 formal，未修改或清理 Postgres/Redis/volume。
-- 唯一下一任务是 `WP-G0.2 - Candidate Lifecycle and Outcome Truth`；不并行改扫描排序、策略权重、Shadow v2、视觉主题、HTTPS 或付费数据接入。
+- WP-G0.2 只完成审计、真值矩阵、迁移提案和治理证据；未修改 runtime code，未部署，未运行 migration/formal，未修改或清理 Postgres/Redis/volume。
+- 下一步只能先人工审查和批准 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`；不自动启动，不并行改扫描排序、策略权重、Shadow v2、视觉主题、HTTPS 或付费数据接入。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
 - 第 5.1-DEPLOY-CHANNEL-FIX 证据显示：Chrome 里没有 OrcaTerm；用户打开 Microsoft Edge 中的腾讯云 OrcaTerm 后，Codex 通过 Computer Use 可控该页面，并以 `ubuntu@VM-0-9-ubuntu` 完成服务器只读 smoke。只读 smoke 覆盖 `whoami`、`hostname`、`pwd`、UTC date、`uname`、Docker/Compose 版本、项目目录访问、`ls -la`、`docker compose ps` / `sudo -n docker compose ps`。观察到 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务均在运行，web/postgres/redis 为 healthy。
@@ -1090,7 +1091,21 @@ GPT / 用户验收第 4.2 证据
 
 当前真实状态仍是：**可运行但不完整，不能支撑实战。**
 
-唯一下一任务：`WP-G0.2 Candidate Lifecycle and Outcome Truth`。只修 lifecycle/outcome/Review 真值，不并行处理 HTTPS、扫描排序、策略权重或视觉重构。
+## 2026-07-10 WP-G0.2 Candidate Lifecycle and Outcome Truth
+
+本轮先审计 Candidate/Outcome/Review 全链路，再依据任务停止规则冻结范围。结论为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`，不是 WP-G0.2 PASS，也不是完整 G0 PASS。
+
+当前事实：
+
+- 蓝图 `CandidateEpisode` 没有对应的权威 runtime/persistence entity；journal 与 scan-state 都是会冲突更新的 mutable projection。
+- 现有 schema 不能强制一币单活跃 Episode、firstSeen 不可变、closed 历史保留、同币重触发新 ID、parent lineage、append-only event 和 `(eventId, checkpoint)` 单终态 Outcome。
+- Review 当前按事件行而非 Episode/Checkpoint 统计；pending/closed 可重叠，null MFE/MAE 会变 0，DB 读取失败可退化为空数组。
+- 前端 lifecycle 路径会把非 short 显示为 long，把缺失 price/MFE/MAE 显示为 0，把未命中 TP/SL 的所有状态显示成超时。
+- 生产只读点样本 health 为 ready/fresh，但 CandidateEpisode/Outcome 权威数量不可用。旧 120 行 Review 诊断不能作为真实分母。
+- 本轮未修改 runtime code、scan/analysis/strategy/READY/RR/ranking，未部署，未 migration，未清 DB/Redis/volume，未运行 formal。
+- 已生成 `reports/wp-g0-2-candidate-lifecycle-outcome-truth/WP-G0.2-MIGRATION-PROPOSAL.md`。它是提案，不是迁移授权。
+
+当前仍为 **R1 / 可运行但不完整 / 不能支撑实战**。最后完整完成包仍是 WP-G0.1；完整 G0 未通过。当前无自动授权的下一 Work Package，唯一建议是人工审批 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`。
 
 ## 2026-07-09 第 5.1-H.1-R.2-FIX Shadow Runner Loop 根因修复
 
