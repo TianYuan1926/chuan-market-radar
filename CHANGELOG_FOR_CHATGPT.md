@@ -2112,3 +2112,42 @@ P0 阻断：
 ### 下一轮建议
 
 只建议人工审查并批准独立的 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`；不得自动开始迁移、WP-G0.3、G1、R4 或实盘。
+
+## 2026-07-10 / WP-G0.2 Migration Design and User Approval Package
+
+### 本轮目标
+
+冻结 CandidateEpisode、Checkpoint、Outcome、Review denominator 的权威数据模型、迁移阶段、恢复方案和用户审批决定。
+
+### 修改范围
+
+- 新建 10 个 PROPOSED ADR、字段 registry、不可执行 DDL 设计文本、状态机、事务/锁/幂等、legacy/backfill、cutover/rollback、rehearsal、安全恢复、API/Review/Frontend 和用户审批包。
+- 更新 context、changelog、traceability、V3 和兼容蓝图索引。
+- 未修改任何 runtime/frontend/API/worker/runner/scan/analysis/strategy/risk 或正式 migration 文件。
+
+### 核心链路影响
+
+- 候选筛选与复盘进化：只冻结未来权威模型，不改变当前运行行为。
+- 全市场发现、深扫、结构分析、风险赔率、交易计划：未改。
+- Outcome 继续禁止回写 production ranking/strategy/READY/RR。
+
+### 静态验证
+
+- 10/10 ADR 有唯一决定；三个 registry 双向覆盖 DDL 8 表 151/151 字段，双向遗漏和重复均为 0；全部 JSON 可解析；26 项 rehearsal test matrix 已定义。
+- DDL 文件头为 `DESIGN DRAFT ONLY / DO NOT EXECUTE`，包含故意不可执行 placeholder，不在 migration 目录。
+- runtime 测试/typecheck/build 未运行，本轮仅文档治理且合同不要求；formal 禁止且未运行。
+
+### 是否部署
+
+未部署；未连接数据库；未执行 DDL/migration；未修改或清理 Postgres/Redis/volume；未重建 Docker。生产运行提交和健康未在本轮刷新。
+
+### 风险与遗留问题
+
+- 设计状态是 `PROPOSED / READY_FOR_USER_APPROVAL`，不是 APPROVED。
+- 当前 runtime 仍没有 Candidate/Outcome authority，frontend truth 仍 partial/reopened。
+- 当前 transaction/migration/DB role/backup/restore 路径存在 P0 实施前置缺口。
+- 正式 known-issues registry 不存在，只更新本地 risk register 和 context/changelog。
+
+### 下一轮建议
+
+先由 ChatGPT/用户审计 `USER_APPROVAL_PACKET.md`。只有用户明确批准后，才可创建 `WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL`；生产 migration 和 read cutover仍需后续独立批准。

@@ -14,7 +14,8 @@
 - 机器矩阵把 7 个核心链路环节、G0-G8、当前代码路径、目标合同、运行检查和证据逐项对应。首轮验证：JSON parse pass、当前路径缺失 0、Mermaid 13/13 有无障碍描述、敏感值 0、diff-check pass。
 - WP-G0.1 已修改前端只读事实合同与展示，并完成 GitHub `main` 和腾讯 `web` 部署；未修改 DB、Redis、worker、Caddy、strategy、backtest 或 secret，未运行 migration、restore、rollback 或 formal。
 - `WP-G0.2 - Candidate Lifecycle and Outcome Truth` 已完成仓库、持久化、Review、前端和生产只读审计，结论为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`；现有 mutable JSONB journal/scan-state 结构不能在数据库层保证单活跃 Episode、不可变 firstSeen、重触发继承、append-only 历史和 Outcome 只终态一次。本轮依约停止运行时代码、migration 和部署。
-- 双蓝图与 V3 路线已获用户确认；`WP-G0.1 - Frontend Truth Contract` 仍是最后一个完整完成并部署验证的 Work Package。当前没有自动授权的下一包；唯一建议是单独审批 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`。
+- `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL` 已完成 10 个 ADR、覆盖 8 表 151 字段的完整 registry、不可执行 DDL 草案、事务/并发、legacy、72h cutover、rollback/rehearsal、安全恢复和用户审批包，设计结论为 `READY_FOR_USER_APPROVAL`，但状态仍是 `PROPOSED`、`approvedByUser=false`、schema 未实施、migration 未运行、生产未部署。
+- 双蓝图与 V3 路线已获用户确认；`WP-G0.1 - Frontend Truth Contract` 仍是最后一个完整完成并部署验证的 Work Package。当前没有自动授权的下一包；只有用户明确批准本设计后，才可建议创建 `WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL`。
 - 2026-07-10 已把两份历史 Master Plan、v2、最新 `53/100` 全系统审计、当前代码和当前只读生产点样本合并为唯一建议版 `Market Radar Practical Readiness Master Plan v3`：`docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md`。v2 已标记 `SUPERSEDED`，只保留审计历史。
 - 历史方案的 46 项任务已逐项清洗为 completed / partial / superseded / deferred / not started，机器可读矩阵位于 `docs/superpowers/plans/2026-07-10-market-radar-v3-current-state-matrix.json`。CoinGlass 旧鉴权故障已归档为历史事故，不再冒充当前主阻断。
 - V3 是已确认的顺序化建设与验收方案，不是实战能力证明；每个 work package 仍需独立范围锁定、门禁、部署证据和人工审计。
@@ -22,11 +23,12 @@
 - 当前生产验收点样本：`/api/health` 为 `ready / fresh`，六个业务 worker 当下 healthy；公开市场 observed=3112、accepted=1316，scan eligible=593，current-cycle=24，deep-scanned=48。前端合同分别显示公开接受率 42.3%（accepted/observed）、当前周期覆盖率 4.0%（current-cycle/eligible）和深扫覆盖率 8.1%（deep/eligible）。
 - 当前公网入口仍为明文 `http://43.161.202.227`，浏览器标记“不安全”。这是新的 P0；Caddy 配置和 private-session 代码本地存在，不等于生产 HTTPS / private mode 已通过。
 - 当前生产 frontend contract 返回 radarSignals=30、`TRADE_PLAN_READY=0`。生产旧 Review 点样本为最新 120 条 journal event，其中 closed=51、claimed evidence=61、pending=59、MFE/MAE=0；这些状态会重叠且 null 会被补 0，只能作为 legacy diagnostics，不能作为 Candidate Episode/Outcome 权威分母。生产 active/closed episode 和五类 outcome 数量当前应为 unavailable，不得写成 0。
-- 当前活动 P0 包括公网明文 HTTP，以及 Candidate/Outcome 权威存储缺失。WP-G0.1 已关闭榜单升级为信号、部分前端合成事实、unknown price 显示为 0、重复 scan proof 和扫描分母混用；WP-G0.2 进一步确认 Review 路径仍存在 neutral/unknown→long、null MFE/MAE/price→0、pending/error→timeout 和事件行分母污染，尚未修复。
+- 当前活动 P0 包括公网明文 HTTP、Candidate/Outcome 权威存储缺失、轻扫 `topCandidates` 仍被合成为 `RadarSignal`、Review neutral/unknown→long、null→0、pending/error→timeout 和事件行分母污染。WP-G0.1 的单一扫描证明和 leaderboard fallback 防线仍保留，但全站 frontend truth 已重开为 partial。
+- 新的数据库安全审计 P0：当前代码/Compose 路径可能让 web/worker 共用 bootstrap/superuser 派生身份；生产 role 属性本轮未连接数据库验证。现有 migration route 被 routine deploy/verify 隐式调用，备份为本地未证明加密异地恢复的 dump，restore 具有 destructive clean 语义。这些都必须在任何生产 migration 前关闭。
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
-- WP-G0.2 只完成审计、真值矩阵、迁移提案和治理证据；未修改 runtime code，未部署，未运行 migration/formal，未修改或清理 Postgres/Redis/volume。
-- 下一步只能先人工审查和批准 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`；不自动启动，不并行改扫描排序、策略权重、Shadow v2、视觉主题、HTTPS 或付费数据接入。
+- 本设计包只完成架构与审批材料；未修改 runtime/frontend/API/worker/schema，未部署，未运行 migration/formal，未连接或清理 Postgres/Redis/volume。
+- 当前只允许用户/ChatGPT 审计审批包。Codex 不得代批；未明确批准前不能创建 implementation 包，更不能生产 migration、read cutover、G1、R4 或实盘。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
 - 第 5.1-DEPLOY-CHANNEL-FIX 证据显示：Chrome 里没有 OrcaTerm；用户打开 Microsoft Edge 中的腾讯云 OrcaTerm 后，Codex 通过 Computer Use 可控该页面，并以 `ubuntu@VM-0-9-ubuntu` 完成服务器只读 smoke。只读 smoke 覆盖 `whoami`、`hostname`、`pwd`、UTC date、`uname`、Docker/Compose 版本、项目目录访问、`ls -la`、`docker compose ps` / `sudo -n docker compose ps`。观察到 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务均在运行，web/postgres/redis 为 healthy。
@@ -1106,6 +1108,18 @@ GPT / 用户验收第 4.2 证据
 - 已生成 `reports/wp-g0-2-candidate-lifecycle-outcome-truth/WP-G0.2-MIGRATION-PROPOSAL.md`。它是提案，不是迁移授权。
 
 当前仍为 **R1 / 可运行但不完整 / 不能支撑实战**。最后完整完成包仍是 WP-G0.1；完整 G0 未通过。当前无自动授权的下一 Work Package，唯一建议是人工审批 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`。
+
+## 2026-07-10 WP-G0.2 Migration Design and Approval
+
+本轮是纯设计与审批包，最终设计状态为 `PROPOSED / READY_FOR_USER_APPROVAL`，不表示用户已批准或 schema 已实现。
+
+冻结决定：v1 scope 为单一 `production_radar` 权威通道；单活跃键是 `(scope, canonical_instrument_id) WHERE closed_at IS NULL`；不允许同币 long/short 或多策略并行 Episode；方向反转关闭旧 Episode 并创建 child。Checkpoint 与 Outcome 分表，retry 属于 Checkpoint，Outcome 只有 recorded/missed/data_unavailable 三个不可变终态。`eg.v1` 要求有界 1m K 线 100% 覆盖、无缺失/重复/future candle，并保存版本、reasons 和 candle-set hash。
+
+事务正确性由 Postgres same-connection transaction、advisory/row lock、partial unique、idempotency hash、stream version、claim lease 和 fencing token共同保证；Redis 不授予写权限。Legacy 默认权威 Episode/Outcome 回填数为 0，partial/unclassified 永不进入正常状态机或指标分母。
+
+Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72h，需连续 24h 无可比差异和 10,000 次写入；切换写冻结最多 120 秒。Rollback 保留新 schema/历史，旧投影不完整时只能 forward-fix。任何 production add-schema、shadow writer、backfill 和 read cutover 都必须单独审批。
+
+当前系统事实没有改善：runtime/schema/frontend/production 均未改变，完整 WP-G0.2/G0 未完成，仍为 R1、不能支撑实战、自动交易永久禁止。正式 known-issues registry 仍不存在，本包只生成 local risk register/supplement。
 
 ## 2026-07-09 第 5.1-H.1-R.2-FIX Shadow Runner Loop 根因修复
 

@@ -30,13 +30,13 @@
 
 ## C. 当前唯一下一入口
 
-`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 已完成只读审计，但因现有 schema 无法可靠表达不可变 Episode/Outcome 而停止，结论为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`。当前没有自动授权的下一包；唯一建议为：
+`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 因现有 schema 无法可靠表达不可变 Episode/Outcome 而保持 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`。迁移设计包已达到 `PROPOSED / READY_FOR_USER_APPROVAL`，但用户尚未批准。当前没有自动授权的下一包；只有明确批准设计后才建议：
 
 ```text
-WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL（需明确审批）
+WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL（需先明确批准设计）
 ```
 
-不得自行运行 migration，也不得并行启动 HTTPS、扫描排序、策略权重、Shadow v2、视觉重构或付费数据接入。
+设计批准也不授权 production migration 或 read cutover。不得自行运行 migration，也不得并行启动 HTTPS、扫描排序、策略权重、Shadow v2、视觉重构或付费数据接入。
 
 ## D. 旧版详细事实保留区
 

@@ -239,6 +239,10 @@ interface MarketFactEnvelope<T> {
 
 Repository-wide audit confirmed that the current mutable journal/scan-state JSONB schema cannot enforce immutable Candidate Episodes or exactly-once terminal Outcomes. Runtime implementation, migration, and deployment stopped under the package contract. `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL` is a recommendation only and requires explicit approval.
 
+**Design package status (2026-07-10):** `PROPOSED / READY_FOR_USER_APPROVAL / approvedByUser=false`
+
+The proposed package freezes scope+instrument single-active Episode, split Checkpoint/Outcome, versioned evidence grade, strict legacy quarantine, Postgres transaction/fencing, bounded 72h phase+epoch cutover, rollback/restore and approval gates. It changes no runtime/schema/production fact and grants no implementation or migration authority.
+
 **Modify:**
 
 - `src/lib/journal/journal-entry.ts`
@@ -917,13 +921,13 @@ R4 之后用户可自主决定是否做小范围人工验证。该步骤：
 
 ## 18. 当前唯一下一建议
 
-`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成并通过生产验证的 Work Package。`WP-G0.2` 已完成审计但因 schema stop 结论为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`。当前没有自动授权的下一任务；唯一建议是：
+`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成并通过生产验证的 Work Package。`WP-G0.2` 因 schema stop 仍为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`。迁移设计包已达到 `READY_FOR_USER_APPROVAL`，但仍是 PROPOSED 且用户未批准。当前没有自动授权的下一任务；只有明确批准后才建议：
 
 ```text
-WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL
+WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL
 ```
 
-该建议包只评审 additive schema、约束、回填、rehearsal 和 rollback，不等于授权执行 production migration。HTTPS/private session 继续保留为独立 WP-G0.3，不和生命周期/outcome 真值修复混成同一个代码包。
+该建议包只允许实现 migration artifact 和隔离 rehearsal，不等于授权 production migration。Add-schema、shadow/backfill 和 read cutover 仍需后续独立批准。HTTPS/private session 继续保留为独立 WP-G0.3，不和生命周期/outcome 真值修复混成同一个代码包。
 
 本轮不同时开始扫描排序、新模式、策略权重、Shadow v2、视觉重构或付费数据接入。
 

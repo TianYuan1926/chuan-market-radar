@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
   "status": "proposed",
-  "generatedAt": "2026-07-10T13:18:49+08:00",
+  "generatedAt": "2026-07-10T14:44:54+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -599,8 +599,30 @@
       "note": "The report directory is gitignored and is delivered as a local redacted ZIP; tracked governance files preserve the authoritative status."
     }
   },
+  "currentDesignPackage": {
+    "id": "WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL",
+    "status": "READY_FOR_USER_APPROVAL",
+    "designStatus": "PROPOSED",
+    "designVersion": "wp-g0.2-migration-design.v1",
+    "designDigest": "2ac5f5f290fa5eed1664736edd6e2aa641815a30e8beb1a349cf49e6634f0d24",
+    "designArtifactCount": 59,
+    "approvedByUser": false,
+    "schemaImplemented": false,
+    "migrationRun": false,
+    "productionSchemaChanged": false,
+    "runtimeCodeChanged": false,
+    "productionDeployed": false,
+    "g0Complete": false,
+    "practicalTradingReady": false,
+    "evidence": {
+      "path": "reports/wp-g0-2-migration-design-and-approval/WP_G0_2_MIGRATION_DESIGN_APPROVAL_REPORT.md",
+      "storage": "local_ignored_artifact",
+      "manifest": "reports/wp-g0-2-migration-design-and-approval/design-artifact-manifest.json",
+      "note": "Proposed design and redacted approval packet; digest-bound but no execution authority."
+    }
+  },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL",
+  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL only after explicit user design approval",
   "nextWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
     "status": "pass",
