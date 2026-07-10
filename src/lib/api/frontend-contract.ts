@@ -72,13 +72,16 @@ export type Resource<T> = {
 };
 
 export type ScanProofData = {
-  totalMonitored: number;
-  scannable: number;
-  lightScanned: number;
+  observedAssets: number;
+  acceptedAssets: number;
+  eligibleAssets: number;
+  currentCycleScannedAssets: number;
   deepScanned: number;
   awaitingDeepScan: number;
-  deepCoverage: number;
-  coverage: number;
+  lightCoveragePercent: number;
+  deepCoveragePercent: number;
+  lightCoverageDenominator: "eligible_assets";
+  deepCoverageDenominator: "eligible_assets";
   lastScanAt: string;
   nextScanCountdownSec: number;
   stuck: boolean;
@@ -165,7 +168,7 @@ export type DiscoveryFact = {
   pressureSide: DiscoveryPressureSide | null;
   proxyQuality: DiscoveryProxyQuality | null;
   reasons: string[];
-  score: number | null;
+  score?: number | null;
   sellPressureUsd: number | null;
   source: "light_scan_top_candidate" | "not_in_light_scan_top_candidates";
   largeBuyTradeUsd: number | null;
@@ -194,6 +197,7 @@ export type RadarSignal = {
   risk: "低" | "中" | "高" | "极高";
   evidenceCount: number;
   counterCount: number;
+  score: number | null;
   freshness: DataSourceState["feed"];
   whySelected: string;
   whyBlocked: string | null;
@@ -203,7 +207,7 @@ export type RadarSignal = {
 
 export type SignalUnifiedDecisionRead = {
   schemaVersion: "signal-unified-decision.v1";
-  source: "unified_decision_engine" | "frontend_candidate_guard";
+  source: "unified_decision_engine";
   decision: UnifiedDecisionResult["decision"];
   decisionLabel: "观察" | "等待" | "拦截" | "交易计划就绪";
   allowedUse: UnifiedDecisionResult["allowedUse"];
@@ -225,7 +229,7 @@ export type SignalLifecycleRead = {
   ageLabel: string;
   freshnessLabel: "刚出现" | "近期有效" | "旧观察" | "已过期";
   status: "new" | "active" | "stale" | "expired";
-  source: "current_signal_timestamp" | "light_scan_snapshot" | "leaderboard_candidate";
+  source: "current_signal_timestamp" | "light_scan_snapshot";
   summary: string;
 };
 
@@ -1848,7 +1852,7 @@ function lifecycleRead({
     freshnessLabel,
     status,
     source,
-    summary: `当前只基于${source === "light_scan_snapshot" ? "轻扫快照时间" : source === "leaderboard_candidate" ? "榜单快照时间" : "后端信号更新时间"}判断新旧：${freshnessLabel}，${ageLabel(ageMin)}。`,
+    summary: `当前只基于${source === "light_scan_snapshot" ? "轻扫快照时间" : "后端信号更新时间"}判断新旧：${freshnessLabel}，${ageLabel(ageMin)}。`,
   };
 }
 
@@ -2176,6 +2180,7 @@ function buildRadarSignal(signal: MarketSignal, snapshot: MarketRadarSnapshot, n
     risk: riskCn(signal.risk),
     evidenceCount: supportive.length,
     counterCount: counter.length,
+    score: Number.isFinite(signal.confidence) ? round(signal.confidence, 1) : null,
     freshness: marketStatusToResourceStatus(snapshot.metadata.status) === "live"
       ? "live"
       : sourceStatusToFeed(snapshot.metadata.status),
@@ -2268,6 +2273,9 @@ function buildLightCandidateRadarSignal({
     risk: riskForLightCandidate(candidate),
     evidenceCount: candidate.reasons.length,
     counterCount: 0,
+    score: typeof candidate.score === "number" && Number.isFinite(candidate.score)
+      ? round(candidate.score, 1)
+      : null,
     freshness,
     whySelected: whySelectedForLightCandidate(candidate),
     whyBlocked: blocker,
@@ -3421,15 +3429,17 @@ export function buildFrontendRadarContract({
   const coinGlassRuntime = backend.sourceAudit.coinGlassCapability;
   const cleanDeepScanRows = backend.scanProof.deepScan.cleanRows;
   const coinGlassRequestFailure = backend.sourceAudit.coinGlassDeepScan.requestFailures?.[0];
-  const scannableAssets = Math.max(0, coverage.eligibleAssets);
-  const lightScannedAssets = scannableAssets > 0
-    ? Math.min(scannableAssets, Math.max(0, backend.scanProof.lightScan.acceptedCount))
-    : Math.max(0, backend.scanProof.lightScan.acceptedCount);
-  const lightCoverage = scannableAssets > 0
-    ? (lightScannedAssets / scannableAssets) * 100
+  const eligibleAssets = Math.max(0, coverage.eligibleAssets);
+  const acceptedAssets = Math.max(0, backend.scanProof.lightScan.acceptedCount);
+  const currentCycleScannedAssets = Math.max(0, coverage.scannedAssets);
+  const lightScannedAssets = eligibleAssets > 0
+    ? Math.min(eligibleAssets, acceptedAssets)
+    : acceptedAssets;
+  const lightCoverage = eligibleAssets > 0
+    ? (lightScannedAssets / eligibleAssets) * 100
     : coverage.coveragePercent;
-  const deepCoverage = scannableAssets > 0
-    ? (Math.max(0, cleanDeepScanRows) / scannableAssets) * 100
+  const deepCoverage = eligibleAssets > 0
+    ? (Math.max(0, cleanDeepScanRows) / eligibleAssets) * 100
     : coverage.coveragePercent;
   const lightScanQuality = buildLightScanQuality({ backend, env, now });
   const opportunityQuality = buildOpportunityQuality(visibleSignals);
@@ -3455,20 +3465,23 @@ export function buildFrontendRadarContract({
 
   return {
     scanProof: resource({
-      totalMonitored: coverage.totalAssets,
-      scannable: scannableAssets,
-      lightScanned: lightScannedAssets,
+      observedAssets: coverage.totalAssets,
+      acceptedAssets,
+      eligibleAssets,
+      currentCycleScannedAssets,
       deepScanned: cleanDeepScanRows,
-      awaitingDeepScan: Math.max(0, scannableAssets - Math.max(0, cleanDeepScanRows)),
-      deepCoverage: round(deepCoverage, 1),
-      coverage: round(Math.min(100, Math.max(0, lightCoverage)), 1),
+      awaitingDeepScan: Math.max(0, eligibleAssets - Math.max(0, cleanDeepScanRows)),
+      lightCoveragePercent: round(Math.min(100, Math.max(0, lightCoverage)), 1),
+      deepCoveragePercent: round(deepCoverage, 1),
+      lightCoverageDenominator: "eligible_assets" as const,
+      deepCoverageDenominator: "eligible_assets" as const,
       lastScanAt: timeLabel(snapshot.metadata.generatedAt),
       nextScanCountdownSec: scanCountdown(snapshot, now),
       stuck: snapshot.metadata.status === "failed" || coverage.status === "blocked",
     }, status, {
       ageSec,
       source,
-      reason: "轻扫覆盖率表示公开交易所全市场快速过筛覆盖；深扫占比表示本轮 CoinGlass 衍生品确认覆盖。深扫是轮转确认层，不是一次性全市场重扫。",
+      reason: "观察数、轻扫接受数、可扫描数、当前周期处理数和深扫数独立展示；轻扫覆盖率和深扫占比均以可扫描资产为分母。",
     }),
     deepScanQueue: resource({
       currentBatch: normalizeAssetList(allocation.selectedAssets),
@@ -3585,7 +3598,11 @@ export function buildFrontendRadarContract({
       liveSignals.length > 0 ? status : candidateSignals.length > 0 ? "partial" : status,
       {
         ageSec,
-        source: liveSignals.length > 0 ? "signal-worker" : "public-light-scan",
+        source: liveSignals.length > 0
+          ? "signal-worker"
+          : candidateSignals.length > 0
+            ? "public-light-scan"
+            : undefined,
         reason: liveSignals.length > 0
           ? undefined
           : candidateSignals.length > 0
@@ -3598,7 +3615,7 @@ export function buildFrontendRadarContract({
       marketStatusToResourceStatus(backend.sourceAudit.macroMarket.status),
       {
         ageSec: backend.sourceAudit.macroMarket.ageMinutes === null ? undefined : backend.sourceAudit.macroMarket.ageMinutes * 60,
-        source: backend.sourceAudit.macroMarket.source ?? "macro-market",
+        source: backend.sourceAudit.macroMarket.source ?? undefined,
       },
     ),
     derivatives: resource(
@@ -3606,7 +3623,7 @@ export function buildFrontendRadarContract({
       snapshot.derivatives.length > 0 ? status : "partial",
       {
         ageSec,
-        source: "coinglass",
+        source: snapshot.derivatives.length > 0 ? "coinglass" : undefined,
         reason: snapshot.derivatives.length > 0
           ? "OI/Funding/多空比已接入；主动买卖代理在轻扫发现层展示，不能冒充交易所原生资金流。"
           : "当前快照未包含衍生品明细。",
@@ -3617,7 +3634,7 @@ export function buildFrontendRadarContract({
       snapshot.derivatives.length > 0 ? "partial" : "empty",
       {
         ageSec,
-        source: "coinglass",
+        source: snapshot.derivatives.length > 0 ? "coinglass" : undefined,
         reason: "资金流只能展示已接真实字段；轻扫主动买卖代理只能用于发现层，不等于原生资金流。",
       },
     ),
@@ -5073,7 +5090,7 @@ export function buildFrontendTokenDossierContract({
     }),
   }, dossier.found ? "live" : "empty", {
     ageSec: diffSeconds(dossier.generatedAt, now),
-    source: "signal-worker",
+    source: dossier.found ? "signal-worker" : undefined,
   });
 }
 

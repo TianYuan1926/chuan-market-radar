@@ -31,13 +31,16 @@ function legacyEmptyResource<T>(data: T): Resource<T> {
 // 一、全市场扫描证明
 // ============================================================
 export type ScanProofData = {
-  totalMonitored: number // 总监控币数
-  scannable: number // 可扫描币数
-  lightScanned: number // 已轻扫
+  observedAssets: number // 公开市场本轮观察到的资产数
+  acceptedAssets: number // 轻扫源接受并返回的资产数
+  eligibleAssets: number // 经过 universe 规则后可进入扫描的资产数
+  currentCycleScannedAssets: number // 当前调度周期实际处理的资产数
   deepScanned: number // 已深扫
   awaitingDeepScan: number // 等待深扫
-  coverage: number // 全市场轻扫覆盖率 %
-  deepCoverage?: number // 本轮 CoinGlass 深扫占比 %
+  lightCoveragePercent: number // accepted / eligible
+  deepCoveragePercent: number // deepScanned / eligible
+  lightCoverageDenominator: 'eligible_assets'
+  deepCoverageDenominator: 'eligible_assets'
   lastScanAt: string // 最近扫描时间
   nextScanCountdownSec: number // 下一轮扫描倒计时（秒）
   stuck: boolean // 当前扫描是否卡住
@@ -45,13 +48,16 @@ export type ScanProofData = {
 
 export function getScanProof(): Resource<ScanProofData> {
   return legacyEmptyResource({
-    totalMonitored: 0,
-    scannable: 0,
-    lightScanned: 0,
+    observedAssets: 0,
+    acceptedAssets: 0,
+    eligibleAssets: 0,
+    currentCycleScannedAssets: 0,
     deepScanned: 0,
     awaitingDeepScan: 0,
-    coverage: 0,
-    deepCoverage: 0,
+    lightCoveragePercent: 0,
+    deepCoveragePercent: 0,
+    lightCoverageDenominator: 'eligible_assets',
+    deepCoverageDenominator: 'eligible_assets',
     lastScanAt: '等待后端契约',
     nextScanCountdownSec: 0,
     stuck: true,
@@ -286,6 +292,7 @@ export type RadarSignal = {
   risk: '低' | '中' | '高' | '极高'
   evidenceCount: number
   counterCount: number
+  score?: number | null // 只接受后端信号或轻扫合同提供的分数
   freshness: DataSourceState['feed']
   whySelected: string // 为什么入选
   whyBlocked: string | null // 为什么不能交易（无则 null）
@@ -295,7 +302,7 @@ export type RadarSignal = {
 
 export type SignalUnifiedDecisionRead = {
   schemaVersion: 'signal-unified-decision.v1'
-  source: 'unified_decision_engine' | 'frontend_candidate_guard'
+  source: 'unified_decision_engine'
   decision: 'OBSERVE' | 'WAIT' | 'BLOCKED' | 'TRADE_PLAN_READY'
   decisionLabel: '观察' | '等待' | '拦截' | '交易计划就绪'
   allowedUse: 'backend_decision_only'
@@ -323,7 +330,7 @@ export type SignalLifecycleRead = {
   ageLabel: string
   freshnessLabel: '刚出现' | '近期有效' | '旧观察' | '已过期'
   status: 'new' | 'active' | 'stale' | 'expired'
-  source: 'current_signal_timestamp' | 'light_scan_snapshot' | 'leaderboard_candidate'
+  source: 'current_signal_timestamp' | 'light_scan_snapshot'
   summary: string
 }
 

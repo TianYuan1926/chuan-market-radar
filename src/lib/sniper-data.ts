@@ -15,8 +15,8 @@ export type SniperTarget = {
   hue: number
   side: SniperSide // 看涨 / 看空
   type: SignalType
-  score: number // 综合评分 0-100
-  confidence: number // 证据完整度 0-100
+  score: number | null // 后端评分；缺失时不得前端合成
+  confidence: number | null // 后端未提供证据完整度时必须为空
   odds: number // 盈亏比 R:R
   riskLevel: '低' | '中' | '高' | '极高'
   exchange: string
@@ -29,8 +29,8 @@ export type SniperTarget = {
   target2: number // 第二目标
   thesis: string // 核心策略逻辑
   signals: SniperSignal[] // 多维证据清单
-  bullSentiment: number // 看涨情绪 0-100
-  volMult: number // 成交量倍数
+  bullSentiment: number | null // 后端未提供时必须为空
+  volMult: number | null // 后端未提供时必须为空
   // ===== 评判结果（复盘进化引擎据此判定对错） =====
   played: boolean // 策略是否兑现
   outcomePct: number // 实际价格波动 %

@@ -60,7 +60,7 @@ export function SiteNav() {
             <span className="grid size-6 place-items-center bg-neon font-mono text-xs font-bold text-[var(--primary-foreground)]">
               川
             </span>
-            <span className="hidden sm:inline">实战雷达</span>
+            <span className="hidden sm:inline">研究雷达</span>
           </div>
         </div>
       </div>

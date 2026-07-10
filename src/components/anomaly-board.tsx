@@ -62,7 +62,7 @@ const FILTERS: { id: PoolStatus | 'all'; label: string; hint?: string }[] = [
 const COLS =
   'grid-cols-[28px_36px_minmax(140px,1.4fr)_repeat(2,minmax(80px,0.9fr))_repeat(3,minmax(72px,0.8fr))_minmax(56px,0.6fr)_minmax(80px,0.8fr)_repeat(2,52px)_28px]'
 
-type SortKey = 'score' | 'age' | 'cap' | 'sentiment'
+type SortKey = 'score' | 'age' | 'cap'
 
 const PAGE_SIZE = 20
 
@@ -114,8 +114,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
     return [...list].sort((a, b) => {
       if (sort === 'age') return a.ageMin - b.ageMin
       if (sort === 'cap') return b.token.marketCap - a.token.marketCap
-      if (sort === 'sentiment') return b.bullSentiment - a.bullSentiment
-      return b.score - a.score
+      return (b.score ?? -1) - (a.score ?? -1)
     })
   }, [cards, filter, query, sort])
 
@@ -200,7 +199,6 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           {(
             [
               ['score', '排序分'],
-              ['sentiment', '情绪'],
               ['cap', '市值'],
               ['age', '最新'],
             ] as [SortKey, string][]
@@ -252,8 +250,8 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             <span className="text-right">追踪</span>
             <span className="text-center">情绪</span>
             <span className="text-right">市值</span>
-            <span className="text-center">短线</span>
-            <span className="text-center">趋势</span>
+            <span className="text-center">证据</span>
+            <span className="text-center">反证</span>
             <span />
           </div>
 
@@ -266,7 +264,6 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             const isStar = starred[card.id]
             const isOpen = open === card.id
             const candidateOnly =
-              card.sourceKind === 'leaderboard_candidate' ||
               card.maturity === 'LIGHT_SCAN_MARK' ||
               card.maturity === 'DEEP_SCAN_CANDIDATE'
             const planReady = card.operatorRead.lane === 'sniper' && card.maturity === 'TRADE_PLAN_READY'
@@ -283,10 +280,10 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                 Price: card.token.price > 0 ? card.token.price : '暂无',
               },
               technical: [
-                { label: '排序分', value: `${card.score}/100` },
+                { label: '后端评分', value: card.score === null ? 'n/a' : `${card.score}/100` },
                 { label: '结构盈亏比', value: card.odds > 0 ? `${card.odds}:1` : '暂无' },
-                { label: '异常强度', value: `${card.token.anomalyScore}/100` },
-                { label: '量能倍数', value: `x${card.volMult}` },
+                { label: '异常强度', value: card.token.anomalyScore === null ? 'n/a' : `${card.token.anomalyScore}/100` },
+                { label: '量能倍数', value: card.volMult === null ? 'n/a' : `x${card.volMult}` },
                 { label: '风险等级', value: card.riskLevel },
                 { label: '新旧状态', value: card.lifecycle.freshnessLabel },
               ],
@@ -381,10 +378,12 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                     <span
                       className={cn(
                         'inline-block w-12 text-center font-mono text-[12px] font-semibold',
-                        card.bullSentiment >= 50 ? 'text-up' : 'text-down',
+                        card.bullSentiment === null
+                          ? 'text-muted-foreground'
+                          : card.bullSentiment >= 50 ? 'text-up' : 'text-down',
                       )}
                     >
-                      {card.bullSentiment}%
+                      {card.bullSentiment === null ? 'n/a' : `${card.bullSentiment}%`}
                     </span>
                   </div>
                   <span className="text-right font-mono text-muted-foreground">
@@ -418,8 +417,8 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       </p>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
                         <Stat
-                          label="展示排序分"
-                          value={`${card.score}/100`}
+                          label="后端评分"
+                          value={card.score === null ? 'n/a' : `${card.score}/100`}
                           tone="var(--neon)"
                         />
                         <Stat

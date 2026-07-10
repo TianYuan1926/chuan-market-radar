@@ -7,7 +7,6 @@ import {
 } from '@/lib/frontend-contract-server'
 import {
   radarSignalsToTokens,
-  withLeaderboardSignalFallback,
 } from '@/lib/frontend-display-adapters'
 import { PAGE_DISPLAY_NAMES } from '@/lib/ui-schema/display-names'
 
@@ -18,11 +17,7 @@ export default async function SystemPage() {
     getRadarContractForPage(),
     getLeaderboardContractForPage('volume'),
   ])
-  const displaySignals = withLeaderboardSignalFallback(
-    radar.radarSignals,
-    tickerLeaderboard.data,
-  )
-  const tokens = radarSignalsToTokens(displaySignals.data, tickerLeaderboard.data)
+  const tokens = radarSignalsToTokens(radar.radarSignals.data, tickerLeaderboard.data)
 
   return (
     <main className="min-h-screen">

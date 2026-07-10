@@ -12,19 +12,14 @@ import {
   type RadarContract,
   type RealtimeCapabilityState,
   type ScanStabilityState,
-  type ScanProofData,
 } from '@/lib/radar-contract'
 import { resource } from '@/lib/data-status'
 import { displayMaturityName } from '@/lib/ui-schema/display-names'
 import { StatusBadge, FreshnessTag, ResourceBoundary } from '@/components/data-state'
-import { CountUp } from '@/components/count-up'
 import {
-  Radar,
   Layers,
   Cpu,
   Database,
-  CircleDot,
-  Timer,
   Route,
   ShieldCheck,
   ClipboardList,
@@ -144,23 +139,6 @@ const EMPTY_SOURCE = {
   source: 'frontend-contract',
   reason: '未收到后端页面契约，禁止使用演示数据兜底',
 }
-
-const EMPTY_SCAN = resource<ScanProofData>(
-  {
-    totalMonitored: 0,
-    scannable: 0,
-    lightScanned: 0,
-    deepScanned: 0,
-    awaitingDeepScan: 0,
-    deepCoverage: 0,
-    coverage: 0,
-    lastScanAt: '—',
-    nextScanCountdownSec: 0,
-    stuck: true,
-  },
-  'empty',
-  EMPTY_SOURCE,
-)
 
 const EMPTY_QUEUE = resource<DeepScanQueue>(
   {
@@ -332,7 +310,6 @@ const EMPTY_GOVERNANCE = resource<CoreChainGovernanceReport>({
 }, 'empty', EMPTY_SOURCE)
 
 export function DashboardRadarControl({ contract }: { contract?: RadarContract } = {}) {
-  const scan = contract?.scanProof ?? EMPTY_SCAN
   const queue = contract?.deepScanQueue ?? EMPTY_QUEUE
   const caps = contract?.capabilityStages ?? EMPTY_CAPABILITIES
   const governance = contract?.coreChainGovernance ?? EMPTY_GOVERNANCE
@@ -345,84 +322,9 @@ export function DashboardRadarControl({ contract }: { contract?: RadarContract }
   const macroReadiness = contract?.macroReadiness ?? EMPTY_MACRO_READINESS
   const opsReliability = contract?.opsReliability ?? EMPTY_OPS_RELIABILITY
 
-  const sp = scan.data
-
-  const scanMetrics: { label: string; value: number; suffix?: string }[] = [
-    { label: '总监控币数', value: sp.totalMonitored },
-    { label: '可扫描', value: sp.scannable },
-    { label: '已轻扫', value: sp.lightScanned },
-    { label: '已深扫', value: sp.deepScanned },
-    { label: '等待深扫', value: sp.awaitingDeepScan },
-    { label: '轻扫覆盖率', value: sp.coverage, suffix: '%' },
-    { label: '深扫占比', value: sp.deepCoverage ?? 0, suffix: '%' },
-  ]
-
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      {/* 一、全市场扫描证明 */}
-      <section className="border border-border bg-card">
-        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-          <span className="h-3.5 w-1 bg-neon" />
-          <Radar className="size-4 text-neon" />
-          <h2 className="font-semibold">全市场扫描证明</h2>
-          <StatusBadge status={scan.status} className="ml-auto" />
-        </div>
-        <div className="p-5">
-          <ResourceBoundary resource={scan}>
-          <div className="grid grid-cols-3 gap-2.5">
-            {scanMetrics.map((m, i) => (
-              <div
-                key={m.label}
-                className="data-tile tile-in border border-border bg-secondary/30 p-2.5"
-                style={{ ['--i' as string]: i }}
-              >
-                <div className="text-[11px] text-muted-foreground">{m.label}</div>
-                <div className="mt-1 font-mono text-lg font-bold tracking-tight">
-                  <CountUp value={m.value} suffix={m.suffix} />
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* 全市场轻扫覆盖进度条：入场增长 + 轨道流光 */}
-          <div className="mt-3">
-            <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>全市场轻扫覆盖</span>
-              <span className="font-mono text-foreground">{sp.coverage}%</span>
-            </div>
-            <div className="bar-track h-1.5 overflow-hidden bg-secondary">
-              <div
-                className="bar-fill h-full bg-neon"
-                style={{ width: `${sp.coverage}%` }}
-              />
-            </div>
-            {scan.reason && (
-              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                {scan.reason}
-              </p>
-            )}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <CircleDot className="size-3.5 text-neon" />
-              最近扫描 <span className="font-mono text-foreground">{sp.lastScanAt}</span>
-            </span>
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Timer className="size-3.5 text-neon" />
-              下一轮 <span className="font-mono text-foreground">{sp.nextScanCountdownSec}s</span>
-            </span>
-            <span
-              className={`flex items-center gap-1.5 ${sp.stuck ? 'text-down' : 'text-up'}`}
-            >
-              <span className={`size-1.5 rounded-full ${sp.stuck ? 'bg-down' : 'bg-up animate-pulse'}`} />
-              {sp.stuck ? '扫描卡住' : '扫描正常'}
-            </span>
-          </div>
-          <FreshnessTag {...scan} className="mt-2 block" />
-          </ResourceBoundary>
-        </div>
-      </section>
-
-      {/* 二、深扫队列 */}
+      {/* 深扫队列；扫描总证明只由 ScanProof 组件呈现。 */}
       <section className="border border-border bg-card">
         <div className="flex items-center gap-2 border-b border-border px-5 py-3">
           <span className="h-3.5 w-1 bg-neon" />

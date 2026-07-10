@@ -14,7 +14,6 @@ import {
   radarSignalsToTokens,
   scanProofResourceToScanState,
   systemStatusFromContracts,
-  withLeaderboardSignalFallback,
 } from '@/lib/frontend-display-adapters'
 import {
   getLeaderboardContractForPage,
@@ -93,7 +92,7 @@ export default async function DashboardPage() {
     getLeaderboardContractForPage('volume'),
   ])
   const tickerRows = tickerLeaderboard.data
-  const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
+  const displaySignals = radar.radarSignals
   const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
   const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)
   const scan = scanProofResourceToScanState(radar.scanProof, radar.apiUsage)
@@ -109,7 +108,7 @@ export default async function DashboardPage() {
 
   const sniper = cards
     .filter((c) => c.category === 'sniper')
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
     .slice(0, 5)
 
   const risks = cards
@@ -328,18 +327,22 @@ export default async function DashboardPage() {
                   </div>
                   <div className="ml-auto flex items-center gap-4 text-right">
                     <div>
-                      <LivePrice
-                        base={c.token.price}
-                        className="block font-mono text-sm font-bold"
-                      />
+                      {c.token.price > 0 ? (
+                        <LivePrice
+                          base={c.token.price}
+                          className="block font-mono text-sm font-bold"
+                        />
+                      ) : (
+                        <span className="block font-mono text-sm font-bold text-muted-foreground">n/a</span>
+                      )}
                       <LiveQuotePct
                         id={c.token.id}
                         className="block font-mono text-xs"
                       />
                     </div>
                     <div className="hidden sm:block">
-                      <div className="font-mono text-lg font-bold text-neon">{c.score}</div>
-                      <div className="text-[10px] text-muted-foreground">评分</div>
+                      <div className="font-mono text-lg font-bold text-neon">{c.score ?? 'n/a'}</div>
+                      <div className="text-[10px] text-muted-foreground">后端评分</div>
                     </div>
                     <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                   </div>

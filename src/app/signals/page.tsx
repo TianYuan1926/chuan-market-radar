@@ -7,7 +7,6 @@ import {
   radarSignalsToSignalCards,
   radarSignalsToSniperTargets,
   radarSignalsToTokens,
-  withLeaderboardSignalFallback,
 } from '@/lib/frontend-display-adapters'
 import {
   getLeaderboardContractForPage,
@@ -57,7 +56,7 @@ export default async function SignalsPage() {
     getLeaderboardContractForPage('volume'),
   ])
   const tickerRows = tickerLeaderboard.data
-  const displaySignals = withLeaderboardSignalFallback(radar.radarSignals, tickerRows)
+  const displaySignals = radar.radarSignals
   const signalStatus = displaySignals.status
   const tokens = radarSignalsToTokens(displaySignals.data, tickerRows)
   const cards = radarSignalsToSignalCards(displaySignals.data, tickerRows)

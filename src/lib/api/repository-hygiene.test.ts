@@ -409,13 +409,13 @@ test("signals visual widgets derive from backend radar signals", () => {
   assert.match(adapterSource, /radarSignalsToSignalCards/);
   assert.match(adapterSource, /radarSignalsToTokens/);
   assert.match(adapterSource, /radarSignalsToSniperTargets/);
-  assert.match(adapterSource, /leaderboardRowsToCandidateSignals/);
-  assert.match(adapterSource, /withLeaderboardSignalFallback/);
+  assert.doesNotMatch(adapterSource, /leaderboardRowsToCandidateSignals|withLeaderboardSignalFallback/);
+  assert.doesNotMatch(adapterSource, /frontend_candidate_guard|leaderboard_candidate/);
 
   assert.match(signalsSource, /radarSignalsToSignalCards/);
   assert.match(signalsSource, /radarSignalsToTokens/);
   assert.match(signalsSource, /radarSignalsToSniperTargets/);
-  assert.match(signalsSource, /const displaySignals = withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
+  assert.match(signalsSource, /const displaySignals = radar\.radarSignals/);
   assert.match(signalsSource, /<SignalMaturityPool signals=\{displaySignals\}/);
   assert.match(signalsSource, /<SniperBoard targets=\{sniperTargets\}/);
   assert.doesNotMatch(signalsSource, /<LiveFeed|<MarketHeatmap/);
@@ -434,19 +434,19 @@ test("signals visual widgets derive from backend radar signals", () => {
   assert.doesNotMatch(liveStoreSource, /fallbackQuoteForId/);
 });
 
-test("backend radar visual cards are enriched with backend ticker rows before falling back", () => {
+test("backend radar visual cards use ticker prices without turning leaderboard rows into signals", () => {
   const adapterSource = readFileSync(resolve(process.cwd(), "src/lib/frontend-display-adapters.ts"), "utf8");
   const signalsSource = readFileSync(resolve(process.cwd(), "src/app/signals/page.tsx"), "utf8");
 
   assert.match(adapterSource, /LeaderboardRow/);
   assert.match(adapterSource, /tickerRows/);
   assert.match(adapterSource, /priceBySymbol/);
-  assert.match(adapterSource, /leaderboardRowsToCandidateSignals/);
-  assert.match(adapterSource, /候选不等于交易计划/);
+  assert.doesNotMatch(adapterSource, /leaderboardRowsToCandidateSignals|leaderboard_candidate/);
+  assert.match(adapterSource, /return signals\.map\(\(signal\) => tokenFor/);
 
   assert.match(signalsSource, /getLeaderboardContractForPage/);
   assert.match(signalsSource, /const tickerRows = tickerLeaderboard\.data/);
-  assert.match(signalsSource, /withLeaderboardSignalFallback\(radar\.radarSignals,\s*tickerRows\)/);
+  assert.match(signalsSource, /const displaySignals = radar\.radarSignals/);
   assert.match(signalsSource, /radarSignalsToTokens\(displaySignals\.data,\s*tickerRows\)/);
   assert.match(signalsSource, /radarSignalsToSignalCards\(displaySignals\.data,\s*tickerRows\)/);
   assert.match(signalsSource, /radarSignalsToSniperTargets\(radar\.radarSignals\.data,\s*tickerRows\)/);
@@ -726,11 +726,12 @@ test("stage 8 dashboard and market pages read backend contract instead of mock m
 
   assert.match(scanProofSource, /scanProof\?:\s*Resource<ScanProofData>/);
   assert.match(scanProofSource, /scanProofResourceToScanState/);
-  assert.match(scanProofSource, /dataSourcesResourceToExchangeCoverage/);
+  assert.match(scanProofSource, /const exchanges = dataSources\?\.data \?\? \[\]/);
+  assert.doesNotMatch(adapterSource, /dataSourcesResourceToExchangeCoverage/);
   assert.doesNotMatch(scanProofSource, /getScanState|getExchangeCoverage/);
 
   assert.match(dashboardControlSource, /contract\?:\s*RadarContract/);
-  assert.match(dashboardControlSource, /contract\?\.scanProof\s*\?\?/);
+  assert.doesNotMatch(dashboardControlSource, /contract\?\.scanProof\s*\?\?|全市场扫描证明/);
   assert.match(dashboardControlSource, /contract\?\.deepScanQueue\s*\?\?/);
   assert.match(dashboardControlSource, /contract\?\.dataSources\s*\?\?/);
 

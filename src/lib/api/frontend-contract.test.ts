@@ -880,12 +880,15 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   });
 
   assert.equal(radar.scanProof.status, "live");
-  assert.equal(radar.scanProof.data.totalMonitored, 820);
-  assert.equal(radar.scanProof.data.scannable, 720);
-  assert.equal(radar.scanProof.data.lightScanned, 720);
+  assert.equal(radar.scanProof.data.observedAssets, 820);
+  assert.equal(radar.scanProof.data.acceptedAssets, 720);
+  assert.equal(radar.scanProof.data.eligibleAssets, 720);
+  assert.equal(radar.scanProof.data.currentCycleScannedAssets, 24);
   assert.equal(radar.scanProof.data.deepScanned, 24);
-  assert.equal(radar.scanProof.data.coverage, 100);
-  assert.equal(radar.scanProof.data.deepCoverage, 3.3);
+  assert.equal(radar.scanProof.data.lightCoveragePercent, 100);
+  assert.equal(radar.scanProof.data.deepCoveragePercent, 3.3);
+  assert.equal(radar.scanProof.data.lightCoverageDenominator, "eligible_assets");
+  assert.equal(radar.scanProof.data.deepCoverageDenominator, "eligible_assets");
   assert.match(radar.scanProof.reason ?? "", /轻扫覆盖率/);
   assert.match(radar.scanProof.reason ?? "", /深扫占比/);
   assert.equal(radar.deepScanQueue.data.currentBatch.includes("TIA"), true);
@@ -908,6 +911,7 @@ test("buildFrontendRadarContract exposes full-market proof and mature radar sign
   assert.equal(radar.radarSignals.data[0]?.direction, "多");
   assert.equal(radar.radarSignals.data[0]?.maturity, "EVIDENCE_SIGNAL");
   assert.equal(radar.radarSignals.data[0]?.rr, 3.2);
+  assert.equal(radar.radarSignals.data[0]?.score, 84);
   assert.equal(radar.fundFlow.status, "partial");
   assert.equal(radar.fundFlow.data.canCreateTradeSignal, false);
   assert.deepEqual(radar.fundFlow.data.connectedFields, ["open_interest", "funding_rate", "long_short_ratio"]);

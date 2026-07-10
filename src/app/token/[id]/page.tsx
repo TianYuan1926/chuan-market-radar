@@ -64,11 +64,11 @@ export default async function TokenPage({
 
   const facts: [string, string][] = [
     ['市值', fmtKnownCap(token.marketCap, { prefix: '$' })],
-    ['24H 成交额', `$${fmtCap(token.volume24h)}`],
-    ['异动强度', `${token.anomalyScore}/100`],
+    ['24H 成交额', token.volume24h > 0 ? `$${fmtCap(token.volume24h)}` : 'n/a'],
+    ['后端评分', token.anomalyScore === null ? 'n/a' : `${token.anomalyScore}/100`],
     ['趋势方向', token.trend === 'bull' ? '偏多' : token.trend === 'bear' ? '偏空' : '震荡'],
     ['证据状态', dossier.data.riskGate.allowTradePlan ? '风控放行' : '风控拦截'],
-    ['数据来源', dossier.source ?? 'backend-contract'],
+    ['数据来源', dossier.source ?? 'n/a'],
   ]
 
   return (
@@ -105,7 +105,7 @@ export default async function TokenPage({
             </div>
             <div className="ml-auto text-right">
               <div className="font-mono text-3xl font-bold leading-none">
-                ${fmtUsd(token.price)}
+                {token.price > 0 ? `$${fmtUsd(token.price)}` : 'n/a'}
               </div>
               <div
                 className={cn(

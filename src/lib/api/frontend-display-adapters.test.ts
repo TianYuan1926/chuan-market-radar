@@ -5,11 +5,10 @@ import {
   dashboardRuntimeStatusLabelFromContracts,
   leaderboardRowsToTokens,
   mergeTokensBySymbol,
-  leaderboardRowsToCandidateSignals,
   radarSignalsToSignalCards,
   radarSignalsToSniperTargets,
   radarSignalsToTokens,
-  withLeaderboardSignalFallback,
+  scanProofResourceToDataQuality,
 } from "../frontend-display-adapters";
 import type { LeaderboardRow, RadarSignal } from "../radar-contract";
 
@@ -60,6 +59,33 @@ test("dashboard runtime status only reflects production runtime resources", () =
     }),
     "异常",
   );
+});
+
+test("data quality never turns unavailable scan facts into zero or a confidence score", () => {
+  const quality = scanProofResourceToDataQuality(resource({
+    observedAssets: 0,
+    acceptedAssets: 0,
+    eligibleAssets: 0,
+    currentCycleScannedAssets: 0,
+    deepScanned: 0,
+    awaitingDeepScan: 0,
+    lightCoveragePercent: 0,
+    deepCoveragePercent: 0,
+    lightCoverageDenominator: "eligible_assets",
+    deepCoverageDenominator: "eligible_assets",
+    lastScanAt: "n/a",
+    nextScanCountdownSec: 0,
+    stuck: true,
+  }, "empty"));
+
+  assert.equal(quality.observed, null);
+  assert.equal(quality.accepted, null);
+  assert.equal(quality.eligible, null);
+  assert.equal(quality.currentCycleScanned, null);
+  assert.equal(quality.deepScanned, null);
+  assert.equal(quality.delayMs, null);
+  assert.equal(quality.evidenceStatus, "不可用");
+  assert.equal("trust" in quality, false);
 });
 
 function signalReads(
@@ -117,32 +143,12 @@ function signalReads(
   };
 }
 
-test("leaderboard rows become visible candidate signals without trade plans", () => {
-  const signals = leaderboardRowsToCandidateSignals(rows, "gainers");
-
-  assert.equal(signals.length, 2);
-  assert.deepEqual(
-    signals.map((signal) => signal.maturity),
-    ["REVIEW_ONLY", "DEEP_SCAN_CANDIDATE"],
-  );
-  assert.ok(signals.every((signal) => signal.rr === null));
-  assert.ok(signals.every((signal) => /不能当作交易计划|不允许追涨追跌/u.test(signal.whyBlocked ?? "")));
-});
-
-test("empty mature signals still render candidate cards and tokens", () => {
+test("leaderboard rows never become signals, signal cards, or signal tokens", () => {
   const cards = radarSignalsToSignalCards([], rows);
   const tokens = radarSignalsToTokens([], rows);
 
-  assert.equal(cards.length, 2);
-  assert.equal(tokens.length, 2);
-  assert.deepEqual(
-    new Set(cards.map((card) => card.token.symbol)),
-    new Set(["MET", "AIO"]),
-  );
-  assert.ok(cards.every((card) => card.category !== "sniper"));
-  assert.ok(cards.every((card) => card.odds === 0));
-  assert.ok(cards.every((card) => card.sourceKind === "leaderboard_candidate"));
-  assert.ok(cards.every((card) => card.maturity === "DEEP_SCAN_CANDIDATE"));
+  assert.deepEqual(cards, []);
+  assert.deepEqual(tokens, []);
 });
 
 test("leaderboard tokens use real row price and never metric value as price", () => {
@@ -257,6 +263,7 @@ test("signal cards keep push price empty until backend lifecycle tracking provid
     risk: "低",
     evidenceCount: 5,
     counterCount: 0,
+    score: 84,
     freshness: "live",
     whySelected: "真实证据融合信号",
     whyBlocked: null,
@@ -279,6 +286,9 @@ test("signal cards keep push price empty until backend lifecycle tracking provid
   ]);
 
   assert.equal(cards[0]?.pushPrice, 0);
+  assert.equal(cards[0]?.score, 84);
+  assert.equal(cards[0]?.bullSentiment, null);
+  assert.equal(cards[0]?.volMult, null);
 });
 
 test("sniper targets stay empty when unified decision has no ready plan", () => {
@@ -292,6 +302,7 @@ test("sniper targets stay empty when unified decision has no ready plan", () => 
     risk: "低",
     evidenceCount: 6,
     counterCount: 0,
+    score: 91,
     freshness: "live",
     whySelected: "后端证据融合已通过",
     whyBlocked: null,
@@ -333,6 +344,7 @@ test("sniper targets use only backend unified ready plan levels", () => {
     risk: "低",
     evidenceCount: 6,
     counterCount: 0,
+    score: 91,
     freshness: "live",
     whySelected: "后端证据融合已通过",
     whyBlocked: null,
@@ -361,33 +373,4 @@ test("sniper targets use only backend unified ready plan levels", () => {
   assert.equal(target?.target1, 8.6);
   assert.equal(target?.target2, 9.1);
   assert.match(target?.outcomeNote ?? "", /后端完整交易计划/);
-});
-
-test("signal resource fallback keeps real signals and appends missing candidates", () => {
-  const realSignal: RadarSignal = {
-    id: "real-met",
-    symbol: "MET",
-    hue: 130,
-    direction: "多",
-    maturity: "EVIDENCE_SIGNAL",
-    rr: 2.8,
-    risk: "中",
-    evidenceCount: 4,
-    counterCount: 1,
-    freshness: "live",
-    whySelected: "真实证据融合信号",
-    whyBlocked: null,
-    updatedMinAgo: 1,
-    ...signalReads("EVIDENCE_SIGNAL"),
-  };
-
-  const merged = withLeaderboardSignalFallback(
-    resource([realSignal], "live", { source: "signal-worker" }),
-    rows,
-  );
-
-  assert.equal(merged.data.length, 2);
-  assert.equal(merged.data[0], realSignal);
-  assert.equal(merged.data[1].symbol, "AIO");
-  assert.match(merged.source ?? "", /leaderboard/);
 });

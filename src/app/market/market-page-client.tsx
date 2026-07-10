@@ -249,23 +249,18 @@ export function MarketPageClient({
           }
         >
           <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
-            <LiveCountCell label="原始数据" base={dq.raw} />
-            <LiveCountCell label="清洗后数据" base={dq.cleaned} tone="var(--up)" />
-            <LiveCountCell label="重复币种处理" base={dq.duplicates} />
-            <LiveCountCell label="被过滤数据" base={dq.filtered} />
-            <LiveCountCell label="数据缺失" base={dq.missing} tone="var(--sig-pump)" />
+            <LiveCountCell label="公开观察" base={dq.observed} />
+            <LiveCountCell label="轻扫接受" base={dq.accepted} tone="var(--up)" />
+            <LiveCountCell label="可扫描" base={dq.eligible} />
+            <LiveCountCell label="当前周期处理" base={dq.currentCycleScanned} />
+            <LiveCountCell label="深扫确认" base={dq.deepScanned} tone="var(--neon)" />
             <LiveCountCell label="数据延迟" base={dq.delayMs} suffix="ms" tone="var(--sig-pump)" />
             <DataCell
               label="降级状态"
               value={dq.degraded ? '是' : '否'}
               tone={dq.degraded ? 'var(--down)' : 'var(--up)'}
             />
-            <LiveDataCell
-              label="数据可信度"
-              base={dq.trust}
-              format={(n) => `${n.toFixed(1)}%`}
-              tone="var(--neon)"
-            />
+            <DataCell label="证据状态" value={dq.evidenceStatus} tone={dq.degraded ? 'var(--sig-pump)' : 'var(--up)'} />
           </div>
         </Panel>
 
@@ -354,10 +349,10 @@ function CoinState({
         </span>
       </div>
       <LiveValue
-        value={price}
-        format={(n) =>
-          `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        }
+        value={price > 0 ? price : 0}
+        format={(n) => n > 0
+          ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : 'n/a'}
         className="mt-2 block font-mono text-xl font-bold"
       />
       <div className={cn('font-mono text-sm', up ? 'text-up' : 'text-down')}>
@@ -398,7 +393,7 @@ function LiveCountCell({
   suffix = '',
 }: {
   label: string
-  base: number
+  base: number | null
   tone?: string
   suffix?: string
 }) {
@@ -409,11 +404,13 @@ function LiveCountCell({
         className="mt-1 block font-mono text-lg font-bold"
         style={tone ? { color: tone } : undefined}
       >
-        <LiveValue
-          value={base}
-          format={(n) => `${Math.round(n).toLocaleString('en-US')}${suffix}`}
-          flash={false}
-        />
+        {base === null ? 'n/a' : (
+          <LiveValue
+            value={base}
+            format={(n) => `${Math.round(n).toLocaleString('en-US')}${suffix}`}
+            flash={false}
+          />
+        )}
       </span>
     </div>
   )

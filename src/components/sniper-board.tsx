@@ -162,15 +162,19 @@ function SniperCard({
         <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </div>
 
-      {/* 证据完整度条 */}
+      {/* 后端未提供独立证据完整度时，不用排序分代替。 */}
       <div className="mt-2.5 pl-1.5">
         <div className="flex items-center justify-between font-mono text-[10px]">
           <span className="text-muted-foreground">证据完整度</span>
-          <span className="text-neon">{card.confidence}%</span>
+          <span className="text-muted-foreground">
+            {card.confidence === null ? 'n/a' : `${card.confidence}%`}
+          </span>
         </div>
-        <div className="mt-1 h-1 overflow-hidden bg-secondary">
-          <div className="h-full bg-neon" style={{ width: `${card.confidence}%` }} />
-        </div>
+        {card.confidence !== null && (
+          <div className="mt-1 h-1 overflow-hidden bg-secondary">
+            <div className="h-full bg-neon" style={{ width: `${card.confidence}%` }} />
+          </div>
+        )}
       </div>
 
       {/* 现价 + 后端生命周期追踪 */}
@@ -238,7 +242,9 @@ function SniperCard({
       <div className="mt-2.5 flex items-center gap-3 border-t border-border pl-1.5 pt-2 font-mono text-[11px]">
         <span className="flex items-center gap-1">
           <Target className="size-3 text-neon" />
-          <span className="text-neon">{card.score}</span>
+          <span className={card.score === null ? 'text-muted-foreground' : 'text-neon'}>
+            {card.score ?? 'n/a'}
+          </span>
           <span className="text-muted-foreground">分</span>
         </span>
         <span className="text-muted-foreground">

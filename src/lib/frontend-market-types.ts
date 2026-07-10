@@ -11,7 +11,7 @@ export type Token = {
   change30d: number
   hue: number
   tags: ('Alpha' | 'FOMO' | '异常活跃' | '利多' | '合约')[]
-  anomalyScore: number
+  anomalyScore: number | null
   trend: 'bull' | 'bear' | 'shock'
 }
 
@@ -72,21 +72,21 @@ export type SignalCard = {
     nextAction: string
     noTradeReason: string | null
   }
-  sourceKind: 'backend_signal' | 'leaderboard_candidate'
+  sourceKind: 'backend_signal'
   poolStatus: PoolStatus
-  score: number
+  score: number | null
   riskLevel: '低' | '中' | '高' | '极高'
   odds: number
   ageMin: number
   exchange: string
   market: '现货' | '合约'
-  volMult: number
+  volMult: number | null
   desc: string
   starred: boolean
   firstPush: string
   lastPush: string
   pushPrice: number
-  bullSentiment: number
+  bullSentiment: number | null
   shortAnomaly: number
   trendAnomaly: number
 }
@@ -133,14 +133,14 @@ export type MarketEnv = {
 }
 
 export type DataQuality = {
-  raw: number
-  cleaned: number
-  duplicates: number
-  filtered: number
-  missing: number
-  delayMs: number
+  observed: number | null
+  accepted: number | null
+  eligible: number | null
+  currentCycleScanned: number | null
+  deepScanned: number | null
+  delayMs: number | null
   degraded: boolean
-  trust: number
+  evidenceStatus: '可用' | '部分可用' | '不可用'
 }
 
 export type CoinglassData = {

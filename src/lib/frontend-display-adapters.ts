@@ -1,7 +1,6 @@
 import type {
   CoinglassData,
   DataQuality,
-  ExchangeStatus,
   MarketEnv,
   PoolStatus,
   ScanState,
@@ -23,34 +22,11 @@ import type {
 } from './radar-contract'
 import type { SniperSignal, SniperTarget } from './sniper-data'
 import type { DataStatus, Resource } from './data-status'
-import {
-  definitionForMaturity,
-  nonMisleadingNoTradeReason,
-} from './signal-state-semantics'
 
 type Direction = RadarSignal['direction']
-type Maturity = RadarSignal['maturity']
 type TickerRows = LeaderboardRow[]
 type TickerLookup = Map<string, LeaderboardRow>
 type DataSourceFeed = DataSourceState['feed']
-
-const RISK_PENALTY: Record<RadarSignal['risk'], number> = {
-  低: 0,
-  中: 8,
-  高: 18,
-  极高: 32,
-}
-
-const MATURITY_BONUS: Record<Maturity, number> = {
-  LIGHT_SCAN_MARK: -12,
-  DEEP_SCAN_CANDIDATE: 0,
-  EVIDENCE_SIGNAL: 12,
-  REVIEW_ONLY: -10,
-  TRADE_PLAN_READY: 22,
-  BLOCKED: -16,
-  INVALIDATED: -28,
-  COOLDOWN: -18,
-}
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
@@ -93,35 +69,6 @@ function priceBySymbol(tickerRows: TickerRows = []) {
   }
 
   return rows
-}
-
-function dedupeSignals(signals: RadarSignal[]) {
-  const rows = new Map<string, RadarSignal>()
-
-  for (const signal of signals) {
-    const key = signal.symbol.toUpperCase()
-    if (!rows.has(key)) rows.set(key, signal)
-  }
-
-  return [...rows.values()]
-}
-
-function round(value: number, digits = 2) {
-  const factor = 10 ** digits
-  return Math.round(value * factor) / factor
-}
-
-function scoreFor(signal: RadarSignal) {
-  const rrBoost = signal.rr === null ? 0 : clamp(signal.rr * 5, 0, 22)
-  const raw =
-    42 +
-    signal.evidenceCount * 8 -
-    signal.counterCount * 7 +
-    rrBoost +
-    MATURITY_BONUS[signal.maturity] -
-    RISK_PENALTY[signal.risk]
-
-  return Math.round(clamp(raw, 8, 99))
 }
 
 function typeFor(signal: RadarSignal): SignalType {
@@ -171,7 +118,6 @@ function tokenFor(
   tickerLookup: TickerLookup = priceBySymbol(tickerRows),
 ): Token {
   const symbol = signal.symbol.toUpperCase()
-  const score = scoreFor(signal)
   const ticker = tickerLookup.get(symbol)
   const price = positiveNumber(ticker?.price)
   const trend = trendFor(signal.direction)
@@ -194,224 +140,14 @@ function tokenFor(
     change30d: 0,
     hue: signal.hue,
     tags: [...new Set(tags)] as Token['tags'],
-    anomalyScore: clamp(score + signal.evidenceCount * 2 - signal.counterCount * 2, 1, 100),
+    anomalyScore: signal.score ?? null,
     trend,
-  }
-}
-
-function candidateGuardDecisionFor(maturity: Maturity, reason: string): RadarSignal['unifiedDecision'] {
-  const state = definitionForMaturity(maturity)
-  const decision: RadarSignal['unifiedDecision']['decision'] =
-    maturity === 'BLOCKED' || maturity === 'INVALIDATED' || maturity === 'REVIEW_ONLY'
-      ? 'BLOCKED'
-      : maturity === 'DEEP_SCAN_CANDIDATE' || maturity === 'EVIDENCE_SIGNAL' || maturity === 'COOLDOWN'
-        ? 'WAIT'
-        : 'OBSERVE'
-
-  return {
-    schemaVersion: 'signal-unified-decision.v1',
-    source: 'frontend_candidate_guard',
-    decision,
-    decisionLabel: decision === 'WAIT' ? '等待' : decision === 'BLOCKED' ? '拦截' : '观察',
-    allowedUse: 'backend_decision_only',
-    canAutoExecute: false,
-    canCreateTradePlanFromRegime: false,
-    canMutateLiveRanking: false,
-    canTradeNow: false,
-    reasons: [
-      `${state.label}：${state.boundary}`,
-      reason,
-    ],
-    blockerReasons: decision === 'BLOCKED' ? [reason] : [],
-    blockerCount: decision === 'BLOCKED' ? 1 : 0,
-    waitPlanReady: false,
-    readyPlan: null,
   }
 }
 
 function changeForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
   if (kind === 'gainers' || kind === 'losers') return row.value
-  if (kind === 'relative_strength') return round(row.value / 10, 2)
-  if (kind === 'oi_change') return round(row.value / 2, 2)
   return 0
-}
-
-function isOverextendedLeaderboardMover(row: LeaderboardRow, kind: LeaderboardKind) {
-  return (kind === 'gainers' || kind === 'losers') &&
-    !row.hasSignal &&
-    Math.abs(row.value) >= 15
-}
-
-function maturityForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind): Maturity {
-  if (row.blocked) return 'BLOCKED'
-  if (row.hasSignal) return 'EVIDENCE_SIGNAL'
-  if (isOverextendedLeaderboardMover(row, kind)) return 'REVIEW_ONLY'
-  if (row.deepScanned || row.inCandidatePool) return 'DEEP_SCAN_CANDIDATE'
-  return 'LIGHT_SCAN_MARK'
-}
-
-function directionForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind): Direction {
-  if (kind === 'losers' || row.value < 0) return '空'
-  if (kind === 'gainers' || kind === 'relative_strength') return '多'
-  return '观察'
-}
-
-function whyForLeaderboardRow(row: LeaderboardRow, kind: LeaderboardKind) {
-  const metric = {
-    gainers: '24h 涨幅靠前',
-    losers: '24h 跌幅靠前',
-    volume: '成交量/流动性靠前',
-    volatility_squeeze: '波动率压缩靠前',
-    relative_strength: '相对强弱靠前',
-    oi_change: 'OI 异动靠前',
-    funding_hot: 'Funding 过热靠前',
-  } satisfies Record<LeaderboardKind, string>
-  const flags: string[] = []
-
-  if (row.inCandidatePool) flags.push('已进入候选池')
-  if (row.deepScanned) flags.push('已完成深扫')
-  if (row.awaitingScan) flags.push('等待深扫')
-  if (row.hasSignal) flags.push('已有证据观察')
-  if (row.blocked) flags.push('风控门禁拦截')
-  if (isOverextendedLeaderboardMover(row, kind)) flags.push('已大幅发生，只做复盘观察，禁止追单')
-
-  return `${metric[kind]}${flags.length ? `；${flags.join('；')}` : '；等待扫描验证'}`
-}
-
-function lifecycleForLeaderboardRow(row: LeaderboardRow, index: number): RadarSignal['lifecycle'] {
-  const updatedAt = row.updatedAt ?? null
-  const updatedMs = updatedAt ? new Date(updatedAt).getTime() : Number.NaN
-  const ageMin = Number.isFinite(updatedMs)
-    ? Math.max(0, Math.round((Date.now() - updatedMs) / 60_000))
-    : Math.min(index, 59)
-  const freshnessLabel: RadarSignal['lifecycle']['freshnessLabel'] =
-    ageMin <= 15 ? '刚出现' : ageMin <= 60 ? '近期有效' : ageMin <= 240 ? '旧观察' : '已过期'
-  const status: RadarSignal['lifecycle']['status'] =
-    ageMin <= 15 ? 'new' : ageMin <= 60 ? 'active' : ageMin <= 240 ? 'stale' : 'expired'
-
-  return {
-    firstSeenAt: updatedAt,
-    lastUpdatedAt: updatedAt,
-    ageMin,
-    ageLabel: timeLabelFromAge(ageMin),
-    freshnessLabel,
-    status,
-    source: 'leaderboard_candidate',
-    summary: `这是榜单候选的新旧判断：${freshnessLabel}，${timeLabelFromAge(ageMin)}。榜单候选不等于交易计划。`,
-  }
-}
-
-function operatorReadForLeaderboardRow(
-  row: LeaderboardRow,
-  maturity: Maturity,
-  kind: LeaderboardKind,
-): RadarSignal['operatorRead'] {
-  const overextended = isOverextendedLeaderboardMover(row, kind)
-  const state = definitionForMaturity(maturity)
-
-  if (maturity === 'REVIEW_ONLY' || overextended) {
-    return {
-      lane: state.lane,
-      laneLabel: state.laneLabel,
-      worthWatching: false,
-      canTrade: state.canTrade,
-      headline: '涨跌已经明显，只做复盘样本',
-      nextAction: '回看启动前窗口，研究系统有没有提前发现。',
-      noTradeReason: '榜单说明行情已经发生，不能作为追涨追跌入口。',
-    }
-  }
-
-  if (maturity === 'EVIDENCE_SIGNAL') {
-    return {
-      lane: state.lane,
-      laneLabel: state.laneLabel,
-      worthWatching: true,
-      canTrade: state.canTrade,
-      headline: '榜单命中且已有证据观察',
-      nextAction: '进入单币档案，看结构、结构盈亏比、风控是否能升级。',
-      noTradeReason: row.blocked ? '风控门禁已拦截。' : state.boundary,
-    }
-  }
-
-  return {
-    lane: state.lane,
-    laneLabel: state.laneLabel,
-    worthWatching: row.inCandidatePool || row.awaitingScan || row.deepScanned,
-    canTrade: state.canTrade,
-    headline: row.inCandidatePool || row.awaitingScan ? '榜单候选，等待深扫' : '市场榜单观察',
-    nextAction: '等待全市场扫描和深扫验证，不允许直接当交易计划。',
-    noTradeReason: state.boundary,
-  }
-}
-
-export function leaderboardRowsToCandidateSignals(
-  rows: LeaderboardRow[],
-  kind: LeaderboardKind = 'volume',
-): RadarSignal[] {
-  return rows.map((row, index) => {
-    const symbol = row.symbol.toUpperCase()
-    const maturity = maturityForLeaderboardRow(row, kind)
-    const evidenceCount = row.hasSignal ? 3 : row.deepScanned ? 2 : row.inCandidatePool ? 1 : 1
-    const blocked = row.blocked || maturity === 'BLOCKED'
-    const reviewOnly = maturity === 'REVIEW_ONLY'
-
-    return {
-      id: `candidate-${kind}-${symbol}`,
-      symbol,
-      hue: row.hue,
-      direction: directionForLeaderboardRow(row, kind),
-      maturity,
-      unifiedDecision: candidateGuardDecisionFor(
-        maturity,
-        '榜单观察源没有后端结构化交易计划，禁止进入计划就绪区。',
-      ),
-      lifecycle: lifecycleForLeaderboardRow(row, index),
-      operatorRead: operatorReadForLeaderboardRow(row, maturity, kind),
-      rr: null,
-      risk: blocked || reviewOnly ? '高' : kind === 'funding_hot' ? '中' : '低',
-      evidenceCount,
-      counterCount: blocked || reviewOnly ? 2 : 0,
-      freshness: 'live',
-      whySelected: whyForLeaderboardRow(row, kind),
-      whyBlocked: nonMisleadingNoTradeReason(
-        maturity,
-        blocked
-          ? '风控门禁已标记，不能直接生成交易计划'
-          : reviewOnly
-            ? '榜单只说明行情已经大幅发生；未完成启动前证据融合，进入复盘样本，不允许追涨追跌。'
-            : '候选阶段只代表发现异动，未完成证据融合和 3:1 赔率验证，不能当作交易计划',
-      ),
-      updatedMinAgo: Math.min(index, 59),
-    }
-  })
-}
-
-function displaySignalsFor(
-  signals: RadarSignal[],
-  tickerRows: TickerRows = [],
-  kind: LeaderboardKind = 'volume',
-) {
-  return dedupeSignals([...signals, ...leaderboardRowsToCandidateSignals(tickerRows, kind)])
-}
-
-export function withLeaderboardSignalFallback(
-  signals: Resource<RadarSignal[]>,
-  tickerRows: TickerRows = [],
-  kind: LeaderboardKind = 'volume',
-): Resource<RadarSignal[]> {
-  const data = displaySignalsFor(signals.data, tickerRows, kind)
-
-  return {
-    ...signals,
-    data,
-    status: data.length > signals.data.length && signals.status === 'empty' ? 'partial' : signals.status,
-    source: data.length > signals.data.length
-      ? `${signals.source ?? 'signal-worker'}+leaderboard`
-      : signals.source,
-    reason: data.length > signals.data.length
-      ? `${signals.reason ? `${signals.reason}；` : ''}额外展示榜单观察源候选；候选不等于交易计划；它们只进入候选验证区，不进入计划就绪区，不生成交易计划`
-      : signals.reason,
-  }
 }
 
 export function leaderboardRowsToTokens(
@@ -424,7 +160,6 @@ export function leaderboardRowsToTokens(
     const tags: Token['tags'] = ['合约']
 
     if (row.hasSignal || row.inCandidatePool || row.deepScanned) tags.push('异常活跃')
-    if (change24h > 0) tags.push('利多')
     if (row.blocked) tags.push('FOMO')
 
     return {
@@ -440,15 +175,8 @@ export function leaderboardRowsToTokens(
       change30d: 0,
       hue: row.hue,
       tags: [...new Set(tags)] as Token['tags'],
-      anomalyScore: clamp(
-        35 +
-          Math.min(Math.abs(row.value), 50) +
-          (row.hasSignal ? 18 : 0) +
-          (row.deepScanned ? 8 : 0),
-        1,
-        100,
-      ),
-      trend: change24h > 0 ? 'bull' : change24h < 0 ? 'bear' : 'shock',
+      anomalyScore: null,
+      trend: 'shock',
     }
   })
 }
@@ -476,7 +204,11 @@ export function mergeTokensBySymbol(...groups: Token[][]): Token[] {
       change30d: token.change30d !== 0 ? token.change30d : existing.change30d,
       trend: token.trend !== 'shock' ? token.trend : existing.trend,
       tags: [...new Set([...existing.tags, ...token.tags])] as Token['tags'],
-      anomalyScore: Math.max(existing.anomalyScore, token.anomalyScore),
+      anomalyScore: existing.anomalyScore === null
+        ? token.anomalyScore
+        : token.anomalyScore === null
+          ? existing.anomalyScore
+          : Math.max(existing.anomalyScore, token.anomalyScore),
     })
   }
 
@@ -491,50 +223,24 @@ export function scanProofResourceToScanState(
   const used = apiUsage?.data.usedToday ?? 0
   const remaining = apiUsage?.data.remainingToday ?? 0
   const totalBudget = Math.max(1, used + remaining)
-  const scanned = Math.max(data.lightScanned, data.deepScanned)
-  const total = Math.max(data.totalMonitored, data.scannable, scanned + data.awaitingDeepScan)
-  const pending = Math.max(0, data.awaitingDeepScan || total - scanned)
-  const batchSize = Math.max(1, data.deepScanned || data.lightScanned || 1)
+  const scanned = data.currentCycleScannedAssets
+  const total = data.eligibleAssets
+  const pending = data.awaitingDeepScan
+  const batchSize = Math.max(1, scanned)
 
   return {
-    coverage: clamp(data.coverage, 0, 100),
+    coverage: clamp(data.lightCoveragePercent, 0, 100),
     scanned,
     pending,
     total,
     batch: Math.max(1, Math.ceil(scanned / batchSize)),
-    totalBatches: Math.max(1, Math.ceil(Math.max(1, data.scannable) / batchSize)),
+    totalBatches: Math.max(1, Math.ceil(Math.max(1, data.eligibleAssets) / batchSize)),
     nextBatchSec: Math.max(0, data.nextScanCountdownSec),
     budgetUsed: used,
     budgetTotal: totalBudget,
-    freshnessSec: Math.max(1, Math.round(scan.ageSec ?? 1)),
+    freshnessSec: Math.max(0, Math.round(scan.ageSec ?? 0)),
     mode: data.deepScanned > 0 ? '深扫' : '轻扫',
   }
-}
-
-export function dataSourcesResourceToExchangeCoverage(
-  sources: Resource<DataSourceState[]>,
-): ExchangeStatus[] {
-  const coverageByFeed: Record<DataSourceState['feed'], number> = {
-    live: 100,
-    cached: 80,
-    partial: 65,
-    stale: 40,
-    failed: 0,
-  }
-  const statusByFeed: Record<DataSourceState['feed'], ExchangeStatus['status']> = {
-    live: 'online',
-    cached: 'degraded',
-    partial: 'degraded',
-    stale: 'degraded',
-    failed: 'down',
-  }
-
-  return sources.data.map((source) => ({
-    name: source.name,
-    status: statusByFeed[source.feed],
-    latencyMs: source.latencyMs,
-    coverage: coverageByFeed[source.feed],
-  }))
 }
 
 function stateToRegime(state: MacroAltEnv['suggestion']): MarketEnv['regime'] {
@@ -595,16 +301,20 @@ export function scanProofResourceToDataQuality(
   const data = scan.data
   const sourceRows = sources?.data ?? []
   const degraded = scan.status !== 'live' || sourceRows.some((source) => source.feed !== 'live')
+  const unavailable = scan.status === 'empty' || scan.status === 'error' || scan.status === 'failed' || scan.status === 'loading'
+  const latencies = sourceRows
+    .map((source) => source.latencyMs)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
 
   return {
-    raw: data.totalMonitored,
-    cleaned: data.scannable,
-    duplicates: 0,
-    filtered: Math.max(0, data.totalMonitored - data.scannable),
-    missing: data.awaitingDeepScan,
-    delayMs: Math.max(0, ...sourceRows.map((source) => source.latencyMs ?? 0)),
+    observed: unavailable ? null : data.observedAssets,
+    accepted: unavailable ? null : data.acceptedAssets,
+    eligible: unavailable ? null : data.eligibleAssets,
+    currentCycleScanned: unavailable ? null : data.currentCycleScannedAssets,
+    deepScanned: unavailable ? null : data.deepScanned,
+    delayMs: latencies.length > 0 ? Math.max(...latencies) : null,
     degraded,
-    trust: clamp(data.coverage, 0, 100),
+    evidenceStatus: unavailable ? '不可用' : degraded ? '部分可用' : '可用',
   }
 }
 
@@ -631,12 +341,6 @@ export function derivativesResourceToCoinglassData(
   }
 }
 
-function timeLabelFromAge(ageMin: number) {
-  if (ageMin <= 0) return '刚刚'
-  if (ageMin < 60) return `${ageMin}分钟前`
-  return `${Math.floor(ageMin / 60)}小时前`
-}
-
 function baseSymbol(value: string) {
   return value
     .toUpperCase()
@@ -649,24 +353,18 @@ function descFor(signal: RadarSignal) {
   return signal.whySelected
 }
 
-function signalSourceKind(signal: RadarSignal): SignalCard['sourceKind'] {
-  return signal.id.startsWith('candidate-') ? 'leaderboard_candidate' : 'backend_signal'
-}
-
 export function radarSignalsToTokens(signals: RadarSignal[], tickerRows: TickerRows = []): Token[] {
   const tickerLookup = priceBySymbol(tickerRows)
 
-  return displaySignalsFor(signals, tickerRows)
-    .map((signal) => tokenFor(signal, tickerRows, tickerLookup))
+  return signals.map((signal) => tokenFor(signal, tickerRows, tickerLookup))
 }
 
 export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: TickerRows = []): SignalCard[] {
   const tickerLookup = priceBySymbol(tickerRows)
 
-  return displaySignalsFor(signals, tickerRows)
+  return signals
     .map((signal) => {
       const token = tokenFor(signal, tickerRows, tickerLookup)
-      const score = scoreFor(signal)
       const type = typeFor(signal)
       const ageMin = Math.max(0, signal.updatedMinAgo)
       return {
@@ -677,32 +375,28 @@ export function radarSignalsToSignalCards(signals: RadarSignal[], tickerRows: Ti
         maturity: signal.maturity,
         lifecycle: signal.lifecycle,
         operatorRead: signal.operatorRead,
-        sourceKind: signalSourceKind(signal),
+        sourceKind: 'backend_signal' as const,
         poolStatus: poolStatusFor(signal),
-        score,
+        score: signal.score ?? null,
         riskLevel: signal.risk,
         odds: signal.rr ?? 0,
         ageMin,
-        exchange: 'CoinGlass',
+        exchange: 'n/a',
         market: '合约' as const,
-        volMult: round(1 + signal.evidenceCount * 0.7 + Math.max(0, score - 60) / 15, 1),
+        volMult: null,
         desc: descFor(signal),
         starred: signal.unifiedDecision.canTradeNow,
-        firstPush: timeLabelFromAge(ageMin + 15),
-        lastPush: timeLabelFromAge(ageMin),
+        firstPush: signal.lifecycle.ageLabel,
+        lastPush: signal.lifecycle.ageLabel,
         // 没有后端生命周期触发价时必须保持 0，由 UI 显示“待追踪”。
         // 不能用当前价伪装入选价，否则“入选后变化”会变成假的 0%。
         pushPrice: 0,
-        bullSentiment: signal.direction === '空'
-          ? clamp(45 - signal.counterCount * 5, 5, 48)
-          : signal.direction === '多'
-            ? clamp(55 + signal.evidenceCount * 6 - signal.counterCount * 4, 52, 96)
-            : clamp(48 + signal.evidenceCount * 3 - signal.counterCount * 4, 25, 75),
-        shortAnomaly: signal.evidenceCount + signal.counterCount,
-        trendAnomaly: Math.max(0, signal.evidenceCount - signal.counterCount),
+        bullSentiment: null,
+        shortAnomaly: signal.evidenceCount,
+        trendAnomaly: signal.counterCount,
       }
     })
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
 }
 
 export function radarSignalsToFeedSignals(signals: RadarSignal[], symbol: string): Signal[] {
@@ -771,7 +465,7 @@ export function radarSignalsToSniperTargets(signals: RadarSignal[], tickerRows: 
         side,
         type: card.type,
         score: card.score,
-        confidence: clamp(card.score + 3, 1, 99),
+        confidence: null,
         odds: card.odds,
         riskLevel: card.riskLevel,
         exchange: card.exchange,
