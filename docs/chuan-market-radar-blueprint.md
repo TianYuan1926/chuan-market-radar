@@ -30,13 +30,13 @@
 
 ## C. 当前唯一下一入口
 
-`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 因现有 schema 无法可靠表达不可变 Episode/Outcome 而保持 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`。迁移设计包已达到 `PROPOSED / READY_FOR_USER_APPROVAL`，但用户尚未批准。当前没有自动授权的下一包；只有明确批准设计后才建议：
+`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 仍因生产 schema 尚未增加权威 Episode/Outcome 而未完成。历史迁移设计包保持 `PROPOSED / approvedByUser=false` 原始记录；用户随后通过独立合同授权 implementation/rehearsal，本轮已达到 `PASS_IMPLEMENTATION_AND_REHEARSAL`，但只证明正式代码和 `wp_g0_2_rehearsal_*` 隔离 PostgreSQL 演练。当前没有自动授权的下一包；再次获得明确批准后才可进入：
 
 ```text
-WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL（需先明确批准设计）
+WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA
 ```
 
-设计批准也不授权 production migration 或 read cutover。不得自行运行 migration，也不得并行启动 HTTPS、扫描排序、策略权重、Shadow v2、视觉重构或付费数据接入。
+实现与隔离演练 PASS 不授权 production migration、shadow writer、backfill 或 read cutover。不得自行运行生产 migration，也不得并行启动 HTTPS、扫描排序、策略权重、Shadow v2、视觉重构或付费数据接入。
 
 ## D. 旧版详细事实保留区
 

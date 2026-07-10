@@ -2151,3 +2151,52 @@ P0 阻断：
 ### 下一轮建议
 
 先由 ChatGPT/用户审计 `USER_APPROVAL_PACKET.md`。只有用户明确批准后，才可创建 `WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL`；生产 migration 和 read cutover仍需后续独立批准。
+
+## 2026-07-10 / WP-G0.2 Migration Implementation and Isolated Rehearsal
+
+### 本轮目标
+
+把已冻结的 Candidate Episode / Event / Checkpoint / Outcome 设计实现为正式 additive PostgreSQL migration、dormant 服务和可重复隔离演练；只生成下一轮生产加表审批证据，不连接或修改生产数据库。
+
+### 修改范围
+
+- `migrations/candidate-episode/`：8 个版本化 SQL migration，覆盖批准 registry 的 8 表/151 字段、20 个函数、14 个 trigger 和 7 个 NOLOGIN 角色。
+- `src/lib/candidate-episode/`：production deny guard、同连接事务 adapter、migration runner、Episode/Checkpoint/Outcome/Outbox 服务、eg.v1、Legacy dry-run/reconciliation、Review denominator 和完整测试。
+- `src/scripts/candidate-episode/`、`package.json`：显式 rehearsal migration、空库/旧 schema/rollback/restore 演练和四个 synthetic legacy 命令。
+- 三个 routine deploy/verify 脚本：移除隐式 persistence migration 调用，改为独立审批 runbook 提示。
+- context、changelog、traceability、V3、兼容蓝图和 current-state matrix：同步 scoped PASS 与 production false 边界。
+
+### 核心链路影响
+
+- 候选筛选：建立 dormant Candidate Episode 单活跃、不可变 firstSeen/observation fact、retrigger/方向反转 lineage 的数据库边界；未接入生产候选读写。
+- 复盘进化：建立 dormant Checkpoint/Outcome、eg.v1、null MFE/MAE、Review denominator 和 Legacy exclusion；Outcome 仍不得回写 production ranking。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：未改 scan/analysis/strategy/READY/RR/Risk Gate/ranking。
+
+### 测试结果
+
+- 候选域普通测试：pass，88 pass，真实 DB suite 在普通环境按设计 skip；另用显式本地 rehearsal URL 实跑 PostgreSQL/权限 5/5 pass。
+- 空库、上一稳定 12 表 schema、重复 migration、checksum drift、失败 DDL rollback、restore、并发、幂等、lease/fencing、Outbox epoch：pass。
+- `npm run typecheck`：pass。
+- `npm run lint`：pass。
+- `npm run test:market`：pass，924 pass / 1 isolated DB skip；worker 17/17；historical 4/4。
+- `npm run build`：pass。
+- `npm run backtest:golden`：pass，16/16。
+- `npm run ci:forbidden-files`：pass。
+- `npm run ci:secret-patterns`：pass。
+- `npm run security:check`：pass。
+- `npm run backtest:formal`：未运行，且本轮禁止。
+
+### 是否部署
+
+未部署。生产数据库未连接，生产业务数据未读写，生产 migration=false，production schema changed=false，腾讯云未连接/未重启，production shadow/dual-write/canonical-read/review-read 全部 false。
+
+### 风险与遗留问题
+
+- P0：生产仍没有 Candidate/Outcome 权威 schema，WP-G0.2 和 G0 未完成；本轮不能支撑实战。
+- P0（既有、范围外）：公网明文 HTTP 仍未在本轮处理。
+- P1：隔离 restore 为小型合成数据；未证明生产权限、生产数据规模、异地加密备份和生产 RTO。
+- P1：代码中的 routine deploy 隐式 migration 已移除，但本轮未部署腾讯云。
+
+### 下一轮建议
+
+只有再次获得用户明确批准后，才可进入 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA`；不得自动进入 shadow writer、backfill、read cutover、G1、R4 或实盘。

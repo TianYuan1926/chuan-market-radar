@@ -14,8 +14,11 @@
 - 机器矩阵把 7 个核心链路环节、G0-G8、当前代码路径、目标合同、运行检查和证据逐项对应。首轮验证：JSON parse pass、当前路径缺失 0、Mermaid 13/13 有无障碍描述、敏感值 0、diff-check pass。
 - WP-G0.1 已修改前端只读事实合同与展示，并完成 GitHub `main` 和腾讯 `web` 部署；未修改 DB、Redis、worker、Caddy、strategy、backtest 或 secret，未运行 migration、restore、rollback 或 formal。
 - `WP-G0.2 - Candidate Lifecycle and Outcome Truth` 已完成仓库、持久化、Review、前端和生产只读审计，结论为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`；现有 mutable JSONB journal/scan-state 结构不能在数据库层保证单活跃 Episode、不可变 firstSeen、重触发继承、append-only 历史和 Outcome 只终态一次。本轮依约停止运行时代码、migration 和部署。
-- `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL` 已完成 10 个 ADR、覆盖 8 表 151 字段的完整 registry、不可执行 DDL 草案、事务/并发、legacy、72h cutover、rollback/rehearsal、安全恢复和用户审批包，设计结论为 `READY_FOR_USER_APPROVAL`，但状态仍是 `PROPOSED`、`approvedByUser=false`、schema 未实施、migration 未运行、生产未部署。
-- 双蓝图与 V3 路线已获用户确认；`WP-G0.1 - Frontend Truth Contract` 仍是最后一个完整完成并部署验证的 Work Package。当前没有自动授权的下一包；只有用户明确批准本设计后，才可建议创建 `WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL`。
+- `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL` 的历史审批包仍保留 `PROPOSED / approvedByUser=false` 原始事实；2026-07-10 用户通过独立执行合同明确授权后续 `WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL`，该授权只覆盖正式 migration 实现和隔离演练，不改写旧审批包，也不授权生产 migration。
+- `WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL` 已达到 `PASS_IMPLEMENTATION_AND_REHEARSAL`：8 个 additive migration 覆盖批准 registry 的 8 表/151 字段，Episode/Event/Checkpoint/Outcome/Legacy/Outbox、同连接事务、并发幂等、lease/fencing、eg.v1、数据库角色和 deny guard 已实现；空库、上一稳定 12 表 schema、checksum drift、失败回滚、备份恢复和恢复后事务 smoke 均在 `wp_g0_2_rehearsal_*` 本地 Unix socket 数据库通过。
+- 本轮真实 PostgreSQL 集成 5/5、候选域普通测试 88 pass/1 DB skip、全量 market 924 pass/1 DB skip、worker 17/17、historical 4/4、golden 16/16、typecheck/lint/build/forbidden/secret/security 均通过；真实 DB 套件按隔离环境单独实跑，不用普通门禁中的 skip 冒充通过。
+- 本轮未连接生产数据库、未读取或写入生产业务数据、未执行生产 migration、未改变生产 schema、未部署腾讯云、未重启生产服务、未开启 production shadow/dual-write/read cutover、未运行 formal。代码和隔离演练 PASS 不等于 `WP-G0.2`、G0 或实战能力完成。
+- routine deploy/verify 脚本中的隐式 `/api/admin/persistence/migrate` 调用已从代码中移除，改为要求独立批准 runbook；该安全改动尚未部署腾讯云。本轮下一建议只能是用户再次明确批准后的 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA`，当前 `canEnterProductionAddSchema=false`。
 - 2026-07-10 已把两份历史 Master Plan、v2、最新 `53/100` 全系统审计、当前代码和当前只读生产点样本合并为唯一建议版 `Market Radar Practical Readiness Master Plan v3`：`docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md`。v2 已标记 `SUPERSEDED`，只保留审计历史。
 - 历史方案的 46 项任务已逐项清洗为 completed / partial / superseded / deferred / not started，机器可读矩阵位于 `docs/superpowers/plans/2026-07-10-market-radar-v3-current-state-matrix.json`。CoinGlass 旧鉴权故障已归档为历史事故，不再冒充当前主阻断。
 - V3 是已确认的顺序化建设与验收方案，不是实战能力证明；每个 work package 仍需独立范围锁定、门禁、部署证据和人工审计。
@@ -27,8 +30,8 @@
 - 新的数据库安全审计 P0：当前代码/Compose 路径可能让 web/worker 共用 bootstrap/superuser 派生身份；生产 role 属性本轮未连接数据库验证。现有 migration route 被 routine deploy/verify 隐式调用，备份为本地未证明加密异地恢复的 dump，restore 具有 destructive clean 语义。这些都必须在任何生产 migration 前关闭。
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
-- 本设计包只完成架构与审批材料；未修改 runtime/frontend/API/worker/schema，未部署，未运行 migration/formal，未连接或清理 Postgres/Redis/volume。
-- 当前只允许用户/ChatGPT 审计审批包。Codex 不得代批；未明确批准前不能创建 implementation 包，更不能生产 migration、read cutover、G1、R4 或实盘。
+- 历史设计包只完成架构与审批材料；当前独立 implementation/rehearsal 包已实现 dormant runtime 基础设施和正式 migration 文件，但生产 schema/runtime 仍未改变。
+- 当前只允许用户/ChatGPT 审计本轮实现与隔离证据。Codex 不得代批；再次明确批准前不能进入 production add-schema，更不能启用 writer、backfill、read cutover、G1、R4 或实盘。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
 - 第 5.1-DEPLOY-CHANNEL-FIX 证据显示：Chrome 里没有 OrcaTerm；用户打开 Microsoft Edge 中的腾讯云 OrcaTerm 后，Codex 通过 Computer Use 可控该页面，并以 `ubuntu@VM-0-9-ubuntu` 完成服务器只读 smoke。只读 smoke 覆盖 `whoami`、`hostname`、`pwd`、UTC date、`uname`、Docker/Compose 版本、项目目录访问、`ls -la`、`docker compose ps` / `sudo -n docker compose ps`。观察到 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务均在运行，web/postgres/redis 为 healthy。

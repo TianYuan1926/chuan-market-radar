@@ -40,8 +40,8 @@ echo "compose config ok"
 echo "== 3. Service status =="
 "${COMPOSE[@]}" ps
 
-echo "== 4. Database migration =="
-run_web_node -e "const secret=process.env.CRON_SECRET||''; fetch('http://127.0.0.1:3000/api/admin/persistence/migrate',{method:'POST',headers:{authorization:'Bearer '+secret,'cache-control':'no-store'}}).then(async r=>{const text=await r.text(); console.log('migration',r.status); console.log(text.slice(0,1200)); process.exit(r.ok?0:1);}).catch(e=>{console.error(e);process.exit(1);})"
+echo "== 4. Database migration status =="
+echo "Migrations require a separately approved runbook."
 
 echo "== 5. Core health =="
 run_web_node -e "fetch('http://127.0.0.1:3000/api/health',{headers:{'cache-control':'no-store'}}).then(async r=>{const body=await r.json(); const h=body.health||{}; console.log(JSON.stringify({status:r.status,ok:body.ok,level:h.level,scan:h.scan,scanStability:h.scanStability,reviewStatistics:h.reviewStatistics,runtimeProbes:h.runtimeProbes&&{redis:h.runtimeProbes.redis,workers:h.runtimeProbes.workers?.map(w=>({key:w.key,status:w.status,ageSec:w.ageSec}))}},null,2)); process.exit(r.ok?0:1);}).catch(e=>{console.error(e);process.exit(1);})"

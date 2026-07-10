@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "proposed",
-  "generatedAt": "2026-07-10T14:44:54+08:00",
+  "status": "wp_g0_2_implementation_rehearsal_pass_production_unchanged",
+  "generatedAt": "2026-07-10T19:30:00+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -583,20 +583,26 @@
       "status": "not_started_as_gate"
     }
   ],
-  "lastCompletedWorkPackage": "WP-G0.1 Frontend Truth Contract",
+  "lastCompletedWorkPackage": "WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL (isolated scope only)",
   "lastAttemptedWorkPackage": {
-    "id": "WP-G0.2",
-    "title": "Candidate Lifecycle and Outcome Truth",
-    "status": "PARTIAL_SCHEMA_MIGRATION_REQUIRED",
-    "runtimeCodeChanged": false,
+    "id": "WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL",
+    "title": "Candidate Episode / Checkpoint / Outcome authoritative schema implementation and isolated rehearsal",
+    "status": "PASS_IMPLEMENTATION_AND_REHEARSAL",
+    "runtimeCodeChanged": true,
+    "runtimeActivationStatus": "dormant_not_imported_by_production_api_or_workers",
     "databaseSchemaChanged": false,
-    "migrationRun": false,
+    "schemaCodeImplemented": true,
+    "isolatedMigrationRun": true,
+    "productionMigrationRun": false,
+    "productionDatabaseConnected": false,
     "deployed": false,
+    "productionWriteFlagsEnabled": false,
+    "productionReadCutover": false,
     "g0Complete": false,
     "evidence": {
-      "path": "reports/wp-g0-2-candidate-lifecycle-outcome-truth/WP_G0_2_DELIVERY_REPORT.md",
+      "path": "reports/wp-g0-2-migration-implementation-and-rehearsal/WP_G0_2_MIGRATION_IMPLEMENTATION_REHEARSAL_REPORT.md",
       "storage": "local_ignored_artifact",
-      "note": "The report directory is gitignored and is delivered as a local redacted ZIP; tracked governance files preserve the authoritative status."
+      "note": "Implementation and local PostgreSQL rehearsal evidence only; no production migration or deployment authority."
     }
   },
   "currentDesignPackage": {
@@ -607,8 +613,12 @@
     "designDigest": "2ac5f5f290fa5eed1664736edd6e2aa641815a30e8beb1a349cf49e6634f0d24",
     "designArtifactCount": 59,
     "approvedByUser": false,
-    "schemaImplemented": false,
+    "historicalApprovalFieldPreserved": true,
+    "implementationRehearsalAuthorizedByUser": true,
+    "schemaImplemented": true,
+    "schemaImplementationScope": "code_and_isolated_rehearsal_only",
     "migrationRun": false,
+    "isolatedMigrationRun": true,
     "productionSchemaChanged": false,
     "runtimeCodeChanged": false,
     "productionDeployed": false,
@@ -622,7 +632,7 @@
     }
   },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL only after explicit user design approval",
+  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA only after new explicit user approval",
   "nextWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
     "status": "pass",

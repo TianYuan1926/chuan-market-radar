@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16、TypeScript、Node.js、Postgres、Redis、Docker Compose、Caddy、Binance/OKX/Bybit public futures data、CoinGlass Hobbyist、GitHub Actions、Playwright、腾讯云 4C/8G/120GB。
 
-**Status:** `CONFIRMED_SEQUENTIAL_BLUEPRINT`。用户已确认顺序蓝图，但每个 Work Package 仍需独立范围、审批、门禁和证据；蓝图本身不是代码、数据库、策略或生产变更授权。WP-G0.1 是 lastCompleted，WP-G0.2 当前为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`。
+**Status:** `CONFIRMED_SEQUENTIAL_BLUEPRINT`。用户已确认顺序蓝图，但每个 Work Package 仍需独立范围、审批、门禁和证据；蓝图本身不是代码、数据库、策略或生产变更授权。WP-G0.1 是最后一个生产部署完成包；WP-G0.2 implementation/rehearsal 已在隔离范围 PASS，但生产 schema 尚未增加，因此 WP-G0.2 和 G0 仍未完成。
 
 **Supersedes:** `2026-07-10-market-radar-practical-readiness-master-plan.md` 与两份用户提供的历史 Master Plan，但保留它们作为审计来源。
 
@@ -235,13 +235,17 @@ interface MarketFactEnvelope<T> {
 
 ### WP-G0.2 Candidate Lifecycle and Outcome Truth
 
-**Current status (2026-07-10):** `PARTIAL_SCHEMA_MIGRATION_REQUIRED`
+**Current status (2026-07-10):** `PARTIAL_PRODUCTION_SCHEMA_MIGRATION_REQUIRED`
 
-Repository-wide audit confirmed that the current mutable journal/scan-state JSONB schema cannot enforce immutable Candidate Episodes or exactly-once terminal Outcomes. Runtime implementation, migration, and deployment stopped under the package contract. `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL` is a recommendation only and requires explicit approval.
+Repository-wide audit confirmed that the production mutable journal/scan-state JSONB schema cannot enforce immutable Candidate Episodes or exactly-once terminal Outcomes. The separately authorized implementation/rehearsal package has now implemented the approved dormant schema/runtime foundation and passed isolated PostgreSQL rehearsal, but production migration, writer activation, backfill, read cutover and deployment remain false.
 
-**Design package status (2026-07-10):** `PROPOSED / READY_FOR_USER_APPROVAL / approvedByUser=false`
+**Historical design package status (2026-07-10):** `PROPOSED / READY_FOR_USER_APPROVAL / approvedByUser=false`
 
 The proposed package freezes scope+instrument single-active Episode, split Checkpoint/Outcome, versioned evidence grade, strict legacy quarantine, Postgres transaction/fencing, bounded 72h phase+epoch cutover, rollback/restore and approval gates. It changes no runtime/schema/production fact and grants no implementation or migration authority.
+
+**Implementation/rehearsal status (2026-07-10):** `PASS_IMPLEMENTATION_AND_REHEARSAL`
+
+The user later authorized this independent package through the current execution contract. Eight additive migrations implement 8 tables/151 approved fields plus restricted procedures and seven NOLOGIN roles. Empty/previous-schema/repeat/checksum/concurrency/permission/rollback/restore tests passed only on local `wp_g0_2_rehearsal_*` databases. Production DB connected=false, production schema changed=false, production migration=false, production deployed=false, all production write/read flags=false. This scoped PASS does not complete WP-G0.2.
 
 **Modify:**
 
@@ -921,13 +925,13 @@ R4 之后用户可自主决定是否做小范围人工验证。该步骤：
 
 ## 18. 当前唯一下一建议
 
-`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成并通过生产验证的 Work Package。`WP-G0.2` 因 schema stop 仍为 `PARTIAL_SCHEMA_MIGRATION_REQUIRED`。迁移设计包已达到 `READY_FOR_USER_APPROVAL`，但仍是 PROPOSED 且用户未批准。当前没有自动授权的下一任务；只有明确批准后才建议：
+`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成并通过生产验证的 Work Package。`WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL` 已在自身隔离范围达到 PASS，但 `WP-G0.2` 因生产 schema/writer/read path 均未改变而仍未完成。当前没有自动授权的下一任务；只有再次明确批准后才建议：
 
 ```text
-WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL
+WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA
 ```
 
-该建议包只允许实现 migration artifact 和隔离 rehearsal，不等于授权 production migration。Add-schema、shadow/backfill 和 read cutover 仍需后续独立批准。HTTPS/private session 继续保留为独立 WP-G0.3，不和生命周期/outcome 真值修复混成同一个代码包。
+该建议包只能在新的独立合同中授权生产加表；它不自动授权 shadow writer、backfill、authority/read cutover 或前端切换。HTTPS/private session 继续保留为独立 WP-G0.3，不和生命周期/outcome 真值修复混成同一个代码包。
 
 本轮不同时开始扫描排序、新模式、策略权重、Shadow v2、视觉重构或付费数据接入。
 
@@ -972,4 +976,4 @@ WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL
 
 ### 7. 是否可进下一轮
 
-V3 已获用户确认。WP-G0.1 已完成；WP-G0.2 因 schema stop 未完成。当前不能自动进入任何下一包，只有在用户明确审批后才可进入建议的 `WP-G0.2-MIGRATION-DESIGN-AND-APPROVAL`；不可跳到 WP-G0.3 或 G1-G8。
+V3 已获用户确认。WP-G0.1 已完成；WP-G0.2 implementation/rehearsal scoped PASS，但 WP-G0.2 因生产 schema 未实施仍未完成。当前不能自动进入任何下一包，只有在用户再次明确审批后才可进入建议的 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA`；不可跳到 WP-G0.3 或 G1-G8。

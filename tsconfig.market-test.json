@@ -16,6 +16,7 @@
     "src/lib/analysis/**/*.ts",
     "src/lib/alerts/**/*.ts",
     "src/lib/backtest/**/*.ts",
+    "src/lib/candidate-episode/**/*.ts",
     "src/lib/journal/**/*.ts",
     "src/lib/external-intel/**/*.ts",
     "src/lib/persistence/**/*.ts",

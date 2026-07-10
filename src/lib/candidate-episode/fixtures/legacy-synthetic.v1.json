@@ -1,0 +1,84 @@
+{
+  "fixtureId": "wp-g0.2-agent-f-legacy-synthetic-v1",
+  "schemaVersion": "legacy-synthetic-fixture.v1",
+  "provenance": {
+    "syntheticOnly": true,
+    "containsProductionData": false,
+    "authoritativeImportedCount": 0,
+    "externalReadsAllowed": []
+  },
+  "rows": [
+    {
+      "syntheticOnly": true,
+      "sourceSystem": "immutable_scan_archive",
+      "sourceSnapshotId": "synthetic-snapshot-001",
+      "sourceRef": "synthetic/archive/row-001",
+      "sourceVersion": "v1",
+      "facts": {
+        "scope": "production_radar",
+        "episodeId": "synthetic-episode-001",
+        "canonicalInstrumentId": "synthetic:ALPHAUSD",
+        "direction": "long",
+        "firstSeenAt": "2000-01-01T00:00:00.000Z",
+        "observationPrice": 101,
+        "observationPriceFactId": "synthetic-price-fact-001",
+        "releaseId": "synthetic-release-001",
+        "status": "discovered"
+      }
+    },
+    {
+      "syntheticOnly": true,
+      "sourceSystem": "journal_events",
+      "sourceSnapshotId": "synthetic-snapshot-001",
+      "sourceRef": "synthetic/journal/row-002",
+      "sourceVersion": "v1",
+      "facts": {
+        "scope": "production_radar",
+        "episodeId": "synthetic-episode-002",
+        "canonicalInstrumentId": "synthetic:BETAUSD",
+        "direction": null,
+        "firstSeenAt": null,
+        "observationPrice": null,
+        "observationPriceFactId": null,
+        "releaseId": null,
+        "status": null
+      }
+    },
+    {
+      "syntheticOnly": true,
+      "sourceSystem": "unsupported_synthetic_legacy_feed",
+      "sourceSnapshotId": "synthetic-snapshot-001",
+      "sourceRef": "synthetic/unsupported/row-003",
+      "sourceVersion": "v1",
+      "facts": {
+        "scope": "production_radar",
+        "episodeId": "synthetic-episode-003",
+        "canonicalInstrumentId": "synthetic:GAMMAUSD",
+        "direction": "short",
+        "firstSeenAt": "2000-01-01T00:02:00.000Z",
+        "observationPrice": 303,
+        "observationPriceFactId": "synthetic-price-fact-003",
+        "releaseId": "synthetic-release-001",
+        "status": "queued"
+      }
+    },
+    {
+      "syntheticOnly": true,
+      "sourceSystem": "scan_asset_states",
+      "sourceSnapshotId": "synthetic-snapshot-001",
+      "sourceRef": "synthetic/scan-state/row-004",
+      "sourceVersion": "v1",
+      "facts": {
+        "scope": "production_radar",
+        "episodeId": "synthetic-episode-004",
+        "canonicalInstrumentId": "synthetic:DELTAUSD",
+        "direction": "neutral",
+        "firstSeenAt": "2000-01-01T00:03:00.000Z",
+        "observationPrice": 404,
+        "observationPriceFactId": "synthetic-price-fact-004",
+        "releaseId": "synthetic-release-001",
+        "status": "validated"
+      }
+    }
+  ]
+}
