@@ -1040,7 +1040,36 @@ GPT / 用户验收第 4.2 证据
 - 服务器 Git worktree 仍有未提交/未跟踪文件，不能写成 deploy clean。
 - 本轮只能证明生产 runtime health 修复，不能证明 checkpoint outcome 生产闭环已通过。
 - 当前系统仍不能写成支撑实战交易，不能进入 5.2，不能进入实盘。
-- 下一步只能进入 `5.1-H.1-R.2 checkpoint outcome 生产口径最终验收`。
+
+## 2026-07-10 Git 工作区收口与生产部署真值强化
+
+本轮先完成 GitHub Desktop 工作区清理、正式提交、GitHub `main` 快进和腾讯生产仓库收口，再处理部署过程中暴露的 P1 真值问题。未修改 scan / analysis / strategy / backtest / frontend 交易逻辑。
+
+当前事实：
+
+- 本地 `/Users/chuan/Documents/web` 工作区已清理为干净 `main`；生成态 production observability JSON 和临时恢复稿已先归档到 ignored `reports/workspace-cleanup-20260710/`，未删除历史证据、环境文件、数据库、Redis 或 Docker volume。
+- 正式代码与蓝图已推送 GitHub；最终 `main` 为 `a247b59769ee4ec39e7160f50ac6727432a891c7`。
+- 腾讯仓库旧分支热修已保存为 `stash@{0}: pre-main-sync-20260710`；仓库根目录 `phase5-*` 残留已移动到 `/home/ubuntu/market-radar-evidence/worktree-residue-20260710/`，没有直接删除。
+- 腾讯生产仓库已切换为干净 `main`，HEAD 与 GitHub 一致；最终 Git 状态只有 `## main...origin/main`。
+- 生产 `/api/health` 为 `ready`，Web / Postgres / Redis 正常，scanner / websocket-light / CoinGlass / signal / dynamic / macro worker 均运行。
+- Shadow runner 已改为 Node 直接作为容器 PID 1；最终 health 为 `ok=true`、`heartbeatFresh=true`、`lockPidAlive=true`、`reason=pid_alive_heartbeat_fresh`、`sameRuntime=true`。
+- `production-check.sh` 默认 API readiness 等待 600 秒，Shadow 单独等待 660 秒；远端旧 heartbeat 不再冒充本容器 supervisor healthy。
+- 显式确认的 production deploy 若失败，会把 production rollback 确认传递给 rollback 脚本，不再出现“声称自动回滚但实际只 dry-run”。
+- production facts 已纳入 Shadow 状态与日志；最新证据目录为 `/home/ubuntu/apps/chuan-market-radar/reports/production-facts/20260710T001040Z`。
+
+测试事实：
+
+- `typecheck`、`lint`、`build`、forbidden-files、secret-patterns、security-check：pass。
+- `test:market`：836 pass；worker：17 pass；historical smoke：4 pass。
+- `backtest:golden`：16/16 pass；未运行 formal。
+- `test:deploy-safety`：5/5 pass；`test:production-evidence`：15/15 pass。
+- 腾讯 `docker compose config --quiet`、强化后的 production check、Postgres、Redis、全部 worker、Shadow local supervisor health：pass。
+
+仍需保留的能力结论：
+
+- 当前生产运行底座健康，但系统整体仍为 `可运行但不完整 / 不能支撑实战`。
+- 本轮只强化部署与运行真值，没有证明 G0-G9 工程蓝图已完成。
+- 下一轮从蓝图 `WP-G0.1 Frontend Truth Contract` 开始，只清理前端合成事实与未知值伪装，不得顺手修改策略或扫描排序。
 
 ## 2026-07-09 第 5.1-H.1-R.2-FIX Shadow Runner Loop 根因修复
 

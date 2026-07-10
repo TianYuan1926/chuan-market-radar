@@ -1970,3 +1970,58 @@ P0 阻断：
 ### 下一轮建议
 
 唯一下一步：使用当前 Edge OrcaTerm 通道重跑 `5.1-H.1-R.2-SCAN-FIX-PROD`，只部署 SCAN-FIX allowlist 文件，只重建必要服务，并做 30-60 分钟生产稳定性观察。
+
+## 2026-07-10 / Git 工作区清理、腾讯同步与部署真值强化
+
+### 本轮目标
+
+清理 GitHub Desktop 混合工作区，提交应推送内容并移除生成态噪音；确认腾讯服务器同步到最新 `main`；修复真实部署中暴露的 readiness、Shadow supervisor health 和自动回滚真值缺口。
+
+### 修改范围
+
+- Git 清理：归档并移除工作区生成态 production JSON、临时恢复稿、空目录和可重建构建产物；保留 `.env*`、历史报告、证据包、worktree、node_modules。
+- `scripts/deploy/auto-deploy.sh`：显式 production deploy 失败时向 rollback 传递 production rollback 确认。
+- `scripts/verify/production-check.sh`：API readiness 600 秒、Shadow readiness 660 秒，并强制校验本容器 Shadow heartbeat。
+- `docker-compose.yml`：Shadow 路径/run id 进入容器环境，runner 改为 Node PID 1。
+- `src/lib/shadow/runner-runtime.ts`、`src/scripts/shadow/shadow-tracking.ts`：health 只接受本地活 PID 锁，不把 remote heartbeat 当本 supervisor healthy。
+- `scripts/audit/collect-production-facts.sh`：纳入 Shadow 状态和日志。
+- `scripts/deploy/deploy-safety.test.mjs`、`src/lib/shadow/runner-runtime.test.ts`：新增部署安全和本地 supervisor 真值回归测试。
+
+### 核心链路影响
+
+- 全市场发现：未改排序与发现逻辑；只提高部署后 scan/worker 真实可用性的验收可信度。
+- 候选筛选、深扫验证、结构分析、风险赔率、交易计划：未改。
+- 复盘进化：Shadow runner 运行监督与 heartbeat 验收更严格；未改变 outcome 算法。
+
+### 测试结果
+
+- `npm run typecheck`：pass
+- `npm run lint`：pass
+- `npm run test:market`：pass，836/836
+- worker tests：pass，17/17
+- historical smoke：pass，4/4
+- `npm run build`：pass
+- `npm run backtest:golden`：pass，16/16
+- `npm run ci:forbidden-files`：pass
+- `npm run ci:secret-patterns`：pass
+- `npm run security:check`：pass
+- `npm run test:deploy-safety`：pass，5/5
+- `npm run test:production-evidence`：pass，15/15
+- Tencent `docker compose config --quiet`：pass
+- Tencent production check / Postgres / Redis / workers / Shadow local heartbeat：pass
+- formal：未运行
+
+### 是否部署
+
+已推 GitHub 恢复分支、`codex/deploy-truth-hardening` 和 `main`。腾讯生产仓库已同步到 `main@a247b59769ee4ec39e7160f50ac6727432a891c7`；仅最终重建 `shadow-runner` 镜像与容器，未运行 migration，未修改数据库 schema，未清 Redis/Postgres，未删除或重建 volume。
+
+### 风险与遗留问题
+
+- P0：无活动阻断。
+- P1：本轮发现的部署 false-negative、自动回滚 dry-run、Shadow remote heartbeat 假健康已修复并生产验证。
+- P2：服务器仍保留热修 stash 与外置历史证据归档，作为回退审计材料；不要在未复核前删除。
+- 系统仍为 `可运行但不完整 / 不能支撑实战`，不得因生产健康而宣称 G0-G9 完成。
+
+### 下一轮建议
+
+只进入蓝图首包 `WP-G0.1 Frontend Truth Contract`，先消除前端合成方向、伪 freshness、假 0 和未知值伪装。
