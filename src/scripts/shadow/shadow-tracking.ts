@@ -37,6 +37,7 @@ import {
   DEFAULT_SHADOW_RUNNER_HEARTBEAT_STALE_MS,
   buildShadowRunnerRuntimeId,
   deriveShadowRunnerRuntimeStatus,
+  isLocalShadowRunnerHealthy,
   type ShadowRunnerLock,
   type ShadowRunnerState,
 } from "../../lib/shadow/runner-runtime";
@@ -1162,7 +1163,7 @@ function commandHealth(options: CliOptions) {
   const runtime = derivedRunnerStatus(options, manifest);
   const result = {
     generatedAt: nowIso(),
-    ok: runtime.status === "running" && runtime.heartbeatFresh,
+    ok: isLocalShadowRunnerHealthy(runtime),
     runtime,
     runId: runtime.runId || getCurrentRunId(options) || "",
     stillNotReadyForLiveTrading: true,

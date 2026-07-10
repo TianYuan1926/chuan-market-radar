@@ -4,6 +4,7 @@ import {
   buildShadowRunnerRuntimeId,
   deriveShadowRunnerRuntimeStatus,
   isHeartbeatFresh,
+  isLocalShadowRunnerHealthy,
 } from "./runner-runtime";
 
 const nowMs = Date.parse("2026-07-09T10:00:00.000Z");
@@ -101,6 +102,32 @@ test("runner runtime accepts remote/container runner when heartbeat is fresh", (
   assert.equal(status.reason, "remote_runner_heartbeat_fresh");
   assert.equal(status.recoverable, false);
   assert.equal(status.sameRuntime, true);
+  assert.equal(isLocalShadowRunnerHealthy(status), false);
+});
+
+test("runner health only accepts a fresh heartbeat owned by a live local pid", () => {
+  const status = deriveShadowRunnerRuntimeStatus({
+    currentHostname,
+    lock: {
+      heartbeatAt: "2026-07-09T09:59:30.000Z",
+      hostname: currentHostname,
+      pid: 19,
+      runId: "shadow-v1",
+      startedAt: "2026-07-09T09:59:00.000Z",
+    },
+    lockPidAlive: true,
+    manifestStatus: "running",
+    nowMs,
+    runnerState: {
+      heartbeatAt: "2026-07-09T09:59:30.000Z",
+      hostname: currentHostname,
+      runId: "shadow-v1",
+      status: "running",
+    },
+  });
+
+  assert.equal(status.reason, "pid_alive_heartbeat_fresh");
+  assert.equal(isLocalShadowRunnerHealthy(status), true);
 });
 
 test("runner heartbeat freshness is strictly bounded by stale window", () => {

@@ -42,6 +42,13 @@ export type ShadowRunnerRuntimeStatus = {
   status: ShadowRunnerDerivedStatus;
 };
 
+export function isLocalShadowRunnerHealthy(runtime: ShadowRunnerRuntimeStatus): boolean {
+  return runtime.status === "running"
+    && runtime.heartbeatFresh
+    && runtime.lockPidAlive === true
+    && runtime.reason === "pid_alive_heartbeat_fresh";
+}
+
 export const DEFAULT_SHADOW_RUNNER_HEARTBEAT_STALE_MS = 10 * 60 * 1000;
 
 export function parseIsoMs(value: string | undefined): number | null {
