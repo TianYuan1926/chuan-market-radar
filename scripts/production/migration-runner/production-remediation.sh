@@ -310,6 +310,59 @@ dry_run() {
   printf '{"status":"pass","phase":"dry-run"}\n'
 }
 
+reconnect_baseline() {
+  require_boundary
+  guard "$EVIDENCE/production-worktree-guard-after-reconnect.json" \
+    "$EVIDENCE/production-worktree-guard-before.json" >/dev/null
+  curl -fsS localhost/api/health > "$EVIDENCE/health-after-reconnect.json"
+  jq -e '.ok == true and .health.scan.status == "ready" and
+    (.health.scan.freshness == "fresh" or .health.scan.freshness == "aging")' \
+    "$EVIDENCE/health-after-reconnect.json" >/dev/null || fail reconnect_health_regression
+  container_runner identity-remediation.mjs audit \
+    --break-glass-connection-file /ops/secrets/break-glass.url \
+    --cwd /ops \
+    --worktree /production-worktree \
+    --output /ops/evidence/production-role-audit-after-reconnect.json >/dev/null
+  jq -e '.result.candidateSchemaPresent == false' \
+    "$EVIDENCE/production-role-audit-after-reconnect.json" >/dev/null \
+    || fail candidate_schema_appeared
+  docker ps --format '{{json .}}' > "$EVIDENCE/docker-ps-after-reconnect.jsonl"
+  docker exec "$POSTGRES_CONTAINER" pg_isready -q || fail reconnect_postgres_not_ready
+  [ "$(docker exec chuan-market-radar-redis-1 redis-cli ping)" = PONG ] \
+    || fail reconnect_redis_not_ready
+  printf '{"status":"pass","phase":"reconnect-baseline"}\n' \
+    > "$EVIDENCE/reconnect-baseline-result.json"
+  printf '{"status":"pass","phase":"reconnect-baseline"}\n'
+}
+
+observe_detached() {
+  require_boundary
+  [ -f "$EVIDENCE/reconnect-baseline-result.json" ] || fail reconnect_baseline_not_complete
+  pid_file="$STATE/production-observe.pid"
+  if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+    fail observation_already_running
+  fi
+  rm -f "$EVIDENCE/observation-result.json" "$EVIDENCE/production-observation-30-60m.json"
+  nohup "$0" observe "$OPS_ROOT" "$IMAGE" "$RUNNER_COMMIT" \
+    > "$OPS_ROOT/logs-redacted/production-observe.out" 2>&1 &
+  observe_pid=$!
+  printf '%s\n' "$observe_pid" > "$pid_file"
+  chmod 600 "$pid_file" "$OPS_ROOT/logs-redacted/production-observe.out"
+  printf '{"status":"running","phase":"observe","detached":true}\n'
+}
+
+observe_status() {
+  require_boundary
+  pid_file="$STATE/production-observe.pid"
+  if [ -f "$EVIDENCE/observation-result.json" ]; then
+    cat "$EVIDENCE/observation-result.json"
+  elif [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+    printf '{"status":"running","phase":"observe","detached":true}\n'
+  else
+    fail detached_observation_not_running_or_complete
+  fi
+}
+
 observe() {
   require_boundary
   [ -f "$EVIDENCE/dry-run-result.json" ] || fail dry_run_not_complete
@@ -588,6 +641,9 @@ case "$COMMAND" in
   rebuild-artifact) rebuild_artifact ;;
   cutover) cutover ;;
   dry-run) dry_run ;;
+  reconnect-baseline) reconnect_baseline ;;
+  observe-detached) observe_detached ;;
+  observe-status) observe_status ;;
   observe) observe ;;
   final-audit) final_audit ;;
   *) fail command_invalid ;;
