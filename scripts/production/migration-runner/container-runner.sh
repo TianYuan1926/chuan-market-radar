@@ -24,7 +24,6 @@ if [ -z "$IMAGE" ] || [ ! -d "$OPS_ROOT" ]; then
 fi
 
 exec sudo -n docker run --rm \
-  --user "$(id -u):$(id -g)" \
   --network chuan-market-radar_default \
   --workdir /ops \
   --env MARKET_RADAR_APPLICATION_ROOT=/app \
