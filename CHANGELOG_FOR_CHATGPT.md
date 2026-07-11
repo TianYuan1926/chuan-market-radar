@@ -2329,3 +2329,43 @@ P0 阻断：
 ### 下一轮建议
 
 仅建议独立审批 `PRODUCTION-CAPACITY-OFFHOST-RESTORE-REMEDIATION`；容量 Gate PASS 后，再单独申请 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN`，不得合并授权。
+
+## 2026-07-11 / Production Capacity, Encrypted Off-Host Backup and Restore Remediation
+
+### 本轮目标
+
+关闭 Candidate Add Schema rerun 之前的真实生产磁盘、加密离机备份、外部隔离恢复和 RPO/RTO 容量前置风险。
+
+### 修改范围
+
+- 新增生产加密备份脚本、本地隔离恢复脚本、10 个定向测试、运行说明和三个 package 命令。
+- 生产仅清理未使用 Docker build cache，创建 root-only PostgreSQL custom dump、公钥加密件和脱敏 manifest；未 prune image/container/volume。
+- 私钥只保存在本机安全目录，从未上传生产；离机只传输加密备份、manifest 和公钥。
+- 更新 context、提速计划、V3、current-state matrix 和 traceability；未修改 scan/analysis/strategy/backtest/frontend/API 业务逻辑。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：关闭未来 Candidate authority schema 加表前的容量与恢复前置风险，但未创建 Candidate schema。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：运行行为未改变。
+
+### 测试结果
+
+- 定向脚本测试：10/10 pass；Bash 语法和 ESLint pass。
+- 合成 encrypted-only PostgreSQL 16 restore：pass，退出后明文/集群/socket 残留 0。
+- 真实生产备份外部隔离恢复：pass，12 个用户表、1 个用户 schema、RPO 14 分钟、RTO 53 秒，未输出业务行。
+- 容量 validator：14/14 pass，预计磁盘 18%，`canRequestAddSchemaApproval=true`，但 `authorizesMigration=false`。
+- 基础门禁结果见本轮交付报告；formal 未运行且禁止。
+
+### 是否部署
+
+未部署应用代码，未改变生产 release/image/schema/Feature Flag。生产 HEAD 仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13`，worktree clean，health HTTP 200 / ready / database，11 个容器继续运行。
+
+### 风险与遗留问题
+
+- Candidate schema 仍不存在，migration、writer、backfill 和 read cutover 仍未获授权。
+- 本轮证明的是一次生产规模离机恢复；自动备份调度、保留轮换和周期性 restore drill 仍属于 G1。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只建议独立审批 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN`；不得把本轮 PASS 解释成 migration 已授权。

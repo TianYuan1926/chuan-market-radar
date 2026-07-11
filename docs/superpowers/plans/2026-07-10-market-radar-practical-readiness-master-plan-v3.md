@@ -235,7 +235,7 @@ interface MarketFactEnvelope<T> {
 
 ### WP-G0.2 Candidate Lifecycle and Outcome Truth
 
-**Current status (2026-07-11):** `PARTIAL_IDENTITY_REMEDIATED_CAPACITY_BLOCKED`
+**Current status (2026-07-11):** `PARTIAL_CAPACITY_RECOVERY_PASSED_ADD_SCHEMA_APPROVAL_PENDING`
 
 Repository-wide audit confirmed that the production mutable journal/scan-state JSONB schema cannot enforce immutable Candidate Episodes or exactly-once terminal Outcomes. The separately authorized implementation/rehearsal package has now implemented the approved dormant schema/runtime foundation and passed isolated PostgreSQL rehearsal, but production migration, writer activation, backfill, read cutover and deployment remain false.
 
@@ -255,7 +255,7 @@ During OrcaTerm operation, a malformed command transiently created one zero-byte
 
 **Production identity remediation (2026-07-11):** `PASS_IDENTITY_AND_RUNNER_REMEDIATION`
 
-The application now uses a least-privilege Runtime LOGIN; an independent Migration LOGIN, NOLOGIN owner and isolated Break-glass exist. The explicit Runner rejected Runtime identity for migration, passed production dry-run, and completed a seven-sample observation longer than 30 minutes without Candidate DDL or application release/image change. Add Schema remains blocked because full encrypted off-host backup, external restore and production WAL/disk headroom are unproved; the latest disk evidence is 85% used. `WP-G0.2` remains incomplete.
+The application now uses a least-privilege Runtime LOGIN; an independent Migration LOGIN, NOLOGIN owner and isolated Break-glass exist. The explicit Runner rejected Runtime identity for migration, passed production dry-run, and completed a seven-sample observation longer than 30 minutes without Candidate DDL or application release/image change. The later capacity/recovery remediation reduced the root disk to 13%, created checksum-verified encrypted off-host backups, restored the production-scale dump on an external isolated PostgreSQL 16 target with RPO 14 minutes/RTO 53 seconds, and passed the fail-closed capacity gate 14/14 with projected disk use 18%. This only opens the request for a separate Add Schema rerun approval; Candidate DDL, writer, backfill and cutover remain unauthorized, and `WP-G0.2` remains incomplete.
 
 **Modify:**
 

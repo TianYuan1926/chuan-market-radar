@@ -60,8 +60,8 @@
   "accelerationOverlay": {
     "id": "MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1",
     "status": "active",
-    "currentApprovalPoint": "PRODUCTION-CAPACITY-OFFHOST-RESTORE-REMEDIATION",
-    "addSchemaApprovalOpen": false,
+    "currentApprovalPoint": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN",
+    "addSchemaApprovalOpen": true,
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "gateOrderChanged": false,
@@ -79,9 +79,9 @@
     ],
     "capacityGate": {
       "tool": "scripts/production/migration-capacity-gate.mjs",
-      "latestKnownDiskUsePercent": 85,
-      "status": "blocked_unproved",
-      "canRequestAddSchemaApproval": false,
+      "latestKnownDiskUsePercent": 13,
+      "status": "pass_capacity_and_recovery_remediation",
+      "canRequestAddSchemaApproval": true,
       "requires": [
         "projected_primary_disk_use_lte_70_percent",
         "fresh_encrypted_off_host_backup",
@@ -106,7 +106,7 @@
     {"id": 11, "name": "Known issue regression guard", "status": "partial", "currentEvidence": "Many incident tests exist, but there is no single machine-readable registry tied to release gates.", "v3Destination": "G0 incident registry and CI guard"},
     {"id": 12, "name": "Engineering efficiency automation", "status": "partial", "currentEvidence": "Production, evidence, security, scan, Shadow and backtest scripts exist; E2E, load and architecture-diff gates are missing.", "v3Destination": "G1 delivery automation"},
     {"id": 13, "name": "Codex build and external audit collaboration standard", "status": "implemented", "currentEvidence": "AGENTS rules, project context, changelog and fixed evidence reporting are established.", "v3Destination": "Maintain as cross-cutting governance"},
-    {"id": 14, "name": "Operations backup and disaster recovery", "status": "partial", "currentEvidence": "pg_dump, restore guard and production drill scripts exist; offsite scheduling, encryption, retention evidence and real restore RPO/RTO are missing.", "v3Destination": "G1 reliability and recovery"},
+    {"id": 14, "name": "Operations backup and disaster recovery", "status": "partial", "currentEvidence": "One-off encrypted off-host backup and external isolated PostgreSQL 16 restore are proven at production scale with RPO 14 minutes/RTO 53 seconds; automated scheduling, retention rotation and recurring drills remain missing.", "v3Destination": "G1 reliability and recovery"},
     {"id": 15, "name": "Shadow v1 metric baseline", "status": "partial_broken", "currentEvidence": "Local baseline has 24 events, 72 checkpoints, 48 pending_with_error and zero recorded outcomes; production shows zero approved/evaluated Shadow samples.", "v3Destination": "G5 canonical Shadow baseline"},
     {"id": 16, "name": "Daily Movers review", "status": "partial", "currentEvidence": "Production review shows seven archived snapshots and one miss review, but zero pre-move samples.", "v3Destination": "G3 counterfactual discovery set and G5 outcomes"},
     {"id": 17, "name": "Core logic fit review", "status": "completed_failed_capability", "currentEvidence": "Professional audit completed and found scan 50.74, analysis 46.57 and strategy 22.48 with no ready plan.", "v3Destination": "G3/G4 remediation with holdouts"},

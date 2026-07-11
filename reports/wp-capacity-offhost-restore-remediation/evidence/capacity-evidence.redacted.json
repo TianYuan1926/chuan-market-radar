@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "candidate-migration-capacity-evidence.v1",
+  "capturedAt": "2026-07-11T10:45:06.000Z",
+  "primaryHost": {
+    "totalBytes": 126695563264,
+    "usedBytes": 14571864064,
+    "databaseBytes": 634507264,
+    "localBackupBytes": 185720472,
+    "migrationTempBytes": 2147483648,
+    "walPeakBytes": 3221225472,
+    "rollbackReserveBytes": 2147483648,
+    "safetyReserveBytes": 21474836480
+  },
+  "offHostBackup": {
+    "createdAt": "2026-07-11T10:35:58.000Z",
+    "encrypted": true,
+    "offHost": true,
+    "checksumVerified": true,
+    "archiveVerified": true
+  },
+  "restoreTarget": {
+    "class": "external_isolated",
+    "totalBytes": 494332366848,
+    "availableBytes": 272962011136
+  },
+  "restoreDrill": {
+    "completedAt": "2026-07-11T10:32:23.000Z",
+    "passed": true,
+    "isolated": true,
+    "rpoMinutes": 14,
+    "rtoMinutes": 1
+  }
+}

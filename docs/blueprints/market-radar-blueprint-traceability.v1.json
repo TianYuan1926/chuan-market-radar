@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_identity_remediated_capacity_gate_active",
-  "generatedAt": "2026-07-11T17:16:04+08:00",
+  "status": "wp_g0_2_capacity_recovery_pass_add_schema_approval_pending",
+  "generatedAt": "2026-07-11T18:45:06+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -39,7 +39,7 @@
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
-    "capacityGateStatus": "blocked_unproved",
+    "capacityGateStatus": "pass_capacity_and_recovery_remediation",
     "candidateMigrationAuthorized": false,
     "candidateSchemaPresent": false,
     "gateSequenceChanged": false,

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "market-radar-capacity-offhost-restore-summary.v1",
+  "status": "PASS_CAPACITY_AND_RECOVERY_REMEDIATION",
+  "productionHead": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+  "finalDiskUsePercent": 13,
+  "finalDiskAvailableKiB": 103763584,
+  "dockerBuildCacheReclaimedGB": 88.76,
+  "freshBackup": {
+    "backupId": "capacity-gate-20260711T103401Z",
+    "createdAt": "2026-07-11T10:35:58Z",
+    "encryptedBackupBytes": 185721054,
+    "encryptedBackupSha256": "9b0dc711d288bbc9aec54a685692a4f10cf9cc65e246b753dc4a847109ef48f7",
+    "encrypted": true,
+    "offHost": true,
+    "checksumVerified": true,
+    "archiveVerified": true
+  },
+  "restoreDrill": {
+    "targetClass": "external_isolated",
+    "postgresMajor": 16,
+    "passed": true,
+    "userTableCount": 12,
+    "userSchemaCount": 1,
+    "rpoMinutes": 14,
+    "rtoSeconds": 53,
+    "businessRowsOutput": false,
+    "plaintextDumpRetained": false,
+    "restoreClusterRetained": false
+  },
+  "capacityGate": {
+    "evaluatedAt": "2026-07-11T10:45:06.000Z",
+    "status": "pass",
+    "checksPassed": 14,
+    "checksFailed": 0,
+    "projectedDiskUsePercent": 18,
+    "canRequestAddSchemaApproval": true,
+    "authorizesMigration": false
+  },
+  "boundaries": {
+    "candidateMigrationRun": false,
+    "productionSchemaChanged": false,
+    "applicationReleaseChanged": false,
+    "privateKeyUploaded": false,
+    "formalBacktestRun": false
+  },
+  "nextApprovalPoint": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN"
+}

@@ -23,7 +23,7 @@
 -> G1-G8
 ```
 
-当前事实：生产身份隔离和 Migration Runner dry-run 已通过；Candidate schema 不存在；生产磁盘最近证据为 85% 使用率，完整加密异地备份、外部恢复和 WAL headroom 未证明。因此不能申请 Add Schema rerun 执行授权。
+当前事实：生产身份隔离和 Migration Runner dry-run 已通过；容量/恢复整改也已通过。根盘最终 13%，fresh 加密离机备份 checksum/archive 验证通过，外部隔离 PostgreSQL 16 restore drill 为 RPO 14 分钟、RTO 53 秒，容量 validator 14/14 PASS、预计磁盘 18%。Candidate schema 仍不存在，migration 仍未获授权；当前只能申请 Add Schema rerun 的独立明确审批。
 
 ## 2. 双车道模型
 
@@ -122,9 +122,9 @@ npm run test:migration-capacity
 
 | 顺序 | Work Package | Lane | 当前状态 | 放行条件 |
 | --- | --- | --- | --- | --- |
-| 1 | WP-ACCEL-01 Safe Delivery and Capacity Gate | B | in progress | 工具、测试、治理门禁通过 |
-| 2 | Production capacity/off-host restore remediation | A | blocked | 用户批准外部资源/生产操作，容量结果 PASS |
-| 3 | WP-G0.2 Add Schema rerun | A | not authorized | 第 2 项 PASS + 新明确审批 |
+| 1 | WP-ACCEL-01 Safe Delivery and Capacity Gate | B | completed | 工具、测试、治理门禁通过 |
+| 2 | Production capacity/off-host restore remediation | A | pass | 根盘 13%、fresh 加密离机备份、真实隔离恢复、容量 14/14 PASS |
+| 3 | WP-G0.2 Add Schema rerun | A | approval pending | 第 2 项 PASS；仍需新的独立明确审批 |
 | 4 | WP-G0.2 shadow_capture | A | prohibited | Add Schema PASS + 独立审批 |
 | 5 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定 + 独立审批 |
 | 6 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
@@ -136,4 +136,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-提速计划已启动，但当前不具备 Add Schema rerun 的申请条件。下一生产动作不是 migration，而是经过独立授权的磁盘/异地备份/恢复容量整改与证据采集。
+提速计划已启动，容量与恢复前置条件已经形成 PASS 证据。该 PASS 不授权 migration；下一生产动作必须先获得 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 的独立明确审批，未批准前继续禁止 DDL、writer、backfill 和 read cutover。
