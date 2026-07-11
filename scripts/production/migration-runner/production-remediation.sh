@@ -206,7 +206,7 @@ cutover() {
   attempt=0
   while [ "$attempt" -lt 18 ]; do
     if curl -fsS localhost/api/health > "$EVIDENCE/health-cutover-attempt.json"; then
-      if jq -e '.status == "ready" and .scan.status == "ready"' \
+      if jq -e '.status == "ready" and .postgres.status == "ready" and .scan.status == "fresh"' \
         "$EVIDENCE/health-cutover-attempt.json" >/dev/null; then
         healthy=true
         break
