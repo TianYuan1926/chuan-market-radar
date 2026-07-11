@@ -74,7 +74,14 @@ async function main() {
   }
   artifactFiles.sort((left, right) => left.path.localeCompare(right.path));
 
-  const git = await execFileAsync("git", ["-C", repositoryRoot, "rev-parse", "HEAD"]);
+  let runnerSourceCommit = options["runner-source-commit"];
+  if (runnerSourceCommit && !/^[a-f0-9]{40}$/.test(runnerSourceCommit)) {
+    throw new Error("Invalid runner source commit");
+  }
+  if (!runnerSourceCommit) {
+    const git = await execFileAsync("git", ["-C", repositoryRoot, "rev-parse", "HEAD"]);
+    runnerSourceCommit = git.stdout.trim();
+  }
   const manifest = {
     artifactFiles,
     artifactFormat: "market-radar-production-migration-runner.v1",
@@ -82,7 +89,7 @@ async function main() {
     candidateMigrationManifestHash: AUTHORIZED_MANIFEST_HASH,
     candidateMigrationSourceCommit: AUTHORIZED_SOURCE_COMMIT,
     generatedAt: new Date().toISOString(),
-    runnerSourceCommit: git.stdout.trim(),
+    runnerSourceCommit,
   };
   const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`;
   await writeFile(join(artifactDirectory, "RUNNER_ARTIFACT_MANIFEST.json"), manifestJson, {
