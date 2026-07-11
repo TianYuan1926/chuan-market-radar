@@ -477,6 +477,9 @@ async function renderRuntimeEnv(options, request) {
   }
 
   const outputDirectory = resolve(options["output-dir"]);
+  const hostOutputDirectory = options["host-output-dir"]
+    ? resolve(options["host-output-dir"])
+    : outputDirectory;
   await mkdir(outputDirectory, { mode: 0o700, recursive: true });
   const rendered = replaceEnv(
     sourceEnv,
@@ -524,7 +527,7 @@ exec sudo -n docker compose \\
   --env-file /home/ubuntu/apps/chuan-market-radar/.env.production \\
   --env-file ${resolve(options["postgres-admin-env-file"])} \\
   -f /home/ubuntu/apps/chuan-market-radar/docker-compose.yml \\
-  -f ${join(outputDirectory, "runtime-identity.override.yml")} \\
+  -f ${join(hostOutputDirectory, "runtime-identity.override.yml")} \\
   "$@"
 `;
   await writeFile(join(outputDirectory, "compose-identity-safe"), wrapper, { mode: 0o700 });

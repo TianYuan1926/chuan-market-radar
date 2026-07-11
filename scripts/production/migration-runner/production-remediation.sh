@@ -110,6 +110,21 @@ prepare() {
   printf '{"status":"pass","phase":"prepare"}\n'
 }
 
+rebuild_artifact() {
+  require_boundary
+  docker run --rm \
+    --volume "$OPS_ROOT:/ops" \
+    --volume "$SOURCE:/src:ro" \
+    --entrypoint node \
+    "$IMAGE" \
+    /src/scripts/production/migration-runner/build-artifact.mjs \
+    --output-dir /ops/artifacts \
+    --runner-source-commit "$RUNNER_COMMIT" \
+    > "$EVIDENCE/artifact-build.json"
+  chmod -R a-w "$ARTIFACT"
+  printf '{"status":"pass","phase":"rebuild-artifact"}\n'
+}
+
 rollback_runtime() {
   if [ -f "$BACKUPS/env.production.rollback" ]; then
     chown --reference="$ENV_FILE" "$BACKUPS/env.production.rollback"
@@ -165,6 +180,7 @@ cutover() {
     --application-runtime-env-file /ops/secrets/application-runtime.env \
     --postgres-admin-env-file "$SECRETS/postgres-admin.env" \
     --output-dir /ops/runtime \
+    --host-output-dir "$RUNTIME" \
     --cwd /ops \
     --worktree /production-worktree \
     --output /ops/evidence/runtime-env-render.json
@@ -296,6 +312,7 @@ dry_run() {
 
 case "$COMMAND" in
   prepare) prepare ;;
+  rebuild-artifact) rebuild_artifact ;;
   cutover) cutover ;;
   dry-run) dry_run ;;
   *) fail command_invalid ;;
