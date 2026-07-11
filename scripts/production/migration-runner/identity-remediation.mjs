@@ -686,6 +686,18 @@ async function audit(options) {
          WHERE datname = current_database() AND pid <> pg_backend_pid()
          GROUP BY md5(usename) ORDER BY connection_count DESC`,
       );
+      const connectionClasses = await client.query(
+        `SELECT
+          count(*) FILTER (WHERE usename = $1)::int AS application_runtime,
+          count(*) FILTER (WHERE usename = $2)::int AS migration_login,
+          count(*) FILTER (WHERE usename = $3)::int AS break_glass,
+          count(*) FILTER (
+            WHERE usename NOT IN ($1, $2, $3) AND usename IS NOT NULL
+          )::int AS other_login
+         FROM pg_stat_activity
+         WHERE datname = current_database() AND pid <> pg_backend_pid()`,
+        [APPLICATION_RUNTIME_ROLE, MIGRATION_LOGIN_ROLE, decodeURIComponent(url.username)],
+      );
       const candidate = await client.query(
         "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='candidate_authority') AS present",
       );
@@ -693,6 +705,7 @@ async function audit(options) {
       return {
         activeRoleCounts: active.rows,
         candidateSchemaPresent: candidate.rows[0]?.present === true,
+        connectionClassCounts: connectionClasses.rows[0],
         currentRole: redactedRole(current),
         databaseBoundary: databaseBoundary.rows[0],
         defaultPrivileges: defaultPrivileges.rows,

@@ -320,9 +320,11 @@ observe() {
   while [ "$sample" -le 6 ]; do
     timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     health="$EVIDENCE/observation-health-$sample.json"
+    radar="$EVIDENCE/observation-radar-$sample.json"
     audit="$EVIDENCE/observation-role-audit-$sample.json"
     guard_file="$EVIDENCE/observation-worktree-guard-$sample.json"
     curl -fsS localhost/api/health > "$health"
+    curl -fsS localhost/api/frontend/radar-contract > "$radar"
     jq -e '.ok == true and .health.scan.status == "ready" and
       (.health.scan.freshness == "fresh" or .health.scan.freshness == "aging")' \
       "$health" >/dev/null || fail observation_health_regression
@@ -340,6 +342,7 @@ observe() {
     page_signals=$(curl -sS -o /dev/null -w '%{http_code}' localhost/signals)
     page_review=$(curl -sS -o /dev/null -w '%{http_code}' localhost/review)
     page_system=$(curl -sS -o /dev/null -w '%{http_code}' localhost/system)
+    page_token=$(curl -sS -o /dev/null -w '%{http_code}' localhost/token/BTCUSDT)
     api_scan=$(curl -sS -o /dev/null -w '%{http_code}' localhost/api/scan)
     api_radar=$(curl -sS -o /dev/null -w '%{http_code}' localhost/api/frontend/radar-contract)
     api_backend=$(curl -sS -o /dev/null -w '%{http_code}' localhost/api/radar/backend-contract)
@@ -347,8 +350,43 @@ observe() {
     redis_status=$(docker exec chuan-market-radar-redis-1 redis-cli ping)
     postgres_status=$(docker exec "$POSTGRES_CONTAINER" pg_isready -q && printf ready || printf fail)
     web_image=$(docker inspect chuan-market-radar-web-1 --format '{{.Image}}')
-    permission_denied_count=$(docker logs --since 6m chuan-market-radar-web-1 2>&1 \
-      | grep -Eic 'permission denied|insufficient privilege' || true)
+    permission_denied_count=0
+    transaction_error_count=0
+    for container in \
+      chuan-market-radar-web-1 \
+      chuan-market-radar-scanner-worker-1 \
+      chuan-market-radar-websocket-light-worker-1 \
+      chuan-market-radar-coinglass-worker-1 \
+      chuan-market-radar-signal-worker-1 \
+      chuan-market-radar-shadow-runner-1 \
+      chuan-market-radar-dynamic-scan-scheduler-1 \
+      chuan-market-radar-macro-worker-1
+    do
+      permission_denied_count=$((permission_denied_count + $(
+        docker logs --since 6m "$container" 2>&1 \
+          | grep -Eic 'permission denied|insufficient privilege' || true
+      )))
+      transaction_error_count=$((transaction_error_count + $(
+        docker logs --since 6m "$container" 2>&1 \
+          | grep -Eic 'transaction.*(abort|fail|error)' || true
+      )))
+    done
+    "$RUNTIME/compose-identity-safe" exec -T shadow-runner sh -lc \
+      'node .tmp/market-tests/scripts/shadow/shadow-tracking.js health --out-dir "$SHADOW_REPORTS_DIR" --run-id "$SHADOW_RUN_ID"' \
+      > "$EVIDENCE/observation-shadow-$sample.json"
+    shadow_status=ready
+    candidate_flags_enabled=0
+    for flag in \
+      CANDIDATE_EPISODE_CANONICAL_WRITE \
+      CANDIDATE_EPISODE_SHADOW_WRITE \
+      CANDIDATE_EPISODE_DUAL_READ \
+      CANDIDATE_EPISODE_CANONICAL_READ \
+      CANDIDATE_EPISODE_REVIEW_READ
+    do
+      if candidate_flag_enabled "$flag"; then
+        candidate_flags_enabled=$((candidate_flags_enabled + 1))
+      fi
+    done
 
     jq -n \
       --arg timestamp "$timestamp" \
@@ -361,17 +399,25 @@ observe() {
       --arg signals "$page_signals" \
       --arg review "$page_review" \
       --arg system "$page_system" \
+      --arg token "$page_token" \
+      --arg shadowStatus "$shadow_status" \
       --arg apiScan "$api_scan" \
       --arg apiRadar "$api_radar" \
       --arg apiBackend "$api_backend" \
       --arg apiReview "$api_review" \
       --argjson permissionDeniedCount "$permission_denied_count" \
+      --argjson transactionErrorCount "$transaction_error_count" \
+      --argjson candidateFlagsEnabled "$candidate_flags_enabled" \
       --slurpfile health "$health" \
+      --slurpfile radar "$radar" \
       --slurpfile audit "$audit" \
       --slurpfile guard "$guard_file" \
       '{
         activeRoleCounts: $audit[0].result.activeRoleCounts,
+        connectionClassCounts: $audit[0].result.connectionClassCounts,
         applicationRelease: $applicationRelease,
+        candidateCount: $health[0].health.scan.candidateCount,
+        candidateFeatureFlagsEnabled: $candidateFlagsEnabled,
         candidateSchemaPresent: $audit[0].result.candidateSchemaPresent,
         healthOk: $health[0].ok,
         pages: {
@@ -383,15 +429,23 @@ observe() {
           review: $review,
           root: $root,
           signals: $signals,
-          system: $system
+          system: $system,
+          token: $token
         },
         permissionDeniedCount: $permissionDeniedCount,
         postgres: $postgres,
         redis: $redis,
+        redisProbeStatus: $health[0].health.runtimeProbes.redis.status,
         scanFreshness: $health[0].health.scan.freshness,
+        scannedCount: $health[0].health.scan.scannedCount,
         scanStatus: $health[0].health.scan.status,
+        shadowStatus: $shadowStatus,
+        signalsCount: ($radar[0].contract.radarSignals.data | length),
         timestamp: $timestamp,
+        transactionErrorCount: $transactionErrorCount,
         webImage: $webImage,
+        workersHealthy: ([$health[0].health.runtimeProbes.workers[] | select(.status == "healthy")] | length),
+        workersTotal: ($health[0].health.runtimeProbes.workers | length),
         worktreeClean: $guard[0].clean,
         worktreeHead: $guard[0].head
       }' >> "$series"
@@ -413,7 +467,12 @@ observe() {
         $observationSeconds >= 1800 and
         any(.[]; .scanFreshness == "fresh") and
         all(.[]; .healthOk == true and .scanStatus == "ready" and
-          (.scanFreshness == "fresh" or .scanFreshness == "aging"))
+          (.scanFreshness == "fresh" or .scanFreshness == "aging") and
+          .permissionDeniedCount == 0 and .transactionErrorCount == 0 and
+          .candidateFeatureFlagsEnabled == 0 and .shadowStatus == "ready" and
+          .workersHealthy == .workersTotal and
+          .connectionClassCounts.migration_login == 0 and
+          .connectionClassCounts.break_glass == 0)
       ) then "pass" else "fail" end)
     }' \
     "$series" > "$EVIDENCE/production-observation-30-60m.json"
