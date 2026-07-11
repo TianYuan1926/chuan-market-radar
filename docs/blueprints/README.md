@@ -24,6 +24,7 @@ flowchart TD
 
     index["蓝图总索引"] --> engineering["工程搭建蓝图"]
     index --> runtime["生产运行蓝图"]
+    index --> acceleration["不降质提速执行计划"]
     index --> roadmap["V3 实战就绪路线图"]
     index --> traceability["机器追踪矩阵"]
 
@@ -43,6 +44,7 @@ flowchart TD
 | --- | --- | --- |
 | [工程搭建蓝图](./MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md) | 系统应该怎样搭建、合同和模块怎样分层、怎样测试发布 | 当前生产是否健康 |
 | [生产运行蓝图](./MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md) | 系统怎样启动、稳态运行、降级、告警、恢复和暂停能力 | 新功能具体代码怎样实现 |
+| [不降质提速执行计划](./MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md) | 怎样用双车道、WIP 和证据窗口重叠缩短关键路径 | 不改变 Gate、审批或验收阈值 |
 | [V3 路线图](../superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md) | 当前差距按什么顺序修、每个 Gate 如何验收 | 单次事故具体 runbook |
 | [机器追踪矩阵](./market-radar-blueprint-traceability.v1.json) | 核心链路如何映射到 Gate、代码和运行检查 | 人类解释和设计理由 |
 | [本轮交付报告](./MARKET_RADAR_BLUEPRINT_V1_DELIVERY_REPORT.md) | 本轮范围、验证、失败项和部署边界 | 长期架构规则 |
@@ -68,10 +70,11 @@ flowchart TD
 
 1. 读 `PROJECT_CONTEXT_FOR_CHATGPT.md` 当前事实。
 2. 在工程搭建蓝图定位目标领域合同和模块所有权。
-3. 在 V3 找到对应 G0-G8 Work Package。
-4. 在运行蓝图确认部署、降级、SLO 和回滚影响。
-5. 查询机器追踪矩阵确定代码路径和证据。
-6. 创建独立任务书后才能实施。
+3. 在提速执行计划确认 Lane、WIP、并行边界和不可压缩证据。
+4. 在 V3 找到对应 G0-G8 Work Package。
+5. 在运行蓝图确认部署、降级、SLO 和回滚影响。
+6. 查询机器追踪矩阵确定代码路径和证据。
+7. 创建独立任务书后才能实施。
 
 ### 5.2 生产故障
 

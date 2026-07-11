@@ -2,7 +2,7 @@
 
 > 本文是 `/Users/chuan/Documents/web` 的兼容入口、当前能力快照和历史详细事实集合。目标架构、工程施工和生产运行的权威规则已经拆分到 `docs/blueprints/`；下方旧版详细内容保留用于审计，不得覆盖新版蓝图和当前证据。
 
-> 最后整理日期：2026-07-11。当前等级：`R1 - 生产研究平台 / 可运行但不完整 / 不能支撑实战`。WP-G0.2 production add-schema 已在 PostgreSQL migration identity preflight 停止；生产 Schema、应用 release 和运行路径均未改变。当前应用数据库身份仍具完整超级权限，且没有独立 production migration LOGIN 身份。
+> 最后整理日期：2026-07-11。当前等级：`R1 - 生产研究平台 / 可运行但不完整 / 不能支撑实战`。生产应用已切换为最小权限 Runtime，独立 Migration LOGIN、Break-glass 和显式 Runner dry-run 已通过；Candidate Schema、应用 release 和业务路径仍未改变。Add Schema 当前由磁盘、加密异地备份、外部恢复和 WAL headroom Gate 阻断。
 
 ## A. 权威蓝图入口
 
@@ -11,6 +11,7 @@
 | `docs/blueprints/README.md` | 蓝图目录 | 文档层级、阅读顺序、状态和变更规则 |
 | `docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md` | 工程搭建蓝图 | 目标架构、领域合同、模块所有权、数据、安全、测试、发布和建设顺序 |
 | `docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md` | 生产运行蓝图 | 启停、调度、状态机、SLO、降级、告警、runbook、发布、备份恢复和事故响应 |
+| `docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md` | 不降质提速执行计划 | 双车道、WIP、证据窗口重叠、容量门禁和当前执行队列 |
 | `docs/blueprints/market-radar-blueprint-traceability.v1.json` | 机器追踪矩阵 | 核心链路、G0-G8、代码路径、运行检查和证据映射 |
 | `docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md` | 实战就绪路线图 | 当前差距、Work Package、阶段依赖和 R4 准入 |
 | `PROJECT_CONTEXT_FOR_CHATGPT.md` | 当前项目上下文 | 当前真实状态、近期事件、风险和唯一下一任务 |
@@ -30,13 +31,13 @@
 
 ## C. 当前唯一下一入口
 
-`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 仍因生产 schema 尚未增加权威 Episode/Outcome 而未完成。2026-07-11 身份修复包已达到 `PASS_IDENTITY_AND_RUNNER_REMEDIATION`：应用退出超级 LOGIN，独立 Migration LOGIN、Break-glass、显式 Runner dry-run 和 30 分钟观察通过；Candidate Migration 未执行，生产 schema/writer/read path 未改变。当前没有自动授权的下一包；再次获得明确批准后才可进入：
+`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 仍因生产 schema 尚未增加权威 Episode/Outcome 而未完成。2026-07-11 身份修复包已达到 `PASS_IDENTITY_AND_RUNNER_REMEDIATION`：应用退出超级 LOGIN，独立 Migration LOGIN、Break-glass、显式 Runner dry-run 和 30 分钟观察通过；Candidate Migration 未执行，生产 schema/writer/read path 未改变。用户已批准启动不降质提速覆盖层；当前先完成：
 
 ```text
-WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN
+PRODUCTION-CAPACITY-OFFHOST-RESTORE-GATE
 ```
 
-该 rerun 仍需从 Step 0 重新核验 artifact、backup/restore/capacity 和身份 Gate，只允许 additive schema；不得自行进入 shadow writer、backfill、read cutover、HTTPS、扫描排序、策略权重、Shadow v2 或视觉重构。
+容量 Gate 只有在预计磁盘 `<=70%`、fresh 加密异地备份、外部隔离 restore 和 RPO/RTO 证据全部通过后，才允许申请 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 的独立审批。不得自行进入 migration、shadow writer、backfill、read cutover、HTTPS、扫描排序、策略权重、Shadow v2 或视觉重构。
 
 ## D. 旧版详细事实保留区
 

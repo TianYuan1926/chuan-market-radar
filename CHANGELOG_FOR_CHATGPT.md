@@ -2285,3 +2285,47 @@ P0 阻断：
 ### 下一轮建议
 
 只在用户再次明确批准后，从 Step 0 进入 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN`；不得自动进入 Shadow write、backfill、read cutover、G1、R4 或实盘。
+
+## 2026-07-11 / WP-ACCEL-01 Safe Delivery Acceleration and Capacity Gate
+
+### 本轮目标
+
+把用户批准的“不降低质量提速方案”落成双车道执行覆盖层和 fail-closed 的 Candidate Migration 容量/恢复门禁，先关闭 Add Schema rerun 的容量前置风险。
+
+### 修改范围
+
+- 新增 `MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md`，固定 Production WIP=1、Local Preparation WIP=1、证据窗口重叠规则、不可压缩项和当前关键路径。
+- 新增 `migration-capacity-gate.mjs` 与 16 个测试，验证磁盘、backup、外部 restore、RPO/RTO 和证据时效；工具不连接生产、不执行 backup/restore/migration。
+- 增加三个 package scripts；同步蓝图目录、工程蓝图、V3、current-state matrix、traceability、兼容蓝图和 context。
+- 修正 V3/兼容蓝图仍显示应用超级权限和旧 Add Schema 状态的治理漂移。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：为 Candidate Episode/Outcome production schema 的安全实施增加可执行容量 Gate；生产 schema 和读写路径未改变。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：未改。
+
+### 测试结果
+
+- `npm run test:migration-capacity`：16/16 pass；空模板和缺失数字 fail closed。
+- `npm run migration:runner:test`：43/43 pass。
+- `npm run typecheck`：pass。
+- `npm run lint`：pass。
+- `npm run test:market`：924 pass / 1 isolated DB skip；worker 17/17；historical 4/4。
+- `npm run build`：pass。
+- `npm run backtest:golden`：16/16 pass。
+- `npm run ci:forbidden-files`、`npm run ci:secret-patterns`、`npm run security:check`：pass。
+- `npm run backtest:formal`：未运行且本轮禁止。
+
+### 是否部署
+
+未部署；未连接生产；未执行 DDL/DML、backup、restore、migration、Feature Flag 或服务重启。
+
+### 风险与遗留问题
+
+- 本工作包实现与治理范围 PASS，但真实生产 capacity/off-host restore Gate 仍为 `BLOCKED_UNPROVED`。
+- 最近生产证据仍是磁盘 85%；预计磁盘 <=70%、fresh 加密异地备份、外部隔离 restore 和 WAL headroom 尚未形成真实 PASS 证据。
+- Candidate schema 仍不存在，WP-G0.2/G0 仍未完成，系统仍为 R1、不能支撑实战。
+
+### 下一轮建议
+
+仅建议独立审批 `PRODUCTION-CAPACITY-OFFHOST-RESTORE-REMEDIATION`；容量 Gate PASS 后，再单独申请 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN`，不得合并授权。

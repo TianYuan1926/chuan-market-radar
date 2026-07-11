@@ -1,11 +1,12 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_implementation_rehearsal_pass_production_unchanged",
-  "generatedAt": "2026-07-10T19:30:00+08:00",
+  "status": "wp_g0_2_identity_remediated_capacity_gate_active",
+  "generatedAt": "2026-07-11T17:16:04+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "runtimeBlueprint": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
+    "accelerationPlan": "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
     "readinessRoadmap": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md",
     "currentContext": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "changeLog": "CHANGELOG_FOR_CHATGPT.md"
@@ -32,6 +33,17 @@
       "shadowEvaluated": 0
     },
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
+  },
+  "activeExecutionOverlay": {
+    "id": "WP-ACCEL-01-SAFE-DELIVERY-AND-CAPACITY-GATE",
+    "productionWipLimit": 1,
+    "localPreparationWipLimit": 1,
+    "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
+    "capacityGateStatus": "blocked_unproved",
+    "candidateMigrationAuthorized": false,
+    "candidateSchemaPresent": false,
+    "gateSequenceChanged": false,
+    "qualityThresholdChanged": false
   },
   "mission": {
     "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",

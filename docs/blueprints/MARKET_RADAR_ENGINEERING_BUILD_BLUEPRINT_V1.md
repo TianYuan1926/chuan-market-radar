@@ -842,6 +842,13 @@ V3 Gate 是施工顺序，不允许挑视觉或策略部分先做：
 
 每个 Gate 必须拆成独立 Work Package；不得按本蓝图一次性大改。
 
+### 15.1 不降质提速执行覆盖层
+
+G0-G8 的依赖、门禁和验收阈值不变。执行组织采用
+`MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md`：生产关键路径 WIP=1，本地非侵入准备 WIP=1；
+证据窗口可以与后续本地准备重叠，但生产 DDL、Feature Flag、writer、backfill、read cutover、
+restore、rollback 和 secret rotation 必须串行并独立审批。
+
 ## 16. 扩容与演进条件
 
 ### 16.1 当前默认

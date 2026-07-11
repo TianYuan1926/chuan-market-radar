@@ -235,7 +235,7 @@ interface MarketFactEnvelope<T> {
 
 ### WP-G0.2 Candidate Lifecycle and Outcome Truth
 
-**Current status (2026-07-11):** `FAIL_PRODUCTION_BOUNDARY_VIOLATION`
+**Current status (2026-07-11):** `PARTIAL_IDENTITY_REMEDIATED_CAPACITY_BLOCKED`
 
 Repository-wide audit confirmed that the production mutable journal/scan-state JSONB schema cannot enforce immutable Candidate Episodes or exactly-once terminal Outcomes. The separately authorized implementation/rehearsal package has now implemented the approved dormant schema/runtime foundation and passed isolated PostgreSQL rehearsal, but production migration, writer activation, backfill, read cutover and deployment remain false.
 
@@ -252,6 +252,10 @@ The user later authorized this independent package through the current execution
 The production runtime baseline and PostgreSQL lock/capacity checks passed, but the migration identity Gate failed before backup or DDL. Production has one LOGIN database role; it is also the current application role and has SUPERUSER/CREATEDB/CREATEROLE/REPLICATION/BYPASSRLS. No independent migration LOGIN identity exists, while the seven approved Candidate roles are absent before migration and are NOLOGIN by design. The package therefore stopped before staging, backup, restore rehearsal and production migration. Production schema/application/runtime stayed unchanged.
 
 During OrcaTerm operation, a malformed command transiently created one zero-byte untracked file in the production repository. The event was disclosed immediately; after explicit user approval and a reconnect identity/HEAD check, only that file was removed and the final worktree was verified clean. Because the execution contract makes any production-worktree mutation an absolute boundary failure, the package verdict is FAIL even though no tracked file, schema, data or runtime changed.
+
+**Production identity remediation (2026-07-11):** `PASS_IDENTITY_AND_RUNNER_REMEDIATION`
+
+The application now uses a least-privilege Runtime LOGIN; an independent Migration LOGIN, NOLOGIN owner and isolated Break-glass exist. The explicit Runner rejected Runtime identity for migration, passed production dry-run, and completed a seven-sample observation longer than 30 minutes without Candidate DDL or application release/image change. Add Schema remains blocked because full encrypted off-host backup, external restore and production WAL/disk headroom are unproved; the latest disk evidence is 85% used. `WP-G0.2` remains incomplete.
 
 **Modify:**
 
@@ -909,6 +913,13 @@ R4 之后用户可自主决定是否做小范围人工验证。该步骤：
 - 首次具备 R4 审核资格：约 9-12 个月。
 
 这是专业验证周期，不是拖延。缩短 Shadow/样本窗口、降低 RR 或用真实资金提前验证都会降低专业性。
+
+### 16.1 不降质提速覆盖层
+
+采用 `docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md`：生产关键路径始终串行，
+本地只读准备和证据工程可保留一个并行 WIP；HTTPS/SLO/data SLA/Shadow/paper 的计时窗口在各自前置
+Gate 通过后立即启动，并与不改变其前提条件的本地工作重叠。该覆盖层只减少等待、重复验证和人工操作，
+不改变 G0-G8 顺序、独立审批、基础门禁、恢复证据、holdout、60 天 Shadow 或 30 天 paper 要求。
 
 ## 17. 每轮执行协议
 

@@ -1,16 +1,19 @@
 # Market Radar 项目总览交接文件
 
-生成日期：2026-07-10
+生成日期：2026-07-11
 用途：给外部架构审计员 / ChatGPT 快速理解项目全景、边界、生产状态、代码结构、测试状态、未解决问题和下一步方向。  
 敏感信息策略：所有密钥、连接串、服务器密码、cookie、token、私钥均视为 `[REDACTED]`。本文不包含真实 secret。
 
 ## 0. 最新生产事实快照
 
+- 2026-07-11 用户批准启动“不降低质量的提速方案”。新增 `MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md`，采用 Production WIP=1、Local Preparation WIP=1 的双车道；只重叠本地准备和已经获准开始的证据窗口，不改变 G0-G8 顺序、审批、RR/Risk Gate、holdout、60 天 Shadow 或 30 天 paper 要求。
+- 当前首包为 `WP-ACCEL-01-SAFE-DELIVERY-AND-CAPACITY-GATE`：新增 fail-closed 的脱敏容量/恢复 validator，要求预计磁盘 `<=70%`、15 分钟内加密异地备份、外部隔离恢复容量、90 天内 restore drill、RPO<=24h、RTO<=2h。该工具不连接生产、不执行 backup/restore/migration，只判断是否具备申请 Add Schema rerun 审批的前提。
+- 当前生产关键路径先处理容量和恢复 Gate；最近证据仍是磁盘使用率 85%、完整异地备份/外部恢复/WAL headroom 未证明，所以 `canRequestAddSchemaApproval=false`。容量 Gate PASS 后仍需用户对 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 再次独立明确审批。
 - 2026-07-11 `WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION` 达到 `PASS_IDENTITY_AND_RUNNER_REMEDIATION`：生产应用已从唯一超级 LOGIN 切换到独立最小权限 Application Runtime；独立 Migration LOGIN、NOLOGIN owner、受控 Break-glass 和显式双身份 Runner 已建立。角色原名和 Secret 未进入证据。
 - 生产只 recreate 了 8 个 credential-bearing 应用/worker 容器以清除旧共享凭据，未重建镜像，未重启 Postgres、Redis 或 Caddy；生产应用仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13` 和原 image digest，生产 worktree before/throughout/after 均 clean。
 - Runner 生产仅执行 plan/preflight/dry-run/verify；Application Runtime 被拒绝作为 migration identity。锁定 Candidate source/manifest/artifact 和 8 文件 checksum 未变，Candidate Migration 未执行，Candidate schema/8 表/151 字段/20 functions/14 triggers/7 Candidate roles 仍未进入生产，五个 Candidate Feature Flag 仍关闭。
 - 生产身份切换后完成 7 次、每 5 分钟一次且总时长不少于 30 分钟的 detached 观察：Web/Scan/6 workers/Shadow/Review/Postgres/Redis、页面/API、角色会话、权限/事务错误、release/image 和 Worktree Guard 均通过。OrcaTerm 曾断线，原前台观察被废弃；重连 baseline 后改用 Ops 持久 PID/state 从零重跑，不能把中断窗口计入 PASS。
-- 本包 PASS 只修复数据库身份和 Migration Runner，不完成 WP-G0.2 或 G0。系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`；Add Schema rerun、Shadow write、backfill、read cutover、G1、R4、实盘和自动交易均未获授权。唯一下一建议是经新明确批准后从 Step 0 进入 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN`。
+- 身份整改 PASS 只修复数据库身份和 Migration Runner，不完成 WP-G0.2 或 G0。系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`；Add Schema rerun、Shadow write、backfill、read cutover、G1、R4、实盘和自动交易均未获授权。当前先关闭容量/外部恢复 Gate，随后才允许申请 Add Schema rerun 的独立审批。
 - 2026-07-10 已建立 Market Radar 双蓝图 v1.0：`docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md` 规定系统怎样搭建，`docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md` 规定系统怎样启动、稳态运行、降级、发布和恢复；`docs/blueprints/README.md` 是权威目录，`docs/blueprints/market-radar-blueprint-traceability.v1.json` 是机器追踪矩阵。
 - 现有 `docs/chuan-market-radar-blueprint.md` 已改为兼容总索引；旧版详细内容完整保留为低优先级历史事实区，避免丢失当前工作树中的未提交历史变化。发生冲突时，当前生产事实/current evidence -> 双蓝图 -> V3/追踪矩阵 -> context/changelog -> 历史蓝图。
 - 双蓝图与 V3 顺序已获用户确认，但目标合同不证明能力已经实现，也不授权跳包、扩大范围或降低门禁。当前仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
