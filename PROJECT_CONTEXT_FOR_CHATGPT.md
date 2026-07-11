@@ -6,15 +6,20 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-12 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 已在用户明确的 Add Schema-only 90 分钟窗口内执行一次。执行前新建加密生产备份 `add-schema-preddl2-20260711T172200Z`，完成 archive、离机下载、188299934 bytes 与 SHA-256 `51130d1cb5a9c324436c076966086ae83823f3554ec422e830bd9f80c7ea299c` 一致性校验；容量 validator 于 17:31:11Z 通过 14/14，预计磁盘 29%。
+- Runner `execute` 已返回 pass，锁定的 8 个 migration 全部 applied。生产人工 catalog 真值为 schema=1、tables=8、columns=151、functions=20、trigger objects=10、trigger event rows=14、roles=7、applied ledger=8；10 与 14 是 `pg_trigger` 对象数和 `information_schema.triggers` 事件行数的不同口径，不是缺 4 个触发器。
+- 自动 `verify` 返回 PostgreSQL `42501 permission denied for schema candidate_authority`，本包总状态为 `PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED`，不得写成 PASS。根因是 `market_radar_migration_login` 为 `NOINHERIT` 且只具备 `candidate_migration_role` membership，runner 的 post-schema `readDatabaseBoundary` 在读取 ledger 前未显式 `SET ROLE candidate_migration_role`；生产只读证据同时证明 login 直接 schema usage/ledger select=false，而 owner role=true。
+- 失败后未自动 resume、重跑 migration、drop、restore、改角色或放宽权限。五个 Candidate Feature Flag 仍为 0，旧应用仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13`、worktree clean、health ready/database；17:57:46Z 至 18:27:50Z 的 30 分钟只读观察 7/7 通过，Web/Postgres/Redis 全程 healthy，长事务、idle-in-transaction、lock waiter、ungranted lock 均为 0。
+- Candidate schema 现在存在但仍 dormant，writer、backfill、dual-read/read cutover、G1、R4、实盘和自动交易均未授权。系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`；下一步只能独立修复 verifier 的显式 owner-role 切换和触发器统计口径，补回归测试后申请 verify-only 生产复核，禁止再次 execute migration。
 - 2026-07-11 用户批准启动“不降低质量的提速方案”。新增 `MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md`，采用 Production WIP=1、Local Preparation WIP=1 的双车道；只重叠本地准备和已经获准开始的证据窗口，不改变 G0-G8 顺序、审批、RR/Risk Gate、holdout、60 天 Shadow 或 30 天 paper 要求。
 - `PRODUCTION-CAPACITY-OFFHOST-RESTORE-REMEDIATION` 已达到 `PASS_CAPACITY_AND_RECOVERY_REMEDIATION`：生产只清理未使用 Docker build cache，回收 88.76 GB；根盘从 85% 降到 12%，完成两份加密备份后最终为 13%，约 99.0 GiB 可用。未 prune image/container/volume，未重启服务。
 - 生产 PostgreSQL 16 custom dump 由只驻留本机的 RSA 私钥对应公钥执行 CMS AES-256 加密；私钥从未上传生产。首份 177.0 MiB 加密备份完成 checksum/archive/off-host 校验，并在本机外部隔离 PostgreSQL 16 恢复成功：12 个用户表、1 个用户 schema、RPO 14 分钟、RTO 53 秒，未输出业务行，明文 dump 和临时集群均未保留。
 - 为满足 Add Schema 申请前 15 分钟新鲜度，另建并下载第二份 fresh 加密备份。容量 validator 于 2026-07-11T10:45:06Z 以保守的 2 GiB migration temp、3 GiB WAL peak、2 GiB rollback reserve 和 20 GiB safety reserve 通过 14/14 检查：预计磁盘 18%，生产可用 112.1 GB，要求余量 29.2 GB，外部恢复可用 273.0 GB。结果只允许申请审批，仍为 `authorizesMigration=false`。
 - 2026-07-11 `WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION` 达到 `PASS_IDENTITY_AND_RUNNER_REMEDIATION`：生产应用已从唯一超级 LOGIN 切换到独立最小权限 Application Runtime；独立 Migration LOGIN、NOLOGIN owner、受控 Break-glass 和显式双身份 Runner 已建立。角色原名和 Secret 未进入证据。
 - 生产只 recreate 了 8 个 credential-bearing 应用/worker 容器以清除旧共享凭据，未重建镜像，未重启 Postgres、Redis 或 Caddy；生产应用仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13` 和原 image digest，生产 worktree before/throughout/after 均 clean。
-- Runner 生产仅执行 plan/preflight/dry-run/verify；Application Runtime 被拒绝作为 migration identity。锁定 Candidate source/manifest/artifact 和 8 文件 checksum 未变，Candidate Migration 未执行，Candidate schema/8 表/151 字段/20 functions/14 triggers/7 Candidate roles 仍未进入生产，五个 Candidate Feature Flag 仍关闭。
+- 身份整改轮当时 Runner 仅执行 plan/preflight/dry-run/verify；Application Runtime 被拒绝作为 migration identity。该历史轮次未执行 Candidate Migration，五个 Candidate Feature Flag 关闭。
 - 生产身份切换后完成 7 次、每 5 分钟一次且总时长不少于 30 分钟的 detached 观察：Web/Scan/6 workers/Shadow/Review/Postgres/Redis、页面/API、角色会话、权限/事务错误、release/image 和 Worktree Guard 均通过。OrcaTerm 曾断线，原前台观察被废弃；重连 baseline 后改用 Ops 持久 PID/state 从零重跑，不能把中断窗口计入 PASS。
-- 身份整改与容量/恢复 Gate PASS 仍不完成 WP-G0.2 或 G0。系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`；Candidate schema 仍不存在，Add Schema rerun、Shadow write、backfill、read cutover、G1、R4、实盘和自动交易均未获授权。当前唯一下一审批点是 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 的独立明确批准。
+- 截至身份整改与容量/恢复 Gate 轮次，Candidate schema 尚不存在；该条是历史前置状态，已被本节顶部 2026-07-12 的 schema-applied / verify-failed 事实替代。
 - 2026-07-10 已建立 Market Radar 双蓝图 v1.0：`docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md` 规定系统怎样搭建，`docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md` 规定系统怎样启动、稳态运行、降级、发布和恢复；`docs/blueprints/README.md` 是权威目录，`docs/blueprints/market-radar-blueprint-traceability.v1.json` 是机器追踪矩阵。
 - 现有 `docs/chuan-market-radar-blueprint.md` 已改为兼容总索引；旧版详细内容完整保留为低优先级历史事实区，避免丢失当前工作树中的未提交历史变化。发生冲突时，当前生产事实/current evidence -> 双蓝图 -> V3/追踪矩阵 -> context/changelog -> 历史蓝图。
 - 双蓝图与 V3 顺序已获用户确认，但目标合同不证明能力已经实现，也不授权跳包、扩大范围或降低门禁。当前仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
@@ -38,12 +43,12 @@
 - 当前生产验收点样本：`/api/health` 为 `ready / fresh`，六个业务 worker 当下 healthy；公开市场 observed=3112、accepted=1316，scan eligible=593，current-cycle=24，deep-scanned=48。前端合同分别显示公开接受率 42.3%（accepted/observed）、当前周期覆盖率 4.0%（current-cycle/eligible）和深扫覆盖率 8.1%（deep/eligible）。
 - 当前公网入口仍为明文 `http://43.161.202.227`，浏览器标记“不安全”。这是新的 P0；Caddy 配置和 private-session 代码本地存在，不等于生产 HTTPS / private mode 已通过。
 - 当前生产 frontend contract 返回 radarSignals=30、`TRADE_PLAN_READY=0`。生产旧 Review 点样本为最新 120 条 journal event，其中 closed=51、claimed evidence=61、pending=59、MFE/MAE=0；这些状态会重叠且 null 会被补 0，只能作为 legacy diagnostics，不能作为 Candidate Episode/Outcome 权威分母。生产 active/closed episode 和五类 outcome 数量当前应为 unavailable，不得写成 0。
-- 当前活动 P0 包括公网明文 HTTP、Candidate/Outcome 权威存储缺失、轻扫 `topCandidates` 仍被合成为 `RadarSignal`、Review neutral/unknown→long、null→0、pending/error→timeout 和事件行分母污染。WP-G0.1 的单一扫描证明和 leaderboard fallback 防线仍保留，但全站 frontend truth 已重开为 partial。
-- 新的数据库安全审计 P0：当前代码/Compose 路径可能让 web/worker 共用 bootstrap/superuser 派生身份；生产 role 属性本轮未连接数据库验证。现有 migration route 被 routine deploy/verify 隐式调用，备份为本地未证明加密异地恢复的 dump，restore 具有 destructive clean 语义。这些都必须在任何生产 migration 前关闭。
+- 当前活动 P0 包括公网明文 HTTP、Candidate/Outcome 权威 runtime 尚未接入、post-schema verifier 未收口、轻扫 `topCandidates` 仍被合成为 `RadarSignal`、Review neutral/unknown→long、null→0、pending/error→timeout 和事件行分母污染。WP-G0.1 的单一扫描证明和 leaderboard fallback 防线仍保留，但全站 frontend truth 已重开为 partial。
+- 历史数据库超级权限依赖、加密离机备份和恢复演练前置风险已分别由 identity remediation 与 capacity/off-host restore 包关闭；当前新的数据库 P0 是 post-schema verifier 在 NOINHERIT membership 下未显式 `SET ROLE`，不是生产应用重新获得超级权限。
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
-- 历史设计包只完成架构与审批材料；当前独立 implementation/rehearsal 包已实现 dormant runtime 基础设施和正式 migration 文件，但生产 schema/runtime 仍未改变。
-- 当前只允许用户/ChatGPT 审计本轮实现与隔离证据。Codex 不得代批；再次明确批准前不能进入 production add-schema，更不能启用 writer、backfill、read cutover、G1、R4 或实盘。
+- 历史设计与 implementation/rehearsal 包已落成正式 migration；生产 schema 已于 2026-07-12 additive 应用，但 runtime 仍未接入，自动 verify 尚未 PASS。
+- 当前只允许审计本轮 schema-applied / verify-failed 证据。Codex 不得代批；再次明确批准前不能运行 verify-only 修复复核，更不能再次 execute migration、启用 writer、backfill、read cutover、G1、R4 或实盘。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
 - 第 5.1-DEPLOY-CHANNEL-FIX 证据显示：Chrome 里没有 OrcaTerm；用户打开 Microsoft Edge 中的腾讯云 OrcaTerm 后，Codex 通过 Computer Use 可控该页面，并以 `ubuntu@VM-0-9-ubuntu` 完成服务器只读 smoke。只读 smoke 覆盖 `whoami`、`hostname`、`pwd`、UTC date、`uname`、Docker/Compose 版本、项目目录访问、`ls -la`、`docker compose ps` / `sudo -n docker compose ps`。观察到 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务均在运行，web/postgres/redis 为 healthy。
@@ -1163,3 +1168,20 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 本轮不能直接进入 `5.1-H`、`5.2` 或任何实盘阶段。
 - 本轮生产侧采用服务器文件覆盖 + 只重建 `shadow-runner` 的方式完成；服务器 Git worktree 仍需后续收口，不能写成 deploy clean。
 - 当前系统仍不能写成支撑实战交易，不能进入实盘。
+
+## 2026-07-12 WP-AUTO-01 全自动工程控制层与质量锁
+
+本轮只建立全自动工程的治理和 fail-closed 控制层，不修改 scan、analysis、strategy、backtest、frontend、API、数据库、Redis、worker、部署或 secret。它是后续工程施工的质量底座，不提升当前交易能力等级。
+
+当前事实：
+
+- 新增机器状态源 `AUTONOMOUS_ENGINEERING_STATE.json`，锁定 R1、`可运行但不完整 / 不能支撑实战`、Candidate schema `applied_verify_failed` 和 runtime disabled。
+- 自动控制器会检查每包 allowlist/prohibited path、Production/Local WIP=1、生产审批时间窗、必须工件、状态哈希、工作树指纹和全部门禁证据；任一不一致即 fail closed。
+- 永久硬锁包括 RR `>=3:1`、禁止自动交易/交易所下单 API、禁止回测结果污染生产排序、禁止前端生成交易计划、禁止自动运行 formal、禁止自动批准生产操作。
+- 定向防绕过和指纹回归测试 16/16 通过，覆盖降低 RR、自动交易、formal、过期/缺失生产审批、越界文件、陈旧或缺失门禁证据，以及 Git 暂存状态不改变内容指纹。
+- 提交前 staged diff 复核曾发现指纹依赖 Git 暂存状态；提交被阻止且未产生 commit。控制器已改为只绑定文件路径、内容、可执行位和文件类型，并新增“同内容暂存前后指纹不变”回归测试。
+- 历史 `reports/wp-capacity-offhost-restore-remediation/**` 已从 Git 索引取消跟踪，但本地文件完整保留；forbidden-files、secret-patterns 和 security-check 已恢复 PASS。
+- 当前路线真值已更正：Candidate authority 8/8 migration 已执行，但 post-schema automatic verify 因 NOINHERIT login 未 `SET ROLE` 返回 42501；Feature Flag 仍为 0。禁止再次 execute migration，下一包只做本地 verifier 修复，之后 production verify-only 仍需新的独立审批。
+- 本轮手工基础门禁已通过：typecheck、lint、test:market 924 pass / 0 fail / 1 isolated DB skip、worker 17/17、historical smoke 4/4、build、backtest:golden 16/16，以及三项安全门禁。formal 未运行且自动控制器明确禁止。
+
+当前能力结论不变：**R1 / 可运行但不完整 / 不能支撑实战**。该控制层只能证明后续工程更难自欺、越界或带病提交，不能证明全市场雷达核心链已经达到实战级。

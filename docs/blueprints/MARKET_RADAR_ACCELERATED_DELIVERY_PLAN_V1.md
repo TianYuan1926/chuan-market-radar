@@ -12,9 +12,11 @@
 当前关键路径：
 
 ```text
-容量与恢复门禁
--> WP-G0.2 Add Schema rerun
--> shadow_capture
+容量与恢复门禁（PASS）
+-> WP-G0.2 Add Schema（已执行，verify 未通过）
+-> Migration Runner post-schema verify 本地修复
+-> 仅只读 production verify（需独立审批）
+-> shadow_capture（继续禁止）
 -> shadow_verify / reconciliation
 -> canonical_compat
 -> canonical
@@ -23,7 +25,7 @@
 -> G1-G8
 ```
 
-当前事实：生产身份隔离和 Migration Runner dry-run 已通过；容量/恢复整改也已通过。根盘最终 13%，fresh 加密离机备份 checksum/archive 验证通过，外部隔离 PostgreSQL 16 restore drill 为 RPO 14 分钟、RTO 53 秒，容量 validator 14/14 PASS、预计磁盘 18%。Candidate schema 仍不存在，migration 仍未获授权；当前只能申请 Add Schema rerun 的独立明确审批。
+当前事实：生产身份隔离、Migration Runner dry-run 和容量/恢复整改均已通过。Add Schema 已在批准窗口内执行一次，8/8 migration applied；人工 catalog 只读审计确认 Candidate authority schema、8 张表、151 个字段、20 个函数、10 个 trigger object（14 个 trigger event row）、7 个角色和 8 条 migration ledger 均存在。自动 post-schema verify 因 NOINHERIT migration login 未显式 `SET ROLE` 返回 PostgreSQL `42501`，因此本包状态是 `PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED`，不是 PASS。Feature Flag 仍为 0，writer/backfill/read cutover 均未启用；当前只允许先在本地修复并测试 verifier，之后再独立申请只读 production verify，禁止重跑 execute migration。
 
 ## 2. 双车道模型
 
@@ -124,11 +126,13 @@ npm run test:migration-capacity
 | --- | --- | --- | --- | --- |
 | 1 | WP-ACCEL-01 Safe Delivery and Capacity Gate | B | completed | 工具、测试、治理门禁通过 |
 | 2 | Production capacity/off-host restore remediation | A | pass | 根盘 13%、fresh 加密离机备份、真实隔离恢复、容量 14/14 PASS |
-| 3 | WP-G0.2 Add Schema rerun | A | approval pending | 第 2 项 PASS；仍需新的独立明确审批 |
-| 4 | WP-G0.2 shadow_capture | A | prohibited | Add Schema PASS + 独立审批 |
-| 5 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定 + 独立审批 |
-| 6 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
-| 7 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
+| 3 | WP-G0.2 Add Schema rerun | A | partial: schema applied / verify failed | 禁止再次 execute；保持 Feature Flag=0 |
+| 4 | Migration Runner post-schema verify fix | B | active local preparation | 定向测试覆盖 NOINHERIT + `SET ROLE`，全部本地门禁通过 |
+| 5 | Production verify-only | A | approval required | 第 4 项 PASS + 新的独立只读审批；不得执行 migration |
+| 6 | WP-G0.2 shadow_capture | A | prohibited | Production verify-only PASS + 独立审批 |
+| 7 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定 + 独立审批 |
+| 8 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
+| 9 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
 
 ## 9. 停止条件
 
@@ -136,4 +140,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-提速计划已启动，容量与恢复前置条件已经形成 PASS 证据。该 PASS 不授权 migration；下一生产动作必须先获得 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 的独立明确审批，未批准前继续禁止 DDL、writer、backfill 和 read cutover。
+提速计划已启动，容量/恢复和 Add Schema execute 已产生事实证据，但 Add Schema 包因自动 verify 失败而未 PASS。下一步先执行无生产写入的本地 verifier 修复；修复通过后，任何 production verify-only 仍必须获得新的独立明确审批。继续禁止再次 execute migration、writer、backfill、read cutover 和 shadow_capture。

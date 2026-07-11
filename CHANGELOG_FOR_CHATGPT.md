@@ -2369,3 +2369,93 @@ P0 阻断：
 ### 下一轮建议
 
 只建议独立审批 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN`；不得把本轮 PASS 解释成 migration 已授权。
+
+## 2026-07-12 / WP-G0.2 Production Add Schema Rerun and Manual Audit
+
+### 本轮目标
+
+在明确的 Add Schema-only 90 分钟窗口内执行 dormant Candidate authority schema，并在任何失败后停止自动动作、完成只读人工审计。
+
+### 修改范围
+
+- 创建 fresh 加密生产备份并完成离机 checksum/archive 校验；重新通过 14/14 容量 Gate。
+- 生产 runner 只执行一次 plan/preflight/execute/verify；未启用 writer、backfill、read cutover 或 Feature Flag。
+- 自动 verify 失败后未自动重跑，改为只读 catalog、权限和 30 分钟运行观察。
+- 仅更新 context/changelog 和脱敏报告；生产应用 worktree、scan、analysis、strategy、frontend、worker 未修改。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：Candidate authority 8 表、151 字段、20 函数、14 trigger event rows、7 角色和 8 条 ledger 已进入生产，但仍 dormant。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：无行为变化。
+
+### 测试结果
+
+- migration runner 43/43 pass；capacity 16/16 pass。
+- typecheck / lint / build：pass。
+- test:market：924 pass / 1 isolated DB skip；worker 17/17；historical 4/4。
+- backtest:golden：16/16 pass。
+- secret-patterns：pass；forbidden-files / security-check：fail，原因是当前 HEAD 已跟踪上一容量包的 report/evidence/zip，本轮未删除或新增这些历史工件。
+- production execute：pass，8 applied / 0 skipped。
+- production verify：fail，`42501 permission denied for schema candidate_authority`。
+- manual catalog：schema=1、tables=8、columns=151、functions=20、trigger objects=10、trigger event rows=14、roles=7、ledger=8；锁与长事务均为 0。
+- 30 分钟 production observation：pass，17:57:46Z 至 18:27:50Z，7/7；Web/Postgres/Redis healthy，四项事务/锁计数始终为 0。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署应用代码。生产只发生批准的 additive schema DDL；应用 release 仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13`，worktree clean，Feature Flag=0。
+
+### 风险与遗留问题
+
+- 本包状态为 `PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED`，不是 PASS。
+- 根因是 NOINHERIT migration login 的 post-schema verify 未显式 `SET ROLE`；现有 43 个测试未覆盖该路径。
+- Repository hygiene 仍被既有 tracked capacity report/zip 阻断，因此本轮不能 commit/push 并声称所有门禁通过。
+- Candidate runtime 仍未接入，WP-G0.2/G0 未完成，系统仍为 R1、不能支撑实战。
+
+### 下一轮建议
+
+只建议独立审批 `WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX`；修复并审计后只跑 verify-only，禁止再次 execute migration。
+
+## 2026-07-12 / WP-AUTO-01 全自动工程控制层与质量锁
+
+### 本轮目标
+
+建立后续全自动搭建的机器状态、范围锁、质量锁、生产审批锁和门禁新鲜度证明，防止越界施工、降低标准、旧测试冒充新测试或失败后自动前进。
+
+### 修改范围
+
+- 新增 `AUTONOMOUS_ENGINEERING_STATE.json`、自动工程协议、控制器和防绕过测试；提交前发现并修复 Git 暂存状态导致门禁指纹误判 stale 的问题，新增 stage-invariant 回归覆盖。
+- `package.json` 增加 status、gate、verify 和 targeted test 命令；`.gitignore` 忽略本地 gate result。
+- 更新蓝图索引、提速执行计划和 traceability，将旧的“Candidate schema 不存在”改为“schema 已应用但 verify 失败、runtime disabled”。
+- 历史容量证据目录只从 Git 索引取消跟踪，本地报告、证据 JSON 和 ZIP 均保留。
+- 未修改 `src/**`、migration、生产脚本、部署、数据库、Redis、worker、前端或交易逻辑。
+
+### 核心链路影响
+
+- 支撑治理 / 发布安全 / 证据真值：新增可执行的自动停止和门禁证明。
+- 全市场发现、候选筛选、深扫验证、结构分析、风险赔率、交易计划、复盘进化：运行能力均未改变。
+
+### 测试结果
+
+- `npm run test:autonomy`：16/16 pass。
+- `npm run typecheck`：pass。
+- `npm run lint`：pass。
+- `npm run test:market`：924 pass / 0 fail / 1 isolated DB skip；worker 17/17；historical smoke 4/4。
+- `npm run build`：pass。
+- `npm run backtest:golden`：16/16 pass。
+- `npm run ci:forbidden-files`、`npm run ci:secret-patterns`、`npm run security:check`：pass。
+- `npm run backtest:formal`：未运行且控制器禁止自动运行。
+
+### 是否部署
+
+未部署，未连接腾讯云生产，未执行 DDL/DML、migration、Feature Flag、服务重启或 production verify。
+
+### 风险与遗留问题
+
+- 本包是工程治理底座，不是业务能力完成；系统仍为 R1、不能支撑实战。
+- Candidate schema 自动 verify 的 42501 根因尚未修复，WP-G0.2/G0 未完成。
+- production verify-only 仍需新的独立明确审批，shadow writer 继续禁止。
+
+### 下一轮建议
+
+只执行 `WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX` 本地包，补齐 NOINHERIT login 显式 `SET ROLE` 路径和定向测试；不得再次 execute migration。

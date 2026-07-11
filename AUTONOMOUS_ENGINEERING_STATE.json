@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "market-radar-autonomous-engineering-state.v1",
+  "updatedAt": "2026-07-12T02:53:50+08:00",
+  "mode": "active_fail_closed",
+  "systemTruth": {
+    "readinessLevel": "R1",
+    "engineeringStatus": "可运行但不完整",
+    "practicalStatus": "不能支撑实战",
+    "productionCandidateSchema": "applied_verify_failed",
+    "candidateRuntime": "disabled"
+  },
+  "wipLimits": {
+    "production": 1,
+    "localPreparation": 1
+  },
+  "truthLabels": [
+    "完整完成",
+    "可运行但不完整",
+    "临时验证版",
+    "等待外部条件",
+    "不能支撑实战"
+  ],
+  "hardLocks": {
+    "minimumStructuralRR": 3,
+    "automaticTrading": false,
+    "exchangeOrderApi": false,
+    "automaticRankingMutation": false,
+    "futureOutcomeAsProductionInput": false,
+    "frontendCreatesTradePlan": false,
+    "formalBacktestAutoRun": false,
+    "productionAutoApproval": false
+  },
+  "activePackage": {
+    "id": "WP-AUTO-01-AUTONOMOUS-ENGINEERING-CONTROL",
+    "title": "全自动工程控制层与质量锁",
+    "lane": "localPreparation",
+    "status": "ready_for_gate",
+    "objective": "建立可执行的范围锁、质量锁、Git 真值、门禁指纹和自动停止机制，并移除已知的 Git 门禁污染。",
+    "coreChainImpact": [
+      "supporting_governance",
+      "release_safety",
+      "evidence_truth"
+    ],
+    "productionMutation": false,
+    "requiresExplicitApproval": false,
+    "allowedPaths": [
+      ".gitignore",
+      "package.json",
+      "AUTONOMOUS_ENGINEERING_STATE.json",
+      "PROJECT_CONTEXT_FOR_CHATGPT.md",
+      "CHANGELOG_FOR_CHATGPT.md",
+      "docs/governance/**",
+      "docs/blueprints/README.md",
+      "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
+      "docs/blueprints/market-radar-blueprint-traceability.v1.json",
+      "scripts/governance/**",
+      "reports/wp-capacity-offhost-restore-remediation/**"
+    ],
+    "prohibitedPaths": [
+      "src/**",
+      "migrations/**",
+      "deploy/**",
+      "scripts/production/**",
+      "tools/**",
+      ".env",
+      ".env.production"
+    ],
+    "requiredArtifacts": [
+      "AUTONOMOUS_ENGINEERING_STATE.json",
+      "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
+      "scripts/governance/autonomous-engineering.mjs",
+      "scripts/governance/autonomous-engineering.test.mjs"
+    ],
+    "gateProfile": {
+      "targeted": [
+        "test:autonomy"
+      ],
+      "baseline": [
+        "typecheck",
+        "lint",
+        "test:market",
+        "build",
+        "backtest:golden"
+      ],
+      "security": [
+        "ci:forbidden-files",
+        "ci:secret-patterns",
+        "security:check"
+      ]
+    },
+    "completionBoundary": [
+      "状态文件和协议可被机器解析",
+      "越界文件、硬锁变化、过期审批和 stale gate result 必须 fail closed",
+      "所有定向、基础和安全门禁通过",
+      "不连接生产、不改变运行能力"
+    ]
+  },
+  "approvals": [],
+  "queue": [
+    {
+      "order": 1,
+      "id": "WP-AUTO-01-AUTONOMOUS-ENGINEERING-CONTROL",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 2,
+      "id": "WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX",
+      "lane": "localPreparation",
+      "status": "queued",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 3,
+      "id": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
+      "lane": "production",
+      "status": "awaiting_approval",
+      "requiresExplicitApproval": true
+    },
+    {
+      "order": 4,
+      "id": "WP-G0.2-SHADOW-WRITE",
+      "lane": "production",
+      "status": "prohibited_until_predecessor_pass",
+      "requiresExplicitApproval": true
+    }
+  ]
+}

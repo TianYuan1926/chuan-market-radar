@@ -22,6 +22,7 @@ pnpm-debug.log*
 .worktrees/
 .deploy-state/
 .tmp/
+.autonomy/
 chuan-radar-*.png
 deploy/diagnostics/
 reports/

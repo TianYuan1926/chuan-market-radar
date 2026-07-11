@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_capacity_recovery_pass_add_schema_approval_pending",
-  "generatedAt": "2026-07-11T18:45:06+08:00",
+  "status": "wp_g0_2_schema_applied_verify_failed_local_verifier_fix_next",
+  "generatedAt": "2026-07-12T02:53:50+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -9,7 +9,9 @@
     "accelerationPlan": "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
     "readinessRoadmap": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md",
     "currentContext": "PROJECT_CONTEXT_FOR_CHATGPT.md",
-    "changeLog": "CHANGELOG_FOR_CHATGPT.md"
+    "changeLog": "CHANGELOG_FOR_CHATGPT.md",
+    "autonomousEngineeringProtocol": "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
+    "autonomousEngineeringState": "AUTONOMOUS_ENGINEERING_STATE.json"
   },
   "baseline": {
     "date": "2026-07-10",
@@ -35,13 +37,18 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-ACCEL-01-SAFE-DELIVERY-AND-CAPACITY-GATE",
+    "id": "WP-AUTO-01-AUTONOMOUS-ENGINEERING-CONTROL",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
     "capacityGateStatus": "pass_capacity_and_recovery_remediation",
     "candidateMigrationAuthorized": false,
-    "candidateSchemaPresent": false,
+    "candidateSchemaPresent": true,
+    "candidateSchemaStatus": "applied_verify_failed",
+    "candidateRuntimeEnabled": false,
+    "nextLocalWorkPackage": "WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX",
+    "nextProductionAction": "verify_only_after_new_explicit_approval",
+    "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
   },
@@ -597,21 +604,21 @@
   ],
   "lastCompletedWorkPackage": "WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION (identity and runner scope only)",
   "lastAttemptedWorkPackage": {
-    "id": "WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION",
-    "title": "Production PostgreSQL identity isolation and explicit migration runner remediation",
-    "status": "PASS_IDENTITY_AND_RUNNER_REMEDIATION",
+    "id": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN",
+    "title": "Production Candidate authority additive schema execution and verification",
+    "status": "PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED",
     "runtimeCodeChanged": false,
-    "runtimeActivationStatus": "application_database_identity_cutover_only",
-    "databaseSchemaChanged": false,
+    "runtimeActivationStatus": "disabled",
+    "databaseSchemaChanged": true,
     "schemaCodeImplemented": true,
-    "isolatedMigrationRun": false,
-    "productionMigrationRun": false,
+    "isolatedMigrationRun": true,
+    "productionMigrationRun": true,
     "productionWorktreeChangedTransiently": false,
     "productionWorktreeFinalClean": true,
     "productionWorktreeCleanThroughout": true,
-    "boundaryViolation": null,
+    "boundaryViolation": "post_schema_verify_missing_set_role_for_noinherit_login",
     "productionDatabaseConnected": true,
-    "productionDatabaseAccess": "approved_identity_bootstrap_cutover_verification_and_runner_dry_run",
+    "productionDatabaseAccess": "approved_add_schema_execute_once_then_read_only_manual_audit",
     "productionLoginRoleCountBefore": 1,
     "productionLoginRoleCountAfter": 3,
     "applicationRoleIsOnlyLoginRole": false,
@@ -620,8 +627,17 @@
     "breakGlassIsolated": true,
     "runnerInstalledOutsideWorktree": true,
     "runnerProductionDryRun": true,
+    "migrationLedgerApplied": 8,
+    "candidateTableCount": 8,
+    "candidateColumnCount": 151,
+    "candidateFunctionCount": 20,
+    "candidateTriggerObjectCount": 10,
+    "candidateTriggerEventRowCount": 14,
+    "candidateRoleCount": 7,
+    "automaticVerifyPassed": false,
+    "automaticVerifySqlstate": "42501",
     "backupCreated": true,
-    "restoreDrillRun": false,
+    "restoreDrillRun": true,
     "deployed": false,
     "applicationReleaseUnchanged": true,
     "applicationImageUnchanged": true,
@@ -631,9 +647,9 @@
     "productionReadCutover": false,
     "g0Complete": false,
     "evidence": {
-      "path": "reports/wp-g0-2-production-identity-runner-remediation/WP_G0_2_PRODUCTION_IDENTITY_RUNNER_REMEDIATION_REPORT.md",
+      "path": "reports/wp-g0-2-production-add-schema-rerun/WP_G0_2_PRODUCTION_ADD_SCHEMA_RERUN_REPORT.md",
       "storage": "local_ignored_artifact",
-      "note": "Application Runtime is least privilege, Migration LOGIN and Break-glass are isolated, explicit Runner production dry-run and seven-sample observation passed. Candidate Migration was not run and Candidate schema remains absent."
+      "note": "Eight additive migrations were applied once. Manual catalog and seven-sample observation passed, but automatic verify failed with SQLSTATE 42501 because the NOINHERIT migration login did not SET ROLE. Runtime flags remain disabled."
     }
   },
   "currentDesignPackage": {
@@ -662,9 +678,10 @@
       "note": "Proposed design and redacted approval packet; digest-bound but no execution authority."
     }
   },
-  "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN only after new explicit user approval",
-  "nextWorkPackageRequiresExplicitApproval": true,
+  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-MIGRATION-PRODUCTION-VERIFY-ONLY",
+  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX (local only; no production mutation)",
+  "nextWorkPackageRequiresExplicitApproval": false,
+  "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
     "status": "pass",
     "jsonParsed": true,
