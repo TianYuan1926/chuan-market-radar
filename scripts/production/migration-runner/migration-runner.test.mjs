@@ -359,3 +359,23 @@ test("redacts connection-like fields and values", () => {
     safe: "ok",
   });
 });
+
+test("preserves redacted role class session counts for production evidence", () => {
+  assert.deepEqual(redact({
+    activeRoleClassCounts: {
+      application_runtime: 1,
+      break_glass: 0,
+      migration_login: 0,
+      other_login: 0,
+    },
+    activeRoleCounts: [{ role_hash: "hash", session_count: 1 }],
+  }), {
+    activeRoleClassCounts: {
+      application_runtime: 1,
+      break_glass: 0,
+      migration_login: 0,
+      other_login: 0,
+    },
+    activeRoleCounts: [{ role_hash: "hash", session_count: 1 }],
+  });
+});

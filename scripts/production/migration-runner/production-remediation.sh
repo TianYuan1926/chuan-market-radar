@@ -414,7 +414,7 @@ observe() {
       --slurpfile guard "$guard_file" \
       '{
         activeRoleCounts: $audit[0].result.activeRoleCounts,
-        connectionClassCounts: $audit[0].result.connectionClassCounts,
+        activeRoleClassCounts: $audit[0].result.activeRoleClassCounts,
         applicationRelease: $applicationRelease,
         candidateCount: $health[0].health.scan.candidateCount,
         candidateFeatureFlagsEnabled: $candidateFlagsEnabled,
@@ -471,8 +471,8 @@ observe() {
           .permissionDeniedCount == 0 and .transactionErrorCount == 0 and
           .candidateFeatureFlagsEnabled == 0 and .shadowStatus == "ready" and
           .workersHealthy == .workersTotal and
-          .connectionClassCounts.migration_login == 0 and
-          .connectionClassCounts.break_glass == 0)
+          .activeRoleClassCounts.migration_login == 0 and
+          .activeRoleClassCounts.break_glass == 0)
       ) then "pass" else "fail" end)
     }' \
     "$series" > "$EVIDENCE/production-observation-30-60m.json"

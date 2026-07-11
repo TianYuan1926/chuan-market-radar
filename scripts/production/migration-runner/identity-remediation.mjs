@@ -681,10 +681,10 @@ async function audit(options) {
         "SELECT extname, extversion FROM pg_extension ORDER BY extname",
       );
       const active = await client.query(
-        `SELECT md5(usename) AS role_hash, count(*)::int AS connection_count
+        `SELECT md5(usename) AS role_hash, count(*)::int AS session_count
          FROM pg_stat_activity
          WHERE datname = current_database() AND pid <> pg_backend_pid()
-         GROUP BY md5(usename) ORDER BY connection_count DESC`,
+         GROUP BY md5(usename) ORDER BY session_count DESC`,
       );
       const connectionClasses = await client.query(
         `SELECT
@@ -705,7 +705,7 @@ async function audit(options) {
       return {
         activeRoleCounts: active.rows,
         candidateSchemaPresent: candidate.rows[0]?.present === true,
-        connectionClassCounts: connectionClasses.rows[0],
+        activeRoleClassCounts: connectionClasses.rows[0],
         currentRole: redactedRole(current),
         databaseBoundary: databaseBoundary.rows[0],
         defaultPrivileges: defaultPrivileges.rows,
