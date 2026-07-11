@@ -2,6 +2,7 @@
 
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import pg from "./pg-client.mjs";
 import {
   AUTHORIZED_SOURCE_COMMIT,
@@ -155,6 +156,32 @@ async function verifyOwnerMembership(client) {
   return result.rows[0]?.owner_member === true;
 }
 
+export async function verifyMigrationIdentity(client) {
+  const identity = await readIdentity(client);
+  validateRoleIdentity(identity, "migration");
+  const ownerMembership = await verifyOwnerMembership(client);
+
+  if (!ownerMembership) {
+    return {
+      ...identity,
+      candidateSchemaPresent: null,
+      migrationRegistryRows: null,
+      ownerMembership,
+    };
+  }
+
+  await client.query(`SET ROLE ${MIGRATION_OWNER_ROLE}`);
+  try {
+    return {
+      ...identity,
+      ownerMembership,
+      ...(await readDatabaseBoundary(client)),
+    };
+  } finally {
+    await client.query("RESET ROLE");
+  }
+}
+
 async function verifyIdentities(options) {
   const verification = {};
 
@@ -174,15 +201,7 @@ async function verifyIdentities(options) {
     verification.migration = await withClient(
       options["migration-connection-file"],
       "market-radar-identity-verify-migration",
-      async (client) => {
-        const identity = await readIdentity(client);
-        validateRoleIdentity(identity, "migration");
-        return {
-          ...identity,
-          ownerMembership: await verifyOwnerMembership(client),
-          ...(await readDatabaseBoundary(client)),
-        };
-      },
+      verifyMigrationIdentity,
     );
   }
 
@@ -572,27 +591,29 @@ async function main() {
   process.stdout.write(`${JSON.stringify(record)}\n`);
 }
 
-main().catch((error) => {
-  const reason = error instanceof RunnerPolicyError ? error.reason : "runner_internal_error";
-  const code = typeof error?.code === "string" && /^[0-9A-Z]{5}$/.test(error.code)
-    ? error.code
-    : null;
-  const errorType = typeof error?.name === "string" ? error.name : "unknown";
-  const location = typeof error?.stack === "string"
-    ? error.stack.split("\n").find((line) => line.includes("migration-runner.mjs"))?.trim() ?? null
-    : null;
-  const detail = typeof error?.message === "string"
-    ? String(redact(error.message)).slice(0, 200)
-    : null;
-  const safeError = {
-    command: basename(process.argv[2] ?? "unknown"),
-    code,
-    detail,
-    errorType,
-    location,
-    reason,
-    status: "fail",
-  };
-  process.stderr.write(`${JSON.stringify(safeError)}\n`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    const reason = error instanceof RunnerPolicyError ? error.reason : "runner_internal_error";
+    const code = typeof error?.code === "string" && /^[0-9A-Z]{5}$/.test(error.code)
+      ? error.code
+      : null;
+    const errorType = typeof error?.name === "string" ? error.name : "unknown";
+    const location = typeof error?.stack === "string"
+      ? error.stack.split("\n").find((line) => line.includes("migration-runner.mjs"))?.trim() ?? null
+      : null;
+    const detail = typeof error?.message === "string"
+      ? String(redact(error.message)).slice(0, 200)
+      : null;
+    const safeError = {
+      command: basename(process.argv[2] ?? "unknown"),
+      code,
+      detail,
+      errorType,
+      location,
+      reason,
+      status: "fail",
+    };
+    process.stderr.write(`${JSON.stringify(safeError)}\n`);
+    process.exitCode = 1;
+  });
+}

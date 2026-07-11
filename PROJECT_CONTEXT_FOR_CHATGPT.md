@@ -1185,3 +1185,18 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 本轮手工基础门禁已通过：typecheck、lint、test:market 924 pass / 0 fail / 1 isolated DB skip、worker 17/17、historical smoke 4/4、build、backtest:golden 16/16，以及三项安全门禁。formal 未运行且自动控制器明确禁止。
 
 当前能力结论不变：**R1 / 可运行但不完整 / 不能支撑实战**。该控制层只能证明后续工程更难自欺、越界或带病提交，不能证明全市场雷达核心链已经达到实战级。
+
+## 2026-07-12 WP-G0.2 Migration Runner Post-Schema Verify Fix
+
+本轮是纯本地 verifier 修复包，不连接生产、不执行 migration、不修改角色属性或权限、不启用 Candidate runtime。
+
+当前事实：
+
+- 生产 42501 根因已在代码中做最小修复：migration login 先按原规则验证 least privilege 和 owner membership；只有 membership 为真才显式 `SET ROLE candidate_migration_role` 读取 Candidate schema/ledger 边界。
+- schema boundary 读取放在 `try/finally` 中，无论读取成功或抛错都执行 `RESET ROLE`；没有把 migration login 改为 INHERIT，也没有授予直接 schema/table 权限。
+- runner CLI 增加直接执行保护，使 verifier 函数可被测试导入而不会意外启动命令；直接运行脚本的行为保持不变。
+- Migration Runner 定向测试由 43 增至 46，46/46 PASS。新增覆盖：NOINHERIT 成员显式激活 owner role、42501/任意边界异常后 RESET ROLE、无 membership 时禁止 SET ROLE。
+- 完整本地门禁 10/10 PASS：autonomy 16/16、forbidden-files、secret-patterns、security-check、typecheck、lint、market 924 pass / 0 fail / 1 isolated DB skip、worker 17/17、historical smoke 4/4、build、golden 16/16。formal 未运行。
+- 当前只证明本地代码修复；生产 verify-only 尚未批准、尚未执行，Add Schema 包仍是 `PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED`，Feature Flag 仍为 0，shadow writer 继续禁止。
+
+当前能力结论仍是：**R1 / 可运行但不完整 / 不能支撑实战**。只有全部本地门禁通过并获得新的独立只读生产审批后，才能执行 production verify-only；禁止再次 execute migration。

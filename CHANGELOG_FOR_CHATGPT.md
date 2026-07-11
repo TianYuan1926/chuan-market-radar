@@ -2459,3 +2459,46 @@ P0 阻断：
 ### 下一轮建议
 
 只执行 `WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX` 本地包，补齐 NOINHERIT login 显式 `SET ROLE` 路径和定向测试；不得再次 execute migration。
+
+## 2026-07-12 / WP-G0.2 Migration Runner Post-Schema Verify Fix
+
+### 本轮目标
+
+只修复 production Add Schema 后 NOINHERIT migration login 读取 Candidate schema 边界时缺少显式 owner role 激活导致的 PostgreSQL 42501，并补足可直接复现的回归测试。
+
+### 修改范围
+
+- `migration-runner.mjs`：新增可测试的 migration identity verification 路径；owner membership 为真后 `SET ROLE candidate_migration_role`，边界读取后 `RESET ROLE`。
+- `migration-runner.test.mjs`：新增成功、异常清理和无 membership 三个场景。
+- 更新自动工程状态、提速计划、traceability、context 和本 changelog。
+- 未修改 migration SQL、角色定义、Candidate runtime、业务代码、API、前端、Redis、worker、部署或 secret。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：修复 Candidate authority schema 的验证工具，不启用任何读写路径。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：无运行行为变化。
+
+### 测试结果
+
+- `npm run migration:runner:test`：46/46 pass。
+- `npm run test:autonomy`：16/16 pass。
+- `npm run typecheck`、`npm run lint`：pass。
+- `npm run test:market`：924 pass / 0 fail / 1 isolated DB skip；worker 17/17；historical smoke 4/4。
+- `npm run build`：pass。
+- `npm run backtest:golden`：16/16 pass。
+- `npm run ci:forbidden-files`、`npm run ci:secret-patterns`、`npm run security:check`：pass。
+- `npm run backtest:formal`：未运行且禁止。
+
+### 是否部署
+
+未部署，未连接腾讯云生产，未执行 verify、migration、DDL/DML、Feature Flag 或服务重启。
+
+### 风险与遗留问题
+
+- 本地修复通过不等于生产 verify PASS；原生产包状态尚未晋级。
+- production verify-only 必须绑定新 commit/checksum、fresh 只读 preflight 和新的独立明确审批。
+- 再次 execute migration、writer、backfill、read cutover 和 shadow writer 继续禁止。
+
+### 下一轮建议
+
+全部本地门禁 PASS 后，只申请 `WP-G0.2-PRODUCTION-VERIFY-ONLY` 的独立只读审批；审批前不执行生产动作。

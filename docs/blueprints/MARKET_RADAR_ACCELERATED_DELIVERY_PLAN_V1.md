@@ -127,7 +127,7 @@ npm run test:migration-capacity
 | 1 | WP-ACCEL-01 Safe Delivery and Capacity Gate | B | completed | 工具、测试、治理门禁通过 |
 | 2 | Production capacity/off-host restore remediation | A | pass | 根盘 13%、fresh 加密离机备份、真实隔离恢复、容量 14/14 PASS |
 | 3 | WP-G0.2 Add Schema rerun | A | partial: schema applied / verify failed | 禁止再次 execute；保持 Feature Flag=0 |
-| 4 | Migration Runner post-schema verify fix | B | active local preparation | 定向测试覆盖 NOINHERIT + `SET ROLE`，全部本地门禁通过 |
+| 4 | Migration Runner post-schema verify fix | B | local gate candidate PASS | NOINHERIT 回归 46/46、控制器 16/16、基础和安全门禁均 PASS；待提交锁定 |
 | 5 | Production verify-only | A | approval required | 第 4 项 PASS + 新的独立只读审批；不得执行 migration |
 | 6 | WP-G0.2 shadow_capture | A | prohibited | Production verify-only PASS + 独立审批 |
 | 7 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定 + 独立审批 |

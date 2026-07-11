@@ -24,6 +24,7 @@ import {
   validateRoleIdentity,
   validateWorktreeGuardSnapshot,
 } from "./runner-core.mjs";
+import { verifyMigrationIdentity } from "./migration-runner.mjs";
 
 const now = new Date("2026-07-11T02:00:00.000Z");
 const baseRequest = {
@@ -288,6 +289,69 @@ const leastPrivilegeLogin = {
 test("accepts least-privilege application and migration identities", () => {
   assert.equal(validateRoleIdentity(leastPrivilegeLogin, "application"), true);
   assert.equal(validateRoleIdentity(leastPrivilegeLogin, "migration"), true);
+});
+
+function migrationVerificationClient({ boundaryError = null, ownerMember = true } = {}) {
+  const queries = [];
+  return {
+    queries,
+    async query(sql) {
+      queries.push(sql);
+      if (sql.includes("FROM pg_roles")) {
+        return {
+          rows: [{
+            role_name: "market_radar_migration_login",
+            ...leastPrivilegeLogin,
+          }],
+        };
+      }
+      if (sql.includes("pg_has_role")) return { rows: [{ owner_member: ownerMember }] };
+      if (sql === "SET ROLE candidate_migration_role") return { rows: [] };
+      if (sql.includes("candidate_authority.schema_migrations")) {
+        if (boundaryError) throw boundaryError;
+        return {
+          rows: [{ candidate_schema_present: true, migration_rows: 8 }],
+        };
+      }
+      if (sql === "RESET ROLE") return { rows: [] };
+      throw new Error(`unexpected_query:${sql}`);
+    },
+  };
+}
+
+test("post-schema verification activates the owner role for a NOINHERIT migration login", async () => {
+  const client = migrationVerificationClient();
+  const result = await verifyMigrationIdentity(client);
+
+  assert.equal(result.rolinherit, false);
+  assert.equal(result.ownerMembership, true);
+  assert.equal(result.candidateSchemaPresent, true);
+  assert.equal(result.migrationRegistryRows, 8);
+  assert.ok(
+    client.queries.indexOf("SET ROLE candidate_migration_role")
+      < client.queries.findIndex((sql) => sql.includes("candidate_authority.schema_migrations")),
+  );
+  assert.equal(client.queries.at(-1), "RESET ROLE");
+});
+
+test("post-schema verification resets the owner role when the boundary read fails", async () => {
+  const error = Object.assign(new Error("permission denied for schema candidate_authority"), {
+    code: "42501",
+  });
+  const client = migrationVerificationClient({ boundaryError: error });
+
+  await assert.rejects(() => verifyMigrationIdentity(client), error);
+  assert.equal(client.queries.at(-1), "RESET ROLE");
+});
+
+test("migration verification does not activate the owner role without membership", async () => {
+  const client = migrationVerificationClient({ ownerMember: false });
+  const result = await verifyMigrationIdentity(client);
+
+  assert.equal(result.ownerMembership, false);
+  assert.equal(result.candidateSchemaPresent, null);
+  assert.equal(result.migrationRegistryRows, null);
+  assert.equal(client.queries.includes("SET ROLE candidate_migration_role"), false);
 });
 
 test("rejects a superuser application identity", () => {
