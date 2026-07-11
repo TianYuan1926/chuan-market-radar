@@ -128,6 +128,8 @@ rollback_runtime() {
 cutover() {
   require_boundary
   [ -f "$EVIDENCE/prepare-result.json" ] || fail prepare_not_complete
+  cp --preserve=mode,ownership,timestamps "$ENV_FILE" "$BACKUPS/env.production.rollback"
+  chmod 600 "$BACKUPS/env.production.rollback"
   guard "$EVIDENCE/production-worktree-guard-before-cutover.json" \
     "$EVIDENCE/production-worktree-guard-before.json"
 
@@ -161,7 +163,7 @@ cutover() {
     --confirmation-file /ops/runner-state/identity-request/identity-confirmation \
     --source-env /production-worktree/.env.production \
     --application-runtime-env-file /ops/secrets/application-runtime.env \
-    --postgres-admin-env-file /ops/secrets/postgres-admin.env \
+    --postgres-admin-env-file "$SECRETS/postgres-admin.env" \
     --output-dir /ops/runtime \
     --cwd /ops \
     --worktree /production-worktree \
