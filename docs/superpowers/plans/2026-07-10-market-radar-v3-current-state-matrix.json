@@ -39,17 +39,23 @@
     "The local branch is 8518a14dcf03cd70e5470c3c9fd81e6e23a5dcb2 with a dirty working tree; uncommitted local files are not proof of GitHub main or production capability.",
     "Local production evidence files have mixed timestamps and statuses, so final production evidence alignment remains open.",
     "The local Shadow baseline is older than the production point sample and remains a separate evidence source.",
-    "On 2026-07-11 the WP-G0.2 production add-schema attempt stopped at read-only PostgreSQL preflight: the only LOGIN role is the application superuser and no independent migration LOGIN identity exists. No backup, restore drill, schema migration, restart or runtime deployment occurred. A zero-byte untracked file was transiently created in the production repository and later removed with explicit approval; final worktree is clean, but the contract requires a boundary-failure verdict."
+    "On 2026-07-11 production identity remediation passed in its bounded scope: the application moved from the only superuser LOGIN to a least-privilege Runtime LOGIN, an isolated Migration LOGIN and Break-glass were established, and explicit Runner dry-run plus a seven-sample 30-minute observation passed. Candidate Migration did not run and Candidate schema remains absent."
   ],
   "latestWorkPackageAttempt": {
-    "id": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA",
-    "status": "FAIL_PRODUCTION_BOUNDARY_VIOLATION",
+    "id": "WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION",
+    "status": "PASS_IDENTITY_AND_RUNNER_REMEDIATION",
     "productionSchemaChanged": false,
     "productionApplicationChanged": false,
-    "productionWorktreeChangedTransiently": true,
+    "productionWorktreeChangedTransiently": false,
     "productionWorktreeFinalClean": true,
-    "preflightBlocker": "independent_migration_login_role_unavailable_application_role_is_superuser",
-    "nextApprovalPoint": "WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION"
+    "applicationRuntimeLeastPrivilege": true,
+    "independentMigrationLoginRoleAvailable": true,
+    "breakGlassIsolated": true,
+    "runnerProductionDryRun": true,
+    "candidateMigrationRun": false,
+    "candidateSchemaPresent": false,
+    "observationMinutes": 30,
+    "nextApprovalPoint": "WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN"
   },
   "legacyItems": [
     {"id": 1, "name": "CoinGlass auth regression repair", "status": "resolved_historical", "currentEvidence": "Current production health reports CoinGlass ready and scan produces candidates; old key propagation was the prior root cause.", "v3Destination": "G0 release evidence regression guard"},

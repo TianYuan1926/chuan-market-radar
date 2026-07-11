@@ -30,13 +30,13 @@
 
 ## C. 当前唯一下一入口
 
-`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 仍因生产 schema 尚未增加权威 Episode/Outcome 而未完成。implementation/rehearsal 已达到 `PASS_IMPLEMENTATION_AND_REHEARSAL`；后续 production add-schema 在只读 preflight 发现“应用角色即唯一 LOGIN 超级角色、无独立 migration LOGIN”后停止，migration 未执行。执行中误生成 0 字节未跟踪文件曾使生产 worktree 变脏，虽已获批准删除并复核 clean，但按合同总状态为 `FAIL_PRODUCTION_BOUNDARY_VIOLATION`。当前没有自动授权的下一包；再次获得明确批准后才可进入：
+`WP-G0.1 Frontend Truth Contract` 已于 2026-07-10 完成本地门禁、GitHub `main` 和腾讯生产验证。`WP-G0.2 Candidate Lifecycle and Outcome Truth` 仍因生产 schema 尚未增加权威 Episode/Outcome 而未完成。2026-07-11 身份修复包已达到 `PASS_IDENTITY_AND_RUNNER_REMEDIATION`：应用退出超级 LOGIN，独立 Migration LOGIN、Break-glass、显式 Runner dry-run 和 30 分钟观察通过；Candidate Migration 未执行，生产 schema/writer/read path 未改变。当前没有自动授权的下一包；再次获得明确批准后才可进入：
 
 ```text
-WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION
+WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN
 ```
 
-该修复包只收口独立 migration 身份和显式 production runner，不授权 production schema DDL。修复后仍需重新审批 add-schema；不得自行进入 shadow writer、backfill、read cutover、HTTPS、扫描排序、策略权重、Shadow v2 或视觉重构。
+该 rerun 仍需从 Step 0 重新核验 artifact、backup/restore/capacity 和身份 Gate，只允许 additive schema；不得自行进入 shadow writer、backfill、read cutover、HTTPS、扫描排序、策略权重、Shadow v2 或视觉重构。
 
 ## D. 旧版详细事实保留区
 

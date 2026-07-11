@@ -2244,3 +2244,44 @@ P0 阻断：
 ### 下一轮建议
 
 只建议另行审批 `WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION`；先收口独立 migration 身份和 production runner，再从 Step 0 重跑 add-schema。
+
+## 2026-07-11 / WP-G0.2 Production Identity and Runner Remediation
+
+### 本轮目标
+
+把生产应用从唯一 PostgreSQL 超级 LOGIN 切换到独立最小权限 Runtime，建立独立 Migration LOGIN、NOLOGIN owner、受控 Break-glass 和显式双身份 Runner，并完成生产 dry-run 与 30 分钟稳定性观察。
+
+### 修改范围
+
+- 新增 `scripts/production/migration-runner/` 下的身份审计/切换、Runner、artifact、Worktree Guard、隔离演练和生产编排。
+- 增加 Runner package scripts 与 lint worktree ignore；未修改锁定 Candidate migration 文件、scan/analysis/strategy/frontend。
+- 更新 context、changelog、traceability、V3/current-state 和兼容蓝图；生成本轮脱敏报告包。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：关闭未来生产加表的超级权限和隐式 Runner 前置风险；Candidate authority 仍未进入生产。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：运行行为和排序未变。
+
+### 测试结果
+
+- Runner targeted：43/43 pass；隔离角色拓扑、最小权限、credential cutover、rollback、DDL/role deny 和锁定 8-file rehearsal pass。
+- `npm run typecheck`、`npm run lint`、`npm run build`：pass。
+- `npm run test:market`：924 pass / 1 isolated DB skip；worker 17/17；historical 4/4。
+- `npm run backtest:golden`：16/16；forbidden-files / secret-patterns / security-check：pass。
+- 生产 Runner plan/preflight/dry-run/verify：pass；Candidate SQL execute=false。
+- 生产 detached observation：7/7 samples、>=30 分钟 pass；formal 未运行且禁止。
+
+### 是否部署
+
+已推功能分支；未部署生产应用代码，生产应用 HEAD/image 未变。仅原子切换数据库 credential，recreate 8 个 credential-bearing 容器；Postgres、Redis、Caddy 未重启，Candidate schema/data/flags 未改变。
+
+### 风险与遗留问题
+
+- P0：Candidate authority schema 仍 absent；WP-G0.2/G0 未完成。
+- P0：公网 HTTP 仍未处理。
+- P0：下一次加表前仍需证明 full encrypted backup、external restore 和 WAL/disk headroom；当前磁盘容量 Gate 仅 partial。
+- P1：Runner 只证明 production dry-run；execute 仍未授权。
+
+### 下一轮建议
+
+只在用户再次明确批准后，从 Step 0 进入 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN`；不得自动进入 Shadow write、backfill、read cutover、G1、R4 或实盘。

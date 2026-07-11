@@ -931,13 +931,13 @@ R4 之后用户可自主决定是否做小范围人工验证。该步骤：
 
 ## 18. 当前唯一下一建议
 
-`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成并通过生产验证的 Work Package。`WP-G0.2-MIGRATION-IMPLEMENTATION-AND-REHEARSAL` 已在自身隔离范围达到 PASS；后续 production add-schema 因独立 migration 身份缺失在 preflight 停止，生产 schema/writer/read path 均未改变。`WP-G0.2` 仍未完成。当前没有自动授权的下一任务；只有再次明确批准后才建议：
+`WP-G0.1 Frontend Truth Contract` 是最后一个完整完成核心运行行为并通过生产验证的 Work Package。`WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION` 已在自身身份治理范围达到 PASS：应用已退出超级 LOGIN，独立 Migration LOGIN/Break-glass/显式 Runner dry-run 和 30 分钟观察通过；Candidate schema/writer/read path 仍未改变，`WP-G0.2` 仍未完成。当前没有自动授权的下一任务；只有再次明确批准后才建议：
 
 ```text
-WP-G0.2-MIGRATION-PRODUCTION-IDENTITY-AND-RUNNER-REMEDIATION
+WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN
 ```
 
-该建议包只允许建立与应用 runtime 隔离的最小权限 migration 身份、显式 production approval guard 和可审计 runner，并重新证明 artifact/role/backup 前置条件；它不授权生产加表本身，也不授权 shadow writer、backfill、authority/read cutover 或前端切换。完成后仍需重新审批并从 Step 0 重跑 production add-schema。HTTPS/private session 继续保留为独立 WP-G0.3。
+该 rerun 必须从 Step 0 重新验证锁定 artifact、工作树、独立 migration identity、fresh backup、restore/capacity 和 dry-run，只允许再次申请 additive schema；仍不自动授权 shadow writer、backfill、authority/read cutover 或前端切换。HTTPS/private session 继续保留为独立 WP-G0.3。
 
 本轮不同时开始扫描排序、新模式、策略权重、Shadow v2、视觉重构或付费数据接入。
 
