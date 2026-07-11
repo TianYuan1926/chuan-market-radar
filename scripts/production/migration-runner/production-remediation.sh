@@ -310,10 +310,113 @@ dry_run() {
   printf '{"status":"pass","phase":"dry-run"}\n'
 }
 
+observe() {
+  require_boundary
+  [ -f "$EVIDENCE/dry-run-result.json" ] || fail dry_run_not_complete
+  series="$EVIDENCE/runtime-observation-series.jsonl"
+  : > "$series"
+  started_epoch=$(date +%s)
+  sample=0
+  while [ "$sample" -le 6 ]; do
+    timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    health="$EVIDENCE/observation-health-$sample.json"
+    audit="$EVIDENCE/observation-role-audit-$sample.json"
+    guard_file="$EVIDENCE/observation-worktree-guard-$sample.json"
+    curl -fsS localhost/api/health > "$health"
+    jq -e '.ok == true and .health.scan.status == "ready" and .health.scan.freshness == "fresh"' \
+      "$health" >/dev/null || fail observation_health_regression
+    container_runner identity-remediation.mjs audit \
+      --break-glass-connection-file /ops/secrets/break-glass.url \
+      --cwd /ops \
+      --worktree /production-worktree \
+      --output "/ops/evidence/observation-role-audit-$sample.json" >/dev/null
+    jq -e '.result.candidateSchemaPresent == false' "$audit" >/dev/null \
+      || fail candidate_schema_appeared
+    guard "$guard_file" "$EVIDENCE/production-worktree-guard-before.json" >/dev/null
+
+    page_root=$(curl -sS -o /dev/null -w '%{http_code}' localhost/)
+    page_dashboard=$(curl -sS -o /dev/null -w '%{http_code}' localhost/dashboard)
+    page_signals=$(curl -sS -o /dev/null -w '%{http_code}' localhost/signals)
+    page_review=$(curl -sS -o /dev/null -w '%{http_code}' localhost/review)
+    page_system=$(curl -sS -o /dev/null -w '%{http_code}' localhost/system)
+    api_scan=$(curl -sS -o /dev/null -w '%{http_code}' localhost/api/scan)
+    api_radar=$(curl -sS -o /dev/null -w '%{http_code}' localhost/api/frontend/radar-contract)
+    api_backend=$(curl -sS -o /dev/null -w '%{http_code}' localhost/api/radar/backend-contract)
+    api_review=$(curl -sS -o /dev/null -w '%{http_code}' localhost/api/frontend/review-contract)
+    redis_status=$(docker exec chuan-market-radar-redis-1 redis-cli ping)
+    postgres_status=$(docker exec "$POSTGRES_CONTAINER" pg_isready -q && printf ready || printf fail)
+    web_image=$(docker inspect chuan-market-radar-web-1 --format '{{.Image}}')
+    permission_denied_count=$(docker logs --since 6m chuan-market-radar-web-1 2>&1 \
+      | grep -Eic 'permission denied|insufficient privilege' || true)
+
+    jq -n \
+      --arg timestamp "$timestamp" \
+      --arg applicationRelease "$APPLICATION_RELEASE" \
+      --arg webImage "$web_image" \
+      --arg redis "$redis_status" \
+      --arg postgres "$postgres_status" \
+      --arg root "$page_root" \
+      --arg dashboard "$page_dashboard" \
+      --arg signals "$page_signals" \
+      --arg review "$page_review" \
+      --arg system "$page_system" \
+      --arg apiScan "$api_scan" \
+      --arg apiRadar "$api_radar" \
+      --arg apiBackend "$api_backend" \
+      --arg apiReview "$api_review" \
+      --argjson permissionDeniedCount "$permission_denied_count" \
+      --slurpfile health "$health" \
+      --slurpfile audit "$audit" \
+      --slurpfile guard "$guard_file" \
+      '{
+        activeRoleCounts: $audit[0].result.activeRoleCounts,
+        applicationRelease: $applicationRelease,
+        candidateSchemaPresent: $audit[0].result.candidateSchemaPresent,
+        healthOk: $health[0].ok,
+        pages: {
+          apiBackend: $apiBackend,
+          apiRadar: $apiRadar,
+          apiReview: $apiReview,
+          apiScan: $apiScan,
+          dashboard: $dashboard,
+          review: $review,
+          root: $root,
+          signals: $signals,
+          system: $system
+        },
+        permissionDeniedCount: $permissionDeniedCount,
+        postgres: $postgres,
+        redis: $redis,
+        scanFreshness: $health[0].health.scan.freshness,
+        scanStatus: $health[0].health.scan.status,
+        timestamp: $timestamp,
+        webImage: $webImage,
+        worktreeClean: $guard[0].clean,
+        worktreeHead: $guard[0].head
+      }' >> "$series"
+
+    if [ "$sample" -lt 6 ]; then
+      sleep 300
+    fi
+    sample=$((sample + 1))
+  done
+  finished_epoch=$(date +%s)
+  jq -s \
+    --argjson observationSeconds "$((finished_epoch - started_epoch))" \
+    '{observationSeconds: $observationSeconds, samples: ., status: "pass"}' \
+    "$series" > "$EVIDENCE/production-observation-30-60m.json"
+  guard "$EVIDENCE/production-worktree-guard-after-observation.json" \
+    "$EVIDENCE/production-worktree-guard-before.json" >/dev/null
+  printf '{"status":"pass","phase":"observe","samples":7}\n' \
+    > "$EVIDENCE/observation-result.json"
+  printf '{"status":"pass","phase":"observe","samples":7}\n'
+}
+
 case "$COMMAND" in
   prepare) prepare ;;
   rebuild-artifact) rebuild_artifact ;;
   cutover) cutover ;;
   dry-run) dry_run ;;
+  observe) observe ;;
   *) fail command_invalid ;;
 esac

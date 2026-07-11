@@ -683,7 +683,7 @@ async function audit(options) {
       const active = await client.query(
         `SELECT md5(usename) AS role_hash, count(*)::int AS connection_count
          FROM pg_stat_activity
-         WHERE datname = current_database()
+         WHERE datname = current_database() AND pid <> pg_backend_pid()
          GROUP BY md5(usename) ORDER BY connection_count DESC`,
       );
       const candidate = await client.query(
