@@ -5,7 +5,14 @@ const eslintConfig = [
   ...nextVitals,
   ...nextTypescript,
   {
-    ignores: [".next/**", ".tmp/**", "out/**", "build/**", "next-env.d.ts"],
+    ignores: [
+      ".next/**",
+      ".tmp/**",
+      ".worktrees/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+    ],
   },
   {
     files: ["src/components/**/*.tsx", "src/app/**/*.tsx"],
