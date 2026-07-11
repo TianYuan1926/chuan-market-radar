@@ -412,11 +412,109 @@ observe() {
   printf '{"status":"pass","phase":"observe","samples":7}\n'
 }
 
+candidate_flag_enabled() {
+  flag="$1"
+  grep -Eiq "^${flag}=(true|1|yes|on)$" "$ENV_FILE"
+}
+
+final_audit() {
+  require_boundary
+  [ -f "$EVIDENCE/observation-result.json" ] || fail observation_not_complete
+
+  guard "$EVIDENCE/production-worktree-guard-final.json" \
+    "$EVIDENCE/production-worktree-guard-before.json" >/dev/null
+  curl -fsS localhost/api/health > "$EVIDENCE/health-final.json"
+  jq -e '.ok == true and .health.scan.status == "ready" and .health.scan.freshness == "fresh"' \
+    "$EVIDENCE/health-final.json" >/dev/null || fail final_health_regression
+
+  container_runner identity-remediation.mjs verify \
+    --application-connection-file /ops/secrets/application-runtime.url \
+    --migration-connection-file /ops/secrets/migration-login.url \
+    --break-glass-connection-file /ops/secrets/break-glass.url \
+    --cwd /ops \
+    --worktree /production-worktree \
+    --output /ops/evidence/production-role-verification-final-audit.json >/dev/null
+  container_runner identity-remediation.mjs audit \
+    --break-glass-connection-file /ops/secrets/break-glass.url \
+    --cwd /ops \
+    --worktree /production-worktree \
+    --output /ops/evidence/production-role-audit-final.json >/dev/null
+  jq -e '.result.candidateSchemaPresent == false' \
+    "$EVIDENCE/production-role-audit-final.json" >/dev/null || fail candidate_schema_appeared
+
+  docker compose \
+    --project-directory "$WORKTREE" \
+    --env-file "$ENV_FILE" \
+    --env-file "$SECRETS/postgres-admin.env" \
+    -f "$WORKTREE/docker-compose.yml" \
+    -f "$RUNTIME/runtime-identity.override.yml" \
+    ps --format json > "$EVIDENCE/compose-ps-final.jsonl"
+  docker inspect chuan-market-radar-web-1 --format '{{.Image}}' \
+    > "$EVIDENCE/web-image-final.txt"
+  df -Pk / > "$EVIDENCE/disk-after.txt"
+  docker system df > "$EVIDENCE/docker-disk-after.txt"
+
+  flags='{}'
+  for flag in \
+    CANDIDATE_EPISODE_CANONICAL_WRITE \
+    CANDIDATE_EPISODE_SHADOW_WRITE \
+    CANDIDATE_EPISODE_DUAL_READ \
+    CANDIDATE_EPISODE_CANONICAL_READ \
+    CANDIDATE_EPISODE_REVIEW_READ
+  do
+    enabled=false
+    if candidate_flag_enabled "$flag"; then
+      enabled=true
+    fi
+    flags=$(printf '%s' "$flags" | jq --arg flag "$flag" --argjson enabled "$enabled" \
+      '. + {($flag): $enabled}')
+  done
+  printf '%s\n' "$flags" > "$EVIDENCE/candidate-feature-flags-final.json"
+  jq -e 'all(.[]; . == false)' "$EVIDENCE/candidate-feature-flags-final.json" >/dev/null \
+    || fail candidate_feature_flag_enabled
+
+  jq -n \
+    --arg applicationRelease "$APPLICATION_RELEASE" \
+    --arg runnerSourceCommit "$RUNNER_COMMIT" \
+    --arg webImage "$(cat "$EVIDENCE/web-image-final.txt")" \
+    --slurpfile audit "$EVIDENCE/production-role-audit-final.json" \
+    --slurpfile flags "$EVIDENCE/candidate-feature-flags-final.json" \
+    --slurpfile guard "$EVIDENCE/production-worktree-guard-final.json" \
+    --slurpfile health "$EVIDENCE/health-final.json" \
+    --slurpfile observation "$EVIDENCE/production-observation-30-60m.json" \
+    '{
+      applicationRelease: $applicationRelease,
+      candidateFeatureFlags: $flags[0],
+      candidateMigrationRun: false,
+      candidateSchemaPresent: $audit[0].result.candidateSchemaPresent,
+      healthOk: $health[0].ok,
+      observationSeconds: $observation[0].observationSeconds,
+      productionHead: $guard[0].head,
+      productionWorktreeClean: $guard[0].clean,
+      runnerSourceCommit: $runnerSourceCommit,
+      scanFreshness: $health[0].health.scan.freshness,
+      scanStatus: $health[0].health.scan.status,
+      status: "pass",
+      webImage: $webImage
+    }' > "$EVIDENCE/final-readonly-audit.json"
+
+  if grep -ERIq 'postgres(ql)?://|DATABASE_URL=|PASSWORD=|BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY' \
+    "$EVIDENCE"; then
+    fail evidence_secret_pattern_detected
+  fi
+  export_file=/home/ubuntu/wp-g0-2-identity-runner-redacted-evidence.tar.gz
+  tar -czf "$export_file" -C "$OPS_ROOT" evidence artifacts/runner-artifact/RUNNER_ARTIFACT_MANIFEST.json
+  chown ubuntu "$export_file"
+  chmod 600 "$export_file"
+  printf '{"status":"pass","phase":"final-audit","export":"redacted-evidence"}\n'
+}
+
 case "$COMMAND" in
   prepare) prepare ;;
   rebuild-artifact) rebuild_artifact ;;
   cutover) cutover ;;
   dry-run) dry_run ;;
   observe) observe ;;
+  final-audit) final_audit ;;
   *) fail command_invalid ;;
 esac
