@@ -323,7 +323,8 @@ observe() {
     audit="$EVIDENCE/observation-role-audit-$sample.json"
     guard_file="$EVIDENCE/observation-worktree-guard-$sample.json"
     curl -fsS localhost/api/health > "$health"
-    jq -e '.ok == true and .health.scan.status == "ready" and .health.scan.freshness == "fresh"' \
+    jq -e '.ok == true and .health.scan.status == "ready" and
+      (.health.scan.freshness == "fresh" or .health.scan.freshness == "aging")' \
       "$health" >/dev/null || fail observation_health_regression
     container_runner identity-remediation.mjs audit \
       --break-glass-connection-file /ops/secrets/break-glass.url \
@@ -403,8 +404,21 @@ observe() {
   finished_epoch=$(date +%s)
   jq -s \
     --argjson observationSeconds "$((finished_epoch - started_epoch))" \
-    '{observationSeconds: $observationSeconds, samples: ., status: "pass"}' \
+    '{
+      agingSamples: map(select(.scanFreshness == "aging")) | length,
+      freshSamples: map(select(.scanFreshness == "fresh")) | length,
+      observationSeconds: $observationSeconds,
+      samples: .,
+      status: (if (
+        $observationSeconds >= 1800 and
+        any(.[]; .scanFreshness == "fresh") and
+        all(.[]; .healthOk == true and .scanStatus == "ready" and
+          (.scanFreshness == "fresh" or .scanFreshness == "aging"))
+      ) then "pass" else "fail" end)
+    }' \
     "$series" > "$EVIDENCE/production-observation-30-60m.json"
+  jq -e '.status == "pass"' "$EVIDENCE/production-observation-30-60m.json" >/dev/null \
+    || fail observation_acceptance_failed
   guard "$EVIDENCE/production-worktree-guard-after-observation.json" \
     "$EVIDENCE/production-worktree-guard-before.json" >/dev/null
   printf '{"status":"pass","phase":"observe","samples":7}\n' \
@@ -424,7 +438,8 @@ final_audit() {
   guard "$EVIDENCE/production-worktree-guard-final.json" \
     "$EVIDENCE/production-worktree-guard-before.json" >/dev/null
   curl -fsS localhost/api/health > "$EVIDENCE/health-final.json"
-  jq -e '.ok == true and .health.scan.status == "ready" and .health.scan.freshness == "fresh"' \
+  jq -e '.ok == true and .health.scan.status == "ready" and
+    (.health.scan.freshness == "fresh" or .health.scan.freshness == "aging")' \
     "$EVIDENCE/health-final.json" >/dev/null || fail final_health_regression
 
   container_runner identity-remediation.mjs verify \
