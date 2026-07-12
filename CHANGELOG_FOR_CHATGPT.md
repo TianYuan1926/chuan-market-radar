@@ -3150,3 +3150,50 @@ P0 阻断：
 ### 下一轮建议
 
 生产仍只申请 Dormant Runtime Deploy；等待审批期间只允许继续本地 Legacy 归一化 adapter 准备，不得提前接 API 或启用 read Flag。
+
+## 2026-07-12 / WP-G0.2 Canonical Read Compatibility Oracle Local Preparation
+
+### 本轮目标
+
+纠正 Legacy 可伪装完整 Canonical Read 的错误假设，建立 Legacy diagnostic-only 边界、Candidate Raw-table 独立 Oracle 和同快照 reference parity。
+
+### 修改范围
+
+- 新增 Legacy diagnostic adapter，只保留事件 ID、raw symbol、observedAt 和显式 direction；不输出 Outcome metrics，不授权 cutover。
+- 新增 Candidate Raw-table Oracle，独立重算 policy、分页、Review 分母、metrics、excluded reason、不变量、重复 identity 和 lineage。
+- 主 Read Model 支持同事务读取；parity v2 使用 referenceStatus 并比较 policy。
+- 路由改为强制 reference/candidate same-snapshot pair；不同快照直接 unavailable/fallback。
+- 修复 Date 毫秒丢失和 SQL numeric/JS average 尾差，双方独立按 8 位 metric 定标。
+- 新增 PG16 同快照 0 差异、Reader Outbox 42501、治理合同和防降标测试。
+- 未修改 API、前端、migration、Compose、生产身份、Feature Flag、control、worker、Redis、scan/analysis/strategy/risk/backtest 或生产环境。
+
+### 核心链路影响
+
+候选生命周期和复盘分母改由 Candidate 主查询与独立 Raw Oracle 证明；Legacy 仅保留诊断重叠，不再补值冒充权威。
+
+### 测试结果
+
+- Oracle/Legacy/reference parity/治理 23/23：PASS。
+- Oracle PG16 同一只读快照 0 difference、Outbox 42501、productionConnected=false：PASS。
+- 上一 Canonical Read 14/14 + PG16 1/1：PASS。
+- Candidate 135 pass / 0 fail / 6 explicit DB skip；本轮 DB 测试由独立 PG16 Gate 实跑。
+- Reconciliation 8/8、Activation 12/12、Runtime Identity Runner 8/8、Composition 28/28、Autonomy 16/16：PASS；自治执行 24/24 Gate PASS。
+- typecheck、lint、build：PASS。
+- test:market 972 pass / 0 fail / 6 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 和三项安全门禁：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未执行生产 Git/Docker/身份/env/API/数据库/Redis/Feature Flag/control 变更。
+
+### 风险与遗留问题
+
+- 旧 Review 前端仍存在 missing direction 偏 long、null MFE/MAE 补 0；后续 Candidate API/前端切换必须关闭。
+- 生产 Reader LOGIN/URL、API resource envelope、前端 adapter 和真实 dual-read/canonical-compat 观察仍不存在。
+- 本地 0 difference 不等于生产 parity、canonical cutover、WP-G0.2 或 G0 完成。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只申请 Dormant Runtime Deploy；等待审批期间继续本地准备 Candidate API resource envelope 与 Legacy diagnostic 合同，不得接生产路由或启用 read Flag。

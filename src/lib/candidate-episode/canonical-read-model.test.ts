@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED,
   CandidateCanonicalReadModel,
-  compareCandidateCanonicalReads,
+  compareCandidateCanonicalReferenceReads,
   evaluateCandidateReadRoute,
   evaluateCandidateReadParityEvidence,
   evaluateCurrentCandidateReadRoute,
@@ -195,20 +195,34 @@ test("review invariant drift and stale as-of are explicit partial states", async
   assert.ok(stale.blockers.includes("candidate_read_as_of_stale_for_current_snapshot"));
 });
 
+test("database numeric averages are normalized to the evidence metric precision", async () => {
+  const result = await new CandidateCanonicalReadModel(mockReadAdapter({
+    review: {
+      ...reviewRow,
+      average_mfe: "0.49999999500000000000",
+      average_mae: "-0.15000000490000000000",
+    },
+  })).read({ policy: readPolicy });
+  assert.equal(result.status, "ready");
+  if (result.status !== "ready") return;
+  assert.equal(result.review.metricAverages.mfe, 0.5);
+  assert.equal(result.review.metricAverages.mae, -0.15);
+});
+
 test("canonical parity treats null to zero and unavailable as explicit differences", async () => {
   const base = await readyRead();
-  assert.equal(compareCandidateCanonicalReads(base, structuredClone(base)).status, "pass");
+  assert.equal(compareCandidateCanonicalReferenceReads(base, structuredClone(base)).status, "pass");
   const zero = {
     ...base,
     episodes: base.episodes.map((episode, index) => (
       index === 0 ? { ...episode, observationPrice: "0" } : episode
     )),
   };
-  const drift = compareCandidateCanonicalReads(base, zero);
+  const drift = compareCandidateCanonicalReferenceReads(base, zero);
   assert.equal(drift.status, "fail");
   assert.ok(drift.differences.includes("episodes[0].observationPrice"));
   const unavailable = await new CandidateCanonicalReadModel(mockReadAdapter({ fail: true })).read({ policy: readPolicy });
-  assert.equal(compareCandidateCanonicalReads(base, unavailable).status, "unavailable");
+  assert.equal(compareCandidateCanonicalReferenceReads(base, unavailable).status, "unavailable");
 });
 
 const evidenceStatus = "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" as const;
@@ -304,6 +318,11 @@ test("shadow verify returns legacy; canonical compat falls back visibly on any p
     dualReadEvidenceStatus: "missing",
     canonicalCompatEvidenceStatus: "missing",
     legacyRead: async () => legacy,
+    referencePairRead: async () => ({
+      sameDatabaseSnapshot: true as const,
+      reference: legacy,
+      candidate,
+    }),
     candidateRead: async () => candidate,
   } as const;
   const shadow = await executeCandidateReadRoute({
@@ -324,7 +343,11 @@ test("shadow verify returns legacy; canonical compat falls back visibly on any p
 
   const compatibility = await executeCandidateReadRoute({
     ...shared,
-    candidateRead: async () => driftedCandidate,
+    referencePairRead: async () => ({
+      sameDatabaseSnapshot: true as const,
+      reference: legacy,
+      candidate: driftedCandidate,
+    }),
     input: {
       codeCanonicalReadAllowed: true,
       phase: "canonical_compat",
@@ -361,6 +384,11 @@ test("canonical authority never silently falls back to legacy on Candidate failu
       return legacy;
     },
     candidateRead: async () => unavailable,
+    referencePairRead: async () => ({
+      sameDatabaseSnapshot: true as const,
+      reference: legacy,
+      candidate: unavailable,
+    }),
   });
   assert.equal(result.source, "candidate");
   assert.equal(result.result.status, "unavailable");
@@ -369,12 +397,12 @@ test("canonical authority never silently falls back to legacy on Candidate failu
 
 function paritySample(index: number, phase: "shadow_verify" | "canonical_compat" = "shadow_verify") {
   return {
-    schemaVersion: "candidate-read-parity-sample.v1" as const,
+    schemaVersion: "candidate-read-parity-sample.v2" as const,
     sampledAt: new Date(Date.parse("2026-07-12T00:00:00.000Z") + index * 300_000).toISOString(),
     releaseId: "candidate-shadow-release-test",
     authorityEpoch: 2,
     phase,
-    legacyStatus: "ready" as const,
+    referenceStatus: "ready" as const,
     candidateStatus: "ready" as const,
     differenceCount: 0,
     comparisonHash: `sha256:${index.toString(16).padStart(64, "0")}`,

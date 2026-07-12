@@ -5,7 +5,7 @@ import type {
   CandidateLifecycle,
   CandidateMaturity,
 } from "./candidate-episode-service";
-import type { PostgresTransactionAdapter } from "./transaction-adapter";
+import type { PostgresTransactionAdapter, TransactionContext } from "./transaction-adapter";
 
 export const CANDIDATE_CANONICAL_READ_SCHEMA_VERSION = "candidate-canonical-read.v1" as const;
 export const CANDIDATE_CANONICAL_REVIEW_SCHEMA_VERSION = "candidate-review-read.v1" as const;
@@ -212,7 +212,7 @@ type ReviewRow = {
   excluded_reasons: Record<string, number | string> | null;
 };
 
-const READ_TRANSACTION = {
+export const CANDIDATE_CANONICAL_READ_TRANSACTION = {
   deferrable: true,
   idleInTransactionTimeoutMs: 30_000,
   isolation: "serializable",
@@ -261,10 +261,14 @@ function metric(value: number | string | null, field: string): number | null {
   if (value === null) return null;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`candidate_read_metric_invalid:${field}`);
-  return Object.is(parsed, -0) ? 0 : parsed;
+  const scaled = parsed * 100_000_000;
+  const rounded = Math.round(scaled + Math.sign(scaled) * 1e-7) / 100_000_000;
+  return Object.is(rounded, -0) ? 0 : rounded;
 }
 
-function validCursor(cursor: CandidateCanonicalReadCursor | null | undefined) {
+export function normalizeCandidateCanonicalReadCursor(
+  cursor: CandidateCanonicalReadCursor | null | undefined,
+) {
   if (!cursor) return null;
   if (typeof cursor.episodeId !== "string" || !/^[0-9a-f-]{36}$/.test(cursor.episodeId)) {
     throw new Error("candidate_read_cursor_invalid");
@@ -274,7 +278,9 @@ function validCursor(cursor: CandidateCanonicalReadCursor | null | undefined) {
   return { episodeId: cursor.episodeId, firstSeenAt };
 }
 
-function validPolicy(policy: CandidateCanonicalReadPolicy | null | undefined) {
+export function normalizeCandidateCanonicalReadPolicy(
+  policy: CandidateCanonicalReadPolicy | null | undefined,
+) {
   if (!policy
       || policy.scope !== "production_radar"
       || policy.evidenceGradeVersion !== "eg.v1"
@@ -467,15 +473,33 @@ function unavailable(
 export class CandidateCanonicalReadModel {
   constructor(private readonly transactions: PostgresTransactionAdapter) {}
 
-  async read({
-    cursor,
-    limit = 100,
-    policy,
-  }: {
+  async read(input: {
     cursor?: CandidateCanonicalReadCursor | null;
     limit?: number;
     policy: CandidateCanonicalReadPolicy;
   }): Promise<CandidateCanonicalReadResult> {
+    try {
+      return await this.transactions.withTransaction(
+        CANDIDATE_CANONICAL_READ_TRANSACTION,
+        (tx) => this.readInTransaction(tx, input),
+      );
+    } catch {
+      return unavailable("candidate_database_read_failed");
+    }
+  }
+
+  async readInTransaction(
+    tx: TransactionContext,
+    {
+      cursor,
+      limit = 100,
+      policy,
+    }: {
+      cursor?: CandidateCanonicalReadCursor | null;
+      limit?: number;
+      policy: CandidateCanonicalReadPolicy;
+    },
+  ): Promise<CandidateCanonicalReadResult> {
     if (!Number.isSafeInteger(limit)
         || limit < 1
         || limit > CANDIDATE_READ_PAGE_MAXIMUM) {
@@ -484,14 +508,14 @@ export class CandidateCanonicalReadModel {
     let parsedCursor: CandidateCanonicalReadCursor | null;
     let parsedPolicy: CandidateCanonicalReadPolicy;
     try {
-      parsedCursor = validCursor(cursor);
-      parsedPolicy = validPolicy(policy);
+      parsedCursor = normalizeCandidateCanonicalReadCursor(cursor);
+      parsedPolicy = normalizeCandidateCanonicalReadPolicy(policy);
     } catch {
       return unavailable("candidate_read_input_invalid");
     }
 
     try {
-      return await this.transactions.withTransaction(READ_TRANSACTION, async (tx) => {
+      return await (async () => {
         const episodesResult = await tx.query<EpisodeRow>(`SELECT
           schema_version, scope, episode_id, canonical_instrument_id, venue_context,
           first_seen_at, last_seen_at, observation_price, observation_price_fact_id,
@@ -635,7 +659,7 @@ export class CandidateCanonicalReadModel {
           return { ...common, status: "partial", blockers } as const;
         }
         return { ...common, status: "ready", blockers: [] } as const;
-      });
+      })();
     } catch {
       return unavailable("candidate_database_read_failed");
     }
@@ -650,12 +674,12 @@ export type CandidateReadParity = Readonly<{
 }>;
 
 export type CandidateReadParitySample = Readonly<{
-  schemaVersion: "candidate-read-parity-sample.v1";
+  schemaVersion: "candidate-read-parity-sample.v2";
   sampledAt: string;
   releaseId: string;
   authorityEpoch: number;
   phase: "shadow_verify" | "canonical_compat";
-  legacyStatus: "ready" | "partial" | "unavailable";
+  referenceStatus: "ready" | "partial" | "unavailable";
   candidateStatus: "ready" | "partial" | "unavailable";
   differenceCount: number | null;
   comparisonHash: string | null;
@@ -694,11 +718,11 @@ export function evaluateCandidateReadParityEvidence({
     }
     previousTime = sampledAt;
     const expectedPhase = mode === "dual_read" ? "shadow_verify" : "canonical_compat";
-    if (sample.schemaVersion !== "candidate-read-parity-sample.v1") violations.push("read_observation_schema_mismatch");
+    if (sample.schemaVersion !== "candidate-read-parity-sample.v2") violations.push("read_observation_schema_mismatch");
     if (sample.releaseId !== releaseId) violations.push("read_observation_release_mismatch");
     if (sample.authorityEpoch !== authorityEpoch) violations.push("read_observation_epoch_mismatch");
     if (sample.phase !== expectedPhase) violations.push("read_observation_phase_mismatch");
-    if (sample.legacyStatus !== "ready" || sample.candidateStatus !== "ready") {
+    if (sample.referenceStatus !== "ready" || sample.candidateStatus !== "ready") {
       violations.push("read_observation_source_unavailable");
     }
     if (sample.differenceCount !== 0) violations.push("read_observation_difference_present");
@@ -723,7 +747,7 @@ export function evaluateCandidateReadParityEvidence({
     ? "PASS_DUAL_READ_OBSERVATION"
     : "PASS_CANONICAL_COMPAT_OBSERVATION";
   return {
-    schemaVersion: "candidate-read-parity-evidence.v1",
+    schemaVersion: "candidate-read-parity-evidence.v2",
     status: uniqueViolations.length === 0 ? passStatus : "FAIL_READ_PARITY_OBSERVATION",
     mode,
     releaseId,
@@ -771,25 +795,26 @@ function collectDifferences(
 
 function parityPayload(read: CandidateCanonicalReadReady) {
   return {
+    policy: read.policy,
     episodes: [...read.episodes].sort((left, right) => left.episodeId.localeCompare(right.episodeId)),
     page: read.page,
     review: read.review,
   };
 }
 
-export function compareCandidateCanonicalReads(
-  legacy: CandidateCanonicalReadResult,
+export function compareCandidateCanonicalReferenceReads(
+  reference: CandidateCanonicalReadResult,
   candidate: CandidateCanonicalReadResult,
 ): CandidateReadParity {
-  if (legacy.status !== "ready" || candidate.status !== "ready") {
+  if (reference.status !== "ready" || candidate.status !== "ready") {
     return {
       status: "unavailable",
       differenceCount: null,
-      differences: [legacy.status !== "ready" ? "legacy_unavailable" : "candidate_unavailable"],
+      differences: [reference.status !== "ready" ? `reference_${reference.status}` : `candidate_${candidate.status}`],
       comparisonHash: null,
     };
   }
-  const left = parityPayload(legacy);
+  const left = parityPayload(reference);
   const right = parityPayload(candidate);
   const differences: string[] = [];
   collectDifferences(left, right, "", differences);
@@ -858,14 +883,20 @@ export function evaluateCandidateReadRoute(input: CandidateReadRouteInput): Read
   return { mode: "legacy_only", blockers: ["canonical_flag_combination_invalid"] };
 }
 
-export async function executeCandidateReadRoute({
+export async function executeCandidateReadRoute<TLegacy>({
   candidateRead,
   input,
   legacyRead,
+  referencePairRead,
 }: {
   candidateRead: () => Promise<CandidateCanonicalReadResult>;
   input: CandidateReadRouteInput;
-  legacyRead: () => Promise<CandidateCanonicalReadResult>;
+  legacyRead: () => Promise<TLegacy>;
+  referencePairRead: () => Promise<Readonly<{
+    sameDatabaseSnapshot: true;
+    reference: CandidateCanonicalReadResult;
+    candidate: CandidateCanonicalReadResult;
+  }>>;
 }) {
   const route = evaluateCandidateReadRoute(input);
   if (route.mode === "legacy_only") {
@@ -875,8 +906,16 @@ export async function executeCandidateReadRoute({
     return { mode: route.mode, source: "candidate", result: await candidateRead(), parity: null, blockers: [] } as const;
   }
   const legacy = await legacyRead();
-  const candidate = await candidateRead();
-  const parity = compareCandidateCanonicalReads(legacy, candidate);
+  const pair = await referencePairRead();
+  const candidate = pair.candidate;
+  const parity = pair.sameDatabaseSnapshot === true
+    ? compareCandidateCanonicalReferenceReads(pair.reference, candidate)
+    : {
+        status: "unavailable",
+        differenceCount: null,
+        differences: ["reference_snapshot_not_shared"],
+        comparisonHash: null,
+      } as const;
   if (route.mode === "dual_read_legacy_authority") {
     return { mode: route.mode, source: "legacy", result: legacy, parity, blockers: [] } as const;
   }
