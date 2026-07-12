@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T18:04:26+08:00",
+  "updatedAt": "2026-07-12T18:36:45+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION-PREPARATION",
-    "title": "Read-only 10,000-write reconciliation runner preparation",
+    "id": "WP-G0.2-CANONICAL-COMPAT-READ-MODEL-LOCAL-PREPARATION",
+    "title": "Canonical Candidate and Review read model local preparation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "为未来 shadow_verify 建立不可变 Source Outbox 到 Candidate Event 的逐笔只读对账、10,000 次门槛、差异归因和聚合证据哈希；不连接生产且不自动推进 phase。",
+    "objective": "为未来 dual-read、canonical_compat 和 canonical cutover 建立固定 cohort/asOf/release/checkpoint/evidence policy 的 Candidate/Review 统一只读模型、分母不变量、逐请求 parity 和 Fail-Closed 路由；不连接生产且不授权 canonical read。",
     "coreChainImpact": [
-      "candidate_screening_projection_truth",
-      "review_evolution_reconciliation_truth",
-      "release_epoch_and_evidence_integrity"
+      "candidate_lifecycle_authority_read_truth",
+      "review_denominator_and_null_truth",
+      "dual_read_and_canonical_cutover_safety"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,20 +48,24 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json",
+      "docs/governance/WP_G0_2_CANONICAL_COMPAT_READ_MODEL_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-compat-read-model-local-preparation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-shadow-verify-reconciliation-preparation/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-reconciliation-runner.mjs",
-      "scripts/governance/candidate-reconciliation-runner.test.mjs",
-      "scripts/production/candidate-reconciliation/**",
-      "scripts/rehearsal/candidate-reconciliation-postgres16.sh"
+      "reports/wp-g0-2-canonical-compat-read-model-local-preparation/WP_G0_2_CANONICAL_COMPAT_READ_MODEL_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-canonical-read-model.mjs",
+      "scripts/governance/candidate-canonical-read-model.test.mjs",
+      "scripts/rehearsal/candidate-canonical-read-postgres16.sh",
+      "src/lib/candidate-episode/canonical-read-model.ts",
+      "src/lib/candidate-episode/canonical-read-model.test.ts",
+      "src/lib/candidate-episode/canonical-read-model-postgres.test.ts"
     ],
     "prohibitedPaths": [
       "src/app/**",
       "src/components/**",
-      "src/lib/candidate-episode/**",
+      "src/lib/candidate-episode/candidate-episode-service.ts",
+      "src/lib/candidate-episode/checkpoint-outcome-service.ts",
+      "src/lib/candidate-episode/shadow-*.ts",
       "src/lib/analysis/**",
       "src/lib/backtest/**",
       "src/lib/persistence/**",
@@ -70,27 +74,30 @@
       "deploy/**",
       "migrations/**",
       "docker-compose.yml",
+      "scripts/production/**",
       "tools/**",
       ".env",
       ".env.production"
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json",
-      "reports/wp-g0-2-shadow-verify-reconciliation-preparation/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_REPORT.md",
-      "scripts/production/candidate-reconciliation/runner.mjs",
-      "scripts/production/candidate-reconciliation/runner-postgres.integration.mjs"
+      "docs/governance/WP_G0_2_CANONICAL_COMPAT_READ_MODEL_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-compat-read-model-local-preparation.v1.json",
+      "reports/wp-g0-2-canonical-compat-read-model-local-preparation/WP_G0_2_CANONICAL_COMPAT_READ_MODEL_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-canonical-read-model.mjs",
+      "scripts/rehearsal/candidate-canonical-read-postgres16.sh",
+      "src/lib/candidate-episode/canonical-read-model.ts"
     ],
     "gateProfile": {
       "targeted": [
+        "candidate:canonical-read:validate",
+        "test:candidate-canonical-read",
+        "candidate:canonical-read:pg16-rehearsal",
+        "candidate:test",
         "candidate:reconciliation-runner:validate",
-        "candidate:reconciliation-runner",
         "test:candidate-reconciliation-runner",
-        "candidate:reconciliation-runner:pg16-rehearsal",
         "candidate:activation-runner:validate",
         "test:candidate-activation-runner",
-        "candidate:shadow-capture:pg16-rehearsal",
         "candidate:runtime-identity:validate",
         "candidate:runtime-identity-runner:validate",
         "test:candidate-runtime-identity-runner",
@@ -111,15 +118,16 @@
       ]
     },
     "completionBoundary": [
-      "一条 compared write 必须逐笔通过 Source payload hash、source identity、唯一 Event 映射、完整 projection command hash 和 Episode identity",
-      "前置真实观察必须不少于 24 小时和 289 样本，compared writes 必须不少于 10,000 且差异为 0",
-      "pending、claimed、retry_wait、unresolved quarantine 和 unresolved total 必须全部为 0",
-      "数据库采集必须为 REPEATABLE READ READ ONLY，证据必须有排序聚合 SHA-256",
-      "future outcome、MFE/MAE、qualityHit、backtest 和 production ranking 均禁止作为输入",
-      "PASS 只允许申请独立 shadow_verify 审批，不能自动 phase advance",
-      "生产决定仍为 BLOCKED_UNTIL_DORMANT_IDENTITY_ACTIVATION_OBSERVATION_AND_NEW_EXACT_APPROVAL",
+      "每次查询必须固定 scope、当前 asOf、exact release、observation/due cohort、单一 checkpoint kind 和 eg.v1",
+      "unknown/neutral 与 observation/MFE/MAE null 必须原样保留，数据库错误不得伪装 empty/zero",
+      "Episode、Checkpoint、Outcome 分母不变量失败或 asOf stale 必须返回 partial，不得返回 ready",
+      "数据库事务必须 SERIALIZABLE READ ONLY DEFERRABLE，Reader 不得读取 Outbox 或执行 DML/DDL",
+      "shadow_verify、canonical_compat 各需要独立 24 小时/289 样本/最大间隔 600 秒/0 差异证据窗口",
+      "当前代码 canonical read 授权固定 false，canonical 阶段失败禁止静默回退 Legacy，不能自动 phase advance",
+      "future outcome、交易计划、backtest 和 production ranking 均禁止作为读模型或路由输入",
+      "生产决定仍为 BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
       "所有定向、基础和安全门禁通过",
-      "本轮禁止生产连接、部署、角色/权限/env/服务/数据库/Redis/Feature Flag/control 变更"
+      "本轮禁止 API/前端/Compose/migration/生产身份/部署/数据库/Redis/Feature Flag/control 变更"
     ]
   },
   "approvals": [
@@ -249,7 +257,7 @@
       "order": 17,
       "id": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION-PREPARATION",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
@@ -258,6 +266,13 @@
       "lane": "production",
       "status": "prohibited_until_activation_observation_pass_10000_writes_and_new_approval",
       "requiresExplicitApproval": true
+    },
+    {
+      "order": 19,
+      "id": "WP-G0.2-CANONICAL-COMPAT-READ-MODEL-LOCAL-PREPARATION",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
     }
   ]
 }

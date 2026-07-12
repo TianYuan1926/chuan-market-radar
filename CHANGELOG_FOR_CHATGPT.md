@@ -3105,3 +3105,48 @@ P0 阻断：
 ### 下一轮建议
 
 生产仍只申请 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY`；不得跳到 Runtime Identity、Activation、reconciliation 或 canonical cutover。
+
+## 2026-07-12 / WP-G0.2 Canonical Compat Read Model Local Preparation
+
+### 本轮目标
+
+为未来 dual read、canonical compat 和 canonical cutover 建立固定查询口径的 Candidate/Review 统一只读模型、分母不变量、parity evidence 与 Fail-Closed 路由，不连接生产且不授权 canonical read。
+
+### 修改范围
+
+- 新增 Candidate Episode/Checkpoint/Outcome/Review 统一读模型、单元测试和隔离 PostgreSQL 16 Reader 权限演练。
+- 每次查询必须固定 scope、当前 asOf、exact release、observation/due cohort、单一 checkpoint kind 和 `eg.v1`。
+- 新增 ready/partial/unavailable 真值、不变量、Outcome 完成率/证据覆盖率/指标准入率和显式 exclusion reason。
+- 新增双 24 小时零差异窗口、canonical compat 显式 fallback、canonical 禁止 silent fallback 的路由门禁。
+- 新增人机治理合同、artifact validator、防降标测试和 package scripts。
+- 未修改 API、前端、Compose、migration、生产身份、Feature Flag、control、worker、Redis、scan/analysis/strategy/risk/backtest 或生产环境。
+
+### 核心链路影响
+
+收口候选生命周期读取和复盘分母真值；不改变全市场发现排序、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Canonical read/治理 13/13：PASS。
+- 隔离 PostgreSQL 16：PASS，Reader NOINHERIT、1h/4h cohort 隔离、Outbox 读取 42501、productionConnected=false。
+- Candidate 125 pass / 0 fail / 5 explicit DB skip；本轮新增 DB 测试由独立 PG16 Gate 实跑。
+- Reconciliation 8/8、Activation 12/12、Runtime Identity Runner 8/8、Composition 28/28、Autonomy 16/16：PASS。
+- typecheck、lint、build：PASS。
+- test:market 962 pass / 0 fail / 5 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 和三项安全门禁：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未执行生产 Git/Docker/身份/env/API/数据库/Redis/Feature Flag/control 变更。
+
+### 风险与遗留问题
+
+- 原始实现存在全历史无 cohort 聚合的 P1 分母漂移，已在本包立即修复。
+- Legacy 归一化 read adapter、生产 Reader LOGIN/URL、API/前端接线和真实双观察窗口仍不存在。
+- 本地 PASS 不等于 canonical cutover、WP-G0.2、G0 或实战能力完成。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只申请 Dormant Runtime Deploy；等待审批期间只允许继续本地 Legacy 归一化 adapter 准备，不得提前接 API 或启用 read Flag。
