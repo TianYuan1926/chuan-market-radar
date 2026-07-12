@@ -3195,3 +3195,44 @@ P0 阻断：
 ### 下一轮建议
 
 只读锁定动态指纹并申请 Web Identity Recovery exact approval，不合并 Dormant 发布。
+
+## 2026-07-13 / WP-G0.2 Production Web Identity Recovery Verified Transport
+
+### 本轮目标
+
+关闭生产仓库禁止 source sync 后恢复 runner 无法安全到达、临时 runner/archive/request 可能污染服务器的执行缺口。
+
+### 修改范围
+
+- Recovery artifact 从两文件扩为 entrypoint、validator、recovery shell 三文件，SHA-256=`440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da`。
+- 新增本地脱敏 bundle 生成器；bundle 只含合同和三份 runner，不读取或携带 env、连接串、token、日志或业务数据。
+- exact request 新增最终 runner commit、合同 checksum、bundle checksum、固定仓库外 staging 路径、transport method、生产仓库禁止写入和清理要求。
+- entrypoint 只接受批准路径、`0700` staging、`0600` request 与 bundle marker；成功、失败和回滚后删除整个 staging。
+- production repository fetch/pull/checkout/write、Web 以外服务、build、DB/Redis、env、Flag、migration 和 Dormant release 继续禁止。
+
+### 核心链路影响
+
+使候选筛选与复盘持久化身份恢复包具备真实生产可执行通道；不改变全市场发现、深扫、结构、风险赔率、交易计划或复盘算法。
+
+### 测试结果
+
+- Recovery 11/11、deploy safety 5/5：PASS；覆盖 dirty worktree 只能生成不可审批模板，以及 SIGTERM 非零退出后仍清理 staging。
+- typecheck、lint、test:market 952 pass/0 fail/4 explicit DB skip、worker 18/18、historical 4/4、build、backtest:golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- 自治总门禁：14/14 PASS，`worktreeUnchanged=true`。
+- production smoke：未运行，生产 mutation 未授权。
+- formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未上传、未创建生产 staging、未重建 Web。生产仍记录为 `0599f802...`/clean、Web persistence auth degraded。
+
+### 风险与遗留问题
+
+- bundle 上传属于生产服务器文件变更，必须纳入下一份 exact approval；不得把本地 bundle PASS 当成生产恢复。
+- dynamic Web image、两份 env checksum、当前 HEAD/worktree/health 仍需 Microsoft Edge 只读重取。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+完成自治门禁和最终 commit/main 后生成最终 bundle，再只读生成精确审批包；不得合并 Dormant Deploy。

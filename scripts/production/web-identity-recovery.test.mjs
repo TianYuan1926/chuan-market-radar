@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { once } from "node:events";
 import test from "node:test";
 import { promisify } from "node:util";
 import {
@@ -13,10 +14,12 @@ import {
   PRODUCTION_HEAD,
   WebIdentityRecoveryPolicyError,
   loadContract,
+  sha256,
   validateApprovalRequest,
   validateContract,
   validateLocalPreparation,
 } from "./web-identity-recovery.mjs";
+import { buildTransportBundle } from "./web-identity-recovery-bundle.mjs";
 
 const execFileAsync = promisify(execFile);
 const approvedWebImageId = `sha256:${"c".repeat(64)}`;
@@ -25,7 +28,7 @@ function throwsReason(reason, operation) {
   assert.throws(operation, (error) => error instanceof WebIdentityRecoveryPolicyError && error.reason === reason);
 }
 
-function buildRequest(contract, now = Date.now()) {
+function buildRequest(contract, now = Date.now(), overrides = {}) {
   return {
     approvalExpiresAt: new Date(now + 30 * 60_000).toISOString(),
     approvalIssuedAt: new Date(now - 60_000).toISOString(),
@@ -34,6 +37,7 @@ function buildRequest(contract, now = Date.now()) {
     baseEnvSha256: "d".repeat(64),
     composeSha256: contract.scope.productionComposeSha256,
     composeWrapperSha256: contract.scope.composeWrapperSha256,
+    contractSha256: "f".repeat(64),
     databaseMutationAllowed: false,
     execute: true,
     featureFlagMutationAllowed: false,
@@ -45,11 +49,19 @@ function buildRequest(contract, now = Date.now()) {
     packageId: contract.packageId,
     productionHead: contract.scope.productionHead,
     productionEnvSha256: "e".repeat(64),
+    productionRepositoryMutationAllowed: false,
     recoveryArtifactSha256: contract.artifact.sha256,
     redisMutationAllowed: false,
+    runnerSourceCommit: "a".repeat(40),
     service: "web",
+    stagingDirectory: "/home/ubuntu/.cache/market-radar-ops/wp-g0-2-web-identity-recovery-isolated",
+    temporaryArtifactCleanupRequired: true,
+    temporaryArtifactStagingAllowed: true,
+    transportBundleSha256: "b".repeat(64),
+    transportMethod: "approved_orcaterm_bundle_upload",
     webImageId: approvedWebImageId,
     workerRestartAllowed: false,
+    ...overrides,
   };
 }
 
@@ -58,7 +70,7 @@ test("current recovery package passes local preparation without production autho
   assert.equal(result.status, "PASS_LOCAL_WEB_IDENTITY_RECOVERY_PREPARATION");
   assert.equal(result.productionDecision, "BLOCKED_AWAITING_EXACT_PRODUCTION_APPROVAL");
   assert.equal(result.productionMutationAllowed, false);
-  assert.equal(result.artifact.fileCount, 2);
+  assert.equal(result.artifact.fileCount, 3);
   assert.equal(result.runner.webOnlyRecovery, true);
   assert.equal(result.runner.baselineRollback, true);
   assert.equal(result.runner.noOtherServiceMutation, true);
@@ -71,6 +83,9 @@ test("contract rejects scope expansion and stale production facts", async () => 
     [{ scope: { ...contract.scope, service: "scanner-worker" } }, "service_not_web_only"],
     [{ scope: { ...contract.scope, buildAllowed: true } }, "build_must_be_false"],
     [{ scope: { ...contract.scope, sourceSyncAllowed: true } }, "source_sync_must_be_false"],
+    [{ scope: { ...contract.scope, temporaryArtifactStagingAllowed: false } }, "temporary_artifact_staging_required"],
+    [{ scope: { ...contract.scope, productionRepositoryMutationAllowed: true } }, "production_repository_mutation_must_be_false"],
+    [{ scope: { ...contract.scope, temporaryArtifactCleanupRequired: false } }, "temporary_artifact_cleanup_required"],
     [{ scope: { ...contract.scope, environmentFileChecksumsRequiredInApproval: false } }, "environment_checksum_binding_required"],
     [{ scope: { ...contract.scope, productionHead: "a".repeat(40) } }, "production_head_not_locked"],
     [{ scope: { ...contract.scope, identityOverrideSha256: "0".repeat(64) } }, "identity_override_checksum_not_locked"],
@@ -89,6 +104,9 @@ test("approval is exact, time bounded and never authorizes adjacent mutations", 
   throwsReason("request_web_image_id_invalid", () => validateApprovalRequest({ ...request, webImageId: "latest" }, contract, { now }));
   throwsReason("request_base_env_checksum_invalid", () => validateApprovalRequest({ ...request, baseEnvSha256: "invalid" }, contract, { now }));
   throwsReason("request_recovery_artifact_checksum_mismatch", () => validateApprovalRequest({ ...request, recoveryArtifactSha256: "0".repeat(64) }, contract, { now }));
+  throwsReason("request_staging_directory_invalid", () => validateApprovalRequest({ ...request, stagingDirectory: "/home/ubuntu/apps/chuan-market-radar" }, contract, { now }));
+  throwsReason("request_transport_method_invalid", () => validateApprovalRequest({ ...request, transportMethod: "git_pull" }, contract, { now }));
+  throwsReason("production_repository_mutation_not_forbidden", () => validateApprovalRequest({ ...request, productionRepositoryMutationAllowed: true }, contract, { now }));
   throwsReason("databaseMutationAllowed_must_be_false", () => validateApprovalRequest({ ...request, databaseMutationAllowed: true }, contract, { now }));
   throwsReason("no_source_sync_must_be_true", () => validateApprovalRequest({ ...request, noSourceSync: false }, contract, { now }));
   throwsReason("approval_window_not_active", () => validateApprovalRequest(request, contract, { now: new Date(request.approvalExpiresAt).getTime() + 1 }));
@@ -103,6 +121,12 @@ test("runner source remains Web-only, no-build, no-source-sync and rollback-capa
   assert.doesNotMatch(source, /git\s+(?:-[^\s]+\s+)*(?:fetch|pull|merge|rebase|checkout)/);
   assert.doesNotMatch(source, /--remove-orphans|--profile/);
   assert.doesNotMatch(source, /migration:runner|candidate:migrate|persistence\/migrate/);
+  const entrypoint = await readFile("scripts/production/web-identity-recovery-entrypoint.sh", "utf8");
+  assert.match(entrypoint, /trap cleanup_staging EXIT/);
+  assert.match(entrypoint, /trap 'exit 130' INT/);
+  assert.match(entrypoint, /trap 'exit 143' TERM/);
+  assert.match(entrypoint, /APPROVED_STAGING_DIRECTORY/);
+  assert.doesNotMatch(entrypoint, /git\s+(?:-[^\s]+\s+)*(?:fetch|pull|merge|rebase|checkout)/);
 });
 
 test("container-Node base64 validation enforces the same exact approval contract", async () => {
@@ -129,18 +153,43 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
   const directory = await mkdtemp(join(tmpdir(), "web-identity-recovery-"));
   const fakeBin = join(directory, "bin");
   const root = join(directory, "production");
+  const stage = join(directory, "wp-g0-2-web-identity-recovery-isolated");
   const secure = join(directory, "secure");
   const stateFile = join(directory, "identity-state");
   const mutationLog = join(directory, "mutation.log");
-  const requestFile = join(directory, "request.json");
+  const requestFile = join(stage, "approval-request.json");
   const wrapper = join(secure, "compose-identity-safe");
   const override = join(secure, "runtime-identity.override.yml");
   const contract = await loadContract();
-  const request = buildRequest(contract);
   try {
     await mkdir(fakeBin, { recursive: true });
     await mkdir(root, { recursive: true });
     await mkdir(secure, { recursive: true });
+    await mkdir(join(stage, "scripts/production"), { recursive: true });
+    await mkdir(join(stage, "docs/governance"), { recursive: true });
+    await chmod(stage, 0o700);
+    for (const file of [
+      "scripts/production/web-identity-recovery-entrypoint.sh",
+      "scripts/production/web-identity-recovery.mjs",
+      "scripts/production/web-identity-recovery.sh",
+      "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
+    ]) {
+      await copyFile(file, join(stage, file));
+    }
+    const stagedContractBytes = await readFile(join(stage, "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json"));
+    const stageReal = await realpath(stage);
+    const request = buildRequest(contract, Date.now(), {
+      contractSha256: sha256(stagedContractBytes),
+      stagingDirectory: stageReal,
+    });
+    await writeFile(join(stage, "transport-manifest.json"), JSON.stringify({
+      sourceCommit: request.runnerSourceCommit,
+      approvalEligible: true,
+      contractSha256: request.contractSha256,
+      transportMethod: request.transportMethod,
+      containsSecrets: false,
+      productionRepositoryMutationAllowed: false,
+    }), { mode: 0o600 });
     await writeFile(join(root, "docker-compose.yml"), "services:\n  web: {}\n");
     await writeFile(join(root, ".env"), "BASE=1\n", { mode: 0o600 });
     await writeFile(join(root, ".env.production"), "PRODUCTION=1\n", { mode: 0o600 });
@@ -249,10 +298,11 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
       REQUEST_FILE: requestFile,
       ROOT_DIR_OVERRIDE: root,
       WEB_IDENTITY_RECOVERY_MODE: "production_recovery",
+      WEB_IDENTITY_RECOVERY_FORCE_CONTAINER_VALIDATOR: "true",
       WEB_READY_POLL_SECONDS: "0",
       WEB_READY_TIMEOUT_SECONDS: "0",
     };
-    const run = (extra = {}) => execFileAsync("/bin/bash", ["scripts/production/web-identity-recovery.sh"], {
+    const run = (extra = {}) => execFileAsync("/bin/bash", [join(stage, "scripts/production/web-identity-recovery.sh")], {
       cwd: process.cwd(),
       env: { ...env, ...extra },
       maxBuffer: 2 * 1024 * 1024,
@@ -286,4 +336,94 @@ test("locked production facts match the dedicated recovery package", () => {
   assert.equal(IDENTITY_OVERRIDE_SHA256.length, 64);
   assert.equal(COMPOSE_WRAPPER_SHA256.length, 64);
   assert.equal(PRODUCTION_COMPOSE_SHA256.length, 64);
+});
+
+test("transport bundle contains only the approved secret-free recovery payload", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "web-identity-recovery-transport-"));
+  const output = join(directory, "recovery.tar.gz");
+  const extract = join(directory, "extract");
+  try {
+    const result = await buildTransportBundle({ root: process.cwd(), output, sourceCommit: "a".repeat(40) });
+    assert.equal(result.status, "PASS_FINAL_RECOVERY_TRANSPORT_BUNDLE");
+    assert.equal(result.manifest.containsSecrets, false);
+    assert.equal(result.manifest.productionRepositoryMutationAllowed, false);
+    await mkdir(extract);
+    await execFileAsync("tar", ["-xzf", output, "-C", extract]);
+    const expected = [
+      "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
+      "scripts/production/web-identity-recovery-entrypoint.sh",
+      "scripts/production/web-identity-recovery.mjs",
+      "scripts/production/web-identity-recovery.sh",
+      "transport-manifest.json",
+    ];
+    const { stdout } = await execFileAsync("tar", ["-tzf", output]);
+    const actual = stdout.split("\n").filter((line) => line && !line.endsWith("/")).map((line) => line.replace(/^\.\//, "")).sort();
+    assert.deepEqual(actual, expected.sort());
+    assert.equal((await stat(join(extract, "transport-manifest.json"))).isFile(), true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("dirty preparation can only create a non-approvable transport template", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "web-identity-recovery-template-"));
+  const output = join(directory, "template.tar.gz");
+  try {
+    const result = await buildTransportBundle({
+      root: process.cwd(),
+      output,
+      sourceCommit: null,
+      approvalEligible: false,
+    });
+    assert.equal(result.status, "PASS_LOCAL_RECOVERY_TRANSPORT_BUNDLE_TEMPLATE");
+    assert.equal(result.manifest.approvalEligible, false);
+    assert.equal(result.manifest.sourceCommit, null);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("approved entrypoint removes temporary staging after child success", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "web-identity-recovery-entrypoint-"));
+  const stage = join(directory, "wp-g0-2-web-identity-recovery-cleanup");
+  try {
+    await mkdir(join(stage, "scripts/production"), { recursive: true });
+    await chmod(stage, 0o700);
+    await copyFile("scripts/production/web-identity-recovery-entrypoint.sh", join(stage, "scripts/production/web-identity-recovery-entrypoint.sh"));
+    await writeFile(join(stage, "scripts/production/web-identity-recovery.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
+    const bundleSha = "b".repeat(64);
+    await writeFile(join(stage, "approval-request.json"), JSON.stringify({
+      stagingDirectory: await realpath(stage),
+      transportBundleSha256: bundleSha,
+    }), { mode: 0o600 });
+    await writeFile(join(stage, ".transport-bundle.sha256"), `${bundleSha}\n`, { mode: 0o600 });
+    await execFileAsync("/bin/bash", [join(stage, "scripts/production/web-identity-recovery-entrypoint.sh")]);
+    await assert.rejects(stat(stage));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("entrypoint preserves nonzero SIGTERM status and still removes staging", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "web-identity-recovery-signal-"));
+  const stage = join(directory, "wp-g0-2-web-identity-recovery-signal");
+  try {
+    await mkdir(join(stage, "scripts/production"), { recursive: true });
+    await chmod(stage, 0o700);
+    await copyFile("scripts/production/web-identity-recovery-entrypoint.sh", join(stage, "scripts/production/web-identity-recovery-entrypoint.sh"));
+    await writeFile(join(stage, "scripts/production/web-identity-recovery.sh"), "#!/bin/sh\nsleep 0.2\n", { mode: 0o700 });
+    const bundleSha = "b".repeat(64);
+    await writeFile(join(stage, "approval-request.json"), JSON.stringify({
+      stagingDirectory: await realpath(stage),
+      transportBundleSha256: bundleSha,
+    }), { mode: 0o600 });
+    await writeFile(join(stage, ".transport-bundle.sha256"), `${bundleSha}\n`, { mode: 0o600 });
+    const child = spawn("/bin/bash", [join(stage, "scripts/production/web-identity-recovery-entrypoint.sh")]);
+    setTimeout(() => child.kill("SIGTERM"), 25);
+    const [code] = await once(child, "exit");
+    assert.equal(code, 143);
+    await assert.rejects(stat(stage));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

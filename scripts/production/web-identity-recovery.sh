@@ -16,6 +16,8 @@ WEB_READY_POLL_SECONDS="${WEB_READY_POLL_SECONDS:-3}"
 WEB_IDENTITY_RECOVERY_FORCE_CONTAINER_VALIDATOR="${WEB_IDENTITY_RECOVERY_FORCE_CONTAINER_VALIDATOR:-false}"
 VALIDATOR="${SOURCE_ROOT}/scripts/production/web-identity-recovery.mjs"
 CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-production-web-identity-recovery.v1.json"
+ENTRYPOINT="${SOURCE_ROOT}/scripts/production/web-identity-recovery-entrypoint.sh"
+TRANSPORT_MANIFEST="${SOURCE_ROOT}/transport-manifest.json"
 
 echo "package=WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY"
 echo "mode=${WEB_IDENTITY_RECOVERY_MODE}"
@@ -34,7 +36,7 @@ if [[ "${WEB_IDENTITY_RECOVERY_MODE}" != "production_recovery" || "${CONFIRM_WEB
   exit 0
 fi
 
-for file in "${REQUEST_FILE}" "${CONTRACT}" "${VALIDATOR}" "${ROOT_DIR}/docker-compose.yml" "${BASE_ENV_FILE}" "${ENV_FILE}"; do
+for file in "${REQUEST_FILE}" "${CONTRACT}" "${VALIDATOR}" "${ENTRYPOINT}" "${TRANSPORT_MANIFEST}" "${ROOT_DIR}/docker-compose.yml" "${BASE_ENV_FILE}" "${ENV_FILE}"; do
   if [[ -z "${file}" || ! -f "${file}" || -L "${file}" ]]; then
     echo "ERROR: required regular non-symlink file is unavailable: ${file}" >&2
     exit 1
@@ -100,8 +102,31 @@ APPROVED_OVERRIDE_SHA256="$(jq -r '.identityOverrideSha256' "${REQUEST_FILE}")"
 APPROVED_WRAPPER_SHA256="$(jq -r '.composeWrapperSha256' "${REQUEST_FILE}")"
 APPROVED_COMPOSE_SHA256="$(jq -r '.composeSha256' "${REQUEST_FILE}")"
 APPROVED_WEB_IMAGE_ID="$(jq -r '.webImageId' "${REQUEST_FILE}")"
+APPROVED_CONTRACT_SHA256="$(jq -r '.contractSha256' "${REQUEST_FILE}")"
+APPROVED_RUNNER_SOURCE_COMMIT="$(jq -r '.runnerSourceCommit' "${REQUEST_FILE}")"
+APPROVED_STAGING_DIRECTORY="$(jq -r '.stagingDirectory' "${REQUEST_FILE}")"
+
+SOURCE_ROOT_REAL="$(realpath "${SOURCE_ROOT}")"
+ROOT_DIR_REAL="$(realpath "${ROOT_DIR}")"
+if [[ "${SOURCE_ROOT_REAL}" != "${APPROVED_STAGING_DIRECTORY}" \
+  || "${SOURCE_ROOT_REAL}" == "${ROOT_DIR_REAL}" \
+  || "${SOURCE_ROOT_REAL}" == "${ROOT_DIR_REAL}/"* ]]; then
+  echo "ERROR: recovery runner must execute from the approved repository-external staging directory." >&2
+  exit 1
+fi
+if [[ "$(sha256sum "${CONTRACT}" | awk '{print $1}')" != "${APPROVED_CONTRACT_SHA256}" \
+  || "$(jq -r '.sourceCommit' "${TRANSPORT_MANIFEST}")" != "${APPROVED_RUNNER_SOURCE_COMMIT}" \
+  || "$(jq -r '.contractSha256' "${TRANSPORT_MANIFEST}")" != "${APPROVED_CONTRACT_SHA256}" \
+  || "$(jq -r '.approvalEligible' "${TRANSPORT_MANIFEST}")" != "true" \
+  || "$(jq -r '.transportMethod' "${TRANSPORT_MANIFEST}")" != "approved_orcaterm_bundle_upload" \
+  || "$(jq -r '.containsSecrets' "${TRANSPORT_MANIFEST}")" != "false" \
+  || "$(jq -r '.productionRepositoryMutationAllowed' "${TRANSPORT_MANIFEST}")" != "false" ]]; then
+  echo "ERROR: staged transport manifest does not match approval." >&2
+  exit 1
+fi
 
 if [[ "${APPROVED_RECOVERY_ARTIFACT_SHA256}" != "$(jq -r '.artifact.sha256' "${CONTRACT}")" \
+  || "$(sha256sum "${ENTRYPOINT}" | awk '{print $1}')" != "$(jq -r --arg file 'scripts/production/web-identity-recovery-entrypoint.sh' '.artifact.fileSha256[$file]' "${CONTRACT}")" \
   || "$(sha256sum "${VALIDATOR}" | awk '{print $1}')" != "$(jq -r --arg file 'scripts/production/web-identity-recovery.mjs' '.artifact.fileSha256[$file]' "${CONTRACT}")" \
   || "$(sha256sum "${SOURCE_ROOT}/scripts/production/web-identity-recovery.sh" | awk '{print $1}')" != "$(jq -r --arg file 'scripts/production/web-identity-recovery.sh' '.artifact.fileSha256[$file]' "${CONTRACT}")" ]]; then
   echo "ERROR: recovery runner artifact does not match approval and contract." >&2

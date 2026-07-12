@@ -13,6 +13,9 @@
     "environmentFileChecksumsRequiredInApproval": true,
     "buildAllowed": false,
     "sourceSyncAllowed": false,
+    "temporaryArtifactStagingAllowed": true,
+    "productionRepositoryMutationAllowed": false,
+    "temporaryArtifactCleanupRequired": true,
     "databaseMutationAllowed": false,
     "redisMutationAllowed": false,
     "workerRestartAllowed": false,
@@ -26,15 +29,27 @@
     "rollbackBuildAllowed": false
   },
   "artifact": {
-    "sha256": "7ffa5a84634d13e05b6c7fdfd13afc71446e6d29a81561cce329c38bb129868b",
+    "sha256": "440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da",
     "files": [
+      "scripts/production/web-identity-recovery-entrypoint.sh",
       "scripts/production/web-identity-recovery.mjs",
       "scripts/production/web-identity-recovery.sh"
     ],
     "fileSha256": {
-      "scripts/production/web-identity-recovery.mjs": "36240acac8ff38f0d191fa5b9cfeff8e0eb1ad9906fe5c7e402845bff2731ddb",
-      "scripts/production/web-identity-recovery.sh": "3da8d9df1c436fa0e548cc8c3d656014db97c0a59890e881df48f7204a4861ad"
+      "scripts/production/web-identity-recovery-entrypoint.sh": "30cfebcd27528abf19c48a115eb036e2e4e2a1a09ec2df2c667ee3a7677e7a9c",
+      "scripts/production/web-identity-recovery.mjs": "0b655400b7e09b4a15753bf85e3bd13a2525ad414485b88c6294af410debf900",
+      "scripts/production/web-identity-recovery.sh": "ed026b512f8b4446954a9a0c16001831fd42835861ac6644e53bddd74436d0f9"
     }
+  },
+  "transport": {
+    "method": "approved_orcaterm_bundle_upload",
+    "stagingDirectoryPrefix": "/home/ubuntu/.cache/market-radar-ops/wp-g0-2-web-identity-recovery-",
+    "contractChecksumRequiredInApproval": true,
+    "bundleChecksumRequiredInApproval": true,
+    "runnerSourceCommitRequiredInApproval": true,
+    "cleanCommittedBundleRequired": true,
+    "containsSecrets": false,
+    "cleanupAfterExecutionRequired": true
   },
   "successRequires": [
     "production_head_and_worktree_unchanged",
@@ -45,10 +60,11 @@
     "persistence_authentication_errors_absent",
     "frontend_and_backend_contracts_pass",
     "postgres_and_redis_ready",
-    "candidate_runtime_remains_dormant"
+    "candidate_runtime_remains_dormant",
+    "temporary_staging_removed_after_execution"
   ],
   "forbidden": [
-    "git_fetch_pull_merge_or_checkout",
+    "production_repository_fetch_pull_merge_checkout_or_write",
     "image_build",
     "database_or_redis_mutation",
     "worker_or_caddy_restart",

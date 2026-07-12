@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-13T03:10:00+08:00",
+  "updatedAt": "2026-07-13T02:11:19+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -32,17 +32,19 @@
   },
   "activePackage": {
     "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-RUNNER",
-    "title": "Production Web identity recovery runner local preparation",
+    "title": "Production Web identity recovery runner and verified transport local preparation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "为当前生产 Web 持久化认证降级建立独立、默认 dry-run、精确审批、只重建 Web、可恢复原基线的身份恢复 runner；不混入 Dormant 新发布或任何数据库变更。",
+    "objective": "为当前生产 Web 持久化认证降级建立独立、默认 dry-run、精确审批、只重建 Web、可恢复原基线且能通过脱敏 checksum bundle 在仓库外临时执行并自动清理的身份恢复 runner；不混入 Dormant 新发布或任何数据库变更。",
     "coreChainImpact": [
       "candidate_screening_persistence_availability",
       "review_evolution_persistence_availability",
       "least_privilege_runtime_identity_preservation",
       "production_persistence_health_truth",
       "web_only_recovery_safety",
-      "baseline_rollback_integrity"
+      "baseline_rollback_integrity",
+      "temporary_runner_transport_integrity",
+      "staging_pollution_cleanup"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -56,6 +58,8 @@
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
       "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md",
+      "scripts/production/web-identity-recovery-bundle.mjs",
+      "scripts/production/web-identity-recovery-entrypoint.sh",
       "scripts/production/web-identity-recovery.mjs",
       "scripts/production/web-identity-recovery.sh",
       "scripts/production/web-identity-recovery.test.mjs"
@@ -82,6 +86,8 @@
       "docs/governance/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_V1.md",
       "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
       "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md",
+      "scripts/production/web-identity-recovery-bundle.mjs",
+      "scripts/production/web-identity-recovery-entrypoint.sh",
       "scripts/production/web-identity-recovery.mjs",
       "scripts/production/web-identity-recovery.sh",
       "scripts/production/web-identity-recovery.test.mjs"
@@ -89,6 +95,7 @@
     "gateProfile": {
       "targeted": [
         "production:web-identity-recovery:validate",
+        "production:web-identity-recovery:bundle",
         "production:web-identity-recovery",
         "test:production-web-identity-recovery",
         "test:deploy-safety",
@@ -109,7 +116,9 @@
     },
     "completionBoundary": [
       "审批必须绑定生产 HEAD、identity override、wrapper、base Compose 和当前 Web image",
+      "审批还必须绑定最终 runner commit、Recovery/contract/transport bundle checksum 和仓库外 staging 绝对路径",
       "执行命令只能是 no-build force-recreate web，禁止 fetch/pull/merge/build 和其它服务",
+      "脱敏 bundle 只能进入批准的仓库外 0700 staging，执行后必须连同 archive/request/marker 清理",
       "成功必须证明 Web 身份指纹匹配、持久化认证恢复、health ready/fresh、其它容器未变化",
       "失败必须以原 base Compose 恢复执行前 Web 身份基线且其它容器未变化",
       "默认 dry-run，生产执行必须等待新的精确 90 分钟审批",

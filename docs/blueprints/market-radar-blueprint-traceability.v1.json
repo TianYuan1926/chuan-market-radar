@@ -668,7 +668,7 @@
   "lastCompletedWorkPackage": "WP-G0.2-DORMANT-RUNTIME-IDENTITY-OVERRIDE-PRESERVATION",
   "lastAttemptedWorkPackage": {
     "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-RUNNER",
-    "title": "Production Web identity recovery runner local preparation",
+    "title": "Production Web identity recovery runner and verified transport local preparation",
     "status": "PASS_LOCAL_WEB_IDENTITY_RECOVERY_PREPARATION",
     "runtimeCodeChanged": false,
     "deploymentGovernanceChanged": true,
@@ -678,7 +678,7 @@
     "legacyWriteAuthority": true,
     "legacyReadAuthority": true,
     "productionHead": "0599f802f261fe8e3c1982a07106f362bd62ac13",
-    "recoveryArtifactSha256": "7ffa5a84634d13e05b6c7fdfd13afc71446e6d29a81561cce329c38bb129868b",
+    "recoveryArtifactSha256": "440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da",
     "exactApprovalRequired": true,
     "webOnlyForceRecreate": true,
     "buildAllowed": false,
@@ -688,7 +688,11 @@
     "containerNodeFallbackVerified": true,
     "automaticBaselineRollbackVerified": true,
     "otherContainerIdentityComparisonRequired": true,
-    "targetedTests": "7_of_7_pass",
+    "targetedTests": "11_of_11_pass",
+    "temporaryTransport": "approved_orcaterm_bundle_upload",
+    "transportContainsSecrets": false,
+    "productionRepositoryMutationAllowed": false,
+    "stagingCleanupVerified": true,
     "productionHealth": "degraded_persistence_auth",
     "candidateWorkerStartedByDefault": false,
     "codeActivationAllowed": false,
@@ -701,7 +705,9 @@
       "path": "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md",
       "contract": "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
       "validator": "scripts/production/web-identity-recovery.mjs",
-      "note": "Web-only identity recovery, exact approval, container-Node fallback and baseline rollback are targeted-tested; production remains unchanged and unapproved."
+      "bundleBuilder": "scripts/production/web-identity-recovery-bundle.mjs",
+      "entrypoint": "scripts/production/web-identity-recovery-entrypoint.sh",
+      "note": "Web-only identity recovery, exact approval, checksum-bound secret-free transport, repository-external staging cleanup, container-Node fallback and baseline rollback are targeted-tested; production remains unchanged and unapproved."
     }
   },
   "currentDesignPackage": {

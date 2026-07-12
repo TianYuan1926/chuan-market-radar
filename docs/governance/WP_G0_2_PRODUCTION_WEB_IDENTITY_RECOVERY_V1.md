@@ -33,8 +33,9 @@
 - 生产 `docker-compose.yml` SHA-256：`2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e`
 - `.env` 与 `.env.production`：审批前只读重取 SHA-256 并写入 request；只记录指纹，不记录内容。
 - 当前 Web image ID：必须在审批前只读重取并写入 request。
-- Recovery artifact SHA-256：`7ffa5a84634d13e05b6c7fdfd13afc71446e6d29a81561cce329c38bb129868b`
-- request 必须同时绑定 Recovery artifact，runner 在生产 mutation 前逐文件校验 validator 与 shell checksum。
+- Recovery artifact SHA-256：`440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da`
+- request 必须同时绑定 Recovery artifact、合同 checksum、最终 runner source commit、脱敏 transport bundle checksum 和仓库外 staging 绝对路径。
+- runner 在生产 mutation 前逐文件校验 entrypoint、validator 与 recovery shell checksum；transport manifest 还必须证明 bundle 不含 secret、不会修改生产仓库。
 - 服务白名单：`web`
 - 时间窗：不超过 90 分钟。
 
@@ -47,10 +48,12 @@
 - identity override 必须 root-owned `0600`；wrapper 必须 root-owned `0700`。
 - 连接串只在管道或进程内存中用于指纹和 `SELECT 1`，不得输出或写入证据。
 - 生产宿主机无 Node 时，runner 通过当前 Web 容器 Node 读取 base64 request/contract；验证规则不变。
+- 生产仓库保持 `0599f802...` 且禁止 fetch/pull/checkout/write。经审批的脱敏 bundle 只允许上传到 `/home/ubuntu/.cache/market-radar-ops/wp-g0-2-web-identity-recovery-*`。
+- staging 目录必须 `0700`，request 必须 `0600`；entrypoint 在成功、失败或回滚结束后删除整个 staging 目录，避免临时 runner、archive 和 request 污染服务器。
 
 ## 5. 执行前门禁
 
-1. request exact keys、90 分钟窗口和所有禁止授权通过。
+1. request exact keys、90 分钟窗口、runner commit、Recovery/contract/bundle checksum、staging 路径和所有禁止授权通过。
 2. 生产 HEAD、main、clean worktree、Compose、两份 env 指纹、wrapper、override 和 Web image 全部匹配审批。
 3. Candidate worker 不存在。
 4. 目标最小权限身份可对 PostgreSQL 执行只读 `SELECT 1`。
@@ -69,6 +72,7 @@
 - frontend radar、backend radar、business capability 三个合同均 `ok=true`。
 - Postgres ready、Redis PONG。
 - 五个 Candidate Flag 关闭、三条 Candidate URL 为空、release disabled、worker expected false、Candidate worker 不存在。
+- 仓库外临时 staging、上传 bundle、request 和 marker 全部删除。
 
 只有全部通过才输出：
 

@@ -69,6 +69,7 @@
     "candidate:dormant-deploy:manual": "DORMANT_DEPLOY_MODE=production_deploy CONFIRM_DORMANT_DEPLOY=true bash scripts/production/candidate-dormant-deploy.sh",
     "test:candidate-dormant-deploy": "node --test scripts/production/candidate-dormant-deploy.test.mjs scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
     "production:web-identity-recovery:validate": "node scripts/production/web-identity-recovery.mjs validate",
+    "production:web-identity-recovery:bundle": "node scripts/production/web-identity-recovery-bundle.mjs",
     "production:web-identity-recovery": "WEB_IDENTITY_RECOVERY_MODE=dry_run bash scripts/production/web-identity-recovery.sh",
     "production:web-identity-recovery:manual": "WEB_IDENTITY_RECOVERY_MODE=production_recovery CONFIRM_WEB_IDENTITY_RECOVERY=true bash scripts/production/web-identity-recovery.sh",
     "test:production-web-identity-recovery": "node --test scripts/production/web-identity-recovery.test.mjs",
