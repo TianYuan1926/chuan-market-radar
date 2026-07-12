@@ -417,17 +417,15 @@ export type SignalLifecycle = {
   id: string;
   symbol: string;
   hue: number;
-  side: "多" | "空";
+  side: "多" | "空" | "未知";
   appearedAt: string;
-  triggerPrice: number;
-  stopPrice: number;
-  targetPrice: number;
-  verifyWindowH: number;
-  hitTpFirst: boolean;
-  hitSlFirst: boolean;
-  timedOut: boolean;
-  mfe: number;
-  mae: number;
+  triggerPrice: number | null;
+  stopPrice: number | null;
+  targetPrice: number | null;
+  verifyWindowH: number | null;
+  outcome: "target_first" | "stop_first" | "timed_out" | "pending" | "unknown";
+  mfe: number | null;
+  mae: number | null;
 };
 
 export type StrategyArchetype = {
@@ -442,8 +440,8 @@ export type StrategyArchetype = {
 export type MissedDetection = {
   symbol: string;
   hue: number;
-  move: number;
-  side: "涨" | "跌";
+  move: number | null;
+  side: "涨" | "跌" | "未知";
   reason: "未进轻扫" | "未进深扫" | "被风控挡住" | "证据不足";
   detail: string;
   improvement: string;
@@ -728,8 +726,8 @@ export type RadarContract = {
 export type ReviewStatsData = {
   closedSamples: number;
   evidenceSamples: number;
-  maeAvg: number;
-  mfeAvg: number;
+  maeAvg: number | null;
+  mfeAvg: number | null;
   pendingSamples: number;
   sampleStatus: "empty" | "collecting" | "usable" | "statistically_thin";
   summary: string;
@@ -5099,25 +5097,51 @@ export function buildFrontendTokenDossierContract({
   });
 }
 
+function positiveJournalPrice(...values: unknown[]) {
+  for (const value of values) {
+    const parsed = typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value.replace(/,/g, "").trim())
+        : Number.NaN;
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
+function nullableMetric(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? round(value, 2) : null;
+}
+
+function lifecycleOutcome(event: JournalEvent): SignalLifecycle["outcome"] {
+  if (event.firstTargetHit === true || event.result === "win") return "target_first";
+  if (event.invalidationHit === true || event.result === "loss") return "stop_first";
+  if (event.outcomeStatus === "expired") return "timed_out";
+  if (
+    event.outcomeStatus === "pending" ||
+    event.reviewStatus === "tracking" ||
+    event.result === "watching"
+  ) return "pending";
+  return "unknown";
+}
+
 function lifecycleFromJournal(event: JournalEvent): SignalLifecycle {
-  const trigger = event.outcomeMetrics?.entryPrice ?? Number(event.trigger ?? 0);
-  const stop = event.outcomeMetrics?.invalidationPrice ?? 0;
-  const target = event.outcomeMetrics?.firstTargetPrice ?? 0;
+  const verifyWindow = event.outcomeMetrics?.validationWindowHours;
   return {
     id: event.id,
     symbol: displaySymbol(event.symbol),
     hue: symbolHue(event.symbol),
-    side: event.direction === "short" ? "空" : "多",
+    side: event.direction === "long" ? "多" : event.direction === "short" ? "空" : "未知",
     appearedAt: dateTimeLabel(event.createdAt),
-    triggerPrice: trigger,
-    stopPrice: stop,
-    targetPrice: target,
-    verifyWindowH: event.outcomeMetrics?.validationWindowHours ?? 24,
-    hitTpFirst: event.firstTargetHit === true || event.result === "win",
-    hitSlFirst: event.invalidationHit === true || event.result === "loss",
-    timedOut: event.outcomeStatus === "expired",
-    mfe: round(event.outcomeMetrics?.mfePercent ?? 0, 2),
-    mae: round(event.outcomeMetrics?.maePercent ?? 0, 2),
+    triggerPrice: positiveJournalPrice(event.outcomeMetrics?.entryPrice, event.trigger),
+    stopPrice: positiveJournalPrice(event.outcomeMetrics?.invalidationPrice, event.invalidation),
+    targetPrice: positiveJournalPrice(event.outcomeMetrics?.firstTargetPrice, event.firstTarget),
+    verifyWindowH: typeof verifyWindow === "number" && Number.isFinite(verifyWindow) && verifyWindow > 0
+      ? verifyWindow
+      : null,
+    outcome: lifecycleOutcome(event),
+    mfe: nullableMetric(event.outcomeMetrics?.mfePercent),
+    mae: nullableMetric(event.outcomeMetrics?.maePercent),
   };
 }
 
@@ -5471,6 +5495,10 @@ export function buildFrontendReviewContract({
 }): ReviewContract {
   const ageSec = diffSeconds(backend.generatedAt, now);
   const lifecycleEvents = snapshot.journalEvents.filter((event) => event.outcomeMetrics || event.riskReward);
+  const lifecycleRows = lifecycleEvents.map(lifecycleFromJournal);
+  const lifecycleComplete = lifecycleRows.every((row) =>
+    row.side !== "未知" && row.mfe !== null && row.mae !== null && row.outcome !== "unknown"
+  );
   const archetypeStages = backend.analysis.businessCapability.stages.length > 0
     ? backend.analysis.businessCapability.stages
     : [{
@@ -5487,6 +5515,9 @@ export function buildFrontendReviewContract({
     ? backend.analysis.businessCapability.nextActions
     : backend.analysis.businessCapability.gaps;
   const reviewSampleStatus = reviewSampleStatusToResourceStatus(backend.analysis.reviewStatistics.sampleStatus);
+  const reviewStatsStatus = backend.analysis.reviewStatistics.samples.withMetrics > 0
+    ? reviewSampleStatus
+    : reviewSampleStatus === "live" ? "partial" : reviewSampleStatus;
   const aiReviewStats = buildAiReviewStats(snapshot);
   const historicalBacktestWithShadowLive = withShadowLiveJudgeStatus(historicalBacktest, snapshot, now);
   const researchOnlyLifecycleRows = [
@@ -5502,11 +5533,11 @@ export function buildFrontendReviewContract({
   const missedDetectionRows = snapshot.journalEvents
     .filter((event) => event.result === "saved" || event.action === "trend_radar_review")
     .slice(0, 20)
-    .map((event) => ({
+    .map((event): MissedDetection => ({
       symbol: displaySymbol(event.symbol),
       hue: symbolHue(event.symbol),
-      move: round(event.outcomeMetrics?.mfePercent ?? 0, 2),
-      side: (event.direction === "short" ? "跌" : "涨") as "涨" | "跌",
+      move: nullableMetric(event.outcomeMetrics?.mfePercent),
+      side: event.direction === "long" ? "涨" : event.direction === "short" ? "跌" : "未知",
       reason: "证据不足" as const,
       detail: event.note,
       improvement: event.lessons?.[0] ?? "进入漏判复查队列，等待更多样本确认。",
@@ -5516,9 +5547,15 @@ export function buildFrontendReviewContract({
 
   return {
     signalLifecycles: resource(
-      lifecycleEvents.map(lifecycleFromJournal),
-      lifecycleEvents.length > 0 ? "live" : "empty",
-      { ageSec, source: "signal-worker" },
+      lifecycleRows,
+      lifecycleRows.length === 0 ? "empty" : lifecycleComplete ? "live" : "partial",
+      {
+        ageSec,
+        source: "signal-worker",
+        reason: lifecycleComplete
+          ? undefined
+          : "部分生命周期缺少明确方向、结果或 MFE/MAE；保留未知值，禁止补 0 或默认多头。",
+      },
     ),
     researchOnlyLifecycles: resource(
       researchOnlyLifecycleRows,
@@ -5531,7 +5568,7 @@ export function buildFrontendReviewContract({
     ),
     strategyArchetypes: resource(
       archetypeStages.map(strategyArchetypeFromStage),
-      reviewSampleStatus,
+      reviewStatsStatus,
       {
         ageSec,
         source: "signal-worker",

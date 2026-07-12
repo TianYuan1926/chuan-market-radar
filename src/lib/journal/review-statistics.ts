@@ -14,12 +14,12 @@ export type ReviewStatisticsReport = {
   generatedAt: string;
   guardrail: string;
   mae: {
-    averagePercent: number;
-    maxPercent: number;
+    averagePercent: number | null;
+    maxPercent: number | null;
   };
   mfe: {
-    averagePercent: number;
-    maxPercent: number;
+    averagePercent: number | null;
+    maxPercent: number | null;
   };
   outcomeBuckets: ReviewOutcomeBucket[];
   sampleStatus: "empty" | "collecting" | "usable" | "statistically_thin";
@@ -54,7 +54,7 @@ function average(values: number[]) {
   const valid = values.filter(Number.isFinite);
 
   if (valid.length === 0) {
-    return 0;
+    return null;
   }
 
   return valid.reduce((total, value) => total + value, 0) / valid.length;
@@ -129,7 +129,10 @@ export function buildReviewStatisticsReport(
   now = new Date(),
 ): ReviewStatisticsReport {
   const reviewEvents = events.filter(isReviewSample);
-  const withMetrics = reviewEvents.filter((event) => event.outcomeMetrics);
+  const withMetrics = reviewEvents.filter((event) =>
+    Number.isFinite(event.outcomeMetrics?.mfePercent) &&
+    Number.isFinite(event.outcomeMetrics?.maePercent)
+  );
   const closed = reviewEvents.filter((event) => event.reviewStatus === "closed" && event.outcomeStatus !== "pending");
   const pending = reviewEvents.filter((event) => event.outcomeStatus === "pending" || event.reviewStatus === "tracking");
   const resolved = reviewEvents.filter(isResolved);
@@ -138,8 +141,14 @@ export function buildReviewStatisticsReport(
   const rawResolved = reviewEvents.filter((event) => event.outcomeStatus && event.outcomeStatus !== "pending");
   const evidenceLevel = reviewEvents.filter(isEvidenceLevel).length;
   const status = sampleStatus(reviewEvents.length, closed.length, evidenceLevel);
-  const mfeValues = withMetrics.map((event) => event.outcomeMetrics?.mfePercent ?? 0);
-  const maeValues = withMetrics.map((event) => event.outcomeMetrics?.maePercent ?? 0);
+  const mfeValues = withMetrics.flatMap((event) =>
+    typeof event.outcomeMetrics?.mfePercent === "number" ? [event.outcomeMetrics.mfePercent] : []
+  );
+  const maeValues = withMetrics.flatMap((event) =>
+    typeof event.outcomeMetrics?.maePercent === "number" ? [event.outcomeMetrics.maePercent] : []
+  );
+  const averageMfe = average(mfeValues);
+  const averageMae = average(maeValues);
   const statuses: SignalOutcomeStatus[] = ["partial_win", "saved", "loss", "expired", "pending"];
 
   return {
@@ -149,12 +158,12 @@ export function buildReviewStatisticsReport(
     generatedAt: now.toISOString(),
     guardrail: "复盘统计只用于人工校准和回滚验证；不能自动改权重、不能改变实时排序。",
     mae: {
-      averagePercent: round(average(maeValues), 2),
-      maxPercent: round(Math.max(0, ...maeValues), 2),
+      averagePercent: averageMae === null ? null : round(averageMae, 2),
+      maxPercent: maeValues.length === 0 ? null : round(Math.max(0, ...maeValues), 2),
     },
     mfe: {
-      averagePercent: round(average(mfeValues), 2),
-      maxPercent: round(Math.max(0, ...mfeValues), 2),
+      averagePercent: averageMfe === null ? null : round(averageMfe, 2),
+      maxPercent: mfeValues.length === 0 ? null : round(Math.max(0, ...mfeValues), 2),
     },
     outcomeBuckets: statuses.map((bucketStatus) => {
       const bucketEvents = reviewEvents.filter((event) => event.outcomeStatus === bucketStatus);

@@ -684,17 +684,15 @@ export type SignalLifecycle = {
   id: string
   symbol: string
   hue: number
-  side: '多' | '空'
+  side: '多' | '空' | '未知'
   appearedAt: string
-  triggerPrice: number
-  stopPrice: number
-  targetPrice: number
-  verifyWindowH: number
-  hitTpFirst: boolean
-  hitSlFirst: boolean
-  timedOut: boolean
-  mfe: number // 最大有利偏移 %
-  mae: number // 最大不利偏移 %
+  triggerPrice: number | null
+  stopPrice: number | null
+  targetPrice: number | null
+  verifyWindowH: number | null
+  outcome: 'target_first' | 'stop_first' | 'timed_out' | 'pending' | 'unknown'
+  mfe: number | null // 最大有利偏移 %
+  mae: number | null // 最大不利偏移 %
 }
 
 export function getSignalLifecycles(): Resource<SignalLifecycle[]> {
@@ -721,8 +719,8 @@ export function getStrategyArchetypes(): Resource<StrategyArchetype[]> {
 export type MissedDetection = {
   symbol: string
   hue: number
-  move: number // 后续涨跌幅 %
-  side: '涨' | '跌'
+  move: number | null // 后续涨跌幅 %
+  side: '涨' | '跌' | '未知'
   reason: '未进轻扫' | '未进深扫' | '被风控挡住' | '证据不足'
   detail: string
   improvement: string
@@ -1251,8 +1249,8 @@ export type ReviewContract = {
 export type ReviewStatsData = {
   closedSamples: number
   evidenceSamples: number
-  maeAvg: number
-  mfeAvg: number
+  maeAvg: number | null
+  mfeAvg: number | null
   pendingSamples: number
   sampleStatus: 'empty' | 'collecting' | 'usable' | 'statistically_thin'
   summary: string
@@ -1819,10 +1817,10 @@ export function getReviewStats(): Resource<ReviewStatsData> {
     {
       closedSamples: 0,
       evidenceSamples: 0,
-      maeAvg: 0,
-      mfeAvg: 0,
+      maeAvg: null,
+      mfeAvg: null,
       pendingSamples: 0,
-      sampleStatus: 'collecting',
+      sampleStatus: 'empty',
       summary: '复盘统计只用于人工校准和回滚验证；不能自动改权重、不能改变实时排序。',
       totalSamples: 0,
       winRate: null,

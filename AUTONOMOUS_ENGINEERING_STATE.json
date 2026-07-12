@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T20:30:00+08:00",
+  "updatedAt": "2026-07-12T21:15:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-TRUSTED-READ-CONTEXT-LOCAL-PREPARATION",
-    "title": "Candidate trusted read context local preparation",
+    "id": "WP-G0.2-REVIEW-NULL-DIRECTION-TRUTH-REMEDIATION",
+    "title": "Review null, direction and outcome truth remediation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "把 Candidate read policy、control、release、Feature Flags 和审批证据绑定为单一可信上下文，并在数据读取前后复核 authority fingerprint；不修改现有 API/前端、不连接生产且不授权 canonical read。",
+    "objective": "关闭 Review 中未知方向默认多头或上涨、缺失价格与 MFE/MAE 补 0、未知结果默认超时的真值污染；只修改 Review 统计、合同、组件和防回退测试。",
     "coreChainImpact": [
-      "candidate_read_authority_snapshot",
-      "approved_evidence_runtime_binding",
-      "canonical_read_race_prevention"
+      "candidate_outcome_truth",
+      "review_statistics_truth",
+      "review_evolution_display_truth"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,36 +48,26 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
-      "docs/governance/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-api-route-adapter-local-preparation.v1.json",
+      "docs/governance/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_V1.md",
+      "docs/governance/wp-g0-2-review-null-direction-truth-remediation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-trusted-read-context-local-preparation/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-trusted-read-context.mjs",
-      "scripts/governance/candidate-trusted-read-context.test.mjs",
-      "scripts/governance/candidate-canonical-api-route-adapter.mjs",
-      "scripts/governance/candidate-canonical-api-route-adapter.test.mjs",
-      "scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
-      "src/lib/candidate-episode/canonical-read-trusted-context.ts",
-      "src/lib/candidate-episode/canonical-read-trusted-context.test.ts",
-      "src/lib/candidate-episode/canonical-read-trusted-context-postgres.test.ts",
-      "src/lib/candidate-episode/canonical-read-route-adapter.ts",
-      "src/lib/candidate-episode/canonical-read-route-adapter.test.ts"
+      "reports/wp-g0-2-review-null-direction-truth-remediation/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_REPORT.md",
+      "scripts/governance/review-null-direction-truth.mjs",
+      "scripts/governance/review-null-direction-truth.test.mjs",
+      "src/lib/journal/review-statistics.ts",
+      "src/lib/journal/review-statistics.test.ts",
+      "src/lib/api/frontend-contract.ts",
+      "src/lib/api/frontend-contract.test.ts",
+      "src/lib/radar-contract.ts",
+      "src/components/review/review-evolution.tsx"
     ],
     "prohibitedPaths": [
       "src/app/**",
-      "src/components/**",
-      "src/lib/candidate-episode/canonical-read-model.ts",
-      "src/lib/candidate-episode/canonical-read-oracle.ts",
-      "src/lib/candidate-episode/canonical-read-resource.ts",
-      "src/lib/candidate-episode/legacy-read-diagnostic.ts",
-      "src/lib/candidate-episode/candidate-episode-service.ts",
-      "src/lib/candidate-episode/checkpoint-outcome-service.ts",
-      "src/lib/candidate-episode/shadow-*.ts",
       "src/lib/analysis/**",
       "src/lib/backtest/**",
+      "src/lib/candidate-episode/**",
+      "src/lib/market/**",
       "src/lib/persistence/**",
       "src/lib/risk/**",
       "src/lib/shadow/**",
@@ -91,28 +81,18 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
-      "reports/wp-g0-2-trusted-read-context-local-preparation/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-trusted-read-context.mjs",
-      "scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
-      "src/lib/candidate-episode/canonical-read-trusted-context.ts"
+      "docs/governance/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_V1.md",
+      "docs/governance/wp-g0-2-review-null-direction-truth-remediation.v1.json",
+      "reports/wp-g0-2-review-null-direction-truth-remediation/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_REPORT.md",
+      "scripts/governance/review-null-direction-truth.mjs",
+      "src/lib/journal/review-statistics.ts",
+      "src/lib/api/frontend-contract.ts",
+      "src/components/review/review-evolution.tsx"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:trusted-read-context:validate",
-        "test:candidate-trusted-read-context",
-        "candidate:trusted-read-context:pg16-rehearsal",
-        "candidate:canonical-api-route-adapter:validate",
-        "test:candidate-canonical-api-route-adapter",
-        "candidate:canonical-api-resource:validate",
-        "test:candidate-canonical-api-resource",
-        "candidate:canonical-read-oracle:validate",
-        "test:candidate-canonical-read-oracle",
-        "candidate:canonical-read-oracle:pg16-rehearsal",
-        "candidate:canonical-read:validate",
-        "test:candidate-canonical-read",
-        "candidate:test",
+        "review:truth:validate",
+        "test:review-truth",
         "test:autonomy"
       ],
       "baseline": [
@@ -129,16 +109,13 @@
       ]
     },
     "completionBoundary": [
-      "Route Adapter 只允许一个 trusted context provider，policy/control 分开读取必须失败",
-      "control 与 policy 必须来自同一 SERIALIZABLE READ ONLY DEFERRABLE 数据库快照",
-      "数据库 approval_digest 必须等于 authority manifest 原始字节 SHA-256；release/epoch/phase 必须一致",
-      "phase 不能推断 evidence PASS；每项 PASS 必须有独立 SHA-256，missing 的 hash 必须为 null",
-      "runtime release 与三个显式 read flag 必须同时匹配数据库、manifest 和 phase",
-      "policy asOf 只来自数据库时钟，release 只来自 approved_release_id，cohort 从 control started_at 开始",
-      "数据读取前后 authority fingerprint 必须一致；漂移时丢弃结果并返回 503",
-      "当前代码 canonical read 授权保持 false，生产决定仍为 BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
+      "未知方向保持未知，禁止默认多头、空头、上涨或下跌",
+      "缺失 entry/stop/target/validation window/MFE/MAE 保持 null，禁止补 0",
+      "只有后端明确 expired 才显示超时；pending 与 unknown 分开",
+      "缺少方向、结果或完整 MFE/MAE 的生命周期资源必须是 partial",
+      "Review UI 不生成方向、结果、价格或统计值",
       "所有定向、基础和安全门禁通过",
-      "本轮禁止现有 API/前端/Compose/migration/生产身份/部署/数据库写入/Redis/Feature Flag/control 变更"
+      "本轮禁止 scan/analysis/strategy/Risk Gate/backtest/API route/Candidate DB/Redis/worker/deploy/production 变更"
     ]
   },
   "approvals": [
@@ -309,6 +286,13 @@
     {
       "order": 23,
       "id": "WP-G0.2-TRUSTED-READ-CONTEXT-LOCAL-PREPARATION",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 24,
+      "id": "WP-G0.2-REVIEW-NULL-DIRECTION-TRUTH-REMEDIATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

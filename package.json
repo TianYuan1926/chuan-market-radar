@@ -96,6 +96,8 @@
     "candidate:trusted-read-context:validate": "node scripts/governance/candidate-trusted-read-context.mjs",
     "test:candidate-trusted-read-context": "npm run build:market-cli && node --test .tmp/market-tests/lib/candidate-episode/canonical-read-trusted-context.test.js .tmp/market-tests/lib/candidate-episode/canonical-read-route-adapter.test.js scripts/governance/candidate-trusted-read-context.test.mjs",
     "candidate:trusted-read-context:pg16-rehearsal": "bash scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
+    "review:truth:validate": "node scripts/governance/review-null-direction-truth.mjs",
+    "test:review-truth": "npm run build:market-cli && node --test .tmp/market-tests/lib/journal/review-statistics.test.js .tmp/market-tests/lib/api/frontend-contract.test.js scripts/governance/review-null-direction-truth.test.mjs",
     "ops:network-check": "node scripts/ops/network-check.mjs",
     "ops:node-fetch-check": "node scripts/ops/node-fetch-check.mjs",
     "ops:local-env-check": "node scripts/ops/local-env-check.mjs",

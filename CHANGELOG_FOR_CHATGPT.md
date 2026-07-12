@@ -3337,3 +3337,44 @@ P0 阻断：
 ### 下一轮建议
 
 生产仍只申请 Dormant Runtime Deploy；等待审批期间准备 authority manifest provisioning/validation runner，但不得接现有 API 或放开 canonical read。
+
+## 2026-07-12 / WP-G0.2 Review Null/Direction Truth Remediation
+
+### 本轮目标
+
+关闭旧 Review 中未知方向默认多头或上涨、缺失价格/MFE/MAE 补 0、未知结果默认超时的 P1 真值污染。
+
+### 修改范围
+
+- Review statistics 只统计同时具备真实 MFE 与 MAE 的样本，空均值和极值保持 null。
+- Review 合同加入未知方向、null price/window/metrics，以及 target/stop/timeout/pending/unknown 五态结果。
+- Review 页面只翻译合同：无指标、未知结果和未知漏判幅度都有显式空态，不再计算假柱状图。
+- 新增反例测试、机器治理合同、artifact checksum 与自治范围锁。
+- 未修改 scan、analysis、strategy、Risk Gate、backtest、API route、Candidate DB、Redis、worker、deploy 或生产。
+
+### 核心链路影响
+
+收口候选结果真值与复盘进化展示；不改变全市场发现、候选排序、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Review 定向与治理 42/42：PASS。
+- Autonomy unit 16/16：PASS。
+- typecheck、lint、build：PASS。
+- test:market 995 pass / 0 fail / 7 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未执行生产 Git/Docker/API/数据库/Redis/Feature Flag/control 变更。
+
+### 风险与遗留问题
+
+- 开发中漏判方向联合类型推宽和组件 null 收窄被 TypeScript 真实拦截；均以更严格类型修复并完整重跑。
+- 本轮只关闭 Legacy Review 真值债务，不表示生产 Candidate Reader/API/双读窗口完成。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只申请独立审批的 Dormant Runtime Deploy；不得跳到 Runtime Identity、Activation、reconciliation 或 canonical cutover。
