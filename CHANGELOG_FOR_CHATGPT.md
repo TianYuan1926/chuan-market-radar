@@ -3019,3 +3019,47 @@ P0 阻断：
 ### 下一轮建议
 
 本轮全部门禁和 GitHub main 同步后，只申请 14 文件 current artifact 的 Dormant Runtime Deploy；不得合并 Runtime Identity 或 activation。
+
+## 2026-07-12 / WP-G0.2 Dormant Release Diff Guard and Approval Refresh
+
+### 本轮目标
+
+关闭 Dormant 部署只校验 14 文件、无法证明完整 Web release 范围的 P1；同时修复跨分支已编译测试残留和 0 核心测试仍可绿灯的 P1 门禁污染。
+
+### 修改范围
+
+- Dormant validator 新增 rollback/approved/base 祖先关系、149 个 A/M 路径、path-set SHA-256、allowlist/forbidden 和审批 diff 字段校验。
+- Review、Canonical read、activation、reconciliation 或非 allowlist 路径混入时 fail closed。
+- Dormant artifact 刷新为 `78f1e3fa...`；Runtime Identity 传递 artifact 刷新为 `855f8e0d...`，旧值失效。
+- `build:market-cli` 每次清理输出；market test tsconfig 禁用 incremental；`test:market` 强制核心测试数大于 0。
+- 新增 sentinel 删除、当前测试 JS 重建、release 污染和审批 checksum 反例。
+- 未修改业务 UI/API、Candidate runtime、Compose、migration、DB、Redis、worker、Feature Flag、control 或生产。
+
+### 核心链路影响
+
+加强 Candidate 生命周期基础的发布真实性和测试证据可靠性；不改变发现、分析、策略、风险或复盘业务行为。
+
+### 测试结果
+
+- Dormant 11/11、deploy safety 5/5：PASS。
+- Runtime Identity Runner 8/8、Composition 28/28、Autonomy unit 16/16：PASS。
+- typecheck、lint、build：PASS。
+- 清理后的真实 test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 与三项安全门禁：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未执行 Git/Docker/身份/env/API/数据库/Redis/Feature Flag/control 变更。
+
+### 风险与遗留问题
+
+- 旧 14 文件 checksum 不能证明整包 release 范围，已失效。
+- 之前跨分支 993 测试计数属于陈旧编译产物污染；真实当前分支基线为 952/4 skip。
+- 首次只清输出目录后暴露增量缓存可造成 0 核心测试绿灯；已关闭并回归。
+- 首次提交后自校验发现 Dormant 测试把 approved commit 写死为 release base，导致新 HEAD 下 10/11；已改为读取实际 Git HEAD，并从定向与自治门禁重新验证，不把该失败包装为 PASS。
+- 最终修复 commit 尚需推 GitHub main，再生成精确审批文本；生产仍未授权。
+
+### 下一轮建议
+
+提交并推送本修复到 GitHub main 后，重新只读核对生产 rollback，再申请唯一的 Dormant Web-only 90 分钟生产审批。

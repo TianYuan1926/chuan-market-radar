@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import yaml from "js-yaml";
 
 export const CONTRACT_PATH = "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json";
 export const PACKAGE_ID = "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY";
+const execFileAsync = promisify(execFile);
+const DORMANT_RELEASE_BASE_COMMIT = "591163a37493910c346530ebdf271f878c6a67b5";
+const LAST_VERIFIED_PRODUCTION_ROLLBACK_COMMIT = "0599f802f261fe8e3c1982a07106f362bd62ac13";
+const DORMANT_RELEASE_DIFF_FILE_COUNT = 149;
+const DORMANT_RELEASE_DIFF_SHA256 = "f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37";
 const FEATURE_FLAGS = [
   "CANDIDATE_EPISODE_CANONICAL_WRITE",
   "CANDIDATE_EPISODE_SHADOW_WRITE",
@@ -42,6 +49,28 @@ function ensure(condition, reason) {
   if (!condition) throw new DormantDeployPolicyError(reason);
 }
 
+function pathMatches(pattern, filePath) {
+  if (pattern.endsWith("/**")) return filePath.startsWith(pattern.slice(0, -3));
+  if (pattern.endsWith("*")) return filePath.startsWith(pattern.slice(0, -1));
+  return filePath === pattern;
+}
+
+function normalizeReleasePath(value) {
+  ensure(typeof value === "string" && value.length > 0, "release_diff_path_invalid");
+  ensure(!value.startsWith("/") && !value.includes("\\") && !value.split("/").includes(".."), "release_diff_path_invalid");
+  return value;
+}
+
+function parseReleaseDiffLine(line) {
+  const fields = line.split("\t");
+  ensure(fields.length === 2, "release_diff_entry_invalid");
+  return {
+    line,
+    path: normalizeReleasePath(fields[1]),
+    status: fields[0],
+  };
+}
+
 export function validateContract(contract) {
   ensure(contract?.schemaVersion === "wp-g0.2-shadow-capture-dormant-runtime-deploy.v1", "schema_version_mismatch");
   ensure(contract.packageId === PACKAGE_ID, "package_id_mismatch");
@@ -69,6 +98,22 @@ export function validateContract(contract) {
   ensure(contract.dormantBoundary?.databaseMutationAllowed === false, "database_mutation_must_be_false");
   ensure(Array.isArray(contract.artifact?.files) && contract.artifact.files.length > 0, "artifact_files_missing");
   ensure(/^[0-9a-f]{64}$/.test(contract.artifact?.sha256 ?? ""), "artifact_checksum_not_locked");
+  const release = contract.releaseBoundary ?? {};
+  ensure(release.requiredBaseCommit === DORMANT_RELEASE_BASE_COMMIT, "release_base_commit_mismatch");
+  ensure(release.lastVerifiedProductionRollbackCommit === LAST_VERIFIED_PRODUCTION_ROLLBACK_COMMIT, "release_rollback_commit_mismatch");
+  ensure(release.releaseDiffFileCount === DORMANT_RELEASE_DIFF_FILE_COUNT, "release_diff_file_count_not_locked");
+  ensure(release.releaseDiffSha256 === DORMANT_RELEASE_DIFF_SHA256, "release_diff_checksum_not_locked");
+  ensure(JSON.stringify(release.allowedStatuses) === '["A","M"]', "release_diff_statuses_mismatch");
+  ensure(Array.isArray(release.allowedPathPatterns) && release.allowedPathPatterns.length > 0, "release_diff_allowlist_missing");
+  ensure(Array.isArray(release.forbiddenPathPatterns) && release.forbiddenPathPatterns.length > 0, "release_diff_forbidden_paths_missing");
+  for (const pattern of [
+    "src/components/**",
+    "src/lib/api/**",
+    "src/lib/journal/**",
+    "src/lib/candidate-episode/canonical-read-*",
+    "scripts/production/candidate-activation/**",
+    "scripts/production/candidate-reconciliation/**",
+  ]) ensure(release.forbiddenPathPatterns.includes(pattern), `release_diff_forbidden_pattern_missing:${pattern}`);
   ensure(contract.forbiddenInThisPackage?.includes("migration_execute"), "migration_forbidden_missing");
   ensure(contract.forbiddenInThisPackage?.includes("candidate_worker_start"), "candidate_worker_forbidden_missing");
   return contract;
@@ -86,6 +131,74 @@ export async function inspectArtifact(root, contract) {
   const checksum = sha256(JSON.stringify(checksums));
   ensure(checksum === contract.artifact.sha256, "artifact_checksum_mismatch");
   return { checksum, fileCount: Object.keys(checksums).length };
+}
+
+export function evaluateReleaseDiff(lines, contract) {
+  const release = contract.releaseBoundary;
+  ensure(Array.isArray(lines) && lines.length > 0, "release_diff_empty");
+  const entries = lines.map(parseReleaseDiffLine);
+  ensure(new Set(entries.map((entry) => entry.path)).size === entries.length, "release_diff_duplicate_path");
+  ensure(entries.every((entry) => release.allowedStatuses.includes(entry.status)), "release_diff_status_forbidden");
+  ensure(
+    entries.every((entry) => !release.forbiddenPathPatterns.some((pattern) => pathMatches(pattern, entry.path))),
+    "release_diff_forbidden_path",
+  );
+  ensure(
+    entries.every((entry) => release.allowedPathPatterns.some((pattern) => pathMatches(pattern, entry.path))),
+    "release_diff_outside_allowlist",
+  );
+  const normalized = entries.map((entry) => entry.line).sort();
+  const checksum = sha256(normalized.join("\n"));
+  ensure(normalized.length === release.releaseDiffFileCount, "release_diff_file_count_mismatch");
+  ensure(checksum === release.releaseDiffSha256, "release_diff_checksum_mismatch");
+  return {
+    checksum,
+    fileCount: normalized.length,
+    statuses: [...new Set(entries.map((entry) => entry.status))].sort(),
+  };
+}
+
+async function runGit(root, args, reason) {
+  try {
+    return await execFileAsync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 2 * 1024 * 1024 });
+  } catch {
+    throw new DormantDeployPolicyError(reason);
+  }
+}
+
+export async function inspectReleaseDiff(root, contract, request) {
+  const approvedCommit = request?.approvedCommit
+    ?? (await runGit(root, ["rev-parse", "HEAD"], "release_head_unavailable")).stdout.trim();
+  const rollbackCommit = request?.rollbackCommit ?? contract.releaseBoundary.lastVerifiedProductionRollbackCommit;
+  ensure(/^[0-9a-f]{40}$/.test(approvedCommit), "approved_commit_invalid");
+  ensure(/^[0-9a-f]{40}$/.test(rollbackCommit), "rollback_commit_invalid");
+  ensure(rollbackCommit === contract.releaseBoundary.lastVerifiedProductionRollbackCommit, "rollback_commit_not_last_verified");
+  await runGit(
+    root,
+    ["merge-base", "--is-ancestor", contract.releaseBoundary.requiredBaseCommit, approvedCommit],
+    "approved_commit_not_descendant_of_release_base",
+  );
+  await runGit(
+    root,
+    ["merge-base", "--is-ancestor", rollbackCommit, approvedCommit],
+    "rollback_commit_not_ancestor_of_approved",
+  );
+  const { stdout } = await runGit(
+    root,
+    ["diff", "--name-status", "--no-renames", `${rollbackCommit}..${approvedCommit}`],
+    "release_diff_unavailable",
+  );
+  const result = evaluateReleaseDiff(stdout.trim().split(/\r?\n/).filter(Boolean), contract);
+  if (request) {
+    ensure(request.approvedReleaseDiffFileCount === result.fileCount, "approved_release_diff_file_count_mismatch");
+    ensure(request.approvedReleaseDiffSha256 === result.checksum, "approved_release_diff_checksum_mismatch");
+  }
+  return {
+    ...result,
+    approvedCommit,
+    requiredBaseCommit: contract.releaseBoundary.requiredBaseCommit,
+    rollbackCommit,
+  };
 }
 
 export async function inspectRepository(root = process.cwd(), contract) {
@@ -134,7 +247,8 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(request && typeof request === "object" && !Array.isArray(request), "request_not_object");
   const expectedKeys = [
     "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "approvedArtifactSha256",
-    "approvedCommit", "automaticWebRollbackAllowed", "candidateControlLifecycleStartAllowed",
+    "approvedCommit", "approvedReleaseDiffFileCount", "approvedReleaseDiffSha256",
+    "automaticWebRollbackAllowed", "candidateControlLifecycleStartAllowed",
     "candidateDatabaseUrlConfigurationAllowed", "candidateFeatureFlagEnablementAllowed",
     "candidateWorkerStartAllowed", "codeActivationAllowed", "databaseMutationAllowed",
     "deploymentMode", "execute", "migrationAllowed", "operator", "packageId",
@@ -148,6 +262,9 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(/^[0-9a-f]{40}$/.test(request.rollbackCommit ?? ""), "rollback_commit_invalid");
   ensure(request.approvedCommit !== request.rollbackCommit, "rollback_commit_matches_approved");
   ensure(request.approvedArtifactSha256 === contract.artifact.sha256, "approved_artifact_checksum_mismatch");
+  ensure(request.rollbackCommit === contract.releaseBoundary.lastVerifiedProductionRollbackCommit, "rollback_commit_not_last_verified");
+  ensure(request.approvedReleaseDiffFileCount === contract.releaseBoundary.releaseDiffFileCount, "approved_release_diff_file_count_mismatch");
+  ensure(request.approvedReleaseDiffSha256 === contract.releaseBoundary.releaseDiffSha256, "approved_release_diff_checksum_mismatch");
   ensure(typeof request.approvalRef === "string" && request.approvalRef.trim().length >= 8, "approval_ref_invalid");
   ensure(typeof request.operator === "string" && request.operator.trim().length >= 2, "operator_invalid");
   ensure(typeof request.execute === "boolean", "execute_flag_missing");
@@ -199,8 +316,9 @@ export function parseDormantEnvironment(source) {
 
 export async function validateLocalPreparation(root = process.cwd()) {
   const contract = await loadContract(root);
-  const [artifact, repository] = await Promise.all([
+  const [artifact, release, repository] = await Promise.all([
     inspectArtifact(root, contract),
+    inspectReleaseDiff(root, contract),
     inspectRepository(root, contract),
   ]);
   return {
@@ -209,6 +327,7 @@ export async function validateLocalPreparation(root = process.cwd()) {
     productionDecision: "BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",
     productionMutationAllowed: false,
     artifact,
+    release,
     repository,
     nextRequiredAction: "approve_exact_commit_artifact_web_only_90_minute_window",
   };
@@ -237,9 +356,11 @@ async function main() {
   } else if (command === "request") {
     const contract = await loadContract(root);
     const request = JSON.parse(await readFile(resolve(options.request ?? ""), "utf8"));
+    const validatedRequest = validateApprovalRequest(request, contract, options.now ? { now: new Date(options.now) } : {});
     result = {
       ok: true,
-      request: validateApprovalRequest(request, contract, options.now ? { now: new Date(options.now) } : {}),
+      release: await inspectReleaseDiff(root, contract, validatedRequest),
+      request: validatedRequest,
     };
   } else if (command === "env") {
     result = {

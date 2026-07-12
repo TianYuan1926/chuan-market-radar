@@ -33,7 +33,7 @@
     "databaseMutationAllowed": false
   },
   "artifact": {
-    "sha256": "43e9deaef51e0c0408acb3c449a5cf92577181e66a14adaff958d669d3435f52",
+    "sha256": "78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",
@@ -51,8 +51,66 @@
       "src/lib/runtime/worker-heartbeat.ts"
     ]
   },
+  "releaseBoundary": {
+    "requiredBaseCommit": "591163a37493910c346530ebdf271f878c6a67b5",
+    "lastVerifiedProductionRollbackCommit": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+    "releaseDiffFileCount": 149,
+    "releaseDiffSha256": "f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37",
+    "allowedStatuses": [
+      "A",
+      "M"
+    ],
+    "allowedPathPatterns": [
+      ".env.example",
+      ".gitignore",
+      "AUTONOMOUS_ENGINEERING_STATE.json",
+      "CHANGELOG_FOR_CHATGPT.md",
+      "PROJECT_CONTEXT_FOR_CHATGPT.md",
+      "deploy/scripts/production-full-verify.sh",
+      "deploy/scripts/production-verify.sh",
+      "deploy/scripts/tencent-prod-deploy.sh",
+      "deploy/workers/protected-api-worker.mjs",
+      "deploy/workers/protected-api-worker.test.mjs",
+      "docker-compose.yml",
+      "docs/**",
+      "eslint.config.mjs",
+      "migrations/candidate-episode/**",
+      "package.json",
+      "scripts/governance/**",
+      "scripts/production/**",
+      "scripts/rehearsal/**",
+      "scripts/verify/production-check.sh",
+      "src/app/api/admin/candidate-shadow/run/route.ts",
+      "src/lib/candidate-episode/**",
+      "src/lib/market/radar-snapshot.ts",
+      "src/lib/runtime/worker-heartbeat.test.ts",
+      "src/lib/runtime/worker-heartbeat.ts",
+      "src/scripts/candidate-episode/**",
+      "tsconfig.market-test.json"
+    ],
+    "forbiddenPathPatterns": [
+      "src/components/**",
+      "src/lib/api/**",
+      "src/lib/journal/**",
+      "src/lib/analysis/**",
+      "src/lib/backtest/**",
+      "src/lib/risk/**",
+      "src/lib/shadow/**",
+      "src/lib/candidate-episode/canonical-read-*",
+      "src/lib/candidate-episode/legacy-read-diagnostic*",
+      "scripts/production/candidate-activation/**",
+      "scripts/production/candidate-reconciliation/**",
+      "scripts/governance/candidate-activation-runner*",
+      "scripts/governance/candidate-reconciliation-runner*",
+      "scripts/governance/candidate-canonical-*",
+      "scripts/governance/review-null-*"
+    ]
+  },
   "requiredPreDeployEvidence": [
     "approved_commit_equals_staged_source_head",
+    "approved_commit_descends_from_release_base",
+    "rollback_commit_is_approved_commit_ancestor",
+    "release_diff_path_set_and_checksum_match",
     "origin_main_equals_approved_commit",
     "production_worktree_clean",
     "production_head_equals_rollback_commit",

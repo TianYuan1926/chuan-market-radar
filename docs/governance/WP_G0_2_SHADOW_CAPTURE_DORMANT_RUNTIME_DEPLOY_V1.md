@@ -28,13 +28,25 @@ docker compose up -d --no-deps web
 
 ## 3. 生产审批必须绑定
 
-当前 artifact 固定为 14 个文件，必须包含 `src/lib/candidate-episode/transaction-adapter.ts`。Runtime Identity 加固改变了 Candidate runtime database 的事务角色行为，该事务适配器属于安全关键传递依赖；此前 13 文件 checksum 只保留为历史证据，已经失效，不得再用于任何生产审批。
+当前 artifact 固定为 14 个文件，必须包含 `src/lib/candidate-episode/transaction-adapter.ts`，SHA-256 为 `78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449`。此前 13 文件 checksum 与上一版 14 文件 checksum `43e9deaef51e0c0408acb3c449a5cf92577181e66a14adaff958d669d3435f52` 都只保留为历史证据，已经失效，不得再用于任何生产审批。
+
+artifact checksum 只能证明 14 个安全关键文件，不能单独证明整个 Git release 没有夹带其它 Web 代码。当前 release-diff 门禁额外锁定：
+
+- required release base=`591163a37493910c346530ebdf271f878c6a67b5`
+- last verified production rollback=`0599f802f261fe8e3c1982a07106f362bd62ac13`
+- rollback 必须是 approved commit 的祖先，approved commit 必须继承 required release base
+- release diff 必须精确为 149 个 `A/M` 路径
+- path-set SHA-256=`f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37`
+- Review、Canonical read、activation、reconciliation 和任意非 allowlist 路径全部 fail closed
+
+因此，包含后续 Canonical/Review 代码的功能分支不能直接作为本 Dormant approved commit，即使 14 文件 artifact checksum 相同也不允许通过。
 
 审批请求必须完整绑定：
 
 - `packageId=WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY`
 - GitHub `main` 的 40 位 approved commit
 - 当前机器合同中的 artifact SHA-256
+- release diff file count 与 path-set SHA-256
 - 当前生产 40 位 rollback commit
 - `services=[web]`
 - `deploymentMode=dormant_runtime_web_only`
@@ -48,7 +60,7 @@ docker compose up -d --no-deps web
 ## 4. 执行前条件
 
 1. 本地完整门禁和专用 validator PASS。
-2. approved commit 已进入 GitHub `main`，且 artifact checksum 未漂移。
+2. approved commit 已进入 GitHub `main`，artifact checksum 未漂移，且 release diff 的祖先关系、149 路径和 path-set SHA-256 全部匹配。
 3. 生产 worktree clean，当前 HEAD 等于审批中的 rollback commit。
 4. `.env.production` 中五个 Candidate Flag 为 false 或缺省。
 5. `.env` 和 `.env.production` 都通过 Candidate 休眠校验；合并后的三条 Candidate Database URL 为空或缺省。

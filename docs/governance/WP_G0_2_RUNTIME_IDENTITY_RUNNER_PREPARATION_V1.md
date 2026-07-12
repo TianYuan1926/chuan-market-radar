@@ -1,5 +1,7 @@
 # WP-G0.2 Runtime Identity Production Runner 准入合同
 
+当前 8 文件 artifact SHA-256 为 `855f8e0d72bb30cb65852c91efa6f89d5c325d9c8eb91f51e02acc7f028070a2`。该值已随 Dormant release-diff validator 加固刷新；旧 checksum 只保留为历史事实，不得再用于后续身份审批。
+
 ## 1. 本包目标
 
 为 Dormant Deploy 之后的生产 Runtime Identity and Permission 建立默认 dry-run、精确审批、最小变更和自动回滚 runner。本包只准备和隔离演练 runner，不连接或修改生产。

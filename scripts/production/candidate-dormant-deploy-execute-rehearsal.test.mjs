@@ -27,8 +27,14 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
   const gitLog = join(directory, "git.log");
   const dockerLog = join(directory, "docker.log");
   const approvedCommit = "a".repeat(40);
-  const rollbackCommit = "b".repeat(40);
   const contract = await loadContract();
+  const rollbackCommit = contract.releaseBoundary.lastVerifiedProductionRollbackCommit;
+  const releaseDiff = (await execFileAsync("git", [
+    "diff",
+    "--name-status",
+    "--no-renames",
+    `${contract.releaseBoundary.lastVerifiedProductionRollbackCommit}..${contract.releaseBoundary.requiredBaseCommit}`,
+  ])).stdout;
   const now = Date.now();
   const request = {
     approvalExpiresAt: new Date(now + 30 * 60_000).toISOString(),
@@ -36,6 +42,8 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
     approvalRef: "isolated-execute-rehearsal",
     approvedArtifactSha256: contract.artifact.sha256,
     approvedCommit,
+    approvedReleaseDiffFileCount: contract.releaseBoundary.releaseDiffFileCount,
+    approvedReleaseDiffSha256: contract.releaseBoundary.releaseDiffSha256,
     automaticWebRollbackAllowed: true,
     candidateControlLifecycleStartAllowed: false,
     candidateDatabaseUrlConfigurationAllowed: false,
@@ -48,7 +56,7 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
     migrationAllowed: false,
     operator: "isolated-rehearsal",
     packageId: contract.packageId,
-    rollbackCommit,
+    rollbackCommit: contract.releaseBoundary.lastVerifiedProductionRollbackCommit,
     services: ["web"],
   };
 
@@ -123,6 +131,8 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
     await writeFile(gitState, rollbackCommit + "\n");
     await writeFile(gitLog, "");
     await writeFile(dockerLog, "");
+    const gitDiffFile = join(directory, "git-diff.txt");
+    await writeFile(gitDiffFile, releaseDiff);
 
     const fakeGit = [
       "#!/usr/bin/env node",
@@ -137,6 +147,8 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       "if (args[0] === 'checkout' && args[1] === '--detach') { fs.writeFileSync(process.env.FAKE_GIT_STATE, args[2] + '\\n'); process.exit(0); }",
       "if (args[0] === 'checkout') process.exit(0);",
       "if (args[0] === 'fetch') process.exit(0);",
+      "if (args[0] === 'merge-base') process.exit(0);",
+      "if (args[0] === 'diff') { process.stdout.write(fs.readFileSync(process.env.FAKE_GIT_DIFF_FILE, 'utf8')); process.exit(0); }",
       "if (args[0] === 'merge') { fs.writeFileSync(process.env.FAKE_GIT_STATE, process.env.FAKE_APPROVED_COMMIT + '\\n'); process.exit(0); }",
       "if (args[0] === 'rev-parse' && args[1] === 'origin/main') { console.log(process.env.FAKE_APPROVED_COMMIT); process.exit(0); }",
       "if (args[0] === 'rev-parse' && args[1] === 'HEAD') {",
@@ -181,6 +193,7 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       FAKE_APPROVED_COMMIT: approvedCommit,
       FAKE_DOCKER_LOG: dockerLog,
       FAKE_GIT_LOG: gitLog,
+      FAKE_GIT_DIFF_FILE: gitDiffFile,
       FAKE_GIT_STATE: gitState,
       FAKE_SOURCE_ROOT: process.cwd(),
       PATH: fakeBin + ":" + process.env.PATH,

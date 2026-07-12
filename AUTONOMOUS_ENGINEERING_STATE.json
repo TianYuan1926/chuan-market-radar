@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T15:54:34+08:00",
+  "updatedAt": "2026-07-12T22:10:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-ARTIFACT-REFRESH-AFTER-IDENTITY-HARDENING",
-    "title": "Dormant deploy artifact refresh after runtime identity hardening",
+    "id": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
+    "title": "Dormant release diff guard and approval refresh",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "修复 Runtime Identity 加固后 Dormant artifact checksum drift，把安全关键 transaction adapter 纳入传递依赖锁定，并刷新 current approval evidence；尚未修改生产。",
+    "objective": "补上 rollback 到 approved commit 的完整 release diff fail-closed 证明，阻止 Review、Canonical read、activation 或 reconciliation 代码混入 Dormant Web-only 发布，并刷新传递依赖 artifact；不连接或修改生产。",
     "coreChainImpact": [
       "candidate_screening_dormant_deploy_integrity",
       "review_evolution_dormant_deploy_integrity",
-      "release_artifact_integrity"
+      "release_scope_integrity"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -50,10 +50,15 @@
       "package.json",
       "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
       "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-dormant-artifact-refresh/WP_G0_2_DORMANT_ARTIFACT_REFRESH_REPORT.md",
-      "scripts/production/candidate-dormant-deploy.test.mjs"
+      "reports/wp-g0-2-dormant-release-diff-guard/WP_G0_2_DORMANT_RELEASE_DIFF_GUARD_REPORT.md",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-dormant-deploy.test.mjs",
+      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
+      "tsconfig.market-test.json"
     ],
     "prohibitedPaths": [
       "src/app/**",
@@ -66,6 +71,8 @@
       "deploy/**",
       "migrations/**",
       "docker-compose.yml",
+      "scripts/production/candidate-dormant-deploy.sh",
+      "scripts/production/candidate-runtime-identity/**",
       "tools/**",
       ".env",
       ".env.production"
@@ -74,7 +81,9 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
       "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
-      "reports/wp-g0-2-dormant-artifact-refresh/WP_G0_2_DORMANT_ARTIFACT_REFRESH_REPORT.md",
+      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
+      "reports/wp-g0-2-dormant-release-diff-guard/WP_G0_2_DORMANT_RELEASE_DIFF_GUARD_REPORT.md",
+      "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.test.mjs"
     ],
     "gateProfile": {
@@ -82,6 +91,7 @@
         "candidate:dormant-deploy:validate",
         "candidate:dormant-deploy",
         "test:candidate-dormant-deploy",
+        "test:deploy-safety",
         "candidate:runtime-identity:validate",
         "candidate:runtime-identity-runner:validate",
         "test:candidate-runtime-identity-runner",
@@ -102,10 +112,11 @@
       ]
     },
     "completionBoundary": [
-      "Dormant artifact 必须覆盖 identity hardening 修改的 candidate runtime database 与 transaction adapter",
-      "current artifact 固定为 14 文件，旧 13 文件 checksum 仅保留历史记录且不能再获批",
-      "validator/dry-run/fake execute 成功与自动 Web rollback 必须使用新 checksum 通过",
-      "Runtime Identity foundation/runner validator 与 Composition 回归不得因 artifact 刷新退化",
+      "rollback commit 必须是 approved commit 的祖先，approved commit 必须继承锁定 release base",
+      "release diff 必须精确为 149 个 A/M 路径且 path-set SHA-256 匹配",
+      "Review、Canonical read、activation、reconciliation 与任意非 allowlist 路径必须 fail closed",
+      "审批请求必须绑定 release diff file count、SHA-256、artifact、approved/rollback commit 与 90 分钟窗口",
+      "Dormant 14 文件 artifact 与 Runtime Identity 8 文件传递 artifact 必须刷新并通过",
       "生产决定仍为 BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",
       "所有定向、基础和安全门禁通过",
       "本轮禁止生产连接、部署、角色/权限/env/服务/数据库/Redis/Feature Flag/control 变更"
@@ -210,7 +221,7 @@
       "order": 13,
       "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-ARTIFACT-REFRESH-AFTER-IDENTITY-HARDENING",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
@@ -226,6 +237,13 @@
       "lane": "production",
       "status": "prohibited_until_runtime_identity_permission_pass_and_new_approval",
       "requiresExplicitApproval": true
+    },
+    {
+      "order": 16,
+      "id": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
     }
   ]
 }
