@@ -20,6 +20,10 @@ STATE="$OPS_ROOT/runner-state/verify-only"
 RUNTIME="$OPS_ROOT/runtime"
 ENV_FILE="$WORKTREE/.env.production"
 
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0=safe.directory
+export GIT_CONFIG_VALUE_0="$WORKTREE"
+
 fail() {
   printf '{"status":"fail","reason":"%s"}\n' "$1" >&2
   exit 1
@@ -62,7 +66,6 @@ do
   fi
 done
 
-git -C "$WORKTREE" fetch origin main
 git -C "$WORKTREE" cat-file -e "$RUNNER_COMMIT^{commit}" \
   || fail runner_commit_unavailable
 install -d -m 700 "$OPS_ROOT" "$OPS_ROOT/source" "$OPS_ROOT/artifacts" \

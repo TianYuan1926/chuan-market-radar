@@ -16,6 +16,7 @@ test("production verify-only exposes no migration execute path", async () => {
   assert.match(source, /\[ "\$COMMAND" = verify \]/);
   assert.doesNotMatch(source, /migration-runner\.mjs\s+execute/);
   assert.doesNotMatch(source, /docker\s+compose|force-recreate|restart:/);
+  assert.doesNotMatch(source, /git\s+-C\s+"\$WORKTREE"\s+fetch/);
   assert.doesNotMatch(source, /CANDIDATE_EPISODE_[A-Z_]+=true/);
   assert.match(source, /\.execute == false/);
   assert.match(source, /\.roleBootstrapEnabled == false/);
@@ -34,4 +35,6 @@ test("production verify-only keeps schema flags health and worktree fail closed"
   assert.match(source, /catalog_contract_failed/);
   assert.match(source, /runtime_boundary_not_clean/);
   assert.match(source, /web_image_changed/);
+  assert.match(source, /runner_commit_unavailable/);
+  assert.match(source, /GIT_CONFIG_KEY_0=safe\.directory/);
 });
