@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   readWorkerHeartbeatReport,
+  runtimeWorkersFromEnv,
   runtimeWorkerHeartbeatKey,
   writeWorkerHeartbeat,
   type RuntimeHeartbeatClient,
@@ -95,4 +96,11 @@ test("readWorkerHeartbeatReport exposes an explicit unconfigured Redis probe whe
 
   assert.equal(report.redis.status, "unconfigured");
   assert.equal(report.workers[0]?.status, "down");
+});
+
+test("candidate shadow heartbeat is expected only for an explicitly deployed dormant profile", () => {
+  assert.equal(runtimeWorkersFromEnv({}).includes("candidate-shadow-worker"), false);
+  assert.equal(runtimeWorkersFromEnv({
+    CANDIDATE_SHADOW_WORKER_EXPECTED: "true",
+  }).includes("candidate-shadow-worker"), true);
 });

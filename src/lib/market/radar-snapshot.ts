@@ -17,6 +17,7 @@ import {
   type ProviderEnv,
 } from "./provider-registry";
 import { buildAltcoinMacroAnchorInputFromSnapshots } from "./macro-snapshot";
+import { appCandidateShadowCaptureComposition } from "../candidate-episode/app-shadow-capture-composition";
 import { buildScanAssetStatesFromCoverage } from "./scan-asset-state";
 import { applySignalMaturityToSnapshot, classifySignalMaturity } from "./signal-maturity";
 import { createReplayFrame, summarizeScanSnapshot } from "./scan-archive";
@@ -357,11 +358,19 @@ async function withArchive(
   if (persistArchive) {
     const replayFrame = createReplayFrame(enriched);
 
-    await repository.addScanArchive(
-      summarizeScanSnapshot(enriched),
-      replayFrame,
-      enriched,
-    );
+    if (repository === appPersistenceRepository) {
+      await appCandidateShadowCaptureComposition.persistScanArchive(
+        summarizeScanSnapshot(enriched),
+        replayFrame,
+        enriched,
+      );
+    } else {
+      await repository.addScanArchive(
+        summarizeScanSnapshot(enriched),
+        replayFrame,
+        enriched,
+      );
+    }
     await writeDevSnapshotFile(enriched, repository);
 
     if (enriched.metadata.coverage) {

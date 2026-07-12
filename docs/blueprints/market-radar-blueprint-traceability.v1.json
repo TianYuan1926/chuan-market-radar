@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_shadow_capture_safety_schema_applied_verified_dormant",
-  "generatedAt": "2026-07-12T11:31:14+08:00",
+  "status": "wp_g0_2_shadow_capture_composition_wiring_local_pass_runtime_dormant",
+  "generatedAt": "2026-07-12T12:20:57+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
+    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -49,16 +49,20 @@
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
+    "nextLocalWorkPackage": null,
+    "compositionWiringStatus": "pass_local_composition_wiring",
+    "compositionTargetedTests": "28_of_28_pass",
+    "compositionPostgres16Rehearsal": "pass_production_connected_false",
     "productionVerifyOnlyStatus": "pass",
     "shadowCaptureLocalDesignStatus": "pass_production_readiness_packet",
     "shadowCaptureProductionDecision": "safety_schema_applied_verified_runtime_disabled",
     "shadowCaptureKnownBlockers": [
       "production_runtime_wiring_not_deployed",
+      "candidate_runtime_identities_not_provisioned",
       "dormant_runtime_deploy_not_approved",
       "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "none_until_local_composition_wiring_passes_and_a_new_dormant_deploy_approval_is_granted",
+    "nextProductionAction": "dormant_runtime_deploy_only_after_new_explicit_approval",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
@@ -613,14 +617,14 @@
       "status": "not_started_as_gate"
     }
   ],
-  "lastCompletedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
+  "lastCompletedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
   "lastAttemptedWorkPackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
-    "title": "Candidate shadow capture production safety schema only",
-    "status": "PASS_PRODUCTION_ADD_SAFETY_SCHEMA",
-    "runtimeCodeChanged": false,
+    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
+    "title": "Candidate shadow capture local production composition wiring",
+    "status": "PASS_LOCAL_COMPOSITION_WIRING",
+    "runtimeCodeChanged": true,
     "runtimeActivationStatus": "disabled",
-    "productionConnected": true,
+    "productionConnected": false,
     "productionMutationAllowed": false,
     "legacyWriteAuthority": true,
     "legacyReadAuthority": true,
@@ -631,17 +635,23 @@
     "canonicalVenueMapperImplemented": true,
     "readOnlyMonitorImplemented": true,
     "migration009Sha256": "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5",
-    "productionRuntimeWiringImplemented": false,
+    "productionRuntimeWiringImplemented": true,
+    "productionRuntimeWiringDeployed": false,
+    "candidateWorkerStartedByDefault": false,
+    "codeActivationAllowed": false,
+    "candidateIdentityChannelsSeparated": true,
+    "candidateRuntimeIdentitiesProvisioned": false,
+    "leastPrivilegeActiveCompositionProven": false,
     "isolatedPostgresRehearsalPassed": true,
     "shadowSafetyMigrationAppliedInProduction": true,
-    "newProductionApprovalPresent": true,
+    "newProductionApprovalPresent": false,
     "g0Complete": false,
     "practicalTradingReady": false,
     "evidence": {
-      "path": "reports/wp-g0-2-shadow-capture-production-add-safety-schema/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_ADD_SAFETY_SCHEMA_REPORT.md",
-      "contract": "docs/governance/wp-g0-2-shadow-capture-production-readiness.v1.json",
-      "validator": "scripts/production/migration-runner/production-add-safety-schema.sh",
-      "note": "Migration 009 alone is applied and verified dormant in production; runtime wiring, deployment and activation remain blocked."
+      "path": "reports/wp-g0-2-shadow-capture-composition-wiring/WP_G0_2_SHADOW_CAPTURE_COMPOSITION_WIRING_REPORT.md",
+      "contract": "docs/governance/wp-g0-2-shadow-capture-composition-wiring.v1.json",
+      "validator": "scripts/governance/composition-wiring.test.mjs",
+      "note": "Local composition wiring is verified while production deployment, code activation, feature flags and control lifecycle remain blocked."
     }
   },
   "currentDesignPackage": {
@@ -687,11 +697,11 @@
     "offHostBackupSha256": "ea952bb62ba2cf53227da4b1105a4e755284d6747a76419c12400aa07eaa3a42",
     "capacityGateSha256": "6ccc80b81b69ccb9e8fcca3b9a4f7f1205451a64e30d131d6c2fe1248a65f4ec",
     "redactedEvidenceSha256": "51d4f362b0be3ec36b28415696aebcb107e56d2d323f22edb03f155e45888062",
-    "evidenceCleanupPending": true
+    "evidenceCleanupPending": false
   },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING (local only, runtime remains disabled)",
-  "nextWorkPackageRequiresExplicitApproval": false,
+  "nextRecommendedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY (production approval required; activation remains prohibited)",
+  "nextWorkPackageRequiresExplicitApproval": true,
   "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
     "status": "pass",

@@ -2713,3 +2713,50 @@ P0 阻断：
 ### 下一轮建议
 
 先获得明确批准，只删除 5 个已列明的根目录证据副本并复核；随后才进入本地 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING`。
+
+## 2026-07-12 / WP-G0.2 Shadow Capture Production Composition Wiring
+
+### 本轮目标
+
+在不连接或部署生产的前提下，把已验证的 Candidate source writer、Outbox consumer、Episode service、runtime gate 和 monitor 接入真实应用 composition，并补齐 profile 隔离 worker 生命周期。
+
+### 修改范围
+
+- 权威应用 scan archive 调用点接入 Candidate composition；测试和显式 repository 注入路径保持原状。
+- 新增 Source Writer、Shadow Executor、只读 Monitor 三条独立 Candidate 数据库身份通道；禁止回退复用 legacy 应用 `DATABASE_URL`，并新增受 Bearer 保护的 Candidate Shadow API。
+- 新增默认不启动的 `candidate-shadow-runtime` Compose profile、条件 heartbeat、SIGTERM 停止新任务、在途请求 drain 和 shutdown heartbeat。
+- Gate/consumer 时间改用 PostgreSQL `clock_timestamp()`；五个 Candidate Feature Flag 和代码授权继续默认关闭。
+- 新增机器合同、中文治理合同、composition 定向/worker/PG16 测试，并更新 context、加速计划和 traceability。
+- 未修改 frontend、scan ranking、analysis、strategy、RR、READY、Migration 009、backtest 权重、Redis 正确性边界或 secret。
+
+### 核心链路影响
+
+- 全市场发现 -> 候选筛选：未来获批激活时，scan archive 与 source Outbox 可在同一事务写入；当前休眠时仍只走 legacy archive。
+- 复盘进化：Candidate Episode 投影链已在隔离 PG16 中贯通，但生产未开始积累新 Episode/Outcome。
+- 深扫验证、结构分析、风险赔率、交易计划：无行为变化。
+
+### 测试结果
+
+- Composition 定向套件 28/28 PASS。
+- 隔离 PostgreSQL 16：upgrade、空库 migration 1-9、原有 shadow safety、完整 composition archive/outbox/consumer/monitor 和 permission recovery 4/4 PASS；`productionConnected=false`。
+- typecheck、lint、build PASS。
+- test:market 950 pass / 0 fail / 3 explicit DB skip；worker 18/18；historical 4/4。
+- backtest:golden 16/16；forbidden-files、secret-patterns、security-check PASS。
+- Docker CLI 本机不可用，因此未声称执行 `docker compose config`；Compose YAML 使用 `js-yaml` 结构化解析并由治理测试验证 profile/默认开关。
+- formal 未运行且禁止；production smoke 未运行且本包禁止。
+
+### 是否部署
+
+未部署，未连接腾讯云生产，未启动 Candidate worker，未启用代码授权/Feature Flag/control lifecycle，未执行生产 DDL/DML。
+
+### 风险与遗留问题
+
+- 本地 wiring PASS 不等于 production runtime 已部署或 Shadow 已开始。
+- 生产仍由 legacy write/read authority 接管；Candidate schema 保持 dormant。
+- 下一包是生产 dormant deploy，必须独立审批；activation/observation 仍是更后的独立 Gate。
+- 当前生产尚未配置三条 Candidate runtime identity；least-privilege active composition 未证明，Dormant deploy 后必须先完成 Runtime Identity and Permission 包。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只申请 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY` 的独立生产审批；部署后仍保持代码授权、五个 Feature Flag、三条 Candidate 数据库 URL 和 control lifecycle 关闭。

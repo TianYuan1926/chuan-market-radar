@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "wp-g0.2-shadow-capture-composition-wiring.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
+  "status": "local_composition_wiring_verified_runtime_dormant",
+  "scope": "production_radar",
+  "productionAuthorization": false,
+  "productionDeployed": false,
+  "productionActivated": false,
+  "authority": {
+    "write": "legacy",
+    "read": "legacy",
+    "candidateProjection": "dormant",
+    "environmentFlagMayAuthorize": false,
+    "codeActivationAllowed": false,
+    "databaseControlRequired": true,
+    "databaseClockRequired": true
+  },
+  "composition": {
+    "authoritativeArchiveCallWired": true,
+    "customRepositoryInjectionUnchanged": true,
+    "separateCandidateIdentityPools": true,
+    "legacyApplicationPoolReusedForCandidate": false,
+    "candidateDatabaseUrlsExposedOnlyToWebComposition": true,
+    "archiveAndSourceOutboxSameTransaction": true,
+    "legacyArchivePathPreservedWhenDormant": true,
+    "forwardMapSupportPreservedAfterAtomicSourceCommit": true,
+    "controlReadFailureFallsBackToLegacyWithoutCandidateWrite": true,
+    "unresolvedIdentityHardStopsBeforeCandidateTransaction": true
+  },
+  "runtimeGate": {
+    "required": [
+      "code_release_authorization",
+      "shadow_write_kill_switch",
+      "database_repository",
+      "production_scope",
+      "migration_control_row",
+      "shadow_capture_phase",
+      "positive_authority_epoch",
+      "database_deadline_not_expired",
+      "writes_not_frozen",
+      "approved_release_match"
+    ],
+    "currentCodeAuthorization": false,
+    "currentDefaultFeatureFlagsEnabled": 0,
+    "environmentOnlyActivationPossible": false
+  },
+  "worker": {
+    "profile": "candidate-shadow-runtime",
+    "startedByDefaultCompose": false,
+    "protectedEndpoint": "/api/admin/candidate-shadow/run",
+    "heartbeatExpectedOnlyWhenExplicitlyConfigured": true,
+    "sigtermStopsNewWork": true,
+    "inFlightWorkDrained": true,
+    "shutdownHeartbeat": true,
+    "payloadOrSecretInLogs": false
+  },
+  "productionIdentity": {
+    "currentLegacyApplicationLoginHasCandidatePrivileges": false,
+    "candidateRuntimeLoginProvisioned": false,
+    "leastPrivilegeActiveCompositionProven": false,
+    "legacyIdentityDormantFailClosedProven": true,
+    "activationBlockedUntilIdentityPackagePasses": true
+  },
+  "verification": {
+    "targetedTests": "28_pass_0_fail",
+    "isolatedPostgres16Composition": "pass",
+    "isolatedPostgres16PermissionSuite": "4_pass_0_fail",
+    "productionConnected": false,
+    "formalBacktestRun": false
+  },
+  "forbiddenInThisPackage": [
+    "production_connection",
+    "production_deployment",
+    "production_database_write",
+    "production_migration_execute",
+    "candidate_feature_flag_enablement",
+    "code_activation_enablement",
+    "control_lifecycle_start",
+    "backfill",
+    "dual_read",
+    "read_cutover",
+    "legacy_authority_change",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ],
+  "nextRequiredPackage": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
+  "nextPackageRequiresExplicitProductionApproval": true,
+  "requiredAfterDormantDeployBeforeActivation": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION"
+}

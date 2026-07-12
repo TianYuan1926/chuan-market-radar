@@ -64,6 +64,12 @@ export const defaultRuntimeWorkers = [
   "macro-worker",
 ] as const;
 
+export function runtimeWorkersFromEnv(env: RuntimeHeartbeatEnv = {}) {
+  return env.CANDIDATE_SHADOW_WORKER_EXPECTED?.trim().toLowerCase() === "true"
+    ? [...defaultRuntimeWorkers, "candidate-shadow-worker"]
+    : [...defaultRuntimeWorkers];
+}
+
 export function normalizeRuntimeWorkerKey(value: string) {
   const normalized = value.trim().toLowerCase().replace(/_/g, "-");
 
@@ -72,6 +78,7 @@ export function normalizeRuntimeWorkerKey(value: string) {
   if (normalized === "signal") return "signal-worker";
   if (normalized === "dynamic") return "dynamic-scan-scheduler";
   if (normalized === "macro") return "macro-worker";
+  if (normalized === "candidate-shadow") return "candidate-shadow-worker";
   if (normalized === "ws-light-scan" || normalized === "websocket-light") return "websocket-light-worker";
 
   return normalized || "unknown-worker";
@@ -236,7 +243,7 @@ export async function readWorkerHeartbeatReport({
   client,
   env = {},
   now = new Date(),
-  workers = [...defaultRuntimeWorkers],
+  workers,
 }: {
   client?: RuntimeHeartbeatClient | null;
   env?: RuntimeHeartbeatEnv;
@@ -245,6 +252,7 @@ export async function readWorkerHeartbeatReport({
 }): Promise<RuntimeProbeReport> {
   const generatedAt = now.toISOString();
   const staleAfterSeconds = runtimeHeartbeatStaleSeconds(env);
+  const resolvedWorkers = workers ?? runtimeWorkersFromEnv(env);
 
   if (!env.REDIS_URL?.trim() && !client) {
     return {
@@ -255,7 +263,7 @@ export async function readWorkerHeartbeatReport({
         status: "unconfigured",
       },
       staleAfterSeconds,
-      workers: workers.map((worker) => workerProbeFromHeartbeat({
+      workers: resolvedWorkers.map((worker) => workerProbeFromHeartbeat({
         heartbeat: null,
         now,
         staleAfterSeconds,
@@ -273,7 +281,7 @@ export async function readWorkerHeartbeatReport({
         status: "degraded",
       },
       staleAfterSeconds,
-      workers: workers.map((worker) => workerProbeFromHeartbeat({
+      workers: resolvedWorkers.map((worker) => workerProbeFromHeartbeat({
         heartbeat: null,
         now,
         staleAfterSeconds,
@@ -284,7 +292,7 @@ export async function readWorkerHeartbeatReport({
 
   try {
     await ensureConnected(client);
-    const normalizedWorkers = workers.map(normalizeRuntimeWorkerKey);
+    const normalizedWorkers = resolvedWorkers.map(normalizeRuntimeWorkerKey);
     const heartbeats = await Promise.all(
       normalizedWorkers.map(async (worker) => safeParseHeartbeat(await client.get(runtimeWorkerHeartbeatKey(worker)))),
     );
@@ -315,7 +323,7 @@ export async function readWorkerHeartbeatReport({
         status: "down",
       },
       staleAfterSeconds,
-      workers: workers.map((worker) => workerProbeFromHeartbeat({
+      workers: resolvedWorkers.map((worker) => workerProbeFromHeartbeat({
         heartbeat: null,
         now,
         staleAfterSeconds,
@@ -385,7 +393,7 @@ export async function readConfiguredRuntimeProbeReport(
         status: "down" as const,
       },
       staleAfterSeconds,
-      workers: defaultRuntimeWorkers.map((worker) => workerProbeFromHeartbeat({
+      workers: runtimeWorkersFromEnv(env).map((worker) => workerProbeFromHeartbeat({
         heartbeat: null,
         now,
         staleAfterSeconds,

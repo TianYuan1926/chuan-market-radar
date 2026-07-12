@@ -63,6 +63,7 @@
     "test:candidate-shadow-capture": "node --test scripts/governance/shadow-capture-contract.test.mjs",
     "candidate:shadow-capture:readiness": "node scripts/governance/shadow-capture-readiness.mjs",
     "test:candidate-shadow-capture-readiness": "node --test scripts/governance/shadow-capture-readiness.test.mjs",
+    "test:candidate-composition-wiring": "npm run build:market-cli && node --test .tmp/market-tests/lib/candidate-episode/candidate-runtime-database.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-composition.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-admin.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-source.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-consumer.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-runtime.test.js .tmp/market-tests/lib/runtime/worker-heartbeat.test.js deploy/workers/protected-api-worker.test.mjs scripts/governance/composition-wiring.test.mjs",
     "candidate:shadow-capture:pg16-rehearsal": "bash scripts/rehearsal/shadow-capture-postgres16.sh",
     "ops:network-check": "node scripts/ops/network-check.mjs",
     "ops:node-fetch-check": "node scripts/ops/node-fetch-check.mjs",

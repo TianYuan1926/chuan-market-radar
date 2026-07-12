@@ -1,5 +1,7 @@
 {
   "schemaVersion": "wp-g0.2-shadow-capture-production-readiness.v1",
+  "lifecycle": "historical_pre_schema_readiness_packet",
+  "supersededBy": "docs/governance/wp-g0-2-shadow-capture-composition-wiring.v1.json",
   "packageId": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
   "status": "production_readiness_locally_verified_approval_missing",
   "scope": "production_radar",

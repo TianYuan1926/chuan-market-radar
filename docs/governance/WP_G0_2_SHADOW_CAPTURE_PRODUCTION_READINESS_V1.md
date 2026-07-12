@@ -1,6 +1,8 @@
 # WP-G0.2 Shadow Capture 生产准入说明
 
-## 当前结论
+> 历史状态说明：本文件是 Migration 009 应用前的 readiness/approval packet，内部审批事实按当时快照保留。009 已在后续独立生产包应用并验证 dormant，本地 Composition Wiring 也已 PASS；当前事实与下一 Gate 以 `WP_G0_2_SHADOW_CAPTURE_COMPOSITION_WIRING_V1.md` 为准。
+
+## 历史结论
 
 ```text
 本地生产准备：待本包完整门禁确认
@@ -29,7 +31,7 @@
 
 以上步骤不能合并授权。失败时先关 kill switch、停止 consumer、保持 legacy 权威，并保留 schema 与证据；禁止通过删表、删 ledger 或改写 quarantine 假装恢复。
 
-## 下一生产审批边界
+## 历史下一生产审批边界
 
 下一包最多只允许：
 
@@ -37,4 +39,4 @@
 WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA
 ```
 
-审批必须绑定已审查 GitHub `main` commit、migration 009 SHA-256、fresh capacity/backup/restore/health 证据和最长 90 分钟窗口。未获得新的明确审批时，生产决定始终为 `BLOCKED_AWAITING_EXPLICIT_APPROVAL`。
+该 schema-only 边界已经在后续独立审批包完成，不得再次执行 Migration 009。当前新的生产边界是独立审批的 Dormant Runtime Deploy，仍不授权 activation。

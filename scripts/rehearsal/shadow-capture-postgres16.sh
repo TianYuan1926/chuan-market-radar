@@ -11,6 +11,8 @@ DATABASE="wp_g0_2_rehearsal_shadow_capture"
 DATABASE_URL="postgresql://rehearsal@127.0.0.1:${PORT}/${DATABASE}"
 UPGRADE_DATABASE="wp_g0_2_rehearsal_shadow_upgrade"
 UPGRADE_DATABASE_URL="postgresql://rehearsal@127.0.0.1:${PORT}/${UPGRADE_DATABASE}"
+COMPOSITION_DATABASE="wp_g0_2_rehearsal_composition"
+COMPOSITION_DATABASE_URL="postgresql://rehearsal@127.0.0.1:${PORT}/${COMPOSITION_DATABASE}"
 PERMISSION_DATABASE_URL="postgresql://rehearsal@localhost:${PORT}/${DATABASE}?host=${SOCKET_DIR}"
 
 cleanup() {
@@ -27,6 +29,7 @@ mkdir -p "$SOCKET_DIR"
 "$PG_BINDIR/pg_ctl" -D "$DATA_DIR" -o "-h 127.0.0.1 -p $PORT -k $SOCKET_DIR" -w start >/dev/null
 "$PG_BINDIR/createdb" -h 127.0.0.1 -p "$PORT" -U rehearsal "$DATABASE"
 "$PG_BINDIR/createdb" -h 127.0.0.1 -p "$PORT" -U rehearsal "$UPGRADE_DATABASE"
+"$PG_BINDIR/createdb" -h 127.0.0.1 -p "$PORT" -U rehearsal "$COMPOSITION_DATABASE"
 
 cd "$ROOT_DIR"
 npm run build:market-cli
@@ -43,6 +46,14 @@ env -u DATABASE_URL -u POSTGRES_URL \
   WP_G0_2_REHEARSAL_DATABASE_URL="$DATABASE_URL" \
   WP_G0_2_SHADOW_REHEARSAL_DATABASE_URL="$DATABASE_URL" \
   node --test .tmp/market-tests/lib/candidate-episode/shadow-capture-postgres-rehearsal.test.js
+env -u DATABASE_URL -u POSTGRES_URL \
+  APP_ENV=rehearsal NODE_ENV=test WP_G0_2_REHEARSAL=true \
+  WP_G0_2_REHEARSAL_DATABASE_URL="$COMPOSITION_DATABASE_URL" \
+  node .tmp/market-tests/scripts/candidate-episode/migrate-rehearsal.js --environment rehearsal
+env -u DATABASE_URL -u POSTGRES_URL \
+  APP_ENV=rehearsal NODE_ENV=test WP_G0_2_REHEARSAL=true \
+  WP_G0_2_COMPOSITION_REHEARSAL_DATABASE_URL="$COMPOSITION_DATABASE_URL" \
+  node --test .tmp/market-tests/lib/candidate-episode/shadow-capture-composition-postgres.test.js
 env -u DATABASE_URL -u POSTGRES_URL \
   APP_ENV=rehearsal NODE_ENV=test WP_G0_2_REHEARSAL=true \
   WP_G0_2_REHEARSAL_DATABASE_URL="$PERMISSION_DATABASE_URL" \
