@@ -6,16 +6,19 @@
 
 ## 0. 最新生产事实快照
 
-- 2026-07-12 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET` 已完成本地工程与 PG16 演练，机器结论为 `PASS_PRODUCTION_READINESS_PACKET / BLOCKED_AWAITING_EXPLICIT_APPROVAL`；该结论不包含任何生产连接、migration、部署或 Feature Flag 授权。
-- Migration 009 当前锁定 SHA-256=`2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5`。本地 1-8 -> 009 upgrade 只 applied 009，repeat 9/9 skipped，旧 public sentinel hash 保持；空库形态为 9 tables / 166 columns / 26 functions / ledger 9。生产仍只有已验证 dormant 的 migration 1-8。
+- 2026-07-12 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA` 已在用户独立批准的 90 分钟窗口内完成。Runner 最终状态为 `PASS_PRODUCTION_ADD_SAFETY_SCHEMA`，只应用 `009_candidate_shadow_capture_safety`；001-008 全部 skipped，未部署 runtime、未启动 control lifecycle、未开启任何 Candidate Feature Flag。
+- 本轮绑定审查 source commit=`b86f3282fa0d9cedab60b8a5bcb9166011fb7926`、runner commit=`c8dbcff0f3bd1d34d8f65aee65c69d08b2dfe556`、Migration 009 SHA-256=`2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5`。生产 catalog 从 8 tables / 151 columns / 20 functions / 10 trigger objects / 14 trigger event rows / ledger 8，增量变为 9 / 166 / 26 / 11 / 16 / ledger 9；roles 保持 7、control rows 保持 0，resolution table 已存在。
+- 执行前 fresh 加密备份 `shadow-safety-preddl3-20260712T030500Z` 完成，encrypted SHA-256=`ea952bb62ba2cf53227da4b1105a4e755284d6747a76419c12400aa07eaa3a42`，archive verified；本机离机副本校验一致。容量门禁 14/14 PASS，完整 gate SHA-256=`6ccc80b81b69ccb9e8fcca3b9a4f7f1205451a64e30d131d6c2fe1248a65f4ec`，预计执行后磁盘使用 24%。
 - 新增不可变 quarantine resolution ledger；只允许带审批摘要的 `replay_after_approved_fix` 或 `exclude_invalid_source`，原始 quarantine 永不改写，replay 创建新 Outbox。pending/claimed/retry_wait/未决 quarantine 均阻止 phase advance。
 - Runtime readiness 已具备代码授权 + DB phase/epoch/deadline + release 对齐 + database repository + 环境 kill switch 多重 fail-closed Gate、canonical venue mapper 和只读 monitor；当前代码授权仍硬关闭，生产 API/worker/composition 未接线，五个 Candidate Feature Flag 仍为 false。
-- 生产路线已拆成三个独立审批点：先 schema-only 应用/验证 009，再做本地 composition wiring 与 dormant deploy，最后才允许独立批准 activation/observation。下一步只能申请 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA` 的独立 90 分钟审批；“继续”或“全自动搭建”不构成生产授权。
+- 生产路线仍按独立 Gate 推进：schema-only 009 已完成；下一步只能在本地完成 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING`，不得启用生产。其后的 dormant runtime deploy 和 activation/observation 必须分别通过本地门禁并获得新的独立生产审批；“继续”或“全自动搭建”不构成生产授权。
+- 生产应用 worktree/release/image 未切换，仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13`；Candidate runtime 继续 disabled。系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`，009 schema PASS 不表示 WP-G0.2、G0 或实战能力完成。
+- 证据打包时 OrcaTerm 长命令左截断导致 5 份无 secret 的只读 JSON 副本误落服务器根目录：`/catalog-before.json`、`/catalog-after.json`、`/final-summary.json`、`/runner-execute.json`、`/runner-verify.json`。源证据、数据库和服务未受影响；这些副本待用户明确批准后删除，未擅自清理。
 - 2026-07-12 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 已在用户明确的 Add Schema-only 90 分钟窗口内执行一次。执行前新建加密生产备份 `add-schema-preddl2-20260711T172200Z`，完成 archive、离机下载、188299934 bytes 与 SHA-256 `51130d1cb5a9c324436c076966086ae83823f3554ec422e830bd9f80c7ea299c` 一致性校验；容量 validator 于 17:31:11Z 通过 14/14，预计磁盘 29%。
 - Runner `execute` 已返回 pass，锁定的 8 个 migration 全部 applied。生产人工 catalog 真值为 schema=1、tables=8、columns=151、functions=20、trigger objects=10、trigger event rows=14、roles=7、applied ledger=8；10 与 14 是 `pg_trigger` 对象数和 `information_schema.triggers` 事件行数的不同口径，不是缺 4 个触发器。
 - 自动 `verify` 返回 PostgreSQL `42501 permission denied for schema candidate_authority`，本包总状态为 `PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED`，不得写成 PASS。根因是 `market_radar_migration_login` 为 `NOINHERIT` 且只具备 `candidate_migration_role` membership，runner 的 post-schema `readDatabaseBoundary` 在读取 ledger 前未显式 `SET ROLE candidate_migration_role`；生产只读证据同时证明 login 直接 schema usage/ledger select=false，而 owner role=true。
 - 失败后未自动 resume、重跑 migration、drop、restore、改角色或放宽权限。五个 Candidate Feature Flag 仍为 0，旧应用仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13`、worktree clean、health ready/database；17:57:46Z 至 18:27:50Z 的 30 分钟只读观察 7/7 通过，Web/Postgres/Redis 全程 healthy，长事务、idle-in-transaction、lock waiter、ungranted lock 均为 0。
-- Candidate schema 现在存在但仍 dormant，writer、backfill、dual-read/read cutover、G1、R4、实盘和自动交易均未授权。系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`；下一步只能独立修复 verifier 的显式 owner-role 切换和触发器统计口径，补回归测试后申请 verify-only 生产复核，禁止再次 execute migration。
+- Candidate schema 现在包含已验证 dormant 的 migration 1-9；writer、backfill、dual-read/read cutover、G1、R4、实盘和自动交易均未授权。Migration 009 禁止再次 execute；下一步仅允许本地 composition wiring。
 - 2026-07-11 用户批准启动“不降低质量的提速方案”。新增 `MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md`，采用 Production WIP=1、Local Preparation WIP=1 的双车道；只重叠本地准备和已经获准开始的证据窗口，不改变 G0-G8 顺序、审批、RR/Risk Gate、holdout、60 天 Shadow 或 30 天 paper 要求。
 - `PRODUCTION-CAPACITY-OFFHOST-RESTORE-REMEDIATION` 已达到 `PASS_CAPACITY_AND_RECOVERY_REMEDIATION`：生产只清理未使用 Docker build cache，回收 88.76 GB；根盘从 85% 降到 12%，完成两份加密备份后最终为 13%，约 99.0 GiB 可用。未 prune image/container/volume，未重启服务。
 - 生产 PostgreSQL 16 custom dump 由只驻留本机的 RSA 私钥对应公钥执行 CMS AES-256 加密；私钥从未上传生产。首份 177.0 MiB 加密备份完成 checksum/archive/off-host 校验，并在本机外部隔离 PostgreSQL 16 恢复成功：12 个用户表、1 个用户 schema、RPO 14 分钟、RTO 53 秒，未输出业务行，明文 dump 和临时集群均未保留。
@@ -48,11 +51,11 @@
 - 当前生产验收点样本：`/api/health` 为 `ready / fresh`，六个业务 worker 当下 healthy；公开市场 observed=3112、accepted=1316，scan eligible=593，current-cycle=24，deep-scanned=48。前端合同分别显示公开接受率 42.3%（accepted/observed）、当前周期覆盖率 4.0%（current-cycle/eligible）和深扫覆盖率 8.1%（deep/eligible）。
 - 当前公网入口仍为明文 `http://43.161.202.227`，浏览器标记“不安全”。这是新的 P0；Caddy 配置和 private-session 代码本地存在，不等于生产 HTTPS / private mode 已通过。
 - 当前生产 frontend contract 返回 radarSignals=30、`TRADE_PLAN_READY=0`。生产旧 Review 点样本为最新 120 条 journal event，其中 closed=51、claimed evidence=61、pending=59、MFE/MAE=0；这些状态会重叠且 null 会被补 0，只能作为 legacy diagnostics，不能作为 Candidate Episode/Outcome 权威分母。生产 active/closed episode 和五类 outcome 数量当前应为 unavailable，不得写成 0。
-- 当前活动 P0 包括公网明文 HTTP、Candidate/Outcome 权威 runtime 尚未接入、post-schema verifier 未收口、轻扫 `topCandidates` 仍被合成为 `RadarSignal`、Review neutral/unknown→long、null→0、pending/error→timeout 和事件行分母污染。WP-G0.1 的单一扫描证明和 leaderboard fallback 防线仍保留，但全站 frontend truth 已重开为 partial。
-- 历史数据库超级权限依赖、加密离机备份和恢复演练前置风险已分别由 identity remediation 与 capacity/off-host restore 包关闭；当前新的数据库 P0 是 post-schema verifier 在 NOINHERIT membership 下未显式 `SET ROLE`，不是生产应用重新获得超级权限。
+- 当前活动 P0 包括公网明文 HTTP、Candidate/Outcome 权威 runtime 尚未接入、轻扫 `topCandidates` 仍被合成为 `RadarSignal`、Review neutral/unknown→long、null→0、pending/error→timeout 和事件行分母污染。WP-G0.1 的单一扫描证明和 leaderboard fallback 防线仍保留，但全站 frontend truth 已重开为 partial。
+- 历史数据库超级权限依赖、加密离机备份和恢复演练前置风险已分别由 identity remediation 与 capacity/off-host restore 包关闭；post-schema verifier 的 NOINHERIT 显式 owner-role 切换已由 verify-only 关闭，Migration 009 也已 schema-only 应用并验证 dormant。当前数据库后续风险转为 production composition 尚未接线、runtime 尚未部署/激活，不能把 schema 存在误写成新链已接管。
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
-- 历史设计与 implementation/rehearsal 包已落成正式 migration；生产 schema 已于 2026-07-12 additive 应用，但 runtime 仍未接入，自动 verify 尚未 PASS。
+- 历史设计与 implementation/rehearsal 包已落成正式 migration；生产 schema 1-9 已于 2026-07-12 additive 应用并由 runner verify PASS，但 runtime 仍未接入。
 - 当前只允许审计本轮 schema-applied / verify-failed 证据。Codex 不得代批；再次明确批准前不能运行 verify-only 修复复核，更不能再次 execute migration、启用 writer、backfill、read cutover、G1、R4 或实盘。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
@@ -1269,4 +1272,21 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - PG16 真实演练通过：1-8 upgrade、空库 1-9、resolution exclude/replay、resolution immutable/conflict、crash-after-projection 幂等恢复、replacement pending block、phase advance、epoch lock、deadline，以及七个 NOLOGIN role 权限。生产连接始终为 false。
 - 生产执行被进一步拆分：下一批准包只允许 schema-only 应用 009；后续 composition wiring、dormant deploy、activation/observation 分别独立验收和审批。
 
-当前机器结论：`PASS_PRODUCTION_READINESS_PACKET / BLOCKED_AWAITING_EXPLICIT_APPROVAL / productionMutationAllowed=false`。生产仍是 Candidate 1-8 verified dormant；系统仍为 **R1 / 可运行但不完整 / 不能支撑实战**。
+该准备包当时的机器结论为：`PASS_PRODUCTION_READINESS_PACKET / BLOCKED_AWAITING_EXPLICIT_APPROVAL / productionMutationAllowed=false`；当时生产仍是 Candidate 1-8 verified dormant。该历史状态已被下方 schema-only 009 生产执行结果取代，但系统能力等级仍为 **R1 / 可运行但不完整 / 不能支撑实战**。
+
+## 2026-07-12 WP-G0.2 Shadow Capture Production Add Safety Schema
+
+本轮只执行用户批准的 schema-only Migration 009；未部署 runtime、未启动 lifecycle、未修改 Feature Flag、未回填、未 dual read、未 read cutover、未重启生产服务。
+
+当前事实：
+
+- 绑定 source commit `b86f3282fa0d9cedab60b8a5bcb9166011fb7926`、runner commit `c8dbcff0f3bd1d34d8f65aee65c69d08b2dfe556` 和 Migration 009 SHA-256 `2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5`。
+- fresh 加密备份在 DDL 前完成并离机下载；encrypted SHA-256 `ea952bb62ba2cf53227da4b1105a4e755284d6747a76419c12400aa07eaa3a42` 本机一致，容量门禁 14/14 PASS。
+- 第一次 execute 尝试因生产 capacity gate 文件未成功落盘而被 runner 以 `capacity_gate_not_passed` fail closed；schema 保持 ledger 8，没有 DDL。更换 fresh 备份并补齐可核对 gate marker 后才进行有效 execute。
+- 有效 execute 最终状态为 `PASS_PRODUCTION_ADD_SAFETY_SCHEMA`；只 applied `009_candidate_shadow_capture_safety`，001-008 全部 skipped。
+- Catalog 从 8/151/20/10/14/7/8 增量变为 9/166/26/11/16/7/9；control rows=0，resolution table=true，Feature Flag enabled=0。
+- 生产应用仍是 `0599f802f261fe8e3c1982a07106f362bd62ac13`，没有 runtime deployment，control lifecycle 未启动。
+- 证据归档 `evidence.tgz` SHA-256=`51d4f362b0be3ec36b28415696aebcb107e56d2d323f22edb03f155e45888062`；另保留完整容量 gate 和备份 manifest。证据不包含 secret 或业务行。
+- 证据打包误生成的 5 个根目录 JSON 副本待用户明确批准删除；它们不改变 schema PASS，但在清理前属于明确的运维遗留项。
+
+当前 Candidate schema 状态为 **`migration_1_to_9_applied_verified_dormant`**。下一包只能是本地 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING`；生产 dormant deploy、activation/observation、writer、backfill、dual read 和 read cutover 均未授权。系统仍为 **R1 / 可运行但不完整 / 不能支撑实战**。

@@ -2672,3 +2672,44 @@ P0 阻断：
 ### 下一轮建议
 
 只在最终自治总门禁 PASS 后申请 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA` 的独立 90 分钟审批；不得合并 runtime 部署或 Shadow Writer 激活。
+
+## 2026-07-12 / WP-G0.2 Shadow Capture Production Add Safety Schema
+
+### 本轮目标
+
+在用户独立批准的 90 分钟窗口内，只把 Migration 009 安全结构增量应用到生产 Candidate schema，并证明 runtime、Feature Flag 和 control lifecycle 仍保持关闭。
+
+### 修改范围
+
+- 生产只执行 `009_candidate_shadow_capture_safety`；001-008 均为 skipped。
+- 执行前完成 fresh 加密备份、离机 checksum 和 14/14 容量门禁。
+- 更新项目 context、加速队列、traceability、本 changelog 和 ignored 中文交付/脱敏证据。
+- 未部署 runtime，未修改 API、frontend、worker、Redis、scan、analysis、strategy、backtest、RR、READY 或 secret。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：生产已具备 shadow_capture quarantine resolution、phase/epoch/deadline 和 v2 procedure 的 dormant schema 基础。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：运行行为无变化。
+
+### 测试结果
+
+- 生产 runner 最终状态：`PASS_PRODUCTION_ADD_SAFETY_SCHEMA`。
+- Catalog：8 tables / 151 columns / 20 functions / 10 trigger objects / 14 trigger event rows / ledger 8，增量到 9 / 166 / 26 / 11 / 16 / ledger 9。
+- roles=7、control rows=0、resolution table=true、Feature Flag enabled=0。
+- 本轮 runner 分支在生产前已通过 59/59 定向测试、PostgreSQL 16 rehearsal、typecheck、lint、test:market、build、backtest:golden 和安全门禁；formal 未运行且禁止。
+- 文档更新后复跑：runner 59/59、typecheck、lint、build、backtest:golden 16/16、forbidden-files、secret-patterns、security-check 全部 pass；test:market 为 941 pass / 0 fail / 2 explicit DB skip，worker 17/17，historical 4/4。
+
+### 是否部署
+
+未部署应用。生产应用 release/worktree/image 未切换，仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13`；只执行 schema-only Migration 009。
+
+### 风险与遗留问题
+
+- Candidate runtime 仍 disabled；WP-G0.2/G0 未完成，系统仍不能支撑实战。
+- 第一次 execute 尝试因 capacity gate 文件未落盘被 runner fail closed；schema 当时保持 ledger 8。有效 execute 使用新的 fresh 备份后才运行。
+- 证据打包时 5 个无 secret JSON 副本误落服务器根目录；源证据、数据库和服务未受影响，但删除必须等用户明确批准。
+- runtime wiring、dormant deploy、activation/observation、writer、backfill、dual read 和 read cutover 均未授权。
+
+### 下一轮建议
+
+先获得明确批准，只删除 5 个已列明的根目录证据副本并复核；随后才进入本地 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING`。

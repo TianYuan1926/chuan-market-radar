@@ -131,9 +131,9 @@ npm run test:migration-capacity
 | 5 | Production verify-only | A | PASS | execute=false、schemaChanged=false、catalog/health/worktree PASS |
 | 6 | WP-G0.2 shadow_capture design/validator | B | local PASS | 生产结论固定 BLOCKED；已识别 5 项 blocker |
 | 7 | WP-G0.2 shadow_capture local implementation + PostgreSQL rehearsal | B | local PASS | 原子 Outbox、quarantine、source-only consumer、PG16 empty/upgrade/failure PASS |
-| 8 | WP-G0.2 production readiness + approval packet | B | local PASS，待全门禁 | immutable resolution、runtime gate/mapper、monitor、009 checksum/权限/回退和 schema-only 审批包 |
-| 9 | WP-G0.2 production add safety schema | A | prohibited | readiness 全门禁 PASS + 新的独立 90 分钟审批；只应用 009，保持 dormant |
-| 10 | WP-G0.2 production composition wiring | B | blocked | 009 生产 verify PASS 后，本地完成真实 composition/worker lifecycle，不启用生产 |
+| 8 | WP-G0.2 production readiness + approval packet | B | local PASS | immutable resolution、runtime gate/mapper、monitor、009 checksum/权限/回退和 schema-only 审批包 |
+| 9 | WP-G0.2 production add safety schema | A | PASS: 009 only applied and verified dormant | catalog 8/151/20/10/14/8 -> 9/166/26/11/16/9；Feature Flag=0；禁止再次 execute |
+| 10 | WP-G0.2 production composition wiring | B | next: local only | 本地完成真实 composition/worker lifecycle；不得启用或部署生产 runtime |
 | 11 | WP-G0.2 dormant runtime deploy | A | prohibited | wiring 全门禁 PASS + 独立审批；部署后代码授权和 Feature Flag 仍关闭 |
 | 12 | WP-G0.2 activate + shadow observation | A | prohibited | dormant deploy PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
 | 13 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
@@ -146,4 +146,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-容量/恢复、Add Schema 和 production verify-only 已形成闭环证据，生产 Candidate schema 仍是 verified dormant 1-8。本地 readiness 已实现 immutable quarantine resolution、fail-closed runtime gate、canonical mapper 和只读 monitor，并通过 PostgreSQL 16 空库、1-8 upgrade、replay/exclude、crash replay、phase、并发和七角色权限演练。Migration 009 checksum 已锁定但尚未生产审批/应用，production composition 仍未接线，新审批不存在。下一步只能在全部本地门禁 PASS 后申请 schema-only `PRODUCTION-ADD-SAFETY-SCHEMA`；runtime 部署、Writer、backfill、dual read 和 read cutover继续禁止。
+容量/恢复、Add Schema、production verify-only 和 Shadow Safety Schema 009 已形成闭环证据。生产 Candidate schema 现在是 migration 1-9 applied/verified/dormant：009 是唯一 applied 项，Feature Flag=0，runtime deployment=false，control lifecycle 未启动。Production composition 仍未接线。下一步只能执行本地 `PRODUCTION-COMPOSITION-WIRING`；之后的 dormant runtime deploy 和 activation/observation 必须分别通过门禁并获得新的独立生产审批。Writer、backfill、dual read 和 read cutover 继续禁止。

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_shadow_capture_production_readiness_pass_approval_missing",
-  "generatedAt": "2026-07-12T11:45:00+08:00",
+  "status": "wp_g0_2_shadow_capture_safety_schema_applied_verified_dormant",
+  "generatedAt": "2026-07-12T11:31:14+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,28 +37,28 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
+    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
     "capacityGateStatus": "pass_capacity_and_recovery_remediation",
     "candidateMigrationAuthorized": false,
     "candidateSchemaPresent": true,
-    "candidateSchemaStatus": "applied_verified_dormant",
+    "candidateSchemaStatus": "migration_1_to_9_applied_verified_dormant",
     "candidateRuntimeEnabled": false,
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": null,
+    "nextLocalWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
     "productionVerifyOnlyStatus": "pass",
     "shadowCaptureLocalDesignStatus": "pass_production_readiness_packet",
-    "shadowCaptureProductionDecision": "blocked_awaiting_explicit_approval",
+    "shadowCaptureProductionDecision": "safety_schema_applied_verified_runtime_disabled",
     "shadowCaptureKnownBlockers": [
-      "shadow_safety_schema_not_applied_in_production",
       "production_runtime_wiring_not_deployed",
-      "new_explicit_production_approval_missing"
+      "dormant_runtime_deploy_not_approved",
+      "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "schema_only_009_prohibited_until_all_local_gates_and_new_90_minute_approval",
+    "nextProductionAction": "none_until_local_composition_wiring_passes_and_a_new_dormant_deploy_approval_is_granted",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
@@ -613,14 +613,14 @@
       "status": "not_started_as_gate"
     }
   ],
-  "lastCompletedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+  "lastCompletedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
   "lastAttemptedWorkPackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
-    "title": "Candidate shadow capture production readiness and approval packet",
-    "status": "PASS_PRODUCTION_READINESS_PACKET_APPROVAL_MISSING",
-    "runtimeCodeChanged": true,
+    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
+    "title": "Candidate shadow capture production safety schema only",
+    "status": "PASS_PRODUCTION_ADD_SAFETY_SCHEMA",
+    "runtimeCodeChanged": false,
     "runtimeActivationStatus": "disabled",
-    "productionConnected": false,
+    "productionConnected": true,
     "productionMutationAllowed": false,
     "legacyWriteAuthority": true,
     "legacyReadAuthority": true,
@@ -633,15 +633,15 @@
     "migration009Sha256": "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5",
     "productionRuntimeWiringImplemented": false,
     "isolatedPostgresRehearsalPassed": true,
-    "shadowSafetyMigrationAppliedInProduction": false,
-    "newProductionApprovalPresent": false,
+    "shadowSafetyMigrationAppliedInProduction": true,
+    "newProductionApprovalPresent": true,
     "g0Complete": false,
     "practicalTradingReady": false,
     "evidence": {
-      "path": "docs/governance/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_READINESS_V1.md",
+      "path": "reports/wp-g0-2-shadow-capture-production-add-safety-schema/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_ADD_SAFETY_SCHEMA_REPORT.md",
       "contract": "docs/governance/wp-g0-2-shadow-capture-production-readiness.v1.json",
-      "validator": "scripts/governance/shadow-capture-readiness.mjs",
-      "note": "Local production readiness packet, immutable resolution, fail-closed runtime gate, monitoring and PostgreSQL 16 permission rehearsals pass; production remains blocked."
+      "validator": "scripts/production/migration-runner/production-add-safety-schema.sh",
+      "note": "Migration 009 alone is applied and verified dormant in production; runtime wiring, deployment and activation remain blocked."
     }
   },
   "currentDesignPackage": {
@@ -670,9 +670,28 @@
     "worktreeCleanBeforeAfter": true,
     "evidenceSha256": "bdc655ba30fae50d695fe5698862d7d2b72d69a2c43fd29641820ab3a1f9fb92"
   },
+  "latestProductionAddSafetySchema": {
+    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
+    "status": "PASS_PRODUCTION_ADD_SAFETY_SCHEMA",
+    "sourceCommit": "b86f3282fa0d9cedab60b8a5bcb9166011fb7926",
+    "runnerCommit": "c8dbcff0f3bd1d34d8f65aee65c69d08b2dfe556",
+    "migration009Sha256": "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5",
+    "migrationExecuteRun": true,
+    "onlyAppliedMigration": "009_candidate_shadow_capture_safety",
+    "migrationRegistryRows": 9,
+    "catalogAfter": "1_schema_9_tables_166_columns_26_functions_11_trigger_objects_16_trigger_event_rows_7_roles",
+    "featureFlagsEnabled": 0,
+    "runtimeDeployment": false,
+    "controlLifecycleStarted": false,
+    "applicationRelease": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+    "offHostBackupSha256": "ea952bb62ba2cf53227da4b1105a4e755284d6747a76419c12400aa07eaa3a42",
+    "capacityGateSha256": "6ccc80b81b69ccb9e8fcca3b9a4f7f1205451a64e30d131d6c2fe1248a65f4ec",
+    "redactedEvidenceSha256": "51d4f362b0be3ec36b28415696aebcb107e56d2d323f22edb03f155e45888062",
+    "evidenceCleanupPending": true
+  },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA (schema only, explicit approval required)",
-  "nextWorkPackageRequiresExplicitApproval": true,
+  "nextRecommendedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING (local only, runtime remains disabled)",
+  "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
     "status": "pass",
