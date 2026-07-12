@@ -45,6 +45,7 @@ function buildRequest(contract, now = Date.now()) {
     packageId: contract.packageId,
     productionHead: contract.scope.productionHead,
     productionEnvSha256: "e".repeat(64),
+    recoveryArtifactSha256: contract.artifact.sha256,
     redisMutationAllowed: false,
     service: "web",
     webImageId: approvedWebImageId,
@@ -74,6 +75,7 @@ test("contract rejects scope expansion and stale production facts", async () => 
     [{ scope: { ...contract.scope, productionHead: "a".repeat(40) } }, "production_head_not_locked"],
     [{ scope: { ...contract.scope, identityOverrideSha256: "0".repeat(64) } }, "identity_override_checksum_not_locked"],
     [{ rollback: { ...contract.rollback, automaticRollbackRequired: false } }, "automatic_rollback_required"],
+    [{ artifact: { ...contract.artifact, fileSha256: {} } }, "artifact_file_checksums_mismatch"],
   ];
   for (const [patch, reason] of cases) throwsReason(reason, () => validateContract({ ...contract, ...patch }));
 });
@@ -86,6 +88,7 @@ test("approval is exact, time bounded and never authorizes adjacent mutations", 
   throwsReason("request_service_not_web_only", () => validateApprovalRequest({ ...request, service: "redis" }, contract, { now }));
   throwsReason("request_web_image_id_invalid", () => validateApprovalRequest({ ...request, webImageId: "latest" }, contract, { now }));
   throwsReason("request_base_env_checksum_invalid", () => validateApprovalRequest({ ...request, baseEnvSha256: "invalid" }, contract, { now }));
+  throwsReason("request_recovery_artifact_checksum_mismatch", () => validateApprovalRequest({ ...request, recoveryArtifactSha256: "0".repeat(64) }, contract, { now }));
   throwsReason("databaseMutationAllowed_must_be_false", () => validateApprovalRequest({ ...request, databaseMutationAllowed: true }, contract, { now }));
   throwsReason("no_source_sync_must_be_true", () => validateApprovalRequest({ ...request, noSourceSync: false }, contract, { now }));
   throwsReason("approval_window_not_active", () => validateApprovalRequest(request, contract, { now: new Date(request.approvalExpiresAt).getTime() + 1 }));
@@ -212,6 +215,7 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
       `if (file === ${JSON.stringify(join(root, "docker-compose.yml"))}) { console.log('${PRODUCTION_COMPOSE_SHA256}  ' + file); process.exit(0); }`,
       `if (file === ${JSON.stringify(join(root, ".env"))}) { console.log('${"d".repeat(64)}  ' + file); process.exit(0); }`,
       `if (file === ${JSON.stringify(join(root, ".env.production"))}) { console.log('${"e".repeat(64)}  ' + file); process.exit(0); }`,
+      "if (file) { console.log(crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') + '  ' + file); process.exit(0); }",
       "let source=''; process.stdin.on('data', c => source += c); process.stdin.on('end', () => console.log(crypto.createHash('sha256').update(source).digest('hex') + '  -'));",
       "",
     ].join("\n");

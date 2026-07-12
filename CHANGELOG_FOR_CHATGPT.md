@@ -3162,7 +3162,7 @@ P0 阻断：
 
 ### 修改范围
 
-- 审批绑定生产 HEAD、identity override、root-owned wrapper、生产 Compose、两份 env 与当前 Web image 指纹。
+- 审批绑定生产 HEAD、Recovery artifact/逐文件 checksum、identity override、root-owned wrapper、生产 Compose、两份 env 与当前 Web image 指纹。
 - 唯一 mutation 是 identity wrapper 的 no-build/no-deps force-recreate Web。
 - 成功检查身份指纹、health ready/fresh、持久化、合同、Postgres/Redis、Candidate dormant 和其它容器 ID。
 - 失败使用原 base Compose 恢复执行前 Web 基线，不把 degraded 回滚包装成恢复成功。

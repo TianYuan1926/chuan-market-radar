@@ -26,11 +26,15 @@
     "rollbackBuildAllowed": false
   },
   "artifact": {
-    "sha256": "732b5e6d61e1b2b24df9e50ae6af7597b8d95e0fe5533480421e2085364b0f24",
+    "sha256": "7ffa5a84634d13e05b6c7fdfd13afc71446e6d29a81561cce329c38bb129868b",
     "files": [
       "scripts/production/web-identity-recovery.mjs",
       "scripts/production/web-identity-recovery.sh"
-    ]
+    ],
+    "fileSha256": {
+      "scripts/production/web-identity-recovery.mjs": "36240acac8ff38f0d191fa5b9cfeff8e0eb1ad9906fe5c7e402845bff2731ddb",
+      "scripts/production/web-identity-recovery.sh": "3da8d9df1c436fa0e548cc8c3d656014db97c0a59890e881df48f7204a4861ad"
+    }
   },
   "successRequires": [
     "production_head_and_worktree_unchanged",

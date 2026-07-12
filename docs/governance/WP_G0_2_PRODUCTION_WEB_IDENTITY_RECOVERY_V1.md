@@ -33,7 +33,8 @@
 - 生产 `docker-compose.yml` SHA-256：`2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e`
 - `.env` 与 `.env.production`：审批前只读重取 SHA-256 并写入 request；只记录指纹，不记录内容。
 - 当前 Web image ID：必须在审批前只读重取并写入 request。
-- Recovery artifact SHA-256：`732b5e6d61e1b2b24df9e50ae6af7597b8d95e0fe5533480421e2085364b0f24`
+- Recovery artifact SHA-256：`7ffa5a84634d13e05b6c7fdfd13afc71446e6d29a81561cce329c38bb129868b`
+- request 必须同时绑定 Recovery artifact，runner 在生产 mutation 前逐文件校验 validator 与 shell checksum。
 - 服务白名单：`web`
 - 时间窗：不超过 90 分钟。
 

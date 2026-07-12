@@ -65,6 +65,8 @@ export function validateContract(contract) {
     "scripts/production/web-identity-recovery.mjs",
     "scripts/production/web-identity-recovery.sh",
   ]), "artifact_files_mismatch");
+  ensure(exactKeys(contract.artifact?.fileSha256, contract.artifact.files), "artifact_file_checksums_mismatch");
+  ensure(Object.values(contract.artifact.fileSha256).every((value) => /^[0-9a-f]{64}$/.test(value)), "artifact_file_checksum_invalid");
   return contract;
 }
 
@@ -73,7 +75,7 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
     "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "automaticBaselineRollbackAllowed",
     "baseEnvSha256", "composeSha256", "composeWrapperSha256", "databaseMutationAllowed", "execute",
     "featureFlagMutationAllowed", "identityOverrideSha256", "migrationAllowed", "noBuild",
-    "noSourceSync", "operator", "packageId", "productionHead", "redisMutationAllowed",
+    "noSourceSync", "operator", "packageId", "productionHead", "recoveryArtifactSha256", "redisMutationAllowed",
     "productionEnvSha256", "service", "webImageId", "workerRestartAllowed",
   ];
   ensure(exactKeys(request, expectedKeys), "request_keys_mismatch");
@@ -83,6 +85,7 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(request.identityOverrideSha256 === contract.scope.identityOverrideSha256, "request_identity_override_checksum_mismatch");
   ensure(request.composeWrapperSha256 === contract.scope.composeWrapperSha256, "request_wrapper_checksum_mismatch");
   ensure(request.composeSha256 === contract.scope.productionComposeSha256, "request_compose_checksum_mismatch");
+  ensure(request.recoveryArtifactSha256 === contract.artifact.sha256, "request_recovery_artifact_checksum_mismatch");
   ensure(/^[0-9a-f]{64}$/.test(request.baseEnvSha256 ?? ""), "request_base_env_checksum_invalid");
   ensure(/^[0-9a-f]{64}$/.test(request.productionEnvSha256 ?? ""), "request_production_env_checksum_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/.test(request.webImageId ?? ""), "request_web_image_id_invalid");
@@ -108,6 +111,7 @@ export async function inspectArtifact(root, contract) {
   const checksums = {};
   for (const file of contract.artifact.files) {
     checksums[file] = sha256(await readFile(resolve(root, file)));
+    ensure(checksums[file] === contract.artifact.fileSha256[file], `artifact_file_checksum_mismatch:${file}`);
   }
   const checksum = sha256(JSON.stringify(checksums));
   ensure(checksum === contract.artifact.sha256, "artifact_checksum_mismatch");

@@ -95,10 +95,18 @@ fi
 APPROVED_HEAD="$(jq -r '.productionHead' "${REQUEST_FILE}")"
 APPROVED_BASE_ENV_SHA256="$(jq -r '.baseEnvSha256' "${REQUEST_FILE}")"
 APPROVED_PRODUCTION_ENV_SHA256="$(jq -r '.productionEnvSha256' "${REQUEST_FILE}")"
+APPROVED_RECOVERY_ARTIFACT_SHA256="$(jq -r '.recoveryArtifactSha256' "${REQUEST_FILE}")"
 APPROVED_OVERRIDE_SHA256="$(jq -r '.identityOverrideSha256' "${REQUEST_FILE}")"
 APPROVED_WRAPPER_SHA256="$(jq -r '.composeWrapperSha256' "${REQUEST_FILE}")"
 APPROVED_COMPOSE_SHA256="$(jq -r '.composeSha256' "${REQUEST_FILE}")"
 APPROVED_WEB_IMAGE_ID="$(jq -r '.webImageId' "${REQUEST_FILE}")"
+
+if [[ "${APPROVED_RECOVERY_ARTIFACT_SHA256}" != "$(jq -r '.artifact.sha256' "${CONTRACT}")" \
+  || "$(sha256sum "${VALIDATOR}" | awk '{print $1}')" != "$(jq -r --arg file 'scripts/production/web-identity-recovery.mjs' '.artifact.fileSha256[$file]' "${CONTRACT}")" \
+  || "$(sha256sum "${SOURCE_ROOT}/scripts/production/web-identity-recovery.sh" | awk '{print $1}')" != "$(jq -r --arg file 'scripts/production/web-identity-recovery.sh' '.artifact.fileSha256[$file]' "${CONTRACT}")" ]]; then
+  echo "ERROR: recovery runner artifact does not match approval and contract." >&2
+  exit 1
+fi
 
 if [[ "$(sudo -n sha256sum "${IDENTITY_OVERRIDE_FILE}" | awk '{print $1}')" != "${APPROVED_OVERRIDE_SHA256}" ]]; then
   echo "ERROR: identity override checksum does not match approval." >&2
