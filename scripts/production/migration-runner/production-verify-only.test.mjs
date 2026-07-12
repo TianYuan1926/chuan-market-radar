@@ -17,6 +17,8 @@ test("production verify-only exposes no migration execute path", async () => {
   assert.doesNotMatch(source, /migration-runner\.mjs\s+execute/);
   assert.doesNotMatch(source, /docker\s+compose|force-recreate|restart:/);
   assert.doesNotMatch(source, /git\s+-C\s+"\$WORKTREE"\s+fetch/);
+  assert.doesNotMatch(source, /git\s+.*clone/);
+  assert.match(source, /git -C "\$WORKTREE" archive "\$RUNNER_COMMIT"/);
   assert.doesNotMatch(source, /CANDIDATE_EPISODE_[A-Z_]+=true/);
   assert.match(source, /\.execute == false/);
   assert.match(source, /\.roleBootstrapEnabled == false/);

@@ -70,12 +70,10 @@ git -C "$WORKTREE" cat-file -e "$RUNNER_COMMIT^{commit}" \
   || fail runner_commit_unavailable
 install -d -m 700 "$OPS_ROOT" "$OPS_ROOT/source" "$OPS_ROOT/artifacts" \
   "$EVIDENCE" "$SECRETS" "$STATE" "$RUNTIME"
-git -c safe.directory="$WORKTREE" clone --quiet --no-hardlinks "$WORKTREE" "$SOURCE"
-git -C "$SOURCE" checkout --quiet --detach "$RUNNER_COMMIT"
-[ "$(git -C "$SOURCE" rev-parse HEAD)" = "$RUNNER_COMMIT" ] \
-  || fail runner_source_checkout_mismatch
-[ -z "$(git -C "$SOURCE" status --porcelain=v1 --untracked-files=all)" ] \
-  || fail runner_source_dirty
+install -d -m 700 "$SOURCE"
+git -C "$WORKTREE" archive "$RUNNER_COMMIT" | tar -x -C "$SOURCE"
+[ -f "$SOURCE/package.json" ] || fail runner_source_archive_incomplete
+[ -f "$RUNNER_SOURCE/migration-runner.mjs" ] || fail runner_source_archive_incomplete
 
 cp "$SOURCE_OPS_ROOT/secrets/application-runtime.url" "$SECRETS/application-runtime.url"
 cp "$SOURCE_OPS_ROOT/secrets/migration-login.url" "$SECRETS/migration-login.url"
