@@ -349,9 +349,29 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
 test("locked production facts match the dedicated recovery package", () => {
   assert.equal(PACKAGE_ID, "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY");
   assert.equal(PRODUCTION_HEAD.length, 40);
-  assert.equal(IDENTITY_OVERRIDE_SHA256.length, 64);
-  assert.equal(COMPOSE_WRAPPER_SHA256.length, 64);
+  assert.equal(IDENTITY_OVERRIDE_SHA256, "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf");
+  assert.equal(COMPOSE_WRAPPER_SHA256, "fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3");
+  assert.notEqual(IDENTITY_OVERRIDE_SHA256, "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a15a5a16892816cdcb478bacf");
+  assert.notEqual(COMPOSE_WRAPPER_SHA256, "fb473dc3bf0a2968be8bad385efac32734f0575ddf17cee73f2003d3a369f1f3");
   assert.equal(PRODUCTION_COMPOSE_SHA256.length, 64);
+});
+
+test("prior manually transcribed identity fingerprints stay rejected", async () => {
+  const contract = await loadContract();
+  throwsReason("identity_override_checksum_not_locked", () => validateContract({
+    ...contract,
+    scope: {
+      ...contract.scope,
+      identityOverrideSha256: "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a15a5a16892816cdcb478bacf",
+    },
+  }));
+  throwsReason("compose_wrapper_checksum_not_locked", () => validateContract({
+    ...contract,
+    scope: {
+      ...contract.scope,
+      composeWrapperSha256: "fb473dc3bf0a2968be8bad385efac32734f0575ddf17cee73f2003d3a369f1f3",
+    },
+  }));
 });
 
 test("transport bundle contains only the approved secret-free recovery payload", async () => {

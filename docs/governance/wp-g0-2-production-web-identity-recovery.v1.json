@@ -7,8 +7,8 @@
   "scope": {
     "productionHead": "0599f802f261fe8e3c1982a07106f362bd62ac13",
     "service": "web",
-    "identityOverrideSha256": "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a15a5a16892816cdcb478bacf",
-    "composeWrapperSha256": "fb473dc3bf0a2968be8bad385efac32734f0575ddf17cee73f2003d3a369f1f3",
+    "identityOverrideSha256": "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf",
+    "composeWrapperSha256": "fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3",
     "productionComposeSha256": "2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e",
     "environmentFileChecksumsRequiredInApproval": true,
     "buildAllowed": false,
@@ -31,7 +31,7 @@
     "rollbackBuildAllowed": false
   },
   "artifact": {
-    "sha256": "7680f565ea44ab8a2ec089cf9a9ef67ddc27f9ecd9f94c5fe3acb9afa4d9653d",
+    "sha256": "340ab9dbc6850b9fbe648f52981b9c6f2f7e36d4d23926c0c51535d1fd5a5a42",
     "files": [
       "scripts/production/web-identity-recovery-entrypoint.sh",
       "scripts/production/web-identity-recovery.mjs",
@@ -39,7 +39,7 @@
     ],
     "fileSha256": {
       "scripts/production/web-identity-recovery-entrypoint.sh": "1fe3213f8f3b5c4b9215b6f681292697538b14b73c56e692666de854e0aca1ec",
-      "scripts/production/web-identity-recovery.mjs": "76bd4ad73ea8586467c4336837b8037fe8e7682aa0b9aaa6220ee518e0d1808f",
+      "scripts/production/web-identity-recovery.mjs": "ab1b33af91e753e863593d1dfdf651228a965aa517f56fdd4979d075e5139ce2",
       "scripts/production/web-identity-recovery.sh": "777d2e9edbf485b175844309bfb696282958168f2ca5c038d7bfefadd1c67a8d"
     }
   },

@@ -28,18 +28,20 @@
 ## 3. 审批绑定事实
 
 - 生产 HEAD：`0599f802f261fe8e3c1982a07106f362bd62ac13`
-- identity override SHA-256：`1b7f8ba4c623a0025ff35ddc203c6b769d1b262a15a5a16892816cdcb478bacf`
-- identity wrapper SHA-256：`fb473dc3bf0a2968be8bad385efac32734f0575ddf17cee73f2003d3a369f1f3`
+- identity override SHA-256：`1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf`
+- identity wrapper SHA-256：`fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3`
 - 生产 `docker-compose.yml` SHA-256：`2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e`
 - `.env` 与 `.env.production`：审批前只读重取 SHA-256 并写入 request；只记录指纹，不记录内容。
 - 当前 Web image ID：必须在审批前只读重取并写入 request。
-- Recovery artifact SHA-256：`7680f565ea44ab8a2ec089cf9a9ef67ddc27f9ecd9f94c5fe3acb9afa4d9653d`
+- Recovery artifact SHA-256：`340ab9dbc6850b9fbe648f52981b9c6f2f7e36d4d23926c0c51535d1fd5a5a42`
 - request 必须同时绑定 Recovery artifact、合同 checksum、最终 runner source commit、脱敏 transport bundle checksum 和仓库外 staging 绝对路径。
 - runner 在生产 mutation 前逐文件校验 entrypoint、validator 与 recovery shell checksum；transport manifest 还必须证明 bundle 不含 secret、不会修改生产仓库。
 - 服务白名单：`web`
 - 时间窗：不超过 90 分钟。
 
 任何 checksum、HEAD、worktree、image 或时间窗不一致都必须在 Web recreate 前停止。
+
+2026-07-13 最终只读预检通过分组 `sha256sum` 和对合同值的精确布尔比较，确认此前记录的两条身份文件 SHA 是人工转录错误，不是生产文件漂移。两文件均为 root-owned regular file，mode 分别为 `0600`/`0700`，mtime 均保持在 2026-07-11 创建时刻；旧 SHA、旧 Recovery artifact、旧合同 checksum 和旧 transport bundle 全部失效。
 
 ## 4. Secret 与权限边界
 

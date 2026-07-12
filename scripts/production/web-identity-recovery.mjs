@@ -8,8 +8,8 @@ import { pathToFileURL } from "node:url";
 export const PACKAGE_ID = "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY";
 export const CONTRACT_PATH = "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json";
 export const PRODUCTION_HEAD = "0599f802f261fe8e3c1982a07106f362bd62ac13";
-export const IDENTITY_OVERRIDE_SHA256 = "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a15a5a16892816cdcb478bacf";
-export const COMPOSE_WRAPPER_SHA256 = "fb473dc3bf0a2968be8bad385efac32734f0575ddf17cee73f2003d3a369f1f3";
+export const IDENTITY_OVERRIDE_SHA256 = "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf";
+export const COMPOSE_WRAPPER_SHA256 = "fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3";
 export const PRODUCTION_COMPOSE_SHA256 = "2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e";
 export const STAGING_DIRECTORY_PATTERN = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-web-identity-recovery-[a-z0-9][a-z0-9._-]{7,80}$/;
 

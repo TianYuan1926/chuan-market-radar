@@ -3237,3 +3237,49 @@ P0 阻断：
 ### 下一轮建议
 
 完成自治门禁和最终 commit/main 后生成最终 bundle，再只读生成精确审批包；不得合并 Dormant Deploy。
+
+## 2026-07-13 / WP-G0.2 Production Web Identity Recovery Fingerprint Truth Remediation
+
+### 本轮目标
+
+对 Production Web Identity Recovery 做最终动态只读预检，并修复会让生产 runner 永远 fail closed 的身份文件 SHA 人工转录错误。
+
+### 修改范围
+
+- Microsoft Edge OrcaTerm 只读刷新生产 HEAD、branch、worktree、Compose、两份 env、Web image、身份文件、wrapper 功能、health 和 Candidate worker 边界。
+- 更正 recovery validator、JSON/中文合同和蓝图追踪中的 identity override/wrapper SHA。
+- Recovery artifact 刷新为 `340ab9dbc6850b9fbe648f52981b9c6f2f7e36d4d23926c0c51535d1fd5a5a42`，contract SHA-256=`9a161f7e2929060dfb1bbdecf3d4a01aa023e15fa97b1050875c5ec5dfb54925`。
+- 增加旧误抄 SHA 必须拒绝的回归；旧 Recovery=`7680f565...`、旧 contract checksum 与旧 bundle=`287462ff...` 全部失效。
+- 未修改 frontend、业务 API、scan、analysis、strategy、backtest、DB、Redis、worker、Feature Flag、env、secret 或生产 runtime。
+
+### 核心链路影响
+
+修复候选筛选与复盘进化底层持久化恢复包的审批真值；不改变全市场发现、深扫、结构、风险赔率或交易计划逻辑。
+
+### 测试结果
+
+- Recovery 定向：12/12 PASS。
+- deploy safety：5/5 PASS。
+- typecheck / lint / build：PASS。
+- test:market：952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- 自治总门禁：14/14 PASS，`worktreeUnchanged=true`；`autonomy:verify` 为 `canAutoCommit=true`、`canAutoDeploy=false`。
+- formal：未运行，本轮禁止。
+- production smoke：未运行，生产 mutation 未授权。
+
+### 是否部署
+
+未部署、未上传、未创建生产 staging、未重建 Web。生产仍为 `0599f802...`/main/clean，health degraded、scan fresh、DB ready、持久化认证失败、Candidate worker count=0。
+
+### 风险与遗留问题
+
+- 人工抄写完整 hash 会造成审批证据污染；本轮通过分组 SHA、精确布尔比较、文件元数据和旧值拒绝回归纠正。
+- 两个生产身份文件自 2026-07-11 创建后未改变，权限与 owner 正确；该事件不是生产篡改或 secret 变更。
+- 当前修改尚需最终 commit/main；dirty worktree 只能生成 `approvalEligible=false` 模板，不能用于生产。
+- 即使 final bundle 完成，生产恢复仍必须获得独立 exact approval；Dormant Deploy 继续禁止合并。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+提交并推送本修复，生成绑定 clean commit 的 final bundle；执行前再次只读确认动态指纹，然后只申请 Web-only Identity Recovery 审批。
