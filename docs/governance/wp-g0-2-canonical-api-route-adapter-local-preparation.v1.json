@@ -10,7 +10,7 @@
       "src/lib/candidate-episode/canonical-read-route-adapter.ts"
     ],
     "fileCount": 2,
-    "sha256": "b8f9002c3c6aa959a96faac66271d9e8623dbc9a45860526e046a3aab18c1f58"
+    "sha256": "d1546c302513fb1d6255eabc637f4bba82076b77e484feff70ae2d73b9a8c4bb"
   },
   "requestBoundary": {
     "allowedPublicQuery": [
@@ -31,10 +31,13 @@
     "codeAuthorizationRequestControlled": false
   },
   "trustedBoundary": {
-    "policyProviderReceivesPublicRequest": false,
-    "controlProviderReceivesPublicRequest": false,
+    "singleTrustedContextProvider": true,
+    "separatePolicyControlProvidersAllowed": false,
+    "contextProviderReceivesPublicRequest": false,
     "policyValidatedBeforeDataRead": true,
     "controlValidatedBeforeDataRead": true,
+    "authorityFingerprintRecheckedAfterDataRead": true,
+    "authorityDriftStatusCode": 503,
     "controlTimeoutMs": 2000,
     "abortSignalProvided": true,
     "controlFailureStatusCode": 503,

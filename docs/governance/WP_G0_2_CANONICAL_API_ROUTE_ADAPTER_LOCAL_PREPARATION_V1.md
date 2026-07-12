@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-建立未来 Next Route 可直接调用的纯服务适配器，在真正接 API 前锁住公共请求、可信 policy/control、Legacy/Candidate 编排和 HTTP 失败语义。本包不修改任何现有路由或前端。
+建立未来 Next Route 可直接调用的纯服务适配器，在真正接 API 前锁住公共请求、单一可信上下文、Legacy/Candidate 编排和 HTTP 失败语义。本包不修改任何现有路由或前端。
 
 ## 2. 公共请求边界
 
@@ -10,7 +10,7 @@
 
 ## 3. 可信控制边界
 
-policy 与 control 由无公共请求参数的服务端 provider 提供，并在任何 Legacy/Candidate 数据读取前验证。控制读取固定 2 秒 deadline，完整数据编排固定 15 秒 deadline；每个 provider 都收到 `AbortSignal`，超时会通知底层取消。provider 抛错、挂起、超时或返回非法数据时返回 503，不读取后续数据、不复用旧 control、不回退 stale cache。
+Route 只允许一个不接收公共请求参数的 trusted context provider；policy 与 control 不得分开读取。上下文在任何 Legacy/Candidate 数据读取前验证，并在数据读取后再次比较 authority fingerprint；期间 release、epoch、phase、approval、evidence 或 flag 漂移时丢弃结果并返回 503。控制读取固定 2 秒 deadline，完整数据编排固定 15 秒 deadline；provider 收到 `AbortSignal`，超时会通知底层取消。provider 抛错、挂起、超时或返回非法数据时不复用旧 control、不回退 stale cache。
 
 ## 4. 代码授权
 

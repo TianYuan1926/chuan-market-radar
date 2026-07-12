@@ -3289,3 +3289,51 @@ P0 阻断：
 ### 下一轮建议
 
 生产仍只申请 Dormant Runtime Deploy；等待审批期间可准备 trusted policy/control provider 合同，但不得接现有 API 或生产 DB。
+
+## 2026-07-12 / WP-G0.2 Trusted Read Context Local Preparation
+
+### 本轮目标
+
+关闭 Canonical Route Adapter 中 policy/control 分开读取造成的跨快照权威竞态，把 control、read policy、release、read flags 和审批证据绑定成一个可信上下文。
+
+### 修改范围
+
+- 新增 `candidate-trusted-read-context.v1`：同一只读串行化事务读取 control 和数据库时钟。
+- 新增固定 authority manifest 合同；原始字节 SHA-256 必须匹配数据库 `approval_digest`，未知字段拒绝。
+- release/epoch/phase、运行 release、显式 read flags、证据状态和 evidence hash 必须交叉一致。
+- phase 不能推断 evidence PASS；PASS 必须有 SHA-256，missing hash 必须为 null。
+- Route Adapter 改成单一 context provider，并在数据读取后再次比较 authority fingerprint；漂移返回 503。
+- 二次审查要求 Route 对 context proof 重算 fingerprint；补强后旧 checksum 正确 FAIL，刷新 current artifact 后才恢复 PASS。
+- 新增治理验证器、隔离 PostgreSQL 16 rehearsal、项目上下文和路线证据。
+- 未修改现有 API、前端、Canonical Read/Oracle/Resource、migration、Compose、生产身份、Feature Flag、control、worker、Redis、scan/analysis/strategy/risk/backtest 或生产环境。
+
+### 核心链路影响
+
+保护 Candidate 生命周期和 Review 权威分母，避免切换期间使用不同 release/epoch/evidence 的混合结果；不改变全市场发现、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Trusted Context/Route 治理：19/19、12/12 PASS。
+- Trusted Context 隔离 PG16：1/1 PASS，audit 身份只读、写入 42501、productionConnected=false。
+- Resource 9/9、Oracle 23/23 + PG16 1/1、Canonical 14/14：PASS。
+- Candidate 156 pass / 0 fail / 7 explicit DB skip；新增 PG 用例由独立 PG16 Gate 实跑。
+- Autonomy 16/16、typecheck、lint、build：PASS。
+- test:market 993 pass / 0 fail / 7 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 和三项安全门禁：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未执行生产 Git/Docker/identity/env/API/数据库/Redis/Feature Flag/control 变更。
+
+### 风险与遗留问题
+
+- 生产 authority manifest 尚未由批准 runner 落盘，当前只完成合同与本地实现。
+- context 当前使用既有只读 `candidate_audit_role`；生产 API Reader 身份/URL 尚未配置。
+- 旧 Review missing direction 偏 long、null MFE/MAE 补 0 仍是 cutover blocker。
+- 真实 dual-read/canonical-compat 双窗口和 canonical cutover 尚未执行。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只申请 Dormant Runtime Deploy；等待审批期间准备 authority manifest provisioning/validation runner，但不得接现有 API 或放开 canonical read。

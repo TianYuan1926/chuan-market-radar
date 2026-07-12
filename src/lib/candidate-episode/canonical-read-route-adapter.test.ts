@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import type { JournalEvent } from "../analysis/types";
 import {
@@ -9,6 +10,7 @@ import {
 } from "./canonical-read-route-adapter";
 import { buildCandidateCanonicalOracleFromRaw } from "./canonical-read-oracle";
 import { buildCandidateCanonicalApiResource } from "./canonical-read-resource";
+import type { CandidateTrustedReadContext } from "./canonical-read-trusted-context";
 
 const policy = {
   scope: "production_radar",
@@ -37,6 +39,53 @@ const control = {
   canonicalCompatEvidenceStatus: "PASS_CANONICAL_COMPAT_OBSERVATION" as const,
 };
 
+const flags = { dualRead: false, canonicalRead: true, reviewRead: true } as const;
+const evidence = {
+  reconciliation: {
+    status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" as const,
+    evidenceHash: `sha256:${"1".repeat(64)}`,
+  },
+  dualRead: {
+    status: "PASS_DUAL_READ_OBSERVATION" as const,
+    evidenceHash: `sha256:${"2".repeat(64)}`,
+  },
+  canonicalCompat: {
+    status: "PASS_CANONICAL_COMPAT_OBSERVATION" as const,
+    evidenceHash: `sha256:${"3".repeat(64)}`,
+  },
+};
+
+function fingerprint(approvalDigest: string) {
+  const proof = {
+    migrationId: "candidate-episode-v1",
+    authorityEpoch: 4,
+    approvedReleaseId: policy.releaseId,
+    approvalDigest,
+    phase: "canonical",
+    flags,
+    evidence,
+  };
+  return `sha256:${createHash("sha256").update(JSON.stringify(proof)).digest("hex")}`;
+}
+
+const approvalDigest = `sha256:${"b".repeat(64)}`;
+
+const trustedContext: CandidateTrustedReadContext = {
+  schemaVersion: "candidate-trusted-read-context.v1",
+  migrationId: "candidate-episode-v1",
+  scope: "production_radar",
+  databaseNow: policy.asOf,
+  authorityEpoch: 4,
+  authorityFingerprint: fingerprint(approvalDigest),
+  approvedReleaseId: policy.releaseId,
+  approvalDigest,
+  phase: "canonical",
+  flags,
+  evidence,
+  policy,
+  control,
+};
+
 const legacyEvent: JournalEvent = {
   id: "legacy-route-adapter-1",
   symbol: "BTCUSDT",
@@ -49,10 +98,12 @@ const legacyEvent: JournalEvent = {
 };
 
 function dependencies(overrides: Partial<CandidateReadRouteAdapterDependencies> = {}) {
-  const calls = { candidate: 0, compare: 0, legacy: 0 };
+  const calls = { candidate: 0, compare: 0, legacy: 0, trusted: 0 };
   const value: CandidateReadRouteAdapterDependencies = {
-    readTrustedPolicy: async () => policy,
-    readTrustedControl: async () => control,
+    readTrustedContext: async () => {
+      calls.trusted += 1;
+      return trustedContext;
+    },
     readLegacyEvents: async () => {
       calls.legacy += 1;
       return [legacyEvent];
@@ -96,11 +147,10 @@ test("public query accepts only bounded limit and a complete cursor pair", () =>
 });
 
 test("invalid query returns 400 before trusted control or any data read", async () => {
-  let trustedReads = 0;
   const fixture = dependencies({
-    readTrustedPolicy: async () => {
-      trustedReads += 1;
-      return policy;
+    readTrustedContext: async () => {
+      fixture.calls.trusted += 1;
+      return trustedContext;
     },
   });
   const response = await new CandidateCanonicalApiRouteAdapter(fixture.value)
@@ -108,8 +158,7 @@ test("invalid query returns 400 before trusted control or any data read", async 
   assert.equal(response.statusCode, 400);
   assert.equal(response.headers["cache-control"], "no-store");
   assert.equal(response.body.ok, false);
-  assert.equal(trustedReads, 0);
-  assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 0 });
+  assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 0, trusted: 0 });
 });
 
 test("current code lock forces lazy Legacy diagnostic despite canonical trusted control", async () => {
@@ -133,7 +182,7 @@ test("current code lock forces lazy Legacy diagnostic despite canonical trusted 
   assert.equal(response.body.resource.data.legacyDiagnostic?.observations?.length, 1);
   assert.ok(response.body.resource.blockers.includes("canonical_read_not_authorized_in_code"));
   assert.equal(maximumEvents, 1);
-  assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 1 });
+  assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 1, trusted: 2 });
 });
 
 test("cursor on Legacy response is explicit noncanonical diagnostic behavior", async () => {
@@ -150,30 +199,37 @@ test("cursor on Legacy response is explicit noncanonical diagnostic behavior", a
   assert.equal(response.body.resource.candidateCanonicalReviewUsable, false);
 });
 
-test("invalid trusted policy or control returns 503 without touching data dependencies", async () => {
+test("invalid trusted context returns 503 without touching data dependencies", async () => {
   const invalidPolicy = dependencies({
-    readTrustedPolicy: async () => ({ ...policy, releaseId: "" }),
+    readTrustedContext: async () => {
+      invalidPolicy.calls.trusted += 1;
+      return { ...trustedContext, policy: { ...policy, releaseId: "" } };
+    },
   });
   const policyResponse = await new CandidateCanonicalApiRouteAdapter(invalidPolicy.value)
     .execute(new URLSearchParams());
   assert.equal(policyResponse.statusCode, 503);
   assert.equal(policyResponse.body.ok, false);
-  assert.deepEqual(invalidPolicy.calls, { candidate: 0, compare: 0, legacy: 0 });
+  assert.deepEqual(invalidPolicy.calls, { candidate: 0, compare: 0, legacy: 0, trusted: 1 });
 
   const invalidControl = dependencies({
-    readTrustedControl: async () => ({ ...control, phase: "request_phase" as never }),
+    readTrustedContext: async () => {
+      invalidControl.calls.trusted += 1;
+      return { ...trustedContext, control: { ...control, phase: "request_phase" as never } };
+    },
   });
   const controlResponse = await new CandidateCanonicalApiRouteAdapter(invalidControl.value)
     .execute(new URLSearchParams());
   assert.equal(controlResponse.statusCode, 503);
   assert.equal(controlResponse.body.ok, false);
-  assert.deepEqual(invalidControl.calls, { candidate: 0, compare: 0, legacy: 0 });
+  assert.deepEqual(invalidControl.calls, { candidate: 0, compare: 0, legacy: 0, trusted: 1 });
 });
 
 test("hanging trusted control is bounded and returns 503 without data reads", async () => {
   let aborted = false;
   const fixture = dependencies({
-    readTrustedControl: ({ signal }) => new Promise((_, reject) => {
+    readTrustedContext: ({ signal }) => new Promise((_, reject) => {
+      fixture.calls.trusted += 1;
       signal.addEventListener("abort", () => {
         aborted = true;
         reject(new Error("aborted"));
@@ -188,7 +244,30 @@ test("hanging trusted control is bounded and returns 503 without data reads", as
   assert.equal(response.body.ok, false);
   assert.ok(elapsed >= 1_900 && elapsed < 6_000, `unexpected timeout elapsed=${elapsed}`);
   assert.equal(aborted, true);
-  assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 0 });
+  assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 0, trusted: 1 });
+});
+
+test("authority fingerprint drift during data read returns 503 and discards the result", async () => {
+  const changedApprovalDigest = `sha256:${"c".repeat(64)}`;
+  const fixture = dependencies({
+    readTrustedContext: async () => {
+      fixture.calls.trusted += 1;
+      return fixture.calls.trusted === 1
+        ? trustedContext
+        : {
+            ...trustedContext,
+            approvalDigest: changedApprovalDigest,
+            authorityFingerprint: fingerprint(changedApprovalDigest),
+          };
+    },
+  });
+  const response = await new CandidateCanonicalApiRouteAdapter(fixture.value)
+    .execute(new URLSearchParams());
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.body.ok, false);
+  if (response.body.ok) return;
+  assert.ok(response.body.blockers.includes("candidate_read_authority_changed_during_read"));
+  assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 1, trusted: 2 });
 });
 
 test("dependency failure returns 503 without stale or empty fallback", async () => {

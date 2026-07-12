@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T20:28:00+08:00",
+  "updatedAt": "2026-07-12T20:30:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-CANONICAL-API-ROUTE-ADAPTER-LOCAL-PREPARATION",
-    "title": "Candidate canonical API route adapter local preparation",
+    "id": "WP-G0.2-TRUSTED-READ-CONTEXT-LOCAL-PREPARATION",
+    "title": "Candidate trusted read context local preparation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "建立可供未来 Next Route 调用的纯 Candidate API adapter，固定公共 query、可信 policy/control、Legacy/Candidate lazy orchestration、no-store 与 HTTP failure 语义；不修改现有 API/前端、不连接生产且不授权 canonical read。",
+    "objective": "把 Candidate read policy、control、release、Feature Flags 和审批证据绑定为单一可信上下文，并在数据读取前后复核 authority fingerprint；不修改现有 API/前端、不连接生产且不授权 canonical read。",
     "coreChainImpact": [
-      "candidate_read_request_boundary",
-      "trusted_authority_control_boundary",
-      "canonical_api_http_truth"
+      "candidate_read_authority_snapshot",
+      "approved_evidence_runtime_binding",
+      "canonical_read_race_prevention"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,13 +48,21 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
+      "docs/governance/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
       "docs/governance/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_V1.md",
       "docs/governance/wp-g0-2-canonical-api-route-adapter-local-preparation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-canonical-api-route-adapter-local-preparation/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_REPORT.md",
+      "reports/wp-g0-2-trusted-read-context-local-preparation/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-trusted-read-context.mjs",
+      "scripts/governance/candidate-trusted-read-context.test.mjs",
       "scripts/governance/candidate-canonical-api-route-adapter.mjs",
       "scripts/governance/candidate-canonical-api-route-adapter.test.mjs",
+      "scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
+      "src/lib/candidate-episode/canonical-read-trusted-context.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.test.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context-postgres.test.ts",
       "src/lib/candidate-episode/canonical-read-route-adapter.ts",
       "src/lib/candidate-episode/canonical-read-route-adapter.test.ts"
     ],
@@ -83,14 +91,18 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-api-route-adapter-local-preparation.v1.json",
-      "reports/wp-g0-2-canonical-api-route-adapter-local-preparation/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-canonical-api-route-adapter.mjs",
-      "src/lib/candidate-episode/canonical-read-route-adapter.ts"
+      "docs/governance/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
+      "reports/wp-g0-2-trusted-read-context-local-preparation/WP_G0_2_TRUSTED_READ_CONTEXT_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-trusted-read-context.mjs",
+      "scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
+      "src/lib/candidate-episode/canonical-read-trusted-context.ts"
     ],
     "gateProfile": {
       "targeted": [
+        "candidate:trusted-read-context:validate",
+        "test:candidate-trusted-read-context",
+        "candidate:trusted-read-context:pg16-rehearsal",
         "candidate:canonical-api-route-adapter:validate",
         "test:candidate-canonical-api-route-adapter",
         "candidate:canonical-api-resource:validate",
@@ -117,16 +129,16 @@
       ]
     },
     "completionBoundary": [
-      "公共 query 只允许 bounded limit 和成对 cursor；release/asOf/cohort/phase/evidence/code authorization 均禁止由请求控制",
-      "trusted policy/control 必须在任何 Candidate/Legacy 数据读取前验证，失败返回 503 且不使用 stale fallback",
-      "adapter 必须直接读取 CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED=false，调用方、query、header 或 env 不得覆盖",
-      "legacy_only 必须 lazy：Candidate read 与 Oracle compare 均不得执行",
-      "HTTP response 固定 no-store、contract/status/source/authority headers；invalid request=400，dependency/control unavailable=503",
-      "partial/diagnostic/empty 不得包装成 ready，unavailable 不得包装成 200 success",
-      "resource 固定 canAuthorizeCutover=false、canCreateTradePlan=false、canMutateLiveRanking=false、automaticPhaseAdvance=false",
+      "Route Adapter 只允许一个 trusted context provider，policy/control 分开读取必须失败",
+      "control 与 policy 必须来自同一 SERIALIZABLE READ ONLY DEFERRABLE 数据库快照",
+      "数据库 approval_digest 必须等于 authority manifest 原始字节 SHA-256；release/epoch/phase 必须一致",
+      "phase 不能推断 evidence PASS；每项 PASS 必须有独立 SHA-256，missing 的 hash 必须为 null",
+      "runtime release 与三个显式 read flag 必须同时匹配数据库、manifest 和 phase",
+      "policy asOf 只来自数据库时钟，release 只来自 approved_release_id，cohort 从 control started_at 开始",
+      "数据读取前后 authority fingerprint 必须一致；漂移时丢弃结果并返回 503",
       "当前代码 canonical read 授权保持 false，生产决定仍为 BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
       "所有定向、基础和安全门禁通过",
-      "本轮禁止现有 API/前端/Compose/migration/生产身份/部署/数据库/Redis/Feature Flag/control 变更"
+      "本轮禁止现有 API/前端/Compose/migration/生产身份/部署/数据库写入/Redis/Feature Flag/control 变更"
     ]
   },
   "approvals": [
@@ -290,6 +302,13 @@
     {
       "order": 22,
       "id": "WP-G0.2-CANONICAL-API-ROUTE-ADAPTER-LOCAL-PREPARATION",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 23,
+      "id": "WP-G0.2-TRUSTED-READ-CONTEXT-LOCAL-PREPARATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

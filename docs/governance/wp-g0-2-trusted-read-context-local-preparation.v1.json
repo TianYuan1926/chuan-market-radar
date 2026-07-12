@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "wp-g0.2-trusted-read-context-local-preparation.v1",
+  "packageId": "WP-G0.2-TRUSTED-READ-CONTEXT-LOCAL-PREPARATION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentProductionDecision": "BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
+  "implementationArtifact": {
+    "files": [
+      "scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
+      "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
+      "src/lib/candidate-episode/canonical-read-route-adapter.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context-postgres.test.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.test.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.ts"
+    ],
+    "fileCount": 6,
+    "sha256": "822fce51c067c85ba1010abea37844436f889749d94e8d71ad40bf4394702524"
+  },
+  "authorityBoundary": {
+    "singleTrustedContextProvider": true,
+    "separatePolicyAndControlProvidersAllowed": false,
+    "databaseControlAndPolicySameSnapshot": true,
+    "transactionIsolation": "serializable",
+    "transactionReadOnly": true,
+    "transactionDeferrable": true,
+    "fixedMigrationId": "candidate-episode-v1",
+    "databaseClockRequired": true,
+    "approvedReleaseMatchesPolicy": true,
+    "contextProofRecomputedBeforeUse": true,
+    "authorityFingerprintRecheckedAfterDataRead": true,
+    "authorityDriftStatusCode": 503
+  },
+  "manifestBoundary": {
+    "schemaVersion": "candidate-read-authority-manifest.v1",
+    "fixedRuntimePath": "/run/market-radar/candidate-read-authority.json",
+    "exactRawBytesSha256MatchesDatabaseApprovalDigest": true,
+    "maximumApprovalArtifactAgeMinutes": 90,
+    "unknownFieldsRejected": true,
+    "releaseEpochPhaseMatchControl": true,
+    "phaseCanInferEvidencePass": false,
+    "missingEvidenceHashMustBeNull": true,
+    "passEvidenceHashRequired": true
+  },
+  "runtimeBoundary": {
+    "runtimeReleaseMatchesApprovedRelease": true,
+    "flagsExplicitBooleanRequired": true,
+    "flagsMustMatchManifest": true,
+    "flagsMustMatchPhase": true,
+    "checkpointKind": "24h",
+    "cohortFromControlStartedAt": true,
+    "asOfFromDatabaseClock": true,
+    "codeCanonicalReadAllowed": false,
+    "existingApiRouteModified": false,
+    "frontendModified": false,
+    "productionConnected": false,
+    "featureFlagChanged": false,
+    "automaticPhaseAdvance": false,
+    "tradePlanCreationAllowed": false,
+    "productionRankingMutationAllowed": false
+  },
+  "localPostgres16": {
+    "migrationCount": 9,
+    "contextRole": "candidate_audit_role",
+    "noInheritLogin": true,
+    "writeRejected": true,
+    "productionConnected": false
+  },
+  "forbidden": [
+    "separate_policy_control_reads",
+    "phase_infers_evidence_pass",
+    "manifest_digest_mismatch_allowed",
+    "manifest_unknown_fields_allowed",
+    "request_controls_authority",
+    "runtime_release_mismatch_allowed",
+    "runtime_flag_phase_mismatch_allowed",
+    "authority_drift_result_returned",
+    "stale_control_fallback",
+    "existing_api_route_change",
+    "frontend_change",
+    "production_connection",
+    "database_mutation",
+    "migration_change",
+    "compose_change",
+    "feature_flag_change",
+    "trade_plan_creation",
+    "production_ranking_mutation",
+    "automatic_phase_advance",
+    "formal_backtest"
+  ],
+  "remainingBlockers": [
+    "production_authority_manifest_not_provisioned",
+    "trusted_context_provider_not_wired_to_existing_api",
+    "production_reader_login_and_url_not_provisioned",
+    "frontend_candidate_review_adapter_not_implemented",
+    "legacy_review_null_and_direction_ui_debt_not_fixed",
+    "production_dual_read_observation_not_executed",
+    "production_canonical_compat_observation_not_executed",
+    "canonical_cutover_not_authorized"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY"
+}

@@ -66,10 +66,13 @@ export async function validateCandidateCanonicalApiRouteAdapterPreparation(contr
   ]) if (request[key] !== false) violations.push(`request_control:${key}`);
 
   const trusted = contract.trustedBoundary ?? {};
-  if (trusted.policyProviderReceivesPublicRequest !== false
-      || trusted.controlProviderReceivesPublicRequest !== false
+  if (trusted.singleTrustedContextProvider !== true
+      || trusted.separatePolicyControlProvidersAllowed !== false
+      || trusted.contextProviderReceivesPublicRequest !== false
       || trusted.policyValidatedBeforeDataRead !== true
       || trusted.controlValidatedBeforeDataRead !== true
+      || trusted.authorityFingerprintRecheckedAfterDataRead !== true
+      || trusted.authorityDriftStatusCode !== 503
       || trusted.controlTimeoutMs !== 2000
       || trusted.abortSignalProvided !== true
       || trusted.controlFailureStatusCode !== 503
@@ -131,8 +134,10 @@ export async function validateCandidateCanonicalApiRouteAdapterPreparation(contr
     "controller.abort(reason)",
     "executeCandidateReadRoute",
     "buildCandidateCanonicalApiResource",
-    "readTrustedPolicy: (context: Readonly<{ signal: AbortSignal }>) => Promise",
-    "readTrustedControl: (context: Readonly<{ signal: AbortSignal }>) => Promise",
+    "readTrustedContext:",
+    "assertCandidateTrustedReadContext(trustedContext)",
+    "recheckedContext.authorityFingerprint !== trustedContext.authorityFingerprint",
+    "candidate_read_authority_changed_during_read",
     "events.slice(0, parsed.request.limit)",
     'errorResponse(400, "invalid_candidate_read_request"',
     'errorResponse(503, "candidate_read_control_unavailable"',
@@ -140,7 +145,8 @@ export async function validateCandidateCanonicalApiRouteAdapterPreparation(contr
   ]) if (!source.includes(token)) violations.push(`source_guard_missing:${token}`);
   for (const forbiddenToken of [
     "next/server", "process.env", 'query.get("phase")', 'query.get("releaseId")',
-    'query.get("asOf")', "codeCanonicalReadAllowed:",
+    'query.get("asOf")', "readTrustedPolicy:", "readTrustedControl:",
+    "codeCanonicalReadAllowed:",
   ]) {
     if (forbiddenToken === "codeCanonicalReadAllowed:") continue;
     if (source.includes(forbiddenToken)) violations.push(`source_forbidden:${forbiddenToken}`);

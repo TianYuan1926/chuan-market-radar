@@ -8,7 +8,6 @@ import {
   type CandidateCanonicalReadCursor,
   type CandidateCanonicalReadPolicy,
   type CandidateCanonicalReadResult,
-  type CandidateReadRouteInput,
   type CandidateReadRouteMode,
 } from "./canonical-read-model";
 import type { CandidateCanonicalOracleComparison } from "./canonical-read-oracle";
@@ -17,6 +16,11 @@ import {
   type CandidateCanonicalApiResource,
   type CandidateReadResourceMode,
 } from "./canonical-read-resource";
+import {
+  assertCandidateTrustedReadContext,
+  type CandidateTrustedReadContext,
+  type CandidateTrustedReadControl,
+} from "./canonical-read-trusted-context";
 import { buildLegacyCandidateDiagnosticRead } from "./legacy-read-diagnostic";
 
 export const CANDIDATE_CANONICAL_API_ROUTE_SCHEMA_VERSION =
@@ -31,8 +35,6 @@ const QUERY_ALLOWLIST = new Set([
   "cursorFirstSeenAt",
   "cursorEpisodeId",
 ]);
-
-export type CandidateTrustedReadControl = Omit<CandidateReadRouteInput, "codeCanonicalReadAllowed">;
 
 export type CandidateReadRouteRequest = Readonly<{
   limit: number;
@@ -62,8 +64,9 @@ export type CandidateReadRouteAdapterResponse = Readonly<{
 }>;
 
 export type CandidateReadRouteAdapterDependencies = Readonly<{
-  readTrustedPolicy: (context: Readonly<{ signal: AbortSignal }>) => Promise<CandidateCanonicalReadPolicy>;
-  readTrustedControl: (context: Readonly<{ signal: AbortSignal }>) => Promise<CandidateTrustedReadControl>;
+  readTrustedContext: (
+    context: Readonly<{ signal: AbortSignal }>,
+  ) => Promise<CandidateTrustedReadContext>;
   readLegacyEvents: (input: Readonly<{
     policy: CandidateCanonicalReadPolicy;
     maximumEvents: number;
@@ -264,30 +267,31 @@ export class CandidateCanonicalApiRouteAdapter {
       return errorResponse(400, "invalid_candidate_read_request", parsed.blockers);
     }
 
-    let policy: CandidateCanonicalReadPolicy;
-    let control: CandidateTrustedReadControl;
+    let trustedContext: CandidateTrustedReadContext;
     try {
-      const trusted = await withDeadline((signal) => Promise.all([
-        this.dependencies.readTrustedPolicy({ signal }),
-        this.dependencies.readTrustedControl({ signal }),
-      ]),
+      trustedContext = await withDeadline(
+        (signal) => this.dependencies.readTrustedContext({ signal }),
         CANDIDATE_API_ROUTE_CONTROL_TIMEOUT_MS,
         "candidate_read_control_timeout",
       );
-      policy = normalizeCandidateCanonicalReadPolicy(trusted[0]);
-      control = trusted[1];
-      if (!validTrustedControl(control)) throw new Error("candidate_read_control_invalid");
+      assertCandidateTrustedReadContext(trustedContext);
+      normalizeCandidateCanonicalReadPolicy(trustedContext.policy);
+      if (!validTrustedControl(trustedContext.control)) {
+        throw new Error("candidate_read_control_invalid");
+      }
     } catch {
       return errorResponse(503, "candidate_read_control_unavailable", [
-        "candidate_read_trusted_policy_or_control_invalid",
+        "candidate_read_trusted_context_invalid",
       ]);
     }
+    const { control, policy } = trustedContext;
 
     const readInput = {
       policy,
       cursor: parsed.request.cursor,
       limit: parsed.request.limit,
     } as const;
+    let resource: CandidateCanonicalApiResource;
     try {
       const execution = await withDeadline((signal) => executeCandidateReadRoute({
         input: {
@@ -322,18 +326,36 @@ export class CandidateCanonicalApiRouteAdapter {
           ? ["legacy_diagnostic_cursor_noncanonical"]
           : []),
       ];
-      const resource = buildCandidateCanonicalApiResource({
+      resource = buildCandidateCanonicalApiResource({
         mode: resourceMode(execution.mode),
         source: execution.source,
         result: execution.result,
         parity: execution.parity,
         routeBlockers,
       });
-      return buildCandidateReadHttpResponse(resource);
     } catch {
       return errorResponse(503, "candidate_read_dependency_unavailable", [
         "candidate_read_dependency_failed_without_stale_fallback",
       ]);
     }
+    let recheckedContext: CandidateTrustedReadContext;
+    try {
+      recheckedContext = await withDeadline(
+        (signal) => this.dependencies.readTrustedContext({ signal }),
+        CANDIDATE_API_ROUTE_CONTROL_TIMEOUT_MS,
+        "candidate_read_control_recheck_timeout",
+      );
+      assertCandidateTrustedReadContext(recheckedContext);
+    } catch {
+      return errorResponse(503, "candidate_read_control_unavailable", [
+        "candidate_read_authority_recheck_invalid",
+      ]);
+    }
+    if (recheckedContext.authorityFingerprint !== trustedContext.authorityFingerprint) {
+      return errorResponse(503, "candidate_read_control_unavailable", [
+        "candidate_read_authority_changed_during_read",
+      ]);
+    }
+    return buildCandidateReadHttpResponse(resource);
   }
 }
