@@ -10,6 +10,10 @@
     "serviceAllowlist": [
       "web"
     ],
+    "composeEnvFileOrder": [
+      ".env",
+      ".env.production"
+    ],
     "buildCommand": "docker compose build web",
     "recreateCommand": "docker compose up -d --no-deps web",
     "removeOrphansAllowed": false,
@@ -29,12 +33,13 @@
     "databaseMutationAllowed": false
   },
   "artifact": {
-    "sha256": "254221bbfd75c0d6c0e02030713c075583d76f94526bfab0eb8c34ace5bce1ba",
+    "sha256": "c5ec5fae284b0f26ae5e7e5635a2e9a370d791a07aba2176d6e39d5b2ef4d3a4",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",
       "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.sh",
+      "scripts/verify/production-check.sh",
       "src/app/api/admin/candidate-shadow/run/route.ts",
       "src/lib/candidate-episode/app-shadow-capture-composition.ts",
       "src/lib/candidate-episode/candidate-runtime-database.ts",

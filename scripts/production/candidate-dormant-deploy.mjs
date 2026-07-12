@@ -51,6 +51,7 @@ export function validateContract(contract) {
   ensure(contract.productionActivated === false, "production_activated_must_be_false");
   ensure(contract.deployment?.mode === "dormant_runtime_web_only", "deployment_mode_mismatch");
   ensure(JSON.stringify(contract.deployment?.serviceAllowlist) === '["web"]', "service_allowlist_mismatch");
+  ensure(JSON.stringify(contract.deployment?.composeEnvFileOrder) === '[".env",".env.production"]', "compose_env_file_order_mismatch");
   ensure(contract.deployment?.buildCommand === "docker compose build web", "build_command_mismatch");
   ensure(contract.deployment?.recreateCommand === "docker compose up -d --no-deps web", "recreate_command_mismatch");
   ensure(contract.deployment?.removeOrphansAllowed === false, "remove_orphans_must_be_false");
@@ -97,12 +98,17 @@ export async function inspectRepository(root = process.cwd(), contract) {
   const webEnvironment = compose?.services?.web?.environment ?? {};
   const candidateWorker = compose?.services?.["candidate-shadow-worker"] ?? {};
   const appEnvironment = compose?.["x-app-env"] ?? {};
+  const composeEnvOrderMatches = runnerSource.match(
+    /--env-file "\$\{BASE_ENV_FILE\}" --env-file "\$\{ENV_FILE\}"/g,
+  ) ?? [];
   const facts = {
     candidateDatabaseUrlsOnlyOnWeb: DATABASE_URLS.every((key) => key in webEnvironment)
       && DATABASE_URLS.every((key) => !(key in (candidateWorker.environment ?? {}))),
     candidateWorkerProfileIsolated: JSON.stringify(candidateWorker.profiles) === '["candidate-shadow-runtime"]',
     candidateWorkerNotStartedByRunner: !/\$\{COMPOSE\[@\]\}"[^\n]*(?:up|start|run)[^\n]*candidate-shadow-worker/.test(runnerSource),
     codeActivationHardFalse: /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const/.test(flagsSource),
+    composeEnvFilesOrdered: composeEnvOrderMatches.length === 2,
+    bothEnvFilesValidatedDormant: /--env-file "\$\{BASE_ENV_FILE\}"[\s\S]*--env-file "\$\{ENV_FILE\}"/.test(runnerSource),
     defaultCandidateFlagsFalse: FEATURE_FLAGS.every((key) => String(appEnvironment[key] ?? "").includes("-false}")),
     defaultCandidateReleaseDisabled: String(appEnvironment.CANDIDATE_RUNTIME_RELEASE_ID ?? "").includes("-disabled}"),
     defaultCandidateWorkerExpectedFalse: String(appEnvironment.CANDIDATE_SHADOW_WORKER_EXPECTED ?? "").includes("-false}"),

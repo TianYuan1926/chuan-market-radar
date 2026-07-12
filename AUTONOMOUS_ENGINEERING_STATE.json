@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T13:05:36+08:00",
+  "updatedAt": "2026-07-12T13:34:17+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -34,8 +34,8 @@
     "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-PREPARATION",
     "title": "Candidate dormant runtime deploy local preparation",
     "lane": "localPreparation",
-    "status": "ready_for_production_approval",
-    "objective": "只在本地锁定 Candidate dormant runtime 的 web-only 发布 runner、工件校验和、休眠环境门禁、即时验收、自动 Web 回滚和最终观察条件；不连接或修改生产。",
+    "status": "ready_for_production_approval_after_read_only_preflight_fix",
+    "objective": "完成 Candidate dormant runtime 的生产只读预检，修复 Compose 双 env-file 阻断，并锁定 web-only runner、工件校验和、休眠门禁、即时验收、自动 Web 回滚和最终观察条件；尚未修改生产。",
     "coreChainImpact": [
       "candidate_screening_runtime_installation_safety",
       "review_evolution_runtime_installation_safety",
@@ -55,7 +55,8 @@
       "reports/wp-g0-2-shadow-capture-dormant-runtime-deploy-preparation/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_PREPARATION_REPORT.md",
       "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.sh",
-      "scripts/production/candidate-dormant-deploy.test.mjs"
+      "scripts/production/candidate-dormant-deploy.test.mjs",
+      "scripts/verify/production-check.sh"
     ],
     "prohibitedPaths": [
       "src/app/**",
@@ -78,7 +79,8 @@
       "reports/wp-g0-2-shadow-capture-dormant-runtime-deploy-preparation/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_PREPARATION_REPORT.md",
       "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.sh",
-      "scripts/production/candidate-dormant-deploy.test.mjs"
+      "scripts/production/candidate-dormant-deploy.test.mjs",
+      "scripts/verify/production-check.sh"
     ],
     "gateProfile": {
       "targeted": [
@@ -107,6 +109,7 @@
       "五个 Candidate Feature Flag、三条 Candidate Database URL、release 和 worker expected 必须保持休眠",
       "代码授权硬 false、Candidate worker absent、migration/DDL/DML/control lifecycle 全部禁止",
       "审批必须绑定 exact commit、artifact checksum、rollback commit、web-only 和不超过 90 分钟窗口",
+      "Compose 必须按 .env 后 .env.production 加载，并分别通过 Candidate 休眠校验",
       "即时验收只允许写 awaiting DB verify and observation，不能提前写整包 PASS",
       "失败时恢复旧 Web 镜像和 rollback commit，不做数据库 rollback",
       "生产决定仍为 BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",

@@ -3,6 +3,7 @@ set -euo pipefail
 
 SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOT_DIR="${ROOT_DIR_OVERRIDE:-${SOURCE_ROOT}}"
+BASE_ENV_FILE="${BASE_ENV_FILE:-${ROOT_DIR}/.env}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 REQUEST_FILE="${REQUEST_FILE:-}"
 DORMANT_DEPLOY_MODE="${DORMANT_DEPLOY_MODE:-dry_run}"
@@ -24,13 +25,15 @@ if [[ -z "${REQUEST_FILE}" || ! -f "${REQUEST_FILE}" ]]; then
   echo "ERROR: REQUEST_FILE must point to the approved request JSON." >&2
   exit 1
 fi
-if [[ ! -f "${ENV_FILE}" ]]; then
-  echo "ERROR: production env file is missing." >&2
+if [[ ! -f "${BASE_ENV_FILE}" || ! -f "${ENV_FILE}" ]]; then
+  echo "ERROR: production base or override env file is missing." >&2
   exit 1
 fi
 
 node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" request \
   --root "${SOURCE_ROOT}" --request "${REQUEST_FILE}" >/dev/null
+node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" env \
+  --env-file "${BASE_ENV_FILE}"
 node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" env \
   --env-file "${ENV_FILE}"
 
@@ -73,10 +76,10 @@ if [[ "$(git -C "${ROOT_DIR}" rev-parse origin/main)" != "${APPROVED_COMMIT}" ]]
 fi
 
 if docker ps >/dev/null 2>&1; then
-  COMPOSE=(docker compose --env-file "${ENV_FILE}")
+  COMPOSE=(docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
   DOCKER=(docker)
 elif sudo -n docker ps >/dev/null 2>&1; then
-  COMPOSE=(sudo docker compose --env-file "${ENV_FILE}")
+  COMPOSE=(sudo docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
   DOCKER=(sudo docker)
 else
   echo "ERROR: Docker daemon is unavailable." >&2
@@ -109,7 +112,8 @@ rollback_on_failure() {
   git checkout --detach "${ROLLBACK_COMMIT}" || true
   git branch -f main "${ROLLBACK_COMMIT}" || true
   git checkout main || true
-  BASE_URL="${BASE_URL}" STRICT_SCAN_FRESHNESS=false \
+  BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
+    BASE_URL="${BASE_URL}" STRICT_SCAN_FRESHNESS=false \
     bash "${ROOT_DIR}/scripts/verify/production-check.sh" || true
   exit "${exit_code}"
 }
@@ -168,7 +172,8 @@ if [[ "$(git rev-parse HEAD)" != "${APPROVED_COMMIT}" ]]; then
   exit 1
 fi
 
-BASE_URL="${BASE_URL}" STRICT_SCAN_FRESHNESS=true \
+BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
+  BASE_URL="${BASE_URL}" STRICT_SCAN_FRESHNESS=true \
   bash "${ROOT_DIR}/scripts/verify/production-check.sh"
 
 echo "PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION"

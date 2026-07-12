@@ -35,6 +35,7 @@ docker compose up -d --no-deps web
 - 当前生产 40 位 rollback commit
 - `services=[web]`
 - `deploymentMode=dormant_runtime_web_only`
+- Compose 环境文件顺序固定为 `.env` 后 `.env.production`
 - 不超过 90 分钟且尚未过期的窗口
 - 自动 Web 镜像回滚允许为 true
 - Candidate worker、数据库 URL、Feature Flag、代码授权、control lifecycle、migration 和数据库 mutation 全部为 false
@@ -47,7 +48,7 @@ docker compose up -d --no-deps web
 2. approved commit 已进入 GitHub `main`，且 artifact checksum 未漂移。
 3. 生产 worktree clean，当前 HEAD 等于审批中的 rollback commit。
 4. `.env.production` 中五个 Candidate Flag 为 false 或缺省。
-5. 三条 Candidate Database URL 为空或缺省。
+5. `.env` 和 `.env.production` 都通过 Candidate 休眠校验；合并后的三条 Candidate Database URL 为空或缺省。
 6. Candidate runtime release 为 disabled，Candidate worker expected 为 false。
 7. Candidate worker 容器不存在，旧 Web 镜像可作为回滚镜像。
 8. 用户明确批准精确 commit、checksum、web-only 和 90 分钟窗口。
@@ -65,6 +66,8 @@ DORMANT_DEPLOY_MODE=production_deploy
 CONFIRM_DORMANT_DEPLOY=true
 REQUEST_FILE=/secure/path/request.json
 ```
+
+生产 Compose 必须同时使用 `--env-file .env --env-file .env.production`。基础文件提供 PostgreSQL 等必需插值，覆盖文件提供生产运行覆盖；单独使用任一文件都不构成有效准入证据。
 
 真实命令和临时路径由 Codex 在审批窗口内按服务器实际目录生成；禁止把 `.env.production`、连接串或 token 写入请求文件和证据。
 

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="${ROOT_DIR_OVERRIDE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+BASE_ENV_FILE="${BASE_ENV_FILE:-${ROOT_DIR}/.env}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
 STRICT_SCAN_FRESHNESS="${STRICT_SCAN_FRESHNESS:-true}"
@@ -17,15 +18,15 @@ node_runner=()
 api_base_url="${BASE_URL%/}"
 if command -v docker >/dev/null 2>&1; then
   if docker ps >/dev/null 2>&1; then
-    compose_cmd=(docker compose --env-file "${ENV_FILE}")
+    compose_cmd=(docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
   elif sudo -n docker ps >/dev/null 2>&1; then
-    compose_cmd=(sudo docker compose --env-file "${ENV_FILE}")
+    compose_cmd=(sudo docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
   fi
 fi
 
 if command -v node >/dev/null 2>&1; then
   node_runner=(node)
-elif [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
+elif [[ ${#compose_cmd[@]} -gt 0 && -f "${BASE_ENV_FILE}" && -f "${ENV_FILE}" ]]; then
   node_runner=("${compose_cmd[@]}" exec -T web node)
   if [[ "${api_base_url}" == "http://127.0.0.1" || "${api_base_url}" == "http://localhost" ]]; then
     api_base_url="http://127.0.0.1:3000"
@@ -145,7 +146,7 @@ console.log(JSON.stringify({
 }, null, 2));
 NODE
 
-if [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
+if [[ ${#compose_cmd[@]} -gt 0 && -f "${BASE_ENV_FILE}" && -f "${ENV_FILE}" ]]; then
   echo "== Docker service status =="
   "${compose_cmd[@]}" ps
 
@@ -174,7 +175,7 @@ if [[ ${#compose_cmd[@]} -gt 0 && -f "${ENV_FILE}" ]]; then
   echo "== Worker status =="
   "${compose_cmd[@]}" ps scanner-worker websocket-light-worker coinglass-worker signal-worker dynamic-scan-scheduler macro-worker shadow-runner
 else
-  echo "WARN: Docker compose check skipped; docker unavailable or env file missing."
+  echo "WARN: Docker compose check skipped; docker unavailable or base/override env file missing."
 fi
 
 echo "production check ok"

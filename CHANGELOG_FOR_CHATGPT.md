@@ -2805,3 +2805,46 @@ P0 阻断：
 ### 下一轮建议
 
 只申请并执行 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY` 的 web-only 生产包；不得合并身份、权限或 activation。
+
+## 2026-07-12 / WP-G0.2 Dormant Runtime Deploy Production Preflight and Env Fix
+
+### 本轮目标
+
+通过 Microsoft Edge / OrcaTerm 对 Dormant Deploy 做严格生产只读预检，并在申请部署前关闭预检发现的 runner 环境文件不兼容问题。
+
+### 修改范围
+
+- 生产只读核验 HEAD/branch/worktree、GitHub main、运行容器、Candidate 休眠环境、health 和三份核心合同。
+- `candidate-dormant-deploy.sh` 改为按 `.env` -> `.env.production` 加载 Compose，并分别验证两个文件的 Candidate 休眠边界。
+- `production-check.sh` 使用相同双文件顺序，避免部署成功后验收因旧单文件假失败。
+- 将共享 production check 纳入锁定 artifact，artifact 从 12 文件更新为 13 文件。
+- 更新合同、测试、加速路线、traceability、自治状态、context 和 changelog。
+- 未执行 git pull/merge、Docker build/up/restart、migration、DDL/DML、Feature Flag、Candidate URL、身份/权限或 activation。
+
+### 核心链路影响
+
+候选筛选旁路的生产安装入口从“本地看起来可用但生产必然 fail closed”修正为与真实生产环境模型一致；Candidate 数据行为仍未改变。
+
+### 测试结果
+
+- 生产只读双 env-file `config --services`：PASS，默认 11 服务且无 Candidate worker。
+- Dormant validator：PASS，13 文件 checksum=`c5ec5fae284b0f26ae5e7e5635a2e9a370d791a07aba2176d6e39d5b2ef4d3a4`。
+- Dormant 定向：8/8 PASS；deploy-safety：5/5 PASS。
+- typecheck、lint、build PASS；test:market 950 pass / 0 fail / 3 explicit DB skip；worker 18/18；historical 4/4。
+- backtest:golden 16/16；forbidden-files、secret-patterns、security-check PASS。
+- formal 与 production smoke 未运行。
+
+### 是否部署
+
+未部署。生产仍为 `0599f802f261fe8e3c1982a07106f362bd62ac13`，worktree clean；本轮只读预检未改变服务器 Git、容器、数据库、Redis 或环境文件。
+
+### 风险与遗留问题
+
+- 单 env-file runner 问题是部署直接阻断，已立即修复，未后置。
+- Dormant production deploy 仍缺绑定新 exact commit、checksum、rollback commit、web-only 和 90 分钟窗口的明确审批。
+- 公网 HTTP 等既有问题继续属于 G0.3，不在本包扩大修改。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+在全部本地门禁和 GitHub main 同步后，只申请 web-only Dormant Runtime Deploy；不得合并身份、权限或 activation。

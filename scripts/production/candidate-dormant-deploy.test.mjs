@@ -21,9 +21,11 @@ test("current repository passes local dormant deploy preparation without authori
   assert.equal(result.status, "PASS_LOCAL_DORMANT_DEPLOY_PREPARATION");
   assert.equal(result.productionDecision, "BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL");
   assert.equal(result.productionMutationAllowed, false);
-  assert.equal(result.artifact.fileCount, 12);
+  assert.equal(result.artifact.fileCount, 13);
   assert.equal(result.repository.exactWebBuild, true);
   assert.equal(result.repository.exactWebRecreate, true);
+  assert.equal(result.repository.composeEnvFilesOrdered, true);
+  assert.equal(result.repository.bothEnvFilesValidatedDormant, true);
   assert.equal(result.repository.noRemoveOrphans, true);
   assert.equal(result.repository.noMigrationCommand, true);
 });
@@ -33,6 +35,7 @@ test("contract rejects scope expansion or dormant boundary weakening", async () 
   const cases = [
     [{ productionAuthorization: true }, "production_authorization_must_be_false"],
     [{ deployment: { ...contract.deployment, serviceAllowlist: ["web", "candidate-shadow-worker"] } }, "service_allowlist_mismatch"],
+    [{ deployment: { ...contract.deployment, composeEnvFileOrder: [".env.production"] } }, "compose_env_file_order_mismatch"],
     [{ deployment: { ...contract.deployment, removeOrphansAllowed: true } }, "remove_orphans_must_be_false"],
     [{ dormantBoundary: { ...contract.dormantBoundary, candidateDatabaseUrlsConfigured: 1 } }, "candidate_database_urls_must_be_zero"],
     [{ dormantBoundary: { ...contract.dormantBoundary, candidateFeatureFlagsEnabled: 1 } }, "feature_flags_must_be_zero"],
@@ -102,6 +105,9 @@ test("shell stays web-only and contains an automatic web rollback path", async (
   const source = await readFile("scripts/production/candidate-dormant-deploy.sh", "utf8");
   assert.match(source, /\$\{COMPOSE\[@\]\}" build web/);
   assert.match(source, /\$\{COMPOSE\[@\]\}" up -d --no-deps web/);
+  assert.equal((source.match(/--env-file "\$\{BASE_ENV_FILE\}" --env-file "\$\{ENV_FILE\}"/g) ?? []).length, 2);
+  assert.match(source, /env \\\n+  --env-file "\$\{BASE_ENV_FILE\}"/);
+  assert.match(source, /env \\\n+  --env-file "\$\{ENV_FILE\}"/);
   assert.match(source, /rollback_on_failure/);
   assert.match(source, /candidate_dormant_contract_failed/);
   assert.match(source, /PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION/);
@@ -109,6 +115,12 @@ test("shell stays web-only and contains an automatic web rollback path", async (
   assert.doesNotMatch(source, /--remove-orphans/);
   assert.doesNotMatch(source, /--profile/);
   assert.doesNotMatch(source, /migration:runner|candidate:migrate|persistence\/migrate/);
+});
+
+test("shared production verification uses the same base then override env order", async () => {
+  const source = await readFile("scripts/verify/production-check.sh", "utf8");
+  assert.match(source, /BASE_ENV_FILE="\$\{BASE_ENV_FILE:-\$\{ROOT_DIR\}\/\.env\}"/);
+  assert.equal((source.match(/--env-file "\$\{BASE_ENV_FILE\}" --env-file "\$\{ENV_FILE\}"/g) ?? []).length, 2);
 });
 
 test("approval request JSON never needs a secret field", async () => {
