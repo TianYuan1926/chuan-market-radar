@@ -2760,3 +2760,48 @@ P0 阻断：
 ### 下一轮建议
 
 只申请 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY` 的独立生产审批；部署后仍保持代码授权、五个 Feature Flag、三条 Candidate 数据库 URL 和 control lifecycle 关闭。
+
+## 2026-07-12 / WP-G0.2 Dormant Runtime Deploy Preparation
+
+### 本轮目标
+
+在不连接生产的前提下，锁定 Candidate dormant runtime 的 web-only 发布范围、审批绑定、休眠环境门禁、即时验收、回滚和最终观察条件。
+
+### 修改范围
+
+- 新增机器合同、中文运行合同、fail-closed validator、默认 dry-run 的专用发布 runner 和 7 项定向测试。
+- runner 只允许 build/recreate `web`，禁止 Compose profile、Candidate worker、`--remove-orphans`、migration/DDL/DML、Candidate 身份/URL、Feature Flag 和 control lifecycle。
+- artifact 锁定 12 个运行文件，SHA-256=`254221bbfd75c0d6c0e02030713c075583d76f94526bfab0eb8c34ace5bce1ba`。
+- 更新自治状态、加速计划、traceability、context 和本 changelog。
+- 未修改 frontend、scan、analysis、strategy、RR、READY、backtest、数据库 schema/data、Redis、生产环境或 secret。
+
+### 核心链路影响
+
+候选筛选和复盘进化的 dormant runtime 安装路径具备 web-only、可回滚、可审计的发布入口；生产数据行为仍为 legacy-only。
+
+### 测试结果
+
+- Dormant validator：PASS，productionMutationAllowed=false。
+- Dormant 定向测试：7/7 PASS；dry-run 实跑确认零生产变更。
+- deploy-safety：5/5 PASS。
+- Composition 回归：28/28 PASS。
+- typecheck、lint、build PASS。
+- test:market：950 pass / 0 fail / 3 explicit DB skip；worker 18/18；historical 4/4。
+- backtest:golden：16/16 PASS；forbidden-files、secret-patterns、security-check PASS。
+- formal 和 production smoke 禁止运行。
+
+### 是否部署
+
+未部署，未连接腾讯云，未启动/重启任何服务，未执行 DDL/DML、migration、Feature Flag、control lifecycle、Candidate URL 配置或生产观察。
+
+### 风险与遗留问题
+
+- 生产仍是旧 release，Candidate runtime 未部署。
+- Dormant Deploy 仍缺 exact commit + checksum + rollback commit + web-only + 90 分钟明确审批。
+- 即时检查不等于整包 PASS；还必须完成 ledger/control 只读核验和 30-60 分钟观察。
+- Dormant Deploy PASS 后仍需独立 Runtime Identity and Permission 包，不能直接 activation。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只申请并执行 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY` 的 web-only 生产包；不得合并身份、权限或 activation。

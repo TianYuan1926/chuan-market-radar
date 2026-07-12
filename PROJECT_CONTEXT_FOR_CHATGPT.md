@@ -6,6 +6,8 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-12 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-PREPARATION` 已达到 `PASS_LOCAL_DORMANT_DEPLOY_PREPARATION`。新增专用 fail-closed runner，只允许 `docker compose build web` 和 `up -d --no-deps web`；禁止 profile、Candidate worker、`--remove-orphans`、migration/DDL/DML、数据库 URL、Feature Flag、代码授权和 control lifecycle。12 文件 artifact SHA-256 已锁定为 `254221bbfd75c0d6c0e02030713c075583d76f94526bfab0eb8c34ace5bce1ba`。
+- Dormant Deploy 生产尚未执行、未获授权。部署必须另行绑定 GitHub `main` exact commit、上述 checksum、当前 rollback commit、`services=[web]` 和不超过 90 分钟窗口。即时验证通过也只能写 `PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION`；还需 ledger=9/control rows=0 只读核验和 30-60 分钟观察，三者全通过才可写整包 PASS。
 - 2026-07-12 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING` 已达到 `PASS_LOCAL_COMPOSITION_WIRING`。权威应用扫描归档点已在本地接入 Candidate composition；Source Writer、Shadow Executor、只读 Monitor 三条独立 Candidate 数据库身份通道、Outbox consumer、Episode service、受保护 API、profile 隔离 worker、条件 heartbeat 和 SIGTERM drain 已组装。它们绝不回退复用 legacy 应用 `DATABASE_URL`。代码授权仍固定为 false，五个 Candidate Feature Flag 默认全 false，普通 Compose 不启动该 worker；本轮未连接或部署生产。
 - Composition 使用 PostgreSQL `clock_timestamp()` 作为 Gate/consumer 时间事实，避免应用主机时钟漂移。定向测试 28/28、隔离 PostgreSQL 16 完整 composition 链路、legacy identity dormant fail-closed、permission recovery 4/4、typecheck/lint、test:market 950 pass/0 fail/3 explicit DB skip、worker 18/18、historical 4/4、build、golden 16/16 和安全门禁全部 PASS；formal 未运行。
 - 下一生产包只能是独立审批的 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY`。即使获批部署，也必须保持代码授权、Feature Flag、Candidate 专用数据库 URL 和 control lifecycle 关闭；之后还需独立的 Runtime Identity and Permission 包，才能申请 activation/observation。系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。

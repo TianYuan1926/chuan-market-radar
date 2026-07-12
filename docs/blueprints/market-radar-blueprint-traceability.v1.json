@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_shadow_capture_composition_wiring_local_pass_runtime_dormant",
-  "generatedAt": "2026-07-12T12:20:57+08:00",
+  "status": "wp_g0_2_dormant_runtime_deploy_local_preparation_pass_production_not_authorized",
+  "generatedAt": "2026-07-12T13:05:36+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
+    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-PREPARATION",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -53,6 +53,12 @@
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
+    "dormantDeployPreparationStatus": "pass_local_awaiting_explicit_production_approval",
+    "dormantDeployArtifactSha256": "254221bbfd75c0d6c0e02030713c075583d76f94526bfab0eb8c34ace5bce1ba",
+    "dormantDeployServiceAllowlist": [
+      "web"
+    ],
+    "dormantDeployProductionExecuted": false,
     "productionVerifyOnlyStatus": "pass",
     "shadowCaptureLocalDesignStatus": "pass_production_readiness_packet",
     "shadowCaptureProductionDecision": "safety_schema_applied_verified_runtime_disabled",

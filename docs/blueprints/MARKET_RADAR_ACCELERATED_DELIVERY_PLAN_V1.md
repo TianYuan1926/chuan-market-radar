@@ -134,7 +134,7 @@ npm run test:migration-capacity
 | 8 | WP-G0.2 production readiness + approval packet | B | local PASS | immutable resolution、runtime gate/mapper、monitor、009 checksum/权限/回退和 schema-only 审批包 |
 | 9 | WP-G0.2 production add safety schema | A | PASS: 009 only applied and verified dormant | catalog 8/151/20/10/14/8 -> 9/166/26/11/16/9；Feature Flag=0；禁止再次 execute |
 | 10 | WP-G0.2 production composition wiring | B | local PASS | 28/28 定向、PG16 完整 composition、legacy identity dormant fail-closed、permission 4/4 与基础门禁 PASS |
-| 11 | WP-G0.2 dormant runtime deploy | A | prohibited | wiring 全门禁 PASS + 独立审批；部署后代码授权和 Feature Flag 仍关闭 |
+| 11 | WP-G0.2 dormant runtime deploy | A | local preparation PASS / production prohibited | 专用 web-only runner、artifact checksum、休眠环境门禁、即时验收和自动 Web 回滚已锁定；仍需 exact commit + checksum + web-only + 90 分钟独立审批 |
 | 12 | WP-G0.2 runtime identity + permission | A | prohibited | dormant deploy PASS + 独立审批；三条最小权限身份及 active permission rehearsal PASS |
 | 13 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
 | 14 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
@@ -147,4 +147,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-容量/恢复、Add Schema、production verify-only、Shadow Safety Schema 009 和本地 Composition Wiring 已形成闭环证据。生产 Candidate schema 仍是 migration 1-9 applied/verified/dormant；Feature Flag=0、runtime deployment=false、control lifecycle 未启动。本地已接好三身份 archive/outbox composition、受保护 API 和 profile 隔离 worker，但没有部署生产。下一步只能另行审批 dormant runtime deploy；之后必须先完成最小权限 Runtime Identity and Permission 包，再申请 activation/observation。Writer、backfill、dual read 和 read cutover 继续禁止。
+容量/恢复、Add Schema、production verify-only、Shadow Safety Schema 009、本地 Composition Wiring 和 Dormant Deploy 本地准入已形成闭环证据。生产 Candidate schema 仍是 migration 1-9 applied/verified/dormant；Feature Flag=0、runtime deployment=false、control lifecycle 未启动。Dormant Deploy 专用 runner 只允许 `web`，不启动 profile、不配置三条 Candidate DB URL，不执行 migration/DDL/DML；即时检查后还必须做 ledger/control 只读核验和 30-60 分钟观察。下一步只能另行审批 exact commit + artifact checksum + web-only + 90 分钟 dormant runtime deploy；之后必须先完成最小权限 Runtime Identity and Permission 包，再申请 activation/observation。Writer、backfill、dual read 和 read cutover 继续禁止。

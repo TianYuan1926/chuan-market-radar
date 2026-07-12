@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "wp-g0.2-shadow-capture-dormant-runtime-deploy.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
+  "status": "local_preparation_verified_awaiting_production_approval",
+  "productionAuthorization": false,
+  "productionDeployed": false,
+  "productionActivated": false,
+  "deployment": {
+    "mode": "dormant_runtime_web_only",
+    "serviceAllowlist": [
+      "web"
+    ],
+    "buildCommand": "docker compose build web",
+    "recreateCommand": "docker compose up -d --no-deps web",
+    "removeOrphansAllowed": false,
+    "composeProfileAllowed": false,
+    "candidateWorkerStartAllowed": false,
+    "maximumApprovalWindowMinutes": 90,
+    "automaticWebRollbackRequired": true
+  },
+  "dormantBoundary": {
+    "codeActivationAllowed": false,
+    "candidateFeatureFlagsEnabled": 0,
+    "candidateDatabaseUrlsConfigured": 0,
+    "candidateRuntimeReleaseId": "disabled",
+    "candidateWorkerExpected": false,
+    "candidateControlRows": 0,
+    "migrationAllowed": false,
+    "databaseMutationAllowed": false
+  },
+  "artifact": {
+    "sha256": "254221bbfd75c0d6c0e02030713c075583d76f94526bfab0eb8c34ace5bce1ba",
+    "files": [
+      "docker-compose.yml",
+      "deploy/workers/protected-api-worker.mjs",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-dormant-deploy.sh",
+      "src/app/api/admin/candidate-shadow/run/route.ts",
+      "src/lib/candidate-episode/app-shadow-capture-composition.ts",
+      "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/feature-flags.ts",
+      "src/lib/candidate-episode/shadow-capture-admin.ts",
+      "src/lib/candidate-episode/shadow-capture-composition.ts",
+      "src/lib/market/radar-snapshot.ts",
+      "src/lib/runtime/worker-heartbeat.ts"
+    ]
+  },
+  "requiredPreDeployEvidence": [
+    "approved_commit_equals_staged_source_head",
+    "origin_main_equals_approved_commit",
+    "production_worktree_clean",
+    "production_head_equals_rollback_commit",
+    "artifact_checksum_match",
+    "candidate_environment_dormant",
+    "candidate_worker_absent",
+    "web_rollback_image_captured"
+  ],
+  "requiredPostDeployEvidence": [
+    "production_head_equals_approved_commit",
+    "web_environment_dormant",
+    "candidate_worker_absent",
+    "candidate_admin_unauthorized_is_401",
+    "candidate_admin_authorized_reports_dormant_and_null_batch",
+    "candidate_schema_ledger_9_and_control_rows_0_read_only",
+    "health_ready_and_scan_fresh",
+    "frontend_backend_contracts_pass",
+    "existing_workers_healthy",
+    "postgres_and_redis_ready",
+    "observation_30_to_60_minutes_clean"
+  ],
+  "forbiddenInThisPackage": [
+    "candidate_worker_start",
+    "candidate_runtime_identity_provisioning",
+    "candidate_database_url_configuration",
+    "candidate_feature_flag_enablement",
+    "code_activation_enablement",
+    "control_lifecycle_start",
+    "migration_execute",
+    "database_ddl_or_dml",
+    "backfill",
+    "dual_read",
+    "read_cutover",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ],
+  "nextRequiredPackage": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION"
+}
