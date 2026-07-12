@@ -3378,3 +3378,44 @@ P0 阻断：
 ### 下一轮建议
 
 生产仍只申请独立审批的 Dormant Runtime Deploy；不得跳到 Runtime Identity、Activation、reconciliation 或 canonical cutover。
+
+## 2026-07-12 / WP-G0.2 Post-Dormant Chain Clean Gate Integration
+
+### 本轮目标
+
+在隔离 future-chain worktree 中消除跨分支编译残留和 0 核心测试假绿灯风险，并重新审计 Dormant 之后的 G0.2 本地链。
+
+### 修改范围
+
+- `build:market-cli` 每次删除 `.tmp/market-tests`，`tsconfig.market-test.json` 禁用 incremental。
+- `test:market` 强制编译后的核心测试数大于 0。
+- 新增 stale sentinel、代表性 future-chain 输出和机器合同回归。
+- 新增本包 MD/JSON、自治状态、蓝图、traceability 和本轮报告。
+- 未修改 `src/**`、生产 runner、migration、Compose、数据库、Redis、worker、secret 或生产。
+
+### 核心链路影响
+
+候选生命周期、权威读切换和 Review Truth 的后续本地证据不再依赖可能污染的编译目录；不改变全市场发现、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- 清理 `.tmp` 与增量缓存后的基线：995 pass / 0 fail / 7 explicit DB skip。
+- 干净构建回归：3/3 PASS。
+- Activation 12/12、Reconciliation 8/8、Canonical 14/14、Oracle 23/23、Route 12/12、Trusted Context 19/19、Review 42/42：PASS。
+- 五组隔离 PostgreSQL 16：PASS；Reconciliation 10,000 writes / 0 difference / read-only。
+- typecheck、lint、build、golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接生产。当前 GitHub `main` 与 Dormant exact approval 对象保持不变；future-chain 分支未合入 `main`。
+
+### 风险与遗留问题
+
+- 本地 PASS 不能代替 Dormant、Runtime Identity、Activation、Reconciliation 或 Canonical 的生产 Gate。
+- future-chain 含 Dormant 之后代码，Dormant production PASS 前合入 main 会污染冻结发布，现明确禁止。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只执行经独立批准的 Dormant Web-only Deploy；等待审批期间不再扩展第二个本地包。

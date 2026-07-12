@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T21:15:00+08:00",
+  "updatedAt": "2026-07-12T22:00:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-REVIEW-NULL-DIRECTION-TRUTH-REMEDIATION",
-    "title": "Review null, direction and outcome truth remediation",
+    "id": "WP-G0.2-POST-DORMANT-CHAIN-CLEAN-GATE-INTEGRATION",
+    "title": "Post-Dormant chain clean gate integration",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "关闭 Review 中未知方向默认多头或上涨、缺失价格与 MFE/MAE 补 0、未知结果默认超时的真值污染；只修改 Review 统计、合同、组件和防回退测试。",
+    "objective": "在隔离 future-chain worktree 中消除跨分支编译残留和 0 核心测试假绿灯，并重新验证 Runtime Identity、Activation、Reconciliation、Canonical、Trusted Context 与 Review Truth；不改变业务实现、不合入当前 main、不连接生产。",
     "coreChainImpact": [
-      "candidate_outcome_truth",
-      "review_statistics_truth",
-      "review_evolution_display_truth"
+      "candidate_lifecycle_evidence_integrity",
+      "canonical_cutover_evidence_integrity",
+      "review_truth_evidence_integrity"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,51 +48,56 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_V1.md",
-      "docs/governance/wp-g0-2-review-null-direction-truth-remediation.v1.json",
+      "tsconfig.market-test.json",
+      "docs/governance/WP_G0_2_POST_DORMANT_CHAIN_CLEAN_GATE_INTEGRATION_V1.md",
+      "docs/governance/wp-g0-2-post-dormant-chain-clean-gate-integration.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-review-null-direction-truth-remediation/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_REPORT.md",
-      "scripts/governance/review-null-direction-truth.mjs",
-      "scripts/governance/review-null-direction-truth.test.mjs",
-      "src/lib/journal/review-statistics.ts",
-      "src/lib/journal/review-statistics.test.ts",
-      "src/lib/api/frontend-contract.ts",
-      "src/lib/api/frontend-contract.test.ts",
-      "src/lib/radar-contract.ts",
-      "src/components/review/review-evolution.tsx"
+      "reports/wp-g0-2-post-dormant-chain-clean-gate-integration/WP_G0_2_POST_DORMANT_CHAIN_CLEAN_GATE_INTEGRATION_REPORT.md",
+      "scripts/governance/post-dormant-chain-integration.test.mjs"
     ],
     "prohibitedPaths": [
-      "src/app/**",
-      "src/lib/analysis/**",
-      "src/lib/backtest/**",
-      "src/lib/candidate-episode/**",
-      "src/lib/market/**",
-      "src/lib/persistence/**",
-      "src/lib/risk/**",
-      "src/lib/shadow/**",
+      "src/**",
       "deploy/**",
       "migrations/**",
       "docker-compose.yml",
       "scripts/production/**",
+      "scripts/rehearsal/**",
       "tools/**",
       ".env",
       ".env.production"
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_V1.md",
-      "docs/governance/wp-g0-2-review-null-direction-truth-remediation.v1.json",
-      "reports/wp-g0-2-review-null-direction-truth-remediation/WP_G0_2_REVIEW_NULL_DIRECTION_TRUTH_REMEDIATION_REPORT.md",
-      "scripts/governance/review-null-direction-truth.mjs",
-      "src/lib/journal/review-statistics.ts",
-      "src/lib/api/frontend-contract.ts",
-      "src/components/review/review-evolution.tsx"
+      "docs/governance/WP_G0_2_POST_DORMANT_CHAIN_CLEAN_GATE_INTEGRATION_V1.md",
+      "docs/governance/wp-g0-2-post-dormant-chain-clean-gate-integration.v1.json",
+      "reports/wp-g0-2-post-dormant-chain-clean-gate-integration/WP_G0_2_POST_DORMANT_CHAIN_CLEAN_GATE_INTEGRATION_REPORT.md",
+      "scripts/governance/post-dormant-chain-integration.test.mjs"
     ],
     "gateProfile": {
       "targeted": [
+        "test:post-dormant-chain-integration",
+        "candidate:runtime-identity:validate",
+        "candidate:runtime-identity-runner:validate",
+        "test:candidate-runtime-identity-runner",
+        "test:candidate-composition-wiring",
+        "candidate:activation-runner:validate",
+        "test:candidate-activation-runner",
+        "candidate:reconciliation-runner:validate",
+        "test:candidate-reconciliation-runner",
+        "candidate:canonical-read:validate",
+        "test:candidate-canonical-read",
+        "candidate:canonical-read-oracle:validate",
+        "test:candidate-canonical-read-oracle",
+        "candidate:canonical-api-resource:validate",
+        "test:candidate-canonical-api-resource",
+        "candidate:canonical-api-route-adapter:validate",
+        "test:candidate-canonical-api-route-adapter",
+        "candidate:trusted-read-context:validate",
+        "test:candidate-trusted-read-context",
         "review:truth:validate",
         "test:review-truth",
+        "test:post-dormant-chain:pg16",
         "test:autonomy"
       ],
       "baseline": [
@@ -109,13 +114,13 @@
       ]
     },
     "completionBoundary": [
-      "未知方向保持未知，禁止默认多头、空头、上涨或下跌",
-      "缺失 entry/stop/target/validation window/MFE/MAE 保持 null，禁止补 0",
-      "只有后端明确 expired 才显示超时；pending 与 unknown 分开",
-      "缺少方向、结果或完整 MFE/MAE 的生命周期资源必须是 partial",
-      "Review UI 不生成方向、结果、价格或统计值",
+      "build:market-cli 每次删除旧编译目录并禁用 TypeScript incremental",
+      "test:market 在执行任何核心测试前强制 TEST_COUNT 大于 0",
+      "干净编译必须重新生成 Canonical、Trusted Context 和 Review 代表性测试",
+      "后续链 validator、定向测试和五组隔离 PostgreSQL 16 演练全部通过",
+      "future-chain 分支不得在 Dormant production deploy PASS 前合入 main",
       "所有定向、基础和安全门禁通过",
-      "本轮禁止 scan/analysis/strategy/Risk Gate/backtest/API route/Candidate DB/Redis/worker/deploy/production 变更"
+      "本轮禁止业务代码、生产 runner、migration、Compose、DB、Redis、worker、secret 和生产变更"
     ]
   },
   "approvals": [
@@ -293,6 +298,13 @@
     {
       "order": 24,
       "id": "WP-G0.2-REVIEW-NULL-DIRECTION-TRUTH-REMEDIATION",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 25,
+      "id": "WP-G0.2-POST-DORMANT-CHAIN-CLEAN-GATE-INTEGRATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

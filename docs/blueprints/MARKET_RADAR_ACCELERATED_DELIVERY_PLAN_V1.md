@@ -146,14 +146,17 @@ npm run test:migration-capacity
 | 20 | WP-G0.2 canonical API route adapter local preparation | B | local PASS / production prohibited | 公共 query 仅 bounded limit/cursor，单一 trusted context、代码锁、lazy Legacy、2s/15s deadline+AbortSignal、no-store、400/503 语义均锁定；现有 API 0 修改 |
 | 21 | WP-G0.2 trusted read context local preparation | B | local PASS / production prohibited | control/policy 同一只读快照；exact approval manifest digest、release/epoch/phase/flag/evidence 对齐；数据读取前后 authority fingerprint 漂移返回 503；PG16 只读身份 PASS |
 | 22 | WP-G0.2 Review null/direction truth remediation | B | local PASS / production prohibited | unknown direction/outcome 与 null price/MFE/MAE 全程保留；Review 42/42、基础与安全门禁 PASS；未改策略或生产 |
-| 23 | WP-G0.2 canonical cutover | A | prohibited | reconciliation、dual-read 24h、canonical-compat 24h、生产 authority manifest/Reader/API/前端合同 PASS + 独立审批 |
-| 24 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
+| 23 | WP-G0.2 post-Dormant chain clean gate integration | B | local PASS / isolated branch | 每次清编译目录、禁用 incremental、拒绝 0 核心测试；future chain 干净 995/0/7、全部定向与五组 PG16 PASS；Dormant production PASS 前禁止合入 main |
+| 24 | WP-G0.2 canonical cutover | A | prohibited | reconciliation、dual-read 24h、canonical-compat 24h、生产 authority manifest/Reader/API/前端合同 PASS + 独立审批 |
+| 25 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
 
 ## 9. 停止条件
 
 任何 P0、测试失败、工作树污染、release mismatch、secret 命中、证据过期、备份/恢复失败、磁盘容量不足、生产 health 非 ready/fresh 或未经授权的状态变化都立即停止当前包和后续晋级。
 
 ## 10. 当前结论
+
+最新补充：future-chain 现已在独立 worktree 物理清理编译目录和增量缓存后重新证明 995 pass/0 fail/7 explicit DB skip；测试入口已永久改为每次清目录、禁用 incremental 并拒绝 0 核心测试。Activation、Reconciliation、Canonical/Oracle/Resource/Route、Trusted Context、Review Truth 和五组隔离 PG16 均重新 PASS。该分支包含 Dormant 之后的代码，当前只作为后续本地准备证据，Dormant production deploy PASS 前不得合入 GitHub main。
 
 最新补充：Route Adapter 后续审计发现 policy/control 分开读取会形成跨快照 authority 竞态，已在 Trusted Read Context 本地包立即关闭。Route 现在只接受一个上下文；control/policy 在同一只读串行化快照构建，数据库 approval digest 必须匹配固定 manifest 原始字节，phase 不得推断 evidence PASS，runtime release/flags 必须与 manifest/control 对齐，数据读取前后 authority fingerprint 漂移会丢弃结果并返回 503。隔离 PostgreSQL 16 已证明 audit 身份只读和写入拒绝；生产 manifest、API/前端接线和双 24 小时窗口仍未执行。
 

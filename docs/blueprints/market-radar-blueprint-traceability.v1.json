@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_trusted_read_context_local_pass_production_not_authorized",
-  "generatedAt": "2026-07-12T21:00:00+08:00",
+  "status": "wp_g0_2_post_dormant_chain_clean_gate_local_pass_production_not_authorized",
+  "generatedAt": "2026-07-12T22:00:00+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-TRUSTED-READ-CONTEXT-LOCAL-PREPARATION",
+    "id": "WP-G0.2-POST-DORMANT-CHAIN-CLEAN-GATE-INTEGRATION",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -49,7 +49,15 @@
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "WP-G0.2-AUTHORITY-MANIFEST-PROVISIONING-RUNNER-LOCAL-PREPARATION",
+    "nextLocalWorkPackage": "blocked_until_dormant_deploy_then_runtime_identity_production_gate",
+    "postDormantChainCleanGateStatus": "pass_local_isolated_branch_production_prohibited",
+    "postDormantChainCompiledTestFilesMinimum": 173,
+    "postDormantChainMarketTests": "995_pass_0_fail_7_explicit_db_skip",
+    "postDormantChainStaleOutputRejected": true,
+    "postDormantChainZeroCoreTestsRejected": true,
+    "postDormantChainPostgres16Gates": "activation_reconciliation_canonical_oracle_trusted_context_pass",
+    "postDormantChainProductionConnected": false,
+    "postDormantChainCurrentMainMergeAllowed": false,
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
