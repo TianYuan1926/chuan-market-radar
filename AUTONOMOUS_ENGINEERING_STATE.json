@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-13T02:11:19+08:00",
+  "updatedAt": "2026-07-13T03:39:53+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,22 +31,17 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-RUNNER",
-    "title": "Production Web identity recovery runner and verified transport local preparation",
+    "id": "WP-G0.2-DORMANT-RELEASE-DIFF-REFRESH-AFTER-WEB-IDENTITY-RECOVERY",
+    "title": "Dormant release diff refresh after Web identity recovery propagation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "为当前生产 Web 持久化认证降级建立独立、默认 dry-run、精确审批、只重建 Web、可恢复原基线且能通过脱敏 checksum bundle 在仓库外临时执行并自动清理的身份恢复 runner；不混入 Dormant 新发布或任何数据库变更。",
+    "objective": "在不放宽 release allowlist、forbidden path、14 文件 artifact 或生产权限的前提下，把 Web identity recovery 的合法传递依赖纳入 Dormant 完整 release-diff 证据，并拒绝继续使用历史 149 路径审批材料。",
     "coreChainImpact": [
-      "candidate_screening_persistence_availability",
-      "review_evolution_persistence_availability",
-      "least_privilege_runtime_identity_preservation",
-      "production_persistence_health_truth",
-      "web_only_recovery_safety",
-      "baseline_rollback_integrity",
-      "persistence_recovery_commit_barrier",
-      "scan_freshness_partial_truth",
-      "temporary_runner_transport_integrity",
-      "staging_pollution_cleanup"
+      "candidate_lifecycle_dormant_release_integrity",
+      "shadow_runtime_release_scope_truth",
+      "full_release_path_set_provenance",
+      "future_code_contamination_rejection",
+      "stale_approval_evidence_rejection"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -54,53 +49,54 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "package.json",
-      "docs/governance/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_V1.md",
-      "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md",
+      "reports/wp-g0-2-dormant-release-diff-refresh-after-web-identity-recovery/WP_G0_2_DORMANT_RELEASE_DIFF_REFRESH_REPORT.md",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
+      "scripts/production/candidate-dormant-deploy.test.mjs"
+    ],
+    "prohibitedPaths": [
+      "src/**",
+      "deploy/**",
+      "migrations/**",
+      "docker-compose.yml",
+      "package.json",
+      "scripts/production/candidate-runtime-identity/**",
+      "scripts/production/candidate-dormant-deploy.sh",
       "scripts/production/web-identity-recovery-bundle.mjs",
       "scripts/production/web-identity-recovery-entrypoint.sh",
       "scripts/production/web-identity-recovery.mjs",
       "scripts/production/web-identity-recovery.sh",
-      "scripts/production/web-identity-recovery.test.mjs"
-    ],
-    "prohibitedPaths": [
-      "src/app/**",
-      "src/components/**",
-      "src/lib/analysis/**",
-      "src/lib/backtest/**",
-      "src/lib/persistence/**",
-      "src/lib/risk/**",
-      "src/lib/shadow/**",
-      "deploy/**",
-      "migrations/**",
-      "docker-compose.yml",
-      "scripts/production/candidate-runtime-identity/**",
-      "scripts/production/candidate-dormant-deploy.*",
+      "scripts/production/web-identity-recovery.test.mjs",
       "tools/**",
       ".env",
       ".env.production"
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_V1.md",
-      "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
-      "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md",
-      "scripts/production/web-identity-recovery-bundle.mjs",
-      "scripts/production/web-identity-recovery-entrypoint.sh",
-      "scripts/production/web-identity-recovery.mjs",
-      "scripts/production/web-identity-recovery.sh",
-      "scripts/production/web-identity-recovery.test.mjs"
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
+      "reports/wp-g0-2-dormant-release-diff-refresh-after-web-identity-recovery/WP_G0_2_DORMANT_RELEASE_DIFF_REFRESH_REPORT.md",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-dormant-deploy.test.mjs"
     ],
     "gateProfile": {
       "targeted": [
-        "production:web-identity-recovery:validate",
-        "production:web-identity-recovery:bundle",
-        "production:web-identity-recovery",
-        "test:production-web-identity-recovery",
+        "candidate:dormant-deploy:validate",
+        "candidate:dormant-deploy",
+        "test:candidate-dormant-deploy",
+        "candidate:runtime-identity-runner:validate",
+        "candidate:runtime-identity-runner",
+        "test:candidate-runtime-identity-runner",
         "test:deploy-safety",
+        "test:candidate-composition-wiring",
         "test:autonomy"
       ],
       "baseline": [
@@ -117,16 +113,15 @@
       ]
     },
     "completionBoundary": [
-      "审批必须绑定生产 HEAD、identity override、wrapper、base Compose 和当前 Web image",
-      "审批还必须绑定最终 runner commit、Recovery/contract/transport bundle checksum 和仓库外 staging 绝对路径",
-      "执行命令只能是 no-build force-recreate web，禁止 fetch/pull/merge/build 和其它服务",
-      "脱敏 bundle 只能进入批准的仓库外 0700 staging，执行后必须连同 archive/request/marker 清理",
-      "成功必须证明 Web 身份指纹匹配、持久化认证恢复、health ready/fresh、其它容器未变化",
-      "身份或持久化未恢复时必须以原 base Compose 恢复执行前 Web 身份基线且其它容器未变化",
-      "持久化已恢复但独立 scan 未 fresh 时必须保留正确身份、返回 PARTIAL 并阻断 G0 晋级，不得伪 PASS 或错误回滚到坏身份",
-      "默认 dry-run，生产执行必须等待新的精确 90 分钟审批",
+      "历史 approved commit a8dd519 的 149 路径和 f39c8a26 checksum 必须重新计算一致并只保留为历史证据",
+      "当前 main 的 release diff 必须精确为 156 个 A/M 路径和 8aa96737 checksum",
+      "当前新增路径必须全部属于 Web identity recovery、Dormant safety 或治理传递依赖",
+      "Dormant validator 属于 14 文件 artifact，release 锁刷新后的 artifact 必须重新计算且文件数不得扩大",
+      "Runtime Identity 8 文件 artifact 引用 Dormant validator，传递 checksum 必须同步刷新且文件数不得扩大",
+      "allowlist、forbidden path、祖先关系、rollback 和生产权限不得放宽",
+      "旧 149/f39c8a26 审批材料必须被 validator 和回归测试拒绝",
       "所有定向、基础和安全门禁通过",
-      "本地准备阶段禁止生产 recreate、角色/权限/env/数据库/Redis/Feature Flag/control 变更"
+      "本地刷新阶段禁止生产连接、部署、角色/权限/env/数据库/Redis/Feature Flag/control 变更"
     ]
   },
   "approvals": [
@@ -281,6 +276,13 @@
     {
       "order": 19,
       "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-RUNNER",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 20,
+      "id": "WP-G0.2-DORMANT-RELEASE-DIFF-REFRESH-AFTER-WEB-IDENTITY-RECOVERY",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

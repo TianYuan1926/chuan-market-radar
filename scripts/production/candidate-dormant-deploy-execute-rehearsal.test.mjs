@@ -38,8 +38,14 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
     "diff",
     "--name-status",
     "--no-renames",
-    `${contract.releaseBoundary.lastVerifiedProductionRollbackCommit}..${contract.releaseBoundary.requiredBaseCommit}`,
+    `${contract.releaseBoundary.lastVerifiedProductionRollbackCommit}..HEAD`,
   ])).stdout;
+  const releaseDiffLines = releaseDiff.trim().split(/\r?\n/).filter(Boolean).sort();
+  assert.equal(releaseDiffLines.length, contract.releaseBoundary.releaseDiffFileCount);
+  assert.equal(
+    createHash("sha256").update(releaseDiffLines.join("\n")).digest("hex"),
+    contract.releaseBoundary.releaseDiffSha256,
+  );
   const now = Date.now();
   const request = {
     approvalExpiresAt: new Date(now + 30 * 60_000).toISOString(),

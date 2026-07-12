@@ -3331,3 +3331,49 @@ P0 阻断：
 ### 下一轮建议
 
 提交并推送 deterministic transport 修复，生成绑定新 commit 的唯一 final bundle；执行前重新只读核对生产动态指纹，再申请 Web-only Identity Recovery 审批。
+
+## 2026-07-13 / WP-G0.2 Dormant Release Diff Refresh After Web Identity Recovery
+
+### 本轮目标
+
+在不放宽 Dormant 发布边界的前提下，把 Web Identity Recovery 的合法传递依赖纳入完整 release-diff 证据，阻止历史审批材料被错误复用。
+
+### 修改范围
+
+- Dormant release validator/合同从历史 149/`f39c8a26...` 刷新为当前 156/`8aa96737...`。
+- 14 文件 Dormant artifact 刷新为 `b4fce8a6...`，8 文件 Runtime Identity artifact 传递刷新为 `d3b4f015...`；文件数均未扩大。
+- execute/rollback 演练 fixture 改为使用 rollback..HEAD 的当前 path-set，并在执行 runner 前独立校验 count/hash。
+- 新增历史 149/`f39c8a26...` 合同拒绝回归。
+- 未修改部署 shell、Compose、Candidate runtime、frontend、业务 API、scan、analysis、strategy、backtest、DB、Redis、Worker、Feature Flag、migration、env 或 secret。
+
+### 核心链路影响
+
+加强候选生命周期和 Shadow Runtime 的发布范围真值；不改变扫描、候选排序、分析、策略或复盘算法。
+
+### 测试结果
+
+- 红灯基线：当前 main 被旧合同正确拒绝为 `release_diff_file_count_mismatch`。
+- 首次 artifact 传递红灯：Dormant 10/12，2 个 `artifact_checksum_mismatch`；Runtime Identity validator `artifact_checksum` FAIL。
+- 修复后 Dormant：12/12 PASS；Runtime Identity Runner：8/8 PASS。
+- deploy safety：5/5 PASS；Composition：28/28 PASS；Autonomy unit：16/16 PASS。
+- typecheck / lint / build：PASS。
+- test:market：952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- 自治总门禁：17/17 PASS，`worktreeUnchanged=true`；`canAutoCommit=true`、`canAutoDeploy=false`。
+- formal：未运行，本轮禁止。
+- production smoke：未运行，本轮未连接或改变生产。
+
+### 是否部署
+
+未部署。Web Identity Recovery 仍等待独立 exact approval，Dormant Deploy 继续禁止。
+
+### 风险与遗留问题
+
+- 历史 149/`f39c8a26...`、Dormant `a82ed943...`、Runtime Identity `95c50a23...` 全部失效，不得用于新审批。
+- 当前 156 路径只证明截至最终 commit 的 path-set；本轮提交如只修改已有路径则 count/hash 不变，但仍须在 clean commit 后重新验证。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+先完成 Web Identity Recovery；health ready/fresh 后再为 Dormant Deploy 生成绑定新 clean commit、156/`8aa96737...` 与两项新 artifact 的独立审批。

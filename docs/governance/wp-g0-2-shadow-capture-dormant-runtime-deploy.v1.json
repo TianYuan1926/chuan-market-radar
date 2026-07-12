@@ -35,7 +35,7 @@
     "databaseMutationAllowed": false
   },
   "artifact": {
-    "sha256": "a82ed943e7eae1df94bacb0f0c11439586e14fc3127564556215162bb8d82a50",
+    "sha256": "b4fce8a64a9e468067101b50c2e5e59b5802d3f8b5459e176acb1bac25081e2c",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",
@@ -56,8 +56,8 @@
   "releaseBoundary": {
     "requiredBaseCommit": "591163a37493910c346530ebdf271f878c6a67b5",
     "lastVerifiedProductionRollbackCommit": "0599f802f261fe8e3c1982a07106f362bd62ac13",
-    "releaseDiffFileCount": 149,
-    "releaseDiffSha256": "f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37",
+    "releaseDiffFileCount": 156,
+    "releaseDiffSha256": "8aa967379c97addb34f7908ca228092ab5ab4953e65d6cc705b7b36a71ea79a3",
     "allowedStatuses": [
       "A",
       "M"

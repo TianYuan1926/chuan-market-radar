@@ -30,7 +30,7 @@ test("current repository passes local dormant deploy preparation without authori
   assert.equal(result.productionDecision, "BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL");
   assert.equal(result.productionMutationAllowed, false);
   assert.equal(result.artifact.fileCount, 14);
-  assert.equal(result.release.fileCount, 149);
+  assert.equal(result.release.fileCount, 156);
   assert.equal(result.release.checksum, contract.releaseBoundary.releaseDiffSha256);
   assert.equal(result.release.approvedCommit, headOutput.trim());
   assert.equal(result.release.rollbackCommit, "0599f802f261fe8e3c1982a07106f362bd62ac13");
@@ -58,7 +58,8 @@ test("contract rejects scope expansion or dormant boundary weakening", async () 
     [{ dormantBoundary: { ...contract.dormantBoundary, candidateDatabaseUrlsConfigured: 1 } }, "candidate_database_urls_must_be_zero"],
     [{ dormantBoundary: { ...contract.dormantBoundary, candidateFeatureFlagsEnabled: 1 } }, "feature_flags_must_be_zero"],
     [{ dormantBoundary: { ...contract.dormantBoundary, migrationAllowed: true } }, "migration_must_be_false"],
-    [{ releaseBoundary: { ...contract.releaseBoundary, releaseDiffFileCount: 1 } }, "release_diff_file_count_not_locked"],
+    [{ releaseBoundary: { ...contract.releaseBoundary, releaseDiffFileCount: 149 } }, "release_diff_file_count_not_locked"],
+    [{ releaseBoundary: { ...contract.releaseBoundary, releaseDiffSha256: "f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37" } }, "release_diff_checksum_not_locked"],
     [{ releaseBoundary: { ...contract.releaseBoundary, allowedStatuses: ["A", "M", "D"] } }, "release_diff_statuses_mismatch"],
   ];
   for (const [patch, reason] of cases) {

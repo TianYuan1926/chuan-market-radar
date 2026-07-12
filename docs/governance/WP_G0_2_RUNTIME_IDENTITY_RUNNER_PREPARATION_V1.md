@@ -1,6 +1,6 @@
 # WP-G0.2 Runtime Identity Production Runner 准入合同
 
-当前 8 文件 artifact SHA-256 为 `95c50a233b4587234ab574d76de0a02fc870c481ed3fed04317112044cb40178`。该值已随 Dormant 身份 override 保留门禁刷新；旧 checksum 只保留为历史事实，不得再用于后续身份审批。
+当前 8 文件 artifact SHA-256 为 `d3b4f015e70a3b5e4310b5b635921f5b829c7e95854c4dcaf11bd1021adf08d0`。该值已随 Dormant release diff validator 刷新；旧 checksum `95c50a233b4587234ab574d76de0a02fc870c481ed3fed04317112044cb40178` 只保留为历史事实，不得再用于后续身份审批。
 
 ## 1. 本包目标
 
