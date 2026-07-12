@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T03:01:40+08:00",
+  "updatedAt": "2026-07-12T08:04:32+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,27 +31,26 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX",
-    "title": "Migration Runner NOINHERIT post-schema verifier 修复",
-    "lane": "localPreparation",
+    "id": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
+    "title": "Candidate authority production verify-only",
+    "lane": "production",
     "status": "ready_for_gate",
-    "objective": "只修复 NOINHERIT migration login 在 post-schema verify 读取 Candidate authority 边界前未显式激活 owner role 的 42501 根因，并补回归测试。",
+    "objective": "只使用修复后的 Runner 对已存在 Candidate schema 执行一次只读 production verify，确认身份、owner role activation、schema/ledger、catalog、Feature Flag 和运行健康，不执行 migration。",
     "coreChainImpact": [
-      "candidate_authority_verification",
+      "candidate_authority_production_verification",
       "release_safety",
       "evidence_truth"
     ],
     "productionMutation": false,
-    "requiresExplicitApproval": false,
+    "requiresExplicitApproval": true,
     "allowedPaths": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "scripts/production/migration-runner/runner-core.mjs",
-      "scripts/production/migration-runner/migration-runner.mjs",
-      "scripts/production/migration-runner/migration-runner.test.mjs"
+      "scripts/production/migration-runner/production-verify-only.sh",
+      "scripts/production/migration-runner/production-verify-only.test.mjs"
     ],
     "prohibitedPaths": [
       "src/**",
@@ -60,15 +59,17 @@
       "scripts/governance/**",
       "scripts/production/migration-capacity-gate.mjs",
       "scripts/production/migration-capacity-gate.test.mjs",
+      "scripts/production/migration-runner/migration-runner.mjs",
+      "scripts/production/migration-runner/runner-core.mjs",
+      "scripts/production/migration-runner/identity-remediation.mjs",
       "tools/**",
       ".env",
       ".env.production"
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "scripts/production/migration-runner/runner-core.mjs",
-      "scripts/production/migration-runner/migration-runner.mjs",
-      "scripts/production/migration-runner/migration-runner.test.mjs"
+      "scripts/production/migration-runner/production-verify-only.sh",
+      "scripts/production/migration-runner/production-verify-only.test.mjs"
     ],
     "gateProfile": {
       "targeted": [
@@ -89,14 +90,25 @@
       ]
     },
     "completionBoundary": [
-      "NOINHERIT migration login 只在确认 owner membership 后显式 SET ROLE",
-      "schema boundary 读取成功或失败后均 RESET ROLE",
-      "回归测试证明不通过 INHERIT 或直接授权绕过",
+      "Runner request execute=false 且 roleBootstrapEnabled/schemaMigrationEnabled 均为 false",
+      "production verify 只读 PASS，schema present=true，ledger=8",
+      "catalog 8 tables/151 columns/20 functions/10 trigger objects/14 trigger event rows/7 roles",
+      "五个 Candidate Feature Flag 全部 false",
+      "生产 HEAD、image、worktree、schema 和服务在验证前后无非批准变化",
       "所有定向、基础和安全门禁通过",
-      "不连接生产、不执行 migration、不改变运行能力"
+      "禁止 execute migration、DDL/DML、writer、backfill、read cutover 和服务部署"
     ]
   },
-  "approvals": [],
+  "approvals": [
+    {
+      "packageId": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
+      "scope": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
+      "issuedAt": "2026-07-12T08:04:32+08:00",
+      "expiresAt": "2026-07-12T09:04:32+08:00",
+      "approvedBy": "user",
+      "boundary": "verify_only_no_execute_no_ddl_no_dml"
+    }
+  ],
   "queue": [
     {
       "order": 1,
@@ -109,14 +121,14 @@
       "order": 2,
       "id": "WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
       "order": 3,
       "id": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
       "lane": "production",
-      "status": "awaiting_approval",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": true
     },
     {
