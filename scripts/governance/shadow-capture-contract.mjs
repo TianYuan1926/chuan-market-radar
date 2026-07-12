@@ -176,7 +176,7 @@ export async function inspectShadowCaptureRepository() {
       && /enqueue_shadow_candidate_outbox_v2/.test(sourceWriter),
     boundedRetryQuarantineImplemented: /max_attempts/.test(shadowSafety)
       && /status = 'quarantined'/.test(shadowSafety)
-      && /quarantined shadow outbox blocks phase advance/.test(shadowSafety),
+      && /unresolved shadow outbox blocks phase advance/.test(shadowSafety),
     authorityEpochUsesDatabaseLockAndDeadline: /FOR SHARE/.test(shadowSafety)
       && /clock_timestamp\(\) > control_row\.deadline_at/.test(shadowSafety),
     sourceClaimFiltered: /source_type = 'legacy_scan_candidate'/.test(shadowSafety),

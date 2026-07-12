@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T11:20:00+08:00",
+  "updatedAt": "2026-07-12T11:45:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,11 +31,11 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
-    "title": "Candidate shadow capture local implementation and PostgreSQL 16 rehearsal",
+    "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
+    "title": "Candidate shadow capture production readiness and approval packet",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "只在本地实现完整 scan archive 与 Candidate Outbox 同事务写入、重试耗尽隔离、未接生产入口的 consumer，并在临时 PostgreSQL 16 集群完成原子性、并发、故障和恢复演练。",
+    "objective": "只在本地收口审批化 quarantine resolution、fail-closed runtime readiness、migration 009 checksum/权限/监控/非破坏性回退，并生成 schema-only 生产审批包。",
     "coreChainImpact": [
       "candidate_screening_provenance",
       "review_evolution_foundation",
@@ -51,20 +51,32 @@
       "docs/governance/WP_G0_2_SHADOW_CAPTURE_DESIGN_V1.md",
       "docs/governance/wp-g0-2-shadow-capture-contract.v1.json",
       "docs/governance/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_V1.md",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_READINESS_V1.md",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_APPROVAL_PACKET_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-production-readiness.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
       "migrations/candidate-episode/009_candidate_shadow_capture_safety.sql",
-      "reports/wp-g0-2-shadow-capture-local-implementation/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_REPORT.md",
+      "reports/wp-g0-2-shadow-capture-production-readiness/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_READINESS_REPORT.md",
       "scripts/governance/shadow-capture-contract.mjs",
       "scripts/governance/shadow-capture-contract.test.mjs",
+      "scripts/governance/shadow-capture-readiness.mjs",
+      "scripts/governance/shadow-capture-readiness.test.mjs",
       "scripts/rehearsal/shadow-capture-postgres16.sh",
       "src/lib/candidate-episode/contracts/schema-registry-migration-support.v1.json",
       "src/lib/candidate-episode/outbox-service.ts",
       "src/lib/candidate-episode/outbox-service.test.ts",
+      "src/lib/candidate-episode/postgres-permission-integration.test.ts",
+      "src/lib/candidate-episode/quarantine-resolution-service.ts",
+      "src/lib/candidate-episode/quarantine-resolution-service.test.ts",
       "src/lib/candidate-episode/schema-contract.test.ts",
       "src/lib/candidate-episode/shadow-capture-consumer.ts",
       "src/lib/candidate-episode/shadow-capture-consumer.test.ts",
+      "src/lib/candidate-episode/shadow-capture-monitor.ts",
+      "src/lib/candidate-episode/shadow-capture-monitor.test.ts",
       "src/lib/candidate-episode/shadow-capture-postgres-rehearsal.test.ts",
+      "src/lib/candidate-episode/shadow-capture-runtime.ts",
+      "src/lib/candidate-episode/shadow-capture-runtime.test.ts",
       "src/lib/candidate-episode/shadow-capture-source.ts",
       "src/lib/candidate-episode/shadow-capture-source.test.ts",
       "src/scripts/candidate-episode/migrate-rehearsal.ts",
@@ -88,20 +100,25 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_V1.md",
-      "docs/governance/wp-g0-2-shadow-capture-contract.v1.json",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_READINESS_V1.md",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_APPROVAL_PACKET_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-production-readiness.v1.json",
       "migrations/candidate-episode/009_candidate_shadow_capture_safety.sql",
-      "reports/wp-g0-2-shadow-capture-local-implementation/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_REPORT.md",
+      "reports/wp-g0-2-shadow-capture-production-readiness/WP_G0_2_SHADOW_CAPTURE_PRODUCTION_READINESS_REPORT.md",
+      "scripts/governance/shadow-capture-readiness.mjs",
       "scripts/rehearsal/shadow-capture-postgres16.sh",
-      "src/lib/candidate-episode/shadow-capture-consumer.ts",
+      "src/lib/candidate-episode/quarantine-resolution-service.ts",
+      "src/lib/candidate-episode/shadow-capture-monitor.ts",
       "src/lib/candidate-episode/shadow-capture-postgres-rehearsal.test.ts",
-      "src/lib/candidate-episode/shadow-capture-source.ts",
+      "src/lib/candidate-episode/shadow-capture-runtime.ts",
       "src/scripts/candidate-episode/shadow-capture-upgrade-rehearsal.ts"
     ],
     "gateProfile": {
       "targeted": [
         "test:candidate-shadow-capture",
         "candidate:shadow-capture:validate",
+        "test:candidate-shadow-capture-readiness",
+        "candidate:shadow-capture:readiness",
         "candidate:test",
         "candidate:shadow-capture:pg16-rehearsal",
         "test:autonomy"
@@ -120,12 +137,13 @@
       ]
     },
     "completionBoundary": [
-      "完整 scan archive 与 legacy_scan_candidate Outbox 使用同一 PostgreSQL connection transaction",
-      "同源同 hash 幂等，同源不同 hash 硬拒绝并回滚旧源写入",
-      "Outbox 第 8 次失败进入不可变 quarantined 并阻断 phase advance",
-      "shadow consumer 只消费 legacy_scan_candidate 且不得接入生产 API/worker",
-      "PostgreSQL 16 原子性、并发、crash、lease、stale fence、hash conflict、quarantine 和恢复演练 PASS",
-      "生产决定仍为 BLOCKED_NOT_AUTHORIZED 且 Feature Flag 保持关闭",
+      "quarantine 只能通过不可变审批 ledger 执行 replay 或 exclude，原始终态不得改写",
+      "runtime 同时要求代码授权、数据库 phase/epoch/deadline、release 对齐和环境 kill switch",
+      "canonical mapper 不猜 venue identity，不复制 long/short、策略、RR 或 Outcome",
+      "monitor 只读且 300s warning、600s critical、任一 unresolved quarantine critical",
+      "migration 009 checksum、权限、数据库时钟 72h、phase state machine 和 schema-only 审批范围锁定",
+      "PostgreSQL 16 空库、1-8 upgrade、resolution、crash replay、phase、并发和权限演练 PASS",
+      "生产决定仍为 BLOCKED_AWAITING_EXPLICIT_APPROVAL 且 Feature Flag 保持关闭",
       "所有定向、基础和安全门禁通过",
       "禁止生产连接、DDL/DML、Feature Flag、backfill、dual read、read cutover 和部署"
     ]
@@ -173,21 +191,42 @@
       "order": 5,
       "id": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
       "order": 6,
       "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
       "lane": "localPreparation",
-      "status": "pending",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": false
     },
     {
       "order": 7,
-      "id": "WP-G0.2-SHADOW-WRITE",
+      "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA",
       "lane": "production",
-      "status": "prohibited_until_readiness_and_new_approval_pass",
+      "status": "prohibited_until_readiness_gates_and_new_approval_pass",
+      "requiresExplicitApproval": true
+    },
+    {
+      "order": 8,
+      "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING",
+      "lane": "localPreparation",
+      "status": "blocked_until_safety_schema_verified_dormant",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 9,
+      "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
+      "lane": "production",
+      "status": "prohibited_until_local_wiring_and_new_approval_pass",
+      "requiresExplicitApproval": true
+    },
+    {
+      "order": 10,
+      "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+      "lane": "production",
+      "status": "prohibited_until_dormant_deploy_and_new_approval_pass",
       "requiresExplicitApproval": true
     }
   ]

@@ -5,18 +5,20 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PG_BINDIR="${WP_G0_2_REHEARSAL_PG_BIN:-$(pg_config --bindir)}"
 WORK_DIR="$(mktemp -d /tmp/market-radar-shadow-pg16.XXXXXX)"
 DATA_DIR="$WORK_DIR/data"
-SOCKET_DIR="$WORK_DIR/socket"
+SOCKET_DIR="$(mktemp -d /tmp/wp_g0_2_rehearsal_shadow_socket.XXXXXX)"
 PORT="$((55432 + RANDOM % 500))"
 DATABASE="wp_g0_2_rehearsal_shadow_capture"
 DATABASE_URL="postgresql://rehearsal@127.0.0.1:${PORT}/${DATABASE}"
 UPGRADE_DATABASE="wp_g0_2_rehearsal_shadow_upgrade"
 UPGRADE_DATABASE_URL="postgresql://rehearsal@127.0.0.1:${PORT}/${UPGRADE_DATABASE}"
+PERMISSION_DATABASE_URL="postgresql://rehearsal@localhost:${PORT}/${DATABASE}?host=${SOCKET_DIR}"
 
 cleanup() {
   if [[ -f "$DATA_DIR/postmaster.pid" ]]; then
     "$PG_BINDIR/pg_ctl" -D "$DATA_DIR" -m fast -w stop >/dev/null 2>&1 || true
   fi
   rm -rf "$WORK_DIR"
+  rm -rf "$SOCKET_DIR"
 }
 trap cleanup EXIT INT TERM
 
@@ -41,5 +43,9 @@ env -u DATABASE_URL -u POSTGRES_URL \
   WP_G0_2_REHEARSAL_DATABASE_URL="$DATABASE_URL" \
   WP_G0_2_SHADOW_REHEARSAL_DATABASE_URL="$DATABASE_URL" \
   node --test .tmp/market-tests/lib/candidate-episode/shadow-capture-postgres-rehearsal.test.js
+env -u DATABASE_URL -u POSTGRES_URL \
+  APP_ENV=rehearsal NODE_ENV=test WP_G0_2_REHEARSAL=true \
+  WP_G0_2_REHEARSAL_DATABASE_URL="$PERMISSION_DATABASE_URL" \
+  node --test .tmp/market-tests/lib/candidate-episode/postgres-permission-integration.test.js
 
 printf '%s\n' '{"status":"pass","postgresMajor":16,"target":"isolated_local_ephemeral","productionConnected":false}'

@@ -2628,3 +2628,47 @@ P0 阻断：
 ### 下一轮建议
 
 只执行 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET`；不得直接执行 production migration 或 shadow writer。
+## 2026-07-12 / WP-G0.2 Shadow Capture Production Readiness and Approval Packet
+
+### 本轮目标
+
+在不连接生产的前提下，收口 Shadow Capture 的 quarantine resolution、runtime fail-closed gate、migration 009 checksum/权限/监控/回退和 schema-only 生产审批包。
+
+### 修改范围
+
+- Migration 009 新增 immutable resolution ledger、数据库时钟 lifecycle、审批化 replay/exclude 和严格 phase state machine。
+- 新增 quarantine resolution service、canonical venue mapper、runtime gate、只读 monitor 及测试。
+- 新增 readiness 机器合同、validator、防降质测试、中文准入说明和生产审批包。
+- 更新 PG16/permission rehearsal、schema registry、自治状态、加速计划、traceability、context 和本 changelog。
+- 未连接腾讯云，未修改生产 API/worker、scan ranking、analysis、strategy、RR、READY、frontend、Redis、部署或 secret。
+
+### 核心链路影响
+
+- 候选筛选：补齐 canonical identity mapping、失败隔离决议和未完成队列阻断。
+- 复盘进化：避免 quarantined 样本被静默丢弃或改写。
+- 其它核心链路生产行为无变化。
+
+### 测试结果
+
+- old shadow contract 4/4；readiness contract 4/4；readiness validator PASS。
+- Candidate 105 pass / 0 fail / 2 explicit-DB skip。
+- PG16 1-8 upgrade、空库 1-9、shadow resolution/crash/phase 场景 1/1、permission recovery 4/4 PASS。
+- autonomy 16/16、typecheck、lint、build PASS。
+- test:market 941 pass / 0 fail / 2 explicit-DB skip；worker 17/17；historical smoke 4/4。
+- backtest:golden 16/16；forbidden-files、secret-patterns、security-check PASS。
+- formal 未运行且禁止；production smoke 未运行且本包禁止。
+
+### 是否部署
+
+未部署，未连接腾讯云生产，未执行 migration/DDL/DML、Feature Flag、control lifecycle、服务重启或 runtime wiring。
+
+### 风险与遗留问题
+
+- Production 仍只有 Candidate migration 1-8 verified dormant；009 未应用。
+- Production composition/API/worker 尚未接线，代码授权和五个 Candidate Feature Flag 仍关闭。
+- 新的 schema-only 生产审批不存在，productionMutationAllowed=false。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只在最终自治总门禁 PASS 后申请 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA` 的独立 90 分钟审批；不得合并 runtime 部署或 Shadow Writer 激活。

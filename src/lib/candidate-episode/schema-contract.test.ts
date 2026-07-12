@@ -69,8 +69,8 @@ test("migration DDL covers every approved registry field exactly once", async ()
   ).flat();
   const fields = ddlFields(sql);
 
-  assert.equal(fields.length, 155);
-  assert.equal(new Set(fields).size, 155);
+  assert.equal(fields.length, 166);
+  assert.equal(new Set(fields).size, 166);
   assert.deepEqual(fields.filter((field) => !registryFields.includes(field)), []);
   assert.deepEqual(registryFields.filter((field) => !fields.includes(field)), []);
 });
@@ -106,6 +106,9 @@ test("database boundary includes required guards, procedures and roles", async (
     "claim_shadow_candidate_outbox_v2",
     "retry_or_quarantine_outbox_v2",
     "quarantine_outbox_v2",
+    "start_shadow_capture_v3",
+    "resolve_shadow_outbox_quarantine_v3",
+    "candidate_outbox_quarantine_resolution_immutable_v3",
     "candidate_migration_role",
     "candidate_application_writer_role",
     "candidate_application_reader_role",
@@ -119,5 +122,5 @@ test("database boundary includes required guards, procedures and roles", async (
   assert.match(sql, /checkpoint schedule idempotency command hash conflict/);
   assert.match(sql, /terminal Outcome content hash conflict/);
   assert.match(sql, /stale Checkpoint fencing token rejected/);
-  assert.equal((sql.match(/\^sha256:\[0-9a-f\]\{64\}\$/g) ?? []).length, 5);
+  assert.equal((sql.match(/\^sha256:\[0-9a-f\]\{64\}\$/g) ?? []).length, 10);
 });

@@ -38,6 +38,7 @@ const candidateTables = [
   "candidate_episode_checkpoints",
   "candidate_episode_outcomes",
   "candidate_episode_ingest_outbox",
+  "candidate_outbox_quarantine_resolutions",
   "candidate_episode_legacy_imports",
   "candidate_migration_control",
   "schema_migrations",
@@ -152,6 +153,9 @@ async function factHash(pool: Pool) {
     UNION ALL
     SELECT 'outbox:' || outbox_id::text || ':' || payload_hash AS fact
     FROM candidate_authority.candidate_episode_ingest_outbox
+    UNION ALL
+    SELECT 'resolution:' || resolution_id::text || ':' || source_payload_hash AS fact
+    FROM candidate_authority.candidate_outbox_quarantine_resolutions
     UNION ALL
     SELECT 'legacy:' || import_id::text || ':' || source_row_hash AS fact
     FROM candidate_authority.candidate_episode_legacy_imports

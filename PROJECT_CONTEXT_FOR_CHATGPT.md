@@ -6,6 +6,11 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-12 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET` 已完成本地工程与 PG16 演练，机器结论为 `PASS_PRODUCTION_READINESS_PACKET / BLOCKED_AWAITING_EXPLICIT_APPROVAL`；该结论不包含任何生产连接、migration、部署或 Feature Flag 授权。
+- Migration 009 当前锁定 SHA-256=`2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5`。本地 1-8 -> 009 upgrade 只 applied 009，repeat 9/9 skipped，旧 public sentinel hash 保持；空库形态为 9 tables / 166 columns / 26 functions / ledger 9。生产仍只有已验证 dormant 的 migration 1-8。
+- 新增不可变 quarantine resolution ledger；只允许带审批摘要的 `replay_after_approved_fix` 或 `exclude_invalid_source`，原始 quarantine 永不改写，replay 创建新 Outbox。pending/claimed/retry_wait/未决 quarantine 均阻止 phase advance。
+- Runtime readiness 已具备代码授权 + DB phase/epoch/deadline + release 对齐 + database repository + 环境 kill switch 多重 fail-closed Gate、canonical venue mapper 和只读 monitor；当前代码授权仍硬关闭，生产 API/worker/composition 未接线，五个 Candidate Feature Flag 仍为 false。
+- 生产路线已拆成三个独立审批点：先 schema-only 应用/验证 009，再做本地 composition wiring 与 dormant deploy，最后才允许独立批准 activation/observation。下一步只能申请 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA` 的独立 90 分钟审批；“继续”或“全自动搭建”不构成生产授权。
 - 2026-07-12 `WP-G0.2-MIGRATION-PRODUCTION-ADD-SCHEMA-RERUN` 已在用户明确的 Add Schema-only 90 分钟窗口内执行一次。执行前新建加密生产备份 `add-schema-preddl2-20260711T172200Z`，完成 archive、离机下载、188299934 bytes 与 SHA-256 `51130d1cb5a9c324436c076966086ae83823f3554ec422e830bd9f80c7ea299c` 一致性校验；容量 validator 于 17:31:11Z 通过 14/14，预计磁盘 29%。
 - Runner `execute` 已返回 pass，锁定的 8 个 migration 全部 applied。生产人工 catalog 真值为 schema=1、tables=8、columns=151、functions=20、trigger objects=10、trigger event rows=14、roles=7、applied ledger=8；10 与 14 是 `pg_trigger` 对象数和 `information_schema.triggers` 事件行数的不同口径，不是缺 4 个触发器。
 - 自动 `verify` 返回 PostgreSQL `42501 permission denied for schema candidate_authority`，本包总状态为 `PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED`，不得写成 PASS。根因是 `market_radar_migration_login` 为 `NOINHERIT` 且只具备 `candidate_migration_role` membership，runner 的 post-schema `readDatabaseBoundary` 在读取 ledger 前未显式 `SET ROLE candidate_migration_role`；生产只读证据同时证明 login 直接 schema usage/ledger select=false，而 owner role=true。
@@ -1248,3 +1253,20 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 本地合同结论为 `PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL / BLOCKED_NOT_AUTHORIZED`。
 
 生产仍被四项 blocker 阻断：009 未审批/应用、quarantine resolution workflow 未实现、production runtime 未接线、新的独立限时审批不存在。下一包只能是 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET`。当前仍是 **R1 / 可运行但不完整 / 不能支撑实战**。
+
+## 2026-07-12 WP-G0.2 Shadow Capture Production Readiness and Approval Packet
+
+本轮只完成本地生产准备和审批边界，不连接腾讯云、不执行生产 migration、不部署 runtime、不启动 Shadow lifecycle、不启用 Feature Flag。
+
+当前事实：
+
+- Migration 009 在生产应用前完成最终冻结：新增 11 字段的 immutable quarantine resolution ledger、数据库时钟 `start_shadow_capture_v3`、审批化 replay/exclude、phase state machine 和所有未完成 source item 的 advance block。
+- 原始 quarantined Outbox 与 resolution ledger 都不可 update/delete；replay 创建新的独立 Outbox，replacement 未完成时仍阻止进入 `shadow_verify`。
+- `CandidateQuarantineResolutionService` 对 approval ref/digest、reason code 和 replacement payload 做应用层验证；数据库再验证终态、source type、epoch、deadline、approval 和幂等冲突。
+- Runtime readiness 同时检查代码 release 授权、数据库持久化、scope、phase、epoch、deadline、write freeze、release id 和环境 kill switch。当前 `CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED=false`，环境变量单独设为 true 仍不能启用。
+- Canonical mapper 只接受可解析的 active perpetual venue identity；无法解析时明确拒绝，不猜交易所，不复制 long/short、strategy、RR、Outcome 或 future data。
+- 只读 monitor 阈值为 oldest pending 300 秒 warning / 600 秒 critical、任一 unresolved quarantine critical；查询不读取 payload。
+- PG16 真实演练通过：1-8 upgrade、空库 1-9、resolution exclude/replay、resolution immutable/conflict、crash-after-projection 幂等恢复、replacement pending block、phase advance、epoch lock、deadline，以及七个 NOLOGIN role 权限。生产连接始终为 false。
+- 生产执行被进一步拆分：下一批准包只允许 schema-only 应用 009；后续 composition wiring、dormant deploy、activation/observation 分别独立验收和审批。
+
+当前机器结论：`PASS_PRODUCTION_READINESS_PACKET / BLOCKED_AWAITING_EXPLICIT_APPROVAL / productionMutationAllowed=false`。生产仍是 Candidate 1-8 verified dormant；系统仍为 **R1 / 可运行但不完整 / 不能支撑实战**。

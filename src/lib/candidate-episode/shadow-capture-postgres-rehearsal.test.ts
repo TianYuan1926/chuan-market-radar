@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { buildPersistenceSchemaSql } from "../persistence/persistence-contract";
 import { CandidateEpisodeService } from "./candidate-episode-service";
 import { CandidateOutboxService } from "./outbox-service";
+import { CandidateQuarantineResolutionService } from "./quarantine-resolution-service";
 import { CandidateShadowCaptureConsumer } from "./shadow-capture-consumer";
 import {
   CandidateShadowCaptureSourceWriter,
@@ -102,6 +103,7 @@ integrationTest("isolated PostgreSQL 16 proves shadow capture atomicity and fail
   const pool = new Pool({ connectionString: rehearsalUrl, max: 12 });
   const transactions = createPostgresTransactionAdapter(pool);
   const outbox = new CandidateOutboxService(transactions);
+  const resolutions = new CandidateQuarantineResolutionService(transactions);
   const episodes = new CandidateEpisodeService(transactions);
   const now = Date.now();
   const fixedOutboxId = "018f47d6-2c40-7e30-8a20-000000000001";
@@ -123,6 +125,35 @@ integrationTest("isolated PostgreSQL 16 proves shadow capture atomicity and fail
         "shadow-capture-rehearsal-v1",
         sha256("synthetic-approval"),
       ],
+    );
+    const lifecycle = await pool.query<{
+      epoch: string;
+      phase: string;
+      duration_seconds: string;
+    }>(`
+      SELECT epoch::text, phase,
+        extract(epoch FROM deadline_at - started_at)::bigint::text AS duration_seconds
+      FROM candidate_authority.start_shadow_capture_v3($1,$2,$3)
+    `, [
+      "candidate-episode-start-function-v1",
+      "shadow-capture-rehearsal-v1",
+      sha256("start-function-approval"),
+    ]);
+    assert.deepEqual(lifecycle.rows[0], {
+      epoch: "1",
+      phase: "shadow_capture",
+      duration_seconds: "259200",
+    });
+    await rejectsCode(
+      () => pool.query(
+        "SELECT * FROM candidate_authority.start_shadow_capture_v3($1,$2,$3)",
+        [
+          "candidate-episode-start-function-v1",
+          "shadow-capture-rehearsal-v1",
+          sha256("start-function-approval"),
+        ],
+      ),
+      "55000",
     );
 
     const first = sourceCommand(
@@ -294,18 +325,71 @@ integrationTest("isolated PostgreSQL 16 proves shadow capture atomicity and fail
     await rejectsCode(
       () => pool.query(
         `SELECT * FROM candidate_authority.transition_migration_control_v1(
-          $1,2,'shadow_verify',false,$2,$3,$4
+          $1,2,'shadow_verify',false,$2,$3,clock_timestamp()
         )`,
         [
           "candidate-episode-v1",
           "shadow-capture-rehearsal-v1",
-          sha256("phase-advance"),
-          new Date(now + 20 * 60_000).toISOString(),
+          sha256("phase-advance-before-resolution"),
         ],
       ),
       "55000",
     );
-
+    const excluded = await resolutions.resolve({
+      scope: "production_radar",
+      resolutionId: "018f47d6-2c40-7e30-8a20-000000000020",
+      quarantinedOutboxId: "018f47d6-2c40-7e30-8a20-000000000002",
+      action: "exclude_invalid_source",
+      reasonCode: "synthetic_exhaustion_reviewed",
+      approvalRef: "WP-G0.2/REHEARSAL-Q-001",
+      approvalDigest: sha256("quarantine-exclusion-approval"),
+      migrationId: "candidate-episode-v1",
+      authorityEpoch: 2,
+    });
+    assert.equal(excluded.replacementOutboxId, null);
+    const repeatedExclusion = await resolutions.resolve({
+      scope: "production_radar",
+      resolutionId: "018f47d6-2c40-7e30-8a20-000000000020",
+      quarantinedOutboxId: "018f47d6-2c40-7e30-8a20-000000000002",
+      action: "exclude_invalid_source",
+      reasonCode: "synthetic_exhaustion_reviewed",
+      approvalRef: "WP-G0.2/REHEARSAL-Q-001",
+      approvalDigest: sha256("quarantine-exclusion-approval"),
+      migrationId: "candidate-episode-v1",
+      authorityEpoch: 2,
+    });
+    assert.equal(repeatedExclusion.resolutionId, excluded.resolutionId);
+    await rejectsCode(
+      () => pool.query(
+        `UPDATE candidate_authority.candidate_outbox_quarantine_resolutions
+         SET reason_code = 'changed_after_decision'
+         WHERE resolution_id = $1`,
+        [excluded.resolutionId],
+      ),
+      "55000",
+    );
+    await rejectsCode(
+      () => pool.query(
+        `SELECT * FROM candidate_authority.resolve_shadow_outbox_quarantine_v3(
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+        )`,
+        [
+          "production_radar",
+          "018f47d6-2c40-7e30-8a20-000000000021",
+          "018f47d6-2c40-7e30-8a20-000000000002",
+          "exclude_invalid_source",
+          "conflicting_decision",
+          "WP-G0.2/REHEARSAL-Q-002",
+          sha256("conflicting-approval"),
+          null,
+          null,
+          null,
+          "candidate-episode-v1",
+          2,
+        ],
+      ),
+      "23505",
+    );
     const leaseWriter = new CandidateShadowCaptureSourceWriter(transactions, {
       generateId: () => "018f47d6-2c40-7e30-8a20-000000000003",
     });
@@ -342,6 +426,93 @@ integrationTest("isolated PostgreSQL 16 proves shadow capture atomicity and fail
       errorClass: "synthetic_cleanup",
       errorMessageRedacted: "synthetic rehearsal cleanup",
     });
+    const replacementPayload = candidate(
+      "shadow-scan-lease-1",
+      "SYNTHETIC:XRPUSDT:PERPETUAL",
+      now,
+    );
+    const replayed = await resolutions.resolve({
+      scope: "production_radar",
+      resolutionId: "018f47d6-2c40-7e30-8a20-000000000030",
+      quarantinedOutboxId: "018f47d6-2c40-7e30-8a20-000000000003",
+      action: "replay_after_approved_fix",
+      reasonCode: "synthetic_worker_fix_approved",
+      approvalRef: "WP-G0.2/REHEARSAL-Q-003",
+      approvalDigest: sha256("quarantine-replay-approval"),
+      replacementPayload,
+      replacementOutboxId: "018f47d6-2c40-7e30-8a20-000000000031",
+      migrationId: "candidate-episode-v1",
+      authorityEpoch: 2,
+    });
+    assert.equal(
+      replayed.replacementOutboxId,
+      "018f47d6-2c40-7e30-8a20-000000000031",
+    );
+    const replayBeforeClaim = await pool.query<{
+      status: string;
+      attempt_count: number;
+      source_type: string;
+    }>(`
+      SELECT status, attempt_count, source_type
+      FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE outbox_id = '018f47d6-2c40-7e30-8a20-000000000031'
+    `);
+    assert.deepEqual(replayBeforeClaim.rows[0], {
+      status: "pending",
+      attempt_count: 0,
+      source_type: "legacy_scan_candidate",
+    });
+    await rejectsCode(
+      () => pool.query(
+        `SELECT * FROM candidate_authority.transition_migration_control_v1(
+          $1,2,'shadow_verify',false,$2,$3,clock_timestamp()
+        )`,
+        [
+          "candidate-episode-v1",
+          "shadow-capture-rehearsal-v1",
+          sha256("phase-advance-before-replay-complete"),
+        ],
+      ),
+      "55000",
+    );
+    await episodes.openOrRefreshEpisode({
+      scope: "production_radar",
+      canonicalInstrumentId: replacementPayload.canonicalInstrumentId,
+      venueContext: replacementPayload.venueContext,
+      firstSeenAt: replacementPayload.firstSeenAt,
+      lastSeenAt: replacementPayload.lastSeenAt,
+      observationPrice: replacementPayload.observationPrice,
+      observationPriceFactId: replacementPayload.observationPriceFactId,
+      discoveryReasons: [...replacementPayload.discoveryReasons],
+      priorityTier: replacementPayload.priorityTier,
+      maturity: replacementPayload.maturity,
+      directionState: replacementPayload.directionState,
+      expiresAt: replacementPayload.expiresAt,
+      releaseId: replacementPayload.releaseId,
+      sourceScanCycleId: replacementPayload.sourceScanCycleId,
+      runtimeId: "shadow-rehearsal-replay",
+      idempotencyKey: "shadow-projection:018f47d6-2c40-7e30-8a20-000000000031",
+    });
+    const replayConsumed = await consumer.runBatch({
+      scope: "production_radar",
+      runtimeId: "shadow-rehearsal-replay",
+      now: new Date(now + 21 * 60_000 + 304_000).toISOString(),
+      limit: 10,
+      migrationId: "candidate-episode-v1",
+      authorityEpoch: 2,
+    });
+    assert.equal(replayConsumed.completed, 1, JSON.stringify(replayConsumed));
+    const advanced = await pool.query<{ epoch: string; phase: string }>(`
+      SELECT epoch::text, phase
+      FROM candidate_authority.transition_migration_control_v1(
+        $1,2,'shadow_verify',false,$2,$3,clock_timestamp()
+      )
+    `, [
+      "candidate-episode-v1",
+      "shadow-capture-rehearsal-v1",
+      sha256("phase-advance-after-resolution"),
+    ]);
+    assert.deepEqual(advanced.rows[0], { epoch: "3", phase: "shadow_verify" });
 
     const raceControlId = "candidate-episode-race-v1";
     await pool.query(
@@ -368,7 +539,7 @@ integrationTest("isolated PostgreSQL 16 proves shadow capture atomicity and fail
       let transitionSettled = false;
       const transition = transitioner.query(
         `SELECT epoch::text FROM candidate_authority.transition_migration_control_v1(
-          $1,2,'shadow_capture',false,$2,$3,$4
+          $1,2,'legacy',false,$2,$3,$4
         )`,
         [
           raceControlId,

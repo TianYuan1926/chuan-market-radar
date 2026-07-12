@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "wp-g0.2-shadow-capture-production-readiness.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
+  "status": "production_readiness_locally_verified_approval_missing",
+  "scope": "production_radar",
+  "productionAuthorization": false,
+  "authority": {
+    "write": "legacy",
+    "read": "legacy",
+    "environmentFlagMayAuthorize": false,
+    "databaseControlRequired": true,
+    "codeReleaseAuthorizationRequired": true,
+    "environmentFlagIsAdditionalKillSwitchOnly": true
+  },
+  "migrationArtifact": {
+    "filename": "009_candidate_shadow_capture_safety.sql",
+    "sha256": "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5",
+    "productionApplied": false,
+    "legacyMutationAllowed": false,
+    "destructiveRollbackAllowed": false,
+    "applyMode": "single_transaction_ledgered_additive",
+    "nextProductionPackageScope": "schema_only_dormant"
+  },
+  "quarantineResolution": {
+    "implemented": true,
+    "originalTerminalItemMutable": false,
+    "ledgerMutable": false,
+    "allowedActions": [
+      "replay_after_approved_fix",
+      "exclude_invalid_source"
+    ],
+    "approvalDigestRequired": true,
+    "databaseActorRecorded": true,
+    "replacementUsesNewOutboxItem": true,
+    "unresolvedItemsBlockPhaseAdvance": true
+  },
+  "runtimeReadiness": {
+    "failClosedGateImplemented": true,
+    "canonicalVenueMapperImplemented": true,
+    "unresolvedIdentityMayBeGuessed": false,
+    "tradeDirectionCopiedFromAnalysis": false,
+    "productionCompositionWired": false,
+    "productionActivationHardDisabled": true,
+    "productionFeatureFlagEnabled": false
+  },
+  "observability": {
+    "readOnlyMonitorImplemented": true,
+    "oldestPendingWarningSeconds": 300,
+    "oldestPendingCriticalSeconds": 600,
+    "unresolvedQuarantineCritical": 1,
+    "payloadOrSecretInMetrics": false,
+    "requiredHardStopEvents": [
+      "payload_hash_conflict",
+      "projection_idempotency_conflict",
+      "migration_deadline_expired",
+      "unresolved_quarantine"
+    ]
+  },
+  "rollback": {
+    "disableKillSwitchFirst": true,
+    "stopConsumer": true,
+    "transitionToLegacyBeforeDeadlineOrAfterFailure": true,
+    "preserveSchemaAndEvidence": true,
+    "dropTableOrDeleteEvidence": false,
+    "legacyAuthorityRemainsCanonical": true
+  },
+  "approvalRequirements": {
+    "explicitUserApprovalRequired": true,
+    "maximumWindowMinutes": 90,
+    "sourceCommitMustEqualReviewedGitHubMain": true,
+    "migrationChecksumMustMatch": true,
+    "freshBackupAndRestoreEvidenceRequired": true,
+    "freshCapacityGateRequired": true,
+    "freshProductionHealthRequired": true,
+    "featureFlagsMustRemainFalse": true,
+    "runtimeDeploymentAllowed": false,
+    "shadowWriterActivationAllowed": false
+  },
+  "productionBlockers": [
+    "shadow_safety_schema_not_applied_in_production",
+    "production_runtime_wiring_not_deployed",
+    "new_explicit_production_approval_missing"
+  ],
+  "forbiddenInThisPackage": [
+    "production_connection",
+    "production_database_write",
+    "production_migration_execute",
+    "candidate_feature_flag_enablement",
+    "runtime_deployment",
+    "shadow_writer_activation",
+    "backfill",
+    "dual_read",
+    "read_cutover",
+    "legacy_authority_change",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ],
+  "nextRequiredPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA"
+}

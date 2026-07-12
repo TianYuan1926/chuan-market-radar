@@ -8,9 +8,9 @@ import {
 } from "../../lib/candidate-episode/migration-runner";
 import { buildPersistenceSchemaSql } from "../../lib/persistence/persistence-contract";
 
-const approvalRef = "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL";
-const designDigest = "wp-g0.2-shadow-capture-upgrade-rehearsal.v1";
-const releaseId = "wp-g0.2-shadow-capture-local.v1";
+const approvalRef = "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET";
+const designDigest = "wp-g0.2-shadow-capture-upgrade-rehearsal.v2";
+const releaseId = "wp-g0.2-shadow-capture-readiness.v1";
 
 async function main() {
   const target = assertRehearsalDatabaseTarget({
@@ -96,7 +96,8 @@ async function main() {
           AS quarantine_columns
     `);
     assert.equal(before.rows[0]?.hash, after.rows[0]?.hash);
-    assert.equal(verification.rows[0]?.columns, "155");
+    assert.equal(verification.rows[0]?.columns, "166");
+    assert.equal(verification.rows[0]?.functions, "26");
     assert.equal(verification.rows[0]?.migrations, "9");
     assert.equal(verification.rows[0]?.quarantine_columns, "4");
 

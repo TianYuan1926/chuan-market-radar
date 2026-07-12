@@ -46,6 +46,7 @@ type ConsumerDependencies = Readonly<{
 }>;
 
 type ItemStatus = "completed" | "retry_wait" | "quarantined" | "lease_lost";
+type ItemResult = { outboxId: string; status: ItemStatus; failureClass?: string };
 
 class PermanentShadowPayloadError extends Error {
   constructor(readonly failureClass: string, message: string) {
@@ -65,6 +66,12 @@ function errorCode(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error
     ? String(error.code)
     : null;
+}
+
+function transientFailureClass(code: string | null) {
+  return code && /^[0-9A-Z]{5}$/.test(code)
+    ? `database_${code.toLowerCase()}`
+    : "temporary_projection_failure";
 }
 
 function abortIfRequested(signal?: AbortSignal) {
@@ -136,7 +143,7 @@ export class CandidateShadowCaptureConsumer {
   async runBatch(command: RunShadowCaptureBatchCommand) {
     abortIfRequested(command.signal);
     const claims = await this.dependencies.outbox.claimShadowCandidates(command);
-    const itemStatuses: Array<{ outboxId: string; status: ItemStatus }> = [];
+    const itemStatuses: ItemResult[] = [];
 
     for (const claim of claims) {
       abortIfRequested(command.signal);
@@ -205,20 +212,25 @@ export class CandidateShadowCaptureConsumer {
           continue;
         }
 
+        const failureClass = transientFailureClass(code);
         const decision = await this.dependencies.outbox.retryOrQuarantine(claim, {
           now: command.now,
           nextAttemptAt: addMilliseconds(command.now, retryDelayMs(claim.attemptCount)),
-          errorClass: "temporary_projection_failure",
+          errorClass: failureClass,
           errorMessageRedacted: "temporary shadow projection failure",
         });
-        itemStatuses.push({ outboxId: claim.outboxId, status: decision.status });
+        itemStatuses.push({
+          outboxId: claim.outboxId,
+          status: decision.status,
+          failureClass,
+        });
         this.metric(
           claim,
           payload?.releaseId ?? "unavailable",
           decision.status === "quarantined"
             ? "outbox_attempt_exhausted_total"
             : "shadow_projection_failure_total",
-          "temporary_projection_failure",
+          failureClass,
         );
       }
     }

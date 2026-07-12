@@ -38,6 +38,7 @@ const REVIEW_READER_TABLES = [
   "candidate_episodes",
   "candidate_episode_checkpoints",
   "candidate_episode_outcomes",
+  "candidate_outbox_quarantine_resolutions",
 ] as const;
 
 const ALL_AUTHORITY_TABLES = [
@@ -47,6 +48,7 @@ const ALL_AUTHORITY_TABLES = [
   "candidate_episode_checkpoints",
   "candidate_episode_outcomes",
   "candidate_episode_ingest_outbox",
+  "candidate_outbox_quarantine_resolutions",
   "candidate_episode_legacy_imports",
   "candidate_migration_control",
 ] as const;

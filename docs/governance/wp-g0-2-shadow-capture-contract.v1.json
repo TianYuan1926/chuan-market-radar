@@ -1,5 +1,7 @@
 {
   "schemaVersion": "wp-g0.2-shadow-capture-contract.v1",
+  "lifecycle": "historical_package_evidence",
+  "supersededBy": "docs/governance/wp-g0-2-shadow-capture-production-readiness.v1.json",
   "packageId": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
   "status": "local_implementation_rehearsed_production_blocked",
   "scope": "production_radar",

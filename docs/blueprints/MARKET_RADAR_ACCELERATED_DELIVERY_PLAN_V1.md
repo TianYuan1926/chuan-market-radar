@@ -131,11 +131,14 @@ npm run test:migration-capacity
 | 5 | Production verify-only | A | PASS | execute=false、schemaChanged=false、catalog/health/worktree PASS |
 | 6 | WP-G0.2 shadow_capture design/validator | B | local PASS | 生产结论固定 BLOCKED；已识别 5 项 blocker |
 | 7 | WP-G0.2 shadow_capture local implementation + PostgreSQL rehearsal | B | local PASS | 原子 Outbox、quarantine、source-only consumer、PG16 empty/upgrade/failure PASS |
-| 8 | WP-G0.2 production readiness + approval packet | B | next | quarantine resolution、runtime wiring、009 checksum/权限/回滚/监控和审批包 |
-| 9 | WP-G0.2 production shadow_capture | A | prohibited | readiness PASS + 新的独立限时审批 |
-| 10 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定 + 独立审批 |
-| 11 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
-| 12 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
+| 8 | WP-G0.2 production readiness + approval packet | B | local PASS，待全门禁 | immutable resolution、runtime gate/mapper、monitor、009 checksum/权限/回退和 schema-only 审批包 |
+| 9 | WP-G0.2 production add safety schema | A | prohibited | readiness 全门禁 PASS + 新的独立 90 分钟审批；只应用 009，保持 dormant |
+| 10 | WP-G0.2 production composition wiring | B | blocked | 009 生产 verify PASS 后，本地完成真实 composition/worker lifecycle，不启用生产 |
+| 11 | WP-G0.2 dormant runtime deploy | A | prohibited | wiring 全门禁 PASS + 独立审批；部署后代码授权和 Feature Flag 仍关闭 |
+| 12 | WP-G0.2 activate + shadow observation | A | prohibited | dormant deploy PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
+| 13 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
+| 14 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
+| 15 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
 
 ## 9. 停止条件
 
@@ -143,4 +146,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-容量/恢复、Add Schema 和 production verify-only 已形成闭环证据，生产 Candidate schema 仍是 verified dormant 1-8。本地 shadow_capture 已实现 source transaction、source-only consumer 和有界 quarantine，并通过 PostgreSQL 16 空库、1-8 upgrade、原子性、并发和恢复演练。新增 migration 009 尚未生产审批/应用，quarantine resolution 和 production runtime wiring 尚未实现，新审批不存在。下一步只能做 production readiness/approval packet；任何 production migration/shadow writer 继续禁止。禁止 backfill、dual read 和 read cutover。
+容量/恢复、Add Schema 和 production verify-only 已形成闭环证据，生产 Candidate schema 仍是 verified dormant 1-8。本地 readiness 已实现 immutable quarantine resolution、fail-closed runtime gate、canonical mapper 和只读 monitor，并通过 PostgreSQL 16 空库、1-8 upgrade、replay/exclude、crash replay、phase、并发和七角色权限演练。Migration 009 checksum 已锁定但尚未生产审批/应用，production composition 仍未接线，新审批不存在。下一步只能在全部本地门禁 PASS 后申请 schema-only `PRODUCTION-ADD-SAFETY-SCHEMA`；runtime 部署、Writer、backfill、dual read 和 read cutover继续禁止。

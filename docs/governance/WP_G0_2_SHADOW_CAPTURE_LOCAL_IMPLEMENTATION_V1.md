@@ -1,5 +1,7 @@
 # WP-G0.2 Shadow Capture 本地实现与 PG16 演练
 
+> 历史包状态：本包已完成。当前后续状态见 `WP_G0_2_SHADOW_CAPTURE_PRODUCTION_READINESS_V1.md`；不能继续按本文旧的“下一步”直接推断生产权限。
+
 ## 范围
 
 本包完成生产启用前的本地工程实现，不连接腾讯云，不修改生产 schema，不接生产 API/worker，不开启 Feature Flag。
@@ -29,4 +31,4 @@ PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL
 BLOCKED_NOT_AUTHORIZED_FOR_PRODUCTION
 ```
 
-下一步必须先完成 production readiness/approval packet，不能直接执行 migration 009 或开启 shadow writer。
+Production readiness/approval packet 已在后续包本地完成；下一步仍必须获得新的独立明确审批，并且只允许 schema-only 应用/验证 migration 009，不能开启 shadow writer。
