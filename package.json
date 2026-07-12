@@ -61,6 +61,7 @@
     "test:autonomy": "node --test scripts/governance/autonomous-engineering.test.mjs",
     "candidate:shadow-capture:validate": "node scripts/governance/shadow-capture-contract.mjs",
     "test:candidate-shadow-capture": "node --test scripts/governance/shadow-capture-contract.test.mjs",
+    "candidate:shadow-capture:pg16-rehearsal": "bash scripts/rehearsal/shadow-capture-postgres16.sh",
     "ops:network-check": "node scripts/ops/network-check.mjs",
     "ops:node-fetch-check": "node scripts/ops/node-fetch-check.mjs",
     "ops:local-env-check": "node scripts/ops/local-env-check.mjs",

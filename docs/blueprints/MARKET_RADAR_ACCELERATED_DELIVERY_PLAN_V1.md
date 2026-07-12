@@ -130,11 +130,12 @@ npm run test:migration-capacity
 | 4 | Migration Runner post-schema verify fix | B | completed | NOINHERIT 回归与全部本地门禁 PASS |
 | 5 | Production verify-only | A | PASS | execute=false、schemaChanged=false、catalog/health/worktree PASS |
 | 6 | WP-G0.2 shadow_capture design/validator | B | local PASS | 生产结论固定 BLOCKED；已识别 5 项 blocker |
-| 7 | WP-G0.2 shadow_capture local implementation + PostgreSQL rehearsal | B | next | 原子 Outbox hook、重试耗尽隔离、未接生产 consumer、PG16 演练 |
-| 8 | WP-G0.2 production shadow_capture | A | prohibited | 本地实现/演练 PASS + 新的独立限时审批 |
-| 9 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定 + 独立审批 |
-| 10 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
-| 11 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
+| 7 | WP-G0.2 shadow_capture local implementation + PostgreSQL rehearsal | B | local PASS | 原子 Outbox、quarantine、source-only consumer、PG16 empty/upgrade/failure PASS |
+| 8 | WP-G0.2 production readiness + approval packet | B | next | quarantine resolution、runtime wiring、009 checksum/权限/回滚/监控和审批包 |
+| 9 | WP-G0.2 production shadow_capture | A | prohibited | readiness PASS + 新的独立限时审批 |
+| 10 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定 + 独立审批 |
+| 11 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
+| 12 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
 
 ## 9. 停止条件
 
@@ -142,4 +143,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-容量/恢复、Add Schema 和 production verify-only 已形成闭环证据，Candidate schema 为 verified dormant。shadow_capture 本地合同与 validator 已通过，但同时证明旧权威事务尚未原子写 Outbox、Outbox 缺少数据库级重试耗尽隔离、生产 runtime 未接线、隔离 PostgreSQL 16 演练未通过、生产新审批不存在。下一步只能做本地实现和隔离演练；任何 production shadow writer 继续禁止。禁止再次 execute migration、backfill、dual read 和 read cutover。
+容量/恢复、Add Schema 和 production verify-only 已形成闭环证据，生产 Candidate schema 仍是 verified dormant 1-8。本地 shadow_capture 已实现 source transaction、source-only consumer 和有界 quarantine，并通过 PostgreSQL 16 空库、1-8 upgrade、原子性、并发和恢复演练。新增 migration 009 尚未生产审批/应用，quarantine resolution 和 production runtime wiring 尚未实现，新审批不存在。下一步只能做 production readiness/approval packet；任何 production migration/shadow writer 继续禁止。禁止 backfill、dual read 和 read cutover。

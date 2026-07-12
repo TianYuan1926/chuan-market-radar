@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_shadow_capture_local_design_pass_production_blocked",
-  "generatedAt": "2026-07-12T09:25:00+08:00",
+  "status": "wp_g0_2_shadow_capture_local_implementation_rehearsed_production_blocked",
+  "generatedAt": "2026-07-12T11:05:00+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
+    "id": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -49,18 +49,17 @@
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+    "nextLocalWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
     "productionVerifyOnlyStatus": "pass",
-    "shadowCaptureLocalDesignStatus": "pass_local_design",
+    "shadowCaptureLocalDesignStatus": "pass_local_implementation_and_rehearsal",
     "shadowCaptureProductionDecision": "blocked_not_authorized",
     "shadowCaptureKnownBlockers": [
-      "source_transaction_outbox_hook_missing",
-      "outbox_attempt_exhaustion_quarantine_missing",
+      "shadow_safety_migration_not_approved_or_applied_in_production",
+      "quarantine_resolution_workflow_not_implemented",
       "production_runtime_wiring_not_implemented",
-      "isolated_postgres_rehearsal_not_passed",
       "new_explicit_production_approval_missing"
     ],
-    "nextProductionAction": "prohibited_until_local_implementation_postgres_rehearsal_and_new_explicit_approval",
+    "nextProductionAction": "prohibited_until_readiness_packet_009_approval_runtime_wiring_and_new_explicit_approval",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
@@ -617,37 +616,39 @@
   ],
   "lastCompletedWorkPackage": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
   "lastAttemptedWorkPackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
-    "title": "Candidate shadow capture local contract and fail-closed validation",
-    "status": "PASS_LOCAL_DESIGN_PRODUCTION_BLOCKED",
-    "runtimeCodeChanged": false,
+    "id": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+    "title": "Candidate shadow capture local implementation and PostgreSQL 16 rehearsal",
+    "status": "PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL_PRODUCTION_BLOCKED",
+    "runtimeCodeChanged": true,
     "runtimeActivationStatus": "disabled",
     "productionConnected": false,
     "productionMutationAllowed": false,
     "legacyWriteAuthority": true,
     "legacyReadAuthority": true,
-    "sourceTransactionOutboxHookImplemented": false,
-    "boundedRetryQuarantineImplemented": false,
+    "sourceTransactionOutboxHookImplemented": true,
+    "boundedRetryQuarantineImplemented": true,
+    "quarantineResolutionWorkflowImplemented": false,
     "productionRuntimeWiringImplemented": false,
-    "isolatedPostgresRehearsalPassed": false,
+    "isolatedPostgresRehearsalPassed": true,
+    "shadowSafetyMigrationAppliedInProduction": false,
     "newProductionApprovalPresent": false,
     "g0Complete": false,
     "practicalTradingReady": false,
     "evidence": {
-      "path": "docs/governance/WP_G0_2_SHADOW_CAPTURE_DESIGN_V1.md",
+      "path": "docs/governance/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_V1.md",
       "contract": "docs/governance/wp-g0-2-shadow-capture-contract.v1.json",
       "validator": "scripts/governance/shadow-capture-contract.mjs",
-      "note": "Local design validation passes only while production remains blocked and all implementation gaps stay explicit."
+      "note": "Local source transaction, consumer, quarantine and PostgreSQL 16 rehearsals pass; production remains blocked."
     }
   },
   "currentDesignPackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
-    "status": "PASS_LOCAL_DESIGN_PRODUCTION_BLOCKED",
-    "designStatus": "VALIDATED_LOCAL_ONLY",
+    "id": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+    "status": "PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL_PRODUCTION_BLOCKED",
+    "designStatus": "IMPLEMENTED_AND_REHEARSED_LOCAL_ONLY",
     "designVersion": "wp-g0.2-shadow-capture-contract.v1",
     "approvedByUserForProduction": false,
     "productionAuthorization": false,
-    "runtimeCodeChanged": false,
+    "runtimeCodeChanged": true,
     "productionDeployed": false,
     "g0Complete": false,
     "practicalTradingReady": false
@@ -667,7 +668,7 @@
     "evidenceSha256": "bdc655ba30fae50d695fe5698862d7d2b72d69a2c43fd29641820ab3a1f9fb92"
   },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL (local only)",
+  "nextRecommendedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET (local only)",
   "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {

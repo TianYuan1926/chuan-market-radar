@@ -280,7 +280,7 @@ async function main() {
   const migrations = await loadCandidateMigrationFiles(
     join(process.cwd(), "migrations", "candidate-episode"),
   );
-  assert.equal(migrations.length, 8);
+  assert.equal(migrations.length, 9);
   const reportDirectory = join(
     process.cwd(),
     "reports",

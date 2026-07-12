@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T09:35:00+08:00",
+  "updatedAt": "2026-07-12T11:20:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,11 +31,11 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
-    "title": "Candidate shadow capture local contract and fail-closed validation",
+    "id": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+    "title": "Candidate shadow capture local implementation and PostgreSQL 16 rehearsal",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "只在本地把 shadow_capture 的 authority、事务、幂等、失败隔离、时限、观测和审批边界变成机器合同与回归测试，并诚实识别生产接入前缺口。",
+    "objective": "只在本地实现完整 scan archive 与 Candidate Outbox 同事务写入、重试耗尽隔离、未接生产入口的 consumer，并在临时 PostgreSQL 16 集群完成原子性、并发、故障和恢复演练。",
     "coreChainImpact": [
       "candidate_screening_provenance",
       "review_evolution_foundation",
@@ -50,15 +50,36 @@
       "package.json",
       "docs/governance/WP_G0_2_SHADOW_CAPTURE_DESIGN_V1.md",
       "docs/governance/wp-g0-2-shadow-capture-contract.v1.json",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_V1.md",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-shadow-capture-design-validation/WP_G0_2_SHADOW_CAPTURE_DESIGN_VALIDATION_REPORT.md",
+      "migrations/candidate-episode/009_candidate_shadow_capture_safety.sql",
+      "reports/wp-g0-2-shadow-capture-local-implementation/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_REPORT.md",
       "scripts/governance/shadow-capture-contract.mjs",
-      "scripts/governance/shadow-capture-contract.test.mjs"
+      "scripts/governance/shadow-capture-contract.test.mjs",
+      "scripts/rehearsal/shadow-capture-postgres16.sh",
+      "src/lib/candidate-episode/contracts/schema-registry-migration-support.v1.json",
+      "src/lib/candidate-episode/outbox-service.ts",
+      "src/lib/candidate-episode/outbox-service.test.ts",
+      "src/lib/candidate-episode/schema-contract.test.ts",
+      "src/lib/candidate-episode/shadow-capture-consumer.ts",
+      "src/lib/candidate-episode/shadow-capture-consumer.test.ts",
+      "src/lib/candidate-episode/shadow-capture-postgres-rehearsal.test.ts",
+      "src/lib/candidate-episode/shadow-capture-source.ts",
+      "src/lib/candidate-episode/shadow-capture-source.test.ts",
+      "src/scripts/candidate-episode/migrate-rehearsal.ts",
+      "src/scripts/candidate-episode/run-rehearsal.ts",
+      "src/scripts/candidate-episode/shadow-capture-upgrade-rehearsal.ts"
     ],
     "prohibitedPaths": [
-      "src/**",
-      "migrations/**",
+      "src/app/**",
+      "src/components/**",
+      "src/lib/analysis/**",
+      "src/lib/backtest/**",
+      "src/lib/market/**",
+      "src/lib/persistence/**",
+      "src/lib/risk/**",
+      "src/lib/shadow/**",
       "deploy/**",
       "scripts/production/**",
       "tools/**",
@@ -67,16 +88,22 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DESIGN_V1.md",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_V1.md",
       "docs/governance/wp-g0-2-shadow-capture-contract.v1.json",
-      "reports/wp-g0-2-shadow-capture-design-validation/WP_G0_2_SHADOW_CAPTURE_DESIGN_VALIDATION_REPORT.md",
-      "scripts/governance/shadow-capture-contract.mjs",
-      "scripts/governance/shadow-capture-contract.test.mjs"
+      "migrations/candidate-episode/009_candidate_shadow_capture_safety.sql",
+      "reports/wp-g0-2-shadow-capture-local-implementation/WP_G0_2_SHADOW_CAPTURE_LOCAL_IMPLEMENTATION_REPORT.md",
+      "scripts/rehearsal/shadow-capture-postgres16.sh",
+      "src/lib/candidate-episode/shadow-capture-consumer.ts",
+      "src/lib/candidate-episode/shadow-capture-postgres-rehearsal.test.ts",
+      "src/lib/candidate-episode/shadow-capture-source.ts",
+      "src/scripts/candidate-episode/shadow-capture-upgrade-rehearsal.ts"
     ],
     "gateProfile": {
       "targeted": [
         "test:candidate-shadow-capture",
         "candidate:shadow-capture:validate",
+        "candidate:test",
+        "candidate:shadow-capture:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -93,11 +120,12 @@
       ]
     },
     "completionBoundary": [
-      "本地合同验证 PASS_LOCAL_DESIGN",
-      "生产决定固定为 BLOCKED_NOT_AUTHORIZED 且 productionMutationAllowed=false",
-      "旧 authority write/read 保持 legacy，shadow consumer 不得改 ranking/analysis/strategy/READY/RR/frontend",
-      "识别 source transaction Outbox hook、retry exhaustion quarantine、runtime wiring 和 PostgreSQL rehearsal 缺口",
-      "下一包必须先做本地实现与隔离 PostgreSQL 16 演练",
+      "完整 scan archive 与 legacy_scan_candidate Outbox 使用同一 PostgreSQL connection transaction",
+      "同源同 hash 幂等，同源不同 hash 硬拒绝并回滚旧源写入",
+      "Outbox 第 8 次失败进入不可变 quarantined 并阻断 phase advance",
+      "shadow consumer 只消费 legacy_scan_candidate 且不得接入生产 API/worker",
+      "PostgreSQL 16 原子性、并发、crash、lease、stale fence、hash conflict、quarantine 和恢复演练 PASS",
+      "生产决定仍为 BLOCKED_NOT_AUTHORIZED 且 Feature Flag 保持关闭",
       "所有定向、基础和安全门禁通过",
       "禁止生产连接、DDL/DML、Feature Flag、backfill、dual read、read cutover 和部署"
     ]
@@ -138,14 +166,28 @@
       "order": 4,
       "id": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
       "order": 5,
+      "id": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 6,
+      "id": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
+      "lane": "localPreparation",
+      "status": "pending",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 7,
       "id": "WP-G0.2-SHADOW-WRITE",
       "lane": "production",
-      "status": "prohibited_until_local_implementation_and_rehearsal_pass",
+      "status": "prohibited_until_readiness_and_new_approval_pass",
       "requiresExplicitApproval": true
     }
   ]

@@ -29,6 +29,13 @@ function ddlFields(sql: string) {
     }
   }
 
+  for (const match of sql.matchAll(/ALTER TABLE candidate_authority\.([a-z_]+)\n([\s\S]*?);/g)) {
+    const table = match[1];
+    for (const columnMatch of match[2].matchAll(/ADD COLUMN IF NOT EXISTS ([a-z][a-z0-9_]*)\s+/g)) {
+      fields.push(`${table}.${columnMatch[1]}`);
+    }
+  }
+
   return fields;
 }
 
@@ -44,6 +51,7 @@ test("migration layout is versioned and responsibility-split", async () => {
     "006_candidate_legacy_import_registry.sql",
     "007_candidate_runtime_roles_and_permissions.sql",
     "008_candidate_constraints_and_procedures.sql",
+    "009_candidate_shadow_capture_safety.sql",
   ]);
 });
 
@@ -61,8 +69,8 @@ test("migration DDL covers every approved registry field exactly once", async ()
   ).flat();
   const fields = ddlFields(sql);
 
-  assert.equal(fields.length, 151);
-  assert.equal(new Set(fields).size, 151);
+  assert.equal(fields.length, 155);
+  assert.equal(new Set(fields).size, 155);
   assert.deepEqual(fields.filter((field) => !registryFields.includes(field)), []);
   assert.deepEqual(registryFields.filter((field) => !fields.includes(field)), []);
 });
@@ -94,6 +102,10 @@ test("database boundary includes required guards, procedures and roles", async (
     "retry_outbox_v1",
     "complete_outbox_v1",
     "transition_migration_control_v1",
+    "enqueue_shadow_candidate_outbox_v2",
+    "claim_shadow_candidate_outbox_v2",
+    "retry_or_quarantine_outbox_v2",
+    "quarantine_outbox_v2",
     "candidate_migration_role",
     "candidate_application_writer_role",
     "candidate_application_reader_role",
@@ -107,5 +119,5 @@ test("database boundary includes required guards, procedures and roles", async (
   assert.match(sql, /checkpoint schedule idempotency command hash conflict/);
   assert.match(sql, /terminal Outcome content hash conflict/);
   assert.match(sql, /stale Checkpoint fencing token rejected/);
-  assert.equal((sql.match(/\^sha256:\[0-9a-f\]\{64\}\$/g) ?? []).length, 4);
+  assert.equal((sql.match(/\^sha256:\[0-9a-f\]\{64\}\$/g) ?? []).length, 5);
 });

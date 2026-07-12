@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wp-g0.2-shadow-capture-contract.v1",
-  "packageId": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
-  "status": "local_design_validated_production_blocked",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+  "status": "local_implementation_rehearsed_production_blocked",
   "scope": "production_radar",
   "productionAuthorization": false,
   "authority": {
@@ -79,22 +79,23 @@
   "implementationFacts": {
     "candidateSchemaAppliedVerifiedDormant": true,
     "candidateFeatureFlagsEnabledInProduction": false,
-    "sourceTransactionOutboxHookImplemented": false,
-    "boundedRetryQuarantineImplemented": false,
+    "sourceTransactionOutboxHookImplemented": true,
+    "boundedRetryQuarantineImplemented": true,
     "productionRuntimeWiringImplemented": false,
-    "isolatedPostgresRehearsalPassed": false
+    "isolatedPostgresRehearsalPassed": true,
+    "shadowSafetyMigrationAppliedInProduction": false,
+    "quarantineResolutionWorkflowImplemented": false
   },
   "productionBlockers": [
-    "source_transaction_outbox_hook_missing",
-    "outbox_attempt_exhaustion_quarantine_missing",
+    "shadow_safety_migration_not_approved_or_applied_in_production",
+    "quarantine_resolution_workflow_not_implemented",
     "production_runtime_wiring_not_implemented",
-    "isolated_postgres_rehearsal_not_passed",
     "new_explicit_production_approval_missing"
   ],
   "forbiddenInThisPackage": [
     "production_connection",
     "production_database_write",
-    "migration_change",
+    "production_migration_execute",
     "candidate_feature_flag_enablement",
     "backfill",
     "dual_read",
@@ -106,5 +107,5 @@
     "frontend_change",
     "formal_backtest"
   ],
-  "nextRequiredPackage": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL"
+  "nextRequiredPackage": "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET"
 }

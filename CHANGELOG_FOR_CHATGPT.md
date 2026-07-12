@@ -2585,3 +2585,46 @@ P0 阻断：
 ### 下一轮建议
 
 只执行 `WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL`；本地实现与隔离演练通过前不得申请生产开启。
+
+## 2026-07-12 / WP-G0.2 Shadow Capture Local Implementation and PostgreSQL Rehearsal
+
+### 本轮目标
+
+在本地实现 Candidate shadow_capture source transaction、Outbox 失败隔离和未接生产入口的 consumer，并用临时 PostgreSQL 16 集群验证空库、1-8 upgrade、原子性、并发、故障和恢复。
+
+### 修改范围
+
+- 新增 additive migration 009、source writer、consumer、v2 Outbox service 和 PG16 rehearsal。
+- 更新 Candidate schema registry/contract/tests、自治状态、蓝图、context 和 changelog。
+- 未修改 scan ranking、analysis、strategy、RR、READY、frontend、production API/worker、Redis、部署或 secret。
+
+### 核心链路影响
+
+- 候选筛选：建立 first-seen/source provenance 的原子旁路基础。
+- 复盘进化：建立后续权威 Episode/Outcome 的入口基础。
+- 其它核心环节无生产行为变化。
+
+### 测试结果
+
+- shadow contract：4/4 pass。
+- Candidate：97 pass / 0 fail / 2 explicit-DB skip；本包 PG16 测试另行真实执行。
+- PG16 upgrade：baseline 1-8、只升级 009、repeat 9 skipped、legacy hash preserved。
+- PG16 empty：1-9 applied，8 tables / 155 columns / 24 functions。
+- PG16 shadow scenarios：1/1 pass，覆盖原子性、hash、lease/fencing、8-attempt quarantine、phase/deadline 和 epoch race。
+- 基础、安全和自治总门禁结果记录在本轮报告；formal 禁止运行。
+
+### 是否部署
+
+未部署，未连接生产，未执行 production migration/DDL/DML、Feature Flag、backfill、dual read、read cutover 或服务重启。
+
+### 风险与遗留问题
+
+- 生产仍是 Candidate migration 1-8；009 尚未审批/应用。
+- Quarantine resolution ledger/workflow 尚未实现，当前 unresolved quarantine 会永久阻断晋级。
+- Production runtime wiring 未实现，Candidate Feature Flag 保持关闭。
+- 新的 production shadow_capture 审批不存在。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只执行 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET`；不得直接执行 production migration 或 shadow writer。

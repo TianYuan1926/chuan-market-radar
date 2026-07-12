@@ -13,18 +13,17 @@ async function contractFixture() {
   return JSON.parse(await readFile(CONTRACT_PATH, "utf8"));
 }
 
-test("current shadow_capture design passes locally but cannot authorize production", async () => {
+test("current shadow_capture implementation passes locally but cannot authorize production", async () => {
   const result = await validateCurrentShadowCaptureDesign();
-  assert.equal(result.localDesignStatus, "PASS_LOCAL_DESIGN");
+  assert.equal(result.localDesignStatus, "PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL");
   assert.equal(result.productionDecision, "BLOCKED_NOT_AUTHORIZED");
   assert.equal(result.productionMutationAllowed, false);
   assert.deepEqual(result.contractViolations, []);
   assert.deepEqual(result.repository.violations, []);
   assert.deepEqual(result.blockers, [
-    "source_transaction_outbox_hook_missing",
-    "outbox_attempt_exhaustion_quarantine_missing",
+    "shadow_safety_migration_not_approved_or_applied_in_production",
+    "quarantine_resolution_workflow_not_implemented",
     "production_runtime_wiring_not_implemented",
-    "isolated_postgres_rehearsal_not_passed",
     "new_explicit_production_approval_missing",
   ]);
 });
@@ -41,8 +40,13 @@ test("repository inspection proves dormant wiring and existing database fences",
   assert.equal(facts.completionRejectsStaleFence, true);
   assert.equal(facts.productionActivationHardDisabled, true);
   assert.equal(facts.outboxServiceExists, true);
-  assert.equal(facts.sourceTransactionOutboxHookImplemented, false);
-  assert.equal(facts.boundedRetryQuarantineImplemented, false);
+  assert.equal(facts.sourceTransactionOutboxHookImplemented, true);
+  assert.equal(facts.boundedRetryQuarantineImplemented, true);
+  assert.equal(facts.authorityEpochUsesDatabaseLockAndDeadline, true);
+  assert.equal(facts.sourceClaimFiltered, true);
+  assert.equal(facts.scanSourceCandidateOnlyBoundary, true);
+  assert.equal(facts.consumerHasHardStop, true);
+  assert.equal(facts.isolatedPostgresRehearsalImplemented, true);
   assert.equal(facts.productionRuntimeWiringImplemented, false);
 });
 
@@ -80,7 +84,7 @@ test("malformed contract and failed repository inspection fail closed", async ()
     ["contract_broken"],
     { violations: ["repository_broken"] },
   );
-  assert.equal(decision.localDesignStatus, "FAIL_LOCAL_DESIGN");
+  assert.equal(decision.localDesignStatus, "FAIL_LOCAL_IMPLEMENTATION_AND_REHEARSAL");
   assert.equal(decision.productionDecision, "BLOCKED_NOT_AUTHORIZED");
   assert.equal(decision.productionMutationAllowed, false);
   assert.deepEqual(decision.blockers, [

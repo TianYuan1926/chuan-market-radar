@@ -1231,3 +1231,20 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 合同回归覆盖 authority 偷换、策略/RR 污染、Redis 越权、哈希冲突软化、无限重试、延长 72h、降低 10,000 writes 和删除审批阻断等降质路径，任一变化 fail closed。
 
 下一包只能是 `WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL`。它完成并通过全部门禁后，才可生成新的 production shadow_capture 审批包。当前系统仍是 **R1 / 可运行但不完整 / 不能支撑实战**。
+
+## 2026-07-12 WP-G0.2 Shadow Capture Local Implementation and PostgreSQL Rehearsal
+
+本轮只完成 production 启用前的本地实现与真实 PostgreSQL 16 隔离演练；未连接腾讯云、未执行生产 migration、未修改 Feature Flag、未接生产 API/worker。
+
+当前事实：
+
+- `CandidateShadowCaptureSourceWriter` 在同一 connection transaction 内写不可变 scan archive 和 `legacy_scan_candidate` Outbox；同源同 hash 幂等，同源不同内容/hash 硬拒绝，Outbox 失败回滚 source archive。
+- `CandidateShadowCaptureConsumer` 只 claim legacy candidate source，不消费 Candidate event Outbox；payload exact-key allowlist 禁止 trade plan/Outcome/future 字段，投影使用独立幂等键。
+- Migration 009 本地草案增加 max attempts、结构化脱敏错误、quarantined 终态、source enqueue/source-only claim/retry/quarantine v2 procedures。
+- authority epoch 检查使用 `FOR SHARE` 与 phase transition `FOR UPDATE` 形成数据库屏障，并使用数据库时钟执行 72h deadline。
+- 空库 1-9 rehearsal PASS：8 tables、155 columns、24 functions、ledger 9。
+- 生产形态 1-8 -> 009 upgrade rehearsal PASS：只 applied 009，重复执行 9/9 skipped，旧 public sentinel hash 保持不变。
+- PG16 场景通过：原子回滚、hash conflict、source-only claim、Candidate 幂等投影、8 次失败 quarantine、终态不可改、quarantine 阻断 phase、lease takeover、stale fence、epoch lock race 和 database deadline。
+- 本地合同结论为 `PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL / BLOCKED_NOT_AUTHORIZED`。
+
+生产仍被四项 blocker 阻断：009 未审批/应用、quarantine resolution workflow 未实现、production runtime 未接线、新的独立限时审批不存在。下一包只能是 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET`。当前仍是 **R1 / 可运行但不完整 / 不能支撑实战**。

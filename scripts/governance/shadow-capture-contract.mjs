@@ -11,17 +11,16 @@ export const CONTRACT_PATH = resolve(
 );
 
 const REQUIRED_BLOCKERS = [
-  "source_transaction_outbox_hook_missing",
-  "outbox_attempt_exhaustion_quarantine_missing",
+  "shadow_safety_migration_not_approved_or_applied_in_production",
+  "quarantine_resolution_workflow_not_implemented",
   "production_runtime_wiring_not_implemented",
-  "isolated_postgres_rehearsal_not_passed",
   "new_explicit_production_approval_missing",
 ];
 
 const REQUIRED_FORBIDDEN_ACTIONS = [
   "production_connection",
   "production_database_write",
-  "migration_change",
+  "production_migration_execute",
   "candidate_feature_flag_enablement",
   "backfill",
   "dual_read",
@@ -51,8 +50,8 @@ export function validateShadowCaptureContract(contract) {
 
   const violations = [];
   requireValue(violations, contract.schemaVersion, "wp-g0.2-shadow-capture-contract.v1", "schema_version");
-  requireValue(violations, contract.packageId, "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION", "package_id");
-  requireValue(violations, contract.status, "local_design_validated_production_blocked", "status");
+  requireValue(violations, contract.packageId, "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL", "package_id");
+  requireValue(violations, contract.status, "local_implementation_rehearsed_production_blocked", "status");
   requireValue(violations, contract.scope, "production_radar", "scope");
   requireValue(violations, contract.productionAuthorization, false, "production_authorization");
 
@@ -108,14 +107,12 @@ export function validateShadowCaptureContract(contract) {
   const facts = contract.implementationFacts ?? {};
   requireValue(violations, facts.candidateSchemaAppliedVerifiedDormant, true, "candidate_schema_fact");
   requireValue(violations, facts.candidateFeatureFlagsEnabledInProduction, false, "production_flag_fact");
-  for (const field of [
-    "sourceTransactionOutboxHookImplemented",
-    "boundedRetryQuarantineImplemented",
-    "productionRuntimeWiringImplemented",
-    "isolatedPostgresRehearsalPassed",
-  ]) {
-    requireValue(violations, facts[field], false, field);
-  }
+  requireValue(violations, facts.sourceTransactionOutboxHookImplemented, true, "sourceTransactionOutboxHookImplemented");
+  requireValue(violations, facts.boundedRetryQuarantineImplemented, true, "boundedRetryQuarantineImplemented");
+  requireValue(violations, facts.productionRuntimeWiringImplemented, false, "productionRuntimeWiringImplemented");
+  requireValue(violations, facts.isolatedPostgresRehearsalPassed, true, "isolatedPostgresRehearsalPassed");
+  requireValue(violations, facts.shadowSafetyMigrationAppliedInProduction, false, "shadowSafetyMigrationAppliedInProduction");
+  requireValue(violations, facts.quarantineResolutionWorkflowImplemented, false, "quarantineResolutionWorkflowImplemented");
 
   if (!exactArray(contract.productionBlockers, REQUIRED_BLOCKERS)) {
     violations.push("production_blockers_changed");
@@ -126,7 +123,7 @@ export function validateShadowCaptureContract(contract) {
   requireValue(
     violations,
     contract.nextRequiredPackage,
-    "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+    "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
     "next_required_package",
   );
 
@@ -144,12 +141,15 @@ async function sourceFilesUnder(relativePath) {
 }
 
 export async function inspectShadowCaptureRepository() {
-  const [outboxDdl, procedures, flags, persistence, outboxService] = await Promise.all([
+  const [outboxDdl, procedures, shadowSafety, flags, sourceWriter, consumer, outboxService, rehearsal] = await Promise.all([
     read("migrations/candidate-episode/005_candidate_episode_outbox.sql"),
     read("migrations/candidate-episode/008_candidate_constraints_and_procedures.sql"),
+    read("migrations/candidate-episode/009_candidate_shadow_capture_safety.sql"),
     read("src/lib/candidate-episode/feature-flags.ts"),
-    read("src/lib/persistence/persistence-store.ts"),
+    read("src/lib/candidate-episode/shadow-capture-source.ts"),
+    read("src/lib/candidate-episode/shadow-capture-consumer.ts"),
     read("src/lib/candidate-episode/outbox-service.ts"),
+    read("scripts/rehearsal/shadow-capture-postgres16.sh"),
   ]);
   const runtimeRoots = ["src/app/api", "deploy/workers"];
   const runtimeSources = [];
@@ -171,9 +171,25 @@ export async function inspectShadowCaptureRepository() {
     completionRejectsStaleFence: /stale outbox fencing token rejected/.test(procedures),
     productionActivationHardDisabled: /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const/.test(flags),
     outboxServiceExists: /class CandidateOutboxService/.test(outboxService),
-    sourceTransactionOutboxHookImplemented: /candidate_episode_ingest_outbox|CandidateOutboxService/.test(persistence),
-    boundedRetryQuarantineImplemented: /'failed'|'quarantined'|max_attempts/.test(outboxDdl),
-    productionRuntimeWiringImplemented: runtimeSources.some((source) => /candidate-episode\/outbox-service|CandidateOutboxService/.test(source)),
+    sourceTransactionOutboxHookImplemented: /transactions\.withTransaction/.test(sourceWriter)
+      && /INSERT INTO scan_archives/i.test(sourceWriter)
+      && /enqueue_shadow_candidate_outbox_v2/.test(sourceWriter),
+    boundedRetryQuarantineImplemented: /max_attempts/.test(shadowSafety)
+      && /status = 'quarantined'/.test(shadowSafety)
+      && /quarantined shadow outbox blocks phase advance/.test(shadowSafety),
+    authorityEpochUsesDatabaseLockAndDeadline: /FOR SHARE/.test(shadowSafety)
+      && /clock_timestamp\(\) > control_row\.deadline_at/.test(shadowSafety),
+    sourceClaimFiltered: /source_type = 'legacy_scan_candidate'/.test(shadowSafety),
+    scanSourceCandidateOnlyBoundary:
+      /const allowedMaturities = new Set<CandidateMaturity>\(\[\s*"light_candidate",\s*"deep_candidate",\s*\]\)/.test(sourceWriter)
+      && /const allowedDirections = new Set<CandidateDirectionState>\(\[\s*"neutral",\s*"unknown",\s*\]\)/.test(sourceWriter),
+    consumerHasHardStop: /ShadowCaptureHardStopError/.test(consumer),
+    isolatedPostgresRehearsalImplemented: /initdb/.test(rehearsal)
+      && /shadow-capture-postgres-rehearsal\.test\.js/.test(rehearsal),
+    productionRuntimeWiringImplemented: runtimeSources.some((source) => (
+      /candidate-episode\/(?:outbox-service|shadow-capture-source|shadow-capture-consumer)/.test(source)
+      || /Candidate(?:OutboxService|ShadowCaptureSourceWriter|ShadowCaptureConsumer)/.test(source)
+    )),
   };
 
   const violations = [];
@@ -187,11 +203,16 @@ export async function inspectShadowCaptureRepository() {
     "completionRejectsStaleFence",
     "productionActivationHardDisabled",
     "outboxServiceExists",
+    "sourceTransactionOutboxHookImplemented",
+    "boundedRetryQuarantineImplemented",
+    "authorityEpochUsesDatabaseLockAndDeadline",
+    "sourceClaimFiltered",
+    "scanSourceCandidateOnlyBoundary",
+    "consumerHasHardStop",
+    "isolatedPostgresRehearsalImplemented",
   ]) {
     if (!facts[field]) violations.push(`repository_guard_missing:${field}`);
   }
-  if (facts.sourceTransactionOutboxHookImplemented) violations.push("unexpected_source_outbox_hook_present");
-  if (facts.boundedRetryQuarantineImplemented) violations.push("unexpected_retry_quarantine_present");
   if (facts.productionRuntimeWiringImplemented) violations.push("unexpected_production_runtime_wiring_present");
 
   return { facts, violations };
@@ -207,11 +228,13 @@ export function evaluateShadowCaptureProductionDecision(contractViolations, repo
     ...validationViolations,
   ];
   return {
-    localDesignStatus: validationViolations.length === 0 ? "PASS_LOCAL_DESIGN" : "FAIL_LOCAL_DESIGN",
+    localDesignStatus: validationViolations.length === 0
+      ? "PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL"
+      : "FAIL_LOCAL_IMPLEMENTATION_AND_REHEARSAL",
     productionDecision: "BLOCKED_NOT_AUTHORIZED",
     productionMutationAllowed: false,
     blockers,
-    nextRequiredPackage: "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL",
+    nextRequiredPackage: "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-READINESS-AND-APPROVAL-PACKET",
   };
 }
 
@@ -230,7 +253,7 @@ export async function validateCurrentShadowCaptureDesign() {
 async function main() {
   const result = await validateCurrentShadowCaptureDesign();
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  if (result.localDesignStatus !== "PASS_LOCAL_DESIGN") process.exitCode = 1;
+  if (result.localDesignStatus !== "PASS_LOCAL_IMPLEMENTATION_AND_REHEARSAL") process.exitCode = 1;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
