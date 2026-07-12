@@ -62,6 +62,9 @@ export function validateContract(contract) {
   ensure(contract.scope?.workerRestartAllowed === false, "worker_restart_must_be_false");
   ensure(contract.scope?.featureFlagMutationAllowed === false, "feature_flag_mutation_must_be_false");
   ensure(contract.scope?.maximumApprovalWindowMinutes === 90, "approval_window_not_locked");
+  ensure(contract.transport?.reproducibleArchiveRequired === true, "reproducible_archive_required");
+  ensure(contract.transport?.archiveFormat === "ustar+gzip-n", "transport_archive_format_not_locked");
+  ensure(contract.transport?.sourceDateEpoch === 946684800, "transport_source_date_epoch_not_locked");
   ensure(contract.rollback?.baselineComposeWithoutIdentityOverride === true, "baseline_rollback_required");
   ensure(contract.rollback?.automaticRollbackRequired === true, "automatic_rollback_required");
   ensure(contract.rollback?.rollbackOnlyBeforePersistenceRecoveryVerified === true, "rollback_boundary_not_locked");

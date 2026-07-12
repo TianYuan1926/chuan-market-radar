@@ -2,7 +2,7 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -11,6 +11,9 @@ import { loadContract, validateLocalPreparation } from "./web-identity-recovery.
 
 const execFileAsync = promisify(execFile);
 const CONTRACT_PATH = "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json";
+const TRANSPORT_ARCHIVE_FORMAT = "ustar+gzip-n";
+const TRANSPORT_SOURCE_DATE_EPOCH = 946_684_800;
+const TRANSPORT_FIXED_TIME = new Date(TRANSPORT_SOURCE_DATE_EPOCH * 1000);
 const TRANSPORT_FILES = [
   CONTRACT_PATH,
   "scripts/production/web-identity-recovery-entrypoint.sh",
@@ -39,6 +42,7 @@ export async function buildTransportBundle({ root = process.cwd(), output, sourc
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
       await cp(resolve(root, file), target);
       await chmod(target, file.endsWith(".sh") ? 0o700 : 0o600);
+      await utimes(target, TRANSPORT_FIXED_TIME, TRANSPORT_FIXED_TIME);
     }
     const contractBytes = await readFile(resolve(root, CONTRACT_PATH));
     const manifest = {
@@ -49,16 +53,36 @@ export async function buildTransportBundle({ root = process.cwd(), output, sourc
       recoveryArtifactSha256: contract.artifact.sha256,
       contractSha256: sha256(contractBytes),
       transportMethod: "approved_orcaterm_bundle_upload",
+      reproducibleArchive: true,
+      archiveFormat: TRANSPORT_ARCHIVE_FORMAT,
+      sourceDateEpoch: TRANSPORT_SOURCE_DATE_EPOCH,
       containsSecrets: false,
       productionRepositoryMutationAllowed: false,
       files: TRANSPORT_FILES,
     };
-    await writeFile(join(payloadRoot, "transport-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
+    const manifestPath = join(payloadRoot, "transport-manifest.json");
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
+    await utimes(manifestPath, TRANSPORT_FIXED_TIME, TRANSPORT_FIXED_TIME);
     await mkdir(dirname(outputPath), { recursive: true });
-    await execFileAsync("tar", ["-czf", outputPath, "-C", payloadRoot, "."], {
-      env: { ...process.env, COPYFILE_DISABLE: "1" },
+    const archivePath = join(temporaryRoot, "payload.tar");
+    const archiveFiles = [...TRANSPORT_FILES, "transport-manifest.json"].sort();
+    await execFileAsync("tar", [
+      "-cf", archivePath,
+      "--format=ustar",
+      "--uid=0",
+      "--gid=0",
+      "--numeric-owner",
+      "-C", payloadRoot,
+      ...archiveFiles,
+    ], {
+      env: { ...process.env, COPYFILE_DISABLE: "1", LC_ALL: "C" },
     });
-    const bundleBytes = await readFile(outputPath);
+    const { stdout: bundleBytes } = await execFileAsync("gzip", ["-n", "-9", "-c", archivePath], {
+      encoding: null,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    ensure(Buffer.isBuffer(bundleBytes), "deterministic_bundle_not_binary");
+    await writeFile(outputPath, bundleBytes, { mode: 0o600 });
     return {
       status: approvalEligible
         ? "PASS_FINAL_RECOVERY_TRANSPORT_BUNDLE"

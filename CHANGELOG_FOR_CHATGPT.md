@@ -3283,3 +3283,51 @@ P0 阻断：
 ### 下一轮建议
 
 提交并推送本修复，生成绑定 clean commit 的 final bundle；执行前再次只读确认动态指纹，然后只申请 Web-only Identity Recovery 审批。
+
+## 2026-07-13 / WP-G0.2 Production Web Identity Recovery Deterministic Transport
+
+### 本轮目标
+
+关闭同一 clean commit 重复生成 transport bundle 时 checksum 漂移的 P1 证据污染，确保 exact approval 绑定的是可重复、可审计的二进制产物。
+
+### 修改范围
+
+- `web-identity-recovery-bundle.mjs` 固定 payload 文件顺序、uid/gid、mtime epoch 和 ustar 格式，并使用 `gzip -n -9` 去除 gzip 时间头。
+- transport manifest、机器合同和生产 runner 同时锁定 `reproducibleArchive=true`、`archiveFormat=ustar+gzip-n`、`sourceDateEpoch=946684800`。
+- 新增同一 payload 两次构建 SHA 与 bytes 完全相等的回归，并让旧 manifest 缺字段时 fail closed。
+- Recovery artifact 刷新为 `cb81523b21018868a81b21d42a195574a5a3c2695b2090fc9c770a9002b58a79`，contract SHA-256=`10be74155f464285e9369b93e0ea9682ca8c7c736d7b3027f348a899d7b08265`。
+- 旧 commit=`9d6a5fea...` 的 Recovery=`340ab9db...`、contract=`9a161f7e...`、bundle=`6285244a...` 全部失效，本地旧 bundle 已删除。
+- 未修改 frontend、业务 API、scan、analysis、strategy、backtest、DB、Redis、worker、Feature Flag、env、secret 或生产 runtime。
+
+### 核心链路影响
+
+提高候选生命周期持久化恢复包的发布证据可重复性；不改变发现、候选排序、深扫、结构、风险赔率、交易计划或复盘算法。
+
+### 测试结果
+
+- bundle 漂移失败基线：同 commit 两次 SHA 不同，已真实复现。
+- deterministic proof：跨 1.1 秒两次独立构建 SHA 与 bytes 完全一致。
+- Recovery 定向：13/13 PASS。
+- deploy safety：5/5 PASS。
+- typecheck / lint / build：PASS。
+- test:market：952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- 自治总门禁：14/14 PASS，`worktreeUnchanged=true`；`canAutoCommit=true`、`canAutoDeploy=false`。
+- formal：未运行，本轮禁止。
+- production smoke：未运行，生产 mutation 未授权。
+
+### 是否部署
+
+未部署、未上传、未创建生产 staging、未重建 Web。生产状态未改变。
+
+### 风险与遗留问题
+
+- 当前修改仍需新 clean commit/main；旧 `9d6a5fea...` 审批材料不可复用。
+- 最终 bundle 只能在 commit 后生成一次并锁定；虽然重复生成应同 SHA，审批后仍禁止无意义重建。
+- 生产执行继续要求独立 exact approval，Dormant Deploy 不得合并。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+提交并推送 deterministic transport 修复，生成绑定新 commit 的唯一 final bundle；执行前重新只读核对生产动态指纹，再申请 Web-only Identity Recovery 审批。

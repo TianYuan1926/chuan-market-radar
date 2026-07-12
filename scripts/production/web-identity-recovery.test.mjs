@@ -91,6 +91,9 @@ test("contract rejects scope expansion and stale production facts", async () => 
     [{ scope: { ...contract.scope, environmentFileChecksumsRequiredInApproval: false } }, "environment_checksum_binding_required"],
     [{ scope: { ...contract.scope, productionHead: "a".repeat(40) } }, "production_head_not_locked"],
     [{ scope: { ...contract.scope, identityOverrideSha256: "0".repeat(64) } }, "identity_override_checksum_not_locked"],
+    [{ transport: { ...contract.transport, reproducibleArchiveRequired: false } }, "reproducible_archive_required"],
+    [{ transport: { ...contract.transport, archiveFormat: "tar-gzip-default" } }, "transport_archive_format_not_locked"],
+    [{ transport: { ...contract.transport, sourceDateEpoch: Date.now() } }, "transport_source_date_epoch_not_locked"],
     [{ rollback: { ...contract.rollback, automaticRollbackRequired: false } }, "automatic_rollback_required"],
     [{ rollback: { ...contract.rollback, rollbackOnlyBeforePersistenceRecoveryVerified: false } }, "rollback_boundary_not_locked"],
     [{ rollback: { ...contract.rollback, retainRecoveredIdentityOnIndependentScanDegradation: false } }, "recovered_identity_retention_not_locked"],
@@ -191,6 +194,9 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
       approvalEligible: true,
       contractSha256: request.contractSha256,
       transportMethod: request.transportMethod,
+      reproducibleArchive: true,
+      archiveFormat: "ustar+gzip-n",
+      sourceDateEpoch: 946684800,
       containsSecrets: false,
       productionRepositoryMutationAllowed: false,
     }), { mode: 0o600 });
@@ -381,6 +387,9 @@ test("transport bundle contains only the approved secret-free recovery payload",
   try {
     const result = await buildTransportBundle({ root: process.cwd(), output, sourceCommit: "a".repeat(40) });
     assert.equal(result.status, "PASS_FINAL_RECOVERY_TRANSPORT_BUNDLE");
+    assert.equal(result.manifest.reproducibleArchive, true);
+    assert.equal(result.manifest.archiveFormat, "ustar+gzip-n");
+    assert.equal(result.manifest.sourceDateEpoch, 946684800);
     assert.equal(result.manifest.containsSecrets, false);
     assert.equal(result.manifest.productionRepositoryMutationAllowed, false);
     await mkdir(extract);
@@ -396,6 +405,26 @@ test("transport bundle contains only the approved secret-free recovery payload",
     const actual = stdout.split("\n").filter((line) => line && !line.endsWith("/")).map((line) => line.replace(/^\.\//, "")).sort();
     assert.deepEqual(actual, expected.sort());
     assert.equal((await stat(join(extract, "transport-manifest.json"))).isFile(), true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("transport bundle is byte-for-byte reproducible for the same committed payload", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "web-identity-recovery-reproducible-"));
+  try {
+    const first = await buildTransportBundle({
+      root: process.cwd(),
+      output: join(directory, "first.tar.gz"),
+      sourceCommit: "a".repeat(40),
+    });
+    const second = await buildTransportBundle({
+      root: process.cwd(),
+      output: join(directory, "second.tar.gz"),
+      sourceCommit: "a".repeat(40),
+    });
+    assert.equal(first.sha256, second.sha256);
+    assert.deepEqual(await readFile(first.output), await readFile(second.output));
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

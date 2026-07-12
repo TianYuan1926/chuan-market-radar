@@ -33,8 +33,9 @@
 - 生产 `docker-compose.yml` SHA-256：`2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e`
 - `.env` 与 `.env.production`：审批前只读重取 SHA-256 并写入 request；只记录指纹，不记录内容。
 - 当前 Web image ID：必须在审批前只读重取并写入 request。
-- Recovery artifact SHA-256：`340ab9dbc6850b9fbe648f52981b9c6f2f7e36d4d23926c0c51535d1fd5a5a42`
+- Recovery artifact SHA-256：`cb81523b21018868a81b21d42a195574a5a3c2695b2090fc9c770a9002b58a79`
 - request 必须同时绑定 Recovery artifact、合同 checksum、最终 runner source commit、脱敏 transport bundle checksum 和仓库外 staging 绝对路径。
+- transport bundle 必须采用固定文件顺序、固定 uid/gid、固定 epoch=`946684800` 的 `ustar`，再以 `gzip -n` 压缩；同一 clean commit 和 payload 重复生成必须字节完全一致。
 - runner 在生产 mutation 前逐文件校验 entrypoint、validator 与 recovery shell checksum；transport manifest 还必须证明 bundle 不含 secret、不会修改生产仓库。
 - 服务白名单：`web`
 - 时间窗：不超过 90 分钟。

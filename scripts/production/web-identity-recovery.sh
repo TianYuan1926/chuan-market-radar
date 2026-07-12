@@ -121,6 +121,9 @@ if [[ "$(sha256sum "${CONTRACT}" | awk '{print $1}')" != "${APPROVED_CONTRACT_SH
   || "$(jq -r '.contractSha256' "${TRANSPORT_MANIFEST}")" != "${APPROVED_CONTRACT_SHA256}" \
   || "$(jq -r '.approvalEligible' "${TRANSPORT_MANIFEST}")" != "true" \
   || "$(jq -r '.transportMethod' "${TRANSPORT_MANIFEST}")" != "approved_orcaterm_bundle_upload" \
+  || "$(jq -r '.reproducibleArchive' "${TRANSPORT_MANIFEST}")" != "true" \
+  || "$(jq -r '.archiveFormat' "${TRANSPORT_MANIFEST}")" != "ustar+gzip-n" \
+  || "$(jq -r '.sourceDateEpoch' "${TRANSPORT_MANIFEST}")" != "946684800" \
   || "$(jq -r '.containsSecrets' "${TRANSPORT_MANIFEST}")" != "false" \
   || "$(jq -r '.productionRepositoryMutationAllowed' "${TRANSPORT_MANIFEST}")" != "false" ]]; then
   echo "ERROR: staged transport manifest does not match approval." >&2
