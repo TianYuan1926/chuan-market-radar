@@ -1,12 +1,12 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T08:04:32+08:00",
+  "updatedAt": "2026-07-12T08:23:09+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
     "engineeringStatus": "可运行但不完整",
     "practicalStatus": "不能支撑实战",
-    "productionCandidateSchema": "applied_verify_failed",
+    "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled"
   },
   "wipLimits": {
@@ -97,7 +97,20 @@
       "生产 HEAD、image、worktree、schema 和服务在验证前后无非批准变化",
       "所有定向、基础和安全门禁通过",
       "禁止 execute migration、DDL/DML、writer、backfill、read cutover 和服务部署"
-    ]
+    ],
+    "productionResult": {
+      "status": "PASS_PRODUCTION_VERIFY_ONLY",
+      "runnerCommit": "cb392426b1cc77d13f9190d5659bc796b5bda320",
+      "applicationRelease": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+      "migrationExecuteRun": false,
+      "schemaChanged": false,
+      "candidateSchemaPresent": true,
+      "migrationRegistryRows": 8,
+      "featureFlagsEnabled": 0,
+      "worktreeCleanBeforeAfter": true,
+      "healthBeforeAfter": "ready_fresh",
+      "evidenceSha256": "bdc655ba30fae50d695fe5698862d7d2b72d69a2c43fd29641820ab3a1f9fb92"
+    }
   },
   "approvals": [
     {

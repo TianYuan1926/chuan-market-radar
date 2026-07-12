@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_local_verifier_fix_ready_for_gate_production_verify_unapproved",
-  "generatedAt": "2026-07-12T03:01:40+08:00",
+  "status": "wp_g0_2_production_verify_only_pass_shadow_capture_unapproved",
+  "generatedAt": "2026-07-12T08:23:09+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -44,13 +44,14 @@
     "capacityGateStatus": "pass_capacity_and_recovery_remediation",
     "candidateMigrationAuthorized": false,
     "candidateSchemaPresent": true,
-    "candidateSchemaStatus": "applied_verify_failed",
+    "candidateSchemaStatus": "applied_verified_dormant",
     "candidateRuntimeEnabled": false,
-    "localVerifierFixStatus": "local_gate_candidate_pass_pending_commit",
+    "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
     "nextLocalWorkPackage": null,
-    "nextProductionAction": "verify_only_after_new_explicit_approval",
+    "productionVerifyOnlyStatus": "pass",
+    "nextProductionAction": "shadow_capture_only_after_local_design_and_new_explicit_approval",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
@@ -681,8 +682,22 @@
       "note": "Proposed design and redacted approval packet; digest-bound but no execution authority."
     }
   },
-  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-MIGRATION-PRODUCTION-VERIFY-ONLY",
-  "nextRecommendedWorkPackage": "WP-G0.2-MIGRATION-RUNNER-POST-SCHEMA-VERIFY-FIX (local only; no production mutation)",
+  "latestProductionVerifyOnly": {
+    "id": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
+    "status": "PASS_PRODUCTION_VERIFY_ONLY",
+    "runnerCommit": "cb392426b1cc77d13f9190d5659bc796b5bda320",
+    "applicationRelease": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+    "migrationExecuteRun": false,
+    "schemaChanged": false,
+    "candidateSchemaPresent": true,
+    "migrationRegistryRows": 8,
+    "featureFlagsEnabled": 0,
+    "healthBeforeAfter": "ready_fresh",
+    "worktreeCleanBeforeAfter": true,
+    "evidenceSha256": "bdc655ba30fae50d695fe5698862d7d2b72d69a2c43fd29641820ab3a1f9fb92"
+  },
+  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-SHADOW-CAPTURE",
+  "nextRecommendedWorkPackage": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION (local only)",
   "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {

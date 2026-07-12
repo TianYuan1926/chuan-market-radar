@@ -1200,3 +1200,19 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 当前只证明本地代码修复；生产 verify-only 尚未批准、尚未执行，Add Schema 包仍是 `PARTIAL_SCHEMA_APPLIED_VERIFY_FAILED`，Feature Flag 仍为 0，shadow writer 继续禁止。
 
 当前能力结论仍是：**R1 / 可运行但不完整 / 不能支撑实战**。只有全部本地门禁通过并获得新的独立只读生产审批后，才能执行 production verify-only；禁止再次 execute migration。
+
+## 2026-07-12 WP-G0.2 Production Verify-Only
+
+本轮在用户独立批准后，只执行一次 production verify-only；未部署应用、未切换生产 branch、未执行 migration/DDL/DML、未修改 Feature Flag、未重启服务。
+
+生产证据：
+
+- Runner source commit：`cb392426b1cc77d13f9190d5659bc796b5bda320`；生产应用 release 前后保持 `0599f802f261fe8e3c1982a07106f362bd62ac13`，worktree clean，image 未改变。
+- Runner verify：status=pass、candidateSchemaPresent=true、migrationRegistryRows=8、ownerMembership=true、execute=false、schemaChanged=false、candidateMigrationExecuted=false。
+- Catalog：schema=1、tables=8、columns=151、functions=20、triggerObjects=10、triggerEventRows=14、roles=7、appliedLedgerRows=8。
+- 五个 Candidate Feature Flag 全部 false；long transaction、idle in transaction、lock waiter、ungranted lock、migration login session、break-glass session 均为 0。
+- `/api/health` 前后均 ok / scan ready / fresh；11 个容器继续运行。
+- 脱敏证据 tar SHA256=`bdc655ba30fae50d695fe5698862d7d2b72d69a2c43fd29641820ab3a1f9fb92`，73,828 bytes，模式 0600；本机敏感模式扫描 0 命中。
+- 两次执行准备失败均发生在 Runner/数据库连接前：一次固定 SHA 对象解析失败，一次隔离 clone 无目标 commit；失败残留未删除，最终通过固定 commit archive 在新 ops 根目录完成。
+
+当前 Candidate schema 状态从 `applied_verify_failed` 晋级为 **`applied_verified_dormant`**。这只关闭 Add Schema 验证缺口，不表示 writer、backfill、dual read、read cutover 或完整 WP-G0.2 已完成；系统仍为 **R1 / 可运行但不完整 / 不能支撑实战**。

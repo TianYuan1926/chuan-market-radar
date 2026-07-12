@@ -2502,3 +2502,46 @@ P0 阻断：
 ### 下一轮建议
 
 全部本地门禁 PASS 后，只申请 `WP-G0.2-PRODUCTION-VERIFY-ONLY` 的独立只读审批；审批前不执行生产动作。
+
+## 2026-07-12 / WP-G0.2 Production Verify-Only
+
+### 本轮目标
+
+使用已修复并锁定 commit 的 Migration Runner，对已存在 Candidate authority schema 只执行一次生产只读验证，关闭原 42501 验证缺口。
+
+### 修改范围
+
+- 新增 fail-closed `production-verify-only.sh` 及 3 个静态防绕过测试；脚本没有 migration execute、Docker Compose 重启或 Feature Flag 开启路径。
+- 生产只 fetch `origin/main` 对象，checked-out application HEAD、image、worktree 和服务均未改变。
+- 在独立 ops 目录复制既有 0600 credential 文件供一次性容器读取；未输出或提交凭据内容。
+- 更新自动工程状态、蓝图、traceability、context、changelog 和 ignored 脱敏证据。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：Candidate authority schema 从 applied_verify_failed 晋级为 applied_verified_dormant。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：运行行为无变化。
+
+### 测试结果
+
+- Migration Runner：49/49 pass。
+- 自动控制器：16/16 pass。
+- typecheck、lint、build：pass。
+- test:market：924 pass / 0 fail / 1 isolated DB skip；worker 17/17；historical smoke 4/4。
+- backtest:golden：16/16 pass。
+- forbidden-files、secret-patterns、security-check：pass。
+- production verify-only：PASS，execute=false、schemaChanged=false、catalog/health/worktree/image/flags/runtime boundary 全部通过。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署应用。GitHub main 包含只读 Runner，腾讯生产 checked-out HEAD 仍为 `0599f802...`；只执行隔离 production verify-only。
+
+### 风险与遗留问题
+
+- Candidate runtime 仍 disabled，WP-G0.2/G0 未完成，系统不能支撑实战。
+- 两个失败准备 ops 目录保留待审计，未自动删除。
+- shadow_capture writer、backfill、dual read 和 read cutover 均未获授权。
+
+### 下一轮建议
+
+只执行 `WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION` 本地包；production shadow writer 必须另行明确审批。
