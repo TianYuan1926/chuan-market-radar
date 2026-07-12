@@ -3242,3 +3242,50 @@ P0 阻断：
 ### 下一轮建议
 
 生产仍只申请 Dormant Runtime Deploy；等待审批期间可继续本地准备 Candidate API route adapter，但不得修改现有路由或启用 read Flag。
+
+## 2026-07-12 / WP-G0.2 Canonical API Route Adapter Local Preparation
+
+### 本轮目标
+
+建立可供未来 Next Route 调用的纯服务 adapter，固定公共请求、可信控制、lazy read、deadline/cancellation 和 HTTP 真值。
+
+### 修改范围
+
+- 公共 query 只允许 bounded limit 与成对 cursor；未知/重复参数和请求控制 phase/release 被拒绝。
+- policy/control provider 不接收公共请求，先验证再读取数据；失败无 stale fallback。
+- adapter 直接使用当前 false 的代码授权常量，canonical control 也只能走 Legacy；Candidate/Oracle 调用为 0。
+- Legacy events 按 limit 有界，复用既有 route state machine 与 API resource envelope。
+- 控制读取 2s、数据编排 15s deadline，全部依赖收到 AbortSignal。
+- HTTP 固定 no-store 与 contract/status/source/authority headers；invalid=400、unavailable=503、partial 保留。
+- 未修改现有 API、前端、Read Model/Oracle/Resource、数据库、migration、Compose、生产身份、Feature Flag、control、worker、Redis、scan/analysis/strategy/risk/backtest 或生产环境。
+
+### 核心链路影响
+
+为 Candidate 生命周期与 Review 权威分母建立安全的 API 编排边界；不改变发现、结构、风险赔率或交易计划。
+
+### 测试结果
+
+- Route Adapter/治理 11/11：PASS；挂起 control 约 2s abort。
+- Resource/治理 9/9：PASS。
+- Oracle/治理 23/23 + 隔离 PG16 同快照 1/1：PASS。
+- Canonical Read 14/14：PASS。
+- Candidate 149 pass / 0 fail / 6 explicit DB skip；数据库用例由独立 PG16 Gate 实跑。
+- Autonomy 16/16、typecheck、lint、build：PASS。
+- test:market 986 pass / 0 fail / 6 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 和三项安全门禁：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未执行生产 Git/Docker/身份/env/API/数据库/Redis/Feature Flag/control 变更。
+
+### 风险与遗留问题
+
+- Route adapter 尚未接现有 API，可信 policy/control provider 和生产 Reader 也不存在。
+- 开发中 validator 因 provider 签名升级出现真实 FAIL；同步更严格 AbortSignal 合同后重跑通过。
+- 旧 Review missing direction 偏 long、null MFE/MAE 补 0 仍是 cutover blocker。
+- 真实双窗口与 canonical cutover 尚未执行；系统仍 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只申请 Dormant Runtime Deploy；等待审批期间可准备 trusted policy/control provider 合同，但不得接现有 API 或生产 DB。

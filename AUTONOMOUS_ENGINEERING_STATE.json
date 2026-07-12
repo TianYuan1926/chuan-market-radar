@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T19:42:00+08:00",
+  "updatedAt": "2026-07-12T20:28:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-CANONICAL-API-RESOURCE-CONTRACT-LOCAL-PREPARATION",
-    "title": "Candidate canonical API resource envelope contract preparation",
+    "id": "WP-G0.2-CANONICAL-API-ROUTE-ADAPTER-LOCAL-PREPARATION",
+    "title": "Candidate canonical API route adapter local preparation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "建立纯后端 Candidate/Legacy API resource envelope，固定 authority、source、status、policy、parity、null 和 blocker 语义；不接现有 API/前端、不连接生产且不授权 canonical read。",
+    "objective": "建立可供未来 Next Route 调用的纯 Candidate API adapter，固定公共 query、可信 policy/control、Legacy/Candidate lazy orchestration、no-store 与 HTTP failure 语义；不修改现有 API/前端、不连接生产且不授权 canonical read。",
     "coreChainImpact": [
-      "candidate_lifecycle_api_truth",
-      "review_denominator_resource_truth",
-      "canonical_cutover_contract_safety"
+      "candidate_read_request_boundary",
+      "trusted_authority_control_boundary",
+      "canonical_api_http_truth"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,21 +48,22 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-api-resource-contract-local-preparation.v1.json",
+      "docs/governance/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-api-route-adapter-local-preparation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-canonical-api-resource-contract-local-preparation/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-canonical-api-resource.mjs",
-      "scripts/governance/candidate-canonical-api-resource.test.mjs",
-      "src/lib/candidate-episode/canonical-read-resource.ts",
-      "src/lib/candidate-episode/canonical-read-resource.test.ts"
+      "reports/wp-g0-2-canonical-api-route-adapter-local-preparation/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-canonical-api-route-adapter.mjs",
+      "scripts/governance/candidate-canonical-api-route-adapter.test.mjs",
+      "src/lib/candidate-episode/canonical-read-route-adapter.ts",
+      "src/lib/candidate-episode/canonical-read-route-adapter.test.ts"
     ],
     "prohibitedPaths": [
       "src/app/**",
       "src/components/**",
       "src/lib/candidate-episode/canonical-read-model.ts",
       "src/lib/candidate-episode/canonical-read-oracle.ts",
+      "src/lib/candidate-episode/canonical-read-resource.ts",
       "src/lib/candidate-episode/legacy-read-diagnostic.ts",
       "src/lib/candidate-episode/candidate-episode-service.ts",
       "src/lib/candidate-episode/checkpoint-outcome-service.ts",
@@ -82,14 +83,16 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-api-resource-contract-local-preparation.v1.json",
-      "reports/wp-g0-2-canonical-api-resource-contract-local-preparation/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-canonical-api-resource.mjs",
-      "src/lib/candidate-episode/canonical-read-resource.ts"
+      "docs/governance/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-api-route-adapter-local-preparation.v1.json",
+      "reports/wp-g0-2-canonical-api-route-adapter-local-preparation/WP_G0_2_CANONICAL_API_ROUTE_ADAPTER_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-canonical-api-route-adapter.mjs",
+      "src/lib/candidate-episode/canonical-read-route-adapter.ts"
     ],
     "gateProfile": {
       "targeted": [
+        "candidate:canonical-api-route-adapter:validate",
+        "test:candidate-canonical-api-route-adapter",
         "candidate:canonical-api-resource:validate",
         "test:candidate-canonical-api-resource",
         "candidate:canonical-read-oracle:validate",
@@ -114,12 +117,12 @@
       ]
     },
     "completionBoundary": [
-      "resource envelope 必须显式区分 route mode、read source、authority、status、policy、parity、data 和 blockers",
-      "Legacy 只能位于 legacyDiagnostic，永远不能填入 candidateCanonical 或证明 Candidate authority",
-      "canonical_compat 只有 per-request reference parity PASS 且 Candidate ready 才能输出 Candidate；否则只能显式 legacy_fallback",
-      "canonical authority 的 partial/unavailable 必须原样返回，禁止静默回退 Legacy 或转 empty/ready",
-      "unknown direction、null observation price、null MFE/MAE 和 unavailable 必须保持原值",
-      "任何非法 mode/source/result/parity 组合都必须 fail closed 为 resource contract unavailable",
+      "公共 query 只允许 bounded limit 和成对 cursor；release/asOf/cohort/phase/evidence/code authorization 均禁止由请求控制",
+      "trusted policy/control 必须在任何 Candidate/Legacy 数据读取前验证，失败返回 503 且不使用 stale fallback",
+      "adapter 必须直接读取 CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED=false，调用方、query、header 或 env 不得覆盖",
+      "legacy_only 必须 lazy：Candidate read 与 Oracle compare 均不得执行",
+      "HTTP response 固定 no-store、contract/status/source/authority headers；invalid request=400，dependency/control unavailable=503",
+      "partial/diagnostic/empty 不得包装成 ready，unavailable 不得包装成 200 success",
       "resource 固定 canAuthorizeCutover=false、canCreateTradePlan=false、canMutateLiveRanking=false、automaticPhaseAdvance=false",
       "当前代码 canonical read 授权保持 false，生产决定仍为 BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
       "所有定向、基础和安全门禁通过",
@@ -280,6 +283,13 @@
     {
       "order": 21,
       "id": "WP-G0.2-CANONICAL-API-RESOURCE-CONTRACT-LOCAL-PREPARATION",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 22,
+      "id": "WP-G0.2-CANONICAL-API-ROUTE-ADAPTER-LOCAL-PREPARATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

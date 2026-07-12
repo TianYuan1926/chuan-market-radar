@@ -91,6 +91,8 @@
     "candidate:canonical-read-oracle:pg16-rehearsal": "bash scripts/rehearsal/candidate-canonical-read-oracle-postgres16.sh",
     "candidate:canonical-api-resource:validate": "node scripts/governance/candidate-canonical-api-resource.mjs",
     "test:candidate-canonical-api-resource": "npm run build:market-cli && node --test .tmp/market-tests/lib/candidate-episode/canonical-read-resource.test.js scripts/governance/candidate-canonical-api-resource.test.mjs",
+    "candidate:canonical-api-route-adapter:validate": "node scripts/governance/candidate-canonical-api-route-adapter.mjs",
+    "test:candidate-canonical-api-route-adapter": "npm run build:market-cli && node --test .tmp/market-tests/lib/candidate-episode/canonical-read-route-adapter.test.js scripts/governance/candidate-canonical-api-route-adapter.test.mjs",
     "ops:network-check": "node scripts/ops/network-check.mjs",
     "ops:node-fetch-check": "node scripts/ops/node-fetch-check.mjs",
     "ops:local-env-check": "node scripts/ops/local-env-check.mjs",

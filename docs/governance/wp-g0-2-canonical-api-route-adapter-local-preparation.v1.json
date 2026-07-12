@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "wp-g0.2-canonical-api-route-adapter-local-preparation.v1",
+  "packageId": "WP-G0.2-CANONICAL-API-ROUTE-ADAPTER-LOCAL-PREPARATION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentProductionDecision": "BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
+  "implementationArtifact": {
+    "files": [
+      "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
+      "src/lib/candidate-episode/canonical-read-route-adapter.ts"
+    ],
+    "fileCount": 2,
+    "sha256": "b8f9002c3c6aa959a96faac66271d9e8623dbc9a45860526e046a3aab18c1f58"
+  },
+  "requestBoundary": {
+    "allowedPublicQuery": [
+      "limit",
+      "cursorFirstSeenAt",
+      "cursorEpisodeId"
+    ],
+    "unknownQueryRejected": true,
+    "duplicateQueryRejected": true,
+    "defaultLimit": 100,
+    "maximumLimit": 1000,
+    "cursorPairRequired": true,
+    "releaseRequestControlled": false,
+    "asOfRequestControlled": false,
+    "cohortRequestControlled": false,
+    "phaseRequestControlled": false,
+    "evidenceRequestControlled": false,
+    "codeAuthorizationRequestControlled": false
+  },
+  "trustedBoundary": {
+    "policyProviderReceivesPublicRequest": false,
+    "controlProviderReceivesPublicRequest": false,
+    "policyValidatedBeforeDataRead": true,
+    "controlValidatedBeforeDataRead": true,
+    "controlTimeoutMs": 2000,
+    "abortSignalProvided": true,
+    "controlFailureStatusCode": 503,
+    "staleControlFallbackAllowed": false
+  },
+  "authorizationBoundary": {
+    "currentCodeCanonicalReadAllowed": false,
+    "authorizationSource": "CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED",
+    "authorizationDependencyInjectable": false,
+    "authorizationEnvironmentControlled": false,
+    "authorizationHeaderControlled": false,
+    "authorizationQueryControlled": false
+  },
+  "orchestrationBoundary": {
+    "usesExistingReadStateMachine": true,
+    "legacyOnlyCandidateReadCalls": 0,
+    "legacyOnlyOracleCompareCalls": 0,
+    "legacyEventsBoundedByRequestLimit": true,
+    "dataTimeoutMs": 15000,
+    "abortSignalProvided": true,
+    "dependencyFailureStatusCode": 503,
+    "dependencyFailureStaleFallbackAllowed": false,
+    "resourceEnvelopeRequired": true
+  },
+  "httpBoundary": {
+    "schemaVersion": "candidate-canonical-api-route.v1",
+    "cacheControl": "no-store",
+    "contractHeaderRequired": true,
+    "statusHeaderRequired": true,
+    "sourceHeaderRequired": true,
+    "authorityHeaderRequired": true,
+    "invalidRequestStatusCode": 400,
+    "unavailableStatusCode": 503,
+    "partialStatusPreserved": true,
+    "unavailableAsSuccessAllowed": false
+  },
+  "runtimeBoundary": {
+    "existingApiRouteModified": false,
+    "frontendModified": false,
+    "databaseConnected": false,
+    "productionConnected": false,
+    "featureFlagChanged": false,
+    "canonicalReadAuthorized": false,
+    "automaticPhaseAdvance": false,
+    "tradePlanCreationAllowed": false,
+    "productionRankingMutationAllowed": false
+  },
+  "forbidden": [
+    "request_controls_release",
+    "request_controls_asof",
+    "request_controls_cohort",
+    "request_controls_phase",
+    "request_controls_evidence",
+    "request_controls_code_authorization",
+    "environment_controls_code_authorization",
+    "header_controls_code_authorization",
+    "injectable_code_authorization",
+    "legacy_only_reads_candidate",
+    "legacy_only_runs_oracle",
+    "unbounded_legacy_read",
+    "unbounded_control_read",
+    "unbounded_data_read",
+    "stale_control_fallback",
+    "stale_dependency_fallback",
+    "unavailable_http_200",
+    "cacheable_candidate_response",
+    "existing_api_route_change",
+    "frontend_change",
+    "production_connection",
+    "database_connection",
+    "migration_change",
+    "compose_change",
+    "feature_flag_change",
+    "trade_plan_creation",
+    "production_ranking_mutation",
+    "automatic_phase_advance",
+    "formal_backtest"
+  ],
+  "remainingBlockers": [
+    "production_reader_login_and_url_not_provisioned",
+    "trusted_policy_and_control_providers_not_wired",
+    "route_adapter_not_wired_to_existing_api",
+    "frontend_candidate_review_adapter_not_implemented",
+    "legacy_review_null_and_direction_ui_debt_not_fixed",
+    "production_dual_read_observation_not_executed",
+    "production_canonical_compat_observation_not_executed",
+    "canonical_cutover_not_authorized"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY"
+}
