@@ -33,6 +33,11 @@ env -u DATABASE_URL -u POSTGRES_URL \
 env -u DATABASE_URL -u POSTGRES_URL \
   APP_ENV=rehearsal NODE_ENV=test WP_G0_2_REHEARSAL=true \
   WP_G0_2_REHEARSAL_DATABASE_URL="$SOCKET_DATABASE_URL" \
+  WP_G0_2_RUNTIME_IDENTITY_RUNNER_REHEARSAL_DATABASE_URL="$SOCKET_DATABASE_URL" \
+  node scripts/production/candidate-runtime-identity/runner-postgres.integration.mjs
+env -u DATABASE_URL -u POSTGRES_URL \
+  APP_ENV=rehearsal NODE_ENV=test WP_G0_2_REHEARSAL=true \
+  WP_G0_2_REHEARSAL_DATABASE_URL="$SOCKET_DATABASE_URL" \
   WP_G0_2_RUNTIME_IDENTITY_REHEARSAL_DATABASE_URL="$SOCKET_DATABASE_URL" \
   node --test .tmp/market-tests/lib/candidate-episode/candidate-runtime-identity-postgres.test.js
 

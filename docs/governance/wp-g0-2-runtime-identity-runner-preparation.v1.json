@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "wp-g0.2-runtime-identity-runner-preparation.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
+  "status": "local_runner_preparation_verified_production_not_authorized",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "prerequisite": {
+    "dormantDeployFinalStatus": "PASS_DORMANT_RUNTIME_DEPLOY",
+    "newExactApprovalRequired": true,
+    "maximumApprovalWindowMinutes": 90
+  },
+  "runtimeAccess": {
+    "sqlPath": "scripts/production/candidate-runtime-identity/runtime-access.sql",
+    "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa"
+  },
+  "artifact": {
+    "sha256": "8069c06c83877cdf235c458b6516e935253941be3af2604f5bb015b266b86123",
+    "files": [
+      "docker-compose.yml",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-runtime-identity/production-runner.sh",
+      "scripts/production/candidate-runtime-identity/runner.mjs",
+      "scripts/production/candidate-runtime-identity/runtime-access.sql",
+      "scripts/verify/production-check.sh",
+      "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/transaction-adapter.ts"
+    ]
+  },
+  "mutationAllowlist": {
+    "databaseRolesCreated": 3,
+    "candidateCapabilityMembershipsGranted": 3,
+    "runtimeAccessGrantApplied": true,
+    "environmentKeysChanged": [
+      "CANDIDATE_SOURCE_DATABASE_URL",
+      "CANDIDATE_CONSUMER_DATABASE_URL",
+      "CANDIDATE_MONITOR_DATABASE_URL"
+    ],
+    "servicesRecreated": [
+      "web"
+    ]
+  },
+  "dormantBoundary": {
+    "candidateFeatureFlagsEnabled": 0,
+    "candidateRuntimeReleaseId": "disabled",
+    "candidateWorkerExpected": false,
+    "candidateWorkerStarted": false,
+    "codeActivationAllowed": false,
+    "controlLifecycleStartAllowed": false,
+    "schemaMigrationAllowed": false,
+    "businessDmlAllowed": false
+  },
+  "rollback": {
+    "environmentRestoreRequired": true,
+    "previousWebImageRestoreRequired": true,
+    "newRuntimeLoginsDropRequired": true,
+    "runtimeAccessRevokeRequired": true,
+    "existingRuntimeLoginsMustBeAbsentAtPreflight": true
+  },
+  "immediateSuccessLabel": "PASS_IMMEDIATE_RUNTIME_IDENTITY_AWAITING_OBSERVATION",
+  "finalSuccessRequires": [
+    "immediate_identity_and_dormant_checks_pass",
+    "database_role_and_membership_readonly_verify",
+    "observation_30_to_60_minutes_clean",
+    "server_head_release_and_github_main_align"
+  ],
+  "forbidden": [
+    "candidate_worker_start",
+    "candidate_feature_flag_enablement",
+    "candidate_release_enablement",
+    "control_lifecycle_start",
+    "schema_migration",
+    "business_table_dml",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
   "status": "wp_g0_2_dormant_runtime_deploy_local_preparation_pass_production_not_authorized",
-  "generatedAt": "2026-07-12T15:17:04+08:00",
+  "generatedAt": "2026-07-12T15:42:32+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION-LOCAL-PREPARATION",
+    "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-PRODUCTION-RUNNER-PREPARATION",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -71,6 +71,10 @@
     "runtimeIdentityLoginTopology": "three_unique_noinherit_logins_one_membership_each",
     "runtimeIdentityAccessSqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa",
     "runtimeIdentityProductionProvisioned": false,
+    "runtimeIdentityRunnerPreparationStatus": "pass_local_fake_execute_rollback_and_postgres16_provision_rollback",
+    "runtimeIdentityRunnerArtifactSha256": "8069c06c83877cdf235c458b6516e935253941be3af2604f5bb015b266b86123",
+    "runtimeIdentityRunnerArtifactFiles": 8,
+    "runtimeIdentityRunnerProductionExecuted": false,
     "productionVerifyOnlyStatus": "pass",
     "shadowCaptureLocalDesignStatus": "pass_production_readiness_packet",
     "shadowCaptureProductionDecision": "safety_schema_applied_verified_runtime_disabled",

@@ -2934,3 +2934,47 @@ P0 阻断：
 ### 下一轮建议
 
 继续本地准备 Runtime Identity production runner；生产顺序仍先 Dormant Deploy，不能直接创建身份或 activation。
+
+## 2026-07-12 / WP-G0.2 Runtime Identity Production Runner Preparation
+
+### 本轮目标
+
+把 Runtime Identity 的角色创建、权限应用、三 URL 环境切换、Web recreate 和失败回滚做成精确审批、可审计、默认 dry-run 的生产 runner。
+
+### 修改范围
+
+- 新增 request/credential/env/provision/rollback runner 核心与 web-only shell。
+- 审批绑定 exact commit、8 文件 artifact、access SQL、fresh Dormant final PASS 和 90 分钟窗口。
+- secret 文件必须 0600；口令仅允许高强度 base64url，日志不输出 login/password/URL。
+- 成功只创建 3 LOGIN/3 membership、配置 3 URL、recreate Web；失败恢复 env/旧 Web 并撤销 DB 身份/权限。
+- 新增 fake execute 成功/失败回滚和真实 PG16 provision/rollback。
+- 未连接生产、未改业务代码/migration/Compose/Flag/release/worker/control/交易逻辑。
+
+### 核心链路影响
+
+候选筛选和复盘进化的身份部署路径具备明确变更面和自动回滚；生产数据行为仍未改变。
+
+### 测试结果
+
+- Runner 定向 8/8 PASS；dry-run PASS。
+- PG16 provision 3 / rollback 3，最终 LOGIN=0、writer archive privilege=0；原身份最小权限 1/1 PASS。
+- Runtime Identity 14/14、Composition 28/28 PASS。
+- typecheck、lint、build PASS；test:market 952 pass / 0 fail / 4 explicit DB skip，身份 DB 测试由独立 PG16 Gate 实跑。
+- worker 18/18、historical 4/4、golden 16/16 和三项安全门禁 PASS。
+- Autonomy 16/16 Gate PASS，worktree unchanged，`canAutoCommit=true`、`canAutoDeploy=false`。
+- production smoke/formal 未运行。
+
+### 是否部署
+
+未部署、未连接腾讯云、未执行生产角色/权限/env/Web/数据库/Redis 变更。
+
+### 风险与遗留问题
+
+- Dormant Deploy 尚未 final PASS，生产身份 runner 被硬阻断。
+- 实际身份包仍需新的 exact approval 和 30-60 分钟观察。
+- Activation 继续禁止。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产只申请 Dormant Runtime Deploy；不得把 runner 本地 PASS 解释为身份已部署。

@@ -135,7 +135,7 @@ npm run test:migration-capacity
 | 9 | WP-G0.2 production add safety schema | A | PASS: 009 only applied and verified dormant | catalog 8/151/20/10/14/8 -> 9/166/26/11/16/9；Feature Flag=0；禁止再次 execute |
 | 10 | WP-G0.2 production composition wiring | B | local PASS | 28/28 定向、PG16 完整 composition、legacy identity dormant fail-closed、permission 4/4 与基础门禁 PASS |
 | 11 | WP-G0.2 dormant runtime deploy | A | local execution/rollback rehearsal + production read-only preflight PASS / production prohibited | 预检修复 `.env` + `.env.production` 双文件阻断；Bash 3.2 隔离实跑证明 web-only 成功路径和即时验证失败自动回滚路径；13 文件 artifact 已锁定，仍需新 exact commit + checksum + web-only + 90 分钟独立审批 |
-| 12 | WP-G0.2 runtime identity + permission | A | local code/contract/PG16 preparation PASS / production prohibited | 已关闭 NOINHERIT 无显式角色切换缺口；3 LOGIN/单 membership/跨角色拒绝和 source 最小 archive 权限在隔离 PG16 通过。仍需 dormant deploy PASS、生产 runner 准备和独立审批 |
+| 12 | WP-G0.2 runtime identity + permission | A | local code/contract/runner/PG16 preparation PASS / production prohibited | NOINHERIT 显式角色、3 LOGIN/单 membership/跨角色拒绝已通过；8 文件 runner 覆盖 exact approval、0600 secret、3 URL、web-only 和 DB/env/Web rollback。仍需 dormant deploy final PASS 与独立审批 |
 | 13 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
 | 14 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
 | 15 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
