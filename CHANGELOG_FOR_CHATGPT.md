@@ -3197,3 +3197,48 @@ P0 阻断：
 ### 下一轮建议
 
 生产仍只申请 Dormant Runtime Deploy；等待审批期间继续本地准备 Candidate API resource envelope 与 Legacy diagnostic 合同，不得接生产路由或启用 read Flag。
+
+## 2026-07-12 / WP-G0.2 Canonical API Resource Contract Local Preparation
+
+### 本轮目标
+
+建立不依赖现有 API/前端的 Candidate/Legacy 只读资源信封，提前锁住 canonical cutover 的响应真值边界。
+
+### 修改范围
+
+- 新增 `candidate-canonical-api-resource.v1`，显式输出 mode/source/authority/status/policy/parity、Candidate/Legacy 双槽、blockers 和稳定 hash。
+- Legacy empty/diagnostic 不得成为 Candidate authority；dual-read parity 不改变 Legacy 的非权威身份。
+- canonical compat 只有 Candidate ready、0 difference 和合法 SHA-256 proof 才输出 Candidate；失败只允许显式 Legacy fallback。
+- canonical authority partial/unavailable 不静默回退；非法组合、伪造 parity hash 和 Legacy 权威抬高 fail closed。
+- 新增人机治理合同、artifact validator、防降标测试和 package scripts。
+- 未修改现有 API、前端、数据库、migration、Compose、生产身份、Feature Flag、control、worker、Redis、scan/analysis/strategy/risk/backtest 或生产环境。
+
+### 核心链路影响
+
+为 Candidate 生命周期和 Review 权威分母建立可审计 API 资源边界；不改变全市场发现、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Resource/治理 9/9：PASS。
+- Oracle/治理 23/23 + 隔离 PG16 同快照 1/1：PASS。
+- Canonical Read 14/14：PASS。
+- Candidate 141 pass / 0 fail / 6 explicit DB skip；数据库用例由独立 PG16 Gate 实跑。
+- Autonomy 16/16、typecheck、lint、build：PASS。
+- test:market 978 pass / 0 fail / 6 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 和三项安全门禁：PASS。
+- production smoke/formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未执行生产 Git/Docker/身份/env/API/数据库/Redis/Feature Flag/control 变更。
+
+### 风险与遗留问题
+
+- Resource envelope 尚未接现有 API，不能把纯函数存在写成接口完成。
+- 旧 Review 前端仍有 missing direction 偏 long、null MFE/MAE 补 0；后续独立前端适配包必须关闭。
+- 生产 Reader、真实 dual-read/canonical-compat 窗口和 canonical cutover 尚未实施。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只申请 Dormant Runtime Deploy；等待审批期间可继续本地准备 Candidate API route adapter，但不得修改现有路由或启用 read Flag。

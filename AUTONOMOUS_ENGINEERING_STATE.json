@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T19:13:11+08:00",
+  "updatedAt": "2026-07-12T19:42:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-CANONICAL-READ-COMPATIBILITY-ORACLE-LOCAL-PREPARATION",
-    "title": "Legacy diagnostic boundary and independent Candidate read oracle preparation",
+    "id": "WP-G0.2-CANONICAL-API-RESOURCE-CONTRACT-LOCAL-PREPARATION",
+    "title": "Candidate canonical API resource envelope contract preparation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "拆除 Legacy 可伪装完整 Canonical Read 的错误假设，建立 Legacy diagnostic-only 适配器、同一只读快照内的 Candidate Raw-table 独立 Oracle 和 reference parity；不接 API/前端、不连接生产且不授权 canonical read。",
+    "objective": "建立纯后端 Candidate/Legacy API resource envelope，固定 authority、source、status、policy、parity、null 和 blocker 语义；不接现有 API/前端、不连接生产且不授权 canonical read。",
     "coreChainImpact": [
-      "legacy_projection_limitation_truth",
-      "candidate_authority_independent_oracle",
-      "dual_read_reference_parity_safety"
+      "candidate_lifecycle_api_truth",
+      "review_denominator_resource_truth",
+      "canonical_cutover_contract_safety"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,26 +48,22 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_CANONICAL_READ_COMPATIBILITY_ORACLE_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-read-compatibility-oracle-local-preparation.v1.json",
-      "docs/governance/wp-g0-2-canonical-compat-read-model-local-preparation.v1.json",
+      "docs/governance/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-api-resource-contract-local-preparation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-canonical-read-compatibility-oracle-local-preparation/WP_G0_2_CANONICAL_READ_COMPATIBILITY_ORACLE_LOCAL_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-canonical-read-oracle.mjs",
-      "scripts/governance/candidate-canonical-read-oracle.test.mjs",
-      "scripts/rehearsal/candidate-canonical-read-oracle-postgres16.sh",
-      "src/lib/candidate-episode/canonical-read-model.ts",
-      "src/lib/candidate-episode/canonical-read-model.test.ts",
-      "src/lib/candidate-episode/canonical-read-oracle.ts",
-      "src/lib/candidate-episode/canonical-read-oracle.test.ts",
-      "src/lib/candidate-episode/canonical-read-oracle-postgres.test.ts",
-      "src/lib/candidate-episode/legacy-read-diagnostic.ts",
-      "src/lib/candidate-episode/legacy-read-diagnostic.test.ts"
+      "reports/wp-g0-2-canonical-api-resource-contract-local-preparation/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-canonical-api-resource.mjs",
+      "scripts/governance/candidate-canonical-api-resource.test.mjs",
+      "src/lib/candidate-episode/canonical-read-resource.ts",
+      "src/lib/candidate-episode/canonical-read-resource.test.ts"
     ],
     "prohibitedPaths": [
       "src/app/**",
       "src/components/**",
+      "src/lib/candidate-episode/canonical-read-model.ts",
+      "src/lib/candidate-episode/canonical-read-oracle.ts",
+      "src/lib/candidate-episode/legacy-read-diagnostic.ts",
       "src/lib/candidate-episode/candidate-episode-service.ts",
       "src/lib/candidate-episode/checkpoint-outcome-service.ts",
       "src/lib/candidate-episode/shadow-*.ts",
@@ -86,31 +82,22 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_CANONICAL_READ_COMPATIBILITY_ORACLE_LOCAL_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-read-compatibility-oracle-local-preparation.v1.json",
-      "reports/wp-g0-2-canonical-read-compatibility-oracle-local-preparation/WP_G0_2_CANONICAL_READ_COMPATIBILITY_ORACLE_LOCAL_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-canonical-read-oracle.mjs",
-      "scripts/rehearsal/candidate-canonical-read-oracle-postgres16.sh",
-      "src/lib/candidate-episode/canonical-read-oracle.ts",
-      "src/lib/candidate-episode/legacy-read-diagnostic.ts"
+      "docs/governance/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-api-resource-contract-local-preparation.v1.json",
+      "reports/wp-g0-2-canonical-api-resource-contract-local-preparation/WP_G0_2_CANONICAL_API_RESOURCE_CONTRACT_LOCAL_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-canonical-api-resource.mjs",
+      "src/lib/candidate-episode/canonical-read-resource.ts"
     ],
     "gateProfile": {
       "targeted": [
+        "candidate:canonical-api-resource:validate",
+        "test:candidate-canonical-api-resource",
         "candidate:canonical-read-oracle:validate",
         "test:candidate-canonical-read-oracle",
         "candidate:canonical-read-oracle:pg16-rehearsal",
         "candidate:canonical-read:validate",
         "test:candidate-canonical-read",
-        "candidate:canonical-read:pg16-rehearsal",
         "candidate:test",
-        "candidate:reconciliation-runner:validate",
-        "test:candidate-reconciliation-runner",
-        "candidate:activation-runner:validate",
-        "test:candidate-activation-runner",
-        "candidate:runtime-identity:validate",
-        "candidate:runtime-identity-runner:validate",
-        "test:candidate-runtime-identity-runner",
-        "test:candidate-composition-wiring",
         "test:autonomy"
       ],
       "baseline": [
@@ -127,16 +114,16 @@
       ]
     },
     "completionBoundary": [
-      "Legacy 只能输出 diagnostic_only/partial/empty/unavailable 与显式 unsupported fields，永远不能伪装 Candidate authority 或授权 cutover",
-      "Candidate reference parity 必须来自同一 SERIALIZABLE READ ONLY DEFERRABLE 快照内的独立 Raw-table Oracle，不得复用主查询聚合结果",
-      "Oracle 必须独立重算 cohort、分页、Episode/Checkpoint/Outcome 分母、null、excluded reason、metric sample 和不变量",
-      "reference partial/unavailable 或任何字段差异都必须失败，Legacy 不可比较字段不能通过补零、猜方向或偷读 Candidate 表补齐",
-      "shadow_verify 返回 Legacy diagnostic 但用 Candidate-vs-Oracle parity 观察；canonical_compat 只有 reference parity PASS 才返回 Candidate",
-      "当前代码 canonical read 授权固定 false，canonical 阶段失败禁止静默回退 Legacy，不能自动 phase advance",
-      "future outcome、交易计划、backtest 和 production ranking 均禁止作为兼容或 Oracle 输入",
-      "生产决定仍为 BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
+      "resource envelope 必须显式区分 route mode、read source、authority、status、policy、parity、data 和 blockers",
+      "Legacy 只能位于 legacyDiagnostic，永远不能填入 candidateCanonical 或证明 Candidate authority",
+      "canonical_compat 只有 per-request reference parity PASS 且 Candidate ready 才能输出 Candidate；否则只能显式 legacy_fallback",
+      "canonical authority 的 partial/unavailable 必须原样返回，禁止静默回退 Legacy 或转 empty/ready",
+      "unknown direction、null observation price、null MFE/MAE 和 unavailable 必须保持原值",
+      "任何非法 mode/source/result/parity 组合都必须 fail closed 为 resource contract unavailable",
+      "resource 固定 canAuthorizeCutover=false、canCreateTradePlan=false、canMutateLiveRanking=false、automaticPhaseAdvance=false",
+      "当前代码 canonical read 授权保持 false，生产决定仍为 BLOCKED_UNTIL_DORMANT_RUNTIME_DEPLOY_AND_SEPARATE_APPROVAL",
       "所有定向、基础和安全门禁通过",
-      "本轮禁止 API/前端/Compose/migration/生产身份/部署/数据库/Redis/Feature Flag/control 变更"
+      "本轮禁止现有 API/前端/Compose/migration/生产身份/部署/数据库/Redis/Feature Flag/control 变更"
     ]
   },
   "approvals": [
@@ -286,6 +273,13 @@
     {
       "order": 20,
       "id": "WP-G0.2-CANONICAL-READ-COMPATIBILITY-ORACLE-LOCAL-PREPARATION",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 21,
+      "id": "WP-G0.2-CANONICAL-API-RESOURCE-CONTRACT-LOCAL-PREPARATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false
