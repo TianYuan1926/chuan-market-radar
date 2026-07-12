@@ -28,6 +28,8 @@ docker compose up -d --no-deps web
 
 ## 3. 生产审批必须绑定
 
+当前 artifact 固定为 14 个文件，必须包含 `src/lib/candidate-episode/transaction-adapter.ts`。Runtime Identity 加固改变了 Candidate runtime database 的事务角色行为，该事务适配器属于安全关键传递依赖；此前 13 文件 checksum 只保留为历史证据，已经失效，不得再用于任何生产审批。
+
 审批请求必须完整绑定：
 
 - `packageId=WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY`

@@ -17,11 +17,16 @@ function throwsReason(reason, operation) {
 }
 
 test("current repository passes local dormant deploy preparation without authorizing production", async () => {
+  const contract = await loadContract();
   const result = await validateLocalPreparation();
   assert.equal(result.status, "PASS_LOCAL_DORMANT_DEPLOY_PREPARATION");
   assert.equal(result.productionDecision, "BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL");
   assert.equal(result.productionMutationAllowed, false);
-  assert.equal(result.artifact.fileCount, 13);
+  assert.equal(result.artifact.fileCount, 14);
+  assert.equal(
+    contract.artifact.files.includes("src/lib/candidate-episode/transaction-adapter.ts"),
+    true,
+  );
   assert.equal(result.repository.exactWebBuild, true);
   assert.equal(result.repository.exactWebRecreate, true);
   assert.equal(result.repository.composeEnvFilesOrdered, true);

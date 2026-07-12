@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T15:42:32+08:00",
+  "updatedAt": "2026-07-12T15:54:34+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-PRODUCTION-RUNNER-PREPARATION",
-    "title": "Candidate runtime identity production runner local preparation",
+    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-ARTIFACT-REFRESH-AFTER-IDENTITY-HARDENING",
+    "title": "Dormant deploy artifact refresh after runtime identity hardening",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "为 Dormant Deploy 之后的 Runtime Identity production package 建立 exact approval、0600 credential、3 LOGIN/3 URL、web-only recreate 和数据库/环境/Web 自动回滚 runner，并在 fake execution 与隔离 PostgreSQL 16 实跑；尚未修改生产。",
+    "objective": "修复 Runtime Identity 加固后 Dormant artifact checksum drift，把安全关键 transaction adapter 纳入传递依赖锁定，并刷新 current approval evidence；尚未修改生产。",
     "coreChainImpact": [
-      "candidate_screening_identity_deployment_safety",
-      "review_evolution_identity_deployment_safety",
-      "credential_and_rollback_boundary"
+      "candidate_screening_dormant_deploy_integrity",
+      "review_evolution_dormant_deploy_integrity",
+      "release_artifact_integrity"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,20 +48,12 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-runtime-identity-runner-preparation/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_REPORT.md",
-      "scripts/governance/runtime-identity-runner.mjs",
-      "scripts/governance/runtime-identity-runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/production-runner.sh",
-      "scripts/production/candidate-runtime-identity/production-runner-execute-rehearsal.test.mjs",
-      "scripts/production/candidate-runtime-identity/runner.mjs",
-      "scripts/production/candidate-runtime-identity/runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/runner-postgres.integration.mjs",
-      "scripts/production/candidate-runtime-identity/runtime-access.sql",
-      "scripts/rehearsal/candidate-runtime-identity-postgres16.sh"
+      "reports/wp-g0-2-dormant-artifact-refresh/WP_G0_2_DORMANT_ARTIFACT_REFRESH_REPORT.md",
+      "scripts/production/candidate-dormant-deploy.test.mjs"
     ],
     "prohibitedPaths": [
       "src/app/**",
@@ -80,27 +72,19 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
-      "reports/wp-g0-2-runtime-identity-runner-preparation/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_REPORT.md",
-      "scripts/governance/runtime-identity-runner.mjs",
-      "scripts/governance/runtime-identity-runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/production-runner.sh",
-      "scripts/production/candidate-runtime-identity/production-runner-execute-rehearsal.test.mjs",
-      "scripts/production/candidate-runtime-identity/runner.mjs",
-      "scripts/production/candidate-runtime-identity/runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/runner-postgres.integration.mjs",
-      "scripts/production/candidate-runtime-identity/runtime-access.sql",
-      "scripts/rehearsal/candidate-runtime-identity-postgres16.sh"
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+      "reports/wp-g0-2-dormant-artifact-refresh/WP_G0_2_DORMANT_ARTIFACT_REFRESH_REPORT.md",
+      "scripts/production/candidate-dormant-deploy.test.mjs"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:runtime-identity-runner:validate",
-        "candidate:runtime-identity-runner",
-        "test:candidate-runtime-identity-runner",
-        "candidate:runtime-identity:pg16-rehearsal",
+        "candidate:dormant-deploy:validate",
+        "candidate:dormant-deploy",
+        "test:candidate-dormant-deploy",
         "candidate:runtime-identity:validate",
-        "test:candidate-runtime-identity",
+        "candidate:runtime-identity-runner:validate",
+        "test:candidate-runtime-identity-runner",
         "test:candidate-composition-wiring",
         "test:autonomy"
       ],
@@ -118,16 +102,13 @@
       ]
     },
     "completionBoundary": [
-      "审批绑定 exact commit、8 文件 artifact、runtime access checksum、24 小时内 Dormant final PASS 和不超过 90 分钟窗口",
-      "四个 secure 文件必须位于仓库外且 group/other 权限为 0，runner 不打印 login/password/URL",
-      "前置要求 3 个 LOGIN 不存在、ledger=9、control rows=0、writer archive 权限未应用",
-      "只创建 3 个 NOINHERIT LOGIN、3 个单 membership、只配置 3 个 Candidate URL，并只 recreate web",
-      "Flag/release/worker/control/migration/schema DDL/business DML 全部禁止",
-      "失败恢复原 env、旧 Web 镜像，删除本轮 3 LOGIN 并撤销 writer archive 权限",
-      "fake execute 成功/失败 rollback 与隔离 PostgreSQL 16 provision/rollback 都必须实跑",
-      "生产决定仍为 BLOCKED_UNTIL_DORMANT_DEPLOY_PASS_AND_NEW_EXPLICIT_APPROVAL",
+      "Dormant artifact 必须覆盖 identity hardening 修改的 candidate runtime database 与 transaction adapter",
+      "current artifact 固定为 14 文件，旧 13 文件 checksum 仅保留历史记录且不能再获批",
+      "validator/dry-run/fake execute 成功与自动 Web rollback 必须使用新 checksum 通过",
+      "Runtime Identity foundation/runner validator 与 Composition 回归不得因 artifact 刷新退化",
+      "生产决定仍为 BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",
       "所有定向、基础和安全门禁通过",
-      "本地准备轮禁止生产连接、角色创建、GRANT/REVOKE、环境写入、服务重启、Feature Flag、control lifecycle、backfill、dual read 和 read cutover"
+      "本轮禁止生产连接、部署、角色/权限/env/服务/数据库/Redis/Feature Flag/control 变更"
     ]
   },
   "approvals": [
@@ -222,18 +203,25 @@
       "order": 12,
       "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-PRODUCTION-RUNNER-PREPARATION",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
       "order": 13,
+      "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-ARTIFACT-REFRESH-AFTER-IDENTITY-HARDENING",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 14,
       "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
       "lane": "production",
       "status": "prohibited_until_dormant_deploy_pass_and_new_approval",
       "requiresExplicitApproval": true
     },
     {
-      "order": 14,
+      "order": 15,
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
       "lane": "production",
       "status": "prohibited_until_runtime_identity_permission_pass_and_new_approval",

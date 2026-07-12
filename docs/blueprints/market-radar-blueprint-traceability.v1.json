@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_dormant_runtime_deploy_local_preparation_pass_production_not_authorized",
-  "generatedAt": "2026-07-12T15:42:32+08:00",
+  "status": "wp_g0_2_dormant_artifact_refreshed_after_identity_hardening_production_not_authorized",
+  "generatedAt": "2026-07-12T15:54:34+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-PRODUCTION-RUNNER-PREPARATION",
+    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-ARTIFACT-REFRESH-AFTER-IDENTITY-HARDENING",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -54,8 +54,9 @@
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
     "dormantDeployPreparationStatus": "pass_local_execute_and_rollback_rehearsal_awaiting_explicit_production_approval",
-    "dormantDeployArtifactSha256": "8a0294b924936436f87c721319ef0435f532ce12da5e555900a3383051bfba08",
-    "dormantDeployArtifactFileCount": 13,
+    "dormantDeployArtifactSha256": "43e9deaef51e0c0408acb3c449a5cf92577181e66a14adaff958d669d3435f52",
+    "dormantDeployArtifactFileCount": 14,
+    "dormantDeployArtifactRefreshReason": "runtime_identity_hardening_changed_candidate_runtime_database_and_requires_transaction_adapter_as_security_critical_transitive_dependency",
     "dormantDeployComposeEnvFileOrder": [
       ".env",
       ".env.production"

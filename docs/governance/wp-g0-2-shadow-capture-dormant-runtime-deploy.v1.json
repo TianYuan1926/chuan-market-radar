@@ -33,7 +33,7 @@
     "databaseMutationAllowed": false
   },
   "artifact": {
-    "sha256": "8a0294b924936436f87c721319ef0435f532ce12da5e555900a3383051bfba08",
+    "sha256": "43e9deaef51e0c0408acb3c449a5cf92577181e66a14adaff958d669d3435f52",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",
@@ -43,6 +43,7 @@
       "src/app/api/admin/candidate-shadow/run/route.ts",
       "src/lib/candidate-episode/app-shadow-capture-composition.ts",
       "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/transaction-adapter.ts",
       "src/lib/candidate-episode/feature-flags.ts",
       "src/lib/candidate-episode/shadow-capture-admin.ts",
       "src/lib/candidate-episode/shadow-capture-composition.ts",

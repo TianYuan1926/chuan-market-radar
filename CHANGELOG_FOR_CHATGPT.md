@@ -2978,3 +2978,44 @@ P0 阻断：
 ### 下一轮建议
 
 生产只申请 Dormant Runtime Deploy；不得把 runner 本地 PASS 解释为身份已部署。
+
+## 2026-07-12 / WP-G0.2 Dormant Artifact Refresh After Identity Hardening
+
+### 本轮目标
+
+修复 Runtime Identity 加固后 Dormant deploy artifact 的 checksum drift，并把安全关键事务适配器纳入完整传递依赖锁定，防止旧制品被误批准到生产。
+
+### 修改范围
+
+- current Dormant artifact 从 13 文件刷新为 14 文件，新增锁定 `src/lib/candidate-episode/transaction-adapter.ts`。
+- current artifact SHA-256 更新为 `43e9deaef51e0c0408acb3c449a5cf92577181e66a14adaff958d669d3435f52`。
+- validator 回归强制文件数为 14 且必须包含事务适配器。
+- 更新部署合同、加速路线、traceability、自治状态、项目 Context 和本轮交付报告。
+- 未修改业务运行代码、migration、Compose、环境文件、数据库、Redis、Feature Flag、control lifecycle、前端或交易逻辑。
+
+### 核心链路影响
+
+候选筛选与复盘进化旁路的休眠部署制品现在完整覆盖身份加固后的事务角色行为；这只提高部署完整性，不代表 Candidate runtime 已部署、激活或接管权威链。
+
+### 测试结果
+
+- Dormant validator、dry-run 与定向 9/9：PASS。
+- Runtime Identity foundation validator、runner validator/8 of 8 和 Composition 28/28：PASS。
+- Autonomy 16/16、typecheck、lint、build：PASS。
+- test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- production smoke 与 formal：未运行。
+
+### 是否部署
+
+未部署、未连接腾讯云、未执行生产 Git/Docker/角色/权限/env/Web/数据库/Redis 变更。
+
+### 风险与遗留问题
+
+- 旧 13 文件 SHA-256 只保留为历史证据，禁止再用于生产审批。
+- Dormant production deploy 仍缺新的 exact commit + current checksum + web-only + 90 分钟明确审批。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+本轮全部门禁和 GitHub main 同步后，只申请 14 文件 current artifact 的 Dormant Runtime Deploy；不得合并 Runtime Identity 或 activation。
