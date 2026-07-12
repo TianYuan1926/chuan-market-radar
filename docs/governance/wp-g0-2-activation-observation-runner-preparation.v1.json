@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "wp-g0.2-activation-observation-runner-preparation.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-ACTIVATION-OBSERVATION-RUNNER-PREPARATION",
+  "status": "local_runner_preparation_verified_production_not_authorized",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentSource": {
+    "codeActivationAllowed": false,
+    "candidateRuntime": "disabled",
+    "futureActivationReleaseRequired": true,
+    "mayClaimImmediatePass": false,
+    "mayClaimObservationPass": false
+  },
+  "prerequisites": {
+    "dormantDeployFinalStatus": "PASS_DORMANT_RUNTIME_DEPLOY",
+    "runtimeIdentityFinalStatus": "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
+    "runtimeIdentityEvidenceMaximumAgeHours": 24,
+    "newExactApprovalRequired": true,
+    "approvalBindsRunnerContractSha256": true,
+    "maximumApprovalWindowMinutes": 90,
+    "productionWorktreeMustBeClean": true,
+    "productionHeadMustEqualRollbackCommit": true
+  },
+  "runnerArtifact": {
+    "sha256": "d186c42dea0c93871ccb2c306c5a92fe20e99bd8c46b0e40c8c9f04b4464b266",
+    "files": [
+      "scripts/production/candidate-activation/observation-runner.sh",
+      "scripts/production/candidate-activation/production-runner.sh",
+      "scripts/production/candidate-activation/runner.mjs"
+    ]
+  },
+  "activationReleaseArtifact": {
+    "currentDormantSha256": "4b12e697176aa1252394b55c8efd27ee005134f0c7979d218fc35119a98ede52",
+    "approvalMustBindFutureSha256": true,
+    "futureSha256MustDifferFromCurrentDormantSha256": true,
+    "files": [
+      "docker-compose.yml",
+      "deploy/workers/protected-api-worker.mjs",
+      "migrations/candidate-episode/009_candidate_shadow_capture_safety.sql",
+      "scripts/production/candidate-activation/observation-runner.sh",
+      "scripts/production/candidate-activation/production-runner.sh",
+      "scripts/production/candidate-activation/runner.mjs",
+      "scripts/verify/production-check.sh",
+      "src/app/api/admin/candidate-shadow/run/route.ts",
+      "src/lib/candidate-episode/app-shadow-capture-composition.ts",
+      "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/feature-flags.ts",
+      "src/lib/candidate-episode/shadow-capture-admin.ts",
+      "src/lib/candidate-episode/shadow-capture-composition.ts",
+      "src/lib/candidate-episode/transaction-adapter.ts",
+      "src/lib/market/radar-snapshot.ts",
+      "src/lib/runtime/worker-heartbeat.ts"
+    ]
+  },
+  "schemaBoundary": {
+    "migration009Sha256": "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5",
+    "candidateLedgerRequired": 9,
+    "controlRowsBeforeActivation": 0,
+    "migrationExecutionAllowed": false,
+    "schemaDdlAllowed": false,
+    "businessDmlAllowed": false
+  },
+  "mutationAllowlist": {
+    "services": [
+      "web",
+      "candidate-shadow-worker"
+    ],
+    "composeProfile": "candidate-shadow-runtime",
+    "environmentKeysChanged": [
+      "CANDIDATE_EPISODE_CANONICAL_WRITE",
+      "CANDIDATE_EPISODE_SHADOW_WRITE",
+      "CANDIDATE_EPISODE_DUAL_READ",
+      "CANDIDATE_EPISODE_CANONICAL_READ",
+      "CANDIDATE_EPISODE_REVIEW_READ",
+      "CANDIDATE_RUNTIME_RELEASE_ID",
+      "CANDIDATE_SHADOW_WORKER_EXPECTED"
+    ],
+    "candidateDatabaseUrlsChanged": 0,
+    "candidateDatabaseRolesChanged": 0,
+    "controlLifecycleStarts": 1,
+    "shadowWriteEnabled": true,
+    "canonicalWriteEnabled": false,
+    "dualReadEnabled": false,
+    "canonicalReadEnabled": false,
+    "reviewReadEnabled": false,
+    "automaticPhaseAdvance": false
+  },
+  "observation": {
+    "minimumCleanWindowHours": 24,
+    "sampleIntervalSeconds": 300,
+    "maximumSampleGapSeconds": 600,
+    "minimumSamples": 289,
+    "lifecycleMaximumHours": 72,
+    "pendingWarningSeconds": 300,
+    "pendingCriticalSeconds": 600,
+    "unresolvedQuarantineAllowed": 0,
+    "retryWaitAllowed": 0,
+    "completedWritesMustBePositive": true,
+    "completedWritesMustBeMonotonic": true,
+    "minimumComparedWritesForThisPackage": null,
+    "minimumComparedWritesForNextGate": 10000,
+    "finalSuccessLabel": "PASS_ACTIVATE_AND_OBSERVE"
+  },
+  "rollback": {
+    "automaticRollbackRequired": true,
+    "approvalExpiryMayBlockSafetyRollback": false,
+    "stopCandidateWorkerFirst": true,
+    "restoreEnvironmentRequired": true,
+    "restorePreviousWebImageRequired": true,
+    "restoreRollbackCommitRequired": true,
+    "transitionControlToLegacyRequired": true,
+    "writeFrozenAfterRollback": true,
+    "deleteCandidateEvidenceAllowed": false,
+    "dropSchemaAllowed": false
+  },
+  "immediateSuccessLabel": "PASS_IMMEDIATE_SHADOW_CAPTURE_AWAITING_OBSERVATION",
+  "forbidden": [
+    "production_execution_from_current_dormant_source",
+    "production_activation_without_exact_approval",
+    "candidate_database_url_mutation",
+    "candidate_database_role_mutation",
+    "schema_migration",
+    "schema_ddl",
+    "business_table_dml",
+    "canonical_write",
+    "dual_read",
+    "canonical_read",
+    "review_read",
+    "automatic_phase_advance",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY"
+}

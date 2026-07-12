@@ -3019,3 +3019,47 @@ P0 阻断：
 ### 下一轮建议
 
 本轮全部门禁和 GitHub main 同步后，只申请 14 文件 current artifact 的 Dormant Runtime Deploy；不得合并 Runtime Identity 或 activation。
+
+## 2026-07-12 / WP-G0.2 Activation and Observation Runner Preparation
+
+### 本轮目标
+
+在生产审批等待期间完成 future Shadow Capture 激活、即时回滚和 24 小时观察的本地执行器准备，不改变当前生产或代码授权。
+
+### 修改范围
+
+- 新增 Activation approval/artifact/env/control/observation 核心、生产 shell 和 5 分钟 observer。
+- 新增隔离 shell 成功/回滚/observer 演练和真实 PG16 lifecycle 演练。
+- 新增机器治理合同、validator、防降标测试和 package scripts。
+- 更新自治状态、加速路线、traceability、Context 和交付报告。
+- 未修改 Feature Flag、业务代码、Compose、migration、scan/analysis/strategy/frontend/backtest 或生产状态。
+
+### 核心链路影响
+
+为候选筛选和复盘进化旁路建立可审计的真实采集启动与回滚路径；当前不产生生产 Candidate Episode/Outcome，不改变排序或交易计划。
+
+### 测试结果
+
+- Activation validator/dry-run/定向 12/12：PASS。
+- Activation PG16 control start/rollback：PASS，最终 legacy/epoch 2/frozen。
+- Shadow PG16 upgrade/atomic/composition/permission：PASS。
+- Runtime Identity Runner 8/8、Composition 28/28：PASS。
+- typecheck、lint、build：PASS。
+- test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- production smoke 与 formal：未运行。
+
+### 是否部署
+
+未部署、未连接生产、未 push main。当前隔离分支不改变 Dormant 审批绑定；Candidate runtime 仍 disabled、代码授权仍 false、control lifecycle 未启动。
+
+### 风险与遗留问题
+
+- Future activation 必须另建代码授权为 true 的精确 release，当前 checksum 不能冒充。
+- Dormant 与 Runtime Identity 两个生产包仍未 final PASS。
+- 24 小时/289 样本和下一 Gate 10,000 compared writes 均未缩短；生产观察尚未发生。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只执行独立审批的 Dormant Runtime Deploy；不得合并 Runtime Identity 或 Activation。

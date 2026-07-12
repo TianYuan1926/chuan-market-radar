@@ -1,0 +1,137 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import test from "node:test";
+import { promisify } from "node:util";
+import contract from "../../../docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json" with { type: "json" };
+
+const execFileAsync = promisify(execFile);
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+test("observation runner collects and validates isolated samples without phase advance", async () => {
+  const directory = await mkdtemp("/tmp/wp_g0_2_rehearsal_candidate_activation_observer_");
+  const source = join(directory, "source");
+  const production = join(directory, "production");
+  const secure = join(directory, "secure");
+  const ops = join(directory, "ops");
+  const fakeBin = join(directory, "bin");
+  const counter = join(directory, "counter");
+  const approvedCommit = "a".repeat(40);
+  const releaseId = "candidate-shadow-observer-rehearsal";
+  await Promise.all([source, production, secure, ops, fakeBin].map((path) => mkdir(path, { recursive: true, mode: 0o700 })));
+  for (const file of [
+    ...contract.runnerArtifact.files,
+    "docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json",
+  ]) {
+    await mkdir(dirname(join(source, file)), { recursive: true });
+    await copyFile(join(process.cwd(), file), join(source, file));
+  }
+  await writeFile(join(production, ".env"), "POSTGRES_DB=market_radar\n", { mode: 0o600 });
+  await writeFile(join(production, ".env.production"), "CANDIDATE_EPISODE_SHADOW_WRITE=true\n", { mode: 0o600 });
+  const request = {
+    approvalDigest: `sha256:${"d".repeat(64)}`,
+    approvalExpiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+    approvalIssuedAt: new Date(Date.now() - 60_000).toISOString(),
+    approvalRef: "candidate-observer-rehearsal",
+    approvedActivationArtifactSha256: "c".repeat(64),
+    approvedCommit,
+    approvedRunnerArtifactSha256: contract.runnerArtifact.sha256,
+    automaticControlRollbackAllowed: true,
+    automaticEnvironmentRollbackAllowed: true,
+    automaticServiceRollbackAllowed: true,
+    businessDmlAllowed: false,
+    candidateDatabaseUrlMutationAllowed: false,
+    candidateFeatureFlagEnablementAllowed: true,
+    candidateWorkerStartAllowed: true,
+    canonicalReadAllowed: false,
+    canonicalWriteAllowed: false,
+    codeActivationAllowed: true,
+    composeProfile: "candidate-shadow-runtime",
+    controlLifecycleStartAllowed: true,
+    dormantDeployStatus: "PASS_DORMANT_RUNTIME_DEPLOY",
+    dualReadAllowed: false,
+    environmentMutationAllowed: true,
+    execute: true,
+    migrationAllowed: false,
+    migrationId: "candidate-episode-v1",
+    minimumObservationHours: 24,
+    observationIntervalSeconds: 300,
+    operator: "rehearsal",
+    packageId: "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+    productionRankingMutationAllowed: false,
+    releaseId,
+    reviewReadAllowed: false,
+    rollbackCommit: "b".repeat(40),
+    runtimeIdentityStatus: "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
+    runnerContractSha256: sha256(await readFile(join(source, "docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json"))),
+    schemaDdlAllowed: false,
+    services: ["web", "candidate-shadow-worker"],
+    shadowWriteAllowed: true,
+    workerExpectedAllowed: true,
+  };
+  await writeFile(join(secure, "request.json"), JSON.stringify(request), { mode: 0o600 });
+  await writeFile(join(secure, "migration-admin.url"), "postgresql://redacted.invalid/db\n", { mode: 0o600 });
+  await writeFile(counter, "0\n");
+
+  const fakeGit = [
+    "#!/usr/bin/env node",
+    "if (process.argv.includes('rev-parse')) console.log(process.env.FAKE_APPROVED_COMMIT);",
+    "",
+  ].join("\n");
+  const fakeDocker = [
+    "#!/usr/bin/env node",
+    "const fs=require('fs'); const args=process.argv.slice(2); const joined=args.join(' ');",
+    "if (args[0]==='ps') process.exit(0);",
+    "if (args[0]==='inspect' && joined.includes('{{.Image}}')) { console.log('sha256:web'); process.exit(0); }",
+    "if (args[0]==='inspect' && joined.includes('NetworkSettings.Networks')) { console.log('rehearsal-network'); process.exit(0); }",
+    "if (args.includes('compose') && joined.includes('ps -q web')) { console.log('web-container'); process.exit(0); }",
+    "if (args.includes('compose') && joined.includes('exec -T postgres')) {",
+    "  const count=Number(fs.readFileSync(process.env.FAKE_COUNTER,'utf8').trim())+1; fs.writeFileSync(process.env.FAKE_COUNTER,String(count));",
+    "  console.log(JSON.stringify({status:'pass',databaseNow:new Date(Date.parse('2026-07-12T00:00:00Z')+count*300000).toISOString(),identityErrors:0,lockWaiters:0,longTransactions:0})); process.exit(0);",
+    "}",
+    "if (args.includes('compose') && joined.includes('exec -T')) {",
+    "  fs.readFileSync(0); const commit=args[args.indexOf('-e')+1].split('=')[1];",
+    "  const release=args[args.lastIndexOf('-e')+1].split('=')[1];",
+    "  const workers=['scanner-worker','websocket-light-worker','coinglass-worker','signal-worker','dynamic-scan-scheduler','macro-worker','candidate-shadow-worker'].map(key=>({key,status:'healthy',ageSec:5}));",
+    "  console.log(JSON.stringify({schemaVersion:'candidate-shadow-observation-sample.v1',commit,releaseId:release,health:{ok:true,level:'ready',scanFreshness:'fresh',databaseStatus:'ready',redisStatus:'healthy',workers},candidate:{ok:true,mode:'active',runtime:{enabled:true,blockers:[],authorityEpoch:1,expectedReleaseId:release},monitor:{status:'ready',phase:'shadow_capture',authorityEpoch:1,blockers:[],warnings:[],metrics:{outboxRetryWaitTotal:0,unresolvedQuarantineTotal:0,outboxQuarantinedTotal:0,oldestPendingAgeSeconds:null,outboxCompletedTotal:1}}}})); process.exit(0);",
+    "}",
+    "process.exit(0);",
+    "",
+  ].join("\n");
+  await writeFile(join(fakeBin, "git"), fakeGit);
+  await writeFile(join(fakeBin, "docker"), fakeDocker);
+  await chmod(join(fakeBin, "git"), 0o755);
+  await chmod(join(fakeBin, "docker"), 0o755);
+
+  try {
+    const result = await execFileAsync("/bin/bash", [
+      join(source, "scripts/production/candidate-activation/observation-runner.sh"),
+    ], {
+      cwd: production,
+      env: {
+        ...process.env,
+        BASE_ENV_FILE: join(production, ".env"),
+        CONFIRM_CANDIDATE_OBSERVATION: "true",
+        ENV_FILE: join(production, ".env.production"),
+        FAKE_APPROVED_COMMIT: approvedCommit,
+        FAKE_COUNTER: counter,
+        OBSERVATION_REHEARSAL_INTERVAL_SECONDS: "1",
+        OBSERVATION_REHEARSAL_SAMPLE_LIMIT: "3",
+        OPS_ROOT: ops,
+        PATH: fakeBin + ":" + process.env.PATH,
+        ROOT_DIR_OVERRIDE: production,
+        SECURE_ROOT: secure,
+      },
+      maxBuffer: 2 * 1024 * 1024,
+    });
+    assert.match(result.stdout, /PASS_REHEARSAL_OBSERVER_CONTROL_FLOW_ONLY/);
+    const samples = (await readFile(join(ops, "evidence", "observation-samples.jsonl"), "utf8")).trim().split("\n");
+    assert.equal(samples.length, 3);
+    assert.equal(samples.every((line) => JSON.parse(line).candidate.mode === "active"), true);
+    assert.doesNotMatch(result.stdout + result.stderr, /PASS_ACTIVATE_AND_OBSERVE/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
