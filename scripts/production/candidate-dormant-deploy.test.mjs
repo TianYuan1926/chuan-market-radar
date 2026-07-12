@@ -108,6 +108,7 @@ test("shell stays web-only and contains an automatic web rollback path", async (
   assert.equal((source.match(/--env-file "\$\{BASE_ENV_FILE\}" --env-file "\$\{ENV_FILE\}"/g) ?? []).length, 2);
   assert.match(source, /env \\\n+  --env-file "\$\{BASE_ENV_FILE\}"/);
   assert.match(source, /env \\\n+  --env-file "\$\{ENV_FILE\}"/);
+  assert.doesNotMatch(source, /readarray|mapfile/);
   assert.match(source, /rollback_on_failure/);
   assert.match(source, /candidate_dormant_contract_failed/);
   assert.match(source, /PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION/);

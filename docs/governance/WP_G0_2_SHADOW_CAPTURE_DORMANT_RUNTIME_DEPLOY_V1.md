@@ -8,6 +8,7 @@
 
 ```text
 本地部署准备：PASS_LOCAL_DORMANT_DEPLOY_PREPARATION
+隔离执行/回滚演练：PASS_ISOLATED_EXECUTE_AND_ROLLBACK_REHEARSAL
 生产部署：NOT EXECUTED
 生产授权：MISSING
 生产激活：FORBIDDEN
@@ -68,6 +69,8 @@ REQUEST_FILE=/secure/path/request.json
 ```
 
 生产 Compose 必须同时使用 `--env-file .env --env-file .env.production`。基础文件提供 PostgreSQL 等必需插值，覆盖文件提供生产运行覆盖；单独使用任一文件都不构成有效准入证据。
+
+runner 请求解析必须兼容生产同类环境可能使用的 Bash 3.2，不得依赖 Bash 4 才提供的 `readarray` / `mapfile`。本地隔离演练必须真实执行 runner 的成功路径与即时验证失败路径，并证明失败路径恢复 rollback commit 和旧 Web 镜像。
 
 真实命令和临时路径由 Codex 在审批窗口内按服务器实际目录生成；禁止把 `.env.production`、连接串或 token 写入请求文件和证据。
 

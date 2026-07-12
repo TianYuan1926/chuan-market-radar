@@ -2848,3 +2848,46 @@ P0 阻断：
 ### 下一轮建议
 
 在全部本地门禁和 GitHub main 同步后，只申请 web-only Dormant Runtime Deploy；不得合并身份、权限或 activation。
+
+## 2026-07-12 / WP-G0.2 Dormant Runtime Deploy Isolated Execute and Rollback Rehearsal
+
+### 本轮目标
+
+在不连接生产的隔离环境中真实执行专用 runner 的成功和失败路径，关闭 Bash 版本兼容与“只有静态检查、没有跑过回滚”的证据缺口。
+
+### 修改范围
+
+- runner 请求解析从 Bash 4 专属 `readarray` 改为 Bash 3.2 可执行的单行结构化读取。
+- 新增 fake Git、fake Docker 和本地 health/contract API 的隔离执行演练。
+- 成功路径证明只 build/recreate `web`；失败路径证明即时 health 降级会恢复 rollback commit 和旧 Web 镜像。
+- artifact 保持 13 文件，runner 变更后 SHA-256=`8a0294b924936436f87c721319ef0435f532ce12da5e555900a3383051bfba08`。
+- 更新治理合同、加速路线、traceability、自治状态、context 和交付报告。
+- 未修改生产、数据库、Redis、Candidate Flag/URL/身份、control lifecycle、scan、analysis、strategy、frontend 或 backtest。
+
+### 核心链路影响
+
+候选筛选与复盘进化旁路代码的安装/回滚路径获得真实控制流证据；生产仍为 legacy-only，Candidate runtime 未部署。
+
+### 测试结果
+
+- Dormant Deploy 定向：9/9 PASS，包含 Bash 3.2 成功路径和自动回滚路径。
+- Deploy Safety 5/5、Autonomy 16/16、Composition 28/28 PASS。
+- typecheck、lint、build PASS；test:market 950 pass / 0 fail / 3 explicit DB skip；worker 18/18；historical 4/4。
+- golden 16/16；forbidden-files、secret-patterns、security-check PASS。
+- 曾因错误并行运行 typecheck 与 Next build 造成 `.next/types` 竞争和一次 TS6053 假失败；改为正确顺序后两项均独立 PASS，没有改代码或降低门禁掩盖失败。
+- production smoke 与 formal 未运行。
+
+### 是否部署
+
+未部署、未连接腾讯云、未执行生产 Git/Docker/数据库/Redis/环境变更。
+
+### 风险与遗留问题
+
+- 隔离演练不是生产 PASS，仍缺独立 exact approval。
+- 即时部署成功后仍需 ledger/control 只读核验和 30-60 分钟观察。
+- Dormant Deploy PASS 后仍需 Runtime Identity and Permission，不能直接 activation。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+全部本地门禁和 GitHub main 同步后，只申请 web-only Dormant Runtime Deploy；不得合并身份、权限或 activation。

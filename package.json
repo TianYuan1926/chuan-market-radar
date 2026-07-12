@@ -67,7 +67,7 @@
     "candidate:dormant-deploy:validate": "node scripts/production/candidate-dormant-deploy.mjs validate",
     "candidate:dormant-deploy": "DORMANT_DEPLOY_MODE=dry_run bash scripts/production/candidate-dormant-deploy.sh",
     "candidate:dormant-deploy:manual": "DORMANT_DEPLOY_MODE=production_deploy CONFIRM_DORMANT_DEPLOY=true bash scripts/production/candidate-dormant-deploy.sh",
-    "test:candidate-dormant-deploy": "node --test scripts/production/candidate-dormant-deploy.test.mjs",
+    "test:candidate-dormant-deploy": "node --test scripts/production/candidate-dormant-deploy.test.mjs scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
     "candidate:shadow-capture:pg16-rehearsal": "bash scripts/rehearsal/shadow-capture-postgres16.sh",
     "ops:network-check": "node scripts/ops/network-check.mjs",
     "ops:node-fetch-check": "node scripts/ops/node-fetch-check.mjs",

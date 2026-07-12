@@ -134,7 +134,7 @@ npm run test:migration-capacity
 | 8 | WP-G0.2 production readiness + approval packet | B | local PASS | immutable resolution、runtime gate/mapper、monitor、009 checksum/权限/回退和 schema-only 审批包 |
 | 9 | WP-G0.2 production add safety schema | A | PASS: 009 only applied and verified dormant | catalog 8/151/20/10/14/8 -> 9/166/26/11/16/9；Feature Flag=0；禁止再次 execute |
 | 10 | WP-G0.2 production composition wiring | B | local PASS | 28/28 定向、PG16 完整 composition、legacy identity dormant fail-closed、permission 4/4 与基础门禁 PASS |
-| 11 | WP-G0.2 dormant runtime deploy | A | local preparation + production read-only preflight PASS / production prohibited | 预检发现并修复 `.env` + `.env.production` 双文件加载阻断；专用 web-only runner、13 文件 artifact、休眠门禁、即时验收和自动 Web 回滚已锁定；仍需新 exact commit + checksum + web-only + 90 分钟独立审批 |
+| 11 | WP-G0.2 dormant runtime deploy | A | local execution/rollback rehearsal + production read-only preflight PASS / production prohibited | 预检修复 `.env` + `.env.production` 双文件阻断；Bash 3.2 隔离实跑证明 web-only 成功路径和即时验证失败自动回滚路径；13 文件 artifact 已锁定，仍需新 exact commit + checksum + web-only + 90 分钟独立审批 |
 | 12 | WP-G0.2 runtime identity + permission | A | prohibited | dormant deploy PASS + 独立审批；三条最小权限身份及 active permission rehearsal PASS |
 | 13 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
 | 14 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
@@ -147,4 +147,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-容量/恢复、Add Schema、production verify-only、Shadow Safety Schema 009、本地 Composition Wiring 和 Dormant Deploy 本地准入已形成闭环证据。Dormant 生产只读预检确认生产仍为旧 release、worktree clean、11 个容器正常、Candidate 休眠边界和核心 health/contract PASS；同时发现并立即修复单独 `.env.production` 无法解析 Compose 的阻断，runner/production-check 现统一按 `.env` -> `.env.production` 加载。生产 Candidate schema 仍是 migration 1-9 applied/verified/dormant；runtime deployment=false、control lifecycle 未启动。下一步只能另行审批新的 exact commit + 13 文件 artifact checksum + web-only + 90 分钟 dormant runtime deploy；即时检查后还必须做 ledger/control 只读核验和 30-60 分钟观察。之后必须先完成最小权限 Runtime Identity and Permission 包，再申请 activation/observation。Writer、backfill、dual read 和 read cutover继续禁止。
+容量/恢复、Add Schema、production verify-only、Shadow Safety Schema 009、本地 Composition Wiring 和 Dormant Deploy 本地准入已形成闭环证据。Dormant 生产只读预检确认生产仍为旧 release、worktree clean、11 个容器正常、Candidate 休眠边界和核心 health/contract PASS；同时发现并立即修复单独 `.env.production` 无法解析 Compose 的阻断，runner/production-check 现统一按 `.env` -> `.env.production` 加载。隔离执行演练进一步在 Bash 3.2 上真实覆盖 web-only 成功路径与即时验证失败自动回滚路径。生产 Candidate schema 仍是 migration 1-9 applied/verified/dormant；runtime deployment=false、control lifecycle 未启动。下一步只能另行审批新的 exact commit + 13 文件 artifact checksum + web-only + 90 分钟 dormant runtime deploy；即时检查后还必须做 ledger/control 只读核验和 30-60 分钟观察。之后必须先完成最小权限 Runtime Identity and Permission 包，再申请 activation/observation。Writer、backfill、dual read 和 read cutover继续禁止。

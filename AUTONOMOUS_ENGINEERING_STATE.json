@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T13:34:17+08:00",
+  "updatedAt": "2026-07-12T14:59:10+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,11 +31,11 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-PREPARATION",
-    "title": "Candidate dormant runtime deploy local preparation",
+    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-EXECUTION-REHEARSAL",
+    "title": "Candidate dormant runtime isolated execution and rollback rehearsal",
     "lane": "localPreparation",
-    "status": "ready_for_production_approval_after_read_only_preflight_fix",
-    "objective": "完成 Candidate dormant runtime 的生产只读预检，修复 Compose 双 env-file 阻断，并锁定 web-only runner、工件校验和、休眠门禁、即时验收、自动 Web 回滚和最终观察条件；尚未修改生产。",
+    "status": "ready_for_gate",
+    "objective": "在生产审批前用 Bash 3.2、隔离 Git/Docker 和本地合同 API 真实执行 web-only runner 的成功与失败路径，证明即时验证失败会恢复 rollback commit 和旧 Web 镜像；尚未修改生产。",
     "coreChainImpact": [
       "candidate_screening_runtime_installation_safety",
       "review_evolution_runtime_installation_safety",
@@ -53,9 +53,11 @@
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
       "reports/wp-g0-2-shadow-capture-dormant-runtime-deploy-preparation/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_PREPARATION_REPORT.md",
+      "reports/wp-g0-2-dormant-runtime-deploy-rehearsal/WP_G0_2_DORMANT_RUNTIME_DEPLOY_REHEARSAL_REPORT.md",
       "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.sh",
       "scripts/production/candidate-dormant-deploy.test.mjs",
+      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
       "scripts/verify/production-check.sh"
     ],
     "prohibitedPaths": [
@@ -77,9 +79,11 @@
       "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
       "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
       "reports/wp-g0-2-shadow-capture-dormant-runtime-deploy-preparation/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_PREPARATION_REPORT.md",
+      "reports/wp-g0-2-dormant-runtime-deploy-rehearsal/WP_G0_2_DORMANT_RUNTIME_DEPLOY_REHEARSAL_REPORT.md",
       "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.sh",
       "scripts/production/candidate-dormant-deploy.test.mjs",
+      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
       "scripts/verify/production-check.sh"
     ],
     "gateProfile": {
@@ -110,6 +114,8 @@
       "代码授权硬 false、Candidate worker absent、migration/DDL/DML/control lifecycle 全部禁止",
       "审批必须绑定 exact commit、artifact checksum、rollback commit、web-only 和不超过 90 分钟窗口",
       "Compose 必须按 .env 后 .env.production 加载，并分别通过 Candidate 休眠校验",
+      "runner 请求解析兼容 Bash 3.2，不依赖 readarray/mapfile",
+      "隔离执行演练覆盖 web-only 成功路径和即时验证失败自动恢复 rollback commit/旧 Web 镜像路径",
       "即时验收只允许写 awaiting DB verify and observation，不能提前写整包 PASS",
       "失败时恢复旧 Web 镜像和 rollback commit，不做数据库 rollback",
       "生产决定仍为 BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",
@@ -186,20 +192,27 @@
     },
     {
       "order": 9,
-      "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
-      "lane": "production",
-      "status": "local_preparation_pass_awaiting_new_explicit_approval",
-      "requiresExplicitApproval": true
+      "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-EXECUTION-REHEARSAL",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
     },
     {
       "order": 10,
+      "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
+      "lane": "production",
+      "status": "local_execute_and_rollback_rehearsal_pass_awaiting_new_explicit_approval",
+      "requiresExplicitApproval": true
+    },
+    {
+      "order": 11,
       "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
       "lane": "production",
       "status": "prohibited_until_dormant_deploy_pass_and_new_approval",
       "requiresExplicitApproval": true
     },
     {
-      "order": 11,
+      "order": 12,
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
       "lane": "production",
       "status": "prohibited_until_runtime_identity_permission_pass_and_new_approval",

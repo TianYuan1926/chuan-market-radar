@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
   "status": "wp_g0_2_dormant_runtime_deploy_local_preparation_pass_production_not_authorized",
-  "generatedAt": "2026-07-12T13:34:17+08:00",
+  "generatedAt": "2026-07-12T14:51:00+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-PREPARATION",
+    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-EXECUTION-REHEARSAL",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -53,14 +53,15 @@
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
-    "dormantDeployPreparationStatus": "pass_local_awaiting_explicit_production_approval",
-    "dormantDeployArtifactSha256": "c5ec5fae284b0f26ae5e7e5635a2e9a370d791a07aba2176d6e39d5b2ef4d3a4",
+    "dormantDeployPreparationStatus": "pass_local_execute_and_rollback_rehearsal_awaiting_explicit_production_approval",
+    "dormantDeployArtifactSha256": "8a0294b924936436f87c721319ef0435f532ce12da5e555900a3383051bfba08",
     "dormantDeployArtifactFileCount": 13,
     "dormantDeployComposeEnvFileOrder": [
       ".env",
       ".env.production"
     ],
     "dormantDeployProductionPreflight": "pass_read_only_runner_env_incompatibility_fixed_locally",
+    "dormantDeployIsolatedExecutionRehearsal": "pass_success_and_automatic_rollback_paths_on_bash_3_2",
     "dormantDeployServiceAllowlist": [
       "web"
     ],

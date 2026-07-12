@@ -37,16 +37,15 @@ node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" env \
 node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" env \
   --env-file "${ENV_FILE}"
 
-readarray -t REQUEST_FACTS < <(node - "${REQUEST_FILE}" <<'NODE'
+read -r APPROVED_COMMIT ROLLBACK_COMMIT EXECUTE_REQUESTED < <(node - "${REQUEST_FILE}" <<'NODE'
 const request = JSON.parse(require("node:fs").readFileSync(process.argv[2], "utf8"));
-console.log(request.approvedCommit);
-console.log(request.rollbackCommit);
-console.log(request.execute === true ? "true" : "false");
+console.log([
+  request.approvedCommit,
+  request.rollbackCommit,
+  request.execute === true ? "true" : "false",
+].join(" "));
 NODE
 )
-APPROVED_COMMIT="${REQUEST_FACTS[0]:-}"
-ROLLBACK_COMMIT="${REQUEST_FACTS[1]:-}"
-EXECUTE_REQUESTED="${REQUEST_FACTS[2]:-false}"
 
 if [[ "${EXECUTE_REQUESTED}" != "true" ]]; then
   echo "ERROR: approved request does not authorize execute." >&2
