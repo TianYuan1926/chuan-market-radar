@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "wp-g0.2-shadow-capture-contract.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
+  "status": "local_design_validated_production_blocked",
+  "scope": "production_radar",
+  "productionAuthorization": false,
+  "authority": {
+    "write": "legacy",
+    "read": "legacy",
+    "secondaryProjection": "legacy_to_candidate_episode",
+    "authoritySource": "candidate_authority.candidate_migration_control",
+    "requiredPhase": "shadow_capture",
+    "environmentFlagMayAuthorize": false,
+    "environmentFlagIsAdditionalKillSwitchOnly": true,
+    "consumerSeesCommittedSourceOnly": true
+  },
+  "transactionBoundary": {
+    "legacyWriteAndOutboxInsertSameConnectionTransaction": true,
+    "shadowConsumerWritesLegacy": false,
+    "shadowConsumerMutatesRanking": false,
+    "shadowConsumerMutatesAnalysis": false,
+    "shadowConsumerMutatesStrategy": false,
+    "shadowConsumerMutatesReadyOrRiskReward": false,
+    "shadowConsumerMutatesFrontend": false,
+    "redisIsCorrectnessBoundary": false
+  },
+  "idempotencyAndConcurrency": {
+    "scope": "production_radar",
+    "payloadHashAlgorithm": "sha256",
+    "sameIdempotencyKeyDifferentHash": "hard_stop",
+    "claimLeaseSeconds": 300,
+    "claimBatchMaximum": 100,
+    "authorityEpochRequired": true,
+    "fencingTokenRequired": true,
+    "expiredOrStaleClaim": "reject",
+    "completedItemReplay": "idempotent_noop"
+  },
+  "failureIsolation": {
+    "legacyCommitShadowFailure": "retain_retryable_outbox_and_alert",
+    "shadowSuccessLegacyFailure": "impossible_committed_source_only",
+    "retryPolicy": "bounded_exponential_backoff",
+    "maximumAttempts": 8,
+    "attemptExhaustion": "quarantine_and_block_phase_advance",
+    "payloadHashConflict": "halt_consumer_and_alert_p0",
+    "authorityEpochConflict": "reject_and_reload_control",
+    "deadlineExceeded": "halt_shadow_and_require_operator_decision"
+  },
+  "timeBounds": {
+    "dualProjectionMaximumHours": 72,
+    "deadlineResetAllowed": false,
+    "cleanWindowMinimumHours": 24,
+    "minimumComparedWrites": 10000,
+    "cutoverWriteFreezeMaximumSeconds": 120
+  },
+  "observability": {
+    "requiredMetrics": [
+      "outbox_pending_total",
+      "outbox_oldest_pending_age_seconds",
+      "outbox_claimed_total",
+      "outbox_retry_wait_total",
+      "outbox_attempt_exhausted_total",
+      "outbox_payload_hash_conflict_total",
+      "outbox_stale_fence_rejection_total",
+      "shadow_projection_success_total",
+      "shadow_projection_failure_total",
+      "shadow_projection_latency_ms"
+    ],
+    "requiredDimensions": [
+      "release_id",
+      "migration_id",
+      "authority_epoch",
+      "payload_version",
+      "failure_class"
+    ],
+    "secretOrPayloadInLogs": false,
+    "alertOnAttemptExhaustion": true,
+    "alertOnOldestPendingAge": true
+  },
+  "implementationFacts": {
+    "candidateSchemaAppliedVerifiedDormant": true,
+    "candidateFeatureFlagsEnabledInProduction": false,
+    "sourceTransactionOutboxHookImplemented": false,
+    "boundedRetryQuarantineImplemented": false,
+    "productionRuntimeWiringImplemented": false,
+    "isolatedPostgresRehearsalPassed": false
+  },
+  "productionBlockers": [
+    "source_transaction_outbox_hook_missing",
+    "outbox_attempt_exhaustion_quarantine_missing",
+    "production_runtime_wiring_not_implemented",
+    "isolated_postgres_rehearsal_not_passed",
+    "new_explicit_production_approval_missing"
+  ],
+  "forbiddenInThisPackage": [
+    "production_connection",
+    "production_database_write",
+    "migration_change",
+    "candidate_feature_flag_enablement",
+    "backfill",
+    "dual_read",
+    "read_cutover",
+    "legacy_authority_change",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ],
+  "nextRequiredPackage": "WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL"
+}

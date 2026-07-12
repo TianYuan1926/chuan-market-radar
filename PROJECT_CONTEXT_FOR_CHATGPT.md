@@ -1216,3 +1216,18 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 两次执行准备失败均发生在 Runner/数据库连接前：一次固定 SHA 对象解析失败，一次隔离 clone 无目标 commit；失败残留未删除，最终通过固定 commit archive 在新 ops 根目录完成。
 
 当前 Candidate schema 状态从 `applied_verify_failed` 晋级为 **`applied_verified_dormant`**。这只关闭 Add Schema 验证缺口，不表示 writer、backfill、dual read、read cutover 或完整 WP-G0.2 已完成；系统仍为 **R1 / 可运行但不完整 / 不能支撑实战**。
+
+## 2026-07-12 WP-G0.2 Shadow Capture Design and Validation
+
+本轮只建立 shadow_capture 的本地机器合同、repository 事实校验和防降质回归测试；未连接生产，未修改 migration、src runtime、API、前端、worker、数据库、Redis、Feature Flag 或部署。
+
+当前事实：
+
+- 本地结论是 `PASS_LOCAL_DESIGN`；生产决定强制为 `BLOCKED_NOT_AUTHORIZED`，`productionMutationAllowed=false`。
+- 旧系统仍是唯一 write/read authority；新链只能消费已提交 Outbox，不得改变 ranking、analysis、strategy、READY、RR 或 frontend。
+- 已复核现有数据库防线：payload SHA-256、幂等唯一、phase+epoch、72h hard limit、`FOR UPDATE SKIP LOCKED`、lease/fencing、payload conflict 和 stale fence hard rejection。
+- Candidate production activation 仍硬关闭，生产 API/worker 没有 `CandidateOutboxService` 接线。
+- 发现四项工程 blocker：旧权威事务尚未原子写 Candidate Outbox；Outbox 没有数据库级重试耗尽 quarantine/failed 终态；production runtime wiring 未实现；隔离 PostgreSQL 16 演练未通过。第五项治理 blocker 是新的 production 审批不存在。
+- 合同回归覆盖 authority 偷换、策略/RR 污染、Redis 越权、哈希冲突软化、无限重试、延长 72h、降低 10,000 writes 和删除审批阻断等降质路径，任一变化 fail closed。
+
+下一包只能是 `WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL`。它完成并通过全部门禁后，才可生成新的 production shadow_capture 审批包。当前系统仍是 **R1 / 可运行但不完整 / 不能支撑实战**。

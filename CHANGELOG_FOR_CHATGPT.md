@@ -2545,3 +2545,43 @@ P0 阻断：
 ### 下一轮建议
 
 只执行 `WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION` 本地包；production shadow writer 必须另行明确审批。
+
+## 2026-07-12 / WP-G0.2 Shadow Capture Design and Validation
+
+### 本轮目标
+
+只在本地把 shadow_capture 的 authority、事务、幂等、失败隔离、时限、观测和审批边界变成机器合同与 fail-closed 验证，并识别生产接入前的真实缺口。
+
+### 修改范围
+
+- 新增 shadow_capture JSON 合同、中文工程说明、repository 事实校验器和防降质测试。
+- 新增两个 npm 定向命令，更新自治状态、提速队列、traceability、context 和 changelog。
+- 未修改 `src/**`、migration、部署、API、前端、worker、scan、analysis、strategy、backtest 或生产环境。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：冻结未来旁路采集的事实边界和失败语义。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：无运行行为变化。
+
+### 测试结果
+
+- `npm run test:candidate-shadow-capture`：4/4 pass，包含 17 类合同降质变体。
+- `npm run candidate:shadow-capture:validate`：`PASS_LOCAL_DESIGN / BLOCKED_NOT_AUTHORIZED`。
+- `npm run test:autonomy`：16/16 pass。
+- 基础和安全门禁结果在本轮交付报告中记录；`backtest:formal` 禁止运行。
+
+### 是否部署
+
+未部署，未连接生产，未执行 DDL/DML、migration、Feature Flag、backfill、dual read、read cutover 或服务重启。
+
+### 风险与遗留问题
+
+- 旧权威事务尚未原子插入 Candidate Outbox。
+- Outbox 尚无数据库级重试耗尽 quarantine/failed 终态。
+- production runtime wiring 未实现，隔离 PostgreSQL 16 演练未通过。
+- 新的 production shadow_capture 独立限时审批不存在。
+- 当前仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只执行 `WP-G0.2-SHADOW-CAPTURE-LOCAL-IMPLEMENTATION-AND-POSTGRES-REHEARSAL`；本地实现与隔离演练通过前不得申请生产开启。

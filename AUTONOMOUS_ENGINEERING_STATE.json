@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T08:23:09+08:00",
+  "updatedAt": "2026-07-12T09:35:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,49 +31,52 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
-    "title": "Candidate authority production verify-only",
-    "lane": "production",
+    "id": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
+    "title": "Candidate shadow capture local contract and fail-closed validation",
+    "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "只使用修复后的 Runner 对已存在 Candidate schema 执行一次只读 production verify，确认身份、owner role activation、schema/ledger、catalog、Feature Flag 和运行健康，不执行 migration。",
+    "objective": "只在本地把 shadow_capture 的 authority、事务、幂等、失败隔离、时限、观测和审批边界变成机器合同与回归测试，并诚实识别生产接入前缺口。",
     "coreChainImpact": [
-      "candidate_authority_production_verification",
-      "release_safety",
-      "evidence_truth"
+      "candidate_screening_provenance",
+      "review_evolution_foundation",
+      "release_safety"
     ],
     "productionMutation": false,
-    "requiresExplicitApproval": true,
+    "requiresExplicitApproval": false,
     "allowedPaths": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
+      "package.json",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DESIGN_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-contract.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "scripts/production/migration-runner/production-verify-only.sh",
-      "scripts/production/migration-runner/production-verify-only.test.mjs"
+      "reports/wp-g0-2-shadow-capture-design-validation/WP_G0_2_SHADOW_CAPTURE_DESIGN_VALIDATION_REPORT.md",
+      "scripts/governance/shadow-capture-contract.mjs",
+      "scripts/governance/shadow-capture-contract.test.mjs"
     ],
     "prohibitedPaths": [
       "src/**",
       "migrations/**",
       "deploy/**",
-      "scripts/governance/**",
-      "scripts/production/migration-capacity-gate.mjs",
-      "scripts/production/migration-capacity-gate.test.mjs",
-      "scripts/production/migration-runner/migration-runner.mjs",
-      "scripts/production/migration-runner/runner-core.mjs",
-      "scripts/production/migration-runner/identity-remediation.mjs",
+      "scripts/production/**",
       "tools/**",
       ".env",
       ".env.production"
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "scripts/production/migration-runner/production-verify-only.sh",
-      "scripts/production/migration-runner/production-verify-only.test.mjs"
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DESIGN_V1.md",
+      "docs/governance/wp-g0-2-shadow-capture-contract.v1.json",
+      "reports/wp-g0-2-shadow-capture-design-validation/WP_G0_2_SHADOW_CAPTURE_DESIGN_VALIDATION_REPORT.md",
+      "scripts/governance/shadow-capture-contract.mjs",
+      "scripts/governance/shadow-capture-contract.test.mjs"
     ],
     "gateProfile": {
       "targeted": [
-        "migration:runner:test",
+        "test:candidate-shadow-capture",
+        "candidate:shadow-capture:validate",
         "test:autonomy"
       ],
       "baseline": [
@@ -90,27 +93,14 @@
       ]
     },
     "completionBoundary": [
-      "Runner request execute=false 且 roleBootstrapEnabled/schemaMigrationEnabled 均为 false",
-      "production verify 只读 PASS，schema present=true，ledger=8",
-      "catalog 8 tables/151 columns/20 functions/10 trigger objects/14 trigger event rows/7 roles",
-      "五个 Candidate Feature Flag 全部 false",
-      "生产 HEAD、image、worktree、schema 和服务在验证前后无非批准变化",
+      "本地合同验证 PASS_LOCAL_DESIGN",
+      "生产决定固定为 BLOCKED_NOT_AUTHORIZED 且 productionMutationAllowed=false",
+      "旧 authority write/read 保持 legacy，shadow consumer 不得改 ranking/analysis/strategy/READY/RR/frontend",
+      "识别 source transaction Outbox hook、retry exhaustion quarantine、runtime wiring 和 PostgreSQL rehearsal 缺口",
+      "下一包必须先做本地实现与隔离 PostgreSQL 16 演练",
       "所有定向、基础和安全门禁通过",
-      "禁止 execute migration、DDL/DML、writer、backfill、read cutover 和服务部署"
-    ],
-    "productionResult": {
-      "status": "PASS_PRODUCTION_VERIFY_ONLY",
-      "runnerCommit": "cb392426b1cc77d13f9190d5659bc796b5bda320",
-      "applicationRelease": "0599f802f261fe8e3c1982a07106f362bd62ac13",
-      "migrationExecuteRun": false,
-      "schemaChanged": false,
-      "candidateSchemaPresent": true,
-      "migrationRegistryRows": 8,
-      "featureFlagsEnabled": 0,
-      "worktreeCleanBeforeAfter": true,
-      "healthBeforeAfter": "ready_fresh",
-      "evidenceSha256": "bdc655ba30fae50d695fe5698862d7d2b72d69a2c43fd29641820ab3a1f9fb92"
-    }
+      "禁止生产连接、DDL/DML、Feature Flag、backfill、dual read、read cutover 和部署"
+    ]
   },
   "approvals": [
     {
@@ -141,14 +131,21 @@
       "order": 3,
       "id": "WP-G0.2-PRODUCTION-VERIFY-ONLY",
       "lane": "production",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": true
     },
     {
       "order": 4,
+      "id": "WP-G0.2-SHADOW-CAPTURE-DESIGN-AND-VALIDATION",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 5,
       "id": "WP-G0.2-SHADOW-WRITE",
       "lane": "production",
-      "status": "prohibited_until_predecessor_pass",
+      "status": "prohibited_until_local_implementation_and_rehearsal_pass",
       "requiresExplicitApproval": true
     }
   ]
