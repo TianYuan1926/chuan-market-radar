@@ -3063,3 +3063,45 @@ P0 阻断：
 ### 下一轮建议
 
 只执行独立审批的 Dormant Runtime Deploy；不得合并 Runtime Identity 或 Activation。
+
+## 2026-07-12 / WP-G0.2 Shadow Verify Reconciliation Runner Preparation
+
+### 本轮目标
+
+在等待生产 Dormant Deploy 审批期间，为未来 `shadow_verify` 建立逐笔、只读、可重算的 10,000 次 Candidate 投影对账器，不连接生产且不自动切换 phase。
+
+### 修改范围
+
+- 新增 Source Outbox -> Candidate Event 的 payload hash、source identity、完整 projection command hash、release/epoch/control 窗口和 Episode identity 对账。
+- 新增 10,000/9,999、差异、unresolved、future 字段、证据顺序与治理防降标测试。
+- 新增隔离 PostgreSQL 16 真实 10,000 条联表对账、只读事务拒写和 phase unchanged 演练。
+- 新增人机合同、package scripts，并更新自治状态、加速路线、traceability、Context 与交付报告。
+- 未修改业务运行代码、migration、Compose、Feature Flag、scan/analysis/strategy/risk/backtest/frontend/API 或生产环境。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的逐笔真值证明；不改变全市场发现排序、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Reconciliation 8/8、Activation 12/12、Composition 28/28、Autonomy 16/16：PASS。
+- 隔离 PostgreSQL 16：PASS，migration 1-9、10,000 compared writes、0 difference、只读事务拒写、phase `shadow_capture` unchanged、productionConnected=false。
+- typecheck、lint、build：PASS；Lint 开发中 1 个未使用函数警告已删除并重跑为 0 warning。
+- test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- production smoke 与 formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯生产、未 push main；生产 Candidate runtime 仍 disabled，真实 24 小时观察和 10,000 条生产 compared writes 尚未发生。
+
+### 风险与遗留问题
+
+- 当前只证明本地工具，不能写成 production reconciliation 或 shadow_verify PASS。
+- Dormant Deploy、Runtime Identity、Activation/Observation 仍必须按顺序独立审批和执行。
+- resolved quarantine 只显式报告且不计入 compared writes；任何未决状态都会失败。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+生产仍只申请 `WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY`；不得跳到 Runtime Identity、Activation、reconciliation 或 canonical cutover。

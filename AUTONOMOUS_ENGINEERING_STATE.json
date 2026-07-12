@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T17:15:25+08:00",
+  "updatedAt": "2026-07-12T18:04:26+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATION-OBSERVATION-RUNNER-PREPARATION",
-    "title": "Activation and 24-hour observation production runner preparation",
+    "id": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION-PREPARATION",
+    "title": "Read-only 10,000-write reconciliation runner preparation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "为未来生产 Shadow Capture 建立双重授权、单一 control lifecycle、web/worker 最小部署、即时自动回滚和 24 小时连续观察 runner；当前代码授权保持 false，尚未修改生产。",
+    "objective": "为未来 shadow_verify 建立不可变 Source Outbox 到 Candidate Event 的逐笔只读对账、10,000 次门槛、差异归因和聚合证据哈希；不连接生产且不自动推进 phase。",
     "coreChainImpact": [
-      "candidate_screening_shadow_capture_execution_safety",
-      "review_evolution_observation_truth",
-      "release_and_rollback_integrity"
+      "candidate_screening_projection_truth",
+      "review_evolution_reconciliation_truth",
+      "release_epoch_and_evidence_integrity"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,15 +48,15 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_ACTIVATION_OBSERVATION_RUNNER_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json",
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-activation-observation-runner-preparation/WP_G0_2_ACTIVATION_OBSERVATION_RUNNER_PREPARATION_REPORT.md",
-      "scripts/governance/candidate-activation-runner.mjs",
-      "scripts/governance/candidate-activation-runner.test.mjs",
-      "scripts/production/candidate-activation/**",
-      "scripts/rehearsal/candidate-activation-postgres16.sh"
+      "reports/wp-g0-2-shadow-verify-reconciliation-preparation/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_REPORT.md",
+      "scripts/governance/candidate-reconciliation-runner.mjs",
+      "scripts/governance/candidate-reconciliation-runner.test.mjs",
+      "scripts/production/candidate-reconciliation/**",
+      "scripts/rehearsal/candidate-reconciliation-postgres16.sh"
     ],
     "prohibitedPaths": [
       "src/app/**",
@@ -76,19 +76,20 @@
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_ACTIVATION_OBSERVATION_RUNNER_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json",
-      "reports/wp-g0-2-activation-observation-runner-preparation/WP_G0_2_ACTIVATION_OBSERVATION_RUNNER_PREPARATION_REPORT.md",
-      "scripts/production/candidate-activation/runner.mjs",
-      "scripts/production/candidate-activation/production-runner.sh",
-      "scripts/production/candidate-activation/observation-runner.sh"
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json",
+      "reports/wp-g0-2-shadow-verify-reconciliation-preparation/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_REPORT.md",
+      "scripts/production/candidate-reconciliation/runner.mjs",
+      "scripts/production/candidate-reconciliation/runner-postgres.integration.mjs"
     ],
     "gateProfile": {
       "targeted": [
+        "candidate:reconciliation-runner:validate",
+        "candidate:reconciliation-runner",
+        "test:candidate-reconciliation-runner",
+        "candidate:reconciliation-runner:pg16-rehearsal",
         "candidate:activation-runner:validate",
-        "candidate:activation-runner",
         "test:candidate-activation-runner",
-        "candidate:activation-runner:pg16-rehearsal",
         "candidate:shadow-capture:pg16-rehearsal",
         "candidate:runtime-identity:validate",
         "candidate:runtime-identity-runner:validate",
@@ -110,12 +111,13 @@
       ]
     },
     "completionBoundary": [
-      "当前代码授权必须保持 false，本地准备不得冒充 future activation release",
-      "未来审批必须绑定 exact commit、16 文件 activation artifact、runner artifact、rollback commit 和 90 分钟窗口",
-      "成功、即时失败和观察失败必须覆盖 Web/worker/env/Git/control 的有界自动回滚",
-      "观察必须至少 24 小时、5 分钟采样、至少 289 样本且 completed writes 单调并大于 0",
-      "10,000 compared writes 保留给下一 reconciliation Gate，不能降低或提前 phase advance",
-      "生产决定仍为 BLOCKED_UNTIL_DORMANT_AND_RUNTIME_IDENTITY_FINAL_PASS_AND_NEW_EXACT_APPROVAL",
+      "一条 compared write 必须逐笔通过 Source payload hash、source identity、唯一 Event 映射、完整 projection command hash 和 Episode identity",
+      "前置真实观察必须不少于 24 小时和 289 样本，compared writes 必须不少于 10,000 且差异为 0",
+      "pending、claimed、retry_wait、unresolved quarantine 和 unresolved total 必须全部为 0",
+      "数据库采集必须为 REPEATABLE READ READ ONLY，证据必须有排序聚合 SHA-256",
+      "future outcome、MFE/MAE、qualityHit、backtest 和 production ranking 均禁止作为输入",
+      "PASS 只允许申请独立 shadow_verify 审批，不能自动 phase advance",
+      "生产决定仍为 BLOCKED_UNTIL_DORMANT_IDENTITY_ACTIVATION_OBSERVATION_AND_NEW_EXACT_APPROVAL",
       "所有定向、基础和安全门禁通过",
       "本轮禁止生产连接、部署、角色/权限/env/服务/数据库/Redis/Feature Flag/control 变更"
     ]
@@ -233,7 +235,7 @@
       "order": 15,
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATION-OBSERVATION-RUNNER-PREPARATION",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
@@ -241,6 +243,20 @@
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
       "lane": "production",
       "status": "prohibited_until_runtime_identity_permission_pass_and_new_approval",
+      "requiresExplicitApproval": true
+    },
+    {
+      "order": 17,
+      "id": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION-PREPARATION",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 18,
+      "id": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION",
+      "lane": "production",
+      "status": "prohibited_until_activation_observation_pass_10000_writes_and_new_approval",
       "requiresExplicitApproval": true
     }
   ]

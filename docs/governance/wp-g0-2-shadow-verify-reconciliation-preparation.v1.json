@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "wp-g0.2-shadow-verify-reconciliation-preparation.v1",
+  "packageId": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION-PREPARATION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentProductionDecision": "BLOCKED_UNTIL_DORMANT_IDENTITY_ACTIVATION_OBSERVATION_AND_NEW_EXACT_APPROVAL",
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-reconciliation/runner.mjs"
+    ],
+    "fileCount": 1,
+    "sha256": "9c65f98f384f6ad3950278cf8481997e7d9c611a8b707b1c697918341537354f"
+  },
+  "prerequisites": {
+    "activationObservationStatus": "PASS_ACTIVATE_AND_OBSERVE",
+    "minimumCleanWindowHours": 24,
+    "minimumObservationSamples": 289,
+    "sameReleaseRequired": true,
+    "sameAuthorityEpochRequired": true,
+    "authorityEpoch": 1,
+    "newExactApprovalRequired": true,
+    "approvalWindowMaximumMinutes": 90
+  },
+  "comparison": {
+    "minimumComparedWrites": 10000,
+    "sourceType": "legacy_scan_candidate",
+    "sourcePayloadVersion": "shadow-candidate-observation.v1",
+    "targetEventPayloadVersion": "candidate-event.v1",
+    "immutableSourcePayloadHashRequired": true,
+    "fullProjectionCommandHashRequired": true,
+    "uniqueSourceToEventMappingRequired": true,
+    "eventAndEpisodeIdentityRequired": true,
+    "comparisonDifferencesMaximum": 0,
+    "duplicateMappingsMaximum": 0,
+    "pendingMaximum": 0,
+    "claimedMaximum": 0,
+    "retryWaitMaximum": 0,
+    "unresolvedQuarantineMaximum": 0,
+    "unresolvedTotalMaximum": 0,
+    "resolvedQuarantineCountsAsComparedWrite": false,
+    "pageSize": 500,
+    "immutableAggregateEvidenceHashRequired": true
+  },
+  "databaseBoundary": {
+    "transactionIsolation": "repeatable_read",
+    "transactionReadOnly": true,
+    "productionDmlAllowed": false,
+    "schemaDdlAllowed": false,
+    "migrationAllowed": false,
+    "phaseTransitionAllowed": false
+  },
+  "inputBoundary": {
+    "futureOutcomeAllowed": false,
+    "mfeAllowed": false,
+    "maeAllowed": false,
+    "qualityHitAllowed": false,
+    "backtestResultAllowed": false,
+    "tradePlanAllowed": false,
+    "productionRankingInputAllowed": false
+  },
+  "resultBoundary": {
+    "passStatus": "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    "automaticPhaseAdvance": false,
+    "shadowVerifyTransitionExecuted": false,
+    "canonicalReadEnabled": false,
+    "canonicalWriteEnabled": false,
+    "reviewReadEnabled": false
+  },
+  "localRehearsal": {
+    "postgresMajor": 16,
+    "minimumComparedWritesExercised": 10000,
+    "transactionReadOnlyRejectionRequired": true,
+    "phaseMustRemain": "shadow_capture",
+    "productionConnected": false
+  },
+  "forbidden": [
+    "production_connection_in_local_preparation",
+    "production_mutation",
+    "schema_migration",
+    "automatic_phase_advance",
+    "canonical_cutover",
+    "review_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY"
+}
