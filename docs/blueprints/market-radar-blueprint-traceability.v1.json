@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-READINESS-REMEDIATION",
+    "id": "WP-G0.2-DORMANT-RUNTIME-IDENTITY-OVERRIDE-PRESERVATION",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -53,10 +53,10 @@
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
-    "dormantDeployPreparationStatus": "readiness_and_rollback_verifier_remediation_local_gates_pending",
-    "dormantDeployArtifactSha256": "e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a",
+    "dormantDeployPreparationStatus": "identity_override_preservation_local_gates_pending",
+    "dormantDeployArtifactSha256": "a82ed943e7eae1df94bacb0f0c11439586e14fc3127564556215162bb8d82a50",
     "dormantDeployArtifactFileCount": 14,
-    "dormantDeployArtifactRefreshReason": "production_attempt_exposed_web_readiness_race_and_old_rollback_verifier",
+    "dormantDeployArtifactRefreshReason": "production_audit_proved_external_least_privilege_identity_override_was_lost_on_deploy_and_rollback",
     "dormantReleaseRequiredBaseCommit": "591163a37493910c346530ebdf271f878c6a67b5",
     "dormantReleaseLastVerifiedRollbackCommit": "0599f802f261fe8e3c1982a07106f362bd62ac13",
     "dormantReleaseDiffFileCount": 149,
@@ -70,7 +70,7 @@
       ".env",
       ".env.production"
     ],
-    "dormantDeployProductionPreflight": "pass_before_attempt_then_market_data_quality_degraded_after_rollback",
+    "dormantDeployProductionPreflight": "database_ready_scan_fresh_but_web_persistence_auth_degraded_due_to_identity_override_drift",
     "dormantDeployIsolatedExecutionRehearsal": "pass_readiness_retry_success_and_automatic_rollback_paths_on_bash_3_2",
     "dormantDeployServiceAllowlist": [
       "web"
@@ -78,14 +78,17 @@
     "dormantDeployProductionExecuted": true,
     "dormantDeployProductionDeployed": false,
     "dormantDeployProductionAttemptResult": "new_web_built_and_recreated_immediate_fetch_refused_automatic_rollback_to_0599f802",
-    "dormantDeployCurrentProductionHealth": "degraded_market_data_quality_gate_scan_fresh_workers_healthy",
+    "dormantDeployCurrentProductionHealth": "degraded_web_persistence_auth_database_probe_ready_scan_fresh_workers_healthy",
+    "dormantDeployIdentityOverrideRequired": true,
+    "dormantDeployIdentityOverrideChecksumBound": true,
+    "dormantDeployRuntimeIdentityFingerprintRequired": true,
     "runtimeIdentityLocalPreparationStatus": "pass_code_contract_and_isolated_postgres16_production_not_connected",
     "runtimeIdentityTransactionRoleMode": "explicit_set_local_role_from_fixed_purpose_map",
     "runtimeIdentityLoginTopology": "three_unique_noinherit_logins_one_membership_each",
     "runtimeIdentityAccessSqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa",
     "runtimeIdentityProductionProvisioned": false,
     "runtimeIdentityRunnerPreparationStatus": "pass_local_fake_execute_rollback_and_postgres16_provision_rollback",
-    "runtimeIdentityRunnerArtifactSha256": "855f8e0d72bb30cb65852c91efa6f89d5c325d9c8eb91f51e02acc7f028070a2",
+    "runtimeIdentityRunnerArtifactSha256": "95c50a233b4587234ab574d76de0a02fc870c481ed3fed04317112044cb40178",
     "runtimeIdentityRunnerArtifactFiles": 8,
     "runtimeIdentityRunnerProductionExecuted": false,
     "productionVerifyOnlyStatus": "pass",
@@ -97,7 +100,7 @@
       "dormant_runtime_deploy_not_passed_new_approval_required",
       "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "wait_for_health_ready_then_dormant_runtime_deploy_only_after_new_exact_approval",
+    "nextProductionAction": "restore_existing_web_identity_override_only_after_exact_approval_then_verify_health_ready_before_new_dormant_deploy_approval",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
@@ -652,11 +655,11 @@
       "status": "not_started_as_gate"
     }
   ],
-  "lastCompletedWorkPackage": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
+  "lastCompletedWorkPackage": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-READINESS-REMEDIATION",
   "lastAttemptedWorkPackage": {
-    "id": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
-    "title": "Dormant release diff guard and approval refresh",
-    "status": "PASS_LOCAL_DORMANT_RELEASE_DIFF_GUARD",
+    "id": "WP-G0.2-DORMANT-RUNTIME-IDENTITY-OVERRIDE-PRESERVATION",
+    "title": "Dormant runtime identity override preservation",
+    "status": "PASS_LOCAL_IDENTITY_OVERRIDE_PRESERVATION",
     "runtimeCodeChanged": false,
     "deploymentGovernanceChanged": true,
     "runtimeActivationStatus": "disabled",
@@ -670,8 +673,8 @@
     "releaseDiffSha256": "f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37",
     "releaseDiffStatuses": ["A", "M"],
     "futureCodeContaminationRejected": true,
-    "dormantArtifactSha256": "e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a",
-    "runtimeIdentityArtifactSha256": "855f8e0d72bb30cb65852c91efa6f89d5c325d9c8eb91f51e02acc7f028070a2",
+    "dormantArtifactSha256": "a82ed943e7eae1df94bacb0f0c11439586e14fc3127564556215162bb8d82a50",
+    "runtimeIdentityArtifactSha256": "95c50a233b4587234ab574d76de0a02fc870c481ed3fed04317112044cb40178",
     "staleCompiledTestsRejected": true,
     "zeroCoreTestsRejected": true,
     "productionRuntimeWiringImplemented": true,
@@ -684,16 +687,16 @@
     "g0Complete": false,
     "practicalTradingReady": false,
     "evidence": {
-      "path": "reports/wp-g0-2-dormant-release-diff-guard/WP_G0_2_DORMANT_RELEASE_DIFF_GUARD_REPORT.md",
+      "path": "reports/wp-g0-2-dormant-identity-override-preservation/WP_G0_2_DORMANT_IDENTITY_OVERRIDE_PRESERVATION_REPORT.md",
       "contract": "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
       "validator": "scripts/production/candidate-dormant-deploy.mjs",
-      "note": "Release scope, artifact and clean test compilation are locally verified; production deployment and approval remain absent."
+      "note": "External identity override preservation, checksum binding and runtime fingerprint checks are locally verified; production recovery and deployment approvals remain absent."
     }
   },
   "currentDesignPackage": {
-    "id": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
-    "status": "PASS_LOCAL_DORMANT_RELEASE_DIFF_GUARD",
-    "designStatus": "RELEASE_SCOPE_VERIFIED_LOCAL_ONLY_PRODUCTION_APPROVAL_MISSING",
+    "id": "WP-G0.2-DORMANT-RUNTIME-IDENTITY-OVERRIDE-PRESERVATION",
+    "status": "PASS_LOCAL_IDENTITY_OVERRIDE_PRESERVATION",
+    "designStatus": "IDENTITY_OVERRIDE_PRESERVATION_VERIFIED_LOCAL_ONLY_PRODUCTION_RECOVERY_APPROVAL_MISSING",
     "designVersion": "wp-g0.2-shadow-capture-dormant-runtime-deploy.v1",
     "approvedByUserForProduction": false,
     "productionAuthorization": false,

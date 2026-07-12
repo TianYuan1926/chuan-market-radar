@@ -12,6 +12,7 @@ import {
   parseDormantEnvironment,
   validateApprovalRequest,
   validateContract,
+  validateIdentityOverrideFile,
   validateLocalPreparation,
 } from "./candidate-dormant-deploy.mjs";
 
@@ -52,6 +53,8 @@ test("contract rejects scope expansion or dormant boundary weakening", async () 
     [{ deployment: { ...contract.deployment, serviceAllowlist: ["web", "candidate-shadow-worker"] } }, "service_allowlist_mismatch"],
     [{ deployment: { ...contract.deployment, composeEnvFileOrder: [".env.production"] } }, "compose_env_file_order_mismatch"],
     [{ deployment: { ...contract.deployment, removeOrphansAllowed: true } }, "remove_orphans_must_be_false"],
+    [{ deployment: { ...contract.deployment, identityOverrideRequired: false } }, "identity_override_required"],
+    [{ deployment: { ...contract.deployment, identityOverrideChecksumBound: false } }, "identity_override_checksum_binding_required"],
     [{ dormantBoundary: { ...contract.dormantBoundary, candidateDatabaseUrlsConfigured: 1 } }, "candidate_database_urls_must_be_zero"],
     [{ dormantBoundary: { ...contract.dormantBoundary, candidateFeatureFlagsEnabled: 1 } }, "feature_flags_must_be_zero"],
     [{ dormantBoundary: { ...contract.dormantBoundary, migrationAllowed: true } }, "migration_must_be_false"],
@@ -141,6 +144,7 @@ test("approval request is exact, time bounded and cannot authorize activation", 
     databaseMutationAllowed: false,
     deploymentMode: "dormant_runtime_web_only",
     execute: true,
+    identityOverrideSha256: "b".repeat(64),
     migrationAllowed: false,
     operator: "approved-operator",
     packageId: contract.packageId,
@@ -152,6 +156,26 @@ test("approval request is exact, time bounded and cannot authorize activation", 
   throwsReason("candidateWorkerStartAllowed_must_be_false", () => validateApprovalRequest({ ...request, candidateWorkerStartAllowed: true }, contract, { now: new Date("2026-07-12T04:30:00.000Z") }));
   throwsReason("request_services_mismatch", () => validateApprovalRequest({ ...request, services: ["web", "scanner-worker"] }, contract, { now: new Date("2026-07-12T04:30:00.000Z") }));
   throwsReason("approved_release_diff_checksum_mismatch", () => validateApprovalRequest({ ...request, approvedReleaseDiffSha256: "0".repeat(64) }, contract, { now: new Date("2026-07-12T04:30:00.000Z") }));
+  throwsReason("identity_override_checksum_invalid", () => validateApprovalRequest({ ...request, identityOverrideSha256: "not-a-checksum" }, contract, { now: new Date("2026-07-12T04:30:00.000Z") }));
+});
+
+test("identity override requires absolute regular 0600 file with approved checksum", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "candidate-identity-override-"));
+  try {
+    const file = join(directory, "identity.override.yml");
+    const source = "services:\n  web:\n    environment:\n      DATABASE_URL: approved-test-value\n";
+    await writeFile(file, source, { mode: 0o600 });
+    const { createHash } = await import("node:crypto");
+    const checksum = createHash("sha256").update(source).digest("hex");
+    assert.equal((await validateIdentityOverrideFile(file, checksum)).permissions, "0600");
+    await assert.rejects(validateIdentityOverrideFile(file, "0".repeat(64)), (error) =>
+      error instanceof DormantDeployPolicyError && error.reason === "identity_override_checksum_mismatch");
+    await import("node:fs/promises").then(({ chmod }) => chmod(file, 0o644));
+    await assert.rejects(validateIdentityOverrideFile(file, checksum), (error) =>
+      error instanceof DormantDeployPolicyError && error.reason === "identity_override_permissions_not_0600");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("shell stays web-only and contains an automatic web rollback path", async () => {
@@ -164,10 +188,14 @@ test("shell stays web-only and contains an automatic web rollback path", async (
   assert.doesNotMatch(source, /readarray|mapfile/);
   assert.match(source, /rollback_on_failure/);
   assert.match(source, /PASS_WEB_READY_FOR_DORMANT_CHECKS/);
+  assert.match(source, /PASS_WEB_IDENTITY_OVERRIDE_FINGERPRINT/);
+  assert.match(source, /verify_web_identity_override/);
   assert.match(source, /WEB_READY_TIMEOUT_SECONDS="\$\{WEB_READY_TIMEOUT_SECONDS:-120\}"/);
   assert.match(source, /ROOT_DIR_OVERRIDE="\$\{ROOT_DIR\}"/);
   assert.match(source, /bash "\$\{SOURCE_ROOT\}\/scripts\/verify\/production-check\.sh"/);
   assert.match(source, /candidate_dormant_contract_failed/);
+  assert.match(source, /identity-override[\s\\]*--file "\$\{COMPOSE_IDENTITY_OVERRIDE_FILE\}"/);
+  assert.match(source, /-f "\$\{ROOT_DIR\}\/docker-compose\.yml" -f "\$\{COMPOSE_IDENTITY_OVERRIDE_FILE\}"/);
   assert.match(source, /PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION/);
   assert.doesNotMatch(source, /PASS_DORMANT_RUNTIME_DEPLOY_WEB_ONLY/);
   assert.doesNotMatch(source, /--remove-orphans/);

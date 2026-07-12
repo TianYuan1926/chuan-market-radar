@@ -5,6 +5,7 @@ SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOT_DIR="${ROOT_DIR_OVERRIDE:-${SOURCE_ROOT}}"
 BASE_ENV_FILE="${BASE_ENV_FILE:-${ROOT_DIR}/.env}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
+COMPOSE_IDENTITY_OVERRIDE_FILE="${COMPOSE_IDENTITY_OVERRIDE_FILE:-}"
 REQUEST_FILE="${REQUEST_FILE:-}"
 DORMANT_DEPLOY_MODE="${DORMANT_DEPLOY_MODE:-dry_run}"
 CONFIRM_DORMANT_DEPLOY="${CONFIRM_DORMANT_DEPLOY:-false}"
@@ -39,18 +40,33 @@ node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" env \
 node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" env \
   --env-file "${ENV_FILE}"
 
-read -r APPROVED_COMMIT ROLLBACK_COMMIT EXECUTE_REQUESTED < <(node - "${REQUEST_FILE}" <<'NODE'
+read -r APPROVED_COMMIT ROLLBACK_COMMIT EXECUTE_REQUESTED IDENTITY_OVERRIDE_SHA256 < <(node - "${REQUEST_FILE}" <<'NODE'
 const request = JSON.parse(require("node:fs").readFileSync(process.argv[2], "utf8"));
 console.log([
   request.approvedCommit,
   request.rollbackCommit,
   request.execute === true ? "true" : "false",
+  request.identityOverrideSha256,
 ].join(" "));
 NODE
 )
 
 if [[ "${EXECUTE_REQUESTED}" != "true" ]]; then
   echo "ERROR: approved request does not authorize execute." >&2
+  exit 1
+fi
+if [[ -z "${COMPOSE_IDENTITY_OVERRIDE_FILE}" || "${COMPOSE_IDENTITY_OVERRIDE_FILE}" != /* ]]; then
+  echo "ERROR: COMPOSE_IDENTITY_OVERRIDE_FILE must be an approved absolute path." >&2
+  exit 1
+fi
+if [[ -r "${COMPOSE_IDENTITY_OVERRIDE_FILE}" ]]; then
+  node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" identity-override \
+    --file "${COMPOSE_IDENTITY_OVERRIDE_FILE}" --sha256 "${IDENTITY_OVERRIDE_SHA256}" >/dev/null
+elif sudo -n true >/dev/null 2>&1; then
+  sudo -n node "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" identity-override \
+    --file "${COMPOSE_IDENTITY_OVERRIDE_FILE}" --sha256 "${IDENTITY_OVERRIDE_SHA256}" >/dev/null
+else
+  echo "ERROR: approved identity override is unavailable to the deployment operator." >&2
   exit 1
 fi
 if [[ "$(git -C "${SOURCE_ROOT}" rev-parse HEAD)" != "${APPROVED_COMMIT}" ]]; then
@@ -76,11 +92,11 @@ if [[ "$(git -C "${ROOT_DIR}" rev-parse origin/main)" != "${APPROVED_COMMIT}" ]]
   exit 1
 fi
 
-if docker ps >/dev/null 2>&1; then
-  COMPOSE=(docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
+if [[ -r "${COMPOSE_IDENTITY_OVERRIDE_FILE}" ]] && docker ps >/dev/null 2>&1; then
+  COMPOSE=(docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.yml" -f "${COMPOSE_IDENTITY_OVERRIDE_FILE}")
   DOCKER=(docker)
 elif sudo -n docker ps >/dev/null 2>&1; then
-  COMPOSE=(sudo docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
+  COMPOSE=(sudo docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.yml" -f "${COMPOSE_IDENTITY_OVERRIDE_FILE}")
   DOCKER=(sudo docker)
 else
   echo "ERROR: Docker daemon is unavailable." >&2
@@ -102,6 +118,27 @@ ROLLBACK_IMAGE_TAG="chuan-market-radar-web:dormant-rollback-${ROLLBACK_COMMIT:0:
 "${DOCKER[@]}" tag "${PREVIOUS_WEB_IMAGE}" "${ROLLBACK_IMAGE_TAG}"
 
 DEPLOY_STARTED=false
+verify_web_identity_override() {
+  local expected_sha256 actual_sha256
+  expected_sha256="$("${COMPOSE[@]}" config --format json | node -e '
+const { createHash } = require("node:crypto");
+let source = "";
+process.stdin.on("data", (chunk) => { source += chunk; });
+process.stdin.on("end", () => {
+  const config = JSON.parse(source);
+  const value = String(config?.services?.web?.environment?.DATABASE_URL ?? "");
+  if (!value) process.exit(1);
+  process.stdout.write(createHash("sha256").update(value).digest("hex"));
+});
+')"
+  actual_sha256="$("${COMPOSE[@]}" exec -T web node -e '
+const { createHash } = require("node:crypto");
+const value = String(process.env.DATABASE_URL ?? "");
+if (!value) process.exit(1);
+process.stdout.write(createHash("sha256").update(value).digest("hex"));
+')"
+  [[ -n "${expected_sha256}" && "${actual_sha256}" == "${expected_sha256}" ]]
+}
 rollback_on_failure() {
   local exit_code=$?
   if [[ "${exit_code}" -eq 0 || "${DEPLOY_STARTED}" != "true" ]]; then
@@ -110,6 +147,9 @@ rollback_on_failure() {
   echo "ERROR: dormant deploy failed; restoring approved previous web image and git HEAD." >&2
   "${DOCKER[@]}" tag "${ROLLBACK_IMAGE_TAG}" chuan-market-radar-web:latest
   "${COMPOSE[@]}" up -d --no-deps --force-recreate web || true
+  if ! verify_web_identity_override; then
+    echo "ERROR: rollback web identity does not match the approved compose override." >&2
+  fi
   git checkout --detach "${ROLLBACK_COMMIT}" || true
   git branch -f main "${ROLLBACK_COMMIT}" || true
   git checkout main || true
@@ -156,6 +196,11 @@ if [[ "${web_ready}" != "true" ]]; then
   exit 1
 fi
 echo "PASS_WEB_READY_FOR_DORMANT_CHECKS"
+if ! verify_web_identity_override; then
+  echo "ERROR: running web identity does not match the approved compose override." >&2
+  exit 1
+fi
+echo "PASS_WEB_IDENTITY_OVERRIDE_FINGERPRINT"
 
 "${COMPOSE[@]}" exec -T web node - <<'NODE'
 const flags = [

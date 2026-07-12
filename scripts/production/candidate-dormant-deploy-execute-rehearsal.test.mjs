@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import {
   chmod,
@@ -27,6 +28,9 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
   const gitLog = join(directory, "git.log");
   const dockerLog = join(directory, "docker.log");
   const webReadyState = join(directory, "web-ready-state");
+  const identityOverrideFile = join(directory, "runtime-identity.override.yml");
+  const identityOverrideSource = "services:\n  web:\n    environment:\n      DATABASE_URL: approved-test-value\n";
+  const identityOverrideSha256 = createHash("sha256").update(identityOverrideSource).digest("hex");
   const approvedCommit = "a".repeat(40);
   const contract = await loadContract();
   const rollbackCommit = contract.releaseBoundary.lastVerifiedProductionRollbackCommit;
@@ -54,6 +58,7 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
     databaseMutationAllowed: false,
     deploymentMode: "dormant_runtime_web_only",
     execute: true,
+    identityOverrideSha256,
     migrationAllowed: false,
     operator: "isolated-rehearsal",
     packageId: contract.packageId,
@@ -124,6 +129,7 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       "CANDIDATE_RUNTIME_RELEASE_ID=disabled",
       "CANDIDATE_SHADOW_WORKER_EXPECTED=false",
     ].join("\n"), { mode: 0o600 });
+    await writeFile(identityOverrideFile, identityOverrideSource, { mode: 0o600 });
     await writeFile(
       join(directory, "request.json"),
       JSON.stringify(request),
@@ -167,8 +173,10 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       "fs.appendFileSync(process.env.FAKE_DOCKER_LOG, joined + '\\n');",
       "if (args[0] === 'ps' || args[0] === 'tag') process.exit(0);",
       "if (args[0] !== 'compose') process.exit(0);",
+      "if (joined.includes('config --format json')) { console.log(JSON.stringify({ services: { web: { environment: { DATABASE_URL: 'approved-test-value' } } } })); process.exit(0); }",
       "if (joined.includes('images -q web')) console.log('sha256:isolated-old-web-image');",
       "if (joined.includes('exec -T web node')) {",
+      "  if (joined.includes('node -e')) { const crypto = require('node:crypto'); process.stdout.write(crypto.createHash('sha256').update('approved-test-value').digest('hex')); process.exit(0); }",
       "  const source = fs.readFileSync(0, 'utf8');",
       "  if (source.includes('/api/health') && !fs.existsSync(process.env.FAKE_WEB_READY_STATE)) {",
       "    fs.writeFileSync(process.env.FAKE_WEB_READY_STATE, 'retried\\n');",
@@ -198,6 +206,7 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       CONFIRM_DORMANT_DEPLOY: "true",
       DORMANT_DEPLOY_MODE: "production_deploy",
       ENV_FILE: join(targetRoot, ".env.production"),
+      COMPOSE_IDENTITY_OVERRIDE_FILE: identityOverrideFile,
       FAKE_APPROVED_COMMIT: approvedCommit,
       FAKE_DOCKER_LOG: dockerLog,
       FAKE_GIT_LOG: gitLog,
@@ -225,6 +234,7 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       stdout,
       /PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION/,
     );
+    assert.match(stdout, /PASS_WEB_IDENTITY_OVERRIDE_FINGERPRINT/);
     assert.equal((await readFile(gitState, "utf8")).trim(), approvedCommit);
     const dockerCalls = await readFile(dockerLog, "utf8");
     const envOrder = [
@@ -232,6 +242,10 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       join(targetRoot, ".env"),
       "--env-file",
       join(targetRoot, ".env.production"),
+      "-f",
+      join(targetRoot, "docker-compose.yml"),
+      "-f",
+      identityOverrideFile,
     ].join(" ");
     assert.equal(dockerCalls.includes(envOrder + " images -q web"), true);
     assert.equal(dockerCalls.includes(envOrder + " build web"), true);
@@ -269,6 +283,16 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       rollbackDockerCalls,
       /candidate-shadow-worker|--profile|--remove-orphans/,
     );
+
+    await writeFile(identityOverrideFile, identityOverrideSource + "# drift\n", { mode: 0o600 });
+    await writeFile(gitState, rollbackCommit + "\n");
+    await writeFile(gitLog, "");
+    await writeFile(dockerLog, "");
+    await assert.rejects(runRunner);
+    assert.equal((await readFile(dockerLog, "utf8")).trim(), "");
+    const checksumFailureGitCalls = await readFile(gitLog, "utf8");
+    assert.equal(checksumFailureGitCalls.includes(targetRoot + "|"), false);
+    assert.doesNotMatch(checksumFailureGitCalls, /\|(?:fetch |merge |checkout |branch -f )/);
   } finally {
     server.close();
     await rm(directory, { recursive: true, force: true });

@@ -3046,6 +3046,7 @@ P0 阻断：
 - typecheck、lint、build：PASS。
 - 清理后的真实 test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
 - backtest:golden 16/16 与三项安全门禁：PASS。
+- 自治总门禁 17/17：PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。
 - production smoke/formal：未运行，本轮禁止。
 
 ### 是否部署
@@ -3107,3 +3108,47 @@ P0 阻断：
 ### 下一轮建议
 
 等待生产 health ready；随后只申请绑定新 commit、`e56d37ff...` artifact、149/`f39c8a26...` release diff 和 `0599f802...` rollback 的 Dormant Web-only 新审批。
+
+## 2026-07-13 / WP-G0.2 Dormant Runtime Identity Override Preservation
+
+### 本轮目标
+
+修复 Dormant Web-only 部署与自动回滚未保留外部最小权限身份 override、造成生产 Web 持久化认证失败的问题。
+
+### 修改范围
+
+- 生产只读审计确认数据库 ready，但 Web 读取 `scan_archives` 与 `journal_events` 时使用错误身份并认证失败。
+- 部署审批新增 `identityOverrideSha256`；外部 override 必须是绝对路径普通文件、权限精确 `0600`。
+- 正常 build/up 与自动回滚复用 base Compose + 同一 identity override。
+- Web 启动后比较 Compose 预期 `DATABASE_URL` 指纹和容器实际指纹，全程不输出连接串。
+- checksum 漂移在生产 Git/Docker mutation 前 fail closed。
+- Dormant artifact 刷新为 `a82ed943...`；Runtime Identity 传递 artifact 刷新为 `95c50a23...`，旧值失效。
+- 未修改交易逻辑、migration、DB、Redis、worker、Feature Flag、control 或 secret，未执行生产 mutation。
+
+### 核心链路影响
+
+提高候选筛选与复盘进化底层持久化身份的部署/回滚可靠性；不改变市场发现、深扫、结构、风险或交易计划。
+
+### 测试结果
+
+- Dormant 12/12、Runtime Identity Runner 8/8、deploy safety 5/5、Composition 28/28：PASS。
+- typecheck、lint、build：PASS。
+- test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 与三项安全门禁：PASS。
+- production smoke 未运行；formal 未运行且本轮禁止。
+
+### 是否部署
+
+未部署、未恢复生产。当前生产应用仍为 `0599f802...`，Web 持久化读取仍 degraded；数据库、scan、Redis 和六个 worker 未变更。
+
+### 风险与遗留问题
+
+- 上一轮把总 health 降级归因于 market data quality 的结论已纠正；真实根因是 Web 身份 override 丢失。
+- market data quality 仍 degraded，但属于独立数据质量问题。
+- 生产只重建旧 Web 恢复身份也属于生产 mutation，必须单独精确批准。
+- Dormant 新发布仍需最终 commit/main、artifact、release diff、identity override checksum 和新 90 分钟审批。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只执行既有旧 Web 的最小权限身份恢复与 health 验证；不得同时部署新 Dormant release。

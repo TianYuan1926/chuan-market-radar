@@ -20,7 +20,9 @@
     "composeProfileAllowed": false,
     "candidateWorkerStartAllowed": false,
     "maximumApprovalWindowMinutes": 90,
-    "automaticWebRollbackRequired": true
+    "automaticWebRollbackRequired": true,
+    "identityOverrideRequired": true,
+    "identityOverrideChecksumBound": true
   },
   "dormantBoundary": {
     "codeActivationAllowed": false,
@@ -33,7 +35,7 @@
     "databaseMutationAllowed": false
   },
   "artifact": {
-    "sha256": "e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a",
+    "sha256": "a82ed943e7eae1df94bacb0f0c11439586e14fc3127564556215162bb8d82a50",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",
@@ -117,10 +119,12 @@
     "artifact_checksum_match",
     "candidate_environment_dormant",
     "candidate_worker_absent",
+    "identity_override_absolute_regular_0600_and_checksum_bound",
     "web_rollback_image_captured"
   ],
   "requiredPostDeployEvidence": [
     "production_head_equals_approved_commit",
+    "web_identity_override_fingerprint_matches_approved",
     "web_environment_dormant",
     "candidate_worker_absent",
     "candidate_admin_unauthorized_is_401",

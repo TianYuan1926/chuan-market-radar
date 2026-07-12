@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T23:45:00+08:00",
+  "updatedAt": "2026-07-13T02:20:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,17 +31,19 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-READINESS-REMEDIATION",
-    "title": "Dormant runtime deploy readiness and rollback verifier remediation",
+    "id": "WP-G0.2-DORMANT-RUNTIME-IDENTITY-OVERRIDE-PRESERVATION",
+    "title": "Dormant runtime identity override preservation and production health truth remediation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "修复首次 Web-only 生产尝试暴露的新容器 readiness 竞态和回滚后误用旧 verification script 的缺陷；保持 Web-only、自动回滚、Candidate dormant 和完整 release diff fail-closed 边界。",
+    "objective": "修复 Dormant Web-only 部署与自动回滚遗漏外部最小权限身份 override、导致生产 Web 持久化认证失败的缺陷；把 override 路径、权限、checksum 和运行态身份指纹纳入 fail-closed 审批与验收。",
     "coreChainImpact": [
       "candidate_screening_dormant_deploy_integrity",
       "review_evolution_dormant_deploy_integrity",
       "release_scope_integrity",
       "web_release_readiness",
-      "automatic_rollback_verification"
+      "automatic_rollback_verification",
+      "least_privilege_runtime_identity_preservation",
+      "production_persistence_health_truth"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -57,6 +59,7 @@
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
       "reports/wp-g0-2-dormant-release-diff-guard/WP_G0_2_DORMANT_RELEASE_DIFF_GUARD_REPORT.md",
+      "reports/wp-g0-2-dormant-identity-override-preservation/WP_G0_2_DORMANT_IDENTITY_OVERRIDE_PRESERVATION_REPORT.md",
       "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.sh",
       "scripts/production/candidate-dormant-deploy.test.mjs",
@@ -85,6 +88,7 @@
       "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
       "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
       "reports/wp-g0-2-dormant-release-diff-guard/WP_G0_2_DORMANT_RELEASE_DIFF_GUARD_REPORT.md",
+      "reports/wp-g0-2-dormant-identity-override-preservation/WP_G0_2_DORMANT_IDENTITY_OVERRIDE_PRESERVATION_REPORT.md",
       "scripts/production/candidate-dormant-deploy.mjs",
       "scripts/production/candidate-dormant-deploy.test.mjs"
     ],
@@ -114,11 +118,11 @@
       ]
     },
     "completionBoundary": [
-      "Web recreate 后必须在有限超时内等待 API readiness，再执行 dormant 合同检查",
-      "readiness 超时或后续验证失败必须恢复旧 Web 镜像与 rollback commit",
-      "回滚后必须使用批准源码中的双 env production-check 验证生产根目录",
+      "外部身份 override 必须是审批绑定的绝对路径普通 0600 文件且 checksum 匹配",
+      "正常部署和自动回滚必须使用同一份 base compose 与身份 override",
+      "Web recreate 后必须比较 Compose 预期数据库身份与容器实际身份指纹",
       "release diff 必须继续精确为 149 个 A/M 路径且 path-set SHA-256 匹配",
-      "Dormant 14 文件 artifact 必须刷新；旧 checksum 失效",
+      "Dormant 14 文件与 Runtime Identity 8 文件传递 artifact 必须刷新；旧 checksum 失效",
       "生产决定必须回到 BLOCKED_AWAITING_NEW_EXPLICIT_PRODUCTION_APPROVAL",
       "所有定向、基础和安全门禁通过",
       "本地修复阶段禁止再次生产部署、角色/权限/env/数据库/Redis/Feature Flag/control 变更"
@@ -262,6 +266,13 @@
     {
       "order": 17,
       "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-READINESS-REMEDIATION",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 18,
+      "id": "WP-G0.2-DORMANT-RUNTIME-IDENTITY-OVERRIDE-PRESERVATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

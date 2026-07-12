@@ -2,8 +2,8 @@
 
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { lstat, readFile } from "node:fs/promises";
+import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import yaml from "js-yaml";
@@ -88,6 +88,8 @@ export function validateContract(contract) {
   ensure(contract.deployment?.candidateWorkerStartAllowed === false, "candidate_worker_start_must_be_false");
   ensure(contract.deployment?.maximumApprovalWindowMinutes === 90, "approval_window_mismatch");
   ensure(contract.deployment?.automaticWebRollbackRequired === true, "automatic_rollback_required");
+  ensure(contract.deployment?.identityOverrideRequired === true, "identity_override_required");
+  ensure(contract.deployment?.identityOverrideChecksumBound === true, "identity_override_checksum_binding_required");
   ensure(contract.dormantBoundary?.codeActivationAllowed === false, "code_activation_must_be_false");
   ensure(contract.dormantBoundary?.candidateFeatureFlagsEnabled === 0, "feature_flags_must_be_zero");
   ensure(contract.dormantBoundary?.candidateDatabaseUrlsConfigured === 0, "candidate_database_urls_must_be_zero");
@@ -227,6 +229,9 @@ export async function inspectRepository(root = process.cwd(), contract) {
     defaultCandidateWorkerExpectedFalse: String(appEnvironment.CANDIDATE_SHADOW_WORKER_EXPECTED ?? "").includes("-false}"),
     exactWebBuild: /\$\{COMPOSE\[@\]\}" build web/.test(runnerSource),
     exactWebRecreate: /\$\{COMPOSE\[@\]\}" up -d --no-deps web/.test(runnerSource),
+    identityOverrideChecksumBound: /identityOverrideSha256/.test(runnerSource)
+      && /identity-override[\s\\]*--file "\$\{COMPOSE_IDENTITY_OVERRIDE_FILE\}"/.test(runnerSource),
+    identityOverrideUsedByCompose: /-f "\$\{ROOT_DIR\}\/docker-compose\.yml" -f "\$\{COMPOSE_IDENTITY_OVERRIDE_FILE\}"/.test(runnerSource),
     noComposeProfile: !/--profile/.test(runnerSource),
     noMigrationCommand: !/(migration:runner|candidate:migrate|persistence\/migrate)/.test(runnerSource),
     noRemoveOrphans: !/--remove-orphans/.test(runnerSource),
@@ -251,7 +256,7 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
     "automaticWebRollbackAllowed", "candidateControlLifecycleStartAllowed",
     "candidateDatabaseUrlConfigurationAllowed", "candidateFeatureFlagEnablementAllowed",
     "candidateWorkerStartAllowed", "codeActivationAllowed", "databaseMutationAllowed",
-    "deploymentMode", "execute", "migrationAllowed", "operator", "packageId",
+    "deploymentMode", "execute", "identityOverrideSha256", "migrationAllowed", "operator", "packageId",
     "rollbackCommit", "services",
   ];
   ensure(exactKeys(request, expectedKeys), "request_keys_mismatch");
@@ -265,6 +270,7 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(request.rollbackCommit === contract.releaseBoundary.lastVerifiedProductionRollbackCommit, "rollback_commit_not_last_verified");
   ensure(request.approvedReleaseDiffFileCount === contract.releaseBoundary.releaseDiffFileCount, "approved_release_diff_file_count_mismatch");
   ensure(request.approvedReleaseDiffSha256 === contract.releaseBoundary.releaseDiffSha256, "approved_release_diff_checksum_mismatch");
+  ensure(/^[0-9a-f]{64}$/.test(request.identityOverrideSha256 ?? ""), "identity_override_checksum_invalid");
   ensure(typeof request.approvalRef === "string" && request.approvalRef.trim().length >= 8, "approval_ref_invalid");
   ensure(typeof request.operator === "string" && request.operator.trim().length >= 2, "operator_invalid");
   ensure(typeof request.execute === "boolean", "execute_flag_missing");
@@ -280,6 +286,24 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(expiresAt > issuedAt && expiresAt - issuedAt <= 90 * 60 * 1000, "approval_window_too_long");
   ensure(nowMs >= issuedAt && nowMs <= expiresAt, "approval_window_not_active");
   return request;
+}
+
+export async function validateIdentityOverrideFile(filePath, expectedSha256) {
+  ensure(typeof filePath === "string" && isAbsolute(filePath), "identity_override_path_not_absolute");
+  ensure(/^[0-9a-f]{64}$/.test(expectedSha256 ?? ""), "identity_override_checksum_invalid");
+  let metadata;
+  let source;
+  try {
+    metadata = await lstat(filePath);
+    source = await readFile(filePath);
+  } catch {
+    throw new DormantDeployPolicyError("identity_override_unavailable");
+  }
+  ensure(metadata.isFile(), "identity_override_not_regular_file");
+  ensure((metadata.mode & 0o777) === 0o600, "identity_override_permissions_not_0600");
+  const actualSha256 = sha256(source);
+  ensure(actualSha256 === expectedSha256, "identity_override_checksum_mismatch");
+  return { path: filePath, sha256: actualSha256, permissions: "0600" };
 }
 
 function unquote(value) {
@@ -366,6 +390,11 @@ async function main() {
     result = {
       ok: true,
       environment: parseDormantEnvironment(await readFile(resolve(options["env-file"] ?? ""), "utf8")),
+    };
+  } else if (command === "identity-override") {
+    result = {
+      ok: true,
+      identityOverride: await validateIdentityOverrideFile(options.file ?? "", options.sha256 ?? ""),
     };
   } else {
     throw new DormantDeployPolicyError("command_invalid");
