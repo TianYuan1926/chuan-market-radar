@@ -3046,6 +3046,7 @@ P0 阻断：
 - typecheck、lint、build：PASS。
 - 清理后的真实 test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
 - backtest:golden 16/16 与三项安全门禁：PASS。
+- 自治总门禁 13/13：PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。
 - 自治总门禁 17/17：PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。
 - production smoke/formal：未运行，本轮禁止。
 
@@ -3152,3 +3153,45 @@ P0 阻断：
 ### 下一轮建议
 
 只执行既有旧 Web 的最小权限身份恢复与 health 验证；不得同时部署新 Dormant release。
+
+## 2026-07-13 / WP-G0.2 Production Web Identity Recovery Runner
+
+### 本轮目标
+
+为生产 Web 持久化认证降级建立独立、精确审批、Web-only、no-build 和原基线自动回滚 runner。
+
+### 修改范围
+
+- 审批绑定生产 HEAD、identity override、root-owned wrapper、生产 Compose、两份 env 与当前 Web image 指纹。
+- 唯一 mutation 是 identity wrapper 的 no-build/no-deps force-recreate Web。
+- 成功检查身份指纹、health ready/fresh、持久化、合同、Postgres/Redis、Candidate dormant 和其它容器 ID。
+- 失败使用原 base Compose 恢复执行前 Web 基线，不把 degraded 回滚包装成恢复成功。
+- 宿主机无 Node 时使用当前 Web 容器 Node 验证同一 exact base64 request/contract。
+- 未修改业务代码、migration、DB、Redis、worker、env、Feature Flag、control 或 secret；未执行生产恢复。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的持久化运行底座；不改变发现、分析、风险或交易计划逻辑。
+
+### 测试结果
+
+- Recovery 7/7、deploy safety 5/5：PASS。
+- typecheck、lint、build：PASS。
+- test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16 与三项安全门禁：PASS。
+- production smoke 未运行；formal 未运行且禁止。
+
+### 是否部署
+
+未部署、未恢复生产。生产仍为 `0599f802...`、worktree clean、Web persistence auth degraded。
+
+### 风险与遗留问题
+
+- 本地 runner PASS 不能证明生产恢复。
+- exact request 仍缺审批时实时重取的 Web image 与两份 env 指纹。
+- 生产恢复后仍需重新生成 health/contract 证据；Dormant 发布必须另行审批。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+只读锁定动态指纹并申请 Web Identity Recovery exact approval，不合并 Dormant 发布。

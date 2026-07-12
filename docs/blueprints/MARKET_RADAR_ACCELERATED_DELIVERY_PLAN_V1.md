@@ -134,12 +134,13 @@ npm run test:migration-capacity
 | 8 | WP-G0.2 production readiness + approval packet | B | local PASS | immutable resolution、runtime gate/mapper、monitor、009 checksum/权限/回退和 schema-only 审批包 |
 | 9 | WP-G0.2 production add safety schema | A | PASS: 009 only applied and verified dormant | catalog 8/151/20/10/14/8 -> 9/166/26/11/16/9；Feature Flag=0；禁止再次 execute |
 | 10 | WP-G0.2 production composition wiring | B | local PASS | 28/28 定向、PG16 完整 composition、legacy identity dormant fail-closed、permission 4/4 与基础门禁 PASS |
-| 11 | WP-G0.2 dormant runtime deploy | A | release-diff guard local PASS / production prohibited | 14 文件 artifact=`78f1e3...`；release base/rollback 祖先、149 个 A/M 路径与 path-set SHA=`f39c8a...` 已锁定，Review/Canonical/activation/reconciliation 污染 fail closed；仍需最终 main commit + diff/hash + web-only + 90 分钟独立审批 |
-| 12 | WP-G0.2 runtime identity + permission | A | local code/contract/runner/PG16 preparation PASS / production prohibited | NOINHERIT 显式角色、3 LOGIN/单 membership/跨角色拒绝已通过；8 文件 runner 覆盖 exact approval、0600 secret、3 URL、web-only 和 DB/env/Web rollback。仍需 dormant deploy final PASS 与独立审批 |
-| 13 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
-| 14 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
-| 15 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
-| 16 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
+| 11 | WP-G0.2 production Web identity recovery | B -> A | local full gates PASS / production prohibited | exact HEAD、override/wrapper/Compose/env/image 指纹；只允许 no-build recreate Web；成功证明 health ready/fresh 与其它容器不变，失败恢复 pre-recovery baseline；仍缺 exact approval |
+| 12 | WP-G0.2 dormant runtime deploy | A | release-diff guard local PASS / production prohibited | 14 文件 artifact=`a82ed943...`；release base/rollback 祖先、149 个 A/M 路径与 path-set SHA=`f39c8a...` 已锁定；必须先完成 Web identity recovery |
+| 13 | WP-G0.2 runtime identity + permission | A | local code/contract/runner/PG16 preparation PASS / production prohibited | NOINHERIT 显式角色、3 LOGIN/单 membership/跨角色拒绝已通过；仍需 dormant deploy final PASS 与独立审批 |
+| 14 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
+| 15 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
+| 16 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
+| 17 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
 
 ## 9. 停止条件
 

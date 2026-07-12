@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "wp-g0.2-production-web-identity-recovery.v1",
+  "packageId": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY",
+  "status": "local_preparation_awaiting_exact_production_approval",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "scope": {
+    "productionHead": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+    "service": "web",
+    "identityOverrideSha256": "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a15a5a16892816cdcb478bacf",
+    "composeWrapperSha256": "fb473dc3bf0a2968be8bad385efac32734f0575ddf17cee73f2003d3a369f1f3",
+    "productionComposeSha256": "2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e",
+    "environmentFileChecksumsRequiredInApproval": true,
+    "buildAllowed": false,
+    "sourceSyncAllowed": false,
+    "databaseMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerRestartAllowed": false,
+    "featureFlagMutationAllowed": false,
+    "maximumApprovalWindowMinutes": 90
+  },
+  "rollback": {
+    "baselineComposeWithoutIdentityOverride": true,
+    "automaticRollbackRequired": true,
+    "rollbackService": "web",
+    "rollbackBuildAllowed": false
+  },
+  "artifact": {
+    "sha256": "732b5e6d61e1b2b24df9e50ae6af7597b8d95e0fe5533480421e2085364b0f24",
+    "files": [
+      "scripts/production/web-identity-recovery.mjs",
+      "scripts/production/web-identity-recovery.sh"
+    ]
+  },
+  "successRequires": [
+    "production_head_and_worktree_unchanged",
+    "web_image_unchanged",
+    "only_web_container_recreated",
+    "web_database_identity_fingerprint_matches_override",
+    "health_ready_scan_fresh_database_ready",
+    "persistence_authentication_errors_absent",
+    "frontend_and_backend_contracts_pass",
+    "postgres_and_redis_ready",
+    "candidate_runtime_remains_dormant"
+  ],
+  "forbidden": [
+    "git_fetch_pull_merge_or_checkout",
+    "image_build",
+    "database_or_redis_mutation",
+    "worker_or_caddy_restart",
+    "environment_file_write",
+    "feature_flag_change",
+    "candidate_worker_start",
+    "migration",
+    "dormant_release_deploy"
+  ]
+}
