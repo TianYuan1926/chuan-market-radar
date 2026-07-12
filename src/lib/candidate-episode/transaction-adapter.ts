@@ -39,6 +39,10 @@ export type PostgresTransactionAdapter = {
   ): Promise<T>;
 };
 
+export type PostgresTransactionAdapterOptions = {
+  role?: string;
+};
+
 const retryableTransactionCodes = new Set(["40001", "40P01"]);
 
 function abortError() {
@@ -81,6 +85,14 @@ function errorCode(error: unknown) {
     : undefined;
 }
 
+function transactionRoleSql(role: string | undefined) {
+  if (role === undefined) return null;
+  if (!/^[a-z][a-z0-9_]{0,62}$/.test(role)) {
+    throw new Error("Invalid PostgreSQL transaction role");
+  }
+  return `SET LOCAL ROLE "${role}"`;
+}
+
 function transactionContext(
   client: PostgresTransactionConnection,
   signal?: AbortSignal,
@@ -116,6 +128,7 @@ function transactionContext(
 async function runAttempt<T>(
   pool: PostgresTransactionPool,
   options: TransactionOptions,
+  roleSql: string | null,
   work: (tx: TransactionContext) => Promise<T>,
 ) {
   throwIfAborted(options.signal);
@@ -126,6 +139,7 @@ async function runAttempt<T>(
     throwIfAborted(options.signal);
     await client.query("BEGIN");
     await client.query(transactionModeSql(options));
+    if (roleSql) await client.query(roleSql);
     await client.query("SELECT set_config('lock_timeout', $1, true)", [
       `${positiveTimeout(options.lockTimeoutMs, 1_000)}ms`,
     ]);
@@ -153,7 +167,9 @@ async function runAttempt<T>(
 
 export function createPostgresTransactionAdapter(
   pool: PostgresTransactionPool,
+  options: PostgresTransactionAdapterOptions = {},
 ): PostgresTransactionAdapter {
+  const roleSql = transactionRoleSql(options.role);
   return {
     async withTransaction<T>(
       options: TransactionOptions,
@@ -163,7 +179,7 @@ export function createPostgresTransactionAdapter(
 
       for (let attempt = 0; ; attempt += 1) {
         try {
-          return await runAttempt(pool, options, work);
+          return await runAttempt(pool, options, roleSql, work);
         } catch (error) {
           if (attempt >= maxRetries || !retryableTransactionCodes.has(errorCode(error) ?? "")) {
             throw error;

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCandidateRuntimeDatabase } from "./candidate-runtime-database";
+import {
+  createCandidateRuntimeDatabase,
+  transactionRoleByPurpose,
+} from "./candidate-runtime-database";
 import type { PostgresTransactionPool } from "./transaction-adapter";
 
 function fakePool(): PostgresTransactionPool {
@@ -31,8 +34,9 @@ test("candidate runtime identities never fall back to the legacy application DAT
   assert.equal(factoryCalled, false);
 });
 
-test("source consumer and monitor each require their own explicit connection identity", () => {
+test("source consumer and monitor require separate identities and fixed transaction roles", async () => {
   const calls: Array<{ connectionString: string; purpose: string }> = [];
+  const queries: Record<string, string[]> = { consumer: [], monitor: [], source: [] };
   const env = {
     CANDIDATE_SOURCE_DATABASE_URL: "postgresql://source.invalid/database",
     CANDIDATE_CONSUMER_DATABASE_URL: "postgresql://consumer.invalid/database",
@@ -44,12 +48,24 @@ test("source consumer and monitor each require their own explicit connection ide
       env,
       poolFactory(connectionString, receivedPurpose) {
         calls.push({ connectionString, purpose: receivedPurpose });
-        return fakePool();
+        return {
+          async connect() {
+            return {
+              async query<T>(sql: string) {
+                queries[receivedPurpose].push(sql);
+                return { rows: [] as T[] };
+              },
+              release() {},
+            };
+          },
+        };
       },
       purpose,
     });
     assert.equal(bundle.configured, true);
     assert.notEqual(bundle.transactions, null);
+    assert.equal(bundle.transactionRole, transactionRoleByPurpose[purpose]);
+    await bundle.transactions.withTransaction({}, async () => undefined);
   }
 
   assert.deepEqual(calls, [
@@ -57,4 +73,15 @@ test("source consumer and monitor each require their own explicit connection ide
     { connectionString: env.CANDIDATE_CONSUMER_DATABASE_URL, purpose: "consumer" },
     { connectionString: env.CANDIDATE_MONITOR_DATABASE_URL, purpose: "monitor" },
   ]);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(queries).map(([purpose, sql]) => [
+      purpose,
+      sql.find((statement) => statement.startsWith("SET LOCAL ROLE")),
+    ])),
+    {
+      consumer: 'SET LOCAL ROLE "candidate_shadow_executor_role"',
+      monitor: 'SET LOCAL ROLE "candidate_audit_role"',
+      source: 'SET LOCAL ROLE "candidate_application_writer_role"',
+    },
+  );
 });

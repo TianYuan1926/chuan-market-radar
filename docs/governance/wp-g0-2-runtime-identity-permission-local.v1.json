@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "wp-g0.2-runtime-identity-permission-local.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION-LOCAL-PREPARATION",
+  "status": "local_runtime_identity_code_and_postgres_rehearsal_verified",
+  "productionAuthorization": false,
+  "productionConnected": false,
+  "productionIdentityProvisioned": false,
+  "productionEnvironmentConfigured": false,
+  "productionRuntimeActivated": false,
+  "identityTopology": {
+    "source": {
+      "connectionEnv": "CANDIDATE_SOURCE_DATABASE_URL",
+      "transactionRole": "candidate_application_writer_role",
+      "loginInherit": false,
+      "membershipCount": 1
+    },
+    "consumer": {
+      "connectionEnv": "CANDIDATE_CONSUMER_DATABASE_URL",
+      "transactionRole": "candidate_shadow_executor_role",
+      "loginInherit": false,
+      "membershipCount": 1
+    },
+    "monitor": {
+      "connectionEnv": "CANDIDATE_MONITOR_DATABASE_URL",
+      "transactionRole": "candidate_audit_role",
+      "loginInherit": false,
+      "membershipCount": 1
+    }
+  },
+  "loginAttributes": {
+    "login": true,
+    "superuser": false,
+    "createDatabase": false,
+    "createRole": false,
+    "inherit": false,
+    "replication": false,
+    "bypassRls": false
+  },
+  "transactionBoundary": {
+    "explicitSetLocalRoleRequired": true,
+    "dynamicRoleFromEnvironmentAllowed": false,
+    "roleIdentifierAllowlistRequired": true,
+    "crossRoleSwitchDenied": true,
+    "roleResetAtTransactionEnd": true
+  },
+  "runtimeAccess": {
+    "sqlPath": "scripts/production/candidate-runtime-identity/runtime-access.sql",
+    "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa",
+    "sourceScanArchivePrivileges": [
+      "SELECT",
+      "INSERT"
+    ],
+    "sourceScanArchiveUpdateDelete": false,
+    "sourceCandidateDirectTableDml": false,
+    "sourceDdl": false,
+    "consumerDirectTableAccess": false,
+    "consumerSourceProcedureAccess": false,
+    "monitorCandidateRead": true,
+    "monitorLegacyArchiveRead": false,
+    "monitorWrite": false
+  },
+  "verification": {
+    "postgresMajor": 16,
+    "isolatedEphemeralDatabase": true,
+    "runtimeLoginCount": 3,
+    "productionConnected": false,
+    "formalBacktestRun": false
+  },
+  "productionPrerequisites": [
+    "dormant_runtime_deploy_final_pass",
+    "new_exact_time_bounded_production_approval",
+    "fresh_backup_and_capacity_recheck",
+    "credential_files_mode_0600_outside_repository",
+    "runtime_access_sql_checksum_match",
+    "three_unique_login_names_and_secrets",
+    "automatic_credential_and_web_rollback"
+  ],
+  "forbiddenInThisPackage": [
+    "production_connection",
+    "production_role_creation",
+    "production_grant_or_revoke",
+    "production_environment_write",
+    "production_service_restart",
+    "candidate_feature_flag_enablement",
+    "code_activation_enablement",
+    "control_lifecycle_start",
+    "database_schema_migration",
+    "backfill",
+    "dual_read",
+    "read_cutover",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
+  "requiredAfterDormantDeploy": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION"
+}

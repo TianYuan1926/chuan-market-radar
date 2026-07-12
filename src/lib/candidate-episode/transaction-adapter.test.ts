@@ -71,6 +71,44 @@ test("withTransaction keeps begin, work and commit on one checked-out connection
   assert.deepEqual(client.releases, [undefined]);
 });
 
+test("withTransaction applies an allowlisted local role before timeouts and work", async () => {
+  const calls: Call[] = [];
+  const client = connection(calls);
+  const adapter = createPostgresTransactionAdapter(
+    { async connect() { return client; } },
+    { role: "candidate_application_writer_role" },
+  );
+
+  await adapter.withTransaction({}, (tx) => tx.query("SELECT current_user"));
+
+  assert.deepEqual(calls.map((call) => call.sql), [
+    "BEGIN",
+    "SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE",
+    'SET LOCAL ROLE "candidate_application_writer_role"',
+    "SELECT set_config('lock_timeout', $1, true)",
+    "SELECT set_config('statement_timeout', $1, true)",
+    "SELECT set_config('idle_in_transaction_session_timeout', $1, true)",
+    "SELECT current_user",
+    "COMMIT",
+  ]);
+});
+
+test("transaction role rejects unsafe identifiers before checking out a connection", () => {
+  let connected = false;
+  const pool: PostgresTransactionPool = {
+    async connect() {
+      connected = true;
+      return connection([]);
+    },
+  };
+
+  assert.throws(
+    () => createPostgresTransactionAdapter(pool, { role: "writer; SET ROLE superuser" }),
+    /Invalid PostgreSQL transaction role/,
+  );
+  assert.equal(connected, false);
+});
+
 test("withTransaction rolls back and releases when work fails", async () => {
   const calls: Call[] = [];
   const client = connection(calls);

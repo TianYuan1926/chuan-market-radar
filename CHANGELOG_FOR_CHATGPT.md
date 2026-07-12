@@ -2891,3 +2891,46 @@ P0 阻断：
 ### 下一轮建议
 
 全部本地门禁和 GitHub main 同步后，只申请 web-only Dormant Runtime Deploy；不得合并身份、权限或 activation。
+
+## 2026-07-12 / WP-G0.2 Runtime Identity and Permission Local Preparation
+
+### 本轮目标
+
+关闭 source/consumer/monitor 三条 Candidate URL 在 NOINHERIT LOGIN 下没有显式能力角色切换的真实缺口，并建立最小权限隔离 PG16 证据。
+
+### 修改范围
+
+- 事务适配器支持固定、安全校验的 `SET LOCAL ROLE`；source/consumer/monitor 分别映射 writer/executor/audit。
+- source 的 atomic legacy archive + Candidate outbox 只补 `scan_archives` SELECT/INSERT；UPDATE/DELETE/DDL 仍拒绝。
+- 新增 3 个临时 NOINHERIT LOGIN 的 PostgreSQL 16 演练，验证单 membership、危险属性关闭、允许路径、直接 DML/DDL 和跨角色拒绝。
+- 新增机器合同、validator、中文运行合同和交付报告。
+- 更新自治状态、加速路线、traceability 和项目 Context。
+- 未连接生产，未创建生产 LOGIN，未配置 Candidate URL，未改 Feature Flag/control lifecycle/migration/Compose/前端/交易逻辑。
+
+### 核心链路影响
+
+候选筛选与复盘进化的未来生产身份边界从“URL 分开但实际会 42501”修复为显式角色切换和数据库可证明的最小权限模型；生产行为仍未改变。
+
+### 测试结果
+
+- Runtime Identity 定向 14/14 PASS；独立 PG16 1/1 PASS。
+- Composition 28/28 PASS；原完整 PG16 upgrade/atomic/composition/permission 4/4 全 PASS。
+- typecheck、lint、build PASS；test:market 952 pass / 0 fail / 4 explicit DB skip，新增身份 DB 测试已由独立 PG16 Gate 真实 1/1 PASS。
+- worker 18/18、historical 4/4、golden 16/16 和三项安全门禁 PASS。
+- Autonomy 14/14 Gate PASS，worktree unchanged，`canAutoCommit=true`、`canAutoDeploy=false`。
+- production smoke 和 formal 未运行。
+
+### 是否部署
+
+未部署、未连接腾讯云、未执行生产角色/GRANT/环境/服务/数据库/Redis 变更。
+
+### 风险与遗留问题
+
+- 本轮不含生产身份 runner；production identity 仍未 provision。
+- Dormant Deploy 仍未授权和执行，必须先于生产身份包 PASS。
+- Runtime Identity production runner 必须补 credential 与 Web 自动回滚并另获精确审批。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+继续本地准备 Runtime Identity production runner；生产顺序仍先 Dormant Deploy，不能直接创建身份或 activation。

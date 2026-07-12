@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T14:59:10+08:00",
+  "updatedAt": "2026-07-12T15:17:04+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,15 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-EXECUTION-REHEARSAL",
-    "title": "Candidate dormant runtime isolated execution and rollback rehearsal",
+    "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION-LOCAL-PREPARATION",
+    "title": "Candidate runtime identity and permission local preparation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在生产审批前用 Bash 3.2、隔离 Git/Docker 和本地合同 API 真实执行 web-only runner 的成功与失败路径，证明即时验证失败会恢复 rollback commit 和旧 Web 镜像；尚未修改生产。",
+    "objective": "关闭三条 Candidate URL 在 NOINHERIT LOGIN 下没有显式能力角色切换的缺口，并用隔离 PostgreSQL 16 证明 source/consumer/monitor 单角色成员关系、最小权限和跨角色拒绝；尚未修改生产。",
     "coreChainImpact": [
-      "candidate_screening_runtime_installation_safety",
-      "review_evolution_runtime_installation_safety",
-      "release_safety"
+      "candidate_screening_runtime_identity_safety",
+      "review_evolution_runtime_identity_safety",
+      "least_privilege_database_boundary"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -48,17 +48,20 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
-      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_PERMISSION_LOCAL_V1.md",
+      "docs/governance/wp-g0-2-runtime-identity-permission-local.v1.json",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-shadow-capture-dormant-runtime-deploy-preparation/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_PREPARATION_REPORT.md",
-      "reports/wp-g0-2-dormant-runtime-deploy-rehearsal/WP_G0_2_DORMANT_RUNTIME_DEPLOY_REHEARSAL_REPORT.md",
-      "scripts/production/candidate-dormant-deploy.mjs",
-      "scripts/production/candidate-dormant-deploy.sh",
-      "scripts/production/candidate-dormant-deploy.test.mjs",
-      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
-      "scripts/verify/production-check.sh"
+      "reports/wp-g0-2-runtime-identity-permission-local/WP_G0_2_RUNTIME_IDENTITY_PERMISSION_LOCAL_REPORT.md",
+      "scripts/governance/runtime-identity-permission.mjs",
+      "scripts/governance/runtime-identity-permission.test.mjs",
+      "scripts/production/candidate-runtime-identity/runtime-access.sql",
+      "scripts/rehearsal/candidate-runtime-identity-postgres16.sh",
+      "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/candidate-runtime-database.test.ts",
+      "src/lib/candidate-episode/candidate-runtime-identity-postgres.test.ts",
+      "src/lib/candidate-episode/transaction-adapter.ts",
+      "src/lib/candidate-episode/transaction-adapter.test.ts"
     ],
     "prohibitedPaths": [
       "src/app/**",
@@ -70,29 +73,31 @@
       "src/lib/shadow/**",
       "deploy/**",
       "migrations/**",
+      "docker-compose.yml",
       "tools/**",
       ".env",
       ".env.production"
     ],
     "requiredArtifacts": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
-      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
-      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
-      "reports/wp-g0-2-shadow-capture-dormant-runtime-deploy-preparation/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_PREPARATION_REPORT.md",
-      "reports/wp-g0-2-dormant-runtime-deploy-rehearsal/WP_G0_2_DORMANT_RUNTIME_DEPLOY_REHEARSAL_REPORT.md",
-      "scripts/production/candidate-dormant-deploy.mjs",
-      "scripts/production/candidate-dormant-deploy.sh",
-      "scripts/production/candidate-dormant-deploy.test.mjs",
-      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
-      "scripts/verify/production-check.sh"
+      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_PERMISSION_LOCAL_V1.md",
+      "docs/governance/wp-g0-2-runtime-identity-permission-local.v1.json",
+      "reports/wp-g0-2-runtime-identity-permission-local/WP_G0_2_RUNTIME_IDENTITY_PERMISSION_LOCAL_REPORT.md",
+      "scripts/governance/runtime-identity-permission.mjs",
+      "scripts/governance/runtime-identity-permission.test.mjs",
+      "scripts/production/candidate-runtime-identity/runtime-access.sql",
+      "scripts/rehearsal/candidate-runtime-identity-postgres16.sh",
+      "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/candidate-runtime-identity-postgres.test.ts",
+      "src/lib/candidate-episode/transaction-adapter.ts"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:dormant-deploy:validate",
-        "candidate:dormant-deploy",
-        "test:candidate-dormant-deploy",
-        "test:deploy-safety",
+        "candidate:runtime-identity:validate",
+        "test:candidate-runtime-identity",
+        "candidate:runtime-identity:pg16-rehearsal",
         "test:candidate-composition-wiring",
+        "candidate:shadow-capture:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -109,18 +114,15 @@
       ]
     },
     "completionBoundary": [
-      "专用 runner 只允许 build web 和 up -d --no-deps web，不允许 profile、remove-orphans 或全量服务重启",
-      "五个 Candidate Feature Flag、三条 Candidate Database URL、release 和 worker expected 必须保持休眠",
-      "代码授权硬 false、Candidate worker absent、migration/DDL/DML/control lifecycle 全部禁止",
-      "审批必须绑定 exact commit、artifact checksum、rollback commit、web-only 和不超过 90 分钟窗口",
-      "Compose 必须按 .env 后 .env.production 加载，并分别通过 Candidate 休眠校验",
-      "runner 请求解析兼容 Bash 3.2，不依赖 readarray/mapfile",
-      "隔离执行演练覆盖 web-only 成功路径和即时验证失败自动恢复 rollback commit/旧 Web 镜像路径",
-      "即时验收只允许写 awaiting DB verify and observation，不能提前写整包 PASS",
-      "失败时恢复旧 Web 镜像和 rollback commit，不做数据库 rollback",
-      "生产决定仍为 BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",
+      "source/consumer/monitor 使用三个独立 URL 和三个独立 NOINHERIT LOGIN，每个 LOGIN 只有一个能力角色 membership",
+      "每个 Candidate 事务在业务 SQL 前显式 SET LOCAL ROLE，角色名只能来自代码固定映射和安全标识符",
+      "source 对 public.scan_archives 只允许 SELECT/INSERT，不允许 UPDATE/DELETE/DDL 或 Candidate 直接表写",
+      "consumer 只允许批准的 executor procedures，monitor 只读 Candidate authority，跨角色切换必须被拒绝",
+      "隔离 PostgreSQL 16 从空库应用 001-009，并真实验证三个 LOGIN、最小权限和 42501 跨角色拒绝",
+      "旧 Composition 28 项与完整 PostgreSQL 16 rehearsal 不得回归",
+      "生产决定仍为 BLOCKED_UNTIL_DORMANT_DEPLOY_PASS_AND_NEW_EXPLICIT_APPROVAL",
       "所有定向、基础和安全门禁通过",
-      "本地准备轮禁止生产连接、服务重启、DDL/DML、Feature Flag、backfill、dual read 和 read cutover"
+      "本地准备轮禁止生产连接、角色创建、GRANT/REVOKE、环境写入、服务重启、Feature Flag、control lifecycle、backfill、dual read 和 read cutover"
     ]
   },
   "approvals": [
@@ -194,7 +196,7 @@
       "order": 9,
       "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY-EXECUTION-REHEARSAL",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     },
     {
@@ -206,13 +208,20 @@
     },
     {
       "order": 11,
+      "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION-LOCAL-PREPARATION",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 12,
       "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
       "lane": "production",
       "status": "prohibited_until_dormant_deploy_pass_and_new_approval",
       "requiresExplicitApproval": true
     },
     {
-      "order": 12,
+      "order": 13,
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
       "lane": "production",
       "status": "prohibited_until_runtime_identity_permission_pass_and_new_approval",

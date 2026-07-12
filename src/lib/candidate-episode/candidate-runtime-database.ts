@@ -13,6 +13,12 @@ const connectionEnvByPurpose = Object.freeze({
   monitor: "CANDIDATE_MONITOR_DATABASE_URL",
 } as const);
 
+export const transactionRoleByPurpose = Object.freeze({
+  source: "candidate_application_writer_role",
+  consumer: "candidate_shadow_executor_role",
+  monitor: "candidate_audit_role",
+} as const satisfies Record<CandidateRuntimeDatabasePurpose, string>);
+
 type CandidatePoolFactory = (
   connectionString: string,
   purpose: CandidateRuntimeDatabasePurpose,
@@ -55,6 +61,9 @@ export function createCandidateRuntimeDatabase({
     configured: true,
     connectionStringEnv,
     reason: null,
-    transactions: createPostgresTransactionAdapter(pool),
+    transactionRole: transactionRoleByPurpose[purpose],
+    transactions: createPostgresTransactionAdapter(pool, {
+      role: transactionRoleByPurpose[purpose],
+    }),
   } as const;
 }
