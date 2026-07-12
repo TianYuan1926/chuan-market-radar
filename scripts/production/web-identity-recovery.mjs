@@ -64,6 +64,8 @@ export function validateContract(contract) {
   ensure(contract.scope?.maximumApprovalWindowMinutes === 90, "approval_window_not_locked");
   ensure(contract.rollback?.baselineComposeWithoutIdentityOverride === true, "baseline_rollback_required");
   ensure(contract.rollback?.automaticRollbackRequired === true, "automatic_rollback_required");
+  ensure(contract.rollback?.rollbackOnlyBeforePersistenceRecoveryVerified === true, "rollback_boundary_not_locked");
+  ensure(contract.rollback?.retainRecoveredIdentityOnIndependentScanDegradation === true, "recovered_identity_retention_not_locked");
   ensure(/^[0-9a-f]{64}$/.test(contract.artifact?.sha256 ?? ""), "artifact_checksum_not_locked");
   ensure(JSON.stringify(contract.artifact?.files) === JSON.stringify([
     "scripts/production/web-identity-recovery-entrypoint.sh",
@@ -147,6 +149,10 @@ export async function inspectRunner(root) {
     otherContainersCompared: /OTHER_CONTAINERS_BEFORE/.test(source) && /OTHER_CONTAINERS_AFTER/.test(source),
     identityFingerprintChecked: /EXPECTED_DATABASE_URL_SHA256/.test(source) && /ACTUAL_DATABASE_URL_SHA256/.test(source),
     automaticRollbackTrap: /trap rollback_on_failure EXIT/.test(source),
+    persistenceRecoveryBarrier: /PERSISTENCE_RECOVERY_VERIFIED=true/.test(source)
+      && /PERSISTENCE_RECOVERY_VERIFIED.*== "true"/.test(source),
+    fullHealthWait: /wait_for_full_recovery_health/.test(source),
+    explicitPartialResult: /PARTIAL_PRODUCTION_WEB_IDENTITY_RECOVERY_SCAN_NOT_FRESH/.test(source),
     exactSuccessLabel: /PASS_PRODUCTION_WEB_IDENTITY_RECOVERY/.test(source),
     stagingBoundaryChecked: /APPROVED_STAGING_DIRECTORY/.test(entrypoint) && /STAGING_BASENAME_PREFIX/.test(entrypoint),
     stagingCleanupTrap: /trap cleanup_staging EXIT/.test(entrypoint)

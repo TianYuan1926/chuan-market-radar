@@ -3204,10 +3204,11 @@ P0 阻断：
 
 ### 修改范围
 
-- Recovery artifact 从两文件扩为 entrypoint、validator、recovery shell 三文件，SHA-256=`440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da`。
+- Recovery artifact 从两文件扩为 entrypoint、validator、recovery shell 三文件；生产只读预检发现 scan aging 错误回滚与 signal-trap 测试竞态后刷新 SHA-256=`7680f565ea44ab8a2ec089cf9a9ef67ddc27f9ecd9f94c5fe3acb9afa4d9653d`。
 - 新增本地脱敏 bundle 生成器；bundle 只含合同和三份 runner，不读取或携带 env、连接串、token、日志或业务数据。
 - exact request 新增最终 runner commit、合同 checksum、bundle checksum、固定仓库外 staging 路径、transport method、生产仓库禁止写入和清理要求。
 - entrypoint 只接受批准路径、`0700` staging、`0600` request 与 bundle marker；成功、失败和回滚后删除整个 staging。
+- 生产只读预检确认当前 health degraded、scan aging、DB probe ready、持久化认证失败；旧 runner 会在身份已修复但 scan 尚未刷新时错误回滚到坏身份。现增加 persistence recovery barrier：身份/持久化失败才回滚；持久化恢复但 scan 在固定 20 分钟内未 fresh 时保留正确身份、返回明确 PARTIAL 并阻断后续。
 - production repository fetch/pull/checkout/write、Web 以外服务、build、DB/Redis、env、Flag、migration 和 Dormant release 继续禁止。
 
 ### 核心链路影响

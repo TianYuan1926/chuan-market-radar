@@ -678,7 +678,7 @@
     "legacyWriteAuthority": true,
     "legacyReadAuthority": true,
     "productionHead": "0599f802f261fe8e3c1982a07106f362bd62ac13",
-    "recoveryArtifactSha256": "440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da",
+    "recoveryArtifactSha256": "7680f565ea44ab8a2ec089cf9a9ef67ddc27f9ecd9f94c5fe3acb9afa4d9653d",
     "exactApprovalRequired": true,
     "webOnlyForceRecreate": true,
     "buildAllowed": false,
@@ -693,6 +693,9 @@
     "transportContainsSecrets": false,
     "productionRepositoryMutationAllowed": false,
     "stagingCleanupVerified": true,
+    "persistenceRecoveryBarrierVerified": true,
+    "scanAgingPartialRetainsRecoveredIdentity": true,
+    "partialAllowsG0Advancement": false,
     "productionHealth": "degraded_persistence_auth",
     "candidateWorkerStartedByDefault": false,
     "codeActivationAllowed": false,
@@ -707,7 +710,7 @@
       "validator": "scripts/production/web-identity-recovery.mjs",
       "bundleBuilder": "scripts/production/web-identity-recovery-bundle.mjs",
       "entrypoint": "scripts/production/web-identity-recovery-entrypoint.sh",
-      "note": "Web-only identity recovery, exact approval, checksum-bound secret-free transport, repository-external staging cleanup, container-Node fallback and baseline rollback are targeted-tested; production remains unchanged and unapproved."
+      "note": "Web-only identity recovery, exact approval, checksum-bound secret-free transport, repository-external staging cleanup, container-Node fallback, pre-persistence rollback and post-persistence scan-aging PARTIAL retention are targeted-tested; production remains unchanged and unapproved."
     }
   },
   "currentDesignPackage": {

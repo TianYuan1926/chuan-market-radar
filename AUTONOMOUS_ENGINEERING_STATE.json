@@ -43,6 +43,8 @@
       "production_persistence_health_truth",
       "web_only_recovery_safety",
       "baseline_rollback_integrity",
+      "persistence_recovery_commit_barrier",
+      "scan_freshness_partial_truth",
       "temporary_runner_transport_integrity",
       "staging_pollution_cleanup"
     ],
@@ -120,7 +122,8 @@
       "执行命令只能是 no-build force-recreate web，禁止 fetch/pull/merge/build 和其它服务",
       "脱敏 bundle 只能进入批准的仓库外 0700 staging，执行后必须连同 archive/request/marker 清理",
       "成功必须证明 Web 身份指纹匹配、持久化认证恢复、health ready/fresh、其它容器未变化",
-      "失败必须以原 base Compose 恢复执行前 Web 身份基线且其它容器未变化",
+      "身份或持久化未恢复时必须以原 base Compose 恢复执行前 Web 身份基线且其它容器未变化",
+      "持久化已恢复但独立 scan 未 fresh 时必须保留正确身份、返回 PARTIAL 并阻断 G0 晋级，不得伪 PASS 或错误回滚到坏身份",
       "默认 dry-run，生产执行必须等待新的精确 90 分钟审批",
       "所有定向、基础和安全门禁通过",
       "本地准备阶段禁止生产 recreate、角色/权限/env/数据库/Redis/Feature Flag/control 变更"

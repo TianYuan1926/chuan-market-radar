@@ -74,6 +74,8 @@ test("current recovery package passes local preparation without production autho
   assert.equal(result.runner.webOnlyRecovery, true);
   assert.equal(result.runner.baselineRollback, true);
   assert.equal(result.runner.noOtherServiceMutation, true);
+  assert.equal(result.runner.persistenceRecoveryBarrier, true);
+  assert.equal(result.runner.explicitPartialResult, true);
 });
 
 test("contract rejects scope expansion and stale production facts", async () => {
@@ -90,6 +92,8 @@ test("contract rejects scope expansion and stale production facts", async () => 
     [{ scope: { ...contract.scope, productionHead: "a".repeat(40) } }, "production_head_not_locked"],
     [{ scope: { ...contract.scope, identityOverrideSha256: "0".repeat(64) } }, "identity_override_checksum_not_locked"],
     [{ rollback: { ...contract.rollback, automaticRollbackRequired: false } }, "automatic_rollback_required"],
+    [{ rollback: { ...contract.rollback, rollbackOnlyBeforePersistenceRecoveryVerified: false } }, "rollback_boundary_not_locked"],
+    [{ rollback: { ...contract.rollback, retainRecoveredIdentityOnIndependentScanDegradation: false } }, "recovered_identity_retention_not_locked"],
     [{ artifact: { ...contract.artifact, fileSha256: {} } }, "artifact_file_checksums_mismatch"],
   ];
   for (const [patch, reason] of cases) throwsReason(reason, () => validateContract({ ...contract, ...patch }));
@@ -272,8 +276,9 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
       "#!/usr/bin/env node",
       "const fs = require('node:fs'); const args = process.argv.slice(2); const url = args[args.length - 1]; const mode = fs.readFileSync(process.env.FAKE_STATE, 'utf8').trim();",
       "if (url.endsWith('/api/health')) {",
-      "  const ready = mode === 'identity' && process.env.FAKE_HEALTH_FAIL !== '1';",
-      "  console.log(JSON.stringify({ ok: true, health: { level: ready ? 'ready' : 'degraded', scan: { freshness: 'fresh' }, persistence: { databaseStatus: 'ready', detail: ready ? 'repository reads ready' : 'storage unavailable: password authentication failed' } } })); process.exit(0);",
+      "  const persistenceReady = mode === 'identity' && process.env.FAKE_HEALTH_FAIL !== '1';",
+      "  const scanFresh = persistenceReady && process.env.FAKE_SCAN_AGING !== '1';",
+      "  console.log(JSON.stringify({ ok: true, health: { level: scanFresh ? 'ready' : 'degraded', scan: { freshness: scanFresh ? 'fresh' : 'aging' }, persistence: { databaseStatus: 'ready', detail: persistenceReady ? 'repository reads ready' : 'storage unavailable: password authentication failed' } } })); process.exit(0);",
       "}",
       "console.log(JSON.stringify({ ok: true }));",
       "",
@@ -301,6 +306,8 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
       WEB_IDENTITY_RECOVERY_FORCE_CONTAINER_VALIDATOR: "true",
       WEB_READY_POLL_SECONDS: "0",
       WEB_READY_TIMEOUT_SECONDS: "0",
+      FULL_HEALTH_TIMEOUT_SECONDS: "0",
+      FULL_HEALTH_POLL_SECONDS: "0",
     };
     const run = (extra = {}) => execFileAsync("/bin/bash", [join(stage, "scripts/production/web-identity-recovery.sh")], {
       cwd: process.cwd(),
@@ -317,6 +324,15 @@ test("isolated execute changes only Web and restores the pre-recovery baseline o
     await writeFile(mutationLog, "");
     const containerValidatorSuccess = await run({ WEB_IDENTITY_RECOVERY_FORCE_CONTAINER_VALIDATOR: "true" });
     assert.match(containerValidatorSuccess.stdout, /PASS_PRODUCTION_WEB_IDENTITY_RECOVERY/);
+    assert.equal((await readFile(stateFile, "utf8")).trim(), "identity");
+    assert.equal((await readFile(mutationLog, "utf8")).trim(), "identity:web");
+
+    await writeFile(stateFile, "baseline\n");
+    await writeFile(mutationLog, "");
+    await assert.rejects(run({ FAKE_SCAN_AGING: "1" }), (error) => {
+      assert.match(error.stderr, /PARTIAL_PRODUCTION_WEB_IDENTITY_RECOVERY_SCAN_NOT_FRESH/);
+      return true;
+    });
     assert.equal((await readFile(stateFile, "utf8")).trim(), "identity");
     assert.equal((await readFile(mutationLog, "utf8")).trim(), "identity:web");
 
@@ -419,9 +435,19 @@ test("entrypoint preserves nonzero SIGTERM status and still removes staging", as
     }), { mode: 0o600 });
     await writeFile(join(stage, ".transport-bundle.sha256"), `${bundleSha}\n`, { mode: 0o600 });
     const child = spawn("/bin/bash", [join(stage, "scripts/production/web-identity-recovery-entrypoint.sh")]);
-    setTimeout(() => child.kill("SIGTERM"), 25);
-    const [code] = await once(child, "exit");
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try {
+        await stat(join(stage, ".entrypoint-ready"));
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    assert.equal((await stat(join(stage, ".entrypoint-ready"))).isFile(), true);
+    child.kill("SIGTERM");
+    const [code, signal] = await once(child, "exit");
     assert.equal(code, 143);
+    assert.equal(signal, null);
     await assert.rejects(stat(stage));
   } finally {
     await rm(directory, { recursive: true, force: true });

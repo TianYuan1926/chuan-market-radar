@@ -13,6 +13,8 @@ CONFIRM_WEB_IDENTITY_RECOVERY="${CONFIRM_WEB_IDENTITY_RECOVERY:-false}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
 WEB_READY_TIMEOUT_SECONDS="${WEB_READY_TIMEOUT_SECONDS:-180}"
 WEB_READY_POLL_SECONDS="${WEB_READY_POLL_SECONDS:-3}"
+FULL_HEALTH_TIMEOUT_SECONDS="${FULL_HEALTH_TIMEOUT_SECONDS:-1200}"
+FULL_HEALTH_POLL_SECONDS="${FULL_HEALTH_POLL_SECONDS:-10}"
 WEB_IDENTITY_RECOVERY_FORCE_CONTAINER_VALIDATOR="${WEB_IDENTITY_RECOVERY_FORCE_CONTAINER_VALIDATOR:-false}"
 VALIDATOR="${SOURCE_ROOT}/scripts/production/web-identity-recovery.mjs"
 CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-production-web-identity-recovery.v1.json"
@@ -217,6 +219,40 @@ wait_for_web_http() {
   done
 }
 
+health_has_recovered_persistence() {
+  jq -e '
+    .ok == true
+    and .health.persistence.databaseStatus == "ready"
+    and ((.health.persistence.detail // "") | ascii_downcase | contains("authentication failed") | not)
+    and ((.health.persistence.detail // "") | ascii_downcase | contains("storage unavailable") | not)
+  ' >/dev/null 2>&1
+}
+
+health_is_fully_ready() {
+  jq -e '
+    .ok == true
+    and .health.level == "ready"
+    and .health.scan.freshness == "fresh"
+    and .health.persistence.databaseStatus == "ready"
+    and ((.health.persistence.detail // "") | ascii_downcase | contains("authentication failed") | not)
+    and ((.health.persistence.detail // "") | ascii_downcase | contains("storage unavailable") | not)
+  ' >/dev/null 2>&1
+}
+
+wait_for_full_recovery_health() {
+  local deadline=$((SECONDS + FULL_HEALTH_TIMEOUT_SECONDS)) body
+  while true; do
+    body="$(curl -fsS "${BASE_URL}/api/health" 2>/dev/null || true)"
+    if health_is_fully_ready <<<"${body}"; then
+      return 0
+    fi
+    if (( SECONDS >= deadline )); then
+      return 1
+    fi
+    sleep "${FULL_HEALTH_POLL_SECONDS}"
+  done
+}
+
 verify_other_containers_unchanged() {
   local after
   after="$(${DOCKER[@]} ps --format '{{.Names}}={{.ID}}' | grep -v "^${WEB_CONTAINER_NAME}=" | sort)"
@@ -225,10 +261,11 @@ verify_other_containers_unchanged() {
 }
 
 MUTATED=false
+PERSISTENCE_RECOVERY_VERIFIED=false
 rollback_on_failure() {
   local exit_code=$?
   trap - EXIT
-  if [[ "${exit_code}" -eq 0 || "${MUTATED}" != "true" ]]; then
+  if [[ "${exit_code}" -eq 0 || "${MUTATED}" != "true" || "${PERSISTENCE_RECOVERY_VERIFIED}" == "true" ]]; then
     exit "${exit_code}"
   fi
   echo "ERROR: identity recovery failed; restoring the approved pre-recovery Web baseline." >&2
@@ -271,15 +308,8 @@ if [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD)" != "${APPROVED_HEAD}" || -n "$(gi
 fi
 
 health_body="$(curl -fsS "${BASE_URL}/api/health")"
-if ! jq -e '
-  .ok == true
-  and .health.level == "ready"
-  and .health.scan.freshness == "fresh"
-  and .health.persistence.databaseStatus == "ready"
-  and ((.health.persistence.detail // "") | ascii_downcase | contains("authentication failed") | not)
-  and ((.health.persistence.detail // "") | ascii_downcase | contains("storage unavailable") | not)
-' >/dev/null <<<"${health_body}"; then
-  echo "ERROR: production health did not recover to ready/fresh persistence truth." >&2
+if ! health_has_recovered_persistence <<<"${health_body}"; then
+  echo "ERROR: production persistence identity did not recover." >&2
   exit 1
 fi
 for endpoint in /api/frontend/radar-contract /api/radar/backend-contract /api/radar/business-capability; do
@@ -314,6 +344,14 @@ NODE
 if ${DOCKER[@]} ps --format '{{.Names}}' | grep -qx 'chuan-market-radar-candidate-shadow-worker-1'; then
   echo "ERROR: Candidate worker appeared during recovery." >&2
   exit 1
+fi
+
+PERSISTENCE_RECOVERY_VERIFIED=true
+if ! wait_for_full_recovery_health; then
+  trap - EXIT
+  echo "PARTIAL_PRODUCTION_WEB_IDENTITY_RECOVERY_SCAN_NOT_FRESH" >&2
+  echo "ERROR: persistence identity recovered, but production health did not reach ready/fresh; recovered identity was retained and G0 advancement remains blocked." >&2
+  exit 2
 fi
 
 trap - EXIT

@@ -33,7 +33,7 @@
 - 生产 `docker-compose.yml` SHA-256：`2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e`
 - `.env` 与 `.env.production`：审批前只读重取 SHA-256 并写入 request；只记录指纹，不记录内容。
 - 当前 Web image ID：必须在审批前只读重取并写入 request。
-- Recovery artifact SHA-256：`440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da`
+- Recovery artifact SHA-256：`7680f565ea44ab8a2ec089cf9a9ef67ddc27f9ecd9f94c5fe3acb9afa4d9653d`
 - request 必须同时绑定 Recovery artifact、合同 checksum、最终 runner source commit、脱敏 transport bundle checksum 和仓库外 staging 绝对路径。
 - runner 在生产 mutation 前逐文件校验 entrypoint、validator 与 recovery shell checksum；transport manifest 还必须证明 bundle 不含 secret、不会修改生产仓库。
 - 服务白名单：`web`
@@ -82,7 +82,9 @@ PASS_PRODUCTION_WEB_IDENTITY_RECOVERY
 
 ## 7. 自动回滚
 
-一旦 Web recreate 后发生任一失败，runner 使用执行前的 base Compose（不带 identity override）并以同一旧 image 执行 Web-only no-build force recreate，恢复已知的执行前基线。回滚后再次确认 Web 可访问和其它容器 ID 未变。
+Web recreate 后，如果数据库身份、持久化读取、镜像、合同、Candidate dormant 或非 Web 容器边界未通过，runner 使用执行前的 base Compose（不带 identity override）并以同一旧 image 执行 Web-only no-build force recreate，恢复执行前基线。回滚后再次确认 Web 可访问和其它容器 ID 未变。
+
+如果数据库身份和持久化读取已经真实恢复，但独立的 scan freshness 在固定 20 分钟窗口内仍未达到 fresh，runner 不得把 Web 回滚到已知错误数据库身份；必须保留正确身份、以退出码 2 返回 `PARTIAL_PRODUCTION_WEB_IDENTITY_RECOVERY_SCAN_NOT_FRESH`，并继续阻断 Dormant Deploy 和 G0 晋级。该 PARTIAL 绝不等于成功或生产正常。
 
 回滚只能写 `ROLLBACK_PRE_RECOVERY_WEB_BASELINE_ATTEMPTED`，不能写恢复成功，也不能把 degraded 基线包装成健康。
 

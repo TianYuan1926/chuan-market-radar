@@ -25,20 +25,22 @@
   "rollback": {
     "baselineComposeWithoutIdentityOverride": true,
     "automaticRollbackRequired": true,
+    "rollbackOnlyBeforePersistenceRecoveryVerified": true,
+    "retainRecoveredIdentityOnIndependentScanDegradation": true,
     "rollbackService": "web",
     "rollbackBuildAllowed": false
   },
   "artifact": {
-    "sha256": "440bae3d22e820358cce794ad8d656722ffba7e510af58ab1b5473b51efc51da",
+    "sha256": "7680f565ea44ab8a2ec089cf9a9ef67ddc27f9ecd9f94c5fe3acb9afa4d9653d",
     "files": [
       "scripts/production/web-identity-recovery-entrypoint.sh",
       "scripts/production/web-identity-recovery.mjs",
       "scripts/production/web-identity-recovery.sh"
     ],
     "fileSha256": {
-      "scripts/production/web-identity-recovery-entrypoint.sh": "30cfebcd27528abf19c48a115eb036e2e4e2a1a09ec2df2c667ee3a7677e7a9c",
-      "scripts/production/web-identity-recovery.mjs": "0b655400b7e09b4a15753bf85e3bd13a2525ad414485b88c6294af410debf900",
-      "scripts/production/web-identity-recovery.sh": "ed026b512f8b4446954a9a0c16001831fd42835861ac6644e53bddd74436d0f9"
+      "scripts/production/web-identity-recovery-entrypoint.sh": "1fe3213f8f3b5c4b9215b6f681292697538b14b73c56e692666de854e0aca1ec",
+      "scripts/production/web-identity-recovery.mjs": "76bd4ad73ea8586467c4336837b8037fe8e7682aa0b9aaa6220ee518e0d1808f",
+      "scripts/production/web-identity-recovery.sh": "777d2e9edbf485b175844309bfb696282958168f2ca5c038d7bfefadd1c67a8d"
     }
   },
   "transport": {
@@ -63,6 +65,13 @@
     "candidate_runtime_remains_dormant",
     "temporary_staging_removed_after_execution"
   ],
+  "partialResult": {
+    "label": "PARTIAL_PRODUCTION_WEB_IDENTITY_RECOVERY_SCAN_NOT_FRESH",
+    "allowedOnlyWhenPersistenceRecoveryVerified": true,
+    "retainRecoveredIdentity": true,
+    "g0AdvancementAllowed": false,
+    "dormantDeployAllowed": false
+  },
   "forbidden": [
     "production_repository_fetch_pull_merge_checkout_or_write",
     "image_build",
