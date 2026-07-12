@@ -7,6 +7,7 @@ import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   AUTHORIZED_ARTIFACT_HASH,
+  AUTHORIZED_MANIFEST,
   AUTHORIZED_MANIFEST_HASH,
   AUTHORIZED_SOURCE_COMMIT,
   EXPECTED_MIGRATION_CHECKSUMS,
@@ -84,7 +85,8 @@ async function main() {
   }
   const manifest = {
     artifactFiles,
-    artifactFormat: "market-radar-production-migration-runner.v1",
+    artifactFormat: "market-radar-production-migration-runner.v2",
+    authorizationManifest: AUTHORIZED_MANIFEST,
     candidateMigrationArtifactHash: AUTHORIZED_ARTIFACT_HASH,
     candidateMigrationManifestHash: AUTHORIZED_MANIFEST_HASH,
     candidateMigrationSourceCommit: AUTHORIZED_SOURCE_COMMIT,

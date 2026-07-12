@@ -7,11 +7,17 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 export const AUTHORIZED_SOURCE_COMMIT =
-  "e9604336c24fdc625437c43bba4d9a7688e58cd0";
+  "b86f3282fa0d9cedab60b8a5bcb9166011fb7926";
 export const AUTHORIZED_MANIFEST_HASH =
-  "56ad07d07263e35495cf20eb43dccfb8c36a0ad50a3f8e517634188ba658d102";
+  "dc2e1c95b4c53145b28096cee04fc8e93df9edd02a6a034fff66591099bb2e5b";
 export const AUTHORIZED_ARTIFACT_HASH =
-  "ab0e6f06e5ccab3b919e4e91212f5628160f41582a1d2e2ca443bdd4aee8b76f";
+  "b0d062ec3eac201f1d2ada7608cc0293e9f743a7721bb5c85bc4ef26eb5f5ee7";
+export const AUTHORIZED_WORK_PACKAGE =
+  "WP-G0.2-SHADOW-CAPTURE-PRODUCTION-ADD-SAFETY-SCHEMA";
+export const ONLY_PENDING_MIGRATION = "009_candidate_shadow_capture_safety";
+export const ONLY_PENDING_MIGRATION_CHECKSUM =
+  "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5";
+export const MAXIMUM_APPROVAL_WINDOW_MS = 90 * 60 * 1000;
 export const PRODUCTION_WORKTREE = "/home/ubuntu/apps/chuan-market-radar";
 export const MIGRATION_OWNER_ROLE = "candidate_migration_role";
 export const APPLICATION_RUNTIME_ROLE = "market_radar_app_runtime";
@@ -34,6 +40,26 @@ export const EXPECTED_MIGRATION_CHECKSUMS = Object.freeze({
     "f89869c5650693b65157ad671359d9ab3d412f1e14336b24e7335b4b23cc6448",
   "008_candidate_constraints_and_procedures.sql":
     "f289062a70d89d2c4b80bfdcd942653b672301ff3ac27c301b592af271d0cb17",
+  "009_candidate_shadow_capture_safety.sql":
+    "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5",
+});
+
+export const EXPECTED_APPLIED_BASELINE = Object.freeze(
+  Object.keys(EXPECTED_MIGRATION_CHECKSUMS)
+    .slice(0, 8)
+    .map((filename) => filename.replace(/\.sql$/, "")),
+);
+
+export const AUTHORIZED_MANIFEST = Object.freeze({
+  workPackage: AUTHORIZED_WORK_PACKAGE,
+  sourceCommit: AUTHORIZED_SOURCE_COMMIT,
+  artifactHash: AUTHORIZED_ARTIFACT_HASH,
+  onlyPendingMigration: ONLY_PENDING_MIGRATION,
+  onlyPendingChecksum: ONLY_PENDING_MIGRATION_CHECKSUM,
+  expectedAppliedBaseline: EXPECTED_APPLIED_BASELINE,
+  maximumApprovalWindowMinutes: 90,
+  roleBootstrapEnabled: false,
+  runtimeDeploymentAllowed: false,
 });
 
 export const CANDIDATE_ROLE_ALLOWLIST = Object.freeze([
@@ -153,7 +179,12 @@ export function validateApprovalWindow(request, now = new Date()) {
   if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)) {
     throw new RunnerPolicyError("approval_window_missing");
   }
-  if (issuedAt > nowMs || expiresAt <= nowMs || expiresAt - issuedAt > 24 * 60 * 60 * 1000) {
+  if (
+    issuedAt > nowMs
+    || expiresAt <= nowMs
+    || expiresAt <= issuedAt
+    || expiresAt - issuedAt > MAXIMUM_APPROVAL_WINDOW_MS
+  ) {
     throw new RunnerPolicyError("approval_window_invalid_or_expired");
   }
 }
@@ -168,6 +199,9 @@ export function validateRequest(request, { now = new Date() } = {}) {
     "migrationReleaseId",
     "operator",
     "applicationRelease",
+    "workPackage",
+    "onlyMigrationVersion",
+    "onlyMigrationChecksum",
   ]) {
     if (typeof request[field] !== "string" || !request[field].trim()) {
       throw new RunnerPolicyError(`${field}_missing`);
@@ -189,6 +223,17 @@ export function validateRequest(request, { now = new Date() } = {}) {
     request.artifactHash,
     AUTHORIZED_ARTIFACT_HASH,
     "artifact_hash_mismatch",
+  );
+  if (request.workPackage !== AUTHORIZED_WORK_PACKAGE) {
+    throw new RunnerPolicyError("work_package_mismatch");
+  }
+  if (request.onlyMigrationVersion !== ONLY_PENDING_MIGRATION) {
+    throw new RunnerPolicyError("only_migration_version_mismatch");
+  }
+  assertExactHash(
+    request.onlyMigrationChecksum,
+    ONLY_PENDING_MIGRATION_CHECKSUM,
+    "only_migration_checksum_mismatch",
   );
 
   if (!new Set(["rehearsal", "production"]).has(request.targetClass)) {
@@ -215,6 +260,13 @@ export function validateRequest(request, { now = new Date() } = {}) {
   }
   if (request.targetClass === "production" && request.execute && !request.confirmationDigest) {
     throw new RunnerPolicyError("production_confirmation_digest_missing");
+  }
+  if (
+    request.targetClass === "production"
+    && request.execute
+    && (request.roleBootstrapEnabled || !request.schemaMigrationEnabled)
+  ) {
+    throw new RunnerPolicyError("production_schema_only_scope_mismatch");
   }
 
   return request;
@@ -421,6 +473,44 @@ export function validateMigrationSql(filename, sql) {
   return true;
 }
 
+export function validateMigrationLedger(rows, expectedState) {
+  if (!Array.isArray(rows)) {
+    throw new RunnerPolicyError("migration_registry_invalid");
+  }
+  const expectedVersions = expectedState === "baseline_1_8"
+    ? EXPECTED_APPLIED_BASELINE
+    : expectedState === "complete_1_9"
+      ? Object.keys(EXPECTED_MIGRATION_CHECKSUMS).map((filename) => filename.replace(/\.sql$/, ""))
+      : null;
+  if (!expectedVersions) {
+    throw new RunnerPolicyError("migration_registry_expected_state_invalid");
+  }
+  if (rows.length !== expectedVersions.length) {
+    throw new RunnerPolicyError(
+      expectedState === "baseline_1_8"
+        ? "production_migration_baseline_mismatch"
+        : "production_migration_completion_mismatch",
+    );
+  }
+  for (let index = 0; index < expectedVersions.length; index += 1) {
+    const row = rows[index];
+    const version = expectedVersions[index];
+    const filename = `${version}.sql`;
+    if (
+      row?.version !== version
+      || row?.checksum !== EXPECTED_MIGRATION_CHECKSUMS[filename]
+      || row?.status !== "applied"
+    ) {
+      throw new RunnerPolicyError(
+        expectedState === "baseline_1_8"
+          ? "production_migration_baseline_mismatch"
+          : "production_migration_completion_mismatch",
+      );
+    }
+  }
+  return true;
+}
+
 export async function loadAndValidateArtifact(artifactRoot) {
   const migrationDirectory = join(artifactRoot, "migrations", "candidate-episode");
   const filenames = (await readdir(migrationDirectory))
@@ -534,12 +624,15 @@ export function auditRecord({ command, request, result, status }) {
     generatedAt: new Date().toISOString(),
     manifestHash: request.manifestHash,
     migrationReleaseId: request.migrationReleaseId,
+    onlyMigrationChecksum: request.onlyMigrationChecksum,
+    onlyMigrationVersion: request.onlyMigrationVersion,
     operatorHash: hashIdentity(request.operator),
     result,
     schemaMigrationEnabled: request.schemaMigrationEnabled,
     sourceCommit: request.sourceCommit,
     status,
     targetClass: request.targetClass,
+    workPackage: request.workPackage,
     roleBootstrapEnabled: request.roleBootstrapEnabled,
   });
 }

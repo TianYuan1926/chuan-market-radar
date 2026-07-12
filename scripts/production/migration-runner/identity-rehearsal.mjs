@@ -9,6 +9,9 @@ import {
   AUTHORIZED_ARTIFACT_HASH,
   AUTHORIZED_MANIFEST_HASH,
   AUTHORIZED_SOURCE_COMMIT,
+  AUTHORIZED_WORK_PACKAGE,
+  ONLY_PENDING_MIGRATION,
+  ONLY_PENDING_MIGRATION_CHECKSUM,
   sha256,
 } from "./runner-core.mjs";
 
@@ -173,12 +176,15 @@ async function main() {
     lockTimeout: "5s",
     manifestHash: AUTHORIZED_MANIFEST_HASH,
     migrationReleaseId: `wp-g0-2-isolated-${now}`,
+    onlyMigrationChecksum: ONLY_PENDING_MIGRATION_CHECKSUM,
+    onlyMigrationVersion: ONLY_PENDING_MIGRATION,
     operator: "isolated-rehearsal",
     roleBootstrapEnabled: true,
     schemaMigrationEnabled: true,
     sourceCommit: AUTHORIZED_SOURCE_COMMIT,
     statementTimeout: "10min",
     targetClass: "rehearsal",
+    workPackage: AUTHORIZED_WORK_PACKAGE,
   };
   const migrationRequestFile = join(workDirectory, "migration-request.json");
   const migrationConfirmationFile = join(workDirectory, "migration-confirmation");
@@ -225,12 +231,12 @@ async function main() {
     functions: catalog.functions,
     roles: catalog.roles,
     status:
-      catalog.tables === 8 &&
-      catalog.columns === 151 &&
-      catalog.functions === 20 &&
-      catalog.triggers === 14 &&
+      catalog.tables === 9 &&
+      catalog.columns === 166 &&
+      catalog.functions === 26 &&
+      catalog.triggers === 16 &&
       catalog.roles === 7 &&
-      catalog.applied_migrations === 8
+      catalog.applied_migrations === 9
         ? "pass"
         : "fail",
     tables: catalog.tables,

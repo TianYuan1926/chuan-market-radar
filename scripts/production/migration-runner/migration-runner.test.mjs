@@ -5,10 +5,14 @@ import { join } from "node:path";
 import test from "node:test";
 import {
   AUTHORIZED_ARTIFACT_HASH,
+  AUTHORIZED_MANIFEST,
   AUTHORIZED_MANIFEST_HASH,
   AUTHORIZED_SOURCE_COMMIT,
+  AUTHORIZED_WORK_PACKAGE,
   CANDIDATE_ROLE_ALLOWLIST,
   EXPECTED_MIGRATION_CHECKSUMS,
+  ONLY_PENDING_MIGRATION,
+  ONLY_PENDING_MIGRATION_CHECKSUM,
   RunnerPolicyError,
   assertOutsideProductionWorktree,
   assertSecureFile,
@@ -19,6 +23,7 @@ import {
   splitSchemaOwnerTransition,
   validateConfirmation,
   validateMigrationSql,
+  validateMigrationLedger,
   validateRequest,
   validateRoleBootstrapSql,
   validateRoleIdentity,
@@ -29,7 +34,7 @@ import { verifyMigrationIdentity } from "./migration-runner.mjs";
 const now = new Date("2026-07-11T02:00:00.000Z");
 const baseRequest = {
   applicationRelease: "0599f802f261fe8e3c1982a07106f362bd62ac13",
-  approvalExpiresAt: "2026-07-11T03:00:00.000Z",
+  approvalExpiresAt: "2026-07-11T02:30:00.000Z",
   approvalIssuedAt: "2026-07-11T01:00:00.000Z",
   approvalRef: "wp-g0-2-identity-runner-user-contract",
   artifactHash: AUTHORIZED_ARTIFACT_HASH,
@@ -37,12 +42,15 @@ const baseRequest = {
   lockTimeout: "5s",
   manifestHash: AUTHORIZED_MANIFEST_HASH,
   migrationReleaseId: "wp-g0-2-schema-test",
+  onlyMigrationChecksum: ONLY_PENDING_MIGRATION_CHECKSUM,
+  onlyMigrationVersion: ONLY_PENDING_MIGRATION,
   operator: "test-operator",
   roleBootstrapEnabled: false,
   schemaMigrationEnabled: false,
   sourceCommit: AUTHORIZED_SOURCE_COMMIT,
   statementTimeout: "10min",
   targetClass: "production",
+  workPackage: AUTHORIZED_WORK_PACKAGE,
 };
 
 function rejectsReason(reason, operation) {
@@ -70,6 +78,8 @@ for (const [name, patch, reason] of [
   ["execute flag", { execute: undefined }, "execute_flag_missing"],
   ["role bootstrap flag", { roleBootstrapEnabled: undefined }, "role_bootstrap_flag_missing"],
   ["schema flag", { schemaMigrationEnabled: undefined }, "schema_migration_flag_missing"],
+  ["work package", { workPackage: "wrong" }, "work_package_mismatch"],
+  ["only migration", { onlyMigrationVersion: "008_wrong" }, "only_migration_version_mismatch"],
 ] ) {
   test(`rejects invalid ${name}`, () => {
     throwsReason(reason, () => validateRequest({ ...baseRequest, ...patch }, { now }));
@@ -81,15 +91,28 @@ test("rejects an expired approval", () => {
     validateRequest({ ...baseRequest, approvalExpiresAt: "2026-07-11T01:59:59.000Z" }, { now }));
 });
 
+test("rejects an approval window longer than 90 minutes", () => {
+  throwsReason("approval_window_invalid_or_expired", () =>
+    validateRequest({
+      ...baseRequest,
+      approvalIssuedAt: "2026-07-11T01:00:00.000Z",
+      approvalExpiresAt: "2026-07-11T02:30:01.000Z",
+    }, { now }));
+});
+
 test("rejects enabled phases while execute is false", () => {
   throwsReason("dry_run_phase_enablement_forbidden", () =>
     validateRequest({ ...baseRequest, roleBootstrapEnabled: true }, { now }));
 });
 
-test("validates the locked eight-file artifact", async () => {
+test("validates the locked nine-file artifact", async () => {
   const artifact = await loadAndValidateArtifact(process.cwd());
-  assert.equal(artifact.migrationFileCount, 8);
+  assert.equal(artifact.migrationFileCount, 9);
   assert.equal(artifact.artifactHash, AUTHORIZED_ARTIFACT_HASH);
+});
+
+test("authorization manifest hash is canonical", () => {
+  assert.equal(sha256(JSON.stringify(AUTHORIZED_MANIFEST)), AUTHORIZED_MANIFEST_HASH);
 });
 
 test("artifact hash uses the canonical filename to checksum map", async () => {
@@ -124,6 +147,44 @@ test("rejects checksum drift in a complete artifact", async () => {
   } finally {
     await rm(root, { force: true, recursive: true });
   }
+});
+
+const baselineLedger = Object.keys(EXPECTED_MIGRATION_CHECKSUMS).slice(0, 8).map((filename) => ({
+  checksum: EXPECTED_MIGRATION_CHECKSUMS[filename],
+  status: "applied",
+  version: filename.replace(/\.sql$/, ""),
+}));
+const completeLedger = [
+  ...baselineLedger,
+  {
+    checksum: ONLY_PENDING_MIGRATION_CHECKSUM,
+    status: "applied",
+    version: ONLY_PENDING_MIGRATION,
+  },
+];
+
+test("accepts the exact production 1-8 baseline and 1-9 completion ledgers", () => {
+  assert.equal(validateMigrationLedger(baselineLedger, "baseline_1_8"), true);
+  assert.equal(validateMigrationLedger(completeLedger, "complete_1_9"), true);
+});
+
+test("rejects 009 before execute and rejects an incomplete post-execute ledger", () => {
+  throwsReason("production_migration_baseline_mismatch", () =>
+    validateMigrationLedger(completeLedger, "baseline_1_8"));
+  throwsReason("production_migration_completion_mismatch", () =>
+    validateMigrationLedger(baselineLedger, "complete_1_9"));
+});
+
+test("production execute is schema-only and cannot bootstrap roles", () => {
+  const executable = {
+    ...baseRequest,
+    confirmationDigest: "a".repeat(64),
+    execute: true,
+    schemaMigrationEnabled: true,
+  };
+  assert.equal(validateRequest(executable, { now }), executable);
+  throwsReason("production_schema_only_scope_mismatch", () =>
+    validateRequest({ ...executable, roleBootstrapEnabled: true }, { now }));
 });
 
 test("role migration split recomposes the exact locked bytes", async () => {

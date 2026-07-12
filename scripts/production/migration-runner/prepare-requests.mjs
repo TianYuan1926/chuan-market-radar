@@ -7,9 +7,13 @@ import {
   AUTHORIZED_ARTIFACT_HASH,
   AUTHORIZED_MANIFEST_HASH,
   AUTHORIZED_SOURCE_COMMIT,
+  AUTHORIZED_WORK_PACKAGE,
+  ONLY_PENDING_MIGRATION,
+  ONLY_PENDING_MIGRATION_CHECKSUM,
   RunnerPolicyError,
   assertOutsideProductionWorktree,
   sha256,
+  validateRequest,
 } from "./runner-core.mjs";
 
 function parseArgs(argv) {
@@ -37,7 +41,11 @@ async function writeSecure(filePath, value) {
 
 async function main() {
   const { command, options } = parseArgs(process.argv.slice(2));
-  if (command !== "identity" && command !== "migration-dry-run") {
+  if (
+    command !== "identity"
+    && command !== "migration-dry-run"
+    && command !== "migration-schema-only"
+  ) {
     throw new RunnerPolicyError("command_unsupported");
   }
   const outputDirectory = resolve(required(options, "output-dir"));
@@ -47,10 +55,16 @@ async function main() {
   });
   await mkdir(outputDirectory, { mode: 0o700, recursive: true });
   const now = new Date();
+  const approvalIssuedAt = command === "migration-schema-only"
+    ? required(options, "approval-issued-at")
+    : now.toISOString();
+  const approvalExpiresAt = command === "migration-schema-only"
+    ? required(options, "approval-expires-at")
+    : new Date(now.getTime() + 60 * 60 * 1000).toISOString();
   const common = {
     applicationRelease: required(options, "application-release"),
-    approvalExpiresAt: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
-    approvalIssuedAt: now.toISOString(),
+    approvalExpiresAt,
+    approvalIssuedAt,
     approvalRef: required(options, "approval-ref"),
     operator: required(options, "operator"),
     targetClass: "production",
@@ -68,22 +82,42 @@ async function main() {
     await writeSecure(join(outputDirectory, "identity-request.json"), `${JSON.stringify(request)}\n`);
     await writeSecure(join(outputDirectory, "identity-confirmation"), confirmation);
   } else {
+    const execute = command === "migration-schema-only";
     const request = {
       ...common,
       artifactHash: AUTHORIZED_ARTIFACT_HASH,
-      execute: false,
+      execute,
       lockTimeout: "5s",
       manifestHash: AUTHORIZED_MANIFEST_HASH,
       migrationReleaseId: required(options, "migration-release-id"),
+      onlyMigrationChecksum: ONLY_PENDING_MIGRATION_CHECKSUM,
+      onlyMigrationVersion: ONLY_PENDING_MIGRATION,
       roleBootstrapEnabled: false,
-      schemaMigrationEnabled: false,
+      schemaMigrationEnabled: execute,
       sourceCommit: AUTHORIZED_SOURCE_COMMIT,
       statementTimeout: "10min",
+      workPackage: AUTHORIZED_WORK_PACKAGE,
     };
+    let confirmation = null;
+    if (execute) {
+      confirmation = randomBytes(32).toString("base64url");
+      request.confirmationDigest = sha256(confirmation);
+      request.confirmationExpiresAt = new Date(Math.min(
+        Date.parse(approvalExpiresAt),
+        now.getTime() + 15 * 60 * 1000,
+      )).toISOString();
+    }
+    validateRequest(request, { now });
+    const requestName = execute
+      ? "migration-schema-only-request.json"
+      : "migration-dry-run-request.json";
     await writeSecure(
-      join(outputDirectory, "migration-dry-run-request.json"),
+      join(outputDirectory, requestName),
       `${JSON.stringify(request)}\n`,
     );
+    if (confirmation) {
+      await writeSecure(join(outputDirectory, "migration-schema-only-confirmation"), confirmation);
+    }
   }
   process.stdout.write(`${JSON.stringify({ command, status: "pass" })}\n`);
 }

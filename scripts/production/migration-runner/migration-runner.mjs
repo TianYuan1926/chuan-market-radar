@@ -6,8 +6,10 @@ import { fileURLToPath } from "node:url";
 import pg from "./pg-client.mjs";
 import {
   AUTHORIZED_SOURCE_COMMIT,
+  EXPECTED_APPLIED_BASELINE,
   MIGRATION_LOGIN_ROLE,
   MIGRATION_OWNER_ROLE,
+  ONLY_PENDING_MIGRATION,
   PRODUCTION_WORKTREE,
   RunnerPolicyError,
   assertOutsideProductionWorktree,
@@ -22,6 +24,7 @@ import {
   splitRoleBootstrapMigration,
   splitSchemaOwnerTransition,
   validateConfirmation,
+  validateMigrationLedger,
   validateRequest,
   validateRoleIdentity,
 } from "./runner-core.mjs";
@@ -131,7 +134,15 @@ async function readDatabaseBoundary(client) {
   const result = await client.query(
     `SELECT
       EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'candidate_authority') AS candidate_schema_present,
-      COALESCE((SELECT count(*)::int FROM candidate_authority.schema_migrations), 0) AS migration_rows`,
+      COALESCE((SELECT count(*)::int FROM candidate_authority.schema_migrations), 0) AS migration_rows,
+      COALESCE((
+        SELECT json_agg(json_build_object(
+          'version', version,
+          'checksum', checksum,
+          'status', status
+        ) ORDER BY version)
+        FROM candidate_authority.schema_migrations
+      ), '[]'::json) AS migration_registry`,
   ).catch(async (error) => {
     if (error?.code !== "42P01" && error?.code !== "3F000") {
       throw error;
@@ -139,11 +150,12 @@ async function readDatabaseBoundary(client) {
     const fallback = await client.query(
       "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'candidate_authority') AS candidate_schema_present",
     );
-    return { rows: [{ ...fallback.rows[0], migration_rows: 0 }] };
+    return { rows: [{ ...fallback.rows[0], migration_registry: [], migration_rows: 0 }] };
   });
 
   return {
     candidateSchemaPresent: result.rows[0]?.candidate_schema_present === true,
+    migrationRegistry: result.rows[0]?.migration_registry ?? [],
     migrationRegistryRows: Number(result.rows[0]?.migration_rows ?? 0),
   };
 }
@@ -165,6 +177,7 @@ export async function verifyMigrationIdentity(client) {
     return {
       ...identity,
       candidateSchemaPresent: null,
+      migrationRegistry: null,
       migrationRegistryRows: null,
       ownerMembership,
     };
@@ -344,12 +357,32 @@ async function executeSchemaMigrations({ artifact, migrationFile, request }) {
         `wp-g0.2-candidate-migrations:${request.manifestHash}`,
       ]);
 
+      const productionSchemaOnly = request.targetClass === "production";
       const applied = [];
-      const skipped = [];
+      const skipped = productionSchemaOnly ? [...EXPECTED_APPLIED_BASELINE] : [];
       let ownerTransitionApplied = await schemaOwnedByMigrationOwner(client);
 
       try {
-        for (const file of artifact.files) {
+        if (productionSchemaOnly) {
+          if (!ownerTransitionApplied) {
+            throw new RunnerPolicyError("production_migration_baseline_mismatch");
+          }
+          await client.query(`SET ROLE ${MIGRATION_OWNER_ROLE}`);
+          const baseline = await readDatabaseBoundary(client);
+          validateMigrationLedger(baseline.migrationRegistry, "baseline_1_8");
+          await client.query("RESET ROLE");
+        }
+
+        const targetFiles = productionSchemaOnly
+          ? artifact.files.filter(
+              (file) => file.filename.replace(/\.sql$/, "") === ONLY_PENDING_MIGRATION,
+            )
+          : artifact.files;
+        if (productionSchemaOnly && targetFiles.length !== 1) {
+          throw new RunnerPolicyError("only_pending_migration_artifact_mismatch");
+        }
+
+        for (const file of targetFiles) {
           if (ownerTransitionApplied) {
             await client.query(`SET ROLE ${MIGRATION_OWNER_ROLE}`);
           }
@@ -430,6 +463,10 @@ async function executeSchemaMigrations({ artifact, migrationFile, request }) {
             await client.query("RESET ROLE").catch(() => undefined);
           }
         }
+
+        await client.query(`SET ROLE ${MIGRATION_OWNER_ROLE}`);
+        const completed = await readDatabaseBoundary(client);
+        validateMigrationLedger(completed.migrationRegistry, "complete_1_9");
       } finally {
         await client.query("RESET ROLE").catch(() => undefined);
         await client
@@ -538,6 +575,12 @@ async function main() {
     const identities = await verifyIdentities(options);
     if (identities.migration && !identities.migration.ownerMembership) {
       throw new RunnerPolicyError("migration_owner_membership_missing");
+    }
+    if (identities.migration) {
+      validateMigrationLedger(
+        identities.migration.migrationRegistry,
+        command === "verify" ? "complete_1_9" : "baseline_1_8",
+      );
     }
     result = {
       ...baseResult,
