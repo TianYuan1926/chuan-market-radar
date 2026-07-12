@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-12T22:10:00+08:00",
+  "updatedAt": "2026-07-12T23:45:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -31,15 +31,17 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
-    "title": "Dormant release diff guard and approval refresh",
+    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-READINESS-REMEDIATION",
+    "title": "Dormant runtime deploy readiness and rollback verifier remediation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "补上 rollback 到 approved commit 的完整 release diff fail-closed 证明，阻止 Review、Canonical read、activation 或 reconciliation 代码混入 Dormant Web-only 发布，并刷新传递依赖 artifact；不连接或修改生产。",
+    "objective": "修复首次 Web-only 生产尝试暴露的新容器 readiness 竞态和回滚后误用旧 verification script 的缺陷；保持 Web-only、自动回滚、Candidate dormant 和完整 release diff fail-closed 边界。",
     "coreChainImpact": [
       "candidate_screening_dormant_deploy_integrity",
       "review_evolution_dormant_deploy_integrity",
-      "release_scope_integrity"
+      "release_scope_integrity",
+      "web_release_readiness",
+      "automatic_rollback_verification"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -56,6 +58,7 @@
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
       "reports/wp-g0-2-dormant-release-diff-guard/WP_G0_2_DORMANT_RELEASE_DIFF_GUARD_REPORT.md",
       "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-dormant-deploy.sh",
       "scripts/production/candidate-dormant-deploy.test.mjs",
       "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
       "tsconfig.market-test.json"
@@ -71,7 +74,6 @@
       "deploy/**",
       "migrations/**",
       "docker-compose.yml",
-      "scripts/production/candidate-dormant-deploy.sh",
       "scripts/production/candidate-runtime-identity/**",
       "tools/**",
       ".env",
@@ -112,14 +114,14 @@
       ]
     },
     "completionBoundary": [
-      "rollback commit 必须是 approved commit 的祖先，approved commit 必须继承锁定 release base",
-      "release diff 必须精确为 149 个 A/M 路径且 path-set SHA-256 匹配",
-      "Review、Canonical read、activation、reconciliation 与任意非 allowlist 路径必须 fail closed",
-      "审批请求必须绑定 release diff file count、SHA-256、artifact、approved/rollback commit 与 90 分钟窗口",
-      "Dormant 14 文件 artifact 与 Runtime Identity 8 文件传递 artifact 必须刷新并通过",
-      "生产决定仍为 BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",
+      "Web recreate 后必须在有限超时内等待 API readiness，再执行 dormant 合同检查",
+      "readiness 超时或后续验证失败必须恢复旧 Web 镜像与 rollback commit",
+      "回滚后必须使用批准源码中的双 env production-check 验证生产根目录",
+      "release diff 必须继续精确为 149 个 A/M 路径且 path-set SHA-256 匹配",
+      "Dormant 14 文件 artifact 必须刷新；旧 checksum 失效",
+      "生产决定必须回到 BLOCKED_AWAITING_NEW_EXPLICIT_PRODUCTION_APPROVAL",
       "所有定向、基础和安全门禁通过",
-      "本轮禁止生产连接、部署、角色/权限/env/服务/数据库/Redis/Feature Flag/control 变更"
+      "本地修复阶段禁止再次生产部署、角色/权限/env/数据库/Redis/Feature Flag/control 变更"
     ]
   },
   "approvals": [
@@ -130,6 +132,18 @@
       "expiresAt": "2026-07-12T09:04:32+08:00",
       "approvedBy": "user",
       "boundary": "verify_only_no_execute_no_ddl_no_dml"
+    },
+    {
+      "packageId": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
+      "scope": "web_only_dormant_runtime_deploy_with_automatic_web_rollback",
+      "issuedAt": "2026-07-12T22:28:53+08:00",
+      "expiresAt": "2026-07-12T23:58:53+08:00",
+      "approvedBy": "user",
+      "approvedCommit": "a8dd51954c35cad6c4b14efd3adf6bf97127a342",
+      "approvedArtifactSha256": "78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449",
+      "approvedReleaseDiffSha256": "f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37",
+      "rollbackCommit": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+      "result": "attempted_web_recreated_immediate_readiness_race_automatic_rollback_production_not_deployed"
     }
   ],
   "queue": [
@@ -200,7 +214,7 @@
       "order": 10,
       "id": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
       "lane": "production",
-      "status": "local_execute_and_rollback_rehearsal_pass_awaiting_new_explicit_approval",
+      "status": "production_attempt_automatic_rollback_readiness_remediation_and_new_approval_required",
       "requiresExplicitApproval": true
     },
     {
@@ -241,6 +255,13 @@
     {
       "order": 16,
       "id": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 17,
+      "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-READINESS-REMEDIATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

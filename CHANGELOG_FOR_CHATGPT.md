@@ -3063,3 +3063,47 @@ P0 阻断：
 ### 下一轮建议
 
 提交并推送本修复到 GitHub main 后，重新只读核对生产 rollback，再申请唯一的 Dormant Web-only 90 分钟生产审批。
+
+## 2026-07-12 / WP-G0.2 Dormant Runtime Deploy Readiness Remediation
+
+### 本轮目标
+
+执行获批的 Web-only Dormant Runtime Deploy；在自动回滚后修复 Web readiness 启动竞态和回滚后误用旧 verification script 的 P1。
+
+### 修改范围
+
+- 生产按 exact commit=`a8dd5195...`、artifact=`78f1e3fa...`、release diff 149/`f39c8a26...`、rollback=`0599f802...` 执行 Web-only build/recreate。
+- 新 Web 内部 API 尚未监听即被检查，返回 `ECONNREFUSED`；runner 自动恢复旧 Web 镜像和 rollback HEAD。
+- 本地 runner 增加有限 Web readiness 等待；回滚改用批准源码中的双 env production-check，并显式验证生产根目录。
+- readiness 演练覆盖首次失败后重试成功；旧 artifact 失效，新 14 文件 artifact=`e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a`。
+- 未修改 scan、analysis、strategy、backtest、frontend、DB、Redis、worker、secret、Feature Flag、control lifecycle 或 activation。
+
+### 核心链路影响
+
+提高 Candidate 生命周期旁路的发布和自动回滚可靠性；不改变发现、筛选、深扫、结构、风险、交易计划或复盘业务逻辑。
+
+### 测试结果
+
+- Dormant 11/11、deploy safety 5/5、Runtime Identity Runner 8/8、Composition 28/28、Autonomy unit 16/16：PASS。
+- typecheck、lint、build：PASS。
+- test:market 952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4：PASS。
+- backtest:golden 16/16、三项安全门禁：PASS。
+- Autonomy gates 17/17：PASS。
+- production smoke：新 Web 即时检查失败后自动回滚，不能计为 PASS。
+- formal：未运行，本轮禁止。
+
+### 是否部署
+
+生产尝试已执行但自动回滚，当前未部署新 Web。生产仍为 `main`/`0599f802...`/clean，Candidate runtime disabled。
+
+### 风险与遗留问题
+
+- 当前生产 DB ready、Redis 和六个 worker healthy、scan fresh，但 `marketDataQuality.status=degraded`，总 health 仍 degraded。
+- 旧审批和 `78f1e3fa...` checksum 已消耗且失效，严禁复用。
+- 新修复必须提交、推 GitHub main、以最终 commit 重跑门禁并重新生成审批。
+- Runtime Identity、activation、writer、backfill、dual read 和 read cutover 继续禁止。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+等待生产 health ready；随后只申请绑定新 commit、`e56d37ff...` artifact、149/`f39c8a26...` release diff 和 `0599f802...` rollback 的 Dormant Web-only 新审批。

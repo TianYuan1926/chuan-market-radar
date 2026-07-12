@@ -33,7 +33,7 @@
     "databaseMutationAllowed": false
   },
   "artifact": {
-    "sha256": "78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449",
+    "sha256": "e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",

@@ -163,6 +163,10 @@ test("shell stays web-only and contains an automatic web rollback path", async (
   assert.match(source, /env \\\n+  --env-file "\$\{ENV_FILE\}"/);
   assert.doesNotMatch(source, /readarray|mapfile/);
   assert.match(source, /rollback_on_failure/);
+  assert.match(source, /PASS_WEB_READY_FOR_DORMANT_CHECKS/);
+  assert.match(source, /WEB_READY_TIMEOUT_SECONDS="\$\{WEB_READY_TIMEOUT_SECONDS:-120\}"/);
+  assert.match(source, /ROOT_DIR_OVERRIDE="\$\{ROOT_DIR\}"/);
+  assert.match(source, /bash "\$\{SOURCE_ROOT\}\/scripts\/verify\/production-check\.sh"/);
   assert.match(source, /candidate_dormant_contract_failed/);
   assert.match(source, /PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION/);
   assert.doesNotMatch(source, /PASS_DORMANT_RUNTIME_DEPLOY_WEB_ONLY/);

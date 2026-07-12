@@ -26,6 +26,7 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
   const gitState = join(directory, "git-state");
   const gitLog = join(directory, "git.log");
   const dockerLog = join(directory, "docker.log");
+  const webReadyState = join(directory, "web-ready-state");
   const approvedCommit = "a".repeat(40);
   const contract = await loadContract();
   const rollbackCommit = contract.releaseBoundary.lastVerifiedProductionRollbackCommit;
@@ -167,7 +168,14 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       "if (args[0] === 'ps' || args[0] === 'tag') process.exit(0);",
       "if (args[0] !== 'compose') process.exit(0);",
       "if (joined.includes('images -q web')) console.log('sha256:isolated-old-web-image');",
-      "if (joined.includes('exec -T web node')) { fs.readFileSync(0); console.log(JSON.stringify({ candidateAdminMode: 'dormant' })); }",
+      "if (joined.includes('exec -T web node')) {",
+      "  const source = fs.readFileSync(0, 'utf8');",
+      "  if (source.includes('/api/health') && !fs.existsSync(process.env.FAKE_WEB_READY_STATE)) {",
+      "    fs.writeFileSync(process.env.FAKE_WEB_READY_STATE, 'retried\\n');",
+      "    process.exit(1);",
+      "  }",
+      "  console.log(JSON.stringify({ candidateAdminMode: 'dormant' }));",
+      "}",
       "if (joined.includes('exec -T redis')) console.log('PONG');",
       "if (joined.includes('exec -T shadow-runner')) console.log(JSON.stringify({ status: 'ready' }));",
       "process.exit(0);",
@@ -196,10 +204,13 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
       FAKE_GIT_DIFF_FILE: gitDiffFile,
       FAKE_GIT_STATE: gitState,
       FAKE_SOURCE_ROOT: process.cwd(),
+      FAKE_WEB_READY_STATE: webReadyState,
       PATH: fakeBin + ":" + process.env.PATH,
       READY_TIMEOUT_SECONDS: "0",
       REQUEST_FILE: join(directory, "request.json"),
       ROOT_DIR_OVERRIDE: targetRoot,
+      WEB_READY_POLL_SECONDS: "0",
+      WEB_READY_TIMEOUT_SECONDS: "5",
     };
     const runRunner = () => execFileAsync("/bin/bash", [
       "scripts/production/candidate-dormant-deploy.sh",
@@ -225,6 +236,8 @@ test("isolated execute rehearsal stays web-only and rolls back a failed verifica
     assert.equal(dockerCalls.includes(envOrder + " images -q web"), true);
     assert.equal(dockerCalls.includes(envOrder + " build web"), true);
     assert.equal(dockerCalls.includes(envOrder + " up -d --no-deps web"), true);
+    assert.equal((dockerCalls.match(/exec -T web node/g) ?? []).length >= 3, true);
+    assert.equal((await readFile(webReadyState, "utf8")).trim(), "retried");
     assert.doesNotMatch(
       dockerCalls,
       /candidate-shadow-worker|--profile|--remove-orphans/,

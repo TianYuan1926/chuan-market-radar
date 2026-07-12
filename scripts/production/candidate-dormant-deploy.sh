@@ -9,6 +9,8 @@ REQUEST_FILE="${REQUEST_FILE:-}"
 DORMANT_DEPLOY_MODE="${DORMANT_DEPLOY_MODE:-dry_run}"
 CONFIRM_DORMANT_DEPLOY="${CONFIRM_DORMANT_DEPLOY:-false}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
+WEB_READY_TIMEOUT_SECONDS="${WEB_READY_TIMEOUT_SECONDS:-120}"
+WEB_READY_POLL_SECONDS="${WEB_READY_POLL_SECONDS:-2}"
 
 echo "package=WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY"
 echo "mode=${DORMANT_DEPLOY_MODE}"
@@ -111,9 +113,10 @@ rollback_on_failure() {
   git checkout --detach "${ROLLBACK_COMMIT}" || true
   git branch -f main "${ROLLBACK_COMMIT}" || true
   git checkout main || true
-  BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
+  ROOT_DIR_OVERRIDE="${ROOT_DIR}" \
+    BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
     BASE_URL="${BASE_URL}" STRICT_SCAN_FRESHNESS=false \
-    bash "${ROOT_DIR}/scripts/verify/production-check.sh" || true
+    bash "${SOURCE_ROOT}/scripts/verify/production-check.sh" || true
   exit "${exit_code}"
 }
 trap rollback_on_failure EXIT
@@ -122,6 +125,37 @@ git merge --ff-only "${APPROVED_COMMIT}"
 DEPLOY_STARTED=true
 "${COMPOSE[@]}" build web
 "${COMPOSE[@]}" up -d --no-deps web
+
+if ! [[ "${WEB_READY_TIMEOUT_SECONDS}" =~ ^[0-9]+$ && "${WEB_READY_POLL_SECONDS}" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: web readiness timeout and poll values must be non-negative integers." >&2
+  exit 1
+fi
+
+web_ready=false
+web_ready_deadline=$((SECONDS + WEB_READY_TIMEOUT_SECONDS))
+while true; do
+  if "${COMPOSE[@]}" exec -T web node - >/dev/null 2>&1 <<'NODE'
+fetch("http://127.0.0.1:3000/api/health")
+  .then(async (response) => {
+    const body = await response.json();
+    if (!response.ok || body.ok !== true) process.exit(1);
+  })
+  .catch(() => process.exit(1));
+NODE
+  then
+    web_ready=true
+    break
+  fi
+  if (( SECONDS >= web_ready_deadline )); then
+    break
+  fi
+  sleep "${WEB_READY_POLL_SECONDS}"
+done
+if [[ "${web_ready}" != "true" ]]; then
+  echo "ERROR: web did not become ready within ${WEB_READY_TIMEOUT_SECONDS}s." >&2
+  exit 1
+fi
+echo "PASS_WEB_READY_FOR_DORMANT_CHECKS"
 
 "${COMPOSE[@]}" exec -T web node - <<'NODE'
 const flags = [

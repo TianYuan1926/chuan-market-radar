@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_dormant_release_diff_guard_pass_production_not_authorized",
-  "generatedAt": "2026-07-12T22:20:00+08:00",
+  "status": "wp_g0_2_dormant_production_attempt_rolled_back_readiness_remediation_local",
+  "generatedAt": "2026-07-12T23:45:00+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-DORMANT-RELEASE-DIFF-GUARD-AND-APPROVAL-REFRESH",
+    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-READINESS-REMEDIATION",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -53,10 +53,10 @@
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
-    "dormantDeployPreparationStatus": "pass_local_execute_and_rollback_rehearsal_awaiting_explicit_production_approval",
-    "dormantDeployArtifactSha256": "78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449",
+    "dormantDeployPreparationStatus": "readiness_and_rollback_verifier_remediation_local_gates_pending",
+    "dormantDeployArtifactSha256": "e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a",
     "dormantDeployArtifactFileCount": 14,
-    "dormantDeployArtifactRefreshReason": "release_diff_guard_closes_full_web_release_scope_blind_spot",
+    "dormantDeployArtifactRefreshReason": "production_attempt_exposed_web_readiness_race_and_old_rollback_verifier",
     "dormantReleaseRequiredBaseCommit": "591163a37493910c346530ebdf271f878c6a67b5",
     "dormantReleaseLastVerifiedRollbackCommit": "0599f802f261fe8e3c1982a07106f362bd62ac13",
     "dormantReleaseDiffFileCount": 149,
@@ -70,12 +70,15 @@
       ".env",
       ".env.production"
     ],
-    "dormantDeployProductionPreflight": "pass_read_only_runner_env_incompatibility_fixed_locally",
-    "dormantDeployIsolatedExecutionRehearsal": "pass_success_and_automatic_rollback_paths_on_bash_3_2",
+    "dormantDeployProductionPreflight": "pass_before_attempt_then_market_data_quality_degraded_after_rollback",
+    "dormantDeployIsolatedExecutionRehearsal": "pass_readiness_retry_success_and_automatic_rollback_paths_on_bash_3_2",
     "dormantDeployServiceAllowlist": [
       "web"
     ],
-    "dormantDeployProductionExecuted": false,
+    "dormantDeployProductionExecuted": true,
+    "dormantDeployProductionDeployed": false,
+    "dormantDeployProductionAttemptResult": "new_web_built_and_recreated_immediate_fetch_refused_automatic_rollback_to_0599f802",
+    "dormantDeployCurrentProductionHealth": "degraded_market_data_quality_gate_scan_fresh_workers_healthy",
     "runtimeIdentityLocalPreparationStatus": "pass_code_contract_and_isolated_postgres16_production_not_connected",
     "runtimeIdentityTransactionRoleMode": "explicit_set_local_role_from_fixed_purpose_map",
     "runtimeIdentityLoginTopology": "three_unique_noinherit_logins_one_membership_each",
@@ -91,10 +94,10 @@
     "shadowCaptureKnownBlockers": [
       "production_runtime_wiring_not_deployed",
       "candidate_runtime_identities_not_provisioned",
-      "dormant_runtime_deploy_not_approved",
+      "dormant_runtime_deploy_not_passed_new_approval_required",
       "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "dormant_runtime_deploy_only_after_new_explicit_approval",
+    "nextProductionAction": "wait_for_health_ready_then_dormant_runtime_deploy_only_after_new_exact_approval",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
@@ -667,7 +670,7 @@
     "releaseDiffSha256": "f39c8a26ddf5ed8047a081a79bbbcaeed2ebfcc9540466d6e806adad8ce91f37",
     "releaseDiffStatuses": ["A", "M"],
     "futureCodeContaminationRejected": true,
-    "dormantArtifactSha256": "78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449",
+    "dormantArtifactSha256": "e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a",
     "runtimeIdentityArtifactSha256": "855f8e0d72bb30cb65852c91efa6f89d5c325d9c8eb91f51e02acc7f028070a2",
     "staleCompiledTestsRejected": true,
     "zeroCoreTestsRejected": true,

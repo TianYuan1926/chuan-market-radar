@@ -28,7 +28,7 @@ docker compose up -d --no-deps web
 
 ## 3. 生产审批必须绑定
 
-当前 artifact 固定为 14 个文件，必须包含 `src/lib/candidate-episode/transaction-adapter.ts`，SHA-256 为 `78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449`。此前 13 文件 checksum 与上一版 14 文件 checksum `43e9deaef51e0c0408acb3c449a5cf92577181e66a14adaff958d669d3435f52` 都只保留为历史证据，已经失效，不得再用于任何生产审批。
+当前 artifact 固定为 14 个文件，必须包含 `src/lib/candidate-episode/transaction-adapter.ts`，SHA-256 为 `e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a`。此前 artifact checksum `78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449`、13 文件 checksum 与上一版 14 文件 checksum `43e9deaef51e0c0408acb3c449a5cf92577181e66a14adaff958d669d3435f52` 都只保留为历史证据，已经失效，不得再用于任何生产审批。
 
 artifact checksum 只能证明 14 个安全关键文件，不能单独证明整个 Git release 没有夹带其它 Web 代码。当前 release-diff 门禁额外锁定：
 
