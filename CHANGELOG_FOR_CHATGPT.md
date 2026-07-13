@@ -3422,3 +3422,51 @@ P0 阻断：
 ### 下一轮建议
 
 完成本轮完整门禁、报告和提交收口；随后只执行 `WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION`，不得直接申请 Dormant Runtime Deploy。
+
+## 2026-07-13 / WP-G0.2 Scan Cadence Cache and Freshness Sustained Health Remediation
+
+### 本轮目标
+
+只修复 scanner 周期性 aging/degraded 与假 `task-ok` 的四个联合根因：fixed-delay 漂移、read 路由刷新争锁、旧缓存成功语义和 start-time freshness。
+
+### 修改范围
+
+- scanner worker 改为以计划时点为锚的串行 fixed-rate，错过周期直接跳过，不重叠、不突发追赶；只有响应 body `status=updated` 才能记录成功 heartbeat。
+- readable snapshot 入口结构性 no-refresh；只有受保护 refresh action 可调用 provider。
+- scan coordination 增加 `scan_in_progress` / `budget_exhausted` 机器 code；lock contention 返回 `in_progress`。
+- `POST /api/scan` 只有 `updated` 返回 HTTP 2xx/`ok=true`，`in_progress`、`served_cache`、`failed` 全部 fail closed。
+- 成功扫描记录 started/completed/duration，health 从成功完成时间计龄；失败、缓存、锁竞争不刷新成功时间。
+- 锁释放失败只执行一次，返回 failed 且不写入未闭环缓存。
+- 未修改 analysis、strategy、RR、交易计划、backtest、Candidate 数据、DB、Redis、migration、env、secret、Feature Flag 或生产 runtime。
+
+### 核心链路影响
+
+影响全市场发现、候选筛选的新鲜度、刷新所有权和运行真值；不改变候选排序算法，不增加交易权限。
+
+### 测试结果
+
+- 红灯基线：首次编译14个预期缺口；首次实现后2个断言差异，均真实记录并逐项修正。
+- sustained-health 定向：55/55 PASS；worker：23/23 PASS。
+- deploy safety：5/5 PASS；autonomy unit：16/16 PASS。
+- typecheck / lint / build：PASS。
+- test:market：960 pass / 0 fail / 4 explicit DB skip；historical 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- 自治总门禁：12/12 PASS，`worktreeUnchanged=true`；verify=`canAutoCommit=true`、`canAutoDeploy=false`。
+- formal：未运行，本轮禁止。
+- production smoke：未运行，本轮未部署且无生产授权。
+
+### 是否部署
+
+未部署、未连接生产、未改变 Web、scanner-worker、数据库、Redis 或生产仓库。当前只能写本地修复候选，不能写生产 P1 已关闭。
+
+### 风险与遗留问题
+
+- API 合同和 worker 同时改变，后续生产发布必须是 Web + scanner-worker 的精确变更面，不得伪装成 worker-only。
+- 仍需 commit/main、独立 exact approval、生产部署和至少两个 cadence 周期无 aging/degraded/假 `task-ok` 观察。
+- Dormant Deploy 在上述证据完成前继续禁止。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+完成 commit/main 后，只生成 scanner sustained-health 的 Web + scanner-worker 独立生产审批包。

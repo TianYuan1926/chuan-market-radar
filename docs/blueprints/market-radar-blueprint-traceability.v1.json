@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_production_web_identity_recovery_cleanup_and_gates_pass_commit_pending_scanner_sustained_health_p1",
-  "generatedAt": "2026-07-13T22:42:08+08:00",
+  "status": "wp_g0_2_scanner_sustained_health_local_candidate_autonomy_12_of_12_pass_production_p1_open",
+  "generatedAt": "2026-07-13T23:29:56+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -37,7 +37,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-CLOSEOUT",
+    "id": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -49,7 +49,7 @@
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION",
+    "nextLocalWorkPackage": "none_until_scanner_local_candidate_is_committed_and_production_approval_packet_is_bound",
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
@@ -85,7 +85,7 @@
     "dormantDeployIdentityOverrideRequired": true,
     "dormantDeployIdentityOverrideChecksumBound": true,
     "dormantDeployRuntimeIdentityFingerprintRequired": true,
-    "webIdentityRecoveryPreparationStatus": "pass_production_web_identity_recovery_cleanup_and_gates_pass_commit_pending",
+    "webIdentityRecoveryPreparationStatus": "pass_production_web_identity_recovery_cleanup_committed_and_pushed_5abb93c",
     "webIdentityRecoveryArtifactSha256": "cb81523b21018868a81b21d42a195574a5a3c2695b2090fc9c770a9002b58a79",
     "webIdentityRecoveryTargetedTests": "13_of_13_pass",
     "webIdentityRecoveryProductionHead": "0599f802f261fe8e3c1982a07106f362bd62ac13",
@@ -110,6 +110,16 @@
     "webIdentityRecoverySustainedHealthObservation": "transient_degraded_scan_aging_then_ready_fresh_persistence_remained_ready",
     "scannerFixedDelayHealthRegression": "p1_task_runtime_75_to_112_seconds_plus_900_second_post_completion_sleep_exceeds_15_minute_freshness_cadence",
     "scannerSustainedHealthRemediationRequiredBeforeDormantDeploy": true,
+    "scannerSustainedHealthLocalRemediationStatus": "local_candidate_autonomy_12_of_12_pass_production_unchanged_p1_open",
+    "scannerSustainedHealthTargetedTests": "55_of_55_pass",
+    "scannerWorkerTests": "23_of_23_pass",
+    "scannerMarketBaseline": "960_pass_0_fail_4_explicit_db_skip",
+    "scannerSchedulingMode": "fixed_rate_skip_missed_no_overlap_no_burst_catchup",
+    "scannerReadableSnapshotOwnership": "structural_no_refresh",
+    "scannerActionSuccessBoundary": "updated_only_http_2xx_and_ok_true",
+    "scannerFreshnessClock": "successful_scan_completion_time",
+    "scannerProductionDeployed": false,
+    "scannerProductionObservation": "not_started_requires_two_cadence_cycles",
     "runtimeIdentityLocalPreparationStatus": "pass_code_contract_and_isolated_postgres16_production_not_connected",
     "runtimeIdentityTransactionRoleMode": "explicit_set_local_role_from_fixed_purpose_map",
     "runtimeIdentityLoginTopology": "three_unique_noinherit_logins_one_membership_each",
@@ -128,7 +138,7 @@
       "dormant_runtime_deploy_not_passed_new_approval_required",
       "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "fix_scan_cadence_read_write_lock_and_completion_freshness_contract_locally_then_deploy_web_plus_scanner_worker_under_separate_exact_approval_before_dormant_approval",
+    "nextProductionAction": "commit_and_push_then_bind_exact_web_plus_scanner_worker_approval_and_observe_two_cadence_cycles_before_dormant_approval",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false
@@ -766,14 +776,14 @@
     }
   },
   "currentDesignPackage": {
-    "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY",
-    "status": "PASS_PRODUCTION_WEB_IDENTITY_RECOVERY_CLEANUP_AND_GATES_PASS_COMMIT_PENDING",
-    "designStatus": "WEB_ONLY_RECOVERY_PRODUCTION_PASS_CLEANUP_AND_GATES_PASS_COMMIT_PENDING_SCANNER_SUSTAINED_HEALTH_P1_BLOCKS_DORMANT",
-    "designVersion": "wp-g0.2-production-web-identity-recovery.v1",
-    "approvedByUserForProduction": true,
-    "productionAuthorization": true,
-    "runtimeCodeChanged": false,
-    "productionDeployed": true,
+    "id": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION",
+    "status": "LOCAL_REMEDIATION_CANDIDATE_MANUAL_FULL_GATES_PASS_PRODUCTION_P1_OPEN",
+    "designStatus": "SCAN_RUNTIME_API_WORKER_AND_HEALTH_TRUTH_LOCAL_CANDIDATE_AUTONOMY_GATE_PASS_AWAITING_COMMIT_EXACT_APPROVAL_DEPLOY_AND_OBSERVATION",
+    "designVersion": "wp-g0.2-scan-sustained-health-remediation.v1",
+    "approvedByUserForProduction": false,
+    "productionAuthorization": false,
+    "runtimeCodeChanged": true,
+    "productionDeployed": false,
     "g0Complete": false,
     "practicalTradingReady": false
   },
@@ -811,7 +821,7 @@
     "evidenceCleanupPending": false
   },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION before Dormant Deploy",
+  "nextRecommendedWorkPackage": "Commit scanner remediation, then prepare exact Web plus scanner-worker production approval before Dormant Deploy",
   "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {

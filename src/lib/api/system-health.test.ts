@@ -522,6 +522,32 @@ test("buildSystemHealthReport escalates stale scans past the stale window", asyn
   assert.equal(report.guards.find((guard) => guard.id === "freshness")?.state, "degraded");
 });
 
+test("buildSystemHealthReport ages a successful scan from its completion timestamp", async () => {
+  const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
+
+  const report = await buildSystemHealthReport({
+    env: { MARKET_DATA_PROVIDER: "mock" },
+    now: new Date("2026-06-12T10:16:00.000Z"),
+    repository,
+    snapshot: snapshot({
+      generatedAt: "2026-06-12T10:00:00.000Z",
+      nextScanAt: "2026-06-12T10:16:30.000Z",
+      runtime: {
+        cacheStatus: "updated",
+        lastAttemptStatus: "updated",
+        persistedArchive: true,
+        scanCompletedAt: "2026-06-12T10:01:30.000Z",
+        scanDurationMs: 90_000,
+        scanStartedAt: "2026-06-12T10:00:00.000Z",
+        trigger: "cron_post",
+      },
+    }),
+  });
+
+  assert.equal(report.scan.ageMinutes, 15);
+  assert.equal(report.scan.freshness, "fresh");
+});
+
 test("buildSystemHealthReport exposes scan operation timing and provider notes", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "public-demo" });
   await repository.addScanArchive(

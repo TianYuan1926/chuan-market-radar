@@ -1,3 +1,5 @@
+import { nextFixedRateRunAt } from "./worker-schedule.mjs";
+
 const profileName = process.argv[2] ?? process.env.WORKER_PROFILE ?? "scanner";
 const appInternalUrl = trimTrailingSlash(process.env.APP_INTERNAL_URL ?? "http://127.0.0.1:3000");
 const cronSecret = process.env.CRON_SECRET ?? "";
@@ -33,7 +35,7 @@ function sleep(ms) {
   });
 }
 
-function protectedPost(name, path, intervalSeconds, immediate = false) {
+function protectedPost(name, path, intervalSeconds, immediate = false, options = {}) {
   return {
     immediate,
     intervalSeconds,
@@ -41,6 +43,8 @@ function protectedPost(name, path, intervalSeconds, immediate = false) {
     name,
     path,
     protected: true,
+    scheduleMode: "fixed_delay",
+    ...options,
   };
 }
 
@@ -62,6 +66,10 @@ const profiles = {
       "/api/scan",
       numberFromEnv("SCANNER_INTERVAL_SECONDS", 900),
       true,
+      {
+        acceptedResultStatuses: ["updated"],
+        scheduleMode: "fixed_rate_skip_missed",
+      },
     ),
   ],
   coinglass: [
@@ -217,10 +225,33 @@ async function callTask(task) {
   const elapsedMs = Date.now() - startedAt;
   const text = await response.text();
   const bodyPreview = text.slice(0, 500);
+  let body = null;
 
-  log(response.ok ? "task-ok" : "task-failed", {
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = null;
+  }
+
+  const resultStatus = typeof body?.status === "string" ? body.status : null;
+  const acceptedStatuses = task.acceptedResultStatuses ?? null;
+  const resultAccepted = !acceptedStatuses || acceptedStatuses.includes(resultStatus);
+  const succeeded = response.ok && resultAccepted;
+  const snapshotId = typeof body?.metadata?.id === "string" ? body.metadata.id : null;
+  const generatedAt = typeof body?.metadata?.generatedAt === "string"
+    ? body.metadata.generatedAt
+    : null;
+  const completedAt = typeof body?.metadata?.runtime?.scanCompletedAt === "string"
+    ? body.metadata.runtime.scanCompletedAt
+    : null;
+
+  log(succeeded ? "task-ok" : "task-failed", {
+    completedAt,
     elapsedMs,
+    generatedAt,
     path: task.path,
+    resultStatus,
+    snapshotId,
     status: response.status,
     task: task.name,
     bodyPreview,
@@ -230,27 +261,47 @@ async function callTask(task) {
     throw new Error(`${task.name} failed with HTTP ${response.status}`);
   }
 
-  return elapsedMs;
+  if (!resultAccepted) {
+    throw new Error(`${task.name} returned non-success result status ${resultStatus ?? "missing"}`);
+  }
+
+  return {
+    completedAt,
+    elapsedMs,
+    generatedAt,
+    resultStatus,
+    snapshotId,
+  };
 }
 
 async function runTaskLoop(task) {
+  const intervalMs = task.intervalSeconds * 1_000;
+  const scheduleMode = task.scheduleMode ?? "fixed_delay";
+  let previousScheduledAtMs = Date.now();
+
   log("task-started", {
     intervalSeconds: task.intervalSeconds,
     path: task.path,
+    scheduleMode,
     task: task.name,
   });
   await postHeartbeat({
-    detail: `interval=${task.intervalSeconds}s`,
+    detail: `interval=${task.intervalSeconds}s;schedule=${scheduleMode}`,
     status: "starting",
     task: task.name,
   });
 
-  if (task.immediate && !shutdownRequested) {
+  async function executeTask() {
     try {
-      const elapsedMs = await callTask(task);
+      const result = await callTask(task);
       await postHeartbeat({
-        detail: "task completed",
-        elapsedMs,
+        detail: [
+          `result=${result.resultStatus ?? "none"}`,
+          `snapshot=${result.snapshotId ?? "none"}`,
+          `generatedAt=${result.generatedAt ?? "none"}`,
+          `completedAt=${result.completedAt ?? "none"}`,
+        ].join(";"),
+        elapsedMs: result.elapsedMs,
         status: "ok",
         task: task.name,
       });
@@ -267,19 +318,17 @@ async function runTaskLoop(task) {
     }
   }
 
-  async function sleepUntilNextRun() {
-    const totalSleepMs = task.intervalSeconds * 1_000;
-    const startedAt = Date.now();
-    let remainingMs = totalSleepMs;
+  async function sleepUntilNextRun(targetAtMs) {
+    let remainingMs = Math.max(0, targetAtMs - Date.now());
 
     while (remainingMs > 0) {
       await sleep(Math.min(remainingMs, idleHeartbeatSeconds * 1_000));
       if (shutdownRequested) return;
-      remainingMs = Math.max(0, totalSleepMs - (Date.now() - startedAt));
+      remainingMs = Math.max(0, targetAtMs - Date.now());
 
       if (remainingMs > 0) {
         await postHeartbeat({
-          detail: `idle; next run in ${Math.ceil(remainingMs / 1_000)}s`,
+          detail: `idle;nextRunAt=${new Date(targetAtMs).toISOString()};remaining=${Math.ceil(remainingMs / 1_000)}s`,
           status: "ok",
           task: task.name,
         });
@@ -287,29 +336,25 @@ async function runTaskLoop(task) {
     }
   }
 
-  while (!shutdownRequested) {
-    await sleepUntilNextRun();
-    if (shutdownRequested) return;
+  if (task.immediate && !shutdownRequested) {
+    await executeTask();
+  }
 
-    try {
-      const elapsedMs = await callTask(task);
-      await postHeartbeat({
-        detail: "task completed",
-        elapsedMs,
-        status: "ok",
-        task: task.name,
-      });
-    } catch (error) {
-      await postHeartbeat({
-        detail: error instanceof Error ? error.message : "unknown error",
-        status: "error",
-        task: task.name,
-      });
-      log("task-error", {
-        error: error instanceof Error ? error.message : "unknown error",
-        task: task.name,
-      });
-    }
+  while (!shutdownRequested) {
+    const nowMs = Date.now();
+    const nextRunAtMs = scheduleMode === "fixed_rate_skip_missed"
+      ? nextFixedRateRunAt({
+        intervalMs,
+        nowMs,
+        previousScheduledAtMs,
+      })
+      : nowMs + intervalMs;
+
+    await sleepUntilNextRun(nextRunAtMs);
+    if (shutdownRequested) return;
+    previousScheduledAtMs = nextRunAtMs;
+
+    await executeTask();
   }
 }
 

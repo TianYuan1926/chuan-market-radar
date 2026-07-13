@@ -481,6 +481,7 @@ export type SystemHealthReport = {
     anomalyCount: number;
     cadenceMinutes: number;
     candidateCount: number;
+    completedAt?: string | null;
     freshness: ScanFreshness;
     generatedAt: string;
     nextScanAt: string;
@@ -2661,7 +2662,8 @@ export async function buildSystemHealthReport({
     }),
     readConfiguredApiObservabilityReport(env, now),
   ]);
-  const age = ageMinutes(metadata.generatedAt, now);
+  const scanCompletedAt = metadata.runtime?.scanCompletedAt ?? metadata.generatedAt;
+  const age = ageMinutes(scanCompletedAt, now);
   const freshness = scanFreshness({ age, metadata });
   const scanHealth = metadata.health ?? scanHealthFallback({
     coinGlassRuntimeCapability,
@@ -2759,6 +2761,7 @@ export async function buildSystemHealthReport({
       anomalyCount: metadata.anomalyCount,
       cadenceMinutes: metadata.cadenceMinutes,
       candidateCount: metadata.candidateCount,
+      completedAt: metadata.runtime?.scanCompletedAt ?? null,
       freshness,
       generatedAt: metadata.generatedAt,
       nextScanAt: metadata.nextScanAt,

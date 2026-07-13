@@ -108,6 +108,7 @@ export function createMemoryScanCoordinator({
       if (locks.has(key)) {
         return {
           allowed: false,
+          code: "scan_in_progress",
           reason: `${context.providerId} scan already running`,
         };
       }
@@ -131,6 +132,7 @@ export function createMemoryScanCoordinator({
 
           return {
             allowed: false,
+            code: "budget_exhausted",
             reason:
               `coinglass minute budget exhausted: requested ${nextCount}/${coinGlassMinuteLimit} calls in this minute`,
           };
@@ -185,6 +187,7 @@ export function createRedisScanCoordinatorFromClient(
       if (lockResult !== "OK") {
         return {
           allowed: false,
+          code: "scan_in_progress",
           reason: `${context.providerId} scan already running`,
         };
       }
@@ -200,6 +203,7 @@ export function createRedisScanCoordinatorFromClient(
 
           return {
             allowed: false,
+            code: "budget_exhausted",
             reason:
               `coinglass minute budget exhausted: requested ${nextCount}/${coinGlassMinuteLimit} calls in this minute`,
           };

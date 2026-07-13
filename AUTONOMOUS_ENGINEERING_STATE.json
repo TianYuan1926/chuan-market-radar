@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-13T22:42:08+08:00",
+  "updatedAt": "2026-07-13T23:29:56+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -8,8 +8,8 @@
     "practicalStatus": "不能支撑实战",
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
-    "productionWebIdentity": "recovered_verified_cleanup_complete_gates_pass_commit_pending",
-    "productionHealthSustainability": "p1_scan_cadence_read_write_lock_and_completion_freshness_contract_creates_recurring_aging_degraded_window"
+    "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
+    "productionHealthSustainability": "p1_local_remediation_candidate_autonomy_12_of_12_pass_production_unchanged_observation_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -33,18 +33,18 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-CLOSEOUT",
-    "title": "Production Web identity recovery evidence and cleanup closeout",
+    "id": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION",
+    "title": "Scan cadence cache ownership and completion freshness sustained health remediation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在不再次改变生产服务或事后修改已批准合同的前提下，清理 Web identity recovery 的精确临时污染，记录 PASS_PRODUCTION_WEB_IDENTITY_RECOVERY 及后续持续健康 P1 证据，并阻断 Dormant Deploy 直到独立 scan cadence/read-write/lock/completion-freshness remediation 通过。",
+    "objective": "在不改变分析、策略、回测、Candidate 数据或生产状态的前提下，收口 scanner fixed-rate 调度、读写所有权、锁竞争机器状态、旧缓存失败语义和成功完成时间 freshness，消除周期性 aging/degraded 与假 task-ok。",
     "coreChainImpact": [
-      "candidate_lifecycle_persistence_recovery",
-      "production_web_identity_truth",
-      "health_ready_fresh_evidence",
-      "sustained_health_regression_truth",
-      "temporary_artifact_cleanup",
-      "dormant_runtime_entry_gate"
+      "full_market_discovery_runtime",
+      "candidate_screening_freshness",
+      "scan_read_write_ownership",
+      "scan_lock_contention_truth",
+      "worker_schedule_stability",
+      "production_health_sustainability"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -52,17 +52,36 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
+      "package.json",
+      "src/app/api/scan/route.ts",
+      "src/lib/api/system-health.ts",
+      "src/lib/api/system-health.test.ts",
+      "src/lib/market/types.ts",
+      "src/lib/market/scan-runtime.ts",
+      "src/lib/market/scan-runtime.test.ts",
+      "src/lib/market/scan-coordinator.ts",
+      "src/lib/market/scan-coordinator.test.ts",
+      "src/lib/market/radar-snapshot.ts",
+      "src/lib/market/radar-snapshot.test.ts",
+      "src/lib/market/scan-action-contract.ts",
+      "src/lib/market/scan-action-contract.test.ts",
+      "deploy/workers/protected-api-worker.mjs",
+      "deploy/workers/protected-api-worker.test.mjs",
+      "deploy/workers/worker-schedule.mjs",
+      "deploy/workers/worker-schedule.test.mjs",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-remediation/WP_G0_2_SCAN_SUSTAINED_HEALTH_REMEDIATION_REPORT.md"
     ],
     "prohibitedPaths": [
-      "src/**",
-      "deploy/**",
       "migrations/**",
       "docker-compose.yml",
-      "package.json",
-      "scripts/**",
+      "src/lib/analysis/**",
+      "src/lib/strategy/**",
+      "src/lib/backtest/**",
+      "src/lib/candidate-episode/**",
+      "src/app/**/page.tsx",
+      "scripts/production/**",
       "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
       "tools/**",
       ".env",
@@ -72,20 +91,25 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
+      "package.json",
+      "src/lib/market/scan-runtime.ts",
+      "src/lib/market/scan-runtime.test.ts",
+      "src/lib/market/radar-snapshot.ts",
+      "src/lib/market/radar-snapshot.test.ts",
+      "src/app/api/scan/route.ts",
+      "deploy/workers/protected-api-worker.mjs",
+      "deploy/workers/protected-api-worker.test.mjs",
+      "deploy/workers/worker-schedule.mjs",
+      "deploy/workers/worker-schedule.test.mjs",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-remediation/WP_G0_2_SCAN_SUSTAINED_HEALTH_REMEDIATION_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "production:web-identity-recovery:validate",
-        "test:production-web-identity-recovery",
+        "test:scan-sustained-health",
+        "test:workers",
         "test:deploy-safety",
-        "candidate:dormant-deploy:validate",
-        "test:candidate-dormant-deploy",
-        "candidate:runtime-identity-runner:validate",
-        "test:candidate-runtime-identity-runner",
-        "test:candidate-composition-wiring",
         "test:autonomy"
       ],
       "baseline": [
@@ -102,17 +126,16 @@
       ]
     },
     "completionBoundary": [
-      "生产 runner 必须输出 PASS_PRODUCTION_WEB_IDENTITY_RECOVERY，不能是 PARTIAL 或 rollback",
-      "生产 HEAD 必须保持 0599f802、main、clean，Web image 必须保持批准 digest",
-      "Web 身份指纹必须匹配批准 override，health 必须 ready、scan 必须 fresh、persistence 必须 ready",
-      "Web identity recovery PASS 后出现的 scan aging/degraded 必须单独记录，不能伪装为持续健康",
-      "三份合同、Postgres、Redis 必须通过，Candidate worker 必须继续 absent",
-      "除 Web 外容器身份必须保持不变，数据库、Redis、Worker、Caddy、env、Flag、migration 和生产仓库不得改变",
-      "批准 staging、本地 transport copy 和本轮精确临时污染必须全部清理并复核 absent",
-      "已批准合同 checksum 必须保持不变，执行结果只能追加到报告和治理状态",
+      "所有 getReadableMarketRadarSnapshot 调用必须结构性 no-refresh，只有受保护 refresh action 可调用 provider",
+      "scan coordination 必须输出机器可判定 code，lock contention 必须为 in_progress 而不是 served_cache 成功",
+      "POST /api/scan 只有 updated 返回 HTTP 2xx 和 ok=true，in_progress、served_cache、failed 必须 fail closed",
+      "scanner Worker 必须解析响应 body 状态，非 updated 即使 HTTP 200 也不得记录 task-ok 或 ok heartbeat",
+      "scanner 必须 fixed-rate、无重叠并跳过错过窗口，不得在长任务后再睡满900秒或突发追赶",
+      "成功快照必须记录 started/completed/duration，freshness 使用成功完成事实；失败、缓存和锁竞争不得刷新成功时间",
+      "定向测试必须覆盖 read no-refresh、状态真值、fixed-rate overrun/no-burst、完成时间和旧缓存不变",
       "所有定向、基础、安全和自治门禁通过",
-      "Dormant Deploy 必须被 scan cadence/read-write/lock/completion-freshness health remediation 的独立 PASS 阻断",
-      "清理与记录阶段禁止再次执行任何生产服务 mutation"
+      "本地包禁止生产连接、部署、数据库、Redis、migration、env、Feature Flag 和 Candidate runtime mutation",
+      "生产执行必须另获绑定 commit、Web 与 scanner-worker image/rollback 的 exact approval，并跨至少两个 cadence 周期观察"
     ]
   },
   "approvals": [
@@ -281,6 +304,13 @@
     {
       "order": 21,
       "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-CLOSEOUT",
+      "lane": "localPreparation",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 22,
+      "id": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

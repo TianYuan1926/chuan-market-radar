@@ -597,8 +597,16 @@ export type ScanSignalMaturityDiagnostics = {
 
 export type ScanRuntimeDiagnostics = {
   cacheStatus?: "failed" | "served_cache" | "updated";
+  lastAttemptCompletedAt?: string;
+  lastAttemptDurationMs?: number;
+  lastAttemptError?: string;
+  lastAttemptStartedAt?: string;
+  lastAttemptStatus?: "failed" | "in_progress" | "served_cache" | "updated";
   persistedArchive: boolean;
   repositoryMode?: "database" | "memory";
+  scanCompletedAt?: string;
+  scanDurationMs?: number;
+  scanStartedAt?: string;
   trigger:
     | "cron_post"
     | "health_get"

@@ -6,6 +6,7 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-13 `WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION` 已形成仅本地修复候选，生产未连接、未部署、未改变。根因被拆为四项并分别收口：scanner 从任务完成后再等待900秒改为以计划时点为锚的串行 fixed-rate、错过窗口直接跳过且不突发追赶；所有 `getReadableMarketRadarSnapshot` 调用结构性 no-refresh，只有受保护刷新动作可调用 provider；lock contention 机器状态改为 `in_progress`，`POST /api/scan` 只有 `updated` 返回 HTTP 2xx/`ok=true`，旧缓存、锁竞争和失败全部 fail closed；成功扫描记录 started/completed/duration，health 从成功完成时间计龄，失败、缓存和锁竞争不刷新成功时间。scanner worker 同时解析响应 body，非 `updated` 即使 HTTP 200 也记录失败 heartbeat；锁释放失败只尝试一次且不写入未闭环缓存。红灯基线曾暴露14个预期类型/合同缺口，首次实现又真实暴露2个断言差异，均未绕过；修复后定向55/55、worker23/23、typecheck、lint、deploy safety5/5、autonomy unit16/16、test:market 960 pass/0 fail/4 explicit DB skip、historical4/4、build、Golden16/16和三项安全检查均 PASS；自治总门禁12/12 PASS、`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。当前只能写 `LOCAL_REMEDIATION_CANDIDATE_AUTONOMY_GATE_PASS / PRODUCTION_UNCHANGED / P1_NOT_CLOSED`；还需提交推送、绑定实际 commit 与 Web+scanner-worker 发布面的独立审批、生产部署及至少两个 cadence 周期无 aging/degraded/假 `task-ok` 观察，之后才允许恢复 Dormant Deploy 路线。
 - 2026-07-13 `WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY` 已在 exact approval 的90分钟窗口内执行并输出 `PASS_PRODUCTION_WEB_IDENTITY_RECOVERY`，没有 PARTIAL 或 rollback。唯一重建服务是 Web，镜像仍为批准 digest，Web 身份指纹恢复为批准的最小权限 override；即时 health=`ready`、scan=`fresh`、persistence database status=`ready`，frontend/backend/business 三份合同、Redis 和 runner 内精确 Postgres readiness 通过，Candidate worker 继续 absent，非 Web 容器身份不变。生产 Git 仍为 `0599f802...`/main/clean，没有 source sync、build、数据库、Redis、Worker、Caddy、env、Feature Flag、migration、Dormant release 或生产仓库变更；批准 staging 已自动删除，本地 transport 临时副本已删除。OrcaTerm 误生成的远端12个审批/分块文件和4个 `/tmp` 后验证文件已按用户即时确认精确删除，随后两组 `ls -ld` 对16条路径逐项返回 `No such file or directory`；批准 staging 路径也再次确认不存在，未扩大到其它路径。后续 fresh 复查发现 health 曾因 scan age=17分钟超过 cadence=15分钟而短暂 `degraded/aging`，persistence 始终 ready；下一轮 snapshot 写入后自动恢复 `ready/fresh`。进一步代码与生产日志审计确认 fixed-delay 会把75至112秒任务时长叠加到900秒睡眠；同时多个 public/read 路由未声明 `allowRefresh:false`，可能在 cadence 边界主动争抢同一 Redis scan lock，`POST /api/scan` 又会把 lock-denied/provider-failed 的旧缓存以 HTTP 200 `served_cache` 返回，通用 Worker 只看 HTTP 状态即可误记 `task-ok`。此外 freshness 使用扫描开始时间，严格15分钟 fixed-rate 仍会在75至112秒执行期间越过 cadence。生产短任务是否均由锁竞争造成，现有500字符日志不足以逐条证明，必须在修复包增加机器可判定状态后验证。closeout 的定向、基础、安全和自治总门禁全部 PASS；当前状态为 `PASS_PRODUCTION_WEB_IDENTITY_RECOVERY / CLEANUP_COMPLETE_GATES_PASS_COMMIT_PENDING / P1_SUSTAINED_HEALTH_REGRESSION / R1 / 可运行但不完整 / 不能支撑实战`。独立 scan cadence/read-write/lock/completion-freshness remediation PASS 前不得申请 Dormant Deploy。
 - 2026-07-13 `WP-G0.2-DORMANT-RELEASE-DIFF-REFRESH-AFTER-WEB-IDENTITY-RECOVERY`：在 Web Identity Recovery commit=`5b4bd617...` 推入 `main` 后，Dormant validator 对当前 HEAD 正确报 `release_diff_file_count_mismatch`。重算证明历史 approved commit=`a8dd5195...` 仍精确为 149 个 A/M 路径、path-set=`f39c8a26...`，证据未被篡改；当前 main 因 Web Recovery、Dormant safety 和治理传递依赖变为 156 个 A/M 路径、path-set=`8aa967379c97addb34f7908ca228092ab5ab4953e65d6cc705b7b36a71ea79a3`。全部路径仍通过原 allowlist/forbidden、required base/rollback 祖先和 A/M-only 约束，没有放宽发布边界。首次只刷新 release 合同后，定向测试以 2 个 `artifact_checksum_mismatch` 和 Runtime Identity `artifact_checksum` 真实失败，证明 validator 属于 14 文件 Dormant artifact 且继续传递到 8 文件 Runtime Identity artifact；现分别刷新为 Dormant=`b4fce8a64a9e468067101b50c2e5e59b5802d3f8b5459e176acb1bac25081e2c`、Runtime Identity=`d3b4f015e70a3b5e4310b5b635921f5b829c7e95854c4dcaf11bd1021adf08d0`，文件数均未扩大，旧值全部失效。隔离 execute fixture 也从旧 required-base path-set 改为当前 rollback..HEAD 并自证 count/hash；Dormant 12/12、Runtime Identity 8/8、deploy safety 5/5、Composition 28/28、Autonomy unit 16/16、基础/安全与自治总门禁 17/17 PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。本轮未连接或改变生产；生产仍需先执行独立批准的 Web Identity Recovery，Dormant Deploy 继续禁止。
 - 2026-07-13 `WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY-DETERMINISTIC-TRANSPORT`：在等待生产 exact approval 时复核 final bundle，确认同一 clean commit 连续生成会因临时文件 mtime、tar header 和 gzip 时间元数据得到不同 SHA-256；旧 commit=`9d6a5fea...` 下的 Recovery=`340ab9db...`、contract=`9a161f7e...` 和 final bundle=`6285244a...` 因此全部失效并已删除，禁止审批或上传。bundle builder 现固定 payload 顺序、uid/gid、epoch=`946684800`，使用 `ustar` 后再 `gzip -n -9`；manifest 和生产 runner 同时锁定 `reproducibleArchive=true`、`archiveFormat=ustar+gzip-n`、`sourceDateEpoch=946684800`。跨 1.1 秒的两次独立构建已证明字节和 SHA 完全一致，旧默认 tar/gzip 路径不再使用；Recovery artifact 刷新为 `cb81523b21018868a81b21d42a195574a5a3c2695b2090fc9c770a9002b58a79`、contract=`10be74155f464285e9369b93e0ea9682ca8c7c736d7b3027f348a899d7b08265`，定向 13/13、基础门禁与自治总门禁 14/14 PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。生产仍未授权或改变；新 clean commit/main 和唯一 final bundle 完成前不得申请执行。
@@ -393,21 +394,27 @@ GitHub Actions / self-hosted runner：
 ## 12. 当前项目真实状态
 
 - 当前是否空壳：不是空壳。已有生产部署、真实 API、数据库、Redis、worker、公开交易所轻扫、CoinGlass 深扫基础、前端合同和生产 smoke。
-- 当前是否可运行：可运行。第二轮生产证据显示生产页面/API 200、Docker 服务正常、worker heartbeat 正常。
+- 当前是否可运行：可运行。最近一次 Web Identity Recovery 即时生产验证为 health ready、scan fresh、persistence ready；但持续复查捕获过 scan aging/degraded，不能把即时 PASS 写成持续健康 PASS。
 - 当前是否完整：不完整。扫描、分析、策略、复盘都有基础，但仍需要专业能力验收。
 - 当前是否支撑实战：**当前系统仍不能支撑实战。**
 - 当前最大短板：
-  1. 第五轮 formal 中 `TRADE_PLAN_READY=0`，策略分数从第三轮 `28.61` 降到 `22.48`，第四轮策略计划层整改没有转化为能力提升。
-  2. 第五轮 formal 中 WAIT 有效率仍为 `0%`，WAIT bad rate 从 `8.33%` 升至 `25%`；诊断更细，但等待计划仍无效。
-  3. 第五轮 formal 中 RR、止损、目标问题更重：`reward_risk_below_minimum` 从 `27` 增至 `33`，目标过远或不现实成为新暴露问题。
-  4. 分析判断有效率不足：第五轮 formal 中被选中节点真正不晚到且事后有效比例为 `21.43%`。
-  5. 扫描提前发现能力不足：第五轮 formal 中结构可行动机会 TopN 捕获率为 `26.42%`，启动前捕获率为 `23.53%`。
-  6. 生产服务器尚未同步第四轮提交：本地 HEAD `dc22fda6`，腾讯云只读检查 HEAD `a76010223`；第五轮 formal 是本地第四轮代码验收，不是生产第四轮代码验收。
-  6. 回测/复盘和生产评分边界必须持续防污染。
+  1. scanner 持续健康修复目前只在本地通过，尚未部署 Web+scanner-worker，也未完成至少两个 cadence 周期观察，生产 P1 仍未关闭。
+  2. Candidate runtime 仍 disabled，WP-G0.2 的 Dormant Deploy、身份权限、激活观察、reconciliation 和 canonical cutover 均未完成。
+  3. 第五轮 formal 的历史能力证据仍显示 `TRADE_PLAN_READY=0`、WAIT 有效率 `0%`、扫描和分析提前性不足；后续新证据通过前不得宣称实战能力改善。
+  4. 公网 HTTPS/session/security 仍需按 G0.3 独立收口。
+  5. 回测/复盘和生产评分边界必须持续防污染。
 
 不能把“页面可访问”写成“系统可实战”。当前更准确状态是：**可运行但不完整，具备继续审计和能力验证的基础。**
 
 ## 13. 最近三轮关键事件
+
+### 当前最新三轮（2026-07-13）
+
+- Web Identity Recovery：exact-approved Web-only 重建 PASS，身份与 persistence 恢复；远端16个精确临时文件已删除、逐项证明 absent，closeout 已提交并推送为 `5abb93cad2b3da4bbee0ab79015ea38f32a5a1bf`。
+- Sustained Health 根因审计：确认 fixed-delay 漂移、read-triggered refresh、锁竞争/旧缓存成功语义和 start-time freshness 共同造成短暂 aging/degraded 与假 `task-ok` 风险。
+- Sustained Health 本地修复候选：定向55/55、worker23/23、基础、安全与自治总门禁12/12 PASS；生产未部署，P1 仍待 commit/main、独立 exact approval 和跨两个 cadence 观察关闭。
+
+以下第二至第五轮为历史审计记录，不代表当前最新生产版本：
 
 ### 第二轮
 
@@ -536,19 +543,25 @@ GitHub Actions / self-hosted runner：
 
 ### P1 风险
 
-1. 问题：扫描排序主干不够强，优质机会未必稳定进入 Top10。
+1. 问题：scanner 持续健康修复尚未部署和跨周期观察。
+   - 影响核心链路哪一环：全市场发现、候选筛选、新鲜度真值。
+   - 证据：生产曾出现 scan age=17分钟的 aging/degraded；本地已收口 fixed-rate、只读所有权、机器状态和 completion freshness。
+   - 当前状态：本地候选及人工完整门禁 PASS，生产 P1 未关闭。
+   - 下一步：提交推送后生成绑定 commit 与 Web+scanner-worker 变更面的独立审批包，部署并观察至少两个 cadence 周期。
+
+2. 问题：扫描排序主干不够强，优质机会未必稳定进入 Top10。
    - 影响核心链路哪一环：全市场发现、候选筛选。
    - 证据：长期讨论和回测反馈集中在“提前性”和“优质机会进入候选”的稳定性。
    - 当前状态：有状态池、轻扫、深扫 allocation，但仍需 formal 能力验收。
    - 下一步：用 formal 能力回测专门测试“启动前识别”和“候选召回率”。
 
-2. 问题：分析推理报告可读性和实战解释力不足。
+3. 问题：分析推理报告可读性和实战解释力不足。
    - 影响核心链路哪一环：结构分析、交易计划。
    - 证据：用户反馈分析报告乱、看不懂、无法直接实战参考。
    - 当前状态：有 v3 dossier/forward map，但仍需业务表达重构和验收。
    - 下一步：按“为什么看、为什么不看、怎么错、怎么等”重构报告合同。
 
-3. 问题：CoinGlass 与公开衍生品数据边界容易被误解。
+4. 问题：CoinGlass 与公开衍生品数据边界容易被误解。
    - 影响核心链路哪一环：深扫验证。
    - 证据：Hobbyist 支持范围和 Taker/CVD partial 需要明确展示。
    - 当前状态：第二轮深扫可用，但不是所有衍生品维度都完整。

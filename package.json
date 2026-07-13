@@ -118,6 +118,7 @@
     "worker:ws-light-scan": "node deploy/workers/ws-light-scan-worker.mjs",
     "lint": "eslint .",
     "test:market": "npm run build:market-cli && TEST_COUNT=$(find .tmp/market-tests/lib -name '*.test.js' -print | wc -l | tr -d ' ') && test \"$TEST_COUNT\" -gt 0 && find .tmp/market-tests/lib -name '*.test.js' -print | sort | xargs node --test && npm run test:workers && npm run test:historical-backtest",
+    "test:scan-sustained-health": "npm run build:market-cli && node --test .tmp/market-tests/lib/market/scan-runtime.test.js .tmp/market-tests/lib/market/scan-coordinator.test.js .tmp/market-tests/lib/market/radar-snapshot.test.js .tmp/market-tests/lib/market/scan-action-contract.test.js .tmp/market-tests/lib/api/system-health.test.js && npm run test:workers",
     "test:historical-backtest": "node --test tools/radar-historical-backtest.test.mjs",
     "test:workers": "node --test deploy/workers/*.test.mjs",
     "typecheck": "tsc --noEmit",

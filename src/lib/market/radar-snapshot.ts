@@ -479,7 +479,10 @@ export async function getReadableMarketRadarSnapshot(
   const repository = options.repository ?? appPersistenceRepository;
 
   try {
-    return await getMarketRadarSnapshot(provider, options);
+    return await getMarketRadarSnapshot(provider, {
+      ...options,
+      allowRefresh: false,
+    });
   } catch (error) {
     return withArchive(
       unavailableSnapshot({
@@ -517,7 +520,7 @@ export async function refreshMarketRadarSnapshot(
   return {
     ...result,
     snapshot: result.snapshot ? await withArchive(result.snapshot, {
-      persistArchive: true,
+      persistArchive: result.status === "updated",
       repository,
     }) : null,
   };
