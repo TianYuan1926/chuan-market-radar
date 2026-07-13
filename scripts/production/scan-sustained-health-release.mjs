@@ -20,6 +20,8 @@ export const COMPOSE_WRAPPER_SHA256 = "fb473dc3bf0a2968be8ad385efac3273f4057530d
 export const PRODUCTION_COMPOSE_SHA256 = "2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e";
 export const STAGING_DIRECTORY_PATTERN = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-scan-sustained-health-release-[a-z0-9][a-z0-9._-]{7,80}$/;
 export const EVIDENCE_DIRECTORY_PATTERN = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-scan-sustained-health-[a-z0-9][a-z0-9._-]{7,80}$/;
+export const RUNNER_UNIT_NAME_PATTERN = /^market-radar-scan-health-[a-z0-9][a-z0-9-]{7,56}$/;
+export const ROLLBACK_IMAGE_REPOSITORY = "market-radar-rollback/wp-g0-2-scan-health";
 
 export const RELEASE_DIFF_LINES = [
   "M\tdeploy/workers/protected-api-worker.mjs",
@@ -59,6 +61,12 @@ function exactKeys(value, expected) {
 
 export function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+export function rollbackImageRef(service, imageId) {
+  const digest = /^sha256:([0-9a-f]{64})$/.exec(imageId ?? "")?.[1];
+  ensure(["web", "scanner-worker"].includes(service) && digest, "rollback_image_ref_input_invalid");
+  return `${ROLLBACK_IMAGE_REPOSITORY}:${service}-${digest.slice(0, 16)}`;
 }
 
 function parseTimestamp(value, reason) {
@@ -102,9 +110,19 @@ export function validateContract(contract) {
   ensure(contract.observation?.freshnessRequiredThroughout === true, "continuous_freshness_required");
   ensure(contract.observation?.scannerHeartbeatRequired === true, "scanner_heartbeat_required");
   ensure(contract.observation?.finalReadyHealthRequired === true, "final_ready_health_required");
+  ensure(contract.execution?.mode === "transient_systemd_unit", "transient_systemd_execution_required");
+  ensure(contract.execution?.sessionIndependent === true, "session_independent_execution_required");
+  ensure(contract.execution?.restartPolicy === "no", "runner_restart_policy_must_be_no");
+  ensure(contract.execution?.runtimeMaxSeconds === 5_400, "runner_runtime_max_not_locked");
+  ensure(contract.execution?.logs === "journald", "runner_logs_not_locked");
   ensure(contract.rollback?.automaticRollbackRequired === true, "automatic_rollback_required");
   ensure(contract.rollback?.restoreBothTargetImages === true, "two_image_rollback_required");
   ensure(contract.rollback?.restoreBaselineMain === true, "baseline_main_rollback_required");
+  ensure(contract.rollback?.retainImagesBeforeMutation === true, "rollback_image_retention_required");
+  ensure(contract.rollback?.retentionRepository === ROLLBACK_IMAGE_REPOSITORY, "rollback_image_retention_repository_mismatch");
+  ensure(contract.rollback?.verifyRetentionBeforeMutation === true, "rollback_image_retention_verification_required");
+  ensure(contract.rollback?.retainAfterSuccess === true, "rollback_images_must_survive_success");
+  ensure(contract.rollback?.cleanupRequiresSeparateApproval === true, "rollback_image_cleanup_requires_approval");
   ensure(contract.transport?.reproducibleArchiveRequired === true, "reproducible_archive_required");
   ensure(contract.transport?.archiveFormat === "ustar+gzip-n", "transport_archive_format_not_locked");
   ensure(contract.transport?.sourceDateEpoch === 946684800, "transport_source_date_epoch_not_locked");
@@ -128,7 +146,9 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
     "featureFlagMutationAllowed", "identityOverrideSha256", "migrationAllowed", "operator",
     "otherServiceRestartAllowed", "packageId", "productionEnvSha256", "productionRepositoryMutationAllowed",
     "redisMutationAllowed", "releaseArtifactSha256", "releaseDiffSha256", "requiredCompletionAdvances",
-    "runnerSourceCommit", "scannerWorkerImageId", "services", "sourceFetchAllowed", "stagingDirectory",
+    "rollbackImageRetentionRequired", "rollbackScannerWorkerImageRef", "rollbackWebImageRef",
+    "runnerSourceCommit", "runnerUnitName", "scannerWorkerImageId", "services",
+    "sessionIndependentExecutionRequired", "sourceFetchAllowed", "stagingDirectory",
     "targetCommit", "targetRemoteBranch", "temporaryArtifactCleanupRequired", "transportBundleSha256",
     "transportMethod", "webImageId", "observationDurationSeconds", "cadenceSeconds",
   ];
@@ -151,6 +171,14 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(/^[0-9a-f]{40}$/.test(request.runnerSourceCommit ?? ""), "request_runner_source_commit_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/.test(request.webImageId ?? ""), "request_web_image_id_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/.test(request.scannerWorkerImageId ?? ""), "request_scanner_worker_image_id_invalid");
+  ensure(RUNNER_UNIT_NAME_PATTERN.test(request.runnerUnitName ?? ""), "request_runner_unit_name_invalid");
+  ensure(request.sessionIndependentExecutionRequired === true, "session_independent_execution_not_required");
+  ensure(request.rollbackImageRetentionRequired === true, "rollback_image_retention_not_required");
+  ensure(request.rollbackWebImageRef === rollbackImageRef("web", request.webImageId), "request_rollback_web_image_ref_mismatch");
+  ensure(
+    request.rollbackScannerWorkerImageRef === rollbackImageRef("scanner-worker", request.scannerWorkerImageId),
+    "request_rollback_scanner_image_ref_mismatch",
+  );
   ensure(/^[0-9a-f]{64}$/.test(request.baseEnvSha256 ?? ""), "request_base_env_checksum_invalid");
   ensure(/^[0-9a-f]{64}$/.test(request.productionEnvSha256 ?? ""), "request_production_env_checksum_invalid");
   ensure(STAGING_DIRECTORY_PATTERN.test(request.stagingDirectory ?? ""), "request_staging_directory_invalid");
@@ -228,13 +256,23 @@ export async function inspectRunner(root) {
     continuousFreshnessChecked: /scan\.freshness == "fresh"/.test(source),
     scannerHeartbeatChecked: /scanner-worker/.test(source) && /runtimeProbes/.test(source),
     automaticRollbackTrap: /trap rollback_on_failure EXIT/.test(source),
+    rollbackImageRetentionCreated: /create_rollback_image_retention/.test(source)
+      && /APPROVED_ROLLBACK_WEB_IMAGE_REF/.test(source)
+      && /APPROVED_ROLLBACK_SCANNER_IMAGE_REF/.test(source),
+    rollbackImageRetentionVerified: /verify_rollback_image_retention/.test(source)
+      && /rollbackImagesRetained/.test(source),
     forbiddenServicesAbsent: forbiddenServiceMutationLines.length === 0,
     noMigration: !/(migration:runner|candidate:migrate|persistence\/migrate)/.test(source),
     noEnvWrite: !/(?:sed\s+-i|tee\s+[^|]|cat\s+>)[^\n]*(?:\.env|ENV_FILE)/.test(source),
     stagingBoundaryChecked: /APPROVED_STAGING_DIRECTORY/.test(entrypoint) && /STAGING_BASENAME_PREFIX/.test(entrypoint),
+    transientSystemdUnit: /systemd-run/.test(entrypoint)
+      && /SCAN_SUSTAINED_HEALTH_ENTRYPOINT_MODE=detached_worker/.test(entrypoint)
+      && /--property=Restart=no/.test(entrypoint),
+    noForegroundFallback: !/nohup/.test(entrypoint) && /unsupported release entrypoint mode/.test(entrypoint),
     stagingCleanupTrap: /trap cleanup_staging EXIT/.test(entrypoint)
-      && /trap 'exit 130' INT/.test(entrypoint)
-      && /trap 'exit 143' TERM/.test(entrypoint),
+      && /forward_signal INT 130/.test(entrypoint)
+      && /forward_signal TERM 143/.test(entrypoint)
+      && /forward_signal HUP 129/.test(entrypoint),
   };
   const violations = Object.entries(facts).filter(([, value]) => value !== true).map(([key]) => `runner_guard_missing:${key}`);
   ensure(violations.length === 0, violations.join(","));

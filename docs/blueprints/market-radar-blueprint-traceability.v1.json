@@ -49,7 +49,7 @@
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "none_until_release_packet_full_gates_commit_final_bundle_and_dynamic_production_preflight_are_complete",
+    "nextLocalWorkPackage": "run_edge_read_only_dynamic_production_preflight_then_request_new_exact_approval",
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
@@ -122,8 +122,9 @@
     "scannerMinimalProductionReleaseParent": "0599f802f261fe8e3c1982a07106f362bd62ac13",
     "scannerMinimalProductionReleaseDiffFileCount": 16,
     "scannerMinimalProductionReleaseDiffSha256": "80bab7d7e3cdd5a9811dc0815c5df10205bce54e3f87c14d1791c94bcd3f6f58",
-    "scannerProductionReleasePacketStatus": "autonomy_11_of_11_pass_can_auto_commit_true_can_auto_deploy_false_production_not_authorized",
-    "scannerProductionReleaseArtifactSha256": "5dc432045b3e0ebdf9bd83b90dd3b720a024544da2c46872dc6ef4898892c7c5",
+    "scannerProductionReleasePacketStatus": "autonomy_11_of_11_pass_clean_commit_and_reproducible_bundle_complete_can_auto_deploy_false_production_not_authorized",
+    "scannerProductionReleaseArtifactSha256": "6af759ceee3aa4a97ce22f92db28cbef31ebade519b57a088900278e1655eb69",
+    "scannerProductionReleaseSupersededArtifactSha256": "5dc432045b3e0ebdf9bd83b90dd3b720a024544da2c46872dc6ef4898892c7c5",
     "scannerProductionReleaseServices": [
       "web",
       "scanner-worker"
@@ -781,18 +782,18 @@
     "g0Complete": false,
     "practicalTradingReady": false,
     "evidence": {
-      "path": "reports/wp-g0-2-production-web-identity-recovery/WP_G0_2_PRODUCTION_WEB_IDENTITY_RECOVERY_REPORT.md",
-      "contract": "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
-      "validator": "scripts/production/web-identity-recovery.mjs",
-      "bundleBuilder": "scripts/production/web-identity-recovery-bundle.mjs",
-      "entrypoint": "scripts/production/web-identity-recovery-entrypoint.sh",
-      "note": "Exact-approved Web-only recovery passed without PARTIAL or rollback; identity and persistence recovered while production Git/image and non-Web services stayed unchanged. Later fresh observation found a separate recurring scan aging window. Code proves fixed-delay drift, read-triggered refresh, served-cache HTTP success ambiguity, and start-time freshness all require remediation; production short-task branch attribution remains an explicit inference until machine-readable runtime status is added. Staging, local transport, and all 16 exact remote temporary files were removed and verified absent; closeout gates passed, while sustained-health remediation remains required before Dormant Deploy."
+      "path": "reports/wp-g0-2-scan-sustained-health-emergency-baseline-recovery/WP_G0_2_SCAN_SUSTAINED_HEALTH_EMERGENCY_BASELINE_RECOVERY_REPORT.md",
+      "contract": "docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json",
+      "validator": "scripts/production/scan-sustained-health-release.mjs",
+      "bundleBuilder": "scripts/production/scan-sustained-health-release-bundle.mjs",
+      "entrypoint": "scripts/production/scan-sustained-health-release-entrypoint.sh",
+      "note": "The original sustained-health runner was terminated when the OrcaTerm foreground session disconnected, so the release did not PASS. Production was recovered to clean main@0599 with the old Web image and a scanner image rebuilt from the exact baseline; because the rebuilt digest differs from the lost historical digest, status is RECOVERED_BASELINE_REBUILT_NOT_IDENTICAL. The local hardening now uses a transient systemd unit and deterministic rollback image retention references; full gates, clean Git closeout and a reproducible final bundle are complete, while dynamic preflight and a new exact approval remain required."
     }
   },
   "currentDesignPackage": {
     "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-    "status": "LOCAL_RELEASE_PACKET_AUTONOMY_11_OF_11_PASS_COMMIT_FINAL_BUNDLE_PREFLIGHT_AND_APPROVAL_PENDING_PRODUCTION_P1_OPEN",
-    "designStatus": "EXACT_MINIMAL_RELEASE_TWO_SERVICE_ROLLBACK_AND_TWO_CADENCE_OBSERVATION_PACKET_AWAITING_FULL_GATES_COMMIT_FINAL_BUNDLE_DYNAMIC_PREFLIGHT_AND_EXACT_APPROVAL",
+    "status": "LOCAL_RUNNER_RECOVERY_HARDENING_TARGETED_12_OF_12_AND_AUTONOMY_11_OF_11_PASS_CLEAN_COMMIT_AND_REPRODUCIBLE_BUNDLE_COMPLETE_PREFLIGHT_AND_APPROVAL_PENDING_PRODUCTION_P1_OPEN",
+    "designStatus": "TRANSIENT_SYSTEMD_SESSION_INDEPENDENCE_AND_ROLLBACK_IMAGE_RETENTION_GATES_AND_CLEAN_BUNDLE_PASS_AWAITING_DYNAMIC_PREFLIGHT_AND_EXACT_APPROVAL",
     "designVersion": "wp-g0.2-scan-sustained-health-production-release.v1",
     "approvedByUserForProduction": false,
     "productionAuthorization": false,
@@ -835,7 +836,7 @@
     "evidenceCleanupPending": false
   },
   "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "Finish release packet full gates, commit and final reproducible bundle; then perform Edge read-only dynamic production preflight and request exact Web plus scanner-worker approval",
+  "nextRecommendedWorkPackage": "Perform Edge read-only dynamic production preflight and request exact Web plus scanner-worker approval",
   "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {

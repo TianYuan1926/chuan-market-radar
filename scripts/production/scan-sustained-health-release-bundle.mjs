@@ -63,6 +63,12 @@ export async function buildTransportBundle({ root = process.cwd(), output, sourc
       productionRepositoryMutationAllowed: true,
       repositoryMutationBoundary: "clean-main-baseline-to-detached-exact-target-or-automatic-main-baseline-rollback",
       services: contract.scope.services,
+      executionMode: contract.execution.mode,
+      sessionIndependentExecutionRequired: contract.execution.sessionIndependent,
+      runnerLogs: contract.execution.logs,
+      rollbackImageRetentionRequired: contract.rollback.retainImagesBeforeMutation,
+      rollbackRetentionRepository: contract.rollback.retentionRepository,
+      rollbackCleanupRequiresSeparateApproval: contract.rollback.cleanupRequiresSeparateApproval,
       files: TRANSPORT_FILES,
     };
     const manifestPath = join(payloadRoot, "transport-manifest.json");

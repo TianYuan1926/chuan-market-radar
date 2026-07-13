@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  access,
   chmod,
   copyFile,
   mkdir,
@@ -14,6 +15,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { after, test } from "node:test";
 import { buildTransportBundle } from "./scan-sustained-health-release-bundle.mjs";
@@ -42,6 +44,10 @@ const temporaryDirectories = [];
 const hex64 = "a".repeat(64);
 const imageA = `sha256:${"b".repeat(64)}`;
 const imageB = `sha256:${"c".repeat(64)}`;
+
+function rollbackImageRef(service, imageId) {
+  return `market-radar-rollback/wp-g0-2-scan-health:${service}-${imageId.slice(7, 23)}`;
+}
 
 after(async () => {
   await Promise.all(temporaryDirectories.map((directory) => rm(directory, { recursive: true, force: true })));
@@ -83,8 +89,13 @@ function makeRequest(contract, overrides = {}) {
     releaseArtifactSha256: contract.artifact.sha256,
     releaseDiffSha256: RELEASE_DIFF_SHA256,
     requiredCompletionAdvances: 2,
+    rollbackImageRetentionRequired: true,
+    rollbackScannerWorkerImageRef: rollbackImageRef("scanner-worker", imageB),
+    rollbackWebImageRef: rollbackImageRef("web", imageA),
+    runnerUnitName: "market-radar-scan-health-approved1",
     runnerSourceCommit: "e".repeat(40),
     scannerWorkerImageId: imageB,
+    sessionIndependentExecutionRequired: true,
     services: ["web", "scanner-worker"],
     sourceFetchAllowed: true,
     stagingDirectory: "/home/ubuntu/.cache/market-radar-ops/wp-g0-2-scan-sustained-health-release-approved1",
@@ -129,6 +140,8 @@ test("contract refuses release, service, observation and mutation boundary drift
     ["observation_duration_not_locked", (value) => { value.observation.minimumDurationSeconds = 1799; }],
     ["completion_advance_count_not_locked", (value) => { value.observation.requiredCompletionAdvances = 1; }],
     ["two_image_rollback_required", (value) => { value.rollback.restoreBothTargetImages = false; }],
+    ["rollback_image_retention_required", (value) => { value.rollback.retainImagesBeforeMutation = false; }],
+    ["session_independent_execution_required", (value) => { value.execution.sessionIndependent = false; }],
   ];
   for (const [reason, mutate] of cases) {
     const value = clone(contract);
@@ -154,6 +167,9 @@ test("approval refuses extra keys, stale windows and every widened permission", 
     ["request_completion_advance_count_mismatch", { requiredCompletionAdvances: 1 }],
     ["request_web_image_id_invalid", { webImageId: "latest" }],
     ["request_scanner_worker_image_id_invalid", { scannerWorkerImageId: "latest" }],
+    ["request_runner_unit_name_invalid", { runnerUnitName: "scan.service" }],
+    ["request_rollback_web_image_ref_mismatch", { rollbackWebImageRef: "market-radar-rollback/wp-g0-2-scan-health:web-wrong" }],
+    ["request_rollback_scanner_image_ref_mismatch", { rollbackScannerWorkerImageRef: "market-radar-rollback/wp-g0-2-scan-health:scanner-worker-wrong" }],
     ["request_staging_directory_invalid", { stagingDirectory: "/home/ubuntu/apps/chuan-market-radar" }],
     ["request_evidence_directory_invalid", { evidenceDirectory: "/home/ubuntu/apps/chuan-market-radar/reports" }],
     ["automatic_rollback_not_allowed", { automaticRollbackAllowed: false }],
@@ -161,6 +177,8 @@ test("approval refuses extra keys, stale windows and every widened permission", 
     ["build_not_allowed", { buildAllowed: false }],
     ["repository_transition_not_allowed", { productionRepositoryMutationAllowed: false }],
     ["detached_head_not_required", { detachedHeadAfterSuccess: false }],
+    ["session_independent_execution_not_required", { sessionIndependentExecutionRequired: false }],
+    ["rollback_image_retention_not_required", { rollbackImageRetentionRequired: false }],
     ["candidateRuntimeMutationAllowed_must_be_false", { candidateRuntimeMutationAllowed: true }],
     ["databaseMutationAllowed_must_be_false", { databaseMutationAllowed: true }],
     ["environmentMutationAllowed_must_be_false", { environmentMutationAllowed: true }],
@@ -202,6 +220,12 @@ test("runner source proves two-service, rollback and observation guardrails", as
   assert.match(source, /build web scanner-worker/);
   assert.match(source, /PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION/);
   assert.match(source, /P0_ROLLBACK_PRODUCTION_SCAN_SUSTAINED_HEALTH_NOT_VERIFIED/);
+  assert.match(source, /create_rollback_image_retention/);
+  assert.match(source, /verify_rollback_image_retention/);
+  const entrypoint = await readFile("scripts/production/scan-sustained-health-release-entrypoint.sh", "utf8");
+  assert.match(entrypoint, /systemd-run/);
+  assert.match(entrypoint, /SCAN_SUSTAINED_HEALTH_ENTRYPOINT_MODE=detached_worker/);
+  assert.doesNotMatch(entrypoint, /nohup/);
 });
 
 test("local preparation is approval-blocked and staged validation needs no Git repository", async () => {
@@ -240,6 +264,11 @@ test("transport bundle is reproducible, secret-free and source-commit bound", as
   assert.equal(first.manifest.targetCommit, TARGET_COMMIT);
   assert.equal(first.manifest.containsSecrets, false);
   assert.equal(first.manifest.productionRepositoryMutationAllowed, true);
+  assert.equal(first.manifest.executionMode, "transient_systemd_unit");
+  assert.equal(first.manifest.sessionIndependentExecutionRequired, true);
+  assert.equal(first.manifest.runnerLogs, "journald");
+  assert.equal(first.manifest.rollbackImageRetentionRequired, true);
+  assert.equal(first.manifest.rollbackCleanupRequiresSeparateApproval, true);
   assert.deepEqual(first.manifest.services, ["web", "scanner-worker"]);
   const { stdout: listing } = await execFileAsync("tar", ["-tzf", outputA]);
   assert.deepEqual(listing.trim().split("\n").sort(), [
@@ -278,25 +307,85 @@ test("default shell mode is dry-run and cannot touch production", async () => {
   assert.match(stdout, /BLOCKED_AWAITING_EXACT_PRODUCTION_APPROVAL/);
 });
 
-test("approved entrypoint removes staging after child success", async () => {
+test("approved entrypoint survives launcher exit through a transient unit and worker cleans staging", async () => {
   const directory = await mkdtemp(join(tmpdir(), "scan-health-entrypoint-"));
   temporaryDirectories.push(directory);
+  const fakeBin = join(directory, "bin");
   const stage = join(directory, "wp-g0-2-scan-sustained-health-release-cleanup1");
+  const completionFile = join(directory, "detached-complete");
+  const systemdState = join(directory, "systemd-state.json");
+  await mkdir(fakeBin, { recursive: true });
   await mkdir(join(stage, "scripts/production"), { recursive: true, mode: 0o700 });
   await copyFile(
     "scripts/production/scan-sustained-health-release-entrypoint.sh",
     join(stage, "scripts/production/scan-sustained-health-release-entrypoint.sh"),
   );
-  await writeFile(join(stage, "scripts/production/scan-sustained-health-release.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
+  await writeFile(
+    join(stage, "scripts/production/scan-sustained-health-release.sh"),
+    "#!/bin/sh\nsleep 1\nprintf complete > \"$FAKE_COMPLETION_FILE\"\n",
+    { mode: 0o700 },
+  );
+  await writeFile(join(fakeBin, "sudo"), "#!/bin/sh\n[ \"$1\" = \"-n\" ] && shift\nexec \"$@\"\n", { mode: 0o700 });
+  await writeFile(join(fakeBin, "systemd-run"), [
+    "#!/usr/bin/env node",
+    "const fs = require('node:fs');",
+    "const { spawn } = require('node:child_process');",
+    "const args = process.argv.slice(2); const env = { ...process.env };",
+    "for (const arg of args) if (arg.startsWith('--setenv=')) { const pair=arg.slice(9); const at=pair.indexOf('='); env[pair.slice(0,at)]=pair.slice(at+1); }",
+    "const commandIndex = args.indexOf('/bin/bash'); if (commandIndex < 0) process.exit(2);",
+    "const child = spawn(args[commandIndex], args.slice(commandIndex + 1), { detached: true, stdio: 'ignore', env }); child.unref();",
+    "fs.writeFileSync(process.env.FAKE_SYSTEMD_STATE, JSON.stringify({ pid: child.pid }));",
+    "",
+  ].join("\n"), { mode: 0o700 });
+  await writeFile(join(fakeBin, "systemctl"), [
+    "#!/usr/bin/env node",
+    "const fs = require('node:fs'); const args=process.argv.slice(2).join(' '); const exists=fs.existsSync(process.env.FAKE_SYSTEMD_STATE);",
+    "if (args.includes('LoadState')) console.log(exists ? 'loaded' : 'not-found');",
+    "else if (args.includes('ActiveState')) console.log(exists ? 'active' : 'inactive');",
+    "else if (args.includes('ExecMainPID')) console.log(exists ? JSON.parse(fs.readFileSync(process.env.FAKE_SYSTEMD_STATE)).pid : '0');",
+    "else process.exit(1);",
+    "",
+  ].join("\n"), { mode: 0o700 });
+  await chmod(join(fakeBin, "sudo"), 0o700);
+  await chmod(join(fakeBin, "systemd-run"), 0o700);
+  await chmod(join(fakeBin, "systemctl"), 0o700);
   const stageReal = await realpath(stage);
   const bundleSha = createHash("sha256").update("bundle").digest("hex");
   await writeFile(join(stage, "approval-request.json"), `${JSON.stringify({
     stagingDirectory: stageReal,
     transportBundleSha256: bundleSha,
+    runnerUnitName: "market-radar-scan-health-cleanup1",
+    sessionIndependentExecutionRequired: true,
   })}\n`, { mode: 0o600 });
   await writeFile(join(stage, ".transport-bundle.sha256"), `${bundleSha}\n`, { mode: 0o600 });
   await chmod(stage, 0o700);
-  await execFileAsync("bash", [join(stage, "scripts/production/scan-sustained-health-release-entrypoint.sh")]);
+  const launch = await execFileAsync("bash", [join(stage, "scripts/production/scan-sustained-health-release-entrypoint.sh")], {
+    env: {
+      ...process.env,
+      FAKE_COMPLETION_FILE: completionFile,
+      FAKE_SYSTEMD_STATE: systemdState,
+      PATH: `${fakeBin}:${process.env.PATH}`,
+    },
+  });
+  assert.match(launch.stdout, /DETACHED_SCAN_SUSTAINED_HEALTH_RELEASE_STARTED/);
+  await assert.rejects(access(completionFile), { code: "ENOENT" });
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      await access(completionFile);
+      break;
+    } catch {
+      await delay(100);
+    }
+  }
+  await access(completionFile);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      await access(stage);
+      await delay(50);
+    } catch {
+      break;
+    }
+  }
   await assert.rejects(stat(stage), { code: "ENOENT" });
 });
 

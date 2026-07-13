@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T00:09:54+08:00",
+  "updatedAt": "2026-07-14T02:23:55+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -9,7 +9,7 @@
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
-    "productionHealthSustainability": "p1_release_70722ea_local_packet_autonomy_11_of_11_pass_production_unchanged_commit_bundle_preflight_and_exact_approval_pending"
+    "productionHealthSustainability": "p1_release_attempt_runner_terminated_emergency_baseline_recovered_rebuilt_scanner_not_identical_local_session_and_image_retention_hardening_targeted_12_of_12_and_autonomy_11_of_11_pass_clean_commit_and_reproducible_bundle_complete_dynamic_preflight_and_approval_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -34,16 +34,18 @@
   },
   "activePackage": {
     "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-    "title": "Exact minimal Web and scanner-worker production release, rollback and two-cadence observation packet",
+    "title": "Session-independent Web and scanner-worker release with retained rollback images and two-cadence observation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在不直接部署生产的前提下，把基于生产0599基线的最小扫描修复提交70722ea固化为精确批准、双镜像自动回滚、非目标容器不变和连续1800秒/两个completion推进观察的可复现执行包。",
+    "objective": "在不连接或改变生产的前提下，修复OrcaTerm前台会话断开会终止runner、旧镜像tag被覆盖后回滚镜像可能丢失两个恢复缺口；使用transient systemd unit和确定性双镜像retention ref，同时保留原70722ea精确发布、自动回滚和1800秒/两个completion推进观察边界。",
     "coreChainImpact": [
       "full_market_discovery_production_runtime",
       "candidate_screening_freshness_proof",
       "worker_schedule_sustained_health",
       "production_release_scope_truth",
       "two_service_rollback_safety",
+      "operator_session_independent_execution",
+      "rollback_image_retention_truth",
       "two_cadence_observation_truth"
     ],
     "productionMutation": false,
@@ -123,6 +125,8 @@
       "只允许build和force-recreate Web与scanner-worker，所有非目标容器ID必须完全不变",
       "执行前必须绑定当前两个镜像、Compose、两份env、identity override、wrapper、artifact、contract、bundle与90分钟窗口",
       "任何失败必须恢复两个旧镜像和main@0599，并机器验证回滚结果",
+      "entrypoint只能启动Restart=no的transient systemd unit，禁止前台或nohup降级；launcher退出后detached worker必须继续并在结束后清理staging",
+      "Git checkout、build或容器重建前必须为两个旧镜像创建确定性retention ref并验证；成功后继续保留，清理必须独立批准",
       "第一次新完成后必须连续观察1800秒、至少两个后续completedAt推进、全程fresh和scanner heartbeat healthy、最终health ready",
       "scanner日志必须证明fixed_rate_skip_missed、updated-only成功、零假task-ok和零task failure",
       "可复现transport不得包含secret，仓库外staging无论成功失败或信号退出都必须清理",

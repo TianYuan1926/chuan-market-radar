@@ -35,6 +35,10 @@ const OLD_SCANNER_IMAGE = `sha256:${"2".repeat(64)}`;
 const NEW_WEB_IMAGE = `sha256:${"3".repeat(64)}`;
 const NEW_SCANNER_IMAGE = `sha256:${"4".repeat(64)}`;
 
+function rollbackImageRef(service, imageId) {
+  return `market-radar-rollback/wp-g0-2-scan-health:${service}-${imageId.slice(7, 23)}`;
+}
+
 async function writeExecutable(path, source) {
   await writeFile(path, source);
   await chmod(path, 0o755);
@@ -75,7 +79,9 @@ test("isolated execute proves success and restores both images plus main on obse
     await writeFile(join(root, ".env"), "BASE=redacted\n", { mode: 0o600 });
     await writeFile(join(root, ".env.production"), "PRODUCTION=redacted\n", { mode: 0o600 });
     await writeFile(override, "services:\n  web: {}\n", { mode: 0o600 });
-    await writeFile(stateFile, JSON.stringify({ git: "baseline", web: "old", scanner: "old" }));
+    await writeFile(stateFile, JSON.stringify({
+      git: "baseline", web: "old", scanner: "old", retainedWeb: false, retainedScanner: false,
+    }));
     await writeFile(mutationLog, "");
     await writeFile(curlCountFile, "0");
     await writeFile(clockFile, "0");
@@ -114,8 +120,13 @@ test("isolated execute proves success and restores both images plus main on obse
       releaseArtifactSha256: contract.artifact.sha256,
       releaseDiffSha256: RELEASE_DIFF_SHA256,
       requiredCompletionAdvances: 2,
+      rollbackImageRetentionRequired: true,
+      rollbackScannerWorkerImageRef: rollbackImageRef("scanner-worker", OLD_SCANNER_IMAGE),
+      rollbackWebImageRef: rollbackImageRef("web", OLD_WEB_IMAGE),
+      runnerUnitName: "market-radar-scan-health-rehearsal1",
       runnerSourceCommit: "7".repeat(40),
       scannerWorkerImageId: OLD_SCANNER_IMAGE,
+      sessionIndependentExecutionRequired: true,
       services: ["web", "scanner-worker"],
       sourceFetchAllowed: true,
       stagingDirectory: "/home/ubuntu/.cache/market-radar-ops/wp-g0-2-scan-sustained-health-release-rehearsal1",
@@ -137,6 +148,12 @@ test("isolated execute proves success and restores both images plus main on obse
       archiveFormat: "ustar+gzip-n",
       sourceDateEpoch: 946684800,
       containsSecrets: false,
+      executionMode: "transient_systemd_unit",
+      sessionIndependentExecutionRequired: true,
+      runnerLogs: "journald",
+      rollbackImageRetentionRequired: true,
+      rollbackRetentionRepository: "market-radar-rollback/wp-g0-2-scan-health",
+      rollbackCleanupRequiresSeparateApproval: true,
       productionRepositoryMutationAllowed: true,
     })}\n`, { mode: 0o600 });
 
@@ -149,7 +166,7 @@ test("isolated execute proves success and restores both images plus main on obse
       "if (args === 'config --format json') { console.log(JSON.stringify({ services: { web: { environment: { DATABASE_URL: 'identity-url' } }, 'scanner-worker': { environment: { DATABASE_URL: 'identity-url' } } } })); process.exit(0); }",
       "if (args === 'ps -q web') { console.log(state.web === 'new' ? 'web-new-id' : 'web-old-id'); process.exit(0); }",
       "if (args === 'ps -q scanner-worker') { console.log(state.scanner === 'new' ? 'scanner-new-id' : 'scanner-old-id'); process.exit(0); }",
-      "if (args === 'build web scanner-worker') { fs.appendFileSync(process.env.FAKE_MUTATION_LOG, 'build:web,scanner-worker\\n'); process.exit(0); }",
+      "if (args === 'build web scanner-worker') { if (!state.retainedWeb || !state.retainedScanner) process.exit(9); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, 'build:web,scanner-worker\\n'); process.exit(0); }",
       "if (args === 'up -d --no-deps --no-build --force-recreate web') { state.web = state.git === 'target' ? 'new' : 'old'; save(); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, `up:web:${state.web}\\n`); process.exit(0); }",
       "if (args === 'up -d --no-deps --no-build --force-recreate scanner-worker') { state.scanner = state.git === 'target' ? 'new' : 'old'; save(); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, `up:scanner-worker:${state.scanner}\\n`); process.exit(0); }",
       "process.exit(1);",
@@ -180,6 +197,7 @@ test("isolated execute proves success and restores both images plus main on obse
       "#!/usr/bin/env node",
       "const fs = require('node:fs'); const crypto = require('node:crypto');",
       "const args = process.argv.slice(2); const joined = args.join(' '); const state = JSON.parse(fs.readFileSync(process.env.FAKE_STATE, 'utf8'));",
+      "const save = () => fs.writeFileSync(process.env.FAKE_STATE, JSON.stringify(state));",
       "const webId = state.web === 'new' ? 'web-new-id' : 'web-old-id'; const scannerId = state.scanner === 'new' ? 'scanner-new-id' : 'scanner-old-id';",
       "if (args[0] === 'ps') {",
       "  if (joined.includes('chuan-market-radar-web-1')) console.log(webId);",
@@ -193,7 +211,16 @@ test("isolated execute proves success and restores both images plus main on obse
       `  if (joined.includes('web')) console.log(state.web === 'new' ? '${NEW_WEB_IMAGE}' : '${OLD_WEB_IMAGE}'); else console.log(state.scanner === 'new' ? '${NEW_SCANNER_IMAGE}' : '${OLD_SCANNER_IMAGE}'); process.exit(0);`,
       "}",
       "if (args[0] === 'inspect' && joined.includes('{{.Config.Image}}')) { console.log(joined.includes('web') ? 'chuan-market-radar-web:latest' : 'chuan-market-radar-scanner-worker:latest'); process.exit(0); }",
-      "if (args[0] === 'tag') { fs.appendFileSync(process.env.FAKE_MUTATION_LOG, `tag:${args[1]}:${args[2]}\\n`); process.exit(0); }",
+      "if (args[0] === 'image' && args[1] === 'inspect') {",
+      `  if (args.includes(${JSON.stringify(request.rollbackWebImageRef)}) && state.retainedWeb) { console.log('${OLD_WEB_IMAGE}'); process.exit(0); }`,
+      `  if (args.includes(${JSON.stringify(request.rollbackScannerWorkerImageRef)}) && state.retainedScanner && process.env.FAKE_RETENTION_MISSING !== '1') { console.log('${OLD_SCANNER_IMAGE}'); process.exit(0); }`,
+      "  process.exit(1);",
+      "}",
+      "if (args[0] === 'tag') {",
+      `  if (args[2] === ${JSON.stringify(request.rollbackWebImageRef)}) state.retainedWeb = true;`,
+      `  if (args[2] === ${JSON.stringify(request.rollbackScannerWorkerImageRef)}) state.retainedScanner = true;`,
+      "  save(); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, `tag:${args[1]}:${args[2]}\\n`); process.exit(0);",
+      "}",
       "if (args[0] === 'logs') {",
       "  console.log(JSON.stringify({message:'task-started',task:'scheduled-scan',scheduleMode:'fixed_rate_skip_missed'}));",
       "  console.log(JSON.stringify({message:'task-ok',task:'scheduled-scan',resultStatus:'updated'}));",
@@ -305,13 +332,24 @@ test("isolated execute proves success and restores both images plus main on obse
     const successEvidence = join(directory, "evidence-success");
     const success = await run(successEvidence);
     assert.match(success.stdout, /PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION/);
-    assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")), { git: "target", web: "new", scanner: "new" });
+    assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")), {
+      git: "target", web: "new", scanner: "new", retainedWeb: true, retainedScanner: true,
+    });
     const summary = JSON.parse(await readFile(join(successEvidence, "summary.json"), "utf8"));
     assert.equal(summary.completionAdvances, 2);
     assert.equal(summary.continuousFreshness, true);
     assert.equal(summary.targetCommit, TARGET_COMMIT);
+    assert.equal(summary.rollbackImagesRetained, true);
+    assert.equal(summary.rollbackWebImageRef, request.rollbackWebImageRef);
+    assert.equal(summary.rollbackScannerWorkerImageRef, request.rollbackScannerWorkerImageRef);
+    const successMutations = await readFile(mutationLog, "utf8");
+    assert.ok(successMutations.indexOf(`tag:${OLD_WEB_IMAGE}:${request.rollbackWebImageRef}`) < successMutations.indexOf("checkout:target"));
+    assert.ok(successMutations.indexOf(`tag:${OLD_SCANNER_IMAGE}:${request.rollbackScannerWorkerImageRef}`) < successMutations.indexOf("checkout:target"));
+    assert.ok(successMutations.indexOf("checkout:target") < successMutations.indexOf("build:web,scanner-worker"));
 
-    await writeFile(stateFile, JSON.stringify({ git: "baseline", web: "old", scanner: "old" }));
+    await writeFile(stateFile, JSON.stringify({
+      git: "baseline", web: "old", scanner: "old", retainedWeb: false, retainedScanner: false,
+    }));
     await writeFile(curlCountFile, "0");
     await writeFile(clockFile, "0");
     await writeFile(mutationLog, "");
@@ -320,7 +358,9 @@ test("isolated execute proves success and restores both images plus main on obse
       assert.match(error.stderr, /ROLLBACK_PRODUCTION_SCAN_SUSTAINED_HEALTH_BASELINE_VERIFIED/);
       return true;
     });
-    assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")), { git: "baseline", web: "old", scanner: "old" });
+    assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")), {
+      git: "baseline", web: "old", scanner: "old", retainedWeb: true, retainedScanner: true,
+    });
     const rollback = JSON.parse(await readFile(join(failureEvidence, "rollback.json"), "utf8"));
     assert.equal(rollback.rollbackVerified, true);
     assert.equal(rollback.baselineCommit, BASELINE_COMMIT);
@@ -329,6 +369,23 @@ test("isolated execute proves success and restores both images plus main on obse
     assert.match(mutations, /checkout:main/);
     assert.match(mutations, /up:web:old/);
     assert.match(mutations, /up:scanner-worker:old/);
+
+    await writeFile(stateFile, JSON.stringify({
+      git: "baseline", web: "old", scanner: "old", retainedWeb: false, retainedScanner: false,
+    }));
+    await writeFile(curlCountFile, "0");
+    await writeFile(clockFile, "0");
+    await writeFile(mutationLog, "");
+    const missingRetentionEvidence = join(directory, "evidence-retention-missing");
+    await assert.rejects(run(missingRetentionEvidence, { FAKE_RETENTION_MISSING: "1" }), (error) => {
+      assert.match(error.stderr, /rollback image retention verification failed before production mutation/);
+      return true;
+    });
+    assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")), {
+      git: "baseline", web: "old", scanner: "old", retainedWeb: true, retainedScanner: true,
+    });
+    const rejectedMutations = await readFile(mutationLog, "utf8");
+    assert.doesNotMatch(rejectedMutations, /checkout:target|build:web,scanner-worker|up:web|up:scanner-worker/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

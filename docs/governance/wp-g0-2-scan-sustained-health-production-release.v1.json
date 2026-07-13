@@ -60,10 +60,22 @@
     "scannerHeartbeatRequired": true,
     "finalReadyHealthRequired": true
   },
+  "execution": {
+    "mode": "transient_systemd_unit",
+    "sessionIndependent": true,
+    "restartPolicy": "no",
+    "runtimeMaxSeconds": 5400,
+    "logs": "journald"
+  },
   "rollback": {
     "automaticRollbackRequired": true,
     "restoreBothTargetImages": true,
-    "restoreBaselineMain": true
+    "restoreBaselineMain": true,
+    "retainImagesBeforeMutation": true,
+    "retentionRepository": "market-radar-rollback/wp-g0-2-scan-health",
+    "verifyRetentionBeforeMutation": true,
+    "retainAfterSuccess": true,
+    "cleanupRequiresSeparateApproval": true
   },
   "transport": {
     "reproducibleArchiveRequired": true,
@@ -80,11 +92,11 @@
       "scripts/production/scan-sustained-health-release.sh"
     ],
     "fileSha256": {
-      "scripts/production/scan-sustained-health-release-entrypoint.sh": "90354f530a019c00ed6970f2ba0789c9f1ab1446b0e5e700734e7c1ed70c4868",
-      "scripts/production/scan-sustained-health-release.mjs": "033f81a5cac05ecaaae075eafb16c6072771fd68afbabf20dcfb52e179d1f386",
-      "scripts/production/scan-sustained-health-release.sh": "89bfa86025c7e3dbcefaeb485ce60ca19b2c30e867577ad72b0e56a15983e423"
+      "scripts/production/scan-sustained-health-release-entrypoint.sh": "06e3bb96f2aed64cfdb6308b720efa212dc58139b27712bb24447361ce6e26f7",
+      "scripts/production/scan-sustained-health-release.mjs": "9076e04c4dc26ce0ca88237efb01201a0eb0e3664eb8dbc2f911b22971c7d45b",
+      "scripts/production/scan-sustained-health-release.sh": "a5bebfaee8639e54c611b9221552f314fb2cea5b5db26c60cd1fb0c1160e8775"
     },
-    "sha256": "5dc432045b3e0ebdf9bd83b90dd3b720a024544da2c46872dc6ef4898892c7c5"
+    "sha256": "6af759ceee3aa4a97ce22f92db28cbef31ebade519b57a088900278e1655eb69"
   },
   "approvalRequiredFields": [
     "baseline and target commit",
@@ -98,6 +110,8 @@
     "exact repository-external staging and evidence directories",
     "Web and scanner-worker only",
     "automatic two-image and Git rollback",
+    "transient systemd runner unit independent of the operator browser session",
+    "immutable rollback image retention references verified before production mutation",
     "1800-second observation with two completion advances",
     "active approval window no longer than 90 minutes"
   ]

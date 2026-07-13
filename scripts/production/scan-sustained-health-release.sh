@@ -135,6 +135,10 @@ APPROVED_WRAPPER_SHA256="$(jq -r '.composeWrapperSha256' "${REQUEST_FILE}")"
 APPROVED_COMPOSE_SHA256="$(jq -r '.composeSha256' "${REQUEST_FILE}")"
 APPROVED_WEB_IMAGE_ID="$(jq -r '.webImageId' "${REQUEST_FILE}")"
 APPROVED_SCANNER_IMAGE_ID="$(jq -r '.scannerWorkerImageId' "${REQUEST_FILE}")"
+APPROVED_ROLLBACK_WEB_IMAGE_REF="$(jq -r '.rollbackWebImageRef' "${REQUEST_FILE}")"
+APPROVED_ROLLBACK_SCANNER_IMAGE_REF="$(jq -r '.rollbackScannerWorkerImageRef' "${REQUEST_FILE}")"
+ROLLBACK_IMAGE_RETENTION_REQUIRED="$(jq -r '.rollbackImageRetentionRequired' "${REQUEST_FILE}")"
+SESSION_INDEPENDENT_EXECUTION_REQUIRED="$(jq -r '.sessionIndependentExecutionRequired' "${REQUEST_FILE}")"
 APPROVED_CONTRACT_SHA256="$(jq -r '.contractSha256' "${REQUEST_FILE}")"
 APPROVED_RUNNER_SOURCE_COMMIT="$(jq -r '.runnerSourceCommit' "${REQUEST_FILE}")"
 APPROVED_STAGING_DIRECTORY="$(jq -r '.stagingDirectory' "${REQUEST_FILE}")"
@@ -148,6 +152,17 @@ if [[ "${APPROVED_BASELINE_COMMIT}" != "${BASELINE_COMMIT}" \
   || "${APPROVED_TARGET_REMOTE_BRANCH}" != "${TARGET_REMOTE_BRANCH}" \
   || "${APPROVED_RELEASE_DIFF_SHA256}" != "${RELEASE_DIFF_SHA256}" ]]; then
   echo "ERROR: release identity does not match the locked runner." >&2
+  exit 1
+fi
+WEB_DIGEST="${APPROVED_WEB_IMAGE_ID#sha256:}"
+SCANNER_DIGEST="${APPROVED_SCANNER_IMAGE_ID#sha256:}"
+EXPECTED_ROLLBACK_WEB_IMAGE_REF="market-radar-rollback/wp-g0-2-scan-health:web-${WEB_DIGEST:0:16}"
+EXPECTED_ROLLBACK_SCANNER_IMAGE_REF="market-radar-rollback/wp-g0-2-scan-health:scanner-worker-${SCANNER_DIGEST:0:16}"
+if [[ "${ROLLBACK_IMAGE_RETENTION_REQUIRED}" != "true" \
+  || "${SESSION_INDEPENDENT_EXECUTION_REQUIRED}" != "true" \
+  || "${APPROVED_ROLLBACK_WEB_IMAGE_REF}" != "${EXPECTED_ROLLBACK_WEB_IMAGE_REF}" \
+  || "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}" != "${EXPECTED_ROLLBACK_SCANNER_IMAGE_REF}" ]]; then
+  echo "ERROR: session-independent execution or rollback image retention approval is invalid." >&2
   exit 1
 fi
 
@@ -174,6 +189,12 @@ if [[ "$(sha256sum "${CONTRACT}" | awk '{print $1}')" != "${APPROVED_CONTRACT_SH
   || "$(jq -r '.archiveFormat' "${TRANSPORT_MANIFEST}")" != "ustar+gzip-n" \
   || "$(jq -r '.sourceDateEpoch' "${TRANSPORT_MANIFEST}")" != "946684800" \
   || "$(jq -r '.containsSecrets' "${TRANSPORT_MANIFEST}")" != "false" \
+  || "$(jq -r '.executionMode' "${TRANSPORT_MANIFEST}")" != "transient_systemd_unit" \
+  || "$(jq -r '.sessionIndependentExecutionRequired' "${TRANSPORT_MANIFEST}")" != "true" \
+  || "$(jq -r '.runnerLogs' "${TRANSPORT_MANIFEST}")" != "journald" \
+  || "$(jq -r '.rollbackImageRetentionRequired' "${TRANSPORT_MANIFEST}")" != "true" \
+  || "$(jq -r '.rollbackRetentionRepository' "${TRANSPORT_MANIFEST}")" != "market-radar-rollback/wp-g0-2-scan-health" \
+  || "$(jq -r '.rollbackCleanupRequiresSeparateApproval' "${TRANSPORT_MANIFEST}")" != "true" \
   || "$(jq -r '.productionRepositoryMutationAllowed' "${TRANSPORT_MANIFEST}")" != "true" ]]; then
   echo "ERROR: staged transport manifest does not match approval." >&2
   exit 1
@@ -294,6 +315,7 @@ chmod 700 "${EVIDENCE_DIRECTORY}"
 OBSERVATION_FILE="${EVIDENCE_DIRECTORY}/cadence-observation.jsonl"
 SUMMARY_FILE="${EVIDENCE_DIRECTORY}/summary.json"
 ROLLBACK_FILE="${EVIDENCE_DIRECTORY}/rollback.json"
+ROLLBACK_RETENTION_FILE="${EVIDENCE_DIRECTORY}/rollback-image-retention.json"
 
 wait_for_web_http() {
   local deadline=$((SECONDS + WEB_READY_TIMEOUT_SECONDS)) body
@@ -329,6 +351,20 @@ verify_candidate_absent() {
   ! ${DOCKER[@]} ps --format '{{.Names}}' | grep -qx 'chuan-market-radar-candidate-shadow-worker-1'
 }
 
+verify_rollback_image_retention() {
+  local retained_web_id retained_scanner_id
+  retained_web_id="$(${DOCKER[@]} image inspect --format '{{.Id}}' "${APPROVED_ROLLBACK_WEB_IMAGE_REF}" 2>/dev/null || true)"
+  retained_scanner_id="$(${DOCKER[@]} image inspect --format '{{.Id}}' "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}" 2>/dev/null || true)"
+  [[ "${retained_web_id}" == "${PREVIOUS_WEB_IMAGE_ID}" \
+    && "${retained_scanner_id}" == "${PREVIOUS_SCANNER_IMAGE_ID}" ]]
+}
+
+create_rollback_image_retention() {
+  ${DOCKER[@]} tag "${PREVIOUS_WEB_IMAGE_ID}" "${APPROVED_ROLLBACK_WEB_IMAGE_REF}"
+  ${DOCKER[@]} tag "${PREVIOUS_SCANNER_IMAGE_ID}" "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}"
+  verify_rollback_image_retention
+}
+
 verify_contract_endpoints() {
   local endpoint
   for endpoint in /api/frontend/radar-contract /api/radar/backend-contract /api/radar/business-capability; do
@@ -350,13 +386,17 @@ MUTATED=false
 RELEASE_SUCCEEDED=false
 rollback_on_failure() {
   local exit_code=$?
-  trap - EXIT INT TERM
+  trap - EXIT INT TERM HUP
   if [[ "${exit_code}" -eq 0 || "${MUTATED}" != "true" || "${RELEASE_SUCCEEDED}" == "true" ]]; then
     exit "${exit_code}"
   fi
   echo "ERROR: scan sustained-health release failed; restoring both approved baseline images and main HEAD." >&2
-  ${DOCKER[@]} tag "${PREVIOUS_WEB_IMAGE_ID}" "${PREVIOUS_WEB_IMAGE_REF}" || true
-  ${DOCKER[@]} tag "${PREVIOUS_SCANNER_IMAGE_ID}" "${PREVIOUS_SCANNER_IMAGE_REF}" || true
+  local retention_ok=false
+  if verify_rollback_image_retention; then
+    retention_ok=true
+  fi
+  ${DOCKER[@]} tag "${APPROVED_ROLLBACK_WEB_IMAGE_REF}" "${PREVIOUS_WEB_IMAGE_REF}" || true
+  ${DOCKER[@]} tag "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}" "${PREVIOUS_SCANNER_IMAGE_REF}" || true
   git -C "${ROOT_DIR}" checkout main || true
   ${IDENTITY_COMPOSE[@]} up -d --no-deps --no-build --force-recreate web || true
   wait_for_web_http || true
@@ -367,7 +407,8 @@ rollback_on_failure() {
   rollback_scanner_id="$(${IDENTITY_COMPOSE[@]} ps -q scanner-worker 2>/dev/null || true)"
   rollback_web_image="$(${DOCKER[@]} inspect --format '{{.Image}}' "${rollback_web_id}" 2>/dev/null || true)"
   rollback_scanner_image="$(${DOCKER[@]} inspect --format '{{.Image}}' "${rollback_scanner_id}" 2>/dev/null || true)"
-  if [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true)" == "${BASELINE_COMMIT}" \
+  if [[ "${retention_ok}" == "true" \
+    && "$(git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true)" == "${BASELINE_COMMIT}" \
     && "$(git -C "${ROOT_DIR}" branch --show-current 2>/dev/null || true)" == "main" \
     && "${rollback_web_image}" == "${PREVIOUS_WEB_IMAGE_ID}" \
     && "${rollback_scanner_image}" == "${PREVIOUS_SCANNER_IMAGE_ID}" ]] \
@@ -381,10 +422,13 @@ rollback_on_failure() {
     --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --argjson originalExitCode "${exit_code}" \
     --argjson rollbackVerified "${rollback_ok}" \
+    --argjson rollbackRetentionVerified "${retention_ok}" \
     --arg baselineCommit "${BASELINE_COMMIT}" \
     --arg webImageId "${rollback_web_image}" \
     --arg scannerWorkerImageId "${rollback_scanner_image}" \
-    '{at:$at,originalExitCode:$originalExitCode,rollbackVerified:$rollbackVerified,baselineCommit:$baselineCommit,webImageId:$webImageId,scannerWorkerImageId:$scannerWorkerImageId}' \
+    --arg rollbackWebImageRef "${APPROVED_ROLLBACK_WEB_IMAGE_REF}" \
+    --arg rollbackScannerWorkerImageRef "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}" \
+    '{at:$at,originalExitCode:$originalExitCode,rollbackVerified:$rollbackVerified,rollbackRetentionVerified:$rollbackRetentionVerified,baselineCommit:$baselineCommit,webImageId:$webImageId,scannerWorkerImageId:$scannerWorkerImageId,rollbackWebImageRef:$rollbackWebImageRef,rollbackScannerWorkerImageRef:$rollbackScannerWorkerImageRef}' \
     > "${ROLLBACK_FILE}" || true
   if [[ "${rollback_ok}" == "true" ]]; then
     echo "ROLLBACK_PRODUCTION_SCAN_SUSTAINED_HEALTH_BASELINE_VERIFIED" >&2
@@ -396,23 +440,49 @@ rollback_on_failure() {
 trap rollback_on_failure EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+trap 'exit 129' HUP
 
-git -C "${ROOT_DIR}" checkout --detach "${TARGET_COMMIT}"
+if ! create_rollback_image_retention; then
+  echo "ERROR: rollback image retention verification failed before production mutation." >&2
+  exit 1
+fi
+jq -n \
+  --arg retainedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg webImageId "${PREVIOUS_WEB_IMAGE_ID}" \
+  --arg scannerWorkerImageId "${PREVIOUS_SCANNER_IMAGE_ID}" \
+  --arg rollbackWebImageRef "${APPROVED_ROLLBACK_WEB_IMAGE_REF}" \
+  --arg rollbackScannerWorkerImageRef "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}" \
+  '{retainedAt:$retainedAt,verified:true,retainAfterSuccess:true,cleanupRequiresSeparateApproval:true,webImageId:$webImageId,scannerWorkerImageId:$scannerWorkerImageId,rollbackWebImageRef:$rollbackWebImageRef,rollbackScannerWorkerImageRef:$rollbackScannerWorkerImageRef}' \
+  > "${ROLLBACK_RETENTION_FILE}"
+
 MUTATED=true
+git -C "${ROOT_DIR}" checkout --detach "${TARGET_COMMIT}"
 if [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD)" != "${TARGET_COMMIT}" \
   || -n "$(git -C "${ROOT_DIR}" branch --show-current)" \
   || -n "$(git -C "${ROOT_DIR}" status --porcelain)" ]]; then
   echo "ERROR: production repository did not enter clean detached target state." >&2
   exit 1
 fi
+if ! verify_rollback_image_retention; then
+  echo "ERROR: rollback image retention drifted after target checkout." >&2
+  exit 1
+fi
 
 ${IDENTITY_COMPOSE[@]} build web scanner-worker
+if ! verify_rollback_image_retention; then
+  echo "ERROR: rollback image retention drifted during target build." >&2
+  exit 1
+fi
 ${IDENTITY_COMPOSE[@]} up -d --no-deps --no-build --force-recreate web
 if ! wait_for_web_http; then
   echo "ERROR: target Web did not become reachable within the release timeout." >&2
   exit 1
 fi
 DEPLOY_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+if ! verify_rollback_image_retention; then
+  echo "ERROR: rollback image retention drifted before scanner-worker recreation." >&2
+  exit 1
+fi
 ${IDENTITY_COMPOSE[@]} up -d --no-deps --no-build --force-recreate scanner-worker
 
 TARGET_WEB_CONTAINER_ID="$(${IDENTITY_COMPOSE[@]} ps -q web)"
@@ -551,6 +621,10 @@ if [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD)" != "${TARGET_COMMIT}" \
   echo "ERROR: final production Git identity is not clean detached target." >&2
   exit 1
 fi
+if ! verify_rollback_image_retention; then
+  echo "ERROR: rollback images are not retained at successful release closeout." >&2
+  exit 1
+fi
 
 jq -n \
   --arg packageId "${PACKAGE_ID}" \
@@ -559,6 +633,8 @@ jq -n \
   --arg targetCommit "${TARGET_COMMIT}" \
   --arg webImageId "${TARGET_WEB_IMAGE_ID}" \
   --arg scannerWorkerImageId "${TARGET_SCANNER_IMAGE_ID}" \
+  --arg rollbackWebImageRef "${APPROVED_ROLLBACK_WEB_IMAGE_REF}" \
+  --arg rollbackScannerWorkerImageRef "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}" \
   --arg initialCompletedAt "${INITIAL_COMPLETED_AT}" \
   --arg finalCompletedAt "${LAST_COMPLETED_AT}" \
   --argjson observationDurationSeconds "${OBSERVATION_DURATION_SECONDS}" \
@@ -566,10 +642,10 @@ jq -n \
   --argjson completionAdvances "${COMPLETION_ADVANCES}" \
   --argjson updatedSuccessCount "${UPDATED_SUCCESS_COUNT}" \
   --argjson nonTargetContainersUnchanged true \
-  '{status:"PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION",packageId:$packageId,completedAt:$completedAt,baselineCommit:$baselineCommit,targetCommit:$targetCommit,detachedHead:true,webImageId:$webImageId,scannerWorkerImageId:$scannerWorkerImageId,initialCompletedAt:$initialCompletedAt,finalCompletedAt:$finalCompletedAt,observationDurationSeconds:$observationDurationSeconds,sampleCount:$sampleCount,completionAdvances:$completionAdvances,updatedSuccessCount:$updatedSuccessCount,continuousFreshness:true,scannerHeartbeatHealthy:true,finalHealth:"ready",nonTargetContainersUnchanged:$nonTargetContainersUnchanged,candidateRuntimeMutation:false,databaseMutation:false,redisMutation:false,environmentMutation:false}' \
+  '{status:"PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION",packageId:$packageId,completedAt:$completedAt,baselineCommit:$baselineCommit,targetCommit:$targetCommit,detachedHead:true,webImageId:$webImageId,scannerWorkerImageId:$scannerWorkerImageId,rollbackImagesRetained:true,rollbackWebImageRef:$rollbackWebImageRef,rollbackScannerWorkerImageRef:$rollbackScannerWorkerImageRef,rollbackCleanupRequiresSeparateApproval:true,initialCompletedAt:$initialCompletedAt,finalCompletedAt:$finalCompletedAt,observationDurationSeconds:$observationDurationSeconds,sampleCount:$sampleCount,completionAdvances:$completionAdvances,updatedSuccessCount:$updatedSuccessCount,continuousFreshness:true,scannerHeartbeatHealthy:true,finalHealth:"ready",nonTargetContainersUnchanged:$nonTargetContainersUnchanged,candidateRuntimeMutation:false,databaseMutation:false,redisMutation:false,environmentMutation:false}' \
   > "${SUMMARY_FILE}"
 
 RELEASE_SUCCEEDED=true
-trap - EXIT INT TERM
+trap - EXIT INT TERM HUP
 echo "evidence_directory=${EVIDENCE_DIRECTORY}"
 echo "PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION"

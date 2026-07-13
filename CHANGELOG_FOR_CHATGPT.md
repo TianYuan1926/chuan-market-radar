@@ -3511,3 +3511,86 @@ P0 阻断：
 ### 下一轮建议
 
 只完成本包基础/安全/自治门禁、提交和 final reproducible bundle；随后用 Microsoft Edge 做动态只读生产预检并申请新的90分钟 exact approval。
+
+## 2026-07-14 / WP-G0.2 Scan Sustained Health Emergency Baseline Recovery
+
+### 本轮目标
+
+在 sustained-health 生产 runner 因 OrcaTerm 前台会话断开而终止后，只恢复批准的生产基线，避免把未完成的持续观察或不确定回滚包装成发布成功。
+
+### 修改范围
+
+- 生产仓库仅 checkout 到 clean `main@0599f802f261fe8e3c1982a07106f362bd62ac13`。
+- 恢复旧 Web 镜像 `sha256:d51215624bd9e0a0ffc0138a20e9c1a4bf898f540be7528c01fef28fa5799800`。
+- 历史 scanner-worker 镜像已丢失，从精确 baseline 源码仅重建 scanner-worker，得到 `sha256:bd01f60c83bdc0950659989fd243946a3343c0aad1ea8d31e1f1ab5cbbb97939`。
+- 仅 force-recreate Web 与 scanner-worker，并执行只读生产验证。
+- 本地只更新项目上下文、变更日志、交付报告和脱敏证据；没有业务代码改动。
+
+### 核心链路影响
+
+恢复全市场发现和候选筛选所依赖的生产 Web/scanner 基线与健康状态；不改变扫描排序、深扫、结构分析、风险赔率、交易计划或复盘算法。
+
+### 测试结果
+
+- 生产：HEAD/branch/worktree、目标镜像、非目标容器、Candidate absent、Postgres、Redis、health、scanner heartbeat、三份合同和 Web/scanner 身份指纹检查通过。
+- scanner 重建摘要与历史摘要不一致，按批准规则标记 `RECOVERED_BASELINE_REBUILT_NOT_IDENTICAL`，不得标记发布 PASS。
+- 本地 typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip，worker 23/23，historical smoke 4/4；backtest:golden 16/16；forbidden-files、secret-patterns、security-check 全部 PASS。
+- formal：未运行，本轮禁止。
+
+### 是否部署
+
+已执行紧急基线恢复，仅重建 scanner-worker 镜像并重建 Web 与 scanner-worker 容器。没有数据库、Redis、migration、env、Feature Flag、Candidate runtime、其它服务或 GitHub 变更。
+
+### 风险与遗留问题
+
+- 原 sustained-health 发布没有完整观察总结，不是 PASS；该 P1 仍未关闭。
+- scanner-worker 是从同一 baseline 源码重建的恢复镜像，但字节摘要不等于历史镜像，不能声称完全相同回滚。
+- 浏览器前台会话可以终止当前 runner，且历史回滚镜像可能被构建清理；两项都必须在再次发布前修复。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`，Dormant Runtime Deploy 继续阻断。
+
+### 下一轮建议
+
+只加固 sustained-health 生产 runner 的会话独立性和回滚镜像留存/预检，然后重新执行完整本地演练与基础门禁。
+
+## 2026-07-14 / WP-G0.2 Scan Sustained Health Runner Recovery Hardening
+
+### 本轮目标
+
+只修复上轮生产发布暴露的两个工程缺口：runner 依赖 OrcaTerm 前台会话，以及旧 Web/scanner-worker 镜像未在 mutation 前保留为可验证的回滚引用。
+
+### 修改范围
+
+- sustained-health 入口改为只通过 transient systemd unit 启动 detached worker；禁止前台 fallback，并转发 HUP/TERM/INT 以等待自动回滚完成。
+- 发布 runner 在 checkout/build/recreate 前为当前 Web 和 scanner-worker 建立确定性 rollback refs，并在关键 mutation 边界重复验证。
+- 失败回滚改为从已保留 refs 恢复双镜像和 baseline Git；成功后也保留 refs，清理需要独立批准。
+- 扩展生产合同、validator、bundle manifest、成功/失败演练和治理文档。
+- 未修改 scan、analysis、strategy、backtest、frontend、业务 API、数据库、Redis、migration、env、Feature Flag 或 Candidate runtime。
+
+### 核心链路影响
+
+只强化全市场发现与候选筛选所依赖的 scanner 发布可靠性和恢复能力；不改变扫描排序、结构判断、风险赔率、交易计划或复盘逻辑。
+
+### 测试结果
+
+- 红灯基线：12 项中 6 pass / 6 fail，失败精确覆盖旧审批键、缺少会话独立合同、未使用 systemd 和没有 rollback image retention。
+- 定向 release/execute rehearsal：12/12 pass；证明 launcher 退出后 worker 仍完成、保留 refs 先于 checkout/build、观察失败恢复双镜像与 baseline Git、保留验证失败在 mutation 前拒绝。
+- deploy-safety 5/5、autonomy unit 16/16：pass。
+- typecheck、lint、build：pass。
+- test:market：960 pass / 0 fail / 4 explicit DB skip；worker 23/23；historical smoke 4/4。
+- backtest:golden：16/16 pass；formal 未运行。
+- forbidden-files、secret-patterns、security-check：pass。
+- autonomy 总门禁：11/11 pass；`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。
+
+### 是否部署
+
+未部署、未连接生产、未执行 migration、未重启服务。当前生产仍保持紧急恢复后的 baseline 状态。本轮新 3 文件 artifact SHA-256=`6af759ceee3aa4a97ce22f92db28cbef31ebade519b57a088900278e1655eb69`；旧 artifact=`5dc432045b3e0ebdf9bd83b90dd3b720a024544da2c46872dc6ef4898892c7c5` 和历史 bundle/approval 均已失效。clean Git 收口与绑定最终 clean HEAD 的可复现 bundle 已完成，精确 commit/bundle 指纹记录在本轮交付报告。
+
+### 风险与遗留问题
+
+- 本地加固 PASS 不等于 sustained-health 生产发布 PASS；P1 仍需重新发布和连续1800秒观察关闭。
+- final bundle 已从 clean commit 两次独立生成并通过字节级一致性校验；仍须重新绑定当前生产动态指纹和新的 exact approval。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`；WP-G0.2 与 G0 均未完成。
+
+### 下一轮建议
+
+只用 Microsoft Edge 做动态只读生产预检并申请新的 Web + scanner-worker 精确发布批准；不得夹带 Dormant Runtime、数据库或 Candidate activation。
