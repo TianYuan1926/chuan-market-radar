@@ -3641,6 +3641,54 @@ P0 阻断：
 
 只恢复 Scanner sustained-health Web+scanner-worker 精确生产包，先接入 standing authorization 与 runtime lease，再做动态生产预检。
 
+## 2026-07-14 / WP-G0.2 Scanner Sustained Health Production Pass and Lease Evidence Closeout
+
+### 本轮目标
+
+只完成 Scanner sustained-health 的精确 Web + scanner-worker 生产重发、1800 秒持续观察、生产真值收口，以及生产后发现的 lease execution 快照一致性缺陷修复。
+
+### 修改范围
+
+- 生产只构建/recreate Web 与 scanner-worker，生产仓库切到 clean detached `70722ea...`；其它容器、Candidate runtime、数据库、Redis、env、Feature Flag 和 GitHub main 不变。
+- 本地 lease CLI 在 consume/release 后原子持久化 execution snapshot；定向测试锁定 `active_consumed` 与 `released` 生命周期。
+- 更新自治状态、项目 Context、traceability、治理说明、当前 artifact 和中文交付报告；新增脱敏生产证据。
+- 精确删除 4 个失效/已消费 bundle、1 个 request 和 1 个仓库外单次 approval；保留服务器原始 evidence、consumed/released ledger 与两个 rollback refs。
+- 未修改 scan、analysis、strategy、backtest、frontend、业务 API、DB schema、Redis、worker 业务代码、Compose 或 secret。
+
+### 核心链路影响
+
+- 全市场发现：生产 scanner 不再因任务时长发生 cadence 漂移，持续完成时间已真实推进。
+- 候选筛选：freshness 与 scanner heartbeat 在两个后续 cadence 内持续通过。
+- 深扫验证、结构分析、风险赔率、交易计划、复盘进化：本轮未修改业务逻辑。
+
+### 测试结果
+
+- 生产：`PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION`；1800 秒、59 样本、2 completion advances、3 updated-only successes，最终 ready/fresh/heartbeat healthy。
+- lease 快照红灯：新增断言后 0/1，actual=`active_unconsumed`、expected=`active_consumed`。
+- 修复后单测：1/1 PASS。
+- artifact 防线：CLI 修改后 release 套件真实 9/15、6 项 checksum 失败；刷新未部署的事后 closeout artifact 后 15/15 PASS。
+- autonomy：29/29 PASS。
+- typecheck / lint / build：PASS。
+- test:market：960 pass / 0 fail / 4 explicit DB skip；worker 23/23；historical smoke 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- 最终冻结 autonomy 总门禁：10/10 PASS，`worktreeUnchanged=true`；本节、Context、traceability 与交付报告已纳入同一工作树指纹，旧 gate evidence 不复用。
+- backtest:formal：未运行，本轮禁止。
+
+### 是否部署
+
+已部署腾讯云生产，仅 Web 与 scanner-worker。当前生产为 clean detached `70722ea...`；新 Web=`sha256:6d02c759...`、scanner-worker=`sha256:b11c0cec...`。没有数据库、Redis、migration、env、Feature Flag、Candidate runtime 或其它服务变更。GitHub main 在生产执行前已包含 runner closeout提交，本轮事后 CLI 修复尚待 commit/push，且未重新部署。
+
+### 风险与遗留问题
+
+- 原 production execution snapshot 陈旧，但 append-only events、external consumed ledger、released history 和 active lease count=0 一致证明 lease 已 `released/PASS`；原文件保留并新增四源脱敏 reconciliation。
+- Scanner P1 已关闭，但 WP-G0.2/G0 未完成，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+- 旧 Dormant Deploy 合同绑定旧 release diff/rollback 和旧逐次审批模型，且缺少当前 session-independent runner/rollback retention 集成，不能直接执行。
+
+### 下一轮建议
+
+只做 `WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH`，绑定当前生产 target、standing authorization、外部 lease/fencing、session-independent runner、Web rollback retention 和完整隔离演练；通过后才允许 web-only dormant 生产重试。
+
 ## 2026-07-14 / WP-G0.2 Scanner Sustained Health Standing Authorization Integration
 
 ### 本轮目标

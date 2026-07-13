@@ -57,6 +57,7 @@
 11. 两个 retention ref 必须在生产 mutation 前解析回批准的旧镜像 ID；任一不匹配立即 fail closed。
 12. transport manifest 的 runner source parent/commit/tree/diff/path-set、policy hash 和 gate evidence hash 必须与仓库外 approval 完全一致。
 13. approval 本身不得携带 runtime lease ID 或 fencing token；runner 必须在生产 host 上原子生成 execution record，并在 checkout、build、两次 recreate、每次 observation sample 与 rollback 前重验。
+14. execution snapshot 必须在一次性 approval 消费后持久化 `active_consumed/consumedAt`，在 lease 释放后持久化 `released/outcome/releasedAt`；append-only events、external consumed ledger 和 released lease history 必须保持独立可校对。
 
 ## 6. 发布与真值观察
 
@@ -71,6 +72,14 @@
 9. 要求至少两个后续不同的 `scan.completedAt`，最后 health 必须 `ready/fresh`。
 10. scanner 日志必须证明 `fixed_rate_skip_missed`、至少三次 `resultStatus=updated` 成功、零假成功、零 task failure。
 11. 每次观察采样前 heartbeat 并重验 lease；用户撤销、lease 过期或 fencing 失配时立即停止正向动作并进入受 fencing 约束的自动回滚。
+
+## 生产执行真值与事后证据修复
+
+2026-07-13T21:08Z 至 21:40Z，绑定 runner source `36c20e85...` 的 transient systemd 执行完成：生产进入 clean detached `70722ea...`，仅 Web 与 scanner-worker 发生镜像切换；连续观察 1800 秒、59 个样本、2 次真实 `completedAt` 推进、3 次 updated-only success，最终 health ready/fresh、scanner heartbeat healthy，结果为 `PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION`。数据库、Redis、env、Candidate runtime 和非目标容器未变，两个基线 rollback refs 保留。
+
+收口审计同时发现 v1 lease CLI 只把 acquire 状态写入 `production-lease-execution.json`，后续 consume/release 仅存在于 append-only events 和 external trust history。原陈旧快照保留为缺陷证据，生产 evidence 目录新增四源脱敏 reconciliation；CLI 与定向测试已改为原子持久化 `active_consumed` 和 `released` 快照。该事后修复不改变已执行 runner、target commit 或生产镜像，只修未来执行证据一致性。
+
+本包 PASS 只关闭 Scanner sustained-health P1。Candidate runtime、WP-G0.2、G0 和实战准入仍未完成。
 
 不能满足任一条件就不是 PASS。
 

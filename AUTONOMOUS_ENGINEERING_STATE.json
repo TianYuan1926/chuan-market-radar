@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T05:00:00+08:00",
+  "updatedAt": "2026-07-14T05:58:08+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -9,7 +9,7 @@
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
-    "productionHealthSustainability": "p1_release_attempt_runner_terminated_emergency_baseline_recovered_rebuilt_scanner_not_identical_standing_authorization_external_lease_fencing_final_source_gates_pass_dynamic_preflight_current_production_gate_exact_external_approval_and_final_bundle_pending"
+    "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_closeout_gates_10_of_10_pass_commit_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -140,7 +140,8 @@
       "scan_freshness_truth",
       "production_single_writer_fencing",
       "session_independent_observation",
-      "automatic_two_image_and_git_rollback"
+      "automatic_two_image_and_git_rollback",
+      "lease_execution_snapshot_truth"
     ],
     "productionMutation": true,
     "requiresExplicitApproval": true,
@@ -165,7 +166,8 @@
       "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
       "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md",
+      "reports/wp-g0-2-scan-sustained-health-production-release/wp-g0-2-scan-sustained-health-production-release-redacted-evidence.json"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -201,7 +203,8 @@
       "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
       "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md",
+      "reports/wp-g0-2-scan-sustained-health-production-release/wp-g0-2-scan-sustained-health-production-release-redacted-evidence.json"
     ],
     "gateProfile": {
       "targeted": [

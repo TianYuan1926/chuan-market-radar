@@ -358,6 +358,11 @@ test("lease CLI acquires, consumes, rejects replay, observes revocation and perm
   assert.ok(acquired.fencingToken > 0);
   assert.equal(JSON.parse((await run("checkpoint", ["--checkpoint", "before-test"])).stdout).status, "pass");
   assert.equal(JSON.parse((await run("consume")).stdout).status, "consumed");
+  const consumedExecution = JSON.parse(await readFile(executionPath, "utf8"));
+  assert.equal(consumedExecution.status, "active_consumed");
+  assert.equal(consumedExecution.consumedAt, "2026-07-13T01:45:00.000Z");
+  assert.equal(consumedExecution.leaseId, acquired.leaseId);
+  assert.equal(consumedExecution.fencingToken, acquired.fencingToken);
   const replayExecution = join(directory, "replay-execution.json");
   await assert.rejects(execFileAsync(process.execPath, [
     cli, "acquire", "--trust-root", trustRoot, "--request", requestPath,
@@ -374,6 +379,13 @@ test("lease CLI acquires, consumes, rejects replay, observes revocation and perm
   });
   assert.equal(JSON.parse((await run("safety-checkpoint", ["--checkpoint", "rollback"])).stdout).status, "pass");
   assert.equal(JSON.parse((await run("release", ["--outcome", "ROLLBACK_PASS"])).stdout).outcome, "ROLLBACK_PASS");
+  const releasedExecution = JSON.parse(await readFile(executionPath, "utf8"));
+  assert.equal(releasedExecution.status, "released");
+  assert.equal(releasedExecution.outcome, "ROLLBACK_PASS");
+  assert.equal(releasedExecution.releasedAt, "2026-07-13T01:45:00.000Z");
+  assert.equal(releasedExecution.consumedAt, consumedExecution.consumedAt);
+  assert.equal(releasedExecution.leaseId, acquired.leaseId);
+  assert.equal(releasedExecution.fencingToken, acquired.fencingToken);
 });
 
 test("local preparation is approval-blocked and staged validation needs no Git repository", async () => {

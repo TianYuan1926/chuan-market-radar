@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -39,6 +40,19 @@ function parseArgs(argv) {
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
+}
+
+async function replaceExecutionSnapshot(path, value) {
+  const temporaryPath = `${path}.tmp-${randomUUID()}`;
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    await rename(temporaryPath, path);
+  } finally {
+    await rm(temporaryPath, { force: true }).catch(() => {});
+  }
 }
 
 function parseNow(value) {
@@ -172,6 +186,11 @@ async function consume(options) {
     fencingToken: execution.fencingToken,
     consumedAt: now,
   });
+  await replaceExecutionSnapshot(executionPath, {
+    ...execution,
+    consumedAt: now.toISOString(),
+    status: "active_consumed",
+  });
   return {
     schemaVersion: EXECUTION_SCHEMA,
     approvalId: authorization.approvalId,
@@ -197,6 +216,12 @@ async function release(options) {
     ...leaseIdentity(authorization, execution),
     outcome: options.outcome,
     now,
+  });
+  await replaceExecutionSnapshot(executionPath, {
+    ...execution,
+    outcome: released.outcome,
+    releasedAt: released.releasedAt,
+    status: "released",
   });
   return {
     schemaVersion: EXECUTION_SCHEMA,
