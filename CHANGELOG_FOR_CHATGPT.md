@@ -3770,6 +3770,8 @@ P0 阻断：
 - backtest:golden：16/16 PASS。
 - forbidden-files / secret-patterns / security-check：PASS。
 - 首轮自治总门禁：11/11 PASS，`worktreeUnchanged=true`；事实回填后必须再跑最终冻结门禁，旧 gate evidence 不复用。
+- Microsoft Edge/OrcaTerm 动态只读预检：生产 clean detached `70722ea...`、remote target=`cec0b657...`、health ready/fresh、scanner healthy、Candidate dormant/absent、schema=`9|0`、身份文件权限正确、Postgres/Redis/三份合同通过、active lease absent；生产未改变。
+- 动态预检真实发现宿主 Node 缺失；旧 runner 在 mutation 前保持阻断。新增当前 Web 容器 stdin/base64 validator 和 network-none/read-only/cap-drop-all lease fallback，Dormant 定向测试由 12/12 增至 13/13并强制走容器路径；完整门禁须重新运行，旧提交 `cda97c1` 与 gate evidence 不得用于生产。
 - backtest:formal：未运行，本轮禁止。
 
 ### 是否部署

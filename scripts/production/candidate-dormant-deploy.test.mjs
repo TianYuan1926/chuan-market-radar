@@ -195,6 +195,10 @@ test("contract rejects dormant, standing authority, observation and rollback wea
       "session_independent_execution_required"],
     [{ deployment: { ...contract.deployment, observationDurationSeconds: 1 } },
       "observation_duration_not_locked"],
+    [{ deployment: { ...contract.deployment, hostNodeRequired: true } },
+      "host_node_must_not_be_required"],
+    [{ deployment: { ...contract.deployment, containerFallbackNetworkAllowed: true } },
+      "container_fallback_network_must_be_disabled"],
     [{ dormantBoundary: { ...contract.dormantBoundary, candidateFeatureFlagsEnabled: 1 } },
       "feature_flags_must_be_zero"],
     [{ autonomy: { ...contract.autonomy, externalProductionLeaseRequired: false } },
@@ -252,6 +256,47 @@ test("approval rejects standing authorization binding drift and embedded lease i
   }, contract, { now }));
 });
 
+test("container validator entry accepts only base64-bound request, contract and dormant environment", async () => {
+  const contractSource = await readFile(
+    "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+    "utf8",
+  );
+  const contract = JSON.parse(contractSource);
+  const request = validRequest(contract);
+  const validator = "scripts/production/candidate-dormant-deploy.mjs";
+  const runFromStdin = (args) => execFileAsync("/bin/bash", ["-lc", [
+    JSON.stringify(process.execPath),
+    "--input-type=module -",
+    ...args.map((value) => JSON.stringify(value)),
+    "<",
+    JSON.stringify(validator),
+  ].join(" ")], {
+    env: { ...process.env, CANDIDATE_DORMANT_DEPLOY_STDIN: "true" },
+  });
+  const requestResult = await runFromStdin([
+    "request",
+    "--request-base64", Buffer.from(JSON.stringify(request)).toString("base64"),
+    "--contract-base64", Buffer.from(contractSource).toString("base64"),
+    "--now", "2026-07-14T00:30:00.000Z",
+  ]);
+  assert.equal(JSON.parse(requestResult.stdout).ok, true);
+  const envResult = await runFromStdin([
+    "env", "--env-base64", Buffer.from([
+      "CANDIDATE_EPISODE_SHADOW_WRITE=false",
+      "CANDIDATE_SOURCE_DATABASE_URL=",
+      "CANDIDATE_RUNTIME_RELEASE_ID=disabled",
+      "CANDIDATE_SHADOW_WORKER_EXPECTED=false",
+    ].join("\n")).toString("base64"),
+  ]);
+  assert.equal(JSON.parse(envResult.stdout).environment.candidateFeatureFlagsEnabled, 0);
+  await assert.rejects(runFromStdin([
+    "env", "--env-base64", Buffer.from("CANDIDATE_EPISODE_SHADOW_WRITE=true").toString("base64"),
+  ]), (error) => {
+    assert.match(error.stderr, /candidate_feature_flag_not_false/);
+    return true;
+  });
+});
+
 test("environment validator accepts only a fully dormant Candidate environment", () => {
   assert.deepEqual(parseDormantEnvironment(""), {
     candidateDatabaseUrlsConfigured: 0,
@@ -296,6 +341,9 @@ test("runner is Web-only, lease fenced, detached-target and rollback retaining",
     assert.match(source, new RegExp(name));
   }
   assert.match(source, /lease_safety_checkpoint rollback/);
+  assert.match(source, /CANDIDATE_DORMANT_DEPLOY_STDIN=true/);
+  assert.match(source, /container_node/);
+  assert.match(source, /--network none --read-only --cap-drop ALL/);
   assert.match(source, /checkout --detach/);
   assert.match(source, /rollback-image-retention/);
   assert.doesNotMatch(source, /git merge --ff-only|--profile|--remove-orphans/);

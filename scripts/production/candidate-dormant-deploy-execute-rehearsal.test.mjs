@@ -239,7 +239,15 @@ test("isolated execute proves dormant Web-only success and verified baseline rol
       `  if (args[1] === '${OLD_WEB_IMAGE}' && args[2] === ${JSON.stringify(request.rollbackWebImageRef)}) state.retained = true;`,
       "  save(); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, `tag:${args[1]}:${args[2]}\\n`); process.exit(0);",
       "}",
+      "if (args[0] === 'run') {",
+      "  const actionAt = args.findIndex(value => value.endsWith('autonomy-production-lease-cli.mjs')) + 1; const action = args[actionAt];",
+      "  const executionAt = args.indexOf('--execution'); const execution = args[executionAt + 1];",
+      "  if (action === 'acquire') fs.writeFileSync(execution, JSON.stringify({leaseId:'dormant-rehearsal',fencingToken:1}));",
+      "  fs.appendFileSync(process.env.FAKE_MUTATION_LOG, `lease:container:${action}\\n`);",
+      "  console.log(JSON.stringify({status:action === 'release' ? 'released' : 'pass',action,leaseId:'dormant-rehearsal',fencingToken:1})); process.exit(0);",
+      "}",
       "if (args[0] === 'exec') {",
+      "  if (joined.includes('CANDIDATE_DORMANT_DEPLOY_STDIN=true')) { fs.readFileSync(0, 'utf8'); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, 'validator:container\\n'); process.exit(0); }",
       "  if (joined.includes('redis-cli ping')) { console.log('PONG'); process.exit(0); }",
       "  if (joined.includes('pg_isready')) process.exit(0);",
       "  if (joined.includes('psql')) { console.log('9|0'); process.exit(0); }",
@@ -312,10 +320,11 @@ test("isolated execute proves dormant Web-only success and verified baseline rol
 
     const baseEnv = {
       ...process.env,
-      AUTONOMY_LEASE_CLI_RUNTIME: "host_node",
+      AUTONOMY_LEASE_CLI_RUNTIME: "container_node",
       BASE_ENV_FILE: join(root, ".env"),
       BASE_URL: "http://127.0.0.1",
       CONFIRM_DORMANT_DEPLOY: "true",
+      CANDIDATE_DORMANT_DEPLOY_FORCE_CONTAINER_VALIDATOR: "true",
       DORMANT_DEPLOY_MODE: "production_deploy",
       ENV_FILE: join(root, ".env.production"),
       FAKE_CLOCK: clockFile,
@@ -356,6 +365,8 @@ test("isolated execute proves dormant Web-only success and verified baseline rol
     const successMutations = await readFile(mutationLog, "utf8");
     assert.ok(successMutations.indexOf(`tag:${OLD_WEB_IMAGE}:${request.rollbackWebImageRef}`) < successMutations.indexOf("checkout:target"));
     assert.ok(successMutations.indexOf("checkout:target") < successMutations.indexOf("build:web"));
+    assert.match(successMutations, /validator:container/);
+    assert.match(successMutations, /lease:container:acquire/);
     assert.doesNotMatch(successMutations, /scanner-worker|candidate-shadow-worker/);
 
     await writeFile(stateFile, JSON.stringify({ git: "baseline", web: "old", retained: false }));

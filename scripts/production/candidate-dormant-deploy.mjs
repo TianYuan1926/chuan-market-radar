@@ -126,6 +126,17 @@ export function validateContract(contract) {
   ensure(deployment.runner === "transient_systemd_unit", "transient_runner_required");
   ensure(deployment.runnerMaximumSeconds === 5_400, "runner_maximum_not_locked");
   ensure(deployment.logs === "journald", "runner_logs_not_locked");
+  ensure(deployment.hostNodeRequired === false, "host_node_must_not_be_required");
+  ensure(deployment.containerValidatorFallbackRequired === true,
+    "container_validator_fallback_required");
+  ensure(deployment.containerLeaseCliFallbackRequired === true,
+    "container_lease_fallback_required");
+  ensure(deployment.containerFallbackNetworkAllowed === false,
+    "container_fallback_network_must_be_disabled");
+  ensure(deployment.containerFallbackReadOnlyRoot === true,
+    "container_fallback_read_only_root_required");
+  ensure(deployment.containerFallbackCapabilities === "none",
+    "container_fallback_capabilities_must_be_none");
   ensure(deployment.identityOverrideRequired === true, "identity_override_required");
   ensure(deployment.identityOverrideChecksumBound === true, "identity_override_checksum_binding_required");
   ensure(deployment.observationDurationSeconds === 1_800, "observation_duration_not_locked");
@@ -497,6 +508,9 @@ export async function inspectRunner(root = process.cwd()) {
     detachedTarget: /checkout --detach/.test(source),
     leaseFenced: ["lease_acquire", "lease_consume", "lease_checkpoint", "lease_release"]
       .every((name) => source.includes(name)),
+    containerNodeFallback: /CANDIDATE_DORMANT_DEPLOY_STDIN/.test(source)
+      && /container_node/.test(source)
+      && /--network none --read-only --cap-drop ALL/.test(source),
     rollbackSafetyLease: /lease_safety_checkpoint rollback/.test(source),
     rollbackRetention: /rollback-image-retention/.test(source)
       && /verify_rollback_image_retention/.test(source),
@@ -555,16 +569,22 @@ async function main() {
   if (command === "validate") {
     result = await validateLocalPreparation(root);
   } else if (command === "request") {
-    const contract = await loadContract(root);
-    const request = JSON.parse(await readFile(resolve(options.request ?? ""), "utf8"));
+    const contract = options["contract-base64"]
+      ? validateContract(JSON.parse(Buffer.from(options["contract-base64"], "base64").toString("utf8")))
+      : await loadContract(root);
+    const request = options["request-base64"]
+      ? JSON.parse(Buffer.from(options["request-base64"], "base64").toString("utf8"))
+      : JSON.parse(await readFile(resolve(options.request ?? ""), "utf8"));
     result = {
       ok: true,
       request: validateApprovalRequest(request, contract,
         options.now ? { now: new Date(options.now) } : {}),
     };
   } else if (command === "env") {
-    result = { ok: true, environment: parseDormantEnvironment(
-      await readFile(resolve(options["env-file"] ?? ""), "utf8")) };
+    const source = options["env-base64"]
+      ? Buffer.from(options["env-base64"], "base64").toString("utf8")
+      : await readFile(resolve(options["env-file"] ?? ""), "utf8");
+    result = { ok: true, environment: parseDormantEnvironment(source) };
   } else if (command === "identity-override") {
     result = { ok: true, identityOverride: await validateIdentityOverrideFile(
       options.file ?? "", options.sha256 ?? "") };
@@ -574,7 +594,8 @@ async function main() {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href
+  || process.env.CANDIDATE_DORMANT_DEPLOY_STDIN === "true") {
   main().catch((error) => {
     process.stderr.write(`${JSON.stringify({ ok: false, reason: error?.reason ?? "unexpected_error" })}\n`);
     process.exitCode = 1;

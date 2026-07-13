@@ -906,7 +906,7 @@
   ],
   "currentGovernancePackage": {
     "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
-    "status": "local_runner_contract_isolated_success_rollback_rehearsal_and_full_gates_11_of_11_pass_commit_pending",
+    "status": "dynamic_preflight_pass_except_expected_host_node_missing_container_node_fallback_red_green_fixed_full_gate_pending",
     "productionMutation": false,
     "scope": "G0_web_only_dormant_runtime_release_governance_and_execution_safety",
     "practicalTradingReady": false

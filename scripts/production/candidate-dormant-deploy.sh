@@ -14,6 +14,7 @@ BASE_URL="${BASE_URL:-http://127.0.0.1}"
 WEB_READY_TIMEOUT_SECONDS="${WEB_READY_TIMEOUT_SECONDS:-240}"
 WEB_READY_POLL_SECONDS="${WEB_READY_POLL_SECONDS:-3}"
 OBSERVATION_POLL_SECONDS="${OBSERVATION_POLL_SECONDS:-30}"
+CANDIDATE_DORMANT_DEPLOY_FORCE_CONTAINER_VALIDATOR="${CANDIDATE_DORMANT_DEPLOY_FORCE_CONTAINER_VALIDATOR:-false}"
 VALIDATOR="${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs"
 CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json"
 ENTRYPOINT="${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy-entrypoint.sh"
@@ -40,13 +41,17 @@ echo "target_commit=${TARGET_COMMIT}"
 
 if [[ "${DORMANT_DEPLOY_MODE}" != "production_deploy" \
   || "${CONFIRM_DORMANT_DEPLOY}" != "true" ]]; then
+  if ! command -v node >/dev/null 2>&1; then
+    echo "ERROR: local dry-run validation requires Node.js." >&2
+    exit 1
+  fi
   node "${VALIDATOR}" validate --root "${SOURCE_ROOT}"
   echo "DRY-RUN: production Git, images, containers, database, Redis and environment were not changed."
   echo "production_decision=BLOCKED_UNTIL_CURRENT_DYNAMIC_PREFLIGHT_AND_EXTERNAL_SINGLE_USE_APPROVAL"
   exit 0
 fi
 
-for command_name in curl git jq node realpath sha256sum sudo; do
+for command_name in base64 curl git jq realpath sha256sum sudo; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
     echo "ERROR: required production command is unavailable: ${command_name}" >&2
     exit 1
@@ -106,10 +111,33 @@ IDENTITY_COMPOSE=(sudo -n "${IDENTITY_WRAPPER}")
 WEB_CONTAINER_NAME="chuan-market-radar-web-1"
 POSTGRES_CONTAINER_NAME="chuan-market-radar-postgres-1"
 REDIS_CONTAINER_NAME="chuan-market-radar-redis-1"
+WEB_CONTAINER_ID="$(${DOCKER[@]} ps --filter "name=^/${WEB_CONTAINER_NAME}$" --format '{{.ID}}')"
+if [[ -z "${WEB_CONTAINER_ID}" || "${WEB_CONTAINER_ID}" == *$'\n'* ]]; then
+  echo "ERROR: exactly one current Web container is required for fail-closed validation." >&2
+  exit 1
+fi
 
-node "${VALIDATOR}" request --root "${SOURCE_ROOT}" --request "${REQUEST_FILE}" >/dev/null
-node "${VALIDATOR}" env --env-file "${BASE_ENV_FILE}" >/dev/null
-node "${VALIDATOR}" env --env-file "${ENV_FILE}" >/dev/null
+REQUEST_BASE64="$(base64 < "${REQUEST_FILE}" | tr -d '\r\n')"
+CONTRACT_BASE64="$(base64 < "${CONTRACT}" | tr -d '\r\n')"
+BASE_ENV_BASE64="$(base64 < "${BASE_ENV_FILE}" | tr -d '\r\n')"
+PRODUCTION_ENV_BASE64="$(base64 < "${ENV_FILE}" | tr -d '\r\n')"
+if command -v node >/dev/null 2>&1 \
+  && [[ "${CANDIDATE_DORMANT_DEPLOY_FORCE_CONTAINER_VALIDATOR}" != "true" ]]; then
+  node "${VALIDATOR}" request --root "${SOURCE_ROOT}" --request "${REQUEST_FILE}" >/dev/null
+  node "${VALIDATOR}" env --env-file "${BASE_ENV_FILE}" >/dev/null
+  node "${VALIDATOR}" env --env-file "${ENV_FILE}" >/dev/null
+else
+  ${DOCKER[@]} exec -i -e CANDIDATE_DORMANT_DEPLOY_STDIN=true "${WEB_CONTAINER_ID}" \
+    node --input-type=module - request \
+      --request-base64 "${REQUEST_BASE64}" --contract-base64 "${CONTRACT_BASE64}" \
+      < "${VALIDATOR}" >/dev/null
+  ${DOCKER[@]} exec -i -e CANDIDATE_DORMANT_DEPLOY_STDIN=true "${WEB_CONTAINER_ID}" \
+    node --input-type=module - env --env-base64 "${BASE_ENV_BASE64}" \
+      < "${VALIDATOR}" >/dev/null
+  ${DOCKER[@]} exec -i -e CANDIDATE_DORMANT_DEPLOY_STDIN=true "${WEB_CONTAINER_ID}" \
+    node --input-type=module - env --env-base64 "${PRODUCTION_ENV_BASE64}" \
+      < "${VALIDATOR}" >/dev/null
+fi
 
 APPROVED_BASELINE_COMMIT="$(jq -r '.baselineCommit' "${REQUEST_FILE}")"
 APPROVED_TARGET_COMMIT="$(jq -r '.targetCommit' "${REQUEST_FILE}")"
@@ -294,8 +322,24 @@ run_lease_cli() {
       "$@"
     return
   fi
-  echo "ERROR: unsupported autonomy lease CLI runtime." >&2
-  return 1
+  if [[ "${AUTONOMY_LEASE_CLI_RUNTIME}" != "auto" \
+    && "${AUTONOMY_LEASE_CLI_RUNTIME}" != "container_node" ]]; then
+    echo "ERROR: unsupported autonomy lease CLI runtime." >&2
+    return 1
+  fi
+  ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges \
+    --user "$(id -u):$(id -g)" \
+    --mount "type=bind,src=${SOURCE_ROOT}/scripts/governance,dst=/runner,readonly" \
+    --mount "type=bind,src=${REQUEST_FILE},dst=/request/approval-request.json,readonly" \
+    --mount "type=bind,src=${AUTONOMY_TRUST_ROOT},dst=${AUTONOMY_TRUST_ROOT}" \
+    --mount "type=bind,src=${EVIDENCE_DIRECTORY},dst=${EVIDENCE_DIRECTORY}" \
+    --entrypoint node "${APPROVED_WEB_IMAGE_ID}" \
+    /runner/autonomy-production-lease-cli.mjs "${command_name}" \
+      --trust-root "${AUTONOMY_TRUST_ROOT}" \
+      --request /request/approval-request.json \
+      --execution "${LEASE_EXECUTION_FILE}" \
+      "$@"
 }
 
 lease_event() {

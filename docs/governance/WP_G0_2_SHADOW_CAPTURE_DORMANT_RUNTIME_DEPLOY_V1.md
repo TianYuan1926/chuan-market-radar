@@ -72,6 +72,8 @@ StandardError=journal
 
 OrcaTerm、Microsoft Edge 或启动 shell 断开不能中止执行。不存在 `nohup` 或前台 fallback。worker 结束后只能删除与审批精确绑定的 staging，不得扩大清理范围。
 
+2026-07-14 动态预检证明生产宿主机没有 Node。宿主 Node 因此明确不是前提：validator 必须把 request、contract 和两份环境文件以 base64 输入当前批准 Web 容器；lease CLI fallback 必须使用当前批准 Web image，且固定 `--network none`、`--read-only`、`--cap-drop ALL`、`no-new-privileges`，只挂载治理脚本、只读请求、外部 trust root 和 evidence 目录。容器 fallback 不得读取或输出连接串。
+
 ## 5. 执行前条件
 
 1. 定向测试、基础门禁、安全门禁、自治门禁全部 PASS，工作树冻结且证据绑定当前 runner commit。
