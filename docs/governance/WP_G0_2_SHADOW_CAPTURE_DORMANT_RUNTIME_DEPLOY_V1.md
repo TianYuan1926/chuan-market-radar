@@ -1,137 +1,139 @@
 # WP-G0.2 Dormant Runtime Deploy 准入与运行合同
 
-## 1. 本包目标
+## 1. 本包目标与当前真值
 
-把已经通过本地 Composition Wiring 的 Candidate 代码部署到生产 `web` 镜像，但保持全部 Candidate 行为休眠。该动作只安装代码，不启动 Candidate 数据采集，不建立数据库身份，不改变任何生产数据。
-
-当前结论：
+本包只把 Candidate Episode / Shadow Capture 运行时代码装入生产 `web`，让后续最小权限身份和激活包有可承接的代码地基。Candidate 在本包前后都必须完全休眠：不采集、不写入、不启动 worker、不生成候选、信号或交易计划。
 
 ```text
-本地部署准备：PASS_LOCAL_DORMANT_DEPLOY_PREPARATION
-隔离执行/回滚演练：PASS_ISOLATED_EXECUTE_AND_ROLLBACK_REHEARSAL
+本地 runner 刷新：PASS_LOCAL_DORMANT_DEPLOY_STANDING_AUTHORITY_RUNNER_REFRESH
+隔离成功/回滚演练：PASS（12/12 定向测试中的真实脚本执行用例）
+精确 release：70722ea... -> cec0b657...（单父、18 个 A/M 文件）
 生产部署：NOT EXECUTED
-生产授权：MISSING
+精确单次生产执行记录：NOT CREATED
 生产激活：FORBIDDEN
 系统等级：R1 / 可运行但不完整 / 不能支撑实战
 ```
 
-## 2. 为什么不能使用通用发布脚本
+2026-07-12 的历史 Dormant 生产尝试仍是“新 Web 启动竞态后自动回滚”，不是 PASS。旧 commit、artifact、宽 release diff、bundle 和已消费审批只保留为历史证据，禁止复用。
 
-现有通用脚本会执行全量 Compose build/up，并带 `--remove-orphans`。本包只允许重建 `web`，因此必须使用专用 runner：
+## 2. 唯一允许的发布对象
+
+当前生产基线必须在执行前动态复核为 clean detached：
+
+```text
+baseline commit = 70722ea71b33268b688be5d42af9908d40f49859
+target commit   = cec0b6572bb09ae91ff9e013f8bb160f73c045e2
+target tree     = eb217a7fbaad5b464279a08d4441a8249fc266e3
+remote branch   = codex/wp-g0-2-dormant-runtime-release-v2
+```
+
+target 必须只有一个父提交，且父提交精确等于 baseline。release diff 必须精确为合同 JSON 中的 18 个 `A/M` 路径：
+
+```text
+release diff SHA-256 = ee814eb07b7b4fa6c4f36f92293d9ec9fbf2269fbb0e348d0705799637e4f4fa
+path-set SHA-256     = 595fe25980a91548c7a88a7301f141c24ea29e1ea61c1960284a59c950aef19a
+runtime artifact     = 5f4fb48da4b013278fde1c240c4838b96f020acfa142e624ca36000a491243e7
+target Compose       = 9e22cf32574e19e8526cf42795726627bff9b90cd990db69b5639d20e9ff0820
+```
+
+不得部署 GitHub `main` 的宽差异，不得把历史 149/156 路径发布包换皮复用。release 中虽包含 Candidate 代码，但本包不允许配置身份、开 Flag、启动 control lifecycle 或 Candidate worker。
+
+## 3. 发布和授权边界
+
+唯一允许的服务动作：
 
 ```text
 docker compose build web
-docker compose up -d --no-deps web
+docker compose up -d --no-deps --force-recreate web
 ```
 
-禁止 profile、Candidate worker、全量服务重建和 `--remove-orphans`。
+禁止全量 Compose、`--remove-orphans`、profile、scanner-worker 或其它服务重建。禁止数据库 DDL/DML、Redis mutation、migration、env 修改、Feature Flag 修改、Candidate 数据库 URL 配置和代码激活。
 
-## 3. 生产审批必须绑定
+G0-G8 standing authorization 只取消常规逐包等待，不取消以下约束：
 
-当前 artifact 固定为 14 个文件，必须包含 `src/lib/candidate-episode/transaction-adapter.ts`，SHA-256 为 `b4fce8a64a9e468067101b50c2e5e59b5802d3f8b5459e176acb1bac25081e2c`。此前 artifact checksum `a82ed943e7eae1df94bacb0f0c11439586e14fc3127564556215162bb8d82a50`、`e56d37ff17a34b60e65bdfdb86865691e9b91cdb160b5afaa7940a027deb2b0a`、`78f1e3fa045615fd46dc38739adce0ed14a267e3665a3a1c99501f0520478449`、13 文件 checksum 与更早的 14 文件 checksum 都只保留为历史证据，已经失效，不得再用于任何生产审批。
+1. runner source commit/tree/parent/diff/path-set、合同、artifact、policy、gate evidence 必须精确绑定。
+2. 当前 Web image、Compose、base/production env、root-owned identity wrapper 与 `0600` identity override 必须动态绑定。
+3. 仓库外单次 package authorization 最长 90 分钟、`maxExecutions=1`。
+4. 仓库外全局 lease、递增 fencing token 和每个 mutation 前 checkpoint 必须通过。
+5. approval 不能预填 lease ID 或 fencing token；运行身份只能在生产端 acquire 时产生。
 
-artifact checksum 只能证明 14 个安全关键文件，不能单独证明整个 Git release 没有夹带其它 Web 代码。当前 release-diff 门禁额外锁定：
+任一绑定漂移都必须在 Git/Docker mutation 前 fail closed。
 
-- required release base=`591163a37493910c346530ebdf271f878c6a67b5`
-- last verified production rollback=`0599f802f261fe8e3c1982a07106f362bd62ac13`
-- rollback 必须是 approved commit 的祖先，approved commit 必须继承 required release base
-- release diff 必须精确为 156 个 `A/M` 路径
-- path-set SHA-256=`8aa967379c97addb34f7908ca228092ab5ab4953e65d6cc705b7b36a71ea79a3`
-- Review、Canonical read、activation、reconciliation 和任意非 allowlist 路径全部 fail closed
+## 4. 会话独立执行
 
-历史 approved commit=`a8dd51954c35cad6c4b14efd3adf6bf97127a342` 的 149 路径与 `f39c8a26...` 已重新计算一致，但只保留为已消耗审批的历史事实。当前 156 路径加入的是 Web Identity Recovery 和治理传递依赖；allowlist、forbidden path、祖先与 rollback 约束没有放宽。因此，包含后续 Canonical/Review 代码的功能分支仍不能直接作为本 Dormant approved commit，即使 14 文件 artifact checksum 相同也不允许通过。
-
-审批请求必须完整绑定：
-
-- `packageId=WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY`
-- GitHub `main` 的 40 位 approved commit
-- 当前机器合同中的 artifact SHA-256
-- release diff file count 与 path-set SHA-256
-- 当前生产 40 位 rollback commit
-- `services=[web]`
-- `deploymentMode=dormant_runtime_web_only`
-- Compose 环境文件顺序固定为 `.env` 后 `.env.production`
-- 仓库外生产身份 override 的绝对路径、普通文件类型、精确 `0600` 权限与 `identityOverrideSha256`
-- 不超过 90 分钟且尚未过期的窗口
-- 自动 Web 镜像回滚允许为 true
-- Candidate worker、数据库 URL、Feature Flag、代码授权、control lifecycle、migration 和数据库 mutation 全部为 false
-
-“下一步”“继续”“全自动搭建”都不等于该生产审批。
-
-## 4. 执行前条件
-
-1. 本地完整门禁和专用 validator PASS。
-2. approved commit 已进入 GitHub `main`，artifact checksum 未漂移，且 release diff 的祖先关系、156 路径和 path-set SHA-256 全部匹配。
-3. 生产 worktree clean，当前 HEAD 等于审批中的 rollback commit。
-4. `.env.production` 中五个 Candidate Flag 为 false 或缺省。
-5. `.env` 和 `.env.production` 都通过 Candidate 休眠校验；合并后的三条 Candidate Database URL 为空或缺省。
-6. Candidate runtime release 为 disabled，Candidate worker expected 为 false。
-7. 仓库外生产身份 override 是绝对路径普通文件、权限精确为 `0600`，且 SHA-256 与审批一致。
-8. Candidate worker 容器不存在，旧 Web 镜像可作为回滚镜像。
-9. 用户明确批准精确 commit、artifact、release diff、identity override checksum、web-only 和 90 分钟窗口。
-
-任一条件失败立即停止，不进行部分部署。
-
-## 5. 执行方式
-
-为避免先修改生产 worktree 再校验 runner，应先在服务器用 `origin/main` 的 approved commit 建立临时 detached worktree，从该临时目录运行 runner，并把真实生产目录通过 `ROOT_DIR_OVERRIDE` 传入。请求 JSON 只包含审批元数据，不包含任何 secret。
-
-专用 runner 默认 dry-run。只有同时设置下列两项并提供通过校验的请求文件，才可能执行：
+批准的脱敏、可复现 `ustar+gzip-n` Bundle 只能上传到仓库外 `0700` staging。请求文件必须为普通非符号链接 `0600` 文件，不能含 secret。入口必须用 transient systemd unit 启动 detached worker：
 
 ```text
-DORMANT_DEPLOY_MODE=production_deploy
-CONFIRM_DORMANT_DEPLOY=true
-REQUEST_FILE=/secure/path/request.json
+Restart=no
+RuntimeMaxSec=5400
+StandardOutput=journal
+StandardError=journal
 ```
 
-生产 Compose 必须同时使用 `--env-file .env --env-file .env.production -f docker-compose.yml -f <approved-identity-override>`。基础文件提供 PostgreSQL 等必需插值，生产环境文件提供运行覆盖，仓库外身份 override 保留已经验收的最小权限 Web 身份；正常部署和自动回滚必须使用同一个 Compose 数组，任何一项缺失都不构成有效准入证据。
+OrcaTerm、Microsoft Edge 或启动 shell 断开不能中止执行。不存在 `nohup` 或前台 fallback。worker 结束后只能删除与审批精确绑定的 staging，不得扩大清理范围。
 
-runner 请求解析必须兼容生产同类环境可能使用的 Bash 3.2，不得依赖 Bash 4 才提供的 `readarray` / `mapfile`。本地隔离演练必须真实执行 runner 的成功路径与即时验证失败路径，并证明失败路径恢复 rollback commit 和旧 Web 镜像。
+## 5. 执行前条件
 
-真实命令和临时路径由 Codex 在审批窗口内按服务器实际目录生成；禁止把 `.env.production`、连接串或 token 写入请求文件和证据。
+1. 定向测试、基础门禁、安全门禁、自治门禁全部 PASS，工作树冻结且证据绑定当前 runner commit。
+2. release branch 已推 GitHub，target commit/tree/parent/diff/path-set/Compose 全部匹配。
+3. 生产仓库 clean detached baseline；不得有未跟踪文件或分支漂移。
+4. 当前 Web、非目标容器、Postgres、Redis、`/api/health` 和三份合同均通过只读预检。
+5. 五个 Candidate Flag 为 false，三条 Candidate URL 为空，release ID 为 disabled，worker expected=false。
+6. Candidate worker 不存在；`candidate_migration_control` 行数为 0；已应用 migration ledger 仍为 9。
+7. 旧 Web image 已绑定为 rollback ref，且在任何 checkout/build/recreate 前验证可解析回原 image ID。
+8. 当前单次 authorization、外部 lease 和 fencing 均有效、未消费、未撤销。
+
+任一条件失败立即停止，不执行部分发布。
 
 ## 6. 即时验收
 
-专用 runner 必须证明：
+发布后必须同时证明：
 
-- 生产 HEAD 等于 approved commit。
-- 只重建 `web`。
-- Web 容器实际 `DATABASE_URL` 指纹等于同一 Compose 配置计算出的身份指纹；不输出连接串。
-- Web 容器中五个 Candidate Flag 关闭、三条 Candidate URL 为空。
-- Candidate release disabled、worker expected false。
-- Candidate worker 容器不存在。
-- 未授权 Candidate API 返回 401。
-- 授权只读调用返回 `mode=dormant`、`batch=null`，且包含代码未授权 blocker。
-- `/api/health`、前后端合同、现有 workers、Postgres、Redis 通过既有生产检查。
+- HEAD 为 clean detached target，Compose 为 target checksum；
+- 只有 Web 容器和镜像发生变化，非目标容器身份逐字节一致；
+- Web 实际 `DATABASE_URL` 脱敏指纹等于批准 Compose 身份指纹；
+- Candidate Flag、URL、release、worker expected 仍完全休眠，Candidate worker absent；
+- 未授权 admin 调用返回 401；授权只读调用返回 `mode=dormant`、`batch=null` 和 `release_not_authorized_in_code` blocker；
+- schema 只读结果为 `9|0`，没有 DDL/DML；
+- health ready、scan fresh、scanner heartbeat healthy；前后端与 business capability 合同、Postgres、Redis 通过；
+- rollback ref 仍精确解析到旧 Web image。
 
-即时检查通过只能写：
+即时通过仍不能写生产 PASS，必须继续观察。
+
+## 7. 连续观察与最终 PASS
+
+观察固定为 1800 秒、每 30 秒采样。每个样本都必须重新检查外部 lease fencing、health ready、scan fresh、Candidate dormant、Candidate worker absent、非目标容器不变、Web 身份不变和 rollback ref 存在。不得缩短真实时间，不得用历史样本补位。
+
+只有即时验收、连续观察和最终 closeout 全部通过，且外部 lease 以 PASS 释放，才允许状态：
 
 ```text
-PASS_IMMEDIATE_DORMANT_WEB_CHECKS_AWAITING_DB_VERIFY_AND_OBSERVATION
+PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION
 ```
 
-## 7. 最终验收
+这只代表休眠代码地基部署成功，不代表 Candidate 已激活，不代表 WP-G0.2/G0 完成，更不代表系统可以实战交易。
 
-即时检查后还必须完成：
+## 8. 自动回滚
 
-1. 使用既有最小权限 Migration Verify 身份做只读核验：ledger 仍为 9、catalog 不变、control rows=0、Candidate Feature Flag enabled=0；禁止执行 migration。
-2. 观察 30–60 分钟，每 5 分钟至少一份脱敏样本；health ready、scan fresh、现有 worker heartbeat 正常，无新增权限、事务、锁或服务错误。
-3. Server HEAD、GitHub main、Web release/image 证据对齐。
+旧 Web image 必须在生产 mutation 前保留到：
 
-只有三部分全部通过，才能写 `PASS_DORMANT_RUNTIME_DEPLOY`。否则保持 partial 或触发回滚，不能进入 Runtime Identity and Permission。
+```text
+market-radar-rollback/wp-g0-2-dormant:web-<old-digest-prefix>
+```
 
-## 8. 回滚
+checkout、build、recreate、即时验证、观察或最终 closeout 任一步失败，都必须使用 safety checkpoint：恢复旧 Web tag、checkout detached baseline、仅 force-recreate Web，再验证旧 image、Git、身份、health、Candidate absent 和非目标容器。只有全部通过才能写：
 
-runner 在 Web build/recreate 或即时验证失败后，必须恢复审批绑定的旧 Web 镜像和 rollback commit，再执行降级生产检查。该回滚不执行数据库 rollback，因为本包严禁数据库变更。
+```text
+ROLLBACK_DORMANT_DEPLOY_BASELINE_VERIFIED
+```
 
-观察期出现持续 health/scan/worker 退化、Candidate worker 意外出现、开关/URL 非休眠、release mismatch 或 secret 风险时，也必须停止并按同一目标回滚。
+成功后 rollback ref 仍保留；删除它必须是另一个精确批准的清理包。
 
 ## 9. 下一包
 
-只有 Dormant Runtime Deploy 最终 PASS 后，下一包才是：
+只有真实生产 Dormant PASS 后，下一包才是：
 
 ```text
 WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION
 ```
 
-该包仍不得直接 activation。三条最小权限身份和 active permission rehearsal 通过后，才可另行申请激活与观察。
+Runtime Identity 包仍不能直接 activation。身份与权限通过后，才可进入独立的 Activate and Observe 包。

@@ -154,10 +154,10 @@
     "shadowCaptureKnownBlockers": [
       "production_runtime_wiring_not_deployed",
       "candidate_runtime_identities_not_provisioned",
-      "dormant_runtime_deploy_not_passed_new_approval_required",
+      "dormant_runtime_deploy_local_refresh_pass_production_not_executed",
       "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "none_until_dormant_deploy_package_is_refreshed_and_rehearsed_against_current_70722ea_baseline_standing_authority_session_independent_runner_and_rollback_retention",
+    "nextProductionAction": "freeze_and_commit_dormant_runner_then_dynamic_read_only_preflight_exact_external_single_use_authorization_bundle_upload_and_web_only_execution",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false,
@@ -174,7 +174,7 @@
     "coreMissionLocked": true,
     "observationWindowsMayBeShortened": false,
     "pollutionCleanupRequiresExactManifest": true,
-    "currentControlPackage": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE"
+    "currentControlPackage": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH"
   },
   "mission": {
     "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
@@ -880,7 +880,7 @@
     "evidenceCleanupPending": false
   },
   "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
-  "nextRecommendedWorkPackage": "Close the Scanner production evidence with full gates and commit/push; then refresh and rehearse Dormant Deploy against the current target baseline before any web-only production mutation.",
+  "nextRecommendedWorkPackage": "Freeze the refreshed Dormant runner with full gates and an exact commit; then perform current production preflight and only the bound Web-only dormant execution.",
   "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": false,
   "documentValidation": {
@@ -905,10 +905,10 @@
     "Treat historical evidence as current evidence"
   ],
   "currentGovernancePackage": {
-    "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-    "status": "ready_for_gate_production_pass_lease_snapshot_reconciled_cli_red_green_fixed_full_closeout_gates_10_of_10_pass_commit_pending",
+    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
+    "status": "local_runner_contract_isolated_success_rollback_rehearsal_and_full_gates_11_of_11_pass_commit_pending",
     "productionMutation": false,
-    "scope": "G0_scanner_web_plus_scanner_worker_release_governance_only",
+    "scope": "G0_web_only_dormant_runtime_release_governance_and_execution_safety",
     "practicalTradingReady": false
   },
   "nextProductionWorkPackageRequiresExactExecutionRecord": true,

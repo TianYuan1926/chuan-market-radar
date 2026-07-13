@@ -3741,3 +3741,48 @@ P0 阻断：
 ### 下一轮建议
 
 冻结本包事实并完成完整门禁、commit/push；随后只做 Scanner 动态只读生产预检和 exact Web + scanner-worker 发布。
+
+## 2026-07-14 / WP-G0.2 Dormant Runtime Deploy Standing Authority and Runner Refresh
+
+### 本轮目标
+
+把历史上已自动回滚的 Dormant Web-only 发布包刷新到当前生产 target、G0-G8 standing authorization、仓库外单次租约、递增 fencing、session-independent runner、精确单父 release 和成功后 rollback image 留存，同时保持 Candidate 完全休眠。
+
+### 修改范围
+
+- 从生产 target `70722ea...` 建立精确单父 18 文件 release `cec0b657...`，不部署 GitHub main 宽差异。
+- 重写 Dormant validator、Web-only runner、攻击性测试和隔离成功/失败演练；新增 transient systemd 入口与可复现脱敏 Bundle builder。
+- runner 只允许 Web build/force-recreate，接入仓库外 approval/lease/fencing/checkpoint；旧 Web image 在 mutation 前保留，失败恢复 baseline Git 和旧 image。
+- 更新机器合同、中文运行合同、自治状态、traceability、Context 和本轮交付报告。
+- 未修改 Candidate 业务实现、Compose、scan、analysis、strategy、backtest、frontend、API、数据库、Redis、worker、migration、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+为候选筛选与复盘进化提供可部署但完全休眠的运行地基；不生成候选、信号、方向、止损、目标、RR 或交易计划。
+
+### 测试结果
+
+- 红灯基线：16 项中 10 PASS / 6 FAIL，真实暴露旧 release/artifact、standing authority、lease/fencing、transient entrypoint 和 Bundle 缺口。
+- test:candidate-dormant-deploy：12/12 PASS，包含真实脚本 Web-only 成功与观察故障后 Git+旧 Web image 自动回滚。
+- test:autonomy：29/29 PASS；test:deploy-safety：5/5 PASS。
+- typecheck / lint / build：PASS。
+- test:market：960 pass / 0 fail / 4 explicit skip；worker 23/23；historical smoke 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- 首轮自治总门禁：11/11 PASS，`worktreeUnchanged=true`；事实回填后必须再跑最终冻结门禁，旧 gate evidence 不复用。
+- backtest:formal：未运行，本轮禁止。
+
+### 是否部署
+
+未部署、未连接腾讯云生产、未上传 Bundle、未创建生产 approval/lease、未重启服务、未执行 migration。release target 仅存在独立本地分支，尚待推送；当前生产事实仍以 clean detached `70722ea...` 为执行前预期，必须动态复核。
+
+### 风险与遗留问题
+
+- 本地 PASS 不等于生产 Dormant PASS；当前没有 1800 秒生产观察证据。
+- 历史 `a8dd519...`/`78f1e3fa...`/149/156 路径制品和审批全部失效，禁止复用。
+- Runtime Identity、Candidate activation、control lifecycle、worker 和数据写入继续阻断。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`，WP-G0.2/G0 未完成。
+
+### 下一轮建议
+
+冻结提交并推送 runner 与精确 release 分支；随后只做当前生产动态只读预检和绑定后的 Web-only Dormant 生产执行。

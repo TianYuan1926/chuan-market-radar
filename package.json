@@ -65,6 +65,7 @@
     "test:candidate-shadow-capture-readiness": "node --test scripts/governance/shadow-capture-readiness.test.mjs",
     "test:candidate-composition-wiring": "npm run build:market-cli && node --test .tmp/market-tests/lib/candidate-episode/candidate-runtime-database.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-composition.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-admin.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-source.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-consumer.test.js .tmp/market-tests/lib/candidate-episode/shadow-capture-runtime.test.js .tmp/market-tests/lib/runtime/worker-heartbeat.test.js deploy/workers/protected-api-worker.test.mjs scripts/governance/composition-wiring.test.mjs",
     "candidate:dormant-deploy:validate": "node scripts/production/candidate-dormant-deploy.mjs validate",
+    "candidate:dormant-deploy:bundle": "node scripts/production/candidate-dormant-deploy-bundle.mjs",
     "candidate:dormant-deploy": "DORMANT_DEPLOY_MODE=dry_run bash scripts/production/candidate-dormant-deploy.sh",
     "candidate:dormant-deploy:manual": "DORMANT_DEPLOY_MODE=production_deploy CONFIRM_DORMANT_DEPLOY=true bash scripts/production/candidate-dormant-deploy.sh",
     "test:candidate-dormant-deploy": "node --test scripts/production/candidate-dormant-deploy.test.mjs scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",

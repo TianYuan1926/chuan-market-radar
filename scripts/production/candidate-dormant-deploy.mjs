@@ -1,20 +1,34 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import yaml from "js-yaml";
+
+const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH = "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json";
 export const PACKAGE_ID = "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY";
-const execFileAsync = promisify(execFile);
-const DORMANT_RELEASE_BASE_COMMIT = "591163a37493910c346530ebdf271f878c6a67b5";
-const LAST_VERIFIED_PRODUCTION_ROLLBACK_COMMIT = "0599f802f261fe8e3c1982a07106f362bd62ac13";
-const DORMANT_RELEASE_DIFF_FILE_COUNT = 156;
-const DORMANT_RELEASE_DIFF_SHA256 = "8aa967379c97addb34f7908ca228092ab5ab4953e65d6cc705b7b36a71ea79a3";
+export const BASELINE_COMMIT = "70722ea71b33268b688be5d42af9908d40f49859";
+export const TARGET_COMMIT = "cec0b6572bb09ae91ff9e013f8bb160f73c045e2";
+export const TARGET_TREE = "eb217a7fbaad5b464279a08d4441a8249fc266e3";
+export const TARGET_REMOTE_BRANCH = "codex/wp-g0-2-dormant-runtime-release-v2";
+export const RELEASE_DIFF_SHA256 = "ee814eb07b7b4fa6c4f36f92293d9ec9fbf2269fbb0e348d0705799637e4f4fa";
+export const RELEASE_PATH_SET_SHA256 = "595fe25980a91548c7a88a7301f141c24ea29e1ea61c1960284a59c950aef19a";
+export const TARGET_COMPOSE_SHA256 = "9e22cf32574e19e8526cf42795726627bff9b90cd990db69b5639d20e9ff0820";
+export const AUTONOMY_GRANT_ID = "MR-G0-G8-USER-STANDING-GRANT-20260714-034826";
+export const AUTONOMY_TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
+export const AUTONOMY_REVOCATION_EPOCH = 2;
+export const AUTONOMY_ACTION_CLASS = "dormant_runtime_deploy";
+export const AUTONOMY_RISK_TIER = "R1_REVERSIBLE_RUNTIME";
+export const AUTONOMY_BUILDER_AGENT_ID = "codex-primary";
+export const ROLLBACK_IMAGE_REPOSITORY = "market-radar-rollback/wp-g0-2-dormant";
+export const STAGING_DIRECTORY_PATTERN = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-dormant-runtime-deploy-[a-z0-9][a-z0-9._-]{7,80}$/;
+export const EVIDENCE_DIRECTORY_PATTERN = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-dormant-runtime-deploy-[a-z0-9][a-z0-9._-]{7,80}$/;
+export const RUNNER_UNIT_NAME_PATTERN = /^market-radar-dormant-[a-z0-9][a-z0-9-]{7,56}$/;
+
 const FEATURE_FLAGS = [
   "CANDIDATE_EPISODE_CANONICAL_WRITE",
   "CANDIDATE_EPISODE_SHADOW_WRITE",
@@ -36,8 +50,8 @@ export class DormantDeployPolicyError extends Error {
   }
 }
 
-export function sha256(value) {
-  return createHash("sha256").update(value).digest("hex");
+function ensure(condition, reason) {
+  if (!condition) throw new DormantDeployPolicyError(reason);
 }
 
 function exactKeys(value, expected) {
@@ -45,79 +59,131 @@ function exactKeys(value, expected) {
     && Object.keys(value).sort().join("\n") === [...expected].sort().join("\n");
 }
 
-function ensure(condition, reason) {
-  if (!condition) throw new DormantDeployPolicyError(reason);
+export function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
-function pathMatches(pattern, filePath) {
-  if (pattern.endsWith("/**")) return filePath.startsWith(pattern.slice(0, -3));
-  if (pattern.endsWith("*")) return filePath.startsWith(pattern.slice(0, -1));
-  return filePath === pattern;
+function parseTimestamp(value, reason) {
+  const timestamp = Date.parse(value);
+  ensure(Number.isFinite(timestamp), reason);
+  return timestamp;
 }
 
-function normalizeReleasePath(value) {
-  ensure(typeof value === "string" && value.length > 0, "release_diff_path_invalid");
-  ensure(!value.startsWith("/") && !value.includes("\\") && !value.split("/").includes(".."), "release_diff_path_invalid");
-  return value;
+export function rollbackImageRef(imageId) {
+  const digest = /^sha256:([0-9a-f]{64})$/.exec(imageId ?? "")?.[1];
+  ensure(digest, "rollback_image_ref_input_invalid");
+  return `${ROLLBACK_IMAGE_REPOSITORY}:web-${digest.slice(0, 16)}`;
 }
 
-function parseReleaseDiffLine(line) {
-  const fields = line.split("\t");
-  ensure(fields.length === 2, "release_diff_entry_invalid");
-  return {
-    line,
-    path: normalizeReleasePath(fields[1]),
-    status: fields[0],
-  };
+export function productionPreflightSha256(request) {
+  return sha256(JSON.stringify({
+    baselineCommit: request.baselineCommit,
+    targetCommit: request.targetCommit,
+    releaseDiffSha256: request.releaseDiffSha256,
+    releasePathSetSha256: request.releasePathSetSha256,
+    webImageId: request.webImageId,
+    baselineComposeSha256: request.baselineComposeSha256,
+    targetComposeSha256: request.targetComposeSha256,
+    baseEnvSha256: request.baseEnvSha256,
+    productionEnvSha256: request.productionEnvSha256,
+    identityOverrideSha256: request.identityOverrideSha256,
+    composeWrapperSha256: request.composeWrapperSha256,
+    candidateRuntimeMutationAllowed: request.candidateRuntimeMutationAllowed,
+    databaseMutationAllowed: request.databaseMutationAllowed,
+    redisMutationAllowed: request.redisMutationAllowed,
+    environmentMutationAllowed: request.environmentMutationAllowed,
+  }));
+}
+
+export function rollbackEvidenceSha256(request) {
+  return sha256(JSON.stringify({
+    baselineCommit: request.baselineCommit,
+    webImageId: request.webImageId,
+    rollbackWebImageRef: request.rollbackWebImageRef,
+    rollbackImageRetentionRequired: request.rollbackImageRetentionRequired,
+    automaticRollbackAllowed: request.automaticRollbackAllowed,
+  }));
 }
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion === "wp-g0.2-shadow-capture-dormant-runtime-deploy.v1", "schema_version_mismatch");
   ensure(contract.packageId === PACKAGE_ID, "package_id_mismatch");
-  ensure(contract.status === "local_preparation_verified_awaiting_production_approval", "contract_status_not_locked");
+  ensure(contract.status === "local_preparation_verified_awaiting_bound_production_execution", "contract_status_not_locked");
   ensure(contract.productionAuthorization === false, "production_authorization_must_be_false");
   ensure(contract.productionDeployed === false, "production_deployed_must_be_false");
   ensure(contract.productionActivated === false, "production_activated_must_be_false");
-  ensure(contract.deployment?.mode === "dormant_runtime_web_only", "deployment_mode_mismatch");
-  ensure(JSON.stringify(contract.deployment?.serviceAllowlist) === '["web"]', "service_allowlist_mismatch");
-  ensure(JSON.stringify(contract.deployment?.composeEnvFileOrder) === '[".env",".env.production"]', "compose_env_file_order_mismatch");
-  ensure(contract.deployment?.buildCommand === "docker compose build web", "build_command_mismatch");
-  ensure(contract.deployment?.recreateCommand === "docker compose up -d --no-deps web", "recreate_command_mismatch");
-  ensure(contract.deployment?.removeOrphansAllowed === false, "remove_orphans_must_be_false");
-  ensure(contract.deployment?.composeProfileAllowed === false, "compose_profile_must_be_false");
-  ensure(contract.deployment?.candidateWorkerStartAllowed === false, "candidate_worker_start_must_be_false");
-  ensure(contract.deployment?.maximumApprovalWindowMinutes === 90, "approval_window_mismatch");
-  ensure(contract.deployment?.automaticWebRollbackRequired === true, "automatic_rollback_required");
-  ensure(contract.deployment?.identityOverrideRequired === true, "identity_override_required");
-  ensure(contract.deployment?.identityOverrideChecksumBound === true, "identity_override_checksum_binding_required");
-  ensure(contract.dormantBoundary?.codeActivationAllowed === false, "code_activation_must_be_false");
-  ensure(contract.dormantBoundary?.candidateFeatureFlagsEnabled === 0, "feature_flags_must_be_zero");
-  ensure(contract.dormantBoundary?.candidateDatabaseUrlsConfigured === 0, "candidate_database_urls_must_be_zero");
-  ensure(contract.dormantBoundary?.candidateRuntimeReleaseId === "disabled", "candidate_release_must_be_disabled");
-  ensure(contract.dormantBoundary?.candidateWorkerExpected === false, "candidate_worker_expected_must_be_false");
-  ensure(contract.dormantBoundary?.candidateControlRows === 0, "candidate_control_rows_must_be_zero");
-  ensure(contract.dormantBoundary?.migrationAllowed === false, "migration_must_be_false");
-  ensure(contract.dormantBoundary?.databaseMutationAllowed === false, "database_mutation_must_be_false");
-  ensure(Array.isArray(contract.artifact?.files) && contract.artifact.files.length > 0, "artifact_files_missing");
-  ensure(/^[0-9a-f]{64}$/.test(contract.artifact?.sha256 ?? ""), "artifact_checksum_not_locked");
+  const deployment = contract.deployment ?? {};
+  ensure(deployment.mode === "dormant_runtime_web_only", "deployment_mode_mismatch");
+  ensure(JSON.stringify(deployment.serviceAllowlist) === '["web"]', "service_allowlist_mismatch");
+  ensure(deployment.buildCommand === "docker compose build web", "build_command_mismatch");
+  ensure(deployment.recreateCommand === "docker compose up -d --no-deps --force-recreate web", "recreate_command_mismatch");
+  ensure(deployment.removeOrphansAllowed === false, "remove_orphans_must_be_false");
+  ensure(deployment.composeProfileAllowed === false, "compose_profile_must_be_false");
+  ensure(deployment.candidateWorkerStartAllowed === false, "candidate_worker_start_must_be_false");
+  ensure(deployment.environmentMutationAllowed === false, "environment_mutation_must_be_false");
+  ensure(deployment.maximumApprovalWindowMinutes === 90, "approval_window_mismatch");
+  ensure(deployment.sessionIndependentExecutionRequired === true, "session_independent_execution_required");
+  ensure(deployment.runner === "transient_systemd_unit", "transient_runner_required");
+  ensure(deployment.runnerMaximumSeconds === 5_400, "runner_maximum_not_locked");
+  ensure(deployment.logs === "journald", "runner_logs_not_locked");
+  ensure(deployment.identityOverrideRequired === true, "identity_override_required");
+  ensure(deployment.identityOverrideChecksumBound === true, "identity_override_checksum_binding_required");
+  ensure(deployment.observationDurationSeconds === 1_800, "observation_duration_not_locked");
+  ensure(deployment.observationPollSeconds === 30, "observation_poll_not_locked");
+  const dormant = contract.dormantBoundary ?? {};
+  ensure(dormant.codeActivationAllowed === false, "code_activation_must_be_false");
+  ensure(dormant.candidateFeatureFlagsEnabled === 0, "feature_flags_must_be_zero");
+  ensure(dormant.candidateDatabaseUrlsConfigured === 0, "candidate_database_urls_must_be_zero");
+  ensure(dormant.candidateRuntimeReleaseId === "disabled", "candidate_release_must_be_disabled");
+  ensure(dormant.candidateWorkerExpected === false, "candidate_worker_expected_must_be_false");
+  ensure(dormant.candidateControlRows === 0, "candidate_control_rows_must_be_zero");
+  ensure(dormant.migrationAllowed === false, "migration_must_be_false");
+  ensure(dormant.databaseMutationAllowed === false, "database_mutation_must_be_false");
+  ensure(dormant.redisMutationAllowed === false, "redis_mutation_must_be_false");
   const release = contract.releaseBoundary ?? {};
-  ensure(release.requiredBaseCommit === DORMANT_RELEASE_BASE_COMMIT, "release_base_commit_mismatch");
-  ensure(release.lastVerifiedProductionRollbackCommit === LAST_VERIFIED_PRODUCTION_ROLLBACK_COMMIT, "release_rollback_commit_mismatch");
-  ensure(release.releaseDiffFileCount === DORMANT_RELEASE_DIFF_FILE_COUNT, "release_diff_file_count_not_locked");
-  ensure(release.releaseDiffSha256 === DORMANT_RELEASE_DIFF_SHA256, "release_diff_checksum_not_locked");
-  ensure(JSON.stringify(release.allowedStatuses) === '["A","M"]', "release_diff_statuses_mismatch");
-  ensure(Array.isArray(release.allowedPathPatterns) && release.allowedPathPatterns.length > 0, "release_diff_allowlist_missing");
-  ensure(Array.isArray(release.forbiddenPathPatterns) && release.forbiddenPathPatterns.length > 0, "release_diff_forbidden_paths_missing");
-  for (const pattern of [
-    "src/components/**",
-    "src/lib/api/**",
-    "src/lib/journal/**",
-    "src/lib/candidate-episode/canonical-read-*",
-    "scripts/production/candidate-activation/**",
-    "scripts/production/candidate-reconciliation/**",
-  ]) ensure(release.forbiddenPathPatterns.includes(pattern), `release_diff_forbidden_pattern_missing:${pattern}`);
-  ensure(contract.forbiddenInThisPackage?.includes("migration_execute"), "migration_forbidden_missing");
-  ensure(contract.forbiddenInThisPackage?.includes("candidate_worker_start"), "candidate_worker_forbidden_missing");
+  ensure(release.baselineCommit === BASELINE_COMMIT, "baseline_commit_not_locked");
+  ensure(release.targetCommit === TARGET_COMMIT, "target_commit_not_locked");
+  ensure(release.targetTree === TARGET_TREE, "target_tree_not_locked");
+  ensure(release.targetRemoteBranch === TARGET_REMOTE_BRANCH, "target_remote_branch_not_locked");
+  ensure(release.singleParentRequired === true, "single_parent_required");
+  ensure(release.detachedHeadAfterSuccess === true, "detached_head_required");
+  ensure(release.releaseDiffFileCount === 18, "release_diff_file_count_not_locked");
+  ensure(release.releaseDiffSha256 === RELEASE_DIFF_SHA256, "release_diff_checksum_not_locked");
+  ensure(release.releasePathSetSha256 === RELEASE_PATH_SET_SHA256, "release_path_set_checksum_not_locked");
+  ensure(Array.isArray(release.releaseDiffLines) && release.releaseDiffLines.length === 18,
+    "release_diff_lines_mismatch");
+  ensure(sha256(`${release.releaseDiffLines.join("\n")}\n`) === RELEASE_DIFF_SHA256,
+    "release_diff_lines_checksum_mismatch");
+  ensure(Array.isArray(contract.artifact?.files) && contract.artifact.files.length === 18,
+    "artifact_files_missing");
+  ensure(/^[0-9a-f]{64}$/.test(contract.artifact?.sha256 ?? ""), "artifact_checksum_not_locked");
+  const autonomy = contract.autonomy ?? {};
+  ensure(autonomy.grantId === AUTONOMY_GRANT_ID, "autonomy_grant_not_locked");
+  ensure(autonomy.revocationEpoch === AUTONOMY_REVOCATION_EPOCH, "autonomy_revocation_epoch_not_locked");
+  ensure(autonomy.gate === "G0", "autonomy_gate_not_locked");
+  ensure(autonomy.actionClass === AUTONOMY_ACTION_CLASS, "autonomy_action_class_not_locked");
+  ensure(autonomy.riskTier === AUTONOMY_RISK_TIER, "autonomy_risk_tier_not_locked");
+  ensure(autonomy.builderAgentId === AUTONOMY_BUILDER_AGENT_ID, "autonomy_builder_not_locked");
+  ensure(autonomy.trustRoot === AUTONOMY_TRUST_ROOT, "autonomy_trust_root_not_locked");
+  ensure(autonomy.externalProductionLeaseRequired === true, "autonomy_external_lease_required");
+  ensure(autonomy.singleUseApprovalRequired === true, "autonomy_single_use_required");
+  ensure(autonomy.fencingTokenRequired === true, "autonomy_fencing_required");
+  ensure(autonomy.leaseCheckBeforeEveryMutation === true, "autonomy_checkpoint_revalidation_required");
+  ensure(autonomy.rollbackAllowedAfterLeaseExpiry === true, "autonomy_safety_closeout_required");
+  const rollback = contract.rollback ?? {};
+  ensure(rollback.automaticRollbackRequired === true, "automatic_rollback_required");
+  ensure(rollback.restoreBaselineGitTarget === true, "baseline_git_rollback_required");
+  ensure(rollback.restoreWebImage === true, "web_image_rollback_required");
+  ensure(rollback.retainImageBeforeMutation === true, "rollback_image_retention_required");
+  ensure(rollback.verifyRetentionBeforeMutation === true, "rollback_image_retention_verification_required");
+  ensure(rollback.retainAfterSuccess === true, "rollback_image_success_retention_required");
+  ensure(rollback.cleanupRequiresSeparateApproval === true, "rollback_cleanup_requires_approval");
+  ensure(rollback.retentionRepository === ROLLBACK_IMAGE_REPOSITORY, "rollback_repository_mismatch");
+  for (const item of [
+    "candidate_worker_start", "candidate_database_url_configuration", "candidate_feature_flag_enablement",
+    "code_activation_enablement", "migration_execute", "database_ddl_or_dml", "redis_mutation",
+    "environment_mutation", "formal_backtest",
+  ]) ensure(contract.forbiddenInThisPackage?.includes(item), `forbidden_boundary_missing:${item}`);
   return contract;
 }
 
@@ -132,159 +198,237 @@ export async function inspectArtifact(root, contract) {
   }
   const checksum = sha256(JSON.stringify(checksums));
   ensure(checksum === contract.artifact.sha256, "artifact_checksum_mismatch");
-  return { checksum, fileCount: Object.keys(checksums).length };
-}
-
-export function evaluateReleaseDiff(lines, contract) {
-  const release = contract.releaseBoundary;
-  ensure(Array.isArray(lines) && lines.length > 0, "release_diff_empty");
-  const entries = lines.map(parseReleaseDiffLine);
-  ensure(new Set(entries.map((entry) => entry.path)).size === entries.length, "release_diff_duplicate_path");
-  ensure(entries.every((entry) => release.allowedStatuses.includes(entry.status)), "release_diff_status_forbidden");
-  ensure(
-    entries.every((entry) => !release.forbiddenPathPatterns.some((pattern) => pathMatches(pattern, entry.path))),
-    "release_diff_forbidden_path",
-  );
-  ensure(
-    entries.every((entry) => release.allowedPathPatterns.some((pattern) => pathMatches(pattern, entry.path))),
-    "release_diff_outside_allowlist",
-  );
-  const normalized = entries.map((entry) => entry.line).sort();
-  const checksum = sha256(normalized.join("\n"));
-  ensure(normalized.length === release.releaseDiffFileCount, "release_diff_file_count_mismatch");
-  ensure(checksum === release.releaseDiffSha256, "release_diff_checksum_mismatch");
-  return {
-    checksum,
-    fileCount: normalized.length,
-    statuses: [...new Set(entries.map((entry) => entry.status))].sort(),
-  };
+  return { checksum, fileCount: Object.keys(checksums).length, fileSha256: checksums };
 }
 
 async function runGit(root, args, reason) {
   try {
-    return await execFileAsync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 2 * 1024 * 1024 });
+    return (await execFileAsync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 2 * 1024 * 1024,
+    })).stdout.trimEnd();
   } catch {
     throw new DormantDeployPolicyError(reason);
   }
 }
 
-export async function inspectReleaseDiff(root, contract, request) {
-  const approvedCommit = request?.approvedCommit
-    ?? (await runGit(root, ["rev-parse", "HEAD"], "release_head_unavailable")).stdout.trim();
-  const rollbackCommit = request?.rollbackCommit ?? contract.releaseBoundary.lastVerifiedProductionRollbackCommit;
-  ensure(/^[0-9a-f]{40}$/.test(approvedCommit), "approved_commit_invalid");
-  ensure(/^[0-9a-f]{40}$/.test(rollbackCommit), "rollback_commit_invalid");
-  ensure(rollbackCommit === contract.releaseBoundary.lastVerifiedProductionRollbackCommit, "rollback_commit_not_last_verified");
-  await runGit(
-    root,
-    ["merge-base", "--is-ancestor", contract.releaseBoundary.requiredBaseCommit, approvedCommit],
-    "approved_commit_not_descendant_of_release_base",
-  );
-  await runGit(
-    root,
-    ["merge-base", "--is-ancestor", rollbackCommit, approvedCommit],
-    "rollback_commit_not_ancestor_of_approved",
-  );
-  const { stdout } = await runGit(
-    root,
-    ["diff", "--name-status", "--no-renames", `${rollbackCommit}..${approvedCommit}`],
-    "release_diff_unavailable",
-  );
-  const result = evaluateReleaseDiff(stdout.trim().split(/\r?\n/).filter(Boolean), contract);
-  if (request) {
-    ensure(request.approvedReleaseDiffFileCount === result.fileCount, "approved_release_diff_file_count_mismatch");
-    ensure(request.approvedReleaseDiffSha256 === result.checksum, "approved_release_diff_checksum_mismatch");
-  }
+export function evaluateReleaseDiff(lines, contract) {
+  ensure(Array.isArray(lines) && lines.length > 0, "release_diff_empty");
+  const normalized = [...lines];
+  ensure(new Set(normalized).size === normalized.length, "release_diff_duplicate_path");
+  ensure(normalized.every((line) => /^[AM]\t[^\t]+$/.test(line)), "release_diff_status_forbidden");
+  ensure(JSON.stringify(normalized) === JSON.stringify(contract.releaseBoundary.releaseDiffLines),
+    "release_diff_lines_runtime_mismatch");
+  const checksum = sha256(`${normalized.join("\n")}\n`);
+  ensure(checksum === contract.releaseBoundary.releaseDiffSha256, "release_diff_checksum_mismatch");
+  return { checksum, fileCount: normalized.length };
+}
+
+export async function inspectRelease(root, contract) {
+  ensure(await runGit(root, ["cat-file", "-t", contract.releaseBoundary.targetCommit],
+    "release_target_unavailable") === "commit", "release_target_not_commit");
+  const parentLine = await runGit(root, ["rev-list", "--parents", "-n", "1",
+    contract.releaseBoundary.targetCommit], "release_parent_unavailable");
+  ensure(parentLine === `${contract.releaseBoundary.targetCommit} ${contract.releaseBoundary.baselineCommit}`,
+    "release_target_parent_mismatch");
+  ensure(await runGit(root, ["rev-parse", `${contract.releaseBoundary.targetCommit}^{tree}`],
+    "release_tree_unavailable") === contract.releaseBoundary.targetTree, "release_target_tree_mismatch");
+  const diffOutput = `${await runGit(root, ["diff-tree", "--no-commit-id", "--name-status", "-r",
+    contract.releaseBoundary.targetCommit], "release_diff_unavailable")}\n`;
+  const lines = diffOutput.trim().split(/\r?\n/).filter(Boolean);
+  const result = evaluateReleaseDiff(lines, contract);
+  const pathSet = `${lines.map((line) => line.split("\t")[1]).sort().join("\n")}\n`;
+  ensure(sha256(pathSet) === contract.releaseBoundary.releasePathSetSha256,
+    "release_path_set_checksum_mismatch");
   return {
     ...result,
-    approvedCommit,
-    requiredBaseCommit: contract.releaseBoundary.requiredBaseCommit,
-    rollbackCommit,
+    baselineCommit: contract.releaseBoundary.baselineCommit,
+    targetCommit: contract.releaseBoundary.targetCommit,
+    targetTree: contract.releaseBoundary.targetTree,
+    pathSetSha256: sha256(pathSet),
   };
 }
 
-export async function inspectRepository(root = process.cwd(), contract) {
-  const [composeSource, flagsSource, runnerSource] = await Promise.all([
-    readFile(resolve(root, "docker-compose.yml"), "utf8"),
-    readFile(resolve(root, "src/lib/candidate-episode/feature-flags.ts"), "utf8"),
-    readFile(resolve(root, "scripts/production/candidate-dormant-deploy.sh"), "utf8"),
-  ]);
-  const compose = yaml.load(composeSource);
-  const webEnvironment = compose?.services?.web?.environment ?? {};
-  const candidateWorker = compose?.services?.["candidate-shadow-worker"] ?? {};
-  const appEnvironment = compose?.["x-app-env"] ?? {};
-  const composeEnvOrderMatches = runnerSource.match(
-    /--env-file "\$\{BASE_ENV_FILE\}" --env-file "\$\{ENV_FILE\}"/g,
-  ) ?? [];
-  const facts = {
-    candidateDatabaseUrlsOnlyOnWeb: DATABASE_URLS.every((key) => key in webEnvironment)
-      && DATABASE_URLS.every((key) => !(key in (candidateWorker.environment ?? {}))),
-    candidateWorkerProfileIsolated: JSON.stringify(candidateWorker.profiles) === '["candidate-shadow-runtime"]',
-    candidateWorkerNotStartedByRunner: !/\$\{COMPOSE\[@\]\}"[^\n]*(?:up|start|run)[^\n]*candidate-shadow-worker/.test(runnerSource),
-    codeActivationHardFalse: /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const/.test(flagsSource),
-    composeEnvFilesOrdered: composeEnvOrderMatches.length === 2,
-    bothEnvFilesValidatedDormant: /--env-file "\$\{BASE_ENV_FILE\}"[\s\S]*--env-file "\$\{ENV_FILE\}"/.test(runnerSource),
-    defaultCandidateFlagsFalse: FEATURE_FLAGS.every((key) => String(appEnvironment[key] ?? "").includes("-false}")),
-    defaultCandidateReleaseDisabled: String(appEnvironment.CANDIDATE_RUNTIME_RELEASE_ID ?? "").includes("-disabled}"),
-    defaultCandidateWorkerExpectedFalse: String(appEnvironment.CANDIDATE_SHADOW_WORKER_EXPECTED ?? "").includes("-false}"),
-    exactWebBuild: /\$\{COMPOSE\[@\]\}" build web/.test(runnerSource),
-    exactWebRecreate: /\$\{COMPOSE\[@\]\}" up -d --no-deps web/.test(runnerSource),
-    identityOverrideChecksumBound: /identityOverrideSha256/.test(runnerSource)
-      && /identity-override[\s\\]*--file "\$\{COMPOSE_IDENTITY_OVERRIDE_FILE\}"/.test(runnerSource),
-    identityOverrideUsedByCompose: /-f "\$\{ROOT_DIR\}\/docker-compose\.yml" -f "\$\{COMPOSE_IDENTITY_OVERRIDE_FILE\}"/.test(runnerSource),
-    noComposeProfile: !/--profile/.test(runnerSource),
-    noMigrationCommand: !/(migration:runner|candidate:migrate|persistence\/migrate)/.test(runnerSource),
-    noRemoveOrphans: !/--remove-orphans/.test(runnerSource),
+function validateAutonomyAuthorization(authorization, request, contract) {
+  const expectedKeys = [
+    "schemaVersion", "mode", "approvedBy", "grantId", "approvalId", "nonce", "gate",
+    "packageId", "scope", "actionClass", "riskTier", "builderAgentId", "baseCommit",
+    "targetCommit", "targetTree", "diffSha256", "pathSetSha256", "contractSha256",
+    "runnerSha256", "artifactSha256", "imageOrMigrationSha256", "composeSha256",
+    "environmentFingerprintSha256", "productionIdentitySha256", "gateEvidenceSha256",
+    "preflightSha256", "backupRestoreEvidenceSha256", "rollbackTarget",
+    "observationContractSha256", "policySha256", "revocationEpoch", "issuedAt",
+    "expiresAt", "maxExecutions", "packageAssertions",
+  ];
+  ensure(exactKeys(authorization, expectedKeys), "autonomy_authorization_keys_mismatch");
+  ensure(authorization.schemaVersion === "market-radar-package-authorization.v1", "autonomy_authorization_schema_mismatch");
+  ensure(authorization.mode === "g0_g8_standing_user_grant", "autonomy_authorization_mode_mismatch");
+  ensure(authorization.approvedBy === "user_standing_grant", "autonomy_authorization_issuer_mismatch");
+  ensure(authorization.grantId === AUTONOMY_GRANT_ID, "autonomy_grant_mismatch");
+  ensure(authorization.gate === "G0", "autonomy_gate_mismatch");
+  ensure(authorization.packageId === PACKAGE_ID && authorization.scope === PACKAGE_ID,
+    "autonomy_package_mismatch");
+  ensure(authorization.actionClass === AUTONOMY_ACTION_CLASS, "autonomy_action_class_mismatch");
+  ensure(authorization.riskTier === AUTONOMY_RISK_TIER, "autonomy_risk_tier_mismatch");
+  ensure(authorization.builderAgentId === AUTONOMY_BUILDER_AGENT_ID, "autonomy_builder_mismatch");
+  ensure(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,180}$/.test(authorization.approvalId ?? ""),
+    "autonomy_approval_id_invalid");
+  ensure(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,180}$/.test(authorization.nonce ?? ""),
+    "autonomy_nonce_invalid");
+  for (const key of ["baseCommit", "targetCommit", "targetTree"]) {
+    ensure(/^[0-9a-f]{40}$/.test(authorization[key] ?? ""), `autonomy_git_binding_invalid:${key}`);
+  }
+  for (const key of [
+    "diffSha256", "pathSetSha256", "contractSha256", "runnerSha256", "artifactSha256",
+    "imageOrMigrationSha256", "composeSha256", "environmentFingerprintSha256",
+    "productionIdentitySha256", "gateEvidenceSha256", "preflightSha256",
+    "backupRestoreEvidenceSha256", "observationContractSha256", "policySha256",
+  ]) ensure(/^[0-9a-f]{64}$/.test(authorization[key] ?? ""), `autonomy_hash_binding_invalid:${key}`);
+  ensure(authorization.baseCommit === request.runnerSourceParentCommit, "autonomy_runner_parent_mismatch");
+  ensure(authorization.targetCommit === request.runnerSourceCommit, "autonomy_runner_commit_mismatch");
+  ensure(authorization.targetTree === request.runnerSourceTree, "autonomy_runner_tree_mismatch");
+  ensure(authorization.diffSha256 === request.runnerSourceDiffSha256, "autonomy_runner_diff_mismatch");
+  ensure(authorization.pathSetSha256 === request.runnerSourcePathSetSha256,
+    "autonomy_runner_path_set_mismatch");
+  ensure(authorization.contractSha256 === request.contractSha256, "autonomy_contract_checksum_mismatch");
+  ensure(authorization.runnerSha256 === request.runnerSha256, "autonomy_runner_checksum_mismatch");
+  ensure(authorization.artifactSha256 === contract.artifact.sha256, "autonomy_artifact_checksum_mismatch");
+  ensure(authorization.imageOrMigrationSha256 === sha256(`${request.webImageId}\n`),
+    "autonomy_image_binding_mismatch");
+  ensure(authorization.composeSha256 === request.targetComposeSha256, "autonomy_compose_binding_mismatch");
+  ensure(authorization.environmentFingerprintSha256
+    === sha256(`${request.baseEnvSha256}\n${request.productionEnvSha256}\n`),
+  "autonomy_environment_binding_mismatch");
+  ensure(authorization.productionIdentitySha256
+    === sha256(`${request.identityOverrideSha256}\n${request.composeWrapperSha256}\n`),
+  "autonomy_production_identity_binding_mismatch");
+  ensure(authorization.gateEvidenceSha256 === request.gateEvidenceSha256,
+    "autonomy_gate_evidence_mismatch");
+  ensure(authorization.preflightSha256 === productionPreflightSha256(request),
+    "autonomy_preflight_binding_mismatch");
+  ensure(authorization.backupRestoreEvidenceSha256 === rollbackEvidenceSha256(request),
+    "autonomy_rollback_evidence_binding_mismatch");
+  ensure(authorization.rollbackTarget === `${BASELINE_COMMIT}:web`, "autonomy_rollback_target_mismatch");
+  ensure(authorization.observationContractSha256
+    === sha256(JSON.stringify({
+      durationSeconds: contract.deployment.observationDurationSeconds,
+      pollSeconds: contract.deployment.observationPollSeconds,
+      continuousReadyFresh: true,
+      candidateDormant: true,
+    })), "autonomy_observation_contract_mismatch");
+  ensure(authorization.policySha256 === request.policySha256, "autonomy_policy_checksum_mismatch");
+  ensure(authorization.revocationEpoch === AUTONOMY_REVOCATION_EPOCH,
+    "autonomy_revocation_epoch_mismatch");
+  ensure(authorization.issuedAt === request.approvalIssuedAt, "autonomy_issued_at_mismatch");
+  ensure(authorization.expiresAt === request.approvalExpiresAt, "autonomy_expires_at_mismatch");
+  ensure(authorization.maxExecutions === 1, "autonomy_max_executions_mismatch");
+  ensure(authorization.productionLeaseId === undefined && authorization.fencingToken === undefined,
+    "autonomy_embeds_runtime_lease_identity");
+  const assertions = {
+    qualityThresholdChanged: false,
+    scopeMatchesBlueprint: true,
+    dynamicPreflightCurrent: true,
+    requiredGatesPassed: true,
+    rollbackVerified: true,
+    productionWipAvailable: true,
+    secretsPresentInEvidence: false,
+    knownP0Open: false,
+    pollutionCleanupManifestExact: true,
   };
-  const violations = Object.entries(facts).filter(([, value]) => value !== true).map(([key]) => `repository_guard_missing:${key}`);
-  ensure(violations.length === 0, violations.join(","));
-  ensure(JSON.stringify(contract.deployment.serviceAllowlist) === '["web"]', "contract_service_allowlist_mismatch");
-  return facts;
-}
-
-function parseTimestamp(value, reason) {
-  const timestamp = Date.parse(value);
-  ensure(Number.isFinite(timestamp), reason);
-  return timestamp;
+  ensure(exactKeys(authorization.packageAssertions, Object.keys(assertions)),
+    "autonomy_assertion_keys_mismatch");
+  for (const [key, expected] of Object.entries(assertions)) {
+    ensure(authorization.packageAssertions[key] === expected, `autonomy_assertion_failed:${key}`);
+  }
 }
 
 export function validateApprovalRequest(request, contract, { now = new Date() } = {}) {
-  ensure(request && typeof request === "object" && !Array.isArray(request), "request_not_object");
   const expectedKeys = [
-    "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "approvedArtifactSha256",
-    "approvedCommit", "approvedReleaseDiffFileCount", "approvedReleaseDiffSha256",
-    "automaticWebRollbackAllowed", "candidateControlLifecycleStartAllowed",
-    "candidateDatabaseUrlConfigurationAllowed", "candidateFeatureFlagEnablementAllowed",
-    "candidateWorkerStartAllowed", "codeActivationAllowed", "databaseMutationAllowed",
-    "deploymentMode", "execute", "identityOverrideSha256", "migrationAllowed", "operator", "packageId",
-    "rollbackCommit", "services",
+    "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "automaticRollbackAllowed",
+    "autonomyAuthorization", "autonomyTrustRoot", "baseEnvSha256", "baselineCommit",
+    "baselineComposeSha256",
+    "buildAllowed", "candidateControlLifecycleStartAllowed", "candidateDatabaseUrlConfigurationAllowed",
+    "candidateFeatureFlagEnablementAllowed", "candidateRuntimeMutationAllowed", "candidateWorkerStartAllowed",
+    "codeActivationAllowed", "composeWrapperSha256", "contractSha256",
+    "databaseMutationAllowed", "detachedHeadAfterSuccess", "environmentMutationAllowed",
+    "evidenceDirectory", "execute", "gateEvidenceSha256", "identityOverrideSha256",
+    "migrationAllowed", "observationDurationSeconds", "observationPollSeconds", "operator",
+    "otherServiceRestartAllowed", "packageId", "policySha256", "productionEnvSha256",
+    "productionRepositoryMutationAllowed", "redisMutationAllowed", "releaseArtifactSha256",
+    "releaseDiffSha256", "releasePathSetSha256", "rollbackImageRetentionRequired",
+    "rollbackWebImageRef", "runnerSha256", "runnerSourceCommit", "runnerSourceDiffSha256",
+    "runnerSourceParentCommit", "runnerSourcePathSetSha256", "runnerSourceTree", "runnerUnitName",
+    "services", "sessionIndependentExecutionRequired", "sourceFetchAllowed", "stagingDirectory",
+    "targetCommit", "targetComposeSha256", "targetRemoteBranch", "targetTree", "temporaryArtifactCleanupRequired",
+    "transportBundleSha256", "transportMethod", "webImageId",
   ];
   ensure(exactKeys(request, expectedKeys), "request_keys_mismatch");
   ensure(request.packageId === PACKAGE_ID, "request_package_mismatch");
-  ensure(request.deploymentMode === "dormant_runtime_web_only", "request_mode_mismatch");
+  ensure(request.baselineCommit === contract.releaseBoundary.baselineCommit,
+    "request_baseline_commit_mismatch");
+  ensure(request.targetCommit === contract.releaseBoundary.targetCommit, "request_target_commit_mismatch");
+  ensure(request.targetTree === contract.releaseBoundary.targetTree, "request_target_tree_mismatch");
+  ensure(request.targetRemoteBranch === contract.releaseBoundary.targetRemoteBranch,
+    "request_target_remote_branch_mismatch");
+  ensure(request.releaseDiffSha256 === contract.releaseBoundary.releaseDiffSha256,
+    "request_release_diff_checksum_mismatch");
+  ensure(request.releasePathSetSha256 === contract.releaseBoundary.releasePathSetSha256,
+    "request_release_path_set_checksum_mismatch");
+  ensure(request.releaseArtifactSha256 === contract.artifact.sha256,
+    "request_release_artifact_checksum_mismatch");
+  ensure(request.targetComposeSha256 === TARGET_COMPOSE_SHA256,
+    "request_target_compose_checksum_mismatch");
   ensure(JSON.stringify(request.services) === '["web"]', "request_services_mismatch");
-  ensure(/^[0-9a-f]{40}$/.test(request.approvedCommit ?? ""), "approved_commit_invalid");
-  ensure(/^[0-9a-f]{40}$/.test(request.rollbackCommit ?? ""), "rollback_commit_invalid");
-  ensure(request.approvedCommit !== request.rollbackCommit, "rollback_commit_matches_approved");
-  ensure(request.approvedArtifactSha256 === contract.artifact.sha256, "approved_artifact_checksum_mismatch");
-  ensure(request.rollbackCommit === contract.releaseBoundary.lastVerifiedProductionRollbackCommit, "rollback_commit_not_last_verified");
-  ensure(request.approvedReleaseDiffFileCount === contract.releaseBoundary.releaseDiffFileCount, "approved_release_diff_file_count_mismatch");
-  ensure(request.approvedReleaseDiffSha256 === contract.releaseBoundary.releaseDiffSha256, "approved_release_diff_checksum_mismatch");
-  ensure(/^[0-9a-f]{64}$/.test(request.identityOverrideSha256 ?? ""), "identity_override_checksum_invalid");
-  ensure(typeof request.approvalRef === "string" && request.approvalRef.trim().length >= 8, "approval_ref_invalid");
-  ensure(typeof request.operator === "string" && request.operator.trim().length >= 2, "operator_invalid");
-  ensure(typeof request.execute === "boolean", "execute_flag_missing");
-  ensure(request.automaticWebRollbackAllowed === true, "automatic_web_rollback_not_allowed");
+  for (const key of [
+    "contractSha256", "transportBundleSha256", "gateEvidenceSha256", "policySha256",
+    "runnerSha256", "runnerSourceDiffSha256", "runnerSourcePathSetSha256", "baselineComposeSha256",
+    "targetComposeSha256",
+    "composeWrapperSha256", "baseEnvSha256", "productionEnvSha256", "identityOverrideSha256",
+  ]) ensure(/^[0-9a-f]{64}$/.test(request[key] ?? ""), `request_checksum_invalid:${key}`);
+  for (const key of ["runnerSourceCommit", "runnerSourceParentCommit", "runnerSourceTree"]) {
+    ensure(/^[0-9a-f]{40}$/.test(request[key] ?? ""), `request_git_identity_invalid:${key}`);
+  }
+  ensure(/^sha256:[0-9a-f]{64}$/.test(request.webImageId ?? ""), "request_web_image_id_invalid");
+  ensure(request.rollbackWebImageRef === rollbackImageRef(request.webImageId),
+    "request_rollback_web_image_ref_mismatch");
+  ensure(RUNNER_UNIT_NAME_PATTERN.test(request.runnerUnitName ?? ""), "request_runner_unit_name_invalid");
+  ensure(STAGING_DIRECTORY_PATTERN.test(request.stagingDirectory ?? ""),
+    "request_staging_directory_invalid");
+  ensure(EVIDENCE_DIRECTORY_PATTERN.test(request.evidenceDirectory ?? ""),
+    "request_evidence_directory_invalid");
+  ensure(request.autonomyTrustRoot === AUTONOMY_TRUST_ROOT, "request_autonomy_trust_root_mismatch");
+  ensure(request.transportMethod === "approved_orcaterm_bundle_upload", "request_transport_method_invalid");
+  ensure(request.execute === true, "execute_must_be_true");
+  ensure(request.automaticRollbackAllowed === true, "automatic_rollback_not_allowed");
+  ensure(request.sourceFetchAllowed === true, "source_fetch_not_allowed");
+  ensure(request.buildAllowed === true, "build_not_allowed");
+  ensure(request.productionRepositoryMutationAllowed === true, "repository_transition_not_allowed");
+  ensure(request.detachedHeadAfterSuccess === true, "detached_head_not_required");
+  ensure(request.sessionIndependentExecutionRequired === true, "session_independent_execution_not_required");
+  ensure(request.rollbackImageRetentionRequired === true, "rollback_image_retention_not_required");
+  ensure(request.temporaryArtifactCleanupRequired === true, "temporary_artifact_cleanup_not_required");
+  ensure(request.observationDurationSeconds === contract.deployment.observationDurationSeconds,
+    "request_observation_duration_mismatch");
+  ensure(request.observationPollSeconds === contract.deployment.observationPollSeconds,
+    "request_observation_poll_mismatch");
   for (const key of [
     "candidateControlLifecycleStartAllowed", "candidateDatabaseUrlConfigurationAllowed",
-    "candidateFeatureFlagEnablementAllowed", "candidateWorkerStartAllowed", "codeActivationAllowed",
-    "databaseMutationAllowed", "migrationAllowed",
+    "candidateFeatureFlagEnablementAllowed", "candidateRuntimeMutationAllowed", "candidateWorkerStartAllowed",
+    "codeActivationAllowed", "databaseMutationAllowed", "environmentMutationAllowed", "migrationAllowed",
+    "otherServiceRestartAllowed", "redisMutationAllowed",
   ]) ensure(request[key] === false, `${key}_must_be_false`);
+  ensure(typeof request.approvalRef === "string" && request.approvalRef.trim().length >= 8,
+    "approval_ref_invalid");
+  ensure(typeof request.operator === "string" && request.operator.trim().length >= 2,
+    "operator_invalid");
   const issuedAt = parseTimestamp(request.approvalIssuedAt, "approval_issued_at_invalid");
   const expiresAt = parseTimestamp(request.approvalExpiresAt, "approval_expires_at_invalid");
   const nowMs = now instanceof Date ? now.getTime() : Number(now);
-  ensure(expiresAt > issuedAt && expiresAt - issuedAt <= 90 * 60 * 1000, "approval_window_too_long");
+  ensure(expiresAt > issuedAt && expiresAt - issuedAt <= 90 * 60 * 1000,
+    "approval_window_too_long");
   ensure(nowMs >= issuedAt && nowMs <= expiresAt, "approval_window_not_active");
+  validateAutonomyAuthorization(request.autonomyAuthorization, request, contract);
   return request;
 }
 
@@ -308,7 +452,9 @@ export async function validateIdentityOverrideFile(filePath, expectedSha256) {
 
 function unquote(value) {
   const trimmed = value.trim();
-  if (trimmed.length >= 2 && ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'")))) {
+  if (trimmed.length >= 2
+    && ((trimmed.startsWith('"') && trimmed.endsWith('"'))
+      || (trimmed.startsWith("'") && trimmed.endsWith("'")))) {
     return trimmed.slice(1, -1).trim();
   }
   return trimmed;
@@ -338,22 +484,53 @@ export function parseDormantEnvironment(source) {
   };
 }
 
+export async function inspectRunner(root = process.cwd()) {
+  const [source, entrypoint, bundle] = await Promise.all([
+    readFile(resolve(root, "scripts/production/candidate-dormant-deploy.sh"), "utf8"),
+    readFile(resolve(root, "scripts/production/candidate-dormant-deploy-entrypoint.sh"), "utf8"),
+    readFile(resolve(root, "scripts/production/candidate-dormant-deploy-bundle.mjs"), "utf8"),
+  ]);
+  const facts = {
+    webOnlyBuild: /\$\{IDENTITY_COMPOSE\[@\]\} build web/.test(source),
+    webOnlyForceRecreate: /\$\{IDENTITY_COMPOSE\[@\]\} up -d --no-deps --force-recreate web/.test(source),
+    noMainMerge: !/git merge --ff-only/.test(source),
+    detachedTarget: /checkout --detach/.test(source),
+    leaseFenced: ["lease_acquire", "lease_consume", "lease_checkpoint", "lease_release"]
+      .every((name) => source.includes(name)),
+    rollbackSafetyLease: /lease_safety_checkpoint rollback/.test(source),
+    rollbackRetention: /rollback-image-retention/.test(source)
+      && /verify_rollback_image_retention/.test(source),
+    transientSystemdUnit: /systemd-run/.test(entrypoint)
+      && /Restart=no/.test(entrypoint)
+      && /RuntimeMaxSec=5400/.test(entrypoint),
+    noForegroundFallback: !/nohup/.test(entrypoint)
+      && /unsupported dormant deploy entrypoint mode/.test(entrypoint),
+    reproducibleBundle: /ustar\+gzip-n/.test(bundle)
+      && /sourceCommit/.test(bundle)
+      && /sourceTree/.test(bundle),
+  };
+  const violations = Object.entries(facts).filter(([, value]) => value !== true)
+    .map(([key]) => `runner_guard_missing:${key}`);
+  ensure(violations.length === 0, violations.join(","));
+  return facts;
+}
+
 export async function validateLocalPreparation(root = process.cwd()) {
   const contract = await loadContract(root);
-  const [artifact, release, repository] = await Promise.all([
+  const [artifact, release, runner] = await Promise.all([
     inspectArtifact(root, contract),
-    inspectReleaseDiff(root, contract),
-    inspectRepository(root, contract),
+    inspectRelease(root, contract),
+    inspectRunner(root),
   ]);
   return {
-    schemaVersion: "wp-g0.2-shadow-capture-dormant-runtime-deploy-result.v1",
-    status: "PASS_LOCAL_DORMANT_DEPLOY_PREPARATION",
-    productionDecision: "BLOCKED_AWAITING_EXPLICIT_PRODUCTION_APPROVAL",
+    schemaVersion: "wp-g0.2-shadow-capture-dormant-runtime-deploy-result.v2",
+    status: "PASS_LOCAL_DORMANT_DEPLOY_STANDING_AUTHORITY_RUNNER_REFRESH",
+    productionDecision: "BLOCKED_UNTIL_CURRENT_DYNAMIC_PREFLIGHT_AND_EXTERNAL_SINGLE_USE_APPROVAL",
     productionMutationAllowed: false,
     artifact,
     release,
-    repository,
-    nextRequiredAction: "approve_exact_commit_artifact_web_only_90_minute_window",
+    runner,
+    nextRequiredAction: "commit_runner_run_full_gates_build_bound_bundle_and_dynamic_production_preflight",
   };
 }
 
@@ -380,22 +557,17 @@ async function main() {
   } else if (command === "request") {
     const contract = await loadContract(root);
     const request = JSON.parse(await readFile(resolve(options.request ?? ""), "utf8"));
-    const validatedRequest = validateApprovalRequest(request, contract, options.now ? { now: new Date(options.now) } : {});
     result = {
       ok: true,
-      release: await inspectReleaseDiff(root, contract, validatedRequest),
-      request: validatedRequest,
+      request: validateApprovalRequest(request, contract,
+        options.now ? { now: new Date(options.now) } : {}),
     };
   } else if (command === "env") {
-    result = {
-      ok: true,
-      environment: parseDormantEnvironment(await readFile(resolve(options["env-file"] ?? ""), "utf8")),
-    };
+    result = { ok: true, environment: parseDormantEnvironment(
+      await readFile(resolve(options["env-file"] ?? ""), "utf8")) };
   } else if (command === "identity-override") {
-    result = {
-      ok: true,
-      identityOverride: await validateIdentityOverrideFile(options.file ?? "", options.sha256 ?? ""),
-    };
+    result = { ok: true, identityOverride: await validateIdentityOverrideFile(
+      options.file ?? "", options.sha256 ?? "") };
   } else {
     throw new DormantDeployPolicyError("command_invalid");
   }

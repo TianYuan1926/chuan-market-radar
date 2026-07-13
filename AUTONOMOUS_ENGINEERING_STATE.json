@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T05:58:08+08:00",
+  "updatedAt": "2026-07-14T06:40:40+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -9,7 +9,7 @@
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
-    "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_closeout_gates_10_of_10_pass_commit_pending"
+    "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9"
   },
   "wipLimits": {
     "production": 1,
@@ -128,23 +128,22 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-    "title": "Scanner sustained-health exact production release",
-    "lane": "production",
+    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
+    "title": "Dormant runtime deploy standing-authority and runner refresh",
+    "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "把已完成本地修复的Scanner持续健康发布包接入G0-G8常驻授权、仓库外生产租约、单次消费和递增fencing，在仅Web与scanner-worker可逆发布边界内完成动态预检、1800秒且至少两次扫描推进观察及自动回滚真值收口。",
+    "objective": "把历史上已自动回滚的Dormant Web-only发布包刷新到当前生产target、G0-G8常驻授权、仓库外单次租约、递增fencing、session-independent runner、精确单父release commit和成功后rollback image留存，同时维持Candidate完全休眠。",
     "coreChainImpact": [
-      "全市场发现",
       "候选筛选",
-      "scanner_cadence_sustainability",
-      "scan_freshness_truth",
+      "复盘进化",
+      "candidate_runtime_foundation",
+      "dormant_authority_boundary",
       "production_single_writer_fencing",
-      "session_independent_observation",
-      "automatic_two_image_and_git_rollback",
-      "lease_execution_snapshot_truth"
+      "session_independent_execution",
+      "automatic_web_and_git_rollback"
     ],
-    "productionMutation": true,
-    "requiresExplicitApproval": true,
+    "productionMutation": false,
+    "requiresExplicitApproval": false,
     "allowedPaths": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
@@ -155,25 +154,24 @@
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",
-      "scripts/production/scan-sustained-health-release.mjs",
-      "scripts/production/scan-sustained-health-release.sh",
-      "scripts/production/scan-sustained-health-release-entrypoint.sh",
-      "scripts/production/scan-sustained-health-release-bundle.mjs",
-      "scripts/production/scan-sustained-health-release.test.mjs",
-      "scripts/production/scan-sustained-health-release-execute-rehearsal.test.mjs",
-      "docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json",
-      "docs/governance/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_V1.md",
-      "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-dormant-deploy.sh",
+      "scripts/production/candidate-dormant-deploy-entrypoint.sh",
+      "scripts/production/candidate-dormant-deploy-bundle.mjs",
+      "scripts/production/candidate-dormant-deploy.test.mjs",
+      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
       "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md",
-      "reports/wp-g0-2-scan-sustained-health-production-release/wp-g0-2-scan-sustained-health-production-release-redacted-evidence.json"
+      "reports/wp-g0-2-dormant-runtime-deploy-standing-authority-runner-refresh/WP_G0_2_DORMANT_RUNTIME_DEPLOY_STANDING_AUTHORITY_RUNNER_REFRESH_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
       "docker-compose.yml",
-      "deploy/workers/**",
+      "deploy/**",
       "src/app/**",
+      "src/components/**",
       "src/lib/market/**",
       "src/lib/analysis/**",
       "src/lib/strategy/**",
@@ -188,28 +186,26 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "scripts/governance/autonomous-engineering.mjs",
-      "scripts/governance/autonomous-engineering.test.mjs",
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",
-      "scripts/production/scan-sustained-health-release.mjs",
-      "scripts/production/scan-sustained-health-release.sh",
-      "scripts/production/scan-sustained-health-release-entrypoint.sh",
-      "scripts/production/scan-sustained-health-release-bundle.mjs",
-      "scripts/production/scan-sustained-health-release.test.mjs",
-      "scripts/production/scan-sustained-health-release-execute-rehearsal.test.mjs",
-      "docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json",
-      "docs/governance/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_V1.md",
-      "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-dormant-deploy.sh",
+      "scripts/production/candidate-dormant-deploy-entrypoint.sh",
+      "scripts/production/candidate-dormant-deploy-bundle.mjs",
+      "scripts/production/candidate-dormant-deploy.test.mjs",
+      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
+      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
       "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md",
-      "reports/wp-g0-2-scan-sustained-health-production-release/wp-g0-2-scan-sustained-health-production-release-redacted-evidence.json"
+      "reports/wp-g0-2-dormant-runtime-deploy-standing-authority-runner-refresh/WP_G0_2_DORMANT_RUNTIME_DEPLOY_STANDING_AUTHORITY_RUNNER_REFRESH_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
         "test:autonomy",
-        "test:production-scan-sustained-health-release"
+        "test:candidate-dormant-deploy",
+        "test:deploy-safety"
       ],
       "baseline": [
         "typecheck",
@@ -225,29 +221,26 @@
       ]
     },
     "completionBoundary": [
-      "用户持续授权只覆盖G0-G8，G8出口PASS或用户撤销后自动终止",
-      "所有工作必须明确服务全市场发现、候选筛选、深扫验证、结构分析、风险赔率、交易计划或复盘进化；装饰性和无关功能不自动授权",
-      "Production WIP=1、本地准备WIP=1保持不变，Gate顺序不得跳跃",
-      "每个生产执行必须绑定当前Gate与Work Package、commit/tree、contract、artifact、动态preflight、rollback target、一次性nonce和最长90分钟mutation窗口",
-      "长期观察在mutation租约释放后只读运行；7天、14天、30天、60天、180天及样本阈值不得缩短或伪造",
-      "门禁结果必须绑定commit/tree、固定基础门禁、required artifact、package scripts和policy hash，并保存不可覆盖结果",
-      "生产执行必须取得仓库外原子租约、递增fencing token和一次性消费记录；旧runner恢复时必须拒绝",
-      "破坏性DDL、生产业务数据删除、生产数据库恢复、secret泄露、自动交易、自动调权、RR或Risk Gate放宽、future outcome生产回写以及G9以后全部禁止",
-      "生产动作必须可回滚；高风险阶段必须具备fresh backup、隔离restore、观察和自动回滚证据",
-      "污染清理必须有精确路径manifest、所有权分类、hash或absence合同、影响检查和清理后验证；不明文件不得自动删除",
-      "任一证据过期、测试失败、生产身份漂移、工作树污染、P0、核心偏移或无法安全恢复都fail closed",
-      "控制层通过定向、攻击性、基础、安全和自治门禁后自动恢复Scanner持续健康关键路径"
+      "历史Dormant生产尝试保持失败并自动回滚真值，不得改写为PASS",
+      "新发布必须从当前生产target构造单父精确release commit，不得直接部署GitHub main或历史156路径宽差异",
+      "Candidate所有Feature Flag保持false、专用数据库URL为空、release ID为disabled、worker absent、control lifecycle不启动",
+      "生产执行必须使用仓库外脱敏bundle、session-independent transient unit、最长90分钟一次性approval、外部租约与递增fencing token",
+      "只允许Web build和force-recreate；数据库、Redis、migration、env、Candidate worker与其它容器不变",
+      "Web旧镜像必须在mutation前保留、逐检查点复核、成功后继续保留，清理需要独立批准",
+      "任一身份、health ready/fresh、Candidate dormant、非目标容器、Postgres、Redis或合同验证失败必须自动恢复旧Web镜像和生产Git target",
+      "本地红灯、定向演练、固定基础门禁、安全门禁与自治门禁全部通过后才可形成生产执行包",
+      "backtest:formal禁止运行；自动交易、自动调权、RR/Risk Gate放宽和future outcome生产回写继续禁止"
     ],
     "gate": "G0",
-    "actionClass": "reversible_service_release",
+    "actionClass": "dormant_runtime_deploy",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
-      "contributionType": "core",
+      "contributionType": "supporting",
       "coreChainStages": [
-        "全市场发现",
-        "候选筛选"
+        "候选筛选",
+        "复盘进化"
       ],
-      "measurableOutcome": "生产Scanner在浏览器断开后仍由session-independent runner完成；Web与scanner-worker之外容器不变；连续1800秒保持ready/fresh/heartbeat healthy并至少推进两次真实scan completedAt；失败时恢复双镜像及main基线。"
+      "measurableOutcome": "形成可从当前生产target精确发布且浏览器断开后继续运行的Web-only Dormant执行包；Candidate始终不采集、不写入、不产出信号，失败恢复原Web镜像和Git target。"
     }
   },
   "approvals": [
@@ -431,7 +424,7 @@
       "order": 23,
       "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
       "lane": "production",
-      "status": "ready_for_gate",
+      "status": "completed_production_pass_committed_pushed_92e6ab9",
       "requiresExplicitApproval": true
     },
     {
@@ -439,6 +432,13 @@
       "id": "WP-AUTO-02-G0-G8-STANDING-AUTHORITY-AND-EVIDENCE-HARDENING",
       "lane": "localPreparation",
       "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 25,
+      "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": false
     }
   ]
