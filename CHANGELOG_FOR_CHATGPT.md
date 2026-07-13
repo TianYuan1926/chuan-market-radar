@@ -3470,3 +3470,44 @@ P0 阻断：
 ### 下一轮建议
 
 完成 commit/main 后，只生成 scanner sustained-health 的 Web + scanner-worker 独立生产审批包。
+## 2026-07-14 / WP-G0.2 Scan Sustained Health Production Release Packet
+
+### 本轮目标
+
+把基于生产 `0599f802...` 的最小扫描修复 release `70722ea...` 固化为精确批准、Web + scanner-worker 双镜像自动回滚和两个 cadence 周期持续观察执行包；本轮不执行生产发布。
+
+### 修改范围
+
+新增 release 机器合同、中文治理说明、validator、runner、repository-external entrypoint、可复现 bundle builder、合同/transport 测试和完整成功/失败回滚假生产演练；更新 `package.json`、自治状态、项目上下文、加速蓝图和 traceability。
+
+没有修改 scan/analysis/strategy/backtest/frontend/API 业务代码、migration、docker-compose、数据库、Redis、worker 业务实现、环境文件、Feature Flag、Candidate runtime 或 secret。
+
+### 核心链路影响
+
+影响全市场发现、候选筛选的新鲜度和生产持续健康证明。发布器只允许 `web` 与 `scanner-worker`，禁止 GitHub main 直接进入生产；其它核心链路不变。
+
+### 测试结果
+
+- production release validator：pass；精确 target=`70722ea...`、parent=`0599f802...`、16文件 diff SHA=`80bab7d...`、artifact 与 runner guards。
+- 定向 release + execute rehearsal：12/12 pass；成功路径和观察失败双镜像/Git 回滚均通过。
+- typecheck / lint / build：pass。
+- test:market：960 pass / 0 fail / 4 explicit DB skip；worker 23/23；historical smoke 4/4。
+- backtest:golden：16/16 pass。
+- forbidden-files / secret-patterns / security-check：pass。
+- autonomy 总门禁：11/11 pass，`worktreeUnchanged=true`，`canAutoCommit=true`，`canAutoDeploy=false`。
+- production smoke：未运行，本轮没有部署。
+- formal：未运行，按规则禁止。
+
+### 是否部署
+
+未部署。生产仍为 `main@0599f802...`，Candidate runtime disabled，数据库、Redis、服务、环境和 Feature Flag 未改变。
+
+### 风险与遗留问题
+
+- P1：scanner 持续健康尚未生产发布和观察，不能写已关闭。
+- 当前 main 含未获准 Candidate/Dormant 代码，只能部署专用单父 release；runner 已 fail closed 禁止 pull main。
+- 生产动态镜像/env 指纹、final bundle、exact approval 均尚未生成。
+
+### 下一轮建议
+
+只完成本包基础/安全/自治门禁、提交和 final reproducible bundle；随后用 Microsoft Edge 做动态只读生产预检并申请新的90分钟 exact approval。

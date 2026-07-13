@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "wp-g0.2-scan-sustained-health-production-release.v1",
+  "packageId": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
+  "status": "local_preparation_awaiting_exact_production_approval",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "release": {
+    "baselineCommit": "0599f802f261fe8e3c1982a07106f362bd62ac13",
+    "targetCommit": "70722ea71b33268b688be5d42af9908d40f49859",
+    "targetRemoteBranch": "codex/wp-g0-2-scanner-sustained-health-release",
+    "releaseDiffSha256": "80bab7d7e3cdd5a9811dc0815c5df10205bce54e3f87c14d1791c94bcd3f6f58",
+    "releaseDiffLines": [
+      "M\tdeploy/workers/protected-api-worker.mjs",
+      "A\tdeploy/workers/protected-api-worker.test.mjs",
+      "A\tdeploy/workers/worker-schedule.mjs",
+      "A\tdeploy/workers/worker-schedule.test.mjs",
+      "M\tsrc/app/api/scan/route.ts",
+      "M\tsrc/lib/api/system-health.test.ts",
+      "M\tsrc/lib/api/system-health.ts",
+      "M\tsrc/lib/market/radar-snapshot.test.ts",
+      "M\tsrc/lib/market/radar-snapshot.ts",
+      "A\tsrc/lib/market/scan-action-contract.test.ts",
+      "A\tsrc/lib/market/scan-action-contract.ts",
+      "M\tsrc/lib/market/scan-coordinator.test.ts",
+      "M\tsrc/lib/market/scan-coordinator.ts",
+      "M\tsrc/lib/market/scan-runtime.test.ts",
+      "M\tsrc/lib/market/scan-runtime.ts",
+      "M\tsrc/lib/market/types.ts"
+    ],
+    "singleParentRequired": true,
+    "detachedHeadAfterSuccess": true
+  },
+  "scope": {
+    "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+    "services": [
+      "web",
+      "scanner-worker"
+    ],
+    "identityOverrideSha256": "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf",
+    "composeWrapperSha256": "fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3",
+    "productionComposeSha256": "2749a24dfd2f574ac0ffe64a8e2c9f8afb411dc7d11279f75cfcc9fb0d743a4e",
+    "sourceFetchAllowed": true,
+    "buildAllowed": true,
+    "productionRepositoryMutationAllowed": true,
+    "databaseMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "otherServiceRestartAllowed": false,
+    "environmentMutationAllowed": false,
+    "featureFlagMutationAllowed": false,
+    "migrationAllowed": false,
+    "candidateRuntimeMutationAllowed": false,
+    "temporaryArtifactCleanupRequired": true,
+    "maximumApprovalWindowMinutes": 90
+  },
+  "observation": {
+    "minimumDurationSeconds": 1800,
+    "cadenceSeconds": 900,
+    "requiredCompletionAdvances": 2,
+    "freshnessRequiredThroughout": true,
+    "scannerHeartbeatRequired": true,
+    "finalReadyHealthRequired": true
+  },
+  "rollback": {
+    "automaticRollbackRequired": true,
+    "restoreBothTargetImages": true,
+    "restoreBaselineMain": true
+  },
+  "transport": {
+    "reproducibleArchiveRequired": true,
+    "archiveFormat": "ustar+gzip-n",
+    "sourceDateEpoch": 946684800,
+    "stagingDirectoryPrefix": "/home/ubuntu/.cache/market-radar-ops/wp-g0-2-scan-sustained-health-release-",
+    "evidenceDirectoryPrefix": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-scan-sustained-health-",
+    "containsSecrets": false
+  },
+  "artifact": {
+    "files": [
+      "scripts/production/scan-sustained-health-release-entrypoint.sh",
+      "scripts/production/scan-sustained-health-release.mjs",
+      "scripts/production/scan-sustained-health-release.sh"
+    ],
+    "fileSha256": {
+      "scripts/production/scan-sustained-health-release-entrypoint.sh": "90354f530a019c00ed6970f2ba0789c9f1ab1446b0e5e700734e7c1ed70c4868",
+      "scripts/production/scan-sustained-health-release.mjs": "033f81a5cac05ecaaae075eafb16c6072771fd68afbabf20dcfb52e179d1f386",
+      "scripts/production/scan-sustained-health-release.sh": "89bfa86025c7e3dbcefaeb485ce60ca19b2c30e867577ad72b0e56a15983e423"
+    },
+    "sha256": "5dc432045b3e0ebdf9bd83b90dd3b720a024544da2c46872dc6ef4898892c7c5"
+  },
+  "approvalRequiredFields": [
+    "baseline and target commit",
+    "single-parent release diff checksum",
+    "runner source commit",
+    "release artifact and contract checksum",
+    "reproducible transport bundle checksum",
+    "production compose and environment fingerprints",
+    "current Web and scanner-worker image IDs",
+    "root-owned identity wrapper and override fingerprints",
+    "exact repository-external staging and evidence directories",
+    "Web and scanner-worker only",
+    "automatic two-image and Git rollback",
+    "1800-second observation with two completion advances",
+    "active approval window no longer than 90 minutes"
+  ]
+}

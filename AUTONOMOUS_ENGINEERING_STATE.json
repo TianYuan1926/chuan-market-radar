@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-13T23:29:56+08:00",
+  "updatedAt": "2026-07-14T00:09:54+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -9,7 +9,7 @@
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
-    "productionHealthSustainability": "p1_local_remediation_candidate_autonomy_12_of_12_pass_production_unchanged_observation_pending"
+    "productionHealthSustainability": "p1_release_70722ea_local_packet_autonomy_11_of_11_pass_production_unchanged_commit_bundle_preflight_and_exact_approval_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -33,56 +33,50 @@
     "productionAutoApproval": false
   },
   "activePackage": {
-    "id": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION",
-    "title": "Scan cadence cache ownership and completion freshness sustained health remediation",
+    "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
+    "title": "Exact minimal Web and scanner-worker production release, rollback and two-cadence observation packet",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在不改变分析、策略、回测、Candidate 数据或生产状态的前提下，收口 scanner fixed-rate 调度、读写所有权、锁竞争机器状态、旧缓存失败语义和成功完成时间 freshness，消除周期性 aging/degraded 与假 task-ok。",
+    "objective": "在不直接部署生产的前提下，把基于生产0599基线的最小扫描修复提交70722ea固化为精确批准、双镜像自动回滚、非目标容器不变和连续1800秒/两个completion推进观察的可复现执行包。",
     "coreChainImpact": [
-      "full_market_discovery_runtime",
-      "candidate_screening_freshness",
-      "scan_read_write_ownership",
-      "scan_lock_contention_truth",
-      "worker_schedule_stability",
-      "production_health_sustainability"
+      "full_market_discovery_production_runtime",
+      "candidate_screening_freshness_proof",
+      "worker_schedule_sustained_health",
+      "production_release_scope_truth",
+      "two_service_rollback_safety",
+      "two_cadence_observation_truth"
     ],
     "productionMutation": false,
-    "requiresExplicitApproval": false,
+    "requiresExplicitApproval": true,
     "allowedPaths": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "src/app/api/scan/route.ts",
-      "src/lib/api/system-health.ts",
-      "src/lib/api/system-health.test.ts",
-      "src/lib/market/types.ts",
-      "src/lib/market/scan-runtime.ts",
-      "src/lib/market/scan-runtime.test.ts",
-      "src/lib/market/scan-coordinator.ts",
-      "src/lib/market/scan-coordinator.test.ts",
-      "src/lib/market/radar-snapshot.ts",
-      "src/lib/market/radar-snapshot.test.ts",
-      "src/lib/market/scan-action-contract.ts",
-      "src/lib/market/scan-action-contract.test.ts",
-      "deploy/workers/protected-api-worker.mjs",
-      "deploy/workers/protected-api-worker.test.mjs",
-      "deploy/workers/worker-schedule.mjs",
-      "deploy/workers/worker-schedule.test.mjs",
+      "scripts/production/scan-sustained-health-release.mjs",
+      "scripts/production/scan-sustained-health-release.sh",
+      "scripts/production/scan-sustained-health-release-entrypoint.sh",
+      "scripts/production/scan-sustained-health-release-bundle.mjs",
+      "scripts/production/scan-sustained-health-release.test.mjs",
+      "scripts/production/scan-sustained-health-release-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json",
+      "docs/governance/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_V1.md",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-scan-sustained-health-remediation/WP_G0_2_SCAN_SUSTAINED_HEALTH_REMEDIATION_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
       "docker-compose.yml",
+      "deploy/workers/**",
+      "src/app/**",
+      "src/lib/market/**",
       "src/lib/analysis/**",
       "src/lib/strategy/**",
       "src/lib/backtest/**",
       "src/lib/candidate-episode/**",
-      "src/app/**/page.tsx",
-      "scripts/production/**",
       "docs/governance/wp-g0-2-production-web-identity-recovery.v1.json",
+      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
       "tools/**",
       ".env",
       ".env.production"
@@ -92,23 +86,21 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "src/lib/market/scan-runtime.ts",
-      "src/lib/market/scan-runtime.test.ts",
-      "src/lib/market/radar-snapshot.ts",
-      "src/lib/market/radar-snapshot.test.ts",
-      "src/app/api/scan/route.ts",
-      "deploy/workers/protected-api-worker.mjs",
-      "deploy/workers/protected-api-worker.test.mjs",
-      "deploy/workers/worker-schedule.mjs",
-      "deploy/workers/worker-schedule.test.mjs",
+      "scripts/production/scan-sustained-health-release.mjs",
+      "scripts/production/scan-sustained-health-release.sh",
+      "scripts/production/scan-sustained-health-release-entrypoint.sh",
+      "scripts/production/scan-sustained-health-release-bundle.mjs",
+      "scripts/production/scan-sustained-health-release.test.mjs",
+      "scripts/production/scan-sustained-health-release-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json",
+      "docs/governance/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_V1.md",
       "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-scan-sustained-health-remediation/WP_G0_2_SCAN_SUSTAINED_HEALTH_REMEDIATION_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "test:scan-sustained-health",
-        "test:workers",
+        "test:production-scan-sustained-health-release",
         "test:deploy-safety",
         "test:autonomy"
       ],
@@ -126,16 +118,16 @@
       ]
     },
     "completionBoundary": [
-      "所有 getReadableMarketRadarSnapshot 调用必须结构性 no-refresh，只有受保护 refresh action 可调用 provider",
-      "scan coordination 必须输出机器可判定 code，lock contention 必须为 in_progress 而不是 served_cache 成功",
-      "POST /api/scan 只有 updated 返回 HTTP 2xx 和 ok=true，in_progress、served_cache、failed 必须 fail closed",
-      "scanner Worker 必须解析响应 body 状态，非 updated 即使 HTTP 200 也不得记录 task-ok 或 ok heartbeat",
-      "scanner 必须 fixed-rate、无重叠并跳过错过窗口，不得在长任务后再睡满900秒或突发追赶",
-      "成功快照必须记录 started/completed/duration，freshness 使用成功完成事实；失败、缓存和锁竞争不得刷新成功时间",
-      "定向测试必须覆盖 read no-refresh、状态真值、fixed-rate overrun/no-burst、完成时间和旧缓存不变",
+      "生产目标只能是专用远端分支的70722ea，且必须证明唯一父提交0599、16文件diff和固定checksum",
+      "禁止部署main；成功后必须保持clean detached target，main分支不移动",
+      "只允许build和force-recreate Web与scanner-worker，所有非目标容器ID必须完全不变",
+      "执行前必须绑定当前两个镜像、Compose、两份env、identity override、wrapper、artifact、contract、bundle与90分钟窗口",
+      "任何失败必须恢复两个旧镜像和main@0599，并机器验证回滚结果",
+      "第一次新完成后必须连续观察1800秒、至少两个后续completedAt推进、全程fresh和scanner heartbeat healthy、最终health ready",
+      "scanner日志必须证明fixed_rate_skip_missed、updated-only成功、零假task-ok和零task failure",
+      "可复现transport不得包含secret，仓库外staging无论成功失败或信号退出都必须清理",
       "所有定向、基础、安全和自治门禁通过",
-      "本地包禁止生产连接、部署、数据库、Redis、migration、env、Feature Flag 和 Candidate runtime mutation",
-      "生产执行必须另获绑定 commit、Web 与 scanner-worker image/rollback 的 exact approval，并跨至少两个 cadence 周期观察"
+      "本地准备包禁止生产连接和mutation；生产执行必须另获动态指纹绑定的exact approval"
     ]
   },
   "approvals": [
@@ -312,8 +304,15 @@
       "order": 22,
       "id": "WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed_committed_pushed_b1a0eddf_release_commit_70722ea_anchored_in_main_9c9df7d",
       "requiresExplicitApproval": false
+    },
+    {
+      "order": 23,
+      "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": true
     }
   ]
 }
