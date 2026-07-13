@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T06:02:00+08:00",
+  "updatedAt": "2026-07-14T05:00:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -9,7 +9,7 @@
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
-    "productionHealthSustainability": "p1_release_attempt_runner_terminated_emergency_baseline_recovered_rebuilt_scanner_not_identical_standing_authorization_external_lease_fencing_local_targeted_and_first_full_gates_pass_clean_commit_gate_evidence_dynamic_preflight_approval_and_bundle_pending"
+    "productionHealthSustainability": "p1_release_attempt_runner_terminated_emergency_baseline_recovered_rebuilt_scanner_not_identical_standing_authorization_external_lease_fencing_final_source_gates_pass_dynamic_preflight_current_production_gate_exact_external_approval_and_final_bundle_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -129,8 +129,8 @@
   },
   "activePackage": {
     "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-    "title": "Scanner sustained-health standing-authorization integration and production release",
-    "lane": "localPreparation",
+    "title": "Scanner sustained-health exact production release",
+    "lane": "production",
     "status": "ready_for_gate",
     "objective": "把已完成本地修复的Scanner持续健康发布包接入G0-G8常驻授权、仓库外生产租约、单次消费和递增fencing，在仅Web与scanner-worker可逆发布边界内完成动态预检、1800秒且至少两次扫描推进观察及自动回滚真值收口。",
     "coreChainImpact": [
@@ -142,8 +142,8 @@
       "session_independent_observation",
       "automatic_two_image_and_git_rollback"
     ],
-    "productionMutation": false,
-    "requiresExplicitApproval": false,
+    "productionMutation": true,
+    "requiresExplicitApproval": true,
     "allowedPaths": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
@@ -427,7 +427,7 @@
     {
       "order": 23,
       "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-      "lane": "localPreparation",
+      "lane": "production",
       "status": "ready_for_gate",
       "requiresExplicitApproval": true
     },

@@ -3675,6 +3675,14 @@ P0 阻断：
 
 未部署、未连接生产、未重启服务、未执行 migration。旧 artifact、approval、gate evidence 和 bundle 全部失效；当前六文件 artifact SHA-256=`5937a72025173ffd703bbaa2034159ae0e89326b635423e3685be53bec013cd8`。首个 clean commit `039eb09baf09914a5b204047045a17113f01e783` 的提交后门禁 10/10 PASS，但正式 Bundle 构建前复核发现 CLI 默认文件名引用已删除变量；该提交的 gate evidence 随修复失效，禁止复用，修复提交、当前 gate evidence 与 final bundle 尚未生成。
 
+### 生产 Gate 转换
+
+- 修复提交 `6b33a78c8c4a68276a1aadb3be2148a122114782` 已推送工作分支和 GitHub main；提交后自治门禁 10/10 PASS，gate evidence=`772d5e08679a9a386cb4107f52300f99c835b41f57bf99159e03a376b657692a`。
+- 同一提交的正式 Bundle 与复核副本逐字节一致，SHA-256=`d9f170a80faf5ebbcac227ed67467cee7e4170ae478073e63910b98af2a99737`；复核副本已精确删除。因本次状态从 localPreparation 转为 production，该 Bundle 和 gate evidence 立即转为历史证明，禁止直接执行。
+- Microsoft Edge/OrcaTerm 动态只读预检证明：生产 clean `main@0599f802...`、target=`70722ea...`、Compose=`2749a24...`、base env=`763b46f...`、production env=`4cafabd...`、wrapper=`fb473dc...`/root:0700、override=`1b7f8ba...`/root:0600；Web image=`sha256:d5121562...` healthy，scanner image=`sha256:bd01f60c...` running，Candidate count=0，Postgres ready，Redis PONG，无活动生产 lease。
+- health 为 ready/fresh 且 scanner heartbeat healthy，但 baseline `scan.completedAt=null`；不得把这写成 sustained-health PASS。目标发布必须出现首次新 completedAt，并在连续 1800 秒内再推进至少两次，否则自动恢复双镜像与 `main@0599`。
+- 状态已切换为 `production / productionMutation=true / requiresExplicitApproval=true / ready_for_gate`；同时纠正原 `updatedAt=06:02+08:00` 晚于真实当前时间的记录污染。
+
 ### 风险与遗留问题
 
 - 本地 runner 加固不等于生产 sustained-health PASS，P1 与 G0 仍未关闭。
