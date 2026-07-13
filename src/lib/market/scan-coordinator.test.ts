@@ -26,6 +26,7 @@ test("createMemoryScanCoordinator blocks overlapping scans until the active toke
 
   assert.equal(first.allowed, true);
   assert.equal(second.allowed, false);
+  assert.equal(second.allowed ? "" : second.code, "scan_in_progress");
   assert.match(second.allowed ? "" : second.reason, /already running/);
 
   if (first.allowed) {
@@ -65,6 +66,7 @@ test("createMemoryScanCoordinator enforces the CoinGlass minute request budget",
   });
 
   assert.equal(second.allowed, false);
+  assert.equal(second.allowed ? "" : second.code, "budget_exhausted");
   assert.match(second.allowed ? "" : second.reason, /minute budget/);
 
   const nextMinute = await coordinator.beforeScan({

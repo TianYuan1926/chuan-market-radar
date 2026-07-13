@@ -256,10 +256,12 @@ test("buildRepositoryAwareMarketProvider injects durable BTC dominance and TOTAL
 
 test("getReadableMarketRadarSnapshot returns a failed placeholder when the provider is unavailable", async () => {
   const repository = createMemoryPersistenceRepository();
+  let fetchCount = 0;
   const provider: MarketDataProvider = {
     id: "coinglass",
     label: "Unavailable CoinGlass Provider",
     async fetchSnapshot() {
+      fetchCount += 1;
       throw new Error("Upgrade plan");
     },
   };
@@ -278,7 +280,8 @@ test("getReadableMarketRadarSnapshot returns a failed placeholder when the provi
   assert.equal(readable.metadata.source, "composite");
   assert.equal(readable.metadata.runtime?.cacheStatus, "failed");
   assert.equal(readable.metadata.runtime?.trigger, "health_get");
-  assert.match(readable.metadata.notes.join("\n"), /Upgrade plan/);
+  assert.equal(fetchCount, 1);
+  assert.match(readable.metadata.notes.join("\n"), /no-refresh read/);
   assert.equal(readable.signals.length, 0);
 });
 
@@ -304,6 +307,29 @@ test("getReadableMarketRadarSnapshot can perform a no-refresh read for health ch
   assert.equal(readable.metadata.status, "failed");
   assert.equal(readable.metadata.runtime?.cacheStatus, "failed");
   assert.equal(readable.metadata.runtime?.trigger, "health_get");
+  assert.match(readable.metadata.notes.join("\n"), /no-refresh read/);
+});
+
+test("getReadableMarketRadarSnapshot remains no-refresh even when a caller requests refresh", async () => {
+  const repository = createMemoryPersistenceRepository();
+  let fetchCount = 0;
+  const provider: MarketDataProvider = {
+    id: "coinglass",
+    label: "Must Not Run On Read",
+    async fetchSnapshot() {
+      fetchCount += 1;
+      return snapshot([]);
+    },
+  };
+
+  const readable = await getReadableMarketRadarSnapshot(provider, {
+    allowRefresh: true,
+    repository,
+    trigger: "radar_get",
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(readable.metadata.status, "failed");
   assert.match(readable.metadata.notes.join("\n"), /no-refresh read/);
 });
 
@@ -369,6 +395,49 @@ test("getMarketRadarSnapshot reads without writing archives while refresh persis
 
   assert.equal(refreshed.status, "updated");
   assert.equal((await repository.listScanArchives()).length, 1);
+});
+
+test("refreshMarketRadarSnapshot does not persist a lock-contention cache response", async () => {
+  const baseRepository = createMemoryPersistenceRepository();
+  let archiveWrites = 0;
+  const repository = {
+    ...baseRepository,
+    async addScanArchive(...args: Parameters<typeof baseRepository.addScanArchive>) {
+      archiveWrites += 1;
+      return baseRepository.addScanArchive(...args);
+    },
+  };
+  const provider: MarketDataProvider = {
+    id: "mock",
+    label: "Lock Contention Provider",
+    async fetchSnapshot() {
+      return snapshot([]);
+    },
+  };
+
+  const first = await refreshMarketRadarSnapshot(provider, {
+    coordinator: null,
+    repository,
+  });
+  assert.equal(first.status, "updated");
+  assert.equal(archiveWrites, 1);
+
+  const blocked = await refreshMarketRadarSnapshot(provider, {
+    coordinator: {
+      async afterScan() {},
+      async beforeScan() {
+        return {
+          allowed: false as const,
+          code: "scan_in_progress" as const,
+          reason: "scan already running",
+        };
+      },
+    },
+    repository,
+  });
+
+  assert.equal(blocked.status, "in_progress");
+  assert.equal(archiveWrites, 1);
 });
 
 test("refreshMarketRadarSnapshot persists scan asset rotation states from coverage", async () => {

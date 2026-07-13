@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   MemoryScanCache,
+  calculateNextFixedScanAt,
   calculateNextScanAt,
   runScheduledScan,
 } from "./scan-runtime";
@@ -69,20 +70,38 @@ test("calculateNextScanAt advances by the selected cadence", () => {
   );
 });
 
+test("calculateNextFixedScanAt skips overrun slots without completion-time drift", () => {
+  assert.equal(calculateNextFixedScanAt({
+    cadenceMinutes: 15,
+    completedAt: "2026-06-12T02:21:30.000Z",
+    startedAt: "2026-06-12T02:20:00.000Z",
+  }), "2026-06-12T02:35:00.000Z");
+  assert.equal(calculateNextFixedScanAt({
+    cadenceMinutes: 15,
+    completedAt: "2026-06-12T02:51:00.000Z",
+    startedAt: "2026-06-12T02:20:00.000Z",
+  }), "2026-06-12T03:05:00.000Z");
+});
+
 test("runScheduledScan stores a successful provider snapshot with runtime timestamps", async () => {
   const cache = new MemoryScanCache();
   const result = await runScheduledScan({
     provider: provider(async () => snapshot({ id: "fresh-scan" })),
     cache,
     now: new Date("2026-06-12T02:20:00.000Z"),
+    clock: () => new Date("2026-06-12T02:21:30.000Z"),
     cadenceMinutes: 15,
   });
 
   assert.equal(result.status, "updated");
   assert.equal(result.snapshot?.metadata.id, "fresh-scan");
   assert.equal(result.snapshot?.metadata.status, "ready");
-  assert.equal(result.snapshot?.metadata.generatedAt, "2026-06-12T02:20:00.000Z");
+  assert.equal(result.snapshot?.metadata.generatedAt, "2026-06-12T02:21:30.000Z");
   assert.equal(result.snapshot?.metadata.nextScanAt, "2026-06-12T02:35:00.000Z");
+  assert.equal(result.snapshot?.metadata.runtime?.scanStartedAt, "2026-06-12T02:20:00.000Z");
+  assert.equal(result.snapshot?.metadata.runtime?.scanCompletedAt, "2026-06-12T02:21:30.000Z");
+  assert.equal(result.snapshot?.metadata.runtime?.scanDurationMs, 90_000);
+  assert.equal(result.snapshot?.metadata.runtime?.lastAttemptStatus, "updated");
   assert.equal(cache.get()?.metadata.id, "fresh-scan");
 });
 
@@ -171,7 +190,37 @@ test("runScheduledScan force refresh bypasses fresh cache", async () => {
   assert.equal(result.snapshot?.metadata.id, "forced-provider-scan");
 });
 
-test("runScheduledScan returns cache when an exclusive scan lock is already held", async () => {
+test("runScheduledScan fails closed and does not cache when lock release fails", async () => {
+  const cache = new MemoryScanCache();
+  let releaseCount = 0;
+
+  const result = await runScheduledScan({
+    provider: provider(async () => snapshot({ id: "uncommitted-provider-scan" })),
+    cache,
+    now: new Date("2026-06-12T02:20:00.000Z"),
+    cadenceMinutes: 15,
+    coordinator: {
+      async beforeScan() {
+        return {
+          allowed: true,
+          token: "scan-token",
+        };
+      },
+      async afterScan() {
+        releaseCount += 1;
+        throw new Error("redis release unavailable");
+      },
+    },
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.snapshot, null);
+  assert.match(result.error ?? "", /coordination release failed.*redis release unavailable/);
+  assert.equal(cache.get(), null);
+  assert.equal(releaseCount, 1);
+});
+
+test("runScheduledScan reports in_progress when an exclusive scan lock is already held", async () => {
   const cache = new MemoryScanCache();
   cache.set(snapshot({
     id: "fresh-cache",
@@ -192,6 +241,7 @@ test("runScheduledScan returns cache when an exclusive scan lock is already held
       async beforeScan() {
         return {
           allowed: false,
+          code: "scan_in_progress",
           reason: "scan already running",
         };
       },
@@ -201,8 +251,9 @@ test("runScheduledScan returns cache when an exclusive scan lock is already held
     },
   });
 
-  assert.equal(result.status, "served_cache");
+  assert.equal(result.status, "in_progress");
   assert.equal(result.snapshot?.metadata.id, "fresh-cache");
+  assert.equal(result.snapshot?.metadata.runtime?.lastAttemptStatus, "in_progress");
   assert.equal(fetchCount, 0);
   assert.match(result.snapshot?.metadata.notes.at(-1) ?? "", /scan already running/);
 });
@@ -221,6 +272,7 @@ test("runScheduledScan fails before provider work when the CoinGlass minute budg
       async beforeScan() {
         return {
           allowed: false,
+          code: "budget_exhausted",
           reason: "coinglass minute budget exhausted",
         };
       },
@@ -238,7 +290,18 @@ test("runScheduledScan fails before provider work when the CoinGlass minute budg
 
 test("runScheduledScan serves cached data as stale when provider fails", async () => {
   const cache = new MemoryScanCache();
-  cache.set(snapshot({ id: "cached-scan", generatedAt: "2026-06-12T01:00:00.000Z" }));
+  cache.set(snapshot({
+    id: "cached-scan",
+    generatedAt: "2026-06-12T01:00:00.000Z",
+    runtime: {
+      cacheStatus: "updated",
+      persistedArchive: true,
+      scanCompletedAt: "2026-06-12T01:00:00.000Z",
+      scanDurationMs: 60_000,
+      scanStartedAt: "2026-06-12T00:59:00.000Z",
+      trigger: "cron_post",
+    },
+  }));
 
   const result = await runScheduledScan({
     provider: provider(async () => {
@@ -246,6 +309,7 @@ test("runScheduledScan serves cached data as stale when provider fails", async (
     }),
     cache,
     now: new Date("2026-06-12T02:20:00.000Z"),
+    clock: () => new Date("2026-06-12T02:20:05.000Z"),
     cadenceMinutes: 15,
   });
 
@@ -253,6 +317,9 @@ test("runScheduledScan serves cached data as stale when provider fails", async (
   assert.equal(result.snapshot?.metadata.id, "cached-scan");
   assert.equal(result.snapshot?.metadata.status, "stale");
   assert.equal(result.snapshot?.metadata.generatedAt, "2026-06-12T01:00:00.000Z");
+  assert.equal(result.snapshot?.metadata.runtime?.scanCompletedAt, "2026-06-12T01:00:00.000Z");
+  assert.equal(result.snapshot?.metadata.runtime?.lastAttemptCompletedAt, "2026-06-12T02:20:05.000Z");
+  assert.equal(result.snapshot?.metadata.runtime?.lastAttemptStatus, "served_cache");
   assert.equal(result.snapshot?.metadata.nextScanAt, "2026-06-12T02:35:00.000Z");
   assert.match(result.snapshot?.metadata.notes.at(-1) ?? "", /provider rate limit/);
 });

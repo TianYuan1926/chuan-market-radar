@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isCronRequestAuthorized } from "@/lib/api/cron-auth";
 import { MemoryRateLimiter, rateLimitHeaders } from "@/lib/api/rate-limit";
+import { scanActionDisposition } from "@/lib/market/scan-action-contract";
 import {
   getMarketRadarSnapshot,
   getReadableMarketRadarSnapshot,
@@ -63,7 +64,10 @@ export async function GET(request: NextRequest) {
     return limitedResponse(limit);
   }
 
-  const snapshot = await getReadableMarketRadarSnapshot(undefined, { trigger: "scan_get" });
+  const snapshot = await getReadableMarketRadarSnapshot(undefined, {
+    allowRefresh: false,
+    trigger: "scan_get",
+  });
 
   return NextResponse.json(snapshotResponse(snapshot), {
     headers: {
@@ -86,19 +90,28 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await refreshMarketRadarSnapshot(undefined, { trigger: "cron_post" });
+  const disposition = scanActionDisposition(result.status);
 
   if (!result.snapshot) {
     return NextResponse.json(
-      { ok: false, status: result.status, error: result.error },
-      { status: 503 },
+      {
+        error: result.error,
+        ok: false,
+        retryable: disposition.retryable,
+        status: result.status,
+      },
+      { status: disposition.httpStatus },
     );
   }
 
   return NextResponse.json({
     ...snapshotResponse(result.snapshot),
+    ok: disposition.ok,
+    retryable: disposition.retryable,
     status: result.status,
     error: result.error,
   }, {
+    status: disposition.httpStatus,
     headers: {
       ...rateLimitHeaders(limit),
       "cache-control": "no-store",
