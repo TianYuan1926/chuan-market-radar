@@ -161,6 +161,14 @@ function validRequest(contract) {
   return request;
 }
 
+test("deploy package identity matches the active production control package", async () => {
+  const state = JSON.parse(await readFile("AUTONOMOUS_ENGINEERING_STATE.json", "utf8"));
+  assert.equal(state.activePackage.lane, "production");
+  assert.equal(state.activePackage.productionMutation, true);
+  assert.equal(state.activePackage.requiresExplicitApproval, true);
+  assert.equal(PACKAGE_ID, state.activePackage.id);
+});
+
 test("current repository passes the refreshed local dormant deployment contract", async () => {
   const result = await validateLocalPreparation();
   assert.equal(result.status, "PASS_LOCAL_DORMANT_DEPLOY_STANDING_AUTHORITY_RUNNER_REFRESH");

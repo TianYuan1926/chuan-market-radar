@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH = "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json";
-export const PACKAGE_ID = "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY";
+export const PACKAGE_ID = "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH";
 export const BASELINE_COMMIT = "70722ea71b33268b688be5d42af9908d40f49859";
 export const TARGET_COMMIT = "cec0b6572bb09ae91ff9e013f8bb160f73c045e2";
 export const TARGET_TREE = "eb217a7fbaad5b464279a08d4441a8249fc266e3";

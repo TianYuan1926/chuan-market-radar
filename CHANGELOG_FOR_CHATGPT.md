@@ -3796,3 +3796,4 @@ P0 阻断：
 - Microsoft Edge/OrcaTerm 在 `2026-07-13T22:47:34Z` 完成动态只读预检：生产 clean detached `70722ea...`、target `cec0b657...`、Web image `sha256:6d02c759...`、Compose/env/identity 精确匹配、Candidate 完全休眠且 worker absent、schema=`9|0`、health ready/fresh/scanner healthy、Postgres/Redis/三份合同通过、active lease absent。
 - 当前包已切换为 `production / productionMutation=true / requiresExplicitApproval=true / ready_for_gate`。这次状态变更使 `cf332e8...` 的旧 gate evidence 失效；必须在新的状态提交上重新运行全部 11 项门禁，再生成绑定同一 commit/tree/gate/policy 的仓库外单次 approval 和可复现 Bundle。
 - 当前仍未上传 Bundle、未创建或消费生产 lease、未 fetch/checkout/build/recreate、未开始 1800 秒观察；不得写成生产 PASS。
+- 首次正式 Bundle 绑定时发现 fail-closed 身份矛盾：自治控制器要求外部 approval 的 `packageId/scope` 等于当前 active package，但 Dormant request/validator/shell 仍锁定历史 packageId；生产未触碰，首个 `1cf24c7...` gate 与 Bundle 立即作废。当前修复把 request、authorization、contract、Bundle、shell summary 和 lease package identity 统一到 active package，并新增跨控制面回归测试；修复后必须重新提交、跑全门禁并重建 Bundle。

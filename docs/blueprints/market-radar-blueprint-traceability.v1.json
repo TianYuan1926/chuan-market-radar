@@ -909,6 +909,7 @@
     "status": "production_lane_dynamic_read_only_preflight_pass_hostless_node_fallback_red_green_fixed_final_gate_and_external_one_time_binding_pending",
     "productionMutation": true,
     "requiresExplicitApproval": true,
+    "packageIdentity": "active_control_package_exactly_matches_request_contract_authorization_bundle_and_lease",
     "dynamicProductionPreflight": {
       "observedAt": "2026-07-13T22:47:34Z",
       "productionHead": "70722ea71b33268b688be5d42af9908d40f49859",

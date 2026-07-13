@@ -1,6 +1,6 @@
 {
   "schemaVersion": "wp-g0.2-shadow-capture-dormant-runtime-deploy.v1",
-  "packageId": "WP-G0.2-SHADOW-CAPTURE-DORMANT-RUNTIME-DEPLOY",
+  "packageId": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
   "status": "local_preparation_verified_awaiting_bound_production_execution",
   "productionAuthorization": false,
   "productionDeployed": false,
