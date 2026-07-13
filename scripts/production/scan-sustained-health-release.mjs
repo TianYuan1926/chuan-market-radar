@@ -22,6 +22,12 @@ export const STAGING_DIRECTORY_PATTERN = /^\/home\/ubuntu\/\.cache\/market-radar
 export const EVIDENCE_DIRECTORY_PATTERN = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-scan-sustained-health-[a-z0-9][a-z0-9._-]{7,80}$/;
 export const RUNNER_UNIT_NAME_PATTERN = /^market-radar-scan-health-[a-z0-9][a-z0-9-]{7,56}$/;
 export const ROLLBACK_IMAGE_REPOSITORY = "market-radar-rollback/wp-g0-2-scan-health";
+export const AUTONOMY_GRANT_ID = "MR-G0-G8-USER-STANDING-GRANT-20260714-034826";
+export const AUTONOMY_TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
+export const AUTONOMY_REVOCATION_EPOCH = 2;
+export const AUTONOMY_ACTION_CLASS = "reversible_service_release";
+export const AUTONOMY_RISK_TIER = "R1_REVERSIBLE_RUNTIME";
+export const AUTONOMY_BUILDER_AGENT_ID = "codex-primary";
 
 export const RELEASE_DIFF_LINES = [
   "M\tdeploy/workers/protected-api-worker.mjs",
@@ -61,6 +67,36 @@ function exactKeys(value, expected) {
 
 export function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+export function productionPreflightSha256(request) {
+  return sha256(JSON.stringify({
+    baselineCommit: request.baselineCommit,
+    targetCommit: request.targetCommit,
+    releaseDiffSha256: request.releaseDiffSha256,
+    webImageId: request.webImageId,
+    scannerWorkerImageId: request.scannerWorkerImageId,
+    composeSha256: request.composeSha256,
+    baseEnvSha256: request.baseEnvSha256,
+    productionEnvSha256: request.productionEnvSha256,
+    identityOverrideSha256: request.identityOverrideSha256,
+    composeWrapperSha256: request.composeWrapperSha256,
+    candidateRuntimeMutationAllowed: request.candidateRuntimeMutationAllowed,
+    databaseMutationAllowed: request.databaseMutationAllowed,
+    redisMutationAllowed: request.redisMutationAllowed,
+  }));
+}
+
+export function rollbackEvidenceSha256(request) {
+  return sha256(JSON.stringify({
+    baselineCommit: request.baselineCommit,
+    webImageId: request.webImageId,
+    scannerWorkerImageId: request.scannerWorkerImageId,
+    rollbackWebImageRef: request.rollbackWebImageRef,
+    rollbackScannerWorkerImageRef: request.rollbackScannerWorkerImageRef,
+    rollbackImageRetentionRequired: request.rollbackImageRetentionRequired,
+    automaticRollbackAllowed: request.automaticRollbackAllowed,
+  }));
 }
 
 export function rollbackImageRef(service, imageId) {
@@ -104,6 +140,17 @@ export function validateContract(contract) {
   ensure(contract.scope?.candidateRuntimeMutationAllowed === false, "candidate_runtime_mutation_must_be_false");
   ensure(contract.scope?.temporaryArtifactCleanupRequired === true, "temporary_artifact_cleanup_required");
   ensure(contract.scope?.maximumApprovalWindowMinutes === 90, "approval_window_not_locked");
+  ensure(contract.autonomy?.grantId === AUTONOMY_GRANT_ID, "autonomy_grant_not_locked");
+  ensure(contract.autonomy?.gate === "G0", "autonomy_gate_not_locked");
+  ensure(contract.autonomy?.actionClass === AUTONOMY_ACTION_CLASS, "autonomy_action_class_not_locked");
+  ensure(contract.autonomy?.riskTier === AUTONOMY_RISK_TIER, "autonomy_risk_tier_not_locked");
+  ensure(contract.autonomy?.builderAgentId === AUTONOMY_BUILDER_AGENT_ID, "autonomy_builder_not_locked");
+  ensure(contract.autonomy?.trustRoot === AUTONOMY_TRUST_ROOT, "autonomy_trust_root_not_locked");
+  ensure(contract.autonomy?.revocationEpoch === AUTONOMY_REVOCATION_EPOCH, "autonomy_revocation_epoch_not_locked");
+  ensure(contract.autonomy?.externalProductionLeaseRequired === true, "autonomy_external_lease_required");
+  ensure(contract.autonomy?.oneTimeApprovalConsumptionRequired === true, "autonomy_one_time_consumption_required");
+  ensure(contract.autonomy?.fencingTokenRequired === true, "autonomy_fencing_required");
+  ensure(contract.autonomy?.mutationCheckpointRevalidationRequired === true, "autonomy_checkpoint_revalidation_required");
   ensure(contract.observation?.minimumDurationSeconds === 1_800, "observation_duration_not_locked");
   ensure(contract.observation?.cadenceSeconds === 900, "cadence_not_locked");
   ensure(contract.observation?.requiredCompletionAdvances === 2, "completion_advance_count_not_locked");
@@ -128,6 +175,9 @@ export function validateContract(contract) {
   ensure(contract.transport?.sourceDateEpoch === 946684800, "transport_source_date_epoch_not_locked");
   ensure(/^[0-9a-f]{64}$/.test(contract.artifact?.sha256 ?? ""), "artifact_checksum_not_locked");
   ensure(JSON.stringify(contract.artifact?.files) === JSON.stringify([
+    "scripts/governance/autonomy-production-lease-cli.mjs",
+    "scripts/governance/autonomy-production-lease.mjs",
+    "scripts/governance/autonomy-policy.mjs",
     "scripts/production/scan-sustained-health-release-entrypoint.sh",
     "scripts/production/scan-sustained-health-release.mjs",
     "scripts/production/scan-sustained-health-release.sh",
@@ -137,9 +187,97 @@ export function validateContract(contract) {
   return contract;
 }
 
+function validateAutonomyAuthorization(authorization, request, contract) {
+  const expectedKeys = [
+    "schemaVersion", "mode", "approvedBy", "grantId", "approvalId", "nonce", "gate",
+    "packageId", "scope", "actionClass", "riskTier", "builderAgentId", "baseCommit",
+    "targetCommit", "targetTree", "diffSha256", "pathSetSha256", "contractSha256",
+    "runnerSha256", "artifactSha256", "imageOrMigrationSha256", "composeSha256",
+    "environmentFingerprintSha256", "productionIdentitySha256", "gateEvidenceSha256",
+    "preflightSha256", "backupRestoreEvidenceSha256", "rollbackTarget",
+    "observationContractSha256", "policySha256", "revocationEpoch", "issuedAt",
+    "expiresAt", "maxExecutions", "packageAssertions",
+  ];
+  ensure(exactKeys(authorization, expectedKeys), "autonomy_authorization_keys_mismatch");
+  ensure(authorization.schemaVersion === "market-radar-package-authorization.v1", "autonomy_authorization_schema_mismatch");
+  ensure(authorization.mode === "g0_g8_standing_user_grant", "autonomy_authorization_mode_mismatch");
+  ensure(authorization.approvedBy === "user_standing_grant", "autonomy_authorization_issuer_mismatch");
+  ensure(authorization.grantId === AUTONOMY_GRANT_ID, "autonomy_grant_mismatch");
+  ensure(authorization.gate === "G0", "autonomy_gate_mismatch");
+  ensure(authorization.packageId === PACKAGE_ID && authorization.scope === PACKAGE_ID, "autonomy_package_mismatch");
+  ensure(authorization.actionClass === AUTONOMY_ACTION_CLASS, "autonomy_action_class_mismatch");
+  ensure(authorization.riskTier === AUTONOMY_RISK_TIER, "autonomy_risk_tier_mismatch");
+  ensure(authorization.builderAgentId === AUTONOMY_BUILDER_AGENT_ID, "autonomy_builder_mismatch");
+  ensure(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,180}$/.test(authorization.approvalId ?? ""), "autonomy_approval_id_invalid");
+  ensure(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,180}$/.test(authorization.nonce ?? ""), "autonomy_nonce_invalid");
+  for (const key of ["baseCommit", "targetCommit", "targetTree"]) {
+    ensure(/^[0-9a-f]{40}$/.test(authorization[key] ?? ""), `autonomy_git_binding_invalid:${key}`);
+  }
+  for (const key of [
+    "diffSha256", "pathSetSha256", "contractSha256", "runnerSha256", "artifactSha256",
+    "imageOrMigrationSha256", "composeSha256", "environmentFingerprintSha256",
+    "productionIdentitySha256", "gateEvidenceSha256", "preflightSha256",
+    "backupRestoreEvidenceSha256", "observationContractSha256", "policySha256",
+  ]) ensure(/^[0-9a-f]{64}$/.test(authorization[key] ?? ""), `autonomy_hash_binding_invalid:${key}`);
+  ensure(authorization.targetCommit === request.runnerSourceCommit, "autonomy_runner_commit_mismatch");
+  ensure(authorization.contractSha256 === request.contractSha256, "autonomy_contract_checksum_mismatch");
+  ensure(
+    authorization.runnerSha256 === contract.artifact.fileSha256["scripts/production/scan-sustained-health-release.sh"],
+    "autonomy_runner_checksum_mismatch",
+  );
+  ensure(authorization.artifactSha256 === contract.artifact.sha256, "autonomy_artifact_checksum_mismatch");
+  ensure(
+    authorization.policySha256 === contract.artifact.fileSha256["scripts/governance/autonomy-policy.mjs"],
+    "autonomy_policy_checksum_mismatch",
+  );
+  ensure(
+    authorization.imageOrMigrationSha256 === sha256(`${request.webImageId}\n${request.scannerWorkerImageId}\n`),
+    "autonomy_image_binding_mismatch",
+  );
+  ensure(authorization.composeSha256 === request.composeSha256, "autonomy_compose_binding_mismatch");
+  ensure(
+    authorization.environmentFingerprintSha256 === sha256(`${request.baseEnvSha256}\n${request.productionEnvSha256}\n`),
+    "autonomy_environment_binding_mismatch",
+  );
+  ensure(
+    authorization.productionIdentitySha256 === sha256(`${request.identityOverrideSha256}\n${request.composeWrapperSha256}\n`),
+    "autonomy_production_identity_binding_mismatch",
+  );
+  ensure(
+    authorization.observationContractSha256 === sha256(JSON.stringify(contract.observation)),
+    "autonomy_observation_contract_mismatch",
+  );
+  ensure(authorization.preflightSha256 === productionPreflightSha256(request), "autonomy_preflight_binding_mismatch");
+  ensure(
+    authorization.backupRestoreEvidenceSha256 === rollbackEvidenceSha256(request),
+    "autonomy_rollback_evidence_binding_mismatch",
+  );
+  ensure(authorization.rollbackTarget === `${BASELINE_COMMIT}:web+scanner-worker`, "autonomy_rollback_target_mismatch");
+  ensure(authorization.revocationEpoch === AUTONOMY_REVOCATION_EPOCH, "autonomy_revocation_epoch_mismatch");
+  ensure(authorization.issuedAt === request.approvalIssuedAt, "autonomy_issued_at_mismatch");
+  ensure(authorization.expiresAt === request.approvalExpiresAt, "autonomy_expires_at_mismatch");
+  ensure(authorization.maxExecutions === 1, "autonomy_max_executions_mismatch");
+  const assertions = {
+    qualityThresholdChanged: false,
+    scopeMatchesBlueprint: true,
+    dynamicPreflightCurrent: true,
+    requiredGatesPassed: true,
+    rollbackVerified: true,
+    productionWipAvailable: true,
+    secretsPresentInEvidence: false,
+    knownP0Open: false,
+    pollutionCleanupManifestExact: true,
+  };
+  ensure(exactKeys(authorization.packageAssertions, Object.keys(assertions)), "autonomy_assertion_keys_mismatch");
+  for (const [key, expected] of Object.entries(assertions)) {
+    ensure(authorization.packageAssertions[key] === expected, `autonomy_assertion_failed:${key}`);
+  }
+}
+
 export function validateApprovalRequest(request, contract, { now = new Date() } = {}) {
   const expectedKeys = [
     "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "automaticRollbackAllowed",
+    "autonomyAuthorization", "autonomyTrustRoot",
     "baseEnvSha256", "baselineCommit", "buildAllowed", "candidateRuntimeMutationAllowed",
     "composeSha256", "composeWrapperSha256", "contractSha256", "databaseMutationAllowed",
     "detachedHeadAfterSuccess", "environmentMutationAllowed", "evidenceDirectory", "execute",
@@ -183,6 +321,7 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(/^[0-9a-f]{64}$/.test(request.productionEnvSha256 ?? ""), "request_production_env_checksum_invalid");
   ensure(STAGING_DIRECTORY_PATTERN.test(request.stagingDirectory ?? ""), "request_staging_directory_invalid");
   ensure(EVIDENCE_DIRECTORY_PATTERN.test(request.evidenceDirectory ?? ""), "request_evidence_directory_invalid");
+  ensure(request.autonomyTrustRoot === AUTONOMY_TRUST_ROOT, "request_autonomy_trust_root_mismatch");
   ensure(request.transportMethod === "approved_orcaterm_bundle_upload", "request_transport_method_invalid");
   ensure(request.execute === true, "execute_must_be_true");
   ensure(request.automaticRollbackAllowed === true, "automatic_rollback_not_allowed");
@@ -202,6 +341,7 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   const nowMs = now instanceof Date ? now.getTime() : Number(now);
   ensure(expiresAt > issuedAt && expiresAt - issuedAt <= 90 * 60 * 1000, "approval_window_too_long");
   ensure(nowMs >= issuedAt && nowMs <= expiresAt, "approval_window_not_active");
+  validateAutonomyAuthorization(request.autonomyAuthorization, request, contract);
   return request;
 }
 
@@ -273,6 +413,12 @@ export async function inspectRunner(root) {
       && /forward_signal INT 130/.test(entrypoint)
       && /forward_signal TERM 143/.test(entrypoint)
       && /forward_signal HUP 129/.test(entrypoint),
+    externalAutonomyLease: /lease_acquire/.test(source)
+      && /lease_consume/.test(source)
+      && /lease_checkpoint/.test(source)
+      && /lease_release/.test(source),
+    rollbackFencing: /lease_safety_checkpoint rollback/.test(source),
+    autonomyTrustRootForwarded: /MARKET_RADAR_AUTONOMY_TRUST_ROOT/.test(entrypoint),
   };
   const violations = Object.entries(facts).filter(([, value]) => value !== true).map(([key]) => `runner_guard_missing:${key}`);
   ensure(violations.length === 0, violations.join(","));

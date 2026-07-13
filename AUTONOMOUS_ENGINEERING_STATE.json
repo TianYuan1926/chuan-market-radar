@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T04:02:00+08:00",
+  "updatedAt": "2026-07-14T06:02:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -9,7 +9,7 @@
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
-    "productionHealthSustainability": "p1_release_attempt_runner_terminated_emergency_baseline_recovered_rebuilt_scanner_not_identical_local_session_and_image_retention_hardening_targeted_12_of_12_and_autonomy_11_of_11_pass_clean_commit_and_reproducible_bundle_complete_dynamic_preflight_and_approval_pending"
+    "productionHealthSustainability": "p1_release_attempt_runner_terminated_emergency_baseline_recovered_rebuilt_scanner_not_identical_standing_authorization_external_lease_fencing_local_targeted_and_first_full_gates_pass_clean_commit_gate_evidence_dynamic_preflight_approval_and_bundle_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -128,20 +128,19 @@
     ]
   },
   "activePackage": {
-    "id": "WP-AUTO-02-G0-G8-STANDING-AUTHORITY-AND-EVIDENCE-HARDENING",
-    "title": "User standing G0-G8 authority and anti-self-deception evidence hardening",
+    "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
+    "title": "Scanner sustained-health standing-authorization integration and production release",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "把用户对G0-G8连续全自动工程的直接授权固化为可撤销、逐包精确绑定且fail-closed的持续授权；锁定唯一核心、真实Gate顺序、不可压缩观察窗口、门禁和生产WIP真值，并建立可证明的污染清理边界。",
+    "objective": "把已完成本地修复的Scanner持续健康发布包接入G0-G8常驻授权、仓库外生产租约、单次消费和递增fencing，在仅Web与scanner-worker可逆发布边界内完成动态预检、1800秒且至少两次扫描推进观察及自动回滚真值收口。",
     "coreChainImpact": [
-      "g0_g8_continuous_delivery_governance",
-      "market_scanning_core_mission_lock",
-      "direct_user_standing_authority",
-      "quality_gate_immutability",
-      "commit_tree_bound_evidence",
-      "production_fencing_and_one_time_consumption",
-      "exact_pollution_cleanup_truth",
-      "automatic_fail_closed_gate_progression"
+      "全市场发现",
+      "候选筛选",
+      "scanner_cadence_sustainability",
+      "scan_freshness_truth",
+      "production_single_writer_fencing",
+      "session_independent_observation",
+      "automatic_two_image_and_git_rollback"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -149,16 +148,24 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
+      "package.json",
       "scripts/governance/autonomous-engineering.mjs",
       "scripts/governance/autonomous-engineering.test.mjs",
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease.mjs",
+      "scripts/governance/autonomy-production-lease-cli.mjs",
+      "scripts/production/scan-sustained-health-release.mjs",
+      "scripts/production/scan-sustained-health-release.sh",
+      "scripts/production/scan-sustained-health-release-entrypoint.sh",
+      "scripts/production/scan-sustained-health-release-bundle.mjs",
+      "scripts/production/scan-sustained-health-release.test.mjs",
+      "scripts/production/scan-sustained-health-release-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json",
+      "docs/governance/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_V1.md",
       "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
       "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
-      "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
-      "docs/blueprints/MARKET_RADAR_G0_G8_AUTONOMOUS_EXECUTION_BLUEPRINT_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-auto-02-g0-g8-standing-authority/WP_AUTO_02_G0_G8_STANDING_AUTHORITY_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -170,8 +177,6 @@
       "src/lib/strategy/**",
       "src/lib/backtest/**",
       "src/lib/candidate-episode/**",
-      "scripts/production/**",
-      "docs/governance/wp-g0-2-*.json",
       "tools/**",
       ".env",
       ".env.production"
@@ -184,16 +189,24 @@
       "scripts/governance/autonomous-engineering.test.mjs",
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease.mjs",
+      "scripts/governance/autonomy-production-lease-cli.mjs",
+      "scripts/production/scan-sustained-health-release.mjs",
+      "scripts/production/scan-sustained-health-release.sh",
+      "scripts/production/scan-sustained-health-release-entrypoint.sh",
+      "scripts/production/scan-sustained-health-release-bundle.mjs",
+      "scripts/production/scan-sustained-health-release.test.mjs",
+      "scripts/production/scan-sustained-health-release-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json",
+      "docs/governance/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_V1.md",
       "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
       "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
-      "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md",
-      "docs/blueprints/MARKET_RADAR_G0_G8_AUTONOMOUS_EXECUTION_BLUEPRINT_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-auto-02-g0-g8-standing-authority/WP_AUTO_02_G0_G8_STANDING_AUTHORITY_REPORT.md"
+      "reports/wp-g0-2-scan-sustained-health-production-release/WP_G0_2_SCAN_SUSTAINED_HEALTH_PRODUCTION_RELEASE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "test:autonomy"
+        "test:autonomy",
+        "test:production-scan-sustained-health-release"
       ],
       "baseline": [
         "typecheck",
@@ -223,20 +236,15 @@
       "控制层通过定向、攻击性、基础、安全和自治门禁后自动恢复Scanner持续健康关键路径"
     ],
     "gate": "G0",
-    "actionClass": "security_hardening_release",
+    "actionClass": "reversible_service_release",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
-      "contributionType": "supporting",
+      "contributionType": "core",
       "coreChainStages": [
         "全市场发现",
-        "候选筛选",
-        "深扫验证",
-        "结构分析",
-        "风险赔率",
-        "交易计划",
-        "复盘进化"
+        "候选筛选"
       ],
-      "measurableOutcome": "后续每个G0-G8工作包均被Gate、核心链路、固定门禁、当前证据、生产单写入者和真实观察窗口约束；越界或降质时fail closed。"
+      "measurableOutcome": "生产Scanner在浏览器断开后仍由session-independent runner完成；Web与scanner-worker之外容器不变；连续1800秒保持ready/fresh/heartbeat healthy并至少推进两次真实scan completedAt；失败时恢复双镜像及main基线。"
     }
   },
   "approvals": [
@@ -420,14 +428,14 @@
       "order": 23,
       "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
       "lane": "localPreparation",
-      "status": "queued_after_g0_g8_standing_authority_gate",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": true
     },
     {
       "order": 24,
       "id": "WP-AUTO-02-G0-G8-STANDING-AUTHORITY-AND-EVIDENCE-HARDENING",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
       "requiresExplicitApproval": false
     }
   ]

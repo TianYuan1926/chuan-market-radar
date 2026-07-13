@@ -19,11 +19,6 @@ import {
   MANDATORY_SECURITY_GATES,
   REQUIRED_PACKAGE_APPROVAL_FIELDS,
 } from "./autonomy-policy.mjs";
-import {
-  isProductionApprovalConsumed,
-  verifyProductionLease,
-} from "./autonomy-production-lease.mjs";
-
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const STATE_PATH = resolve(REPO_ROOT, "AUTONOMOUS_ENGINEERING_STATE.json");
@@ -248,16 +243,13 @@ export function validatePackageApproval({ state, activePackage, approval, now = 
     violations.push("package_approval_identity_missing");
   }
   if (approval?.maxExecutions !== 1) violations.push("package_approval_execution_count_invalid");
-  if (!Number.isSafeInteger(approval?.fencingToken) || approval.fencingToken <= 0) {
-    violations.push("package_approval_fencing_token_invalid");
+  if (approval?.productionLeaseId !== undefined || approval?.fencingToken !== undefined) {
+    violations.push("package_approval_embeds_runtime_lease_identity");
   }
   if (!Number.isSafeInteger(approval?.revocationEpoch) || approval.revocationEpoch < 0) {
     violations.push("package_approval_revocation_epoch_invalid");
   } else if (approval.revocationEpoch !== authority?.revocationEpoch) {
     violations.push("package_approval_revocation_epoch_mismatch");
-  }
-  if (!nonEmptyString(approval?.productionLeaseId)) {
-    violations.push("package_approval_lease_missing");
   }
   const issuedAt = new Date(approval?.issuedAt);
   const expiresAt = new Date(approval?.expiresAt);
@@ -379,7 +371,7 @@ export function validateState(state, { now = new Date() } = {}) {
     if (!activePackage.requiresExplicitApproval) {
       violations.push("production_explicit_approval_boundary_disabled");
     } else if (approval?.mode === "g0_g8_standing_user_grant") {
-      violations.push(...validatePackageApproval({ state, activePackage, approval, now }));
+      violations.push("standing_authorization_approval_must_be_external");
     } else if (approval) {
       const expiresAt = new Date(approval.expiresAt);
       const issuedAt = new Date(approval.issuedAt);
@@ -598,39 +590,62 @@ async function standingContractViolations(state) {
   return unique(violations);
 }
 
-async function productionAuthorizationViolations(state, bindings) {
+export async function loadExternalProductionApproval(state, { trustRootValue } = {}) {
   const activePackage = state?.activePackage;
-  if (!(activePackage?.productionMutation || activePackage?.lane === "production")) return [];
-  const approval = state.approvals?.find((item) => item?.packageId === activePackage.id);
-  const violations = evaluateProductionApprovalBindings({ approval, ...bindings });
-  if (!approval || approval.mode !== "g0_g8_standing_user_grant") return violations;
+  if (!(activePackage?.productionMutation || activePackage?.lane === "production")) {
+    return { approval: undefined, trustRoot: undefined, violations: [] };
+  }
   const trustRootEnvName = state.g0G8StandingAuthorization?.trustRootEnv;
-  const trustRoot = nonEmptyString(trustRootEnvName) ? process.env[trustRootEnvName] : null;
-  if (!nonEmptyString(trustRoot) || !isAbsolute(trustRoot)) {
-    violations.push("standing_authorization_external_trust_root_missing");
-    return unique(violations);
+  const configuredTrustRoot = trustRootValue
+    ?? (nonEmptyString(trustRootEnvName) ? process.env[trustRootEnvName] : null);
+  const violations = [];
+  if (!nonEmptyString(configuredTrustRoot) || !isAbsolute(configuredTrustRoot)) {
+    return {
+      approval: undefined,
+      trustRoot: undefined,
+      violations: ["standing_authorization_external_trust_root_missing"],
+    };
   }
-  if (resolve(trustRoot) === REPO_ROOT || resolve(trustRoot).startsWith(`${REPO_ROOT}/`)) {
-    violations.push("standing_authorization_trust_root_inside_builder_repo");
-    return unique(violations);
-  }
-  try {
-    violations.push(...await verifyProductionLease({
+  const trustRoot = resolve(configuredTrustRoot);
+  if (trustRoot === REPO_ROOT || trustRoot.startsWith(`${REPO_ROOT}/`)) {
+    return {
+      approval: undefined,
       trustRoot,
-      leaseId: approval.productionLeaseId,
-      packageId: approval.packageId,
-      approvalId: approval.approvalId,
-      nonce: approval.nonce,
-      fencingToken: approval.fencingToken,
-      revocationEpoch: approval.revocationEpoch,
-    }));
-    if (await isProductionApprovalConsumed({ trustRoot, approvalId: approval.approvalId })) {
-      violations.push("production_approval_already_consumed");
-    }
-  } catch {
-    violations.push("production_lease_validation_failed");
+      violations: ["standing_authorization_trust_root_inside_builder_repo"],
+    };
   }
-  return unique(violations);
+  const approvalPath = resolve(trustRoot, "approvals", `${activePackage.id}.json`);
+  try {
+    const facts = await lstat(approvalPath);
+    if (!facts.isFile() || facts.isSymbolicLink()) {
+      violations.push("standing_authorization_external_approval_not_regular_file");
+    }
+    if ((facts.mode & 0o777) !== 0o600) {
+      violations.push("standing_authorization_external_approval_mode_invalid");
+    }
+    const approval = JSON.parse(await readFile(approvalPath, "utf8"));
+    return { approval, approvalPath, trustRoot, violations };
+  } catch (error) {
+    violations.push(error?.code === "ENOENT"
+      ? "standing_authorization_external_approval_missing"
+      : "standing_authorization_external_approval_invalid");
+    return { approval: undefined, approvalPath, trustRoot, violations };
+  }
+}
+
+async function productionAuthorizationSnapshot(state, bindings) {
+  const activePackage = state?.activePackage;
+  if (!(activePackage?.productionMutation || activePackage?.lane === "production")) {
+    return { approval: undefined, violations: [] };
+  }
+  const external = await loadExternalProductionApproval(state);
+  const violations = [...external.violations];
+  const approval = external.approval;
+  violations.push(...evaluateProductionApprovalBindings({ approval, ...bindings }));
+  if (approval?.mode === "g0_g8_standing_user_grant") {
+    violations.push(...validatePackageApproval({ state, activePackage, approval }));
+  }
+  return { approval, violations: unique(violations) };
 }
 
 async function missingArtifacts(state) {
@@ -659,7 +674,7 @@ export async function inspect() {
   const scripts = await packageScripts();
   const packageScriptsSha256 = sha256(JSON.stringify(scripts));
   const policySha256 = sha256(await readFile(POLICY_PATH));
-  const productionAuthViolations = await productionAuthorizationViolations(state, {
+  const productionAuthorization = await productionAuthorizationSnapshot(state, {
     gitHead: identity.gitHead,
     gitTree: identity.gitTree,
     policySha256,
@@ -684,7 +699,8 @@ export async function inspect() {
     ...identity,
     packageScriptsSha256,
     policySha256,
-    productionAuthorizationViolations: productionAuthViolations,
+    productionApproval: productionAuthorization.approval,
+    productionAuthorizationViolations: productionAuthorization.violations,
   };
 }
 
@@ -828,9 +844,7 @@ async function verify() {
     policySha256: current.policySha256,
   });
   const violations = unique([...current.violations, ...gateViolations]);
-  const approval = current.state.approvals?.find(
-    (item) => item?.packageId === current.state.activePackage.id,
-  );
+  const approval = current.productionApproval;
   const deploymentViolations = unique([
     ...current.productionAuthorizationViolations,
     ...((current.state.activePackage.productionMutation

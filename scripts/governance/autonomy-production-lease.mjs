@@ -3,10 +3,17 @@ import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 
 const MAX_LEASE_SECONDS = 90 * 60;
+const SAFE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,180}$/u;
 
 function assertTrustRoot(trustRoot) {
   if (!isAbsolute(trustRoot)) throw new Error("trust_root_must_be_absolute");
   return resolve(trustRoot);
+}
+
+function assertSafeIdentity(...values) {
+  if (values.some((value) => typeof value !== "string" || !SAFE_ID_PATTERN.test(value))) {
+    throw new Error("lease_identity_unsafe");
+  }
 }
 
 async function readJson(path) {
@@ -73,6 +80,7 @@ export async function acquireProductionLease({
 }) {
   const root = assertTrustRoot(trustRoot);
   if (!packageId || !approvalId || !nonce || !ownerId) throw new Error("lease_identity_missing");
+  assertSafeIdentity(packageId, approvalId, nonce, ownerId);
   if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0 || ttlSeconds > MAX_LEASE_SECONDS) {
     throw new Error("lease_ttl_invalid");
   }
@@ -179,6 +187,10 @@ export async function consumeProductionApproval({
   consumedAt = new Date(),
 }) {
   const root = assertTrustRoot(trustRoot);
+  assertSafeIdentity(approvalId, nonce, leaseId);
+  if (!Number.isSafeInteger(fencingToken) || fencingToken <= 0) {
+    throw new Error("lease_fencing_token_invalid");
+  }
   const path = resolve(root, "consumed", `${approvalId}.json`);
   let handle;
   try {
@@ -213,9 +225,16 @@ export async function isProductionApprovalConsumed({ trustRoot, approvalId }) {
 export async function releaseProductionLease({ trustRoot, outcome, now = new Date(), ...identity }) {
   const root = assertTrustRoot(trustRoot);
   const violations = await verifyProductionLease({ trustRoot: root, now, ...identity });
-  const rollbackCloseout = new Set(["ROLLBACK_PASS", "SAFE_STOP_AFTER_REVOCATION"]).has(outcome);
+  const rollbackCloseout = new Set([
+    "ROLLBACK_PASS",
+    "SAFE_STOP_AFTER_REVOCATION",
+    "SAFE_STOP_PRE_MUTATION",
+  ]).has(outcome);
   const blockingViolations = rollbackCloseout
-    ? violations.filter((value) => value !== "production_lease_revoked")
+    ? violations.filter((value) => !new Set([
+      "production_lease_revoked",
+      "production_lease_expired",
+    ]).has(value))
     : violations;
   if (blockingViolations.length > 0) {
     throw new Error(`production_lease_invalid:${blockingViolations.join(",")}`);

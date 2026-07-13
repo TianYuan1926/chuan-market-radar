@@ -156,8 +156,6 @@ export const REQUIRED_PACKAGE_APPROVAL_FIELDS = [
   "rollbackTarget",
   "observationContractSha256",
   "policySha256",
-  "productionLeaseId",
-  "fencingToken",
   "revocationEpoch",
   "issuedAt",
   "expiresAt",

@@ -3628,15 +3628,59 @@ P0 阻断：
 
 ### 是否部署
 
-未部署、未连接生产、未改变 GitHub main 或腾讯云。当前生产和 Scanner sustained-health P1 状态不变。
+未部署、未连接腾讯云生产。控制包已提交为 `386bf32be5d6d6106ce608a585d9a227a759ba35` 并 fast-forward 推送 GitHub main；当前生产和 Scanner sustained-health P1 状态不变。
 
 ### 风险与遗留问题
 
 - 长期授权不等于生产 PASS；每个 mutation 仍需逐包精确记录、动态预检、外部租约和回滚。
 - 7/14/30/60/180 天及 holdout/sample 门槛不能压缩。
-- 首轮完整门禁已 PASS；报告与状态冻结后的最终自治门禁仍需再次 PASS，旧 gate evidence 不复用。
+- 报告与状态冻结后的最终自治门禁已再次 PASS；旧 gate evidence 在进入 Scanner 包后不复用。
 - 系统仍为 R1、可运行但不完整、不能支撑实战。
 
 ### 下一轮建议
 
-控制包完整门禁和 commit/push 通过后，只恢复 Scanner sustained-health Web+scanner-worker 精确生产包。
+只恢复 Scanner sustained-health Web+scanner-worker 精确生产包，先接入 standing authorization 与 runtime lease，再做动态生产预检。
+
+## 2026-07-14 / WP-G0.2 Scanner Sustained Health Standing Authorization Integration
+
+### 本轮目标
+
+把 Scanner sustained-health 生产 runner 接入 G0-G8 常驻授权、仓库外全局租约、一次性授权消费和递增 fencing；修复静态授权预填 runtime lease 导致 commit/tree/gate 自失效的问题，并保持仅 Web + scanner-worker 的原发布边界。
+
+### 修改范围
+
+- 将 package authorization 与 runtime lease execution record 分离；当前 standing approval 必须位于仓库外、为 `0600` 普通文件。
+- 新增 lease CLI，原子 acquire、checkpoint、consume、release，并拒绝路径穿越、重放、旧 fencing、过期和撤销后的正向写入。
+- Scanner runner 在 rollback retention、checkout、build、两次 recreate、首次扫描等待、每次观察采样和回滚/成功收口前重验 lease。
+- transport manifest 新增 runner source parent/commit/tree/diff/path-set、policy 与 gate evidence 绑定。
+- 更新机器合同、执行说明、自治控制器、Context、traceability 和本轮报告。
+- 未修改 scan 算法、analysis、strategy、backtest、frontend、业务 API、DB、Redis、worker 业务代码、Compose、migration、env、Feature Flag、Candidate runtime 或 secret。
+
+### 核心链路影响
+
+- 全市场发现：防止 Scanner 发布因浏览器断开、并发旧 runner 或证据漂移而形成假持续健康。
+- 候选筛选：1800 秒观察必须连续 fresh、heartbeat healthy 且至少两个真实 completion advances。
+- 深扫验证、结构分析、风险赔率、交易计划、复盘进化：本轮不修改。
+
+### 测试结果
+
+- test:autonomy：29/29 PASS。
+- production release / execute / lease CLI：14/14 PASS；覆盖成功、观察失败双镜像+Git 回滚、retention 缺失、manifest tree 漂移、重放、撤销和安全 closeout。
+- 第一轮基础门禁：typecheck、lint、build、test:market 960/0/4 explicit skip、worker 23/23、historical 4/4、Golden 16/16 全部 PASS。
+- 安全门禁：forbidden-files、secret-patterns、security-check 全部 PASS。
+- 提交前 autonomy 总门禁：10/10 PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`；结果回填后将再次运行最终冻结门禁，旧 gate evidence 不复用。
+- backtest:formal：未运行，继续禁止。
+
+### 是否部署
+
+未部署、未连接生产、未重启服务、未执行 migration。旧 artifact、approval、gate evidence 和 bundle 全部失效；当前六文件 artifact SHA-256=`5937a72025173ffd703bbaa2034159ae0e89326b635423e3685be53bec013cd8`，但 clean commit、当前 gate evidence 与 final bundle尚未生成。
+
+### 风险与遗留问题
+
+- 本地 runner 加固不等于生产 sustained-health PASS，P1 与 G0 仍未关闭。
+- 完整门禁、clean commit、当前 gate evidence、动态生产指纹、外部 approval 和 final bundle 缺一不可执行。
+- 当前系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+冻结本包事实并完成完整门禁、commit/push；随后只做 Scanner 动态只读生产预检和 exact Web + scanner-worker 发布。

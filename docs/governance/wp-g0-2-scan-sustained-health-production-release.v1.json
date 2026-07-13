@@ -52,6 +52,19 @@
     "temporaryArtifactCleanupRequired": true,
     "maximumApprovalWindowMinutes": 90
   },
+  "autonomy": {
+    "grantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "gate": "G0",
+    "actionClass": "reversible_service_release",
+    "riskTier": "R1_REVERSIBLE_RUNTIME",
+    "builderAgentId": "codex-primary",
+    "trustRoot": "/home/ubuntu/.local/state/market-radar-autonomy",
+    "revocationEpoch": 2,
+    "externalProductionLeaseRequired": true,
+    "oneTimeApprovalConsumptionRequired": true,
+    "fencingTokenRequired": true,
+    "mutationCheckpointRevalidationRequired": true
+  },
   "observation": {
     "minimumDurationSeconds": 1800,
     "cadenceSeconds": 900,
@@ -87,16 +100,22 @@
   },
   "artifact": {
     "files": [
+      "scripts/governance/autonomy-production-lease-cli.mjs",
+      "scripts/governance/autonomy-production-lease.mjs",
+      "scripts/governance/autonomy-policy.mjs",
       "scripts/production/scan-sustained-health-release-entrypoint.sh",
       "scripts/production/scan-sustained-health-release.mjs",
       "scripts/production/scan-sustained-health-release.sh"
     ],
     "fileSha256": {
-      "scripts/production/scan-sustained-health-release-entrypoint.sh": "06e3bb96f2aed64cfdb6308b720efa212dc58139b27712bb24447361ce6e26f7",
-      "scripts/production/scan-sustained-health-release.mjs": "9076e04c4dc26ce0ca88237efb01201a0eb0e3664eb8dbc2f911b22971c7d45b",
-      "scripts/production/scan-sustained-health-release.sh": "a5bebfaee8639e54c611b9221552f314fb2cea5b5db26c60cd1fb0c1160e8775"
+      "scripts/governance/autonomy-production-lease-cli.mjs": "cf11a8806783324293e9686ef9f66aaef23f779d5c156dcd830bd3d2169f81f4",
+      "scripts/governance/autonomy-production-lease.mjs": "8cd92cdf725f84bb0d259bb5047e711dc924a66ba404ae83fb38a76a0e383de3",
+      "scripts/governance/autonomy-policy.mjs": "d1e089c334cb51b991958e43dbd2f21d615c1250b7e99cb0d0654a17144fef78",
+      "scripts/production/scan-sustained-health-release-entrypoint.sh": "43db7c80671c10bf14298279b7956f7d986b46d13b7320fa2b8a3ecddb648b81",
+      "scripts/production/scan-sustained-health-release.mjs": "c44e2d02e58d7c943a66d44f264c91f6859869b9f2bc64013dd95a02b7635349",
+      "scripts/production/scan-sustained-health-release.sh": "884e1762a405078861bdf2067d624c17a67bb321e96f1d58c7ed708177d3360f"
     },
-    "sha256": "6af759ceee3aa4a97ce22f92db28cbef31ebade519b57a088900278e1655eb69"
+    "sha256": "5937a72025173ffd703bbaa2034159ae0e89326b635423e3685be53bec013cd8"
   },
   "approvalRequiredFields": [
     "baseline and target commit",

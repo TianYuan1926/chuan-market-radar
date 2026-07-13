@@ -26,6 +26,8 @@ import {
   TARGET_COMMIT,
   TARGET_REMOTE_BRANCH,
   loadContract,
+  productionPreflightSha256,
+  rollbackEvidenceSha256,
   sha256,
 } from "./scan-sustained-health-release.mjs";
 
@@ -67,6 +69,9 @@ test("isolated execute proves success and restores both images plus main on obse
     await mkdir(join(stage, "scripts/production"), { recursive: true });
     await mkdir(join(stage, "docs/governance"), { recursive: true });
     for (const file of [
+      "scripts/governance/autonomy-production-lease-cli.mjs",
+      "scripts/governance/autonomy-production-lease.mjs",
+      "scripts/governance/autonomy-policy.mjs",
       "scripts/production/scan-sustained-health-release-entrypoint.sh",
       "scripts/production/scan-sustained-health-release.mjs",
       "scripts/production/scan-sustained-health-release.sh",
@@ -137,9 +142,63 @@ test("isolated execute proves success and restores both images plus main on obse
       transportMethod: "approved_orcaterm_bundle_upload",
       webImageId: OLD_WEB_IMAGE,
     };
+    request.autonomyTrustRoot = "/home/ubuntu/.local/state/market-radar-autonomy";
+    request.autonomyAuthorization = {
+      schemaVersion: "market-radar-package-authorization.v1",
+      mode: "g0_g8_standing_user_grant",
+      approvedBy: "user_standing_grant",
+      grantId: "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+      approvalId: "scan-health-rehearsal-approval-1",
+      nonce: "scan-health-rehearsal-nonce-1",
+      gate: "G0",
+      packageId: PACKAGE_ID,
+      scope: PACKAGE_ID,
+      actionClass: "reversible_service_release",
+      riskTier: "R1_REVERSIBLE_RUNTIME",
+      builderAgentId: "codex-primary",
+      baseCommit: "0".repeat(40),
+      targetCommit: request.runnerSourceCommit,
+      targetTree: "1".repeat(40),
+      diffSha256: "2".repeat(64),
+      pathSetSha256: "3".repeat(64),
+      contractSha256: request.contractSha256,
+      runnerSha256: contract.artifact.fileSha256["scripts/production/scan-sustained-health-release.sh"],
+      artifactSha256: contract.artifact.sha256,
+      imageOrMigrationSha256: sha256(`${request.webImageId}\n${request.scannerWorkerImageId}\n`),
+      composeSha256: request.composeSha256,
+      environmentFingerprintSha256: sha256(`${request.baseEnvSha256}\n${request.productionEnvSha256}\n`),
+      productionIdentitySha256: sha256(`${request.identityOverrideSha256}\n${request.composeWrapperSha256}\n`),
+      gateEvidenceSha256: "4".repeat(64),
+      preflightSha256: productionPreflightSha256(request),
+      backupRestoreEvidenceSha256: rollbackEvidenceSha256(request),
+      rollbackTarget: `${BASELINE_COMMIT}:web+scanner-worker`,
+      observationContractSha256: sha256(JSON.stringify(contract.observation)),
+      policySha256: contract.artifact.fileSha256["scripts/governance/autonomy-policy.mjs"],
+      revocationEpoch: 2,
+      issuedAt: request.approvalIssuedAt,
+      expiresAt: request.approvalExpiresAt,
+      maxExecutions: 1,
+      packageAssertions: {
+        qualityThresholdChanged: false,
+        scopeMatchesBlueprint: true,
+        dynamicPreflightCurrent: true,
+        requiredGatesPassed: true,
+        rollbackVerified: true,
+        productionWipAvailable: true,
+        secretsPresentInEvidence: false,
+        knownP0Open: false,
+        pollutionCleanupManifestExact: true,
+      },
+    };
     await writeFile(requestFile, `${JSON.stringify(request)}\n`, { mode: 0o600 });
     await writeFile(join(stage, "transport-manifest.json"), `${JSON.stringify({
       sourceCommit: request.runnerSourceCommit,
+      sourceTree: request.autonomyAuthorization.targetTree,
+      sourceParentCommit: request.autonomyAuthorization.baseCommit,
+      sourceDiffSha256: request.autonomyAuthorization.diffSha256,
+      sourcePathSetSha256: request.autonomyAuthorization.pathSetSha256,
+      gateEvidenceSha256: request.autonomyAuthorization.gateEvidenceSha256,
+      policySha256: request.autonomyAuthorization.policySha256,
       targetCommit: TARGET_COMMIT,
       approvalEligible: true,
       contractSha256: request.contractSha256,
@@ -228,6 +287,12 @@ test("isolated execute proves success and restores both images plus main on obse
       "  if (process.env.FAKE_LOG_FAILURE === '1') console.log(JSON.stringify({message:'task-error',task:'scheduled-scan'})); else console.log(JSON.stringify({message:'task-ok',task:'scheduled-scan',resultStatus:'updated'}));",
       "  process.exit(0);",
       "}",
+      "if (args[0] === 'run') {",
+      "  const actionAt = args.findIndex(value => value.endsWith('autonomy-production-lease-cli.mjs')) + 1; const action = args[actionAt];",
+      "  const executionAt = args.indexOf('--execution'); const execution = args[executionAt + 1];",
+      "  if (action === 'acquire') fs.writeFileSync(execution, JSON.stringify({schemaVersion:'market-radar-production-lease-execution.v1',leaseId:'lease-rehearsal',fencingToken:1}));",
+      "  console.log(JSON.stringify({status:action === 'release' ? 'released' : 'pass',action,leaseId:'lease-rehearsal',fencingToken:1})); process.exit(0);",
+      "}",
       "if (args[0] === 'exec') {",
       "  if (joined.includes('node --input-type=module - request')) { fs.readFileSync(0, 'utf8'); process.exit(0); }",
       "  if (joined.includes('psql')) { fs.readFileSync(0, 'utf8'); console.log('1'); process.exit(0); }",
@@ -275,6 +340,18 @@ test("isolated execute proves success and restores both images plus main on obse
       "",
     ].join("\n"));
     await writeExecutable(join(fakeBin, "sudo"), "#!/bin/sh\n[ \"$1\" = \"-n\" ] && shift\nexec \"$@\"\n");
+    await writeExecutable(join(fakeBin, "mkdir"), [
+      "#!/bin/sh",
+      "case \"$*\" in *'/home/ubuntu/.local/state/market-radar-autonomy'*) exit 0 ;; esac",
+      "exec /bin/mkdir \"$@\"",
+      "",
+    ].join("\n"));
+    await writeExecutable(join(fakeBin, "chmod"), [
+      "#!/bin/sh",
+      "case \"$*\" in *'/home/ubuntu/.local/state/market-radar-autonomy'*) exit 0 ;; esac",
+      "exec /bin/chmod \"$@\"",
+      "",
+    ].join("\n"));
     await writeExecutable(join(fakeBin, "sleep"), "#!/bin/sh\nexit 0\n");
     await writeExecutable(join(fakeBin, "date"), [
       "#!/usr/bin/env node",
@@ -299,6 +376,7 @@ test("isolated execute proves success and restores both images plus main on obse
     const baseEnv = {
       ...process.env,
       BASE_ENV_FILE: join(root, ".env"),
+      AUTONOMY_LEASE_CLI_RUNTIME: "container_node",
       BASE_URL: "http://127.0.0.1",
       CONFIRM_SCAN_SUSTAINED_HEALTH_RELEASE: "true",
       ENV_FILE: join(root, ".env.production"),
@@ -386,6 +464,21 @@ test("isolated execute proves success and restores both images plus main on obse
     });
     const rejectedMutations = await readFile(mutationLog, "utf8");
     assert.doesNotMatch(rejectedMutations, /checkout:target|build:web,scanner-worker|up:web|up:scanner-worker/);
+
+    await writeFile(stateFile, JSON.stringify({
+      git: "baseline", web: "old", scanner: "old", retainedWeb: false, retainedScanner: false,
+    }));
+    await writeFile(mutationLog, "");
+    const manifestPath = join(stage, "transport-manifest.json");
+    const driftedManifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    driftedManifest.sourceTree = "f".repeat(40);
+    await writeFile(manifestPath, `${JSON.stringify(driftedManifest)}\n`, { mode: 0o600 });
+    const driftEvidence = join(directory, "evidence-manifest-drift");
+    await assert.rejects(run(driftEvidence), (error) => {
+      assert.match(error.stderr, /staged transport manifest does not match approval/);
+      return true;
+    });
+    assert.doesNotMatch(await readFile(mutationLog, "utf8"), /tag:|checkout:target|build:web,scanner-worker|up:web|up:scanner-worker/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

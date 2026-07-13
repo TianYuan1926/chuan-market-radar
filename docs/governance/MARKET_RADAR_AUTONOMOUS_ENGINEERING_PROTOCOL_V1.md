@@ -77,7 +77,8 @@
 - base/target commit、target tree、diff 与 path-set SHA-256。
 - contract、runner、artifact、image/migration、Compose、environment、production identity SHA-256。
 - gate evidence、动态 preflight、backup/restore、rollback target、observation contract 与 policy SHA-256。
-- 唯一 approval ID、nonce、production lease ID、fencing token、revocation epoch。
+- 不可变授权记录包含唯一 approval ID、nonce 和 revocation epoch；不得预填 runtime lease ID 或 fencing token。
+- production lease ID 与 fencing token 只能由仓库外 trust root 在执行时原子生成，并写入独立 execution record，避免授权文件进入提交后造成 commit/tree/gate 绑定循环失效。
 - 最长 90 分钟窗口和 `maxExecutions=1`。
 - 质量未改变、蓝图范围匹配、门禁真实通过、回滚已验证、WIP 可用、无 secret、无 P0、清污清单精确等断言。
 
@@ -90,6 +91,7 @@ Production WIP 永远最多 1，Local Preparation WIP 永远最多 1。任一前
 - 同一时刻只能持有一个生产租约。
 - 已消费 approval 不能重放。
 - 新租约必须取得更大的 fencing token。
+- 常驻授权的逐包 approval 必须保存在仓库外 `approvals/<packageId>.json`，权限为 `0600` 且不得是 symlink；仓库内只能保存历史人工授权，不得充当当前生产授权。
 - 每个 mutation checkpoint 必须重新验证租约和撤销 epoch。
 - Gate 证据必须绑定当前 state、worktree、required artifacts、Git HEAD、Git tree、package scripts 和 policy。
 - Gate 证据超过两小时、内容变化或缺任一固定门禁时失效。

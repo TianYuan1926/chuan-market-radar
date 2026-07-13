@@ -18,6 +18,8 @@ APPROVED_STAGING_DIRECTORY="$(jq -r '.stagingDirectory // empty' "${REQUEST_FILE
 APPROVED_BUNDLE_SHA256="$(jq -r '.transportBundleSha256 // empty' "${REQUEST_FILE}")"
 APPROVED_RUNNER_UNIT_NAME="$(jq -r '.runnerUnitName // empty' "${REQUEST_FILE}")"
 APPROVED_SESSION_INDEPENDENT="$(jq -r '.sessionIndependentExecutionRequired // false' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_TRUST_ROOT="$(jq -r '.autonomyTrustRoot // empty' "${REQUEST_FILE}")"
+AUTONOMY_TRUST_ROOT="/home/ubuntu/.local/state/market-radar-autonomy"
 ACTUAL_SOURCE_ROOT="$(realpath "${SOURCE_ROOT}")"
 ACTUAL_REQUEST_FILE="$(realpath "${REQUEST_FILE}")"
 
@@ -52,7 +54,8 @@ if [[ ! "${APPROVED_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ \
   exit 1
 fi
 if [[ ! "${APPROVED_RUNNER_UNIT_NAME}" =~ ^market-radar-scan-health-[a-z0-9][a-z0-9-]{7,56}$ \
-  || "${APPROVED_SESSION_INDEPENDENT}" != "true" ]]; then
+  || "${APPROVED_SESSION_INDEPENDENT}" != "true" \
+  || "${APPROVED_AUTONOMY_TRUST_ROOT}" != "${AUTONOMY_TRUST_ROOT}" ]]; then
   echo "ERROR: approved session-independent runner identity is invalid." >&2
   exit 1
 fi
@@ -88,6 +91,7 @@ if [[ "${ENTRYPOINT_MODE}" == "launcher" ]]; then
     --property=StandardError=journal \
     --setenv=SCAN_SUSTAINED_HEALTH_ENTRYPOINT_MODE=detached_worker \
     --setenv=REQUEST_FILE="${ACTUAL_REQUEST_FILE}" \
+    --setenv=MARKET_RADAR_AUTONOMY_TRUST_ROOT="${AUTONOMY_TRUST_ROOT}" \
     /bin/bash "${SOURCE_ROOT}/scripts/production/scan-sustained-health-release-entrypoint.sh"
 
   ACTIVE_STATE="$(sudo -n systemctl show "${UNIT_NAME}" --property=ActiveState --value 2>/dev/null || true)"
@@ -144,6 +148,7 @@ trap 'forward_signal HUP 129' HUP
 unset ROOT_DIR_OVERRIDE BASE_ENV_FILE ENV_FILE IDENTITY_WRAPPER IDENTITY_OVERRIDE_FILE BASE_URL
 unset WEB_READY_TIMEOUT_SECONDS WEB_READY_POLL_SECONDS OBSERVATION_POLL_SECONDS
 unset SCAN_SUSTAINED_HEALTH_RELEASE_FORCE_CONTAINER_VALIDATOR
+unset AUTONOMY_LEASE_CLI_RUNTIME
 printf 'ready\n' > "${ENTRYPOINT_READY_MARKER}"
 
 REQUEST_FILE="${ACTUAL_REQUEST_FILE}" \
@@ -153,6 +158,7 @@ WEB_READY_TIMEOUT_SECONDS=240 \
 WEB_READY_POLL_SECONDS=3 \
 OBSERVATION_POLL_SECONDS=30 \
 SCAN_SUSTAINED_HEALTH_RELEASE_FORCE_CONTAINER_VALIDATOR=false \
+MARKET_RADAR_AUTONOMY_TRUST_ROOT="${AUTONOMY_TRUST_ROOT}" \
 bash "${RELEASE_RUNNER}" &
 RUNNER_PID=$!
 set +e

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -11,6 +11,7 @@ import {
   evaluateProductionApprovalBindings,
   evaluateScope,
   inspect,
+  loadExternalProductionApproval,
   pathMatches,
   validatePackageApproval,
   validateStandingAuthorization,
@@ -143,8 +144,6 @@ function packageApprovalFixture() {
     rollbackTarget: "baseline-release",
     observationContractSha256: "b".repeat(64),
     policySha256: "c".repeat(64),
-    productionLeaseId: "lease-test-1",
-    fencingToken: 1,
     revocationEpoch: 1,
     maxExecutions: 1,
     packageAssertions: {
@@ -269,9 +268,50 @@ test("production work may run read-only gates without approval but cannot gain d
   }), ["production_approval_missing"]);
 });
 
-test("validateState accepts a current exact G0-G8 package approval", () => {
+test("validateState rejects tracked standing approvals to avoid commit-binding cycles", () => {
   const state = productionStateFixture();
-  assert.deepEqual(validateState(state, { now: new Date("2026-01-01T00:30:00.000Z") }), []);
+  assert.ok(validateState(state, { now: new Date("2026-01-01T00:30:00.000Z") })
+    .includes("standing_authorization_approval_must_be_external"));
+});
+
+test("external production approval must be a 0600 regular file outside the repository", async () => {
+  const trustRoot = await mkdtemp(join(tmpdir(), "market-radar-external-approval-"));
+  try {
+    const state = productionStateFixture();
+    state.approvals = [];
+    const approvals = join(trustRoot, "approvals");
+    const approvalPath = join(approvals, "WP-TEST.json");
+    await mkdir(approvals, { mode: 0o700 });
+    await writeFile(approvalPath, `${JSON.stringify(packageApprovalFixture())}\n`, { mode: 0o600 });
+    const accepted = await loadExternalProductionApproval(state, { trustRootValue: trustRoot });
+    assert.deepEqual(accepted.violations, []);
+    assert.equal(accepted.approval.approvalId, "approval-test-1");
+    await chmod(approvalPath, 0o644);
+    const rejected = await loadExternalProductionApproval(state, { trustRootValue: trustRoot });
+    assert.ok(rejected.violations.includes("standing_authorization_external_approval_mode_invalid"));
+  } finally {
+    await rm(trustRoot, { recursive: true, force: true });
+  }
+});
+
+test("package authorization stays immutable and cannot embed runtime lease identity", () => {
+  const state = productionStateFixture();
+  const approval = packageApprovalFixture();
+  assert.deepEqual(validatePackageApproval({
+    state,
+    activePackage: state.activePackage,
+    approval,
+    now: new Date("2026-01-01T00:30:00.000Z"),
+  }), []);
+  approval.productionLeaseId = "lease-must-be-runtime-only";
+  approval.fencingToken = 7;
+  const violations = validatePackageApproval({
+    state,
+    activePackage: state.activePackage,
+    approval,
+    now: new Date("2026-01-01T00:30:00.000Z"),
+  });
+  assert.ok(violations.includes("package_approval_embeds_runtime_lease_identity"));
 });
 
 test("package approval accepts G8 but rejects G9 scope", () => {
@@ -552,6 +592,59 @@ test("released production lease permits only a newer fencing token", async () =>
       now: new Date("2026-01-01T01:00:00.000Z"),
     });
     assert.ok(second.fencingToken > first.fencingToken);
+  } finally {
+    await rm(trustRoot, { recursive: true, force: true });
+  }
+});
+
+test("production lease rejects traversal identities and permits expired rollback closeout only", async () => {
+  const trustRoot = await mkdtemp(join(tmpdir(), "market-radar-autonomy-trust-"));
+  try {
+    await assert.rejects(() => acquireProductionLease({
+      trustRoot,
+      packageId: "WP-TEST",
+      approvalId: "../escape",
+      nonce: "nonce-safe",
+      ownerId: "deployer",
+      approvalExpiresAt: "2026-01-01T02:00:00.000Z",
+      revocationEpoch: 1,
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    }), /lease_identity_unsafe/u);
+
+    const lease = await acquireProductionLease({
+      trustRoot,
+      packageId: "WP-TEST",
+      approvalId: "approval-expiry",
+      nonce: "nonce-expiry",
+      ownerId: "deployer",
+      approvalExpiresAt: "2026-01-01T02:00:00.000Z",
+      revocationEpoch: 1,
+      ttlSeconds: 60,
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    await assert.rejects(() => releaseProductionLease({
+      trustRoot,
+      leaseId: lease.leaseId,
+      packageId: lease.packageId,
+      approvalId: lease.approvalId,
+      nonce: lease.nonce,
+      fencingToken: lease.fencingToken,
+      revocationEpoch: lease.revocationEpoch,
+      outcome: "PASS",
+      now: new Date("2026-01-01T00:02:00.000Z"),
+    }), /production_lease_expired/u);
+    const released = await releaseProductionLease({
+      trustRoot,
+      leaseId: lease.leaseId,
+      packageId: lease.packageId,
+      approvalId: lease.approvalId,
+      nonce: lease.nonce,
+      fencingToken: lease.fencingToken,
+      revocationEpoch: lease.revocationEpoch,
+      outcome: "ROLLBACK_PASS",
+      now: new Date("2026-01-01T00:02:00.000Z"),
+    });
+    assert.equal(released.outcome, "ROLLBACK_PASS");
   } finally {
     await rm(trustRoot, { recursive: true, force: true });
   }

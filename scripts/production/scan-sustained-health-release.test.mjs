@@ -32,6 +32,8 @@ import {
   inspectRelease,
   inspectRunner,
   loadContract,
+  productionPreflightSha256,
+  rollbackEvidenceSha256,
   sha256,
   validateApprovalRequest,
   validateContract,
@@ -44,6 +46,18 @@ const temporaryDirectories = [];
 const hex64 = "a".repeat(64);
 const imageA = `sha256:${"b".repeat(64)}`;
 const imageB = `sha256:${"c".repeat(64)}`;
+
+function sourceIdentityFixture(sourceCommit = "1".repeat(40)) {
+  return {
+    sourceCommit,
+    sourceTree: "2".repeat(40),
+    sourceParentCommit: "3".repeat(40),
+    sourceDiffSha256: "4".repeat(64),
+    sourcePathSetSha256: "5".repeat(64),
+    gateEvidenceSha256: "6".repeat(64),
+    policySha256: "7".repeat(64),
+  };
+}
 
 function rollbackImageRef(service, imageId) {
   return `market-radar-rollback/wp-g0-2-scan-health:${service}-${imageId.slice(7, 23)}`;
@@ -58,7 +72,7 @@ function clone(value) {
 }
 
 function makeRequest(contract, overrides = {}) {
-  return {
+  const request = {
     approvalExpiresAt: "2026-07-13T02:30:00.000Z",
     approvalIssuedAt: "2026-07-13T01:00:00.000Z",
     approvalRef: "scan-health-release-approval",
@@ -107,6 +121,55 @@ function makeRequest(contract, overrides = {}) {
     webImageId: imageA,
     ...overrides,
   };
+  request.autonomyTrustRoot ??= "/home/ubuntu/.local/state/market-radar-autonomy";
+  request.autonomyAuthorization = {
+    schemaVersion: "market-radar-package-authorization.v1",
+    mode: "g0_g8_standing_user_grant",
+    approvedBy: "user_standing_grant",
+    grantId: "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    approvalId: "scan-health-approval-test-1",
+    nonce: "scan-health-nonce-test-1",
+    gate: "G0",
+    packageId: PACKAGE_ID,
+    scope: PACKAGE_ID,
+    actionClass: "reversible_service_release",
+    riskTier: "R1_REVERSIBLE_RUNTIME",
+    builderAgentId: "codex-primary",
+    baseCommit: "0".repeat(40),
+    targetCommit: request.runnerSourceCommit,
+    targetTree: "1".repeat(40),
+    diffSha256: "2".repeat(64),
+    pathSetSha256: "3".repeat(64),
+    contractSha256: request.contractSha256,
+    runnerSha256: contract.artifact.fileSha256["scripts/production/scan-sustained-health-release.sh"],
+    artifactSha256: contract.artifact.sha256,
+    imageOrMigrationSha256: sha256(`${request.webImageId}\n${request.scannerWorkerImageId}\n`),
+    composeSha256: request.composeSha256,
+    environmentFingerprintSha256: sha256(`${request.baseEnvSha256}\n${request.productionEnvSha256}\n`),
+    productionIdentitySha256: sha256(`${request.identityOverrideSha256}\n${request.composeWrapperSha256}\n`),
+    gateEvidenceSha256: "4".repeat(64),
+    preflightSha256: productionPreflightSha256(request),
+    backupRestoreEvidenceSha256: rollbackEvidenceSha256(request),
+    rollbackTarget: `${BASELINE_COMMIT}:web+scanner-worker`,
+    observationContractSha256: sha256(JSON.stringify(contract.observation)),
+    policySha256: contract.artifact.fileSha256["scripts/governance/autonomy-policy.mjs"],
+    revocationEpoch: 2,
+    issuedAt: request.approvalIssuedAt,
+    expiresAt: request.approvalExpiresAt,
+    maxExecutions: 1,
+    packageAssertions: {
+      qualityThresholdChanged: false,
+      scopeMatchesBlueprint: true,
+      dynamicPreflightCurrent: true,
+      requiredGatesPassed: true,
+      rollbackVerified: true,
+      productionWipAvailable: true,
+      secretsPresentInEvidence: false,
+      knownP0Open: false,
+      pollutionCleanupManifestExact: true,
+    },
+  };
+  return request;
 }
 
 function throwsReason(reason, fn) {
@@ -171,6 +234,7 @@ test("approval refuses extra keys, stale windows and every widened permission", 
     ["request_rollback_web_image_ref_mismatch", { rollbackWebImageRef: "market-radar-rollback/wp-g0-2-scan-health:web-wrong" }],
     ["request_rollback_scanner_image_ref_mismatch", { rollbackScannerWorkerImageRef: "market-radar-rollback/wp-g0-2-scan-health:scanner-worker-wrong" }],
     ["request_staging_directory_invalid", { stagingDirectory: "/home/ubuntu/apps/chuan-market-radar" }],
+    ["request_autonomy_trust_root_mismatch", { autonomyTrustRoot: "/tmp/not-the-trust-root" }],
     ["request_evidence_directory_invalid", { evidenceDirectory: "/home/ubuntu/apps/chuan-market-radar/reports" }],
     ["automatic_rollback_not_allowed", { automaticRollbackAllowed: false }],
     ["source_fetch_not_allowed", { sourceFetchAllowed: false }],
@@ -192,6 +256,16 @@ test("approval refuses extra keys, stale windows and every widened permission", 
       now: new Date("2026-07-13T01:45:00.000Z"),
     }));
   }
+  const wrongGrant = makeRequest(contract);
+  wrongGrant.autonomyAuthorization.grantId = "wrong-grant";
+  throwsReason("autonomy_grant_mismatch", () => validateApprovalRequest(wrongGrant, contract, {
+    now: new Date("2026-07-13T01:45:00.000Z"),
+  }));
+  const embeddedLease = makeRequest(contract);
+  embeddedLease.autonomyAuthorization.productionLeaseId = "runtime-only";
+  throwsReason("autonomy_authorization_keys_mismatch", () => validateApprovalRequest(embeddedLease, contract, {
+    now: new Date("2026-07-13T01:45:00.000Z"),
+  }));
   throwsReason("approval_window_too_long", () => validateApprovalRequest(makeRequest(contract, {
     approvalExpiresAt: "2026-07-13T02:30:00.001Z",
   }), contract, { now: new Date("2026-07-13T01:45:00.000Z") }));
@@ -228,6 +302,80 @@ test("runner source proves two-service, rollback and observation guardrails", as
   assert.doesNotMatch(entrypoint, /nohup/);
 });
 
+test("standing authorization is consumed once and lease fencing guards every mutation checkpoint", async () => {
+  const contract = await loadContract();
+  assert.equal(contract.autonomy?.grantId, "MR-G0-G8-USER-STANDING-GRANT-20260714-034826");
+  assert.equal(contract.autonomy?.gate, "G0");
+  assert.equal(contract.autonomy?.actionClass, "reversible_service_release");
+  assert.equal(contract.autonomy?.externalProductionLeaseRequired, true);
+  assert.equal(contract.autonomy?.oneTimeApprovalConsumptionRequired, true);
+  assert.equal(contract.autonomy?.mutationCheckpointRevalidationRequired, true);
+
+  await access("scripts/governance/autonomy-production-lease-cli.mjs");
+  const source = await readFile("scripts/production/scan-sustained-health-release.sh", "utf8");
+  assert.match(source, /lease_acquire/);
+  assert.match(source, /lease_consume/);
+  for (const checkpoint of [
+    "rollback-retention-web",
+    "rollback-retention-scanner",
+    "checkout-target",
+    "build-target-images",
+    "recreate-web",
+    "recreate-scanner-worker",
+    "observation-sample",
+  ]) assert.match(source, new RegExp(`lease_checkpoint ${checkpoint}`));
+  assert.match(source, /lease_safety_checkpoint rollback/);
+  assert.match(source, /lease_release PASS/);
+
+  const entrypoint = await readFile("scripts/production/scan-sustained-health-release-entrypoint.sh", "utf8");
+  assert.match(entrypoint, /MARKET_RADAR_AUTONOMY_TRUST_ROOT/);
+  assert.match(entrypoint, /\/home\/ubuntu\/\.local\/state\/market-radar-autonomy/);
+
+  const bundle = await readFile("scripts/production/scan-sustained-health-release-bundle.mjs", "utf8");
+  assert.match(bundle, /scripts\/governance\/autonomy-production-lease-cli\.mjs/);
+  assert.match(bundle, /scripts\/governance\/autonomy-production-lease\.mjs/);
+});
+
+test("lease CLI acquires, consumes, rejects replay, observes revocation and permits safety closeout", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "scan-health-lease-cli-"));
+  temporaryDirectories.push(directory);
+  const trustRoot = join(directory, "trust");
+  const requestPath = join(directory, "approval-request.json");
+  const executionPath = join(directory, "execution.json");
+  const contract = await loadContract();
+  const request = makeRequest(contract);
+  await mkdir(trustRoot, { mode: 0o700 });
+  await writeFile(requestPath, `${JSON.stringify(request)}\n`, { mode: 0o600 });
+  const cli = "scripts/governance/autonomy-production-lease-cli.mjs";
+  const run = (command, args = [], now = "2026-07-13T01:45:00.000Z") => execFileAsync(
+    process.execPath,
+    [cli, command, "--trust-root", trustRoot, "--request", requestPath,
+      "--execution", executionPath, ...args, "--now", now],
+    { cwd: process.cwd() },
+  );
+  const acquired = JSON.parse((await run("acquire", ["--owner-id", "scan-health-test-runner"])).stdout);
+  assert.equal(acquired.status, "active_unconsumed");
+  assert.ok(acquired.fencingToken > 0);
+  assert.equal(JSON.parse((await run("checkpoint", ["--checkpoint", "before-test"])).stdout).status, "pass");
+  assert.equal(JSON.parse((await run("consume")).stdout).status, "consumed");
+  const replayExecution = join(directory, "replay-execution.json");
+  await assert.rejects(execFileAsync(process.execPath, [
+    cli, "acquire", "--trust-root", trustRoot, "--request", requestPath,
+    "--execution", replayExecution, "--owner-id", "scan-health-replay-runner",
+    "--now", "2026-07-13T01:46:00.000Z",
+  ]), (error) => {
+    assert.match(error.stderr, /production_approval_already_consumed/);
+    return true;
+  });
+  await writeFile(join(trustRoot, "revocation.json"), `${JSON.stringify({ epoch: 3 })}\n`, { mode: 0o600 });
+  await assert.rejects(run("checkpoint", ["--checkpoint", "after-revocation"]), (error) => {
+    assert.match(error.stderr, /production_lease_revoked/);
+    return true;
+  });
+  assert.equal(JSON.parse((await run("safety-checkpoint", ["--checkpoint", "rollback"])).stdout).status, "pass");
+  assert.equal(JSON.parse((await run("release", ["--outcome", "ROLLBACK_PASS"])).stdout).outcome, "ROLLBACK_PASS");
+});
+
 test("local preparation is approval-blocked and staged validation needs no Git repository", async () => {
   const local = await validateLocalPreparation();
   assert.equal(local.status, "PASS_LOCAL_SCAN_SUSTAINED_HEALTH_RELEASE_PREPARATION");
@@ -238,6 +386,9 @@ test("local preparation is approval-blocked and staged validation needs no Git r
   temporaryDirectories.push(directory);
   const files = [
     CONTRACT_PATH,
+    "scripts/governance/autonomy-production-lease-cli.mjs",
+    "scripts/governance/autonomy-production-lease.mjs",
+    "scripts/governance/autonomy-policy.mjs",
     "scripts/production/scan-sustained-health-release-entrypoint.sh",
     "scripts/production/scan-sustained-health-release.mjs",
     "scripts/production/scan-sustained-health-release.sh",
@@ -256,11 +407,16 @@ test("transport bundle is reproducible, secret-free and source-commit bound", as
   const outputA = join(directory, "a.tar.gz");
   const outputB = join(directory, "b.tar.gz");
   const sourceCommit = "1".repeat(40);
-  const first = await buildTransportBundle({ root: process.cwd(), output: outputA, sourceCommit });
-  const second = await buildTransportBundle({ root: process.cwd(), output: outputB, sourceCommit });
+  const sourceIdentity = sourceIdentityFixture(sourceCommit);
+  const first = await buildTransportBundle({ root: process.cwd(), output: outputA, sourceCommit, sourceIdentity });
+  const second = await buildTransportBundle({ root: process.cwd(), output: outputB, sourceCommit, sourceIdentity });
   assert.equal(first.sha256, second.sha256);
   assert.deepEqual(await readFile(outputA), await readFile(outputB));
   assert.equal(first.manifest.sourceCommit, sourceCommit);
+  assert.equal(first.manifest.sourceTree, sourceIdentity.sourceTree);
+  assert.equal(first.manifest.sourceParentCommit, sourceIdentity.sourceParentCommit);
+  assert.equal(first.manifest.gateEvidenceSha256, sourceIdentity.gateEvidenceSha256);
+  assert.equal(first.manifest.policySha256, sourceIdentity.policySha256);
   assert.equal(first.manifest.targetCommit, TARGET_COMMIT);
   assert.equal(first.manifest.containsSecrets, false);
   assert.equal(first.manifest.productionRepositoryMutationAllowed, true);
@@ -273,6 +429,9 @@ test("transport bundle is reproducible, secret-free and source-commit bound", as
   const { stdout: listing } = await execFileAsync("tar", ["-tzf", outputA]);
   assert.deepEqual(listing.trim().split("\n").sort(), [
     CONTRACT_PATH,
+    "scripts/governance/autonomy-production-lease-cli.mjs",
+    "scripts/governance/autonomy-production-lease.mjs",
+    "scripts/governance/autonomy-policy.mjs",
     "scripts/production/scan-sustained-health-release-entrypoint.sh",
     "scripts/production/scan-sustained-health-release.mjs",
     "scripts/production/scan-sustained-health-release.sh",
@@ -356,6 +515,7 @@ test("approved entrypoint survives launcher exit through a transient unit and wo
     transportBundleSha256: bundleSha,
     runnerUnitName: "market-radar-scan-health-cleanup1",
     sessionIndependentExecutionRequired: true,
+    autonomyTrustRoot: "/home/ubuntu/.local/state/market-radar-autonomy",
   })}\n`, { mode: 0o600 });
   await writeFile(join(stage, ".transport-bundle.sha256"), `${bundleSha}\n`, { mode: 0o600 });
   await chmod(stage, 0o700);

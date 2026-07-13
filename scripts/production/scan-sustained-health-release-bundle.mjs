@@ -16,6 +16,9 @@ const TRANSPORT_SOURCE_DATE_EPOCH = 946_684_800;
 const TRANSPORT_FIXED_TIME = new Date(TRANSPORT_SOURCE_DATE_EPOCH * 1000);
 const TRANSPORT_FILES = [
   CONTRACT_PATH,
+  "scripts/governance/autonomy-production-lease-cli.mjs",
+  "scripts/governance/autonomy-production-lease.mjs",
+  "scripts/governance/autonomy-policy.mjs",
   "scripts/production/scan-sustained-health-release-entrypoint.sh",
   "scripts/production/scan-sustained-health-release.mjs",
   "scripts/production/scan-sustained-health-release.sh",
@@ -29,8 +32,28 @@ function ensure(condition, reason) {
   if (!condition) throw new Error(reason);
 }
 
-export async function buildTransportBundle({ root = process.cwd(), output, sourceCommit, approvalEligible = true }) {
-  ensure(approvalEligible ? /^[0-9a-f]{40}$/.test(sourceCommit ?? "") : sourceCommit === null, "source_commit_invalid");
+export async function buildTransportBundle({
+  root = process.cwd(),
+  output,
+  sourceCommit,
+  sourceIdentity,
+  approvalEligible = true,
+}) {
+  const identity = sourceIdentity ?? (approvalEligible ? null : {
+    sourceCommit: null,
+    sourceTree: null,
+    sourceParentCommit: null,
+    sourceDiffSha256: null,
+    sourcePathSetSha256: null,
+    gateEvidenceSha256: null,
+    policySha256: null,
+  });
+  ensure(approvalEligible
+    ? identity?.sourceCommit === sourceCommit
+      && [identity.sourceCommit, identity.sourceTree, identity.sourceParentCommit].every((value) => /^[0-9a-f]{40}$/.test(value))
+      && [identity.sourceDiffSha256, identity.sourcePathSetSha256, identity.gateEvidenceSha256, identity.policySha256]
+        .every((value) => /^[0-9a-f]{64}$/.test(value))
+    : sourceCommit === null, "source_identity_invalid");
   await validateLocalPreparation(root);
   const contract = await loadContract(root);
   const temporaryRoot = await mkdtemp(join(tmpdir(), "scan-sustained-health-release-bundle-"));
@@ -49,6 +72,12 @@ export async function buildTransportBundle({ root = process.cwd(), output, sourc
       schemaVersion: "wp-g0.2-scan-sustained-health-production-release-transport.v1",
       packageId: contract.packageId,
       sourceCommit,
+      sourceTree: identity.sourceTree,
+      sourceParentCommit: identity.sourceParentCommit,
+      sourceDiffSha256: identity.sourceDiffSha256,
+      sourcePathSetSha256: identity.sourcePathSetSha256,
+      gateEvidenceSha256: identity.gateEvidenceSha256,
+      policySha256: identity.policySha256,
       approvalEligible,
       targetCommit: contract.release.targetCommit,
       baselineCommit: contract.release.baselineCommit,
@@ -119,30 +148,60 @@ function parseArgs(argv) {
   return options;
 }
 
-async function currentCommit(root) {
-  const { stdout } = await execFileAsync("git", ["-C", root, "rev-parse", "HEAD"]);
-  return stdout.trim();
-}
-
 async function worktreeIsClean(root) {
   const { stdout } = await execFileAsync("git", ["-C", root, "status", "--porcelain"]);
   return stdout.trim().length === 0;
+}
+
+async function currentSourceIdentity(root) {
+  const runGit = async (args) => (await execFileAsync("git", ["-C", root, ...args])).stdout.trimEnd();
+  const sourceCommit = await runGit(["rev-parse", "HEAD"]);
+  const sourceTree = await runGit(["rev-parse", "HEAD^{tree}"]);
+  const parentLine = await runGit(["rev-list", "--parents", "-n", "1", "HEAD"]);
+  const parents = parentLine.split(" ").slice(1);
+  ensure(parents.length === 1, "runner_source_must_have_one_parent");
+  const diffOutput = `${await runGit(["diff-tree", "--no-commit-id", "--name-status", "-r", "HEAD"])}\n`;
+  const pathSetOutput = `${(await runGit(["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]))
+    .split("\n").filter(Boolean).sort().join("\n")}\n`;
+  const pointer = JSON.parse(await readFile(resolve(root, ".autonomy/latest-gate-result.json"), "utf8"));
+  ensure(pointer.schemaVersion === "market-radar-autonomous-gate-result-pointer.v1", "gate_evidence_pointer_invalid");
+  const gateResultBytes = await readFile(resolve(root, pointer.resultPath));
+  ensure(sha256(gateResultBytes) === pointer.resultSha256, "gate_evidence_pointer_hash_mismatch");
+  const gateResult = JSON.parse(gateResultBytes);
+  ensure(gateResult.status === "pass", "gate_evidence_not_pass");
+  ensure(gateResult.gitHead === sourceCommit && gateResult.gitTree === sourceTree, "gate_evidence_source_identity_mismatch");
+  const policyBytes = await readFile(resolve(root, "scripts/governance/autonomy-policy.mjs"));
+  return {
+    sourceCommit,
+    sourceTree,
+    sourceParentCommit: parents[0],
+    sourceDiffSha256: sha256(diffOutput),
+    sourcePathSetSha256: sha256(pathSetOutput),
+    gateEvidenceSha256: pointer.resultSha256,
+    policySha256: sha256(policyBytes),
+  };
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const root = resolve(options.root ?? process.cwd());
   ensure(options["source-commit"] === undefined, "source_commit_override_forbidden");
-  const head = await currentCommit(root);
   const approvalEligible = await worktreeIsClean(root);
-  const sourceCommit = approvalEligible ? head : null;
+  const sourceIdentity = approvalEligible ? await currentSourceIdentity(root) : null;
+  const sourceCommit = sourceIdentity?.sourceCommit ?? null;
   const bundleId = approvalEligible ? head.slice(0, 12) : "precommit-template";
   const output = options.output ?? join(
     root,
     "reports/wp-g0-2-scan-sustained-health-production-release",
     `scan-sustained-health-release-${bundleId}.tar.gz`,
   );
-  const result = await buildTransportBundle({ root, output, sourceCommit, approvalEligible });
+  const result = await buildTransportBundle({
+    root,
+    output,
+    sourceCommit,
+    sourceIdentity,
+    approvalEligible,
+  });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 

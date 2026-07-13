@@ -19,6 +19,11 @@ VALIDATOR="${SOURCE_ROOT}/scripts/production/scan-sustained-health-release.mjs"
 CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-scan-sustained-health-production-release.v1.json"
 ENTRYPOINT="${SOURCE_ROOT}/scripts/production/scan-sustained-health-release-entrypoint.sh"
 TRANSPORT_MANIFEST="${SOURCE_ROOT}/transport-manifest.json"
+LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
+LEASE_MODULE="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease.mjs"
+AUTONOMY_POLICY="${SOURCE_ROOT}/scripts/governance/autonomy-policy.mjs"
+AUTONOMY_TRUST_ROOT="${MARKET_RADAR_AUTONOMY_TRUST_ROOT:-/home/ubuntu/.local/state/market-radar-autonomy}"
+AUTONOMY_LEASE_CLI_RUNTIME="${AUTONOMY_LEASE_CLI_RUNTIME:-auto}"
 
 PACKAGE_ID="WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE"
 BASELINE_COMMIT="0599f802f261fe8e3c1982a07106f362bd62ac13"
@@ -53,6 +58,7 @@ for command_name in base64 curl git jq realpath sha256sum sudo; do
   fi
 done
 for file in "${REQUEST_FILE}" "${CONTRACT}" "${VALIDATOR}" "${ENTRYPOINT}" "${TRANSPORT_MANIFEST}" \
+  "${LEASE_CLI}" "${LEASE_MODULE}" "${AUTONOMY_POLICY}" \
   "${ROOT_DIR}/docker-compose.yml" "${BASE_ENV_FILE}" "${ENV_FILE}"; do
   if [[ -z "${file}" || ! -f "${file}" || -L "${file}" ]]; then
     echo "ERROR: required regular non-symlink file is unavailable: ${file}" >&2
@@ -146,12 +152,26 @@ EVIDENCE_DIRECTORY="$(jq -r '.evidenceDirectory' "${REQUEST_FILE}")"
 OBSERVATION_DURATION_SECONDS="$(jq -r '.observationDurationSeconds' "${REQUEST_FILE}")"
 CADENCE_SECONDS="$(jq -r '.cadenceSeconds' "${REQUEST_FILE}")"
 REQUIRED_COMPLETION_ADVANCES="$(jq -r '.requiredCompletionAdvances' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_TRUST_ROOT="$(jq -r '.autonomyTrustRoot' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_APPROVAL_ID="$(jq -r '.autonomyAuthorization.approvalId' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_BASE_COMMIT="$(jq -r '.autonomyAuthorization.baseCommit' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_TARGET_COMMIT="$(jq -r '.autonomyAuthorization.targetCommit' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_TARGET_TREE="$(jq -r '.autonomyAuthorization.targetTree' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_DIFF_SHA256="$(jq -r '.autonomyAuthorization.diffSha256' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_PATH_SET_SHA256="$(jq -r '.autonomyAuthorization.pathSetSha256' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_GATE_EVIDENCE_SHA256="$(jq -r '.autonomyAuthorization.gateEvidenceSha256' "${REQUEST_FILE}")"
+APPROVED_AUTONOMY_POLICY_SHA256="$(jq -r '.autonomyAuthorization.policySha256' "${REQUEST_FILE}")"
 
 if [[ "${APPROVED_BASELINE_COMMIT}" != "${BASELINE_COMMIT}" \
   || "${APPROVED_TARGET_COMMIT}" != "${TARGET_COMMIT}" \
   || "${APPROVED_TARGET_REMOTE_BRANCH}" != "${TARGET_REMOTE_BRANCH}" \
   || "${APPROVED_RELEASE_DIFF_SHA256}" != "${RELEASE_DIFF_SHA256}" ]]; then
   echo "ERROR: release identity does not match the locked runner." >&2
+  exit 1
+fi
+if [[ "${APPROVED_AUTONOMY_TRUST_ROOT}" != "/home/ubuntu/.local/state/market-radar-autonomy" \
+  || "${AUTONOMY_TRUST_ROOT}" != "${APPROVED_AUTONOMY_TRUST_ROOT}" ]]; then
+  echo "ERROR: production autonomy trust root does not match the locked external path." >&2
   exit 1
 fi
 WEB_DIGEST="${APPROVED_WEB_IMAGE_ID#sha256:}"
@@ -181,6 +201,14 @@ fi
 
 if [[ "$(sha256sum "${CONTRACT}" | awk '{print $1}')" != "${APPROVED_CONTRACT_SHA256}" \
   || "$(jq -r '.sourceCommit' "${TRANSPORT_MANIFEST}")" != "${APPROVED_RUNNER_SOURCE_COMMIT}" \
+  || "$(jq -r '.sourceParentCommit' "${TRANSPORT_MANIFEST}")" != "${APPROVED_AUTONOMY_BASE_COMMIT}" \
+  || "$(jq -r '.sourceCommit' "${TRANSPORT_MANIFEST}")" != "${APPROVED_AUTONOMY_TARGET_COMMIT}" \
+  || "$(jq -r '.sourceTree' "${TRANSPORT_MANIFEST}")" != "${APPROVED_AUTONOMY_TARGET_TREE}" \
+  || "$(jq -r '.sourceDiffSha256' "${TRANSPORT_MANIFEST}")" != "${APPROVED_AUTONOMY_DIFF_SHA256}" \
+  || "$(jq -r '.sourcePathSetSha256' "${TRANSPORT_MANIFEST}")" != "${APPROVED_AUTONOMY_PATH_SET_SHA256}" \
+  || "$(jq -r '.gateEvidenceSha256' "${TRANSPORT_MANIFEST}")" != "${APPROVED_AUTONOMY_GATE_EVIDENCE_SHA256}" \
+  || "$(jq -r '.policySha256' "${TRANSPORT_MANIFEST}")" != "${APPROVED_AUTONOMY_POLICY_SHA256}" \
+  || "$(sha256sum "${AUTONOMY_POLICY}" | awk '{print $1}')" != "${APPROVED_AUTONOMY_POLICY_SHA256}" \
   || "$(jq -r '.targetCommit' "${TRANSPORT_MANIFEST}")" != "${APPROVED_TARGET_COMMIT}" \
   || "$(jq -r '.contractSha256' "${TRANSPORT_MANIFEST}")" != "${APPROVED_CONTRACT_SHA256}" \
   || "$(jq -r '.approvalEligible' "${TRANSPORT_MANIFEST}")" != "true" \
@@ -312,10 +340,80 @@ umask 077
 mkdir -p "$(dirname "${EVIDENCE_DIRECTORY}")"
 mkdir "${EVIDENCE_DIRECTORY}"
 chmod 700 "${EVIDENCE_DIRECTORY}"
+if [[ -L "${AUTONOMY_TRUST_ROOT}" ]]; then
+  echo "ERROR: production autonomy trust root cannot be a symlink." >&2
+  exit 1
+fi
+mkdir -p "${AUTONOMY_TRUST_ROOT}"
+chmod 700 "${AUTONOMY_TRUST_ROOT}"
+if [[ "$(realpath "${AUTONOMY_TRUST_ROOT}")" != "/home/ubuntu/.local/state/market-radar-autonomy" \
+  || "$(realpath "${AUTONOMY_TRUST_ROOT}")" == "${ROOT_DIR_REAL}" \
+  || "$(realpath "${AUTONOMY_TRUST_ROOT}")" == "${SOURCE_ROOT_REAL}" ]]; then
+  echo "ERROR: production autonomy trust root escaped its repository-external boundary." >&2
+  exit 1
+fi
 OBSERVATION_FILE="${EVIDENCE_DIRECTORY}/cadence-observation.jsonl"
 SUMMARY_FILE="${EVIDENCE_DIRECTORY}/summary.json"
 ROLLBACK_FILE="${EVIDENCE_DIRECTORY}/rollback.json"
 ROLLBACK_RETENTION_FILE="${EVIDENCE_DIRECTORY}/rollback-image-retention.json"
+LEASE_EXECUTION_FILE="${EVIDENCE_DIRECTORY}/production-lease-execution.json"
+LEASE_EVENTS_FILE="${EVIDENCE_DIRECTORY}/production-lease-events.jsonl"
+
+run_lease_cli() {
+  local command_name="$1"
+  shift
+  if [[ "${AUTONOMY_LEASE_CLI_RUNTIME}" == "host_node" ]] \
+    || { [[ "${AUTONOMY_LEASE_CLI_RUNTIME}" == "auto" ]] && command -v node >/dev/null 2>&1; }; then
+    node "${LEASE_CLI}" "${command_name}" \
+      --trust-root "${AUTONOMY_TRUST_ROOT}" \
+      --request "${REQUEST_FILE}" \
+      --execution "${LEASE_EXECUTION_FILE}" \
+      "$@"
+    return
+  fi
+  if [[ "${AUTONOMY_LEASE_CLI_RUNTIME}" != "auto" \
+    && "${AUTONOMY_LEASE_CLI_RUNTIME}" != "container_node" ]]; then
+    echo "ERROR: unsupported autonomy lease CLI runtime." >&2
+    return 1
+  fi
+  ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges \
+    --user "$(id -u):$(id -g)" \
+    --mount "type=bind,src=${SOURCE_ROOT}/scripts/governance,dst=/runner,readonly" \
+    --mount "type=bind,src=${REQUEST_FILE},dst=/request/approval-request.json,readonly" \
+    --mount "type=bind,src=${AUTONOMY_TRUST_ROOT},dst=${AUTONOMY_TRUST_ROOT}" \
+    --mount "type=bind,src=${EVIDENCE_DIRECTORY},dst=${EVIDENCE_DIRECTORY}" \
+    --entrypoint node "${APPROVED_WEB_IMAGE_ID}" \
+    /runner/autonomy-production-lease-cli.mjs "${command_name}" \
+      --trust-root "${AUTONOMY_TRUST_ROOT}" \
+      --request /request/approval-request.json \
+      --execution "${LEASE_EXECUTION_FILE}" \
+      "$@"
+}
+
+lease_event() {
+  run_lease_cli "$@" | tee -a "${LEASE_EVENTS_FILE}" >/dev/null
+}
+
+lease_acquire() {
+  lease_event acquire --owner-id "${PACKAGE_ID}:${APPROVED_AUTONOMY_APPROVAL_ID}"
+}
+
+lease_checkpoint() {
+  lease_event checkpoint --checkpoint "$1"
+}
+
+lease_safety_checkpoint() {
+  lease_event safety-checkpoint --checkpoint "$1"
+}
+
+lease_consume() {
+  lease_event consume
+}
+
+lease_release() {
+  lease_event release --outcome "$1"
+}
 
 wait_for_web_http() {
   local deadline=$((SECONDS + WEB_READY_TIMEOUT_SECONDS)) body
@@ -360,7 +458,9 @@ verify_rollback_image_retention() {
 }
 
 create_rollback_image_retention() {
+  lease_checkpoint rollback-retention-web
   ${DOCKER[@]} tag "${PREVIOUS_WEB_IMAGE_ID}" "${APPROVED_ROLLBACK_WEB_IMAGE_REF}"
+  lease_checkpoint rollback-retention-scanner
   ${DOCKER[@]} tag "${PREVIOUS_SCANNER_IMAGE_ID}" "${APPROVED_ROLLBACK_SCANNER_IMAGE_REF}"
   verify_rollback_image_retention
 }
@@ -384,13 +484,28 @@ NODE
 
 MUTATED=false
 RELEASE_SUCCEEDED=false
+LEASE_ACQUIRED=false
+LEASE_RELEASED=false
 rollback_on_failure() {
   local exit_code=$?
   trap - EXIT INT TERM HUP
-  if [[ "${exit_code}" -eq 0 || "${MUTATED}" != "true" || "${RELEASE_SUCCEEDED}" == "true" ]]; then
+  if [[ "${exit_code}" -eq 0 || "${RELEASE_SUCCEEDED}" == "true" ]]; then
+    exit "${exit_code}"
+  fi
+  if [[ "${MUTATED}" != "true" ]]; then
+    if [[ "${LEASE_ACQUIRED}" == "true" && "${LEASE_RELEASED}" != "true" ]]; then
+      lease_safety_checkpoint pre-mutation-stop >/dev/null 2>&1 || true
+      if lease_release SAFE_STOP_PRE_MUTATION >/dev/null 2>&1; then
+        LEASE_RELEASED=true
+      fi
+    fi
     exit "${exit_code}"
   fi
   echo "ERROR: scan sustained-health release failed; restoring both approved baseline images and main HEAD." >&2
+  if ! lease_safety_checkpoint rollback; then
+    echo "P0_ROLLBACK_PRODUCTION_SCAN_SUSTAINED_HEALTH_FENCING_REJECTED" >&2
+    exit "${exit_code}"
+  fi
   local retention_ok=false
   if verify_rollback_image_retention; then
     retention_ok=true
@@ -431,6 +546,13 @@ rollback_on_failure() {
     '{at:$at,originalExitCode:$originalExitCode,rollbackVerified:$rollbackVerified,rollbackRetentionVerified:$rollbackRetentionVerified,baselineCommit:$baselineCommit,webImageId:$webImageId,scannerWorkerImageId:$scannerWorkerImageId,rollbackWebImageRef:$rollbackWebImageRef,rollbackScannerWorkerImageRef:$rollbackScannerWorkerImageRef}' \
     > "${ROLLBACK_FILE}" || true
   if [[ "${rollback_ok}" == "true" ]]; then
+    if lease_release ROLLBACK_PASS; then
+      LEASE_RELEASED=true
+    else
+      rollback_ok=false
+    fi
+  fi
+  if [[ "${rollback_ok}" == "true" ]]; then
     echo "ROLLBACK_PRODUCTION_SCAN_SUSTAINED_HEALTH_BASELINE_VERIFIED" >&2
   else
     echo "P0_ROLLBACK_PRODUCTION_SCAN_SUSTAINED_HEALTH_NOT_VERIFIED" >&2
@@ -441,6 +563,11 @@ trap rollback_on_failure EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
+
+lease_acquire
+LEASE_ACQUIRED=true
+lease_checkpoint pre-mutation
+lease_consume
 
 if ! create_rollback_image_retention; then
   echo "ERROR: rollback image retention verification failed before production mutation." >&2
@@ -456,6 +583,7 @@ jq -n \
   > "${ROLLBACK_RETENTION_FILE}"
 
 MUTATED=true
+lease_checkpoint checkout-target
 git -C "${ROOT_DIR}" checkout --detach "${TARGET_COMMIT}"
 if [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD)" != "${TARGET_COMMIT}" \
   || -n "$(git -C "${ROOT_DIR}" branch --show-current)" \
@@ -468,11 +596,13 @@ if ! verify_rollback_image_retention; then
   exit 1
 fi
 
+lease_checkpoint build-target-images
 ${IDENTITY_COMPOSE[@]} build web scanner-worker
 if ! verify_rollback_image_retention; then
   echo "ERROR: rollback image retention drifted during target build." >&2
   exit 1
 fi
+lease_checkpoint recreate-web
 ${IDENTITY_COMPOSE[@]} up -d --no-deps --no-build --force-recreate web
 if ! wait_for_web_http; then
   echo "ERROR: target Web did not become reachable within the release timeout." >&2
@@ -483,6 +613,7 @@ if ! verify_rollback_image_retention; then
   echo "ERROR: rollback image retention drifted before scanner-worker recreation." >&2
   exit 1
 fi
+lease_checkpoint recreate-scanner-worker
 ${IDENTITY_COMPOSE[@]} up -d --no-deps --no-build --force-recreate scanner-worker
 
 TARGET_WEB_CONTAINER_ID="$(${IDENTITY_COMPOSE[@]} ps -q web)"
@@ -529,6 +660,7 @@ fi
 INITIAL_HEALTH_DEADLINE=$((SECONDS + CADENCE_SECONDS + WEB_READY_TIMEOUT_SECONDS))
 INITIAL_COMPLETED_AT=""
 while true; do
+  lease_checkpoint initial-scan-wait
   health_body="$(curl -fsS "${BASE_URL}/api/health" 2>/dev/null || true)"
   if jq -e \
     '.ok == true
@@ -554,6 +686,7 @@ LAST_COMPLETED_AT="${INITIAL_COMPLETED_AT}"
 COMPLETION_ADVANCES=0
 SAMPLE_COUNT=0
 while true; do
+  lease_checkpoint observation-sample
   NOW_EPOCH="$(date +%s)"
   health_body="$(curl -fsS "${BASE_URL}/api/health" 2>/dev/null || true)"
   if ! jq -e \
@@ -625,6 +758,10 @@ if ! verify_rollback_image_retention; then
   echo "ERROR: rollback images are not retained at successful release closeout." >&2
   exit 1
 fi
+
+lease_checkpoint success-closeout
+lease_release PASS
+LEASE_RELEASED=true
 
 jq -n \
   --arg packageId "${PACKAGE_ID}" \

@@ -4,9 +4,9 @@
 
 把已在生产基线 `0599f802f261fe8e3c1982a07106f362bd62ac13` 上独立验证的扫描持续健康修复提交 `70722ea71b33268b688be5d42af9908d40f49859`，以最小范围发布到生产 Web 和 scanner-worker，并用至少 1800 秒、两个后续完成时间推进证明扫描没有再次滑回 17 分钟左右的假 15 分钟 cadence。
 
-本包只建立可执行批准材料。合同本身不授权生产变更。
+本包合同本身不授权生产变更。生产执行还必须绑定 G0-G8 用户常驻授权、当前 runner commit/tree/diff、不可覆盖 gate evidence、动态生产指纹和仓库外 execution lease。
 
-2026-07-14 生产执行暴露两个恢复缺口：OrcaTerm 前台会话断开会终止 runner；构建覆盖原镜像 tag 后，历史 scanner-worker 镜像可能不可再用。旧 artifact、contract 和 transport bundle 因此全部失效。当前加固版要求 transient systemd 单元和双镜像不可变保留 tag；本地完整门禁、clean Git 收口与可复现 bundle 已完成，仍需新的动态预检和 exact approval。
+2026-07-14 生产执行暴露两个恢复缺口：OrcaTerm 前台会话断开会终止 runner；构建覆盖原镜像 tag 后，历史 scanner-worker 镜像可能不可再用。旧 artifact、contract、approval、gate evidence 和 transport bundle 因此全部失效。当前版本要求 transient systemd 单元、双镜像不可变保留 tag、外部租约、一次性消费和逐 mutation checkpoint fencing；完成本轮代码门禁并产生 clean commit 后，必须重新生成 gate evidence、动态生产指纹、exact approval 与可复现 bundle。
 
 ## 2. 为什么不能部署 main
 
@@ -30,6 +30,7 @@
 - 执行只读 Postgres 身份探针、Redis ping、health/contract 读取；
 - 在仓库外保留脱敏 cadence 观察摘要；
 - 任一步失败时自动恢复两个旧镜像和 `main@0599f802...`。
+- 使用固定仓库外 trust root `/home/ubuntu/.local/state/market-radar-autonomy` 原子取得全局生产租约、递增 fencing token，并在第一次镜像 tag 前一次性消费 approval。
 
 ## 4. 明确禁止
 
@@ -44,7 +45,7 @@
 ## 5. 执行前硬门禁
 
 1. 精确批准 request 为 `0600`，窗口不超过 90 分钟且仍有效。
-2. transport bundle、合同、三个执行文件的 SHA-256 全部匹配。
+2. transport bundle、合同、六个执行/授权文件的 SHA-256 全部匹配。
 3. staging 位于批准的仓库外绝对路径，执行后强制删除。
 4. identity override 为 root-owned `0600`，wrapper 为 root-owned `0700`，校验和匹配。
 5. Compose、两份 env 指纹和当前两个运行镜像 ID 与批准一致。
@@ -54,19 +55,22 @@
 9. `systemd-run` / `systemctl` 和 non-interactive sudo 可用；批准的 transient unit 必须尚不存在。
 10. request 必须绑定 unit name、`sessionIndependentExecutionRequired=true`、两个根据当前镜像 digest 确定生成的 rollback image ref，以及 `rollbackImageRetentionRequired=true`。
 11. 两个 retention ref 必须在生产 mutation 前解析回批准的旧镜像 ID；任一不匹配立即 fail closed。
+12. transport manifest 的 runner source parent/commit/tree/diff/path-set、policy hash 和 gate evidence hash 必须与仓库外 approval 完全一致。
+13. approval 本身不得携带 runtime lease ID 或 fencing token；runner 必须在生产 host 上原子生成 execution record，并在 checkout、build、两次 recreate、每次 observation sample 与 rollback 前重验。
 
 ## 6. 发布与真值观察
 
 1. 前台 entrypoint 只验证 staging 和批准身份，并启动 `Restart=no`、最长 5400 秒的 transient systemd unit；启动后立即返回 unit、PID 和 journald 查询命令。
 2. detached worker 在 systemd unit 内运行，接收 INT/TERM/HUP 时把信号转发给 release runner，等待自动回滚完成后再清理 staging。
 3. 为当前 Web 和 scanner-worker 镜像建立确定性 retention tag并验证；随后才允许切到 detached target，main 分支仍指向旧基线。
-4. 只构建 Web 和 scanner-worker；checkout 后、build 后、scanner 重建前均重新验证两个 retention ref。
+4. 只构建 Web 和 scanner-worker；每次 retention tag、checkout、build、Web recreate、scanner recreate 前都必须通过当前 lease ID、fencing token、revocation epoch 检查。
 5. 先重建 Web 并等待可访问，再重建 scanner-worker。
 6. 验证两个容器都使用新镜像、数据库身份与 approved override 一致，非目标容器 ID 不变。
 7. 等待第一次新扫描完成，要求 scan fresh、scanner heartbeat healthy、持久化 ready。
 8. 从第一次新完成开始连续观察至少 1800 秒；每 30 秒采样，不允许 freshness 或 scanner heartbeat 中途失败。
 9. 要求至少两个后续不同的 `scan.completedAt`，最后 health 必须 `ready/fresh`。
 10. scanner 日志必须证明 `fixed_rate_skip_missed`、至少三次 `resultStatus=updated` 成功、零假成功、零 task failure。
+11. 每次观察采样前 heartbeat 并重验 lease；用户撤销、lease 过期或 fencing 失配时立即停止正向动作并进入受 fencing 约束的自动回滚。
 
 不能满足任一条件就不是 PASS。
 

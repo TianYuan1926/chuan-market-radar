@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_scan_sustained_health_production_release_packet_autonomy_11_of_11_pass_commit_and_exact_approval_pending",
-  "generatedAt": "2026-07-14T04:02:00+08:00",
+  "status": "wp_g0_2_scan_sustained_health_standing_authorization_integrated_precommit_autonomy_10_of_10_pass_final_freeze_gate_pending",
+  "generatedAt": "2026-07-14T06:10:00+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -51,7 +51,7 @@
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "complete_g0_g8_control_gates_commit_push_then_dynamic_scanner_preflight",
+    "nextLocalWorkPackage": "freeze_scanner_standing_authorization_integration_run_full_gates_commit_push_then_dynamic_preflight",
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
@@ -124,8 +124,8 @@
     "scannerMinimalProductionReleaseParent": "0599f802f261fe8e3c1982a07106f362bd62ac13",
     "scannerMinimalProductionReleaseDiffFileCount": 16,
     "scannerMinimalProductionReleaseDiffSha256": "80bab7d7e3cdd5a9811dc0815c5df10205bce54e3f87c14d1791c94bcd3f6f58",
-    "scannerProductionReleasePacketStatus": "autonomy_11_of_11_pass_clean_commit_and_reproducible_bundle_complete_can_auto_deploy_false_production_not_authorized",
-    "scannerProductionReleaseArtifactSha256": "6af759ceee3aa4a97ce22f92db28cbef31ebade519b57a088900278e1655eb69",
+    "scannerProductionReleasePacketStatus": "standing_authorization_external_lease_and_fencing_integrated_autonomy_29_of_29_release_14_of_14_precommit_autonomy_10_of_10_pass_final_freeze_gate_commit_and_bundle_pending",
+    "scannerProductionReleaseArtifactSha256": "5937a72025173ffd703bbaa2034159ae0e89326b635423e3685be53bec013cd8",
     "scannerProductionReleaseSupersededArtifactSha256": "5dc432045b3e0ebdf9bd83b90dd3b720a024544da2c46872dc6ef4898892c7c5",
     "scannerProductionReleaseServices": [
       "web",
@@ -172,7 +172,7 @@
     "coreMissionLocked": true,
     "observationWindowsMayBeShortened": false,
     "pollutionCleanupRequiresExactManifest": true,
-    "currentControlPackage": "WP-AUTO-02-G0-G8-STANDING-AUTHORITY-AND-EVIDENCE-HARDENING"
+    "currentControlPackage": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE"
   },
   "mission": {
     "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
@@ -808,8 +808,8 @@
   },
   "currentDesignPackage": {
     "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-    "status": "LOCAL_RUNNER_RECOVERY_HARDENING_TARGETED_12_OF_12_AND_AUTONOMY_11_OF_11_PASS_CLEAN_COMMIT_AND_REPRODUCIBLE_BUNDLE_COMPLETE_PREFLIGHT_AND_APPROVAL_PENDING_PRODUCTION_P1_OPEN",
-    "designStatus": "TRANSIENT_SYSTEMD_SESSION_INDEPENDENCE_AND_ROLLBACK_IMAGE_RETENTION_GATES_AND_CLEAN_BUNDLE_PASS_AWAITING_DYNAMIC_PREFLIGHT_AND_EXACT_APPROVAL",
+    "status": "STANDING_AUTHORIZATION_EXTERNAL_LEASE_FENCING_TARGETED_AUTONOMY_29_OF_29_RELEASE_14_OF_14_AND_PRECOMMIT_AUTONOMY_10_OF_10_PASS_FINAL_FREEZE_GATE_COMMIT_BUNDLE_PREFLIGHT_PENDING_PRODUCTION_P1_OPEN",
+    "designStatus": "TRANSIENT_SYSTEMD_ROLLBACK_RETENTION_ONE_TIME_CONSUMPTION_AND_MUTATION_CHECKPOINT_FENCING_PASS_AWAITING_FULL_GATES_CLEAN_COMMIT_DYNAMIC_PREFLIGHT_AND_EXTERNAL_APPROVAL",
     "designVersion": "wp-g0.2-scan-sustained-health-production-release.v1",
     "approvedByUserForProduction": false,
     "productionAuthorization": false,
@@ -851,8 +851,8 @@
     "redactedEvidenceSha256": "51d4f362b0be3ec36b28415696aebcb107e56d2d323f22edb03f155e45888062",
     "evidenceCleanupPending": false
   },
-  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE_AFTER_CONTROL_GATE",
-  "nextRecommendedWorkPackage": "Complete G0-G8 control gates, commit and push; then perform dynamic read-only production preflight and execute the exact Web plus scanner-worker release under the standing grant.",
+  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
+  "nextRecommendedWorkPackage": "Freeze the standing-authorization integration, pass full gates, commit and push; then perform dynamic read-only production preflight and execute the exact Web plus scanner-worker release under the external lease.",
   "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": false,
   "documentValidation": {
@@ -877,10 +877,10 @@
     "Treat historical evidence as current evidence"
   ],
   "currentGovernancePackage": {
-    "id": "WP-AUTO-02-G0-G8-STANDING-AUTHORITY-AND-EVIDENCE-HARDENING",
-    "status": "ready_for_gate_targeted_26_of_26_first_full_autonomy_9_of_9_pass_final_rerun_pending",
+    "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
+    "status": "ready_for_gate_targeted_autonomy_29_of_29_release_14_of_14_and_precommit_autonomy_10_of_10_pass_final_freeze_gate_pending",
     "productionMutation": false,
-    "scope": "G0_G8_execution_governance_only",
+    "scope": "G0_scanner_web_plus_scanner_worker_release_governance_only",
     "practicalTradingReady": false
   },
   "nextProductionWorkPackageRequiresExactExecutionRecord": true,
