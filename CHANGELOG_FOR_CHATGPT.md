@@ -3377,3 +3377,48 @@ P0 阻断：
 ### 下一轮建议
 
 先完成 Web Identity Recovery；health ready/fresh 后再为 Dormant Deploy 生成绑定新 clean commit、156/`8aa96737...` 与两项新 artifact 的独立审批。
+
+## 2026-07-13 / WP-G0.2 Production Web Identity Recovery Execution and Closeout
+
+### 本轮目标
+
+在不再次改变生产服务或改写已批准合同的前提下，记录 exact-approved Web-only 身份恢复结果，清理本轮精确临时污染，并把自治路线切换到 Dormant Runtime Deploy 前的完整 closeout。
+
+### 修改范围
+
+- 生产执行只 no-build/no-source-sync/no-deps force-recreate Web；没有修改生产 Git、镜像、数据库、Redis、Worker、Caddy、env、Feature Flag、migration 或 Dormant release。
+- 本地只更新自治状态、提速路线、traceability、Context、Changelog 和忽略的中文交付报告；已批准合同和 runner 保持原 checksum。
+- 批准 staging 已由 entrypoint 自动删除；本地 transport 临时副本已删除。远端12个审批/分块文件和4个 `/tmp` 后验证文件已按用户即时确认精确删除；两组 `ls -ld` 对16条路径逐项返回 `No such file or directory`，批准 staging 路径也再次确认不存在。
+- 提速组织由双车道扩展为生产串行、下一 Gate 本地准备、自动持续观察、自动证据收口四车道；Gate 顺序和质量门槛不变。
+
+### 核心链路影响
+
+恢复候选筛选与复盘进化依赖的 Web 持久化身份和读取基础；不改变全市场发现、候选排序、深扫、结构分析、风险赔率、交易计划或回测算法。
+
+### 测试结果
+
+- 生产 runner：`PASS_PRODUCTION_WEB_IDENTITY_RECOVERY`，无 PARTIAL、无 rollback。
+- production smoke：health ready、scan fresh、persistence ready，三份合同、Redis、runner 内 Postgres readiness、Candidate dormant 和非 Web 容器身份检查通过。
+- 持续健康复查：捕获一次 `health.level=degraded` / scan=`aging`，persistence 始终 ready；新 snapshot 后恢复 ready/fresh。代码证明 fixed-delay worker 把75-112秒任务耗时叠加到900秒睡眠；多个 read 路由还可能在 cadence 边界主动刷新并争抢 Redis scan lock，`POST /api/scan` 的 `served_cache` 仍会被通用 Worker 仅凭 HTTP 200 记为 `task-ok`。freshness 又以扫描开始时间计龄，因此单改 fixed-rate 仍会在扫描执行期间留下短暂 aging。生产短任务与 lock contention 的逐条对应尚缺机器状态字段，不能包装成已经完全实证。
+- closeout 定向：Recovery 13/13、Deploy Safety 5/5、Dormant 12/12、Runtime Identity 8/8、Composition 28/28、Autonomy unit 16/16 PASS。首次并行 Composition 与另一份 market build 争用 `.tmp/market-tests` 报 `ENOTEMPTY`；改为串行后 28/28 PASS，未改代码掩盖该调度竞态。
+- typecheck / lint / build：PASS。
+- test:market：952 pass / 0 fail / 4 explicit DB skip；worker 18/18；historical 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- 自治总门禁与 verify：PASS，`canAutoCommit=true`、`canAutoDeploy=false`。
+- formal：未运行，本轮禁止。
+
+### 是否部署
+
+已在用户 exact approval 窗口内只重建生产 Web；生产 HEAD 仍为 `0599f802...`/main/clean，Web image 不变。当前没有新的 GitHub 提交或 Dormant 部署。
+
+### 风险与遗留问题
+
+- 远端16个精确临时文件已删除并逐项复核 absent；closeout 定向、完整、安全和自治门禁已通过，当前只待提交推送。Dormant Deploy 仍被独立 P1 阻断。
+- P1：scan cadence、read/write 边界、锁竞争/旧缓存成功语义和 completion freshness 合同共同允许短暂 aging/degraded 与假 `task-ok`；身份恢复 PASS 不等于持续健康 PASS。该问题完成本地修复、按实际变更面独立部署 Web 与 scanner-worker、并至少两个 cadence 周期观察前，Dormant Deploy 继续禁止；不得为了沿用旧计划把 API/Web 合同变化伪装成 scanner-worker-only。
+- Candidate runtime 仍 disabled，WP-G0.2/G0 未完成；系统仍为 R1、可运行但不完整、不能支撑实战。
+- 公网明文 HTTP 仍是后续 G0.3 的 P0，不能因 Web health 恢复而关闭。
+
+### 下一轮建议
+
+完成本轮完整门禁、报告和提交收口；随后只执行 `WP-G0.2-SCAN-CADENCE-CACHE-AND-FRESHNESS-SUSTAINED-HEALTH-REMEDIATION`，不得直接申请 Dormant Runtime Deploy。

@@ -27,7 +27,7 @@
 
 当前事实：生产身份隔离、容量/恢复、Add Schema execute 和 production verify-only 均已有 PASS 证据。Add Schema 只执行过一次，8/8 migration applied；修复后的 Runner 在独立批准窗口内完成只读 verify，确认 schema present、ledger=8、owner membership=true、`execute=false`、`schemaChanged=false`。catalog 为 8 表、151 字段、20 函数、10 个 trigger object（14 个 trigger event row）、7 个角色；五个 Candidate Feature Flag 仍为 false，生产应用 release/image/worktree 未改变。Candidate schema 当前是 `applied_verified_dormant`，不等于 runtime 接入或 WP-G0.2 完成。
 
-## 2. 双车道模型
+## 2. 四车道模型
 
 ### Lane A：生产关键路径
 
@@ -56,10 +56,20 @@ Lane A 执行或等待人工审批时，最多允许一个非侵入准备包：
 
 Lane B 不得连接生产执行写操作，不得提前启用下一 Gate 的 runtime 行为，不得把准备完成写成能力完成。
 
+### Lane C：自动持续观察
+
+统一证据平台持续采集 release/config/Feature Flag、health、SLO、数据质量、样本分母、异常和回滚事实。各观察窗口共用采集设施和最终报告，但必须保持独立 entry criteria、开始时间、样本口径和 PASS/FAIL；前置条件通过前采集的数据只能叫 pre-baseline，不能计入正式窗口。
+
+### Lane D：自动证据收口
+
+每个包结束后自动运行定向、基础、安全与自治门禁，刷新 Context、Changelog、交付报告和机器状态；涉及生产证据时生成脱敏证据包。Lane D 不能改写已批准合同或用新报告覆盖历史失败，只能追加当前事实。
+
 ## 3. WIP 和合并纪律
 
 - Production WIP：`1`。
 - Local preparation WIP：`1`。
+- Lane B 默认只提前一个完整 Gate；通用监控、测试和 runbook 可以更早准备，依赖真实观察的评分、阈值和策略不得提前冻结。
+- Lane C 可以覆盖多个已经合法启动的观察窗口，但每个窗口独立计时、独立判定和独立失败。
 - 每个包只允许一个核心问题和固定文件 allowlist。
 - 多 worktree/并行审查仅用于读取、测试或互不重叠的准备；由一个集成负责人合并。
 - 不在同一包混合数据库、策略、UI 和部署。
@@ -134,8 +144,9 @@ npm run test:migration-capacity
 | 8 | WP-G0.2 production readiness + approval packet | B | local PASS | immutable resolution、runtime gate/mapper、monitor、009 checksum/权限/回退和 schema-only 审批包 |
 | 9 | WP-G0.2 production add safety schema | A | PASS: 009 only applied and verified dormant | catalog 8/151/20/10/14/8 -> 9/166/26/11/16/9；Feature Flag=0；禁止再次 execute |
 | 10 | WP-G0.2 production composition wiring | B | local PASS | 28/28 定向、PG16 完整 composition、legacy identity dormant fail-closed、permission 4/4 与基础门禁 PASS |
-| 11 | WP-G0.2 production Web identity recovery | B -> A | deterministic transport remediation full gates 14/14 PASS / production prohibited | 最终动态预检发现旧合同的 override/wrapper SHA 为人工转录错误；随后又发现同一 clean commit 的 tar.gz checksum 受时间元数据影响而变化。旧 Recovery/contract/bundle 全部失效并已清除；真实身份指纹、新 artifact=`cb81523b...` 与固定 `ustar+gzip-n`/epoch 可重复构建合同已重锁，重复生成字节一致，定向 13/13、基础与自治 14/14 PASS。仍需新 commit/main、唯一 final bundle、执行前动态再确认和 exact approval；生产只允许 no-build recreate Web，persistence 失败才回滚，persistence 已恢复但 scan 未 fresh 时保留正确身份并返回 PARTIAL/阻断晋级；只有 health ready/fresh 才 PASS |
-| 12 | WP-G0.2 dormant runtime deploy | A | post-Recovery release-diff refresh local PASS / production prohibited | 14 文件 artifact=`b4fce8a6...`；release base/rollback 祖先、156 个 A/M 路径与 path-set SHA=`8aa96737...` 已锁定，历史 149/`f39c8a...` 明确失效；必须先完成 Web identity recovery |
+| 11 | WP-G0.2 production Web identity recovery | B -> A | PASS_PRODUCTION_WEB_IDENTITY_RECOVERY / cleanup and gates PASS / commit pending / new P1 blocks Dormant | exact approval 下只 no-build/no-source-sync/no-deps recreate Web；身份、persistence 和即时 ready/fresh 恢复，无 PARTIAL/rollback，生产 Git/image/非 Web 服务不变。后续 fresh 复查捕获 scan aging/degraded，persistence 仍 ready；下一 snapshot 后恢复。进一步审计确认 fixed-delay、read 路由主动刷新、锁竞争时旧缓存 HTTP 200 成功语义和 start-time freshness 四项必须联合收口；远端16个精确临时文件已按用户即时确认删除并逐项复核 absent，定向、基础、安全和自治门禁全部 PASS，当前待提交 |
+| 11A | WP-G0.2 scan cadence/cache/freshness sustained health remediation | B -> A | next local package / P1 blocks Dormant | public/read 路由全部只读；只有受保护 action 可刷新；scanner 使用无重叠 fixed-rate；POST/Worker 必须区分 updated、in-progress、served-cache 和 failed；freshness 使用可审计 completion 事实且不掩盖超时。需定向回归、完整门禁、按实际变更面独立部署 Web 与 scanner-worker，并至少两个跨 cadence 周期无 aging/degraded/假 task-ok 观察；API/Web 合同变化不得伪装成 scanner-worker-only 部署 |
+| 12 | WP-G0.2 dormant runtime deploy | A | post-Recovery release-diff local PASS / production prohibited by P1 | 14 文件 artifact=`b4fce8a6...`；release base/rollback 祖先、156 个 A/M 路径与 path-set SHA=`8aa96737...` 已锁定，历史149/`f39c8a...` 明确失效；必须先完成 Recovery closeout 和 scanner sustained-health remediation，再重新动态预检 |
 | 13 | WP-G0.2 runtime identity + permission | A | local code/contract/runner/PG16 preparation PASS / production prohibited | NOINHERIT 显式角色、3 LOGIN/单 membership/跨角色拒绝已通过；仍需 dormant deploy final PASS 与独立审批 |
 | 14 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
 | 15 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
@@ -148,4 +159,4 @@ npm run test:migration-capacity
 
 ## 10. 当前结论
 
-容量/恢复、Add Schema、production verify-only、Shadow Safety Schema 009、本地 Composition Wiring 和 Dormant Deploy 本地准入已形成闭环证据。首次 Web-only 生产尝试虽自动回滚到旧 release，却暴露回滚/重建未带上仓库外最小权限身份 override，Web 因此重新拿到旧数据库凭据，`scan_archives` 与 `journal_events` 持久化读取认证失败，生产 health 真实降级；`marketDataQuality=degraded` 是并存的数据质量事实，不是总 health 的计算根因。部署器现要求身份 override 为绝对路径普通 `0600` 文件并绑定 SHA-256，正常部署与回滚使用同一 Compose 数组，启动后比较 Compose 预期身份与 Web 实际身份指纹；checksum 漂移在任何生产 Git/Docker mutation 前 fail closed。Web Identity Recovery 已形成 commit=`5b4bd617...`、可重复 bundle=`3920f0af...` 和新的动态只读预检，但生产仍等待 exact approval。该传递依赖把 Dormant 完整 release path-set 从历史 approved commit 的 149/`f39c8a...` 刷新为当前 156/`8aa96737...`；allowlist、forbidden path、祖先与 rollback 约束未放宽。Dormant validator 属于 14 文件 artifact，故当前 Dormant artifact 刷新为 `b4fce8a64a9e468067101b50c2e5e59b5802d3f8b5459e176acb1bac25081e2c`，Runtime Identity 8 文件传递 artifact 刷新为 `d3b4f015e70a3b5e4310b5b635921f5b829c7e95854c4dcaf11bd1021adf08d0`；所有旧值失效。真实 market test 基线仍为 952 pass。生产 Candidate schema 仍是 migration 1-9 applied/verified/dormant，runtime deployment=false、control lifecycle 未启动。下一步必须先完成 Web Identity Recovery；确认 health ready 后，才能申请绑定新 clean commit、两项 artifact/release diff、identity override checksum、web-only 和 90 分钟的 Dormant 审批。即时检查后仍必须做 ledger/control 只读核验和 30-60 分钟观察。之后才可单独申请 Runtime Identity and Permission。Writer、backfill、dual read 和 read cutover继续禁止。
+容量/恢复、Add Schema、production verify-only、Shadow Safety Schema 009、本地 Composition Wiring 和 Dormant Deploy 本地准入已形成闭环证据。独立 Web Identity Recovery 已在 exact approval 下输出 `PASS_PRODUCTION_WEB_IDENTITY_RECOVERY`，Web 身份与 persistence 恢复，生产 Git/image 与非 Web 服务不变，Candidate 继续 dormant；但持续健康复查捕获了独立 P1。代码已证 fixed-delay 把任务时长叠加到900秒睡眠、public/read 路由可以触发 provider refresh、lock denied/provider failed 可让 POST 以 `served_cache` HTTP 200 返回且通用 Worker 仅凭 HTTP 状态记 `task-ok`、freshness 按扫描开始时间计龄；生产日志已出现75至112秒正常任务、约1秒短任务和跨 cadence aging，但500字符 body preview 不能逐条证明每个短任务的具体分支。因此修复必须增加机器可判定状态，不能把 lock contention 推断冒充完成实证。这个事实不推翻身份恢复 PASS，但推翻“持续 ready”的宽泛结论。批准 staging、本地 transport copy 和远端16个精确临时文件均已删除并复核 absent；closeout 定向、基础、安全和自治门禁全部 PASS，当前只剩提交推送。Dormant 完整 release path-set 仍为156/`8aa96737...`，Dormant 14文件 artifact=`b4fce8a64a9e468067101b50c2e5e59b5802d3f8b5459e176acb1bac25081e2c`，Runtime Identity 8文件 artifact=`d3b4f015e70a3b5e4310b5b635921f5b829c7e95854c4dcaf11bd1021adf08d0`；当前 Candidate runtime deployment=false、control lifecycle 未启动。下一步独立收口 scan cadence/read-write/lock/completion-freshness 合同，按实际改动面部署 Web 与 scanner-worker，连续观察至少两个 cadence 周期没有 aging/degraded/假 `task-ok`；之后才可重新动态预检和申请 Dormant 审批。Runtime Identity、Writer、backfill、dual read 和 read cutover继续禁止。
