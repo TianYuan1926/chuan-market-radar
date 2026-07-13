@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T06:55:00+08:00",
+  "updatedAt": "2026-07-14T06:56:06+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -130,7 +130,7 @@
   "activePackage": {
     "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
     "title": "Dormant runtime deploy standing-authority and runner refresh",
-    "lane": "localPreparation",
+    "lane": "production",
     "status": "ready_for_gate",
     "objective": "把历史上已自动回滚的Dormant Web-only发布包刷新到当前生产target、G0-G8常驻授权、仓库外单次租约、递增fencing、session-independent runner、精确单父release commit和成功后rollback image留存，同时维持Candidate完全休眠。",
     "coreChainImpact": [
@@ -142,8 +142,8 @@
       "session_independent_execution",
       "automatic_web_and_git_rollback"
     ],
-    "productionMutation": false,
-    "requiresExplicitApproval": false,
+    "productionMutation": true,
+    "requiresExplicitApproval": true,
     "allowedPaths": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
@@ -437,9 +437,9 @@
     {
       "order": 25,
       "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
-      "lane": "localPreparation",
+      "lane": "production",
       "status": "ready_for_gate",
-      "requiresExplicitApproval": false
+      "requiresExplicitApproval": true
     }
   ]
 }

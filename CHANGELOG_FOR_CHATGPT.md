@@ -3788,3 +3788,11 @@ P0 阻断：
 ### 下一轮建议
 
 冻结提交并推送 runner 与精确 release 分支；随后只做当前生产动态只读预检和绑定后的 Web-only Dormant 生产执行。
+
+### 生产 Gate 转换
+
+- runner 修复提交 `cf332e8a7ccee1bea35cabe8c504463fd9cdd68f` 已推送工作分支和 GitHub main；精确 release `cec0b6572bb09ae91ff9e013f8bb160f73c045e2` 已单独推送，禁止把该 release 分支合并进 main。
+- `cf332e8...` 上自治总门禁 11/11 PASS、`worktreeUnchanged=true`，其中 Dormant 13/13、autonomy 29/29、deploy safety 5/5、market 960/0/4 explicit skip、Golden 16/16；该证据只绑定转换前 `localPreparation` 状态。
+- Microsoft Edge/OrcaTerm 在 `2026-07-13T22:47:34Z` 完成动态只读预检：生产 clean detached `70722ea...`、target `cec0b657...`、Web image `sha256:6d02c759...`、Compose/env/identity 精确匹配、Candidate 完全休眠且 worker absent、schema=`9|0`、health ready/fresh/scanner healthy、Postgres/Redis/三份合同通过、active lease absent。
+- 当前包已切换为 `production / productionMutation=true / requiresExplicitApproval=true / ready_for_gate`。这次状态变更使 `cf332e8...` 的旧 gate evidence 失效；必须在新的状态提交上重新运行全部 11 项门禁，再生成绑定同一 commit/tree/gate/policy 的仓库外单次 approval 和可复现 Bundle。
+- 当前仍未上传 Bundle、未创建或消费生产 lease、未 fetch/checkout/build/recreate、未开始 1800 秒观察；不得写成生产 PASS。
