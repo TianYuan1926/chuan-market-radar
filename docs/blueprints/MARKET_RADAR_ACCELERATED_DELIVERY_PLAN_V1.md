@@ -3,7 +3,7 @@
 状态：`ACTIVE_EXECUTION_OVERLAY`
 生效日期：2026-07-11
 适用范围：工程蓝图 G0-G8 的执行组织、证据积累和生产变更调度
-不改变：Gate 顺序、验收阈值、RR、Risk Gate、Shadow/holdout/paper 时间窗和人工审批边界
+不改变：Gate 顺序、验收阈值、RR、Risk Gate、Shadow/holdout/paper 时间窗、逐包精确绑定和生产单写入者边界
 
 ## 1. 目标
 
@@ -12,12 +12,10 @@
 当前关键路径：
 
 ```text
-容量与恢复门禁（PASS）
--> WP-G0.2 Add Schema（已执行，verify 未通过）
--> Migration Runner post-schema verify 本地修复
--> 仅只读 production verify（需独立审批）
--> shadow_capture（继续禁止）
--> shadow_verify / reconciliation
+G0-G8 全自动控制层与长期授权
+-> Scanner Sustained Health 生产重发与观察
+-> WP-G0.2 Dormant Runtime / Identity
+-> shadow_capture / shadow_verify / reconciliation
 -> canonical_compat
 -> canonical
 -> G0.3 / G0.4 / G0.5
@@ -25,7 +23,13 @@
 -> G1-G8
 ```
 
-当前事实：生产身份隔离、容量/恢复、Add Schema execute 和 production verify-only 均已有 PASS 证据。Add Schema 只执行过一次，8/8 migration applied；修复后的 Runner 在独立批准窗口内完成只读 verify，确认 schema present、ledger=8、owner membership=true、`execute=false`、`schemaChanged=false`。catalog 为 8 表、151 字段、20 函数、10 个 trigger object（14 个 trigger event row）、7 个角色；五个 Candidate Feature Flag 仍为 false，生产应用 release/image/worktree 未改变。Candidate schema 当前是 `applied_verified_dormant`，不等于 runtime 接入或 WP-G0.2 完成。
+当前事实：Candidate migrations 1-9 已在生产 applied/verified/dormant，Candidate Runtime 仍关闭；Web Identity Recovery 已 PASS。Scanner Sustained Health 修复已完成本地 session-independent runner 和 rollback image retention 加固，但上次生产发布因前台会话中断而没有形成完整观察总结，生产虽恢复 baseline，重建 scanner digest 与历史 digest 不相同，因此 P1 仍未关闭。当前唯一生产关键路径是绑定新长期授权、当前 commit/tree/artifact 和动态生产指纹的 Scanner Web+worker 重发及 1800 秒/至少两个 completion advances 观察。
+
+### 1.1 G0-G8 用户长期授权覆盖层
+
+用户已直接授权连续执行 G0-G8。该授权取消常规逐包等待，不取消逐包精确执行记录：每个生产 mutation 仍需最长 90 分钟窗口、当前 commit/tree/diff/artifact/environment/identity/preflight/rollback/observation 绑定、仓库外生产租约、递增 fencing token 和一次性消费。长期观察在 mutation 租约释放后只读运行。
+
+长期授权不覆盖 G9、破坏性 schema、生产业务数据删除、生产数据库 restore、未知批量清理、secret 泄露、自动下单、自动调权、RR/Risk Gate 放宽、future outcome 生产回写、未批准交易规则变化、formal 自动回测或观察窗口缩短。审核 Agent 只能只读找问题，不能成为授权者。
 
 ## 2. 四车道模型
 
@@ -33,20 +37,20 @@
 
 任何时刻最多一个生产 Work Package，必须串行：
 
-1. 独立审批。
+1. 在用户长期授权下生成逐包精确执行记录；控制器不能自创授权范围。
 2. 锁定 commit、artifact、checksum、operator 和时间窗。
 3. fresh worktree/runtime/database preflight。
 4. fresh backup、恢复与容量门禁。
 5. 最小生产变更。
 6. 定向验证、基础门禁和生产 smoke。
 7. 30-60 分钟观察或该包指定证据窗口。
-8. PASS 后才开放下一审批点。
+8. PASS 后才开放下一逐包执行记录。
 
 生产数据库 DDL、Feature Flag、writer、backfill、read cutover、restore、rollback 和 secret rotation 不允许并行。
 
 ### Lane B：本地准备与证据工程
 
-Lane A 执行或等待人工审批时，最多允许一个非侵入准备包：
+Lane A 执行、观察或等待外部条件时，最多允许一个非侵入准备包：
 
 - 定向测试、fixture 和失败基线。
 - evidence schema、validator、报告模板和回滚检查。
@@ -145,13 +149,13 @@ npm run test:migration-capacity
 | 9 | WP-G0.2 production add safety schema | A | PASS: 009 only applied and verified dormant | catalog 8/151/20/10/14/8 -> 9/166/26/11/16/9；Feature Flag=0；禁止再次 execute |
 | 10 | WP-G0.2 production composition wiring | B | local PASS | 28/28 定向、PG16 完整 composition、legacy identity dormant fail-closed、permission 4/4 与基础门禁 PASS |
 | 11 | WP-G0.2 production Web identity recovery | B -> A | PASS_PRODUCTION_WEB_IDENTITY_RECOVERY / cleanup complete / committed and pushed | exact approval 下只 no-build/no-source-sync/no-deps recreate Web；身份、persistence 和即时 ready/fresh 恢复，无 PARTIAL/rollback，生产 Git/image/非 Web 服务不变。远端16个精确临时文件已删除并逐项复核 absent；closeout 定向、基础、安全和自治门禁全部 PASS，commit=`5abb93cad2b3da4bbee0ab79015ea38f32a5a1bf` 已推当前分支与 GitHub main。后续持续健康 P1 作为独立包处理，不反向抹除 Recovery PASS |
-| 11A | WP-G0.2 scan cadence/cache/freshness sustained health remediation | B -> A | local remediation candidate / autonomy 12/12 PASS / production P1 open | public/read 已结构性 no-refresh；只有受保护 action 可刷新；scanner 使用串行 fixed-rate、跳过错过窗口且不突发追赶；POST/Worker 区分 updated、in-progress、served-cache 和 failed；freshness 使用成功 completion 事实，锁释放失败 fail closed 且不写缓存。红灯缺口已真实记录，修复后定向55/55、worker23/23、test:market 960/0/4 skip、historical4/4、typecheck/lint/build/Golden16/16和安全门禁 PASS；自治总门禁12/12 PASS、`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。仍需 commit/main、绑定实际 Web+scanner-worker 变更面的独立 exact approval、生产部署及至少两个 cadence 周期无 aging/degraded/假 task-ok 观察；API/Web 合同变化不得伪装成 scanner-worker-only 部署 |
-| 11B | WP-G0.2 sustained-health emergency recovery + runner hardening | A -> B | production baseline recovered / local hardening 12/12 + autonomy 11/11 PASS / clean bundle complete / P1 open | 原发布切到70722ea后，OrcaTerm前台会话断开终止runner，未形成完整观察总结；生产已恢复clean main@0599和旧Web，scanner由精确baseline重建但digest不同，状态固定为`RECOVERED_BASELINE_REBUILT_NOT_IDENTICAL`，不是发布PASS。加固版entrypoint改为transient systemd unit，runner在checkout/build/recreate前为两个旧镜像建立并反复验证确定性retention tag，成功后也保留且清理需独立批准；断连继续执行、成功、观察失败双镜像回滚和retention缺失mutation前拒绝定向12/12，基础、安全和自治总门禁11/11 PASS，clean Git收口和可复现final bundle已完成，仍待Edge动态预检/新exact approval |
-| 12 | WP-G0.2 dormant runtime deploy | A | post-Recovery release-diff local PASS / production prohibited by P1 | 14 文件 artifact=`b4fce8a6...`；release base/rollback 祖先、156 个 A/M 路径与 path-set SHA=`8aa96737...` 已锁定，历史149/`f39c8a...` 明确失效；必须先完成 Recovery closeout 和 scanner sustained-health remediation，再重新动态预检 |
-| 13 | WP-G0.2 runtime identity + permission | A | local code/contract/runner/PG16 preparation PASS / production prohibited | NOINHERIT 显式角色、3 LOGIN/单 membership/跨角色拒绝已通过；仍需 dormant deploy final PASS 与独立审批 |
-| 14 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 独立审批；启动 72h lifecycle 和不少于 24h clean window |
-| 15 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 独立审批 |
-| 16 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 独立审批 |
+| 11A | WP-G0.2 scan cadence/cache/freshness sustained health remediation | B -> A | local remediation candidate / autonomy 12/12 PASS / production P1 open | public/read 已结构性 no-refresh；只有受保护 action 可刷新；scanner 使用串行 fixed-rate、跳过错过窗口且不突发追赶；POST/Worker 区分 updated、in-progress、served-cache 和 failed；freshness 使用成功 completion 事实，锁释放失败 fail closed 且不写缓存。红灯缺口已真实记录，修复后定向55/55、worker23/23、test:market 960/0/4 skip、historical4/4、typecheck/lint/build/Golden16/16和安全门禁 PASS；自治总门禁12/12 PASS、`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。仍需 commit/main、绑定实际 Web+scanner-worker 变更面的逐包精确执行记录、生产部署及至少两个 cadence 周期无 aging/degraded/假 task-ok 观察；API/Web 合同变化不得伪装成 scanner-worker-only 部署 |
+| 11B | WP-G0.2 sustained-health emergency recovery + runner hardening | A -> B | production baseline recovered / local hardening 12/12 + autonomy 11/11 PASS / clean bundle complete / P1 open | 原发布切到70722ea后，OrcaTerm前台会话断开终止runner，未形成完整观察总结；生产已恢复clean main@0599和旧Web，scanner由精确baseline重建但digest不同，状态固定为`RECOVERED_BASELINE_REBUILT_NOT_IDENTICAL`，不是发布PASS。加固版entrypoint改为transient systemd unit，runner在checkout/build/recreate前为两个旧镜像建立并反复验证确定性retention tag，成功后也保留；清理必须有精确 manifest。断连继续执行、成功、观察失败双镜像回滚和retention缺失mutation前拒绝定向12/12，基础、安全和自治总门禁11/11 PASS，clean Git收口和可复现final bundle已完成，仍待动态预检和新的逐包精确执行记录 |
+| 12 | WP-G0.2 dormant runtime deploy | A | post-Recovery release-diff local PASS / production prohibited by P1 | 14 文件 artifact=`b4fce8a6...`；release base/rollback 祖先、156 个 A/M 路径与 path-set SHA=`8aa96737...` 已锁定，历史149/`f39c8a...` 明确失效；必须先完成 scanner sustained-health PASS，再重新动态预检并生成逐包精确执行记录 |
+| 13 | WP-G0.2 runtime identity + permission | A | local code/contract/runner/PG16 preparation PASS / production prohibited | NOINHERIT 显式角色、3 LOGIN/单 membership/跨角色拒绝已通过；仍需 dormant deploy final PASS 与新的逐包精确执行记录 |
+| 14 | WP-G0.2 activate + shadow observation | A | prohibited | runtime identity PASS + 新的逐包精确执行记录；启动 72h lifecycle 和不少于 24h clean window |
+| 15 | WP-G0.2 shadow_verify/reconciliation | A | prohibited | shadow_capture 稳定、>=10,000 compared writes + 新的逐包精确执行记录 |
+| 16 | WP-G0.2 canonical cutover | A | prohibited | reconciliation PASS + 新的逐包精确执行记录 |
 | 17 | WP-G0.3/G0.4/G0.5 | A/B | queued | WP-G0.2 完成并按独立包执行 |
 
 ## 9. 停止条件
@@ -162,4 +166,4 @@ npm run test:migration-capacity
 
 容量/恢复、Add Schema、production verify-only、Shadow Safety Schema 009、本地 Composition Wiring 和 Dormant Deploy 本地准入已形成闭环证据。独立 Web Identity Recovery 已在 exact approval 下输出 `PASS_PRODUCTION_WEB_IDENTITY_RECOVERY`。持续健康修复最小发布 `70722ea...` 曾进入生产，但 OrcaTerm 前台会话断开终止 runner，未形成完整观察总结，原发布不得写 PASS。紧急恢复已把生产带回 clean `main@0599f802...` 和旧 Web；scanner-worker 从精确 baseline 重建为不同 digest，所以当前只能写 `RECOVERED_BASELINE_REBUILT_NOT_IDENTICAL`。生产即时 health/scan/scanner、合同、身份、Candidate absent、Postgres/Redis 和非目标容器检查通过，P1 仍未关闭。
 
-当前 `WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE` 已完成本地 recovery hardening：entrypoint 只启动 `Restart=no`、最长5400秒、journald日志的 transient systemd unit，浏览器会话退出不再决定 runner 生死；两个旧镜像在任何 Git/Docker 业务 mutation 前绑定到批准请求确定生成的 rollback retention ref，并在 checkout 后、build 后、scanner重建前、失败回滚和成功收口再次验证。成功后 retention ref 继续保留，清理必须独立批准。新 artifact=`6af759ceee3aa4a97ce22f92db28cbef31ebade519b57a088900278e1655eb69`；断连继续执行、成功、观察失败双镜像/Git回滚和retention缺失mutation前拒绝的定向12/12，基础与安全门禁和自治总门禁11/11 PASS，`canAutoCommit=true`、`canAutoDeploy=false`。clean Git收口与可复现final bundle已完成；Edge动态预检和新的90分钟exact approval仍待完成。生产再次PASS前Dormant Deploy、Runtime Identity、Writer、backfill、dual read和read cutover继续禁止。
+当前 `WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE` 已完成本地 recovery hardening：entrypoint 只启动 `Restart=no`、最长5400秒、journald日志的 transient systemd unit，浏览器会话退出不再决定 runner 生死；两个旧镜像在任何 Git/Docker 业务 mutation 前绑定到批准请求确定生成的 rollback retention ref，并在 checkout 后、build 后、scanner重建前、失败回滚和成功收口再次验证。成功后 retention ref 继续保留，清理必须有精确 manifest。新 artifact=`6af759ceee3aa4a97ce22f92db28cbef31ebade519b57a088900278e1655eb69`；断连继续执行、成功、观察失败双镜像/Git回滚和retention缺失mutation前拒绝的定向12/12，基础与安全门禁和自治总门禁11/11 PASS，`canAutoCommit=true`、`canAutoDeploy=false`。clean Git收口与可复现final bundle已完成；动态预检和绑定长期授权的新90分钟逐包执行记录仍待完成。生产再次PASS前Dormant Deploy、Runtime Identity、Writer、backfill、dual read和read cutover继续禁止。

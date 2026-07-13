@@ -3594,3 +3594,49 @@ P0 阻断：
 ### 下一轮建议
 
 只用 Microsoft Edge 做动态只读生产预检并申请新的 Web + scanner-worker 精确发布批准；不得夹带 Dormant Runtime、数据库或 Candidate activation。
+
+## 2026-07-14 / WP-AUTO-02 G0-G8 Standing Authority and Evidence Hardening
+
+### 本轮目标
+
+把用户对 G0-G8 连续全自动工程的直接授权固化为 fail-closed 机器合同，同时锁定唯一核心、Gate 顺序、固定质量门禁、真实观察窗口、生产单写入者和精确清污边界。
+
+### 修改范围
+
+- 新增 G0-G8 长期授权机器合同和全自动执行蓝图。
+- 强化自治控制器的固定基础/安全门禁、commit/tree/artifact/scripts/policy 证据绑定和两小时新鲜度。
+- 新增仓库外生产租约、递增 fencing token、一次性授权消费和撤销 epoch。
+- 新增 G9 越界、降质、破坏性动作、超时窗口、假哈希、假门禁、证据漂移、授权重放、生产并发和撤销攻击性测试。
+- 更新加速计划、traceability、Context 和中文交付报告。
+- 未修改 scan、analysis、strategy、backtest、frontend、API、DB、Redis、worker、Compose、migration、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+为全市场发现、候选筛选、深扫验证、结构分析、风险赔率、交易计划和复盘进化提供连续施工和证据真值控制；不改变业务算法或交易判断。
+
+### 测试结果
+
+- test:autonomy：26/26 PASS；新增核心目标偏移和 production commit/tree/policy/gate-evidence 不匹配拒绝测试。
+- 首次扩展后的 `autonomy:status` 暴露命名冲突并真实 FAIL；最小修复和 repository inspection 回归后已恢复执行。
+- 首轮自治总门禁：9/9 PASS，`worktreeUnchanged=true`。
+- typecheck / lint / build：PASS。
+- test:market：960 pass / 0 fail / 4 explicit skip；worker 23/23；historical 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files / secret-patterns / security-check：PASS。
+- formal：未运行，本轮禁止。
+- production smoke：未运行，本轮未连接生产。
+
+### 是否部署
+
+未部署、未连接生产、未改变 GitHub main 或腾讯云。当前生产和 Scanner sustained-health P1 状态不变。
+
+### 风险与遗留问题
+
+- 长期授权不等于生产 PASS；每个 mutation 仍需逐包精确记录、动态预检、外部租约和回滚。
+- 7/14/30/60/180 天及 holdout/sample 门槛不能压缩。
+- 首轮完整门禁已 PASS；报告与状态冻结后的最终自治门禁仍需再次 PASS，旧 gate evidence 不复用。
+- 系统仍为 R1、可运行但不完整、不能支撑实战。
+
+### 下一轮建议
+
+控制包完整门禁和 commit/push 通过后，只恢复 Scanner sustained-health Web+scanner-worker 精确生产包。

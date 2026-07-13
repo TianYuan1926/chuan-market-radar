@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
   "status": "wp_g0_2_scan_sustained_health_production_release_packet_autonomy_11_of_11_pass_commit_and_exact_approval_pending",
-  "generatedAt": "2026-07-14T00:09:54+08:00",
+  "generatedAt": "2026-07-14T04:02:00+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -11,7 +11,9 @@
     "currentContext": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "changeLog": "CHANGELOG_FOR_CHATGPT.md",
     "autonomousEngineeringProtocol": "docs/governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md",
-    "autonomousEngineeringState": "AUTONOMOUS_ENGINEERING_STATE.json"
+    "autonomousEngineeringState": "AUTONOMOUS_ENGINEERING_STATE.json",
+    "autonomousExecutionBlueprint": "docs/blueprints/MARKET_RADAR_G0_G8_AUTONOMOUS_EXECUTION_BLUEPRINT_V1.md",
+    "standingAuthorization": "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json"
   },
   "baseline": {
     "date": "2026-07-10",
@@ -49,7 +51,7 @@
     "localVerifierFixStatus": "pass",
     "localVerifierFixTargetedTests": "46_of_46_pass",
     "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "run_edge_read_only_dynamic_production_preflight_then_request_new_exact_approval",
+    "nextLocalWorkPackage": "complete_g0_g8_control_gates_commit_push_then_dynamic_scanner_preflight",
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
@@ -153,10 +155,24 @@
       "dormant_runtime_deploy_not_passed_new_approval_required",
       "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "commit_and_push_then_bind_exact_web_plus_scanner_worker_approval_and_observe_two_cadence_cycles_before_dormant_approval",
+    "nextProductionAction": "scanner_sustained_health_dynamic_preflight_exact_execution_record_external_lease_web_plus_scanner_release_and_1800_second_two_completion_observation",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
-    "qualityThresholdChanged": false
+    "qualityThresholdChanged": false,
+    "autonomousScope": "G0_G8",
+    "standingAuthorizationStatus": "active_direct_user_grant",
+    "standingAuthorizationGrantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "standingAuthorizationTerminatesOn": "G8_EXIT_PASS_OR_USER_REVOCATION",
+    "routinePerPackageUserPromptRequired": false,
+    "exactPerPackageExecutionRecordRequired": true,
+    "productionMutationWindowMaxMinutes": 90,
+    "externalProductionLeaseRequired": true,
+    "productionFencingAndOneTimeConsumptionRequired": true,
+    "auditAgentMayAuthorize": false,
+    "coreMissionLocked": true,
+    "observationWindowsMayBeShortened": false,
+    "pollutionCleanupRequiresExactManifest": true,
+    "currentControlPackage": "WP-AUTO-02-G0-G8-STANDING-AUTHORITY-AND-EVIDENCE-HARDENING"
   },
   "mission": {
     "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
@@ -835,10 +851,10 @@
     "redactedEvidenceSha256": "51d4f362b0be3ec36b28415696aebcb107e56d2d323f22edb03f155e45888062",
     "evidenceCleanupPending": false
   },
-  "nextAuthorizedWorkPackageAfterApproval": null,
-  "nextRecommendedWorkPackage": "Perform Edge read-only dynamic production preflight and request exact Web plus scanner-worker approval",
+  "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE_AFTER_CONTROL_GATE",
+  "nextRecommendedWorkPackage": "Complete G0-G8 control gates, commit and push; then perform dynamic read-only production preflight and execute the exact Web plus scanner-worker release under the standing grant.",
   "nextWorkPackageRequiresExplicitApproval": false,
-  "nextProductionWorkPackageRequiresExplicitApproval": true,
+  "nextProductionWorkPackageRequiresExplicitApproval": false,
   "documentValidation": {
     "status": "pass",
     "jsonParsed": true,
@@ -859,5 +875,14 @@
     "Perform visual redesign before truth contracts",
     "Treat runtime ready as practical readiness",
     "Treat historical evidence as current evidence"
-  ]
+  ],
+  "currentGovernancePackage": {
+    "id": "WP-AUTO-02-G0-G8-STANDING-AUTHORITY-AND-EVIDENCE-HARDENING",
+    "status": "ready_for_gate_targeted_26_of_26_first_full_autonomy_9_of_9_pass_final_rerun_pending",
+    "productionMutation": false,
+    "scope": "G0_G8_execution_governance_only",
+    "practicalTradingReady": false
+  },
+  "nextProductionWorkPackageRequiresExactExecutionRecord": true,
+  "nextProductionWorkPackageRequiresExternalLease": true
 }
