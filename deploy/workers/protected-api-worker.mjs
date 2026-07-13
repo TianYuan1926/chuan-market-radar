@@ -4,6 +4,8 @@ const profileName = process.argv[2] ?? process.env.WORKER_PROFILE ?? "scanner";
 const appInternalUrl = trimTrailingSlash(process.env.APP_INTERNAL_URL ?? "http://127.0.0.1:3000");
 const cronSecret = process.env.CRON_SECRET ?? "";
 const idleHeartbeatSeconds = numberFromEnv("WORKER_IDLE_HEARTBEAT_SECONDS", 300);
+let shutdownRequested = false;
+const sleepWaiters = new Set();
 
 function trimTrailingSlash(value) {
   return value.replace(/\/+$/, "");
@@ -20,7 +22,17 @@ function numberFromEnv(key, fallback) {
 }
 
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  if (shutdownRequested) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(done, ms);
+    function done() {
+      clearTimeout(timer);
+      sleepWaiters.delete(done);
+      resolve();
+    }
+    sleepWaiters.add(done);
+  });
 }
 
 function protectedPost(name, path, intervalSeconds, immediate = false, options = {}) {
@@ -106,6 +118,14 @@ const profiles = {
       true,
     ),
   ],
+  "candidate-shadow": [
+    protectedPost(
+      "candidate-shadow-capture",
+      "/api/admin/candidate-shadow/run",
+      numberFromEnv("CANDIDATE_SHADOW_INTERVAL_SECONDS", 30),
+      true,
+    ),
+  ],
 };
 
 function log(message, fields = {}) {
@@ -155,6 +175,7 @@ async function waitForWeb() {
   const maxAttempts = 60;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (shutdownRequested) return false;
     try {
       const response = await fetch(`${appInternalUrl}/api/health`, {
         headers: {
@@ -165,7 +186,7 @@ async function waitForWeb() {
       if (response.ok) {
         log("web-ready", { attempt });
 
-        return;
+        return true;
       }
 
       log("web-not-ready", { attempt, status: response.status });
@@ -302,6 +323,7 @@ async function runTaskLoop(task) {
 
     while (remainingMs > 0) {
       await sleep(Math.min(remainingMs, idleHeartbeatSeconds * 1_000));
+      if (shutdownRequested) return;
       remainingMs = Math.max(0, targetAtMs - Date.now());
 
       if (remainingMs > 0) {
@@ -314,11 +336,11 @@ async function runTaskLoop(task) {
     }
   }
 
-  if (task.immediate) {
+  if (task.immediate && !shutdownRequested) {
     await executeTask();
   }
 
-  while (true) {
+  while (!shutdownRequested) {
     const nowMs = Date.now();
     const nextRunAtMs = scheduleMode === "fixed_rate_skip_missed"
       ? nextFixedRateRunAt({
@@ -329,7 +351,9 @@ async function runTaskLoop(task) {
       : nowMs + intervalMs;
 
     await sleepUntilNextRun(nextRunAtMs);
+    if (shutdownRequested) return;
     previousScheduledAtMs = nextRunAtMs;
+
     await executeTask();
   }
 }
@@ -347,10 +371,31 @@ process.on("unhandledRejection", (error) => {
   process.exitCode = 1;
 });
 
-await waitForWeb();
-await postHeartbeat({
-  detail: "web dependency ready",
-  status: "starting",
-  task: "boot",
-});
-await Promise.all(tasks.map(runTaskLoop));
+function requestShutdown(signal) {
+  if (shutdownRequested) return;
+  shutdownRequested = true;
+  log("shutdown-requested", { signal });
+  for (const wake of [...sleepWaiters]) wake();
+}
+
+process.once("SIGTERM", () => requestShutdown("SIGTERM"));
+process.once("SIGINT", () => requestShutdown("SIGINT"));
+
+const webReady = await waitForWeb();
+if (webReady && !shutdownRequested) {
+  await postHeartbeat({
+    detail: "web dependency ready",
+    status: "starting",
+    task: "boot",
+  });
+  await Promise.all(tasks.map(runTaskLoop));
+}
+
+if (shutdownRequested) {
+  await postHeartbeat({
+    detail: "graceful shutdown complete; no task left in flight",
+    status: "ok",
+    task: "shutdown",
+  });
+  log("worker-stopped", { reason: "graceful-shutdown" });
+}

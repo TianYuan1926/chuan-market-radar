@@ -65,6 +65,14 @@ x-app-env: &app-env
   AI_MODEL: ${AI_MODEL:-}
   AI_REVIEW_MAX_SIGNALS: ${AI_REVIEW_MAX_SIGNALS:-3}
   AI_REVIEW_MAX_PROMPT_CHARS: ${AI_REVIEW_MAX_PROMPT_CHARS:-12000}
+  CANDIDATE_EPISODE_CANONICAL_WRITE: ${CANDIDATE_EPISODE_CANONICAL_WRITE:-false}
+  CANDIDATE_EPISODE_SHADOW_WRITE: ${CANDIDATE_EPISODE_SHADOW_WRITE:-false}
+  CANDIDATE_EPISODE_DUAL_READ: ${CANDIDATE_EPISODE_DUAL_READ:-false}
+  CANDIDATE_EPISODE_CANONICAL_READ: ${CANDIDATE_EPISODE_CANONICAL_READ:-false}
+  CANDIDATE_EPISODE_REVIEW_READ: ${CANDIDATE_EPISODE_REVIEW_READ:-false}
+  CANDIDATE_RUNTIME_RELEASE_ID: ${CANDIDATE_RUNTIME_RELEASE_ID:-disabled}
+  CANDIDATE_SHADOW_WORKER_EXPECTED: ${CANDIDATE_SHADOW_WORKER_EXPECTED:-false}
+  CANDIDATE_SHADOW_BATCH_LIMIT: ${CANDIDATE_SHADOW_BATCH_LIMIT:-50}
 
 services:
   postgres:
@@ -104,6 +112,9 @@ services:
       <<: *app-env
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      CANDIDATE_SOURCE_DATABASE_URL: ${CANDIDATE_SOURCE_DATABASE_URL:-}
+      CANDIDATE_CONSUMER_DATABASE_URL: ${CANDIDATE_CONSUMER_DATABASE_URL:-}
+      CANDIDATE_MONITOR_DATABASE_URL: ${CANDIDATE_MONITOR_DATABASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -192,6 +203,21 @@ services:
       APP_INTERNAL_URL: http://web:3000
       OUTCOME_INTERVAL_SECONDS: ${OUTCOME_INTERVAL_SECONDS:-3600}
       V3_FORWARD_MAP_INTERVAL_SECONDS: ${V3_FORWARD_MAP_INTERVAL_SECONDS:-21600}
+    depends_on:
+      web:
+        condition: service_healthy
+
+  candidate-shadow-worker:
+    profiles: ["candidate-shadow-runtime"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "deploy/workers/protected-api-worker.mjs", "candidate-shadow"]
+    environment:
+      <<: *app-env
+      APP_INTERNAL_URL: http://web:3000
+      CANDIDATE_SHADOW_INTERVAL_SECONDS: ${CANDIDATE_SHADOW_INTERVAL_SECONDS:-30}
     depends_on:
       web:
         condition: service_healthy
