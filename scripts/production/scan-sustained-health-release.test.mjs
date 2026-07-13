@@ -443,6 +443,37 @@ test("transport bundle is reproducible, secret-free and source-commit bound", as
   assert.equal(bytes.includes(Buffer.from("PRIVATE KEY")), false);
 });
 
+test("transport bundle CLI builds from a clean committed source with current gate evidence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "scan-health-bundle-cli-"));
+  temporaryDirectories.push(directory);
+  const repository = join(directory, "repository");
+  await execFileAsync("git", ["clone", "--quiet", "--no-local", process.cwd(), repository]);
+  const { stdout: sourceCommitRaw } = await execFileAsync("git", ["-C", repository, "rev-parse", "HEAD"]);
+  const { stdout: sourceTreeRaw } = await execFileAsync("git", ["-C", repository, "rev-parse", "HEAD^{tree}"]);
+  const sourceCommit = sourceCommitRaw.trim();
+  const gateResultPath = ".autonomy/cli-gate-result.json";
+  const gateResult = Buffer.from(`${JSON.stringify({
+    status: "pass",
+    gitHead: sourceCommit,
+    gitTree: sourceTreeRaw.trim(),
+  })}\n`);
+  await mkdir(join(repository, ".autonomy"), { recursive: true, mode: 0o700 });
+  await writeFile(join(repository, gateResultPath), gateResult, { mode: 0o600 });
+  await writeFile(join(repository, ".autonomy/latest-gate-result.json"), `${JSON.stringify({
+    schemaVersion: "market-radar-autonomous-gate-result-pointer.v1",
+    resultPath: gateResultPath,
+    resultSha256: sha256(gateResult),
+  })}\n`, { mode: 0o600 });
+  const output = join(directory, "bundle.tar.gz");
+  const cli = join(process.cwd(), "scripts/production/scan-sustained-health-release-bundle.mjs");
+  const { stdout } = await execFileAsync(process.execPath, [cli, "--root", repository, "--output", output]);
+  const result = JSON.parse(stdout);
+  assert.equal(result.status, "PASS_FINAL_SCAN_SUSTAINED_HEALTH_RELEASE_TRANSPORT_BUNDLE");
+  assert.equal(result.manifest.approvalEligible, true);
+  assert.equal(result.manifest.sourceCommit, sourceCommit);
+  await access(output);
+});
+
 test("dirty/precommit transport template cannot claim an approval source commit", async () => {
   const directory = await mkdtemp(join(tmpdir(), "scan-health-template-"));
   temporaryDirectories.push(directory);

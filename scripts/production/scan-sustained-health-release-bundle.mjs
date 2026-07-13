@@ -189,7 +189,7 @@ async function main() {
   const approvalEligible = await worktreeIsClean(root);
   const sourceIdentity = approvalEligible ? await currentSourceIdentity(root) : null;
   const sourceCommit = sourceIdentity?.sourceCommit ?? null;
-  const bundleId = approvalEligible ? head.slice(0, 12) : "precommit-template";
+  const bundleId = approvalEligible ? sourceIdentity.sourceCommit.slice(0, 12) : "precommit-template";
   const output = options.output ?? join(
     root,
     "reports/wp-g0-2-scan-sustained-health-production-release",

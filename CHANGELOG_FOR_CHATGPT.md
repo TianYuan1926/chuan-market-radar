@@ -3665,7 +3665,7 @@ P0 阻断：
 ### 测试结果
 
 - test:autonomy：29/29 PASS。
-- production release / execute / lease CLI：14/14 PASS；覆盖成功、观察失败双镜像+Git 回滚、retention 缺失、manifest tree 漂移、重放、撤销和安全 closeout。
+- production release / execute / lease CLI：15/15 PASS；除成功、观察失败双镜像+Git 回滚、retention 缺失、manifest tree 漂移、重放、撤销和安全 closeout 外，新增干净克隆真实执行 Bundle CLI 的回归证明。
 - 第一轮基础门禁：typecheck、lint、build、test:market 960/0/4 explicit skip、worker 23/23、historical 4/4、Golden 16/16 全部 PASS。
 - 安全门禁：forbidden-files、secret-patterns、security-check 全部 PASS。
 - 提交前 autonomy 总门禁：10/10 PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`；结果回填后将再次运行最终冻结门禁，旧 gate evidence 不复用。
@@ -3673,11 +3673,12 @@ P0 阻断：
 
 ### 是否部署
 
-未部署、未连接生产、未重启服务、未执行 migration。旧 artifact、approval、gate evidence 和 bundle 全部失效；当前六文件 artifact SHA-256=`5937a72025173ffd703bbaa2034159ae0e89326b635423e3685be53bec013cd8`，但 clean commit、当前 gate evidence 与 final bundle尚未生成。
+未部署、未连接生产、未重启服务、未执行 migration。旧 artifact、approval、gate evidence 和 bundle 全部失效；当前六文件 artifact SHA-256=`5937a72025173ffd703bbaa2034159ae0e89326b635423e3685be53bec013cd8`。首个 clean commit `039eb09baf09914a5b204047045a17113f01e783` 的提交后门禁 10/10 PASS，但正式 Bundle 构建前复核发现 CLI 默认文件名引用已删除变量；该提交的 gate evidence 随修复失效，禁止复用，修复提交、当前 gate evidence 与 final bundle 尚未生成。
 
 ### 风险与遗留问题
 
 - 本地 runner 加固不等于生产 sustained-health PASS，P1 与 G0 仍未关闭。
+- 首次新增 CLI 回归测试时断言误写为 `PASS_LOCAL...`，实际制品正确返回 `PASS_FINAL...`；测试曾 14 pass / 1 fail，修正测试期望后 15/15 PASS。该失败未被包装为首次通过。
 - 完整门禁、clean commit、当前 gate evidence、动态生产指纹、外部 approval 和 final bundle 缺一不可执行。
 - 当前系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 
