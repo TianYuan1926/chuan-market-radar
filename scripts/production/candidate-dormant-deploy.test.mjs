@@ -352,6 +352,8 @@ test("runner is Web-only, lease fenced, detached-target and rollback retaining",
   assert.match(source, /CANDIDATE_DORMANT_DEPLOY_STDIN=true/);
   assert.match(source, /container_node/);
   assert.match(source, /--network none --read-only --cap-drop ALL/);
+  assert.match(source, /config --format json[\s\\]*\| jq -erj/);
+  assert.doesNotMatch(source, /config --format json\s*\|\s*node\b/);
   assert.match(source, /checkout --detach/);
   assert.match(source, /rollback-image-retention/);
   assert.doesNotMatch(source, /git merge --ff-only|--profile|--remove-orphans/);

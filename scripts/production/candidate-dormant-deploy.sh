@@ -272,16 +272,9 @@ if ! ${DOCKER[@]} exec "${POSTGRES_CONTAINER_NAME}" pg_isready -U postgres >/dev
   exit 1
 fi
 
-EXPECTED_WEB_DATABASE_URL_SHA256="$(${IDENTITY_COMPOSE[@]} config --format json | node -e '
-const { createHash } = require("node:crypto");
-let source = "";
-process.stdin.on("data", (chunk) => { source += chunk; });
-process.stdin.on("end", () => {
-  const value = String(JSON.parse(source)?.services?.web?.environment?.DATABASE_URL ?? "");
-  if (!value) process.exit(1);
-  process.stdout.write(createHash("sha256").update(value).digest("hex"));
-});
-')"
+EXPECTED_WEB_DATABASE_URL_SHA256="$(${IDENTITY_COMPOSE[@]} config --format json \
+  | jq -erj '.services.web.environment.DATABASE_URL | select(type == "string" and length > 0)' \
+  | sha256sum | awk '{print $1}')"
 if [[ -z "${EXPECTED_WEB_DATABASE_URL_SHA256}" ]]; then
   echo "ERROR: approved Web database identity fingerprint is unavailable." >&2
   exit 1
