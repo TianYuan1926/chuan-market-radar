@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T07:01:48+08:00",
+  "updatedAt": "2026-07-14T17:47:50+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -9,7 +9,8 @@
     "productionCandidateSchema": "applied_verified_dormant",
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
-    "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9"
+    "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
+    "dormantRuntimeProduction": "failed_continuous_observation_after_3_pass_samples_automatic_git_and_web_rollback_current_baseline_ready_fresh_candidate_absent_diagnostic_and_bounded_rollback_health_wait_remediation_gates_pass_rebind_pending"
   },
   "wipLimits": {
     "production": 1,

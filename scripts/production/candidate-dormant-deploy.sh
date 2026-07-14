@@ -447,6 +447,53 @@ verify_candidate_schema_read_only() {
   [[ "${result}" == "9|0" ]]
 }
 
+FAILURE_PHASE="pre-mutation"
+FAILURE_CHECK="unclassified_failure"
+ROLLBACK_FAILED_CHECK=""
+ROLLBACK_OK=false
+ROLLBACK_HEALTH_ATTEMPTS=0
+ROLLBACK_HEALTH_RECOVERED_AFTER_WAIT=false
+
+run_release_check() {
+  local phase="$1" check_name="$2"
+  shift 2
+  if "$@"; then
+    return 0
+  fi
+  FAILURE_PHASE="${phase}"
+  FAILURE_CHECK="${check_name}"
+  echo "ERROR: check_failed phase=${phase} check=${check_name}" >&2
+  return 1
+}
+
+record_rollback_failure() {
+  local check_name="$1"
+  ROLLBACK_OK=false
+  if [[ -z "${ROLLBACK_FAILED_CHECK}" ]]; then
+    ROLLBACK_FAILED_CHECK="${check_name}"
+  fi
+  echo "ERROR: rollback_check_failed check=${check_name}" >&2
+}
+
+wait_for_rollback_health() {
+  local deadline=$((SECONDS + WEB_READY_TIMEOUT_SECONDS))
+  ROLLBACK_HEALTH_ATTEMPTS=0
+  ROLLBACK_HEALTH_RECOVERED_AFTER_WAIT=false
+  while true; do
+    ROLLBACK_HEALTH_ATTEMPTS=$((ROLLBACK_HEALTH_ATTEMPTS + 1))
+    if verify_health_ready_fresh; then
+      if (( ROLLBACK_HEALTH_ATTEMPTS > 1 )); then
+        ROLLBACK_HEALTH_RECOVERED_AFTER_WAIT=true
+      fi
+      return 0
+    fi
+    if (( SECONDS >= deadline )); then
+      return 1
+    fi
+    sleep "${WEB_READY_POLL_SECONDS}"
+  done
+}
+
 MUTATED=false
 RELEASE_SUCCEEDED=false
 LEASE_ACQUIRED=false
@@ -467,7 +514,7 @@ rollback_on_failure() {
     exit "${exit_code}"
   fi
   echo "ERROR: dormant deploy failed; restoring approved Web image and detached baseline target." >&2
-  local rollback_ok=false retained_ok=false rollback_container_id rollback_image_id
+  local retained_ok=false rollback_container_id rollback_image_id
   if ! lease_safety_checkpoint rollback; then
     echo "P0_ROLLBACK_DORMANT_DEPLOY_FENCING_REJECTED" >&2
     exit "${exit_code}"
@@ -479,27 +526,37 @@ rollback_on_failure() {
   wait_for_web_http || true
   rollback_container_id="$(${IDENTITY_COMPOSE[@]} ps -q web 2>/dev/null || true)"
   rollback_image_id="$(${DOCKER[@]} inspect --format '{{.Image}}' "${rollback_container_id}" 2>/dev/null || true)"
-  if [[ "${retained_ok}" == "true" \
-    && "$(git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true)" == "${BASELINE_COMMIT}" \
-    && -z "$(git -C "${ROOT_DIR}" branch --show-current 2>/dev/null || true)" \
-    && "${rollback_image_id}" == "${CURRENT_WEB_IMAGE_ID}" ]] \
-    && verify_web_identity \
-    && verify_non_target_containers_unchanged \
-    && verify_candidate_absent \
-    && verify_health_ready_fresh; then
-    rollback_ok=true
+  ROLLBACK_OK=true
+  ROLLBACK_FAILED_CHECK=""
+  [[ "${retained_ok}" == "true" ]] || record_rollback_failure "rollback_image_retention"
+  [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true)" == "${BASELINE_COMMIT}" ]] \
+    || record_rollback_failure "baseline_git_head"
+  [[ -z "$(git -C "${ROOT_DIR}" branch --show-current 2>/dev/null || true)" ]] \
+    || record_rollback_failure "detached_git_head"
+  [[ "${rollback_image_id}" == "${CURRENT_WEB_IMAGE_ID}" ]] \
+    || record_rollback_failure "baseline_web_image"
+  verify_web_identity || record_rollback_failure "web_database_identity"
+  verify_non_target_containers_unchanged || record_rollback_failure "non_target_containers"
+  verify_candidate_absent || record_rollback_failure "candidate_worker_absent"
+  if [[ "${ROLLBACK_OK}" == "true" ]] && ! wait_for_rollback_health; then
+    record_rollback_failure "health_ready_fresh_timeout"
   fi
   jq -n \
     --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --argjson originalExitCode "${exit_code}" \
-    --argjson rollbackVerified "${rollback_ok}" \
+    --arg failurePhase "${FAILURE_PHASE}" \
+    --arg failureCheck "${FAILURE_CHECK}" \
+    --arg rollbackFailedCheck "${ROLLBACK_FAILED_CHECK}" \
+    --argjson rollbackVerified "${ROLLBACK_OK}" \
     --argjson rollbackRetentionVerified "${retained_ok}" \
+    --argjson rollbackHealthAttempts "${ROLLBACK_HEALTH_ATTEMPTS}" \
+    --argjson rollbackHealthRecoveredAfterWait "${ROLLBACK_HEALTH_RECOVERED_AFTER_WAIT}" \
     --arg baselineCommit "${BASELINE_COMMIT}" \
     --arg webImageId "${rollback_image_id}" \
     --arg rollbackWebImageRef "${APPROVED_ROLLBACK_WEB_IMAGE_REF}" \
-    '{at:$at,originalExitCode:$originalExitCode,rollbackVerified:$rollbackVerified,rollbackRetentionVerified:$rollbackRetentionVerified,baselineCommit:$baselineCommit,webImageId:$webImageId,rollbackWebImageRef:$rollbackWebImageRef}' \
+    '{at:$at,originalExitCode:$originalExitCode,failurePhase:$failurePhase,failureCheck:$failureCheck,rollbackVerified:$rollbackVerified,rollbackFailedCheck:$rollbackFailedCheck,rollbackRetentionVerified:$rollbackRetentionVerified,rollbackHealthAttempts:$rollbackHealthAttempts,rollbackHealthRecoveredAfterWait:$rollbackHealthRecoveredAfterWait,baselineCommit:$baselineCommit,webImageId:$webImageId,rollbackWebImageRef:$rollbackWebImageRef}' \
     > "${ROLLBACK_FILE}" || true
-  if [[ "${rollback_ok}" == "true" ]] && lease_release ROLLBACK_PASS; then
+  if [[ "${ROLLBACK_OK}" == "true" ]] && lease_release ROLLBACK_PASS; then
     LEASE_RELEASED=true
     echo "ROLLBACK_DORMANT_DEPLOY_BASELINE_VERIFIED" >&2
   else
@@ -531,6 +588,8 @@ jq -n \
   > "${ROLLBACK_RETENTION_FILE}"
 
 lease_checkpoint checkout-target
+FAILURE_PHASE="target-checkout"
+FAILURE_CHECK="git_checkout"
 git -C "${ROOT_DIR}" checkout --detach "${TARGET_COMMIT}"
 MUTATED=true
 if [[ -n "$(git -C "${ROOT_DIR}" status --porcelain)" \
@@ -545,12 +604,16 @@ if ! verify_rollback_image_retention; then
 fi
 
 lease_checkpoint build-web
+FAILURE_PHASE="target-build"
+FAILURE_CHECK="web_build"
 ${IDENTITY_COMPOSE[@]} build web
 if ! verify_rollback_image_retention; then
   echo "ERROR: rollback image retention drifted during Web build." >&2
   exit 1
 fi
 lease_checkpoint recreate-web
+FAILURE_PHASE="target-recreate"
+FAILURE_CHECK="web_recreate"
 ${IDENTITY_COMPOSE[@]} up -d --no-deps --force-recreate web
 if ! wait_for_web_http; then
   echo "ERROR: target Web did not become reachable within the approved timeout." >&2
@@ -570,16 +633,18 @@ if [[ "$(sha256sum "${ROOT_DIR}/docker-compose.yml" | awk '{print $1}')" != "${T
   echo "ERROR: target Git or Compose identity drifted after Web recreation." >&2
   exit 1
 fi
-if ! verify_web_identity \
-  || ! verify_candidate_absent \
-  || ! verify_non_target_containers_unchanged \
-  || ! verify_candidate_dormant \
-  || ! verify_candidate_schema_read_only \
-  || ! verify_contract_endpoints \
-  || ! verify_health_ready_fresh; then
+if ! run_release_check "immediate-runtime" "web_database_identity" verify_web_identity \
+  || ! run_release_check "immediate-runtime" "candidate_worker_absent" verify_candidate_absent \
+  || ! run_release_check "immediate-runtime" "non_target_containers" verify_non_target_containers_unchanged \
+  || ! run_release_check "immediate-runtime" "candidate_dormant_contract" verify_candidate_dormant \
+  || ! run_release_check "immediate-runtime" "candidate_schema_read_only" verify_candidate_schema_read_only \
+  || ! run_release_check "immediate-runtime" "contract_endpoints" verify_contract_endpoints \
+  || ! run_release_check "immediate-runtime" "health_ready_fresh" verify_health_ready_fresh; then
   echo "ERROR: immediate dormant runtime or production health contract failed." >&2
   exit 1
 fi
+FAILURE_PHASE="immediate-runtime"
+FAILURE_CHECK="redis_postgres_readiness"
 if [[ "$(${DOCKER[@]} exec "${REDIS_CONTAINER_NAME}" redis-cli ping)" != "PONG" ]] \
   || ! ${DOCKER[@]} exec "${POSTGRES_CONTAINER_NAME}" pg_isready -U postgres >/dev/null; then
   echo "ERROR: Redis or Postgres readiness failed after release." >&2
@@ -590,14 +655,16 @@ OBSERVATION_STARTED_EPOCH="$(date +%s)"
 OBSERVATION_DEADLINE=$((OBSERVATION_STARTED_EPOCH + OBSERVATION_DURATION_SECONDS))
 SAMPLE_COUNT=0
 while true; do
+  FAILURE_PHASE="continuous-observation"
+  FAILURE_CHECK="lease_checkpoint"
   lease_checkpoint observation-sample
   NOW_EPOCH="$(date +%s)"
-  if ! verify_health_ready_fresh \
-    || ! verify_candidate_dormant \
-    || ! verify_candidate_absent \
-    || ! verify_non_target_containers_unchanged \
-    || ! verify_web_identity \
-    || ! verify_rollback_image_retention; then
+  if ! run_release_check "continuous-observation" "health_ready_fresh" verify_health_ready_fresh \
+    || ! run_release_check "continuous-observation" "candidate_dormant_contract" verify_candidate_dormant \
+    || ! run_release_check "continuous-observation" "candidate_worker_absent" verify_candidate_absent \
+    || ! run_release_check "continuous-observation" "non_target_containers" verify_non_target_containers_unchanged \
+    || ! run_release_check "continuous-observation" "web_database_identity" verify_web_identity \
+    || ! run_release_check "continuous-observation" "rollback_image_retention" verify_rollback_image_retention; then
     echo "ERROR: continuous dormant runtime observation failed." >&2
     exit 1
   fi
@@ -612,13 +679,13 @@ while true; do
   sleep "${OBSERVATION_POLL_SECONDS}"
 done
 
-if ! verify_contract_endpoints \
-  || ! verify_candidate_schema_read_only \
-  || ! verify_health_ready_fresh \
-  || ! verify_candidate_dormant \
-  || ! verify_candidate_absent \
-  || ! verify_non_target_containers_unchanged \
-  || ! verify_rollback_image_retention; then
+if ! run_release_check "final-closeout" "contract_endpoints" verify_contract_endpoints \
+  || ! run_release_check "final-closeout" "candidate_schema_read_only" verify_candidate_schema_read_only \
+  || ! run_release_check "final-closeout" "health_ready_fresh" verify_health_ready_fresh \
+  || ! run_release_check "final-closeout" "candidate_dormant_contract" verify_candidate_dormant \
+  || ! run_release_check "final-closeout" "candidate_worker_absent" verify_candidate_absent \
+  || ! run_release_check "final-closeout" "non_target_containers" verify_non_target_containers_unchanged \
+  || ! run_release_check "final-closeout" "rollback_image_retention" verify_rollback_image_retention; then
   echo "ERROR: final dormant runtime closeout verification failed." >&2
   exit 1
 fi

@@ -3797,3 +3797,42 @@ P0 阻断：
 - 当前包已切换为 `production / productionMutation=true / requiresExplicitApproval=true / ready_for_gate`。这次状态变更使 `cf332e8...` 的旧 gate evidence 失效；必须在新的状态提交上重新运行全部 11 项门禁，再生成绑定同一 commit/tree/gate/policy 的仓库外单次 approval 和可复现 Bundle。
 - 当前仍未上传 Bundle、未创建或消费生产 lease、未 fetch/checkout/build/recreate、未开始 1800 秒观察；不得写成生产 PASS。
 - 首次正式 Bundle 绑定时发现 fail-closed 身份矛盾：自治控制器要求外部 approval 的 `packageId/scope` 等于当前 active package，但 Dormant request/validator/shell 仍锁定历史 packageId；生产未触碰，首个 `1cf24c7...` gate 与 Bundle 立即作废。当前修复把 request、authorization、contract、Bundle、shell summary 和 lease package identity 统一到 active package，并新增跨控制面回归测试；修复后必须重新提交、跑全门禁并重建 Bundle。
+
+## 2026-07-14 / WP-G0.2 Dormant Runtime 真实观察失败与回滚验收修复
+
+### 本轮目标
+
+保留真实生产失败与自动回滚事实，修复旧 runner 无法指出 observation 具体失败项、回滚后 health 恢复竞态被过早判失败的问题；不放宽目标 1800 秒观察。
+
+### 修改范围
+
+- `candidate-dormant-deploy.sh`：新增分阶段、分检查项错误证据；rollback 静态检查拆分；仅回滚后的 ready/fresh 在原 240 秒上限内等待。
+- Dormant 两份测试：新增错误归因和 rollback health 延迟恢复隔离演练。
+- Context、traceability、自治状态和本轮报告：记录生产失败、自动回滚与当前真实基线。
+- 未修改 scan、analysis、strategy、backtest、frontend、API、DB、Redis、worker、Compose、migration、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：加强 Dormant 运行地基的生产失败归因和恢复证明。
+- 全市场发现、深扫验证、结构分析、风险赔率、交易计划：业务逻辑未改。
+
+### 测试结果
+
+- Dormant：14/14 PASS；Autonomy：29/29 PASS；Deploy Safety：5/5 PASS。
+- typecheck、lint、build、三项安全检查：PASS。
+- market：960 pass / 0 fail / 4 explicit skip；worker 23/23；historical 4/4；Golden 16/16。
+- formal：未运行，禁止。
+
+### 是否部署
+
+本次生产尝试失败并自动回滚，不能写部署 PASS。目标 Web 通过 3 个 observation 样本后在第 4 个 checkpoint 失败；旧 runner 未精确归因。当前生产已只读证明回到 clean detached `70722ea...` 和旧 Web `sha256:6d02c759...`，health/database/scan/scanner 均正常，Candidate absent。修复代码尚待 clean commit、冻结门禁、新 approval、Bundle 与生产重试。
+
+### 风险与遗留问题
+
+- 旧 runner 的本次具体失败检查项无法事后证明，只能保留 unclassified 真值；不得猜测成 health 或其它门禁。
+- `rollbackVerified=false` 是回滚后即时 health 尚未恢复时的真实记录；后续人工健康不改写历史证据。
+- WP-G0.2/G0 未完成，Runtime Identity、Activation 和 G1-G8 生产推进继续阻断。
+
+### 下一轮建议
+
+冻结本轮 remediation clean commit，重跑自治总门禁并生成新的单次绑定；然后只重试 Web-only Dormant 1800 秒生产观察。

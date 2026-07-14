@@ -906,7 +906,7 @@
   ],
   "currentGovernancePackage": {
     "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
-    "status": "production_lane_dynamic_read_only_preflight_pass_hostless_node_fallback_red_green_fixed_final_gate_and_external_one_time_binding_pending",
+    "status": "production_attempt_failed_after_3_pass_samples_automatic_rollback_current_baseline_ready_fresh_runner_diagnostic_and_bounded_rollback_health_wait_remediation_gates_pass_rebind_pending",
     "productionMutation": true,
     "requiresExplicitApproval": true,
     "packageIdentity": "active_control_package_exactly_matches_request_contract_authorization_bundle_and_lease",
@@ -935,6 +935,23 @@
       "externalActiveLease": false,
       "hostNode": "missing_supported_by_approved_web_container_fallback",
       "productionMutationDuringPreflight": false
+    },
+    "latestProductionAttempt": {
+      "result": "FAIL_CONTINUOUS_OBSERVATION_AUTOMATIC_ROLLBACK",
+      "sourceCommit": "235459f8d4ddf0f776fb3093c5759a29e19fedd2",
+      "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+      "passedObservationSamples": 3,
+      "failedCheckpoint": "observation_sample_4_unclassified_by_old_runner",
+      "candidateWorkerAbsentThroughout": true,
+      "databaseMutation": false,
+      "redisMutation": false,
+      "otherServiceMutation": false,
+      "automaticGitRollback": "70722ea71b33268b688be5d42af9908d40f49859",
+      "automaticWebRollbackImage": "sha256:6d02c759f295e3985b569be7a43c4afe99caa2e5b965a2f4b2395213f8df1a14",
+      "automaticRollbackCheckpoint": "pass",
+      "runnerRollbackImmediateHealthVerification": "false_before_health_recovered",
+      "manualPostRollbackVerification": "clean_detached_baseline_old_web_ready_database_ready_scan_fresh_scanner_healthy_candidate_absent",
+      "productionPass": false
     },
     "scope": "G0_web_only_dormant_runtime_release_governance_and_execution_safety",
     "practicalTradingReady": false

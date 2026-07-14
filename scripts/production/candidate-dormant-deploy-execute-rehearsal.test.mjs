@@ -213,7 +213,7 @@ test("isolated execute proves dormant Web-only success and verified baseline rol
       `if (command[0] === 'diff-tree' && command.includes('--name-status')) { console.log(${JSON.stringify(contract.releaseBoundary.releaseDiffLines.join("\n"))}); process.exit(0); }`,
       `if (command[0] === 'diff-tree' && command.includes('--name-only')) { console.log(${JSON.stringify(contract.releaseBoundary.releaseDiffLines.map(line => line.split("\t")[1]).join("\n"))}); process.exit(0); }`,
       "if (command[0] === 'show') { console.log('target-compose'); process.exit(0); }",
-      `if (command[0] === 'checkout' && command[1] === '--detach') { state.git = command[2] === '${TARGET_COMMIT}' ? 'target' : 'baseline'; save(); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, 'checkout:' + state.git + '\\n'); process.exit(0); }`,
+      `if (command[0] === 'checkout' && command[1] === '--detach') { state.git = command[2] === '${TARGET_COMMIT}' ? 'target' : 'baseline'; if (state.git === 'baseline') state.rolledBack = true; save(); fs.appendFileSync(process.env.FAKE_MUTATION_LOG, 'checkout:' + state.git + '\\n'); process.exit(0); }`,
       "process.exit(1);",
     ]));
 
@@ -262,7 +262,14 @@ test("isolated execute proves dormant Web-only success and verified baseline rol
       "if (!url.endsWith('/api/health')) { console.log(JSON.stringify({ok:true})); process.exit(0); }",
       "const state = JSON.parse(fs.readFileSync(process.env.FAKE_STATE, 'utf8'));",
       "let count = Number(fs.readFileSync(process.env.FAKE_CURL_COUNT, 'utf8')) + 1; fs.writeFileSync(process.env.FAKE_CURL_COUNT, String(count));",
-      "const fail = process.env.FAKE_FAIL_OBSERVATION === '1' && state.git === 'target' && count >= 3;",
+      "const observationFail = process.env.FAKE_FAIL_OBSERVATION === '1' && state.git === 'target' && count >= 3;",
+      "let rollbackRecoveryPending = false;",
+      "if (process.env.FAKE_ROLLBACK_HEALTH_RECOVERY === '1' && state.git === 'baseline' && state.rolledBack) {",
+      "  state.rollbackHealthChecks = Number(state.rollbackHealthChecks || 0) + 1;",
+      "  rollbackRecoveryPending = state.rollbackHealthChecks <= 2;",
+      "  fs.writeFileSync(process.env.FAKE_STATE, JSON.stringify(state));",
+      "}",
+      "const fail = observationFail || rollbackRecoveryPending;",
       "console.log(JSON.stringify({ok:true,health:{level:fail?'degraded':'ready',persistence:{databaseStatus:'ready'},scan:{freshness:'fresh'},runtimeProbes:{workers:[{name:'scanner-worker',status:'healthy'}]}}}));",
     ]));
 
@@ -374,16 +381,25 @@ test("isolated execute proves dormant Web-only success and verified baseline rol
     await writeFile(curlCountFile, "0");
     await writeFile(clockFile, "0");
     const failureEvidence = join(directory, "evidence-failure");
-    await assert.rejects(run(failureEvidence, { FAKE_FAIL_OBSERVATION: "1" }), (error) => {
+    await assert.rejects(run(failureEvidence, {
+      FAKE_FAIL_OBSERVATION: "1",
+      FAKE_ROLLBACK_HEALTH_RECOVERY: "1",
+    }), (error) => {
+      assert.match(error.stderr, /check_failed phase=continuous-observation check=health_ready_fresh/);
       assert.match(error.stderr, /ROLLBACK_DORMANT_DEPLOY_BASELINE_VERIFIED/);
       return true;
     });
     assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")), {
-      git: "baseline", web: "old", retained: true,
+      git: "baseline", web: "old", retained: true, rolledBack: true, rollbackHealthChecks: 3,
     });
     const rollback = JSON.parse(await readFile(join(failureEvidence, "rollback.json"), "utf8"));
     assert.equal(rollback.rollbackVerified, true);
     assert.equal(rollback.baselineCommit, BASELINE_COMMIT);
+    assert.equal(rollback.failurePhase, "continuous-observation");
+    assert.equal(rollback.failureCheck, "health_ready_fresh");
+    assert.equal(rollback.rollbackFailedCheck, "");
+    assert.equal(rollback.rollbackHealthAttempts, 2);
+    assert.equal(rollback.rollbackHealthRecoveredAfterWait, true);
     const failureMutations = await readFile(mutationLog, "utf8");
     assert.match(failureMutations, /checkout:target/);
     assert.match(failureMutations, /checkout:baseline/);

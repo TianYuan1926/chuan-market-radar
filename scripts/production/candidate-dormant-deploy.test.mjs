@@ -356,6 +356,9 @@ test("runner is Web-only, lease fenced, detached-target and rollback retaining",
   assert.doesNotMatch(source, /config --format json\s*\|\s*node\b/);
   assert.match(source, /checkout --detach/);
   assert.match(source, /rollback-image-retention/);
+  assert.match(source, /check_failed phase=\$\{phase\} check=\$\{check_name\}/);
+  assert.match(source, /wait_for_rollback_health/);
+  assert.match(source, /rollbackHealthRecoveredAfterWait/);
   assert.doesNotMatch(source, /git merge --ff-only|--profile|--remove-orphans/);
 });
 
