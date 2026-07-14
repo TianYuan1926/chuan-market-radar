@@ -26,6 +26,20 @@ test("production check requires a fresh Shadow runner heartbeat", () => {
   assert.match(source, /ps .*shadow-runner/);
 });
 
+test("production check uses the checksum-bound privileged identity wrapper when required", () => {
+  const source = read("scripts/verify/production-check.sh");
+
+  assert.match(source, /ROOT_DIR.*\/home\/ubuntu\/apps\/chuan-market-radar/);
+  assert.match(source, /REQUIRE_IDENTITY_WRAPPER="\$\{REQUIRE_IDENTITY_WRAPPER:-true\}"/);
+  assert.match(source, /REQUIRE_IDENTITY_WRAPPER="\$\{REQUIRE_IDENTITY_WRAPPER:-false\}"/);
+  assert.match(source, /identity_wrapper_configuration_incomplete/);
+  assert.match(source, /identity_wrapper_not_root_owned_0700/);
+  assert.match(source, /identity_override_not_root_owned_0600/);
+  assert.match(source, /identity_wrapper_checksum_mismatch/);
+  assert.match(source, /identity_override_checksum_mismatch/);
+  assert.match(source, /compose_cmd=\(sudo -n "\$\{IDENTITY_WRAPPER\}"\)/);
+});
+
 test("production evidence captures Shadow runner status and logs", () => {
   const compose = read("docker-compose.yml");
   const facts = read("scripts/audit/collect-production-facts.sh");

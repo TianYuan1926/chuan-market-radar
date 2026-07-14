@@ -47,21 +47,41 @@ function parseTimestamp(value, reason) {
 
 export function validateApprovalRequest(request, contract, { now = new Date() } = {}) {
   const keys = [
-    "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "approvedArtifactSha256", "approvedCommit",
+    "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "approvedArtifactSha256",
+    "approvedProductionCommit", "approvedRunnerSourceCommit",
     "automaticDatabaseRollbackAllowed", "automaticEnvironmentRollbackAllowed",
-    "automaticWebRollbackAllowed", "businessDmlAllowed", "candidateControlLifecycleStartAllowed",
+    "automaticWebRollbackAllowed", "baseEnvSha256", "businessDmlAllowed",
+    "candidateControlLifecycleStartAllowed",
     "candidateDatabaseUrlConfigurationAllowed", "candidateFeatureFlagEnablementAllowed",
-    "candidateWorkerStartAllowed", "codeActivationAllowed", "databaseRoleMutationAllowed",
-    "dormantDeployStatus", "environmentMutationAllowed", "execute", "migrationAllowed",
-    "operator", "packageId", "runtimeAccessSha256", "schemaDdlAllowed", "services",
-    "webRecreateAllowed",
+    "candidateWorkerStartAllowed", "codeActivationAllowed", "composeSha256",
+    "databaseRoleMutationAllowed", "dormantDeployEvidenceSha256", "dormantDeployStatus",
+    "environmentMutationAllowed", "execute", "identityOverridePath", "identityOverrideSha256",
+    "identityWrapperPath", "identityWrapperSha256", "migrationAllowed", "operator", "packageId",
+    "productionEnvSha256", "runtimeAccessSha256", "schemaDdlAllowed", "services", "webRecreateAllowed",
   ];
   ensure(exactKeys(request, keys), "request_keys_mismatch");
   ensure(request.packageId === PACKAGE_ID, "request_package_mismatch");
-  ensure(request.dormantDeployStatus === "PASS_DORMANT_RUNTIME_DEPLOY", "dormant_deploy_not_pass");
-  ensure(/^[0-9a-f]{40}$/.test(request.approvedCommit ?? ""), "approved_commit_invalid");
+  ensure(request.dormantDeployStatus === contract.dormantEvidence?.finalStatus,
+    "dormant_deploy_not_pass");
+  ensure(/^[0-9a-f]{40}$/.test(request.approvedRunnerSourceCommit ?? ""),
+    "approved_runner_source_commit_invalid");
+  ensure(request.approvedProductionCommit === contract.productionTarget?.commit,
+    "approved_production_commit_mismatch");
+  ensure(contract.productionTarget?.repositoryState === "clean_detached",
+    "production_repository_state_invalid");
   ensure(request.approvedArtifactSha256 === contract.artifact.sha256, "approved_artifact_checksum_mismatch");
   ensure(request.runtimeAccessSha256 === contract.runtimeAccess.sqlSha256, "runtime_access_checksum_mismatch");
+  for (const key of [
+    "baseEnvSha256", "composeSha256", "dormantDeployEvidenceSha256", "productionEnvSha256",
+  ]) ensure(/^[0-9a-f]{64}$/.test(request[key] ?? ""), `${key}_invalid`);
+  ensure(request.identityWrapperPath === contract.productionIdentity?.wrapperPath,
+    "identity_wrapper_path_mismatch");
+  ensure(request.identityWrapperSha256 === contract.productionIdentity?.wrapperSha256,
+    "identity_wrapper_checksum_mismatch");
+  ensure(request.identityOverridePath === contract.productionIdentity?.overridePath,
+    "identity_override_path_mismatch");
+  ensure(request.identityOverrideSha256 === contract.productionIdentity?.overrideSha256,
+    "identity_override_checksum_mismatch");
   ensure(JSON.stringify(request.services) === '["web"]', "service_allowlist_mismatch");
   ensure(request.execute === true, "execute_not_approved");
   ensure(request.databaseRoleMutationAllowed === true, "database_role_mutation_not_approved");

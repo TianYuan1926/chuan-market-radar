@@ -10,17 +10,78 @@ STRICT_HEALTH_LEVEL="${STRICT_HEALTH_LEVEL:-${STRICT_SCAN_FRESHNESS}}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-600}"
 READY_POLL_INTERVAL_SECONDS="${READY_POLL_INTERVAL_SECONDS:-5}"
 SHADOW_READY_TIMEOUT_SECONDS="${SHADOW_READY_TIMEOUT_SECONDS:-660}"
+if [[ "${ROOT_DIR}" == "/home/ubuntu/apps/chuan-market-radar" ]]; then
+  REQUIRE_IDENTITY_WRAPPER="${REQUIRE_IDENTITY_WRAPPER:-true}"
+  IDENTITY_WRAPPER="${IDENTITY_WRAPPER:-/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/compose-identity-safe}"
+  IDENTITY_WRAPPER_SHA256="${IDENTITY_WRAPPER_SHA256:-fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3}"
+  IDENTITY_OVERRIDE_FILE="${IDENTITY_OVERRIDE_FILE:-/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/runtime-identity.override.yml}"
+  IDENTITY_OVERRIDE_SHA256="${IDENTITY_OVERRIDE_SHA256:-1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf}"
+else
+  REQUIRE_IDENTITY_WRAPPER="${REQUIRE_IDENTITY_WRAPPER:-false}"
+  IDENTITY_WRAPPER="${IDENTITY_WRAPPER:-}"
+  IDENTITY_WRAPPER_SHA256="${IDENTITY_WRAPPER_SHA256:-}"
+  IDENTITY_OVERRIDE_FILE="${IDENTITY_OVERRIDE_FILE:-}"
+  IDENTITY_OVERRIDE_SHA256="${IDENTITY_OVERRIDE_SHA256:-}"
+fi
 
 cd "${ROOT_DIR}"
+
+fail() {
+  printf 'ERROR: %s\n' "$1" >&2
+  exit 1
+}
+
+privileged_file_mode() {
+  sudo -n stat -c '%a' "$1" 2>/dev/null || sudo -n stat -f '%Lp' "$1"
+}
+
+privileged_file_uid() {
+  sudo -n stat -c '%u' "$1" 2>/dev/null || sudo -n stat -f '%u' "$1"
+}
 
 compose_cmd=()
 node_runner=()
 api_base_url="${BASE_URL%/}"
-if command -v docker >/dev/null 2>&1; then
+identity_wrapper_requested=false
+if [[ "${REQUIRE_IDENTITY_WRAPPER}" == "true" || -n "${IDENTITY_WRAPPER}" \
+  || -n "${IDENTITY_WRAPPER_SHA256}" || -n "${IDENTITY_OVERRIDE_FILE}" \
+  || -n "${IDENTITY_OVERRIDE_SHA256}" ]]; then
+  identity_wrapper_requested=true
+fi
+
+if [[ "${identity_wrapper_requested}" == "true" ]]; then
+  if [[ "${REQUIRE_IDENTITY_WRAPPER}" != "true" || -z "${IDENTITY_WRAPPER}" \
+    || -z "${IDENTITY_WRAPPER_SHA256}" || -z "${IDENTITY_OVERRIDE_FILE}" \
+    || -z "${IDENTITY_OVERRIDE_SHA256}" ]]; then
+    fail identity_wrapper_configuration_incomplete
+  fi
+  [[ "${IDENTITY_WRAPPER}" == /* && "${IDENTITY_OVERRIDE_FILE}" == /* ]] \
+    || fail identity_wrapper_path_not_absolute
+  command -v sudo >/dev/null 2>&1 || fail identity_wrapper_sudo_unavailable
+  if ! sudo -n test -f "${IDENTITY_WRAPPER}" || sudo -n test -L "${IDENTITY_WRAPPER}"; then
+    fail identity_wrapper_not_regular
+  fi
+  if ! sudo -n test -f "${IDENTITY_OVERRIDE_FILE}" || sudo -n test -L "${IDENTITY_OVERRIDE_FILE}"; then
+    fail identity_override_not_regular
+  fi
+  [[ "$(privileged_file_mode "${IDENTITY_WRAPPER}")" == "700" \
+    && "$(privileged_file_uid "${IDENTITY_WRAPPER}")" == "0" ]] \
+    || fail identity_wrapper_not_root_owned_0700
+  [[ "$(privileged_file_mode "${IDENTITY_OVERRIDE_FILE}")" == "600" \
+    && "$(privileged_file_uid "${IDENTITY_OVERRIDE_FILE}")" == "0" ]] \
+    || fail identity_override_not_root_owned_0600
+  [[ "$(sudo -n sha256sum "${IDENTITY_WRAPPER}" | awk '{print $1}')" == "${IDENTITY_WRAPPER_SHA256}" ]] \
+    || fail identity_wrapper_checksum_mismatch
+  [[ "$(sudo -n sha256sum "${IDENTITY_OVERRIDE_FILE}" | awk '{print $1}')" == "${IDENTITY_OVERRIDE_SHA256}" ]] \
+    || fail identity_override_checksum_mismatch
+  compose_cmd=(sudo -n "${IDENTITY_WRAPPER}")
+  "${compose_cmd[@]}" config --services >/dev/null \
+    || fail identity_wrapper_compose_unavailable
+elif command -v docker >/dev/null 2>&1; then
   if docker ps >/dev/null 2>&1; then
     compose_cmd=(docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
   elif sudo -n docker ps >/dev/null 2>&1; then
-    compose_cmd=(sudo docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
+    compose_cmd=(sudo -n docker compose --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
   fi
 fi
 

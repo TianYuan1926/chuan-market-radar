@@ -67,7 +67,8 @@ test("approval authorizes role and URL mutation but never activation or business
     approvalIssuedAt: "2026-07-12T07:59:00.000Z",
     approvalRef: "runtime-identity-approval",
     approvedArtifactSha256: "c".repeat(64),
-    approvedCommit: "a".repeat(40),
+    approvedProductionCommit: "a".repeat(40),
+    approvedRunnerSourceCommit: "d".repeat(40),
     automaticDatabaseRollbackAllowed: true,
     automaticEnvironmentRollbackAllowed: true,
     automaticWebRollbackAllowed: true,
@@ -78,12 +79,20 @@ test("approval authorizes role and URL mutation but never activation or business
     candidateWorkerStartAllowed: false,
     codeActivationAllowed: false,
     databaseRoleMutationAllowed: true,
-    dormantDeployStatus: "PASS_DORMANT_RUNTIME_DEPLOY",
+    baseEnvSha256: "1".repeat(64),
+    composeSha256: "2".repeat(64),
+    dormantDeployEvidenceSha256: "3".repeat(64),
+    dormantDeployStatus: "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
     environmentMutationAllowed: true,
     execute: true,
+    identityOverridePath: "/var/lib/market-radar-ops/runtime/runtime-identity.override.yml",
+    identityOverrideSha256: "4".repeat(64),
+    identityWrapperPath: "/var/lib/market-radar-ops/runtime/compose-identity-safe",
+    identityWrapperSha256: "5".repeat(64),
     migrationAllowed: false,
     operator: "codex",
     packageId: "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
+    productionEnvSha256: "6".repeat(64),
     runtimeAccessSha256: "b".repeat(64),
     schemaDdlAllowed: false,
     services: ["web"],
@@ -91,6 +100,16 @@ test("approval authorizes role and URL mutation but never activation or business
   };
   const contract = {
     artifact: { sha256: "c".repeat(64) },
+    dormantEvidence: {
+      finalStatus: "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+    },
+    productionIdentity: {
+      overridePath: request.identityOverridePath,
+      overrideSha256: request.identityOverrideSha256,
+      wrapperPath: request.identityWrapperPath,
+      wrapperSha256: request.identityWrapperSha256,
+    },
+    productionTarget: { commit: request.approvedProductionCommit, repositoryState: "clean_detached" },
     runtimeAccess: { sqlSha256: "b".repeat(64) },
   };
   assert.equal(validateApprovalRequest(request, contract, { now }), request);
@@ -102,4 +121,16 @@ test("approval authorizes role and URL mutation but never activation or business
       new RegExp(`${key}_must_be_false`),
     );
   }
+  assert.throws(
+    () => validateApprovalRequest({ ...request, approvedProductionCommit: "e".repeat(40) }, contract, { now }),
+    /approved_production_commit_mismatch/,
+  );
+  assert.throws(
+    () => validateApprovalRequest({ ...request, identityWrapperSha256: "0".repeat(64) }, contract, { now }),
+    /identity_wrapper_checksum_mismatch/,
+  );
+  assert.throws(
+    () => validateApprovalRequest({ ...request, dormantDeployStatus: "PASS_DORMANT_RUNTIME_DEPLOY" }, contract, { now }),
+    /dormant_deploy_not_pass/,
+  );
 });

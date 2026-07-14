@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_scan_sustained_health_production_pass_lease_snapshot_reconciled_closeout_gates_10_of_10_pass_commit_pending",
-  "generatedAt": "2026-07-14T05:58:08+08:00",
+  "status": "wp_g0_2_dormant_production_pass_closed_runtime_identity_current_release_preflight_all_local_gates_pass_ready_for_freeze",
+  "generatedAt": "2026-07-15T02:22:11+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
     "engineeringBlueprint": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
@@ -39,7 +39,7 @@
     "evidenceBoundary": "The runtime observation is a read-only point sample and is not production evidence PASS or R4 readiness proof."
   },
   "activeExecutionOverlay": {
-    "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
+    "id": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK",
     "productionWipLimit": 1,
     "localPreparationWipLimit": 1,
     "capacityGateTool": "scripts/production/migration-capacity-gate.mjs",
@@ -48,14 +48,14 @@
     "candidateSchemaPresent": true,
     "candidateSchemaStatus": "migration_1_to_9_applied_verified_dormant",
     "candidateRuntimeEnabled": false,
-    "localVerifierFixStatus": "pass",
-    "localVerifierFixTargetedTests": "46_of_46_pass",
-    "localVerifierFixFullGates": "10_of_10_pass",
-    "nextLocalWorkPackage": "close_scanner_production_evidence_commit_push_then_refresh_dormant_release_identity_standing_authority_and_runner",
+    "localVerifierFixStatus": "pass_identity_wrapper_required_on_fixed_production_root_and_checksum_bound",
+    "localVerifierFixTargetedTests": "deploy_safety_6_of_6_pass_and_runtime_identity_runner_10_of_10_pass",
+    "localVerifierFixFullGates": "pass_typecheck_lint_market_960_0_4_build_golden_16_security_and_autonomy_29",
+    "nextLocalWorkPackage": "freeze_current_release_preflight_then_form_exact_runtime_identity_production_package",
     "compositionWiringStatus": "pass_local_composition_wiring",
     "compositionTargetedTests": "28_of_28_pass",
     "compositionPostgres16Rehearsal": "pass_production_connected_false",
-    "dormantDeployPreparationStatus": "historical_local_pass_now_stale_requires_current_target_baseline_release_diff_standing_authority_session_independent_runner_and_rollback_retention_refresh",
+    "dormantDeployPreparationStatus": "pass_production_1800_seconds_57_samples_candidate_dormant_rollback_image_retained",
     "dormantDeployArtifactSha256": "b4fce8a64a9e468067101b50c2e5e59b5802d3f8b5459e176acb1bac25081e2c",
     "dormantDeployArtifactFileCount": 14,
     "dormantDeployArtifactRefreshReason": "release_diff_validator_changed_to_bind_web_identity_recovery_propagation_without_expanding_artifact_files",
@@ -81,9 +81,9 @@
       "web"
     ],
     "dormantDeployProductionExecuted": true,
-    "dormantDeployProductionDeployed": false,
-    "dormantDeployProductionAttemptResult": "new_web_built_and_recreated_immediate_fetch_refused_automatic_rollback_to_0599f802",
-    "dormantDeployCurrentProductionHealth": "ready_scan_fresh_persistence_ready_after_web_identity_recovery",
+    "dormantDeployProductionDeployed": true,
+    "dormantDeployProductionAttemptResult": "historical_first_attempt_failed_and_rolled_back_then_current_target_passed_1800_seconds_57_samples",
+    "dormantDeployCurrentProductionHealth": "ready_scan_fresh_persistence_ready_candidate_dormant_on_cec0b657",
     "dormantDeployIdentityOverrideRequired": true,
     "dormantDeployIdentityOverrideChecksumBound": true,
     "dormantDeployRuntimeIdentityFingerprintRequired": true,
@@ -144,20 +144,19 @@
     "runtimeIdentityLoginTopology": "three_unique_noinherit_logins_one_membership_each",
     "runtimeIdentityAccessSqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa",
     "runtimeIdentityProductionProvisioned": false,
-    "runtimeIdentityRunnerPreparationStatus": "pass_local_fake_execute_rollback_and_postgres16_provision_rollback",
-    "runtimeIdentityRunnerArtifactSha256": "d3b4f015e70a3b5e4310b5b635921f5b829c7e95854c4dcaf11bd1021adf08d0",
+    "runtimeIdentityRunnerPreparationStatus": "pass_local_current_detached_release_identity_safe_verifier_success_failure_rollback_and_postgres16_rehearsal",
+    "runtimeIdentityRunnerArtifactSha256": "e109adeaab925d59535906965e4534fcbef3c2f1187e3d56fea45730e377ed38",
     "runtimeIdentityRunnerArtifactFiles": 8,
     "runtimeIdentityRunnerProductionExecuted": false,
     "productionVerifyOnlyStatus": "pass",
     "shadowCaptureLocalDesignStatus": "pass_production_readiness_packet",
     "shadowCaptureProductionDecision": "safety_schema_applied_verified_runtime_disabled",
     "shadowCaptureKnownBlockers": [
-      "production_runtime_wiring_not_deployed",
       "candidate_runtime_identities_not_provisioned",
-      "dormant_runtime_deploy_local_refresh_pass_production_not_executed",
+      "runtime_identity_exact_production_package_not_executed",
       "activation_and_observation_not_approved"
     ],
-    "nextProductionAction": "freeze_and_commit_dormant_runner_then_dynamic_read_only_preflight_exact_external_single_use_authorization_bundle_upload_and_web_only_execution",
+    "nextProductionAction": "freeze_and_commit_current_release_runtime_identity_runner_then_dynamic_read_only_preflight_exact_external_single_use_authorization_and_identity_provision_execution",
     "migrationExecuteAgainProhibited": true,
     "gateSequenceChanged": false,
     "qualityThresholdChanged": false,
@@ -174,7 +173,7 @@
     "coreMissionLocked": true,
     "observationWindowsMayBeShortened": false,
     "pollutionCleanupRequiresExactManifest": true,
-    "currentControlPackage": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH"
+    "currentControlPackage": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK"
   },
   "mission": {
     "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
@@ -726,8 +725,20 @@
       "status": "not_started_as_gate"
     }
   ],
-  "lastCompletedWorkPackage": "WP-G0.2-DORMANT-RELEASE-DIFF-REFRESH-AFTER-WEB-IDENTITY-RECOVERY",
+  "lastCompletedWorkPackage": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
   "lastAttemptedWorkPackage": {
+    "id": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK",
+    "status": "pass_local_current_release_preflight_all_local_gates_ready_for_freeze",
+    "productionConnected": false,
+    "productionMutationAllowed": false,
+    "productionTarget": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "runtimeIdentityArtifactSha256": "e109adeaab925d59535906965e4534fcbef3c2f1187e3d56fea45730e377ed38",
+    "genericVerifierUsesIdentityWrapper": true,
+    "productionRuntimeIdentityProvisioned": false,
+    "g0Complete": false,
+    "practicalTradingReady": false
+  },
+  "historicalWebIdentityRecoveryWorkPackage": {
     "id": "WP-G0.2-PRODUCTION-WEB-IDENTITY-RECOVERY",
     "title": "Production Web identity recovery execution and closeout",
     "status": "PASS_PRODUCTION_WEB_IDENTITY_RECOVERY_CLEANUP_AND_GATES_PASS_COMMIT_PENDING",
@@ -809,14 +820,14 @@
     }
   },
   "currentDesignPackage": {
-    "id": "WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE",
-    "status": "PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION_LEASE_SNAPSHOT_RECONCILED_CLOSEOUT_GATES_10_OF_10_PASS_COMMIT_PENDING",
-    "designStatus": "TRANSIENT_SYSTEMD_ROLLBACK_RETENTION_ONE_TIME_CONSUMPTION_FENCING_AND_1800_SECOND_TWO_ADVANCE_PRODUCTION_OBSERVATION_PASS",
-    "designVersion": "wp-g0.2-scan-sustained-health-production-release.v1",
-    "approvedByUserForProduction": true,
-    "productionAuthorization": true,
+    "id": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK",
+    "status": "PASS_LOCAL_RUNTIME_IDENTITY_CURRENT_RELEASE_PREFLIGHT_ALL_LOCAL_GATES_READY_FOR_FREEZE",
+    "designStatus": "IDENTITY_SAFE_VERIFIER_CLEAN_DETACHED_TARGET_SPLIT_COMMIT_BINDING_AND_BOUNDED_ROLLBACK",
+    "designVersion": "wp-g0.2-runtime-identity-runner-preparation.v1",
+    "approvedByUserForProduction": false,
+    "productionAuthorization": false,
     "runtimeCodeChanged": true,
-    "productionDeployed": true,
+    "productionDeployed": false,
     "g0Complete": false,
     "practicalTradingReady": false
   },
@@ -880,7 +891,7 @@
     "evidenceCleanupPending": false
   },
   "nextAuthorizedWorkPackageAfterApproval": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-  "nextRecommendedWorkPackage": "Freeze and audit the successful Dormant production evidence, then refresh the Runtime Identity read-only preflight and require a separately bound production approval before any identity mutation.",
+  "nextRecommendedWorkPackage": "Freeze the current-release Runtime Identity runner and all gates, then perform a fresh read-only production preflight and form one exact external authorization before any identity mutation.",
   "nextWorkPackageRequiresExplicitApproval": false,
   "nextProductionWorkPackageRequiresExplicitApproval": true,
   "documentValidation": {
@@ -905,12 +916,12 @@
     "Treat historical evidence as current evidence"
   ],
   "currentGovernancePackage": {
-    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
-    "status": "production_pass_web_only_dormant_1800_seconds_57_samples_candidate_absent_rollback_image_retained_closeout_gate_pending",
-    "productionMutation": true,
-    "requiresExplicitApproval": true,
-    "packageIdentity": "active_control_package_exactly_matches_request_contract_authorization_bundle_and_lease",
-    "dynamicProductionPreflight": {
+    "id": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK",
+    "status": "local_all_gates_pass_ready_for_freeze_production_not_authorized",
+    "productionMutation": false,
+    "requiresExplicitApproval": false,
+    "packageIdentity": "local_closeout_and_current_release_preflight_only",
+    "historicalDormantDynamicProductionPreflight": {
       "observedAt": "2026-07-13T22:47:34Z",
       "productionHead": "70722ea71b33268b688be5d42af9908d40f49859",
       "productionWorktree": "clean_detached",
@@ -975,7 +986,7 @@
       "remoteEvidencePath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-dormant-runtime-deploy-8c81598-mrmrkuexyz",
       "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
       "independentChecks": "health_ready_fresh_frontend_backend_business_contracts_true_postgres_ready_redis_pong_target_web_image_candidate_container_absent",
-      "genericProductionCheckCompatibilityIssue": "ordinary Compose verifier does not load the locked production identity wrapper and fails at POSTGRES_USER interpolation; not a production health failure",
+      "genericProductionCheckCompatibilityIssue": "fixed_locally_by_required_root_owned_checksum_bound_identity_wrapper; production runtime identity not yet executed",
       "productionPass": true
     },
     "scope": "G0_web_only_dormant_runtime_release_governance_and_execution_safety",

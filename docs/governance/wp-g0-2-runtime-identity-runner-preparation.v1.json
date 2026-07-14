@@ -1,20 +1,43 @@
 {
   "schemaVersion": "wp-g0.2-runtime-identity-runner-preparation.v1",
   "packageId": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-  "status": "local_runner_preparation_verified_production_not_authorized",
+  "status": "local_current_release_preflight_in_progress_production_not_authorized",
   "productionAuthorization": false,
   "productionExecuted": false,
   "prerequisite": {
-    "dormantDeployFinalStatus": "PASS_DORMANT_RUNTIME_DEPLOY",
+    "dormantDeployFinalStatus": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
     "newExactApprovalRequired": true,
     "maximumApprovalWindowMinutes": 90
+  },
+  "productionTarget": {
+    "commit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "repositoryState": "clean_detached"
+  },
+  "dormantEvidence": {
+    "finalStatus": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+    "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "minimumObservationSeconds": 1800,
+    "minimumSampleCount": 57,
+    "maximumEvidenceAgeHours": 24,
+    "candidateRuntimeDormantRequired": true,
+    "candidateWorkerAbsentRequired": true,
+    "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5"
+  },
+  "productionIdentity": {
+    "wrapperPath": "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/compose-identity-safe",
+    "wrapperSha256": "fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3",
+    "overridePath": "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/runtime-identity.override.yml",
+    "overrideSha256": "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf",
+    "wrapperMode": "0700",
+    "overrideMode": "0600",
+    "ownerUid": 0
   },
   "runtimeAccess": {
     "sqlPath": "scripts/production/candidate-runtime-identity/runtime-access.sql",
     "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa"
   },
   "artifact": {
-    "sha256": "d3b4f015e70a3b5e4310b5b635921f5b829c7e95854c4dcaf11bd1021adf08d0",
+    "sha256": "e109adeaab925d59535906965e4534fcbef3c2f1187e3d56fea45730e377ed38",
     "files": [
       "docker-compose.yml",
       "scripts/production/candidate-dormant-deploy.mjs",
@@ -61,7 +84,7 @@
     "immediate_identity_and_dormant_checks_pass",
     "database_role_and_membership_readonly_verify",
     "observation_30_to_60_minutes_clean",
-    "server_head_release_and_github_main_align"
+    "server_head_matches_exact_clean_detached_production_target"
   ],
   "forbidden": [
     "candidate_worker_start",

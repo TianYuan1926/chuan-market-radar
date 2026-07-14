@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-15T01:22:50+08:00",
+  "updatedAt": "2026-07-15T02:22:11+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -10,7 +10,8 @@
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
-    "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_gate_pending"
+    "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
+    "runtimeIdentityPreflight": "pass_local_current_release_identity_safe_verifier_artifact_e109adea_postgres16_and_rollback_verified_production_not_provisioned"
   },
   "wipLimits": {
     "production": 1,
@@ -129,43 +130,36 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
-    "title": "Dormant runtime deploy standing-authority and runner refresh",
-    "lane": "production",
+    "id": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK",
+    "title": "Dormant closeout, identity-safe verifier and runtime-identity preflight",
+    "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "把历史上已自动回滚的Dormant Web-only发布包刷新到当前生产target、G0-G8常驻授权、仓库外单次租约、递增fencing、session-independent runner、精确单父release commit和成功后rollback image留存，同时维持Candidate完全休眠。",
+    "objective": "固化Dormant生产PASS，修复通用生产校验器遗漏受锁身份包装器的问题，并把Runtime Identity runner刷新到当前clean detached生产release；本包只做本地实现、测试和只读预检，不执行生产身份、环境或容器变更。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化",
       "candidate_runtime_foundation",
-      "dormant_authority_boundary",
-      "production_single_writer_fencing",
-      "session_independent_execution",
-      "automatic_web_and_git_rollback"
+      "production_verification_truth",
+      "runtime_identity_preflight"
     ],
-    "productionMutation": true,
-    "requiresExplicitApproval": true,
+    "productionMutation": false,
+    "requiresExplicitApproval": false,
     "allowedPaths": [
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "package.json",
-      "scripts/governance/autonomous-engineering.mjs",
-      "scripts/governance/autonomous-engineering.test.mjs",
-      "scripts/governance/autonomy-policy.mjs",
-      "scripts/governance/autonomy-production-lease.mjs",
-      "scripts/governance/autonomy-production-lease-cli.mjs",
-      "scripts/production/candidate-dormant-deploy.mjs",
-      "scripts/production/candidate-dormant-deploy.sh",
-      "scripts/production/candidate-dormant-deploy-entrypoint.sh",
-      "scripts/production/candidate-dormant-deploy-bundle.mjs",
-      "scripts/production/candidate-dormant-deploy.test.mjs",
-      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
-      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
-      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
-      "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
+      "scripts/verify/production-check.sh",
+      "scripts/deploy/deploy-safety.test.mjs",
+      "scripts/governance/runtime-identity-runner.mjs",
+      "scripts/governance/runtime-identity-runner.test.mjs",
+      "scripts/production/candidate-runtime-identity/production-runner.sh",
+      "scripts/production/candidate-runtime-identity/runner.mjs",
+      "scripts/production/candidate-runtime-identity/runner.test.mjs",
+      "scripts/production/candidate-runtime-identity/production-runner-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
+      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-dormant-runtime-deploy-standing-authority-runner-refresh/WP_G0_2_DORMANT_RUNTIME_DEPLOY_STANDING_AUTHORITY_RUNNER_REFRESH_REPORT.md"
+      "reports/wp-g0-2-closeout-verifier-runtime-identity-preflight/WP_G0_2_CLOSEOUT_VERIFIER_RUNTIME_IDENTITY_PREFLIGHT_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -186,27 +180,25 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "scripts/governance/autonomous-engineering.mjs",
-      "scripts/governance/autonomy-policy.mjs",
-      "scripts/governance/autonomy-production-lease.mjs",
-      "scripts/governance/autonomy-production-lease-cli.mjs",
-      "scripts/production/candidate-dormant-deploy.mjs",
-      "scripts/production/candidate-dormant-deploy.sh",
-      "scripts/production/candidate-dormant-deploy-entrypoint.sh",
-      "scripts/production/candidate-dormant-deploy-bundle.mjs",
-      "scripts/production/candidate-dormant-deploy.test.mjs",
-      "scripts/production/candidate-dormant-deploy-execute-rehearsal.test.mjs",
-      "docs/governance/wp-g0-2-shadow-capture-dormant-runtime-deploy.v1.json",
-      "docs/governance/WP_G0_2_SHADOW_CAPTURE_DORMANT_RUNTIME_DEPLOY_V1.md",
-      "docs/governance/G0_G8_STANDING_AUTONOMY_AUTHORIZATION_V1.json",
+      "scripts/verify/production-check.sh",
+      "scripts/deploy/deploy-safety.test.mjs",
+      "scripts/governance/runtime-identity-runner.mjs",
+      "scripts/governance/runtime-identity-runner.test.mjs",
+      "scripts/production/candidate-runtime-identity/production-runner.sh",
+      "scripts/production/candidate-runtime-identity/runner.mjs",
+      "scripts/production/candidate-runtime-identity/runner.test.mjs",
+      "scripts/production/candidate-runtime-identity/production-runner-execute-rehearsal.test.mjs",
+      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
+      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-dormant-runtime-deploy-standing-authority-runner-refresh/WP_G0_2_DORMANT_RUNTIME_DEPLOY_STANDING_AUTHORITY_RUNNER_REFRESH_REPORT.md"
+      "reports/wp-g0-2-closeout-verifier-runtime-identity-preflight/WP_G0_2_CLOSEOUT_VERIFIER_RUNTIME_IDENTITY_PREFLIGHT_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
         "test:autonomy",
-        "test:candidate-dormant-deploy",
-        "test:deploy-safety"
+        "test:deploy-safety",
+        "test:candidate-runtime-identity",
+        "test:candidate-runtime-identity-runner"
       ],
       "baseline": [
         "typecheck",
@@ -222,18 +214,17 @@
       ]
     },
     "completionBoundary": [
-      "历史Dormant生产尝试保持失败并自动回滚真值，不得改写为PASS",
-      "新发布必须从当前生产target构造单父精确release commit，不得直接部署GitHub main或历史156路径宽差异",
-      "Candidate所有Feature Flag保持false、专用数据库URL为空、release ID为disabled、worker absent、control lifecycle不启动",
-      "生产执行必须使用仓库外脱敏bundle、session-independent transient unit、最长90分钟一次性approval、外部租约与递增fencing token",
-      "只允许Web build和force-recreate；数据库、Redis、migration、env、Candidate worker与其它容器不变",
-      "Web旧镜像必须在mutation前保留、逐检查点复核、成功后继续保留，清理需要独立批准",
-      "任一身份、health ready/fresh、Candidate dormant、非目标容器、Postgres、Redis或合同验证失败必须自动恢复旧Web镜像和生产Git target",
-      "本地红灯、定向演练、固定基础门禁、安全门禁与自治门禁全部通过后才可形成生产执行包",
+      "Dormant生产结果必须保持PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION及其57个样本证据，不得重写历史失败或虚构新观察",
+      "production-check必须在配置identity wrapper时强制使用root-owned 0700包装器和root-owned 0600 override，并按审批checksum fail closed",
+      "Runtime Identity runner必须接受当前clean detached精确production target，不得要求main或部署GitHub main",
+      "Runtime Identity前置证据必须绑定最新Dormant PASS、production target、runner source和runtime-access checksum",
+      "本包禁止创建数据库角色、修改env、recreate Web、启动Candidate worker、开启Feature Flag或启动control lifecycle",
+      "Candidate保持dormant；scan、analysis、strategy、backtest、前端和业务API合同不得改变",
+      "定向测试、固定基础门禁、安全门禁与自治门禁全部通过后才可形成下一生产包",
       "backtest:formal禁止运行；自动交易、自动调权、RR/Risk Gate放宽和future outcome生产回写继续禁止"
     ],
     "gate": "G0",
-    "actionClass": "dormant_runtime_deploy",
+    "actionClass": "read_only_production_preflight",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "supporting",
@@ -241,30 +232,32 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "形成可从当前生产target精确发布且浏览器断开后继续运行的Web-only Dormant执行包；Candidate始终不采集、不写入、不产出信号，失败恢复原Web镜像和Git target。"
+      "measurableOutcome": "生产校验路径与受锁身份拓扑一致，Runtime Identity下一包只面向当前精确生产release，Candidate继续休眠且不产生任何信号或交易计划。"
     },
-    "latestProductionResult": {
+    "prerequisiteProductionResult": {
       "status": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
       "completedAt": "2026-07-14T17:00:15Z",
-      "baselineCommit": "70722ea71b33268b688be5d42af9908d40f49859",
       "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
-      "webImageId": "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd",
       "observationSeconds": 1800,
       "sampleCount": 57,
       "continuousReadyFresh": true,
       "candidateRuntimeDormant": true,
       "candidateWorkerAbsent": true,
-      "databaseMutation": false,
-      "redisMutation": false,
-      "environmentMutation": false,
-      "otherServiceMutation": false,
-      "rollbackImageRetained": true,
-      "stagingRemoved": true,
-      "evidenceRetained": true,
-      "remoteEvidencePath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-dormant-runtime-deploy-8c81598-mrmrkuexyz",
-      "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
-      "genericProductionCheckCompatibilityIssue": "production-check.sh ordinary Compose invocation lacks the locked production identity wrapper and fails when POSTGRES_USER is not exported; identity-safe runner checks and independent API/Postgres/Redis checks passed",
-      "closeoutGatePending": true
+      "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5"
+    },
+    "latestLocalResult": {
+      "status": "PASS_LOCAL_RUNTIME_IDENTITY_CURRENT_RELEASE_PREFLIGHT",
+      "productionMutation": false,
+      "productionTarget": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+      "repositoryState": "clean_detached",
+      "artifactSha256": "e109adeaab925d59535906965e4534fcbef3c2f1187e3d56fea45730e377ed38",
+      "deploySafetyTests": "6/6",
+      "runtimeIdentityRunnerTests": "10/10",
+      "runtimeIdentityTransactionTests": "14/14",
+      "postgres16Rehearsal": "pass_provision_3_rollback_3_final_login_0",
+      "baselineGates": "pass",
+      "securityGates": "pass",
+      "formalBacktestRun": false
     }
   },
   "approvals": [
@@ -462,8 +455,15 @@
       "order": 25,
       "id": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
       "lane": "production",
-      "status": "ready_for_gate",
+      "status": "completed_production_pass_committed_pushed_41d22f4",
       "requiresExplicitApproval": true
+    },
+    {
+      "order": 26,
+      "id": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
+      "requiresExplicitApproval": false
     }
   ]
 }

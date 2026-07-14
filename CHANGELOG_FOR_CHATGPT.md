@@ -3876,3 +3876,47 @@ P0 阻断：
 ### 下一轮建议
 
 只启动 Runtime Identity 独立只读 preflight，并先把 verifier 复用生产 identity wrapper 作为进入任何身份 mutation 前的硬门禁。
+
+## 2026-07-15 / WP-G0.2 Dormant Closeout、Identity-safe Verifier 与 Runtime Identity Current-release Preflight
+
+### 本轮目标
+
+关闭 Dormant 生产 PASS 的 closeout，修复通用生产校验器遗漏锁定身份 wrapper 的 P1，并把 Runtime Identity runner 刷新到当前 clean detached production target。
+
+### 修改范围
+
+- `production-check.sh` 在固定生产根目录强制 root-owned `0700` wrapper、root-owned `0600` override 和双 SHA-256 验证，禁止回退到裸 Compose。
+- Runtime Identity request/runner 分开绑定 runner source commit 与 production commit，锁定 `cec0b657...` clean detached target，并绑定 env、Compose、Dormant evidence、wrapper/override 和 8 文件 artifact。
+- Web recreate 开始尝试即进入回滚责任；失败后必须复核 env checksum、旧 Web image、Candidate worker absent 和 identity-safe 完整生产合同。
+- 更新合同、攻击性测试、自治状态、traceability、Context 和交付报告。
+- 未修改 scan、analysis、strategy、backtest、frontend、API、migration、Compose、Candidate 业务实现或 secret；生产未连接、未变更。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的 Candidate runtime 身份地基；不改变实时排序、结构分析、RR、止损、目标或交易计划。
+
+### 测试结果
+
+- 红灯：deploy safety 5/6；旧 Runtime Identity 合同拒绝 current-release 状态与 clean detached 目标。
+- deploy safety 6/6、Runtime Identity runner 10/10、身份事务 14/14：PASS。
+- PostgreSQL 16：ledger=9，provision 3 / rollback 3，最终 LOGIN=0；独立权限测试 1/1 PASS。
+- typecheck、lint、build：PASS。
+- test:market：960 pass / 0 fail / 4 explicit DB skip；worker 23/23；historical smoke 4/4。
+- backtest:golden：16/16 PASS。
+- autonomy 29/29、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，禁止。
+
+### 是否部署
+
+未部署、未连接腾讯云生产、未创建生产 LOGIN、未写 Candidate URL、未 recreate Web。上一包 Dormant 生产仍保持 `cec0b657...`、1800 秒 57 样本 PASS；Candidate runtime 继续 disabled。
+
+### 风险与遗留问题
+
+- `PASS_LOCAL_RUNTIME_IDENTITY_CURRENT_RELEASE_PREFLIGHT` 不是生产身份 PASS。
+- 生产 Runtime Identity 仍是 R2 privileged identity 变更，须 fresh read-only preflight、精确一次性外部授权、自动回滚和观察。
+- Candidate activation、Shadow Capture、reconciliation、backfill、canonical cutover、WP-G0.2 与 G0 仍未完成。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+冻结本轮 clean commit 与门禁后，只形成 Runtime Identity fresh production preflight 和精确执行包；不得夹带 Candidate activation。
