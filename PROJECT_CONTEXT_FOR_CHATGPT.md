@@ -6,6 +6,7 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-15 `WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH` 已通过新的精确单次 approval、仓库外 lease/fencing 和 session-independent transient unit 完成 Web-only 生产发布，结果为 `PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION`。生产从 clean detached `70722ea71b33268b688be5d42af9908d40f49859` 切到精确单父 target `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`，新 Web image=`sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd`。1800 秒内 57 个样本持续 ready/fresh，Candidate runtime 全程 dormant、Candidate worker absent；数据库、Redis、env、migration、Feature Flag、其它服务均无 mutation。Postgres accepting connections、Redis PONG、frontend/backend/business 三份合同、目标 Web 镜像和 clean detached target 已独立复核通过。批准 staging 已自动删除，脱敏生产证据保留于仓库外 evidence 路径；旧 Web rollback image 继续保留，清理仍需独立批准。通用 `scripts/verify/production-check.sh` 直接调用普通 Compose 时因未加载锁定的生产身份 wrapper 而在 `POSTGRES_USER` 插值阶段失败，这是 verifier 调用兼容性 P1，不是生产 health 失败；身份安全 runner 的 57 次采样及独立检查均已通过。当前生产执行 PASS，但自治状态仍处于本包 closeout gate，完整 WP-G0.2/G0 尚未关闭；系统继续为 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 2026-07-14 `WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH` 已执行一次真实 Web-only 生产尝试，但不得写 PASS。绑定 source=`235459f8...`、runner=`9f8c6dc2...`、Bundle=`755512e4...`、request=`00575954...` 的 transient unit 成功构建并只重建 Web；Candidate worker 始终不存在，Candidate runtime 仍 dormant，数据库、Redis、migration、env、Feature Flag 和其它服务未变。目标 Web 连续留下 3 个 ready/fresh、Candidate absent 样本，第 4 个 observation checkpoint 的六项综合门禁中至少一项失败；旧 runner 只输出 generic error，无法诚实归类具体检查项，因此本次观察立即失败并自动恢复 Git baseline `70722ea71b33268b688be5d42af9908d40f49859` 与旧 Web image `sha256:6d02c759f295e3985b569be7a43c4afe99caa2e5b965a2f4b2395213f8df1a14`。自动 rollback checkpoint 本身为 pass，但回滚后立即执行的综合 health 复核尚未恢复，`rollback.json` 因此正确保留 `rollbackVerified=false`；后续只读人工复核证明生产现为 clean detached baseline、旧 image、health ready、database ready、scan fresh、scanner-worker healthy、Candidate absent。当前本地 remediation 为每一阶段记录精确 `failurePhase/failureCheck`，并只对回滚后的 ready/fresh 恢复增加原 240 秒上限内的轮询；目标 1800 秒观察仍是一票否决、未增加容错。Dormant 14/14、Autonomy 29/29、Deploy Safety 5/5、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 和三项安全检查已 PASS；正式 clean commit、冻结门禁、新 approval、Bundle 和生产重试仍待完成。系统继续为 `R1 / 可运行但不完整 / 不能支撑实战`，WP-G0.2/G0 未关闭。下一个同名条目是本次执行前的历史快照，已被本条取代。
 - 2026-07-14 `WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH` 已从本地准备转入精确生产执行 Gate；生产仍只完成动态只读预检，未部署、未改变。历史 2026-07-12 Dormant 尝试继续保持“新 Web 启动竞态后自动回滚”，没有被改写成 PASS。当前发布不再使用 GitHub main 的 149/156 路径宽差异，而是从现生产 target `70722ea71b33268b688be5d42af9908d40f49859` 构造已推送的单父 18 文件 release `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`，tree=`eb217a7...`、diff=`ee814eb0...`、path-set=`595fe259...`、runtime artifact=`5f4fb48d...`。专用 runner 只允许 Web build/force-recreate，Candidate 五个 Flag=false、三条数据库 URL 为空、release disabled、worker absent、control rows=0；数据库、Redis、migration、env、其它服务和 activation 禁止。生产执行接入 G0-G8 standing authorization、仓库外单次 approval、全局 lease、递增 fencing 和逐 mutation checkpoint；transient systemd unit 使用 `Restart=no`、`RuntimeMaxSec=5400`、journald，浏览器断开不终止。旧 Web image 在 mutation 前保留并成功后继续保留，失败自动恢复 baseline Git 与旧镜像。Microsoft Edge/OrcaTerm 在 `2026-07-13T22:47:34Z` 的只读预检证明：生产 clean detached `70722ea...`、remote target=`cec0b657...`、Candidate env=`flags 0 / URLs 0 / release disabled / worker expected false`、Candidate worker count=0、schema ledger/control=`9|0`、health ready/fresh、scanner healthy、三份合同 true、Postgres ready、Redis PONG、外部 active lease absent，identity wrapper/override 仍 root-owned `0700/0600`。预检同时真实发现宿主 `node=missing`，旧 runner 因此没有执行；随后新增当前 Web 容器 validator 和 network-none/read-only/cap-drop-all lease fallback。绑定阶段又真实发现 validator/request 仍使用历史包名，而自治控制器要求当前 active package，导致单份 approval 不可能同时通过；现已把 request、authorization、contract、Bundle、shell summary 和 lease package identity 统一到当前 active package，并增加跨状态回归测试。所有旧 gate 和 Bundle 因此失效。尚无当前状态的精确外部单次执行记录、正式 Bundle 或 1800 秒生产观察；系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`，WP-G0.2/G0 未关闭。
 - 2026-07-14 `WP-G0.2-SCAN-SUSTAINED-HEALTH-PRODUCTION-RELEASE` 已在 G0-G8 standing authorization 下完成真实生产重发与持续健康观察，结果为 `PASS_PRODUCTION_SCAN_SUSTAINED_HEALTH_TWO_CADENCE_OBSERVATION`。执行绑定 runner source=`36c20e85...`、tree=`2dcb470...`、final bundle=`7a7cb17f...`、target=`70722ea71b33268b688be5d42af9908d40f49859`，只切换 Web 与 scanner-worker；transient systemd unit 在 OrcaTerm/浏览器之外独立运行并以 success 结束。生产最终为 clean detached target，新 Web=`sha256:6d02c759...`、scanner-worker=`sha256:b11c0cec...`；1800 秒内 59 个样本、2 次真实 `completedAt` 推进、3 次 updated-only success，最终 health ready/fresh、scanner heartbeat healthy，Postgres、Redis、前后端合同、非目标容器不变和 Candidate absent 均通过。数据库、Redis、env、Feature Flag、Candidate runtime 与其它服务没有 mutation；两个基线 rollback refs 保留，staging 已清除。反自欺收口另发现 v1 CLI 的 `production-lease-execution.json` 停留在 acquire 快照，虽 append-only events、consumed ledger、released history 和 active lease count=0 一致证明 `released/PASS`；原快照已保留，新增四源脱敏 reconciliation，CLI 与红-绿回归现原子持久化 `active_consumed`/`released`。artifact 漂移门禁曾真实使 release 套件 9/15，刷新未部署的事后 closeout artifact 后 15/15；自治 29/29、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16、三项安全检查和最终冻结自治总门禁 10/10 全部 PASS，`worktreeUnchanged=true`。4 个 bundle、1 个 request 和 1 个外部单次 approval 已按逐路径 hash manifest 精确删除。本包只关闭 Scanner sustained-health P1；旧 Dormant Deploy 仍需刷新 standing authorization、当前 release identity、session-independent runner 和 rollback retention 后才可重试。系统继续是 `R1 / 可运行但不完整 / 不能支撑实战`，WP-G0.2 与 G0 未关闭。
@@ -82,7 +83,7 @@
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
 - 历史设计与 implementation/rehearsal 包已落成正式 migration；生产 schema 1-9 已于 2026-07-12 additive 应用并由 runner verify PASS，本地 runtime composition 已接入但 Candidate runtime 尚未部署。生产 Web 身份已于 2026-07-13 恢复并验证 ready/fresh，这只关闭持久化身份事故，不表示 Candidate 新链已接管。
-- sustained-health runner 的会话独立性与回滚镜像留存已在本地通过完整门禁，clean Git 收口和可复现 final bundle 也已完成，精确 commit/bundle 指纹记录在最新交付报告。当前最优先任务只剩通过 Microsoft Edge 重新执行动态只读生产预检；只有当前生产指纹、精确新 artifact/bundle 和新的90分钟批准全部绑定后，才能重新发布 Web + scanner-worker 并完成连续1800秒观察。Dormant Runtime Deploy 继续阻断；Codex 不得把本地加固解释成生产 PASS，也不能提前配置 Runtime Identity、启用 writer、启动 control lifecycle、backfill、read cutover、G1、R4 或实盘。
+- Scanner sustained-health 与 Dormant Web-only 运行地基均已分别完成真实 1800 秒生产观察；Dormant target 当前为 `cec0b657...`，Candidate 仍完全休眠。当前最优先任务是先冻结本包 closeout 证据，再对 Runtime Identity 做独立只读 preflight 和新的精确审批；在该包通过前仍禁止启用 writer、启动 control lifecycle、activation、backfill、read cutover、G1、R4 或实盘。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
 - 第 5.1-DEPLOY-CHANNEL-FIX 证据显示：Chrome 里没有 OrcaTerm；用户打开 Microsoft Edge 中的腾讯云 OrcaTerm 后，Codex 通过 Computer Use 可控该页面，并以 `ubuntu@VM-0-9-ubuntu` 完成服务器只读 smoke。只读 smoke 覆盖 `whoami`、`hostname`、`pwd`、UTC date、`uname`、Docker/Compose 版本、项目目录访问、`ls -la`、`docker compose ps` / `sudo -n docker compose ps`。观察到 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务均在运行，web/postgres/redis 为 healthy。
@@ -401,12 +402,12 @@ GitHub Actions / self-hosted runner：
 ## 12. 当前项目真实状态
 
 - 当前是否空壳：不是空壳。已有生产部署、真实 API、数据库、Redis、worker、公开交易所轻扫、CoinGlass 深扫基础、前端合同和生产 smoke。
-- 当前是否可运行：可运行。最近一次 Web Identity Recovery 即时生产验证为 health ready、scan fresh、persistence ready；但持续复查捕获过 scan aging/degraded，不能把即时 PASS 写成持续健康 PASS。
+- 当前是否可运行：可运行。Scanner sustained-health 和 Dormant Web-only target 均已通过各自 1800 秒真实生产观察；这只证明当前运行地基稳定，不证明完整业务链已达到实战能力。
 - 当前是否完整：不完整。扫描、分析、策略、复盘都有基础，但仍需要专业能力验收。
 - 当前是否支撑实战：**当前系统仍不能支撑实战。**
 - 当前最大短板：
-  1. scanner 持续健康修复目前只在本地通过，尚未部署 Web+scanner-worker，也未完成至少两个 cadence 周期观察，生产 P1 仍未关闭。
-  2. Candidate runtime 仍 disabled，WP-G0.2 的 Dormant Deploy、身份权限、激活观察、reconciliation 和 canonical cutover 均未完成。
+  1. 通用 `production-check.sh` 仍不能直接适配锁定的生产身份 wrapper，会在普通 Compose 环境变量插值阶段失败；必须修复 verifier 调用合同，不能绕开身份边界。
+  2. Candidate runtime 仍 disabled；Dormant Web-only 地基已发布，但 Runtime Identity、激活观察、reconciliation 和 canonical cutover 均未完成。
   3. 第五轮 formal 的历史能力证据仍显示 `TRADE_PLAN_READY=0`、WAIT 有效率 `0%`、扫描和分析提前性不足；后续新证据通过前不得宣称实战能力改善。
   4. 公网 HTTPS/session/security 仍需按 G0.3 独立收口。
   5. 回测/复盘和生产评分边界必须持续防污染。
@@ -415,11 +416,11 @@ GitHub Actions / self-hosted runner：
 
 ## 13. 最近三轮关键事件
 
-### 当前最新三轮（2026-07-14）
+### 当前最新三轮（2026-07-15）
 
-- Web Identity Recovery closeout：exact-approved Web-only 重建 PASS，远端16个精确临时文件已删除并逐项证明 absent，closeout=`5abb93cad2b3da4bbee0ab79015ea38f32a5a1bf`。
-- Sustained Health 本地修复：根因、fixed-rate/no-refresh/updated-only/completion freshness 和回归测试已收口，提交 `b1a0eddf973129375292b139a81b326b924a57fa` 已推送；生产仍未部署。
-- Sustained-health 发布恢复加固：原发布因 OrcaTerm 会话断开未 PASS，生产已恢复 `main@0599`，scanner 为 baseline 重建且摘要不相同；会话独立 runner、双 rollback image retention、仓库外 lease/fencing、一次性 approval、真实 Bundle CLI、定向15/15、自治29/29、clean Git 和可复现构建已通过。Edge 动态只读预检已证明当前基线与指纹未漂移；最终生产 Gate commit、外部 exact approval、重新发布与1800秒/至少两次 completedAt 推进观察仍未完成。
+- Dormant Web-only 生产执行：精确 target `cec0b657...`、Web image `sha256:cd3652...`、1800 秒 57 样本 PASS；Candidate 全程 dormant/absent，非 Web 目标无 mutation，staging 已删除，证据与 rollback image 保留。
+- Dormant 首次真实失败与修复：旧 runner 在第 4 样本失败并自动回滚的事实完整保留；后续只修复故障归因和有界回滚 health 等待，没有缩短或放宽观察门禁。
+- Scanner sustained-health：Web + scanner-worker 已完成 1800 秒、59 样本、至少两个真实 completion advances 的生产 PASS，会话独立 runner 和双 rollback image retention 已验证。
 
 以下第二至第五轮为历史审计记录，不代表当前最新生产版本：
 
@@ -550,11 +551,11 @@ GitHub Actions / self-hosted runner：
 
 ### P1 风险
 
-1. 问题：scanner 持续健康修复尚未部署和跨周期观察。
-   - 影响核心链路哪一环：全市场发现、候选筛选、新鲜度真值。
-   - 证据：生产曾出现 scan age=17分钟的 aging/degraded；本地已收口 fixed-rate、只读所有权、机器状态和 completion freshness。
-   - 当前状态：会话独立 runner、双 rollback image retention、定向12/12、基础/安全/自治11/11、clean Git 收口和可复现 final bundle 已完成；生产 P1 未关闭。
-   - 下一步：Microsoft Edge 动态只读绑定两个当前镜像与 env 指纹后申请 exact approval，部署并连续观察1800秒与至少两个后续完成推进。
+1. 问题：通用生产验证脚本与锁定生产身份 wrapper 不兼容。
+   - 影响核心链路哪一环：生产部署、证据真实性、回归验收。
+   - 证据：Dormant 发布后直接运行 `scripts/verify/production-check.sh` 时，普通 Compose 在 `POSTGRES_USER` 插值阶段失败；同一时点身份安全 runner 的 57 次采样和独立 health/contracts/Postgres/Redis 检查均通过。
+   - 当前状态：生产 health 未降级，但通用 verifier 不能作为当前身份拓扑下的可信一键证据。
+   - 下一步：独立修复 verifier 入口，使其复用生产 identity wrapper，并用红绿回归证明不会回退到裸 Compose。
 
 2. 问题：扫描排序主干不够强，优质机会未必稳定进入 Top10。
    - 影响核心链路哪一环：全市场发现、候选筛选。

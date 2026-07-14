@@ -3836,3 +3836,43 @@ P0 阻断：
 ### 下一轮建议
 
 冻结本轮 remediation clean commit，重跑自治总门禁并生成新的单次绑定；然后只重试 Web-only Dormant 1800 秒生产观察。
+
+## 2026-07-15 / WP-G0.2 Dormant Runtime Web-only 生产 PASS
+
+### 本轮目标
+
+用新的精确 request、仓库外单次 approval、lease/fencing 和 session-independent transient unit，重试 Dormant Web-only 发布并完成真实 1800 秒观察；Candidate 必须全程休眠。
+
+### 修改范围
+
+- 生产只切换 clean detached Git target 和 Web image。
+- 更新自治状态、traceability、Context、Changelog 和本轮交付报告。
+- 未修改或重建数据库、Redis、Worker、Compose、migration、env、Feature Flag、Candidate runtime、scan、analysis、strategy、backtest、frontend 或 API 业务逻辑。
+
+### 核心链路影响
+
+- 候选筛选 / 复盘进化：Dormant 运行地基通过真实生产持续观察。
+- 全市场发现 / 深扫验证 / 结构分析 / 风险赔率 / 交易计划：业务逻辑未改。
+
+### 测试结果
+
+- 自治总门禁：11/11 PASS，`worktreeUnchanged=true`；Dormant 14/14、Autonomy 29/29、Deploy Safety 5/5。
+- typecheck、lint、build、forbidden-files、secret-patterns、security-check：PASS。
+- test:market：960 pass / 0 fail / 4 explicit skip；worker 23/23；historical smoke 4/4。
+- backtest:golden：16/16 PASS。
+- production：1800 秒、57 样本、continuous ready/fresh；三份合同、Postgres、Redis、目标镜像、clean detached target 和 Candidate absent 独立复核 PASS。
+- `backtest:formal`：未运行，继续禁止。
+
+### 是否部署
+
+已通过 Microsoft Edge/OrcaTerm 部署腾讯云 Web-only target `cec0b657...`，Web image=`sha256:cd3652...`。精确 staging 已自动删除，脱敏 evidence 与旧 Web rollback image 保留。数据库、Redis、Worker 和其它服务未变。
+
+### 风险与遗留问题
+
+- 通用 `production-check.sh` 未加载锁定生产身份 wrapper，直接运行时在 `POSTGRES_USER` 插值阶段失败；这是 verifier 兼容性 P1，不是 production health 降级。
+- Runtime Identity、Candidate activation、Shadow Capture、reconciliation、canonical cutover、WP-G0.2 和 G0 仍未完成。
+- 当前仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只启动 Runtime Identity 独立只读 preflight，并先把 verifier 复用生产 identity wrapper 作为进入任何身份 mutation 前的硬门禁。

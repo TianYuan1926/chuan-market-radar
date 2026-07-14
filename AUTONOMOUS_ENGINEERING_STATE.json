@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-14T17:47:50+08:00",
+  "updatedAt": "2026-07-15T01:22:50+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -10,7 +10,7 @@
     "candidateRuntime": "disabled",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
-    "dormantRuntimeProduction": "failed_continuous_observation_after_3_pass_samples_automatic_git_and_web_rollback_current_baseline_ready_fresh_candidate_absent_diagnostic_and_bounded_rollback_health_wait_remediation_gates_pass_rebind_pending"
+    "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_gate_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -242,6 +242,29 @@
         "复盘进化"
       ],
       "measurableOutcome": "形成可从当前生产target精确发布且浏览器断开后继续运行的Web-only Dormant执行包；Candidate始终不采集、不写入、不产出信号，失败恢复原Web镜像和Git target。"
+    },
+    "latestProductionResult": {
+      "status": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+      "completedAt": "2026-07-14T17:00:15Z",
+      "baselineCommit": "70722ea71b33268b688be5d42af9908d40f49859",
+      "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+      "webImageId": "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd",
+      "observationSeconds": 1800,
+      "sampleCount": 57,
+      "continuousReadyFresh": true,
+      "candidateRuntimeDormant": true,
+      "candidateWorkerAbsent": true,
+      "databaseMutation": false,
+      "redisMutation": false,
+      "environmentMutation": false,
+      "otherServiceMutation": false,
+      "rollbackImageRetained": true,
+      "stagingRemoved": true,
+      "evidenceRetained": true,
+      "remoteEvidencePath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-dormant-runtime-deploy-8c81598-mrmrkuexyz",
+      "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
+      "genericProductionCheckCompatibilityIssue": "production-check.sh ordinary Compose invocation lacks the locked production identity wrapper and fails when POSTGRES_USER is not exported; identity-safe runner checks and independent API/Postgres/Redis checks passed",
+      "closeoutGatePending": true
     }
   },
   "approvals": [
