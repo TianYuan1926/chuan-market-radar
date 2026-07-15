@@ -231,7 +231,7 @@ if [[ "${TRANSPORT_MODE}" == "staged_bundle" ]]; then
     --request "${AUTONOMY_REQUEST_FILE}" \
     --manifest "${TRANSPORT_MANIFEST}" \
     --bundle-sha256 "$(jq -r '.transportBundleSha256' "${AUTONOMY_REQUEST_FILE}")" \
-    --runner "${BASH_SOURCE[0]}" >/dev/null
+    --runner "${RUNNER_MODULE}" >/dev/null
   [[ "$(jq -r '.sourceCommit' "${TRANSPORT_MANIFEST}")" == "${APPROVED_RUNNER_SOURCE_COMMIT}" ]] \
     || fail runner_source_commit_mismatch
 elif [[ "${TRANSPORT_MODE}" == "repository" ]]; then

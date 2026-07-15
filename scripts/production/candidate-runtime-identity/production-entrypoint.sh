@@ -10,6 +10,7 @@ BUNDLE_MARKER="${SOURCE_ROOT}/.transport-bundle.sha256"
 TRANSPORT_MANIFEST="${SOURCE_ROOT}/transport-manifest.json"
 PACKET_VALIDATOR="${SOURCE_ROOT}/scripts/production/candidate-runtime-identity/bundle.mjs"
 RELEASE_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-runtime-identity/production-runner.sh"
+RUNTIME_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-runtime-identity/runner.mjs"
 AUTONOMY_TRUST_ROOT="/home/ubuntu/.local/state/market-radar-autonomy"
 PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
 WEB_CONTAINER=""
@@ -41,7 +42,8 @@ POSTGRES_CONTAINER="$(${DOCKER[@]} ps \
   --filter 'label=com.docker.compose.service=postgres' --format '{{.ID}}')"
 [[ "${POSTGRES_CONTAINER}" =~ ^[0-9a-f]+$ ]] || fail current_postgres_container_identity_invalid
 
-for file in "${REQUEST_FILE}" "${BUNDLE_MARKER}" "${TRANSPORT_MANIFEST}" "${PACKET_VALIDATOR}" "${RELEASE_RUNNER}"; do
+for file in "${REQUEST_FILE}" "${BUNDLE_MARKER}" "${TRANSPORT_MANIFEST}" "${PACKET_VALIDATOR}" \
+  "${RELEASE_RUNNER}" "${RUNTIME_RUNNER}"; do
   [[ -f "${file}" && ! -L "${file}" ]] || fail "staged_regular_file_missing:$(basename "${file}")"
 done
 
@@ -75,7 +77,7 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
     --request /packet/approval-request.json \
     --manifest /packet/transport-manifest.json \
     --bundle-sha256 "${APPROVED_BUNDLE_SHA256}" \
-    --runner /packet/scripts/production/candidate-runtime-identity/production-runner.sh >/dev/null
+    --runner /packet/scripts/production/candidate-runtime-identity/runner.mjs >/dev/null
 
 if [[ "${ENTRYPOINT_MODE}" == "launcher" ]]; then
   for command_name in id jq realpath sudo systemctl systemd-run; do

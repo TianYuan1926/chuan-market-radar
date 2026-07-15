@@ -79,7 +79,7 @@
     "independentVerificationRequired": true
   },
   "artifact": {
-    "sha256": "b8ae75b72649b98cc2209891d8d2b6411a6021aca68063f0365a97c3851a98b8",
+    "sha256": "d8f252aa3ce5bec979bf3dae180a289c025e56778fb9df6bfc6401af27f53129",
     "files": [
       "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
       "scripts/governance/autonomy-policy.mjs",

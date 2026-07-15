@@ -52,6 +52,7 @@ test("entrypoint uses the current immutable Web image instead of requiring host 
   assert.match(source, /--network none --read-only --cap-drop ALL/);
   assert.match(source, /--security-opt no-new-privileges/);
   assert.match(source, /--entrypoint node "\$\{WEB_IMAGE\}"/);
+  assert.match(source, /--runner \/packet\/scripts\/production\/candidate-runtime-identity\/runner\.mjs/);
 });
 
 test("production runner fences preflight, mutation, rollback and closeout with one external lease", async () => {
@@ -71,4 +72,6 @@ test("production runner fences preflight, mutation, rollback and closeout with o
   assert.match(source, /run_isolated_node/);
   assert.match(source, /--network none --read-only --cap-drop ALL/);
   assert.match(source, /web_runtime_changed_during_preflight/);
+  assert.match(source, /--runner "\$\{RUNNER_MODULE\}"/);
+  assert.doesNotMatch(source, /--runner "\$\{BASH_SOURCE\[0\]\}"/);
 });
