@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -128,6 +129,24 @@ test("production runner validates refreshed evidence through the mounted secure 
   assert.match(refresh, /--evidence "\$\{secure_refreshed_file\}"/);
   assert.doesNotMatch(refresh, /--evidence "\$\{refreshed_file\}"/);
   assert.ok(refresh.indexOf("install -m 0600") < refresh.indexOf("--evidence \"${secure_refreshed_file}\""));
+});
+
+test("production runner Web identity probe is valid CommonJS on the production Node runtime", async () => {
+  const source = await readFile(
+    "scripts/production/candidate-runtime-identity/production-runner.sh",
+    "utf8",
+  );
+  const start = source.indexOf('const pg = require("pg");');
+  const end = source.indexOf("\nNODE", start);
+  assert.ok(start >= 0 && end > start, "Web identity probe heredoc must exist");
+  const probe = source.slice(start, end);
+  assert.match(probe, /\(async \(\) => \{/);
+  assert.match(probe, /\}\)\(\)\.catch\(\(error\) => \{/);
+  const check = spawnSync(process.execPath, ["--check"], {
+    encoding: "utf8",
+    input: probe,
+  });
+  assert.equal(check.status, 0, check.stderr || check.stdout);
 });
 
 test("production runner reads GNU stat output before the BSD fallback", async () => {

@@ -1,6 +1,6 @@
 # WP-G0.2 Runtime Identity Production Runner 准入合同
 
-当前 8 文件 artifact SHA-256 为 `3d58b9ed889713322703aea7d18118bf2b2c1059417af4e86634a7ef7f28ba0b`。旧 checksum `28d10a13cff4c60f72509bdeb708f754b67a3170b910b2f7b6ba37ccc0a999a3` 及更早值只保留为历史事实，不得再用于后续身份审批。
+当前 8 文件 artifact SHA-256 为 `d471bd5a7c0c062715946b07359ccf0777ee998d826d2161572875f101cdbd49`。旧 checksum `3d58b9ed889713322703aea7d18118bf2b2c1059417af4e86634a7ef7f28ba0b` 及更早值只保留为历史事实，不得再用于后续身份审批。
 
 ## 1. 本包目标
 
@@ -61,7 +61,7 @@ PASS_IMMEDIATE_RUNTIME_IDENTITY_AWAITING_OBSERVATION
 本地准入状态只能写：
 
 ```text
-PASS_LOCAL_RUNTIME_IDENTITY_CURRENT_RELEASE_PREFLIGHT
+PASS_LOCAL_RUNTIME_IDENTITY_NODE_RUNTIME_COMPATIBILITY_REMEDIATION
 ```
 
-它证明 runner、回滚和当前 release 合同可进入精确生产授权准备，不证明生产角色或 URL 已配置。生产运输、外部授权、lease/fencing 和 transient systemd 入口另由 `wp-g0-2-runtime-identity-production-execution.v1.json` 约束；两份合同必须同时 PASS。
+它证明 runner、回滚和当前 release 合同可进入精确生产授权准备，并证明 Web 身份探针已使用 CommonJS 可解析的 async IIFE 且由直接 `node --check` 回归保护；不证明生产角色或 URL 已配置。生产运输、外部授权、lease/fencing 和 transient systemd 入口另由 `wp-g0-2-runtime-identity-production-execution.v1.json` 约束；两份合同必须同时 PASS。

@@ -39,4 +39,6 @@ OrcaTerm 只负责上传脱敏包和启动 launcher。真实执行必须进入 `
 
 ## 真值
 
-本合同和本地测试通过只表示生产包具备执行条件，不表示生产已变更，也不表示 G0.2 已完成。生产成功后仍需只读身份验证和统一观察窗口。
+绑定 source commit `f83d83e314bafbbe10d55c78555d406801966e2d` 的上一生产事务已创建临时身份、权限并重建 Web，但 Web 身份探针因 Node 22 拒绝 CommonJS `require()` 与顶层 `await` 混用而失败；有界回滚已恢复旧 env、旧 Web image、删除三套 LOGIN、撤销新增权限并释放 lease，生产没有保留本次 mutation。旧 Bundle `0703656c3f403313f370e20932201f96b40daf2e2e7ec59083b3aac4ed0fac8f` 和旧 request 已消费，禁止复用。
+
+当前本地修复把探针封装为 async IIFE，并由直接 Node syntax gate 保护。当前 11 文件 production packet artifact 为 `a110badddd2807bcb6a45290257a8ff046d4ff46ab639d6197ba2dab71957ff9`，定向 packet 测试为 13/13。本合同和本地测试通过仍只表示新生产包具备冻结条件，不表示生产已变更，也不表示 G0.2 已完成。生产成功后仍需只读身份验证和统一观察窗口。

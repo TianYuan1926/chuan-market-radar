@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wp-g0.2-runtime-identity-runner-preparation.v1",
   "packageId": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-  "status": "local_current_release_preflight_in_progress_production_not_authorized",
+  "status": "local_node_runtime_compatibility_remediated_production_retry_not_authorized",
   "productionAuthorization": false,
   "productionExecuted": false,
   "prerequisite": {
@@ -55,7 +55,7 @@
     "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa"
   },
   "artifact": {
-    "sha256": "3d58b9ed889713322703aea7d18118bf2b2c1059417af4e86634a7ef7f28ba0b",
+    "sha256": "d471bd5a7c0c062715946b07359ccf0777ee998d826d2161572875f101cdbd49",
     "files": [
       "docker-compose.yml",
       "scripts/production/candidate-dormant-deploy.mjs",

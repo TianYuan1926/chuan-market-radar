@@ -595,6 +595,7 @@ if [[ "${LEASE_REQUIRED}" == "true" ]]; then lease_checkpoint recreate-web; fi
 
 "${COMPOSE[@]}" exec -T web node - <<'NODE'
 const pg = require("pg");
+(async () => {
 const roles = {
   CANDIDATE_SOURCE_DATABASE_URL: "candidate_application_writer_role",
   CANDIDATE_CONSUMER_DATABASE_URL: "candidate_shadow_executor_role",
@@ -637,6 +638,10 @@ if (response.status !== 200 || body.ok !== true || body.mode !== "dormant" || bo
 }
 console.log(JSON.stringify({ candidateDatabaseUrlsConfigured: 3, candidateFeatureFlagsEnabled: 0,
   candidateMode: "dormant", candidateBatch: null, runtimeIdentitiesVerified: 3 }));
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
 NODE
 
 if "${DOCKER[@]}" ps --format '{{.Names}}' | grep -q 'candidate-shadow-worker'; then

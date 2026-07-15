@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-16T04:31:33+08:00",
+  "updatedAt": "2026-07-16T05:43:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -133,10 +133,10 @@
   },
   "activePackage": {
     "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-    "title": "Runtime Identity refreshed evidence secure bridge remediation and exact production re-entry",
+    "title": "Runtime Identity production Node module-format remediation and exact re-entry",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "如实关闭续证摘要生成在仓库外 evidence 目录、隔离 Node 只挂载 source/secure 目录而无法校验的问题；续证摘要只能复制为 secure root 内 0600 临时桥接文件后进入 network-none/read-only/cap-drop-all validator，并允许下一次精确 request 复用刚完成的 1800 秒、61 样本真实新鲜证据，不缩短时间、不降低样本、不绕过校验。",
+    "objective": "如实关闭生产 Node 22 对 require() 与顶层 await 混用的歧义模块格式拒绝问题；Web 身份探针必须封装为可由生产 CommonJS 运行时解析的 async IIFE，并以直接 Node syntax gate 防止同类回归。上一生产事务的临时 LOGIN、权限、env 和 Web recreate 已由有界回滚完整恢复，下一次只能使用新 clean commit、全门禁、唯一 Bundle/request 重入。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化",
@@ -267,18 +267,18 @@
       "refreshedSummarySha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
       "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
       "freshnessAtLatestAttempt": "renewed_1800_seconds_61_samples_continuous_ready_fresh",
-      "latestAttemptResult": "SAFE_STOP_PRE_MUTATION_REFRESHED_EVIDENCE_NOT_VISIBLE_TO_ISOLATED_VALIDATOR"
+      "latestAttemptResult": "ROLLBACK_PASS_POST_PROVISION_WEB_IDENTITY_PROBE_MODULE_FORMAT_AMBIGUITY"
     },
     "prerequisiteLocalResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_SECURE_EVIDENCE_BRIDGE_REMEDIATION",
+      "status": "PASS_LOCAL_RUNTIME_IDENTITY_NODE_RUNTIME_COMPATIBILITY_REMEDIATION",
       "productionMutation": false,
       "productionTarget": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
       "repositoryState": "clean_detached",
-      "artifactSha256": "3d58b9ed889713322703aea7d18118bf2b2c1059417af4e86634a7ef7f28ba0b",
+      "artifactSha256": "d471bd5a7c0c062715946b07359ccf0777ee998d826d2161572875f101cdbd49",
       "autonomyTests": "31/31",
       "deploySafetyTests": "6/6",
       "runtimeIdentityRunnerTests": "16/16",
-      "runtimeIdentityProductionPacketTests": "12/12",
+      "runtimeIdentityProductionPacketTests": "13/13",
       "runtimeIdentityTransactionTests": "14/14",
       "postgres16Rehearsal": "pass_provision_3_rollback_3_final_login_0_production_connected_false",
       "baselineGates": "pass_typecheck_lint_market_960_0_4_build_golden_16",
@@ -286,16 +286,16 @@
       "formalBacktestRun": false
     },
     "localProductionPacketResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET_WITH_SECURE_EVIDENCE_BRIDGE_REMEDIATION",
+      "status": "PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET_WITH_NODE_RUNTIME_COMPATIBILITY_REMEDIATION",
       "productionMutation": false,
       "transportReproducible": true,
       "transportContainsSecrets": false,
-      "transportArtifactSha256": "60608ae6ebcc72181f34a1ddcb4afcaab7c77e809ef9100c18185ba1dfbd4f5a",
+      "transportArtifactSha256": "a110badddd2807bcb6a45290257a8ff046d4ff46ab639d6197ba2dab71957ff9",
       "transportArtifactFiles": 11,
       "sessionIndependentRunner": "transient_systemd_restart_no_runtime_max_5400_journald",
       "externalAuthorization": "required_repository_external_single_use_max_90_minutes",
       "externalLeaseAndFencing": true,
-      "productionPacketTests": "12/12",
+      "productionPacketTests": "13/13",
       "runtimeIdentityRunnerTests": "16/16",
       "autonomyTests": "31/31",
       "runtimeIdentityTransactionTests": "14/14",
@@ -309,20 +309,21 @@
       "formalBacktestRun": false
     },
     "latestProductionAttempt": {
-      "result": "SAFE_STOP_PRE_MUTATION_REFRESHED_EVIDENCE_NOT_VISIBLE_TO_ISOLATED_VALIDATOR",
-      "runnerSourceCommit": "77c3a3bd175201efe5e37853975625dc4abe160b",
-      "transportBundleSha256": "ab4dbbec236b750c227aea9cbad918a08639046fce41d675002131086bfd0021",
-      "externalRequestSha256": "5e3d9d1b0b99ba06699e58a6206c63b8403ae3c24a60f1973800935337d489de",
-      "requestStatus": "failed_attempt_external_request_invalid_do_not_reuse",
+      "result": "ROLLBACK_PASS_POST_PROVISION_WEB_IDENTITY_PROBE_MODULE_FORMAT_AMBIGUITY",
+      "runnerSourceCommit": "f83d83e314bafbbe10d55c78555d406801966e2d",
+      "transportBundleSha256": "0703656c3f403313f370e20932201f96b40daf2e2e7ec59083b3aac4ed0fac8f",
+      "externalRequestSha256": "bb66a0bedba952e761282054062fd11a473bf3e3b989c2c326393c61044be9c0",
+      "requestStatus": "consumed_failed_attempt_do_not_reuse",
       "completedSamples": 61,
       "requiredSamples": 57,
       "dormantEvidenceRefreshPassed": true,
       "refreshedEvidenceSha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
-      "failureReason": "run_isolated_node_mounted_source_and_secure_roots_but_refreshed_evidence_was_only_in_repository_external_evidence_directory",
-      "identityMutation": false,
-      "databaseMutation": false,
-      "environmentMutation": false,
-      "webMutation": false,
+      "failureReason": "inline_web_identity_probe_combined_commonjs_require_with_top_level_await_and_production_node_22_rejected_the_ambiguous_module_format",
+      "identityMutation": true,
+      "databaseMutation": true,
+      "environmentMutation": true,
+      "webMutation": true,
+      "temporaryMutationFullyRolledBack": true,
       "rollbackVerified": true,
       "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
       "productionRepositoryDirtyFileCount": 0,
@@ -338,7 +339,10 @@
       "redisPong": true,
       "refreshedEvidenceRetained": true,
       "remoteRefreshedEvidencePath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-runtime-identity-77c3a3b-ec19db56/dormant-evidence-refreshed.json",
-      "failedBundleAndRequestReusable": false
+      "failedBundleAndRequestReusable": false,
+      "productionEnvRestored": true,
+      "productionLeaseReleased": true,
+      "stagingSecureOpsAndUploadTempsAbsent": true
     }
   },
   "approvals": [

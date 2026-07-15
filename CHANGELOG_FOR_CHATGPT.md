@@ -4298,3 +4298,41 @@ P0 阻断：
 ### 下一轮建议
 
 只冻结本修复并重试 Runtime Identity；成功后立即执行独立只读身份验收，Activation 继续关闭。
+
+## 2026-07-16 / WP-G0.2 Runtime Identity Node 22 模块格式修复
+
+### 本轮目标
+
+如实修复生产 Web 身份探针被 Node 22 拒绝的问题；不放宽身份、权限、health、Dormant 或回滚门禁。
+
+### 修改范围
+
+- 仅把 `production-runner.sh` 中精确 Web 身份探针封装为 CommonJS 可解析的 async IIFE，并新增从真实 heredoc 提取后执行 `node --check` 的回归测试。
+- 更新两份 Runtime Identity 机器/人工合同、自治状态、traceability、Context 和本轮报告。
+- 未修改 migration、业务数据、Redis、worker、Feature Flag、Candidate activation、scan、analysis、strategy、RR、Risk Gate、backtest、frontend 或业务 API。
+
+### 核心链路影响
+
+只修复候选筛选与复盘进化的生产身份地基，不改变全市场发现、深扫验证、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Runtime Identity Runner 16/16、Production Packet 13/13、Identity transaction 14/14、Deploy Safety 6/6、Autonomy 31/31：PASS。
+- 隔离 PostgreSQL 16 provision/rollback：PASS，`productionConnected=false`。
+- typecheck、lint、build：PASS；market 960 pass / 0 fail / 4 explicit DB skip；worker 23/23；historical 4/4；Golden 16/16。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+上一事务绑定 source `f83d83e...`，在完成 provision/env/Web recreate 后因 `ERR_AMBIGUOUS_MODULE_SYNTAX` 失败；自动回滚和独立复核均 PASS，生产未保留 LOGIN、权限、env 或 Web mutation，lease 与临时目录已清理。当前本地修复尚未提交、推送或重试生产。
+
+### 风险与遗留问题
+
+- P0：无已知未收口污染；生产已恢复旧基线。
+- P1：clean commit、提交后 gate evidence、新 Bundle/request 和生产重试尚未完成。
+- P1：Runtime Identity、Activation、WP-G0.2 和 G0 仍未完成。
+
+### 下一轮建议
+
+只冻结当前 Node 22 修复并重试 Runtime Identity；最终 PASS 前继续禁止 Candidate activation。
