@@ -24,6 +24,8 @@ AUTONOMY_TRUST_ROOT="${MARKET_RADAR_AUTONOMY_TRUST_ROOT:-/home/ubuntu/.local/sta
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
 EVIDENCE_DIRECTORY="${EVIDENCE_DIRECTORY:-${OPS_ROOT}/evidence}"
 NODE_RUNTIME="${RUNTIME_IDENTITY_NODE_RUNTIME:-auto}"
+WEB_READY_TIMEOUT_SECONDS=240
+WEB_READY_POLL_SECONDS=1
 DOCKER=()
 PREFLIGHT_WEB_CONTAINER=""
 PREFLIGHT_WEB_IMAGE=""
@@ -349,6 +351,38 @@ run_identity_safe_production_check() {
     bash "${SOURCE_ROOT}/scripts/verify/production-check.sh"
 }
 
+wait_for_web_runtime_ready() {
+  local deadline=$((SECONDS + WEB_READY_TIMEOUT_SECONDS))
+  local web_container="" web_state=""
+  while true; do
+    web_container="$("${COMPOSE[@]}" ps -q web 2>/dev/null || true)"
+    if [[ -n "${web_container}" ]]; then
+      web_state="$("${DOCKER[@]}" inspect "${web_container}" \
+        --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+        2>/dev/null || true)"
+      if [[ "${web_state}" == "running|healthy" ]] \
+        && "${COMPOSE[@]}" exec -T web node -e '
+          fetch("http://127.0.0.1:3000/api/health")
+            .then(async (response) => ({ response, body: await response.json() }))
+            .then(({ response, body }) => {
+              const health = body?.health;
+              if (!response.ok || body?.ok !== true || health?.level !== "ready"
+                || health?.persistence?.databaseStatus !== "ready"
+                || health?.scan?.freshness !== "fresh") process.exit(1);
+            })
+            .catch(() => process.exit(1));
+        ' >/dev/null 2>&1; then
+        return 0
+      fi
+    fi
+    if (( SECONDS >= deadline )); then
+      printf 'ERROR: web_runtime_readiness_timeout state=%s\n' "${web_state:-absent}" >&2
+      return 1
+    fi
+    sleep "${WEB_READY_POLL_SECONDS}"
+  done
+}
+
 container_snapshot_excluding_web() {
   "${DOCKER[@]}" ps --format '{{.Names}}={{.Image}}={{.ID}}' \
     | grep -v '^chuan-market-radar-web-1=' | LC_ALL=C sort
@@ -505,7 +539,11 @@ rollback_on_failure() {
   fi
   if [[ "${WEB_RECREATE_ATTEMPTED}" == "true" ]]; then
     "${DOCKER[@]}" tag "${ROLLBACK_TAG}" chuan-market-radar-web:latest || rollback_failed=true
-    "${COMPOSE[@]}" up -d --no-deps --no-build --force-recreate web || rollback_failed=true
+    if "${COMPOSE[@]}" up -d --no-deps --no-build --force-recreate web; then
+      wait_for_web_runtime_ready || rollback_failed=true
+    else
+      rollback_failed=true
+    fi
   fi
   if [[ "${PROVISIONED}" == "true" ]]; then
     "${DOCKER[@]}" run --rm --network "${NETWORK}" \
@@ -592,6 +630,7 @@ ENV_SWITCHED=true
 WEB_RECREATE_ATTEMPTED=true
 if [[ "${LEASE_REQUIRED}" == "true" ]]; then lease_checkpoint recreate-web; fi
 "${COMPOSE[@]}" up -d --no-deps --no-build --force-recreate web
+wait_for_web_runtime_ready || fail web_runtime_not_ready_after_recreate
 
 "${COMPOSE[@]}" exec -T web node - <<'NODE'
 const pg = require("pg");

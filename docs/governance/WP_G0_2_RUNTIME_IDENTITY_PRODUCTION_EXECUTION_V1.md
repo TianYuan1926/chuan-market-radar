@@ -39,6 +39,6 @@ OrcaTerm 只负责上传脱敏包和启动 launcher。真实执行必须进入 `
 
 ## 真值
 
-绑定 source commit `f83d83e314bafbbe10d55c78555d406801966e2d` 的上一生产事务已创建临时身份、权限并重建 Web，但 Web 身份探针因 Node 22 拒绝 CommonJS `require()` 与顶层 `await` 混用而失败；有界回滚已恢复旧 env、旧 Web image、删除三套 LOGIN、撤销新增权限并释放 lease，生产没有保留本次 mutation。旧 Bundle `0703656c3f403313f370e20932201f96b40daf2e2e7ec59083b3aac4ed0fac8f` 和旧 request 已消费，禁止复用。
+绑定 source commit `26e82fb6a910018dbe6254dd1e0d2835d40f02b9` 的最新生产事务已创建临时身份、权限并重建 Web，但 runner 在新 Web 尚未监听 `127.0.0.1:3000` 时立即执行身份探针，返回 `ECONNREFUSED`；有界回滚与独立只读复核均证明旧 env、旧 Web image、LOGIN、membership、权限、health 和 Candidate dormant 边界已恢复。旧 Bundle `e931515cc2aa9033e82adb4f9ae27bd80f4c323165a400a8dfd920acb2013f72` 和旧 request 已消费，禁止复用。
 
-当前本地修复把探针封装为 async IIFE，并由直接 Node syntax gate 保护。当前 11 文件 production packet artifact 为 `a110badddd2807bcb6a45290257a8ff046d4ff46ab639d6197ba2dab71957ff9`，定向 packet 测试为 13/13。本合同和本地测试通过仍只表示新生产包具备冻结条件，不表示生产已变更，也不表示 G0.2 已完成。生产成功后仍需只读身份验证和统一观察窗口。
+当前本地修复在 Web 重建后增加最长 240 秒 fail-closed 等待，必须同时满足容器 `running|healthy` 和容器内 `/api/health` 的 `ready / database ready / fresh` 才能进入身份探针；回滚重建复用同一门禁。当前 11 文件 production packet artifact 为 `5f73433926d11904eae91cceffdb35f35630a4b1b5612173eb9456b8db3879a9`。本合同和本地测试通过仍只表示新生产包具备冻结条件，不表示生产已变更，也不表示 G0.2 已完成。生产成功后仍需只读身份验证和统一观察窗口。

@@ -4336,3 +4336,45 @@ P0 阻断：
 ### 下一轮建议
 
 只冻结当前 Node 22 修复并重试 Runtime Identity；最终 PASS 前继续禁止 Candidate activation。
+
+## 2026-07-16 / WP-G0.2 Runtime Identity Web 就绪竞态修复
+
+### 本轮目标
+
+修复生产 Web no-build recreate 后在服务尚未监听时执行身份探针导致的 `ECONNREFUSED`，不放宽身份、权限、Dormant、health 或回滚门禁。
+
+### 修改范围
+
+- Runtime Identity runner 增加最长 240 秒的 Web readiness 等待；容器必须 `running|healthy`，且容器内 `/api/health` 必须为 `ready / database ready / fresh`。
+- 正向身份探针与自动回滚复核使用同一 readiness 门禁。
+- 新增真实重试回归：第一次 readiness 失败、第二次成功后才继续。
+- 更新机器合同、自治状态、traceability、Context 和本轮中文报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务 API、migration、Redis、worker、Feature Flag 或 Candidate activation。
+
+### 核心链路影响
+
+只加强候选筛选与复盘进化的 Runtime Identity 地基；不改变全市场发现、深扫验证、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Runner 17/17、Packet 13/13、Identity 14/14、Deploy Safety 6/6、Autonomy 31/31：PASS。
+- 隔离 PostgreSQL 16：migration 9、provision 3、rollback 3、productionConnected=false：PASS。
+- typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip。
+- worker 23/23、historical 4/4、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- runner artifact=`0d40fdf0...`；production packet artifact=`5f734339...`。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+上一生产事务绑定 source `26e82fb...`，在 provision/env/Web recreate 后因 readiness 竞态失败；自动回滚和独立只读复核 PASS，生产没有保留 LOGIN、权限、env 或 Web mutation。当前修复尚未提交和重试生产，两个脱敏上传临时文件仍待精确清理。
+
+### 风险与遗留问题
+
+- P0：无已知未收口生产 mutation；回滚已验证。
+- P1：clean commit、提交后自治 gate evidence、新 Bundle/request 和生产重试尚未完成。
+- P1：Runtime Identity、Activation、WP-G0.2 和 G0 仍未完成。
+
+### 下一轮建议
+
+只冻结并重试 Runtime Identity；最终 PASS 前继续禁止 Candidate activation。

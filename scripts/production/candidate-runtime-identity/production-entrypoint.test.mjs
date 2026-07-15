@@ -96,6 +96,13 @@ test("production runner fences preflight, mutation, rollback and closeout with o
   assert.match(source, /observationDurationSeconds' "\$\{CONTRACT_FILE\}"/);
   assert.match(source, /duration\}" == "1800" && "\$\{poll\}" == "30"/);
   assert.match(source, /run_identity_safe_production_check >\/dev\/null/);
+  assert.match(source, /wait_for_web_runtime_ready/);
+  assert.match(source, /web_runtime_not_ready_after_recreate/);
+  assert.ok(
+    source.lastIndexOf("wait_for_web_runtime_ready || fail web_runtime_not_ready_after_recreate")
+      < source.lastIndexOf('const pg = require("pg");'),
+    "Web readiness must pass before the identity and dormant contract probe",
+  );
   assert.match(source, /export READY_TIMEOUT_SECONDS=0/);
   assert.match(source, /export SHADOW_READY_TIMEOUT_SECONDS=0/);
   assert.match(source, /verify_dormant_candidate_contract/);

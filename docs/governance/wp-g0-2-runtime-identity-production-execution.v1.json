@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wp-g0.2-runtime-identity-production-execution.v1",
   "packageId": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-  "status": "local_node_runtime_compatibility_remediated_production_retry_not_authorized",
+  "status": "local_web_readiness_race_remediated_production_retry_not_authorized",
   "productionAuthorization": false,
   "productionExecuted": false,
   "actionClass": "runtime_identity_provision",
@@ -96,7 +96,7 @@
     "independentVerificationRequired": true
   },
   "artifact": {
-    "sha256": "a110badddd2807bcb6a45290257a8ff046d4ff46ab639d6197ba2dab71957ff9",
+    "sha256": "5f73433926d11904eae91cceffdb35f35630a4b1b5612173eb9456b8db3879a9",
     "files": [
       "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
       "scripts/governance/autonomy-policy.mjs",

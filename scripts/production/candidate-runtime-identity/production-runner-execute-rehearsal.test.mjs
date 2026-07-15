@@ -11,12 +11,17 @@ import contract from "../../../docs/governance/wp-g0-2-runtime-identity-runner-p
 const execFileAsync = promisify(execFile);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-async function scenario({ failVerification = false, nodeRuntime = "host_node" } = {}) {
+async function scenario({
+  failVerification = false,
+  nodeRuntime = "host_node",
+  readinessFailures = 0,
+} = {}) {
   const directory = await mkdtemp("/tmp/wp_g0_2_rehearsal_runtime_identity_runner_");
   const fakeBin = join(directory, "bin");
   const production = join(directory, "production");
   const secure = join(directory, "secure");
   const dockerLog = join(directory, "docker.log");
+  const readinessCounter = join(directory, "readiness.counter");
   const approvedProductionCommit = "a".repeat(40);
   const approvedRunnerSourceCommit = "d".repeat(40);
   const identityWrapper = join(directory, "compose-identity-safe");
@@ -50,6 +55,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
   await chmod(identityWrapper, 0o700);
   await chmod(identityOverride, 0o600);
   await writeFile(dockerLog, "");
+  await writeFile(readinessCounter, "0");
 
   const localContract = JSON.parse(JSON.stringify(contract));
   localContract.productionTarget = { commit: approvedProductionCommit, repositoryState: "clean_detached" };
@@ -168,6 +174,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
     "if (args[0] === 'ps') process.exit(0);",
     `if (args[0] === 'inspect' && joined.includes('{{.Image}}')) { console.log('sha256:${"f".repeat(64)}'); process.exit(0); }`,
     `if (args[0] === 'inspect' && joined.includes('{{.Id}}')) { console.log('${"e".repeat(64)}'); process.exit(0); }`,
+    "if (args[0] === 'inspect' && joined.includes('.State.Status')) { console.log('running|healthy'); process.exit(0); }",
     "if (args[0] === 'inspect' && joined.includes('NetworkSettings.Networks')) { console.log('rehearsal-network'); process.exit(0); }",
     `if (args[0] === 'image' && args[1] === 'inspect') { console.log('sha256:${"f".repeat(64)}'); process.exit(0); }`,
     "if (args[0] === 'tag') process.exit(0);",
@@ -179,6 +186,11 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
     "if (args[0] === 'run') { console.log(JSON.stringify({status:'pass',secretsPrinted:false})); process.exit(0); }",
     `if (args[0] === 'compose' && joined.includes('ps -q web')) { console.log('${"e".repeat(64)}'); process.exit(0); }`,
     "if (args[0] === 'compose' && joined.includes('up -d --no-deps --no-build --force-recreate web')) process.exit(0);",
+    "if (args[0] === 'compose' && joined.includes('exec -T web node -e')) {",
+    "  const count = Number(fs.readFileSync(process.env.FAKE_READINESS_COUNTER, 'utf8')) + 1;",
+    "  fs.writeFileSync(process.env.FAKE_READINESS_COUNTER, String(count));",
+    "  process.exit(count <= Number(process.env.READINESS_FAILURES) ? 8 : 0);",
+    "}",
     "if (args[0] === 'compose' && joined.includes('exec -T web node -')) { fs.readFileSync(0); process.exit(process.env.FAIL_VERIFY === 'true' ? 7 : 0); }",
     "process.exit(0);",
     "",
@@ -263,6 +275,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
     CONTRACT_FILE_OVERRIDE: contractFile,
     FAIL_VERIFY: String(failVerification),
     FAKE_DOCKER_LOG: dockerLog,
+    FAKE_READINESS_COUNTER: readinessCounter,
     FAKE_IDENTITY_OVERRIDE: identityOverride,
     FAKE_IDENTITY_WRAPPER: identityWrapper,
     FAKE_PRODUCTION_COMMIT: approvedProductionCommit,
@@ -273,6 +286,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
     ROOT_DIR_OVERRIDE: production,
     RUNTIME_IDENTITY_MODE: "production_identity",
     RUNTIME_IDENTITY_NODE_RUNTIME: nodeRuntime,
+    READINESS_FAILURES: String(readinessFailures),
     SECURE_ROOT: secure,
   };
   try {
@@ -285,6 +299,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
       dockerCalls: await readFile(dockerLog, "utf8"),
       environment: await readFile(join(production, ".env.production"), "utf8"),
       originalEnv,
+      readinessAttempts: Number(await readFile(readinessCounter, "utf8")),
     };
   } finally {
     await new Promise((resolveClose) => server.close(resolveClose));
@@ -312,6 +327,13 @@ test("isolated runner restores env web and database identities after verificatio
   assert.match(result.dockerCalls, /market-radar-rollback\/wp-g0-2-runtime-identity:web-ffffffffffffffff/);
   assert.match(result.dockerCalls, /image inspect market-radar-rollback\/wp-g0-2-runtime-identity/);
   assert.doesNotMatch(result.dockerCalls, /candidate-shadow-worker|--profile|--remove-orphans/);
+});
+
+test("isolated runner waits for Web readiness before the identity probe", async () => {
+  const result = await scenario({ readinessFailures: 1 });
+  assert.equal(result.readinessAttempts, 2);
+  assert.match(result.dockerCalls, /inspect .*\.State\.Status/);
+  assert.equal((result.dockerCalls.match(/exec -T web node -e/g) ?? []).length, 2);
 });
 
 test("runner uses the approved Web image when the host Node runtime is unavailable", async () => {

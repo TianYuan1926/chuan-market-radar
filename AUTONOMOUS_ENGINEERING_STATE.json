@@ -267,17 +267,17 @@
       "refreshedSummarySha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
       "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
       "freshnessAtLatestAttempt": "renewed_1800_seconds_61_samples_continuous_ready_fresh",
-      "latestAttemptResult": "ROLLBACK_PASS_POST_PROVISION_WEB_IDENTITY_PROBE_MODULE_FORMAT_AMBIGUITY"
+      "latestAttemptResult": "ROLLBACK_PASS_POST_WEB_RECREATE_READINESS_RACE"
     },
     "prerequisiteLocalResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_NODE_RUNTIME_COMPATIBILITY_REMEDIATION",
+      "status": "PASS_LOCAL_RUNTIME_IDENTITY_WEB_READINESS_REMEDIATION",
       "productionMutation": false,
       "productionTarget": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
       "repositoryState": "clean_detached",
-      "artifactSha256": "d471bd5a7c0c062715946b07359ccf0777ee998d826d2161572875f101cdbd49",
+      "artifactSha256": "0d40fdf0dc1739daf7d9b4facf2d69db7a97993e013ab1b56c1fd1f72cfe0650",
       "autonomyTests": "31/31",
       "deploySafetyTests": "6/6",
-      "runtimeIdentityRunnerTests": "16/16",
+      "runtimeIdentityRunnerTests": "17/17",
       "runtimeIdentityProductionPacketTests": "13/13",
       "runtimeIdentityTransactionTests": "14/14",
       "postgres16Rehearsal": "pass_provision_3_rollback_3_final_login_0_production_connected_false",
@@ -286,17 +286,17 @@
       "formalBacktestRun": false
     },
     "localProductionPacketResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET_WITH_NODE_RUNTIME_COMPATIBILITY_REMEDIATION",
+      "status": "PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET_WITH_WEB_READINESS_REMEDIATION",
       "productionMutation": false,
       "transportReproducible": true,
       "transportContainsSecrets": false,
-      "transportArtifactSha256": "a110badddd2807bcb6a45290257a8ff046d4ff46ab639d6197ba2dab71957ff9",
+      "transportArtifactSha256": "5f73433926d11904eae91cceffdb35f35630a4b1b5612173eb9456b8db3879a9",
       "transportArtifactFiles": 11,
       "sessionIndependentRunner": "transient_systemd_restart_no_runtime_max_5400_journald",
       "externalAuthorization": "required_repository_external_single_use_max_90_minutes",
       "externalLeaseAndFencing": true,
       "productionPacketTests": "13/13",
-      "runtimeIdentityRunnerTests": "16/16",
+      "runtimeIdentityRunnerTests": "17/17",
       "autonomyTests": "31/31",
       "runtimeIdentityTransactionTests": "14/14",
       "postgres16Rehearsal": "pass_provision_3_rollback_3_final_login_0_production_connected_false",
@@ -309,16 +309,16 @@
       "formalBacktestRun": false
     },
     "latestProductionAttempt": {
-      "result": "ROLLBACK_PASS_POST_PROVISION_WEB_IDENTITY_PROBE_MODULE_FORMAT_AMBIGUITY",
-      "runnerSourceCommit": "f83d83e314bafbbe10d55c78555d406801966e2d",
-      "transportBundleSha256": "0703656c3f403313f370e20932201f96b40daf2e2e7ec59083b3aac4ed0fac8f",
-      "externalRequestSha256": "bb66a0bedba952e761282054062fd11a473bf3e3b989c2c326393c61044be9c0",
+      "result": "ROLLBACK_PASS_POST_WEB_RECREATE_READINESS_RACE",
+      "runnerSourceCommit": "26e82fb6a910018dbe6254dd1e0d2835d40f02b9",
+      "transportBundleSha256": "e931515cc2aa9033e82adb4f9ae27bd80f4c323165a400a8dfd920acb2013f72",
+      "externalRequestSha256": "d7acd1f0ca86b05cefc6260656958bd0666a413298bdb8d9374642ee3180f730",
       "requestStatus": "consumed_failed_attempt_do_not_reuse",
       "completedSamples": 61,
       "requiredSamples": 57,
       "dormantEvidenceRefreshPassed": true,
       "refreshedEvidenceSha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
-      "failureReason": "inline_web_identity_probe_combined_commonjs_require_with_top_level_await_and_production_node_22_rejected_the_ambiguous_module_format",
+      "failureReason": "inline_web_identity_probe_started_before_recreated_web_listened_on_127_0_0_1_3000_and_fetch_returned_econnrefused",
       "identityMutation": true,
       "databaseMutation": true,
       "environmentMutation": true,
@@ -342,7 +342,8 @@
       "failedBundleAndRequestReusable": false,
       "productionEnvRestored": true,
       "productionLeaseReleased": true,
-      "stagingSecureOpsAndUploadTempsAbsent": true
+      "stagingSecureOpsAbsent": true,
+      "uploadedRedactedTransportTempsCleanupPending": true
     }
   },
   "approvals": [
