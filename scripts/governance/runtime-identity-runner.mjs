@@ -59,6 +59,8 @@ export async function validateRuntimeIdentityRunner(contract) {
   }
   if (contract.productionIdentity?.wrapperPath
       !== "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/compose-identity-safe"
+    || contract.productionIdentity?.adminEnvPath
+      !== "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
     || contract.productionIdentity?.wrapperSha256
       !== "fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3"
     || contract.productionIdentity?.overridePath
@@ -67,7 +69,9 @@ export async function validateRuntimeIdentityRunner(contract) {
       !== "1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf"
     || contract.productionIdentity?.wrapperMode !== "0700"
     || contract.productionIdentity?.overrideMode !== "0600"
-    || contract.productionIdentity?.ownerUid !== 0) violations.push("production_identity_boundary");
+    || contract.productionIdentity?.adminEnvMode !== "0600"
+    || contract.productionIdentity?.ownerUid !== 0
+    || contract.productionIdentity?.ownerGid !== 0) violations.push("production_identity_boundary");
   if (contract.prerequisite?.maximumApprovalWindowMinutes !== 90) violations.push("approval_window");
   if (artifact.sha256 !== contract.artifact?.sha256) violations.push("artifact_checksum");
   if (contract.runtimeAccess?.sqlSha256 !== "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa") {

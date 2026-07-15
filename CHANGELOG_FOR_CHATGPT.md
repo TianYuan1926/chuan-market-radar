@@ -4051,3 +4051,45 @@ P0 阻断：
 ### 下一轮建议
 
 冻结当前 env-file 收口修复并重建唯一新 Bundle；只执行 Runtime Identity，不夹带 Candidate activation。
+
+## 2026-07-15 / WP-G0.2 Runtime Identity 生产管理凭据来源收口
+
+### 本轮目标
+
+关闭生产入口错误使用 Postgres 容器初始化密码、导致当前管理身份网络认证 `28P01` 的 P1；保持任何生产 mutation 前 fail closed。
+
+### 修改范围
+
+- `runner.mjs` 新增严格、可测试的 secure input preparation：只接受 root-only 管理 env 的精确两键、容器用户名和数据库名，生成 3 套临时 Candidate 凭据及 role-admin URL。
+- `production-entrypoint.sh` 显式绑定既有 identity-remediation `postgres-admin.env`，验证 root-owned `0600` 普通文件、大小和固定路径；禁止读取容器 `POSTGRES_PASSWORD`。
+- runtime request、runner/packet 合同、治理 validator 和 authorization production-identity hash 同步绑定管理凭据路径。
+- 新增函数、真实 CLI、旧容器来源拒绝、权限、请求漂移、隔离执行与回滚测试。
+- 未修改 scan、analysis、strategy、backtest、frontend、业务 API、schema、Redis、worker、Feature Flag、Candidate activation 或真实 secret。
+
+### 核心链路影响
+
+加强候选筛选与深扫验证在 Shadow 启动前的最小权限数据库身份地基；不改变实时排序、结构分析、RR、止损、目标或交易计划。
+
+### 测试结果
+
+- 红灯：production packet artifact drift；旧 execute rehearsal request 缺少新字段；真实 CLI 暴露 Node 24 `readFile(0)` 不兼容。三项均保持 fail closed。
+- 修复后 Runner 14/14、Packet 11/11、Identity 14/14、Deploy Safety 6/6：PASS。
+- PostgreSQL 16：migration 9、provision 3、rollback 3、productionConnected=false：PASS。
+- typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip。
+- workers 23/23、historical 4/4、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- runner artifact=`22248fbc...`；production packet artifact=`8d5f6afd...`；两个 validator 无 violation。
+- `backtest:formal`：未运行，按合同禁止。
+
+### 是否部署
+
+本轮尚未重试生产。上一份 `d934f7a...` 执行在 mutation 前因 `28P01` 安全停止，lease=`SAFE_STOP_PRE_MUTATION`，回滚验证通过；生产角色、Candidate URL、Web 和其它服务均未改变。
+
+### 风险与遗留问题
+
+- 本地 PASS 不等于生产管理凭据可用；仍须在新 clean commit、自治 gate evidence、新 Bundle 和新单次 request 下做只读文件事实复核与精确生产重试。
+- Runtime Identity、Candidate activation、WP-G0.2 和 G0 仍未完成。
+- 当前系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+冻结本轮 clean commit 和自治总门禁，只重试 Runtime Identity；成功后立即做只读身份验收，观察进入并行只读车道，不夹带 Candidate activation。

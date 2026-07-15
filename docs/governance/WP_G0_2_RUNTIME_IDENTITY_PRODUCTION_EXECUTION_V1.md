@@ -12,6 +12,10 @@
 
 运输包使用固定时间戳的 `ustar + gzip -n`，必须可字节级复现。包内不得包含 `.env`、credentials、role-admin URL、approval request、生产业务行或原始日志。
 
+## 管理凭据来源
+
+credentials 与 role-admin URL 不进入 Bundle。detached worker 只能读取合同锁定的 identity-remediation `secrets/postgres-admin.env`；该文件必须是 root-owned `0600` 普通文件。管理凭据只通过进程管道进入隔离 Node 运行时，不输出、不复制到运输包。Postgres 容器初始化环境中的 `POSTGRES_PASSWORD` 明确禁止作为当前网络认证凭据。临时 credentials 与 role-admin URL 位于仓库外 `0700` 目录、文件 `0600`，退出后精确删除。
+
 ## 独立执行
 
 OrcaTerm 只负责上传脱敏包和启动 launcher。真实执行必须进入 `Restart=no`、`RuntimeMaxSec=5400`、journald 的 transient systemd unit；不存在前台或 `nohup` 降级路径。浏览器断开不会中断事务。

@@ -120,7 +120,9 @@ function validateAuthorization(authorization, request, bindings) {
     === sha256(`${runtime.baseEnvSha256}\n${runtime.productionEnvSha256}\n`),
   "autonomy_environment_binding_mismatch");
   ensure(authorization.productionIdentitySha256
-    === sha256(`${runtime.identityOverrideSha256}\n${runtime.identityWrapperSha256}\n`),
+    === sha256(
+      `${runtime.identityOverrideSha256}\n${runtime.identityWrapperSha256}\n${runtime.postgresAdminEnvPath}\n`,
+    ),
   "autonomy_production_identity_binding_mismatch");
   ensure(authorization.preflightSha256 === sha256(canonicalJson({
     productionCommit: runtime.approvedProductionCommit,
@@ -252,7 +254,13 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   }
   if (contract.secureInputs?.transported !== false || contract.secureInputs?.printed !== false
     || contract.secureInputs?.deletedAtExit !== true
-    || contract.secureInputs?.temporaryOpsRootDeletedAtExit !== true) violations.push("secret_boundary");
+    || contract.secureInputs?.temporaryOpsRootDeletedAtExit !== true
+    || contract.secureInputs?.postgresAdminEnvPath
+      !== "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
+    || contract.secureInputs?.postgresAdminEnvMode !== "0600"
+    || contract.secureInputs?.postgresAdminEnvOwnerUid !== 0
+    || contract.secureInputs?.postgresAdminEnvOwnerGid !== 0
+    || contract.secureInputs?.postgresContainerPasswordAccepted !== false) violations.push("secret_boundary");
   if (contract.dynamicPreflight?.schemaLedgerApplied !== 9
     || contract.dynamicPreflight?.schemaControlRows !== 0
     || contract.dynamicPreflight?.runtimeLoginsBefore !== 0

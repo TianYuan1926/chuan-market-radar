@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import {
+  prepareRuntimeIdentitySecureInputs,
   renderIdentityEnvironment,
   validateApprovalRequest,
   validateCredentials,
   validateDormantEvidence,
 } from "./runner.mjs";
+
+const postgresAdminEnvPath = "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env";
 
 const credentials = {
   databaseHost: "postgres",
@@ -39,6 +45,56 @@ test("credentials require three unique NOINHERIT-oriented production identities"
     }),
     /password_invalid:source/,
   );
+});
+
+test("secure input preparation uses the rotated root-only admin credential, not a container password", () => {
+  const currentAdminPassword = "N".repeat(48);
+  const prepared = prepareRuntimeIdentitySecureInputs(
+    `POSTGRES_USER=chuan_radar\nPOSTGRES_PASSWORD=${currentAdminPassword}\n\0chuan_radar\0market_radar_prod`,
+    { passwordFactory: () => "R".repeat(48) },
+  );
+  const adminUrl = new URL(prepared.roleAdminUrl);
+  assert.equal(adminUrl.username, "chuan_radar");
+  assert.equal(adminUrl.password, currentAdminPassword);
+  assert.equal(adminUrl.pathname, "/market_radar_prod");
+  assert.equal(prepared.credentials.identities.source.password, "R".repeat(48));
+  assert.throws(
+    () => prepareRuntimeIdentitySecureInputs(
+      `POSTGRES_USER=chuan_radar\nPOSTGRES_PASSWORD=${currentAdminPassword}\nPOSTGRES_DB=unexpected\n\0chuan_radar\0market_radar_prod`,
+    ),
+    /postgres_admin_env_keys_mismatch/,
+  );
+  assert.throws(
+    () => prepareRuntimeIdentitySecureInputs(
+      `POSTGRES_USER=chuan_radar\nPOSTGRES_PASSWORD=${currentAdminPassword}\n\0stale_container_user\0market_radar_prod`,
+    ),
+    /postgres_admin_user_mismatch/,
+  );
+});
+
+test("secure input CLI writes private files without printing credentials", () => {
+  const directory = mkdtempSync("/tmp/runtime-identity-secure-inputs-");
+  const adminPassword = "Q".repeat(48);
+  try {
+    chmodSync(directory, 0o700);
+    const stdout = execFileSync(process.execPath, [
+      "scripts/production/candidate-runtime-identity/runner.mjs",
+      "prepare-secure-inputs",
+      "--secure-root",
+      directory,
+    ], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      input: `POSTGRES_USER=chuan_radar\nPOSTGRES_PASSWORD=${adminPassword}\n\0chuan_radar\0market_radar_prod`,
+    });
+    assert.match(stdout, /"secureInputsPrepared":true/);
+    assert.doesNotMatch(stdout, new RegExp(adminPassword));
+    assert.equal(statSync(join(directory, "credentials.json")).mode & 0o777, 0o600);
+    assert.equal(statSync(join(directory, "role-admin.url")).mode & 0o777, 0o600);
+    assert.match(readFileSync(join(directory, "role-admin.url"), "utf8"), /chuan_radar/);
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
 });
 
 test("environment rendering changes only three candidate URL keys", () => {
@@ -94,6 +150,7 @@ test("approval authorizes role and URL mutation but never activation or business
     migrationAllowed: false,
     operator: "codex",
     packageId: "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
+    postgresAdminEnvPath,
     productionEnvSha256: "6".repeat(64),
     rollbackWebImageRef: `market-radar-rollback/wp-g0-2-runtime-identity:web-${"7".repeat(16)}`,
     runtimeAccessSha256: "b".repeat(64),
@@ -108,6 +165,7 @@ test("approval authorizes role and URL mutation but never activation or business
       summarySha256: request.dormantDeployEvidenceSha256,
     },
     productionIdentity: {
+      adminEnvPath: request.postgresAdminEnvPath,
       overridePath: request.identityOverridePath,
       overrideSha256: request.identityOverrideSha256,
       wrapperPath: request.identityWrapperPath,
@@ -132,6 +190,10 @@ test("approval authorizes role and URL mutation but never activation or business
   assert.throws(
     () => validateApprovalRequest({ ...request, identityWrapperSha256: "0".repeat(64) }, contract, { now }),
     /identity_wrapper_checksum_mismatch/,
+  );
+  assert.throws(
+    () => validateApprovalRequest({ ...request, postgresAdminEnvPath: "/tmp/admin.env" }, contract, { now }),
+    /postgres_admin_env_path_mismatch/,
   );
   assert.throws(
     () => validateApprovalRequest({ ...request, dormantDeployStatus: "PASS_DORMANT_RUNTIME_DEPLOY" }, contract, { now }),

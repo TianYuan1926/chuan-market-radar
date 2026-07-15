@@ -1,6 +1,6 @@
 # WP-G0.2 Runtime Identity Production Runner 准入合同
 
-当前 8 文件 artifact SHA-256 为 `be3a3fe3095366e6fb8dd2e83e095dee1c4ec18ec9f1ce93d5284439b34560a3`。旧 checksum `e109adeaab925d59535906965e4534fcbef3c2f1187e3d56fea45730e377ed38` 及更早值只保留为历史事实，不得再用于后续身份审批。
+当前 8 文件 artifact SHA-256 为 `22248fbce38b27ea03add5b9b14319ac0c61f15fe20a961044cc5bb8db768e4c`。旧 checksum `102b6d13d02ba08a08f3513e98716ba1a52b2cd21246c46d843e126076fb6b21` 及更早值只保留为历史事实，不得再用于后续身份审批。
 
 ## 1. 本包目标
 
@@ -35,7 +35,7 @@
 
 ## 4. Secret 边界
 
-审批 request 和 evidence 不含 secret。credentials、role-admin URL 和 Dormant PASS evidence 位于 `SECURE_ROOT`，文件必须是 0600 或更严格。口令只允许 32-128 位 base64url 字符，runner 不打印 login、password 或 URL；证据只包含计数、布尔值和状态。
+审批 request 和 evidence 不含 secret。当前 PostgreSQL 管理凭据只能来自合同锁定的 identity-remediation `secrets/postgres-admin.env`，该文件必须为 root-owned `0600` 普通文件；Postgres 容器初始化环境中的密码不得作为当前网络认证凭据。credentials、role-admin URL 和 Dormant PASS evidence 位于 `SECURE_ROOT`，文件必须是 0600 或更严格。口令只允许 32-128 位 base64url 字符，runner 不打印 login、password 或 URL；证据只包含计数、布尔值和状态。
 
 ## 5. 自动回滚
 

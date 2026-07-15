@@ -110,6 +110,7 @@ function requestFixture() {
       dormantDeployEvidenceSha256: "d".repeat(64),
       identityOverrideSha256: "e".repeat(64),
       identityWrapperSha256: "f".repeat(64),
+      postgresAdminEnvPath: "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
       productionEnvSha256: "0".repeat(64),
       rollbackWebImageRef: `market-radar-rollback/wp-g0-2-runtime-identity:web-${"a".repeat(16)}`,
     },
@@ -122,7 +123,7 @@ function requestFixture() {
     `${request.runtimeIdentityApproval.baseEnvSha256}\n${request.runtimeIdentityApproval.productionEnvSha256}\n`,
   );
   authorization.productionIdentitySha256 = sha256(
-    `${request.runtimeIdentityApproval.identityOverrideSha256}\n${request.runtimeIdentityApproval.identityWrapperSha256}\n`,
+    `${request.runtimeIdentityApproval.identityOverrideSha256}\n${request.runtimeIdentityApproval.identityWrapperSha256}\n${request.runtimeIdentityApproval.postgresAdminEnvPath}\n`,
   );
   authorization.preflightSha256 = sha256(canonicalJson({
     productionCommit: request.runtimeIdentityApproval.approvedProductionCommit,

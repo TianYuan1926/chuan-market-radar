@@ -57,6 +57,7 @@ APPROVED_SECURE_ROOT="$(jq -r '.secureRoot // empty' "${REQUEST_FILE}")"
 APPROVED_OPS_ROOT="$(jq -r '.opsRoot // empty' "${REQUEST_FILE}")"
 APPROVED_EVIDENCE_DIRECTORY="$(jq -r '.evidenceDirectory // empty' "${REQUEST_FILE}")"
 APPROVED_DORMANT_EVIDENCE="$(jq -r '.dormantEvidencePath // empty' "${REQUEST_FILE}")"
+APPROVED_POSTGRES_ADMIN_ENV="$(jq -r '.runtimeIdentityApproval.postgresAdminEnvPath // empty' "${REQUEST_FILE}")"
 
 [[ "${APPROVED_STAGING_DIRECTORY}" == "${ACTUAL_SOURCE_ROOT}" \
   && "$(basename "${ACTUAL_SOURCE_ROOT}")" == "${STAGING_BASENAME_PREFIX}"* \
@@ -68,6 +69,37 @@ APPROVED_DORMANT_EVIDENCE="$(jq -r '.dormantEvidencePath // empty' "${REQUEST_FI
 [[ "${APPROVED_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ \
   && "$(tr -d '\r\n' < "${BUNDLE_MARKER}")" == "${APPROVED_BUNDLE_SHA256}" ]] \
   || fail bundle_marker_mismatch
+
+privileged_file_mode() {
+  sudo -n stat -c '%a' "$1" 2>/dev/null || sudo -n stat -f '%Lp' "$1"
+}
+
+privileged_file_uid() {
+  sudo -n stat -c '%u' "$1" 2>/dev/null || sudo -n stat -f '%u' "$1"
+}
+
+privileged_file_gid() {
+  sudo -n stat -c '%g' "$1" 2>/dev/null || sudo -n stat -f '%g' "$1"
+}
+
+privileged_file_size() {
+  sudo -n stat -c '%s' "$1" 2>/dev/null || sudo -n stat -f '%z' "$1"
+}
+
+[[ "${APPROVED_POSTGRES_ADMIN_ENV}" \
+  == "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env" ]] \
+  || fail postgres_admin_env_path_invalid
+if ! sudo -n test -f "${APPROVED_POSTGRES_ADMIN_ENV}" \
+  || sudo -n test -L "${APPROVED_POSTGRES_ADMIN_ENV}"; then
+  fail postgres_admin_env_not_regular
+fi
+[[ "$(privileged_file_mode "${APPROVED_POSTGRES_ADMIN_ENV}")" == "600" \
+  && "$(privileged_file_uid "${APPROVED_POSTGRES_ADMIN_ENV}")" == "0" \
+  && "$(privileged_file_gid "${APPROVED_POSTGRES_ADMIN_ENV}")" == "0" ]] \
+  || fail postgres_admin_env_permissions_invalid
+POSTGRES_ADMIN_ENV_SIZE="$(privileged_file_size "${APPROVED_POSTGRES_ADMIN_ENV}")"
+[[ "${POSTGRES_ADMIN_ENV_SIZE}" =~ ^[1-9][0-9]*$ && "${POSTGRES_ADMIN_ENV_SIZE}" -le 4096 ]] \
+  || fail postgres_admin_env_size_invalid
 
 ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,noexec,nosuid,size=16m \
@@ -166,33 +198,18 @@ APPROVED_RUNTIME_REQUEST_SHA256="$(jq -r '.runtimeIdentityApprovalSha256' "${ACT
 cp "${APPROVED_DORMANT_EVIDENCE}" "${APPROVED_SECURE_ROOT}/dormant-deploy-result.json"
 chmod 600 "${APPROVED_SECURE_ROOT}/dormant-deploy-result.json"
 
-${DOCKER[@]} exec "${POSTGRES_CONTAINER}" sh -c \
-  'printf "%s\000%s\000%s\000" "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB"' \
-  | ${DOCKER[@]} run --rm -i --network none --read-only --cap-drop ALL \
+{
+  sudo -n cat -- "${APPROVED_POSTGRES_ADMIN_ENV}"
+  printf '\000'
+  ${DOCKER[@]} exec "${POSTGRES_CONTAINER}" sh -c \
+    'printf "%s\000%s" "$POSTGRES_USER" "$POSTGRES_DB"'
+} | ${DOCKER[@]} run --rm -i --network none --read-only --cap-drop ALL \
     --security-opt no-new-privileges --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,noexec,nosuid,size=16m \
     --mount "type=bind,src=${APPROVED_SECURE_ROOT},dst=/secure" \
-    --entrypoint node "${WEB_IMAGE}" -e '
-const { randomBytes } = require("node:crypto");
-const fs = require("node:fs");
-const [user, password, database] = fs.readFileSync(0).toString("utf8").split("\0");
-if (!user || !password || !database) process.exit(2);
-const url = new URL("postgresql://placeholder@postgres:5432/placeholder");
-url.username = user; url.password = password; url.pathname = `/${database}`;
-const nextPassword = () => randomBytes(36).toString("base64url");
-fs.writeFileSync("/secure/credentials.json", `${JSON.stringify({
-  schemaVersion: "candidate-runtime-identity-credentials.v1",
-  environment: "production",
-  databaseHost: "postgres",
-  databasePort: 5432,
-  databaseName: database,
-  identities: {
-    source: { login: "market_radar_candidate_source", password: nextPassword() },
-    consumer: { login: "market_radar_candidate_consumer", password: nextPassword() },
-    monitor: { login: "market_radar_candidate_monitor", password: nextPassword() },
-  },
-})}\n`, { mode: 0o600, flag: "wx" });
-fs.writeFileSync("/secure/role-admin.url", `${url}\n`, { mode: 0o600, flag: "wx" });
-'
+    --mount "type=bind,src=${ACTUAL_SOURCE_ROOT},dst=/packet,readonly" \
+    --entrypoint node "${WEB_IMAGE}" \
+    /packet/scripts/production/candidate-runtime-identity/runner.mjs prepare-secure-inputs \
+      --secure-root /secure >/dev/null
 chmod 600 "${APPROVED_SECURE_ROOT}/credentials.json" "${APPROVED_SECURE_ROOT}/role-admin.url"
 
 install -d -m 0700 "${OPS_PARENT}" "${APPROVED_OPS_ROOT}" \

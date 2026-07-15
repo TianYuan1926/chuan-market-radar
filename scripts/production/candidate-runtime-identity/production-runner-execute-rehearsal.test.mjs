@@ -21,6 +21,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
   const approvedRunnerSourceCommit = "d".repeat(40);
   const identityWrapper = join(directory, "compose-identity-safe");
   const identityOverride = join(directory, "runtime-identity.override.yml");
+  const postgresAdminEnv = join(directory, "postgres-admin.env");
   const contractFile = join(directory, "runtime-identity-contract.json");
   const baseEnv = "POSTGRES_DB=market_radar\n";
   const compose = "services:\n  web:\n    image: test\n";
@@ -53,9 +54,12 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
   const localContract = JSON.parse(JSON.stringify(contract));
   localContract.productionTarget = { commit: approvedProductionCommit, repositoryState: "clean_detached" };
   localContract.productionIdentity = {
+    adminEnvMode: "0600",
+    adminEnvPath: postgresAdminEnv,
     overrideMode: "0600",
     overridePath: identityOverride,
     overrideSha256: sha256(await readFile(identityOverride)),
+    ownerGid: 0,
     ownerUid: 0,
     wrapperMode: "0700",
     wrapperPath: identityWrapper,
@@ -117,6 +121,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
     migrationAllowed: false,
     operator: "isolated-rehearsal",
     packageId: contract.packageId,
+    postgresAdminEnvPath: postgresAdminEnv,
     productionEnvSha256: sha256(originalEnv),
     rollbackWebImageRef: `market-radar-rollback/wp-g0-2-runtime-identity:web-${"f".repeat(16)}`,
     runtimeAccessSha256: contract.runtimeAccess.sqlSha256,

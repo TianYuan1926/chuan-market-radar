@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFile, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -61,7 +61,7 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
     "databaseRoleMutationAllowed", "dormantDeployEvidenceSha256", "dormantDeployStatus",
     "environmentMutationAllowed", "execute", "identityOverridePath", "identityOverrideSha256",
     "identityWrapperPath", "identityWrapperSha256", "migrationAllowed", "operator", "packageId",
-    "productionEnvSha256", "rollbackWebImageRef", "runtimeAccessSha256", "schemaDdlAllowed",
+    "postgresAdminEnvPath", "productionEnvSha256", "rollbackWebImageRef", "runtimeAccessSha256", "schemaDdlAllowed",
     "services", "webRecreateAllowed",
   ];
   ensure(exactKeys(request, keys), "request_keys_mismatch");
@@ -96,6 +96,8 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
     "identity_override_path_mismatch");
   ensure(request.identityOverrideSha256 === contract.productionIdentity?.overrideSha256,
     "identity_override_checksum_mismatch");
+  ensure(request.postgresAdminEnvPath === contract.productionIdentity?.adminEnvPath,
+    "postgres_admin_env_path_mismatch");
   ensure(JSON.stringify(request.services) === '["web"]', "service_allowlist_mismatch");
   ensure(request.execute === true, "execute_not_approved");
   ensure(request.databaseRoleMutationAllowed === true, "database_role_mutation_not_approved");
@@ -198,6 +200,83 @@ export function validateCredentials(credentials, { environment = "production" } 
   }
   ensure(new Set(logins).size === PURPOSES.length, "runtime_logins_not_unique");
   return credentials;
+}
+
+function parsePostgresAdminEnvironment(source) {
+  ensure(typeof source === "string" && !source.includes("\0"), "postgres_admin_env_invalid");
+  const values = new Map();
+  for (const line of source.split(/\r?\n/)) {
+    if (line === "") continue;
+    const match = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
+    ensure(match, "postgres_admin_env_line_invalid");
+    ensure(!values.has(match[1]), `postgres_admin_env_duplicate:${match[1]}`);
+    values.set(match[1], match[2]);
+  }
+  ensure(
+    JSON.stringify([...values.keys()].sort()) === JSON.stringify(["POSTGRES_PASSWORD", "POSTGRES_USER"]),
+    "postgres_admin_env_keys_mismatch",
+  );
+  const user = values.get("POSTGRES_USER");
+  const password = values.get("POSTGRES_PASSWORD");
+  ensure(/^[a-z][a-z0-9_]{2,62}$/.test(user ?? ""), "postgres_admin_user_invalid");
+  ensure(/^[A-Za-z0-9_-]{32,128}$/.test(password ?? ""), "postgres_admin_password_invalid");
+  return { password, user };
+}
+
+export function prepareRuntimeIdentitySecureInputs(
+  input,
+  { passwordFactory = () => randomBytes(36).toString("base64url") } = {},
+) {
+  const fields = Buffer.isBuffer(input) ? input.toString("utf8").split("\0") : String(input).split("\0");
+  ensure(fields.length === 3, "secure_input_field_count_invalid");
+  const [adminEnvironment, containerPostgresUser, databaseName] = fields;
+  const admin = parsePostgresAdminEnvironment(adminEnvironment);
+  ensure(containerPostgresUser === admin.user, "postgres_admin_user_mismatch");
+  ensure(/^[a-z][a-z0-9_]{2,62}$/.test(databaseName ?? ""), "database_name_invalid");
+
+  const nextPassword = () => {
+    const value = passwordFactory();
+    ensure(/^[A-Za-z0-9_-]{32,128}$/.test(value ?? ""), "generated_password_invalid");
+    return value;
+  };
+  const roleAdminUrl = new URL("postgresql://placeholder@postgres:5432/placeholder");
+  roleAdminUrl.username = admin.user;
+  roleAdminUrl.password = admin.password;
+  roleAdminUrl.pathname = `/${databaseName}`;
+  const credentials = validateCredentials({
+    schemaVersion: "candidate-runtime-identity-credentials.v1",
+    environment: "production",
+    databaseHost: "postgres",
+    databasePort: 5432,
+    databaseName,
+    identities: {
+      source: { login: "market_radar_candidate_source", password: nextPassword() },
+      consumer: { login: "market_radar_candidate_consumer", password: nextPassword() },
+      monitor: { login: "market_radar_candidate_monitor", password: nextPassword() },
+    },
+  });
+  return { credentials, roleAdminUrl: roleAdminUrl.toString() };
+}
+
+async function writeRuntimeIdentitySecureInputs(secureRoot, prepared) {
+  const root = resolve(secureRoot);
+  const facts = await stat(root);
+  ensure(facts.isDirectory() && (facts.mode & 0o077) === 0, "secure_root_permissions_invalid");
+  await writeFile(
+    resolve(root, "credentials.json"),
+    `${JSON.stringify(prepared.credentials)}\n`,
+    { flag: "wx", mode: 0o600 },
+  );
+  await writeFile(resolve(root, "role-admin.url"), `${prepared.roleAdminUrl}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
+}
+
+async function readStandardInput() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
 }
 
 export function candidateConnectionUrl(credentials, purpose) {
@@ -396,6 +475,13 @@ async function main() {
     const dormant = JSON.parse(await readFile(resolve(options.evidence), "utf8"));
     validateDormantEvidence(dormant, request, contract, options.now ? { now: new Date(options.now) } : {});
     process.stdout.write('{"status":"pass","dormantEvidenceValid":true,"containsSecret":false}\n');
+    return;
+  }
+  if (command === "prepare-secure-inputs") {
+    const input = await readStandardInput();
+    const prepared = prepareRuntimeIdentitySecureInputs(input);
+    await writeRuntimeIdentitySecureInputs(options["secure-root"], prepared);
+    process.stdout.write('{"status":"pass","secureInputsPrepared":true,"secretsPrinted":false}\n');
     return;
   }
   const credentials = validateCredentials(

@@ -25,7 +25,7 @@ test("entrypoint cleans exact staging and credential roots and forwards terminat
   assert.match(source, /rm -rf -- "\$\{APPROVED_SECURE_ROOT\}"/);
   assert.match(source, /rm -rf -- "\$\{APPROVED_OPS_ROOT\}"/);
   assert.match(source, /OPS_PARENT="\/home\/ubuntu\/\.cache\/market-radar-ops\/runtime-identity-ops"/);
-  assert.doesNotMatch(source, /\/var\/lib\/market-radar-ops/);
+  assert.doesNotMatch(source, /rm -rf -- "\$\{APPROVED_POSTGRES_ADMIN_ENV\}"/);
   assert.match(source, /trap cleanup_runtime_identity_packet EXIT/);
   assert.match(source, /forward_signal TERM 143/);
   assert.match(source, /forward_signal INT 130/);
@@ -39,8 +39,23 @@ test("entrypoint never prints credentials, passwords or database URLs", async ()
   );
   assert.doesNotMatch(source, /cat\s+[^\n]*(credentials\.json|role-admin\.url)/);
   assert.doesNotMatch(source, /echo\s+[^\n]*(POSTGRES_PASSWORD|DATABASE_URL)/);
+  assert.doesNotMatch(source, /\$POSTGRES_PASSWORD/);
   assert.match(source, /umask 077/);
   assert.match(source, /chmod 600/);
+});
+
+test("entrypoint binds the current root-only admin env and ignores the stale container password", async () => {
+  const source = await readFile(
+    "scripts/production/candidate-runtime-identity/production-entrypoint.sh",
+    "utf8",
+  );
+  assert.match(source, /\.runtimeIdentityApproval\.postgresAdminEnvPath/);
+  assert.match(source, /wp-g0-2-identity-runner-20260711T034847Z\/secrets\/postgres-admin\.env/);
+  assert.match(source, /postgres_admin_env_not_regular/);
+  assert.match(source, /postgres_admin_env_permissions_invalid/);
+  assert.match(source, /sudo -n cat -- "\$\{APPROVED_POSTGRES_ADMIN_ENV\}"/);
+  assert.match(source, /runner\.mjs prepare-secure-inputs/);
+  assert.match(source, /'printf "%s\\000%s" "\$POSTGRES_USER" "\$POSTGRES_DB"'/);
 });
 
 test("entrypoint uses the current immutable Web image instead of requiring host Node", async () => {
