@@ -245,7 +245,8 @@ fi
 [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD)" == "${APPROVED_PRODUCTION_COMMIT}" ]] \
   || fail production_commit_mismatch
 
-COMPOSE=(sudo -n "${APPROVED_IDENTITY_WRAPPER}")
+COMPOSE=(sudo -n "${APPROVED_IDENTITY_WRAPPER}" \
+  --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
 "${COMPOSE[@]}" config --services >/dev/null || fail identity_wrapper_compose_unavailable
 cd "${ROOT_DIR}"
 if "${DOCKER[@]}" ps --format '{{.Names}}' | grep -q 'candidate-shadow-worker'; then

@@ -293,7 +293,9 @@ test("isolated runner configures only three URLs and keeps web-only dormant scop
   assert.match(result.environment, /CANDIDATE_EPISODE_SHADOW_WRITE=false/);
   assert.match(result.dockerCalls, /runner\.mjs provision/);
   assert.match(result.dockerCalls, /up -d --no-deps --no-build --force-recreate web/);
-  assert.match(result.dockerCalls, /compose config --services/);
+  assert.match(result.dockerCalls, /compose --env-file .*\/\.env --env-file .*\/\.env\.production config --services/);
+  assert.match(result.dockerCalls, /compose --env-file .*\/\.env --env-file .*\/\.env\.production ps -q web/);
+  assert.match(result.dockerCalls, /compose --env-file .*\/\.env --env-file .*\/\.env\.production up -d --no-deps --no-build --force-recreate web/);
   assert.match(result.dockerCalls, /compose --env-file .*\/\.env --env-file .*\/\.env\.production exec -T postgres/);
   assert.doesNotMatch(result.dockerCalls, /candidate-shadow-worker|--profile|--remove-orphans/);
 });

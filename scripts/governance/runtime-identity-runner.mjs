@@ -86,6 +86,8 @@ export async function validateRuntimeIdentityRunner(contract) {
     "RUNTIME_IDENTITY_MODE:-dry_run", "validateDormantEvidence", "dormant_evidence_keys_mismatch",
     "assert_private_file",
     "runtimeLoginsDropped", "env.production.before", "rollbackWebImageRef",
+    "COMPOSE=(sudo -n \"${APPROVED_IDENTITY_WRAPPER}\"",
+    "--env-file \"${BASE_ENV_FILE}\" --env-file \"${ENV_FILE}\")",
     "up -d --no-deps --no-build --force-recreate web",
     "production_branch_not_detached", "REQUIRE_IDENTITY_WRAPPER=true",
     "production_input_checksum_mismatch", "approvedRunnerSourceCommit",

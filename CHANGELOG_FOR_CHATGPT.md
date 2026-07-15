@@ -4009,3 +4009,45 @@ P0 阻断：
 ### 下一轮建议
 
 完成固定门禁和 clean commit 后，重建绑定新 commit/tree/artifact 的脱敏 Bundle；只执行 Runtime Identity 身份事务，不得夹带 Candidate activation。
+
+## 2026-07-15 / WP-G0.2 Runtime Identity runner 全链 env-file 收口
+
+### 本轮目标
+
+在上传和生产 mutation 前，关闭 production runner 自身通过 identity wrapper 调用 Compose 时遗漏基础/生产 env-file 的最后一处兼容缺口。
+
+### 修改范围
+
+- `production-runner.sh`：`COMPOSE` 数组统一绑定固定 `.env` 与 `.env.production`，后续 `config/ps/up/exec` 自动继承。
+- 隔离 execute rehearsal：要求 runner 自身的 `config/ps/up` 和 verifier 的 `exec` 均携带两份 env-file。
+- Runtime Identity 治理 validator：把 env-file 绑定提升为 artifact guard。
+- 刷新 8 文件 runner 与 11 文件 production packet artifact。
+- 未修改 scan、analysis、strategy、backtest、frontend、业务 API、migration、数据库 schema、Redis、worker、Feature Flag、Candidate activation 或 secret。
+
+### 核心链路影响
+
+只加强候选筛选与深扫验证的运行身份地基，不改变实时排序、结构分析、RR、止损、目标或交易计划。
+
+### 测试结果
+
+- 红灯基线：Runner 10/12，治理 validator 与生产 wrapper 调用断言按预期失败；回滚测试继续通过。
+- 修复后 Runner 12/12、Packet 9/9、Deploy Safety 6/6：PASS。
+- runner validator artifact=`b2826b9...`、packet validator artifact=`b8ae75b7...`，均无 violation。
+- typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip。
+- Identity 14/14、PG16 provision/rollback、worker 23/23、historical 4/4、Golden 16/16、三项安全门禁：PASS。
+- 自治总门禁：待 clean commit 后重新冻结；formal 未运行，禁止。
+- formal：未运行，禁止。
+
+### 是否部署
+
+未部署、未上传、未创建 LOGIN、未写 Candidate URL、未 recreate Web。`164540d/c7710aad/57716b98` 旧 commit Bundle/request 已作废并精确删除；生产仍保持 `cec0b657...`、Web healthy、Candidate disabled/worker absent。
+
+### 风险与遗留问题
+
+- 当前修复改变 runner artifact，旧 gate evidence 与所有旧 Bundle/request 不得复用。
+- 必须重跑固定门禁、clean commit、自治总门禁和可复现 Bundle，再刷新一次性 90 分钟 request。
+- Runtime Identity、Candidate activation、WP-G0.2 和 G0 仍未完成。
+
+### 下一轮建议
+
+冻结当前 env-file 收口修复并重建唯一新 Bundle；只执行 Runtime Identity，不夹带 Candidate activation。
