@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-16T02:08:15+08:00",
+  "updatedAt": "2026-07-16T04:31:33+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -11,8 +11,8 @@
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
-    "runtimeIdentityPreflight": "pass_local_stale_dormant_evidence_renewal_remediation_commit_2d79bef_all_fixed_gates_pass_production_not_provisioned",
-    "runtimeIdentityProduction": "safe_stop_pre_mutation_dormant_evidence_not_fresh_production_baseline_verified_head_cec0b657_web_healthy_candidate_urls_logins_worker_0_0_0_redis_and_apis_ready",
+    "runtimeIdentityPreflight": "pass_local_refreshed_evidence_secure_bridge_remediation_all_fixed_gates_pass_production_not_provisioned",
+    "runtimeIdentityProduction": "safe_stop_pre_mutation_after_dormant_renewal_passed_1800_seconds_61_samples_because_isolated_validator_could_not_see_repository_external_evidence_production_baseline_rollback_verified",
     "activationObservationPreparation": "pass_local_current_main_targeted_postgres16_baseline_security_production_prohibited_until_runtime_identity_and_future_release"
   },
   "wipLimits": {
@@ -133,10 +133,10 @@
   },
   "activePackage": {
     "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-    "title": "Runtime Identity Dormant renewal absolute cadence remediation and exact production re-entry",
+    "title": "Runtime Identity refreshed evidence secure bridge remediation and exact production re-entry",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "如实关闭续证观察因每轮检查耗时叠加固定 sleep 导致 1800 秒内仅完成 51/57 样本的问题；改用从观察起点计算的绝对采样时间表并拒绝过大样本间隔或调度滞后，重新通过完整门禁后才生成全新 Bundle/request 重试 Runtime Identity，旧失败包永久失效。",
+    "objective": "如实关闭续证摘要生成在仓库外 evidence 目录、隔离 Node 只挂载 source/secure 目录而无法校验的问题；续证摘要只能复制为 secure root 内 0600 临时桥接文件后进入 network-none/read-only/cap-drop-all validator，并允许下一次精确 request 复用刚完成的 1800 秒、61 样本真实新鲜证据，不缩短时间、不降低样本、不绕过校验。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化",
@@ -232,7 +232,7 @@
       ]
     },
     "completionBoundary": [
-      "旧 Dormant summary 只能作为 checksum-bound lineage；超过 24 小时必须完成新的 1800 秒且至少 57 样本只读观察，任一 ready/fresh、Candidate dormant、容器身份、rollback image 或 lease checkpoint 失败均不得生成新鲜 PASS",
+      "旧 Dormant summary 只能作为 checksum-bound lineage；超过 24 小时必须完成新的 1800 秒且至少 57 样本只读观察，任一 ready/fresh、Candidate dormant、容器身份、rollback image 或 lease checkpoint 失败均不得生成新鲜 PASS；新摘要只能通过secure root 0600临时桥接文件进入隔离validator",
       "可复现脱敏Bundle不得包含credentials、role-admin URL、env、secret、生产业务行或raw log，archive checksum和逐文件manifest必须精确绑定",
       "生产入口必须使用session-independent transient systemd unit、Restart=no、RuntimeMaxSec不超过5400、journald和退出后精确staging清理",
       "执行必须使用仓库外0600一次性external authorization、外部lease、递增fencing和最多90分钟mutation window；builder不得自签或伪造用户审批",
@@ -256,27 +256,29 @@
     },
     "prerequisiteProductionResult": {
       "status": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
-      "completedAt": "2026-07-14T17:00:15Z",
+      "completedAt": "2026-07-15T20:20:08Z",
       "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
       "observationSeconds": 1800,
-      "sampleCount": 57,
+      "sampleCount": 61,
       "continuousReadyFresh": true,
       "candidateRuntimeDormant": true,
       "candidateWorkerAbsent": true,
+      "lineageSummarySha256": "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c",
+      "refreshedSummarySha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
       "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
-      "freshnessAtLatestAttempt": "renewal_attempt_failed_after_51_of_57_samples",
-      "latestAttemptResult": "SAFE_ROLLBACK_DORMANT_REFRESH_SAMPLE_COUNT_TOO_LOW"
+      "freshnessAtLatestAttempt": "renewed_1800_seconds_61_samples_continuous_ready_fresh",
+      "latestAttemptResult": "SAFE_STOP_PRE_MUTATION_REFRESHED_EVIDENCE_NOT_VISIBLE_TO_ISOLATED_VALIDATOR"
     },
     "prerequisiteLocalResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_ABSOLUTE_SCHEDULE_REMEDIATION",
+      "status": "PASS_LOCAL_RUNTIME_IDENTITY_SECURE_EVIDENCE_BRIDGE_REMEDIATION",
       "productionMutation": false,
       "productionTarget": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
       "repositoryState": "clean_detached",
-      "artifactSha256": "28d10a13cff4c60f72509bdeb708f754b67a3170b910b2f7b6ba37ccc0a999a3",
+      "artifactSha256": "3d58b9ed889713322703aea7d18118bf2b2c1059417af4e86634a7ef7f28ba0b",
       "autonomyTests": "31/31",
       "deploySafetyTests": "6/6",
       "runtimeIdentityRunnerTests": "16/16",
-      "runtimeIdentityProductionPacketTests": "11/11",
+      "runtimeIdentityProductionPacketTests": "12/12",
       "runtimeIdentityTransactionTests": "14/14",
       "postgres16Rehearsal": "pass_provision_3_rollback_3_final_login_0_production_connected_false",
       "baselineGates": "pass_typecheck_lint_market_960_0_4_build_golden_16",
@@ -284,16 +286,16 @@
       "formalBacktestRun": false
     },
     "localProductionPacketResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET_WITH_ABSOLUTE_SCHEDULE_REMEDIATION",
+      "status": "PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET_WITH_SECURE_EVIDENCE_BRIDGE_REMEDIATION",
       "productionMutation": false,
       "transportReproducible": true,
       "transportContainsSecrets": false,
-      "transportArtifactSha256": "32108b83d301d65ef7ccd3a83736cbd7caf277afa86e3851747f97cd05c63977",
+      "transportArtifactSha256": "60608ae6ebcc72181f34a1ddcb4afcaab7c77e809ef9100c18185ba1dfbd4f5a",
       "transportArtifactFiles": 11,
       "sessionIndependentRunner": "transient_systemd_restart_no_runtime_max_5400_journald",
       "externalAuthorization": "required_repository_external_single_use_max_90_minutes",
       "externalLeaseAndFencing": true,
-      "productionPacketTests": "11/11",
+      "productionPacketTests": "12/12",
       "runtimeIdentityRunnerTests": "16/16",
       "autonomyTests": "31/31",
       "runtimeIdentityTransactionTests": "14/14",
@@ -307,13 +309,16 @@
       "formalBacktestRun": false
     },
     "latestProductionAttempt": {
-      "result": "SAFE_ROLLBACK_DORMANT_REFRESH_SAMPLE_COUNT_TOO_LOW",
-      "runnerSourceCommit": "c37b89141b8d6d21d1a5013dbed9020c089551bd",
-      "transportBundleSha256": "d4181d519f2ceb5275a86b9440330a8e14baddb3d9501edfd46a46680bdb22a7",
+      "result": "SAFE_STOP_PRE_MUTATION_REFRESHED_EVIDENCE_NOT_VISIBLE_TO_ISOLATED_VALIDATOR",
+      "runnerSourceCommit": "77c3a3bd175201efe5e37853975625dc4abe160b",
+      "transportBundleSha256": "ab4dbbec236b750c227aea9cbad918a08639046fce41d675002131086bfd0021",
+      "externalRequestSha256": "5e3d9d1b0b99ba06699e58a6206c63b8403ae3c24a60f1973800935337d489de",
       "requestStatus": "failed_attempt_external_request_invalid_do_not_reuse",
-      "completedSamples": 51,
+      "completedSamples": 61,
       "requiredSamples": 57,
-      "failureReason": "fixed_post_check_sleep_accumulated_check_runtime_and_exhausted_observation_window",
+      "dormantEvidenceRefreshPassed": true,
+      "refreshedEvidenceSha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
+      "failureReason": "run_isolated_node_mounted_source_and_secure_roots_but_refreshed_evidence_was_only_in_repository_external_evidence_directory",
       "identityMutation": false,
       "databaseMutation": false,
       "environmentMutation": false,
@@ -331,6 +336,8 @@
       "writerArchiveInsert": false,
       "postgresReady": true,
       "redisPong": true,
+      "refreshedEvidenceRetained": true,
+      "remoteRefreshedEvidencePath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-runtime-identity-77c3a3b-ec19db56/dormant-evidence-refreshed.json",
       "failedBundleAndRequestReusable": false
     }
   },

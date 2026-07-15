@@ -44,6 +44,7 @@
     "directoryMode": "0700",
     "fileMode": "0600",
     "generatedInsideDetachedWorker": true,
+    "refreshedEvidenceValidationBridge": "secure_root_0600_read_only_mount",
     "deletedAtExit": true,
     "temporaryOpsRootDeletedAtExit": true,
     "printed": false,
@@ -95,7 +96,7 @@
     "independentVerificationRequired": true
   },
   "artifact": {
-    "sha256": "32108b83d301d65ef7ccd3a83736cbd7caf277afa86e3851747f97cd05c63977",
+    "sha256": "60608ae6ebcc72181f34a1ddcb4afcaab7c77e809ef9100c18185ba1dfbd4f5a",
     "files": [
       "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
       "scripts/governance/autonomy-policy.mjs",

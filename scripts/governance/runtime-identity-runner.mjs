@@ -49,8 +49,10 @@ export async function validateRuntimeIdentityRunner(contract) {
       !== "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH"
     || contract.dormantEvidence?.baselineCommit
       !== "70722ea71b33268b688be5d42af9908d40f49859"
-    || contract.dormantEvidence?.summarySha256
+    || contract.dormantEvidence?.lineageSummarySha256
       !== "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c"
+    || contract.dormantEvidence?.summarySha256
+      !== "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077"
     || contract.dormantEvidence?.candidateRuntimeDormantRequired !== true
     || contract.dormantEvidence?.candidateWorkerAbsentRequired !== true
     || contract.dormantEvidence?.freshnessRenewal?.trigger !== "stale_only"
@@ -60,6 +62,7 @@ export async function validateRuntimeIdentityRunner(contract) {
     || contract.dormantEvidence?.freshnessRenewal?.minimumSampleCount !== 57
     || contract.dormantEvidence?.freshnessRenewal?.readOnly !== true
     || contract.dormantEvidence?.freshnessRenewal?.leaseCheckpointRequired !== true
+    || contract.dormantEvidence?.freshnessRenewal?.secureValidationBridgeRequired !== true
     || contract.dormantEvidence?.freshnessRenewal?.strictFreshnessRevalidationRequired !== true
     || contract.dormantEvidence?.redactedEvidenceArchiveSha256
       !== "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5") {

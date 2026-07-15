@@ -4255,3 +4255,46 @@ P0 阻断：
 ### 下一轮建议
 
 只完成当前修复的完整门禁与精确生产重试；Runtime Identity 未获得最终 PASS 前继续禁止 Candidate activation。
+
+## 2026-07-16 / WP-G0.2 Runtime Identity 续证摘要安全桥接修复
+
+### 本轮目标
+
+修复生产已完成 1800 秒、61 样本续证后，隔离 validator 因未挂载仓库外 evidence 目录而无法读取新摘要的问题；不绕过 validator，不重复消耗已真实完成的观察窗口。
+
+### 修改范围
+
+- Runtime Identity runner 将新摘要复制为 `SECURE_ROOT` 内 `0600` 临时桥接文件，由 network-none/read-only/cap-drop-all Node 校验后删除。
+- Production Packet 只新增对精确 Runtime Identity `dormant-evidence-refreshed.json` 路径的接受；任意其它路径仍 fail closed。
+- 机器合同同时绑定旧 summary lineage 与新 61 样本 summary SHA，并刷新 runner/packet artifact。
+- 更新自治状态、traceability、Context、两份人工合同和本轮报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务 API、migration、业务数据、Redis、worker、Feature Flag 或 Candidate activation。
+
+### 核心链路影响
+
+只加强候选筛选和复盘进化的生产身份地基；Candidate 仍 dormant，不生成候选信号或交易计划。
+
+### 测试结果
+
+- 红灯：安全桥接缺失、精确续证路径未被合同接受，共 2 项按预期失败；修复后均 PASS。
+- Runtime Identity Runner 16/16、Production Packet 12/12、Identity transaction 14/14、Deploy Safety 6/6、Autonomy 31/31：PASS。
+- 隔离 PostgreSQL 16：migration 9、provision 3、rollback 3、productionConnected=false：PASS。
+- typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip。
+- workers 23/23、historical smoke 4/4、backtest:golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- runner artifact=`3d58b9ed...`；production packet artifact=`60608ae6...`。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+前一生产 unit 完成 1800 秒、61 样本续证后在身份 mutation 前安全停止；未创建 LOGIN，未改权限、env 或 Web，回滚合同验证通过。当前最小修复尚未形成 clean commit 或重试生产；旧 Bundle/request 已失效。
+
+### 风险与遗留问题
+
+- P0：无新增；生产基线已验证恢复。
+- P1：仍须 clean commit、提交后自治 gate evidence、新 Bundle/request 和 Runtime Identity 精确生产重试。
+- P1：Runtime Identity、Candidate activation、WP-G0.2 和 G0 仍未完成；系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只冻结本修复并重试 Runtime Identity；成功后立即执行独立只读身份验收，Activation 继续关闭。

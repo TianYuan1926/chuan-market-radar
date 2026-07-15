@@ -192,7 +192,10 @@ export function validateProductionExecutionRequest(request, bindings, { now = ne
     "production_request_secure_root_invalid");
   ensure(/^market-radar-runtime-identity-[a-z0-9][a-z0-9-]{7,56}$/.test(request.runnerUnitName ?? ""),
     "production_request_runner_unit_invalid");
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-dormant-runtime-deploy-[a-z0-9][a-z0-9._-]{7,80}\/summary\.json$/.test(request.dormantEvidencePath ?? ""),
+  const dormantEvidencePath = request.dormantEvidencePath ?? "";
+  ensure(
+    /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-dormant-runtime-deploy-[a-z0-9][a-z0-9._-]{7,80}\/summary\.json$/.test(dormantEvidencePath)
+      || /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-runtime-identity-[a-z0-9][a-z0-9._-]{7,80}\/dormant-evidence-refreshed\.json$/.test(dormantEvidencePath),
     "production_request_dormant_evidence_path_invalid");
   assertHash(request.transportBundleSha256, "production_request_bundle_hash_invalid");
   ensure(request.transportBundleSha256 === bindings.transportBundleSha256,
@@ -253,6 +256,8 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
     violations.push("execution_boundary");
   }
   if (contract.secureInputs?.transported !== false || contract.secureInputs?.printed !== false
+    || contract.secureInputs?.refreshedEvidenceValidationBridge
+      !== "secure_root_0600_read_only_mount"
     || contract.secureInputs?.deletedAtExit !== true
     || contract.secureInputs?.temporaryOpsRootDeletedAtExit !== true
     || contract.secureInputs?.postgresAdminEnvPath

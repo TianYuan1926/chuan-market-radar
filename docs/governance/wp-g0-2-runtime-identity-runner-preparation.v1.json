@@ -18,7 +18,8 @@
     "packageId": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
     "baselineCommit": "70722ea71b33268b688be5d42af9908d40f49859",
     "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
-    "summarySha256": "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c",
+    "lineageSummarySha256": "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c",
+    "summarySha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
     "minimumObservationSeconds": 1800,
     "minimumSampleCount": 57,
     "maximumEvidenceAgeHours": 24,
@@ -32,6 +33,7 @@
       "minimumSampleCount": 57,
       "readOnly": true,
       "leaseCheckpointRequired": true,
+      "secureValidationBridgeRequired": true,
       "strictFreshnessRevalidationRequired": true
     },
     "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5"
@@ -53,7 +55,7 @@
     "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa"
   },
   "artifact": {
-    "sha256": "28d10a13cff4c60f72509bdeb708f754b67a3170b910b2f7b6ba37ccc0a999a3",
+    "sha256": "3d58b9ed889713322703aea7d18118bf2b2c1059417af4e86634a7ef7f28ba0b",
     "files": [
       "docker-compose.yml",
       "scripts/production/candidate-dormant-deploy.mjs",

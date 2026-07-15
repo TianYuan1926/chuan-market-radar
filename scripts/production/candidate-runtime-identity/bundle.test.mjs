@@ -181,6 +181,14 @@ test("production execution request is exact, external, single-use and time bound
     transportBundleSha256: "2".repeat(64),
   };
   assert.equal(validateProductionExecutionRequest(request, bindings).execute, true);
+  assert.equal(validateProductionExecutionRequest({
+    ...request,
+    dormantEvidencePath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-runtime-identity-77c3a3b-ec19db56/dormant-evidence-refreshed.json",
+  }, bindings).execute, true);
+  assert.throws(() => validateProductionExecutionRequest({
+    ...request,
+    dormantEvidencePath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-runtime-identity-77c3a3b-ec19db56/arbitrary.json",
+  }, bindings), /dormant_evidence_path/);
   assert.throws(() => validateProductionExecutionRequest({ ...request, execute: false }, bindings), /execute/);
   assert.throws(() => validateProductionExecutionRequest({
     ...request,

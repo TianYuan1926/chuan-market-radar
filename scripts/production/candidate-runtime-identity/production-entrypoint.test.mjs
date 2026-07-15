@@ -114,6 +114,22 @@ test("production runner fences preflight, mutation, rollback and closeout with o
   );
 });
 
+test("production runner validates refreshed evidence through the mounted secure root", async () => {
+  const source = await readFile(
+    "scripts/production/candidate-runtime-identity/production-runner.sh",
+    "utf8",
+  );
+  const refreshStart = source.indexOf("refresh_dormant_evidence_if_required() {");
+  const refreshEnd = source.indexOf("rollback_on_failure() {", refreshStart);
+  assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
+  const refresh = source.slice(refreshStart, refreshEnd);
+  assert.match(refresh, /secure_refreshed_file="\$\{SECURE_ROOT\}\/dormant-evidence-refreshed\.json"/);
+  assert.match(refresh, /install -m 0600 "\$\{refreshed_file\}" "\$\{secure_refreshed_file\}"/);
+  assert.match(refresh, /--evidence "\$\{secure_refreshed_file\}"/);
+  assert.doesNotMatch(refresh, /--evidence "\$\{refreshed_file\}"/);
+  assert.ok(refresh.indexOf("install -m 0600") < refresh.indexOf("--evidence \"${secure_refreshed_file}\""));
+});
+
 test("production runner reads GNU stat output before the BSD fallback", async () => {
   const source = await readFile(
     "scripts/production/candidate-runtime-identity/production-runner.sh",

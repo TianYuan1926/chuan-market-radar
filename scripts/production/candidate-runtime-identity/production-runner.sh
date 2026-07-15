@@ -81,7 +81,7 @@ if [[ "${RUNNER_MODE}" != "production_identity" || "${CONFIRMED}" != "true" ]]; 
   exit 0
 fi
 
-for command_name in git id jq realpath sha256sum sudo; do
+for command_name in git id install jq realpath sha256sum sudo; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "required_command_missing:${command_name}"
 done
 case "${NODE_RUNTIME}" in
@@ -395,7 +395,7 @@ refresh_dormant_evidence_if_required() {
   [[ "${DORMANT_EVIDENCE_REFRESH_REQUIRED}" == "true" ]] || return 0
   local duration poll minimum_samples started deadline now sample_count next_sample_at sleep_seconds
   local previous_sample_epoch sample_epoch
-  local observation_file refreshed_file rollback_ref current_web current_image
+  local observation_file refreshed_file secure_refreshed_file rollback_ref current_web current_image
   duration="$(jq -r '.dormantEvidence.freshnessRenewal.observationDurationSeconds' "${CONTRACT_FILE}")"
   poll="$(jq -r '.dormantEvidence.freshnessRenewal.pollSeconds' "${CONTRACT_FILE}")"
   minimum_samples="$(jq -r '.dormantEvidence.freshnessRenewal.minimumSampleCount' "${CONTRACT_FILE}")"
@@ -403,6 +403,7 @@ refresh_dormant_evidence_if_required() {
     || fail dormant_evidence_refresh_contract_invalid
   observation_file="${EVIDENCE_DIRECTORY}/dormant-evidence-refresh-observation.jsonl"
   refreshed_file="${EVIDENCE_DIRECTORY}/dormant-evidence-refreshed.json"
+  secure_refreshed_file="${SECURE_ROOT}/dormant-evidence-refreshed.json"
   rollback_ref="$(jq -r '.rollbackWebImageRef' "${DORMANT_EVIDENCE_FILE}")"
   DORMANT_NON_TARGET_CONTAINERS_BEFORE="$(container_snapshot_excluding_web)"
   started="$(date +%s)"
@@ -476,9 +477,16 @@ refresh_dormant_evidence_if_required() {
       | .otherServiceMutation=false' \
     "${DORMANT_EVIDENCE_FILE}" > "${refreshed_file}"
   chmod 600 "${refreshed_file}"
-  run_isolated_node false "${RUNNER_MODULE}" dormant-evidence \
+  [[ ! -e "${secure_refreshed_file}" && ! -L "${secure_refreshed_file}" ]] \
+    || fail dormant_evidence_refresh_secure_bridge_exists
+  install -m 0600 "${refreshed_file}" "${secure_refreshed_file}"
+  if ! run_isolated_node false "${RUNNER_MODULE}" dormant-evidence \
     --contract "${CONTRACT_FILE}" --request "${REQUEST_FILE}" \
-    --evidence "${refreshed_file}" >/dev/null
+    --evidence "${secure_refreshed_file}" >/dev/null; then
+    rm -f "${secure_refreshed_file}"
+    fail dormant_evidence_refresh_validation_failed
+  fi
+  rm -f "${secure_refreshed_file}"
   printf 'PASS_DORMANT_EVIDENCE_REFRESH|duration=%s|samples=%s\n' "${duration}" "${sample_count}"
 }
 

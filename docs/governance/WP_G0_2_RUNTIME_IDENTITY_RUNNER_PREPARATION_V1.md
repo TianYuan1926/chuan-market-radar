@@ -1,6 +1,6 @@
 # WP-G0.2 Runtime Identity Production Runner 准入合同
 
-当前 8 文件 artifact SHA-256 为 `22248fbce38b27ea03add5b9b14319ac0c61f15fe20a961044cc5bb8db768e4c`。旧 checksum `102b6d13d02ba08a08f3513e98716ba1a52b2cd21246c46d843e126076fb6b21` 及更早值只保留为历史事实，不得再用于后续身份审批。
+当前 8 文件 artifact SHA-256 为 `3d58b9ed889713322703aea7d18118bf2b2c1059417af4e86634a7ef7f28ba0b`。旧 checksum `28d10a13cff4c60f72509bdeb708f754b67a3170b910b2f7b6ba37ccc0a999a3` 及更早值只保留为历史事实，不得再用于后续身份审批。
 
 ## 1. 本包目标
 
@@ -10,7 +10,7 @@
 
 执行必须同时满足：
 
-- Dormant Runtime Deploy 已达到 `PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION`，包含 1800 秒、至少 57 样本、continuous ready/fresh、Candidate dormant/worker absent 和 evidence archive checksum。
+- Dormant Runtime Deploy 已达到 `PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION`；最新续证完成 1800 秒、61 样本、continuous ready/fresh、Candidate dormant/worker absent，摘要 SHA-256 为 `b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077`。原摘要 `2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c` 只作为 lineage 保留。
 - Dormant evidence 不超过 24 小时；超过后必须重新做动态只读预检，不得沿用旧状态。
 - runner source commit 与 production commit 分开绑定；production 必须为 clean detached `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`，不得要求或 checkout GitHub main。
 - 新的独立审批窗口不超过 90 分钟。
@@ -18,7 +18,7 @@
 - identity wrapper 必须为 root-owned `0700`，override 必须为 root-owned `0600`；部署、回滚和最终 `production-check` 复用同一 wrapper。
 - 三个 Candidate LOGIN 均不存在，writer role 对 `scan_archives` 尚无权限。
 - Candidate schema ledger=9、control rows=0。
-- 四个 secure 文件位于仓库外且 group/other 权限为 0。
+- 常态四个 secure 文件位于仓库外且 group/other 权限为 0；如 runner 生成续证摘要，只能先复制为 `SECURE_ROOT` 内 `0600` 临时桥接文件，再由只读挂载的隔离 Node 校验，校验后立即删除。
 - Candidate Flag 全 false、release disabled、worker expected=false、三个 Candidate URL 为空。
 
 ## 3. 唯一允许的变更
@@ -35,7 +35,7 @@
 
 ## 4. Secret 边界
 
-审批 request 和 evidence 不含 secret。当前 PostgreSQL 管理凭据只能来自合同锁定的 identity-remediation `secrets/postgres-admin.env`，该文件必须为 root-owned `0600` 普通文件；Postgres 容器初始化环境中的密码不得作为当前网络认证凭据。credentials、role-admin URL 和 Dormant PASS evidence 位于 `SECURE_ROOT`，文件必须是 0600 或更严格。口令只允许 32-128 位 base64url 字符，runner 不打印 login、password 或 URL；证据只包含计数、布尔值和状态。
+审批 request 和 evidence 不含 secret。当前 PostgreSQL 管理凭据只能来自合同锁定的 identity-remediation `secrets/postgres-admin.env`，该文件必须为 root-owned `0600` 普通文件；Postgres 容器初始化环境中的密码不得作为当前网络认证凭据。credentials、role-admin URL 和 Dormant PASS evidence 位于 `SECURE_ROOT`，文件必须是 0600 或更严格。仓库外 evidence 目录不直接暴露给通用隔离运行时；续证摘要通过 `SECURE_ROOT` 的 `0600` 临时副本校验后删除。口令只允许 32-128 位 base64url 字符，runner 不打印 login、password 或 URL；证据只包含计数、布尔值和状态。
 
 ## 5. 自动回滚
 
