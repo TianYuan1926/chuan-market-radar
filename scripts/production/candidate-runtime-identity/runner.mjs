@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readFile, rename, stat, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 const PACKAGE_ID = "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION";
@@ -41,6 +42,24 @@ function exactKeys(value, expected) {
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+export function loadPgRuntime({
+  applicationRoot = process.env.MARKET_RADAR_APPLICATION_ROOT,
+  moduleUrl = import.meta.url,
+} = {}) {
+  const requireCandidates = [createRequire(moduleUrl)];
+  if (applicationRoot) {
+    requireCandidates.push(createRequire(resolve(applicationRoot, "package.json")));
+  }
+  for (const requireCandidate of requireCandidates) {
+    try {
+      return requireCandidate("pg");
+    } catch (error) {
+      if (error?.code !== "MODULE_NOT_FOUND") throw error;
+    }
+  }
+  throw new RuntimeIdentityPolicyError("approved_pg_runtime_unavailable");
 }
 
 function parseTimestamp(value, reason) {
@@ -431,7 +450,7 @@ export async function rollbackRuntimeIdentities(client, credentials) {
 }
 
 async function withAdminClient(urlFile, work) {
-  const { default: pg } = await import("pg");
+  const pg = loadPgRuntime();
   const { Client } = pg;
   const connectionString = await readSecureText(urlFile, "role_admin_url");
   const client = new Client({ application_name: "market-radar-candidate-runtime-identity", connectionString });

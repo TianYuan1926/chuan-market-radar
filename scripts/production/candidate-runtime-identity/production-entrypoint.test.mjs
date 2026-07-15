@@ -91,6 +91,11 @@ test("production runner fences preflight, mutation, rollback and closeout with o
   assert.match(source, /web_runtime_changed_during_preflight/);
   assert.match(source, /--runner "\$\{RUNNER_MODULE\}"/);
   assert.doesNotMatch(source, /--runner "\$\{BASH_SOURCE\[0\]\}"/);
+  assert.equal(
+    (source.match(/--env MARKET_RADAR_APPLICATION_ROOT=\/app/g) ?? []).length,
+    3,
+    "preflight, provision and rollback must resolve pg from the immutable Web image application root",
+  );
 });
 
 test("production runner reads GNU stat output before the BSD fallback", async () => {

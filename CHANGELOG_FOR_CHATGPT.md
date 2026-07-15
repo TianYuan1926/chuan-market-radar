@@ -4093,3 +4093,45 @@ P0 阻断：
 ### 下一轮建议
 
 冻结本轮 clean commit 和自治总门禁，只重试 Runtime Identity；成功后立即做只读身份验收，观察进入并行只读车道，不夹带 Candidate activation。
+
+## 2026-07-15 / WP-G0.2 Runtime Identity 生产容器 pg 解析修复
+
+### 本轮目标
+
+关闭 staged Runtime Identity runner 从 `/src` 运行时无法解析 Web 镜像 `/app/node_modules/pg` 的生产形态缺口，保持数据库 mutation 前 fail closed。
+
+### 修改范围
+
+- `runner.mjs`：增加批准应用根目录的 CommonJS `pg` 解析回退，解析失败返回明确 `approved_pg_runtime_unavailable`。
+- `production-runner.sh`：preflight、provision、rollback 三条数据库容器命令显式绑定 `MARKET_RADAR_APPLICATION_ROOT=/app`。
+- `runner.test.mjs`、`production-entrypoint.test.mjs`：新增 packet 位于 `/app` 外的解析回归和三路径绑定断言。
+- 两份 Runtime Identity 机器合同刷新 artifact hash。
+- 未修改 scan、analysis、strategy、backtest、frontend、业务 API、schema、Redis、worker、Feature Flag、Candidate activation 或 secret。
+
+### 核心链路影响
+
+只加强候选筛选和深扫验证的生产身份地基；不改变全市场排序、结构分析、RR、止损、目标或交易计划。
+
+### 测试结果
+
+- 红灯：真实生产形态只读复现返回 `ERR_MODULE_NOT_FOUND`；新增本地回归初始 2 项失败。
+- 修复后 Runner 15/15、Production Packet 11/11、Runtime Identity 14/14、Deploy Safety 6/6：PASS。
+- PostgreSQL 16：migration 9、provision 3、rollback 3、最终 productionConnected=false：PASS。
+- typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip。
+- workers 23/23、historical 4/4、golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- runner artifact=`4e213d3f2a22465e7e56d8fec7c408057017693d091c12aab0d1d00573892235`；production packet artifact=`127c308a8659ccc6a8d187278abdb83c5616ba19f8122687368772b9090db619`。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+本轮尚未重试生产 mutation。上一份 `ef9d844...` 请求只读认证通过，但 staged runner 在数据库 preflight 因 `ERR_MODULE_NOT_FOUND` 安全停止；lease fencing token 5 以 `SAFE_STOP_PRE_MUTATION` 释放。生产 LOGIN、Candidate URL、env、Web 和其它服务均未改变。
+
+### 风险与遗留问题
+
+- 本地修复 PASS 不等于生产 Runtime Identity PASS；旧 Bundle/request 已失效，不得复用。
+- 必须先 clean commit、重新冻结自治 gate evidence、生成可复现 Bundle 和新的单次请求。
+- Runtime Identity、Candidate activation、WP-G0.2 和 G0 仍未完成。
+
+### 下一轮建议
+
+只重试 Runtime Identity 生产身份事务；即时验收通过后把持续观察放入只读并行车道，不夹带 Candidate activation。

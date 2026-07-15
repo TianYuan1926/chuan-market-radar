@@ -363,6 +363,7 @@ rollback_on_failure() {
   if [[ "${PROVISIONED}" == "true" ]]; then
     "${DOCKER[@]}" run --rm --network "${NETWORK}" \
       --volume "${SOURCE_ROOT}:/src:ro" --volume "${SECURE_ROOT}:/secure:ro" \
+      --env MARKET_RADAR_APPLICATION_ROOT=/app \
       --entrypoint node "${WEB_IMAGE}" \
       /src/scripts/production/candidate-runtime-identity/runner.mjs rollback \
       --credentials /secure/credentials.json --admin-url-file /secure/role-admin.url \
@@ -409,6 +410,7 @@ fi
 run_identity_safe_production_check >/dev/null
 "${DOCKER[@]}" run --rm --network "${NETWORK}" \
   --volume "${SOURCE_ROOT}:/src:ro" --volume "${SECURE_ROOT}:/secure:ro" \
+  --env MARKET_RADAR_APPLICATION_ROOT=/app \
   --entrypoint node "${WEB_IMAGE}" \
   /src/scripts/production/candidate-runtime-identity/runner.mjs preflight \
   --credentials /secure/credentials.json --admin-url-file /secure/role-admin.url \
@@ -427,6 +429,7 @@ fi
 
 "${DOCKER[@]}" run --rm --network "${NETWORK}" \
   --volume "${SOURCE_ROOT}:/src:ro" --volume "${SECURE_ROOT}:/secure:ro" \
+  --env MARKET_RADAR_APPLICATION_ROOT=/app \
   --entrypoint node "${WEB_IMAGE}" \
   /src/scripts/production/candidate-runtime-identity/runner.mjs provision \
   --credentials /secure/credentials.json --admin-url-file /secure/role-admin.url \

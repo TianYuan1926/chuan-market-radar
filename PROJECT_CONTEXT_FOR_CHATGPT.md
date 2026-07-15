@@ -1334,3 +1334,20 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 证据打包误生成的 5 个根目录 JSON 副本待用户明确批准删除；它们不改变 schema PASS，但在清理前属于明确的运维遗留项。
 
 当前 Candidate schema 状态为 **`migration_1_to_9_applied_verified_dormant`**。下一包只能是本地 `WP-G0.2-SHADOW-CAPTURE-PRODUCTION-COMPOSITION-WIRING`；生产 dormant deploy、activation/observation、writer、backfill、dual read 和 read cutover 均未授权。系统仍为 **R1 / 可运行但不完整 / 不能支撑实战**。
+
+## 2026-07-15 WP-G0.2 Runtime Identity 生产容器 pg 解析修复
+
+本轮继续限定在 Runtime Identity 生产身份地基，不修改 scan、analysis、strategy、backtest、frontend、业务 API、Candidate schema、Redis、worker、Feature Flag 或 Candidate activation。
+
+当前事实：
+
+- 绑定提交 `ef9d8446612014c039e0350cf8ab6d7a766c58b4` 的生产请求先完成 root-only 管理凭据文件边界验证和独立网络认证，认证结果为 `PASS_CURRENT_ADMIN_NETWORK_AUTH_READ_ONLY`。
+- 该次受控执行获取全局生产租约 fencing token 5，但在数据库只读 preflight 阶段停止；lease 以 `SAFE_STOP_PRE_MUTATION` 释放。没有创建 Candidate LOGIN、没有写 Candidate URL、没有修改 env、没有 recreate Web。
+- 脱敏只读数据库边界再次确认：当前管理身份 `rolsuper=true / rolcreaterole=true`、ledger=9、control rows=0、capability roles=3、runtime logins=0、writer archive access=false。
+- 精确生产形态复现发现根因是 `ERR_MODULE_NOT_FOUND`：staged runner 从 `/src` 运行时，ESM `import("pg")` 不会自动解析 Web 镜像 `/app/node_modules/pg`。这不是数据库密码或权限失败。
+- 本地修复为 `runner.mjs` 增加批准应用根目录模块解析回退，并由 `production-runner.sh` 对 preflight、provision、rollback 三条数据库容器路径显式绑定 `MARKET_RADAR_APPLICATION_ROOT=/app`。
+- 新增回归测试证明 packet 位于 `/app` 外时仍只能从批准应用根解析 `pg`；Runner 15/15、Production Packet 11/11、Runtime Identity 14/14、Deploy Safety 6/6 和隔离 PostgreSQL 16 rehearsal 均通过。
+- 基础门禁通过：typecheck、lint、test:market 960 pass / 0 fail / 4 explicit DB skip、workers 23/23、historical 4/4、build、golden 16/16，以及 forbidden-files、secret-patterns、security-check。formal 未运行。
+- 当前 runner artifact=`4e213d3f2a22465e7e56d8fec7c408057017693d091c12aab0d1d00573892235`；production packet artifact=`127c308a8659ccc6a8d187278abdb83c5616ba19f8122687368772b9090db619`。它们仍需 clean commit 后重新冻结到新 Bundle 和新单次请求。
+
+当前真实结论仍是：**Runtime Identity 未生产完成，WP-G0.2/G0 未完成；R1 / 可运行但不完整 / 不能支撑实战**。下一动作只能是 clean commit、自治总门禁、新 Bundle、新请求和同范围生产重试，不得夹带 Candidate activation。

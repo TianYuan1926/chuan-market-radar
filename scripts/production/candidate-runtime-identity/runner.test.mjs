@@ -4,6 +4,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path";
 import test from "node:test";
 import {
+  loadPgRuntime,
   prepareRuntimeIdentitySecureInputs,
   renderIdentityEnvironment,
   validateApprovalRequest,
@@ -25,6 +26,14 @@ const credentials = {
   },
   schemaVersion: "candidate-runtime-identity-credentials.v1",
 };
+
+test("pg runtime resolves from the approved application root when the packet is mounted outside /app", () => {
+  const pg = loadPgRuntime({
+    applicationRoot: process.cwd(),
+    moduleUrl: "file:///tmp/market-radar-runtime-identity-packet/runner.mjs",
+  });
+  assert.equal(typeof pg.Client, "function");
+});
 
 test("credentials require three unique NOINHERIT-oriented production identities", () => {
   assert.equal(validateCredentials(credentials), credentials);
