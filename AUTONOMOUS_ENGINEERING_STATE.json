@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-15T02:31:12+08:00",
+  "updatedAt": "2026-07-16T01:08:43+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -11,7 +11,9 @@
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
-    "runtimeIdentityPreflight": "pass_local_current_release_identity_safe_verifier_artifact_e109adea_postgres16_and_rollback_verified_production_not_provisioned"
+    "runtimeIdentityPreflight": "pass_local_credential_source_and_module_resolution_remediated_commit_e28691a_production_not_provisioned",
+    "runtimeIdentityProduction": "waiting_fresh_exact_request_and_edge_orcaterm_login_production_unchanged_candidate_runtime_disabled",
+    "activationObservationPreparation": "pass_local_current_main_targeted_postgres16_baseline_security_production_prohibited_until_runtime_identity_and_future_release"
   },
   "wipLimits": {
     "production": 1,
@@ -130,18 +132,17 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-    "title": "Runtime Identity production packet and session-independent execution",
+    "id": "WP-G0.2-ACTIVATION-OBSERVATION-MAINLINE-INTEGRATION-REFRESH",
+    "title": "Activation and Observation current-main production-safety refresh",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在已通过current-release preflight的基础上，为Runtime Identity建立可复现脱敏Bundle、仓库外一次性授权、外部租约/fencing、session-independent transient unit、精确动态预检和自动回滚证据；本地准备阶段不执行生产mutation。",
+    "objective": "把历史Activation/Observation runner移植到当前main，补齐transient systemd、仓库外lease/fencing、clean detached Git、精确旧Web镜像留存、24小时revocation感知观察和有界临时目录清理；本包不激活生产Candidate runtime。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化",
       "candidate_runtime_foundation",
-      "runtime_identity_production_packet",
-      "session_independent_execution",
-      "automatic_identity_env_web_rollback"
+      "shadow_capture_activation_safety",
+      "truthful_observation_and_rollback"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -150,24 +151,17 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "scripts/verify/production-check.sh",
-      "scripts/deploy/deploy-safety.test.mjs",
-      "scripts/governance/runtime-identity-runner.mjs",
-      "scripts/governance/runtime-identity-runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/production-runner.sh",
-      "scripts/production/candidate-runtime-identity/production-entrypoint.sh",
-      "scripts/production/candidate-runtime-identity/production-entrypoint.test.mjs",
-      "scripts/production/candidate-runtime-identity/bundle.mjs",
-      "scripts/production/candidate-runtime-identity/bundle.test.mjs",
-      "scripts/production/candidate-runtime-identity/runner.mjs",
-      "scripts/production/candidate-runtime-identity/runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/production-runner-execute-rehearsal.test.mjs",
-      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
-      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-runtime-identity-production-execution.v1.json",
-      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_EXECUTION_V1.md",
+      "scripts/governance/autonomous-engineering.test.mjs",
+      "scripts/governance/autonomy-production-lease-cli.mjs",
+      "scripts/governance/autonomy-production-lease.mjs",
+      "scripts/governance/candidate-activation-runner.mjs",
+      "scripts/governance/candidate-activation-runner.test.mjs",
+      "scripts/production/candidate-activation/**",
+      "scripts/rehearsal/candidate-activation-postgres16.sh",
+      "docs/governance/WP_G0_2_ACTIVATION_OBSERVATION_RUNNER_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-runtime-identity-production-packet/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_PACKET_REPORT.md"
+      "reports/wp-g0-2-activation-observation-mainline-integration-refresh/WP_G0_2_ACTIVATION_OBSERVATION_MAINLINE_INTEGRATION_REFRESH_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -188,33 +182,15 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "package.json",
-      "scripts/verify/production-check.sh",
-      "scripts/deploy/deploy-safety.test.mjs",
-      "scripts/governance/runtime-identity-runner.mjs",
-      "scripts/governance/runtime-identity-runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/production-runner.sh",
-      "scripts/production/candidate-runtime-identity/production-entrypoint.sh",
-      "scripts/production/candidate-runtime-identity/production-entrypoint.test.mjs",
-      "scripts/production/candidate-runtime-identity/bundle.mjs",
-      "scripts/production/candidate-runtime-identity/bundle.test.mjs",
-      "scripts/production/candidate-runtime-identity/runner.mjs",
-      "scripts/production/candidate-runtime-identity/runner.test.mjs",
-      "scripts/production/candidate-runtime-identity/production-runner-execute-rehearsal.test.mjs",
-      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
-      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_RUNNER_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-runtime-identity-production-execution.v1.json",
-      "docs/governance/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_EXECUTION_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-runtime-identity-production-packet/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_PACKET_REPORT.md"
+      "reports/wp-g0-2-activation-observation-mainline-integration-refresh/WP_G0_2_ACTIVATION_OBSERVATION_MAINLINE_INTEGRATION_REFRESH_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "test:autonomy",
-        "test:deploy-safety",
-        "test:candidate-runtime-identity",
-        "test:candidate-runtime-identity-runner",
-        "test:candidate-runtime-identity-production-packet"
+        "candidate:activation-runner:validate",
+        "test:candidate-activation-runner",
+        "candidate:activation-runner:pg16-rehearsal",
+        "test:autonomy"
       ],
       "baseline": [
         "typecheck",
@@ -230,18 +206,19 @@
       ]
     },
     "completionBoundary": [
-      "可复现脱敏Bundle不得包含credentials、role-admin URL、env、secret、生产业务行或raw log，archive checksum和逐文件manifest必须精确绑定",
-      "生产入口必须使用session-independent transient systemd unit、Restart=no、RuntimeMaxSec不超过5400、journald和退出后精确staging清理",
-      "执行必须使用仓库外0600一次性external authorization、外部lease、递增fencing和最多90分钟mutation window；builder不得自签或伪造用户审批",
-      "fresh只读预检必须证明production clean detached cec0b657、health ready/fresh、Candidate dormant/worker absent、schema ledger/control=9|0、3个runtime LOGIN不存在、writer archive权限未应用",
-      "唯一允许mutation为创建3个NOINHERIT LOGIN、各授予1个能力角色、writer scan_archives SELECT/INSERT、env只写3条Candidate URL、no-build Web force-recreate",
-      "任一身份、env、Web、health、合同、Candidate dormant或角色验证失败必须恢复原env、旧Web image、删除3个LOGIN并撤销新增权限；回滚验证失败必须独立报错",
-      "本地准备阶段禁止连接生产或执行mutation；生产状态转换必须绑定clean commit/tree、artifact、环境指纹、rollback和最新总门禁",
-      "Candidate保持dormant；worker、Feature Flag、control lifecycle、migration、业务DML、scan、analysis、strategy、backtest、frontend和API业务合同不得改变",
-      "backtest:formal禁止运行；自动交易、自动调权、RR/Risk Gate放宽和future outcome生产回写继续禁止"
+      "当前feature flag必须保持false，当前commit和artifact不能冒充future activation release",
+      "生产入口与观察器必须分别使用Restart=no和RuntimeMaxSec=5400/90000的transient systemd unit，浏览器断开不得终止",
+      "生产repository mutation前后必须clean detached；只fetch和checkout审批绑定commit，禁止改写main",
+      "旧Web image必须在首个mutation前保存到审批绑定的独立retention repository并核对精确image ID，清理需独立批准",
+      "外部lease必须在首个mutation前acquire并consume，观察跨过90分钟自然到期但任何revocation仍立即回滚",
+      "只允许Web、candidate-shadow-worker、7个Candidate环境键和一次control start；数据库URL、migration、DDL、业务DML、canonical paths和phase advance禁止",
+      "24小时PASS至少289个5分钟样本、最大间隔600秒、ready/fresh、7个worker healthy、Candidate active、无retry/quarantine/锁等待/长事务且completed writes最终大于0",
+      "任一失败必须恢复env、精确旧Web image、clean detached rollback commit和legacy write_frozen control；保留脱敏证据后精确清理staging/secure/ops",
+      "本地准备阶段禁止连接或修改生产；Runtime Identity生产PASS和future activation release之前Activation生产禁止",
+      "backtest:formal、自动交易、自动调权、RR/Risk Gate放宽和future outcome生产回写继续禁止"
     ],
     "gate": "G0",
-    "actionClass": "runtime_identity_provision",
+    "actionClass": "shadow_capture_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "supporting",
@@ -249,47 +226,23 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "形成可在浏览器断开后继续执行、一次性授权、身份/env/Web三层可回滚的Runtime Identity生产包；Candidate仍不采集、不产出信号或交易计划。"
+      "measurableOutcome": "形成不能绕过Runtime Identity、不能依赖浏览器会话、不能篡改main、可在任一观察异常时回到Dormant的Shadow Capture激活与24小时真实观察执行器。"
     },
     "prerequisiteProductionResult": {
-      "status": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
-      "completedAt": "2026-07-14T17:00:15Z",
-      "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
-      "observationSeconds": 1800,
-      "sampleCount": 57,
-      "continuousReadyFresh": true,
-      "candidateRuntimeDormant": true,
-      "candidateWorkerAbsent": true,
-      "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5"
+      "dormantStatus": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+      "runtimeIdentityStatus": "WAITING_FRESH_EXACT_REQUEST_AND_PRODUCTION_EXECUTION",
+      "candidateRuntime": "disabled",
+      "productionMutationThisPackage": false
     },
-    "prerequisiteLocalResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_CURRENT_RELEASE_PREFLIGHT",
-      "productionMutation": false,
-      "productionTarget": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
-      "repositoryState": "clean_detached",
-      "artifactSha256": "be3a3fe3095366e6fb8dd2e83e095dee1c4ec18ec9f1ce93d5284439b34560a3",
-      "deploySafetyTests": "6/6",
-      "runtimeIdentityRunnerTests": "10/10",
-      "runtimeIdentityTransactionTests": "14/14",
-      "postgres16Rehearsal": "pass_provision_3_rollback_3_final_login_0",
-      "baselineGates": "pass",
-      "securityGates": "pass",
-      "formalBacktestRun": false
-    },
-    "localProductionPacketResult": {
-      "status": "PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET",
-      "productionMutation": false,
-      "transportReproducible": true,
-      "transportContainsSecrets": false,
-      "transportArtifactSha256": "c289d72aaff5c6b7b489ff00b281ee2becf09f74c20eb4a41141932b97bd75df",
-      "transportArtifactFiles": 11,
-      "sessionIndependentRunner": "transient_systemd_restart_no_runtime_max_5400_journald",
-      "externalAuthorization": "required_repository_external_single_use_max_90_minutes",
-      "externalLeaseAndFencing": true,
-      "productionPacketTests": "8/8",
-      "runtimeIdentityRunnerTests": "10/10",
-      "runtimeIdentityTransactionTests": "14/14",
-      "postgres16Rehearsal": "pass_provision_3_rollback_3_final_login_0",
+    "targetedResult": {
+      "status": "PASS_LOCAL_ACTIVATION_OBSERVATION_RUNNER_PREPARATION",
+      "runnerArtifactSha256": "55da1aa7c6094e2b8799d68481fe641ff546f5a10eb47f7cb6cb242c6f368bcd",
+      "runnerArtifactFiles": 4,
+      "currentDormantReleaseArtifactSha256": "b0baa1c09da2e8062aee0fe0c96676ce9a53dfefedff5d5ab54de6c7725a9864",
+      "activationReleaseArtifactFiles": 16,
+      "activationTests": "17/17",
+      "autonomyAndLeaseTests": "31/31",
+      "postgres16Rehearsal": "pass_control_start_1_rollback_1_final_legacy_epoch_2_write_frozen_true_production_connected_false",
       "marketTests": "960_pass_0_fail_4_explicit_db_skip",
       "workerTests": "23/23",
       "historicalSmokeTests": "4/4",
@@ -417,7 +370,7 @@
       "order": 14,
       "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
       "lane": "production",
-      "status": "ready_for_gate",
+      "status": "waiting_fresh_exact_request_and_edge_orcaterm_login_old_request_expired_production_unchanged",
       "requiresExplicitApproval": false
     },
     {
@@ -502,6 +455,20 @@
       "id": "WP-G0.2-CLOSEOUT-VERIFIER-AND-RUNTIME-IDENTITY-PREFLIGHT-SUPERPACK",
       "lane": "localPreparation",
       "status": "completed_committed_pushed_2ae4561",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 27,
+      "id": "WP-G0.2-RUNTIME-IDENTITY-CREDENTIAL-SOURCE-AND-MODULE-RESOLUTION-REMEDIATION",
+      "lane": "localPreparation",
+      "status": "completed_committed_pushed_e28691a",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 29,
+      "id": "WP-G0.2-ACTIVATION-OBSERVATION-MAINLINE-INTEGRATION-REFRESH",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": false
     }
   ]

@@ -21,6 +21,9 @@ const SAFETY_IGNORABLE_VIOLATIONS = new Set([
   "production_lease_expired",
   "production_lease_revoked",
 ]);
+const OBSERVATION_IGNORABLE_VIOLATIONS = new Set([
+  "production_lease_expired",
+]);
 
 function ensure(condition, reason) {
   if (!condition) throw new Error(reason);
@@ -148,22 +151,28 @@ async function acquire(options) {
   return execution;
 }
 
-async function checkpoint(options, { safety = false } = {}) {
+async function checkpoint(options, { observation = false, safety = false } = {}) {
   const { authorization, executionPath, trustRoot } = await loadInputs(options);
   const execution = await readJson(executionPath);
   ensure(execution.schemaVersion === EXECUTION_SCHEMA, "lease_execution_schema_invalid");
   const now = parseNow(options.now);
   const identity = leaseIdentity(authorization, execution);
   const violations = await verifyProductionLease({ trustRoot, ...identity, now });
-  const blocking = safety
-    ? violations.filter((value) => !SAFETY_IGNORABLE_VIOLATIONS.has(value))
-    : violations;
+  const ignorable = safety
+    ? SAFETY_IGNORABLE_VIOLATIONS
+    : observation
+      ? OBSERVATION_IGNORABLE_VIOLATIONS
+      : new Set();
+  const blocking = violations.filter((value) => !ignorable.has(value));
   ensure(blocking.length === 0, `production_lease_invalid:${blocking.join(",")}`);
-  if (!safety) await heartbeatProductionLease({ trustRoot, ...identity, now });
+  if (!safety && !violations.includes("production_lease_expired")) {
+    await heartbeatProductionLease({ trustRoot, ...identity, now });
+  }
   return {
     schemaVersion: EXECUTION_SCHEMA,
     checkpoint: options.checkpoint ?? "unspecified",
     leaseId: execution.leaseId,
+    observation,
     fencingToken: execution.fencingToken,
     safety,
     status: "pass",
@@ -206,6 +215,7 @@ async function release(options) {
   const execution = await readJson(executionPath);
   ensure([
     "PASS",
+    "PASS_OBSERVATION",
     "ROLLBACK_PASS",
     "SAFE_STOP_AFTER_REVOCATION",
     "SAFE_STOP_PRE_MUTATION",
@@ -238,6 +248,7 @@ async function main() {
   let result;
   if (command === "acquire") result = await acquire(options);
   else if (command === "checkpoint") result = await checkpoint(options);
+  else if (command === "observation-checkpoint") result = await checkpoint(options, { observation: true });
   else if (command === "safety-checkpoint") result = await checkpoint(options, { safety: true });
   else if (command === "consume") result = await consume(options);
   else if (command === "release") result = await release(options);

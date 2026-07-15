@@ -649,3 +649,119 @@ test("production lease rejects traversal identities and permits expired rollback
     await rm(trustRoot, { recursive: true, force: true });
   }
 });
+
+test("expired observation closeout passes but revocation still blocks success", async () => {
+  const trustRoot = await mkdtemp(join(tmpdir(), "market-radar-autonomy-trust-"));
+  try {
+    const observed = await acquireProductionLease({
+      trustRoot,
+      packageId: "WP-OBSERVATION",
+      approvalId: "approval-observation",
+      nonce: "nonce-observation",
+      ownerId: "observer",
+      approvalExpiresAt: "2026-01-01T02:00:00.000Z",
+      revocationEpoch: 1,
+      ttlSeconds: 60,
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    const closed = await releaseProductionLease({
+      trustRoot,
+      leaseId: observed.leaseId,
+      packageId: observed.packageId,
+      approvalId: observed.approvalId,
+      nonce: observed.nonce,
+      fencingToken: observed.fencingToken,
+      revocationEpoch: observed.revocationEpoch,
+      outcome: "PASS_OBSERVATION",
+      now: new Date("2026-01-01T00:02:00.000Z"),
+    });
+    assert.equal(closed.outcome, "PASS_OBSERVATION");
+
+    const revoked = await acquireProductionLease({
+      trustRoot,
+      packageId: "WP-OBSERVATION",
+      approvalId: "approval-revoked-observation",
+      nonce: "nonce-revoked-observation",
+      ownerId: "observer",
+      approvalExpiresAt: "2026-01-01T03:00:00.000Z",
+      revocationEpoch: 1,
+      ttlSeconds: 60,
+      now: new Date("2026-01-01T00:03:00.000Z"),
+    });
+    await advanceRevocationEpoch({
+      trustRoot,
+      epoch: 2,
+      reason: "test-revocation",
+      now: new Date("2026-01-01T00:04:00.000Z"),
+    });
+    await assert.rejects(() => releaseProductionLease({
+      trustRoot,
+      leaseId: revoked.leaseId,
+      packageId: revoked.packageId,
+      approvalId: revoked.approvalId,
+      nonce: revoked.nonce,
+      fencingToken: revoked.fencingToken,
+      revocationEpoch: revoked.revocationEpoch,
+      outcome: "PASS_OBSERVATION",
+      now: new Date("2026-01-01T00:05:00.000Z"),
+    }), /production_lease_revoked/u);
+  } finally {
+    await rm(trustRoot, { recursive: true, force: true });
+  }
+});
+
+test("observation checkpoint tolerates natural expiry but never revocation", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "market-radar-observation-checkpoint-"));
+  const trustRoot = join(directory, "trust");
+  const requestPath = join(directory, "request.json");
+  const executionPath = join(directory, "execution.json");
+  const request = {
+    packageId: "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+    autonomyAuthorization: {
+      schemaVersion: "market-radar-package-authorization.v1",
+      packageId: "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+      approvalId: "observation-checkpoint-approval",
+      nonce: "observation-checkpoint-nonce",
+      grantId: "observation-checkpoint-grant",
+      issuedAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-01-01T00:01:00.000Z",
+      revocationEpoch: 1,
+      maxExecutions: 1,
+    },
+  };
+  const cli = join(process.cwd(), "scripts/governance/autonomy-production-lease-cli.mjs");
+  const run = (command, args, now) => execFileAsync(process.execPath, [
+    cli, command, "--trust-root", trustRoot, "--request", requestPath,
+    "--execution", executionPath, ...args, "--now", now,
+  ]);
+  try {
+    await mkdir(trustRoot, { mode: 0o700 });
+    await writeFile(requestPath, `${JSON.stringify(request)}\n`, { mode: 0o600 });
+    await run("acquire", ["--owner-id", "observation-checkpoint-test"], "2026-01-01T00:00:00.000Z");
+    await run("consume", [], "2026-01-01T00:00:01.000Z");
+    const expired = JSON.parse((await run(
+      "observation-checkpoint",
+      ["--checkpoint", "expired-observation"],
+      "2026-01-01T00:02:00.000Z",
+    )).stdout);
+    assert.equal(expired.status, "pass");
+    assert.equal(expired.observation, true);
+    await advanceRevocationEpoch({
+      trustRoot,
+      epoch: 2,
+      reason: "observation-revoked",
+      now: new Date("2026-01-01T00:02:30.000Z"),
+    });
+    await assert.rejects(run(
+      "observation-checkpoint",
+      ["--checkpoint", "revoked-observation"],
+      "2026-01-01T00:03:00.000Z",
+    ), (error) => {
+      assert.match(error.stderr, /production_lease_revoked/u);
+      return true;
+    });
+    await run("release", ["--outcome", "ROLLBACK_PASS"], "2026-01-01T00:03:01.000Z");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

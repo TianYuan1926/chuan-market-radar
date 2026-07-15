@@ -4135,3 +4135,41 @@ P0 阻断：
 ### 下一轮建议
 
 只重试 Runtime Identity 生产身份事务；即时验收通过后把持续观察放入只读并行车道，不夹带 Candidate activation。
+
+## 2026-07-16 / WP-G0.2 Activation/Observation current-main production-safety refresh
+
+### 本轮目标
+
+把历史 Activation/Observation runner 移植到当前 main，并补齐 session-independent systemd、外部 lease/fencing、clean detached Git、精确旧 Web 镜像 retention、24 小时 revocation 感知观察和自动回滚；不激活生产 Candidate runtime。
+
+### 修改范围
+
+- 修改 `scripts/production/candidate-activation/**`、Activation 治理合同/validator/测试、外部 lease observation 语义、PG16 rehearsal、package scripts、自治状态、traceability、Context 和本轮报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、backtest 逻辑、frontend、业务 API、Compose、migration、Candidate 业务实现、数据库、Redis、生产 env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+支撑候选筛选和复盘进化的 Candidate Episode Shadow Capture 地基；不改变全市场发现、深扫验证、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Activation validator PASS；定向 17/17；Autonomy/lease 31/31。
+- 隔离 PostgreSQL 16：migration 9、control start 1、rollback 1、final legacy/epoch 2/write_frozen=true、productionConnected=false。
+- typecheck、lint、build PASS。
+- test:market 960 pass / 0 fail / 4 explicit DB skip；workers 23/23；historical smoke 4/4。
+- backtest:golden 16/16；forbidden-files、secret-patterns、security-check PASS。
+- formal 未运行。
+
+### 是否部署
+
+未部署。Runtime Identity 仍未生产 PASS；旧 90 分钟 request 已过期且 Edge / OrcaTerm 需要重新登录，生产未变。Activation 生产继续禁止。
+
+### 风险与遗留问题
+
+- P0：无新增。
+- P1：Runtime Identity 必须用 fresh dynamic facts 和唯一新 exact request 先完成生产身份事务。
+- P1：Activation 仍需 future code-activation release、新 artifact/request 和真实 24 小时观察，当前只可写本地准备 PASS。
+
+### 下一轮建议
+
+只恢复 Edge / OrcaTerm 登录并执行 Runtime Identity exact production package；Activation 继续关闭。

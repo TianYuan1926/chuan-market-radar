@@ -230,11 +230,14 @@ export async function releaseProductionLease({ trustRoot, outcome, now = new Dat
     "SAFE_STOP_AFTER_REVOCATION",
     "SAFE_STOP_PRE_MUTATION",
   ]).has(outcome);
+  const observationCloseout = outcome === "PASS_OBSERVATION";
   const blockingViolations = rollbackCloseout
     ? violations.filter((value) => !new Set([
       "production_lease_revoked",
       "production_lease_expired",
     ]).has(value))
+    : observationCloseout
+      ? violations.filter((value) => value !== "production_lease_expired")
     : violations;
   if (blockingViolations.length > 0) {
     throw new Error(`production_lease_invalid:${blockingViolations.join(",")}`);
