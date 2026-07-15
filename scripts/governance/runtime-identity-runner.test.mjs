@@ -45,6 +45,15 @@ test("validator rejects activation or a weakened rollback prerequisite", async (
   assert.equal(result.violations.includes("rollback_precondition"), true);
 });
 
+test("validator rejects weakened stale-evidence renewal observation", async () => {
+  const contract = clone(await loadRunnerContract());
+  contract.dormantEvidence.freshnessRenewal.observationDurationSeconds = 60;
+  contract.dormantEvidence.freshnessRenewal.readOnly = false;
+  const result = await validateRuntimeIdentityRunner(contract);
+  assert.equal(result.status, "FAIL");
+  assert.equal(result.violations.includes("dormant_evidence_boundary"), true);
+});
+
 test("validator rejects main-branch production assumptions and stale Dormant status", async () => {
   const contract = clone(await loadRunnerContract());
   contract.productionTarget.repositoryState = "main";

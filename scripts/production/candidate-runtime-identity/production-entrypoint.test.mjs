@@ -83,12 +83,23 @@ test("production runner fences preflight, mutation, rollback and closeout with o
     "lease_outcome=\"ROLLBACK_PASS\"", "lease_release \"${lease_outcome}\"", "lease_release PASS",
   ]) assert.match(source, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.ok(source.indexOf("runner.mjs preflight") < source.indexOf("runner.mjs provision"));
+  assert.ok(source.indexOf("lease_acquire") < source.lastIndexOf("refresh_dormant_evidence_if_required"));
+  assert.ok(source.lastIndexOf("refresh_dormant_evidence_if_required") < source.lastIndexOf("lease_consume"));
   assert.ok(source.indexOf("lease_consume") < source.lastIndexOf("runner.mjs provision"));
   assert.doesNotMatch(source, /--profile|--remove-orphans/);
   assert.match(source, /RUNTIME_IDENTITY_NODE_RUNTIME/);
   assert.match(source, /run_isolated_node/);
   assert.match(source, /--network none --read-only --cap-drop ALL/);
   assert.match(source, /web_runtime_changed_during_preflight/);
+  assert.match(source, /dormant-evidence-lineage/);
+  assert.match(source, /observationDurationSeconds' "\$\{CONTRACT_FILE\}"/);
+  assert.match(source, /duration\}" == "1800" && "\$\{poll\}" == "30"/);
+  assert.match(source, /run_identity_safe_production_check >\/dev\/null/);
+  assert.match(source, /export READY_TIMEOUT_SECONDS=0/);
+  assert.match(source, /export SHADOW_READY_TIMEOUT_SECONDS=0/);
+  assert.match(source, /verify_dormant_candidate_contract/);
+  assert.match(source, /dormant_refresh_non_target_container_drift/);
+  assert.match(source, /PASS_DORMANT_EVIDENCE_REFRESH/);
   assert.match(source, /--runner "\$\{RUNNER_MODULE\}"/);
   assert.doesNotMatch(source, /--runner "\$\{BASH_SOURCE\[0\]\}"/);
   assert.equal(

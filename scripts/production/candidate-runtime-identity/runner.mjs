@@ -141,7 +141,12 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   return request;
 }
 
-export function validateDormantEvidence(dormant, request, contract, { now = new Date() } = {}) {
+function validateDormantEvidenceBoundary(
+  dormant,
+  request,
+  contract,
+  { enforceFreshness, now = new Date() },
+) {
   const boundary = contract.dormantEvidence ?? {};
   ensure(exactKeys(dormant, DORMANT_SUMMARY_KEYS), "dormant_evidence_keys_mismatch");
   ensure(dormant.status === boundary.finalStatus, "dormant_deploy_not_pass");
@@ -153,9 +158,11 @@ export function validateDormantEvidence(dormant, request, contract, { now = new 
   ensure(dormant.webImageId === request.approvedWebImageId, "dormant_web_image_mismatch");
   const completedAt = parseTimestamp(dormant.completedAt, "dormant_evidence_completed_at_invalid");
   const nowMs = now instanceof Date ? now.getTime() : Number(now);
-  ensure(completedAt <= nowMs + 60_000
-    && nowMs - completedAt <= boundary.maximumEvidenceAgeHours * 60 * 60_000,
-  "dormant_evidence_not_fresh");
+  ensure(completedAt <= nowMs + 60_000, "dormant_evidence_completed_at_in_future");
+  if (enforceFreshness) {
+    ensure(nowMs - completedAt <= boundary.maximumEvidenceAgeHours * 60 * 60_000,
+      "dormant_evidence_not_fresh");
+  }
   ensure(dormant.observationDurationSeconds >= boundary.minimumObservationSeconds,
     "dormant_observation_too_short");
   ensure(dormant.sampleCount >= boundary.minimumSampleCount, "dormant_sample_count_too_low");
@@ -175,6 +182,20 @@ export function validateDormantEvidence(dormant, request, contract, { now = new 
     ensure(dormant[key] === false, `dormant_${key}_must_be_false`);
   }
   return dormant;
+}
+
+export function validateDormantEvidence(dormant, request, contract, { now = new Date() } = {}) {
+  return validateDormantEvidenceBoundary(dormant, request, contract, {
+    enforceFreshness: true,
+    now,
+  });
+}
+
+export function validateDormantEvidenceLineage(dormant, request, contract, { now = new Date() } = {}) {
+  return validateDormantEvidenceBoundary(dormant, request, contract, {
+    enforceFreshness: false,
+    now,
+  });
 }
 
 async function assertSecureFile(path, label) {
@@ -488,12 +509,20 @@ async function main() {
     process.stdout.write('{"status":"pass","requestValid":true,"containsSecret":false}\n');
     return;
   }
-  if (command === "dormant-evidence") {
+  if (command === "dormant-evidence" || command === "dormant-evidence-lineage") {
     const contract = JSON.parse(await readFile(resolve(options.contract), "utf8"));
     const request = JSON.parse(await readFile(resolve(options.request), "utf8"));
     const dormant = JSON.parse(await readFile(resolve(options.evidence), "utf8"));
-    validateDormantEvidence(dormant, request, contract, options.now ? { now: new Date(options.now) } : {});
-    process.stdout.write('{"status":"pass","dormantEvidenceValid":true,"containsSecret":false}\n');
+    const validate = command === "dormant-evidence"
+      ? validateDormantEvidence
+      : validateDormantEvidenceLineage;
+    validate(dormant, request, contract, options.now ? { now: new Date(options.now) } : {});
+    process.stdout.write(`${JSON.stringify({
+      status: "pass",
+      dormantEvidenceValid: true,
+      freshnessEnforced: command === "dormant-evidence",
+      containsSecret: false,
+    })}\n`);
     return;
   }
   if (command === "prepare-secure-inputs") {

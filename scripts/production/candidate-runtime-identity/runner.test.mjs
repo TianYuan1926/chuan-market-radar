@@ -10,6 +10,7 @@ import {
   validateApprovalRequest,
   validateCredentials,
   validateDormantEvidence,
+  validateDormantEvidenceLineage,
 } from "./runner.mjs";
 
 const postgresAdminEnvPath = "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env";
@@ -255,6 +256,21 @@ test("dormant evidence accepts the exact production summary schema and rejects w
     otherServiceMutation: false,
   };
   assert.equal(validateDormantEvidence(summary, request, contract, { now }), summary);
+  const staleNow = new Date("2026-07-16T18:00:16.000Z");
+  assert.throws(
+    () => validateDormantEvidence(summary, request, contract, { now: staleNow }),
+    /dormant_evidence_not_fresh/,
+  );
+  assert.equal(validateDormantEvidenceLineage(summary, request, contract, { now: staleNow }), summary);
+  assert.throws(
+    () => validateDormantEvidenceLineage(
+      { ...summary, completedAt: "2026-07-16T18:02:00.000Z" },
+      request,
+      contract,
+      { now: staleNow },
+    ),
+    /dormant_evidence_completed_at_in_future/,
+  );
   for (const [key, value, reason] of [
     ["observationDurationSeconds", 1799, "dormant_observation_too_short"],
     ["sampleCount", 56, "dormant_sample_count_too_low"],

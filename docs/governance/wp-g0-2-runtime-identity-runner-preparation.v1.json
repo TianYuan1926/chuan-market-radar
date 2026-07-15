@@ -24,6 +24,16 @@
     "maximumEvidenceAgeHours": 24,
     "candidateRuntimeDormantRequired": true,
     "candidateWorkerAbsentRequired": true,
+    "freshnessRenewal": {
+      "trigger": "stale_only",
+      "lineageSummaryShaBound": true,
+      "observationDurationSeconds": 1800,
+      "pollSeconds": 30,
+      "minimumSampleCount": 57,
+      "readOnly": true,
+      "leaseCheckpointRequired": true,
+      "strictFreshnessRevalidationRequired": true
+    },
     "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5"
   },
   "productionIdentity": {
@@ -43,7 +53,7 @@
     "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa"
   },
   "artifact": {
-    "sha256": "4e213d3f2a22465e7e56d8fec7c408057017693d091c12aab0d1d00573892235",
+    "sha256": "a57522dc0958516a763e0f36f1fbd7b204bd6fc1b8f9d76bc7e0030216190069",
     "files": [
       "docker-compose.yml",
       "scripts/production/candidate-dormant-deploy.mjs",

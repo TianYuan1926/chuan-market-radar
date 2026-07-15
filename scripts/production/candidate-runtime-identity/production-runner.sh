@@ -194,9 +194,15 @@ run_isolated_node false "${SOURCE_ROOT}/scripts/production/candidate-dormant-dep
 run_isolated_node false "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" \
   env --env-file "${ENV_FILE}" >/dev/null
 
-run_isolated_node false "${RUNNER_MODULE}" dormant-evidence \
+DORMANT_EVIDENCE_REFRESH_REQUIRED=false
+if ! run_isolated_node false "${RUNNER_MODULE}" dormant-evidence \
   --contract "${CONTRACT_FILE}" --request "${REQUEST_FILE}" \
-  --evidence "${DORMANT_EVIDENCE_FILE}" >/dev/null
+  --evidence "${DORMANT_EVIDENCE_FILE}" >/dev/null 2>&1; then
+  run_isolated_node false "${RUNNER_MODULE}" dormant-evidence-lineage \
+    --contract "${CONTRACT_FILE}" --request "${REQUEST_FILE}" \
+    --evidence "${DORMANT_EVIDENCE_FILE}" >/dev/null
+  DORMANT_EVIDENCE_REFRESH_REQUIRED=true
+fi
 
 [[ "$(sha256sum "${BASE_ENV_FILE}" | awk '{print $1}')" == "${APPROVED_BASE_ENV_SHA256}" \
   && "$(sha256sum "${ENV_FILE}" | awk '{print $1}')" == "${APPROVED_PRODUCTION_ENV_SHA256}" \
@@ -343,6 +349,124 @@ run_identity_safe_production_check() {
     bash "${SOURCE_ROOT}/scripts/verify/production-check.sh"
 }
 
+container_snapshot_excluding_web() {
+  "${DOCKER[@]}" ps --format '{{.Names}}={{.Image}}={{.ID}}' \
+    | grep -v '^chuan-market-radar-web-1=' | LC_ALL=C sort
+}
+
+verify_dormant_candidate_contract() {
+  "${COMPOSE[@]}" exec -T web node - <<'NODE' >/dev/null
+const flags = [
+  "CANDIDATE_EPISODE_CANONICAL_WRITE", "CANDIDATE_EPISODE_SHADOW_WRITE",
+  "CANDIDATE_EPISODE_DUAL_READ", "CANDIDATE_EPISODE_CANONICAL_READ",
+  "CANDIDATE_EPISODE_REVIEW_READ",
+];
+const urls = [
+  "CANDIDATE_SOURCE_DATABASE_URL", "CANDIDATE_CONSUMER_DATABASE_URL",
+  "CANDIDATE_MONITOR_DATABASE_URL",
+];
+const exactFalse = (value) => String(value ?? "false").trim().toLowerCase() === "false";
+if (!flags.every((key) => exactFalse(process.env[key]))) throw new Error("candidate_feature_flag_not_false");
+if (!urls.every((key) => !String(process.env[key] ?? "").trim())) {
+  throw new Error("candidate_database_url_configured_before_identity");
+}
+if (String(process.env.CANDIDATE_RUNTIME_RELEASE_ID ?? "disabled").toLowerCase() !== "disabled") {
+  throw new Error("candidate_release_not_disabled");
+}
+if (!exactFalse(process.env.CANDIDATE_SHADOW_WORKER_EXPECTED)) throw new Error("candidate_worker_expected");
+const endpoint = "http://127.0.0.1:3000/api/admin/candidate-shadow/run";
+const unauthorized = await fetch(endpoint, { method: "POST", headers: { authorization: "Bearer invalid" } });
+if (unauthorized.status !== 401) throw new Error(`candidate_unauthorized_status_${unauthorized.status}`);
+const authorized = await fetch(endpoint, {
+  method: "POST",
+  headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` },
+});
+const body = await authorized.json();
+if (authorized.status !== 200 || body.ok !== true || body.mode !== "dormant" || body.batch !== null) {
+  throw new Error("candidate_dormant_contract_failed");
+}
+if (!body.runtime?.blockers?.includes("release_not_authorized_in_code")) {
+  throw new Error("candidate_code_authorization_blocker_missing");
+}
+NODE
+}
+
+refresh_dormant_evidence_if_required() {
+  [[ "${DORMANT_EVIDENCE_REFRESH_REQUIRED}" == "true" ]] || return 0
+  local duration poll minimum_samples started deadline now remaining sample_count
+  local observation_file refreshed_file rollback_ref current_web current_image
+  duration="$(jq -r '.dormantEvidence.freshnessRenewal.observationDurationSeconds' "${CONTRACT_FILE}")"
+  poll="$(jq -r '.dormantEvidence.freshnessRenewal.pollSeconds' "${CONTRACT_FILE}")"
+  minimum_samples="$(jq -r '.dormantEvidence.freshnessRenewal.minimumSampleCount' "${CONTRACT_FILE}")"
+  [[ "${duration}" == "1800" && "${poll}" == "30" && "${minimum_samples}" == "57" ]] \
+    || fail dormant_evidence_refresh_contract_invalid
+  observation_file="${EVIDENCE_DIRECTORY}/dormant-evidence-refresh-observation.jsonl"
+  refreshed_file="${EVIDENCE_DIRECTORY}/dormant-evidence-refreshed.json"
+  rollback_ref="$(jq -r '.rollbackWebImageRef' "${DORMANT_EVIDENCE_FILE}")"
+  DORMANT_NON_TARGET_CONTAINERS_BEFORE="$(container_snapshot_excluding_web)"
+  started="$(date +%s)"
+  deadline=$((started + duration))
+  sample_count=0
+  : > "${observation_file}"
+  chmod 600 "${observation_file}"
+  while true; do
+    if [[ "${LEASE_REQUIRED}" == "true" ]]; then lease_checkpoint dormant-evidence-refresh-sample; fi
+    [[ -z "$(git -C "${ROOT_DIR}" status --porcelain)" \
+      && -z "$(git -C "${ROOT_DIR}" branch --show-current)" \
+      && "$(git -C "${ROOT_DIR}" rev-parse HEAD)" == "${APPROVED_PRODUCTION_COMMIT}" ]] \
+      || fail dormant_refresh_production_identity_drift
+    current_web="$("${COMPOSE[@]}" ps -q web)"
+    current_image="$("${DOCKER[@]}" inspect "${current_web}" --format '{{.Image}}')"
+    [[ -n "${current_web}" && "${current_image}" == "${APPROVED_WEB_IMAGE}" ]] \
+      || fail dormant_refresh_web_identity_drift
+    [[ "$(container_snapshot_excluding_web)" == "${DORMANT_NON_TARGET_CONTAINERS_BEFORE}" ]] \
+      || fail dormant_refresh_non_target_container_drift
+    ! "${DOCKER[@]}" ps --format '{{.Names}}' | grep -q 'candidate-shadow-worker' \
+      || fail dormant_refresh_candidate_worker_present
+    "${DOCKER[@]}" image inspect "${rollback_ref}" >/dev/null \
+      || fail dormant_refresh_rollback_image_missing
+    (
+      export READY_TIMEOUT_SECONDS=0
+      export SHADOW_READY_TIMEOUT_SECONDS=0
+      run_identity_safe_production_check >/dev/null
+    )
+    verify_dormant_candidate_contract
+    sample_count=$((sample_count + 1))
+    jq -n -c \
+      --arg sampledAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      --argjson sample "${sample_count}" \
+      --arg webImageId "${current_image}" \
+      '{sampledAt:$sampledAt,sample:$sample,health:"ready",scanFreshness:"fresh",candidateMode:"dormant",candidateWorkerAbsent:true,webImageId:$webImageId}' \
+      >> "${observation_file}"
+    now="$(date +%s)"
+    (( now >= deadline )) && break
+    remaining=$((deadline - now))
+    (( remaining < poll )) && sleep "${remaining}" || sleep "${poll}"
+  done
+  (( $(date +%s) - started >= duration )) || fail dormant_refresh_duration_too_short
+  (( sample_count >= minimum_samples )) || fail dormant_refresh_sample_count_too_low
+  jq \
+    --arg completedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --argjson duration "${duration}" \
+    --argjson sampleCount "${sample_count}" \
+    '.completedAt=$completedAt
+      | .observationDurationSeconds=$duration
+      | .sampleCount=$sampleCount
+      | .continuousReadyFresh=true
+      | .candidateDormant=true
+      | .candidateWorkerAbsent=true
+      | .databaseMutation=false
+      | .redisMutation=false
+      | .environmentMutation=false
+      | .otherServiceMutation=false' \
+    "${DORMANT_EVIDENCE_FILE}" > "${refreshed_file}"
+  chmod 600 "${refreshed_file}"
+  run_isolated_node false "${RUNNER_MODULE}" dormant-evidence \
+    --contract "${CONTRACT_FILE}" --request "${REQUEST_FILE}" \
+    --evidence "${refreshed_file}" >/dev/null
+  printf 'PASS_DORMANT_EVIDENCE_REFRESH|duration=%s|samples=%s\n' "${duration}" "${sample_count}"
+}
+
 rollback_on_failure() {
   local exit_code=$?
   if [[ "${exit_code}" -eq 0 ]]; then return; fi
@@ -407,6 +531,7 @@ if [[ "${LEASE_REQUIRED}" == "true" ]]; then
   lease_checkpoint dynamic-preflight
 fi
 
+refresh_dormant_evidence_if_required
 run_identity_safe_production_check >/dev/null
 "${DOCKER[@]}" run --rm --network "${NETWORK}" \
   --volume "${SOURCE_ROOT}:/src:ro" --volume "${SECURE_ROOT}:/secure:ro" \

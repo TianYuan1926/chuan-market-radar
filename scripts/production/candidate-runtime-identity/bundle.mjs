@@ -265,6 +265,17 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
     || contract.dynamicPreflight?.schemaControlRows !== 0
     || contract.dynamicPreflight?.runtimeLoginsBefore !== 0
     || contract.dynamicPreflight?.writerArchiveAccessBefore !== false) violations.push("preflight_boundary");
+  if (contract.dormantEvidenceRefresh?.trigger !== "stale_only"
+    || contract.dormantEvidenceRefresh?.lineageSummaryShaBound !== true
+    || contract.dormantEvidenceRefresh?.observationDurationSeconds !== 1800
+    || contract.dormantEvidenceRefresh?.pollSeconds !== 30
+    || contract.dormantEvidenceRefresh?.minimumSampleCount !== 57
+    || contract.dormantEvidenceRefresh?.readOnly !== true
+    || contract.dormantEvidenceRefresh?.leaseCheckpointRequired !== true
+    || contract.dormantEvidenceRefresh?.strictFreshnessRevalidationRequired !== true
+    || contract.dormantEvidenceRefresh?.productionMutationAllowed !== false) {
+    violations.push("dormant_evidence_refresh_boundary");
+  }
   if (contract.mutationAllowlist?.runtimeLoginsCreated !== 3
     || JSON.stringify(contract.mutationAllowlist?.servicesRecreated) !== '["web"]'
     || contract.mutationAllowlist?.webBuildAllowed !== false) violations.push("mutation_boundary");

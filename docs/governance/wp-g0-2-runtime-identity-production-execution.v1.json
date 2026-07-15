@@ -63,6 +63,17 @@
     "runtimeLoginsBefore": 0,
     "writerArchiveAccessBefore": false
   },
+  "dormantEvidenceRefresh": {
+    "trigger": "stale_only",
+    "lineageSummaryShaBound": true,
+    "observationDurationSeconds": 1800,
+    "pollSeconds": 30,
+    "minimumSampleCount": 57,
+    "readOnly": true,
+    "leaseCheckpointRequired": true,
+    "strictFreshnessRevalidationRequired": true,
+    "productionMutationAllowed": false
+  },
   "mutationAllowlist": {
     "runtimeLoginsCreated": 3,
     "capabilityMembershipsGranted": 3,
@@ -84,7 +95,7 @@
     "independentVerificationRequired": true
   },
   "artifact": {
-    "sha256": "127c308a8659ccc6a8d187278abdb83c5616ba19f8122687368772b9090db619",
+    "sha256": "f7dccab397f6bca770c3b53664b55f159d1772755d99a5e817c40c63142607db",
     "files": [
       "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
       "scripts/governance/autonomy-policy.mjs",

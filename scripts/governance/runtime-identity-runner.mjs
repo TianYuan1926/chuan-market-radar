@@ -53,6 +53,14 @@ export async function validateRuntimeIdentityRunner(contract) {
       !== "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c"
     || contract.dormantEvidence?.candidateRuntimeDormantRequired !== true
     || contract.dormantEvidence?.candidateWorkerAbsentRequired !== true
+    || contract.dormantEvidence?.freshnessRenewal?.trigger !== "stale_only"
+    || contract.dormantEvidence?.freshnessRenewal?.lineageSummaryShaBound !== true
+    || contract.dormantEvidence?.freshnessRenewal?.observationDurationSeconds !== 1800
+    || contract.dormantEvidence?.freshnessRenewal?.pollSeconds !== 30
+    || contract.dormantEvidence?.freshnessRenewal?.minimumSampleCount !== 57
+    || contract.dormantEvidence?.freshnessRenewal?.readOnly !== true
+    || contract.dormantEvidence?.freshnessRenewal?.leaseCheckpointRequired !== true
+    || contract.dormantEvidence?.freshnessRenewal?.strictFreshnessRevalidationRequired !== true
     || contract.dormantEvidence?.redactedEvidenceArchiveSha256
       !== "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5") {
     violations.push("dormant_evidence_boundary");
@@ -95,6 +103,8 @@ export async function validateRuntimeIdentityRunner(contract) {
     "up -d --no-deps --no-build --force-recreate web",
     "production_branch_not_detached", "REQUIRE_IDENTITY_WRAPPER=true",
     "production_input_checksum_mismatch", "approvedRunnerSourceCommit",
+    "dormant-evidence-lineage", "refresh_dormant_evidence_if_required",
+    "PASS_DORMANT_EVIDENCE_REFRESH", "dormant_refresh_sample_count_too_low",
     "WEB_RECREATE_ATTEMPTED=true", "runtime_identity_rollback_incomplete",
     "ROLLBACK_VERIFIED: env, Web image, Candidate worker absence and production contracts restored.",
     "PASS_IMMEDIATE_RUNTIME_IDENTITY_AWAITING_OBSERVATION",
