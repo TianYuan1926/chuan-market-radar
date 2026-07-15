@@ -2,9 +2,6 @@ import { createHash } from "node:crypto";
 import { readFile, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import pg from "pg";
-
-const { Client } = pg;
 const PACKAGE_ID = "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION";
 const CAPABILITY_BY_PURPOSE = Object.freeze({
   consumer: "candidate_shadow_executor_role",
@@ -48,7 +45,7 @@ function parseTimestamp(value, reason) {
 export function validateApprovalRequest(request, contract, { now = new Date() } = {}) {
   const keys = [
     "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "approvedArtifactSha256",
-    "approvedProductionCommit", "approvedRunnerSourceCommit",
+    "approvedProductionCommit", "approvedRunnerSourceCommit", "approvedWebImageId",
     "automaticDatabaseRollbackAllowed", "automaticEnvironmentRollbackAllowed",
     "automaticWebRollbackAllowed", "baseEnvSha256", "businessDmlAllowed",
     "candidateControlLifecycleStartAllowed",
@@ -57,7 +54,8 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
     "databaseRoleMutationAllowed", "dormantDeployEvidenceSha256", "dormantDeployStatus",
     "environmentMutationAllowed", "execute", "identityOverridePath", "identityOverrideSha256",
     "identityWrapperPath", "identityWrapperSha256", "migrationAllowed", "operator", "packageId",
-    "productionEnvSha256", "runtimeAccessSha256", "schemaDdlAllowed", "services", "webRecreateAllowed",
+    "productionEnvSha256", "rollbackWebImageRef", "runtimeAccessSha256", "schemaDdlAllowed",
+    "services", "webRecreateAllowed",
   ];
   ensure(exactKeys(request, keys), "request_keys_mismatch");
   ensure(request.packageId === PACKAGE_ID, "request_package_mismatch");
@@ -67,6 +65,13 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
     "approved_runner_source_commit_invalid");
   ensure(request.approvedProductionCommit === contract.productionTarget?.commit,
     "approved_production_commit_mismatch");
+  ensure(/^sha256:[0-9a-f]{64}$/.test(request.approvedWebImageId ?? ""),
+    "approved_web_image_invalid");
+  ensure(/^market-radar-rollback\/wp-g0-2-runtime-identity:web-[0-9a-f]{16}$/.test(
+    request.rollbackWebImageRef ?? "",
+  ), "rollback_web_image_ref_invalid");
+  ensure(request.rollbackWebImageRef.endsWith(request.approvedWebImageId.slice(7, 23)),
+    "rollback_web_image_binding_mismatch");
   ensure(contract.productionTarget?.repositoryState === "clean_detached",
     "production_repository_state_invalid");
   ensure(request.approvedArtifactSha256 === contract.artifact.sha256, "approved_artifact_checksum_mismatch");
@@ -215,6 +220,16 @@ async function assertDatabaseBoundary(client, credentials) {
   ensure(row?.writer_select === false && row?.writer_insert === false, "runtime_access_already_applied");
 }
 
+export async function preflightRuntimeIdentityBoundary(client, credentials) {
+  await assertDatabaseBoundary(client, credentials);
+  return {
+    candidateControlRows: 0,
+    candidateLedgerApplied: 9,
+    runtimeLogins: 0,
+    writerArchiveAccessApplied: false,
+  };
+}
+
 async function verifyProvisioned(client, credentials) {
   const rows = await client.query(`
     SELECT login.rolname, login.rolsuper, login.rolinherit, login.rolcreaterole,
@@ -292,6 +307,8 @@ export async function rollbackRuntimeIdentities(client, credentials) {
 }
 
 async function withAdminClient(urlFile, work) {
+  const { default: pg } = await import("pg");
+  const { Client } = pg;
   const connectionString = await readSecureText(urlFile, "role_admin_url");
   const client = new Client({ application_name: "market-radar-candidate-runtime-identity", connectionString });
   await client.connect();
@@ -340,6 +357,13 @@ async function main() {
     const rendered = renderIdentityEnvironment(await readFile(resolve(options.source), "utf8"), credentials);
     await writeAtomic(options.output, rendered);
     process.stdout.write('{"status":"pass","candidateUrlsConfigured":3,"secretsPrinted":false}\n');
+    return;
+  }
+  if (command === "preflight") {
+    const result = await withAdminClient(resolve(options["admin-url-file"]), (client) => (
+      preflightRuntimeIdentityBoundary(client, credentials)
+    ));
+    process.stdout.write(`${JSON.stringify({ status: "pass", ...result, secretsPrinted: false })}\n`);
     return;
   }
   const accessSql = await readFile(resolve(options["access-sql"]), "utf8");

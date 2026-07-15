@@ -78,7 +78,7 @@ export async function validateRuntimeIdentityRunner(contract) {
   if (Object.values(contract.dormantBoundary ?? {}).some((value) => value === true)) violations.push("dormant_boundary");
   for (const token of [
     "RUNTIME_IDENTITY_MODE:-dry_run", "contract.dormantEvidence.finalStatus", "assert_private_file",
-    "runtimeLoginsDropped", "env.production.before", "runtime-identity-rollback",
+    "runtimeLoginsDropped", "env.production.before", "rollbackWebImageRef",
     "up -d --no-deps --no-build --force-recreate web",
     "production_branch_not_detached", "REQUIRE_IDENTITY_WRAPPER=true",
     "production_input_checksum_mismatch", "approvedRunnerSourceCommit",

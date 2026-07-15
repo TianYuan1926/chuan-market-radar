@@ -1,6 +1,6 @@
 # WP-G0.2 Runtime Identity Production Runner 准入合同
 
-当前 8 文件 artifact SHA-256 为 `e109adeaab925d59535906965e4534fcbef3c2f1187e3d56fea45730e377ed38`。旧 checksum `d3b4f015e70a3b5e4310b5b635921f5b829c7e95854c4dcaf11bd1021adf08d0` 及更早值只保留为历史事实，不得再用于后续身份审批。
+当前 8 文件 artifact SHA-256 为 `be3a3fe3095366e6fb8dd2e83e095dee1c4ec18ec9f1ce93d5284439b34560a3`。旧 checksum `e109adeaab925d59535906965e4534fcbef3c2f1187e3d56fea45730e377ed38` 及更早值只保留为历史事实，不得再用于后续身份审批。
 
 ## 1. 本包目标
 
@@ -64,4 +64,4 @@ PASS_IMMEDIATE_RUNTIME_IDENTITY_AWAITING_OBSERVATION
 PASS_LOCAL_RUNTIME_IDENTITY_CURRENT_RELEASE_PREFLIGHT
 ```
 
-它证明 runner、回滚和当前 release 合同可进入精确生产授权准备，不证明生产角色或 URL 已配置。
+它证明 runner、回滚和当前 release 合同可进入精确生产授权准备，不证明生产角色或 URL 已配置。生产运输、外部授权、lease/fencing 和 transient systemd 入口另由 `wp-g0-2-runtime-identity-production-execution.v1.json` 约束；两份合同必须同时 PASS。

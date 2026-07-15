@@ -3920,3 +3920,48 @@ P0 阻断：
 ### 下一轮建议
 
 冻结本轮 clean commit 与门禁后，只形成 Runtime Identity fresh production preflight 和精确执行包；不得夹带 Candidate activation。
+
+## 2026-07-15 / WP-G0.2 Runtime Identity 生产执行包
+
+### 本轮目标
+
+把已通过 current-release preflight 的 Runtime Identity runner 收口为可复现脱敏运输、仓库外单次授权、全局 lease/fencing、独立 systemd 执行和数据库/env/Web 三层自动回滚的生产包；本地阶段不连接或改变生产。
+
+### 修改范围
+
+- 新增 production execution JSON/中文合同、Bundle builder、transient systemd entrypoint 和攻击/边界测试。
+- Runtime Identity approval 新增精确 Web image 与 rollback ref 绑定；staged request 使用 canonical checksum 二次校验。
+- production runner 新增 mutation 前 health/Candidate/schema/identity 动态预检、授权消费、逐阶段 fencing checkpoint 和回滚 lease closeout。
+- credentials 与 role-admin URL 不进入 Bundle，由 detached worker 在仓库外 0700 临时目录内生成，文件 0600，退出后精确删除。
+- 完整环境回滚备份只允许暂存在本包 0700 ops 根；脱敏 provision/lease 证据写入独立证据目录，worker 退出时精确删除 ops 根，避免生产 secret 副本残留。
+- 生产宿主机无 Node 时，entrypoint、validator、env renderer 和 lease CLI 均使用当前已批准 Web 镜像的隔离 Node 运行时；Web 使用完整容器 ID 二次比对，Postgres 通过 Compose 标签唯一发现。
+- 未修改 scan、analysis、strategy、backtest、frontend、业务 API、migration、Compose、Redis、worker、Feature Flag、Candidate activation 或 secret。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的最小权限运行地基；不改变全市场扫描排序、结构分析、RR、止损、目标或交易计划。
+
+### 测试结果
+
+- Production Packet 9/9、Runtime Identity Runner 11/11、Identity 14/14、Deploy Safety 6/6：PASS。
+- 隔离 PostgreSQL 16：migration 9、provision 3、rollback 3、最终 LOGIN=0，productionConnected=false。
+- typecheck、lint、build：PASS。
+- test:market：960 pass / 0 fail / 4 explicit DB skip；worker 23/23；historical smoke 4/4。
+- backtest:golden：16/16 PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- backtest:formal：未运行，禁止。
+
+### 是否部署
+
+未部署、未连接腾讯云生产、未创建生产 LOGIN、未写 Candidate URL、未 recreate Web。当前生产仍是 Dormant target `cec0b657...`、Web image `sha256:cd3652...`、Candidate disabled/worker absent。
+
+### 风险与遗留问题
+
+- `PASS_LOCAL_RUNTIME_IDENTITY_PRODUCTION_PACKET` 不是生产身份 PASS。
+- 生产动态事实、最终 clean commit/tree、Bundle hash、环境指纹和外部一次性 authorization 尚未冻结。
+- Runtime Identity 生产成功后仍需只读身份复核和统一观察；Candidate activation 继续禁止。
+- WP-G0.2/G0 未完成，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+冻结并推送本包后，刷新 Microsoft Edge/OrcaTerm 生产只读事实，只执行精确 Runtime Identity production transaction；不得夹带 Candidate activation。

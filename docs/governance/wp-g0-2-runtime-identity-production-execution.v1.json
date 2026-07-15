@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "wp-g0.2-runtime-identity-production-execution.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
+  "status": "local_production_packet_verified_production_not_authorized",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "actionClass": "runtime_identity_provision",
+  "riskTier": "R2_PRIVILEGED_IDENTITY",
+  "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+  "productionTarget": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+  "transport": {
+    "method": "approved_orcaterm_bundle_upload",
+    "containsSecrets": false,
+    "reproducible": true,
+    "archiveFormat": "ustar+gzip-n",
+    "sourceDateEpoch": 946684800,
+    "stagingPrefix": "/home/ubuntu/.cache/market-radar-ops/wp-g0-2-runtime-identity-",
+    "temporaryArtifactCleanupRequired": true
+  },
+  "execution": {
+    "runner": "transient_systemd_unit",
+    "restart": "no",
+    "runtimeMaxSeconds": 5400,
+    "logs": "journald",
+    "sessionIndependentRequired": true,
+    "maximumApprovalWindowMinutes": 90,
+    "maximumExecutions": 1,
+    "externalTrustRoot": "/home/ubuntu/.local/state/market-radar-autonomy",
+    "externalLeaseRequired": true,
+    "fencingRequired": true,
+    "hostNodeRequired": false,
+    "containerNodeFallback": {
+      "enabled": true,
+      "image": "approved_current_web_image",
+      "network": "none",
+      "rootFilesystem": "read_only",
+      "capabilities": "drop_all",
+      "noNewPrivileges": true
+    }
+  },
+  "secureInputs": {
+    "transported": false,
+    "repositoryExternal": true,
+    "directoryMode": "0700",
+    "fileMode": "0600",
+    "generatedInsideDetachedWorker": true,
+    "deletedAtExit": true,
+    "temporaryOpsRootDeletedAtExit": true,
+    "printed": false
+  },
+  "dynamicPreflight": {
+    "cleanDetachedTargetRequired": true,
+    "healthReadyFreshRequired": true,
+    "candidateRuntimeDormantRequired": true,
+    "candidateWorkerAbsentRequired": true,
+    "schemaLedgerApplied": 9,
+    "schemaControlRows": 0,
+    "runtimeLoginsBefore": 0,
+    "writerArchiveAccessBefore": false
+  },
+  "mutationAllowlist": {
+    "runtimeLoginsCreated": 3,
+    "capabilityMembershipsGranted": 3,
+    "writerArchivePrivileges": ["SELECT", "INSERT"],
+    "environmentKeys": [
+      "CANDIDATE_SOURCE_DATABASE_URL",
+      "CANDIDATE_CONSUMER_DATABASE_URL",
+      "CANDIDATE_MONITOR_DATABASE_URL"
+    ],
+    "servicesRecreated": ["web"],
+    "webBuildAllowed": false
+  },
+  "rollback": {
+    "automatic": true,
+    "environmentRestoreRequired": true,
+    "previousWebImageRestoreRequired": true,
+    "runtimeLoginsDropRequired": true,
+    "writerArchiveAccessRevokeRequired": true,
+    "independentVerificationRequired": true
+  },
+  "artifact": {
+    "sha256": "c289d72aaff5c6b7b489ff00b281ee2becf09f74c20eb4a41141932b97bd75df",
+    "files": [
+      "docs/governance/wp-g0-2-runtime-identity-runner-preparation.v1.json",
+      "scripts/governance/autonomy-policy.mjs",
+      "scripts/governance/autonomy-production-lease-cli.mjs",
+      "scripts/governance/autonomy-production-lease.mjs",
+      "scripts/production/candidate-dormant-deploy.mjs",
+      "scripts/production/candidate-runtime-identity/bundle.mjs",
+      "scripts/production/candidate-runtime-identity/production-entrypoint.sh",
+      "scripts/production/candidate-runtime-identity/production-runner.sh",
+      "scripts/production/candidate-runtime-identity/runner.mjs",
+      "scripts/production/candidate-runtime-identity/runtime-access.sql",
+      "scripts/verify/production-check.sh"
+    ]
+  },
+  "forbidden": [
+    "credentials_in_transport",
+    "role_admin_url_in_transport",
+    "environment_file_in_transport",
+    "approval_self_issuance",
+    "approval_replay",
+    "foreground_fallback",
+    "candidate_worker_start",
+    "candidate_feature_flag_enablement",
+    "candidate_release_enablement",
+    "schema_migration",
+    "business_table_dml",
+    "redis_mutation",
+    "other_service_restart",
+    "frontend_change",
+    "scan_analysis_strategy_change",
+    "formal_backtest"
+  ]
+}

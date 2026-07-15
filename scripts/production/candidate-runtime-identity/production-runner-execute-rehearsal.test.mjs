@@ -11,7 +11,7 @@ import contract from "../../../docs/governance/wp-g0-2-runtime-identity-runner-p
 const execFileAsync = promisify(execFile);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-async function scenario({ failVerification = false } = {}) {
+async function scenario({ failVerification = false, nodeRuntime = "host_node" } = {}) {
   const directory = await mkdtemp("/tmp/wp_g0_2_rehearsal_runtime_identity_runner_");
   const fakeBin = join(directory, "bin");
   const production = join(directory, "production");
@@ -85,6 +85,7 @@ async function scenario({ failVerification = false } = {}) {
     approvedArtifactSha256: contract.artifact.sha256,
     approvedProductionCommit,
     approvedRunnerSourceCommit,
+    approvedWebImageId: `sha256:${"f".repeat(64)}`,
     automaticDatabaseRollbackAllowed: true,
     automaticEnvironmentRollbackAllowed: true,
     automaticWebRollbackAllowed: true,
@@ -109,6 +110,7 @@ async function scenario({ failVerification = false } = {}) {
     operator: "isolated-rehearsal",
     packageId: contract.packageId,
     productionEnvSha256: sha256(originalEnv),
+    rollbackWebImageRef: `market-radar-rollback/wp-g0-2-runtime-identity:web-${"f".repeat(16)}`,
     runtimeAccessSha256: contract.runtimeAccess.sqlSha256,
     schemaDdlAllowed: false,
     services: ["web"],
@@ -150,16 +152,23 @@ async function scenario({ failVerification = false } = {}) {
   ].join("\n");
   const fakeDocker = [
     "#!/usr/bin/env node",
-    "const fs = require('node:fs');",
+    "const fs = require('node:fs'); const { spawnSync } = require('node:child_process');",
     "const args = process.argv.slice(2); const joined = args.join(' ');",
     "fs.appendFileSync(process.env.FAKE_DOCKER_LOG, joined + '\\n');",
+    `if (args[0] === 'ps' && joined.includes('com.docker.compose.service=web')) { console.log('${"e".repeat(12)}'); process.exit(0); }`,
     "if (args[0] === 'ps') process.exit(0);",
-    "if (args[0] === 'inspect' && joined.includes('{{.Image}}')) { console.log('sha256:old-web'); process.exit(0); }",
+    `if (args[0] === 'inspect' && joined.includes('{{.Image}}')) { console.log('sha256:${"f".repeat(64)}'); process.exit(0); }`,
+    `if (args[0] === 'inspect' && joined.includes('{{.Id}}')) { console.log('${"e".repeat(64)}'); process.exit(0); }`,
     "if (args[0] === 'inspect' && joined.includes('NetworkSettings.Networks')) { console.log('rehearsal-network'); process.exit(0); }",
-    "if (args[0] === 'image' && args[1] === 'inspect') { console.log('sha256:old-web'); process.exit(0); }",
+    `if (args[0] === 'image' && args[1] === 'inspect') { console.log('sha256:${"f".repeat(64)}'); process.exit(0); }`,
     "if (args[0] === 'tag') process.exit(0);",
+    "if (args[0] === 'run' && joined.includes('--network none') && joined.includes('--entrypoint node')) {",
+    "  const entrypoint = args.indexOf('--entrypoint'); const command = args.slice(entrypoint + 3);",
+    "  const result = spawnSync(process.execPath, command, { env: process.env, stdio: 'inherit' });",
+    "  process.exit(result.status ?? 1);",
+    "}",
     "if (args[0] === 'run') { console.log(JSON.stringify({status:'pass',secretsPrinted:false})); process.exit(0); }",
-    "if (args[0] === 'compose' && joined.includes('ps -q web')) { console.log('web-container'); process.exit(0); }",
+    `if (args[0] === 'compose' && joined.includes('ps -q web')) { console.log('${"e".repeat(64)}'); process.exit(0); }`,
     "if (args[0] === 'compose' && joined.includes('up -d --no-deps --no-build --force-recreate web')) process.exit(0);",
     "if (args[0] === 'compose' && joined.includes('exec -T web node -')) { fs.readFileSync(0); process.exit(process.env.FAIL_VERIFY === 'true' ? 7 : 0); }",
     "process.exit(0);",
@@ -254,6 +263,7 @@ async function scenario({ failVerification = false } = {}) {
     PATH: fakeBin + ":" + process.env.PATH,
     ROOT_DIR_OVERRIDE: production,
     RUNTIME_IDENTITY_MODE: "production_identity",
+    RUNTIME_IDENTITY_NODE_RUNTIME: nodeRuntime,
     SECURE_ROOT: secure,
   };
   try {
@@ -288,7 +298,16 @@ test("isolated runner restores env web and database identities after verificatio
   const result = await scenario({ failVerification: true });
   assert.equal(result.environment, result.originalEnv);
   assert.match(result.dockerCalls, /runner\.mjs rollback/);
-  assert.match(result.dockerCalls, /runtime-identity-rollback/);
-  assert.match(result.dockerCalls, /image inspect chuan-market-radar-web:runtime-identity-rollback/);
+  assert.match(result.dockerCalls, /market-radar-rollback\/wp-g0-2-runtime-identity:web-ffffffffffffffff/);
+  assert.match(result.dockerCalls, /image inspect market-radar-rollback\/wp-g0-2-runtime-identity/);
   assert.doesNotMatch(result.dockerCalls, /candidate-shadow-worker|--profile|--remove-orphans/);
+});
+
+test("runner uses the approved Web image when the host Node runtime is unavailable", async () => {
+  const result = await scenario({ nodeRuntime: "container_node" });
+  assert.match(result.environment, /CANDIDATE_MONITOR_DATABASE_URL="postgresql:/);
+  assert.match(result.dockerCalls, /--network none --read-only --cap-drop ALL/);
+  assert.match(result.dockerCalls, /--security-opt no-new-privileges/);
+  assert.match(result.dockerCalls, /sha256:f{64} .*runner\.mjs request/);
+  assert.match(result.dockerCalls, /sha256:f{64} .*runner\.mjs render-env/);
 });
