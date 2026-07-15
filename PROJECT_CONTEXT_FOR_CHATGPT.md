@@ -6,6 +6,7 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION` 的最新真实生产尝试以 `SAFE_STOP_PRE_MUTATION_DORMANT_EVIDENCE_NOT_FRESH` 结束，不能写成身份切换 PASS。执行绑定 runner source=`e28691a6...`，在任何 LOGIN、权限、env 或 Web mutation 前识别到 Dormant 生产摘要已超过合同规定的 24 小时；生产随后只读复核仍为 clean detached `cec0b657...`、Web image=`sha256:cd3652...` 且 healthy/0 restart、Candidate URL/runtime LOGIN/worker=`0/0/0`、schema ledger/control=`9|0`、writer archive SELECT/INSERT=`false/false`、Redis PONG、4 个生产 API 均 HTTP 200，staging/secure/ops 临时目录均已删除。remediation commit=`2d79befe...` 已提交并推送 GitHub main：旧摘要只保留为 checksum-bound lineage，过期时必须先完成新的 1800 秒、至少 57 样本只读观察；每个样本都要求 production clean detached、目标 Web 身份不漂移、ready/fresh、Candidate dormant/worker absent、rollback image retained 和 lease checkpoint，有一项失败即停止，只有重新通过原 24 小时严格 freshness validator 后才允许既有 Runtime Identity transaction。Runner 16/16、Packet 11/11、Identity 14/14、Deploy Safety 6/6、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁均 PASS；runner artifact=`a57522dc...`，packet artifact=`f7dccab3...`。当前仍须冻结控制面新提交、生成绑定该提交的自治 gate evidence、唯一 Bundle 与 fresh 90 分钟 request，再执行只读续证和身份事务。Candidate activation 继续禁止，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 2026-07-16 `WP-G0.2-ACTIVATION-OBSERVATION-MAINLINE-INTEGRATION-REFRESH` 已完成当前 main 的本地生产安全刷新，生产未连接、未执行、Candidate runtime 仍 disabled。历史 runner 中会改写生产 `main`、使用 `nohup`、缺少仓库外 lease/fencing、缺少精确旧 Web 镜像 retention、观察期不感知 revocation 等问题已被真实红灯捕获并关闭。当前激活入口和观察器分别限定为 `Restart=no / RuntimeMaxSec=5400` 与 `Restart=no / RuntimeMaxSec=90000` 的 transient systemd unit；生产 Git 只允许 clean detached 精确 fetch/checkout；首个 mutation 前必须保存并核对审批绑定的旧 Web image；lease 在 mutation 前 acquire/consume，消费前失败只记 `SAFE_STOP_PRE_MUTATION`，24 小时观察只容忍自然审批到期，任何 revocation 立即回滚。观察 PASS 后的临时清理失败不回滚健康生产，自动回滚失败则保留诊断现场且不得输出 PASS。最终 PASS 仍要求 289 个 5 分钟样本、最大间隔 600 秒、ready/fresh、7 worker healthy、Candidate active、无 retry/quarantine/DB 阻塞且 completed writes>0；不检查或下调下一 Gate 的 10,000 compared writes，也不自动推进 phase。Activation 17/17、Autonomy/lease 31/31、隔离 PG16 control start/rollback、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁均 PASS；runner artifact=`55da1aa7c6094e2b8799d68481fe641ff546f5a10eb47f7cb6cb242c6f368bcd`，current Dormant release artifact=`b0baa1c09da2e8062aee0fe0c96676ce9a53dfefedff5d5ab54de6c7725a9864`。这只证明本地准备，不是 Activation 生产 PASS。Runtime Identity 的 commit `e28691a6a3dc433db5f27b1161f90c44fabfe2cc` 已有脱敏 Bundle=`bf67839f02fcf39394ac9954d2c50866952a9bd7eedbc58f29954b93f9d949a4`，但旧 request=`fbd51283c7475b1a27cf09d1116f174702155712fcea6f33353a58f2ffbf23d3` 已过期且 Microsoft Edge / OrcaTerm 当前需要重新登录；该请求禁止执行，生产继续保持此前基线。下一生产动作只能是刷新动态事实、生成唯一新 request 并先完成 Runtime Identity；系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 2026-07-15 `WP-G0.2-RUNTIME-IDENTITY-CREDENTIAL-SOURCE-REMEDIATION` 已完成本地修复和固定基础/安全门禁，生产尚未重试。最近一次绑定 `d934f7a2166ae1e7f5cf67063dc57cb7a2a8a58b` 的真实生产执行在全局 lease fencing token `4` 下通过 dynamic preflight，但随后以 PostgreSQL `28P01` 在任何 role/env/Web mutation 前安全停止；lease 结果为 `SAFE_STOP_PRE_MUTATION`，自动回滚复核通过，生产继续保持 clean detached `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、Web `sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd`、Candidate flags/URLs/runtime LOGIN/worker=`0/0/0/0`。根因是生产入口把 Postgres 容器初始化环境中的旧 `POSTGRES_PASSWORD` 当作当前网络管理凭据；当前有效管理凭据实际由既有 identity-remediation 保存在合同锁定的 root-owned `0600` 文件。修复后 request/合同显式绑定该路径、owner/mode，入口禁止读取容器密码，只把 root-only 管理凭据和非敏感数据库身份通过进程管道交给 network-none/read-only/cap-drop-all 的当前 Web Node 运行时；解析器只接受精确 `POSTGRES_USER/POSTGRES_PASSWORD` 两键，校验容器用户名一致并在仓库外 `0700` 目录写两个 `0600` 临时文件。红灯先暴露 artifact drift、旧 fixture 缺字段及 Node 24 不支持 `fs/promises.readFile(0)` 三项真实问题，修复后 Runner 14/14、Packet 11/11、Identity 14/14、Deploy Safety 6/6、隔离 PostgreSQL 16 provision 3/rollback 3、typecheck、lint、market 960/0/4 explicit skip、workers 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁均 PASS。当前 8 文件 runner artifact=`22248fbce38b27ea03add5b9b14319ac0c61f15fe20a961044cc5bb8db768e4c`，11 文件 production packet artifact=`8d5f6afd1ec6f991bf37d0cff71c733fac0671261738fd637f793a5df5d6854a`；clean commit、自治总门禁、新 Bundle 和新 90 分钟 request 尚待冻结。这仍不是 Runtime Identity 生产 PASS；Candidate activation 继续禁止，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 以下同日 Runtime Identity 条目保留历史演进；其中出现的“当前 artifact / 当前修复”只代表对应历史节点，以上述第一条为最新事实。
@@ -412,7 +413,7 @@ GitHub Actions / self-hosted runner：
 - 当前是否完整：不完整。扫描、分析、策略、复盘都有基础，但仍需要专业能力验收。
 - 当前是否支撑实战：**当前系统仍不能支撑实战。**
 - 当前最大短板：
-  1. 通用 `production-check.sh` 的 identity wrapper 缺口已在本地修复并通过成功/失败隔离演练；但该修复尚未形成 clean commit、完整门禁和精确生产 Runtime Identity 执行证据，不能把本地 PASS 写成生产身份已完成。
+  1. Runtime Identity 最新生产尝试被超过 24 小时的 Dormant evidence 在 mutation 前安全阻断；续证 remediation 已提交并通过完整门禁，但新的控制面提交、自治 gate evidence、Bundle、fresh request、1800 秒续证和身份事务尚未完成，不能把本地 PASS 写成生产身份已完成。
   2. Candidate runtime 仍 disabled；Dormant Web-only 地基已发布，但 Runtime Identity、激活观察、reconciliation 和 canonical cutover 均未完成。
   3. 第五轮 formal 的历史能力证据仍显示 `TRADE_PLAN_READY=0`、WAIT 有效率 `0%`、扫描和分析提前性不足；后续新证据通过前不得宣称实战能力改善。
   4. 公网 HTTPS/session/security 仍需按 G0.3 独立收口。
@@ -422,11 +423,11 @@ GitHub Actions / self-hosted runner：
 
 ## 13. 最近三轮关键事件
 
-### 当前最新三轮（2026-07-15）
+### 当前最新三轮（2026-07-16）
 
-- Runtime Identity current-release preflight：本地 verifier/runner、10 项隔离 runner 测试、14 项身份事务测试和 PG16 provision/rollback 已 PASS；生产 mutation=false，完整门禁仍在进行。
-- Dormant Web-only 生产执行：精确 target `cec0b657...`、Web image `sha256:cd3652...`、1800 秒 57 样本 PASS；Candidate 全程 dormant/absent，非 Web 目标无 mutation，staging 已删除，证据与 rollback image 保留。
-- Scanner sustained-health：Web + scanner-worker 已完成 1800 秒、59 样本、至少两个真实 completion advances 的生产 PASS，会话独立 runner 和双 rollback image retention 已验证。
+- Runtime Identity stale evidence safe stop：真实生产 unit 在 mutation 前以 `DORMANT_EVIDENCE_NOT_FRESH` 停止；生产基线、数据库权限、Candidate absent、Redis 和四个 API 已只读复核，未发生身份/env/Web 变更。
+- Runtime Identity stale evidence renewal remediation：commit `2d79bef...` 已推送，过期摘要必须先完成新的 1800 秒/57 样本只读观察，再通过严格 24 小时 freshness validator；定向、基础和安全门禁均 PASS。
+- Activation/Observation current-main refresh：当前 main 的 systemd、lease/fencing、clean detached、回滚 retention、revocation 和 24 小时观察合同已本地 PASS，但生产激活继续禁止，必须等待 Runtime Identity 完成。
 
 以下第二至第五轮为历史审计记录，不代表当前最新生产版本：
 
@@ -557,11 +558,11 @@ GitHub Actions / self-hosted runner：
 
 ### P1 风险
 
-1. 问题：通用生产验证脚本与锁定生产身份 wrapper 不兼容。
+1. 问题：Runtime Identity 的 Dormant 前置证据已过期，生产身份尚未 provision。
    - 影响核心链路哪一环：生产部署、证据真实性、回归验收。
-   - 证据：Dormant 发布后直接运行 `scripts/verify/production-check.sh` 时，普通 Compose 在 `POSTGRES_USER` 插值阶段失败；同一时点身份安全 runner 的 57 次采样和独立 health/contracts/Postgres/Redis 检查均通过。
-   - 当前状态：本地入口已强制复用 checksum-bound identity wrapper，deploy safety 6/6 与 Runtime Identity 隔离成功/回滚通过；生产 health 未降级，生产身份包尚未执行。
-   - 下一步：完成固定基础/安全门禁与 clean commit，再用 fresh 生产只读 preflight 形成精确一次性身份执行包。
+   - 证据：最新 transient unit 返回 `SAFE_STOP_PRE_MUTATION_DORMANT_EVIDENCE_NOT_FRESH`；之后生产仍为 clean detached `cec0b657...`、Web healthy、Candidate URL/LOGIN/worker=0、schema `9|0`、writer 新权限 absent。
+   - 当前状态：续证 remediation commit `2d79bef...` 已通过全部固定门禁；生产 health 未降级，生产身份仍未创建。
+   - 下一步：冻结控制面 clean commit 和自治 gate evidence，生成唯一 Bundle/request，先完成 1800 秒只读续证，再执行精确身份事务与只读验收。
 
 2. 问题：扫描排序主干不够强，优质机会未必稳定进入 Top10。
    - 影响核心链路哪一环：全市场发现、候选筛选。

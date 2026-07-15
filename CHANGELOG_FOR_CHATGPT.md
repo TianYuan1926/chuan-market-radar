@@ -4173,3 +4173,43 @@ P0 阻断：
 ### 下一轮建议
 
 只恢复 Edge / OrcaTerm 登录并执行 Runtime Identity exact production package；Activation 继续关闭。
+
+## 2026-07-16 / WP-G0.2 Runtime Identity stale Dormant evidence renewal remediation
+
+### 本轮目标
+
+如实处理 Runtime Identity 真实生产重入时发现的 Dormant evidence 超过 24 小时问题：不放宽 freshness，不复用旧 PASS，先增加新的 1800 秒只读续证，再允许原身份事务。
+
+### 修改范围
+
+- 修改 Runtime Identity runner、生产入口、Bundle builder、治理合同与定向测试，使 stale-only 路径执行 1800 秒、至少 57 样本的只读观察并生成重新校验的脱敏摘要。
+- 更新自治状态、traceability、Context、Changelog 和本轮报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务 API、migration、业务数据、Redis、worker、Feature Flag 或 Candidate activation。
+
+### 核心链路影响
+
+只加强候选筛选和复盘进化的生产身份地基；不改变全市场发现排序、深扫、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Runtime Identity Runner 16/16、Production Packet 11/11、Identity 14/14、Deploy Safety 6/6：PASS。
+- typecheck、lint、build：PASS。
+- test:market 960 pass / 0 fail / 4 explicit DB skip；workers 23/23；historical 4/4。
+- backtest:golden 16/16；forbidden-files、secret-patterns、security-check：PASS。
+- runner artifact=`a57522dc...`；production packet artifact=`f7dccab3...`。
+- formal 未运行，按合同禁止。
+
+### 是否部署
+
+旧 commit `e28691a...` 的最新真实生产 unit 在任何 LOGIN、权限、env 或 Web mutation 前以 `SAFE_STOP_PRE_MUTATION_DORMANT_EVIDENCE_NOT_FRESH` 停止。只读复核证明生产仍为 clean detached `cec0b657...`、Web healthy/0 restart、Candidate URL/runtime LOGIN/worker=`0/0/0`、schema ledger/control=`9|0`、writer archive SELECT/INSERT=`false/false`、Redis PONG、4 个生产 API HTTP 200；staging/secure/ops 均已删除。remediation commit `2d79bef...` 已推送 GitHub main，尚未用新 Bundle/request 重试生产。
+
+### 风险与遗留问题
+
+- 本地 remediation PASS 不等于 Runtime Identity 生产 PASS。
+- 新生产事务前仍须冻结控制面 clean commit、运行自治总门禁并生成唯一 Bundle 和 fresh 90 分钟 request。
+- 1800 秒续证任一样本失败必须停止；不得缩短观察、放宽 freshness 或复用旧摘要。
+- Candidate activation、WP-G0.2 和 G0 仍未完成；系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只执行绑定新 clean commit 的 Runtime Identity 1800 秒只读续证和身份事务；Activation 继续关闭。
