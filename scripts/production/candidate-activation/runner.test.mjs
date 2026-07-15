@@ -51,6 +51,8 @@ const request = {
   composeSha256: "2".repeat(64),
   controlLifecycleStartAllowed: true,
   dormantDeployStatus: "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+  dormantEvidencePath: "/tmp/wp_g0_2_rehearsal_candidate_activation_evidence/summary.json",
+  dormantEvidenceSha256: "8".repeat(64),
   dualReadAllowed: false,
   evidenceDirectory: "/tmp/wp_g0_2_rehearsal_candidate_activation_evidence",
   environmentMutationAllowed: true,
@@ -67,6 +69,7 @@ const request = {
   observerUnitName: "market-radar-candidate-observer-rehearsal01",
   opsRoot: "/tmp/wp_g0_2_rehearsal_candidate_activation_ops",
   packageId: "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+  postgresAdminEnvPath: "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
   productionEnvSha256: "5".repeat(64),
   productionRoot: "/home/ubuntu/apps/chuan-market-radar",
   productionRankingMutationAllowed: false,
@@ -75,6 +78,8 @@ const request = {
   rollbackCommit: "2".repeat(40),
   rollbackWebImageRef: `market-radar-rollback/wp-g0-2-candidate-activation:web-${"6".repeat(16)}`,
   runnerUnitName: "market-radar-candidate-activation-rehearsal01",
+  runtimeIdentityEvidencePath: "/tmp/wp_g0_2_rehearsal_candidate_activation_evidence/runtime-identity-result.json",
+  runtimeIdentityEvidenceSha256: "9".repeat(64),
   runtimeIdentityStatus: "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
   runnerContractSha256: "e".repeat(64),
   schemaDdlAllowed: false,
@@ -193,7 +198,7 @@ test("activation environment changes only shadow write, release and worker expec
   assert.equal((rendered.match(/CANDIDATE_RUNTIME_RELEASE_ID=/g) ?? []).length, 1);
 });
 
-test("current preparation branch cannot impersonate a future activation release", async () => {
+test("activation release requires the exact authorized artifact", async () => {
   await assert.rejects(
     validateActivationRelease(process.cwd(), {
       ...request,
@@ -207,13 +212,11 @@ test("current preparation branch cannot impersonate a future activation release"
   const checksums = {
     "src/lib/candidate-episode/feature-flags.ts": createHash("sha256").update(content).digest("hex"),
   };
-  await assert.rejects(
-    validateActivationRelease(process.cwd(), {
-      ...request,
-      approvedActivationArtifactSha256: createHash("sha256").update(JSON.stringify(checksums)).digest("hex"),
-    }, contract),
-    /release_not_activation_authorized/,
-  );
+  const result = await validateActivationRelease(process.cwd(), {
+    ...request,
+    approvedActivationArtifactSha256: createHash("sha256").update(JSON.stringify(checksums)).digest("hex"),
+  }, contract);
+  assert.equal(result.fileCount, 1);
 });
 
 test("one sample fails closed on worker, runtime, monitor or database degradation", () => {

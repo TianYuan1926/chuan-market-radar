@@ -37,7 +37,7 @@ test("candidate shadow compose service is profile-isolated and all feature flags
   }
 });
 
-test("composition is wired only at the authoritative application archive call and remains code-disabled", async () => {
+test("composition is wired only at the authoritative application archive call and release-authorized", async () => {
   const [flags, radar, appComposition, worker] = await Promise.all([
     source("src/lib/candidate-episode/feature-flags.ts"),
     source("src/lib/market/radar-snapshot.ts"),
@@ -45,7 +45,7 @@ test("composition is wired only at the authoritative application archive call an
     source("deploy/workers/protected-api-worker.mjs"),
   ]);
 
-  assert.match(flags, /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const/);
+  assert.match(flags, /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = true as const/);
   assert.match(radar, /repository === appPersistenceRepository/);
   assert.match(radar, /appCandidateShadowCaptureComposition\.persistScanArchive/);
   assert.match(appComposition, /codeActivationAllowed: CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED/);

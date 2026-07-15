@@ -1,19 +1,19 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-16T05:43:00+08:00",
+  "updatedAt": "2026-07-16T08:00:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
     "engineeringStatus": "可运行但不完整",
     "practicalStatus": "不能支撑实战",
     "productionCandidateSchema": "applied_verified_dormant",
-    "candidateRuntime": "disabled",
+    "candidateRuntime": "identity_ready_feature_flags_disabled_worker_absent",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
-    "runtimeIdentityPreflight": "pass_local_refreshed_evidence_secure_bridge_remediation_all_fixed_gates_pass_production_not_provisioned",
-    "runtimeIdentityProduction": "safe_stop_pre_mutation_after_dormant_renewal_passed_1800_seconds_61_samples_because_isolated_validator_could_not_see_repository_external_evidence_production_baseline_rollback_verified",
-    "activationObservationPreparation": "pass_local_current_main_targeted_postgres16_baseline_security_production_prohibited_until_runtime_identity_and_future_release"
+    "runtimeIdentityPreflight": "pass_local_and_production_exact_request_consumed_successfully",
+    "runtimeIdentityProduction": "pass_runtime_identity_and_permission_7_samples_1851_seconds_continuous_ready_fresh_three_noinherit_logins_three_fixed_memberships_three_candidate_urls_zero_privileged_logins_zero_feature_flags_candidate_dormant_worker_absent",
+    "activationObservationPreparation": "pass_local_activation_production_release_exact_bundle_pending_production_not_executed"
   },
   "wipLimits": {
     "production": 1,
@@ -132,18 +132,18 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
-    "title": "Runtime Identity production Node module-format remediation and exact re-entry",
+    "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+    "title": "Candidate Shadow Capture activation release and 24-hour observation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "如实关闭生产 Node 22 对 require() 与顶层 await 混用的歧义模块格式拒绝问题；Web 身份探针必须封装为可由生产 CommonJS 运行时解析的 async IIFE，并以直接 Node syntax gate 防止同类回归。上一生产事务的临时 LOGIN、权限、env 和 Web recreate 已由有界回滚完整恢复，下一次只能使用新 clean commit、全门禁、唯一 Bundle/request 重入。",
+    "objective": "在 Runtime Identity 最终生产 PASS 后冻结 Shadow Capture activation release；代码只授权受控 shadow_capture，运行时默认仍关闭，生产执行必须绑定精确单提交、脱敏 Bundle、外部 lease/fencing、旧 Web 镜像和 24 小时观察合同。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化",
       "candidate_runtime_foundation",
-      "runtime_identity_production_packet",
+      "shadow_capture_activation_release",
       "session_independent_execution",
-      "automatic_identity_env_web_rollback"
+      "automatic_activation_env_web_control_rollback"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -152,6 +152,18 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
+      "docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json",
+      "scripts/governance/candidate-activation-runner.mjs",
+      "scripts/governance/candidate-activation-runner.test.mjs",
+      "scripts/governance/composition-wiring.test.mjs",
+      "scripts/governance/shadow-capture-contract.mjs",
+      "scripts/governance/shadow-capture-contract.test.mjs",
+      "scripts/governance/shadow-capture-readiness.mjs",
+      "scripts/governance/shadow-capture-readiness.test.mjs",
+      "scripts/production/candidate-activation/**",
+      "src/lib/candidate-episode/feature-flags.ts",
+      "src/lib/candidate-episode/feature-flags.test.ts",
+      "src/lib/candidate-episode/shadow-capture-runtime.test.ts",
       "scripts/verify/production-check.sh",
       "scripts/deploy/deploy-safety.test.mjs",
       "scripts/governance/runtime-identity-runner.mjs",
@@ -169,7 +181,8 @@
       "docs/governance/wp-g0-2-runtime-identity-production-execution.v1.json",
       "docs/governance/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_EXECUTION_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-runtime-identity-production-packet/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_PACKET_REPORT.md"
+      "reports/wp-g0-2-runtime-identity-production-packet/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_PACKET_REPORT.md",
+      "reports/wp-g0-2-candidate-activation-production-release/WP_G0_2_CANDIDATE_ACTIVATION_PRODUCTION_RELEASE_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -181,7 +194,6 @@
       "src/lib/analysis/**",
       "src/lib/strategy/**",
       "src/lib/backtest/**",
-      "src/lib/candidate-episode/**",
       "tools/**",
       ".env",
       ".env.production"
@@ -191,6 +203,16 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
+      "docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json",
+      "scripts/governance/candidate-activation-runner.mjs",
+      "scripts/governance/candidate-activation-runner.test.mjs",
+      "scripts/production/candidate-activation/bundle.mjs",
+      "scripts/production/candidate-activation/bundle.test.mjs",
+      "scripts/production/candidate-activation/production-entrypoint.sh",
+      "scripts/production/candidate-activation/production-runner.sh",
+      "scripts/production/candidate-activation/observation-runner.sh",
+      "scripts/production/candidate-activation/runner.mjs",
+      "src/lib/candidate-episode/feature-flags.ts",
       "scripts/verify/production-check.sh",
       "scripts/deploy/deploy-safety.test.mjs",
       "scripts/governance/runtime-identity-runner.mjs",
@@ -208,15 +230,18 @@
       "docs/governance/wp-g0-2-runtime-identity-production-execution.v1.json",
       "docs/governance/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_EXECUTION_V1.md",
       "docs/blueprints/market-radar-blueprint-traceability.v1.json",
-      "reports/wp-g0-2-runtime-identity-production-packet/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_PACKET_REPORT.md"
+      "reports/wp-g0-2-runtime-identity-production-packet/WP_G0_2_RUNTIME_IDENTITY_PRODUCTION_PACKET_REPORT.md",
+      "reports/wp-g0-2-candidate-activation-production-release/WP_G0_2_CANDIDATE_ACTIVATION_PRODUCTION_RELEASE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
         "test:autonomy",
-        "test:deploy-safety",
-        "test:candidate-runtime-identity",
-        "test:candidate-runtime-identity-runner",
-        "test:candidate-runtime-identity-production-packet"
+        "candidate:activation-release:validate",
+        "test:candidate-activation-runner",
+        "test:candidate-composition-wiring",
+        "test:candidate-shadow-capture",
+        "test:candidate-shadow-capture-readiness",
+        "candidate:activation-runner:pg16-rehearsal"
       ],
       "baseline": [
         "typecheck",
@@ -232,19 +257,19 @@
       ]
     },
     "completionBoundary": [
-      "旧 Dormant summary 只能作为 checksum-bound lineage；超过 24 小时必须完成新的 1800 秒且至少 57 样本只读观察，任一 ready/fresh、Candidate dormant、容器身份、rollback image 或 lease checkpoint 失败均不得生成新鲜 PASS；新摘要只能通过secure root 0600临时桥接文件进入隔离validator",
+      "Runtime Identity 前置结果必须是 checksum-bound PASS_RUNTIME_IDENTITY_AND_PERMISSION；7样本和1851秒观察不能被缩短或改写",
       "可复现脱敏Bundle不得包含credentials、role-admin URL、env、secret、生产业务行或raw log，archive checksum和逐文件manifest必须精确绑定",
       "生产入口必须使用session-independent transient systemd unit、Restart=no、RuntimeMaxSec不超过5400、journald和退出后精确staging清理",
       "执行必须使用仓库外0600一次性external authorization、外部lease、递增fencing和最多90分钟mutation window；builder不得自签或伪造用户审批",
       "fresh只读预检必须证明production clean detached cec0b657、health ready/fresh、Candidate dormant/worker absent、schema ledger/control=9|0、3个runtime LOGIN不存在、writer archive权限未应用",
-      "唯一允许mutation为创建3个NOINHERIT LOGIN、各授予1个能力角色、writer scan_archives SELECT/INSERT、env只写3条Candidate URL、no-build Web force-recreate",
-      "任一身份、env、Web、health、合同、Candidate dormant或角色验证失败必须恢复原env、旧Web image、删除3个LOGIN并撤销新增权限；回滚验证失败必须独立报错",
+      "唯一允许mutation为Web和candidate-shadow-worker、7个Candidate环境键、一次control lifecycle start和shadow_write=true；三条Candidate URL与角色不得改变",
+      "任一身份、env、Web、worker、health、合同或观察失败必须恢复原env、精确旧Web image、rollback commit和legacy write_frozen control；回滚失败必须独立报错",
       "本地准备阶段禁止连接生产或执行mutation；生产状态转换必须绑定clean commit/tree、artifact、环境指纹、rollback和最新总门禁",
-      "Candidate保持dormant；worker、Feature Flag、control lifecycle、migration、业务DML、scan、analysis、strategy、backtest、frontend和API业务合同不得改变",
+      "canonical_write、dual_read、canonical_read、review_read、migration、DDL、业务DML、phase自动推进、scan、analysis、strategy、backtest、frontend和API业务合同不得改变",
       "backtest:formal禁止运行；自动交易、自动调权、RR/Risk Gate放宽和future outcome生产回写继续禁止"
     ],
     "gate": "G0",
-    "actionClass": "runtime_identity_provision",
+    "actionClass": "shadow_capture_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "supporting",
@@ -252,22 +277,28 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "形成可在浏览器断开后继续执行、一次性授权、身份/env/Web三层可回滚的Runtime Identity生产包；Candidate仍不采集、不产出信号或交易计划。"
+      "measurableOutcome": "形成可在浏览器断开后执行、一次性授权、只启用shadow write并可恢复Dormant基线的激活包；24小时观察前后均不得生成交易计划或取得canonical authority。"
     },
     "prerequisiteProductionResult": {
-      "status": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
-      "completedAt": "2026-07-15T20:20:08Z",
+      "status": "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
+      "completedAt": "2026-07-15T23:58:13Z",
       "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
-      "observationSeconds": 1800,
-      "sampleCount": 61,
+      "observationSeconds": 1851,
+      "sampleCount": 7,
       "continuousReadyFresh": true,
       "candidateRuntimeDormant": true,
       "candidateWorkerAbsent": true,
+      "runtimeLogins": 3,
+      "capabilityMemberships": 3,
+      "privilegedRuntimeLogins": 0,
+      "candidateDatabaseUrlsConfigured": 3,
+      "candidateFeatureFlagsEnabled": 0,
       "lineageSummarySha256": "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c",
       "refreshedSummarySha256": "b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077",
       "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
-      "freshnessAtLatestAttempt": "renewed_1800_seconds_61_samples_continuous_ready_fresh",
-      "latestAttemptResult": "ROLLBACK_PASS_POST_WEB_RECREATE_READINESS_RACE"
+      "freshnessAtLatestAttempt": "7_samples_1851_seconds_continuous_ready_fresh",
+      "latestAttemptResult": "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
+      "resultSha256": "bdb5836067d8fc9854c653ab1a2ea4b3c8a06bc5b1e8384dcf5ab8d3476a278d"
     },
     "prerequisiteLocalResult": {
       "status": "PASS_LOCAL_RUNTIME_IDENTITY_WEB_READINESS_REMEDIATION",
@@ -308,7 +339,7 @@
       "securityGates": "pass",
       "formalBacktestRun": false
     },
-    "latestProductionAttempt": {
+    "previousFailedRuntimeIdentityAttempt": {
       "result": "ROLLBACK_PASS_POST_WEB_RECREATE_READINESS_RACE",
       "runnerSourceCommit": "26e82fb6a910018dbe6254dd1e0d2835d40f02b9",
       "transportBundleSha256": "e931515cc2aa9033e82adb4f9ae27bd80f4c323165a400a8dfd920acb2013f72",
@@ -344,6 +375,28 @@
       "productionLeaseReleased": true,
       "stagingSecureOpsAbsent": true,
       "uploadedRedactedTransportTempsCleanupPending": true
+    },
+    "activationReleaseLocalResult": {
+      "status": "PASS_LOCAL_ACTIVATION_PRODUCTION_RELEASE",
+      "productionMutation": false,
+      "sourceParentCommit": "1dd11ae20f89849a883859a0f98436982cc1f994",
+      "runnerArtifactSha256": "b1a2c056071bc6df03952f71d93b64859d1d80b169faa8fdd7266af7d6d3a81d",
+      "runnerArtifactFiles": 5,
+      "activationArtifactSha256": "820dcacbaf088019ec1eeb50d188073f8589698711f7d50f73944ac67f281ec0",
+      "activationArtifactFiles": 16,
+      "contractSha256": "5bc52a9306544609bce1475609aab4db2a2498bdb99c9c9ea90f573dead5be80",
+      "activationTests": "24/24",
+      "compositionTests": "29/29",
+      "shadowGovernanceTests": "8/8",
+      "postgres16Rehearsal": "pass_control_start_1_rollback_1_final_legacy_epoch_2_write_frozen_true_production_connected_false",
+      "marketTests": "960_pass_0_fail_4_explicit_db_skip",
+      "workerTests": "23/23",
+      "historicalSmokeTests": "4/4",
+      "goldenTests": "16/16",
+      "baselineGates": "pass",
+      "securityGates": "pass",
+      "formalBacktestRun": false,
+      "productionExecuted": false
     }
   },
   "approvals": [
@@ -464,14 +517,14 @@
       "order": 14,
       "id": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
       "lane": "production",
-      "status": "ready_for_gate",
+      "status": "completed_pass_runtime_identity_and_permission",
       "requiresExplicitApproval": false
     },
     {
       "order": 15,
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
       "lane": "production",
-      "status": "prohibited_until_runtime_identity_permission_pass_and_new_approval",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": true
     },
     {

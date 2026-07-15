@@ -15,7 +15,7 @@ const control = {
   approvedReleaseId: "release-1",
 };
 
-test("current release cannot be activated by environment intent alone", () => {
+test("current release is code-authorized only when every runtime boundary is ready", () => {
   const decision = evaluateCurrentShadowCaptureRuntimeGate({
     killSwitchRequested: true,
     repositoryMode: "database",
@@ -24,8 +24,8 @@ test("current release cannot be activated by environment intent alone", () => {
     now: "2026-07-12T00:00:00.000Z",
     control,
   });
-  assert.equal(decision.enabled, false);
-  assert.deepEqual(decision.blockers, ["release_not_authorized_in_code"]);
+  assert.equal(decision.enabled, true);
+  assert.deepEqual(decision.blockers, []);
 });
 
 test("future authorized composition still fails closed on every runtime boundary", () => {

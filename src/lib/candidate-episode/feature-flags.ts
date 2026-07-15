@@ -9,7 +9,7 @@ export const CANDIDATE_FEATURE_FLAG_NAMES = [
 export type CandidateFeatureFlagName = (typeof CANDIDATE_FEATURE_FLAG_NAMES)[number];
 export type CandidateFeatureFlags = Readonly<Record<CandidateFeatureFlagName, boolean>>;
 
-export const CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const;
+export const CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = true as const;
 
 export const CANDIDATE_AUTHORITY_PHASES = [
   "legacy",

@@ -7,7 +7,7 @@ REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 RUNNER_MODE="${CANDIDATE_ACTIVATION_MODE:-dry_run}"
 CONFIRMED="${CONFIRM_CANDIDATE_ACTIVATION:-false}"
 BASE_URL="${BASE_URL:-http://127.0.0.1}"
-CONTRACT_FILE="${SOURCE_ROOT}/docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json"
+CONTRACT_FILE="${SOURCE_ROOT}/docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json"
 RUNNER_MODULE="${SOURCE_ROOT}/scripts/production/candidate-activation/runner.mjs"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
 NODE_RUNTIME="${CANDIDATE_ACTIVATION_NODE_RUNTIME:-auto}"
@@ -75,6 +75,9 @@ IDENTITY_EVIDENCE_FILE="${SECURE_ROOT}/runtime-identity-result.json"
 for file in "${ADMIN_URL_FILE}" "${DORMANT_EVIDENCE_FILE}" "${IDENTITY_EVIDENCE_FILE}"; do
   assert_private_file "${file}"
 done
+[[ "$(sha_file "${DORMANT_EVIDENCE_FILE}")" == "$(jq -r '.dormantEvidenceSha256' "${REQUEST_FILE}")" \
+  && "$(sha_file "${IDENTITY_EVIDENCE_FILE}")" == "$(jq -r '.runtimeIdentityEvidenceSha256' "${REQUEST_FILE}")" ]] \
+  || fail prerequisite_evidence_checksum_mismatch
 [[ -f "${BASE_ENV_FILE}" && -f "${ENV_FILE}" && -f "${ROOT_DIR}/docker-compose.yml" ]] \
   || fail production_runtime_file_missing
 

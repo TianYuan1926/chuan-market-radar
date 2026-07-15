@@ -7,9 +7,13 @@ REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 ENTRYPOINT_MODE="${CANDIDATE_ACTIVATION_ENTRYPOINT_MODE:-launcher}"
 STAGING_BASENAME_PREFIX="wp-g0-2-candidate-activation-"
 BUNDLE_MARKER="${SOURCE_ROOT}/.transport-bundle.sha256"
+TRANSPORT_MANIFEST="${SOURCE_ROOT}/transport-manifest.json"
+PACKET_VALIDATOR="${SOURCE_ROOT}/scripts/production/candidate-activation/bundle.mjs"
 RUNNER="${SOURCE_ROOT}/scripts/production/candidate-activation/production-runner.sh"
 OBSERVER_STARTED_MARKER="${SOURCE_ROOT}/.observer-started"
 AUTONOMY_TRUST_ROOT="/home/ubuntu/.local/state/market-radar-autonomy"
+PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
+POSTGRES_ADMIN_ENV="/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
@@ -33,6 +37,11 @@ APPROVED_PRODUCTION_ROOT="$(jq -r '.productionRoot // empty' "${REQUEST_FILE}")"
 APPROVED_SECURE_ROOT="$(jq -r '.secureRoot // empty' "${REQUEST_FILE}")"
 APPROVED_OPS_ROOT="$(jq -r '.opsRoot // empty' "${REQUEST_FILE}")"
 APPROVED_EVIDENCE_DIRECTORY="$(jq -r '.evidenceDirectory // empty' "${REQUEST_FILE}")"
+APPROVED_DORMANT_EVIDENCE="$(jq -r '.dormantEvidencePath // empty' "${REQUEST_FILE}")"
+APPROVED_DORMANT_EVIDENCE_SHA256="$(jq -r '.dormantEvidenceSha256 // empty' "${REQUEST_FILE}")"
+APPROVED_RUNTIME_IDENTITY_EVIDENCE="$(jq -r '.runtimeIdentityEvidencePath // empty' "${REQUEST_FILE}")"
+APPROVED_RUNTIME_IDENTITY_EVIDENCE_SHA256="$(jq -r '.runtimeIdentityEvidenceSha256 // empty' "${REQUEST_FILE}")"
+APPROVED_POSTGRES_ADMIN_ENV="$(jq -r '.postgresAdminEnvPath // empty' "${REQUEST_FILE}")"
 ACTUAL_SOURCE_ROOT="$(realpath "${SOURCE_ROOT}")"
 ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
 
@@ -52,13 +61,38 @@ ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
 [[ "${APPROVED_UNIT}" =~ ^market-radar-candidate-activation-[a-z0-9][a-z0-9-]{7,48}$ \
   && "${APPROVED_SESSION_INDEPENDENT}" == "true" \
   && "${APPROVED_TRUST_ROOT}" == "${AUTONOMY_TRUST_ROOT}" \
-  && "${APPROVED_PRODUCTION_ROOT}" == "/home/ubuntu/apps/chuan-market-radar" \
-  && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/* \
-  && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/* \
-  && "${APPROVED_EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/* \
+  && "${APPROVED_PRODUCTION_ROOT}" == "${PRODUCTION_ROOT}" \
+  && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-candidate-activation/* \
+  && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/candidate-activation-ops/* \
+  && "${APPROVED_EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-* \
   && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_SECURE_ROOT}" \
   && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_OPS_ROOT}" ]] \
   || fail session_independent_identity_invalid
+
+for file in "${TRANSPORT_MANIFEST}" "${PACKET_VALIDATOR}" "${RUNNER}"; do
+  [[ -f "${file}" && ! -L "${file}" ]] || fail "staged_regular_file_missing:$(basename "${file}")"
+done
+for command_name in docker sha256sum sudo; do
+  command -v "${command_name}" >/dev/null 2>&1 || fail "launcher_command_missing:${command_name}"
+done
+sudo -n docker ps >/dev/null 2>&1 || fail docker_unavailable
+DOCKER=(sudo -n docker)
+WEB_CONTAINER="$(${DOCKER[@]} ps --filter 'label=com.docker.compose.project=chuan-market-radar' \
+  --filter 'label=com.docker.compose.service=web' --format '{{.ID}}')"
+POSTGRES_CONTAINER="$(${DOCKER[@]} ps --filter 'label=com.docker.compose.project=chuan-market-radar' \
+  --filter 'label=com.docker.compose.service=postgres' --format '{{.ID}}')"
+[[ "${WEB_CONTAINER}" =~ ^[0-9a-f]+$ && "${POSTGRES_CONTAINER}" =~ ^[0-9a-f]+$ ]] \
+  || fail production_container_identity_invalid
+WEB_IMAGE="$(${DOCKER[@]} inspect "${WEB_CONTAINER}" --format '{{.Image}}')"
+[[ "${WEB_IMAGE}" == "$(jq -r '.webImageId' "${REQUEST_FILE}")" ]] || fail current_web_image_identity_mismatch
+${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --mount "type=bind,src=${ACTUAL_SOURCE_ROOT},dst=/packet,readonly" \
+  --entrypoint node "${WEB_IMAGE}" \
+  /packet/scripts/production/candidate-activation/bundle.mjs validate-request \
+    --root /packet --request /packet/approval-request.json \
+    --manifest /packet/transport-manifest.json \
+    --bundle-sha256 "${APPROVED_BUNDLE_SHA256}" >/dev/null
 
 if [[ "${ENTRYPOINT_MODE}" == "launcher" ]]; then
   for command_name in id sudo systemctl systemd-run; do
@@ -99,8 +133,8 @@ cleanup_staging() {
   if [[ ! -f "${OBSERVER_STARTED_MARKER}" ]]; then
     [[ "$(basename "${ACTUAL_SOURCE_ROOT}")" == "${STAGING_BASENAME_PREFIX}"* \
       && "${ACTUAL_SOURCE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/* \
-      && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/* \
-      && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/* \
+      && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-candidate-activation/* \
+      && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/candidate-activation-ops/* \
       && "${APPROVED_EVIDENCE_DIRECTORY}" != "${ACTUAL_SOURCE_ROOT}" \
       && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_SECURE_ROOT}" \
       && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_OPS_ROOT}" ]] || exit 98
@@ -118,6 +152,37 @@ forward_signal() {
 trap 'forward_signal INT 130' INT
 trap 'forward_signal TERM 143' TERM
 trap 'forward_signal HUP 129' HUP
+
+[[ ! -e "${APPROVED_SECURE_ROOT}" && ! -L "${APPROVED_SECURE_ROOT}" ]] || fail secure_root_already_exists
+for value in \
+  "${APPROVED_DORMANT_EVIDENCE}:${APPROVED_DORMANT_EVIDENCE_SHA256}:dormant" \
+  "${APPROVED_RUNTIME_IDENTITY_EVIDENCE}:${APPROVED_RUNTIME_IDENTITY_EVIDENCE_SHA256}:runtime_identity"; do
+  IFS=: read -r evidence_path evidence_sha evidence_label <<< "${value}"
+  [[ -f "${evidence_path}" && ! -L "${evidence_path}" \
+    && "$(sha256sum "${evidence_path}" | awk '{print $1}')" == "${evidence_sha}" ]] \
+    || fail "${evidence_label}_evidence_invalid"
+done
+[[ "${APPROVED_POSTGRES_ADMIN_ENV}" == "${POSTGRES_ADMIN_ENV}" \
+  && "$(sudo -n stat -c '%a' "${APPROVED_POSTGRES_ADMIN_ENV}")" == "600" \
+  && "$(sudo -n stat -c '%u:%g' "${APPROVED_POSTGRES_ADMIN_ENV}")" == "0:0" \
+  && ! -L "${APPROVED_POSTGRES_ADMIN_ENV}" ]] || fail postgres_admin_env_boundary_invalid
+mkdir -p "$(dirname "${APPROVED_SECURE_ROOT}")"
+mkdir "${APPROVED_SECURE_ROOT}"
+chmod 700 "${APPROVED_SECURE_ROOT}"
+install -m 0600 "${APPROVED_DORMANT_EVIDENCE}" "${APPROVED_SECURE_ROOT}/dormant-deploy-result.json"
+install -m 0600 "${APPROVED_RUNTIME_IDENTITY_EVIDENCE}" "${APPROVED_SECURE_ROOT}/runtime-identity-result.json"
+{
+  sudo -n cat -- "${APPROVED_POSTGRES_ADMIN_ENV}"
+  printf '\000'
+  ${DOCKER[@]} exec "${POSTGRES_CONTAINER}" sh -c 'printf "%s\000%s" "$POSTGRES_USER" "$POSTGRES_DB"'
+} | ${DOCKER[@]} run --rm -i --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --mount "type=bind,src=${APPROVED_SECURE_ROOT},dst=/secure" \
+  --mount "type=bind,src=${ACTUAL_SOURCE_ROOT},dst=/packet,readonly" \
+  --entrypoint node "${WEB_IMAGE}" \
+  /packet/scripts/production/candidate-activation/bundle.mjs prepare-admin-url \
+    --output /secure/migration-admin.url >/dev/null
+chmod 600 "${APPROVED_SECURE_ROOT}/migration-admin.url"
 
 REQUEST_FILE="${ACTUAL_REQUEST}" \
 CANDIDATE_ACTIVATION_MODE=production_activate \

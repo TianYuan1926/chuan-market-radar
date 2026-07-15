@@ -5,7 +5,7 @@ import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:f
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
-import contract from "../../../docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json" with { type: "json" };
+import contract from "../../../docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -25,7 +25,7 @@ test("observation runner collects and validates isolated samples without phase a
   await Promise.all([source, production, secure, ops, fakeBin].map((path) => mkdir(path, { recursive: true, mode: 0o700 })));
   for (const file of [
     ...contract.runnerArtifact.files,
-    "docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json",
+    "docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json",
   ]) {
     await mkdir(dirname(join(source, file)), { recursive: true });
     await copyFile(join(process.cwd(), file), join(source, file));
@@ -68,6 +68,8 @@ test("observation runner collects and validates isolated samples without phase a
     composeSha256: "2".repeat(64),
     controlLifecycleStartAllowed: true,
     dormantDeployStatus: "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+    dormantEvidencePath: "/tmp/wp_g0_2_rehearsal_candidate_activation_evidence/summary.json",
+    dormantEvidenceSha256: "8".repeat(64),
     dualReadAllowed: false,
     evidenceDirectory: join(ops, "evidence-retained"),
     environmentMutationAllowed: true,
@@ -84,6 +86,7 @@ test("observation runner collects and validates isolated samples without phase a
     observerUnitName: "market-radar-candidate-observer-rehearsal01",
     opsRoot: ops,
     packageId: "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+    postgresAdminEnvPath: "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
     productionEnvSha256: "5".repeat(64),
     productionRoot: production,
     productionRankingMutationAllowed: false,
@@ -92,8 +95,10 @@ test("observation runner collects and validates isolated samples without phase a
     rollbackCommit: "b".repeat(40),
     rollbackWebImageRef: `market-radar-rollback/wp-g0-2-candidate-activation:web-${"6".repeat(16)}`,
     runnerUnitName: "market-radar-candidate-activation-rehearsal01",
+    runtimeIdentityEvidencePath: "/tmp/wp_g0_2_rehearsal_candidate_activation_evidence/runtime-identity-result.json",
+    runtimeIdentityEvidenceSha256: "9".repeat(64),
     runtimeIdentityStatus: "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
-    runnerContractSha256: sha256(await readFile(join(source, "docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json"))),
+    runnerContractSha256: sha256(await readFile(join(source, "docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json"))),
     schemaDdlAllowed: false,
     secureRoot: secure,
     sessionIndependentExecutionRequired: true,

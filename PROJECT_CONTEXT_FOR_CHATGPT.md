@@ -6,6 +6,8 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION` 已取得真实生产 `PASS_RUNTIME_IDENTITY_AND_PERMISSION`。执行绑定 runner source=`1dd11ae20f89849a883859a0f98436982cc1f994`、脱敏 Bundle=`b5de0535b5fb6897667befd2b00f10976404e748d1e03c805c6b14433a221808`、request SHA-256=`6e08102baaed3b6f7b662fe0af42b334dfa05d4c075b16418c2de826af60f841` 和一次性外部授权 SHA-256=`f1edc98c65ac78d7afd035609eb8386c0601f04f0f04215b6c56998952955145`。生产事务即时阶段为 `PASS_IMMEDIATE_RUNTIME_IDENTITY_AWAITING_OBSERVATION`；独立 observer unit 最终 `Result=success / ExecMainStatus=0`，7 个样本覆盖 1851 秒且持续 ready/fresh。最终证据 SHA-256=`bdb5836067d8fc9854c653ab1a2ea4b3c8a06bc5b1e8384dcf5ab8d3476a278d`：生产仍为 clean detached `cec0b657...`、Web image=`sha256:cd3652...`，3 个 NOINHERIT LOGIN、3 个固定 capability membership、3 条 Candidate URL 已配置；privileged LOGIN=0、Candidate Feature Flag=0、Candidate worker absent、Candidate 仍 dormant，观察期数据库/Redis/env/其它服务 mutation 均为 false。Runtime Identity 已完成，但 Shadow Capture activation 尚未生产执行，WP-G0.2/G0 仍未完成，系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+- 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE` 已形成当前 main 基线上的本地生产发布候选，尚未连接或改变生产。代码授权常量改为 `true` 只表示该 release 可被精确生产请求使用；7 个运行时开关仍默认 false，仓库本身不能激活 Candidate。新合同只允许 Web、candidate-shadow-worker、7 个 Candidate 环境键、一次 control start 和 `shadow_write=true`；canonical/dual/review read、canonical write、migration、DDL、业务 DML、自动 phase advance、scan/analysis/strategy/frontend/formal 均锁死。Runner artifact=`b1a2c056...`（5 文件）、activation artifact=`820dcacb...`（16 文件）、contract=`5bc52a93...`；Activation 24/24、Composition 29/29、Shadow governance 8/8、PG16 control start/rollback、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16、Autonomy 31/31 和三项安全门禁均 PASS。下一步只能冻结单父提交、推送 main、生成精确脱敏 Bundle/request，再执行 Shadow Capture activation；最终 PASS 仍需 24 小时、至少 289 个 5 分钟样本。
 - 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION` 最新生产事务仍不能写 PASS。绑定 runner source=`26e82fb6a910018dbe6254dd1e0d2835d40f02b9`、Bundle=`e931515cc2aa9033e82adb4f9ae27bd80f4c323165a400a8dfd920acb2013f72`、request=`d7acd1f0ca86b05cefc6260656958bd0666a413298bdb8d9374642ee3180f730` 的 transient unit 完成三套临时 LOGIN/最小权限、env 切换和 Web no-build recreate，但在新 Web 尚未监听 `127.0.0.1:3000` 时立即执行身份探针，返回 `ECONNREFUSED`。自动回滚与独立只读复核证明 production HEAD 仍为 clean detached `cec0b657...`，旧 env SHA、旧 Web image=`sha256:cd3652...`、Candidate URL/runtime LOGIN/worker=`0/0/0`、schema ledger/control=`9|0`、writer archive grant absent、health ready/fresh 均恢复；生产没有保留本次 mutation。两个已上传的脱敏运输临时文件仍待精确清理，不能写成全部临时文件不存在。当前最小修复要求 Web 重建后最长等待 240 秒，只有容器 `running|healthy` 且容器内 health 同时达到 `ready / database ready / fresh` 才能进入身份探针；回滚重建复用同一门禁。Runner 17/17、Packet 13/13、Identity 14/14、Deploy Safety 6/6、Autonomy 31/31、隔离 PG16、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 与三项安全门禁均 PASS；runner artifact=`0d40fdf0...`、packet artifact=`5f734339...`。clean commit、提交后自治 gate evidence、新 Bundle/request 和生产重试仍待完成；Activation、WP-G0.2 与 G0 均未完成，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION` 最新生产事务不能写成 PASS。绑定 runner source=`f83d83e314bafbbe10d55c78555d406801966e2d`、Bundle=`0703656c3f403313f370e20932201f96b40daf2e2e7ec59083b3aac4ed0fac8f`、request=`bb66a0bedba952e761282054062fd11a473bf3e3b989c2c326393c61044be9c0` 的 transient unit 通过续证、数据库 preflight、三套 LOGIN/最小权限 provision、env 切换和 Web no-build recreate，随后 Web 身份探针被生产 Node 22 以 `ERR_AMBIGUOUS_MODULE_SYNTAX` 拒绝，根因是同一 stdin 脚本混用了 CommonJS `require()` 与顶层 `await`。Runner 按合同执行有界回滚；独立复核证明 production HEAD 仍为 clean detached `cec0b657...`，旧 env SHA 恢复，Web image=`sha256:cd3652...` 且 running/healthy/restart 0，Candidate URL/runtime LOGIN/worker=`0/0/0`，schema ledger/control=`9|0`，writer archive SELECT/INSERT=`false/false`，Postgres ready、Redis PONG，lease 已释放，staging/secure/ops/upload 临时文件均不存在。旧 Bundle/request 已消费，禁止复用。当前本地最小修复仅将精确探针封装为 async IIFE，并新增提取真实 heredoc 后执行 `node --check` 的回归；Runner 16/16、Packet 13/13、Identity 14/14、Deploy Safety 6/6、Autonomy 31/31、隔离 PG16、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁均 PASS，Runner artifact=`d471bd5a...`、Packet artifact=`a110baddd...`。clean commit、提交后 gate evidence、新 Bundle/request 和生产重试仍未完成。Runtime Identity、Activation、WP-G0.2 与 G0 均未完成；系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION` 最新生产重试仍不能写成 Runtime Identity PASS，但已获得可复用的真实新鲜 Dormant 证据。绑定 runner source=`77c3a3bd175201efe5e37853975625dc4abe160b`、Bundle=`ab4dbbec236b750c227aea9cbad918a08639046fce41d675002131086bfd0021` 的 transient unit 完成 1800 秒、61 样本只读续证，样本间隔 28-32 秒，持续 ready/fresh、Candidate dormant、worker absent；新摘要 completedAt=`2026-07-15T20:20:08Z`、SHA-256=`b76413fc317cd70511207e1a6dfb1280ccc7943331d06987320c8715fb070077`。身份事务随后在 mutation 前以 `SAFE_STOP_PRE_MUTATION` 结束：根因是摘要写在仓库外 evidence 目录，而通用隔离 Node 只只读挂载 source 与 secure root，validator 因文件不可见返回 generic `unexpected_error`；不是生产 health、样本数或证据内容失败。回滚合同验证证明 env、Web image、Candidate worker absence 和生产合同恢复，未创建 LOGIN、未改权限/env/Web，staging/secure/ops 已清理，脱敏摘要保留。当前最小修复只允许把续证摘要复制为 secure root 内 `0600` 临时桥接文件后进入 network-none/read-only/cap-drop-all validator，并把原 summary SHA 保留为 lineage、把 61 样本摘要绑定为当前 authority；任意其它 evidence 路径仍拒绝。红灯 2 项已真实复现并关闭，Runner 16/16、Packet 12/12、Identity 14/14、Deploy Safety 6/6、Autonomy 31/31、PG16、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁均 PASS；runner artifact=`3d58b9ed...`、packet artifact=`60608ae6...`。当前修复尚待 clean commit、提交后 gate evidence、新 Bundle/request 和精确生产重试；旧 Bundle/request 永久失效。Candidate activation 继续禁止，G0/WP-G0.2 仍未完成，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
@@ -93,8 +95,8 @@
 - 历史数据库超级权限依赖、加密离机备份和恢复演练前置风险已分别由 identity remediation 与 capacity/off-host restore 包关闭；post-schema verifier 的 NOINHERIT 显式 owner-role 切换已由 verify-only 关闭，Migration 009 也已 schema-only 应用并验证 dormant。本地 composition 已接线，但 production runtime 尚未部署/激活，不能把代码存在误写成新链已接管。
 - v3 将路线重排为 G0-G8：事实/安全/生命周期/发布 -> 可靠性/恢复/安全/E2E -> 数据质量/身份/深扫 -> 候选与提前发现 -> 分析/策略/风险 -> 真实 Shadow/outcome -> 专业工作台/三模式复盘 -> 30 天模拟与 R4 审核 -> R5 长期治理。
 - R4 只表示“受控人工实战决策辅助”，不表示保证盈利或自动交易。首次 R4 审核现实周期约 9-12 个月；必须 readiness >=85/100、各分项达标、无一票否决，并具备独立 holdout、至少 60 天真实 Shadow、30 天模拟决策、SLO、restore drill 和安全证据。
-- 历史设计与 implementation/rehearsal 包已落成正式 migration；生产 schema 1-9 已于 2026-07-12 additive 应用并由 runner verify PASS，本地 runtime composition 已接入但 Candidate runtime 尚未部署。生产 Web 身份已于 2026-07-13 恢复并验证 ready/fresh，这只关闭持久化身份事故，不表示 Candidate 新链已接管。
-- Scanner sustained-health 与 Dormant Web-only 运行地基均已分别完成真实 1800 秒生产观察；Dormant target 当前为 `cec0b657...`，Candidate 仍完全休眠。当前最优先任务是先冻结本包 closeout 证据，再对 Runtime Identity 做独立只读 preflight 和新的精确审批；在该包通过前仍禁止启用 writer、启动 control lifecycle、activation、backfill、read cutover、G1、R4 或实盘。
+- 历史设计与 implementation/rehearsal 包已落成正式 migration；生产 schema 1-9 已于 2026-07-12 additive 应用并由 runner verify PASS，本地 runtime composition 已接入。生产 Web 身份已于 2026-07-13 恢复，Candidate Runtime Identity 已于 2026-07-16 通过生产事务和 1851 秒独立观察；这些只关闭身份地基，不表示 Candidate 新链已接管。
+- Scanner sustained-health、Dormant Web-only 和 Runtime Identity 已分别完成真实生产观察。Candidate 仍完全休眠：Feature Flag=0、worker absent、control lifecycle 未启动。当前最优先任务是冻结并发布 activation release，再启动 shadow-only 24 小时观察；在该包通过前仍禁止 backfill、canonical/dual/review、read cutover、G1、R4 或实盘。
 
 - 第 5.1-DEPLOY-CHANNEL-FIX 已完成腾讯云部署通道恢复诊断，结论为 `PASS_DEPLOY_CHANNEL_RECOVERED_VIA_ORCATERM`。本轮没有修改项目业务代码、没有同步服务器代码、没有部署、没有 Docker build/up/restart、没有运行 formal、没有动 DB/Redis/Postgres/volume、没有读取 `.env`/`.env.production` 原文、没有输出 secret 或 SSH 私钥。
 - 第 5.1-DEPLOY-CHANNEL-FIX 证据显示：Chrome 里没有 OrcaTerm；用户打开 Microsoft Edge 中的腾讯云 OrcaTerm 后，Codex 通过 Computer Use 可控该页面，并以 `ubuntu@VM-0-9-ubuntu` 完成服务器只读 smoke。只读 smoke 覆盖 `whoami`、`hostname`、`pwd`、UTC date、`uname`、Docker/Compose 版本、项目目录访问、`ls -la`、`docker compose ps` / `sudo -n docker compose ps`。观察到 caddy、web、scanner-worker、coinglass-worker、dynamic-scan-scheduler、websocket-light-worker、signal-worker、macro-worker、shadow-runner、postgres、redis 等服务均在运行，web/postgres/redis 为 healthy。
@@ -417,8 +419,8 @@ GitHub Actions / self-hosted runner：
 - 当前是否完整：不完整。扫描、分析、策略、复盘都有基础，但仍需要专业能力验收。
 - 当前是否支撑实战：**当前系统仍不能支撑实战。**
 - 当前最大短板：
-  1. Runtime Identity 最新生产尝试被超过 24 小时的 Dormant evidence 在 mutation 前安全阻断；续证 remediation 已提交并通过完整门禁，但新的控制面提交、自治 gate evidence、Bundle、fresh request、1800 秒续证和身份事务尚未完成，不能把本地 PASS 写成生产身份已完成。
-  2. Candidate runtime 仍 disabled；Dormant Web-only 地基已发布，但 Runtime Identity、激活观察、reconciliation 和 canonical cutover 均未完成。
+  1. Runtime Identity 已生产 PASS；当前直接阻断点是 Shadow Capture activation release 尚未冻结、推送、生成精确 Bundle 并生产执行，24 小时/289 样本观察尚未开始。
+  2. Candidate runtime 仍 dormant；Feature Flag=0、worker absent、control lifecycle 未启动，reconciliation 和 canonical cutover 均未完成。
   3. 第五轮 formal 的历史能力证据仍显示 `TRADE_PLAN_READY=0`、WAIT 有效率 `0%`、扫描和分析提前性不足；后续新证据通过前不得宣称实战能力改善。
   4. 公网 HTTPS/session/security 仍需按 G0.3 独立收口。
   5. 回测/复盘和生产评分边界必须持续防污染。
@@ -429,9 +431,9 @@ GitHub Actions / self-hosted runner：
 
 ### 当前最新三轮（2026-07-16）
 
-- Runtime Identity stale evidence safe stop：真实生产 unit 在 mutation 前以 `DORMANT_EVIDENCE_NOT_FRESH` 停止；生产基线、数据库权限、Candidate absent、Redis 和四个 API 已只读复核，未发生身份/env/Web 变更。
-- Runtime Identity stale evidence renewal remediation：commit `2d79bef...` 已推送，过期摘要必须先完成新的 1800 秒/57 样本只读观察，再通过严格 24 小时 freshness validator；定向、基础和安全门禁均 PASS。
-- Activation/Observation current-main refresh：当前 main 的 systemd、lease/fencing、clean detached、回滚 retention、revocation 和 24 小时观察合同已本地 PASS，但生产激活继续禁止，必须等待 Runtime Identity 完成。
+- Runtime Identity production PASS：精确事务与 7 样本/1851 秒独立观察均通过，3 LOGIN、3 membership、3 URL 生效，0 privileged、0 Feature Flag、worker absent，Candidate 保持 dormant。
+- Activation production release candidate：新单提交候选已锁定 shadow-only 范围、外部 lease/fencing、精确旧 Web 镜像、clean detached Git、自动回滚和 24 小时 revocation-aware 观察；生产尚未执行。
+- Activation release gates：24/24 activation、29/29 composition、8/8 governance、PG16、五项基础门禁和三项安全门禁 PASS；一次假密码形态夹具被 security gate 捕获并改成明确 test-only 占位符。
 
 以下第二至第五轮为历史审计记录，不代表当前最新生产版本：
 
@@ -562,11 +564,11 @@ GitHub Actions / self-hosted runner：
 
 ### P1 风险
 
-1. 问题：Runtime Identity 的 Dormant 前置证据已过期，生产身份尚未 provision。
+1. 问题：Shadow Capture activation 和 24 小时观察尚未生产完成。
    - 影响核心链路哪一环：生产部署、证据真实性、回归验收。
-   - 证据：最新 transient unit 返回 `SAFE_STOP_PRE_MUTATION_DORMANT_EVIDENCE_NOT_FRESH`；之后生产仍为 clean detached `cec0b657...`、Web healthy、Candidate URL/LOGIN/worker=0、schema `9|0`、writer 新权限 absent。
-   - 当前状态：续证 remediation commit `2d79bef...` 已通过全部固定门禁；生产 health 未降级，生产身份仍未创建。
-   - 下一步：冻结控制面 clean commit 和自治 gate evidence，生成唯一 Bundle/request，先完成 1800 秒只读续证，再执行精确身份事务与只读验收。
+   - 证据：Runtime Identity 已 `PASS_RUNTIME_IDENTITY_AND_PERMISSION`，但 Feature Flag=0、Candidate worker absent、control lifecycle 未启动；activation release 只取得本地 PASS。
+   - 当前状态：activation artifact、runner artifact、合同、定向/基础/安全门禁和 PG16 演练均已通过；生产 mutation 尚未执行。
+   - 下一步：冻结单父 release commit、推送 main、生成唯一 Bundle/request，执行 shadow-only activation 后完成 24 小时/289 样本观察。
 
 2. 问题：扫描排序主干不够强，优质机会未必稳定进入 Top10。
    - 影响核心链路哪一环：全市场发现、候选筛选。

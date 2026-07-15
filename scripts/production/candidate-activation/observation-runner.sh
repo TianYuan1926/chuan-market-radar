@@ -13,7 +13,7 @@ EVIDENCE_DIRECTORY="${EVIDENCE_DIRECTORY:-}"
 AUTONOMY_TRUST_ROOT="${MARKET_RADAR_AUTONOMY_TRUST_ROOT:-/home/ubuntu/.local/state/market-radar-autonomy}"
 NODE_RUNTIME="${CANDIDATE_ACTIVATION_NODE_RUNTIME:-auto}"
 CONFIRMED="${CONFIRM_CANDIDATE_OBSERVATION:-false}"
-CONTRACT_FILE="${SOURCE_ROOT}/docs/governance/wp-g0-2-activation-observation-runner-preparation.v1.json"
+CONTRACT_FILE="${SOURCE_ROOT}/docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json"
 RUNNER_MODULE="${SOURCE_ROOT}/scripts/production/candidate-activation/runner.mjs"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
 
@@ -139,7 +139,7 @@ cleanup_temporary_artifacts() {
     && "${approved_staging}" == "${SOURCE_ROOT}" \
     && "$(basename "${approved_staging}")" == wp-g0-2-candidate-activation-* \
     && "${approved_staging}" == /home/ubuntu/.cache/market-radar-ops/* \
-    && "${SECURE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/* \
+    && "${SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-candidate-activation/* \
     && "${OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/* \
     && "${EVIDENCE_DIRECTORY}" != "${approved_staging}" \
     && "${EVIDENCE_DIRECTORY}" != "${SECURE_ROOT}" \

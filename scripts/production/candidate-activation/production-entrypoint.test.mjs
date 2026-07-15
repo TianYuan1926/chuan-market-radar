@@ -20,6 +20,25 @@ test("activation entrypoint only launches a bounded transient systemd unit", asy
   assert.doesNotMatch(source, /rm -rf -- "\$\{APPROVED_EVIDENCE_DIRECTORY\}"/);
 });
 
+test("activation entrypoint verifies the staged transport before launching", async () => {
+  const source = await readFile(entrypointPath, "utf8");
+  assert.match(source, /transport-manifest\.json/);
+  assert.match(source, /candidate-activation\/bundle\.mjs validate-request/);
+  assert.match(source, /--network none --read-only --cap-drop ALL/);
+  assert.match(source, /current_web_image_identity_mismatch/);
+  assert.match(source, /bundle_marker_mismatch/);
+});
+
+test("activation entrypoint creates local-only admin input without printing credentials", async () => {
+  const source = await readFile(entrypointPath, "utf8");
+  assert.match(source, /postgres-admin\.env/);
+  assert.match(source, /sudo -n cat -- "\$\{APPROVED_POSTGRES_ADMIN_ENV\}"/);
+  assert.match(source, /prepare-admin-url/);
+  assert.match(source, /migration-admin\.url/);
+  assert.match(source, /runtime-identity-result\.json/);
+  assert.doesNotMatch(source, /echo[^\n]*(?:POSTGRES_PASSWORD|DATABASE_URL)/);
+});
+
 test("activation and observer runners do not require host Node", async () => {
   const [runner, observer] = await Promise.all([
     readFile(runnerPath, "utf8"),

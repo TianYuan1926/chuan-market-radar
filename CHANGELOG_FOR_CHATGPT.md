@@ -4378,3 +4378,48 @@ P0 阻断：
 ### 下一轮建议
 
 只冻结并重试 Runtime Identity；最终 PASS 前继续禁止 Candidate activation。
+
+## 2026-07-16 / WP-G0.2 Runtime Identity 生产通过与 Activation Release 冻结
+
+### 本轮目标
+
+完成 Runtime Identity 最终生产观察；在不降低任何交易、权限、回滚或观察标准的前提下，把 Shadow Capture activation release 迁移到当前 main 基线并形成单提交发布候选。
+
+### 修改范围
+
+- Runtime Identity 生产只读观察器修复了 evidence 路径、角色名、systemd 用户、Docker stdin、PostgreSQL boolean 和 verifier 来源等执行工具问题；这些脚本与结果位于仓库外/ignored evidence，不改变产品代码。
+- Activation release 将代码授权常量切为 true，但全部运行时 Feature Flag 默认仍为 false；新增可复现脱敏 Bundle、精确 external request、lease/fencing、session-independent systemd、旧 Web 镜像 retention、自动回滚和 24 小时观察合同。
+- 更新 `AUTONOMOUS_ENGINEERING_STATE.json`、traceability、Context、Changelog 和中文交付报告。
+- 未修改 scan 排序、analysis、strategy、RR、Risk Gate、交易计划、frontend、migration、数据库业务行、Redis、既有 worker 业务逻辑或 formal 回测。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的 Candidate Episode Shadow Capture 地基。当前仍不产生新交易计划，不取得 canonical authority，不影响生产排序。
+
+### 测试结果
+
+- Runtime Identity observer：7/7 样本，1851 秒，`Result=success / ExecMainStatus=0`，最终 `PASS_RUNTIME_IDENTITY_AND_PERMISSION`。
+- Activation release：24/24 PASS；Composition 29/29 PASS；Shadow governance 8/8 PASS；Autonomy 31/31 PASS。
+- PostgreSQL 16 隔离演练：migration 1-9、control start 1、rollback 1、final legacy/epoch 2/writeFrozen true、productionConnected=false：PASS。
+- `npm run typecheck`：PASS。
+- `npm run lint`：PASS。
+- `npm run test:market`：960 pass / 0 fail / 4 explicit DB skip；workers 23/23；historical 4/4。
+- `npm run build`：PASS。
+- `npm run backtest:golden`：16/16 PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean detached `cec0b657...`，Web image 未改变。Activation release 尚未推送 main、尚未生成最终 Bundle/request、尚未生产激活。
+
+### 风险与遗留问题
+
+- P0：无新增生产 P0；Runtime Identity 观察期未发生 DB/Redis/env/其它服务 mutation。
+- P1：Activation 生产事务和 24 小时/289 样本观察尚未完成。
+- P1：Runtime Identity 上传的两个脱敏运输文件位于仓库外缓存目录，因删除属于独立远端清理动作，本轮未将其伪装为已清理。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`；WP-G0.2/G0 均未完成。
+
+### 下一轮建议
+
+只执行 Activation release 单提交冻结、main 推送、精确脱敏 Bundle/request 和 shadow-only 生产激活，然后进入不可缩短的 24 小时观察。

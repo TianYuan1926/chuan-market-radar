@@ -169,7 +169,8 @@ export async function inspectShadowCaptureRepository() {
       && /fencing_token = item\.fencing_token \+ 1/.test(procedures),
     completionRejectsPayloadConflict: /outbox payload hash conflict/.test(procedures),
     completionRejectsStaleFence: /stale outbox fencing token rejected/.test(procedures),
-    productionActivationHardDisabled: /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const/.test(flags),
+    productionActivationGuardExplicit:
+      /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = (?:true|false) as const/.test(flags),
     outboxServiceExists: /class CandidateOutboxService/.test(outboxService),
     sourceTransactionOutboxHookImplemented: /transactions\.withTransaction/.test(sourceWriter)
       && /INSERT INTO scan_archives/i.test(sourceWriter)
@@ -201,7 +202,7 @@ export async function inspectShadowCaptureRepository() {
     "claimUsesSkipLockedAndFencing",
     "completionRejectsPayloadConflict",
     "completionRejectsStaleFence",
-    "productionActivationHardDisabled",
+    "productionActivationGuardExplicit",
     "outboxServiceExists",
     "sourceTransactionOutboxHookImplemented",
     "boundedRetryQuarantineImplemented",

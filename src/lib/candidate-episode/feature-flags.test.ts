@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as featureFlags from "./feature-flags";
 
-test("candidate feature flags fail closed except for explicit rehearsal enablement", () => {
+test("candidate runtime flags fail closed while the activation release authorizes guarded production wiring", () => {
   const subject = featureFlags;
 
   assert.equal(typeof subject.resolveCandidateFeatureFlags, "function");
@@ -57,7 +57,7 @@ test("candidate feature flags fail closed except for explicit rehearsal enableme
     }),
     allDisabled,
   );
-  assert.equal(subject.CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED, false);
+  assert.equal(subject.CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED, true);
 });
 
 test("authority phases are named and authority epochs fail closed unless current or monotonic", () => {

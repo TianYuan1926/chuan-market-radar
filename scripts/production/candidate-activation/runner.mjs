@@ -50,6 +50,8 @@ const REQUEST_KEYS = Object.freeze([
   "composeSha256",
   "controlLifecycleStartAllowed",
   "dormantDeployStatus",
+  "dormantEvidencePath",
+  "dormantEvidenceSha256",
   "dualReadAllowed",
   "evidenceDirectory",
   "environmentMutationAllowed",
@@ -66,6 +68,7 @@ const REQUEST_KEYS = Object.freeze([
   "observerUnitName",
   "opsRoot",
   "packageId",
+  "postgresAdminEnvPath",
   "productionEnvSha256",
   "productionRoot",
   "productionRankingMutationAllowed",
@@ -74,6 +77,8 @@ const REQUEST_KEYS = Object.freeze([
   "rollbackCommit",
   "rollbackWebImageRef",
   "runnerUnitName",
+  "runtimeIdentityEvidencePath",
+  "runtimeIdentityEvidenceSha256",
   "runtimeIdentityStatus",
   "runnerContractSha256",
   "schemaDdlAllowed",
@@ -149,14 +154,42 @@ export function validateApprovalRequest(
     "autonomy_trust_root_invalid");
   ensure(request.sessionIndependentExecutionRequired === true, "session_independent_execution_required");
   ensure(request.temporaryArtifactCleanupRequired === true, "temporary_artifact_cleanup_required");
-  ensure(typeof request.stagingDirectory === "string" && request.stagingDirectory.startsWith("/"),
-    "staging_directory_invalid");
-  ensure(typeof request.evidenceDirectory === "string" && request.evidenceDirectory.startsWith("/"),
-    "evidence_directory_invalid");
-  ensure(typeof request.opsRoot === "string" && request.opsRoot.startsWith("/"), "ops_root_invalid");
-  ensure(typeof request.secureRoot === "string" && request.secureRoot.startsWith("/"), "secure_root_invalid");
-  ensure(typeof request.productionRoot === "string" && request.productionRoot.startsWith("/"),
-    "production_root_invalid");
+  ensure(
+    /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-candidate-activation-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.stagingDirectory ?? "")
+      || /^\/tmp\/wp_g0_2_rehearsal_candidate_activation_[A-Za-z0-9_./-]+$/.test(request.stagingDirectory ?? ""),
+    "staging_directory_invalid",
+  );
+  ensure(
+    /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-candidate-activation-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.evidenceDirectory ?? "")
+      || /^\/tmp\/wp_g0_2_rehearsal_candidate_activation_[A-Za-z0-9_./-]+$/.test(request.evidenceDirectory ?? ""),
+    "evidence_directory_invalid",
+  );
+  ensure(
+    /^\/home\/ubuntu\/\.cache\/market-radar-ops\/candidate-activation-ops\/wp-g0-2-candidate-activation-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.opsRoot ?? "")
+      || /^\/tmp\/wp_g0_2_rehearsal_candidate_activation_[A-Za-z0-9_./-]+$/.test(request.opsRoot ?? ""),
+    "ops_root_invalid",
+  );
+  ensure(
+    /^\/home\/ubuntu\/\.local\/state\/market-radar-candidate-activation\/[a-z0-9][a-z0-9._-]{7,80}$/.test(request.secureRoot ?? "")
+      || /^\/tmp\/wp_g0_2_rehearsal_candidate_activation_[A-Za-z0-9_./-]+$/.test(request.secureRoot ?? ""),
+    "secure_root_invalid",
+  );
+  ensure(request.productionRoot === "/home/ubuntu/apps/chuan-market-radar"
+    || /^\/tmp\/wp_g0_2_rehearsal_candidate_activation_[A-Za-z0-9_./-]+\/production$/.test(
+      request.productionRoot ?? "",
+    ), "production_root_invalid");
+  ensure(request.postgresAdminEnvPath
+    === "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
+  "postgres_admin_env_path_invalid");
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/.+\/summary\.json$/.test(request.dormantEvidencePath ?? "")
+    || /^\/tmp\/wp_g0_2_rehearsal_candidate_activation_[A-Za-z0-9_/.-]+$/.test(request.dormantEvidencePath ?? ""),
+  "dormant_evidence_path_invalid");
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/.+\/runtime-identity-result\.json$/.test(request.runtimeIdentityEvidencePath ?? "")
+    || /^\/tmp\/wp_g0_2_rehearsal_candidate_activation_[A-Za-z0-9_/.-]+$/.test(request.runtimeIdentityEvidencePath ?? ""),
+  "runtime_identity_evidence_path_invalid");
+  for (const key of ["dormantEvidenceSha256", "runtimeIdentityEvidenceSha256"]) {
+    ensure(/^[0-9a-f]{64}$/.test(request[key] ?? ""), `${key}_invalid`);
+  }
   ensure(typeof request.identityWrapperPath === "string" && request.identityWrapperPath.startsWith("/"),
     "identity_wrapper_path_invalid");
   ensure(typeof request.identityOverridePath === "string" && request.identityOverridePath.startsWith("/"),

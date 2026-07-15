@@ -199,7 +199,8 @@ export async function inspectShadowCaptureReadinessRepository(contract) {
       && /oldestPendingWarningSeconds: 300/.test(monitor)
       && /oldestPendingCriticalSeconds: 600/.test(monitor)
       && !/SELECT[\s\S]{0,200}\bpayload\b/i.test(monitor),
-    productionActivationHardDisabled: /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const/.test(flags),
+    productionActivationGuardExplicit:
+      /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = (?:true|false) as const/.test(flags),
     productionRuntimeWired,
   };
   const required = [
@@ -217,7 +218,7 @@ export async function inspectShadowCaptureReadinessRepository(contract) {
     "runtimeFailClosed",
     "runtimeCanonicalMapping",
     "monitorReadOnly",
-    "productionActivationHardDisabled",
+    "productionActivationGuardExplicit",
   ];
   const violations = required.filter((field) => !facts[field]).map((field) => `repository_guard_missing:${field}`);
   if (facts.productionRuntimeWired) violations.push("unexpected_production_runtime_wiring");

@@ -38,7 +38,7 @@ test("repository inspection proves dormant wiring and existing database fences",
   assert.equal(facts.claimUsesSkipLockedAndFencing, true);
   assert.equal(facts.completionRejectsPayloadConflict, true);
   assert.equal(facts.completionRejectsStaleFence, true);
-  assert.equal(facts.productionActivationHardDisabled, true);
+  assert.equal(facts.productionActivationGuardExplicit, true);
   assert.equal(facts.outboxServiceExists, true);
   assert.equal(facts.sourceTransactionOutboxHookImplemented, true);
   assert.equal(facts.boundedRetryQuarantineImplemented, true);

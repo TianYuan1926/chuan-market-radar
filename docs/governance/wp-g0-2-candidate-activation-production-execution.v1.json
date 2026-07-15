@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "wp-g0.2-candidate-activation-production-execution.v1",
+  "packageId": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
+  "status": "local_activation_release_verified_production_not_executed",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "predecessorPackage": "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
+  "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+  "standingGrant": {
+    "grantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "revocationEpoch": 2,
+    "maximumExecutions": 1,
+    "maximumApprovalWindowMinutes": 90
+  },
+  "currentSource": {
+    "codeActivationAllowed": true,
+    "candidateRuntimeDefault": "disabled",
+    "productionFeatureFlagsEnabledBeforeExecution": 0,
+    "productionMutationAllowedByRepositoryAlone": false
+  },
+  "prerequisites": {
+    "dormantDeployFinalStatus": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+    "runtimeIdentityFinalStatus": "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
+    "runtimeIdentityEvidenceMaximumAgeHours": 24,
+    "externalExactRequestRequired": true,
+    "externalLeaseRequired": true,
+    "productionWorktreeMustBeCleanDetached": true
+  },
+  "runnerArtifact": {
+    "sha256": "b1a2c056071bc6df03952f71d93b64859d1d80b169faa8fdd7266af7d6d3a81d",
+    "files": [
+      "scripts/production/candidate-activation/bundle.mjs",
+      "scripts/production/candidate-activation/observation-runner.sh",
+      "scripts/production/candidate-activation/production-entrypoint.sh",
+      "scripts/production/candidate-activation/production-runner.sh",
+      "scripts/production/candidate-activation/runner.mjs"
+    ]
+  },
+  "activationReleaseArtifact": {
+    "sha256": "820dcacbaf088019ec1eeb50d188073f8589698711f7d50f73944ac67f281ec0",
+    "files": [
+      "docker-compose.yml",
+      "deploy/workers/protected-api-worker.mjs",
+      "migrations/candidate-episode/009_candidate_shadow_capture_safety.sql",
+      "scripts/production/candidate-activation/observation-runner.sh",
+      "scripts/production/candidate-activation/production-runner.sh",
+      "scripts/production/candidate-activation/runner.mjs",
+      "scripts/verify/production-check.sh",
+      "src/app/api/admin/candidate-shadow/run/route.ts",
+      "src/lib/candidate-episode/app-shadow-capture-composition.ts",
+      "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/feature-flags.ts",
+      "src/lib/candidate-episode/shadow-capture-admin.ts",
+      "src/lib/candidate-episode/shadow-capture-composition.ts",
+      "src/lib/candidate-episode/transaction-adapter.ts",
+      "src/lib/market/radar-snapshot.ts",
+      "src/lib/runtime/worker-heartbeat.ts"
+    ]
+  },
+  "schemaBoundary": {
+    "migration009Sha256": "2cc236dc6c44528b3ebba54e555d3ca07e95ba18709fd467b9578df9dd7979e5",
+    "candidateLedgerRequired": 9,
+    "controlRowsBeforeActivation": 0,
+    "migrationExecutionAllowed": false,
+    "schemaDdlAllowed": false,
+    "businessDmlAllowed": false
+  },
+  "mutationAllowlist": {
+    "services": ["web", "candidate-shadow-worker"],
+    "composeProfile": "candidate-shadow-runtime",
+    "environmentKeysChanged": 7,
+    "candidateDatabaseUrlsChanged": 0,
+    "candidateDatabaseRolesChanged": 0,
+    "controlLifecycleStarts": 1,
+    "shadowWriteEnabled": true,
+    "canonicalWriteEnabled": false,
+    "dualReadEnabled": false,
+    "canonicalReadEnabled": false,
+    "reviewReadEnabled": false,
+    "automaticPhaseAdvance": false
+  },
+  "execution": {
+    "activationRunner": "transient_systemd_unit",
+    "observationRunner": "transient_systemd_unit",
+    "restart": "no",
+    "activationRuntimeMaxSeconds": 5400,
+    "observationRuntimeMaxSeconds": 90000,
+    "sessionIndependent": true,
+    "transport": "reproducible_redacted_orcaterm_bundle",
+    "hostNodeRequired": false
+  },
+  "observation": {
+    "minimumCleanWindowHours": 24,
+    "sampleIntervalSeconds": 300,
+    "maximumSampleGapSeconds": 600,
+    "minimumSamples": 289,
+    "completedWritesMustBePositive": true,
+    "completedWritesMustBeMonotonic": true,
+    "minimumComparedWritesForThisPackage": null,
+    "minimumComparedWritesForNextGate": 10000,
+    "finalSuccessLabel": "PASS_ACTIVATE_AND_OBSERVE"
+  },
+  "rollback": {
+    "automaticRollbackRequired": true,
+    "approvalExpiryMayBlockSafetyRollback": false,
+    "stopCandidateWorkerFirst": true,
+    "restoreEnvironmentRequired": true,
+    "restorePreviousWebImageRequired": true,
+    "restoreRollbackCommitRequired": true,
+    "transitionControlToLegacyRequired": true,
+    "writeFrozenAfterRollback": true,
+    "deleteCandidateEvidenceAllowed": false,
+    "dropSchemaAllowed": false,
+    "retainWebImageBeforeMutation": true,
+    "retentionRepository": "market-radar-rollback/wp-g0-2-candidate-activation",
+    "cleanupRequiresSeparateApproval": true
+  },
+  "immediateSuccessLabel": "PASS_IMMEDIATE_SHADOW_CAPTURE_AWAITING_OBSERVATION",
+  "forbidden": [
+    "credential_transport",
+    "approval_self_issuance_outside_standing_grant",
+    "approval_replay",
+    "foreground_fallback",
+    "candidate_database_url_mutation",
+    "candidate_database_role_mutation",
+    "schema_migration",
+    "schema_ddl",
+    "business_table_dml",
+    "canonical_write",
+    "dual_read",
+    "canonical_read",
+    "review_read",
+    "automatic_phase_advance",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "frontend_change",
+    "formal_backtest"
+  ]
+}

@@ -46,7 +46,7 @@ test("repository inspection locks checksum, immutable resolution, runtime gate a
     "runtimeFailClosed",
     "runtimeCanonicalMapping",
     "monitorReadOnly",
-    "productionActivationHardDisabled",
+    "productionActivationGuardExplicit",
   ]) assert.equal(facts[field], true, field);
   assert.equal(facts.productionRuntimeWired, false);
 });
