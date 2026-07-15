@@ -13,6 +13,7 @@ RELEASE_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-runtime-identity/pro
 RUNTIME_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-runtime-identity/runner.mjs"
 AUTONOMY_TRUST_ROOT="/home/ubuntu/.local/state/market-radar-autonomy"
 PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
+OPS_PARENT="/home/ubuntu/.cache/market-radar-ops/runtime-identity-ops"
 WEB_CONTAINER=""
 WEB_IMAGE=""
 POSTGRES_CONTAINER=""
@@ -123,8 +124,8 @@ cleanup_runtime_identity_packet() {
   [[ "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-runtime-identity/* \
     && "${APPROVED_SECURE_ROOT}" != "/home/ubuntu/.local/state/market-radar-runtime-identity" ]] \
     || exit 97
-  [[ "${APPROVED_OPS_ROOT}" == /var/lib/market-radar-ops/wp-g0-2-runtime-identity-* \
-    && "${APPROVED_OPS_ROOT}" != "/var/lib/market-radar-ops" ]] || exit 96
+  [[ "${APPROVED_OPS_ROOT}" == "${OPS_PARENT}"/wp-g0-2-runtime-identity-* \
+    && "${APPROVED_OPS_ROOT}" != "${OPS_PARENT}" ]] || exit 96
   [[ "$(basename "${ACTUAL_SOURCE_ROOT}")" == "${STAGING_BASENAME_PREFIX}"* \
     && "${ACTUAL_SOURCE_ROOT}" != "/" && "${ACTUAL_SOURCE_ROOT}" != "/home/ubuntu" ]] \
     || exit 98
@@ -194,8 +195,8 @@ fs.writeFileSync("/secure/role-admin.url", `${url}\n`, { mode: 0o600, flag: "wx"
 '
 chmod 600 "${APPROVED_SECURE_ROOT}/credentials.json" "${APPROVED_SECURE_ROOT}/role-admin.url"
 
-sudo -n install -d -m 0700 -o "$(id -u)" -g "$(id -g)" \
-  "${APPROVED_OPS_ROOT}" "${APPROVED_OPS_ROOT}/backups" "${APPROVED_OPS_ROOT}/evidence"
+install -d -m 0700 "${OPS_PARENT}" "${APPROVED_OPS_ROOT}" \
+  "${APPROVED_OPS_ROOT}/backups" "${APPROVED_OPS_ROOT}/evidence"
 
 REQUEST_FILE_OVERRIDE="${APPROVED_SECURE_ROOT}/request.json" \
 APPROVED_RUNTIME_REQUEST_SHA256="${APPROVED_RUNTIME_REQUEST_SHA256}" \

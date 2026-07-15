@@ -184,7 +184,7 @@ export function validateProductionExecutionRequest(request, bindings, { now = ne
     "production_request_staging_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-runtime-identity-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.evidenceDirectory ?? ""),
     "production_request_evidence_invalid");
-  ensure(/^\/var\/lib\/market-radar-ops\/wp-g0-2-runtime-identity-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.opsRoot ?? ""),
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/runtime-identity-ops\/wp-g0-2-runtime-identity-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.opsRoot ?? ""),
     "production_request_ops_root_invalid");
   ensure(/^\/home\/ubuntu\/\.local\/state\/market-radar-runtime-identity\/[a-z0-9][a-z0-9._-]{7,80}$/.test(request.secureRoot ?? ""),
     "production_request_secure_root_invalid");

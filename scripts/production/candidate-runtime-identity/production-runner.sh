@@ -96,7 +96,7 @@ DOCKER=(sudo -n docker)
 [[ -n "${SECURE_ROOT}" && -d "${SECURE_ROOT}" ]] || fail secure_root_missing
 [[ -n "${OPS_ROOT}" ]] || fail ops_root_missing
 case "${OPS_ROOT}/" in
-  /var/lib/market-radar-ops/wp-g0-2-runtime-identity-*/) ;;
+  /home/ubuntu/.cache/market-radar-ops/runtime-identity-ops/wp-g0-2-runtime-identity-*/) ;;
   /tmp/wp_g0_2_rehearsal_runtime_identity_runner_*/) ;;
   *) fail ops_root_invalid ;;
 esac

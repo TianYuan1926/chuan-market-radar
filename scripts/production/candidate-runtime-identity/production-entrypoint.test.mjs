@@ -24,6 +24,8 @@ test("entrypoint cleans exact staging and credential roots and forwards terminat
   assert.match(source, /rm -rf -- "\$\{ACTUAL_SOURCE_ROOT\}"/);
   assert.match(source, /rm -rf -- "\$\{APPROVED_SECURE_ROOT\}"/);
   assert.match(source, /rm -rf -- "\$\{APPROVED_OPS_ROOT\}"/);
+  assert.match(source, /OPS_PARENT="\/home\/ubuntu\/\.cache\/market-radar-ops\/runtime-identity-ops"/);
+  assert.doesNotMatch(source, /\/var\/lib\/market-radar-ops/);
   assert.match(source, /trap cleanup_runtime_identity_packet EXIT/);
   assert.match(source, /forward_signal TERM 143/);
   assert.match(source, /forward_signal INT 130/);

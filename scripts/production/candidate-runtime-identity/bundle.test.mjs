@@ -88,7 +88,7 @@ function requestFixture() {
     evidenceDirectory: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-runtime-identity-packet-0001",
     execute: true,
     operator: "codex-primary",
-    opsRoot: "/var/lib/market-radar-ops/wp-g0-2-runtime-identity-packet-0001",
+    opsRoot: "/home/ubuntu/.cache/market-radar-ops/runtime-identity-ops/wp-g0-2-runtime-identity-packet-0001",
     packageId: "WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION",
     runnerUnitName: "market-radar-runtime-identity-packet-0001",
     secureRoot: "/home/ubuntu/.local/state/market-radar-runtime-identity/packet-0001",
@@ -193,6 +193,10 @@ test("production execution request is exact, external, single-use and time bound
     ...request,
     autonomyAuthorization: { ...request.autonomyAuthorization, approvedBy: "codex-primary" },
   }, bindings), /issuer/);
+  assert.throws(() => validateProductionExecutionRequest({
+    ...request,
+    opsRoot: "/var/lib/market-radar-ops/wp-g0-2-runtime-identity-packet-0001",
+  }, bindings), /ops_root/);
 });
 
 test("staged transport fails closed on byte drift and symlink substitution", async () => {
