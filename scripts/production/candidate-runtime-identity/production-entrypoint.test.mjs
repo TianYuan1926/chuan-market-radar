@@ -99,6 +99,11 @@ test("production runner fences preflight, mutation, rollback and closeout with o
   assert.match(source, /export SHADOW_READY_TIMEOUT_SECONDS=0/);
   assert.match(source, /verify_dormant_candidate_contract/);
   assert.match(source, /dormant_refresh_non_target_container_drift/);
+  assert.match(source, /next_sample_at=\$\(\(started \+ sample_count \* poll\)\)/);
+  assert.match(source, /sleep_seconds=\$\(\(next_sample_at - now\)\)/);
+  assert.match(source, /dormant_refresh_sample_gap_too_large/);
+  assert.match(source, /dormant_refresh_schedule_lag_exceeded/);
+  assert.doesNotMatch(source, /sleep "\$\{poll\}"/);
   assert.match(source, /PASS_DORMANT_EVIDENCE_REFRESH/);
   assert.match(source, /--runner "\$\{RUNNER_MODULE\}"/);
   assert.doesNotMatch(source, /--runner "\$\{BASH_SOURCE\[0\]\}"/);

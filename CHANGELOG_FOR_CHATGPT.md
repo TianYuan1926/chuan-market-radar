@@ -4213,3 +4213,45 @@ P0 阻断：
 ### 下一轮建议
 
 只执行绑定新 clean commit 的 Runtime Identity 1800 秒只读续证和身份事务；Activation 继续关闭。
+
+## 2026-07-16 / WP-G0.2 Runtime Identity 续证采样漂移修复
+
+### 本轮目标
+
+如实修复生产续证在 1800 秒内只完成 51/57 个样本的问题，不缩短观察、不降低样本数、不放宽 ready/fresh 或 Candidate dormant 门禁。
+
+### 修改范围
+
+- `production-runner.sh` 改为从观察起点计算绝对采样时间，检查耗时不再叠加到下一轮固定 sleep。
+- 增加样本间隔和调度滞后硬失败，无法守住采样合同就继续 fail closed。
+- 更新 Runtime Identity 定向回归、两份治理 artifact、自治状态、traceability、Context 和本轮报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务 API、migration、业务数据、Redis、worker、Feature Flag 或 Candidate activation。
+
+### 核心链路影响
+
+只加强候选筛选和复盘进化的生产身份地基；不改变全市场发现、深扫、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Runtime Identity Runner 16/16：PASS。
+- Production Packet 11/11：PASS。
+- Runtime Identity transaction 14/14、Deploy Safety 6/6、Autonomy 31/31：PASS。
+- 隔离 PostgreSQL 16：migration 9、provision 3、rollback 3、最终 productionConnected=false：PASS。
+- typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip。
+- workers 23/23、historical smoke 4/4、backtest:golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+真实生产续证重试已执行但失败：只完成 51/57 个样本，随后自动回滚并验证生产基线恢复；没有创建 Runtime LOGIN，没有改权限、env 或 Web。旧 Bundle/request 已失效，当前修复尚未重新部署。
+
+### 风险与遗留问题
+
+- P0：无新增；回滚已验证。
+- P1：完整门禁、clean commit、自治 gate evidence 和全新 Bundle/request 尚未冻结。
+- P1：Runtime Identity、Candidate activation、WP-G0.2 和 G0 仍未完成。
+
+### 下一轮建议
+
+只完成当前修复的完整门禁与精确生产重试；Runtime Identity 未获得最终 PASS 前继续禁止 Candidate activation。

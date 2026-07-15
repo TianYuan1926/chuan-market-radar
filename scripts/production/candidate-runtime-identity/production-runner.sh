@@ -393,7 +393,8 @@ NODE
 
 refresh_dormant_evidence_if_required() {
   [[ "${DORMANT_EVIDENCE_REFRESH_REQUIRED}" == "true" ]] || return 0
-  local duration poll minimum_samples started deadline now remaining sample_count
+  local duration poll minimum_samples started deadline now sample_count next_sample_at sleep_seconds
+  local previous_sample_epoch sample_epoch
   local observation_file refreshed_file rollback_ref current_web current_image
   duration="$(jq -r '.dormantEvidence.freshnessRenewal.observationDurationSeconds' "${CONTRACT_FILE}")"
   poll="$(jq -r '.dormantEvidence.freshnessRenewal.pollSeconds' "${CONTRACT_FILE}")"
@@ -407,6 +408,7 @@ refresh_dormant_evidence_if_required() {
   started="$(date +%s)"
   deadline=$((started + duration))
   sample_count=0
+  previous_sample_epoch=0
   : > "${observation_file}"
   chmod 600 "${observation_file}"
   while true; do
@@ -431,6 +433,11 @@ refresh_dormant_evidence_if_required() {
       run_identity_safe_production_check >/dev/null
     )
     verify_dormant_candidate_contract
+    sample_epoch="$(date +%s)"
+    if (( previous_sample_epoch > 0 && sample_epoch - previous_sample_epoch > poll * 2 )); then
+      fail dormant_refresh_sample_gap_too_large
+    fi
+    previous_sample_epoch="${sample_epoch}"
     sample_count=$((sample_count + 1))
     jq -n -c \
       --arg sampledAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -439,9 +446,17 @@ refresh_dormant_evidence_if_required() {
       '{sampledAt:$sampledAt,sample:$sample,health:"ready",scanFreshness:"fresh",candidateMode:"dormant",candidateWorkerAbsent:true,webImageId:$webImageId}' \
       >> "${observation_file}"
     now="$(date +%s)"
-    (( now >= deadline )) && break
-    remaining=$((deadline - now))
-    (( remaining < poll )) && sleep "${remaining}" || sleep "${poll}"
+    if (( now >= deadline )); then
+      (( sample_count >= minimum_samples )) || fail dormant_refresh_sample_count_too_low
+      break
+    fi
+    next_sample_at=$((started + sample_count * poll))
+    if (( now < next_sample_at )); then
+      sleep_seconds=$((next_sample_at - now))
+      sleep "${sleep_seconds}"
+    elif (( now - next_sample_at > poll )); then
+      fail dormant_refresh_schedule_lag_exceeded
+    fi
   done
   (( $(date +%s) - started >= duration )) || fail dormant_refresh_duration_too_short
   (( sample_count >= minimum_samples )) || fail dormant_refresh_sample_count_too_low
