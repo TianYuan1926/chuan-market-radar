@@ -45,6 +45,12 @@ export async function validateRuntimeIdentityRunner(contract) {
   if (contract.dormantEvidence?.minimumObservationSeconds !== 1800
     || contract.dormantEvidence?.minimumSampleCount !== 57
     || contract.dormantEvidence?.maximumEvidenceAgeHours !== 24
+    || contract.dormantEvidence?.packageId
+      !== "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH"
+    || contract.dormantEvidence?.baselineCommit
+      !== "70722ea71b33268b688be5d42af9908d40f49859"
+    || contract.dormantEvidence?.summarySha256
+      !== "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c"
     || contract.dormantEvidence?.candidateRuntimeDormantRequired !== true
     || contract.dormantEvidence?.candidateWorkerAbsentRequired !== true
     || contract.dormantEvidence?.redactedEvidenceArchiveSha256
@@ -77,7 +83,8 @@ export async function validateRuntimeIdentityRunner(contract) {
   ])) violations.push("environment_key_allowlist");
   if (Object.values(contract.dormantBoundary ?? {}).some((value) => value === true)) violations.push("dormant_boundary");
   for (const token of [
-    "RUNTIME_IDENTITY_MODE:-dry_run", "contract.dormantEvidence.finalStatus", "assert_private_file",
+    "RUNTIME_IDENTITY_MODE:-dry_run", "validateDormantEvidence", "dormant_evidence_keys_mismatch",
+    "assert_private_file",
     "runtimeLoginsDropped", "env.production.before", "rollbackWebImageRef",
     "up -d --no-deps --no-build --force-recreate web",
     "production_branch_not_detached", "REQUIRE_IDENTITY_WRAPPER=true",

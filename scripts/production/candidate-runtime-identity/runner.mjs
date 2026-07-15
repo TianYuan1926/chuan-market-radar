@@ -14,6 +14,13 @@ const ENV_BY_PURPOSE = Object.freeze({
   source: "CANDIDATE_SOURCE_DATABASE_URL",
 });
 const PURPOSES = Object.freeze(["source", "consumer", "monitor"]);
+const DORMANT_SUMMARY_KEYS = Object.freeze([
+  "baselineCommit", "candidateDormant", "candidateWorkerAbsent", "completedAt",
+  "continuousReadyFresh", "databaseMutation", "detachedHead", "environmentMutation",
+  "observationDurationSeconds", "otherServiceMutation", "packageId", "redisMutation",
+  "rollbackCleanupRequiresSeparateApproval", "rollbackImageRetained", "rollbackWebImageRef",
+  "sampleCount", "status", "targetCommit", "webImageId",
+]);
 
 export class RuntimeIdentityPolicyError extends Error {
   constructor(readonlyReason) {
@@ -61,6 +68,8 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(request.packageId === PACKAGE_ID, "request_package_mismatch");
   ensure(request.dormantDeployStatus === contract.dormantEvidence?.finalStatus,
     "dormant_deploy_not_pass");
+  ensure(request.dormantDeployEvidenceSha256 === contract.dormantEvidence?.summarySha256,
+    "dormant_evidence_checksum_mismatch");
   ensure(/^[0-9a-f]{40}$/.test(request.approvedRunnerSourceCommit ?? ""),
     "approved_runner_source_commit_invalid");
   ensure(request.approvedProductionCommit === contract.productionTarget?.commit,
@@ -109,6 +118,42 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(expiresAt > issuedAt && expiresAt - issuedAt <= 90 * 60_000, "approval_window_too_long");
   ensure(nowMs >= issuedAt && nowMs <= expiresAt, "approval_window_not_active");
   return request;
+}
+
+export function validateDormantEvidence(dormant, request, contract, { now = new Date() } = {}) {
+  const boundary = contract.dormantEvidence ?? {};
+  ensure(exactKeys(dormant, DORMANT_SUMMARY_KEYS), "dormant_evidence_keys_mismatch");
+  ensure(dormant.status === boundary.finalStatus, "dormant_deploy_not_pass");
+  ensure(dormant.packageId === boundary.packageId, "dormant_package_mismatch");
+  ensure(dormant.baselineCommit === boundary.baselineCommit, "dormant_baseline_mismatch");
+  ensure(dormant.targetCommit === request.approvedProductionCommit
+    && dormant.targetCommit === contract.productionTarget?.commit,
+  "dormant_commit_mismatch");
+  ensure(dormant.webImageId === request.approvedWebImageId, "dormant_web_image_mismatch");
+  const completedAt = parseTimestamp(dormant.completedAt, "dormant_evidence_completed_at_invalid");
+  const nowMs = now instanceof Date ? now.getTime() : Number(now);
+  ensure(completedAt <= nowMs + 60_000
+    && nowMs - completedAt <= boundary.maximumEvidenceAgeHours * 60 * 60_000,
+  "dormant_evidence_not_fresh");
+  ensure(dormant.observationDurationSeconds >= boundary.minimumObservationSeconds,
+    "dormant_observation_too_short");
+  ensure(dormant.sampleCount >= boundary.minimumSampleCount, "dormant_sample_count_too_low");
+  ensure(dormant.detachedHead === true, "dormant_head_not_detached");
+  ensure(dormant.continuousReadyFresh === true, "dormant_health_not_continuous");
+  ensure(dormant.candidateDormant === boundary.candidateRuntimeDormantRequired,
+    "dormant_runtime_boundary_mismatch");
+  ensure(dormant.candidateWorkerAbsent === boundary.candidateWorkerAbsentRequired,
+    "dormant_worker_boundary_mismatch");
+  ensure(dormant.rollbackImageRetained === true, "dormant_rollback_image_not_retained");
+  ensure(dormant.rollbackCleanupRequiresSeparateApproval === true,
+    "dormant_rollback_cleanup_boundary_mismatch");
+  ensure(/^market-radar-rollback\/wp-g0-2-dormant:web-[0-9a-f]{16}$/.test(
+    dormant.rollbackWebImageRef ?? "",
+  ), "dormant_rollback_image_ref_invalid");
+  for (const key of ["databaseMutation", "redisMutation", "environmentMutation", "otherServiceMutation"]) {
+    ensure(dormant[key] === false, `dormant_${key}_must_be_false`);
+  }
+  return dormant;
 }
 
 async function assertSecureFile(path, label) {
@@ -343,6 +388,14 @@ async function main() {
     const request = JSON.parse(await readFile(resolve(options.request), "utf8"));
     validateApprovalRequest(request, contract, options.now ? { now: new Date(options.now) } : {});
     process.stdout.write('{"status":"pass","requestValid":true,"containsSecret":false}\n');
+    return;
+  }
+  if (command === "dormant-evidence") {
+    const contract = JSON.parse(await readFile(resolve(options.contract), "utf8"));
+    const request = JSON.parse(await readFile(resolve(options.request), "utf8"));
+    const dormant = JSON.parse(await readFile(resolve(options.evidence), "utf8"));
+    validateDormantEvidence(dormant, request, contract, options.now ? { now: new Date(options.now) } : {});
+    process.stdout.write('{"status":"pass","dormantEvidenceValid":true,"containsSecret":false}\n');
     return;
   }
   const credentials = validateCredentials(

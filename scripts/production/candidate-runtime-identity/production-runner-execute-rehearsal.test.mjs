@@ -61,22 +61,30 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
     wrapperPath: identityWrapper,
     wrapperSha256: sha256(await readFile(identityWrapper)),
   };
-  await writeFile(contractFile, JSON.stringify(localContract), { mode: 0o600 });
-
   const dormantEvidence = {
-    candidateDatabaseUrlsConfigured: 0,
-    candidateFeatureFlagsEnabled: 0,
-    candidateRuntimeDormant: true,
+    baselineCommit: localContract.dormantEvidence.baselineCommit,
+    candidateDormant: true,
     candidateWorkerAbsent: true,
     completedAt: new Date().toISOString(),
     continuousReadyFresh: true,
-    observationSeconds: 1800,
-    redactedEvidenceArchiveSha256: localContract.dormantEvidence.redactedEvidenceArchiveSha256,
+    databaseMutation: false,
+    detachedHead: true,
+    environmentMutation: false,
+    observationDurationSeconds: 1800,
+    otherServiceMutation: false,
+    packageId: localContract.dormantEvidence.packageId,
+    redisMutation: false,
+    rollbackCleanupRequiresSeparateApproval: true,
+    rollbackImageRetained: true,
+    rollbackWebImageRef: `market-radar-rollback/wp-g0-2-dormant:web-${"e".repeat(16)}`,
     sampleCount: 57,
     status: localContract.dormantEvidence.finalStatus,
     targetCommit: approvedProductionCommit,
+    webImageId: `sha256:${"f".repeat(64)}`,
   };
   const dormantEvidenceText = JSON.stringify(dormantEvidence);
+  localContract.dormantEvidence.summarySha256 = sha256(dormantEvidenceText);
+  await writeFile(contractFile, JSON.stringify(localContract), { mode: 0o600 });
 
   const request = {
     approvalExpiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
@@ -131,11 +139,7 @@ async function scenario({ failVerification = false, nodeRuntime = "host_node" } 
   await writeFile(join(secure, "request.json"), JSON.stringify(request), { mode: 0o600 });
   await writeFile(join(secure, "credentials.json"), JSON.stringify(credentials), { mode: 0o600 });
   await writeFile(join(secure, "role-admin.url"), "postgresql://redacted.invalid/database\n", { mode: 0o600 });
-  await writeFile(join(secure, "dormant-deploy-result.json"), JSON.stringify({
-    candidateDatabaseUrlsConfigured: 0,
-    candidateFeatureFlagsEnabled: 0,
-    ...dormantEvidence,
-  }), { mode: 0o600 });
+  await writeFile(join(secure, "dormant-deploy-result.json"), dormantEvidenceText, { mode: 0o600 });
 
   const fakeGit = [
     "#!/usr/bin/env node",
@@ -290,7 +294,7 @@ test("isolated runner configures only three URLs and keeps web-only dormant scop
   assert.match(result.dockerCalls, /runner\.mjs provision/);
   assert.match(result.dockerCalls, /up -d --no-deps --no-build --force-recreate web/);
   assert.match(result.dockerCalls, /compose config --services/);
-  assert.match(result.dockerCalls, /compose exec -T postgres/);
+  assert.match(result.dockerCalls, /compose --env-file .*\/\.env --env-file .*\/\.env\.production exec -T postgres/);
   assert.doesNotMatch(result.dockerCalls, /candidate-shadow-worker|--profile|--remove-orphans/);
 });
 

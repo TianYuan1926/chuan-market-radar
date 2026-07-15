@@ -194,28 +194,9 @@ run_isolated_node false "${SOURCE_ROOT}/scripts/production/candidate-dormant-dep
 run_isolated_node false "${SOURCE_ROOT}/scripts/production/candidate-dormant-deploy.mjs" \
   env --env-file "${ENV_FILE}" >/dev/null
 
-run_isolated_node false - "${REQUEST_FILE}" "${DORMANT_EVIDENCE_FILE}" "${CONTRACT_FILE}" <<'NODE'
-const fs = require("node:fs");
-const request = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-const dormant = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-const contract = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
-if (dormant.status !== contract.dormantEvidence.finalStatus) throw new Error("dormant_deploy_not_pass");
-if (dormant.targetCommit !== request.approvedProductionCommit
-  || dormant.targetCommit !== contract.productionTarget.commit) throw new Error("dormant_commit_mismatch");
-const completedAt = Date.parse(dormant.completedAt);
-if (!Number.isFinite(completedAt) || completedAt > Date.now() + 60_000
-  || Date.now() - completedAt > contract.dormantEvidence.maximumEvidenceAgeHours * 60 * 60_000) {
-  throw new Error("dormant_evidence_not_fresh");
-}
-if (dormant.observationSeconds < contract.dormantEvidence.minimumObservationSeconds
-  || dormant.sampleCount < contract.dormantEvidence.minimumSampleCount
-  || dormant.continuousReadyFresh !== true
-  || dormant.candidateRuntimeDormant !== true || dormant.candidateWorkerAbsent !== true
-  || dormant.redactedEvidenceArchiveSha256 !== contract.dormantEvidence.redactedEvidenceArchiveSha256
-  || dormant.candidateDatabaseUrlsConfigured !== 0 || dormant.candidateFeatureFlagsEnabled !== 0) {
-  throw new Error("dormant_boundary_mismatch");
-}
-NODE
+run_isolated_node false "${RUNNER_MODULE}" dormant-evidence \
+  --contract "${CONTRACT_FILE}" --request "${REQUEST_FILE}" \
+  --evidence "${DORMANT_EVIDENCE_FILE}" >/dev/null
 
 [[ "$(sha256sum "${BASE_ENV_FILE}" | awk '{print $1}')" == "${APPROVED_BASE_ENV_SHA256}" \
   && "$(sha256sum "${ENV_FILE}" | awk '{print $1}')" == "${APPROVED_PRODUCTION_ENV_SHA256}" \

@@ -4,6 +4,7 @@ import {
   renderIdentityEnvironment,
   validateApprovalRequest,
   validateCredentials,
+  validateDormantEvidence,
 } from "./runner.mjs";
 
 const credentials = {
@@ -104,6 +105,7 @@ test("approval authorizes role and URL mutation but never activation or business
     artifact: { sha256: "c".repeat(64) },
     dormantEvidence: {
       finalStatus: "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+      summarySha256: request.dormantDeployEvidenceSha256,
     },
     productionIdentity: {
       overridePath: request.identityOverridePath,
@@ -134,5 +136,68 @@ test("approval authorizes role and URL mutation but never activation or business
   assert.throws(
     () => validateApprovalRequest({ ...request, dormantDeployStatus: "PASS_DORMANT_RUNTIME_DEPLOY" }, contract, { now }),
     /dormant_deploy_not_pass/,
+  );
+  assert.throws(
+    () => validateApprovalRequest({ ...request, dormantDeployEvidenceSha256: "8".repeat(64) }, contract, { now }),
+    /dormant_evidence_checksum_mismatch/,
+  );
+});
+
+test("dormant evidence accepts the exact production summary schema and rejects weakened boundaries", () => {
+  const now = new Date("2026-07-15T02:10:00.000Z");
+  const request = {
+    approvedProductionCommit: "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    approvedWebImageId: "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd",
+  };
+  const contract = {
+    dormantEvidence: {
+      baselineCommit: "70722ea71b33268b688be5d42af9908d40f49859",
+      candidateRuntimeDormantRequired: true,
+      candidateWorkerAbsentRequired: true,
+      finalStatus: "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+      maximumEvidenceAgeHours: 24,
+      minimumObservationSeconds: 1800,
+      minimumSampleCount: 57,
+      packageId: "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
+    },
+    productionTarget: { commit: request.approvedProductionCommit },
+  };
+  const summary = {
+    status: contract.dormantEvidence.finalStatus,
+    packageId: contract.dormantEvidence.packageId,
+    completedAt: "2026-07-14T17:00:15Z",
+    baselineCommit: contract.dormantEvidence.baselineCommit,
+    targetCommit: request.approvedProductionCommit,
+    detachedHead: true,
+    webImageId: request.approvedWebImageId,
+    rollbackImageRetained: true,
+    rollbackWebImageRef: "market-radar-rollback/wp-g0-2-dormant:web-6d02c759f295e398",
+    rollbackCleanupRequiresSeparateApproval: true,
+    observationDurationSeconds: 1800,
+    sampleCount: 57,
+    continuousReadyFresh: true,
+    candidateDormant: true,
+    candidateWorkerAbsent: true,
+    databaseMutation: false,
+    redisMutation: false,
+    environmentMutation: false,
+    otherServiceMutation: false,
+  };
+  assert.equal(validateDormantEvidence(summary, request, contract, { now }), summary);
+  for (const [key, value, reason] of [
+    ["observationDurationSeconds", 1799, "dormant_observation_too_short"],
+    ["sampleCount", 56, "dormant_sample_count_too_low"],
+    ["candidateDormant", false, "dormant_runtime_boundary_mismatch"],
+    ["candidateWorkerAbsent", false, "dormant_worker_boundary_mismatch"],
+    ["databaseMutation", true, "dormant_databaseMutation_must_be_false"],
+  ]) {
+    assert.throws(
+      () => validateDormantEvidence({ ...summary, [key]: value }, request, contract, { now }),
+      new RegExp(reason),
+    );
+  }
+  assert.throws(
+    () => validateDormantEvidence({ ...summary, unknownField: true }, request, contract, { now }),
+    /dormant_evidence_keys_mismatch/,
   );
 });

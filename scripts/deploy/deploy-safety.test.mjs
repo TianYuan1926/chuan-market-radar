@@ -37,7 +37,7 @@ test("production check uses the checksum-bound privileged identity wrapper when 
   assert.match(source, /identity_override_not_root_owned_0600/);
   assert.match(source, /identity_wrapper_checksum_mismatch/);
   assert.match(source, /identity_override_checksum_mismatch/);
-  assert.match(source, /compose_cmd=\(sudo -n "\$\{IDENTITY_WRAPPER\}"\)/);
+  assert.match(source, /compose_cmd=\(sudo -n "\$\{IDENTITY_WRAPPER\}"[\s\\]+--env-file "\$\{BASE_ENV_FILE\}" --env-file "\$\{ENV_FILE\}"\)/);
 });
 
 test("production evidence captures Shadow runner status and logs", () => {

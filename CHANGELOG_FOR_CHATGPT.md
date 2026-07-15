@@ -3965,3 +3965,47 @@ P0 阻断：
 ### 下一轮建议
 
 冻结并推送本包后，刷新 Microsoft Edge/OrcaTerm 生产只读事实，只执行精确 Runtime Identity production transaction；不得夹带 Candidate activation。
+
+## 2026-07-15 / WP-G0.2 Runtime Identity 生产预检真值与 Verifier 兼容修复
+
+### 本轮目标
+
+在任何生产身份 mutation 前，用真实 Dormant 脱敏摘要和当前生产只读事实校验执行包，修复 verifier 通过 identity wrapper 调用 Compose 时遗漏锁定 env-file 的兼容缺口。
+
+### 修改范围
+
+- `candidate-runtime-identity/runner.mjs`：新增真实 Dormant evidence 的 19 字段、时效、观察、休眠、回滚和 mutation 边界校验。
+- `production-runner.sh`：删除错误的 inline 字段假设，统一调用受测试的 `dormant-evidence` 子命令。
+- `production-check.sh`：通过 root-owned wrapper 显式传入固定 `.env` 与 `.env.production`，不 source、不输出 secret。
+- 同步生产合同、runner preparation、治理校验器和三份攻击/边界测试。
+- 未修改 scan、analysis、strategy、backtest、frontend、业务 API、migration、Compose、Redis、worker、Feature Flag、Candidate activation 或 secret。
+
+### 核心链路影响
+
+加强候选筛选与深扫验证的运行身份地基；不改变全市场排序、结构判断、RR、止损、目标或交易计划。
+
+### 测试结果
+
+- Runtime Identity Runner：12/12 PASS；Production Packet：9/9 PASS。
+- Runtime Identity：14/14 PASS；Deploy Safety：6/6 PASS。
+- PostgreSQL 16：migration 9、provision 3、rollback 3、最终 LOGIN=0、productionConnected=false。
+- 两个治理 validator：PASS，无 violation。
+- typecheck、lint、build：PASS；test:market 960 pass / 0 fail / 4 explicit DB skip。
+- Golden 16/16、worker 23/23、historical 隔离测试 4/4 和三项安全门禁：PASS。
+- 额外联网 `backtest:historical`：本机到 Binance 与 Bybit 443 均超时，标记 `等待外部条件`；未将外部网络失败写成引擎 PASS，也未影响固定基础门禁。
+- formal：未运行，禁止。
+
+### 是否部署
+
+未部署、未创建 LOGIN、未写 Candidate URL、未 recreate Web。Microsoft Edge/OrcaTerm 仅执行只读 wrapper compatibility proof，确认绑定两份 env-file 后可解析现有 11 个 Compose 服务；当前生产仍为 `cec0b657...`、Web `sha256:cd3652...`、Candidate disabled/worker absent。
+
+### 风险与遗留问题
+
+- commit=`1ba960f...` 的旧 Bundle 与旧 artifact 已作废，禁止进入生产。
+- 当前只证明预检修法兼容，不等于 Runtime Identity 已在生产执行。
+- clean commit、最终可复现 Bundle 与外部一次性授权仍待冻结。
+- WP-G0.2/G0 未完成，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成固定门禁和 clean commit 后，重建绑定新 commit/tree/artifact 的脱敏 Bundle；只执行 Runtime Identity 身份事务，不得夹带 Candidate activation。

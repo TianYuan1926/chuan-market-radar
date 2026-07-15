@@ -74,7 +74,8 @@ if [[ "${identity_wrapper_requested}" == "true" ]]; then
     || fail identity_wrapper_checksum_mismatch
   [[ "$(sudo -n sha256sum "${IDENTITY_OVERRIDE_FILE}" | awk '{print $1}')" == "${IDENTITY_OVERRIDE_SHA256}" ]] \
     || fail identity_override_checksum_mismatch
-  compose_cmd=(sudo -n "${IDENTITY_WRAPPER}")
+  compose_cmd=(sudo -n "${IDENTITY_WRAPPER}" \
+    --env-file "${BASE_ENV_FILE}" --env-file "${ENV_FILE}")
   "${compose_cmd[@]}" config --services >/dev/null \
     || fail identity_wrapper_compose_unavailable
 elif command -v docker >/dev/null 2>&1; then

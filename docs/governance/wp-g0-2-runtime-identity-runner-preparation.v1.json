@@ -15,7 +15,10 @@
   },
   "dormantEvidence": {
     "finalStatus": "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
+    "packageId": "WP-G0.2-DORMANT-RUNTIME-DEPLOY-STANDING-AUTHORITY-AND-RUNNER-REFRESH",
+    "baselineCommit": "70722ea71b33268b688be5d42af9908d40f49859",
     "targetCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "summarySha256": "2ced16ca970c61e889eb966d5c32e8276f88d2f61d093ae9ab01c58f1330fc0c",
     "minimumObservationSeconds": 1800,
     "minimumSampleCount": 57,
     "maximumEvidenceAgeHours": 24,
@@ -37,7 +40,7 @@
     "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa"
   },
   "artifact": {
-    "sha256": "be3a3fe3095366e6fb8dd2e83e095dee1c4ec18ec9f1ce93d5284439b34560a3",
+    "sha256": "8335ea43de4ac12dce8506af234ef20f66fb1c87f68e938725aa895b5f8be872",
     "files": [
       "docker-compose.yml",
       "scripts/production/candidate-dormant-deploy.mjs",
