@@ -77,3 +77,14 @@ test("production runner fences preflight, mutation, rollback and closeout with o
   assert.match(source, /--runner "\$\{RUNNER_MODULE\}"/);
   assert.doesNotMatch(source, /--runner "\$\{BASH_SOURCE\[0\]\}"/);
 });
+
+test("production runner reads GNU stat output before the BSD fallback", async () => {
+  const source = await readFile(
+    "scripts/production/candidate-runtime-identity/production-runner.sh",
+    "utf8",
+  );
+  assert.match(source, /stat -c '%a' "\$1" 2>\/dev\/null \|\| stat -f '%Lp' "\$1"/);
+  assert.match(source, /stat -c '%u' "\$1" 2>\/dev\/null \|\| stat -f '%u' "\$1"/);
+  assert.match(source, /stat -c '%g' "\$1" 2>\/dev\/null \|\| stat -f '%g' "\$1"/);
+  assert.doesNotMatch(source, /stat -f '%Lp' "\$1" 2>\/dev\/null \|\| stat -c '%a' "\$1"/);
+});

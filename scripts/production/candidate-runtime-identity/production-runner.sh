@@ -34,15 +34,15 @@ fail() {
 }
 
 stat_mode() {
-  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
 }
 
 stat_uid() {
-  stat -f '%u' "$1" 2>/dev/null || stat -c '%u' "$1"
+  stat -c '%u' "$1" 2>/dev/null || stat -f '%u' "$1"
 }
 
 stat_gid() {
-  stat -f '%g' "$1" 2>/dev/null || stat -c '%g' "$1"
+  stat -c '%g' "$1" 2>/dev/null || stat -f '%g' "$1"
 }
 
 assert_private_file() {

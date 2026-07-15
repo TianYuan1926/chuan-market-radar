@@ -40,7 +40,7 @@
     "sqlSha256": "85ec2151f8d14513b6adc47831f6240aa9d96552abf439504904c64ee6e456aa"
   },
   "artifact": {
-    "sha256": "d656cb753237c9579da62abb6e6cea290c0c6f05fef167ea6a8a00b16ccba3ec",
+    "sha256": "e4e9abe4314694c34f0a9bc955fbb0dea13e75e16554ed6f42c32fdc275338f5",
     "files": [
       "docker-compose.yml",
       "scripts/production/candidate-dormant-deploy.mjs",
