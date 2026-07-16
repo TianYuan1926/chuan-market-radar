@@ -122,7 +122,10 @@ function snapshot(): MarketRadarSnapshot {
   };
 }
 
-function transactionAdapter({ controlReadFails = false } = {}) {
+function transactionAdapter({
+  controlReadFails = false,
+  sourceWriteFails = false,
+} = {}) {
   const sql: string[] = [];
   const adapter: PostgresTransactionAdapter = {
     async withTransaction(_options, work) {
@@ -141,6 +144,7 @@ function transactionAdapter({ controlReadFails = false } = {}) {
             }] as T[] };
           }
           if (/INSERT INTO scan_archives/.test(statement)) {
+            if (sourceWriteFails) throw new Error("synthetic source write failure");
             return { rows: [{ inserted: true }] as T[] };
           }
           if (/enqueue_shadow_candidate_outbox_v2/.test(statement)) {
@@ -247,7 +251,7 @@ test("control read failure fails closed to legacy archive without candidate writ
   assert.equal(result.runtime.migrationId, CANDIDATE_SHADOW_MIGRATION_ID);
 });
 
-test("active composition hard-stops unresolved identity instead of silently dropping a candidate", async () => {
+test("active composition reports unresolved identity without attempting a partial shadow write", async () => {
   const memory = createMemoryPersistenceRepository({ scope: "chuan-prod" });
   const repository = { ...memory, mode: "database" as const };
   const transactions = transactionAdapter();
@@ -269,10 +273,65 @@ test("active composition hard-stops unresolved identity instead of silently drop
     symbol: "MISSINGUSDT",
   });
 
-  await assert.rejects(
-    () => composition.persistScanArchive(summary(), replayFrame(), unresolved),
-    /shadow_candidate_identity_mapping_incomplete/,
-  );
+  const result = await composition.persistScanArchive(summary(), replayFrame(), unresolved);
+
+  assert.equal(result.shadowCapture?.status, "failed");
+  assert.equal(result.shadowCapture?.code, "shadow_candidate_identity_mapping_incomplete");
+  assert.equal(result.mapping?.complete, false);
   assert.equal(transactions.sql.some((sql) => /INSERT INTO scan_archives/.test(sql)), false);
   assert.equal(transactions.sql.some((sql) => /enqueue_shadow_candidate_outbox_v2/.test(sql)), false);
+});
+
+test("active composition reports source persistence failure without claiming shadow success", async () => {
+  const memory = createMemoryPersistenceRepository({ scope: "chuan-prod" });
+  const repository = { ...memory, mode: "database" as const };
+  const transactions = transactionAdapter({ sourceWriteFails: true });
+  const composition = new CandidateShadowCaptureComposition({
+    codeActivationAllowed: true,
+    env: {
+      CANDIDATE_EPISODE_SHADOW_WRITE: "true",
+      CANDIDATE_RUNTIME_RELEASE_ID: "release-composition-1",
+    },
+    now: () => new Date(generatedAt),
+    repository,
+    consumerTransactions: transactions.adapter,
+    monitorTransactions: transactions.adapter,
+    sourceTransactions: transactions.adapter,
+  });
+
+  const result = await composition.persistScanArchive(summary(), replayFrame(), snapshot());
+
+  assert.equal(result.shadowCapture.status, "failed");
+  assert.equal(result.shadowCapture.code, "shadow_candidate_source_persist_failed");
+  assert.equal(result.stored, null);
+});
+
+test("active composition reports forward-map failure after the atomic source archive succeeds", async () => {
+  const memory = createMemoryPersistenceRepository({ scope: "chuan-prod" });
+  const repository = {
+    ...memory,
+    mode: "database" as const,
+    async addV3ForwardMapSnapshots() {
+      throw new Error("synthetic forward-map failure");
+    },
+  };
+  const transactions = transactionAdapter();
+  const composition = new CandidateShadowCaptureComposition({
+    codeActivationAllowed: true,
+    env: {
+      CANDIDATE_EPISODE_SHADOW_WRITE: "true",
+      CANDIDATE_RUNTIME_RELEASE_ID: "release-composition-1",
+    },
+    now: () => new Date(generatedAt),
+    repository,
+    consumerTransactions: transactions.adapter,
+    monitorTransactions: transactions.adapter,
+    sourceTransactions: transactions.adapter,
+  });
+
+  const result = await composition.persistScanArchive(summary(), replayFrame(), snapshot());
+
+  assert.equal(result.shadowCapture.status, "failed");
+  assert.equal(result.shadowCapture.code, "shadow_candidate_forward_map_persist_failed");
+  assert.equal(result.stored?.id, "scan-composition-1");
 });

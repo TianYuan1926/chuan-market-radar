@@ -510,3 +510,86 @@ test("refreshMarketRadarSnapshot persists scan asset rotation states from covera
   assert.equal(bySymbol.get("SUIUSDT")?.consecutiveSkipped, 1);
   assert.equal(bySymbol.get("ENAUSDT")?.consecutiveSkipped, 1);
 });
+
+test("refreshMarketRadarSnapshot preserves the canonical archive but reports shadow capture failure", async () => {
+  const repository = createMemoryPersistenceRepository();
+  const provider: MarketDataProvider = {
+    id: "mock",
+    label: "Shadow Isolation Provider",
+    async fetchSnapshot() {
+      return snapshot([]);
+    },
+  };
+  const candidateShadowCaptureComposition = {
+    async persistScanArchive() {
+      return {
+        mapping: { complete: false, observations: [], rejections: [] },
+        runtime: { mode: "active" },
+        shadowCapture: {
+          code: "shadow_candidate_identity_mapping_incomplete",
+          status: "failed",
+        },
+        stored: null,
+      } as const;
+    },
+  } as unknown as NonNullable<Parameters<typeof refreshMarketRadarSnapshot>[1]>["candidateShadowCaptureComposition"];
+
+  const result = await refreshMarketRadarSnapshot(provider, {
+    candidateShadowCaptureComposition,
+    repository,
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.error, "shadow_candidate_identity_mapping_incomplete");
+  assert.equal(result.snapshot?.metadata.runtime?.persistedArchive, true);
+  assert.equal(result.snapshot?.metadata.runtime?.lastAttemptStatus, "failed");
+  assert.equal((await repository.listScanArchives()).length, 1);
+  assert.equal((await repository.getScanSnapshot())?.metadata.id, "scan-ai-boundary");
+});
+
+test("refreshMarketRadarSnapshot does not duplicate an archive already stored by shadow capture", async () => {
+  const baseRepository = createMemoryPersistenceRepository();
+  let archiveWrites = 0;
+  const repository = {
+    ...baseRepository,
+    async addScanArchive(...args: Parameters<typeof baseRepository.addScanArchive>) {
+      archiveWrites += 1;
+      return baseRepository.addScanArchive(...args);
+    },
+  };
+  const provider: MarketDataProvider = {
+    id: "mock",
+    label: "Stored Shadow Failure Provider",
+    async fetchSnapshot() {
+      return snapshot([]);
+    },
+  };
+  const candidateShadowCaptureComposition = {
+    async persistScanArchive(
+      summary: Parameters<typeof repository.addScanArchive>[0],
+      replayFrame: Parameters<typeof repository.addScanArchive>[1],
+      currentSnapshot: Parameters<typeof repository.addScanArchive>[2],
+    ) {
+      const stored = await repository.addScanArchive(summary, replayFrame, currentSnapshot);
+      return {
+        mapping: { complete: true, observations: [], rejections: [] },
+        runtime: { mode: "active" },
+        shadowCapture: {
+          code: "shadow_candidate_forward_map_persist_failed",
+          status: "failed",
+        },
+        stored,
+      } as const;
+    },
+  } as unknown as NonNullable<Parameters<typeof refreshMarketRadarSnapshot>[1]>["candidateShadowCaptureComposition"];
+
+  const result = await refreshMarketRadarSnapshot(provider, {
+    candidateShadowCaptureComposition,
+    repository,
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.error, "shadow_candidate_forward_map_persist_failed");
+  assert.equal(archiveWrites, 1);
+  assert.equal((await repository.listScanArchives()).length, 1);
+});

@@ -155,12 +155,16 @@ run_node() {
 run_node false "${RUNNER_MODULE}" "$([[ "${RUNNER_MODE}" == "automatic_rollback" ]] && echo rollback-request || echo request)" \
   --contract "${CONTRACT_FILE}" --request "${REQUEST_FILE}" >/dev/null
 
-if [[ "${REHEARSAL}" != "true" ]]; then
+[[ "$(sha_file "${BASE_ENV_FILE}")" == "$(jq -r '.baseEnvSha256' "${REQUEST_FILE}")" \
+  && "$(sha_file "${ROOT_DIR}/docker-compose.yml")" == "$(jq -r '.composeSha256' "${REQUEST_FILE}")" ]] \
+  || fail production_stable_input_checksum_mismatch
+if [[ "${RUNNER_MODE}" == "production_activate" ]]; then
   [[ "${WEB_IMAGE}" == "${APPROVED_WEB_IMAGE}" ]] || fail web_image_identity_mismatch
-  [[ "$(sha_file "${BASE_ENV_FILE}")" == "$(jq -r '.baseEnvSha256' "${REQUEST_FILE}")" \
-    && "$(sha_file "${ENV_FILE}")" == "$(jq -r '.productionEnvSha256' "${REQUEST_FILE}")" \
-    && "$(sha_file "${ROOT_DIR}/docker-compose.yml")" == "$(jq -r '.composeSha256' "${REQUEST_FILE}")" ]] \
-    || fail production_input_checksum_mismatch
+  [[ "$(sha_file "${ENV_FILE}")" == "$(jq -r '.productionEnvSha256' "${REQUEST_FILE}")" ]] \
+    || fail production_environment_checksum_mismatch
+else
+  [[ "$("${DOCKER[@]}" image inspect "${ROLLBACK_IMAGE_REF}" --format '{{.Id}}')" == "${APPROVED_WEB_IMAGE}" ]] \
+    || fail rollback_web_image_identity_mismatch
 fi
 
 database_runner() {
@@ -205,7 +209,7 @@ run_production_check() {
     BASE_URL="${BASE_URL}" STRICT_SCAN_FRESHNESS=true REQUIRE_IDENTITY_WRAPPER="$([[ "${REHEARSAL}" == "true" ]] && echo false || echo true)" \
     IDENTITY_WRAPPER="${IDENTITY_WRAPPER}" IDENTITY_WRAPPER_SHA256="$(jq -r '.identityWrapperSha256' "${REQUEST_FILE}")" \
     IDENTITY_OVERRIDE_FILE="${IDENTITY_OVERRIDE}" IDENTITY_OVERRIDE_SHA256="$(jq -r '.identityOverrideSha256' "${REQUEST_FILE}")" \
-    bash "${ROOT_DIR}/scripts/verify/production-check.sh"
+    bash "${SOURCE_ROOT}/scripts/verify/production-check.sh"
 }
 
 bounded_rollback() {

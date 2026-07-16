@@ -525,6 +525,11 @@ test("CoinGlass provider preserves public scan output when paid deep scan is pla
   assert.equal(snapshot.metadata.diagnostics?.requests.coinGlassRequestsPlanned, 3);
   assert.equal(snapshot.metadata.diagnostics?.requests.rawRows, 0);
   assert.equal(snapshot.metadata.anomalyCount, 0);
+  assert.equal(snapshot.instruments.length, 0);
+  assert.deepEqual(
+    snapshot.instrumentUniverse?.map((instrument) => instrument.id),
+    ["BINANCE-LIGHT:ARBUSDT"],
+  );
   assert.match(snapshot.metadata.notes.join("\n"), /coinglass deep scan degraded: 3\/3 requests failed/);
   assert.match(snapshot.metadata.notes.join("\n"), /BTC: Upgrade Plan/);
 });

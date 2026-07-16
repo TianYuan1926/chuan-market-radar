@@ -173,26 +173,71 @@ export class CandidateShadowCaptureComposition {
     const runtime = await this.runtimeState("source");
     if (!runtime.enabled || !this.dependencies.sourceTransactions) {
       const stored = await this.dependencies.repository.addScanArchive(summary, replayFrame, snapshot);
-      return { mapping: null, runtime, stored } as const;
+      return {
+        mapping: null,
+        runtime,
+        shadowCapture: { status: "dormant" },
+        stored,
+      } as const;
     }
     if (!snapshot) throw new Error("shadow_snapshot_required");
 
     const mapping = buildShadowCandidateObservations(snapshot, runtime.expectedReleaseId as string);
-    if (!mapping.complete) throw new Error("shadow_candidate_identity_mapping_incomplete");
+    if (!mapping.complete) {
+      return {
+        mapping,
+        runtime,
+        shadowCapture: {
+          code: "shadow_candidate_identity_mapping_incomplete",
+          status: "failed",
+        },
+        stored: null,
+      } as const;
+    }
     const writer = new CandidateShadowCaptureSourceWriter(this.dependencies.sourceTransactions);
-    await writer.persist({
-      authorityEpoch: runtime.authorityEpoch as number,
-      candidateScope: CANDIDATE_SHADOW_SCOPE,
-      candidates: mapping.observations,
-      legacyScope: this.dependencies.repository.scope,
-      migrationId: CANDIDATE_SHADOW_MIGRATION_ID,
-      replayFrame,
-      snapshot,
-      summary,
-    });
-    await this.dependencies.repository.addV3ForwardMapSnapshots(replayFrame);
+    try {
+      await writer.persist({
+        authorityEpoch: runtime.authorityEpoch as number,
+        candidateScope: CANDIDATE_SHADOW_SCOPE,
+        candidates: mapping.observations,
+        legacyScope: this.dependencies.repository.scope,
+        migrationId: CANDIDATE_SHADOW_MIGRATION_ID,
+        replayFrame,
+        snapshot,
+        summary,
+      });
+    } catch {
+      return {
+        mapping,
+        runtime,
+        shadowCapture: {
+          code: "shadow_candidate_source_persist_failed",
+          status: "failed",
+        },
+        stored: null,
+      } as const;
+    }
 
-    return { mapping, runtime, stored: summary } as const;
+    try {
+      await this.dependencies.repository.addV3ForwardMapSnapshots(replayFrame);
+    } catch {
+      return {
+        mapping,
+        runtime,
+        shadowCapture: {
+          code: "shadow_candidate_forward_map_persist_failed",
+          status: "failed",
+        },
+        stored: summary,
+      } as const;
+    }
+
+    return {
+      mapping,
+      runtime,
+      shadowCapture: { status: "persisted" },
+      stored: summary,
+    } as const;
   }
 
   async runBatch({ limit = 50, signal }: { limit?: number; signal?: AbortSignal } = {}) {

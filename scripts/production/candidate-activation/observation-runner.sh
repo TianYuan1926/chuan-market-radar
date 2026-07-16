@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 umask 077
 
 SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -148,7 +148,7 @@ cleanup_temporary_artifacts() {
 }
 
 automatic_rollback() {
-  local exit_code=$?
+  local exit_code="${1:-$?}"
   [[ "${exit_code}" -ne 0 ]] || return
   trap - ERR
   echo "ERROR: observation hard-stop; invoking pre-approved automatic rollback." >&2
@@ -166,7 +166,7 @@ automatic_rollback() {
   cleanup_temporary_artifacts
   exit "${exit_code}"
 }
-trap automatic_rollback ERR
+trap 'automatic_rollback "$?"' ERR
 lease_observation_checkpoint observation_start
 
 for (( sample_number=1; sample_number<=SAMPLE_LIMIT; sample_number++ )); do

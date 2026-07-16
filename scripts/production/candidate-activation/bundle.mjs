@@ -40,8 +40,11 @@ export const TRANSPORT_FILES = Object.freeze([
   "src/lib/candidate-episode/feature-flags.ts",
   "src/lib/candidate-episode/shadow-capture-admin.ts",
   "src/lib/candidate-episode/shadow-capture-composition.ts",
+  "src/lib/candidate-episode/shadow-capture-runtime.ts",
   "src/lib/candidate-episode/transaction-adapter.ts",
+  "src/lib/market/providers/coinglass-provider.ts",
   "src/lib/market/radar-snapshot.ts",
+  "src/lib/market/types.ts",
   "src/lib/runtime/worker-heartbeat.ts",
 ]);
 
@@ -110,7 +113,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || /CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = false as const/.test(flags)) violations.push("activation_release_lock");
   if (runnerArtifact.sha256 !== contract.runnerArtifact?.sha256 || runnerArtifact.fileCount !== 5) violations.push("runner_artifact");
   if (activationArtifact.sha256 !== contract.activationReleaseArtifact?.sha256
-      || activationArtifact.fileCount !== 16) violations.push("activation_artifact");
+      || activationArtifact.fileCount !== 19) violations.push("activation_artifact");
   if (sha256(migration) !== contract.schemaBoundary?.migration009Sha256
       || contract.schemaBoundary?.candidateLedgerRequired !== 9
       || contract.schemaBoundary?.migrationExecutionAllowed !== false

@@ -89,7 +89,7 @@ test("candidate shadow worker runs the protected dormant endpoint and drains on 
   }
 });
 
-test("scanner worker rejects served_cache even when the API responds with HTTP 200", async () => {
+test("scanner worker rejects served_cache and keeps the failure visible during idle heartbeats", async () => {
   const requests = [];
   const server = createServer((request, response) => {
     let body = "";
@@ -132,7 +132,7 @@ test("scanner worker rejects served_cache even when the API responds with HTTP 2
       APP_INTERNAL_URL: `http://127.0.0.1:${address.port}`,
       CRON_SECRET: "test-only-secret",
       SCANNER_INTERVAL_SECONDS: "60",
-      WORKER_IDLE_HEARTBEAT_SECONDS: "60",
+      WORKER_IDLE_HEARTBEAT_SECONDS: "1",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -147,6 +147,8 @@ test("scanner worker rejects served_cache even when the API responds with HTTP 2
     await waitFor(() => requests.some((request) => (
       request.url === "/api/admin/runtime/heartbeat"
       && request.body.includes('"task":"scheduled-scan"')
+      && request.body.includes('"status":"error"')
+      && request.body.includes('"detail":"idle;lastTaskStatus=error')
     )));
     child.kill("SIGTERM");
     const [code, signal] = await once(child, "exit");
@@ -162,6 +164,12 @@ test("scanner worker rejects served_cache even when the API responds with HTTP 2
       && request.body.includes('"status":"error"')
       && request.body.includes('"task":"scheduled-scan"')
     )), true);
+    assert.equal(requests.some((request) => (
+      request.url === "/api/admin/runtime/heartbeat"
+      && request.body.includes('"status":"ok"')
+      && request.body.includes('"detail":"idle;')
+      && request.body.includes('"task":"scheduled-scan"')
+    )), false);
   } finally {
     if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     server.close();

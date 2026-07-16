@@ -47,11 +47,25 @@ type RepositoryAwareMarketProviderOptions = {
 
 type SnapshotArchiveOptions = {
   allowRefresh?: boolean;
+  candidateShadowCaptureComposition?: Pick<
+    typeof appCandidateShadowCaptureComposition,
+    "persistScanArchive"
+  >;
   coordinator?: ScanCoordinator | null;
   persistArchive?: boolean;
   repository?: PersistenceRepository;
   trigger?: NonNullable<MarketRadarSnapshot["metadata"]["runtime"]>["trigger"];
 };
+
+class CandidateShadowCaptureArchiveError extends Error {
+  constructor(
+    readonly code: string,
+    readonly snapshot: MarketRadarSnapshot,
+  ) {
+    super(code);
+    this.name = "CandidateShadowCaptureArchiveError";
+  }
+}
 
 function readonlySnapshotTimeoutMs() {
   const parsed = Number(process.env.READONLY_SNAPSHOT_READ_TIMEOUT_MS);
@@ -348,6 +362,7 @@ export async function enrichSnapshotWithAiReviews(
 async function withArchive(
   snapshot: MarketRadarSnapshot,
   {
+    candidateShadowCaptureComposition,
     persistArchive = false,
     repository = appPersistenceRepository,
   }: SnapshotArchiveOptions = {},
@@ -357,13 +372,39 @@ async function withArchive(
 
   if (persistArchive) {
     const replayFrame = createReplayFrame(enriched);
+    let candidateShadowFailure: string | null = null;
 
-    if (repository === appPersistenceRepository) {
-      await appCandidateShadowCaptureComposition.persistScanArchive(
-        summarizeScanSnapshot(enriched),
-        replayFrame,
-        enriched,
-      );
+    if (candidateShadowCaptureComposition || repository === appPersistenceRepository) {
+      try {
+        const capture = candidateShadowCaptureComposition
+          ? await candidateShadowCaptureComposition.persistScanArchive(
+            summarizeScanSnapshot(enriched),
+            replayFrame,
+            enriched,
+          )
+          : await appCandidateShadowCaptureComposition.persistScanArchive(
+            summarizeScanSnapshot(enriched),
+            replayFrame,
+            enriched,
+        );
+        if (capture.shadowCapture?.status === "failed") {
+          candidateShadowFailure = capture.shadowCapture.code;
+          if (!capture.stored) {
+            await repository.addScanArchive(
+              summarizeScanSnapshot(enriched),
+              replayFrame,
+              enriched,
+            );
+          }
+        }
+      } catch {
+        candidateShadowFailure = "shadow_candidate_capture_unhandled_failure";
+        await repository.addScanArchive(
+          summarizeScanSnapshot(enriched),
+          replayFrame,
+          enriched,
+        );
+      }
     } else {
       await repository.addScanArchive(
         summarizeScanSnapshot(enriched),
@@ -384,6 +425,25 @@ async function withArchive(
         }),
       );
     }
+    const archivedSnapshot: MarketRadarSnapshot = {
+      ...enriched,
+      metadata: {
+        ...enriched.metadata,
+        runtime: {
+          ...enriched.metadata.runtime,
+          trigger: enriched.metadata.runtime?.trigger ?? "unknown",
+          persistedArchive: true,
+          repositoryMode: repository.mode,
+        },
+      },
+      archive: await archiveBundle(enriched.metadata.id, repository),
+    };
+
+    if (candidateShadowFailure) {
+      throw new CandidateShadowCaptureArchiveError(candidateShadowFailure, archivedSnapshot);
+    }
+
+    return archivedSnapshot;
   }
 
   return {
@@ -517,13 +577,46 @@ export async function refreshMarketRadarSnapshot(
     trigger: options.trigger ?? "cron_post",
   });
 
-  return {
-    ...result,
-    snapshot: result.snapshot ? await withArchive(result.snapshot, {
-      persistArchive: result.status === "updated",
-      repository,
-    }) : null,
-  };
+  if (!result.snapshot) return { ...result, snapshot: null };
+
+  try {
+    return {
+      ...result,
+      snapshot: await withArchive(result.snapshot, {
+        ...options,
+        persistArchive: result.status === "updated",
+        repository,
+      }),
+    };
+  } catch (error) {
+    if (!(error instanceof CandidateShadowCaptureArchiveError)) throw error;
+    const failedSnapshot: MarketRadarSnapshot = {
+      ...error.snapshot,
+      metadata: {
+        ...error.snapshot.metadata,
+        runtime: {
+          ...error.snapshot.metadata.runtime,
+          cacheStatus: "failed",
+          lastAttemptError: error.code,
+          lastAttemptStatus: "failed",
+          persistedArchive: true,
+          trigger: error.snapshot.metadata.runtime?.trigger ?? "unknown",
+        },
+        notes: [
+          ...error.snapshot.metadata.notes,
+          `candidate shadow capture failed after canonical archive persisted (${error.code})`,
+        ],
+      },
+    };
+    scanCache.set(failedSnapshot);
+
+    return {
+      ...result,
+      error: error.code,
+      snapshot: failedSnapshot,
+      status: "failed" as const,
+    };
+  }
 }
 
 export async function getScanArchive(replayId?: string) {

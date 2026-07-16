@@ -21,7 +21,11 @@ async function copyInto(sourceRoot, targetRoot, file) {
   await copyFile(join(sourceRoot, file), join(targetRoot, file));
 }
 
-async function scenario({ failBuild = false, failProductionCheck = false } = {}) {
+async function scenario({
+  failBuild = false,
+  failProductionCheck = false,
+  mode = "production_activate",
+} = {}) {
   const directory = await mkdtemp("/tmp/wp_g0_2_rehearsal_candidate_activation_");
   const source = join(directory, "source");
   const production = join(directory, "production");
@@ -31,6 +35,7 @@ async function scenario({ failBuild = false, failProductionCheck = false } = {})
   const dockerLog = join(directory, "docker.log");
   const gitLog = join(directory, "git.log");
   const gitState = join(directory, "git-state");
+  const verificationMarker = join(directory, "verification-source");
   const approvedCommit = "a".repeat(40);
   const rollbackCommit = "b".repeat(40);
   const releaseId = "candidate-shadow-rehearsal-release";
@@ -62,12 +67,21 @@ async function scenario({ failBuild = false, failProductionCheck = false } = {})
     "CANDIDATE_PRODUCTION_ACTIVATION_ALLOWED = true as const",
   ));
   await mkdir(join(production, "scripts", "verify"), { recursive: true });
-  await writeFile(join(production, ".env"), "POSTGRES_DB=market_radar\n", { mode: 0o600 });
+  const baseEnv = "POSTGRES_DB=market_radar\n";
+  const compose = "services: {}\n";
+  await writeFile(join(production, ".env"), baseEnv, { mode: 0o600 });
   await writeFile(join(production, ".env.production"), originalEnv, { mode: 0o600 });
-  await writeFile(join(production, "docker-compose.yml"), "services: {}\n");
+  await writeFile(join(production, "docker-compose.yml"), compose);
   await writeFile(join(production, "scripts", "verify", "production-check.sh"),
-    "#!/bin/sh\n[ \"${FAIL_PRODUCTION_CHECK:-false}\" = false ]\n");
+    "#!/bin/sh\nexit 99\n");
   await chmod(join(production, "scripts", "verify", "production-check.sh"), 0o755);
+  await writeFile(join(source, "scripts", "verify", "production-check.sh"), [
+    "#!/bin/sh",
+    "[ \"${FAIL_PRODUCTION_CHECK:-false}\" = false ] || exit 1",
+    "printf source > \"$VERIFY_MARKER\"",
+    "",
+  ].join("\n"));
+  await chmod(join(source, "scripts", "verify", "production-check.sh"), 0o755);
 
   const request = {
     approvalDigest: `sha256:${"d".repeat(64)}`,
@@ -93,7 +107,7 @@ async function scenario({ failBuild = false, failProductionCheck = false } = {})
     automaticControlRollbackAllowed: true,
     automaticEnvironmentRollbackAllowed: true,
     automaticServiceRollbackAllowed: true,
-    baseEnvSha256: "1".repeat(64),
+    baseEnvSha256: sha256(baseEnv),
     businessDmlAllowed: false,
     candidateDatabaseUrlMutationAllowed: false,
     candidateFeatureFlagEnablementAllowed: true,
@@ -102,7 +116,7 @@ async function scenario({ failBuild = false, failProductionCheck = false } = {})
     canonicalWriteAllowed: false,
     codeActivationAllowed: true,
     composeProfile: "candidate-shadow-runtime",
-    composeSha256: "2".repeat(64),
+    composeSha256: sha256(compose),
     controlLifecycleStartAllowed: true,
     dormantDeployStatus: "PASS_PRODUCTION_DORMANT_RUNTIME_WEB_ONLY_1800_SECOND_OBSERVATION",
     dormantEvidencePath: "/tmp/wp_g0_2_rehearsal_candidate_activation_evidence/summary.json",
@@ -124,7 +138,7 @@ async function scenario({ failBuild = false, failProductionCheck = false } = {})
     opsRoot: ops,
     packageId: "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
     postgresAdminEnvPath: "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
-    productionEnvSha256: "5".repeat(64),
+    productionEnvSha256: sha256(originalEnv),
     productionRoot: production,
     productionRankingMutationAllowed: false,
     releaseId,
@@ -169,6 +183,25 @@ async function scenario({ failBuild = false, failProductionCheck = false } = {})
   await writeFile(dockerLog, "");
   await writeFile(gitLog, "");
   await writeFile(gitState, rollbackCommit + "\n");
+  if (mode === "automatic_rollback") {
+    await mkdir(join(ops, "backups"), { recursive: true });
+    await mkdir(join(ops, "state"), { recursive: true });
+    await mkdir(join(ops, "evidence-retained"), { recursive: true });
+    await writeFile(join(ops, "backups", "env.production.before"), originalEnv, { mode: 0o600 });
+    await writeFile(join(production, ".env.production"), originalEnv.replace(
+      "CANDIDATE_EPISODE_SHADOW_WRITE=false",
+      "CANDIDATE_EPISODE_SHADOW_WRITE=true",
+    ), { mode: 0o600 });
+    await writeFile(join(ops, "state", "activation-state.json"), JSON.stringify({
+      schemaVersion: "candidate-activation-state.v2",
+      approvedCommit,
+      rollbackCommit,
+      rollbackWebImageRef: request.rollbackWebImageRef,
+      releaseId,
+    }), { mode: 0o600 });
+    await writeFile(join(ops, "evidence-retained", "production-lease-execution.json"), "{}\n", { mode: 0o600 });
+    await writeFile(gitState, approvedCommit + "\n");
+  }
 
   const fakeGit = `#!/usr/bin/env node
 const fs=require('fs'); const args=process.argv.slice(2); const joined=args.join(' ');
@@ -185,8 +218,9 @@ process.exit(0);
 const fs=require('fs'); const args=process.argv.slice(2); const joined=args.join(' ');
 fs.appendFileSync(process.env.FAKE_DOCKER_LOG,joined+'\\n');
 if (args[0]==='ps') process.exit(0);
-if (args[0]==='inspect' && joined.includes('{{.Image}}')) { console.log('sha256:old-web'); process.exit(0); }
+if (args[0]==='inspect' && joined.includes('{{.Image}}')) { console.log(process.env.FAKE_CURRENT_WEB_IMAGE); process.exit(0); }
 if (args[0]==='inspect' && joined.includes('NetworkSettings.Networks')) { console.log('rehearsal-network'); process.exit(0); }
+if (args[0]==='image' && args[1]==='inspect' && joined.includes('{{.Id}}')) { console.log(process.env.FAKE_APPROVED_WEB_IMAGE); process.exit(0); }
 if (args[0]==='tag') process.exit(0);
 if (args[0]==='run') {
   if (joined.includes('control-preflight')) console.log(JSON.stringify({status:'pass',candidateLedger:9,candidateControlRows:0}));
@@ -207,12 +241,14 @@ process.exit(0);
   const env = {
     ...process.env,
     BASE_ENV_FILE: join(production, ".env"),
-    CANDIDATE_ACTIVATION_MODE: "production_activate",
+    CANDIDATE_ACTIVATION_MODE: mode,
     CONFIRM_CANDIDATE_ACTIVATION: "true",
     ENV_FILE: join(production, ".env.production"),
     FAIL_PRODUCTION_CHECK: String(failProductionCheck),
     FAIL_BUILD: String(failBuild),
     FAKE_APPROVED_COMMIT: approvedCommit,
+    FAKE_APPROVED_WEB_IMAGE: request.webImageId,
+    FAKE_CURRENT_WEB_IMAGE: mode === "automatic_rollback" ? `sha256:${"7".repeat(64)}` : request.webImageId,
     FAKE_DOCKER_LOG: dockerLog,
     FAKE_GIT_LOG: gitLog,
     FAKE_GIT_STATE: gitState,
@@ -224,6 +260,7 @@ process.exit(0);
     REQUEST_FILE: join(secure, "request.json"),
     SECURE_ROOT: secure,
     START_CANDIDATE_OBSERVER: "false",
+    VERIFY_MARKER: verificationMarker,
   };
   try {
     await execFileAsync(join(fakeBin, "docker"), ["ps"], { env });
@@ -231,13 +268,18 @@ process.exit(0);
       join(source, "scripts/production/candidate-activation/production-runner.sh"),
     ], { cwd: production, env, maxBuffer: 2 * 1024 * 1024 });
     if (failBuild || failProductionCheck) await assert.rejects(execution);
-    else assert.match((await execution).stdout, /PASS_IMMEDIATE_SHADOW_CAPTURE_AWAITING_OBSERVATION/);
+    else if (mode === "automatic_rollback") {
+      assert.match((await execution).stdout, /PASS_AUTOMATIC_ROLLBACK_TO_DORMANT/);
+    } else {
+      assert.match((await execution).stdout, /PASS_IMMEDIATE_SHADOW_CAPTURE_AWAITING_OBSERVATION/);
+    }
     return {
       docker: await readFile(dockerLog, "utf8"),
       environment: await readFile(join(production, ".env.production"), "utf8"),
       git: await readFile(gitLog, "utf8"),
       head: (await readFile(gitState, "utf8")).trim(),
       originalEnv,
+      verificationSource: await readFile(verificationMarker, "utf8").catch(() => ""),
     };
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -254,6 +296,7 @@ test("isolated activation executes only shadow web and candidate worker scope", 
   assert.match(result.docker, /--profile candidate-shadow-runtime up -d --no-deps --no-build candidate-shadow-worker/);
   assert.doesNotMatch(result.docker, /--remove-orphans|candidate:migrate|backtest:formal/);
   assert.equal(result.head, "a".repeat(40));
+  assert.equal(result.verificationSource, "source");
 });
 
 test("isolated failure restores env, web, git and database control", async () => {
@@ -271,4 +314,13 @@ test("isolated image build failure restores git before control starts", async ()
   assert.match(result.docker, /build web candidate-shadow-worker/);
   assert.doesNotMatch(result.docker, /control-start|control-rollback/);
   assert.equal(result.head, "b".repeat(40));
+});
+
+test("automatic rollback accepts activated runtime and verifies with staged source", async () => {
+  const result = await scenario({ mode: "automatic_rollback" });
+  assert.equal(result.environment, result.originalEnv);
+  assert.equal(result.head, "b".repeat(40));
+  assert.equal(result.verificationSource, "source");
+  assert.match(result.docker, /image inspect market-radar-rollback\/wp-g0-2-candidate-activation/);
+  assert.match(result.docker, /control-rollback/);
 });

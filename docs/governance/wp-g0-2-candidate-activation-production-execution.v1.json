@@ -27,7 +27,7 @@
     "productionWorktreeMustBeCleanDetached": true
   },
   "runnerArtifact": {
-    "sha256": "9fd66066f35caab976576638e3b6f069d6e7c7f3bb7e938888c39afc7039af55",
+    "sha256": "0556176b5b99407cc8dded0ad38b9a3744e01c2b1ca09c5425183dc1df8c8ad6",
     "files": [
       "scripts/production/candidate-activation/bundle.mjs",
       "scripts/production/candidate-activation/observation-runner.sh",
@@ -37,7 +37,7 @@
     ]
   },
   "activationReleaseArtifact": {
-    "sha256": "c6518ecea8f74e4e942f43f04c0f60fd2bd98e23868b2840cc19cb9dd51546c3",
+    "sha256": "3503e051a0323a717b8f9fc454229de3a0f899c597b67d3b9b4ebc4f595c0f4d",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",
@@ -52,8 +52,11 @@
       "src/lib/candidate-episode/feature-flags.ts",
       "src/lib/candidate-episode/shadow-capture-admin.ts",
       "src/lib/candidate-episode/shadow-capture-composition.ts",
+      "src/lib/candidate-episode/shadow-capture-runtime.ts",
       "src/lib/candidate-episode/transaction-adapter.ts",
+      "src/lib/market/providers/coinglass-provider.ts",
       "src/lib/market/radar-snapshot.ts",
+      "src/lib/market/types.ts",
       "src/lib/runtime/worker-heartbeat.ts"
     ]
   },

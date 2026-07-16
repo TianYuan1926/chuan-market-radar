@@ -186,3 +186,42 @@ test("candidate mapper uses canonical venue identity and never copies trade dire
   assert.deepEqual(result.observations[0]?.discoveryReasons, ["deep_scan_candidate"]);
   assert.equal("strategy" in (result.observations[0] ?? {}), false);
 });
+
+test("candidate mapper resolves light-scan identities from the full instrument universe", () => {
+  const subject = snapshot();
+  subject.instrumentUniverse = [{
+    id: "BYBIT:MISSINGUSDT",
+    symbol: "MISSINGUSDT",
+    baseAsset: "MISSING",
+    quoteAsset: "USDT",
+    exchange: "BYBIT",
+    marketType: "perpetual",
+    isActive: true,
+    volume24hUsd: 500_000,
+    tags: ["public-futures-universe"],
+    lastSeenAt: "2026-07-12T00:00:00.000Z",
+  }, {
+    id: "UNKNOWN:MISSINGUSDT",
+    symbol: "MISSINGUSDT",
+    baseAsset: "MISSING",
+    quoteAsset: "USDT",
+    exchange: "UNKNOWN",
+    marketType: "perpetual",
+    isActive: true,
+    volume24hUsd: 0,
+    tags: ["static-fallback-universe"],
+    lastSeenAt: "2026-07-12T00:00:00.000Z",
+  }];
+
+  const result = buildShadowCandidateObservations(subject, "release-1");
+
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.rejections, []);
+  assert.equal(result.observations.some((item) => (
+    item.canonicalInstrumentId === "BYBIT:MISSINGUSDT"
+    && item.maturity === "light_candidate"
+  )), true);
+  assert.equal(result.observations.some((item) => (
+    item.canonicalInstrumentId === "UNKNOWN:MISSINGUSDT"
+  )), false);
+});

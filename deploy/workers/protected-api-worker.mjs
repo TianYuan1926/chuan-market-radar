@@ -278,6 +278,10 @@ async function runTaskLoop(task) {
   const intervalMs = task.intervalSeconds * 1_000;
   const scheduleMode = task.scheduleMode ?? "fixed_delay";
   let previousScheduledAtMs = Date.now();
+  let lastTaskHeartbeat = {
+    detail: `interval=${task.intervalSeconds}s;schedule=${scheduleMode}`,
+    status: "starting",
+  };
 
   log("task-started", {
     intervalSeconds: task.intervalSeconds,
@@ -294,7 +298,7 @@ async function runTaskLoop(task) {
   async function executeTask() {
     try {
       const result = await callTask(task);
-      await postHeartbeat({
+      lastTaskHeartbeat = {
         detail: [
           `result=${result.resultStatus ?? "none"}`,
           `snapshot=${result.snapshotId ?? "none"}`,
@@ -303,12 +307,18 @@ async function runTaskLoop(task) {
         ].join(";"),
         elapsedMs: result.elapsedMs,
         status: "ok",
+      };
+      await postHeartbeat({
+        ...lastTaskHeartbeat,
         task: task.name,
       });
     } catch (error) {
-      await postHeartbeat({
+      lastTaskHeartbeat = {
         detail: error instanceof Error ? error.message : "unknown error",
         status: "error",
+      };
+      await postHeartbeat({
+        ...lastTaskHeartbeat,
         task: task.name,
       });
       log("task-error", {
@@ -328,8 +338,15 @@ async function runTaskLoop(task) {
 
       if (remainingMs > 0) {
         await postHeartbeat({
-          detail: `idle;nextRunAt=${new Date(targetAtMs).toISOString()};remaining=${Math.ceil(remainingMs / 1_000)}s`,
-          status: "ok",
+          detail: [
+            "idle",
+            `lastTaskStatus=${lastTaskHeartbeat.status}`,
+            `lastTask=${lastTaskHeartbeat.detail}`,
+            `nextRunAt=${new Date(targetAtMs).toISOString()}`,
+            `remaining=${Math.ceil(remainingMs / 1_000)}s`,
+          ].join(";"),
+          elapsedMs: lastTaskHeartbeat.elapsedMs,
+          status: lastTaskHeartbeat.status,
           task: task.name,
         });
       }

@@ -116,9 +116,18 @@ export function buildShadowCandidateObservations(
   if (!releaseId.trim()) throw new Error("shadow_release_id_required");
   const observations = new Map<string, ShadowCandidateObservationV1>();
   const rejections: ShadowCandidateMappingRejection[] = [];
-  const activePerpetuals = snapshot.instruments.filter((item) => (
-    item.isActive && item.marketType === "perpetual"
-  ));
+  const activePerpetualsByIdentity = new Map<string, MarketRadarSnapshot["instruments"][number]>();
+  for (const item of [
+    ...(snapshot.instrumentUniverse ?? []),
+    ...snapshot.instruments,
+  ]) {
+    if (!item.isActive || item.marketType !== "perpetual") continue;
+    const identity = `${item.exchange}:${item.symbol}`;
+    if (!activePerpetualsByIdentity.has(identity)) {
+      activePerpetualsByIdentity.set(identity, item);
+    }
+  }
+  const activePerpetuals = [...activePerpetualsByIdentity.values()];
 
   const addObservation = ({
     sourceId,
@@ -138,15 +147,18 @@ export function buildShadowCandidateObservations(
     const exact = activePerpetuals.filter((instrument) => (
       instrument.symbol === symbol && (!exchange || instrument.exchange === exchange)
     ));
-    if (exact.length === 0) {
-      rejections.push({ sourceId, symbol, reason: "instrument_identity_unresolved" });
+    const supported = exact.filter((instrument) => (
+      supportedVenues.has(instrument.exchange as "BINANCE" | "OKX" | "BYBIT")
+    ));
+    if (supported.length === 0) {
+      rejections.push({
+        sourceId,
+        symbol,
+        reason: exact.length > 0 ? "venue_unsupported" : "instrument_identity_unresolved",
+      });
       return;
     }
-    for (const instrument of exact) {
-      if (!supportedVenues.has(instrument.exchange as "BINANCE" | "OKX" | "BYBIT")) {
-        rejections.push({ sourceId, symbol, reason: "venue_unsupported" });
-        continue;
-      }
+    for (const instrument of supported) {
       const price = priceFact(snapshot, instrument.symbol, instrument.exchange);
       const observation: ShadowCandidateObservationV1 = {
         schemaVersion: "shadow-candidate-observation.v1",

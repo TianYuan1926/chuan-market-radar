@@ -4241,6 +4241,7 @@ P0 阻断：
 - workers 23/23、historical smoke 4/4、backtest:golden 16/16：PASS。
 - forbidden-files、secret-patterns、security-check：PASS。
 - formal：未运行，按合同禁止。
+- 一次直接执行编译后 `radar-snapshot.test.js` 的辅助命令没有继承 `npm_lifecycle_event=test:market`，因而读到 `.next/cache` 开发快照并出现 4 个旧 no-refresh 断言失败；新增的 archive 单写回归当次已通过。随后使用规定的 `npm run test:market` 完整重跑为 965 pass / 0 fail / 4 explicit DB skip。该错误调用不计作 PASS 证据。
 
 ### 是否部署
 
@@ -4507,3 +4508,53 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只冻结并重试当前依赖根修复；即时验证通过后启动不可缩短的 24 小时观察。
+
+## 2026-07-16 / WP-G0.2 Activation 首次观察失败、基线恢复与 P0 收口
+
+### 本轮目标
+
+如实关闭第三次 Shadow Capture 生产激活暴露的核心扫描 HTTP 500、worker 假健康和自动回滚缺陷；在新版本重试前恢复可信 Dormant 基线并完成最小 P0 修复。
+
+### 修改范围
+
+- Candidate mapper 从完整公开合约 identity universe 与当前深扫 instrument 联合解析身份，不再把“未进入本轮深扫批次”误判为 unresolved。
+- Shadow Capture source/map 写入失败返回结构化 failed；核心 canonical scan archive 仍持久化，但刷新状态如实标记 failed，不让 Shadow 附属链路吞掉核心数据或伪装成功。
+- protected worker 的 idle heartbeat 保留最近一次真实 task error，直到后续真实任务成功，禁止 idle `ok` 覆盖扫描失败。
+- observation runner 修复 ERR trap 退出码；production runner 的回滚改为 active-state aware，并使用 staging 绑定 verifier 验证回滚基线。
+- Activation Bundle 增加 3 个实际运行时依赖文件，文件数由 16 调整为 19；刷新 artifact 与 contract checksum。
+- 更新自治状态、蓝图追踪矩阵、Context、Changelog 和中文交付报告。
+- 未修改 scan 排序、analysis、strategy、RR、Risk Gate、交易计划、frontend、migration、业务数据、Redis、Feature Flag 或 formal 回测。
+
+### 核心链路影响
+
+保护全市场发现与候选筛选：附属 Shadow Capture 失败不再破坏 canonical 扫描存档，同时生产健康状态能真实暴露失败；不改变候选排序、结构分析或交易计划。
+
+### 测试结果
+
+- Activation runner/rehearsal：28/28 PASS。
+- Composition wiring：32/32 PASS。
+- Shadow governance：4/4 + readiness 4/4 PASS。
+- Autonomy：31/31 PASS。
+- PostgreSQL 16 隔离演练：migration 1-9、control start 1、rollback 1、final legacy/epoch 2/writeFrozen true、productionConnected=false：PASS。
+- `npm run typecheck`：PASS。
+- `npm run lint`：PASS。
+- `npm run test:market`：969 total，965 pass / 0 fail / 4 explicit DB skip；worker 23/23；historical 4/4。
+- `npm run build`：PASS。
+- `npm run backtest:golden`：16/16 PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+第三次生产事务绑定 source `a23365f42a4ff465d733d17390651c7c9af1e892`、Bundle `b14681fd8bd309a991d5412bd8b0e1b626ff93b6c1539ba88a9d3e5ce842e569`、request `07bfc56e0df0578df9f2f97e60488a64ff6f5588a8776afbbe2f8c52cf64a1ec`。即时激活通过，但首个观察样本因 scanner-worker degraded 失败；旧 observer 自动回滚链也失败，随后独立紧急恢复验证生产已回到 clean detached `cec0b657...`、旧 Web `sha256:cd3652...`、Candidate worker absent、control legacy/epoch 2/writeFrozen=true、Web/Postgres/Redis healthy、lease=`ROLLBACK_PASS`。旧 Bundle/request 已消费且禁止复用。当前 P0 修复仅在本地，尚未 commit/push/重新部署。
+
+### 风险与遗留问题
+
+- P0：生产 mutation 已恢复，当前无已知残留 Candidate activation；P0 代码修复尚待 clean commit 和 commit-bound gate，不能重试生产前宣称关闭。
+- P1：新单次 Bundle/request、Shadow-only 生产重试和不可缩短的 24 小时/289 样本观察尚未完成。
+- P1：事故 stage/evidence/ops/secure 目录按证据保留，未伪装为已清理；清理必须独立精确执行。
+- Activation、WP-G0.2 和 G0 均未完成；系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只冻结当前 P0 修复、运行提交绑定自治总门禁并推送 main；随后生成全新单次 Bundle/request 重试 Shadow-only 激活。

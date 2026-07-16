@@ -713,6 +713,7 @@ export type ScanArchiveBundle = {
 export type MarketRadarSnapshot = {
   metadata: ScanMetadata;
   instrumentPool: InstrumentPoolResult;
+  instrumentUniverse?: ContractInstrument[];
   instruments: ContractInstrument[];
   tickers: MarketTicker[];
   derivatives: DerivativeSnapshot[];

@@ -33,6 +33,7 @@ import {
   type UniversePriorityHint,
 } from "../universe-registry";
 import type {
+  ContractInstrument,
   MarketDataStatus,
   MarketDataProvider,
   MarketRadarSnapshot,
@@ -67,6 +68,20 @@ import {
   type PublicLightScanProvider,
   type PublicLightScanResult,
 } from "./public-light-scan";
+
+function buildInstrumentIdentityUniverse(instruments: ContractInstrument[]) {
+  const identities = new Map<string, ContractInstrument>();
+
+  for (const instrument of instruments) {
+    if (!instrument.isActive || instrument.marketType !== "perpetual") continue;
+    const key = `${instrument.exchange}:${instrument.symbol}`;
+    if (!identities.has(key)) identities.set(key, instrument);
+  }
+
+  return [...identities.values()].sort((left, right) => (
+    left.exchange.localeCompare(right.exchange) || left.symbol.localeCompare(right.symbol)
+  ));
+}
 
 export type CoinGlassProviderOptions = {
   apiKey: string;
@@ -1027,6 +1042,10 @@ export function createCoinGlassProvider({
       const instruments = cleanMarketRows
         .map((row) => mapCoinGlassMarketInstrument(row, generatedAt))
         .filter((item): item is NonNullable<typeof item> => item !== null);
+      const instrumentUniverse = buildInstrumentIdentityUniverse([
+        ...combinedDiscoveryInstruments,
+        ...instruments,
+      ]);
       const instrumentPool = buildContractInstrumentPool(instruments, {
         minVolume24hUsd: 5_000_000,
       });
@@ -1285,6 +1304,7 @@ export function createCoinGlassProvider({
       return {
         metadata,
         instrumentPool,
+        instrumentUniverse,
         instruments,
         tickers,
         derivatives,
