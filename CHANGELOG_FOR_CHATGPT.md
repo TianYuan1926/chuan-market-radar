@@ -4598,3 +4598,50 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只冻结并重试 restart-safe lifecycle 修复；即时激活通过后启动不可缩短的 24 小时观察。
+
+## 2026-07-16 / WP-G0.2 Reconciliation 并行本地准备与生产观察真值同步
+
+### 本轮目标
+
+在 Candidate Activation 24 小时生产观察独立运行期间，提前完成下一 Gate 的只读 10,000 条逐笔投影对账工具，不缩短观察、不连接生产、不自动推进 phase。
+
+### 修改范围
+
+- 从历史未进入 main 的准备分支恢复 reconciliation 人机合同、治理 validator、只读 runner、纯函数测试和 PostgreSQL 16 演练，并按当前生产事实重新审计。
+- 将历史写死的 authority epoch 1 改为正奇数策略；请求、数据库控制行和可用的观察内嵌身份必须精确一致，覆盖当前生产 epoch 3。
+- 当前 Activation v1 最终结果未内嵌 release/epoch 时，显式采用“证据 SHA-256 + 新精确审批 + 数据库控制行”绑定并在结果标记，不伪造内嵌身份。
+- 修复 PG16 演练夹具的固定旧日期污染；样本改为相对本次动态 control window 生成，生产 runner 的窗口门禁未放宽。
+- 更新自治状态为生产观察 WIP=1、本地准备 WIP=1，并同步 Context 与中文交付报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务 API、migration、Compose、Feature Flag、生产 DB/Redis/worker/env 或 secret。
+
+### 核心链路影响
+
+加强候选筛选和复盘进化的 Candidate 投影真值；不改变全市场发现、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Reconciliation validator/dry-run 与纯函数/治理 9/9：PASS。
+- PostgreSQL 16：migration 1-9、10,000 compared writes、0 difference、只读事务拒写、phase unchanged、productionConnected=false，PASS。
+- Activation PG16：fresh epoch1 -> rollback epoch2 -> rearm epoch3 -> rollback epoch4，PASS。
+- Autonomy 31/31、typecheck、lint：PASS。
+- market 965 pass / 0 fail / 4 explicit DB skip；workers 23/23；historical 4/4，PASS。
+- build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- 自治总门禁：13/13 PASS，`worktreeUnchanged=true`。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+本地 Reconciliation 准备未部署、未连接生产。此前绑定 `e5eb900...` 的 Candidate Activation 生产 observer 继续独立运行；截至 `2026-07-16 22:59 +08:00` 为 active、31/289 样本。该状态不是最终 PASS。生产上传的两份 e5 脱敏运输文件仍待独立精确清理。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：Activation 仍须完成真实 24 小时/至少 289 样本并输出 checksum-bound `PASS_ACTIVATE_AND_OBSERVE`。
+- P1：生产 reconciliation 尚未执行；本地 10,000 条演练不能代替生产数据对账。
+- P1：canonical compat/read cutover、安全收口和 G0 Exit Audit 均未完成。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+保持 production HEAD 和 Candidate identity 冻结直至观察完成；并行完成 reconciliation clean commit 与后续 canonical compat 只读设计，生产动作必须等待最终观察证据。
