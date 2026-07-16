@@ -11,21 +11,22 @@ const { Client } = pg;
 const databaseUrl = process.env.WP_G0_2_RECONCILIATION_DATABASE_URL?.trim();
 assert.ok(databaseUrl, "reconciliation rehearsal database URL is required");
 
-const releaseId = "candidate-shadow-reconciliation-rehearsal";
-const migrationId = "candidate-episode-v1";
+const activationReleaseId = "candidate-shadow-reconciliation-cycle-1";
+const releaseId = "candidate-shadow-reconciliation-cycle-2";
+const migrationId = "candidate-episode-v1-cycle-2";
 
 function uuid(index, family) {
   return `${family.toString(16).padStart(8, "0")}-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
 }
 
-function record(index, controlStartedAt) {
+function record(index, releaseWindow) {
   const outboxId = uuid(index, 1);
   const episodeId = uuid(index, 2);
   const eventId = uuid(index, 3);
-  const instant = new Date(controlStartedAt.getTime() + 60 * 60_000 + index).toISOString();
+  const instant = new Date(releaseWindow.startedAt.getTime() + 60 * 60_000 + index).toISOString();
   const instrument = `BINANCE:RECON${index}USDT:PERP`;
   const scanId = `reconciliation-scan-${index}`;
-  const runtimeId = `candidate-shadow:${releaseId}:pg16-worker`;
+  const runtimeId = `candidate-shadow:${releaseWindow.releaseId}:pg16-worker`;
   const payload = {
     schemaVersion: "shadow-candidate-observation.v1",
     canonicalInstrumentId: instrument,
@@ -47,7 +48,7 @@ function record(index, controlStartedAt) {
     maturity: "light_candidate",
     directionState: "unknown",
     expiresAt: null,
-    releaseId,
+    releaseId: releaseWindow.releaseId,
     sourceScanCycleId: scanId,
   };
   const eventIdempotency = `shadow-projection:${outboxId}`;
@@ -86,7 +87,7 @@ function record(index, controlStartedAt) {
       maturity: payload.maturity,
       direction_state: payload.directionState,
       expires_at: null,
-      release_id: releaseId,
+      release_id: releaseWindow.releaseId,
       source_scan_cycle_id: scanId,
       created_by_runtime_id: runtimeId,
       idempotency_key: eventIdempotency,
@@ -101,7 +102,7 @@ function record(index, controlStartedAt) {
       event_time: instant,
       source_fact_ids: [payload.observationPriceFactId],
       source_scan_cycle_id: scanId,
-      release_id: releaseId,
+      release_id: releaseWindow.releaseId,
       runtime_id: runtimeId,
       idempotency_key: eventIdempotency,
       command_hash: commandHash,
@@ -129,12 +130,23 @@ const client = new Client({ connectionString: databaseUrl });
 await client.connect();
 try {
   const now = await client.query("SELECT clock_timestamp() AS now");
-  const startedAt = new Date(new Date(now.rows[0].now).getTime() - 25 * 60 * 60_000);
+  const startedAt = new Date(new Date(now.rows[0].now).getTime() - 60 * 60_000);
   const deadlineAt = new Date(startedAt.getTime() + 72 * 60 * 60_000);
+  const activationStartedAt = new Date(startedAt.getTime() - 72 * 60 * 60_000);
+  const activationDeadlineAt = new Date(startedAt);
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
     migration_id, phase, epoch, started_at, deadline_at, write_frozen,
     approved_release_id, approval_digest, updated_at
-  ) VALUES ($1,'shadow_capture',3,$2,$3,false,$4,$5,$2)`, [
+  ) VALUES ('candidate-episode-v1','legacy',4,$1,$2,true,$3,$4,$2)`, [
+    activationStartedAt.toISOString(),
+    activationDeadlineAt.toISOString(),
+    activationReleaseId,
+    `sha256:${"c".repeat(64)}`,
+  ]);
+  await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
+    migration_id, phase, epoch, started_at, deadline_at, write_frozen,
+    approved_release_id, approval_digest, updated_at
+  ) VALUES ($1,'shadow_capture',1,$2,$3,false,$4,$5,$2)`, [
     migrationId,
     startedAt.toISOString(),
     deadlineAt.toISOString(),
@@ -143,10 +155,32 @@ try {
   ]);
 
   const batchSize = 250;
+  const sourceReleaseWindows = [
+    {
+      authorityEpoch: 3,
+      deadlineAt: activationDeadlineAt.toISOString(),
+      migrationId: "candidate-episode-v1",
+      releaseId: activationReleaseId,
+      startedAt: activationStartedAt.toISOString(),
+    },
+    {
+      authorityEpoch: 1,
+      deadlineAt: deadlineAt.toISOString(),
+      migrationId,
+      releaseId,
+      startedAt: startedAt.toISOString(),
+    },
+  ];
   for (let offset = 0; offset < MINIMUM_COMPARED_WRITES; offset += batchSize) {
     const batch = Array.from(
       { length: Math.min(batchSize, MINIMUM_COMPARED_WRITES - offset) },
-      (_, index) => record(offset + index + 1, startedAt),
+      (_, index) => {
+        const absoluteIndex = offset + index + 1;
+        const releaseWindow = absoluteIndex <= MINIMUM_COMPARED_WRITES / 2
+          ? { releaseId: activationReleaseId, startedAt: activationStartedAt }
+          : { releaseId, startedAt };
+        return record(absoluteIndex, releaseWindow);
+      },
     );
     await client.query(`INSERT INTO candidate_authority.candidate_episodes (
       schema_version, scope, episode_id, canonical_instrument_id, venue_context,
@@ -190,11 +224,13 @@ try {
   await client.query("ROLLBACK");
 
   const evidence = await collectReadOnlyEvidence(client, {
+    activationAuthorityEpoch: 3,
     activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
-    authorityEpoch: 3,
+    authorityEpoch: 1,
     migrationId,
     releaseId,
     activationEvidenceSha256: `sha256:${"a".repeat(64)}`,
+    sourceReleaseWindows,
   }, {
     status: "PASS_ACTIVATE_AND_OBSERVE",
     automaticPhaseAdvance: false,
@@ -203,6 +239,8 @@ try {
     coverageHours: 24,
     maximumGapSeconds: 300,
     sampleCount: 289,
+    releaseId: activationReleaseId,
+    authorityEpoch: 3,
   });
   assert.equal(
     evidence.status,
@@ -217,6 +255,38 @@ try {
     currentRole: "candidate_audit_role",
     transactionReadOnly: true,
   });
+  await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
+    migration_id, phase, epoch, started_at, deadline_at, write_frozen,
+    approved_release_id, approval_digest, updated_at
+  ) VALUES ('candidate-episode-v1-cycle-3','legacy',2,$1,$2,true,$3,$4,$1)`, [
+    new Date(deadlineAt.getTime() + 1_000).toISOString(),
+    new Date(deadlineAt.getTime() + 72 * 60 * 60_000).toISOString(),
+    "candidate-shadow-unapproved-cycle-3",
+    `sha256:${"e".repeat(64)}`,
+  ]);
+  await assert.rejects(
+    collectReadOnlyEvidence(client, {
+      activationAuthorityEpoch: 3,
+      activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
+      authorityEpoch: 1,
+      migrationId,
+      releaseId,
+      activationEvidenceSha256: `sha256:${"a".repeat(64)}`,
+      sourceReleaseWindows,
+    }, {
+      status: "PASS_ACTIVATE_AND_OBSERVE",
+      automaticPhaseAdvance: false,
+      comparedWritesGateEvaluated: false,
+      completedWrites: MINIMUM_COMPARED_WRITES,
+      coverageHours: 24,
+      maximumGapSeconds: 300,
+      sampleCount: 289,
+      releaseId: activationReleaseId,
+      authorityEpoch: 3,
+    }),
+    (error) => error?.reason === "database_control_lineage_count_mismatch",
+  );
+  await client.query("DELETE FROM candidate_authority.candidate_migration_control WHERE migration_id='candidate-episode-v1-cycle-3'");
   const boundary = await client.query(`SELECT phase, epoch::int, write_frozen,
     (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
       WHERE source_type='legacy_scan_candidate') AS source_writes,
@@ -224,7 +294,7 @@ try {
     FROM candidate_authority.candidate_migration_control WHERE migration_id=$1`, [migrationId]);
   assert.deepEqual(boundary.rows[0], {
     phase: "shadow_capture",
-    epoch: 3,
+    epoch: 1,
     write_frozen: false,
     source_writes: MINIMUM_COMPARED_WRITES,
     projection_events: MINIMUM_COMPARED_WRITES,

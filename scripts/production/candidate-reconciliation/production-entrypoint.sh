@@ -34,6 +34,7 @@ APPROVED_POSTGRES_ADMIN_ENV="$(jq -r '.postgresAdminEnvPath // empty' "${REQUEST
 ACTIVATION_FINAL="$(jq -r '.activationEvidencePath // empty' "${REQUEST_FILE}")"
 ACTIVATION_CLOSEOUT="$(jq -r '.activationCloseoutPath // empty' "${REQUEST_FILE}")"
 ACTIVATION_SAMPLES="$(jq -r '.activationSamplesPath // empty' "${REQUEST_FILE}")"
+LINEAGE_FINAL="$(jq -r '.lineageEvidencePath // empty' "${REQUEST_FILE}")"
 ACTUAL_SOURCE_ROOT="$(realpath "${SOURCE_ROOT}")"
 ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
 
@@ -72,6 +73,13 @@ for file in "${ACTIVATION_FINAL}" "${ACTIVATION_CLOSEOUT}" "${ACTIVATION_SAMPLES
   [[ -f "${file}" && ! -L "${file}" && "$(realpath "${file}")" == "${file}" ]] \
     || fail "activation_evidence_missing:$(basename "${file}")"
 done
+LINEAGE_DIRECTORY="$(dirname "${LINEAGE_FINAL}")"
+[[ "$(realpath "${LINEAGE_DIRECTORY}")" == "${LINEAGE_DIRECTORY}"
+  && "${LINEAGE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-lineage-* ]] \
+  || fail lineage_evidence_directory_invalid
+[[ -f "${LINEAGE_FINAL}" && ! -L "${LINEAGE_FINAL}"
+  && "$(realpath "${LINEAGE_FINAL}")" == "${LINEAGE_FINAL}" ]] \
+  || fail lineage_evidence_missing
 
 sudo -n docker ps >/dev/null 2>&1 || fail docker_unavailable
 DOCKER=(sudo -n docker)
@@ -89,6 +97,7 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --mount "type=bind,src=${ACTUAL_SOURCE_ROOT},dst=/packet,readonly" \
   --mount "type=bind,src=${ACTIVATION_DIRECTORY},dst=${ACTIVATION_DIRECTORY},readonly" \
+  --mount "type=bind,src=${LINEAGE_DIRECTORY},dst=${LINEAGE_DIRECTORY},readonly" \
   --entrypoint node "${WEB_IMAGE}" \
   /packet/scripts/production/candidate-reconciliation/bundle.mjs validate-request \
     --root /packet --request /packet/approval-request.json \
@@ -146,6 +155,7 @@ chmod 700 "${APPROVED_SECURE_ROOT}"
 install -m 0600 "${ACTIVATION_FINAL}" "${APPROVED_SECURE_ROOT}/observation-final.json"
 install -m 0600 "${ACTIVATION_CLOSEOUT}" "${APPROVED_SECURE_ROOT}/observation-closeout.json"
 install -m 0600 "${ACTIVATION_SAMPLES}" "${APPROVED_SECURE_ROOT}/observation-samples.jsonl"
+install -m 0600 "${LINEAGE_FINAL}" "${APPROVED_SECURE_ROOT}/lineage-final.json"
 jq '.reconciliationApproval' "${ACTUAL_REQUEST}" > "${APPROVED_SECURE_ROOT}/reconciliation-request.json"
 chmod 600 "${APPROVED_SECURE_ROOT}/reconciliation-request.json"
 [[ "$(sudo -n stat -c '%a' "${POSTGRES_ADMIN_ENV}")" == "600" \

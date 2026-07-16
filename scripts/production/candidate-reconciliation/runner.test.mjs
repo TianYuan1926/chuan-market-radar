@@ -26,13 +26,25 @@ test("production runner resolves pg from the approved application runtime", () =
 });
 
 const releaseId = "candidate-shadow-release-20260712";
+const sourceReleaseWindow = {
+  migrationId: "candidate-episode-v1",
+  releaseId,
+  authorityEpoch: 3,
+  startedAt: "2026-07-12T00:00:00.000Z",
+  deadlineAt: "2026-07-15T00:00:00.000Z",
+  startedAtMs: Date.parse("2026-07-12T00:00:00.000Z"),
+  deadlineAtMs: Date.parse("2026-07-15T00:00:00.000Z"),
+};
 const context = {
   activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
+  activationAuthorityEpoch: 3,
+  activationReleaseId: releaseId,
   authorityEpoch: 3,
   controlStartedAt: Date.parse("2026-07-12T00:00:00.000Z"),
   controlDeadlineAt: Date.parse("2026-07-15T00:00:00.000Z"),
   observationEvidenceSha256: `sha256:${"a".repeat(64)}`,
   releaseId,
+  sourceReleaseWindows: [sourceReleaseWindow],
 };
 const control = {
   phase: "shadow_capture",
@@ -59,17 +71,18 @@ const statusCounts = {
   resolvedQuarantine: 0,
   unresolvedQuarantine: 0,
   unresolvedTotal: 0,
+  outsideLineage: 0,
 };
 
 function uuid(index, family) {
   return `${family.toString(16).padStart(8, "0")}-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
 }
 
-function fixtureRow(index = 1) {
+function fixtureRow(index = 1, rowReleaseId = releaseId, baseTime = "2026-07-12T01:00:00.000Z") {
   const outboxId = uuid(index, 1);
   const eventId = uuid(index, 2);
   const episodeId = uuid(index, 3);
-  const instant = new Date(Date.parse("2026-07-12T01:00:00.000Z") + index).toISOString();
+  const instant = new Date(Date.parse(baseTime) + index).toISOString();
   const instrument = `BINANCE:ASSET${index}USDT:PERP`;
   const scanId = `scan-${index}`;
   const payload = {
@@ -93,7 +106,7 @@ function fixtureRow(index = 1) {
     maturity: "light_candidate",
     directionState: "unknown",
     expiresAt: null,
-    releaseId,
+    releaseId: rowReleaseId,
     sourceScanCycleId: scanId,
   };
   const row = {
@@ -114,8 +127,8 @@ function fixtureRow(index = 1) {
     event_type: "DISCOVERED",
     event_time: instant,
     event_source_scan_cycle_id: scanId,
-    event_release_id: releaseId,
-    event_runtime_id: `${releaseId.replace("candidate-shadow-release", "candidate-shadow:candidate-shadow-release")}:worker-1`,
+    event_release_id: rowReleaseId,
+    event_runtime_id: `candidate-shadow:${rowReleaseId}:worker-1`,
     event_idempotency_key: `shadow-projection:${outboxId}`,
     event_command_hash: null,
     event_payload_version: "candidate-event.v1",
@@ -125,7 +138,6 @@ function fixtureRow(index = 1) {
     episode_first_seen_at: instant,
     episode_last_seen_at: instant,
   };
-  row.event_runtime_id = `candidate-shadow:${releaseId}:worker-1`;
   row.event_command_hash = hashProjectionCommand({
     scope: "production_radar",
     canonicalInstrumentId: payload.canonicalInstrumentId,
@@ -149,6 +161,7 @@ function fixtureRow(index = 1) {
 
 const contract = { runnerArtifact: { sha256: "b".repeat(64) } };
 const request = {
+  activationAuthorityEpoch: 3,
   activationEvidenceSha256: `sha256:${"a".repeat(64)}`,
   activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
   approvalExpiresAt: "2026-07-12T09:00:00.000Z",
@@ -173,6 +186,13 @@ const request = {
   reviewReadAllowed: false,
   schemaDdlAllowed: false,
   shadowVerifyTransitionAllowed: false,
+  sourceReleaseWindows: [{
+    authorityEpoch: 3,
+    deadlineAt: sourceReleaseWindow.deadlineAt,
+    migrationId: sourceReleaseWindow.migrationId,
+    releaseId: sourceReleaseWindow.releaseId,
+    startedAt: sourceReleaseWindow.startedAt,
+  }],
 };
 
 test("approval authorizes only a read-only comparison and preserves the 24h/10000 gates", () => {
@@ -197,7 +217,14 @@ test("approval authorizes only a read-only comparison and preserves the 24h/1000
     }),
     /compared_writes_threshold_changed/,
   );
-  assert.equal(validateApprovalRequest({ ...request, authorityEpoch: 1 }, contract, {
+  assert.equal(validateApprovalRequest({
+    ...request,
+    activationAuthorityEpoch: 1,
+    authorityEpoch: 1,
+    sourceReleaseWindows: request.sourceReleaseWindows.map((window) => ({
+      ...window, authorityEpoch: 1,
+    })),
+  }, contract, {
     now: new Date("2026-07-12T08:30:00.000Z"),
   }).authorityEpoch, 1);
   assert.throws(
@@ -206,6 +233,60 @@ test("approval authorizes only a read-only comparison and preserves the 24h/1000
     }),
     /authority_epoch_not_active_odd/,
   );
+  assert.throws(
+    () => validateApprovalRequest({
+      ...request,
+      migrationId: "candidate-episode-v1-cycle-3",
+      sourceReleaseWindows: [
+        request.sourceReleaseWindows[0],
+        {
+          authorityEpoch: 1,
+          deadlineAt: "2026-07-18T00:00:00.000Z",
+          migrationId: "candidate-episode-v1-cycle-3",
+          releaseId: "candidate-shadow-release-cycle-3",
+          startedAt: "2026-07-15T00:00:00.000Z",
+        },
+      ],
+    }, contract, { now: new Date("2026-07-12T08:30:00.000Z") }),
+    /source_release_window_not_adjacent:1/,
+  );
+});
+
+test("multi-cycle reconciliation compares each row inside its own immutable release window", () => {
+  const secondReleaseId = "candidate-shadow-release-cycle-2";
+  const secondWindow = {
+    migrationId: "candidate-episode-v1-cycle-2",
+    releaseId: secondReleaseId,
+    authorityEpoch: 1,
+    startedAt: "2026-07-15T00:00:00.000Z",
+    deadlineAt: "2026-07-18T00:00:00.000Z",
+    startedAtMs: Date.parse("2026-07-15T00:00:00.000Z"),
+    deadlineAtMs: Date.parse("2026-07-18T00:00:00.000Z"),
+  };
+  const multiContext = {
+    ...context,
+    authorityEpoch: 1,
+    controlStartedAt: secondWindow.startedAtMs,
+    controlDeadlineAt: secondWindow.deadlineAtMs,
+    releaseId: secondReleaseId,
+    sourceReleaseWindows: [sourceReleaseWindow, secondWindow],
+  };
+  const rows = Array.from({ length: MINIMUM_COMPARED_WRITES }, (_, index) => (
+    index < 5_000
+      ? fixtureRow(index + 1)
+      : fixtureRow(index + 1, secondReleaseId, "2026-07-15T01:00:00.000Z")
+  ));
+  const result = evaluateReconciliationEvidence({
+    context: multiContext,
+    control: { ...control, authorityEpoch: 1, releaseId: secondReleaseId },
+    observation: { ...observation, releaseId, authorityEpoch: 3 },
+    rows,
+    statusCounts,
+  });
+  assert.equal(result.status,
+    "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL");
+  assert.equal(result.sourceReleaseCount, 2);
+  assert.equal(result.verificationMigrationId, "candidate-episode-v1-cycle-2");
 });
 
 test("one compared write requires exact immutable source, projection command and target identity", () => {
@@ -320,6 +401,15 @@ test("9999 writes, unresolved delivery state, observation drift or any row diffe
   });
   assert.ok(unresolved.violations.includes("retry_wait_outbox_present"));
   assert.ok(unresolved.violations.includes("unresolved_outbox_present"));
+
+  const outsideLineage = evaluateReconciliationEvidence({
+    context,
+    control,
+    observation,
+    rows,
+    statusCounts: { ...statusCounts, outsideLineage: 1 },
+  });
+  assert.ok(outsideLineage.violations.includes("source_release_outside_lineage_present"));
 
   const staleObservation = evaluateReconciliationEvidence({
     context,

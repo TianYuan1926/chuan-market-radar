@@ -5,16 +5,18 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const PACKAGE_ID = "WP-G0.2-SHADOW-VERIFY-RECONCILIATION";
-export const MIGRATION_ID = "candidate-episode-v1";
+export const MIGRATION_FAMILY = "candidate-episode-v1";
 export const MINIMUM_COMPARED_WRITES = 10_000;
 export const MINIMUM_CLEAN_WINDOW_HOURS = 24;
 export const PAGE_SIZE = 500;
+const CYCLE_PATTERN = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 
 const SOURCE_TYPE = "legacy_scan_candidate";
 const PAYLOAD_VERSION = "shadow-candidate-observation.v1";
 const EVENT_PAYLOAD_VERSION = "candidate-event.v1";
 const EVENT_TYPES = new Set(["DISCOVERED", "REFRESHED", "RETRIGGERED"]);
 const REQUEST_KEYS = Object.freeze([
+  "activationAuthorityEpoch",
   "activationEvidenceSha256",
   "activationObservationStatus",
   "approvalExpiresAt",
@@ -39,6 +41,7 @@ const REQUEST_KEYS = Object.freeze([
   "reviewReadAllowed",
   "schemaDdlAllowed",
   "shadowVerifyTransitionAllowed",
+  "sourceReleaseWindows",
 ]);
 
 export class ReconciliationPolicyError extends Error {
@@ -116,10 +119,52 @@ function nonNegativeInteger(value, reason) {
   return parsed;
 }
 
+function parseValidationCycleId(value) {
+  ensure(typeof value === "string", "migration_id_invalid");
+  const match = CYCLE_PATTERN.exec(value);
+  ensure(match, "migration_id_invalid");
+  const cycleNumber = match[1] ? Number(match[1]) : 1;
+  ensure(cycleNumber !== 1 || value === MIGRATION_FAMILY, "cycle_one_alias_forbidden");
+  return { cycleNumber, migrationId: value };
+}
+
+function validateSourceReleaseWindows(windows, request) {
+  ensure(Array.isArray(windows) && windows.length >= 1 && windows.length <= 64,
+    "source_release_windows_invalid");
+  const releases = new Set();
+  const validated = windows.map((window, index) => {
+    ensure(exactKeys(window, [
+      "authorityEpoch", "deadlineAt", "migrationId", "releaseId", "startedAt",
+    ]), `source_release_window_shape_invalid:${index}`);
+    const cycle = parseValidationCycleId(window.migrationId);
+    ensure(cycle.cycleNumber === index + 1, `source_release_window_not_adjacent:${index}`);
+    ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u.test(window.releaseId ?? ""),
+      `source_release_window_release_invalid:${index}`);
+    ensure(!releases.has(window.releaseId), `source_release_window_release_duplicate:${index}`);
+    releases.add(window.releaseId);
+    ensure(Number.isSafeInteger(window.authorityEpoch) && window.authorityEpoch >= 1
+        && window.authorityEpoch % 2 === 1,
+    `source_release_window_epoch_invalid:${index}`);
+    const startedAt = parseTimestamp(window.startedAt, `source_release_window_start_invalid:${index}`);
+    const deadlineAt = parseTimestamp(window.deadlineAt, `source_release_window_deadline_invalid:${index}`);
+    ensure(deadlineAt - startedAt === 72 * 60 * 60_000,
+      `source_release_window_duration_invalid:${index}`);
+    return { ...window, startedAtMs: startedAt, deadlineAtMs: deadlineAt };
+  });
+  const first = validated[0];
+  const current = validated.at(-1);
+  ensure(first.authorityEpoch === request.activationAuthorityEpoch,
+    "activation_authority_epoch_lineage_mismatch");
+  ensure(current.migrationId === request.migrationId, "current_migration_lineage_mismatch");
+  ensure(current.releaseId === request.releaseId, "current_release_lineage_mismatch");
+  ensure(current.authorityEpoch === request.authorityEpoch, "current_epoch_lineage_mismatch");
+  return validated;
+}
+
 export function validateApprovalRequest(request, contract, { now = new Date() } = {}) {
   ensure(exactKeys(request, REQUEST_KEYS), "request_keys_mismatch");
   ensure(request.packageId === PACKAGE_ID, "request_package_mismatch");
-  ensure(request.migrationId === MIGRATION_ID, "migration_id_mismatch");
+  parseValidationCycleId(request.migrationId);
   ensure(request.activationObservationStatus === "PASS_ACTIVATE_AND_OBSERVE", "activation_observation_not_pass");
   ensure(/^[0-9a-f]{40}$/.test(request.approvedCommit ?? ""), "approved_commit_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.releaseId ?? ""), "release_id_invalid");
@@ -131,6 +176,10 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
       && request.authorityEpoch % 2 === 1,
     "authority_epoch_not_active_odd",
   );
+  ensure(Number.isSafeInteger(request.activationAuthorityEpoch)
+      && request.activationAuthorityEpoch >= 1 && request.activationAuthorityEpoch % 2 === 1,
+  "activation_authority_epoch_not_active_odd");
+  validateSourceReleaseWindows(request.sourceReleaseWindows, request);
   ensure(request.minimumComparedWrites === MINIMUM_COMPARED_WRITES, "compared_writes_threshold_changed");
   ensure(request.minimumCleanWindowHours === MINIMUM_CLEAN_WINDOW_HOURS, "clean_window_threshold_changed");
   ensure(request.executeReadOnlyComparison === true, "read_only_comparison_not_approved");
@@ -222,7 +271,10 @@ export function compareProjectionRow(row, context) {
   check(row.source_version === payload.firstSeenAt, "source_version_mismatch");
   check(row.source_idempotency_key === expectedOutboxIdempotency, "source_idempotency_mismatch");
   if (row.source_payload) check(row.source_payload_hash === hashPayload(row.source_payload), "source_payload_hash_mismatch");
-  check(payload.releaseId === context.releaseId, "source_release_mismatch");
+  const sourceWindow = context.sourceReleaseWindows.find(
+    (window) => window.releaseId === payload.releaseId,
+  );
+  check(sourceWindow !== undefined, "source_release_not_in_lineage");
   check(row.event_id !== null && row.event_id !== undefined, "projection_event_missing");
   check(row.event_idempotency_key === expectedEventIdempotency, "projection_event_idempotency_mismatch");
   check(EVENT_TYPES.has(row.event_type), "projection_event_type_invalid");
@@ -233,7 +285,8 @@ export function compareProjectionRow(row, context) {
   check(row.event_payload?.canonicalInstrumentId === payload.canonicalInstrumentId, "projection_event_instrument_mismatch");
   check(row.event_payload?.eventType === row.event_type, "projection_event_kind_mismatch");
   check(exactKeys(row.event_payload, ["canonicalInstrumentId", "eventType"]), "projection_event_payload_keys_mismatch");
-  check(row.event_runtime_id?.startsWith(`candidate-shadow:${context.releaseId}:`) === true, "projection_runtime_release_mismatch");
+  check(row.event_runtime_id?.startsWith(`candidate-shadow:${payload.releaseId}:`) === true,
+    "projection_runtime_release_mismatch");
   if (row.event_runtime_id) {
     check(row.event_command_hash === hashProjectionCommand(projectionCommand(row, payload)), "projection_command_hash_mismatch");
   }
@@ -247,8 +300,12 @@ export function compareProjectionRow(row, context) {
       const completedAt = parseTimestamp(row.source_completed_at, "source_completed_at_invalid");
       const episodeFirstSeen = parseTimestamp(row.episode_first_seen_at, "episode_first_seen_invalid");
       const episodeLastSeen = parseTimestamp(row.episode_last_seen_at, "episode_last_seen_invalid");
-      check(createdAt >= context.controlStartedAt && createdAt <= context.controlDeadlineAt, "source_created_outside_control_window");
-      check(completedAt >= createdAt && completedAt <= context.controlDeadlineAt, "source_completed_outside_control_window");
+      check(sourceWindow !== undefined
+          && createdAt >= sourceWindow.startedAtMs && createdAt <= sourceWindow.deadlineAtMs,
+      "source_created_outside_release_window");
+      check(sourceWindow !== undefined
+          && completedAt >= createdAt && completedAt <= sourceWindow.deadlineAtMs,
+      "source_completed_outside_release_window");
       check(episodeFirstSeen <= payloadTimes.firstSeen, "episode_first_seen_after_source");
       check(episodeLastSeen >= payloadTimes.lastSeen, "episode_last_seen_before_source");
     } catch (error) {
@@ -290,14 +347,16 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
   const embeddedEpochPresent = observation.authorityEpoch !== undefined;
   add(embeddedReleasePresent === embeddedEpochPresent, "observation_identity_partial");
   if (embeddedReleasePresent && embeddedEpochPresent) {
-    add(observation.releaseId === context.releaseId, "observation_release_mismatch");
-    add(Number(observation.authorityEpoch) === context.authorityEpoch, "observation_epoch_mismatch");
+    add(observation.releaseId === context.activationReleaseId, "observation_release_mismatch");
+    add(Number(observation.authorityEpoch) === context.activationAuthorityEpoch,
+      "observation_epoch_mismatch");
   }
   add(statusCounts.pending === 0, "pending_outbox_present");
   add(statusCounts.claimed === 0, "claimed_outbox_present");
   add(statusCounts.retryWait === 0, "retry_wait_outbox_present");
   add(statusCounts.unresolvedQuarantine === 0, "unresolved_quarantine_present");
   add(statusCounts.unresolvedTotal === 0, "unresolved_outbox_present");
+  add(statusCounts.outsideLineage === 0, "source_release_outside_lineage_present");
 
   const rowResults = rows.map((row) => compareProjectionRow(row, context));
   const duplicateOutbox = rowResults.length - new Set(rowResults.map((item) => item.outboxId)).size;
@@ -314,6 +373,13 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
     control,
     observationEvidenceSha256: context.observationEvidenceSha256,
     releaseId: context.releaseId,
+    sourceReleaseWindows: context.sourceReleaseWindows.map((window) => ({
+      authorityEpoch: window.authorityEpoch,
+      deadlineAt: window.deadlineAt,
+      migrationId: window.migrationId,
+      releaseId: window.releaseId,
+      startedAt: window.startedAt,
+    })),
     statusCounts,
   }));
   return {
@@ -335,6 +401,8 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
     duplicateOutboxMappings: duplicateOutbox,
     duplicateEventMappings: duplicateEvents,
     resolvedQuarantineExclusions: statusCounts.resolvedQuarantine,
+    sourceReleaseCount: context.sourceReleaseWindows.length,
+    verificationMigrationId: context.sourceReleaseWindows.at(-1).migrationId,
     evidenceHash: `sha256:${evidenceHash}`,
     violations,
     differenceSample: differences.slice(0, 25),
@@ -364,6 +432,8 @@ function mapRow(row) {
 }
 
 export async function collectReadOnlyEvidence(client, request, observation) {
+  const sourceReleaseWindows = validateSourceReleaseWindows(request.sourceReleaseWindows, request);
+  const sourceReleaseIds = sourceReleaseWindows.map((window) => window.releaseId);
   await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
   try {
     await client.query("SET LOCAL ROLE candidate_audit_role");
@@ -373,10 +443,31 @@ export async function collectReadOnlyEvidence(client, request, observation) {
       current_user AS current_role,
       control.phase, control.epoch::int AS authority_epoch, control.started_at,
       control.deadline_at, control.write_frozen, control.approved_release_id,
-      clock_timestamp() AS database_now
+      control.migration_id, clock_timestamp() AS database_now
       FROM candidate_authority.candidate_migration_control control
-      WHERE control.migration_id=$1`, [request.migrationId]);
-    const controlRow = boundary.rows[0];
+      WHERE control.migration_id='candidate-episode-v1'
+        OR control.migration_id ~ '^candidate-episode-v1-cycle-([2-9]|[1-9][0-9]+)$'
+      ORDER BY control.started_at, control.migration_id`);
+    ensure(boundary.rows.length === sourceReleaseWindows.length,
+      "database_control_lineage_count_mismatch");
+    for (const [index, window] of sourceReleaseWindows.entries()) {
+      const row = boundary.rows[index];
+      ensure(row?.migration_id === window.migrationId,
+        `database_control_lineage_migration_mismatch:${index}`);
+      ensure(row.approved_release_id === window.releaseId,
+        `database_control_lineage_release_mismatch:${index}`);
+      ensure(new Date(row.started_at).toISOString() === window.startedAt,
+        `database_control_lineage_start_mismatch:${index}`);
+      ensure(new Date(row.deadline_at).toISOString() === window.deadlineAt,
+        `database_control_lineage_deadline_mismatch:${index}`);
+      if (index < sourceReleaseWindows.length - 1) {
+        ensure(row.phase === "legacy" && row.write_frozen === true,
+          `database_retired_cycle_not_frozen:${index}`);
+        ensure(row.authority_epoch === window.authorityEpoch + 1,
+          `database_retired_cycle_epoch_mismatch:${index}`);
+      }
+    }
+    const controlRow = boundary.rows.at(-1);
     ensure(controlRow?.read_only === "on", "database_transaction_not_read_only");
     ensure(controlRow.current_role === "candidate_audit_role", "database_audit_role_not_active");
     ensure(controlRow.phase === "shadow_capture", "database_phase_not_shadow_capture");
@@ -387,20 +478,21 @@ export async function collectReadOnlyEvidence(client, request, observation) {
 
     const countsResult = await client.query(`WITH source_items AS (
       SELECT outbox.*,
+        COALESCE(outbox.payload->>'releaseId'=ANY($2::text[]), false) AS in_lineage,
         EXISTS (SELECT 1 FROM candidate_authority.candidate_outbox_quarantine_resolutions resolution
           WHERE resolution.scope=outbox.scope AND resolution.quarantined_outbox_id=outbox.outbox_id) AS resolved
       FROM candidate_authority.candidate_episode_ingest_outbox outbox
       WHERE outbox.scope='production_radar' AND outbox.source_type=$1
-        AND outbox.payload->>'releaseId'=$2
     ) SELECT
       count(*) FILTER (WHERE status='pending')::int AS pending,
       count(*) FILTER (WHERE status='claimed')::int AS claimed,
       count(*) FILTER (WHERE status='retry_wait')::int AS retry_wait,
-      count(*) FILTER (WHERE status='completed')::int AS completed,
+      count(*) FILTER (WHERE status='completed' AND in_lineage)::int AS completed,
       count(*) FILTER (WHERE status='quarantined' AND resolved)::int AS resolved_quarantine,
       count(*) FILTER (WHERE status='quarantined' AND NOT resolved)::int AS unresolved_quarantine,
-      count(*) FILTER (WHERE status <> 'completed' AND NOT resolved)::int AS unresolved_total
-      FROM source_items`, [SOURCE_TYPE, request.releaseId]);
+      count(*) FILTER (WHERE status <> 'completed' AND NOT resolved)::int AS unresolved_total,
+      count(*) FILTER (WHERE NOT in_lineage)::int AS outside_lineage
+      FROM source_items`, [SOURCE_TYPE, sourceReleaseIds]);
     const counts = countsResult.rows[0];
     const statusCounts = {
       pending: nonNegativeInteger(counts.pending, "pending_count_invalid"),
@@ -410,6 +502,7 @@ export async function collectReadOnlyEvidence(client, request, observation) {
       resolvedQuarantine: nonNegativeInteger(counts.resolved_quarantine, "resolved_quarantine_count_invalid"),
       unresolvedQuarantine: nonNegativeInteger(counts.unresolved_quarantine, "unresolved_quarantine_count_invalid"),
       unresolvedTotal: nonNegativeInteger(counts.unresolved_total, "unresolved_count_invalid"),
+      outsideLineage: nonNegativeInteger(counts.outside_lineage, "outside_lineage_count_invalid"),
     };
 
     const rows = [];
@@ -435,9 +528,9 @@ export async function collectReadOnlyEvidence(client, request, observation) {
       LEFT JOIN candidate_authority.candidate_episodes episode
         ON episode.scope=event.scope AND episode.episode_id=event.episode_id
       WHERE source.scope='production_radar' AND source.source_type=$1
-        AND source.payload->>'releaseId'=$2 AND source.status='completed'
+        AND source.payload->>'releaseId'=ANY($2::text[]) AND source.status='completed'
         AND ($3::uuid IS NULL OR source.outbox_id > $3::uuid)
-      ORDER BY source.outbox_id LIMIT $4`, [SOURCE_TYPE, request.releaseId, cursor, PAGE_SIZE]);
+      ORDER BY source.outbox_id LIMIT $4`, [SOURCE_TYPE, sourceReleaseIds, cursor, PAGE_SIZE]);
       if (page.rows.length === 0) break;
       rows.push(...page.rows.map(mapRow));
       cursor = page.rows.at(-1).outbox_id;
@@ -445,11 +538,14 @@ export async function collectReadOnlyEvidence(client, request, observation) {
     ensure(rows.length === statusCounts.completed, "completed_count_page_mismatch");
     const context = {
       activationObservationStatus: request.activationObservationStatus,
+      activationAuthorityEpoch: request.activationAuthorityEpoch,
+      activationReleaseId: sourceReleaseWindows[0].releaseId,
       authorityEpoch: request.authorityEpoch,
       controlStartedAt: new Date(controlRow.started_at).getTime(),
       controlDeadlineAt: new Date(controlRow.deadline_at).getTime(),
       observationEvidenceSha256: request.activationEvidenceSha256,
       releaseId: request.releaseId,
+      sourceReleaseWindows,
     };
     const result = evaluateReconciliationEvidence({
       context,

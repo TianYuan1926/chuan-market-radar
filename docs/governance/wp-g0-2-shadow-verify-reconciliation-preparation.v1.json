@@ -3,22 +3,26 @@
   "packageId": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION-PREPARATION",
   "productionAuthorization": false,
   "productionExecuted": false,
-  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_AND_NEW_EXACT_APPROVAL",
+  "currentProductionDecision": "BLOCKED_UNTIL_ACCUMULATION_10000_AND_FRESH_VERIFICATION_CYCLE_AND_NEW_EXACT_APPROVAL",
   "runnerArtifact": {
     "files": [
       "scripts/production/candidate-reconciliation/runner.mjs"
     ],
     "fileCount": 1,
-    "sha256": "5a92708e09310da8b8b7dbaf41ab205fb7f30ee56348907797819e699dec1713"
+    "sha256": "8fad4afef3cd86fd17326d40c379de99988db67c05b633c2e330ab63432cada0"
   },
   "prerequisites": {
     "activationObservationStatus": "PASS_ACTIVATE_AND_OBSERVE",
     "minimumCleanWindowHours": 24,
     "minimumObservationSamples": 289,
-    "sameReleaseRequired": true,
-    "sameAuthorityEpochRequired": true,
-    "authorityEpochPolicy": "positive_odd_request_control_observation_exact_match",
-    "legacyObservationIdentityBinding": "evidence_hash_request_database_exact_match",
+    "activationEvidenceBindsFirstReleaseWindow": true,
+    "freshVerificationCycleRequired": true,
+    "multiCycleLineageRequired": true,
+    "minimumReleaseWindows": 2,
+    "sourceReleaseWindowsStrictlyAdjacent": true,
+    "authorityEpochPolicy": "positive_odd_each_release_window_current_control_exact_match",
+    "legacyObservationIdentityBinding": "activation_evidence_hash_first_release_window_exact_match",
+    "currentVerificationIdentityBinding": "last_release_window_request_database_exact_match",
     "newExactApprovalRequired": true,
     "approvalWindowMaximumMinutes": 90
   },
@@ -38,7 +42,11 @@
     "retryWaitMaximum": 0,
     "unresolvedQuarantineMaximum": 0,
     "unresolvedTotalMaximum": 0,
+    "outsideLineageMaximum": 0,
     "resolvedQuarantineCountsAsComparedWrite": false,
+    "eachRowReleaseWindowBound": true,
+    "completeLineageRequired": true,
+    "controlLineageExactMatchRequired": true,
     "pageSize": 500,
     "immutableAggregateEvidenceHashRequired": true
   },
@@ -71,6 +79,7 @@
   "localRehearsal": {
     "postgresMajor": 16,
     "minimumComparedWritesExercised": 10000,
+    "releaseWindowsExercised": 2,
     "transactionReadOnlyRejectionRequired": true,
     "phaseMustRemain": "shadow_capture",
     "productionConnected": false

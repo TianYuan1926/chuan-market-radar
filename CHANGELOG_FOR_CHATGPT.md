@@ -4906,20 +4906,71 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 - 冻结态恢复修复改变 runner/contract 后，上述旧预提交 Bundle 已失效并精确删除；最终 clean commit 后必须重新生成。
 - 本轮后审计真实触发两类 fail-closed：runner 改变后旧 artifact hash 被拒绝；测试凭据形状被 security gate 拒绝。分别通过重算合同和改用非凭据测试占位关闭，未增加白名单。
 - 最终自治总门禁：15/15 PASS，`worktreeUnchanged=true`；`canAutoCommit=true`、`canAutoDeploy=false`。
+- 最终 clean commit=`54837d03d0fb91b33cf9919bd25ab7aaad60dd7e`，已推送工作分支；提交后自治总门禁 15/15 PASS。
+- 最终可复现脱敏 Bundle SHA-256=`49e93e5d7ee18f30304e64ac2dd82c0f9717ed02f06a8c387298c27e677009a9`，未上传、未执行。
 - formal：未运行，按合同禁止。
 
 ### 是否部署
 
-未部署、未上传、未执行数据库或服务 mutation。Edge/OrcaTerm 最新只读证据为 observer active、90/289、completed writes=1202；Activation 最终 PASS 尚未产生。
+未部署、未上传、未执行数据库或服务 mutation。Edge/OrcaTerm 最新只读证据为 observer active、96/289、completed writes=1481；Activation 最终 PASS 尚未产生。
 
 ### 风险与遗留问题
 
 - P0：无新增已知 P0。
 - P1：当前 Activation 必须完成 exact 289 样本和至少 24 小时后从原始样本重算 PASS。
-- P1：当前包尚待最终提交绑定自治总门禁、clean commit/push；预提交模板 `approvalEligible=false`，不得上传执行。
+- P1：当前包虽已 clean commit/push，但必须等待 Activation 最终 PASS 后重建绑定新鲜生产事实的一次性 request/Bundle，现有本地 Bundle 不得提前执行。
 - P1：累计写入仍低于 10,000；Reconciliation、Shadow Verify、Canonical Compat/Cutover 均未执行。
 - 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 
 ### 下一轮建议
 
-完成提交绑定自治总门禁并推送工作分支；继续当前 observer，不中断观察，最终 PASS 后才生成新鲜 preflight、一次性 authorization/request 和 commit-bound final Bundle。
+继续当前 observer，不中断观察；Activation 最终 PASS 后才允许使用新鲜 preflight 和一次性 authorization/request 执行周期续接。
+
+## 2026-07-17 / WP-G0.2 Reconciliation Multi-Cycle Lineage Remediation Local Superpackage
+
+### 本轮目标
+
+修复旧 Reconciliation 固定 cycle1 且只核对当前 release 的 P1 死路，使累计跨多个 72 小时周期的至少 10,000 条 Candidate 写入能够被完整、逐条、只读和零差异验收。
+
+### 修改范围
+
+- 分离 Activation 首周期身份与当前新鲜验证周期身份，引入严格连续的 `sourceReleaseWindows`。
+- 每条 Source/Event/Episode 按自身 release 的不可变时间窗口和完整 projection command hash 核对。
+- 同一只读事务读取全部 Candidate control 血缘；历史周期必须 Legacy/frozen，当前周期必须唯一 shadow_capture。
+- 全局检测 outside-lineage、pending、claimed、retry_wait 和 unresolved，任一不为 0 都失败。
+- Production request 增加独立 lineage evidence 路径、权限、SHA-256、阈值和未来阶段声明校验，并只读挂载保存。
+- 修复旧 production runner 错误要求 Candidate Worker absent 的死点，改为 Worker 必须 running/healthy 且系统 ready/fresh，不执行停止或重启。
+- 更新治理合同、自治状态、Context 和中文报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、trade plan、frontend、API、migration、Compose、env、Redis、Worker 实现或生产服务。
+
+### 核心链路影响
+
+加强候选筛选和复盘进化的 Candidate 生命周期真值验收；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Runner/governance 13/13：PASS。
+- Production packet 11/11：PASS。
+- PostgreSQL 16：两个周期各 5,000 条、合计 10,000 条、0 difference、只读拒写、审计角色、未批准第三 control 拒绝、phase unchanged、productionConnected=false：PASS。
+- Autonomy unit 31/31：PASS。
+- typecheck、干净 lint：PASS。
+- market 1025 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+- 最终自治总门禁：14/14 PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。
+
+### 是否部署
+
+未部署、未连接生产、未查询生产数据库、未修改服务或 Candidate authority。最近只读生产证据仍为 observer active、96/289、completed writes=1481。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：Activation 尚未完成 289 样本/24 小时最终 PASS；累计 completed writes 尚未达到 10,000。
+- P1：必须在累计达标后进入新的相邻验证周期并生成可信 multi-cycle lineage evidence，才能构造生产 Reconciliation request。
+- P1：Reconciliation PASS 也只表示可进入独立 Shadow Verify，不会自动切换 Canonical authority。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+当前包提交并推送后，继续不中断 Activation observer；最终 PASS 后按已验证周期续接包推进真实累计，达到 10,000 后启动新鲜验证周期，再执行生产只读多周期 Reconciliation。

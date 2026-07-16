@@ -55,23 +55,28 @@ const AUTHORIZATION_KEYS = Object.freeze([
 ]);
 
 const REQUEST_KEYS = Object.freeze([
+  "activationAuthorityEpoch",
   "activationCloseoutPath", "activationCloseoutSha256", "activationEvidencePath",
   "activationEvidenceSha256", "activationSamplesPath", "activationSamplesSha256",
+  "activationProductionCommit",
   "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "approvedPacketCommit",
   "approvedPacketTree", "approvedProductionCommit", "approvedRunnerArtifactSha256",
   "autonomyAuthorization", "autonomyTrustRoot", "authorityEpoch", "composeSha256",
-  "evidenceDirectory", "executeReadOnlyComparison", "operator", "opsRoot", "packageId",
+  "evidenceDirectory", "executeReadOnlyComparison", "lineageEvidencePath",
+  "lineageEvidenceSha256", "operator", "opsRoot", "packageId",
   "postgresAdminEnvPath", "productionEnvSha256", "productionRoot", "reconciliationApproval",
   "releaseId", "runnerUnitName", "secureRoot", "services",
-  "sessionIndependentExecutionRequired", "stagingDirectory",
+  "sessionIndependentExecutionRequired", "sourceReleaseWindows", "stagingDirectory",
   "temporaryArtifactCleanupRequired", "transportBundleSha256", "transportMethod", "webImageId",
 ]);
 
 const RUNTIME_KEYS = Object.freeze([
+  "activationAuthorityEpoch",
   "activationCloseoutPath", "activationCloseoutSha256", "activationEvidencePath",
   "activationEvidenceSha256", "activationSamplesPath", "activationSamplesSha256",
-  "approvedProductionCommit", "authorityEpoch", "composeSha256", "postgresAdminEnvPath",
-  "productionEnvSha256", "releaseId", "webImageId",
+  "activationProductionCommit", "approvedProductionCommit", "authorityEpoch", "composeSha256",
+  "lineageEvidencePath", "lineageEvidenceSha256", "postgresAdminEnvPath",
+  "productionEnvSha256", "releaseId", "sourceReleaseWindows", "webImageId",
 ]);
 
 function ensure(condition, reason) {
@@ -153,6 +158,15 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || execution.prerequisites?.minimumCleanWindowHours !== 24
       || execution.prerequisites?.maximumSampleGapSeconds !== 600
       || execution.prerequisites?.completedWritesMustBePositive !== true
+      || execution.prerequisites?.activationEvidenceBindsFirstReleaseWindow !== true
+      || execution.prerequisites?.accumulationStatus
+        !== "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE"
+      || execution.prerequisites?.minimumAccumulatedWrites !== 10_000
+      || execution.prerequisites?.freshVerificationCycleRequired !== true
+      || execution.prerequisites?.multiCycleLineageEvidenceRequired !== true
+      || execution.prerequisites?.minimumReleaseWindows !== 2
+      || execution.prerequisites?.sourceReleaseWindowsStrictlyAdjacent !== true
+      || execution.prerequisites?.currentVerificationIdentityBindsLastReleaseWindow !== true
       || execution.prerequisites?.activationEvidenceRecomputedFromSamples !== true
       || execution.prerequisites?.newExactRequestRequired !== true) violations.push("activation_prerequisites");
   if (execution.execution?.runner !== "transient_systemd_unit"
@@ -160,6 +174,8 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || execution.execution?.runtimeMaxSeconds !== 3600
       || execution.execution?.sessionIndependent !== true
       || execution.execution?.hostNodeRequired !== false
+      || execution.execution?.candidateWorkerRequired !== "running_healthy"
+      || execution.execution?.runtimeHealthRequired !== "ready_fresh"
       || execution.execution?.containerNodeFallback?.enabled !== true
       || execution.execution?.containerNodeFallback?.image !== "approved_current_web_image"
       || execution.execution?.containerNodeFallback?.network !== "production_compose_network"
@@ -174,6 +190,8 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || execution.databaseBoundary?.minimumComparedWrites !== 10_000
       || execution.databaseBoundary?.maximumDifferences !== 0
       || execution.databaseBoundary?.maximumUnresolvedItems !== 0
+      || execution.databaseBoundary?.maximumOutsideLineageItems !== 0
+      || execution.databaseBoundary?.controlLineageExactMatchRequired !== true
       || execution.databaseBoundary?.ddlAllowed !== false
       || execution.databaseBoundary?.dmlAllowed !== false
       || execution.databaseBoundary?.migrationAllowed !== false
@@ -193,15 +211,24 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   if (execution.transport?.containsSecrets !== false
       || execution.transport?.temporaryArtifactCleanupRequired !== true
       || execution.transport?.activationEvidencePreserved !== true
+      || execution.transport?.multiCycleLineageEvidencePreserved !== true
       || execution.transport?.outputEvidencePreserved !== true) violations.push("transport_boundary");
   if (preparation.schemaVersion !== "wp-g0.2-shadow-verify-reconciliation-preparation.v1"
       || preparation.runnerArtifact?.sha256 === undefined
       || preparation.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
-      || preparation.comparison?.minimumComparedWrites !== 10_000) violations.push("preparation_contract");
+      || preparation.prerequisites?.freshVerificationCycleRequired !== true
+      || preparation.prerequisites?.multiCycleLineageRequired !== true
+      || preparation.prerequisites?.minimumReleaseWindows !== 2
+      || preparation.comparison?.minimumComparedWrites !== 10_000
+      || preparation.comparison?.outsideLineageMaximum !== 0
+      || preparation.comparison?.controlLineageExactMatchRequired !== true) {
+    violations.push("preparation_contract");
+  }
   for (const forbidden of [
     "observation_window_shortening", "source_sync", "git_checkout", "service_recreate",
     "database_write", "schema_migration", "phase_transition", "canonical_cutover",
-    "production_ranking_change", "future_outcome_input", "formal_backtest",
+    "multi_cycle_lineage_relabeling", "production_ranking_change", "future_outcome_input",
+    "formal_backtest",
   ]) if (!execution.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
   return {
     status: violations.length === 0 ? "PASS_LOCAL_RECONCILIATION_PRODUCTION_PACKET" : "FAIL",
@@ -219,6 +246,11 @@ function assertActivationPath(path, suffix, reason) {
     `^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-[a-z0-9][a-z0-9._-]{7,80}/${suffix}$`,
     "u",
   ).test(path ?? ""), reason);
+}
+
+function assertLineagePath(path) {
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-candidate-lineage-[a-z0-9][a-z0-9._-]{7,100}\/lineage-final\.json$/u
+    .test(path ?? ""), "lineage_evidence_path_invalid");
 }
 
 async function assertPrivateFile(path, label, maximumBytes) {
@@ -260,8 +292,10 @@ export async function verifyActivationEvidence(request) {
     .map((line) => JSON.parse(line));
   ensure(samples.length === 289, "activation_samples_not_exact_289");
   const recomputed = evaluateObservationEvidence(samples, {
-    approvedCommit: request.approvedProductionCommit,
-    releaseId: request.releaseId,
+    approvedCommit: request.activationProductionCommit,
+    authorityEpoch: request.activationAuthorityEpoch,
+    migrationId: request.sourceReleaseWindows[0].migrationId,
+    releaseId: request.sourceReleaseWindows[0].releaseId,
   });
   ensure(canonicalJson(final) === canonicalJson(recomputed), "activation_final_recompute_mismatch");
   ensure(final.status === "PASS_ACTIVATE_AND_OBSERVE"
@@ -273,6 +307,45 @@ export async function verifyActivationEvidence(request) {
       && final.automaticPhaseAdvance === false
       && final.comparedWritesGateEvaluated === false, "activation_final_thresholds_invalid");
   return { final, closeout, recomputed, sampleCount: samples.length };
+}
+
+export function validateMultiCycleLineageEvidence(lineage, request) {
+  ensure(exactKeys(lineage, [
+    "activationEvidenceSha256", "canonicalAuthorityChanged", "completedWrites",
+    "currentAuthorityEpoch", "currentMigrationId", "currentReleaseId", "freshCycleStartedAt",
+    "g0Completed", "productionReconciliationExecuted", "schemaVersion", "shadowVerifyStarted",
+    "sourceReleaseWindows", "status", "thresholdsChanged", "unresolvedOutbox",
+  ]), "lineage_evidence_shape_invalid");
+  ensure(lineage.schemaVersion === "candidate-multi-cycle-lineage-evidence.v1"
+      && lineage.status === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION",
+  "lineage_evidence_status_invalid");
+  ensure(lineage.activationEvidenceSha256 === request.activationEvidenceSha256,
+    "lineage_activation_binding_mismatch");
+  ensure(canonicalJson(lineage.sourceReleaseWindows) === canonicalJson(request.sourceReleaseWindows),
+    "lineage_release_windows_mismatch");
+  const current = request.sourceReleaseWindows.at(-1);
+  ensure(lineage.currentMigrationId === current.migrationId
+      && lineage.currentReleaseId === current.releaseId
+      && lineage.currentAuthorityEpoch === current.authorityEpoch
+      && lineage.freshCycleStartedAt === current.startedAt,
+  "lineage_current_cycle_mismatch");
+  ensure(Number.isSafeInteger(lineage.completedWrites) && lineage.completedWrites >= 10_000
+      && lineage.unresolvedOutbox === 0 && lineage.thresholdsChanged === false,
+  "lineage_threshold_or_unresolved_invalid");
+  ensure(lineage.productionReconciliationExecuted === false
+      && lineage.shadowVerifyStarted === false
+      && lineage.canonicalAuthorityChanged === false
+      && lineage.g0Completed === false,
+  "lineage_future_stage_claim_invalid");
+  return lineage;
+}
+
+export async function verifyMultiCycleLineageEvidence(request) {
+  assertLineagePath(request.lineageEvidencePath);
+  await assertPrivateFile(request.lineageEvidencePath, "lineage_evidence", 512 * 1024);
+  const bytes = await readFile(request.lineageEvidencePath);
+  ensure(sha256(bytes) === request.lineageEvidenceSha256, "lineage_evidence_hash_mismatch");
+  return validateMultiCycleLineageEvidence(JSON.parse(bytes), request);
 }
 
 function validateAuthorization(authorization, request, manifest, execution) {
@@ -306,7 +379,10 @@ function validateAuthorization(authorization, request, manifest, execution) {
   for (const [key, expected] of Object.entries(bindings)) {
     ensure(authorization[key] === expected, `authorization_${key}_binding_mismatch`);
   }
-  ensure(authorization.imageOrMigrationSha256 === sha256("read-only-reconciliation\n"),
+  ensure(authorization.imageOrMigrationSha256 === sha256(canonicalJson({
+    mode: "read-only-reconciliation",
+    sourceReleaseWindows: request.sourceReleaseWindows,
+  })),
     "authorization_read_only_binding_mismatch");
   ensure(authorization.composeSha256 === request.composeSha256, "authorization_compose_binding_mismatch");
   ensure(authorization.environmentFingerprintSha256 === sha256(`${request.productionEnvSha256}\n`),
@@ -314,12 +390,16 @@ function validateAuthorization(authorization, request, manifest, execution) {
   ensure(authorization.productionIdentitySha256 === sha256(`${request.postgresAdminEnvPath}\n`),
     "authorization_identity_source_binding_mismatch");
   ensure(authorization.preflightSha256 === sha256(canonicalJson({
+    activationAuthorityEpoch: request.activationAuthorityEpoch,
     activationCloseoutSha256: request.activationCloseoutSha256,
     activationEvidenceSha256: request.activationEvidenceSha256,
+    activationProductionCommit: request.activationProductionCommit,
     activationSamplesSha256: request.activationSamplesSha256,
     approvedProductionCommit: request.approvedProductionCommit,
     authorityEpoch: request.authorityEpoch,
+    lineageEvidenceSha256: request.lineageEvidenceSha256,
     releaseId: request.releaseId,
+    sourceReleaseWindows: request.sourceReleaseWindows,
   })), "authorization_preflight_binding_mismatch");
   ensure(authorization.backupRestoreEvidenceSha256
       === sha256("not_applicable_read_only_no_mutation\n"), "authorization_recovery_binding_mismatch");
@@ -419,16 +499,21 @@ export async function validateProductionExecutionRequest(
       && request.approvedPacketTree === manifest.sourceTree
       && request.approvedRunnerArtifactSha256 === manifest.runnerArtifactSha256,
   "request_packet_binding_mismatch");
+  assertHash(request.activationProductionCommit, "request_activation_commit_invalid", 40);
   assertHash(request.approvedProductionCommit, "request_production_commit_invalid", 40);
   assertHash(request.webImageId?.replace(/^sha256:/u, ""), "request_web_image_invalid");
   for (const key of [
     "activationCloseoutSha256", "activationEvidenceSha256", "activationSamplesSha256",
-    "composeSha256", "productionEnvSha256",
+    "composeSha256", "lineageEvidenceSha256", "productionEnvSha256",
   ]) assertHash(request[key], `request_${key}_invalid`);
+  ensure(Number.isSafeInteger(request.activationAuthorityEpoch)
+      && request.activationAuthorityEpoch >= 1 && request.activationAuthorityEpoch % 2 === 1,
+  "request_activation_authority_epoch_invalid");
   ensure(Number.isSafeInteger(request.authorityEpoch) && request.authorityEpoch >= 1
       && request.authorityEpoch % 2 === 1, "request_authority_epoch_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,80}$/u.test(request.releaseId ?? ""),
     "request_release_invalid");
+  assertLineagePath(request.lineageEvidencePath);
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.stagingDirectory ?? ""), "request_staging_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/reconciliation-ops\/wp-g0-2-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
@@ -449,30 +534,43 @@ export async function validateProductionExecutionRequest(
     "request_approval_window_invalid");
   ensure(nowMs >= issuedAt && nowMs < expiresAt, "request_approval_not_current");
   validateAuthorization(request.autonomyAuthorization, request, manifest, execution);
-  ensure(request.reconciliationApproval.activationEvidenceSha256
+  ensure(request.reconciliationApproval.activationAuthorityEpoch
+      === request.activationAuthorityEpoch
+      && request.reconciliationApproval.activationEvidenceSha256
       === `sha256:${request.activationEvidenceSha256}`
       && request.reconciliationApproval.approvedCommit === request.approvedProductionCommit
       && request.reconciliationApproval.authorityEpoch === request.authorityEpoch
       && request.reconciliationApproval.releaseId === request.releaseId
+      && canonicalJson(request.reconciliationApproval.sourceReleaseWindows)
+        === canonicalJson(request.sourceReleaseWindows)
       && request.reconciliationApproval.approvedRunnerArtifactSha256
         === preparation.runnerArtifact.sha256,
   "request_inner_reconciliation_binding_mismatch");
   validateReconciliationApproval(request.reconciliationApproval, preparation, { now });
-  if (verifyEvidence) await verifyActivationEvidence(request);
+  if (verifyEvidence) {
+    await Promise.all([
+      verifyActivationEvidence(request),
+      verifyMultiCycleLineageEvidence(request),
+    ]);
+  }
   return request;
 }
 
 function validateRuntime(runtime) {
   ensure(exactKeys(runtime, RUNTIME_KEYS), "runtime_keys_mismatch");
+  assertHash(runtime.activationProductionCommit, "runtime_activation_commit_invalid", 40);
   assertHash(runtime.approvedProductionCommit, "runtime_production_commit_invalid", 40);
   assertHash(runtime.webImageId?.replace(/^sha256:/u, ""), "runtime_web_image_invalid");
   for (const key of [
     "activationCloseoutSha256", "activationEvidenceSha256", "activationSamplesSha256",
-    "composeSha256", "productionEnvSha256",
+    "composeSha256", "lineageEvidenceSha256", "productionEnvSha256",
   ]) assertHash(runtime[key], `runtime_${key}_invalid`);
   ensure(runtime.postgresAdminEnvPath === POSTGRES_ADMIN_ENV, "runtime_postgres_admin_env_invalid");
   ensure(Number.isSafeInteger(runtime.authorityEpoch) && runtime.authorityEpoch >= 1
       && runtime.authorityEpoch % 2 === 1, "runtime_epoch_invalid");
+  ensure(Number.isSafeInteger(runtime.activationAuthorityEpoch)
+      && runtime.activationAuthorityEpoch >= 1 && runtime.activationAuthorityEpoch % 2 === 1,
+  "runtime_activation_epoch_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,80}$/u.test(runtime.releaseId ?? ""),
     "runtime_release_invalid");
   assertActivationPath(runtime.activationEvidencePath, "observation-final\\.json",
@@ -481,6 +579,13 @@ function validateRuntime(runtime) {
     "runtime_activation_closeout_path_invalid");
   assertActivationPath(runtime.activationSamplesPath, "observation-samples\\.jsonl",
     "runtime_activation_samples_path_invalid");
+  assertLineagePath(runtime.lineageEvidencePath);
+  ensure(Array.isArray(runtime.sourceReleaseWindows) && runtime.sourceReleaseWindows.length >= 2,
+    "runtime_source_release_windows_invalid");
+  const currentWindow = runtime.sourceReleaseWindows.at(-1);
+  ensure(currentWindow?.releaseId === runtime.releaseId
+      && currentWindow?.authorityEpoch === runtime.authorityEpoch,
+  "runtime_current_release_window_mismatch");
   return runtime;
 }
 
@@ -519,22 +624,28 @@ export function createProductionExecutionRequest({
     runnerUnitName: `market-radar-reconciliation-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
     autonomyTrustRoot: TRUST_ROOT,
     postgresAdminEnvPath: runtime.postgresAdminEnvPath,
+    activationAuthorityEpoch: runtime.activationAuthorityEpoch,
+    activationProductionCommit: runtime.activationProductionCommit,
     activationEvidencePath: runtime.activationEvidencePath,
     activationEvidenceSha256: runtime.activationEvidenceSha256,
     activationCloseoutPath: runtime.activationCloseoutPath,
     activationCloseoutSha256: runtime.activationCloseoutSha256,
     activationSamplesPath: runtime.activationSamplesPath,
     activationSamplesSha256: runtime.activationSamplesSha256,
+    lineageEvidencePath: runtime.lineageEvidencePath,
+    lineageEvidenceSha256: runtime.lineageEvidenceSha256,
     authorityEpoch: runtime.authorityEpoch,
     releaseId: runtime.releaseId,
     webImageId: runtime.webImageId,
     composeSha256: runtime.composeSha256,
     productionEnvSha256: runtime.productionEnvSha256,
+    sourceReleaseWindows: runtime.sourceReleaseWindows,
     approvalIssuedAt: issuedAt.toISOString(),
     approvalExpiresAt: expiresAt.toISOString(),
     approvalRef,
     operator: "codex-primary",
     reconciliationApproval: {
+      activationAuthorityEpoch: runtime.activationAuthorityEpoch,
       activationEvidenceSha256: `sha256:${runtime.activationEvidenceSha256}`,
       activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
       approvalExpiresAt: expiresAt.toISOString(),
@@ -549,7 +660,7 @@ export function createProductionExecutionRequest({
       canonicalWriteAllowed: false,
       executeReadOnlyComparison: true,
       migrationAllowed: false,
-      migrationId: "candidate-episode-v1",
+      migrationId: runtime.sourceReleaseWindows.at(-1).migrationId,
       minimumCleanWindowHours: 24,
       minimumComparedWrites: 10_000,
       operator: "codex-primary",
@@ -559,6 +670,7 @@ export function createProductionExecutionRequest({
       reviewReadAllowed: false,
       schemaDdlAllowed: false,
       shadowVerifyTransitionAllowed: false,
+      sourceReleaseWindows: runtime.sourceReleaseWindows,
     },
     autonomyAuthorization: null,
   };
@@ -583,18 +695,25 @@ export function createProductionExecutionRequest({
     contractSha256: manifest.executionContractSha256,
     runnerSha256: manifest.runnerArtifactSha256,
     artifactSha256: execution.runnerArtifact.sha256,
-    imageOrMigrationSha256: sha256("read-only-reconciliation\n"),
+    imageOrMigrationSha256: sha256(canonicalJson({
+      mode: "read-only-reconciliation",
+      sourceReleaseWindows: runtime.sourceReleaseWindows,
+    })),
     composeSha256: runtime.composeSha256,
     environmentFingerprintSha256: sha256(`${runtime.productionEnvSha256}\n`),
     productionIdentitySha256: sha256(`${runtime.postgresAdminEnvPath}\n`),
     gateEvidenceSha256: manifest.gateEvidenceSha256,
     preflightSha256: sha256(canonicalJson({
+      activationAuthorityEpoch: runtime.activationAuthorityEpoch,
       activationCloseoutSha256: runtime.activationCloseoutSha256,
       activationEvidenceSha256: runtime.activationEvidenceSha256,
+      activationProductionCommit: runtime.activationProductionCommit,
       activationSamplesSha256: runtime.activationSamplesSha256,
       approvedProductionCommit: runtime.approvedProductionCommit,
       authorityEpoch: runtime.authorityEpoch,
+      lineageEvidenceSha256: runtime.lineageEvidenceSha256,
       releaseId: runtime.releaseId,
+      sourceReleaseWindows: runtime.sourceReleaseWindows,
     })),
     backupRestoreEvidenceSha256: sha256("not_applicable_read_only_no_mutation\n"),
     rollbackTarget: "none:read-only:no-production-mutation",

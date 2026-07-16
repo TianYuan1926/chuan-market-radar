@@ -90,9 +90,27 @@ NETWORK="$(${DOCKER[@]} inspect "${WEB_CONTAINER}" \
   --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}}' | head -n 1)"
 [[ "${WEB_IMAGE}" == "${APPROVED_WEB_IMAGE}" && -n "${NETWORK}" ]] \
   || fail production_web_identity_mismatch
-[[ -z "$(${DOCKER[@]} ps --filter 'label=com.docker.compose.project=chuan-market-radar' \
-  --filter 'label=com.docker.compose.service=candidate-shadow-worker' --format '{{.ID}}')" ]] \
-  || fail candidate_shadow_worker_still_active
+CANDIDATE_CONTAINER="$(${DOCKER[@]} ps \
+  --filter 'label=com.docker.compose.project=chuan-market-radar' \
+  --filter 'label=com.docker.compose.service=candidate-shadow-worker' --format '{{.ID}}')"
+[[ "${CANDIDATE_CONTAINER}" =~ ^[0-9a-f]+$
+  && "$(${DOCKER[@]} inspect "${CANDIDATE_CONTAINER}" --format '{{.State.Status}}')" == "running" ]] \
+  || fail candidate_shadow_worker_not_running
+${DOCKER[@]} exec -i "${WEB_CONTAINER}" node - <<'NODE'
+(async () => {
+  const response = await fetch("http://127.0.0.1:3000/api/health", {
+    headers: { "cache-control": "no-store" },
+  });
+  const body = await response.json();
+  const health = body.health ?? {};
+  const candidate = (health.runtimeProbes?.workers ?? [])
+    .find((worker) => String(worker.key).includes("candidate"));
+  if (response.status !== 200 || body.ok !== true || health.level !== "ready"
+      || health.scan?.freshness !== "fresh" || candidate?.status !== "healthy") {
+    throw new Error("candidate_reconciliation_runtime_not_ready");
+  }
+})().catch((error) => { console.error(error.message); process.exit(1); });
+NODE
 
 run_lease_node() {
   ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \

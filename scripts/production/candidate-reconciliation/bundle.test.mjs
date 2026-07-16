@@ -9,6 +9,7 @@ import {
   buildTransportBundle,
   createProductionExecutionRequest,
   prepareAdminUrl,
+  validateMultiCycleLineageEvidence,
   validateProductionExecutionContract,
   validateProductionExecutionRequest,
   verifyStagedTransport,
@@ -32,20 +33,61 @@ function approvedManifest(template) {
 
 function runtimeFixture() {
   const activationRoot = "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-proof-release";
+  const lineageRoot = "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-lineage-proof-release";
   return {
+    activationAuthorityEpoch: 3,
     activationCloseoutPath: `${activationRoot}/observation-closeout.json`,
     activationCloseoutSha256: "1".repeat(64),
     activationEvidencePath: `${activationRoot}/observation-final.json`,
     activationEvidenceSha256: "2".repeat(64),
     activationSamplesPath: `${activationRoot}/observation-samples.jsonl`,
     activationSamplesSha256: "3".repeat(64),
+    activationProductionCommit: "8".repeat(40),
     approvedProductionCommit: "4".repeat(40),
-    authorityEpoch: 3,
+    authorityEpoch: 1,
     composeSha256: "5".repeat(64),
+    lineageEvidencePath: `${lineageRoot}/lineage-final.json`,
+    lineageEvidenceSha256: "9".repeat(64),
     postgresAdminEnvPath: "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
     productionEnvSha256: "6".repeat(64),
     releaseId: "candidate-shadow-proof-release",
+    sourceReleaseWindows: [
+      {
+        authorityEpoch: 3,
+        deadlineAt: "2026-07-14T00:00:00.000Z",
+        migrationId: "candidate-episode-v1",
+        releaseId: "candidate-shadow-activation-release",
+        startedAt: "2026-07-11T00:00:00.000Z",
+      },
+      {
+        authorityEpoch: 1,
+        deadlineAt: "2026-07-17T00:00:00.000Z",
+        migrationId: "candidate-episode-v1-cycle-2",
+        releaseId: "candidate-shadow-proof-release",
+        startedAt: "2026-07-14T00:00:00.000Z",
+      },
+    ],
     webImageId: `sha256:${"7".repeat(64)}`,
+  };
+}
+
+function lineageFixture(runtime = runtimeFixture()) {
+  return {
+    activationEvidenceSha256: runtime.activationEvidenceSha256,
+    canonicalAuthorityChanged: false,
+    completedWrites: 10_000,
+    currentAuthorityEpoch: runtime.authorityEpoch,
+    currentMigrationId: runtime.sourceReleaseWindows.at(-1).migrationId,
+    currentReleaseId: runtime.releaseId,
+    freshCycleStartedAt: runtime.sourceReleaseWindows.at(-1).startedAt,
+    g0Completed: false,
+    productionReconciliationExecuted: false,
+    schemaVersion: "candidate-multi-cycle-lineage-evidence.v1",
+    shadowVerifyStarted: false,
+    sourceReleaseWindows: runtime.sourceReleaseWindows,
+    status: "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION",
+    thresholdsChanged: false,
+    unresolvedOutbox: 0,
   };
 }
 
@@ -120,6 +162,28 @@ test("external request binds exact observation, production identity, packet, and
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("lineage evidence binds activation, every release window, thresholds, and no future-stage claims", () => {
+  const runtime = runtimeFixture();
+  const request = {
+    activationEvidenceSha256: runtime.activationEvidenceSha256,
+    sourceReleaseWindows: runtime.sourceReleaseWindows,
+  };
+  const lineage = lineageFixture(runtime);
+  assert.equal(validateMultiCycleLineageEvidence(lineage, request), lineage);
+  assert.throws(() => validateMultiCycleLineageEvidence({
+    ...lineage,
+    productionReconciliationExecuted: true,
+  }, request), /lineage_future_stage_claim_invalid/u);
+  assert.throws(() => validateMultiCycleLineageEvidence({
+    ...lineage,
+    completedWrites: 9_999,
+  }, request), /lineage_threshold_or_unresolved_invalid/u);
+  assert.throws(() => validateMultiCycleLineageEvidence({
+    ...lineage,
+    sourceReleaseWindows: [runtime.sourceReleaseWindows[1]],
+  }, request), /lineage_release_windows_mismatch/u);
 });
 
 test("staged transport rejects byte drift and symlink substitution", async () => {

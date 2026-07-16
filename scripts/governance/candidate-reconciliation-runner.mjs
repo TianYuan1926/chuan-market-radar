@@ -42,8 +42,14 @@ export async function validateCandidateReconciliationPreparation(contract) {
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) violations.push("runner_artifact");
   if (contract.prerequisites?.minimumCleanWindowHours !== 24
       || contract.prerequisites?.minimumObservationSamples !== 289
-      || contract.prerequisites?.authorityEpochPolicy !== "positive_odd_request_control_observation_exact_match"
-      || contract.prerequisites?.legacyObservationIdentityBinding !== "evidence_hash_request_database_exact_match"
+      || contract.prerequisites?.activationEvidenceBindsFirstReleaseWindow !== true
+      || contract.prerequisites?.freshVerificationCycleRequired !== true
+      || contract.prerequisites?.multiCycleLineageRequired !== true
+      || contract.prerequisites?.minimumReleaseWindows !== 2
+      || contract.prerequisites?.sourceReleaseWindowsStrictlyAdjacent !== true
+      || contract.prerequisites?.authorityEpochPolicy !== "positive_odd_each_release_window_current_control_exact_match"
+      || contract.prerequisites?.legacyObservationIdentityBinding !== "activation_evidence_hash_first_release_window_exact_match"
+      || contract.prerequisites?.currentVerificationIdentityBinding !== "last_release_window_request_database_exact_match"
       || contract.prerequisites?.newExactApprovalRequired !== true
       || contract.prerequisites?.approvalWindowMaximumMinutes !== 90) violations.push("prerequisite_thresholds");
   if (contract.comparison?.minimumComparedWrites !== 10000
@@ -54,7 +60,11 @@ export async function validateCandidateReconciliationPreparation(contract) {
       || contract.comparison?.retryWaitMaximum !== 0
       || contract.comparison?.unresolvedQuarantineMaximum !== 0
       || contract.comparison?.unresolvedTotalMaximum !== 0
+      || contract.comparison?.outsideLineageMaximum !== 0
       || contract.comparison?.resolvedQuarantineCountsAsComparedWrite !== false
+      || contract.comparison?.eachRowReleaseWindowBound !== true
+      || contract.comparison?.completeLineageRequired !== true
+      || contract.comparison?.controlLineageExactMatchRequired !== true
       || contract.comparison?.fullProjectionCommandHashRequired !== true) violations.push("comparison_thresholds");
   if (contract.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || contract.databaseBoundary?.transactionReadOnly !== true
@@ -83,8 +93,16 @@ export async function validateCandidateReconciliationPreparation(contract) {
     "automaticPhaseAdvance: false",
     "phaseTransitionExecuted: false",
     "authority_epoch_not_active_odd",
-    "evidence_hash_request_database_exact_match",
+    "activation_authority_epoch_lineage_mismatch",
+    "source_release_window_not_adjacent",
+    "source_release_not_in_lineage",
+    "source_release_outside_lineage_present",
+    "database_control_lineage_count_mismatch",
+    "sourceReleaseWindows",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
+  if (/request\.migrationId\s*[!=]==?\s*MIGRATION_FAMILY/u.test(runner)) {
+    violations.push("hardcoded_single_cycle_migration_guard_present");
+  }
   if (/transition_migration_control_v1|start_shadow_capture_v3|UPDATE\s+candidate_authority|INSERT\s+INTO\s+candidate_authority|DELETE\s+FROM\s+candidate_authority/i.test(runner)) {
     violations.push("mutation_statement_present");
   }
@@ -92,7 +110,7 @@ export async function validateCandidateReconciliationPreparation(contract) {
     "production_mutation", "schema_migration", "automatic_phase_advance",
     "canonical_cutover", "production_ranking_change", "future_outcome_input", "formal_backtest",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
-  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_AND_NEW_EXACT_APPROVAL"
+  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_ACCUMULATION_10000_AND_FRESH_VERIFICATION_CYCLE_AND_NEW_EXACT_APPROVAL"
       || contract.nextProductionPackage !== "WP-G0.2-SHADOW-VERIFY-RECONCILIATION") {
     violations.push("production_sequence");
   }

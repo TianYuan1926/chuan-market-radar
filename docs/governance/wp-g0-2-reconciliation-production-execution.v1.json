@@ -20,7 +20,14 @@
     "minimumCleanWindowHours": 24,
     "maximumSampleGapSeconds": 600,
     "completedWritesMustBePositive": true,
-    "sameProductionCommitReleaseAndPositiveOddEpoch": true,
+    "activationEvidenceBindsFirstReleaseWindow": true,
+    "accumulationStatus": "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE",
+    "minimumAccumulatedWrites": 10000,
+    "freshVerificationCycleRequired": true,
+    "multiCycleLineageEvidenceRequired": true,
+    "minimumReleaseWindows": 2,
+    "sourceReleaseWindowsStrictlyAdjacent": true,
+    "currentVerificationIdentityBindsLastReleaseWindow": true,
     "activationEvidenceRecomputedFromSamples": true,
     "newExactRequestRequired": true
   },
@@ -31,7 +38,7 @@
       "scripts/production/candidate-reconciliation/runner.mjs"
     ],
     "fileCount": 3,
-    "sha256": "973b76bd489d1c5fd08715d2ca1f7e9f930a6d6fa9fe7abbdf1bf05c6bcbeb1b"
+    "sha256": "ec54812c137c04b750094adf37d4afa1b5061022d14e20b47f335a8172899717"
   },
   "execution": {
     "runner": "transient_systemd_unit",
@@ -39,6 +46,8 @@
     "runtimeMaxSeconds": 3600,
     "sessionIndependent": true,
     "hostNodeRequired": false,
+    "candidateWorkerRequired": "running_healthy",
+    "runtimeHealthRequired": "ready_fresh",
     "containerNodeFallback": {
       "enabled": true,
       "image": "approved_current_web_image",
@@ -58,6 +67,8 @@
     "minimumComparedWrites": 10000,
     "maximumDifferences": 0,
     "maximumUnresolvedItems": 0,
+    "maximumOutsideLineageItems": 0,
+    "controlLineageExactMatchRequired": true,
     "ddlAllowed": false,
     "dmlAllowed": false,
     "migrationAllowed": false,
@@ -86,11 +97,13 @@
     "containsSecrets": false,
     "temporaryArtifactCleanupRequired": true,
     "activationEvidencePreserved": true,
+    "multiCycleLineageEvidencePreserved": true,
     "outputEvidencePreserved": true
   },
   "forbidden": [
     "observation_window_shortening",
     "activation_evidence_relabeling",
+    "multi_cycle_lineage_relabeling",
     "source_sync",
     "git_checkout",
     "image_build",
