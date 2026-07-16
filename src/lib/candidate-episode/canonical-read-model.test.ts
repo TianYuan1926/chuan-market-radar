@@ -253,19 +253,31 @@ test("canonical parity treats null to zero and unavailable as explicit differenc
 
 const evidenceStatus = "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" as const;
 
-test("current production code lock defeats every read flag", () => {
-  assert.equal(CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED, false);
+test("production code authorization still requires phase flags and prerequisite evidence", () => {
+  assert.equal(CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED, true);
   assert.deepEqual(evaluateCurrentCandidateReadRoute({
-    phase: "canonical",
-    dualReadRequested: false,
-    canonicalReadRequested: true,
-    reviewReadRequested: true,
+    phase: "shadow_capture",
+    dualReadRequested: true,
+    canonicalReadRequested: false,
+    reviewReadRequested: false,
     reconciliationEvidenceStatus: evidenceStatus,
-    dualReadEvidenceStatus: "PASS_DUAL_READ_OBSERVATION",
-    canonicalCompatEvidenceStatus: "PASS_CANONICAL_COMPAT_OBSERVATION",
+    dualReadEvidenceStatus: "missing",
+    canonicalCompatEvidenceStatus: "missing",
   }), {
     mode: "legacy_only",
-    blockers: ["canonical_read_not_authorized_in_code"],
+    blockers: ["candidate_phase_not_readable"],
+  });
+  assert.deepEqual(evaluateCurrentCandidateReadRoute({
+    phase: "shadow_verify",
+    dualReadRequested: true,
+    canonicalReadRequested: false,
+    reviewReadRequested: false,
+    reconciliationEvidenceStatus: "missing",
+    dualReadEvidenceStatus: "missing",
+    canonicalCompatEvidenceStatus: "missing",
+  }), {
+    mode: "legacy_only",
+    blockers: ["reconciliation_evidence_missing"],
   });
 });
 
