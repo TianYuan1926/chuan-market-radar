@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { readFile, rename, stat, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 export const PACKAGE_ID = "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE";
@@ -309,6 +310,24 @@ function exactFalse(value) {
   return String(value ?? "false").trim().toLowerCase() === "false";
 }
 
+export function loadPgRuntime({
+  applicationRoot = process.env.MARKET_RADAR_APPLICATION_ROOT,
+  moduleUrl = import.meta.url,
+} = {}) {
+  const requireCandidates = [createRequire(moduleUrl)];
+  if (applicationRoot) {
+    requireCandidates.push(createRequire(resolve(applicationRoot, "package.json")));
+  }
+  for (const requireCandidate of requireCandidates) {
+    try {
+      return requireCandidate("pg");
+    } catch (error) {
+      if (error?.code !== "MODULE_NOT_FOUND") throw error;
+    }
+  }
+  throw new ActivationPolicyError("approved_pg_runtime_unavailable");
+}
+
 export function validatePreActivationEnvironment(source) {
   const entries = environmentEntries(source);
   for (const key of CANDIDATE_URL_KEYS) ensure(entries.get(key)?.trim(), `candidate_url_missing:${key}`);
@@ -344,7 +363,7 @@ async function writeAtomic(path, value) {
 }
 
 async function withMigrationClient(urlFile, work) {
-  const { default: pg } = await import("pg");
+  const pg = loadPgRuntime();
   const { Client } = pg;
   const connectionString = await readSecureText(urlFile, "migration_admin_url");
   const client = new Client({ application_name: "market-radar-candidate-activation", connectionString });

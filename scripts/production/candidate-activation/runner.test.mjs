@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   MINIMUM_OBSERVATION_SAMPLES,
   evaluateObservationEvidence,
+  loadPgRuntime,
   renderActivationEnvironment,
   validateActivationRelease,
   validateApprovalRequest,
@@ -139,6 +140,21 @@ function sample(index, { completed = index, overrides = {} } = {}) {
     ...overrides,
   };
 }
+
+test("database controls load pg from the approved application root", () => {
+  const pg = loadPgRuntime({
+    applicationRoot: process.cwd(),
+    moduleUrl: "file:///packet/scripts/production/candidate-activation/runner.mjs",
+  });
+  assert.equal(typeof pg.Client, "function");
+  assert.throws(
+    () => loadPgRuntime({
+      applicationRoot: "/approved-root-without-node-modules",
+      moduleUrl: "file:///packet/scripts/production/candidate-activation/runner.mjs",
+    }),
+    /approved_pg_runtime_unavailable/,
+  );
+});
 
 test("approval locks activation scope while denying migration, canonical paths and ranking mutation", () => {
   const now = new Date("2026-07-12T08:00:00.000Z");

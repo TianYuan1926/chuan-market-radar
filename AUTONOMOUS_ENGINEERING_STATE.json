@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-16T08:00:00+08:00",
+  "updatedAt": "2026-07-16T09:10:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -13,7 +13,7 @@
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
     "runtimeIdentityPreflight": "pass_local_and_production_exact_request_consumed_successfully",
     "runtimeIdentityProduction": "pass_runtime_identity_and_permission_7_samples_1851_seconds_continuous_ready_fresh_three_noinherit_logins_three_fixed_memberships_three_candidate_urls_zero_privileged_logins_zero_feature_flags_candidate_dormant_worker_absent",
-    "activationObservationPreparation": "pass_local_activation_production_release_exact_bundle_pending_production_not_executed"
+    "activationObservationPreparation": "second_production_attempt_failed_before_lease_and_mutation_pg_runtime_resolution_fix_all_fixed_gates_pass_clean_commit_created_commit_bound_gates_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -380,12 +380,12 @@
       "status": "PASS_LOCAL_ACTIVATION_PRODUCTION_RELEASE",
       "productionMutation": false,
       "sourceParentCommit": "1dd11ae20f89849a883859a0f98436982cc1f994",
-      "runnerArtifactSha256": "b8f0411095bff2ed8665151e16c70c544dc98b7cff6e9da3cec472b890d89413",
+      "runnerArtifactSha256": "9fd66066f35caab976576638e3b6f069d6e7c7f3bb7e938888c39afc7039af55",
       "runnerArtifactFiles": 5,
-      "activationArtifactSha256": "2b4ae59c966dad2ecc08d5cf1147316db2235bb536db921210f25df132ba1549",
+      "activationArtifactSha256": "c6518ecea8f74e4e942f43f04c0f60fd2bd98e23868b2840cc19cb9dd51546c3",
       "activationArtifactFiles": 16,
-      "contractSha256": "f23431b8b744253b8e890ce5af5371b20206ba49774d607f1eeb264a9e0b7200",
-      "activationTests": "25/25",
+      "contractSha256": "9180e26d242d84b5199f9262fcb967c55c3f3e4b731d2bf5a58c9243c6630612",
+      "activationTests": "26/26",
       "compositionTests": "29/29",
       "shadowGovernanceTests": "8/8",
       "postgres16Rehearsal": "pass_control_start_1_rollback_1_final_legacy_epoch_2_write_frozen_true_production_connected_false",
@@ -412,6 +412,28 @@
         "serviceMutation": false,
         "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
         "candidateWorkerCount": 0,
+        "stagingSecureOpsAbsent": true,
+        "failedBundleAndRequestReusable": false
+      },
+      "latestFailedProductionAttempt": {
+        "sourceCommit": "abcc34c8f4c1dff86d960afcc24d641183a4b9aa",
+        "transportBundleSha256": "27b64ac420a0f588fe37e416cdd031c917ddf5e86dd1072c233d3661100e3612",
+        "externalRequestSha256": "572c4f378087947b0f971dfb2542dfbf7b0d31ad1c77f8cf127e2fc35b24c44f",
+        "requestStatus": "consumed_failed_attempt_do_not_reuse",
+        "result": "FAIL_PRE_MUTATION_APPROVED_PG_RUNTIME_UNRESOLVED",
+        "failureReason": "mounted_activation_runner_resolved_bare_pg_from_private_staging_ancestry_instead_of_approved_web_image_application_root",
+        "leaseAcquired": false,
+        "gitMutation": false,
+        "databaseMutation": false,
+        "environmentMutation": false,
+        "serviceMutation": false,
+        "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+        "productionEnvSha256": "61c27fba4fe9ff3b610f11293b6765ccb791dfdf4288efd0f1912f7a823babda",
+        "webHealth": "running_healthy",
+        "postgresHealth": "running_healthy",
+        "redisHealth": "running_healthy",
+        "candidateWorkerCount": 0,
+        "controlPreflightOutputBytes": 0,
         "stagingSecureOpsAbsent": true,
         "failedBundleAndRequestReusable": false
       }

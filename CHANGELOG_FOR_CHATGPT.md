@@ -4463,3 +4463,47 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只冻结并重试该 UID 修复；即时验证通过后启动不可缩短的 24 小时观察。
+
+## 2026-07-16 / WP-G0.2 Activation Web 镜像依赖根修复
+
+### 本轮目标
+
+如实修复第二次 Activation 事务在数据库 control preflight 阶段无法从私有 staging 模块路径解析 Web 镜像内 `pg` 运行时的问题；不放宽私有目录、容器隔离、数据库、回滚、观察或交易门禁。
+
+### 修改范围
+
+- 激活 runner 复用既有 Runtime Identity 依赖加载模式，从显式批准的 Web 镜像 `/app` application root 加载 `pg`；找不到时返回稳定 `approved_pg_runtime_unavailable`。
+- database control 容器仅增加 `MARKET_RADAR_APPLICATION_ROOT=/app`；继续保留 staging owner UID/GID、read-only、cap-drop ALL、no-new-privileges 和精确 source/secure 挂载。
+- 新增 mounted staging 模块路径无法直接解析依赖、但批准 application root 可以解析的回归；刷新 activation runner/release/contract 哈希。
+- 更新自治状态、traceability、Context 和中文交付报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、frontend、migration、业务 DML、Redis、业务 worker、Feature Flag 或 formal 回测。
+
+### 核心链路影响
+
+只修复候选筛选与复盘进化的 Shadow Capture 生产执行地基，不改变候选内容、排序、结构判断或交易计划。
+
+### 测试结果
+
+- Activation 26/26：PASS。
+- 隔离 PostgreSQL 16：migration 1-9、control start 1、rollback 1、final legacy/epoch 2/writeFrozen true、productionConnected=false：PASS。
+- Activation release/runner contract：PASS；runner artifact=`9fd66066...`、activation artifact=`c6518ece...`、contract=`9180e26d...`。
+- 固定基础门禁：typecheck、lint、market 960/0/4 explicit skip、workers 23/23、historical 4/4、build、Golden 16/16，全部 PASS。
+- Composition 29/29、Shadow governance 8/8、Autonomy 31/31 与三项安全门禁：PASS。
+- 首次并行总门禁让两个 `build:market-cli` 竞争 `.tmp/market-tests` 并产生 `MODULE_NOT_FOUND`；改为严格串行后上述结果全部 PASS，未把并发失败包装成代码 PASS。
+- 提交后 commit-bound gate：待 clean commit 后运行。
+- 第一次 commit-bound 控制器调用在门禁启动前因 active package 与 queue 状态枚举不一致而 fail closed；两者已同步为合同规定的 `ready_for_gate`，详细生产失败事实继续保留在 system truth/traceability。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+第二次事务绑定 source `abcc34c8...`、Bundle `27b64ac4...`、request `572c4f37...`，在 lease、Git、DB control、env 和服务 mutation 前失败；生产仍为 clean detached `cec0b657...`，`.env.production` 哈希未变，Web/Postgres/Redis healthy，Candidate worker absent，staging/secure/ops 已清理。该 Bundle/request 已消费且禁止复用。当前依赖根修复已形成 clean commit；commit-bound gate、main 推送和生产重试尚未完成。
+
+### 风险与遗留问题
+
+- P0：无已知未回滚生产 mutation；第二次失败仍发生在 mutation 前。
+- P1：必须完成固定全门禁、clean commit、提交后 gate、新 Bundle/request 和精确重试。
+- P1：24 小时/289 样本观察尚未启动，Activation、WP-G0.2、G0 均未完成。
+
+### 下一轮建议
+
+只冻结并重试当前依赖根修复；即时验证通过后启动不可缩短的 24 小时观察。

@@ -27,7 +27,7 @@
     "productionWorktreeMustBeCleanDetached": true
   },
   "runnerArtifact": {
-    "sha256": "b8f0411095bff2ed8665151e16c70c544dc98b7cff6e9da3cec472b890d89413",
+    "sha256": "9fd66066f35caab976576638e3b6f069d6e7c7f3bb7e938888c39afc7039af55",
     "files": [
       "scripts/production/candidate-activation/bundle.mjs",
       "scripts/production/candidate-activation/observation-runner.sh",
@@ -37,7 +37,7 @@
     ]
   },
   "activationReleaseArtifact": {
-    "sha256": "2b4ae59c966dad2ecc08d5cf1147316db2235bb536db921210f25df132ba1549",
+    "sha256": "c6518ecea8f74e4e942f43f04c0f60fd2bd98e23868b2840cc19cb9dd51546c3",
     "files": [
       "docker-compose.yml",
       "deploy/workers/protected-api-worker.mjs",
