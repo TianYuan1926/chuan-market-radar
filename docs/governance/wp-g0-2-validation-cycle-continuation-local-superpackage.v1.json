@@ -41,6 +41,8 @@
     "tableLockRequired": true,
     "failureRollsBackEntireContinuation": true,
     "legacyRemainsAuthoritative": true,
+    "retiredLatestCycleCanStartAdjacent": true,
+    "retiredCycleNeverReactivated": true,
     "thresholdChanged": false,
     "observationWindowShortened": false
   },
@@ -72,7 +74,7 @@
       "src/lib/candidate-episode/shadow-capture-runtime.ts"
     ],
     "fileCount": 12,
-    "sha256": "1b2e5dd9966604e45b98c41f6ddc2c92bb0e2443e8c9bf87431da85892f131e1"
+    "sha256": "b98d5f628606432a4551c961aeb2157263103624a1cff5e16f06489ead1f3e71"
   },
   "localPostgres16Rehearsal": {
     "oldDeadlineImmutable": true,

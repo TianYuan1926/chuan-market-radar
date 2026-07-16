@@ -72,6 +72,8 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     tableLockRequired: true,
     failureRollsBackEntireContinuation: true,
     legacyRemainsAuthoritative: true,
+    retiredLatestCycleCanStartAdjacent: true,
+    retiredCycleNeverReactivated: true,
     thresholdChanged: false,
     observationWindowShortened: false,
   })) if (boundary[key] !== expected) violations.push(`continuation_boundary:${key}`);
@@ -99,6 +101,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     "LOCK TABLE candidate_authority.candidate_migration_control IN SHARE ROW EXCLUSIVE MODE",
     "unresolved_outbox_blocks_cycle_continuation", "retired_cycle_deadline_mutated",
     "candidate_data_changed_during_cycle_continuation", "thresholdChanged: false",
+    "start_adjacent_from_retired", "current_cycle_not_retired_legacy",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   if (!compose.includes("CANDIDATE_RUNTIME_MIGRATION_ID: ${CANDIDATE_RUNTIME_MIGRATION_ID:-candidate-episode-v1}")) {
     violations.push("compose_cycle_identity_missing");

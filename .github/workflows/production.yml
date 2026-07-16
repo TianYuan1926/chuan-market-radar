@@ -82,6 +82,12 @@ jobs:
       - name: Candidate validation-cycle continuation tests
         run: npm run test:candidate-cycle-continuation && npm run test:candidate-cycle-continuation-governance
 
+      - name: Candidate validation-cycle continuation production packet contract
+        run: npm run candidate:cycle-continuation-production-packet:validate
+
+      - name: Candidate validation-cycle continuation production packet tests
+        run: npm run test:candidate-cycle-continuation-production-packet
+
       - name: Typecheck
         run: npm run typecheck
 

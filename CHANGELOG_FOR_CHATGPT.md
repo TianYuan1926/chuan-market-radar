@@ -4875,3 +4875,51 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 当前包提交绑定自治总门禁、commit/push 后，建立 session-independent production runner 与 cycle observer；只有 Activation 最终 PASS、动态 preflight 和精确绑定全部通过才允许执行。
+
+## 2026-07-17 / WP-G0.2 Validation Cycle Continuation Production Packet
+
+### 本轮目标
+
+把已验证的不可变 validation cycle 续接封装为会话独立、精确绑定、一次授权、自动降级回滚和持续留证的生产执行包；当前只做本地准备，不连接或执行生产 mutation。
+
+### 修改范围
+
+- 新增确定性脱敏 Bundle、严格 request、Activation 原始样本重算和 15 分钟只读 production preflight 绑定。
+- 新增 transient systemd entrypoint、Web/Worker 镜像 retention、外部租约、原子续接、Candidate-disabled Legacy-safe rollback 和真实写入 observer。
+- 扩展 cycle core：环境精确切换、失败环境全关闭、生产 rollback 和只读 observation snapshot。
+- 新增机器合同、治理回归、CI 门禁和中文报告。
+- 未修改 migration、scan、analysis、strategy、RR、Risk Gate、交易计划、frontend/API、Redis、scanner-worker、其它 worker 或生产服务。
+
+### 核心链路影响
+
+服务候选筛选和复盘进化的 Candidate 生命周期真值；不改变全市场发现、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Packet/governance/runner/observer/bundle/boundary：22/22 PASS。
+- Core continuation：25/25；治理 2/2 PASS。
+- PostgreSQL 16：active 相邻 cycle 原子续接、旧 deadline immutable、Candidate data preserved、single active cycle、失败冻结为全 Legacy，并从最新 frozen Legacy 启动下一相邻 cycle且不复活旧 cycle，PASS；`productionConnected=false`。
+- typecheck、干净 lint：PASS。
+- market 1025 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- 两次预提交脱敏 Bundle SHA-256 均为 `1e55c2c1065cd34c071f5905d987793781718908600ddcfe7e479466941263dc`；重复副本已精确删除。
+- 冻结态恢复修复改变 runner/contract 后，上述旧预提交 Bundle 已失效并精确删除；最终 clean commit 后必须重新生成。
+- 本轮后审计真实触发两类 fail-closed：runner 改变后旧 artifact hash 被拒绝；测试凭据形状被 security gate 拒绝。分别通过重算合同和改用非凭据测试占位关闭，未增加白名单。
+- 最终自治总门禁：15/15 PASS，`worktreeUnchanged=true`；`canAutoCommit=true`、`canAutoDeploy=false`。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未上传、未执行数据库或服务 mutation。Edge/OrcaTerm 最新只读证据为 observer active、90/289、completed writes=1202；Activation 最终 PASS 尚未产生。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：当前 Activation 必须完成 exact 289 样本和至少 24 小时后从原始样本重算 PASS。
+- P1：当前包尚待最终提交绑定自治总门禁、clean commit/push；预提交模板 `approvalEligible=false`，不得上传执行。
+- P1：累计写入仍低于 10,000；Reconciliation、Shadow Verify、Canonical Compat/Cutover 均未执行。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成提交绑定自治总门禁并推送工作分支；继续当前 observer，不中断观察，最终 PASS 后才生成新鲜 preflight、一次性 authorization/request 和 commit-bound final Bundle。

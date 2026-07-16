@@ -5,13 +5,16 @@ import pg from "pg";
 import {
   continueCandidateValidationCycle,
   preflightCandidateValidationCycleContinuation,
+  rollbackCandidateValidationCycle,
 } from "./runner.mjs";
 
 const connectionString = process.env.WP_G0_2_CYCLE_CONTINUATION_REHEARSAL_DATABASE_URL;
 const integrationTest = connectionString ? test : test.skip;
 
 const input = {
+  currentAuthorityEpoch: 1,
   currentMigrationId: "candidate-episode-v1",
+  currentPhase: "shadow_capture",
   nextMigrationId: "candidate-episode-v1-cycle-2",
   currentReleaseId: "candidate-shadow-cycle-current",
   nextReleaseId: "candidate-shadow-cycle-next",
@@ -74,6 +77,41 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
         WHERE migration_id=$1`, [input.currentMigrationId]),
       (error) => error?.code === "55000",
     );
+
+    const rollback = await rollbackCandidateValidationCycle(client, input);
+    assert.equal(rollback.status, "PASS_VALIDATION_CYCLE_FROZEN_LEGACY_AUTHORITY");
+    assert.equal(rollback.candidateRuntimeAllowed, false);
+    assert.equal(rollback.legacyAuthorityRetained, true);
+    assert.equal(rollback.preservedData.completed, 1);
+    const rollbackProof = await client.query(`SELECT
+      count(*) FILTER (WHERE phase <> 'legacy')::int AS active,
+      count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired
+      FROM candidate_authority.candidate_migration_control`);
+    assert.deepEqual(rollbackProof.rows[0], { active: 0, retired: 2 });
+
+    const retryInput = {
+      ...input,
+      currentAuthorityEpoch: rollback.frozenCycle.epoch,
+      currentMigrationId: input.nextMigrationId,
+      currentPhase: "legacy",
+      currentReleaseId: input.nextReleaseId,
+      nextMigrationId: "candidate-episode-v1-cycle-3",
+      nextReleaseId: "candidate-shadow-cycle-third",
+    };
+    const retryPreflight = await preflightCandidateValidationCycleContinuation(client, retryInput);
+    assert.equal(retryPreflight.continuationMode, "start_adjacent_from_retired");
+    const retried = await continueCandidateValidationCycle(client, retryInput);
+    assert.equal(retried.continuationMode, "start_adjacent_from_retired");
+    assert.equal(retried.previousCycle?.migrationId, input.nextMigrationId);
+    assert.equal(retried.previousCycle?.phase, "legacy");
+    assert.equal(retried.activeCycle?.migrationId, retryInput.nextMigrationId);
+    assert.equal(retried.activeCycle?.phase, "shadow_capture");
+    assert.equal(retried.preservedData.completed, 1);
+    const retryProof = await client.query(`SELECT
+      count(*) FILTER (WHERE phase <> 'legacy')::int AS active,
+      count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired
+      FROM candidate_authority.candidate_migration_control`);
+    assert.deepEqual(retryProof.rows[0], { active: 1, retired: 2 });
   } finally {
     client.release();
     await pool.end();

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "wp-g0.2-validation-cycle-continuation-production-packet.v1",
+  "packageId": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION",
+  "title": "Candidate immutable validation-cycle production continuation",
+  "gate": "G0",
+  "actionClass": "feature_phase_activation",
+  "riskTier": "R2_AUTHORITY_TRANSITION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentActivationFinalPass": false,
+  "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+  "postgresAdminEnvPath": "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
+  "standingGrant": {
+    "grantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "revocationEpoch": 2,
+    "maximumExecutions": 1,
+    "maximumApprovalWindowMinutes": 90,
+    "externalLeaseRequired": true
+  },
+  "prerequisites": {
+    "activationStatus": "PASS_ACTIVATE_AND_OBSERVE",
+    "activationSamplesExact": 289,
+    "minimumActivationHours": 24,
+    "activationEvidenceRecomputed": true,
+    "unresolvedOutboxMaximum": 0,
+    "productionHealth": "ready_fresh",
+    "productionGit": "clean_detached_exact",
+    "newExactRequestRequired": true
+  },
+  "execution": {
+    "runner": "transient_systemd_unit",
+    "sessionIndependent": true,
+    "restart": "no",
+    "runtimeMaxSeconds": 5400,
+    "services": [
+      "web",
+      "candidate-shadow-worker"
+    ],
+    "sourceSyncAllowed": false,
+    "exactFetchAllowed": true,
+    "buildAllowed": true,
+    "otherServicesAllowed": false
+  },
+  "databaseBoundary": {
+    "isolation": "serializable",
+    "controlTableLock": "share_row_exclusive",
+    "role": "candidate_migration_role",
+    "migrationAllowed": false,
+    "candidateBusinessDataMutationAllowed": false,
+    "oldDeadlineMutationAllowed": false,
+    "maximumActiveCycles": 1,
+    "continuationCoreSourcePhases": [
+      "shadow_capture",
+      "legacy"
+    ],
+    "productionPacketSourcePhase": "shadow_capture",
+    "unresolvedOutboxMaximum": 0,
+    "oldCycleRetained": true,
+    "allCandidateCountsPreserved": true
+  },
+  "rollback": {
+    "reactivateOldCycle": false,
+    "freezeNewCycle": true,
+    "disableCandidateFlags": true,
+    "stopCandidateWorker": true,
+    "restoreGitAndImages": true,
+    "legacyAuthorityRetained": true,
+    "databaseBusinessRowsDeleted": false
+  },
+  "observation": {
+    "sampleIntervalSeconds": 300,
+    "minimumComparedWrites": 10000,
+    "minimumStabilitySeconds": 1800,
+    "minimumSamples": 7,
+    "minimumCompletionAdvances": 2,
+    "maximumSampleGapSeconds": 600,
+    "deadlineSafetySeconds": 21600,
+    "automaticReconciliation": false,
+    "automaticCanonicalCutover": false,
+    "passStatus": "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE"
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-cycle-continuation/bundle.mjs",
+      "scripts/production/candidate-cycle-continuation/observation-runner.mjs",
+      "scripts/production/candidate-cycle-continuation/observation-runner.sh",
+      "scripts/production/candidate-cycle-continuation/production-entrypoint.sh",
+      "scripts/production/candidate-cycle-continuation/production-runner.sh",
+      "scripts/production/candidate-cycle-continuation/runner.mjs"
+    ],
+    "fileCount": 6,
+    "sha256": "0ae9307ea666e63baab5f417796100b55c163cfd6573386ec23a741b1ee9e4fb"
+  },
+  "forbidden": [
+    "threshold_lowering",
+    "observation_shortening",
+    "old_deadline_reset",
+    "migration",
+    "redis_mutation",
+    "scanner_worker_mutation",
+    "other_service_mutation",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "truthBoundary": {
+    "localPacketPassIsProductionPass": false,
+    "continuationPassIsReconciliationPass": false,
+    "accumulationPassIsShadowVerifyPass": false,
+    "g0Complete": false,
+    "systemStatus": "R1 / 可运行但不完整 / 不能支撑实战"
+  }
+}
