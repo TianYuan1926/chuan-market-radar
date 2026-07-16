@@ -26,7 +26,7 @@ export async function validateActivationRunnerPreparation() {
     runnerArtifactSha256: result.runnerArtifactSha256,
     runnerArtifactFiles: 5,
     activationReleaseArtifactSha256: result.activationArtifactSha256,
-    activationReleaseArtifactFiles: 16,
+    activationReleaseArtifactFiles: 19,
     contractSha256: result.contractSha256,
     violations: result.violations,
   };

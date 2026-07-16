@@ -6,6 +6,7 @@
 
 ## 0. 最新生产事实快照
 
+- 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE` 第四次真实生产事务绑定 source=`6c615c33749f857797cfa1cfee1f95e7731352cb`、Bundle=`84a6457cad76ba6566ba9f767125672b83c8eeb10bc7f44d539ad70202ee52c2`、request=`d5d48825f4db23fac5cf796ac160b14a08f05a36d373db8e6fd75d1f9a7df661`。Bundle/request 远端 SHA 与本地一致，入口合同通过并启动 transient unit；数据库 control preflight 随后以 `candidate_control_not_empty` fail closed。失败发生在 lease、Git、DB control、env、Web 和 worker mutation 之前。生产复核仍为 clean detached `cec0b657...`，Candidate worker absent；控制行为 `candidate-episode-v1 / legacy / epoch 2 / writeFrozen=true`，deadline 尚余超过 24 小时，Candidate event/outbox/quarantine resolution 均为 0。staging/secure/ops 和本轮两份远端上传临时文件已精确清理，历史事故证据未动。根因是旧 runner 只接受 control 表为空，却又在回滚后按设计保留不可删除的 legacy 控制行，形成“能安全回滚、不能合法重试”的生命周期缺口。当前最小修复不删行、不清库、不改 migration：只有 exact legacy+frozen、正偶数 epoch、数据全空且剩余窗口至少覆盖 24 小时加一个采样间隔时，才调用既有受控 transition 进入下一正奇数 epoch；观察样本要求 runtime/monitor epoch 一致且为正奇数。Activation 28/28、PG16 `fresh epoch1 -> rollback epoch2 -> rearm epoch3 -> rollback epoch4`、typecheck、lint、market 965/0/4、workers 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁均 PASS。runner artifact=`96705ce4...`、19 文件 activation artifact=`3f67df40...`、contract=`89efded1...`；修复尚待 clean commit、commit-bound gate、main 推送和全新单次 Bundle/request。24 小时观察未开始，Activation/WP-G0.2/G0 均未完成。
 - 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE` 第三次真实生产事务绑定 source=`a23365f42a4ff465d733d17390651c7c9af1e892`、Bundle=`b14681fd8bd309a991d5412bd8b0e1b626ff93b6c1539ba88a9d3e5ce842e569`、request=`07bfc56e0df0578df9f2f97e60488a64ff6f5588a8776afbbe2f8c52cf64a1ec`。事务完成 Git/control/env/Web/candidate-worker 激活并通过即时验收，但第一个持续观察样本发现 scanner-worker degraded，故本轮必须记为 FAIL，不能写 Activation PASS。生产诊断证明 `/api/scan` 在 Candidate 激活期间两次 HTTP 500；根因不是 CoinGlass 或数据库不可用，而是轻扫候选中有 7 个币未进入当前深扫批次，旧 mapper 把“本轮未深扫”误判为“身份无法解析”，Shadow Capture hard-stop 又未经隔离传播为核心扫描 500；worker 随后的 idle heartbeat 还会把真实 error 覆盖成 healthy。Observer 已触发自动回滚，但旧 ERR trap 丢失退出码、回滚身份检查错误假设 active state 必须 dormant，紧急回滚路径又误用生产仓库旧 verifier；最终通过独立恢复将生产安全恢复到 clean detached `cec0b657...`、旧 Web image=`sha256:cd3652...`、Candidate worker absent、control=`legacy/epoch 2/writeFrozen=true`、Web/Postgres/Redis healthy、lease=`ROLLBACK_PASS`。旧 Bundle/request 已消费且禁止复用，远端 stage/evidence/ops/secure 保留作事故证据，未伪装成已清理。当前最小 P0 修复只做四件事：从完整公开合约 universe 解析 Candidate 身份；Shadow 写入失败时保留 canonical archive 但让扫描状态如实 failed；idle heartbeat 不再覆盖真实 task error；修复 observer/production runner 的自动回滚。Activation 28/28、Composition 32/32、Shadow governance 8/8、Autonomy 31/31、真实 PG16、typecheck、lint、market 965 pass/0 fail/4 explicit skip、workers 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁全部 PASS。新 runner artifact=`0556176b...`、19 文件 activation artifact=`3503e051...`、contract=`95bae2d7...`；修复尚未 commit/push，尚未生成新的单次 Bundle/request，24 小时/289 样本观察未开始。Candidate 当前 dormant，WP-G0.2/G0 未完成，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION` 已取得真实生产 `PASS_RUNTIME_IDENTITY_AND_PERMISSION`。执行绑定 runner source=`1dd11ae20f89849a883859a0f98436982cc1f994`、脱敏 Bundle=`b5de0535b5fb6897667befd2b00f10976404e748d1e03c805c6b14433a221808`、request SHA-256=`6e08102baaed3b6f7b662fe0af42b334dfa05d4c075b16418c2de826af60f841` 和一次性外部授权 SHA-256=`f1edc98c65ac78d7afd035609eb8386c0601f04f0f04215b6c56998952955145`。生产事务即时阶段为 `PASS_IMMEDIATE_RUNTIME_IDENTITY_AWAITING_OBSERVATION`；独立 observer unit最终 `Result=success / ExecMainStatus=0`，7 个样本覆盖 1851 秒且持续 ready/fresh。生产 evidence 文件实时 SHA-256=`bbd5836067d8fc9854c653ab1a2ea4b3c8a06bc5b1e8384dcf5ab8d3476a278d`（此前上下文首三位误抄为 `bdb`，本轮已纠正）：生产仍为 clean detached `cec0b657...`、Web image=`sha256:cd3652...`，3 个 NOINHERIT LOGIN、3 个固定 capability membership、3 条 Candidate URL 已配置；privileged LOGIN=0、Candidate Feature Flag=0、Candidate worker absent、Candidate 仍 dormant，观察期数据库/Redis/env/其它服务 mutation 均为 false。Runtime Identity 已完成，但 Shadow Capture activation 尚未通过，WP-G0.2/G0 仍未完成，系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
 - 2026-07-16 `WP-G0.2-SHADOW-CAPTURE-RUNTIME-IDENTITY-AND-PERMISSION` 最新生产事务仍不能写 PASS。绑定 runner source=`26e82fb6a910018dbe6254dd1e0d2835d40f02b9`、Bundle=`e931515cc2aa9033e82adb4f9ae27bd80f4c323165a400a8dfd920acb2013f72`、request=`d7acd1f0ca86b05cefc6260656958bd0666a413298bdb8d9374642ee3180f730` 的 transient unit 完成三套临时 LOGIN/最小权限、env 切换和 Web no-build recreate，但在新 Web 尚未监听 `127.0.0.1:3000` 时立即执行身份探针，返回 `ECONNREFUSED`。自动回滚与独立只读复核证明 production HEAD 仍为 clean detached `cec0b657...`，旧 env SHA、旧 Web image=`sha256:cd3652...`、Candidate URL/runtime LOGIN/worker=`0/0/0`、schema ledger/control=`9|0`、writer archive grant absent、health ready/fresh 均恢复；生产没有保留本次 mutation。两个已上传的脱敏运输临时文件仍待精确清理，不能写成全部临时文件不存在。当前最小修复要求 Web 重建后最长等待 240 秒，只有容器 `running|healthy` 且容器内 health 同时达到 `ready / database ready / fresh` 才能进入身份探针；回滚重建复用同一门禁。Runner 17/17、Packet 13/13、Identity 14/14、Deploy Safety 6/6、Autonomy 31/31、隔离 PG16、typecheck、lint、market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 与三项安全门禁均 PASS；runner artifact=`0d40fdf0...`、packet artifact=`5f734339...`。clean commit、提交后自治 gate evidence、新 Bundle/request 和生产重试仍待完成；Activation、WP-G0.2 与 G0 均未完成，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
@@ -419,8 +420,8 @@ GitHub Actions / self-hosted runner：
 - 当前是否完整：不完整。扫描、分析、策略、复盘都有基础，但仍需要专业能力验收。
 - 当前是否支撑实战：**当前系统仍不能支撑实战。**
 - 当前最大短板：
-  1. Runtime Identity 已生产 PASS；第三次 Shadow Capture 激活在首个观察样本暴露 scanner HTTP 500 和自动回滚缺陷，生产已恢复旧基线。当前直接阻断点是把本轮 P0 修复冻结为 clean commit、通过提交绑定门禁、推送并用全新单次 Bundle/request 重试，随后完成 24 小时/289 样本观察。
-  2. Candidate runtime 仍 dormant；Feature Flag=0、worker absent、control lifecycle 未启动，reconciliation 和 canonical cutover 均未完成。
+  1. Runtime Identity 已生产 PASS；第四次 Shadow Capture 激活在 mutation 前因旧回滚控制行触发 fail-closed。生产未变更，当前直接阻断点是冻结 restart-safe lifecycle 修复、通过提交绑定门禁、推送并用全新单次 Bundle/request 重试，随后完成 24 小时/289 样本观察。
+  2. Candidate runtime 仍 dormant；Feature Flag=0、worker absent、control 为 `legacy/epoch2/frozen`，reconciliation 和 canonical cutover 均未完成。
   3. 第五轮 formal 的历史能力证据仍显示 `TRADE_PLAN_READY=0`、WAIT 有效率 `0%`、扫描和分析提前性不足；后续新证据通过前不得宣称实战能力改善。
   4. 公网 HTTPS/session/security 仍需按 G0.3 独立收口。
   5. 回测/复盘和生产评分边界必须持续防污染。
@@ -431,9 +432,9 @@ GitHub Actions / self-hosted runner：
 
 ### 当前最新三轮（2026-07-16）
 
-- 第三次 Activation 真实生产事务：即时激活通过，但首个观察样本因 scanner-worker degraded 失败；旧 observer 自动回滚链也暴露三项缺陷，最终独立恢复到 `cec0b657...` Dormant 基线。本轮结果是 FAIL，不是 PARTIAL/PASS。
-- P0 根因与修复：轻扫 Candidate 不在当前深扫批次被误判为 unresolved，Shadow hard-stop 传播成 `/api/scan` 500，idle heartbeat 又掩盖 error；现已补全合约 identity universe、隔离 Shadow 失败并保留 canonical archive、保持真实 error heartbeat，同时修复自动回滚退出码和身份/verifier 路径。
-- 本地证据：Activation 28/28、Composition 32/32、Shadow governance 8/8、Autonomy 31/31、PG16、五项基础门禁和三项安全门禁 PASS；修复仍待 clean commit、commit-bound gate、main 推送和全新单次生产重试。
+- 第四次 Activation 真实生产事务：精确 Bundle/request 和入口合同通过，但 control preflight 发现旧回滚留下的 `legacy/epoch2/frozen` 行，mutation 前以 `candidate_control_not_empty` 拒绝；生产仍为 `cec0b657...` Dormant 基线，临时目录和本轮上传已清理。
+- 生命周期根因与修复：旧 runner 只接受空 control 表，与“回滚必须保留 legacy 控制行”的设计冲突；现只允许数据全空、剩余窗口足够的 exact legacy/frozen 偶数 epoch 通过既有 transition rearm，禁止删行、清库和 migration。
+- 本地证据：Activation 28/28、PG16 两次 start/rollback 最终 epoch4、五项基础门禁和三项安全门禁 PASS；修复仍待 clean commit、commit-bound gate、main 推送和全新单次生产重试。
 
 以下第二至第五轮为历史审计记录，不代表当前最新生产版本：
 
@@ -564,11 +565,11 @@ GitHub Actions / self-hosted runner：
 
 ### P1 风险
 
-1. 问题：Shadow Capture activation 第三次生产事务失败，P0 修复尚未重新发布，24 小时观察尚未完成。
+1. 问题：Shadow Capture activation 第四次生产事务在 control preflight 阶段安全停止，restart-safe lifecycle 修复尚未重新发布，24 小时观察尚未完成。
    - 影响核心链路哪一环：生产部署、证据真实性、回归验收。
-   - 证据：第三次生产激活后 `/api/scan` 两次 HTTP 500，首个 observer 样本 hard-stop；最终基线恢复通过，旧 Bundle/request 禁止复用。
-   - 当前状态：Candidate 已恢复 dormant；完整 identity universe、Shadow failure isolation、真实 heartbeat 和自动回滚修复已通过定向/基础/安全门禁，但尚未 commit/push/重发。
-   - 下一步：冻结 P0 修复单提交并运行 commit-bound gate，推送 main、生成唯一新 Bundle/request，重试 shadow-only activation 后完成不可缩短的 24 小时/289 样本观察。
+   - 证据：第四次入口在 lease/Git/DB/env/service mutation 前返回 `candidate_control_not_empty`；生产 clean detached `cec0b657...`、Candidate absent、control legacy/epoch2/frozen、候选数据三表均为 0。
+   - 当前状态：restart-safe rearm 已通过 Activation 28/28、真实 PG16 双轮生命周期和基础/安全门禁，但尚未 commit/push/重发。
+   - 下一步：冻结该最小修复并运行 commit-bound gate，推送 main、生成唯一新 Bundle/request，重试 shadow-only activation 后完成不可缩短的 24 小时/289 样本观察。
 
 2. 问题：扫描排序主干不够强，优质机会未必稳定进入 Top10。
    - 影响核心链路哪一环：全市场发现、候选筛选。

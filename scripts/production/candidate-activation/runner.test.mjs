@@ -95,7 +95,7 @@ const request = {
   workerExpectedAllowed: true,
 };
 
-function sample(index, { completed = index, overrides = {} } = {}) {
+function sample(index, { authorityEpoch = 1, completed = index, overrides = {} } = {}) {
   return {
     schemaVersion: "candidate-shadow-observation-sample.v1",
     sampledAt: new Date(Date.parse("2026-07-12T00:00:00.000Z") + index * 300_000).toISOString(),
@@ -118,13 +118,13 @@ function sample(index, { completed = index, overrides = {} } = {}) {
       runtime: {
         enabled: true,
         blockers: [],
-        authorityEpoch: 1,
+        authorityEpoch,
         expectedReleaseId: request.releaseId,
       },
       monitor: {
         status: "ready",
         phase: "shadow_capture",
-        authorityEpoch: 1,
+        authorityEpoch,
         blockers: [],
         warnings: [],
         metrics: {
@@ -237,6 +237,11 @@ test("activation release requires the exact authorized artifact", async () => {
 
 test("one sample fails closed on worker, runtime, monitor or database degradation", () => {
   assert.equal(validateObservationSample(sample(1), request).candidate.mode, "active");
+  assert.equal(validateObservationSample(sample(1, { authorityEpoch: 3 }), request).candidate.runtime.authorityEpoch, 3);
+  const mismatchedEpoch = sample(1, { authorityEpoch: 3 });
+  mismatchedEpoch.candidate.monitor.authorityEpoch = 1;
+  assert.throws(() => validateObservationSample(mismatchedEpoch, request), /sample_monitor_epoch_mismatch/);
+  assert.throws(() => validateObservationSample(sample(1, { authorityEpoch: 2 }), request), /sample_epoch_invalid/);
   const workerDown = sample(1);
   workerDown.health.workers.at(-1).status = "down";
   assert.throws(() => validateObservationSample(workerDown, request), /sample_worker_not_healthy/);

@@ -393,30 +393,103 @@ export async function preflightControl(client, request) {
     const result = await client.query(`SELECT
       (SELECT count(*)::int FROM candidate_authority.schema_migrations WHERE status='applied') AS ledger,
       (SELECT count(*)::int FROM candidate_authority.candidate_migration_control) AS controls,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_events) AS events,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox) AS outbox,
+      (SELECT count(*)::int FROM candidate_authority.candidate_outbox_quarantine_resolutions) AS resolutions,
       clock_timestamp() AS database_now`);
     const row = result.rows[0];
     ensure(row?.ledger === 9, "candidate_ledger_not_9");
-    ensure(row?.controls === 0, "candidate_control_not_empty");
-    return { candidateLedger: row.ledger, candidateControlRows: row.controls, databaseNow: new Date(row.database_now).toISOString(), migrationId: request.migrationId };
+    ensure(row.events === 0 && row.outbox === 0 && row.resolutions === 0, "candidate_control_data_not_empty");
+    if (row.controls === 0) {
+      return {
+        candidateLedger: row.ledger,
+        candidateControlRows: 0,
+        controlStartMode: "fresh",
+        databaseNow: new Date(row.database_now).toISOString(),
+        migrationId: request.migrationId,
+      };
+    }
+    ensure(row.controls === 1, "candidate_control_count_invalid");
+    const controlResult = await client.query(`SELECT phase, epoch::int, write_frozen,
+      approved_release_id, deadline_at
+      FROM candidate_authority.candidate_migration_control
+      WHERE migration_id=$1`, [request.migrationId]);
+    const control = controlResult.rows[0];
+    ensure(control, "candidate_rearm_control_mismatch");
+    ensure(control.phase === "legacy" && control.write_frozen === true, "candidate_rearm_control_not_frozen_legacy");
+    ensure(Number.isSafeInteger(control.epoch) && control.epoch >= 2 && control.epoch % 2 === 0, "candidate_rearm_epoch_invalid");
+    const minimumRemainingMs = request.minimumObservationHours * 60 * 60_000
+      + request.observationIntervalSeconds * 1_000;
+    ensure(Number.isSafeInteger(minimumRemainingMs) && minimumRemainingMs > 0, "candidate_rearm_window_invalid");
+    ensure(new Date(control.deadline_at).getTime() - new Date(row.database_now).getTime() >= minimumRemainingMs,
+      "candidate_rearm_deadline_insufficient");
+    return {
+      candidateLedger: row.ledger,
+      candidateControlRows: 1,
+      controlStartMode: "legacy_rearm",
+      currentAuthorityEpoch: control.epoch,
+      databaseNow: new Date(row.database_now).toISOString(),
+      migrationId: request.migrationId,
+      previousReleaseId: control.approved_release_id,
+    };
   });
 }
 
 export async function startControl(client, request) {
   return withMigrationRole(client, async () => {
-    const result = await client.query(`SELECT phase, epoch::int, started_at, deadline_at,
-      write_frozen, approved_release_id
-      FROM candidate_authority.start_shadow_capture_v3($1,$2,$3)`, [
-      request.migrationId,
-      request.releaseId,
-      request.approvalDigest,
-    ]);
+    const currentResult = await client.query(`SELECT phase, epoch::int, started_at, deadline_at,
+      write_frozen, approved_release_id, clock_timestamp() AS database_now,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_events) AS events,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox) AS outbox,
+      (SELECT count(*)::int FROM candidate_authority.candidate_outbox_quarantine_resolutions) AS resolutions
+      FROM candidate_authority.candidate_migration_control
+      WHERE migration_id=$1 FOR UPDATE`, [request.migrationId]);
+    const current = currentResult.rows[0];
+    let result;
+    let controlStartMode;
+    if (!current) {
+      const emptyState = await client.query(`SELECT
+        (SELECT count(*)::int FROM candidate_authority.candidate_migration_control) AS controls,
+        (SELECT count(*)::int FROM candidate_authority.candidate_episode_events) AS events,
+        (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox) AS outbox,
+        (SELECT count(*)::int FROM candidate_authority.candidate_outbox_quarantine_resolutions) AS resolutions`);
+      const state = emptyState.rows[0];
+      ensure(state.controls === 0 && state.events === 0 && state.outbox === 0 && state.resolutions === 0,
+        "candidate_control_data_not_empty");
+      controlStartMode = "fresh";
+      result = await client.query(`SELECT phase, epoch::int, started_at, deadline_at,
+        write_frozen, approved_release_id
+        FROM candidate_authority.start_shadow_capture_v3($1,$2,$3)`, [
+        request.migrationId,
+        request.releaseId,
+        request.approvalDigest,
+      ]);
+    } else {
+      controlStartMode = "legacy_rearm";
+      ensure(current.phase === "legacy" && current.write_frozen === true, "candidate_rearm_control_not_frozen_legacy");
+      ensure(Number.isSafeInteger(current.epoch) && current.epoch >= 2 && current.epoch % 2 === 0, "candidate_rearm_epoch_invalid");
+      ensure(current.events === 0 && current.outbox === 0 && current.resolutions === 0, "candidate_rearm_data_not_empty");
+      const minimumRemainingMs = request.minimumObservationHours * 60 * 60_000
+        + request.observationIntervalSeconds * 1_000;
+      ensure(new Date(current.deadline_at).getTime() - new Date(current.database_now).getTime() >= minimumRemainingMs,
+        "candidate_rearm_deadline_insufficient");
+      result = await client.query(`SELECT phase, epoch::int, started_at, deadline_at,
+        write_frozen, approved_release_id
+        FROM candidate_authority.transition_migration_control_v1($1,$2,'shadow_capture',false,$3,$4,clock_timestamp())`, [
+        request.migrationId,
+        current.epoch,
+        request.releaseId,
+        request.approvalDigest,
+      ]);
+    }
     const row = result.rows[0];
-    ensure(row?.phase === "shadow_capture" && row.epoch === 1, "control_start_result_invalid");
+    ensure(row?.phase === "shadow_capture"
+      && Number.isSafeInteger(row.epoch) && row.epoch >= 1 && row.epoch % 2 === 1, "control_start_result_invalid");
     ensure(row.write_frozen === false && row.approved_release_id === request.releaseId, "control_start_boundary_invalid");
     const startedAt = new Date(row.started_at).getTime();
     const deadlineAt = new Date(row.deadline_at).getTime();
     ensure(deadlineAt - startedAt === 72 * 60 * 60_000, "control_deadline_mismatch");
-    return { phase: row.phase, authorityEpoch: row.epoch, startedAt: new Date(startedAt).toISOString(), deadlineAt: new Date(deadlineAt).toISOString(), writeFrozen: row.write_frozen, releaseId: row.approved_release_id };
+    return { phase: row.phase, authorityEpoch: row.epoch, controlStartMode, startedAt: new Date(startedAt).toISOString(), deadlineAt: new Date(deadlineAt).toISOString(), writeFrozen: row.write_frozen, releaseId: row.approved_release_id };
   });
 }
 
@@ -456,7 +529,8 @@ export async function readDatabaseObservation(client, request) {
       WHERE control.migration_id=$1`, [request.migrationId]);
     const row = result.rows[0];
     ensure(row, "observation_control_missing");
-    ensure(row.phase === "shadow_capture" && row.epoch === 1 && row.write_frozen === false, "observation_control_invalid");
+    ensure(row.phase === "shadow_capture" && Number.isSafeInteger(row.epoch)
+      && row.epoch >= 1 && row.epoch % 2 === 1 && row.write_frozen === false, "observation_control_invalid");
     ensure(row.approved_release_id === request.releaseId, "observation_control_release_mismatch");
     ensure(new Date(row.deadline_at).getTime() >= new Date(row.database_now).getTime(), "observation_control_deadline_expired");
     await client.query("COMMIT");
@@ -489,11 +563,12 @@ export function validateObservationSample(sample, request) {
   ensure(sample.candidate?.ok === true && sample.candidate.mode === "active", "sample_candidate_not_active");
   ensure(sample.candidate.runtime?.enabled === true, "sample_runtime_not_enabled");
   ensure(Array.isArray(sample.candidate.runtime?.blockers) && sample.candidate.runtime.blockers.length === 0, "sample_runtime_blocked");
-  ensure(sample.candidate.runtime.authorityEpoch === 1, "sample_epoch_mismatch");
+  const authorityEpoch = sample.candidate.runtime.authorityEpoch;
+  ensure(Number.isSafeInteger(authorityEpoch) && authorityEpoch >= 1 && authorityEpoch % 2 === 1, "sample_epoch_invalid");
   ensure(sample.candidate.runtime.expectedReleaseId === request.releaseId, "sample_runtime_release_mismatch");
   const monitor = sample.candidate.monitor;
   ensure(monitor?.status === "ready" && monitor.phase === "shadow_capture", "sample_monitor_not_ready");
-  ensure(monitor.authorityEpoch === 1, "sample_monitor_epoch_mismatch");
+  ensure(monitor.authorityEpoch === authorityEpoch, "sample_monitor_epoch_mismatch");
   ensure(Array.isArray(monitor.blockers) && monitor.blockers.length === 0, "sample_monitor_blocked");
   ensure(Array.isArray(monitor.warnings) && monitor.warnings.length === 0, "sample_monitor_warning");
   ensure(monitor.metrics?.outboxRetryWaitTotal === 0, "sample_retry_wait_present");

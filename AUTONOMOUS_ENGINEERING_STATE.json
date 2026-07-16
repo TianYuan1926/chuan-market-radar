@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-16T15:33:02+08:00",
+  "updatedAt": "2026-07-16T19:10:44+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -13,7 +13,7 @@
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
     "runtimeIdentityPreflight": "pass_local_and_production_exact_request_consumed_successfully",
     "runtimeIdentityProduction": "pass_runtime_identity_and_permission_7_samples_1851_seconds_continuous_ready_fresh_three_noinherit_logins_three_fixed_memberships_three_candidate_urls_zero_privileged_logins_zero_feature_flags_candidate_dormant_worker_absent",
-    "activationObservationPreparation": "third_production_attempt_activated_then_failed_first_observation_scanner_http_500_baseline_recovered_local_p0_identity_universe_shadow_isolation_heartbeat_and_rollback_remediation_all_fixed_gates_pass_commit_pending"
+    "activationObservationPreparation": "fourth_production_attempt_failed_pre_mutation_on_expected_legacy_frozen_control_third_attempt_baseline_recovery_preserved_local_strict_legacy_rearm_remediation_targeted_and_baseline_gates_pass_commit_pending"
   },
   "wipLimits": {
     "production": 1,
@@ -275,7 +275,7 @@
       "可复现脱敏Bundle不得包含credentials、role-admin URL、env、secret、生产业务行或raw log，archive checksum和逐文件manifest必须精确绑定",
       "生产入口必须使用session-independent transient systemd unit、Restart=no、RuntimeMaxSec不超过5400、journald和退出后精确staging清理",
       "执行必须使用仓库外0600一次性external authorization、外部lease、递增fencing和最多90分钟mutation window；builder不得自签或伪造用户审批",
-      "fresh只读预检必须证明production clean detached cec0b657、health ready/fresh、Candidate dormant/worker absent、schema ledger/control=9|0、3个runtime LOGIN不存在、writer archive权限未应用",
+      "只读预检必须证明production clean detached cec0b657、health ready/fresh、Candidate dormant/worker absent、schema ledger=9，且control只能为fresh 0行或唯一匹配migration_id的legacy/write_frozen安全偶数epoch记录；两种路径都要求Candidate event/outbox/resolution业务数据为0、3个runtime LOGIN不存在、writer archive权限未应用",
       "唯一允许mutation为Web和candidate-shadow-worker、7个Candidate环境键、一次control lifecycle start和shadow_write=true；三条Candidate URL与角色不得改变",
       "任一身份、env、Web、worker、health、合同或观察失败必须恢复原env、精确旧Web image、rollback commit和legacy write_frozen control；回滚失败必须独立报错",
       "本地准备阶段禁止连接生产或执行mutation；生产状态转换必须绑定clean commit/tree、artifact、环境指纹、rollback和最新总门禁",
@@ -394,15 +394,15 @@
       "status": "PASS_LOCAL_ACTIVATION_PRODUCTION_RELEASE",
       "productionMutation": false,
       "sourceParentCommit": "a23365f42a4ff465d733d17390651c7c9af1e892",
-      "runnerArtifactSha256": "0556176b5b99407cc8dded0ad38b9a3744e01c2b1ca09c5425183dc1df8c8ad6",
+      "runnerArtifactSha256": "96705ce425b2571a7c3f01fd0957ca0731de4e6e5e22371111097df238ff3cf9",
       "runnerArtifactFiles": 5,
-      "activationArtifactSha256": "3503e051a0323a717b8f9fc454229de3a0f899c597b67d3b9b4ebc4f595c0f4d",
+      "activationArtifactSha256": "3f67df4063855076076bdb5232b3c97948dbdf00c14c31d32dc11e9b77538c4f",
       "activationArtifactFiles": 19,
-      "contractSha256": "95bae2d73d5adba5b841b0447e82e5253383c9ac8ce2f3561ce9c96f4cfabce6",
+      "contractSha256": "89efded1d0d955f0136c0060b47e7fed33b4ddb39ae30e1be4825de36216d42b",
       "activationTests": "28/28",
       "compositionTests": "32/32",
       "shadowGovernanceTests": "8/8",
-      "postgres16Rehearsal": "pass_control_start_1_rollback_1_final_legacy_epoch_2_write_frozen_true_production_connected_false",
+      "postgres16Rehearsal": "pass_fresh_start_epoch_1_rollback_epoch_2_strict_legacy_rearm_epoch_3_rollback_epoch_4_write_frozen_true_production_connected_false",
       "marketTests": "965_pass_0_fail_4_explicit_db_skip_969_total",
       "workerTests": "23/23",
       "historicalSmokeTests": "4/4",
@@ -429,7 +429,7 @@
         "stagingSecureOpsAbsent": true,
         "failedBundleAndRequestReusable": false
       },
-      "latestFailedProductionAttempt": {
+      "previousPostActivationFailedProductionAttempt": {
         "sourceCommit": "a23365f42a4ff465d733d17390651c7c9af1e892",
         "transportBundleSha256": "b14681fd8bd309a991d5412bd8b0e1b626ff93b6c1539ba88a9d3e5ce842e569",
         "externalRequestSha256": "07bfc56e0df0578df9f2f97e60488a64ff6f5588a8776afbbe2f8c52cf64a1ec",
@@ -455,6 +455,29 @@
         "productionLease": "released_rollback_pass",
         "retainedEvidenceAndOps": true,
         "failedBundleAndRequestReusable": false
+      },
+      "latestFailedProductionAttempt": {
+        "sourceCommit": "6c615c33749f857797cfa1cfee1f95e7731352cb",
+        "transportBundleSha256": "84a6457cad76ba6566ba9f767125672b83c8eeb10bc7f44d539ad70202ee52c2",
+        "externalRequestSha256": "d5d48825f4db23fac5cf796ac160b14a08f05a36d373db8e6fd75d1f9a7df661",
+        "requestStatus": "consumed_failed_attempt_do_not_reuse",
+        "result": "FAIL_PRE_MUTATION_EXPECTED_LEGACY_FROZEN_CONTROL_REJECTED",
+        "failureReason": "activation_preflight_only_accepted_zero_control_rows_even_though_prior_verified_rollback_intentionally_retained_one_matching_legacy_write_frozen_epoch_2_control_row",
+        "leaseAcquired": false,
+        "gitMutation": false,
+        "databaseMutation": false,
+        "environmentMutation": false,
+        "serviceMutation": false,
+        "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+        "candidateWorkerCount": 0,
+        "candidateControl": "legacy_epoch_2_write_frozen_true",
+        "candidateEventOutboxResolutionCounts": "0|0|0",
+        "webPostgresRedis": "healthy_baseline",
+        "productionLease": "not_acquired",
+        "stagingSecureOpsAbsent": true,
+        "uploadedRedactedTransportTempsRemoved": true,
+        "failedBundleAndRequestReusable": false,
+        "remediation": "strict_legacy_rearm_requires_single_matching_control_safe_positive_even_epoch_frozen_zero_candidate_business_rows_and_full_remaining_observation_window"
       }
     }
   },

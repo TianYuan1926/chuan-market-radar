@@ -12,7 +12,7 @@ test("activation production release is fail-closed until an exact external reque
   assert.equal(result.productionMutationAllowed, false);
   assert.equal(result.currentCodeActivationAllowed, true);
   assert.equal(result.runnerArtifactFiles, 5);
-  assert.equal(result.activationReleaseArtifactFiles, 16);
+  assert.equal(result.activationReleaseArtifactFiles, 19);
   assert.deepEqual(result.violations, []);
 });
 

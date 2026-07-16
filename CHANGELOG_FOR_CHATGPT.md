@@ -4558,3 +4558,43 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只冻结当前 P0 修复、运行提交绑定自治总门禁并推送 main；随后生成全新单次 Bundle/request 重试 Shadow-only 激活。
+
+## 2026-07-16 / WP-G0.2 Activation 回滚后生命周期安全重启修复
+
+### 本轮目标
+
+处理第四次真实生产激活在 mutation 前暴露的 `candidate_control_not_empty`：让上一轮已安全回滚的 legacy 控制行可以在严格条件下合法重启，而不是删除控制行、清库或绕过数据库门禁。
+
+### 修改范围
+
+- `runner.mjs` 仅允许 exact `legacy + writeFrozen=true + 正偶数 epoch + Candidate event/outbox/resolution 全空 + 剩余 deadline 足够 24 小时和一个采样间隔` 的控制行，通过既有 `transition_migration_control_v1` 进入下一正奇数 epoch。
+- fresh 路径也新增 Candidate 数据全空复核；观察样本不再写死 epoch1，改为 runtime/monitor epoch 必须一致且为正奇数。
+- PG16 集成演练覆盖 `fresh epoch1 -> rollback epoch2 -> rearm epoch3 -> rollback epoch4`。
+- 治理 validator 的 Activation artifact 文件数由历史错误 16 纠正为真实 19；刷新 runner、activation 和 contract 哈希。
+- 未修改 migration、schema、业务 DML、scan 排序、analysis、strategy、RR、Risk Gate、frontend、Redis、业务 worker 或 formal 回测。
+
+### 核心链路影响
+
+只修复候选筛选与复盘进化的 Shadow Capture 生命周期地基；不改变候选内容、结构判断、交易计划或生产排序。
+
+### 测试结果
+
+- Activation：28/28 PASS。
+- PostgreSQL 16：control start 2、rollback 2、final legacy/epoch4/frozen、productionConnected=false，PASS。
+- typecheck、lint、test:market 965/0/4、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+第四次事务绑定 source `6c615c33749f857797cfa1cfee1f95e7731352cb`、Bundle `84a6457cad76ba6566ba9f767125672b83c8eeb10bc7f44d539ad70202ee52c2`、request `d5d48825f4db23fac5cf796ac160b14a08f05a36d373db8e6fd75d1f9a7df661`。入口合同通过，但 control preflight 在 lease/Git/DB/env/service mutation 前 fail closed。生产仍为 clean detached `cec0b657...`，Candidate worker absent，control legacy/epoch2/frozen，候选 event/outbox/resolution 均为 0；staging/secure/ops 和本轮远端上传临时文件已清理。旧 Bundle/request 禁止复用。当前修复尚未 commit/push/重试。
+
+### 风险与遗留问题
+
+- P0：无已知生产 mutation 残留；第四次失败发生在 mutation 前。
+- P1：必须完成 clean commit、commit-bound gate、main 推送和全新单次 Bundle/request。
+- P1：24 小时/289 样本观察尚未启动，Activation、WP-G0.2、G0 均未完成。
+
+### 下一轮建议
+
+只冻结并重试 restart-safe lifecycle 修复；即时激活通过后启动不可缩短的 24 小时观察。
