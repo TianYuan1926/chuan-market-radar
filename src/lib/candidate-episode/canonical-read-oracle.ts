@@ -568,6 +568,7 @@ export class CandidateCanonicalReadOracleCoordinator {
     cursor?: CandidateCanonicalReadCursor | null;
     limit?: number;
     policy: CandidateCanonicalReadPolicy;
+    signal?: AbortSignal;
   }): Promise<CandidateCanonicalOracleComparison> {
     let policy: CandidateCanonicalReadPolicy;
     try {
@@ -588,7 +589,9 @@ export class CandidateCanonicalReadOracleCoordinator {
     }
     try {
       return await this.transactions.withTransaction(
-        CANDIDATE_CANONICAL_READ_TRANSACTION,
+        input.signal
+          ? { ...CANDIDATE_CANONICAL_READ_TRANSACTION, signal: input.signal }
+          : CANDIDATE_CANONICAL_READ_TRANSACTION,
         async (tx) => {
           const candidate = await this.candidate.readInTransaction(tx, input);
           const raw = await readOracleRaw(tx, policy);

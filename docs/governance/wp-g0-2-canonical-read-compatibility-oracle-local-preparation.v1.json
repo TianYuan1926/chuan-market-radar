@@ -16,7 +16,7 @@
       "src/lib/candidate-episode/legacy-read-diagnostic.ts"
     ],
     "fileCount": 8,
-    "sha256": "0cee477976b63713b59bd37ba0cf20253b8256bd4f14edf7de6b07a6683ae1c4"
+    "sha256": "c62a1d4ec4e49ab5d6a7bac1f84341d1336bd16624d1dcefa390eda96ea01a25"
   },
   "legacyBoundary": {
     "authority": "legacy_projection_non_authoritative",

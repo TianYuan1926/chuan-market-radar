@@ -219,7 +219,7 @@ export const CANDIDATE_CANONICAL_READ_TRANSACTION = {
   lockTimeoutMs: 1_000,
   maxRetries: 1,
   readOnly: true,
-  statementTimeoutMs: 30_000,
+  statementTimeoutMs: 12_000,
 } as const;
 
 function canonicalize(value: unknown): unknown {
@@ -477,10 +477,13 @@ export class CandidateCanonicalReadModel {
     cursor?: CandidateCanonicalReadCursor | null;
     limit?: number;
     policy: CandidateCanonicalReadPolicy;
+    signal?: AbortSignal;
   }): Promise<CandidateCanonicalReadResult> {
     try {
       return await this.transactions.withTransaction(
-        CANDIDATE_CANONICAL_READ_TRANSACTION,
+        input.signal
+          ? { ...CANDIDATE_CANONICAL_READ_TRANSACTION, signal: input.signal }
+          : CANDIDATE_CANONICAL_READ_TRANSACTION,
         (tx) => this.readInTransaction(tx, input),
       );
     } catch {

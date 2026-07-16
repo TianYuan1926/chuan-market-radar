@@ -4784,3 +4784,48 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只冻结并推送当前本地包；observer 最终 PASS 后生成绑定该证据的新请求，并执行一次生产只读 10,000 条对账。
+
+## 2026-07-17 / WP-G0.2 Shadow Verify Runtime Wiring Local Superpackage
+
+### 本轮目标
+
+在不打断 Candidate `shadow_capture` 生产观察的前提下，把本地已验证的 Canonical Read Model、独立 Raw Oracle、Trusted Context 和 Route Adapter 接成真实只读 API，并继续锁死生产权威切换。
+
+### 修改范围
+
+- 新增 `/api/frontend/candidate-lifecycle` GET 路由和服务端 Composition；公开请求只能控制 limit 与完整 cursor pair。
+- Monitor DB、可信 manifest 或依赖缺失时统一 fail closed 为 503，不返回空 Candidate 或 stale fallback。
+- AbortSignal 传入 Canonical Model 与 Raw Oracle 的 PostgreSQL transaction；数据库 statement timeout 收紧为 12 秒，严格小于 HTTP data deadline 15 秒。
+- 增加本包机器合同、治理回归、CI 质量门禁和运行时 Composition 测试。
+- 未修改现有 Review API/页面、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、Compose、env、Redis、Worker 或生产服务。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的 Candidate 生命周期读真值；不改变全市场发现、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Runtime wiring validator：PASS；接线测试 32/32 PASS。
+- Canonical domain：103 pass / 0 fail / 3 explicit PG skip；跳过项未冒充通过。
+- 三项独立 PostgreSQL 16 演练：Canonical read、同快照 Raw Oracle、Trusted Context/audit role 全部实际 PASS，`productionConnected=false`。
+- typecheck、干净 lint：PASS。
+- market 1021 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- Autonomy unit 31/31：PASS；提交前自治总门禁 15/15 PASS，`worktreeUnchanged=true / canAutoCommit=true / canAutoDeploy=false`；更新最终上下文后再执行一次绑定门禁。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未连接生产、未查询生产数据库、未修改 Candidate authority。最近只读 observer 证据为 active、70/289；该状态仍不是 Activation PASS。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：编译期 `CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED=false`，这是当前正确的 fail-closed 状态；Shadow Verify 生产执行仍受 Activation 和 Reconciliation 两个前置 Gate 阻断。
+- P1：当前 API 只有本地 build 证明，生产 manifest、Compose mount、phase transition 和 dual-read observer 尚未建立。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+本包 clean commit/push 后，只准备 `WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION`；任何生产执行必须继续等待 Activation 289 样本/24 小时最终 PASS 和生产 10,000 条零差异 Reconciliation PASS。

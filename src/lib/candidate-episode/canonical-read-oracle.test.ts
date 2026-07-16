@@ -261,8 +261,25 @@ test("coordinator compares aggregate query and raw oracle inside one read-only s
     lockTimeoutMs: 1_000,
     maxRetries: 1,
     readOnly: true,
-    statementTimeoutMs: 30_000,
+    statementTimeoutMs: 12_000,
   });
+});
+
+test("oracle forwards the route abort signal into the shared snapshot transaction", async () => {
+  const controller = new AbortController();
+  let observedSignal: AbortSignal | undefined;
+  const adapter = {
+    async withTransaction<T>(options: { signal?: AbortSignal }): Promise<T> {
+      observedSignal = options.signal;
+      throw new Error("stop after options capture");
+    },
+  } as PostgresTransactionAdapter;
+  const result = await new CandidateCanonicalReadOracleCoordinator(adapter).compare({
+    policy,
+    signal: controller.signal,
+  });
+  assert.equal(observedSignal, controller.signal);
+  assert.equal(result.status, "unavailable");
 });
 
 test("shadow route returns Legacy diagnostic while parity uses the independent reference", async () => {

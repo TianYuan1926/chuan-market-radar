@@ -124,6 +124,8 @@
     "review:truth:validate": "node scripts/governance/review-null-direction-truth.mjs",
     "test:review-truth": "npm run build:market-cli && node --test .tmp/market-tests/lib/journal/review-statistics.test.js .tmp/market-tests/lib/api/frontend-contract.test.js scripts/governance/review-null-direction-truth.test.mjs",
     "test:canonical-compat-domain": "npm run build:market-cli && node --test .tmp/market-tests/lib/candidate-episode/canonical-read-*.test.js .tmp/market-tests/lib/candidate-episode/legacy-read-diagnostic.test.js .tmp/market-tests/lib/journal/review-statistics.test.js .tmp/market-tests/lib/api/frontend-contract.test.js scripts/governance/candidate-canonical-*.test.mjs scripts/governance/candidate-trusted-read-context.test.mjs scripts/governance/review-null-direction-truth.test.mjs",
+    "candidate:shadow-verify-runtime-wiring:validate": "node scripts/governance/candidate-shadow-verify-runtime-wiring.mjs",
+    "test:candidate-shadow-verify-runtime-wiring": "npm run build:market-cli && node --test .tmp/market-tests/lib/candidate-episode/canonical-read-server.test.js .tmp/market-tests/lib/candidate-episode/canonical-read-route-adapter.test.js .tmp/market-tests/lib/candidate-episode/canonical-read-model.test.js .tmp/market-tests/lib/candidate-episode/canonical-read-oracle.test.js scripts/governance/candidate-shadow-verify-runtime-wiring.test.mjs",
     "test:canonical-compat-superpackage": "node --test scripts/governance/post-dormant-chain-integration.test.mjs",
     "test:canonical-compat-superpackage:pg16": "npm run candidate:canonical-read:pg16-rehearsal && npm run candidate:canonical-read-oracle:pg16-rehearsal && npm run candidate:trusted-read-context:pg16-rehearsal",
     "ops:network-check": "node scripts/ops/network-check.mjs",

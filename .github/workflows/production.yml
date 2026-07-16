@@ -70,6 +70,12 @@ jobs:
       - name: Candidate reconciliation production packet tests
         run: npm run test:candidate-reconciliation-production-packet
 
+      - name: Candidate shadow-verify runtime wiring contract
+        run: npm run candidate:shadow-verify-runtime-wiring:validate
+
+      - name: Candidate shadow-verify runtime wiring tests
+        run: npm run test:candidate-shadow-verify-runtime-wiring
+
       - name: Typecheck
         run: npm run typecheck
 

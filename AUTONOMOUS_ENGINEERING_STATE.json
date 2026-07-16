@@ -1,13 +1,13 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T02:00:00+08:00",
+  "updatedAt": "2026-07-17T02:53:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
     "engineeringStatus": "可运行但不完整",
     "practicalStatus": "不能支撑实战",
     "productionCandidateSchema": "applied_verified_dormant",
-    "candidateRuntime": "shadow_capture_active_epoch3_release_candidate-shadow-e5eb90026d8b_observation_61_of_289_last_verified_in_progress_not_yet_pass",
+    "candidateRuntime": "shadow_capture_active_epoch3_release_candidate-shadow-e5eb90026d8b_observation_70_of_289_last_verified_in_progress_not_yet_pass",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
@@ -17,7 +17,8 @@
     "reconciliationPreparation": "pass_local_preparation_committed_pushed_799d295_production_blocked_until_activation_observation_pass",
     "canonicalCompatPreparation": "pass_local_superpackage_committed_pushed_194ccf3_production_not_connected_canonical_authority_false",
     "g0SecurityReleaseIncidentPreparation": "completed_local_superpackage_committed_pushed_d2ee45f_production_blocked",
-    "reconciliationProductionPacket": "ready_for_gate_local_packet_double_read_only_candidate_audit_role_postgres16_10000_zero_difference_production_not_executed"
+    "reconciliationProductionPacket": "completed_local_preparation_committed_pushed_504c395_bundle_sha256_d2a4e2ef12dcfdb640b5ed0f277af9c081c5ee42b72019a76eafff6802db39eb_production_not_executed",
+    "shadowVerifyRuntimeWiring": "all_15_precommit_gates_pass_local_read_only_api_code_canonical_authority_false_production_not_connected_not_deployed_ready_for_commit"
   },
   "wipLimits": {
     "production": 1,
@@ -136,11 +137,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-RECONCILIATION-PRODUCTION-PACKET",
-    "title": "Candidate reconciliation session-independent production packet",
+    "id": "WP-G0.2-SHADOW-VERIFY-RUNTIME-WIRING-LOCAL-SUPERPACKAGE",
+    "title": "Candidate shadow-verify fail-closed read runtime wiring",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在 Candidate 生产观察继续运行期间，为观察最终PASS后的生产10000条只读对账建立可复现、会话独立、一次授权、外部租约和双重只读执行包；当前只做本地准备，不执行生产。",
+    "objective": "把已验证的 Candidate Canonical Read Model、独立 Raw Oracle、可信 Authority Context 和纯 Route Adapter 接成真实只读 API；保持编译期 canonical authority 为 false，当前只做本地接线，不连接或部署生产。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -153,21 +154,20 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_RECONCILIATION_PRODUCTION_EXECUTION_V1.md",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_V1.md",
-      "docs/governance/wp-g0-2-reconciliation-production-execution.v1.json",
-      "docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json",
-      "scripts/governance/candidate-reconciliation-runner.mjs",
-      "scripts/governance/candidate-reconciliation-runner.test.mjs",
-      "scripts/production/candidate-reconciliation/bundle.mjs",
-      "scripts/production/candidate-reconciliation/bundle.test.mjs",
-      "scripts/production/candidate-reconciliation/production-boundary.test.mjs",
-      "scripts/production/candidate-reconciliation/production-entrypoint.sh",
-      "scripts/production/candidate-reconciliation/production-runner.sh",
-      "scripts/production/candidate-reconciliation/runner-postgres.integration.mjs",
-      "scripts/production/candidate-reconciliation/runner.mjs",
-      "scripts/production/candidate-reconciliation/runner.test.mjs",
-      "reports/wp-g0-2-reconciliation-production-packet/WP_G0_2_RECONCILIATION_PRODUCTION_PACKET_REPORT.md"
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_RUNTIME_WIRING_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/wp-g0-2-canonical-compat-read-model-local-preparation.v1.json",
+      "docs/governance/wp-g0-2-canonical-read-compatibility-oracle-local-preparation.v1.json",
+      "docs/governance/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage.v1.json",
+      "scripts/governance/candidate-shadow-verify-runtime-wiring.mjs",
+      "scripts/governance/candidate-shadow-verify-runtime-wiring.test.mjs",
+      "src/app/api/frontend/candidate-lifecycle/route.ts",
+      "src/lib/candidate-episode/canonical-read-model.test.ts",
+      "src/lib/candidate-episode/canonical-read-model.ts",
+      "src/lib/candidate-episode/canonical-read-oracle.test.ts",
+      "src/lib/candidate-episode/canonical-read-oracle.ts",
+      "src/lib/candidate-episode/canonical-read-server.test.ts",
+      "src/lib/candidate-episode/canonical-read-server.ts",
+      "reports/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage/WP_G0_2_SHADOW_VERIFY_RUNTIME_WIRING_LOCAL_SUPERPACKAGE_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -175,8 +175,8 @@
       "src/lib/analysis/**",
       "src/lib/strategy/**",
       "src/lib/backtest/**",
-      "src/lib/candidate-episode/**",
-      "src/app/**",
+      "src/app/api/frontend/review-contract/route.ts",
+      "src/app/review/**",
       "deploy/workers/**",
       "docker-compose.yml",
       "deploy/caddy/**",
@@ -188,19 +188,20 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/wp-g0-2-reconciliation-production-execution.v1.json",
-      "scripts/production/candidate-reconciliation/bundle.mjs",
-      "scripts/production/candidate-reconciliation/production-entrypoint.sh",
-      "scripts/production/candidate-reconciliation/production-runner.sh",
-      "scripts/production/candidate-reconciliation/runner.mjs",
-      "reports/wp-g0-2-reconciliation-production-packet/WP_G0_2_RECONCILIATION_PRODUCTION_PACKET_REPORT.md"
+      "docs/governance/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage.v1.json",
+      "scripts/governance/candidate-shadow-verify-runtime-wiring.mjs",
+      "src/app/api/frontend/candidate-lifecycle/route.ts",
+      "src/lib/candidate-episode/canonical-read-server.ts",
+      "reports/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage/WP_G0_2_SHADOW_VERIFY_RUNTIME_WIRING_LOCAL_SUPERPACKAGE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:reconciliation-production:validate",
-        "test:candidate-reconciliation-production-packet",
-        "test:candidate-reconciliation-runner",
-        "candidate:reconciliation-runner:pg16-rehearsal",
+        "candidate:shadow-verify-runtime-wiring:validate",
+        "test:candidate-shadow-verify-runtime-wiring",
+        "test:canonical-compat-domain",
+        "candidate:canonical-read:pg16-rehearsal",
+        "candidate:canonical-read-oracle:pg16-rehearsal",
+        "candidate:trusted-read-context:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -217,12 +218,13 @@
       ]
     },
     "completionBoundary": [
-      "当前Candidate Activation仍只允许写观察进行中，精确289样本且至少24小时最终PASS前请求生成和生产执行必须拒绝",
-      "观察最终证据必须从原始289样本重算并与final和closeout哈希精确一致，完成写入必须大于0",
-      "生产查询必须在REPEATABLE READ READ ONLY事务内强制SET LOCAL ROLE candidate_audit_role",
-      "PASS必须至少10000条、0差异、0未解决、0重复映射、phase不变且不自动推进",
-      "执行包不得fetch、checkout、build、recreate、修改env、数据库、Redis、Worker或Candidate authority",
-      "当前本地包不等于生产Reconciliation PASS，不等于Canonical Cutover、WP-G0.2或G0完成",
+      "编译期CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED必须继续为false，当前API不能取得Candidate权威读权限",
+      "公开请求只能控制limit和完整cursor pair，不能控制phase、release、evidence、flags或authority",
+      "Monitor DB、root-owned manifest、可信控制或依赖缺失必须返回503，不得返回空Candidate或stale fallback",
+      "Candidate查询必须使用SERIALIZABLE READ ONLY DEFERRABLE、candidate_audit_role和12秒statement timeout，严格小于15秒HTTP数据截止时间",
+      "AbortSignal必须传入可信控制、Canonical Model和独立Raw Oracle的数据库事务",
+      "不得修改现有Review API或页面，不得部署、创建manifest、修改Compose/env/Feature Flag、数据库、Redis或Worker",
+      "当前本地接线不等于Activation、生产Reconciliation、Shadow Verify、Canonical Cutover、WP-G0.2或G0完成",
       "scan、analysis、strategy、RR、Risk Gate、backtest、frontend和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
@@ -235,7 +237,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "形成只有在289样本24小时观察真实PASS后才能执行的一次性生产只读对账包，并要求10000条零差异且不推进任何生产phase。"
+      "measurableOutcome": "形成只能由服务端可信Authority Context驱动的只读Candidate API；生产授权保持false，缺少Monitor DB或manifest时503，数据库截止时间严格短于HTTP截止时间。"
     }
   },
   "approvals": [
@@ -481,6 +483,13 @@
     {
       "order": 33,
       "id": "WP-G0.2-RECONCILIATION-PRODUCTION-PACKET",
+      "lane": "localPreparation",
+      "status": "completed_local_preparation_committed_pushed_504c395_bundle_d2a4e2ef_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 34,
+      "id": "WP-G0.2-SHADOW-VERIFY-RUNTIME-WIRING-LOCAL-SUPERPACKAGE",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

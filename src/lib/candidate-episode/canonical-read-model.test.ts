@@ -153,6 +153,32 @@ test("database failure and invalid input are unavailable, never fake empty ready
   assert.equal(invalidPolicy.reason, "candidate_read_input_invalid");
 });
 
+test("canonical read forwards the route abort signal into the database transaction", async () => {
+  const controller = new AbortController();
+  let observedSignal: AbortSignal | undefined;
+  const adapter = {
+    async withTransaction<T>(
+      options: { signal?: AbortSignal },
+      callback: (tx: TransactionContext) => Promise<T>,
+    ) {
+      observedSignal = options.signal;
+      return callback({
+        async query<Result>() {
+          return { rows: [] as Result[] };
+        },
+        async withSavepoint<Result>(work: (tx: TransactionContext) => Promise<Result>) {
+          return work(this);
+        },
+      });
+    },
+  } as PostgresTransactionAdapter;
+  await new CandidateCanonicalReadModel(adapter).read({
+    policy: readPolicy,
+    signal: controller.signal,
+  });
+  assert.equal(observedSignal, controller.signal);
+});
+
 test("bounded pagination emits a stable cursor without dropping null fields", async () => {
   const second = {
     ...episodeRow,

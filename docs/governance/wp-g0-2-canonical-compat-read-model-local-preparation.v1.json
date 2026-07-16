@@ -12,7 +12,7 @@
       "src/lib/candidate-episode/canonical-read-model.ts"
     ],
     "fileCount": 4,
-    "sha256": "ae2ace047a61f65a7ed2b80ca920d9577ff729fafdd4370944baa6d90d6217f7"
+    "sha256": "8463d8c91a1883d51635aef0e0890f7e1b36ceafef937c4713085c13fb4a02e5"
   },
   "readPolicy": {
     "scope": "production_radar",
