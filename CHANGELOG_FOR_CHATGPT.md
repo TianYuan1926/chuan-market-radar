@@ -5067,3 +5067,49 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 等待真实前置期间，只准备 Reconciliation 后的 Shadow Verify phase transition/dual-read observation 包；不提前部署或切换 Candidate authority。
+
+## 2026-07-17 / WP-G0.2 Shadow Verify Code Authorization Local Superpackage
+
+### 本轮目标
+
+只在本地启用 Candidate Read 受控状态机，为未来 `shadow_verify` 同快照双读提供代码能力；Legacy 在 Shadow Verify 中继续作为唯一响应权威。
+
+### 修改范围
+
+- 将编译期 Candidate Read 状态机能力从全关切换为显式启用。
+- 默认测试事实改为当前 `shadow_capture`，证明授权启用后仍只读 Legacy。
+- 新增真实 `shadow_verify` 路由测试，证明会执行 Candidate-vs-Oracle parity，但响应仍为 Legacy、Candidate Review 不可用、不能授权 Cutover。
+- 新增机器可审计合同、治理校验器和防放宽测试；CI 改为运行当前授权合同。
+- 未修改前端页面、scan、analysis、strategy、RR、Risk Gate、交易计划、backtest、migration、Compose、env、Redis、Worker 或生产服务。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的 Candidate 双读真值；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Shadow Verify code authorization 合同与 Candidate domain：37/37 PASS。
+- 隔离 PostgreSQL 16 Canonical Read：PASS，`productionConnected=false`。
+- 隔离 PostgreSQL 16 Raw Oracle：PASS，同一数据库快照，`productionConnected=false`。
+- 隔离 PostgreSQL 16 Trusted Context：PASS，`candidate_audit_role`，`productionConnected=false`。
+- Autonomy：31/31 PASS。
+- typecheck、零警告 lint：PASS。
+- market 1026 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- 自治总门禁：14/14 PASS，`worktreeUnchanged=true`；文档对账后将再次运行最终绑定门禁。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未连接生产、未切换 phase、未写数据库。生产 Activation 最近已知快照仍为 96/289、completed=1481，可能已过期，本轮未把它包装成当前事实。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：代码授权只能在 Lineage 和 Reconciliation 真实 PASS 后另包部署；提前部署或切 phase 均被禁止。
+- P1：Shadow Verify 仍需独立 phase transition 和 24 小时/289 样本零差异观察。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+本包总门禁、提交和推送收口后，准备独立的 Shadow Verify Web-only 生产发布包；不与数据库 phase transition 合并。

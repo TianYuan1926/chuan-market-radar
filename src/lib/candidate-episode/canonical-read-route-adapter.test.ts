@@ -29,41 +29,55 @@ const policy = {
 } as const;
 
 const control = {
-  phase: "canonical" as const,
+  phase: "shadow_capture" as const,
   dualReadRequested: false,
-  canonicalReadRequested: true,
-  reviewReadRequested: true,
-  reconciliationEvidenceStatus:
-    "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" as const,
-  dualReadEvidenceStatus: "PASS_DUAL_READ_OBSERVATION" as const,
-  canonicalCompatEvidenceStatus: "PASS_CANONICAL_COMPAT_OBSERVATION" as const,
+  canonicalReadRequested: false,
+  reviewReadRequested: false,
+  reconciliationEvidenceStatus: "missing" as const,
+  dualReadEvidenceStatus: "missing" as const,
+  canonicalCompatEvidenceStatus: "missing" as const,
 };
 
-const flags = { dualRead: false, canonicalRead: true, reviewRead: true } as const;
+const flags = { dualRead: false, canonicalRead: false, reviewRead: false } as const;
 const evidence = {
   reconciliation: {
-    status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" as const,
-    evidenceHash: `sha256:${"1".repeat(64)}`,
+    status: "missing" as const,
+    evidenceHash: null,
   },
   dualRead: {
-    status: "PASS_DUAL_READ_OBSERVATION" as const,
-    evidenceHash: `sha256:${"2".repeat(64)}`,
+    status: "missing" as const,
+    evidenceHash: null,
   },
   canonicalCompat: {
-    status: "PASS_CANONICAL_COMPAT_OBSERVATION" as const,
-    evidenceHash: `sha256:${"3".repeat(64)}`,
+    status: "missing" as const,
+    evidenceHash: null,
   },
 };
 
-function fingerprint(approvalDigest: string) {
+function fingerprint(
+  approvalDigest: string,
+  input: {
+    authorityEpoch: number;
+    phase: "shadow_capture" | "shadow_verify";
+    flags: typeof flags | { dualRead: true; canonicalRead: false; reviewRead: false };
+    evidence: typeof evidence | {
+      reconciliation: {
+        status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL";
+        evidenceHash: string;
+      };
+      dualRead: { status: "missing"; evidenceHash: null };
+      canonicalCompat: { status: "missing"; evidenceHash: null };
+    };
+  } = { authorityEpoch: 3, phase: "shadow_capture", flags, evidence },
+) {
   const proof = {
     migrationId: "candidate-episode-v1",
-    authorityEpoch: 4,
+    authorityEpoch: input.authorityEpoch,
     approvedReleaseId: policy.releaseId,
     approvalDigest,
-    phase: "canonical",
-    flags,
-    evidence,
+    phase: input.phase,
+    flags: input.flags,
+    evidence: input.evidence,
   };
   return `sha256:${createHash("sha256").update(JSON.stringify(proof)).digest("hex")}`;
 }
@@ -75,11 +89,11 @@ const trustedContext: CandidateTrustedReadContext = {
   migrationId: "candidate-episode-v1",
   scope: "production_radar",
   databaseNow: policy.asOf,
-  authorityEpoch: 4,
+  authorityEpoch: 3,
   authorityFingerprint: fingerprint(approvalDigest),
   approvedReleaseId: policy.releaseId,
   approvalDigest,
-  phase: "canonical",
+  phase: "shadow_capture",
   flags,
   evidence,
   policy,
@@ -110,11 +124,11 @@ function dependencies(overrides: Partial<CandidateReadRouteAdapterDependencies> 
     },
     readCandidate: async () => {
       calls.candidate += 1;
-      throw new Error("current code lock must keep Candidate unread");
+      throw new Error("shadow capture must keep Candidate unread");
     },
     compareCandidateReference: async () => {
       calls.compare += 1;
-      throw new Error("current code lock must keep Oracle unread");
+      throw new Error("shadow capture must keep Oracle unread");
     },
     ...overrides,
   };
@@ -161,7 +175,7 @@ test("invalid query returns 400 before trusted control or any data read", async 
   assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 0, trusted: 0 });
 });
 
-test("current code lock forces lazy Legacy diagnostic despite canonical trusted control", async () => {
+test("shadow capture stays on lazy Legacy diagnostic after code authorization", async () => {
   let maximumEvents = 0;
   const fixture = dependencies({
     readLegacyEvents: async (input) => {
@@ -180,9 +194,88 @@ test("current code lock forces lazy Legacy diagnostic despite canonical trusted 
   if (!response.body.ok) return;
   assert.equal(response.body.resource.mode, "legacy_only");
   assert.equal(response.body.resource.data.legacyDiagnostic?.observations?.length, 1);
-  assert.ok(response.body.resource.blockers.includes("canonical_read_not_authorized_in_code"));
+  assert.ok(response.body.resource.blockers.includes("candidate_phase_not_readable"));
   assert.equal(maximumEvents, 1);
   assert.deepEqual(fixture.calls, { candidate: 0, compare: 0, legacy: 1, trusted: 2 });
+});
+
+test("shadow verify performs parity read but keeps Legacy as response authority", async () => {
+  const shadowFlags = { dualRead: true, canonicalRead: false, reviewRead: false } as const;
+  const shadowEvidence = {
+    reconciliation: {
+      status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" as const,
+      evidenceHash: `sha256:${"1".repeat(64)}`,
+    },
+    dualRead: { status: "missing" as const, evidenceHash: null },
+    canonicalCompat: { status: "missing" as const, evidenceHash: null },
+  };
+  const shadowControl = {
+    phase: "shadow_verify" as const,
+    dualReadRequested: true,
+    canonicalReadRequested: false,
+    reviewReadRequested: false,
+    reconciliationEvidenceStatus:
+      "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" as const,
+    dualReadEvidenceStatus: "missing" as const,
+    canonicalCompatEvidenceStatus: "missing" as const,
+  };
+  const shadowFingerprintInput = {
+    authorityEpoch: 4,
+    phase: "shadow_verify" as const,
+    flags: shadowFlags,
+    evidence: shadowEvidence,
+  };
+  const shadowContext: CandidateTrustedReadContext = {
+    ...trustedContext,
+    authorityEpoch: 4,
+    authorityFingerprint: fingerprint(approvalDigest, shadowFingerprintInput),
+    phase: "shadow_verify",
+    flags: shadowFlags,
+    evidence: shadowEvidence,
+    control: shadowControl,
+  };
+  const candidate = buildCandidateCanonicalOracleFromRaw({
+    policy,
+    raw: { databaseNow: policy.asOf, episodes: [], checkpoints: [], outcomes: [] },
+  });
+  assert.equal(candidate.status, "ready");
+  const fixture = dependencies({
+    readTrustedContext: async () => {
+      fixture.calls.trusted += 1;
+      return shadowContext;
+    },
+    readLegacyEvents: async () => {
+      fixture.calls.legacy += 1;
+      return [legacyEvent];
+    },
+    compareCandidateReference: async () => {
+      fixture.calls.compare += 1;
+      return {
+        schemaVersion: "candidate-canonical-oracle.v1",
+        status: "pass",
+        sameDatabaseSnapshot: true,
+        transactionIsolation: "serializable_read_only_deferrable",
+        candidate,
+        reference: candidate,
+        parity: null,
+        canAuthorizeCutover: false,
+        automaticPhaseAdvance: false,
+        blockers: [],
+      };
+    },
+  });
+  const response = await new CandidateCanonicalApiRouteAdapter(fixture.value)
+    .execute(new URLSearchParams());
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.headers["x-chuan-read-source"], "legacy");
+  assert.equal(response.headers["x-chuan-authority"], "legacy_projection_non_authoritative");
+  assert.equal(response.body.ok, true);
+  if (!response.body.ok) return;
+  assert.equal(response.body.resource.mode, "dual_read_legacy_authority");
+  assert.equal(response.body.resource.parity?.status, "pass");
+  assert.equal(response.body.resource.candidateCanonicalReviewUsable, false);
+  assert.equal(response.body.resource.canAuthorizeCutover, false);
+  assert.deepEqual(fixture.calls, { candidate: 0, compare: 1, legacy: 1, trusted: 2 });
 });
 
 test("cursor on Legacy response is explicit noncanonical diagnostic behavior", async () => {

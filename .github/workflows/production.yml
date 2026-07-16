@@ -82,11 +82,11 @@ jobs:
       - name: Candidate reconciliation production packet tests
         run: npm run test:candidate-reconciliation-production-packet
 
-      - name: Candidate shadow-verify runtime wiring contract
-        run: npm run candidate:shadow-verify-runtime-wiring:validate
+      - name: Candidate shadow-verify code authorization contract
+        run: npm run candidate:shadow-verify-code-authorization:validate
 
-      - name: Candidate shadow-verify runtime wiring tests
-        run: npm run test:candidate-shadow-verify-runtime-wiring
+      - name: Candidate shadow-verify code authorization tests
+        run: npm run test:candidate-shadow-verify-code-authorization
 
       - name: Candidate validation-cycle continuation contract
         run: npm run candidate:cycle-continuation:validate

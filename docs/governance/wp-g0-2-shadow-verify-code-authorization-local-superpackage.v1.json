@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "wp-g0.2-shadow-verify-code-authorization-local-superpackage.v1",
+  "packageId": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-LOCAL-SUPERPACKAGE",
+  "status": "local_implementation_production_not_deployed",
+  "productionAuthorization": false,
+  "productionConnected": false,
+  "productionDeployed": false,
+  "productionPhaseTransitionExecuted": false,
+  "codeBoundary": {
+    "candidateReadStateMachineAuthorized": true,
+    "authorizationSource": "CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED",
+    "environmentOverrideAllowed": false,
+    "requestOverrideAllowed": false,
+    "headerOverrideAllowed": false,
+    "automaticPhaseAdvance": false,
+    "canAuthorizeCutover": false,
+    "canCreateTradePlan": false,
+    "canMutateLiveRanking": false
+  },
+  "phaseMatrix": {
+    "legacy": "legacy_only",
+    "shadow_capture": "legacy_only",
+    "shadow_verify": "dual_read_legacy_authority",
+    "canonical_compat": "candidate_only_after_dual_read_evidence_otherwise_legacy",
+    "canonical": "candidate_only_after_canonical_compat_evidence"
+  },
+  "shadowVerifyBoundary": {
+    "reconciliationEvidenceRequired": "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    "dualReadFlagRequired": true,
+    "canonicalReadFlagRequired": false,
+    "reviewReadFlagRequired": false,
+    "sameDatabaseSnapshotRequired": true,
+    "zeroDifferenceRequired": true,
+    "legacyResponseAuthorityRequired": true,
+    "candidateReviewUsable": false,
+    "readTransactionRole": "candidate_audit_role",
+    "readTransactionIsolation": "serializable_read_only_deferrable",
+    "trustedManifestPath": "/run/market-radar/candidate-read-authority.json",
+    "authorityFingerprintRecheckRequired": true
+  },
+  "publicEndpointBoundary": {
+    "path": "/api/frontend/candidate-lifecycle",
+    "method": "GET",
+    "allowedQuery": [
+      "limit",
+      "cursorFirstSeenAt",
+      "cursorEpisodeId"
+    ],
+    "requestControlsPhase": false,
+    "requestControlsFlags": false,
+    "requestControlsEvidence": false,
+    "requestControlsRelease": false,
+    "cacheControl": "no-store",
+    "failureStatus": 503,
+    "staleFallbackAllowed": false
+  },
+  "implementationArtifact": {
+    "files": [
+      "src/app/api/frontend/candidate-lifecycle/route.ts",
+      "src/lib/candidate-episode/candidate-runtime-database.ts",
+      "src/lib/candidate-episode/canonical-read-model.ts",
+      "src/lib/candidate-episode/canonical-read-resource.ts",
+      "src/lib/candidate-episode/canonical-read-route-adapter.ts",
+      "src/lib/candidate-episode/canonical-read-server.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.ts"
+    ],
+    "fileCount": 7,
+    "sha256": "e7f060719643e54cfc16710cd2c5cb61596cf1a78a156ab2963943143731d297"
+  },
+  "forbidden": [
+    "production_connection",
+    "production_deployment",
+    "phase_transition",
+    "database_write",
+    "schema_migration",
+    "environment_override",
+    "request_authority_control",
+    "header_authority_control",
+    "missing_reconciliation_evidence_bypass",
+    "candidate_authority_during_shadow_verify",
+    "parity_failure_candidate_fallback",
+    "automatic_phase_advance",
+    "canonical_cutover",
+    "frontend_change",
+    "scan_change",
+    "analysis_change",
+    "strategy_change",
+    "backtest_change",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "currentProductionDecision": "BLOCKED_UNTIL_LINEAGE_AND_RECONCILIATION_PASS_AND_SEPARATE_DEPLOYMENT",
+  "nextPackage": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE"
+}

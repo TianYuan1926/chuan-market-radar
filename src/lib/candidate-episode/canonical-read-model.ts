@@ -9,7 +9,7 @@ import type { PostgresTransactionAdapter, TransactionContext } from "./transacti
 
 export const CANDIDATE_CANONICAL_READ_SCHEMA_VERSION = "candidate-canonical-read.v1" as const;
 export const CANDIDATE_CANONICAL_REVIEW_SCHEMA_VERSION = "candidate-review-read.v1" as const;
-export const CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED = false as const;
+export const CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED = true as const;
 export const CANDIDATE_READ_PAGE_MAXIMUM = 1_000;
 export const CANDIDATE_READ_OBSERVATION_MINIMUM_HOURS = 24;
 export const CANDIDATE_READ_OBSERVATION_MINIMUM_SAMPLES = 289;
