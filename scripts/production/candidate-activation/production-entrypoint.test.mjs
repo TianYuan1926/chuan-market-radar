@@ -53,6 +53,14 @@ test("activation and observer runners do not require host Node", async () => {
   }
 });
 
+test("database control runner uses the staging owner for private bind mounts", async () => {
+  const source = await readFile(runnerPath, "utf8");
+  const databaseRunner = source.match(/database_runner\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  assert.match(databaseRunner, /--user "\$\(id -u\):\$\(id -g\)"/);
+  assert.match(databaseRunner, /--volume "\$\{SOURCE_ROOT\}:\$\{SOURCE_ROOT\}:ro"/);
+  assert.match(databaseRunner, /--volume "\$\{SECURE_ROOT\}:\$\{SECURE_ROOT\}:ro"/);
+});
+
 test("production runner uses one lease, detached Git and an exact retained image", async () => {
   const source = await readFile(runnerPath, "utf8");
   for (const token of [

@@ -166,7 +166,7 @@ fi
 database_runner() {
   local command="$1" image="$2"
   "${DOCKER[@]}" run --rm --network "${NETWORK}" --read-only --cap-drop ALL \
-    --security-opt no-new-privileges \
+    --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
     --volume "${SOURCE_ROOT}:${SOURCE_ROOT}:ro" --volume "${SECURE_ROOT}:${SECURE_ROOT}:ro" \
     --entrypoint node "${image}" "${RUNNER_MODULE}" "${command}" \
     --contract "${CONTRACT_FILE}" --request "${REQUEST_FILE}" --admin-url-file "${ADMIN_URL_FILE}"

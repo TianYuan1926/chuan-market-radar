@@ -4423,3 +4423,43 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只执行 Activation release 单提交冻结、main 推送、精确脱敏 Bundle/request 和 shadow-only 生产激活，然后进入不可缩短的 24 小时观察。
+
+## 2026-07-16 / WP-G0.2 Activation 私有 Staging 容器 UID 修复
+
+### 本轮目标
+
+修复首次 Shadow Capture activation 在生产 mutation 前因隔离数据库 control 容器无法读取 `0700` staging 挂载而失败的问题，不降低目录权限、容器隔离、交易边界或观察标准。
+
+### 修改范围
+
+- `production-runner.sh` 的 database control 容器改为显式使用 staging 所有者 UID/GID；继续保留 read-only、cap-drop、no-new-privileges 和精确 source/secure 挂载。
+- 新增回归，要求 database control runner 同时具备显式 UID/GID 和两项只读挂载。
+- 刷新 runner、activation、contract checksum，并纠正 Runtime Identity evidence SHA 首三位的历史人工抄写错误。
+- 更新自治状态、traceability、Context、Changelog 和中文交付报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、frontend、migration、业务 DML、Redis、业务 worker 或 formal 回测。
+
+### 核心链路影响
+
+只修复候选筛选与复盘进化的 Shadow Capture 生产执行地基，不改变候选内容、排序、结构判断或交易计划。
+
+### 测试结果
+
+- Activation 25/25：PASS。
+- 隔离 PostgreSQL 16：migration 1-9、control start 1、rollback 1、final legacy/epoch 2/writeFrozen true、productionConnected=false：PASS。
+- typecheck、lint、test:market 960/0/4 explicit skip、worker 23/23、historical 4/4、build、Golden 16/16 与三项安全门禁：PASS。
+- 提交后 commit-bound 自治 gate：待 clean commit 后运行，未拿旧提交证据代替。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+首次事务绑定 source `d07bfe37...`、Bundle `0aa008b9...`、request `3634e1f5...`，在 lease、Git、DB control、env 和服务 mutation 前失败；生产仍为 clean detached `cec0b657...`，Candidate worker absent，staging/secure/ops 已清理。旧 Bundle/request 已消费且禁止复用。当前 UID 修复尚未提交、推送或重试生产。
+
+### 风险与遗留问题
+
+- P0：无已知未回滚生产 mutation；首次失败发生在 mutation 前。
+- P1：必须完成全门禁、clean commit、提交后 gate、新 Bundle/request 和精确重试。
+- P1：24 小时/289 样本观察尚未启动，Activation、WP-G0.2、G0 均未完成。
+
+### 下一轮建议
+
+只冻结并重试该 UID 修复；即时验证通过后启动不可缩短的 24 小时观察。

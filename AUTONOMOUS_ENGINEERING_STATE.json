@@ -298,7 +298,7 @@
       "redactedEvidenceArchiveSha256": "e6323b02dfe4cc3120f0fa68d5254c89a9cad67d271dd6734c58eecf38eda3a5",
       "freshnessAtLatestAttempt": "7_samples_1851_seconds_continuous_ready_fresh",
       "latestAttemptResult": "PASS_RUNTIME_IDENTITY_AND_PERMISSION",
-      "resultSha256": "bdb5836067d8fc9854c653ab1a2ea4b3c8a06bc5b1e8384dcf5ab8d3476a278d"
+      "resultSha256": "bbd5836067d8fc9854c653ab1a2ea4b3c8a06bc5b1e8384dcf5ab8d3476a278d"
     },
     "prerequisiteLocalResult": {
       "status": "PASS_LOCAL_RUNTIME_IDENTITY_WEB_READINESS_REMEDIATION",
@@ -380,12 +380,12 @@
       "status": "PASS_LOCAL_ACTIVATION_PRODUCTION_RELEASE",
       "productionMutation": false,
       "sourceParentCommit": "1dd11ae20f89849a883859a0f98436982cc1f994",
-      "runnerArtifactSha256": "b1a2c056071bc6df03952f71d93b64859d1d80b169faa8fdd7266af7d6d3a81d",
+      "runnerArtifactSha256": "b8f0411095bff2ed8665151e16c70c544dc98b7cff6e9da3cec472b890d89413",
       "runnerArtifactFiles": 5,
-      "activationArtifactSha256": "820dcacbaf088019ec1eeb50d188073f8589698711f7d50f73944ac67f281ec0",
+      "activationArtifactSha256": "2b4ae59c966dad2ecc08d5cf1147316db2235bb536db921210f25df132ba1549",
       "activationArtifactFiles": 16,
-      "contractSha256": "5bc52a9306544609bce1475609aab4db2a2498bdb99c9c9ea90f573dead5be80",
-      "activationTests": "24/24",
+      "contractSha256": "f23431b8b744253b8e890ce5af5371b20206ba49774d607f1eeb264a9e0b7200",
+      "activationTests": "25/25",
       "compositionTests": "29/29",
       "shadowGovernanceTests": "8/8",
       "postgres16Rehearsal": "pass_control_start_1_rollback_1_final_legacy_epoch_2_write_frozen_true_production_connected_false",
@@ -396,7 +396,25 @@
       "baselineGates": "pass",
       "securityGates": "pass",
       "formalBacktestRun": false,
-      "productionExecuted": false
+      "productionAttempted": true,
+      "productionExecuted": false,
+      "previousFailedProductionAttempt": {
+        "sourceCommit": "d07bfe37c711b4d56be2a7277ec382e44dfc436e",
+        "transportBundleSha256": "0aa008b974bf09b241ec62de928ba42bcd9ec62d360f47a3a7081a82a9016fe8",
+        "externalRequestSha256": "3634e1f59754ff0c8324be37c7991f35e3c1a63d9f6e81ba7ff18682737880da",
+        "requestStatus": "consumed_failed_attempt_do_not_reuse",
+        "result": "FAIL_PRE_MUTATION_PRIVATE_STAGING_CONTAINER_UID_MISMATCH",
+        "failureReason": "database_control_container_inherited_web_image_user_and_could_not_traverse_0700_staging_bind_mount",
+        "leaseAcquired": false,
+        "gitMutation": false,
+        "databaseMutation": false,
+        "environmentMutation": false,
+        "serviceMutation": false,
+        "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+        "candidateWorkerCount": 0,
+        "stagingSecureOpsAbsent": true,
+        "failedBundleAndRequestReusable": false
+      }
     }
   },
   "approvals": [
