@@ -70,6 +70,12 @@ jobs:
       - name: Candidate fresh-cycle lineage capture tests
         run: npm run test:candidate-lineage-capture
 
+      - name: Candidate lineage production packet contract
+        run: npm run candidate:lineage-production:validate
+
+      - name: Candidate lineage production packet tests
+        run: npm run test:candidate-lineage-production-packet
+
       - name: Candidate reconciliation production packet contract
         run: npm run candidate:reconciliation-production:validate
 

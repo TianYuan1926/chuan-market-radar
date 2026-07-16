@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T05:37:32+08:00",
+  "updatedAt": "2026-07-17T06:37:17+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -22,7 +22,8 @@
     "validationCycleContinuation": "completed_local_committed_pushed_bf2af47_targeted_baseline_security_postgres16_and_commit_bound_gates_pass_production_not_connected",
     "validationCycleContinuationProductionPacket": "completed_local_committed_pushed_54837d0_bundle_sha256_49e93e5d7ee18f30304e64ac2dd82c0f9717ed02f06a8c387298c27e677009a9_production_blocked_until_activation_final_pass",
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
-    "freshVerificationCycleLineageCapture": "ready_for_gate_targeted_6_of_6_reconciliation_packet_12_of_12_postgres16_10020_write_lineage_capture_baseline_security_and_autonomy_13_of_13_pass_local_only_production_not_connected"
+    "freshVerificationCycleLineageCapture": "completed_local_committed_pushed_9472529_targeted_6_of_6_reconciliation_packet_12_of_12_postgres16_10020_write_lineage_capture_baseline_security_and_autonomy_13_of_13_pass_production_not_connected",
+    "freshVerificationCycleLineageProductionPacket": "ready_for_commit_targeted_10_of_10_lineage_6_of_6_reconciliation_12_of_12_postgres16_10020_write_end_to_end_capture_autonomy_31_of_31_baseline_security_and_full_autonomy_gate_15_of_15_pass_production_not_connected"
   },
   "wipLimits": {
     "production": 1,
@@ -141,11 +142,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-LOCAL-SUPERPACKAGE",
-    "title": "Candidate fresh verification cycle lineage capture local superpackage",
+    "id": "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-PRODUCTION-PACKET",
+    "title": "Candidate fresh verification cycle lineage capture production packet",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "建立可从Activation原始证据、累计达标周期原始观察样本、新鲜相邻验证周期原始观察样本、数据库完整control血缘和按release写入计数重算的lineage-final.json；禁止人工自报累计、窗口或新鲜周期PASS。当前只做本地实现与隔离演练，禁止连接生产。",
+    "objective": "把已验证的多周期Lineage重算器封装为会话独立、一次授权、外部租约约束的生产只读采集包；从Activation、累计周期、新鲜相邻周期三组共9个私有原始证据文件和完整数据库control/count快照生成lineage-final。当前只做本地实现和隔离演练，禁止连接生产。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -158,18 +159,20 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_LOCAL_SUPERPACKAGE_V1.md",
       "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-local-superpackage.v1.json",
-      "docs/governance/wp-g0-2-reconciliation-production-execution.v1.json",
-      "scripts/governance/candidate-lineage-capture.mjs",
-      "scripts/governance/candidate-lineage-capture.test.mjs",
-      "scripts/production/candidate-reconciliation/bundle.mjs",
-      "scripts/production/candidate-reconciliation/bundle.test.mjs",
+      "docs/governance/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_PRODUCTION_PACKET_V1.md",
+      "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-production-packet.v1.json",
+      "scripts/production/candidate-lineage/bundle.mjs",
+      "scripts/production/candidate-lineage/bundle.test.mjs",
+      "scripts/production/candidate-lineage/production-boundary.test.mjs",
+      "scripts/production/candidate-lineage/production-entrypoint.sh",
+      "scripts/production/candidate-lineage/production-runner.mjs",
+      "scripts/production/candidate-lineage/production-runner.sh",
+      "scripts/production/candidate-lineage/production-runner.test.mjs",
       "scripts/production/candidate-lineage/runner.mjs",
-      "scripts/production/candidate-lineage/runner.test.mjs",
       "scripts/production/candidate-lineage/runner-postgres.integration.mjs",
       "scripts/rehearsal/candidate-lineage-postgres16.sh",
-      "reports/wp-g0-2-fresh-verification-cycle-lineage-capture/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_REPORT.md"
+      "reports/wp-g0-2-fresh-verification-cycle-lineage-capture-production-packet/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_PRODUCTION_PACKET_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -190,20 +193,24 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_PRODUCTION_PACKET_V1.md",
+      "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-production-packet.v1.json",
       "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-local-superpackage.v1.json",
-      "docs/governance/wp-g0-2-reconciliation-production-execution.v1.json",
-      "scripts/governance/candidate-lineage-capture.mjs",
-      "scripts/production/candidate-reconciliation/bundle.mjs",
+      "scripts/production/candidate-lineage/bundle.mjs",
+      "scripts/production/candidate-lineage/production-entrypoint.sh",
+      "scripts/production/candidate-lineage/production-runner.mjs",
+      "scripts/production/candidate-lineage/production-runner.sh",
       "scripts/production/candidate-lineage/runner.mjs",
       "scripts/rehearsal/candidate-lineage-postgres16.sh",
-      "reports/wp-g0-2-fresh-verification-cycle-lineage-capture/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_REPORT.md"
+      "reports/wp-g0-2-fresh-verification-cycle-lineage-capture-production-packet/WP_G0_2_FRESH_VERIFICATION_CYCLE_LINEAGE_CAPTURE_PRODUCTION_PACKET_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
         "candidate:lineage-capture:validate",
         "test:candidate-lineage-capture",
         "candidate:lineage-capture:pg16-rehearsal",
+        "candidate:lineage-production:validate",
+        "test:candidate-lineage-production-packet",
         "test:candidate-reconciliation-production-packet",
         "test:autonomy"
       ],
@@ -221,14 +228,15 @@
       ]
     },
     "completionBoundary": [
-      "Activation最终PASS必须从exact 289原始样本重算并只绑定cycle1",
-      "累计达标证据必须从前一周期至少7个原始样本重算，至少1800秒、2次真实completed推进、最终completed>=10000且unresolved=0",
-      "新鲜验证证据必须来自严格相邻新cycle的独立至少7个原始样本，至少1800秒、2次推进、ready/fresh、completed不回退且unresolved=0",
-      "数据库control必须从cycle1开始完整相邻；历史周期Legacy/frozen/even，当前周期唯一shadow_capture/odd，每个窗口精确72小时",
-      "按release completed计数总和必须等于全局completed，血缘外、pending、claimed、retry_wait和unresolved全部为0",
-      "fresh cycle startedAt必须晚于累计达标证据最后样本，禁止把达标所在周期冒充新鲜验证周期",
-      "lineage-final必须包含全部原始证据hash、control snapshot hash、sourceReleaseWindows和无未来阶段声明，可由Reconciliation validator独立验证",
-      "当前本地包不等于Activation、累计10000、新鲜验证周期、生产Reconciliation、Shadow Verify、Canonical Cutover、WP-G0.2或G0完成",
+      "确定性脱敏Bundle只包含allowlist代码与合同，不包含request、env、secret、数据库URL或业务行",
+      "一次性request必须绑定packet commit/tree/artifact、当前production commit/Web image/Compose/env和三组原始证据路径与hash，窗口最长90分钟",
+      "Activation exact 289样本、累计至少7样本/1800秒/2推进/10000条、新鲜相邻周期至少7样本/1800秒/2推进必须全部从原始文件重算",
+      "三组final/samples/closeout共9个文件必须私有、非符号链接、hash精确匹配且来源目录相互独立",
+      "数据库只允许REPEATABLE READ READ ONLY并强制candidate_audit_role；完整control、release counts和全部未决状态必须一致",
+      "transient systemd必须Restart=no且session-independent；容器只读、drop all capabilities、no-new-privileges",
+      "执行前后production Git、Compose、env和全部Compose容器identity必须逐字一致；服务、phase、Feature Flag和数据库不得mutation",
+      "只保留脱敏lineage、9个来源文件hash、数据库只读身份、lease事件和runtime identity；stage/secure/ops精确清理",
+      "当前本地包不等于生产Lineage capture、生产Reconciliation、Shadow Verify、Canonical Cutover、WP-G0.2或G0完成",
       "scan、analysis、strategy、RR、Risk Gate、backtest、frontend和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
@@ -241,7 +249,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "本地纯函数与隔离PostgreSQL 16演练证明lineage-final只能由Activation、累计达标周期、新鲜相邻周期和完整数据库血缘原始证据生成，任何时间倒置、样本不足、漏cycle、血缘外写入或未来阶段声明均失败。"
+      "measurableOutcome": "本地生产包测试和隔离PostgreSQL 16演练证明会话独立只读runner可从9个hash绑定原始文件与完整数据库血缘生成可信lineage-final，同时保留数据库审计角色证据且不修改任何服务或生产状态。"
     }
   },
   "approvals": [
@@ -522,6 +530,13 @@
     {
       "order": 38,
       "id": "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-LOCAL-SUPERPACKAGE",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_9472529_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 39,
+      "id": "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-PRODUCTION-PACKET",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

@@ -5021,3 +5021,49 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 本包提交推送后，只建立会话独立的只读生产 Lineage capture packet；真实执行继续等待全部外部前置证据。
+
+## 2026-07-17 / WP-G0.2 Fresh Verification Cycle Lineage Capture Production Packet
+
+### 本轮目标
+
+把本地多周期 Lineage 重算器封装为会话独立、一次授权、外部租约约束的生产只读采集包；当前只做本地实现和隔离演练。
+
+### 修改范围
+
+- 新增确定性脱敏 Bundle、最长 90 分钟一次性 request、transient systemd entrypoint 和生产只读 runner。
+- 三组 final/samples/closeout 共 9 个私有文件全部绑定路径、hash、closeout 和原始样本重算。
+- 生产 runner 强制当前 Git/Web image/Compose/env、Candidate Worker 和 ready/fresh health；执行前后全部 Compose 容器 identity 必须一致。
+- 数据库只允许 `REPEATABLE READ READ ONLY + candidate_audit_role`；输出仅保留 Lineage、来源 hash、数据库只读身份、lease 和 runtime identity。
+- stage/secure/ops 只按精确路径清理，原始证据和输出 evidence 保留。
+- 未修改 frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、Compose、env、Redis、Worker 实现或生产服务。
+
+### 核心链路影响
+
+加强候选筛选和复盘进化的生产证据真值；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Production packet：10/10 PASS。
+- 原 Lineage：6/6 PASS；Reconciliation production packet：12/12 PASS。
+- PostgreSQL 16：controls=2、release counts=10005+15、completed=10020，production runner 端到端 Lineage capture、只读事务、审计角色和 outside-lineage 拒绝全部 PASS，`productionConnected=false`。
+- Autonomy unit：31/31 PASS。
+- typecheck、零警告 lint：PASS。
+- market 1025 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+- 最终自治总门禁：15/15 PASS，`worktreeUnchanged=true`；上下文对账后按合同再次运行最终绑定门禁。
+
+### 是否部署
+
+未部署、未上传、未连接或查询生产、未执行任何数据库或服务 mutation。最近已知生产快照仍为 96/289、completed=1481，可能已经过期，本轮没有把它包装成当前事实。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：真实 Activation、累计 10,000 和新鲜相邻周期仍未完成，生产 Lineage capture 必须继续 fail closed。
+- P1：Lineage PASS 后仍须独立执行 Reconciliation，不能自动进入 Shadow Verify 或 Canonical authority。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+等待真实前置期间，只准备 Reconciliation 后的 Shadow Verify phase transition/dual-read observation 包；不提前部署或切换 Candidate authority。

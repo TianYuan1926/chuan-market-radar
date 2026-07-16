@@ -331,15 +331,18 @@ export function buildCandidateLineageEvidence(input) {
   return validateCandidateLineageEvidence(lineage);
 }
 
-export async function collectCandidateLineageDatabaseSnapshot(client) {
+export async function collectCandidateLineageDatabaseSnapshotWithEvidence(client) {
   await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
   try {
     await client.query("SET LOCAL ROLE candidate_audit_role");
     const boundary = await client.query(`SELECT current_user AS current_role,
-      current_setting('transaction_read_only') AS read_only`);
+      current_setting('transaction_read_only') AS read_only,
+      current_setting('transaction_isolation') AS isolation_level`);
     ensure(boundary.rows[0]?.current_role === "candidate_audit_role",
       "database_audit_role_not_active");
     ensure(boundary.rows[0]?.read_only === "on", "database_transaction_not_read_only");
+    ensure(boundary.rows[0]?.isolation_level === "repeatable read",
+      "database_transaction_isolation_invalid");
     const controlsResult = await client.query(`SELECT migration_id, phase, epoch::int,
       started_at, deadline_at, write_frozen, approved_release_id
       FROM candidate_authority.candidate_migration_control
@@ -403,11 +406,22 @@ export async function collectCandidateLineageDatabaseSnapshot(client) {
     };
     validateDatabase(result);
     await client.query("COMMIT");
-    return result;
+    return {
+      databaseIdentity: {
+        currentRole: boundary.rows[0].current_role,
+        transactionIsolation: boundary.rows[0].isolation_level,
+        transactionReadOnly: boundary.rows[0].read_only === "on",
+      },
+      snapshot: result,
+    };
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
     throw error;
   }
+}
+
+export async function collectCandidateLineageDatabaseSnapshot(client) {
+  return (await collectCandidateLineageDatabaseSnapshotWithEvidence(client)).snapshot;
 }
 
 async function main() {

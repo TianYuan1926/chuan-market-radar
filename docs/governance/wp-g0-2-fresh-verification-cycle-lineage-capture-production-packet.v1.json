@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "wp-g0.2-fresh-verification-cycle-lineage-capture-production-packet.v1",
+  "packageId": "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-PRODUCTION-PACKET",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "actionClass": "read_only_production_preflight",
+  "riskTier": "R0_READ_ONLY",
+  "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+  "standingGrant": {
+    "grantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "revocationEpoch": 2,
+    "maximumExecutions": 1,
+    "maximumApprovalWindowMinutes": 90,
+    "externalLeaseRequired": true
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-lineage/production-entrypoint.sh",
+      "scripts/production/candidate-lineage/production-runner.mjs",
+      "scripts/production/candidate-lineage/production-runner.sh"
+    ],
+    "fileCount": 3,
+    "sha256": "f92b7ef462d41a939d27fe80f2ec03790193f06e4601ada6f82360d7d958ec76"
+  },
+  "prerequisites": {
+    "activationStatus": "PASS_ACTIVATE_AND_OBSERVE",
+    "activationSamplesExact": 289,
+    "activationMinimumHours": 24,
+    "accumulationStatus": "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE",
+    "minimumAccumulatedWrites": 10000,
+    "accumulationMinimumSamples": 7,
+    "accumulationMinimumSeconds": 1800,
+    "freshCycleStrictlyAdjacent": true,
+    "freshCycleStartsAfterAccumulationPass": true,
+    "freshMinimumSamples": 7,
+    "freshMinimumSeconds": 1800,
+    "minimumCompletionAdvancesPerCycle": 2,
+    "maximumSampleGapSeconds": 600,
+    "allFinalEvidenceRecomputedFromRawSamples": true,
+    "completeDatabaseControlLineageRequired": true,
+    "newExactRequestRequired": true
+  },
+  "execution": {
+    "runner": "transient_systemd_unit",
+    "restart": "no",
+    "runtimeMaxSeconds": 3600,
+    "sessionIndependent": true,
+    "candidateWorkerRequired": "running_healthy",
+    "runtimeHealthRequired": "ready_fresh",
+    "approvedCurrentWebImageUsedAsRuntime": true,
+    "containerNetwork": "production_compose_network",
+    "containerRootFilesystem": "read_only",
+    "containerCapabilities": "drop_all",
+    "containerNoNewPrivileges": true
+  },
+  "databaseBoundary": {
+    "transactionIsolation": "repeatable_read",
+    "transactionReadOnly": true,
+    "forcedLocalRole": "candidate_audit_role",
+    "minimumCompletedWrites": 10000,
+    "outsideLineageMaximum": 0,
+    "pendingMaximum": 0,
+    "claimedMaximum": 0,
+    "retryWaitMaximum": 0,
+    "unresolvedMaximum": 0,
+    "ddlAllowed": false,
+    "dmlAllowed": false,
+    "migrationAllowed": false,
+    "phaseTransitionAllowed": false
+  },
+  "runtimeMutationBoundary": {
+    "evidenceAndLeaseFilesOnly": true,
+    "sourceSyncAllowed": false,
+    "gitCheckoutAllowed": false,
+    "serviceRecreateAllowed": false,
+    "databaseWriteAllowed": false,
+    "environmentWriteAllowed": false,
+    "featureFlagChangeAllowed": false,
+    "candidatePhaseChangeAllowed": false
+  },
+  "outputBoundary": {
+    "lineageSchemaVersion": "candidate-multi-cycle-lineage-evidence.v1",
+    "passStatus": "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION",
+    "semanticProvenanceHashesRequired": 7,
+    "rawSourceFileHashesRequired": 9,
+    "databaseIdentityEvidenceRequired": true,
+    "productionReconciliationExecuted": false,
+    "shadowVerifyStarted": false,
+    "canonicalAuthorityChanged": false,
+    "g0Completed": false,
+    "automaticNextStage": false
+  },
+  "transport": {
+    "method": "approved_orcaterm_bundle_upload",
+    "reproducibleArchive": true,
+    "containsSecrets": false,
+    "temporaryArtifactCleanupRequired": true,
+    "sourceEvidencePreserved": true,
+    "outputEvidencePreserved": true
+  },
+  "forbidden": [
+    "observation_window_shortening",
+    "sample_fabrication",
+    "source_sync",
+    "git_checkout",
+    "service_recreate",
+    "database_write",
+    "schema_migration",
+    "phase_transition",
+    "lineage_relabeling",
+    "automatic_reconciliation",
+    "automatic_shadow_verify",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "nextPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION-PRODUCTION-EXECUTION"
+}

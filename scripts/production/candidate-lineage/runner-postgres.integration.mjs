@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import pg from "pg";
 
-import { collectCandidateLineageDatabaseSnapshot } from "./runner.mjs";
+import { evaluateObservationEvidence } from "../candidate-activation/runner.mjs";
+import { evaluateCycleObservation } from "../candidate-cycle-continuation/observation-runner.mjs";
+import {
+  CAPTURE_SPEC_SCHEMA,
+  captureCandidateLineageEvidence,
+  PACKAGE_ID,
+} from "./production-runner.mjs";
+import {
+  collectCandidateLineageDatabaseSnapshot,
+  collectCandidateLineageDatabaseSnapshotWithEvidence,
+  sha256,
+} from "./runner.mjs";
 
 const { Client } = pg;
 const databaseUrl = process.env.WP_G0_2_LINEAGE_DATABASE_URL?.trim();
@@ -58,6 +72,132 @@ function source(index, releaseId, createdAt) {
   };
 }
 
+const activationExpected = {
+  authorityEpoch: 3,
+  commit: "a".repeat(40),
+  migrationId: "candidate-episode-v1",
+  releaseId: activationRelease,
+};
+const freshExpected = {
+  authorityEpoch: 1,
+  commit: "b".repeat(40),
+  migrationId: "candidate-episode-v1-cycle-2",
+  releaseId: freshRelease,
+};
+
+function activationSample(index) {
+  return {
+    schemaVersion: "candidate-shadow-observation-sample.v1",
+    sampledAt: new Date(Date.parse("2026-07-11T00:00:00.000Z") + index * 300_000).toISOString(),
+    commit: activationExpected.commit,
+    releaseId: activationExpected.releaseId,
+    health: {
+      ok: true,
+      level: "ready",
+      scanFreshness: "fresh",
+      databaseStatus: "ready",
+      redisStatus: "healthy",
+      workers: [
+        "scanner-worker", "websocket-light-worker", "coinglass-worker", "signal-worker",
+        "dynamic-scan-scheduler", "macro-worker", "candidate-shadow-worker",
+      ].map((key) => ({ ageSec: 5, key, status: "healthy" })),
+    },
+    candidate: {
+      ok: true,
+      mode: "active",
+      runtime: {
+        enabled: true,
+        blockers: [],
+        authorityEpoch: activationExpected.authorityEpoch,
+        expectedReleaseId: activationExpected.releaseId,
+      },
+      monitor: {
+        status: "ready",
+        phase: "shadow_capture",
+        authorityEpoch: activationExpected.authorityEpoch,
+        blockers: [],
+        warnings: [],
+        metrics: {
+          outboxRetryWaitTotal: 0,
+          unresolvedQuarantineTotal: 0,
+          outboxQuarantinedTotal: 0,
+          oldestPendingAgeSeconds: null,
+          outboxCompletedTotal: index + 1,
+        },
+      },
+    },
+    database: { identityErrors: 0, lockWaiters: 0, longTransactions: 0 },
+  };
+}
+
+function cycleSamples(expected, start, values, deadlineAt) {
+  return values.map((completedWrites, index) => ({
+    schemaVersion: "candidate-validation-cycle-observation-sample.v1",
+    sampledAt: new Date(Date.parse(start) + index * 300_000).toISOString(),
+    commit: expected.commit,
+    migrationId: expected.migrationId,
+    releaseId: expected.releaseId,
+    phase: "shadow_capture",
+    epoch: expected.authorityEpoch,
+    deadlineAt,
+    completedWrites,
+    unresolvedOutbox: 0,
+    activeCycles: 1,
+    health: {
+      level: "ready",
+      scanFreshness: "fresh",
+      database: "ready",
+      redis: "healthy",
+      candidateWorker: "healthy",
+      workersHealthy: true,
+    },
+  }));
+}
+
+async function writeEvidence(root, label, expected, samples, activation = false) {
+  const final = activation
+    ? evaluateObservationEvidence(samples, {
+      approvedCommit: expected.commit,
+      authorityEpoch: expected.authorityEpoch,
+      migrationId: expected.migrationId,
+      releaseId: expected.releaseId,
+    })
+    : evaluateCycleObservation(samples, expected);
+  const closeout = {
+    schemaVersion: activation
+      ? "candidate-observation-closeout.v1"
+      : "candidate-cycle-observation-closeout.v1",
+    outcome: activation
+      ? "PASS_ACTIVATE_AND_OBSERVE"
+      : "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE",
+    closedAt: "2026-07-14T02:00:00.000Z",
+    secretsPrinted: false,
+  };
+  const paths = {
+    final: join(root, `${label}-final.json`),
+    samples: join(root, `${label}-samples.jsonl`),
+    closeout: join(root, `${label}-closeout.json`),
+  };
+  const bytes = {
+    final: Buffer.from(`${JSON.stringify(final)}\n`),
+    samples: Buffer.from(`${samples.map((sample) => JSON.stringify(sample)).join("\n")}\n`),
+    closeout: Buffer.from(`${JSON.stringify(closeout)}\n`),
+  };
+  for (const key of Object.keys(paths)) await writeFile(paths[key], bytes[key], { mode: 0o600 });
+  return {
+    authorityEpoch: expected.authorityEpoch,
+    closeoutPath: paths.closeout,
+    closeoutSha256: sha256(bytes.closeout),
+    commit: expected.commit,
+    finalPath: paths.final,
+    finalSha256: sha256(bytes.final),
+    migrationId: expected.migrationId,
+    releaseId: expected.releaseId,
+    samplesPath: paths.samples,
+    samplesSha256: sha256(bytes.samples),
+  };
+}
+
 const client = new Client({ connectionString: databaseUrl });
 await client.connect();
 try {
@@ -107,7 +247,13 @@ try {
   );
   await client.query("ROLLBACK");
 
-  const snapshot = await collectCandidateLineageDatabaseSnapshot(client);
+  const capturedSnapshot = await collectCandidateLineageDatabaseSnapshotWithEvidence(client);
+  const snapshot = capturedSnapshot.snapshot;
+  assert.deepEqual(capturedSnapshot.databaseIdentity, {
+    currentRole: "candidate_audit_role",
+    transactionIsolation: "repeatable read",
+    transactionReadOnly: true,
+  });
   assert.equal(snapshot.controls.length, 2);
   assert.deepEqual(snapshot.releaseCompletedWrites, [
     { completedWrites: 10_005, releaseId: activationRelease },
@@ -116,6 +262,44 @@ try {
   assert.equal(snapshot.statusCounts.completed, total);
   assert.equal(snapshot.statusCounts.unresolvedTotal, 0);
   assert.equal(snapshot.statusCounts.outsideLineage, 0);
+
+  const evidenceRoot = await mkdtemp(join(tmpdir(), "lineage-production-pg16-"));
+  let captured;
+  try {
+    const activationSamples = Array.from({ length: 289 }, (_, index) => activationSample(index));
+    const accumulationSamples = cycleSamples(
+      activationExpected,
+      "2026-07-13T00:00:00.000Z",
+      [9_990, 9_990, 9_995, 9_995, 10_005, 10_005, 10_005],
+      "2026-07-14T00:00:00.000Z",
+    );
+    const freshSamples = cycleSamples(
+      freshExpected,
+      "2026-07-13T01:05:00.000Z",
+      [10_005, 10_005, 10_010, 10_010, 10_020, 10_020, 10_020],
+      "2026-07-16T01:00:00.000Z",
+    );
+    captured = await captureCandidateLineageEvidence(client, {
+      schemaVersion: CAPTURE_SPEC_SCHEMA,
+      packageId: PACKAGE_ID,
+      productionMutationAllowed: false,
+      outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v1",
+      activation: await writeEvidence(
+        evidenceRoot, "activation", activationExpected, activationSamples, true,
+      ),
+      accumulation: await writeEvidence(
+        evidenceRoot, "accumulation", activationExpected, accumulationSamples,
+      ),
+      fresh: await writeEvidence(evidenceRoot, "fresh", freshExpected, freshSamples),
+    });
+  } finally {
+    await rm(evidenceRoot, { recursive: true, force: true });
+  }
+  assert.equal(captured.lineage.status,
+    "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION");
+  assert.equal(captured.lineage.completedWrites, 10_020);
+  assert.equal(captured.databaseIdentity.currentRole, "candidate_audit_role");
+  assert.equal(Object.values(captured.sourceEvidenceSha256).flatMap(Object.values).length, 9);
 
   const outside = source(total + 1, "candidate-shadow-lineage-unapproved", freshStarted);
   await client.query(`INSERT INTO candidate_authority.candidate_episode_ingest_outbox (
@@ -144,6 +328,8 @@ try {
     transactionReadOnlyEnforced: true,
     auditRoleEnforced: true,
     outsideLineageRejected: true,
+    productionCaptureRunnerExercised: true,
+    lineageStatus: captured.lineage.status,
     productionConnected: false,
   })}\n`);
 } finally {
