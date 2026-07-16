@@ -9,7 +9,7 @@
       "scripts/production/candidate-reconciliation/runner.mjs"
     ],
     "fileCount": 1,
-    "sha256": "eee378f71d7b9bed8f1de12c721a75118f4bec3bb259e62391e7f1e19f964803"
+    "sha256": "5a92708e09310da8b8b7dbaf41ab205fb7f30ee56348907797819e699dec1713"
   },
   "prerequisites": {
     "activationObservationStatus": "PASS_ACTIVATE_AND_OBSERVE",
@@ -45,6 +45,7 @@
   "databaseBoundary": {
     "transactionIsolation": "repeatable_read",
     "transactionReadOnly": true,
+    "forcedLocalRole": "candidate_audit_role",
     "productionDmlAllowed": false,
     "schemaDdlAllowed": false,
     "migrationAllowed": false,

@@ -64,6 +64,12 @@ jobs:
       - name: G0 security release and incident closeout contract
         run: npm run g0:closeout:validate
 
+      - name: Candidate reconciliation production packet contract
+        run: npm run candidate:reconciliation-production:validate
+
+      - name: Candidate reconciliation production packet tests
+        run: npm run test:candidate-reconciliation-production-packet
+
       - name: Typecheck
         run: npm run typecheck
 

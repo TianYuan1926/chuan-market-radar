@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { stat, readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const PACKAGE_ID = "WP-G0.2-SHADOW-VERIFY-RECONCILIATION";
@@ -83,6 +85,23 @@ export function hashPayload(payload) {
 
 export function hashProjectionCommand(command) {
   return `sha256:${sha256(canonicalJson({ operation: "open_or_refresh_episode_v1", payload: command }))}`;
+}
+
+export function loadPgRuntime({
+  applicationRoot = process.env.MARKET_RADAR_APPLICATION_ROOT,
+  moduleUrl = import.meta.url,
+  requireFactory = createRequire,
+} = {}) {
+  const candidates = [requireFactory(moduleUrl)];
+  if (applicationRoot) candidates.push(requireFactory(resolve(applicationRoot, "package.json")));
+  for (const requireCandidate of candidates) {
+    try {
+      return requireCandidate("pg");
+    } catch (error) {
+      if (error?.code !== "MODULE_NOT_FOUND") throw error;
+    }
+  }
+  throw new ReconciliationPolicyError("approved_pg_runtime_unavailable");
 }
 
 function parseTimestamp(value, reason) {
@@ -257,6 +276,8 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
   add(Number(control.authorityEpoch) === context.authorityEpoch, "control_epoch_mismatch");
   add(control.writeFrozen === false, "control_write_frozen");
   add(control.releaseId === context.releaseId, "control_release_mismatch");
+  add(control.currentRole === "candidate_audit_role", "database_audit_role_not_active");
+  add(control.transactionReadOnly === true, "database_transaction_not_read_only");
   add(observation.status === context.activationObservationStatus, "observation_not_pass");
   add(observation.automaticPhaseAdvance === false, "observation_phase_advance_claimed");
   add(observation.comparedWritesGateEvaluated === false, "observation_reconciliation_claimed");
@@ -302,6 +323,10 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
     phaseTransitionExecuted: false,
     productionRankingInputsUsed: false,
     futureOutcomeInputsUsed: false,
+    databaseIdentity: {
+      currentRole: control.currentRole,
+      transactionReadOnly: control.transactionReadOnly,
+    },
     observationIdentityBinding: embeddedReleasePresent && embeddedEpochPresent
       ? "embedded_request_database_exact_match"
       : "evidence_hash_request_database_exact_match",
@@ -341,9 +366,11 @@ function mapRow(row) {
 export async function collectReadOnlyEvidence(client, request, observation) {
   await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
   try {
+    await client.query("SET LOCAL ROLE candidate_audit_role");
     await client.query("SET LOCAL statement_timeout = '5min'");
     await client.query("SET LOCAL lock_timeout = '2s'");
     const boundary = await client.query(`SELECT current_setting('transaction_read_only') AS read_only,
+      current_user AS current_role,
       control.phase, control.epoch::int AS authority_epoch, control.started_at,
       control.deadline_at, control.write_frozen, control.approved_release_id,
       clock_timestamp() AS database_now
@@ -351,6 +378,7 @@ export async function collectReadOnlyEvidence(client, request, observation) {
       WHERE control.migration_id=$1`, [request.migrationId]);
     const controlRow = boundary.rows[0];
     ensure(controlRow?.read_only === "on", "database_transaction_not_read_only");
+    ensure(controlRow.current_role === "candidate_audit_role", "database_audit_role_not_active");
     ensure(controlRow.phase === "shadow_capture", "database_phase_not_shadow_capture");
     ensure(controlRow.authority_epoch === request.authorityEpoch, "database_epoch_mismatch");
     ensure(controlRow.write_frozen === false, "database_write_frozen");
@@ -430,6 +458,8 @@ export async function collectReadOnlyEvidence(client, request, observation) {
         authorityEpoch: controlRow.authority_epoch,
         writeFrozen: controlRow.write_frozen,
         releaseId: controlRow.approved_release_id,
+        currentRole: controlRow.current_role,
+        transactionReadOnly: controlRow.read_only === "on",
       },
       observation,
       rows,
@@ -474,7 +504,8 @@ async function main() {
   ensure(`sha256:${sha256(observationBytes)}` === request.activationEvidenceSha256, "activation_evidence_checksum_mismatch");
   const observation = JSON.parse(observationBytes);
   validateApprovalRequest(request, contract);
-  const { Client } = await import("pg").then((module) => module.default ?? module);
+  const pg = loadPgRuntime();
+  const { Client } = pg.default ?? pg;
   const client = new Client({
     application_name: "market-radar-candidate-reconciliation-read-only",
     connectionString: await secureText(urlPath, "database_url_file"),

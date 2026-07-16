@@ -4739,3 +4739,48 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 执行提交绑定自治总门禁，形成 clean commit 并只推工作分支；生产 observer 到期后严格按 Observation -> Reconciliation -> Canonical -> HTTPS/Session -> Release Record -> G0 Exit 顺序执行。
+
+## 2026-07-17 / WP-G0.2 Reconciliation Production Packet
+
+### 本轮目标
+
+把本地 Candidate 10,000 条只读对账工具收口为可复现、会话独立、一次授权和外部租约约束的生产执行包；当前只做本地准备，不连接或查询生产。
+
+### 修改范围
+
+- Reconciliation runner 强制 `REPEATABLE READ READ ONLY`，并在事务内强制 `candidate_audit_role`。
+- 新增脱敏可复现 Bundle、精确生产请求、原始 289 样本重算、transient systemd 入口和 evidence-only runner。
+- 新增生产运输漂移、权限、只读、租约、服务无 mutation 和 secret 不回显测试。
+- 将 validator 与 packet tests 接入 production workflow 质量门禁。
+- 更新自治状态、Context 和中文交付报告。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、frontend、API route、migration、Compose、env、Feature Flag、Redis、业务 Worker 或生产服务。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的 Candidate 投影真值；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Production packet 9/9、Reconciliation runner/governance 12/12、Autonomy 31/31：PASS。
+- 提交前自治总门禁：13/13 PASS，`worktreeUnchanged=true`。
+- PostgreSQL 16：10,000 compared writes、0 differences、事务只读、`candidate_audit_role`、phase unchanged、`productionConnected=false`：PASS。
+- typecheck、干净 lint：PASS。
+- market 1017 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未连接生产、未查询生产数据库。最近只读 observer 证据为 active、61/289；Activation 最终 PASS 尚未产生，因此生产 request 和 Reconciliation 执行继续禁止。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：Activation 必须精确完成 289 样本且至少 24 小时，并从原始样本重算取得最终 PASS。
+- P1：本地 10,000 条零差异不能代替生产对账。
+- P1：Canonical Cutover、HTTPS/private session、release record 和 G0 Exit 仍未完成。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只冻结并推送当前本地包；observer 最终 PASS 后生成绑定该证据的新请求，并执行一次生产只读 10,000 条对账。

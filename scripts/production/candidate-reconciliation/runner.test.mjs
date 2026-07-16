@@ -6,8 +6,24 @@ import {
   evaluateReconciliationEvidence,
   hashPayload,
   hashProjectionCommand,
+  loadPgRuntime,
   validateApprovalRequest,
 } from "./runner.mjs";
+
+test("production runner resolves pg from the approved application runtime", () => {
+  const runtime = { marker: "approved-pg" };
+  const loaded = loadPgRuntime({
+    applicationRoot: "/approved/app",
+    moduleUrl: "file:///isolated/packet/runner.mjs",
+    requireFactory: (source) => (specifier) => {
+      if (specifier === "pg" && source === "/approved/app/package.json") return runtime;
+      const error = new Error("missing");
+      error.code = "MODULE_NOT_FOUND";
+      throw error;
+    },
+  });
+  assert.equal(loaded, runtime);
+});
 
 const releaseId = "candidate-shadow-release-20260712";
 const context = {
@@ -23,6 +39,8 @@ const control = {
   authorityEpoch: 3,
   writeFrozen: false,
   releaseId,
+  currentRole: "candidate_audit_role",
+  transactionReadOnly: true,
 };
 const observation = {
   status: "PASS_ACTIVATE_AND_OBSERVE",
@@ -228,8 +246,32 @@ test("PASS requires 10000 exact writes and produces order-independent immutable 
   assert.equal(first.phaseTransitionExecuted, false);
   assert.equal(first.productionRankingInputsUsed, false);
   assert.equal(first.futureOutcomeInputsUsed, false);
+  assert.deepEqual(first.databaseIdentity, {
+    currentRole: "candidate_audit_role",
+    transactionReadOnly: true,
+  });
   assert.equal(first.observationIdentityBinding, "evidence_hash_request_database_exact_match");
   assert.equal(first.evidenceHash, reversed.evidenceHash);
+});
+
+test("PASS requires both a read-only transaction and the least-privilege audit role", () => {
+  const rows = Array.from({ length: MINIMUM_COMPARED_WRITES }, (_, index) => fixtureRow(index + 1));
+  const wrongRole = evaluateReconciliationEvidence({
+    context,
+    control: { ...control, currentRole: "postgres" },
+    observation,
+    rows,
+    statusCounts,
+  });
+  assert.ok(wrongRole.violations.includes("database_audit_role_not_active"));
+  const writable = evaluateReconciliationEvidence({
+    context,
+    control: { ...control, transactionReadOnly: false },
+    observation,
+    rows,
+    statusCounts,
+  });
+  assert.ok(writable.violations.includes("database_transaction_not_read_only"));
 });
 
 test("embedded observation identity must match while the active v1 result remains hash bound", () => {

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "wp-g0.2-reconciliation-production-execution.v1",
+  "packageId": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION",
+  "status": "local_packet_preparation_production_not_executed",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "actionClass": "read_only_production_preflight",
+  "riskTier": "R0_READ_ONLY",
+  "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+  "standingGrant": {
+    "grantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "revocationEpoch": 2,
+    "maximumExecutions": 1,
+    "maximumApprovalWindowMinutes": 90,
+    "externalLeaseRequired": true
+  },
+  "prerequisites": {
+    "activationStatus": "PASS_ACTIVATE_AND_OBSERVE",
+    "activationSamplesExact": 289,
+    "minimumCleanWindowHours": 24,
+    "maximumSampleGapSeconds": 600,
+    "completedWritesMustBePositive": true,
+    "sameProductionCommitReleaseAndPositiveOddEpoch": true,
+    "activationEvidenceRecomputedFromSamples": true,
+    "newExactRequestRequired": true
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-reconciliation/production-entrypoint.sh",
+      "scripts/production/candidate-reconciliation/production-runner.sh",
+      "scripts/production/candidate-reconciliation/runner.mjs"
+    ],
+    "fileCount": 3,
+    "sha256": "973b76bd489d1c5fd08715d2ca1f7e9f930a6d6fa9fe7abbdf1bf05c6bcbeb1b"
+  },
+  "execution": {
+    "runner": "transient_systemd_unit",
+    "restart": "no",
+    "runtimeMaxSeconds": 3600,
+    "sessionIndependent": true,
+    "hostNodeRequired": false,
+    "containerNodeFallback": {
+      "enabled": true,
+      "image": "approved_current_web_image",
+      "network": "production_compose_network",
+      "rootFilesystem": "read_only",
+      "capabilities": "drop_all",
+      "noNewPrivileges": true
+    }
+  },
+  "databaseBoundary": {
+    "connectionSource": "root_owned_postgres_admin_env_local_conversion_only",
+    "connectionTransported": false,
+    "connectionPrinted": false,
+    "transactionIsolation": "repeatable_read",
+    "transactionReadOnly": true,
+    "forcedLocalRole": "candidate_audit_role",
+    "minimumComparedWrites": 10000,
+    "maximumDifferences": 0,
+    "maximumUnresolvedItems": 0,
+    "ddlAllowed": false,
+    "dmlAllowed": false,
+    "migrationAllowed": false,
+    "phaseTransitionAllowed": false
+  },
+  "runtimeMutationBoundary": {
+    "gitMutationAllowed": false,
+    "serviceMutationAllowed": false,
+    "environmentMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerMutationAllowed": false,
+    "candidateAuthorityMutationAllowed": false,
+    "evidenceAndLeaseFilesOnly": true
+  },
+  "resultBoundary": {
+    "passStatus": "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    "automaticPhaseAdvance": false,
+    "shadowVerifyTransitionExecuted": false,
+    "canonicalReadEnabled": false,
+    "canonicalWriteEnabled": false,
+    "reviewReadEnabled": false,
+    "g0Completed": false
+  },
+  "transport": {
+    "method": "reproducible_redacted_orcaterm_bundle",
+    "containsSecrets": false,
+    "temporaryArtifactCleanupRequired": true,
+    "activationEvidencePreserved": true,
+    "outputEvidencePreserved": true
+  },
+  "forbidden": [
+    "observation_window_shortening",
+    "activation_evidence_relabeling",
+    "source_sync",
+    "git_checkout",
+    "image_build",
+    "service_recreate",
+    "database_write",
+    "schema_migration",
+    "phase_transition",
+    "redis_write",
+    "worker_change",
+    "environment_change",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "nextPackageOnPass": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-SEPARATE-APPROVAL"
+}

@@ -34,6 +34,7 @@
 - pending、claimed、retry_wait、unresolved quarantine、unresolved total 全部为 0。
 - resolved quarantine 只作为显式排除项报告，不计入 compared writes。
 - 数据库采集必须在 `REPEATABLE READ READ ONLY` 事务中完成，并验证 `transaction_read_only=on`。
+- 连接建立后必须在事务内强制 `SET LOCAL ROLE candidate_audit_role`，最终证据同时证明审计角色和只读事务；不能以高权限连接身份直接查询。
 - 最终证据按逐笔 digest 排序后聚合 SHA-256，输入顺序不能改变证据 hash。
 
 ## 4. 明确禁止

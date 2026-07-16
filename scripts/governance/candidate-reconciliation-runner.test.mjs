@@ -33,3 +33,10 @@ test("future outcome and ranking inputs cannot be promoted into the contract", a
   ranking.inputBoundary.productionRankingInputAllowed = true;
   assert.ok((await validateCandidateReconciliationPreparation(ranking)).violations.includes("input_boundary:productionRankingInputAllowed"));
 });
+
+test("database boundary cannot drop the least-privilege audit role", async () => {
+  const contract = await loadCandidateReconciliationContract();
+  const elevated = structuredClone(contract);
+  elevated.databaseBoundary.forcedLocalRole = "postgres";
+  assert.ok((await validateCandidateReconciliationPreparation(elevated)).violations.includes("database_boundary"));
+});

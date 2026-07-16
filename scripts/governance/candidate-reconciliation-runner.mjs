@@ -58,6 +58,7 @@ export async function validateCandidateReconciliationPreparation(contract) {
       || contract.comparison?.fullProjectionCommandHashRequired !== true) violations.push("comparison_thresholds");
   if (contract.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || contract.databaseBoundary?.transactionReadOnly !== true
+      || contract.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
       || contract.databaseBoundary?.productionDmlAllowed !== false
       || contract.databaseBoundary?.schemaDdlAllowed !== false
       || contract.databaseBoundary?.migrationAllowed !== false
@@ -74,6 +75,7 @@ export async function validateCandidateReconciliationPreparation(contract) {
     "MINIMUM_COMPARED_WRITES = 10_000",
     "MINIMUM_CLEAN_WINDOW_HOURS = 24",
     "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+    "SET LOCAL ROLE candidate_audit_role",
     "transaction_read_only",
     "projection_command_hash_mismatch",
     "futureOutcomeInputsUsed: false",

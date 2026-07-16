@@ -1,13 +1,13 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T01:18:00+08:00",
+  "updatedAt": "2026-07-17T02:00:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
     "engineeringStatus": "可运行但不完整",
     "practicalStatus": "不能支撑实战",
     "productionCandidateSchema": "applied_verified_dormant",
-    "candidateRuntime": "shadow_capture_active_epoch3_release_candidate-shadow-e5eb90026d8b_observation_in_progress_not_yet_pass",
+    "candidateRuntime": "shadow_capture_active_epoch3_release_candidate-shadow-e5eb90026d8b_observation_61_of_289_last_verified_in_progress_not_yet_pass",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
@@ -16,7 +16,8 @@
     "activationObservationPreparation": "production_activation_immediate_gate_pass_observer_active_24_hours_289_samples_required_no_shortening",
     "reconciliationPreparation": "pass_local_preparation_committed_pushed_799d295_production_blocked_until_activation_observation_pass",
     "canonicalCompatPreparation": "pass_local_superpackage_committed_pushed_194ccf3_production_not_connected_canonical_authority_false",
-    "g0SecurityReleaseIncidentPreparation": "ready_for_gate_local_superpackage_all_precommit_targeted_baseline_security_gates_pass_production_blocked"
+    "g0SecurityReleaseIncidentPreparation": "completed_local_superpackage_committed_pushed_d2ee45f_production_blocked",
+    "reconciliationProductionPacket": "ready_for_gate_local_packet_double_read_only_candidate_audit_role_postgres16_10000_zero_difference_production_not_executed"
   },
   "wipLimits": {
     "production": 1,
@@ -135,22 +136,14 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.3-G0.5-SECURITY-RELEASE-INCIDENT-LOCAL-SUPERPACKAGE",
-    "title": "G0 HTTPS session release identity and known incident local closeout superpackage",
+    "id": "WP-G0.2-RECONCILIATION-PRODUCTION-PACKET",
+    "title": "Candidate reconciliation session-independent production packet",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在 Candidate 生产观察继续运行期间，一次收口 G0.3 HTTPS/private session、G0.4 release/evidence 单一正本与 G0.5 known-incident 机器回归的本地实现；保持生产、DNS、TLS、env、secret 和 Candidate authority 全部不变。",
+    "objective": "在 Candidate 生产观察继续运行期间，为观察最终PASS后的生产10000条只读对账建立可复现、会话独立、一次授权、外部租约和双重只读执行包；当前只做本地准备，不执行生产。",
     "coreChainImpact": [
-      "全市场发现",
       "候选筛选",
-      "深扫验证",
-      "结构分析",
-      "风险赔率",
-      "交易计划",
-      "复盘进化",
-      "trusted_access",
-      "release_identity_truth",
-      "incident_regression"
+      "复盘进化"
     ],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -159,32 +152,22 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
-      "deploy/caddy/Caddyfile",
-      "deploy/scripts/bootstrap-prod-env.sh",
-      "docker-compose.yml",
-      "middleware.ts",
       "package.json",
-      "tsconfig.market-test.json",
-      "docs/deployment/RELEASE_STANDARD.md",
-      "docs/deployment/RELEASE_RECORD_SCHEMA.json",
-      "docs/operations/KNOWN_ISSUES_REGISTRY.md",
-      "docs/operations/known-issues-registry.json",
-      "docs/governance/WP_G0_3_G0_5_SECURITY_RELEASE_INCIDENT_LOCAL_SUPERPACKAGE_V1.md",
-      "docs/governance/wp-g0-3-g0-5-security-release-incident-local-superpackage.v1.json",
-      "scripts/governance/g0-security-release-incident-closeout.mjs",
-      "scripts/governance/g0-security-release-incident-closeout.test.mjs",
-      "scripts/verify/g0-https-session-gate.mjs",
-      "scripts/verify/g0-https-session-gate.test.mjs",
-      "scripts/verify/known-issues-check.mjs",
-      "scripts/verify/known-issues-check.test.mjs",
-      "scripts/verify/release-record-check.mjs",
-      "scripts/verify/release-record-check.test.mjs",
-      "src/app/api/auth/session/route.ts",
-      "src/lib/auth/private-session.ts",
-      "src/lib/auth/private-session.test.ts",
-      "src/lib/auth/session-request-security.ts",
-      "src/lib/auth/session-request-security.test.ts",
-      "reports/wp-g0-3-g0-5-security-release-incident-local-superpackage/WP_G0_3_G0_5_SECURITY_RELEASE_INCIDENT_LOCAL_SUPERPACKAGE_REPORT.md"
+      "docs/governance/WP_G0_2_RECONCILIATION_PRODUCTION_EXECUTION_V1.md",
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_RECONCILIATION_PREPARATION_V1.md",
+      "docs/governance/wp-g0-2-reconciliation-production-execution.v1.json",
+      "docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json",
+      "scripts/governance/candidate-reconciliation-runner.mjs",
+      "scripts/governance/candidate-reconciliation-runner.test.mjs",
+      "scripts/production/candidate-reconciliation/bundle.mjs",
+      "scripts/production/candidate-reconciliation/bundle.test.mjs",
+      "scripts/production/candidate-reconciliation/production-boundary.test.mjs",
+      "scripts/production/candidate-reconciliation/production-entrypoint.sh",
+      "scripts/production/candidate-reconciliation/production-runner.sh",
+      "scripts/production/candidate-reconciliation/runner-postgres.integration.mjs",
+      "scripts/production/candidate-reconciliation/runner.mjs",
+      "scripts/production/candidate-reconciliation/runner.test.mjs",
+      "reports/wp-g0-2-reconciliation-production-packet/WP_G0_2_RECONCILIATION_PRODUCTION_PACKET_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -193,8 +176,10 @@
       "src/lib/strategy/**",
       "src/lib/backtest/**",
       "src/lib/candidate-episode/**",
-      "scripts/production/**",
+      "src/app/**",
       "deploy/workers/**",
+      "docker-compose.yml",
+      "deploy/caddy/**",
       ".env",
       ".env.production"
     ],
@@ -203,30 +188,20 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "tsconfig.market-test.json",
-      "docs/governance/wp-g0-3-g0-5-security-release-incident-local-superpackage.v1.json",
-      "docs/deployment/RELEASE_RECORD_SCHEMA.json",
-      "docs/operations/known-issues-registry.json",
-      "scripts/verify/g0-https-session-gate.mjs",
-      "scripts/verify/release-record-check.mjs",
-      "scripts/verify/known-issues-check.mjs",
-      "src/lib/auth/private-session.ts",
-      "src/lib/auth/session-request-security.ts",
-      "src/app/api/auth/session/route.ts",
-      "reports/wp-g0-3-g0-5-security-release-incident-local-superpackage/WP_G0_3_G0_5_SECURITY_RELEASE_INCIDENT_LOCAL_SUPERPACKAGE_REPORT.md"
+      "docs/governance/wp-g0-2-reconciliation-production-execution.v1.json",
+      "scripts/production/candidate-reconciliation/bundle.mjs",
+      "scripts/production/candidate-reconciliation/production-entrypoint.sh",
+      "scripts/production/candidate-reconciliation/production-runner.sh",
+      "scripts/production/candidate-reconciliation/runner.mjs",
+      "reports/wp-g0-2-reconciliation-production-packet/WP_G0_2_RECONCILIATION_PRODUCTION_PACKET_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "test:autonomy",
-        "g0:https-session:validate",
-        "g0:release-record:validate",
-        "g0:known-issues:validate",
-        "g0:closeout:validate",
-        "test:g0-security-closeout-superpackage",
-        "test:production-evidence",
-        "migration:runner:test",
-        "test:canonical-compat-domain",
-        "test:deploy-safety"
+        "candidate:reconciliation-production:validate",
+        "test:candidate-reconciliation-production-packet",
+        "test:candidate-reconciliation-runner",
+        "candidate:reconciliation-runner:pg16-rehearsal",
+        "test:autonomy"
       ],
       "baseline": [
         "typecheck",
@@ -242,30 +217,25 @@
       ]
     },
     "completionBoundary": [
-      "当前 Candidate Activation 仍只允许写观察进行中，24小时且至少289样本最终PASS前不得进入后续生产Gate",
-      "生产10000条只读Reconciliation和Canonical Read Cutover必须先独立PASS，不得被本地安全包替代",
-      "当前CHUAN_PUBLIC_HOST=:80与HSTS=0必须如实保留为未证明TLS，禁止本地代码宣称生产HTTPS",
-      "G0.3生产PASS必须是公共TLS或零公网监听可信私网、private session全合同和7天至少2017样本零失败证据",
-      "G0.4必须生成当前生产release record并证明GitHub main、commit、tree、镜像、Compose、env指纹、内容、migration、evidence、health与rollback一致",
-      "十类known incident必须全部绑定存在且可执行的红绿回归，任一删除、重命名或命令脱钩即失败",
-      "scan、analysis、strategy、RR、Risk Gate、backtest、Candidate authority和future outcome生产输入全部禁止修改",
-      "生产连接、DNS、TLS证书、env、secret、数据库、Redis、worker、Compose运行和formal backtest全部禁止"
+      "当前Candidate Activation仍只允许写观察进行中，精确289样本且至少24小时最终PASS前请求生成和生产执行必须拒绝",
+      "观察最终证据必须从原始289样本重算并与final和closeout哈希精确一致，完成写入必须大于0",
+      "生产查询必须在REPEATABLE READ READ ONLY事务内强制SET LOCAL ROLE candidate_audit_role",
+      "PASS必须至少10000条、0差异、0未解决、0重复映射、phase不变且不自动推进",
+      "执行包不得fetch、checkout、build、recreate、修改env、数据库、Redis、Worker或Candidate authority",
+      "当前本地包不等于生产Reconciliation PASS，不等于Canonical Cutover、WP-G0.2或G0完成",
+      "scan、analysis、strategy、RR、Risk Gate、backtest、frontend和future outcome生产输入全部禁止修改",
+      "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "security_hardening_release",
+    "actionClass": "read_only_production_preflight",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
-      "contributionType": "supporting",
+      "contributionType": "core",
       "coreChainStages": [
-        "全市场发现",
         "候选筛选",
-        "深扫验证",
-        "结构分析",
-        "风险赔率",
-        "交易计划",
         "复盘进化"
       ],
-      "measurableOutcome": "形成可信访问、单一release identity与十类事故机器回归的本地地基，同时保持生产G0、TLS、release record和Candidate authority为false。"
+      "measurableOutcome": "形成只有在289样本24小时观察真实PASS后才能执行的一次性生产只读对账包，并要求10000条零差异且不推进任何生产phase。"
     }
   },
   "approvals": [
@@ -504,6 +474,13 @@
     {
       "order": 32,
       "id": "WP-G0.3-G0.5-SECURITY-RELEASE-INCIDENT-LOCAL-SUPERPACKAGE",
+      "lane": "localPreparation",
+      "status": "completed_local_preparation_committed_pushed_d2ee45f",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 33,
+      "id": "WP-G0.2-RECONCILIATION-PRODUCTION-PACKET",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

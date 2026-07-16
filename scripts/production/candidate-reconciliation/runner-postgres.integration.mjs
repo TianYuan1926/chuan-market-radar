@@ -213,6 +213,10 @@ try {
   assert.equal(evidence.comparisonDifferences, 0);
   assert.equal(evidence.automaticPhaseAdvance, false);
   assert.equal(evidence.phaseTransitionExecuted, false);
+  assert.deepEqual(evidence.databaseIdentity, {
+    currentRole: "candidate_audit_role",
+    transactionReadOnly: true,
+  });
   const boundary = await client.query(`SELECT phase, epoch::int, write_frozen,
     (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
       WHERE source_type='legacy_scan_candidate') AS source_writes,
@@ -231,6 +235,7 @@ try {
     comparedWrites: evidence.comparedWrites,
     comparisonDifferences: evidence.comparisonDifferences,
     transactionReadOnlyEnforced: true,
+    leastPrivilegeAuditRoleEnforced: evidence.databaseIdentity.currentRole === "candidate_audit_role",
     phaseUnchanged: "shadow_capture",
     productionConnected: false,
   })}\n`);
