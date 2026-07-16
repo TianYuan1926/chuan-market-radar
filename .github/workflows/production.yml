@@ -52,6 +52,18 @@ jobs:
       - name: Secret pattern guard
         run: npm run ci:secret-patterns
 
+      - name: G0 HTTPS and private-session local gate
+        run: npm run g0:https-session:validate
+
+      - name: G0 release-record schema gate
+        run: npm run g0:release-record:validate
+
+      - name: G0 known-incident registry gate
+        run: npm run g0:known-issues:validate
+
+      - name: G0 security release and incident closeout contract
+        run: npm run g0:closeout:validate
+
       - name: Typecheck
         run: npm run typecheck
 

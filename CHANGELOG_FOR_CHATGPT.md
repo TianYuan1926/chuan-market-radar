@@ -4689,3 +4689,53 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 完成本地超级包全部提交门禁并冻结工作分支；生产端继续等待 Activation 最终证据，随后只执行精确绑定的只读 reconciliation。
+
+## 2026-07-17 / WP-G0.3-G0.5 Security Release Incident Local Superpackage
+
+### 本轮目标
+
+在 Candidate 生产观察继续运行期间，本地一次收口 G0.3 HTTPS/private session、G0.4 release/evidence 单一正本和 G0.5 known-incident 机器回归，提前消除观察完成后的代码等待。
+
+### 修改范围
+
+- Session 增加强配置校验、前一 secret 轮换、严格 v1 token claims、同源 mutation、no-store、rate-limit fail-closed 与脱敏安全事件。
+- 把 session password/secret 从共享 `x-app-env` 移到 Web 专属 environment，Worker 不再继承。
+- Caddy 增加 CSP、Permissions-Policy、HSTS 分阶段控制和 Server header 移除；保留 `:80/HSTS=0` 当前真值。
+- 新增 7 天 HTTPS/private-session evidence Gate、统一 release record schema/validator 和十类已知事故机器注册表。
+- 将四项 G0 本地控制接入手动 production workflow 的质量门禁。
+- 未修改 scan、analysis、strategy、RR、Risk Gate、backtest、Candidate authority、migration 或生产环境。
+
+### 核心链路影响
+
+为全市场发现到复盘进化的完整链路提供可信访问、发布身份和事故回归地基；不改变任何交易判断或排序。
+
+### 测试结果
+
+- Auth domain：9/9 PASS。
+- HTTPS/session Gate：4/4 PASS，production decision 继续 BLOCKED。
+- Release record：3/3 PASS，production record 尚不存在。
+- Known incidents：3/3 PASS，10/10 machine-covered。
+- G0 总治理：3/3 PASS，`g0Completed=false`。
+- Security closeout superpackage：22/22 PASS。
+- production evidence：15/15 PASS；migration runner：59/59 PASS；Canonical domain：99 pass / 0 fail / 3 explicit PG skip；deploy safety：6/6 PASS。
+- Autonomy 31/31、typecheck、lint：PASS。
+- test:market 1017 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4：PASS。
+- build：首轮因并发 Next build 抢占失败，确认无残留进程/锁后独立重跑 PASS；Golden 16/16 与三项安全门禁 PASS。
+- 提交前自治总门禁：18/18 PASS，`worktreeUnchanged=true`；报告对账后按合同再次运行最终绑定门禁。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未连接生产、未修改 DNS/TLS/env/secret。生产 observer 继续独立运行，最新只读核验为 active、57/289；最新样本约 `2026-07-17T01:14:26+08:00`，health ready、scan fresh、Postgres/Redis 与 7 workers healthy、Candidate active/epoch3/ready。
+
+### 风险与遗留问题
+
+- P0：无新增未关闭 P0；发现的共享 session secret 暴露已在源码配置中收口，尚未部署。
+- P1：当前生产 TLS/private session 未证明，7 天 burn-in 未开始。
+- P1：当前 production release record 尚未生成。
+- P1：Activation、生产 reconciliation、canonical cutover 仍是安全收口前置。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+执行提交绑定自治总门禁，形成 clean commit 并只推工作分支；生产 observer 到期后严格按 Observation -> Reconciliation -> Canonical -> HTTPS/Session -> Release Record -> G0 Exit 顺序执行。

@@ -4,13 +4,16 @@ export type PrivateSessionEnv = {
   CHUAN_SESSION_COOKIE_NAME?: string;
   CHUAN_SESSION_PASSWORD?: string;
   CHUAN_SESSION_SECRET?: string;
+  CHUAN_SESSION_SECRET_PREVIOUS?: string;
   CHUAN_SESSION_TTL_SECONDS?: string;
 };
 
 export type PrivateSessionConfig = {
   cookieName: string;
+  configurationIssues: string[];
   enabled: boolean;
   configured: boolean;
+  rotationReady: boolean;
   ttlSeconds: number;
 };
 
@@ -19,10 +22,16 @@ export type PrivateSessionPayload = {
   iat: number;
   nonce: string;
   sub: string;
+  v: "private-session.v1";
 };
 
 const defaultCookieName = "chuan_session";
 const defaultSessionTtlSeconds = 7 * 24 * 60 * 60;
+const minimumPasswordBytes = 16;
+const minimumSecretBytes = 32;
+const maximumClockSkewMs = 30_000;
+const cookieNamePattern = /^[A-Za-z0-9_-]{1,64}$/u;
+const noncePattern = /^[A-Za-z0-9_-]{22}$/u;
 
 function truthy(value: string | undefined) {
   return ["1", "true", "yes", "on"].includes(value?.trim().toLowerCase() ?? "");
@@ -32,6 +41,10 @@ function cleanText(value: string | undefined) {
   const trimmed = value?.trim();
 
   return trimmed || "";
+}
+
+function byteLength(value: string) {
+  return new TextEncoder().encode(value).byteLength;
 }
 
 function ttlSeconds(value: string | undefined) {
@@ -117,11 +130,29 @@ function constantTimeEqual(left: string, right: string) {
 
 export function privateSessionConfig(env: PrivateSessionEnv = {}): PrivateSessionConfig {
   const enabled = truthy(env.CHUAN_PRIVATE_MODE_ENABLED);
+  const configuredCookieName = cleanText(env.CHUAN_SESSION_COOKIE_NAME) || defaultCookieName;
+  const password = cleanText(env.CHUAN_SESSION_PASSWORD);
+  const secret = cleanText(env.CHUAN_SESSION_SECRET);
+  const previousSecret = cleanText(env.CHUAN_SESSION_SECRET_PREVIOUS);
+  const configurationIssues = [
+    !cookieNamePattern.test(configuredCookieName) ? "cookie_name_invalid" : null,
+    !password ? "password_missing" : null,
+    password && byteLength(password) < minimumPasswordBytes ? "password_too_short" : null,
+    !secret ? "secret_missing" : null,
+    secret && byteLength(secret) < minimumSecretBytes ? "secret_too_short" : null,
+    secret && password && secret === password ? "secret_matches_password" : null,
+    previousSecret && byteLength(previousSecret) < minimumSecretBytes
+      ? "previous_secret_too_short"
+      : null,
+    previousSecret && previousSecret === secret ? "previous_secret_matches_current" : null,
+  ].filter((issue): issue is string => Boolean(issue));
 
   return {
-    cookieName: cleanText(env.CHUAN_SESSION_COOKIE_NAME) || defaultCookieName,
-    configured: Boolean(cleanText(env.CHUAN_SESSION_PASSWORD) && cleanText(env.CHUAN_SESSION_SECRET)),
+    cookieName: cookieNamePattern.test(configuredCookieName) ? configuredCookieName : defaultCookieName,
+    configurationIssues,
+    configured: configurationIssues.length === 0,
     enabled,
+    rotationReady: Boolean(previousSecret) && configurationIssues.length === 0,
     ttlSeconds: ttlSeconds(env.CHUAN_SESSION_TTL_SECONDS),
   };
 }
@@ -132,8 +163,9 @@ export function isPrivateModeEnabled(env: PrivateSessionEnv = {}) {
 
 export function verifyPrivatePassword(password: string, env: PrivateSessionEnv = {}) {
   const expected = cleanText(env.CHUAN_SESSION_PASSWORD);
+  const config = privateSessionConfig(env);
 
-  return Boolean(expected) && constantTimeEqual(password, expected);
+  return config.configured && Boolean(expected) && constantTimeEqual(password, expected);
 }
 
 export async function createPrivateSessionToken(
@@ -153,6 +185,7 @@ export async function createPrivateSessionToken(
     iat: now.getTime(),
     nonce: randomNonce(),
     sub: subject.trim() || "operator",
+    v: "private-session.v1",
   };
   const encodedPayload = base64UrlEncodeJson(payload);
   const signature = await hmacSha256(encodedPayload, secret);
@@ -165,9 +198,11 @@ export async function verifyPrivateSessionToken(
   env: PrivateSessionEnv = {},
   now = new Date(),
 ) {
+  const config = privateSessionConfig(env);
   const secret = cleanText(env.CHUAN_SESSION_SECRET);
+  const previousSecret = cleanText(env.CHUAN_SESSION_SECRET_PREVIOUS);
 
-  if (!token || !secret) {
+  if (!token || !secret || !config.configured) {
     return null;
   }
 
@@ -177,15 +212,37 @@ export async function verifyPrivateSessionToken(
     return null;
   }
 
-  const expectedSignature = await hmacSha256(encodedPayload, secret);
+  const [expectedSignature, previousExpectedSignature] = await Promise.all([
+    hmacSha256(encodedPayload, secret),
+    hmacSha256(encodedPayload, previousSecret || secret),
+  ]);
 
-  if (!constantTimeEqual(signature, expectedSignature)) {
+  const currentMatches = constantTimeEqual(signature, expectedSignature);
+  const previousMatches = Boolean(previousSecret) &&
+    constantTimeEqual(signature, previousExpectedSignature);
+
+  if (!currentMatches && !previousMatches) {
     return null;
   }
 
   const payload = base64UrlDecodeJson<PrivateSessionPayload>(encodedPayload);
 
-  if (!payload || typeof payload.exp !== "number" || payload.exp <= now.getTime()) {
+  if (!payload ||
+    Object.keys(payload).sort().join(",") !== "exp,iat,nonce,sub,v" ||
+    payload.v !== "private-session.v1" ||
+    typeof payload.exp !== "number" ||
+    !Number.isSafeInteger(payload.exp) ||
+    typeof payload.iat !== "number" ||
+    !Number.isSafeInteger(payload.iat) ||
+    typeof payload.nonce !== "string" ||
+    !noncePattern.test(payload.nonce) ||
+    typeof payload.sub !== "string" ||
+    !payload.sub.trim() ||
+    payload.sub.length > 128 ||
+    payload.iat > now.getTime() + maximumClockSkewMs ||
+    payload.exp <= payload.iat ||
+    payload.exp - payload.iat > config.ttlSeconds * 1000 ||
+    payload.exp <= now.getTime()) {
     return null;
   }
 

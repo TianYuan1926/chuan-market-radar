@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://market-radar.local/schemas/release-record.v1.json",
+  "title": "Market Radar production release record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "releaseId",
+    "generatedAt",
+    "validUntil",
+    "environment",
+    "source",
+    "runtime",
+    "database",
+    "evidence",
+    "health",
+    "rollback",
+    "alignment"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "market-radar-release-record.v1" },
+    "status": { "enum": ["pass", "fail"] },
+    "releaseId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{7,127}$" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "validUntil": { "type": "string", "format": "date-time" },
+    "environment": { "const": "production" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "commit", "tree", "remoteCommit", "worktreeClean"],
+      "properties": {
+        "branch": { "const": "main" },
+        "commit": { "$ref": "#/$defs/commit" },
+        "tree": { "$ref": "#/$defs/commit" },
+        "remoteCommit": { "$ref": "#/$defs/commit" },
+        "worktreeClean": { "const": true }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gitCommit", "imageDigests", "composeSha256", "envFingerprintSha256", "contentSha256"],
+      "properties": {
+        "gitCommit": { "$ref": "#/$defs/commit" },
+        "imageDigests": { "$ref": "#/$defs/images" },
+        "composeSha256": { "$ref": "#/$defs/sha256" },
+        "envFingerprintSha256": { "$ref": "#/$defs/sha256" },
+        "contentSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["migrationStatus", "migrationIds"],
+      "properties": {
+        "migrationStatus": { "enum": ["no_change", "applied_verified"] },
+        "migrationIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "evidence": { "$ref": "#/$defs/evidence" },
+    "health": { "$ref": "#/$defs/health" },
+    "rollback": { "$ref": "#/$defs/rollback" },
+    "alignment": { "$ref": "#/$defs/alignment" }
+  },
+  "$defs": {
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "images": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "generatedAt", "expiresAt", "artifactSha256"],
+      "properties": {
+        "status": { "const": "pass" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "artifactSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checkedAt", "artifactSha256"],
+      "properties": {
+        "status": { "const": "pass" },
+        "checkedAt": { "type": "string", "format": "date-time" },
+        "artifactSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "imageDigests", "tested", "databaseRollbackAuthorized"],
+      "properties": {
+        "commit": { "$ref": "#/$defs/commit" },
+        "imageDigests": { "$ref": "#/$defs/images" },
+        "tested": { "const": true },
+        "databaseRollbackAuthorized": { "const": false }
+      }
+    },
+    "alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git", "images", "compose", "environment", "content", "migrations", "evidence", "health", "rollback"],
+      "properties": {
+        "git": { "const": true },
+        "images": { "const": true },
+        "compose": { "const": true },
+        "environment": { "const": true },
+        "content": { "const": true },
+        "migrations": { "const": true },
+        "evidence": { "const": true },
+        "health": { "const": true },
+        "rollback": { "const": true }
+      }
+    }
+  }
+}

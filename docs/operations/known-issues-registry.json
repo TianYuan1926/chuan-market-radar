@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "market-radar-known-issues-registry.v1",
+  "status": "machine_covered_local_production_g0_not_closed",
+  "requiredIssueIds": [
+    "MR-INC-001",
+    "MR-INC-002",
+    "MR-INC-003",
+    "MR-INC-004",
+    "MR-INC-005",
+    "MR-INC-006",
+    "MR-INC-007",
+    "MR-INC-008",
+    "MR-INC-009",
+    "MR-INC-010"
+  ],
+  "issues": [
+    {
+      "id": "MR-INC-001",
+      "name": "credential-propagation-missing-or-stale",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "credential_propagation",
+      "invariant": "A configured provider or runtime identity must use the intended credential source; missing or stale credentials remain degraded and never become ready.",
+      "g0Requirement": "credential propagation cannot produce false ready",
+      "regressionEvidence": [
+        {
+          "path": "src/lib/api/system-health.test.ts",
+          "testPattern": "buildSystemHealthReport reports a degraded provider when CoinGlass is requested without a key",
+          "command": "test:market"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-002",
+      "name": "auth-rate-limit-plan-misclassification",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "source_failure_classification",
+      "invariant": "Authentication, rate limit and plan restrictions remain distinct machine states and never mean that the market has no opportunity.",
+      "g0Requirement": "CoinGlass failure truth is preserved",
+      "regressionEvidence": [
+        {
+          "path": "src/lib/market/data-source-capabilities.test.ts",
+          "testPattern": "classifyCoinGlassRuntimeFailure keeps auth, rate limit and upgrade distinct",
+          "command": "test:market"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-003",
+      "name": "worker-stale-presented-online",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "runtime_heartbeat_truth",
+      "invariant": "A stale or missing heartbeat is down, not online, even when a container or idle heartbeat exists.",
+      "g0Requirement": "worker health cannot be fabricated",
+      "regressionEvidence": [
+        {
+          "path": "src/lib/runtime/worker-heartbeat.test.ts",
+          "testPattern": "readWorkerHeartbeatReport marks stale or missing heartbeats down without pretending they are online",
+          "command": "test:market"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-004",
+      "name": "scan-zero-clean-rows-presented-ready",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "scan_zero_truth",
+      "invariant": "A successful envelope with zero clean rows is partial and cannot prove a ready deep scan.",
+      "g0Requirement": "zero clean rows cannot become ready",
+      "regressionEvidence": [
+        {
+          "path": "src/lib/market/providers/coinglass-provider.test.ts",
+          "testPattern": "CoinGlass provider marks zero clean rows as partial even when the API envelope succeeds",
+          "command": "test:market"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-005",
+      "name": "false-running-runner-state",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "runner_liveness_truth",
+      "invariant": "A dead PID or stale heartbeat cannot remain running in the machine state.",
+      "g0Requirement": "runner liveness is process and heartbeat bound",
+      "regressionEvidence": [
+        {
+          "path": "src/lib/shadow/runner-runtime.test.ts",
+          "testPattern": "runner runtime marks manifest running with dead same-host pid as crashed",
+          "command": "test:market"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-006",
+      "name": "old-evidence-presented-current",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "evidence_freshness",
+      "invariant": "Current production status is regenerated and stale evidence cannot prove a current PASS.",
+      "g0Requirement": "evidence has identity and expiry",
+      "regressionEvidence": [
+        {
+          "path": "scripts/production/observability.test.mjs",
+          "testPattern": "production status regenerates current health and smoke instead of reusing stale files",
+          "command": "test:production-evidence"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-007",
+      "name": "dirty-production-deploy",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "release_source_integrity",
+      "invariant": "A dirty production worktree blocks release or migration execution before mutation.",
+      "g0Requirement": "production source must be immutable and aligned",
+      "regressionEvidence": [
+        {
+          "path": "scripts/production/migration-runner/migration-runner.test.mjs",
+          "testPattern": "rejects a dirty production worktree guard snapshot",
+          "command": "migration:runner:test"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-008",
+      "name": "unknown-fact-presented-as-zero",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "fake_zero_display",
+      "invariant": "Unavailable scan facts remain null or unavailable and cannot become zero or a confidence score.",
+      "g0Requirement": "fake zero count remains zero",
+      "regressionEvidence": [
+        {
+          "path": "src/lib/api/frontend-display-adapters.test.ts",
+          "testPattern": "data quality never turns unavailable scan facts into zero or a confidence score",
+          "command": "test:market"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-009",
+      "name": "duplicate-or-conflated-scan-proof",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "scan_proof_denominator_truth",
+      "invariant": "Observed and eligible denominators remain separate and one scan proof cannot inflate another.",
+      "g0Requirement": "single authoritative scan proof with explicit denominators",
+      "regressionEvidence": [
+        {
+          "path": "src/lib/api/frontend-contract.test.ts",
+          "testPattern": "scan proof keeps public observation and eligible-asset denominators separate",
+          "command": "test:market"
+        }
+      ]
+    },
+    {
+      "id": "MR-INC-010",
+      "name": "nonterminal-outcome-presented-timeout",
+      "severity": "P0",
+      "status": "machine_covered",
+      "incidentClass": "outcome_timeout_mapping",
+      "invariant": "Tracking, error and unavailable states remain distinct; only a real expiry may be displayed as timeout.",
+      "g0Requirement": "outcome lifecycle truth is preserved",
+      "regressionEvidence": [
+        {
+          "path": "scripts/governance/review-null-direction-truth.test.mjs",
+          "testPattern": "timeout inference and incomplete-live claims fail governance",
+          "command": "test:canonical-compat-domain"
+        }
+      ]
+    }
+  ]
+}

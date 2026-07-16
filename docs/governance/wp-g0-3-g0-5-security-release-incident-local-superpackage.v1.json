@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "wp-g0.3-g0.5-security-release-incident-local-superpackage.v1",
+  "packageId": "WP-G0.3-G0.5-SECURITY-RELEASE-INCIDENT-LOCAL-SUPERPACKAGE",
+  "status": "local_preparation_pass_production_g0_not_closed",
+  "currentProductionTruth": {
+    "activationObservationPass": false,
+    "productionReconciliationPass": false,
+    "canonicalReadCutoverPass": false,
+    "productionTlsStatus": "unverified_current_production_tls_not_proven",
+    "productionReleaseRecordPass": false,
+    "g0ExitPass": false
+  },
+  "scope": {
+    "productionConnected": false,
+    "productionMutationAllowed": false,
+    "dnsMutationAllowed": false,
+    "tlsCertificateMutationAllowed": false,
+    "environmentMutationAllowed": false,
+    "secretMutationAllowed": false,
+    "databaseMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerMutationAllowed": false,
+    "candidateAuthorityMutationAllowed": false,
+    "originMainMergeAllowed": false,
+    "automaticDeployAllowed": false
+  },
+  "boundaries": {
+    "scanModified": false,
+    "analysisModified": false,
+    "strategyModified": false,
+    "riskRewardModified": false,
+    "backtestModified": false,
+    "formalBacktestAllowed": false,
+    "futureOutcomeProductionInputAllowed": false
+  },
+  "httpsSession": {
+    "localPreparationPassed": true,
+    "currentPlainHttpDefaultPreservedAsTruth": true,
+    "publicTlsOrTrustedPrivateEvidenceRequired": true,
+    "privateSessionEvidenceRequired": true,
+    "tlsBurnInSecondsRequired": 604800,
+    "minimumSamplesRequired": 2017,
+    "maximumGapSeconds": 600,
+    "hstsBeforeBurnInAllowed": false,
+    "productionEvidencePassed": false
+  },
+  "releaseEvidence": {
+    "localSchemaAndValidatorPassed": true,
+    "githubMainIsLongTermSource": true,
+    "runtimeHealthSeparateFromReleaseIdentity": true,
+    "dirtyWorktreeBlocksPass": true,
+    "staleEvidenceBlocksPass": true,
+    "contentMismatchBlocksPass": true,
+    "rollbackProofRequired": true,
+    "productionRecordPassed": false
+  },
+  "incidentRegistry": {
+    "requiredIssueCount": 10,
+    "machineCoveredIssueCount": 10,
+    "missingOrRenamedRegressionBlocksPass": true,
+    "localRegistryPassed": true,
+    "productionG0ExitPassed": false
+  },
+  "nextProductionOrder": [
+    "PASS_ACTIVATE_AND_OBSERVE",
+    "PASS_PRODUCTION_RECONCILIATION_10000_ZERO_DIFFERENCE",
+    "PASS_CANONICAL_READ_CUTOVER",
+    "PASS_G0_3_HTTPS_SESSION_AND_7_DAY_BURN_IN",
+    "PASS_G0_4_CURRENT_RELEASE_RECORD",
+    "PASS_G0_5_INCIDENT_REGISTRY_AND_G0_EXIT"
+  ],
+  "artifact": {
+    "sha256": "2fbcec43b6db0b04448a07a4131f0adbfd6edc80771c368ead27dbdf5cf0de98",
+    "files": [
+      ".github/workflows/production.yml",
+      "deploy/caddy/Caddyfile",
+      "deploy/scripts/bootstrap-prod-env.sh",
+      "docker-compose.yml",
+      "middleware.ts",
+      "package.json",
+      "scripts/governance/g0-security-release-incident-closeout.mjs",
+      "scripts/governance/g0-security-release-incident-closeout.test.mjs",
+      "scripts/verify/g0-https-session-gate.mjs",
+      "scripts/verify/g0-https-session-gate.test.mjs",
+      "scripts/verify/known-issues-check.mjs",
+      "scripts/verify/known-issues-check.test.mjs",
+      "scripts/verify/release-record-check.mjs",
+      "scripts/verify/release-record-check.test.mjs",
+      "src/app/api/auth/session/route.ts",
+      "src/lib/auth/private-session.ts",
+      "src/lib/auth/private-session.test.ts",
+      "src/lib/auth/session-request-security.ts",
+      "src/lib/auth/session-request-security.test.ts",
+      "tsconfig.market-test.json",
+      "docs/deployment/RELEASE_STANDARD.md",
+      "docs/deployment/RELEASE_RECORD_SCHEMA.json",
+      "docs/operations/KNOWN_ISSUES_REGISTRY.md",
+      "docs/operations/known-issues-registry.json"
+    ]
+  }
+}
