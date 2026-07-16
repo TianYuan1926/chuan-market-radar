@@ -134,6 +134,19 @@ test("trusted provider binds policy and control to one read-only database snapsh
   assert.deepEqual(observed.queryParams, ["candidate-episode-v1"]);
 });
 
+test("trusted provider binds continuation cycle env manifest and database control", async () => {
+  const cycleId = "candidate-episode-v1-cycle-2";
+  const raw = manifest({ migrationId: cycleId });
+  const setup = fixture({
+    env: { CANDIDATE_RUNTIME_MIGRATION_ID: cycleId },
+    raw,
+    row: control(raw),
+  });
+  const context = await setup.provider.read({ signal: new AbortController().signal });
+  assert.equal(context.migrationId, cycleId);
+  assert.deepEqual(setup.observed().queryParams, [cycleId]);
+});
+
 test("phase cannot manufacture evidence PASS or flags", async () => {
   const missingEvidence = manifest({
     evidence: {

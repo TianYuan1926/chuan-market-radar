@@ -12,8 +12,12 @@ import {
 } from "./shadow-capture-runtime";
 import { CandidateShadowCaptureSourceWriter } from "./shadow-capture-source";
 import type { PostgresTransactionAdapter } from "./transaction-adapter";
+import {
+  CANDIDATE_MIGRATION_FAMILY,
+  resolveCandidateValidationCycleId,
+} from "./candidate-validation-cycle";
 
-export const CANDIDATE_SHADOW_MIGRATION_ID = "candidate-episode-v1";
+export const CANDIDATE_SHADOW_MIGRATION_ID = CANDIDATE_MIGRATION_FAMILY;
 export const CANDIDATE_SHADOW_SCOPE = "production_radar" as const;
 
 type ShadowCaptureCompositionEnv = Record<string, string | undefined>;
@@ -42,6 +46,7 @@ export type CandidateShadowRuntimeBlocker =
   | "consumer_transaction_adapter_unavailable"
   | "monitor_transaction_adapter_unavailable"
   | "release_id_missing"
+  | "migration_id_invalid"
   | "control_read_failed"
   | ReturnType<typeof evaluateShadowCaptureRuntimeGate>["blockers"][number];
 
@@ -51,7 +56,7 @@ export type CandidateShadowRuntimeState = Readonly<{
   enabled: boolean;
   databaseNow: string;
   expectedReleaseId: string | null;
-  migrationId: typeof CANDIDATE_SHADOW_MIGRATION_ID;
+  migrationId: string;
   mode: "active" | "dormant";
   scope: typeof CANDIDATE_SHADOW_SCOPE;
 }>;
@@ -117,6 +122,12 @@ export class CandidateShadowCaptureComposition {
   async runtimeState(purpose: "source" | "consumer" = "consumer"): Promise<CandidateShadowRuntimeState> {
     const expectedReleaseId = releaseId(this.env);
     const blockers: CandidateShadowRuntimeBlocker[] = [];
+    let migrationId: string | null = null;
+    try {
+      migrationId = resolveCandidateValidationCycleId(this.env);
+    } catch {
+      blockers.push("migration_id_invalid");
+    }
 
     if (!this.dependencies.monitorTransactions) {
       blockers.push("monitor_transaction_adapter_unavailable");
@@ -133,9 +144,9 @@ export class CandidateShadowCaptureComposition {
     let databaseNow = this.now().toISOString();
     if (this.dependencies.monitorTransactions) {
       try {
-        const snapshot = await this.readControl();
-        control = snapshot.control;
-        databaseNow = snapshot.databaseNow ?? databaseNow;
+        const snapshot = migrationId ? await this.readControl(migrationId) : null;
+        control = snapshot?.control ?? null;
+        databaseNow = snapshot?.databaseNow ?? databaseNow;
       } catch {
         blockers.push("control_read_failed");
       }
@@ -159,7 +170,7 @@ export class CandidateShadowCaptureComposition {
       databaseNow,
       enabled: uniqueBlockers.length === 0,
       expectedReleaseId,
-      migrationId: CANDIDATE_SHADOW_MIGRATION_ID,
+      migrationId: migrationId ?? CANDIDATE_SHADOW_MIGRATION_ID,
       mode: uniqueBlockers.length === 0 ? "active" : "dormant",
       scope: CANDIDATE_SHADOW_SCOPE,
     };
@@ -201,7 +212,7 @@ export class CandidateShadowCaptureComposition {
         candidateScope: CANDIDATE_SHADOW_SCOPE,
         candidates: mapping.observations,
         legacyScope: this.dependencies.repository.scope,
-        migrationId: CANDIDATE_SHADOW_MIGRATION_ID,
+        migrationId: runtime.migrationId,
         replayFrame,
         snapshot,
         summary,
@@ -261,7 +272,7 @@ export class CandidateShadowCaptureComposition {
     const batch = await consumer.runBatch({
       authorityEpoch: runtime.authorityEpoch as number,
       limit,
-      migrationId: CANDIDATE_SHADOW_MIGRATION_ID,
+      migrationId: runtime.migrationId,
       now: runtime.databaseNow,
       runtimeId: runtimeId(this.env, runtime.expectedReleaseId as string),
       scope: CANDIDATE_SHADOW_SCOPE,
@@ -275,11 +286,11 @@ export class CandidateShadowCaptureComposition {
     if (!this.dependencies.monitorTransactions) return null;
     return new CandidateShadowCaptureMonitor(this.dependencies.monitorTransactions).read(
       CANDIDATE_SHADOW_SCOPE,
-      CANDIDATE_SHADOW_MIGRATION_ID,
+      resolveCandidateValidationCycleId(this.env),
     );
   }
 
-  private async readControl() {
+  private async readControl(migrationId: string) {
     if (!this.dependencies.monitorTransactions) {
       throw new Error("monitor_transaction_adapter_unavailable");
     }
@@ -297,7 +308,7 @@ export class CandidateShadowCaptureComposition {
       FROM (SELECT 1) clock
       LEFT JOIN candidate_authority.candidate_migration_control control
         ON control.migration_id = $1
-    `, [CANDIDATE_SHADOW_MIGRATION_ID]));
+    `, [migrationId]));
 
     return mapControl(result.rows[0]);
   }

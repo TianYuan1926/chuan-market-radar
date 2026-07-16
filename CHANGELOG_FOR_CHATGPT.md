@@ -4829,3 +4829,49 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 本包 clean commit/push 后，只准备 `WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION`；任何生产执行必须继续等待 Activation 289 样本/24 小时最终 PASS 和生产 10,000 条零差异 Reconciliation PASS。
+
+## 2026-07-17 / WP-G0.2 Validation Cycle Continuation Local Superpackage
+
+### 本轮目标
+
+解决生产真实吞吐与单周期 72 小时上限之间的数学冲突，同时不降低 10,000 条、三段 24 小时、窗口分离或任何交易质量门槛。
+
+### 修改范围
+
+- 新增严格的 Candidate validation cycle identity：cycle 1 兼容现有 ID，后续只允许相邻 `cycle-N`。
+- Shadow Source/Consumer/Monitor 与 Trusted Read Context 统一使用服务端 `CANDIDATE_RUNTIME_MIGRATION_ID`；显式空值和非法 ID fail closed。
+- Shadow 写链在 `shadow_capture / shadow_verify / canonical_compat` 保持受 epoch/release/deadline 围栏，canonical 不允许 Shadow 写。
+- 新增原子周期续接 runner：SERIALIZABLE + control table lock，旧 cycle 退 Legacy/frozen 后才创建新 cycle；数据计数变化或多 active cycle 立即回滚。
+- 新增机器合同、治理回归、隔离 PostgreSQL 16 演练和 CI 门禁。
+- 未修改 migration、扫描、分析、策略、RR、Risk Gate、交易计划、回测、页面、Redis、Worker 实现或生产服务。
+
+### 核心链路影响
+
+为候选筛选和复盘进化提供可完成且不降质的生命周期验证路径；不改变任何市场发现、结构判断、风险赔率或交易计划。
+
+### 测试结果
+
+- Cycle unit/composition：22/22 PASS。
+- Governance：2/2 PASS。
+- PostgreSQL 16：旧 deadline immutable、Candidate data preserved、single active cycle、productionConnected=false，PASS。
+- Trusted Context validator：PASS，artifact=`9788dbf6be36f2aaa804dd3978e60b6afdd26fb86d5c9672d9ad677a8bed3d88`。
+- typecheck、干净 lint：PASS。
+- market 1025 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- Autonomy unit 31/31：PASS；提交绑定自治总门禁待执行。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未连接生产、未执行数据库 mutation。生产 observer 继续独立运行，最近只读证据为 active、78/289、completed writes=1064。
+
+### 风险与遗留问题
+
+- P1：当前 cycle 无法在剩余 deadline 内完成全部 G0.2 Gate；该问题现在有本地可演练修复，但生产 runner、rollback 和 observation packet 尚未完成。
+- P1：生产必须先取得当前 Activation 最终 PASS，才能考虑周期续接；不得中断当前有效观察。
+- P1：累积 completed writes 未达 10,000，Reconciliation 不能 PASS。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+当前包提交绑定自治总门禁、commit/push 后，建立 session-independent production runner 与 cycle observer；只有 Activation 最终 PASS、动态 preflight 和精确绑定全部通过才允许执行。

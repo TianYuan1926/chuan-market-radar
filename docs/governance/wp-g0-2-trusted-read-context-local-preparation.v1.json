@@ -7,14 +7,16 @@
   "implementationArtifact": {
     "files": [
       "scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
+      "src/lib/candidate-episode/candidate-validation-cycle.test.ts",
+      "src/lib/candidate-episode/candidate-validation-cycle.ts",
       "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
       "src/lib/candidate-episode/canonical-read-route-adapter.ts",
       "src/lib/candidate-episode/canonical-read-trusted-context-postgres.test.ts",
       "src/lib/candidate-episode/canonical-read-trusted-context.test.ts",
       "src/lib/candidate-episode/canonical-read-trusted-context.ts"
     ],
-    "fileCount": 6,
-    "sha256": "822fce51c067c85ba1010abea37844436f889749d94e8d71ad40bf4394702524"
+    "fileCount": 8,
+    "sha256": "9788dbf6be36f2aaa804dd3978e60b6afdd26fb86d5c9672d9ad677a8bed3d88"
   },
   "authorityBoundary": {
     "singleTrustedContextProvider": true,
@@ -23,7 +25,10 @@
     "transactionIsolation": "serializable",
     "transactionReadOnly": true,
     "transactionDeferrable": true,
-    "fixedMigrationId": "candidate-episode-v1",
+    "migrationFamily": "candidate-episode-v1",
+    "cycleIdentityEnvironment": "CANDIDATE_RUNTIME_MIGRATION_ID",
+    "missingCycleEnvironmentDefaultsToCycleOne": true,
+    "explicitEmptyCycleEnvironmentRejected": true,
     "databaseClockRequired": true,
     "approvedReleaseMatchesPolicy": true,
     "contextProofRecomputedBeforeUse": true,

@@ -57,7 +57,9 @@ export function evaluateShadowCaptureRuntimeGate(input: ShadowCaptureRuntimeGate
   if (!input.control) {
     blockers.push("migration_control_missing");
   } else {
-    if (input.control.phase !== "shadow_capture") blockers.push("migration_phase_inactive");
+    if (!["shadow_capture", "shadow_verify", "canonical_compat"].includes(input.control.phase)) {
+      blockers.push("migration_phase_inactive");
+    }
     if (!Number.isSafeInteger(input.control.epoch) || input.control.epoch < 1) {
       blockers.push("migration_epoch_invalid");
     }

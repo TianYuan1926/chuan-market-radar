@@ -7,6 +7,11 @@ import {
 } from "./canonical-read-model";
 import type { CandidateAuthorityPhase } from "./feature-flags";
 import type { PostgresTransactionAdapter } from "./transaction-adapter";
+import {
+  CANDIDATE_MIGRATION_FAMILY,
+  parseCandidateValidationCycleId,
+  resolveCandidateValidationCycleId,
+} from "./candidate-validation-cycle";
 
 export const CANDIDATE_TRUSTED_READ_CONTEXT_SCHEMA_VERSION =
   "candidate-trusted-read-context.v1" as const;
@@ -14,7 +19,7 @@ export const CANDIDATE_READ_AUTHORITY_MANIFEST_SCHEMA_VERSION =
   "candidate-read-authority-manifest.v1" as const;
 export const CANDIDATE_READ_AUTHORITY_MANIFEST_PATH =
   "/run/market-radar/candidate-read-authority.json" as const;
-export const CANDIDATE_READ_AUTHORITY_MIGRATION_ID = "candidate-episode-v1" as const;
+export const CANDIDATE_READ_AUTHORITY_MIGRATION_ID = CANDIDATE_MIGRATION_FAMILY;
 export const CANDIDATE_CANONICAL_API_CHECKPOINT_KIND = "24h" as const;
 export const CANDIDATE_READ_AUTHORITY_APPROVAL_MAXIMUM_AGE_MS = 90 * 60 * 1_000;
 
@@ -41,7 +46,7 @@ type CandidateReadEvidenceStatus =
 
 type CandidateReadAuthorityManifest = Readonly<{
   schemaVersion: typeof CANDIDATE_READ_AUTHORITY_MANIFEST_SCHEMA_VERSION;
-  migrationId: typeof CANDIDATE_READ_AUTHORITY_MIGRATION_ID;
+  migrationId: string;
   scope: "production_radar";
   releaseId: string;
   authorityEpoch: number;
@@ -82,7 +87,7 @@ type CandidateControlRow = {
 
 export type CandidateTrustedReadContext = Readonly<{
   schemaVersion: typeof CANDIDATE_TRUSTED_READ_CONTEXT_SCHEMA_VERSION;
-  migrationId: typeof CANDIDATE_READ_AUTHORITY_MIGRATION_ID;
+  migrationId: string;
   scope: "production_radar";
   databaseNow: string;
   authorityEpoch: number;
@@ -196,7 +201,11 @@ function evidenceEntry<T extends Exclude<CandidateReadEvidenceStatus, "missing">
   };
 }
 
-export function parseCandidateReadAuthorityManifest(raw: string): CandidateReadAuthorityManifest {
+export function parseCandidateReadAuthorityManifest(
+  raw: string,
+  expectedMigrationId: string = CANDIDATE_READ_AUTHORITY_MIGRATION_ID,
+): CandidateReadAuthorityManifest {
+  parseCandidateValidationCycleId(expectedMigrationId);
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -209,7 +218,7 @@ export function parseCandidateReadAuthorityManifest(raw: string): CandidateReadA
     "phase", "generatedAt", "flags", "evidence",
   ]);
   if (manifest.schemaVersion !== CANDIDATE_READ_AUTHORITY_MANIFEST_SCHEMA_VERSION
-      || manifest.migrationId !== CANDIDATE_READ_AUTHORITY_MIGRATION_ID
+      || manifest.migrationId !== expectedMigrationId
       || manifest.scope !== "production_radar") {
     throw new Error("candidate_read_authority_manifest_identity_invalid");
   }
@@ -224,7 +233,7 @@ export function parseCandidateReadAuthorityManifest(raw: string): CandidateReadA
   exactKeys(evidence, ["reconciliation", "dualRead", "canonicalCompat"]);
   return {
     schemaVersion: CANDIDATE_READ_AUTHORITY_MANIFEST_SCHEMA_VERSION,
-    migrationId: CANDIDATE_READ_AUTHORITY_MIGRATION_ID,
+    migrationId: expectedMigrationId,
     scope: "production_radar",
     releaseId: safeIdentifier(manifest.releaseId, "candidate_read_manifest_release_invalid"),
     authorityEpoch: safeInteger(manifest.authorityEpoch, "candidate_read_manifest_epoch_invalid"),
@@ -300,7 +309,8 @@ function buildContext({
   rawManifest: string;
   row: CandidateControlRow;
 }): CandidateTrustedReadContext {
-  const manifest = parseCandidateReadAuthorityManifest(rawManifest);
+  const migrationId = resolveCandidateValidationCycleId(env);
+  const manifest = parseCandidateReadAuthorityManifest(rawManifest, migrationId);
   const controlPhase = phase(row.phase);
   const authorityEpoch = safeInteger(row.epoch, "candidate_read_control_epoch_invalid");
   const approvedReleaseId = safeIdentifier(
@@ -378,7 +388,7 @@ function buildContext({
     canonicalCompatEvidenceStatus: manifest.evidence.canonicalCompat.status,
   };
   const authorityFingerprint = hashObject({
-    migrationId: CANDIDATE_READ_AUTHORITY_MIGRATION_ID,
+    migrationId,
     authorityEpoch,
     approvedReleaseId,
     approvalDigest,
@@ -388,7 +398,7 @@ function buildContext({
   });
   return {
     schemaVersion: CANDIDATE_TRUSTED_READ_CONTEXT_SCHEMA_VERSION,
-    migrationId: CANDIDATE_READ_AUTHORITY_MIGRATION_ID,
+    migrationId,
     scope: "production_radar",
     databaseNow,
     authorityEpoch,
@@ -407,7 +417,7 @@ export function assertCandidateTrustedReadContext(
   value: CandidateTrustedReadContext,
 ): CandidateTrustedReadContext {
   if (value.schemaVersion !== CANDIDATE_TRUSTED_READ_CONTEXT_SCHEMA_VERSION
-      || value.migrationId !== CANDIDATE_READ_AUTHORITY_MIGRATION_ID
+      || parseCandidateValidationCycleId(value.migrationId).migrationId !== value.migrationId
       || value.scope !== "production_radar"
       || value.phase !== value.control.phase
       || value.approvedReleaseId !== value.policy.releaseId
@@ -471,6 +481,7 @@ export class CandidateTrustedReadContextProvider {
 
   async read({ signal }: { signal: AbortSignal }) {
     const env = this.dependencies.env ?? process.env;
+    const migrationId = resolveCandidateValidationCycleId(env);
     const readAuthorityManifest = this.dependencies.readAuthorityManifest
       ?? readCandidateAuthorityManifestFile;
     return this.dependencies.transactions.withTransaction(
@@ -481,7 +492,7 @@ export class CandidateTrustedReadContextProvider {
           approved_release_id, approval_digest, updated_at,
           clock_timestamp() AS database_now
         FROM candidate_authority.candidate_migration_control
-        WHERE migration_id=$1`, [CANDIDATE_READ_AUTHORITY_MIGRATION_ID]);
+        WHERE migration_id=$1`, [migrationId]);
         if (result.rows.length !== 1) throw new Error("candidate_read_control_not_unique");
         const rawManifest = await readAuthorityManifest({ signal });
         return buildContext({ env, rawManifest, row: result.rows[0] });

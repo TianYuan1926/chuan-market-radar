@@ -1,13 +1,13 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T02:53:00+08:00",
+  "updatedAt": "2026-07-17T03:18:16+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
     "engineeringStatus": "可运行但不完整",
     "practicalStatus": "不能支撑实战",
     "productionCandidateSchema": "applied_verified_dormant",
-    "candidateRuntime": "shadow_capture_active_epoch3_release_candidate-shadow-e5eb90026d8b_observation_70_of_289_last_verified_in_progress_not_yet_pass",
+    "candidateRuntime": "shadow_capture_active_epoch3_release_candidate-shadow-e5eb90026d8b_observation_78_of_289_last_verified_in_progress_not_yet_pass_deadline_2026_07_19T01_38_00_099Z",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
@@ -18,7 +18,8 @@
     "canonicalCompatPreparation": "pass_local_superpackage_committed_pushed_194ccf3_production_not_connected_canonical_authority_false",
     "g0SecurityReleaseIncidentPreparation": "completed_local_superpackage_committed_pushed_d2ee45f_production_blocked",
     "reconciliationProductionPacket": "completed_local_preparation_committed_pushed_504c395_bundle_sha256_d2a4e2ef12dcfdb640b5ed0f277af9c081c5ee42b72019a76eafff6802db39eb_production_not_executed",
-    "shadowVerifyRuntimeWiring": "all_15_precommit_gates_pass_local_read_only_api_code_canonical_authority_false_production_not_connected_not_deployed_ready_for_commit"
+    "shadowVerifyRuntimeWiring": "completed_local_committed_pushed_a9f4fea_production_not_deployed_canonical_authority_false",
+    "validationCycleContinuation": "ready_for_commit_bound_gate_targeted_baseline_security_postgres16_all_pass_old_deadline_immutable_data_preserved_single_active_cycle_production_not_connected"
   },
   "wipLimits": {
     "production": 1,
@@ -137,11 +138,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-VERIFY-RUNTIME-WIRING-LOCAL-SUPERPACKAGE",
-    "title": "Candidate shadow-verify fail-closed read runtime wiring",
+    "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-LOCAL-SUPERPACKAGE",
+    "title": "Candidate immutable validation-cycle continuation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "把已验证的 Candidate Canonical Read Model、独立 Raw Oracle、可信 Authority Context 和纯 Route Adapter 接成真实只读 API；保持编译期 canonical authority 为 false，当前只做本地接线，不连接或部署生产。",
+    "objective": "在不降低10000条和三段24小时门禁、不重置旧72小时deadline、不删除Candidate历史的前提下，建立可原子续接的新验证周期；当前只做本地实现与隔离PostgreSQL 16演练，不连接或执行生产。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -153,21 +154,26 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
+      "docker-compose.yml",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_RUNTIME_WIRING_LOCAL_SUPERPACKAGE_V1.md",
-      "docs/governance/wp-g0-2-canonical-compat-read-model-local-preparation.v1.json",
-      "docs/governance/wp-g0-2-canonical-read-compatibility-oracle-local-preparation.v1.json",
-      "docs/governance/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage.v1.json",
-      "scripts/governance/candidate-shadow-verify-runtime-wiring.mjs",
-      "scripts/governance/candidate-shadow-verify-runtime-wiring.test.mjs",
-      "src/app/api/frontend/candidate-lifecycle/route.ts",
-      "src/lib/candidate-episode/canonical-read-model.test.ts",
-      "src/lib/candidate-episode/canonical-read-model.ts",
-      "src/lib/candidate-episode/canonical-read-oracle.test.ts",
-      "src/lib/candidate-episode/canonical-read-oracle.ts",
-      "src/lib/candidate-episode/canonical-read-server.test.ts",
-      "src/lib/candidate-episode/canonical-read-server.ts",
-      "reports/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage/WP_G0_2_SHADOW_VERIFY_RUNTIME_WIRING_LOCAL_SUPERPACKAGE_REPORT.md"
+      "docs/governance/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
+      "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v1.json",
+      "scripts/governance/candidate-trusted-read-context.mjs",
+      "scripts/governance/candidate-validation-cycle-continuation.mjs",
+      "scripts/governance/candidate-validation-cycle-continuation.test.mjs",
+      "scripts/production/candidate-cycle-continuation/runner-postgres.integration.mjs",
+      "scripts/production/candidate-cycle-continuation/runner.mjs",
+      "scripts/production/candidate-cycle-continuation/runner.test.mjs",
+      "scripts/rehearsal/candidate-cycle-continuation-postgres16.sh",
+      "src/lib/candidate-episode/candidate-validation-cycle.test.ts",
+      "src/lib/candidate-episode/candidate-validation-cycle.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.test.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.ts",
+      "src/lib/candidate-episode/shadow-capture-composition.ts",
+      "src/lib/candidate-episode/shadow-capture-runtime.test.ts",
+      "src/lib/candidate-episode/shadow-capture-runtime.ts",
+      "reports/wp-g0-2-validation-cycle-continuation-local-superpackage/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_LOCAL_SUPERPACKAGE_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -175,10 +181,8 @@
       "src/lib/analysis/**",
       "src/lib/strategy/**",
       "src/lib/backtest/**",
-      "src/app/api/frontend/review-contract/route.ts",
-      "src/app/review/**",
+      "src/app/**",
       "deploy/workers/**",
-      "docker-compose.yml",
       "deploy/caddy/**",
       ".env",
       ".env.production"
@@ -187,21 +191,21 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
+      "docker-compose.yml",
       "package.json",
-      "docs/governance/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage.v1.json",
-      "scripts/governance/candidate-shadow-verify-runtime-wiring.mjs",
-      "src/app/api/frontend/candidate-lifecycle/route.ts",
-      "src/lib/candidate-episode/canonical-read-server.ts",
-      "reports/wp-g0-2-shadow-verify-runtime-wiring-local-superpackage/WP_G0_2_SHADOW_VERIFY_RUNTIME_WIRING_LOCAL_SUPERPACKAGE_REPORT.md"
+      "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v1.json",
+      "scripts/governance/candidate-validation-cycle-continuation.mjs",
+      "scripts/production/candidate-cycle-continuation/runner.mjs",
+      "src/lib/candidate-episode/candidate-validation-cycle.ts",
+      "reports/wp-g0-2-validation-cycle-continuation-local-superpackage/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_LOCAL_SUPERPACKAGE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:shadow-verify-runtime-wiring:validate",
-        "test:candidate-shadow-verify-runtime-wiring",
-        "test:canonical-compat-domain",
-        "candidate:canonical-read:pg16-rehearsal",
-        "candidate:canonical-read-oracle:pg16-rehearsal",
-        "candidate:trusted-read-context:pg16-rehearsal",
+        "candidate:cycle-continuation:validate",
+        "test:candidate-cycle-continuation",
+        "test:candidate-cycle-continuation-governance",
+        "candidate:cycle-continuation:pg16-rehearsal",
+        "candidate:trusted-read-context:validate",
         "test:autonomy"
       ],
       "baseline": [
@@ -218,18 +222,18 @@
       ]
     },
     "completionBoundary": [
-      "编译期CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED必须继续为false，当前API不能取得Candidate权威读权限",
-      "公开请求只能控制limit和完整cursor pair，不能控制phase、release、evidence、flags或authority",
-      "Monitor DB、root-owned manifest、可信控制或依赖缺失必须返回503，不得返回空Candidate或stale fallback",
-      "Candidate查询必须使用SERIALIZABLE READ ONLY DEFERRABLE、candidate_audit_role和12秒statement timeout，严格小于15秒HTTP数据截止时间",
-      "AbortSignal必须传入可信控制、Canonical Model和独立Raw Oracle的数据库事务",
-      "不得修改现有Review API或页面，不得部署、创建manifest、修改Compose/env/Feature Flag、数据库、Redis或Worker",
-      "当前本地接线不等于Activation、生产Reconciliation、Shadow Verify、Canonical Cutover、WP-G0.2或G0完成",
+      "每个验证周期仍严格最多72小时，旧周期started_at和deadline_at永远不可修改",
+      "10000条真实写入、Activation/Dual Read/Canonical Compat各24小时和窗口分离要求全部保持不变",
+      "周期ID必须严格相邻，显式空值、别名、跳号或请求控制周期身份均必须拒绝",
+      "续接必须在同一SERIALIZABLE事务和控制表锁内完成，旧周期先退Legacy并冻结，新周期才允许启动",
+      "未决outbox必须为0，Candidate Episode/Event/Checkpoint/Outcome/Outbox/Resolution全部计数必须前后相同",
+      "任一步失败必须回滚整个续接事务，任意时刻最多一个非Legacy周期，Legacy始终是权威",
+      "当前本地实现不等于生产周期续接、Reconciliation、Shadow Verify、Canonical Cutover、WP-G0.2或G0完成",
       "scan、analysis、strategy、RR、Risk Gate、backtest、frontend和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "read_only_production_preflight",
+    "actionClass": "feature_phase_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -237,7 +241,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "形成只能由服务端可信Authority Context驱动的只读Candidate API；生产授权保持false，缺少Monitor DB或manifest时503，数据库截止时间严格短于HTTP截止时间。"
+      "measurableOutcome": "隔离PostgreSQL 16证明旧deadline不可重置、业务数据完整保留、全库始终单active cycle且失败原子回滚，为真实吞吐下继续满足10000条和三段24小时门禁提供可执行路径。"
     }
   },
   "approvals": [
@@ -365,7 +369,7 @@
       "order": 15,
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
       "lane": "production",
-      "status": "in_progress",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": true
     },
     {
@@ -490,6 +494,13 @@
     {
       "order": 34,
       "id": "WP-G0.2-SHADOW-VERIFY-RUNTIME-WIRING-LOCAL-SUPERPACKAGE",
+      "lane": "localPreparation",
+      "status": "completed_local_preparation_committed_pushed_a9f4fea_production_not_deployed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 35,
+      "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-LOCAL-SUPERPACKAGE",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

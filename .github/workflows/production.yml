@@ -76,6 +76,12 @@ jobs:
       - name: Candidate shadow-verify runtime wiring tests
         run: npm run test:candidate-shadow-verify-runtime-wiring
 
+      - name: Candidate validation-cycle continuation contract
+        run: npm run candidate:cycle-continuation:validate
+
+      - name: Candidate validation-cycle continuation tests
+        run: npm run test:candidate-cycle-continuation && npm run test:candidate-cycle-continuation-governance
+
       - name: Typecheck
         run: npm run typecheck
 

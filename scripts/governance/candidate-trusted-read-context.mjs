@@ -47,7 +47,7 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false) {
     violations.push("production_state_claim");
   }
-  if (implementation.fileCount !== 6
+  if (implementation.fileCount !== 8
       || implementation.fileCount !== contract.implementationArtifact?.fileCount
       || implementation.sha256 !== contract.implementationArtifact?.sha256) {
     violations.push("implementation_artifact");
@@ -59,7 +59,10 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
       || authority.transactionIsolation !== "serializable"
       || authority.transactionReadOnly !== true
       || authority.transactionDeferrable !== true
-      || authority.fixedMigrationId !== "candidate-episode-v1"
+      || authority.migrationFamily !== "candidate-episode-v1"
+      || authority.cycleIdentityEnvironment !== "CANDIDATE_RUNTIME_MIGRATION_ID"
+      || authority.missingCycleEnvironmentDefaultsToCycleOne !== true
+      || authority.explicitEmptyCycleEnvironmentRejected !== true
       || authority.databaseClockRequired !== true
       || authority.approvedReleaseMatchesPolicy !== true
       || authority.contextProofRecomputedBeforeUse !== true
@@ -100,7 +103,8 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
     '"candidate-trusted-read-context.v1"',
     '"candidate-read-authority-manifest.v1"',
     '"/run/market-radar/candidate-read-authority.json"',
-    '"candidate-episode-v1"',
+    "CANDIDATE_MIGRATION_FAMILY",
+    "resolveCandidateValidationCycleId(env)",
     'CANDIDATE_CANONICAL_API_CHECKPOINT_KIND = "24h"',
     'isolation: "serializable"',
     "readOnly: true",

@@ -28,6 +28,21 @@ test("current release is code-authorized only when every runtime boundary is rea
   assert.deepEqual(decision.blockers, []);
 });
 
+test("shadow writes remain fenced but active through verify and compat phases", () => {
+  for (const phase of ["shadow_verify", "canonical_compat"]) {
+    const decision = evaluateCurrentShadowCaptureRuntimeGate({
+      killSwitchRequested: true,
+      repositoryMode: "database",
+      scope: "production_radar",
+      expectedReleaseId: "release-1",
+      now: "2026-07-12T00:00:00.000Z",
+      control: { ...control, phase },
+    });
+    assert.equal(decision.enabled, true);
+    assert.deepEqual(decision.blockers, []);
+  }
+});
+
 test("future authorized composition still fails closed on every runtime boundary", () => {
   const ready = evaluateShadowCaptureRuntimeGate({
     killSwitchRequested: true,
