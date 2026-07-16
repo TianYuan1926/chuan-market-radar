@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "wp-g0.2-canonical-api-resource-contract-local-preparation.v1",
+  "packageId": "WP-G0.2-CANONICAL-API-RESOURCE-CONTRACT-LOCAL-PREPARATION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "implementationArtifact": {
+    "files": [
+      "src/lib/candidate-episode/canonical-read-resource.test.ts",
+      "src/lib/candidate-episode/canonical-read-resource.ts"
+    ],
+    "fileCount": 2,
+    "sha256": "f58683db5f71e658d588dbf841741939d623a6ad11254fec099b6dc990d3288a"
+  },
+  "resourceEnvelope": {
+    "schemaVersion": "candidate-canonical-api-resource.v1",
+    "modeExplicit": true,
+    "readSourceExplicit": true,
+    "authorityExplicit": true,
+    "statusExplicit": true,
+    "policyExplicit": true,
+    "parityExplicit": true,
+    "candidateAndLegacySeparate": true,
+    "blockersExplicit": true,
+    "contentHashDeterministic": true,
+    "parityProofHashRequired": true
+  },
+  "modeMatrix": {
+    "legacyOnly": "legacy_diagnostic_only_no_parity",
+    "dualReadLegacyAuthority": "legacy_diagnostic_with_reference_parity",
+    "canonicalCompatPass": "candidate_ready_only_after_per_request_zero_difference",
+    "canonicalCompatFail": "explicit_legacy_fallback_without_candidate_data",
+    "canonicalAuthority": "candidate_partial_or_unavailable_without_legacy_fallback"
+  },
+  "truthBoundary": {
+    "legacyCanPopulateCandidateCanonical": false,
+    "legacyCanProveCanonicalAuthority": false,
+    "canonicalCompatCandidateRequiresReady": true,
+    "canonicalCompatCandidateRequiresParityPass": true,
+    "runtimeResultBoundaryValidated": true,
+    "canonicalFailureFallbackAllowed": false,
+    "illegalCombinationStatus": "unavailable",
+    "unknownDirectionPreserved": true,
+    "nullObservationPricePreserved": true,
+    "nullMfeMaePreserved": true,
+    "canAuthorizeCutover": false,
+    "canCreateTradePlan": false,
+    "canMutateLiveRanking": false,
+    "automaticPhaseAdvance": false
+  },
+  "runtimeBoundary": {
+    "existingApiRouteModified": false,
+    "frontendModified": false,
+    "databaseConnected": false,
+    "productionConnected": false,
+    "featureFlagChanged": false,
+    "canonicalReadAuthorized": false
+  },
+  "forbidden": [
+    "legacy_populates_candidate_payload",
+    "legacy_proves_candidate_authority",
+    "canonical_compat_without_parity_pass",
+    "canonical_partial_to_ready",
+    "canonical_unavailable_to_empty",
+    "canonical_silent_legacy_fallback",
+    "null_to_zero",
+    "unknown_to_direction",
+    "trade_plan_creation",
+    "production_ranking_mutation",
+    "automatic_phase_advance",
+    "existing_api_route_change",
+    "frontend_change",
+    "production_connection",
+    "database_connection",
+    "migration_change",
+    "compose_change",
+    "feature_flag_change",
+    "formal_backtest"
+  ],
+  "remainingBlockers": [
+    "production_reader_login_and_url_not_provisioned",
+    "resource_envelope_not_wired_to_existing_api",
+    "frontend_candidate_review_adapter_not_implemented",
+    "legacy_review_null_and_direction_ui_debt_not_fixed",
+    "production_dual_read_observation_not_executed",
+    "production_canonical_compat_observation_not_executed",
+    "canonical_cutover_not_authorized"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+}

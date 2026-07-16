@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "wp-g0.2-review-null-direction-truth-remediation.v1",
+  "packageId": "WP-G0.2-REVIEW-NULL-DIRECTION-TRUTH-REMEDIATION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "implementationArtifact": {
+    "files": [
+      "src/components/review/review-evolution.tsx",
+      "src/lib/api/frontend-contract.test.ts",
+      "src/lib/api/frontend-contract.ts",
+      "src/lib/journal/review-statistics.test.ts",
+      "src/lib/journal/review-statistics.ts",
+      "src/lib/radar-contract.ts"
+    ],
+    "fileCount": 6,
+    "sha256": "1c3d486d6b8d52c00c469b15829b9308aa0421e9980ac8df612ac3dacd59fd72"
+  },
+  "truthBoundary": {
+    "unknownDirectionPreserved": true,
+    "unknownDirectionCanDefaultLong": false,
+    "unknownMissedDirectionPreserved": true,
+    "missingPricesRemainNull": true,
+    "missingValidationWindowRemainsNull": true,
+    "missingMfeMaeRemainNull": true,
+    "metricSampleRequiresMfeAndMae": true,
+    "emptyMetricAverageIsNull": true,
+    "onlyExpiredCanRenderTimedOut": true,
+    "pendingAndUnknownOutcomesSeparated": true,
+    "incompleteLifecycleResourceIsPartial": true,
+    "frontendCanCalculateOutcome": false,
+    "frontendCanCalculateDirection": false
+  },
+  "scopeBoundary": {
+    "reviewStatisticsModified": true,
+    "frontendReviewContractModified": true,
+    "reviewComponentModified": true,
+    "scanModified": false,
+    "analysisModified": false,
+    "strategyModified": false,
+    "riskGateModified": false,
+    "backtestModified": false,
+    "apiRouteModified": false,
+    "databaseModified": false,
+    "redisModified": false,
+    "workerModified": false,
+    "deploymentModified": false,
+    "secretModified": false,
+    "productionConnected": false
+  },
+  "forbidden": [
+    "unknown_direction_defaults_long",
+    "unknown_missed_direction_defaults_up",
+    "missing_price_defaults_zero",
+    "missing_metric_defaults_zero",
+    "unknown_outcome_defaults_timeout",
+    "partial_lifecycle_claimed_live",
+    "frontend_outcome_inference",
+    "frontend_direction_inference",
+    "scan_change",
+    "analysis_change",
+    "strategy_change",
+    "risk_gate_change",
+    "backtest_change",
+    "api_route_change",
+    "database_change",
+    "redis_change",
+    "worker_change",
+    "deployment_change",
+    "production_connection",
+    "formal_backtest"
+  ],
+  "remainingBlockers": [
+    "production_authority_manifest_not_provisioned",
+    "trusted_context_provider_not_wired_to_existing_api",
+    "production_reader_login_and_url_not_provisioned",
+    "production_dual_read_observation_not_executed",
+    "production_canonical_compat_observation_not_executed",
+    "canonical_cutover_not_authorized"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+}

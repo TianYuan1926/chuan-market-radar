@@ -79,6 +79,11 @@ test("buildReviewStatisticsReport reports empty samples without pretending readi
 
   assert.equal(report.sampleStatus, "empty");
   assert.equal(report.samples.total, 0);
+  assert.equal(report.samples.withMetrics, 0);
+  assert.equal(report.mfe.averagePercent, null);
+  assert.equal(report.mae.averagePercent, null);
+  assert.equal(report.mfe.maxPercent, null);
+  assert.equal(report.mae.maxPercent, null);
   assert.equal(report.winRate.expiredExcludedPercent, null);
   assert.match(report.summary, /还没有可统计/);
 });
@@ -97,4 +102,23 @@ test("buildReviewStatisticsReport does not mark non-evidence samples usable", ()
   assert.equal(report.samples.evidenceLevel, 0);
   assert.equal(report.sampleStatus, "collecting");
   assert.match(report.summary, /证据级样本 0 条/);
+});
+
+test("buildReviewStatisticsReport does not count a metrics envelope with missing MFE or MAE", () => {
+  const report = buildReviewStatisticsReport([
+    event({
+      id: "missing-metrics",
+      outcomeMetrics: {
+        evaluatedCandles: 0,
+        validationWindowHours: 24,
+        validationWindowLabel: "24h",
+      },
+      outcomeStatus: "pending",
+      reviewStatus: "tracking",
+    }),
+  ], new Date("2026-06-21T09:00:00.000Z"));
+
+  assert.equal(report.samples.withMetrics, 0);
+  assert.equal(report.mfe.averagePercent, null);
+  assert.equal(report.mae.averagePercent, null);
 });

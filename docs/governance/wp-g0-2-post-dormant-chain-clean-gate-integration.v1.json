@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "wp-g0.2-post-dormant-chain-clean-gate-integration.v1",
+  "packageId": "WP-G0.2-POST-DORMANT-CHAIN-CLEAN-GATE-INTEGRATION",
+  "status": "local_clean_gate_verified_production_prohibited",
+  "productionAuthorization": false,
+  "productionConnected": false,
+  "businessRuntimeModified": false,
+  "currentMainMergeAllowed": false,
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "cleanCompilation": {
+    "outputDirectoryRemovedBeforeEveryBuild": true,
+    "typescriptIncrementalDisabled": true,
+    "zeroCoreTestsRejected": true,
+    "minimumCompiledTestFiles": 173,
+    "cleanMarketResult": {
+      "passed": 995,
+      "failed": 0,
+      "explicitDatabaseSkips": 7
+    }
+  },
+  "representativeCompiledTests": [
+    "lib/candidate-episode/canonical-read-model.test.js",
+    "lib/candidate-episode/canonical-read-oracle.test.js",
+    "lib/candidate-episode/canonical-read-resource.test.js",
+    "lib/candidate-episode/canonical-read-route-adapter.test.js",
+    "lib/candidate-episode/canonical-read-trusted-context.test.js",
+    "lib/journal/review-statistics.test.js",
+    "lib/api/frontend-contract.test.js"
+  ],
+  "postgres16Evidence": {
+    "activationControlStartAndRollback": true,
+    "reconciliationComparedWrites": 10000,
+    "reconciliationDifferences": 0,
+    "reconciliationReadOnlyEnforced": true,
+    "canonicalReaderLeastPrivilege": true,
+    "canonicalOracleSameSnapshot": true,
+    "trustedContextAuditReadOnly": true,
+    "productionConnected": false
+  },
+  "hardBoundaries": {
+    "activationObservationPassRequired": true,
+    "activationObservationCurrentlyPassed": false,
+    "canonicalReadAuthorized": false,
+    "automaticPhaseAdvance": false,
+    "automaticRankingMutation": false,
+    "futureOutcomeAsProductionInput": false,
+    "formalBacktestAllowed": false
+  },
+  "forbiddenInThisPackage": [
+    "src_runtime_change",
+    "production_runner_change",
+    "migration_change_or_execute",
+    "compose_change",
+    "production_connection_or_deploy",
+    "database_or_redis_mutation",
+    "feature_flag_enablement",
+    "origin_main_merge_before_activation_observation_and_reconciliation_pass"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+}

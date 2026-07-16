@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "wp-g0.2-canonical-compat-read-model-local-preparation.v1",
+  "packageId": "WP-G0.2-CANONICAL-COMPAT-READ-MODEL-LOCAL-PREPARATION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "implementationArtifact": {
+    "files": [
+      "scripts/rehearsal/candidate-canonical-read-postgres16.sh",
+      "src/lib/candidate-episode/canonical-read-model-postgres.test.ts",
+      "src/lib/candidate-episode/canonical-read-model.test.ts",
+      "src/lib/candidate-episode/canonical-read-model.ts"
+    ],
+    "fileCount": 4,
+    "sha256": "ae2ace047a61f65a7ed2b80ca920d9577ff729fafdd4370944baa6d90d6217f7"
+  },
+  "readPolicy": {
+    "scope": "production_radar",
+    "asOfRequired": true,
+    "asOfMaximumAgeSeconds": 600,
+    "releaseIdRequired": true,
+    "observationCohortRequired": true,
+    "dueCohortRequired": true,
+    "checkpointKindRequired": true,
+    "evidenceGradeVersion": "eg.v1",
+    "pageMaximum": 1000,
+    "databaseFailureStatus": "unavailable",
+    "invariantFailureStatus": "partial"
+  },
+  "databaseBoundary": {
+    "transactionIsolation": "serializable",
+    "transactionReadOnly": true,
+    "transactionDeferrable": true,
+    "readerRole": "candidate_application_reader_role",
+    "readerProductionLoginProvisioned": false,
+    "readerOutboxAccessAllowed": false,
+    "productionDmlAllowed": false,
+    "schemaDdlAllowed": false,
+    "migrationAllowed": false
+  },
+  "truthBoundary": {
+    "unknownDirectionPreserved": true,
+    "nullObservationPricePreserved": true,
+    "nullMfeMaePreserved": true,
+    "futureOutcomeAsRankingInputAllowed": false,
+    "tradePlanCreationAllowed": false,
+    "liveRankingMutationAllowed": false,
+    "databaseErrorAsEmptyAllowed": false,
+    "completedCheckpointOutcomeInvariantRequired": true,
+    "explicitExclusionReasonsRequired": true
+  },
+  "readRoute": {
+    "currentCodeCanonicalReadAuthorization": false,
+    "shadowVerifyAuthority": "legacy",
+    "canonicalCompatFallback": "explicit_legacy_fallback_on_non_pass_parity",
+    "canonicalFailureFallback": "prohibited",
+    "automaticPhaseAdvance": false
+  },
+  "parityEvidence": {
+    "reconciliationEvidenceRequired": true,
+    "dualReadWindowRequired": true,
+    "canonicalCompatWindowRequired": true,
+    "windowsMustBeSeparate": true,
+    "minimumHoursPerWindow": 24,
+    "minimumSamplesPerWindow": 289,
+    "maximumSampleGapSeconds": 600,
+    "maximumDifferences": 0,
+    "partialOrUnavailableSampleAllowed": false
+  },
+  "localRehearsal": {
+    "postgresMajor": 16,
+    "temporaryNoInheritReaderLogin": true,
+    "unknownAndNullPreserved": true,
+    "checkpointKindsIsolated": true,
+    "outboxReadRejectedSqlState": "42501",
+    "productionConnected": false
+  },
+  "forbidden": [
+    "production_connection",
+    "production_mutation",
+    "api_wiring",
+    "frontend_wiring",
+    "compose_change",
+    "migration_change",
+    "feature_flag_change",
+    "automatic_phase_advance",
+    "canonical_cutover",
+    "null_to_zero",
+    "unknown_to_direction",
+    "database_error_as_empty",
+    "future_outcome_ranking_input",
+    "formal_backtest"
+  ],
+  "remainingBlockers": [
+    "production_reader_login_and_url_not_provisioned",
+    "legacy_normalized_read_adapter_not_implemented",
+    "api_and_frontend_not_wired",
+    "production_dual_read_observation_not_executed",
+    "production_canonical_compat_observation_not_executed",
+    "canonical_cutover_not_authorized"
+  ],
+  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+}

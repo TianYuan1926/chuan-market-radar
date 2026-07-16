@@ -4645,3 +4645,47 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 保持 production HEAD 和 Candidate identity 冻结直至观察完成；并行完成 reconciliation clean commit 与后续 canonical compat 只读设计，生产动作必须等待最终观察证据。
+
+## 2026-07-17 / WP-G0.2 Canonical Compat Local Superpackage
+
+### 本轮目标
+
+在生产 Activation 观察不被打断的前提下，本地一次收口 Candidate 正式读链兼容地基与 Review 缺失值真值，为观察 PASS 后的生产 reconciliation 和 canonical read cutover 提前消除代码等待。
+
+### 修改范围
+
+- 新增 Canonical Read Model、独立 Raw Oracle、API Resource、纯 Route Adapter、Trusted Context、Legacy diagnostic 及对应测试。
+- 修复 Review 缺失 direction 被当作 long、缺失 MFE/MAE 被补 0、非终态被包装成 timeout 的误导风险。
+- 新增七份人机治理合同、三套隔离 PostgreSQL 16 演练和超级包定向门禁。
+- 更新自治状态与项目上下文；未修改现有 `src/app/api` 路由、migration、scan、analysis、strategy、backtest 或生产配置。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的读真值和分母真值；不改变全市场发现、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- 当前定向域/治理测试：99 pass / 0 fail / 3 explicit PG skip（102 项总计，未把 skip 冒充 pass）。
+- 三套隔离 PostgreSQL 16 演练：PASS，`productionConnected=false`。
+- 六份合同 validator 与超级包集成：PASS。
+- Autonomy 31/31、typecheck、lint：PASS。
+- test:market 1008 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4：PASS。
+- build、backtest:golden 16/16、三项安全门禁：PASS。
+- 自治提交总门禁：PASS，18/18，`worktreeUnchanged=true`；文档证据对账后按合同再执行一次最终绑定门禁。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未连接生产、未接现有 API、未取得 canonical authority。生产 observer 继续独立运行。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：生产 Activation 尚未完成 24 小时/至少 289 样本。
+- P1：生产 10,000 条 reconciliation 尚未执行。
+- P1：当前常量仍为 `CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED=false`，这是正确的 fail-closed 状态。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成本地超级包全部提交门禁并冻结工作分支；生产端继续等待 Activation 最终证据，随后只执行精确绑定的只读 reconciliation。

@@ -2894,6 +2894,10 @@ test("buildFrontendReviewContract returns review resources from journal and capa
 
   assert.equal(review.signalLifecycles.status, "live");
   assert.equal(review.signalLifecycles.data[0]?.symbol, "TIA");
+  assert.equal(review.signalLifecycles.data[0]?.side, "多");
+  assert.equal(review.signalLifecycles.data[0]?.outcome, "pending");
+  assert.equal(review.signalLifecycles.data[0]?.mfe, 6.4);
+  assert.equal(review.signalLifecycles.data[0]?.mae, -1.8);
   assert.equal(review.strategyArchetypes.status, "partial");
   assert.equal(review.strategyArchetypes.data.length > 0, true);
   assert.equal(review.strategyArchetypes.data[0]?.winRate, null);
@@ -2928,4 +2932,49 @@ test("buildFrontendReviewContract returns review resources from journal and capa
   assert.equal(review.aiReviewStats.status, "empty");
   assert.equal(review.aiReviewStats.data.unboundFallbackProtected, true);
   assert.match(review.aiReviewStats.reason ?? "", /不替代规则引擎/);
+});
+
+test("buildFrontendReviewContract preserves unknown lifecycle and missed-detection truth", () => {
+  const backend = backendContract();
+  backend.analysis.reviewStatistics.mae.averagePercent = null;
+  backend.analysis.reviewStatistics.mae.maxPercent = null;
+  backend.analysis.reviewStatistics.mfe.averagePercent = null;
+  backend.analysis.reviewStatistics.mfe.maxPercent = null;
+  backend.analysis.reviewStatistics.samples.withMetrics = 0;
+
+  const reviewSnapshot = snapshot();
+  reviewSnapshot.journalEvents = [{
+    id: "j-unknown",
+    signalId: "sig-unknown",
+    symbol: "UNKNOWNUSDT",
+    title: "未知方向复盘",
+    result: "saved",
+    note: "仅保存复盘记录，尚无方向、价格或结果指标。",
+    rankDelta: 0,
+    createdAt: "2026-06-21T07:45:00.000Z",
+    riskReward: 3.2,
+  }];
+
+  const review = buildFrontendReviewContract({
+    backend,
+    snapshot: reviewSnapshot,
+    now: new Date("2026-06-21T08:00:10.000Z"),
+  });
+
+  assert.equal(review.signalLifecycles.status, "partial");
+  assert.equal(review.signalLifecycles.data[0]?.side, "未知");
+  assert.equal(review.signalLifecycles.data[0]?.triggerPrice, null);
+  assert.equal(review.signalLifecycles.data[0]?.stopPrice, null);
+  assert.equal(review.signalLifecycles.data[0]?.targetPrice, null);
+  assert.equal(review.signalLifecycles.data[0]?.verifyWindowH, null);
+  assert.equal(review.signalLifecycles.data[0]?.outcome, "unknown");
+  assert.equal(review.signalLifecycles.data[0]?.mfe, null);
+  assert.equal(review.signalLifecycles.data[0]?.mae, null);
+  assert.match(review.signalLifecycles.reason ?? "", /禁止补 0 或默认多头/);
+  assert.equal(review.missedDetections.status, "partial");
+  assert.equal(review.missedDetections.data[0]?.side, "未知");
+  assert.equal(review.missedDetections.data[0]?.move, null);
+  assert.equal(review.reviewStats.status, "partial");
+  assert.equal(review.reviewStats.data.mfeAvg, null);
+  assert.equal(review.reviewStats.data.maeAvg, null);
 });

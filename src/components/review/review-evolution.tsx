@@ -252,8 +252,8 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
   const reviewStats = contract?.reviewStats ?? resource({
     closedSamples: 0,
     evidenceSamples: 0,
-    maeAvg: 0,
-    mfeAvg: 0,
+    maeAvg: null,
+    mfeAvg: null,
     pendingSamples: 0,
     sampleStatus: 'empty' as const,
     summary: '未传入后端复盘统计契约',
@@ -343,7 +343,9 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               <div className="border border-border bg-secondary/20 p-3">
                 <div className="text-[11px] text-muted-foreground">最大浮盈 / 最大回撤</div>
                 <div className="mt-1 font-mono text-sm font-semibold">
-                  +{reviewStats.data.mfeAvg}% / {reviewStats.data.maeAvg}%
+                  {reviewStats.data.mfeAvg === null || reviewStats.data.maeAvg === null
+                    ? '暂无有效指标'
+                    : `+${reviewStats.data.mfeAvg}% / ${reviewStats.data.maeAvg}%`}
                 </div>
               </div>
             </div>
@@ -1347,12 +1349,19 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
               </thead>
               <tbody>
                 {(lifecycles.data ?? []).map((lc) => {
-                  const outcome = lc.hitTpFirst
+                  const outcome = lc.outcome === 'target_first'
                     ? { label: '先到目标', tone: 'text-up' }
-                    : lc.hitSlFirst
+                    : lc.outcome === 'stop_first'
                       ? { label: '先到止损', tone: 'text-down' }
-                      : { label: '超时未达', tone: 'text-muted-foreground' }
-                  const span = lc.mfe + Math.abs(lc.mae) || 1
+                      : lc.outcome === 'timed_out'
+                        ? { label: '超时未达', tone: 'text-muted-foreground' }
+                        : lc.outcome === 'pending'
+                          ? { label: '等待结果', tone: 'text-muted-foreground' }
+                          : { label: '结果未知', tone: 'text-muted-foreground' }
+                  const metrics = lc.mfe === null || lc.mae === null
+                    ? null
+                    : { mfe: lc.mfe, mae: lc.mae }
+                  const span = metrics ? metrics.mfe + Math.abs(metrics.mae) || 1 : 1
                   return (
                     <tr key={lc.id} className="border-b border-border/60">
                       <td className="py-2.5">
@@ -1364,7 +1373,11 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                           <span
                             className={cn(
                               'font-mono text-[11px]',
-                              lc.side === '多' ? 'text-up' : 'text-down',
+                              lc.side === '多'
+                                ? 'text-up'
+                                : lc.side === '空'
+                                  ? 'text-down'
+                                  : 'text-muted-foreground',
                             )}
                           >
                             {lc.side}
@@ -1380,23 +1393,27 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                         </span>
                       </td>
                       <td className="py-2.5">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-2 flex-1 overflow-hidden bg-secondary">
-                            <span
-                              className="bar-fill bg-up/70"
-                              style={{ width: `${(lc.mfe / span) * 100}%` }}
-                            />
-                            <span
-                              className="bar-fill bg-down/70"
-                              style={{ width: `${(Math.abs(lc.mae) / span) * 100}%` }}
-                            />
+                        {metrics ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-2 flex-1 overflow-hidden bg-secondary">
+                              <span
+                                className="bar-fill bg-up/70"
+                                style={{ width: `${(metrics.mfe / span) * 100}%` }}
+                              />
+                              <span
+                                className="bar-fill bg-down/70"
+                                style={{ width: `${(Math.abs(metrics.mae) / span) * 100}%` }}
+                              />
+                            </div>
+                            <span className="min-w-[88px] text-right font-mono text-[11px]">
+                              <span className="text-up">+{metrics.mfe}%</span>
+                              {' / '}
+                              <span className="text-down">{metrics.mae}%</span>
+                            </span>
                           </div>
-                          <span className="min-w-[88px] text-right font-mono text-[11px]">
-                            <span className="text-up">+{lc.mfe}%</span>
-                            {' / '}
-                            <span className="text-down">{lc.mae}%</span>
-                          </span>
-                        </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">暂无有效 MFE / MAE</span>
+                        )}
                       </td>
                     </tr>
                   )
@@ -1516,11 +1533,16 @@ export function ReviewEvolution({ contract }: { contract?: ReviewContract } = {}
                     <span
                       className={cn(
                         'font-mono text-xs font-semibold',
-                        m.side === '涨' ? 'text-up' : 'text-down',
+                        m.side === '涨'
+                          ? 'text-up'
+                          : m.side === '跌'
+                            ? 'text-down'
+                            : 'text-muted-foreground',
                       )}
                     >
-                      {m.side === '涨' ? '+' : ''}
-                      {m.move}%
+                      {m.side === '未知' || m.move === null
+                        ? `${m.side} · 幅度待记录`
+                        : `${m.side === '涨' ? '+' : ''}${m.move}%`}
                     </span>
                     <span className="ml-auto bg-down/15 px-1.5 py-0.5 text-[10px] font-semibold text-down">
                       {m.reason}
