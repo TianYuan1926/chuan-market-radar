@@ -64,6 +64,12 @@ jobs:
       - name: G0 security release and incident closeout contract
         run: npm run g0:closeout:validate
 
+      - name: Candidate fresh-cycle lineage capture contract
+        run: npm run candidate:lineage-capture:validate
+
+      - name: Candidate fresh-cycle lineage capture tests
+        run: npm run test:candidate-lineage-capture
+
       - name: Candidate reconciliation production packet contract
         run: npm run candidate:reconciliation-production:validate
 

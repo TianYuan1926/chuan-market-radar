@@ -11,6 +11,7 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { evaluateObservationEvidence } from "../candidate-activation/runner.mjs";
+import { validateCandidateLineageEvidence } from "../candidate-lineage/runner.mjs";
 import {
   validateApprovalRequest as validateReconciliationApproval,
 } from "./runner.mjs";
@@ -37,6 +38,8 @@ export const TRANSPORT_FILES = Object.freeze([
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
   "scripts/production/candidate-activation/runner.mjs",
+  "scripts/production/candidate-cycle-continuation/observation-runner.mjs",
+  "scripts/production/candidate-lineage/runner.mjs",
   "scripts/production/candidate-reconciliation/bundle.mjs",
   "scripts/production/candidate-reconciliation/production-entrypoint.sh",
   "scripts/production/candidate-reconciliation/production-runner.sh",
@@ -212,6 +215,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || execution.transport?.temporaryArtifactCleanupRequired !== true
       || execution.transport?.activationEvidencePreserved !== true
       || execution.transport?.multiCycleLineageEvidencePreserved !== true
+      || execution.transport?.lineageProvenanceHashesRequired !== 7
       || execution.transport?.outputEvidencePreserved !== true) violations.push("transport_boundary");
   if (preparation.schemaVersion !== "wp-g0.2-shadow-verify-reconciliation-preparation.v1"
       || preparation.runnerArtifact?.sha256 === undefined
@@ -310,17 +314,7 @@ export async function verifyActivationEvidence(request) {
 }
 
 export function validateMultiCycleLineageEvidence(lineage, request) {
-  ensure(exactKeys(lineage, [
-    "activationEvidenceSha256", "canonicalAuthorityChanged", "completedWrites",
-    "currentAuthorityEpoch", "currentMigrationId", "currentReleaseId", "freshCycleStartedAt",
-    "g0Completed", "productionReconciliationExecuted", "schemaVersion", "shadowVerifyStarted",
-    "sourceReleaseWindows", "status", "thresholdsChanged", "unresolvedOutbox",
-  ]), "lineage_evidence_shape_invalid");
-  ensure(lineage.schemaVersion === "candidate-multi-cycle-lineage-evidence.v1"
-      && lineage.status === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION",
-  "lineage_evidence_status_invalid");
-  ensure(lineage.activationEvidenceSha256 === request.activationEvidenceSha256,
-    "lineage_activation_binding_mismatch");
+  validateCandidateLineageEvidence(lineage);
   ensure(canonicalJson(lineage.sourceReleaseWindows) === canonicalJson(request.sourceReleaseWindows),
     "lineage_release_windows_mismatch");
   const current = request.sourceReleaseWindows.at(-1);
@@ -329,14 +323,6 @@ export function validateMultiCycleLineageEvidence(lineage, request) {
       && lineage.currentAuthorityEpoch === current.authorityEpoch
       && lineage.freshCycleStartedAt === current.startedAt,
   "lineage_current_cycle_mismatch");
-  ensure(Number.isSafeInteger(lineage.completedWrites) && lineage.completedWrites >= 10_000
-      && lineage.unresolvedOutbox === 0 && lineage.thresholdsChanged === false,
-  "lineage_threshold_or_unresolved_invalid");
-  ensure(lineage.productionReconciliationExecuted === false
-      && lineage.shadowVerifyStarted === false
-      && lineage.canonicalAuthorityChanged === false
-      && lineage.g0Completed === false,
-  "lineage_future_stage_claim_invalid");
   return lineage;
 }
 
@@ -346,6 +332,12 @@ export async function verifyMultiCycleLineageEvidence(request) {
   const bytes = await readFile(request.lineageEvidencePath);
   ensure(sha256(bytes) === request.lineageEvidenceSha256, "lineage_evidence_hash_mismatch");
   return validateMultiCycleLineageEvidence(JSON.parse(bytes), request);
+}
+
+export function validateLineageActivationBinding(lineage, activationFinal) {
+  ensure(lineage.activationEvidenceSha256 === sha256(canonicalJson(activationFinal)),
+    "lineage_activation_binding_mismatch");
+  return lineage;
 }
 
 function validateAuthorization(authorization, request, manifest, execution) {
@@ -548,10 +540,11 @@ export async function validateProductionExecutionRequest(
   "request_inner_reconciliation_binding_mismatch");
   validateReconciliationApproval(request.reconciliationApproval, preparation, { now });
   if (verifyEvidence) {
-    await Promise.all([
+    const [activation, lineage] = await Promise.all([
       verifyActivationEvidence(request),
       verifyMultiCycleLineageEvidence(request),
     ]);
+    validateLineageActivationBinding(lineage, activation.final);
   }
   return request;
 }

@@ -4974,3 +4974,50 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 当前包提交并推送后，继续不中断 Activation observer；最终 PASS 后按已验证周期续接包推进真实累计，达到 10,000 后启动新鲜验证周期，再执行生产只读多周期 Reconciliation。
+
+## 2026-07-17 / WP-G0.2 Fresh Verification Cycle Lineage Capture Local Superpackage
+
+### 本轮目标
+
+建立可从原始 Activation、累计达标周期、新鲜相邻周期和数据库完整 control/count 快照重算的 Lineage 证据，禁止人工自报 10,000 或把达标周期本身包装成新鲜周期。
+
+### 修改范围
+
+- 新增 Lineage builder/validator、治理合同、单元测试和隔离 PostgreSQL 16 演练。
+- Activation final 必须从 exact 289 样本重算；累计和 fresh final 必须分别从至少 7 样本/1800 秒/2 次 completed 推进重算。
+- Fresh cycle 必须严格相邻，startedAt 晚于累计 PASS 最后样本。
+- 数据库全部 control、按 release completed 和全局状态必须在只读审计角色事务中一致。
+- 输出固定包含 7 个原始证据内容哈希和完整 source release windows；所有未来阶段声明为 false。
+- Reconciliation Bundle 改为复用共享 validator，并把 Activation 内容哈希与 289 样本重算 final 交叉绑定。
+- production workflow 接入 Lineage 合同与测试。
+- 未修改 frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、Compose、env、Redis、Worker 实现或生产服务。
+
+### 核心链路影响
+
+加强候选筛选和复盘进化的 Candidate 生命周期证据；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Lineage domain/governance：6/6 PASS。
+- Reconciliation production packet：12/12 PASS。
+- PostgreSQL 16：2 controls、release counts 10005+15、completed 10020、read-only/audit role、outside-lineage reject、productionConnected=false，PASS。
+- typecheck、干净 lint、build：PASS。
+- market 1025 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- Golden 16/16 和三项安全门禁：PASS。
+- 最终自治总门禁：13/13 PASS，`worktreeUnchanged=true`、`canAutoCommit=true`、`canAutoDeploy=false`。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未连接生产、未查询生产数据库、未修改服务或 Candidate authority。最近已知生产观察仍为 96/289、completed=1481。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：当前生产 Activation、累计 10,000 和新鲜相邻周期均未完成。
+- P1：本包只有本地引擎，生产 capture packet 尚未建立。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+本包提交推送后，只建立会话独立的只读生产 Lineage capture packet；真实执行继续等待全部外部前置证据。

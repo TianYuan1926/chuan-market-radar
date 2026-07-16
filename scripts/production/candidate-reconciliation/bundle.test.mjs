@@ -9,6 +9,8 @@ import {
   buildTransportBundle,
   createProductionExecutionRequest,
   prepareAdminUrl,
+  sha256,
+  validateLineageActivationBinding,
   validateMultiCycleLineageEvidence,
   validateProductionExecutionContract,
   validateProductionExecutionRequest,
@@ -74,12 +76,18 @@ function runtimeFixture() {
 function lineageFixture(runtime = runtimeFixture()) {
   return {
     activationEvidenceSha256: runtime.activationEvidenceSha256,
+    activationSamplesSha256: "a".repeat(64),
+    accumulationEvidenceSha256: "b".repeat(64),
+    accumulationSamplesSha256: "c".repeat(64),
     canonicalAuthorityChanged: false,
     completedWrites: 10_000,
+    controlSnapshotSha256: "d".repeat(64),
     currentAuthorityEpoch: runtime.authorityEpoch,
     currentMigrationId: runtime.sourceReleaseWindows.at(-1).migrationId,
     currentReleaseId: runtime.releaseId,
     freshCycleStartedAt: runtime.sourceReleaseWindows.at(-1).startedAt,
+    freshEvidenceSha256: "e".repeat(64),
+    freshSamplesSha256: "f".repeat(64),
     g0Completed: false,
     productionReconciliationExecuted: false,
     schemaVersion: "candidate-multi-cycle-lineage-evidence.v1",
@@ -183,7 +191,25 @@ test("lineage evidence binds activation, every release window, thresholds, and n
   assert.throws(() => validateMultiCycleLineageEvidence({
     ...lineage,
     sourceReleaseWindows: [runtime.sourceReleaseWindows[1]],
-  }, request), /lineage_release_windows_mismatch/u);
+  }, request), /lineage_windows_invalid|lineage_release_windows_mismatch/u);
+});
+
+test("lineage activation content hash binds the independently recomputed activation final", () => {
+  const activationFinal = {
+    automaticPhaseAdvance: false,
+    comparedWritesGateEvaluated: false,
+    completedWrites: 100,
+    coverageHours: 24,
+    maximumGapSeconds: 300,
+    sampleCount: 289,
+    status: "PASS_ACTIVATE_AND_OBSERVE",
+  };
+  const lineage = lineageFixture();
+  lineage.activationEvidenceSha256 = sha256(JSON.stringify(activationFinal));
+  assert.equal(validateLineageActivationBinding(lineage, activationFinal), lineage);
+  assert.throws(() => validateLineageActivationBinding({
+    ...lineage, activationEvidenceSha256: "0".repeat(64),
+  }, activationFinal), /lineage_activation_binding_mismatch/u);
 });
 
 test("staged transport rejects byte drift and symlink substitution", async () => {

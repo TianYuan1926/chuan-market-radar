@@ -98,6 +98,7 @@
     "temporaryArtifactCleanupRequired": true,
     "activationEvidencePreserved": true,
     "multiCycleLineageEvidencePreserved": true,
+    "lineageProvenanceHashesRequired": 7,
     "outputEvidencePreserved": true
   },
   "forbidden": [
