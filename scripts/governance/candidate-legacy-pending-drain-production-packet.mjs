@@ -47,7 +47,8 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
   if (contract.execution?.scannerLockWaitSeconds !== 660
       || contract.execution?.baselineHealthWaitSeconds !== 1_200
       || contract.execution?.targetImageBuiltBeforeScannerPause !== true
-      || contract.execution?.databaseRunnerImage !== "target_web_image_with_pg") {
+      || contract.execution?.databaseRunnerImage !== "target_web_image_with_pg"
+      || contract.execution?.databaseRunnerModuleRoot !== "/app/package.json") {
     violations.push("scanner_wait_boundary_relaxed");
   }
   for (const token of [
@@ -65,6 +66,7 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
   for (const token of [
     '"close"', '"open"', '"preflight"', '"rollback"', '"snapshot"', '"verify"',
     "expectedCounts?.outbox === 5_914", "expectedCounts?.pending === 2_957",
+    'applicationRoot = "/app"', 'requireCandidate("pg")',
   ]) if (!dbRunner.includes(token)) violations.push(`database_guard_missing:${token}`);
   const combined = `${runner}\n${entrypoint}\n${dbRunner}`;
   for (const forbidden of [

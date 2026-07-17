@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
-import pg from "pg";
 
 import {
   evaluateDrainCompletion,
@@ -15,6 +14,27 @@ import {
 } from "../candidate-legacy-pending-drain/runner.mjs";
 
 export const PACKAGE_ID = "WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION";
+
+export function loadPgRuntime({
+  applicationRoot = "/app",
+  moduleUrl = import.meta.url,
+  requireFactory = createRequire,
+} = {}) {
+  const candidates = [
+    requireFactory(resolve(applicationRoot, "package.json")),
+    requireFactory(moduleUrl),
+  ];
+  for (const requireCandidate of candidates) {
+    try {
+      return requireCandidate("pg");
+    } catch (error) {
+      if (error?.code !== "MODULE_NOT_FOUND") throw error;
+    }
+  }
+  throw new Error("candidate pending drain production rejected: approved_pg_runtime_unavailable");
+}
+
+const pg = loadPgRuntime();
 
 function ensure(condition, reason) {
   if (!condition) throw new Error(`candidate pending drain production rejected: ${reason}`);

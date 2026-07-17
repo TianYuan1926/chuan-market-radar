@@ -147,6 +147,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || execution.runtimeMaxSeconds !== 5_400
       || execution.targetImageBuiltBeforeScannerPause !== true
       || execution.databaseRunnerImage !== "target_web_image_with_pg"
+      || execution.databaseRunnerModuleRoot !== "/app/package.json"
       || JSON.stringify(execution.services)
         !== JSON.stringify(["web", "scanner-worker", "candidate-shadow-worker"])
       || execution.scannerPausedBeforeDatabaseMutation !== true

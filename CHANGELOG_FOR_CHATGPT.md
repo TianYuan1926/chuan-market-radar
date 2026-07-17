@@ -5623,3 +5623,44 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只完成本修复的 commit-bound 生产重试，不进入 cycle-2。
+
+## 2026-07-18 / WP-G0.2 Pending Drain Application Module Root Remediation
+
+### 本轮目标
+
+如实收口第三次 production pending drain 的 ESM 模块解析失败，并保证挂载于 `/packet` 的 DB runner 只从目标 Web 镜像应用根 `/app/package.json` 解析 `pg`。
+
+### 修改范围
+
+- 第三次执行绑定 commit `d3c17b517849`、deterministic Bundle `4fd0210d...` 和单次 request `7ef5b22d...`；远端双哈希、容器 request 验证与 transient unit 启动 PASS。
+- fencing token 16 在 `database-preflight` 因静态 ESM import 沿 `/packet` 解析、无法到达镜像 `/app/node_modules/pg` 而失败；未打开 epoch、未启动 Candidate worker、未推进 pending。
+- DB runner 改为优先从 `/app/package.json` 建立 `createRequire` 并加载 `pg`；仅为本地测试/演练保留当前 module URL fallback，非 `MODULE_NOT_FOUND` 错误不会被吞掉。
+- 合同新增 `databaseRunnerModuleRoot=/app/package.json`，Bundle validator、治理校验和弱化攻击测试共同禁止切回 `/packet` 模块根。
+- 未修改 migration、Candidate 数据语义、frontend、scan 排序、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis 数据、Compose、env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的生产排空运行时地基；不生成信号，不改变全市场发现、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- DB runner 定向测试 4/4、完整生产包 21/21、旧 drain 12/12、Node 语法检查、diff check：PASS。
+- PostgreSQL 16 success drain 与 failure refreeze 双路径 PASS，`sourceWritesAdded=0`、`productionConnected=false`。
+- 本机无 Docker CLI，未执行本地 bind-mount 容器演练。
+- 提交前基础、安全与自治总门禁 12/12 PASS：market 1027/0/7 explicit skip、workers 23/23、historical 4/4、build、Golden 16/16、三项安全检查、Autonomy 31/31、`worktreeUnchanged=true`；提交后仍须重新生成 commit-bound gate evidence。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第三次生产执行 FAIL 但 rollback 完整：`ROLLBACK_PASS`、fencing token 16 已释放、全局 lease absent。数据库仍为 migration 10、legacy/frozen epoch4、completed=2,957、pending/unresolved=2,957；Web/scanner/Git/env 已恢复基线并为 ready/fresh。当前模块根修复尚未 commit、push 或生产重试。
+
+### 风险与遗留问题
+
+- P0：生产 pending 仍为 2,957，G0 主步骤不能从 8 减为 7。
+- P1：当前修复还需完整定向/PG16/基础/安全门禁、clean commit、提交后 gate、新 Bundle/request 和第四次生产执行。
+- P1：只有 pending=0、legacy/frozen epoch6、scanner ready/fresh、lease released、evidence closed 全部满足后才能减数。
+- 系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成本模块根修复的 commit-bound 第四次生产重试，不进入 cycle-2。

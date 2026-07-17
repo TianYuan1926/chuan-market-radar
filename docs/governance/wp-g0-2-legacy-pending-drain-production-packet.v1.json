@@ -49,6 +49,7 @@
     "runtimeMaxSeconds": 5400,
     "targetImageBuiltBeforeScannerPause": true,
     "databaseRunnerImage": "target_web_image_with_pg",
+    "databaseRunnerModuleRoot": "/app/package.json",
     "services": [
       "web",
       "scanner-worker",
@@ -131,7 +132,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "e081261e5c0aa04b24145e41a9d1aa71733c415c6cd48d184c3eb356a2b245db",
+    "sha256": "073d83c63c7fb72a5ac1bec0ab6992a811a340fb591285d674a44cad00a323d2",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

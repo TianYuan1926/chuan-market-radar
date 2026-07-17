@@ -4,7 +4,30 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { executeDatabaseCommand, parseArgs, readProductionRequest } from "./db-runner.mjs";
+import {
+  executeDatabaseCommand,
+  loadPgRuntime,
+  parseArgs,
+  readProductionRequest,
+} from "./db-runner.mjs";
+
+test("database runner resolves pg from the target image before the mounted packet", () => {
+  const attempted = [];
+  const approvedRuntime = { Pool: class ApprovedPool {} };
+  const runtime = loadPgRuntime({
+    applicationRoot: "/app",
+    moduleUrl: "file:///packet/scripts/production/db-runner.mjs",
+    requireFactory: (base) => (specifier) => {
+      attempted.push({ base: String(base), specifier });
+      if (String(base) === "/app/package.json") return approvedRuntime;
+      const error = new Error("not found");
+      error.code = "MODULE_NOT_FOUND";
+      throw error;
+    },
+  });
+  assert.equal(runtime, approvedRuntime);
+  assert.deepEqual(attempted, [{ base: "/app/package.json", specifier: "pg" }]);
+});
 
 test("CLI accepts only the six bounded database commands", () => {
   assert.deepEqual(parseArgs(["open", "--request", "request.json"]), {

@@ -32,6 +32,7 @@ test("governance rejects count, epoch, rollback, or runner guard weakening", asy
   weakened.databasePrecondition.finalEpoch = 5;
   weakened.rollback.automatic = false;
   weakened.execution.baselineHealthWaitSeconds = 600;
+  weakened.execution.databaseRunnerModuleRoot = "/packet/package.json";
   const violations = evaluatePendingDrainProductionGovernance({
     contract: weakened,
     dbRunner,
