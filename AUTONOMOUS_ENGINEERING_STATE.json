@@ -1,13 +1,13 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T18:38:33+08:00",
+  "updatedAt": "2026-07-17T19:17:50+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
     "engineeringStatus": "可运行但不完整",
     "practicalStatus": "不能支撑实战",
     "productionCandidateSchema": "applied_verified_dormant",
-    "candidateRuntime": "legacy_frozen_epoch4_release_candidate-shadow-e5eb90026d8b_candidate_worker_absent_control_updated_before_migration_010_previous_observation_not_passed_next_adjacent_validation_cycle_required",
+    "candidateRuntime": "legacy_frozen_epoch4_release_candidate-shadow-e5eb90026d8b_candidate_worker_absent_migrations10_episodes543_events2957_outbox5914_completed2957_pending2957_unresolved2957_resolutions0_readonly_verified_2026_07_17_next_cycle_blocked_until_pending_drain",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
@@ -29,7 +29,8 @@
     "shadowVerifyPhaseTransitionAndDualReadObservation": "completed_local_committed_pushed_803bca6_contract_targeted_19_of_19_postgres16_baseline_security_postcommit_autonomy_12_of_12_pass_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalCompatPhaseTransitionAndObservation": "completed_local_committed_pushed_8d6e37d_targeted_20_of_20_domain_105_of_105_with_3_explicit_pg_skips_postgres16_10000_write_shadow_verify_to_canonical_compat_and_legacy_frozen_rollback_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_13_of_13_pass_bundle_f5fb00f3_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalRollbackStateMachineRemediation": "completed_local_committed_pushed_5e777e4_postcommit_autonomy_12_of_12_migration_010_sha_2ae3247a_production_not_applied_canonical_cutover_blocked",
-    "canonicalRollbackSafetyProductionAddSchema": "completed_production_pass_commit_26d01d1_bundle_9b7ac0e9_request_6e5ed1b4_migration_rows_10_function_owner_candidate_migration_role_least_privilege_business_data_unchanged_git_compose_env_services_containers_unchanged_lease_token13_released_evidence_retained_temp_cleanup_complete_independent_verify_pass"
+    "canonicalRollbackSafetyProductionAddSchema": "completed_production_pass_commit_26d01d1_bundle_9b7ac0e9_request_6e5ed1b4_migration_rows_10_function_owner_candidate_migration_role_least_privilege_business_data_unchanged_git_compose_env_services_containers_unchanged_lease_token13_released_evidence_retained_temp_cleanup_complete_independent_verify_pass",
+    "legacyPendingDrainRemediation": "ready_for_gate_local_targeted_11_of_11_postgres16_pending_only_drain_4_to_0_no_source_writes_no_outbox_delete_final_legacy_frozen_epoch6_baseline_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_pass_live_production_still_epoch4_pending2957_unmodified"
   },
   "wipLimits": {
     "production": 1,
@@ -148,11 +149,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-MIGRATION-010",
-    "title": "Candidate adjacent validation cycle continuation production refresh after migration 010",
+    "id": "WP-G0.2-LEGACY-PENDING-DRAIN-REMEDIATION-LOCAL-SUPERPACKAGE",
+    "title": "Candidate frozen legacy-cycle pending-only drain remediation local superpackage",
     "lane": "localPreparation",
-    "status": "in_progress",
-    "objective": "只刷新既有Validation Cycle Continuation生产包，使其精确绑定migration 1-10、当前dormant production identity和legacy/frozen epoch4旧周期，在保留全部Candidate数据的前提下启动严格相邻的新验证周期。",
+    "status": "ready_for_gate",
+    "objective": "关闭legacy/frozen epoch4中2957条pending与Candidate worker absent造成的续接死锁；建立禁止新source写入、只排空旧pending、再次冻结和恢复scanner的可回滚本地生产设计与隔离演练。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -165,18 +166,13 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_LOCAL_SUPERPACKAGE_V1.md",
-      "docs/governance/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_PRODUCTION_PACKET_V1.md",
-      "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v1.json",
-      "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v1.json",
-      "scripts/governance/candidate-validation-cycle-continuation.mjs",
-      "scripts/governance/candidate-validation-cycle-continuation.test.mjs",
-      "scripts/governance/candidate-cycle-continuation-production-packet.mjs",
-      "scripts/governance/candidate-cycle-continuation-production-packet.test.mjs",
-      "scripts/production/candidate-cycle-continuation/**",
-      "scripts/rehearsal/candidate-cycle-continuation-postgres16.sh",
-      "reports/wp-g0-2-validation-cycle-continuation-local-superpackage/**",
-      "reports/wp-g0-2-validation-cycle-continuation-production-packet/**"
+      "docs/governance/WP_G0_2_LEGACY_PENDING_DRAIN_REMEDIATION_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/wp-g0-2-legacy-pending-drain-remediation-local-superpackage.v1.json",
+      "scripts/governance/candidate-legacy-pending-drain.mjs",
+      "scripts/governance/candidate-legacy-pending-drain.test.mjs",
+      "scripts/production/candidate-legacy-pending-drain/**",
+      "scripts/rehearsal/candidate-legacy-pending-drain-postgres16.sh",
+      "reports/wp-g0-2-legacy-pending-drain-remediation-local-superpackage/**"
     ],
     "prohibitedPaths": [
       "migrations/candidate-episode/001_candidate_episode_authority.sql",
@@ -206,27 +202,21 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_PRODUCTION_PACKET_V1.md",
-      "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v1.json",
-      "scripts/governance/candidate-cycle-continuation-production-packet.mjs",
-      "scripts/governance/candidate-cycle-continuation-production-packet.test.mjs",
-      "scripts/production/candidate-cycle-continuation/bundle.mjs",
-      "scripts/production/candidate-cycle-continuation/production-boundary.test.mjs",
-      "scripts/production/candidate-cycle-continuation/production-entrypoint.sh",
-      "scripts/production/candidate-cycle-continuation/production-runner.sh",
-      "scripts/production/candidate-cycle-continuation/runner.mjs",
-      "scripts/production/candidate-cycle-continuation/runner-postgres.integration.mjs",
-      "scripts/production/candidate-cycle-continuation/runner.test.mjs",
-      "scripts/rehearsal/candidate-cycle-continuation-postgres16.sh",
-      "reports/wp-g0-2-validation-cycle-continuation-production-packet/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_PRODUCTION_PACKET_REPORT.md"
+      "docs/governance/WP_G0_2_LEGACY_PENDING_DRAIN_REMEDIATION_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/wp-g0-2-legacy-pending-drain-remediation-local-superpackage.v1.json",
+      "scripts/governance/candidate-legacy-pending-drain.mjs",
+      "scripts/governance/candidate-legacy-pending-drain.test.mjs",
+      "scripts/production/candidate-legacy-pending-drain/runner.mjs",
+      "scripts/production/candidate-legacy-pending-drain/runner-postgres.integration.mjs",
+      "scripts/production/candidate-legacy-pending-drain/runner.test.mjs",
+      "scripts/rehearsal/candidate-legacy-pending-drain-postgres16.sh",
+      "reports/wp-g0-2-legacy-pending-drain-remediation-local-superpackage/WP_G0_2_LEGACY_PENDING_DRAIN_REMEDIATION_LOCAL_SUPERPACKAGE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:cycle-continuation:validate",
-        "test:candidate-cycle-continuation-governance",
-        "candidate:cycle-continuation-production-packet:validate",
-        "test:candidate-cycle-continuation-production-packet",
-        "candidate:cycle-continuation:pg16-rehearsal",
+        "candidate:legacy-pending-drain:validate",
+        "test:candidate-legacy-pending-drain",
+        "candidate:legacy-pending-drain:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -243,13 +233,14 @@
       ]
     },
     "completionBoundary": [
-      "执行包必须接受精确migration 1-10 applied ledger并拒绝任何checksum或额外migration漂移",
-      "当前production control必须是candidate-episode-v1的legacy/frozen正偶数epoch4且release精确匹配，所有unresolved必须为0",
-      "新周期必须使用严格相邻migration id candidate-episode-v1-cycle-2和全新release，禁止复用旧周期或重写旧deadline",
-      "旧周期全部Candidate数据和control历史必须保留，新周期启动事务不得改变任何业务行计数",
-      "生产身份必须绑定clean detached cec0b657 baseline、当前Web image、Compose/env/identity wrapper和migration 010 checksum",
-      "任何Git、DB、env、Web、Worker、health、lease或观察失败必须自动回滚为legacy/frozen并保留历史数据",
-      "本地刷新不连接生产，不等于新周期启动、Lineage、Reconciliation、Shadow Verify、WP-G0.2或G0完成",
+      "只接受精确migration 1-10、唯一candidate-episode-v1 control、legacy/frozen正偶数epoch4和pending-only未决状态",
+      "排空前必须暂停scanner并证明所有public/read路径no-refresh，禁止新的Candidate source outbox写入",
+      "只允许同一control和同一release从epoch4临时进入shadow_capture epoch5，禁止新周期、deadline重置和schema变更",
+      "Candidate consumer必须使用既有受控procedure处理旧pending；quarantined、retry_wait、claimed残留或resolution写入均判FAIL",
+      "排空后必须精确completed=outbox total、pending=0、unresolved=0，再立即回到legacy/frozen epoch6并停止Candidate worker",
+      "旧事件、episode、checkpoint、outcome、outbox总数、control started/deadline和release必须按合同保留，禁止删除或改写来源",
+      "scanner必须恢复并形成新鲜成功扫描，Web/Redis/Postgres/非目标容器/Git/env必须回到基线；失败自动回滚",
+      "本地包不连接生产，不等于pending已排空、cycle-2启动、Lineage、Reconciliation、Shadow Verify、WP-G0.2或G0完成",
       "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、Redis和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
@@ -262,7 +253,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "刷新后的生产包在隔离PostgreSQL 16从legacy/frozen epoch4保留全部旧周期数据并只启动严格相邻cycle-2，证明migration 1-10、零未决、失败回滚、生产未连接和阈值不变。"
+      "measurableOutcome": "隔离PostgreSQL 16从legacy/frozen epoch4的pending-only状态在source write不可达时只运行既有consumer到unresolved=0，再冻结到epoch6；证明无删除、无新source写入、失败回滚和生产未连接。"
     }
   },
   "approvals": [
@@ -600,7 +591,14 @@
       "order": 46,
       "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-MIGRATION-010",
       "lane": "localPreparation",
-      "status": "in_progress",
+      "status": "superseded_by_legacy_pending_drain_remediation_after_live_unresolved_count",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 47,
+      "id": "WP-G0.2-LEGACY-PENDING-DRAIN-REMEDIATION-LOCAL-SUPERPACKAGE",
+      "lane": "localPreparation",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": false
     }
   ]

@@ -5416,3 +5416,44 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只做 `WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-MIGRATION-010`：保留旧周期全部数据，在 unresolved=0、旧 control 冻结和新周期严格相邻的机器门禁下刷新并执行续接；不得直接进入 Canonical Compat。
+
+## 2026-07-17 / WP-G0.2 Legacy Pending Drain Remediation Local Superpackage
+
+### 本轮目标
+
+关闭生产 `legacy/frozen epoch 4` 中 2,957 条 pending 与 Candidate worker absent 造成的相邻周期续接死锁，并在不产生新 source write 的前提下建立可回滚的 pending-only drain。
+
+### 修改范围
+
+- 新增 pending drain 机器合同、中文治理说明、纯状态/完成真值 runner、负向测试和隔离 PostgreSQL 16 演练。
+- 只允许同一 migration/control/release 从 `legacy/frozen epoch 4` 临时进入 `shadow_capture epoch 5`，处理既有 pending 后立即回到 `legacy/frozen epoch 6`。
+- 任何 source write 可达、scanner 未暂停、Candidate worker 预先存活、retry/quarantine/claimed/resolution、partial drain、outbox 删除或 deadline/release 漂移均失败。
+- 未修改 migrations 1-10、frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、Worker、Compose、env、Redis 或生产服务。
+
+### 核心链路影响
+
+保护候选筛选和复盘进化的 Candidate 生命周期完整性；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- 合同与 runner 定向：11/11 PASS。
+- PostgreSQL 16：migrations 1-10、4 条 pending 全排空、sourceWritesAdded=0、outboxDeleted=0、最终 `legacy/frozen epoch 6`、`productionConnected=false` PASS。
+- typecheck、零警告 lint：PASS。
+- market 1026 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或修改生产。生产仍是 `legacy/frozen epoch 4`，outbox 5,914 中 completed 2,957、pending/unresolved 2,957，Candidate worker absent。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0；本地包没有把生产 pending 包装成已排空。
+- P1：生产 drain 必须由独立、会话无关、commit/artifact/identity 绑定且自动回滚的执行包完成。
+- P1：drain PASS 后仍需单独启动相邻 cycle-2，不得把两次 authority mutation 合并成一次不可审计操作。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只建立并执行 `WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION`；成功恢复 scanner、fresh scan 与 legacy/frozen epoch6 后，再独立刷新 cycle-2 continuation。
