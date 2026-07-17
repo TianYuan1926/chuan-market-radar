@@ -20,13 +20,24 @@ private_file() {
   mode="$(stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1")"
   (( (8#${mode} & 8#077) == 0 )) || fail "private_file_permissions_invalid:$(basename "$1")"
 }
+private_runtime_file() {
+  local metadata kind mode links owner_uid owner_gid
+  metadata="$(sudo -n stat -c '%F|%a|%h|%u|%g' -- "$1" 2>/dev/null)" \
+    || fail "private_file_invalid:$(basename "$1")"
+  IFS='|' read -r kind mode links owner_uid owner_gid <<<"${metadata}"
+  [[ "${kind}" == "regular file" && "${links}" == "1" \
+    && "${owner_uid}" == "$(id -u)" && "${owner_gid}" == "$(id -g)" ]] \
+    || fail "private_file_identity_invalid:$(basename "$1")"
+  (( (8#${mode} & 8#077) == 0 )) \
+    || fail "private_file_permissions_invalid:$(basename "$1")"
+}
 
 if [[ "${MODE}" == "dry_run" || "${CONFIRMED}" != "true" ]]; then
   printf '%s\n' 'DRY-RUN: no production database, service, source, environment or data changed.'
   exit 0
 fi
 [[ "${MODE}" == "production_add_schema" ]] || fail mode_invalid
-for command_name in docker git jq realpath sha256sum curl; do
+for command_name in docker git jq realpath sha256sum curl sudo; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "command_missing:${command_name}"
 done
 private_file "${REQUEST_FILE}"
@@ -53,7 +64,7 @@ case "${OPS_ROOT}/" in
 esac
 [[ "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-canonical-rollback-add-schema-* \
   || "${REHEARSAL}" == "true" ]] || fail evidence_directory_invalid
-private_file "${MIGRATION_URL_FILE}"
+private_runtime_file "${MIGRATION_URL_FILE}"
 
 if docker ps >/dev/null 2>&1; then
   DOCKER=(docker)

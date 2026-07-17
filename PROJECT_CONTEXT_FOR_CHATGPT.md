@@ -1387,6 +1387,7 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 原 Bundle 已完成服务器 SHA-256、权限和默认 dry-run 校验；随后显式只读数据库预检在连接数据库前以 `ERR_MODULE_NOT_FOUND: pg` 停止，生产数据库、服务、仓库和环境均未改变。
 - 根因是 staged runner 位于 `/packet`，ESM 无法沿目录解析 Web 镜像 `/app/node_modules/pg`。本地最小修复把只读 packet 绑定到 `/app/packet`，没有增加依赖、复制 node_modules 或放宽容器权限。
 - 新增边界回归测试，强制 `/app/packet` 且禁止退回 `/packet`；定向测试 10/10 和隔离 PostgreSQL 16 migration 010 演练已重新 PASS。
+- 修复后的首次 transient unit 又在 DB/lease 前因 root-only 父目录导致宿主机 `-f` 检查不可达而 fail closed；没有证据目录、lease 或 DB 连接。第二个本地最小修复只用 `sudo stat` 核验该文件是单硬链普通文件、私有模式且 UID/GID 与非 root runner 一致，容器继续以 `ubuntu` 运行。未改共享父目录权限，也未安装 ACL 工具。
 - 原 Bundle、原 request 和服务器 staging 不得继续执行。必须完成新提交、提交后自治门禁、新确定性 Bundle、新单次请求和服务器哈希校验后，才能重新进入生产 Add Schema。
 
 当前能力结论不变：**R1 / 可运行但不完整 / 不能支撑实战**。生产仍是 migrations 001-009，Canonical phase transition 继续被 rollback safety schema 阻断。

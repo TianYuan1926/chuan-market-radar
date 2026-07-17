@@ -5344,6 +5344,7 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 
 - 只把本包在 Web 镜像内的只读挂载根从 `/packet` 改为 `/app/packet`。
 - 新增生产边界回归，要求 runner 位于 `/app` 依赖树下并禁止退回 `/packet`。
+- 新增 root-only 父目录兼容：只允许 `sudo stat` 核验凭据普通文件、单硬链、私有模式及非 root runner UID/GID；不放宽共享目录权限，容器用户保持 `ubuntu`。
 - 更新 runner artifact 机器合同。
 - 未修改 migration、frontend、API、scan、analysis、strategy、backtest、Redis、Worker、Compose、env、Feature Flag 或生产服务。
 
@@ -5360,7 +5361,7 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 
 ### 是否部署
 
-未部署。旧 Bundle 的默认 dry-run PASS；显式只读生产预检在数据库连接前因 `ERR_MODULE_NOT_FOUND: pg` 停止。生产数据库、服务、仓库、环境和 Candidate control 均未改变，migration ledger 仍为 001-009。
+未部署。旧 Bundle 的显式只读生产预检在数据库连接前因 `ERR_MODULE_NOT_FOUND: pg` 停止；修复后的 transient unit 又在 lease/DB 前因 root-only 父目录导致宿主机凭据检查不可达而停止。两次都没有数据库、服务、仓库、环境或 Candidate control 变更，migration ledger 仍为 001-009。
 
 ### 风险与遗留问题
 

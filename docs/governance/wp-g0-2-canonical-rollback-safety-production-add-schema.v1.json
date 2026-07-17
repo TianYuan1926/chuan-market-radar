@@ -68,7 +68,7 @@
       "scripts/production/candidate-canonical-rollback-add-schema/production-runner.sh",
       "scripts/production/candidate-canonical-rollback-add-schema/runner.mjs"
     ],
-    "sha256": "3eeedc100a44a011657b9e85a5d9bf35b7ce9647ef9b9c3dfe3e7c7dc242cc9c"
+    "sha256": "14e97bbcebf37367f378a32108823ce8be2b9d0b23d60da779c8ce2cac55c86a"
   },
   "forbidden": [
     "historical_migration_edit",

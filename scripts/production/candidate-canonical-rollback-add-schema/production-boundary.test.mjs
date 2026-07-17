@@ -29,6 +29,10 @@ test("production execution is database-only and lease fenced", async () => {
   assert.match(source, /dst=\/app\/packet,readonly/u);
   assert.match(source, /\/app\/packet\/\$\{RUNNER#/u);
   assert.doesNotMatch(source, /dst=\/packet,readonly/u);
+  assert.match(source, /sudo -n stat -c '%F\|%a\|%h\|%u\|%g'/u);
+  assert.match(source, /owner_uid.*id -u/u);
+  assert.match(source, /owner_gid.*id -g/u);
+  assert.doesNotMatch(source, /chmod 7[1-7][0-7].*market-radar-ops/u);
   assert.doesNotMatch(source,
     /docker compose (?:up|build|down)|\b(?:git pull|git checkout|git reset|redis-cli)\b|backtest:formal/u);
 });
