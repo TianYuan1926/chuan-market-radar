@@ -5156,3 +5156,50 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 完成当前包提交、提交后门禁和确定性 Bundle 后，继续推进不依赖生产前置的 Shadow Verify phase-transition/dual-read observation 本地准备；生产执行保持等待可信 Lineage 与 Reconciliation PASS。
+
+## 2026-07-17 / WP-G0.2 Shadow Verify Phase Transition and Dual-Read Observation
+
+### 本轮目标
+
+建立独立、会话无关、一次授权、可自动回滚的 Shadow Verify phase transition 与 24 小时全分页双读观察包；本轮只做本地实现、隔离演练和发布准备，不连接或修改生产。
+
+### 修改范围
+
+- 新增 phase 合同、严格环境渲染、root-owned manifest、Lineage/Reconciliation/Web release 三项前置证据校验。
+- 新增生产 runner：只允许三个 Candidate 读取 flag、既有 control transition procedure、精确 manifest 和 no-build Web recreate。
+- 新增全分页 observer：每个样本在同一 `SERIALIZABLE READ ONLY DEFERRABLE` 快照内，用 `candidate_audit_role` 读取全部 Candidate 页并与独立 Raw Oracle 比较。
+- 新增精确 289 样本/300 秒调度，采样时间来自数据库时钟，观察覆盖至少 24 小时且最大间隔不超过 600 秒。
+- 新增自动回滚：切 phase 后回到 `legacy/frozen`、关闭全部 Candidate flags、停止 Candidate worker、保留 Candidate 数据与当前 Git/Web image。
+- 新增确定性脱敏 Bundle、一次性 90 分钟 request、transient systemd entrypoint、CI scripts、边界测试和 PostgreSQL 16 演练。
+- 未修改 frontend、API source、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、Compose、env、Redis、Worker implementation 或生产服务。
+
+### 核心链路影响
+
+加强候选筛选和复盘进化的 Candidate 生命周期读真值；不改变全市场发现、深扫验证、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Phase 合同、Bundle、全分页 observer、边界、环境和 24 小时证据纯函数：19/19 PASS。
+- 隔离 PostgreSQL 16：migration 1-9、9,999 拒绝、10,000 放行、`shadow_capture -> shadow_verify`、重复 transition 拒绝、`shadow_verify -> legacy/frozen`、10,000 行保留、`productionConnected=false`：PASS。
+- Autonomy unit：31/31 PASS。
+- typecheck、零警告 lint、全量 market、build：PASS。
+- Golden：16/16 PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+- 首次提交绑定自治总门禁前 8 项 PASS，随后 lint 正确发现 1 个未使用 import 和生产观察器 5 处有意 CommonJS `require` 缺少 lint 边界声明，整轮记为 FAIL；最小修复后必须 amend 并从头重跑 12 项，最终证据以 `.autonomy/latest-gate-result.json` 为准。
+
+### 是否部署
+
+未部署、未上传、未连接或查询生产；未执行数据库、Redis、服务、phase、manifest、Feature Flag 或 Candidate authority mutation。最近已知生产快照仍只是 96/289、completed=1481，可能已过期，本轮没有把它包装成当前实时事实。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：真实 Activation、累计 10,000、新鲜相邻周期、Lineage、Web code release 和生产 Reconciliation 均尚未取得本包所需 PASS，因此生产 runner 必须继续 fail closed。
+- P1：本包即使未来完成 24 小时 Shadow Verify，也不会自动进入 Canonical Compat、Canonical Cutover 或生产排序/交易计划。
+- P1：回滚到 `legacy/frozen` 后不宣称旧周期可直接重启，后续必须独立审计恢复身份和新周期资格。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+本包提交、提交后自治门禁、确定性 Bundle 和工作分支推送收口后，继续准备 Canonical Compat 独立观察包；生产执行保持等待真实 Lineage、Reconciliation 和 Web code release PASS。

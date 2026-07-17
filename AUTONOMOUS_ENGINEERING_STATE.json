@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T08:22:00+08:00",
+  "updatedAt": "2026-07-17T09:28:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -25,7 +25,8 @@
     "freshVerificationCycleLineageCapture": "completed_local_committed_pushed_9472529_targeted_6_of_6_reconciliation_packet_12_of_12_postgres16_10020_write_lineage_capture_baseline_security_and_autonomy_13_of_13_pass_production_not_connected",
     "freshVerificationCycleLineageProductionPacket": "completed_local_committed_pushed_464c301_bundle_sha256_a75ce76c3d5342a94d4dfa1777b99350530dfef785f94b422b53934f087140d6_production_not_connected_not_executed",
     "shadowVerifyCodeAuthorization": "completed_local_committed_pushed_ebba74e_targeted_37_of_37_three_postgres16_rehearsals_autonomy_31_of_31_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected_not_deployed_phase_not_changed",
-    "shadowVerifyCodeAuthorizationProductionRelease": "local_preparation_pass_ready_for_commit_minimal_release_target_eb48827_parent_54837d0_three_files_targeted_22_of_22_release_6_of_6_code_authorization_37_of_37_autonomy_unit_31_of_31_typecheck_lint_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_full_autonomy_13_of_13_pass_production_blocked_by_lineage_and_reconciliation"
+    "shadowVerifyCodeAuthorizationProductionRelease": "completed_local_committed_pushed_9163eabd0_release_target_eb48827_parent_54837d0_production_not_executed_blocked_by_lineage_and_reconciliation",
+    "shadowVerifyPhaseTransitionAndDualReadObservation": "local_preparation_ready_for_gate_contract_and_targeted_19_of_19_postgres16_10000_write_phase_transition_and_legacy_frozen_rollback_typecheck_lint_market_build_golden_16_of_16_security_and_autonomy_unit_31_of_31_pass_production_not_connected_phase_not_changed_observation_not_started"
   },
   "wipLimits": {
     "production": 1,
@@ -144,11 +145,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE",
-    "title": "Candidate Shadow Verify code authorization Web-only production release",
+    "id": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
+    "title": "Candidate Shadow Verify phase transition and full dual-read observation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "建立只允许Web build/recreate的Shadow Verify代码授权生产发布包；执行前必须真实Lineage与Reconciliation PASS，发布期间数据库、phase、manifest、Worker、Redis、env和Compose全部禁止改变。",
+    "objective": "建立可审计、可回滚、会话独立的Shadow Verify阶段切换与24小时全分页双读观察包；只有真实Lineage、Reconciliation和Web代码发布证据全部可信时才允许从shadow_capture切换到shadow_verify，响应权威始终保留Legacy。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -161,10 +162,11 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-code-authorization-production-release.v1.json",
-      "scripts/production/candidate-shadow-verify-release/**",
-      "reports/wp-g0-2-shadow-verify-code-authorization-production-release/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_REPORT.md"
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_V1.md",
+      "docs/governance/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation.v1.json",
+      "scripts/production/candidate-shadow-verify-phase/**",
+      "scripts/rehearsal/candidate-shadow-verify-phase-postgres16.sh",
+      "reports/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -185,22 +187,27 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-code-authorization-production-release.v1.json",
-      "scripts/production/candidate-shadow-verify-release/bundle.mjs",
-      "scripts/production/candidate-shadow-verify-release/bundle.test.mjs",
-      "scripts/production/candidate-shadow-verify-release/production-boundary.test.mjs",
-      "scripts/production/candidate-shadow-verify-release/production-entrypoint.sh",
-      "scripts/production/candidate-shadow-verify-release/production-execute-rehearsal.test.mjs",
-      "scripts/production/candidate-shadow-verify-release/production-runner.sh",
-      "reports/wp-g0-2-shadow-verify-code-authorization-production-release/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_REPORT.md"
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_V1.md",
+      "docs/governance/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation.v1.json",
+      "scripts/production/candidate-shadow-verify-phase/bundle.mjs",
+      "scripts/production/candidate-shadow-verify-phase/bundle.test.mjs",
+      "scripts/production/candidate-shadow-verify-phase/full-snapshot-observer.cjs",
+      "scripts/production/candidate-shadow-verify-phase/full-snapshot-observer.test.mjs",
+      "scripts/production/candidate-shadow-verify-phase/observation-runner.sh",
+      "scripts/production/candidate-shadow-verify-phase/production-boundary.test.mjs",
+      "scripts/production/candidate-shadow-verify-phase/production-entrypoint.sh",
+      "scripts/production/candidate-shadow-verify-phase/production-runner.sh",
+      "scripts/production/candidate-shadow-verify-phase/runner-postgres.integration.mjs",
+      "scripts/production/candidate-shadow-verify-phase/runner.mjs",
+      "scripts/production/candidate-shadow-verify-phase/runner.test.mjs",
+      "scripts/rehearsal/candidate-shadow-verify-phase-postgres16.sh",
+      "reports/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:shadow-verify-code-release:validate",
-        "test:candidate-shadow-verify-code-release",
-        "candidate:shadow-verify-code-authorization:validate",
-        "test:candidate-shadow-verify-code-authorization",
+        "candidate:shadow-verify-phase:validate",
+        "test:candidate-shadow-verify-phase",
+        "candidate:shadow-verify-phase:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -217,20 +224,21 @@
       ]
     },
     "completionBoundary": [
-      "release target必须是54837d0的单父3文件提交eb48827，生产baseline漂移即整包失效",
-      "执行前Lineage必须至少10000条且新鲜周期完整，Reconciliation必须零差异零重复零未解决",
-      "只允许Web build和no-deps no-build force-recreate，全部非Web容器身份必须不变",
-      "Candidate worker的container和image身份必须前后不变且持续healthy",
-      "数据库control必须持续shadow_capture、writeFrozen=false、release和正奇数epoch完全一致",
-      "read-authority manifest必须保持不存在，Candidate lifecycle API必须503 fail closed",
-      "每个mutation前重验外部lease和fencing，任何失败自动恢复baseline Git与旧Web image",
-      "成功后保留rollback image并完成1800秒至少61样本ready/fresh连续观察",
-      "当前本地包不等于生产发布、phase切换、Shadow Verify观察、Canonical Cutover、WP-G0.2或G0完成",
-      "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、DB、Redis、Worker和future outcome生产输入全部禁止修改",
+      "执行前必须同时验证可信Lineage至少10000条、两个release窗口、Reconciliation零差异零重复零未解决和Web代码发布PASS",
+      "生产必须保持clean detached eb48827精确代码身份，禁止source sync、checkout、build、migration和Compose变更",
+      "只允许修改三个Candidate读取flags、安装root-owned精确manifest、调用既有phase transition procedure并no-build force-recreate Web",
+      "全部非Web容器及Candidate worker的container/image身份必须保持不变且持续healthy",
+      "阶段只能从shadow_capture非冻结正奇数epoch切换到shadow_verify下一epoch，业务行、Redis和schema禁止修改",
+      "每个观察样本必须在同一SERIALIZABLE READ ONLY DEFERRABLE快照中遍历全部分页并与独立Raw Oracle零差异",
+      "观察必须精确289样本、覆盖至少24小时、任意间隔不超过600秒，禁止缩短或只检查第一页",
+      "Shadow Verify期间API响应权威始终是Legacy，Candidate review不可用，禁止Canonical Compat、Cutover、交易计划和生产排序改变",
+      "失败必须自动回滚；阶段已切换时进入legacy/frozen、关闭全部Candidate flags并停止Candidate worker，且不得宣称可直接重启旧周期",
+      "当前本地包不等于生产phase切换、24小时观察PASS、Canonical Compat、Canonical Cutover、WP-G0.2或G0完成",
+      "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务DB、Redis和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "reversible_service_release",
+    "actionClass": "shadow_verify_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -238,7 +246,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "确定性脱敏Bundle、一次性Standing Grant request、session-independent Web-only runner、成功演练和故障自动回滚共同证明代码授权可在不改变Candidate control与Worker的条件下安全发布。"
+      "measurableOutcome": "阶段合同、全分页同快照观察器、数据库时钟289样本调度、一次性Standing Grant request、session-independent runner、确定性脱敏Bundle和legacy/frozen自动回滚共同证明Shadow Verify可在不授予Candidate响应权威的前提下受控验证。"
     }
   },
   "approvals": [
@@ -540,6 +548,13 @@
     {
       "order": 41,
       "id": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_9163eabd0_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 42,
+      "id": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

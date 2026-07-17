@@ -94,6 +94,12 @@ jobs:
       - name: Candidate shadow-verify Web-only release tests
         run: npm run test:candidate-shadow-verify-code-release
 
+      - name: Candidate shadow-verify phase transition contract
+        run: npm run candidate:shadow-verify-phase:validate
+
+      - name: Candidate shadow-verify phase transition tests
+        run: npm run test:candidate-shadow-verify-phase
+
       - name: Candidate validation-cycle continuation contract
         run: npm run candidate:cycle-continuation:validate
 
