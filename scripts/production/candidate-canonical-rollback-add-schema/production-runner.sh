@@ -71,7 +71,7 @@ NETWORK="$(${DOCKER[@]} inspect "${WEB_CONTAINER}" --format '{{range $name, $_ :
 run_node() {
   local network="$1"; shift
   local -a mounts=(
-    --mount "type=bind,src=${SOURCE_ROOT},dst=/packet,readonly"
+    --mount "type=bind,src=${SOURCE_ROOT},dst=/app/packet,readonly"
     --mount "type=bind,src=${MIGRATION_URL_FILE},dst=${MIGRATION_URL_FILE},readonly"
     --mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}"
     --mount "type=bind,src=${EVIDENCE_DIRECTORY},dst=${EVIDENCE_DIRECTORY}"
@@ -87,15 +87,15 @@ run_node() {
 
 database_runner() {
   local command="$1"
-  run_node "${NETWORK}" "/packet/${RUNNER#${SOURCE_ROOT}/}" "${command}" \
-    --request /packet/approval-request.json \
-    --migration-url-file "${MIGRATION_URL_FILE}" --root /packet --production true
+  run_node "${NETWORK}" "/app/packet/${RUNNER#${SOURCE_ROOT}/}" "${command}" \
+    --request /app/packet/approval-request.json \
+    --migration-url-file "${MIGRATION_URL_FILE}" --root /app/packet --production true
 }
 lease_event() {
   local action="$1"; shift
   [[ "${REHEARSAL}" == "true" ]] && return 0
-  run_node none "/packet/${LEASE_CLI#${SOURCE_ROOT}/}" "${action}" \
-    --trust-root "${TRUST_ROOT}" --request /packet/approval-request.json \
+  run_node none "/app/packet/${LEASE_CLI#${SOURCE_ROOT}/}" "${action}" \
+    --trust-root "${TRUST_ROOT}" --request /app/packet/approval-request.json \
     --execution "${EVIDENCE_DIRECTORY}/lease-execution.json" "$@" \
     | tee -a "${EVIDENCE_DIRECTORY}/lease-events.jsonl" >/dev/null
 }
@@ -132,8 +132,8 @@ chmod 700 "${OPS_ROOT}" "${EVIDENCE_DIRECTORY}"
 container_identity > "${EVIDENCE_DIRECTORY}/containers-before.txt"
 health_ready || fail health_before_not_ready
 curl -fsS http://127.0.0.1/api/health > "${EVIDENCE_DIRECTORY}/health-before.json"
-run_node none "/packet/${VALIDATOR#${SOURCE_ROOT}/}" validate-request \
-  --manifest /packet/transport-manifest.json --request /packet/approval-request.json \
+run_node none "/app/packet/${VALIDATOR#${SOURCE_ROOT}/}" validate-request \
+  --manifest /app/packet/transport-manifest.json --request /app/packet/approval-request.json \
   --bundle-sha256 "$(jq -r '.bundleSha256' "${REQUEST_FILE}")" --production true \
   > "${EVIDENCE_DIRECTORY}/request-validation.json"
 

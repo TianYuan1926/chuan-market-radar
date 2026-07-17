@@ -5333,3 +5333,41 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 完成本包门禁、提交和推送后，独立执行 production Add Schema；不得与 Canonical phase transition 合并。
+
+## 2026-07-17 / WP-G0.2 Canonical Rollback Add Schema Production Preflight Remediation
+
+### 本轮目标
+
+修复生产只读预检发现的 Web 镜像 `pg` 模块解析阻断，同时保持 migration 010、数据库身份和执行范围不变。
+
+### 修改范围
+
+- 只把本包在 Web 镜像内的只读挂载根从 `/packet` 改为 `/app/packet`。
+- 新增生产边界回归，要求 runner 位于 `/app` 依赖树下并禁止退回 `/packet`。
+- 更新 runner artifact 机器合同。
+- 未修改 migration、frontend、API、scan、analysis、strategy、backtest、Redis、Worker、Compose、env、Feature Flag 或生产服务。
+
+### 核心链路影响
+
+只恢复候选生命周期权威地基的 schema 安全执行能力；不改变发现、深扫、结构分析、风险赔率、交易计划、排序或复盘指标。
+
+### 测试结果
+
+- 定向合同/边界/Bundle：10/10 PASS。
+- 隔离 PostgreSQL 16：精确 1-9、只应用 010、事务回滚、least privilege、业务数据不变、`productionConnected=false` PASS。
+- 基础门禁、提交后自治门禁和新 Bundle：待本轮继续执行，不提前标记 PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署。旧 Bundle 的默认 dry-run PASS；显式只读生产预检在数据库连接前因 `ERR_MODULE_NOT_FOUND: pg` 停止。生产数据库、服务、仓库、环境和 Candidate control 均未改变，migration ledger 仍为 001-009。
+
+### 风险与遗留问题
+
+- P0：生产 rollback function 仍 absent，Canonical phase transition 继续阻断。
+- P1：旧 Bundle/request/staging 已失效，必须用新 clean commit 重新生成和验证。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完整重跑基础和自治门禁，提交最小修复，重建确定性 Bundle 后重新执行同范围 production Add Schema。

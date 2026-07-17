@@ -1376,3 +1376,17 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 当前 runner artifact=`4e213d3f2a22465e7e56d8fec7c408057017693d091c12aab0d1d00573892235`；production packet artifact=`127c308a8659ccc6a8d187278abdb83c5616ba19f8122687368772b9090db619`。它们仍需 clean commit 后重新冻结到新 Bundle 和新单次请求。
 
 当前真实结论仍是：**Runtime Identity 未生产完成，WP-G0.2/G0 未完成；R1 / 可运行但不完整 / 不能支撑实战**。下一动作只能是 clean commit、自治总门禁、新 Bundle、新请求和同范围生产重试，不得夹带 Candidate activation。
+
+## 2026-07-17 WP-G0.2 Canonical Rollback Add Schema 生产预检修复
+
+本轮只修复 migration 010 专用生产执行包的容器模块解析边界，不修改 migration 001-010、业务代码、服务、环境、Feature Flag、Redis 或生产仓库。
+
+当前事实：
+
+- 腾讯生产只读身份仍为 Git `e5eb90026d8bfcd52b060359446515de5a5c32d6`、Candidate migration ledger 001-009、rollback function absent，health 为 ready/fresh。
+- 原 Bundle 已完成服务器 SHA-256、权限和默认 dry-run 校验；随后显式只读数据库预检在连接数据库前以 `ERR_MODULE_NOT_FOUND: pg` 停止，生产数据库、服务、仓库和环境均未改变。
+- 根因是 staged runner 位于 `/packet`，ESM 无法沿目录解析 Web 镜像 `/app/node_modules/pg`。本地最小修复把只读 packet 绑定到 `/app/packet`，没有增加依赖、复制 node_modules 或放宽容器权限。
+- 新增边界回归测试，强制 `/app/packet` 且禁止退回 `/packet`；定向测试 10/10 和隔离 PostgreSQL 16 migration 010 演练已重新 PASS。
+- 原 Bundle、原 request 和服务器 staging 不得继续执行。必须完成新提交、提交后自治门禁、新确定性 Bundle、新单次请求和服务器哈希校验后，才能重新进入生产 Add Schema。
+
+当前能力结论不变：**R1 / 可运行但不完整 / 不能支撑实战**。生产仍是 migrations 001-009，Canonical phase transition 继续被 rollback safety schema 阻断。

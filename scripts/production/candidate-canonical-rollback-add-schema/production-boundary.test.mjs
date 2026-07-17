@@ -26,6 +26,9 @@ test("production execution is database-only and lease fenced", async () => {
   assert.match(source, /container_identity_changed_before_execute/u);
   assert.match(source, /non_target_container_identity_changed/u);
   assert.match(source, /evidence_secret_pattern_detected/u);
+  assert.match(source, /dst=\/app\/packet,readonly/u);
+  assert.match(source, /\/app\/packet\/\$\{RUNNER#/u);
+  assert.doesNotMatch(source, /dst=\/packet,readonly/u);
   assert.doesNotMatch(source,
     /docker compose (?:up|build|down)|\b(?:git pull|git checkout|git reset|redis-cli)\b|backtest:formal/u);
 });
