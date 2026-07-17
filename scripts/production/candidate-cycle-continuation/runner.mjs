@@ -1,3 +1,8 @@
+import { rename, readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
 export const PACKAGE_ID = "WP-G0.2-VALIDATION-CYCLE-CONTINUATION";
 export const CYCLE_DURATION_HOURS = 72;
 const CYCLE_PATTERN = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/;
@@ -25,6 +30,27 @@ export class CandidateCycleContinuationError extends Error {
     this.reason = reason;
   }
 }
+
+export function loadPgRuntime({
+  applicationRoot = "/app",
+  moduleUrl = import.meta.url,
+  requireFactory = createRequire,
+} = {}) {
+  const candidates = [
+    requireFactory(resolve(applicationRoot, "package.json")),
+    requireFactory(moduleUrl),
+  ];
+  for (const requireCandidate of candidates) {
+    try {
+      return requireCandidate("pg");
+    } catch (error) {
+      if (error?.code !== "MODULE_NOT_FOUND") throw error;
+    }
+  }
+  throw new CandidateCycleContinuationError("approved_pg_runtime_unavailable");
+}
+
+const pg = loadPgRuntime();
 
 function ensure(condition, reason) {
   if (!condition) throw new CandidateCycleContinuationError(reason);
@@ -162,7 +188,15 @@ async function dataSnapshot(client) {
     (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox) AS outbox,
     (SELECT count(*)::bigint FROM candidate_authority.candidate_outbox_quarantine_resolutions) AS resolutions,
     (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
-      WHERE source_type='legacy_scan_candidate' AND status='completed') AS completed,
+      WHERE source_type='legacy_scan_candidate' AND status='completed') AS "legacyCompleted",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE source_type='legacy_scan_candidate' AND status='pending') AS "legacyPending",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE source_type='legacy_scan_candidate' AND status='claimed') AS "legacyClaimed",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE source_type='legacy_scan_candidate' AND status='retry_wait') AS "legacyRetryWait",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE source_type='legacy_scan_candidate' AND status='quarantined') AS "legacyQuarantined",
     (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox outbox
       WHERE outbox.source_type='legacy_scan_candidate'
         AND outbox.status <> 'completed'
@@ -170,7 +204,32 @@ async function dataSnapshot(client) {
           SELECT 1 FROM candidate_authority.candidate_outbox_quarantine_resolutions resolution
           WHERE resolution.scope=outbox.scope
             AND resolution.quarantined_outbox_id=outbox.outbox_id
-        )) AS unresolved`);
+        )) AS "legacyUnresolved",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE source_type='candidate_episode_event' AND status='pending') AS "candidateEventPending",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE source_type='candidate_episode_event' AND status<>'pending') AS "candidateEventNonPending",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox outbox
+      WHERE outbox.source_type='candidate_episode_event'
+        AND NOT EXISTS (
+          SELECT 1 FROM candidate_authority.candidate_episode_events event
+          WHERE event.scope=outbox.scope AND event.event_id=outbox.outbox_id
+        )) AS "candidateEventOrphans",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox outbox
+      JOIN candidate_authority.candidate_episode_events event
+        ON event.scope=outbox.scope AND event.event_id=outbox.outbox_id
+      WHERE outbox.source_type='candidate_episode_event'
+        AND (outbox.source_id IS DISTINCT FROM event.event_id::text
+          OR outbox.source_version IS DISTINCT FROM event.stream_version::text
+          OR outbox.payload_version IS DISTINCT FROM event.payload_version
+          OR outbox.payload_hash IS DISTINCT FROM event.command_hash
+          OR outbox.idempotency_key IS DISTINCT FROM event.idempotency_key
+          OR outbox.payload->>'episodeId' IS DISTINCT FROM event.episode_id::text
+          OR outbox.payload->>'eventType' IS DISTINCT FROM event.event_type))
+      AS "candidateEventContractMismatches",
+    (SELECT count(*)::bigint FROM candidate_authority.candidate_episode_ingest_outbox
+      WHERE source_type NOT IN ('legacy_scan_candidate','candidate_episode_event')
+        AND status<>'completed') AS "otherSourceUnresolved"`);
   const row = result.rows[0];
   ensure(row, "data_snapshot_missing");
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [
@@ -222,7 +281,14 @@ function validatePreflight(controls, data, input) {
   ensure(Math.max(...identities.map((identity) => identity.cycleNumber))
     === parseCandidateValidationCycleId(input.currentMigrationId).cycleNumber,
   "current_cycle_not_latest");
-  ensure(data.unresolved === 0, "unresolved_outbox_blocks_cycle_continuation");
+  ensure(data.legacyUnresolved === 0, "unresolved_outbox_blocks_cycle_continuation");
+  ensure(data.legacyPending === 0 && data.legacyClaimed === 0
+      && data.legacyRetryWait === 0 && data.legacyQuarantined === 0,
+  "legacy_source_lane_not_clean");
+  ensure(data.otherSourceUnresolved === 0, "other_source_lane_unresolved");
+  ensure(data.resolutions === 0, "quarantine_resolution_present");
+  ensure(data.candidateEventOrphans === 0 && data.candidateEventContractMismatches === 0,
+    "candidate_event_lane_integrity_invalid");
   return {
     current,
     continuationMode: continuingActiveCycle
@@ -400,7 +466,12 @@ export async function readCandidateValidationCycleObservation(client, rawInput) 
     ensure(current.approvedReleaseId === input.nextReleaseId, "observation_release_mismatch");
     ensure(current.phase === "shadow_capture" && current.writeFrozen === false,
       "observation_cycle_not_active");
-    ensure(data.unresolved === 0, "observation_unresolved_outbox");
+    ensure(data.legacyUnresolved === 0, "observation_unresolved_outbox");
+    ensure(data.legacyClaimed === 0 && data.legacyRetryWait === 0
+        && data.legacyQuarantined === 0 && data.otherSourceUnresolved === 0,
+    "observation_source_lane_not_clean");
+    ensure(data.candidateEventOrphans === 0 && data.candidateEventContractMismatches === 0,
+      "observation_candidate_event_integrity_invalid");
     await client.query("COMMIT");
     return {
       schemaVersion: "candidate-validation-cycle-database-snapshot.v1",
@@ -410,8 +481,8 @@ export async function readCandidateValidationCycleObservation(client, rawInput) 
       phase: current.phase,
       epoch: current.epoch,
       deadlineAt: current.deadlineAt,
-      completedWrites: data.completed,
-      unresolvedOutbox: data.unresolved,
+      completedWrites: data.legacyCompleted,
+      unresolvedOutbox: data.legacyUnresolved,
       activeCycles: active.length,
     };
   } catch (error) {
@@ -502,7 +573,3 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     process.exitCode = 1;
   });
 }
-import { rename, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import pg from "pg";

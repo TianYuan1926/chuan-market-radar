@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const path = "scripts/production/candidate-cycle-continuation/production-runner.sh";
 
-test("runner preserves rollback images and performs control continuation before service verification", async () => {
+test("runner preserves the Web rollback image and starts from an absent Candidate worker", async () => {
   await execFileAsync("bash", ["-n", path]);
   const { stdout } = await execFileAsync("bash", [path], {
     env: { ...process.env, CANDIDATE_CYCLE_CONTINUATION_MODE: "dry_run" },
@@ -15,12 +15,14 @@ test("runner preserves rollback images and performs control continuation before 
   assert.match(stdout, /DRY-RUN: no production Git, image, environment, database control or service mutation/u);
   const source = await readFile(path, "utf8");
   for (const token of [
-    "rollbackWebImageRef", "rollbackWorkerImageRef", "control-preflight", "control-continue",
+    "rollbackWebImageRef", "candidate_baseline_worker_not_absent", "control-preflight", "control-continue",
     "render-disabled-env", "control-rollback", "candidate-shadow-worker", "production-check.sh",
-    "observation-checkpoint", "systemd-run", "RuntimeMaxSec=260000",
+    "observation-checkpoint", "systemd-run", "RuntimeMaxSec=260000", "/runtime/env.production",
+    "ROLLBACK_INCOMPLETE_LEASE_RETAINED",
   ]) assert.match(source, new RegExp(token, "u"));
   assert.ok(source.indexOf("control-continue") < source.indexOf("control-continuation-redacted.json"));
   assert.doesNotMatch(source, /docker compose down|docker volume rm|git reset --hard|DROP TABLE|TRUNCATE/u);
+  assert.doesNotMatch(source, /rollbackWorkerImageRef|rollback_candidate_worker_missing/u);
 });
 
 test("rollback never reactivates the expired old cycle", async () => {

@@ -22,6 +22,9 @@ test("deadline reset threshold reduction and production claims fail governance",
     (contract) => { contract.continuationBoundary.oldDeadlineImmutable = false; },
     (contract) => { contract.continuationBoundary.newCycleMaximumHours = 96; },
     (contract) => { contract.continuationBoundary.observationWindowShortened = true; },
+    (contract) => { contract.problemProof.legacySourceUnresolved = 1; },
+    (contract) => { contract.problemProof.candidateEventOrphans = 1; },
+    (contract) => { contract.continuationBoundary.candidateEventLanePreserved = false; },
   ]) {
     const contract = structuredClone(await loadCandidateValidationCycleContinuationContract());
     mutate(contract);

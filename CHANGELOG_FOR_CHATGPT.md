@@ -5799,3 +5799,45 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只刷新并执行 source-lane-aware 的相邻 validation cycle continuation production packet。
+
+## 2026-07-18 / WP-G0.2 Validation Cycle Continuation Source-Lane-Aware Production Refresh
+
+### 本轮目标
+
+把旧 Cycle-2 生产包刷新到当前真实的 `legacy/frozen epoch4`、Candidate Worker absent 和双 outbox source-lane 形态，阻止旧假设进入生产。
+
+### 修改范围
+
+- 刷新 continuation runner、Bundle、生产 runner、合同、治理和测试。
+- Activation 证据改为绑定原始 commit/release/migration/epoch3；当前生产身份单独绑定 epoch4。
+- DB snapshot 拆分 legacy source 与 Candidate event 通道，事件 pending 必须完整保留。
+- 修复 staged runner 从目标镜像 `/app/package.json` 加载 `pg`、生产 env 精确单文件只读挂载、Worker absent 基线和失败回滚。
+- 自动回滚不再依赖 Candidate Worker 容器仍存在；回滚不完整时保留租约并拒绝伪报 PASS。
+- 未修改 migration、frontend、公开 API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis、scanner、Caddy、env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的数据生命周期地基；不改变全市场发现、深扫、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- production packet 24/24、core continuation 28/28、governance 2/2、Autonomy 31/31：PASS。
+- PostgreSQL 16 首轮因 SQL alias 合同错误 FAIL；修复后第二轮 PASS，migration 1-10、旧 deadline immutable、Candidate data/event lane preserved、single active cycle 和 rollback 均通过。
+- typecheck、零警告 lint、test:market、build、Golden 16/16 和三项安全门禁：PASS。
+- 两轮完整自治总门禁均 15/15 PASS、`worktreeUnchanged=true`；最终动态 evidence 不回写 tracked 文档，提交资格由无后续修改的 `autonomy:verify` 证明。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+未部署、未连接生产。当前只是本地刷新包，生产仍为 `legacy/frozen epoch4`、Candidate Worker absent、Web/scanner ready/fresh 的最近只读基线。
+
+### 风险与遗留问题
+
+- G0 主步骤仍为 7；本地 PASS 不等于 Cycle-2 已生产启动。
+- 仍需无后续修改的最终动态门禁、clean commit、push、提交后 commit-bound gate、新鲜生产只读 preflight、确定性 Bundle/request 和受控生产执行。
+- Cycle-2 启动后仍需真实累计至少 10,000 completed writes、至少 1,800 秒、至少 7 样本和两次推进，不能缩短或伪造。
+- 系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成本刷新包的 commit-bound 生产 Cycle-2 启动与真实累计，不进入 Shadow Verify 或 Canonical Compat。

@@ -22,7 +22,22 @@
     "activationSamplesExact": 289,
     "minimumActivationHours": 24,
     "activationEvidenceRecomputed": true,
-    "unresolvedOutboxMaximum": 0,
+    "currentProductionSourcePhase": "legacy",
+    "currentProductionWriteFrozen": true,
+    "currentProductionAuthorityEpoch": 4,
+    "activeCyclesExact": 0,
+    "candidateWorkerBaseline": "absent",
+    "candidateEpisodesExact": 543,
+    "candidateEventsExact": 2957,
+    "candidateCheckpointsExact": 0,
+    "candidateOutcomesExact": 0,
+    "candidateOutboxExact": 5914,
+    "legacySourceCompletedExact": 2957,
+    "legacySourceUnresolvedMaximum": 0,
+    "candidateEventPendingExact": 2957,
+    "candidateEventNonPendingExact": 0,
+    "candidateEventOrphansExact": 0,
+    "candidateEventContractMismatchesExact": 0,
     "productionHealth": "ready_fresh",
     "productionGit": "clean_detached_exact",
     "newExactRequestRequired": true
@@ -53,8 +68,9 @@
       "shadow_capture",
       "legacy"
     ],
-    "productionPacketSourcePhase": "shadow_capture",
-    "unresolvedOutboxMaximum": 0,
+    "productionPacketSourcePhase": "legacy",
+    "legacySourceUnresolvedMaximum": 0,
+    "candidateEventLanePreserved": true,
     "oldCycleRetained": true,
     "allCandidateCountsPreserved": true
   },
@@ -63,7 +79,9 @@
     "freezeNewCycle": true,
     "disableCandidateFlags": true,
     "stopCandidateWorker": true,
-    "restoreGitAndImages": true,
+    "restoreGit": true,
+    "restoreWebImage": true,
+    "restoreWorkerBaselineAbsent": true,
     "legacyAuthorityRetained": true,
     "databaseBusinessRowsDeleted": false
   },
@@ -89,7 +107,7 @@
       "scripts/production/candidate-cycle-continuation/runner.mjs"
     ],
     "fileCount": 6,
-    "sha256": "0ae9307ea666e63baab5f417796100b55c163cfd6573386ec23a741b1ee9e4fb"
+    "sha256": "8cfb2ade154ed1d4cd8825c53f725b7dbd0db8e34f8d046690cef390a41634a0"
   },
   "forbidden": [
     "threshold_lowering",

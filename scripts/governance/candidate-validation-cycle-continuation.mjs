@@ -54,6 +54,18 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.dualReadObservationMinimumHours !== 24
       || problem.canonicalCompatObservationMinimumHours !== 24
       || problem.readObservationWindowsSeparate !== true
+      || problem.currentProductionPhase !== "legacy"
+      || problem.currentProductionWriteFrozen !== true
+      || problem.currentProductionAuthorityEpoch !== 4
+      || problem.currentProductionActiveCycles !== 0
+      || problem.currentProductionCandidateWorker !== "absent"
+      || problem.legacySourceCompleted !== 2_957
+      || problem.legacySourceUnresolved !== 0
+      || problem.candidateEventPending !== 2_957
+      || problem.candidateEventNonPending !== 0
+      || problem.candidateEventOrphans !== 0
+      || problem.candidateEventContractMismatches !== 0
+      || problem.activationEvidenceMustRecomputeFromOriginal289Samples !== true
       || problem.currentSingleCycleCanProveAllExitGates !== false) {
     violations.push("problem_proof");
   }
@@ -66,7 +78,8 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     oldDeadlineImmutable: true,
     newCycleMaximumHours: 72,
     singleActiveCycleRequired: true,
-    unresolvedOutboxMaximum: 0,
+    legacySourceUnresolvedMaximum: 0,
+    candidateEventLanePreserved: true,
     candidateBusinessDataPreserved: true,
     sameSerializableTransactionRequired: true,
     tableLockRequired: true,
@@ -102,6 +115,8 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     "unresolved_outbox_blocks_cycle_continuation", "retired_cycle_deadline_mutated",
     "candidate_data_changed_during_cycle_continuation", "thresholdChanged: false",
     "start_adjacent_from_retired", "current_cycle_not_retired_legacy",
+    "source_type='legacy_scan_candidate'", "source_type='candidate_episode_event'",
+    'applicationRoot = "/app"', 'requireCandidate("pg")',
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   if (!compose.includes("CANDIDATE_RUNTIME_MIGRATION_ID: ${CANDIDATE_RUNTIME_MIGRATION_ID:-candidate-episode-v1}")) {
     violations.push("compose_cycle_identity_missing");

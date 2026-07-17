@@ -16,6 +16,9 @@ test("production packet never mutates scanner Redis migrations or canonical auth
     "backtest:formal",
   ]) assert.doesNotMatch(source, new RegExp(forbidden, "u"));
   assert.match(source, /service_allowlist=web,candidate-shadow-worker/u);
+  assert.match(source, /candidate_baseline_worker_not_absent/u);
+  assert.match(source, /ROLLBACK_INCOMPLETE_LEASE_RETAINED/u);
+  assert.doesNotMatch(source, /rollbackWorkerImageRef/u);
 });
 
 test("observer retains evidence before exact temporary cleanup", async () => {

@@ -2,24 +2,32 @@
 
 ## 目标
 
-把不可变 Candidate 验证周期续接实现封装为会话独立、一次授权、精确身份绑定、自动降级回滚和持续留证的生产执行包。
+把不可变 Candidate 验证周期续接实现按当前生产真值重新封装为会话独立、一次授权、精确身份绑定、自动降级回滚和持续留证的生产执行包。
 
 ## 不可降低门槛
 
-- 当前 Activation 必须由 289 个原始样本重算为至少 24 小时 PASS。
+- 原 Activation 必须使用其原始 commit、epoch 3、migration 和 release 身份，由 289 个原始样本重算为至少 24 小时 PASS；不能用当前 Legacy epoch 4 身份冒充。
 - 每个 cycle 最长仍为 72 小时，旧 `started_at/deadline_at` 永远不可修改。
 - Reconciliation 最低仍为 10,000 条真实 completed writes 和 0 difference。
 - Shadow Verify 与 Canonical Compat 仍各自需要独立 24 小时窗口。
 
+## 当前生产前提
+
+- 当前控制行必须精确为 `candidate-episode-v1 / legacy / frozen / epoch 4`，active cycle 必须为 0。
+- Candidate Worker 必须完全缺席；基线只保留 Web 回滚镜像，不得伪造不存在的 Worker 基线镜像。
+- `legacy_scan_candidate` 必须是 completed 2,957、unresolved 0。
+- `candidate_episode_event` 必须是 pending 2,957、non-pending 0、orphan 0、contract mismatch 0，并在续接事务前后保持不变。
+- Candidate 总计数必须仍为 episodes 543、events 2,957、outbox 5,914、checkpoints 0、outcomes 0。
+
 ## 生产事务
 
-执行入口使用 transient systemd unit。事务只允许精确 fetch/checkout 目标提交、保留当前 Web/Worker 镜像、构建并重建 Web 与 candidate-shadow-worker、调用既有 control procedure 原子续接周期、切换非敏感 cycle/release 环境和启动只读 observer。
+执行入口使用 transient systemd unit。事务只允许精确 fetch/checkout 目标提交、保留当前 Web 镜像、构建并重建 Web 与 candidate-shadow-worker、调用既有 control procedure 原子启动严格相邻的 `candidate-episode-v1-cycle-2`、切换非敏感 cycle/release 环境和启动只读 observer。
 
-底层 continuation core 同时验证“退役 active 后启动相邻周期”和“从最新 frozen Legacy 启动相邻周期”，避免容量回滚后形成生命周期死路；本生产包仍只允许从当前 Activation 的 `shadow_capture` 源周期执行，冻结态重试必须使用新的动态证据与新执行包，不能复用本次授权。
+底层 continuation core 同时验证“退役 active 后启动相邻周期”和“从最新 frozen Legacy 启动相邻周期”，避免容量回滚后形成生命周期死路；本刷新包只允许从当前冻结的 Legacy 源周期启动，旧 `shadow_capture` 假设已作废。所有动态证据和授权都必须在 90 分钟窗口内重新生成，不能复用旧请求。
 
 ## 失败边界
 
-任何身份、健康、租约、outbox、deadline、数据计数或服务验证失败，必须冻结新 cycle、停止 Candidate worker、关闭全部 Candidate flag、恢复旧 Git 与镜像。旧 cycle 不得复活，Legacy 始终保留权威。
+任何身份、健康、租约、来源通道、事件完整性、deadline、数据计数或服务验证失败，必须冻结新 cycle、停止并删除 Candidate Worker、关闭全部 Candidate flag、恢复旧 Git 与 Web 镜像。即使 Worker 已自行消失也必须继续回滚；若回滚不完整，生产租约必须保留并报告失败，不能伪报 `ROLLBACK_PASS`。旧 cycle 不得复活，Legacy 始终保留权威。
 
 ## 真值
 

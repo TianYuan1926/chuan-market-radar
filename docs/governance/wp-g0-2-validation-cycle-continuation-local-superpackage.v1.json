@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wp-g0.2-validation-cycle-continuation-local-superpackage.v1",
   "packageId": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-LOCAL-SUPERPACKAGE",
-  "status": "local_implementation_production_not_connected_not_executed",
+  "status": "source_lane_aware_production_refresh_in_progress_not_executed",
   "productionAuthorization": false,
   "productionConnected": false,
   "productionExecuted": false,
@@ -14,11 +14,19 @@
     "canonicalCompatObservationMinimumHours": 24,
     "readObservationWindowsSeparate": true,
     "currentProductionCycle": "candidate-episode-v1",
-    "currentProductionPhase": "shadow_capture",
-    "currentProductionAuthorityEpoch": 3,
+    "currentProductionPhase": "legacy",
+    "currentProductionWriteFrozen": true,
+    "currentProductionAuthorityEpoch": 4,
     "currentProductionDeadlineAt": "2026-07-19T01:38:00.099Z",
-    "latestReadOnlySampleCount": 78,
-    "latestReadOnlyCompletedWrites": 1064,
+    "currentProductionActiveCycles": 0,
+    "currentProductionCandidateWorker": "absent",
+    "legacySourceCompleted": 2957,
+    "legacySourceUnresolved": 0,
+    "candidateEventPending": 2957,
+    "candidateEventNonPending": 0,
+    "candidateEventOrphans": 0,
+    "candidateEventContractMismatches": 0,
+    "activationEvidenceMustRecomputeFromOriginal289Samples": true,
     "currentSingleCycleCanProveAllExitGates": false
   },
   "continuationBoundary": {
@@ -35,7 +43,8 @@
     "oldDeadlineImmutable": true,
     "newCycleMaximumHours": 72,
     "singleActiveCycleRequired": true,
-    "unresolvedOutboxMaximum": 0,
+    "legacySourceUnresolvedMaximum": 0,
+    "candidateEventLanePreserved": true,
     "candidateBusinessDataPreserved": true,
     "sameSerializableTransactionRequired": true,
     "tableLockRequired": true,
@@ -74,7 +83,7 @@
       "src/lib/candidate-episode/shadow-capture-runtime.ts"
     ],
     "fileCount": 12,
-    "sha256": "cd14e7ca814b60be3de10f34a4ec21c830c9556691bdd8a6a0b73e40240fa36f"
+    "sha256": "be0dfd38f56213310d506312da028b29683895c4ea7fe1089967ce534b6c1a53"
   },
   "localPostgres16Rehearsal": {
     "oldDeadlineImmutable": true,
@@ -104,5 +113,5 @@
     "future_outcome_production_input",
     "formal_backtest"
   ],
-  "nextPackage": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-RUNNER-AND-OBSERVATION"
+  "nextPackage": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-SOURCE-LANE-CLASSIFICATION"
 }

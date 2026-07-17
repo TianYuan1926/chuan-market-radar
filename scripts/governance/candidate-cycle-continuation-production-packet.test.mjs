@@ -37,11 +37,16 @@ test("threshold lowering deadline relaxation and missing rollback fail governanc
         ...current.contract.databaseBoundary,
         oldDeadlineMutationAllowed: true,
       },
+      prerequisites: {
+        ...current.contract.prerequisites,
+        legacySourceUnresolvedMaximum: 2_957,
+      },
     },
     runner: current.runner.replaceAll("control-rollback", "control-disabled"),
   };
   const violations = evaluateProductionPacketGovernance(degraded);
   assert.ok(violations.includes("write_threshold_changed"));
   assert.ok(violations.includes("database_boundary_relaxed"));
+  assert.ok(violations.includes("source_lane_prerequisites_changed"));
   assert.ok(violations.includes("runner_guard_missing:control-rollback"));
 });

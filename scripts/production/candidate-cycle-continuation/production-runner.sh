@@ -76,7 +76,6 @@ PROFILE_COMPOSE=(sudo -n "${IDENTITY_WRAPPER}" --env-file "${BASE_ENV_FILE}" --e
 APPROVED_TARGET="$(jq -r '.targetCommit' "${REQUEST_FILE}")"
 ROLLBACK_COMMIT="$(jq -r '.currentProductionCommit' "${REQUEST_FILE}")"
 ROLLBACK_WEB_REF="$(jq -r '.rollbackWebImageRef' "${REQUEST_FILE}")"
-ROLLBACK_WORKER_REF="$(jq -r '.rollbackWorkerImageRef' "${REQUEST_FILE}")"
 OBSERVER_UNIT="$(jq -r '.observerUnitName' "${REQUEST_FILE}")"
 
 [[ -d "${ROOT_DIR}/.git" && -z "$(git -C "${ROOT_DIR}" status --porcelain)" \
@@ -93,14 +92,19 @@ else
     || fail production_rollback_source_identity_mismatch
 fi
 WEB_CONTAINER="$("${COMPOSE[@]}" ps -q web)"
-WORKER_CONTAINER="$("${PROFILE_COMPOSE[@]}" ps -q candidate-shadow-worker)"
-[[ -n "${WEB_CONTAINER}" && -n "${WORKER_CONTAINER}" ]] || fail production_candidate_runtime_missing
+WORKER_CONTAINERS="$(${DOCKER[@]} ps -aq \
+  --filter 'label=com.docker.compose.project=chuan-market-radar' \
+  --filter 'label=com.docker.compose.service=candidate-shadow-worker')"
+[[ -n "${WEB_CONTAINER}" ]] || fail production_web_runtime_missing
 WEB_IMAGE="$(${DOCKER[@]} inspect "${WEB_CONTAINER}" --format '{{.Image}}')"
-WORKER_IMAGE="$(${DOCKER[@]} inspect "${WORKER_CONTAINER}" --format '{{.Image}}')"
+RUNTIME_NETWORK="$(${DOCKER[@]} inspect "${WEB_CONTAINER}" \
+  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}}' | head -n 1)"
+[[ -n "${RUNTIME_NETWORK}" ]] || fail production_network_identity_missing
 if [[ "${RUNNER_MODE}" == "production_continue" ]]; then
-  [[ "${WEB_IMAGE}" == "$(jq -r '.currentWebImageId' "${REQUEST_FILE}")" \
-    && "${WORKER_IMAGE}" == "$(jq -r '.currentWorkerImageId' "${REQUEST_FILE}")" ]] \
+  [[ "${WEB_IMAGE}" == "$(jq -r '.currentWebImageId' "${REQUEST_FILE}")" ]] \
     || fail production_image_identity_mismatch
+  [[ "$(jq -r '.currentWorkerState' "${REQUEST_FILE}")" == "absent" \
+    && -z "${WORKER_CONTAINERS}" ]] || fail candidate_baseline_worker_not_absent
 fi
 
 run_node() {
@@ -119,7 +123,7 @@ run_node() {
 }
 database_runner() {
   local command="$1" image="$2"
-  ${DOCKER[@]} run --rm --network "$(${DOCKER[@]} inspect "${WEB_CONTAINER}" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}}' | head -n 1)" \
+  ${DOCKER[@]} run --rm --network "${RUNTIME_NETWORK}" \
     --read-only --cap-drop ALL --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
     --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
     --mount "type=bind,src=${SECURE_ROOT},dst=${SECURE_ROOT},readonly" \
@@ -145,6 +149,8 @@ CONTROL_CONTINUED=false
 ENV_SWITCHED=false
 GIT_SWITCHED=false
 WEB_RECREATE_ATTEMPTED=false
+TARGET_WEB_IMAGE=""
+TARGET_WORKER_IMAGE=""
 
 run_production_check() {
   ROOT_DIR_OVERRIDE="${ROOT_DIR}" BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
@@ -156,43 +162,60 @@ run_production_check() {
 
 bounded_rollback() {
   local rollback_failed=false
+  local rollback_database_image="${TARGET_WEB_IMAGE:-${WEB_IMAGE}}"
   echo "cycle continuation rollback: freezing new cycle and restoring Legacy authority" >&2
   [[ "${LEASE_ACQUIRED}" != "true" ]] || lease_event safety-checkpoint --checkpoint rollback || true
   "${PROFILE_COMPOSE[@]}" stop candidate-shadow-worker >/dev/null 2>&1 || true
   "${PROFILE_COMPOSE[@]}" rm -f candidate-shadow-worker >/dev/null 2>&1 || true
   if [[ "${CONTROL_CONTINUED}" == "true" ]]; then
-    database_runner control-rollback "${WEB_IMAGE}" \
+    database_runner control-rollback "${rollback_database_image}" \
       > "${EVIDENCE_DIRECTORY}/control-rollback-redacted.json" || rollback_failed=true
   fi
   if [[ -f "${ENV_BACKUP}" ]]; then
-    ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
-      --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
-      --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
-      --mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}" \
-      --entrypoint node "${WEB_IMAGE}" "${RUNNER_MODULE}" render-disabled-env \
-      --request "${REQUEST_FILE}" --source "${ENV_BACKUP}" --output "${DISABLED_ENV}" >/dev/null \
-      || rollback_failed=true
-    [[ ! -f "${DISABLED_ENV}" ]] || { match_file_identity "${ENV_FILE}" "${DISABLED_ENV}"; mv -f "${DISABLED_ENV}" "${ENV_FILE}"; }
+    if [[ "${CONTROL_CONTINUED}" == "true" ]]; then
+      ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
+        --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
+        --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
+        --mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}" \
+        --entrypoint node "${rollback_database_image}" "${RUNNER_MODULE}" render-disabled-env \
+        --request "${REQUEST_FILE}" --source "${ENV_BACKUP}" --output "${DISABLED_ENV}" >/dev/null \
+        || rollback_failed=true
+      [[ ! -f "${DISABLED_ENV}" ]] \
+        || { match_file_identity "${ENV_FILE}" "${DISABLED_ENV}"; mv -f "${DISABLED_ENV}" "${ENV_FILE}"; }
+    else
+      cp -p "${ENV_BACKUP}" "${ENV_FILE}" || rollback_failed=true
+    fi
   fi
   ${DOCKER[@]} tag "${ROLLBACK_WEB_REF}" chuan-market-radar-web:latest || rollback_failed=true
-  ${DOCKER[@]} tag "${ROLLBACK_WORKER_REF}" chuan-market-radar-candidate-shadow-worker:latest || rollback_failed=true
   WEB_RECREATE_ATTEMPTED=true
   "${COMPOSE[@]}" up -d --no-deps --no-build --force-recreate web || rollback_failed=true
   git -C "${ROOT_DIR}" checkout --detach "${ROLLBACK_COMMIT}" >/dev/null 2>&1 || rollback_failed=true
   [[ -z "$(git -C "${ROOT_DIR}" status --porcelain)" \
     && "$(git -C "${ROOT_DIR}" rev-parse HEAD)" == "${ROLLBACK_COMMIT}" ]] || rollback_failed=true
+  [[ -z "$(${DOCKER[@]} ps -aq \
+    --filter 'label=com.docker.compose.project=chuan-market-radar' \
+    --filter 'label=com.docker.compose.service=candidate-shadow-worker')" ]] \
+    || rollback_failed=true
   run_production_check >/dev/null 2>&1 || rollback_failed=true
-  if [[ "${LEASE_ACQUIRED}" == "true" && "${LEASE_RELEASED}" != "true" ]]; then
-    lease_event release --outcome ROLLBACK_PASS || rollback_failed=true
-    LEASE_RELEASED=true
+  if [[ "${rollback_failed}" == "false" \
+    && "${LEASE_ACQUIRED}" == "true" && "${LEASE_RELEASED}" != "true" ]]; then
+    if lease_event release --outcome ROLLBACK_PASS; then
+      LEASE_RELEASED=true
+    else
+      rollback_failed=true
+    fi
   fi
-  [[ "${rollback_failed}" == "false" ]] || fail automatic_rollback_incomplete
+  if [[ "${rollback_failed}" != "false" ]]; then
+    echo "ROLLBACK_INCOMPLETE_LEASE_RETAINED" >&2
+    return 1
+  fi
+  echo "ROLLBACK_PASS"
 }
 
 if [[ "${RUNNER_MODE}" == "automatic_rollback" ]]; then
   CONTROL_CONTINUED=true
   LEASE_ACQUIRED=true
-  bounded_rollback
+  bounded_rollback || fail automatic_rollback_incomplete
   echo "PASS_AUTOMATIC_ROLLBACK_TO_LEGACY_AUTHORITY"
   exit 0
 fi
@@ -201,18 +224,18 @@ database_runner control-preflight "${WEB_IMAGE}" > "${EVIDENCE_DIRECTORY}/contro
 cp -p "${ENV_FILE}" "${ENV_BACKUP}"
 chmod 600 "${ENV_BACKUP}"
 ${DOCKER[@]} tag "${WEB_IMAGE}" "${ROLLBACK_WEB_REF}"
-${DOCKER[@]} tag "${WORKER_IMAGE}" "${ROLLBACK_WORKER_REF}"
-[[ "$(${DOCKER[@]} image inspect "${ROLLBACK_WEB_REF}" --format '{{.Id}}')" == "${WEB_IMAGE}" \
-  && "$(${DOCKER[@]} image inspect "${ROLLBACK_WORKER_REF}" --format '{{.Id}}')" == "${WORKER_IMAGE}" ]] \
+[[ "$(${DOCKER[@]} image inspect "${ROLLBACK_WEB_REF}" --format '{{.Id}}')" == "${WEB_IMAGE}" ]] \
   || fail rollback_image_retention_mismatch
 
 rollback_on_failure() {
   local exit_code=$?
+  local rollback_exit=0
   [[ "${exit_code}" -ne 0 ]] || return
   trap - EXIT
   if [[ "${LEASE_ACQUIRED}" == "true" || "${GIT_SWITCHED}" == "true" ]]; then
-    bounded_rollback || true
+    bounded_rollback || rollback_exit=$?
   fi
+  [[ "${rollback_exit}" -eq 0 ]] || exit 98
   exit "${exit_code}"
 }
 trap rollback_on_failure EXIT
@@ -230,15 +253,26 @@ GIT_SWITCHED=true
   || fail target_checkout_invalid
 lease_event checkpoint --checkpoint target_checked_out
 "${PROFILE_COMPOSE[@]}" build web candidate-shadow-worker
+TARGET_WEB_IMAGE="$(${DOCKER[@]} image inspect chuan-market-radar-web:latest --format '{{.Id}}')"
+TARGET_WORKER_IMAGE="$(${DOCKER[@]} image inspect \
+  chuan-market-radar-candidate-shadow-worker:latest --format '{{.Id}}')"
+[[ "${TARGET_WEB_IMAGE}" =~ ^sha256:[0-9a-f]{64}$ \
+  && "${TARGET_WORKER_IMAGE}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || fail target_image_identity_invalid
+printf '{"schemaVersion":"candidate-cycle-target-images.v1","webImageId":"%s","workerImageId":"%s","secretsPrinted":false}\n' \
+  "${TARGET_WEB_IMAGE}" "${TARGET_WORKER_IMAGE}" \
+  > "${EVIDENCE_DIRECTORY}/target-images-redacted.json"
 ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
   --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
   --mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}" \
-  --entrypoint node "${WEB_IMAGE}" "${RUNNER_MODULE}" render-env \
-  --request "${REQUEST_FILE}" --source "${ENV_FILE}" --output "${TARGET_ENV}" >/dev/null
-"${PROFILE_COMPOSE[@]}" stop candidate-shadow-worker
-"${PROFILE_COMPOSE[@]}" rm -f candidate-shadow-worker
-database_runner control-continue "${WEB_IMAGE}" > "${EVIDENCE_DIRECTORY}/control-continuation-redacted.json"
+  --mount "type=bind,src=${ENV_FILE},dst=/runtime/env.production,readonly" \
+  --entrypoint node "${TARGET_WEB_IMAGE}" "${RUNNER_MODULE}" render-env \
+  --request "${REQUEST_FILE}" --source /runtime/env.production --output "${TARGET_ENV}" >/dev/null
+"${PROFILE_COMPOSE[@]}" stop candidate-shadow-worker >/dev/null 2>&1 || true
+"${PROFILE_COMPOSE[@]}" rm -f candidate-shadow-worker >/dev/null 2>&1 || true
+database_runner control-continue "${TARGET_WEB_IMAGE}" \
+  > "${EVIDENCE_DIRECTORY}/control-continuation-redacted.json"
 CONTROL_CONTINUED=true
 match_file_identity "${ENV_FILE}" "${TARGET_ENV}"
 mv -f "${TARGET_ENV}" "${ENV_FILE}"

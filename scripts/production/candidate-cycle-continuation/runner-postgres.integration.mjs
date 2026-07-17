@@ -56,8 +56,11 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
     const preflight = await preflightCandidateValidationCycleContinuation(client, input);
     assert.equal(preflight.status, "PASS_CYCLE_CONTINUATION_PREFLIGHT");
     assert.equal(preflight.productionMutation, false);
-    assert.equal(preflight.data.completed, 1);
-    assert.equal(preflight.data.unresolved, 0);
+    assert.equal(preflight.data.legacyCompleted, 1);
+    assert.equal(preflight.data.legacyUnresolved, 0);
+    assert.equal(preflight.data.candidateEventPending, 1);
+    assert.equal(preflight.data.candidateEventOrphans, 0);
+    assert.equal(preflight.data.candidateEventContractMismatches, 0);
     assert.equal(preflight.data.outbox, 2);
 
     const result = await continueCandidateValidationCycle(client, input);
@@ -70,7 +73,7 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
     assert.equal(result.previousCycle?.deadlineAt, oldDeadlineAt);
     assert.equal(result.activeCycle?.migrationId, input.nextMigrationId);
     assert.equal(result.activeCycle?.phase, "shadow_capture");
-    assert.equal(result.preservedData.completed, 1);
+    assert.equal(result.preservedData.legacyCompleted, 1);
 
     const proof = await client.query(`SELECT
       count(*) FILTER (WHERE phase <> 'legacy')::int AS active,
@@ -98,7 +101,7 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
     assert.equal(rollback.status, "PASS_VALIDATION_CYCLE_FROZEN_LEGACY_AUTHORITY");
     assert.equal(rollback.candidateRuntimeAllowed, false);
     assert.equal(rollback.legacyAuthorityRetained, true);
-    assert.equal(rollback.preservedData.completed, 1);
+    assert.equal(rollback.preservedData.legacyCompleted, 1);
     const rollbackProof = await client.query(`SELECT
       count(*) FILTER (WHERE phase <> 'legacy')::int AS active,
       count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired
@@ -122,7 +125,7 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
     assert.equal(retried.previousCycle?.phase, "legacy");
     assert.equal(retried.activeCycle?.migrationId, retryInput.nextMigrationId);
     assert.equal(retried.activeCycle?.phase, "shadow_capture");
-    assert.equal(retried.preservedData.completed, 1);
+    assert.equal(retried.preservedData.legacyCompleted, 1);
     const retryProof = await client.query(`SELECT
       count(*) FILTER (WHERE phase <> 'legacy')::int AS active,
       count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired

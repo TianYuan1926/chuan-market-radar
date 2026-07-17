@@ -20,14 +20,33 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
   if (contract.observation?.minimumComparedWrites !== 10_000) violations.push("write_threshold_changed");
   if (contract.prerequisites?.minimumActivationHours !== 24
       || contract.prerequisites?.activationSamplesExact !== 289) violations.push("activation_window_changed");
+  if (contract.prerequisites?.currentProductionSourcePhase !== "legacy"
+      || contract.prerequisites?.currentProductionWriteFrozen !== true
+      || contract.prerequisites?.currentProductionAuthorityEpoch !== 4
+      || contract.prerequisites?.activeCyclesExact !== 0
+      || contract.prerequisites?.candidateWorkerBaseline !== "absent"
+      || contract.prerequisites?.candidateEpisodesExact !== 543
+      || contract.prerequisites?.candidateEventsExact !== 2_957
+      || contract.prerequisites?.candidateCheckpointsExact !== 0
+      || contract.prerequisites?.candidateOutcomesExact !== 0
+      || contract.prerequisites?.candidateOutboxExact !== 5_914
+      || contract.prerequisites?.legacySourceCompletedExact !== 2_957
+      || contract.prerequisites?.legacySourceUnresolvedMaximum !== 0
+      || contract.prerequisites?.candidateEventPendingExact !== 2_957
+      || contract.prerequisites?.candidateEventNonPendingExact !== 0
+      || contract.prerequisites?.candidateEventOrphansExact !== 0
+      || contract.prerequisites?.candidateEventContractMismatchesExact !== 0) {
+    violations.push("source_lane_prerequisites_changed");
+  }
   if (contract.databaseBoundary?.oldDeadlineMutationAllowed !== false
       || contract.databaseBoundary?.candidateBusinessDataMutationAllowed !== false) {
     violations.push("database_boundary_relaxed");
   }
   for (const token of [
     "control-preflight", "control-continue", "control-rollback", "render-disabled-env",
-    "rollbackWebImageRef", "rollbackWorkerImageRef", "service_allowlist=web,candidate-shadow-worker",
-    "observation-checkpoint",
+    "rollbackWebImageRef", "candidate_baseline_worker_not_absent",
+    "service_allowlist=web,candidate-shadow-worker", "observation-checkpoint",
+    "/runtime/env.production", "ROLLBACK_INCOMPLETE_LEASE_RETAINED",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   for (const token of [
     "systemd-run", "RuntimeMaxSec=5400", "validate-request", "prepare-admin-url",
@@ -39,7 +58,7 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
   const combined = `${runner}\n${entrypoint}\n${observer}`;
   for (const forbidden of [
     "scanner-worker", "docker volume rm", "git reset --hard", "DROP TABLE", "TRUNCATE",
-    "CANDIDATE_EPISODE_CANONICAL_READ=true", "backtest:formal",
+    "CANDIDATE_EPISODE_CANONICAL_READ=true", "backtest:formal", "rollbackWorkerImageRef",
   ]) if (combined.includes(forbidden)) violations.push(`forbidden_runtime_token:${forbidden}`);
   return violations;
 }

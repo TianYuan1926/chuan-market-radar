@@ -36,21 +36,25 @@ function approvedManifest(template) {
 function runtimeFixture() {
   const activationRoot = "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-proof-release";
   return {
+    activationAuthorityEpoch: 3,
     activationCloseoutPath: `${activationRoot}/observation-closeout.json`,
     activationCloseoutSha256: "1".repeat(64),
+    activationCommit: "4".repeat(40),
     activationEvidencePath: `${activationRoot}/observation-final.json`,
     activationEvidenceSha256: "2".repeat(64),
+    activationMigrationId: "candidate-episode-v1",
+    activationReleaseId: "candidate-shadow-current-release",
     activationSamplesPath: `${activationRoot}/observation-samples.jsonl`,
     activationSamplesSha256: "3".repeat(64),
     baseEnvSha256: "5".repeat(64),
     composeSha256: "6".repeat(64),
-    currentAuthorityEpoch: 3,
+    currentAuthorityEpoch: 4,
     currentMigrationId: "candidate-episode-v1",
-    currentPhase: "shadow_capture",
+    currentPhase: "legacy",
     currentProductionCommit: "7".repeat(40),
     currentReleaseId: "candidate-shadow-current-release",
     currentWebImageId: `sha256:${"8".repeat(64)}`,
-    currentWorkerImageId: `sha256:${"9".repeat(64)}`,
+    currentWorkerState: "absent",
     identityOverridePath: "/var/lib/market-radar-ops/identity/candidate-override.yml",
     identityOverrideSha256: "a".repeat(64),
     identityWrapperPath: "/var/lib/market-radar-ops/identity/compose-wrapper",
@@ -61,7 +65,6 @@ function runtimeFixture() {
     preflightSha256: "d".repeat(64),
     productionEnvSha256: "c".repeat(64),
     rollbackWebImageRef: "market-radar-rollback/wp-g0-2-cycle-continuation:web-proof",
-    rollbackWorkerImageRef: "market-radar-rollback/wp-g0-2-cycle-continuation:worker-proof",
   };
 }
 
@@ -141,7 +144,7 @@ test("transport template is deterministic and excludes credentials and requests"
   }
 });
 
-test("request binds adjacent cycle activation evidence Git images env and standing grant", async () => {
+test("request binds a retired activation, adjacent cycle, absent worker, Git, image, env, and grant", async () => {
   const directory = await mkdtemp("/tmp/candidate-cycle-continuation-request-");
   try {
     const archive = join(directory, "packet.tar.gz");
@@ -167,6 +170,9 @@ test("request binds adjacent cycle activation evidence Git images env and standi
       { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
     );
     assert.equal(validated.nextMigrationId, "candidate-episode-v1-cycle-2");
+    assert.equal(validated.currentPhase, "legacy");
+    assert.equal(validated.currentWorkerState, "absent");
+    assert.equal(validated.activationAuthorityEpoch, 3);
     assert.match(validated.approvalDigest, /^sha256:[0-9a-f]{64}$/u);
     assert.deepEqual(validated.services, ["web", "candidate-shadow-worker"]);
     await assert.rejects(() => validateProductionExecutionRequest(
@@ -253,7 +259,7 @@ test("dynamic preflight is fresh read-only and exactly bound to production ident
       detachedHead: runtime.currentProductionCommit,
       worktreeClean: true,
       currentWebImageId: runtime.currentWebImageId,
-      currentWorkerImageId: runtime.currentWorkerImageId,
+      currentWorkerState: "absent",
       baseEnvSha256: runtime.baseEnvSha256,
       productionEnvSha256: runtime.productionEnvSha256,
       composeSha256: runtime.composeSha256,
@@ -262,10 +268,22 @@ test("dynamic preflight is fresh read-only and exactly bound to production ident
       currentMigrationId: runtime.currentMigrationId,
       currentAuthorityEpoch: runtime.currentAuthorityEpoch,
       currentReleaseId: runtime.currentReleaseId,
-      candidatePhase: "shadow_capture",
-      candidateDeadlineAt: "2026-07-19T00:00:00.000Z",
-      activeCycles: 1,
-      unresolvedOutbox: 0,
+      candidatePhase: "legacy",
+      candidateWriteFrozen: true,
+      candidateDeadlineAt: "2026-07-17T00:00:00.000Z",
+      activeCycles: 0,
+      candidateEpisodes: 543,
+      candidateEvents: 2_957,
+      candidateCheckpoints: 0,
+      candidateOutcomes: 0,
+      candidateOutbox: 5_914,
+      legacySourceCompleted: 2_957,
+      legacySourceUnresolved: 0,
+      candidateEventPending: 2_957,
+      candidateEventNonPending: 0,
+      candidateEventOrphans: 0,
+      candidateEventContractMismatches: 0,
+      otherSourceUnresolved: 0,
       healthLevel: "ready",
       scanFreshness: "fresh",
       database: "ready",
@@ -289,6 +307,30 @@ test("dynamic preflight is fresh read-only and exactly bound to production ident
     await assert.rejects(() => verifyDynamicPreflight({
       ...request, preflightSha256: sha256(degradedBytes),
     }), /preflight_health_invalid/u);
+
+    const runningWorkerBytes = Buffer.from(`${JSON.stringify({
+      ...preflight, currentWorkerState: "running",
+    })}\n`);
+    await writeFile(path, runningWorkerBytes, { mode: 0o600 });
+    await assert.rejects(() => verifyDynamicPreflight({
+      ...request, preflightSha256: sha256(runningWorkerBytes),
+    }), /preflight_binding_mismatch:currentWorkerState/u);
+
+    const legacyUnresolvedBytes = Buffer.from(`${JSON.stringify({
+      ...preflight, legacySourceUnresolved: 1,
+    })}\n`);
+    await writeFile(path, legacyUnresolvedBytes, { mode: 0o600 });
+    await assert.rejects(() => verifyDynamicPreflight({
+      ...request, preflightSha256: sha256(legacyUnresolvedBytes),
+    }), /preflight_legacy_source_unresolved/u);
+
+    const eventOrphanBytes = Buffer.from(`${JSON.stringify({
+      ...preflight, candidateEventOrphans: 1,
+    })}\n`);
+    await writeFile(path, eventOrphanBytes, { mode: 0o600 });
+    await assert.rejects(() => verifyDynamicPreflight({
+      ...request, preflightSha256: sha256(eventOrphanBytes),
+    }), /preflight_candidate_event_integrity_invalid/u);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -43,31 +43,34 @@ export const TRANSPORT_FILES = Object.freeze([
 ]);
 
 const REQUEST_KEYS = Object.freeze([
-  "activationCloseoutPath", "activationCloseoutSha256", "activationEvidencePath",
-  "activationEvidenceSha256", "activationSamplesPath", "activationSamplesSha256",
+  "activationAuthorityEpoch", "activationCloseoutPath", "activationCloseoutSha256",
+  "activationCommit", "activationEvidencePath", "activationEvidenceSha256",
+  "activationMigrationId", "activationReleaseId", "activationSamplesPath",
+  "activationSamplesSha256",
   "approvalDigest", "approvalExpiresAt", "approvalIssuedAt", "approvalRef",
   "approvedPacketCommit", "approvedPacketTree", "autonomyAuthorization",
   "autonomyTrustRoot", "baseEnvSha256", "composeSha256", "currentMigrationId",
-  "currentAuthorityEpoch", "currentPhase", "currentProductionCommit", "currentReleaseId", "currentWebImageId",
-  "currentWorkerImageId", "evidenceDirectory", "executeCycleContinuation",
+  "currentAuthorityEpoch", "currentPhase", "currentProductionCommit", "currentReleaseId",
+  "currentWebImageId", "currentWorkerState", "evidenceDirectory", "executeCycleContinuation",
   "identityOverridePath", "identityOverrideSha256", "identityWrapperPath",
   "identityWrapperSha256", "nextMigrationId", "nextReleaseId", "observerUnitName",
   "operator", "opsRoot", "packageId", "postgresAdminEnvPath", "productionEnvSha256",
   "preflightEvidencePath", "preflightSha256", "productionMutation", "productionRoot",
-  "rollbackWebImageRef", "rollbackWorkerImageRef",
+  "rollbackWebImageRef",
   "runnerUnitName", "secureRoot", "services", "sessionIndependentExecutionRequired",
   "stagingDirectory", "targetCommit", "targetTree", "temporaryArtifactCleanupRequired",
   "transportBundleSha256", "transportMethod",
 ]);
 const RUNTIME_KEYS = Object.freeze([
-  "activationCloseoutPath", "activationCloseoutSha256", "activationEvidencePath",
-  "activationEvidenceSha256", "activationSamplesPath", "activationSamplesSha256",
+  "activationAuthorityEpoch", "activationCloseoutPath", "activationCloseoutSha256",
+  "activationCommit", "activationEvidencePath", "activationEvidenceSha256",
+  "activationMigrationId", "activationReleaseId", "activationSamplesPath",
+  "activationSamplesSha256",
   "baseEnvSha256", "composeSha256", "currentAuthorityEpoch", "currentPhase",
   "currentMigrationId", "currentProductionCommit", "currentReleaseId", "currentWebImageId",
-  "currentWorkerImageId", "identityOverridePath", "identityOverrideSha256",
+  "currentWorkerState", "identityOverridePath", "identityOverrideSha256",
   "identityWrapperPath", "identityWrapperSha256", "nextMigrationId", "nextReleaseId",
   "preflightEvidencePath", "preflightSha256", "productionEnvSha256", "rollbackWebImageRef",
-  "rollbackWorkerImageRef",
 ]);
 const MANIFEST_KEYS = Object.freeze([
   "approvalEligible", "archiveFormat", "containsSecrets", "contractSha256", "fileSha256",
@@ -107,7 +110,7 @@ export function cycleContinuationBindingHashes(runtime, contract) {
       currentPhase: runtime.currentPhase,
       currentReleaseId: runtime.currentReleaseId,
       currentWebImageId: runtime.currentWebImageId,
-      currentWorkerImageId: runtime.currentWorkerImageId,
+      currentWorkerState: runtime.currentWorkerState,
       nextMigrationId: runtime.nextMigrationId,
       nextReleaseId: runtime.nextReleaseId,
     })),
@@ -125,7 +128,7 @@ export function cycleContinuationBindingHashes(runtime, contract) {
       currentProductionCommit: runtime.currentProductionCommit,
       currentReleaseId: runtime.currentReleaseId,
       currentWebImageId: runtime.currentWebImageId,
-      currentWorkerImageId: runtime.currentWorkerImageId,
+      currentWorkerState: runtime.currentWorkerState,
     })),
     observationContractSha256: sha256(canonicalJson(contract.observation)),
   };
@@ -182,7 +185,24 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.prerequisites?.activationSamplesExact !== 289
       || contract.prerequisites?.minimumActivationHours !== 24
       || contract.prerequisites?.activationEvidenceRecomputed !== true
-      || contract.prerequisites?.unresolvedOutboxMaximum !== 0) violations.push("prerequisites");
+      || contract.prerequisites?.currentProductionSourcePhase !== "legacy"
+      || contract.prerequisites?.currentProductionWriteFrozen !== true
+      || contract.prerequisites?.currentProductionAuthorityEpoch !== 4
+      || contract.prerequisites?.activeCyclesExact !== 0
+      || contract.prerequisites?.candidateWorkerBaseline !== "absent"
+      || contract.prerequisites?.candidateEpisodesExact !== 543
+      || contract.prerequisites?.candidateEventsExact !== 2_957
+      || contract.prerequisites?.candidateCheckpointsExact !== 0
+      || contract.prerequisites?.candidateOutcomesExact !== 0
+      || contract.prerequisites?.candidateOutboxExact !== 5_914
+      || contract.prerequisites?.legacySourceCompletedExact !== 2_957
+      || contract.prerequisites?.legacySourceUnresolvedMaximum !== 0
+      || contract.prerequisites?.candidateEventPendingExact !== 2_957
+      || contract.prerequisites?.candidateEventNonPendingExact !== 0
+      || contract.prerequisites?.candidateEventOrphansExact !== 0
+      || contract.prerequisites?.candidateEventContractMismatchesExact !== 0) {
+    violations.push("prerequisites");
+  }
   if (contract.execution?.runner !== "transient_systemd_unit"
       || contract.execution?.sessionIndependent !== true
       || contract.execution?.runtimeMaxSeconds !== 5_400
@@ -197,13 +217,17 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.databaseBoundary?.maximumActiveCycles !== 1
       || JSON.stringify(contract.databaseBoundary?.continuationCoreSourcePhases)
         !== JSON.stringify(["shadow_capture", "legacy"])
-      || contract.databaseBoundary?.productionPacketSourcePhase !== "shadow_capture") {
+      || contract.databaseBoundary?.productionPacketSourcePhase !== "legacy"
+      || contract.databaseBoundary?.legacySourceUnresolvedMaximum !== 0
+      || contract.databaseBoundary?.candidateEventLanePreserved !== true) {
     violations.push("database_boundary");
   }
   if (contract.rollback?.reactivateOldCycle !== false
       || contract.rollback?.freezeNewCycle !== true
       || contract.rollback?.disableCandidateFlags !== true
-      || contract.rollback?.restoreGitAndImages !== true
+      || contract.rollback?.restoreGit !== true
+      || contract.rollback?.restoreWebImage !== true
+      || contract.rollback?.restoreWorkerBaselineAbsent !== true
       || contract.rollback?.legacyAuthorityRetained !== true) violations.push("rollback_boundary");
   if (contract.observation?.minimumComparedWrites !== 10_000
       || contract.observation?.minimumStabilitySeconds !== 1_800
@@ -249,10 +273,10 @@ export async function verifyActivationEvidence(request) {
     "activation_samples_checksum_mismatch");
   const samples = samplesBytes.toString("utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
   const recomputed = evaluateObservationEvidence(samples, {
-    approvedCommit: request.currentProductionCommit,
-    authorityEpoch: request.currentAuthorityEpoch,
-    migrationId: request.currentMigrationId,
-    releaseId: request.currentReleaseId,
+    approvedCommit: request.activationCommit,
+    authorityEpoch: request.activationAuthorityEpoch,
+    migrationId: request.activationMigrationId,
+    releaseId: request.activationReleaseId,
   });
   const final = JSON.parse(finalBytes);
   const closeout = JSON.parse(closeoutBytes);
@@ -267,24 +291,29 @@ export async function verifyActivationEvidence(request) {
   return recomputed;
 }
 
-export async function verifyDynamicPreflight(request) {
+export async function verifyDynamicPreflight(request, suppliedContract = null) {
+  const contract = suppliedContract ?? JSON.parse(await readFile(resolve(process.cwd(), CONTRACT_PATH)));
   const bytes = await readFile(request.preflightEvidencePath);
   ensure(sha256(bytes) === request.preflightSha256, "preflight_checksum_mismatch");
   const preflight = JSON.parse(bytes);
   ensure(exactKeys(preflight, [
-    "activeCycles", "baseEnvSha256", "candidateDeadlineAt", "candidatePhase",
-    "composeSha256", "currentAuthorityEpoch", "currentMigrationId", "currentReleaseId",
-    "currentWebImageId", "currentWorkerImageId", "database", "detachedHead", "healthLevel",
+    "activeCycles", "baseEnvSha256", "candidateCheckpoints", "candidateDeadlineAt",
+    "candidateEventContractMismatches", "candidateEventNonPending", "candidateEventOrphans",
+    "candidateEventPending", "candidateEvents", "candidateEpisodes", "candidateOutbox",
+    "candidateOutcomes", "candidatePhase", "candidateWriteFrozen", "composeSha256",
+    "currentAuthorityEpoch", "currentMigrationId", "currentReleaseId",
+    "currentWebImageId", "currentWorkerState", "database", "detachedHead", "healthLevel",
     "identityOverrideSha256", "identityWrapperSha256", "observedAt", "productionEnvSha256",
+    "legacySourceCompleted", "legacySourceUnresolved", "otherSourceUnresolved",
     "productionMutation", "productionRoot", "redis", "scanFreshness", "schemaVersion",
-    "secretsPrinted", "status", "unresolvedOutbox", "worktreeClean",
+    "secretsPrinted", "status", "worktreeClean",
   ]), "preflight_shape_invalid");
   ensure(preflight.schemaVersion === "candidate-cycle-continuation-production-preflight.v1"
       && preflight.status === "PASS_READ_ONLY_PREFLIGHT"
       && preflight.productionMutation === false && preflight.secretsPrinted === false,
   "preflight_truth_invalid");
   for (const key of [
-    "productionRoot", "currentWebImageId", "currentWorkerImageId", "baseEnvSha256",
+    "productionRoot", "currentWebImageId", "currentWorkerState", "baseEnvSha256",
     "productionEnvSha256", "composeSha256", "identityWrapperSha256", "identityOverrideSha256",
     "currentMigrationId", "currentAuthorityEpoch", "currentReleaseId",
   ]) ensure(preflight[key] === request[key], `preflight_binding_mismatch:${key}`);
@@ -294,14 +323,33 @@ export async function verifyDynamicPreflight(request) {
       && preflight.database === "ready" && preflight.redis === "healthy",
   "preflight_health_invalid");
   ensure(preflight.candidatePhase === request.currentPhase
-      && preflight.candidatePhase === "shadow_capture" && preflight.activeCycles === 1
-      && preflight.unresolvedOutbox === 0, "preflight_candidate_invalid");
+      && preflight.candidatePhase === "legacy" && preflight.candidateWriteFrozen === true
+      && preflight.activeCycles === 0, "preflight_candidate_control_invalid");
+  ensure(preflight.currentWorkerState === "absent",
+    "preflight_candidate_worker_not_absent");
+  const prerequisites = contract.prerequisites ?? {};
+  ensure(preflight.candidateEpisodes === prerequisites.candidateEpisodesExact
+      && preflight.candidateEvents === prerequisites.candidateEventsExact
+      && preflight.candidateCheckpoints === prerequisites.candidateCheckpointsExact
+      && preflight.candidateOutcomes === prerequisites.candidateOutcomesExact
+      && preflight.candidateOutbox === prerequisites.candidateOutboxExact
+      && preflight.legacySourceCompleted === prerequisites.legacySourceCompletedExact,
+  "preflight_candidate_counts_invalid");
+  ensure(preflight.legacySourceUnresolved <= prerequisites.legacySourceUnresolvedMaximum,
+    "preflight_legacy_source_unresolved");
+  ensure(preflight.candidateEventPending === prerequisites.candidateEventPendingExact
+      && preflight.candidateEventNonPending === prerequisites.candidateEventNonPendingExact
+      && preflight.otherSourceUnresolved === 0,
+  "preflight_candidate_event_lane_invalid");
+  ensure(preflight.candidateEventOrphans === prerequisites.candidateEventOrphansExact
+      && preflight.candidateEventContractMismatches
+        === prerequisites.candidateEventContractMismatchesExact,
+  "preflight_candidate_event_integrity_invalid");
   const observedAt = parseTimestamp(preflight.observedAt, "preflight_observed_at_invalid");
   const issuedAt = parseTimestamp(request.approvalIssuedAt, "request_issued_at_invalid");
   ensure(observedAt <= issuedAt && issuedAt - observedAt <= 15 * 60_000,
     "preflight_not_fresh_for_approval");
-  ensure(parseTimestamp(preflight.candidateDeadlineAt, "preflight_deadline_invalid") > issuedAt,
-    "preflight_deadline_expired");
+  parseTimestamp(preflight.candidateDeadlineAt, "preflight_deadline_invalid");
   return preflight;
 }
 
@@ -391,7 +439,10 @@ export async function validateProductionExecutionRequest(
       && request.targetCommit === manifest.sourceCommit
       && request.targetTree === manifest.sourceTree,
   "request_packet_binding_mismatch");
-  for (const key of ["approvedPacketCommit", "approvedPacketTree", "currentProductionCommit", "targetCommit", "targetTree"]) {
+  for (const key of [
+    "activationCommit", "approvedPacketCommit", "approvedPacketTree", "currentProductionCommit",
+    "targetCommit", "targetTree",
+  ]) {
     assertHash(request[key], `request_${key}_invalid`, 40);
   }
   for (const key of [
@@ -399,14 +450,19 @@ export async function validateProductionExecutionRequest(
     "baseEnvSha256", "composeSha256", "identityOverrideSha256", "identityWrapperSha256",
     "productionEnvSha256",
   ]) assertHash(request[key], `request_${key}_invalid`);
-  for (const key of ["currentWebImageId", "currentWorkerImageId"]) {
+  for (const key of ["currentWebImageId"]) {
     assertHash(request[key]?.replace(/^sha256:/u, ""), `request_${key}_invalid`);
   }
   validateCycleContinuationInput(request);
-  ensure(request.currentPhase === "shadow_capture", "request_source_phase_not_activation");
-  ensure(Number.isSafeInteger(request.currentAuthorityEpoch)
-      && request.currentAuthorityEpoch >= 1 && request.currentAuthorityEpoch % 2 === 1,
+  ensure(request.currentPhase === "legacy", "request_source_phase_not_retired_legacy");
+  ensure(request.currentWorkerState === "absent", "request_current_worker_not_absent");
+  ensure(request.currentAuthorityEpoch === 4,
   "request_current_authority_epoch_invalid");
+  ensure(request.activationMigrationId === request.currentMigrationId
+      && request.activationReleaseId === request.currentReleaseId
+      && request.activationAuthorityEpoch === 3
+      && request.activationAuthorityEpoch + 1 === request.currentAuthorityEpoch,
+  "request_activation_retirement_identity_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/u.test(request.approvalDigest), "request_approval_digest_invalid");
   assertEvidencePath(request.activationEvidencePath, "observation-final\\.json",
     "activation_evidence_path_invalid");
@@ -428,8 +484,7 @@ export async function validateProductionExecutionRequest(
   ensure(/^market-radar-cycle-continuation-[a-z0-9][a-z0-9-]{7,48}$/u.test(request.runnerUnitName)
       && /^market-radar-cycle-observer-[a-z0-9][a-z0-9-]{7,48}$/u.test(request.observerUnitName),
   "request_unit_invalid");
-  ensure(request.rollbackWebImageRef.startsWith("market-radar-rollback/wp-g0-2-cycle-continuation:web-")
-      && request.rollbackWorkerImageRef.startsWith("market-radar-rollback/wp-g0-2-cycle-continuation:worker-"),
+  ensure(request.rollbackWebImageRef.startsWith("market-radar-rollback/wp-g0-2-cycle-continuation:web-"),
   "request_rollback_ref_invalid");
   ensure(request.identityWrapperPath.startsWith("/var/lib/market-radar-ops/")
       && request.identityOverridePath.startsWith("/var/lib/market-radar-ops/"),
@@ -447,7 +502,7 @@ export async function validateProductionExecutionRequest(
   ensure(request.approvalDigest === `sha256:${sha256(canonicalJson(request.autonomyAuthorization))}`,
     "request_approval_digest_binding_mismatch");
   if (verifyEvidence) {
-    await Promise.all([verifyActivationEvidence(request), verifyDynamicPreflight(request)]);
+    await Promise.all([verifyActivationEvidence(request), verifyDynamicPreflight(request, contract)]);
   }
   return request;
 }

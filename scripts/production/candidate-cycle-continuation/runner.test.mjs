@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  loadPgRuntime,
   renderCycleContinuationEnvironment,
   renderDisabledCandidateEnvironment,
   validateCycleContinuationInput,
@@ -28,6 +29,25 @@ test("cycle continuation requires an adjacent immutable cycle identity", () => {
       /candidate validation cycle continuation rejected|candidate_validation_cycle/,
     );
   }
+});
+
+test("database runtime resolves pg from the target image application root first", () => {
+  const seen = [];
+  const expected = { Client: class TestClient {} };
+  const loaded = loadPgRuntime({
+    applicationRoot: "/approved-app",
+    moduleUrl: "file:///packet/runner.mjs",
+    requireFactory(source) {
+      seen.push(source);
+      return (name) => {
+        assert.equal(name, "pg");
+        if (source === "/approved-app/package.json") return expected;
+        throw Object.assign(new Error("unexpected fallback"), { code: "MODULE_NOT_FOUND" });
+      };
+    },
+  });
+  assert.equal(loaded, expected);
+  assert.deepEqual(seen, ["/approved-app/package.json", "file:///packet/runner.mjs"]);
 });
 
 test("cycle continuation rejects weak release and approval identities", () => {
@@ -92,6 +112,23 @@ test("continuation can restart from an exactly frozen latest cycle without reviv
   assert.match(rendered, /CANDIDATE_SHADOW_WORKER_EXPECTED="true"/u);
   assert.match(rendered, /CANDIDATE_RUNTIME_MIGRATION_ID="candidate-episode-v1-cycle-3"/u);
   assert.match(rendered, /CANDIDATE_RUNTIME_RELEASE_ID="candidate-shadow-cycle-third"/u);
+});
+
+test("current production legacy epoch four can start only strict adjacent cycle two", () => {
+  const disabled = renderDisabledCandidateEnvironment(activeEnvironment, valid.currentMigrationId);
+  const currentProduction = {
+    ...valid,
+    currentAuthorityEpoch: 4,
+    currentPhase: "legacy",
+  };
+  assert.deepEqual(validateCycleContinuationInput(currentProduction), currentProduction);
+  const rendered = renderCycleContinuationEnvironment(disabled, currentProduction);
+  assert.match(rendered, /CANDIDATE_RUNTIME_MIGRATION_ID="candidate-episode-v1-cycle-2"/u);
+  assert.match(rendered, /CANDIDATE_RUNTIME_RELEASE_ID="candidate-shadow-cycle-next"/u);
+  assert.throws(() => validateCycleContinuationInput({
+    ...currentProduction,
+    currentAuthorityEpoch: 5,
+  }), /current_phase_epoch_mismatch|current_authority_epoch/u);
 });
 
 test("rollback environment disables every Candidate authority flag", () => {

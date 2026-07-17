@@ -1,6 +1,6 @@
 # WP-G0.2 Validation Cycle Continuation Local Superpackage v1
 
-状态：本地实现与 PostgreSQL 16 演练；生产未连接、未执行。
+状态：按 2026-07-18 生产只读证据刷新本地实现与 PostgreSQL 16 演练；本刷新包尚未连接生产、尚未执行。
 
 ## 为什么必须增加验证周期续接
 
@@ -14,11 +14,19 @@
 2. 旧周期 started_at、deadline_at 和全部 Candidate 业务数据永久保留。
 3. 新周期 ID 必须严格相邻；cycle 1 继续使用 `candidate-episode-v1`，后续使用 `candidate-episode-v1-cycle-N`。
 4. 任意时刻最多一个非 Legacy 周期。
-5. 未决 outbox 大于 0 时禁止续接。
+5. `legacy_scan_candidate` 来源通道必须为 2,957 条已完成、0 条未决；2,957 条 `candidate_episode_event` 待投递记录属于独立事件通道，必须原样保留，不能误当作待消费候选或删除。
 6. 新周期仍严格 72 小时；这不是重置旧 deadline。
 7. 任一步失败必须回滚整个事务，Legacy 始终保持权威。
 8. 10,000 条、三段 24 小时、RR 3:1、Risk Gate 和所有交易边界均不变。
 
+## 当前生产只读基线
+
+- `candidate-episode-v1` 已处于 `legacy / frozen / epoch 4`，当前 active cycle 为 0。
+- Candidate Worker 容器缺席；Web 与 scanner-worker 已恢复到健康基线。
+- Candidate 表计数为 episodes 543、events 2,957、outbox 5,914、checkpoints 0、outcomes 0。
+- `candidate_episode_event` 通道为 pending 2,957、non-pending 0、orphan 0、contract mismatch 0。
+- 新周期只能是严格相邻的 `candidate-episode-v1-cycle-2`，不能复活旧周期，也不能清理事件通道。
+
 ## 当前结论
 
-隔离 PostgreSQL 16 已证明旧 deadline 不变、已完成 outbox 和全部业务计数不变、旧周期冻结、新周期启动且 active cycle 始终为 1。当前不等于生产周期已续接，不等于 Reconciliation、Shadow Verify、WP-G0.2 或 G0 完成。
+隔离 PostgreSQL 16 必须再次证明旧 deadline 不变、来源通道与事件通道不变、旧周期冻结、新周期启动且 active cycle 始终为 1。当前不等于生产周期已续接，不等于 10,000 条真实写入已累计，也不等于 Reconciliation、Shadow Verify、WP-G0.2 或 G0 完成。
