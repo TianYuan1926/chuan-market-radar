@@ -45,7 +45,9 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
     violations.push("rollback_boundary_relaxed");
   }
   if (contract.execution?.scannerLockWaitSeconds !== 660
-      || contract.execution?.baselineHealthWaitSeconds !== 1_200) {
+      || contract.execution?.baselineHealthWaitSeconds !== 1_200
+      || contract.execution?.targetImageBuiltBeforeScannerPause !== true
+      || contract.execution?.databaseRunnerImage !== "target_web_image_with_pg") {
     violations.push("scanner_wait_boundary_relaxed");
   }
   for (const token of [

@@ -16,9 +16,9 @@
 
 ## 唯一允许的变化
 
-1. 停止 scanner；只读等待最长 660 秒让 Redis 的 600 秒扫描锁自然释放，禁止删除锁，超时即失败。
-2. 保留 Git、env、Web、scanner 镜像和非目标容器基线。
-3. 精确 fetch/checkout 已批准 target，构建临时 Web 与 Candidate worker。
+1. 保留 Git、env、Web、scanner 镜像和非目标容器基线。
+2. 在 scanner 仍在线时精确 fetch/checkout 已批准 target，构建临时 Web 与 Candidate worker；所有数据库 runner 命令只能使用包含 `pg` 的目标 Web 镜像。
+3. 停止 scanner；只读等待最长 660 秒让 Redis 的 600 秒扫描锁自然释放，禁止删除锁，超时即失败。
 4. 临时 env 开启 shadow consumer，同时设置 `CANDIDATE_EPISODE_DRAIN_ONLY=true`；source enqueue 必须 fail closed。
 5. control 从 epoch 4 临时进入 epoch 5；处理旧 pending 后停止 Candidate worker。
 6. 仅在 pending/claimed/retry_wait/quarantined/unresolved 全部归零且 outbox 总数未变时冻结为 legacy epoch 6。

@@ -47,6 +47,8 @@
     "runner": "transient_systemd_unit",
     "sessionIndependent": true,
     "runtimeMaxSeconds": 5400,
+    "targetImageBuiltBeforeScannerPause": true,
+    "databaseRunnerImage": "target_web_image_with_pg",
     "services": [
       "web",
       "scanner-worker",
@@ -129,7 +131,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "597abb94ac3192b8bdd9fe64f4a5f8841fe036b47eeb5ddf316766144d32a357",
+    "sha256": "e081261e5c0aa04b24145e41a9d1aa71733c415c6cd48d184c3eb356a2b245db",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

@@ -153,7 +153,7 @@
     "id": "WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION",
     "title": "Candidate legacy pending-only drain production packet",
     "lane": "localPreparation",
-    "status": "in_progress",
+    "status": "ready_for_gate",
     "objective": "建立会话无关、单次租约、commit和身份绑定的生产排空包；临时启用drain-only Web和Candidate consumer处理2957条旧pending，禁止source enqueue，随后冻结到epoch6并完整恢复生产基线与scanner。",
     "coreChainImpact": [
       "候选筛选",
@@ -244,7 +244,7 @@
       "目标Web代码必须提供drain-only source enqueue硬阻断，同时允许同一受控Candidate consumer处理旧pending",
       "生产请求必须绑定source commit/tree/gate、当前cec0b657生产Git/tree、当前Web和scanner镜像、Compose/env/identity wrapper与精确数据库快照",
       "只接受migration 1-10、candidate-episode-v1 legacy/frozen epoch4、同一release和pending=unresolved=2957的单一生产前置",
-      "mutation前必须停止scanner并最多只读等待660秒证明scan lock未持有，禁止删除Redis锁；drain期间outbox总数固定且任何新source outbox行都判FAIL",
+      "必须先在scanner仍在线时构建目标Web和Candidate镜像，随后停止scanner并最多只读等待660秒证明scan lock未持有；所有DB runner命令只能使用包含pg的目标Web镜像，禁止删除Redis锁；drain期间outbox总数固定且任何新source outbox行都判FAIL",
       "只允许control 4到5、启动临时Web与Candidate worker、旧pending完成、worker停止、control 5到6；cycle-2禁止启动",
       "任何retry_wait、quarantined、claimed残留、resolution、partial drain、payload失败或数据删除都触发自动冻结和服务基线回滚",
       "成功或回滚后必须恢复原Git、原env、原Web和scanner镜像、Candidate worker absent，并最多等待1200秒取得晚于执行前基线的新scanner completedAt、health ready/fresh、Postgres/Redis与非目标容器通过",
@@ -614,7 +614,7 @@
       "order": 48,
       "id": "WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION",
       "lane": "localPreparation",
-      "status": "in_progress",
+      "status": "ready_for_gate",
       "requiresExplicitApproval": false
     }
   ]

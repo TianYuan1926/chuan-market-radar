@@ -5580,3 +5580,46 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只完成并重试 `WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION`；不得合并 cycle-2。
+
+## 2026-07-17 / WP-G0.2 Pending Drain Target Image Preflight Remediation
+
+### 本轮目标
+
+如实收口第二次 production pending drain 的 `pg` 缺失失败，并保证新 DB runner 只在包含其运行依赖的目标 Web 镜像中执行。
+
+### 修改范围
+
+- 第二次执行绑定 commit `1856990852a3`、deterministic Bundle `ceaf387f...` 和单次 request `768402ec...`；远端 staging、双 SHA 与容器内 request 验证 PASS。
+- fencing token 15 在 `database-preflight` 因旧基线 Web 镜像缺少 `pg` 而失败；未打开 epoch、未启动 Candidate worker、未推进 pending。
+- runner 改为 scanner 仍在线时先 checkout/build 目标 Web 与 Candidate worker 镜像，随后停止 scanner，并用目标 Web 镜像执行 preflight；后续 open/snapshot/close/verify 本来就使用同一目标镜像。
+- 合同新增 `targetImageBuiltBeforeScannerPause=true` 与 `databaseRunnerImage=target_web_image_with_pg`，并冻结到新 runner artifact。
+- OrcaTerm 错误粘贴误装的唯一 `mailcap` 已精确 purge 并复核 absent；未 autoremove 原有包。
+- 未修改 migration、Candidate 数据逻辑、frontend、scan 排序、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis 数据、Compose、env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的生产排空执行地基；不生成信号，不改变市场发现、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- 旧 runner 生产事实证明 `ERR_MODULE_NOT_FOUND: pg`；新顺序回归明确拒绝 baseline Web preflight。
+- 生产包 20/20、旧 pending drain 12/12：PASS。
+- PostgreSQL 16 成功 drain 与失败 refreeze 双路径：PASS，sourceWritesAdded=0、productionConnected=false。
+- shell syntax、diff-check：PASS。
+- typecheck、lint、market、build、Golden、安全与完整自治门禁：待本轮后续执行，不能提前继承。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第二次生产执行 FAIL 但 rollback 完整：`ROLLBACK_PASS`、`leaseReleased=true`、全局 lease absent。数据库仍为 migration 10、legacy/frozen epoch4、completed=2,957、pending/unresolved=2,957；Web/scanner/Git/env 已恢复基线。当前顺序修复尚未 commit、push 或生产重试。
+
+### 风险与遗留问题
+
+- P0：生产 pending 仍为 2,957，不能减 G0 主步骤。
+- P1：当前修复仍需完整门禁、clean commit、提交后 gate、新 Bundle/request 和第三次执行。
+- P1：只有 pending=0、legacy/frozen epoch6、scanner ready/fresh、lease released、evidence closed 全部满足后，主步骤才能从 8 减为 7。
+- 系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成本修复的 commit-bound 生产重试，不进入 cycle-2。

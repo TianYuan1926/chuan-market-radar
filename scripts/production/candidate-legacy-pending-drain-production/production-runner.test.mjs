@@ -27,13 +27,18 @@ test("production runner dry-run performs no mutation", () => {
   assert.match(output, /DRY-RUN: no production Git, environment, database, Redis or service mutation/);
 });
 
-test("scanner is stopped and lock checked before the database epoch is opened", () => {
+test("target image is built before scanner pause and owns every database command", () => {
+  const checkout = runner.indexOf('FAILURE_PHASE="target-checkout-build"');
+  const build = runner.indexOf('build web candidate-shadow-worker');
   const stop = runner.indexOf('stop scanner-worker');
   const lock = runner.indexOf("wait_for_scan_lock_absent ||");
   const preflight = runner.indexOf('database_runner preflight');
   const open = runner.indexOf('database_runner open');
   const worker = runner.indexOf('up -d --no-deps --no-build candidate-shadow-worker');
-  assert.ok(stop > 0 && stop < lock && lock < preflight && preflight < open && open < worker);
+  assert.ok(checkout > 0 && checkout < build && build < stop
+    && stop < lock && lock < preflight && preflight < open && open < worker);
+  assert.match(runner, /database_runner preflight "\$\{TARGET_WEB_IMAGE\}"/u);
+  assert.doesNotMatch(runner, /database_runner preflight "\$\{BASELINE_WEB_IMAGE\}"/u);
 });
 
 test("scanner lock and baseline health waits cover the real production TTL and cadence", () => {

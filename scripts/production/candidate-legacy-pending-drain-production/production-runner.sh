@@ -308,26 +308,8 @@ ${DOCKER[@]} tag "${BASELINE_SCANNER_IMAGE}" "${ROLLBACK_SCANNER_REF}"
   && "$(${DOCKER[@]} image inspect "${ROLLBACK_SCANNER_REF}" --format '{{.Id}}')" == "${BASELINE_SCANNER_IMAGE}" ]] \
   || fail rollback_image_retention_failed
 
-FAILURE_PHASE="scanner-pause"
-MUTATED=true
-"${COMPOSE[@]}" stop scanner-worker
-SCANNER_STOPPED=true
-sleep 2
-REDIS_CONTAINER="$("${COMPOSE[@]}" ps -q redis)"
-[[ -n "${REDIS_CONTAINER}" ]] || fail redis_container_missing
-wait_for_scan_lock_absent || fail scanner_lock_still_present_after_wait
-
-FAILURE_PHASE="database-preflight"
-database_runner preflight "${BASELINE_WEB_IMAGE}" \
-  > "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json"
-jq -e '.status == "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT" and .pending == 2957 \
-  and .outboxTotal == 5914 and .sourceEpoch == 4 and .drainEpoch == 5 and .finalFrozenEpoch == 6' \
-  "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" >/dev/null \
-  || fail database_preflight_contract_failed
-jq '.snapshot' "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" > "${BEFORE_SNAPSHOT}"
-chmod 600 "${BEFORE_SNAPSHOT}"
-
 FAILURE_PHASE="target-checkout-build"
+MUTATED=true
 git -C "${ROOT_DIR}" fetch --no-tags origin "${TARGET_COMMIT}"
 [[ "$(git -C "${ROOT_DIR}" rev-parse FETCH_HEAD)" == "${TARGET_COMMIT}" ]] || fail fetched_commit_mismatch
 git -C "${ROOT_DIR}" checkout --detach "${TARGET_COMMIT}"
@@ -343,6 +325,24 @@ ${DOCKER[@]} tag "${TARGET_WEB_IMAGE}" "${TARGET_WEB_REF}"
 ${DOCKER[@]} tag "${TARGET_WORKER_IMAGE}" "${TARGET_WORKER_REF}"
 [[ "${TARGET_WEB_IMAGE}" != "${BASELINE_WEB_IMAGE}" && "${TARGET_WORKER_IMAGE}" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || fail target_image_identity_invalid
+
+FAILURE_PHASE="scanner-pause"
+"${COMPOSE[@]}" stop scanner-worker
+SCANNER_STOPPED=true
+sleep 2
+REDIS_CONTAINER="$("${COMPOSE[@]}" ps -q redis)"
+[[ -n "${REDIS_CONTAINER}" ]] || fail redis_container_missing
+wait_for_scan_lock_absent || fail scanner_lock_still_present_after_wait
+
+FAILURE_PHASE="database-preflight"
+database_runner preflight "${TARGET_WEB_IMAGE}" \
+  > "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json"
+jq -e '.status == "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT" and .pending == 2957 \
+  and .outboxTotal == 5914 and .sourceEpoch == 4 and .drainEpoch == 5 and .finalFrozenEpoch == 6' \
+  "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" >/dev/null \
+  || fail database_preflight_contract_failed
+jq '.snapshot' "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" > "${BEFORE_SNAPSHOT}"
+chmod 600 "${BEFORE_SNAPSHOT}"
 
 FAILURE_PHASE="drain-only-environment"
 run_packet_node "${BASELINE_WEB_IMAGE}" "${BUNDLE_RUNNER}" render-env \
