@@ -5248,3 +5248,47 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 本包提交、提交后自治门禁、确定性 Bundle 和推送收口后，只准备 Canonical fail-closed phase transition 与观察包；生产执行继续等待真实 Dual Read 证据。
+
+## 2026-07-17 / WP-G0.2 Canonical Rollback State Machine Remediation Local Superpackage
+
+### 本轮目标
+
+关闭最终 Canonical Read Cutover 前的状态机硬缺口：migration 009 没有 `canonical -> legacy/frozen` 受控恢复路径。
+
+### 修改范围
+
+- 新增 migration 010，只增加 rollback-only SECURITY DEFINER procedure；不修改 001-009。
+- 过程只接受 active canonical、精确 epoch、非空 release 和 `sha256:` approval digest，固定回到 `legacy/frozen` 并把 epoch 加一。
+- PUBLIC 和应用写角色无 EXECUTE；只有 `candidate_migration_role` 可调用，应用角色直接 UPDATE control 仍拒绝。
+- 新增治理合同、validator、负向测试和隔离 PostgreSQL 16 演练。
+- 历史 migration 009 runner 测试改用冻结九文件 fixture；旧 runner 继续拒绝含 010 的当前仓库，旧授权未扩大。
+- 未修改 frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis、Worker、Compose、env 或生产服务。
+
+### 核心链路影响
+
+保护候选筛选与复盘进化的 Candidate 生命周期读取地基；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- 治理与历史 migration runner 定向：57/57 PASS。
+- 隔离 PostgreSQL 16：migrations 1-10、`canonical epoch 9 -> legacy/frozen epoch 10`、数据保留、least privilege 与六类负向拒绝 PASS，`productionConnected=false`。
+- 既有 Canonical Compat PostgreSQL 16 回归：PASS，当前 1-10 schema 不破坏旧安全路径。
+- Autonomy unit：31/31 PASS。
+- typecheck、零警告 lint：PASS。
+- market 1026 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未上传、未连接生产、未执行 migration 010。生产仍为 migrations 1-9；Canonical Cutover 继续阻断。
+
+### 风险与遗留问题
+
+- P0：单向 Cutover 缺口已在本地修复并验证，但生产 010 尚未应用，因此生产风险门禁仍保持阻断。
+- P1：migration 010 必须以独立 production Add Schema 包执行和验证，不能与 Canonical Cutover 合并。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成本包提交和推送后，独立准备 migration 010 的 production Add Schema 包；成功应用并验证前不进入 Canonical phase。

@@ -52,6 +52,7 @@ test("migration layout is versioned and responsibility-split", async () => {
     "007_candidate_runtime_roles_and_permissions.sql",
     "008_candidate_constraints_and_procedures.sql",
     "009_candidate_shadow_capture_safety.sql",
+    "010_candidate_canonical_rollback_safety.sql",
   ]);
 });
 
@@ -102,6 +103,7 @@ test("database boundary includes required guards, procedures and roles", async (
     "retry_outbox_v1",
     "complete_outbox_v1",
     "transition_migration_control_v1",
+    "rollback_canonical_migration_control_v1",
     "enqueue_shadow_candidate_outbox_v2",
     "claim_shadow_candidate_outbox_v2",
     "retry_or_quarantine_outbox_v2",
@@ -122,5 +124,5 @@ test("database boundary includes required guards, procedures and roles", async (
   assert.match(sql, /checkpoint schedule idempotency command hash conflict/);
   assert.match(sql, /terminal Outcome content hash conflict/);
   assert.match(sql, /stale Checkpoint fencing token rejected/);
-  assert.equal((sql.match(/\^sha256:\[0-9a-f\]\{64\}\$/g) ?? []).length, 10);
+  assert.equal((sql.match(/\^sha256:\[0-9a-f\]\{64\}\$/g) ?? []).length, 11);
 });

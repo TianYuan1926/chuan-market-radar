@@ -106,9 +106,19 @@ test("rejects enabled phases while execute is false", () => {
 });
 
 test("validates the locked nine-file artifact", async () => {
-  const artifact = await loadAndValidateArtifact(process.cwd());
-  assert.equal(artifact.migrationFileCount, 9);
-  assert.equal(artifact.artifactHash, AUTHORIZED_ARTIFACT_HASH);
+  const root = await mkdtemp(join(tmpdir(), "runner-nine-file-fixture-"));
+  const destination = join(root, "migrations", "candidate-episode");
+  await mkdir(destination, { recursive: true });
+  try {
+    for (const filename of Object.keys(EXPECTED_MIGRATION_CHECKSUMS)) {
+      await copyFile(join("migrations/candidate-episode", filename), join(destination, filename));
+    }
+    const artifact = await loadAndValidateArtifact(root);
+    assert.equal(artifact.migrationFileCount, 9);
+    assert.equal(artifact.artifactHash, AUTHORIZED_ARTIFACT_HASH);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test("authorization manifest hash is canonical", () => {

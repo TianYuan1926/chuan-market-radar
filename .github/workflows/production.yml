@@ -106,6 +106,12 @@ jobs:
       - name: Candidate canonical-compat phase transition tests
         run: npm run test:candidate-canonical-compat-phase
 
+      - name: Candidate canonical rollback state-machine contract
+        run: npm run candidate:canonical-rollback:validate
+
+      - name: Candidate canonical rollback state-machine tests
+        run: npm run test:candidate-canonical-rollback
+
       - name: Candidate validation-cycle continuation contract
         run: npm run candidate:cycle-continuation:validate
 

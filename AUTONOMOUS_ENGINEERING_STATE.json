@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T10:59:02+08:00",
+  "updatedAt": "2026-07-17T11:51:35+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -27,7 +27,8 @@
     "shadowVerifyCodeAuthorization": "completed_local_committed_pushed_ebba74e_targeted_37_of_37_three_postgres16_rehearsals_autonomy_31_of_31_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected_not_deployed_phase_not_changed",
     "shadowVerifyCodeAuthorizationProductionRelease": "completed_local_committed_pushed_9163eabd0_release_target_eb48827_parent_54837d0_production_not_executed_blocked_by_lineage_and_reconciliation",
     "shadowVerifyPhaseTransitionAndDualReadObservation": "completed_local_committed_pushed_803bca6_contract_targeted_19_of_19_postgres16_baseline_security_postcommit_autonomy_12_of_12_pass_production_not_connected_phase_not_changed_observation_not_started",
-    "canonicalCompatPhaseTransitionAndObservation": "ready_for_gate_targeted_20_of_20_domain_105_of_105_with_3_explicit_pg_skips_postgres16_10000_write_shadow_verify_to_canonical_compat_and_legacy_frozen_rollback_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_pass_production_not_connected_phase_not_changed_observation_not_started"
+    "canonicalCompatPhaseTransitionAndObservation": "completed_local_committed_pushed_8d6e37d_targeted_20_of_20_domain_105_of_105_with_3_explicit_pg_skips_postgres16_10000_write_shadow_verify_to_canonical_compat_and_legacy_frozen_rollback_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_13_of_13_pass_bundle_f5fb00f3_production_not_connected_phase_not_changed_observation_not_started",
+    "canonicalRollbackStateMachineRemediation": "ready_for_gate_precommit_12_of_12_p0_pre_cutover_blocker_remediated_locally_migration_010_sha_2ae3247a_postgres16_1_to_10_canonical_epoch9_to_legacy_frozen_epoch10_data_preserved_least_privilege_targeted_57_of_57_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_pass_production_not_connected_not_applied_canonical_cutover_blocked"
   },
   "wipLimits": {
     "production": 1,
@@ -146,11 +147,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION",
-    "title": "Candidate Canonical Compat phase transition and parity-gated observation",
+    "id": "WP-G0.2-CANONICAL-ROLLBACK-STATE-MACHINE-REMEDIATION-LOCAL-SUPERPACKAGE",
+    "title": "Candidate canonical rollback state-machine remediation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "建立可审计、可回滚、会话独立的Canonical Compat阶段切换与24小时观察包；只有完整Dual Read证据和当前请求同快照零差异时Candidate才成为候选生命周期与复盘读取权威。",
+    "objective": "修复migration 009缺少canonical到legacy受控回退边的P0切换前阻断；新增rollback-only migration 010并用隔离PostgreSQL 16证明权限、fencing、数据保留和失败关闭。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -163,24 +164,27 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v1.json",
-      "docs/governance/wp-g0-2-canonical-api-route-adapter-local-preparation.v1.json",
-      "docs/governance/wp-g0-2-canonical-compat-read-model-local-preparation.v1.json",
-      "docs/governance/wp-g0-2-canonical-read-compatibility-oracle-local-preparation.v1.json",
-      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
-      "scripts/governance/candidate-canonical-api-route-adapter.mjs",
-      "scripts/governance/candidate-canonical-api-route-adapter.test.mjs",
-      "scripts/governance/candidate-canonical-read-model.mjs",
-      "scripts/governance/candidate-canonical-read-oracle.mjs",
-      "scripts/governance/candidate-trusted-read-context.mjs",
-      "scripts/governance/candidate-trusted-read-context.test.mjs",
-      "scripts/production/candidate-canonical-compat-phase/**",
-      "scripts/rehearsal/candidate-canonical-compat-phase-postgres16.sh",
-      "reports/wp-g0-2-canonical-compat-phase-transition-and-observation/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_REPORT.md"
+      "docs/governance/WP_G0_2_CANONICAL_ROLLBACK_STATE_MACHINE_REMEDIATION_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/wp-g0-2-canonical-rollback-state-machine-remediation-local-superpackage.v1.json",
+      "migrations/candidate-episode/010_candidate_canonical_rollback_safety.sql",
+      "scripts/governance/candidate-canonical-rollback-remediation.mjs",
+      "scripts/governance/candidate-canonical-rollback-remediation.test.mjs",
+      "scripts/production/candidate-canonical-rollback-remediation/runner-postgres.integration.mjs",
+      "scripts/production/migration-runner/migration-runner.test.mjs",
+      "scripts/rehearsal/candidate-canonical-rollback-postgres16.sh",
+      "src/lib/candidate-episode/schema-contract.test.ts",
+      "reports/wp-g0-2-canonical-rollback-state-machine-remediation/WP_G0_2_CANONICAL_ROLLBACK_STATE_MACHINE_REMEDIATION_REPORT.md"
     ],
     "prohibitedPaths": [
-      "migrations/**",
+      "migrations/candidate-episode/001_candidate_episode_authority.sql",
+      "migrations/candidate-episode/002_candidate_episode_event_ledger.sql",
+      "migrations/candidate-episode/003_candidate_episode_checkpoint.sql",
+      "migrations/candidate-episode/004_candidate_episode_outcome.sql",
+      "migrations/candidate-episode/005_candidate_episode_outbox.sql",
+      "migrations/candidate-episode/006_candidate_legacy_import_registry.sql",
+      "migrations/candidate-episode/007_candidate_runtime_roles_and_permissions.sql",
+      "migrations/candidate-episode/008_candidate_constraints_and_procedures.sql",
+      "migrations/candidate-episode/009_candidate_shadow_capture_safety.sql",
       "src/lib/market/**",
       "src/lib/analysis/**",
       "src/lib/strategy/**",
@@ -198,28 +202,22 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_V1.md",
-      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v1.json",
-      "scripts/production/candidate-canonical-compat-phase/bundle.mjs",
-      "scripts/production/candidate-canonical-compat-phase/bundle.test.mjs",
-      "scripts/production/candidate-canonical-compat-phase/full-snapshot-observer.cjs",
-      "scripts/production/candidate-canonical-compat-phase/full-snapshot-observer.test.mjs",
-      "scripts/production/candidate-canonical-compat-phase/observation-runner.sh",
-      "scripts/production/candidate-canonical-compat-phase/production-boundary.test.mjs",
-      "scripts/production/candidate-canonical-compat-phase/production-entrypoint.sh",
-      "scripts/production/candidate-canonical-compat-phase/production-runner.sh",
-      "scripts/production/candidate-canonical-compat-phase/runner-postgres.integration.mjs",
-      "scripts/production/candidate-canonical-compat-phase/runner.mjs",
-      "scripts/production/candidate-canonical-compat-phase/runner.test.mjs",
-      "scripts/rehearsal/candidate-canonical-compat-phase-postgres16.sh",
-      "reports/wp-g0-2-canonical-compat-phase-transition-and-observation/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_REPORT.md"
+      "docs/governance/WP_G0_2_CANONICAL_ROLLBACK_STATE_MACHINE_REMEDIATION_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/wp-g0-2-canonical-rollback-state-machine-remediation-local-superpackage.v1.json",
+      "migrations/candidate-episode/010_candidate_canonical_rollback_safety.sql",
+      "scripts/governance/candidate-canonical-rollback-remediation.mjs",
+      "scripts/governance/candidate-canonical-rollback-remediation.test.mjs",
+      "scripts/production/candidate-canonical-rollback-remediation/runner-postgres.integration.mjs",
+      "scripts/production/migration-runner/migration-runner.test.mjs",
+      "scripts/rehearsal/candidate-canonical-rollback-postgres16.sh",
+      "src/lib/candidate-episode/schema-contract.test.ts",
+      "reports/wp-g0-2-canonical-rollback-state-machine-remediation/WP_G0_2_CANONICAL_ROLLBACK_STATE_MACHINE_REMEDIATION_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:canonical-compat-phase:validate",
-        "test:candidate-canonical-compat-phase",
-        "candidate:canonical-compat-phase:pg16-rehearsal",
-        "test:canonical-compat-domain",
+        "candidate:canonical-rollback:validate",
+        "test:candidate-canonical-rollback",
+        "candidate:canonical-rollback:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -236,21 +234,19 @@
       ]
     },
     "completionBoundary": [
-      "执行前必须验证同一migration/release链的Lineage、Reconciliation、Web代码发布和289样本24小时Dual Read零差异证据",
-      "生产必须保持clean detached精确代码和镜像身份，禁止source sync、checkout、build、migration与Compose变更",
-      "只允许把Canonical Read和Review Read改为true、安装精确manifest、调用既有phase procedure并no-build force-recreate Web",
-      "阶段只能从shadow_verify非冻结当前epoch切换到canonical_compat下一epoch，业务行、Redis和schema禁止修改",
-      "每个样本必须验证公共API真实返回Candidate权威，并在同一只读快照内遍历全部分页与独立Raw Oracle零差异",
-      "观察必须精确289样本、至少24小时、间隔不超过600秒，fallback、partial、unavailable和差异次数全部为0",
-      "Candidate权威只允许候选生命周期与复盘使用，仍禁止交易计划、生产排序改变、cutover授权和自动phase推进",
-      "任何失败必须自动进入legacy/frozen、关闭全部Candidate flags、停止Candidate worker并保留数据/Git/Web image",
-      "旧Canonical治理合同必须同步到代码授权true但阶段权威false的当前事实，不得继续传播过期阻断信息",
-      "当前本地包不等于生产phase切换、观察PASS、Canonical Cutover、WP-G0.2或G0完成",
-      "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务DB、Redis和future outcome生产输入全部禁止修改",
+      "migration 001-009内容和checksum必须完全不变，010只能新增rollback-only procedure",
+      "新过程只能从canonical active精确回到legacy/frozen并把epoch加一，不能承担任何前进切换",
+      "只有candidate_migration_role可执行，PUBLIC和应用角色必须拒绝，直接control UPDATE仍拒绝",
+      "stale epoch、非canonical phase、已冻结、重复rollback和无效approval digest必须失败且不改变状态",
+      "隔离PostgreSQL 16必须证明migration 1-10、canonical到legacy/frozen、权限和Candidate数据保留",
+      "历史migration 009 runner继续冻结到1-9并拒绝含010的当前仓库，不得静默扩大旧授权",
+      "生产migration 010、Canonical Cutover、Feature Flag、服务和业务数据变更均未授权也不执行",
+      "当前本地包不等于migration 010生产应用、Canonical Cutover、WP-G0.2或G0完成",
+      "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、Redis和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "canonical_compat_activation",
+    "actionClass": "additive_schema_migration",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -258,7 +254,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "合同、双证据绑定Manifest、公共API语义检查、全分页同快照Raw Oracle、数据库时钟289样本、单次Standing Grant、session-independent runner、确定性Bundle和legacy/frozen自动回滚共同证明Candidate只能在当前请求parity PASS时受控成为读取权威。"
+      "measurableOutcome": "migration 010、治理负向测试和隔离PostgreSQL 16共同证明最终Canonical读取切换具备仅限migration角色、带epoch fencing、保留Candidate数据的legacy/frozen恢复路径。"
     }
   },
   "approvals": [
@@ -574,6 +570,13 @@
     {
       "order": 43,
       "id": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_8d6e37d_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 44,
+      "id": "WP-G0.2-CANONICAL-ROLLBACK-STATE-MACHINE-REMEDIATION-LOCAL-SUPERPACKAGE",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

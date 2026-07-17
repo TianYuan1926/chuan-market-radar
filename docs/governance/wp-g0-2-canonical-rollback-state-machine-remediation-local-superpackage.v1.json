@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "wp-g0.2-canonical-rollback-state-machine-remediation-local-superpackage.v1",
+  "packageId": "WP-G0.2-CANONICAL-ROLLBACK-STATE-MACHINE-REMEDIATION-LOCAL-SUPERPACKAGE",
+  "gate": "G0",
+  "status": "local_implementation_and_rehearsal",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "problem": {
+    "severity": "P0_PRE_CUTOVER_BLOCKER",
+    "fact": "migration_009_allows_canonical_compat_to_canonical_but_has_no_canonical_to_legacy_transition",
+    "impact": "canonical_cutover_would_be_irreversible_and_could_only_fail_closed_with_503",
+    "canonicalCutoverBlockedUntilRemediated": true
+  },
+  "migration": {
+    "filename": "010_candidate_canonical_rollback_safety.sql",
+    "sha256": "2ae3247a64e08159adfb74a6da48bf0a51a45cba356fe4ad666482a18d0cb1ba",
+    "baseline": "001_through_009_applied_verified",
+    "additive": true,
+    "tablesAdded": 0,
+    "columnsAdded": 0,
+    "businessRowsMutated": false,
+    "existingMigrationChecksumsChanged": false
+  },
+  "rollbackProcedure": {
+    "name": "candidate_authority.rollback_canonical_migration_control_v1",
+    "signature": "text,bigint,text,text",
+    "sourcePhase": "canonical",
+    "sourceWriteFrozen": false,
+    "targetPhase": "legacy",
+    "targetWriteFrozen": true,
+    "epochIncrement": 1,
+    "databaseClockRequired": true,
+    "approvalDigestFormat": "sha256_prefixed_lower_hex",
+    "securityDefinerOwner": "candidate_migration_role",
+    "publicExecuteRevoked": true,
+    "executeRoleAllowlist": [
+      "candidate_migration_role"
+    ],
+    "staleEpochRejected": true,
+    "nonCanonicalSourceRejected": true,
+    "repeatRollbackRejected": true,
+    "candidateDataPreserved": true
+  },
+  "rehearsal": {
+    "postgresMajor": 16,
+    "migrationCount": 10,
+    "productionConnected": false,
+    "canonicalToLegacyFrozen": true,
+    "dataPreservation": true,
+    "leastPrivilege": true,
+    "negativeCasesRequired": [
+      "application_writer_execute_denied",
+      "application_writer_direct_update_denied",
+      "stale_epoch_denied",
+      "noncanonical_phase_denied",
+      "repeat_rollback_denied",
+      "invalid_approval_digest_denied"
+    ]
+  },
+  "historicalRunnerBoundary": {
+    "migration009RunnerRemainsFrozenToFiles001Through009": true,
+    "migration009RunnerMustRejectCurrentRepositoryAfter010": true,
+    "historicalRunnerTestUsesFrozenNineFileFixture": true,
+    "migration009ChecksumUnchanged": true
+  },
+  "resultBoundary": {
+    "passStatus": "PASS_LOCAL_CANONICAL_ROLLBACK_STATE_MACHINE_REMEDIATION",
+    "migration010AppliedToProduction": false,
+    "canonicalCutoverAuthorized": false,
+    "canonicalPhaseEntered": false,
+    "wpG02Completed": false,
+    "g0Completed": false
+  },
+  "forbidden": [
+    "edit_migrations_001_through_009",
+    "drop_or_truncate",
+    "candidate_business_data_mutation",
+    "direct_control_table_update_by_runtime",
+    "public_function_execute",
+    "application_role_function_execute",
+    "canonical_cutover",
+    "production_migration_execution",
+    "frontend_change",
+    "scan_change",
+    "analysis_change",
+    "strategy_change",
+    "rr_threshold_change",
+    "risk_gate_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "nextPackageOnPass": "WP-G0.2-CANONICAL-ROLLBACK-SAFETY-PRODUCTION-ADD-SCHEMA"
+}
