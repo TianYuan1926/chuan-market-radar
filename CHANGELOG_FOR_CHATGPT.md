@@ -5372,3 +5372,47 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 完整重跑基础和自治门禁，提交最小修复，重建确定性 Bundle 后重新执行同范围 production Add Schema。
+
+## 2026-07-17 / WP-G0.2 Canonical Rollback Safety Production Add Schema Execution and Closeout
+
+### 本轮目标
+
+在独立 Add Schema 边界内把 migration 010 安全应用到生产，证明最小权限、事务原子性、业务数据不变、服务身份不变、失败关闭和租约释放，并按实际 production phase 重新校准后续路线。
+
+### 修改范围
+
+- 生产只从精确 migration ledger 001-009 应用 `010_candidate_canonical_rollback_safety` 到 10。
+- 两份旧身份请求分别因 Web image 与 production Git identity 漂移在 lease/DB 前 fail closed；没有绕过身份门禁。
+- 最终请求绑定实际 dormant production baseline `cec0b657...`、Web image `sha256:cd3652c1...`、commit `26d01d1...`、确定性 Bundle 和单次 90 分钟请求。
+- 未修改 migration 文件、生产 Git、Compose、env、Web/Worker/Redis/Caddy、Feature Flag、Candidate runtime、scan、analysis、strategy、RR、Risk Gate、trade plan 或 backtest。
+
+### 核心链路影响
+
+为候选筛选与复盘进化补齐 Canonical authority 的生产可回退地基；不产生候选、不生成交易计划、不改变市场扫描或排序。
+
+### 测试结果
+
+- 最终提交后自治总门禁：12/12 PASS，gate evidence SHA-256 `04c384dbae69c82f6ad93731d8380b3e8d1feb2262b56b31fc4c8b0f76b2a84c`。
+- 生产 runner：`PASS_PRODUCTION_CANONICAL_ROLLBACK_SAFETY_ADD_SCHEMA`。
+- migrationRows：9 -> 10；唯一 applied migration=010。
+- function owner=`candidate_migration_role`、least privilege=true、Candidate 业务数据 mutation=false。
+- 独立 restage verify：PASS，ledger 10、owner/权限/业务数据不变再次确认。
+- 生产 health=`ready/fresh`、Postgres ready、Redis PONG、scanner healthy、frontend/backend/business contract PASS。
+- Git/tree/Web/全部容器执行前后不变，Candidate worker absent。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+已执行 additive production Add Schema；未发布或重建任何服务。fencing token=13 已以 PASS 释放；staging、ops、临时凭据和上传临时文件均已清理，原始生产证据保留于仓库外 evidence 目录。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0；Canonical 回退 procedure 已在生产可用。
+- P1：生产 control 当前是 `legacy / epoch 4 / writeFrozen=true`，其更新时间早于本轮 migration；旧计划中的 `shadow_capture / epoch 3` 已过期。
+- P1：Validation Cycle Continuation 旧包绑定 migration 1-9 和旧身份，必须刷新为 migration 1-10 与当前 production baseline 后才能续接。
+- Candidate runtime、Reconciliation、Shadow Verify、Canonical Compat/Cutover、WP-G0.2 与 G0 均未完成。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只做 `WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-MIGRATION-010`：保留旧周期全部数据，在 unresolved=0、旧 control 冻结和新周期严格相邻的机器门禁下刷新并执行续接；不得直接进入 Canonical Compat。

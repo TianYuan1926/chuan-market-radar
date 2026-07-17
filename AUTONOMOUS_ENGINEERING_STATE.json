@@ -1,13 +1,13 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T12:21:34+08:00",
+  "updatedAt": "2026-07-17T18:38:33+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
     "engineeringStatus": "可运行但不完整",
     "practicalStatus": "不能支撑实战",
     "productionCandidateSchema": "applied_verified_dormant",
-    "candidateRuntime": "shadow_capture_active_epoch3_release_candidate-shadow-e5eb90026d8b_observation_96_of_289_completed_writes_1481_last_verified_2026_07_17T04_26_21_264125_plus08_in_progress_not_yet_pass_deadline_2026_07_19T01_38_00_099Z",
+    "candidateRuntime": "legacy_frozen_epoch4_release_candidate-shadow-e5eb90026d8b_candidate_worker_absent_control_updated_before_migration_010_previous_observation_not_passed_next_adjacent_validation_cycle_required",
     "productionWebIdentity": "recovered_verified_cleanup_complete_committed_pushed_5abb93c",
     "productionHealthSustainability": "pass_production_scan_sustained_health_1800_seconds_59_samples_2_completion_advances_3_updated_successes_ready_fresh_heartbeat_healthy_external_lease_released_execution_snapshot_defect_reconciled_cli_red_green_fixed_committed_pushed_92e6ab9",
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
@@ -29,7 +29,7 @@
     "shadowVerifyPhaseTransitionAndDualReadObservation": "completed_local_committed_pushed_803bca6_contract_targeted_19_of_19_postgres16_baseline_security_postcommit_autonomy_12_of_12_pass_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalCompatPhaseTransitionAndObservation": "completed_local_committed_pushed_8d6e37d_targeted_20_of_20_domain_105_of_105_with_3_explicit_pg_skips_postgres16_10000_write_shadow_verify_to_canonical_compat_and_legacy_frozen_rollback_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_13_of_13_pass_bundle_f5fb00f3_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalRollbackStateMachineRemediation": "completed_local_committed_pushed_5e777e4_postcommit_autonomy_12_of_12_migration_010_sha_2ae3247a_production_not_applied_canonical_cutover_blocked",
-    "canonicalRollbackSafetyProductionAddSchema": "ready_for_gate_precommit_autonomy_12_of_12_local_packet_targeted_10_of_10_postgres16_exact_1_to_9_baseline_failure_transaction_rollback_only_010_to_10_least_privilege_business_data_unchanged_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_pass_production_not_connected_not_executed"
+    "canonicalRollbackSafetyProductionAddSchema": "completed_production_pass_commit_26d01d1_bundle_9b7ac0e9_request_6e5ed1b4_migration_rows_10_function_owner_candidate_migration_role_least_privilege_business_data_unchanged_git_compose_env_services_containers_unchanged_lease_token13_released_evidence_retained_temp_cleanup_complete_independent_verify_pass"
   },
   "wipLimits": {
     "production": 1,
@@ -148,11 +148,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CANONICAL-ROLLBACK-SAFETY-PRODUCTION-ADD-SCHEMA",
-    "title": "Candidate canonical rollback safety production Add Schema packet",
+    "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-MIGRATION-010",
+    "title": "Candidate adjacent validation cycle continuation production refresh after migration 010",
     "lane": "localPreparation",
-    "status": "ready_for_gate",
-    "objective": "为精确migration 010建立独立、确定性、单迁移、单事务、最小权限和会话无关的生产Add Schema执行包；本轮只准备和演练，不连接生产。",
+    "status": "in_progress",
+    "objective": "只刷新既有Validation Cycle Continuation生产包，使其精确绑定migration 1-10、当前dormant production identity和legacy/frozen epoch4旧周期，在保留全部Candidate数据的前提下启动严格相邻的新验证周期。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -165,11 +165,18 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_CANONICAL_ROLLBACK_SAFETY_PRODUCTION_ADD_SCHEMA_V1.md",
-      "docs/governance/wp-g0-2-canonical-rollback-safety-production-add-schema.v1.json",
-      "scripts/production/candidate-canonical-rollback-add-schema/**",
-      "scripts/rehearsal/candidate-canonical-rollback-add-schema-postgres16.sh",
-      "reports/wp-g0-2-canonical-rollback-safety-production-add-schema/**"
+      "docs/governance/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_LOCAL_SUPERPACKAGE_V1.md",
+      "docs/governance/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_PRODUCTION_PACKET_V1.md",
+      "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v1.json",
+      "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v1.json",
+      "scripts/governance/candidate-validation-cycle-continuation.mjs",
+      "scripts/governance/candidate-validation-cycle-continuation.test.mjs",
+      "scripts/governance/candidate-cycle-continuation-production-packet.mjs",
+      "scripts/governance/candidate-cycle-continuation-production-packet.test.mjs",
+      "scripts/production/candidate-cycle-continuation/**",
+      "scripts/rehearsal/candidate-cycle-continuation-postgres16.sh",
+      "reports/wp-g0-2-validation-cycle-continuation-local-superpackage/**",
+      "reports/wp-g0-2-validation-cycle-continuation-production-packet/**"
     ],
     "prohibitedPaths": [
       "migrations/candidate-episode/001_candidate_episode_authority.sql",
@@ -199,23 +206,27 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_CANONICAL_ROLLBACK_SAFETY_PRODUCTION_ADD_SCHEMA_V1.md",
-      "docs/governance/wp-g0-2-canonical-rollback-safety-production-add-schema.v1.json",
-      "scripts/production/candidate-canonical-rollback-add-schema/bundle.mjs",
-      "scripts/production/candidate-canonical-rollback-add-schema/production-boundary.test.mjs",
-      "scripts/production/candidate-canonical-rollback-add-schema/production-entrypoint.sh",
-      "scripts/production/candidate-canonical-rollback-add-schema/production-runner.sh",
-      "scripts/production/candidate-canonical-rollback-add-schema/runner.mjs",
-      "scripts/production/candidate-canonical-rollback-add-schema/runner-postgres.integration.mjs",
-      "scripts/production/candidate-canonical-rollback-add-schema/runner.test.mjs",
-      "scripts/rehearsal/candidate-canonical-rollback-add-schema-postgres16.sh",
-      "reports/wp-g0-2-canonical-rollback-safety-production-add-schema/WP_G0_2_CANONICAL_ROLLBACK_SAFETY_PRODUCTION_ADD_SCHEMA_REPORT.md"
+      "docs/governance/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_PRODUCTION_PACKET_V1.md",
+      "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v1.json",
+      "scripts/governance/candidate-cycle-continuation-production-packet.mjs",
+      "scripts/governance/candidate-cycle-continuation-production-packet.test.mjs",
+      "scripts/production/candidate-cycle-continuation/bundle.mjs",
+      "scripts/production/candidate-cycle-continuation/production-boundary.test.mjs",
+      "scripts/production/candidate-cycle-continuation/production-entrypoint.sh",
+      "scripts/production/candidate-cycle-continuation/production-runner.sh",
+      "scripts/production/candidate-cycle-continuation/runner.mjs",
+      "scripts/production/candidate-cycle-continuation/runner-postgres.integration.mjs",
+      "scripts/production/candidate-cycle-continuation/runner.test.mjs",
+      "scripts/rehearsal/candidate-cycle-continuation-postgres16.sh",
+      "reports/wp-g0-2-validation-cycle-continuation-production-packet/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_PRODUCTION_PACKET_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:canonical-rollback-add-schema:validate",
-        "test:candidate-canonical-rollback-add-schema",
-        "candidate:canonical-rollback-add-schema:pg16-rehearsal",
+        "candidate:cycle-continuation:validate",
+        "test:candidate-cycle-continuation-governance",
+        "candidate:cycle-continuation-production-packet:validate",
+        "test:candidate-cycle-continuation-production-packet",
+        "candidate:cycle-continuation:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -232,18 +243,18 @@
       ]
     },
     "completionBoundary": [
-      "执行包必须只接受精确1-9 applied ledger和唯一待执行migration 010，任何版本或checksum漂移都失败关闭",
-      "migration登录必须非特权NOINHERIT且显式SET ROLE candidate_migration_role，不得bootstrap或扩大角色权限",
-      "010必须在单个REPEATABLE READ事务、advisory lock和固定timeout内执行并原子写入ledger",
-      "事务内Candidate业务表行数必须前后一致，生产Git、Compose、env、服务和容器身份不得改变",
-      "失败提交前必须由数据库事务回滚；提交后禁止破坏性删除function或改写ledger",
-      "Bundle必须可复现、脱敏、绑定commit/tree/gate/contract/runner/migration checksum和单次90分钟外部租约",
-      "本地包不连接生产，不等于migration 010生产应用、Canonical Cutover、WP-G0.2或G0完成",
+      "执行包必须接受精确migration 1-10 applied ledger并拒绝任何checksum或额外migration漂移",
+      "当前production control必须是candidate-episode-v1的legacy/frozen正偶数epoch4且release精确匹配，所有unresolved必须为0",
+      "新周期必须使用严格相邻migration id candidate-episode-v1-cycle-2和全新release，禁止复用旧周期或重写旧deadline",
+      "旧周期全部Candidate数据和control历史必须保留，新周期启动事务不得改变任何业务行计数",
+      "生产身份必须绑定clean detached cec0b657 baseline、当前Web image、Compose/env/identity wrapper和migration 010 checksum",
+      "任何Git、DB、env、Web、Worker、health、lease或观察失败必须自动回滚为legacy/frozen并保留历史数据",
+      "本地刷新不连接生产，不等于新周期启动、Lineage、Reconciliation、Shadow Verify、WP-G0.2或G0完成",
       "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、Redis和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "additive_schema_migration",
+    "actionClass": "feature_phase_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -251,7 +262,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "独立Production Add Schema包在隔离PostgreSQL 16从精确1-9只应用010到10，并证明失败事务回滚、最小权限、业务数据不变和生产未连接。"
+      "measurableOutcome": "刷新后的生产包在隔离PostgreSQL 16从legacy/frozen epoch4保留全部旧周期数据并只启动严格相邻cycle-2，证明migration 1-10、零未决、失败回滚、生产未连接和阈值不变。"
     }
   },
   "approvals": [
@@ -379,7 +390,7 @@
       "order": 15,
       "id": "WP-G0.2-SHADOW-CAPTURE-ACTIVATE-AND-OBSERVE",
       "lane": "production",
-      "status": "ready_for_gate",
+      "status": "production_observation_not_passed_rolled_back_legacy_frozen_epoch4",
       "requiresExplicitApproval": true
     },
     {
@@ -582,7 +593,14 @@
       "order": 45,
       "id": "WP-G0.2-CANONICAL-ROLLBACK-SAFETY-PRODUCTION-ADD-SCHEMA",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 46,
+      "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-MIGRATION-010",
+      "lane": "localPreparation",
+      "status": "in_progress",
       "requiresExplicitApproval": false
     }
   ]
