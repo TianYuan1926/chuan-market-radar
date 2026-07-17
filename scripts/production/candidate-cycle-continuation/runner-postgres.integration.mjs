@@ -26,6 +26,8 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
   const pool = new Pool({ connectionString, max: 2 });
   const client = await pool.connect();
   const outboxId = randomUUID();
+  const episodeId = randomUUID();
+  const eventId = randomUUID();
   try {
     const started = await client.query(`SELECT started_at, deadline_at
       FROM candidate_authority.start_shadow_capture_v3($1,$2,$3)`, [
@@ -43,11 +45,20 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
       'shadow-candidate-observation.v1','{}'::jsonb,$2,'cycle-preserved-outbox',
       'completed',clock_timestamp()
     )`, [outboxId, `sha256:${"c".repeat(64)}`]);
+    await client.query(`SELECT * FROM candidate_authority.open_or_refresh_episode_v1(
+      'production_radar',$1,$2,'SYNTHETIC:CYCLE-PRESERVE-USDT:PERPETUAL','{"fixture":true}'::jsonb,
+      clock_timestamp() - interval '1 minute',clock_timestamp() - interval '1 minute',1,
+      'synthetic-cycle-preserve-price',ARRAY['cycle_preserve_fixture'],'P2','light_candidate',
+      'unknown',clock_timestamp() + interval '1 hour',$3,'synthetic-cycle-preserve',
+      'cycle-preserve-runtime','cycle-preserve-event',$4
+    )`, [episodeId, eventId, input.currentReleaseId, `sha256:${"d".repeat(64)}`]);
 
     const preflight = await preflightCandidateValidationCycleContinuation(client, input);
     assert.equal(preflight.status, "PASS_CYCLE_CONTINUATION_PREFLIGHT");
     assert.equal(preflight.productionMutation, false);
     assert.equal(preflight.data.completed, 1);
+    assert.equal(preflight.data.unresolved, 0);
+    assert.equal(preflight.data.outbox, 2);
 
     const result = await continueCandidateValidationCycle(client, input);
     assert.equal(result.status, "PASS_VALIDATION_CYCLE_CONTINUATION");
@@ -66,9 +77,14 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
       count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired,
       (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox) AS outbox,
       (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
-        WHERE outbox_id=$1 AND status='completed') AS preserved
-      FROM candidate_authority.candidate_migration_control`, [outboxId]);
-    assert.deepEqual(proof.rows[0], { active: 1, retired: 1, outbox: 1, preserved: 1 });
+        WHERE outbox_id=$1 AND status='completed') AS preserved,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
+        WHERE outbox_id=$2 AND source_type='candidate_episode_event' AND status='pending')
+        AS event_pending
+      FROM candidate_authority.candidate_migration_control`, [outboxId, eventId]);
+    assert.deepEqual(proof.rows[0], {
+      active: 1, event_pending: 1, retired: 1, outbox: 2, preserved: 1,
+    });
 
     await assert.rejects(
       client.query(`UPDATE candidate_authority.candidate_migration_control

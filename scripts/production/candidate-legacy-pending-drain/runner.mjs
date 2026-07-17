@@ -32,11 +32,17 @@ function exactKeys(value, expected, reason) {
 }
 
 const COUNT_KEYS = [
+  "candidateEventPending",
+  "candidateEventUnresolved",
   "checkpoints",
   "claimed",
   "completed",
   "episodes",
   "events",
+  "legacyCompleted",
+  "legacyPending",
+  "legacyUnresolved",
+  "otherUnresolved",
   "outbox",
   "outcomes",
   "pending",
@@ -100,6 +106,16 @@ export function validateDrainSnapshot(snapshot, options = {}) {
   ensure(counts.resolutions === 0, "quarantine_resolution_present");
   ensure(counts.unresolved === counts.pending + counts.claimed + counts.retryWait + counts.quarantined,
     "unresolved_count_mismatch");
+  ensure(counts.completed >= counts.legacyCompleted, "legacy_completed_exceeds_global");
+  ensure(counts.pending >= counts.legacyPending + counts.candidateEventPending,
+    "source_lane_pending_exceeds_global");
+  ensure(counts.legacyUnresolved >= counts.legacyPending,
+    "legacy_unresolved_below_pending");
+  ensure(counts.candidateEventUnresolved >= counts.candidateEventPending,
+    "candidate_event_unresolved_below_pending");
+  ensure(counts.unresolved === counts.legacyUnresolved
+      + counts.candidateEventUnresolved + counts.otherUnresolved,
+  "source_lane_unresolved_sum_mismatch");
   return {
     ...snapshot,
     databaseNowMs: databaseNow,
@@ -110,11 +126,19 @@ export function validateDrainSnapshot(snapshot, options = {}) {
 
 export function evaluateDrainPreflight(snapshot) {
   const current = validateDrainSnapshot(snapshot);
-  ensure(current.counts.pending > 0, "pending_work_missing");
+  ensure(current.counts.legacyPending > 0, "legacy_pending_work_missing");
   ensure(current.counts.claimed === 0, "claimed_work_present");
   ensure(current.counts.retryWait === 0, "retry_wait_present");
   ensure(current.counts.quarantined === 0, "quarantined_work_present");
-  ensure(current.counts.unresolved === current.counts.pending, "unresolved_not_pending_only");
+  ensure(current.counts.legacyUnresolved === current.counts.legacyPending,
+    "legacy_unresolved_not_pending_only");
+  ensure(current.counts.candidateEventUnresolved === 0,
+    "candidate_event_lane_present_in_legacy_only_packet");
+  ensure(current.counts.otherUnresolved === 0,
+    "other_source_lane_present_in_legacy_only_packet");
+  ensure(current.counts.pending === current.counts.legacyPending
+      && current.counts.unresolved === current.counts.legacyPending,
+  "global_state_not_legacy_pending_only");
   return {
     schemaVersion: "candidate-legacy-pending-drain-preflight.v1",
     status: "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT",
@@ -124,7 +148,7 @@ export function evaluateDrainPreflight(snapshot) {
     drainEpoch: current.control.epoch + 1,
     finalFrozenEpoch: current.control.epoch + 2,
     releaseId: current.control.releaseId,
-    pending: current.counts.pending,
+    pending: current.counts.legacyPending,
     completedBefore: current.counts.completed,
     outboxTotal: current.counts.outbox,
     sourceWriteReachable: false,

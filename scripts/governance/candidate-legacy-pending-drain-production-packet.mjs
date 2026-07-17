@@ -26,6 +26,19 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
       || contract.databasePrecondition?.unresolved !== 2_957) {
     violations.push("pending_snapshot_changed");
   }
+  if (contract.databasePrecondition?.legacyCompleted !== 2_957
+      || contract.databasePrecondition?.legacyPending !== 0
+      || contract.databasePrecondition?.legacyUnresolved !== 0
+      || contract.databasePrecondition?.candidateEventPending !== 2_957
+      || contract.databasePrecondition?.candidateEventUnresolved !== 2_957) {
+    violations.push("source_lane_snapshot_changed");
+  }
+  if (contract.supersession?.status !== "SUPERSEDED_SOURCE_LANE_CLASSIFICATION"
+      || contract.supersession?.currentProductionExecutable !== false
+      || contract.supersession?.legacySourceLaneAlreadyCompleted !== true
+      || contract.supersession?.candidateEventLaneMustRemainUnconsumedByShadowConsumer !== true) {
+    violations.push("source_lane_supersession_missing");
+  }
   if (contract.databasePrecondition?.sourceEpoch !== 4
       || contract.databasePrecondition?.drainEpoch !== 5
       || contract.databasePrecondition?.finalEpoch !== 6) violations.push("epoch_sequence_changed");
@@ -82,6 +95,7 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
     '"close"', '"open"', '"preflight"', '"rollback"', '"snapshot"', '"verify"',
     "expectedCounts?.outbox === 5_914", "expectedCounts?.pending === 2_957",
     'applicationRoot = "/app"', 'requireCandidate("pg")',
+    "legacy_scan_candidate' AND status='pending'", "candidate_episode_event' AND status='pending'",
   ]) if (!dbRunner.includes(token)) violations.push(`database_guard_missing:${token}`);
   const combined = `${runner}\n${entrypoint}\n${dbRunner}`;
   for (const forbidden of [

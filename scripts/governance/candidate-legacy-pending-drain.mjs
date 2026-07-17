@@ -46,6 +46,9 @@ export async function validateLegacyPendingDrainContract(root) {
     "live_outbox_truth");
   require(live.claimed === 0 && live.retryWait === 0 && live.quarantined === 0
     && live.resolutions === 0 && live.unresolved === 2957, "live_unresolved_truth");
+  require(live.legacyCompleted === 2957 && live.legacyPending === 0
+    && live.legacyUnresolved === 0 && live.candidateEventPending === 2957
+    && live.candidateEventUnresolved === 2957, "live_source_lane_truth");
   require(live.secretPrinted === false && live.productionMutation === false,
     "live_readonly_truth");
 
@@ -59,6 +62,8 @@ export async function validateLegacyPendingDrainContract(root) {
   require(entry.pendingMinimum === 1 && entry.claimedExact === 0 && entry.retryWaitExact === 0
     && entry.quarantinedExact === 0 && entry.resolutionsExact === 0
     && entry.unresolvedMustEqualPending === true, "entry_pending_only_boundary");
+  require(entry.legacyPendingMinimum === 1 && entry.candidateEventUnresolvedExact === 0
+    && entry.currentProductionMatchesEntry === false, "entry_source_lane_boundary");
 
   const source = contract.sourceWriteFence ?? {};
   require(source.scannerMustBePausedBeforeDrainEpoch === true
@@ -122,6 +127,9 @@ export async function validateLegacyPendingDrainContract(root) {
   require(truth.localPassIsProductionPass === false && truth.drainPassIsCycleContinuationPass === false
     && truth.drainPassIsLineagePass === false && truth.drainPassIsCanonicalCutover === false
     && truth.g0Complete === false, "truth_boundary");
+  require(truth.currentProductionRequiresLegacyDrain === false
+    && truth.packetSupersededBySourceLaneClassification === true,
+  "source_lane_supersession_truth");
   require(truth.systemStatus === "R1 / 可运行但不完整 / 不能支撑实战",
     "system_truth_boundary");
 

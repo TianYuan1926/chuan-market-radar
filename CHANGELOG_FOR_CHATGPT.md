@@ -5749,3 +5749,53 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只完成本精确挂载修复的 commit-bound 第六次生产重试，不进入 cycle-2。
+
+## 2026-07-18 / WP-G0.2 Candidate Outbox Source-Lane Classification Correction
+
+### 本轮目标
+
+如实收口第六次 production drain，纠正把 Candidate event 下游 outbox 当成 legacy
+source 积压的错误，并阻止旧 drain 包再次作用于当前生产形态。
+
+### 修改范围
+
+- drain DB snapshot 和 preflight 按 `source_type` 拆分；当前生产形态会以
+  `legacy_pending_work_missing` 在 control open 前拒绝。
+- cycle continuation PostgreSQL 16 演练加入 completed legacy source + pending Candidate
+  event 的生产同形态，证明 event lane 保留且不阻断 source-lane clean continuation。
+- 旧 drain 中英文合同标记为 `SUPERSEDED_SOURCE_LANE_CLASSIFICATION`，同步状态、上下文和报告。
+- 未修改 migration、生产数据、Redis、env、Feature Flag、frontend、API、scan、analysis、
+  strategy、RR、Risk Gate、trade plan 或 backtest。
+
+### 核心链路影响
+
+保护候选筛选和复盘进化的数据真值；避免重复投影、伪清零和无效生产重试。
+
+### 测试结果
+
+- legacy drain 13/13、production packet 23/23：PASS。
+- cycle continuation 26/26、governance 2/2、production packet 22/22：PASS。
+- PostgreSQL 16 source-lane 同形态续周期：PASS，Candidate event pending preserved，
+  source unresolved=0，`productionConnected=false`。
+- typecheck、零 warning lint、market 1,027/0/7、workers 23/23、historical 4/4、
+  build、Golden 16/16、三项安全检查、Autonomy 31/31：PASS。
+- 自治总门禁 16/16，`worktreeUnchanged=true`；首轮 evidence SHA-256=
+  `331e6c42795bcc7f8f04620c40949289fa074a224dcdc2c4b6f281e1b9b9a8ca`。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第六次生产尝试到达 epoch5 后因 claimed=0 被主动终止并完整 `ROLLBACK_PASS`；fencing
+token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/scanner ready/fresh。
+随后只做 aggregate-only read-only 核查，没有再次修改生产。旧 drain packet 已禁用。
+
+### 风险与遗留问题
+
+- legacy source 已 completed=2,957、unresolved=0；Candidate event pending=2,957 是独立
+  下游通道，孤儿=0、合同不匹配=0，不能由 Shadow Consumer 伪完成。
+- checkpoints/outcomes 仍为 0，第二层交付能力未启用，系统仍是 R1。
+- cycle-2 尚未生产启动；必须刷新 commit/artifact/identity binding 后再执行。
+
+### 下一轮建议
+
+只刷新并执行 source-lane-aware 的相邻 validation cycle continuation production packet。

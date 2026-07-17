@@ -1,8 +1,27 @@
 # WP-G0.2 Legacy Pending Drain Production Packet v1
 
+> **状态：`SUPERSEDED_SOURCE_LANE_CLASSIFICATION`，禁止再次执行。** 2026-07-18
+> 第六次执行与随后独立只读聚合证明：`legacy_scan_candidate` 已经
+> 2,957/2,957 completed，未完成数为 0；全局 2,957 条 pending 全部属于
+> `candidate_episode_event`。Shadow Capture 合同明确禁止 Shadow Consumer 消费
+> Candidate 自己产生的 event Outbox。因此当前生产不满足本包的
+> `legacyPending >= 1` 入口，本包会在 control open 前以
+> `legacy_pending_work_missing` fail closed。不得再生成生产 request。
+
+## 纠正后的生产真值
+
+- `legacy_scan_candidate`: completed=2,957，unresolved=0。
+- `candidate_episode_event`: pending=2,957，非 pending=0。
+- 2,957 条 completed source 均存在对应 `shadow-projection:<outbox_id>` 事件，缺失=0。
+- 2,957 条 event Outbox 均能精确关联事件账本，孤儿=0、合同字段不匹配=0。
+- checkpoints=0、outcomes=0；第二层交付能力尚未启用，不能把 pending 改成 completed。
+- control 保持 `legacy/frozen epoch4`；不需要为错误的全局 drain 目标推进到 epoch6。
+- 下一生产包是刷新后的相邻 validation cycle continuation，不是第七次 drain。
+
 ## 目标
 
-只处理生产中已经存在的 2,957 条 Candidate pending outbox。执行期间禁止 scanner 产生新扫描，临时 Web 必须以 drain-only 模式硬阻断 Candidate source enqueue，只允许临时 Candidate consumer 消费旧 pending。
+本节以下内容是历史设计，仅用于事故追溯：原计划处理被误判为
+`legacy_scan_candidate` 的 2,957 条 pending。该前提已被生产 source-type 证据推翻。
 
 ## 当前生产前置
 
@@ -32,6 +51,8 @@
 
 不运行 migration，不删除 Candidate 业务行，不修改 Redis 数据，不启动 cycle-2，不改 scan 排序、analysis、strategy、RR、Risk Gate、trade plan、frontend 或 backtest，不运行 formal backtest，不部署 GitHub main，不触碰其它服务。
 
-## 完成真值
+## 历史完成真值（已失效）
 
-本地 Packet PASS 只说明执行包可审计，不说明生产已清空。生产只有在 2,957 条全部完成、outbox 总数仍为 5,914、control 为 legacy/frozen epoch 6、Candidate worker absent、原生产身份和 scanner ready/fresh 全部恢复后，才能写 `PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN`。该 PASS 仍不代表 cycle-2、WP-G0.2 或 G0 完成。
+这组条件基于“全局 pending 全是 legacy source”的错误前提，现仅保留为历史记录，
+不得再作为生产完成条件。当前完成条件改为：legacy source unresolved=0、source/event
+一一对应完整、Candidate event lane 独立保留、生产 ready/fresh、租约释放和证据闭环。

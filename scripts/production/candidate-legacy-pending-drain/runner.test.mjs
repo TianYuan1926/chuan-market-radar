@@ -25,11 +25,17 @@ function snapshot(overrides = {}) {
       writeFrozen: true,
     },
     counts: {
+      candidateEventPending: 0,
+      candidateEventUnresolved: 0,
       checkpoints: 0,
       claimed: 0,
       completed: 2_957,
       episodes: 543,
       events: 2_957,
+      legacyCompleted: 2_957,
+      legacyPending: 2_957,
+      legacyUnresolved: 2_957,
+      otherUnresolved: 0,
       outbox: 5_914,
       outcomes: 0,
       pending: 2_957,
@@ -51,13 +57,24 @@ function snapshot(overrides = {}) {
   };
 }
 
-test("accepts exact production-shaped pending-only frozen legacy state", () => {
+test("accepts an exact legacy-source-only pending frozen state", () => {
   const result = evaluateDrainPreflight(snapshot());
   assert.equal(result.status, "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT");
   assert.equal(result.pending, 2_957);
   assert.equal(result.drainEpoch, 5);
   assert.equal(result.finalFrozenEpoch, 6);
   assert.equal(result.productionMutation, false);
+});
+
+test("rejects the actual production shape where only Candidate event delivery is pending", () => {
+  assert.throws(() => evaluateDrainPreflight(snapshot({
+    counts: {
+      candidateEventPending: 2_957,
+      candidateEventUnresolved: 2_957,
+      legacyPending: 0,
+      legacyUnresolved: 0,
+    },
+  })), /legacy_pending_work_missing/u);
 });
 
 test("rejects schema drift and a non-frozen or non-legacy control", () => {
@@ -81,13 +98,13 @@ test("rejects source reachability, an active candidate worker, or a running scan
 
 test("rejects claimed retry quarantined resolution or mixed unresolved state", () => {
   assert.throws(() => evaluateDrainPreflight(snapshot({
-    counts: { pending: 2_956, claimed: 1 },
+    counts: { pending: 2_956, claimed: 1, legacyPending: 2_956 },
   })), /claimed_work_present/u);
   assert.throws(() => evaluateDrainPreflight(snapshot({
-    counts: { pending: 2_956, retryWait: 1 },
+    counts: { pending: 2_956, retryWait: 1, legacyPending: 2_956 },
   })), /retry_wait_present/u);
   assert.throws(() => evaluateDrainPreflight(snapshot({
-    counts: { pending: 2_956, quarantined: 1 },
+    counts: { pending: 2_956, quarantined: 1, legacyPending: 2_956 },
   })), /quarantined_work_present/u);
   assert.throws(() => evaluateDrainPreflight(snapshot({ counts: { resolutions: 1 } })),
     /quarantine_resolution_present/u);
@@ -107,6 +124,9 @@ test("accepts full drain with exact event projection and final frozen epoch", ()
       completed: 5_914,
       episodes: 900,
       events: 5_914,
+      legacyCompleted: 5_914,
+      legacyPending: 0,
+      legacyUnresolved: 0,
       pending: 0,
       unresolved: 0,
     },
@@ -121,17 +141,26 @@ test("completion rejects deletion, partial drain, projection loss, or control dr
   const before = snapshot();
   assert.throws(() => evaluateDrainCompletion(before, snapshot({
     control: { epoch: 6 },
-    counts: { outbox: 5_913, completed: 5_913, pending: 0, unresolved: 0, events: 5_914 },
+    counts: {
+      outbox: 5_913, completed: 5_913, pending: 0, unresolved: 0, events: 5_914,
+      legacyCompleted: 5_913, legacyPending: 0, legacyUnresolved: 0,
+    },
   })), /outbox_total_changed/u);
   assert.throws(() => evaluateDrainCompletion(before, snapshot({ control: { epoch: 6 } })),
     /outbox_not_fully_completed/u);
   assert.throws(() => evaluateDrainCompletion(before, snapshot({
     control: { epoch: 6 },
-    counts: { completed: 5_914, pending: 0, unresolved: 0, events: 5_913 },
+    counts: {
+      completed: 5_914, pending: 0, unresolved: 0, events: 5_913,
+      legacyCompleted: 5_914, legacyPending: 0, legacyUnresolved: 0,
+    },
   })), /event_projection_count_mismatch/u);
   assert.throws(() => evaluateDrainCompletion(before, snapshot({
     control: { epoch: 6, releaseId: "candidate-shadow-changed-release" },
-    counts: { completed: 5_914, pending: 0, unresolved: 0, events: 5_914 },
+    counts: {
+      completed: 5_914, pending: 0, unresolved: 0, events: 5_914,
+      legacyCompleted: 5_914, legacyPending: 0, legacyUnresolved: 0,
+    },
   })), /control_release_changed/u);
 });
 

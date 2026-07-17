@@ -82,6 +82,8 @@ test("rollback is idempotent when the control is already frozen legacy", async (
     episodes: 900, events: 5_914, checkpoints: 0, outcomes: 0,
     outbox: 5_914, completed: 5_914, pending: 0, claimed: 0,
     retry_wait: 0, quarantined: 0, unresolved: 0, resolutions: 0,
+    legacy_completed: 5_914, legacy_pending: 0, legacy_unresolved: 0,
+    candidate_event_pending: 0, candidate_event_unresolved: 0, other_unresolved: 0,
   };
   const client = { query: async () => ({ rows: [values] }) };
   const result = await executeDatabaseCommand({

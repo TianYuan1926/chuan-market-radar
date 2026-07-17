@@ -142,6 +142,18 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || before.pending !== 2_957 || before.unresolved !== 2_957
       || before.claimed !== 0 || before.retryWait !== 0 || before.quarantined !== 0
       || before.resolutions !== 0) violations.push("database_precondition");
+  if (before.legacyCompleted !== 2_957 || before.legacyPending !== 0
+      || before.legacyUnresolved !== 0 || before.candidateEventPending !== 2_957
+      || before.candidateEventUnresolved !== 2_957) {
+    violations.push("database_source_lane_precondition");
+  }
+  const supersession = contract.supersession ?? {};
+  if (supersession.status !== "SUPERSEDED_SOURCE_LANE_CLASSIFICATION"
+      || supersession.currentProductionExecutable !== false
+      || supersession.legacySourceLaneAlreadyCompleted !== true
+      || supersession.candidateEventLaneMustRemainUnconsumedByShadowConsumer !== true) {
+    violations.push("source_lane_supersession");
+  }
   const execution = contract.execution ?? {};
   if (execution.runner !== "transient_systemd_unit" || execution.sessionIndependent !== true
       || execution.runtimeMaxSeconds !== 5_400

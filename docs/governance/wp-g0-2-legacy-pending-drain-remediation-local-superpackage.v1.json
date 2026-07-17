@@ -10,7 +10,7 @@
   "productionExecuted": false,
   "formalBacktestAllowed": false,
   "liveReadOnlyFact": {
-    "observedAt": "2026-07-17T18:40:00+08:00",
+    "observedAt": "2026-07-18T04:05:11+08:00",
     "migrationCount": 10,
     "migrationId": "candidate-episode-v1",
     "phase": "legacy",
@@ -27,6 +27,11 @@
     "quarantined": 0,
     "resolutions": 0,
     "unresolved": 2957,
+    "legacyCompleted": 2957,
+    "legacyPending": 0,
+    "legacyUnresolved": 0,
+    "candidateEventPending": 2957,
+    "candidateEventUnresolved": 2957,
     "secretPrinted": false,
     "productionMutation": false
   },
@@ -41,6 +46,9 @@
     "deadlineResetAllowed": false,
     "minimumDeadlineRemainingSeconds": 1800,
     "pendingMinimum": 1,
+    "legacyPendingMinimum": 1,
+    "candidateEventUnresolvedExact": 0,
+    "currentProductionMatchesEntry": false,
     "claimedExact": 0,
     "retryWaitExact": 0,
     "quarantinedExact": 0,
@@ -123,7 +131,7 @@
       "scripts/production/candidate-legacy-pending-drain/runner.mjs"
     ],
     "fileCount": 2,
-    "sha256": "e3e6541b8032067d3a1ac50e92ed415f66476bd41e1e4a363689e7be5189a91d"
+    "sha256": "480e6155d13cf3aefdc36ba155f56d58de0f3632c77d9c85977d6d7e89f4633a"
   },
   "truthBoundary": {
     "localPassIsProductionPass": false,
@@ -131,6 +139,8 @@
     "drainPassIsLineagePass": false,
     "drainPassIsCanonicalCutover": false,
     "g0Complete": false,
+    "currentProductionRequiresLegacyDrain": false,
+    "packetSupersededBySourceLaneClassification": true,
     "systemStatus": "R1 / 可运行但不完整 / 不能支撑实战"
   }
 }

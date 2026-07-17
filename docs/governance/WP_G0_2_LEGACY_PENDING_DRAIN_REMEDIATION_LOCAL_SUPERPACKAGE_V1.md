@@ -1,5 +1,11 @@
 # WP-G0.2 Legacy Pending Drain Remediation Local Superpackage
 
+> **状态更新（2026-07-18）：本包已被 source-lane 分类证据取代。** 原本把全局
+> pending=2,957 当作 legacy source pending；生产只读证明实际是
+> legacy source completed=2,957/unresolved=0，Candidate event
+> pending=2,957。当前 runner 已增加 source-lane 前置门，真实生产形态会在 mutation
+> 前以 `legacy_pending_work_missing` 拒绝。本文件以下内容只保留为历史设计证据。
+
 ## 目标
 
 生产只读核验确认旧 Candidate 周期已经安全冻结在 `legacy / epoch 4`，但仍有 2,957 条 `pending`。Candidate worker 当前 absent，因此既不能自然排空，也不能满足相邻周期续接的 `unresolved=0` 门禁。本包只关闭这个死锁，不启动新周期、不取得 Canonical authority。

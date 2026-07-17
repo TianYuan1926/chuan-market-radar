@@ -41,7 +41,18 @@
     "retryWait": 0,
     "quarantined": 0,
     "resolutions": 0,
-    "unresolved": 2957
+    "unresolved": 2957,
+    "legacyCompleted": 2957,
+    "legacyPending": 0,
+    "legacyUnresolved": 0,
+    "candidateEventPending": 2957,
+    "candidateEventUnresolved": 2957
+  },
+  "supersession": {
+    "status": "SUPERSEDED_SOURCE_LANE_CLASSIFICATION",
+    "currentProductionExecutable": false,
+    "legacySourceLaneAlreadyCompleted": true,
+    "candidateEventLaneMustRemainUnconsumedByShadowConsumer": true
   },
   "execution": {
     "runner": "transient_systemd_unit",
@@ -137,7 +148,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "f90f202489f8c763612c976fe795cd33e1cbc1b807d92ce68ec07ebbe06343f5",
+    "sha256": "54654ec0f187efb684967db9538b3971b13b34607334b86630b42530c81b3ab6",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

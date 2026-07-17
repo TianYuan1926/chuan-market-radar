@@ -124,6 +124,19 @@ export async function readDrainDatabaseSnapshot(client, runtime) {
       FROM candidate_authority.candidate_episode_ingest_outbox) AS quarantined,
     (SELECT count(*) FILTER (WHERE status<>'completed')::int
       FROM candidate_authority.candidate_episode_ingest_outbox) AS unresolved,
+    (SELECT count(*) FILTER (WHERE source_type='legacy_scan_candidate' AND status='completed')::int
+      FROM candidate_authority.candidate_episode_ingest_outbox) AS legacy_completed,
+    (SELECT count(*) FILTER (WHERE source_type='legacy_scan_candidate' AND status='pending')::int
+      FROM candidate_authority.candidate_episode_ingest_outbox) AS legacy_pending,
+    (SELECT count(*) FILTER (WHERE source_type='legacy_scan_candidate' AND status<>'completed')::int
+      FROM candidate_authority.candidate_episode_ingest_outbox) AS legacy_unresolved,
+    (SELECT count(*) FILTER (WHERE source_type='candidate_episode_event' AND status='pending')::int
+      FROM candidate_authority.candidate_episode_ingest_outbox) AS candidate_event_pending,
+    (SELECT count(*) FILTER (WHERE source_type='candidate_episode_event' AND status<>'completed')::int
+      FROM candidate_authority.candidate_episode_ingest_outbox) AS candidate_event_unresolved,
+    (SELECT count(*) FILTER (WHERE source_type NOT IN ('legacy_scan_candidate','candidate_episode_event')
+        AND status<>'completed')::int
+      FROM candidate_authority.candidate_episode_ingest_outbox) AS other_unresolved,
     (SELECT count(*)::int FROM candidate_authority.candidate_outbox_quarantine_resolutions)
       AS resolutions
     FROM candidate_authority.candidate_migration_control control
@@ -143,11 +156,18 @@ export async function readDrainDatabaseSnapshot(client, runtime) {
       writeFrozen: row.write_frozen,
     },
     counts: {
+      candidateEventPending: integer(row.candidate_event_pending, "candidate_event_pending_invalid"),
+      candidateEventUnresolved: integer(row.candidate_event_unresolved,
+        "candidate_event_unresolved_invalid"),
       checkpoints: integer(row.checkpoints, "checkpoints_invalid"),
       claimed: integer(row.claimed, "claimed_invalid"),
       completed: integer(row.completed, "completed_invalid"),
       episodes: integer(row.episodes, "episodes_invalid"),
       events: integer(row.events, "events_invalid"),
+      legacyCompleted: integer(row.legacy_completed, "legacy_completed_invalid"),
+      legacyPending: integer(row.legacy_pending, "legacy_pending_invalid"),
+      legacyUnresolved: integer(row.legacy_unresolved, "legacy_unresolved_invalid"),
+      otherUnresolved: integer(row.other_unresolved, "other_unresolved_invalid"),
       outbox: integer(row.outbox, "outbox_invalid"),
       outcomes: integer(row.outcomes, "outcomes_invalid"),
       pending: integer(row.pending, "pending_invalid"),
