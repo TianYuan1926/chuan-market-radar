@@ -391,10 +391,14 @@ function validateRuntime(runtime) {
   ensure(Date.parse(runtime.startedAt) < Date.parse(runtime.deadlineAt)
       && Date.parse(runtime.deadlineAt) - Date.now() >= 30 * 60_000,
   "runtime_control_window_invalid");
-  ensure(runtime.identityOverridePath.startsWith("/var/lib/market-radar-ops/identity/")
-      && runtime.identityWrapperPath.startsWith("/var/lib/market-radar-ops/identity/")
-      && runtime.postgresAdminEnvPath.startsWith("/var/lib/market-radar-ops/")
-      && runtime.postgresAdminEnvPath.endsWith("/secrets/postgres-admin.env"),
+  const identityRootMatch = /^\/var\/lib\/market-radar-ops\/(wp-g0-2-identity-runner-[0-9]{8}T[0-9]{6}Z)\/runtime\/runtime-identity\.override\.yml$/u
+    .exec(runtime.identityOverridePath ?? "");
+  const identityRoot = identityRootMatch
+    ? `/var/lib/market-radar-ops/${identityRootMatch[1]}`
+    : null;
+  ensure(identityRoot !== null
+      && runtime.identityWrapperPath === `${identityRoot}/runtime/compose-identity-safe`
+      && runtime.postgresAdminEnvPath === `${identityRoot}/secrets/postgres-admin.env`,
   "runtime_secure_path_invalid");
 }
 

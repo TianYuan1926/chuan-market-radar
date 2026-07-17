@@ -123,7 +123,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "b3f91b6278c3a84bba023e9c3b6493faeb275040d1d80880f0ce735d32b6419b",
+    "sha256": "19aed3028f3a70b5b632820ea42df9d81f4ce28e6d2b9bdbf4e47276a5e2e405",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

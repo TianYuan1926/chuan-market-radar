@@ -28,6 +28,8 @@ const manifest = {
 };
 
 function runtime() {
+  const identityRoot =
+    "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z";
   return {
     baseEnvSha256: hash,
     baselineComposeSha256: "6".repeat(64),
@@ -37,11 +39,11 @@ function runtime() {
     baselineWebImageId: BASELINE_WEB_IMAGE,
     controlApprovalDigest: `sha256:${"9".repeat(64)}`,
     deadlineAt: "2099-07-19T01:38:00.099Z",
-    identityOverridePath: "/var/lib/market-radar-ops/identity/compose.override.env",
+    identityOverridePath: `${identityRoot}/runtime/runtime-identity.override.yml`,
     identityOverrideSha256: "a".repeat(64),
-    identityWrapperPath: "/var/lib/market-radar-ops/identity/docker-compose-wrapper",
+    identityWrapperPath: `${identityRoot}/runtime/compose-identity-safe`,
     identityWrapperSha256: "b".repeat(64),
-    postgresAdminEnvPath: "/var/lib/market-radar-ops/identity/secrets/postgres-admin.env",
+    postgresAdminEnvPath: `${identityRoot}/secrets/postgres-admin.env`,
     postgresAdminEnvSha256: "c".repeat(64),
     productionEnvSha256: "d".repeat(64),
     startedAt: "2026-07-16T01:38:00.099Z",
@@ -118,4 +120,41 @@ test("creates one 89 minute request bound to the exact production snapshot", () 
     now,
     request: authorizationDrifted,
   }), /authorization_binding_invalid/);
+});
+
+test("requires all privileged runtime files to share one exact identity-runner root", () => {
+  const now = new Date("2026-07-17T04:00:00.000Z");
+  const base = {
+    bundleSha256: "6".repeat(64),
+    gateEvidenceSha256: "7".repeat(64),
+    manifest,
+    now,
+  };
+  const crossRoot = runtime();
+  crossRoot.postgresAdminEnvPath = crossRoot.postgresAdminEnvPath.replace(
+    "20260711T034847Z",
+    "20260712T034847Z",
+  );
+  assert.throws(
+    () => createProductionExecutionRequest({ ...base, runtime: crossRoot }),
+    /runtime_secure_path_invalid/,
+  );
+
+  const wrongWrapper = runtime();
+  wrongWrapper.identityWrapperPath = wrongWrapper.identityWrapperPath.replace(
+    "compose-identity-safe",
+    "unapproved-wrapper",
+  );
+  assert.throws(
+    () => createProductionExecutionRequest({ ...base, runtime: wrongWrapper }),
+    /runtime_secure_path_invalid/,
+  );
+
+  const unstableAlias = runtime();
+  unstableAlias.identityOverridePath =
+    "/var/lib/market-radar-ops/identity/runtime-identity.override.yml";
+  assert.throws(
+    () => createProductionExecutionRequest({ ...base, runtime: unstableAlias }),
+    /runtime_secure_path_invalid/,
+  );
 });

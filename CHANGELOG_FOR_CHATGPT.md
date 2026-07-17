@@ -5500,3 +5500,41 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 完成本包基础门禁和 commit-bound approval 后，只执行生产 pending drain；不得合并 cycle-2 启动。
+
+## 2026-07-17 / WP-G0.2 Legacy Pending Drain Production Identity Path Remediation
+
+### 本轮目标
+
+修复 Microsoft Edge/OrcaTerm 动态只读预检发现的生产 identity-runner 路径合同错误，不绕过身份校验、不修改生产。
+
+### 修改范围
+
+- 请求校验器改为只接受同一 `/var/lib/market-radar-ops/wp-g0-2-identity-runner-YYYYMMDDTHHMMSSZ` 根目录下的精确 wrapper、override 与 Postgres admin env。
+- 新增跨 identity root、伪 wrapper 和不存在稳定别名的负向回归。
+- 重新冻结生产 runner artifact；未修改 migration、frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis、Worker、Compose、env 或 secret。
+
+### 核心链路影响
+
+只修复候选生命周期生产排空入口的真实身份绑定；不改变市场发现、候选排序、分析、风险赔率或交易计划。
+
+### 测试结果
+
+- Bundle 身份路径定向：5/5 PASS。
+- 生产包治理与执行器：17/17 PASS。
+- 提交前完整自治门禁：12/12 PASS；包含 PostgreSQL 16 双路径、typecheck、零 warning lint、market 1027/0/7、workers 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁。
+- 提交后 commit/tree-bound 自治门禁：待执行，当前不提前生成 Bundle 或标记生产可执行。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+未部署。生产只执行只读 Git、文件哈希、容器身份、health 和路径查询；production lease absent，数据库和服务均未修改。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：当前变更尚未完成完整门禁、clean commit、推送、新 Bundle 和生产 request。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成完整门禁和新 commit-bound Bundle 后，继续同一 pending-only drain 生产包，不进入 cycle-2。
