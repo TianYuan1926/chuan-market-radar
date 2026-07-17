@@ -31,6 +31,7 @@ test("governance rejects count, epoch, rollback, or runner guard weakening", asy
   weakened.databasePrecondition.pending = 2_956;
   weakened.databasePrecondition.finalEpoch = 5;
   weakened.rollback.automatic = false;
+  weakened.execution.baselineHealthWaitSeconds = 600;
   const violations = evaluatePendingDrainProductionGovernance({
     contract: weakened,
     dbRunner,
@@ -40,5 +41,6 @@ test("governance rejects count, epoch, rollback, or runner guard weakening", asy
   assert.ok(violations.includes("pending_snapshot_changed"));
   assert.ok(violations.includes("epoch_sequence_changed"));
   assert.ok(violations.includes("rollback_boundary_relaxed"));
+  assert.ok(violations.includes("scanner_wait_boundary_relaxed"));
   assert.ok(violations.includes("runner_guard_missing:scanner_lock_still_present"));
 });

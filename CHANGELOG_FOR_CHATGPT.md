@@ -5538,3 +5538,45 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 完成完整门禁和新 commit-bound Bundle 后，继续同一 pending-only drain 生产包，不进入 cycle-2。
+
+## 2026-07-17 / WP-G0.2 Legacy Pending Drain Production Failure and Rollback Closeout Remediation
+
+### 本轮目标
+
+如实收口首次 production pending-only drain 的安全失败，证明数据库与生产基线未被误改，并修复 scanner 锁等待、rollback health cadence、租约释放和回滚证据单值性缺陷。
+
+### 修改范围
+
+- Microsoft Edge/OrcaTerm 只读核查生产 lease、Git/tree、容器/镜像、env/Compose 指纹、Redis scan lock、Candidate 数据、health 与失败证据。
+- runner 停止 scanner 后只读等待最多 660 秒让 600 秒 Redis 锁自然过期，禁止删除 Redis 锁。
+- rollback baseline health 等待从 600 秒改为 1,200 秒，覆盖 900 秒 scanner cadence 和 300 秒余量，并继续要求新 completedAt 与 ready/fresh。
+- 真正 rollback incomplete 时不再调用非法 `ROLLBACK_FAIL` release outcome；保留租约并输出单一 `ROLLBACK_INCOMPLETE_LEASE_RETAINED`。
+- 更新生产合同、治理 validator、回归测试、报告和长期上下文；未修改 migration、frontend、业务 API、scan 排序、analysis、strategy、RR、Risk Gate、trade plan、backtest、Worker、Compose、env 或 secret。
+
+### 核心链路影响
+
+保护候选筛选与复盘进化的 Candidate 生命周期地基；不产生信号，不修改市场发现、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- 新增回归在旧 runner 上 4 项变红；修复后 production packet 20/20 PASS。
+- 隔离 PostgreSQL 16 migrations 1-10、pending-only drain、sourceWritesAdded=0、outboxDeleted=0、legacy/frozen epoch6：PASS，`productionConnected=false`。
+- typecheck、零 warning lint：PASS。
+- market 1027 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check、Autonomy 31/31：PASS。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+首次生产尝试已执行但 FAIL：fencing token 14 在 scanner pause 后因 `scanner_lock_still_present` 于数据库 preflight 前退出。数据库保持 migration 10、legacy/frozen epoch4、outbox=5,914、completed=2,957、pending/unresolved=2,957；Candidate worker absent。Git/tree、env/Compose、Web/scanner 原镜像均恢复，Redis scan lock=0，后续 health 已为 ready/fresh。旧 lease 因非法 release outcome 保留到自然过期。当前本地修复尚未 commit-bound、未生成新 Bundle/request、未生产重试。
+
+### 风险与遗留问题
+
+- P0：旧执行结果是 rollback closeout incomplete，不是 production drain PASS；旧 active lease 必须自然过期或在下一次 acquire 时按租约协议归档，不能手工删除。
+- P1：新修复仍需 clean commit、提交后自治 gate、新 Bundle/request 和动态生产 preflight。
+- P1：只有 pending=0、legacy/frozen epoch6、scanner ready/fresh、租约释放和证据闭环全部 PASS 后，G0 主步骤才能从 8 减为 7。
+- 系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成并重试 `WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION`；不得合并 cycle-2。

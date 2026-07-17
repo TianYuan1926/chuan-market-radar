@@ -149,6 +149,8 @@ export async function validateProductionPacketContract(root = process.cwd()) {
         !== JSON.stringify(["web", "scanner-worker", "candidate-shadow-worker"])
       || execution.scannerPausedBeforeDatabaseMutation !== true
       || execution.scannerLockMustBeAbsent !== true
+      || execution.scannerLockWaitSeconds !== 660
+      || execution.baselineHealthWaitSeconds !== 1_200
       || execution.candidateSourceWriteReachable !== false
       || execution.candidateDrainOnly !== true || execution.candidateBatchLimit !== 100
       || execution.candidateIntervalSeconds !== 1) violations.push("execution_boundary");
@@ -167,6 +169,10 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || rollback.deleteOutboxAllowed !== false || rollback.restoreEnvironment !== true
       || rollback.restoreGit !== true || rollback.restoreWebImage !== true
       || rollback.restoreScannerImage !== true || rollback.restoreScannerService !== true
+      || rollback.incompleteLeaseRetained !== true
+      || rollback.incompleteLabel !== "ROLLBACK_INCOMPLETE_LEASE_RETAINED"
+      || rollback.invalidReleaseOutcomeAllowed !== false
+      || rollback.resultStatusSingleValued !== true
       || rollback.productionPassAfterRollback !== false) violations.push("rollback_boundary");
   for (const forbidden of [
     "migration", "database_delete", "redis_mutation", "new_candidate_source_write",
@@ -228,6 +234,7 @@ export async function validateLocalPreparation(root = process.cwd()) {
   for (const token of [
     "service_allowlist=web,scanner-worker,candidate-shadow-worker", "scanner_lock_still_present",
     "CANDIDATE_EPISODE_DRAIN_ONLY=true", "database_runner rollback", "ROLLBACK_PASS",
+    "wait_for_scan_lock_absent", "ROLLBACK_INCOMPLETE_LEASE_RETAINED", "leaseRetained",
     "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN", "cycle2Started:false",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   for (const token of ["systemd-run", "RuntimeMaxSec=5400", "validate-request",
@@ -239,7 +246,7 @@ export async function validateLocalPreparation(root = process.cwd()) {
     violations.push("source_enqueue_hard_block_missing");
   }
   for (const forbidden of ["git reset --hard", "docker volume rm", "DROP TABLE", "TRUNCATE",
-    "backtest:formal"]) {
+    "backtest:formal", "release --outcome ROLLBACK_FAIL"]) {
     if (`${runner}\n${entrypoint}`.includes(forbidden)) violations.push(`forbidden_runtime_token:${forbidden}`);
   }
   return {

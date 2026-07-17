@@ -16,17 +16,17 @@
 
 ## 唯一允许的变化
 
-1. 停止 scanner，并只读确认 Redis 中不存在 `scan:lock:*`。
+1. 停止 scanner；只读等待最长 660 秒让 Redis 的 600 秒扫描锁自然释放，禁止删除锁，超时即失败。
 2. 保留 Git、env、Web、scanner 镜像和非目标容器基线。
 3. 精确 fetch/checkout 已批准 target，构建临时 Web 与 Candidate worker。
 4. 临时 env 开启 shadow consumer，同时设置 `CANDIDATE_EPISODE_DRAIN_ONLY=true`；source enqueue 必须 fail closed。
 5. control 从 epoch 4 临时进入 epoch 5；处理旧 pending 后停止 Candidate worker。
 6. 仅在 pending/claimed/retry_wait/quarantined/unresolved 全部归零且 outbox 总数未变时冻结为 legacy epoch 6。
-7. 恢复原 env、原 Git、原 Web/scanner 镜像，Candidate worker absent，scanner 重新达到 ready/fresh。
+7. 恢复原 env、原 Git、原 Web/scanner 镜像，Candidate worker absent；基线健康等待最长 1,200 秒，以覆盖 15 分钟 scanner 周期和 5 分钟余量，scanner 必须产生晚于执行前基线的新 completedAt 并重新达到 ready/fresh。
 
 ## 失败处理
 
-任何超时、payload 失败、retry_wait、quarantine、resolution、新 outbox、数据删除、身份漂移或验证失败都会先停止 Candidate worker，再将开放的 epoch 冻结到 legacy，随后恢复完整生产基线。回滚成功只能写 `ROLLBACK_PASS`，不得写生产 drain PASS。
+任何超时、payload 失败、retry_wait、quarantine、resolution、新 outbox、数据删除、身份漂移或验证失败都会先停止 Candidate worker，再将开放的 epoch 冻结到 legacy，随后恢复完整生产基线。回滚成功只能写单一状态 `ROLLBACK_PASS`，不得写生产 drain PASS。若完整基线仍未恢复，必须写单一状态 `ROLLBACK_INCOMPLETE_LEASE_RETAINED` 并保留全局生产租约到安全过期，不得用租约系统不接受的结果值尝试释放，也不得允许下一生产写入者进入。
 
 ## 明确禁止
 

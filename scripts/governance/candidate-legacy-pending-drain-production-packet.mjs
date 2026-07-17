@@ -37,14 +37,23 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
   if (contract.rollback?.automatic !== true || contract.rollback?.refreezeCurrentControl !== true
       || contract.rollback?.deleteOutboxAllowed !== false
       || contract.rollback?.restoreScannerService !== true
+      || contract.rollback?.incompleteLeaseRetained !== true
+      || contract.rollback?.incompleteLabel !== "ROLLBACK_INCOMPLETE_LEASE_RETAINED"
+      || contract.rollback?.invalidReleaseOutcomeAllowed !== false
+      || contract.rollback?.resultStatusSingleValued !== true
       || contract.rollback?.productionPassAfterRollback !== false) {
     violations.push("rollback_boundary_relaxed");
+  }
+  if (contract.execution?.scannerLockWaitSeconds !== 660
+      || contract.execution?.baselineHealthWaitSeconds !== 1_200) {
+    violations.push("scanner_wait_boundary_relaxed");
   }
   for (const token of [
     "service_allowlist=web,scanner-worker,candidate-shadow-worker",
     "scanner_lock_still_present", "database_runner preflight", "database_runner open",
     "database_runner close", "database_runner rollback", "CANDIDATE_EPISODE_DRAIN_ONLY=true",
     "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN", "ROLLBACK_PASS", "wait_baseline_health",
+    "wait_for_scan_lock_absent", "ROLLBACK_INCOMPLETE_LEASE_RETAINED", "leaseRetained",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   for (const token of [
     "systemd-run", "RuntimeMaxSec=5400", "validate-request", "prepare-admin-url",
@@ -58,7 +67,7 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
   const combined = `${runner}\n${entrypoint}\n${dbRunner}`;
   for (const forbidden of [
     "git reset --hard", "docker volume rm", "DROP TABLE", "TRUNCATE", "DELETE FROM",
-    "backtest:formal",
+    "backtest:formal", "release --outcome ROLLBACK_FAIL",
   ]) if (combined.includes(forbidden)) violations.push(`forbidden_runtime_token:${forbidden}`);
   return violations;
 }

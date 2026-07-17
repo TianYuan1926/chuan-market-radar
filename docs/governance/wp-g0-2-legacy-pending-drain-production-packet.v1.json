@@ -56,6 +56,8 @@
     "temporaryCandidateWorkerRequired": true,
     "scannerPausedBeforeDatabaseMutation": true,
     "scannerLockMustBeAbsent": true,
+    "scannerLockWaitSeconds": 660,
+    "baselineHealthWaitSeconds": 1200,
     "candidateSourceWriteReachable": false,
     "candidateDrainOnly": true,
     "candidateBatchLimit": 100,
@@ -91,6 +93,10 @@
     "restoreScannerImage": true,
     "restoreScannerService": true,
     "passLabel": "ROLLBACK_PASS",
+    "incompleteLeaseRetained": true,
+    "incompleteLabel": "ROLLBACK_INCOMPLETE_LEASE_RETAINED",
+    "invalidReleaseOutcomeAllowed": false,
+    "resultStatusSingleValued": true,
     "productionPassAfterRollback": false
   },
   "databaseBoundary": {
@@ -123,7 +129,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "19aed3028f3a70b5b632820ea42df9d81f4ce28e6d2b9bdbf4e47276a5e2e405",
+    "sha256": "597abb94ac3192b8bdd9fe64f4a5f8841fe036b47eeb5ddf316766144d32a357",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

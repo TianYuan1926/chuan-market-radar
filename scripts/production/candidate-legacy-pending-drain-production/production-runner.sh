@@ -173,7 +173,7 @@ MUTATED=false
 FAILURE_PHASE="pre-mutation"
 
 wait_baseline_health() {
-  local deadline=$((SECONDS + 600))
+  local deadline=$((SECONDS + 1200))
   while true; do
     if ROOT_DIR_OVERRIDE="${ROOT_DIR}" BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
       STRICT_SCAN_FRESHNESS=true REQUIRE_IDENTITY_WRAPPER=true \
@@ -192,6 +192,28 @@ wait_baseline_health() {
     (( SECONDS < deadline )) || return 1
     sleep 10
   done
+}
+
+wait_for_scan_lock_absent() {
+  local deadline=$((SECONDS + 660))
+  local scan_locks
+  while true; do
+    scan_locks="$(${DOCKER[@]} exec "${REDIS_CONTAINER}" redis-cli --scan --pattern 'scan:lock:*')"
+    [[ -n "${scan_locks}" ]] || return 0
+    (( SECONDS < deadline )) || return 1
+    sleep 2
+  done
+}
+
+rollback_result_status() {
+  local rollback_ok="$1" mutated="$2"
+  if [[ "${rollback_ok}" != "true" ]]; then
+    printf 'ROLLBACK_INCOMPLETE_LEASE_RETAINED\n'
+  elif [[ "${mutated}" == "true" ]]; then
+    printf 'ROLLBACK_PASS\n'
+  else
+    printf 'SAFE_STOP_PRE_MUTATION\n'
+  fi
 }
 
 restore_baseline() {
@@ -235,27 +257,33 @@ rollback_on_failure() {
   local exit_code=$?
   trap - EXIT INT TERM HUP
   if [[ "${exit_code}" -eq 0 || "${SUCCEEDED}" == "true" ]]; then exit "${exit_code}"; fi
-  local rollback_ok=true
+  local rollback_ok=true rollback_status lease_retained=false
   [[ "${LEASE_ACQUIRED}" != "true" ]] || lease_event safety-checkpoint --checkpoint rollback || true
   if [[ "${MUTATED}" == "true" ]]; then
     restore_baseline || rollback_ok=false
   fi
   if [[ "${LEASE_ACQUIRED}" == "true" && "${LEASE_RELEASED}" != "true" ]]; then
     if [[ "${rollback_ok}" == "true" ]]; then
-      lease_event release --outcome "$([[ "${MUTATED}" == "true" ]] \
-        && echo ROLLBACK_PASS || echo SAFE_STOP_PRE_MUTATION)" || rollback_ok=false
-      LEASE_RELEASED=true
-    else
-      lease_event release --outcome ROLLBACK_FAIL || true
+      if lease_event release --outcome "$([[ "${MUTATED}" == "true" ]] \
+        && echo ROLLBACK_PASS || echo SAFE_STOP_PRE_MUTATION)"; then
+        LEASE_RELEASED=true
+      else
+        rollback_ok=false
+      fi
     fi
   fi
-  jq -n --arg status "$([[ "${rollback_ok}" != "true" ]] && echo ROLLBACK_FAIL \
-      || [[ "${MUTATED}" == "true" ]] && echo ROLLBACK_PASS || echo SAFE_STOP_PRE_MUTATION)" \
+  rollback_status="$(rollback_result_status "${rollback_ok}" "${MUTATED}")"
+  if [[ "${LEASE_ACQUIRED}" == "true" && "${LEASE_RELEASED}" != "true" ]]; then
+    lease_retained=true
+  fi
+  jq -n --arg status "${rollback_status}" \
     --arg failurePhase "${FAILURE_PHASE}" --arg baselineCommit "${BASELINE_COMMIT}" \
-    '{status:$status,failurePhase:$failurePhase,baselineCommit:$baselineCommit,productionDrainPass:false}' \
+    --argjson leaseReleased "${LEASE_RELEASED}" --argjson leaseRetained "${lease_retained}" \
+    '{status:$status,failurePhase:$failurePhase,baselineCommit:$baselineCommit,
+      leaseReleased:$leaseReleased,leaseRetained:$leaseRetained,productionDrainPass:false}' \
     > "${EVIDENCE_DIRECTORY}/rollback-result.json" || true
   if [[ "${rollback_ok}" != "true" ]]; then
-    printf 'P0_ROLLBACK_INCOMPLETE\n' >&2
+    printf 'P0_ROLLBACK_INCOMPLETE_LEASE_RETAINED\n' >&2
   elif [[ "${MUTATED}" == "true" ]]; then
     printf 'ROLLBACK_PASS\n' >&2
   else
@@ -287,8 +315,7 @@ SCANNER_STOPPED=true
 sleep 2
 REDIS_CONTAINER="$("${COMPOSE[@]}" ps -q redis)"
 [[ -n "${REDIS_CONTAINER}" ]] || fail redis_container_missing
-SCAN_LOCKS="$(${DOCKER[@]} exec "${REDIS_CONTAINER}" redis-cli --scan --pattern 'scan:lock:*')"
-[[ -z "${SCAN_LOCKS}" ]] || fail scanner_lock_still_present
+wait_for_scan_lock_absent || fail scanner_lock_still_present_after_wait
 
 FAILURE_PHASE="database-preflight"
 database_runner preflight "${BASELINE_WEB_IMAGE}" \
