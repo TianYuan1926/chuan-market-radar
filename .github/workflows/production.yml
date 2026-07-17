@@ -112,6 +112,12 @@ jobs:
       - name: Candidate canonical rollback state-machine tests
         run: npm run test:candidate-canonical-rollback
 
+      - name: Candidate canonical rollback safety production Add Schema contract
+        run: npm run candidate:canonical-rollback-add-schema:validate
+
+      - name: Candidate canonical rollback safety production Add Schema tests
+        run: npm run test:candidate-canonical-rollback-add-schema
+
       - name: Candidate validation-cycle continuation contract
         run: npm run candidate:cycle-continuation:validate
 

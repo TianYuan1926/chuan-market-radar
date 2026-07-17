@@ -5292,3 +5292,44 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 完成本包提交和推送后，独立准备 migration 010 的 production Add Schema 包；成功应用并验证前不进入 Canonical phase。
+## 2026-07-17 / WP-G0.2 Canonical Rollback Safety Production Add Schema Packet
+
+### 本轮目标
+
+为 migration 010 建立独立、确定性、单迁移、最小权限且会话无关的生产 Add Schema 执行包；本轮先完成本地实现和隔离演练，不连接生产。
+
+### 修改范围
+
+- 新增 migration 010 专用 runner、确定性 Bundle、单次 90 分钟 Standing Grant request、transient systemd 入口和数据库唯一生产 runner。
+- 新增精确 1-9 ledger、唯一 pending 010、NOINHERIT migration login、显式 owner role、单事务 ledger、业务行不变和生产身份不变门禁。
+- 新增合同/负向/边界测试与隔离 PostgreSQL 16 演练；接入 package scripts 和 CI。
+- 未修改 migration 001-010、frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis、Worker、Compose、env 或生产服务。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的 Candidate 生命周期读权威地基；不改变发现、深扫、结构、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- 合同、边界、负向和确定性 Bundle：10/10 PASS。
+- PostgreSQL 16：精确 1-9、故障事务回滚、只应用 010 到 10、least privilege、业务数据不变、`productionConnected=false` PASS。
+- 首轮 PG16 因 NOINHERIT 登录不能隐式访问 schema 而失败；最小修复为身份检查后显式 `SET ROLE candidate_migration_role`，未放宽登录权限。
+- Autonomy 31/31、typecheck、零警告 lint：PASS。
+- market 1026 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- 提交前自治总门禁：12/12 PASS，`worktreeUnchanged=true`。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或查询生产，migration 010 未执行。生产仍是 migrations 1-9，Canonical Cutover 继续阻断。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0；生产没有 rollback function 仍是 Cutover 前硬阻断。
+- P1：本地包仍须 clean commit、提交后绑定门禁、确定性 Bundle 和推送，之后才能进入独立生产执行。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成本包门禁、提交和推送后，独立执行 production Add Schema；不得与 Canonical phase transition 合并。

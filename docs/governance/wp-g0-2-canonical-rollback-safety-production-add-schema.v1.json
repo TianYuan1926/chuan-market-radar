@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "wp-g0.2-canonical-rollback-safety-production-add-schema.v1",
+  "packageId": "WP-G0.2-CANONICAL-ROLLBACK-SAFETY-PRODUCTION-ADD-SCHEMA",
+  "gate": "G0",
+  "actionClass": "additive_schema_migration",
+  "riskTier": "R2_DATABASE_SCHEMA",
+  "status": "local_packet_prepared_production_not_executed",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "canonicalCutoverAuthorized": false,
+  "migration": {
+    "file": "migrations/candidate-episode/010_candidate_canonical_rollback_safety.sql",
+    "version": "010_candidate_canonical_rollback_safety",
+    "sha256": "2ae3247a64e08159adfb74a6da48bf0a51a45cba356fe4ad666482a18d0cb1ba",
+    "onlyPendingMigration": "010_candidate_canonical_rollback_safety",
+    "expectedBaselineCount": 9,
+    "expectedCompletionCount": 10,
+    "roleBootstrapAllowed": false
+  },
+  "databaseBoundary": {
+    "migrationLoginRole": "market_radar_migration_login",
+    "migrationOwnerRole": "candidate_migration_role",
+    "transactionIsolation": "repeatable_read",
+    "advisoryLockRequired": true,
+    "lockTimeout": "5s",
+    "statementTimeout": "30s",
+    "idleTransactionTimeout": "60s",
+    "businessDataMutationAllowed": false,
+    "canonicalPhaseBeforeMigrationAllowed": false,
+    "exactLedgerRequired": true,
+    "functionOwnerRequired": "candidate_migration_role",
+    "publicExecuteAllowed": false,
+    "applicationExecuteAllowed": false
+  },
+  "execution": {
+    "runner": "transient_systemd_unit",
+    "sessionIndependent": true,
+    "maximumApprovalWindowMinutes": 90,
+    "externalProductionLeaseRequired": true,
+    "singleUseApprovalRequired": true,
+    "serviceMutationAllowed": false,
+    "sourceSyncAllowed": false,
+    "environmentMutationAllowed": false,
+    "productionWorktreeMutationAllowed": false,
+    "temporaryArtifactCleanupRequired": true
+  },
+  "verification": {
+    "ledgerRows": 10,
+    "migrationChecksumExact": true,
+    "securityDefinerRequired": true,
+    "fixedSearchPathRequired": true,
+    "candidateBusinessDataUnchangedInsideTransaction": true,
+    "productionHealthReadyRequiredBeforeAndAfter": true,
+    "allContainerIdentitiesUnchanged": true,
+    "productionGitIdentityUnchanged": true,
+    "secretFreeEvidenceRequired": true
+  },
+  "rollback": {
+    "preCommitFailure": "database_transaction_rollback",
+    "postCommitSchemaRemovalAllowed": false,
+    "candidateDataPreserved": true,
+    "reason": "Migration 010 is additive safety infrastructure; destructive schema rollback is forbidden after ledger commit."
+  },
+  "runnerArtifact": {
+    "fileCount": 3,
+    "files": [
+      "scripts/production/candidate-canonical-rollback-add-schema/production-entrypoint.sh",
+      "scripts/production/candidate-canonical-rollback-add-schema/production-runner.sh",
+      "scripts/production/candidate-canonical-rollback-add-schema/runner.mjs"
+    ],
+    "sha256": "624f22589233a150b23f300094c11b92ac8602fd2f783cf03274ee5e51d1fceb"
+  },
+  "forbidden": [
+    "historical_migration_edit",
+    "role_bootstrap",
+    "business_data_mutation",
+    "feature_flag_mutation",
+    "service_recreate",
+    "source_sync",
+    "canonical_cutover",
+    "formal_backtest",
+    "secret_in_evidence"
+  ]
+}
