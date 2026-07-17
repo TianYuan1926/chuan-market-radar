@@ -89,7 +89,7 @@ export async function validateCandidateCanonicalReadPreparation(contract) {
     ]).has(key);
     if (value !== !expectedFalse) violations.push(`truth_boundary:${key}`);
   }
-  if (contract.readRoute?.currentCodeCanonicalReadAuthorization !== false
+  if (contract.readRoute?.currentCodeCanonicalReadAuthorization !== true
       || contract.readRoute?.shadowVerifyAuthority !== "legacy"
       || contract.readRoute?.canonicalCompatFallback !== "explicit_legacy_fallback_on_non_pass_parity"
       || contract.readRoute?.canonicalFailureFallback !== "prohibited"
@@ -108,7 +108,7 @@ export async function validateCandidateCanonicalReadPreparation(contract) {
     violations.push("parity_evidence");
   }
   for (const token of [
-    "CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED = false",
+    "CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED = true",
     "CANDIDATE_READ_AS_OF_MAXIMUM_AGE_SECONDS = 600",
     'isolation: "serializable"',
     "readOnly: true",
@@ -149,8 +149,9 @@ export async function validateCandidateCanonicalReadPreparation(contract) {
     "null_to_zero", "unknown_to_direction", "database_error_as_empty",
     "future_outcome_ranking_input", "formal_backtest",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
-  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION"
-      || contract.nextProductionPackage !== "WP-G0.2-SHADOW-VERIFY-RECONCILIATION") {
+  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL"
+      || contract.nextProductionPackage
+        !== "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION") {
     violations.push("production_sequence");
   }
   return {

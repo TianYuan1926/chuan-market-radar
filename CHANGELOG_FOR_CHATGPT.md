@@ -5203,3 +5203,48 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 本包提交、提交后自治门禁、确定性 Bundle 和工作分支推送收口后，继续准备 Canonical Compat 独立观察包；生产执行保持等待真实 Lineage、Reconciliation 和 Web code release PASS。
+
+## 2026-07-17 / WP-G0.2 Canonical Compat Phase Transition and Observation
+
+### 本轮目标
+
+建立独立、会话无关、可自动回滚的 `shadow_verify -> canonical_compat` 阶段切换与 24 小时观察包；本轮只做本地实现、隔离演练和生产准备，不连接或修改生产。
+
+### 修改范围
+
+- 新增 Canonical Compat phase 合同、环境/manifest/DB runner、公共 API 语义观察和全分页 Raw Oracle。
+- 新增精确 289 样本、至少 24 小时、最大间隔 600 秒且不可缩短的观察证据；Candidate 只在当前请求 parity PASS 时成为候选生命周期与复盘读取权威。
+- 新增失败自动回滚到 `legacy/frozen`，关闭全部 Candidate flags、停止 Candidate worker并保留 Candidate 数据、Git 与 Web image。
+- 新增确定性脱敏 Bundle、会话独立入口、生产边界测试和隔离 PostgreSQL 16 演练。
+- 修正 4 份过期 Canonical 机器合同：代码授权已成立，但 phase/cutover/自动推进仍禁止。
+- 未修改 frontend、API source、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、Compose、Redis、Worker implementation 或生产服务。
+
+### 核心链路影响
+
+加强候选筛选和复盘进化的 Candidate 生命周期读真值；不改变全市场发现、深扫验证、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Phase 定向测试：20/20 PASS。
+- Canonical domain：105 pass / 0 fail / 3 个显式 PostgreSQL skip；独立 PostgreSQL 16 演练实际 PASS。
+- PostgreSQL 16：10,000 门槛、`shadow_verify -> canonical_compat`、`canonical_compat -> legacy/frozen`、epoch/digest 与数据保留 PASS，`productionConnected=false`。
+- Autonomy unit：31/31 PASS。
+- typecheck、零警告 lint：PASS。
+- market 1026 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或查询生产；未执行数据库、Redis、服务、phase、manifest、Feature Flag 或 Candidate authority mutation。最近已知生产快照仍只是 96/289、completed=1481，可能已过期，本轮没有把它包装成当前事实。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：生产仍需真实 Dual Read、Lineage、Reconciliation 和 Web code release 全部 PASS；否则 runner 必须 fail closed。
+- P1：本包完成也不等于 Canonical Cutover、WP-G0.2 或 G0 完成。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+本包提交、提交后自治门禁、确定性 Bundle 和推送收口后，只准备 Canonical fail-closed phase transition 与观察包；生产执行继续等待真实 Dual Read 证据。

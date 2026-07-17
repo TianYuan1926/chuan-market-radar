@@ -9,12 +9,12 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-test("trusted context contract keeps production and authority boundaries closed", async () => {
+test("trusted context keeps runtime authority closed after code authorization", async () => {
   const result = await validateCandidateTrustedReadContextPreparation();
   assert.equal(result.status, "PASS_LOCAL_TRUSTED_READ_CONTEXT_PREPARATION");
   assert.equal(result.productionMutationAllowed, false);
   assert.equal(result.existingApiRouteModified, false);
-  assert.equal(result.currentCodeCanonicalReadAllowed, false);
+  assert.equal(result.currentCodeCanonicalReadAllowed, true);
   assert.deepEqual(result.violations, []);
 });
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T09:28:00+08:00",
+  "updatedAt": "2026-07-17T10:59:02+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -26,7 +26,8 @@
     "freshVerificationCycleLineageProductionPacket": "completed_local_committed_pushed_464c301_bundle_sha256_a75ce76c3d5342a94d4dfa1777b99350530dfef785f94b422b53934f087140d6_production_not_connected_not_executed",
     "shadowVerifyCodeAuthorization": "completed_local_committed_pushed_ebba74e_targeted_37_of_37_three_postgres16_rehearsals_autonomy_31_of_31_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected_not_deployed_phase_not_changed",
     "shadowVerifyCodeAuthorizationProductionRelease": "completed_local_committed_pushed_9163eabd0_release_target_eb48827_parent_54837d0_production_not_executed_blocked_by_lineage_and_reconciliation",
-    "shadowVerifyPhaseTransitionAndDualReadObservation": "local_preparation_ready_for_gate_contract_and_targeted_19_of_19_postgres16_10000_write_phase_transition_and_legacy_frozen_rollback_typecheck_lint_market_build_golden_16_of_16_security_and_autonomy_unit_31_of_31_pass_production_not_connected_phase_not_changed_observation_not_started"
+    "shadowVerifyPhaseTransitionAndDualReadObservation": "completed_local_committed_pushed_803bca6_contract_targeted_19_of_19_postgres16_baseline_security_postcommit_autonomy_12_of_12_pass_production_not_connected_phase_not_changed_observation_not_started",
+    "canonicalCompatPhaseTransitionAndObservation": "ready_for_gate_targeted_20_of_20_domain_105_of_105_with_3_explicit_pg_skips_postgres16_10000_write_shadow_verify_to_canonical_compat_and_legacy_frozen_rollback_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_pass_production_not_connected_phase_not_changed_observation_not_started"
   },
   "wipLimits": {
     "production": 1,
@@ -145,11 +146,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
-    "title": "Candidate Shadow Verify phase transition and full dual-read observation",
+    "id": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION",
+    "title": "Candidate Canonical Compat phase transition and parity-gated observation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "建立可审计、可回滚、会话独立的Shadow Verify阶段切换与24小时全分页双读观察包；只有真实Lineage、Reconciliation和Web代码发布证据全部可信时才允许从shadow_capture切换到shadow_verify，响应权威始终保留Legacy。",
+    "objective": "建立可审计、可回滚、会话独立的Canonical Compat阶段切换与24小时观察包；只有完整Dual Read证据和当前请求同快照零差异时Candidate才成为候选生命周期与复盘读取权威。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -162,11 +163,21 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation.v1.json",
-      "scripts/production/candidate-shadow-verify-phase/**",
-      "scripts/rehearsal/candidate-shadow-verify-phase-postgres16.sh",
-      "reports/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_REPORT.md"
+      "docs/governance/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v1.json",
+      "docs/governance/wp-g0-2-canonical-api-route-adapter-local-preparation.v1.json",
+      "docs/governance/wp-g0-2-canonical-compat-read-model-local-preparation.v1.json",
+      "docs/governance/wp-g0-2-canonical-read-compatibility-oracle-local-preparation.v1.json",
+      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
+      "scripts/governance/candidate-canonical-api-route-adapter.mjs",
+      "scripts/governance/candidate-canonical-api-route-adapter.test.mjs",
+      "scripts/governance/candidate-canonical-read-model.mjs",
+      "scripts/governance/candidate-canonical-read-oracle.mjs",
+      "scripts/governance/candidate-trusted-read-context.mjs",
+      "scripts/governance/candidate-trusted-read-context.test.mjs",
+      "scripts/production/candidate-canonical-compat-phase/**",
+      "scripts/rehearsal/candidate-canonical-compat-phase-postgres16.sh",
+      "reports/wp-g0-2-canonical-compat-phase-transition-and-observation/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -187,27 +198,28 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation.v1.json",
-      "scripts/production/candidate-shadow-verify-phase/bundle.mjs",
-      "scripts/production/candidate-shadow-verify-phase/bundle.test.mjs",
-      "scripts/production/candidate-shadow-verify-phase/full-snapshot-observer.cjs",
-      "scripts/production/candidate-shadow-verify-phase/full-snapshot-observer.test.mjs",
-      "scripts/production/candidate-shadow-verify-phase/observation-runner.sh",
-      "scripts/production/candidate-shadow-verify-phase/production-boundary.test.mjs",
-      "scripts/production/candidate-shadow-verify-phase/production-entrypoint.sh",
-      "scripts/production/candidate-shadow-verify-phase/production-runner.sh",
-      "scripts/production/candidate-shadow-verify-phase/runner-postgres.integration.mjs",
-      "scripts/production/candidate-shadow-verify-phase/runner.mjs",
-      "scripts/production/candidate-shadow-verify-phase/runner.test.mjs",
-      "scripts/rehearsal/candidate-shadow-verify-phase-postgres16.sh",
-      "reports/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation/WP_G0_2_SHADOW_VERIFY_PHASE_TRANSITION_AND_DUAL_READ_OBSERVATION_REPORT.md"
+      "docs/governance/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_V1.md",
+      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v1.json",
+      "scripts/production/candidate-canonical-compat-phase/bundle.mjs",
+      "scripts/production/candidate-canonical-compat-phase/bundle.test.mjs",
+      "scripts/production/candidate-canonical-compat-phase/full-snapshot-observer.cjs",
+      "scripts/production/candidate-canonical-compat-phase/full-snapshot-observer.test.mjs",
+      "scripts/production/candidate-canonical-compat-phase/observation-runner.sh",
+      "scripts/production/candidate-canonical-compat-phase/production-boundary.test.mjs",
+      "scripts/production/candidate-canonical-compat-phase/production-entrypoint.sh",
+      "scripts/production/candidate-canonical-compat-phase/production-runner.sh",
+      "scripts/production/candidate-canonical-compat-phase/runner-postgres.integration.mjs",
+      "scripts/production/candidate-canonical-compat-phase/runner.mjs",
+      "scripts/production/candidate-canonical-compat-phase/runner.test.mjs",
+      "scripts/rehearsal/candidate-canonical-compat-phase-postgres16.sh",
+      "reports/wp-g0-2-canonical-compat-phase-transition-and-observation/WP_G0_2_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:shadow-verify-phase:validate",
-        "test:candidate-shadow-verify-phase",
-        "candidate:shadow-verify-phase:pg16-rehearsal",
+        "candidate:canonical-compat-phase:validate",
+        "test:candidate-canonical-compat-phase",
+        "candidate:canonical-compat-phase:pg16-rehearsal",
+        "test:canonical-compat-domain",
         "test:autonomy"
       ],
       "baseline": [
@@ -224,21 +236,21 @@
       ]
     },
     "completionBoundary": [
-      "执行前必须同时验证可信Lineage至少10000条、两个release窗口、Reconciliation零差异零重复零未解决和Web代码发布PASS",
-      "生产必须保持clean detached eb48827精确代码身份，禁止source sync、checkout、build、migration和Compose变更",
-      "只允许修改三个Candidate读取flags、安装root-owned精确manifest、调用既有phase transition procedure并no-build force-recreate Web",
-      "全部非Web容器及Candidate worker的container/image身份必须保持不变且持续healthy",
-      "阶段只能从shadow_capture非冻结正奇数epoch切换到shadow_verify下一epoch，业务行、Redis和schema禁止修改",
-      "每个观察样本必须在同一SERIALIZABLE READ ONLY DEFERRABLE快照中遍历全部分页并与独立Raw Oracle零差异",
-      "观察必须精确289样本、覆盖至少24小时、任意间隔不超过600秒，禁止缩短或只检查第一页",
-      "Shadow Verify期间API响应权威始终是Legacy，Candidate review不可用，禁止Canonical Compat、Cutover、交易计划和生产排序改变",
-      "失败必须自动回滚；阶段已切换时进入legacy/frozen、关闭全部Candidate flags并停止Candidate worker，且不得宣称可直接重启旧周期",
-      "当前本地包不等于生产phase切换、24小时观察PASS、Canonical Compat、Canonical Cutover、WP-G0.2或G0完成",
+      "执行前必须验证同一migration/release链的Lineage、Reconciliation、Web代码发布和289样本24小时Dual Read零差异证据",
+      "生产必须保持clean detached精确代码和镜像身份，禁止source sync、checkout、build、migration与Compose变更",
+      "只允许把Canonical Read和Review Read改为true、安装精确manifest、调用既有phase procedure并no-build force-recreate Web",
+      "阶段只能从shadow_verify非冻结当前epoch切换到canonical_compat下一epoch，业务行、Redis和schema禁止修改",
+      "每个样本必须验证公共API真实返回Candidate权威，并在同一只读快照内遍历全部分页与独立Raw Oracle零差异",
+      "观察必须精确289样本、至少24小时、间隔不超过600秒，fallback、partial、unavailable和差异次数全部为0",
+      "Candidate权威只允许候选生命周期与复盘使用，仍禁止交易计划、生产排序改变、cutover授权和自动phase推进",
+      "任何失败必须自动进入legacy/frozen、关闭全部Candidate flags、停止Candidate worker并保留数据/Git/Web image",
+      "旧Canonical治理合同必须同步到代码授权true但阶段权威false的当前事实，不得继续传播过期阻断信息",
+      "当前本地包不等于生产phase切换、观察PASS、Canonical Cutover、WP-G0.2或G0完成",
       "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、业务DB、Redis和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "shadow_verify_activation",
+    "actionClass": "canonical_compat_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -246,7 +258,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "阶段合同、全分页同快照观察器、数据库时钟289样本调度、一次性Standing Grant request、session-independent runner、确定性脱敏Bundle和legacy/frozen自动回滚共同证明Shadow Verify可在不授予Candidate响应权威的前提下受控验证。"
+      "measurableOutcome": "合同、双证据绑定Manifest、公共API语义检查、全分页同快照Raw Oracle、数据库时钟289样本、单次Standing Grant、session-independent runner、确定性Bundle和legacy/frozen自动回滚共同证明Candidate只能在当前请求parity PASS时受控成为读取权威。"
     }
   },
   "approvals": [
@@ -555,6 +567,13 @@
     {
       "order": 42,
       "id": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_803bca6_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 43,
+      "id": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

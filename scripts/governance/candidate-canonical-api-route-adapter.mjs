@@ -80,7 +80,7 @@ export async function validateCandidateCanonicalApiRouteAdapterPreparation(contr
     violations.push("trusted_boundary");
   }
   const authorization = contract.authorizationBoundary ?? {};
-  if (authorization.currentCodeCanonicalReadAllowed !== false
+  if (authorization.currentCodeCanonicalReadAllowed !== true
       || authorization.authorizationSource !== "CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED"
       || authorization.authorizationDependencyInjectable !== false
       || authorization.authorizationEnvironmentControlled !== false
@@ -168,8 +168,9 @@ export async function validateCandidateCanonicalApiRouteAdapterPreparation(contr
     "compose_change", "feature_flag_change", "trade_plan_creation",
     "production_ranking_mutation", "automatic_phase_advance", "formal_backtest",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
-  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION"
-      || contract.nextProductionPackage !== "WP-G0.2-SHADOW-VERIFY-RECONCILIATION") {
+  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL"
+      || contract.nextProductionPackage
+        !== "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION") {
     violations.push("production_sequence");
   }
   return {
@@ -178,7 +179,7 @@ export async function validateCandidateCanonicalApiRouteAdapterPreparation(contr
       : "FAIL",
     productionDecision: contract.currentProductionDecision,
     productionMutationAllowed: false,
-    currentCodeCanonicalReadAllowed: false,
+    currentCodeCanonicalReadAllowed: true,
     existingApiRouteModified: false,
     frontendModified: false,
     canAutoDeploy: false,

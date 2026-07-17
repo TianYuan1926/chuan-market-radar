@@ -3,14 +3,14 @@
   "packageId": "WP-G0.2-CANONICAL-API-ROUTE-ADAPTER-LOCAL-PREPARATION",
   "productionAuthorization": false,
   "productionExecuted": false,
-  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL",
   "implementationArtifact": {
     "files": [
       "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
       "src/lib/candidate-episode/canonical-read-route-adapter.ts"
     ],
     "fileCount": 2,
-    "sha256": "d1546c302513fb1d6255eabc637f4bba82076b77e484feff70ae2d73b9a8c4bb"
+    "sha256": "3e28fe9c51e49fa79ee0ac677ad95fa2ec11f6b164a080c6495954e2c9056927"
   },
   "requestBoundary": {
     "allowedPublicQuery": [
@@ -44,7 +44,7 @@
     "staleControlFallbackAllowed": false
   },
   "authorizationBoundary": {
-    "currentCodeCanonicalReadAllowed": false,
+    "currentCodeCanonicalReadAllowed": true,
     "authorizationSource": "CANDIDATE_PRODUCTION_CANONICAL_READ_ALLOWED",
     "authorizationDependencyInjectable": false,
     "authorizationEnvironmentControlled": false,
@@ -117,14 +117,9 @@
     "formal_backtest"
   ],
   "remainingBlockers": [
-    "production_reader_login_and_url_not_provisioned",
-    "trusted_policy_and_control_providers_not_wired",
-    "route_adapter_not_wired_to_existing_api",
-    "frontend_candidate_review_adapter_not_implemented",
-    "legacy_review_null_and_direction_ui_debt_not_fixed",
     "production_dual_read_observation_not_executed",
     "production_canonical_compat_observation_not_executed",
     "canonical_cutover_not_authorized"
   ],
-  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+  "nextProductionPackage": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION"
 }

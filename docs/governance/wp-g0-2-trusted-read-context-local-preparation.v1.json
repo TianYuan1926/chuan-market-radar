@@ -3,7 +3,7 @@
   "packageId": "WP-G0.2-TRUSTED-READ-CONTEXT-LOCAL-PREPARATION",
   "productionAuthorization": false,
   "productionExecuted": false,
-  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL",
   "implementationArtifact": {
     "files": [
       "scripts/rehearsal/candidate-trusted-read-context-postgres16.sh",
@@ -16,7 +16,7 @@
       "src/lib/candidate-episode/canonical-read-trusted-context.ts"
     ],
     "fileCount": 8,
-    "sha256": "9788dbf6be36f2aaa804dd3978e60b6afdd26fb86d5c9672d9ad677a8bed3d88"
+    "sha256": "7cbe58de4dea1080f2df64095fd1c55bea4c77ae5780bc008cdcc6afa1ff9376"
   },
   "authorityBoundary": {
     "singleTrustedContextProvider": true,
@@ -54,7 +54,7 @@
     "checkpointKind": "24h",
     "cohortFromControlStartedAt": true,
     "asOfFromDatabaseClock": true,
-    "codeCanonicalReadAllowed": false,
+    "codeCanonicalReadAllowed": true,
     "existingApiRouteModified": false,
     "frontendModified": false,
     "productionConnected": false,
@@ -93,14 +93,9 @@
     "formal_backtest"
   ],
   "remainingBlockers": [
-    "production_authority_manifest_not_provisioned",
-    "trusted_context_provider_not_wired_to_existing_api",
-    "production_reader_login_and_url_not_provisioned",
-    "frontend_candidate_review_adapter_not_implemented",
-    "legacy_review_null_and_direction_ui_debt_not_fixed",
     "production_dual_read_observation_not_executed",
     "production_canonical_compat_observation_not_executed",
     "canonical_cutover_not_authorized"
   ],
-  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+  "nextProductionPackage": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION"
 }

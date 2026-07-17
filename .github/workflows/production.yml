@@ -100,6 +100,12 @@ jobs:
       - name: Candidate shadow-verify phase transition tests
         run: npm run test:candidate-shadow-verify-phase
 
+      - name: Candidate canonical-compat phase transition contract
+        run: npm run candidate:canonical-compat-phase:validate
+
+      - name: Candidate canonical-compat phase transition tests
+        run: npm run test:candidate-canonical-compat-phase
+
       - name: Candidate validation-cycle continuation contract
         run: npm run candidate:cycle-continuation:validate
 

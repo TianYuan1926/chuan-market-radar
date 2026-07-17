@@ -98,7 +98,7 @@ export async function validateCandidateCanonicalOraclePreparation(contract) {
       || contract.parityBoundary?.automaticPhaseAdvance !== false) {
     violations.push("parity_boundary");
   }
-  if (contract.routeBoundary?.currentCodeCanonicalReadAuthorization !== false
+  if (contract.routeBoundary?.currentCodeCanonicalReadAuthorization !== true
       || contract.routeBoundary?.shadowVerifyResponseAuthority !== "legacy_diagnostic"
       || contract.routeBoundary?.shadowVerifyParityReference !== "candidate_raw_oracle"
       || contract.routeBoundary?.canonicalCompatRequiresPerRequestReferencePass !== true
@@ -160,8 +160,9 @@ export async function validateCandidateCanonicalOraclePreparation(contract) {
     "compose_change", "feature_flag_change", "automatic_phase_advance",
     "canonical_cutover", "future_outcome_ranking_input", "formal_backtest",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
-  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION"
-      || contract.nextProductionPackage !== "WP-G0.2-SHADOW-VERIFY-RECONCILIATION") {
+  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL"
+      || contract.nextProductionPackage
+        !== "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION") {
     violations.push("production_sequence");
   }
   return {

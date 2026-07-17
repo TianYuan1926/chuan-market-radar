@@ -90,7 +90,7 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
       || runtime.checkpointKind !== "24h"
       || runtime.cohortFromControlStartedAt !== true
       || runtime.asOfFromDatabaseClock !== true
-      || runtime.codeCanonicalReadAllowed !== false) {
+      || runtime.codeCanonicalReadAllowed !== true) {
     violations.push("runtime_boundary");
   }
   for (const key of [
@@ -142,8 +142,9 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
       || contract.localPostgres16?.productionConnected !== false) {
     violations.push("postgres_boundary");
   }
-  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION"
-      || contract.nextProductionPackage !== "WP-G0.2-SHADOW-VERIFY-RECONCILIATION") {
+  if (contract.currentProductionDecision !== "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL"
+      || contract.nextProductionPackage
+        !== "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION") {
     violations.push("production_sequence");
   }
   return {
@@ -154,7 +155,7 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
     productionMutationAllowed: false,
     existingApiRouteModified: false,
     frontendModified: false,
-    currentCodeCanonicalReadAllowed: false,
+    currentCodeCanonicalReadAllowed: true,
     canAutoDeploy: false,
     implementationArtifactSha256: implementation.sha256,
     violations,

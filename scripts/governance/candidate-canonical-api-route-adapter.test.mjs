@@ -5,11 +5,11 @@ import {
   validateCandidateCanonicalApiRouteAdapterPreparation,
 } from "./candidate-canonical-api-route-adapter.mjs";
 
-test("current route adapter contract keeps request and production authority closed", async () => {
+test("current route adapter keeps request authority closed after code authorization", async () => {
   const result = await validateCandidateCanonicalApiRouteAdapterPreparation();
   assert.equal(result.status, "PASS_LOCAL_CANONICAL_API_ROUTE_ADAPTER_PREPARATION");
   assert.equal(result.productionMutationAllowed, false);
-  assert.equal(result.currentCodeCanonicalReadAllowed, false);
+  assert.equal(result.currentCodeCanonicalReadAllowed, true);
   assert.equal(result.existingApiRouteModified, false);
   assert.equal(result.frontendModified, false);
   assert.equal(result.canAutoDeploy, false);

@@ -3,7 +3,7 @@
   "packageId": "WP-G0.2-CANONICAL-READ-COMPATIBILITY-ORACLE-LOCAL-PREPARATION",
   "productionAuthorization": false,
   "productionExecuted": false,
-  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL",
   "implementationArtifact": {
     "files": [
       "scripts/rehearsal/candidate-canonical-read-oracle-postgres16.sh",
@@ -16,7 +16,7 @@
       "src/lib/candidate-episode/legacy-read-diagnostic.ts"
     ],
     "fileCount": 8,
-    "sha256": "c62a1d4ec4e49ab5d6a7bac1f84341d1336bd16624d1dcefa390eda96ea01a25"
+    "sha256": "af6b8d292b378101ae8b24aad035afdb1e4855bf6fdaf8c3781cffd2226c437f"
   },
   "legacyBoundary": {
     "authority": "legacy_projection_non_authoritative",
@@ -56,7 +56,7 @@
     "automaticPhaseAdvance": false
   },
   "routeBoundary": {
-    "currentCodeCanonicalReadAuthorization": false,
+    "currentCodeCanonicalReadAuthorization": true,
     "shadowVerifyResponseAuthority": "legacy_diagnostic",
     "shadowVerifyParityReference": "candidate_raw_oracle",
     "canonicalCompatRequiresPerRequestReferencePass": true,
@@ -92,13 +92,9 @@
     "formal_backtest"
   ],
   "remainingBlockers": [
-    "production_reader_login_and_url_not_provisioned",
-    "legacy_api_diagnostic_not_wired",
-    "candidate_api_resource_envelope_not_wired",
-    "frontend_candidate_review_adapter_not_wired",
     "production_dual_read_observation_not_executed",
     "production_canonical_compat_observation_not_executed",
     "canonical_cutover_not_authorized"
   ],
-  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+  "nextProductionPackage": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION"
 }

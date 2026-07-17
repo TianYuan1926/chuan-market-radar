@@ -3,7 +3,7 @@
   "packageId": "WP-G0.2-CANONICAL-COMPAT-READ-MODEL-LOCAL-PREPARATION",
   "productionAuthorization": false,
   "productionExecuted": false,
-  "currentProductionDecision": "BLOCKED_UNTIL_PASS_ACTIVATE_AND_OBSERVE_THEN_PRODUCTION_RECONCILIATION",
+  "currentProductionDecision": "BLOCKED_UNTIL_PASS_DUAL_READ_OBSERVATION_AND_SEPARATE_CANONICAL_COMPAT_APPROVAL",
   "implementationArtifact": {
     "files": [
       "scripts/rehearsal/candidate-canonical-read-postgres16.sh",
@@ -12,7 +12,7 @@
       "src/lib/candidate-episode/canonical-read-model.ts"
     ],
     "fileCount": 4,
-    "sha256": "8463d8c91a1883d51635aef0e0890f7e1b36ceafef937c4713085c13fb4a02e5"
+    "sha256": "6c13d0e0d1a7ada56e3042fb729542dd7d9d782bfb3bf101d08acce363cd7194"
   },
   "readPolicy": {
     "scope": "production_radar",
@@ -50,7 +50,7 @@
     "explicitExclusionReasonsRequired": true
   },
   "readRoute": {
-    "currentCodeCanonicalReadAuthorization": false,
+    "currentCodeCanonicalReadAuthorization": true,
     "shadowVerifyAuthority": "legacy",
     "canonicalCompatFallback": "explicit_legacy_fallback_on_non_pass_parity",
     "canonicalFailureFallback": "prohibited",
@@ -92,12 +92,9 @@
     "formal_backtest"
   ],
   "remainingBlockers": [
-    "production_reader_login_and_url_not_provisioned",
-    "legacy_normalized_read_adapter_not_implemented",
-    "api_and_frontend_not_wired",
     "production_dual_read_observation_not_executed",
     "production_canonical_compat_observation_not_executed",
     "canonical_cutover_not_authorized"
   ],
-  "nextProductionPackage": "WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+  "nextProductionPackage": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION"
 }
