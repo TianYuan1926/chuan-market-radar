@@ -16,10 +16,15 @@ const OBSERVER = "scripts/production/candidate-cycle-continuation/observation-ru
 export function evaluateProductionPacketGovernance({ contract, runner, entrypoint, observer }) {
   const violations = [];
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
-      || contract.currentActivationFinalPass !== false) violations.push("local_truth_overclaimed");
+      || contract.priorActivationFinalPass !== false) violations.push("local_truth_overclaimed");
   if (contract.observation?.minimumComparedWrites !== 10_000) violations.push("write_threshold_changed");
-  if (contract.prerequisites?.minimumActivationHours !== 24
-      || contract.prerequisites?.activationSamplesExact !== 289) violations.push("activation_window_changed");
+  if (contract.prerequisites?.priorActivationOutcome !== "ROLLBACK"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 197
+      || contract.prerequisites?.freshActivationRequired !== true
+      || contract.observation?.minimumActivationHours !== 24
+      || contract.observation?.minimumActivationSamples !== 289) {
+    violations.push("activation_window_changed");
+  }
   if (contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
       || contract.prerequisites?.currentProductionAuthorityEpoch !== 4
@@ -52,7 +57,7 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
     "systemd-run", "RuntimeMaxSec=5400", "validate-request", "prepare-admin-url",
   ]) if (!entrypoint.includes(token)) violations.push(`entrypoint_guard_missing:${token}`);
   for (const token of [
-    "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE", "sleep 300",
+    "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE", "sleep 300",
     "automatic_rollback", "retain_evidence", "cleanup_temporary_artifacts",
   ]) if (!observer.includes(token)) violations.push(`observer_guard_missing:${token}`);
   const combined = `${runner}\n${entrypoint}\n${observer}`;
@@ -81,9 +86,9 @@ export async function validateCandidateCycleContinuationProductionPacket(root = 
       : "FAIL",
     productionAuthorization: false,
     productionExecuted: false,
-    currentActivationFinalPass: false,
+    priorActivationFinalPass: false,
     minimumComparedWrites: 10_000,
-    activationSamplesExact: 289,
+    minimumActivationSamples: 289,
     activationHoursMinimum: 24,
     runnerArtifactSha256: packet.runnerArtifactSha256,
     violations: [...new Set(violations)],

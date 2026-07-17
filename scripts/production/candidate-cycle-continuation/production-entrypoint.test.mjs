@@ -12,7 +12,8 @@ test("entrypoint is valid Bash and launches a bounded detached systemd unit", as
   const source = await readFile(path, "utf8");
   for (const token of [
     "systemd-run", "RuntimeMaxSec=5400", "Restart=no", "detached_worker",
-    "validate-request", "activationEvidencePath", "prepare-admin-url",
+    "validate-request", "preflightEvidencePath", "prepare-admin-url",
   ]) assert.match(source, new RegExp(token, "u"));
+  assert.doesNotMatch(source, /activationEvidencePath|activation-final\.json/u);
   assert.doesNotMatch(source, /ssh |scp |docker compose down|docker volume rm/u);
 });

@@ -26,7 +26,10 @@
     "candidateEventNonPending": 0,
     "candidateEventOrphans": 0,
     "candidateEventContractMismatches": 0,
-    "activationEvidenceMustRecomputeFromOriginal289Samples": true,
+    "priorActivationOutcome": "ROLLBACK",
+    "priorActivationSamplesObserved": 197,
+    "priorActivationCoverageLessThan24Hours": true,
+    "freshActivationMustBeCollectedInCycle2": true,
     "currentSingleCycleCanProveAllExitGates": false
   },
   "continuationBoundary": {
@@ -83,7 +86,7 @@
       "src/lib/candidate-episode/shadow-capture-runtime.ts"
     ],
     "fileCount": 12,
-    "sha256": "be0dfd38f56213310d506312da028b29683895c4ea7fe1089967ce534b6c1a53"
+    "sha256": "ccb1ef904f4700088f54d7863e1704c83192ffdebbf218b8fb3f76cb5c24d237"
   },
   "localPostgres16Rehearsal": {
     "oldDeadlineImmutable": true,

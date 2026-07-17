@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-18T05:00:00+08:00",
+  "updatedAt": "2026-07-18T05:45:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -13,14 +13,14 @@
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
     "runtimeIdentityPreflight": "pass_local_and_production_exact_request_consumed_successfully",
     "runtimeIdentityProduction": "pass_runtime_identity_and_permission_7_samples_1851_seconds_continuous_ready_fresh_three_noinherit_logins_three_fixed_memberships_three_candidate_urls_zero_privileged_logins_zero_feature_flags_candidate_dormant_worker_absent",
-    "activationObservationPreparation": "production_activation_immediate_gate_pass_observer_active_24_hours_289_samples_required_no_shortening",
+    "activationObservationPreparation": "prior_production_observation_truth_197_samples_approximately_16_5_hours_closeout_rollback_no_final_pass_fresh_cycle2_activation_289_samples_24_hours_required_no_shortening",
     "reconciliationPreparation": "original_single_cycle_preparation_committed_pushed_799d295_superseded_by_multi_cycle_lineage_remediation_in_progress_production_blocked",
     "canonicalCompatPreparation": "pass_local_superpackage_committed_pushed_194ccf3_production_not_connected_canonical_authority_false",
     "g0SecurityReleaseIncidentPreparation": "completed_local_superpackage_committed_pushed_d2ee45f_production_blocked",
     "reconciliationProductionPacket": "original_single_cycle_packet_committed_pushed_504c395_superseded_by_multi_cycle_lineage_remediation_in_progress_production_not_executed",
     "shadowVerifyRuntimeWiring": "completed_local_committed_pushed_a9f4fea_production_not_deployed_canonical_authority_false",
     "validationCycleContinuation": "completed_local_committed_pushed_bf2af47_targeted_baseline_security_postgres16_and_commit_bound_gates_pass_production_not_connected",
-    "validationCycleContinuationProductionPacket": "source_lane_aware_refresh_local_all_15_gates_pass_final_dynamic_commit_gate_required_current_production_legacy_frozen_epoch4_candidate_worker_absent_legacy_source_completed2957_unresolved0_candidate_event_pending2957_production_not_executed",
+    "validationCycleContinuationProductionPacket": "fresh_activation_and_accumulation_remediation_full_local_targeted_baseline_security_autonomy_and_postgres16_pass_old_activation_pass_dependency_removed_cycle2_requires_both_289_samples_24_hours_and_10000_completed_writes_current_production_legacy_frozen_epoch4_candidate_worker_absent_production_not_executed_commit_bound_gate_pending",
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
     "freshVerificationCycleLineageCapture": "completed_local_committed_pushed_9472529_targeted_6_of_6_reconciliation_packet_12_of_12_postgres16_10020_write_lineage_capture_baseline_security_and_autonomy_13_of_13_pass_production_not_connected",
     "freshVerificationCycleLineageProductionPacket": "completed_local_committed_pushed_464c301_bundle_sha256_a75ce76c3d5342a94d4dfa1777b99350530dfef785f94b422b53934f087140d6_production_not_connected_not_executed",
@@ -150,11 +150,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-SOURCE-LANE-CLASSIFICATION",
-    "title": "Candidate cycle-2 source-lane-aware production refresh",
+    "id": "WP-G0.2-CYCLE-2-FRESH-ACTIVATION-AND-ACCUMULATION-REMEDIATION",
+    "title": "Candidate Cycle-2 fresh Activation and accumulation remediation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "把旧Cycle-2生产包刷新到当前legacy/frozen epoch4、Candidate worker absent和source-lane真实形态；只在Activation原始证据重算PASS、legacy source unresolved=0、Candidate event lane完整且生产身份精确匹配时，才允许启动严格相邻cycle-2。",
+    "objective": "纠正旧Activation不存在289样本与24小时PASS的错误前提；从当前legacy/frozen epoch4启动严格相邻Cycle-2，并在同一只读观察器内重新证明至少289个连续样本、24小时健康和至少10000条真实completed writes，两项同时达标才允许进入Lineage。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -174,7 +174,8 @@
       "scripts/governance/candidate-cycle-continuation-production-packet.mjs",
       "scripts/governance/candidate-cycle-continuation-production-packet.test.mjs",
       "scripts/production/candidate-cycle-continuation/**",
-      "reports/wp-g0-2-validation-cycle-continuation-production-refresh/**"
+      "reports/wp-g0-2-validation-cycle-continuation-production-refresh/**",
+      "reports/wp-g0-2-cycle-2-fresh-activation-and-accumulation-remediation/**"
     ],
     "prohibitedPaths": [
       "migrations/candidate-episode/**",
@@ -223,7 +224,7 @@
       "scripts/production/candidate-cycle-continuation/runner.mjs",
       "scripts/production/candidate-cycle-continuation/runner.test.mjs",
       "scripts/rehearsal/candidate-cycle-continuation-postgres16.sh",
-      "reports/wp-g0-2-validation-cycle-continuation-production-refresh/WP_G0_2_VALIDATION_CYCLE_CONTINUATION_PRODUCTION_REFRESH_REPORT.md"
+      "reports/wp-g0-2-cycle-2-fresh-activation-and-accumulation-remediation/WP_G0_2_CYCLE_2_FRESH_ACTIVATION_AND_ACCUMULATION_REMEDIATION_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
@@ -249,7 +250,8 @@
       ]
     },
     "completionBoundary": [
-      "Activation必须从原始289样本重算PASS且至少24小时，历史commit、release、migration和epoch身份必须与当前退役control连续",
+      "旧Activation只能按197样本、约16.5小时、ROLLBACK记录，不得作为PASS前置条件；Cycle-2必须重新采集至少289个连续样本并覆盖至少24小时",
+      "Cycle-2必须同时达到legacy_scan_candidate completed至少10000、稳定至少1800秒、至少7样本和至少两次真实推进；只满足Activation或积累任一项都不得PASS",
       "生产入口只接受candidate-episode-v1 legacy/frozen epoch4、active cycle=0和Candidate worker完全absent，不接受旧shadow_capture运行态假设",
       "只以legacy_scan_candidate source lane判定续接门：completed=2957、unresolved=0；candidate_episode_event pending=2957必须完整保留且孤儿和合同不匹配均为0",
       "新周期必须严格为candidate-episode-v1-cycle-2、shadow_capture epoch1、最长72小时；旧startedAt/deadlineAt不可修改且任何失败不得复活旧周期",
@@ -257,7 +259,7 @@
       "挂载runner必须从目标镜像/app/package.json解析pg；生产env只能精确单文件只读进入renderer，通用租约runner不得读取env",
       "Mutation前失败恢复原env；control续接后失败冻结新周期、Candidate worker absent、Legacy authority保留、恢复原Git和Web镜像",
       "回滚全部验证通过才能以ROLLBACK_PASS释放租约；任何回滚不完整必须保留租约和诊断现场",
-      "PostgreSQL16必须证明Candidate event pending保留、legacy source unresolved=0、旧周期不可变、相邻cycle原子启动和回滚",
+      "PostgreSQL16必须证明Candidate event pending保留、legacy source unresolved=0、旧周期不可变、相邻cycle原子启动、观察安全快照和回滚",
       "scan排序、analysis、strategy、RR、Risk Gate、trade plan、backtest、frontend、future outcome输入和migration全部禁止修改",
       "formal backtest禁止运行"
     ],
@@ -270,7 +272,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "在保留2957条Candidate event pending和全部历史数据的前提下，生产唯一启动严格相邻cycle-2并恢复Candidate source写入积累；旧周期不可变、scanner与非目标服务不变，任何偏差自动冻结新周期并回滚。"
+      "measurableOutcome": "在保留2957条Candidate event pending和全部历史数据的前提下，生产唯一启动严格相邻cycle-2；统一观察器连续证明289样本/24小时与10000条真实completed writes同时PASS，旧周期不可变、scanner与非目标服务不变，任何偏差自动冻结新周期并回滚。"
     }
   },
   "approvals": [
@@ -628,6 +630,13 @@
     {
       "order": 49,
       "id": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION-REFRESH-AFTER-SOURCE-LANE-CLASSIFICATION",
+      "lane": "localPreparation",
+      "status": "superseded_after_production_evidence_audit_found_197_samples_16_5_hours_rollback_no_final_pass",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 50,
+      "id": "WP-G0.2-CYCLE-2-FRESH-ACTIVATION-AND-ACCUMULATION-REMEDIATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

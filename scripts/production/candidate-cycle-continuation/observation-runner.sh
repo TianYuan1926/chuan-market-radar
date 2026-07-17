@@ -124,7 +124,7 @@ automatic_rollback() {
 }
 trap 'automatic_rollback "$?"' ERR
 
-lease_event observation-checkpoint --checkpoint accumulation_observer_started
+lease_event observation-checkpoint --checkpoint fresh_activation_and_accumulation_observer_started
 SAMPLE_NUMBER=0
 while true; do
   SAMPLE_NUMBER=$((SAMPLE_NUMBER + 1))
@@ -157,6 +157,7 @@ while true; do
   process.stdout.write(JSON.stringify({
     commit: process.env.OBS_COMMIT,
     health: {
+      ok: healthResponse.status === 200 && healthBody.ok === true,
       level: health.level,
       scanFreshness: health.scan?.freshness,
       database: health.persistence?.databaseStatus,
@@ -164,6 +165,7 @@ while true; do
       candidateWorker: candidateWorker?.status,
       workersHealthy: allExpectedHealthy,
     },
+    candidate,
   }) + "\n");
 })().catch((error) => { console.error(error.message); process.exit(1); });
 NODE
@@ -174,10 +176,11 @@ const api = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const database = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
 const { secretsPrinted: _ignored, schemaVersion: _schema, status: _status, ...db } = database;
 const sample = {
-  schemaVersion: "candidate-validation-cycle-observation-sample.v1",
+  schemaVersion: "candidate-validation-cycle-observation-sample.v2",
   ...db,
   commit: api.commit,
   health: api.health,
+  candidate: api.candidate,
 };
 fs.writeFileSync(process.argv[4], JSON.stringify(sample) + "\n", { mode: 0o600 });
 NODE
@@ -188,16 +191,18 @@ NODE
   STATUS="$(jq -r '.status' "${FINAL_FILE}")"
   COMPLETED="$(jq -r '.completedWrites' "${FINAL_FILE}")"
   printf 'cycle_observation_sample=%s completed=%s status=%s\n' "${SAMPLE_NUMBER}" "${COMPLETED}" "${STATUS}"
-  lease_event observation-checkpoint --checkpoint "accumulation_sample_${SAMPLE_NUMBER}"
-  if [[ "${STATUS}" == "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE" ]]; then
+  lease_event observation-checkpoint --checkpoint "fresh_activation_accumulation_sample_${SAMPLE_NUMBER}"
+  if [[ "${STATUS}" == "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE" ]]; then
     retain_evidence "${STATUS}"
-    lease_event release --outcome "${STATUS}"
+    lease_event release --outcome PASS_OBSERVATION
     trap - ERR
     cleanup_temporary_artifacts
     echo "${STATUS}"
     exit 0
   fi
-  [[ "${STATUS}" == "IN_PROGRESS_ACCUMULATING_REAL_WRITES" ]] \
+  [[ "${STATUS}" == "IN_PROGRESS_FRESH_ACTIVATION_AND_ACCUMULATION" \
+    || "${STATUS}" == "IN_PROGRESS_FRESH_ACTIVATION_OBSERVATION" \
+    || "${STATUS}" == "IN_PROGRESS_ACCUMULATING_REAL_WRITES" ]] \
     || fail "cycle_observation_terminal:${STATUS}"
   sleep 300
 done

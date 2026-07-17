@@ -5,6 +5,7 @@ import pg from "pg";
 import {
   continueCandidateValidationCycle,
   preflightCandidateValidationCycleContinuation,
+  readCandidateValidationCycleObservation,
   rollbackCandidateValidationCycle,
 } from "./runner.mjs";
 
@@ -74,6 +75,15 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
     assert.equal(result.activeCycle?.migrationId, input.nextMigrationId);
     assert.equal(result.activeCycle?.phase, "shadow_capture");
     assert.equal(result.preservedData.legacyCompleted, 1);
+
+    const observation = await readCandidateValidationCycleObservation(client, input);
+    assert.equal(observation.schemaVersion, "candidate-validation-cycle-database-snapshot.v1");
+    assert.equal(observation.migrationId, input.nextMigrationId);
+    assert.equal(observation.releaseId, input.nextReleaseId);
+    assert.equal(observation.completedWrites, 1);
+    assert.equal(observation.unresolvedOutbox, 0);
+    assert.equal(observation.activeCycles, 1);
+    assert.deepEqual(observation.database, { lockWaiters: 0, longTransactions: 0 });
 
     const proof = await client.query(`SELECT
       count(*) FILTER (WHERE phase <> 'legacy')::int AS active,

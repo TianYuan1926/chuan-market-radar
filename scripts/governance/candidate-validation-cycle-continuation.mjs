@@ -65,7 +65,10 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.candidateEventNonPending !== 0
       || problem.candidateEventOrphans !== 0
       || problem.candidateEventContractMismatches !== 0
-      || problem.activationEvidenceMustRecomputeFromOriginal289Samples !== true
+      || problem.priorActivationOutcome !== "ROLLBACK"
+      || problem.priorActivationSamplesObserved !== 197
+      || problem.priorActivationCoverageLessThan24Hours !== true
+      || problem.freshActivationMustBeCollectedInCycle2 !== true
       || problem.currentSingleCycleCanProveAllExitGates !== false) {
     violations.push("problem_proof");
   }

@@ -5841,3 +5841,46 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只完成本刷新包的 commit-bound 生产 Cycle-2 启动与真实累计，不进入 Shadow Verify 或 Canonical Compat。
+
+## 2026-07-18 / WP-G0.2 Cycle-2 Fresh Activation And Accumulation Remediation
+
+### 本轮目标
+
+纠正旧 Activation “289 样本/24 小时 PASS”的错误前提，把 Cycle-2 改成全新 Activation 与真实写入积累统一观察，两项同时达标才允许进入 Lineage。
+
+### 修改范围
+
+- 生产只读证据确认旧观察仅 197 个样本、约 16.5 小时、closeout=`ROLLBACK`，且没有 `observation-final.json`；旧包停止使用。
+- 删除 Cycle-2 request、Bundle validator 和 production entrypoint 对旧 Activation final/closeout/samples 的通行证依赖。
+- observation sample 升级为 v2，绑定 health、Candidate runtime/monitor、cycle/release/epoch、数据库锁等待和长事务。
+- 统一门禁要求至少 289 个连续样本、24 小时、最大间隔 600 秒，同时 completed writes 至少 10,000、稳定 1,800 秒、至少 7 样本和两次真实推进。
+- PostgreSQL 16 演练新增真实 observation snapshot 查询，覆盖相邻周期、数据库安全快照和 Legacy-safe rollback。
+- 未修改 frontend、公开 API、migration、Redis、scanner、scan 排序、analysis、strategy、RR、Risk Gate、trade plan、backtest、env 或 secret。
+
+### 核心链路影响
+
+强化候选筛选和复盘进化的数据生命周期真值；不改变全市场发现、深扫、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- 红测先为 0/6，实装后 observer 6/6：PASS。
+- production packet 26/26、core continuation 28/28、governance 2/2：PASS。
+- PostgreSQL 16 migrations 1-10、相邻 cycle、观察安全快照、数据保留和 rollback：PASS，`productionConnected=false`。
+- typecheck、零报错 lint、test:market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16、三项安全门禁和 Autonomy 31/31：PASS。
+- 第一次 commit-bound 控制器调用在门禁启动前因 active package 使用未定义状态 `ready_for_commit_bound_gate` 而 fail closed；已改回合同允许的 `ready_for_gate`，没有跳过任何门禁。
+- 最终审查发现 observer 曾把自定义业务 PASS 状态直接传给租约 release，而租约只接受 `PASS_OBSERVATION`；已改为证据保留详细状态、租约使用合法 closeout 枚举，并新增回归测试。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+未部署、未上传、未修改生产。生产仍为最近只读确认的 `legacy/frozen epoch4`、Candidate Worker absent 基线。
+
+### 风险与遗留问题
+
+- 下游 Lineage/Reconciliation 旧合同仍引用旧 accumulation-only PASS 状态，必须在进入下一生产包前刷新，不能复用旧请求或 Bundle。
+- 本地 PASS 不等于 Cycle-2 已启动；G0 主步骤仍为 7。
+- Cycle-2 真正减数至少要等现场绑定、上传、执行，以及 24 小时/289 样本与 10,000 writes 双门禁生产 PASS。
+
+### 下一轮建议
+
+先完成本包完整门禁、提交绑定和确定性 Bundle，再执行新的 Cycle-2 生产启动；不复用任何旧 Activation PASS 证据。

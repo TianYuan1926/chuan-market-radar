@@ -5,6 +5,8 @@ import { readFile } from "node:fs/promises";
 export const MINIMUM_COMPARED_WRITES = 10_000;
 export const MINIMUM_STABILITY_SECONDS = 1_800;
 export const MINIMUM_SAMPLES = 7;
+export const MINIMUM_ACTIVATION_HOURS = 24;
+export const MINIMUM_ACTIVATION_SAMPLES = 289;
 export const MAXIMUM_SAMPLE_GAP_SECONDS = 600;
 export const DEADLINE_SAFETY_SECONDS = 21_600;
 
@@ -38,13 +40,16 @@ function exactKeys(value, expected, reason) {
 
 export function validateCycleObservationSample(sample, expected) {
   exactKeys(sample, [
-    "activeCycles", "commit", "completedWrites", "deadlineAt", "epoch", "health",
-    "migrationId", "phase", "releaseId", "sampledAt", "schemaVersion", "unresolvedOutbox",
+    "activeCycles", "candidate", "commit", "completedWrites", "database", "deadlineAt",
+    "epoch", "health", "migrationId", "phase", "releaseId", "sampledAt", "schemaVersion",
+    "unresolvedOutbox",
   ], "sample_shape_invalid");
   exactKeys(sample.health, [
-    "candidateWorker", "database", "level", "redis", "scanFreshness", "workersHealthy",
+    "candidateWorker", "database", "level", "ok", "redis", "scanFreshness", "workersHealthy",
   ], "sample_health_shape_invalid");
-  ensure(sample.schemaVersion === "candidate-validation-cycle-observation-sample.v1",
+  exactKeys(sample.database, ["lockWaiters", "longTransactions"],
+    "sample_database_shape_invalid");
+  ensure(sample.schemaVersion === "candidate-validation-cycle-observation-sample.v2",
     "sample_schema_invalid");
   ensure(sample.commit === expected.commit, "sample_commit_mismatch");
   ensure(sample.migrationId === expected.migrationId, "sample_cycle_mismatch");
@@ -60,12 +65,50 @@ export function validateCycleObservationSample(sample, expected) {
   const sampledAt = timestamp(sample.sampledAt, "sample_time_invalid");
   const deadlineAt = timestamp(sample.deadlineAt, "sample_deadline_invalid");
   ensure(deadlineAt > sampledAt, "sample_cycle_deadline_expired");
+  ensure(sample.health.ok === true, "sample_health_not_ok");
   ensure(sample.health.level === "ready", "sample_health_not_ready");
   ensure(sample.health.scanFreshness === "fresh", "sample_scan_not_fresh");
   ensure(sample.health.database === "ready", "sample_database_not_ready");
   ensure(sample.health.redis === "healthy", "sample_redis_not_healthy");
   ensure(sample.health.candidateWorker === "healthy", "sample_candidate_worker_not_healthy");
   ensure(sample.health.workersHealthy === true, "sample_worker_set_not_healthy");
+  ensure(sample.candidate?.ok === true && sample.candidate.mode === "active",
+    "sample_candidate_api_not_active");
+  ensure(sample.candidate.runtime?.enabled === true, "sample_runtime_not_enabled");
+  ensure(Array.isArray(sample.candidate.runtime?.blockers)
+      && sample.candidate.runtime.blockers.length === 0, "sample_runtime_blocked");
+  ensure(integer(sample.candidate.runtime?.authorityEpoch,
+    "sample_runtime_epoch_invalid", 1) === sample.epoch, "sample_runtime_epoch_mismatch");
+  ensure(sample.candidate.runtime?.expectedReleaseId === expected.releaseId,
+    "sample_runtime_release_mismatch");
+  const monitor = sample.candidate.monitor;
+  ensure(monitor?.status === "ready" && monitor.phase === "shadow_capture",
+    "sample_monitor_not_ready");
+  ensure(monitor.migrationId === expected.migrationId, "sample_monitor_cycle_mismatch");
+  ensure(integer(monitor.authorityEpoch, "sample_monitor_epoch_invalid", 1) === sample.epoch,
+    "sample_monitor_epoch_mismatch");
+  ensure(Array.isArray(monitor.blockers) && monitor.blockers.length === 0,
+    "sample_monitor_blocked");
+  ensure(Array.isArray(monitor.warnings) && monitor.warnings.length === 0,
+    "sample_monitor_warning");
+  ensure(integer(monitor.metrics?.outboxRetryWaitTotal, "sample_retry_wait_invalid") === 0,
+    "sample_retry_wait_present");
+  ensure(integer(monitor.metrics?.outboxQuarantinedTotal, "sample_quarantine_invalid") === 0,
+    "sample_quarantine_present");
+  ensure(integer(monitor.metrics?.unresolvedQuarantineTotal,
+    "sample_unresolved_quarantine_invalid") === 0, "sample_unresolved_quarantine");
+  ensure(integer(monitor.metrics?.unresolvedTotal, "sample_unresolved_total_invalid") === 0,
+    "sample_monitor_unresolved");
+  ensure(monitor.metrics?.oldestPendingAgeSeconds === null,
+    "sample_oldest_pending_present");
+  ensure(integer(monitor.metrics?.outboxCompletedTotal,
+    "sample_monitor_completed_invalid") === sample.completedWrites,
+  "sample_monitor_completed_mismatch");
+  ensure(integer(sample.database.lockWaiters, "sample_database_lock_waiters_invalid") === 0,
+    "sample_database_lock_waiters");
+  ensure(integer(sample.database.longTransactions,
+    "sample_database_long_transactions_invalid") === 0,
+  "sample_database_long_transaction");
   return { ...sample, sampledAtMs: sampledAt, deadlineAtMs: deadlineAt };
 }
 
@@ -74,6 +117,8 @@ export function evaluateCycleObservation(samples, expected, options = {}) {
   const minimumComparedWrites = options.minimumComparedWrites ?? MINIMUM_COMPARED_WRITES;
   const minimumStabilitySeconds = options.minimumStabilitySeconds ?? MINIMUM_STABILITY_SECONDS;
   const minimumSamples = options.minimumSamples ?? MINIMUM_SAMPLES;
+  const minimumActivationHours = options.minimumActivationHours ?? MINIMUM_ACTIVATION_HOURS;
+  const minimumActivationSamples = options.minimumActivationSamples ?? MINIMUM_ACTIVATION_SAMPLES;
   const maximumSampleGapSeconds = options.maximumSampleGapSeconds ?? MAXIMUM_SAMPLE_GAP_SECONDS;
   const deadlineSafetySeconds = options.deadlineSafetySeconds ?? DEADLINE_SAFETY_SECONDS;
   ensure(minimumComparedWrites === MINIMUM_COMPARED_WRITES,
@@ -81,6 +126,10 @@ export function evaluateCycleObservation(samples, expected, options = {}) {
   ensure(minimumStabilitySeconds >= MINIMUM_STABILITY_SECONDS,
     "minimum_stability_cannot_shorten");
   ensure(minimumSamples >= MINIMUM_SAMPLES, "minimum_samples_cannot_lower");
+  ensure(minimumActivationHours >= MINIMUM_ACTIVATION_HOURS,
+    "minimum_activation_window_cannot_shorten");
+  ensure(minimumActivationSamples >= MINIMUM_ACTIVATION_SAMPLES,
+    "minimum_activation_samples_cannot_lower");
   ensure(maximumSampleGapSeconds <= MAXIMUM_SAMPLE_GAP_SECONDS,
     "maximum_sample_gap_cannot_expand");
   ensure(deadlineSafetySeconds >= DEADLINE_SAFETY_SECONDS,
@@ -106,14 +155,21 @@ export function evaluateCycleObservation(samples, expected, options = {}) {
     && elapsedSeconds >= minimumStabilitySeconds
     && completionAdvances >= 2;
   const thresholdReached = latest.completedWrites >= minimumComparedWrites;
-  let status = "IN_PROGRESS_ACCUMULATING_REAL_WRITES";
-  if (stable && thresholdReached) {
-    status = "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE";
-  } else if (!thresholdReached && deadlineRemainingSeconds < deadlineSafetySeconds) {
+  const accumulationReady = stable && thresholdReached;
+  const freshActivationReady = validated.length >= minimumActivationSamples
+    && elapsedSeconds >= minimumActivationHours * 60 * 60;
+  let status = "IN_PROGRESS_FRESH_ACTIVATION_AND_ACCUMULATION";
+  if (freshActivationReady && accumulationReady) {
+    status = "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE";
+  } else if (deadlineRemainingSeconds < deadlineSafetySeconds) {
     status = "FAIL_CYCLE_CAPACITY_EXHAUSTED_REQUIRES_NEXT_ADJACENT_CYCLE";
+  } else if (accumulationReady) {
+    status = "IN_PROGRESS_FRESH_ACTIVATION_OBSERVATION";
+  } else if (freshActivationReady) {
+    status = "IN_PROGRESS_ACCUMULATING_REAL_WRITES";
   }
   return {
-    schemaVersion: "candidate-validation-cycle-observation.v1",
+    schemaVersion: "candidate-validation-cycle-observation.v2",
     status,
     migrationId: expected.migrationId,
     releaseId: expected.releaseId,
@@ -124,6 +180,12 @@ export function evaluateCycleObservation(samples, expected, options = {}) {
     completionAdvances,
     completedWrites: latest.completedWrites,
     minimumComparedWrites,
+    accumulationReady,
+    freshActivationReady,
+    activationSamples: validated.length,
+    minimumActivationSamples,
+    activationCoverageSeconds: elapsedSeconds,
+    minimumActivationHours,
     deadlineAt: latest.deadlineAt,
     deadlineRemainingSeconds,
     unresolvedOutbox: latest.unresolvedOutbox,

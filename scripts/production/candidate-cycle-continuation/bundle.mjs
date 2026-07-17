@@ -10,7 +10,6 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
-import { evaluateObservationEvidence } from "../candidate-activation/runner.mjs";
 import { REQUIRED_PACKAGE_APPROVAL_FIELDS } from "../../governance/autonomy-policy.mjs";
 import { validateCycleContinuationInput } from "./runner.mjs";
 
@@ -32,7 +31,6 @@ export const TRANSPORT_FILES = Object.freeze([
   POLICY_PATH,
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
-  "scripts/production/candidate-activation/runner.mjs",
   "scripts/production/candidate-cycle-continuation/bundle.mjs",
   "scripts/production/candidate-cycle-continuation/observation-runner.mjs",
   "scripts/production/candidate-cycle-continuation/observation-runner.sh",
@@ -43,10 +41,6 @@ export const TRANSPORT_FILES = Object.freeze([
 ]);
 
 const REQUEST_KEYS = Object.freeze([
-  "activationAuthorityEpoch", "activationCloseoutPath", "activationCloseoutSha256",
-  "activationCommit", "activationEvidencePath", "activationEvidenceSha256",
-  "activationMigrationId", "activationReleaseId", "activationSamplesPath",
-  "activationSamplesSha256",
   "approvalDigest", "approvalExpiresAt", "approvalIssuedAt", "approvalRef",
   "approvedPacketCommit", "approvedPacketTree", "autonomyAuthorization",
   "autonomyTrustRoot", "baseEnvSha256", "composeSha256", "currentMigrationId",
@@ -62,10 +56,6 @@ const REQUEST_KEYS = Object.freeze([
   "transportBundleSha256", "transportMethod",
 ]);
 const RUNTIME_KEYS = Object.freeze([
-  "activationAuthorityEpoch", "activationCloseoutPath", "activationCloseoutSha256",
-  "activationCommit", "activationEvidencePath", "activationEvidenceSha256",
-  "activationMigrationId", "activationReleaseId", "activationSamplesPath",
-  "activationSamplesSha256",
   "baseEnvSha256", "composeSha256", "currentAuthorityEpoch", "currentPhase",
   "currentMigrationId", "currentProductionCommit", "currentReleaseId", "currentWebImageId",
   "currentWorkerState", "identityOverridePath", "identityOverrideSha256",
@@ -169,7 +159,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-production-packet.v1"
       || contract.packageId !== PACKAGE_ID) violations.push("contract_identity");
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
-      || contract.currentActivationFinalPass !== false) violations.push("production_truth");
+      || contract.priorActivationFinalPass !== false) violations.push("production_truth");
   if (contract.actionClass !== "feature_phase_activation"
       || contract.riskTier !== "R2_AUTHORITY_TRANSITION") violations.push("risk_boundary");
   if (contract.productionRoot !== PRODUCTION_ROOT
@@ -181,10 +171,9 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.standingGrant?.externalLeaseRequired !== true) violations.push("standing_grant");
   if (runnerArtifact.fileCount !== contract.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) violations.push("runner_artifact");
-  if (contract.prerequisites?.activationStatus !== "PASS_ACTIVATE_AND_OBSERVE"
-      || contract.prerequisites?.activationSamplesExact !== 289
-      || contract.prerequisites?.minimumActivationHours !== 24
-      || contract.prerequisites?.activationEvidenceRecomputed !== true
+  if (contract.prerequisites?.priorActivationOutcome !== "ROLLBACK"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 197
+      || contract.prerequisites?.freshActivationRequired !== true
       || contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
       || contract.prerequisites?.currentProductionAuthorityEpoch !== 4
@@ -232,6 +221,8 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   if (contract.observation?.minimumComparedWrites !== 10_000
       || contract.observation?.minimumStabilitySeconds !== 1_800
       || contract.observation?.minimumSamples !== 7
+      || contract.observation?.minimumActivationSamples !== 289
+      || contract.observation?.minimumActivationHours !== 24
       || contract.observation?.maximumSampleGapSeconds !== 600
       || contract.observation?.automaticReconciliation !== false
       || contract.observation?.automaticCanonicalCutover !== false) violations.push("observation_boundary");
@@ -250,45 +241,6 @@ export async function validateProductionPacketContract(root = process.cwd()) {
     runnerArtifactSha256: runnerArtifact.sha256,
     violations,
   };
-}
-
-function assertEvidencePath(path, suffix, reason) {
-  ensure(new RegExp(
-    `^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-[a-z0-9][a-z0-9._-]{7,100}/${suffix}$`,
-    "u",
-  ).test(path ?? ""), reason);
-}
-
-export async function verifyActivationEvidence(request) {
-  const [finalBytes, closeoutBytes, samplesBytes] = await Promise.all([
-    readFile(request.activationEvidencePath),
-    readFile(request.activationCloseoutPath),
-    readFile(request.activationSamplesPath),
-  ]);
-  ensure(sha256(finalBytes) === request.activationEvidenceSha256,
-    "activation_final_checksum_mismatch");
-  ensure(sha256(closeoutBytes) === request.activationCloseoutSha256,
-    "activation_closeout_checksum_mismatch");
-  ensure(sha256(samplesBytes) === request.activationSamplesSha256,
-    "activation_samples_checksum_mismatch");
-  const samples = samplesBytes.toString("utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
-  const recomputed = evaluateObservationEvidence(samples, {
-    approvedCommit: request.activationCommit,
-    authorityEpoch: request.activationAuthorityEpoch,
-    migrationId: request.activationMigrationId,
-    releaseId: request.activationReleaseId,
-  });
-  const final = JSON.parse(finalBytes);
-  const closeout = JSON.parse(closeoutBytes);
-  ensure(recomputed.status === "PASS_ACTIVATE_AND_OBSERVE"
-      && recomputed.sampleCount === 289 && recomputed.coverageHours >= 24,
-  "activation_recomputed_not_pass");
-  ensure(final.status === recomputed.status
-      && final.sampleCount === recomputed.sampleCount
-      && final.completedWrites === recomputed.completedWrites,
-  "activation_final_not_recomputed_truth");
-  ensure(closeout.outcome === "PASS_ACTIVATE_AND_OBSERVE", "activation_closeout_not_pass");
-  return recomputed;
 }
 
 export async function verifyDynamicPreflight(request, suppliedContract = null) {
@@ -440,13 +392,12 @@ export async function validateProductionExecutionRequest(
       && request.targetTree === manifest.sourceTree,
   "request_packet_binding_mismatch");
   for (const key of [
-    "activationCommit", "approvedPacketCommit", "approvedPacketTree", "currentProductionCommit",
-    "targetCommit", "targetTree",
+    "approvedPacketCommit", "approvedPacketTree", "currentProductionCommit", "targetCommit",
+    "targetTree",
   ]) {
     assertHash(request[key], `request_${key}_invalid`, 40);
   }
   for (const key of [
-    "activationCloseoutSha256", "activationEvidenceSha256", "activationSamplesSha256",
     "baseEnvSha256", "composeSha256", "identityOverrideSha256", "identityWrapperSha256",
     "productionEnvSha256",
   ]) assertHash(request[key], `request_${key}_invalid`);
@@ -458,18 +409,7 @@ export async function validateProductionExecutionRequest(
   ensure(request.currentWorkerState === "absent", "request_current_worker_not_absent");
   ensure(request.currentAuthorityEpoch === 4,
   "request_current_authority_epoch_invalid");
-  ensure(request.activationMigrationId === request.currentMigrationId
-      && request.activationReleaseId === request.currentReleaseId
-      && request.activationAuthorityEpoch === 3
-      && request.activationAuthorityEpoch + 1 === request.currentAuthorityEpoch,
-  "request_activation_retirement_identity_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/u.test(request.approvalDigest), "request_approval_digest_invalid");
-  assertEvidencePath(request.activationEvidencePath, "observation-final\\.json",
-    "activation_evidence_path_invalid");
-  assertEvidencePath(request.activationCloseoutPath, "observation-closeout\\.json",
-    "activation_closeout_path_invalid");
-  assertEvidencePath(request.activationSamplesPath, "observation-samples\\.jsonl",
-    "activation_samples_path_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-continuation-preflight-[a-z0-9][a-z0-9._-]{7,100}\/preflight\.json$/u.test(request.preflightEvidencePath),
     "preflight_evidence_path_invalid");
   assertHash(request.preflightSha256, "request_preflight_hash_invalid");
@@ -502,7 +442,7 @@ export async function validateProductionExecutionRequest(
   ensure(request.approvalDigest === `sha256:${sha256(canonicalJson(request.autonomyAuthorization))}`,
     "request_approval_digest_binding_mismatch");
   if (verifyEvidence) {
-    await Promise.all([verifyActivationEvidence(request), verifyDynamicPreflight(request, contract)]);
+    await verifyDynamicPreflight(request, contract);
   }
   return request;
 }
@@ -728,7 +668,7 @@ async function main() {
     await validateProductionExecutionRequest(
       request, manifest, contract, options["bundle-sha256"],
     );
-    process.stdout.write('{"status":"pass","requestValid":true,"activationEvidenceRecomputed":true,"secretsPrinted":false}\n');
+    process.stdout.write('{"status":"pass","requestValid":true,"freshActivationRequired":true,"secretsPrinted":false}\n');
     return;
   }
   if (command === "prepare-admin-url") {

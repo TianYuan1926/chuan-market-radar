@@ -18,6 +18,7 @@
 6. 新周期仍严格 72 小时；这不是重置旧 deadline。
 7. 任一步失败必须回滚整个事务，Legacy 始终保持权威。
 8. 10,000 条、三段 24 小时、RR 3:1、Risk Gate 和所有交易边界均不变。
+9. 旧 Activation 唯一留存证据为 197 个样本、约 16.5 小时并以 `ROLLBACK` 关闭，不能重算或包装为 PASS；Cycle-2 必须重新采集至少 289 个样本并覆盖至少 24 小时。
 
 ## 当前生产只读基线
 
@@ -26,6 +27,7 @@
 - Candidate 表计数为 episodes 543、events 2,957、outbox 5,914、checkpoints 0、outcomes 0。
 - `candidate_episode_event` 通道为 pending 2,957、non-pending 0、orphan 0、contract mismatch 0。
 - 新周期只能是严格相邻的 `candidate-episode-v1-cycle-2`，不能复活旧周期，也不能清理事件通道。
+- Cycle-2 将把新 Activation 与 10,000 条真实写入积累并行观察，但最终只有两项同时达标才输出 PASS。
 
 ## 当前结论
 

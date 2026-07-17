@@ -456,6 +456,14 @@ export async function readCandidateValidationCycleObservation(client, rawInput) 
   const input = validateCycleContinuationInput(rawInput);
   await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
   try {
+    const safetyResult = await client.query(`
+      SELECT
+        (SELECT count(*)::int FROM pg_locks WHERE NOT granted) AS "lockWaiters",
+        (SELECT count(*)::int FROM pg_stat_activity
+          WHERE pid <> pg_backend_pid() AND xact_start IS NOT NULL
+            AND clock_timestamp() - xact_start > interval '5 minutes') AS "longTransactions"`);
+    const safety = safetyResult.rows[0];
+    ensure(safety, "observation_database_safety_missing");
     await client.query("SET LOCAL ROLE candidate_audit_role");
     const controls = await controlSnapshot(client);
     const data = await dataSnapshot(client);
@@ -484,6 +492,13 @@ export async function readCandidateValidationCycleObservation(client, rawInput) 
       completedWrites: data.legacyCompleted,
       unresolvedOutbox: data.legacyUnresolved,
       activeCycles: active.length,
+      database: {
+        lockWaiters: safeCount(safety.lockWaiters, "observation_lock_waiters_invalid"),
+        longTransactions: safeCount(
+          safety.longTransactions,
+          "observation_long_transactions_invalid",
+        ),
+      },
     };
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);

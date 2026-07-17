@@ -303,7 +303,7 @@ run_production_check
 })().catch((error) => { console.error(error.message); process.exit(1); });
 NODE
 lease_event checkpoint --checkpoint immediate_verification_passed
-lease_event observation-checkpoint --checkpoint accumulation_observation_start
+lease_event observation-checkpoint --checkpoint fresh_activation_and_accumulation_observation_start
 
 [[ "$(sudo -n systemctl show "${OBSERVER_UNIT}.service" --property=LoadState --value 2>/dev/null || true)" == "not-found" ]] \
   || fail observer_unit_already_exists
@@ -317,4 +317,4 @@ sudo -n systemd-run --unit="${OBSERVER_UNIT}" --collect --quiet --uid="$(id -u)"
 [[ "$(sudo -n systemctl show "${OBSERVER_UNIT}.service" --property=ActiveState --value)" == "active" ]] \
   || fail observer_unit_not_active
 trap - EXIT
-echo "PASS_IMMEDIATE_CYCLE_CONTINUATION_AWAITING_REAL_WRITE_ACCUMULATION"
+echo "PASS_IMMEDIATE_CYCLE_CONTINUATION_AWAITING_FRESH_ACTIVATION_AND_REAL_WRITE_ACCUMULATION"

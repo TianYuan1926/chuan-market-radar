@@ -34,18 +34,7 @@ function approvedManifest(template) {
 }
 
 function runtimeFixture() {
-  const activationRoot = "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-proof-release";
   return {
-    activationAuthorityEpoch: 3,
-    activationCloseoutPath: `${activationRoot}/observation-closeout.json`,
-    activationCloseoutSha256: "1".repeat(64),
-    activationCommit: "4".repeat(40),
-    activationEvidencePath: `${activationRoot}/observation-final.json`,
-    activationEvidenceSha256: "2".repeat(64),
-    activationMigrationId: "candidate-episode-v1",
-    activationReleaseId: "candidate-shadow-current-release",
-    activationSamplesPath: `${activationRoot}/observation-samples.jsonl`,
-    activationSamplesSha256: "3".repeat(64),
     baseEnvSha256: "5".repeat(64),
     composeSha256: "6".repeat(64),
     currentAuthorityEpoch: 4,
@@ -144,7 +133,7 @@ test("transport template is deterministic and excludes credentials and requests"
   }
 });
 
-test("request binds a retired activation, adjacent cycle, absent worker, Git, image, env, and grant", async () => {
+test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and grant", async () => {
   const directory = await mkdtemp("/tmp/candidate-cycle-continuation-request-");
   try {
     const archive = join(directory, "packet.tar.gz");
@@ -172,7 +161,7 @@ test("request binds a retired activation, adjacent cycle, absent worker, Git, im
     assert.equal(validated.nextMigrationId, "candidate-episode-v1-cycle-2");
     assert.equal(validated.currentPhase, "legacy");
     assert.equal(validated.currentWorkerState, "absent");
-    assert.equal(validated.activationAuthorityEpoch, 3);
+    assert.equal("activationEvidencePath" in validated, false);
     assert.match(validated.approvalDigest, /^sha256:[0-9a-f]{64}$/u);
     assert.deepEqual(validated.services, ["web", "candidate-shadow-worker"]);
     await assert.rejects(() => validateProductionExecutionRequest(

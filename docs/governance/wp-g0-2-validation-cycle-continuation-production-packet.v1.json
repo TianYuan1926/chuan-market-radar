@@ -1,13 +1,13 @@
 {
   "schemaVersion": "wp-g0.2-validation-cycle-continuation-production-packet.v1",
   "packageId": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION",
-  "title": "Candidate immutable validation-cycle production continuation",
+  "title": "Candidate fresh activation and immutable validation-cycle continuation",
   "gate": "G0",
   "actionClass": "feature_phase_activation",
   "riskTier": "R2_AUTHORITY_TRANSITION",
   "productionAuthorization": false,
   "productionExecuted": false,
-  "currentActivationFinalPass": false,
+  "priorActivationFinalPass": false,
   "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
   "postgresAdminEnvPath": "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
   "standingGrant": {
@@ -18,10 +18,9 @@
     "externalLeaseRequired": true
   },
   "prerequisites": {
-    "activationStatus": "PASS_ACTIVATE_AND_OBSERVE",
-    "activationSamplesExact": 289,
-    "minimumActivationHours": 24,
-    "activationEvidenceRecomputed": true,
+    "priorActivationOutcome": "ROLLBACK",
+    "priorActivationSamplesObserved": 197,
+    "freshActivationRequired": true,
     "currentProductionSourcePhase": "legacy",
     "currentProductionWriteFrozen": true,
     "currentProductionAuthorityEpoch": 4,
@@ -90,12 +89,14 @@
     "minimumComparedWrites": 10000,
     "minimumStabilitySeconds": 1800,
     "minimumSamples": 7,
+    "minimumActivationSamples": 289,
+    "minimumActivationHours": 24,
     "minimumCompletionAdvances": 2,
     "maximumSampleGapSeconds": 600,
     "deadlineSafetySeconds": 21600,
     "automaticReconciliation": false,
     "automaticCanonicalCutover": false,
-    "passStatus": "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE"
+    "passStatus": "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
   },
   "runnerArtifact": {
     "files": [
@@ -107,7 +108,7 @@
       "scripts/production/candidate-cycle-continuation/runner.mjs"
     ],
     "fileCount": 6,
-    "sha256": "8cfb2ade154ed1d4cd8825c53f725b7dbd0db8e34f8d046690cef390a41634a0"
+    "sha256": "f99694f1b9bf0f7dac359864a53cc1e1f7b907b3b57f52d1a3c3962bb15a7b1f"
   },
   "forbidden": [
     "threshold_lowering",
@@ -125,7 +126,7 @@
   "truthBoundary": {
     "localPacketPassIsProductionPass": false,
     "continuationPassIsReconciliationPass": false,
-    "accumulationPassIsShadowVerifyPass": false,
+    "freshActivationAndAccumulationPassIsLineagePass": false,
     "g0Complete": false,
     "systemStatus": "R1 / 可运行但不完整 / 不能支撑实战"
   }

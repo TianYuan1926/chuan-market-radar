@@ -24,6 +24,7 @@ test("production packet never mutates scanner Redis migrations or canonical auth
 test("observer retains evidence before exact temporary cleanup", async () => {
   const source = await readFile(files[2], "utf8");
   assert.ok(source.indexOf("retain_evidence") < source.lastIndexOf("cleanup_temporary_artifacts"));
-  assert.match(source, /PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE/u);
+  assert.match(source, /PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE/u);
+  assert.match(source, /lease_event release --outcome PASS_OBSERVATION/u);
   assert.match(source, /automatic_rollback/u);
 });

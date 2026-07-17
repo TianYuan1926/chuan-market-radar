@@ -29,9 +29,6 @@ APPROVED_SECURE_ROOT="$(jq -r '.secureRoot // empty' "${REQUEST_FILE}")"
 APPROVED_OPS_ROOT="$(jq -r '.opsRoot // empty' "${REQUEST_FILE}")"
 APPROVED_EVIDENCE_DIRECTORY="$(jq -r '.evidenceDirectory // empty' "${REQUEST_FILE}")"
 APPROVED_POSTGRES_ADMIN_ENV="$(jq -r '.postgresAdminEnvPath // empty' "${REQUEST_FILE}")"
-ACTIVATION_FINAL="$(jq -r '.activationEvidencePath // empty' "${REQUEST_FILE}")"
-ACTIVATION_CLOSEOUT="$(jq -r '.activationCloseoutPath // empty' "${REQUEST_FILE}")"
-ACTIVATION_SAMPLES="$(jq -r '.activationSamplesPath // empty' "${REQUEST_FILE}")"
 PREFLIGHT_EVIDENCE="$(jq -r '.preflightEvidencePath // empty' "${REQUEST_FILE}")"
 ACTUAL_SOURCE_ROOT="$(realpath "${SOURCE_ROOT}")"
 ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
@@ -61,15 +58,6 @@ ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
   && "${APPROVED_EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-* ]] \
   || fail session_independent_identity_invalid
 
-ACTIVATION_DIRECTORY="$(dirname "${ACTIVATION_FINAL}")"
-[[ "$(dirname "${ACTIVATION_CLOSEOUT}")" == "${ACTIVATION_DIRECTORY}" \
-  && "$(dirname "${ACTIVATION_SAMPLES}")" == "${ACTIVATION_DIRECTORY}" \
-  && "$(realpath "${ACTIVATION_DIRECTORY}")" == "${ACTIVATION_DIRECTORY}" ]] \
-  || fail activation_evidence_directory_mismatch
-for file in "${ACTIVATION_FINAL}" "${ACTIVATION_CLOSEOUT}" "${ACTIVATION_SAMPLES}"; do
-  [[ -f "${file}" && ! -L "${file}" && "$(realpath "${file}")" == "${file}" ]] \
-    || fail "activation_evidence_missing:$(basename "${file}")"
-done
 PREFLIGHT_DIRECTORY="$(dirname "${PREFLIGHT_EVIDENCE}")"
 [[ -f "${PREFLIGHT_EVIDENCE}" && ! -L "${PREFLIGHT_EVIDENCE}" \
   && "$(realpath "${PREFLIGHT_EVIDENCE}")" == "${PREFLIGHT_EVIDENCE}" \
@@ -88,7 +76,6 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
   --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --mount "type=bind,src=${ACTUAL_SOURCE_ROOT},dst=/packet,readonly" \
-  --mount "type=bind,src=${ACTIVATION_DIRECTORY},dst=${ACTIVATION_DIRECTORY},readonly" \
   --mount "type=bind,src=${PREFLIGHT_DIRECTORY},dst=${PREFLIGHT_DIRECTORY},readonly" \
   --entrypoint node "${WEB_IMAGE}" \
   /packet/scripts/production/candidate-cycle-continuation/bundle.mjs validate-request \
@@ -128,9 +115,6 @@ for parent in "$(dirname "${APPROVED_SECURE_ROOT}")" "$(dirname "${APPROVED_OPS_
 done
 mkdir "${APPROVED_SECURE_ROOT}"
 chmod 700 "${APPROVED_SECURE_ROOT}"
-install -m 0600 "${ACTIVATION_FINAL}" "${APPROVED_SECURE_ROOT}/activation-final.json"
-install -m 0600 "${ACTIVATION_CLOSEOUT}" "${APPROVED_SECURE_ROOT}/activation-closeout.json"
-install -m 0600 "${ACTIVATION_SAMPLES}" "${APPROVED_SECURE_ROOT}/activation-samples.jsonl"
 install -m 0600 "${PREFLIGHT_EVIDENCE}" "${APPROVED_SECURE_ROOT}/preflight.json"
 [[ "$(sudo -n stat -c '%a' "${POSTGRES_ADMIN_ENV}")" == "600" \
   && "$(sudo -n stat -c '%u:%g' "${POSTGRES_ADMIN_ENV}")" == "0:0" \

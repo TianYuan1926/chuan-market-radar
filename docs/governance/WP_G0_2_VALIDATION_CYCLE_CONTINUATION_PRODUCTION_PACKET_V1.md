@@ -2,11 +2,13 @@
 
 ## 目标
 
-把不可变 Candidate 验证周期续接实现按当前生产真值重新封装为会话独立、一次授权、精确身份绑定、自动降级回滚和持续留证的生产执行包。
+把不可变 Candidate 验证周期续接实现按当前生产真值重新封装为会话独立、一次授权、精确身份绑定、自动降级回滚和持续留证的生产执行包，并在新周期内重新完成 Activation 真值观察。
 
 ## 不可降低门槛
 
-- 原 Activation 必须使用其原始 commit、epoch 3、migration 和 release 身份，由 289 个原始样本重算为至少 24 小时 PASS；不能用当前 Legacy epoch 4 身份冒充。
+- 旧 Activation 的唯一真实证据只有 197 个样本、约 16.5 小时，closeout 为 `ROLLBACK`；它不得作为 PASS 前置条件或生产通行证。
+- Cycle-2 必须从零采集至少 289 个连续样本、覆盖至少 24 小时，任意样本健康、Candidate runtime/monitor、数据库锁等待或长事务异常都 fail closed。
+- Cycle-2 同时必须达到至少 10,000 条 `legacy_scan_candidate` completed、至少 1,800 秒稳定、至少 7 个样本和至少两次真实推进；两个窗口可并行观察，但必须同时 PASS。
 - 每个 cycle 最长仍为 72 小时，旧 `started_at/deadline_at` 永远不可修改。
 - Reconciliation 最低仍为 10,000 条真实 completed writes 和 0 difference。
 - Shadow Verify 与 Canonical Compat 仍各自需要独立 24 小时窗口。
@@ -21,7 +23,7 @@
 
 ## 生产事务
 
-执行入口使用 transient systemd unit。事务只允许精确 fetch/checkout 目标提交、保留当前 Web 镜像、构建并重建 Web 与 candidate-shadow-worker、调用既有 control procedure 原子启动严格相邻的 `candidate-episode-v1-cycle-2`、切换非敏感 cycle/release 环境和启动只读 observer。
+执行入口使用 transient systemd unit。事务只允许精确 fetch/checkout 目标提交、保留当前 Web 镜像、构建并重建 Web 与 candidate-shadow-worker、调用既有 control procedure 原子启动严格相邻的 `candidate-episode-v1-cycle-2`、切换非敏感 cycle/release 环境和启动统一只读 observer。生产请求不再接收或挂载旧 Activation final 文件。
 
 底层 continuation core 同时验证“退役 active 后启动相邻周期”和“从最新 frozen Legacy 启动相邻周期”，避免容量回滚后形成生命周期死路；本刷新包只允许从当前冻结的 Legacy 源周期启动，旧 `shadow_capture` 假设已作废。所有动态证据和授权都必须在 90 分钟窗口内重新生成，不能复用旧请求。
 
@@ -31,4 +33,4 @@
 
 ## 真值
 
-本地 Packet PASS 不等于生产续接；生产续接不等于 10,000 条对账；累计 10,000 条不等于 Shadow Verify、Canonical Cutover、WP-G0.2 或 G0 完成。
+本地 Packet PASS 不等于生产续接；生产续接不等于新 Activation PASS；单独满足 24 小时或 10,000 条任一条件都不能 PASS；统一观察 PASS 仍不等于 Lineage、Reconciliation、Shadow Verify、Canonical Cutover、WP-G0.2 或 G0 完成。

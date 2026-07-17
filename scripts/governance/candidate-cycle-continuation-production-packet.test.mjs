@@ -22,7 +22,7 @@ test("current production packet governance passes without claiming production", 
   assert.equal(result.status, "PASS_LOCAL_CYCLE_CONTINUATION_PRODUCTION_PACKET");
   assert.equal(result.productionAuthorization, false);
   assert.equal(result.productionExecuted, false);
-  assert.equal(result.currentActivationFinalPass, false);
+  assert.equal(result.priorActivationFinalPass, false);
   assert.deepEqual(result.violations, []);
 });
 
