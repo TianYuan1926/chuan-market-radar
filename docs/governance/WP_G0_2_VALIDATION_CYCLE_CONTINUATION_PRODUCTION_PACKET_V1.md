@@ -27,6 +27,8 @@
 
 底层 continuation core 同时验证“退役 active 后启动相邻周期”和“从最新 frozen Legacy 启动相邻周期”，避免容量回滚后形成生命周期死路；本刷新包只允许从当前冻结的 Legacy 源周期启动，旧 `shadow_capture` 假设已作废。所有动态证据和授权都必须在 90 分钟窗口内重新生成，不能复用旧请求。
 
+一次性授权必须显式携带 `market-radar-package-authorization.v1`，Bundle validator 与通用生产租约入口必须在上传前对同一 schema 达成一致。缺失或伪造版本必须在租约获取和任何生产变更前 fail closed，禁止通过手工补字段绕过本地合同。
+
 ## 失败边界
 
 任何身份、健康、租约、来源通道、事件完整性、deadline、数据计数或服务验证失败，必须冻结新 cycle、停止并删除 Candidate Worker、关闭全部 Candidate flag、恢复旧 Git 与 Web 镜像。即使 Worker 已自行消失也必须继续回滚；若回滚不完整，生产租约必须保留并报告失败，不能伪报 `ROLLBACK_PASS`。旧 cycle 不得复活，Legacy 始终保留权威。

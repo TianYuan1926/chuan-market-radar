@@ -23,6 +23,7 @@ const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 const POSTGRES_ADMIN_ENV =
   "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env";
 const GRANT_ID = "MR-G0-G8-USER-STANDING-GRANT-20260714-034826";
+const AUTHORIZATION_SCHEMA = "market-radar-package-authorization.v1";
 const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1_000);
 
@@ -308,6 +309,8 @@ export async function verifyDynamicPreflight(request, suppliedContract = null) {
 function validateAuthorization(authorization, request, manifest, contract) {
   ensure(authorization && typeof authorization === "object" && !Array.isArray(authorization),
     "authorization_missing");
+  ensure(authorization.schemaVersion === AUTHORIZATION_SCHEMA,
+    "authorization_schema_invalid");
   for (const key of REQUIRED_PACKAGE_APPROVAL_FIELDS) {
     ensure(authorization[key] !== undefined && authorization[key] !== null
       && authorization[key] !== "", `authorization_required_field_missing:${key}`);

@@ -60,6 +60,7 @@ function runtimeFixture() {
 function authorizationFixture(manifest, runtime, contract) {
   const bindings = cycleContinuationBindingHashes(runtime, contract);
   return {
+    schemaVersion: "market-radar-package-authorization.v1",
     mode: "g0_g8_standing_user_grant",
     approvedBy: "user_standing_grant",
     grantId: "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
@@ -164,6 +165,26 @@ test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and 
     assert.equal("activationEvidencePath" in validated, false);
     assert.match(validated.approvalDigest, /^sha256:[0-9a-f]{64}$/u);
     assert.deepEqual(validated.services, ["web", "candidate-shadow-worker"]);
+    const authorizationWithoutSchema = { ...authorization };
+    delete authorizationWithoutSchema.schemaVersion;
+    assert.throws(() => createProductionExecutionRequest({
+      manifest,
+      contract,
+      bundleSha256: "a".repeat(64),
+      runtime,
+      authorization: authorizationWithoutSchema,
+      now: new Date("2026-07-17T00:00:00.000Z"),
+      nonce: authorization.nonce,
+    }), /authorization_schema_invalid/u);
+    assert.throws(() => createProductionExecutionRequest({
+      manifest,
+      contract,
+      bundleSha256: "a".repeat(64),
+      runtime,
+      authorization: { ...authorization, schemaVersion: "market-radar-package-authorization.v0" },
+      now: new Date("2026-07-17T00:00:00.000Z"),
+      nonce: authorization.nonce,
+    }), /authorization_schema_invalid/u);
     await assert.rejects(() => validateProductionExecutionRequest(
       { ...request, currentAuthorityEpoch: 4 },
       manifest, contract, "a".repeat(64),

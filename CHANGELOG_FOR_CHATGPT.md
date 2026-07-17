@@ -5925,3 +5925,40 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只完成 epoch 6 绑定包的提交、生产启动和统一观察，不进入 Lineage 或 Shadow Verify。
+
+## 2026-07-18 / WP-G0.2 Cycle-2 Production Authorization Schema Pre-Lease Remediation
+
+### 本轮目标
+
+修复 Cycle-2 一次性授权与通用生产租约入口的 schema 合同断层，保证缺失或错误授权版本在上传前 fail closed。
+
+### 修改范围
+
+- `bundle.mjs` 显式要求 `market-radar-package-authorization.v1`，测试覆盖缺失和伪造版本。
+- Cycle continuation 生产合同与 runner artifact 同步刷新；未修改 migration、数据库数据、Redis、scanner、frontend、API、scan、analysis、strategy、RR、trade plan、backtest、env 或 secret。
+- 旧 commit `3c432e5...` / Bundle `4a63e3b9...` / request `4bd19894...` 已失效且禁止复用。
+
+### 核心链路影响
+
+只强化候选筛选和复盘进化的生产授权地基，不生成信号、不改变排序或交易计划。
+
+### 测试结果
+
+- 红灯：缺失 schema 的授权被现有 Cycle-2 validator 错误接受，1 项按预期 FAIL。
+- 修复后 Production Packet 26/26、Core 28/28、Governance 2/2、Autonomy 31/31、PostgreSQL 16：PASS。
+- typecheck、零 warning lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16、forbidden/secret/security：PASS。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第一次 production attempt 在 lease acquire 前以 `autonomy_authorization_schema_invalid` fail closed；没有 Git、DB、env 或服务变更。生产基线复核 PASS，失败 staging/secure/ops/evidence/upload 和临时 rollback tag 已精确清理。修复后的新版本尚未 commit、push 或重试生产。
+
+### 风险与遗留问题
+
+- G0 主步骤仍为 7；pre-lease fail closed 和本地修复都不能代替 Cycle-2 生产启动。
+- 仍需 clean commit、提交绑定门禁、确定性 Bundle/request、新鲜现场 preflight 和受控生产重试。
+- Cycle-2 生产启动后仍必须通过 289 样本/24 小时与 10,000 真实 writes 双门禁。
+
+### 下一轮建议
+
+只提交并重新绑定本 schema 修复，然后重试 Cycle-2；不进入 Lineage 或 Shadow Verify。
