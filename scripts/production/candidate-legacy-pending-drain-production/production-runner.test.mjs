@@ -15,6 +15,12 @@ function shellFunction(name) {
   return match[0];
 }
 
+function shellReadonly(name) {
+  const match = runner.match(new RegExp(`^readonly ${name}='([^'\\n]+)'$`, "mu"));
+  assert.ok(match, `${name} must be a single-line readonly shell value`);
+  return match[1];
+}
+
 test("production runner dry-run performs no mutation", () => {
   const output = execFileSync("bash", [path.pathname], {
     encoding: "utf8",
@@ -39,6 +45,36 @@ test("target image is built before scanner pause and owns every database command
     && stop < lock && lock < preflight && preflight < open && open < worker);
   assert.match(runner, /database_runner preflight "\$\{TARGET_WEB_IMAGE\}"/u);
   assert.doesNotMatch(runner, /database_runner preflight "\$\{BASELINE_WEB_IMAGE\}"/u);
+});
+
+test("database jq contracts compile and accept their exact success shapes", () => {
+  const cases = [
+    ["PREFLIGHT_CONTRACT_FILTER", {
+      status: "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT",
+      pending: 2_957,
+      outboxTotal: 5_914,
+      sourceEpoch: 4,
+      drainEpoch: 5,
+      finalFrozenEpoch: 6,
+    }],
+    ["DRAIN_OPEN_CONTRACT_FILTER", {
+      status: "PASS_DRAIN_EPOCH_OPEN",
+      control: { phase: "shadow_capture", epoch: 5, write_frozen: false },
+    }],
+    ["DRAIN_VERIFY_CONTRACT_FILTER", {
+      status: "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN",
+      drained: 2_957,
+      completed: 5_914,
+      finalEpoch: 6,
+    }],
+  ];
+  for (const [name, value] of cases) {
+    execFileSync("jq", ["-e", shellReadonly(name)], {
+      input: JSON.stringify(value),
+      stdio: ["pipe", "ignore", "pipe"],
+    });
+  }
+  assert.doesNotMatch(runner, /jq -e '/u);
 });
 
 test("scanner lock and baseline health waits cover the real production TTL and cadence", () => {

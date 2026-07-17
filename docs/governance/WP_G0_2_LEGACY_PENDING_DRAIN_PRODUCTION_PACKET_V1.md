@@ -17,7 +17,7 @@
 ## 唯一允许的变化
 
 1. 保留 Git、env、Web、scanner 镜像和非目标容器基线。
-2. 在 scanner 仍在线时精确 fetch/checkout 已批准 target，构建临时 Web 与 Candidate worker；所有数据库 runner 命令只能使用包含 `pg` 的目标 Web 镜像，并必须从镜像内 `/app/package.json` 解析运行时依赖，禁止沿只读 `/packet` 挂载目录误解析。
+2. 在 scanner 仍在线时精确 fetch/checkout 已批准 target，构建临时 Web 与 Candidate worker；所有数据库 runner 命令只能使用包含 `pg` 的目标 Web 镜像，并必须从镜像内 `/app/package.json` 解析运行时依赖，禁止沿只读 `/packet` 挂载目录误解析。preflight、control open 和 final verify 三个 `jq` 合同门必须使用已冻结、可独立编译的单行过滤器，禁止在单引号过滤器内续行。
 3. 停止 scanner；只读等待最长 660 秒让 Redis 的 600 秒扫描锁自然释放，禁止删除锁，超时即失败。
 4. 临时 env 开启 shadow consumer，同时设置 `CANDIDATE_EPISODE_DRAIN_ONLY=true`；source enqueue 必须 fail closed。
 5. control 从 epoch 4 临时进入 epoch 5；处理旧 pending 后停止 Candidate worker。

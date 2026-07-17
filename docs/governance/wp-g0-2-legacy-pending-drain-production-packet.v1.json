@@ -50,6 +50,7 @@
     "targetImageBuiltBeforeScannerPause": true,
     "databaseRunnerImage": "target_web_image_with_pg",
     "databaseRunnerModuleRoot": "/app/package.json",
+    "databaseJqContractsSingleLine": true,
     "services": [
       "web",
       "scanner-worker",
@@ -132,7 +133,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "073d83c63c7fb72a5ac1bec0ab6992a811a340fb591285d674a44cad00a323d2",
+    "sha256": "1ab33385dd3750f1be137d3c90247dfcb6e57c18ebad4ea8ad6a6e6f5e762459",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

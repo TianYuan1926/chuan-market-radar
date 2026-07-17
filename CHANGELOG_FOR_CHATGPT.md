@@ -2,6 +2,49 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-18 / WP-G0.2 Legacy Pending Drain 第四次失败与 jq 合同门修复
+
+### 本轮目标
+
+关闭第四次生产 pending-only drain 暴露的三处同类 `jq` 合同语法缺陷，使合法的 preflight、control open 和 final verify JSON 能被真实 runner 接受，同时保持数量、epoch、回滚和生产身份边界不变。
+
+### 修改范围
+
+- 修改 production runner，将三道 `jq` 合同冻结为单行只读过滤器。
+- 修改 runner 单测、治理器及弱化测试，真实调用 `jq` 编译并拒绝旧式单引号续行。
+- 更新 production packet JSON/Markdown、runner artifact、自治状态、Context 和本日志。
+- 未修改 frontend、API、scan/analysis/strategy/backtest、migration、DB schema、Redis、worker 业务逻辑、env、Feature Flag、secret 或其他服务。
+
+### 核心链路影响
+
+只影响候选筛选与复盘进化的数据完整性地基：修复旧 Candidate pending 排空工具的结果校验，不生成候选、方向、交易计划或新信号。
+
+### 测试结果
+
+- production packet：22/22 PASS。
+- legacy drain：12/12 PASS。
+- PostgreSQL 16 成功排空与失败再冻结双路径：PASS；`sourceWritesAdded=0`、`outboxDeleted=0`、`productionConnected=false`。
+- shell syntax、governance validator、`git diff --check`：PASS。
+- typecheck、零 warning lint、build、三项安全门禁和 Autonomy 31/31：PASS。
+- test:market：1027 pass / 0 fail / 7 explicit skip；workers 23/23、historical 4/4 PASS。
+- backtest:golden：16/16 PASS。
+- 完整自治总门禁：12/12 PASS，`worktreeUnchanged=true`；最终文档内容会再由提交前绑定门禁复核，不能继承过期 worktree 证据。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第四次生产请求已执行但失败并完整回滚；本轮 jq 修复尚未 commit、push 或部署。第四次执行使用 fencing token 17，lease 已释放，生产数据库仍为 `legacy/frozen epoch4`、pending/unresolved=2,957，Web/scanner ready/fresh。
+
+### 风险与遗留问题
+
+- G0 主步骤仍为 8；生产 pending 未排空，cycle-2 继续禁止。
+- 本地测试成立不等于生产 drain PASS；还需完整门禁、提交、提交后门禁、新单次 request 和第五次真实执行。
+- 第四次 request 已消费，不得复用。
+
+### 下一轮建议
+
+只完成当前 jq 修复的 commit-bound 第五次 pending-only drain；不得合并 cycle-2。
+
 ## 2026-07-10 - Market Radar Engineering Build & Production Runtime Blueprints v1.0
 
 ### 本轮目标

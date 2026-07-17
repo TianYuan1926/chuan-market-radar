@@ -10,6 +10,9 @@ DB_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-legacy-pending-drain-prod
 BUNDLE_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-legacy-pending-drain-production/bundle.mjs"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
 PACKAGE_ID="WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION"
+readonly PREFLIGHT_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT" and .pending == 2957 and .outboxTotal == 5914 and .sourceEpoch == 4 and .drainEpoch == 5 and .finalFrozenEpoch == 6'
+readonly DRAIN_OPEN_CONTRACT_FILTER='.status == "PASS_DRAIN_EPOCH_OPEN" and .control.phase == "shadow_capture" and .control.epoch == 5 and .control.write_frozen == false'
+readonly DRAIN_VERIFY_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN" and .drained == 2957 and .completed == 5914 and .finalEpoch == 6'
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
 hash_file() { sha256sum "$1" | awk '{print $1}'; }
@@ -337,8 +340,7 @@ wait_for_scan_lock_absent || fail scanner_lock_still_present_after_wait
 FAILURE_PHASE="database-preflight"
 database_runner preflight "${TARGET_WEB_IMAGE}" \
   > "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json"
-jq -e '.status == "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT" and .pending == 2957 \
-  and .outboxTotal == 5914 and .sourceEpoch == 4 and .drainEpoch == 5 and .finalFrozenEpoch == 6' \
+jq -e "${PREFLIGHT_CONTRACT_FILTER}" \
   "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" >/dev/null \
   || fail database_preflight_contract_failed
 jq '.snapshot' "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" > "${BEFORE_SNAPSHOT}"
@@ -360,8 +362,7 @@ TEMP_WEB_CONTAINER="$("${COMPOSE[@]}" ps -q web)"
 FAILURE_PHASE="control-open"
 database_runner open "${TARGET_WEB_IMAGE}" > "${EVIDENCE_DIRECTORY}/control-open-redacted.json"
 CONTROL_OPENED=true
-jq -e '.status == "PASS_DRAIN_EPOCH_OPEN" and .control.phase == "shadow_capture" \
-  and .control.epoch == 5 and .control.write_frozen == false' \
+jq -e "${DRAIN_OPEN_CONTRACT_FILTER}" \
   "${EVIDENCE_DIRECTORY}/control-open-redacted.json" >/dev/null || fail control_open_invalid
 
 FAILURE_PHASE="pending-drain"
@@ -400,8 +401,7 @@ database_runner close "${TARGET_WEB_IMAGE}" > "${EVIDENCE_DIRECTORY}/control-clo
 CONTROL_OPENED=false
 database_runner verify "${TARGET_WEB_IMAGE}" --before-snapshot "${BEFORE_SNAPSHOT}" \
   > "${EVIDENCE_DIRECTORY}/database-final-redacted.json"
-jq -e '.status == "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN" and .drained == 2957 \
-  and .completed == 5914 and .finalEpoch == 6' \
+jq -e "${DRAIN_VERIFY_CONTRACT_FILTER}" \
   "${EVIDENCE_DIRECTORY}/database-final-redacted.json" >/dev/null || fail database_final_contract_failed
 
 FAILURE_PHASE="baseline-restore"

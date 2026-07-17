@@ -51,13 +51,20 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
       || contract.execution?.databaseRunnerModuleRoot !== "/app/package.json") {
     violations.push("scanner_wait_boundary_relaxed");
   }
+  if (contract.execution?.databaseJqContractsSingleLine !== true) {
+    violations.push("database_jq_contract_boundary_relaxed");
+  }
   for (const token of [
     "service_allowlist=web,scanner-worker,candidate-shadow-worker",
     "scanner_lock_still_present", "database_runner preflight", "database_runner open",
     "database_runner close", "database_runner rollback", "CANDIDATE_EPISODE_DRAIN_ONLY=true",
     "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN", "ROLLBACK_PASS", "wait_baseline_health",
     "wait_for_scan_lock_absent", "ROLLBACK_INCOMPLETE_LEASE_RETAINED", "leaseRetained",
+    "readonly PREFLIGHT_CONTRACT_FILTER=", "readonly DRAIN_OPEN_CONTRACT_FILTER=",
+    "readonly DRAIN_VERIFY_CONTRACT_FILTER=", 'jq -e "${PREFLIGHT_CONTRACT_FILTER}"',
+    'jq -e "${DRAIN_OPEN_CONTRACT_FILTER}"', 'jq -e "${DRAIN_VERIFY_CONTRACT_FILTER}"',
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
+  if (runner.includes("jq -e '")) violations.push("database_jq_contract_inlined");
   for (const token of [
     "systemd-run", "RuntimeMaxSec=5400", "validate-request", "prepare-admin-url",
     "temporaryArtifactCleanupRequired", "rm -rf -- \"${SECURE_ROOT}\"",

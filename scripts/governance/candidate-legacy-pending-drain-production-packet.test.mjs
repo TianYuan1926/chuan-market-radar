@@ -33,15 +33,22 @@ test("governance rejects count, epoch, rollback, or runner guard weakening", asy
   weakened.rollback.automatic = false;
   weakened.execution.baselineHealthWaitSeconds = 600;
   weakened.execution.databaseRunnerModuleRoot = "/packet/package.json";
+  weakened.execution.databaseJqContractsSingleLine = false;
+  const weakenedRunner = runner
+    .replace("scanner_lock_still_present", "lock-check-removed")
+    .replace('jq -e "${PREFLIGHT_CONTRACT_FILTER}"', "jq -e '.status == \\\"PASS\\\"'");
   const violations = evaluatePendingDrainProductionGovernance({
     contract: weakened,
     dbRunner,
     entrypoint,
-    runner: runner.replace("scanner_lock_still_present", "lock-check-removed"),
+    runner: weakenedRunner,
   });
   assert.ok(violations.includes("pending_snapshot_changed"));
   assert.ok(violations.includes("epoch_sequence_changed"));
   assert.ok(violations.includes("rollback_boundary_relaxed"));
   assert.ok(violations.includes("scanner_wait_boundary_relaxed"));
+  assert.ok(violations.includes("database_jq_contract_boundary_relaxed"));
+  assert.ok(violations.includes('runner_guard_missing:jq -e "${PREFLIGHT_CONTRACT_FILTER}"'));
+  assert.ok(violations.includes("database_jq_contract_inlined"));
   assert.ok(violations.includes("runner_guard_missing:scanner_lock_still_present"));
 });
