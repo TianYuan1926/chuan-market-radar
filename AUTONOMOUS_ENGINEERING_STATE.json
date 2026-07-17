@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-17T07:18:30+08:00",
+  "updatedAt": "2026-07-17T08:22:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -24,7 +24,8 @@
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
     "freshVerificationCycleLineageCapture": "completed_local_committed_pushed_9472529_targeted_6_of_6_reconciliation_packet_12_of_12_postgres16_10020_write_lineage_capture_baseline_security_and_autonomy_13_of_13_pass_production_not_connected",
     "freshVerificationCycleLineageProductionPacket": "completed_local_committed_pushed_464c301_bundle_sha256_a75ce76c3d5342a94d4dfa1777b99350530dfef785f94b422b53934f087140d6_production_not_connected_not_executed",
-    "shadowVerifyCodeAuthorization": "ready_for_commit_targeted_37_of_37_three_postgres16_rehearsals_autonomy_31_of_31_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_full_autonomy_gate_14_of_14_pass_production_not_connected_not_deployed_phase_not_changed"
+    "shadowVerifyCodeAuthorization": "completed_local_committed_pushed_ebba74e_targeted_37_of_37_three_postgres16_rehearsals_autonomy_31_of_31_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected_not_deployed_phase_not_changed",
+    "shadowVerifyCodeAuthorizationProductionRelease": "local_preparation_pass_ready_for_commit_minimal_release_target_eb48827_parent_54837d0_three_files_targeted_22_of_22_release_6_of_6_code_authorization_37_of_37_autonomy_unit_31_of_31_typecheck_lint_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_full_autonomy_13_of_13_pass_production_blocked_by_lineage_and_reconciliation"
   },
   "wipLimits": {
     "production": 1,
@@ -143,11 +144,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-LOCAL-SUPERPACKAGE",
-    "title": "Candidate Shadow Verify code authorization local superpackage",
+    "id": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE",
+    "title": "Candidate Shadow Verify code authorization Web-only production release",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "只在本地启用Candidate Read受控状态机，使未来shadow_verify可执行同快照双读比较；Legacy在shadow_verify仍是响应权威，生产部署、phase切换和Canonical Cutover全部禁止。",
+    "objective": "建立只允许Web build/recreate的Shadow Verify代码授权生产发布包；执行前必须真实Lineage与Reconciliation PASS，发布期间数据库、phase、manifest、Worker、Redis、env和Compose全部禁止改变。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -160,14 +161,10 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_LOCAL_SUPERPACKAGE_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-code-authorization-local-superpackage.v1.json",
-      "scripts/governance/candidate-shadow-verify-code-authorization.mjs",
-      "scripts/governance/candidate-shadow-verify-code-authorization.test.mjs",
-      "src/lib/candidate-episode/canonical-read-model.ts",
-      "src/lib/candidate-episode/canonical-read-model.test.ts",
-      "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
-      "reports/wp-g0-2-shadow-verify-code-authorization-local-superpackage/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_LOCAL_SUPERPACKAGE_REPORT.md"
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_V1.md",
+      "docs/governance/wp-g0-2-shadow-verify-code-authorization-production-release.v1.json",
+      "scripts/production/candidate-shadow-verify-release/**",
+      "reports/wp-g0-2-shadow-verify-code-authorization-production-release/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_REPORT.md"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -176,6 +173,7 @@
       "src/lib/strategy/**",
       "src/lib/backtest/**",
       "src/app/**",
+      "src/components/**",
       "deploy/workers/**",
       "deploy/caddy/**",
       "docker-compose.yml",
@@ -187,22 +185,22 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_LOCAL_SUPERPACKAGE_V1.md",
-      "docs/governance/wp-g0-2-shadow-verify-code-authorization-local-superpackage.v1.json",
-      "scripts/governance/candidate-shadow-verify-code-authorization.mjs",
-      "scripts/governance/candidate-shadow-verify-code-authorization.test.mjs",
-      "src/lib/candidate-episode/canonical-read-model.ts",
-      "src/lib/candidate-episode/canonical-read-model.test.ts",
-      "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
-      "reports/wp-g0-2-shadow-verify-code-authorization-local-superpackage/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_LOCAL_SUPERPACKAGE_REPORT.md"
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_V1.md",
+      "docs/governance/wp-g0-2-shadow-verify-code-authorization-production-release.v1.json",
+      "scripts/production/candidate-shadow-verify-release/bundle.mjs",
+      "scripts/production/candidate-shadow-verify-release/bundle.test.mjs",
+      "scripts/production/candidate-shadow-verify-release/production-boundary.test.mjs",
+      "scripts/production/candidate-shadow-verify-release/production-entrypoint.sh",
+      "scripts/production/candidate-shadow-verify-release/production-execute-rehearsal.test.mjs",
+      "scripts/production/candidate-shadow-verify-release/production-runner.sh",
+      "reports/wp-g0-2-shadow-verify-code-authorization-production-release/WP_G0_2_SHADOW_VERIFY_CODE_AUTHORIZATION_PRODUCTION_RELEASE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
+        "candidate:shadow-verify-code-release:validate",
+        "test:candidate-shadow-verify-code-release",
         "candidate:shadow-verify-code-authorization:validate",
         "test:candidate-shadow-verify-code-authorization",
-        "candidate:canonical-read:pg16-rehearsal",
-        "candidate:canonical-read-oracle:pg16-rehearsal",
-        "candidate:trusted-read-context:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -219,19 +217,20 @@
       ]
     },
     "completionBoundary": [
-      "代码能力锁固定启用但不能由env、query或header覆盖",
-      "legacy和shadow_capture继续只返回Legacy diagnostic",
-      "shadow_verify必须绑定Reconciliation PASS、可信phase、唯一正确flags和同快照parity",
-      "shadow_verify响应权威必须保持Legacy，Candidate不能用于Review或Cutover",
-      "canonical_compat和canonical继续分别受前序24小时证据阻断",
-      "可信manifest、release、epoch、approval digest和authority fingerprint必须前后匹配",
-      "数据库读取只允许candidate_audit_role和SERIALIZABLE READ ONLY DEFERRABLE",
-      "当前本地包不等于生产部署、phase切换、Shadow Verify观察、Canonical Cutover、WP-G0.2或G0完成",
-      "scan、analysis、strategy、RR、Risk Gate、backtest、frontend和future outcome生产输入全部禁止修改",
+      "release target必须是54837d0的单父3文件提交eb48827，生产baseline漂移即整包失效",
+      "执行前Lineage必须至少10000条且新鲜周期完整，Reconciliation必须零差异零重复零未解决",
+      "只允许Web build和no-deps no-build force-recreate，全部非Web容器身份必须不变",
+      "Candidate worker的container和image身份必须前后不变且持续healthy",
+      "数据库control必须持续shadow_capture、writeFrozen=false、release和正奇数epoch完全一致",
+      "read-authority manifest必须保持不存在，Candidate lifecycle API必须503 fail closed",
+      "每个mutation前重验外部lease和fencing，任何失败自动恢复baseline Git与旧Web image",
+      "成功后保留rollback image并完成1800秒至少61样本ready/fresh连续观察",
+      "当前本地包不等于生产发布、phase切换、Shadow Verify观察、Canonical Cutover、WP-G0.2或G0完成",
+      "scan、analysis、strategy、RR、Risk Gate、backtest、frontend、DB、Redis、Worker和future outcome生产输入全部禁止修改",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "read_only_production_preflight",
+    "actionClass": "reversible_service_release",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -239,7 +238,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "本地代码和隔离PostgreSQL 16证明Shadow Verify可以做同快照零差异双读，同时Legacy保持响应权威，任何缺证据、错误phase或authority漂移都Fail-Closed。"
+      "measurableOutcome": "确定性脱敏Bundle、一次性Standing Grant request、session-independent Web-only runner、成功演练和故障自动回滚共同证明代码授权可在不改变Candidate control与Worker的条件下安全发布。"
     }
   },
   "approvals": [
@@ -534,6 +533,13 @@
     {
       "order": 40,
       "id": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-LOCAL-SUPERPACKAGE",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_ebba74e_production_not_deployed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 41,
+      "id": "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

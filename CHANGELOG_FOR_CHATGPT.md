@@ -5113,3 +5113,46 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 本包总门禁、提交和推送收口后，准备独立的 Shadow Verify Web-only 生产发布包；不与数据库 phase transition 合并。
+
+## 2026-07-17 / WP-G0.2 Shadow Verify Code Authorization Web-only Production Release Preparation
+
+### 本轮目标
+
+建立独立、确定性、可回滚的 Web-only 生产发布包，把已验证的 Candidate Read 授权代码安全发布能力准备到位，同时继续禁止提前切换 Shadow Verify phase 或 Candidate authority。
+
+### 修改范围
+
+- 冻结 baseline=`54837d0`、单父 3 文件 target=`eb48827`、tree、diff SHA 和 path-set SHA；错误的旧 11 文件发布目标已精确删除并由当前目标取代。
+- 新增确定性脱敏 Bundle、一次性 Standing Grant request、session-independent transient systemd 入口、Web-only runner、边界测试及成功/自动回滚执行演练。
+- CI 接入发布合同和测试；机器状态、治理合同、Context 和本轮报告同步更新。
+- 未修改 frontend、API route、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、Compose、env、Redis、Worker 或生产服务。
+
+### 核心链路影响
+
+加强候选筛选与复盘进化的 Candidate 双读发布安全；不改变全市场发现、深扫、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- Web-only 发布合同与 Bundle/边界/执行演练：6/6 PASS；build 失败自动恢复 baseline Git 与旧 Web image。
+- 精确 3 文件 release target：定向 22/22、typecheck、零警告 lint、build、forbidden-files、secret-patterns、security-check PASS。
+- 原 Shadow Verify 授权合同与域测试 37/37、Autonomy 31/31：PASS。
+- typecheck、零警告 lint：PASS。
+- market 1026 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，按合同禁止。
+- 提交前自治总门禁：13/13 PASS，`worktreeUnchanged=true`；最终事实回填后再次运行提交绑定门禁。
+
+### 是否部署
+
+未部署、未上传、未连接或查询生产，未执行数据库、服务、phase、manifest、Feature Flag 或 Candidate authority mutation。最近已知生产快照仍为 96/289、completed=1481，可能已过期，本轮没有把它包装成当前实时事实。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0。
+- P1：真实 Activation、累计 10,000、新鲜相邻周期、Lineage 与生产 Reconciliation 尚未 PASS，因此本包生产执行继续 fail closed。
+- P1：生产 baseline 漂移会使当前发布包失效，必须重新生成精确 release target，不能回退生产迎合旧包。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成当前包提交、提交后门禁和确定性 Bundle 后，继续推进不依赖生产前置的 Shadow Verify phase-transition/dual-read observation 本地准备；生产执行保持等待可信 Lineage 与 Reconciliation PASS。

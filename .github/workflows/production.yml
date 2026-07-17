@@ -88,6 +88,12 @@ jobs:
       - name: Candidate shadow-verify code authorization tests
         run: npm run test:candidate-shadow-verify-code-authorization
 
+      - name: Candidate shadow-verify Web-only release contract
+        run: npm run candidate:shadow-verify-code-release:validate
+
+      - name: Candidate shadow-verify Web-only release tests
+        run: npm run test:candidate-shadow-verify-code-release
+
       - name: Candidate validation-cycle continuation contract
         run: npm run candidate:cycle-continuation:validate
 
