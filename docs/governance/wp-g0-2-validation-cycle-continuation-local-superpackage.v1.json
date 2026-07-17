@@ -16,7 +16,7 @@
     "currentProductionCycle": "candidate-episode-v1",
     "currentProductionPhase": "legacy",
     "currentProductionWriteFrozen": true,
-    "currentProductionAuthorityEpoch": 4,
+    "currentProductionAuthorityEpoch": 6,
     "currentProductionDeadlineAt": "2026-07-19T01:38:00.099Z",
     "currentProductionActiveCycles": 0,
     "currentProductionCandidateWorker": "absent",
@@ -86,7 +86,7 @@
       "src/lib/candidate-episode/shadow-capture-runtime.ts"
     ],
     "fileCount": 12,
-    "sha256": "ccb1ef904f4700088f54d7863e1704c83192ffdebbf218b8fb3f76cb5c24d237"
+    "sha256": "116391accb5de43c06f7a4f0edf98ebdb8a36feff8af858621121bc6d2a73dee"
   },
   "localPostgres16Rehearsal": {
     "oldDeadlineImmutable": true,

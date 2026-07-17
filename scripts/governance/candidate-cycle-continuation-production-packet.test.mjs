@@ -18,6 +18,8 @@ async function fixture() {
 }
 
 test("current production packet governance passes without claiming production", async () => {
+  const current = await fixture();
+  assert.equal(current.contract.prerequisites.currentProductionAuthorityEpoch, 6);
   const result = await validateCandidateCycleContinuationProductionPacket();
   assert.equal(result.status, "PASS_LOCAL_CYCLE_CONTINUATION_PRODUCTION_PACKET");
   assert.equal(result.productionAuthorization, false);

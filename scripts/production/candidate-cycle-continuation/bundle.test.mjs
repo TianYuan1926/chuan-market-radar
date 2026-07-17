@@ -37,7 +37,7 @@ function runtimeFixture() {
   return {
     baseEnvSha256: "5".repeat(64),
     composeSha256: "6".repeat(64),
-    currentAuthorityEpoch: 4,
+    currentAuthorityEpoch: 6,
     currentMigrationId: "candidate-episode-v1",
     currentPhase: "legacy",
     currentProductionCommit: "7".repeat(40),
@@ -164,6 +164,11 @@ test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and 
     assert.equal("activationEvidencePath" in validated, false);
     assert.match(validated.approvalDigest, /^sha256:[0-9a-f]{64}$/u);
     assert.deepEqual(validated.services, ["web", "candidate-shadow-worker"]);
+    await assert.rejects(() => validateProductionExecutionRequest(
+      { ...request, currentAuthorityEpoch: 4 },
+      manifest, contract, "a".repeat(64),
+      { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
+    ), /request_current_authority_epoch_invalid/u);
     await assert.rejects(() => validateProductionExecutionRequest(
       { ...request, nextMigrationId: "candidate-episode-v1-cycle-3" },
       manifest, contract, "a".repeat(64),

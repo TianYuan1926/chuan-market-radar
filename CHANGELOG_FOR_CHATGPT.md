@@ -5884,3 +5884,44 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 先完成本包完整门禁、提交绑定和确定性 Bundle，再执行新的 Cycle-2 生产启动；不复用任何旧 Activation PASS 证据。
+
+## 2026-07-18 / WP-G0.2 Cycle-2 Production Epoch-6 Rebind
+
+### 本轮目标
+
+在腾讯生产现场绑定发现 epoch 漂移后，只把 Cycle-2 入口从过期 epoch 4 重新绑定到当前真实 epoch 6，禁止旧身份包进入生产。
+
+### 修改范围
+
+- Microsoft Edge / OrcaTerm 只读核验生产仍为 clean detached `cec0b657...`、Web image `sha256:cd3652c1...`、Candidate Worker absent，health=`ready`、scan=`fresh`、Postgres=`ready`、Redis=`healthy`。
+- 数据库 `REPEATABLE READ READ ONLY` 证明唯一 control 为 `candidate-episode-v1 / legacy / frozen / epoch6 / candidate-shadow-e5eb90026d8b`，updatedAt=`2026-07-17T19:55:23.220Z`；Candidate 计数和两个 source lane 均未漂移。
+- global production lease absent；最新历史 lease 是 fencing token 19 的 `WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION`，已于 `2026-07-17T19:56:48.252Z` 以 `ROLLBACK_PASS` 释放，与 control epoch 6 更新时间吻合。
+- 原 commit `93bc64d...` 和 Bundle `2a1149df...` 因绑定 epoch 4 自动失效，从未上传或执行。
+- 只刷新 Cycle continuation 本地/生产合同、Bundle validator、治理 validator、生产身份测试和上下文；runner artifact 更新为 `bf3d55cfce5a9d9907ec06d6d9f76d8335eebfc71fb7f5794607f7873896a47e`。
+- 未修改 migration、数据库数据、Redis、Worker 业务逻辑、frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、env 或 secret。
+
+### 核心链路影响
+
+只保护候选筛选和复盘进化的生命周期生产身份；不生成信号，不改变生产排序或交易计划。
+
+### 测试结果
+
+- 红灯：旧合同 `4 !== 6`，epoch 6 request 被 `request_current_authority_epoch_invalid` 拒绝，2 项按预期 FAIL。
+- 修复后 Production Packet 26/26、Core 28/28、Governance 2/2、Autonomy 31/31：PASS；旧 epoch 4 request 拒绝回归 PASS。
+- PostgreSQL 16 migrations 1-10、相邻 Cycle-2、旧 deadline 不变、Candidate 数据保留、single active cycle 和 rollback：PASS，`productionConnected=false`。
+- 完整基础、安全和自治门禁：待最终冻结后执行。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+未上传、未部署、未执行生产 mutation；只完成生产只读核验。当前生产仍为 `legacy/frozen epoch6`、Candidate Worker absent、ready/fresh。
+
+### 风险与遗留问题
+
+- G0 主步骤仍为 7；epoch 重新绑定不能代替 Cycle-2 生产启动和双门禁观察。
+- 新包仍需完整门禁、clean commit/push、新鲜 preflight、确定性 Bundle/request、现场执行与 24 小时/10,000 writes 统一观察。
+- 系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成 epoch 6 绑定包的提交、生产启动和统一观察，不进入 Lineage 或 Shadow Verify。

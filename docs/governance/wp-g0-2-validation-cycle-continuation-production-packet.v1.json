@@ -23,7 +23,7 @@
     "freshActivationRequired": true,
     "currentProductionSourcePhase": "legacy",
     "currentProductionWriteFrozen": true,
-    "currentProductionAuthorityEpoch": 4,
+    "currentProductionAuthorityEpoch": 6,
     "activeCyclesExact": 0,
     "candidateWorkerBaseline": "absent",
     "candidateEpisodesExact": 543,
@@ -108,7 +108,7 @@
       "scripts/production/candidate-cycle-continuation/runner.mjs"
     ],
     "fileCount": 6,
-    "sha256": "f99694f1b9bf0f7dac359864a53cc1e1f7b907b3b57f52d1a3c3962bb15a7b1f"
+    "sha256": "bf3d55cfce5a9d9907ec06d6d9f76d8335eebfc71fb7f5794607f7873896a47e"
   },
   "forbidden": [
     "threshold_lowering",

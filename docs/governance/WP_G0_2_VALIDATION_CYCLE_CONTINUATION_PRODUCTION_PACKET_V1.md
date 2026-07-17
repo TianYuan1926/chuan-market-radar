@@ -15,7 +15,7 @@
 
 ## 当前生产前提
 
-- 当前控制行必须精确为 `candidate-episode-v1 / legacy / frozen / epoch 4`，active cycle 必须为 0。
+- 当前控制行必须精确为 `candidate-episode-v1 / legacy / frozen / epoch 6`，active cycle 必须为 0。该 epoch 来自 fencing token 19 的 Legacy Pending Drain 安全回滚，不得复用回滚前的 epoch 4 身份。
 - Candidate Worker 必须完全缺席；基线只保留 Web 回滚镜像，不得伪造不存在的 Worker 基线镜像。
 - `legacy_scan_candidate` 必须是 completed 2,957、unresolved 0。
 - `candidate_episode_event` 必须是 pending 2,957、non-pending 0、orphan 0、contract mismatch 0，并在续接事务前后保持不变。

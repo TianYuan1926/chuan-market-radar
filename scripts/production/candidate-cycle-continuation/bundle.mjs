@@ -176,7 +176,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.prerequisites?.freshActivationRequired !== true
       || contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
-      || contract.prerequisites?.currentProductionAuthorityEpoch !== 4
+      || contract.prerequisites?.currentProductionAuthorityEpoch !== 6
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
       || contract.prerequisites?.candidateEpisodesExact !== 543
@@ -407,7 +407,7 @@ export async function validateProductionExecutionRequest(
   validateCycleContinuationInput(request);
   ensure(request.currentPhase === "legacy", "request_source_phase_not_retired_legacy");
   ensure(request.currentWorkerState === "absent", "request_current_worker_not_absent");
-  ensure(request.currentAuthorityEpoch === 4,
+  ensure(request.currentAuthorityEpoch === 6,
   "request_current_authority_epoch_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/u.test(request.approvalDigest), "request_approval_digest_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-continuation-preflight-[a-z0-9][a-z0-9._-]{7,100}\/preflight\.json$/u.test(request.preflightEvidencePath),

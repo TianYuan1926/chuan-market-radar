@@ -22,7 +22,7 @@
 
 ## 当前生产只读基线
 
-- `candidate-episode-v1` 已处于 `legacy / frozen / epoch 4`，当前 active cycle 为 0。
+- `candidate-episode-v1` 已处于 `legacy / frozen / epoch 6`，当前 active cycle 为 0；epoch 4 已被 fencing token 19 的受控尝试与安全回滚取代。
 - Candidate Worker 容器缺席；Web 与 scanner-worker 已恢复到健康基线。
 - Candidate 表计数为 episodes 543、events 2,957、outbox 5,914、checkpoints 0、outcomes 0。
 - `candidate_episode_event` 通道为 pending 2,957、non-pending 0、orphan 0、contract mismatch 0。

@@ -27,7 +27,7 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
   }
   if (contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
-      || contract.prerequisites?.currentProductionAuthorityEpoch !== 4
+      || contract.prerequisites?.currentProductionAuthorityEpoch !== 6
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
       || contract.prerequisites?.candidateEpisodesExact !== 543

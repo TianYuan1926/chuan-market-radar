@@ -56,7 +56,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.readObservationWindowsSeparate !== true
       || problem.currentProductionPhase !== "legacy"
       || problem.currentProductionWriteFrozen !== true
-      || problem.currentProductionAuthorityEpoch !== 4
+      || problem.currentProductionAuthorityEpoch !== 6
       || problem.currentProductionActiveCycles !== 0
       || problem.currentProductionCandidateWorker !== "absent"
       || problem.legacySourceCompleted !== 2_957

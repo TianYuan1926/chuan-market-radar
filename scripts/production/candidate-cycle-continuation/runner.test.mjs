@@ -114,11 +114,11 @@ test("continuation can restart from an exactly frozen latest cycle without reviv
   assert.match(rendered, /CANDIDATE_RUNTIME_RELEASE_ID="candidate-shadow-cycle-third"/u);
 });
 
-test("current production legacy epoch four can start only strict adjacent cycle two", () => {
+test("current production legacy epoch six can start only strict adjacent cycle two", () => {
   const disabled = renderDisabledCandidateEnvironment(activeEnvironment, valid.currentMigrationId);
   const currentProduction = {
     ...valid,
-    currentAuthorityEpoch: 4,
+    currentAuthorityEpoch: 6,
     currentPhase: "legacy",
   };
   assert.deepEqual(validateCycleContinuationInput(currentProduction), currentProduction);
