@@ -19,7 +19,7 @@
 1. 保留 Git、env、Web、scanner 镜像和非目标容器基线。
 2. 在 scanner 仍在线时精确 fetch/checkout 已批准 target，构建临时 Web 与 Candidate worker；所有数据库 runner 命令只能使用包含 `pg` 的目标 Web 镜像，并必须从镜像内 `/app/package.json` 解析运行时依赖，禁止沿只读 `/packet` 挂载目录误解析。preflight、control open 和 final verify 三个 `jq` 合同门必须使用已冻结、可独立编译的单行过滤器，禁止在单引号过滤器内续行。
 3. 停止 scanner；只读等待最长 660 秒让 Redis 的 600 秒扫描锁自然释放，禁止删除锁，超时即失败。
-4. 临时 env 开启 shadow consumer，同时设置 `CANDIDATE_EPISODE_DRAIN_ONLY=true`；source enqueue 必须 fail closed。
+4. 生产 `.env.production` 只能作为精确单文件只读挂载进入专用隔离 renderer 的 `/runtime/env.production`；renderer 输出只能写入本轮临时 OPS 目录，通用 lease runner 不得获得 env 挂载。随后临时 env 开启 shadow consumer，同时设置 `CANDIDATE_EPISODE_DRAIN_ONLY=true`；source enqueue 必须 fail closed。
 5. control 从 epoch 4 临时进入 epoch 5；处理旧 pending 后停止 Candidate worker。
 6. 仅在 pending/claimed/retry_wait/quarantined/unresolved 全部归零且 outbox 总数未变时冻结为 legacy epoch 6。
 7. 恢复原 env、原 Git、原 Web/scanner 镜像，Candidate worker absent；基线健康等待最长 1,200 秒，以覆盖 15 分钟 scanner 周期和 5 分钟余量，scanner 必须产生晚于执行前基线的新 completedAt 并重新达到 ready/fresh。

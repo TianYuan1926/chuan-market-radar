@@ -148,6 +148,10 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || execution.targetImageBuiltBeforeScannerPause !== true
       || execution.databaseRunnerImage !== "target_web_image_with_pg"
       || execution.databaseRunnerModuleRoot !== "/app/package.json"
+      || execution.environmentRendererSourceMount !== "exact_file_read_only"
+      || execution.environmentRendererSourcePath !== "/runtime/env.production"
+      || execution.environmentRendererOutputRoot !== "temporary_ops_only"
+      || execution.environmentRendererLeaseIsolation !== true
       || JSON.stringify(execution.services)
         !== JSON.stringify(["web", "scanner-worker", "candidate-shadow-worker"])
       || execution.scannerPausedBeforeDatabaseMutation !== true
@@ -239,6 +243,8 @@ export async function validateLocalPreparation(root = process.cwd()) {
     "CANDIDATE_EPISODE_DRAIN_ONLY=true", "database_runner rollback", "ROLLBACK_PASS",
     "wait_for_scan_lock_absent", "ROLLBACK_INCOMPLETE_LEASE_RETAINED", "leaseRetained",
     "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN", "cycle2Started:false",
+    "render_drain_environment", "dst=/runtime/env.production,readonly",
+    "--source /runtime/env.production", "dst=${OPS_ROOT}",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   for (const token of ["systemd-run", "RuntimeMaxSec=5400", "validate-request",
     "prepare-admin-url", "temporaryArtifactCleanupRequired"]) {

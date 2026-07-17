@@ -135,6 +135,17 @@ run_packet_node() {
     --mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}" \
     --entrypoint node "${image}" "$@"
 }
+render_drain_environment() {
+  ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
+    --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+    --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
+    --mount "type=bind,src=${ENV_FILE},dst=/runtime/env.production,readonly" \
+    --mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}" \
+    --entrypoint node "${BASELINE_WEB_IMAGE}" \
+    "${BUNDLE_RUNNER}" render-env \
+      --source /runtime/env.production --output "${TARGET_ENV}" >/dev/null
+}
 database_runner() {
   local command="$1" image="$2"; shift 2
   ${DOCKER[@]} run --rm --network "${NETWORK_NAME}" --read-only --cap-drop ALL \
@@ -347,8 +358,7 @@ jq '.snapshot' "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" > "${BEF
 chmod 600 "${BEFORE_SNAPSHOT}"
 
 FAILURE_PHASE="drain-only-environment"
-run_packet_node "${BASELINE_WEB_IMAGE}" "${BUNDLE_RUNNER}" render-env \
-  --source "${ENV_FILE}" --output "${TARGET_ENV}" >/dev/null
+render_drain_environment
 match_file_identity "${ENV_FILE}" "${TARGET_ENV}"
 mv -f "${TARGET_ENV}" "${ENV_FILE}"
 ENV_SWITCHED=true

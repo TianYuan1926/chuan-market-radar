@@ -5707,3 +5707,45 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只完成本模块根修复的 commit-bound 第四次生产重试，不进入 cycle-2。
+
+## 2026-07-18 / WP-G0.2 Pending Drain Exact Environment Mount Remediation
+
+### 本轮目标
+
+如实收口第五次 production pending drain 的隔离 env 读取失败，并保证只有专用 renderer 能以精确单文件只读方式读取生产 env，输出只进入临时 OPS 目录。
+
+### 修改范围
+
+- 第五次执行绑定 commit `c0cce68da8e5`、deterministic Bundle `f0676ee6...` 和单次 request `f58bef9a...`；远端双哈希、容器 request 验证、目标镜像构建、DB runner `/app` 模块根、三道单行 `jq` 合同和真实 DB preflight 均 PASS。
+- fencing token 18 在 `drain-only-environment` 因隔离容器没有挂载宿主 `.env.production` 而报 `ENOENT`；未打开 epoch、未启动 Candidate worker、未推进 pending。
+- 新增专用 `render_drain_environment`：只挂载精确 env 文件到 `/runtime/env.production` 且只读，只允许写本轮临时 OPS；通用 lease runner 不获得 env 挂载。
+- 合同、Bundle validator、治理 validator 和真实 Docker 参数回归共同锁定该边界；runner artifact 刷新为 `f90f202489f8c763612c976fe795cd33e1cbc1b807d92ce68ec07ebbe06343f5`。
+- 未修改 migration、Candidate 数据语义、frontend、API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis、Compose、Feature Flag 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的生产排空执行地基；不生成信号，不改变全市场发现、结构分析、风险赔率、交易计划或生产排序。
+
+### 测试结果
+
+- production packet 23/23、旧 pending drain 12/12：PASS。
+- PostgreSQL 16 success drain 与 failure refreeze：PASS，`sourceWritesAdded=0`、`outboxDeleted=0`、`productionConnected=false`。
+- typecheck、零 warning lint、test:market、build、Golden 16/16、三项安全检查、Autonomy 31/31：PASS。
+- 首轮完整自治总门禁：12/12 PASS，result=`bc299e8b-0f2a-49dc-a707-e69d708ae7cc`、evidence SHA-256=`defde6928ca4941190ec2316be6cae33f7b6a523c091cc1afca77a3e75873b59`、`worktreeUnchanged=true`。
+- 事实回填后的最终冻结门禁：12/12 PASS，result=`e64ffb07-2a61-484f-b5b9-b90f2b4a949d`、evidence SHA-256=`a2be4ebee43cacbd291dcbecb4c209c8156dd035a14c6ffb7eb79358f914b212`、`worktreeUnchanged=true`；不能提前生成第六次 Bundle/request。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第五次生产执行 FAIL 但 rollback 完整：`ROLLBACK_PASS`、fencing token 18 已释放、全局 lease absent、staging/secure absent。数据库仍为 migration 10、`legacy/frozen epoch4`、completed=2,957、pending/unresolved=2,957；Git/env/Web/scanner 已恢复并为 ready/fresh。本地精确挂载修复尚未 commit、push 或生产重试。
+
+### 风险与遗留问题
+
+- P0：生产 pending 仍为 2,957，G0 主步骤不能从 8 减为 7。
+- P1：本修复仍需 clean commit、提交后 gate、新 Bundle/request 和第六次执行。
+- P1：只有 pending=0、legacy/frozen epoch6、scanner ready/fresh、lease released、evidence closed 全部满足后才能减数。
+- 系统仍是 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成本精确挂载修复的 commit-bound 第六次生产重试，不进入 cycle-2。

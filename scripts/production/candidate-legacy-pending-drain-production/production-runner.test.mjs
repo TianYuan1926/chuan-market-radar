@@ -77,6 +77,43 @@ test("database jq contracts compile and accept their exact success shapes", () =
   assert.doesNotMatch(runner, /jq -e '/u);
 });
 
+test("drain environment renderer mounts only the exact source file read-only", () => {
+  const directory = mkdtempSync(join(tmpdir(), "pending-drain-env-render-"));
+  const fakeDocker = join(directory, "docker");
+  const argumentsPath = join(directory, "docker-args");
+  writeFileSync(fakeDocker, `#!/bin/sh
+printf '%s\\n' "$@" > "$DOCKER_ARGS"
+`, { mode: 0o700 });
+  chmodSync(fakeDocker, 0o700);
+  try {
+    execFileSync("bash", ["-c", `${shellFunction("render_drain_environment")}
+DOCKER=("${fakeDocker}")
+SOURCE_ROOT=/packet
+ENV_FILE=/production/.env.production
+OPS_ROOT=/ops/pending-drain
+TARGET_ENV=/ops/pending-drain/backups/env.production.drain-only
+BASELINE_WEB_IMAGE=sha256:baseline
+BUNDLE_RUNNER=/packet/bundle.mjs
+render_drain_environment
+`], {
+      env: { ...process.env, DOCKER_ARGS: argumentsPath },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    const args = execFileSync("cat", [argumentsPath], { encoding: "utf8" }).trim().split("\n");
+    assert.ok(args.includes(
+      "type=bind,src=/production/.env.production,dst=/runtime/env.production,readonly",
+    ));
+    assert.ok(args.includes("type=bind,src=/ops/pending-drain,dst=/ops/pending-drain"));
+    assert.equal(args[args.indexOf("--source") + 1], "/runtime/env.production");
+    assert.equal(args[args.indexOf("--output") + 1],
+      "/ops/pending-drain/backups/env.production.drain-only");
+    assert.equal(args.filter((value) => value.includes("/production/.env.production")).length, 1);
+    assert.ok(!args.some((value) => value.includes("market-radar-autonomy")));
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
 test("scanner lock and baseline health waits cover the real production TTL and cadence", () => {
   assert.match(runner, /wait_for_scan_lock_absent\(\)/u);
   assert.match(runner, /local deadline=\$\(\(SECONDS \+ 660\)\)/u);

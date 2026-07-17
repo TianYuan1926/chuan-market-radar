@@ -51,6 +51,10 @@
     "databaseRunnerImage": "target_web_image_with_pg",
     "databaseRunnerModuleRoot": "/app/package.json",
     "databaseJqContractsSingleLine": true,
+    "environmentRendererSourceMount": "exact_file_read_only",
+    "environmentRendererSourcePath": "/runtime/env.production",
+    "environmentRendererOutputRoot": "temporary_ops_only",
+    "environmentRendererLeaseIsolation": true,
     "services": [
       "web",
       "scanner-worker",
@@ -133,7 +137,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "1ab33385dd3750f1be137d3c90247dfcb6e57c18ebad4ea8ad6a6e6f5e762459",
+    "sha256": "f90f202489f8c763612c976fe795cd33e1cbc1b807d92ce68ec07ebbe06343f5",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

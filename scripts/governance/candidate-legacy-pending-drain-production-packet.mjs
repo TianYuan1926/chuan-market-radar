@@ -54,6 +54,12 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
   if (contract.execution?.databaseJqContractsSingleLine !== true) {
     violations.push("database_jq_contract_boundary_relaxed");
   }
+  if (contract.execution?.environmentRendererSourceMount !== "exact_file_read_only"
+      || contract.execution?.environmentRendererSourcePath !== "/runtime/env.production"
+      || contract.execution?.environmentRendererOutputRoot !== "temporary_ops_only"
+      || contract.execution?.environmentRendererLeaseIsolation !== true) {
+    violations.push("environment_renderer_boundary_relaxed");
+  }
   for (const token of [
     "service_allowlist=web,scanner-worker,candidate-shadow-worker",
     "scanner_lock_still_present", "database_runner preflight", "database_runner open",
@@ -63,6 +69,8 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
     "readonly PREFLIGHT_CONTRACT_FILTER=", "readonly DRAIN_OPEN_CONTRACT_FILTER=",
     "readonly DRAIN_VERIFY_CONTRACT_FILTER=", 'jq -e "${PREFLIGHT_CONTRACT_FILTER}"',
     'jq -e "${DRAIN_OPEN_CONTRACT_FILTER}"', 'jq -e "${DRAIN_VERIFY_CONTRACT_FILTER}"',
+    "render_drain_environment", "dst=/runtime/env.production,readonly",
+    "--source /runtime/env.production", "dst=${OPS_ROOT}",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   if (runner.includes("jq -e '")) violations.push("database_jq_contract_inlined");
   for (const token of [
