@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "wp-g0.2-legacy-pending-drain-production-packet.v1",
+  "packageId": "WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION",
+  "title": "Candidate legacy pending-only production drain",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "productionPass": false,
+  "actionClass": "feature_phase_activation",
+  "riskTier": "R2_AUTHORITY_TRANSITION",
+  "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+  "standingGrant": {
+    "grantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "revocationEpoch": 2,
+    "maximumExecutions": 1,
+    "maximumApprovalWindowMinutes": 90,
+    "externalLeaseRequired": true
+  },
+  "productionBaseline": {
+    "commit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "tree": "eb217a7fbaad5b464279a08d4441a8249fc266e3",
+    "webImageId": "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd",
+    "scannerWorkerImageMustBeDynamicallyBound": true,
+    "cleanDetachedRequired": true,
+    "restoreAfterSuccess": true
+  },
+  "databasePrecondition": {
+    "migrationCount": 10,
+    "migrationId": "candidate-episode-v1",
+    "releaseId": "candidate-shadow-e5eb90026d8b",
+    "phase": "legacy",
+    "writeFrozen": true,
+    "sourceEpoch": 4,
+    "drainEpoch": 5,
+    "finalEpoch": 6,
+    "episodes": 543,
+    "events": 2957,
+    "outbox": 5914,
+    "completed": 2957,
+    "pending": 2957,
+    "claimed": 0,
+    "retryWait": 0,
+    "quarantined": 0,
+    "resolutions": 0,
+    "unresolved": 2957
+  },
+  "execution": {
+    "runner": "transient_systemd_unit",
+    "sessionIndependent": true,
+    "runtimeMaxSeconds": 5400,
+    "services": [
+      "web",
+      "scanner-worker",
+      "candidate-shadow-worker"
+    ],
+    "temporaryWebRequired": true,
+    "temporaryCandidateWorkerRequired": true,
+    "scannerPausedBeforeDatabaseMutation": true,
+    "scannerLockMustBeAbsent": true,
+    "candidateSourceWriteReachable": false,
+    "candidateDrainOnly": true,
+    "candidateBatchLimit": 100,
+    "candidateIntervalSeconds": 1
+  },
+  "successBoundary": {
+    "outboxTotalUnchanged": true,
+    "completedFinal": 5914,
+    "pendingFinal": 0,
+    "claimedFinal": 0,
+    "retryWaitFinal": 0,
+    "quarantinedFinal": 0,
+    "resolutionsFinal": 0,
+    "unresolvedFinal": 0,
+    "eventIncreaseExact": 2957,
+    "controlFinalPhase": "legacy",
+    "controlFinalWriteFrozen": true,
+    "controlFinalEpoch": 6,
+    "candidateWorkerAbsent": true,
+    "productionBaselineRestored": true,
+    "scannerReadyFresh": true,
+    "cycle2Started": false
+  },
+  "rollback": {
+    "automatic": true,
+    "stopCandidateWorkerFirst": true,
+    "refreezeCurrentControl": true,
+    "preservePendingRows": true,
+    "deleteOutboxAllowed": false,
+    "restoreEnvironment": true,
+    "restoreGit": true,
+    "restoreWebImage": true,
+    "restoreScannerImage": true,
+    "restoreScannerService": true,
+    "passLabel": "ROLLBACK_PASS",
+    "productionPassAfterRollback": false
+  },
+  "databaseBoundary": {
+    "migrationAllowed": false,
+    "schemaMutationAllowed": false,
+    "outboxDeleteAllowed": false,
+    "quarantineResolutionAllowed": false,
+    "sourceEnqueueAllowed": false,
+    "controlTransitions": [
+      "legacy/frozen/4 -> shadow_capture/open/5",
+      "shadow_capture/open/5 -> legacy/frozen/6"
+    ]
+  },
+  "forbidden": [
+    "migration",
+    "database_delete",
+    "redis_mutation",
+    "new_candidate_source_write",
+    "cycle_2_start",
+    "canonical_cutover",
+    "scan_ranking_change",
+    "analysis_change",
+    "strategy_change",
+    "rr_or_risk_gate_change",
+    "frontend_change",
+    "future_outcome_input",
+    "formal_backtest",
+    "github_main_deploy",
+    "non_target_service_mutation"
+  ],
+  "runnerArtifact": {
+    "fileCount": 9,
+    "sha256": "b3f91b6278c3a84bba023e9c3b6493faeb275040d1d80880f0ce735d32b6419b",
+    "files": [
+      "scripts/governance/autonomy-policy.mjs",
+      "scripts/governance/autonomy-production-lease-cli.mjs",
+      "scripts/governance/autonomy-production-lease.mjs",
+      "scripts/production/candidate-legacy-pending-drain/runner.mjs",
+      "scripts/production/candidate-legacy-pending-drain-production/bundle.mjs",
+      "scripts/production/candidate-legacy-pending-drain-production/db-runner.mjs",
+      "scripts/production/candidate-legacy-pending-drain-production/production-entrypoint.sh",
+      "scripts/production/candidate-legacy-pending-drain-production/production-runner.sh",
+      "scripts/verify/production-check.sh"
+    ]
+  },
+  "truth": {
+    "localPacketPassDoesNotMeanProductionDrainPass": true,
+    "productionDrainPassDoesNotMeanCycle2Pass": true,
+    "productionDrainPassDoesNotMeanWpG02Complete": true,
+    "productionDrainPassDoesNotMeanG0Complete": true
+  }
+}

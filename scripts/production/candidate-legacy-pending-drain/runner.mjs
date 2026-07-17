@@ -237,3 +237,26 @@ export async function closeDrainEpoch(client, input) {
     return row;
   });
 }
+
+export async function rollbackDrainEpoch(client, input) {
+  ensure(input.migrationId === MIGRATION_ID, "input_migration_id_invalid");
+  ensure(Number.isSafeInteger(input.expectedEpoch) && input.expectedEpoch >= 5
+      && input.expectedEpoch % 2 === 1, "input_expected_epoch_invalid");
+  ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/.test(input.releaseId ?? ""),
+    "input_release_invalid");
+  ensure(/^sha256:[0-9a-f]{64}$/.test(input.approvalDigest ?? ""),
+    "input_approval_digest_invalid");
+  return inMigrationTransaction(client, async () => {
+    const result = await client.query(`SELECT migration_id, phase, epoch::int,
+      started_at, deadline_at, write_frozen, approved_release_id, approval_digest
+      FROM candidate_authority.transition_migration_control_v1(
+        $1,$2,'legacy',true,$3,$4,clock_timestamp()
+      )`, [input.migrationId, input.expectedEpoch, input.releaseId, input.approvalDigest]);
+    const row = result.rows[0];
+    ensure(row?.phase === "legacy" && row.write_frozen === true,
+      "rollback_freeze_transition_failed");
+    ensure(row.epoch === input.expectedEpoch + 1, "rollback_freeze_epoch_invalid");
+    ensure(row.approved_release_id === input.releaseId, "rollback_release_changed");
+    return row;
+  });
+}

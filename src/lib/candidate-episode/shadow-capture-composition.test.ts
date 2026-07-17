@@ -229,6 +229,35 @@ test("authorized composition atomically writes immutable archive and source outb
   assert.equal(transactions.sql.some((sql) => /enqueue_shadow_candidate_outbox_v2/.test(sql)), true);
 });
 
+test("drain-only mode blocks source enqueue while leaving the existing consumer runtime active", async () => {
+  const memory = createMemoryPersistenceRepository({ scope: "chuan-prod" });
+  const repository = { ...memory, mode: "database" as const };
+  const transactions = transactionAdapter();
+  const composition = new CandidateShadowCaptureComposition({
+    codeActivationAllowed: true,
+    env: {
+      CANDIDATE_EPISODE_DRAIN_ONLY: "true",
+      CANDIDATE_EPISODE_SHADOW_WRITE: "true",
+      CANDIDATE_RUNTIME_RELEASE_ID: "release-composition-1",
+    },
+    now: () => new Date(generatedAt),
+    repository,
+    consumerTransactions: transactions.adapter,
+    monitorTransactions: transactions.adapter,
+    sourceTransactions: transactions.adapter,
+  });
+
+  const source = await composition.persistScanArchive(summary(), replayFrame(), snapshot());
+  const consumer = await composition.runtimeState("consumer");
+
+  assert.equal(source.runtime.mode, "dormant");
+  assert.equal(source.runtime.blockers.includes("drain_only_source_disabled"), true);
+  assert.equal((await repository.listScanArchives())[0]?.id, "scan-composition-1");
+  assert.equal(transactions.sql.some((sql) => /enqueue_shadow_candidate_outbox_v2/.test(sql)), false);
+  assert.equal(consumer.mode, "active");
+  assert.deepEqual(consumer.blockers, []);
+});
+
 test("control read failure fails closed to legacy archive without candidate writes", async () => {
   const repository = createMemoryPersistenceRepository({ scope: "chuan-prod" });
   const transactions = transactionAdapter({ controlReadFails: true });

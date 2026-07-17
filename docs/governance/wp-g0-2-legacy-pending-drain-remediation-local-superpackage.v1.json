@@ -123,7 +123,7 @@
       "scripts/production/candidate-legacy-pending-drain/runner.mjs"
     ],
     "fileCount": 2,
-    "sha256": "f88b9c18cdcd169cbcdc606d0bcdd9ef127245310b8ceee0f342ebac49cc973c"
+    "sha256": "e3e6541b8032067d3a1ac50e92ed415f66476bd41e1e4a363689e7be5189a91d"
   },
   "truthBoundary": {
     "localPassIsProductionPass": false,

@@ -42,6 +42,7 @@ type CandidateShadowCaptureCompositionDependencies = {
 };
 
 export type CandidateShadowRuntimeBlocker =
+  | "drain_only_source_disabled"
   | "source_transaction_adapter_unavailable"
   | "consumer_transaction_adapter_unavailable"
   | "monitor_transaction_adapter_unavailable"
@@ -134,6 +135,9 @@ export class CandidateShadowCaptureComposition {
     }
     if (!this.dependencies.sourceTransactions) {
       blockers.push("source_transaction_adapter_unavailable");
+    }
+    if (purpose === "source" && exactTrue(this.env.CANDIDATE_EPISODE_DRAIN_ONLY)) {
+      blockers.push("drain_only_source_disabled");
     }
     if (purpose === "consumer" && !this.dependencies.consumerTransactions) {
       blockers.push("consumer_transaction_adapter_unavailable");

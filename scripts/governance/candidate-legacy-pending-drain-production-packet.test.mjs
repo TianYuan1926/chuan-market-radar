@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+import {
+  evaluatePendingDrainProductionGovernance,
+  validateCandidateLegacyPendingDrainProductionPacket,
+} from "./candidate-legacy-pending-drain-production-packet.mjs";
+
+const root = process.cwd();
+
+test("production pending drain packet passes its frozen local governance", async () => {
+  const result = await validateCandidateLegacyPendingDrainProductionPacket(root);
+  assert.equal(result.status, "PASS_LOCAL_PENDING_DRAIN_PRODUCTION_PACKET");
+  assert.equal(result.productionExecuted, false);
+  assert.equal(result.productionPass, false);
+  assert.equal(result.expectedPending, 2_957);
+  assert.equal(result.finalEpoch, 6);
+  assert.deepEqual(result.violations, []);
+});
+
+test("governance rejects count, epoch, rollback, or runner guard weakening", async () => {
+  const [contract, runner, entrypoint, dbRunner] = await Promise.all([
+    readFile("docs/governance/wp-g0-2-legacy-pending-drain-production-packet.v1.json", "utf8")
+      .then(JSON.parse),
+    readFile("scripts/production/candidate-legacy-pending-drain-production/production-runner.sh", "utf8"),
+    readFile("scripts/production/candidate-legacy-pending-drain-production/production-entrypoint.sh", "utf8"),
+    readFile("scripts/production/candidate-legacy-pending-drain-production/db-runner.mjs", "utf8"),
+  ]);
+  const weakened = structuredClone(contract);
+  weakened.databasePrecondition.pending = 2_956;
+  weakened.databasePrecondition.finalEpoch = 5;
+  weakened.rollback.automatic = false;
+  const violations = evaluatePendingDrainProductionGovernance({
+    contract: weakened,
+    dbRunner,
+    entrypoint,
+    runner: runner.replace("scanner_lock_still_present", "lock-check-removed"),
+  });
+  assert.ok(violations.includes("pending_snapshot_changed"));
+  assert.ok(violations.includes("epoch_sequence_changed"));
+  assert.ok(violations.includes("rollback_boundary_relaxed"));
+  assert.ok(violations.includes("runner_guard_missing:scanner_lock_still_present"));
+});

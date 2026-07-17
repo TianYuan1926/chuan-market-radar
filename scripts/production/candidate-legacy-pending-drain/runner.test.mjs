@@ -5,6 +5,7 @@ import {
   CandidateLegacyPendingDrainError,
   evaluateDrainCompletion,
   evaluateDrainPreflight,
+  rollbackDrainEpoch,
   validateDrainSnapshot,
 } from "./runner.mjs";
 
@@ -137,4 +138,33 @@ test("completion rejects deletion, partial drain, projection loss, or control dr
 test("unknown fields are rejected instead of ignored", () => {
   assert.throws(() => evaluateDrainPreflight({ ...snapshot(), lowerThreshold: true }),
     /snapshot_shape_invalid/u);
+});
+
+test("rollback freeze advances an odd drain epoch without requiring a false success state", async () => {
+  const statements = [];
+  const client = {
+    async query(statement, params = []) {
+      statements.push({ statement, params });
+      if (/transition_migration_control_v1/u.test(statement)) {
+        return { rows: [{
+          approved_release_id: "candidate-shadow-e5eb90026d8b",
+          epoch: 6,
+          migration_id: "candidate-episode-v1",
+          phase: "legacy",
+          write_frozen: true,
+        }] };
+      }
+      return { rows: [] };
+    },
+  };
+  const result = await rollbackDrainEpoch(client, {
+    approvalDigest: digest,
+    expectedEpoch: 5,
+    migrationId: "candidate-episode-v1",
+    releaseId: "candidate-shadow-e5eb90026d8b",
+  });
+  assert.equal(result.epoch, 6);
+  assert.equal(result.write_frozen, true);
+  assert.equal(statements.some(({ statement }) => /SET LOCAL ROLE candidate_migration_role/u.test(statement)), true);
+  assert.equal(statements.some(({ params }) => params[1] === 5), true);
 });

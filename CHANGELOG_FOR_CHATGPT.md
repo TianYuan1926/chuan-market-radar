@@ -5457,3 +5457,46 @@ Runtime Identity 已在腾讯云生产执行并通过；生产 HEAD 仍为 clean
 ### 下一轮建议
 
 只建立并执行 `WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION`；成功恢复 scanner、fresh scan 与 legacy/frozen epoch6 后，再独立刷新 cycle-2 continuation。
+
+## 2026-07-17 / WP-G0.2 Legacy Pending Drain Production Packet Local Preparation
+
+### 本轮目标
+
+建立只排空生产既有 2,957 条 Candidate pending、禁止任何新 source enqueue、成功或失败均恢复生产基线的会话无关单次生产包。
+
+### 修改范围
+
+- 新增 drain-only source 硬阻断，Candidate consumer 在同一临时 runtime 内仍可处理旧 pending。
+- 新增精确合同、治理 validator、确定性 Bundle、90 分钟单次 request、root-only 数据库凭据入口、transient systemd entrypoint、生产 runner 和 DB runner。
+- 成功只允许 control `legacy/frozen epoch4 -> shadow_capture epoch5 -> legacy/frozen epoch6`；失败会停止 Candidate worker、冻结 control 并恢复原 env/Git/Web/scanner 镜像和 scanner 服务。
+- 未修改 migration、frontend、API、scan 排序、analysis、strategy、RR、Risk Gate、trade plan、backtest、Redis 数据或非目标服务。
+
+### 核心链路影响
+
+保护候选筛选与复盘进化的 Candidate 生命周期数据完整性；不改变全市场发现、深扫、结构分析、风险赔率或交易计划。
+
+### 测试结果
+
+- 生产包治理与执行器：16/16 PASS。
+- 旧 pending drain 合同：12/12 PASS。
+- drain-only composition：7/7 PASS。
+- 隔离 PostgreSQL 16：成功排空路径与失败冻结保留 pending 路径均 PASS，`productionConnected=false`。
+- typecheck、零 warning lint：PASS。首次并行 typecheck 因 build 同时重建 `.next/types` 出现 TS6053，build 后串行复核 PASS。
+- market 1027 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- build、Golden 16/16、三项安全门禁、自治 31/31：PASS。
+- formal：未运行，按合同禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或修改生产。生产仍是 legacy/frozen epoch4，pending/unresolved=2,957，Candidate worker absent。
+
+### 风险与遗留问题
+
+- P0：无新增已知 P0；本地 Packet PASS 不等于生产 drain PASS。
+- P1：runner artifact 已冻结为 `b3f91b6278c3a84bba023e9c3b6493faeb275040d1d80880f0ce735d32b6419b`，任何执行文件变化必须重新冻结。
+- P1：clean commit、提交后自治 gate、动态生产只读快照、Bundle/request 和真实执行仍待完成。
+- 系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+完成本包基础门禁和 commit-bound approval 后，只执行生产 pending drain；不得合并 cycle-2 启动。
