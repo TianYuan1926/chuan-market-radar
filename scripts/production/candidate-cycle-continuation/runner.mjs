@@ -116,13 +116,23 @@ export function renderCycleContinuationEnvironment(source, rawInput) {
     ? CANDIDATE_ENVIRONMENT
     : DISABLED_CANDIDATE_ENVIRONMENT;
   for (const [key, value] of Object.entries(expectedEnvironment)) {
-    ensure(entries.get(key)?.toLowerCase() === value,
+    const sourceValue = entries.has(key)
+      ? entries.get(key)
+      : input.currentPhase === "legacy" ? DISABLED_CANDIDATE_ENVIRONMENT[key] : undefined;
+    ensure(sourceValue?.toLowerCase() === value,
       `candidate_environment_source_mismatch:${key}`);
   }
-  ensure(entries.get("CANDIDATE_RUNTIME_MIGRATION_ID") === input.currentMigrationId,
+  const sourceMigrationId = entries.has("CANDIDATE_RUNTIME_MIGRATION_ID")
+    ? entries.get("CANDIDATE_RUNTIME_MIGRATION_ID")
+    : input.currentPhase === "legacy" ? "candidate-episode-v1" : undefined;
+  const sourceReleaseId = entries.has("CANDIDATE_RUNTIME_RELEASE_ID")
+    ? entries.get("CANDIDATE_RUNTIME_RELEASE_ID")
+    : input.currentPhase === "legacy" ? "disabled" : undefined;
+  ensure(sourceMigrationId === input.currentMigrationId,
     "current_environment_cycle_mismatch");
-  ensure(entries.get("CANDIDATE_RUNTIME_RELEASE_ID")
-      === (input.currentPhase === "shadow_capture" ? input.currentReleaseId : "disabled"),
+  ensure(sourceReleaseId === (input.currentPhase === "shadow_capture"
+    ? input.currentReleaseId
+    : "disabled"),
     "current_environment_release_mismatch");
   return renderEnvironment(source, {
     ...CANDIDATE_ENVIRONMENT,

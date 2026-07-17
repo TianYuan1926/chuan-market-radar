@@ -1,6 +1,6 @@
 # WP-G0.2 Validation Cycle Continuation Local Superpackage v1
 
-状态：按 2026-07-18 生产只读证据刷新本地实现与 PostgreSQL 16 演练；本刷新包尚未连接生产、尚未执行。
+状态：2026-07-18 第二次 Cycle-2 生产尝试在 control 切换前因 Legacy env 缺省值合同不兼容安全失败并完整回滚；本地最小修复和 PostgreSQL 16 演练已重新通过，尚待新提交绑定后重试。
 
 ## 为什么必须增加验证周期续接
 
@@ -28,6 +28,7 @@
 - `candidate_episode_event` 通道为 pending 2,957、non-pending 0、orphan 0、contract mismatch 0。
 - 新周期只能是严格相邻的 `candidate-episode-v1-cycle-2`，不能复活旧周期，也不能清理事件通道。
 - Cycle-2 将把新 Activation 与 10,000 条真实写入积累并行观察，但最终只有两项同时达标才输出 PASS。
+- 当前两个 env 文件不显式保存 Candidate override，运行中 Web 由 Compose 得到全部关闭、cycle 1、release disabled 的有效默认值。续接 renderer 只在 Legacy 阶段接受这一精确缺省形态并把目标值显式物化；任何非默认显式值继续 fail closed。
 
 ## 当前结论
 

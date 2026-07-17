@@ -5962,3 +5962,42 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只提交并重新绑定本 schema 修复，然后重试 Cycle-2；不进入 Lineage 或 Shadow Verify。
+
+## 2026-07-18 / WP-G0.2 Cycle-2 Legacy Compose Default Environment Remediation
+
+### 本轮目标
+
+修复 Cycle-2 生产 renderer 与当前 Legacy Compose 默认环境的合同不兼容，同时保持所有显式污染值 fail closed。
+
+### 修改范围
+
+- 第二次生产尝试绑定 commit `096fad5...`、Bundle `78d0ee9c...`、request `ae6d23cf...` 和 preflight `18bcef5e...`；远端上传、隔离校验、租约和目标构建通过。
+- fencing token 20 在 DB control 和 Candidate 启动前因 `candidate_environment_source_mismatch:CANDIDATE_EPISODE_CANONICAL_WRITE` 失败并 `ROLLBACK_PASS`。
+- 只修改 Cycle continuation renderer、对应测试和两个 artifact 合同：Legacy 缺省字段按 Compose 的精确 disabled/cycle1 默认值解释，显式错误值继续拒绝。
+- 未修改 migration、数据库业务数据、Redis、scanner、frontend、API、scan、analysis、strategy、RR、trade plan、backtest、生产 env 或 secret。
+
+### 核心链路影响
+
+只修复候选筛选与复盘进化的生产生命周期入口，不生成信号、不改变排序或交易计划。
+
+### 测试结果
+
+- 红灯：当前 renderer 拒绝真实 Legacy 缺省环境，按预期复现。
+- Production Packet 27/27、Core 29/29、Governance 2/2、Autonomy 31/31：PASS。
+- PostgreSQL 16 migrations 1-10、旧 deadline immutable、Candidate 数据保留、single active cycle 和 rollback：PASS。
+- typecheck、零错误 lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16、forbidden/secret/security：PASS。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第二次生产尝试已执行但 FAIL，并自动恢复 clean detached `cec0b657...`、旧 Web `sha256:cd3652c1...`、Candidate Worker absent 和 `legacy/frozen epoch6`。绑定版 production-check 独立复核 PASS；Cycle-2 未启动。
+
+### 风险与遗留问题
+
+- 失败事务的精确临时路径、目标镜像和 rollback tag 尚待清理；不得批量 prune。
+- 修复尚待 clean commit/push、提交绑定门禁、新 Bundle/request/preflight 和第三次生产重试。
+- G0 主步骤仍为 7；本地和回滚 PASS 都不能替代 289 样本/24 小时与 10,000 writes 双门禁。
+
+### 下一轮建议
+
+只完成精确清理、提交绑定和 Cycle-2 第三次生产启动；不进入 Lineage 或 Shadow Verify。
