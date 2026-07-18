@@ -10,12 +10,18 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
+import {
+  LINEAGE_PASS,
+  LINEAGE_SCHEMA,
+  validateCandidateLineageEvidence,
+} from "../candidate-lineage/runner.mjs";
+
 const execFileAsync = promisify(execFile);
 
 export const PACKAGE_ID =
   "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE";
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-shadow-verify-code-authorization-production-release.v1.json";
+  "docs/governance/wp-g0-2-cycle-3-shadow-verify-code-authorization-production-release.v2.json";
 export const BASELINE_COMMIT = "54837d03d0fb91b33cf9919bd25ab7aaad60dd7e";
 export const TARGET_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
 export const TARGET_TREE = "a02f989b1be653d4524d1b6dd73995dabeb73f3d";
@@ -52,6 +58,7 @@ export const TRANSPORT_FILES = Object.freeze([
   "scripts/governance/autonomy-policy.mjs",
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
+  "scripts/production/candidate-lineage/runner.mjs",
   "scripts/production/candidate-shadow-verify-release/bundle.mjs",
   "scripts/production/candidate-shadow-verify-release/production-entrypoint.sh",
   "scripts/production/candidate-shadow-verify-release/production-runner.sh",
@@ -161,7 +168,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-shadow-verify-code-authorization-production-release.v1",
+    === "wp-g0.2-cycle-3-shadow-verify-code-authorization-production-release.v2",
   "contract_schema_invalid");
   ensure(contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "reversible_service_release"
@@ -183,10 +190,13 @@ export function validateContract(contract) {
       && release.targetMustBeSingleParentOfBaseline === true
       && release.releaseTargetRefreshOnBaselineDrift === true, "release_boundary_invalid");
   const prerequisites = contract.prerequisites ?? {};
-  ensure(prerequisites.lineageStatus
-      === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION"
+  ensure(prerequisites.lineageSchema === LINEAGE_SCHEMA
+      && prerequisites.lineageStatus === LINEAGE_PASS
+      && prerequisites.reconciliationSchema === "candidate-cycle3-reconciliation-evidence.v2"
       && prerequisites.reconciliationStatus
-      === "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+      === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+      && prerequisites.sourceReleaseWindowsExact === 3
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-3"
       && prerequisites.minimumComparedWrites === 10_000
       && prerequisites.comparisonDifferences === 0
       && prerequisites.duplicateOutboxMappings === 0
@@ -235,8 +245,8 @@ export function validateContract(contract) {
       && autonomy.fencingTokenRequired === true
       && autonomy.leaseCheckBeforeEveryMutation === true
       && autonomy.automaticRollbackAllowed === true, "autonomy_boundary_invalid");
-  ensure(contract.runnerArtifact?.fileCount === 3
-      && contract.runnerArtifact?.files?.length === 3
+  ensure(contract.runnerArtifact?.fileCount === 4
+      && contract.runnerArtifact?.files?.length === 4
       && HASH.test(contract.runnerArtifact?.sha256 ?? ""), "runner_artifact_contract_invalid");
   for (const item of [
     "database_ddl_or_dml", "redis_mutation", "environment_mutation", "compose_mutation",
@@ -277,52 +287,52 @@ export async function validateLocalPreparation(root = process.cwd()) {
 }
 
 function validateLineage(lineage) {
-  ensure(lineage?.schemaVersion === "candidate-multi-cycle-lineage-evidence.v1"
-      && lineage.status === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION",
-  "lineage_status_invalid");
-  ensure(Number.isSafeInteger(lineage.completedWrites) && lineage.completedWrites >= 10_000
-      && lineage.unresolvedOutbox === 0 && lineage.thresholdsChanged === false
-      && lineage.productionReconciliationExecuted === false
-      && lineage.shadowVerifyStarted === false
-      && lineage.canonicalAuthorityChanged === false && lineage.g0Completed === false,
-  "lineage_truth_invalid");
-  ensure(Array.isArray(lineage.sourceReleaseWindows)
-      && lineage.sourceReleaseWindows.length >= 2, "lineage_windows_invalid");
-  const releases = new Set();
-  for (const [index, window] of lineage.sourceReleaseWindows.entries()) {
-    ensure(cycle(window.migrationId) === index + 1 && RELEASE.test(window.releaseId ?? "")
-        && !releases.has(window.releaseId)
-        && Number.isSafeInteger(window.authorityEpoch) && window.authorityEpoch >= 1
-        && window.authorityEpoch % 2 === 1
-        && timestamp(window.deadlineAt, "lineage_deadline_invalid")
-        - timestamp(window.startedAt, "lineage_start_invalid") === 72 * 60 * 60_000,
-    `lineage_window_invalid:${index}`);
-    releases.add(window.releaseId);
-  }
+  const validated = validateCandidateLineageEvidence(lineage);
+  ensure(validated.schemaVersion === LINEAGE_SCHEMA && validated.status === LINEAGE_PASS,
+    "lineage_status_invalid");
   const current = lineage.sourceReleaseWindows.at(-1);
-  ensure(lineage.currentMigrationId === current.migrationId
+  ensure(cycle(current.migrationId) === 3
+      && lineage.currentMigrationId === current.migrationId
       && lineage.currentReleaseId === current.releaseId
-      && lineage.currentAuthorityEpoch === current.authorityEpoch
-      && lineage.freshCycleStartedAt === current.startedAt, "lineage_current_identity_invalid");
-  return lineage;
+      && lineage.currentAuthorityEpoch === current.controlEpoch,
+  "lineage_current_identity_invalid");
+  return validated;
 }
 
-function validateReconciliation(reconciliation, lineage) {
-  ensure(reconciliation?.schemaVersion === "candidate-shadow-reconciliation-evidence.v1"
+function validateReconciliation(reconciliation, lineage, lineageEvidenceSha256) {
+  ensure(reconciliation?.schemaVersion === "candidate-cycle3-reconciliation-evidence.v2"
       && reconciliation.status
-      === "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+      === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
   "reconciliation_status_invalid");
   ensure(reconciliation.automaticPhaseAdvance === false
       && reconciliation.phaseTransitionExecuted === false
+      && reconciliation.shadowVerifyTransitionExecuted === false
+      && reconciliation.canonicalReadEnabled === false
+      && reconciliation.canonicalWriteEnabled === false
+      && reconciliation.reviewReadEnabled === false
+      && reconciliation.g0Completed === false
       && reconciliation.productionRankingInputsUsed === false
       && reconciliation.futureOutcomeInputsUsed === false
       && reconciliation.databaseIdentity?.currentRole === "candidate_audit_role"
       && reconciliation.databaseIdentity?.transactionReadOnly === true
+      && reconciliation.databaseIdentity?.transactionIsolation === "repeatable read"
+      && reconciliation.lineageIdentityBinding
+        === "file_hash_request_database_exact_match"
+      && reconciliation.lineageEvidenceSha256 === `sha256:${lineageEvidenceSha256}`
+      && reconciliation.lineageSemanticEvidenceSha256?.controlSnapshot
+        === lineage.controlSnapshotSha256
+      && reconciliation.lineageSemanticEvidenceSha256?.unifiedFinal
+        === lineage.unifiedEvidenceSha256
+      && reconciliation.lineageSemanticEvidenceSha256?.unifiedSamples
+        === lineage.unifiedSamplesSha256
+      && reconciliation.comparedWrites === lineage.completedWrites
       && reconciliation.comparedWrites >= 10_000
       && reconciliation.comparisonDifferences === 0
       && reconciliation.duplicateOutboxMappings === 0
       && reconciliation.duplicateEventMappings === 0
-      && reconciliation.sourceReleaseCount === lineage.sourceReleaseWindows.length
+      && Number.isSafeInteger(reconciliation.resolvedQuarantineExclusions)
+      && reconciliation.resolvedQuarantineExclusions >= 0
+      && reconciliation.sourceReleaseCount === 3
       && reconciliation.verificationMigrationId === lineage.currentMigrationId
       && /^sha256:[0-9a-f]{64}$/u.test(reconciliation.evidenceHash ?? "")
       && Array.isArray(reconciliation.violations) && reconciliation.violations.length === 0
@@ -564,7 +574,7 @@ export async function validateApprovalRequest({
       request.reconciliationEvidenceSha256, "reconciliation", evidenceRoot),
   ]);
   validateLineage(lineage);
-  validateReconciliation(reconciliation, lineage);
+  validateReconciliation(reconciliation, lineage, request.lineageEvidenceSha256);
   ensure(request.candidateMigrationId === lineage.currentMigrationId
       && request.candidateReleaseId === lineage.currentReleaseId
       && request.candidateAuthorityEpoch === lineage.currentAuthorityEpoch,

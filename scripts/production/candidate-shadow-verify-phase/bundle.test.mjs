@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,7 @@ import {
   buildTransportBundle,
   createProductionExecutionRequest,
   prepareAdminUrl,
+  validateApprovalRequest,
   validateAuthorization,
   validateContract,
 } from "./bundle.mjs";
@@ -18,22 +20,105 @@ const root = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const hash = (character) => character.repeat(64);
 const commit = (character) => character.repeat(40);
 const image = (character) => `sha256:${hash(character)}`;
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-function reconciliationEvidence() {
+function reconciliationEvidence(lineageFileSha256 = hash("5")) {
   return {
-    schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
-    status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    schemaVersion: "candidate-cycle3-reconciliation-evidence.v2",
+    status: "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
+    shadowVerifyTransitionExecuted: false,
+    canonicalReadEnabled: false,
+    canonicalWriteEnabled: false,
+    reviewReadEnabled: false,
+    g0Completed: false,
     productionRankingInputsUsed: false,
     futureOutcomeInputsUsed: false,
+    databaseIdentity: {
+      currentRole: "candidate_audit_role",
+      transactionReadOnly: true,
+      transactionIsolation: "repeatable read",
+    },
+    lineageIdentityBinding: "file_hash_request_database_exact_match",
+    lineageEvidenceSha256: `sha256:${lineageFileSha256}`,
+    lineageSemanticEvidenceSha256: {
+      controlSnapshot: hash("b"),
+      unifiedFinal: hash("c"),
+      unifiedSamples: hash("d"),
+    },
     comparedWrites: 10000,
     comparisonDifferences: 0,
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
-    verificationMigrationId: "candidate-episode-v1-cycle-2",
+    resolvedQuarantineExclusions: 0,
+    sourceReleaseCount: 3,
+    verificationMigrationId: "candidate-episode-v1-cycle-3",
     evidenceHash: `sha256:${hash("a")}`,
     violations: [],
+    differenceSample: [],
+  };
+}
+
+function lineageEvidence() {
+  return {
+    schemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
+    status: "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+    unifiedEvidenceSha256: hash("c"),
+    unifiedSamplesSha256: hash("d"),
+    controlSnapshotSha256: hash("b"),
+    sourceReleaseWindows: [
+      {
+        controlEpoch: 6,
+        deadlineAt: "2026-07-14T00:00:00.000Z",
+        migrationId: "candidate-episode-v1",
+        phase: "legacy",
+        releaseId: "candidate-shadow-release-cycle-one",
+        startedAt: "2026-07-11T00:00:00.000Z",
+        writeFrozen: true,
+      },
+      {
+        controlEpoch: 2,
+        deadlineAt: "2026-07-15T00:00:00.000Z",
+        migrationId: "candidate-episode-v1-cycle-2",
+        phase: "legacy",
+        releaseId: "candidate-shadow-release-cycle-two",
+        startedAt: "2026-07-12T00:00:00.000Z",
+        writeFrozen: true,
+      },
+      {
+        controlEpoch: 3,
+        deadlineAt: "2026-07-20T00:00:00.000Z",
+        migrationId: "candidate-episode-v1-cycle-3",
+        phase: "shadow_capture",
+        releaseId: "candidate-shadow-release-12345678",
+        startedAt: "2026-07-17T00:00:00.000Z",
+        writeFrozen: false,
+      },
+    ],
+    completedWrites: 10000,
+    unresolvedOutbox: 0,
+    observationElapsedSeconds: 86400,
+    completionAdvances: 12,
+    activationSamples: 289,
+    activationCoverageSeconds: 86400,
+    minimumComparedWrites: 10000,
+    minimumSamples: 7,
+    minimumStabilitySeconds: 1800,
+    maximumSampleGapSeconds: 600,
+    minimumCompletionAdvances: 2,
+    minimumActivationSamples: 289,
+    minimumActivationHours: 24,
+    unresolvedMaximum: 0,
+    currentCycleStartedAt: "2026-07-17T00:00:00.000Z",
+    currentMigrationId: "candidate-episode-v1-cycle-3",
+    currentReleaseId: "candidate-shadow-release-12345678",
+    currentAuthorityEpoch: 3,
+    thresholdsChanged: false,
+    productionReconciliationExecuted: false,
+    shadowVerifyStarted: false,
+    canonicalAuthorityChanged: false,
+    g0Completed: false,
   };
 }
 
@@ -52,7 +137,7 @@ function transportManifest() {
   };
 }
 
-function runtime() {
+function runtime(evidence = {}) {
   return {
     productionCommit: REQUIRED_PRODUCTION_COMMIT,
     productionTree: commit("b"),
@@ -60,7 +145,7 @@ function runtime() {
     currentWebImageId: image("c"),
     candidateWorkerContainerId: "d".repeat(12),
     candidateWorkerImageId: image("e"),
-    migrationId: "candidate-episode-v1-cycle-2",
+    migrationId: "candidate-episode-v1-cycle-3",
     releaseId: "candidate-shadow-release-12345678",
     currentAuthorityEpoch: 3,
     baseEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env",
@@ -73,19 +158,62 @@ function runtime() {
     identityWrapperSha256: hash("3"),
     identityOverridePath: "/etc/market-radar/compose-identity.env",
     identityOverrideSha256: hash("4"),
-    lineageEvidencePath: "/home/ubuntu/.cache/market-radar-ops/evidence/lineage.json",
-    lineageEvidenceSha256: hash("5"),
-    reconciliationEvidencePath: "/home/ubuntu/.cache/market-radar-ops/evidence/reconciliation.json",
-    reconciliationEvidenceSha256: hash("6"),
-    codeReleaseEvidencePath: "/home/ubuntu/.cache/market-radar-ops/evidence/code-release.json",
-    codeReleaseEvidenceSha256: hash("7"),
-    reconciliationEvidence: reconciliationEvidence(),
+    lineageEvidencePath: evidence.lineagePath
+      ?? "/home/ubuntu/.cache/market-radar-ops/evidence/lineage.json",
+    lineageEvidenceSha256: evidence.lineageSha256 ?? hash("5"),
+    reconciliationEvidencePath: evidence.reconciliationPath
+      ?? "/home/ubuntu/.cache/market-radar-ops/evidence/reconciliation.json",
+    reconciliationEvidenceSha256: evidence.reconciliationSha256 ?? hash("6"),
+    codeReleaseEvidencePath: evidence.codeReleasePath
+      ?? "/home/ubuntu/.cache/market-radar-ops/evidence/code-release.json",
+    codeReleaseEvidenceSha256: evidence.codeReleaseSha256 ?? hash("7"),
+    reconciliationEvidence: evidence.reconciliation
+      ?? reconciliationEvidence(evidence.lineageSha256),
+  };
+}
+
+async function evidenceFixture(lineageTransform = (value) => value) {
+  const directory = await mkdtemp(join(tmpdir(), "shadow-verify-phase-evidence-"));
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  const lineage = lineageTransform(lineageEvidence());
+  const lineageBytes = Buffer.from(`${JSON.stringify(lineage, null, 2)}\n`);
+  const lineageSha256 = sha256(lineageBytes);
+  const reconciliation = reconciliationEvidence(lineageSha256);
+  const reconciliationBytes = Buffer.from(`${JSON.stringify(reconciliation, null, 2)}\n`);
+  const codeRelease = {
+    status: "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
+    targetCommit: REQUIRED_PRODUCTION_COMMIT,
+    targetWebImageId: image("c"),
+    servicesMutated: ["web"],
+    databaseMutation: false,
+    redisMutation: false,
+    workerMutation: false,
+    phaseTransition: false,
+    manifestMutation: false,
+    legacyResponseAuthority: true,
+  };
+  const codeReleaseBytes = Buffer.from(`${JSON.stringify(codeRelease, null, 2)}\n`);
+  const lineagePath = join(directory, "lineage.json");
+  const reconciliationPath = join(directory, "reconciliation.json");
+  const codeReleasePath = join(directory, "code-release.json");
+  await writeFile(lineagePath, lineageBytes, { mode: 0o600 });
+  await writeFile(reconciliationPath, reconciliationBytes, { mode: 0o600 });
+  await writeFile(codeReleasePath, codeReleaseBytes, { mode: 0o600 });
+  return {
+    directory,
+    lineagePath,
+    lineageSha256,
+    reconciliation,
+    reconciliationPath,
+    reconciliationSha256: sha256(reconciliationBytes),
+    codeReleasePath,
+    codeReleaseSha256: sha256(codeReleaseBytes),
   };
 }
 
 test("validates the checked-in phase-transition contract", async () => {
   const contract = JSON.parse(await readFile(resolve(root,
-    "docs/governance/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation.v1.json")));
+    "docs/governance/wp-g0-2-cycle-3-shadow-verify-phase-transition-and-dual-read-observation.v2.json")));
   assert.equal(validateContract(contract).productionExecuted, false);
 });
 
@@ -120,8 +248,65 @@ test("creates a one-use, exact 90-minute, Web-only execution request", () => {
   assert.throws(() => createProductionExecutionRequest({
     bundleSha256: hash("8"),
     manifest: transportManifest(),
+    runtime: {
+      ...runtime(),
+      reconciliationEvidence: {
+        ...reconciliationEvidence(),
+        schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
+      },
+    },
+  }), /reconciliation_status_invalid/u);
+  assert.throws(() => createProductionExecutionRequest({
+    bundleSha256: hash("8"),
+    manifest: transportManifest(),
     runtime: { ...runtime(), candidateWorkerContainerId: "not-a-container" },
   }), /runtime_identity_invalid/u);
+});
+
+test("phase approval accepts only exact Cycle-3 Lineage v2 and its bound Reconciliation v2", async () => {
+  const manifest = transportManifest();
+  const now = new Date("2026-07-17T00:00:00.000Z");
+  const cases = [
+    { name: "cycle3-v2", transform: (value) => value, passes: true },
+    {
+      name: "lineage-v1",
+      transform: (value) => ({
+        ...value,
+        schemaVersion: "candidate-multi-cycle-lineage-evidence.v1",
+        status: "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION",
+      }),
+      passes: false,
+    },
+    {
+      name: "two-windows",
+      transform: (value) => ({
+        ...value,
+        sourceReleaseWindows: value.sourceReleaseWindows.slice(1),
+      }),
+      passes: false,
+    },
+  ];
+  for (const candidate of cases) {
+    const evidence = await evidenceFixture(candidate.transform);
+    try {
+      const request = createProductionExecutionRequest({
+        bundleSha256: hash("8"),
+        manifest,
+        nonce: "12345678-1234-4234-8234-123456789abc",
+        now,
+        runtime: runtime(evidence),
+      });
+      const operation = validateApprovalRequest({ manifest, request, productionPaths: false });
+      if (candidate.passes) {
+        assert.equal((await operation).status, "PASS_SHADOW_VERIFY_PHASE_EXECUTION_REQUEST");
+      } else {
+        await assert.rejects(operation, /lineage_evidence_status_invalid|lineage_windows_invalid/u,
+          candidate.name);
+      }
+    } finally {
+      await rm(evidence.directory, { recursive: true, force: true });
+    }
+  }
 });
 
 test("prepares a private Postgres URL without returning its secret", async () => {

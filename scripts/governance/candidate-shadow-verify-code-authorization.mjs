@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(
   ROOT,
-  "docs/governance/wp-g0-2-shadow-verify-code-authorization-local-superpackage.v1.json",
+  "docs/governance/wp-g0-2-cycle-3-shadow-verify-dependency-refresh-local-superpackage.v2.json",
 );
 
 function sha256(value) {
@@ -42,8 +42,10 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
     readFile(resolve(ROOT, "src/lib/candidate-episode/canonical-read-trusted-context.ts"), "utf8"),
   ]);
 
-  if (contract.schemaVersion !== "wp-g0.2-shadow-verify-code-authorization-local-superpackage.v1"
-      || contract.packageId !== "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-LOCAL-SUPERPACKAGE") {
+  if (contract.schemaVersion
+        !== "wp-g0.2-cycle-3-shadow-verify-dependency-refresh-local-superpackage.v2"
+      || contract.packageId
+        !== "WP-G0.2-CYCLE-3-SHADOW-VERIFY-DEPENDENCY-REFRESH-LOCAL-SUPERPACKAGE") {
     violations.push("contract_identity");
   }
   for (const key of [
@@ -79,8 +81,16 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
   }
 
   const shadow = contract.shadowVerifyBoundary ?? {};
-  if (shadow.reconciliationEvidenceRequired
-        !== "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+  if (shadow.lineageSchemaRequired !== "candidate-multi-cycle-lineage-evidence.v2"
+      || shadow.lineageStatusRequired
+        !== "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+      || shadow.reconciliationSchemaRequired !== "candidate-cycle3-reconciliation-evidence.v2"
+      || shadow.reconciliationEvidenceRequired
+        !== "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+      || shadow.sourceReleaseWindowsExact !== 3
+      || shadow.currentMigrationIdRequired !== "candidate-episode-v1-cycle-3"
+      || shadow.minimumComparedWrites !== 10000
+      || shadow.zeroUnresolvedRequired !== true
       || shadow.dualReadFlagRequired !== true
       || shadow.canonicalReadFlagRequired !== false
       || shadow.reviewReadFlagRequired !== false
@@ -157,7 +167,7 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
     if (!contract.forbidden?.includes(token)) violations.push(`forbidden_missing:${token}`);
   }
   if (contract.currentProductionDecision
-        !== "BLOCKED_UNTIL_LINEAGE_AND_RECONCILIATION_PASS_AND_SEPARATE_DEPLOYMENT"
+        !== "BLOCKED_UNTIL_CYCLE3_LINEAGE_V2_AND_RECONCILIATION_V2_PASS_AND_SEPARATE_DEPLOYMENT"
       || contract.nextPackage
         !== "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE") {
     violations.push("sequence_boundary");

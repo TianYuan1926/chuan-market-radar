@@ -6244,3 +6244,46 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只继续同一 Cycle-3 observer；双门禁真实 PASS 后先执行只读生产 Lineage v2，再用全新 commit-bound 一次性请求执行生产 Reconciliation v2。
+
+## 2026-07-18 / WP-G0.2 Cycle-3 Shadow Verify v2 Dependency Refresh Local Superpackage
+
+### 本轮目标
+
+把 Shadow Verify Web-only code release 与 phase transition 两个入口从 Lineage/Reconciliation v1 和至少两窗口模型刷新为只接受 Cycle-3 统一 v2 证据。
+
+### 修改范围
+
+- 新增四份 v2 治理蓝图/合同，保留历史 v1 文档且不再作为当前入口依赖。
+- Code authorization 明确要求 Lineage v2、Reconciliation v2、精确三窗口、Cycle-3 和至少 10,000 条。
+- Web-only release 引入共享 Lineage v2 严格 validator，并把 Reconciliation v2 的文件哈希、三个语义哈希、当前身份、计数和未来阶段标志逐项绑定。
+- Phase transition 合同与 request validator 同步执行相同 v2 绑定；manifest 只记录新的 Reconciliation v2 PASS，phase 执行与回滚机制未放宽。
+- 未修改 frontend、API、scan、analysis、strategy、RR、trade plan、backtest、migration、数据库、Redis、worker、env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化之间的 Candidate 生命周期真值门禁；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- Code authorization：37/37 PASS。
+- Web-only release：7/7 PASS，包含 v1、两窗口、私有文件和自动回滚攻击性测试。
+- Phase transition：20/20 PASS；PostgreSQL 16 隔离演练证明 10,000 条门槛、phase transition、rollback 与候选数据保留，`productionConnected=false`。
+- Autonomy：31/31 PASS。
+- typecheck、lint、test:market `1,027/0/7`、workers `23/23`、historical `4/4`、build、Golden `16/16`：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行且禁止运行。
+
+### 是否部署
+
+未部署、未连接生产、未执行 Web release 或 phase transition。生产 observer 截至 18:53 CST 仍 active：40/289 样本、11,825 秒、13 次推进、completed=3,563、unresolved=0，两个 readiness 均为 false。
+
+### 风险与遗留问题
+
+- 本地依赖刷新 PASS 不等于生产 Lineage/Reconciliation/Web release/Shadow Verify PASS。
+- 生产双门禁通过前，两个入口仍必须保持阻塞。
+- Web release 合同仍保存历史 `54837d0 -> eb48827` 目标，而当前生产为 `b098238`；未来生产前必须按 `releaseTargetRefreshOnBaselineDrift` 另做精确 target refresh，本轮历史 release 禁止直接执行。
+- G0 主步骤仍为 7，系统仍不能支撑实战。
+
+### 下一轮建议
+
+只继续同一 Cycle-3 observer；双门禁真实 PASS 后先只读采集生产 Lineage v2。

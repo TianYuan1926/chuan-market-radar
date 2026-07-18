@@ -15,7 +15,7 @@ import {
 } from "./runner.mjs";
 
 const releaseId = "candidate-shadow-release-12345678";
-const migrationId = "candidate-episode-v1-cycle-2";
+const migrationId = "candidate-episode-v1-cycle-3";
 const reconciliationHash = `sha256:${"1".repeat(64)}`;
 const manifestHash = `sha256:${"2".repeat(64)}`;
 const productionEnvHash = "3".repeat(64);
@@ -169,24 +169,50 @@ test("builds an exact next-epoch manifest bound to reconciliation", () => {
 
 test("accepts only a complete zero-difference reconciliation", () => {
   const evidence = {
-    schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
-    status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    schemaVersion: "candidate-cycle3-reconciliation-evidence.v2",
+    status: "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
+    shadowVerifyTransitionExecuted: false,
+    canonicalReadEnabled: false,
+    canonicalWriteEnabled: false,
+    reviewReadEnabled: false,
+    g0Completed: false,
     productionRankingInputsUsed: false,
     futureOutcomeInputsUsed: false,
+    databaseIdentity: {
+      currentRole: "candidate_audit_role",
+      transactionReadOnly: true,
+      transactionIsolation: "repeatable read",
+    },
+    lineageIdentityBinding: "file_hash_request_database_exact_match",
+    lineageEvidenceSha256: `sha256:${"a".repeat(64)}`,
+    lineageSemanticEvidenceSha256: {
+      controlSnapshot: "b".repeat(64),
+      unifiedFinal: "c".repeat(64),
+      unifiedSamples: "d".repeat(64),
+    },
     comparedWrites: 10000,
     comparisonDifferences: 0,
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
+    resolvedQuarantineExclusions: 0,
+    sourceReleaseCount: 3,
     verificationMigrationId: migrationId,
     evidenceHash: reconciliationHash,
     violations: [],
+    differenceSample: [],
   };
   assert.equal(validateReconciliationEvidence(evidence), evidence);
   assert.throws(() => validateReconciliationEvidence({ ...evidence, comparedWrites: 9999 }),
     /reconciliation_result_invalid/u);
   assert.throws(() => validateReconciliationEvidence({ ...evidence, comparisonDifferences: 1 }),
+    /reconciliation_result_invalid/u);
+  assert.throws(() => validateReconciliationEvidence({
+    ...evidence,
+    schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
+  }), /reconciliation_status_invalid/u);
+  assert.throws(() => validateReconciliationEvidence({ ...evidence, sourceReleaseCount: 2 }),
     /reconciliation_result_invalid/u);
 });
 

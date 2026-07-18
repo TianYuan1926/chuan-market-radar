@@ -26,6 +26,17 @@ test("authorization contract cannot relax phase evidence or response authority",
       ...contract,
       shadowVerifyBoundary: { ...contract.shadowVerifyBoundary, reconciliationEvidenceRequired: "missing" },
     }],
+    ["lineage-v1", {
+      ...contract,
+      shadowVerifyBoundary: {
+        ...contract.shadowVerifyBoundary,
+        lineageSchemaRequired: "candidate-multi-cycle-lineage-evidence.v1",
+      },
+    }],
+    ["two-windows", {
+      ...contract,
+      shadowVerifyBoundary: { ...contract.shadowVerifyBoundary, sourceReleaseWindowsExact: 2 },
+    }],
     ["authority", {
       ...contract,
       shadowVerifyBoundary: { ...contract.shadowVerifyBoundary, legacyResponseAuthorityRequired: false },

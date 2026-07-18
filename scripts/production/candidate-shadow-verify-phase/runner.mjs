@@ -17,10 +17,21 @@ export const MAXIMUM_SAMPLE_GAP_SECONDS = 600;
 export const OBSERVATION_INTERVAL_SECONDS = 300;
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
+const HASH = /^[0-9a-f]{64}$/u;
 const MIGRATION = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
 const IMAGE = /^sha256:[0-9a-f]{64}$/u;
+const RECONCILIATION_KEYS = Object.freeze([
+  "automaticPhaseAdvance", "canonicalReadEnabled", "canonicalWriteEnabled",
+  "comparedWrites", "comparisonDifferences", "databaseIdentity", "differenceSample",
+  "duplicateEventMappings", "duplicateOutboxMappings", "evidenceHash",
+  "futureOutcomeInputsUsed", "g0Completed", "lineageEvidenceSha256",
+  "lineageIdentityBinding", "lineageSemanticEvidenceSha256", "phaseTransitionExecuted",
+  "productionRankingInputsUsed", "resolvedQuarantineExclusions", "reviewReadEnabled",
+  "schemaVersion", "shadowVerifyTransitionExecuted", "sourceReleaseCount", "status",
+  "verificationMigrationId", "violations",
+]);
 
 const SHADOW_VERIFY_FLAGS = Object.freeze({
   CANDIDATE_EPISODE_DUAL_READ: "true",
@@ -147,12 +158,20 @@ export function renderLegacyEnvironment(source) {
 }
 
 export function validateReconciliationEvidence(evidence) {
-  ensure(evidence?.schemaVersion === "candidate-shadow-reconciliation-evidence.v1"
+  ensure(evidence && typeof evidence === "object" && !Array.isArray(evidence)
+      && Object.keys(evidence).sort().join("\n") === [...RECONCILIATION_KEYS].sort().join("\n"),
+  "reconciliation_shape_invalid");
+  ensure(evidence.schemaVersion === "candidate-cycle3-reconciliation-evidence.v2"
       && evidence.status
-        === "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+        === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
   "reconciliation_status_invalid");
   ensure(evidence.automaticPhaseAdvance === false
       && evidence.phaseTransitionExecuted === false
+      && evidence.shadowVerifyTransitionExecuted === false
+      && evidence.canonicalReadEnabled === false
+      && evidence.canonicalWriteEnabled === false
+      && evidence.reviewReadEnabled === false
+      && evidence.g0Completed === false
       && evidence.productionRankingInputsUsed === false
       && evidence.futureOutcomeInputsUsed === false,
   "reconciliation_truth_boundary_invalid");
@@ -160,10 +179,23 @@ export function validateReconciliationEvidence(evidence) {
       && evidence.comparisonDifferences === 0
       && evidence.duplicateOutboxMappings === 0
       && evidence.duplicateEventMappings === 0
+      && Number.isSafeInteger(evidence.resolvedQuarantineExclusions)
+      && evidence.resolvedQuarantineExclusions >= 0
+      && evidence.sourceReleaseCount === 3
+      && evidence.lineageIdentityBinding === "file_hash_request_database_exact_match"
+      && SHA256.test(evidence.lineageEvidenceSha256 ?? "")
+      && HASH.test(evidence.lineageSemanticEvidenceSha256?.controlSnapshot ?? "")
+      && HASH.test(evidence.lineageSemanticEvidenceSha256?.unifiedFinal ?? "")
+      && HASH.test(evidence.lineageSemanticEvidenceSha256?.unifiedSamples ?? "")
+      && evidence.databaseIdentity?.currentRole === "candidate_audit_role"
+      && evidence.databaseIdentity?.transactionReadOnly === true
+      && evidence.databaseIdentity?.transactionIsolation === "repeatable read"
       && evidence.violations?.length === 0
+      && evidence.differenceSample?.length === 0
       && SHA256.test(evidence.evidenceHash ?? ""),
   "reconciliation_result_invalid");
-  assertMigration(evidence.verificationMigrationId);
+  ensure(evidence.verificationMigrationId === "candidate-episode-v1-cycle-3",
+    "reconciliation_migration_not_cycle3");
   return evidence;
 }
 
@@ -206,7 +238,7 @@ export function buildShadowVerifyManifest({
     flags: { dualRead: true, canonicalRead: false, reviewRead: false },
     evidence: {
       reconciliation: {
-        status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+        status: "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
         evidenceHash: reconciliationEvidenceHash,
       },
       dualRead: { status: "missing", evidenceHash: null },

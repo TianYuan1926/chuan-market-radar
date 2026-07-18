@@ -30,7 +30,7 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-shadow-verify-phase-transition-and-dual-read-observation.v1.json";
+  "docs/governance/wp-g0-2-cycle-3-shadow-verify-phase-transition-and-dual-read-observation.v2.json";
 export const REQUIRED_PRODUCTION_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
@@ -111,7 +111,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-shadow-verify-phase-transition-and-dual-read-observation.v1"
+    === "wp-g0.2-cycle-3-shadow-verify-phase-transition-and-dual-read-observation.v2"
     && contract.packageId === PACKAGE_ID && contract.gate === "G0"
     && contract.actionClass === "shadow_verify_activation"
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",
@@ -129,16 +129,19 @@ export function validateContract(contract) {
       && contract.releaseBoundary?.imageBuildAllowed === false,
   "contract_release_boundary_invalid");
   const prerequisites = contract.prerequisites ?? {};
-  ensure(prerequisites.lineageStatus
-      === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION"
+  ensure(prerequisites.lineageSchema === "candidate-multi-cycle-lineage-evidence.v2"
+      && prerequisites.lineageStatus
+        === "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+      && prerequisites.reconciliationSchema === "candidate-cycle3-reconciliation-evidence.v2"
       && prerequisites.reconciliationStatus
-        === "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+        === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
       && prerequisites.minimumComparedWrites === 10000
       && prerequisites.maximumComparisonDifferences === 0
       && prerequisites.maximumDuplicateOutboxMappings === 0
       && prerequisites.maximumDuplicateEventMappings === 0
       && prerequisites.maximumUnresolvedOutbox === 0
-      && prerequisites.minimumReleaseWindows === 2
+      && prerequisites.sourceReleaseWindowsExact === 3
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-3"
       && prerequisites.currentPhase === "shadow_capture"
       && prerequisites.currentWriteFrozen === false
       && prerequisites.minimumDeadlineRemainingSeconds === 87000,
@@ -239,14 +242,15 @@ export async function validateLocalPreparation(root = process.cwd()) {
 
 function validateLineage(lineage, request) {
   const validated = validateCandidateLineageEvidence(lineage);
-  ensure(validated.status === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION"
+  ensure(validated.status === "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
       && validated.completedWrites >= 10000 && validated.unresolvedOutbox === 0
-      && validated.sourceReleaseWindows.length >= 2,
+      && validated.sourceReleaseWindows.length === 3
+      && validated.currentMigrationId === "candidate-episode-v1-cycle-3",
   "lineage_result_invalid");
   const current = validated.sourceReleaseWindows.at(-1);
   ensure(current.migrationId === request.migrationId
       && current.releaseId === request.releaseId
-      && current.authorityEpoch === request.currentAuthorityEpoch,
+      && current.controlEpoch === request.currentAuthorityEpoch,
   "lineage_current_identity_mismatch");
   return validated;
 }
@@ -432,10 +436,19 @@ export async function validateApprovalRequest({ manifest, request, productionPat
     privateEvidence(request.codeReleaseEvidencePath, request.codeReleaseEvidenceSha256,
       "code_release", productionPaths),
   ]);
-  validateLineage(lineage, request);
+  const validatedLineage = validateLineage(lineage, request);
   const validatedReconciliation = validateReconciliationEvidence(reconciliation);
-  ensure(validatedReconciliation.verificationMigrationId === request.migrationId,
-    "reconciliation_migration_mismatch");
+  ensure(validatedReconciliation.verificationMigrationId === request.migrationId
+      && validatedReconciliation.lineageEvidenceSha256
+        === `sha256:${request.lineageEvidenceSha256}`
+      && validatedReconciliation.lineageSemanticEvidenceSha256.controlSnapshot
+        === validatedLineage.controlSnapshotSha256
+      && validatedReconciliation.lineageSemanticEvidenceSha256.unifiedFinal
+        === validatedLineage.unifiedEvidenceSha256
+      && validatedReconciliation.lineageSemanticEvidenceSha256.unifiedSamples
+        === validatedLineage.unifiedSamplesSha256
+      && validatedReconciliation.comparedWrites === validatedLineage.completedWrites,
+  "reconciliation_lineage_binding_mismatch");
   const validatedRelease = validateCodeReleaseEvidence(codeRelease);
   ensure(validatedRelease.targetCommit === request.productionCommit
       && validatedRelease.targetWebImageId === request.currentWebImageId,
