@@ -18,9 +18,9 @@ import {
 
 const execFileAsync = promisify(execFile);
 export const EXECUTION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-3-unified-lineage-capture-production-packet.v2.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v3.json";
 export const LOCAL_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-3-unified-lineage-refresh-local-superpackage.v2.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v3.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -136,7 +136,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   const runnerArtifact = await artifact(root, execution.runnerArtifact?.files ?? []);
   const violations = [];
   if (execution.schemaVersion
-      !== "wp-g0.2-cycle-3-unified-lineage-capture-production-packet.v2"
+      !== "wp-g0.2-current-cycle-unified-lineage-capture-production-packet.v3"
       || execution.packageId !== PACKAGE_ID
       || execution.productionAuthorization !== false
       || execution.productionExecuted !== false) violations.push("production_truth");
@@ -155,8 +155,9 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || runnerArtifact.fileCount !== execution.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== execution.runnerArtifact?.sha256) violations.push("runner_artifact");
   if (local.schemaVersion
-      !== "wp-g0.2-cycle-3-unified-lineage-refresh-local-superpackage.v2"
-      || local.packageId !== "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE"
+      !== "wp-g0.2-current-cycle-unified-lineage-refresh-local-superpackage.v3"
+      || local.packageId
+        !== "WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE"
       || local.outputBoundary?.rawEvidenceHashesRequired !== 3
       || local.databaseBoundary?.forcedLocalRole !== "candidate_audit_role") {
     violations.push("local_contract_dependency");
@@ -170,7 +171,9 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || execution.prerequisites?.minimumStabilitySeconds !== 1_800
       || execution.prerequisites?.minimumCompletionAdvances !== 2
       || execution.prerequisites?.maximumSampleGapSeconds !== 600
-      || execution.prerequisites?.migrationId !== "candidate-episode-v1-cycle-3"
+      || execution.prerequisites?.migrationId !== "candidate-episode-v1-cycle-5"
+      || execution.prerequisites?.controlLineageExactCount !== 5
+      || execution.prerequisites?.controlLineageCountDerivedFromMigrationId !== true
       || execution.prerequisites?.allFinalEvidenceRecomputedFromRawSamples !== true
       || execution.prerequisites?.completeDatabaseControlLineageRequired !== true
       || execution.prerequisites?.newExactRequestRequired !== true) violations.push("prerequisites");
@@ -200,7 +203,9 @@ export async function validateProductionPacketContract(root = process.cwd()) {
     }
   }
   if (execution.outputBoundary?.passStatus
-      !== "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+      !== "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+      || execution.outputBoundary?.lineageSchemaVersion
+        !== "candidate-multi-cycle-lineage-evidence.v3"
       || execution.outputBoundary?.semanticProvenanceHashesRequired !== 3
       || execution.outputBoundary?.rawSourceFileHashesRequired !== 3
       || execution.outputBoundary?.databaseIdentityEvidenceRequired !== true
@@ -341,7 +346,7 @@ export async function verifyStagedTransport(root, manifest) {
     "transportMethod",
   ];
   ensure(exactKeys(manifest, expectedKeys), "transport_manifest_keys_mismatch");
-  ensure(manifest.schemaVersion === "wp-g0.2-lineage-capture-transport.v1"
+  ensure(manifest.schemaVersion === "wp-g0.2-lineage-capture-transport.v2"
       && manifest.packageId === PACKAGE_ID && manifest.approvalEligible === true,
   "transport_manifest_identity_invalid");
   ensure(manifest.containsSecrets === false && manifest.reproducibleArchive === true
@@ -617,7 +622,7 @@ export async function buildTransportBundle({
     }
     const transport = await artifact(root, TRANSPORT_FILES);
     const manifest = {
-      schemaVersion: "wp-g0.2-lineage-capture-transport.v1",
+      schemaVersion: "wp-g0.2-lineage-capture-transport.v2",
       packageId: PACKAGE_ID,
       sourceCommit: sourceIdentity?.sourceCommit ?? null,
       sourceTree: sourceIdentity?.sourceTree ?? null,
@@ -738,7 +743,7 @@ async function main() {
     .stdout.trim() === "";
   const sourceIdentity = clean ? await currentSourceIdentity(root) : null;
   const output = options.output ?? join(root,
-    "reports/wp-g0-2-cycle-3-unified-lineage-capture-production-packet",
+    "reports/wp-g0-2-current-cycle-unified-lineage-capture-production-packet",
     `candidate-lineage-capture-${sourceIdentity?.sourceCommit.slice(0, 12) ?? "precommit-template"}.tar.gz`);
   process.stdout.write(`${JSON.stringify(await buildTransportBundle({
     root, output, sourceIdentity, approvalEligible: clean,

@@ -5,7 +5,7 @@ umask 077
 SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 ENTRYPOINT_MODE="${CANDIDATE_RECONCILIATION_ENTRYPOINT_MODE:-launcher}"
-STAGING_BASENAME_PREFIX="wp-g0-2-cycle3-reconciliation-"
+STAGING_BASENAME_PREFIX="wp-g0-2-current-cycle-reconciliation-"
 BUNDLE_MARKER="${SOURCE_ROOT}/.transport-bundle.sha256"
 TRANSPORT_MANIFEST="${SOURCE_ROOT}/transport-manifest.json"
 PACKET_VALIDATOR="${SOURCE_ROOT}/scripts/production/candidate-reconciliation/bundle.mjs"
@@ -51,14 +51,14 @@ ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
   && "${APPROVED_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ \
   && "$(tr -d '\r\n' < "${BUNDLE_MARKER}")" == "${APPROVED_BUNDLE_SHA256}" ]] \
   || fail staged_packet_boundary_invalid
-[[ "${APPROVED_UNIT}" =~ ^market-radar-cycle3-reconciliation-[a-z0-9][a-z0-9-]{7,48}$ \
+[[ "${APPROVED_UNIT}" =~ ^market-radar-current-cycle-reconciliation-[a-z0-9][a-z0-9-]{7,48}$ \
   && "$(jq -r '.sessionIndependentExecutionRequired // false' "${REQUEST_FILE}")" == "true" \
   && "${APPROVED_TRUST_ROOT}" == "${AUTONOMY_TRUST_ROOT}" \
   && "${APPROVED_PRODUCTION_ROOT}" == "${PRODUCTION_ROOT}" \
   && "${APPROVED_POSTGRES_ADMIN_ENV}" == "${POSTGRES_ADMIN_ENV}" \
   && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-reconciliation/* \
-  && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-* \
-  && "${APPROVED_EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle3-reconciliation-* ]] \
+  && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-current-cycle-reconciliation-* \
+  && "${APPROVED_EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-current-cycle-reconciliation-* ]] \
   || fail session_independent_identity_invalid
 LINEAGE_DIRECTORY="$(dirname "${LINEAGE_FINAL}")"
 [[ "$(realpath "${LINEAGE_DIRECTORY}")" == "${LINEAGE_DIRECTORY}"
@@ -116,9 +116,9 @@ fi
 cleanup() {
   local exit_code=$?
   trap - EXIT INT TERM HUP
-  [[ "${ACTUAL_SOURCE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle3-reconciliation-* \
+  [[ "${ACTUAL_SOURCE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-current-cycle-reconciliation-* \
     && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-reconciliation/* \
-    && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-* \
+    && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-current-cycle-reconciliation-* \
     && "${APPROVED_EVIDENCE_DIRECTORY}" != "${ACTUAL_SOURCE_ROOT}" \
     && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_SECURE_ROOT}" \
     && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_OPS_ROOT}" ]] || exit 98

@@ -25,12 +25,14 @@ const releases = [
   "candidate-shadow-lineage-pg-cycle-1",
   "candidate-shadow-lineage-pg-cycle-2",
   "candidate-shadow-lineage-pg-cycle-3",
+  "candidate-shadow-lineage-pg-cycle-4",
+  "candidate-shadow-lineage-pg-cycle-5",
 ];
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-3",
-  releaseId: releases[2],
+  migrationId: "candidate-episode-v1-cycle-5",
+  releaseId: releases[4],
 };
 
 function uuid(index) {
@@ -122,6 +124,8 @@ function unifiedSample(index) {
         blockers: [],
         warnings: [],
         metrics: {
+          outboxPendingTotal: 0,
+          outboxClaimedTotal: 0,
           outboxRetryWaitTotal: 0,
           outboxQuarantinedTotal: 0,
           unresolvedQuarantineTotal: 0,
@@ -175,7 +179,9 @@ const client = new Client({ connectionString: databaseUrl });
 await client.connect();
 try {
   const starts = [
-    new Date("2026-07-11T00:00:00.000Z"),
+    new Date("2026-07-03T00:00:00.000Z"),
+    new Date("2026-07-06T00:00:00.000Z"),
+    new Date("2026-07-09T00:00:00.000Z"),
     new Date("2026-07-12T00:00:00.000Z"),
     new Date("2026-07-15T00:00:00.000Z"),
   ];
@@ -183,15 +189,21 @@ try {
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
     migration_id, phase, epoch, started_at, deadline_at, write_frozen,
     approved_release_id, approval_digest, updated_at
-  ) VALUES ('candidate-episode-v1','legacy',6,$1,$2,true,$3,$4,$2),
+  ) VALUES ('candidate-episode-v1','legacy',2,$1,$2,true,$3,$4,$2),
     ('candidate-episode-v1-cycle-2','legacy',2,$5,$6,true,$7,$8,$6),
-    ('candidate-episode-v1-cycle-3','shadow_capture',1,$9,$10,false,$11,$12,$9)`, [
+    ('candidate-episode-v1-cycle-3','legacy',2,$9,$10,true,$11,$12,$10),
+    ('candidate-episode-v1-cycle-4','legacy',2,$13,$14,true,$15,$16,$14),
+    ('candidate-episode-v1-cycle-5','shadow_capture',1,$17,$18,false,$19,$20,$17)`, [
     starts[0].toISOString(), deadlines[0].toISOString(), releases[0],
     `sha256:${"b".repeat(64)}`,
     starts[1].toISOString(), deadlines[1].toISOString(), releases[1],
     `sha256:${"c".repeat(64)}`,
     starts[2].toISOString(), deadlines[2].toISOString(), releases[2],
     `sha256:${"d".repeat(64)}`,
+    starts[3].toISOString(), deadlines[3].toISOString(), releases[3],
+    `sha256:${"e".repeat(64)}`,
+    starts[4].toISOString(), deadlines[4].toISOString(), releases[4],
+    `sha256:${"f".repeat(64)}`,
   ]);
 
   const total = 10_020;
@@ -199,9 +211,9 @@ try {
   for (let offset = 0; offset < total; offset += batchSize) {
     const batch = Array.from({ length: Math.min(batchSize, total - offset) }, (_, inner) => {
       const index = offset + inner + 1;
-      return index <= 2_957
-        ? source(index, releases[0], starts[0])
-        : source(index, releases[2], starts[2]);
+      if (index <= 2_505) return source(index, releases[0], starts[0]);
+      if (index <= 5_010) return source(index, releases[2], starts[2]);
+      return source(index, releases[4], starts[4]);
     });
     await client.query(`INSERT INTO candidate_authority.candidate_episode_ingest_outbox (
       outbox_id, scope, source_type, source_id, source_version, payload_version,
@@ -233,11 +245,13 @@ try {
     transactionIsolation: "repeatable read",
     transactionReadOnly: true,
   });
-  assert.equal(snapshot.controls.length, 3);
+  assert.equal(snapshot.controls.length, 5);
   assert.deepEqual(snapshot.releaseCompletedWrites, [
-    { completedWrites: 2_957, releaseId: releases[0] },
+    { completedWrites: 2_505, releaseId: releases[0] },
     { completedWrites: 0, releaseId: releases[1] },
-    { completedWrites: 7_063, releaseId: releases[2] },
+    { completedWrites: 2_505, releaseId: releases[2] },
+    { completedWrites: 0, releaseId: releases[3] },
+    { completedWrites: 5_010, releaseId: releases[4] },
   ]);
   assert.equal(snapshot.statusCounts.completed, total);
   assert.equal(snapshot.statusCounts.unresolvedTotal, 0);
@@ -250,20 +264,21 @@ try {
       schemaVersion: CAPTURE_SPEC_SCHEMA,
       packageId: PACKAGE_ID,
       productionMutationAllowed: false,
-      outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
+      outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v3",
       unified: await writeUnifiedEvidence(evidenceRoot),
     });
   } finally {
     await rm(evidenceRoot, { recursive: true, force: true });
   }
   assert.equal(captured.lineage.status,
-    "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH");
+    "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH");
   assert.equal(captured.lineage.completedWrites, 10_020);
-  assert.equal(captured.lineage.sourceReleaseWindows.length, 3);
+  assert.equal(captured.lineage.sourceReleaseWindows.length, 5);
+  assert.equal(captured.lineage.validationCycle, 5);
   assert.equal(captured.databaseIdentity.currentRole, "candidate_audit_role");
   assert.equal(Object.values(captured.sourceEvidenceSha256).flatMap(Object.values).length, 3);
 
-  const outside = source(total + 1, "candidate-shadow-lineage-unapproved", starts[2]);
+  const outside = source(total + 1, "candidate-shadow-lineage-unapproved", starts[4]);
   await client.query(`INSERT INTO candidate_authority.candidate_episode_ingest_outbox (
     outbox_id, scope, source_type, source_id, source_version, payload_version,
     payload, payload_hash, idempotency_key, status, created_at, completed_at

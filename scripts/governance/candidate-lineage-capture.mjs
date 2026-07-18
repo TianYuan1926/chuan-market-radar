@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(ROOT,
-  "docs/governance/wp-g0-2-cycle-3-unified-lineage-refresh-local-superpackage.v2.json");
+  "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v3.json");
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -32,11 +32,11 @@ export async function validateCandidateLineageCapture(contract) {
   const runner = await readFile(resolve(ROOT,
     "scripts/production/candidate-lineage/runner.mjs"), "utf8");
   if (contract.schemaVersion
-      !== "wp-g0.2-cycle-3-unified-lineage-refresh-local-superpackage.v2") {
+      !== "wp-g0.2-current-cycle-unified-lineage-refresh-local-superpackage.v3") {
     violations.push("schema_version");
   }
   if (contract.packageId
-      !== "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE"
+      !== "WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE"
       || contract.productionAuthorization !== false || contract.productionExecuted !== false) {
     violations.push("production_truth");
   }
@@ -45,7 +45,7 @@ export async function validateCandidateLineageCapture(contract) {
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) {
     violations.push("runner_artifact");
   }
-  if (contract.unifiedObservationBoundary?.migrationId !== "candidate-episode-v1-cycle-3"
+  if (contract.unifiedObservationBoundary?.migrationId !== "candidate-episode-v1-cycle-5"
       || contract.unifiedObservationBoundary?.status
         !== "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
       || contract.unifiedObservationBoundary?.minimumActivationSamples !== 289
@@ -60,9 +60,9 @@ export async function validateCandidateLineageCapture(contract) {
       || contract.unifiedObservationBoundary?.singleEvidenceDirectory !== true) {
     violations.push("unified_observation_boundary");
   }
-  if (contract.historicalTruthBoundary?.historicalActivation197SamplesIsPass !== false
-      || contract.historicalTruthBoundary?.cycle2ZeroSampleAttemptIsPass !== false
-      || contract.historicalTruthBoundary?.historicalControlsUsedAsPassEvidence !== false
+  if (contract.historicalTruthBoundary?.legacyV2ContractsPreserved !== true
+      || contract.historicalTruthBoundary?.historicalObservationCanBeRelabeled !== false
+      || contract.historicalTruthBoundary?.historicalControlsUsedAsCurrentPassEvidence !== false
       || contract.historicalTruthBoundary?.historicalControlsPreservedInDatabaseLineage !== true) {
     violations.push("historical_truth_boundary");
   }
@@ -70,12 +70,13 @@ export async function validateCandidateLineageCapture(contract) {
       || contract.databaseBoundary?.transactionReadOnly !== true
       || contract.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
       || contract.databaseBoundary?.controlLineageStartsAtCycleOne !== true
-      || contract.databaseBoundary?.controlLineageEndsAtCycleThree !== true
-      || contract.databaseBoundary?.controlLineageExactCount !== 3
+      || contract.databaseBoundary?.controlLineageEndsAtCurrentCycle !== true
+      || contract.databaseBoundary?.controlLineageExactCount !== 5
+      || contract.databaseBoundary?.controlLineageExactCountDerivedFromMigrationId !== true
       || contract.databaseBoundary?.controlLineageStrictlyAdjacent !== true
       || contract.databaseBoundary?.historicalControls !== "legacy_frozen_even_epoch"
       || contract.databaseBoundary?.currentControl
-        !== "cycle3_single_shadow_capture_active_odd_epoch"
+        !== "current_cycle_single_shadow_capture_active_odd_epoch"
       || contract.databaseBoundary?.releaseCompletedSumEqualsGlobalCompleted !== true
       || contract.databaseBoundary?.outsideLineageMaximum !== 0
       || contract.databaseBoundary?.pendingMaximum !== 0
@@ -88,9 +89,11 @@ export async function validateCandidateLineageCapture(contract) {
       || contract.databaseBoundary?.phaseTransitionAllowed !== false) {
     violations.push("database_boundary");
   }
-  if (contract.outputBoundary?.schemaVersion !== "candidate-multi-cycle-lineage-evidence.v2"
+  if (contract.outputBoundary?.schemaVersion !== "candidate-multi-cycle-lineage-evidence.v3"
       || contract.outputBoundary?.passStatus
-        !== "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+        !== "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+      || contract.outputBoundary?.validationCycleRequired !== true
+      || contract.outputBoundary?.sourceReleaseCountRequired !== true
       || contract.outputBoundary?.rawEvidenceHashesRequired !== 3
       || contract.outputBoundary?.semanticEvidenceHashesRequired !== 3
       || contract.outputBoundary?.sourceReleaseWindowsRequired !== true
@@ -103,8 +106,9 @@ export async function validateCandidateLineageCapture(contract) {
   }
   for (const token of [
     "evaluateCycleObservation", "MINIMUM_ACTIVATION_HOURS", "MINIMUM_ACTIVATION_SAMPLES",
-    "MINIMUM_COMPARED_WRITES", "MINIMUM_STABILITY_SECONDS", "unified_cycle_not_cycle3",
+    "MINIMUM_COMPARED_WRITES", "MINIMUM_STABILITY_SECONDS", "unified_cycle_not_multi_cycle",
     "unified_final_recompute_mismatch", "database_controls_invalid",
+    "database_control_count_cycle_mismatch", "lineage_window_count_cycle_mismatch",
     "database_retired_control_not_frozen", "database_current_control_not_active",
     "database_completed_aggregate_mismatch", "outsideLineage", "database_${key}_not_zero",
     "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
@@ -122,7 +126,9 @@ export async function validateCandidateLineageCapture(contract) {
     "canonical_cutover", "production_ranking_change", "future_outcome_input", "formal_backtest",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
   return {
-    status: violations.length === 0 ? "PASS_LOCAL_CYCLE3_UNIFIED_LINEAGE_REFRESH" : "FAIL",
+    status: violations.length === 0
+      ? "PASS_LOCAL_CURRENT_CYCLE_UNIFIED_LINEAGE_REFRESH"
+      : "FAIL",
     productionMutationAllowed: false,
     runnerArtifactSha256: runnerArtifact.sha256,
     violations,

@@ -37,32 +37,52 @@ const releaseIds = [
   "candidate-shadow-release-cycle-1",
   "candidate-shadow-release-cycle-2",
   "candidate-shadow-release-cycle-3",
+  "candidate-shadow-release-cycle-4",
+  "candidate-shadow-release-cycle-5",
 ];
 const sourceReleaseWindows = [
   {
-    controlEpoch: 6,
-    deadlineAt: "2026-07-15T00:00:00.000Z",
+    controlEpoch: 2,
+    deadlineAt: "2026-07-09T00:00:00.000Z",
     migrationId: "candidate-episode-v1",
     phase: "legacy",
     releaseId: releaseIds[0],
+    startedAt: "2026-07-06T00:00:00.000Z",
+    writeFrozen: true,
+  },
+  {
+    controlEpoch: 2,
+    deadlineAt: "2026-07-12T00:00:00.000Z",
+    migrationId: "candidate-episode-v1-cycle-2",
+    phase: "legacy",
+    releaseId: releaseIds[1],
+    startedAt: "2026-07-09T00:00:00.000Z",
+    writeFrozen: true,
+  },
+  {
+    controlEpoch: 2,
+    deadlineAt: "2026-07-15T00:00:00.000Z",
+    migrationId: "candidate-episode-v1-cycle-3",
+    phase: "legacy",
+    releaseId: releaseIds[2],
     startedAt: "2026-07-12T00:00:00.000Z",
     writeFrozen: true,
   },
   {
     controlEpoch: 2,
     deadlineAt: "2026-07-18T00:00:00.000Z",
-    migrationId: "candidate-episode-v1-cycle-2",
+    migrationId: "candidate-episode-v1-cycle-4",
     phase: "legacy",
-    releaseId: releaseIds[1],
+    releaseId: releaseIds[3],
     startedAt: "2026-07-15T00:00:00.000Z",
     writeFrozen: true,
   },
   {
     controlEpoch: 1,
     deadlineAt: "2026-07-21T00:00:00.000Z",
-    migrationId: "candidate-episode-v1-cycle-3",
+    migrationId: "candidate-episode-v1-cycle-5",
     phase: "shadow_capture",
-    releaseId: releaseIds[2],
+    releaseId: releaseIds[4],
     startedAt: "2026-07-18T00:00:00.000Z",
     writeFrozen: false,
   },
@@ -75,9 +95,9 @@ const lineage = {
   completionAdvances: 8,
   controlSnapshotSha256: "c".repeat(64),
   currentAuthorityEpoch: 1,
-  currentMigrationId: "candidate-episode-v1-cycle-3",
-  currentReleaseId: releaseIds[2],
-  currentCycleStartedAt: sourceReleaseWindows[2].startedAt,
+  currentMigrationId: "candidate-episode-v1-cycle-5",
+  currentReleaseId: releaseIds[4],
+  currentCycleStartedAt: sourceReleaseWindows[4].startedAt,
   g0Completed: false,
   maximumSampleGapSeconds: 600,
   minimumActivationHours: 24,
@@ -90,6 +110,7 @@ const lineage = {
   productionReconciliationExecuted: false,
   schemaVersion: LINEAGE_SCHEMA,
   shadowVerifyStarted: false,
+  sourceReleaseCount: 5,
   sourceReleaseWindows,
   status: LINEAGE_PASS,
   thresholdsChanged: false,
@@ -97,14 +118,15 @@ const lineage = {
   unifiedSamplesSha256: "b".repeat(64),
   unresolvedMaximum: 0,
   unresolvedOutbox: 0,
+  validationCycle: 5,
 };
 const context = {
   authorityEpoch: 1,
-  controlStartedAt: Date.parse(sourceReleaseWindows[2].startedAt),
-  controlDeadlineAt: Date.parse(sourceReleaseWindows[2].deadlineAt),
+  controlStartedAt: Date.parse(sourceReleaseWindows[4].startedAt),
+  controlDeadlineAt: Date.parse(sourceReleaseWindows[4].deadlineAt),
   lineageEvidenceSha256: `sha256:${"d".repeat(64)}`,
-  migrationId: sourceReleaseWindows[2].migrationId,
-  releaseId: releaseIds[2],
+  migrationId: sourceReleaseWindows[4].migrationId,
+  releaseId: releaseIds[4],
   sourceReleaseWindows: sourceReleaseWindows.map((window) => ({
     ...window,
     startedAtMs: Date.parse(window.startedAt),
@@ -115,8 +137,8 @@ const control = {
   phase: "shadow_capture",
   authorityEpoch: 1,
   writeFrozen: false,
-  releaseId: releaseIds[2],
-  migrationId: sourceReleaseWindows[2].migrationId,
+  releaseId: releaseIds[4],
+  migrationId: sourceReleaseWindows[4].migrationId,
   currentRole: "candidate_audit_role",
   transactionReadOnly: true,
   transactionIsolation: "repeatable read",
@@ -135,7 +157,7 @@ const contract = { runnerArtifact: { sha256: "e".repeat(64) } };
 const request = {
   approvalExpiresAt: "2026-07-18T09:00:00.000Z",
   approvalIssuedAt: "2026-07-18T08:00:00.000Z",
-  approvalRef: "candidate-reconciliation-cycle3-approval",
+  approvalRef: "candidate-reconciliation-cycle5-approval",
   approvedCommit: "1".repeat(40),
   approvedRunnerArtifactSha256: "e".repeat(64),
   authorityEpoch: 1,
@@ -148,12 +170,12 @@ const request = {
   lineageSchemaVersion: LINEAGE_SCHEMA,
   lineageStatus: LINEAGE_PASS,
   migrationAllowed: false,
-  migrationId: sourceReleaseWindows[2].migrationId,
+  migrationId: sourceReleaseWindows[4].migrationId,
   minimumComparedWrites: MINIMUM_COMPARED_WRITES,
   operator: "codex",
   packageId: PACKAGE_ID,
   productionRankingMutationAllowed: false,
-  releaseId: releaseIds[2],
+  releaseId: releaseIds[4],
   reviewReadAllowed: false,
   schemaDdlAllowed: false,
   shadowVerifyTransitionAllowed: false,
@@ -246,16 +268,15 @@ function fixtureRow(index, releaseIndex, baseTime) {
   return row;
 }
 
-const rows = [
-  ...Array.from({ length: 2_957 }, (_, index) => (
-    fixtureRow(index + 1, 0, "2026-07-12T01:00:00.000Z")
-  )),
-  ...Array.from({ length: 7_063 }, (_, index) => (
-    fixtureRow(index + 2_958, 2, "2026-07-18T01:00:00.000Z")
-  )),
-];
+const rows = sourceReleaseWindows.flatMap((window, releaseIndex) => (
+  Array.from({ length: 2_004 }, (_, index) => fixtureRow(
+    releaseIndex * 2_004 + index + 1,
+    releaseIndex,
+    new Date(Date.parse(window.startedAt) + 3_600_000).toISOString(),
+  ))
+));
 
-test("approval authorizes only Cycle-3 read-only comparison with exact Lineage v2", () => {
+test("approval authorizes only current-cycle read-only comparison with exact Lineage v3", () => {
   assert.equal(validateApprovalRequest(request, contract, {
     now: new Date("2026-07-18T08:30:00.000Z"),
   }), request);
@@ -276,7 +297,7 @@ test("approval authorizes only Cycle-3 read-only comparison with exact Lineage v
   }), /lineage_status_not_pass/);
 });
 
-test("Lineage file must match request windows and current Cycle-3 identity exactly", () => {
+test("Lineage file must match request windows and current-cycle identity exactly", () => {
   assert.equal(validateLineageRequestBinding(lineage, request), lineage);
   assert.throws(() => validateLineageRequestBinding({
     ...lineage,
@@ -317,7 +338,7 @@ test("one write requires immutable source, projection command and target identit
   assert.ok(compareProjectionRow(missingEvent, context).differences.includes("projection_event_missing"));
 });
 
-test("PASS requires 10020 exact writes across all three cycles and is order independent", () => {
+test("PASS requires 10020 exact writes across all five cycles and is order independent", () => {
   const first = evaluateReconciliationEvidence({ context, control, lineage, rows, statusCounts });
   const reversed = evaluateReconciliationEvidence({
     context,
@@ -328,8 +349,8 @@ test("PASS requires 10020 exact writes across all three cycles and is order inde
   });
   assert.equal(first.status, RECONCILIATION_PASS);
   assert.equal(first.comparedWrites, 10_020);
-  assert.equal(first.sourceReleaseCount, 3);
-  assert.equal(first.verificationMigrationId, "candidate-episode-v1-cycle-3");
+  assert.equal(first.sourceReleaseCount, 5);
+  assert.equal(first.verificationMigrationId, "candidate-episode-v1-cycle-5");
   assert.equal(first.comparisonDifferences, 0);
   assert.equal(first.phaseTransitionExecuted, false);
   assert.equal(first.shadowVerifyTransitionExecuted, false);

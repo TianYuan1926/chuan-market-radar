@@ -24,8 +24,9 @@ const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 function reconciliationEvidence(lineageFileSha256 = hash("5")) {
   return {
-    schemaVersion: "candidate-cycle3-reconciliation-evidence.v2",
-    status: "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    schemaVersion: "candidate-multi-cycle-reconciliation-evidence.v3",
+    status:
+      "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
     shadowVerifyTransitionExecuted: false,
@@ -52,8 +53,8 @@ function reconciliationEvidence(lineageFileSha256 = hash("5")) {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 3,
-    verificationMigrationId: "candidate-episode-v1-cycle-3",
+    sourceReleaseCount: 5,
+    verificationMigrationId: "candidate-episode-v1-cycle-5",
     evidenceHash: `sha256:${hash("a")}`,
     violations: [],
     differenceSample: [],
@@ -62,34 +63,52 @@ function reconciliationEvidence(lineageFileSha256 = hash("5")) {
 
 function lineageEvidence() {
   return {
-    schemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
-    status: "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+    schemaVersion: "candidate-multi-cycle-lineage-evidence.v3",
+    status: "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
     unifiedEvidenceSha256: hash("c"),
     unifiedSamplesSha256: hash("d"),
     controlSnapshotSha256: hash("b"),
     sourceReleaseWindows: [
       {
         controlEpoch: 6,
-        deadlineAt: "2026-07-14T00:00:00.000Z",
+        deadlineAt: "2026-07-06T00:00:00.000Z",
         migrationId: "candidate-episode-v1",
         phase: "legacy",
         releaseId: "candidate-shadow-release-cycle-one",
-        startedAt: "2026-07-11T00:00:00.000Z",
+        startedAt: "2026-07-03T00:00:00.000Z",
+        writeFrozen: true,
+      },
+      {
+        controlEpoch: 2,
+        deadlineAt: "2026-07-09T00:00:00.000Z",
+        migrationId: "candidate-episode-v1-cycle-2",
+        phase: "legacy",
+        releaseId: "candidate-shadow-release-cycle-two",
+        startedAt: "2026-07-06T00:00:00.000Z",
+        writeFrozen: true,
+      },
+      {
+        controlEpoch: 2,
+        deadlineAt: "2026-07-12T00:00:00.000Z",
+        migrationId: "candidate-episode-v1-cycle-3",
+        phase: "legacy",
+        releaseId: "candidate-shadow-release-cycle-three",
+        startedAt: "2026-07-09T00:00:00.000Z",
         writeFrozen: true,
       },
       {
         controlEpoch: 2,
         deadlineAt: "2026-07-15T00:00:00.000Z",
-        migrationId: "candidate-episode-v1-cycle-2",
+        migrationId: "candidate-episode-v1-cycle-4",
         phase: "legacy",
-        releaseId: "candidate-shadow-release-cycle-two",
+        releaseId: "candidate-shadow-release-cycle-four",
         startedAt: "2026-07-12T00:00:00.000Z",
         writeFrozen: true,
       },
       {
         controlEpoch: 3,
         deadlineAt: "2026-07-20T00:00:00.000Z",
-        migrationId: "candidate-episode-v1-cycle-3",
+        migrationId: "candidate-episode-v1-cycle-5",
         phase: "shadow_capture",
         releaseId: "candidate-shadow-release-12345678",
         startedAt: "2026-07-17T00:00:00.000Z",
@@ -111,14 +130,16 @@ function lineageEvidence() {
     minimumActivationHours: 24,
     unresolvedMaximum: 0,
     currentCycleStartedAt: "2026-07-17T00:00:00.000Z",
-    currentMigrationId: "candidate-episode-v1-cycle-3",
+    currentMigrationId: "candidate-episode-v1-cycle-5",
     currentReleaseId: "candidate-shadow-release-12345678",
     currentAuthorityEpoch: 3,
     thresholdsChanged: false,
     productionReconciliationExecuted: false,
     shadowVerifyStarted: false,
+    sourceReleaseCount: 5,
     canonicalAuthorityChanged: false,
     g0Completed: false,
+    validationCycle: 5,
   };
 }
 
@@ -145,7 +166,7 @@ function runtime(evidence = {}) {
     currentWebImageId: image("c"),
     candidateWorkerContainerId: "d".repeat(12),
     candidateWorkerImageId: image("e"),
-    migrationId: "candidate-episode-v1-cycle-3",
+    migrationId: "candidate-episode-v1-cycle-5",
     releaseId: "candidate-shadow-release-12345678",
     currentAuthorityEpoch: 3,
     baseEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env",
@@ -213,7 +234,7 @@ async function evidenceFixture(lineageTransform = (value) => value) {
 
 test("validates the checked-in phase-transition contract", async () => {
   const contract = JSON.parse(await readFile(resolve(root,
-    "docs/governance/wp-g0-2-cycle-3-shadow-verify-phase-transition-and-dual-read-observation.v2.json")));
+    "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3.json")));
   assert.equal(validateContract(contract).productionExecuted, false);
 });
 
@@ -263,11 +284,11 @@ test("creates a one-use, exact 90-minute, Web-only execution request", () => {
   }), /runtime_identity_invalid/u);
 });
 
-test("phase approval accepts only exact Cycle-3 Lineage v2 and its bound Reconciliation v2", async () => {
+test("phase approval accepts only exact current Lineage v3 and bound Reconciliation v3", async () => {
   const manifest = transportManifest();
   const now = new Date("2026-07-17T00:00:00.000Z");
   const cases = [
-    { name: "cycle3-v2", transform: (value) => value, passes: true },
+    { name: "cycle5-v3", transform: (value) => value, passes: true },
     {
       name: "lineage-v1",
       transform: (value) => ({
@@ -300,7 +321,8 @@ test("phase approval accepts only exact Cycle-3 Lineage v2 and its bound Reconci
       if (candidate.passes) {
         assert.equal((await operation).status, "PASS_SHADOW_VERIFY_PHASE_EXECUTION_REQUEST");
       } else {
-        await assert.rejects(operation, /lineage_evidence_status_invalid|lineage_windows_invalid/u,
+        await assert.rejects(operation,
+          /lineage_evidence_status_invalid|lineage_windows_invalid|lineage_evidence_shape_invalid|lineage_window_count_cycle_mismatch/u,
           candidate.name);
       }
     } finally {

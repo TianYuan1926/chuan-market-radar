@@ -19,7 +19,7 @@ assert_private_file() {
   (( (8#${mode} & 8#077) == 0 )) || fail "secure_file_permissions_too_open:$(basename "$1")"
 }
 
-echo "package=WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET"
+echo "package=WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET"
 echo "mode=${RUNNER_MODE}"
 echo "production_mutation_allowed=false"
 
@@ -193,9 +193,12 @@ for file in "${LINEAGE_OUTPUT}" "${METADATA_OUTPUT}"; do
   assert_private_file "${file}"
 done
 [[ "$(jq -r '.status // empty' "${LINEAGE_OUTPUT}")" \
-    == "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH" \
+    == "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH" \
   && "$(jq -r '.schemaVersion // empty' "${LINEAGE_OUTPUT}")" \
-    == "candidate-multi-cycle-lineage-evidence.v2" \
+    == "candidate-multi-cycle-lineage-evidence.v3" \
+  && "$(jq -r '.validationCycle // 0' "${LINEAGE_OUTPUT}")" -eq 5 \
+  && "$(jq -r '.sourceReleaseCount // 0' "${LINEAGE_OUTPUT}")" -eq 5 \
+  && "$(jq -r '.sourceReleaseWindows | length' "${LINEAGE_OUTPUT}")" -eq 5 \
   && "$(jq -r '.completedWrites // 0' "${LINEAGE_OUTPUT}")" -ge 10000 \
   && "$(jq -r '.activationSamples // 0' "${LINEAGE_OUTPUT}")" -ge 289 \
   && "$(jq -r '.activationCoverageSeconds // 0' "${LINEAGE_OUTPUT}")" -ge 86400 \
@@ -213,7 +216,7 @@ done
   && "$(jq -r '.databaseIdentity.transactionReadOnly // false' "${METADATA_OUTPUT}")" == "true" \
   && "$(jq -r '.databaseMutationExecuted // true' "${METADATA_OUTPUT}")" == "false" \
   && "$(jq -r '.schemaVersion // empty' "${METADATA_OUTPUT}")" \
-    == "candidate-lineage-capture-result.v2" \
+    == "candidate-lineage-capture-result.v3" \
   && "$(jq -r '.sourceEvidenceSha256 | keys == ["unified"]' "${METADATA_OUTPUT}")" == "true" \
   && "$(jq -r '.servicesMutated | length' "${METADATA_OUTPUT}")" -eq 0 ]] \
   || fail lineage_capture_result_gate_failed
@@ -225,7 +228,7 @@ lease_event checkpoint --checkpoint lineage_capture_pass_verified
 lease_event release --outcome PASS
 LEASE_RELEASED=true
 trap - EXIT
-printf '{"schemaVersion":"candidate-lineage-capture-closeout.v2","outcome":"PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH","closedAt":"%s","temporaryArtifactsCleanupRequired":true,"secretsPrinted":false}\n' \
+printf '{"schemaVersion":"candidate-lineage-capture-closeout.v3","outcome":"PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH","closedAt":"%s","temporaryArtifactsCleanupRequired":true,"secretsPrinted":false}\n' \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${EVIDENCE_DIRECTORY}/lineage-capture-closeout.json"
 chmod 600 "${EVIDENCE_DIRECTORY}/lineage-capture-closeout.json"
-printf 'PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH\n'
+printf 'PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH\n'

@@ -17,8 +17,8 @@ import { sha256 } from "./runner.mjs";
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-3",
-  releaseId: "candidate-shadow-capture-packet-cycle-3",
+  migrationId: "candidate-episode-v1-cycle-5",
+  releaseId: "candidate-shadow-capture-packet-cycle-5",
 };
 
 function unifiedSample(index) {
@@ -62,6 +62,8 @@ function unifiedSample(index) {
         blockers: [],
         warnings: [],
         metrics: {
+          outboxPendingTotal: 0,
+          outboxClaimedTotal: 0,
           outboxRetryWaitTotal: 0,
           outboxQuarantinedTotal: 0,
           unresolvedQuarantineTotal: 0,
@@ -116,7 +118,7 @@ async function fixture(root) {
     schemaVersion: CAPTURE_SPEC_SCHEMA,
     packageId: PACKAGE_ID,
     productionMutationAllowed: false,
-    outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
+    outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v3",
     unified: await writeEvidence(root),
   };
 }
@@ -137,7 +139,7 @@ test("production capture inputs are private, hash-bound, and rebuilt from raw v2
   }
 });
 
-test("tampered samples, open permissions, and non-Cycle-3 evidence fail closed", async () => {
+test("tampered samples, open permissions, and single-cycle evidence fail closed", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-production-runner-"));
   try {
     const tampered = await fixture(root);
@@ -151,15 +153,15 @@ test("tampered samples, open permissions, and non-Cycle-3 evidence fail closed",
 
     await chmod(open.unified.finalPath, 0o600);
     const wrongCycle = await fixture(root);
-    wrongCycle.unified.migrationId = "candidate-episode-v1-cycle-2";
+    wrongCycle.unified.migrationId = "candidate-episode-v1";
     assert.throws(() => validateCaptureSpecification(wrongCycle),
-      /unified_capture_not_cycle3/u);
+      /unified_capture_not_multi_cycle/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test("a failed Cycle-3 closeout cannot be relabeled as lineage evidence", async () => {
+test("a failed current-cycle closeout cannot be relabeled as lineage evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-production-runner-"));
   try {
     const specification = await fixture(root);

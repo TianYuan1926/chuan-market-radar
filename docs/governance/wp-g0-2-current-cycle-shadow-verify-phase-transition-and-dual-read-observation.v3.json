@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3",
+  "packageId": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
+  "gate": "G0",
+  "status": "local_implementation_and_rehearsal_production_blocked_by_prerequisites",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "actionClass": "shadow_verify_activation",
+  "riskTier": "R2_AUTHORITY_TRANSITION",
+  "releaseBoundary": {
+    "requiredProductionCommit": "eb48827b8b403452328b65dc4b415c3fc0ecf765",
+    "requiredCodeReleaseStatus": "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
+    "productionWorktreeCleanDetachedRequired": true,
+    "sourceSyncAllowed": false,
+    "gitCheckoutAllowed": false,
+    "imageBuildAllowed": false,
+    "webImageMustMatchCodeReleaseEvidence": true
+  },
+  "prerequisites": {
+    "lineageSchema": "candidate-multi-cycle-lineage-evidence.v3",
+    "lineageStatus": "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+    "reconciliationSchema": "candidate-multi-cycle-reconciliation-evidence.v3",
+    "reconciliationStatus": "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    "minimumComparedWrites": 10000,
+    "maximumComparisonDifferences": 0,
+    "maximumDuplicateOutboxMappings": 0,
+    "maximumDuplicateEventMappings": 0,
+    "maximumUnresolvedOutbox": 0,
+    "sourceReleaseWindowsExact": 5,
+    "sourceReleaseWindowsDerivedFromMigrationId": true,
+    "currentMigrationId": "candidate-episode-v1-cycle-5",
+    "currentPhase": "shadow_capture",
+    "currentWriteFrozen": false,
+    "minimumDeadlineRemainingSeconds": 87000,
+    "candidateWorker": "running_healthy_identity_bound",
+    "scannerWorker": "running_healthy",
+    "productionHealth": "ready_fresh",
+    "manifestBeforeTransition": "absent",
+    "readFlagsBeforeTransition": {
+      "dualRead": false,
+      "canonicalRead": false,
+      "reviewRead": false
+    }
+  },
+  "manifest": {
+    "schemaVersion": "candidate-read-authority-manifest.v1",
+    "path": "/run/market-radar/candidate-read-authority.json",
+    "owner": "root",
+    "mode": "0600",
+    "phase": "shadow_verify",
+    "targetEpochIncrement": 1,
+    "approvalDigest": "sha256_of_exact_manifest_bytes",
+    "maximumApprovalAgeMinutes": 90,
+    "flags": { "dualRead": true, "canonicalRead": false, "reviewRead": false }
+  },
+  "databaseBoundary": {
+    "allowedProcedure": "candidate_authority.transition_migration_control_v1",
+    "sourcePhase": "shadow_capture",
+    "targetPhase": "shadow_verify",
+    "targetWriteFrozen": false,
+    "targetEpochIncrement": 1,
+    "migrationRole": "candidate_migration_role",
+    "ddlAllowed": false,
+    "migrationAllowed": false,
+    "candidateBusinessDataMutationAllowed": false,
+    "redisMutationAllowed": false
+  },
+  "execution": {
+    "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+    "runner": "transient_systemd_unit",
+    "restart": "no",
+    "mutationRuntimeMaxSeconds": 5400,
+    "observationRuntimeMaxSeconds": 90000,
+    "sessionIndependent": true,
+    "maximumApprovalWindowMinutes": 90,
+    "serviceAllowlist": ["web"],
+    "webRecreateCommand": "docker compose up -d --no-deps --no-build --force-recreate web",
+    "candidateWorkerMutationOnSuccess": false,
+    "otherServiceMutationAllowed": false,
+    "environmentKeyAllowlist": [
+      "CANDIDATE_EPISODE_DUAL_READ",
+      "CANDIDATE_EPISODE_CANONICAL_READ",
+      "CANDIDATE_EPISODE_REVIEW_READ"
+    ],
+    "externalProductionLeaseRequired": true,
+    "fencingTokenRequired": true,
+    "leaseCheckBeforeEveryMutation": true,
+    "singleUseApprovalRequired": true
+  },
+  "fullSnapshot": {
+    "transactionIsolation": "serializable_read_only_deferrable",
+    "forcedRole": "candidate_audit_role",
+    "pageLimit": 1000,
+    "allPagesRequired": true,
+    "rawOracleIndependent": true,
+    "sameDatabaseSnapshot": true,
+    "maximumDifferences": 0,
+    "maximumDuplicateEpisodeIds": 0,
+    "returnedMustEqualReviewTotal": true,
+    "rawRowsMayLeaveContainer": false
+  },
+  "observation": {
+    "sampleIntervalSeconds": 300,
+    "minimumSamples": 289,
+    "exactSamples": 289,
+    "minimumHours": 24,
+    "maximumSampleGapSeconds": 600,
+    "legacyResponseAuthority": true,
+    "candidateCanonicalReviewUsable": false,
+    "canAuthorizeCutover": false,
+    "canCreateTradePlan": false,
+    "canMutateLiveRanking": false,
+    "automaticPhaseAdvance": false,
+    "canonicalCompatStarted": false,
+    "canonicalCutoverExecuted": false
+  },
+  "rollback": {
+    "automaticRollbackRequired": true,
+    "beforeTransitionRestoreShadowCapture": true,
+    "afterTransitionTargetPhase": "legacy",
+    "afterTransitionWriteFrozen": true,
+    "disableAllCandidateFlags": true,
+    "stopCandidateWorker": true,
+    "preserveCandidateData": true,
+    "preserveCurrentGitCommit": true,
+    "preserveCurrentWebCodeImage": true,
+    "removeManifestByWebRecreate": true,
+    "rollbackDoesNotClaimCycleRestartEligibility": true
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-lineage/runner.mjs",
+      "scripts/production/candidate-reconciliation/runner.mjs",
+      "scripts/production/candidate-shadow-verify-phase/full-snapshot-observer.cjs",
+      "scripts/production/candidate-shadow-verify-phase/observation-runner.sh",
+      "scripts/production/candidate-shadow-verify-phase/production-entrypoint.sh",
+      "scripts/production/candidate-shadow-verify-phase/production-runner.sh",
+      "scripts/production/candidate-shadow-verify-phase/runner.mjs"
+    ],
+    "fileCount": 7,
+    "sha256": "0c53d6c9613ec8d25ae64dea4142a9e4956933161116e40b419b753c1ff3a70a"
+  },
+  "resultBoundary": {
+    "passStatus": "PASS_DUAL_READ_OBSERVATION",
+    "productionExecuted": false,
+    "canonicalCompatAuthorized": false,
+    "canonicalReadCutover": false,
+    "wpG02Completed": false,
+    "g0Completed": false
+  },
+  "forbidden": [
+    "observation_window_shortening", "single_page_only_parity", "stale_evidence_relabeling",
+    "legacy_lineage_schema_input", "legacy_reconciliation_schema_input",
+    "incomplete_window_lineage", "source_sync", "git_checkout", "image_build",
+    "schema_migration", "candidate_business_data_mutation", "redis_mutation",
+    "scanner_worker_mutation", "other_service_mutation", "candidate_response_authority",
+    "canonical_compat_activation", "canonical_cutover", "production_ranking_change",
+    "future_outcome_input", "rr_threshold_change", "formal_backtest"
+  ],
+  "nextPackageOnPass": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION"
+}

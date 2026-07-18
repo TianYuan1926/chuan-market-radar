@@ -33,7 +33,7 @@ function evidenceGroup({ cycle, release, sourceCommit, directory }) {
 
 function runtime() {
   const unifiedDirectory =
-    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-cycle3pack";
+    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-cycle5pack";
   return {
     approvedProductionCommit: commit("b"),
     webImageId: `sha256:${hash("c")}`,
@@ -42,13 +42,13 @@ function runtime() {
     postgresAdminEnvPath:
       "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
     captureSpecification: {
-      schemaVersion: "candidate-lineage-capture-specification.v2",
-      packageId: "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET",
+      schemaVersion: "candidate-lineage-capture-specification.v3",
+      packageId: "WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET",
       productionMutationAllowed: false,
-      outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
+      outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v3",
       unified: evidenceGroup({
-        cycle: "candidate-episode-v1-cycle-3",
-        release: "candidate-shadow-lineage-packet-cycle-3",
+        cycle: "candidate-episode-v1-cycle-5",
+        release: "candidate-shadow-lineage-packet-cycle-5",
         sourceCommit: commit("b"),
         directory: unifiedDirectory,
       }),
@@ -130,7 +130,7 @@ test("one-time request binds packet, production identity, all source evidence, a
   }
 });
 
-test("current production commit cannot drift from the unified Cycle-3 evidence", async () => {
+test("current production commit cannot drift from current-cycle evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-request-test-"));
   try {
     const transport = await buildTransportBundle({

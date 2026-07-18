@@ -10,10 +10,11 @@ import {
   validateCandidateLineageEvidence,
 } from "../candidate-lineage/runner.mjs";
 
-export const PACKAGE_ID = "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-PRODUCTION-PACKET";
-export const RECONCILIATION_SCHEMA = "candidate-cycle3-reconciliation-evidence.v2";
+export const PACKAGE_ID =
+  "WP-G0.2-CURRENT-CYCLE-UNIFIED-RECONCILIATION-PRODUCTION-PACKET";
+export const RECONCILIATION_SCHEMA = "candidate-multi-cycle-reconciliation-evidence.v3";
 export const RECONCILIATION_PASS =
-  "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL";
+  "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL";
 export const MIGRATION_FAMILY = "candidate-episode-v1";
 export const MINIMUM_COMPARED_WRITES = 10_000;
 export const PAGE_SIZE = 500;
@@ -136,7 +137,7 @@ function parseValidationCycleId(value) {
 }
 
 function validateSourceReleaseWindows(windows, request) {
-  ensure(Array.isArray(windows) && windows.length === 3,
+  ensure(Array.isArray(windows) && windows.length >= 2,
     "source_release_windows_invalid");
   const releases = new Set();
   const validated = windows.map((window, index) => {
@@ -166,6 +167,8 @@ function validateSourceReleaseWindows(windows, request) {
     return { ...window, startedAtMs: startedAt, deadlineAtMs: deadlineAt };
   });
   const current = validated.at(-1);
+  ensure(parseValidationCycleId(current.migrationId).cycleNumber === validated.length,
+    "source_release_window_count_cycle_mismatch");
   ensure(current.migrationId === request.migrationId, "current_migration_lineage_mismatch");
   ensure(current.releaseId === request.releaseId, "current_release_lineage_mismatch");
   ensure(current.controlEpoch === request.authorityEpoch, "current_epoch_lineage_mismatch");
@@ -175,9 +178,9 @@ function validateSourceReleaseWindows(windows, request) {
 export function validateApprovalRequest(request, contract, { now = new Date() } = {}) {
   ensure(exactKeys(request, REQUEST_KEYS), "request_keys_mismatch");
   ensure(request.packageId === PACKAGE_ID, "request_package_mismatch");
-  ensure(parseValidationCycleId(request.migrationId).cycleNumber === 3,
-    "request_migration_not_cycle3");
-  ensure(request.lineageSchemaVersion === LINEAGE_SCHEMA, "lineage_schema_not_v2");
+  ensure(parseValidationCycleId(request.migrationId).cycleNumber >= 2,
+    "request_migration_not_multi_cycle");
+  ensure(request.lineageSchemaVersion === LINEAGE_SCHEMA, "lineage_schema_not_v3");
   ensure(request.lineageStatus === LINEAGE_PASS, "lineage_status_not_pass");
   ensure(/^[0-9a-f]{40}$/.test(request.approvedCommit ?? ""), "approved_commit_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.releaseId ?? ""), "release_id_invalid");
@@ -635,7 +638,8 @@ async function main() {
       packageId: PACKAGE_ID,
       mode,
       minimumComparedWrites: MINIMUM_COMPARED_WRITES,
-      requiredValidationCycles: 3,
+      minimumValidationCycles: 2,
+      exactControlCountDerivedFromMigrationId: true,
       requiredLineageSchema: LINEAGE_SCHEMA,
       productionMutationAllowed: false,
       automaticPhaseAdvance: false,

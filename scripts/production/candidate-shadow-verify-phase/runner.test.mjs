@@ -15,7 +15,7 @@ import {
 } from "./runner.mjs";
 
 const releaseId = "candidate-shadow-release-12345678";
-const migrationId = "candidate-episode-v1-cycle-3";
+const migrationId = "candidate-episode-v1-cycle-5";
 const reconciliationHash = `sha256:${"1".repeat(64)}`;
 const manifestHash = `sha256:${"2".repeat(64)}`;
 const productionEnvHash = "3".repeat(64);
@@ -169,8 +169,9 @@ test("builds an exact next-epoch manifest bound to reconciliation", () => {
 
 test("accepts only a complete zero-difference reconciliation", () => {
   const evidence = {
-    schemaVersion: "candidate-cycle3-reconciliation-evidence.v2",
-    status: "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    schemaVersion: "candidate-multi-cycle-reconciliation-evidence.v3",
+    status:
+      "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
     shadowVerifyTransitionExecuted: false,
@@ -197,7 +198,7 @@ test("accepts only a complete zero-difference reconciliation", () => {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 3,
+    sourceReleaseCount: 5,
     verificationMigrationId: migrationId,
     evidenceHash: reconciliationHash,
     violations: [],
@@ -213,7 +214,7 @@ test("accepts only a complete zero-difference reconciliation", () => {
     schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
   }), /reconciliation_status_invalid/u);
   assert.throws(() => validateReconciliationEvidence({ ...evidence, sourceReleaseCount: 2 }),
-    /reconciliation_result_invalid/u);
+    /reconciliation_cycle_count_mismatch/u);
 });
 
 test("accepts only a Web-only code release that retained Legacy authority", () => {

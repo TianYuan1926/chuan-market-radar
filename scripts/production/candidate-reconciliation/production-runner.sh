@@ -7,7 +7,7 @@ REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 RUNNER_MODE="${CANDIDATE_RECONCILIATION_MODE:-dry_run}"
 CONFIRMED="${CONFIRM_CANDIDATE_RECONCILIATION:-false}"
 RUNNER_MODULE="${SOURCE_ROOT}/scripts/production/candidate-reconciliation/runner.mjs"
-PREPARATION_CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2.json"
+PREPARATION_CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3.json"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
@@ -22,7 +22,7 @@ assert_private_file() {
     || fail "secure_file_hard_link_forbidden:$(basename "$1")"
 }
 
-echo "package=WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-PRODUCTION-PACKET"
+echo "package=WP-G0.2-CURRENT-CYCLE-UNIFIED-RECONCILIATION-PRODUCTION-PACKET"
 echo "mode=${RUNNER_MODE}"
 echo "production_mutation_allowed=false"
 
@@ -47,8 +47,8 @@ COMPOSE_FILE="${ROOT_DIR}/docker-compose.yml"
 
 [[ "${ROOT_DIR}" == "/home/ubuntu/apps/chuan-market-radar" \
   && "${SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-reconciliation/* \
-  && "${OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-* \
-  && "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle3-reconciliation-* \
+  && "${OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-current-cycle-reconciliation-* \
+  && "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-current-cycle-reconciliation-* \
   && "${AUTONOMY_TRUST_ROOT}" == "/home/ubuntu/.local/state/market-radar-autonomy" \
   && "${SECURE_ROOT}" != "${OPS_ROOT}" \
   && "${SECURE_ROOT}" != "${EVIDENCE_DIRECTORY}" \
@@ -146,7 +146,7 @@ release_on_failure() {
 }
 trap release_on_failure EXIT
 
-lease_event acquire --owner-id "WP-G0.2-CYCLE3-RECONCILIATION:$(jq -r '.autonomyAuthorization.approvalId' "${REQUEST_FILE}")"
+lease_event acquire --owner-id "WP-G0.2-CURRENT-CYCLE-RECONCILIATION:$(jq -r '.autonomyAuthorization.approvalId' "${REQUEST_FILE}")"
 LEASE_ACQUIRED=true
 lease_event checkpoint --checkpoint pre_read_only_query
 lease_event consume
@@ -174,9 +174,12 @@ set -e
 [[ "${RUNNER_EXIT}" -eq 0 ]] || fail "reconciliation_runner_failed:${RUNNER_EXIT}"
 assert_private_file "${OUTPUT_FILE}"
 [[ "$(jq -r '.status // empty' "${OUTPUT_FILE}")" \
-    == "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" \
+    == "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" \
   && "$(jq -r '.schemaVersion // empty' "${OUTPUT_FILE}")" \
-    == "candidate-cycle3-reconciliation-evidence.v2" \
+    == "candidate-multi-cycle-reconciliation-evidence.v3" \
+  && "$(jq -r '.sourceReleaseCount // 0' "${OUTPUT_FILE}")" -eq 5 \
+  && "$(jq -r '.verificationMigrationId // empty' "${OUTPUT_FILE}")" \
+    == "candidate-episode-v1-cycle-5" \
   && "$(jq -r '.comparedWrites // 0' "${OUTPUT_FILE}")" -ge 10000 \
   && "$(jq -r '.comparisonDifferences // -1' "${OUTPUT_FILE}")" -eq 0 \
   && "$(jq -r '.automaticPhaseAdvance // true' "${OUTPUT_FILE}")" == "false" \
@@ -186,6 +189,8 @@ assert_private_file "${OUTPUT_FILE}"
   && "$(jq -r '.canonicalWriteEnabled // true' "${OUTPUT_FILE}")" == "false" \
   && "$(jq -r '.reviewReadEnabled // true' "${OUTPUT_FILE}")" == "false" \
   && "$(jq -r '.g0Completed // true' "${OUTPUT_FILE}")" == "false" \
+  && "$(jq -r '.productionRankingInputsUsed // true' "${OUTPUT_FILE}")" == "false" \
+  && "$(jq -r '.futureOutcomeInputsUsed // true' "${OUTPUT_FILE}")" == "false" \
   && "$(jq -r '.databaseIdentity.currentRole // empty' "${OUTPUT_FILE}")" == "candidate_audit_role" \
   && "$(jq -r '.databaseIdentity.transactionReadOnly // false' "${OUTPUT_FILE}")" == "true" \
   && "$(jq -r '.databaseIdentity.transactionIsolation // empty' "${OUTPUT_FILE}")" == "repeatable read" ]] \
@@ -194,4 +199,4 @@ lease_event checkpoint --checkpoint reconciliation_pass_verified
 lease_event release --outcome PASS
 LEASE_RELEASED=true
 trap - EXIT
-printf 'PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL\n'
+printf 'PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL\n'

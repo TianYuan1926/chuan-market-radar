@@ -17,6 +17,8 @@ import {
 } from "../candidate-lineage/runner.mjs";
 import {
   PACKAGE_ID,
+  RECONCILIATION_PASS,
+  RECONCILIATION_SCHEMA,
   validateApprovalRequest as validateReconciliationApproval,
   validateLineageRequestBinding,
 } from "./runner.mjs";
@@ -25,9 +27,9 @@ export { PACKAGE_ID };
 
 const execFileAsync = promisify(execFile);
 export const EXECUTION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-production-packet.v2.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v3.json";
 export const PREPARATION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -112,6 +114,14 @@ function parseTimestamp(value, reason) {
   return parsed;
 }
 
+function parseCycleNumber(value, reason) {
+  const match = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u.exec(value ?? "");
+  ensure(match, reason);
+  const cycle = match[1] ? Number(match[1]) : 1;
+  ensure(cycle !== 1 || value === "candidate-episode-v1", reason);
+  return cycle;
+}
+
 async function artifact(root, files) {
   ensure(Array.isArray(files) && files.length > 0 && new Set(files).size === files.length,
     "artifact_files_invalid");
@@ -137,8 +147,9 @@ function validateLineageContract(contract, violations) {
   const boundary = contract.prerequisites;
   if (boundary?.lineageSchemaVersion !== LINEAGE_SCHEMA
       || boundary?.lineageStatus !== LINEAGE_PASS
-      || boundary?.migrationId !== "candidate-episode-v1-cycle-3"
-      || boundary?.sourceReleaseWindowsExact !== 3
+      || boundary?.migrationId !== "candidate-episode-v1-cycle-5"
+      || boundary?.sourceReleaseWindowsExact !== 5
+      || boundary?.sourceReleaseWindowsDerivedFromMigrationId !== true
       || boundary?.minimumActivationSamples !== 289
       || boundary?.minimumActivationHours !== 24
       || boundary?.maximumSampleGapSeconds !== 600
@@ -161,7 +172,8 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   const preparation = JSON.parse(preparationBytes);
   const runnerArtifact = await artifact(root, execution.runnerArtifact?.files ?? []);
   const violations = [];
-  if (execution.schemaVersion !== "wp-g0.2-cycle-3-unified-reconciliation-production-packet.v2"
+  if (execution.schemaVersion
+      !== "wp-g0.2-current-cycle-unified-reconciliation-production-packet.v3"
       || execution.packageId !== PACKAGE_ID
       || execution.productionAuthorization !== false
       || execution.productionExecuted !== false) violations.push("production_truth");
@@ -195,7 +207,8 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   if (execution.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || execution.databaseBoundary?.transactionReadOnly !== true
       || execution.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
-      || execution.databaseBoundary?.controlLineageExactCount !== 3
+      || execution.databaseBoundary?.controlLineageExactCount !== 5
+      || execution.databaseBoundary?.controlLineageCountDerivedFromMigrationId !== true
       || execution.databaseBoundary?.minimumComparedWrites !== 10_000
       || execution.databaseBoundary?.maximumDifferences !== 0
       || execution.databaseBoundary?.maximumUnresolvedItems !== 0
@@ -210,9 +223,8 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       violations.push(`runtime_mutation_boundary:${key}`);
     }
   }
-  if (execution.resultBoundary?.schemaVersion !== "candidate-cycle3-reconciliation-evidence.v2"
-      || execution.resultBoundary?.passStatus
-        !== "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+  if (execution.resultBoundary?.schemaVersion !== RECONCILIATION_SCHEMA
+      || execution.resultBoundary?.passStatus !== RECONCILIATION_PASS
       || execution.resultBoundary?.automaticPhaseAdvance !== false
       || execution.resultBoundary?.shadowVerifyTransitionExecuted !== false
       || execution.resultBoundary?.canonicalReadEnabled !== false
@@ -226,14 +238,15 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || execution.transport?.lineageProvenanceHashesRequired !== 3
       || execution.transport?.outputEvidencePreserved !== true) violations.push("transport_boundary");
   if (preparation.schemaVersion
-        !== "wp-g0.2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2"
+        !== "wp-g0.2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3"
       || preparation.packageId
-        !== "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-REFRESH-LOCAL-SUPERPACKAGE"
+        !== "WP-G0.2-CURRENT-CYCLE-UNIFIED-RECONCILIATION-REFRESH-LOCAL-SUPERPACKAGE"
       || preparation.productionAuthorization !== false
       || preparation.productionExecuted !== false
       || preparation.runnerArtifact?.sha256 === undefined
       || preparation.lineageBoundary?.schemaVersion !== LINEAGE_SCHEMA
-      || preparation.lineageBoundary?.sourceReleaseWindowsExact !== 3
+      || preparation.lineageBoundary?.sourceReleaseWindowsExact !== 5
+      || preparation.lineageBoundary?.sourceReleaseWindowsDerivedFromMigrationId !== true
       || preparation.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
       || preparation.comparison?.minimumComparedWrites !== 10_000
       || preparation.comparison?.outsideLineageMaximum !== 0
@@ -249,7 +262,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   ]) if (!execution.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
   return {
     status: violations.length === 0
-      ? "PASS_CYCLE3_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL"
+      ? "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL"
       : "FAIL",
     productionMutationAllowed: false,
     executionContractSha256: sha256(executionBytes),
@@ -331,7 +344,7 @@ function validateAuthorization(authorization, request, manifest, execution) {
   }
   ensure(authorization.imageOrMigrationSha256 === sha256(canonicalJson({
     lineageEvidenceSha256: request.lineageEvidenceSha256,
-    mode: "read-only-cycle3-reconciliation",
+    mode: "read-only-current-cycle-reconciliation",
     sourceReleaseWindows: request.sourceReleaseWindows,
   })), "authorization_read_only_binding_mismatch");
   ensure(authorization.composeSha256 === request.composeSha256,
@@ -385,7 +398,7 @@ export async function verifyStagedTransport(root, manifest) {
     "transportBundleSha256", "transportMethod",
   ];
   ensure(exactKeys(manifest, expectedKeys), "transport_manifest_keys_mismatch");
-  ensure(manifest.schemaVersion === "wp-g0.2-cycle3-reconciliation-transport.v2"
+  ensure(manifest.schemaVersion === "wp-g0.2-current-cycle-reconciliation-transport.v3"
       && manifest.packageId === PACKAGE_ID && manifest.approvalEligible === true,
   "transport_manifest_identity_invalid");
   ensure(manifest.containsSecrets === false && manifest.reproducibleArchive === true
@@ -413,7 +426,7 @@ export async function verifyStagedTransport(root, manifest) {
       `transport_file_mismatch:${file}`);
   }
   const contract = await validateProductionExecutionContract(root);
-  ensure(contract.status === "PASS_CYCLE3_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL",
+  ensure(contract.status === "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL",
     "transport_contract_not_pass");
   ensure(contract.executionContractSha256 === manifest.executionContractSha256
       && contract.preparationContractSha256 === manifest.preparationContractSha256
@@ -461,15 +474,15 @@ export async function validateProductionExecutionRequest(
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u.test(request.releaseId ?? ""),
     "request_release_invalid");
   assertLineagePath(request.lineageEvidencePath);
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-cycle3-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-current-cycle-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.stagingDirectory ?? ""), "request_staging_invalid");
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/reconciliation-ops\/wp-g0-2-cycle3-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/reconciliation-ops\/wp-g0-2-current-cycle-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.opsRoot ?? ""), "request_ops_invalid");
   ensure(/^\/home\/ubuntu\/\.local\/state\/market-radar-reconciliation\/[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.secureRoot ?? ""), "request_secure_invalid");
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle3-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-current-cycle-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.evidenceDirectory ?? ""), "request_evidence_invalid");
-  ensure(/^market-radar-cycle3-reconciliation-[a-z0-9][a-z0-9-]{7,48}$/u
+  ensure(/^market-radar-current-cycle-reconciliation-[a-z0-9][a-z0-9-]{7,48}$/u
     .test(request.runnerUnitName ?? ""), "request_unit_invalid");
   ensure(typeof request.operator === "string" && request.operator.length >= 2
       && /^[A-Za-z0-9._:/-]{8,128}$/u.test(request.approvalRef ?? ""),
@@ -502,23 +515,22 @@ export async function validateProductionExecutionRequest(
 }
 
 function validateSourceReleaseWindows(windows, runtime) {
-  ensure(Array.isArray(windows) && windows.length === 3,
+  ensure(Array.isArray(windows) && windows.length >= 2,
     "runtime_source_release_windows_invalid");
-  const migrations = [
-    "candidate-episode-v1",
-    "candidate-episode-v1-cycle-2",
-    "candidate-episode-v1-cycle-3",
-  ];
   for (const [index, window] of windows.entries()) {
     ensure(exactKeys(window, [
       "controlEpoch", "deadlineAt", "migrationId", "phase", "releaseId", "startedAt",
       "writeFrozen",
     ]), `runtime_release_window_shape_invalid:${index}`);
-    ensure(window.migrationId === migrations[index], `runtime_release_window_migration_invalid:${index}`);
+    const expectedMigration = index === 0
+      ? "candidate-episode-v1"
+      : `candidate-episode-v1-cycle-${index + 1}`;
+    ensure(window.migrationId === expectedMigration,
+      `runtime_release_window_migration_invalid:${index}`);
     ensure(parseTimestamp(window.deadlineAt, `runtime_release_window_deadline_invalid:${index}`)
         - parseTimestamp(window.startedAt, `runtime_release_window_start_invalid:${index}`)
         === 72 * 60 * 60_000, `runtime_release_window_duration_invalid:${index}`);
-    const current = index === 2;
+    const current = index === windows.length - 1;
     ensure(current
       ? window.phase === "shadow_capture" && window.writeFrozen === false
         && window.controlEpoch % 2 === 1
@@ -526,7 +538,9 @@ function validateSourceReleaseWindows(windows, runtime) {
         && window.controlEpoch >= 2 && window.controlEpoch % 2 === 0,
     `runtime_release_window_state_invalid:${index}`);
   }
-  const current = windows[2];
+  const current = windows.at(-1);
+  ensure(parseCycleNumber(current.migrationId, "runtime_current_cycle_invalid") === windows.length,
+    "runtime_release_window_count_cycle_mismatch");
   ensure(current.releaseId === runtime.releaseId
       && current.controlEpoch === runtime.authorityEpoch,
   "runtime_current_release_window_mismatch");
@@ -578,11 +592,11 @@ export function createProductionExecutionRequest({
     approvedRunnerArtifactSha256: execution.runnerArtifact.sha256,
     approvedProductionCommit: runtime.approvedProductionCommit,
     productionRoot: PRODUCTION_ROOT,
-    stagingDirectory: `/home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle3-reconciliation-${suffix}`,
-    opsRoot: `/home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-${suffix}`,
+    stagingDirectory: `/home/ubuntu/.cache/market-radar-ops/wp-g0-2-current-cycle-reconciliation-${suffix}`,
+    opsRoot: `/home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-current-cycle-reconciliation-${suffix}`,
     secureRoot: `/home/ubuntu/.local/state/market-radar-reconciliation/${suffix}`,
-    evidenceDirectory: `/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle3-reconciliation-${suffix}`,
-    runnerUnitName: `market-radar-cycle3-reconciliation-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
+    evidenceDirectory: `/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-current-cycle-reconciliation-${suffix}`,
+    runnerUnitName: `market-radar-current-cycle-reconciliation-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
     autonomyTrustRoot: TRUST_ROOT,
     postgresAdminEnvPath: runtime.postgresAdminEnvPath,
     lineageEvidencePath: runtime.lineageEvidencePath,
@@ -615,7 +629,7 @@ export function createProductionExecutionRequest({
       lineageSchemaVersion: LINEAGE_SCHEMA,
       lineageStatus: LINEAGE_PASS,
       migrationAllowed: false,
-      migrationId: runtime.sourceReleaseWindows[2].migrationId,
+      migrationId: runtime.sourceReleaseWindows.at(-1).migrationId,
       minimumComparedWrites: 10_000,
       operator: "codex-primary",
       packageId: PACKAGE_ID,
@@ -651,7 +665,7 @@ export function createProductionExecutionRequest({
     artifactSha256: execution.runnerArtifact.sha256,
     imageOrMigrationSha256: sha256(canonicalJson({
       lineageEvidenceSha256: runtime.lineageEvidenceSha256,
-      mode: "read-only-cycle3-reconciliation",
+      mode: "read-only-current-cycle-reconciliation",
       sourceReleaseWindows: runtime.sourceReleaseWindows,
     })),
     composeSha256: runtime.composeSha256,
@@ -745,10 +759,10 @@ export async function buildTransportBundle({
   root = process.cwd(), output, sourceIdentity = null, approvalEligible = true,
 }) {
   const contract = await validateProductionExecutionContract(root);
-  ensure(contract.status === "PASS_CYCLE3_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL",
+  ensure(contract.status === "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL",
     "contract_not_pass");
   if (approvalEligible) ensure(sourceIdentity?.sourceCommit, "source_identity_missing");
-  const temporaryRoot = await mkdtemp(join(tmpdir(), "candidate-cycle3-reconciliation-bundle-"));
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "candidate-current-cycle-reconciliation-bundle-"));
   const payloadRoot = join(temporaryRoot, "payload");
   try {
     for (const file of TRANSPORT_FILES) {
@@ -760,7 +774,7 @@ export async function buildTransportBundle({
     }
     const transport = await artifact(root, TRANSPORT_FILES);
     const manifest = {
-      schemaVersion: "wp-g0.2-cycle3-reconciliation-transport.v2",
+      schemaVersion: "wp-g0.2-current-cycle-reconciliation-transport.v3",
       packageId: PACKAGE_ID,
       sourceCommit: sourceIdentity?.sourceCommit ?? null,
       sourceTree: sourceIdentity?.sourceTree ?? null,
@@ -805,8 +819,8 @@ export async function buildTransportBundle({
     await writeFile(outputPath, bytes, { mode: 0o600 });
     return {
       status: approvalEligible
-        ? "PASS_FINAL_CYCLE3_RECONCILIATION_TRANSPORT_BUNDLE"
-        : "PASS_LOCAL_CYCLE3_RECONCILIATION_TRANSPORT_TEMPLATE",
+        ? "PASS_FINAL_CURRENT_CYCLE_RECONCILIATION_TRANSPORT_BUNDLE"
+        : "PASS_LOCAL_CURRENT_CYCLE_RECONCILIATION_TRANSPORT_TEMPLATE",
       output: outputPath,
       sha256: sha256(bytes),
       sizeBytes: bytes.length,
@@ -882,8 +896,8 @@ async function main() {
     .stdout.trim() === "";
   const sourceIdentity = clean ? await currentSourceIdentity(root) : null;
   const output = options.output ?? join(root,
-    "reports/wp-g0-2-cycle-3-unified-reconciliation-production-packet",
-    `candidate-cycle3-reconciliation-${sourceIdentity?.sourceCommit.slice(0, 12) ?? "precommit-template"}.tar.gz`);
+    "reports/wp-g0-2-current-cycle-unified-reconciliation-production-packet",
+    `candidate-current-cycle-reconciliation-${sourceIdentity?.sourceCommit.slice(0, 12) ?? "precommit-template"}.tar.gz`);
   process.stdout.write(`${JSON.stringify(await buildTransportBundle({
     root, output, sourceIdentity, approvalEligible: clean,
   }), null, 2)}\n`);

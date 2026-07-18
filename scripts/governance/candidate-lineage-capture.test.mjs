@@ -6,9 +6,9 @@ import {
   validateCandidateLineageCapture,
 } from "./candidate-lineage-capture.mjs";
 
-test("Cycle-3 unified lineage contract locks 24h, 10000 writes, and read-only boundaries", async () => {
+test("current-cycle lineage locks 24h, 10000 writes, and read-only boundaries", async () => {
   const result = await validateCandidateLineageCapture();
-  assert.equal(result.status, "PASS_LOCAL_CYCLE3_UNIFIED_LINEAGE_REFRESH");
+  assert.equal(result.status, "PASS_LOCAL_CURRENT_CYCLE_UNIFIED_LINEAGE_REFRESH");
   assert.equal(result.productionMutationAllowed, false);
   assert.deepEqual(result.violations, []);
 });
@@ -17,7 +17,7 @@ test("threshold, historical truth, and future-stage claims cannot be relaxed", a
   const contract = await loadCandidateLineageCaptureContract();
   const weakened = structuredClone(contract);
   weakened.unifiedObservationBoundary.minimumCompletedWrites = 9_999;
-  weakened.historicalTruthBoundary.historicalActivation197SamplesIsPass = true;
+  weakened.historicalTruthBoundary.historicalObservationCanBeRelabeled = true;
   weakened.outputBoundary.productionReconciliationExecuted = true;
   const result = await validateCandidateLineageCapture(weakened);
   assert.equal(result.status, "FAIL");

@@ -14,10 +14,10 @@ import {
 } from "../candidate-cycle-continuation/observation-runner.mjs";
 
 export const PACKAGE_ID =
-  "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE";
-export const LINEAGE_SCHEMA = "candidate-multi-cycle-lineage-evidence.v2";
+  "WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE";
+export const LINEAGE_SCHEMA = "candidate-multi-cycle-lineage-evidence.v3";
 export const LINEAGE_PASS =
-  "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH";
+  "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH";
 const MIGRATION_FAMILY = "candidate-episode-v1";
 const CYCLE_PATTERN = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE_PATTERN = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
@@ -45,8 +45,10 @@ const LINEAGE_KEYS = Object.freeze([
   "minimumCompletionAdvances", "minimumSamples", "minimumStabilitySeconds",
   "observationElapsedSeconds",
   "productionReconciliationExecuted", "schemaVersion", "shadowVerifyStarted",
-  "sourceReleaseWindows", "status", "thresholdsChanged", "unifiedEvidenceSha256",
+  "sourceReleaseCount", "sourceReleaseWindows", "status", "thresholdsChanged",
+  "unifiedEvidenceSha256",
   "unifiedSamplesSha256", "unresolvedMaximum", "unresolvedOutbox",
+  "validationCycle",
 ]);
 
 export class CandidateLineageError extends Error {
@@ -119,7 +121,7 @@ function validateExpected(expected, label) {
 function evaluateUnified(input) {
   exactKeys(input, ["expected", "final", "samples"], "unified_input_shape_invalid");
   const expected = validateExpected(input.expected, "unified");
-  ensure(parseCycle(expected.migrationId) === 3, "unified_cycle_not_cycle3");
+  ensure(parseCycle(expected.migrationId) >= 2, "unified_cycle_not_multi_cycle");
   const recomputed = evaluateCycleObservation(input.samples, {
     commit: expected.commit,
     migrationId: expected.migrationId,
@@ -147,7 +149,7 @@ function evaluateUnified(input) {
 function validateDatabase(database) {
   exactKeys(database, ["controls", "releaseCompletedWrites", "statusCounts"],
     "database_input_shape_invalid");
-  ensure(Array.isArray(database.controls) && database.controls.length === 3,
+  ensure(Array.isArray(database.controls) && database.controls.length >= 2,
     "database_controls_invalid");
   ensure(Array.isArray(database.releaseCompletedWrites)
       && database.releaseCompletedWrites.length === database.controls.length,
@@ -156,6 +158,9 @@ function validateDatabase(database) {
   for (const key of STATUS_COUNT_KEYS) integer(database.statusCounts[key], `database_status_count_invalid:${key}`);
 
   const releases = new Set();
+  const validationCycle = parseCycle(database.controls.at(-1)?.migrationId);
+  ensure(database.controls.length === validationCycle,
+    "database_control_count_cycle_mismatch");
   const controls = database.controls.map((control, index) => {
     exactKeys(control, CONTROL_KEYS, `database_control_shape_invalid:${index}`);
     ensure(parseCycle(control.migrationId) === index + 1,
@@ -197,7 +202,12 @@ function validateDatabase(database) {
     "pending", "claimed", "retryWait", "unresolvedQuarantine", "unresolvedTotal",
     "outsideLineage",
   ]) ensure(database.statusCounts[key] === 0, `database_${key}_not_zero`);
-  return { controls, releaseCompletedTotal, statusCounts: database.statusCounts };
+  return {
+    controls,
+    releaseCompletedTotal,
+    statusCounts: database.statusCounts,
+    validationCycle,
+  };
 }
 
 function sourceReleaseWindows(controls) {
@@ -220,7 +230,10 @@ export function validateCandidateLineageEvidence(lineage) {
     ensure(HASH_PATTERN.test(lineage[key] ?? ""), `lineage_hash_invalid:${key}`);
   }
   ensure(Array.isArray(lineage.sourceReleaseWindows)
-      && lineage.sourceReleaseWindows.length === 3, "lineage_windows_invalid");
+      && lineage.sourceReleaseWindows.length >= 2, "lineage_windows_invalid");
+  const validationCycle = parseCycle(lineage.sourceReleaseWindows.at(-1)?.migrationId);
+  ensure(lineage.sourceReleaseWindows.length === validationCycle,
+    "lineage_window_count_cycle_mismatch");
   const seen = new Set();
   for (const [index, window] of lineage.sourceReleaseWindows.entries()) {
     exactKeys(window, [
@@ -251,6 +264,9 @@ export function validateCandidateLineageEvidence(lineage) {
       && lineage.currentAuthorityEpoch === current.controlEpoch
       && lineage.currentCycleStartedAt === current.startedAt,
   "lineage_current_identity_mismatch");
+  ensure(lineage.validationCycle === validationCycle
+      && lineage.sourceReleaseCount === validationCycle,
+  "lineage_cycle_count_identity_mismatch");
   ensure(Number.isSafeInteger(lineage.completedWrites)
       && lineage.completedWrites >= MINIMUM_COMPARED_WRITES
       && lineage.minimumComparedWrites === MINIMUM_COMPARED_WRITES
@@ -305,6 +321,8 @@ export function buildCandidateLineageEvidence(input) {
     unifiedSamplesSha256: sampleSetHash(unified.samples),
     controlSnapshotSha256: evidenceHash(input.database),
     sourceReleaseWindows: windows,
+    sourceReleaseCount: database.validationCycle,
+    validationCycle: database.validationCycle,
     completedWrites: unified.final.completedWrites,
     unresolvedOutbox: database.statusCounts.unresolvedTotal,
     observationElapsedSeconds: unified.final.elapsedSeconds,

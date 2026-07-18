@@ -15,13 +15,17 @@ import {
   LINEAGE_SCHEMA,
   validateCandidateLineageEvidence,
 } from "../candidate-lineage/runner.mjs";
+import {
+  RECONCILIATION_PASS,
+  RECONCILIATION_SCHEMA,
+} from "../candidate-reconciliation/runner.mjs";
 
 const execFileAsync = promisify(execFile);
 
 export const PACKAGE_ID =
   "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE";
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-3-shadow-verify-code-authorization-production-release.v2.json";
+  "docs/governance/wp-g0-2-current-cycle-shadow-verify-code-authorization-production-release.v3.json";
 export const BASELINE_COMMIT = "54837d03d0fb91b33cf9919bd25ab7aaad60dd7e";
 export const TARGET_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
 export const TARGET_TREE = "a02f989b1be653d4524d1b6dd73995dabeb73f3d";
@@ -59,6 +63,7 @@ export const TRANSPORT_FILES = Object.freeze([
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
   "scripts/production/candidate-lineage/runner.mjs",
+  "scripts/production/candidate-reconciliation/runner.mjs",
   "scripts/production/candidate-shadow-verify-release/bundle.mjs",
   "scripts/production/candidate-shadow-verify-release/production-entrypoint.sh",
   "scripts/production/candidate-shadow-verify-release/production-runner.sh",
@@ -168,7 +173,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-cycle-3-shadow-verify-code-authorization-production-release.v2",
+    === "wp-g0.2-current-cycle-shadow-verify-code-authorization-production-release.v3",
   "contract_schema_invalid");
   ensure(contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "reversible_service_release"
@@ -192,11 +197,11 @@ export function validateContract(contract) {
   const prerequisites = contract.prerequisites ?? {};
   ensure(prerequisites.lineageSchema === LINEAGE_SCHEMA
       && prerequisites.lineageStatus === LINEAGE_PASS
-      && prerequisites.reconciliationSchema === "candidate-cycle3-reconciliation-evidence.v2"
-      && prerequisites.reconciliationStatus
-      === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
-      && prerequisites.sourceReleaseWindowsExact === 3
-      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-3"
+      && prerequisites.reconciliationSchema === RECONCILIATION_SCHEMA
+      && prerequisites.reconciliationStatus === RECONCILIATION_PASS
+      && prerequisites.sourceReleaseWindowsExact === 5
+      && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-5"
       && prerequisites.minimumComparedWrites === 10_000
       && prerequisites.comparisonDifferences === 0
       && prerequisites.duplicateOutboxMappings === 0
@@ -245,15 +250,16 @@ export function validateContract(contract) {
       && autonomy.fencingTokenRequired === true
       && autonomy.leaseCheckBeforeEveryMutation === true
       && autonomy.automaticRollbackAllowed === true, "autonomy_boundary_invalid");
-  ensure(contract.runnerArtifact?.fileCount === 4
-      && contract.runnerArtifact?.files?.length === 4
+  ensure(contract.runnerArtifact?.fileCount === 5
+      && contract.runnerArtifact?.files?.length === 5
       && HASH.test(contract.runnerArtifact?.sha256 ?? ""), "runner_artifact_contract_invalid");
   for (const item of [
     "database_ddl_or_dml", "redis_mutation", "environment_mutation", "compose_mutation",
     "candidate_worker_mutation", "scanner_worker_mutation", "other_service_mutation",
     "phase_transition", "read_authority_manifest_write", "migration",
     "feature_flag_change", "canonical_cutover", "production_ranking_change",
-    "future_outcome_input", "rr_threshold_change", "formal_backtest",
+    "future_outcome_input", "rr_threshold_change", "legacy_lineage_schema_input",
+    "legacy_reconciliation_schema_input", "incomplete_window_lineage", "formal_backtest",
   ]) ensure(contract.forbidden?.includes(item), `forbidden_boundary_missing:${item}`);
   return contract;
 }
@@ -291,7 +297,9 @@ function validateLineage(lineage) {
   ensure(validated.schemaVersion === LINEAGE_SCHEMA && validated.status === LINEAGE_PASS,
     "lineage_status_invalid");
   const current = lineage.sourceReleaseWindows.at(-1);
-  ensure(cycle(current.migrationId) === 3
+  ensure(cycle(current.migrationId) === lineage.sourceReleaseWindows.length
+      && lineage.sourceReleaseCount === lineage.validationCycle
+      && lineage.validationCycle === lineage.sourceReleaseWindows.length
       && lineage.currentMigrationId === current.migrationId
       && lineage.currentReleaseId === current.releaseId
       && lineage.currentAuthorityEpoch === current.controlEpoch,
@@ -300,9 +308,8 @@ function validateLineage(lineage) {
 }
 
 function validateReconciliation(reconciliation, lineage, lineageEvidenceSha256) {
-  ensure(reconciliation?.schemaVersion === "candidate-cycle3-reconciliation-evidence.v2"
-      && reconciliation.status
-      === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+  ensure(reconciliation?.schemaVersion === RECONCILIATION_SCHEMA
+      && reconciliation.status === RECONCILIATION_PASS,
   "reconciliation_status_invalid");
   ensure(reconciliation.automaticPhaseAdvance === false
       && reconciliation.phaseTransitionExecuted === false
@@ -332,7 +339,7 @@ function validateReconciliation(reconciliation, lineage, lineageEvidenceSha256) 
       && reconciliation.duplicateEventMappings === 0
       && Number.isSafeInteger(reconciliation.resolvedQuarantineExclusions)
       && reconciliation.resolvedQuarantineExclusions >= 0
-      && reconciliation.sourceReleaseCount === 3
+      && reconciliation.sourceReleaseCount === lineage.validationCycle
       && reconciliation.verificationMigrationId === lineage.currentMigrationId
       && /^sha256:[0-9a-f]{64}$/u.test(reconciliation.evidenceHash ?? "")
       && Array.isArray(reconciliation.violations) && reconciliation.violations.length === 0

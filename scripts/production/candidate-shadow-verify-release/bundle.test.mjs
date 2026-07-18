@@ -25,8 +25,8 @@ const WORKER_IMAGE = `sha256:${"2".repeat(64)}`;
 
 function lineage() {
   return {
-    schemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
-    status: "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+    schemaVersion: "candidate-multi-cycle-lineage-evidence.v3",
+    status: "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
     unifiedEvidenceSha256: "1".repeat(64),
     unifiedSamplesSha256: "2".repeat(64),
     controlSnapshotSha256: "7".repeat(64),
@@ -49,19 +49,21 @@ function lineage() {
     shadowVerifyStarted: false,
     canonicalAuthorityChanged: false,
     g0Completed: false,
-    currentMigrationId: "candidate-episode-v1-cycle-3",
-    currentReleaseId: "candidate-shadow-cycle-three",
+    currentMigrationId: "candidate-episode-v1-cycle-5",
+    currentReleaseId: "candidate-shadow-cycle-five",
     currentAuthorityEpoch: 1,
     currentCycleStartedAt: "2026-07-18T00:00:00.000Z",
+    sourceReleaseCount: 5,
+    validationCycle: 5,
     sourceReleaseWindows: [
       {
         migrationId: "candidate-episode-v1",
         releaseId: "candidate-shadow-cycle-one",
-        controlEpoch: 6,
+        controlEpoch: 2,
         phase: "legacy",
         writeFrozen: true,
-        startedAt: "2026-07-12T00:00:00.000Z",
-        deadlineAt: "2026-07-15T00:00:00.000Z",
+        startedAt: "2026-07-06T00:00:00.000Z",
+        deadlineAt: "2026-07-09T00:00:00.000Z",
       },
       {
         migrationId: "candidate-episode-v1-cycle-2",
@@ -69,12 +71,30 @@ function lineage() {
         controlEpoch: 2,
         phase: "legacy",
         writeFrozen: true,
-        startedAt: "2026-07-15T00:00:00.000Z",
-        deadlineAt: "2026-07-18T00:00:00.000Z",
+        startedAt: "2026-07-09T00:00:00.000Z",
+        deadlineAt: "2026-07-12T00:00:00.000Z",
       },
       {
         migrationId: "candidate-episode-v1-cycle-3",
         releaseId: "candidate-shadow-cycle-three",
+        controlEpoch: 2,
+        phase: "legacy",
+        writeFrozen: true,
+        startedAt: "2026-07-12T00:00:00.000Z",
+        deadlineAt: "2026-07-15T00:00:00.000Z",
+      },
+      {
+        migrationId: "candidate-episode-v1-cycle-4",
+        releaseId: "candidate-shadow-cycle-four",
+        controlEpoch: 2,
+        phase: "legacy",
+        writeFrozen: true,
+        startedAt: "2026-07-15T00:00:00.000Z",
+        deadlineAt: "2026-07-18T00:00:00.000Z",
+      },
+      {
+        migrationId: "candidate-episode-v1-cycle-5",
+        releaseId: "candidate-shadow-cycle-five",
         controlEpoch: 1,
         phase: "shadow_capture",
         writeFrozen: false,
@@ -87,8 +107,9 @@ function lineage() {
 
 function reconciliation(lineageFileSha256) {
   return {
-    schemaVersion: "candidate-cycle3-reconciliation-evidence.v2",
-    status: "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    schemaVersion: "candidate-multi-cycle-reconciliation-evidence.v3",
+    status:
+      "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
     shadowVerifyTransitionExecuted: false,
@@ -115,8 +136,8 @@ function reconciliation(lineageFileSha256) {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 3,
-    verificationMigrationId: "candidate-episode-v1-cycle-3",
+    sourceReleaseCount: 5,
+    verificationMigrationId: "candidate-episode-v1-cycle-5",
     evidenceHash: `sha256:${"8".repeat(64)}`,
     violations: [],
     differenceSample: [],
@@ -163,8 +184,8 @@ function runtime(evidence) {
     baseEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env",
     baseEnvSha256: HASH,
     candidateAuthorityEpoch: 1,
-    candidateMigrationId: "candidate-episode-v1-cycle-3",
-    candidateReleaseId: "candidate-shadow-cycle-three",
+    candidateMigrationId: "candidate-episode-v1-cycle-5",
+    candidateReleaseId: "candidate-shadow-cycle-five",
     candidateWorkerContainerId: "a".repeat(12),
     candidateWorkerImageId: WORKER_IMAGE,
     composeSha256: HASH,
@@ -264,7 +285,7 @@ test("exact standing authorization binds private Lineage and zero-difference Rec
   }
 });
 
-test("legacy v1 and two-window evidence cannot authorize the Cycle-3 release", async () => {
+test("legacy schemas and incomplete windows cannot authorize the current-cycle release", async () => {
   const outputRoot = await mkdtemp(join(tmpdir(), "shadow-verify-release-v1-rejection-"));
   try {
     const bundle = await buildTransportBundle({
@@ -311,7 +332,7 @@ test("legacy v1 and two-window evidence cannot authorize the Cycle-3 release", a
             manifest: bundle.manifest, request, now,
             evidenceRoot: evidence.evidenceRoot,
           }),
-          /lineage_evidence_status_invalid|lineage_windows_invalid|reconciliation_status_invalid/u,
+          /lineage_evidence_status_invalid|lineage_windows_invalid|lineage_evidence_shape_invalid|lineage_window_count_cycle_mismatch|reconciliation_status_invalid/u,
           candidate.name,
         );
       } finally {

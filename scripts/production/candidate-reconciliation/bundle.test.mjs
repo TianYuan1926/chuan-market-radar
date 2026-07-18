@@ -22,29 +22,47 @@ import { LINEAGE_PASS, LINEAGE_SCHEMA } from "../candidate-lineage/runner.mjs";
 const root = process.cwd();
 const sourceReleaseWindows = [
   {
-    controlEpoch: 6,
-    deadlineAt: "2026-07-15T00:00:00.000Z",
+    controlEpoch: 2,
+    deadlineAt: "2026-07-09T00:00:00.000Z",
     migrationId: "candidate-episode-v1",
     phase: "legacy",
     releaseId: "candidate-shadow-release-cycle-1",
+    startedAt: "2026-07-06T00:00:00.000Z",
+    writeFrozen: true,
+  },
+  {
+    controlEpoch: 2,
+    deadlineAt: "2026-07-12T00:00:00.000Z",
+    migrationId: "candidate-episode-v1-cycle-2",
+    phase: "legacy",
+    releaseId: "candidate-shadow-release-cycle-2",
+    startedAt: "2026-07-09T00:00:00.000Z",
+    writeFrozen: true,
+  },
+  {
+    controlEpoch: 2,
+    deadlineAt: "2026-07-15T00:00:00.000Z",
+    migrationId: "candidate-episode-v1-cycle-3",
+    phase: "legacy",
+    releaseId: "candidate-shadow-release-cycle-3",
     startedAt: "2026-07-12T00:00:00.000Z",
     writeFrozen: true,
   },
   {
     controlEpoch: 2,
     deadlineAt: "2026-07-18T00:00:00.000Z",
-    migrationId: "candidate-episode-v1-cycle-2",
+    migrationId: "candidate-episode-v1-cycle-4",
     phase: "legacy",
-    releaseId: "candidate-shadow-release-cycle-2",
+    releaseId: "candidate-shadow-release-cycle-4",
     startedAt: "2026-07-15T00:00:00.000Z",
     writeFrozen: true,
   },
   {
     controlEpoch: 1,
     deadlineAt: "2026-07-21T00:00:00.000Z",
-    migrationId: "candidate-episode-v1-cycle-3",
+    migrationId: "candidate-episode-v1-cycle-5",
     phase: "shadow_capture",
-    releaseId: "candidate-shadow-release-cycle-3",
+    releaseId: "candidate-shadow-release-cycle-5",
     startedAt: "2026-07-18T00:00:00.000Z",
     writeFrozen: false,
   },
@@ -57,9 +75,9 @@ const lineage = {
   completionAdvances: 8,
   controlSnapshotSha256: "c".repeat(64),
   currentAuthorityEpoch: 1,
-  currentMigrationId: sourceReleaseWindows[2].migrationId,
-  currentReleaseId: sourceReleaseWindows[2].releaseId,
-  currentCycleStartedAt: sourceReleaseWindows[2].startedAt,
+  currentMigrationId: sourceReleaseWindows[4].migrationId,
+  currentReleaseId: sourceReleaseWindows[4].releaseId,
+  currentCycleStartedAt: sourceReleaseWindows[4].startedAt,
   g0Completed: false,
   maximumSampleGapSeconds: 600,
   minimumActivationHours: 24,
@@ -72,6 +90,7 @@ const lineage = {
   productionReconciliationExecuted: false,
   schemaVersion: LINEAGE_SCHEMA,
   shadowVerifyStarted: false,
+  sourceReleaseCount: 5,
   sourceReleaseWindows,
   status: LINEAGE_PASS,
   thresholdsChanged: false,
@@ -79,6 +98,7 @@ const lineage = {
   unifiedSamplesSha256: "b".repeat(64),
   unresolvedMaximum: 0,
   unresolvedOutbox: 0,
+  validationCycle: 5,
 };
 const runtime = {
   approvedProductionCommit: "1".repeat(40),
@@ -90,7 +110,7 @@ const runtime = {
   postgresAdminEnvPath:
     "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
   productionEnvSha256: "4".repeat(64),
-  releaseId: sourceReleaseWindows[2].releaseId,
+  releaseId: sourceReleaseWindows[4].releaseId,
   sourceReleaseWindows,
   webImageId: `sha256:${"5".repeat(64)}`,
 };
@@ -117,16 +137,17 @@ function manifest(execution) {
   };
 }
 
-test("v2 production packet is locked to nine runner files and no production mutation", async () => {
+test("v3 production packet is locked to nine runner files and no production mutation", async () => {
   const result = await validateProductionExecutionContract(root);
-  assert.equal(result.status, "PASS_CYCLE3_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL");
+  assert.equal(result.status,
+    "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL");
   assert.equal(result.productionMutationAllowed, false);
   assert.deepEqual(result.violations, []);
   assert.equal(TRANSPORT_FILES.length, 11);
   assert.equal(TRANSPORT_FILES.some((file) => file.includes("candidate-activation")), false);
 });
 
-test("Lineage v2 binds exact Cycle-3 identity and all three source windows", () => {
+test("Lineage v3 binds exact current identity and all five source windows", () => {
   const request = {
     authorityEpoch: runtime.authorityEpoch,
     lineageSchemaVersion: LINEAGE_SCHEMA,
@@ -164,7 +185,7 @@ test("request generator contains one Lineage input and exact read-only inner app
   assert.equal(request.packageId, PACKAGE_ID);
   assert.equal(request.lineageSchemaVersion, LINEAGE_SCHEMA);
   assert.equal(request.lineageStatus, LINEAGE_PASS);
-  assert.equal(request.reconciliationApproval.sourceReleaseWindows.length, 3);
+  assert.equal(request.reconciliationApproval.sourceReleaseWindows.length, 5);
   assert.equal(request.reconciliationApproval.shadowVerifyTransitionAllowed, false);
   assert.equal(request.services.length, 0);
   assert.equal(Object.keys(request).some((key) => key.toLowerCase().includes("activation")), false);
@@ -231,7 +252,7 @@ test("redacted transport template is byte reproducible", async () => {
   try {
     const a = await buildTransportBundle({ root, output: first, approvalEligible: false });
     const b = await buildTransportBundle({ root, output: second, approvalEligible: false });
-    assert.equal(a.status, "PASS_LOCAL_CYCLE3_RECONCILIATION_TRANSPORT_TEMPLATE");
+    assert.equal(a.status, "PASS_LOCAL_CURRENT_CYCLE_RECONCILIATION_TRANSPORT_TEMPLATE");
     assert.equal(a.sha256, b.sha256);
     assert.equal(a.sha256, sha256(await readFile(first)));
     assert.equal(a.manifest.containsSecrets, false);

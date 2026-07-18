@@ -12,8 +12,8 @@ import {
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-3",
-  releaseId: "candidate-shadow-lineage-cycle-3",
+  migrationId: "candidate-episode-v1-cycle-5",
+  releaseId: "candidate-shadow-lineage-cycle-5",
 };
 
 function completedAt(index) {
@@ -61,6 +61,8 @@ function unifiedSample(index) {
         blockers: [],
         warnings: [],
         metrics: {
+          outboxPendingTotal: 0,
+          outboxClaimedTotal: 0,
           outboxRetryWaitTotal: 0,
           outboxQuarantinedTotal: 0,
           unresolvedQuarantineTotal: 0,
@@ -85,20 +87,38 @@ function fixture() {
     database: {
       controls: [
         {
-          authorityEpoch: 6,
-          deadlineAt: "2026-07-14T00:00:00.000Z",
+          authorityEpoch: 2,
+          deadlineAt: "2026-07-06T00:00:00.000Z",
           migrationId: "candidate-episode-v1",
           phase: "legacy",
           releaseId: "candidate-shadow-lineage-cycle-1",
-          startedAt: "2026-07-11T00:00:00.000Z",
+          startedAt: "2026-07-03T00:00:00.000Z",
+          writeFrozen: true,
+        },
+        {
+          authorityEpoch: 2,
+          deadlineAt: "2026-07-09T00:00:00.000Z",
+          migrationId: "candidate-episode-v1-cycle-2",
+          phase: "legacy",
+          releaseId: "candidate-shadow-lineage-cycle-2",
+          startedAt: "2026-07-06T00:00:00.000Z",
+          writeFrozen: true,
+        },
+        {
+          authorityEpoch: 2,
+          deadlineAt: "2026-07-12T00:00:00.000Z",
+          migrationId: "candidate-episode-v1-cycle-3",
+          phase: "legacy",
+          releaseId: "candidate-shadow-lineage-cycle-3",
+          startedAt: "2026-07-09T00:00:00.000Z",
           writeFrozen: true,
         },
         {
           authorityEpoch: 2,
           deadlineAt: "2026-07-15T00:00:00.000Z",
-          migrationId: "candidate-episode-v1-cycle-2",
+          migrationId: "candidate-episode-v1-cycle-4",
           phase: "legacy",
-          releaseId: "candidate-shadow-lineage-cycle-2",
+          releaseId: "candidate-shadow-lineage-cycle-4",
           startedAt: "2026-07-12T00:00:00.000Z",
           writeFrozen: true,
         },
@@ -113,9 +133,11 @@ function fixture() {
         },
       ],
       releaseCompletedWrites: [
-        { completedWrites: 2_957, releaseId: "candidate-shadow-lineage-cycle-1" },
+        { completedWrites: 2_505, releaseId: "candidate-shadow-lineage-cycle-1" },
         { completedWrites: 0, releaseId: "candidate-shadow-lineage-cycle-2" },
-        { completedWrites: 7_063, releaseId: unifiedExpected.releaseId },
+        { completedWrites: 2_505, releaseId: "candidate-shadow-lineage-cycle-3" },
+        { completedWrites: 0, releaseId: "candidate-shadow-lineage-cycle-4" },
+        { completedWrites: 5_010, releaseId: unifiedExpected.releaseId },
       ],
       statusCounts: {
         claimed: 0,
@@ -131,7 +153,7 @@ function fixture() {
   };
 }
 
-test("lineage evidence is rebuilt from one Cycle-3 observation and all database controls", () => {
+test("lineage evidence is rebuilt from the current observation and all adjacent controls", () => {
   const result = buildCandidateLineageEvidence(fixture());
   assert.equal(result.status, LINEAGE_PASS);
   assert.equal(result.completedWrites, 10_020);
@@ -140,16 +162,20 @@ test("lineage evidence is rebuilt from one Cycle-3 observation and all database 
   assert.equal(result.maximumSampleGapSeconds, 600);
   assert.equal(result.minimumCompletionAdvances, 2);
   assert.equal(result.unresolvedMaximum, 0);
-  assert.equal(result.sourceReleaseWindows.length, 3);
+  assert.equal(result.sourceReleaseWindows.length, 5);
+  assert.equal(result.sourceReleaseCount, 5);
+  assert.equal(result.validationCycle, 5);
   assert.deepEqual(result.sourceReleaseWindows.map((window) => ({
     cycle: window.migrationId,
     epoch: window.controlEpoch,
     phase: window.phase,
     frozen: window.writeFrozen,
   })), [
-    { cycle: "candidate-episode-v1", epoch: 6, phase: "legacy", frozen: true },
+    { cycle: "candidate-episode-v1", epoch: 2, phase: "legacy", frozen: true },
     { cycle: "candidate-episode-v1-cycle-2", epoch: 2, phase: "legacy", frozen: true },
-    { cycle: "candidate-episode-v1-cycle-3", epoch: 1,
+    { cycle: "candidate-episode-v1-cycle-3", epoch: 2, phase: "legacy", frozen: true },
+    { cycle: "candidate-episode-v1-cycle-4", epoch: 2, phase: "legacy", frozen: true },
+    { cycle: "candidate-episode-v1-cycle-5", epoch: 1,
       phase: "shadow_capture", frozen: false },
   ]);
   assert.equal(validateCandidateLineageEvidence(result), result);
@@ -158,13 +184,14 @@ test("lineage evidence is rebuilt from one Cycle-3 observation and all database 
   ]) assert.match(result[key], /^[0-9a-f]{64}$/u);
 });
 
-test("only a recomputed v2 Cycle-3 PASS can become unified lineage evidence", () => {
+test("only a recomputed current multi-cycle PASS can become lineage evidence", () => {
   const wrongCycle = fixture();
   wrongCycle.unified.expected = {
     ...wrongCycle.unified.expected,
-    migrationId: "candidate-episode-v1-cycle-2",
+    migrationId: "candidate-episode-v1",
   };
-  assert.throws(() => buildCandidateLineageEvidence(wrongCycle), /unified_cycle_not_cycle3/u);
+  assert.throws(() => buildCandidateLineageEvidence(wrongCycle),
+    /unified_cycle_not_multi_cycle/u);
 
   const tampered = fixture();
   tampered.unified.final.completedWrites = 99_999;
@@ -178,11 +205,12 @@ test("only a recomputed v2 Cycle-3 PASS can become unified lineage evidence", ()
     /sample_schema_invalid/u);
 });
 
-test("three-control lineage, frozen history, and zero unresolved state fail closed", () => {
+test("cycle-derived lineage count, frozen history, and zero unresolved state fail closed", () => {
   const missing = fixture();
   missing.database.controls.shift();
   missing.database.releaseCompletedWrites.shift();
-  assert.throws(() => buildCandidateLineageEvidence(missing), /database_controls_invalid/u);
+  assert.throws(() => buildCandidateLineageEvidence(missing),
+    /database_control_count_cycle_mismatch/u);
 
   const relabeledHistory = fixture();
   relabeledHistory.database.controls[1].phase = "shadow_capture";

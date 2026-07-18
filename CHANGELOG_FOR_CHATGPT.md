@@ -2,6 +2,48 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Current-Cycle Lineage / Reconciliation / Shadow Verify 依赖刷新 v3
+
+### 本轮目标
+
+移除 Cycle-3 固定依赖，把 Lineage、Reconciliation 和 Shadow Verify 的证据链刷新为当前 Cycle-5 精确五窗口 v3 合同，同时保留历史 v2 证据且不执行第二条生产 WIP。
+
+### 修改范围
+
+- 更新 Lineage、Reconciliation 的本地 runner、生产只读 Packet、测试和 PostgreSQL 16 演练。
+- 更新 Shadow Verify code authorization、Web release 与 phase transition 对 v3 证据的依赖校验。
+- 新增 7 份 current-cycle v3 JSON 合同和中文工程说明。
+- 更新项目 Context、自治状态和交付报告。
+- 未修改 frontend、业务 API、scan/analysis/strategy/backtest、RR、migration、Redis、worker 业务逻辑、Caddy、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的数据真值：后续 Shadow Verify 必须建立在当前 Cycle 的完整多轮血缘和零差异逐行对账上。不生成信号，不改变生产排序，不创建交易计划。
+
+### 测试结果
+
+- 联动定向测试 71/71 PASS。
+- Lineage PostgreSQL 16：5 controls、10,020 writes、只读/审计角色/边界拒绝 PASS，未连接生产。
+- Reconciliation PostgreSQL 16：10,020 comparisons、difference=0、只读/最小权限 PASS，未连接生产。
+- typecheck、lint、build、Golden 16/16 PASS。
+- market 1,027/0/7、workers 23/23、historical 4/4 PASS。
+- forbidden-files、secret-patterns、security-check 和 Autonomy 31/31 PASS。
+- formal 未运行且禁止。
+
+### 是否部署
+
+未部署，未连接生产数据库，未发布 Web，未切换 Candidate phase。Cycle-5 observer 保持唯一生产 WIP。
+
+### 风险与遗留问题
+
+- Cycle-5 双门禁尚未 PASS，生产 Lineage、Reconciliation 与 Shadow Verify 继续被阻塞。
+- 历史 Shadow Verify release `54837d03... -> eb48827b...` 已与生产 `94b6d415...` 漂移，不得执行，未来必须重新绑定。
+- G0 主步骤仍为 7，系统仍不能支撑实战。
+
+### 下一轮建议
+
+只完成本包 clean commit、push 和提交绑定自治门禁；生产车道继续等待 Cycle-5 双门禁。
+
 ## 2026-07-18 / WP-G0.2 Legacy Pending Drain 第四次失败与 jq 合同门修复
 
 ### 本轮目标

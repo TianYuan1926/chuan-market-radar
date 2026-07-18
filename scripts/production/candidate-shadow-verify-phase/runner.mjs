@@ -6,6 +6,11 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import {
+  RECONCILIATION_PASS,
+  RECONCILIATION_SCHEMA,
+} from "../candidate-reconciliation/runner.mjs";
+
 export const PACKAGE_ID =
   "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION";
 export const MANIFEST_SCHEMA = "candidate-read-authority-manifest.v1";
@@ -86,6 +91,12 @@ function assertMigration(value) {
   return value;
 }
 
+function migrationCycle(value) {
+  assertMigration(value);
+  const match = MIGRATION.exec(value);
+  return match?.[1] ? Number(match[1]) : 1;
+}
+
 function assertRelease(value) {
   ensure(RELEASE.test(value ?? ""), "candidate_release_id_invalid");
   return value;
@@ -161,9 +172,8 @@ export function validateReconciliationEvidence(evidence) {
   ensure(evidence && typeof evidence === "object" && !Array.isArray(evidence)
       && Object.keys(evidence).sort().join("\n") === [...RECONCILIATION_KEYS].sort().join("\n"),
   "reconciliation_shape_invalid");
-  ensure(evidence.schemaVersion === "candidate-cycle3-reconciliation-evidence.v2"
-      && evidence.status
-        === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+  ensure(evidence.schemaVersion === RECONCILIATION_SCHEMA
+      && evidence.status === RECONCILIATION_PASS,
   "reconciliation_status_invalid");
   ensure(evidence.automaticPhaseAdvance === false
       && evidence.phaseTransitionExecuted === false
@@ -181,7 +191,7 @@ export function validateReconciliationEvidence(evidence) {
       && evidence.duplicateEventMappings === 0
       && Number.isSafeInteger(evidence.resolvedQuarantineExclusions)
       && evidence.resolvedQuarantineExclusions >= 0
-      && evidence.sourceReleaseCount === 3
+      && evidence.sourceReleaseCount >= 2
       && evidence.lineageIdentityBinding === "file_hash_request_database_exact_match"
       && SHA256.test(evidence.lineageEvidenceSha256 ?? "")
       && HASH.test(evidence.lineageSemanticEvidenceSha256?.controlSnapshot ?? "")
@@ -194,8 +204,8 @@ export function validateReconciliationEvidence(evidence) {
       && evidence.differenceSample?.length === 0
       && SHA256.test(evidence.evidenceHash ?? ""),
   "reconciliation_result_invalid");
-  ensure(evidence.verificationMigrationId === "candidate-episode-v1-cycle-3",
-    "reconciliation_migration_not_cycle3");
+  ensure(evidence.sourceReleaseCount === migrationCycle(evidence.verificationMigrationId),
+    "reconciliation_cycle_count_mismatch");
   return evidence;
 }
 
@@ -238,7 +248,7 @@ export function buildShadowVerifyManifest({
     flags: { dualRead: true, canonicalRead: false, reviewRead: false },
     evidence: {
       reconciliation: {
-        status: "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+        status: RECONCILIATION_PASS,
         evidenceHash: reconciliationEvidenceHash,
       },
       dualRead: { status: "missing", evidenceHash: null },

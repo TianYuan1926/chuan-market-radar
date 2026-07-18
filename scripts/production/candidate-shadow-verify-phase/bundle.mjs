@@ -11,7 +11,15 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { REQUIRED_PACKAGE_APPROVAL_FIELDS } from "../../governance/autonomy-policy.mjs";
-import { validateCandidateLineageEvidence } from "../candidate-lineage/runner.mjs";
+import {
+  LINEAGE_PASS,
+  LINEAGE_SCHEMA,
+  validateCandidateLineageEvidence,
+} from "../candidate-lineage/runner.mjs";
+import {
+  RECONCILIATION_PASS,
+  RECONCILIATION_SCHEMA,
+} from "../candidate-reconciliation/runner.mjs";
 import {
   MAXIMUM_SAMPLE_GAP_SECONDS,
   MINIMUM_OBSERVATION_HOURS,
@@ -30,7 +38,7 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-3-shadow-verify-phase-transition-and-dual-read-observation.v2.json";
+  "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3.json";
 export const REQUIRED_PRODUCTION_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
@@ -47,6 +55,8 @@ const MIGRATION = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
 
 export const RUNNER_FILES = Object.freeze([
+  "scripts/production/candidate-lineage/runner.mjs",
+  "scripts/production/candidate-reconciliation/runner.mjs",
   "scripts/production/candidate-shadow-verify-phase/full-snapshot-observer.cjs",
   "scripts/production/candidate-shadow-verify-phase/observation-runner.sh",
   "scripts/production/candidate-shadow-verify-phase/production-entrypoint.sh",
@@ -59,7 +69,6 @@ export const TRANSPORT_FILES = Object.freeze([
   "scripts/governance/autonomy-policy.mjs",
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
-  "scripts/production/candidate-lineage/runner.mjs",
   "scripts/production/candidate-shadow-verify-phase/bundle.mjs",
   ...RUNNER_FILES,
 ]);
@@ -111,7 +120,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-cycle-3-shadow-verify-phase-transition-and-dual-read-observation.v2"
+    === "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3"
     && contract.packageId === PACKAGE_ID && contract.gate === "G0"
     && contract.actionClass === "shadow_verify_activation"
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",
@@ -129,19 +138,18 @@ export function validateContract(contract) {
       && contract.releaseBoundary?.imageBuildAllowed === false,
   "contract_release_boundary_invalid");
   const prerequisites = contract.prerequisites ?? {};
-  ensure(prerequisites.lineageSchema === "candidate-multi-cycle-lineage-evidence.v2"
-      && prerequisites.lineageStatus
-        === "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
-      && prerequisites.reconciliationSchema === "candidate-cycle3-reconciliation-evidence.v2"
-      && prerequisites.reconciliationStatus
-        === "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+  ensure(prerequisites.lineageSchema === LINEAGE_SCHEMA
+      && prerequisites.lineageStatus === LINEAGE_PASS
+      && prerequisites.reconciliationSchema === RECONCILIATION_SCHEMA
+      && prerequisites.reconciliationStatus === RECONCILIATION_PASS
       && prerequisites.minimumComparedWrites === 10000
       && prerequisites.maximumComparisonDifferences === 0
       && prerequisites.maximumDuplicateOutboxMappings === 0
       && prerequisites.maximumDuplicateEventMappings === 0
       && prerequisites.maximumUnresolvedOutbox === 0
-      && prerequisites.sourceReleaseWindowsExact === 3
-      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-3"
+      && prerequisites.sourceReleaseWindowsExact === 5
+      && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-5"
       && prerequisites.currentPhase === "shadow_capture"
       && prerequisites.currentWriteFrozen === false
       && prerequisites.minimumDeadlineRemainingSeconds === 87000,
@@ -242,10 +250,11 @@ export async function validateLocalPreparation(root = process.cwd()) {
 
 function validateLineage(lineage, request) {
   const validated = validateCandidateLineageEvidence(lineage);
-  ensure(validated.status === "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+  ensure(validated.schemaVersion === LINEAGE_SCHEMA && validated.status === LINEAGE_PASS
       && validated.completedWrites >= 10000 && validated.unresolvedOutbox === 0
-      && validated.sourceReleaseWindows.length === 3
-      && validated.currentMigrationId === "candidate-episode-v1-cycle-3",
+      && validated.sourceReleaseWindows.length === validated.validationCycle
+      && validated.sourceReleaseCount === validated.validationCycle
+      && validated.currentMigrationId === request.migrationId,
   "lineage_result_invalid");
   const current = validated.sourceReleaseWindows.at(-1);
   ensure(current.migrationId === request.migrationId
