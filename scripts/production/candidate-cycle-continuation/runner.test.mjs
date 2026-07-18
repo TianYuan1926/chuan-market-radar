@@ -114,26 +114,26 @@ test("continuation can restart from an exactly frozen latest cycle without reviv
   assert.match(rendered, /CANDIDATE_RUNTIME_RELEASE_ID="candidate-shadow-cycle-third"/u);
 });
 
-test("recovered production cycle two starts only adjacent cycle three from disabled defaults", () => {
+test("recovered production cycle three starts only adjacent cycle four from disabled defaults", () => {
   const recovered = {
     ...valid,
     currentAuthorityEpoch: 2,
-    currentMigrationId: "candidate-episode-v1-cycle-2",
+    currentMigrationId: "candidate-episode-v1-cycle-3",
     currentPhase: "legacy",
-    currentReleaseId: "candidate-shadow-cycle-2-4ce18da",
-    nextMigrationId: "candidate-episode-v1-cycle-3",
-    nextReleaseId: "candidate-shadow-cycle-3-release",
+    currentReleaseId: "candidate-shadow-cycle-3-b098238b5d86",
+    nextMigrationId: "candidate-episode-v1-cycle-4",
+    nextReleaseId: "candidate-shadow-cycle-4-release",
   };
   const rendered = renderCycleContinuationEnvironment("UNRELATED_VALUE=preserved\n", recovered);
-  assert.match(rendered, /^CANDIDATE_RUNTIME_MIGRATION_ID="candidate-episode-v1-cycle-3"$/mu);
-  assert.match(rendered, /^CANDIDATE_RUNTIME_RELEASE_ID="candidate-shadow-cycle-3-release"$/mu);
+  assert.match(rendered, /^CANDIDATE_RUNTIME_MIGRATION_ID="candidate-episode-v1-cycle-4"$/mu);
+  assert.match(rendered, /^CANDIDATE_RUNTIME_RELEASE_ID="candidate-shadow-cycle-4-release"$/mu);
   assert.match(rendered, /^UNRELATED_VALUE=preserved$/mu);
   assert.throws(() => renderCycleContinuationEnvironment(
-    "CANDIDATE_RUNTIME_MIGRATION_ID=candidate-episode-v1\n",
+    "CANDIDATE_RUNTIME_MIGRATION_ID=candidate-episode-v1-cycle-2\n",
     recovered,
   ), /current_environment_cycle_mismatch/u);
   assert.throws(() => renderCycleContinuationEnvironment(
-    "CANDIDATE_RUNTIME_MIGRATION_ID=candidate-episode-v1-cycle-3\n",
+    "CANDIDATE_RUNTIME_MIGRATION_ID=candidate-episode-v1-cycle-4\n",
     recovered,
   ), /current_environment_cycle_mismatch/u);
 });

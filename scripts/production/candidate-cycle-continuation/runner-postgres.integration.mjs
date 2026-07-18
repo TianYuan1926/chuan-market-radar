@@ -141,6 +141,33 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
       count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired
       FROM candidate_authority.candidate_migration_control`);
     assert.deepEqual(retryProof.rows[0], { active: 1, retired: 2 });
+
+    const cycleThreeRollback = await rollbackCandidateValidationCycle(client, retryInput);
+    assert.equal(cycleThreeRollback.frozenCycle.migrationId, "candidate-episode-v1-cycle-3");
+    assert.equal(cycleThreeRollback.frozenCycle.phase, "legacy");
+    const cycleFourInput = {
+      ...retryInput,
+      currentAuthorityEpoch: cycleThreeRollback.frozenCycle.epoch,
+      currentMigrationId: retryInput.nextMigrationId,
+      currentPhase: "legacy",
+      currentReleaseId: retryInput.nextReleaseId,
+      nextMigrationId: "candidate-episode-v1-cycle-4",
+      nextReleaseId: "candidate-shadow-cycle-fourth",
+    };
+    const cycleFourPreflight = await preflightCandidateValidationCycleContinuation(
+      client,
+      cycleFourInput,
+    );
+    assert.equal(cycleFourPreflight.continuationMode, "start_adjacent_from_retired");
+    const cycleFour = await continueCandidateValidationCycle(client, cycleFourInput);
+    assert.equal(cycleFour.activeCycle?.migrationId, "candidate-episode-v1-cycle-4");
+    assert.equal(cycleFour.previousCycle?.migrationId, "candidate-episode-v1-cycle-3");
+    assert.equal(cycleFour.preservedData.legacyCompleted, 1);
+    const cycleFourProof = await client.query(`SELECT
+      count(*) FILTER (WHERE phase <> 'legacy')::int AS active,
+      count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired
+      FROM candidate_authority.candidate_migration_control`);
+    assert.deepEqual(cycleFourProof.rows[0], { active: 1, retired: 3 });
   } finally {
     client.release();
     await pool.end();

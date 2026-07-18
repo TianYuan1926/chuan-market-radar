@@ -6287,3 +6287,43 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只继续同一 Cycle-3 observer；双门禁真实 PASS 后先只读采集生产 Lineage v2。
+
+## 2026-07-18 / WP-G0.2 Cycle-4 Transient Claim Observation Remediation Local Superpackage
+
+### 本轮目标
+
+如实收口 Cycle-3 第 47 样本触发的自动回滚，并修复观察器把正常短暂 claimed 在途任务误判为终态 unresolved 的竞态问题；生产 Packet 严格刷新为冻结 Cycle-3 到相邻 Cycle-4。
+
+### 修改范围
+
+- 观察 validator 仅在 monitor ready、零 blocker/warning、零 retry/quarantine、算术守恒且 oldest age 小于既有 300 秒 warning 阈值时接受短暂 pending/claimed。
+- Cycle-3 第 47 样本的 38 claimed、29.526 秒竞态被加入真实回放；算术漂移、age=300、retry 和 quarantine 均由攻击性测试拒绝。
+- v2 本地/生产合同绑定回滚后的 clean `cec0b657...` 基线、Cycle-3 `legacy/frozen/epoch2`、577 episodes、3,705 events、7,410 outbox 与 Candidate Worker absent；只允许启动相邻 Cycle-4。
+- PostgreSQL 16 演练扩展到 Cycle-1/2/3 历史冻结和 Cycle-4 唯一 active，证明旧 deadline immutable、数据保留和 single active cycle。
+- 未修改 frontend、API、scan、analysis、strategy、RR、trade plan、backtest、migration、Redis、scanner、Caddy、env 或 secret。
+
+### 核心链路影响
+
+只修复候选筛选与复盘进化的 Candidate 生命周期观察稳定性；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- 生产样本回放 8/8、核心与治理合并定向 21/21、Cycle continuation 30/30、Production Packet 34/34、Autonomy 31/31：PASS。
+- PostgreSQL 16 Cycle-4 隔离演练：PASS，`productionConnected=false`。
+- typecheck、lint、test:market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署、未连接或修改生产。Cycle-3 observer 的真实结果为 FAIL 后自动回滚 PASS；当前生产为 clean detached `cec0b657...`、旧 Web healthy、Candidate absent、Cycle-3 Legacy frozen。Cycle-4 包目前仅 `ready_for_gate`。
+
+### 风险与遗留问题
+
+- Cycle-3 的 47 样本和 3,705 completed writes 不得继承为 Cycle-4 进度。
+- 仍需 clean commit/push、commit-bound 自治总门禁、确定性 Bundle、新现场 preflight/request 和生产 Cycle-4 启动。
+- Cycle-4 仍必须从零完成 10,000 writes、1,800 秒/7 样本/2 次推进和 24 小时/289 样本；G0 主步骤仍为 7。
+
+### 下一轮建议
+
+只完成 Cycle-4 clean commit、提交绑定总门禁与受控生产启动；不进入 Lineage 或 Shadow Verify。

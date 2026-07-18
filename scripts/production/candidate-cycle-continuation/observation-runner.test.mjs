@@ -52,6 +52,8 @@ function sample(index, completedWrites = 9_990) {
         blockers: [],
         warnings: [],
         metrics: {
+          outboxPendingTotal: 0,
+          outboxClaimedTotal: 0,
           outboxRetryWaitTotal: 0,
           outboxQuarantinedTotal: 0,
           unresolvedQuarantineTotal: 0,
@@ -88,6 +90,36 @@ test("cycle sample binds runtime, monitor, database, and health truth", () => {
   assert.throws(() => validateCycleObservationSample({
     ...sample(0), unresolvedOutbox: 1,
   }, expected), /sample_unresolved_outbox/u);
+});
+
+test("accepts the exact production transient-claim race without hiding backlog", () => {
+  const productionRace = sample(0, 3_705);
+  productionRace.candidate.monitor.metrics = {
+    ...productionRace.candidate.monitor.metrics,
+    outboxClaimedTotal: 38,
+    unresolvedTotal: 38,
+    oldestPendingAgeSeconds: 29.526496,
+  };
+  assert.equal(validateCycleObservationSample(productionRace, expected).completedWrites, 3_705);
+});
+
+test("rejects stale, inconsistent, retrying or quarantined transient work", () => {
+  const transform = (changes) => {
+    const value = sample(0);
+    value.candidate.monitor.metrics = { ...value.candidate.monitor.metrics, ...changes };
+    return value;
+  };
+  for (const value of [
+    transform({ outboxClaimedTotal: 38, unresolvedTotal: 37, oldestPendingAgeSeconds: 20 }),
+    transform({ outboxClaimedTotal: 1, unresolvedTotal: 1, oldestPendingAgeSeconds: 300 }),
+    transform({ outboxRetryWaitTotal: 1, unresolvedTotal: 1, oldestPendingAgeSeconds: 20 }),
+    transform({
+      outboxQuarantinedTotal: 1,
+      unresolvedQuarantineTotal: 1,
+      unresolvedTotal: 1,
+      oldestPendingAgeSeconds: 20,
+    }),
+  ]) assert.throws(() => validateCycleObservationSample(value, expected));
 });
 
 test("10000 writes and 30 minutes cannot replace fresh 24 hour activation", () => {

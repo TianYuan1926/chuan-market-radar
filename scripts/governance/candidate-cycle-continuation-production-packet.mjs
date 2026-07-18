@@ -8,7 +8,7 @@ import {
   validateProductionPacketContract,
 } from "../production/candidate-cycle-continuation/bundle.mjs";
 
-const CONTRACT = "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v1.json";
+const CONTRACT = "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v2.json";
 const RUNNER = "scripts/production/candidate-cycle-continuation/production-runner.sh";
 const ENTRYPOINT = "scripts/production/candidate-cycle-continuation/production-entrypoint.sh";
 const OBSERVER = "scripts/production/candidate-cycle-continuation/observation-runner.sh";
@@ -19,8 +19,10 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
       || contract.priorActivationFinalPass !== false) violations.push("local_truth_overclaimed");
   if (contract.observation?.minimumComparedWrites !== 10_000) violations.push("write_threshold_changed");
   if (contract.prerequisites?.priorActivationOutcome
-        !== "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE"
-      || contract.prerequisites?.priorActivationSamplesObserved !== 0
+        !== "ROLLBACK_PASS_TRANSIENT_CLAIM_MISCLASSIFICATION"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 47
+      || contract.prerequisites?.priorActivationCompletedWrites !== 3_705
+      || contract.prerequisites?.priorActivationSamplesReusable !== false
       || contract.prerequisites?.freshActivationRequired !== true
       || contract.observation?.minimumActivationHours !== 24
       || contract.observation?.minimumActivationSamples !== 289) {
@@ -30,23 +32,35 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
       || contract.prerequisites?.currentProductionWriteFrozen !== true
       || contract.prerequisites?.currentProductionAuthorityEpoch !== 2
       || contract.prerequisites?.currentProductionMigrationId
-        !== "candidate-episode-v1-cycle-2"
+        !== "candidate-episode-v1-cycle-3"
       || contract.prerequisites?.currentProductionReleaseId
-        !== "candidate-shadow-cycle-2-4ce18da"
+        !== "candidate-shadow-cycle-3-b098238b5d86"
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
-      || contract.prerequisites?.candidateEpisodesExact !== 543
-      || contract.prerequisites?.candidateEventsExact !== 2_957
+      || contract.prerequisites?.candidateEpisodesExact !== 577
+      || contract.prerequisites?.candidateEventsExact !== 3_705
       || contract.prerequisites?.candidateCheckpointsExact !== 0
       || contract.prerequisites?.candidateOutcomesExact !== 0
-      || contract.prerequisites?.candidateOutboxExact !== 5_914
-      || contract.prerequisites?.legacySourceCompletedExact !== 2_957
+      || contract.prerequisites?.candidateOutboxExact !== 7_410
+      || contract.prerequisites?.legacySourceCompletedExact !== 3_705
       || contract.prerequisites?.legacySourceUnresolvedMaximum !== 0
-      || contract.prerequisites?.candidateEventPendingExact !== 2_957
+      || contract.prerequisites?.candidateEventPendingExact !== 3_705
       || contract.prerequisites?.candidateEventNonPendingExact !== 0
       || contract.prerequisites?.candidateEventOrphansExact !== 0
       || contract.prerequisites?.candidateEventContractMismatchesExact !== 0) {
     violations.push("source_lane_prerequisites_changed");
+  }
+  const transient = contract.observation?.transientClaimBoundary;
+  if (transient?.pendingAndClaimedMayBeNonzero !== true
+      || transient?.unresolvedArithmeticExact !== true
+      || transient?.retryWaitMaximum !== 0
+      || transient?.unresolvedQuarantineMaximum !== 0
+      || transient?.oldestUnresolvedAgeExclusiveMaximumSeconds !== 300
+      || transient?.productionRaceReplay?.claimed !== 38
+      || transient?.productionRaceReplay?.unresolved !== 38
+      || transient?.productionRaceReplay?.oldestAgeSeconds !== 29.526496
+      || transient?.productionRaceReplay?.accepted !== true) {
+    violations.push("transient_claim_boundary_changed");
   }
   if (contract.databaseBoundary?.oldDeadlineMutationAllowed !== false
       || contract.databaseBoundary?.candidateBusinessDataMutationAllowed !== false) {

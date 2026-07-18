@@ -16,7 +16,7 @@ import { validateCycleContinuationInput } from "./runner.mjs";
 const execFileAsync = promisify(execFile);
 export const PACKAGE_ID = "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION";
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v1.json";
+  "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v2.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -157,7 +157,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   const contract = JSON.parse(bytes);
   const runnerArtifact = await artifact(root, contract.runnerArtifact?.files ?? []);
   const violations = [];
-  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-production-packet.v1"
+  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-production-packet.v2"
       || contract.packageId !== PACKAGE_ID) violations.push("contract_identity");
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
       || contract.priorActivationFinalPass !== false) violations.push("production_truth");
@@ -173,26 +173,38 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   if (runnerArtifact.fileCount !== contract.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) violations.push("runner_artifact");
   if (contract.prerequisites?.priorActivationOutcome
-        !== "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE"
-      || contract.prerequisites?.priorActivationSamplesObserved !== 0
+        !== "ROLLBACK_PASS_TRANSIENT_CLAIM_MISCLASSIFICATION"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 47
+      || contract.prerequisites?.priorActivationCompletedWrites !== 3_705
+      || contract.prerequisites?.priorActivationFailure
+        !== "sample_monitor_unresolved_transient_claimed_38_age_29_526496"
+      || contract.prerequisites?.priorActivationLastSampleHealth
+        !== "ready_fresh_candidate_healthy"
+      || contract.prerequisites?.priorActivationSamplesReusable !== false
+      || contract.prerequisites?.currentProductionCommit
+        !== "cec0b6572bb09ae91ff9e013f8bb160f73c045e2"
+      || contract.prerequisites?.currentProductionTree
+        !== "eb217a7fbaad5b464279a08d4441a8249fc266e3"
+      || contract.prerequisites?.currentProductionWebImageId
+        !== "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd"
       || contract.prerequisites?.freshActivationRequired !== true
       || contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
       || contract.prerequisites?.currentProductionAuthorityEpoch !== 2
       || contract.prerequisites?.currentProductionMigrationId
-        !== "candidate-episode-v1-cycle-2"
+        !== "candidate-episode-v1-cycle-3"
       || contract.prerequisites?.currentProductionReleaseId
-        !== "candidate-shadow-cycle-2-4ce18da"
+        !== "candidate-shadow-cycle-3-b098238b5d86"
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
-      || contract.prerequisites?.candidateEpisodesExact !== 543
-      || contract.prerequisites?.candidateEventsExact !== 2_957
+      || contract.prerequisites?.candidateEpisodesExact !== 577
+      || contract.prerequisites?.candidateEventsExact !== 3_705
       || contract.prerequisites?.candidateCheckpointsExact !== 0
       || contract.prerequisites?.candidateOutcomesExact !== 0
-      || contract.prerequisites?.candidateOutboxExact !== 5_914
-      || contract.prerequisites?.legacySourceCompletedExact !== 2_957
+      || contract.prerequisites?.candidateOutboxExact !== 7_410
+      || contract.prerequisites?.legacySourceCompletedExact !== 3_705
       || contract.prerequisites?.legacySourceUnresolvedMaximum !== 0
-      || contract.prerequisites?.candidateEventPendingExact !== 2_957
+      || contract.prerequisites?.candidateEventPendingExact !== 3_705
       || contract.prerequisites?.candidateEventNonPendingExact !== 0
       || contract.prerequisites?.candidateEventOrphansExact !== 0
       || contract.prerequisites?.candidateEventContractMismatchesExact !== 0) {
@@ -244,7 +256,23 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.observation?.minimumActivationHours !== 24
       || contract.observation?.maximumSampleGapSeconds !== 600
       || contract.observation?.automaticReconciliation !== false
-      || contract.observation?.automaticCanonicalCutover !== false) violations.push("observation_boundary");
+      || contract.observation?.automaticCanonicalCutover !== false
+      || contract.observation?.transientClaimBoundary?.pendingAndClaimedMayBeNonzero !== true
+      || contract.observation?.transientClaimBoundary?.unresolvedArithmeticExact !== true
+      || contract.observation?.transientClaimBoundary?.retryWaitMaximum !== 0
+      || contract.observation?.transientClaimBoundary?.unresolvedQuarantineMaximum !== 0
+      || contract.observation?.transientClaimBoundary?.quarantineMaximum !== 0
+      || contract.observation?.transientClaimBoundary?.monitorWarningsMaximum !== 0
+      || contract.observation?.transientClaimBoundary?.monitorBlockersMaximum !== 0
+      || contract.observation?.transientClaimBoundary
+        ?.oldestUnresolvedAgeExclusiveMaximumSeconds !== 300
+      || contract.observation?.transientClaimBoundary?.productionRaceReplay?.claimed !== 38
+      || contract.observation?.transientClaimBoundary?.productionRaceReplay?.unresolved !== 38
+      || contract.observation?.transientClaimBoundary?.productionRaceReplay?.oldestAgeSeconds
+        !== 29.526496
+      || contract.observation?.transientClaimBoundary?.productionRaceReplay?.accepted !== true) {
+    violations.push("observation_boundary");
+  }
   for (const forbidden of [
     "threshold_lowering", "observation_shortening", "old_deadline_reset", "migration",
     "redis_mutation", "scanner_worker_mutation", "other_service_mutation", "canonical_cutover",
@@ -437,6 +465,12 @@ export async function validateProductionExecutionRequest(
   ensure(request.currentReleaseId
       === contract.prerequisites.currentProductionReleaseId,
   "request_current_release_id_invalid");
+  ensure(request.currentProductionCommit
+      === contract.prerequisites.currentProductionCommit,
+  "request_current_production_commit_invalid");
+  ensure(request.currentWebImageId
+      === contract.prerequisites.currentProductionWebImageId,
+  "request_current_web_image_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/u.test(request.approvalDigest), "request_approval_digest_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-continuation-preflight-[a-z0-9][a-z0-9._-]{7,100}\/preflight\.json$/u.test(request.preflightEvidencePath),
     "preflight_evidence_path_invalid");

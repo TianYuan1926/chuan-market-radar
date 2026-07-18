@@ -9,6 +9,7 @@ export const MINIMUM_ACTIVATION_HOURS = 24;
 export const MINIMUM_ACTIVATION_SAMPLES = 289;
 export const MAXIMUM_SAMPLE_GAP_SECONDS = 600;
 export const DEADLINE_SAFETY_SECONDS = 21_600;
+export const MAXIMUM_TRANSIENT_UNRESOLVED_AGE_SECONDS = 300;
 
 export class CandidateCycleObservationError extends Error {
   constructor(reason) {
@@ -91,17 +92,37 @@ export function validateCycleObservationSample(sample, expected) {
     "sample_monitor_blocked");
   ensure(Array.isArray(monitor.warnings) && monitor.warnings.length === 0,
     "sample_monitor_warning");
-  ensure(integer(monitor.metrics?.outboxRetryWaitTotal, "sample_retry_wait_invalid") === 0,
+  const metrics = monitor.metrics;
+  exactKeys(metrics, [
+    "oldestPendingAgeSeconds", "outboxClaimedTotal", "outboxCompletedTotal",
+    "outboxPendingTotal", "outboxQuarantinedTotal", "outboxRetryWaitTotal",
+    "unresolvedQuarantineTotal", "unresolvedTotal",
+  ], "sample_monitor_metrics_shape_invalid");
+  const pending = integer(metrics.outboxPendingTotal, "sample_pending_invalid");
+  const claimed = integer(metrics.outboxClaimedTotal, "sample_claimed_invalid");
+  const retryWait = integer(metrics.outboxRetryWaitTotal, "sample_retry_wait_invalid");
+  const unresolvedQuarantine = integer(
+    metrics.unresolvedQuarantineTotal,
+    "sample_unresolved_quarantine_invalid",
+  );
+  const unresolved = integer(metrics.unresolvedTotal, "sample_unresolved_total_invalid");
+  ensure(unresolved === pending + claimed + retryWait + unresolvedQuarantine,
+    "sample_unresolved_arithmetic_invalid");
+  ensure(retryWait === 0,
     "sample_retry_wait_present");
-  ensure(integer(monitor.metrics?.outboxQuarantinedTotal, "sample_quarantine_invalid") === 0,
+  ensure(integer(metrics.outboxQuarantinedTotal, "sample_quarantine_invalid") === 0,
     "sample_quarantine_present");
-  ensure(integer(monitor.metrics?.unresolvedQuarantineTotal,
-    "sample_unresolved_quarantine_invalid") === 0, "sample_unresolved_quarantine");
-  ensure(integer(monitor.metrics?.unresolvedTotal, "sample_unresolved_total_invalid") === 0,
-    "sample_monitor_unresolved");
-  ensure(monitor.metrics?.oldestPendingAgeSeconds === null,
-    "sample_oldest_pending_present");
-  ensure(integer(monitor.metrics?.outboxCompletedTotal,
+  ensure(unresolvedQuarantine === 0, "sample_unresolved_quarantine");
+  if (unresolved === 0) {
+    ensure(metrics.oldestPendingAgeSeconds === null, "sample_oldest_pending_without_work");
+  } else {
+    ensure(typeof metrics.oldestPendingAgeSeconds === "number"
+        && Number.isFinite(metrics.oldestPendingAgeSeconds)
+        && metrics.oldestPendingAgeSeconds >= 0
+        && metrics.oldestPendingAgeSeconds < MAXIMUM_TRANSIENT_UNRESOLVED_AGE_SECONDS,
+    "sample_oldest_pending_too_old");
+  }
+  ensure(integer(metrics.outboxCompletedTotal,
     "sample_monitor_completed_invalid") === sample.completedWrites,
   "sample_monitor_completed_mismatch");
   ensure(integer(sample.database.lockWaiters, "sample_database_lock_waiters_invalid") === 0,

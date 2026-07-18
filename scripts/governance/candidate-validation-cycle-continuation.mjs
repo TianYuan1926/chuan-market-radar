@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(ROOT,
-  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v1.json");
+  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v2.json");
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -39,7 +39,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     readFile(resolve(ROOT, "docker-compose.yml"), "utf8"),
   ]);
 
-  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v1"
+  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v2"
       || contract.packageId !== "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-LOCAL-SUPERPACKAGE") {
     violations.push("contract_identity");
   }
@@ -56,19 +56,23 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.readObservationWindowsSeparate !== true
       || problem.currentProductionPhase !== "legacy"
       || problem.currentProductionWriteFrozen !== true
-      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-2"
+      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-3"
       || problem.currentProductionAuthorityEpoch !== 2
       || problem.currentProductionActiveCycles !== 0
       || problem.currentProductionCandidateWorker !== "absent"
-      || problem.legacySourceCompleted !== 2_957
+      || problem.legacySourceCompleted !== 3_705
       || problem.legacySourceUnresolved !== 0
-      || problem.candidateEventPending !== 2_957
+      || problem.candidateEventPending !== 3_705
       || problem.candidateEventNonPending !== 0
       || problem.candidateEventOrphans !== 0
       || problem.candidateEventContractMismatches !== 0
       || problem.priorActivationOutcome
-        !== "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE"
-      || problem.priorActivationSamplesObserved !== 0
+        !== "ROLLBACK_PASS_TRANSIENT_CLAIM_MISCLASSIFICATION"
+      || problem.priorActivationSamplesObserved !== 47
+      || problem.priorActivationCompletedWrites !== 3_705
+      || problem.priorActivationFailure
+        !== "sample_monitor_unresolved_transient_claimed_38_age_29_526496"
+      || problem.priorActivationSamplesReusable !== false
       || problem.priorActivationCoverageLessThan24Hours !== true
       || problem.freshActivationMustBeCollectedInNextAdjacentCycle !== true
       || problem.currentSingleCycleCanProveAllExitGates !== false) {
@@ -95,8 +99,13 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     missingDisabledEnvironmentBindsToCurrentFrozenCycle: true,
     thresholdChanged: false,
     observationWindowShortened: false,
+    transientPendingAndClaimedAllowedBelowWarningAge: true,
+    transientUnresolvedArithmeticExact: true,
+    oldestUnresolvedAgeExclusiveMaximumSeconds: 300,
+    retryWaitMaximum: 0,
+    unresolvedQuarantineMaximum: 0,
   })) if (boundary[key] !== expected) violations.push(`continuation_boundary:${key}`);
-  if (implementation.fileCount !== 12
+  if (implementation.fileCount !== 14
       || implementation.fileCount !== contract.implementationArtifact?.fileCount
       || implementation.sha256 !== contract.implementationArtifact?.sha256) {
     violations.push("implementation_artifact");

@@ -7,10 +7,10 @@ import {
 
 test("current continuation preserves every threshold and production remains blocked", async () => {
   const contract = await loadCandidateValidationCycleContinuationContract();
-  assert.equal(contract.problemProof.currentProductionCycle, "candidate-episode-v1-cycle-2");
+  assert.equal(contract.problemProof.currentProductionCycle, "candidate-episode-v1-cycle-3");
   assert.equal(contract.problemProof.currentProductionAuthorityEpoch, 2);
   assert.equal(contract.continuationBoundary.nextIdentityExample,
-    "candidate-episode-v1-cycle-3");
+    "candidate-episode-v1-cycle-4");
   const result = await validateCandidateValidationCycleContinuation();
   assert.equal(result.status, "PASS_LOCAL_VALIDATION_CYCLE_CONTINUATION");
   assert.equal(result.productionMutationAllowed, false);
@@ -30,6 +30,9 @@ test("deadline reset threshold reduction and production claims fail governance",
     (contract) => { contract.problemProof.legacySourceUnresolved = 1; },
     (contract) => { contract.problemProof.candidateEventOrphans = 1; },
     (contract) => { contract.continuationBoundary.candidateEventLanePreserved = false; },
+    (contract) => {
+      contract.continuationBoundary.oldestUnresolvedAgeExclusiveMaximumSeconds = 600;
+    },
   ]) {
     const contract = structuredClone(await loadCandidateValidationCycleContinuationContract());
     mutate(contract);
