@@ -60,7 +60,7 @@ run_node() {
     --mount "type=bind,src=${EVIDENCE_DIRECTORY},dst=${EVIDENCE_DIRECTORY}"
   )
   [[ "${write_ops}" != "true" ]] || mounts+=(--mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}")
-  ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
+  ${DOCKER[@]} run --rm -i --network none --read-only --cap-drop ALL \
     --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
     --tmpfs /tmp:rw,noexec,nosuid,size=16m "${mounts[@]}" \
     --entrypoint node "${WEB_IMAGE}" "$@"

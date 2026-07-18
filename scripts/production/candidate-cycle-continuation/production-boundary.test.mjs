@@ -29,6 +29,12 @@ test("observer retains evidence before exact temporary cleanup", async () => {
   assert.match(source, /automatic_rollback/u);
 });
 
+test("observer forwards the sample combiner heredoc into the isolated Node container", async () => {
+  const source = await readFile(files[2], "utf8");
+  assert.match(source, /\$\{DOCKER\[@\]\} run --rm -i --network none --read-only/u);
+  assert.match(source, /run_node true - "\$\{API_FILE\}" "\$\{DB_FILE\}" "\$\{SAMPLE_FILE\}" <<'NODE'/u);
+});
+
 test("pre-observation rollback removes only bounded temporary transaction artifacts", async () => {
   const source = await readFile(files[1], "utf8");
   assert.match(source, /cleanup_failed_transaction_artifacts/u);

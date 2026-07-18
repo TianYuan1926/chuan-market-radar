@@ -6041,3 +6041,42 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只完成门禁、提交、旧残留精确清理和 Cycle-2 第三次生产启动；不进入 Lineage 或 Shadow Verify。
+
+## 2026-07-18 / WP-G0.2 Cycle-2 Observer Stdin and Automatic Rollback Recovery Remediation
+
+### 本轮目标
+
+如实收口第三次 Cycle-2 生产启动失败，恢复生产基线，并修复 observer 无输入和自动回滚自锁两个直接根因。
+
+### 修改范围
+
+- `observation-runner.sh`：隔离 Node 容器显式启用 stdin，确保 heredoc combiner 真正生成 `combined-sample.json`。
+- `production-runner.sh`：把 baseline Compose checksum 校验限定在 continue 前置分支；rollback 仍要求精确批准目标、回滚输入校验和最终基线全验证。
+- 两份边界/runner 测试锁定 stdin 与 rollback precheck 边界；Production Packet runner artifact 刷新为 `4d0e7c6f1e67b0597fb960acb8778612b4c11146dac2955c9f1d5d6bb618f0da`。
+- 未修改 migration、交易逻辑、scan/analysis/strategy/backtest、前端、API、Redis、scanner、生产 env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的生产观察和失败恢复地基，不生成信号、不改变排序、RR 或交易计划。
+
+### 测试结果
+
+- Bash 语法与根因定向回归 14/14：PASS。
+- Production Packet 31/31：PASS。
+- PostgreSQL 16 migrations 1-10、相邻周期、single-active-cycle、数据保留和 rollback：PASS。
+- typecheck、lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+第三次启动已执行但观察器在首样本前 FAIL；自动回滚失败后已在原授权范围内恢复 detached baseline `cec0b657...`、旧 Web、Candidate Worker absent、两个 Cycle 均 Legacy frozen，并释放租约。容器内 health 与双 radar contract、Postgres、Redis、既有 Worker 全部通过；远端脱敏恢复证据 SHA-256=`c4f4cb19cd542d12398d348494d8a7933dfc112aceeb4033b4e8e136dd0e59371`，本地脱敏证据包 SHA-256=`07e02e99b8d8041cd06cbbee44a7926f5b6b23cc3f439f6804b4fa9f01c8f13d`，精确清理 PASS。根因修复尚未部署。
+
+### 风险与遗留问题
+
+- 第三次生产结果不是 Cycle-2 PASS，289 样本/24 小时和 10,000 真实 writes 都尚未开始累计。
+- 仍需 clean commit、commit-bound 总门禁、全新 Bundle/preflight/request 和第四次生产启动；旧事务身份禁止复用。
+- G0 主步骤仍为 7，系统仍不能标记实战就绪。
+
+### 下一轮建议
+
+只提交并部署 observer/rollback 最小修复，启动 Cycle-2 双门禁观察；不进入 Lineage 或 Shadow Verify。

@@ -80,11 +80,11 @@ OBSERVER_UNIT="$(jq -r '.observerUnitName' "${REQUEST_FILE}")"
 
 [[ -d "${ROOT_DIR}/.git" && -z "$(git -C "${ROOT_DIR}" status --porcelain)" \
   && -z "$(git -C "${ROOT_DIR}" branch --show-current)" ]] || fail production_git_boundary_invalid
-[[ "$(sha_file "${BASE_ENV_FILE}")" == "$(jq -r '.baseEnvSha256' "${REQUEST_FILE}")" \
-  && "$(sha_file "${COMPOSE_FILE}")" == "$(jq -r '.composeSha256' "${REQUEST_FILE}")" ]] \
-  || fail production_stable_input_checksum_mismatch
+[[ "$(sha_file "${BASE_ENV_FILE}")" == "$(jq -r '.baseEnvSha256' "${REQUEST_FILE}")" ]] \
+  || fail production_base_env_checksum_mismatch
 if [[ "${RUNNER_MODE}" == "production_continue" ]]; then
-  [[ "$(git -C "${ROOT_DIR}" rev-parse HEAD)" == "${ROLLBACK_COMMIT}" \
+  [[ "$(sha_file "${COMPOSE_FILE}")" == "$(jq -r '.composeSha256' "${REQUEST_FILE}")" \
+    && "$(git -C "${ROOT_DIR}" rev-parse HEAD)" == "${ROLLBACK_COMMIT}" \
     && "$(sha_file "${ENV_FILE}")" == "$(jq -r '.productionEnvSha256' "${REQUEST_FILE}")" ]] \
     || fail production_precontinuation_identity_mismatch
 else

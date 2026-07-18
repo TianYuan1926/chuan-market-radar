@@ -30,3 +30,16 @@ test("rollback never reactivates the expired old cycle", async () => {
   assert.match(source, /freezing new cycle and restoring Legacy authority/u);
   assert.doesNotMatch(source, /transition.*currentMigrationId.*shadow_capture/su);
 });
+
+test("rollback accepts the clean approved target compose while preflight binds the baseline compose", async () => {
+  const source = await readFile(path, "utf8");
+  const modeBoundary = source.indexOf('if [[ "${RUNNER_MODE}" == "production_continue" ]]');
+  const composeCheck = source.indexOf('$(sha_file "${COMPOSE_FILE}")');
+  const rollbackBranch = source.indexOf("\nelse\n", modeBoundary);
+
+  assert.ok(modeBoundary >= 0);
+  assert.ok(composeCheck > modeBoundary);
+  assert.ok(composeCheck < rollbackBranch);
+  assert.match(source, /production_base_env_checksum_mismatch/u);
+  assert.match(source, /production_rollback_source_identity_mismatch/u);
+});
