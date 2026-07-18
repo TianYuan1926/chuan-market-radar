@@ -172,12 +172,17 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.standingGrant?.externalLeaseRequired !== true) violations.push("standing_grant");
   if (runnerArtifact.fileCount !== contract.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) violations.push("runner_artifact");
-  if (contract.prerequisites?.priorActivationOutcome !== "ROLLBACK"
-      || contract.prerequisites?.priorActivationSamplesObserved !== 197
+  if (contract.prerequisites?.priorActivationOutcome
+        !== "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 0
       || contract.prerequisites?.freshActivationRequired !== true
       || contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
-      || contract.prerequisites?.currentProductionAuthorityEpoch !== 6
+      || contract.prerequisites?.currentProductionAuthorityEpoch !== 2
+      || contract.prerequisites?.currentProductionMigrationId
+        !== "candidate-episode-v1-cycle-2"
+      || contract.prerequisites?.currentProductionReleaseId
+        !== "candidate-shadow-cycle-2-4ce18da"
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
       || contract.prerequisites?.candidateEpisodesExact !== 543
@@ -423,8 +428,15 @@ export async function validateProductionExecutionRequest(
   validateCycleContinuationInput(request);
   ensure(request.currentPhase === "legacy", "request_source_phase_not_retired_legacy");
   ensure(request.currentWorkerState === "absent", "request_current_worker_not_absent");
-  ensure(request.currentAuthorityEpoch === 6,
+  ensure(request.currentAuthorityEpoch
+      === contract.prerequisites.currentProductionAuthorityEpoch,
   "request_current_authority_epoch_invalid");
+  ensure(request.currentMigrationId
+      === contract.prerequisites.currentProductionMigrationId,
+  "request_current_migration_id_invalid");
+  ensure(request.currentReleaseId
+      === contract.prerequisites.currentProductionReleaseId,
+  "request_current_release_id_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/u.test(request.approvalDigest), "request_approval_digest_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-continuation-preflight-[a-z0-9][a-z0-9._-]{7,100}\/preflight\.json$/u.test(request.preflightEvidencePath),
     "preflight_evidence_path_invalid");

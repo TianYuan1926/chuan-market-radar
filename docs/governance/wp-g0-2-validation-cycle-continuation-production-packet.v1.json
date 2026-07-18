@@ -18,12 +18,14 @@
     "externalLeaseRequired": true
   },
   "prerequisites": {
-    "priorActivationOutcome": "ROLLBACK",
-    "priorActivationSamplesObserved": 197,
+    "priorActivationOutcome": "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE",
+    "priorActivationSamplesObserved": 0,
     "freshActivationRequired": true,
     "currentProductionSourcePhase": "legacy",
     "currentProductionWriteFrozen": true,
-    "currentProductionAuthorityEpoch": 6,
+    "currentProductionAuthorityEpoch": 2,
+    "currentProductionMigrationId": "candidate-episode-v1-cycle-2",
+    "currentProductionReleaseId": "candidate-shadow-cycle-2-4ce18da",
     "activeCyclesExact": 0,
     "candidateWorkerBaseline": "absent",
     "candidateEpisodesExact": 543,
@@ -136,7 +138,7 @@
       "scripts/production/candidate-cycle-continuation/runner.mjs"
     ],
     "fileCount": 6,
-    "sha256": "4d0e7c6f1e67b0597fb960acb8778612b4c11146dac2955c9f1d5d6bb618f0da"
+    "sha256": "69a817a78255d5e7c8f04423069a2329a1d071c254a89adba6146922b1a4b13e"
   },
   "forbidden": [
     "threshold_lowering",

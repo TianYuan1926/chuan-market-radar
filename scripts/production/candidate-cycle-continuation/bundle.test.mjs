@@ -37,19 +37,19 @@ function runtimeFixture() {
   return {
     baseEnvSha256: "5".repeat(64),
     composeSha256: "6".repeat(64),
-    currentAuthorityEpoch: 6,
-    currentMigrationId: "candidate-episode-v1",
+    currentAuthorityEpoch: 2,
+    currentMigrationId: "candidate-episode-v1-cycle-2",
     currentPhase: "legacy",
     currentProductionCommit: "7".repeat(40),
-    currentReleaseId: "candidate-shadow-current-release",
+    currentReleaseId: "candidate-shadow-cycle-2-4ce18da",
     currentWebImageId: `sha256:${"8".repeat(64)}`,
     currentWorkerState: "absent",
     identityOverridePath: "/var/lib/market-radar-ops/identity/candidate-override.yml",
     identityOverrideSha256: "a".repeat(64),
     identityWrapperPath: "/var/lib/market-radar-ops/identity/compose-wrapper",
     identityWrapperSha256: "b".repeat(64),
-    nextMigrationId: "candidate-episode-v1-cycle-2",
-    nextReleaseId: "candidate-shadow-cycle-2-release",
+    nextMigrationId: "candidate-episode-v1-cycle-3",
+    nextReleaseId: "candidate-shadow-cycle-3-release",
     preflightEvidencePath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-preflight-proof-release/preflight.json",
     preflightSha256: "d".repeat(64),
     productionEnvSha256: "c".repeat(64),
@@ -159,7 +159,7 @@ test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and 
       request, manifest, contract, "a".repeat(64),
       { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
     );
-    assert.equal(validated.nextMigrationId, "candidate-episode-v1-cycle-2");
+    assert.equal(validated.nextMigrationId, "candidate-episode-v1-cycle-3");
     assert.equal(validated.currentPhase, "legacy");
     assert.equal(validated.currentWorkerState, "absent");
     assert.equal("activationEvidencePath" in validated, false);
@@ -186,15 +186,20 @@ test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and 
       nonce: authorization.nonce,
     }), /authorization_schema_invalid/u);
     await assert.rejects(() => validateProductionExecutionRequest(
-      { ...request, currentAuthorityEpoch: 4 },
+      { ...request, currentAuthorityEpoch: 6 },
       manifest, contract, "a".repeat(64),
       { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
     ), /request_current_authority_epoch_invalid/u);
     await assert.rejects(() => validateProductionExecutionRequest(
-      { ...request, nextMigrationId: "candidate-episode-v1-cycle-3" },
+      { ...request, nextMigrationId: "candidate-episode-v1-cycle-2" },
       manifest, contract, "a".repeat(64),
       { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
     ), /next_cycle_not_adjacent/u);
+    await assert.rejects(() => validateProductionExecutionRequest(
+      { ...request, currentMigrationId: "candidate-episode-v1" },
+      manifest, contract, "a".repeat(64),
+      { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
+    ), /request_current_migration_id_invalid|next_cycle_not_adjacent/u);
     await assert.rejects(() => validateProductionExecutionRequest(
       { ...request, services: ["web", "scanner-worker"] },
       manifest, contract, "a".repeat(64),

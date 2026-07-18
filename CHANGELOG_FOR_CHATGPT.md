@@ -6080,3 +6080,43 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只提交并部署 observer/rollback 最小修复，启动 Cycle-2 双门禁观察；不进入 Lineage 或 Shadow Verify。
+
+## 2026-07-18 / WP-G0.2 Frozen Cycle-2 to Adjacent Cycle-3 Production Rebinding
+
+### 本轮目标
+
+根据第三次失败后生产保留的不可变 Cycle-2 历史行，作废 stale Cycle-1/epoch6 生产身份，并把续接入口严格重绑到最新冻结 Cycle-2/epoch2 -> 相邻 Cycle-3。
+
+### 修改范围
+
+- 现场只读绑定确认两个 Legacy frozen 周期共存，最新周期为 `candidate-episode-v1-cycle-2 / epoch2 / candidate-shadow-cycle-2-4ce18da`。
+- Cycle continuation 本地/生产合同、治理 validator 和自治状态改为当前 Cycle-2/epoch2 与下一 Cycle-3；旧 24 小时、289 样本、10,000 writes 等阈值全部不变。
+- renderer 只在 Legacy 且字段缺失时把 disabled migration identity 绑定到已验证的当前冻结周期；显式旧/未来周期、错误 release 或 authority flag 仍拒绝。
+- request validator 必须同时匹配合同中的 current migration、release 和 epoch。
+- 未修改 migration、数据库、Redis、scanner、frontend、API、scan、analysis、strategy、RR、trade plan、backtest、env 或 secret。
+
+### 核心链路影响
+
+只修复候选筛选与复盘进化的生命周期真值，不生成信号、不改变排序或交易计划。
+
+### 测试结果
+
+- 红灯：旧 runner、request validator 和治理合同分别拒绝 Cycle-2/epoch2，4 组失败按预期复现。
+- 修复后 runner/bundle 定向 15/15、治理 4/4、Production Packet 32/32：PASS。
+- PostgreSQL 16：PASS，包含 Cycle-2 冻结后严格相邻 Cycle-3、旧 deadline immutable、Candidate 数据保留和 single active cycle。
+- typecheck、零报错 lint、test:market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16，以及 forbidden-files、secret-patterns、security-check：PASS。
+- commit-bound 自治总门禁须在 clean commit 后运行；formal 未运行且禁止。
+
+### 是否部署
+
+未部署本修复。commit `a54811c...` 的旧身份 Bundle `5d077211...` 在 request、lease 和任何生产 mutation 前作废；远端唯一 staging 已精确清理。生产仍为 clean detached baseline、旧 Web healthy、Candidate absent、Cycle-1/Cycle-2 均 Legacy frozen。
+
+### 风险与遗留问题
+
+- 仍需 clean commit/push、commit-bound 自治总门禁、全新 Bundle、全新 preflight/request 和生产启动。
+- Cycle-3 启动后仍必须从零通过 24 小时/289 样本与 10,000 真实 writes 双门禁。
+- G0 主步骤仍为 7，不能把身份重绑 PASS 写成观察 PASS。
+
+### 下一轮建议
+
+只完成 Cycle-3 身份提交、全新现场绑定和受控启动；不进入 Lineage 或 Shadow Verify。

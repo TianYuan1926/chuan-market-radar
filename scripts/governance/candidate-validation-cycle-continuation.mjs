@@ -56,7 +56,8 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.readObservationWindowsSeparate !== true
       || problem.currentProductionPhase !== "legacy"
       || problem.currentProductionWriteFrozen !== true
-      || problem.currentProductionAuthorityEpoch !== 6
+      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-2"
+      || problem.currentProductionAuthorityEpoch !== 2
       || problem.currentProductionActiveCycles !== 0
       || problem.currentProductionCandidateWorker !== "absent"
       || problem.legacySourceCompleted !== 2_957
@@ -65,10 +66,11 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.candidateEventNonPending !== 0
       || problem.candidateEventOrphans !== 0
       || problem.candidateEventContractMismatches !== 0
-      || problem.priorActivationOutcome !== "ROLLBACK"
-      || problem.priorActivationSamplesObserved !== 197
+      || problem.priorActivationOutcome
+        !== "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE"
+      || problem.priorActivationSamplesObserved !== 0
       || problem.priorActivationCoverageLessThan24Hours !== true
-      || problem.freshActivationMustBeCollectedInCycle2 !== true
+      || problem.freshActivationMustBeCollectedInNextAdjacentCycle !== true
       || problem.currentSingleCycleCanProveAllExitGates !== false) {
     violations.push("problem_proof");
   }
@@ -90,6 +92,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     legacyRemainsAuthoritative: true,
     retiredLatestCycleCanStartAdjacent: true,
     retiredCycleNeverReactivated: true,
+    missingDisabledEnvironmentBindsToCurrentFrozenCycle: true,
     thresholdChanged: false,
     observationWindowShortened: false,
   })) if (boundary[key] !== expected) violations.push(`continuation_boundary:${key}`);

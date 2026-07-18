@@ -18,8 +18,9 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
       || contract.priorActivationFinalPass !== false) violations.push("local_truth_overclaimed");
   if (contract.observation?.minimumComparedWrites !== 10_000) violations.push("write_threshold_changed");
-  if (contract.prerequisites?.priorActivationOutcome !== "ROLLBACK"
-      || contract.prerequisites?.priorActivationSamplesObserved !== 197
+  if (contract.prerequisites?.priorActivationOutcome
+        !== "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 0
       || contract.prerequisites?.freshActivationRequired !== true
       || contract.observation?.minimumActivationHours !== 24
       || contract.observation?.minimumActivationSamples !== 289) {
@@ -27,7 +28,11 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
   }
   if (contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
-      || contract.prerequisites?.currentProductionAuthorityEpoch !== 6
+      || contract.prerequisites?.currentProductionAuthorityEpoch !== 2
+      || contract.prerequisites?.currentProductionMigrationId
+        !== "candidate-episode-v1-cycle-2"
+      || contract.prerequisites?.currentProductionReleaseId
+        !== "candidate-shadow-cycle-2-4ce18da"
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
       || contract.prerequisites?.candidateEpisodesExact !== 543

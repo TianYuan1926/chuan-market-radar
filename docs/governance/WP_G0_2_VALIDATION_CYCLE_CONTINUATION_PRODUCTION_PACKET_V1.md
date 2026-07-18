@@ -6,16 +6,16 @@
 
 ## 不可降低门槛
 
-- 旧 Activation 的唯一真实证据只有 197 个样本、约 16.5 小时，closeout 为 `ROLLBACK`；它不得作为 PASS 前置条件或生产通行证。
-- Cycle-2 必须从零采集至少 289 个连续样本、覆盖至少 24 小时，任意样本健康、Candidate runtime/monitor、数据库锁等待或长事务异常都 fail closed。
-- Cycle-2 同时必须达到至少 10,000 条 `legacy_scan_candidate` completed、至少 1,800 秒稳定、至少 7 个样本和至少两次真实推进；两个窗口可并行观察，但必须同时 PASS。
+- 历史 Activation 的真实证据只有 197 个样本、约 16.5 小时，closeout 为 `ROLLBACK`；第三次 Cycle-2 启动在首个观察样本前失败并经人工恢复基线。两者都不得作为 PASS 前置条件或生产通行证。
+- 严格相邻 Cycle-3 必须从零采集至少 289 个连续样本、覆盖至少 24 小时，任意样本健康、Candidate runtime/monitor、数据库锁等待或长事务异常都 fail closed。
+- Cycle-3 同时必须达到至少 10,000 条 `legacy_scan_candidate` completed、至少 1,800 秒稳定、至少 7 个样本和至少两次真实推进；两个窗口可并行观察，但必须同时 PASS。
 - 每个 cycle 最长仍为 72 小时，旧 `started_at/deadline_at` 永远不可修改。
 - Reconciliation 最低仍为 10,000 条真实 completed writes 和 0 difference。
 - Shadow Verify 与 Canonical Compat 仍各自需要独立 24 小时窗口。
 
 ## 当前生产前提
 
-- 当前控制行必须精确为 `candidate-episode-v1 / legacy / frozen / epoch 6`，active cycle 必须为 0。该 epoch 来自 fencing token 19 的 Legacy Pending Drain 安全回滚，不得复用回滚前的 epoch 4 身份。
+- 最新控制行必须精确为 `candidate-episode-v1-cycle-2 / legacy / frozen / epoch 2 / candidate-shadow-cycle-2-4ce18da`，active cycle 必须为 0。更早的 `candidate-episode-v1 / legacy / frozen / epoch 6` 只作为不可变历史保留，不得复活。
 - Candidate Worker 必须完全缺席；基线只保留 Web 回滚镜像，不得伪造不存在的 Worker 基线镜像。
 - `legacy_scan_candidate` 必须是 completed 2,957、unresolved 0。
 - `candidate_episode_event` 必须是 pending 2,957、non-pending 0、orphan 0、contract mismatch 0，并在续接事务前后保持不变。
@@ -23,13 +23,13 @@
 
 ## 生产事务
 
-执行入口使用 transient systemd unit。事务只允许精确 fetch/checkout 目标提交、保留当前 Web 镜像、构建并重建 Web 与 candidate-shadow-worker、调用既有 control procedure 原子启动严格相邻的 `candidate-episode-v1-cycle-2`、切换非敏感 cycle/release 环境和启动统一只读 observer。生产请求不再接收或挂载旧 Activation final 文件。
+执行入口使用 transient systemd unit。事务只允许精确 fetch/checkout 目标提交、保留当前 Web 镜像、构建并重建 Web 与 candidate-shadow-worker、调用既有 control procedure 原子启动严格相邻的 `candidate-episode-v1-cycle-3`、切换非敏感 cycle/release 环境和启动统一只读 observer。生产请求不再接收或挂载旧 Activation final 文件。
 
 底层 continuation core 同时验证“退役 active 后启动相邻周期”和“从最新 frozen Legacy 启动相邻周期”，避免容量回滚后形成生命周期死路；本刷新包只允许从当前冻结的 Legacy 源周期启动，旧 `shadow_capture` 假设已作废。所有动态证据和授权都必须在 90 分钟窗口内重新生成，不能复用旧请求。
 
 一次性授权必须显式携带 `market-radar-package-authorization.v1`，Bundle validator 与通用生产租约入口必须在上传前对同一 schema 达成一致。缺失或伪造版本必须在租约获取和任何生产变更前 fail closed，禁止通过手工补字段绕过本地合同。
 
-当前 Legacy 基线允许 `.env` 与 `.env.production` 省略 Candidate override，因为 `docker-compose.yml` 对全部 Candidate flag、cycle 1 和 disabled release 定义了精确 fail-closed 默认值。renderer 只能在 `legacy` 阶段按这些精确 Compose 默认值补全目标环境；任何显式 `true`、错误 cycle/release、重复字段或 active 阶段缺字段仍必须拒绝。
+当前 Legacy 基线允许 `.env` 与 `.env.production` 省略 Candidate override，因为全部 Candidate authority flag 的有效值均为关闭。renderer 只能在 `legacy` 且控制行已精确绑定最新冻结周期时，把缺失的非权威 cycle 字段绑定到该冻结周期；任何显式 `true`、显式 Cycle-1/Cycle-3 冒充当前周期、错误 release、重复字段或 active 阶段缺字段仍必须拒绝。
 
 ## 失败边界
 

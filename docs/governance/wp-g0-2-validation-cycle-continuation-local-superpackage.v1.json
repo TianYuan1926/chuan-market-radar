@@ -13,11 +13,11 @@
     "dualReadObservationMinimumHours": 24,
     "canonicalCompatObservationMinimumHours": 24,
     "readObservationWindowsSeparate": true,
-    "currentProductionCycle": "candidate-episode-v1",
+    "currentProductionCycle": "candidate-episode-v1-cycle-2",
     "currentProductionPhase": "legacy",
     "currentProductionWriteFrozen": true,
-    "currentProductionAuthorityEpoch": 6,
-    "currentProductionDeadlineAt": "2026-07-19T01:38:00.099Z",
+    "currentProductionAuthorityEpoch": 2,
+    "currentProductionDeadlineAt": "2026-07-21T12:40:57.774Z",
     "currentProductionActiveCycles": 0,
     "currentProductionCandidateWorker": "absent",
     "legacySourceCompleted": 2957,
@@ -26,18 +26,18 @@
     "candidateEventNonPending": 0,
     "candidateEventOrphans": 0,
     "candidateEventContractMismatches": 0,
-    "priorActivationOutcome": "ROLLBACK",
-    "priorActivationSamplesObserved": 197,
+    "priorActivationOutcome": "RECOVERED_BASELINE_AFTER_AUTOMATIC_ROLLBACK_FAILURE",
+    "priorActivationSamplesObserved": 0,
     "priorActivationCoverageLessThan24Hours": true,
-    "freshActivationMustBeCollectedInCycle2": true,
+    "freshActivationMustBeCollectedInNextAdjacentCycle": true,
     "currentSingleCycleCanProveAllExitGates": false
   },
   "continuationBoundary": {
     "migrationFamily": "candidate-episode-v1",
     "cycleOneIdentity": "candidate-episode-v1",
-    "nextIdentityExample": "candidate-episode-v1-cycle-2",
+    "nextIdentityExample": "candidate-episode-v1-cycle-3",
     "runtimeIdentityEnvironment": "CANDIDATE_RUNTIME_MIGRATION_ID",
-    "missingEnvironmentDefaultsToCycleOne": true,
+    "missingDisabledEnvironmentBindsToCurrentFrozenCycle": true,
     "explicitEmptyEnvironmentRejected": true,
     "cycleNumbersStrictlyAdjacent": true,
     "oldCycleTransitionsToLegacy": true,
@@ -86,7 +86,7 @@
       "src/lib/candidate-episode/shadow-capture-runtime.ts"
     ],
     "fileCount": 12,
-    "sha256": "7d2600151a5e21019ad6202bc1d9f929a24cad8090ecf09525a3df0d85f38ff1"
+    "sha256": "6770ccd26867a598bea857a31a659fe1ff097d1d5f885ca567d57e7f0eb02207"
   },
   "localPostgres16Rehearsal": {
     "oldDeadlineImmutable": true,

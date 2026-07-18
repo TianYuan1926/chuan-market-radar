@@ -124,7 +124,7 @@ export function renderCycleContinuationEnvironment(source, rawInput) {
   }
   const sourceMigrationId = entries.has("CANDIDATE_RUNTIME_MIGRATION_ID")
     ? entries.get("CANDIDATE_RUNTIME_MIGRATION_ID")
-    : input.currentPhase === "legacy" ? "candidate-episode-v1" : undefined;
+    : input.currentPhase === "legacy" ? input.currentMigrationId : undefined;
   const sourceReleaseId = entries.has("CANDIDATE_RUNTIME_RELEASE_ID")
     ? entries.get("CANDIDATE_RUNTIME_RELEASE_ID")
     : input.currentPhase === "legacy" ? "disabled" : undefined;

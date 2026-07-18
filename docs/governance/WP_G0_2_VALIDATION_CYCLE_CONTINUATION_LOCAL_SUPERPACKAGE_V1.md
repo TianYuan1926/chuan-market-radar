@@ -1,6 +1,6 @@
 # WP-G0.2 Validation Cycle Continuation Local Superpackage v1
 
-状态：2026-07-18 第二次 Cycle-2 生产尝试在 control 切换前因 Legacy env 缺省值合同不兼容安全失败并完整回滚；本地最小修复和 PostgreSQL 16 演练已重新通过，尚待新提交绑定后重试。
+状态：2026-07-18 第三次 Cycle-2 启动在首个观察样本前失败，自动回滚又被旧 Compose 前置条件自锁；生产已人工恢复到双周期 Legacy frozen 基线。当前包按最新冻结 Cycle-2/epoch2 重新绑定严格相邻 Cycle-3，尚待新提交和生产执行。
 
 ## 为什么必须增加验证周期续接
 
@@ -18,17 +18,17 @@
 6. 新周期仍严格 72 小时；这不是重置旧 deadline。
 7. 任一步失败必须回滚整个事务，Legacy 始终保持权威。
 8. 10,000 条、三段 24 小时、RR 3:1、Risk Gate 和所有交易边界均不变。
-9. 旧 Activation 唯一留存证据为 197 个样本、约 16.5 小时并以 `ROLLBACK` 关闭，不能重算或包装为 PASS；Cycle-2 必须重新采集至少 289 个样本并覆盖至少 24 小时。
+9. 历史 Activation 只有 197 个样本、约 16.5 小时并以 `ROLLBACK` 关闭；第三次 Cycle-2 启动为 0 个观察样本。两者都不能重算或包装为 PASS；相邻 Cycle-3 必须重新采集至少 289 个样本并覆盖至少 24 小时。
 
 ## 当前生产只读基线
 
-- `candidate-episode-v1` 已处于 `legacy / frozen / epoch 6`，当前 active cycle 为 0；epoch 4 已被 fencing token 19 的受控尝试与安全回滚取代。
+- `candidate-episode-v1` 为 `legacy / frozen / epoch 6` 历史行；最新 `candidate-episode-v1-cycle-2` 为 `legacy / frozen / epoch 2 / candidate-shadow-cycle-2-4ce18da`，当前 active cycle 为 0。
 - Candidate Worker 容器缺席；Web 与 scanner-worker 已恢复到健康基线。
 - Candidate 表计数为 episodes 543、events 2,957、outbox 5,914、checkpoints 0、outcomes 0。
 - `candidate_episode_event` 通道为 pending 2,957、non-pending 0、orphan 0、contract mismatch 0。
-- 新周期只能是严格相邻的 `candidate-episode-v1-cycle-2`，不能复活旧周期，也不能清理事件通道。
-- Cycle-2 将把新 Activation 与 10,000 条真实写入积累并行观察，但最终只有两项同时达标才输出 PASS。
-- 当前两个 env 文件不显式保存 Candidate override，运行中 Web 由 Compose 得到全部关闭、cycle 1、release disabled 的有效默认值。续接 renderer 只在 Legacy 阶段接受这一精确缺省形态并把目标值显式物化；任何非默认显式值继续 fail closed。
+- 新周期只能是严格相邻的 `candidate-episode-v1-cycle-3`，不能复活 Cycle-1/Cycle-2，也不能清理事件通道。
+- Cycle-3 将把新 Activation 与 10,000 条真实写入积累并行观察，但最终只有两项同时达标才输出 PASS。
+- 当前两个 env 文件不显式保存 Candidate override，运行中 Web 的全部 Candidate authority flag 关闭。续接 renderer 只在 Legacy 且数据库精确绑定最新冻结周期时接受缺失字段；任何显式错误 cycle/release 或启用 authority flag 都继续 fail closed。
 
 ## 当前结论
 
