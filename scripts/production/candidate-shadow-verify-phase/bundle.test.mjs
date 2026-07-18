@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 import {
+  CONTRACT_PATH,
   REQUIRED_PRODUCTION_COMMIT,
   buildTransportBundle,
   createProductionExecutionRequest,
@@ -15,6 +16,11 @@ import {
   validateAuthorization,
   validateContract,
 } from "./bundle.mjs";
+import {
+  PRODUCTION_TREE as CODE_PRESENCE_PRODUCTION_TREE,
+  REFERENCE_CODE_PATHS,
+  buildCodePresenceEvidence,
+} from "../candidate-shadow-verify-code-presence/runner.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const hash = (character) => character.repeat(64);
@@ -201,18 +207,22 @@ async function evidenceFixture(lineageTransform = (value) => value) {
   const lineageSha256 = sha256(lineageBytes);
   const reconciliation = reconciliationEvidence(lineageSha256);
   const reconciliationBytes = Buffer.from(`${JSON.stringify(reconciliation, null, 2)}\n`);
-  const codeRelease = {
-    status: "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
-    targetCommit: REQUIRED_PRODUCTION_COMMIT,
-    targetWebImageId: image("c"),
-    servicesMutated: ["web"],
-    databaseMutation: false,
-    redisMutation: false,
-    workerMutation: false,
-    phaseTransition: false,
-    manifestMutation: false,
-    legacyResponseAuthority: true,
-  };
+  const codeRelease = buildCodePresenceEvidence({
+    productionCommit: REQUIRED_PRODUCTION_COMMIT,
+    productionTree: CODE_PRESENCE_PRODUCTION_TREE,
+    productionBlobs: Object.fromEntries(REFERENCE_CODE_PATHS.map((item) => [item.path, item.blob])),
+    runningWebContainerId: "d".repeat(64),
+    runningWebImageId: image("c"),
+    buildRecordWebImageId: image("c"),
+    buildRecordSha256: hash("e"),
+    productionGitClean: true,
+    productionGitDetached: true,
+    candidateReadManifestAbsent: true,
+    candidateReadEndpointFailClosed: true,
+    healthLevel: "ready",
+    scanFreshness: "fresh",
+    verifiedAt: "2026-07-17T00:00:00.000Z",
+  });
   const codeReleaseBytes = Buffer.from(`${JSON.stringify(codeRelease, null, 2)}\n`);
   const lineagePath = join(directory, "lineage.json");
   const reconciliationPath = join(directory, "reconciliation.json");
@@ -234,7 +244,7 @@ async function evidenceFixture(lineageTransform = (value) => value) {
 
 test("validates the checked-in phase-transition contract", async () => {
   const contract = JSON.parse(await readFile(resolve(root,
-    "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3.json")));
+    CONTRACT_PATH)));
   assert.equal(validateContract(contract).productionExecuted, false);
 });
 

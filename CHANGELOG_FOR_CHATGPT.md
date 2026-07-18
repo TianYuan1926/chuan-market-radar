@@ -2,6 +2,48 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Shadow Verify Production Code Presence Identity Remediation v1
+
+### 本轮目标
+
+证明当前 Cycle-5 生产 Web 已包含 Shadow Verify 所需应用代码时，可以用严格的零变更生产代码存在性证据替代无意义 Web 重发；任何身份不一致仍必须回到真实 Web-only release。
+
+### 修改范围
+
+- 新增 production code-presence 本地 validator、确定性 Bundle、只读生产 runner、边界测试和完整隔离执行演练。
+- 新增 code-presence v1 合同，并将 Shadow Verify phase 合同升级为 v4。
+- phase runner 继续接受真实 Web-only release PASS，同时新增严格 code-presence PASS；两条路径都不授权 Candidate 成为响应权威。
+- 生产 runner 直接验证 Candidate read manifest absent 和 Candidate lifecycle endpoint fail-closed，不再只靠证据字段声明 Legacy authority。
+- 更新自治状态、Context、中文工程说明和交付报告。
+- 未修改 frontend、业务 API、scan/analysis/strategy/backtest、RR、migration、DB、Redis、worker 业务逻辑、Caddy、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的生产身份地基：减少一次没有代码收益的 Web 发布风险，不新增信号、不改变排序、不生成交易计划。
+
+### 测试结果
+
+- code-presence 定向测试 8/8 PASS。
+- Shadow Verify phase 定向测试 21/21 PASS。
+- 完整隔离执行 PASS，使用 detached `94b6d415...` worktree 和只读 Docker 替身，未连接生产。
+- code-presence 与 phase validator、typecheck、lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁 PASS。
+- Autonomy 31/31、提交前自治总门禁 12/12 PASS，`worktreeUnchanged=true`；clean commit 和提交绑定门禁以最终交付报告为准。
+- formal 未运行且禁止。
+
+### 是否部署
+
+未部署，未上传或执行生产 Packet，未发布 Web，未切换 Candidate phase。Cycle-5 observer 保持唯一生产 WIP。
+
+### 风险与遗留问题
+
+- 本地 blob 相同不是生产 PASS；还必须在 Cycle-5 双门禁后执行生产 verify-only，闭合 Git/build-record/container/health 四重身份。
+- 生产 Lineage、Reconciliation、Shadow Verify phase transition 和 dual-read observation 均未执行。
+- G0 主步骤仍为 7，系统仍不能支撑实战。
+
+### 下一轮建议
+
+先完成本包 clean commit、push 和提交绑定门禁；生产车道继续等待 Cycle-5 双门禁。
+
 ## 2026-07-19 / WP-G0.2 Current-Cycle Lineage / Reconciliation / Shadow Verify 依赖刷新 v3
 
 ### 本轮目标

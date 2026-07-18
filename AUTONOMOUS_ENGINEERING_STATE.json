@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T01:13:37+08:00",
+  "updatedAt": "2026-07-19T01:56:41+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -25,7 +25,7 @@
     "freshVerificationCycleLineageCapture": "pass_local_current_cycle_v3_refresh_postgres16_five_controls_10020_writes_release_distribution_2505_0_2505_0_5010_readonly_audit_role_production_not_connected_observer_unchanged",
     "freshVerificationCycleLineageProductionPacket": "pass_local_current_cycle_v3_packet_local_runner_837f8c16_execution_artifact_075d8ad05_exact_five_windows_deterministic_redacted_bundle_production_not_executed_waiting_cycle5_observer_dual_gate_pass",
     "shadowVerifyCodeAuthorization": "current_cycle_v3_dependency_refresh_local_targeted_pass_accepts_only_exact_five_window_lineage_and_zero_difference_reconciliation_production_not_connected_not_deployed_phase_not_changed",
-    "shadowVerifyCodeAuthorizationProductionRelease": "current_cycle_v3_dependency_refresh_local_release_target_54837d0_to_eb48827_is_stale_against_production_94b6d415_and_must_not_execute_future_release_identity_refresh_required",
+    "shadowVerifyCodeAuthorizationProductionRelease": "current_cycle_v3_dependency_refresh_committed_pushed_2c8bf776_gate21_pass_old_release_target_54837d0_to_eb48827_stale_against_production_94b6d415_exact_three_code_blobs_already_present_code_presence_identity_remediation_active",
     "shadowVerifyPhaseTransitionAndDualReadObservation": "current_cycle_v3_dependency_refresh_local_targeted_pass_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalCompatPhaseTransitionAndObservation": "completed_local_committed_pushed_8d6e37d_targeted_20_of_20_domain_105_of_105_with_3_explicit_pg_skips_postgres16_10000_write_shadow_verify_to_canonical_compat_and_legacy_frozen_rollback_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_13_of_13_pass_bundle_f5fb00f3_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalRollbackStateMachineRemediation": "completed_local_committed_pushed_5e777e4_postcommit_autonomy_12_of_12_migration_010_sha_2ae3247a_production_not_applied_canonical_cutover_blocked",
@@ -150,11 +150,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CURRENT-CYCLE-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH-LOCAL-SUPERPACKAGE",
-    "title": "Current-cycle Lineage, Reconciliation and Shadow Verify dependency refresh",
+    "id": "WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION",
+    "title": "Shadow Verify production code-presence identity remediation",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "移除Cycle-3硬编码，把Lineage、Reconciliation和Shadow Verify依赖合同刷新为数据库当前Cycle-5可验证的动态v3合同，同时保留历史v2证据且不执行第二条生产WIP。",
+    "objective": "用参考代码blob、生产Git、Cycle-5镜像构建记录和运行容器四重只读证据证明Shadow Verify代码已存在，避免执行无意义Web重发；任何身份不一致仍强制回到Web-only发布。",
     "coreChainImpact": ["候选筛选", "复盘进化"],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -162,28 +162,17 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-code-authorization-production-release.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3.json",
-      "docs/governance/WP_G0_2_CURRENT_CYCLE_LINEAGE_RECONCILIATION_DEPENDENCY_REFRESH_LOCAL_SUPERPACKAGE_V3.md",
-      "scripts/governance/candidate-lineage-capture.mjs",
-      "scripts/governance/candidate-lineage-capture.test.mjs",
-      "scripts/governance/candidate-reconciliation-runner.mjs",
-      "scripts/governance/candidate-reconciliation-runner.test.mjs",
-      "scripts/governance/candidate-shadow-verify-code-authorization.mjs",
-      "scripts/production/candidate-lineage/**",
-      "scripts/production/candidate-reconciliation/**",
-      "scripts/production/candidate-shadow-verify-release/bundle.mjs",
-      "scripts/production/candidate-shadow-verify-release/bundle.test.mjs",
+      "package.json",
+      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-identity-remediation.v1.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4.json",
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_PRODUCTION_CODE_PRESENCE_IDENTITY_REMEDIATION_V1.md",
+      "scripts/production/candidate-shadow-verify-code-presence/**",
       "scripts/production/candidate-shadow-verify-phase/bundle.mjs",
       "scripts/production/candidate-shadow-verify-phase/bundle.test.mjs",
       "scripts/production/candidate-shadow-verify-phase/runner.mjs",
       "scripts/production/candidate-shadow-verify-phase/runner.test.mjs",
-      "reports/wp-g0-2-current-cycle-lineage-reconciliation-dependency-refresh/**"
+      "reports/wp-g0-2-current-cycle-lineage-reconciliation-dependency-refresh/**",
+      "reports/wp-g0-2-shadow-verify-production-code-presence-identity-remediation/**"
     ],
     "prohibitedPaths": [
       "migrations/candidate-episode/**", "src/lib/market/**", "src/lib/analysis/**",
@@ -194,29 +183,23 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-code-authorization-production-release.v3.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3.json",
-      "docs/governance/WP_G0_2_CURRENT_CYCLE_LINEAGE_RECONCILIATION_DEPENDENCY_REFRESH_LOCAL_SUPERPACKAGE_V3.md",
-      "reports/wp-g0-2-current-cycle-lineage-reconciliation-dependency-refresh/WP_G0_2_CURRENT_CYCLE_LINEAGE_RECONCILIATION_DEPENDENCY_REFRESH_REPORT.md"
+      "package.json",
+      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-identity-remediation.v1.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4.json",
+      "docs/governance/WP_G0_2_SHADOW_VERIFY_PRODUCTION_CODE_PRESENCE_IDENTITY_REMEDIATION_V1.md",
+      "scripts/production/candidate-shadow-verify-code-presence/runner.mjs",
+      "scripts/production/candidate-shadow-verify-code-presence/runner.test.mjs",
+      "scripts/production/candidate-shadow-verify-code-presence/bundle.mjs",
+      "scripts/production/candidate-shadow-verify-code-presence/bundle.test.mjs",
+      "scripts/production/candidate-shadow-verify-code-presence/production-boundary.test.mjs",
+      "scripts/production/candidate-shadow-verify-code-presence/production-entrypoint.sh",
+      "scripts/production/candidate-shadow-verify-code-presence/production-runner.sh",
+      "reports/wp-g0-2-shadow-verify-production-code-presence-identity-remediation/WP_G0_2_SHADOW_VERIFY_PRODUCTION_CODE_PRESENCE_IDENTITY_REMEDIATION_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:lineage-capture:validate",
-        "test:candidate-lineage-capture",
-        "test:candidate-lineage-production-packet",
-        "candidate:lineage-capture:pg16-rehearsal",
-        "candidate:reconciliation-runner:validate",
-        "test:candidate-reconciliation-runner",
-        "test:candidate-reconciliation-production-packet",
-        "candidate:reconciliation-runner:pg16-rehearsal",
-        "candidate:shadow-verify-code-authorization:validate",
-        "test:candidate-shadow-verify-code-authorization",
-        "test:candidate-shadow-verify-code-release",
+        "candidate:shadow-verify-code-presence:validate",
+        "test:candidate-shadow-verify-code-presence",
         "test:candidate-shadow-verify-phase",
         "test:autonomy"
       ],
@@ -224,12 +207,12 @@
       "security": ["ci:forbidden-files", "ci:secret-patterns", "security:check"]
     },
     "completionBoundary": [
-      "Lineage必须由当前migration编号推导精确窗口数且至少两轮，历史窗口必须连续、Legacy/frozen/even，当前窗口必须shadow_capture/unfrozen/odd",
-      "Reconciliation必须只读取v3 Lineage，逐行比较至少10000条并要求difference、duplicate、outside lineage和unresolved全部为0",
-      "正式数据库查询必须REPEATABLE READ READ ONLY并使用candidate_audit_role，禁止写入生产排序或future outcome",
-      "Shadow Verify只能接受同一当前Cycle的精确Lineage和Reconciliation证据，response authority仍为Legacy",
-      "历史v2合同与失败证据必须保留，旧54837d0到eb48827发布目标因生产基线漂移不得执行",
-      "Cycle-5 observer继续作为唯一生产WIP；本包禁止连接生产、切phase、发布Web或启动dual-read观察",
+      "参考commit eb48827中的三个Shadow Verify代码blob必须逐个等于生产94b6d415和当前工程commit对应blob",
+      "生产Git必须clean detached且commit/tree精确等于Cycle-5目标；运行Web image必须等于Cycle-5 target-images-record且记录文件哈希精确绑定",
+      "code-presence证据必须servicesMutated为空且DB、Redis、Worker、phase、manifest、env、compose、Git全部零mutation",
+      "phase只能接受真实Web release PASS或严格code-presence PASS，普通本地blob比较不能授权phase",
+      "任一身份漂移必须输出requiresWebRelease=true并拒绝省略发布",
+      "Cycle-5 observer继续作为唯一生产WIP；本包禁止连接生产、发布Web、切phase或启动dual-read观察",
       "scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、frontend、API、migration、Redis和worker业务逻辑禁止修改",
       "formal backtest禁止运行"
     ],
@@ -239,7 +222,7 @@
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
       "coreChainStages": ["候选筛选", "复盘进化"],
-      "measurableOutcome": "后续生产Lineage和Reconciliation不再错误依赖Cycle-3，只有当前Cycle的完整多轮血缘和零差异对账才能授权Shadow Verify。"
+      "measurableOutcome": "只有四重身份闭环才能把已存在代码替代Web重发，减少一次生产变更和30分钟观察，同时不降低Shadow Verify授权标准。"
     }
   },
   "approvals": [
@@ -646,6 +629,13 @@
     {
       "order": 56,
       "id": "WP-G0.2-CURRENT-CYCLE-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH-LOCAL-SUPERPACKAGE",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_2c8bf776_gate21_pass_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 57,
+      "id": "WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

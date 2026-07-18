@@ -38,8 +38,8 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3.json";
-export const REQUIRED_PRODUCTION_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
+  "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4.json";
+export const REQUIRED_PRODUCTION_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -57,6 +57,7 @@ const RELEASE = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
 export const RUNNER_FILES = Object.freeze([
   "scripts/production/candidate-lineage/runner.mjs",
   "scripts/production/candidate-reconciliation/runner.mjs",
+  "scripts/production/candidate-shadow-verify-code-presence/runner.mjs",
   "scripts/production/candidate-shadow-verify-phase/full-snapshot-observer.cjs",
   "scripts/production/candidate-shadow-verify-phase/observation-runner.sh",
   "scripts/production/candidate-shadow-verify-phase/production-entrypoint.sh",
@@ -120,7 +121,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v3"
+    === "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4"
     && contract.packageId === PACKAGE_ID && contract.gate === "G0"
     && contract.actionClass === "shadow_verify_activation"
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",
@@ -130,8 +131,12 @@ export function validateContract(contract) {
       && contract.productionAuthorization === false && contract.productionExecuted === false,
   "contract_production_truth_invalid");
   ensure(contract.releaseBoundary?.requiredProductionCommit === REQUIRED_PRODUCTION_COMMIT
-      && contract.releaseBoundary?.requiredCodeReleaseStatus
-        === "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY"
+      && JSON.stringify(contract.releaseBoundary?.acceptedCodeAvailabilityStatuses)
+        === JSON.stringify([
+          "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
+          "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED",
+        ])
+      && contract.releaseBoundary?.codePresenceMustBeZeroMutation === true
       && contract.releaseBoundary?.productionWorktreeCleanDetachedRequired === true
       && contract.releaseBoundary?.sourceSyncAllowed === false
       && contract.releaseBoundary?.gitCheckoutAllowed === false

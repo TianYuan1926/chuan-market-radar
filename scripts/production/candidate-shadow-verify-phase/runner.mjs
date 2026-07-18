@@ -10,6 +10,10 @@ import {
   RECONCILIATION_PASS,
   RECONCILIATION_SCHEMA,
 } from "../candidate-reconciliation/runner.mjs";
+import {
+  EVIDENCE_SCHEMA as CODE_PRESENCE_SCHEMA,
+  validateCodePresenceEvidence,
+} from "../candidate-shadow-verify-code-presence/runner.mjs";
 
 export const PACKAGE_ID =
   "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION";
@@ -210,6 +214,9 @@ export function validateReconciliationEvidence(evidence) {
 }
 
 export function validateCodeReleaseEvidence(evidence) {
+  if (evidence?.schemaVersion === CODE_PRESENCE_SCHEMA) {
+    return validateCodePresenceEvidence(evidence);
+  }
   ensure(evidence?.status
       === "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
   "shadow_verify_code_release_not_pass");

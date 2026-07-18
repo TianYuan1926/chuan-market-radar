@@ -13,6 +13,12 @@ import {
   validateObservationSample,
   validateReconciliationEvidence,
 } from "./runner.mjs";
+import {
+  PRODUCTION_COMMIT as CODE_PRESENCE_PRODUCTION_COMMIT,
+  PRODUCTION_TREE as CODE_PRESENCE_PRODUCTION_TREE,
+  REFERENCE_CODE_PATHS,
+  buildCodePresenceEvidence,
+} from "../candidate-shadow-verify-code-presence/runner.mjs";
 
 const releaseId = "candidate-shadow-release-12345678";
 const migrationId = "candidate-episode-v1-cycle-5";
@@ -233,6 +239,28 @@ test("accepts only a Web-only code release that retained Legacy authority", () =
   assert.equal(validateCodeReleaseEvidence(evidence), evidence);
   assert.throws(() => validateCodeReleaseEvidence({ ...evidence, databaseMutation: true }),
     /shadow_verify_code_release_boundary_invalid/u);
+});
+
+test("accepts exact zero-mutation production code presence instead of a no-op release", () => {
+  const evidence = buildCodePresenceEvidence({
+    productionCommit: CODE_PRESENCE_PRODUCTION_COMMIT,
+    productionTree: CODE_PRESENCE_PRODUCTION_TREE,
+    productionBlobs: Object.fromEntries(REFERENCE_CODE_PATHS.map((item) => [item.path, item.blob])),
+    runningWebContainerId: "9".repeat(64),
+    runningWebImageId: webImageId,
+    buildRecordWebImageId: webImageId,
+    buildRecordSha256: "8".repeat(64),
+    productionGitClean: true,
+    productionGitDetached: true,
+    candidateReadManifestAbsent: true,
+    candidateReadEndpointFailClosed: true,
+    healthLevel: "ready",
+    scanFreshness: "fresh",
+    verifiedAt: "2026-07-19T01:50:00.000Z",
+  });
+  assert.equal(validateCodeReleaseEvidence(evidence), evidence);
+  assert.throws(() => validateCodeReleaseEvidence({ ...evidence, gitMutation: true }),
+    /code_presence_mutation_boundary_invalid/u);
 });
 
 test("requires API Legacy authority and full-snapshot parity in every sample", () => {
