@@ -3,23 +3,27 @@
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
-import { evaluateObservationEvidence } from "../candidate-activation/runner.mjs";
 import {
   evaluateCycleObservation,
+  MAXIMUM_SAMPLE_GAP_SECONDS,
+  MINIMUM_ACTIVATION_HOURS,
+  MINIMUM_ACTIVATION_SAMPLES,
   MINIMUM_COMPARED_WRITES,
   MINIMUM_SAMPLES,
   MINIMUM_STABILITY_SECONDS,
 } from "../candidate-cycle-continuation/observation-runner.mjs";
 
 export const PACKAGE_ID =
-  "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-LOCAL-SUPERPACKAGE";
-export const LINEAGE_SCHEMA = "candidate-multi-cycle-lineage-evidence.v1";
+  "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE";
+export const LINEAGE_SCHEMA = "candidate-multi-cycle-lineage-evidence.v2";
 export const LINEAGE_PASS =
-  "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION";
+  "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH";
 const MIGRATION_FAMILY = "candidate-episode-v1";
 const CYCLE_PATTERN = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE_PATTERN = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
 const HASH_PATTERN = /^[0-9a-f]{64}$/u;
+const MINIMUM_COMPLETION_ADVANCES = 2;
+const UNRESOLVED_MAXIMUM = 0;
 
 const EXPECTED_KEYS = Object.freeze([
   "authorityEpoch", "commit", "migrationId", "releaseId",
@@ -33,14 +37,16 @@ const STATUS_COUNT_KEYS = Object.freeze([
   "retryWait", "unresolvedQuarantine", "unresolvedTotal",
 ]);
 const LINEAGE_KEYS = Object.freeze([
-  "activationEvidenceSha256", "activationSamplesSha256",
-  "accumulationEvidenceSha256", "accumulationSamplesSha256",
-  "canonicalAuthorityChanged", "completedWrites", "controlSnapshotSha256",
+  "activationCoverageSeconds", "activationSamples", "canonicalAuthorityChanged",
+  "completedWrites", "completionAdvances", "controlSnapshotSha256",
   "currentAuthorityEpoch", "currentMigrationId", "currentReleaseId",
-  "freshCycleStartedAt", "freshEvidenceSha256", "freshSamplesSha256",
-  "g0Completed", "productionReconciliationExecuted", "schemaVersion",
-  "shadowVerifyStarted", "sourceReleaseWindows", "status", "thresholdsChanged",
-  "unresolvedOutbox",
+  "currentCycleStartedAt", "g0Completed", "minimumActivationHours",
+  "maximumSampleGapSeconds", "minimumActivationSamples", "minimumComparedWrites",
+  "minimumCompletionAdvances", "minimumSamples", "minimumStabilitySeconds",
+  "observationElapsedSeconds",
+  "productionReconciliationExecuted", "schemaVersion", "shadowVerifyStarted",
+  "sourceReleaseWindows", "status", "thresholdsChanged", "unifiedEvidenceSha256",
+  "unifiedSamplesSha256", "unresolvedMaximum", "unresolvedOutbox",
 ]);
 
 export class CandidateLineageError extends Error {
@@ -110,52 +116,39 @@ function validateExpected(expected, label) {
   return expected;
 }
 
-function evaluateActivation(activation) {
-  exactKeys(activation, ["expected", "final", "samples"], "activation_input_shape_invalid");
-  const expected = validateExpected(activation.expected, "activation");
-  const recomputed = evaluateObservationEvidence(activation.samples, {
-    approvedCommit: expected.commit,
-    authorityEpoch: expected.authorityEpoch,
-    migrationId: expected.migrationId,
-    releaseId: expected.releaseId,
-  });
-  ensure(canonicalJson(recomputed) === canonicalJson(activation.final),
-    "activation_final_recompute_mismatch");
-  ensure(recomputed.status === "PASS_ACTIVATE_AND_OBSERVE"
-      && recomputed.sampleCount === 289 && recomputed.coverageHours >= 24
-      && recomputed.maximumGapSeconds <= 600 && recomputed.completedWrites > 0,
-  "activation_thresholds_invalid");
-  return { expected, final: recomputed, samples: activation.samples };
-}
-
-function evaluateCycle(input, label) {
-  exactKeys(input, ["expected", "final", "samples"], `${label}_input_shape_invalid`);
-  const expected = validateExpected(input.expected, label);
+function evaluateUnified(input) {
+  exactKeys(input, ["expected", "final", "samples"], "unified_input_shape_invalid");
+  const expected = validateExpected(input.expected, "unified");
+  ensure(parseCycle(expected.migrationId) === 3, "unified_cycle_not_cycle3");
   const recomputed = evaluateCycleObservation(input.samples, {
     commit: expected.commit,
     migrationId: expected.migrationId,
     releaseId: expected.releaseId,
   });
   ensure(canonicalJson(recomputed) === canonicalJson(input.final),
-    `${label}_final_recompute_mismatch`);
-  ensure(recomputed.status === "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE",
-    `${label}_status_not_pass`);
+    "unified_final_recompute_mismatch");
+  ensure(recomputed.status === "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
+    "unified_status_not_pass");
   ensure(recomputed.samples >= MINIMUM_SAMPLES
       && recomputed.elapsedSeconds >= MINIMUM_STABILITY_SECONDS
-      && recomputed.completionAdvances >= 2
+      && recomputed.completionAdvances >= MINIMUM_COMPLETION_ADVANCES
       && recomputed.completedWrites >= MINIMUM_COMPARED_WRITES
-      && recomputed.unresolvedOutbox === 0
+      && recomputed.activationSamples >= MINIMUM_ACTIVATION_SAMPLES
+      && recomputed.activationCoverageSeconds >= MINIMUM_ACTIVATION_HOURS * 60 * 60
+      && recomputed.accumulationReady === true
+      && recomputed.freshActivationReady === true
+      && recomputed.unresolvedOutbox === UNRESOLVED_MAXIMUM
       && recomputed.thresholdsChanged === false,
-  `${label}_thresholds_invalid`);
-  ensure(recomputed.authorityEpoch === expected.authorityEpoch, `${label}_epoch_mismatch`);
+  "unified_thresholds_invalid");
+  ensure(recomputed.authorityEpoch === expected.authorityEpoch, "unified_epoch_mismatch");
   return { expected, final: recomputed, samples: input.samples };
 }
 
 function validateDatabase(database) {
   exactKeys(database, ["controls", "releaseCompletedWrites", "statusCounts"],
     "database_input_shape_invalid");
-  ensure(Array.isArray(database.controls) && database.controls.length >= 2
-      && database.controls.length <= 64, "database_controls_invalid");
+  ensure(Array.isArray(database.controls) && database.controls.length === 3,
+    "database_controls_invalid");
   ensure(Array.isArray(database.releaseCompletedWrites)
       && database.releaseCompletedWrites.length === database.controls.length,
   "database_release_counts_invalid");
@@ -208,14 +201,14 @@ function validateDatabase(database) {
 }
 
 function sourceReleaseWindows(controls) {
-  return controls.map((control, index) => ({
-    authorityEpoch: index === controls.length - 1
-      ? control.authorityEpoch
-      : control.authorityEpoch - 1,
+  return controls.map((control) => ({
+    controlEpoch: control.authorityEpoch,
     deadlineAt: control.deadlineAt,
     migrationId: control.migrationId,
+    phase: control.phase,
     releaseId: control.releaseId,
     startedAt: control.startedAt,
+    writeFrozen: control.writeFrozen,
   }));
 }
 
@@ -223,23 +216,31 @@ export function validateCandidateLineageEvidence(lineage) {
   exactKeys(lineage, LINEAGE_KEYS, "lineage_evidence_shape_invalid");
   ensure(lineage.schemaVersion === LINEAGE_SCHEMA && lineage.status === LINEAGE_PASS,
     "lineage_evidence_status_invalid");
-  for (const key of [
-    "activationEvidenceSha256", "activationSamplesSha256",
-    "accumulationEvidenceSha256", "accumulationSamplesSha256",
-    "freshEvidenceSha256", "freshSamplesSha256", "controlSnapshotSha256",
-  ]) ensure(HASH_PATTERN.test(lineage[key] ?? ""), `lineage_hash_invalid:${key}`);
+  for (const key of ["unifiedEvidenceSha256", "unifiedSamplesSha256", "controlSnapshotSha256"]) {
+    ensure(HASH_PATTERN.test(lineage[key] ?? ""), `lineage_hash_invalid:${key}`);
+  }
   ensure(Array.isArray(lineage.sourceReleaseWindows)
-      && lineage.sourceReleaseWindows.length >= 2, "lineage_windows_invalid");
+      && lineage.sourceReleaseWindows.length === 3, "lineage_windows_invalid");
   const seen = new Set();
   for (const [index, window] of lineage.sourceReleaseWindows.entries()) {
-    exactKeys(window, ["authorityEpoch", "deadlineAt", "migrationId", "releaseId", "startedAt"],
+    exactKeys(window, [
+      "controlEpoch", "deadlineAt", "migrationId", "phase", "releaseId", "startedAt",
+      "writeFrozen",
+    ],
       `lineage_window_shape_invalid:${index}`);
     ensure(parseCycle(window.migrationId) === index + 1, `lineage_window_not_adjacent:${index}`);
     ensure(RELEASE_PATTERN.test(window.releaseId ?? "") && !seen.has(window.releaseId),
       `lineage_window_release_invalid:${index}`);
     seen.add(window.releaseId);
-    ensure(Number.isSafeInteger(window.authorityEpoch) && window.authorityEpoch >= 1
-        && window.authorityEpoch % 2 === 1, `lineage_window_epoch_invalid:${index}`);
+    const currentWindow = index === lineage.sourceReleaseWindows.length - 1;
+    ensure(Number.isSafeInteger(window.controlEpoch) && window.controlEpoch >= 1,
+      `lineage_window_epoch_invalid:${index}`);
+    ensure(currentWindow
+      ? window.phase === "shadow_capture" && window.writeFrozen === false
+        && window.controlEpoch % 2 === 1
+      : window.phase === "legacy" && window.writeFrozen === true
+        && window.controlEpoch % 2 === 0,
+    `lineage_window_state_invalid:${index}`);
     ensure(timestamp(window.deadlineAt, `lineage_window_deadline_invalid:${index}`)
         - timestamp(window.startedAt, `lineage_window_start_invalid:${index}`)
         === 72 * 60 * 60_000, `lineage_window_duration_invalid:${index}`);
@@ -247,12 +248,25 @@ export function validateCandidateLineageEvidence(lineage) {
   const current = lineage.sourceReleaseWindows.at(-1);
   ensure(lineage.currentMigrationId === current.migrationId
       && lineage.currentReleaseId === current.releaseId
-      && lineage.currentAuthorityEpoch === current.authorityEpoch
-      && lineage.freshCycleStartedAt === current.startedAt,
+      && lineage.currentAuthorityEpoch === current.controlEpoch
+      && lineage.currentCycleStartedAt === current.startedAt,
   "lineage_current_identity_mismatch");
   ensure(Number.isSafeInteger(lineage.completedWrites)
       && lineage.completedWrites >= MINIMUM_COMPARED_WRITES
-      && lineage.unresolvedOutbox === 0 && lineage.thresholdsChanged === false,
+      && lineage.minimumComparedWrites === MINIMUM_COMPARED_WRITES
+      && lineage.minimumSamples === MINIMUM_SAMPLES
+      && lineage.minimumStabilitySeconds === MINIMUM_STABILITY_SECONDS
+      && lineage.minimumActivationSamples === MINIMUM_ACTIVATION_SAMPLES
+      && lineage.minimumActivationHours === MINIMUM_ACTIVATION_HOURS
+      && lineage.maximumSampleGapSeconds === MAXIMUM_SAMPLE_GAP_SECONDS
+      && lineage.minimumCompletionAdvances === MINIMUM_COMPLETION_ADVANCES
+      && lineage.unresolvedMaximum === UNRESOLVED_MAXIMUM
+      && lineage.activationSamples >= MINIMUM_ACTIVATION_SAMPLES
+      && lineage.activationCoverageSeconds >= MINIMUM_ACTIVATION_HOURS * 60 * 60
+      && lineage.observationElapsedSeconds >= MINIMUM_ACTIVATION_HOURS * 60 * 60
+      && lineage.completionAdvances >= MINIMUM_COMPLETION_ADVANCES
+      && lineage.unresolvedOutbox === UNRESOLVED_MAXIMUM
+      && lineage.thresholdsChanged === false,
   "lineage_threshold_or_unresolved_invalid");
   ensure(lineage.productionReconciliationExecuted === false
       && lineage.shadowVerifyStarted === false
@@ -262,63 +276,50 @@ export function validateCandidateLineageEvidence(lineage) {
 }
 
 export function buildCandidateLineageEvidence(input) {
-  exactKeys(input, ["activation", "accumulation", "database", "fresh"],
+  exactKeys(input, ["database", "unified"],
     "lineage_input_shape_invalid");
-  const activation = evaluateActivation(input.activation);
-  const accumulation = evaluateCycle(input.accumulation, "accumulation");
-  const fresh = evaluateCycle(input.fresh, "fresh");
+  const unified = evaluateUnified(input.unified);
   const database = validateDatabase(input.database);
   const controls = database.controls;
   const windows = sourceReleaseWindows(controls);
-  const first = controls[0];
-  const accumulationControl = controls.at(-2);
   const current = controls.at(-1);
-  ensure(first.migrationId === activation.expected.migrationId
-      && first.releaseId === activation.expected.releaseId
-      && first.authorityEpoch - 1 === activation.expected.authorityEpoch,
-  "activation_database_identity_mismatch");
-  ensure(accumulationControl.migrationId === accumulation.expected.migrationId
-      && accumulationControl.releaseId === accumulation.expected.releaseId
-      && accumulationControl.authorityEpoch - 1 === accumulation.expected.authorityEpoch,
-  "accumulation_database_identity_mismatch");
-  ensure(current.migrationId === fresh.expected.migrationId
-      && current.releaseId === fresh.expected.releaseId
-      && current.authorityEpoch === fresh.expected.authorityEpoch,
-  "fresh_database_identity_mismatch");
-  ensure(parseCycle(fresh.expected.migrationId)
-      === parseCycle(accumulation.expected.migrationId) + 1,
-  "fresh_cycle_not_adjacent_to_accumulation");
-  const accumulationLastSampleAt = timestamp(input.accumulation.samples.at(-1)?.sampledAt,
-    "accumulation_last_sample_time_invalid");
-  const freshFirstSampleAt = timestamp(input.fresh.samples[0]?.sampledAt,
-    "fresh_first_sample_time_invalid");
-  const freshLastSampleAt = timestamp(input.fresh.samples.at(-1)?.sampledAt,
-    "fresh_last_sample_time_invalid");
-  ensure(current.startedAtMs > accumulationLastSampleAt,
-    "fresh_cycle_started_before_accumulation_pass");
-  ensure(freshFirstSampleAt >= current.startedAtMs && freshLastSampleAt <= current.deadlineAtMs,
-    "fresh_samples_outside_current_window");
-  ensure(accumulation.final.completedWrites <= fresh.final.completedWrites,
-    "fresh_completed_writes_regressed");
-  ensure(database.releaseCompletedTotal === fresh.final.completedWrites,
-    "fresh_completed_writes_database_mismatch");
-  ensure(database.statusCounts.unresolvedTotal === fresh.final.unresolvedOutbox,
-    "fresh_unresolved_database_mismatch");
+  ensure(current.migrationId === unified.expected.migrationId
+      && current.releaseId === unified.expected.releaseId
+      && current.authorityEpoch === unified.expected.authorityEpoch,
+  "unified_database_identity_mismatch");
+  const firstSampleAt = timestamp(input.unified.samples[0]?.sampledAt,
+    "unified_first_sample_time_invalid");
+  const lastSampleAt = timestamp(input.unified.samples.at(-1)?.sampledAt,
+    "unified_last_sample_time_invalid");
+  ensure(firstSampleAt >= current.startedAtMs && lastSampleAt <= current.deadlineAtMs,
+    "unified_samples_outside_current_window");
+  ensure(database.releaseCompletedTotal === unified.final.completedWrites,
+    "unified_completed_writes_database_mismatch");
+  ensure(database.statusCounts.unresolvedTotal === unified.final.unresolvedOutbox,
+    "unified_unresolved_database_mismatch");
 
   const lineage = {
     schemaVersion: LINEAGE_SCHEMA,
     status: LINEAGE_PASS,
-    activationEvidenceSha256: evidenceHash(activation.final),
-    activationSamplesSha256: sampleSetHash(activation.samples),
-    accumulationEvidenceSha256: evidenceHash(accumulation.final),
-    accumulationSamplesSha256: sampleSetHash(accumulation.samples),
-    freshEvidenceSha256: evidenceHash(fresh.final),
-    freshSamplesSha256: sampleSetHash(fresh.samples),
+    unifiedEvidenceSha256: evidenceHash(unified.final),
+    unifiedSamplesSha256: sampleSetHash(unified.samples),
     controlSnapshotSha256: evidenceHash(input.database),
     sourceReleaseWindows: windows,
-    completedWrites: fresh.final.completedWrites,
+    completedWrites: unified.final.completedWrites,
     unresolvedOutbox: database.statusCounts.unresolvedTotal,
-    freshCycleStartedAt: current.startedAt,
+    observationElapsedSeconds: unified.final.elapsedSeconds,
+    completionAdvances: unified.final.completionAdvances,
+    activationSamples: unified.final.activationSamples,
+    activationCoverageSeconds: unified.final.activationCoverageSeconds,
+    minimumComparedWrites: MINIMUM_COMPARED_WRITES,
+    minimumSamples: MINIMUM_SAMPLES,
+    minimumStabilitySeconds: MINIMUM_STABILITY_SECONDS,
+    maximumSampleGapSeconds: MAXIMUM_SAMPLE_GAP_SECONDS,
+    minimumCompletionAdvances: MINIMUM_COMPLETION_ADVANCES,
+    minimumActivationSamples: MINIMUM_ACTIVATION_SAMPLES,
+    minimumActivationHours: MINIMUM_ACTIVATION_HOURS,
+    unresolvedMaximum: UNRESOLVED_MAXIMUM,
+    currentCycleStartedAt: current.startedAt,
     currentMigrationId: current.migrationId,
     currentReleaseId: current.releaseId,
     currentAuthorityEpoch: current.authorityEpoch,

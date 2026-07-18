@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { evaluateObservationEvidence } from "../candidate-activation/runner.mjs";
-import { evaluateCycleObservation } from "../candidate-cycle-continuation/observation-runner.mjs";
+import { evaluateCycleObservation } from
+  "../candidate-cycle-continuation/observation-runner.mjs";
 import {
   CAPTURE_SPEC_SCHEMA,
   loadLineageCaptureInputs,
@@ -14,78 +14,30 @@ import {
 } from "./production-runner.mjs";
 import { sha256 } from "./runner.mjs";
 
-const activationExpected = {
-  authorityEpoch: 3,
-  commit: "a".repeat(40),
-  migrationId: "candidate-episode-v1",
-  releaseId: "candidate-shadow-capture-packet-cycle-1",
-};
-const freshExpected = {
+const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-2",
-  releaseId: "candidate-shadow-capture-packet-cycle-2",
+  migrationId: "candidate-episode-v1-cycle-3",
+  releaseId: "candidate-shadow-capture-packet-cycle-3",
 };
 
-function activationSample(index) {
+function unifiedSample(index) {
+  const completedWrites = 2_957 + Math.floor(index * (10_020 - 2_957) / 288);
   return {
-    schemaVersion: "candidate-shadow-observation-sample.v1",
-    sampledAt: new Date(Date.parse("2026-07-11T00:00:00.000Z") + index * 300_000).toISOString(),
-    commit: activationExpected.commit,
-    releaseId: activationExpected.releaseId,
-    health: {
-      ok: true,
-      level: "ready",
-      scanFreshness: "fresh",
-      databaseStatus: "ready",
-      redisStatus: "healthy",
-      workers: [
-        "scanner-worker", "websocket-light-worker", "coinglass-worker", "signal-worker",
-        "dynamic-scan-scheduler", "macro-worker", "candidate-shadow-worker",
-      ].map((key) => ({ ageSec: 5, key, status: "healthy" })),
-    },
-    candidate: {
-      ok: true,
-      mode: "active",
-      runtime: {
-        enabled: true,
-        blockers: [],
-        authorityEpoch: activationExpected.authorityEpoch,
-        expectedReleaseId: activationExpected.releaseId,
-      },
-      monitor: {
-        status: "ready",
-        phase: "shadow_capture",
-        authorityEpoch: activationExpected.authorityEpoch,
-        blockers: [],
-        warnings: [],
-        metrics: {
-          outboxRetryWaitTotal: 0,
-          unresolvedQuarantineTotal: 0,
-          outboxQuarantinedTotal: 0,
-          oldestPendingAgeSeconds: null,
-          outboxCompletedTotal: index + 1,
-        },
-      },
-    },
-    database: { identityErrors: 0, lockWaiters: 0, longTransactions: 0 },
-  };
-}
-
-function cycleSamples(expected, start, values, deadlineAt) {
-  return values.map((completedWrites, index) => ({
-    schemaVersion: "candidate-validation-cycle-observation-sample.v1",
-    sampledAt: new Date(Date.parse(start) + index * 300_000).toISOString(),
-    commit: expected.commit,
-    migrationId: expected.migrationId,
-    releaseId: expected.releaseId,
+    schemaVersion: "candidate-validation-cycle-observation-sample.v2",
+    sampledAt: new Date(Date.parse("2026-07-15T00:00:00.000Z") + index * 300_000)
+      .toISOString(),
+    commit: unifiedExpected.commit,
+    migrationId: unifiedExpected.migrationId,
+    releaseId: unifiedExpected.releaseId,
     phase: "shadow_capture",
-    epoch: expected.authorityEpoch,
-    deadlineAt,
+    epoch: unifiedExpected.authorityEpoch,
+    deadlineAt: "2026-07-18T00:00:00.000Z",
     completedWrites,
     unresolvedOutbox: 0,
     activeCycles: 1,
     health: {
+      ok: true,
       level: "ready",
       scanFreshness: "fresh",
       database: "ready",
@@ -93,32 +45,49 @@ function cycleSamples(expected, start, values, deadlineAt) {
       candidateWorker: "healthy",
       workersHealthy: true,
     },
-  }));
+    candidate: {
+      ok: true,
+      mode: "active",
+      runtime: {
+        enabled: true,
+        blockers: [],
+        authorityEpoch: unifiedExpected.authorityEpoch,
+        expectedReleaseId: unifiedExpected.releaseId,
+      },
+      monitor: {
+        status: "ready",
+        phase: "shadow_capture",
+        migrationId: unifiedExpected.migrationId,
+        authorityEpoch: unifiedExpected.authorityEpoch,
+        blockers: [],
+        warnings: [],
+        metrics: {
+          outboxRetryWaitTotal: 0,
+          outboxQuarantinedTotal: 0,
+          unresolvedQuarantineTotal: 0,
+          unresolvedTotal: 0,
+          oldestPendingAgeSeconds: null,
+          outboxCompletedTotal: completedWrites,
+        },
+      },
+    },
+    database: { lockWaiters: 0, longTransactions: 0 },
+  };
 }
 
-async function writeEvidence(root, label, expected, samples, activation = false) {
-  const final = activation
-    ? evaluateObservationEvidence(samples, {
-      approvedCommit: expected.commit,
-      authorityEpoch: expected.authorityEpoch,
-      migrationId: expected.migrationId,
-      releaseId: expected.releaseId,
-    })
-    : evaluateCycleObservation(samples, expected);
+async function writeEvidence(root) {
+  const samples = Array.from({ length: 289 }, (_, index) => unifiedSample(index));
+  const final = evaluateCycleObservation(samples, unifiedExpected);
   const closeout = {
-    schemaVersion: activation
-      ? "candidate-observation-closeout.v1"
-      : "candidate-cycle-observation-closeout.v1",
-    outcome: activation
-      ? "PASS_ACTIVATE_AND_OBSERVE"
-      : "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE",
-    closedAt: "2026-07-14T02:00:00.000Z",
+    schemaVersion: "candidate-cycle-observation-closeout.v1",
+    outcome: "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
+    closedAt: "2026-07-16T00:01:00.000Z",
     secretsPrinted: false,
   };
   const paths = {
-    final: join(root, `${label}-final.json`),
-    samples: join(root, `${label}-samples.jsonl`),
-    closeout: join(root, `${label}-closeout.json`),
+    final: join(root, "cycle-observation-final.json"),
+    samples: join(root, "cycle-observation-samples.jsonl"),
+    closeout: join(root, "cycle-observation-closeout.json"),
   };
   const bytes = {
     final: Buffer.from(`${JSON.stringify(final)}\n`),
@@ -129,93 +98,78 @@ async function writeEvidence(root, label, expected, samples, activation = false)
     await writeFile(paths[key], bytes[key], { mode: 0o600 });
   }
   return {
-    authorityEpoch: expected.authorityEpoch,
+    authorityEpoch: unifiedExpected.authorityEpoch,
     closeoutPath: paths.closeout,
     closeoutSha256: sha256(bytes.closeout),
-    commit: expected.commit,
+    commit: unifiedExpected.commit,
     finalPath: paths.final,
     finalSha256: sha256(bytes.final),
-    migrationId: expected.migrationId,
-    releaseId: expected.releaseId,
+    migrationId: unifiedExpected.migrationId,
+    releaseId: unifiedExpected.releaseId,
     samplesPath: paths.samples,
     samplesSha256: sha256(bytes.samples),
   };
 }
 
 async function fixture(root) {
-  const activationSamples = Array.from({ length: 289 }, (_, index) => activationSample(index));
-  const accumulationSamples = cycleSamples(
-    activationExpected,
-    "2026-07-13T00:00:00.000Z",
-    [9_990, 9_990, 9_995, 9_995, 10_005, 10_005, 10_005],
-    "2026-07-14T00:00:00.000Z",
-  );
-  const freshSamples = cycleSamples(
-    freshExpected,
-    "2026-07-13T01:05:00.000Z",
-    [10_005, 10_005, 10_010, 10_010, 10_020, 10_020, 10_020],
-    "2026-07-16T01:00:00.000Z",
-  );
   return {
     schemaVersion: CAPTURE_SPEC_SCHEMA,
     packageId: PACKAGE_ID,
     productionMutationAllowed: false,
-    outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v1",
-    activation: await writeEvidence(root, "activation", activationExpected, activationSamples, true),
-    accumulation: await writeEvidence(
-      root, "accumulation", activationExpected, accumulationSamples,
-    ),
-    fresh: await writeEvidence(root, "fresh", freshExpected, freshSamples),
+    outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
+    unified: await writeEvidence(root),
   };
 }
 
-test("production capture inputs are private, hash-bound, and rebuilt from all raw samples", async () => {
+test("production capture inputs are private, hash-bound, and rebuilt from raw v2 samples", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-production-runner-"));
   try {
     const specification = await fixture(root);
     assert.equal(validateCaptureSpecification(specification), specification);
     const inputs = await loadLineageCaptureInputs(specification);
-    assert.equal(inputs.activation.samples.length, 289);
-    assert.equal(inputs.accumulation.samples.length, 7);
-    assert.equal(inputs.fresh.samples.length, 7);
-    assert.equal(inputs.accumulation.final.completedWrites, 10_005);
-    assert.equal(inputs.fresh.final.completedWrites, 10_020);
+    assert.equal(inputs.unified.samples.length, 289);
+    assert.equal(inputs.unified.final.completedWrites, 10_020);
+    assert.equal(inputs.unified.final.activationCoverageSeconds, 86_400);
+    assert.equal(inputs.unified.final.freshActivationReady, true);
+    assert.equal(inputs.unified.final.accumulationReady, true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test("tampered samples, open permissions, and a non-adjacent fresh cycle fail closed", async () => {
+test("tampered samples, open permissions, and non-Cycle-3 evidence fail closed", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-production-runner-"));
   try {
     const tampered = await fixture(root);
-    await writeFile(tampered.fresh.samplesPath, "{}\n", { mode: 0o600 });
-    await assert.rejects(loadLineageCaptureInputs(tampered), /fresh_samples_hash_mismatch/u);
+    await writeFile(tampered.unified.samplesPath, "{}\n", { mode: 0o600 });
+    await assert.rejects(loadLineageCaptureInputs(tampered), /unified_samples_hash_mismatch/u);
 
     const open = await fixture(root);
-    await chmod(open.activation.finalPath, 0o644);
-    await assert.rejects(loadLineageCaptureInputs(open), /activation_final_permissions_too_open/u);
+    await chmod(open.unified.finalPath, 0o644);
+    await assert.rejects(loadLineageCaptureInputs(open),
+      /unified_final_permissions_too_open/u);
 
-    const nonAdjacent = await fixture(root);
-    nonAdjacent.fresh.migrationId = "candidate-episode-v1-cycle-3";
-    assert.throws(() => validateCaptureSpecification(nonAdjacent),
-      /fresh_capture_cycle_not_adjacent/u);
+    await chmod(open.unified.finalPath, 0o600);
+    const wrongCycle = await fixture(root);
+    wrongCycle.unified.migrationId = "candidate-episode-v1-cycle-2";
+    assert.throws(() => validateCaptureSpecification(wrongCycle),
+      /unified_capture_not_cycle3/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test("a failed closeout cannot be relabeled as production lineage evidence", async () => {
+test("a failed Cycle-3 closeout cannot be relabeled as lineage evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-production-runner-"));
   try {
     const specification = await fixture(root);
-    const closeout = JSON.parse(await readFile(specification.accumulation.closeoutPath, "utf8"));
+    const closeout = JSON.parse(await readFile(specification.unified.closeoutPath, "utf8"));
     closeout.outcome = "FAIL_CYCLE_CAPACITY_EXHAUSTED_REQUIRES_NEXT_ADJACENT_CYCLE";
     const bytes = Buffer.from(`${JSON.stringify(closeout)}\n`);
-    await writeFile(specification.accumulation.closeoutPath, bytes, { mode: 0o600 });
-    specification.accumulation.closeoutSha256 = sha256(bytes);
+    await writeFile(specification.unified.closeoutPath, bytes, { mode: 0o600 });
+    specification.unified.closeoutSha256 = sha256(bytes);
     await assert.rejects(loadLineageCaptureInputs(specification),
-      /accumulation_closeout_not_pass/u);
+      /unified_closeout_not_pass/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

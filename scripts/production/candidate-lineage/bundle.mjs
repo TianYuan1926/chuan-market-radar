@@ -18,9 +18,9 @@ import {
 
 const execFileAsync = promisify(execFile);
 export const EXECUTION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-production-packet.v1.json";
+  "docs/governance/wp-g0-2-cycle-3-unified-lineage-capture-production-packet.v2.json";
 export const LOCAL_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-local-superpackage.v1.json";
+  "docs/governance/wp-g0-2-cycle-3-unified-lineage-refresh-local-superpackage.v2.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -30,19 +30,21 @@ const GRANT_ID = "MR-G0-G8-USER-STANDING-GRANT-20260714-034826";
 const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
 
-export const TRANSPORT_FILES = Object.freeze([
-  EXECUTION_CONTRACT_PATH,
-  LOCAL_CONTRACT_PATH,
+const EXECUTION_RUNNER_FILES = Object.freeze([
   POLICY_PATH,
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
-  "scripts/production/candidate-activation/runner.mjs",
   "scripts/production/candidate-cycle-continuation/observation-runner.mjs",
   "scripts/production/candidate-lineage/bundle.mjs",
   "scripts/production/candidate-lineage/production-entrypoint.sh",
   "scripts/production/candidate-lineage/production-runner.mjs",
   "scripts/production/candidate-lineage/production-runner.sh",
   "scripts/production/candidate-lineage/runner.mjs",
+]);
+export const TRANSPORT_FILES = Object.freeze([
+  EXECUTION_CONTRACT_PATH,
+  LOCAL_CONTRACT_PATH,
+  ...EXECUTION_RUNNER_FILES,
 ]);
 
 const AUTHORIZATION_KEYS = Object.freeze([
@@ -134,7 +136,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   const runnerArtifact = await artifact(root, execution.runnerArtifact?.files ?? []);
   const violations = [];
   if (execution.schemaVersion
-      !== "wp-g0.2-fresh-verification-cycle-lineage-capture-production-packet.v1"
+      !== "wp-g0.2-cycle-3-unified-lineage-capture-production-packet.v2"
       || execution.packageId !== PACKAGE_ID
       || execution.productionAuthorization !== false
       || execution.productionExecuted !== false) violations.push("production_truth");
@@ -146,26 +148,29 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || execution.standingGrant?.maximumExecutions !== 1
       || execution.standingGrant?.maximumApprovalWindowMinutes !== 90
       || execution.standingGrant?.externalLeaseRequired !== true) violations.push("standing_grant");
-  if (runnerArtifact.fileCount !== 3
+  if (JSON.stringify(execution.runnerArtifact?.files) !== JSON.stringify(EXECUTION_RUNNER_FILES)) {
+    violations.push("runner_artifact_file_set");
+  }
+  if (runnerArtifact.fileCount !== EXECUTION_RUNNER_FILES.length
       || runnerArtifact.fileCount !== execution.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== execution.runnerArtifact?.sha256) violations.push("runner_artifact");
   if (local.schemaVersion
-      !== "wp-g0.2-fresh-verification-cycle-lineage-capture-local-superpackage.v1"
-      || local.outputBoundary?.rawEvidenceHashesRequired !== 7
+      !== "wp-g0.2-cycle-3-unified-lineage-refresh-local-superpackage.v2"
+      || local.packageId !== "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE"
+      || local.outputBoundary?.rawEvidenceHashesRequired !== 3
       || local.databaseBoundary?.forcedLocalRole !== "candidate_audit_role") {
     violations.push("local_contract_dependency");
   }
-  if (execution.prerequisites?.activationSamplesExact !== 289
-      || execution.prerequisites?.activationMinimumHours !== 24
-      || execution.prerequisites?.minimumAccumulatedWrites !== 10_000
-      || execution.prerequisites?.accumulationMinimumSamples !== 7
-      || execution.prerequisites?.accumulationMinimumSeconds !== 1_800
-      || execution.prerequisites?.freshMinimumSamples !== 7
-      || execution.prerequisites?.freshMinimumSeconds !== 1_800
-      || execution.prerequisites?.minimumCompletionAdvancesPerCycle !== 2
+  if (execution.prerequisites?.unifiedStatus
+      !== "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
+      || execution.prerequisites?.minimumActivationSamples !== 289
+      || execution.prerequisites?.minimumActivationHours !== 24
+      || execution.prerequisites?.minimumCompletedWrites !== 10_000
+      || execution.prerequisites?.minimumSamples !== 7
+      || execution.prerequisites?.minimumStabilitySeconds !== 1_800
+      || execution.prerequisites?.minimumCompletionAdvances !== 2
       || execution.prerequisites?.maximumSampleGapSeconds !== 600
-      || execution.prerequisites?.freshCycleStrictlyAdjacent !== true
-      || execution.prerequisites?.freshCycleStartsAfterAccumulationPass !== true
+      || execution.prerequisites?.migrationId !== "candidate-episode-v1-cycle-3"
       || execution.prerequisites?.allFinalEvidenceRecomputedFromRawSamples !== true
       || execution.prerequisites?.completeDatabaseControlLineageRequired !== true
       || execution.prerequisites?.newExactRequestRequired !== true) violations.push("prerequisites");
@@ -195,9 +200,9 @@ export async function validateProductionPacketContract(root = process.cwd()) {
     }
   }
   if (execution.outputBoundary?.passStatus
-      !== "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION"
-      || execution.outputBoundary?.semanticProvenanceHashesRequired !== 7
-      || execution.outputBoundary?.rawSourceFileHashesRequired !== 9
+      !== "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+      || execution.outputBoundary?.semanticProvenanceHashesRequired !== 3
+      || execution.outputBoundary?.rawSourceFileHashesRequired !== 3
       || execution.outputBoundary?.databaseIdentityEvidenceRequired !== true
       || execution.outputBoundary?.productionReconciliationExecuted !== false
       || execution.outputBoundary?.shadowVerifyStarted !== false
@@ -232,36 +237,19 @@ function evidenceDirectory(path, pattern, reason) {
 }
 
 function validateEvidencePaths(specification) {
-  const activationDirectory = evidenceDirectory(
-    specification.activation.finalPath,
-    /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-candidate-activation-[a-z0-9][a-z0-9._-]{7,100}$/u,
-    "activation_evidence_directory_invalid",
-  );
   const cyclePattern =
     /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-continuation-[a-z0-9][a-z0-9._-]{7,100}$/u;
-  const accumulationDirectory = evidenceDirectory(
-    specification.accumulation.finalPath, cyclePattern, "accumulation_evidence_directory_invalid",
+  const unifiedDirectory = evidenceDirectory(
+    specification.unified.finalPath, cyclePattern, "unified_evidence_directory_invalid",
   );
-  const freshDirectory = evidenceDirectory(
-    specification.fresh.finalPath, cyclePattern, "fresh_evidence_directory_invalid",
-  );
-  ensure(new Set([activationDirectory, accumulationDirectory, freshDirectory]).size === 3,
-    "capture_evidence_directories_not_distinct");
-  const expected = {
-    activation: ["observation-final.json", "observation-samples.jsonl", "observation-closeout.json"],
-    accumulation: ["cycle-observation-final.json", "cycle-observation-samples.jsonl", "cycle-observation-closeout.json"],
-    fresh: ["cycle-observation-final.json", "cycle-observation-samples.jsonl", "cycle-observation-closeout.json"],
-  };
-  for (const [label, names] of Object.entries(expected)) {
-    const group = specification[label];
-    ensure(basename(group.finalPath) === names[0]
-        && basename(group.samplesPath) === names[1]
-        && basename(group.closeoutPath) === names[2]
-        && dirname(group.finalPath) === dirname(group.samplesPath)
-        && dirname(group.finalPath) === dirname(group.closeoutPath),
-    `${label}_evidence_paths_invalid`);
-  }
-  return { activationDirectory, accumulationDirectory, freshDirectory };
+  const group = specification.unified;
+  ensure(basename(group.finalPath) === "cycle-observation-final.json"
+      && basename(group.samplesPath) === "cycle-observation-samples.jsonl"
+      && basename(group.closeoutPath) === "cycle-observation-closeout.json"
+      && dirname(group.finalPath) === dirname(group.samplesPath)
+      && dirname(group.finalPath) === dirname(group.closeoutPath),
+  "unified_evidence_paths_invalid");
+  return { unifiedDirectory };
 }
 
 export async function verifyCaptureEvidence(specification) {
@@ -421,8 +409,8 @@ export async function validateProductionExecutionRequest(
   }
   validateCaptureSpecification(request.captureSpecification);
   validateEvidencePaths(request.captureSpecification);
-  ensure(request.captureSpecification.fresh.commit === request.approvedProductionCommit,
-    "request_fresh_commit_not_current_production");
+  ensure(request.captureSpecification.unified.commit === request.approvedProductionCommit,
+    "request_unified_commit_not_current_production");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-lineage-capture-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.stagingDirectory ?? ""), "request_staging_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/lineage-capture-ops\/wp-g0-2-lineage-capture-[a-z0-9][a-z0-9._-]{7,80}$/u
@@ -456,8 +444,8 @@ function validateRuntime(runtime) {
   ensure(runtime.postgresAdminEnvPath === POSTGRES_ADMIN_ENV, "runtime_postgres_admin_env_invalid");
   validateCaptureSpecification(runtime.captureSpecification);
   validateEvidencePaths(runtime.captureSpecification);
-  ensure(runtime.captureSpecification.fresh.commit === runtime.approvedProductionCommit,
-    "runtime_fresh_commit_not_current_production");
+  ensure(runtime.captureSpecification.unified.commit === runtime.approvedProductionCommit,
+    "runtime_unified_commit_not_current_production");
   return runtime;
 }
 
@@ -750,7 +738,7 @@ async function main() {
     .stdout.trim() === "";
   const sourceIdentity = clean ? await currentSourceIdentity(root) : null;
   const output = options.output ?? join(root,
-    "reports/wp-g0-2-fresh-verification-cycle-lineage-capture-production-packet",
+    "reports/wp-g0-2-cycle-3-unified-lineage-capture-production-packet",
     `candidate-lineage-capture-${sourceIdentity?.sourceCommit.slice(0, 12) ?? "precommit-template"}.tar.gz`);
   process.stdout.write(`${JSON.stringify(await buildTransportBundle({
     root, output, sourceIdentity, approvalEligible: clean,

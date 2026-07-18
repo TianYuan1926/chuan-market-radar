@@ -59,9 +59,8 @@ ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
   || fail session_independent_identity_invalid
 
 mapfile -t SOURCE_EVIDENCE_FILES < <(jq -r '
-  [.captureSpecification.activation, .captureSpecification.accumulation, .captureSpecification.fresh]
-  | .[] | [.finalPath, .samplesPath, .closeoutPath] | .[]' "${REQUEST_FILE}")
-[[ "${#SOURCE_EVIDENCE_FILES[@]}" -eq 9 ]] || fail source_evidence_count_invalid
+  .captureSpecification.unified | [.finalPath, .samplesPath, .closeoutPath] | .[]' "${REQUEST_FILE}")
+[[ "${#SOURCE_EVIDENCE_FILES[@]}" -eq 3 ]] || fail source_evidence_count_invalid
 declare -a SOURCE_EVIDENCE_DIRECTORIES=()
 for file in "${SOURCE_EVIDENCE_FILES[@]}"; do
   [[ -f "${file}" && ! -L "${file}" && "$(realpath "${file}")" == "${file}" ]] \
@@ -69,7 +68,7 @@ for file in "${SOURCE_EVIDENCE_FILES[@]}"; do
   SOURCE_EVIDENCE_DIRECTORIES+=("$(dirname "${file}")")
 done
 mapfile -t UNIQUE_EVIDENCE_DIRECTORIES < <(printf '%s\n' "${SOURCE_EVIDENCE_DIRECTORIES[@]}" | sort -u)
-[[ "${#UNIQUE_EVIDENCE_DIRECTORIES[@]}" -eq 3 ]] || fail source_evidence_directories_not_distinct
+[[ "${#UNIQUE_EVIDENCE_DIRECTORIES[@]}" -eq 1 ]] || fail source_evidence_directory_invalid
 
 sudo -n docker ps >/dev/null 2>&1 || fail docker_unavailable
 DOCKER=(sudo -n docker)
@@ -145,9 +144,7 @@ mkdir "${APPROVED_SECURE_ROOT}"
 chmod 700 "${APPROVED_SECURE_ROOT}"
 
 target_files=(
-  activation-final.json activation-samples.jsonl activation-closeout.json
-  accumulation-final.json accumulation-samples.jsonl accumulation-closeout.json
-  fresh-final.json fresh-samples.jsonl fresh-closeout.json
+  unified-final.json unified-samples.jsonl unified-closeout.json
 )
 for index in "${!SOURCE_EVIDENCE_FILES[@]}"; do
   install -m 0600 "${SOURCE_EVIDENCE_FILES[$index]}" \
@@ -155,15 +152,9 @@ for index in "${!SOURCE_EVIDENCE_FILES[@]}"; do
 done
 jq --arg secure "${APPROVED_SECURE_ROOT}" '
   .captureSpecification
-  | .activation.finalPath=($secure + "/activation-final.json")
-  | .activation.samplesPath=($secure + "/activation-samples.jsonl")
-  | .activation.closeoutPath=($secure + "/activation-closeout.json")
-  | .accumulation.finalPath=($secure + "/accumulation-final.json")
-  | .accumulation.samplesPath=($secure + "/accumulation-samples.jsonl")
-  | .accumulation.closeoutPath=($secure + "/accumulation-closeout.json")
-  | .fresh.finalPath=($secure + "/fresh-final.json")
-  | .fresh.samplesPath=($secure + "/fresh-samples.jsonl")
-  | .fresh.closeoutPath=($secure + "/fresh-closeout.json")' \
+  | .unified.finalPath=($secure + "/unified-final.json")
+  | .unified.samplesPath=($secure + "/unified-samples.jsonl")
+  | .unified.closeoutPath=($secure + "/unified-closeout.json")' \
   "${ACTUAL_REQUEST}" > "${APPROVED_SECURE_ROOT}/capture-specification.json"
 chmod 600 "${APPROVED_SECURE_ROOT}/capture-specification.json"
 [[ "$(sudo -n stat -c '%a' "${POSTGRES_ADMIN_ENV}")" == "600" \

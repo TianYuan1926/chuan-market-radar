@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "wp-g0.2-cycle-3-unified-lineage-refresh-local-superpackage.v2",
+  "packageId": "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-lineage/runner.mjs"
+    ],
+    "fileCount": 1,
+    "sha256": "27c283986c20e2f5db6f8d9372df022b2f86163ed0e43bb87cac7a84aa932775"
+  },
+  "unifiedObservationBoundary": {
+    "migrationId": "candidate-episode-v1-cycle-3",
+    "status": "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
+    "minimumActivationSamples": 289,
+    "minimumActivationHours": 24,
+    "minimumCompletedWrites": 10000,
+    "minimumSamples": 7,
+    "minimumStabilitySeconds": 1800,
+    "minimumCompletionAdvances": 2,
+    "maximumSampleGapSeconds": 600,
+    "unresolvedMaximum": 0,
+    "recomputeFromRawSamples": true,
+    "singleEvidenceDirectory": true
+  },
+  "historicalTruthBoundary": {
+    "historicalActivation197SamplesIsPass": false,
+    "cycle2ZeroSampleAttemptIsPass": false,
+    "historicalControlsUsedAsPassEvidence": false,
+    "historicalControlsPreservedInDatabaseLineage": true
+  },
+  "databaseBoundary": {
+    "transactionIsolation": "repeatable_read",
+    "transactionReadOnly": true,
+    "forcedLocalRole": "candidate_audit_role",
+    "controlLineageStartsAtCycleOne": true,
+    "controlLineageEndsAtCycleThree": true,
+    "controlLineageExactCount": 3,
+    "controlLineageStrictlyAdjacent": true,
+    "historicalControls": "legacy_frozen_even_epoch",
+    "currentControl": "cycle3_single_shadow_capture_active_odd_epoch",
+    "releaseCompletedSumEqualsGlobalCompleted": true,
+    "outsideLineageMaximum": 0,
+    "pendingMaximum": 0,
+    "claimedMaximum": 0,
+    "retryWaitMaximum": 0,
+    "unresolvedMaximum": 0,
+    "productionDmlAllowed": false,
+    "schemaDdlAllowed": false,
+    "migrationAllowed": false,
+    "phaseTransitionAllowed": false
+  },
+  "outputBoundary": {
+    "schemaVersion": "candidate-multi-cycle-lineage-evidence.v2",
+    "passStatus": "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+    "rawEvidenceHashesRequired": 3,
+    "semanticEvidenceHashesRequired": 3,
+    "sourceReleaseWindowsRequired": true,
+    "thresholdsChanged": false,
+    "productionReconciliationExecuted": false,
+    "shadowVerifyStarted": false,
+    "canonicalAuthorityChanged": false,
+    "g0Completed": false
+  },
+  "localRehearsal": {
+    "postgresMajor": 16,
+    "releaseWindowsExercised": 3,
+    "completedWritesExercised": 10020,
+    "releaseCounts": [
+      2957,
+      0,
+      7063
+    ],
+    "outsideLineageRejectionRequired": true,
+    "transactionReadOnlyRejectionRequired": true,
+    "productionConnected": false
+  },
+  "forbidden": [
+    "production_connection",
+    "production_mutation",
+    "schema_migration",
+    "phase_transition",
+    "sample_fabrication",
+    "threshold_lowering",
+    "window_shortening",
+    "cycle_omission",
+    "historical_pass_relabeling",
+    "lineage_relabeling",
+    "automatic_reconciliation",
+    "automatic_shadow_verify",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "nextPackage": "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET"
+}

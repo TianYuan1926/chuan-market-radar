@@ -28,6 +28,10 @@ test("production shell entrypoints are syntactically valid and contain no servic
   assert.match(runner, /cmp -s .*runtime-before\.txt.*runtime-after\.txt/su);
   assert.match(runner, /--read-only --cap-drop ALL/u);
   assert.match(runner, /--security-opt no-new-privileges/u);
+  assert.match(runner, /PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH/u);
+  assert.match(runner, /candidate-multi-cycle-lineage-evidence\.v2/u);
+  assert.match(runner, /maximumSampleGapSeconds/u);
+  assert.doesNotMatch(runner, /PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION/u);
 });
 
 test("database collector proves repeatable-read, read-only, and audit-role boundaries", async () => {
@@ -47,7 +51,7 @@ test("transport is redacted and cannot carry environment, secrets, or applicatio
     assert.doesNotMatch(path, /^src\//u);
   }
   assert.ok(TRANSPORT_FILES.includes(
-    "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-production-packet.v1.json",
+    "docs/governance/wp-g0-2-cycle-3-unified-lineage-capture-production-packet.v2.json",
   ));
   assert.ok(TRANSPORT_FILES.includes(
     "scripts/production/candidate-lineage/production-runner.mjs",

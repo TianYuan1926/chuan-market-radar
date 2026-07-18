@@ -16,28 +16,24 @@ import {
 const hash = (character) => character.repeat(64);
 const commit = (character) => character.repeat(40);
 
-function evidenceGroup({ cycle, release, sourceCommit, directory, activation = false }) {
+function evidenceGroup({ cycle, release, sourceCommit, directory }) {
   return {
-    authorityEpoch: activation ? 3 : 1,
-    closeoutPath: `${directory}/${activation ? "observation" : "cycle-observation"}-closeout.json`,
+    authorityEpoch: 1,
+    closeoutPath: `${directory}/cycle-observation-closeout.json`,
     closeoutSha256: hash("1"),
     commit: sourceCommit,
-    finalPath: `${directory}/${activation ? "observation" : "cycle-observation"}-final.json`,
+    finalPath: `${directory}/cycle-observation-final.json`,
     finalSha256: hash("2"),
     migrationId: cycle,
     releaseId: release,
-    samplesPath: `${directory}/${activation ? "observation" : "cycle-observation"}-samples.jsonl`,
+    samplesPath: `${directory}/cycle-observation-samples.jsonl`,
     samplesSha256: hash("3"),
   };
 }
 
 function runtime() {
-  const activationDirectory =
-    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-packet123";
-  const accumulationDirectory =
-    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-accum123";
-  const freshDirectory =
-    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-fresh123";
+  const unifiedDirectory =
+    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-cycle3pack";
   return {
     approvedProductionCommit: commit("b"),
     webImageId: `sha256:${hash("c")}`,
@@ -46,28 +42,15 @@ function runtime() {
     postgresAdminEnvPath:
       "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
     captureSpecification: {
-      schemaVersion: "candidate-lineage-capture-specification.v1",
-      packageId: "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-PRODUCTION-PACKET",
+      schemaVersion: "candidate-lineage-capture-specification.v2",
+      packageId: "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET",
       productionMutationAllowed: false,
-      outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v1",
-      activation: evidenceGroup({
-        cycle: "candidate-episode-v1",
-        release: "candidate-shadow-lineage-packet-cycle-1",
-        sourceCommit: commit("a"),
-        directory: activationDirectory,
-        activation: true,
-      }),
-      accumulation: evidenceGroup({
-        cycle: "candidate-episode-v1",
-        release: "candidate-shadow-lineage-packet-cycle-1",
-        sourceCommit: commit("a"),
-        directory: accumulationDirectory,
-      }),
-      fresh: evidenceGroup({
-        cycle: "candidate-episode-v1-cycle-2",
-        release: "candidate-shadow-lineage-packet-cycle-2",
+      outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v2",
+      unified: evidenceGroup({
+        cycle: "candidate-episode-v1-cycle-3",
+        release: "candidate-shadow-lineage-packet-cycle-3",
         sourceCommit: commit("b"),
-        directory: freshDirectory,
+        directory: unifiedDirectory,
       }),
     },
   };
@@ -134,7 +117,7 @@ test("one-time request binds packet, production identity, all source evidence, a
     );
 
     const tampered = structuredClone(request);
-    tampered.captureSpecification.fresh.samplesSha256 = hash("f");
+    tampered.captureSpecification.unified.samplesSha256 = hash("f");
     await assert.rejects(
       validateProductionExecutionRequest(
         tampered, transport.manifest, execution, transport.sha256,
@@ -147,7 +130,7 @@ test("one-time request binds packet, production identity, all source evidence, a
   }
 });
 
-test("current production commit cannot drift from the fresh verification cycle", async () => {
+test("current production commit cannot drift from the unified Cycle-3 evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-request-test-"));
   try {
     const transport = await buildTransportBundle({
@@ -161,7 +144,7 @@ test("current production commit cannot drift from the fresh verification cycle",
       execution,
       bundleSha256: transport.sha256,
       runtime: drifted,
-    }), /runtime_fresh_commit_not_current_production/u);
+    }), /runtime_unified_commit_not_current_production/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

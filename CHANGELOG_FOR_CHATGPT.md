@@ -6162,3 +6162,44 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只持续核验同一 observer，等待并证明 24 小时/289 连续样本与 10,000 真实 writes 双门禁；未 PASS 前不进入 Lineage。
+
+## 2026-07-18 / WP-G0.2 Cycle-3 Unified Lineage Refresh Local Superpackage
+
+### 本轮目标
+
+在 Cycle-3 生产统一观察不中断的前提下，淘汰已过期的 Activation/Accumulation/Fresh 三目录 Lineage 假设，建立只接受单一 Cycle-3 原始观察证据与完整三代数据库 control 血缘的 v2 合同。
+
+### 修改范围
+
+- Candidate Lineage 本地 builder、生产只读采集 runner、脱敏 Bundle/一次性 request 和 Shell 入口更新到 v2。
+- 治理合同锁定 Cycle-3、289 样本、24 小时、10,000 completed writes、1,800 秒、7 样本、2 次推进、最大间隔 600 秒和 unresolved=0。
+- 数据库合同锁定 `REPEATABLE READ READ ONLY`、`candidate_audit_role`、Cycle-1/2 历史冻结和 Cycle-3 唯一 active control。
+- 历史 197 样本回滚和 Cycle-2 零样本失败只能保留为历史，不得重标为 PASS。
+- 未修改 migration、生产数据库、Redis、worker、frontend、API、scan、analysis、strategy、RR、trade plan、backtest、env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的 Candidate 生命周期血缘；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- 旧红灯基线：9 pass / 7 fail，真实暴露 sample v1/v2 和三证据合同漂移。
+- 修复后合并定向：16/16 PASS；治理/核心 6/6 PASS；生产包 10/10 PASS；自治 31/31 PASS。
+- PostgreSQL 16 隔离演练：PASS，三条 control、10,020 completed writes=`[2957,0,7063]`、只读事务拒写、audit role 和 outside-lineage fail-closed 均验证。
+- typecheck、lint、test:market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+未部署本轮 Lineage v2，也未连接生产数据库。生产 Cycle-3 observer 保持 active；截至 17:42 CST 为 26/289 样本、7,579 秒、8 次真实推进、completed=3,333、unresolved=0，两个 readiness 均为 false。
+
+### 风险与遗留问题
+
+- 本地 PASS 不等于生产 Lineage PASS；双门禁未通过前禁止生成生产 capture request。
+- 生产观察仍可能因身份、健康、连续性、写入或数据库异常自动回滚。
+- G0 主步骤仍为 7，系统仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只继续同一 Cycle-3 observer；双门禁真实 PASS 后，再以全新 commit-bound 一次性请求执行只读生产 Lineage v2 采集。

@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(ROOT,
-  "docs/governance/wp-g0-2-fresh-verification-cycle-lineage-capture-local-superpackage.v1.json");
+  "docs/governance/wp-g0-2-cycle-3-unified-lineage-refresh-local-superpackage.v2.json");
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -32,11 +32,11 @@ export async function validateCandidateLineageCapture(contract) {
   const runner = await readFile(resolve(ROOT,
     "scripts/production/candidate-lineage/runner.mjs"), "utf8");
   if (contract.schemaVersion
-      !== "wp-g0.2-fresh-verification-cycle-lineage-capture-local-superpackage.v1") {
+      !== "wp-g0.2-cycle-3-unified-lineage-refresh-local-superpackage.v2") {
     violations.push("schema_version");
   }
   if (contract.packageId
-      !== "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-LOCAL-SUPERPACKAGE"
+      !== "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE"
       || contract.productionAuthorization !== false || contract.productionExecuted !== false) {
     violations.push("production_truth");
   }
@@ -45,38 +45,42 @@ export async function validateCandidateLineageCapture(contract) {
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) {
     violations.push("runner_artifact");
   }
-  if (contract.activationBoundary?.samplesExact !== 289
-      || contract.activationBoundary?.minimumCoverageHours !== 24
-      || contract.activationBoundary?.maximumSampleGapSeconds !== 600
-      || contract.activationBoundary?.recomputeFromRawSamples !== true
-      || contract.activationBoundary?.bindsFirstReleaseWindowOnly !== true) {
-    violations.push("activation_boundary");
+  if (contract.unifiedObservationBoundary?.migrationId !== "candidate-episode-v1-cycle-3"
+      || contract.unifiedObservationBoundary?.status
+        !== "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
+      || contract.unifiedObservationBoundary?.minimumActivationSamples !== 289
+      || contract.unifiedObservationBoundary?.minimumActivationHours !== 24
+      || contract.unifiedObservationBoundary?.minimumCompletedWrites !== 10_000
+      || contract.unifiedObservationBoundary?.minimumSamples !== 7
+      || contract.unifiedObservationBoundary?.minimumStabilitySeconds !== 1_800
+      || contract.unifiedObservationBoundary?.minimumCompletionAdvances !== 2
+      || contract.unifiedObservationBoundary?.maximumSampleGapSeconds !== 600
+      || contract.unifiedObservationBoundary?.unresolvedMaximum !== 0
+      || contract.unifiedObservationBoundary?.recomputeFromRawSamples !== true
+      || contract.unifiedObservationBoundary?.singleEvidenceDirectory !== true) {
+    violations.push("unified_observation_boundary");
   }
-  if (contract.accumulationBoundary?.minimumCompletedWrites !== 10_000
-      || contract.accumulationBoundary?.minimumSamples !== 7
-      || contract.accumulationBoundary?.minimumStabilitySeconds !== 1_800
-      || contract.accumulationBoundary?.minimumCompletionAdvances !== 2
-      || contract.accumulationBoundary?.maximumSampleGapSeconds !== 600
-      || contract.accumulationBoundary?.unresolvedMaximum !== 0
-      || contract.accumulationBoundary?.recomputeFromRawSamples !== true) {
-    violations.push("accumulation_boundary");
-  }
-  if (contract.freshCycleBoundary?.strictlyAdjacentToAccumulationCycle !== true
-      || contract.freshCycleBoundary?.mustStartAfterAccumulationPassSample !== true
-      || contract.freshCycleBoundary?.minimumSamples !== 7
-      || contract.freshCycleBoundary?.minimumStabilitySeconds !== 1_800
-      || contract.freshCycleBoundary?.minimumCompletionAdvances !== 2
-      || contract.freshCycleBoundary?.completedWritesMustNotRegress !== true
-      || contract.freshCycleBoundary?.unresolvedMaximum !== 0
-      || contract.freshCycleBoundary?.recomputeFromRawSamples !== true) {
-    violations.push("fresh_cycle_boundary");
+  if (contract.historicalTruthBoundary?.historicalActivation197SamplesIsPass !== false
+      || contract.historicalTruthBoundary?.cycle2ZeroSampleAttemptIsPass !== false
+      || contract.historicalTruthBoundary?.historicalControlsUsedAsPassEvidence !== false
+      || contract.historicalTruthBoundary?.historicalControlsPreservedInDatabaseLineage !== true) {
+    violations.push("historical_truth_boundary");
   }
   if (contract.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || contract.databaseBoundary?.transactionReadOnly !== true
       || contract.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
       || contract.databaseBoundary?.controlLineageStartsAtCycleOne !== true
+      || contract.databaseBoundary?.controlLineageEndsAtCycleThree !== true
+      || contract.databaseBoundary?.controlLineageExactCount !== 3
       || contract.databaseBoundary?.controlLineageStrictlyAdjacent !== true
+      || contract.databaseBoundary?.historicalControls !== "legacy_frozen_even_epoch"
+      || contract.databaseBoundary?.currentControl
+        !== "cycle3_single_shadow_capture_active_odd_epoch"
+      || contract.databaseBoundary?.releaseCompletedSumEqualsGlobalCompleted !== true
       || contract.databaseBoundary?.outsideLineageMaximum !== 0
+      || contract.databaseBoundary?.pendingMaximum !== 0
+      || contract.databaseBoundary?.claimedMaximum !== 0
+      || contract.databaseBoundary?.retryWaitMaximum !== 0
       || contract.databaseBoundary?.unresolvedMaximum !== 0
       || contract.databaseBoundary?.productionDmlAllowed !== false
       || contract.databaseBoundary?.schemaDdlAllowed !== false
@@ -84,7 +88,11 @@ export async function validateCandidateLineageCapture(contract) {
       || contract.databaseBoundary?.phaseTransitionAllowed !== false) {
     violations.push("database_boundary");
   }
-  if (contract.outputBoundary?.rawEvidenceHashesRequired !== 7
+  if (contract.outputBoundary?.schemaVersion !== "candidate-multi-cycle-lineage-evidence.v2"
+      || contract.outputBoundary?.passStatus
+        !== "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
+      || contract.outputBoundary?.rawEvidenceHashesRequired !== 3
+      || contract.outputBoundary?.semanticEvidenceHashesRequired !== 3
       || contract.outputBoundary?.sourceReleaseWindowsRequired !== true
       || contract.outputBoundary?.thresholdsChanged !== false
       || contract.outputBoundary?.productionReconciliationExecuted !== false
@@ -94,9 +102,10 @@ export async function validateCandidateLineageCapture(contract) {
     violations.push("output_boundary");
   }
   for (const token of [
-    "evaluateObservationEvidence", "evaluateCycleObservation",
-    "MINIMUM_COMPARED_WRITES", "MINIMUM_STABILITY_SECONDS",
-    "fresh_cycle_started_before_accumulation_pass", "fresh_cycle_not_adjacent_to_accumulation",
+    "evaluateCycleObservation", "MINIMUM_ACTIVATION_HOURS", "MINIMUM_ACTIVATION_SAMPLES",
+    "MINIMUM_COMPARED_WRITES", "MINIMUM_STABILITY_SECONDS", "unified_cycle_not_cycle3",
+    "unified_final_recompute_mismatch", "database_controls_invalid",
+    "database_retired_control_not_frozen", "database_current_control_not_active",
     "database_completed_aggregate_mismatch", "outsideLineage", "database_${key}_not_zero",
     "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
     "SET LOCAL ROLE candidate_audit_role", "lineage_future_stage_claim_invalid",
@@ -108,11 +117,12 @@ export async function validateCandidateLineageCapture(contract) {
   for (const forbidden of [
     "production_connection", "production_mutation", "schema_migration", "phase_transition",
     "sample_fabrication", "threshold_lowering", "window_shortening", "cycle_omission",
-    "lineage_relabeling", "automatic_reconciliation", "automatic_shadow_verify",
+    "historical_pass_relabeling", "lineage_relabeling", "automatic_reconciliation",
+    "automatic_shadow_verify",
     "canonical_cutover", "production_ranking_change", "future_outcome_input", "formal_backtest",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
   return {
-    status: violations.length === 0 ? "PASS_LOCAL_FRESH_CYCLE_LINEAGE_CAPTURE" : "FAIL",
+    status: violations.length === 0 ? "PASS_LOCAL_CYCLE3_UNIFIED_LINEAGE_REFRESH" : "FAIL",
     productionMutationAllowed: false,
     runnerArtifactSha256: runnerArtifact.sha256,
     violations,

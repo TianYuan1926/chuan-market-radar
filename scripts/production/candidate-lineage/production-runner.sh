@@ -19,7 +19,7 @@ assert_private_file() {
   (( (8#${mode} & 8#077) == 0 )) || fail "secure_file_permissions_too_open:$(basename "$1")"
 }
 
-echo "package=WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-PRODUCTION-PACKET"
+echo "package=WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET"
 echo "mode=${RUNNER_MODE}"
 echo "production_mutation_allowed=false"
 
@@ -193,8 +193,17 @@ for file in "${LINEAGE_OUTPUT}" "${METADATA_OUTPUT}"; do
   assert_private_file "${file}"
 done
 [[ "$(jq -r '.status // empty' "${LINEAGE_OUTPUT}")" \
-    == "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION" \
+    == "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH" \
+  && "$(jq -r '.schemaVersion // empty' "${LINEAGE_OUTPUT}")" \
+    == "candidate-multi-cycle-lineage-evidence.v2" \
   && "$(jq -r '.completedWrites // 0' "${LINEAGE_OUTPUT}")" -ge 10000 \
+  && "$(jq -r '.activationSamples // 0' "${LINEAGE_OUTPUT}")" -ge 289 \
+  && "$(jq -r '.activationCoverageSeconds // 0' "${LINEAGE_OUTPUT}")" -ge 86400 \
+  && "$(jq -r '.maximumSampleGapSeconds // 0' "${LINEAGE_OUTPUT}")" -eq 600 \
+  && "$(jq -r '.completionAdvances // 0' "${LINEAGE_OUTPUT}")" -ge 2 \
+  && "$(jq -r '.minimumCompletionAdvances // 0' "${LINEAGE_OUTPUT}")" -eq 2 \
+  && "$(jq -r '.unresolvedOutbox // 1' "${LINEAGE_OUTPUT}")" -eq 0 \
+  && "$(jq -r '.unresolvedMaximum // 1' "${LINEAGE_OUTPUT}")" -eq 0 \
   && "$(jq -r '.productionReconciliationExecuted // true' "${LINEAGE_OUTPUT}")" == "false" \
   && "$(jq -r '.shadowVerifyStarted // true' "${LINEAGE_OUTPUT}")" == "false" \
   && "$(jq -r '.canonicalAuthorityChanged // true' "${LINEAGE_OUTPUT}")" == "false" \
@@ -203,6 +212,9 @@ done
   && "$(jq -r '.databaseIdentity.transactionIsolation // empty' "${METADATA_OUTPUT}")" == "repeatable read" \
   && "$(jq -r '.databaseIdentity.transactionReadOnly // false' "${METADATA_OUTPUT}")" == "true" \
   && "$(jq -r '.databaseMutationExecuted // true' "${METADATA_OUTPUT}")" == "false" \
+  && "$(jq -r '.schemaVersion // empty' "${METADATA_OUTPUT}")" \
+    == "candidate-lineage-capture-result.v2" \
+  && "$(jq -r '.sourceEvidenceSha256 | keys == ["unified"]' "${METADATA_OUTPUT}")" == "true" \
   && "$(jq -r '.servicesMutated | length' "${METADATA_OUTPUT}")" -eq 0 ]] \
   || fail lineage_capture_result_gate_failed
 
@@ -213,7 +225,7 @@ lease_event checkpoint --checkpoint lineage_capture_pass_verified
 lease_event release --outcome PASS
 LEASE_RELEASED=true
 trap - EXIT
-printf '{"schemaVersion":"candidate-lineage-capture-closeout.v1","outcome":"PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION","closedAt":"%s","temporaryArtifactsCleanupRequired":true,"secretsPrinted":false}\n' \
+printf '{"schemaVersion":"candidate-lineage-capture-closeout.v2","outcome":"PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH","closedAt":"%s","temporaryArtifactsCleanupRequired":true,"secretsPrinted":false}\n' \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${EVIDENCE_DIRECTORY}/lineage-capture-closeout.json"
 chmod 600 "${EVIDENCE_DIRECTORY}/lineage-capture-closeout.json"
-printf 'PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION\n'
+printf 'PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH\n'

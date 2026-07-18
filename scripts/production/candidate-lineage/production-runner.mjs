@@ -12,9 +12,9 @@ import {
 } from "./runner.mjs";
 
 export const PACKAGE_ID =
-  "WP-G0.2-FRESH-VERIFICATION-CYCLE-LINEAGE-CAPTURE-PRODUCTION-PACKET";
-export const CAPTURE_SPEC_SCHEMA = "candidate-lineage-capture-specification.v1";
-export const CAPTURE_RESULT_SCHEMA = "candidate-lineage-capture-result.v1";
+  "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET";
+export const CAPTURE_SPEC_SCHEMA = "candidate-lineage-capture-specification.v2";
+export const CAPTURE_RESULT_SCHEMA = "candidate-lineage-capture-result.v2";
 
 const CYCLE_PATTERN = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE_PATTERN = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
@@ -24,8 +24,7 @@ const GROUP_KEYS = Object.freeze([
   "finalSha256", "migrationId", "releaseId", "samplesPath", "samplesSha256",
 ]);
 const SPEC_KEYS = Object.freeze([
-  "activation", "accumulation", "fresh", "outputSchemaVersion", "packageId",
-  "productionMutationAllowed", "schemaVersion",
+  "outputSchemaVersion", "packageId", "productionMutationAllowed", "schemaVersion", "unified",
 ]);
 
 export class CandidateLineageCaptureError extends Error {
@@ -80,18 +79,11 @@ export function validateCaptureSpecification(specification) {
   exactKeys(specification, SPEC_KEYS, "capture_specification_shape_invalid");
   ensure(specification.schemaVersion === CAPTURE_SPEC_SCHEMA
       && specification.packageId === PACKAGE_ID
-      && specification.outputSchemaVersion === "candidate-multi-cycle-lineage-evidence.v1"
+      && specification.outputSchemaVersion === "candidate-multi-cycle-lineage-evidence.v2"
       && specification.productionMutationAllowed === false,
   "capture_specification_identity_invalid");
-  const activation = validateGroup(specification.activation, "activation");
-  const accumulation = validateGroup(specification.accumulation, "accumulation");
-  const fresh = validateGroup(specification.fresh, "fresh");
-  ensure(parseCycle(activation.migrationId) === 1, "activation_capture_not_cycle_one");
-  ensure(parseCycle(fresh.migrationId) === parseCycle(accumulation.migrationId) + 1,
-    "fresh_capture_cycle_not_adjacent");
-  ensure(activation.releaseId !== fresh.releaseId
-      && accumulation.releaseId !== fresh.releaseId,
-  "fresh_capture_release_not_distinct");
+  const unified = validateGroup(specification.unified, "unified");
+  ensure(parseCycle(unified.migrationId) === 3, "unified_capture_not_cycle3");
   return specification;
 }
 
@@ -134,13 +126,9 @@ async function readGroup(group, label) {
   exactKeys(closeout, ["closedAt", "outcome", "schemaVersion", "secretsPrinted"],
     `${label}_closeout_shape_invalid`);
   timestamp(closeout.closedAt, `${label}_closeout_time_invalid`);
-  const activation = label === "activation";
-  ensure(closeout.schemaVersion === (activation
-    ? "candidate-observation-closeout.v1"
-    : "candidate-cycle-observation-closeout.v1"), `${label}_closeout_schema_invalid`);
-  ensure(closeout.outcome === (activation
-    ? "PASS_ACTIVATE_AND_OBSERVE"
-    : "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE")
+  ensure(closeout.schemaVersion === "candidate-cycle-observation-closeout.v1",
+    `${label}_closeout_schema_invalid`);
+  ensure(closeout.outcome === "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
       && closeout.secretsPrinted === false, `${label}_closeout_not_pass`);
   return {
     expected: {
@@ -161,12 +149,7 @@ async function readGroup(group, label) {
 
 export async function loadLineageCaptureInputs(specification) {
   validateCaptureSpecification(specification);
-  const [activation, accumulation, fresh] = await Promise.all([
-    readGroup(specification.activation, "activation"),
-    readGroup(specification.accumulation, "accumulation"),
-    readGroup(specification.fresh, "fresh"),
-  ]);
-  return { activation, accumulation, fresh };
+  return { unified: await readGroup(specification.unified, "unified") };
 }
 
 export async function captureCandidateLineageEvidence(client, specification) {
@@ -174,18 +157,14 @@ export async function captureCandidateLineageEvidence(client, specification) {
   const database = await collectCandidateLineageDatabaseSnapshotWithEvidence(client);
   const lineageInput = ({ expected, final, samples }) => ({ expected, final, samples });
   const lineage = buildCandidateLineageEvidence({
-    activation: lineageInput(inputs.activation),
-    accumulation: lineageInput(inputs.accumulation),
     database: database.snapshot,
-    fresh: lineageInput(inputs.fresh),
+    unified: lineageInput(inputs.unified),
   });
   return {
     databaseIdentity: database.databaseIdentity,
     lineage,
     sourceEvidenceSha256: {
-      activation: inputs.activation.sourceSha256,
-      accumulation: inputs.accumulation.sourceSha256,
-      fresh: inputs.fresh.sourceSha256,
+      unified: inputs.unified.sourceSha256,
     },
   };
 }
