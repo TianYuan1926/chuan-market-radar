@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "wp-g0.2-cycle-5-to-shadow-verify-automatic-handoff-superwindow.v1",
+  "packageId": "WP-G0.2-CYCLE-5-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW",
+  "title": "Cycle-5 read-only verification to Shadow Verify automatic production handoff superwindow",
+  "status": "local_ready_for_gate_production_blocked_by_cycle5",
+  "gate": "G0",
+  "actionClass": "shadow_verify_activation",
+  "riskTier": "R2_AUTHORITY_TRANSITION",
+  "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
+  "coreChainStages": ["候选筛选", "复盘进化"],
+  "sequence": ["cycle5_readonly_superwindow", "shadow_verify_phase"],
+  "children": {
+    "readOnlySuperwindow": {
+      "packageId": "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW",
+      "actionClass": "read_only_production_preflight",
+      "riskTier": "R0_READ_ONLY",
+      "productionMutationAllowed": false,
+      "independentAuthorizationRequired": true,
+      "independentEvidenceRequired": true
+    },
+    "shadowVerifyPhase": {
+      "packageId": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
+      "actionClass": "shadow_verify_activation",
+      "riskTier": "R2_AUTHORITY_TRANSITION",
+      "productionMutationAllowed": true,
+      "independentAuthorizationRequired": true,
+      "independentLeaseRequired": true,
+      "independentRollbackRequired": true,
+      "independentEvidenceRequired": true
+    }
+  },
+  "entryBoundary": {
+    "cycle5Status": "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
+    "cycle5MigrationId": "candidate-episode-v1-cycle-5",
+    "minimumCompletedWrites": 10000,
+    "minimumSamples": 289,
+    "minimumHours": 24,
+    "minimumCompletionAdvances": 2,
+    "maximumSampleGapSeconds": 600,
+    "unresolvedOutboxExact": 0,
+    "thresholdsChanged": false,
+    "productionReconciliationExecuted": false,
+    "shadowVerifyStarted": false,
+    "canonicalAuthorityChanged": false,
+    "g0Completed": false
+  },
+  "handoffBoundary": {
+    "readOnlyPassRequiredBeforePhaseRequest": true,
+    "phaseRequestGeneratedFromCurrentRunEvidenceOnly": true,
+    "codePresenceExactPathAndShaRequired": true,
+    "lineageExactPathAndShaRequired": true,
+    "reconciliationExactPathAndShaRequired": true,
+    "productionIdentityRevalidatedBeforePhase": true,
+    "strictSequentialFailClosed": true,
+    "automaticPhaseAdvanceWithoutIndependentRequest": false
+  },
+  "shadowVerifyBoundary": {
+    "serviceAllowlist": ["web"],
+    "environmentKeys": [
+      "CANDIDATE_EPISODE_DUAL_READ",
+      "CANDIDATE_EPISODE_CANONICAL_READ",
+      "CANDIDATE_EPISODE_REVIEW_READ"
+    ],
+    "targetPhase": "shadow_verify",
+    "legacyResponseAuthority": true,
+    "fullCursorChainRequired": true,
+    "transactionIsolation": "serializable_read_only_deferrable",
+    "forcedRole": "candidate_audit_role",
+    "maximumDifferences": 0,
+    "exactSamples": 289,
+    "minimumHours": 24,
+    "sampleIntervalSeconds": 300,
+    "maximumSampleGapSeconds": 600,
+    "automaticRollbackRequired": true,
+    "canonicalCompatStarted": false,
+    "canonicalCutoverExecuted": false,
+    "g0Completed": false
+  },
+  "executionBoundary": {
+    "singleUpload": true,
+    "singleOuterTransientUnit": true,
+    "productionWipExact": 1,
+    "outerRuntimeMaxSeconds": 7200,
+    "outerMutationAllowed": false,
+    "phaseMutationDelegatedToExactChildOnly": true,
+    "gitMutationAllowed": false,
+    "imageBuildAllowed": false,
+    "sourceSyncAllowed": false,
+    "migrationAllowed": false,
+    "candidateBusinessDataMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerMutationAllowed": false,
+    "otherServiceMutationAllowed": false,
+    "formalBacktestAllowed": false
+  },
+  "cleanupBoundary": {
+    "exactTemporaryCleanup": true,
+    "childEvidencePreserved": true,
+    "outerEvidencePreserved": true,
+    "activePhaseStagingPreservedUntilObserverCloseout": true,
+    "unknownPathDeletionAllowed": false
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-shadow-verify-handoff/production-entrypoint.sh",
+      "scripts/production/candidate-shadow-verify-handoff/production-launch.sh",
+      "scripts/production/candidate-shadow-verify-handoff/production-runner.sh",
+      "scripts/production/candidate-shadow-verify-handoff/request-generator.mjs",
+      "scripts/production/candidate-shadow-verify-handoff/runner.mjs"
+    ],
+    "fileCount": 5,
+    "sha256": "6adf69cff5946e2ddc03d47698fb64260e46ffdd3bdb434e4642fe64a36d50dc"
+  },
+  "resultBoundary": {
+    "immediatePass": "PASS_SHADOW_VERIFY_HANDOFF_OBSERVER_ACTIVE",
+    "dualReadObservationCompleted": false,
+    "canonicalCompatStarted": false,
+    "canonicalCutoverExecuted": false,
+    "wpG02Completed": false,
+    "g0Completed": false
+  },
+  "forbidden": [
+    "cycle5_threshold_shortening",
+    "shadow_verify_observation_shortening",
+    "single_page_parity",
+    "child_authorization_merging",
+    "phase_request_before_readonly_pass",
+    "stale_evidence_relabeling",
+    "candidate_response_authority",
+    "canonical_compat_activation",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "rr_threshold_change",
+    "formal_backtest"
+  ]
+}
