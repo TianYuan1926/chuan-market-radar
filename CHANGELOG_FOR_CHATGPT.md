@@ -2,6 +2,46 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Cycle-5 Read-Only Verification Superwindow
+
+### 本轮目标
+
+不缩短 Cycle-5 观察、不合并子合同，把 Code Presence、Current-Cycle Lineage 和 Current-Cycle Reconciliation 做成一次上传、一次启动的严格串行只读生产窗口。
+
+### 修改范围
+
+- 新增超级窗口合同、确定性嵌套 Packet、现场请求生成器、单 transient unit runner、证据 validator 和攻击测试。
+- 三个子 Packet 仍保留独立 manifest、request、一次性授权/租约和 evidence。
+- 更新 package 命令、自治状态、Context 和中文交付报告。
+- 未修改 frontend、业务 API、scan/analysis/strategy/backtest、RR、migration、DB schema、Redis、Worker 业务逻辑、Caddy、env、Compose、Feature Flag 或 secret。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化的生产真值闭环，减少重复运输与人工启动等待；不新增信号，不改变排序，不生成交易计划。
+
+### 测试结果
+
+- 超级窗口 8/8、Code Presence 8/8、Lineage 10/10、Reconciliation 11/11、Autonomy 31/31 PASS。
+- typecheck、最终 lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16 PASS。
+- forbidden-files、secret-patterns、security-check PASS。
+- 第一次 lint 4 error/1 warning 已最小修复后重跑 PASS；formal 未运行。
+- 提交前自治总门禁 14/14 PASS，`worktreeUnchanged=true`，gate evidence SHA-256=`7a54086d60f6aa21efade4381dbe5ac0f43f7acda735b9c6c6073beb99878b6c`。
+- clean commit、push、提交绑定门禁和最终 Bundle 尚待执行。
+
+### 是否部署
+
+未部署，未上传或连接生产；Cycle-5 observer 继续是唯一生产 WIP。
+
+### 风险与遗留问题
+
+- 最近生产快照仍只有 33/289 samples、9,699 秒和 4,173/10,000 writes，两个 readiness=false。
+- observer PASS 前超级窗口硬阻断；本地 PASS 不等于生产 Code Presence/Lineage/Reconciliation PASS。
+- G0 主步骤仍为 7，系统仍不能支撑实战。
+
+### 下一轮建议
+
+完成本包提交绑定收口；继续等待 Cycle-5 双门禁，PASS 后才上传并启动超级窗口。
+
 ## 2026-07-19 / WP-G0.2 Shadow Verify Production Code Presence Identity Remediation v1
 
 ### 本轮目标

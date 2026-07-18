@@ -150,11 +150,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION",
-    "title": "Shadow Verify production code-presence identity remediation",
+    "id": "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW",
+    "title": "Cycle-5 code-presence, lineage and reconciliation read-only production superwindow",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "用参考代码blob、生产Git、Cycle-5镜像构建记录和运行容器四重只读证据证明Shadow Verify代码已存在，避免执行无意义Web重发；任何身份不一致仍强制回到Web-only发布。",
+    "objective": "把Code Presence、Current-Cycle Lineage和Current-Cycle Reconciliation做成一次上传、一次启动、三份独立合同与证据的严格串行只读生产窗口，消除重复OrcaTerm运输和人工启动等待，不缩短Cycle-5双门禁且不绕过任何子门禁。",
     "coreChainImpact": ["候选筛选", "复盘进化"],
     "productionMutation": false,
     "requiresExplicitApproval": false,
@@ -163,16 +163,9 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-identity-remediation.v1.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_PRODUCTION_CODE_PRESENCE_IDENTITY_REMEDIATION_V1.md",
-      "scripts/production/candidate-shadow-verify-code-presence/**",
-      "scripts/production/candidate-shadow-verify-phase/bundle.mjs",
-      "scripts/production/candidate-shadow-verify-phase/bundle.test.mjs",
-      "scripts/production/candidate-shadow-verify-phase/runner.mjs",
-      "scripts/production/candidate-shadow-verify-phase/runner.test.mjs",
-      "reports/wp-g0-2-current-cycle-lineage-reconciliation-dependency-refresh/**",
-      "reports/wp-g0-2-shadow-verify-production-code-presence-identity-remediation/**"
+      "docs/governance/wp-g0-2-cycle-5-read-only-verification-superwindow.v1.json",
+      "scripts/production/candidate-readonly-superwindow/**",
+      "reports/wp-g0-2-cycle-5-read-only-verification-superwindow/**"
     ],
     "prohibitedPaths": [
       "migrations/candidate-episode/**", "src/lib/market/**", "src/lib/analysis/**",
@@ -184,35 +177,38 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-identity-remediation.v1.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4.json",
-      "docs/governance/WP_G0_2_SHADOW_VERIFY_PRODUCTION_CODE_PRESENCE_IDENTITY_REMEDIATION_V1.md",
-      "scripts/production/candidate-shadow-verify-code-presence/runner.mjs",
-      "scripts/production/candidate-shadow-verify-code-presence/runner.test.mjs",
-      "scripts/production/candidate-shadow-verify-code-presence/bundle.mjs",
-      "scripts/production/candidate-shadow-verify-code-presence/bundle.test.mjs",
-      "scripts/production/candidate-shadow-verify-code-presence/production-boundary.test.mjs",
-      "scripts/production/candidate-shadow-verify-code-presence/production-entrypoint.sh",
-      "scripts/production/candidate-shadow-verify-code-presence/production-runner.sh",
-      "reports/wp-g0-2-shadow-verify-production-code-presence-identity-remediation/WP_G0_2_SHADOW_VERIFY_PRODUCTION_CODE_PRESENCE_IDENTITY_REMEDIATION_REPORT.md"
+      "docs/governance/wp-g0-2-cycle-5-read-only-verification-superwindow.v1.json",
+      "scripts/production/candidate-readonly-superwindow/runner.mjs",
+      "scripts/production/candidate-readonly-superwindow/request-generator.mjs",
+      "scripts/production/candidate-readonly-superwindow/bundle.mjs",
+      "scripts/production/candidate-readonly-superwindow/runner.test.mjs",
+      "scripts/production/candidate-readonly-superwindow/bundle.test.mjs",
+      "scripts/production/candidate-readonly-superwindow/production-boundary.test.mjs",
+      "scripts/production/candidate-readonly-superwindow/production-launch.sh",
+      "scripts/production/candidate-readonly-superwindow/production-entrypoint.sh",
+      "scripts/production/candidate-readonly-superwindow/production-runner.sh",
+      "reports/wp-g0-2-cycle-5-read-only-verification-superwindow/WP_G0_2_CYCLE_5_READ_ONLY_VERIFICATION_SUPERWINDOW_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:shadow-verify-code-presence:validate",
+        "candidate:readonly-superwindow:validate",
+        "test:candidate-readonly-superwindow",
         "test:candidate-shadow-verify-code-presence",
-        "test:candidate-shadow-verify-phase",
+        "test:candidate-lineage-production-packet",
+        "test:candidate-reconciliation-production-packet",
         "test:autonomy"
       ],
       "baseline": ["typecheck", "lint", "test:market", "build", "backtest:golden"],
       "security": ["ci:forbidden-files", "ci:secret-patterns", "security:check"]
     },
     "completionBoundary": [
-      "参考commit eb48827中的三个Shadow Verify代码blob必须逐个等于生产94b6d415和当前工程commit对应blob",
-      "生产Git必须clean detached且commit/tree精确等于Cycle-5目标；运行Web image必须等于Cycle-5 target-images-record且记录文件哈希精确绑定",
-      "code-presence证据必须servicesMutated为空且DB、Redis、Worker、phase、manifest、env、compose、Git全部零mutation",
-      "phase只能接受真实Web release PASS或严格code-presence PASS，普通本地blob比较不能授权phase",
-      "任一身份漂移必须输出requiresWebRelease=true并拒绝省略发布",
-      "Cycle-5 observer继续作为唯一生产WIP；本包禁止连接生产、发布Web、切phase或启动dual-read观察",
+      "Cycle-5 final必须真实满足10,000 writes、289样本、24小时、至少2次推进、最大样本间隔600秒和unresolved=0，禁止缩短",
+      "一次运输必须内含三个可独立验证且逐字节哈希绑定的子Packet，子合同、子授权、子证据不得合并或省略",
+      "执行顺序固定为Code Presence -> Lineage -> Reconciliation，任一子步骤失败必须阻止所有后续步骤",
+      "Reconciliation请求只能在Lineage PASS后由Lineage final精确path、SHA和五个source windows动态生成",
+      "超级窗口与所有子步骤必须services为空且DB、Redis、Worker、Git、phase、manifest、env、compose、Feature Flag和migration零mutation",
+      "清理只能覆盖三个精确子staging和唯一超级窗口staging/work，所有独立证据目录必须保留",
+      "Cycle-5 observer继续作为唯一生产WIP；本地包完成前及observer PASS前禁止生产启动",
       "scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、frontend、API、migration、Redis和worker业务逻辑禁止修改",
       "formal backtest禁止运行"
     ],
@@ -222,7 +218,7 @@
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
       "coreChainStages": ["候选筛选", "复盘进化"],
-      "measurableOutcome": "只有四重身份闭环才能把已存在代码替代Web重发，减少一次生产变更和30分钟观察，同时不降低Shadow Verify授权标准。"
+      "measurableOutcome": "把三次OrcaTerm上传和三次人工启动压缩为一次上传与一次启动，同时保留三个独立PASS和零mutation证据，预计减少1至2个工作日纯操作等待。"
     }
   },
   "approvals": [
@@ -636,6 +632,13 @@
     {
       "order": 57,
       "id": "WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_050c0f45_gate12_pass_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 58,
+      "id": "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

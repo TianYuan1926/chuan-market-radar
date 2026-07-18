@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "wp-g0.2-cycle-5-read-only-verification-superwindow.v1",
+  "packageId": "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW",
+  "title": "Cycle-5 code-presence, lineage and reconciliation read-only production superwindow",
+  "status": "PASS_LOCAL_CONTRACT_READY_FOR_COMMIT_BOUND_PACKET",
+  "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
+  "coreChainStages": [
+    "候选筛选",
+    "复盘进化"
+  ],
+  "sequence": [
+    "shadow_verify_code_presence",
+    "current_cycle_lineage",
+    "current_cycle_reconciliation"
+  ],
+  "executionBoundary": {
+    "actionClass": "read_only_production_preflight",
+    "riskTier": "R0_READ_ONLY",
+    "productionMutationAllowed": false,
+    "services": [],
+    "databaseMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerMutationAllowed": false,
+    "gitMutationAllowed": false,
+    "environmentMutationAllowed": false,
+    "composeMutationAllowed": false,
+    "phaseTransitionAllowed": false,
+    "manifestMutationAllowed": false,
+    "featureFlagMutationAllowed": false,
+    "migrationAllowed": false,
+    "canonicalAuthorityChangeAllowed": false,
+    "automaticG0CompletionAllowed": false
+  },
+  "qualityBoundary": {
+    "cycle5FinalPassRequired": true,
+    "cycle5MinimumComparedWrites": 10000,
+    "cycle5MinimumActivationSamples": 289,
+    "cycle5MinimumActivationHours": 24,
+    "cycle5MaximumSampleGapSeconds": 600,
+    "cycle5UnresolvedOutboxExact": 0,
+    "childContractsRemainIndependent": true,
+    "childEvidenceRemainsIndependent": true,
+    "childAuthorizationsRemainIndependent": true,
+    "strictSequentialFailClosed": true,
+    "reconciliationRequestDerivedFromExactLineageEvidence": true,
+    "thresholdChangeAllowed": false,
+    "observationWindowShorteningAllowed": false,
+    "productionRankingInputsAllowed": false,
+    "futureOutcomeInputsAllowed": false,
+    "formalBacktestAllowed": false
+  },
+  "transportBoundary": {
+    "method": "approved_orcaterm_bundle_upload",
+    "singleUpload": true,
+    "singleTransientUnit": true,
+    "reproducibleArchive": true,
+    "containsSecrets": false,
+    "exactTemporaryCleanup": true,
+    "evidencePreserved": true
+  }
+}
