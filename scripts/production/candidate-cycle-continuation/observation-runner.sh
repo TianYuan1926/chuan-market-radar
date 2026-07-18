@@ -24,6 +24,8 @@ IDENTITY_WRAPPER="$(jq -r '.identityWrapperPath' "${REQUEST_FILE}")"
 TARGET_COMMIT="$(jq -r '.targetCommit' "${REQUEST_FILE}")"
 NEXT_CYCLE="$(jq -r '.nextMigrationId' "${REQUEST_FILE}")"
 NEXT_RELEASE="$(jq -r '.nextReleaseId' "${REQUEST_FILE}")"
+ROLLBACK_COMMIT="$(jq -r '.currentProductionCommit' "${REQUEST_FILE}")"
+ROLLBACK_WEB_REF="$(jq -r '.rollbackWebImageRef' "${REQUEST_FILE}")"
 [[ "${ROOT_DIR}" == "/home/ubuntu/apps/chuan-market-radar" \
   && "${SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-cycle-continuation/* \
   && "${OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/cycle-continuation-ops/wp-g0-2-cycle-continuation-* \
@@ -94,6 +96,94 @@ retain_evidence() {
   chmod 600 "${EVIDENCE_DIRECTORY}/cycle-observation-closeout.json"
 }
 
+cleanup_target_image() {
+  local image_id="$1"
+  local baseline_image="$2"
+  local container_ids image_inventory
+  [[ -z "${image_id}" ]] && return 0
+  [[ "${image_id}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+    || { echo "ERROR: cleanup_target_image_identity_invalid" >&2; return 1; }
+  [[ "${image_id}" != "${baseline_image}" ]] || return 0
+  if ! container_ids="$(${DOCKER[@]} ps -aq --filter "ancestor=${image_id}")"; then
+    echo "ERROR: cleanup_target_image_usage_check_failed" >&2
+    return 1
+  fi
+  [[ -z "${container_ids}" ]] \
+    || { echo "ERROR: cleanup_target_image_still_in_use" >&2; return 1; }
+  if ! image_inventory="$(${DOCKER[@]} image ls --no-trunc --quiet)"; then
+    echo "ERROR: cleanup_image_inventory_failed" >&2
+    return 1
+  fi
+  if [[ $'\n'"${image_inventory}"$'\n' == *$'\n'"${image_id}"$'\n'* ]]; then
+    ${DOCKER[@]} image rm "${image_id}" >/dev/null \
+      || { echo "ERROR: cleanup_target_image_remove_failed" >&2; return 1; }
+  fi
+}
+
+cleanup_rollback_image_artifacts() {
+  local target_file="${EVIDENCE_DIRECTORY}/target-images-redacted.json"
+  local baseline_image target_web_image target_worker_image current_web_container current_web_image candidate_containers
+  local git_status git_head rollback_ref_id
+  if ! baseline_image="$(jq -r '.currentWebImageId' "${REQUEST_FILE}")"; then
+    echo "ERROR: cleanup_request_read_failed" >&2
+    return 1
+  fi
+  [[ "${ROLLBACK_WEB_REF}" == market-radar-rollback/wp-g0-2-cycle-continuation:web-* \
+    && "${baseline_image}" =~ ^sha256:[0-9a-f]{64}$ \
+    && -f "${target_file}" && ! -L "${target_file}" ]] \
+    || { echo "ERROR: cleanup_image_boundary_invalid" >&2; return 1; }
+  if ! target_web_image="$(jq -r '.webImageId' "${target_file}")" \
+      || ! target_worker_image="$(jq -r '.workerImageId' "${target_file}")"; then
+    echo "ERROR: cleanup_target_image_evidence_read_failed" >&2
+    return 1
+  fi
+  if ! current_web_container="$("${COMPOSE[@]}" ps -q web)"; then
+    echo "ERROR: cleanup_baseline_web_query_failed" >&2
+    return 1
+  fi
+  [[ -n "${current_web_container}" ]] \
+    || { echo "ERROR: cleanup_baseline_web_missing" >&2; return 1; }
+  if ! current_web_image="$(${DOCKER[@]} inspect "${current_web_container}" --format '{{.Image}}')"; then
+    echo "ERROR: cleanup_baseline_web_inspect_failed" >&2
+    return 1
+  fi
+  if ! candidate_containers="$(${DOCKER[@]} ps -aq \
+      --filter 'label=com.docker.compose.project=chuan-market-radar' \
+      --filter 'label=com.docker.compose.service=candidate-shadow-worker')"; then
+    echo "ERROR: cleanup_candidate_container_check_failed" >&2
+    return 1
+  fi
+  if ! git_status="$(git -C "${ROOT_DIR}" status --porcelain)" \
+      || ! git_head="$(git -C "${ROOT_DIR}" rev-parse HEAD)"; then
+    echo "ERROR: cleanup_git_identity_check_failed" >&2
+    return 1
+  fi
+  [[ "${current_web_image}" == "${baseline_image}" \
+    && -z "${candidate_containers}" \
+    && -z "${git_status}" \
+    && "${git_head}" == "${ROLLBACK_COMMIT}" ]] \
+    || { echo "ERROR: cleanup_baseline_identity_mismatch" >&2; return 1; }
+  if ! rollback_ref_id="$(${DOCKER[@]} image ls --no-trunc --quiet "${ROLLBACK_WEB_REF}")"; then
+    echo "ERROR: cleanup_rollback_image_ref_query_failed" >&2
+    return 1
+  fi
+  [[ -z "${rollback_ref_id}" || "${rollback_ref_id}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+    || { echo "ERROR: cleanup_rollback_image_ref_identity_invalid" >&2; return 1; }
+  if [[ -n "${rollback_ref_id}" ]]; then
+    ${DOCKER[@]} image rm "${ROLLBACK_WEB_REF}" >/dev/null \
+      || { echo "ERROR: cleanup_rollback_image_ref_remove_failed" >&2; return 1; }
+  fi
+  cleanup_target_image "${target_worker_image}" "${baseline_image}" || return 1
+  if [[ "${target_web_image}" != "${target_worker_image}" ]]; then
+    cleanup_target_image "${target_web_image}" "${baseline_image}" || return 1
+  fi
+  printf '{"schemaVersion":"candidate-cycle-observation-rollback-image-cleanup.v1","status":"PASS","evidenceRetained":true,"secretsPrinted":false}\n' \
+    > "${EVIDENCE_DIRECTORY}/rollback-image-cleanup-redacted.json" \
+    || { echo "ERROR: cleanup_evidence_write_failed" >&2; return 1; }
+  chmod 600 "${EVIDENCE_DIRECTORY}/rollback-image-cleanup-redacted.json" \
+    || { echo "ERROR: cleanup_evidence_permissions_failed" >&2; return 1; }
+}
+
 cleanup_temporary_artifacts() {
   local staging="$(jq -r '.stagingDirectory' "${REQUEST_FILE}")"
   [[ "$(jq -r '.temporaryArtifactCleanupRequired' "${REQUEST_FILE}")" == "true" \
@@ -119,6 +209,7 @@ automatic_rollback() {
     exit 98
   fi
   retain_evidence ROLLBACK_TO_LEGACY_AUTHORITY
+  cleanup_rollback_image_artifacts
   cleanup_temporary_artifacts
   exit "${exit_code}"
 }

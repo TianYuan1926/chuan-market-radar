@@ -35,6 +35,14 @@
 
 任何身份、健康、租约、来源通道、事件完整性、deadline、数据计数或服务验证失败，必须冻结新 cycle、停止并删除 Candidate Worker、关闭全部 Candidate flag、恢复旧 Git 与 Web 镜像。即使 Worker 已自行消失也必须继续回滚；若回滚不完整，生产租约必须保留并报告失败，不能伪报 `ROLLBACK_PASS`。旧 cycle 不得复活，Legacy 始终保留权威。
 
+## 临时物清理边界
+
+- 观察器启动前失败且回滚 PASS 后，必须精确删除本事务 staging、secure、ops、临时回滚镜像 tag 和无人使用的目标镜像。
+- 观察期自动回滚 PASS 后执行同一清理；任何目标镜像仍被容器使用时必须拒绝删除并报告清理失败。
+- 观察 PASS 时只删除 staging、secure 和 ops；当前生产目标镜像与受控回滚 Web 镜像继续保留，不能当成污染删除。
+- 脱敏 evidence 不属于临时物，所有结果都必须保留供下载和审计；归档后的远端 evidence 清理由独立、精确绑定的清理动作完成。
+- 路径和镜像身份必须来自单次请求且完全命中包边界；不得使用通配删除，不得触及生产仓库、env、数据库、Redis 或其他服务。
+
 ## 真值
 
 本地 Packet PASS 不等于生产续接；生产续接不等于新 Activation PASS；单独满足 24 小时或 10,000 条任一条件都不能 PASS；统一观察 PASS 仍不等于 Lineage、Reconciliation、Shadow Verify、Canonical Cutover、WP-G0.2 或 G0 完成。

@@ -28,3 +28,28 @@ test("observer retains evidence before exact temporary cleanup", async () => {
   assert.match(source, /lease_event release --outcome PASS_OBSERVATION/u);
   assert.match(source, /automatic_rollback/u);
 });
+
+test("pre-observation rollback removes only bounded temporary transaction artifacts", async () => {
+  const source = await readFile(files[1], "utf8");
+  assert.match(source, /cleanup_failed_transaction_artifacts/u);
+  assert.match(source, /temporaryArtifactCleanupRequired/u);
+  assert.match(source, /cleanup_target_image_still_in_use/u);
+  assert.match(source, /cleanup_image_inventory_failed/u);
+  assert.match(source, /cleanup_candidate_container_check_failed/u);
+  assert.match(source, /cleanup_git_identity_check_failed/u);
+  assert.match(source, /\$\{DOCKER\[@\]\} image rm "\$\{ROLLBACK_WEB_REF\}"/u);
+  assert.match(source, /rm -rf -- "\$\{OPS_ROOT\}" "\$\{SECURE_ROOT\}" "\$\{SOURCE_ROOT\}"/u);
+  assert.doesNotMatch(source, /rm -rf --[^\n]*EVIDENCE_DIRECTORY/u);
+  assert.ok(source.indexOf("bounded_rollback") < source.lastIndexOf("cleanup_failed_transaction_artifacts"));
+});
+
+test("observation rollback removes failed target images without deleting retained evidence", async () => {
+  const source = await readFile(files[2], "utf8");
+  assert.match(source, /cleanup_rollback_image_artifacts/u);
+  assert.match(source, /cleanup_target_image_still_in_use/u);
+  assert.match(source, /cleanup_image_inventory_failed/u);
+  assert.match(source, /cleanup_candidate_container_check_failed/u);
+  assert.match(source, /\$\{DOCKER\[@\]\} image rm "\$\{ROLLBACK_WEB_REF\}"/u);
+  assert.doesNotMatch(source, /rm -rf --[^\n]*EVIDENCE_DIRECTORY/u);
+  assert.match(source, /retain_evidence ROLLBACK_TO_LEGACY_AUTHORITY\n\s+cleanup_rollback_image_artifacts\n\s+cleanup_temporary_artifacts/u);
+});

@@ -212,6 +212,100 @@ bounded_rollback() {
   echo "ROLLBACK_PASS"
 }
 
+cleanup_target_image() {
+  local image_id="$1"
+  local baseline_image="$2"
+  local container_ids image_inventory
+  [[ -z "${image_id}" ]] && return 0
+  [[ "${image_id}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+    || { echo "ERROR: cleanup_target_image_identity_invalid" >&2; return 1; }
+  [[ "${image_id}" != "${baseline_image}" ]] || return 0
+  if ! container_ids="$(${DOCKER[@]} ps -aq --filter "ancestor=${image_id}")"; then
+    echo "ERROR: cleanup_target_image_usage_check_failed" >&2
+    return 1
+  fi
+  [[ -z "${container_ids}" ]] \
+    || { echo "ERROR: cleanup_target_image_still_in_use" >&2; return 1; }
+  if ! image_inventory="$(${DOCKER[@]} image ls --no-trunc --quiet)"; then
+    echo "ERROR: cleanup_image_inventory_failed" >&2
+    return 1
+  fi
+  if [[ $'\n'"${image_inventory}"$'\n' == *$'\n'"${image_id}"$'\n'* ]]; then
+    ${DOCKER[@]} image rm "${image_id}" >/dev/null \
+      || { echo "ERROR: cleanup_target_image_remove_failed" >&2; return 1; }
+  fi
+}
+
+cleanup_failed_transaction_artifacts() {
+  local staging cleanup_required current_web_container current_web_image candidate_containers
+  local git_status git_head rollback_ref_id
+  if ! staging="$(jq -r '.stagingDirectory' "${REQUEST_FILE}")" \
+      || ! cleanup_required="$(jq -r '.temporaryArtifactCleanupRequired' "${REQUEST_FILE}")"; then
+    echo "ERROR: cleanup_request_read_failed" >&2
+    return 1
+  fi
+  [[ "${cleanup_required}" == "true" \
+    && "${staging}" == "${SOURCE_ROOT}" \
+    && "${SOURCE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle-continuation-* \
+    && "${SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-cycle-continuation/* \
+    && "${OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/cycle-continuation-ops/wp-g0-2-cycle-continuation-* \
+    && "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-* \
+    && "${EVIDENCE_DIRECTORY}" != "${SOURCE_ROOT}" \
+    && "${EVIDENCE_DIRECTORY}" != "${SECURE_ROOT}" \
+    && "${EVIDENCE_DIRECTORY}" != "${OPS_ROOT}" \
+    && "${ROLLBACK_WEB_REF}" == market-radar-rollback/wp-g0-2-cycle-continuation:web-* ]] \
+    || { echo "ERROR: cleanup_boundary_invalid" >&2; return 1; }
+  if ! current_web_container="$("${COMPOSE[@]}" ps -q web)"; then
+    echo "ERROR: cleanup_baseline_web_query_failed" >&2
+    return 1
+  fi
+  [[ -n "${current_web_container}" ]] \
+    || { echo "ERROR: cleanup_baseline_web_missing" >&2; return 1; }
+  if ! current_web_image="$(${DOCKER[@]} inspect "${current_web_container}" --format '{{.Image}}')"; then
+    echo "ERROR: cleanup_baseline_web_inspect_failed" >&2
+    return 1
+  fi
+  if ! candidate_containers="$(${DOCKER[@]} ps -aq \
+      --filter 'label=com.docker.compose.project=chuan-market-radar' \
+      --filter 'label=com.docker.compose.service=candidate-shadow-worker')"; then
+    echo "ERROR: cleanup_candidate_container_check_failed" >&2
+    return 1
+  fi
+  if ! git_status="$(git -C "${ROOT_DIR}" status --porcelain)" \
+      || ! git_head="$(git -C "${ROOT_DIR}" rev-parse HEAD)"; then
+    echo "ERROR: cleanup_git_identity_check_failed" >&2
+    return 1
+  fi
+  [[ "${current_web_image}" == "${WEB_IMAGE}" \
+    && -z "${candidate_containers}" \
+    && -z "${git_status}" \
+    && "${git_head}" == "${ROLLBACK_COMMIT}" ]] \
+    || { echo "ERROR: cleanup_baseline_identity_mismatch" >&2; return 1; }
+  run_production_check >/dev/null 2>&1 \
+    || { echo "ERROR: cleanup_baseline_health_failed" >&2; return 1; }
+  if ! rollback_ref_id="$(${DOCKER[@]} image ls --no-trunc --quiet "${ROLLBACK_WEB_REF}")"; then
+    echo "ERROR: cleanup_rollback_image_ref_query_failed" >&2
+    return 1
+  fi
+  [[ -z "${rollback_ref_id}" || "${rollback_ref_id}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+    || { echo "ERROR: cleanup_rollback_image_ref_identity_invalid" >&2; return 1; }
+  if [[ -n "${rollback_ref_id}" ]]; then
+    ${DOCKER[@]} image rm "${ROLLBACK_WEB_REF}" >/dev/null \
+      || { echo "ERROR: cleanup_rollback_image_ref_remove_failed" >&2; return 1; }
+  fi
+  cleanup_target_image "${TARGET_WORKER_IMAGE}" "${WEB_IMAGE}" || return 1
+  if [[ "${TARGET_WEB_IMAGE}" != "${TARGET_WORKER_IMAGE}" ]]; then
+    cleanup_target_image "${TARGET_WEB_IMAGE}" "${WEB_IMAGE}" || return 1
+  fi
+  rm -rf -- "${OPS_ROOT}" "${SECURE_ROOT}" "${SOURCE_ROOT}" \
+    || { echo "ERROR: cleanup_transaction_paths_remove_failed" >&2; return 1; }
+  printf '{"schemaVersion":"candidate-cycle-failed-transaction-cleanup.v1","status":"PASS","evidenceRetained":true,"secretsPrinted":false}\n' \
+    > "${EVIDENCE_DIRECTORY}/failed-transaction-cleanup-redacted.json" \
+    || { echo "ERROR: cleanup_evidence_write_failed" >&2; return 1; }
+  chmod 600 "${EVIDENCE_DIRECTORY}/failed-transaction-cleanup-redacted.json" \
+    || { echo "ERROR: cleanup_evidence_permissions_failed" >&2; return 1; }
+}
+
 if [[ "${RUNNER_MODE}" == "automatic_rollback" ]]; then
   CONTROL_CONTINUED=true
   LEASE_ACQUIRED=true
@@ -220,25 +314,29 @@ if [[ "${RUNNER_MODE}" == "automatic_rollback" ]]; then
   exit 0
 fi
 
+rollback_on_failure() {
+  local exit_code=$?
+  local rollback_exit=0
+  local cleanup_exit=0
+  [[ "${exit_code}" -ne 0 ]] || return
+  trap - EXIT
+  if [[ "${LEASE_ACQUIRED}" == "true" || "${GIT_SWITCHED}" == "true" ]]; then
+    bounded_rollback || rollback_exit=$?
+  fi
+  if [[ "${rollback_exit}" -eq 0 ]]; then
+    cleanup_failed_transaction_artifacts || cleanup_exit=$?
+  fi
+  [[ "${rollback_exit}" -eq 0 && "${cleanup_exit}" -eq 0 ]] || exit 98
+  exit "${exit_code}"
+}
+trap rollback_on_failure EXIT
+
 database_runner control-preflight "${WEB_IMAGE}" > "${EVIDENCE_DIRECTORY}/control-preflight-redacted.json"
 cp -p "${ENV_FILE}" "${ENV_BACKUP}"
 chmod 600 "${ENV_BACKUP}"
 ${DOCKER[@]} tag "${WEB_IMAGE}" "${ROLLBACK_WEB_REF}"
 [[ "$(${DOCKER[@]} image inspect "${ROLLBACK_WEB_REF}" --format '{{.Id}}')" == "${WEB_IMAGE}" ]] \
   || fail rollback_image_retention_mismatch
-
-rollback_on_failure() {
-  local exit_code=$?
-  local rollback_exit=0
-  [[ "${exit_code}" -ne 0 ]] || return
-  trap - EXIT
-  if [[ "${LEASE_ACQUIRED}" == "true" || "${GIT_SWITCHED}" == "true" ]]; then
-    bounded_rollback || rollback_exit=$?
-  fi
-  [[ "${rollback_exit}" -eq 0 ]] || exit 98
-  exit "${exit_code}"
-}
-trap rollback_on_failure EXIT
 
 lease_event acquire --owner-id "WP-G0.2-CYCLE-CONTINUATION:$(jq -r '.autonomyAuthorization.approvalId' "${REQUEST_FILE}")"
 LEASE_ACQUIRED=true

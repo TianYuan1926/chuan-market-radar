@@ -47,11 +47,19 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
       || contract.databaseBoundary?.candidateBusinessDataMutationAllowed !== false) {
     violations.push("database_boundary_relaxed");
   }
+  if (contract.cleanup?.targetImageDeletionRequiresNoContainers !== true
+      || contract.cleanup?.pathDeletionRequiresExactRequestBinding !== true
+      || contract.cleanup?.retainedAlways?.includes("redacted_evidence") !== true
+      || contract.cleanup?.retainLiveTargetImagesOnPass !== true
+      || contract.cleanup?.retainRollbackWebImageOnPass !== true) {
+    violations.push("cleanup_boundary_relaxed");
+  }
   for (const token of [
     "control-preflight", "control-continue", "control-rollback", "render-disabled-env",
     "rollbackWebImageRef", "candidate_baseline_worker_not_absent",
     "service_allowlist=web,candidate-shadow-worker", "observation-checkpoint",
     "/runtime/env.production", "ROLLBACK_INCOMPLETE_LEASE_RETAINED",
+    "cleanup_failed_transaction_artifacts", "cleanup_target_image_still_in_use",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
   for (const token of [
     "systemd-run", "RuntimeMaxSec=5400", "validate-request", "prepare-admin-url",
@@ -59,6 +67,7 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
   for (const token of [
     "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE", "sleep 300",
     "automatic_rollback", "retain_evidence", "cleanup_temporary_artifacts",
+    "cleanup_rollback_image_artifacts", "cleanup_target_image_still_in_use",
   ]) if (!observer.includes(token)) violations.push(`observer_guard_missing:${token}`);
   const combined = `${runner}\n${entrypoint}\n${observer}`;
   for (const forbidden of [

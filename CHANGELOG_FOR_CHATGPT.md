@@ -6001,3 +6001,43 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只完成精确清理、提交绑定和 Cycle-2 第三次生产启动；不进入 Lineage 或 Shadow Verify。
+
+## 2026-07-18 / WP-G0.2 Cycle-2 Failed Transaction Cleanup Boundary Remediation
+
+### 本轮目标
+
+固化第二次生产尝试的脱敏证据，并关闭观察器启动前失败后遗留敏感临时目录、回滚 tag 和未使用目标镜像的清理缺口。
+
+### 修改范围
+
+- `production-runner.sh`：回滚或 pre-mutation 失败确认基线健康后，精确删除本事务 staging、secure、ops、rollback tag 和无人使用目标镜像。
+- `observation-runner.sh`：观察期自动回滚后执行同一镜像清理；观察 PASS 保留当前生产镜像和受控回滚镜像。
+- 生产合同、治理校验和边界测试冻结 exact path、no-container-use 与 evidence retention 规则。
+- 未修改 migration、数据库业务数据、Redis、scanner、frontend、API、scan、analysis、strategy、RR、trade plan、backtest、env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的生产失败恢复地基，不生成信号、不改变排序或交易计划。
+
+### 测试结果
+
+- 红灯：pre-observation 与 observation rollback 清理边界 2 项按预期 FAIL。
+- 修复后边界 4/4、Production Packet 29/29、production packet validator：PASS。
+- Core 29/29、Governance 2/2、Autonomy 31/31、PostgreSQL 16：PASS。
+- typecheck、lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16、forbidden/secret/security：PASS。
+- 首轮自治总门禁 15/15 PASS 后，自审发现 Bash 条件函数中的 `set -e` 弱化风险；新增查询失败红灯并改为显式检查 Docker/Git 命令退出码。按最终字节重跑 Production Packet 29/29、Core 29/29、Governance 2/2、Autonomy 31/31、PostgreSQL 16、全部基础/安全门禁和自治总门禁 15/15 均 PASS，`worktreeUnchanged=true`；formal 未运行且禁止运行。
+- 第二次尝试脱敏 evidence zip SHA-256=`3532b8b385f71aa75d9c267e79600aa1117e3c78059c3ce285d236ebfa96c068`；正确敏感信息扫描零命中。一次正则语法错误导致的扫描结果已作废，未计入证据。
+
+### 是否部署
+
+未部署本修复。第二次生产尝试已经安全回滚，旧远端残留仍待精确清理；旧 `f35dc5d` Bundle 已失效并禁止执行。
+
+### 风险与遗留问题
+
+- 最终完整门禁已通过；仍需 clean commit/push、确定性 Bundle、新鲜 preflight/request 和第三次生产启动。
+- 远端 evidence 只在本地脱敏包已校验后按精确路径清理；禁止批量 prune。
+- G0 主步骤仍为 7；清理 PASS 不等于 Cycle-2 双门禁 PASS。
+
+### 下一轮建议
+
+只完成门禁、提交、旧残留精确清理和 Cycle-2 第三次生产启动；不进入 Lineage 或 Shadow Verify。

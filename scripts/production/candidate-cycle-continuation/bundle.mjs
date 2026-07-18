@@ -219,6 +219,19 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.rollback?.restoreWebImage !== true
       || contract.rollback?.restoreWorkerBaselineAbsent !== true
       || contract.rollback?.legacyAuthorityRetained !== true) violations.push("rollback_boundary");
+  if (JSON.stringify(contract.cleanup?.preObservationFailureRemoves)
+        !== JSON.stringify(["staging", "secure", "ops", "rollback_image_ref", "unused_target_images"])
+      || JSON.stringify(contract.cleanup?.observationRollbackRemoves)
+        !== JSON.stringify(["staging", "secure", "ops", "rollback_image_ref", "unused_target_images"])
+      || JSON.stringify(contract.cleanup?.observationPassRemoves)
+        !== JSON.stringify(["staging", "secure", "ops"])
+      || JSON.stringify(contract.cleanup?.retainedAlways) !== JSON.stringify(["redacted_evidence"])
+      || contract.cleanup?.retainLiveTargetImagesOnPass !== true
+      || contract.cleanup?.retainRollbackWebImageOnPass !== true
+      || contract.cleanup?.targetImageDeletionRequiresNoContainers !== true
+      || contract.cleanup?.pathDeletionRequiresExactRequestBinding !== true) {
+    violations.push("cleanup_boundary");
+  }
   if (contract.observation?.minimumComparedWrites !== 10_000
       || contract.observation?.minimumStabilitySeconds !== 1_800
       || contract.observation?.minimumSamples !== 7

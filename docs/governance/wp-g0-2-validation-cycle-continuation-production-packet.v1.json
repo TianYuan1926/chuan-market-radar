@@ -84,6 +84,34 @@
     "legacyAuthorityRetained": true,
     "databaseBusinessRowsDeleted": false
   },
+  "cleanup": {
+    "preObservationFailureRemoves": [
+      "staging",
+      "secure",
+      "ops",
+      "rollback_image_ref",
+      "unused_target_images"
+    ],
+    "observationRollbackRemoves": [
+      "staging",
+      "secure",
+      "ops",
+      "rollback_image_ref",
+      "unused_target_images"
+    ],
+    "observationPassRemoves": [
+      "staging",
+      "secure",
+      "ops"
+    ],
+    "retainedAlways": [
+      "redacted_evidence"
+    ],
+    "retainLiveTargetImagesOnPass": true,
+    "retainRollbackWebImageOnPass": true,
+    "targetImageDeletionRequiresNoContainers": true,
+    "pathDeletionRequiresExactRequestBinding": true
+  },
   "observation": {
     "sampleIntervalSeconds": 300,
     "minimumComparedWrites": 10000,
@@ -108,7 +136,7 @@
       "scripts/production/candidate-cycle-continuation/runner.mjs"
     ],
     "fileCount": 6,
-    "sha256": "f146a391029c81825f5496acd1f8dfd2deb9e4a817813455982ac9cca53bc7ca"
+    "sha256": "06fb4d202544cda98cc1038910efb3125a5f5e7ea4b600dc5e2dec37d545975f"
   },
   "forbidden": [
     "threshold_lowering",
