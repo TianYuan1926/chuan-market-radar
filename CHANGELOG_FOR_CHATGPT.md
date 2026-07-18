@@ -6120,3 +6120,45 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只完成 Cycle-3 身份提交、全新现场绑定和受控启动；不进入 Lineage 或 Shadow Verify。
+
+## 2026-07-18 / WP-G0.2 Cycle-3 Production Activation and Unified Observation Start
+
+### 本轮目标
+
+把最新冻结 Cycle-2/epoch2 严格续接为 Cycle-3，并只在完整生产即时门禁通过后启动 24 小时/289 样本与 10,000 真实 completed writes 的统一观察。
+
+### 修改范围
+
+- 本地生产身份重绑提交 `b098238b5d86ae6dd168c509ac1dce68e3a7adba` 已推送；未修改 scan、analysis、strategy、RR、trade plan、backtest、frontend、migration、Redis、scanner、Caddy 或 secret。
+- 确定性 Bundle SHA-256=`4e438503d100a67b6c4e4744ebfc793a70134245dd9302d9616e2c353d077496`，37,692 bytes；远端运输与隔离合同验证 PASS。
+- 第一次请求因 staging 0755 在 lease 和生产 mutation 前 fail closed；新 0700 staging 使用全新 nonce 与新 request，没有复用失败授权。
+- 新 request SHA-256=`e4e6798c0d017840914ec4f9411b0f81401c42a015ce992e9ab2f83710772ea5`，preflight SHA-256=`decb44d34b5dc84c6c9fe4532eed19782c8167c4c557e264e51dbe78d463979a`。
+
+### 核心链路影响
+
+只推进候选筛选与复盘进化的数据生命周期地基；Candidate 仍是 shadow capture，不是交易信号，不改变生产排序或交易计划。
+
+### 测试结果
+
+- 定向 runner/bundle 15/15、治理 4/4、Production Packet 32/32、PostgreSQL 16：PASS。
+- typecheck、lint、test:market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- 三项安全门禁和 commit-bound 自治总门禁 15/15：PASS，`worktreeUnchanged=true`。
+- 远端 Bundle SHA/size/`gzip -t`/`tar -tzf`、隔离生产合同、新 request validator：PASS。
+- 生产即时 runner：`Result=success`、`ExecMainStatus=0`，输出 `PASS_IMMEDIATE_CYCLE_CONTINUATION_AWAITING_FRESH_ACTIVATION_AND_REAL_WRITE_ACCUMULATION`。
+- 部署后 `production-check.sh`：PASS；生产 Git clean，Web/Candidate Worker running，Postgres/Redis/既有 Worker healthy。
+- 脱敏生产启动证据包：`cycle3-production-start-evidence.zip`，SHA-256=`0b91a24ec574d02994936384f2d4ee14019f721f33d5d4a929727b7f11b7a5b6`，`unzip -t` PASS；只含清单、说明和四张无 secret 截图。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+已部署腾讯生产，仅 Web 与 Candidate Worker 按批准合同构建/切换；Cycle-3=`shadow_capture`。观察单元 `market-radar-cycle-observer-b098238-196d9054` 当前 active/running。
+
+### 风险与遗留问题
+
+- 截至 15:44 CST 的固定快照为 3/289 样本、608 秒、3,004/10,000 completed writes、1 次真实推进；两个 readiness 均为 false。
+- 观察器任何身份、健康、写入、锁等待、长事务、outbox 或连续性异常都会自动回滚到 Legacy-safe 基线。
+- 即时 PASS 不等于观察 PASS；G0 主步骤仍为 7，系统仍不能支撑实战。
+
+### 下一轮建议
+
+只持续核验同一 observer，等待并证明 24 小时/289 连续样本与 10,000 真实 writes 双门禁；未 PASS 前不进入 Lineage。
