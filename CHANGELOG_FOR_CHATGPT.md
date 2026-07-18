@@ -25,8 +25,9 @@
 - typecheck、最终 lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16 PASS。
 - forbidden-files、secret-patterns、security-check PASS。
 - 第一次 lint 4 error/1 warning 已最小修复后重跑 PASS；formal 未运行。
-- 提交前自治总门禁 14/14 PASS，`worktreeUnchanged=true`，gate evidence SHA-256=`7a54086d60f6aa21efade4381dbe5ac0f43f7acda735b9c6c6073beb99878b6c`。
-- clean commit、push、提交绑定门禁和最终 Bundle 尚待执行。
+- commit=`628e49e018361e082292b7089d05e8fa710c6d42`、tree=`f8499b2e8ac6704a80051e4a9fd6552da59a1f4f` 已推送当前 GitHub 工程分支。
+- 提交绑定自治总门禁 14/14 PASS，`worktreeUnchanged=true`，gate evidence SHA-256=`f568895796820783143f49f67ca6f57207d770a7f9dc2539cd2aae450467dc47`。
+- 两次独立 Bundle 逐字节一致，SHA-256=`e059f47a134070aa971df56a9637b6784601d775ba728f597afc45e712f39f80`、106,298 bytes；`approvalEligible=true`。
 
 ### 是否部署
 
@@ -40,7 +41,7 @@
 
 ### 下一轮建议
 
-完成本包提交绑定收口；继续等待 Cycle-5 双门禁，PASS 后才上传并启动超级窗口。
+继续等待 Cycle-5 双门禁，PASS 后才上传并启动超级窗口；不得复用观察中途快照。
 
 ## 2026-07-19 / WP-G0.2 Shadow Verify Production Code Presence Identity Remediation v1
 
