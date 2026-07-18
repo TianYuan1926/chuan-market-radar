@@ -32,19 +32,23 @@ test("observer retains evidence before exact temporary cleanup", async () => {
 test("observer forwards the sample combiner heredoc into the isolated Node container", async () => {
   const source = await readFile(files[2], "utf8");
   assert.match(source, /\$\{DOCKER\[@\]\} run --rm -i --network none --read-only/u);
-  assert.match(source, /run_node true - "\$\{API_FILE\}" "\$\{DB_FILE\}" "\$\{SAMPLE_FILE\}" <<'NODE'/u);
+  assert.match(source, /run_node true - "\$\{HEALTH_FILE\}" "\$\{API_FILE\}" "\$\{DB_BEFORE_FILE\}" \\\n+    "\$\{DB_AFTER_FILE\}" "\$\{SAMPLE_FILE\}" <<'NODE'/u);
+  assert.match(source, /candidate-validation-cycle-observation-sample\.v3/u);
 });
 
 test("observer waits for strict fresh health before Candidate write and sample append", async () => {
   const source = await readFile(files[2], "utf8");
-  const script = source.match(/web node - > "\$\{API_FILE\}" <<'NODE'\n([\s\S]*?)\nNODE/u)?.[1];
+  const script = source.match(/web node - > "\$\{HEALTH_FILE\}" <<'NODE'\n([\s\S]*?)\nNODE/u)?.[1];
   assert.ok(script);
   assert.doesNotThrow(() => new Function(script));
   const agingRetry = source.indexOf('classification.action !== "retry_aging"');
+  const databaseBefore = source.indexOf('database_snapshot > "${DB_BEFORE_FILE}"');
   const candidateWrite = source.indexOf('/api/admin/candidate-shadow/run');
+  const databaseAfter = source.indexOf('database_snapshot > "${DB_AFTER_FILE}"');
   const sampleAppend = source.indexOf('cat "${SAMPLE_FILE}" >> "${SAMPLES_FILE}"');
-  assert.ok(agingRetry >= 0 && candidateWrite > agingRetry);
-  assert.ok(sampleAppend > candidateWrite);
+  assert.ok(agingRetry >= 0 && databaseBefore > agingRetry);
+  assert.ok(candidateWrite > databaseBefore && databaseAfter > candidateWrite);
+  assert.ok(sampleAppend > databaseAfter);
   assert.match(source, /cycle_observation_health_recheck_exhausted/u);
   assert.match(source, /MAXIMUM_HEALTH_RECHECK_SECONDS/u);
   assert.match(source, /HEALTH_RECHECK_INTERVAL_SECONDS/u);

@@ -195,6 +195,42 @@ integrationTest("PostgreSQL 16 atomically continues an immutable 72h validation 
       count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired
       FROM candidate_authority.candidate_migration_control`);
     assert.deepEqual(cycleFiveProof.rows[0], { active: 1, retired: 4 });
+
+    const cycleFiveRollback = await rollbackCandidateValidationCycle(client, cycleFiveInput);
+    assert.equal(cycleFiveRollback.frozenCycle.migrationId, "candidate-episode-v1-cycle-5");
+    assert.equal(cycleFiveRollback.frozenCycle.phase, "legacy");
+    const cycleSixInput = {
+      ...cycleFiveInput,
+      currentAuthorityEpoch: cycleFiveRollback.frozenCycle.epoch,
+      currentMigrationId: cycleFiveInput.nextMigrationId,
+      currentPhase: "legacy",
+      currentReleaseId: cycleFiveInput.nextReleaseId,
+      nextMigrationId: "candidate-episode-v1-cycle-6",
+      nextReleaseId: "candidate-shadow-cycle-sixth",
+    };
+    const cycleSixPreflight = await preflightCandidateValidationCycleContinuation(
+      client,
+      cycleSixInput,
+    );
+    assert.equal(cycleSixPreflight.continuationMode, "start_adjacent_from_retired");
+    assert.equal(cycleSixPreflight.data.legacyCompleted, 1);
+    assert.equal(cycleSixPreflight.data.candidateEventPending, 1);
+    const cycleSix = await continueCandidateValidationCycle(client, cycleSixInput);
+    assert.equal(cycleSix.activeCycle?.migrationId, "candidate-episode-v1-cycle-6");
+    assert.equal(cycleSix.previousCycle?.migrationId, "candidate-episode-v1-cycle-5");
+    assert.equal(cycleSix.preservedData.legacyCompleted, 1);
+    const cycleSixProof = await client.query(`SELECT
+      count(*) FILTER (WHERE phase <> 'legacy')::int AS active,
+      count(*) FILTER (WHERE phase = 'legacy' AND write_frozen)::int AS retired,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
+        WHERE outbox_id=$1 AND status='completed') AS preserved,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
+        WHERE outbox_id=$2 AND source_type='candidate_episode_event' AND status='pending')
+        AS event_pending
+      FROM candidate_authority.candidate_migration_control`, [outboxId, eventId]);
+    assert.deepEqual(cycleSixProof.rows[0], {
+      active: 1, event_pending: 1, preserved: 1, retired: 5,
+    });
   } finally {
     client.release();
     await pool.end();

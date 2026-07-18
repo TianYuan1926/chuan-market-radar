@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(ROOT,
-  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v3.json");
+  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v4.json");
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -39,7 +39,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     readFile(resolve(ROOT, "docker-compose.yml"), "utf8"),
   ]);
 
-  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v3"
+  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v4"
       || contract.packageId !== "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-LOCAL-SUPERPACKAGE") {
     violations.push("contract_identity");
   }
@@ -56,22 +56,28 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.readObservationWindowsSeparate !== true
       || problem.currentProductionPhase !== "legacy"
       || problem.currentProductionWriteFrozen !== true
-      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-4"
+      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-5"
       || problem.currentProductionAuthorityEpoch !== 2
       || problem.currentProductionActiveCycles !== 0
       || problem.currentProductionCandidateWorker !== "absent"
-      || problem.legacySourceCompleted !== 3_705
+      || problem.candidateEpisodes !== 596
+      || problem.candidateEvents !== 4_602
+      || problem.candidateOutbox !== 9_204
+      || problem.legacySourceCompleted !== 4_602
       || problem.legacySourceUnresolved !== 0
-      || problem.candidateEventPending !== 3_705
+      || problem.candidateEventPending !== 4_602
       || problem.candidateEventNonPending !== 0
       || problem.candidateEventOrphans !== 0
       || problem.candidateEventContractMismatches !== 0
       || problem.priorActivationOutcome
-        !== "ROLLBACK_PASS_SCAN_FRESHNESS_AGING_BOUNDARY"
-      || problem.priorActivationSamplesObserved !== 2
-      || problem.priorActivationCompletedWrites !== 3_705
+        !== "ROLLBACK_PASS_SAMPLE_MONITOR_COMPLETED_MISMATCH"
+      || problem.priorActivationSamplesObserved !== 57
+      || problem.priorActivationAcceptedSamples !== 56
+      || problem.priorActivationRejectedSample !== 57
+      || problem.priorActivationCompletedWrites !== 4_602
+      || problem.priorActivationLastAcceptedCompletedWrites !== 4_556
       || problem.priorActivationFailure
-        !== "sample_health_not_ready_at_scan_freshness_aging_boundary"
+        !== "sample_monitor_completed_mismatch_due_to_sequential_snapshot_race"
       || problem.priorActivationLastSampleCriticalSubsystemsHealthy !== true
       || problem.priorActivationSamplesReusable !== false
       || problem.priorActivationCoverageLessThan24Hours !== true
@@ -112,8 +118,17 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     criticalHealthMustRemainHealthy: true,
     candidateWriteDuringHealthRecheck: false,
     recheckAttemptCountsAsObservationSample: false,
+    observationSampleSchema: "candidate-validation-cycle-observation-sample.v3",
+    databaseSnapshotBracketRequired: true,
+    databaseSnapshotMaximumBracketSeconds: 60,
+    monitorCompletedWithinDatabaseBracketInclusive: true,
+    legacyUnbracketedSamplesAccepted: false,
   })) if (boundary[key] !== expected) violations.push(`continuation_boundary:${key}`);
-  if (implementation.fileCount !== 14
+  if (JSON.stringify(boundary.databaseSnapshotOrder) !== JSON.stringify([
+    "strict_fresh_health", "database_before", "candidate_monitor", "database_after",
+    "isolated_validation",
+  ])) violations.push("continuation_boundary:databaseSnapshotOrder");
+  if (implementation.fileCount !== 22
       || implementation.fileCount !== contract.implementationArtifact?.fileCount
       || implementation.sha256 !== contract.implementationArtifact?.sha256) {
     violations.push("implementation_artifact");

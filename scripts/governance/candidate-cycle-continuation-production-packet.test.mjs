@@ -9,7 +9,7 @@ import {
 
 async function fixture() {
   const [contract, runner, entrypoint, observer] = await Promise.all([
-    readFile("docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v3.json", "utf8").then(JSON.parse),
+    readFile("docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v4.json", "utf8").then(JSON.parse),
     readFile("scripts/production/candidate-cycle-continuation/production-runner.sh", "utf8"),
     readFile("scripts/production/candidate-cycle-continuation/production-entrypoint.sh", "utf8"),
     readFile("scripts/production/candidate-cycle-continuation/observation-runner.sh", "utf8"),
@@ -21,7 +21,9 @@ test("current production packet governance passes without claiming production", 
   const current = await fixture();
   assert.equal(current.contract.prerequisites.currentProductionAuthorityEpoch, 2);
   assert.equal(current.contract.prerequisites.currentProductionMigrationId,
-    "candidate-episode-v1-cycle-4");
+    "candidate-episode-v1-cycle-5");
+  assert.equal(current.contract.prerequisites.priorActivationSamplesObserved, 57);
+  assert.equal(current.contract.observation.databaseSnapshotCoherence.maximumBracketSeconds, 60);
   const result = await validateCandidateCycleContinuationProductionPacket();
   assert.equal(result.status, "PASS_LOCAL_CYCLE_CONTINUATION_PRODUCTION_PACKET");
   assert.equal(result.productionAuthorization, false);
@@ -47,6 +49,10 @@ test("threshold lowering deadline relaxation and missing rollback fail governanc
           ...current.contract.observation.healthFreshnessBoundary,
           agingSampleAccepted: true,
         },
+        databaseSnapshotCoherence: {
+          ...current.contract.observation.databaseSnapshotCoherence,
+          monitorCompletedWithinBracketInclusive: false,
+        },
       },
       databaseBoundary: {
         ...current.contract.databaseBoundary,
@@ -70,5 +76,6 @@ test("threshold lowering deadline relaxation and missing rollback fail governanc
   assert.ok(violations.includes("cleanup_boundary_relaxed"));
   assert.ok(violations.includes("transient_claim_boundary_changed"));
   assert.ok(violations.includes("health_freshness_boundary_changed"));
+  assert.ok(violations.includes("database_snapshot_coherence_changed"));
   assert.ok(violations.includes("runner_guard_missing:control-rollback"));
 });

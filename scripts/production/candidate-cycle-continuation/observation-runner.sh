@@ -219,11 +219,12 @@ lease_event observation-checkpoint --checkpoint fresh_activation_and_accumulatio
 SAMPLE_NUMBER=0
 while true; do
   SAMPLE_NUMBER=$((SAMPLE_NUMBER + 1))
+  HEALTH_FILE="${OPS_ROOT}/state/health-sample.json"
   API_FILE="${OPS_ROOT}/state/api-sample.json"
-  DB_FILE="${OPS_ROOT}/state/database-sample.json"
+  DB_BEFORE_FILE="${OPS_ROOT}/state/database-before-sample.json"
+  DB_AFTER_FILE="${OPS_ROOT}/state/database-after-sample.json"
   SAMPLE_FILE="${OPS_ROOT}/state/combined-sample.json"
-  "${COMPOSE[@]}" exec -T -e OBS_COMMIT="${TARGET_COMMIT}" \
-    -e OBS_CYCLE="${NEXT_CYCLE}" -e OBS_RELEASE="${NEXT_RELEASE}" web node - > "${API_FILE}" <<'NODE'
+  "${COMPOSE[@]}" exec -T web node - > "${HEALTH_FILE}" <<'NODE'
 (async () => {
   const {
     classifyCycleObservationHealth,
@@ -267,21 +268,7 @@ while true; do
     ));
   }
   const { healthResponse, healthBody, health, candidateWorker, allExpectedHealthy } = acceptedHealth;
-  const candidateResponse = await fetch("http://127.0.0.1:3000/api/admin/candidate-shadow/run", {
-    method: "POST", headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` },
-  });
-  const candidate = await candidateResponse.json();
-  if (healthResponse.status !== 200 || healthBody.ok !== true || candidateResponse.status !== 200
-      || candidate.ok !== true || candidate.mode !== "active" || candidate.runtime?.enabled !== true
-      || candidate.runtime?.blockers?.length !== 0 || candidate.monitor?.status !== "ready"
-      || candidate.monitor?.migrationId !== process.env.OBS_CYCLE
-      || candidate.monitor?.phase !== "shadow_capture"
-      || process.env.CANDIDATE_RUNTIME_MIGRATION_ID !== process.env.OBS_CYCLE
-      || process.env.CANDIDATE_RUNTIME_RELEASE_ID !== process.env.OBS_RELEASE) {
-    throw new Error("cycle_observation_api_contract_failed");
-  }
   process.stdout.write(JSON.stringify({
-    commit: process.env.OBS_COMMIT,
     health: {
       ok: healthResponse.status === 200 && healthBody.ok === true,
       level: health.level,
@@ -291,24 +278,55 @@ while true; do
       candidateWorker: candidateWorker?.status,
       workersHealthy: allExpectedHealthy,
     },
+  }) + "\n");
+})().catch((error) => { console.error(error.message); process.exit(1); });
+NODE
+  database_snapshot > "${DB_BEFORE_FILE}"
+  "${COMPOSE[@]}" exec -T -e OBS_COMMIT="${TARGET_COMMIT}" \
+    -e OBS_CYCLE="${NEXT_CYCLE}" -e OBS_RELEASE="${NEXT_RELEASE}" web node - > "${API_FILE}" <<'NODE'
+(async () => {
+  const candidateResponse = await fetch("http://127.0.0.1:3000/api/admin/candidate-shadow/run", {
+    method: "POST", headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` },
+  });
+  const candidate = await candidateResponse.json();
+  if (candidateResponse.status !== 200 || candidate.ok !== true || candidate.mode !== "active"
+      || candidate.runtime?.enabled !== true
+      || candidate.runtime?.blockers?.length !== 0 || candidate.monitor?.status !== "ready"
+      || candidate.monitor?.migrationId !== process.env.OBS_CYCLE
+      || candidate.monitor?.phase !== "shadow_capture"
+      || process.env.CANDIDATE_RUNTIME_MIGRATION_ID !== process.env.OBS_CYCLE
+      || process.env.CANDIDATE_RUNTIME_RELEASE_ID !== process.env.OBS_RELEASE) {
+    throw new Error("cycle_observation_api_contract_failed");
+  }
+  process.stdout.write(JSON.stringify({
+    commit: process.env.OBS_COMMIT,
     candidate,
   }) + "\n");
 })().catch((error) => { console.error(error.message); process.exit(1); });
 NODE
-  database_snapshot > "${DB_FILE}"
-  run_node true - "${API_FILE}" "${DB_FILE}" "${SAMPLE_FILE}" <<'NODE'
+  database_snapshot > "${DB_AFTER_FILE}"
+  run_node true - "${HEALTH_FILE}" "${API_FILE}" "${DB_BEFORE_FILE}" \
+    "${DB_AFTER_FILE}" "${SAMPLE_FILE}" <<'NODE'
 const fs = require("node:fs");
-const api = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-const database = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-const { secretsPrinted: _ignored, schemaVersion: _schema, status: _status, ...db } = database;
-const sample = {
-  schemaVersion: "candidate-validation-cycle-observation-sample.v2",
-  ...db,
-  commit: api.commit,
-  health: api.health,
-  candidate: api.candidate,
+const health = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const api = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+const beforeDatabase = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
+const afterDatabase = JSON.parse(fs.readFileSync(process.argv[5], "utf8"));
+const sanitizeDatabase = (database) => {
+  const { secretsPrinted: _ignored, schemaVersion: _schema, status: _status, ...db } = database;
+  return db;
 };
-fs.writeFileSync(process.argv[4], JSON.stringify(sample) + "\n", { mode: 0o600 });
+const before = sanitizeDatabase(beforeDatabase);
+const after = sanitizeDatabase(afterDatabase);
+const sample = {
+  schemaVersion: "candidate-validation-cycle-observation-sample.v3",
+  ...after,
+  commit: api.commit,
+  health: health.health,
+  candidate: api.candidate,
+  databaseWindow: { before, after },
+};
+fs.writeFileSync(process.argv[6], JSON.stringify(sample) + "\n", { mode: 0o600 });
 NODE
   cat "${SAMPLE_FILE}" >> "${SAMPLES_FILE}"
   run_node true "${OBSERVER_MODULE}" evaluate --input "${SAMPLES_FILE}" \

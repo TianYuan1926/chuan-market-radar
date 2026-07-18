@@ -2,6 +2,46 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Cycle-5 Observation Snapshot Coherence Remediation
+
+### 本轮目标
+
+修复 Cycle-5 observer 把非原子 API monitor 与稍后数据库快照强制等值比较造成的健康周期误回滚，同时保持全部观察、样本、数据完整性和回滚门槛不变。
+
+### 修改范围
+
+- 新建 local superpackage v4 和 production packet v4；历史 v3 保持不变。
+- sample 升级为 v3，增加 60 秒内 database before/after 括号和严格身份、单调性、零 unresolved 校验。
+- observer 调整为 fresh health、DB before、Candidate monitor、DB after、隔离合并与验证的固定顺序。
+- 更新治理 validator、deterministic bundle、动态 preflight fixture、边界测试和精确 Cycle-5 -> Cycle-6 PostgreSQL 16 演练。
+- 未修改 frontend、业务 API、scan、analysis、strategy、RR、trade plan、backtest、migration、Redis、Worker 业务、Caddy、Compose、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化的 Candidate 生命周期事实采样，避免健康写入并发被误判为数据不一致；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- 定向 42/42、治理/Packet 精简重跑 29/29：PASS。
+- PostgreSQL 16：Cycle-5 frozen -> Cycle-6 adjacent、旧数据保留、单活周期 PASS，`productionConnected=false`。
+- typecheck、lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署、未上传、未启动 Cycle-6，当前包未连接或修改生产。Cycle-5 已由既有自动回滚恢复 baseline；该失败不算生产 PASS。
+
+### 风险与遗留问题
+
+- Cycle-5 57 条捕获、56 条有效样本和不足 24 小时窗口不可复用；Cycle-6 必须从零开始。
+- 本地 v4 PASS 尚待 clean commit、提交绑定自治总门禁、确定性 Bundle、动态生产 preflight 和一次性生产 request。
+- G0 主步骤仍为 7，系统仍不能支撑实战。
+
+### 下一轮建议
+
+只完成本包提交绑定和 Cycle-6 精确生产包，在 production WIP=1 下启动全新观察。
+
 ## 2026-07-19 / WP-G0.2 Cycle-5 Read-Only Verification Superwindow
 
 ### 本轮目标

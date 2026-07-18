@@ -12,6 +12,7 @@ export const DEADLINE_SAFETY_SECONDS = 21_600;
 export const MAXIMUM_TRANSIENT_UNRESOLVED_AGE_SECONDS = 300;
 export const MAXIMUM_HEALTH_RECHECK_SECONDS = 180;
 export const HEALTH_RECHECK_INTERVAL_SECONDS = 15;
+export const MAXIMUM_DATABASE_BRACKET_SECONDS = 60;
 
 export class CandidateCycleObservationError extends Error {
   constructor(reason) {
@@ -39,6 +40,35 @@ function timestamp(value, reason) {
 function exactKeys(value, expected, reason) {
   ensure(value && typeof value === "object" && !Array.isArray(value), reason);
   ensure(Object.keys(value).sort().join("\n") === [...expected].sort().join("\n"), reason);
+}
+
+const DATABASE_SNAPSHOT_KEYS = Object.freeze([
+  "activeCycles", "completedWrites", "database", "deadlineAt", "epoch", "migrationId",
+  "phase", "releaseId", "sampledAt", "unresolvedOutbox",
+]);
+
+function validateDatabaseSnapshot(snapshot, expected, prefix) {
+  exactKeys(snapshot, DATABASE_SNAPSHOT_KEYS, `${prefix}_shape_invalid`);
+  exactKeys(snapshot.database, ["lockWaiters", "longTransactions"],
+    `${prefix}_database_shape_invalid`);
+  ensure(snapshot.migrationId === expected.migrationId, `${prefix}_cycle_mismatch`);
+  ensure(snapshot.releaseId === expected.releaseId, `${prefix}_release_mismatch`);
+  ensure(snapshot.phase === "shadow_capture", `${prefix}_phase_invalid`);
+  integer(snapshot.epoch, `${prefix}_epoch_invalid`, 1);
+  ensure(snapshot.epoch % 2 === 1, `${prefix}_epoch_not_active`);
+  ensure(integer(snapshot.activeCycles, `${prefix}_active_cycle_count_invalid`) === 1,
+    `${prefix}_active_cycle_count_invalid`);
+  integer(snapshot.completedWrites, `${prefix}_completed_writes_invalid`);
+  ensure(integer(snapshot.unresolvedOutbox, `${prefix}_unresolved_invalid`) === 0,
+    `${prefix}_unresolved_outbox`);
+  const sampledAtMs = timestamp(snapshot.sampledAt, `${prefix}_time_invalid`);
+  const deadlineAtMs = timestamp(snapshot.deadlineAt, `${prefix}_deadline_invalid`);
+  ensure(deadlineAtMs > sampledAtMs, `${prefix}_deadline_expired`);
+  ensure(integer(snapshot.database.lockWaiters, `${prefix}_lock_waiters_invalid`) === 0,
+    `${prefix}_lock_waiters`);
+  ensure(integer(snapshot.database.longTransactions,
+    `${prefix}_long_transactions_invalid`) === 0, `${prefix}_long_transaction`);
+  return { ...snapshot, sampledAtMs, deadlineAtMs };
 }
 
 export function classifyCycleObservationHealth(snapshot) {
@@ -76,16 +106,35 @@ export function classifyCycleObservationHealth(snapshot) {
 export function validateCycleObservationSample(sample, expected) {
   exactKeys(sample, [
     "activeCycles", "candidate", "commit", "completedWrites", "database", "deadlineAt",
-    "epoch", "health", "migrationId", "phase", "releaseId", "sampledAt", "schemaVersion",
-    "unresolvedOutbox",
+    "databaseWindow", "epoch", "health", "migrationId", "phase", "releaseId", "sampledAt",
+    "schemaVersion", "unresolvedOutbox",
   ], "sample_shape_invalid");
   exactKeys(sample.health, [
     "candidateWorker", "database", "level", "ok", "redis", "scanFreshness", "workersHealthy",
   ], "sample_health_shape_invalid");
   exactKeys(sample.database, ["lockWaiters", "longTransactions"],
     "sample_database_shape_invalid");
-  ensure(sample.schemaVersion === "candidate-validation-cycle-observation-sample.v2",
+  ensure(sample.schemaVersion === "candidate-validation-cycle-observation-sample.v3",
     "sample_schema_invalid");
+  exactKeys(sample.databaseWindow, ["after", "before"], "sample_database_window_shape_invalid");
+  const before = validateDatabaseSnapshot(sample.databaseWindow.before, expected,
+    "sample_database_before");
+  const after = validateDatabaseSnapshot(sample.databaseWindow.after, expected,
+    "sample_database_after");
+  const databaseBracketSeconds = (after.sampledAtMs - before.sampledAtMs) / 1_000;
+  ensure(databaseBracketSeconds >= 0
+      && databaseBracketSeconds <= MAXIMUM_DATABASE_BRACKET_SECONDS,
+  "sample_database_bracket_duration_invalid");
+  for (const key of [
+    "activeCycles", "completedWrites", "deadlineAt", "epoch", "migrationId", "phase",
+    "releaseId", "sampledAt", "unresolvedOutbox",
+  ]) ensure(sample[key] === after[key], `sample_database_after_mismatch:${key}`);
+  ensure(JSON.stringify(sample.database) === JSON.stringify(after.database),
+    "sample_database_after_mismatch:database");
+  ensure(before.epoch === after.epoch, "sample_database_bracket_epoch_drift");
+  ensure(before.deadlineAt === after.deadlineAt, "sample_database_bracket_deadline_drift");
+  ensure(before.completedWrites <= after.completedWrites,
+    "sample_database_bracket_completed_regressed");
   ensure(sample.commit === expected.commit, "sample_commit_mismatch");
   ensure(sample.migrationId === expected.migrationId, "sample_cycle_mismatch");
   ensure(sample.releaseId === expected.releaseId, "sample_release_mismatch");
@@ -156,15 +205,17 @@ export function validateCycleObservationSample(sample, expected) {
         && metrics.oldestPendingAgeSeconds < MAXIMUM_TRANSIENT_UNRESOLVED_AGE_SECONDS,
     "sample_oldest_pending_too_old");
   }
-  ensure(integer(metrics.outboxCompletedTotal,
-    "sample_monitor_completed_invalid") === sample.completedWrites,
-  "sample_monitor_completed_mismatch");
-  ensure(integer(sample.database.lockWaiters, "sample_database_lock_waiters_invalid") === 0,
-    "sample_database_lock_waiters");
-  ensure(integer(sample.database.longTransactions,
-    "sample_database_long_transactions_invalid") === 0,
-  "sample_database_long_transaction");
-  return { ...sample, sampledAtMs: sampledAt, deadlineAtMs: deadlineAt };
+  const monitorCompleted = integer(metrics.outboxCompletedTotal,
+    "sample_monitor_completed_invalid");
+  ensure(monitorCompleted >= before.completedWrites && monitorCompleted <= after.completedWrites,
+    "sample_monitor_completed_outside_database_bracket");
+  return {
+    ...sample,
+    databaseBracketSeconds,
+    monitorCompletedWrites: monitorCompleted,
+    sampledAtMs: sampledAt,
+    deadlineAtMs: deadlineAt,
+  };
 }
 
 export function evaluateCycleObservation(samples, expected, options = {}) {

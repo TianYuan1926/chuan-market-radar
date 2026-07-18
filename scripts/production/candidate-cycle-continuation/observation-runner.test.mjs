@@ -5,6 +5,7 @@ import {
   classifyCycleObservationHealth,
   evaluateCycleObservation,
   HEALTH_RECHECK_INTERVAL_SECONDS,
+  MAXIMUM_DATABASE_BRACKET_SECONDS,
   MAXIMUM_HEALTH_RECHECK_SECONDS,
   validateCycleObservationSample,
 } from "./observation-runner.mjs";
@@ -17,8 +18,24 @@ const expected = {
 
 function sample(index, completedWrites = 9_990) {
   const sampledAt = new Date(Date.parse("2026-07-17T00:00:00.000Z") + index * 300_000);
+  const beforeSampledAt = new Date(sampledAt.getTime() - 1_000);
+  const databaseSnapshot = (databaseSampledAt) => ({
+    sampledAt: databaseSampledAt.toISOString(),
+    migrationId: expected.migrationId,
+    releaseId: expected.releaseId,
+    phase: "shadow_capture",
+    epoch: 1,
+    deadlineAt: "2026-07-20T00:00:00.000Z",
+    completedWrites,
+    unresolvedOutbox: 0,
+    activeCycles: 1,
+    database: {
+      lockWaiters: 0,
+      longTransactions: 0,
+    },
+  });
   return {
-    schemaVersion: "candidate-validation-cycle-observation-sample.v2",
+    schemaVersion: "candidate-validation-cycle-observation-sample.v3",
     sampledAt: sampledAt.toISOString(),
     commit: expected.commit,
     migrationId: expected.migrationId,
@@ -69,6 +86,10 @@ function sample(index, completedWrites = 9_990) {
     database: {
       lockWaiters: 0,
       longTransactions: 0,
+    },
+    databaseWindow: {
+      before: databaseSnapshot(beforeSampledAt),
+      after: databaseSnapshot(sampledAt),
     },
   };
 }
@@ -128,15 +149,24 @@ test("cycle sample binds runtime, monitor, database, and health truth", () => {
       monitor: { ...sample(0).candidate.monitor, warnings: ["retry_wait_present"] },
     },
   }, expected), /sample_monitor_warning/u);
-  assert.throws(() => validateCycleObservationSample({
-    ...sample(0), database: { lockWaiters: 1, longTransactions: 0 },
-  }, expected), /sample_database_lock_waiters/u);
-  assert.throws(() => validateCycleObservationSample({
-    ...sample(0), migrationId: "candidate-episode-v1",
-  }, expected), /sample_cycle_mismatch/u);
-  assert.throws(() => validateCycleObservationSample({
-    ...sample(0), unresolvedOutbox: 1,
-  }, expected), /sample_unresolved_outbox/u);
+  const locked = sample(0);
+  locked.database = { lockWaiters: 1, longTransactions: 0 };
+  locked.databaseWindow.before.database.lockWaiters = 1;
+  locked.databaseWindow.after.database.lockWaiters = 1;
+  assert.throws(() => validateCycleObservationSample(locked, expected),
+    /sample_database_before_lock_waiters/u);
+  const wrongCycle = sample(0);
+  wrongCycle.migrationId = "candidate-episode-v1";
+  wrongCycle.databaseWindow.before.migrationId = wrongCycle.migrationId;
+  wrongCycle.databaseWindow.after.migrationId = wrongCycle.migrationId;
+  assert.throws(() => validateCycleObservationSample(wrongCycle, expected),
+    /sample_database_before_cycle_mismatch/u);
+  const unresolved = sample(0);
+  unresolved.unresolvedOutbox = 1;
+  unresolved.databaseWindow.before.unresolvedOutbox = 1;
+  unresolved.databaseWindow.after.unresolvedOutbox = 1;
+  assert.throws(() => validateCycleObservationSample(unresolved, expected),
+    /unresolved_outbox/u);
 });
 
 test("accepts the exact production transient-claim race without hiding backlog", () => {
@@ -148,6 +178,72 @@ test("accepts the exact production transient-claim race without hiding backlog",
     oldestPendingAgeSeconds: 29.526496,
   };
   assert.equal(validateCycleObservationSample(productionRace, expected).completedWrites, 3_705);
+});
+
+test("accepts monitor progress only when two database snapshots bracket it", () => {
+  const productionRace = sample(0, 4_602);
+  productionRace.sampledAt = "2026-07-17T00:00:10.000Z";
+  productionRace.candidate.monitor.metrics = {
+    ...productionRace.candidate.monitor.metrics,
+    outboxCompletedTotal: 4_578,
+    outboxClaimedTotal: 24,
+    unresolvedTotal: 24,
+    oldestPendingAgeSeconds: 22.116749,
+  };
+  productionRace.databaseWindow = {
+    before: {
+      sampledAt: "2026-07-17T00:00:00.000Z",
+      migrationId: expected.migrationId,
+      releaseId: expected.releaseId,
+      phase: "shadow_capture",
+      epoch: 1,
+      deadlineAt: productionRace.deadlineAt,
+      completedWrites: 4_556,
+      unresolvedOutbox: 0,
+      activeCycles: 1,
+      database: { lockWaiters: 0, longTransactions: 0 },
+    },
+    after: {
+      sampledAt: "2026-07-17T00:00:10.000Z",
+      migrationId: expected.migrationId,
+      releaseId: expected.releaseId,
+      phase: "shadow_capture",
+      epoch: 1,
+      deadlineAt: productionRace.deadlineAt,
+      completedWrites: 4_602,
+      unresolvedOutbox: 0,
+      activeCycles: 1,
+      database: { lockWaiters: 0, longTransactions: 0 },
+    },
+  };
+  assert.equal(validateCycleObservationSample(productionRace, expected).completedWrites, 4_602);
+});
+
+test("rejects monitor progress outside the database bracket or a stale bracket", () => {
+  const below = sample(0, 4_602);
+  below.databaseWindow.before.completedWrites = 4_580;
+  below.candidate.monitor.metrics.outboxCompletedTotal = 4_578;
+  assert.throws(() => validateCycleObservationSample(below, expected),
+    /sample_monitor_completed_outside_database_bracket/u);
+
+  const above = sample(0, 4_602);
+  above.candidate.monitor.metrics.outboxCompletedTotal = 4_603;
+  assert.throws(() => validateCycleObservationSample(above, expected),
+    /sample_monitor_completed_outside_database_bracket/u);
+
+  const stale = sample(0, 4_602);
+  stale.databaseWindow.before.sampledAt = "2026-07-16T23:58:59.000Z";
+  assert.equal(MAXIMUM_DATABASE_BRACKET_SECONDS, 60);
+  assert.throws(() => validateCycleObservationSample(stale, expected),
+    /sample_database_bracket_duration_invalid/u);
+});
+
+test("rejects legacy unbracketed sample evidence", () => {
+  const legacy = sample(0);
+  legacy.schemaVersion = "candidate-validation-cycle-observation-sample.v2";
+  delete legacy.databaseWindow;
+  assert.throws(() => validateCycleObservationSample(legacy, expected),
+    /sample_shape_invalid/u);
 });
 
 test("rejects stale, inconsistent, retrying or quarantined transient work", () => {
@@ -208,10 +304,13 @@ test("fresh activation and real-write accumulation must both pass", () => {
 });
 
 test("thresholds cannot be lowered and deadline exhaustion never fabricates PASS", () => {
-  const samples = Array.from({ length: 7 }, (_, index) => ({
-    ...sample(index, 9_000 + index),
-    deadlineAt: "2026-07-17T06:00:00.000Z",
-  }));
+  const samples = Array.from({ length: 7 }, (_, index) => {
+    const value = sample(index, 9_000 + index);
+    value.deadlineAt = "2026-07-17T06:00:00.000Z";
+    value.databaseWindow.before.deadlineAt = value.deadlineAt;
+    value.databaseWindow.after.deadlineAt = value.deadlineAt;
+    return value;
+  });
   const result = evaluateCycleObservation(samples, expected);
   assert.equal(result.status, "FAIL_CYCLE_CAPACITY_EXHAUSTED_REQUIRES_NEXT_ADJACENT_CYCLE");
   assert.throws(() => evaluateCycleObservation(samples, expected, {
@@ -231,6 +330,10 @@ test("sample gaps epoch drift and write regression invalidate the window", () =>
     index === 4 ? {
       ...value,
       epoch: 3,
+      databaseWindow: {
+        before: { ...value.databaseWindow.before, epoch: 3 },
+        after: { ...value.databaseWindow.after, epoch: 3 },
+      },
       candidate: {
         ...value.candidate,
         runtime: { ...value.candidate.runtime, authorityEpoch: 3 },
@@ -240,15 +343,7 @@ test("sample gaps epoch drift and write regression invalidate the window", () =>
   )), expected), /observation_epoch_drift/u);
   assert.throws(() => evaluateCycleObservation(samples.map((value, index) => (
     index === 4 ? {
-      ...value,
-      completedWrites: 1,
-      candidate: {
-        ...value.candidate,
-        monitor: {
-          ...value.candidate.monitor,
-          metrics: { ...value.candidate.monitor.metrics, outboxCompletedTotal: 1 },
-        },
-      },
+      ...sample(index, 1),
     } : value
   )), expected), /observation_completed_writes_regressed/u);
 });
