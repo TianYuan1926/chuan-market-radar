@@ -2,18 +2,24 @@ import assert from "node:assert/strict";
 import pg from "pg";
 import {
   MINIMUM_COMPARED_WRITES,
+  RECONCILIATION_PASS,
   collectReadOnlyEvidence,
   hashPayload,
   hashProjectionCommand,
 } from "./runner.mjs";
+import { LINEAGE_PASS, LINEAGE_SCHEMA } from "../candidate-lineage/runner.mjs";
 
 const { Client } = pg;
 const databaseUrl = process.env.WP_G0_2_RECONCILIATION_DATABASE_URL?.trim();
 assert.ok(databaseUrl, "reconciliation rehearsal database URL is required");
 
-const activationReleaseId = "candidate-shadow-reconciliation-cycle-1";
-const releaseId = "candidate-shadow-reconciliation-cycle-2";
-const migrationId = "candidate-episode-v1-cycle-2";
+const TOTAL_WRITES = 10_020;
+const releaseIds = [
+  "candidate-shadow-reconciliation-cycle-1",
+  "candidate-shadow-reconciliation-cycle-2",
+  "candidate-shadow-reconciliation-cycle-3",
+];
+const migrationId = "candidate-episode-v1-cycle-3";
 
 function uuid(index, family) {
   return `${family.toString(16).padStart(8, "0")}-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
@@ -130,55 +136,79 @@ const client = new Client({ connectionString: databaseUrl });
 await client.connect();
 try {
   const now = await client.query("SELECT clock_timestamp() AS now");
-  const startedAt = new Date(new Date(now.rows[0].now).getTime() - 60 * 60_000);
-  const deadlineAt = new Date(startedAt.getTime() + 72 * 60 * 60_000);
-  const activationStartedAt = new Date(startedAt.getTime() - 72 * 60 * 60_000);
-  const activationDeadlineAt = new Date(startedAt);
+  const cycle3StartedAt = new Date(new Date(now.rows[0].now).getTime() - 60 * 60_000);
+  const cycle3DeadlineAt = new Date(cycle3StartedAt.getTime() + 72 * 60 * 60_000);
+  const cycle2StartedAt = new Date(cycle3StartedAt.getTime() - 72 * 60 * 60_000);
+  const cycle2DeadlineAt = new Date(cycle3StartedAt);
+  const cycle1StartedAt = new Date(cycle2StartedAt.getTime() - 72 * 60 * 60_000);
+  const cycle1DeadlineAt = new Date(cycle2StartedAt);
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
     migration_id, phase, epoch, started_at, deadline_at, write_frozen,
     approved_release_id, approval_digest, updated_at
-  ) VALUES ('candidate-episode-v1','legacy',4,$1,$2,true,$3,$4,$2)`, [
-    activationStartedAt.toISOString(),
-    activationDeadlineAt.toISOString(),
-    activationReleaseId,
+  ) VALUES ('candidate-episode-v1','legacy',6,$1,$2,true,$3,$4,$2)`, [
+    cycle1StartedAt.toISOString(),
+    cycle1DeadlineAt.toISOString(),
+    releaseIds[0],
     `sha256:${"c".repeat(64)}`,
+  ]);
+  await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
+    migration_id, phase, epoch, started_at, deadline_at, write_frozen,
+    approved_release_id, approval_digest, updated_at
+  ) VALUES ('candidate-episode-v1-cycle-2','legacy',2,$1,$2,true,$3,$4,$2)`, [
+    cycle2StartedAt.toISOString(),
+    cycle2DeadlineAt.toISOString(),
+    releaseIds[1],
+    `sha256:${"d".repeat(64)}`,
   ]);
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
     migration_id, phase, epoch, started_at, deadline_at, write_frozen,
     approved_release_id, approval_digest, updated_at
   ) VALUES ($1,'shadow_capture',1,$2,$3,false,$4,$5,$2)`, [
     migrationId,
-    startedAt.toISOString(),
-    deadlineAt.toISOString(),
-    releaseId,
-    `sha256:${"d".repeat(64)}`,
+    cycle3StartedAt.toISOString(),
+    cycle3DeadlineAt.toISOString(),
+    releaseIds[2],
+    `sha256:${"e".repeat(64)}`,
   ]);
 
   const batchSize = 250;
   const sourceReleaseWindows = [
     {
-      authorityEpoch: 3,
-      deadlineAt: activationDeadlineAt.toISOString(),
+      controlEpoch: 6,
+      deadlineAt: cycle1DeadlineAt.toISOString(),
       migrationId: "candidate-episode-v1",
-      releaseId: activationReleaseId,
-      startedAt: activationStartedAt.toISOString(),
+      phase: "legacy",
+      releaseId: releaseIds[0],
+      startedAt: cycle1StartedAt.toISOString(),
+      writeFrozen: true,
     },
     {
-      authorityEpoch: 1,
-      deadlineAt: deadlineAt.toISOString(),
+      controlEpoch: 2,
+      deadlineAt: cycle2DeadlineAt.toISOString(),
+      migrationId: "candidate-episode-v1-cycle-2",
+      phase: "legacy",
+      releaseId: releaseIds[1],
+      startedAt: cycle2StartedAt.toISOString(),
+      writeFrozen: true,
+    },
+    {
+      controlEpoch: 1,
+      deadlineAt: cycle3DeadlineAt.toISOString(),
       migrationId,
-      releaseId,
-      startedAt: startedAt.toISOString(),
+      phase: "shadow_capture",
+      releaseId: releaseIds[2],
+      startedAt: cycle3StartedAt.toISOString(),
+      writeFrozen: false,
     },
   ];
-  for (let offset = 0; offset < MINIMUM_COMPARED_WRITES; offset += batchSize) {
+  for (let offset = 0; offset < TOTAL_WRITES; offset += batchSize) {
     const batch = Array.from(
-      { length: Math.min(batchSize, MINIMUM_COMPARED_WRITES - offset) },
+      { length: Math.min(batchSize, TOTAL_WRITES - offset) },
       (_, index) => {
         const absoluteIndex = offset + index + 1;
-        const releaseWindow = absoluteIndex <= MINIMUM_COMPARED_WRITES / 2
-          ? { releaseId: activationReleaseId, startedAt: activationStartedAt }
-          : { releaseId, startedAt };
+        const releaseWindow = absoluteIndex <= 2_957
+          ? { releaseId: releaseIds[0], startedAt: cycle1StartedAt }
+          : { releaseId: releaseIds[2], startedAt: cycle3StartedAt };
         return record(absoluteIndex, releaseWindow);
       },
     );
@@ -223,70 +253,73 @@ try {
   );
   await client.query("ROLLBACK");
 
-  const evidence = await collectReadOnlyEvidence(client, {
-    activationAuthorityEpoch: 3,
-    activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
+  const request = {
     authorityEpoch: 1,
     migrationId,
-    releaseId,
-    activationEvidenceSha256: `sha256:${"a".repeat(64)}`,
+    releaseId: releaseIds[2],
+    lineageEvidenceSha256: `sha256:${"d".repeat(64)}`,
     sourceReleaseWindows,
-  }, {
-    status: "PASS_ACTIVATE_AND_OBSERVE",
-    automaticPhaseAdvance: false,
-    comparedWritesGateEvaluated: false,
-    completedWrites: MINIMUM_COMPARED_WRITES,
-    coverageHours: 24,
-    maximumGapSeconds: 300,
-    sampleCount: 289,
-    releaseId: activationReleaseId,
-    authorityEpoch: 3,
-  });
+  };
+  const lineage = {
+    activationCoverageSeconds: 86_400,
+    activationSamples: 289,
+    canonicalAuthorityChanged: false,
+    completedWrites: TOTAL_WRITES,
+    completionAdvances: 8,
+    controlSnapshotSha256: "c".repeat(64),
+    currentAuthorityEpoch: 1,
+    currentMigrationId: migrationId,
+    currentReleaseId: releaseIds[2],
+    currentCycleStartedAt: cycle3StartedAt.toISOString(),
+    g0Completed: false,
+    maximumSampleGapSeconds: 600,
+    minimumActivationHours: 24,
+    minimumActivationSamples: 289,
+    minimumComparedWrites: MINIMUM_COMPARED_WRITES,
+    minimumCompletionAdvances: 2,
+    minimumSamples: 7,
+    minimumStabilitySeconds: 1_800,
+    observationElapsedSeconds: 86_400,
+    productionReconciliationExecuted: false,
+    schemaVersion: LINEAGE_SCHEMA,
+    shadowVerifyStarted: false,
+    sourceReleaseWindows,
+    status: LINEAGE_PASS,
+    thresholdsChanged: false,
+    unifiedEvidenceSha256: "a".repeat(64),
+    unifiedSamplesSha256: "b".repeat(64),
+    unresolvedMaximum: 0,
+    unresolvedOutbox: 0,
+  };
+  const evidence = await collectReadOnlyEvidence(client, request, lineage);
   assert.equal(
     evidence.status,
-    "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    RECONCILIATION_PASS,
     JSON.stringify(evidence),
   );
-  assert.equal(evidence.comparedWrites, MINIMUM_COMPARED_WRITES);
+  assert.equal(evidence.comparedWrites, TOTAL_WRITES);
   assert.equal(evidence.comparisonDifferences, 0);
   assert.equal(evidence.automaticPhaseAdvance, false);
   assert.equal(evidence.phaseTransitionExecuted, false);
   assert.deepEqual(evidence.databaseIdentity, {
     currentRole: "candidate_audit_role",
     transactionReadOnly: true,
+    transactionIsolation: "repeatable read",
   });
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
     migration_id, phase, epoch, started_at, deadline_at, write_frozen,
     approved_release_id, approval_digest, updated_at
-  ) VALUES ('candidate-episode-v1-cycle-3','legacy',2,$1,$2,true,$3,$4,$1)`, [
-    new Date(deadlineAt.getTime() + 1_000).toISOString(),
-    new Date(deadlineAt.getTime() + 72 * 60 * 60_000).toISOString(),
-    "candidate-shadow-unapproved-cycle-3",
-    `sha256:${"e".repeat(64)}`,
+  ) VALUES ('candidate-episode-v1-cycle-4','legacy',2,$1,$2,true,$3,$4,$1)`, [
+    new Date(cycle3DeadlineAt.getTime() + 1_000).toISOString(),
+    new Date(cycle3DeadlineAt.getTime() + 72 * 60 * 60_000 + 1_000).toISOString(),
+    "candidate-shadow-unapproved-cycle-4",
+    `sha256:${"f".repeat(64)}`,
   ]);
   await assert.rejects(
-    collectReadOnlyEvidence(client, {
-      activationAuthorityEpoch: 3,
-      activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
-      authorityEpoch: 1,
-      migrationId,
-      releaseId,
-      activationEvidenceSha256: `sha256:${"a".repeat(64)}`,
-      sourceReleaseWindows,
-    }, {
-      status: "PASS_ACTIVATE_AND_OBSERVE",
-      automaticPhaseAdvance: false,
-      comparedWritesGateEvaluated: false,
-      completedWrites: MINIMUM_COMPARED_WRITES,
-      coverageHours: 24,
-      maximumGapSeconds: 300,
-      sampleCount: 289,
-      releaseId: activationReleaseId,
-      authorityEpoch: 3,
-    }),
+    collectReadOnlyEvidence(client, request, lineage),
     (error) => error?.reason === "database_control_lineage_count_mismatch",
   );
-  await client.query("DELETE FROM candidate_authority.candidate_migration_control WHERE migration_id='candidate-episode-v1-cycle-3'");
+  await client.query("DELETE FROM candidate_authority.candidate_migration_control WHERE migration_id='candidate-episode-v1-cycle-4'");
   const boundary = await client.query(`SELECT phase, epoch::int, write_frozen,
     (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
       WHERE source_type='legacy_scan_candidate') AS source_writes,
@@ -296,13 +329,14 @@ try {
     phase: "shadow_capture",
     epoch: 1,
     write_frozen: false,
-    source_writes: MINIMUM_COMPARED_WRITES,
-    projection_events: MINIMUM_COMPARED_WRITES,
+    source_writes: TOTAL_WRITES,
+    projection_events: TOTAL_WRITES,
   });
   process.stdout.write(`${JSON.stringify({
     status: "pass",
     postgresMajor: 16,
     comparedWrites: evidence.comparedWrites,
+    releaseCounts: [2_957, 0, 7_063],
     comparisonDifferences: evidence.comparisonDifferences,
     transactionReadOnlyEnforced: true,
     leastPrivilegeAuditRoleEnforced: evidence.databaseIdentity.currentRole === "candidate_audit_role",

@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "wp-g0.2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2",
+  "packageId": "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-REFRESH-LOCAL-SUPERPACKAGE",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-reconciliation/runner.mjs"
+    ],
+    "fileCount": 1,
+    "sha256": "f89675114c9ac7cbb9492db9ee1c33a9ed06f1a69af5f31d9fce565a43cf57b8"
+  },
+  "lineageBoundary": {
+    "schemaVersion": "candidate-multi-cycle-lineage-evidence.v2",
+    "status": "PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+    "migrationId": "candidate-episode-v1-cycle-3",
+    "sourceReleaseWindowsExact": 3,
+    "minimumActivationSamples": 289,
+    "minimumActivationHours": 24,
+    "maximumSampleGapSeconds": 600,
+    "minimumCompletedWrites": 10000,
+    "minimumCompletionAdvances": 2,
+    "unresolvedMaximum": 0,
+    "privateRegularSingleLinkFileRequired": true,
+    "fileSha256BindingRequired": true,
+    "semanticProvenanceHashesRequired": 3,
+    "historicalActivationFilesAllowed": false,
+    "lineageV1Allowed": false
+  },
+  "comparison": {
+    "minimumComparedWrites": 10000,
+    "sourceType": "legacy_scan_candidate",
+    "sourcePayloadVersion": "shadow-candidate-observation.v1",
+    "targetEventPayloadVersion": "candidate-event.v1",
+    "immutableSourcePayloadHashRequired": true,
+    "fullProjectionCommandHashRequired": true,
+    "uniqueSourceToEventMappingRequired": true,
+    "eventAndEpisodeIdentityRequired": true,
+    "comparisonDifferencesMaximum": 0,
+    "duplicateMappingsMaximum": 0,
+    "pendingMaximum": 0,
+    "claimedMaximum": 0,
+    "retryWaitMaximum": 0,
+    "unresolvedQuarantineMaximum": 0,
+    "unresolvedTotalMaximum": 0,
+    "outsideLineageMaximum": 0,
+    "resolvedQuarantineCountsAsComparedWrite": false,
+    "eachRowReleaseWindowBound": true,
+    "completeLineageRequired": true,
+    "controlLineageExactMatchRequired": true,
+    "pageSize": 500,
+    "immutableAggregateEvidenceHashRequired": true
+  },
+  "databaseBoundary": {
+    "transactionIsolation": "repeatable_read",
+    "transactionReadOnly": true,
+    "forcedLocalRole": "candidate_audit_role",
+    "controlLineageExactCount": 3,
+    "historicalControls": "legacy_frozen_even_epoch",
+    "currentControl": "cycle3_single_shadow_capture_active_odd_epoch",
+    "productionDmlAllowed": false,
+    "schemaDdlAllowed": false,
+    "migrationAllowed": false,
+    "phaseTransitionAllowed": false
+  },
+  "inputBoundary": {
+    "futureOutcomeAllowed": false,
+    "mfeAllowed": false,
+    "maeAllowed": false,
+    "qualityHitAllowed": false,
+    "backtestResultAllowed": false,
+    "tradePlanAllowed": false,
+    "productionRankingInputAllowed": false
+  },
+  "resultBoundary": {
+    "schemaVersion": "candidate-cycle3-reconciliation-evidence.v2",
+    "passStatus": "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    "automaticPhaseAdvance": false,
+    "shadowVerifyTransitionExecuted": false,
+    "canonicalReadEnabled": false,
+    "canonicalWriteEnabled": false,
+    "reviewReadEnabled": false,
+    "g0Completed": false
+  },
+  "localRehearsal": {
+    "postgresMajor": 16,
+    "minimumComparedWritesExercised": 10020,
+    "releaseWindowsExercised": 3,
+    "releaseCounts": [
+      2957,
+      0,
+      7063
+    ],
+    "transactionReadOnlyRejectionRequired": true,
+    "phaseMustRemain": "shadow_capture",
+    "productionConnected": false
+  },
+  "forbidden": [
+    "production_connection_in_local_preparation",
+    "historical_activation_evidence_input",
+    "lineage_v1_input",
+    "lineage_relabeling",
+    "production_mutation",
+    "schema_migration",
+    "automatic_phase_advance",
+    "canonical_cutover",
+    "review_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "nextProductionPackage": "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-PRODUCTION-PACKET"
+}

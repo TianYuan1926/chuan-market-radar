@@ -1,14 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+
 import {
   MINIMUM_COMPARED_WRITES,
+  PACKAGE_ID,
+  RECONCILIATION_PASS,
   compareProjectionRow,
   evaluateReconciliationEvidence,
   hashPayload,
   hashProjectionCommand,
   loadPgRuntime,
   validateApprovalRequest,
+  validateLineageRequestBinding,
 } from "./runner.mjs";
+import {
+  LINEAGE_PASS,
+  LINEAGE_SCHEMA,
+} from "../candidate-lineage/runner.mjs";
 
 test("production runner resolves pg from the approved application runtime", () => {
   const runtime = { marker: "approved-pg" };
@@ -25,60 +33,139 @@ test("production runner resolves pg from the approved application runtime", () =
   assert.equal(loaded, runtime);
 });
 
-const releaseId = "candidate-shadow-release-20260712";
-const sourceReleaseWindow = {
-  migrationId: "candidate-episode-v1",
-  releaseId,
-  authorityEpoch: 3,
-  startedAt: "2026-07-12T00:00:00.000Z",
-  deadlineAt: "2026-07-15T00:00:00.000Z",
-  startedAtMs: Date.parse("2026-07-12T00:00:00.000Z"),
-  deadlineAtMs: Date.parse("2026-07-15T00:00:00.000Z"),
+const releaseIds = [
+  "candidate-shadow-release-cycle-1",
+  "candidate-shadow-release-cycle-2",
+  "candidate-shadow-release-cycle-3",
+];
+const sourceReleaseWindows = [
+  {
+    controlEpoch: 6,
+    deadlineAt: "2026-07-15T00:00:00.000Z",
+    migrationId: "candidate-episode-v1",
+    phase: "legacy",
+    releaseId: releaseIds[0],
+    startedAt: "2026-07-12T00:00:00.000Z",
+    writeFrozen: true,
+  },
+  {
+    controlEpoch: 2,
+    deadlineAt: "2026-07-18T00:00:00.000Z",
+    migrationId: "candidate-episode-v1-cycle-2",
+    phase: "legacy",
+    releaseId: releaseIds[1],
+    startedAt: "2026-07-15T00:00:00.000Z",
+    writeFrozen: true,
+  },
+  {
+    controlEpoch: 1,
+    deadlineAt: "2026-07-21T00:00:00.000Z",
+    migrationId: "candidate-episode-v1-cycle-3",
+    phase: "shadow_capture",
+    releaseId: releaseIds[2],
+    startedAt: "2026-07-18T00:00:00.000Z",
+    writeFrozen: false,
+  },
+];
+const lineage = {
+  activationCoverageSeconds: 86_400,
+  activationSamples: 289,
+  canonicalAuthorityChanged: false,
+  completedWrites: 10_020,
+  completionAdvances: 8,
+  controlSnapshotSha256: "c".repeat(64),
+  currentAuthorityEpoch: 1,
+  currentMigrationId: "candidate-episode-v1-cycle-3",
+  currentReleaseId: releaseIds[2],
+  currentCycleStartedAt: sourceReleaseWindows[2].startedAt,
+  g0Completed: false,
+  maximumSampleGapSeconds: 600,
+  minimumActivationHours: 24,
+  minimumActivationSamples: 289,
+  minimumComparedWrites: MINIMUM_COMPARED_WRITES,
+  minimumCompletionAdvances: 2,
+  minimumSamples: 7,
+  minimumStabilitySeconds: 1_800,
+  observationElapsedSeconds: 86_400,
+  productionReconciliationExecuted: false,
+  schemaVersion: LINEAGE_SCHEMA,
+  shadowVerifyStarted: false,
+  sourceReleaseWindows,
+  status: LINEAGE_PASS,
+  thresholdsChanged: false,
+  unifiedEvidenceSha256: "a".repeat(64),
+  unifiedSamplesSha256: "b".repeat(64),
+  unresolvedMaximum: 0,
+  unresolvedOutbox: 0,
 };
 const context = {
-  activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
-  activationAuthorityEpoch: 3,
-  activationReleaseId: releaseId,
-  authorityEpoch: 3,
-  controlStartedAt: Date.parse("2026-07-12T00:00:00.000Z"),
-  controlDeadlineAt: Date.parse("2026-07-15T00:00:00.000Z"),
-  observationEvidenceSha256: `sha256:${"a".repeat(64)}`,
-  releaseId,
-  sourceReleaseWindows: [sourceReleaseWindow],
+  authorityEpoch: 1,
+  controlStartedAt: Date.parse(sourceReleaseWindows[2].startedAt),
+  controlDeadlineAt: Date.parse(sourceReleaseWindows[2].deadlineAt),
+  lineageEvidenceSha256: `sha256:${"d".repeat(64)}`,
+  migrationId: sourceReleaseWindows[2].migrationId,
+  releaseId: releaseIds[2],
+  sourceReleaseWindows: sourceReleaseWindows.map((window) => ({
+    ...window,
+    startedAtMs: Date.parse(window.startedAt),
+    deadlineAtMs: Date.parse(window.deadlineAt),
+  })),
 };
 const control = {
   phase: "shadow_capture",
-  authorityEpoch: 3,
+  authorityEpoch: 1,
   writeFrozen: false,
-  releaseId,
+  releaseId: releaseIds[2],
+  migrationId: sourceReleaseWindows[2].migrationId,
   currentRole: "candidate_audit_role",
   transactionReadOnly: true,
-};
-const observation = {
-  status: "PASS_ACTIVATE_AND_OBSERVE",
-  automaticPhaseAdvance: false,
-  comparedWritesGateEvaluated: false,
-  completedWrites: MINIMUM_COMPARED_WRITES,
-  coverageHours: 24,
-  maximumGapSeconds: 300,
-  sampleCount: 289,
+  transactionIsolation: "repeatable read",
 };
 const statusCounts = {
   pending: 0,
   claimed: 0,
   retryWait: 0,
-  completed: MINIMUM_COMPARED_WRITES,
+  completed: 10_020,
   resolvedQuarantine: 0,
   unresolvedQuarantine: 0,
   unresolvedTotal: 0,
   outsideLineage: 0,
+};
+const contract = { runnerArtifact: { sha256: "e".repeat(64) } };
+const request = {
+  approvalExpiresAt: "2026-07-18T09:00:00.000Z",
+  approvalIssuedAt: "2026-07-18T08:00:00.000Z",
+  approvalRef: "candidate-reconciliation-cycle3-approval",
+  approvedCommit: "1".repeat(40),
+  approvedRunnerArtifactSha256: "e".repeat(64),
+  authorityEpoch: 1,
+  automaticPhaseAdvanceAllowed: false,
+  businessDmlAllowed: false,
+  canonicalReadAllowed: false,
+  canonicalWriteAllowed: false,
+  executeReadOnlyComparison: true,
+  lineageEvidenceSha256: context.lineageEvidenceSha256,
+  lineageSchemaVersion: LINEAGE_SCHEMA,
+  lineageStatus: LINEAGE_PASS,
+  migrationAllowed: false,
+  migrationId: sourceReleaseWindows[2].migrationId,
+  minimumComparedWrites: MINIMUM_COMPARED_WRITES,
+  operator: "codex",
+  packageId: PACKAGE_ID,
+  productionRankingMutationAllowed: false,
+  releaseId: releaseIds[2],
+  reviewReadAllowed: false,
+  schemaDdlAllowed: false,
+  shadowVerifyTransitionAllowed: false,
+  sourceReleaseWindows,
 };
 
 function uuid(index, family) {
   return `${family.toString(16).padStart(8, "0")}-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
 }
 
-function fixtureRow(index = 1, rowReleaseId = releaseId, baseTime = "2026-07-12T01:00:00.000Z") {
+function fixtureRow(index, releaseIndex, baseTime) {
+  const releaseId = releaseIds[releaseIndex];
   const outboxId = uuid(index, 1);
   const eventId = uuid(index, 2);
   const episodeId = uuid(index, 3);
@@ -106,7 +193,7 @@ function fixtureRow(index = 1, rowReleaseId = releaseId, baseTime = "2026-07-12T
     maturity: "light_candidate",
     directionState: "unknown",
     expiresAt: null,
-    releaseId: rowReleaseId,
+    releaseId,
     sourceScanCycleId: scanId,
   };
   const row = {
@@ -127,8 +214,8 @@ function fixtureRow(index = 1, rowReleaseId = releaseId, baseTime = "2026-07-12T
     event_type: "DISCOVERED",
     event_time: instant,
     event_source_scan_cycle_id: scanId,
-    event_release_id: rowReleaseId,
-    event_runtime_id: `candidate-shadow:${rowReleaseId}:worker-1`,
+    event_release_id: releaseId,
+    event_runtime_id: `candidate-shadow:${releaseId}:worker-1`,
     event_idempotency_key: `shadow-projection:${outboxId}`,
     event_command_hash: null,
     event_payload_version: "candidate-event.v1",
@@ -159,235 +246,131 @@ function fixtureRow(index = 1, rowReleaseId = releaseId, baseTime = "2026-07-12T
   return row;
 }
 
-const contract = { runnerArtifact: { sha256: "b".repeat(64) } };
-const request = {
-  activationAuthorityEpoch: 3,
-  activationEvidenceSha256: `sha256:${"a".repeat(64)}`,
-  activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
-  approvalExpiresAt: "2026-07-12T09:00:00.000Z",
-  approvalIssuedAt: "2026-07-12T08:00:00.000Z",
-  approvalRef: "candidate-reconciliation-approval",
-  approvedCommit: "1".repeat(40),
-  approvedRunnerArtifactSha256: "b".repeat(64),
-  authorityEpoch: 3,
-  automaticPhaseAdvanceAllowed: false,
-  businessDmlAllowed: false,
-  canonicalReadAllowed: false,
-  canonicalWriteAllowed: false,
-  executeReadOnlyComparison: true,
-  migrationAllowed: false,
-  migrationId: "candidate-episode-v1",
-  minimumCleanWindowHours: 24,
-  minimumComparedWrites: 10_000,
-  operator: "codex",
-  packageId: "WP-G0.2-SHADOW-VERIFY-RECONCILIATION",
-  productionRankingMutationAllowed: false,
-  releaseId,
-  reviewReadAllowed: false,
-  schemaDdlAllowed: false,
-  shadowVerifyTransitionAllowed: false,
-  sourceReleaseWindows: [{
-    authorityEpoch: 3,
-    deadlineAt: sourceReleaseWindow.deadlineAt,
-    migrationId: sourceReleaseWindow.migrationId,
-    releaseId: sourceReleaseWindow.releaseId,
-    startedAt: sourceReleaseWindow.startedAt,
-  }],
-};
+const rows = [
+  ...Array.from({ length: 2_957 }, (_, index) => (
+    fixtureRow(index + 1, 0, "2026-07-12T01:00:00.000Z")
+  )),
+  ...Array.from({ length: 7_063 }, (_, index) => (
+    fixtureRow(index + 2_958, 2, "2026-07-18T01:00:00.000Z")
+  )),
+];
 
-test("approval authorizes only a read-only comparison and preserves the 24h/10000 gates", () => {
+test("approval authorizes only Cycle-3 read-only comparison with exact Lineage v2", () => {
   assert.equal(validateApprovalRequest(request, contract, {
-    now: new Date("2026-07-12T08:30:00.000Z"),
+    now: new Date("2026-07-18T08:30:00.000Z"),
   }), request);
   for (const key of [
     "automaticPhaseAdvanceAllowed", "businessDmlAllowed", "canonicalReadAllowed",
     "canonicalWriteAllowed", "migrationAllowed", "productionRankingMutationAllowed",
     "reviewReadAllowed", "schemaDdlAllowed", "shadowVerifyTransitionAllowed",
   ]) {
-    assert.throws(
-      () => validateApprovalRequest({ ...request, [key]: true }, contract, {
-        now: new Date("2026-07-12T08:30:00.000Z"),
-      }),
-      new RegExp(`${key}_must_be_false`),
-    );
+    assert.throws(() => validateApprovalRequest({ ...request, [key]: true }, contract, {
+      now: new Date("2026-07-18T08:30:00.000Z"),
+    }), new RegExp(`${key}_must_be_false`));
   }
-  assert.throws(
-    () => validateApprovalRequest({ ...request, minimumComparedWrites: 9_999 }, contract, {
-      now: new Date("2026-07-12T08:30:00.000Z"),
-    }),
-    /compared_writes_threshold_changed/,
-  );
-  assert.equal(validateApprovalRequest({
+  assert.throws(() => validateApprovalRequest({ ...request, minimumComparedWrites: 9_999 }, contract, {
+    now: new Date("2026-07-18T08:30:00.000Z"),
+  }), /compared_writes_threshold_changed/);
+  assert.throws(() => validateApprovalRequest({ ...request, lineageStatus: "PASS_ACTIVATE_AND_OBSERVE" }, contract, {
+    now: new Date("2026-07-18T08:30:00.000Z"),
+  }), /lineage_status_not_pass/);
+});
+
+test("Lineage file must match request windows and current Cycle-3 identity exactly", () => {
+  assert.equal(validateLineageRequestBinding(lineage, request), lineage);
+  assert.throws(() => validateLineageRequestBinding({
+    ...lineage,
+    currentAuthorityEpoch: 3,
+  }, request), /lineage_current_identity_mismatch/);
+  assert.throws(() => validateLineageRequestBinding(lineage, {
     ...request,
-    activationAuthorityEpoch: 1,
-    authorityEpoch: 1,
-    sourceReleaseWindows: request.sourceReleaseWindows.map((window) => ({
-      ...window, authorityEpoch: 1,
-    })),
-  }, contract, {
-    now: new Date("2026-07-12T08:30:00.000Z"),
-  }).authorityEpoch, 1);
-  assert.throws(
-    () => validateApprovalRequest({ ...request, authorityEpoch: 2 }, contract, {
-      now: new Date("2026-07-12T08:30:00.000Z"),
-    }),
-    /authority_epoch_not_active_odd/,
-  );
-  assert.throws(
-    () => validateApprovalRequest({
-      ...request,
-      migrationId: "candidate-episode-v1-cycle-3",
-      sourceReleaseWindows: [
-        request.sourceReleaseWindows[0],
-        {
-          authorityEpoch: 1,
-          deadlineAt: "2026-07-18T00:00:00.000Z",
-          migrationId: "candidate-episode-v1-cycle-3",
-          releaseId: "candidate-shadow-release-cycle-3",
-          startedAt: "2026-07-15T00:00:00.000Z",
-        },
-      ],
-    }, contract, { now: new Date("2026-07-12T08:30:00.000Z") }),
-    /source_release_window_not_adjacent:1/,
-  );
+    sourceReleaseWindows: request.sourceReleaseWindows.map((window, index) => (
+      index === 0 ? { ...window, controlEpoch: 8 } : window
+    )),
+  }), /lineage_request_windows_mismatch/);
 });
 
-test("multi-cycle reconciliation compares each row inside its own immutable release window", () => {
-  const secondReleaseId = "candidate-shadow-release-cycle-2";
-  const secondWindow = {
-    migrationId: "candidate-episode-v1-cycle-2",
-    releaseId: secondReleaseId,
-    authorityEpoch: 1,
-    startedAt: "2026-07-15T00:00:00.000Z",
-    deadlineAt: "2026-07-18T00:00:00.000Z",
-    startedAtMs: Date.parse("2026-07-15T00:00:00.000Z"),
-    deadlineAtMs: Date.parse("2026-07-18T00:00:00.000Z"),
-  };
-  const multiContext = {
-    ...context,
-    authorityEpoch: 1,
-    controlStartedAt: secondWindow.startedAtMs,
-    controlDeadlineAt: secondWindow.deadlineAtMs,
-    releaseId: secondReleaseId,
-    sourceReleaseWindows: [sourceReleaseWindow, secondWindow],
-  };
-  const rows = Array.from({ length: MINIMUM_COMPARED_WRITES }, (_, index) => (
-    index < 5_000
-      ? fixtureRow(index + 1)
-      : fixtureRow(index + 1, secondReleaseId, "2026-07-15T01:00:00.000Z")
-  ));
-  const result = evaluateReconciliationEvidence({
-    context: multiContext,
-    control: { ...control, authorityEpoch: 1, releaseId: secondReleaseId },
-    observation: { ...observation, releaseId, authorityEpoch: 3 },
-    rows,
-    statusCounts,
-  });
-  assert.equal(result.status,
-    "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL");
-  assert.equal(result.sourceReleaseCount, 2);
-  assert.equal(result.verificationMigrationId, "candidate-episode-v1-cycle-2");
+test("each row is compared inside its immutable release window", () => {
+  assert.deepEqual(compareProjectionRow(rows[0], context).differences, []);
+  assert.deepEqual(compareProjectionRow(rows.at(-1), context).differences, []);
+  const outside = structuredClone(rows[0]);
+  outside.source_created_at = "2026-07-18T01:00:00.000Z";
+  assert.ok(compareProjectionRow(outside, context).differences.includes(
+    "source_created_outside_release_window"));
 });
 
-test("one compared write requires exact immutable source, projection command and target identity", () => {
-  const row = fixtureRow();
-  assert.deepEqual(compareProjectionRow(row, context).differences, []);
-  assert.match(compareProjectionRow(row, context).digest, /^[0-9a-f]{64}$/);
-
+test("one write requires immutable source, projection command and target identity", () => {
+  const row = rows[0];
+  assert.match(compareProjectionRow(row, context).digest, /^[0-9a-f]{64}$/u);
   const payloadDrift = structuredClone(row);
   payloadDrift.source_payload.priorityTier = "A";
-  assert.ok(compareProjectionRow(payloadDrift, context).differences.includes("source_payload_hash_mismatch"));
-
+  assert.ok(compareProjectionRow(payloadDrift, context).differences.includes(
+    "source_payload_hash_mismatch"));
   const commandDrift = structuredClone(row);
   commandDrift.event_command_hash = `sha256:${"0".repeat(64)}`;
-  assert.ok(compareProjectionRow(commandDrift, context).differences.includes("projection_command_hash_mismatch"));
-
+  assert.ok(compareProjectionRow(commandDrift, context).differences.includes(
+    "projection_command_hash_mismatch"));
   const missingEvent = structuredClone(row);
   missingEvent.event_id = null;
   missingEvent.event_stream_version = null;
   missingEvent.episode_first_seen_at = null;
   assert.ok(compareProjectionRow(missingEvent, context).differences.includes("projection_event_missing"));
-  assert.ok(compareProjectionRow(missingEvent, context).differences.includes("event_stream_version_invalid"));
 });
 
-test("PASS requires 10000 exact writes and produces order-independent immutable evidence", () => {
-  const rows = Array.from({ length: MINIMUM_COMPARED_WRITES }, (_, index) => fixtureRow(index + 1));
-  const first = evaluateReconciliationEvidence({ context, control, observation, rows, statusCounts });
+test("PASS requires 10020 exact writes across all three cycles and is order independent", () => {
+  const first = evaluateReconciliationEvidence({ context, control, lineage, rows, statusCounts });
   const reversed = evaluateReconciliationEvidence({
     context,
     control,
-    observation,
+    lineage,
     rows: [...rows].reverse(),
     statusCounts,
   });
-  assert.equal(first.status, "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL");
-  assert.equal(first.comparedWrites, 10_000);
+  assert.equal(first.status, RECONCILIATION_PASS);
+  assert.equal(first.comparedWrites, 10_020);
+  assert.equal(first.sourceReleaseCount, 3);
+  assert.equal(first.verificationMigrationId, "candidate-episode-v1-cycle-3");
   assert.equal(first.comparisonDifferences, 0);
-  assert.equal(first.automaticPhaseAdvance, false);
   assert.equal(first.phaseTransitionExecuted, false);
+  assert.equal(first.shadowVerifyTransitionExecuted, false);
+  assert.equal(first.canonicalReadEnabled, false);
+  assert.equal(first.canonicalWriteEnabled, false);
+  assert.equal(first.reviewReadEnabled, false);
+  assert.equal(first.g0Completed, false);
   assert.equal(first.productionRankingInputsUsed, false);
   assert.equal(first.futureOutcomeInputsUsed, false);
   assert.deepEqual(first.databaseIdentity, {
     currentRole: "candidate_audit_role",
     transactionReadOnly: true,
+    transactionIsolation: "repeatable read",
   });
-  assert.equal(first.observationIdentityBinding, "evidence_hash_request_database_exact_match");
+  assert.equal(first.lineageIdentityBinding, "file_hash_request_database_exact_match");
   assert.equal(first.evidenceHash, reversed.evidenceHash);
 });
 
-test("PASS requires both a read-only transaction and the least-privilege audit role", () => {
-  const rows = Array.from({ length: MINIMUM_COMPARED_WRITES }, (_, index) => fixtureRow(index + 1));
-  const wrongRole = evaluateReconciliationEvidence({
-    context,
-    control: { ...control, currentRole: "postgres" },
-    observation,
-    rows,
-    statusCounts,
-  });
-  assert.ok(wrongRole.violations.includes("database_audit_role_not_active"));
-  const writable = evaluateReconciliationEvidence({
-    context,
-    control: { ...control, transactionReadOnly: false },
-    observation,
-    rows,
-    statusCounts,
-  });
-  assert.ok(writable.violations.includes("database_transaction_not_read_only"));
+test("PASS requires read-only repeatable-read audit role", () => {
+  for (const [field, value, violation] of [
+    ["currentRole", "postgres", "database_audit_role_not_active"],
+    ["transactionReadOnly", false, "database_transaction_not_read_only"],
+    ["transactionIsolation", "read committed", "database_transaction_isolation_invalid"],
+  ]) {
+    const result = evaluateReconciliationEvidence({
+      context,
+      control: { ...control, [field]: value },
+      lineage,
+      rows,
+      statusCounts,
+    });
+    assert.ok(result.violations.includes(violation));
+  }
 });
 
-test("embedded observation identity must match while the active v1 result remains hash bound", () => {
-  const rows = Array.from({ length: MINIMUM_COMPARED_WRITES }, (_, index) => fixtureRow(index + 1));
-  const embedded = { ...observation, releaseId, authorityEpoch: 3 };
-  const pass = evaluateReconciliationEvidence({ context, control, observation: embedded, rows, statusCounts });
-  assert.equal(pass.observationIdentityBinding, "embedded_request_database_exact_match");
-  assert.deepEqual(pass.violations, []);
-
-  const mismatched = evaluateReconciliationEvidence({
-    context,
-    control,
-    observation: { ...embedded, authorityEpoch: 1 },
-    rows,
-    statusCounts,
-  });
-  assert.ok(mismatched.violations.includes("observation_epoch_mismatch"));
-
-  const partial = evaluateReconciliationEvidence({
-    context,
-    control,
-    observation: { ...observation, releaseId },
-    rows,
-    statusCounts,
-  });
-  assert.ok(partial.violations.includes("observation_identity_partial"));
-});
-
-test("9999 writes, unresolved delivery state, observation drift or any row difference fail closed", () => {
-  const rows = Array.from({ length: MINIMUM_COMPARED_WRITES }, (_, index) => fixtureRow(index + 1));
+test("9999 writes, unresolved state, lineage count drift or row drift fail closed", () => {
   const below = evaluateReconciliationEvidence({
     context,
     control,
-    observation,
-    rows: rows.slice(1),
+    lineage: { ...lineage, completedWrites: 10_000 },
+    rows: rows.slice(0, 9_999),
     statusCounts: { ...statusCounts, completed: 9_999 },
   });
   assert.ok(below.violations.includes("compared_writes_below_10000"));
@@ -395,37 +378,28 @@ test("9999 writes, unresolved delivery state, observation drift or any row diffe
   const unresolved = evaluateReconciliationEvidence({
     context,
     control,
-    observation,
+    lineage,
     rows,
     statusCounts: { ...statusCounts, retryWait: 1, unresolvedTotal: 1 },
   });
   assert.ok(unresolved.violations.includes("retry_wait_outbox_present"));
   assert.ok(unresolved.violations.includes("unresolved_outbox_present"));
 
-  const outsideLineage = evaluateReconciliationEvidence({
+  const countDrift = evaluateReconciliationEvidence({
     context,
     control,
-    observation,
-    rows,
-    statusCounts: { ...statusCounts, outsideLineage: 1 },
-  });
-  assert.ok(outsideLineage.violations.includes("source_release_outside_lineage_present"));
-
-  const staleObservation = evaluateReconciliationEvidence({
-    context,
-    control,
-    observation: { ...observation, coverageHours: 23.99 },
+    lineage: { ...lineage, completedWrites: 10_021 },
     rows,
     statusCounts,
   });
-  assert.ok(staleObservation.violations.includes("observation_window_too_short"));
+  assert.ok(countDrift.violations.includes("lineage_completed_count_mismatch"));
 
   const driftedRows = [...rows];
-  driftedRows[500] = { ...driftedRows[500], event_release_id: "candidate-shadow-other-release" };
+  driftedRows[500] = { ...driftedRows[500], event_release_id: releaseIds[1] };
   const drift = evaluateReconciliationEvidence({
     context,
     control,
-    observation,
+    lineage,
     rows: driftedRows,
     statusCounts,
   });
@@ -433,8 +407,8 @@ test("9999 writes, unresolved delivery state, observation drift or any row diffe
   assert.ok(drift.violations.includes("comparison_differences_present"));
 });
 
-test("future outcome or ranking fields cannot enter the exact source payload", () => {
-  const row = fixtureRow();
+test("future outcome or ranking fields cannot enter the source payload", () => {
+  const row = structuredClone(rows[0]);
   row.source_payload.futureMfe = 200;
   const result = compareProjectionRow(row, context);
   assert.ok(result.differences.includes("source_payload_keys_mismatch"));

@@ -7,7 +7,7 @@ REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 RUNNER_MODE="${CANDIDATE_RECONCILIATION_MODE:-dry_run}"
 CONFIRMED="${CONFIRM_CANDIDATE_RECONCILIATION:-false}"
 RUNNER_MODULE="${SOURCE_ROOT}/scripts/production/candidate-reconciliation/runner.mjs"
-PREPARATION_CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json"
+PREPARATION_CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2.json"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
@@ -18,9 +18,11 @@ assert_private_file() {
   local mode
   mode="$(file_mode "$1")"
   (( (8#${mode} & 8#077) == 0 )) || fail "secure_file_permissions_too_open:$(basename "$1")"
+  [[ "$(stat -c '%h' "$1" 2>/dev/null || stat -f '%l' "$1")" == "1" ]] \
+    || fail "secure_file_hard_link_forbidden:$(basename "$1")"
 }
 
-echo "package=WP-G0.2-SHADOW-VERIFY-RECONCILIATION"
+echo "package=WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-PRODUCTION-PACKET"
 echo "mode=${RUNNER_MODE}"
 echo "production_mutation_allowed=false"
 
@@ -45,8 +47,8 @@ COMPOSE_FILE="${ROOT_DIR}/docker-compose.yml"
 
 [[ "${ROOT_DIR}" == "/home/ubuntu/apps/chuan-market-radar" \
   && "${SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-reconciliation/* \
-  && "${OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-reconciliation-* \
-  && "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-reconciliation-* \
+  && "${OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-* \
+  && "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle3-reconciliation-* \
   && "${AUTONOMY_TRUST_ROOT}" == "/home/ubuntu/.local/state/market-radar-autonomy" \
   && "${SECURE_ROOT}" != "${OPS_ROOT}" \
   && "${SECURE_ROOT}" != "${EVIDENCE_DIRECTORY}" \
@@ -59,9 +61,9 @@ COMPOSE_FILE="${ROOT_DIR}/docker-compose.yml"
 mkdir -p "${OPS_ROOT}" "${EVIDENCE_DIRECTORY}"
 chmod 700 "${OPS_ROOT}" "${EVIDENCE_DIRECTORY}"
 INNER_REQUEST="${SECURE_ROOT}/reconciliation-request.json"
-ACTIVATION_FINAL="${SECURE_ROOT}/observation-final.json"
+LINEAGE_FINAL="${SECURE_ROOT}/lineage-final.json"
 ADMIN_URL_FILE="${SECURE_ROOT}/migration-admin.url"
-for file in "${INNER_REQUEST}" "${ACTIVATION_FINAL}" "${ADMIN_URL_FILE}"; do
+for file in "${INNER_REQUEST}" "${LINEAGE_FINAL}" "${ADMIN_URL_FILE}"; do
   assert_private_file "${file}"
 done
 
@@ -144,7 +146,7 @@ release_on_failure() {
 }
 trap release_on_failure EXIT
 
-lease_event acquire --owner-id "WP-G0.2-RECONCILIATION:$(jq -r '.autonomyAuthorization.approvalId' "${REQUEST_FILE}")"
+lease_event acquire --owner-id "WP-G0.2-CYCLE3-RECONCILIATION:$(jq -r '.autonomyAuthorization.approvalId' "${REQUEST_FILE}")"
 LEASE_ACQUIRED=true
 lease_event checkpoint --checkpoint pre_read_only_query
 lease_event consume
@@ -159,7 +161,7 @@ ${DOCKER[@]} run --rm --network "${NETWORK}" --read-only --cap-drop ALL \
   --env MARKET_RADAR_APPLICATION_ROOT=/app \
   --env CANDIDATE_RECONCILIATION_REQUEST_FILE="${INNER_REQUEST}" \
   --env CANDIDATE_RECONCILIATION_CONTRACT_FILE="${PREPARATION_CONTRACT}" \
-  --env CANDIDATE_ACTIVATION_EVIDENCE_FILE="${ACTIVATION_FINAL}" \
+  --env CANDIDATE_RECONCILIATION_LINEAGE_EVIDENCE_FILE="${LINEAGE_FINAL}" \
   --env CANDIDATE_RECONCILIATION_DATABASE_URL_FILE="${ADMIN_URL_FILE}" \
   --env CANDIDATE_RECONCILIATION_OUTPUT_FILE="${OUTPUT_FILE}" \
   --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
@@ -172,16 +174,24 @@ set -e
 [[ "${RUNNER_EXIT}" -eq 0 ]] || fail "reconciliation_runner_failed:${RUNNER_EXIT}"
 assert_private_file "${OUTPUT_FILE}"
 [[ "$(jq -r '.status // empty' "${OUTPUT_FILE}")" \
-    == "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" \
+    == "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" \
+  && "$(jq -r '.schemaVersion // empty' "${OUTPUT_FILE}")" \
+    == "candidate-cycle3-reconciliation-evidence.v2" \
   && "$(jq -r '.comparedWrites // 0' "${OUTPUT_FILE}")" -ge 10000 \
   && "$(jq -r '.comparisonDifferences // -1' "${OUTPUT_FILE}")" -eq 0 \
   && "$(jq -r '.automaticPhaseAdvance // true' "${OUTPUT_FILE}")" == "false" \
   && "$(jq -r '.phaseTransitionExecuted // true' "${OUTPUT_FILE}")" == "false" \
+  && "$(jq -r '.shadowVerifyTransitionExecuted // true' "${OUTPUT_FILE}")" == "false" \
+  && "$(jq -r '.canonicalReadEnabled // true' "${OUTPUT_FILE}")" == "false" \
+  && "$(jq -r '.canonicalWriteEnabled // true' "${OUTPUT_FILE}")" == "false" \
+  && "$(jq -r '.reviewReadEnabled // true' "${OUTPUT_FILE}")" == "false" \
+  && "$(jq -r '.g0Completed // true' "${OUTPUT_FILE}")" == "false" \
   && "$(jq -r '.databaseIdentity.currentRole // empty' "${OUTPUT_FILE}")" == "candidate_audit_role" \
-  && "$(jq -r '.databaseIdentity.transactionReadOnly // false' "${OUTPUT_FILE}")" == "true" ]] \
+  && "$(jq -r '.databaseIdentity.transactionReadOnly // false' "${OUTPUT_FILE}")" == "true" \
+  && "$(jq -r '.databaseIdentity.transactionIsolation // empty' "${OUTPUT_FILE}")" == "repeatable read" ]] \
   || fail reconciliation_result_gate_failed
 lease_event checkpoint --checkpoint reconciliation_pass_verified
 lease_event release --outcome PASS
 LEASE_RELEASED=true
 trap - EXIT
-printf 'PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL\n'
+printf 'PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL\n'

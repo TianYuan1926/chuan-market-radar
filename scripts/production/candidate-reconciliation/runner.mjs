@@ -1,13 +1,21 @@
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { stat, readFile, writeFile } from "node:fs/promises";
+import { lstat, stat, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-export const PACKAGE_ID = "WP-G0.2-SHADOW-VERIFY-RECONCILIATION";
+import {
+  LINEAGE_PASS,
+  LINEAGE_SCHEMA,
+  validateCandidateLineageEvidence,
+} from "../candidate-lineage/runner.mjs";
+
+export const PACKAGE_ID = "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-PRODUCTION-PACKET";
+export const RECONCILIATION_SCHEMA = "candidate-cycle3-reconciliation-evidence.v2";
+export const RECONCILIATION_PASS =
+  "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL";
 export const MIGRATION_FAMILY = "candidate-episode-v1";
 export const MINIMUM_COMPARED_WRITES = 10_000;
-export const MINIMUM_CLEAN_WINDOW_HOURS = 24;
 export const PAGE_SIZE = 500;
 const CYCLE_PATTERN = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 
@@ -16,9 +24,6 @@ const PAYLOAD_VERSION = "shadow-candidate-observation.v1";
 const EVENT_PAYLOAD_VERSION = "candidate-event.v1";
 const EVENT_TYPES = new Set(["DISCOVERED", "REFRESHED", "RETRIGGERED"]);
 const REQUEST_KEYS = Object.freeze([
-  "activationAuthorityEpoch",
-  "activationEvidenceSha256",
-  "activationObservationStatus",
   "approvalExpiresAt",
   "approvalIssuedAt",
   "approvalRef",
@@ -30,9 +35,11 @@ const REQUEST_KEYS = Object.freeze([
   "canonicalReadAllowed",
   "canonicalWriteAllowed",
   "executeReadOnlyComparison",
+  "lineageEvidenceSha256",
+  "lineageSchemaVersion",
+  "lineageStatus",
   "migrationAllowed",
   "migrationId",
-  "minimumCleanWindowHours",
   "minimumComparedWrites",
   "operator",
   "packageId",
@@ -129,12 +136,13 @@ function parseValidationCycleId(value) {
 }
 
 function validateSourceReleaseWindows(windows, request) {
-  ensure(Array.isArray(windows) && windows.length >= 1 && windows.length <= 64,
+  ensure(Array.isArray(windows) && windows.length === 3,
     "source_release_windows_invalid");
   const releases = new Set();
   const validated = windows.map((window, index) => {
     ensure(exactKeys(window, [
-      "authorityEpoch", "deadlineAt", "migrationId", "releaseId", "startedAt",
+      "controlEpoch", "deadlineAt", "migrationId", "phase", "releaseId", "startedAt",
+      "writeFrozen",
     ]), `source_release_window_shape_invalid:${index}`);
     const cycle = parseValidationCycleId(window.migrationId);
     ensure(cycle.cycleNumber === index + 1, `source_release_window_not_adjacent:${index}`);
@@ -142,33 +150,39 @@ function validateSourceReleaseWindows(windows, request) {
       `source_release_window_release_invalid:${index}`);
     ensure(!releases.has(window.releaseId), `source_release_window_release_duplicate:${index}`);
     releases.add(window.releaseId);
-    ensure(Number.isSafeInteger(window.authorityEpoch) && window.authorityEpoch >= 1
-        && window.authorityEpoch % 2 === 1,
+    ensure(Number.isSafeInteger(window.controlEpoch) && window.controlEpoch >= 1,
     `source_release_window_epoch_invalid:${index}`);
+    const current = index === windows.length - 1;
+    ensure(current
+      ? window.phase === "shadow_capture" && window.writeFrozen === false
+        && window.controlEpoch % 2 === 1
+      : window.phase === "legacy" && window.writeFrozen === true
+        && window.controlEpoch >= 2 && window.controlEpoch % 2 === 0,
+    `source_release_window_state_invalid:${index}`);
     const startedAt = parseTimestamp(window.startedAt, `source_release_window_start_invalid:${index}`);
     const deadlineAt = parseTimestamp(window.deadlineAt, `source_release_window_deadline_invalid:${index}`);
     ensure(deadlineAt - startedAt === 72 * 60 * 60_000,
       `source_release_window_duration_invalid:${index}`);
     return { ...window, startedAtMs: startedAt, deadlineAtMs: deadlineAt };
   });
-  const first = validated[0];
   const current = validated.at(-1);
-  ensure(first.authorityEpoch === request.activationAuthorityEpoch,
-    "activation_authority_epoch_lineage_mismatch");
   ensure(current.migrationId === request.migrationId, "current_migration_lineage_mismatch");
   ensure(current.releaseId === request.releaseId, "current_release_lineage_mismatch");
-  ensure(current.authorityEpoch === request.authorityEpoch, "current_epoch_lineage_mismatch");
+  ensure(current.controlEpoch === request.authorityEpoch, "current_epoch_lineage_mismatch");
   return validated;
 }
 
 export function validateApprovalRequest(request, contract, { now = new Date() } = {}) {
   ensure(exactKeys(request, REQUEST_KEYS), "request_keys_mismatch");
   ensure(request.packageId === PACKAGE_ID, "request_package_mismatch");
-  parseValidationCycleId(request.migrationId);
-  ensure(request.activationObservationStatus === "PASS_ACTIVATE_AND_OBSERVE", "activation_observation_not_pass");
+  ensure(parseValidationCycleId(request.migrationId).cycleNumber === 3,
+    "request_migration_not_cycle3");
+  ensure(request.lineageSchemaVersion === LINEAGE_SCHEMA, "lineage_schema_not_v2");
+  ensure(request.lineageStatus === LINEAGE_PASS, "lineage_status_not_pass");
   ensure(/^[0-9a-f]{40}$/.test(request.approvedCommit ?? ""), "approved_commit_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,80}$/.test(request.releaseId ?? ""), "release_id_invalid");
-  ensure(/^sha256:[0-9a-f]{64}$/.test(request.activationEvidenceSha256 ?? ""), "activation_evidence_hash_invalid");
+  ensure(/^sha256:[0-9a-f]{64}$/.test(request.lineageEvidenceSha256 ?? ""),
+    "lineage_evidence_hash_invalid");
   ensure(request.approvedRunnerArtifactSha256 === contract.runnerArtifact.sha256, "runner_artifact_mismatch");
   ensure(
     Number.isSafeInteger(request.authorityEpoch)
@@ -176,12 +190,8 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
       && request.authorityEpoch % 2 === 1,
     "authority_epoch_not_active_odd",
   );
-  ensure(Number.isSafeInteger(request.activationAuthorityEpoch)
-      && request.activationAuthorityEpoch >= 1 && request.activationAuthorityEpoch % 2 === 1,
-  "activation_authority_epoch_not_active_odd");
   validateSourceReleaseWindows(request.sourceReleaseWindows, request);
   ensure(request.minimumComparedWrites === MINIMUM_COMPARED_WRITES, "compared_writes_threshold_changed");
-  ensure(request.minimumCleanWindowHours === MINIMUM_CLEAN_WINDOW_HOURS, "clean_window_threshold_changed");
   ensure(request.executeReadOnlyComparison === true, "read_only_comparison_not_approved");
   for (const key of [
     "automaticPhaseAdvanceAllowed",
@@ -202,6 +212,22 @@ export function validateApprovalRequest(request, contract, { now = new Date() } 
   ensure(expiresAt > issuedAt && expiresAt - issuedAt <= 90 * 60_000, "approval_window_too_long");
   ensure(nowMs >= issuedAt && nowMs < expiresAt, "approval_window_not_active");
   return request;
+}
+
+export function validateLineageRequestBinding(lineage, request) {
+  validateCandidateLineageEvidence(lineage);
+  ensure(lineage.schemaVersion === request.lineageSchemaVersion,
+    "lineage_request_schema_mismatch");
+  ensure(lineage.status === request.lineageStatus, "lineage_request_status_mismatch");
+  ensure(canonicalJson(lineage.sourceReleaseWindows) === canonicalJson(request.sourceReleaseWindows),
+    "lineage_request_windows_mismatch");
+  ensure(lineage.currentMigrationId === request.migrationId,
+    "lineage_request_migration_mismatch");
+  ensure(lineage.currentReleaseId === request.releaseId,
+    "lineage_request_release_mismatch");
+  ensure(lineage.currentAuthorityEpoch === request.authorityEpoch,
+    "lineage_request_epoch_mismatch");
+  return lineage;
 }
 
 function validatePayload(payload) {
@@ -324,7 +350,8 @@ export function compareProjectionRow(row, context) {
   return { differences, digest, outboxId: row.outbox_id, eventId: row.event_id };
 }
 
-export function evaluateReconciliationEvidence({ context, control, observation, rows, statusCounts }) {
+export function evaluateReconciliationEvidence({ context, control, lineage, rows, statusCounts }) {
+  validateCandidateLineageEvidence(lineage);
   const violations = [];
   const add = (condition, code) => {
     if (!condition) violations.push(code);
@@ -333,24 +360,30 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
   add(Number(control.authorityEpoch) === context.authorityEpoch, "control_epoch_mismatch");
   add(control.writeFrozen === false, "control_write_frozen");
   add(control.releaseId === context.releaseId, "control_release_mismatch");
+  add(control.migrationId === context.migrationId, "control_migration_mismatch");
   add(control.currentRole === "candidate_audit_role", "database_audit_role_not_active");
   add(control.transactionReadOnly === true, "database_transaction_not_read_only");
-  add(observation.status === context.activationObservationStatus, "observation_not_pass");
-  add(observation.automaticPhaseAdvance === false, "observation_phase_advance_claimed");
-  add(observation.comparedWritesGateEvaluated === false, "observation_reconciliation_claimed");
-  add(Number(observation.coverageHours) >= MINIMUM_CLEAN_WINDOW_HOURS, "observation_window_too_short");
-  add(Number(observation.sampleCount) >= 289, "observation_samples_insufficient");
-  add(Number(observation.maximumGapSeconds) <= 600, "observation_sample_gap_too_large");
-  add(Number.isSafeInteger(Number(observation.completedWrites)) && Number(observation.completedWrites) > 0,
-    "observation_completed_writes_invalid");
-  const embeddedReleasePresent = observation.releaseId !== undefined;
-  const embeddedEpochPresent = observation.authorityEpoch !== undefined;
-  add(embeddedReleasePresent === embeddedEpochPresent, "observation_identity_partial");
-  if (embeddedReleasePresent && embeddedEpochPresent) {
-    add(observation.releaseId === context.activationReleaseId, "observation_release_mismatch");
-    add(Number(observation.authorityEpoch) === context.activationAuthorityEpoch,
-      "observation_epoch_mismatch");
-  }
+  add(control.transactionIsolation === "repeatable read",
+    "database_transaction_isolation_invalid");
+  add(lineage.schemaVersion === LINEAGE_SCHEMA && lineage.status === LINEAGE_PASS,
+    "lineage_not_pass");
+  add(canonicalJson(lineage.sourceReleaseWindows) === canonicalJson(
+    context.sourceReleaseWindows.map((window) => ({
+      controlEpoch: window.controlEpoch,
+      deadlineAt: window.deadlineAt,
+      migrationId: window.migrationId,
+      phase: window.phase,
+      releaseId: window.releaseId,
+      startedAt: window.startedAt,
+      writeFrozen: window.writeFrozen,
+    }))), "lineage_release_windows_mismatch");
+  add(lineage.currentMigrationId === context.migrationId
+      && lineage.currentReleaseId === context.releaseId
+      && lineage.currentAuthorityEpoch === context.authorityEpoch,
+  "lineage_current_identity_mismatch");
+  add(lineage.completedWrites === statusCounts.completed,
+    "lineage_completed_count_mismatch");
+  add(lineage.unresolvedOutbox === 0, "lineage_unresolved_present");
   add(statusCounts.pending === 0, "pending_outbox_present");
   add(statusCounts.claimed === 0, "claimed_outbox_present");
   add(statusCounts.retryWait === 0, "retry_wait_outbox_present");
@@ -371,31 +404,49 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
     authorityEpoch: context.authorityEpoch,
     comparedWriteDigests: rowResults.map((item) => item.digest).sort(),
     control,
-    observationEvidenceSha256: context.observationEvidenceSha256,
+    lineageEvidenceSha256: context.lineageEvidenceSha256,
+    lineageSemanticEvidenceSha256: {
+      controlSnapshot: lineage.controlSnapshotSha256,
+      unifiedFinal: lineage.unifiedEvidenceSha256,
+      unifiedSamples: lineage.unifiedSamplesSha256,
+    },
+    migrationId: context.migrationId,
     releaseId: context.releaseId,
     sourceReleaseWindows: context.sourceReleaseWindows.map((window) => ({
-      authorityEpoch: window.authorityEpoch,
+      controlEpoch: window.controlEpoch,
       deadlineAt: window.deadlineAt,
       migrationId: window.migrationId,
+      phase: window.phase,
       releaseId: window.releaseId,
       startedAt: window.startedAt,
+      writeFrozen: window.writeFrozen,
     })),
     statusCounts,
   }));
   return {
-    schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
-    status: violations.length === 0 ? "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" : "FAIL_RECONCILIATION",
+    schemaVersion: RECONCILIATION_SCHEMA,
+    status: violations.length === 0 ? RECONCILIATION_PASS : "FAIL_RECONCILIATION",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
+    shadowVerifyTransitionExecuted: false,
+    canonicalReadEnabled: false,
+    canonicalWriteEnabled: false,
+    reviewReadEnabled: false,
+    g0Completed: false,
     productionRankingInputsUsed: false,
     futureOutcomeInputsUsed: false,
     databaseIdentity: {
       currentRole: control.currentRole,
       transactionReadOnly: control.transactionReadOnly,
+      transactionIsolation: control.transactionIsolation,
     },
-    observationIdentityBinding: embeddedReleasePresent && embeddedEpochPresent
-      ? "embedded_request_database_exact_match"
-      : "evidence_hash_request_database_exact_match",
+    lineageIdentityBinding: "file_hash_request_database_exact_match",
+    lineageEvidenceSha256: context.lineageEvidenceSha256,
+    lineageSemanticEvidenceSha256: {
+      controlSnapshot: lineage.controlSnapshotSha256,
+      unifiedFinal: lineage.unifiedEvidenceSha256,
+      unifiedSamples: lineage.unifiedSamplesSha256,
+    },
     comparedWrites: rows.length,
     comparisonDifferences: differences.length,
     duplicateOutboxMappings: duplicateOutbox,
@@ -409,11 +460,18 @@ export function evaluateReconciliationEvidence({ context, control, observation, 
   };
 }
 
-async function secureText(path, label) {
-  const metadata = await stat(path);
-  ensure(metadata.isFile(), `${label}_not_file`);
+async function assertPrivateRegularFile(path, label, maximumSize = 64 * 1024) {
+  const [metadata, linkMetadata] = await Promise.all([stat(path), lstat(path)]);
+  ensure(metadata.isFile() && linkMetadata.isFile() && !linkMetadata.isSymbolicLink(),
+    `${label}_not_regular_file`);
+  ensure(metadata.nlink === 1, `${label}_hard_link_forbidden`);
   ensure((metadata.mode & 0o077) === 0, `${label}_permissions_too_open`);
-  ensure(metadata.size > 0 && metadata.size <= 64 * 1024, `${label}_size_invalid`);
+  ensure(metadata.size > 0 && metadata.size <= maximumSize, `${label}_size_invalid`);
+  return metadata;
+}
+
+async function secureText(path, label) {
+  await assertPrivateRegularFile(path, label);
   const value = (await readFile(path, "utf8")).trim();
   ensure(value.length > 0, `${label}_empty`);
   return value;
@@ -431,7 +489,7 @@ function mapRow(row) {
   };
 }
 
-export async function collectReadOnlyEvidence(client, request, observation) {
+export async function collectReadOnlyEvidence(client, request, lineage) {
   const sourceReleaseWindows = validateSourceReleaseWindows(request.sourceReleaseWindows, request);
   const sourceReleaseIds = sourceReleaseWindows.map((window) => window.releaseId);
   await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
@@ -440,6 +498,7 @@ export async function collectReadOnlyEvidence(client, request, observation) {
     await client.query("SET LOCAL statement_timeout = '5min'");
     await client.query("SET LOCAL lock_timeout = '2s'");
     const boundary = await client.query(`SELECT current_setting('transaction_read_only') AS read_only,
+      current_setting('transaction_isolation') AS isolation_level,
       current_user AS current_role,
       control.phase, control.epoch::int AS authority_epoch, control.started_at,
       control.deadline_at, control.write_frozen, control.approved_release_id,
@@ -460,15 +519,15 @@ export async function collectReadOnlyEvidence(client, request, observation) {
         `database_control_lineage_start_mismatch:${index}`);
       ensure(new Date(row.deadline_at).toISOString() === window.deadlineAt,
         `database_control_lineage_deadline_mismatch:${index}`);
-      if (index < sourceReleaseWindows.length - 1) {
-        ensure(row.phase === "legacy" && row.write_frozen === true,
-          `database_retired_cycle_not_frozen:${index}`);
-        ensure(row.authority_epoch === window.authorityEpoch + 1,
-          `database_retired_cycle_epoch_mismatch:${index}`);
-      }
+      ensure(row.phase === window.phase && row.write_frozen === window.writeFrozen,
+        `database_control_lineage_state_mismatch:${index}`);
+      ensure(row.authority_epoch === window.controlEpoch,
+        `database_control_lineage_epoch_mismatch:${index}`);
     }
     const controlRow = boundary.rows.at(-1);
     ensure(controlRow?.read_only === "on", "database_transaction_not_read_only");
+    ensure(controlRow.isolation_level === "repeatable read",
+      "database_transaction_isolation_invalid");
     ensure(controlRow.current_role === "candidate_audit_role", "database_audit_role_not_active");
     ensure(controlRow.phase === "shadow_capture", "database_phase_not_shadow_capture");
     ensure(controlRow.authority_epoch === request.authorityEpoch, "database_epoch_mismatch");
@@ -537,13 +596,11 @@ export async function collectReadOnlyEvidence(client, request, observation) {
     }
     ensure(rows.length === statusCounts.completed, "completed_count_page_mismatch");
     const context = {
-      activationObservationStatus: request.activationObservationStatus,
-      activationAuthorityEpoch: request.activationAuthorityEpoch,
-      activationReleaseId: sourceReleaseWindows[0].releaseId,
       authorityEpoch: request.authorityEpoch,
       controlStartedAt: new Date(controlRow.started_at).getTime(),
       controlDeadlineAt: new Date(controlRow.deadline_at).getTime(),
-      observationEvidenceSha256: request.activationEvidenceSha256,
+      lineageEvidenceSha256: request.lineageEvidenceSha256,
+      migrationId: request.migrationId,
       releaseId: request.releaseId,
       sourceReleaseWindows,
     };
@@ -554,10 +611,12 @@ export async function collectReadOnlyEvidence(client, request, observation) {
         authorityEpoch: controlRow.authority_epoch,
         writeFrozen: controlRow.write_frozen,
         releaseId: controlRow.approved_release_id,
+        migrationId: controlRow.migration_id,
         currentRole: controlRow.current_role,
         transactionReadOnly: controlRow.read_only === "on",
+        transactionIsolation: controlRow.isolation_level,
       },
-      observation,
+      lineage,
       rows,
       statusCounts,
     });
@@ -576,7 +635,8 @@ async function main() {
       packageId: PACKAGE_ID,
       mode,
       minimumComparedWrites: MINIMUM_COMPARED_WRITES,
-      minimumCleanWindowHours: MINIMUM_CLEAN_WINDOW_HOURS,
+      requiredValidationCycles: 3,
+      requiredLineageSchema: LINEAGE_SCHEMA,
       productionMutationAllowed: false,
       automaticPhaseAdvance: false,
       status: "READY_FOR_LOCAL_REHEARSAL_ONLY",
@@ -586,20 +646,23 @@ async function main() {
   ensure(mode === "collect", "mode_not_supported");
   const requestPath = process.env.CANDIDATE_RECONCILIATION_REQUEST_FILE;
   const contractPath = process.env.CANDIDATE_RECONCILIATION_CONTRACT_FILE;
-  const observationPath = process.env.CANDIDATE_ACTIVATION_EVIDENCE_FILE;
+  const lineagePath = process.env.CANDIDATE_RECONCILIATION_LINEAGE_EVIDENCE_FILE;
   const urlPath = process.env.CANDIDATE_RECONCILIATION_DATABASE_URL_FILE;
   const outputPath = process.env.CANDIDATE_RECONCILIATION_OUTPUT_FILE;
   for (const [value, reason] of [
     [requestPath, "request_file_required"], [contractPath, "contract_file_required"],
-    [observationPath, "observation_file_required"], [urlPath, "database_url_file_required"],
+    [lineagePath, "lineage_file_required"], [urlPath, "database_url_file_required"],
     [outputPath, "output_file_required"],
   ]) ensure(value, reason);
   const request = JSON.parse(await secureText(requestPath, "request_file"));
   const contract = JSON.parse(await readFile(contractPath, "utf8"));
-  const observationBytes = await readFile(observationPath);
-  ensure(`sha256:${sha256(observationBytes)}` === request.activationEvidenceSha256, "activation_evidence_checksum_mismatch");
-  const observation = JSON.parse(observationBytes);
+  await assertPrivateRegularFile(lineagePath, "lineage_file", 512 * 1024);
+  const lineageBytes = await readFile(lineagePath);
+  ensure(`sha256:${sha256(lineageBytes)}` === request.lineageEvidenceSha256,
+    "lineage_evidence_checksum_mismatch");
+  const lineage = JSON.parse(lineageBytes);
   validateApprovalRequest(request, contract);
+  validateLineageRequestBinding(lineage, request);
   const pg = loadPgRuntime();
   const { Client } = pg.default ?? pg;
   const client = new Client({
@@ -608,7 +671,7 @@ async function main() {
   });
   await client.connect();
   try {
-    const result = await collectReadOnlyEvidence(client, request, observation);
+    const result = await collectReadOnlyEvidence(client, request, lineage);
     await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (!result.status.startsWith("PASS_")) process.exitCode = 2;

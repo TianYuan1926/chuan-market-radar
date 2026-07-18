@@ -14,20 +14,19 @@ test("production shell entrypoints remain syntactically valid", async () => {
   await execFileAsync("bash", ["-n", entrypointPath, runnerPath]);
 });
 
-test("entrypoint verifies evidence and launches one bounded session-independent unit", async () => {
+test("entrypoint verifies only Lineage v2 and launches one bounded session-independent unit", async () => {
   const source = await readFile(entrypointPath, "utf8");
   for (const token of [
     "validate-request", "systemd-run", "--collect", "Restart=no", "RuntimeMaxSec=3600",
     "CANDIDATE_RECONCILIATION_ENTRYPOINT_MODE=detached_worker",
-    "observation-final.json", "observation-closeout.json", "observation-samples.jsonl",
     "lineage-final.json", "lineage_evidence_directory_invalid", "lineage_evidence_missing",
-    "activation_evidence_directory_not_canonical", "runtime_parent_directory_invalid",
+    "runtime_parent_directory_invalid",
   ]) assert.match(source, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   assert.doesNotMatch(source, /nohup|disown|foreground_fallback/u);
   assert.match(source, /rm -rf -- "\$\{APPROVED_OPS_ROOT\}" "\$\{APPROVED_SECURE_ROOT\}" "\$\{ACTUAL_SOURCE_ROOT\}"/u);
   assert.doesNotMatch(source, /rm -rf -- "\$\{APPROVED_EVIDENCE_DIRECTORY\}"/u);
-  assert.doesNotMatch(source, /rm -rf -- "\$\{ACTIVATION_DIRECTORY\}"/u);
   assert.doesNotMatch(source, /rm -rf -- "\$\{LINEAGE_DIRECTORY\}"/u);
+  assert.doesNotMatch(source, /observation-final|observation-closeout|observation-samples/u);
 });
 
 test("production runner is evidence-only and cannot mutate Git, services, or phase", async () => {
@@ -35,8 +34,10 @@ test("production runner is evidence-only and cannot mutate Git, services, or pha
   for (const token of [
     "production_mutation_allowed=false", "pre_read_only_query", "consume",
     "reconciliation-result.json", "comparisonDifferences", "candidate_audit_role",
-    "automaticPhaseAdvance", "phaseTransitionExecuted", "release --outcome PASS",
+    "automaticPhaseAdvance", "phaseTransitionExecuted", "shadowVerifyTransitionExecuted",
+    "candidate-cycle3-reconciliation-evidence.v2", "release --outcome PASS",
     "candidate_shadow_worker_not_running", "candidate_reconciliation_runtime_not_ready",
+    "CANDIDATE_RECONCILIATION_LINEAGE_EVIDENCE_FILE",
   ]) assert.match(source, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   assert.ok(source.indexOf("lease_event consume") < source.indexOf('"${RUNNER_MODULE}" collect'));
   for (const forbidden of [
@@ -45,6 +46,7 @@ test("production runner is evidence-only and cannot mutate Git, services, or pha
     "--remove-orphans",
   ]) assert.equal(source.includes(forbidden), false);
   assert.doesNotMatch(source, /shadow_verify|canonical_compat|transition_migration_control_v1/u);
+  assert.doesNotMatch(source, /CANDIDATE_ACTIVATION|observation-final|observation-samples/u);
 });
 
 test("runtime health probe is valid Node and does not depend on shell interpolation", async () => {
@@ -62,9 +64,12 @@ test("database collector enforces transaction and role read-only boundaries", as
   assert.match(source, /current_user AS current_role/u);
   assert.match(source, /database_audit_role_not_active/u);
   assert.match(source, /database_transaction_not_read_only/u);
+  assert.match(source, /database_transaction_isolation_invalid/u);
   assert.match(source, /source_release_outside_lineage_present/u);
-  assert.match(source, /source_release_windows/u);
+  assert.match(source, /sourceReleaseWindows/u);
   assert.match(source, /database_control_lineage_count_mismatch/u);
-  assert.match(source, /database_retired_cycle_not_frozen/u);
+  assert.match(source, /database_control_lineage_state_mismatch/u);
+  assert.match(source, /lineage_evidence_checksum_mismatch/u);
+  assert.doesNotMatch(source, /PASS_ACTIVATE_AND_OBSERVE|activationEvidenceSha256/u);
   assert.doesNotMatch(source, /\b(?:INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE)\b/u);
 });

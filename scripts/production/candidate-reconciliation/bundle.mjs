@@ -10,18 +10,24 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
-import { evaluateObservationEvidence } from "../candidate-activation/runner.mjs";
-import { validateCandidateLineageEvidence } from "../candidate-lineage/runner.mjs";
 import {
+  LINEAGE_PASS,
+  LINEAGE_SCHEMA,
+  validateCandidateLineageEvidence,
+} from "../candidate-lineage/runner.mjs";
+import {
+  PACKAGE_ID,
   validateApprovalRequest as validateReconciliationApproval,
+  validateLineageRequestBinding,
 } from "./runner.mjs";
 
+export { PACKAGE_ID };
+
 const execFileAsync = promisify(execFile);
-export const PACKAGE_ID = "WP-G0.2-SHADOW-VERIFY-RECONCILIATION";
 export const EXECUTION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-reconciliation-production-execution.v1.json";
+  "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-production-packet.v2.json";
 export const PREPARATION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-shadow-verify-reconciliation-preparation.v1.json";
+  "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -37,7 +43,6 @@ export const TRANSPORT_FILES = Object.freeze([
   POLICY_PATH,
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
-  "scripts/production/candidate-activation/runner.mjs",
   "scripts/production/candidate-cycle-continuation/observation-runner.mjs",
   "scripts/production/candidate-lineage/runner.mjs",
   "scripts/production/candidate-reconciliation/bundle.mjs",
@@ -58,28 +63,21 @@ const AUTHORIZATION_KEYS = Object.freeze([
 ]);
 
 const REQUEST_KEYS = Object.freeze([
-  "activationAuthorityEpoch",
-  "activationCloseoutPath", "activationCloseoutSha256", "activationEvidencePath",
-  "activationEvidenceSha256", "activationSamplesPath", "activationSamplesSha256",
-  "activationProductionCommit",
   "approvalExpiresAt", "approvalIssuedAt", "approvalRef", "approvedPacketCommit",
   "approvedPacketTree", "approvedProductionCommit", "approvedRunnerArtifactSha256",
   "autonomyAuthorization", "autonomyTrustRoot", "authorityEpoch", "composeSha256",
   "evidenceDirectory", "executeReadOnlyComparison", "lineageEvidencePath",
-  "lineageEvidenceSha256", "operator", "opsRoot", "packageId",
-  "postgresAdminEnvPath", "productionEnvSha256", "productionRoot", "reconciliationApproval",
-  "releaseId", "runnerUnitName", "secureRoot", "services",
+  "lineageEvidenceSha256", "lineageSchemaVersion", "lineageStatus", "operator", "opsRoot",
+  "packageId", "postgresAdminEnvPath", "productionEnvSha256", "productionRoot",
+  "reconciliationApproval", "releaseId", "runnerUnitName", "secureRoot", "services",
   "sessionIndependentExecutionRequired", "sourceReleaseWindows", "stagingDirectory",
   "temporaryArtifactCleanupRequired", "transportBundleSha256", "transportMethod", "webImageId",
 ]);
 
 const RUNTIME_KEYS = Object.freeze([
-  "activationAuthorityEpoch",
-  "activationCloseoutPath", "activationCloseoutSha256", "activationEvidencePath",
-  "activationEvidenceSha256", "activationSamplesPath", "activationSamplesSha256",
-  "activationProductionCommit", "approvedProductionCommit", "authorityEpoch", "composeSha256",
-  "lineageEvidencePath", "lineageEvidenceSha256", "postgresAdminEnvPath",
-  "productionEnvSha256", "releaseId", "sourceReleaseWindows", "webImageId",
+  "approvedProductionCommit", "authorityEpoch", "composeSha256", "lineageEvidencePath",
+  "lineageEvidenceSha256", "postgresAdminEnvPath", "productionEnvSha256", "releaseId",
+  "sourceReleaseWindows", "webImageId",
 ]);
 
 function ensure(condition, reason) {
@@ -128,7 +126,30 @@ async function artifact(root, files) {
       `artifact_size_invalid:${file}`);
     checksums[file] = sha256(await readFile(resolve(root, file)));
   }
-  return { checksums, fileCount: Object.keys(checksums).length, sha256: sha256(JSON.stringify(checksums)) };
+  return {
+    checksums,
+    fileCount: Object.keys(checksums).length,
+    sha256: sha256(JSON.stringify(checksums)),
+  };
+}
+
+function validateLineageContract(contract, violations) {
+  const boundary = contract.prerequisites;
+  if (boundary?.lineageSchemaVersion !== LINEAGE_SCHEMA
+      || boundary?.lineageStatus !== LINEAGE_PASS
+      || boundary?.migrationId !== "candidate-episode-v1-cycle-3"
+      || boundary?.sourceReleaseWindowsExact !== 3
+      || boundary?.minimumActivationSamples !== 289
+      || boundary?.minimumActivationHours !== 24
+      || boundary?.maximumSampleGapSeconds !== 600
+      || boundary?.minimumComparedWrites !== 10_000
+      || boundary?.minimumCompletionAdvances !== 2
+      || boundary?.unresolvedMaximum !== 0
+      || boundary?.lineageFileHashRequired !== true
+      || boundary?.lineageSemanticProvenanceHashesRequired !== 3
+      || boundary?.completeDatabaseControlLineageRequired !== true
+      || boundary?.newExactRequestRequired !== true
+      || boundary?.historicalActivationEvidenceAllowed !== false) violations.push("lineage_prerequisites");
 }
 
 export async function validateProductionExecutionContract(root = process.cwd()) {
@@ -140,38 +161,22 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   const preparation = JSON.parse(preparationBytes);
   const runnerArtifact = await artifact(root, execution.runnerArtifact?.files ?? []);
   const violations = [];
-  if (execution.schemaVersion !== "wp-g0.2-reconciliation-production-execution.v1") {
-    violations.push("schema_version");
-  }
-  if (execution.packageId !== PACKAGE_ID || execution.productionAuthorization !== false
+  if (execution.schemaVersion !== "wp-g0.2-cycle-3-unified-reconciliation-production-packet.v2"
+      || execution.packageId !== PACKAGE_ID
+      || execution.productionAuthorization !== false
       || execution.productionExecuted !== false) violations.push("production_truth");
   if (execution.actionClass !== "read_only_production_preflight"
-      || execution.riskTier !== "R0_READ_ONLY") violations.push("risk_boundary");
-  if (execution.productionRoot !== PRODUCTION_ROOT) violations.push("production_root");
+      || execution.riskTier !== "R0_READ_ONLY"
+      || execution.productionRoot !== PRODUCTION_ROOT) violations.push("risk_boundary");
   if (execution.standingGrant?.grantId !== GRANT_ID
       || execution.standingGrant?.revocationEpoch !== 2
       || execution.standingGrant?.maximumExecutions !== 1
       || execution.standingGrant?.maximumApprovalWindowMinutes !== 90
       || execution.standingGrant?.externalLeaseRequired !== true) violations.push("standing_grant");
-  if (runnerArtifact.fileCount !== 3
+  if (runnerArtifact.fileCount !== 9
       || runnerArtifact.fileCount !== execution.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== execution.runnerArtifact?.sha256) violations.push("runner_artifact");
-  if (execution.prerequisites?.activationStatus !== "PASS_ACTIVATE_AND_OBSERVE"
-      || execution.prerequisites?.activationSamplesExact !== 289
-      || execution.prerequisites?.minimumCleanWindowHours !== 24
-      || execution.prerequisites?.maximumSampleGapSeconds !== 600
-      || execution.prerequisites?.completedWritesMustBePositive !== true
-      || execution.prerequisites?.activationEvidenceBindsFirstReleaseWindow !== true
-      || execution.prerequisites?.accumulationStatus
-        !== "PASS_ACCUMULATION_READY_FOR_FRESH_VERIFICATION_CYCLE"
-      || execution.prerequisites?.minimumAccumulatedWrites !== 10_000
-      || execution.prerequisites?.freshVerificationCycleRequired !== true
-      || execution.prerequisites?.multiCycleLineageEvidenceRequired !== true
-      || execution.prerequisites?.minimumReleaseWindows !== 2
-      || execution.prerequisites?.sourceReleaseWindowsStrictlyAdjacent !== true
-      || execution.prerequisites?.currentVerificationIdentityBindsLastReleaseWindow !== true
-      || execution.prerequisites?.activationEvidenceRecomputedFromSamples !== true
-      || execution.prerequisites?.newExactRequestRequired !== true) violations.push("activation_prerequisites");
+  validateLineageContract(execution, violations);
   if (execution.execution?.runner !== "transient_systemd_unit"
       || execution.execution?.restart !== "no"
       || execution.execution?.runtimeMaxSeconds !== 3600
@@ -190,6 +195,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   if (execution.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || execution.databaseBoundary?.transactionReadOnly !== true
       || execution.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
+      || execution.databaseBoundary?.controlLineageExactCount !== 3
       || execution.databaseBoundary?.minimumComparedWrites !== 10_000
       || execution.databaseBoundary?.maximumDifferences !== 0
       || execution.databaseBoundary?.maximumUnresolvedItems !== 0
@@ -200,42 +206,51 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || execution.databaseBoundary?.migrationAllowed !== false
       || execution.databaseBoundary?.phaseTransitionAllowed !== false) violations.push("database_boundary");
   for (const [key, value] of Object.entries(execution.runtimeMutationBoundary ?? {})) {
-    const expected = key === "evidenceAndLeaseFilesOnly";
-    if (value !== expected) violations.push(`runtime_mutation_boundary:${key}`);
+    if (value !== (key === "evidenceAndLeaseFilesOnly")) {
+      violations.push(`runtime_mutation_boundary:${key}`);
+    }
   }
-  if (execution.resultBoundary?.passStatus
-      !== "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+  if (execution.resultBoundary?.schemaVersion !== "candidate-cycle3-reconciliation-evidence.v2"
+      || execution.resultBoundary?.passStatus
+        !== "PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
       || execution.resultBoundary?.automaticPhaseAdvance !== false
       || execution.resultBoundary?.shadowVerifyTransitionExecuted !== false
       || execution.resultBoundary?.canonicalReadEnabled !== false
       || execution.resultBoundary?.canonicalWriteEnabled !== false
       || execution.resultBoundary?.reviewReadEnabled !== false
       || execution.resultBoundary?.g0Completed !== false) violations.push("result_boundary");
-  if (execution.transport?.containsSecrets !== false
+  if (execution.transport?.method !== "reproducible_redacted_orcaterm_bundle"
+      || execution.transport?.containsSecrets !== false
       || execution.transport?.temporaryArtifactCleanupRequired !== true
-      || execution.transport?.activationEvidencePreserved !== true
-      || execution.transport?.multiCycleLineageEvidencePreserved !== true
-      || execution.transport?.lineageProvenanceHashesRequired !== 7
+      || execution.transport?.lineageEvidencePreserved !== true
+      || execution.transport?.lineageProvenanceHashesRequired !== 3
       || execution.transport?.outputEvidencePreserved !== true) violations.push("transport_boundary");
-  if (preparation.schemaVersion !== "wp-g0.2-shadow-verify-reconciliation-preparation.v1"
+  if (preparation.schemaVersion
+        !== "wp-g0.2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2"
+      || preparation.packageId
+        !== "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-REFRESH-LOCAL-SUPERPACKAGE"
+      || preparation.productionAuthorization !== false
+      || preparation.productionExecuted !== false
       || preparation.runnerArtifact?.sha256 === undefined
+      || preparation.lineageBoundary?.schemaVersion !== LINEAGE_SCHEMA
+      || preparation.lineageBoundary?.sourceReleaseWindowsExact !== 3
       || preparation.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
-      || preparation.prerequisites?.freshVerificationCycleRequired !== true
-      || preparation.prerequisites?.multiCycleLineageRequired !== true
-      || preparation.prerequisites?.minimumReleaseWindows !== 2
       || preparation.comparison?.minimumComparedWrites !== 10_000
       || preparation.comparison?.outsideLineageMaximum !== 0
       || preparation.comparison?.controlLineageExactMatchRequired !== true) {
     violations.push("preparation_contract");
   }
   for (const forbidden of [
-    "observation_window_shortening", "source_sync", "git_checkout", "service_recreate",
-    "database_write", "schema_migration", "phase_transition", "canonical_cutover",
-    "multi_cycle_lineage_relabeling", "production_ranking_change", "future_outcome_input",
-    "formal_backtest",
+    "historical_activation_evidence_input", "lineage_v1_input", "lineage_relabeling",
+    "source_sync", "git_checkout", "image_build", "service_recreate", "database_write",
+    "schema_migration", "phase_transition", "redis_write", "worker_change",
+    "environment_change", "canonical_cutover", "production_ranking_change",
+    "future_outcome_input", "formal_backtest",
   ]) if (!execution.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
   return {
-    status: violations.length === 0 ? "PASS_LOCAL_RECONCILIATION_PRODUCTION_PACKET" : "FAIL",
+    status: violations.length === 0
+      ? "PASS_CYCLE3_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL"
+      : "FAIL",
     productionMutationAllowed: false,
     executionContractSha256: sha256(executionBytes),
     preparationContractSha256: sha256(preparationBytes),
@@ -245,83 +260,32 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   };
 }
 
-function assertActivationPath(path, suffix, reason) {
-  ensure(new RegExp(
-    `^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-candidate-activation-[a-z0-9][a-z0-9._-]{7,80}/${suffix}$`,
-    "u",
-  ).test(path ?? ""), reason);
-}
-
 function assertLineagePath(path) {
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-candidate-lineage-[a-z0-9][a-z0-9._-]{7,100}\/lineage-final\.json$/u
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-[a-z0-9][a-z0-9._-]{7,120}\/lineage-final\.json$/u
     .test(path ?? ""), "lineage_evidence_path_invalid");
 }
 
 async function assertPrivateFile(path, label, maximumBytes) {
-  const metadata = await stat(path);
-  ensure(metadata.isFile(), `${label}_not_file`);
+  const [metadata, linkMetadata] = await Promise.all([stat(path), lstat(path)]);
+  ensure(metadata.isFile() && linkMetadata.isFile() && !linkMetadata.isSymbolicLink(),
+    `${label}_not_regular_file`);
+  ensure(metadata.nlink === 1, `${label}_hard_link_forbidden`);
   ensure((metadata.mode & 0o077) === 0, `${label}_permissions_too_open`);
   ensure(metadata.size > 0 && metadata.size <= maximumBytes, `${label}_size_invalid`);
 }
 
-export async function verifyActivationEvidence(request) {
-  assertActivationPath(request.activationEvidencePath, "observation-final\\.json",
-    "activation_evidence_path_invalid");
-  assertActivationPath(request.activationCloseoutPath, "observation-closeout\\.json",
-    "activation_closeout_path_invalid");
-  assertActivationPath(request.activationSamplesPath, "observation-samples\\.jsonl",
-    "activation_samples_path_invalid");
-  await Promise.all([
-    assertPrivateFile(request.activationEvidencePath, "activation_evidence", 64 * 1024),
-    assertPrivateFile(request.activationCloseoutPath, "activation_closeout", 64 * 1024),
-    assertPrivateFile(request.activationSamplesPath, "activation_samples", 64 * 1024 * 1024),
-  ]);
-  const [finalBytes, closeoutBytes, samplesBytes] = await Promise.all([
-    readFile(request.activationEvidencePath),
-    readFile(request.activationCloseoutPath),
-    readFile(request.activationSamplesPath),
-  ]);
-  ensure(sha256(finalBytes) === request.activationEvidenceSha256, "activation_evidence_hash_mismatch");
-  ensure(sha256(closeoutBytes) === request.activationCloseoutSha256, "activation_closeout_hash_mismatch");
-  ensure(sha256(samplesBytes) === request.activationSamplesSha256, "activation_samples_hash_mismatch");
-  const final = JSON.parse(finalBytes);
-  const closeout = JSON.parse(closeoutBytes);
-  ensure(exactKeys(closeout, ["schemaVersion", "outcome", "closedAt", "secretsPrinted"]),
-    "activation_closeout_keys_invalid");
-  ensure(closeout.schemaVersion === "candidate-observation-closeout.v1"
-      && closeout.outcome === "PASS_ACTIVATE_AND_OBSERVE"
-      && closeout.secretsPrinted === false, "activation_closeout_not_pass");
-  parseTimestamp(closeout.closedAt, "activation_closeout_time_invalid");
-  const samples = samplesBytes.toString("utf8").split(/\r?\n/u).filter(Boolean)
-    .map((line) => JSON.parse(line));
-  ensure(samples.length === 289, "activation_samples_not_exact_289");
-  const recomputed = evaluateObservationEvidence(samples, {
-    approvedCommit: request.activationProductionCommit,
-    authorityEpoch: request.activationAuthorityEpoch,
-    migrationId: request.sourceReleaseWindows[0].migrationId,
-    releaseId: request.sourceReleaseWindows[0].releaseId,
-  });
-  ensure(canonicalJson(final) === canonicalJson(recomputed), "activation_final_recompute_mismatch");
-  ensure(final.status === "PASS_ACTIVATE_AND_OBSERVE"
-      && final.sampleCount === 289
-      && final.coverageHours >= 24
-      && final.maximumGapSeconds <= 600
-      && Number.isSafeInteger(final.completedWrites)
-      && final.completedWrites > 0
-      && final.automaticPhaseAdvance === false
-      && final.comparedWritesGateEvaluated === false, "activation_final_thresholds_invalid");
-  return { final, closeout, recomputed, sampleCount: samples.length };
-}
-
 export function validateMultiCycleLineageEvidence(lineage, request) {
   validateCandidateLineageEvidence(lineage);
+  ensure(lineage.schemaVersion === request.lineageSchemaVersion,
+    "lineage_schema_request_mismatch");
+  ensure(lineage.status === request.lineageStatus, "lineage_status_request_mismatch");
   ensure(canonicalJson(lineage.sourceReleaseWindows) === canonicalJson(request.sourceReleaseWindows),
     "lineage_release_windows_mismatch");
   const current = request.sourceReleaseWindows.at(-1);
   ensure(lineage.currentMigrationId === current.migrationId
-      && lineage.currentReleaseId === current.releaseId
-      && lineage.currentAuthorityEpoch === current.authorityEpoch
-      && lineage.freshCycleStartedAt === current.startedAt,
+      && lineage.currentReleaseId === request.releaseId
+      && lineage.currentAuthorityEpoch === request.authorityEpoch
+      && lineage.currentCycleStartedAt === current.startedAt,
   "lineage_current_cycle_mismatch");
   return lineage;
 }
@@ -332,12 +296,6 @@ export async function verifyMultiCycleLineageEvidence(request) {
   const bytes = await readFile(request.lineageEvidencePath);
   ensure(sha256(bytes) === request.lineageEvidenceSha256, "lineage_evidence_hash_mismatch");
   return validateMultiCycleLineageEvidence(JSON.parse(bytes), request);
-}
-
-export function validateLineageActivationBinding(lineage, activationFinal) {
-  ensure(lineage.activationEvidenceSha256 === sha256(canonicalJson(activationFinal)),
-    "lineage_activation_binding_mismatch");
-  return lineage;
 }
 
 function validateAuthorization(authorization, request, manifest, execution) {
@@ -372,24 +330,22 @@ function validateAuthorization(authorization, request, manifest, execution) {
     ensure(authorization[key] === expected, `authorization_${key}_binding_mismatch`);
   }
   ensure(authorization.imageOrMigrationSha256 === sha256(canonicalJson({
-    mode: "read-only-reconciliation",
+    lineageEvidenceSha256: request.lineageEvidenceSha256,
+    mode: "read-only-cycle3-reconciliation",
     sourceReleaseWindows: request.sourceReleaseWindows,
-  })),
-    "authorization_read_only_binding_mismatch");
-  ensure(authorization.composeSha256 === request.composeSha256, "authorization_compose_binding_mismatch");
+  })), "authorization_read_only_binding_mismatch");
+  ensure(authorization.composeSha256 === request.composeSha256,
+    "authorization_compose_binding_mismatch");
   ensure(authorization.environmentFingerprintSha256 === sha256(`${request.productionEnvSha256}\n`),
     "authorization_environment_binding_mismatch");
   ensure(authorization.productionIdentitySha256 === sha256(`${request.postgresAdminEnvPath}\n`),
     "authorization_identity_source_binding_mismatch");
   ensure(authorization.preflightSha256 === sha256(canonicalJson({
-    activationAuthorityEpoch: request.activationAuthorityEpoch,
-    activationCloseoutSha256: request.activationCloseoutSha256,
-    activationEvidenceSha256: request.activationEvidenceSha256,
-    activationProductionCommit: request.activationProductionCommit,
-    activationSamplesSha256: request.activationSamplesSha256,
     approvedProductionCommit: request.approvedProductionCommit,
     authorityEpoch: request.authorityEpoch,
     lineageEvidenceSha256: request.lineageEvidenceSha256,
+    lineageSchemaVersion: request.lineageSchemaVersion,
+    lineageStatus: request.lineageStatus,
     releaseId: request.releaseId,
     sourceReleaseWindows: request.sourceReleaseWindows,
   })), "authorization_preflight_binding_mismatch");
@@ -413,7 +369,8 @@ function validateAuthorization(authorization, request, manifest, execution) {
   ensure(exactKeys(authorization.packageAssertions, Object.keys(assertions)),
     "authorization_assertion_keys_invalid");
   for (const [key, expected] of Object.entries(assertions)) {
-    ensure(authorization.packageAssertions[key] === expected, `authorization_assertion_failed:${key}`);
+    ensure(authorization.packageAssertions[key] === expected,
+      `authorization_assertion_failed:${key}`);
   }
 }
 
@@ -428,7 +385,7 @@ export async function verifyStagedTransport(root, manifest) {
     "transportBundleSha256", "transportMethod",
   ];
   ensure(exactKeys(manifest, expectedKeys), "transport_manifest_keys_mismatch");
-  ensure(manifest.schemaVersion === "wp-g0.2-reconciliation-transport.v1"
+  ensure(manifest.schemaVersion === "wp-g0.2-cycle3-reconciliation-transport.v2"
       && manifest.packageId === PACKAGE_ID && manifest.approvalEligible === true,
   "transport_manifest_identity_invalid");
   ensure(manifest.containsSecrets === false && manifest.reproducibleArchive === true
@@ -452,10 +409,11 @@ export async function verifyStagedTransport(root, manifest) {
   const transport = await artifact(root, TRANSPORT_FILES);
   ensure(transport.sha256 === manifest.transportArtifactSha256, "transport_artifact_mismatch");
   for (const file of TRANSPORT_FILES) {
-    ensure(transport.checksums[file] === manifest.fileSha256[file], `transport_file_mismatch:${file}`);
+    ensure(transport.checksums[file] === manifest.fileSha256[file],
+      `transport_file_mismatch:${file}`);
   }
   const contract = await validateProductionExecutionContract(root);
-  ensure(contract.status === "PASS_LOCAL_RECONCILIATION_PRODUCTION_PACKET",
+  ensure(contract.status === "PASS_CYCLE3_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL",
     "transport_contract_not_pass");
   ensure(contract.executionContractSha256 === manifest.executionContractSha256
       && contract.preparationContractSha256 === manifest.preparationContractSha256
@@ -491,31 +449,28 @@ export async function validateProductionExecutionRequest(
       && request.approvedPacketTree === manifest.sourceTree
       && request.approvedRunnerArtifactSha256 === manifest.runnerArtifactSha256,
   "request_packet_binding_mismatch");
-  assertHash(request.activationProductionCommit, "request_activation_commit_invalid", 40);
   assertHash(request.approvedProductionCommit, "request_production_commit_invalid", 40);
   assertHash(request.webImageId?.replace(/^sha256:/u, ""), "request_web_image_invalid");
-  for (const key of [
-    "activationCloseoutSha256", "activationEvidenceSha256", "activationSamplesSha256",
-    "composeSha256", "lineageEvidenceSha256", "productionEnvSha256",
-  ]) assertHash(request[key], `request_${key}_invalid`);
-  ensure(Number.isSafeInteger(request.activationAuthorityEpoch)
-      && request.activationAuthorityEpoch >= 1 && request.activationAuthorityEpoch % 2 === 1,
-  "request_activation_authority_epoch_invalid");
+  for (const key of ["composeSha256", "lineageEvidenceSha256", "productionEnvSha256"]) {
+    assertHash(request[key], `request_${key}_invalid`);
+  }
+  ensure(request.lineageSchemaVersion === LINEAGE_SCHEMA, "request_lineage_schema_invalid");
+  ensure(request.lineageStatus === LINEAGE_PASS, "request_lineage_status_invalid");
   ensure(Number.isSafeInteger(request.authorityEpoch) && request.authorityEpoch >= 1
       && request.authorityEpoch % 2 === 1, "request_authority_epoch_invalid");
-  ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,80}$/u.test(request.releaseId ?? ""),
+  ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u.test(request.releaseId ?? ""),
     "request_release_invalid");
   assertLineagePath(request.lineageEvidencePath);
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-cycle3-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.stagingDirectory ?? ""), "request_staging_invalid");
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/reconciliation-ops\/wp-g0-2-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/reconciliation-ops\/wp-g0-2-cycle3-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.opsRoot ?? ""), "request_ops_invalid");
   ensure(/^\/home\/ubuntu\/\.local\/state\/market-radar-reconciliation\/[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.secureRoot ?? ""), "request_secure_invalid");
-  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
+  ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle3-reconciliation-[a-z0-9][a-z0-9._-]{7,80}$/u
     .test(request.evidenceDirectory ?? ""), "request_evidence_invalid");
-  ensure(/^market-radar-reconciliation-[a-z0-9][a-z0-9-]{7,48}$/u.test(request.runnerUnitName ?? ""),
-    "request_unit_invalid");
+  ensure(/^market-radar-cycle3-reconciliation-[a-z0-9][a-z0-9-]{7,48}$/u
+    .test(request.runnerUnitName ?? ""), "request_unit_invalid");
   ensure(typeof request.operator === "string" && request.operator.length >= 2
       && /^[A-Za-z0-9._:/-]{8,128}$/u.test(request.approvalRef ?? ""),
   "request_operator_or_ref_invalid");
@@ -526,10 +481,10 @@ export async function validateProductionExecutionRequest(
     "request_approval_window_invalid");
   ensure(nowMs >= issuedAt && nowMs < expiresAt, "request_approval_not_current");
   validateAuthorization(request.autonomyAuthorization, request, manifest, execution);
-  ensure(request.reconciliationApproval.activationAuthorityEpoch
-      === request.activationAuthorityEpoch
-      && request.reconciliationApproval.activationEvidenceSha256
-      === `sha256:${request.activationEvidenceSha256}`
+  ensure(request.reconciliationApproval.lineageEvidenceSha256
+      === `sha256:${request.lineageEvidenceSha256}`
+      && request.reconciliationApproval.lineageSchemaVersion === request.lineageSchemaVersion
+      && request.reconciliationApproval.lineageStatus === request.lineageStatus
       && request.reconciliationApproval.approvedCommit === request.approvedProductionCommit
       && request.reconciliationApproval.authorityEpoch === request.authorityEpoch
       && request.reconciliationApproval.releaseId === request.releaseId
@@ -540,45 +495,58 @@ export async function validateProductionExecutionRequest(
   "request_inner_reconciliation_binding_mismatch");
   validateReconciliationApproval(request.reconciliationApproval, preparation, { now });
   if (verifyEvidence) {
-    const [activation, lineage] = await Promise.all([
-      verifyActivationEvidence(request),
-      verifyMultiCycleLineageEvidence(request),
-    ]);
-    validateLineageActivationBinding(lineage, activation.final);
+    const lineage = await verifyMultiCycleLineageEvidence(request);
+    validateLineageRequestBinding(lineage, request.reconciliationApproval);
   }
   return request;
 }
 
+function validateSourceReleaseWindows(windows, runtime) {
+  ensure(Array.isArray(windows) && windows.length === 3,
+    "runtime_source_release_windows_invalid");
+  const migrations = [
+    "candidate-episode-v1",
+    "candidate-episode-v1-cycle-2",
+    "candidate-episode-v1-cycle-3",
+  ];
+  for (const [index, window] of windows.entries()) {
+    ensure(exactKeys(window, [
+      "controlEpoch", "deadlineAt", "migrationId", "phase", "releaseId", "startedAt",
+      "writeFrozen",
+    ]), `runtime_release_window_shape_invalid:${index}`);
+    ensure(window.migrationId === migrations[index], `runtime_release_window_migration_invalid:${index}`);
+    ensure(parseTimestamp(window.deadlineAt, `runtime_release_window_deadline_invalid:${index}`)
+        - parseTimestamp(window.startedAt, `runtime_release_window_start_invalid:${index}`)
+        === 72 * 60 * 60_000, `runtime_release_window_duration_invalid:${index}`);
+    const current = index === 2;
+    ensure(current
+      ? window.phase === "shadow_capture" && window.writeFrozen === false
+        && window.controlEpoch % 2 === 1
+      : window.phase === "legacy" && window.writeFrozen === true
+        && window.controlEpoch >= 2 && window.controlEpoch % 2 === 0,
+    `runtime_release_window_state_invalid:${index}`);
+  }
+  const current = windows[2];
+  ensure(current.releaseId === runtime.releaseId
+      && current.controlEpoch === runtime.authorityEpoch,
+  "runtime_current_release_window_mismatch");
+  return windows;
+}
+
 function validateRuntime(runtime) {
   ensure(exactKeys(runtime, RUNTIME_KEYS), "runtime_keys_mismatch");
-  assertHash(runtime.activationProductionCommit, "runtime_activation_commit_invalid", 40);
   assertHash(runtime.approvedProductionCommit, "runtime_production_commit_invalid", 40);
   assertHash(runtime.webImageId?.replace(/^sha256:/u, ""), "runtime_web_image_invalid");
-  for (const key of [
-    "activationCloseoutSha256", "activationEvidenceSha256", "activationSamplesSha256",
-    "composeSha256", "lineageEvidenceSha256", "productionEnvSha256",
-  ]) assertHash(runtime[key], `runtime_${key}_invalid`);
+  for (const key of ["composeSha256", "lineageEvidenceSha256", "productionEnvSha256"]) {
+    assertHash(runtime[key], `runtime_${key}_invalid`);
+  }
   ensure(runtime.postgresAdminEnvPath === POSTGRES_ADMIN_ENV, "runtime_postgres_admin_env_invalid");
   ensure(Number.isSafeInteger(runtime.authorityEpoch) && runtime.authorityEpoch >= 1
       && runtime.authorityEpoch % 2 === 1, "runtime_epoch_invalid");
-  ensure(Number.isSafeInteger(runtime.activationAuthorityEpoch)
-      && runtime.activationAuthorityEpoch >= 1 && runtime.activationAuthorityEpoch % 2 === 1,
-  "runtime_activation_epoch_invalid");
-  ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,80}$/u.test(runtime.releaseId ?? ""),
+  ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u.test(runtime.releaseId ?? ""),
     "runtime_release_invalid");
-  assertActivationPath(runtime.activationEvidencePath, "observation-final\\.json",
-    "runtime_activation_evidence_path_invalid");
-  assertActivationPath(runtime.activationCloseoutPath, "observation-closeout\\.json",
-    "runtime_activation_closeout_path_invalid");
-  assertActivationPath(runtime.activationSamplesPath, "observation-samples\\.jsonl",
-    "runtime_activation_samples_path_invalid");
   assertLineagePath(runtime.lineageEvidencePath);
-  ensure(Array.isArray(runtime.sourceReleaseWindows) && runtime.sourceReleaseWindows.length >= 2,
-    "runtime_source_release_windows_invalid");
-  const currentWindow = runtime.sourceReleaseWindows.at(-1);
-  ensure(currentWindow?.releaseId === runtime.releaseId
-      && currentWindow?.authorityEpoch === runtime.authorityEpoch,
-  "runtime_current_release_window_mismatch");
+  validateSourceReleaseWindows(runtime.sourceReleaseWindows, runtime);
   return runtime;
 }
 
@@ -610,23 +578,17 @@ export function createProductionExecutionRequest({
     approvedRunnerArtifactSha256: execution.runnerArtifact.sha256,
     approvedProductionCommit: runtime.approvedProductionCommit,
     productionRoot: PRODUCTION_ROOT,
-    stagingDirectory: `/home/ubuntu/.cache/market-radar-ops/wp-g0-2-reconciliation-${suffix}`,
-    opsRoot: `/home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-reconciliation-${suffix}`,
+    stagingDirectory: `/home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle3-reconciliation-${suffix}`,
+    opsRoot: `/home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-${suffix}`,
     secureRoot: `/home/ubuntu/.local/state/market-radar-reconciliation/${suffix}`,
-    evidenceDirectory: `/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-reconciliation-${suffix}`,
-    runnerUnitName: `market-radar-reconciliation-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
+    evidenceDirectory: `/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle3-reconciliation-${suffix}`,
+    runnerUnitName: `market-radar-cycle3-reconciliation-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
     autonomyTrustRoot: TRUST_ROOT,
     postgresAdminEnvPath: runtime.postgresAdminEnvPath,
-    activationAuthorityEpoch: runtime.activationAuthorityEpoch,
-    activationProductionCommit: runtime.activationProductionCommit,
-    activationEvidencePath: runtime.activationEvidencePath,
-    activationEvidenceSha256: runtime.activationEvidenceSha256,
-    activationCloseoutPath: runtime.activationCloseoutPath,
-    activationCloseoutSha256: runtime.activationCloseoutSha256,
-    activationSamplesPath: runtime.activationSamplesPath,
-    activationSamplesSha256: runtime.activationSamplesSha256,
     lineageEvidencePath: runtime.lineageEvidencePath,
     lineageEvidenceSha256: runtime.lineageEvidenceSha256,
+    lineageSchemaVersion: LINEAGE_SCHEMA,
+    lineageStatus: LINEAGE_PASS,
     authorityEpoch: runtime.authorityEpoch,
     releaseId: runtime.releaseId,
     webImageId: runtime.webImageId,
@@ -638,9 +600,6 @@ export function createProductionExecutionRequest({
     approvalRef,
     operator: "codex-primary",
     reconciliationApproval: {
-      activationAuthorityEpoch: runtime.activationAuthorityEpoch,
-      activationEvidenceSha256: `sha256:${runtime.activationEvidenceSha256}`,
-      activationObservationStatus: "PASS_ACTIVATE_AND_OBSERVE",
       approvalExpiresAt: expiresAt.toISOString(),
       approvalIssuedAt: issuedAt.toISOString(),
       approvalRef,
@@ -652,9 +611,11 @@ export function createProductionExecutionRequest({
       canonicalReadAllowed: false,
       canonicalWriteAllowed: false,
       executeReadOnlyComparison: true,
+      lineageEvidenceSha256: `sha256:${runtime.lineageEvidenceSha256}`,
+      lineageSchemaVersion: LINEAGE_SCHEMA,
+      lineageStatus: LINEAGE_PASS,
       migrationAllowed: false,
-      migrationId: runtime.sourceReleaseWindows.at(-1).migrationId,
-      minimumCleanWindowHours: 24,
+      migrationId: runtime.sourceReleaseWindows[2].migrationId,
       minimumComparedWrites: 10_000,
       operator: "codex-primary",
       packageId: PACKAGE_ID,
@@ -689,7 +650,8 @@ export function createProductionExecutionRequest({
     runnerSha256: manifest.runnerArtifactSha256,
     artifactSha256: execution.runnerArtifact.sha256,
     imageOrMigrationSha256: sha256(canonicalJson({
-      mode: "read-only-reconciliation",
+      lineageEvidenceSha256: runtime.lineageEvidenceSha256,
+      mode: "read-only-cycle3-reconciliation",
       sourceReleaseWindows: runtime.sourceReleaseWindows,
     })),
     composeSha256: runtime.composeSha256,
@@ -697,14 +659,11 @@ export function createProductionExecutionRequest({
     productionIdentitySha256: sha256(`${runtime.postgresAdminEnvPath}\n`),
     gateEvidenceSha256: manifest.gateEvidenceSha256,
     preflightSha256: sha256(canonicalJson({
-      activationAuthorityEpoch: runtime.activationAuthorityEpoch,
-      activationCloseoutSha256: runtime.activationCloseoutSha256,
-      activationEvidenceSha256: runtime.activationEvidenceSha256,
-      activationProductionCommit: runtime.activationProductionCommit,
-      activationSamplesSha256: runtime.activationSamplesSha256,
       approvedProductionCommit: runtime.approvedProductionCommit,
       authorityEpoch: runtime.authorityEpoch,
       lineageEvidenceSha256: runtime.lineageEvidenceSha256,
+      lineageSchemaVersion: LINEAGE_SCHEMA,
+      lineageStatus: LINEAGE_PASS,
       releaseId: runtime.releaseId,
       sourceReleaseWindows: runtime.sourceReleaseWindows,
     })),
@@ -742,8 +701,9 @@ export async function prepareAdminUrl(input, output) {
     ensure(match && !values.has(match[1]), "admin_environment_invalid");
     values.set(match[1], match[2]);
   }
-  ensure(JSON.stringify([...values.keys()].sort()) === JSON.stringify(["POSTGRES_PASSWORD", "POSTGRES_USER"]),
-    "admin_environment_keys_invalid");
+  ensure(JSON.stringify([...values.keys()].sort())
+      === JSON.stringify(["POSTGRES_PASSWORD", "POSTGRES_USER"]),
+  "admin_environment_keys_invalid");
   ensure(values.get("POSTGRES_USER") === containerUser, "admin_user_mismatch");
   ensure(/^[a-z][a-z0-9_]{2,62}$/u.test(databaseName), "database_name_invalid");
   const url = new URL("postgresql://placeholder@postgres:5432/placeholder");
@@ -758,7 +718,8 @@ async function currentSourceIdentity(root) {
   const git = async (args) => (await execFileAsync("git", ["-C", root, ...args])).stdout.trimEnd();
   const sourceCommit = await git(["rev-parse", "HEAD"]);
   const sourceTree = await git(["rev-parse", "HEAD^{tree}"]);
-  const parents = (await git(["rev-list", "--parents", "-n", "1", "HEAD"])).split(" ").slice(1);
+  const parents = (await git(["rev-list", "--parents", "-n", "1", "HEAD"]))
+    .split(" ").slice(1);
   ensure(parents.length === 1, "source_parent_count_invalid");
   const diff = `${await git(["diff-tree", "--no-commit-id", "--name-status", "-r", "HEAD"])}\n`;
   const paths = `${(await git(["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]))
@@ -784,9 +745,10 @@ export async function buildTransportBundle({
   root = process.cwd(), output, sourceIdentity = null, approvalEligible = true,
 }) {
   const contract = await validateProductionExecutionContract(root);
-  ensure(contract.status === "PASS_LOCAL_RECONCILIATION_PRODUCTION_PACKET", "contract_not_pass");
+  ensure(contract.status === "PASS_CYCLE3_UNIFIED_RECONCILIATION_PRODUCTION_PACKET_LOCAL",
+    "contract_not_pass");
   if (approvalEligible) ensure(sourceIdentity?.sourceCommit, "source_identity_missing");
-  const temporaryRoot = await mkdtemp(join(tmpdir(), "candidate-reconciliation-bundle-"));
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "candidate-cycle3-reconciliation-bundle-"));
   const payloadRoot = join(temporaryRoot, "payload");
   try {
     for (const file of TRANSPORT_FILES) {
@@ -798,7 +760,7 @@ export async function buildTransportBundle({
     }
     const transport = await artifact(root, TRANSPORT_FILES);
     const manifest = {
-      schemaVersion: "wp-g0.2-reconciliation-transport.v1",
+      schemaVersion: "wp-g0.2-cycle3-reconciliation-transport.v2",
       packageId: PACKAGE_ID,
       sourceCommit: sourceIdentity?.sourceCommit ?? null,
       sourceTree: sourceIdentity?.sourceTree ?? null,
@@ -843,8 +805,8 @@ export async function buildTransportBundle({
     await writeFile(outputPath, bytes, { mode: 0o600 });
     return {
       status: approvalEligible
-        ? "PASS_FINAL_RECONCILIATION_TRANSPORT_BUNDLE"
-        : "PASS_LOCAL_RECONCILIATION_TRANSPORT_TEMPLATE",
+        ? "PASS_FINAL_CYCLE3_RECONCILIATION_TRANSPORT_BUNDLE"
+        : "PASS_LOCAL_CYCLE3_RECONCILIATION_TRANSPORT_TEMPLATE",
       output: outputPath,
       sha256: sha256(bytes),
       sizeBytes: bytes.length,
@@ -891,7 +853,7 @@ async function main() {
     await validateProductionExecutionRequest(
       request, manifest, preparation, execution, options["bundle-sha256"],
     );
-    process.stdout.write('{"status":"pass","requestValid":true,"activationEvidenceRecomputed":true,"secretsPrinted":false}\n');
+    process.stdout.write('{"status":"pass","requestValid":true,"lineageEvidenceValidated":true,"secretsPrinted":false}\n');
     return;
   }
   if (command === "prepare-admin-url") {
@@ -916,10 +878,12 @@ async function main() {
     process.stdout.write('{"status":"pass","requestGenerated":true,"secretsPrinted":false}\n');
     return;
   }
-  const clean = (await execFileAsync("git", ["-C", root, "status", "--porcelain"])).stdout.trim() === "";
+  const clean = (await execFileAsync("git", ["-C", root, "status", "--porcelain"]))
+    .stdout.trim() === "";
   const sourceIdentity = clean ? await currentSourceIdentity(root) : null;
-  const output = options.output ?? join(root, "reports/wp-g0-2-reconciliation-production-packet",
-    `candidate-reconciliation-${sourceIdentity?.sourceCommit.slice(0, 12) ?? "precommit-template"}.tar.gz`);
+  const output = options.output ?? join(root,
+    "reports/wp-g0-2-cycle-3-unified-reconciliation-production-packet",
+    `candidate-cycle3-reconciliation-${sourceIdentity?.sourceCommit.slice(0, 12) ?? "precommit-template"}.tar.gz`);
   process.stdout.write(`${JSON.stringify(await buildTransportBundle({
     root, output, sourceIdentity, approvalEligible: clean,
   }), null, 2)}\n`);

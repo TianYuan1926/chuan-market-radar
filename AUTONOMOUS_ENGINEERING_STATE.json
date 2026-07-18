@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-18T17:43:00+08:00",
+  "updatedAt": "2026-07-18T18:28:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -13,11 +13,11 @@
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
     "runtimeIdentityPreflight": "pass_local_and_production_exact_request_consumed_successfully",
     "runtimeIdentityProduction": "pass_runtime_identity_and_permission_7_samples_1851_seconds_continuous_ready_fresh_three_noinherit_logins_three_fixed_memberships_three_candidate_urls_zero_privileged_logins_zero_feature_flags_candidate_dormant_worker_absent",
-    "activationObservationPreparation": "cycle3_commit_b098238_immediate_production_transaction_pass_observer_market_radar_cycle_observer_b098238_196d9054_active_observed_2026_07_18_1742_cst_sample26_elapsed7579_advances8_completed3333_unresolved0_accumulation_false_fresh_activation_false_289_samples_24_hours_and_10000_completed_writes_required_no_shortening_g0_remains7",
-    "reconciliationPreparation": "original_single_cycle_preparation_committed_pushed_799d295_superseded_by_multi_cycle_lineage_remediation_in_progress_production_blocked",
+    "activationObservationPreparation": "cycle3_commit_b098238_immediate_production_transaction_pass_observer_market_radar_cycle_observer_b098238_196d9054_active_observed_2026_07_18_1820_cst_sample33_elapsed9701_advances11_completed3471_unresolved0_accumulation_false_fresh_activation_false_289_samples_24_hours_and_10000_completed_writes_required_no_shortening_g0_remains7",
+    "reconciliationPreparation": "pass_local_cycle3_unified_v2_refresh_targeted26_of_26_postgres16_three_controls_10020_writes_2957_0_7063_zero_difference_readonly_audit_role_baseline_security_and_autonomy31_pass_production_not_connected_shadow_verify_false_g0_false",
     "canonicalCompatPreparation": "pass_local_superpackage_committed_pushed_194ccf3_production_not_connected_canonical_authority_false",
     "g0SecurityReleaseIncidentPreparation": "completed_local_superpackage_committed_pushed_d2ee45f_production_blocked",
-    "reconciliationProductionPacket": "original_single_cycle_packet_committed_pushed_504c395_superseded_by_multi_cycle_lineage_remediation_in_progress_production_not_executed",
+    "reconciliationProductionPacket": "pass_local_cycle3_unified_v2_packet_runner_artifact_f8967511_execution_artifact_e8a9b185_single_lineage_evidence_only_deterministic_redacted_transport_production_not_executed_waiting_cycle3_observer_and_production_lineage_pass",
     "shadowVerifyRuntimeWiring": "completed_local_committed_pushed_a9f4fea_production_not_deployed_canonical_authority_false",
     "validationCycleContinuation": "completed_local_committed_pushed_bf2af47_targeted_baseline_security_postgres16_and_commit_bound_gates_pass_production_not_connected",
     "validationCycleContinuationProductionPacket": "cycle3_rebind_commit_b098238_tree_494a9e6_pushed_commit_bound_autonomy15_pass_deterministic_bundle_4e438503_37692_bytes_remote_transport_and_isolated_contract_pass_preflight_decb44d_pass_first_request_rejected_before_lease_or_mutation_by_staging_0755_boundary_new_0700_staging_new_request_e4e6798c_independent_validation_pass_runner_market_radar_cycle_continuation_b098238_196d9054_success_immediate_pass_production_head_clean_web_and_candidate_worker_running_production_check_ok_observer_active_g0_remains7",
@@ -150,11 +150,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE",
-    "title": "Cycle-3 unified observation lineage capture refresh",
+    "id": "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-REFRESH-LOCAL-SUPERPACKAGE",
+    "title": "Cycle-3 unified lineage reconciliation refresh",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "在Cycle-3生产统一观察继续运行期间，把旧Activation/Accumulation/Fresh三目录Lineage合同刷新为单一Cycle-3原始样本证据加完整数据库control lineage；原始样本必须重新证明289样本、24小时、10000 completed writes、至少1800秒、至少7样本、至少两次真实推进和unresolved=0，任何阈值不得降低。",
+    "objective": "在Cycle-3生产统一观察继续运行期间，把旧Reconciliation对Activation/Accumulation/Fresh和Lineage v1的依赖刷新为只接受Cycle-3统一Lineage v2；必须逐行对账至少10000条legacy_scan_candidate及其Candidate event和Episode投影，完整覆盖Cycle-1至Cycle-3 release lineage，difference、duplicate、outside lineage和unresolved全部为0，且不得自动推进Shadow Verify。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -165,14 +165,14 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
-      "docs/governance/WP_G0_2_CYCLE_3_UNIFIED_LINEAGE_REFRESH_LOCAL_SUPERPACKAGE_V2.md",
-      "docs/governance/wp-g0-2-cycle-3-unified-lineage-refresh-local-superpackage.v2.json",
-      "docs/governance/wp-g0-2-cycle-3-unified-lineage-capture-production-packet.v2.json",
-      "scripts/governance/candidate-lineage-capture.mjs",
-      "scripts/governance/candidate-lineage-capture.test.mjs",
-      "scripts/production/candidate-lineage/**",
-      "scripts/rehearsal/candidate-lineage-postgres16.sh",
-      "reports/wp-g0-2-cycle-3-unified-lineage-refresh/**"
+      "docs/governance/WP_G0_2_CYCLE_3_UNIFIED_RECONCILIATION_REFRESH_LOCAL_SUPERPACKAGE_V2.md",
+      "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2.json",
+      "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-production-packet.v2.json",
+      "scripts/governance/candidate-reconciliation-runner.mjs",
+      "scripts/governance/candidate-reconciliation-runner.test.mjs",
+      "scripts/production/candidate-reconciliation/**",
+      "scripts/rehearsal/candidate-reconciliation-postgres16.sh",
+      "reports/wp-g0-2-cycle-3-unified-reconciliation-refresh/**"
     ],
     "prohibitedPaths": [
       "migrations/candidate-episode/**",
@@ -191,31 +191,29 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/WP_G0_2_CYCLE_3_UNIFIED_LINEAGE_REFRESH_LOCAL_SUPERPACKAGE_V2.md",
-      "docs/governance/wp-g0-2-cycle-3-unified-lineage-refresh-local-superpackage.v2.json",
-      "docs/governance/wp-g0-2-cycle-3-unified-lineage-capture-production-packet.v2.json",
-      "scripts/governance/candidate-lineage-capture.mjs",
-      "scripts/governance/candidate-lineage-capture.test.mjs",
-      "scripts/production/candidate-lineage/bundle.mjs",
-      "scripts/production/candidate-lineage/bundle.test.mjs",
-      "scripts/production/candidate-lineage/production-boundary.test.mjs",
-      "scripts/production/candidate-lineage/production-entrypoint.sh",
-      "scripts/production/candidate-lineage/production-runner.mjs",
-      "scripts/production/candidate-lineage/production-runner.sh",
-      "scripts/production/candidate-lineage/production-runner.test.mjs",
-      "scripts/production/candidate-lineage/runner.mjs",
-      "scripts/production/candidate-lineage/runner.test.mjs",
-      "scripts/production/candidate-lineage/runner-postgres.integration.mjs",
-      "scripts/rehearsal/candidate-lineage-postgres16.sh",
-      "reports/wp-g0-2-cycle-3-unified-lineage-refresh/WP_G0_2_CYCLE_3_UNIFIED_LINEAGE_REFRESH_REPORT.md"
+      "docs/governance/WP_G0_2_CYCLE_3_UNIFIED_RECONCILIATION_REFRESH_LOCAL_SUPERPACKAGE_V2.md",
+      "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-refresh-local-superpackage.v2.json",
+      "docs/governance/wp-g0-2-cycle-3-unified-reconciliation-production-packet.v2.json",
+      "scripts/governance/candidate-reconciliation-runner.mjs",
+      "scripts/governance/candidate-reconciliation-runner.test.mjs",
+      "scripts/production/candidate-reconciliation/bundle.mjs",
+      "scripts/production/candidate-reconciliation/bundle.test.mjs",
+      "scripts/production/candidate-reconciliation/production-boundary.test.mjs",
+      "scripts/production/candidate-reconciliation/production-entrypoint.sh",
+      "scripts/production/candidate-reconciliation/production-runner.sh",
+      "scripts/production/candidate-reconciliation/runner.mjs",
+      "scripts/production/candidate-reconciliation/runner.test.mjs",
+      "scripts/production/candidate-reconciliation/runner-postgres.integration.mjs",
+      "scripts/rehearsal/candidate-reconciliation-postgres16.sh",
+      "reports/wp-g0-2-cycle-3-unified-reconciliation-refresh/WP_G0_2_CYCLE_3_UNIFIED_RECONCILIATION_REFRESH_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:lineage-capture:validate",
-        "test:candidate-lineage-capture",
-        "candidate:lineage-capture:pg16-rehearsal",
-        "candidate:lineage-production:validate",
-        "test:candidate-lineage-production-packet",
+        "candidate:reconciliation-runner:validate",
+        "test:candidate-reconciliation-runner",
+        "candidate:reconciliation-runner:pg16-rehearsal",
+        "candidate:reconciliation-production:validate",
+        "test:candidate-reconciliation-production-packet",
         "test:autonomy"
       ],
       "baseline": [
@@ -232,15 +230,15 @@
       ]
     },
     "completionBoundary": [
-      "唯一运行证据必须是Cycle-3统一observer保留的cycle-observation final、samples和closeout，三个文件必须私有、普通、单链接且SHA256精确绑定",
-      "原始样本必须由当前evaluateCycleObservation重新计算并逐字节语义等于final；状态只能是PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
-      "统一证据必须同时满足至少289连续样本、24小时、最大间隔600秒、completed至少10000、至少1800秒、至少7样本、至少两次真实推进和unresolved=0",
-      "历史197样本ROLLBACK和Cycle-2零样本失败都只能作为数据库control历史，禁止冒充独立Activation或Accumulation PASS输入",
-      "数据库必须在REPEATABLE READ READ ONLY并SET LOCAL ROLE candidate_audit_role下采集完整Cycle-1至Cycle-3相邻control和各release completed计数",
-      "Cycle-1/Cycle-2必须legacy frozen even epoch，Cycle-3必须唯一shadow_capture writable odd epoch；所有72小时窗口和release唯一性必须验证",
-      "legacy_scan_candidate completed总和必须等于统一final completedWrites；outside lineage、pending、claimed、retry_wait和unresolved全部为0",
-      "输出只允许candidate-multi-cycle-lineage-evidence.v2和PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH；Reconciliation、Shadow Verify、Canonical和G0均保持false",
-      "生产包本轮只做本地实现和隔离演练，不得连接或修改生产；未来生产采集仍需双门禁真实PASS和全新一次性request",
+      "唯一先决证据必须是candidate-multi-cycle-lineage-evidence.v2和PASS_CYCLE3_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH，文件必须私有普通单链接且SHA256精确绑定",
+      "Reconciliation不得再读取历史Activation final、samples或closeout，也不得接受Lineage v1、两窗口或人工epoch减一模型",
+      "Lineage必须精确包含Cycle-1至Cycle-3三个source release windows、统一观察阈值事实和Cycle-3当前身份，request与数据库必须逐字段一致",
+      "数据库必须在REPEATABLE READ READ ONLY并SET LOCAL ROLE candidate_audit_role下采集完整三代control；历史两轮legacy frozen even epoch，当前Cycle-3 shadow_capture active odd epoch",
+      "至少10000条legacy_scan_candidate completed必须逐行核对immutable source payload hash、projection command hash、Candidate event与Episode身份",
+      "source到event必须一对一；difference、duplicate outbox、duplicate event、outside lineage、pending、claimed、retry_wait和unresolved全部为0",
+      "Reconciliation输出必须为candidate-cycle3-reconciliation-evidence.v2和PASS_CYCLE3_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL，并绑定Lineage文件与语义哈希",
+      "automatic phase advance、Shadow Verify transition、Canonical read/write、Review read、production ranking和future outcome输入全部保持false",
+      "生产包本轮只做本地实现和隔离演练，不得连接或修改生产；未来生产对账仍需Cycle-3双门禁与生产Lineage真实PASS及全新一次性request",
       "scan排序、analysis、strategy、RR、Risk Gate、trade plan、backtest、frontend、future outcome输入和migration全部禁止修改",
       "formal backtest禁止运行"
     ],
@@ -253,7 +251,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "Lineage v2只接受Cycle-3统一原始证据并重新证明24小时/289样本与10000真实writes双门禁，同时把Cycle-1至Cycle-3全部数据库control和release completed计数绑定为不可篡改只读血缘；旧三目录假设和旧样本schema均被测试拒绝。"
+      "measurableOutcome": "Reconciliation v2只接受Cycle-3统一Lineage v2，并在PostgreSQL 16隔离环境逐行证明三代release至少10000条source到Candidate event/Episode投影零差异、零重复、零outside lineage和零unresolved；旧Activation文件、Lineage v1与人工epoch模型均被测试拒绝。"
     }
   },
   "approvals": [
@@ -625,6 +623,13 @@
     {
       "order": 51,
       "id": "WP-G0.2-CYCLE-3-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_854295b_gate14_pass",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 52,
+      "id": "WP-G0.2-CYCLE-3-UNIFIED-RECONCILIATION-REFRESH-LOCAL-SUPERPACKAGE",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": false

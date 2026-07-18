@@ -6203,3 +6203,44 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只继续同一 Cycle-3 observer；双门禁真实 PASS 后，再以全新 commit-bound 一次性请求执行只读生产 Lineage v2 采集。
+
+## 2026-07-18 / WP-G0.2 Cycle-3 Unified Reconciliation Refresh Local Superpackage
+
+### 本轮目标
+
+淘汰旧 Reconciliation 对历史 Activation 文件、Lineage v1、双窗口和人工 epoch 模型的依赖，只接受 Cycle-3 统一 Lineage v2，并为未来生产只读对账准备独立 Packet。
+
+### 修改范围
+
+- Reconciliation Runner、治理 validator、生产 Bundle、一次性 request、transient systemd shell 入口和 PostgreSQL 16 演练全部刷新为 v2。
+- 唯一上游证据为 `candidate-multi-cycle-lineage-evidence.v2`；Lineage 文件必须是私有普通单链接文件并与 request SHA-256 精确绑定。
+- 三个 release window 固定为 Cycle-1/2 历史 `legacy/frozen/even epoch` 与 Cycle-3 当前 `shadow_capture/active/odd epoch`；数据库逐字段精确匹配。
+- 逐行核对 immutable source payload hash、projection command hash、Candidate event 和 Episode identity；任何 difference、duplicate、outside lineage 或 unresolved 都失败关闭。
+- 未修改 migration、生产数据库、Redis、worker、frontend、API、scan、analysis、strategy、RR、trade plan、backtest、env 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选与复盘进化的一致性证明；不生成信号、不改变生产排序、不创建或放宽交易计划。
+
+### 测试结果
+
+- 旧基线 24 pass / 1 fail，且绿色用例仍锁定过期双窗口模型；未把旧绿灯当完成。
+- 最终定向合并 `26/26 PASS`；自治攻击性测试 `31/31 PASS`。
+- PostgreSQL 16 隔离演练：10,020 writes=`[2957,0,7063]`、差异 0、只读事务拒写、audit role 生效、phase 保持 `shadow_capture`、`productionConnected=false`。
+- typecheck、lint、test:market `1,027 pass / 0 fail / 7 explicit skip`、workers `23/23`、historical `4/4`、build、Golden `16/16`：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。security 首轮真实拦截测试中的虚构密码字符串，改为明确脱敏占位值后相关测试与安全门禁重跑通过；未放宽规则。
+- formal：未运行，合同禁止。
+
+### 是否部署
+
+未部署、未连接生产数据库、未执行生产 Reconciliation。生产 observer 截至 18:20 CST 仍 active：33/289 样本、9,701 秒、11 次推进、completed=3,471、unresolved=0，两个 readiness 均为 false。
+
+### 风险与遗留问题
+
+- 本地 Reconciliation PASS 不等于生产 Lineage 或生产 Reconciliation PASS。
+- 双门禁真实通过前禁止生成生产 Lineage/Reconciliation 一次性 request；生产观察异常仍可能自动回滚。
+- Shadow Verify、Canonical Compat、Canonical Cutover、WP-G0.2 与 G0 均未完成；G0 主步骤仍为 7。
+
+### 下一轮建议
+
+只继续同一 Cycle-3 observer；双门禁真实 PASS 后先执行只读生产 Lineage v2，再用全新 commit-bound 一次性请求执行生产 Reconciliation v2。

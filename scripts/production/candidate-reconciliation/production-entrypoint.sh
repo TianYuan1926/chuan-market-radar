@@ -5,7 +5,7 @@ umask 077
 SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 ENTRYPOINT_MODE="${CANDIDATE_RECONCILIATION_ENTRYPOINT_MODE:-launcher}"
-STAGING_BASENAME_PREFIX="wp-g0-2-reconciliation-"
+STAGING_BASENAME_PREFIX="wp-g0-2-cycle3-reconciliation-"
 BUNDLE_MARKER="${SOURCE_ROOT}/.transport-bundle.sha256"
 TRANSPORT_MANIFEST="${SOURCE_ROOT}/transport-manifest.json"
 PACKET_VALIDATOR="${SOURCE_ROOT}/scripts/production/candidate-reconciliation/bundle.mjs"
@@ -31,9 +31,6 @@ APPROVED_SECURE_ROOT="$(jq -r '.secureRoot // empty' "${REQUEST_FILE}")"
 APPROVED_OPS_ROOT="$(jq -r '.opsRoot // empty' "${REQUEST_FILE}")"
 APPROVED_EVIDENCE_DIRECTORY="$(jq -r '.evidenceDirectory // empty' "${REQUEST_FILE}")"
 APPROVED_POSTGRES_ADMIN_ENV="$(jq -r '.postgresAdminEnvPath // empty' "${REQUEST_FILE}")"
-ACTIVATION_FINAL="$(jq -r '.activationEvidencePath // empty' "${REQUEST_FILE}")"
-ACTIVATION_CLOSEOUT="$(jq -r '.activationCloseoutPath // empty' "${REQUEST_FILE}")"
-ACTIVATION_SAMPLES="$(jq -r '.activationSamplesPath // empty' "${REQUEST_FILE}")"
 LINEAGE_FINAL="$(jq -r '.lineageEvidencePath // empty' "${REQUEST_FILE}")"
 ACTUAL_SOURCE_ROOT="$(realpath "${SOURCE_ROOT}")"
 ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
@@ -54,28 +51,18 @@ ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
   && "${APPROVED_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ \
   && "$(tr -d '\r\n' < "${BUNDLE_MARKER}")" == "${APPROVED_BUNDLE_SHA256}" ]] \
   || fail staged_packet_boundary_invalid
-[[ "${APPROVED_UNIT}" =~ ^market-radar-reconciliation-[a-z0-9][a-z0-9-]{7,48}$ \
+[[ "${APPROVED_UNIT}" =~ ^market-radar-cycle3-reconciliation-[a-z0-9][a-z0-9-]{7,48}$ \
   && "$(jq -r '.sessionIndependentExecutionRequired // false' "${REQUEST_FILE}")" == "true" \
   && "${APPROVED_TRUST_ROOT}" == "${AUTONOMY_TRUST_ROOT}" \
   && "${APPROVED_PRODUCTION_ROOT}" == "${PRODUCTION_ROOT}" \
   && "${APPROVED_POSTGRES_ADMIN_ENV}" == "${POSTGRES_ADMIN_ENV}" \
   && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-reconciliation/* \
-  && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-reconciliation-* \
-  && "${APPROVED_EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-reconciliation-* ]] \
+  && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-* \
+  && "${APPROVED_EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle3-reconciliation-* ]] \
   || fail session_independent_identity_invalid
-[[ "$(dirname "${ACTIVATION_FINAL}")" == "$(dirname "${ACTIVATION_CLOSEOUT}")" \
-  && "$(dirname "${ACTIVATION_FINAL}")" == "$(dirname "${ACTIVATION_SAMPLES}")" ]] \
-  || fail activation_evidence_directory_mismatch
-ACTIVATION_DIRECTORY="$(dirname "${ACTIVATION_FINAL}")"
-[[ "$(realpath "${ACTIVATION_DIRECTORY}")" == "${ACTIVATION_DIRECTORY}" ]] \
-  || fail activation_evidence_directory_not_canonical
-for file in "${ACTIVATION_FINAL}" "${ACTIVATION_CLOSEOUT}" "${ACTIVATION_SAMPLES}"; do
-  [[ -f "${file}" && ! -L "${file}" && "$(realpath "${file}")" == "${file}" ]] \
-    || fail "activation_evidence_missing:$(basename "${file}")"
-done
 LINEAGE_DIRECTORY="$(dirname "${LINEAGE_FINAL}")"
 [[ "$(realpath "${LINEAGE_DIRECTORY}")" == "${LINEAGE_DIRECTORY}"
-  && "${LINEAGE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-candidate-lineage-* ]] \
+  && "${LINEAGE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-* ]] \
   || fail lineage_evidence_directory_invalid
 [[ -f "${LINEAGE_FINAL}" && ! -L "${LINEAGE_FINAL}"
   && "$(realpath "${LINEAGE_FINAL}")" == "${LINEAGE_FINAL}" ]] \
@@ -96,7 +83,6 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
   --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --mount "type=bind,src=${ACTUAL_SOURCE_ROOT},dst=/packet,readonly" \
-  --mount "type=bind,src=${ACTIVATION_DIRECTORY},dst=${ACTIVATION_DIRECTORY},readonly" \
   --mount "type=bind,src=${LINEAGE_DIRECTORY},dst=${LINEAGE_DIRECTORY},readonly" \
   --entrypoint node "${WEB_IMAGE}" \
   /packet/scripts/production/candidate-reconciliation/bundle.mjs validate-request \
@@ -130,9 +116,9 @@ fi
 cleanup() {
   local exit_code=$?
   trap - EXIT INT TERM HUP
-  [[ "${ACTUAL_SOURCE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-reconciliation-* \
+  [[ "${ACTUAL_SOURCE_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle3-reconciliation-* \
     && "${APPROVED_SECURE_ROOT}" == /home/ubuntu/.local/state/market-radar-reconciliation/* \
-    && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-reconciliation-* \
+    && "${APPROVED_OPS_ROOT}" == /home/ubuntu/.cache/market-radar-ops/reconciliation-ops/wp-g0-2-cycle3-reconciliation-* \
     && "${APPROVED_EVIDENCE_DIRECTORY}" != "${ACTUAL_SOURCE_ROOT}" \
     && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_SECURE_ROOT}" \
     && "${APPROVED_EVIDENCE_DIRECTORY}" != "${APPROVED_OPS_ROOT}" ]] || exit 98
@@ -152,9 +138,6 @@ for parent in \
 done
 mkdir "${APPROVED_SECURE_ROOT}"
 chmod 700 "${APPROVED_SECURE_ROOT}"
-install -m 0600 "${ACTIVATION_FINAL}" "${APPROVED_SECURE_ROOT}/observation-final.json"
-install -m 0600 "${ACTIVATION_CLOSEOUT}" "${APPROVED_SECURE_ROOT}/observation-closeout.json"
-install -m 0600 "${ACTIVATION_SAMPLES}" "${APPROVED_SECURE_ROOT}/observation-samples.jsonl"
 install -m 0600 "${LINEAGE_FINAL}" "${APPROVED_SECURE_ROOT}/lineage-final.json"
 jq '.reconciliationApproval' "${ACTUAL_REQUEST}" > "${APPROVED_SECURE_ROOT}/reconciliation-request.json"
 chmod 600 "${APPROVED_SECURE_ROOT}/reconciliation-request.json"
