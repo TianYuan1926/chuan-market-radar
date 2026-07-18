@@ -2,6 +2,44 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-ACCEL-02 G0 Closure Train Execution Overlay
+
+### 本轮目标
+
+在不改变 Gate 顺序、生产单写入者、真实观察时间、样本分母和交易逻辑红线的前提下，大幅减少 G0 后续重复上传、重复构建、人工终端等待和观察器缺陷造成的整轮返工。
+
+### 修改范围
+
+- 新增 `MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V2.md`，定义 G0.2 关闭列车、发布候选冻结、生产前并发预演、内容寻址门禁复用、构建一次按 digest 晋级、观察与本地准备重叠、一次运输和自动证据收口。
+- 蓝图 README 将 v2 设为当前提速覆盖层，v1 保留为历史依据。
+- 更新自治状态和项目 Context，修正 Cycle-6 v4 已提交推送但尚未生产执行的事实。
+- 未修改 frontend、API、scan、analysis、strategy、backtest、RR、Risk Gate、migration、DB、Redis、Worker、Compose、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+只强化候选筛选和复盘进化的工程交付地基，目标是让严格 Gate 连续、稳定、可回滚地通过生产；不新增信号，不改变排序，不生成交易计划。
+
+### 测试结果
+
+- JSON、`git diff --check`、Autonomy 31/31：PASS。
+- typecheck、lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal 未运行且禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或修改生产。Cycle-6 尚未启动。
+
+### 风险与遗留问题
+
+- 关闭列车只能合并运输和调度，不能合并独立子 Gate、样本或 lease。
+- 当前 G0 主步骤仍为 7；只有对应生产出口 Gate PASS 才减数。
+- 理想 G0 关键路径仍含三个独立 24 小时窗口和 HTTPS 7 天 burn-in，成功启动 Cycle-6 后约 10 至 11 天。
+
+### 下一轮建议
+
+只完成 fresh production read-only preflight、Cycle-6 精确 request 和一次关闭列车启动。
+
 ## 2026-07-19 / WP-G0.2 Cycle-5 Observation Snapshot Coherence Remediation
 
 ### 本轮目标
@@ -35,7 +73,7 @@
 ### 风险与遗留问题
 
 - Cycle-5 57 条捕获、56 条有效样本和不足 24 小时窗口不可复用；Cycle-6 必须从零开始。
-- 本地 v4 PASS 尚待 clean commit、提交绑定自治总门禁、确定性 Bundle、动态生产 preflight 和一次性生产 request。
+- 本地 v4 已 clean commit 并推送，提交绑定自治总门禁和确定性 Bundle 已 PASS；仍待动态生产 preflight 和一次性 production request。
 - G0 主步骤仍为 7，系统仍不能支撑实战。
 
 ### 下一轮建议

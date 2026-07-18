@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T06:37:22+08:00",
+  "updatedAt": "2026-07-19T07:18:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -13,13 +13,13 @@
     "dormantRuntimeProduction": "pass_web_only_dormant_release_target_cec0b657_1800_seconds_57_samples_ready_fresh_candidate_dormant_worker_absent_no_database_redis_env_or_other_service_mutation_rollback_image_retained_staging_removed_closeout_complete",
     "runtimeIdentityPreflight": "pass_local_and_production_exact_request_consumed_successfully",
     "runtimeIdentityProduction": "pass_runtime_identity_and_permission_7_samples_1851_seconds_continuous_ready_fresh_three_noinherit_logins_three_fixed_memberships_three_candidate_urls_zero_privileged_logins_zero_feature_flags_candidate_dormant_worker_absent",
-    "activationObservationPreparation": "cycle5_failed_after_57_captured_56_valid_samples_last_valid_completed4556_rejected_database4602_monitor4578_automatic_rollback_pass_samples_not_reusable_cycle6_snapshot_bracket_remediation_local_gates_in_progress_g0_remains7",
+    "activationObservationPreparation": "cycle5_failed_after_57_captured_56_valid_samples_last_valid_completed4556_rejected_database4602_monitor4578_automatic_rollback_pass_samples_not_reusable_cycle6_snapshot_bracket_remediation_committed_pushed_abae0b5_production_preflight_not_started_g0_remains7",
     "reconciliationPreparation": "current_cycle_v3_local_targeted_pass_postgres16_five_controls_10020_writes_2004_each_zero_difference_readonly_audit_role_production_not_connected_waiting_cycle5_observer_and_production_lineage_pass_shadow_verify_false_g0_false",
     "canonicalCompatPreparation": "pass_local_superpackage_committed_pushed_194ccf3_production_not_connected_canonical_authority_false",
     "g0SecurityReleaseIncidentPreparation": "completed_local_superpackage_committed_pushed_d2ee45f_production_blocked",
     "reconciliationProductionPacket": "pass_local_current_cycle_v3_packet_runner_artifact_fa1a3708_execution_artifact_021ec7aef_single_lineage_evidence_only_exact_five_windows_deterministic_redacted_transport_production_not_executed_waiting_cycle5_observer_and_production_lineage_pass",
     "shadowVerifyRuntimeWiring": "completed_local_committed_pushed_a9f4fea_production_not_deployed_canonical_authority_false",
-    "validationCycleContinuation": "cycle6_snapshot_coherence_remediation_local_v4_targeted42_postgres16_cycle5_to_cycle6_exact_pass_baseline_security_pass_commit_not_yet_created_production_not_connected",
+    "validationCycleContinuation": "cycle6_snapshot_coherence_remediation_local_v4_targeted42_postgres16_cycle5_to_cycle6_exact_pass_baseline_security_postcommit_autonomy14_pass_committed_pushed_abae0b5_production_not_connected",
     "validationCycleContinuationProductionPacket": "cycle5_observer_sample57_rejected_sample_monitor_completed_mismatch_database_after4602_monitor4578_prior_valid4556_automatic_rollback_pass_production_cec0b657_tree_eb217a7_web_cd365_healthy_candidate_absent_cycle5_legacy_frozen_epoch2_episodes596_events4602_outbox9204_preserved_v4_bracketed_cycle6_packet_local_only",
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
     "freshVerificationCycleLineageCapture": "pass_local_current_cycle_v3_refresh_postgres16_five_controls_10020_writes_release_distribution_2505_0_2505_0_5010_readonly_audit_role_production_not_connected_observer_unchanged",
@@ -36,6 +36,19 @@
   "wipLimits": {
     "production": 1,
     "localPreparation": 1
+  },
+  "accelerationOverlay": {
+    "schemaVersion": "market-radar-accelerated-delivery.v2",
+    "status": "active_execution_overlay",
+    "path": "docs/blueprints/MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V2.md",
+    "g0MainSteps": 7,
+    "countReductionRule": "only_after_corresponding_production_exit_gate_pass",
+    "productionClosureTrain": true,
+    "productionWip": 1,
+    "localPreparationWip": 1,
+    "observationThresholdsUnchanged": true,
+    "gateOrderUnchanged": true,
+    "formalBacktestStillForbidden": true
   },
   "truthLabels": [
     "完整完成",
@@ -668,6 +681,13 @@
       "id": "WP-G0.2-CYCLE-5-OBSERVATION-SNAPSHOT-COHERENCE-REMEDIATION",
       "lane": "localPreparation",
       "status": "ready_for_gate",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 62,
+      "id": "WP-ACCEL-02-G0-CLOSURE-TRAIN-EXECUTION-OVERLAY",
+      "lane": "localPreparation",
+      "status": "targeted_baseline_security_pass_ready_for_commit",
       "requiresExplicitApproval": false
     }
   ]
