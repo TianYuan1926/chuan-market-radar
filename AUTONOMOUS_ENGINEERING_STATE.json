@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T01:56:41+08:00",
+  "updatedAt": "2026-07-19T05:43:08+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -27,7 +27,7 @@
     "shadowVerifyCodeAuthorization": "current_cycle_v3_dependency_refresh_local_targeted_pass_accepts_only_exact_five_window_lineage_and_zero_difference_reconciliation_production_not_connected_not_deployed_phase_not_changed",
     "shadowVerifyCodeAuthorizationProductionRelease": "current_cycle_v3_dependency_refresh_committed_pushed_2c8bf776_gate21_pass_old_release_target_54837d0_to_eb48827_stale_against_production_94b6d415_exact_three_code_blobs_already_present_code_presence_identity_remediation_active",
     "shadowVerifyPhaseTransitionAndDualReadObservation": "current_cycle_v3_dependency_refresh_local_targeted_pass_production_not_connected_phase_not_changed_observation_not_started",
-    "canonicalCompatPhaseTransitionAndObservation": "completed_local_committed_pushed_8d6e37d_targeted_20_of_20_domain_105_of_105_with_3_explicit_pg_skips_postgres16_10000_write_shadow_verify_to_canonical_compat_and_legacy_frozen_rollback_market_1026_of_1026_workers_23_of_23_historical_4_of_4_build_golden_16_of_16_security_and_postcommit_autonomy_13_of_13_pass_bundle_f5fb00f3_production_not_connected_phase_not_changed_observation_not_started",
+    "canonicalCompatPhaseTransitionAndObservation": "current_cycle_v2_local_implementation_and_precommit_gates_pass_code_presence_r0_then_dynamic_independent_r2_single_upload_single_outer_unit_exact_five_cycle_v3_lineage_reconciliation_and_289_sample_24h_dual_read_required_production_not_connected_phase_not_changed_observation_not_started_waiting_shadow_verify_final",
     "canonicalRollbackStateMachineRemediation": "completed_local_committed_pushed_5e777e4_postcommit_autonomy_12_of_12_migration_010_sha_2ae3247a_production_not_applied_canonical_cutover_blocked",
     "canonicalRollbackSafetyProductionAddSchema": "completed_production_pass_commit_26d01d1_bundle_9b7ac0e9_request_6e5ed1b4_migration_rows_10_function_owner_candidate_migration_role_least_privilege_business_data_unchanged_git_compose_env_services_containers_unchanged_lease_token13_released_evidence_retained_temp_cleanup_complete_independent_verify_pass",
     "legacyPendingDrainRemediation": "superseded_source_lane_classification_old_local_rehearsal_did_not_model_candidate_event_outbox_production_guard_now_requires_legacy_pending_and_rejects_actual_candidate_event_only_shape",
@@ -150,11 +150,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CYCLE-5-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW",
-    "title": "Cycle-5 read-only verification to Shadow Verify automatic production handoff superwindow",
+    "id": "WP-G0.2-CURRENT-CYCLE-CANONICAL-COMPAT-DEPENDENCY-REFRESH-AND-AUTOMATIC-HANDOFF",
+    "title": "Current-cycle Shadow Verify to Canonical Compat dependency refresh and automatic production handoff",
     "lane": "localPreparation",
     "status": "ready_for_gate",
-    "objective": "把Cycle-5只读验证超级窗口和Shadow Verify phase/dual-read子包封装为一次上传、一次启动、两个独立授权域的严格串行生产流水线；只有Code Presence、Lineage和Reconciliation全部独立PASS后才动态生成R2请求并启动Shadow Verify观察。",
+    "objective": "淘汰Canonical Compat历史v1 Packet对旧Lineage/Reconciliation状态和eb48827生产身份的依赖，改为只接受当前五周期v3证据、当前Shadow Verify 289样本/24小时零差异证据和当前生产Canonical代码存在性证明，并准备一次上传、一次启动、R0与R2授权独立的严格串行交接。",
     "coreChainImpact": ["候选筛选", "复盘进化"],
     "productionMutation": true,
     "requiresExplicitApproval": true,
@@ -163,9 +163,14 @@
       "CHANGELOG_FOR_CHATGPT.md",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/wp-g0-2-cycle-5-to-shadow-verify-automatic-handoff-superwindow.v1.json",
-      "scripts/production/candidate-shadow-verify-handoff/**",
-      "reports/wp-g0-2-cycle-5-to-shadow-verify-automatic-handoff-superwindow/**"
+      "docs/governance/wp-g0-2-canonical-compat-code-presence-current-cycle.v1.json",
+      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v2.json",
+      "docs/governance/wp-g0-2-current-cycle-canonical-compat-dependency-refresh-and-automatic-handoff.v1.json",
+      "scripts/production/candidate-canonical-compat-code-presence/**",
+      "scripts/production/candidate-canonical-compat-phase/**",
+      "scripts/production/candidate-canonical-compat-handoff/**",
+      "scripts/rehearsal/candidate-canonical-compat-phase-postgres16.sh",
+      "reports/wp-g0-2-current-cycle-canonical-compat-dependency-refresh-and-automatic-handoff/**"
     ],
     "prohibitedPaths": [
       "migrations/candidate-episode/**", "src/lib/market/**", "src/lib/analysis/**",
@@ -177,49 +182,55 @@
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
       "package.json",
-      "docs/governance/wp-g0-2-cycle-5-to-shadow-verify-automatic-handoff-superwindow.v1.json",
-      "scripts/production/candidate-shadow-verify-handoff/runner.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/request-generator.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/bundle.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/runner.test.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/bundle.test.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/production-boundary.test.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/production-launch.sh",
-      "scripts/production/candidate-shadow-verify-handoff/production-entrypoint.sh",
-      "scripts/production/candidate-shadow-verify-handoff/production-runner.sh",
-      "reports/wp-g0-2-cycle-5-to-shadow-verify-automatic-handoff-superwindow/WP_G0_2_CYCLE_5_TO_SHADOW_VERIFY_AUTOMATIC_HANDOFF_SUPERWINDOW_REPORT.md"
+      "docs/governance/wp-g0-2-canonical-compat-code-presence-current-cycle.v1.json",
+      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v2.json",
+      "docs/governance/wp-g0-2-current-cycle-canonical-compat-dependency-refresh-and-automatic-handoff.v1.json",
+      "scripts/production/candidate-canonical-compat-code-presence/runner.mjs",
+      "scripts/production/candidate-canonical-compat-code-presence/bundle.mjs",
+      "scripts/production/candidate-canonical-compat-phase/runner.mjs",
+      "scripts/production/candidate-canonical-compat-phase/bundle.mjs",
+      "scripts/production/candidate-canonical-compat-handoff/runner.mjs",
+      "scripts/production/candidate-canonical-compat-handoff/request-generator.mjs",
+      "scripts/production/candidate-canonical-compat-handoff/bundle.mjs",
+      "scripts/production/candidate-canonical-compat-handoff/production-launch.sh",
+      "scripts/production/candidate-canonical-compat-handoff/production-entrypoint.sh",
+      "scripts/production/candidate-canonical-compat-handoff/production-runner.sh",
+      "reports/wp-g0-2-current-cycle-canonical-compat-dependency-refresh-and-automatic-handoff/WP_G0_2_CURRENT_CYCLE_CANONICAL_COMPAT_DEPENDENCY_REFRESH_AND_AUTOMATIC_HANDOFF_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:shadow-verify-handoff:validate",
-        "test:candidate-shadow-verify-handoff",
-        "test:candidate-readonly-superwindow",
-        "test:candidate-shadow-verify-phase",
-        "candidate:shadow-verify-phase:pg16-rehearsal",
+        "candidate:canonical-compat-handoff:validate",
+        "test:candidate-canonical-compat-handoff",
+        "test:candidate-canonical-compat-code-presence",
+        "test:candidate-canonical-compat-phase",
+        "candidate:canonical-compat-phase:pg16-rehearsal",
+        "test:canonical-compat-domain",
         "test:autonomy"
       ],
       "baseline": ["typecheck", "lint", "test:market", "build", "backtest:golden"],
       "security": ["ci:forbidden-files", "ci:secret-patterns", "security:check"]
     },
     "completionBoundary": [
-      "Cycle-5 final必须真实满足10,000 writes、289样本、24小时、至少2次推进、最大样本间隔600秒和unresolved=0，禁止缩短或复用中途快照",
-      "一次运输必须包含逐字节哈希绑定的只读超级窗口与Shadow Verify phase两个完整子Packet，两个子合同、子授权、子租约和子证据必须独立",
-      "顺序固定为Cycle-5 PASS -> Code Presence -> Lineage -> Reconciliation -> 动态R2 request -> Shadow Verify immediate sample -> 独立24小时dual-read observer",
-      "任一只读子步骤非PASS必须阻止phase request生成；R2 request只能使用本次只读超级窗口输出的精确path、SHA和当前生产身份动态生成",
-      "Shadow Verify仍必须289样本、至少24小时、全cursor链、SERIALIZABLE READ ONLY DEFERRABLE、candidate_audit_role和零差异，禁止单页或抽样替代",
-      "生产变更仍只允许既有Shadow Verify子包修改三个read flags、manifest、control phase并仅force-recreate Web；禁止外层直接修改DB、env、Compose、Git或服务",
-      "phase前失败保持shadow_capture；phase后失败必须由既有子包自动回滚到legacy/frozen、关闭flags、移除manifest并验证Candidate数据保留",
-      "生产WIP始终为1；Cycle-5 observer PASS前禁止上传或启动本流水线，本地PASS不得包装为生产PASS",
+      "上游Shadow Verify final必须真实满足289样本、至少24小时、最大样本间隔600秒、全cursor链和零差异，禁止缩短、抽样或复用中途快照",
+      "Lineage必须为当前五周期v3，Reconciliation必须为同一当前周期v3并至少逐行比较10,000 writes且所有差异、重复和unresolved为0",
+      "Canonical代码存在性必须只读证明当前production commit/tree、运行Web image/build record、完整Canonical应用blob、shadow_verify manifest/flags和Legacy response authority精确一致",
+      "一次运输必须包含逐字节哈希绑定的R0代码存在性Packet与R2 Canonical Compat phase Packet；两个子合同、授权、租约、回滚和证据保持独立",
+      "顺序固定为Shadow Verify final PASS -> Canonical Code Presence -> 动态R2 request -> canonical_compat phase -> immediate full snapshot -> 独立289样本/24小时observer",
+      "任一前置证据非PASS必须阻止R2 request生成；R2 request只能使用本次R0输出和当前上游证据的精确path/SHA动态生成",
+      "Canonical Compat仍必须全分页、SERIALIZABLE READ ONLY DEFERRABLE、candidate_audit_role、每样本零差异且无legacy fallback/partial/unavailable",
+      "生产变更只允许既有Canonical Compat子包修改三个read flags、manifest、control phase并仅force-recreate Web；外层不得直接修改DB、env、Compose、Git或服务",
+      "phase后失败必须自动回滚到legacy/frozen、关闭全部Candidate flags、停止Candidate Worker、移除manifest并验证业务数据保留",
+      "生产WIP始终为1；Shadow Verify final PASS前禁止上传或启动本流水线，本地PASS不得包装为生产PASS",
       "scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、frontend、API、migration、Redis和worker业务逻辑禁止修改",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "shadow_verify_activation",
+    "actionClass": "canonical_compat_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
       "coreChainStages": ["候选筛选", "复盘进化"],
-      "measurableOutcome": "在不合并授权域和不缩短两个24小时窗口的前提下，把Cycle-5只读收口与Shadow Verify启动压缩为一次OrcaTerm上传和一次启动，消除中间人工运输与身份重绑等待。"
+      "measurableOutcome": "在不合并R0/R2授权域和不缩短Canonical Compat 24小时窗口的前提下，把Shadow Verify收口、当前代码身份核验与Canonical Compat启动压缩为一次上传和一次启动。"
     }
   },
   "approvals": [
@@ -647,6 +658,13 @@
     {
       "order": 59,
       "id": "WP-G0.2-CYCLE-5-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_920cd792_gate14_bundle_a3fc1c6a_production_not_executed_waiting_cycle5",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 60,
+      "id": "WP-G0.2-CURRENT-CYCLE-CANONICAL-COMPAT-DEPENDENCY-REFRESH-AND-AUTOMATIC-HANDOFF",
       "lane": "localPreparation",
       "status": "ready_for_gate",
       "requiresExplicitApproval": true

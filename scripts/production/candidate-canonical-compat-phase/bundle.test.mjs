@@ -21,19 +21,40 @@ const image = (character) => `sha256:${hash(character)}`;
 
 function reconciliationEvidence() {
   return {
-    schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
-    status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    schemaVersion: "candidate-multi-cycle-reconciliation-evidence.v3",
+    status:
+      "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
+    shadowVerifyTransitionExecuted: false,
+    canonicalReadEnabled: false,
+    canonicalWriteEnabled: false,
+    reviewReadEnabled: false,
+    g0Completed: false,
     productionRankingInputsUsed: false,
     futureOutcomeInputsUsed: false,
+    databaseIdentity: {
+      currentRole: "candidate_audit_role",
+      transactionReadOnly: true,
+      transactionIsolation: "repeatable read",
+    },
+    lineageIdentityBinding: "file_hash_request_database_exact_match",
+    lineageEvidenceSha256: `sha256:${hash("b")}`,
+    lineageSemanticEvidenceSha256: {
+      controlSnapshot: hash("c"),
+      unifiedFinal: hash("d"),
+      unifiedSamples: hash("e"),
+    },
     comparedWrites: 10000,
     comparisonDifferences: 0,
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
-    verificationMigrationId: "candidate-episode-v1-cycle-2",
+    resolvedQuarantineExclusions: 0,
+    sourceReleaseCount: 5,
+    verificationMigrationId: "candidate-episode-v1-cycle-5",
     evidenceHash: `sha256:${hash("a")}`,
     violations: [],
+    differenceSample: [],
   };
 }
 
@@ -41,9 +62,10 @@ function dualReadEvidence() {
   return {
     schemaVersion: "candidate-shadow-verify-observation-evidence.v1",
     status: "PASS_DUAL_READ_OBSERVATION",
-    migrationId: "candidate-episode-v1-cycle-2",
+    packageId: "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
+    migrationId: "candidate-episode-v1-cycle-5",
     releaseId: "candidate-shadow-release-12345678",
-    authorityEpoch: 3,
+    authorityEpoch: 4,
     sampleCount: 289,
     coverageHours: 24,
     maximumGapSeconds: 300,
@@ -57,6 +79,7 @@ function dualReadEvidence() {
     automaticPhaseAdvance: false,
     canonicalCompatStarted: false,
     canonicalCutoverExecuted: false,
+    g0Completed: false,
     violations: [],
     evidenceHash: `sha256:${hash("9")}`,
   };
@@ -85,9 +108,9 @@ function runtime() {
     currentWebImageId: image("c"),
     candidateWorkerContainerId: "d".repeat(12),
     candidateWorkerImageId: image("e"),
-    migrationId: "candidate-episode-v1-cycle-2",
+    migrationId: "candidate-episode-v1-cycle-5",
     releaseId: "candidate-shadow-release-12345678",
-    currentAuthorityEpoch: 3,
+    currentAuthorityEpoch: 4,
     currentApprovalDigest: `sha256:${hash("8")}`,
     currentManifestSha256: hash("9"),
     baseEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env",
@@ -115,7 +138,7 @@ function runtime() {
 
 test("validates the checked-in phase-transition contract", async () => {
   const contract = JSON.parse(await readFile(resolve(root,
-    "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v1.json")));
+    "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v2.json")));
   assert.equal(validateContract(contract).productionExecuted, false);
 });
 
@@ -129,7 +152,7 @@ test("creates a one-use, exact 90-minute, Web-only execution request", () => {
     runtime: runtime(),
   });
   assert.equal(request.productionCommit, REQUIRED_PRODUCTION_COMMIT);
-  assert.equal(request.targetAuthorityEpoch, 4);
+  assert.equal(request.targetAuthorityEpoch, 5);
   assert.deepEqual(request.services, ["web"]);
   assert.equal(request.approvalExpiresAt, "2026-07-17T01:30:00.000Z");
   assert.equal(request.autonomyAuthorization.maxExecutions, 1);

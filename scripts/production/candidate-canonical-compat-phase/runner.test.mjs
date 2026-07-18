@@ -14,9 +14,15 @@ import {
   validateObservationSample,
   validateReconciliationEvidence,
 } from "./runner.mjs";
+import {
+  PRODUCTION_COMMIT as CODE_PRESENCE_PRODUCTION_COMMIT,
+  PRODUCTION_TREE as CODE_PRESENCE_PRODUCTION_TREE,
+  REFERENCE_CODE_PATHS,
+  buildCodePresenceEvidence,
+} from "../candidate-canonical-compat-code-presence/runner.mjs";
 
 const releaseId = "candidate-shadow-release-12345678";
-const migrationId = "candidate-episode-v1-cycle-2";
+const migrationId = "candidate-episode-v1-cycle-5";
 const reconciliationHash = `sha256:${"1".repeat(64)}`;
 const manifestHash = `sha256:${"2".repeat(64)}`;
 const productionEnvHash = "3".repeat(64);
@@ -173,25 +179,48 @@ test("builds an exact next-epoch manifest bound to reconciliation and dual-read 
 
 test("accepts only a complete zero-difference reconciliation", () => {
   const evidence = {
-    schemaVersion: "candidate-shadow-reconciliation-evidence.v1",
-    status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    schemaVersion: "candidate-multi-cycle-reconciliation-evidence.v3",
+    status:
+      "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     automaticPhaseAdvance: false,
     phaseTransitionExecuted: false,
+    shadowVerifyTransitionExecuted: false,
+    canonicalReadEnabled: false,
+    canonicalWriteEnabled: false,
+    reviewReadEnabled: false,
+    g0Completed: false,
     productionRankingInputsUsed: false,
     futureOutcomeInputsUsed: false,
+    databaseIdentity: {
+      currentRole: "candidate_audit_role",
+      transactionReadOnly: true,
+      transactionIsolation: "repeatable read",
+    },
+    lineageIdentityBinding: "file_hash_request_database_exact_match",
+    lineageEvidenceSha256: `sha256:${"a".repeat(64)}`,
+    lineageSemanticEvidenceSha256: {
+      controlSnapshot: "b".repeat(64),
+      unifiedFinal: "c".repeat(64),
+      unifiedSamples: "d".repeat(64),
+    },
     comparedWrites: 10000,
     comparisonDifferences: 0,
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
+    resolvedQuarantineExclusions: 0,
+    sourceReleaseCount: 5,
     verificationMigrationId: migrationId,
     evidenceHash: reconciliationHash,
     violations: [],
+    differenceSample: [],
   };
   assert.equal(validateReconciliationEvidence(evidence), evidence);
   assert.throws(() => validateReconciliationEvidence({ ...evidence, comparedWrites: 9999 }),
     /reconciliation_result_invalid/u);
   assert.throws(() => validateReconciliationEvidence({ ...evidence, comparisonDifferences: 1 }),
     /reconciliation_result_invalid/u);
+  assert.throws(() => validateReconciliationEvidence({ ...evidence, sourceReleaseCount: 2 }),
+    /reconciliation_cycle_count_mismatch/u);
 });
 
 test("accepts the already deployed Web-only code release that retained Legacy authority", () => {
@@ -210,6 +239,42 @@ test("accepts the already deployed Web-only code release that retained Legacy au
   assert.equal(validateCodeReleaseEvidence(evidence), evidence);
   assert.throws(() => validateCodeReleaseEvidence({ ...evidence, databaseMutation: true }),
     /canonical_compat_code_release_boundary_invalid/u);
+});
+
+test("accepts exact zero-mutation Canonical code presence under Shadow Verify", () => {
+  const imageId = `sha256:${"a".repeat(64)}`;
+  const evidence = buildCodePresenceEvidence({
+    productionCommit: CODE_PRESENCE_PRODUCTION_COMMIT,
+    productionTree: CODE_PRESENCE_PRODUCTION_TREE,
+    productionBlobs: Object.fromEntries(
+      REFERENCE_CODE_PATHS.map(({ path, blob }) => [path, blob])),
+    runningWebImageId: imageId,
+    buildRecordWebImageId: imageId,
+    runningWebContainerId: "b".repeat(64),
+    buildRecordSha256: "c".repeat(64),
+    productionGitClean: true,
+    productionGitDetached: true,
+    manifestSha256: "d".repeat(64),
+    manifestPhase: "shadow_verify",
+    readFlags: { dualRead: true, canonicalRead: false, reviewRead: false },
+    candidateLifecycleApi: {
+      httpStatus: 200,
+      ok: true,
+      mode: "dual_read_legacy_authority",
+      readSource: "legacy",
+      authority: "legacy_projection_non_authoritative",
+      parityStatus: "pass",
+      differenceCount: 0,
+      canAuthorizeCutover: false,
+      canCreateTradePlan: false,
+      canMutateLiveRanking: false,
+      automaticPhaseAdvance: false,
+    },
+    healthLevel: "ready",
+    scanFreshness: "fresh",
+    verifiedAt: "2026-07-20T05:00:00.000Z",
+  });
+  assert.equal(validateCodeReleaseEvidence(evidence), evidence);
 });
 
 test("requires parity-gated Candidate authority and full-snapshot parity in every sample", () => {
@@ -247,6 +312,7 @@ test("accepts only the exact 24-hour dual-read prerequisite for this authority i
   const evidence = {
     schemaVersion: "candidate-shadow-verify-observation-evidence.v1",
     status: "PASS_DUAL_READ_OBSERVATION",
+    packageId: "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
     migrationId,
     releaseId,
     authorityEpoch: 3,
@@ -263,6 +329,7 @@ test("accepts only the exact 24-hour dual-read prerequisite for this authority i
     automaticPhaseAdvance: false,
     canonicalCompatStarted: false,
     canonicalCutoverExecuted: false,
+    g0Completed: false,
     violations: [],
     evidenceHash: `sha256:${"a".repeat(64)}`,
   };

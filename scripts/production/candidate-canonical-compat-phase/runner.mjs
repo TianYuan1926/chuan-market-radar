@@ -6,6 +6,15 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import {
+  RECONCILIATION_PASS,
+  RECONCILIATION_SCHEMA,
+} from "../candidate-reconciliation/runner.mjs";
+import {
+  EVIDENCE_SCHEMA as CODE_PRESENCE_SCHEMA,
+  validateCodePresenceEvidence,
+} from "../candidate-canonical-compat-code-presence/runner.mjs";
+
 export const PACKAGE_ID =
   "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION";
 export const MANIFEST_SCHEMA = "candidate-read-authority-manifest.v1";
@@ -17,10 +26,29 @@ export const MAXIMUM_SAMPLE_GAP_SECONDS = 600;
 export const OBSERVATION_INTERVAL_SECONDS = 300;
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
+const HASH = /^[0-9a-f]{64}$/u;
 const MIGRATION = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
 const IMAGE = /^sha256:[0-9a-f]{64}$/u;
+const RECONCILIATION_KEYS = Object.freeze([
+  "automaticPhaseAdvance", "canonicalReadEnabled", "canonicalWriteEnabled",
+  "comparedWrites", "comparisonDifferences", "databaseIdentity", "differenceSample",
+  "duplicateEventMappings", "duplicateOutboxMappings", "evidenceHash",
+  "futureOutcomeInputsUsed", "g0Completed", "lineageEvidenceSha256",
+  "lineageIdentityBinding", "lineageSemanticEvidenceSha256", "phaseTransitionExecuted",
+  "productionRankingInputsUsed", "resolvedQuarantineExclusions", "reviewReadEnabled",
+  "schemaVersion", "shadowVerifyTransitionExecuted", "sourceReleaseCount", "status",
+  "verificationMigrationId", "violations",
+]);
+const DUAL_READ_KEYS = Object.freeze([
+  "allPagesComparedEverySample", "authorityEpoch", "automaticPhaseAdvance",
+  "canAuthorizeCutover", "canCreateTradePlan", "canMutateLiveRanking",
+  "candidateCanonicalReviewUsable", "canonicalCompatStarted", "canonicalCutoverExecuted",
+  "coverageHours", "differenceCount", "evidenceHash", "g0Completed",
+  "legacyResponseAuthority", "maximumGapSeconds", "migrationId", "packageId",
+  "releaseId", "sampleCount", "schemaVersion", "status", "violations",
+]);
 
 const CANONICAL_COMPAT_FLAGS = Object.freeze({
   CANDIDATE_EPISODE_DUAL_READ: "true",
@@ -42,6 +70,11 @@ export class CanonicalCompatPhaseError extends Error {}
 
 function ensure(condition, reason) {
   if (!condition) throw new CanonicalCompatPhaseError(reason);
+}
+
+function exactKeys(value, keys) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    && Object.keys(value).sort().join("\n") === [...keys].sort().join("\n");
 }
 
 export function canonicalJson(value) {
@@ -73,6 +106,12 @@ function assertMigration(value) {
   ensure(match, "candidate_migration_id_invalid");
   ensure(!match[1] || Number(match[1]) > 1, "candidate_cycle_one_alias_invalid");
   return value;
+}
+
+function migrationCycle(value) {
+  assertMigration(value);
+  const match = MIGRATION.exec(value);
+  return match?.[1] ? Number(match[1]) : 1;
 }
 
 function assertRelease(value) {
@@ -149,12 +188,17 @@ export function renderLegacyEnvironment(source) {
 }
 
 export function validateReconciliationEvidence(evidence) {
-  ensure(evidence?.schemaVersion === "candidate-shadow-reconciliation-evidence.v1"
-      && evidence.status
-        === "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+  ensure(exactKeys(evidence, RECONCILIATION_KEYS), "reconciliation_shape_invalid");
+  ensure(evidence.schemaVersion === RECONCILIATION_SCHEMA
+      && evidence.status === RECONCILIATION_PASS,
   "reconciliation_status_invalid");
   ensure(evidence.automaticPhaseAdvance === false
       && evidence.phaseTransitionExecuted === false
+      && evidence.shadowVerifyTransitionExecuted === false
+      && evidence.canonicalReadEnabled === false
+      && evidence.canonicalWriteEnabled === false
+      && evidence.reviewReadEnabled === false
+      && evidence.g0Completed === false
       && evidence.productionRankingInputsUsed === false
       && evidence.futureOutcomeInputsUsed === false,
   "reconciliation_truth_boundary_invalid");
@@ -162,16 +206,32 @@ export function validateReconciliationEvidence(evidence) {
       && evidence.comparisonDifferences === 0
       && evidence.duplicateOutboxMappings === 0
       && evidence.duplicateEventMappings === 0
+      && Number.isSafeInteger(evidence.resolvedQuarantineExclusions)
+      && evidence.resolvedQuarantineExclusions >= 0
+      && evidence.sourceReleaseCount >= 2
+      && evidence.lineageIdentityBinding === "file_hash_request_database_exact_match"
+      && SHA256.test(evidence.lineageEvidenceSha256 ?? "")
+      && HASH.test(evidence.lineageSemanticEvidenceSha256?.controlSnapshot ?? "")
+      && HASH.test(evidence.lineageSemanticEvidenceSha256?.unifiedFinal ?? "")
+      && HASH.test(evidence.lineageSemanticEvidenceSha256?.unifiedSamples ?? "")
+      && evidence.databaseIdentity?.currentRole === "candidate_audit_role"
+      && evidence.databaseIdentity?.transactionReadOnly === true
+      && evidence.databaseIdentity?.transactionIsolation === "repeatable read"
       && evidence.violations?.length === 0
+      && evidence.differenceSample?.length === 0
       && SHA256.test(evidence.evidenceHash ?? ""),
   "reconciliation_result_invalid");
-  assertMigration(evidence.verificationMigrationId);
+  ensure(evidence.sourceReleaseCount === migrationCycle(evidence.verificationMigrationId),
+    "reconciliation_cycle_count_mismatch");
   return evidence;
 }
 
 export function validateDualReadEvidence(evidence, expected = {}) {
-  ensure(evidence?.schemaVersion === "candidate-shadow-verify-observation-evidence.v1"
-      && evidence.status === "PASS_DUAL_READ_OBSERVATION",
+  ensure(exactKeys(evidence, DUAL_READ_KEYS), "dual_read_observation_shape_invalid");
+  ensure(evidence.schemaVersion === "candidate-shadow-verify-observation-evidence.v1"
+      && evidence.status === "PASS_DUAL_READ_OBSERVATION"
+      && evidence.packageId
+        === "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
   "dual_read_observation_status_invalid");
   ensure(evidence.sampleCount === MINIMUM_OBSERVATION_SAMPLES
       && evidence.coverageHours >= MINIMUM_OBSERVATION_HOURS
@@ -186,6 +246,7 @@ export function validateDualReadEvidence(evidence, expected = {}) {
       && evidence.automaticPhaseAdvance === false
       && evidence.canonicalCompatStarted === false
       && evidence.canonicalCutoverExecuted === false
+      && evidence.g0Completed === false
       && evidence.violations?.length === 0
       && SHA256.test(evidence.evidenceHash ?? ""),
   "dual_read_observation_result_invalid");
@@ -196,6 +257,9 @@ export function validateDualReadEvidence(evidence, expected = {}) {
 }
 
 export function validateCodeReleaseEvidence(evidence) {
+  if (evidence?.schemaVersion === CODE_PRESENCE_SCHEMA) {
+    return validateCodePresenceEvidence(evidence);
+  }
   ensure(evidence?.status
       === "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
   "canonical_compat_code_release_not_pass");
@@ -237,7 +301,7 @@ export function buildCanonicalCompatManifest({
     flags: { dualRead: true, canonicalRead: true, reviewRead: true },
     evidence: {
       reconciliation: {
-        status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+        status: RECONCILIATION_PASS,
         evidenceHash: reconciliationEvidenceHash,
       },
       dualRead: { status: "PASS_DUAL_READ_OBSERVATION", evidenceHash: dualReadEvidenceHash },

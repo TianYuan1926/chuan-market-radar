@@ -11,7 +11,15 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { REQUIRED_PACKAGE_APPROVAL_FIELDS } from "../../governance/autonomy-policy.mjs";
-import { validateCandidateLineageEvidence } from "../candidate-lineage/runner.mjs";
+import {
+  LINEAGE_PASS,
+  LINEAGE_SCHEMA,
+  validateCandidateLineageEvidence,
+} from "../candidate-lineage/runner.mjs";
+import {
+  RECONCILIATION_PASS,
+  RECONCILIATION_SCHEMA,
+} from "../candidate-reconciliation/runner.mjs";
 import {
   MAXIMUM_SAMPLE_GAP_SECONDS,
   MINIMUM_OBSERVATION_HOURS,
@@ -31,8 +39,8 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v1.json";
-export const REQUIRED_PRODUCTION_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
+  "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v2.json";
+export const REQUIRED_PRODUCTION_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -48,6 +56,9 @@ const MIGRATION = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
 
 export const RUNNER_FILES = Object.freeze([
+  "scripts/production/candidate-lineage/runner.mjs",
+  "scripts/production/candidate-reconciliation/runner.mjs",
+  "scripts/production/candidate-canonical-compat-code-presence/runner.mjs",
   "scripts/production/candidate-canonical-compat-phase/full-snapshot-observer.cjs",
   "scripts/production/candidate-canonical-compat-phase/observation-runner.sh",
   "scripts/production/candidate-canonical-compat-phase/production-entrypoint.sh",
@@ -60,7 +71,6 @@ export const TRANSPORT_FILES = Object.freeze([
   "scripts/governance/autonomy-policy.mjs",
   "scripts/governance/autonomy-production-lease-cli.mjs",
   "scripts/governance/autonomy-production-lease.mjs",
-  "scripts/production/candidate-lineage/runner.mjs",
   "scripts/production/candidate-canonical-compat-phase/bundle.mjs",
   ...RUNNER_FILES,
 ]);
@@ -112,7 +122,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-canonical-compat-phase-transition-and-observation.v1"
+    === "wp-g0.2-canonical-compat-phase-transition-and-observation.v2"
     && contract.packageId === PACKAGE_ID && contract.gate === "G0"
     && contract.actionClass === "canonical_compat_activation"
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",
@@ -122,18 +132,19 @@ export function validateContract(contract) {
       && contract.productionAuthorization === false && contract.productionExecuted === false,
   "contract_production_truth_invalid");
   ensure(contract.releaseBoundary?.requiredProductionCommit === REQUIRED_PRODUCTION_COMMIT
-      && contract.releaseBoundary?.requiredCodeReleaseStatus
-        === "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY"
+      && JSON.stringify(contract.releaseBoundary?.acceptedCodeAvailabilityStatuses)
+        === JSON.stringify(["PASS_PRODUCTION_CANONICAL_COMPAT_CODE_PRESENCE_VERIFIED"])
+      && contract.releaseBoundary?.codePresenceMustBeZeroMutation === true
       && contract.releaseBoundary?.productionWorktreeCleanDetachedRequired === true
       && contract.releaseBoundary?.sourceSyncAllowed === false
       && contract.releaseBoundary?.gitCheckoutAllowed === false
       && contract.releaseBoundary?.imageBuildAllowed === false,
   "contract_release_boundary_invalid");
   const prerequisites = contract.prerequisites ?? {};
-  ensure(prerequisites.lineageStatus
-      === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION"
-      && prerequisites.reconciliationStatus
-        === "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
+  ensure(prerequisites.lineageSchema === LINEAGE_SCHEMA
+      && prerequisites.lineageStatus === LINEAGE_PASS
+      && prerequisites.reconciliationSchema === RECONCILIATION_SCHEMA
+      && prerequisites.reconciliationStatus === RECONCILIATION_PASS
       && prerequisites.dualReadObservationStatus === "PASS_DUAL_READ_OBSERVATION"
       && prerequisites.dualReadExactSamples === MINIMUM_OBSERVATION_SAMPLES
       && prerequisites.dualReadMinimumHours === MINIMUM_OBSERVATION_HOURS
@@ -144,7 +155,10 @@ export function validateContract(contract) {
       && prerequisites.maximumDuplicateOutboxMappings === 0
       && prerequisites.maximumDuplicateEventMappings === 0
       && prerequisites.maximumUnresolvedOutbox === 0
-      && prerequisites.minimumReleaseWindows === 2
+      && prerequisites.sourceReleaseWindowsExact === 5
+      && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-5"
+      && prerequisites.lineageAuthorityEpochDeltaFromShadowVerify === -1
       && prerequisites.currentPhase === "shadow_verify"
       && prerequisites.currentWriteFrozen === false
       && prerequisites.minimumDeadlineRemainingSeconds === 87000
@@ -236,6 +250,7 @@ export function validateContract(contract) {
   "contract_runner_artifact_invalid");
   for (const forbidden of [
     "observation_window_shortening", "single_page_only_parity",
+    "legacy_lineage_or_reconciliation_evidence",
     "candidate_business_data_mutation", "schema_migration", "redis_mutation",
     "unguarded_candidate_response_authority", "legacy_fallback_accepted_as_pass",
     "automatic_canonical_cutover",
@@ -251,7 +266,7 @@ export async function validateLocalPreparation(root = process.cwd()) {
   ensure(runner.sha256 === contract.runnerArtifact.sha256,
     "runner_artifact_checksum_mismatch");
   return {
-    status: "PASS_LOCAL_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION",
+    status: "PASS_LOCAL_CURRENT_CYCLE_CANONICAL_COMPAT_PHASE_TRANSITION_AND_OBSERVATION",
     packageId: PACKAGE_ID,
     contractSha256: sha256(contractBytes),
     runnerArtifactSha256: runner.sha256,
@@ -264,9 +279,11 @@ export async function validateLocalPreparation(root = process.cwd()) {
 
 function validateLineage(lineage, request) {
   const validated = validateCandidateLineageEvidence(lineage);
-  ensure(validated.status === "PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION"
+  ensure(validated.schemaVersion === LINEAGE_SCHEMA && validated.status === LINEAGE_PASS
       && validated.completedWrites >= 10000 && validated.unresolvedOutbox === 0
-      && validated.sourceReleaseWindows.length >= 2,
+      && validated.sourceReleaseWindows.length === validated.validationCycle
+      && validated.sourceReleaseCount === validated.validationCycle
+      && validated.currentMigrationId === request.migrationId,
   "lineage_result_invalid");
   const current = validated.sourceReleaseWindows.at(-1);
   ensure(current.migrationId === request.migrationId
@@ -526,7 +543,8 @@ export function createProductionExecutionRequest({
   assertMigration(runtime.migrationId);
   ensure(RELEASE.test(runtime.releaseId ?? "")
       && Number.isSafeInteger(runtime.currentAuthorityEpoch)
-      && runtime.currentAuthorityEpoch >= 1,
+      && runtime.currentAuthorityEpoch >= 2
+      && runtime.currentAuthorityEpoch % 2 === 0,
   "runtime_candidate_identity_invalid");
   const issuedAt = new Date(now);
   const expiresAt = new Date(issuedAt.getTime() + 90 * 60_000);

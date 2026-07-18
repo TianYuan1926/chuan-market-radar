@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "wp-g0.2-current-cycle-canonical-compat-dependency-refresh-and-automatic-handoff.v1",
+  "packageId": "WP-G0.2-CURRENT-CYCLE-CANONICAL-COMPAT-DEPENDENCY-REFRESH-AND-AUTOMATIC-HANDOFF",
+  "title": "Current-cycle Shadow Verify to Canonical Compat automatic production handoff",
+  "status": "local_ready_for_gate_production_blocked_by_shadow_verify",
+  "gate": "G0",
+  "actionClass": "canonical_compat_activation",
+  "riskTier": "R2_AUTHORITY_TRANSITION",
+  "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
+  "coreChainStages": [
+    "候选筛选",
+    "复盘进化"
+  ],
+  "sequence": [
+    "canonical_code_presence",
+    "canonical_compat_phase"
+  ],
+  "children": {
+    "codePresence": {
+      "packageId": "WP-G0.2-CANONICAL-COMPAT-PRODUCTION-CODE-PRESENCE-CURRENT-CYCLE",
+      "actionClass": "read_only_production_preflight",
+      "riskTier": "R0_READ_ONLY",
+      "productionMutationAllowed": false,
+      "independentAuthorizationRequired": true,
+      "independentEvidenceRequired": true
+    },
+    "canonicalCompatPhase": {
+      "packageId": "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION",
+      "actionClass": "canonical_compat_activation",
+      "riskTier": "R2_AUTHORITY_TRANSITION",
+      "productionMutationAllowed": true,
+      "independentAuthorizationRequired": true,
+      "independentLeaseRequired": true,
+      "independentRollbackRequired": true,
+      "independentEvidenceRequired": true
+    }
+  },
+  "entryBoundary": {
+    "lineageSchema": "candidate-multi-cycle-lineage-evidence.v3",
+    "lineageStatus": "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+    "reconciliationSchema": "candidate-multi-cycle-reconciliation-evidence.v3",
+    "reconciliationStatus": "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+    "sourceReleaseWindowsExact": 5,
+    "minimumComparedWrites": 10000,
+    "dualReadSchema": "candidate-shadow-verify-observation-evidence.v1",
+    "dualReadStatus": "PASS_DUAL_READ_OBSERVATION",
+    "dualReadExactSamples": 289,
+    "dualReadMinimumHours": 24,
+    "dualReadMaximumGapSeconds": 600,
+    "dualReadMaximumDifferences": 0,
+    "legacyResponseAuthority": true,
+    "canonicalCompatStarted": false,
+    "canonicalCutoverExecuted": false,
+    "g0Completed": false
+  },
+  "handoffBoundary": {
+    "codePresencePassRequiredBeforePhaseRequest": true,
+    "phaseRequestGeneratedFromCurrentRunEvidenceOnly": true,
+    "codePresenceExactPathAndShaRequired": true,
+    "lineageExactPathAndShaRequired": true,
+    "reconciliationExactPathAndShaRequired": true,
+    "dualReadExactPathAndShaRequired": true,
+    "productionIdentityRevalidatedBeforePhase": true,
+    "strictSequentialFailClosed": true,
+    "automaticPhaseAdvanceWithoutIndependentRequest": false
+  },
+  "canonicalCompatBoundary": {
+    "serviceAllowlist": [
+      "web"
+    ],
+    "environmentKeys": [
+      "CANDIDATE_EPISODE_DUAL_READ",
+      "CANDIDATE_EPISODE_CANONICAL_READ",
+      "CANDIDATE_EPISODE_REVIEW_READ"
+    ],
+    "targetPhase": "canonical_compat",
+    "candidateResponseAuthorityConditionalOnParity": true,
+    "fullCursorChainRequired": true,
+    "transactionIsolation": "serializable_read_only_deferrable",
+    "forcedRole": "candidate_audit_role",
+    "maximumDifferences": 0,
+    "maximumLegacyFallbacks": 0,
+    "maximumPartialResponses": 0,
+    "maximumUnavailableResponses": 0,
+    "exactSamples": 289,
+    "minimumHours": 24,
+    "sampleIntervalSeconds": 300,
+    "maximumSampleGapSeconds": 600,
+    "automaticRollbackRequired": true,
+    "canonicalCutoverExecuted": false,
+    "g0Completed": false
+  },
+  "executionBoundary": {
+    "singleUpload": true,
+    "singleOuterTransientUnit": true,
+    "productionWipExact": 1,
+    "outerRuntimeMaxSeconds": 7200,
+    "outerMutationAllowed": false,
+    "phaseMutationDelegatedToExactChildOnly": true,
+    "gitMutationAllowed": false,
+    "imageBuildAllowed": false,
+    "sourceSyncAllowed": false,
+    "migrationAllowed": false,
+    "candidateBusinessDataMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerMutationAllowed": false,
+    "otherServiceMutationAllowed": false,
+    "formalBacktestAllowed": false
+  },
+  "cleanupBoundary": {
+    "exactTemporaryCleanup": true,
+    "childEvidencePreserved": true,
+    "outerEvidencePreserved": true,
+    "activePhaseStagingPreservedUntilObserverCloseout": true,
+    "unknownPathDeletionAllowed": false
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-canonical-compat-handoff/production-entrypoint.sh",
+      "scripts/production/candidate-canonical-compat-handoff/production-launch.sh",
+      "scripts/production/candidate-canonical-compat-handoff/production-runner.sh",
+      "scripts/production/candidate-canonical-compat-handoff/request-generator.mjs",
+      "scripts/production/candidate-canonical-compat-handoff/runner.mjs"
+    ],
+    "fileCount": 5,
+    "sha256": "7facb67240e08c6f6920211a004c01712a3b9935dbabba637b6ced0b6d8be588"
+  },
+  "resultBoundary": {
+    "immediatePass": "PASS_CANONICAL_COMPAT_HANDOFF_OBSERVER_ACTIVE",
+    "canonicalCompatObservationCompleted": false,
+    "canonicalCutoverExecuted": false,
+    "wpG02Completed": false,
+    "g0Completed": false
+  },
+  "forbidden": [
+    "shadow_verify_observation_shortening",
+    "canonical_compat_observation_shortening",
+    "single_page_parity",
+    "child_authorization_merging",
+    "phase_request_before_code_presence_pass",
+    "stale_evidence_relabeling",
+    "unguarded_candidate_response_authority",
+    "automatic_canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "rr_threshold_change",
+    "formal_backtest"
+  ]
+}

@@ -1411,3 +1411,19 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - 原 Bundle、原 request 和服务器 staging 不得继续执行。必须完成新提交、提交后自治门禁、新确定性 Bundle、新单次请求和服务器哈希校验后，才能重新进入生产 Add Schema。
 
 当前能力结论不变：**R1 / 可运行但不完整 / 不能支撑实战**。生产仍是 migrations 001-009，Canonical phase transition 继续被 rollback safety schema 阻断。
+
+## 2026-07-19 WP-G0.2 当前周期 Canonical Compat 依赖刷新与自动交接
+
+本轮只刷新 Canonical Compat 的当前周期生产编排与证据合同，不修改 frontend、业务 API、scan、analysis、strategy、RR、trade plan、backtest、migration、Redis、Worker 业务、Caddy、Compose、env 或 secret。
+
+当前事实：
+
+- 历史 Canonical Compat v1 对旧 Lineage/Reconciliation 和 `eb48827` 身份的依赖已在本地当前入口中淘汰；新入口只接受五周期 Lineage v3、同周期零差异 Reconciliation v3、Shadow Verify 精确 289 样本/至少 24 小时/全分页/零差异终证据，以及当前生产 `94b6d415...` 的 Canonical 代码存在性证明。
+- 新外层包把 `R0 Canonical Code Presence -> 动态独立 R2 Canonical Compat Phase -> immediate snapshot -> 24 小时 observer` 压缩为一次上传、一次 outer transient unit；R0/R2 的请求、授权、租约、回滚和证据仍独立，R2 request 在本次 R0 文件路径与原始字节 SHA-256 验证通过前不能生成。
+- 外层 runner 不直接修改 Git、镜像、数据库、Redis、Worker、Compose 或 env；唯一 Web/phase/manifest 变更继续委托给原 Canonical Compat R2 子包。任一失败由子包原自动回滚机制恢复 `legacy/frozen` 并保留 Candidate 业务数据。
+- immediate 外层结果只能写 `PASS_CANONICAL_COMPAT_HANDOFF_OBSERVER_ACTIVE`；明确固定 `canonicalCompatObservationCompleted=false`、`canonicalCutoverExecuted=false`、`wpG02Completed=false`、`g0Completed=false`。
+- 定向证据：Handoff 18/18、Code Presence 11/11、Phase 21/21、Canonical domain 109 pass/0 fail/3 explicit skip、Autonomy 31/31、PostgreSQL 16 phase/rollback 1/1 PASS；PG16 证明 10,000 writes 门槛、阶段迁移、回滚保数且 `productionConnected=false`。
+- 基础与安全门禁：typecheck、lint、test:market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16、forbidden-files、secret-patterns、security-check 全部 PASS。首次 typecheck 与 build 并行时因 `.next/types` 被 build 重建产生 TS6053，等待构建退出后独立重跑 PASS；未把竞态失败隐藏为成功。
+- formal 未运行且禁止。本轮未上传、未连接或修改生产；最近有效生产快照仍是 04:29 CST 的 Cycle-5 48/289 样本、14,247 秒、4,413/10,000 writes、15 次推进、unresolved=0，双 readiness=false。
+
+当前结论仍是：**G0 主步骤 7；R1 / 可运行但不完整 / 不能支撑实战。** 本地包尚需 clean commit、提交绑定自治总门禁、确定性 Bundle 和 push；生产必须继续等待 Cycle-5 与后续 Shadow Verify 真实终证据，不能提前启动 Canonical Compat。
