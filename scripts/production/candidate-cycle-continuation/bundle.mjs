@@ -16,7 +16,7 @@ import { validateCycleContinuationInput } from "./runner.mjs";
 const execFileAsync = promisify(execFile);
 export const PACKAGE_ID = "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION";
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v2.json";
+  "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v3.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -157,7 +157,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   const contract = JSON.parse(bytes);
   const runnerArtifact = await artifact(root, contract.runnerArtifact?.files ?? []);
   const violations = [];
-  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-production-packet.v2"
+  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-production-packet.v3"
       || contract.packageId !== PACKAGE_ID) violations.push("contract_identity");
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
       || contract.priorActivationFinalPass !== false) violations.push("production_truth");
@@ -173,13 +173,13 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   if (runnerArtifact.fileCount !== contract.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) violations.push("runner_artifact");
   if (contract.prerequisites?.priorActivationOutcome
-        !== "ROLLBACK_PASS_TRANSIENT_CLAIM_MISCLASSIFICATION"
-      || contract.prerequisites?.priorActivationSamplesObserved !== 47
+        !== "ROLLBACK_PASS_SCAN_FRESHNESS_AGING_BOUNDARY"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 2
       || contract.prerequisites?.priorActivationCompletedWrites !== 3_705
       || contract.prerequisites?.priorActivationFailure
-        !== "sample_monitor_unresolved_transient_claimed_38_age_29_526496"
+        !== "sample_health_not_ready_at_scan_freshness_aging_boundary"
       || contract.prerequisites?.priorActivationLastSampleHealth
-        !== "ready_fresh_candidate_healthy"
+        !== "degraded_aging_critical_subsystems_healthy"
       || contract.prerequisites?.priorActivationSamplesReusable !== false
       || contract.prerequisites?.currentProductionCommit
         !== "cec0b6572bb09ae91ff9e013f8bb160f73c045e2"
@@ -192,9 +192,9 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.prerequisites?.currentProductionWriteFrozen !== true
       || contract.prerequisites?.currentProductionAuthorityEpoch !== 2
       || contract.prerequisites?.currentProductionMigrationId
-        !== "candidate-episode-v1-cycle-3"
+        !== "candidate-episode-v1-cycle-4"
       || contract.prerequisites?.currentProductionReleaseId
-        !== "candidate-shadow-cycle-3-b098238b5d86"
+        !== "candidate-shadow-cycle-4-57f02f2"
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
       || contract.prerequisites?.candidateEpisodesExact !== 577
@@ -257,6 +257,14 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.observation?.maximumSampleGapSeconds !== 600
       || contract.observation?.automaticReconciliation !== false
       || contract.observation?.automaticCanonicalCutover !== false
+      || contract.observation?.healthFreshnessBoundary?.agingSampleAccepted !== false
+      || contract.observation?.healthFreshnessBoundary?.retryOnlyState !== "degraded_aging"
+      || contract.observation?.healthFreshnessBoundary?.maximumRecheckSeconds !== 180
+      || contract.observation?.healthFreshnessBoundary?.recheckIntervalSeconds !== 15
+      || contract.observation?.healthFreshnessBoundary?.criticalHealthMustRemainHealthy !== true
+      || contract.observation?.healthFreshnessBoundary?.candidateWriteDuringRecheck !== false
+      || contract.observation?.healthFreshnessBoundary?.recheckAttemptCountsAsSample !== false
+      || contract.observation?.healthFreshnessBoundary?.exhaustionRequiresRollback !== true
       || contract.observation?.transientClaimBoundary?.pendingAndClaimedMayBeNonzero !== true
       || contract.observation?.transientClaimBoundary?.unresolvedArithmeticExact !== true
       || contract.observation?.transientClaimBoundary?.retryWaitMaximum !== 0

@@ -8,7 +8,7 @@ import {
   validateProductionPacketContract,
 } from "../production/candidate-cycle-continuation/bundle.mjs";
 
-const CONTRACT = "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v2.json";
+const CONTRACT = "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v3.json";
 const RUNNER = "scripts/production/candidate-cycle-continuation/production-runner.sh";
 const ENTRYPOINT = "scripts/production/candidate-cycle-continuation/production-entrypoint.sh";
 const OBSERVER = "scripts/production/candidate-cycle-continuation/observation-runner.sh";
@@ -19,8 +19,8 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
       || contract.priorActivationFinalPass !== false) violations.push("local_truth_overclaimed");
   if (contract.observation?.minimumComparedWrites !== 10_000) violations.push("write_threshold_changed");
   if (contract.prerequisites?.priorActivationOutcome
-        !== "ROLLBACK_PASS_TRANSIENT_CLAIM_MISCLASSIFICATION"
-      || contract.prerequisites?.priorActivationSamplesObserved !== 47
+        !== "ROLLBACK_PASS_SCAN_FRESHNESS_AGING_BOUNDARY"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 2
       || contract.prerequisites?.priorActivationCompletedWrites !== 3_705
       || contract.prerequisites?.priorActivationSamplesReusable !== false
       || contract.prerequisites?.freshActivationRequired !== true
@@ -32,9 +32,9 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
       || contract.prerequisites?.currentProductionWriteFrozen !== true
       || contract.prerequisites?.currentProductionAuthorityEpoch !== 2
       || contract.prerequisites?.currentProductionMigrationId
-        !== "candidate-episode-v1-cycle-3"
+        !== "candidate-episode-v1-cycle-4"
       || contract.prerequisites?.currentProductionReleaseId
-        !== "candidate-shadow-cycle-3-b098238b5d86"
+        !== "candidate-shadow-cycle-4-57f02f2"
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
       || contract.prerequisites?.candidateEpisodesExact !== 577
@@ -62,6 +62,17 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
       || transient?.productionRaceReplay?.accepted !== true) {
     violations.push("transient_claim_boundary_changed");
   }
+  const health = contract.observation?.healthFreshnessBoundary;
+  if (health?.agingSampleAccepted !== false
+      || health?.retryOnlyState !== "degraded_aging"
+      || health?.maximumRecheckSeconds !== 180
+      || health?.recheckIntervalSeconds !== 15
+      || health?.criticalHealthMustRemainHealthy !== true
+      || health?.candidateWriteDuringRecheck !== false
+      || health?.recheckAttemptCountsAsSample !== false
+      || health?.exhaustionRequiresRollback !== true) {
+    violations.push("health_freshness_boundary_changed");
+  }
   if (contract.databaseBoundary?.oldDeadlineMutationAllowed !== false
       || contract.databaseBoundary?.candidateBusinessDataMutationAllowed !== false) {
     violations.push("database_boundary_relaxed");
@@ -85,6 +96,8 @@ export function evaluateProductionPacketGovernance({ contract, runner, entrypoin
   ]) if (!entrypoint.includes(token)) violations.push(`entrypoint_guard_missing:${token}`);
   for (const token of [
     "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE", "sleep 300",
+    "classifyCycleObservationHealth", "retry_aging", "MAXIMUM_HEALTH_RECHECK_SECONDS",
+    "HEALTH_RECHECK_INTERVAL_SECONDS", "cycle_observation_health_recheck_exhausted",
     "automatic_rollback", "retain_evidence", "cleanup_temporary_artifacts",
     "cleanup_rollback_image_artifacts", "cleanup_target_image_still_in_use",
   ]) if (!observer.includes(token)) violations.push(`observer_guard_missing:${token}`);

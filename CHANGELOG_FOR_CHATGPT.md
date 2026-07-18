@@ -6327,3 +6327,79 @@ token 19 已释放，生产恢复 legacy/frozen epoch4、Candidate absent、Web/
 ### 下一轮建议
 
 只完成 Cycle-4 clean commit、提交绑定总门禁与受控生产启动；不进入 Lineage 或 Shadow Verify。
+
+## 2026-07-18 / WP-G0.2 Cycle-4 Production Activation And Automatic Rollback Truth Closeout
+
+### 本轮目标
+
+如实收口 Cycle-4 的生产启动、第二样本失败和自动回滚，不把启动成功包装成观察 PASS。
+
+### 修改范围
+
+- 生产只使用绑定 commit `57f02f2...` 的确定性 Bundle、单次请求和 fresh read-only preflight。
+- 临时切换 Web、Candidate Worker 和相邻 Cycle-4；失败后恢复 baseline Git/Web、Candidate absent 和 Legacy authority。
+- 未修改 migration、Redis、scanner、其他服务、交易逻辑或 secret。
+
+### 核心链路影响
+
+只影响候选筛选与复盘进化的 Candidate 生命周期观察真值。
+
+### 测试结果
+
+- Bundle/preflight/request/即时激活：PASS。
+- 样本 1：ready/fresh；样本 2：关键子系统健康，但 health=`degraded`、scan freshness=`aging`。
+- Observer：FAIL，`sample_health_not_ready`。
+- 自动回滚、数据保留、Git/Web/Candidate absent/health/Postgres/Redis 验证：PASS。
+- formal：未运行。
+
+### 是否部署
+
+曾受控启动 Cycle-4，随后自动回滚。当前生产为 baseline `cec0b657...`、Web `sha256:cd3652...`、Candidate absent、Cycle-4 `legacy/frozen/epoch2`。
+
+### 风险与遗留问题
+
+Cycle-4 两个样本与 3,705 writes 全部不可复用；Cycle-4 未通过 24 小时/289 样本和 10,000 writes 双门禁。
+
+### 下一轮建议
+
+只修复 healthy aging 边界，不接受 aging 样本、不降低任何观察门槛。
+
+## 2026-07-18 / WP-G0.2 Cycle-5 Health Freshness Recheck Remediation Local Superpackage
+
+### 本轮目标
+
+在不接受 aging 样本的前提下，对关键子系统全部健康的 `degraded/aging` 做最多 180 秒受限 fresh 重采样，并把生产 Packet 刷新到冻结 Cycle-4 后的相邻 Cycle-5。
+
+### 修改范围
+
+- 新增严格健康分类器和攻击性测试。
+- 观察器在 fresh 前不调用 Candidate POST、不追加样本；超时或关键健康异常自动回滚。
+- 新增 v3 本地/生产合同，保留 v1/v2 历史合同。
+- PostgreSQL 16 演练扩展到 Cycle-4 frozen -> Cycle-5 adjacent。
+- 未修改 frontend、业务 API、scan 算法、analysis、strategy、RR、trade plan、backtest、migration、Redis、scanner、Caddy、env 或 secret。
+
+### 核心链路影响
+
+强化候选筛选到深扫验证之间的生命周期稳定性，不生成信号、不改变排序或交易计划。
+
+### 测试结果
+
+- 健康/观察 10/10、Production Packet 37/37、治理 2/2、Autonomy 31/31：PASS。
+- PostgreSQL 16 Cycle-5 相邻续接：PASS，`productionConnected=false`。
+- typecheck、lint、test:market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16：PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署 Cycle-5、未连接或修改生产。当前只达到本地修复与合同 PASS。
+
+### 风险与遗留问题
+
+- aging 仍不是有效样本；180 秒内未恢复 fresh 必须回滚。
+- Cycle-5 必须从零完成全部时间和样本门禁。
+- G0 主步骤仍为 7，系统仍不能支撑实战。
+
+### 下一轮建议
+
+只完成 clean commit、提交绑定自治总门禁、确定性 Bundle 和新鲜生产 preflight。

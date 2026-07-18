@@ -10,6 +10,8 @@ export const MINIMUM_ACTIVATION_SAMPLES = 289;
 export const MAXIMUM_SAMPLE_GAP_SECONDS = 600;
 export const DEADLINE_SAFETY_SECONDS = 21_600;
 export const MAXIMUM_TRANSIENT_UNRESOLVED_AGE_SECONDS = 300;
+export const MAXIMUM_HEALTH_RECHECK_SECONDS = 180;
+export const HEALTH_RECHECK_INTERVAL_SECONDS = 15;
 
 export class CandidateCycleObservationError extends Error {
   constructor(reason) {
@@ -37,6 +39,38 @@ function timestamp(value, reason) {
 function exactKeys(value, expected, reason) {
   ensure(value && typeof value === "object" && !Array.isArray(value), reason);
   ensure(Object.keys(value).sort().join("\n") === [...expected].sort().join("\n"), reason);
+}
+
+export function classifyCycleObservationHealth(snapshot) {
+  exactKeys(snapshot, [
+    "bodyOk", "candidateWorker", "database", "httpStatus", "level", "redis",
+    "scanFreshness", "workersHealthy",
+  ], "health_recheck_shape_invalid");
+  if (snapshot.httpStatus !== 200) {
+    return { action: "reject", reason: "health_http_not_ok" };
+  }
+  if (snapshot.bodyOk !== true) {
+    return { action: "reject", reason: "health_body_not_ok" };
+  }
+  if (snapshot.database !== "ready") {
+    return { action: "reject", reason: "health_database_not_ready" };
+  }
+  if (snapshot.redis !== "healthy") {
+    return { action: "reject", reason: "health_redis_not_healthy" };
+  }
+  if (snapshot.candidateWorker !== "healthy") {
+    return { action: "reject", reason: "health_candidate_worker_not_healthy" };
+  }
+  if (snapshot.workersHealthy !== true) {
+    return { action: "reject", reason: "health_worker_set_not_healthy" };
+  }
+  if (snapshot.level === "ready" && snapshot.scanFreshness === "fresh") {
+    return { action: "accept_fresh", reason: null };
+  }
+  if (snapshot.level === "degraded" && snapshot.scanFreshness === "aging") {
+    return { action: "retry_aging", reason: "scan_freshness_aging" };
+  }
+  return { action: "reject", reason: "health_freshness_state_invalid" };
 }
 
 export function validateCycleObservationSample(sample, expected) {

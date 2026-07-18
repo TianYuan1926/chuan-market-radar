@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(ROOT,
-  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v2.json");
+  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v3.json");
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -39,7 +39,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     readFile(resolve(ROOT, "docker-compose.yml"), "utf8"),
   ]);
 
-  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v2"
+  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v3"
       || contract.packageId !== "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-LOCAL-SUPERPACKAGE") {
     violations.push("contract_identity");
   }
@@ -56,7 +56,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.readObservationWindowsSeparate !== true
       || problem.currentProductionPhase !== "legacy"
       || problem.currentProductionWriteFrozen !== true
-      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-3"
+      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-4"
       || problem.currentProductionAuthorityEpoch !== 2
       || problem.currentProductionActiveCycles !== 0
       || problem.currentProductionCandidateWorker !== "absent"
@@ -67,11 +67,12 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.candidateEventOrphans !== 0
       || problem.candidateEventContractMismatches !== 0
       || problem.priorActivationOutcome
-        !== "ROLLBACK_PASS_TRANSIENT_CLAIM_MISCLASSIFICATION"
-      || problem.priorActivationSamplesObserved !== 47
+        !== "ROLLBACK_PASS_SCAN_FRESHNESS_AGING_BOUNDARY"
+      || problem.priorActivationSamplesObserved !== 2
       || problem.priorActivationCompletedWrites !== 3_705
       || problem.priorActivationFailure
-        !== "sample_monitor_unresolved_transient_claimed_38_age_29_526496"
+        !== "sample_health_not_ready_at_scan_freshness_aging_boundary"
+      || problem.priorActivationLastSampleCriticalSubsystemsHealthy !== true
       || problem.priorActivationSamplesReusable !== false
       || problem.priorActivationCoverageLessThan24Hours !== true
       || problem.freshActivationMustBeCollectedInNextAdjacentCycle !== true
@@ -104,6 +105,13 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     oldestUnresolvedAgeExclusiveMaximumSeconds: 300,
     retryWaitMaximum: 0,
     unresolvedQuarantineMaximum: 0,
+    agingSampleAccepted: false,
+    boundedHealthFreshnessRecheck: true,
+    healthRecheckMaximumSeconds: 180,
+    healthRecheckIntervalSeconds: 15,
+    criticalHealthMustRemainHealthy: true,
+    candidateWriteDuringHealthRecheck: false,
+    recheckAttemptCountsAsObservationSample: false,
   })) if (boundary[key] !== expected) violations.push(`continuation_boundary:${key}`);
   if (implementation.fileCount !== 14
       || implementation.fileCount !== contract.implementationArtifact?.fileCount

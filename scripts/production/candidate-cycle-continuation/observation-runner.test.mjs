@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  classifyCycleObservationHealth,
   evaluateCycleObservation,
+  HEALTH_RECHECK_INTERVAL_SECONDS,
+  MAXIMUM_HEALTH_RECHECK_SECONDS,
   validateCycleObservationSample,
 } from "./observation-runner.mjs";
 
@@ -69,6 +72,50 @@ function sample(index, completedWrites = 9_990) {
     },
   };
 }
+
+function healthSnapshot(changes = {}) {
+  return {
+    httpStatus: 200,
+    bodyOk: true,
+    level: "ready",
+    scanFreshness: "fresh",
+    database: "ready",
+    redis: "healthy",
+    candidateWorker: "healthy",
+    workersHealthy: true,
+    ...changes,
+  };
+}
+
+test("health classifier accepts fresh and retries only the exact healthy aging boundary", () => {
+  assert.equal(MAXIMUM_HEALTH_RECHECK_SECONDS, 180);
+  assert.equal(HEALTH_RECHECK_INTERVAL_SECONDS, 15);
+  assert.deepEqual(classifyCycleObservationHealth(healthSnapshot()), {
+    action: "accept_fresh",
+    reason: null,
+  });
+  assert.deepEqual(classifyCycleObservationHealth(healthSnapshot({
+    level: "degraded",
+    scanFreshness: "aging",
+  })), {
+    action: "retry_aging",
+    reason: "scan_freshness_aging",
+  });
+});
+
+test("health classifier rejects stale or unhealthy critical subsystems without retry", () => {
+  for (const changes of [
+    { level: "degraded", scanFreshness: "stale" },
+    { database: "unavailable" },
+    { redis: "unhealthy" },
+    { candidateWorker: "unhealthy" },
+    { workersHealthy: false },
+    { httpStatus: 503, level: "degraded", scanFreshness: "aging" },
+    { bodyOk: false, level: "degraded", scanFreshness: "aging" },
+  ]) {
+    assert.equal(classifyCycleObservationHealth(healthSnapshot(changes)).action, "reject");
+  }
+});
 
 test("cycle sample binds runtime, monitor, database, and health truth", () => {
   assert.equal(validateCycleObservationSample(sample(0), expected).epoch, 1);

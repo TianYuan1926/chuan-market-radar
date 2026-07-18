@@ -35,6 +35,21 @@ test("observer forwards the sample combiner heredoc into the isolated Node conta
   assert.match(source, /run_node true - "\$\{API_FILE\}" "\$\{DB_FILE\}" "\$\{SAMPLE_FILE\}" <<'NODE'/u);
 });
 
+test("observer waits for strict fresh health before Candidate write and sample append", async () => {
+  const source = await readFile(files[2], "utf8");
+  const script = source.match(/web node - > "\$\{API_FILE\}" <<'NODE'\n([\s\S]*?)\nNODE/u)?.[1];
+  assert.ok(script);
+  assert.doesNotThrow(() => new Function(script));
+  const agingRetry = source.indexOf('classification.action !== "retry_aging"');
+  const candidateWrite = source.indexOf('/api/admin/candidate-shadow/run');
+  const sampleAppend = source.indexOf('cat "${SAMPLE_FILE}" >> "${SAMPLES_FILE}"');
+  assert.ok(agingRetry >= 0 && candidateWrite > agingRetry);
+  assert.ok(sampleAppend > candidateWrite);
+  assert.match(source, /cycle_observation_health_recheck_exhausted/u);
+  assert.match(source, /MAXIMUM_HEALTH_RECHECK_SECONDS/u);
+  assert.match(source, /HEALTH_RECHECK_INTERVAL_SECONDS/u);
+});
+
 test("pre-observation rollback removes only bounded temporary transaction artifacts", async () => {
   const source = await readFile(files[1], "utf8");
   assert.match(source, /cleanup_failed_transaction_artifacts/u);

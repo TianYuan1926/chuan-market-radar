@@ -225,17 +225,52 @@ while true; do
   "${COMPOSE[@]}" exec -T -e OBS_COMMIT="${TARGET_COMMIT}" \
     -e OBS_CYCLE="${NEXT_CYCLE}" -e OBS_RELEASE="${NEXT_RELEASE}" web node - > "${API_FILE}" <<'NODE'
 (async () => {
-  const healthResponse = await fetch("http://127.0.0.1:3000/api/health", { headers: { "cache-control": "no-store" } });
-  const healthBody = await healthResponse.json();
+  const {
+    classifyCycleObservationHealth,
+    HEALTH_RECHECK_INTERVAL_SECONDS,
+    MAXIMUM_HEALTH_RECHECK_SECONDS,
+  } = await import("file:///app/scripts/production/candidate-cycle-continuation/observation-runner.mjs");
+  const healthRecheckDeadline = Date.now() + MAXIMUM_HEALTH_RECHECK_SECONDS * 1_000;
+  let acceptedHealth;
+  while (true) {
+    const healthResponse = await fetch("http://127.0.0.1:3000/api/health", {
+      headers: { "cache-control": "no-store" },
+    });
+    const healthBody = await healthResponse.json();
+    const health = healthBody.health ?? {};
+    const workers = health.runtimeProbes?.workers ?? [];
+    const candidateWorker = workers.find((worker) => String(worker.key).includes("candidate"));
+    const allExpectedHealthy = workers.filter((worker) => worker.expected !== false)
+      .every((worker) => worker.status === "healthy");
+    const classification = classifyCycleObservationHealth({
+      httpStatus: healthResponse.status,
+      bodyOk: healthBody.ok,
+      level: health.level,
+      scanFreshness: health.scan?.freshness,
+      database: health.persistence?.databaseStatus,
+      redis: health.runtimeProbes?.redis?.status,
+      candidateWorker: candidateWorker?.status,
+      workersHealthy: allExpectedHealthy,
+    });
+    if (classification.action === "accept_fresh") {
+      acceptedHealth = { healthResponse, healthBody, health, candidateWorker, allExpectedHealthy };
+      break;
+    }
+    if (classification.action !== "retry_aging") {
+      throw new Error(`cycle_observation_health_contract_failed:${classification.reason}`);
+    }
+    const remainingMs = healthRecheckDeadline - Date.now();
+    if (remainingMs <= 0) throw new Error("cycle_observation_health_recheck_exhausted");
+    await new Promise((resolve) => setTimeout(
+      resolve,
+      Math.min(HEALTH_RECHECK_INTERVAL_SECONDS * 1_000, remainingMs),
+    ));
+  }
+  const { healthResponse, healthBody, health, candidateWorker, allExpectedHealthy } = acceptedHealth;
   const candidateResponse = await fetch("http://127.0.0.1:3000/api/admin/candidate-shadow/run", {
     method: "POST", headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` },
   });
   const candidate = await candidateResponse.json();
-  const health = healthBody.health ?? {};
-  const workers = health.runtimeProbes?.workers ?? [];
-  const candidateWorker = workers.find((worker) => String(worker.key).includes("candidate"));
-  const allExpectedHealthy = workers.filter((worker) => worker.expected !== false)
-    .every((worker) => worker.status === "healthy");
   if (healthResponse.status !== 200 || healthBody.ok !== true || candidateResponse.status !== 200
       || candidate.ok !== true || candidate.mode !== "active" || candidate.runtime?.enabled !== true
       || candidate.runtime?.blockers?.length !== 0 || candidate.monitor?.status !== "ready"
