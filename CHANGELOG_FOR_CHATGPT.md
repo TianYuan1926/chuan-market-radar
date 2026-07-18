@@ -27,12 +27,12 @@
 - Shadow Verify phase 定向测试 21/21 PASS。
 - 完整隔离执行 PASS，使用 detached `94b6d415...` worktree 和只读 Docker 替身，未连接生产。
 - code-presence 与 phase validator、typecheck、lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16 和三项安全门禁 PASS。
-- Autonomy 31/31、提交前自治总门禁 12/12 PASS，`worktreeUnchanged=true`；clean commit 和提交绑定门禁以最终交付报告为准。
+- Autonomy 31/31、提交前和代码提交绑定自治总门禁均为 12/12 PASS，`worktreeUnchanged=true`；代码提交已推送当前 GitHub 工程分支，精确 commit/tree/evidence identity 以最终交付报告为准。
 - formal 未运行且禁止。
 
 ### 是否部署
 
-未部署，未上传或执行生产 Packet，未发布 Web，未切换 Candidate phase。Cycle-5 observer 保持唯一生产 WIP。
+已推送 GitHub 工程分支；未部署腾讯云，未上传或执行生产 Packet，未发布 Web，未切换 Candidate phase。Cycle-5 observer 保持唯一生产 WIP。
 
 ### 风险与遗留问题
 
@@ -42,7 +42,7 @@
 
 ### 下一轮建议
 
-先完成本包 clean commit、push 和提交绑定门禁；生产车道继续等待 Cycle-5 双门禁。
+生产车道继续等待 Cycle-5 双门禁；通过前不得上传或执行本包 production verify-only。
 
 ## 2026-07-19 / WP-G0.2 Current-Cycle Lineage / Reconciliation / Shadow Verify 依赖刷新 v3
 
