@@ -162,8 +162,8 @@
     "non_target_service_mutation"
   ],
   "runnerArtifact": {
-    "fileCount": 9,
-    "sha256": "7bfe2bf63d7e7985299185dd669fd78a521c8761c6da28d6a58f5844cd8c6255",
+    "fileCount": 8,
+    "sha256": "3bcd4b1552d5cdaa1785e833fbdca00bc7ded4db070ebd09afb79bacb83d2dd4",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",
@@ -172,8 +172,7 @@
       "scripts/production/candidate-legacy-pending-drain-production/bundle.mjs",
       "scripts/production/candidate-legacy-pending-drain-production/db-runner.mjs",
       "scripts/production/candidate-legacy-pending-drain-production/production-entrypoint.sh",
-      "scripts/production/candidate-legacy-pending-drain-production/production-runner.sh",
-      "scripts/verify/production-check.sh"
+      "scripts/production/candidate-legacy-pending-drain-production/production-runner.sh"
     ]
   },
   "truth": {

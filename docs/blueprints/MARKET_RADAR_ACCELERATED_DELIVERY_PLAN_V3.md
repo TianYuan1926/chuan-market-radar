@@ -64,6 +64,8 @@ control legacy/frozen/epoch4; Candidate Worker absent
 
 Cycle-7 observer 只对精确 JSON 失败 `{status:"fail",reason:"observation_unresolved_outbox"}` 每 5 秒重查，最多 45 秒。其他错误立即失败；45 秒耗尽自动回滚；重查不产生正式样本。
 
+恢复后的基线健康不再依赖生产宿主机上的 Node 或 Compose 环境插值；Drain runner 直接验证 `/api/health`、三个 Radar 合同端点、Postgres `pg_isready` 和 Redis `PONG`。任一真实条件不满足仍按原 1,200 秒上限失败并回滚，门槛没有降低。
+
 ## 5. 自动继续与自动停止
 
 自动继续：定向测试、PG16 演练、基础门禁、确定性打包、只读 preflight、可逆生产子包、证据收口和精确临时文件清理。

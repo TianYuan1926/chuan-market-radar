@@ -13,6 +13,10 @@ PACKAGE_ID="WP-G0.2-CYCLE-6-LEGACY-PENDING-DRAIN-PRODUCTION"
 readonly PREFLIGHT_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_WITH_EVENT_MIRROR_DRAIN_PREFLIGHT" and .pending == $legacyPending and .outboxTotal == $outbox and .sourceEpoch == $sourceEpoch and .drainEpoch == $drainEpoch and .finalFrozenEpoch == $finalEpoch and .candidateEventPendingBefore == $candidateEventPending'
 readonly DRAIN_OPEN_CONTRACT_FILTER='.status == "PASS_DRAIN_EPOCH_OPEN" and .control.phase == "shadow_capture" and .control.epoch == $drainEpoch and .control.write_frozen == false'
 readonly DRAIN_VERIFY_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN" and .drained == $legacyPending and .legacyCompleted == $finalLegacyCompleted and .candidateEventPending == $finalCandidateEventPending and .outboxTotal == $finalOutbox and .finalEpoch == $finalEpoch and .legacyUnresolved == 0'
+readonly HEALTH_CONTRACT_FILTER='.ok == true and .health.level == "ready" and .health.persistence.databaseStatus == "ready" and .health.scan.freshness == "fresh"'
+readonly FRONTEND_CONTRACT_FILTER='.ok == true and .contract.scanProof != null and .contract.radarSignals != null and .contract.coreChainGovernance != null'
+readonly BACKEND_CONTRACT_FILTER='.ok != false and .contract.scanProof != null'
+readonly BUSINESS_CONTRACT_FILTER='.ok != false'
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
 hash_file() { sha256sum "$1" | awk '{print $1}'; }
@@ -200,17 +204,33 @@ SUCCEEDED=false
 MUTATED=false
 FAILURE_PHASE="pre-mutation"
 
+baseline_health_ready() {
+  local health frontend backend business postgres_container redis_container
+  health="$(curl -fsS http://127.0.0.1/api/health)" || return 1
+  frontend="$(curl -fsS http://127.0.0.1/api/frontend/radar-contract)" || return 1
+  backend="$(curl -fsS http://127.0.0.1/api/radar/backend-contract)" || return 1
+  business="$(curl -fsS http://127.0.0.1/api/radar/business-capability)" || return 1
+  jq -e "${HEALTH_CONTRACT_FILTER}" <<<"${health}" >/dev/null || return 1
+  jq -e "${FRONTEND_CONTRACT_FILTER}" <<<"${frontend}" >/dev/null || return 1
+  jq -e "${BACKEND_CONTRACT_FILTER}" <<<"${backend}" >/dev/null || return 1
+  jq -e "${BUSINESS_CONTRACT_FILTER}" <<<"${business}" >/dev/null || return 1
+  postgres_container="$(${DOCKER[@]} ps \
+    --filter 'label=com.docker.compose.project=chuan-market-radar' \
+    --filter 'label=com.docker.compose.service=postgres' --format '{{.ID}}')"
+  redis_container="$(${DOCKER[@]} ps \
+    --filter 'label=com.docker.compose.project=chuan-market-radar' \
+    --filter 'label=com.docker.compose.service=redis' --format '{{.ID}}')"
+  [[ "${postgres_container}" =~ ^[0-9a-f]+$ && "${redis_container}" =~ ^[0-9a-f]+$ ]] \
+    || return 1
+  ${DOCKER[@]} exec "${postgres_container}" \
+    sh -lc 'pg_isready -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' || return 1
+  [[ "$(${DOCKER[@]} exec "${redis_container}" redis-cli ping 2>/dev/null)" == "PONG" ]]
+}
+
 wait_baseline_health() {
-  local deadline=$((SECONDS + 1200))
+  local deadline=$((SECONDS + 1200)) completed_at
   while true; do
-    if ROOT_DIR_OVERRIDE="${ROOT_DIR}" BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
-      STRICT_SCAN_FRESHNESS=true REQUIRE_IDENTITY_WRAPPER=true \
-      IDENTITY_WRAPPER="${IDENTITY_WRAPPER}" \
-      IDENTITY_WRAPPER_SHA256="$(jq -r '.identityWrapperSha256' "${REQUEST_FILE}")" \
-      IDENTITY_OVERRIDE_FILE="${IDENTITY_OVERRIDE}" \
-      IDENTITY_OVERRIDE_SHA256="$(jq -r '.identityOverrideSha256' "${REQUEST_FILE}")" \
-      bash "${SOURCE_ROOT}/scripts/verify/production-check.sh" >/dev/null 2>&1; then
-      local completed_at
+    if baseline_health_ready; then
       completed_at="$(curl -fsS http://127.0.0.1/api/health \
         | jq -r '.health.scan.completedAt // empty' 2>/dev/null || true)"
       if [[ -n "${completed_at}" && "${completed_at}" != "${BASELINE_SCAN_COMPLETED_AT}" ]]; then

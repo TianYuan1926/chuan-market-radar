@@ -85,6 +85,44 @@ test("database jq contracts compile and accept their exact success shapes", () =
   assert.doesNotMatch(runner, /jq -e '/u);
 });
 
+test("baseline health uses direct production truth without the incompatible host verifier", () => {
+  const cases = [
+    ["HEALTH_CONTRACT_FILTER", {
+      ok: true,
+      health: {
+        level: "ready",
+        persistence: { databaseStatus: "ready" },
+        scan: { freshness: "fresh" },
+      },
+    }, { ok: true, health: { level: "degraded" } }],
+    ["FRONTEND_CONTRACT_FILTER", {
+      ok: true,
+      contract: { scanProof: {}, radarSignals: {}, coreChainGovernance: {} },
+    }, { ok: true, contract: { scanProof: {}, radarSignals: {} } }],
+    ["BACKEND_CONTRACT_FILTER", { ok: true, contract: { scanProof: {} } },
+      { ok: false, contract: { scanProof: {} } }],
+    ["BUSINESS_CONTRACT_FILTER", { ok: true }, { ok: false }],
+  ];
+  for (const [name, value, rejected] of cases) {
+    execFileSync("jq", ["-e", shellReadonly(name)], {
+      input: JSON.stringify(value),
+      stdio: ["pipe", "ignore", "pipe"],
+    });
+    assert.throws(() => execFileSync("jq", ["-e", shellReadonly(name)], {
+      input: JSON.stringify(rejected),
+      stdio: ["pipe", "ignore", "pipe"],
+    }));
+  }
+  const health = shellFunction("baseline_health_ready");
+  for (const endpoint of [
+    "/api/health", "/api/frontend/radar-contract",
+    "/api/radar/backend-contract", "/api/radar/business-capability",
+  ]) assert.match(health, new RegExp(endpoint.replaceAll("/", "\\/"), "u"));
+  assert.match(health, /pg_isready -q/u);
+  assert.match(health, /redis-cli ping/u);
+  assert.doesNotMatch(runner, /scripts\/verify\/production-check\.sh/u);
+});
+
 test("drain environment renderer mounts only the exact source file read-only", () => {
   const directory = mkdtempSync(join(tmpdir(), "pending-drain-env-render-"));
   const fakeDocker = join(directory, "docker");

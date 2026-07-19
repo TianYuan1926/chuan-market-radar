@@ -6988,3 +6988,45 @@ commit `6e6fc9c16e40ec8ded69fa6ccd4609b8ce9f49d4` 已推送当前工程分支；
 ### 下一轮建议
 
 只完成校正包全门禁和 fresh production drain；成功后再生成 Cycle-7 request。
+
+## 2026-07-19 / Cycle-6 Drain Recovery Health Verifier Remediation
+
+### 本轮目标
+
+在 Cycle-6 production runner 启动前消除恢复健康误判：保持原健康门槛和回滚边界，但不再依赖生产宿主机缺失的 Node 与 Compose 环境插值。
+
+### 修改范围
+
+- Drain runner 的恢复健康判定改为直接验证 `/api/health`、三个 Radar 合同端点、Postgres `pg_isready` 和 Redis `PONG`。
+- 保留 1,200 秒恢复等待、扫描 `completedAt` 必须推进、基线 Git/镜像/env/容器恢复和 Candidate Worker absent 等原有边界。
+- 从确定性传输清单删除已不使用的 `scripts/verify/production-check.sh`，runner artifact 重算为 `3bcd4b1552d5cdaa1785e833fbdca00bc7ded4db070ebd09afb79bacb83d2dd4`。
+- 同步生产合同、状态、蓝图、项目上下文和本轮中文交付报告。
+- 未修改 frontend、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、DB schema、Redis 数据、Compose、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+修复候选生命周期恢复列车的生产验收可靠性，避免“数据库已成功排空但宿主验证器误报失败”；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- `bash -n`：PASS。
+- Drain production governance：PASS，runner artifact `3bcd4b15...`，violations=0。
+- Drain production packet：PASS，24/24。
+- PostgreSQL 16 success drain / failure refreeze：PASS；`sourceWritesAdded=0`、`outboxDeleted=0`、`productionConnected=false`。
+- 完整基础、安全与自治门禁：20/20 PASS，`worktreeUnchanged=true`；gate evidence=`cf15671bb8fed539fc3ef10fefc8869126688e56de622420907dbd1fc06e610f`，`autonomy:verify` PASS，`canAutoCommit=true`、`canAutoDeploy=false`。
+- production smoke：未执行；production runner 未启动，数据库、服务、Git、env 均未变更。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。旧 Bundle/request 曾上传并完成 staging，但 runner 没有启动；远端 staging、lease、secure root 和本地旧制品已精确清理。
+
+### 风险与遗留问题
+
+- Cycle-6 的 48 条 Legacy pending 仍在生产，G0 主步骤仍为 7。
+- 修复后的提交必须重新通过统一门禁并生成 fresh commit/tree/gate-bound Bundle 与 90 分钟 request，旧制品禁止复用。
+- 当前仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成修复包统一门禁、确定性重打包和 Cycle-6 精确生产 drain；成功后再生成 Cycle-7 request。

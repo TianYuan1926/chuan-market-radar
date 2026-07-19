@@ -63,7 +63,6 @@ export const TRANSPORT_FILES = Object.freeze([
   "scripts/production/candidate-legacy-pending-drain-production/db-runner.mjs",
   "scripts/production/candidate-legacy-pending-drain-production/production-entrypoint.sh",
   "scripts/production/candidate-legacy-pending-drain-production/production-runner.sh",
-  "scripts/verify/production-check.sh",
 ]);
 
 const REQUEST_KEYS = Object.freeze([
