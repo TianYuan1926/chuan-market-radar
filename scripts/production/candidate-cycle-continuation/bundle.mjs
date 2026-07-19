@@ -38,7 +38,6 @@ export const TRANSPORT_FILES = Object.freeze([
   "scripts/production/candidate-cycle-continuation/production-entrypoint.sh",
   "scripts/production/candidate-cycle-continuation/production-runner.sh",
   "scripts/production/candidate-cycle-continuation/runner.mjs",
-  "scripts/verify/production-check.sh",
 ]);
 
 const REQUEST_KEYS = Object.freeze([

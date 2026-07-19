@@ -7030,3 +7030,45 @@ commit `6e6fc9c16e40ec8ded69fa6ccd4609b8ce9f49d4` 已推送当前工程分支；
 ### 下一轮建议
 
 只完成修复包统一门禁、确定性重打包和 Cycle-6 精确生产 drain；成功后再生成 Cycle-7 request。
+
+## 2026-07-19 / Cycle-7 Continuation Host Verifier Elimination
+
+### 本轮目标
+
+在最终打包阶段消除 Cycle-7 continuation 中与 Cycle-6 相同的宿主机验证器故障，避免 Cycle-6 drain 成功后再次因缺少 Node/Compose 插值而误判失败。
+
+### 修改范围
+
+- Cycle-7 production runner 直接验证 `/api/health`、三个 Radar 合同端点、Postgres `pg_isready` 和 Redis `PONG`。
+- 保留原 600 秒启动等待；即时启动、失败回滚和临时制品清理三处继续使用同一严格健康门。
+- 从 Cycle-7 确定性传输清单删除未使用的 `scripts/verify/production-check.sh`。
+- 6 文件 runner artifact 更新为 `ca0896ab1562b49bbda2409e22d0a321b1586aaa209e567bcd770635c11fef3d`。
+- 未修改观察的 24 小时、289 样本、10,000 writes、最大 600 秒间隔、瞬态重查、数据库 schema、Redis 数据、scan、analysis、strategy、RR、Risk Gate、前端或 secret。
+
+### 核心链路影响
+
+强化候选验证周期从启动到回滚的真实健康判定，避免已知基础设施缺口重复消耗生产窗口；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- `bash -n`：PASS。
+- Cycle continuation production governance：PASS，violations=0。
+- Cycle continuation production packet：PASS，42/42，含健康合同正反例。
+- 第一次统一门禁在第 7 项因本地超级包仍绑定旧 implementation artifact 正确 FAIL；没有绕过，已重算为 `8cd3b02f3782aa655e609990891e62325d6a2c27687d18c4b8c2bdaef4680e5e` 并要求全门禁从头重跑。
+- 完整基础、安全与自治门禁：修正旧 implementation artifact 后从头重跑 20/20 PASS，`worktreeUnchanged=true`；gate evidence=`6a47b99ab2f3f66d7a3eed75dfc248152b851deab38594aee891f42cdbfa6cee`，`autonomy:verify` PASS、`canAutoCommit=true`、`canAutoDeploy=false`。
+- production smoke：未执行；本轮仍是本地修复，生产零变更。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。基于上一提交生成的三份临时 Bundle 已失效并按精确路径删除，禁止上传。
+
+### 风险与遗留问题
+
+- Cycle-6 的 48 条 Legacy pending 仍未生产 drain，G0 主步骤仍为 7。
+- 新修复必须完成全门禁、clean commit、commit-bound 门禁和两次确定性打包后才可上传。
+- 当前仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成修复提交与最终生产包，然后执行 Cycle-6 精确 drain；成功后使用 fresh preflight 启动 Cycle-7。

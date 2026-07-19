@@ -8,6 +8,10 @@ RUNNER_MODE="${CANDIDATE_CYCLE_CONTINUATION_MODE:-dry_run}"
 CONFIRMED="${CONFIRM_CANDIDATE_CYCLE_CONTINUATION:-false}"
 RUNNER_MODULE="${SOURCE_ROOT}/scripts/production/candidate-cycle-continuation/runner.mjs"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
+readonly HEALTH_CONTRACT_FILTER='.ok == true and .health.level == "ready" and .health.persistence.databaseStatus == "ready" and .health.scan.freshness == "fresh"'
+readonly FRONTEND_CONTRACT_FILTER='.ok == true and .contract.scanProof != null and .contract.radarSignals != null and .contract.coreChainGovernance != null'
+readonly BACKEND_CONTRACT_FILTER='.ok != false and .contract.scanProof != null'
+readonly BUSINESS_CONTRACT_FILTER='.ok != false'
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
 file_mode() { stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"; }
@@ -34,7 +38,7 @@ if [[ "${RUNNER_MODE}" == "dry_run" || "${CONFIRMED}" != "true" ]]; then
 fi
 [[ "${RUNNER_MODE}" == "production_continue" || "${RUNNER_MODE}" == "automatic_rollback" ]] \
   || fail runner_mode_invalid
-for command_name in docker git jq sha256sum sudo; do
+for command_name in curl docker git jq sha256sum sudo; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "required_command_missing:${command_name}"
 done
 assert_private_file "${REQUEST_FILE}"
@@ -152,12 +156,36 @@ WEB_RECREATE_ATTEMPTED=false
 TARGET_WEB_IMAGE=""
 TARGET_WORKER_IMAGE=""
 
+production_health_ready() {
+  local health frontend backend business postgres_container redis_container
+  health="$(curl -fsS http://127.0.0.1/api/health)" || return 1
+  frontend="$(curl -fsS http://127.0.0.1/api/frontend/radar-contract)" || return 1
+  backend="$(curl -fsS http://127.0.0.1/api/radar/backend-contract)" || return 1
+  business="$(curl -fsS http://127.0.0.1/api/radar/business-capability)" || return 1
+  jq -e "${HEALTH_CONTRACT_FILTER}" <<<"${health}" >/dev/null || return 1
+  jq -e "${FRONTEND_CONTRACT_FILTER}" <<<"${frontend}" >/dev/null || return 1
+  jq -e "${BACKEND_CONTRACT_FILTER}" <<<"${backend}" >/dev/null || return 1
+  jq -e "${BUSINESS_CONTRACT_FILTER}" <<<"${business}" >/dev/null || return 1
+  postgres_container="$(${DOCKER[@]} ps \
+    --filter 'label=com.docker.compose.project=chuan-market-radar' \
+    --filter 'label=com.docker.compose.service=postgres' --format '{{.ID}}')"
+  redis_container="$(${DOCKER[@]} ps \
+    --filter 'label=com.docker.compose.project=chuan-market-radar' \
+    --filter 'label=com.docker.compose.service=redis' --format '{{.ID}}')"
+  [[ "${postgres_container}" =~ ^[0-9a-f]+$ && "${redis_container}" =~ ^[0-9a-f]+$ ]] \
+    || return 1
+  ${DOCKER[@]} exec "${postgres_container}" \
+    sh -lc 'pg_isready -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' || return 1
+  [[ "$(${DOCKER[@]} exec "${redis_container}" redis-cli ping 2>/dev/null)" == "PONG" ]]
+}
+
 run_production_check() {
-  ROOT_DIR_OVERRIDE="${ROOT_DIR}" BASE_ENV_FILE="${BASE_ENV_FILE}" ENV_FILE="${ENV_FILE}" \
-    STRICT_SCAN_FRESHNESS=true REQUIRE_IDENTITY_WRAPPER=true \
-    IDENTITY_WRAPPER="${IDENTITY_WRAPPER}" IDENTITY_WRAPPER_SHA256="$(jq -r '.identityWrapperSha256' "${REQUEST_FILE}")" \
-    IDENTITY_OVERRIDE_FILE="${IDENTITY_OVERRIDE}" IDENTITY_OVERRIDE_SHA256="$(jq -r '.identityOverrideSha256' "${REQUEST_FILE}")" \
-    bash "${SOURCE_ROOT}/scripts/verify/production-check.sh"
+  local deadline=$((SECONDS + 600))
+  while true; do
+    production_health_ready && return 0
+    (( SECONDS < deadline )) || return 1
+    sleep 5
+  done
 }
 
 bounded_rollback() {
