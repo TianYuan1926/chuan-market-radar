@@ -2,6 +2,48 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Cycle-6 Legacy Pending Drain Production
+
+### 本轮目标
+
+精确恢复 Cycle-6 失败回滚后遗留的 48 条 Legacy pending，形成 fresh Cycle-7 启动前的干净生产基线。
+
+### 修改范围
+
+- 生产执行 `WP-G0.2-CYCLE-6-LEGACY-PENDING-DRAIN-PRODUCTION`，绑定 approvalRef=`MR-G0-PENDING-DRAIN/47741f322224/591e5e9b`。
+- 上传并校验脱敏 bundle 和 request 后，通过 transient systemd unit 执行 drain。
+- 更新 Context、Changelog 和本轮交付报告。
+- 清理远端上传临时件、本地 staging 和 duplicate continuation tar。
+- 未修改 frontend、scan、analysis、strategy、backtest、schema、Redis、env、Feature Flag、GitHub main 或生产仓库源码。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化之间的 Candidate 生命周期真值。Legacy lane 清账完成，Candidate event mirror lane 保持完整 pending；不新增信号、不改变排序、不生成交易计划。
+
+### 测试结果
+
+- production runner：PASS，`PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN`。
+- DB evidence：PASS，drained=48，completed/events=5,266，Legacy pending/unresolved=0，outbox=10,532，global pending/unresolved=5,266，final phase=legacy，final epoch=4，writeFrozen=true。
+- systemd unit：PASS，Result=success。
+- lease：PASS，outcome=PASS。
+- health/API：PASS，ready/fresh，frontend/backend/business 合同端点 OK。
+- Candidate Worker absent：PASS。
+- formal：未运行且禁止。
+
+### 是否部署
+
+已执行腾讯云生产 DB drain；未部署 Web/Caddy，未推 GitHub main，未启动 Cycle-7。
+
+### 风险与遗留问题
+
+- 本轮不减少 G0 主步骤；G0 仍为 7。
+- Cycle-6 失败样本仍是失败历史，不能重标 PASS。
+- 下一步必须用 fresh production preflight 生成全新 Cycle-7 request，禁止复用旧 request 或样本。
+
+### 下一轮建议
+
+只执行 `WP-G0.2-CYCLE-7-FRESH-ACTIVATION`。
+
 ## 2026-07-19 / WP-ACCEL-02 G0 Closure Train Execution Overlay
 
 ### 本轮目标
