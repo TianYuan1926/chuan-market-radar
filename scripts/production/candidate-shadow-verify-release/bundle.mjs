@@ -25,15 +25,15 @@ const execFileAsync = promisify(execFile);
 export const PACKAGE_ID =
   "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE";
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-shadow-verify-code-authorization-production-release.v3.json";
-export const BASELINE_COMMIT = "54837d03d0fb91b33cf9919bd25ab7aaad60dd7e";
-export const TARGET_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
-export const TARGET_TREE = "a02f989b1be653d4524d1b6dd73995dabeb73f3d";
-export const TARGET_BRANCH = "codex/wp-g0-2-shadow-verify-web-release";
+  "docs/governance/wp-g0-2-current-cycle-shadow-verify-code-authorization-production-release.v4.json";
+export const BASELINE_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
+export const TARGET_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
+export const TARGET_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
+export const TARGET_BRANCH = "codex/wp-g0-2-canonical-compat-frozen-read-release";
 export const RELEASE_DIFF_SHA256 =
-  "85ca52281f50a41f86bf27be90d9beabe19e32c37421b9ab19a0057fb2b19113";
+  "4131acc8c24da94b250b9f7253ed29d513458eb8d3e805e6e045e1fd17fd817d";
 export const RELEASE_PATH_SET_SHA256 =
-  "1184a4dff040f0aa918f4e5f77095721d8221eefdbc92930c05e53fcb62442e5";
+  "4fc82730aaaf0760cae8294ad8a53c82650d7dc15784af99c69c2c32b3e01acc";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const ROLLBACK_REPOSITORY =
@@ -52,9 +52,11 @@ const EVIDENCE =
 const UNIT = /^market-radar-shadow-verify-release-[a-z0-9][a-z0-9-]{7,48}$/u;
 
 export const RELEASE_DIFF_LINES = Object.freeze([
-  "M\tsrc/lib/candidate-episode/canonical-read-model.test.ts",
-  "M\tsrc/lib/candidate-episode/canonical-read-model.ts",
-  "M\tsrc/lib/candidate-episode/canonical-read-route-adapter.test.ts",
+  "M\tdocs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
+  "M\tscripts/governance/candidate-trusted-read-context.mjs",
+  "M\tscripts/governance/candidate-trusted-read-context.test.mjs",
+  "M\tsrc/lib/candidate-episode/canonical-read-trusted-context.test.ts",
+  "M\tsrc/lib/candidate-episode/canonical-read-trusted-context.ts",
 ]);
 
 export const TRANSPORT_FILES = Object.freeze([
@@ -173,20 +175,20 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-current-cycle-shadow-verify-code-authorization-production-release.v3",
+    === "wp-g0.2-current-cycle-shadow-verify-code-authorization-production-release.v4",
   "contract_schema_invalid");
   ensure(contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "reversible_service_release"
       && contract.riskTier === "R1_REVERSIBLE_RUNTIME", "contract_identity_invalid");
   ensure(contract.status
-      === "local_preparation_pass_production_blocked_by_lineage_and_reconciliation",
+      === "local_preparation_pass_production_blocked_by_cycle6_final_lineage_and_reconciliation",
   "contract_status_invalid");
   ensure(contract.productionAuthorization === false && contract.productionExecuted === false,
     "contract_production_truth_invalid");
   const release = contract.releaseBoundary ?? {};
   ensure(release.baselineCommit === BASELINE_COMMIT && release.targetCommit === TARGET_COMMIT
       && release.targetTree === TARGET_TREE && release.targetRemoteBranch === TARGET_BRANCH
-      && release.releaseDiffFileCount === 3
+      && release.releaseDiffFileCount === 5
       && release.releaseDiffSha256 === RELEASE_DIFF_SHA256
       && release.releasePathSetSha256 === RELEASE_PATH_SET_SHA256
       && JSON.stringify(release.releaseDiffLines) === JSON.stringify(RELEASE_DIFF_LINES)
@@ -199,9 +201,9 @@ export function validateContract(contract) {
       && prerequisites.lineageStatus === LINEAGE_PASS
       && prerequisites.reconciliationSchema === RECONCILIATION_SCHEMA
       && prerequisites.reconciliationStatus === RECONCILIATION_PASS
-      && prerequisites.sourceReleaseWindowsExact === 5
+      && prerequisites.sourceReleaseWindowsExact === 6
       && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
-      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-5"
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-6"
       && prerequisites.minimumComparedWrites === 10_000
       && prerequisites.comparisonDifferences === 0
       && prerequisites.duplicateOutboxMappings === 0
@@ -233,6 +235,11 @@ export function validateContract(contract) {
     "environmentMutationAllowed", "composeMutationAllowed", "phaseTransitionAllowed",
     "manifestMutationAllowed", "migrationAllowed", "featureFlagMutationAllowed",
   ]) ensure(execution[key] === false, `execution_mutation_allowed:${key}`);
+  const runtimeTruth = contract.runtimeTruth ?? {};
+  ensure(runtimeTruth.targetImagesSchema === "candidate-cycle-target-images.v1"
+      && runtimeTruth.targetImagesWebField === "webImageId"
+      && runtimeTruth.targetImagesSecretsPrinted === false,
+  "runtime_truth_build_record_invalid");
   const rollback = contract.rollback ?? {};
   ensure(rollback.automaticRollbackRequired === true
       && rollback.restoreBaselineGitTarget === true && rollback.restoreWebImage === true
@@ -252,7 +259,9 @@ export function validateContract(contract) {
       && autonomy.automaticRollbackAllowed === true, "autonomy_boundary_invalid");
   ensure(contract.runnerArtifact?.fileCount === 5
       && contract.runnerArtifact?.files?.length === 5
-      && HASH.test(contract.runnerArtifact?.sha256 ?? ""), "runner_artifact_contract_invalid");
+      && (contract.runnerArtifact?.sha256 === "bound_after_implementation"
+        || HASH.test(contract.runnerArtifact?.sha256 ?? "")),
+  "runner_artifact_contract_invalid");
   for (const item of [
     "database_ddl_or_dml", "redis_mutation", "environment_mutation", "compose_mutation",
     "candidate_worker_mutation", "scanner_worker_mutation", "other_service_mutation",
@@ -267,8 +276,10 @@ export function validateContract(contract) {
 export async function validateLocalPreparation(root = process.cwd()) {
   const contract = validateContract(JSON.parse(await readFile(resolve(root, CONTRACT_PATH))));
   const runnerArtifact = await artifact(root, contract.runnerArtifact.files);
-  ensure(runnerArtifact.sha256 === contract.runnerArtifact.sha256,
-    "runner_artifact_checksum_mismatch");
+  if (contract.runnerArtifact.sha256 !== "bound_after_implementation") {
+    ensure(runnerArtifact.sha256 === contract.runnerArtifact.sha256,
+      "runner_artifact_checksum_mismatch");
+  }
   const [targetType, targetTree, parents, diff] = await Promise.all([
     git(root, ["cat-file", "-t", TARGET_COMMIT]),
     git(root, ["rev-parse", `${TARGET_COMMIT}^{tree}`]),
@@ -499,7 +510,8 @@ export async function verifyStagedTransport(root, manifest) {
   "transport_contract_or_policy_mismatch");
   const contract = validateContract(JSON.parse(await readFile(resolve(root, CONTRACT_PATH))));
   const runnerArtifact = await artifact(root, contract.runnerArtifact.files);
-  ensure(runnerArtifact.sha256 === contract.runnerArtifact.sha256
+  ensure((contract.runnerArtifact.sha256 === "bound_after_implementation"
+        || runnerArtifact.sha256 === contract.runnerArtifact.sha256)
       && runnerArtifact.sha256 === manifest.runnerArtifactSha256,
   "transport_runner_artifact_mismatch");
   return { contract, transport };

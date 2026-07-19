@@ -24,6 +24,8 @@ test("isolated execute proves existing code without mutating services", async ()
   const worktree = join(directory, "production");
   const fakeDocker = join(directory, "docker");
   const buildRecord = join(directory, "target-images-redacted.json");
+  const approvedBuildRecord =
+    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-3315b54d-a1b2c3d4/target-images-redacted.json";
   const health = join(directory, "health.json");
   const staging = join(directory, "staging");
   const requestPath = join(staging, "approval-request.json");
@@ -41,7 +43,7 @@ test("isolated execute proves existing code without mutating services", async ()
   let worktreeAdded = false;
   try {
     await execFileAsync("git", ["worktree", "add", "--detach", worktree,
-      "72ee289388eea922d0aee58fd4ec7a3f18a91007"], { cwd: root });
+      "3315b54dfcfcde63fcdf3a042ef92754da509feb"], { cwd: root });
     worktreeAdded = true;
     await writeFile(fakeDocker, `#!/usr/bin/env bash
 set -euo pipefail
@@ -89,6 +91,7 @@ exit 2
       now: new Date(),
       nonce: "12345678-1234-4123-8123-123456789abc",
       runtime: {
+        buildRecordPath: approvedBuildRecord,
         buildRecordSha256: createHash("sha256").update(buildRecordBytes).digest("hex"),
         buildRecordWebImageId: webImage,
         currentWebContainerId: webContainer,

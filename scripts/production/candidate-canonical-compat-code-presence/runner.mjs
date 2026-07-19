@@ -9,9 +9,9 @@ export const PACKAGE_ID =
   "WP-G0.2-CANONICAL-COMPAT-PRODUCTION-CODE-PRESENCE-CURRENT-CYCLE";
 export const EVIDENCE_SCHEMA = "candidate-canonical-compat-code-presence-evidence.v1";
 export const EVIDENCE_PASS = "PASS_PRODUCTION_CANONICAL_COMPAT_CODE_PRESENCE_VERIFIED";
-export const REFERENCE_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
+export const REFERENCE_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
 export const PRODUCTION_COMMIT = REFERENCE_COMMIT;
-export const PRODUCTION_TREE = "3d362ceaad05f24f705efe2d871a5a46c3d8704e";
+export const PRODUCTION_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
 
 export const REFERENCE_CODE_PATHS = Object.freeze([
   Object.freeze({
@@ -40,7 +40,7 @@ export const REFERENCE_CODE_PATHS = Object.freeze([
   }),
   Object.freeze({
     path: "src/lib/candidate-episode/canonical-read-trusted-context.ts",
-    blob: "8889ad7ccb3b960a14d3fcd2298abcb51713eb1c",
+    blob: "5fdeb5115a78d3bc8d89061ae80fbebbbe954fab",
   }),
   Object.freeze({
     path: "src/lib/candidate-episode/legacy-read-diagnostic.ts",

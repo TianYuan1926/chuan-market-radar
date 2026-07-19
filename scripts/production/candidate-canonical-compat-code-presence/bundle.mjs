@@ -24,10 +24,10 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-canonical-compat-code-presence-current-cycle.v1.json";
+  "docs/governance/wp-g0-2-canonical-compat-code-presence-current-cycle.v2.json";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
-export const BUILD_RECORD_PATH =
-  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-94b6d415573f-98459433/target-images-record.json";
+export const BUILD_RECORD_PATH_PATTERN =
+  "^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}/target-images-redacted\\.json$";
 export const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
 const HASH = /^[0-9a-f]{64}$/u;
@@ -36,6 +36,7 @@ const CONTAINER = /^[0-9a-f]{12,64}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
 const MIGRATION = /^candidate-episode-v1-cycle-[1-9][0-9]{0,5}$/u;
 const RELEASE = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
+const BUILD_RECORD = new RegExp(BUILD_RECORD_PATH_PATTERN, "u");
 const STAGING =
   /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-canonical-compat-code-presence-[a-z0-9][a-z0-9-]{15,48}$/u;
 const EVIDENCE =
@@ -84,20 +85,21 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-      === "wp-g0.2-canonical-compat-code-presence-current-cycle.v1"
+      === "wp-g0.2-canonical-compat-code-presence-current-cycle.v2"
       && contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "read_only_production_preflight"
       && contract.riskTier === "R0_READ_ONLY",
   "contract_identity_invalid");
-  ensure(contract.status === "local_preparation_production_verify_only_not_executed"
+  ensure(contract.status === "local_cycle6_preparation_production_verify_only_not_executed"
       && contract.productionAuthorization === false && contract.productionExecuted === false,
   "contract_production_truth_invalid");
   const identity = contract.identity ?? {};
   ensure(identity.referenceCommit === REFERENCE_COMMIT
       && identity.productionCommit === PRODUCTION_COMMIT
       && identity.productionTree === PRODUCTION_TREE
-      && identity.cycleBuildRecordPath === BUILD_RECORD_PATH
+      && identity.releaseBuildRecordPathPattern === BUILD_RECORD_PATH_PATTERN
       && identity.cycleBuildRecordSchema === "candidate-cycle-target-images.v1"
+      && identity.cycleBuildRecordWebImageField === "webImageId"
       && JSON.stringify(identity.referenceCodePaths) === JSON.stringify(REFERENCE_CODE_PATHS),
   "contract_code_identity_invalid");
   const execution = contract.execution ?? {};
@@ -207,11 +209,12 @@ export function createProductionVerificationRequest({
       && COMMIT.test(manifest?.sourceTree ?? "") && COMMIT.test(manifest?.sourceParentCommit ?? ""),
   "request_source_identity_invalid");
   ensure(exactKeys(runtime, [
-    "authorityEpoch", "buildRecordSha256", "buildRecordWebImageId", "currentWebContainerId",
-    "currentWebImageId", "healthLevel", "manifestSha256", "migrationId", "releaseId",
-    "scanFreshness",
+    "authorityEpoch", "buildRecordPath", "buildRecordSha256", "buildRecordWebImageId",
+    "currentWebContainerId", "currentWebImageId", "healthLevel", "manifestSha256",
+    "migrationId", "releaseId", "scanFreshness",
   ]), "request_runtime_shape_invalid");
-  ensure(HASH.test(runtime.buildRecordSha256 ?? "")
+  ensure(BUILD_RECORD.test(runtime.buildRecordPath ?? "")
+      && HASH.test(runtime.buildRecordSha256 ?? "")
       && IMAGE.test(runtime.buildRecordWebImageId ?? "")
       && CONTAINER.test(runtime.currentWebContainerId ?? "")
       && IMAGE.test(runtime.currentWebImageId ?? "")
@@ -233,7 +236,7 @@ export function createProductionVerificationRequest({
     productionTree: PRODUCTION_TREE,
     referenceCommit: REFERENCE_COMMIT,
     referenceCodePaths: REFERENCE_CODE_PATHS,
-    buildRecordPath: BUILD_RECORD_PATH,
+    buildRecordPath: runtime.buildRecordPath,
     migrationId: runtime.migrationId,
     releaseId: runtime.releaseId,
     authorityEpoch: runtime.authorityEpoch,
@@ -266,7 +269,7 @@ export function validateProductionVerificationRequest(request, manifest, {
       && request.productionCommit === PRODUCTION_COMMIT
       && request.productionTree === PRODUCTION_TREE && request.referenceCommit === REFERENCE_COMMIT
       && JSON.stringify(request.referenceCodePaths) === JSON.stringify(REFERENCE_CODE_PATHS)
-      && request.buildRecordPath === BUILD_RECORD_PATH,
+      && BUILD_RECORD.test(request.buildRecordPath ?? ""),
   "request_identity_invalid");
   ensure(request.runnerSourceCommit === manifest.sourceCommit
       && request.runnerSourceTree === manifest.sourceTree

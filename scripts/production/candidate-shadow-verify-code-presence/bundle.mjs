@@ -24,10 +24,10 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v2.json";
+  "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v3.json";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
-export const BUILD_RECORD_PATH =
-  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json";
+export const BUILD_RECORD_PATH_PATTERN =
+  /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}\/target-images-redacted\.json$/u;
 export const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
 const HASH = /^[0-9a-f]{64}$/u;
@@ -83,7 +83,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-      === "wp-g0.2-shadow-verify-production-code-presence-current-cycle.v2"
+      === "wp-g0.2-shadow-verify-production-code-presence-current-cycle.v3"
       && contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "read_only_production_preflight"
       && contract.riskTier === "R0_READ_ONLY",
@@ -96,7 +96,7 @@ export function validateContract(contract) {
       && identity.productionCommit === PRODUCTION_COMMIT
       && identity.productionTree === PRODUCTION_TREE
       && identity.currentCycleMigrationId === "candidate-episode-v1-cycle-6"
-      && identity.cycleBuildRecordPath === BUILD_RECORD_PATH
+      && identity.cycleBuildRecordPathPattern === BUILD_RECORD_PATH_PATTERN.source
       && identity.cycleBuildRecordSchema === "candidate-cycle-target-images.v1"
       && identity.cycleBuildRecordWebImageField === "webImageId"
       && JSON.stringify(identity.referenceCodePaths) === JSON.stringify(REFERENCE_CODE_PATHS),
@@ -134,10 +134,10 @@ export function validateContract(contract) {
         || HASH.test(contract.runnerArtifact?.sha256 ?? "")),
   "contract_runner_artifact_invalid");
   const transport = contract.transport ?? {};
-  ensure(transport.schemaVersion === "wp-g0.2-shadow-verify-code-presence-transport.v2"
-      && transport.requestSchemaVersion === "wp-g0.2-shadow-verify-code-presence-request.v2"
+  ensure(transport.schemaVersion === "wp-g0.2-shadow-verify-code-presence-transport.v3"
+      && transport.requestSchemaVersion === "wp-g0.2-shadow-verify-code-presence-request.v3"
       && transport.authorizationSchemaVersion
-        === "wp-g0.2-shadow-verify-code-presence-authorization.v2"
+        === "wp-g0.2-shadow-verify-code-presence-authorization.v3"
       && transport.independentBoundedAuthorizationRequired === true
       && transport.containsSecrets === false && transport.reproducibleArchive === true
       && transport.archiveFormat === "ustar+gzip-n"
@@ -177,7 +177,7 @@ export async function validateLocalPreparation(root = process.cwd()) {
 }
 
 export async function validateTransportManifest(manifest, root) {
-  ensure(manifest?.schemaVersion === "wp-g0.2-shadow-verify-code-presence-transport.v2"
+  ensure(manifest?.schemaVersion === "wp-g0.2-shadow-verify-code-presence-transport.v3"
       && manifest.packageId === PACKAGE_ID
       && COMMIT.test(manifest.sourceCommit ?? "") && COMMIT.test(manifest.sourceTree ?? "")
       && COMMIT.test(manifest.sourceParentCommit ?? "")
@@ -219,10 +219,11 @@ export function createProductionVerificationRequest({
       && COMMIT.test(manifest?.sourceTree ?? "") && COMMIT.test(manifest?.sourceParentCommit ?? ""),
   "request_source_identity_invalid");
   ensure(exactKeys(runtime, [
-    "buildRecordSha256", "buildRecordWebImageId", "currentWebContainerId",
+    "buildRecordPath", "buildRecordSha256", "buildRecordWebImageId", "currentWebContainerId",
     "currentWebImageId", "healthLevel", "scanFreshness",
   ]), "request_runtime_shape_invalid");
-  ensure(HASH.test(runtime.buildRecordSha256 ?? "")
+  ensure(BUILD_RECORD_PATH_PATTERN.test(runtime.buildRecordPath ?? "")
+      && HASH.test(runtime.buildRecordSha256 ?? "")
       && IMAGE.test(runtime.buildRecordWebImageId ?? "")
       && CONTAINER.test(runtime.currentWebContainerId ?? "")
       && IMAGE.test(runtime.currentWebImageId ?? "")
@@ -234,14 +235,14 @@ export function createProductionVerificationRequest({
   const expiresAt = new Date(issuedAt.getTime() + 30 * 60_000);
   const suffix = `${manifest.sourceCommit.slice(0, 12)}-${nonce.replaceAll("-", "").slice(0, 8)}`;
   const request = {
-    schemaVersion: "wp-g0.2-shadow-verify-code-presence-request.v2",
+    schemaVersion: "wp-g0.2-shadow-verify-code-presence-request.v3",
     packageId: PACKAGE_ID,
     productionRoot: PRODUCTION_ROOT,
     productionCommit: PRODUCTION_COMMIT,
     productionTree: PRODUCTION_TREE,
     referenceCommit: REFERENCE_COMMIT,
     referenceCodePaths: REFERENCE_CODE_PATHS,
-    buildRecordPath: BUILD_RECORD_PATH,
+    buildRecordPath: runtime.buildRecordPath,
     runnerSourceCommit: manifest.sourceCommit,
     runnerSourceTree: manifest.sourceTree,
     runnerSourceParentCommit: manifest.sourceParentCommit,
@@ -262,7 +263,7 @@ export function createProductionVerificationRequest({
     ...runtime,
   };
   request.authorization = {
-    schemaVersion: "wp-g0.2-shadow-verify-code-presence-authorization.v2",
+    schemaVersion: "wp-g0.2-shadow-verify-code-presence-authorization.v3",
     mode: "g0_g8_standing_user_grant",
     approvedBy: "user_standing_grant",
     grantId: GRANT_ID,
@@ -282,7 +283,7 @@ export function createProductionVerificationRequest({
     contractSha256: manifest.contractSha256,
     productionCommit: PRODUCTION_COMMIT,
     productionTree: PRODUCTION_TREE,
-    buildRecordPath: BUILD_RECORD_PATH,
+    buildRecordPath: runtime.buildRecordPath,
     currentWebImageId: runtime.currentWebImageId,
   };
   return request;
@@ -291,12 +292,12 @@ export function createProductionVerificationRequest({
 export function validateProductionVerificationRequest(request, manifest, {
   now = new Date(), bundleSha256,
 } = {}) {
-  ensure(request?.schemaVersion === "wp-g0.2-shadow-verify-code-presence-request.v2"
+  ensure(request?.schemaVersion === "wp-g0.2-shadow-verify-code-presence-request.v3"
       && request.packageId === PACKAGE_ID && request.productionRoot === PRODUCTION_ROOT
       && request.productionCommit === PRODUCTION_COMMIT
       && request.productionTree === PRODUCTION_TREE && request.referenceCommit === REFERENCE_COMMIT
       && JSON.stringify(request.referenceCodePaths) === JSON.stringify(REFERENCE_CODE_PATHS)
-      && request.buildRecordPath === BUILD_RECORD_PATH,
+      && BUILD_RECORD_PATH_PATTERN.test(request.buildRecordPath ?? ""),
   "request_identity_invalid");
   ensure(request.runnerSourceCommit === manifest.sourceCommit
       && request.runnerSourceTree === manifest.sourceTree
@@ -319,7 +320,7 @@ export function validateProductionVerificationRequest(request, manifest, {
   "request_runtime_invalid");
   const authorization = request.authorization;
   ensure(authorization?.schemaVersion
-      === "wp-g0.2-shadow-verify-code-presence-authorization.v2"
+      === "wp-g0.2-shadow-verify-code-presence-authorization.v3"
       && authorization.mode === "g0_g8_standing_user_grant"
       && authorization.approvedBy === "user_standing_grant"
       && authorization.grantId === GRANT_ID
@@ -337,7 +338,7 @@ export function validateProductionVerificationRequest(request, manifest, {
       && authorization.contractSha256 === manifest.contractSha256
       && authorization.productionCommit === PRODUCTION_COMMIT
       && authorization.productionTree === PRODUCTION_TREE
-      && authorization.buildRecordPath === BUILD_RECORD_PATH
+      && authorization.buildRecordPath === request.buildRecordPath
       && authorization.currentWebImageId === request.currentWebImageId,
   "request_authorization_invalid");
   const issued = Date.parse(request.issuedAt);
@@ -365,7 +366,7 @@ export async function buildTransportBundle({
     }
     const transport = await artifact(root, TRANSPORT_FILES);
     const manifest = {
-      schemaVersion: "wp-g0.2-shadow-verify-code-presence-transport.v2",
+      schemaVersion: "wp-g0.2-shadow-verify-code-presence-transport.v3",
       packageId: PACKAGE_ID,
       sourceCommit: identity.sourceCommit,
       sourceTree: identity.sourceTree,

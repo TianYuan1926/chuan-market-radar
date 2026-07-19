@@ -51,9 +51,9 @@ LINEAGE_EVIDENCE="$(jq -r '.lineageEvidencePath' "${REQUEST_FILE}")"
 RECONCILIATION_EVIDENCE="$(jq -r '.reconciliationEvidencePath' "${REQUEST_FILE}")"
 
 [[ "${PACKAGE_ID}" == "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE" \
-  && "${BASELINE_COMMIT}" == "54837d03d0fb91b33cf9919bd25ab7aaad60dd7e" \
-  && "${TARGET_COMMIT}" == "eb48827b8b403452328b65dc4b415c3fc0ecf765" \
-  && "${TARGET_TREE}" == "a02f989b1be653d4524d1b6dd73995dabeb73f3d" ]] \
+  && "${BASELINE_COMMIT}" == "72ee289388eea922d0aee58fd4ec7a3f18a91007" \
+  && "${TARGET_COMMIT}" == "3315b54dfcfcde63fcdf3a042ef92754da509feb" \
+  && "${TARGET_TREE}" == "cccd5776a80ded39f712bee4909c23c8133db798" ]] \
   || fail release_identity_invalid
 if [[ "${REHEARSAL}" != "true" ]]; then
   [[ "${TRUST_ROOT}" == "/home/ubuntu/.local/state/market-radar-autonomy" \
@@ -224,6 +224,7 @@ LEASE_EXECUTION="${EVIDENCE_DIRECTORY}/lease-execution.json"
 LEASE_EVENTS="${EVIDENCE_DIRECTORY}/lease-events.jsonl"
 OBSERVATIONS="${EVIDENCE_DIRECTORY}/observations.jsonl"
 SUMMARY="${EVIDENCE_DIRECTORY}/summary.json"
+TARGET_IMAGES="${EVIDENCE_DIRECTORY}/target-images-redacted.json"
 ROLLBACK_RESULT="${EVIDENCE_DIRECTORY}/rollback.json"
 
 lease_event() {
@@ -363,12 +364,16 @@ FAILURE_PHASE=final-closeout
 
 COMPLETED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 SUMMARY_TEMP="${SUMMARY}.tmp"
+printf '{"schemaVersion":"candidate-cycle-target-images.v1","webImageId":"%s","workerImageId":"%s","secretsPrinted":false}\n' \
+  "${TARGET_WEB_IMAGE}" "${CURRENT_WORKER_IMAGE}" > "${TARGET_IMAGES}"
+chmod 600 "${TARGET_IMAGES}"
 jq -n --arg status "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY" \
   --arg packageId "${PACKAGE_ID}" --arg baselineCommit "${BASELINE_COMMIT}" \
   --arg targetCommit "${TARGET_COMMIT}" --arg targetWebImageId "${TARGET_WEB_IMAGE}" \
   --arg startedAt "${STARTED_AT}" --arg completedAt "${COMPLETED_AT}" \
-  --argjson samples "${SAMPLES}" \
-  '{status:$status,packageId:$packageId,baselineCommit:$baselineCommit,targetCommit:$targetCommit,targetWebImageId:$targetWebImageId,startedAt:$startedAt,completedAt:$completedAt,samples:$samples,servicesMutated:["web"],databaseMutation:false,redisMutation:false,workerMutation:false,phaseTransition:false,manifestMutation:false,legacyResponseAuthority:true,rollbackImageRetained:true}' \
+  --argjson samples "${SAMPLES}" --arg targetImagesPath "${TARGET_IMAGES}" \
+  --arg targetImagesSha256 "$(hash_file "${TARGET_IMAGES}")" \
+  '{status:$status,packageId:$packageId,baselineCommit:$baselineCommit,targetCommit:$targetCommit,targetWebImageId:$targetWebImageId,targetImagesPath:$targetImagesPath,targetImagesSha256:$targetImagesSha256,startedAt:$startedAt,completedAt:$completedAt,samples:$samples,servicesMutated:["web"],databaseMutation:false,redisMutation:false,workerMutation:false,phaseTransition:false,manifestMutation:false,legacyResponseAuthority:true,rollbackImageRetained:true}' \
   > "${SUMMARY_TEMP}"
 lease_event checkpoint --checkpoint success-closeout
 lease_event release --outcome PASS

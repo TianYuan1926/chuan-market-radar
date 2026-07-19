@@ -51,9 +51,12 @@ const DUAL_READ_KEYS = Object.freeze([
 ]);
 
 const CANONICAL_COMPAT_FLAGS = Object.freeze({
+  CANDIDATE_EPISODE_CANONICAL_WRITE: "false",
+  CANDIDATE_EPISODE_SHADOW_WRITE: "false",
   CANDIDATE_EPISODE_DUAL_READ: "true",
   CANDIDATE_EPISODE_CANONICAL_READ: "true",
   CANDIDATE_EPISODE_REVIEW_READ: "true",
+  CANDIDATE_SHADOW_WORKER_EXPECTED: "false",
 });
 
 const LEGACY_FLAGS = Object.freeze({
@@ -371,7 +374,7 @@ export function validateObservationSample(sample, expected) {
   "observation_authority_identity_mismatch");
   ensure(sample.healthLevel === "ready" && sample.scanFreshness === "fresh"
       && sample.databaseStatus === "ready" && sample.redisStatus === "healthy"
-      && sample.candidateWorkerStatus === "healthy" && sample.scannerWorkerStatus === "healthy",
+      && sample.candidateWorkerStatus === "absent" && sample.scannerWorkerStatus === "healthy",
   "observation_health_invalid");
   const api = sample.api;
   ensure(api?.httpStatus === 200 && api.ok === true
@@ -553,8 +556,8 @@ function assertPretransitionControl(row, request) {
   ensure(row.unresolved_outbox === 0, "candidate_unresolved_outbox_present");
   ensure(row.completed_writes >= 10_000, "candidate_completed_writes_below_10000");
   const remaining = new Date(row.deadline_at).getTime() - new Date(row.database_now).getTime();
-  ensure(remaining >= (MINIMUM_OBSERVATION_HOURS * 3_600 + MAXIMUM_SAMPLE_GAP_SECONDS) * 1_000,
-    "candidate_deadline_insufficient_for_observation");
+  ensure(remaining >= MAXIMUM_SAMPLE_GAP_SECONDS * 1_000,
+    "candidate_deadline_insufficient_for_frozen_transition");
 }
 
 export async function preflightControl(client, request) {
@@ -593,7 +596,7 @@ export async function transitionControl(client, request, rawManifest) {
     const result = await client.query(`SELECT migration_id, phase, epoch::int,
       write_frozen, approved_release_id, approval_digest, updated_at
       FROM candidate_authority.transition_migration_control_v1(
-        $1,$2,'canonical_compat',false,$3,$4,clock_timestamp())`, [
+        $1,$2,'canonical_compat',true,$3,$4,clock_timestamp())`, [
       request.migrationId,
       request.currentAuthorityEpoch,
       request.releaseId,
@@ -601,7 +604,7 @@ export async function transitionControl(client, request, rawManifest) {
     ]);
     const row = result.rows[0];
     ensure(row?.migration_id === request.migrationId && row.phase === "canonical_compat"
-        && row.epoch === request.targetAuthorityEpoch && row.write_frozen === false
+        && row.epoch === request.targetAuthorityEpoch && row.write_frozen === true
         && row.approved_release_id === request.releaseId
         && row.approval_digest === request.manifestApprovalDigest,
     "canonical_compat_transition_result_invalid");
@@ -644,7 +647,8 @@ export async function rollbackControl(client, request) {
       ? request.targetAuthorityEpoch
       : request.currentAuthorityEpoch;
     ensure(["shadow_verify", "canonical_compat"].includes(current.phase)
-        && current.write_frozen === false && current.epoch === rollbackEpoch,
+        && current.write_frozen === (current.phase === "canonical_compat")
+        && current.epoch === rollbackEpoch,
     "rollback_control_phase_invalid");
     const result = await client.query(`SELECT migration_id, phase, epoch::int,
       write_frozen, approved_release_id, approval_digest

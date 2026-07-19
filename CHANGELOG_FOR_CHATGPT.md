@@ -6857,3 +6857,46 @@ commit `6e6fc9c16e40ec8ded69fa6ccd4609b8ce9f49d4` 已推送当前工程分支；
 ### 下一轮建议
 
 只刷新 Canonical Compat phase 与 automatic handoff 的 Cycle-6 依赖和当前生产身份；Shadow Verify final 前禁止生产执行 Canonical。
+
+## 2026-07-19 / WP-G0.2 Cycle-6 Shadow And Canonical Closure Superpackage
+
+### 本轮目标
+
+在不缩短任何真实观察窗的前提下，消除 Cycle-6 到 Shadow Verify、Canonical Compat 的身份断层和 72 小时 deadline 数学死路，并把生产关闭流程压缩为少量可自动串接的独立授权子包。
+
+### 修改范围
+
+- 新增 Cycle-6 Web-only release v4、Shadow Code Presence v3、Shadow Phase v6、Canonical Code Presence v2 和冻结 Canonical Phase v3 合同。
+- 刷新对应确定性 Bundle、执行 runner、生产 shell、隔离执行测试和 PostgreSQL 16 演练。
+- Canonical Compat 改为冻结只读：`write_frozen=true`、shadow/canonical write=false、Candidate Worker absent；完整 24 小时/289 样本观察保持不变。
+- 未修改 frontend、业务 API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、DB schema、Redis、scanner-worker、Compose、真实 env 或 secret。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化之间的 Candidate 生命周期真值和可回滚阶段边界；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- Web release 7/7、Shadow Code Presence 10/10、Shadow Phase 21/21：PASS。
+- Trusted Context 22/22、Canonical Code Presence 11/11、Canonical Phase 21/21：PASS。
+- Shadow 与 Canonical PostgreSQL 16 transition/rollback：PASS；10,000 writes 门槛、数据保留、`productionConnected=false`。
+- Autonomy 31/31、typecheck、lint、build：PASS。
+- test:market 1,027 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- backtest:golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- production smoke：未运行，因为本轮未部署或连接生产。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或修改生产。专用 Web release target commit `3315b54dfcfcde63fcdf3a042ef92754da509feb` 已在独立 release 分支冻结；当前工程提交与推送在本轮报告后执行。
+
+### 风险与遗留问题
+
+- Cycle-6 final 和其 `72ee289` 身份下的只读 Lineage/Reconciliation 尚未生产 PASS，Web release 不能提前执行。
+- Web 发布后生产身份为 `3315b54d`，Cycle-6 原始观察身份仍为 `72ee289`；两个身份必须分字段验证，禁止重标历史证据。
+- Shadow Verify 与 Canonical Compat 各自 24 小时/289 样本仍是不可并行、不可缩短的真实时间窗。
+- 本地 PASS 不是生产 phase、Canonical Cutover、WP-G0.2 或 G0 PASS；G0 主步骤仍为 7。
+
+### 下一轮建议
+
+只执行生产关闭列车的第一个可运行节点：Cycle-6 final 后在 `72ee289` 身份下完成只读 Lineage/Reconciliation；通过后自动进入 Web-only release。

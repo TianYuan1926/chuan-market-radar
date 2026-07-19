@@ -38,9 +38,9 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5.json";
-export const REQUIRED_PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
-export const REQUIRED_PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
+  "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v6.json";
+export const REQUIRED_PRODUCTION_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
+export const REQUIRED_PRODUCTION_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -122,7 +122,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5"
+    === "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v6"
     && contract.packageId === PACKAGE_ID && contract.gate === "G0"
     && contract.actionClass === "shadow_verify_activation"
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",

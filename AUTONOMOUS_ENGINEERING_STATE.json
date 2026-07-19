@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T10:09:27+08:00",
+  "updatedAt": "2026-07-19T15:30:00+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -24,13 +24,13 @@
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
     "freshVerificationCycleLineageCapture": "pass_local_cycle6_v4_refresh_postgres16_six_controls_10020_writes_release_distribution_1670_0_1670_0_1670_5010_readonly_audit_role_production_not_connected_observer_unchanged",
     "freshVerificationCycleLineageProductionPacket": "pass_local_cycle6_v4_packet_local_runner_837f8c16_execution_artifact_42f57434_exact_six_windows_deterministic_redacted_bundle_production_not_executed_waiting_cycle6_final",
-    "shadowVerifyCodePresence": "completed_local_committed_pushed_6e6fc9c_cycle6_v2_current_production_identity_exact_three_blob_and_real_build_record_bound_runner_fd3f0e8d_10_of_10_production_not_executed_waiting_cycle6_final",
+    "shadowVerifyCodePresence": "cycle6_v3_local_refresh_target_3315b54d_tree_cccd5776_exact_four_blobs_dynamic_exact_release_build_record_runner_85ff878b_10_of_10_production_not_executed_waiting_cycle6_final_readonly_and_web_release",
     "currentCycleReadonlySuperwindow": "completed_local_committed_pushed_6e6fc9c_cycle6_v2_six_window_strict_serial_code_presence_lineage_reconciliation_final_summary_byte_bound_independent_authorizations_lineage_reconciliation_leases_8_of_8_production_not_executed_waiting_cycle6_final",
     "shadowVerifyCodeAuthorization": "pass_local_cycle6_v4_six_window_code_presence_required_historical_web_release_rejected_37_of_37_production_not_connected_phase_not_changed",
-    "shadowVerifyCodeAuthorizationProductionRelease": "historical_cycle5_web_release_packet_not_refreshed_or_authorized_cycle6_requires_zero_mutation_code_presence_production_evidence_no_web_release_authority_yet",
-    "shadowVerifyPhaseTransitionAndDualReadObservation": "pass_local_cycle6_v5_commit_72ee289_tree_bb1492d5_six_window_code_presence_only_phase_21_of_21_pg16_transition_rollback_pass_production_not_connected_phase_not_changed_observation_not_started",
-    "shadowVerifyAutomaticHandoff": "pass_local_cycle6_v2_current_readonly_to_independent_r2_phase_single_upload_raw_samples_rederived_r0_bytes_and_phase_immediate_identity_bound_12_of_12_production_not_connected",
-    "canonicalCompatPhaseTransitionAndObservation": "stale_cycle5_five_window_dependency_requires_cycle6_refresh_previous_local_evidence_historical_only_production_not_connected_phase_not_changed_observation_not_started",
+    "shadowVerifyCodeAuthorizationProductionRelease": "cycle6_v4_local_refresh_baseline_72ee289_target_3315b54d_tree_cccd5776_exact_five_file_web_only_release_rehearsal_7_of_7_rollback_pass_production_not_executed",
+    "shadowVerifyPhaseTransitionAndDualReadObservation": "pass_local_cycle6_v6_production_target_3315b54d_tree_cccd5776_six_window_code_presence_only_phase_21_of_21_pg16_transition_rollback_pass_production_not_connected_phase_not_changed_observation_not_started",
+    "shadowVerifyAutomaticHandoff": "completed_local_committed_pushed_801aef95_cycle6_v2_current_readonly_to_independent_r2_phase_single_upload_raw_samples_rederived_r0_bytes_and_phase_immediate_identity_bound_12_of_12_production_not_connected",
+    "canonicalCompatPhaseTransitionAndObservation": "cycle6_v3_frozen_read_only_local_refresh_target_3315b54d_tree_cccd5776_six_windows_write_frozen_true_shadow_write_false_worker_absent_289_samples_24h_600s_gap_21_of_21_pg16_transition_rollback_pass_production_not_connected",
     "canonicalRollbackStateMachineRemediation": "completed_local_committed_pushed_5e777e4_postcommit_autonomy_12_of_12_migration_010_sha_2ae3247a_production_not_applied_canonical_cutover_blocked",
     "canonicalRollbackSafetyProductionAddSchema": "completed_production_pass_commit_26d01d1_bundle_9b7ac0e9_request_6e5ed1b4_migration_rows_10_function_owner_candidate_migration_role_least_privilege_business_data_unchanged_git_compose_env_services_containers_unchanged_lease_token13_released_evidence_retained_temp_cleanup_complete_independent_verify_pass",
     "legacyPendingDrainRemediation": "superseded_source_lane_classification_old_local_rehearsal_did_not_model_candidate_event_outbox_production_guard_now_requires_legacy_pending_and_rejects_actual_candidate_event_only_shape",
@@ -171,11 +171,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CYCLE-6-SHADOW-VERIFY-AUTHORIZATION-PHASE-HANDOFF-REFRESH",
-    "title": "Cycle-6 Shadow Verify authorization, phase and automatic handoff refresh",
+    "id": "WP-G0.2-CYCLE-6-SHADOW-AND-CANONICAL-CLOSURE-SUPERPACKAGE",
+    "title": "Cycle-6 Shadow Verify and frozen Canonical Compat closure superpackage",
     "lane": "localPreparation",
     "status": "completed",
-    "objective": "把Code Authorization、Shadow Verify phase和Automatic Handoff从旧Cycle-5五窗口与冲突生产身份一次刷新到当前72ee289、Cycle-6六窗口，同时保留R0/R2独立授权、租约、回滚和24小时289样本硬门槛。",
+    "objective": "一次刷新Web-only发布、Shadow Verify三件套与冻结只读Canonical Compat三件套：生产Web身份切换到3315b54d，Cycle-6原始观察身份继续精确绑定72ee289，并让两个24小时阶段都从原始289样本重推终证据。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -186,14 +186,23 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5.json",
-      "docs/governance/wp-g0-2-current-cycle-to-shadow-verify-automatic-handoff-superwindow.v2.json",
-      "scripts/governance/candidate-shadow-verify-code-authorization.mjs",
-      "scripts/governance/candidate-shadow-verify-code-authorization.test.mjs",
+      "docs/governance/wp-g0-2-canonical-compat-code-presence-current-cycle.v2.json",
+      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v3.json",
+      "docs/governance/wp-g0-2-current-cycle-canonical-compat-dependency-refresh-and-automatic-handoff.v2.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-code-authorization-production-release.v4.json",
+      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v3.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v6.json",
+      "scripts/production/candidate-shadow-verify-release/**",
+      "scripts/production/candidate-shadow-verify-code-presence/**",
       "scripts/production/candidate-shadow-verify-phase/**",
-      "scripts/production/candidate-shadow-verify-handoff/**",
-      "reports/wp-g0-2-cycle-6-shadow-verify-authorization-phase-handoff-refresh/**"
+      "scripts/production/candidate-canonical-compat-code-presence/**",
+      "scripts/production/candidate-canonical-compat-phase/**",
+      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
+      "scripts/governance/candidate-trusted-read-context.mjs",
+      "scripts/governance/candidate-trusted-read-context.test.mjs",
+      "src/lib/candidate-episode/canonical-read-trusted-context.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.test.ts",
+      "reports/wp-g0-2-cycle-6-shadow-canonical-closure-superpackage/**"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -203,7 +212,6 @@
       "src/lib/backtest/**",
       "src/app/**",
       "src/components/**",
-      "scripts/production/candidate-shadow-verify-release/**",
       "deploy/**",
       "docker-compose.yml",
       ".env",
@@ -213,24 +221,38 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5.json",
-      "docs/governance/wp-g0-2-current-cycle-to-shadow-verify-automatic-handoff-superwindow.v2.json",
-      "scripts/governance/candidate-shadow-verify-code-authorization.mjs",
+      "docs/governance/wp-g0-2-canonical-compat-code-presence-current-cycle.v2.json",
+      "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v3.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-code-authorization-production-release.v4.json",
+      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v3.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v6.json",
+      "scripts/production/candidate-shadow-verify-release/bundle.mjs",
+      "scripts/production/candidate-shadow-verify-release/production-runner.sh",
+      "scripts/production/candidate-shadow-verify-code-presence/runner.mjs",
       "scripts/production/candidate-shadow-verify-phase/runner.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/runner.mjs",
-      "scripts/production/candidate-shadow-verify-handoff/production-runner.sh",
-      "reports/wp-g0-2-cycle-6-shadow-verify-authorization-phase-handoff-refresh/WP_G0_2_CYCLE_6_SHADOW_VERIFY_AUTHORIZATION_PHASE_HANDOFF_REFRESH_REPORT.md"
+      "scripts/production/candidate-canonical-compat-code-presence/runner.mjs",
+      "scripts/production/candidate-canonical-compat-phase/runner.mjs",
+      "docs/governance/wp-g0-2-trusted-read-context-local-preparation.v1.json",
+      "scripts/governance/candidate-trusted-read-context.mjs",
+      "src/lib/candidate-episode/canonical-read-trusted-context.ts",
+      "src/lib/candidate-episode/canonical-read-trusted-context.test.ts",
+      "reports/wp-g0-2-cycle-6-shadow-canonical-closure-superpackage/WP_G0_2_CYCLE_6_SHADOW_CANONICAL_CLOSURE_SUPERPACKAGE_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:shadow-verify-code-authorization:validate",
-        "test:candidate-shadow-verify-code-authorization",
+        "candidate:shadow-verify-code-release:validate",
+        "test:candidate-shadow-verify-code-release",
+        "candidate:shadow-verify-code-presence:validate",
+        "test:candidate-shadow-verify-code-presence",
         "candidate:shadow-verify-phase:validate",
         "test:candidate-shadow-verify-phase",
-        "candidate:shadow-verify-handoff:validate",
-        "test:candidate-shadow-verify-handoff",
         "candidate:shadow-verify-phase:pg16-rehearsal",
+        "test:candidate-trusted-read-context",
+        "candidate:canonical-compat-code-presence:validate",
+        "test:candidate-canonical-compat-code-presence",
+        "candidate:canonical-compat-phase:validate",
+        "test:candidate-canonical-compat-phase",
+        "candidate:canonical-compat-phase:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -247,18 +269,19 @@
       ]
     },
     "completionBoundary": [
-      "Code Authorization必须绑定Cycle-6六窗口、当前migration与既有后端状态机；不得修改业务API或前端",
-      "Phase只接受本次生产Code Presence、Lineage和Reconciliation真实文件path与SHA并绑定production commit 72ee289和tree bb1492d5",
-      "Handoff必须按Readonly Superwindow R0 PASS后才动态生成独立R2 Phase request，禁止合并授权、租约、回滚或evidence",
-      "Shadow Verify观察仍为精确289样本、至少24小时、最大600秒间隔、零差异、Legacy响应权威",
-      "旧Cycle-5、五窗口、94b6d415和eb48827合同及证据保留为历史且不能作为Cycle-6 PASS输入",
-      "当前代码已走Code Presence路径，本轮禁止刷新或执行历史Web release，不得无价值重建Web镜像",
-      "本地PASS不得包装为生产phase transition、dual-read observation、Canonical或G0 PASS",
+      "Web发布必须从72ee289精确切换到3315b54d且只重建Web；Code Presence必须绑定production commit 3315b54d、tree cccd5776、真实发布build record与精确Git blob",
+      "Canonical Phase只接受Cycle-6六窗口Lineage/Reconciliation、Shadow Verify 289样本24小时零差异终证据与零变更Code Presence",
+      "Cycle-6只读重算必须在72ee289身份下完成；Web发布后必须按Code Presence R0 PASS再启动独立R2 Shadow Phase request",
+      "Canonical Compat观察仍为精确289样本、至少24小时、最大600秒间隔、全游标链、零差异且Candidate authority只在逐样本parity为PASS时成立",
+      "Canonical Compat必须以write_frozen=true、shadow write false和Candidate Worker absent运行；只有该冻结阶段允许在不可变写入deadline后继续只读观察",
+      "旧Cycle-5、五窗口和94b6d415合同及证据保留为历史且不能作为Cycle-6 PASS输入",
+      "只读重算、Web发布、Code Presence、Phase保持独立request、authorization、lease、rollback和evidence；Codex仅自动串接，禁止合并授权域",
+      "本地PASS不得包装为生产Canonical Compat、Canonical Cutover、WP-G0.2或G0 PASS",
       "观察期间禁止修改scan、analysis、strategy、RR、Risk Gate、trade plan和backtest边界",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "shadow_verify_activation",
+    "actionClass": "canonical_compat_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -266,7 +289,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "形成一次上传可从Cycle-6只读终证据严格交接到独立R2 Shadow Verify启动的确定性包，同时保持全部授权域、回滚和24小时观察门槛。"
+      "measurableOutcome": "形成四个可自动串接且独立授权的确定性子包，从Cycle-6原始证据、Web发布、Shadow Verify到冻结只读Canonical Compat，保持全部回滚和两个24小时观察门槛。"
     }
   },
   "approvals": [
@@ -743,6 +766,13 @@
     {
       "order": 66,
       "id": "WP-G0.2-CYCLE-6-SHADOW-VERIFY-AUTHORIZATION-PHASE-HANDOFF-REFRESH",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_801aef95_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 67,
+      "id": "WP-G0.2-CYCLE-6-SHADOW-AND-CANONICAL-CLOSURE-SUPERPACKAGE",
       "lane": "localPreparation",
       "status": "completed",
       "requiresExplicitApproval": false

@@ -57,12 +57,13 @@ test("builds byte-identical redacted transports", async () => {
 
 test("creates a 30-minute verify-only request and rejects runtime drift", () => {
   const runtime = {
+    buildRecordPath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-test-12345678/target-images-redacted.json",
     buildRecordSha256: hash("1"),
     buildRecordWebImageId: `sha256:${hash("2")}`,
     currentWebContainerId: "3".repeat(64),
     currentWebImageId: `sha256:${hash("2")}`,
-    migrationId: "candidate-episode-v1-cycle-5",
-    releaseId: "candidate-shadow-cycle-5-94b6d415",
+    migrationId: "candidate-episode-v1-cycle-6",
+    releaseId: "candidate-shadow-cycle-6-72ee2893",
     authorityEpoch: 2,
     manifestSha256: hash("8"),
     healthLevel: "ready",

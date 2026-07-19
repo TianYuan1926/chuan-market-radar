@@ -170,7 +170,7 @@ health_ready() {
     and .health.persistence.databaseStatus == "ready"
     and .health.scan.freshness == "fresh"
     and ([.health.runtimeProbes.workers[]?
-      | select((.name // .key) == "candidate-shadow-worker" and .status == "healthy")] | length == 1)
+      | select((.name // .key) == "candidate-shadow-worker")] | length == 0)
     and ([.health.runtimeProbes.workers[]?
       | select((.name // .key) == "scanner-worker" and .status == "healthy")] | length == 1)
   ' >/dev/null
@@ -227,9 +227,10 @@ verify_worker() {
   image="$("${DOCKER[@]}" inspect "${current}" --format '{{.Image}}' 2>/dev/null || true)"
   [[ "${current}" == "${WORKER_CONTAINER}" && "${image}" == "${WORKER_IMAGE}" ]]
 }
-non_web_identity() {
+non_target_identity() {
   "${DOCKER[@]}" ps --format '{{.Names}}={{.Image}}={{.ID}}' \
-    | grep -v '^chuan-market-radar-web-1=' | LC_ALL=C sort
+    | grep -v '^chuan-market-radar-web-1=' \
+    | grep -v '^chuan-market-radar-candidate-shadow-worker-1=' | LC_ALL=C sort
 }
 verify_manifest_absent() {
   local container="$1"
@@ -337,8 +338,8 @@ validate_request
 [[ "$(${DOCKER[@]} inspect "${WEB_CONTAINER}" --format '{{.Image}}')" == "${WEB_IMAGE}" ]] \
   || fail web_image_identity_invalid
 verify_worker || fail candidate_worker_identity_invalid
-NON_WEB_BEFORE="$(non_web_identity)"
-printf '%s\n' "${NON_WEB_BEFORE}" > "${OPS_ROOT}/state/non-web-identity.txt"
+NON_TARGET_BEFORE="$(non_target_identity)"
+printf '%s\n' "${NON_TARGET_BEFORE}" > "${OPS_ROOT}/state/non-target-identity.txt"
 chmod 600 "${OPS_ROOT}/state/non-web-identity.txt"
 verify_current_manifest "${WEB_CONTAINER}" || fail current_manifest_identity_invalid
 health_ready || fail health_pretransition_invalid
@@ -390,23 +391,29 @@ lease_event checkpoint --checkpoint switch_read_flags
 match_file_identity "${ENV_FILE}" "${RENDERED_ENV}"
 mv -f "${RENDERED_ENV}" "${ENV_FILE}"
 MUTATION_STARTED=true
+lease_event checkpoint --checkpoint stop_candidate_shadow_worker
+"${PROFILE_COMPOSE[@]}" stop candidate-shadow-worker
+"${PROFILE_COMPOSE[@]}" rm -f candidate-shadow-worker
+[[ -z "$("${DOCKER[@]}" ps --filter name=^/chuan-market-radar-candidate-shadow-worker-1$ --format '{{.ID}}')" ]] \
+  || fail candidate_worker_still_running
+lease_event checkpoint --checkpoint recreate_frozen_canonical_web
 "${COMPOSE[@]}" up -d --no-deps --no-build --force-recreate web
 wait_health canonical_compat || fail target_web_not_ready
 TARGET_WEB_CONTAINER="$("${COMPOSE[@]}" ps -q web)"
 [[ -n "${TARGET_WEB_CONTAINER}" \
   && "$(${DOCKER[@]} inspect "${TARGET_WEB_CONTAINER}" --format '{{.Image}}')" == "${WEB_IMAGE}" \
   && "${TARGET_WEB_CONTAINER}" != "${WEB_CONTAINER}" ]] || fail target_web_identity_invalid
-verify_worker && [[ "$(non_web_identity)" == "${NON_WEB_BEFORE}" ]] \
-  || fail non_web_identity_changed
+[[ "$(non_target_identity)" == "${NON_TARGET_BEFORE}" ]] \
+  || fail non_target_identity_changed
 "${DOCKER[@]}" exec -e EXPECTED_CANDIDATE_RELEASE_ID="${RELEASE_ID}" \
   "${TARGET_WEB_CONTAINER}" node - <<'NODE'
 const expected = {
   CANDIDATE_EPISODE_CANONICAL_WRITE: "false",
-  CANDIDATE_EPISODE_SHADOW_WRITE: "true",
+  CANDIDATE_EPISODE_SHADOW_WRITE: "false",
   CANDIDATE_EPISODE_DUAL_READ: "true",
   CANDIDATE_EPISODE_CANONICAL_READ: "true",
   CANDIDATE_EPISODE_REVIEW_READ: "true",
-  CANDIDATE_SHADOW_WORKER_EXPECTED: "true",
+  CANDIDATE_SHADOW_WORKER_EXPECTED: "false",
 };
 for (const [key, value] of Object.entries(expected)) {
   if (process.env[key] !== value) throw new Error(`candidate_read_environment_mismatch:${key}`);

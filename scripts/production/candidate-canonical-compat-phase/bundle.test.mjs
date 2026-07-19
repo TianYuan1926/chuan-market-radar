@@ -7,6 +7,7 @@ import { test } from "node:test";
 
 import {
   REQUIRED_PRODUCTION_COMMIT,
+  REQUIRED_PRODUCTION_TREE,
   buildTransportBundle,
   createProductionExecutionRequest,
   prepareAdminUrl,
@@ -50,8 +51,8 @@ function reconciliationEvidence() {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 5,
-    verificationMigrationId: "candidate-episode-v1-cycle-5",
+    sourceReleaseCount: 6,
+    verificationMigrationId: "candidate-episode-v1-cycle-6",
     evidenceHash: `sha256:${hash("a")}`,
     violations: [],
     differenceSample: [],
@@ -63,7 +64,7 @@ function dualReadEvidence() {
     schemaVersion: "candidate-shadow-verify-observation-evidence.v1",
     status: "PASS_DUAL_READ_OBSERVATION",
     packageId: "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
-    migrationId: "candidate-episode-v1-cycle-5",
+    migrationId: "candidate-episode-v1-cycle-6",
     releaseId: "candidate-shadow-release-12345678",
     authorityEpoch: 4,
     sampleCount: 289,
@@ -103,12 +104,12 @@ function transportManifest() {
 function runtime() {
   return {
     productionCommit: REQUIRED_PRODUCTION_COMMIT,
-    productionTree: commit("b"),
-    productionCommitTree: commit("b"),
+    productionTree: REQUIRED_PRODUCTION_TREE,
+    productionCommitTree: REQUIRED_PRODUCTION_TREE,
     currentWebImageId: image("c"),
     candidateWorkerContainerId: "d".repeat(12),
     candidateWorkerImageId: image("e"),
-    migrationId: "candidate-episode-v1-cycle-5",
+    migrationId: "candidate-episode-v1-cycle-6",
     releaseId: "candidate-shadow-release-12345678",
     currentAuthorityEpoch: 4,
     currentApprovalDigest: `sha256:${hash("8")}`,
@@ -138,11 +139,11 @@ function runtime() {
 
 test("validates the checked-in phase-transition contract", async () => {
   const contract = JSON.parse(await readFile(resolve(root,
-    "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v2.json")));
+    "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v3.json")));
   assert.equal(validateContract(contract).productionExecuted, false);
 });
 
-test("creates a one-use, exact 90-minute, Web-only execution request", () => {
+test("creates a one-use, exact 90-minute Web-and-worker execution request", () => {
   const issuedAt = new Date("2026-07-17T00:00:00.000Z");
   const request = createProductionExecutionRequest({
     bundleSha256: hash("8"),
@@ -153,7 +154,7 @@ test("creates a one-use, exact 90-minute, Web-only execution request", () => {
   });
   assert.equal(request.productionCommit, REQUIRED_PRODUCTION_COMMIT);
   assert.equal(request.targetAuthorityEpoch, 5);
-  assert.deepEqual(request.services, ["web"]);
+  assert.deepEqual(request.services, ["web", "candidate-shadow-worker"]);
   assert.equal(request.approvalExpiresAt, "2026-07-17T01:30:00.000Z");
   assert.equal(request.autonomyAuthorization.maxExecutions, 1);
   assert.equal(request.autonomyAuthorization.packageAssertions.allPagesCompared, true);
@@ -218,7 +219,7 @@ test("builds byte-identical transport bundles from the same source identity", as
     assert.equal(first.sha256, second.sha256);
     assert.deepEqual(await readFile(first.output), await readFile(second.output));
     assert.equal(first.manifest.containsSecrets, false);
-    assert.deepEqual(first.manifest.services, ["web"]);
+    assert.deepEqual(first.manifest.services, ["web", "candidate-shadow-worker"]);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

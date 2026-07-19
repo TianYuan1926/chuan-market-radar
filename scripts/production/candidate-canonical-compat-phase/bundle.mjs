@@ -39,8 +39,9 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v2.json";
-export const REQUIRED_PRODUCTION_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
+  "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v3.json";
+export const REQUIRED_PRODUCTION_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
+export const REQUIRED_PRODUCTION_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -122,7 +123,7 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-canonical-compat-phase-transition-and-observation.v2"
+    === "wp-g0.2-canonical-compat-phase-transition-and-observation.v3"
     && contract.packageId === PACKAGE_ID && contract.gate === "G0"
     && contract.actionClass === "canonical_compat_activation"
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",
@@ -132,6 +133,7 @@ export function validateContract(contract) {
       && contract.productionAuthorization === false && contract.productionExecuted === false,
   "contract_production_truth_invalid");
   ensure(contract.releaseBoundary?.requiredProductionCommit === REQUIRED_PRODUCTION_COMMIT
+      && contract.releaseBoundary?.requiredProductionTree === REQUIRED_PRODUCTION_TREE
       && JSON.stringify(contract.releaseBoundary?.acceptedCodeAvailabilityStatuses)
         === JSON.stringify(["PASS_PRODUCTION_CANONICAL_COMPAT_CODE_PRESENCE_VERIFIED"])
       && contract.releaseBoundary?.codePresenceMustBeZeroMutation === true
@@ -155,13 +157,13 @@ export function validateContract(contract) {
       && prerequisites.maximumDuplicateOutboxMappings === 0
       && prerequisites.maximumDuplicateEventMappings === 0
       && prerequisites.maximumUnresolvedOutbox === 0
-      && prerequisites.sourceReleaseWindowsExact === 5
+      && prerequisites.sourceReleaseWindowsExact === 6
       && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
-      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-5"
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-6"
       && prerequisites.lineageAuthorityEpochDeltaFromShadowVerify === -1
       && prerequisites.currentPhase === "shadow_verify"
       && prerequisites.currentWriteFrozen === false
-      && prerequisites.minimumDeadlineRemainingSeconds === 87000
+      && prerequisites.minimumDeadlineRemainingSeconds === 600
       && prerequisites.manifestBeforeTransition === "present_exact_shadow_verify_identity"
       && JSON.stringify(prerequisites.readFlagsBeforeTransition)
         === '{"dualRead":true,"canonicalRead":false,"reviewRead":false}',
@@ -177,7 +179,7 @@ export function validateContract(contract) {
   const database = contract.databaseBoundary ?? {};
   ensure(database.allowedProcedure === "candidate_authority.transition_migration_control_v1"
       && database.sourcePhase === "shadow_verify" && database.targetPhase === "canonical_compat"
-      && database.targetWriteFrozen === false && database.targetEpochIncrement === 1
+      && database.targetWriteFrozen === true && database.targetEpochIncrement === 1
       && database.migrationRole === "candidate_migration_role"
       && database.ddlAllowed === false && database.migrationAllowed === false
       && database.candidateBusinessDataMutationAllowed === false
@@ -190,10 +192,11 @@ export function validateContract(contract) {
       && execution.observationRuntimeMaxSeconds === 90000
       && execution.sessionIndependent === true
       && execution.maximumApprovalWindowMinutes === 90
-      && JSON.stringify(execution.serviceAllowlist) === '["web"]'
+      && JSON.stringify(execution.serviceAllowlist) === '["web","candidate-shadow-worker"]'
       && execution.webRecreateCommand
         === "docker compose up -d --no-deps --no-build --force-recreate web"
-      && execution.candidateWorkerMutationOnSuccess === false
+      && execution.candidateWorkerMutationOnSuccess === true
+      && execution.candidateWorkerTargetState === "absent"
       && execution.otherServiceMutationAllowed === false
       && execution.externalProductionLeaseRequired === true
       && execution.fencingTokenRequired === true
@@ -405,8 +408,9 @@ export function validateAuthorization(authorization, request, manifest) {
   ensure(authorization.packageAssertions?.phaseTransition === true
       && authorization.packageAssertions?.environmentMutation === true
       && authorization.packageAssertions?.manifestMutation === true
-      && authorization.packageAssertions?.webOnlyServiceMutation === true
-      && authorization.packageAssertions?.candidateWorkerMutationOnSuccess === false
+      && JSON.stringify(authorization.packageAssertions?.serviceMutationAllowlistExact)
+        === '["web","candidate-shadow-worker"]'
+      && authorization.packageAssertions?.candidateWorkerMutationOnSuccess === true
       && authorization.packageAssertions?.automaticRollback === true
       && authorization.packageAssertions?.allPagesCompared === true
       && authorization.packageAssertions?.qualityThresholdChanged === false
@@ -421,7 +425,7 @@ export async function validateApprovalRequest({ manifest, request, productionPat
       && CONTAINER.test(request.candidateWorkerContainerId ?? "")
       && IMAGE.test(request.candidateWorkerImageId ?? "")
       && request.webImageId === request.currentWebImageId
-      && request.services?.length === 1 && request.services[0] === "web"
+      && JSON.stringify(request.services) === '["web","candidate-shadow-worker"]'
       && request.sessionIndependentExecutionRequired === true
       && request.temporaryArtifactCleanupRequired === true
       && /^market-radar-canonical-compat-phase-[a-z0-9][a-z0-9-]{7,48}$/u
@@ -530,6 +534,7 @@ export function createProductionExecutionRequest({
   ensure(COMMIT.test(manifest.sourceCommit ?? "") && COMMIT.test(manifest.sourceTree ?? ""),
     "transport_source_identity_invalid");
   ensure(runtime.productionCommit === REQUIRED_PRODUCTION_COMMIT
+      && runtime.productionTree === REQUIRED_PRODUCTION_TREE
       && runtime.productionTree === runtime.productionCommitTree
       && IMAGE.test(runtime.currentWebImageId ?? "")
       && CONTAINER.test(runtime.candidateWorkerContainerId ?? "")
@@ -618,7 +623,7 @@ export function createProductionExecutionRequest({
     runnerUnitName: `market-radar-canonical-compat-phase-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
     observerUnitName: `market-radar-canonical-compat-observer-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
     autonomyTrustRoot: TRUST_ROOT,
-    services: ["web"],
+    services: ["web", "candidate-shadow-worker"],
     sessionIndependentExecutionRequired: true,
     temporaryArtifactCleanupRequired: true,
     operator: "codex-primary",
@@ -717,13 +722,13 @@ export function createProductionExecutionRequest({
     packageAssertions: {
       allPagesCompared: true,
       automaticRollback: true,
-      candidateWorkerMutationOnSuccess: false,
+      candidateWorkerMutationOnSuccess: true,
       environmentMutation: true,
       manifestMutation: true,
       phaseTransition: true,
       qualityThresholdChanged: false,
       secretsPresentInEvidence: false,
-      webOnlyServiceMutation: true,
+      serviceMutationAllowlistExact: ["web", "candidate-shadow-worker"],
     },
   };
   return request;
@@ -821,7 +826,7 @@ export async function buildTransportBundle({
       archiveFormat: "ustar+gzip-n",
       reproducibleArchive: true,
       containsSecrets: false,
-      services: ["web"],
+      services: ["web", "candidate-shadow-worker"],
       sessionIndependentExecutionRequired: true,
       temporaryArtifactCleanupRequired: true,
     };
@@ -858,7 +863,7 @@ export async function verifyStagedTransport(root, manifest) {
   ensure(manifest?.schemaVersion === "wp-g0.2-canonical-compat-phase-transport.v1"
       && manifest.packageId === PACKAGE_ID && manifest.containsSecrets === false
       && manifest.reproducibleArchive === true
-      && JSON.stringify(manifest.services) === '["web"]'
+      && JSON.stringify(manifest.services) === '["web","candidate-shadow-worker"]'
       && JSON.stringify(manifest.files) === JSON.stringify([...TRANSPORT_FILES].sort()),
   "transport_manifest_invalid");
   for (const key of ["sourceCommit", "sourceTree", "sourceParentCommit"]) {

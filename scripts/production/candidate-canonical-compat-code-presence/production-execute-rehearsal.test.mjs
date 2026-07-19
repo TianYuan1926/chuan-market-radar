@@ -23,7 +23,7 @@ test("isolated execute proves existing code without mutating services", async ()
   const directory = await mkdtemp(join(tmpdir(), "code-presence-execute-"));
   const worktree = join(directory, "production");
   const fakeDocker = join(directory, "docker");
-  const buildRecord = join(directory, "target-images-record.json");
+  const buildRecord = join(directory, "target-images-redacted.json");
   const health = join(directory, "health.json");
   const staging = join(directory, "staging");
   const requestPath = join(staging, "approval-request.json");
@@ -31,8 +31,8 @@ test("isolated execute proves existing code without mutating services", async ()
   const evidenceDirectory = join(directory, "evidence");
   const webContainer = repeated("a", 64);
   const webImage = `sha256:${repeated("b", 64)}`;
-  const migrationId = "candidate-episode-v1-cycle-5";
-  const releaseId = "candidate-shadow-cycle-5-94b6d415";
+  const migrationId = "candidate-episode-v1-cycle-6";
+  const releaseId = "candidate-shadow-cycle-6-72ee2893";
   const authorityEpoch = 2;
   const manifestRaw = `${JSON.stringify({
     schemaVersion: "candidate-read-authority-manifest.v1",
@@ -65,7 +65,7 @@ test("isolated execute proves existing code without mutating services", async ()
   let worktreeAdded = false;
   try {
     await execFileAsync("git", ["worktree", "add", "--detach", worktree,
-      "94b6d415573f5d8b2d0190c809a4b8e128a25aa8"], { cwd: root });
+      "3315b54dfcfcde63fcdf3a042ef92754da509feb"], { cwd: root });
     worktreeAdded = true;
     await writeFile(fakeDocker, `#!/usr/bin/env bash
 set -euo pipefail
@@ -83,7 +83,7 @@ exit 2
     await chmod(fakeDocker, 0o700);
     await writeFile(buildRecord, `${JSON.stringify({
       schemaVersion: "candidate-cycle-target-images.v1",
-      webTargetId: webImage,
+      webImageId: webImage,
       workerImageId: `sha256:${repeated("3", 64)}`,
       secretsPrinted: false,
     }, null, 2)}\n`, { mode: 0o600 });
@@ -114,6 +114,7 @@ exit 2
       now: new Date(),
       nonce: "12345678-1234-4123-8123-123456789abc",
       runtime: {
+        buildRecordPath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-test-12345678/target-images-redacted.json",
         buildRecordSha256: createHash("sha256").update(buildRecordBytes).digest("hex"),
         buildRecordWebImageId: webImage,
         currentWebContainerId: webContainer,

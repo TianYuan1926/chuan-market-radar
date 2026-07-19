@@ -11,8 +11,8 @@ import { promisify } from "node:util";
 import { sha256 } from "./bundle.mjs";
 
 const execFileAsync = promisify(execFile);
-const BASELINE = "54837d03d0fb91b33cf9919bd25ab7aaad60dd7e";
-const TARGET = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
+const BASELINE = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
+const TARGET = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
 const OLD_WEB = `sha256:${"1".repeat(64)}`;
 const NEW_WEB = `sha256:${"3".repeat(64)}`;
 const WORKER_IMAGE = `sha256:${"2".repeat(64)}`;
@@ -172,10 +172,10 @@ printf '%s\\n' '{"status":"pass","leaseId":"rehearsal","fencingToken":1}'
     packageId: "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE",
     releaseBaselineCommit: BASELINE,
     releaseTargetCommit: TARGET,
-    releaseTargetTree: "a02f989b1be653d4524d1b6dd73995dabeb73f3d",
-    releaseTargetBranch: "codex/wp-g0-2-shadow-verify-web-release",
-    releaseDiffSha256: "85ca52281f50a41f86bf27be90d9beabe19e32c37421b9ab19a0057fb2b19113",
-    releasePathSetSha256: "1184a4dff040f0aa918f4e5f77095721d8221eefdbc92930c05e53fcb62442e5",
+    releaseTargetTree: "cccd5776a80ded39f712bee4909c23c8133db798",
+    releaseTargetBranch: "codex/wp-g0-2-canonical-compat-frozen-read-release",
+    releaseDiffSha256: "4131acc8c24da94b250b9f7253ed29d513458eb8d3e805e6e045e1fd17fd817d",
+    releasePathSetSha256: "4fc82730aaaf0760cae8294ad8a53c82650d7dc15784af99c69c2c32b3e01acc",
     baseEnvPath: baseEnv,
     baseEnvSha256: sha256(await readFile(baseEnv)),
     productionEnvPath: productionEnv,
@@ -253,6 +253,11 @@ test("isolated Web-only execution reaches target without changing workers", asyn
     assert.equal(summary.databaseMutation, false);
     assert.equal(summary.workerMutation, false);
     assert.equal(summary.phaseTransition, false);
+    const targetImages = JSON.parse(await readFile(
+      join(result.evidenceOutput, "target-images-redacted.json"), "utf8"));
+    assert.equal(targetImages.webImageId, NEW_WEB);
+    assert.equal(targetImages.workerImageId, WORKER_IMAGE);
+    assert.equal(targetImages.secretsPrinted, false);
   } finally {
     await rm(result.root, { recursive: true, force: true });
   }

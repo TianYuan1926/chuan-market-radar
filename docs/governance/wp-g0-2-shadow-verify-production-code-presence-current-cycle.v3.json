@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "wp-g0.2-shadow-verify-production-code-presence-current-cycle.v3",
+  "packageId": "WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION",
+  "gate": "G0",
+  "actionClass": "read_only_production_preflight",
+  "riskTier": "R0_READ_ONLY",
+  "status": "local_preparation_production_verify_only_not_executed",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "identity": {
+    "referenceCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
+    "productionCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
+    "productionTree": "cccd5776a80ded39f712bee4909c23c8133db798",
+    "currentCycleMigrationId": "candidate-episode-v1-cycle-6",
+    "referenceCodePaths": [
+      {
+        "path": "src/lib/candidate-episode/canonical-read-model.test.ts",
+        "blob": "654fac4bf10cb31997c4cbb5beee283a3a54a724"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-model.ts",
+        "blob": "18f37dc4016573d25d13a21033a48ff370dfd6ab"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
+        "blob": "2d769242772c259bc6751e4b0c9475890f9eb8ed"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-trusted-context.ts",
+        "blob": "5fdeb5115a78d3bc8d89061ae80fbebbbe954fab"
+      }
+    ],
+    "cycleBuildRecordPathPattern": "^\\/home\\/ubuntu\\/\\.cache\\/market-radar-ops\\/evidence\\/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}\\/target-images-redacted\\.json$",
+    "cycleBuildRecordSchema": "candidate-cycle-target-images.v1",
+    "cycleBuildRecordWebImageField": "webImageId"
+  },
+  "execution": {
+    "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+    "runner": "transient_systemd_unit",
+    "restart": "no",
+    "maximumRequestWindowMinutes": 30,
+    "sessionIndependent": true,
+    "servicesAllowed": [],
+    "sourceSyncAllowed": false,
+    "gitMutationAllowed": false,
+    "imageBuildAllowed": false,
+    "containerRecreateAllowed": false,
+    "databaseMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerMutationAllowed": false,
+    "environmentMutationAllowed": false,
+    "composeMutationAllowed": false,
+    "phaseTransitionAllowed": false,
+    "manifestMutationAllowed": false,
+    "migrationAllowed": false,
+    "featureFlagMutationAllowed": false
+  },
+  "passBoundary": {
+    "evidenceSchema": "candidate-shadow-verify-code-presence-evidence.v1",
+    "passStatus": "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED",
+    "productionGitCleanDetachedRequired": true,
+    "allReferenceBlobsMustMatchProduction": true,
+    "runningWebMustMatchCycleBuildRecord": true,
+    "candidateReadManifestAbsentRequired": true,
+    "candidateReadEndpointFailClosedRequired": true,
+    "productionHealthLevel": "ready",
+    "scanFreshness": "fresh",
+    "legacyResponseAuthority": true,
+    "requiresWebReleaseOnAnyMismatch": true,
+    "localBlobComparisonIsProductionPass": false,
+    "codePresencePassIsPhaseTransitionPass": false,
+    "cycle5ContractAcceptedAsCurrentPass": false,
+    "cycle5EvidenceAcceptedAsCurrentPass": false
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-shadow-verify-code-presence/bundle.mjs",
+      "scripts/production/candidate-shadow-verify-code-presence/production-entrypoint.sh",
+      "scripts/production/candidate-shadow-verify-code-presence/production-runner.sh",
+      "scripts/production/candidate-shadow-verify-code-presence/runner.mjs"
+    ],
+    "fileCount": 4,
+    "sha256": "85ff878b62706d899dd922d25de6613dcd5dcbbbfa2ab6f2f59f1e19dcccd950"
+  },
+  "transport": {
+    "schemaVersion": "wp-g0.2-shadow-verify-code-presence-transport.v3",
+    "requestSchemaVersion": "wp-g0.2-shadow-verify-code-presence-request.v3",
+    "authorizationSchemaVersion": "wp-g0.2-shadow-verify-code-presence-authorization.v3",
+    "independentBoundedAuthorizationRequired": true,
+    "containsSecrets": false,
+    "reproducibleArchive": true,
+    "archiveFormat": "ustar+gzip-n",
+    "temporaryArtifactCleanupRequired": true
+  },
+  "forbidden": [
+    "cycle5_contract_as_current_pass",
+    "cycle5_evidence_as_current_pass",
+    "cycle6_observation_commit_relabeling",
+    "ambiguous_release_build_record_selection",
+    "code_presence_without_blob_identity",
+    "code_presence_without_build_record",
+    "code_presence_without_running_image_identity",
+    "source_sync",
+    "git_checkout",
+    "image_build",
+    "container_recreate",
+    "database_mutation",
+    "redis_mutation",
+    "worker_mutation",
+    "environment_mutation",
+    "compose_mutation",
+    "phase_transition",
+    "manifest_mutation",
+    "migration",
+    "feature_flag_change",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "rr_threshold_change",
+    "formal_backtest"
+  ]
+}

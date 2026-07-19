@@ -37,7 +37,7 @@ RELEASE_ID="$(jq -r '.releaseId' "${REQUEST_FILE}")"
 TARGET_EPOCH="$(jq -r '.targetAuthorityEpoch' "${REQUEST_FILE}")"
 MANIFEST_SHA="$(jq -r '.manifestApprovalDigest' "${REQUEST_FILE}" | sed 's/^sha256://')"
 TARGET_ENV_SHA="$(jq -r '.productionEnvSha256' "${REQUEST_FILE}")"
-NON_WEB_IDENTITY="${OPS_ROOT}/state/non-web-identity.txt"
+NON_TARGET_IDENTITY="${OPS_ROOT}/state/non-target-identity.txt"
 
 REHEARSAL=false
 case "${OPS_ROOT}/" in
@@ -87,7 +87,7 @@ lease_event() {
 }
 
 verify_static_identity() {
-  local current_worker current_worker_image current_non_web
+  local current_worker current_non_target
   [[ -z "$(git -C "${ROOT_DIR}" status --porcelain)" \
     && -z "$(git -C "${ROOT_DIR}" branch --show-current)" \
     && "$(git -C "${ROOT_DIR}" rev-parse HEAD)" == "${PRODUCTION_COMMIT}" \
@@ -97,13 +97,12 @@ verify_static_identity() {
   [[ "$(${DOCKER[@]} inspect "${WEB_CONTAINER}" --format '{{.Image}}' 2>/dev/null || true)" \
     == "${WEB_IMAGE}" ]] || return 1
   current_worker="$(${DOCKER[@]} ps --filter name=^/chuan-market-radar-candidate-shadow-worker-1$ --format '{{.ID}}')"
-  current_worker_image="$(${DOCKER[@]} inspect "${current_worker}" --format '{{.Image}}' 2>/dev/null || true)"
-  [[ "${current_worker}" == "${WORKER_CONTAINER}" && "${current_worker_image}" == "${WORKER_IMAGE}" ]] \
-    || return 1
-  [[ -f "${NON_WEB_IDENTITY}" && ! -L "${NON_WEB_IDENTITY}" ]] || return 1
-  current_non_web="$("${DOCKER[@]}" ps --format '{{.Names}}={{.Image}}={{.ID}}' \
-    | grep -v '^chuan-market-radar-web-1=' | LC_ALL=C sort)"
-  [[ "${current_non_web}" == "$(cat "${NON_WEB_IDENTITY}")" ]] || return 1
+  [[ -z "${current_worker}" ]] || return 1
+  [[ -f "${NON_TARGET_IDENTITY}" && ! -L "${NON_TARGET_IDENTITY}" ]] || return 1
+  current_non_target="$("${DOCKER[@]}" ps --format '{{.Names}}={{.Image}}={{.ID}}' \
+    | grep -v '^chuan-market-radar-web-1=' \
+    | grep -v '^chuan-market-radar-candidate-shadow-worker-1=' | LC_ALL=C sort)"
+  [[ "${current_non_target}" == "$(cat "${NON_TARGET_IDENTITY}")" ]] || return 1
   [[ "$(${DOCKER[@]} exec "${WEB_CONTAINER}" stat -c '%u:%g:%a' "${MANIFEST_PATH}")" == "0:0:600" \
     && "$(${DOCKER[@]} exec "${WEB_CONTAINER}" sha256sum "${MANIFEST_PATH}" | awk '{print $1}')" == "${MANIFEST_SHA}" \
     && "$(${DOCKER[@]} exec "${WEB_CONTAINER}" stat -c '%u:%g:%a' "${FULL_SNAPSHOT_PATH}")" == "0:0:500" \
@@ -129,7 +128,7 @@ const response = await fetch(
 const body = await response.json();
 const resource = body.resource ?? {};
 const workers = healthBody.health?.runtimeProbes?.workers ?? [];
-const worker = (name) => workers.find((item) => (item.name ?? item.key) === name)?.status ?? "missing";
+const worker = (name) => workers.find((item) => (item.name ?? item.key) === name)?.status ?? "absent";
 process.stdout.write(JSON.stringify({
   sampledAt: new Date().toISOString(),
   healthLevel: healthBody.health?.level,

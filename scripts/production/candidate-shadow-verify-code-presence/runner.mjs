@@ -9,9 +9,9 @@ export const PACKAGE_ID =
   "WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION";
 export const EVIDENCE_SCHEMA = "candidate-shadow-verify-code-presence-evidence.v1";
 export const EVIDENCE_PASS = "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED";
-export const REFERENCE_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
-export const PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
-export const PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
+export const REFERENCE_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
+export const PRODUCTION_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
+export const PRODUCTION_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
 
 export const REFERENCE_CODE_PATHS = Object.freeze([
   Object.freeze({
@@ -25,6 +25,10 @@ export const REFERENCE_CODE_PATHS = Object.freeze([
   Object.freeze({
     path: "src/lib/candidate-episode/canonical-read-route-adapter.test.ts",
     blob: "2d769242772c259bc6751e4b0c9475890f9eb8ed",
+  }),
+  Object.freeze({
+    path: "src/lib/candidate-episode/canonical-read-trusted-context.ts",
+    blob: "5fdeb5115a78d3bc8d89061ae80fbebbbe954fab",
   }),
 ]);
 

@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import {
-  BUILD_RECORD_PATH,
+  BUILD_RECORD_PATH_PATTERN,
   buildTransportBundle,
   createProductionVerificationRequest,
   validateContract,
@@ -27,12 +27,14 @@ const cycle5ProductionCommit = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
 const cycle5ProductionTree = "3d362ceaad05f24f705efe2d871a5a46c3d8704e";
 const cycle5BuildRecordPath =
   "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-94b6d415573f-98459433/target-images-record.json";
+const releaseBuildRecordPath =
+  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-3315b54d-a1b2c3d4/target-images-redacted.json";
 
 test("validates exact local reference, production, and current code blobs", async () => {
   const result = await validateLocalPreparation(process.cwd());
   assert.equal(result.status, "PASS_LOCAL_SHADOW_VERIFY_CODE_PRESENCE_PREPARATION");
   assert.equal(result.productionMutationAllowed, false);
-  assert.equal(result.codePathCount, 3);
+  assert.equal(result.codePathCount, 4);
 });
 
 test("builds byte-identical redacted transports", async () => {
@@ -63,6 +65,7 @@ test("builds byte-identical redacted transports", async () => {
 
 test("creates a 30-minute verify-only request and rejects runtime drift", () => {
   const runtime = {
+    buildRecordPath: releaseBuildRecordPath,
     buildRecordSha256: hash("1"),
     buildRecordWebImageId: `sha256:${hash("2")}`,
     currentWebContainerId: "3".repeat(64),
@@ -108,6 +111,7 @@ test("rejects the Cycle-5 contract, production identity, and obsolete build reco
   assert.throws(() => validateContract(legacyContract), /contract_identity_invalid/u);
 
   const runtime = {
+    buildRecordPath: releaseBuildRecordPath,
     buildRecordSha256: hash("1"),
     buildRecordWebImageId: `sha256:${hash("2")}`,
     currentWebContainerId: "3".repeat(64),
@@ -125,7 +129,8 @@ test("rejects the Cycle-5 contract, production identity, and obsolete build reco
     bundleSha256: hash("6"), manifest, runtime, now,
     nonce: "12345678-1234-4123-8123-123456789abc",
   });
-  assert.equal(request.buildRecordPath, BUILD_RECORD_PATH);
+  assert.equal(request.buildRecordPath, releaseBuildRecordPath);
+  assert.equal(BUILD_RECORD_PATH_PATTERN.test(request.buildRecordPath), true);
   for (const drift of [
     { productionCommit: cycle5ProductionCommit },
     { productionTree: cycle5ProductionTree },

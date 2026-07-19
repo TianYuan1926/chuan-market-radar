@@ -22,7 +22,7 @@ import {
 } from "../candidate-canonical-compat-code-presence/runner.mjs";
 
 const releaseId = "candidate-shadow-release-12345678";
-const migrationId = "candidate-episode-v1-cycle-5";
+const migrationId = "candidate-episode-v1-cycle-6";
 const reconciliationHash = `sha256:${"1".repeat(64)}`;
 const manifestHash = `sha256:${"2".repeat(64)}`;
 const productionEnvHash = "3".repeat(64);
@@ -110,7 +110,7 @@ function sample(index) {
     scanFreshness: "fresh",
     databaseStatus: "ready",
     redisStatus: "healthy",
-    candidateWorkerStatus: "healthy",
+    candidateWorkerStatus: "absent",
     scannerWorkerStatus: "healthy",
     api: {
       httpStatus: 200,
@@ -139,7 +139,9 @@ test("renders only the guarded Canonical Compat read flags", () => {
   assert.match(rendered, /^CANDIDATE_EPISODE_DUAL_READ="true"$/mu);
   assert.match(rendered, /^CANDIDATE_EPISODE_CANONICAL_READ="true"$/mu);
   assert.match(rendered, /^CANDIDATE_EPISODE_REVIEW_READ="true"$/mu);
-  assert.match(rendered, /^CANDIDATE_EPISODE_SHADOW_WRITE=true$/mu);
+  assert.match(rendered, /^CANDIDATE_EPISODE_SHADOW_WRITE="false"$/mu);
+  assert.match(rendered, /^CANDIDATE_EPISODE_CANONICAL_WRITE="false"$/mu);
+  assert.match(rendered, /^CANDIDATE_SHADOW_WORKER_EXPECTED="false"$/mu);
   assert.match(rendered, /^UNRELATED=value$/mu);
 });
 
@@ -208,7 +210,7 @@ test("accepts only a complete zero-difference reconciliation", () => {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 5,
+    sourceReleaseCount: 6,
     verificationMigrationId: migrationId,
     evidenceHash: reconciliationHash,
     violations: [],

@@ -17,7 +17,7 @@ test("production runner defaults to a no-mutation dry run", () => {
   assert.match(result.stdout, /DRY-RUN: no production environment, phase, manifest, service or data changed/u);
 });
 
-test("production mutation is Web-only and excludes source sync, builds and migrations", async () => {
+test("production mutation is limited to Web and stopping Candidate Worker", async () => {
   const source = await file("production-runner.sh");
   const webRecreates = source.match(/"\$\{COMPOSE\[@\]\}" up -d --no-deps --no-build --force-recreate web/gu) ?? [];
   assert.equal(webRecreates.length, 2);
@@ -27,11 +27,15 @@ test("production mutation is Web-only and excludes source sync, builds and migra
   assert.match(source, /CANDIDATE_EPISODE_DUAL_READ: "true"/u);
   assert.match(source, /CANDIDATE_EPISODE_CANONICAL_READ: "true"/u);
   assert.match(source, /CANDIDATE_EPISODE_REVIEW_READ: "true"/u);
+  assert.match(source, /CANDIDATE_EPISODE_SHADOW_WRITE: "false"/u);
+  assert.match(source, /CANDIDATE_SHADOW_WORKER_EXPECTED: "false"/u);
+  assert.match(source, /stop candidate-shadow-worker/u);
+  assert.match(source, /rm -f candidate-shadow-worker/u);
   assert.match(source, /verify_current_manifest/u);
   assert.match(source, /endpoint_shadow_verify_ready/u);
   assert.match(source, /dualReadEvidencePath/u);
   assert.match(source, /wait_health "\$\{phase\}"/u);
-  assert.match(source, /non-web-identity\.txt/u);
+  assert.match(source, /non-target-identity\.txt/u);
   assert.doesNotMatch(source, /docker compose build|\bcompose\b[^\n]*\bbuild\b|git (?:checkout|pull|reset)|npm run backtest:formal/u);
   assert.doesNotMatch(source, /\b(?:psql|redis-cli|prisma|migrate)\b/u);
 });

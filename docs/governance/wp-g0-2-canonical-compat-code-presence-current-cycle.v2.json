@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "wp-g0.2-canonical-compat-code-presence-current-cycle.v2",
+  "packageId": "WP-G0.2-CANONICAL-COMPAT-PRODUCTION-CODE-PRESENCE-CURRENT-CYCLE",
+  "gate": "G0",
+  "actionClass": "read_only_production_preflight",
+  "riskTier": "R0_READ_ONLY",
+  "status": "local_cycle6_preparation_production_verify_only_not_executed",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "identity": {
+    "referenceCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
+    "productionCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
+    "productionTree": "cccd5776a80ded39f712bee4909c23c8133db798",
+    "referenceCodePaths": [
+      {
+        "path": "src/app/api/frontend/candidate-lifecycle/route.ts",
+        "blob": "cc61e446869e3b65a20ef4e0d32f52d9fde9a929"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-model.ts",
+        "blob": "18f37dc4016573d25d13a21033a48ff370dfd6ab"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-oracle.ts",
+        "blob": "bf2416a471423d541d7edb5514bec3ff2c0dd384"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-resource.ts",
+        "blob": "898d576c59a27176b9659e0e026f90b979c71716"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-route-adapter.ts",
+        "blob": "de87fce26a0701969f8b50c63d58e8481fe8b5b5"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-server.ts",
+        "blob": "56c70ee85ec448f27063246f4e5aa4b29b3a93da"
+      },
+      {
+        "path": "src/lib/candidate-episode/canonical-read-trusted-context.ts",
+        "blob": "5fdeb5115a78d3bc8d89061ae80fbebbbe954fab"
+      },
+      {
+        "path": "src/lib/candidate-episode/legacy-read-diagnostic.ts",
+        "blob": "4a4077ec3b8bc6d4a7bb901883aa0f2538d3a276"
+      }
+    ],
+    "releaseBuildRecordPathPattern": "^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}/target-images-redacted\\.json$",
+    "cycleBuildRecordSchema": "candidate-cycle-target-images.v1",
+    "cycleBuildRecordWebImageField": "webImageId"
+  },
+  "execution": {
+    "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+    "runner": "transient_systemd_unit",
+    "restart": "no",
+    "maximumRequestWindowMinutes": 30,
+    "sessionIndependent": true,
+    "servicesAllowed": [],
+    "sourceSyncAllowed": false,
+    "gitMutationAllowed": false,
+    "imageBuildAllowed": false,
+    "containerRecreateAllowed": false,
+    "databaseMutationAllowed": false,
+    "redisMutationAllowed": false,
+    "workerMutationAllowed": false,
+    "environmentMutationAllowed": false,
+    "composeMutationAllowed": false,
+    "phaseTransitionAllowed": false,
+    "manifestMutationAllowed": false,
+    "migrationAllowed": false,
+    "featureFlagMutationAllowed": false
+  },
+  "passBoundary": {
+    "evidenceSchema": "candidate-canonical-compat-code-presence-evidence.v1",
+    "passStatus": "PASS_PRODUCTION_CANONICAL_COMPAT_CODE_PRESENCE_VERIFIED",
+    "productionGitCleanDetachedRequired": true,
+    "allReferenceBlobsMustMatchProduction": true,
+    "runningWebMustMatchCycleBuildRecord": true,
+    "shadowVerifyManifestPresentRequired": true,
+    "shadowVerifyReadFlagsExactRequired": true,
+    "candidateLifecycleApiLegacyAuthorityRequired": true,
+    "candidateLifecycleApiParityPassRequired": true,
+    "productionHealthLevel": "ready",
+    "scanFreshness": "fresh",
+    "legacyResponseAuthority": true,
+    "requiresWebReleaseOnAnyMismatch": true,
+    "localBlobComparisonIsProductionPass": false,
+    "codePresencePassIsPhaseTransitionPass": false
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-canonical-compat-code-presence/bundle.mjs",
+      "scripts/production/candidate-canonical-compat-code-presence/production-entrypoint.sh",
+      "scripts/production/candidate-canonical-compat-code-presence/production-runner.sh",
+      "scripts/production/candidate-canonical-compat-code-presence/runner.mjs"
+    ],
+    "fileCount": 4,
+    "sha256": "ec3746d96d2ba016c1dbe0f9e7d714f289aeea6b4420a74bc868ff624c6f0f31"
+  },
+  "transport": {
+    "schemaVersion": "wp-g0.2-canonical-compat-code-presence-transport.v1",
+    "containsSecrets": false,
+    "reproducibleArchive": true,
+    "archiveFormat": "ustar+gzip-n",
+    "temporaryArtifactCleanupRequired": true
+  },
+  "forbidden": [
+    "web_noop_release_claim",
+    "code_presence_without_blob_identity",
+    "code_presence_without_build_record",
+    "code_presence_without_running_image_identity",
+    "code_presence_without_shadow_verify_manifest",
+    "code_presence_with_candidate_authority",
+    "source_sync",
+    "git_checkout",
+    "image_build",
+    "container_recreate",
+    "database_mutation",
+    "redis_mutation",
+    "worker_mutation",
+    "environment_mutation",
+    "compose_mutation",
+    "phase_transition",
+    "manifest_mutation",
+    "migration",
+    "feature_flag_change",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "rr_threshold_change",
+    "formal_backtest"
+  ]
+}

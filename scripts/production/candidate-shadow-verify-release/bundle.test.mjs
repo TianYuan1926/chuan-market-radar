@@ -49,12 +49,12 @@ function lineage() {
     shadowVerifyStarted: false,
     canonicalAuthorityChanged: false,
     g0Completed: false,
-    currentMigrationId: "candidate-episode-v1-cycle-5",
-    currentReleaseId: "candidate-shadow-cycle-five",
+    currentMigrationId: "candidate-episode-v1-cycle-6",
+    currentReleaseId: "candidate-shadow-cycle-six",
     currentAuthorityEpoch: 1,
-    currentCycleStartedAt: "2026-07-18T00:00:00.000Z",
-    sourceReleaseCount: 5,
-    validationCycle: 5,
+    currentCycleStartedAt: "2026-07-21T00:00:00.000Z",
+    sourceReleaseCount: 6,
+    validationCycle: 6,
     sourceReleaseWindows: [
       {
         migrationId: "candidate-episode-v1",
@@ -95,11 +95,20 @@ function lineage() {
       {
         migrationId: "candidate-episode-v1-cycle-5",
         releaseId: "candidate-shadow-cycle-five",
+        controlEpoch: 2,
+        phase: "legacy",
+        writeFrozen: true,
+        startedAt: "2026-07-18T00:00:00.000Z",
+        deadlineAt: "2026-07-21T00:00:00.000Z",
+      },
+      {
+        migrationId: "candidate-episode-v1-cycle-6",
+        releaseId: "candidate-shadow-cycle-six",
         controlEpoch: 1,
         phase: "shadow_capture",
         writeFrozen: false,
-        startedAt: "2026-07-18T00:00:00.000Z",
-        deadlineAt: "2026-07-21T00:00:00.000Z",
+        startedAt: "2026-07-21T00:00:00.000Z",
+        deadlineAt: "2026-07-24T00:00:00.000Z",
       },
     ],
   };
@@ -136,8 +145,8 @@ function reconciliation(lineageFileSha256) {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 5,
-    verificationMigrationId: "candidate-episode-v1-cycle-5",
+    sourceReleaseCount: 6,
+    verificationMigrationId: "candidate-episode-v1-cycle-6",
     evidenceHash: `sha256:${"8".repeat(64)}`,
     violations: [],
     differenceSample: [],
@@ -184,8 +193,8 @@ function runtime(evidence) {
     baseEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env",
     baseEnvSha256: HASH,
     candidateAuthorityEpoch: 1,
-    candidateMigrationId: "candidate-episode-v1-cycle-5",
-    candidateReleaseId: "candidate-shadow-cycle-five",
+    candidateMigrationId: "candidate-episode-v1-cycle-6",
+    candidateReleaseId: "candidate-shadow-cycle-six",
     candidateWorkerContainerId: "a".repeat(12),
     candidateWorkerImageId: WORKER_IMAGE,
     composeSha256: HASH,
@@ -208,7 +217,7 @@ test("contract, minimal release target and deterministic redacted transport are 
   try {
     const preparation = await validateLocalPreparation();
     assert.equal(preparation.status, "PASS_LOCAL_SHADOW_VERIFY_CODE_RELEASE_PREPARATION");
-    assert.equal(preparation.release.targetCommit, "eb48827b8b403452328b65dc4b415c3fc0ecf765");
+    assert.equal(preparation.release.targetCommit, "3315b54dfcfcde63fcdf3a042ef92754da509feb");
     const first = await buildTransportBundle({
       output: join(root, "first.tar.gz"), sourceIdentity: sourceIdentity(),
     });

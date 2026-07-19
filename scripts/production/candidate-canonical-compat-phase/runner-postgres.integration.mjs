@@ -34,7 +34,7 @@ test("PostgreSQL 16 transitions only after 10,000 completed writes and preserves
       migration_id, phase, epoch, started_at, deadline_at, write_frozen,
       approved_release_id, approval_digest, updated_at
     ) SELECT $1,'shadow_verify',3,now-interval '25 hours',
-      now+interval '47 hours',false,$2,$3,now-interval '1 hour' FROM anchor`, [
+      now+interval '20 minutes',false,$2,$3,now-interval '1 hour' FROM anchor`, [
       migrationId,
       releaseId,
       currentApprovalDigest,
@@ -93,7 +93,7 @@ test("PostgreSQL 16 transitions only after 10,000 completed writes and preserves
       status: "PASS_CANONICAL_COMPAT_CONTROL_TRANSITION",
       phase: "canonical_compat",
       authorityEpoch: 4,
-      writeFrozen: false,
+      writeFrozen: true,
       approvalDigest: request.manifestApprovalDigest,
     });
 
