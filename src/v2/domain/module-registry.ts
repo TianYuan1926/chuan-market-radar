@@ -201,6 +201,9 @@ export const MODULE_REGISTRY = [
   },
 ] as const satisfies readonly ModuleDefinition[];
 
+export type AuthorityOutputName =
+  (typeof MODULE_REGISTRY)[number]["authorityOutputs"][number];
+
 export function moduleDefinition(id: ModuleId): ModuleDefinition {
   const definition = MODULE_REGISTRY.find((module) => module.id === id);
 

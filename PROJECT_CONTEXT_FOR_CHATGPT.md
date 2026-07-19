@@ -74,7 +74,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 ```text
 ACTIVE_DESIGN_AUTHORITY
-M0_IN_PROGRESS_LOCAL_ONLY
+M0_ENGINEERING_EXIT_LOCAL_PASS
+M1_READY_TO_START_LOCAL_ONLY
 localV2ImplementationAuthorized=true
 productionMutationAuthorized=false
 automaticTradingAllowed=false
@@ -109,7 +110,9 @@ automaticTradingAllowed=false
 - `src/v2/` 已建立物理隔离，架构测试禁止 V2 读取 Legacy，也禁止 Legacy 在切换前读取 V2。
 - 已冻结 18 Module、五维状态、四类不确定性、核心对象 TypeScript 合同、唯一 READY 联合类型与 RR validator。
 - 已建立爆发行情/提前发现评价合同、数据许可/成本/回放基线、Capability 级 Legacy Atlas 和第一条 M1 test-only fixture。
-- 这些都是 M0 本地合同，不是运行实现；V2 尚无 provider、数据库、Worker、API、页面或生产 authority。
+- 30 个唯一权威产物各有一个 strict Zod runtime schema；29 个 envelope 产物锁定精确 schema version，`UserFit` 为严格标量枚举。跨 API、进程、存储和回放的 decoder 对未知字段、版本漂移、错误状态、时间倒流、恶意对象、过大载荷和不完整 READY fail closed。
+- Legacy Consumer Map 已覆盖 22 个 capability、539 个源文件、273 条直接运行消费者边、118 条测试消费者边、109 个运行入口、13 个提取候选和 21 个存储对象；Legacy 删除权限仍为 false。
+- M0 十项机器出口与 `ci:production` 已通过。这些是本地工程地基，不是市场运行能力；V2 仍无真实 provider、数据库、Worker、API、页面或生产 authority。
 
 ## 6. Docker 服务清单
 
@@ -199,6 +202,7 @@ npm run typecheck
 npm run lint
 npm run test:market
 npm run test:v2-foundation
+npm run v2:m0:verify
 npm run build
 npm run backtest:golden
 npm run ci:forbidden-files
@@ -234,7 +238,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0 本地合同与隔离骨架进行中，运行能力尚未实施
+V2：M0 本地工程出口通过，M1.1 准备启动，真实数据运行能力尚未实施
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -259,19 +263,18 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-20 / V2 M0 Engineering Exit
+
+- 30 个权威产物 strict runtime schema、fail-closed decoder、Legacy Extraction Policy 和 Consumer Map 已建立。
+- Legacy 地图覆盖 539 个源文件与 273 条直接运行消费者边；受保护源码相对审查提交零漂移，Legacy 删除保持关闭。
+- V2 38/38、M0 十项机器出口和完整 `ci:production` PASS；未部署，生产仍 UNKNOWN，下一入口为 M1.1。
+
 ### 2026-07-20 / V2 M0 Clean Start and Contract Baseline
 
 - 新实施分支从最新 `origin/main` 直接建立，只移植 V2 权威提交；旧 G0 70 个提交不再是 V2 实施祖先。
 - 建立 M0.0 manifest、正确施工顺序、event/data/Legacy atlas、`src/v2` import fence、18 Module 与核心合同。
 - V2 定向合同/架构测试 18/18 PASS；`ci:production` 聚合门禁端到端 PASS，完整结果见本轮交付报告。
 - OrcaTerm 无活动会话，生产保持 UNKNOWN，生产零命令、零变更。
-
-### 2026-07-20 / Active Memory and Blueprint v1.1
-
-- V2 蓝图升级为 18 个单一权威 Module、5 维状态、4 类不确定性和 M0-M7 受控替换。
-- 增加 Point-in-Time Feature、Opportunity Thesis、Execution Feasibility、Portfolio Risk、Outcome/Research 分离、延迟、冷启动、漂移和注意力预算。
-- 删除被新蓝图吸收的重复未提交草案；活跃 Context/Changelog 开始限长。
-- 删除 Legacy app repository 的 preview mock seed 运行时入口；生产未部署，不能声称生产已消除该路径。
 
 ### 2026-07-19 / Latest Recorded Production Fact
 
@@ -292,11 +295,11 @@ Cycle final
 - Legacy 多套事实/决策/Candidate/Outcome 路径仍存在，单一 authority 未完成。
 - 数据库失败回退内存、前端合同过宽、health 语义和管理面权限仍有事实误导风险。
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
-- V2 已有本地合同/隔离骨架，但没有 Fact、Feature、Detector、Decision、API、Worker、回放、Shadow、SLO 或实战能力证据。
+- V2 M0 工程地基已本地闭环，但没有真实 Fact、Feature、Detector、Decision、API、Worker、回放、Shadow、SLO 或实战能力证据。
 
 ### P2
 
-- 仓库保留大量 Legacy 治理脚本、历史报告和旧蓝图；Capability 级 Atlas 已建立，但逐消费者 extraction map 未完成，仍不得批量删除。
+- 仓库保留大量 Legacy 治理脚本、历史报告和旧蓝图；逐消费者地图已经建立，但消费者尚未清零、replacement 尚未稳定，仍不得批量删除。
 - 单机 Compose 的故障域、共享镜像和资源隔离需要在 M1 用容量/SLO/恢复证据决定是否升级。
 
 ## 16. 审计重点
@@ -328,10 +331,10 @@ Cycle final
 ## 18. 唯一下一入口
 
 ```text
-V2-M0.3 Remaining: Legacy Consumer Map + Runtime Schema Boundary
+V2-M1.1 Three-Venue Identity and Fact Slice
 ```
 
-目标是把 Atlas 展开到真实消费者，并为跨进程/存储/API 建立 runtime schema decoder。`Universe -> Fact -> Feature -> Context -> Runtime Truth` 第一条 M1 实施合同已经冻结；只有 M0 出口通过后才开始真实只读实现。生产保持零变更；没有独立批准不得 migration、接入页面、删除 Legacy 运行代码或切换 authority。
+目标是按冻结合同先贯通 Binance Futures、OKX Swap、Bybit Linear Perpetual 同一 BTC 线性永续的只读 Instrument Identity、Point-in-Time Fact 和 Fact Quality，再接 Feature/Context/Runtime Truth。生产保持零变更；本包不得 migration、接入页面、删除 Legacy 运行代码、生成 Candidate/Signal/Plan 或切换 authority。
 
 ## 19. 活跃记忆维护规则
 

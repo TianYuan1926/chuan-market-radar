@@ -2,6 +2,45 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M0 Runtime Boundary and Engineering Exit
+
+### 本轮目标
+
+完成 M0.3：把 Legacy Atlas 展开到真实消费者，为每个 V2 权威产物建立运行时输入边界，并用机器出口证明 M0 地基本地闭环。
+
+### 修改范围
+
+- 新增覆盖 22 个 Legacy capability 的 Extraction Policy 和 Consumer Map，记录 539 个源文件、273 条直接运行消费者边、118 条测试消费者边、109 个运行入口、13 个提取候选和 21 个存储对象。
+- 新增 30 个 authority output 的 strict Zod schema、29 个 envelope 的精确版本注册表、统一 Registry 与跨 API/进程/存储/回放 fail-closed decoder。
+- decoder 拒绝不完整 READY、WAIT 携带计划、RR 低于 3、结构几何错误、时间倒流、未知字段、负金额、恶意对象、循环/稀疏数组、过大载荷和错误 JSON，并避免回显原始敏感值。
+- 新增 M0 十项出口验证器并接入 `ci:production`；未修改 Legacy 运行逻辑、数据库、Redis、Worker、前端、API 或生产配置。
+
+### 核心链路影响
+
+为后续 Universe、Fact、Candidate、Evidence、Decision、Risk、Outcome 和 Runtime Truth 建立同一套不可绕过的结构边界，同时把旧能力的提取、隔离和删除条件变成可审计事实。本轮不新增真实市场发现或交易计划能力。
+
+### 测试结果
+
+- `test:v2-foundation`：38/38 PASS。
+- M0 机器出口：10/10 PASS，状态 `PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED`。
+- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。
+- `typecheck`、`lint`、`build`、`backtest:golden` 16/16：PASS。
+- `ci:forbidden-files`、`ci:secret-patterns`、`security:check`、完整 `ci:production`：PASS。
+- `backtest:formal` 与 production smoke：未运行；本包不属于 formal 能力验收且生产零变更。
+
+### 是否部署
+
+未部署。未连接或修改腾讯云、数据库、Redis、Worker、Compose 或 GitHub main；生产终态继续为 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
+
+### 风险与遗留问题
+
+- M0 完成的是本地工程地基，不是实战能力；V2 尚无真实 provider、Fact 流、Feature、Detector、Decision、UI 或生产 authority。
+- Consumer Map 不等于允许删除 Legacy；任何删除仍要求消费者清零、replacement 稳定、absence test 和回滚证据。
+
+### 下一轮建议
+
+只执行 `V2-M1.1 Three-Venue Identity and Fact Slice`，先做三家 CEX 同一 BTC 线性永续的只读身份、事实与质量纵切。
+
 ## 2026-07-20 / V2 M0 Clean Foundation Start
 
 ### 本轮目标
@@ -36,13 +75,13 @@
 
 ### 风险与遗留问题
 
-- M0 尚未完成；Legacy Consumer Map、运行时 schema 边界和首条真实数据纵切仍待实现。
+- 该轮结束时 M0 尚未完成；Legacy Consumer Map 和运行时 schema 边界现已由本日志最上方一轮完成，首条真实数据纵切仍待实现。
 - synthetic fixture 仅用于合同测试，架构测试禁止其进入生产运行时。
 - 当前无法证明腾讯云生产的 fresh health、release identity、Postgres、Redis 或 Worker 状态。
 
 ### 下一轮建议
 
-只执行 `V2-M0.3 Remaining: Legacy Consumer Map + Runtime Schema Boundary`；M1 第一纵切合同已冻结，M0 出口通过后再开始真实只读实现。
+该建议已由本日志最上方一轮执行并通过；当前下一入口以最上方记录的 `V2-M1.1` 为准。
 
 ## 2026-07-20 / Active Memory, Blueprint v1.1 and Workspace Cleanup
 
@@ -157,35 +196,3 @@
 ### 下一轮建议
 
 若继续 Legacy 生产线，先只读核验 Cycle-7 和当前 release，不直接复用旧身份。
-
-## 2026-07-19 / Cycle-6 Legacy Pending Drain Production
-
-### 本轮目标
-
-精确清理 Cycle-6 失败后留下的 48 条 Legacy pending，恢复冻结且可审计的干净 baseline。
-
-### 修改范围
-
-- 只处理目标 Legacy pending；Candidate Worker 保持 absent。
-- 数据库最终记录 Legacy pending/unresolved 为 0，Candidate event mirror 仍保持待后续周期处理。
-
-### 核心链路影响
-
-恢复 Candidate 生命周期迁移基线，不改变 scan、analysis、strategy 或前端事实。
-
-### 测试结果
-
-- 最终 evidence：`PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN`。
-- production health、关键合同、Postgres、Redis 和租约验证在当时通过。
-
-### 是否部署
-
-已在当时腾讯云生产执行。
-
-### 风险与遗留问题
-
-该 PASS 只证明 drain，不证明 Cycle-7、Shadow Verify、Canonical、G0 或当前生产状态。
-
-### 下一轮建议
-
-该建议已被后续 Cycle-7 启动执行；当前只保留历史审计价值。

@@ -1,6 +1,6 @@
 # Market Radar V2 受控替换工程与运行蓝图 v1.2
 
-状态：`ACTIVE_DESIGN_AUTHORITY / M0_IN_PROGRESS_LOCAL_ONLY / PRODUCTION_UNCHANGED`
+状态：`ACTIVE_DESIGN_AUTHORITY / M0_ENGINEERING_EXIT_LOCAL_PASS / M1_READY_TO_START_LOCAL_ONLY / PRODUCTION_UNCHANGED`
 
 设计日期：2026-07-20
 
@@ -8,11 +8,11 @@
 
 本文回答一个问题：怎样把当前 Market Radar 从“可运行但不完整的研究平台”，建设成能够持续覆盖合格合约市场、尽可能提前发现行情、全面识别其他结构机会、形成严格交易计划并通过真实结果持续进化的专业决策系统。
 
-本文是 V2 当前唯一设计权威。M0 已在干净实施分支启动，但只有合同和隔离骨架获得本地证据；这不代表任何市场能力已经实现，不代表生产已经变更，不代表系统具备盈利能力，也不构成自动下单授权。
+本文是 V2 当前唯一设计权威。M0 已在干净实施分支通过本地工程出口：合同、运行时 schema、Legacy 消费者地图和隔离门禁有机器证据；这不代表真实市场能力已经实现，不代表生产已经变更，不代表系统具备盈利能力，也不构成自动下单授权。
 
 v1.1 在 v1.0 基础上补齐六个专业缺口：point-in-time 特征权威、Opportunity Thesis 融合、形态质量与证据质量解耦、执行可行性终审、组合风险、Outcome 与 Research 治理分离；同时加入端到端延迟、冷启动、漂移、校准和注意力预算合同。
 
-v1.2 增加干净 Git 基线、生产只读未知状态、爆发行情与提前发现的冻结评价口径、数据许可/成本/回放基线、Legacy Capability Atlas、`src/v2` 物理隔离和可执行施工顺序。当前 M0 进展只证明本地合同边界，不提升生产发现、分析或交易能力。
+v1.2 增加干净 Git 基线、生产只读未知状态、爆发行情与提前发现的冻结评价口径、数据许可/成本/回放基线、Legacy Capability Atlas、`src/v2` 物理隔离和可执行施工顺序。M0 工程出口进一步补齐 30 个权威产物的严格运行时 schema、跨 API/进程/存储/回放 decoder 和逐消费者 Legacy 地图；这些仍不提升生产发现、分析或交易能力。
 
 ---
 
@@ -1218,7 +1218,9 @@ M0.0 Clean Git Baseline + Production Read-only Truth
 - `M0.0`：`LOCAL_PASS_WITH_PRODUCTION_UNKNOWN`。实施分支从最新 `origin/main` 直接分叉，只移植 V2 权威提交；OrcaTerm 当前无会话/连接配置，生产状态保持 UNKNOWN，生产零命令、零变更。
 - `M0.1`：`LOCAL_PASS_CONTRACT_BASELINE`。五维状态、四类不确定性、18 Module、核心对象 TypeScript 合同、唯一 READY 联合类型、RR validator 和 event-label contract 已通过定向测试。
 - `M0.2`：`LOCAL_PASS_INITIAL_FENCE`。`src/v2` 与 Legacy 双向 import fence、fixture 隔离和独立 CI 测试入口已建立。
-- `M0.3`：`IN_PROGRESS_CONTRACT_FROZEN`。Capability 级 Atlas、首条 M1 test-only fixture 和 M1 任务合同已建立；逐消费者 extraction map 与 runtime schema decoder 尚未完成。
+- `M0.3`：`LOCAL_PASS_RUNTIME_BOUNDARY_AND_CONSUMER_MAP`。30 个权威产物各有一个 strict runtime schema；其中 29 个 envelope 产物锁定精确 schema version，`UserFit` 是严格标量枚举。fail-closed decoder 覆盖 API、进程、存储和回放边界；22 个 Legacy capability 已展开为 539 个源文件、273 条直接运行消费者边、118 条测试消费者边和 109 个运行入口。13 个提取候选与 21 个存储对象已审查，删除权限保持关闭。
+
+M0 机器出口为 `PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED`：V2/Legacy 双向 import violation 为 0，受保护 Legacy 源码相对审查提交漂移为 0，V2 测试 38/38，完整 `ci:production` PASS。生产仍为 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`，本出口没有执行任何生产命令。
 
 **出口**：所有核心对象有 schema；旧代码逐项标记 EXTRACT/KEEP_AND_HARDEN/REBUILD/ISOLATE/RETIRE；只有一个活跃蓝图和机器矩阵；V2 namespace、测试夹具、依赖规则和 ADR 建立；生产零变更。
 
@@ -1227,6 +1229,8 @@ M0.0 Clean Git Baseline + Production Read-only Truth
 **目标**：建立 Universe Registry、Market Fact/Quality、Point-in-Time Feature Engine、Market Context、point-in-time storage、最小权限运行地基和 telemetry。
 
 **首个纵向证据**：三家目标 CEX 的 instrument accounting、事实 freshness/gap、online/offline feature parity、统一 context snapshot 和回放。
+
+**当前入口**：`V2-M1.1 Three-Venue Identity and Fact Slice`，状态 `READY_TO_START_LOCAL_ONLY`。先实现三家交易所同一 BTC 线性永续的只读身份归一化、Point-in-Time Fact、Quality 与失败分类，不接页面、不写数据库、不产生 Candidate 或交易计划。
 
 **出口**：Fact 零假值、身份无静默冲突、特征 lineage 与重放确定性通过、端到端延迟可分解、coverage/SLO 和故障降级可验证。
 
@@ -1370,20 +1374,20 @@ V2 historical replay
 
 ## 20. 当前执行入口
 
-`V2-M0.1` 的合同基线与 `M0.2` 初始 import fence 已获得本地定向测试证据。当前唯一下一包是：
+M0.0-M0.3 已通过本地工程出口，生产零变更。当前唯一下一包是：
 
 ```text
-V2-M0.3 Remaining: Legacy Consumer Map + Runtime Schema Boundary
+V2-M1.1 Three-Venue Identity and Fact Slice
 ```
 
 该包只允许：
 
-- 把 Capability Atlas 展开到实际消费者和 extraction candidate。
-- 为跨进程/存储/API 边界建立 runtime schema decoder 与明确错误语义。
-- 把已经冻结的 M1 纵向 slice 合同绑定到可执行的 runtime decoder 与 M0 出口 validator。
-- 补齐 M0 出口 validator 与机器追踪状态。
+- 为 Binance Futures、OKX Swap、Bybit Linear Perpetual 建立 V2 自有只读 adapter 边界。
+- 只贯通同一 BTC 线性永续的 Instrument Identity、Point-in-Time Fact、Fact Quality 和失败分类。
+- 使用 M0 runtime decoder 校验所有外部输入，记录 event/received/persisted 时间和 source lineage。
+- 用 test-only fixture 验证 normal、unsupported、suspended、schema drift、乱序和 stale 路径。
 
-该包仍不允许修改生产、执行 migration、接入现有页面、新增 Detector 阈值、删除 Legacy 运行代码或宣称能力提升。
+该包仍不允许修改生产、执行 migration、接入现有页面、读取 Legacy 运行模块、生成 Candidate/Signal/Plan、删除 Legacy 代码或宣称全市场能力完成。
 
 ---
 

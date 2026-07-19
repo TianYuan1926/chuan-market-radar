@@ -1,0 +1,257 @@
+{
+  "schemaVersion": "market-radar-legacy-extraction-policy.v1",
+  "reviewedAgainstCommit": "d9a3c12add2814ae8f307c815097868be82559ae",
+  "legacyRuntimeImportAllowed": false,
+  "copyPasteWithoutBehavioralFixtureAllowed": false,
+  "entries": [
+    {
+      "capabilityId": "legacy_venue_adapters_and_public_market_access",
+      "decision": "EXTRACT_BEHAVIOR_REIMPLEMENT",
+      "decisionReason": "Keep proven normalization and provider-failure behavior, but rebuild identity and point-in-time lineage inside V2.",
+      "extractionCandidates": [
+        {
+          "sourcePath": "src/lib/market/providers/binance-universe-discovery.ts",
+          "symbols": ["normalizeBinanceExchangeInfoSymbol"],
+          "requiredEvidence": ["normal", "unsupported", "suspended", "schema_drift"]
+        },
+        {
+          "sourcePath": "src/lib/market/providers/okx-universe-discovery.ts",
+          "symbols": ["normalizeOkxInstrument"],
+          "requiredEvidence": ["normal", "unsupported", "suspended", "schema_drift"]
+        },
+        {
+          "sourcePath": "src/lib/market/providers/bybit-universe-discovery.ts",
+          "symbols": ["normalizeBybitInstrument"],
+          "requiredEvidence": ["normal", "pagination", "unsupported", "schema_drift"]
+        },
+        {
+          "sourcePath": "src/lib/market/ohlcv/public-exchange-provider.ts",
+          "symbols": ["normalizeBinanceKline", "normalizeOkxCandle", "normalizeBybitKline"],
+          "requiredEvidence": ["event_time", "open_candle", "out_of_order", "invalid_row"]
+        }
+      ],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_universe_registry_and_scan_allocation",
+      "decision": "REBUILD_WITH_BEHAVIORAL_REFERENCE",
+      "decisionReason": "Rotation and quotas are references only; venue-aware identity and accounting must be new authority.",
+      "extractionCandidates": [],
+      "storageObjects": ["scan_asset_states"]
+    },
+    {
+      "capabilityId": "legacy_scan_detection_and_state_pool",
+      "decision": "ISOLATE_FOR_SHADOW_BASELINE",
+      "decisionReason": "Retain as a comparison baseline until V2 detector replay exists; no logic enters M0 or M1.",
+      "extractionCandidates": [],
+      "storageObjects": ["scan_archives"]
+    },
+    {
+      "capabilityId": "legacy_data_capability_registry",
+      "decision": "REBUILD_WITH_BEHAVIORAL_REFERENCE",
+      "decisionReason": "Failure classes are useful, while plans, limits, rights and endpoint lineage require a new registry.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_market_regime",
+      "decision": "EXTRACT_BEHAVIOR_REIMPLEMENT",
+      "decisionReason": "Preserve deterministic regime examples only after binding every input to one feature cutoff.",
+      "extractionCandidates": [
+        {
+          "sourcePath": "src/lib/market-regime/market-regime.ts",
+          "symbols": ["assessMarketRegime"],
+          "requiredEvidence": ["point_in_time_cutoff", "missing_breadth", "stale_anchor", "determinism"]
+        }
+      ],
+      "storageObjects": ["macro_market_snapshots"]
+    },
+    {
+      "capabilityId": "legacy_analysis_v1_v2_v3",
+      "decision": "REBUILD_PER_FUNCTION_REVIEW",
+      "decisionReason": "Indicators and structure helpers require individual point-in-time review; no generation is inherited wholesale.",
+      "extractionCandidates": [],
+      "storageObjects": ["v3_forward_map_snapshots"]
+    },
+    {
+      "capabilityId": "legacy_unified_decision",
+      "decision": "EXTRACT_BEHAVIOR_REIMPLEMENT",
+      "decisionReason": "Retain anti-false-READY cases and complete-plan checks, not the parallel Legacy authority.",
+      "extractionCandidates": [
+        {
+          "sourcePath": "src/lib/decision/unified-decision-engine.ts",
+          "symbols": ["buildUnifiedDecision"],
+          "requiredEvidence": ["wait_planless", "blocked_planless", "ready_complete", "rr_floor"]
+        }
+      ],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_candidate_episode_authority",
+      "decision": "EXTRACT_INFRASTRUCTURE_PATTERN_REIMPLEMENT",
+      "decisionReason": "Reuse proven transaction, idempotency and outbox patterns behind new V2 episode semantics.",
+      "extractionCandidates": [
+        {
+          "sourcePath": "src/lib/candidate-episode/transaction-adapter.ts",
+          "symbols": ["createPostgresTransactionAdapter", "withInstrumentLock"],
+          "requiredEvidence": ["serializable", "lock_scope", "retry", "rollback"]
+        },
+        {
+          "sourcePath": "src/lib/candidate-episode/uuid-v7.ts",
+          "symbols": ["generateUuidV7"],
+          "requiredEvidence": ["monotonic_time", "collision"]
+        }
+      ],
+      "storageObjects": [
+        "candidate_authority.schema_migrations",
+        "candidate_authority.candidate_episodes",
+        "candidate_authority.candidate_episode_events",
+        "candidate_authority.candidate_episode_checkpoints",
+        "candidate_authority.candidate_episode_outcomes",
+        "candidate_authority.candidate_episode_ingest_outbox",
+        "candidate_authority.candidate_migration_control",
+        "candidate_authority.candidate_episode_legacy_imports",
+        "candidate_authority.candidate_outbox_quarantine_resolutions"
+      ]
+    },
+    {
+      "capabilityId": "legacy_lifecycle",
+      "decision": "ISOLATE_UNTIL_CONSUMERS_ZERO",
+      "decisionReason": "Parallel lifecycle semantics cannot enter V2.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_persistence",
+      "decision": "REBUILD_FAIL_CLOSED",
+      "decisionReason": "Repository patterns are reference material, but every V2 authority must reject missing durable storage.",
+      "extractionCandidates": [],
+      "storageObjects": [
+        "journal_events",
+        "scan_archives",
+        "v3_forward_map_snapshots",
+        "rank_profiles",
+        "daily_mover_snapshots",
+        "daily_mover_assets",
+        "mover_attribution_reviews",
+        "radar_miss_reviews",
+        "ohlcv_candle_cache",
+        "scan_asset_states",
+        "macro_market_snapshots",
+        "frontend_ui_states"
+      ]
+    },
+    {
+      "capabilityId": "legacy_frontend_contract_and_api_composition",
+      "decision": "REBUILD_SINGLE_READ_MODEL",
+      "decisionReason": "Compatibility cases inform dual-read validation; no composition or decision call is extracted.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_application_routes_and_components",
+      "decision": "ISOLATE_AS_WORKFLOW_REFERENCE",
+      "decisionReason": "Current pages are observation material only until DecisionSnapshot is authoritative.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_alerts",
+      "decision": "EXTRACT_BEHAVIOR_REIMPLEMENT",
+      "decisionReason": "Dedupe and cooldown behavior is reusable after alerts are driven only by immutable snapshots.",
+      "extractionCandidates": [
+        {
+          "sourcePath": "src/lib/alerts/alert-policy.ts",
+          "symbols": ["mergeAlertEventsById", "shouldSuppressAlert"],
+          "requiredEvidence": ["stable_dedupe", "cooldown", "state_transition", "stale_suppression"]
+        }
+      ],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_review_outcome_and_journal",
+      "decision": "REBUILD_SEPARATE_AUTHORITIES",
+      "decisionReason": "Outcome, research, user journal and production state require separate writers and datasets.",
+      "extractionCandidates": [],
+      "storageObjects": ["journal_events", "radar_miss_reviews", "mover_attribution_reviews"]
+    },
+    {
+      "capabilityId": "legacy_backtest_and_golden_defenses",
+      "decision": "KEEP_AND_HARDEN_EVIDENCE_ONLY",
+      "decisionReason": "Retain future-leak and Golden defenses while adding V2 event-label comparability.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_auth_and_private_session",
+      "decision": "KEEP_AND_HARDEN_SECURITY_BASELINE",
+      "decisionReason": "Retain private-session defenses until V2 default-deny API and role isolation pass.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_runtime_observability",
+      "decision": "KEEP_AND_HARDEN_SPLIT_TRUTH",
+      "decisionReason": "Heartbeat patterns remain useful, but liveness, dependency, business, freshness and release truth must split.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_release_migration_and_recovery_governance",
+      "decision": "KEEP_AND_HARDEN_GENERIC_RUNNER",
+      "decisionReason": "Preserve bounded mutation and rollback discipline while retiring cycle-specific packets only after consumer zero.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_external_intelligence",
+      "decision": "ISOLATE_RESEARCH_ONLY",
+      "decisionReason": "No source is promoted until license, manipulation resistance and incremental value are proven.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_risk_tools",
+      "decision": "EXTRACT_BEHAVIOR_REIMPLEMENT",
+      "decisionReason": "Risk arithmetic and unknown-leverage behavior are reusable only as views that cannot upgrade ActionState.",
+      "extractionCandidates": [
+        {
+          "sourcePath": "src/lib/risk/account-risk-simulator.ts",
+          "symbols": ["simulateAccountRisk"],
+          "requiredEvidence": ["unknown_leverage", "invalid_geometry", "maximum_loss", "liquidation_distance"]
+        },
+        {
+          "sourcePath": "src/lib/risk/personal-position-lens.ts",
+          "symbols": ["buildPersonalPositionLens"],
+          "requiredEvidence": ["no_action_upgrade", "unknown_altcoin_leverage", "known_exchange_limit"]
+        }
+      ],
+      "storageObjects": []
+    },
+    {
+      "capabilityId": "legacy_ui_schema_and_display_adapters",
+      "decision": "EXTRACT_BEHAVIOR_REIMPLEMENT",
+      "decisionReason": "Status language and anti-misleading checks can be rebuilt against only DecisionSnapshot.",
+      "extractionCandidates": [
+        {
+          "sourcePath": "src/lib/ui-schema/status-dictionary.ts",
+          "symbols": ["uiStatusDefinition", "assertNoForbiddenStatusDisplay"],
+          "requiredEvidence": ["wait_not_trade", "blocked_not_ready", "unknown_visible"]
+        },
+        {
+          "sourcePath": "src/lib/ui-schema-guard.ts",
+          "symbols": ["validateUiInformationLayers"],
+          "requiredEvidence": ["no_frontend_fact_creation", "missing_visible"]
+        }
+      ],
+      "storageObjects": ["frontend_ui_states"]
+    },
+    {
+      "capabilityId": "legacy_configuration_and_contract_helpers",
+      "decision": "REFERENCE_PER_CONSUMER",
+      "decisionReason": "Mixed ownership forbids blanket inheritance; review only when an owning V2 package needs a pattern.",
+      "extractionCandidates": [],
+      "storageObjects": []
+    }
+  ]
+}

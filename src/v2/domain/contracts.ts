@@ -535,7 +535,7 @@ export type ReleaseRecord = TraceEnvelope & {
   tree: string;
   artifactDigest: string;
   imageDigests: Readonly<Record<string, string>>;
-  schemaVersion: string;
+  databaseSchemaVersion: string;
   featureVersions: readonly string[];
   ruleVersions: readonly string[];
   rollbackReleaseId: string;
