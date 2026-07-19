@@ -40,7 +40,7 @@ function runtimeFixture() {
     currentAuthorityEpoch: 4,
     currentMigrationId: "candidate-episode-v1-cycle-6",
     currentPhase: "legacy",
-    currentProductionCommit: "72ee289388eea922d0aee58fd4ec7a3f18a91007",
+    currentProductionCommit: "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
     currentReleaseId: "candidate-shadow-cycle-6-72ee2893",
     currentWebImageId:
       "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd",

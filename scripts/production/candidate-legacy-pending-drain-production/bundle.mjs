@@ -18,8 +18,8 @@ export const PACKAGE_ID = "WP-G0.2-CYCLE-6-LEGACY-PENDING-DRAIN-PRODUCTION";
 export const CONTRACT_PATH =
   "docs/governance/wp-g0-2-cycle-6-legacy-pending-drain-production-packet.v2.json";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
-export const BASELINE_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
-export const BASELINE_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
+export const BASELINE_COMMIT = "cec0b6572bb09ae91ff9e013f8bb160f73c045e2";
+export const BASELINE_TREE = "eb217a7fbaad5b464279a08d4441a8249fc266e3";
 export const MIGRATION_ID = "candidate-episode-v1-cycle-6";
 export const RELEASE_ID = "candidate-shadow-cycle-6-72ee2893";
 export const EXPECTED_COUNTS = Object.freeze({

@@ -16,8 +16,8 @@
     "externalLeaseRequired": true
   },
   "productionBaseline": {
-    "commit": "72ee289388eea922d0aee58fd4ec7a3f18a91007",
-    "tree": "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d",
+    "commit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "tree": "eb217a7fbaad5b464279a08d4441a8249fc266e3",
     "webImageMustBeDynamicallyBound": true,
     "scannerWorkerImageMustBeDynamicallyBound": true,
     "cleanDetachedRequired": true,
@@ -163,7 +163,7 @@
   ],
   "runnerArtifact": {
     "fileCount": 9,
-    "sha256": "d8e5b4ac2809d58bc37800adbb65dd24570d6ddd06f7f7c0cc2ce72a25656dbc",
+    "sha256": "7bfe2bf63d7e7985299185dd669fd78a521c8761c6da28d6a58f5844cd8c6255",
     "files": [
       "scripts/governance/autonomy-policy.mjs",
       "scripts/governance/autonomy-production-lease-cli.mjs",

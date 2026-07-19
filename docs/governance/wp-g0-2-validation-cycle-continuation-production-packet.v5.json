@@ -27,8 +27,8 @@
     "priorActivationFailure": "observation_unresolved_outbox_transient_between_samples",
     "priorActivationLastSampleHealth": "ready_fresh_critical_subsystems_healthy",
     "priorActivationSamplesReusable": false,
-    "currentProductionCommit": "72ee289388eea922d0aee58fd4ec7a3f18a91007",
-    "currentProductionTree": "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d",
+    "currentProductionCommit": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "currentProductionTree": "eb217a7fbaad5b464279a08d4441a8249fc266e3",
     "currentProductionWebImageMustBeDynamicallyBound": true,
     "freshActivationRequired": true,
     "currentProductionSourcePhase": "legacy",
@@ -213,7 +213,7 @@
       "scripts/production/candidate-cycle-continuation/runner.mjs"
     ],
     "fileCount": 6,
-    "sha256": "72e7deaaab7cf2668a55524264bd82489b4bc98f6e8d756cf9ada1038572735e"
+    "sha256": "25a4cc08e0f3a084678ef9d51f34714db9a43ced9edd61ef766681ce37ba83fc"
   },
   "forbidden": [
     "threshold_lowering",

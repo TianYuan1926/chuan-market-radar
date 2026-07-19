@@ -185,9 +185,9 @@ export async function validateProductionPacketContract(root = process.cwd()) {
         !== "ready_fresh_critical_subsystems_healthy"
       || contract.prerequisites?.priorActivationSamplesReusable !== false
       || contract.prerequisites?.currentProductionCommit
-        !== "72ee289388eea922d0aee58fd4ec7a3f18a91007"
+        !== "cec0b6572bb09ae91ff9e013f8bb160f73c045e2"
       || contract.prerequisites?.currentProductionTree
-        !== "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
+        !== "eb217a7fbaad5b464279a08d4441a8249fc266e3"
       || contract.prerequisites?.currentProductionWebImageMustBeDynamicallyBound !== true
       || contract.prerequisites?.freshActivationRequired !== true
       || contract.prerequisites?.currentProductionSourcePhase !== "legacy"

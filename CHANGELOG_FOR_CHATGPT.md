@@ -6945,3 +6945,46 @@ commit `6e6fc9c16e40ec8ded69fa6ccd4609b8ce9f49d4` 已推送当前工程分支；
 ### 下一轮建议
 
 只执行 fresh production preflight 与 Cycle-6 精确 drain；验证 legacy/frozen/epoch4 干净基线后再生成 Cycle-7 request。
+
+## 2026-07-19 / Cycle-6 Recovery Production Baseline Binding Correction
+
+### 本轮目标
+
+用 fresh production preflight 校对 Cycle-6 恢复包的真实回滚身份，阻止把失败观察 target 当作回滚后生产基线，并在不降低门槛的前提下减少无效生产尝试。
+
+### 修改范围
+
+- Cycle-6 drain production v2 和 Cycle-7 continuation production v5 的当前生产基线改为 rollback contract 的精确 commit `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、tree `eb217a7fbaad5b464279a08d4441a8249fc266e3`。
+- 失败观察 target `72ee289388eea922d0aee58fd4ec7a3f18a91007` 继续作为历史 Cycle-6 执行身份保留，不再冒充当前生产 Git。
+- 同步 runner artifact、V3 提速蓝图、Context、Autonomy state 和交付报告。
+- 未修改 frontend、业务 API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、DB schema、Redis、Compose、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+修正候选生命周期恢复的生产身份地基，避免错误基线导致无效发布或错误回滚；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- Fresh production read-only preflight：Git clean detached `cec0b657...` / `eb217a7f...`；Web/Scanner 基线镜像精确，Candidate Worker absent，global lease absent。
+- 数据库只读聚合：Cycle-6 `legacy/frozen/epoch2`，600 episodes、5,218 events、10,484 outbox、Legacy pending/unresolved=48、Candidate event pending=5,218、orphan/mismatch=0。
+- Drain production governance：PASS；runner artifact `7bfe2bf63d7e7985299185dd669fd78a521c8761c6da28d6a58f5844cd8c6255`。
+- Cycle continuation production governance：PASS；runner artifact `25a4cc08e0f3a084678ef9d51f34714db9a43ced9edd61ef766681ce37ba83fc`。
+- Drain production tests 23/23、Cycle continuation production tests 41/41：PASS。
+- PostgreSQL 16 production drain success/failure refreeze 与 adjacent continuation：PASS，`productionConnected=false`。
+- 完整统一门禁：20/20 PASS，`worktreeUnchanged=true`；typecheck、lint、market 1,027/0/7、workers 23/23、historical 4/4、build、Golden 16/16、三项安全检查与 Autonomy 31/31 全部通过。
+- Pre-commit unified gate 与 autonomy verify：PASS；最终部署收据必须在提交后绑定新 commit/tree 重新生成，未提前冒充 deploy-ready。
+- formal：未运行且禁止。
+
+### 是否部署
+
+只执行 production read-only preflight；没有上传、数据库写入、服务重建、Git checkout、env/Flag 变更或生产租约获取。旧 bundle/request 已失效且禁止执行。
+
+### 风险与遗留问题
+
+- Cycle-6 精确 48 条 Legacy pending 尚未生产清零，G0 主步骤仍为 7。
+- 新合同必须完成全门禁、clean commit、确定性 bundle 和 fresh 90 分钟 request 后才能进入生产。
+- 当前仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只完成校正包全门禁和 fresh production drain；成功后再生成 Cycle-7 request。

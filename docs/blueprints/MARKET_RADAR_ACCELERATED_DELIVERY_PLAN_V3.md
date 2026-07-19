@@ -9,7 +9,7 @@
 ## 1. 当前生产真值
 
 - Cycle-6 第 42 条采样因 `observation_unresolved_outbox` 失败，前 41 条有效样本和 5,218 次写入永久保留为失败历史，不复用、不重标 PASS。
-- 自动回滚已通过：生产 commit `72ee289388eea922d0aee58fd4ec7a3f18a91007`、tree `bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d`，Cycle-6 为 `legacy/frozen/epoch2`，Candidate Worker absent。
+- 自动回滚已通过：生产恢复到 rollback baseline commit `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、tree `eb217a7fbaad5b464279a08d4441a8249fc266e3`；失败观察使用的 target commit 为 `72ee289388eea922d0aee58fd4ec7a3f18a91007`。Cycle-6 为 `legacy/frozen/epoch2`，Candidate Worker absent。
 - 精确恢复前数据库为 600 episodes、5,218 events、10,484 outbox；Legacy lane 有 48 条 pending，Candidate event mirror lane 有 5,218 条 pending，后者不是损坏也不得被 shadow consumer 提前消费。
 - G0 主步骤仍为 7；本地修复、上传、即时启动和观察中状态都不能减数。
 
