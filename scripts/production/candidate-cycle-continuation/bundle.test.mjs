@@ -37,11 +37,11 @@ function runtimeFixture() {
   return {
     baseEnvSha256: "5".repeat(64),
     composeSha256: "6".repeat(64),
-    currentAuthorityEpoch: 2,
-    currentMigrationId: "candidate-episode-v1-cycle-5",
+    currentAuthorityEpoch: 4,
+    currentMigrationId: "candidate-episode-v1-cycle-6",
     currentPhase: "legacy",
-    currentProductionCommit: "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
-    currentReleaseId: "candidate-shadow-cycle-5-94b6d415",
+    currentProductionCommit: "72ee289388eea922d0aee58fd4ec7a3f18a91007",
+    currentReleaseId: "candidate-shadow-cycle-6-72ee2893",
     currentWebImageId:
       "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd",
     currentWorkerState: "absent",
@@ -49,8 +49,8 @@ function runtimeFixture() {
     identityOverrideSha256: "a".repeat(64),
     identityWrapperPath: "/var/lib/market-radar-ops/identity/compose-wrapper",
     identityWrapperSha256: "b".repeat(64),
-    nextMigrationId: "candidate-episode-v1-cycle-6",
-    nextReleaseId: "candidate-shadow-cycle-6-release",
+    nextMigrationId: "candidate-episode-v1-cycle-7",
+    nextReleaseId: "candidate-shadow-cycle-7-release",
     preflightEvidencePath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-preflight-proof-release/preflight.json",
     preflightSha256: "d".repeat(64),
     productionEnvSha256: "c".repeat(64),
@@ -142,7 +142,7 @@ test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and 
     const built = await buildTransportBundle({ output: archive, sourceIdentity: null, approvalEligible: false });
     const manifest = approvedManifest(built.manifest);
     const contract = JSON.parse(await readFile(
-      "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v4.json",
+      "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v5.json",
       "utf8",
     ));
     const runtime = runtimeFixture();
@@ -160,7 +160,7 @@ test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and 
       request, manifest, contract, "a".repeat(64),
       { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
     );
-    assert.equal(validated.nextMigrationId, "candidate-episode-v1-cycle-6");
+    assert.equal(validated.nextMigrationId, "candidate-episode-v1-cycle-7");
     assert.equal(validated.currentPhase, "legacy");
     assert.equal(validated.currentWorkerState, "absent");
     assert.equal("activationEvidencePath" in validated, false);
@@ -192,7 +192,7 @@ test("request binds a fresh adjacent cycle, absent worker, Git, image, env, and 
       { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
     ), /request_current_authority_epoch_invalid/u);
     await assert.rejects(() => validateProductionExecutionRequest(
-      { ...request, nextMigrationId: "candidate-episode-v1-cycle-5" },
+      { ...request, nextMigrationId: "candidate-episode-v1-cycle-6" },
       manifest, contract, "a".repeat(64),
       { now: new Date("2026-07-17T00:01:00.000Z"), verifyEvidence: false },
     ), /next_cycle_not_adjacent/u);
@@ -293,14 +293,14 @@ test("dynamic preflight is fresh read-only and exactly bound to production ident
       candidateWriteFrozen: true,
       candidateDeadlineAt: "2026-07-17T00:00:00.000Z",
       activeCycles: 0,
-      candidateEpisodes: 596,
-      candidateEvents: 4_602,
+      candidateEpisodes: 648,
+      candidateEvents: 5_266,
       candidateCheckpoints: 0,
       candidateOutcomes: 0,
-      candidateOutbox: 9_204,
-      legacySourceCompleted: 4_602,
+      candidateOutbox: 10_532,
+      legacySourceCompleted: 5_266,
       legacySourceUnresolved: 0,
-      candidateEventPending: 4_602,
+      candidateEventPending: 5_266,
       candidateEventNonPending: 0,
       candidateEventOrphans: 0,
       candidateEventContractMismatches: 0,

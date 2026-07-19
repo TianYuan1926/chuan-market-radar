@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 const files = [
@@ -52,6 +55,68 @@ test("observer waits for strict fresh health before Candidate write and sample a
   assert.match(source, /cycle_observation_health_recheck_exhausted/u);
   assert.match(source, /MAXIMUM_HEALTH_RECHECK_SECONDS/u);
   assert.match(source, /HEALTH_RECHECK_INTERVAL_SECONDS/u);
+  assert.match(source, /OUTBOX_RECHECK_INTERVAL_SECONDS=5/u);
+  assert.match(source, /MAXIMUM_OUTBOX_RECHECK_SECONDS=45/u);
+  assert.match(source, /keys == \["reason", "status"\]/u);
+  assert.match(source, /\.reason == "observation_unresolved_outbox"/u);
+  assert.match(source, /cycle_observation_outbox_recheck_exhausted/u);
+});
+
+test("observer retries only the exact transient unresolved-outbox result", async () => {
+  const source = await readFile(files[2], "utf8");
+  const retryBlock = source.match(
+    /OUTBOX_RECHECK_INTERVAL_SECONDS=5[\s\S]*?\n\}\n(?=LEASE_EXECUTION_FILE)/u,
+  )?.[0];
+  assert.ok(retryBlock);
+  const directory = await mkdtemp(join(tmpdir(), "candidate-cycle-outbox-retry-"));
+  const marker = join(directory, "attempted");
+  try {
+    const transient = spawnSync("bash", ["-c", `
+set -Eeuo pipefail
+database_snapshot_once() {
+  if [[ ! -f "${marker}" ]]; then
+    : > "${marker}"
+    printf '%s\\n' '{"status":"fail","reason":"observation_unresolved_outbox"}' >&2
+    return 1
+  fi
+  printf '%s\\n' '{"status":"pass","unresolvedOutbox":0}'
+}
+sleep() { :; }
+${retryBlock}
+database_snapshot
+`], { encoding: "utf8" });
+    assert.equal(transient.status, 0, transient.stderr);
+    assert.match(transient.stdout, /"status":"pass"/u);
+
+    const nonTransient = spawnSync("bash", ["-c", `
+set -Eeuo pipefail
+database_snapshot_once() {
+  printf '%s\\n' '{"status":"fail","reason":"observation_source_lane_not_clean"}' >&2
+  return 1
+}
+sleep() { printf 'unexpected_sleep\\n' >&2; return 99; }
+${retryBlock}
+database_snapshot
+`], { encoding: "utf8" });
+    assert.equal(nonTransient.status, 1);
+    assert.match(nonTransient.stderr, /observation_source_lane_not_clean/u);
+    assert.doesNotMatch(nonTransient.stderr, /unexpected_sleep/u);
+
+    const exhausted = spawnSync("bash", ["-c", `
+set -Eeuo pipefail
+database_snapshot_once() {
+  printf '%s\\n' '{"status":"fail","reason":"observation_unresolved_outbox"}' >&2
+  return 1
+}
+${retryBlock}
+MAXIMUM_OUTBOX_RECHECK_SECONDS=0
+database_snapshot
+`], { encoding: "utf8" });
+    assert.equal(exhausted.status, 1);
+    assert.match(exhausted.stderr, /cycle_observation_outbox_recheck_exhausted/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("pre-observation rollback removes only bounded temporary transaction artifacts", async () => {

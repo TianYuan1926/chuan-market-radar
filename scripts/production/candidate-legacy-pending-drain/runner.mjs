@@ -1,7 +1,8 @@
 export const PACKAGE_ID = "WP-G0.2-LEGACY-PENDING-DRAIN-REMEDIATION-LOCAL-SUPERPACKAGE";
-export const MIGRATION_ID = "candidate-episode-v1";
 export const REQUIRED_MIGRATION_COUNT = 10;
 export const MINIMUM_DEADLINE_REMAINING_SECONDS = 1_800;
+
+const MIGRATION_ID_PATTERN = /^candidate-episode-v1(?:-cycle-[1-9][0-9]{0,5})?$/u;
 
 export class CandidateLegacyPendingDrainError extends Error {
   constructor(reason) {
@@ -32,6 +33,9 @@ function exactKeys(value, expected, reason) {
 }
 
 const COUNT_KEYS = [
+  "candidateEventContractMismatches",
+  "candidateEventNonPending",
+  "candidateEventOrphans",
   "candidateEventPending",
   "candidateEventUnresolved",
   "checkpoints",
@@ -77,10 +81,14 @@ export function validateDrainSnapshot(snapshot, options = {}) {
   ensure(integer(snapshot.migrationCount, "migration_count_invalid") === REQUIRED_MIGRATION_COUNT,
     "migration_count_not_10");
   for (const key of COUNT_KEYS) integer(snapshot.counts[key], `count_invalid:${key}`);
-  ensure(snapshot.control.migrationId === MIGRATION_ID, "control_migration_id_invalid");
+  ensure(MIGRATION_ID_PATTERN.test(snapshot.control.migrationId ?? ""),
+    "control_migration_id_invalid");
+  if (options.migrationId !== undefined) {
+    ensure(snapshot.control.migrationId === options.migrationId, "control_migration_id_mismatch");
+  }
   ensure(snapshot.control.phase === (options.phase ?? "legacy"), "control_phase_invalid");
   ensure(snapshot.control.writeFrozen === (options.writeFrozen ?? true), "control_write_frozen_invalid");
-  ensure(Number.isSafeInteger(snapshot.control.epoch) && snapshot.control.epoch >= 4,
+  ensure(Number.isSafeInteger(snapshot.control.epoch) && snapshot.control.epoch >= 2,
     "control_epoch_invalid");
   ensure(snapshot.control.epoch % 2 === (options.epochParity ?? 0), "control_epoch_parity_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/.test(snapshot.control.releaseId ?? ""),
@@ -113,6 +121,9 @@ export function validateDrainSnapshot(snapshot, options = {}) {
     "legacy_unresolved_below_pending");
   ensure(counts.candidateEventUnresolved >= counts.candidateEventPending,
     "candidate_event_unresolved_below_pending");
+  ensure(counts.candidateEventNonPending + counts.candidateEventPending
+      === counts.candidateEventUnresolved,
+  "candidate_event_status_sum_mismatch");
   ensure(counts.unresolved === counts.legacyUnresolved
       + counts.candidateEventUnresolved + counts.otherUnresolved,
   "source_lane_unresolved_sum_mismatch");
@@ -132,16 +143,28 @@ export function evaluateDrainPreflight(snapshot) {
   ensure(current.counts.quarantined === 0, "quarantined_work_present");
   ensure(current.counts.legacyUnresolved === current.counts.legacyPending,
     "legacy_unresolved_not_pending_only");
-  ensure(current.counts.candidateEventUnresolved === 0,
-    "candidate_event_lane_present_in_legacy_only_packet");
+  ensure(current.counts.candidateEventUnresolved === current.counts.candidateEventPending
+      && current.counts.candidateEventNonPending === 0,
+  "candidate_event_lane_not_pending_only");
+  ensure(current.counts.candidateEventPending === current.counts.events,
+    "candidate_event_mirror_count_mismatch");
+  ensure(current.counts.candidateEventOrphans === 0,
+    "candidate_event_orphan_present");
+  ensure(current.counts.candidateEventContractMismatches === 0,
+    "candidate_event_contract_mismatch_present");
   ensure(current.counts.otherUnresolved === 0,
     "other_source_lane_present_in_legacy_only_packet");
   ensure(current.counts.pending === current.counts.legacyPending
-      && current.counts.unresolved === current.counts.legacyPending,
-  "global_state_not_legacy_pending_only");
+      + current.counts.candidateEventPending,
+  "global_pending_lane_sum_mismatch");
+  ensure(current.counts.unresolved === current.counts.legacyPending
+      + current.counts.candidateEventPending,
+  "global_unresolved_lane_sum_mismatch");
+  ensure(current.counts.completed === current.counts.legacyCompleted,
+    "global_completed_lane_mismatch");
   return {
-    schemaVersion: "candidate-legacy-pending-drain-preflight.v1",
-    status: "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT",
+    schemaVersion: "candidate-legacy-pending-drain-preflight.v2",
+    status: "PASS_LEGACY_PENDING_WITH_EVENT_MIRROR_DRAIN_PREFLIGHT",
     migrationCount: current.migrationCount,
     migrationId: current.control.migrationId,
     sourceEpoch: current.control.epoch,
@@ -149,7 +172,8 @@ export function evaluateDrainPreflight(snapshot) {
     finalFrozenEpoch: current.control.epoch + 2,
     releaseId: current.control.releaseId,
     pending: current.counts.legacyPending,
-    completedBefore: current.counts.completed,
+    legacyCompletedBefore: current.counts.legacyCompleted,
+    candidateEventPendingBefore: current.counts.candidateEventPending,
     outboxTotal: current.counts.outbox,
     sourceWriteReachable: false,
     scannerPaused: true,
@@ -160,35 +184,57 @@ export function evaluateDrainPreflight(snapshot) {
 
 export function evaluateDrainCompletion(beforeSnapshot, afterSnapshot) {
   const before = validateDrainSnapshot(beforeSnapshot);
-  const after = validateDrainSnapshot(afterSnapshot);
+  const after = validateDrainSnapshot(afterSnapshot, {
+    migrationId: before.control.migrationId,
+  });
+  const drained = before.counts.legacyPending;
   ensure(after.control.phase === "legacy" && after.control.writeFrozen === true,
     "final_control_not_frozen_legacy");
   ensure(after.control.epoch === before.control.epoch + 2, "final_control_epoch_invalid");
   ensure(after.control.releaseId === before.control.releaseId, "control_release_changed");
   ensure(after.control.startedAt === before.control.startedAt, "control_started_at_changed");
   ensure(after.control.deadlineAt === before.control.deadlineAt, "control_deadline_changed");
-  ensure(after.counts.outbox === before.counts.outbox, "outbox_total_changed");
-  ensure(after.counts.completed === before.counts.outbox, "outbox_not_fully_completed");
-  ensure(after.counts.pending === 0 && after.counts.claimed === 0
+  ensure(after.counts.outbox === before.counts.outbox + drained,
+    "outbox_mirror_growth_invalid");
+  ensure(after.counts.completed === before.counts.completed + drained,
+    "global_completed_growth_invalid");
+  ensure(after.counts.legacyCompleted === before.counts.legacyCompleted + drained,
+    "legacy_completed_growth_invalid");
+  ensure(after.counts.legacyPending === 0 && after.counts.legacyUnresolved === 0,
+    "legacy_lane_not_drained");
+  ensure(after.counts.pending === before.counts.candidateEventPending + drained
+      && after.counts.claimed === 0
       && after.counts.retryWait === 0 && after.counts.quarantined === 0,
   "terminal_outbox_state_invalid");
-  ensure(after.counts.unresolved === 0, "unresolved_not_zero");
+  ensure(after.counts.candidateEventPending === before.counts.candidateEventPending + drained
+      && after.counts.candidateEventUnresolved === after.counts.candidateEventPending
+      && after.counts.candidateEventNonPending === 0,
+  "candidate_event_mirror_growth_invalid");
+  ensure(after.counts.candidateEventOrphans === 0,
+    "candidate_event_orphan_present");
+  ensure(after.counts.candidateEventContractMismatches === 0,
+    "candidate_event_contract_mismatch_present");
+  ensure(after.counts.unresolved === after.counts.candidateEventPending,
+    "global_unresolved_not_event_mirror_only");
+  ensure(after.counts.otherUnresolved === 0, "other_source_lane_present");
   ensure(after.counts.resolutions === before.counts.resolutions, "resolution_count_changed");
-  ensure(after.counts.events === before.counts.events + before.counts.pending,
+  ensure(after.counts.events === before.counts.events + drained,
     "event_projection_count_mismatch");
   ensure(after.counts.episodes >= before.counts.episodes, "episode_count_regressed");
-  ensure(after.counts.episodes <= before.counts.episodes + before.counts.pending,
+  ensure(after.counts.episodes <= before.counts.episodes + drained,
     "episode_count_growth_invalid");
   ensure(after.counts.checkpoints === before.counts.checkpoints, "checkpoint_count_changed");
   ensure(after.counts.outcomes === before.counts.outcomes, "outcome_count_changed");
   ensure(after.candidateWorkerAbsent === true, "candidate_worker_not_stopped");
   return {
-    schemaVersion: "candidate-legacy-pending-drain-result.v1",
+    schemaVersion: "candidate-legacy-pending-drain-result.v2",
     status: "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN",
-    drained: before.counts.pending,
-    completed: after.counts.completed,
+    drained,
+    legacyCompleted: after.counts.legacyCompleted,
+    candidateEventPending: after.counts.candidateEventPending,
+    outboxTotal: after.counts.outbox,
     finalEpoch: after.control.epoch,
-    unresolved: 0,
+    legacyUnresolved: 0,
     scannerRestorationRequired: true,
     sourceWritesObserved: false,
     candidateBusinessRowsDeleted: false,
@@ -211,8 +257,8 @@ async function inMigrationTransaction(client, work) {
 }
 
 export async function openDrainEpoch(client, input) {
-  ensure(input.migrationId === MIGRATION_ID, "input_migration_id_invalid");
-  ensure(Number.isSafeInteger(input.expectedEpoch) && input.expectedEpoch >= 4
+  ensure(MIGRATION_ID_PATTERN.test(input.migrationId ?? ""), "input_migration_id_invalid");
+  ensure(Number.isSafeInteger(input.expectedEpoch) && input.expectedEpoch >= 2
       && input.expectedEpoch % 2 === 0, "input_expected_epoch_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/.test(input.releaseId ?? ""),
     "input_release_invalid");
@@ -235,8 +281,8 @@ export async function openDrainEpoch(client, input) {
 }
 
 export async function closeDrainEpoch(client, input) {
-  ensure(input.migrationId === MIGRATION_ID, "input_migration_id_invalid");
-  ensure(Number.isSafeInteger(input.expectedEpoch) && input.expectedEpoch >= 5
+  ensure(MIGRATION_ID_PATTERN.test(input.migrationId ?? ""), "input_migration_id_invalid");
+  ensure(Number.isSafeInteger(input.expectedEpoch) && input.expectedEpoch >= 3
       && input.expectedEpoch % 2 === 1, "input_expected_epoch_invalid");
   return inMigrationTransaction(client, async () => {
     const counts = await client.query(`SELECT
@@ -263,8 +309,8 @@ export async function closeDrainEpoch(client, input) {
 }
 
 export async function rollbackDrainEpoch(client, input) {
-  ensure(input.migrationId === MIGRATION_ID, "input_migration_id_invalid");
-  ensure(Number.isSafeInteger(input.expectedEpoch) && input.expectedEpoch >= 5
+  ensure(MIGRATION_ID_PATTERN.test(input.migrationId ?? ""), "input_migration_id_invalid");
+  ensure(Number.isSafeInteger(input.expectedEpoch) && input.expectedEpoch >= 3
       && input.expectedEpoch % 2 === 1, "input_expected_epoch_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/.test(input.releaseId ?? ""),
     "input_release_invalid");

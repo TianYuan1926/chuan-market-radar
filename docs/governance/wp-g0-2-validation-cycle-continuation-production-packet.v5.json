@@ -1,0 +1,241 @@
+{
+  "schemaVersion": "wp-g0.2-validation-cycle-continuation-production-packet.v5",
+  "packageId": "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION",
+  "title": "Cycle-6 frozen recovery to fresh Cycle-7 with bounded transient outbox recheck",
+  "gate": "G0",
+  "actionClass": "feature_phase_activation",
+  "riskTier": "R2_AUTHORITY_TRANSITION",
+  "productionAuthorization": false,
+  "productionExecuted": false,
+  "priorActivationFinalPass": false,
+  "productionRoot": "/home/ubuntu/apps/chuan-market-radar",
+  "postgresAdminEnvPath": "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
+  "standingGrant": {
+    "grantId": "MR-G0-G8-USER-STANDING-GRANT-20260714-034826",
+    "revocationEpoch": 2,
+    "maximumExecutions": 1,
+    "maximumApprovalWindowMinutes": 90,
+    "externalLeaseRequired": true
+  },
+  "prerequisites": {
+    "priorActivationOutcome": "ROLLBACK_TO_LEGACY_AUTHORITY_OBSERVATION_UNRESOLVED_OUTBOX",
+    "priorActivationSamplesObserved": 42,
+    "priorActivationAcceptedSamples": 41,
+    "priorActivationRejectedSample": 42,
+    "priorActivationCompletedWrites": 5218,
+    "priorActivationLastAcceptedCompletedWrites": 5218,
+    "priorActivationFailure": "observation_unresolved_outbox_transient_between_samples",
+    "priorActivationLastSampleHealth": "ready_fresh_critical_subsystems_healthy",
+    "priorActivationSamplesReusable": false,
+    "currentProductionCommit": "72ee289388eea922d0aee58fd4ec7a3f18a91007",
+    "currentProductionTree": "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d",
+    "currentProductionWebImageMustBeDynamicallyBound": true,
+    "freshActivationRequired": true,
+    "currentProductionSourcePhase": "legacy",
+    "currentProductionWriteFrozen": true,
+    "currentProductionAuthorityEpoch": 4,
+    "currentProductionMigrationId": "candidate-episode-v1-cycle-6",
+    "currentProductionReleaseId": "candidate-shadow-cycle-6-72ee2893",
+    "nextProductionMigrationId": "candidate-episode-v1-cycle-7",
+    "activeCyclesExact": 0,
+    "candidateWorkerBaseline": "absent",
+    "candidateEpisodesMinimum": 600,
+    "candidateEpisodesMaximum": 648,
+    "candidateEventsExact": 5266,
+    "candidateCheckpointsExact": 0,
+    "candidateOutcomesExact": 0,
+    "candidateOutboxExact": 10532,
+    "legacySourceCompletedExact": 5266,
+    "legacySourceUnresolvedMaximum": 0,
+    "candidateEventPendingExact": 5266,
+    "candidateEventNonPendingExact": 0,
+    "candidateEventOrphansExact": 0,
+    "candidateEventContractMismatchesExact": 0,
+    "productionHealth": "ready_fresh",
+    "productionGit": "clean_detached_exact",
+    "drainEvidenceRequired": true,
+    "newExactRequestRequired": true
+  },
+  "execution": {
+    "runner": "transient_systemd_unit",
+    "sessionIndependent": true,
+    "restart": "no",
+    "runtimeMaxSeconds": 5400,
+    "services": [
+      "web",
+      "candidate-shadow-worker"
+    ],
+    "sourceSyncAllowed": false,
+    "exactFetchAllowed": true,
+    "buildAllowed": true,
+    "otherServicesAllowed": false
+  },
+  "databaseBoundary": {
+    "isolation": "serializable",
+    "controlTableLock": "share_row_exclusive",
+    "role": "candidate_migration_role",
+    "migrationAllowed": false,
+    "candidateBusinessDataMutationAllowed": false,
+    "oldDeadlineMutationAllowed": false,
+    "maximumActiveCycles": 1,
+    "continuationCoreSourcePhases": [
+      "shadow_capture",
+      "legacy"
+    ],
+    "productionPacketSourcePhase": "legacy",
+    "legacySourceUnresolvedMaximum": 0,
+    "candidateEventLanePreserved": true,
+    "oldCycleRetained": true,
+    "allCandidateCountsPreserved": true
+  },
+  "rollback": {
+    "reactivateOldCycle": false,
+    "freezeNewCycle": true,
+    "disableCandidateFlags": true,
+    "stopCandidateWorker": true,
+    "restoreGit": true,
+    "restoreWebImage": true,
+    "restoreWorkerBaselineAbsent": true,
+    "legacyAuthorityRetained": true,
+    "databaseBusinessRowsDeleted": false
+  },
+  "cleanup": {
+    "preObservationFailureRemoves": [
+      "staging",
+      "secure",
+      "ops",
+      "rollback_image_ref",
+      "unused_target_images"
+    ],
+    "observationRollbackRemoves": [
+      "staging",
+      "secure",
+      "ops",
+      "rollback_image_ref",
+      "unused_target_images"
+    ],
+    "observationPassRemoves": [
+      "staging",
+      "secure",
+      "ops"
+    ],
+    "retainedAlways": [
+      "redacted_evidence"
+    ],
+    "retainLiveTargetImagesOnPass": true,
+    "retainRollbackWebImageOnPass": true,
+    "targetImageDeletionRequiresNoContainers": true,
+    "pathDeletionRequiresExactRequestBinding": true
+  },
+  "observation": {
+    "sampleIntervalSeconds": 300,
+    "minimumComparedWrites": 10000,
+    "minimumStabilitySeconds": 1800,
+    "minimumSamples": 7,
+    "minimumActivationSamples": 289,
+    "minimumActivationHours": 24,
+    "minimumCompletionAdvances": 2,
+    "maximumSampleGapSeconds": 600,
+    "deadlineSafetySeconds": 21600,
+    "automaticReconciliation": false,
+    "automaticCanonicalCutover": false,
+    "passStatus": "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
+    "healthFreshnessBoundary": {
+      "agingSampleAccepted": false,
+      "retryOnlyState": "degraded_aging",
+      "maximumRecheckSeconds": 180,
+      "recheckIntervalSeconds": 15,
+      "criticalHealthMustRemainHealthy": true,
+      "candidateWriteDuringRecheck": false,
+      "recheckAttemptCountsAsSample": false,
+      "exhaustionRequiresRollback": true
+    },
+    "databaseSnapshotCoherence": {
+      "sampleSchemaVersion": "candidate-validation-cycle-observation-sample.v3",
+      "maximumBracketSeconds": 60,
+      "captureOrder": [
+        "strict_fresh_health",
+        "database_before",
+        "candidate_monitor",
+        "database_after",
+        "isolated_validation"
+      ],
+      "beforeAndAfterIdentityExact": true,
+      "beforeAndAfterEpochExact": true,
+      "beforeAndAfterDeadlineExact": true,
+      "completedWritesMonotonic": true,
+      "monitorCompletedWithinBracketInclusive": true,
+      "topLevelDatabaseTruth": "after",
+      "legacyUnbracketedSamplesAccepted": false,
+      "productionFailureReplay": {
+        "databaseBeforeCompleted": 4556,
+        "monitorCompleted": 4578,
+        "databaseAfterCompleted": 4602,
+        "claimed": 24,
+        "unresolved": 24,
+        "oldestAgeSeconds": 22.116749,
+        "accepted": true
+      }
+    },
+    "transientClaimBoundary": {
+      "pendingAndClaimedMayBeNonzero": true,
+      "unresolvedArithmeticExact": true,
+      "retryWaitMaximum": 0,
+      "unresolvedQuarantineMaximum": 0,
+      "quarantineMaximum": 0,
+      "monitorWarningsMaximum": 0,
+      "monitorBlockersMaximum": 0,
+      "oldestUnresolvedAgeExclusiveMaximumSeconds": 300,
+      "productionRaceReplay": {
+        "claimed": 38,
+        "unresolved": 38,
+        "oldestAgeSeconds": 29.526496,
+        "accepted": true
+      }
+    },
+    "transientOutboxRecheckBoundary": {
+      "retryOnlyReason": "observation_unresolved_outbox",
+      "recheckIntervalSeconds": 5,
+      "maximumRecheckSeconds": 45,
+      "maximumDatabaseBracketSeconds": 60,
+      "nonTransientFailureRetried": false,
+      "exhaustionRequiresRollback": true,
+      "failedCycleSamplesReusable": false
+    }
+  },
+  "runnerArtifact": {
+    "files": [
+      "scripts/production/candidate-cycle-continuation/bundle.mjs",
+      "scripts/production/candidate-cycle-continuation/observation-runner.mjs",
+      "scripts/production/candidate-cycle-continuation/observation-runner.sh",
+      "scripts/production/candidate-cycle-continuation/production-entrypoint.sh",
+      "scripts/production/candidate-cycle-continuation/production-runner.sh",
+      "scripts/production/candidate-cycle-continuation/runner.mjs"
+    ],
+    "fileCount": 6,
+    "sha256": "72e7deaaab7cf2668a55524264bd82489b4bc98f6e8d756cf9ada1038572735e"
+  },
+  "forbidden": [
+    "threshold_lowering",
+    "observation_shortening",
+    "failed_sample_reuse",
+    "old_deadline_reset",
+    "migration",
+    "redis_mutation",
+    "scanner_worker_mutation",
+    "other_service_mutation",
+    "canonical_cutover",
+    "production_ranking_change",
+    "future_outcome_input",
+    "formal_backtest"
+  ],
+  "truthBoundary": {
+    "cycle6FailureRelabeledPass": false,
+    "cycle6SamplesReusable": false,
+    "localPacketPassIsProductionPass": false,
+    "continuationPassIsReconciliationPass": false,
+    "freshActivationAndAccumulationPassIsLineagePass": false,
+    "g0Complete": false,
+    "systemStatus": "R1 / 可运行但不完整 / 不能支撑实战"
+  }
+}

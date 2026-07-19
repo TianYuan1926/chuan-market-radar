@@ -6900,3 +6900,48 @@ commit `6e6fc9c16e40ec8ded69fa6ccd4609b8ce9f49d4` 已推送当前工程分支；
 ### 下一轮建议
 
 只执行生产关闭列车的第一个可运行节点：Cycle-6 final 后在 `72ee289` 身份下完成只读 Lineage/Reconciliation；通过后自动进入 Web-only release。
+
+## 2026-07-19 / WP-G0.2 Cycle-6 Recovery And Cycle-7 Continuation Superpackage
+
+### 本轮目标
+
+保留 Cycle-6 第 42 条采样失败真值，精确修复 48 条 Legacy pending 恢复路径，并准备从 refrozen Cycle-6 以全新 request 启动相邻 Cycle-7；同时修复 observer 对极短暂 outbox 可见性的误判，不放宽任何观察门槛。
+
+### 修改范围
+
+- 新增 Cycle-6 drain production v2、Cycle-7 continuation production v5、本地 drain v2 和本地 continuation v5 合同。
+- Drain runner 现在只消费 Legacy pending，同时要求 Candidate event mirror 保持全 pending、零 orphan、零 contract mismatch；成功时 event、mirror outbox 和总 outbox 按 drained 数精确增长。
+- Observer 只对精确 `observation_unresolved_outbox` 每 5 秒重查、最多 45 秒；非瞬态错误立即失败，耗尽自动回滚，重查不计为样本。
+- 新增不降质极速交付计划 v3，并更正 Context/Autonomy 中过期的 observer active 状态。
+- 删除两份已被 v2/v5 取代的活动治理合同；Git 历史仍可追溯旧版本。
+- 未修改 frontend、业务 API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、DB schema、Redis、Compose、真实 env 或 secret。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化之间的 Candidate 生命周期数据完整性和失败可恢复性；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- Drain local 14/14、production packet 23/23、Cycle continuation production 41/41、本地治理 2/2：PASS。
+- PostgreSQL 16 Legacy drain、production success/failure refreeze、adjacent continuation：PASS；`productionConnected=false`。
+- typecheck、lint、build：PASS。
+- test:market 1,027 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4：PASS。
+- backtest:golden 16/16、forbidden-files、secret-patterns、security-check：PASS。
+- Autonomy 31/31：PASS。
+- production smoke：未运行，因为生产尚未执行。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或修改生产。当前仅达到发布候选本地门禁 PASS。
+
+### 风险与遗留问题
+
+- Cycle-6 生产仍有精确 48 条 Legacy pending；本地 PASS 不能冒充 production drain PASS。
+- Candidate event mirror pending 是预期 mirror lane，不能被清零、隔离或误报为 Legacy backlog。
+- Cycle-7 尚未启动；旧 Cycle-6 样本和 request 永久禁止复用。
+- G0 主步骤仍为 7，当前仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只执行 fresh production preflight 与 Cycle-6 精确 drain；验证 legacy/frozen/epoch4 干净基线后再生成 Cycle-7 request。

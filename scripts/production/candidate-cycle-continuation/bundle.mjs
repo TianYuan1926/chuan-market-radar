@@ -16,7 +16,7 @@ import { validateCycleContinuationInput } from "./runner.mjs";
 const execFileAsync = promisify(execFile);
 export const PACKAGE_ID = "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-PRODUCTION";
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v4.json";
+  "docs/governance/wp-g0-2-validation-cycle-continuation-production-packet.v5.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -157,7 +157,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   const contract = JSON.parse(bytes);
   const runnerArtifact = await artifact(root, contract.runnerArtifact?.files ?? []);
   const violations = [];
-  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-production-packet.v4"
+  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-production-packet.v5"
       || contract.packageId !== PACKAGE_ID) violations.push("contract_identity");
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
       || contract.priorActivationFinalPass !== false) violations.push("production_truth");
@@ -173,41 +173,43 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   if (runnerArtifact.fileCount !== contract.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) violations.push("runner_artifact");
   if (contract.prerequisites?.priorActivationOutcome
-        !== "ROLLBACK_PASS_SAMPLE_MONITOR_COMPLETED_MISMATCH"
-      || contract.prerequisites?.priorActivationSamplesObserved !== 57
-      || contract.prerequisites?.priorActivationAcceptedSamples !== 56
-      || contract.prerequisites?.priorActivationRejectedSample !== 57
-      || contract.prerequisites?.priorActivationCompletedWrites !== 4_602
-      || contract.prerequisites?.priorActivationLastAcceptedCompletedWrites !== 4_556
+        !== "ROLLBACK_TO_LEGACY_AUTHORITY_OBSERVATION_UNRESOLVED_OUTBOX"
+      || contract.prerequisites?.priorActivationSamplesObserved !== 42
+      || contract.prerequisites?.priorActivationAcceptedSamples !== 41
+      || contract.prerequisites?.priorActivationRejectedSample !== 42
+      || contract.prerequisites?.priorActivationCompletedWrites !== 5_218
+      || contract.prerequisites?.priorActivationLastAcceptedCompletedWrites !== 5_218
       || contract.prerequisites?.priorActivationFailure
-        !== "sample_monitor_completed_mismatch_due_to_sequential_snapshot_race"
+        !== "observation_unresolved_outbox_transient_between_samples"
       || contract.prerequisites?.priorActivationLastSampleHealth
         !== "ready_fresh_critical_subsystems_healthy"
       || contract.prerequisites?.priorActivationSamplesReusable !== false
       || contract.prerequisites?.currentProductionCommit
-        !== "cec0b6572bb09ae91ff9e013f8bb160f73c045e2"
+        !== "72ee289388eea922d0aee58fd4ec7a3f18a91007"
       || contract.prerequisites?.currentProductionTree
-        !== "eb217a7fbaad5b464279a08d4441a8249fc266e3"
-      || contract.prerequisites?.currentProductionWebImageId
-        !== "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd"
+        !== "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
+      || contract.prerequisites?.currentProductionWebImageMustBeDynamicallyBound !== true
       || contract.prerequisites?.freshActivationRequired !== true
       || contract.prerequisites?.currentProductionSourcePhase !== "legacy"
       || contract.prerequisites?.currentProductionWriteFrozen !== true
-      || contract.prerequisites?.currentProductionAuthorityEpoch !== 2
+      || contract.prerequisites?.currentProductionAuthorityEpoch !== 4
       || contract.prerequisites?.currentProductionMigrationId
-        !== "candidate-episode-v1-cycle-5"
+        !== "candidate-episode-v1-cycle-6"
       || contract.prerequisites?.currentProductionReleaseId
-        !== "candidate-shadow-cycle-5-94b6d415"
+        !== "candidate-shadow-cycle-6-72ee2893"
+      || contract.prerequisites?.nextProductionMigrationId
+        !== "candidate-episode-v1-cycle-7"
       || contract.prerequisites?.activeCyclesExact !== 0
       || contract.prerequisites?.candidateWorkerBaseline !== "absent"
-      || contract.prerequisites?.candidateEpisodesExact !== 596
-      || contract.prerequisites?.candidateEventsExact !== 4_602
+      || contract.prerequisites?.candidateEpisodesMinimum !== 600
+      || contract.prerequisites?.candidateEpisodesMaximum !== 648
+      || contract.prerequisites?.candidateEventsExact !== 5_266
       || contract.prerequisites?.candidateCheckpointsExact !== 0
       || contract.prerequisites?.candidateOutcomesExact !== 0
-      || contract.prerequisites?.candidateOutboxExact !== 9_204
-      || contract.prerequisites?.legacySourceCompletedExact !== 4_602
+      || contract.prerequisites?.candidateOutboxExact !== 10_532
+      || contract.prerequisites?.legacySourceCompletedExact !== 5_266
       || contract.prerequisites?.legacySourceUnresolvedMaximum !== 0
-      || contract.prerequisites?.candidateEventPendingExact !== 4_602
+      || contract.prerequisites?.candidateEventPendingExact !== 5_266
       || contract.prerequisites?.candidateEventNonPendingExact !== 0
       || contract.prerequisites?.candidateEventOrphansExact !== 0
       || contract.prerequisites?.candidateEventContractMismatchesExact !== 0) {
@@ -309,11 +311,20 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || contract.observation?.transientClaimBoundary?.productionRaceReplay?.unresolved !== 38
       || contract.observation?.transientClaimBoundary?.productionRaceReplay?.oldestAgeSeconds
         !== 29.526496
-      || contract.observation?.transientClaimBoundary?.productionRaceReplay?.accepted !== true) {
+      || contract.observation?.transientClaimBoundary?.productionRaceReplay?.accepted !== true
+      || contract.observation?.transientOutboxRecheckBoundary?.retryOnlyReason
+        !== "observation_unresolved_outbox"
+      || contract.observation?.transientOutboxRecheckBoundary?.recheckIntervalSeconds !== 5
+      || contract.observation?.transientOutboxRecheckBoundary?.maximumRecheckSeconds !== 45
+      || contract.observation?.transientOutboxRecheckBoundary
+        ?.maximumDatabaseBracketSeconds !== 60
+      || contract.observation?.transientOutboxRecheckBoundary?.nonTransientFailureRetried !== false
+      || contract.observation?.transientOutboxRecheckBoundary?.exhaustionRequiresRollback !== true
+      || contract.observation?.transientOutboxRecheckBoundary?.failedCycleSamplesReusable !== false) {
     violations.push("observation_boundary");
   }
   for (const forbidden of [
-    "threshold_lowering", "observation_shortening", "old_deadline_reset", "migration",
+    "threshold_lowering", "observation_shortening", "failed_sample_reuse", "old_deadline_reset", "migration",
     "redis_mutation", "scanner_worker_mutation", "other_service_mutation", "canonical_cutover",
     "production_ranking_change", "future_outcome_input", "formal_backtest",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
@@ -366,7 +377,8 @@ export async function verifyDynamicPreflight(request, suppliedContract = null) {
   ensure(preflight.currentWorkerState === "absent",
     "preflight_candidate_worker_not_absent");
   const prerequisites = contract.prerequisites ?? {};
-  ensure(preflight.candidateEpisodes === prerequisites.candidateEpisodesExact
+  ensure(preflight.candidateEpisodes >= prerequisites.candidateEpisodesMinimum
+      && preflight.candidateEpisodes <= prerequisites.candidateEpisodesMaximum
       && preflight.candidateEvents === prerequisites.candidateEventsExact
       && preflight.candidateCheckpoints === prerequisites.candidateCheckpointsExact
       && preflight.candidateOutcomes === prerequisites.candidateOutcomesExact
@@ -507,9 +519,10 @@ export async function validateProductionExecutionRequest(
   ensure(request.currentProductionCommit
       === contract.prerequisites.currentProductionCommit,
   "request_current_production_commit_invalid");
-  ensure(request.currentWebImageId
-      === contract.prerequisites.currentProductionWebImageId,
-  "request_current_web_image_invalid");
+  ensure(contract.prerequisites.currentProductionWebImageMustBeDynamicallyBound === true,
+    "request_current_web_image_contract_invalid");
+  ensure(request.nextMigrationId === contract.prerequisites.nextProductionMigrationId,
+    "request_next_migration_id_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/u.test(request.approvalDigest), "request_approval_digest_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-continuation-preflight-[a-z0-9][a-z0-9._-]{7,100}\/preflight\.json$/u.test(request.preflightEvidencePath),
     "preflight_evidence_path_invalid");
@@ -611,7 +624,7 @@ export async function prepareAdminUrl(input, output) {
 
 export async function verifyStagedTransport(root, manifest) {
   ensure(exactKeys(manifest, MANIFEST_KEYS), "transport_manifest_keys_mismatch");
-  ensure(manifest.schemaVersion === "wp-g0.2-validation-cycle-continuation-transport.v1"
+  ensure(manifest.schemaVersion === "wp-g0.2-validation-cycle-continuation-transport.v2"
       && manifest.packageId === PACKAGE_ID && manifest.approvalEligible === true,
   "transport_manifest_identity_invalid");
   ensure(manifest.containsSecrets === false && manifest.reproducibleArchive === true
@@ -684,7 +697,7 @@ export async function buildTransportBundle({
     }
     const transport = await artifact(root, TRANSPORT_FILES);
     const manifest = {
-      schemaVersion: "wp-g0.2-validation-cycle-continuation-transport.v1",
+      schemaVersion: "wp-g0.2-validation-cycle-continuation-transport.v2",
       packageId: PACKAGE_ID,
       sourceCommit: sourceIdentity?.sourceCommit ?? null,
       sourceTree: sourceIdentity?.sourceTree ?? null,

@@ -65,13 +65,42 @@ run_node() {
     --tmpfs /tmp:rw,noexec,nosuid,size=16m "${mounts[@]}" \
     --entrypoint node "${WEB_IMAGE}" "$@"
 }
-database_snapshot() {
+database_snapshot_once() {
   ${DOCKER[@]} run --rm --network "${NETWORK}" --read-only --cap-drop ALL \
     --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
     --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
     --mount "type=bind,src=${SECURE_ROOT},dst=${SECURE_ROOT},readonly" \
     --entrypoint node "${WEB_IMAGE}" "${RUNNER_MODULE}" observation-snapshot \
     --request "${REQUEST_FILE}" --admin-url-file "${ADMIN_URL_FILE}"
+}
+OUTBOX_RECHECK_INTERVAL_SECONDS=5
+MAXIMUM_OUTBOX_RECHECK_SECONDS=45
+database_snapshot() {
+  local started_at="${SECONDS}" output exit_code reason
+  while true; do
+    set +e
+    output="$(database_snapshot_once 2>&1)"
+    exit_code=$?
+    set -e
+    if (( exit_code == 0 )); then
+      printf '%s\n' "${output}"
+      return 0
+    fi
+    reason="$(printf '%s\n' "${output}" | jq -er '
+      select(type == "object" and keys == ["reason", "status"]
+        and .status == "fail" and .reason == "observation_unresolved_outbox")
+      | .reason
+    ' 2>/dev/null || true)"
+    if [[ "${reason}" != "observation_unresolved_outbox" ]]; then
+      printf '%s\n' "${output}" >&2
+      return "${exit_code}"
+    fi
+    if (( SECONDS - started_at >= MAXIMUM_OUTBOX_RECHECK_SECONDS )); then
+      printf 'ERROR: cycle_observation_outbox_recheck_exhausted\n' >&2
+      return "${exit_code}"
+    fi
+    sleep "${OUTBOX_RECHECK_INTERVAL_SECONDS}"
+  done
 }
 LEASE_EXECUTION_FILE="${EVIDENCE_DIRECTORY}/production-lease-execution.json"
 LEASE_EVENTS_FILE="${EVIDENCE_DIRECTORY}/production-lease-events.jsonl"

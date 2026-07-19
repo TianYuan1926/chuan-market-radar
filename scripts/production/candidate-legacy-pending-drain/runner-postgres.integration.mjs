@@ -7,7 +7,7 @@ import { closeDrainEpoch, openDrainEpoch } from "./runner.mjs";
 
 const connectionString = process.env.WP_G0_2_LEGACY_PENDING_DRAIN_REHEARSAL_DATABASE_URL;
 const integrationTest = connectionString ? test : test.skip;
-const migrationId = "candidate-episode-v1";
+const migrationId = "candidate-episode-v1-cycle-6";
 const releaseId = "candidate-shadow-drain-rehearsal";
 const digest = `sha256:${"a".repeat(64)}`;
 
@@ -29,6 +29,18 @@ integrationTest("PostgreSQL 16 drains only existing pending rows and refreezes t
       $1,2,'shadow_capture',false,$2,$3,clock_timestamp()
     )`, [migrationId, releaseId, digest]);
 
+    const openEvent = async (index) => {
+      await client.query(`SELECT * FROM candidate_authority.open_or_refresh_episode_v1(
+        'production_radar',$1,$2,$3,'{"fixture":true}'::jsonb,
+        clock_timestamp() - interval '1 minute',clock_timestamp() - interval '1 minute',1,
+        $4,ARRAY['pending_drain_rehearsal'],'P2','light_candidate','unknown',
+        clock_timestamp() + interval '1 hour',$5,$6,'pending-drain-rehearsal',$7,$8
+      )`, [
+        randomUUID(), randomUUID(), `SYNTHETIC:DRAIN-${index}-USDT:PERPETUAL`,
+        `price-fact-${index}`, releaseId, `scan-cycle-${index}`,
+        `event-idempotency-${index}`, `sha256:${String(index + 7).repeat(64)}`.slice(0, 71),
+      ]);
+    };
     const hashes = [];
     for (let index = 0; index < 6; index += 1) {
       const hash = `sha256:${String(index + 1).repeat(64)}`.slice(0, 71);
@@ -46,6 +58,7 @@ integrationTest("PostgreSQL 16 drains only existing pending rows and refreezes t
         `drain-rehearsal-${index}`,
         index < 2 ? "completed" : "pending",
       ]);
+      if (index < 2) await openEvent(index);
     }
     await client.query(`SELECT * FROM candidate_authority.transition_migration_control_v1(
       $1,3,'legacy',true,$2,$3,clock_timestamp()
@@ -57,13 +70,19 @@ integrationTest("PostgreSQL 16 drains only existing pending rows and refreezes t
       (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
         WHERE status='pending') AS pending,
       (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
-        WHERE status='completed') AS completed
+        WHERE status='completed') AS completed,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
+        WHERE source_type='candidate_episode_event' AND status='pending') AS event_pending,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_events) AS events
       FROM candidate_authority.candidate_migration_control WHERE migration_id=$1`, [migrationId]);
     assert.equal(before.rows[0].phase, "legacy");
     assert.equal(before.rows[0].epoch, 4);
     assert.equal(before.rows[0].write_frozen, true);
-    assert.equal(before.rows[0].pending, 4);
+    assert.equal(before.rows[0].pending, 6);
     assert.equal(before.rows[0].completed, 2);
+    assert.equal(before.rows[0].event_pending, 2);
+    assert.equal(before.rows[0].events, 2);
+    assert.equal(before.rows[0].total, 8);
 
     await assert.rejects(
       closeDrainEpoch(client, {
@@ -91,7 +110,8 @@ integrationTest("PostgreSQL 16 drains only existing pending rows and refreezes t
         'production_radar','candidate-drain-rehearsal',clock_timestamp(),60,100,$1,5
       )`, [migrationId]);
     assert.equal(claimed.rows.length, 4);
-    for (const row of claimed.rows) {
+    for (const [index, row] of claimed.rows.entries()) {
+      await openEvent(index + 2);
       await client.query(`SELECT * FROM candidate_authority.complete_outbox_v1(
         'production_radar',$1,'candidate-drain-rehearsal',$2,clock_timestamp(),$3,$4,5
       )`, [row.outbox_id, row.fencing_token, row.payload_hash, migrationId]);
@@ -113,13 +133,21 @@ integrationTest("PostgreSQL 16 drains only existing pending rows and refreezes t
       count(*)::int AS total,
       count(*) FILTER (WHERE status='completed')::int AS completed,
       count(*) FILTER (WHERE status<>'completed')::int AS unresolved,
-      count(*) FILTER (WHERE idempotency_key LIKE 'drain-rehearsal-%')::int AS original_rows
+      count(*) FILTER (WHERE idempotency_key LIKE 'drain-rehearsal-%')::int AS original_rows,
+      count(*) FILTER (WHERE source_type='legacy_scan_candidate' AND status='pending')::int
+        AS legacy_pending,
+      count(*) FILTER (WHERE source_type='candidate_episode_event' AND status='pending')::int
+        AS event_pending,
+      (SELECT count(*)::int FROM candidate_authority.candidate_episode_events) AS events
       FROM candidate_authority.candidate_episode_ingest_outbox`);
     assert.deepEqual(after.rows[0], {
       completed: 6,
+      event_pending: 6,
+      events: 6,
+      legacy_pending: 0,
       original_rows: 6,
-      total: 6,
-      unresolved: 0,
+      total: 12,
+      unresolved: 6,
     });
 
     await assert.rejects(

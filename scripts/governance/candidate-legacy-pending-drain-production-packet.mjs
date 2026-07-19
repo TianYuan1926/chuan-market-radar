@@ -8,7 +8,8 @@ import {
   validateProductionPacketContract,
 } from "../production/candidate-legacy-pending-drain-production/bundle.mjs";
 
-const CONTRACT = "docs/governance/wp-g0-2-legacy-pending-drain-production-packet.v1.json";
+const CONTRACT =
+  "docs/governance/wp-g0-2-cycle-6-legacy-pending-drain-production-packet.v2.json";
 const RUNNER =
   "scripts/production/candidate-legacy-pending-drain-production/production-runner.sh";
 const ENTRYPOINT =
@@ -20,33 +21,43 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
   const violations = [];
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
       || contract.productionPass !== false) violations.push("local_truth_overclaimed");
-  if (contract.databasePrecondition?.outbox !== 5_914
-      || contract.databasePrecondition?.completed !== 2_957
-      || contract.databasePrecondition?.pending !== 2_957
-      || contract.databasePrecondition?.unresolved !== 2_957) {
+  if (contract.databasePrecondition?.outbox !== 10_484
+      || contract.databasePrecondition?.completed !== 5_218
+      || contract.databasePrecondition?.pending !== 5_266
+      || contract.databasePrecondition?.unresolved !== 5_266) {
     violations.push("pending_snapshot_changed");
   }
-  if (contract.databasePrecondition?.legacyCompleted !== 2_957
-      || contract.databasePrecondition?.legacyPending !== 0
-      || contract.databasePrecondition?.legacyUnresolved !== 0
-      || contract.databasePrecondition?.candidateEventPending !== 2_957
-      || contract.databasePrecondition?.candidateEventUnresolved !== 2_957) {
+  if (contract.databasePrecondition?.legacyCompleted !== 5_218
+      || contract.databasePrecondition?.legacyPending !== 48
+      || contract.databasePrecondition?.legacyUnresolved !== 48
+      || contract.databasePrecondition?.candidateEventPending !== 5_218
+      || contract.databasePrecondition?.candidateEventNonPending !== 0
+      || contract.databasePrecondition?.candidateEventUnresolved !== 5_218
+      || contract.databasePrecondition?.candidateEventOrphans !== 0
+      || contract.databasePrecondition?.candidateEventContractMismatches !== 0) {
     violations.push("source_lane_snapshot_changed");
   }
-  if (contract.supersession?.status !== "SUPERSEDED_SOURCE_LANE_CLASSIFICATION"
-      || contract.supersession?.currentProductionExecutable !== false
-      || contract.supersession?.legacySourceLaneAlreadyCompleted !== true
-      || contract.supersession?.candidateEventLaneMustRemainUnconsumedByShadowConsumer !== true) {
-    violations.push("source_lane_supersession_missing");
+  if (contract.sourceLaneBoundary?.currentProductionExecutable !== true
+      || contract.sourceLaneBoundary?.legacySourceLaneMustDrain !== true
+      || contract.sourceLaneBoundary?.candidateEventLaneMustRemainPending !== true
+      || contract.sourceLaneBoundary?.candidateEventLaneMustRemainUnconsumedByShadowConsumer !== true
+      || contract.sourceLaneBoundary?.candidateEventMirrorIntegrityRequired !== true) {
+    violations.push("source_lane_boundary_missing");
   }
-  if (contract.databasePrecondition?.sourceEpoch !== 4
-      || contract.databasePrecondition?.drainEpoch !== 5
-      || contract.databasePrecondition?.finalEpoch !== 6) violations.push("epoch_sequence_changed");
-  if (contract.successBoundary?.outboxTotalUnchanged !== true
-      || contract.successBoundary?.completedFinal !== 5_914
-      || contract.successBoundary?.unresolvedFinal !== 0
-      || contract.successBoundary?.controlFinalEpoch !== 6
-      || contract.successBoundary?.cycle2Started !== false) violations.push("success_boundary_relaxed");
+  if (contract.databasePrecondition?.sourceEpoch !== 2
+      || contract.databasePrecondition?.drainEpoch !== 3
+      || contract.databasePrecondition?.finalEpoch !== 4) violations.push("epoch_sequence_changed");
+  if (contract.successBoundary?.legacyDrainedExact !== 48
+      || contract.successBoundary?.legacyCompletedFinal !== 5_266
+      || contract.successBoundary?.legacyUnresolvedFinal !== 0
+      || contract.successBoundary?.candidateEventPendingFinal !== 5_266
+      || contract.successBoundary?.candidateEventNonPendingFinal !== 0
+      || contract.successBoundary?.candidateEventOrphansFinal !== 0
+      || contract.successBoundary?.candidateEventContractMismatchesFinal !== 0
+      || contract.successBoundary?.outboxFinal !== 10_532
+      || contract.successBoundary?.globalUnresolvedFinal !== 5_266
+      || contract.successBoundary?.controlFinalEpoch !== 4
+      || contract.successBoundary?.nextCycleStarted !== false) violations.push("success_boundary_relaxed");
   if (contract.rollback?.automatic !== true || contract.rollback?.refreezeCurrentControl !== true
       || contract.rollback?.deleteOutboxAllowed !== false
       || contract.rollback?.restoreScannerService !== true
@@ -80,8 +91,10 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
     "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN", "ROLLBACK_PASS", "wait_baseline_health",
     "wait_for_scan_lock_absent", "ROLLBACK_INCOMPLETE_LEASE_RETAINED", "leaseRetained",
     "readonly PREFLIGHT_CONTRACT_FILTER=", "readonly DRAIN_OPEN_CONTRACT_FILTER=",
-    "readonly DRAIN_VERIFY_CONTRACT_FILTER=", 'jq -e "${PREFLIGHT_CONTRACT_FILTER}"',
-    'jq -e "${DRAIN_OPEN_CONTRACT_FILTER}"', 'jq -e "${DRAIN_VERIFY_CONTRACT_FILTER}"',
+    "readonly DRAIN_VERIFY_CONTRACT_FILTER=", '"${PREFLIGHT_CONTRACT_FILTER}"',
+    '"${DRAIN_OPEN_CONTRACT_FILTER}"', '"${DRAIN_VERIFY_CONTRACT_FILTER}"',
+    '--argjson legacyPending "${EXPECTED_LEGACY_PENDING}"',
+    '--argjson drainEpoch "${DRAIN_EPOCH}"',
     "render_drain_environment", "dst=/runtime/env.production,readonly",
     "--source /runtime/env.production", "dst=${OPS_ROOT}",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
@@ -93,9 +106,10 @@ export function evaluatePendingDrainProductionGovernance({ contract, dbRunner, e
   ]) if (!entrypoint.includes(token)) violations.push(`entrypoint_guard_missing:${token}`);
   for (const token of [
     '"close"', '"open"', '"preflight"', '"rollback"', '"snapshot"', '"verify"',
-    "expectedCounts?.outbox === 5_914", "expectedCounts?.pending === 2_957",
+    "EXPECTED_COUNTS", "request_count_invalid:${key}",
     'applicationRoot = "/app"', 'requireCandidate("pg")',
     "legacy_scan_candidate' AND status='pending'", "candidate_episode_event' AND status='pending'",
+    "candidate_event_orphans", "candidate_event_contract_mismatches",
   ]) if (!dbRunner.includes(token)) violations.push(`database_guard_missing:${token}`);
   const combined = `${runner}\n${entrypoint}\n${dbRunner}`;
   for (const forbidden of [
@@ -122,9 +136,9 @@ export async function validateCandidateLegacyPendingDrainProductionPacket(root =
     productionAuthorization: false,
     productionExecuted: false,
     productionPass: false,
-    expectedPending: 2_957,
-    expectedOutbox: 5_914,
-    finalEpoch: 6,
+    expectedPending: 48,
+    expectedOutbox: 10_484,
+    finalEpoch: 4,
     runnerArtifactSha256: packet.runnerArtifactSha256,
     violations: [...new Set(violations)],
   };

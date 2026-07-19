@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   BASELINE_COMMIT,
   BASELINE_TREE,
-  BASELINE_WEB_IMAGE,
   createProductionExecutionRequest,
   prepareAdminUrl,
   renderDrainOnlyEnvironment,
@@ -36,7 +35,7 @@ function runtime() {
     baselineScannerContainerId: "7".repeat(12),
     baselineScannerImageId: image,
     baselineWebContainerId: "8".repeat(12),
-    baselineWebImageId: BASELINE_WEB_IMAGE,
+    baselineWebImageId: `sha256:${"c".repeat(64)}`,
     controlApprovalDigest: `sha256:${"9".repeat(64)}`,
     deadlineAt: "2099-07-19T01:38:00.099Z",
     identityOverridePath: `${identityRoot}/runtime/runtime-identity.override.yml`,
@@ -56,8 +55,8 @@ test("renders only the bounded drain flags and preserves opaque secrets", () => 
   assert.match(rendered, /^OPAQUE_SETTING=opaque-value$/mu);
   assert.match(rendered, /^CANDIDATE_EPISODE_SHADOW_WRITE=true$/mu);
   assert.match(rendered, /^CANDIDATE_EPISODE_DRAIN_ONLY=true$/mu);
-  assert.match(rendered, /^CANDIDATE_RUNTIME_MIGRATION_ID=candidate-episode-v1$/mu);
-  assert.match(rendered, /^CANDIDATE_RUNTIME_RELEASE_ID=candidate-shadow-e5eb90026d8b$/mu);
+  assert.match(rendered, /^CANDIDATE_RUNTIME_MIGRATION_ID=candidate-episode-v1-cycle-6$/mu);
+  assert.match(rendered, /^CANDIDATE_RUNTIME_RELEASE_ID=candidate-shadow-cycle-6-72ee2893$/mu);
   assert.match(rendered, /^CANDIDATE_SHADOW_BATCH_LIMIT=100$/mu);
   assert.match(rendered, /^CANDIDATE_SHADOW_INTERVAL_SECONDS=1$/mu);
   assert.doesNotMatch(rendered, /^CANDIDATE_EPISODE_CANONICAL_READ=true$/mu);
@@ -93,11 +92,12 @@ test("creates one 89 minute request bound to the exact production snapshot", () 
     now,
     runtime: runtime(),
   });
-  assert.equal(request.expectedCounts.pending, 2_957);
-  assert.equal(request.expectedCounts.outbox, 5_914);
-  assert.equal(request.sourceEpoch, 4);
-  assert.equal(request.drainEpoch, 5);
-  assert.equal(request.finalEpoch, 6);
+  assert.equal(request.expectedCounts.legacyPending, 48);
+  assert.equal(request.expectedCounts.candidateEventPending, 5_218);
+  assert.equal(request.expectedCounts.outbox, 10_484);
+  assert.equal(request.sourceEpoch, 2);
+  assert.equal(request.drainEpoch, 3);
+  assert.equal(request.finalEpoch, 4);
   assert.equal(request.services.join(","), "web,scanner-worker,candidate-shadow-worker");
   assert.equal(request.autonomyAuthorization.actionClass, "feature_phase_activation");
   assert.equal(request.autonomyAuthorization.riskTier, "R2_AUTHORITY_TRANSITION");
@@ -109,7 +109,7 @@ test("creates one 89 minute request bound to the exact production snapshot", () 
     "PASS_PENDING_DRAIN_PRODUCTION_REQUEST");
 
   const drifted = structuredClone(request);
-  drifted.expectedCounts.pending = 2_956;
+  drifted.expectedCounts.legacyPending = 47;
   assert.throws(() => validateApprovalRequest({ manifest, now, request: drifted }),
     /request_database_boundary_invalid/);
 

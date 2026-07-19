@@ -17,16 +17,19 @@ function snapshot(overrides = {}) {
     control: {
       approvalDigest: digest,
       deadlineAt: "2026-07-19T01:38:00.099Z",
-      epoch: 4,
-      migrationId: "candidate-episode-v1",
+      epoch: 2,
+      migrationId: "candidate-episode-v1-cycle-6",
       phase: "legacy",
-      releaseId: "candidate-shadow-e5eb90026d8b",
+      releaseId: "candidate-shadow-cycle-6-72ee2893",
       startedAt: "2026-07-16T01:38:00.099Z",
       writeFrozen: true,
     },
     counts: {
-      candidateEventPending: 0,
-      candidateEventUnresolved: 0,
+      candidateEventContractMismatches: 0,
+      candidateEventNonPending: 0,
+      candidateEventOrphans: 0,
+      candidateEventPending: 2_957,
+      candidateEventUnresolved: 2_957,
       checkpoints: 0,
       claimed: 0,
       completed: 2_957,
@@ -36,13 +39,13 @@ function snapshot(overrides = {}) {
       legacyPending: 2_957,
       legacyUnresolved: 2_957,
       otherUnresolved: 0,
-      outbox: 5_914,
+      outbox: 8_871,
       outcomes: 0,
-      pending: 2_957,
+      pending: 5_914,
       quarantined: 0,
       resolutions: 0,
       retryWait: 0,
-      unresolved: 2_957,
+      unresolved: 5_914,
     },
     databaseNow: "2026-07-17T10:40:00.000Z",
     migrationCount: 10,
@@ -57,24 +60,38 @@ function snapshot(overrides = {}) {
   };
 }
 
-test("accepts an exact legacy-source-only pending frozen state", () => {
+test("accepts legacy pending work while preserving the exact Candidate event mirror lane", () => {
   const result = evaluateDrainPreflight(snapshot());
-  assert.equal(result.status, "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT");
+  assert.equal(result.status, "PASS_LEGACY_PENDING_WITH_EVENT_MIRROR_DRAIN_PREFLIGHT");
   assert.equal(result.pending, 2_957);
-  assert.equal(result.drainEpoch, 5);
-  assert.equal(result.finalFrozenEpoch, 6);
+  assert.equal(result.drainEpoch, 3);
+  assert.equal(result.finalFrozenEpoch, 4);
   assert.equal(result.productionMutation, false);
 });
 
-test("rejects the actual production shape where only Candidate event delivery is pending", () => {
+test("rejects a state where no Legacy work remains even if Candidate mirrors are pending", () => {
   assert.throws(() => evaluateDrainPreflight(snapshot({
     counts: {
-      candidateEventPending: 2_957,
-      candidateEventUnresolved: 2_957,
       legacyPending: 0,
       legacyUnresolved: 0,
+      outbox: 5_914,
+      pending: 2_957,
+      unresolved: 2_957,
     },
   })), /legacy_pending_work_missing/u);
+});
+
+test("rejects Candidate mirror drift, orphan rows, or non-pending mirror delivery", () => {
+  assert.throws(() => evaluateDrainPreflight(snapshot({
+    counts: { candidateEventPending: 2_956, candidateEventUnresolved: 2_956,
+      outbox: 8_870, pending: 5_913, unresolved: 5_913 },
+  })), /candidate_event_mirror_count_mismatch/u);
+  assert.throws(() => evaluateDrainPreflight(snapshot({
+    counts: { candidateEventOrphans: 1 },
+  })), /candidate_event_orphan_present/u);
+  assert.throws(() => evaluateDrainPreflight(snapshot({
+    counts: { candidateEventNonPending: 1, completed: 2_958, outbox: 8_872 },
+  })), /candidate_event_status_sum_mismatch/u);
 });
 
 test("rejects schema drift and a non-frozen or non-legacy control", () => {
@@ -98,13 +115,13 @@ test("rejects source reachability, an active candidate worker, or a running scan
 
 test("rejects claimed retry quarantined resolution or mixed unresolved state", () => {
   assert.throws(() => evaluateDrainPreflight(snapshot({
-    counts: { pending: 2_956, claimed: 1, legacyPending: 2_956 },
+    counts: { pending: 5_913, claimed: 1, legacyPending: 2_956 },
   })), /claimed_work_present/u);
   assert.throws(() => evaluateDrainPreflight(snapshot({
-    counts: { pending: 2_956, retryWait: 1, legacyPending: 2_956 },
+    counts: { pending: 5_913, retryWait: 1, legacyPending: 2_956 },
   })), /retry_wait_present/u);
   assert.throws(() => evaluateDrainPreflight(snapshot({
-    counts: { pending: 2_956, quarantined: 1, legacyPending: 2_956 },
+    counts: { pending: 5_913, quarantined: 1, legacyPending: 2_956 },
   })), /quarantined_work_present/u);
   assert.throws(() => evaluateDrainPreflight(snapshot({ counts: { resolutions: 1 } })),
     /quarantine_resolution_present/u);
@@ -119,7 +136,7 @@ test("rejects an expired or too-short non-resettable deadline", () => {
 test("accepts full drain with exact event projection and final frozen epoch", () => {
   const before = snapshot();
   const after = snapshot({
-    control: { epoch: 6 },
+    control: { epoch: 4 },
     counts: {
       completed: 5_914,
       episodes: 900,
@@ -127,39 +144,46 @@ test("accepts full drain with exact event projection and final frozen epoch", ()
       legacyCompleted: 5_914,
       legacyPending: 0,
       legacyUnresolved: 0,
-      pending: 0,
-      unresolved: 0,
+      candidateEventPending: 5_914,
+      candidateEventUnresolved: 5_914,
+      outbox: 11_828,
+      pending: 5_914,
+      unresolved: 5_914,
     },
   });
   const result = evaluateDrainCompletion(before, after);
   assert.equal(result.status, "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN");
   assert.equal(result.drained, 2_957);
   assert.equal(result.nextCycleAuthorized, false);
+  assert.equal(result.candidateEventPending, 5_914);
 });
 
 test("completion rejects deletion, partial drain, projection loss, or control drift", () => {
   const before = snapshot();
   assert.throws(() => evaluateDrainCompletion(before, snapshot({
-    control: { epoch: 6 },
+    control: { epoch: 4 },
     counts: {
-      outbox: 5_913, completed: 5_913, pending: 0, unresolved: 0, events: 5_914,
-      legacyCompleted: 5_913, legacyPending: 0, legacyUnresolved: 0,
+      outbox: 11_827, completed: 5_914, pending: 5_913, unresolved: 5_913,
+      events: 5_914, legacyCompleted: 5_914, legacyPending: 0, legacyUnresolved: 0,
+      candidateEventPending: 5_913, candidateEventUnresolved: 5_913,
     },
-  })), /outbox_total_changed/u);
-  assert.throws(() => evaluateDrainCompletion(before, snapshot({ control: { epoch: 6 } })),
-    /outbox_not_fully_completed/u);
+  })), /outbox_mirror_growth_invalid/u);
+  assert.throws(() => evaluateDrainCompletion(before, snapshot({ control: { epoch: 4 } })),
+    /outbox_mirror_growth_invalid/u);
   assert.throws(() => evaluateDrainCompletion(before, snapshot({
-    control: { epoch: 6 },
+    control: { epoch: 4 },
     counts: {
-      completed: 5_914, pending: 0, unresolved: 0, events: 5_913,
+      completed: 5_914, pending: 5_914, unresolved: 5_914, events: 5_913,
       legacyCompleted: 5_914, legacyPending: 0, legacyUnresolved: 0,
+      candidateEventPending: 5_914, candidateEventUnresolved: 5_914, outbox: 11_828,
     },
   })), /event_projection_count_mismatch/u);
   assert.throws(() => evaluateDrainCompletion(before, snapshot({
-    control: { epoch: 6, releaseId: "candidate-shadow-changed-release" },
+    control: { epoch: 4, releaseId: "candidate-shadow-changed-release" },
     counts: {
-      completed: 5_914, pending: 0, unresolved: 0, events: 5_914,
+      completed: 5_914, pending: 5_914, unresolved: 5_914, events: 5_914,
       legacyCompleted: 5_914, legacyPending: 0, legacyUnresolved: 0,
+      candidateEventPending: 5_914, candidateEventUnresolved: 5_914, outbox: 11_828,
     },
   })), /control_release_changed/u);
 });
@@ -176,9 +200,9 @@ test("rollback freeze advances an odd drain epoch without requiring a false succ
       statements.push({ statement, params });
       if (/transition_migration_control_v1/u.test(statement)) {
         return { rows: [{
-          approved_release_id: "candidate-shadow-e5eb90026d8b",
-          epoch: 6,
-          migration_id: "candidate-episode-v1",
+          approved_release_id: "candidate-shadow-cycle-6-72ee2893",
+          epoch: 4,
+          migration_id: "candidate-episode-v1-cycle-6",
           phase: "legacy",
           write_frozen: true,
         }] };
@@ -188,12 +212,12 @@ test("rollback freeze advances an odd drain epoch without requiring a false succ
   };
   const result = await rollbackDrainEpoch(client, {
     approvalDigest: digest,
-    expectedEpoch: 5,
-    migrationId: "candidate-episode-v1",
-    releaseId: "candidate-shadow-e5eb90026d8b",
+    expectedEpoch: 3,
+    migrationId: "candidate-episode-v1-cycle-6",
+    releaseId: "candidate-shadow-cycle-6-72ee2893",
   });
-  assert.equal(result.epoch, 6);
+  assert.equal(result.epoch, 4);
   assert.equal(result.write_frozen, true);
   assert.equal(statements.some(({ statement }) => /SET LOCAL ROLE candidate_migration_role/u.test(statement)), true);
-  assert.equal(statements.some(({ params }) => params[1] === 5), true);
+  assert.equal(statements.some(({ params }) => params[1] === 3), true);
 });

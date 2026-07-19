@@ -13,7 +13,32 @@ import {
   rollbackDrainEpoch,
 } from "../candidate-legacy-pending-drain/runner.mjs";
 
-export const PACKAGE_ID = "WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION";
+export const PACKAGE_ID = "WP-G0.2-CYCLE-6-LEGACY-PENDING-DRAIN-PRODUCTION";
+export const MIGRATION_ID = "candidate-episode-v1-cycle-6";
+export const RELEASE_ID = "candidate-shadow-cycle-6-72ee2893";
+export const EXPECTED_COUNTS = Object.freeze({
+  candidateEventContractMismatches: 0,
+  candidateEventNonPending: 0,
+  candidateEventOrphans: 0,
+  candidateEventPending: 5_218,
+  candidateEventUnresolved: 5_218,
+  checkpoints: 0,
+  claimed: 0,
+  completed: 5_218,
+  episodes: 600,
+  events: 5_218,
+  legacyCompleted: 5_218,
+  legacyPending: 48,
+  legacyUnresolved: 48,
+  otherUnresolved: 0,
+  outbox: 10_484,
+  outcomes: 0,
+  pending: 5_266,
+  quarantined: 0,
+  resolutions: 0,
+  retryWait: 0,
+  unresolved: 5_266,
+});
 
 export function loadPgRuntime({
   applicationRoot = "/app",
@@ -73,24 +98,27 @@ export function parseArgs(argv) {
 
 export async function readProductionRequest(path) {
   const request = JSON.parse(await readFile(path, "utf8"));
-  ensure(request.schemaVersion === "candidate-legacy-pending-drain-production-request.v1",
+  ensure(request.schemaVersion === "candidate-legacy-pending-drain-production-request.v2",
     "request_schema_invalid");
   ensure(request.packageId === PACKAGE_ID, "request_package_invalid");
-  ensure(request.migrationId === "candidate-episode-v1", "request_migration_invalid");
+  ensure(request.migrationId === MIGRATION_ID, "request_migration_invalid");
+  ensure(request.releaseId === RELEASE_ID, "request_release_invalid");
   ensure(request.currentPhase === "legacy" && request.currentWriteFrozen === true,
     "request_control_invalid");
-  ensure(Number.isSafeInteger(request.sourceEpoch) && request.sourceEpoch >= 4
-      && request.sourceEpoch % 2 === 0, "request_source_epoch_invalid");
+  ensure(request.sourceEpoch === 2, "request_source_epoch_invalid");
   ensure(request.drainEpoch === request.sourceEpoch + 1
       && request.finalEpoch === request.sourceEpoch + 2, "request_epoch_sequence_invalid");
   ensure(/^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u.test(request.releaseId ?? ""),
     "request_release_invalid");
   ensure(/^sha256:[0-9a-f]{64}$/u.test(request.controlApprovalDigest ?? ""),
     "request_approval_digest_invalid");
-  ensure(request.expectedCounts?.outbox === 5_914
-      && request.expectedCounts?.completed === 2_957
-      && request.expectedCounts?.pending === 2_957
-      && request.expectedCounts?.unresolved === 2_957, "request_counts_invalid");
+  ensure(request.expectedCounts && typeof request.expectedCounts === "object"
+      && !Array.isArray(request.expectedCounts)
+      && Object.keys(request.expectedCounts).sort().join("\n")
+        === Object.keys(EXPECTED_COUNTS).sort().join("\n"), "request_counts_shape_invalid");
+  for (const [key, value] of Object.entries(EXPECTED_COUNTS)) {
+    ensure(request.expectedCounts[key] === value, `request_count_invalid:${key}`);
+  }
   return request;
 }
 
@@ -100,7 +128,7 @@ export async function readDatabaseUrl(path) {
   return value;
 }
 
-export async function readDrainDatabaseSnapshot(client, runtime) {
+export async function readDrainDatabaseSnapshot(client, runtime, migrationId) {
   const result = await client.query(`SELECT
     clock_timestamp() AS database_now,
     (SELECT count(*)::int FROM candidate_authority.schema_migrations) AS migration_count,
@@ -134,13 +162,33 @@ export async function readDrainDatabaseSnapshot(client, runtime) {
       FROM candidate_authority.candidate_episode_ingest_outbox) AS candidate_event_pending,
     (SELECT count(*) FILTER (WHERE source_type='candidate_episode_event' AND status<>'completed')::int
       FROM candidate_authority.candidate_episode_ingest_outbox) AS candidate_event_unresolved,
+    (SELECT count(*) FILTER (WHERE source_type='candidate_episode_event' AND status<>'pending')::int
+      FROM candidate_authority.candidate_episode_ingest_outbox) AS candidate_event_non_pending,
+    (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox outbox
+      WHERE outbox.source_type='candidate_episode_event'
+        AND NOT EXISTS (
+          SELECT 1 FROM candidate_authority.candidate_episode_events event
+          WHERE event.scope=outbox.scope AND event.event_id=outbox.outbox_id
+        )) AS candidate_event_orphans,
+    (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox outbox
+      JOIN candidate_authority.candidate_episode_events event
+        ON event.scope=outbox.scope AND event.event_id=outbox.outbox_id
+      WHERE outbox.source_type='candidate_episode_event'
+        AND (outbox.source_id IS DISTINCT FROM event.event_id::text
+          OR outbox.source_version IS DISTINCT FROM event.stream_version::text
+          OR outbox.payload_version IS DISTINCT FROM event.payload_version
+          OR outbox.payload_hash IS DISTINCT FROM event.command_hash
+          OR outbox.idempotency_key IS DISTINCT FROM event.idempotency_key
+          OR outbox.payload->>'episodeId' IS DISTINCT FROM event.episode_id::text
+          OR outbox.payload->>'eventType' IS DISTINCT FROM event.event_type))
+      AS candidate_event_contract_mismatches,
     (SELECT count(*) FILTER (WHERE source_type NOT IN ('legacy_scan_candidate','candidate_episode_event')
         AND status<>'completed')::int
       FROM candidate_authority.candidate_episode_ingest_outbox) AS other_unresolved,
     (SELECT count(*)::int FROM candidate_authority.candidate_outbox_quarantine_resolutions)
       AS resolutions
     FROM candidate_authority.candidate_migration_control control
-    WHERE control.migration_id='candidate-episode-v1'`);
+    WHERE control.migration_id=$1`, [migrationId]);
   ensure(result.rows.length === 1, "control_row_count_invalid");
   const row = result.rows[0];
   return {
@@ -156,6 +204,12 @@ export async function readDrainDatabaseSnapshot(client, runtime) {
       writeFrozen: row.write_frozen,
     },
     counts: {
+      candidateEventContractMismatches: integer(row.candidate_event_contract_mismatches,
+        "candidate_event_contract_mismatches_invalid"),
+      candidateEventNonPending: integer(row.candidate_event_non_pending,
+        "candidate_event_non_pending_invalid"),
+      candidateEventOrphans: integer(row.candidate_event_orphans,
+        "candidate_event_orphans_invalid"),
       candidateEventPending: integer(row.candidate_event_pending, "candidate_event_pending_invalid"),
       candidateEventUnresolved: integer(row.candidate_event_unresolved,
         "candidate_event_unresolved_invalid"),
@@ -188,15 +242,15 @@ function assertRequestSnapshot(request, snapshot) {
   ensure(snapshot.control.releaseId === request.releaseId, "snapshot_release_mismatch");
   ensure(snapshot.control.approvalDigest === request.controlApprovalDigest,
     "snapshot_approval_digest_mismatch");
-  for (const key of ["outbox", "completed", "pending", "unresolved"]) {
+  for (const key of Object.keys(EXPECTED_COUNTS)) {
     ensure(snapshot.counts[key] === request.expectedCounts[key], `snapshot_count_mismatch:${key}`);
   }
 }
 
 export async function executeDatabaseCommand({ client, command, request, runtime, beforeSnapshot }) {
-  if (command === "snapshot") return readDrainDatabaseSnapshot(client, runtime);
+  if (command === "snapshot") return readDrainDatabaseSnapshot(client, runtime, request.migrationId);
   if (command === "preflight") {
-    const snapshot = await readDrainDatabaseSnapshot(client, runtime);
+    const snapshot = await readDrainDatabaseSnapshot(client, runtime, request.migrationId);
     assertRequestSnapshot(request, snapshot);
     return { ...evaluateDrainPreflight(snapshot), snapshot };
   }
@@ -216,7 +270,7 @@ export async function executeDatabaseCommand({ client, command, request, runtime
   if (command === "rollback") {
     const current = await readDrainDatabaseSnapshot(client, {
       candidateWorkerAbsent: true, scannerPaused: true, sourceWriteReachable: false,
-    });
+    }, request.migrationId);
     if (current.control.phase === "legacy" && current.control.writeFrozen === true) {
       return { status: "PASS_DRAIN_ALREADY_FROZEN", control: current.control, secretsPrinted: false };
     }
@@ -227,7 +281,7 @@ export async function executeDatabaseCommand({ client, command, request, runtime
   }
   ensure(command === "verify", "command_invalid");
   ensure(beforeSnapshot, "before_snapshot_missing");
-  const after = await readDrainDatabaseSnapshot(client, runtime);
+  const after = await readDrainDatabaseSnapshot(client, runtime, request.migrationId);
   const result = evaluateDrainCompletion(beforeSnapshot, after);
   return { ...result, after };
 }

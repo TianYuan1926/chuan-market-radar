@@ -50,26 +50,34 @@ test("target image is built before scanner pause and owns every database command
 test("database jq contracts compile and accept their exact success shapes", () => {
   const cases = [
     ["PREFLIGHT_CONTRACT_FILTER", {
-      status: "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT",
-      pending: 2_957,
-      outboxTotal: 5_914,
-      sourceEpoch: 4,
-      drainEpoch: 5,
-      finalFrozenEpoch: 6,
-    }],
+      status: "PASS_LEGACY_PENDING_WITH_EVENT_MIRROR_DRAIN_PREFLIGHT",
+      pending: 48,
+      candidateEventPendingBefore: 5_218,
+      outboxTotal: 10_484,
+      sourceEpoch: 2,
+      drainEpoch: 3,
+      finalFrozenEpoch: 4,
+    }, ["--argjson", "legacyPending", "48", "--argjson", "candidateEventPending", "5218",
+      "--argjson", "outbox", "10484", "--argjson", "sourceEpoch", "2",
+      "--argjson", "drainEpoch", "3", "--argjson", "finalEpoch", "4"]],
     ["DRAIN_OPEN_CONTRACT_FILTER", {
       status: "PASS_DRAIN_EPOCH_OPEN",
-      control: { phase: "shadow_capture", epoch: 5, write_frozen: false },
-    }],
+      control: { phase: "shadow_capture", epoch: 3, write_frozen: false },
+    }, ["--argjson", "drainEpoch", "3"]],
     ["DRAIN_VERIFY_CONTRACT_FILTER", {
       status: "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN",
-      drained: 2_957,
-      completed: 5_914,
-      finalEpoch: 6,
-    }],
+      drained: 48,
+      legacyCompleted: 5_266,
+      candidateEventPending: 5_266,
+      outboxTotal: 10_532,
+      finalEpoch: 4,
+      legacyUnresolved: 0,
+    }, ["--argjson", "legacyPending", "48", "--argjson", "finalLegacyCompleted", "5266",
+      "--argjson", "finalCandidateEventPending", "5266", "--argjson", "finalOutbox", "10532",
+      "--argjson", "finalEpoch", "4"]],
   ];
-  for (const [name, value] of cases) {
-    execFileSync("jq", ["-e", shellReadonly(name)], {
+  for (const [name, value, args] of cases) {
+    execFileSync("jq", ["-e", ...args, shellReadonly(name)], {
       input: JSON.stringify(value),
       stdio: ["pipe", "ignore", "pipe"],
     });
@@ -173,7 +181,8 @@ test("success and failure both stop the worker, freeze control, and restore base
     "database_runner rollback", "database_runner close", "restore_baseline",
     "ROLLBACK_PASS", "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN",
     "CANDIDATE_EPISODE_DRAIN_ONLY=true", "wait_baseline_health",
-    "baselineScannerImageId", "baselineWebImageId", "cycle2Started:false",
+    "baselineScannerImageId", "baselineWebImageId", "nextCycleStarted:false",
+    "candidateEventContractMismatches", "FINAL_CANDIDATE_EVENT_PENDING",
     "BASELINE_SCAN_COMPLETED_AT", "completed_at",
   ]) assert.match(runner, new RegExp(token.replaceAll("-", "\\-")));
   assert.ok(runner.indexOf('stop candidate-shadow-worker')

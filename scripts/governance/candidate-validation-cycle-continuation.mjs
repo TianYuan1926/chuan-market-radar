@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(ROOT,
-  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v4.json");
+  "docs/governance/wp-g0-2-validation-cycle-continuation-local-superpackage.v5.json");
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -39,7 +39,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     readFile(resolve(ROOT, "docker-compose.yml"), "utf8"),
   ]);
 
-  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v4"
+  if (contract.schemaVersion !== "wp-g0.2-validation-cycle-continuation-local-superpackage.v5"
       || contract.packageId !== "WP-G0.2-VALIDATION-CYCLE-CONTINUATION-LOCAL-SUPERPACKAGE") {
     violations.push("contract_identity");
   }
@@ -56,34 +56,53 @@ export async function validateCandidateValidationCycleContinuation(contract) {
       || problem.readObservationWindowsSeparate !== true
       || problem.currentProductionPhase !== "legacy"
       || problem.currentProductionWriteFrozen !== true
-      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-5"
+      || problem.currentProductionCycle !== "candidate-episode-v1-cycle-6"
       || problem.currentProductionAuthorityEpoch !== 2
       || problem.currentProductionActiveCycles !== 0
       || problem.currentProductionCandidateWorker !== "absent"
-      || problem.candidateEpisodes !== 596
-      || problem.candidateEvents !== 4_602
-      || problem.candidateOutbox !== 9_204
-      || problem.legacySourceCompleted !== 4_602
-      || problem.legacySourceUnresolved !== 0
-      || problem.candidateEventPending !== 4_602
+      || problem.candidateEpisodes !== 600
+      || problem.candidateEvents !== 5_218
+      || problem.candidateOutbox !== 10_484
+      || problem.legacySourceCompleted !== 5_218
+      || problem.legacySourcePending !== 48
+      || problem.legacySourceUnresolved !== 48
+      || problem.candidateEventPending !== 5_218
       || problem.candidateEventNonPending !== 0
       || problem.candidateEventOrphans !== 0
       || problem.candidateEventContractMismatches !== 0
       || problem.priorActivationOutcome
-        !== "ROLLBACK_PASS_SAMPLE_MONITOR_COMPLETED_MISMATCH"
-      || problem.priorActivationSamplesObserved !== 57
-      || problem.priorActivationAcceptedSamples !== 56
-      || problem.priorActivationRejectedSample !== 57
-      || problem.priorActivationCompletedWrites !== 4_602
-      || problem.priorActivationLastAcceptedCompletedWrites !== 4_556
+        !== "ROLLBACK_TO_LEGACY_AUTHORITY_OBSERVATION_UNRESOLVED_OUTBOX"
+      || problem.priorActivationSamplesObserved !== 42
+      || problem.priorActivationAcceptedSamples !== 41
+      || problem.priorActivationRejectedSample !== 42
+      || problem.priorActivationCompletedWrites !== 5_218
+      || problem.priorActivationLastAcceptedCompletedWrites !== 5_218
       || problem.priorActivationFailure
-        !== "sample_monitor_completed_mismatch_due_to_sequential_snapshot_race"
+        !== "observation_unresolved_outbox_transient_between_samples"
       || problem.priorActivationLastSampleCriticalSubsystemsHealthy !== true
       || problem.priorActivationSamplesReusable !== false
       || problem.priorActivationCoverageLessThan24Hours !== true
       || problem.freshActivationMustBeCollectedInNextAdjacentCycle !== true
       || problem.currentSingleCycleCanProveAllExitGates !== false) {
     violations.push("problem_proof");
+  }
+  const postDrain = contract.postDrainPrerequisite ?? {};
+  if (postDrain.migrationId !== "candidate-episode-v1-cycle-6"
+      || postDrain.releaseId !== "candidate-shadow-cycle-6-72ee2893"
+      || postDrain.phase !== "legacy" || postDrain.writeFrozen !== true
+      || postDrain.authorityEpoch !== 4 || postDrain.activeCyclesExact !== 0
+      || postDrain.candidateWorker !== "absent"
+      || postDrain.candidateEpisodesMinimum !== 600
+      || postDrain.candidateEpisodesMaximum !== 648
+      || postDrain.candidateEventsExact !== 5_266
+      || postDrain.candidateOutboxExact !== 10_532
+      || postDrain.legacySourceCompletedExact !== 5_266
+      || postDrain.legacySourceUnresolvedExact !== 0
+      || postDrain.candidateEventPendingExact !== 5_266
+      || postDrain.candidateEventNonPendingExact !== 0
+      || postDrain.candidateEventOrphansExact !== 0
+      || postDrain.candidateEventContractMismatchesExact !== 0) {
+    violations.push("post_drain_prerequisite");
   }
   const boundary = contract.continuationBoundary ?? {};
   for (const [key, expected] of Object.entries({
@@ -123,6 +142,12 @@ export async function validateCandidateValidationCycleContinuation(contract) {
     databaseSnapshotMaximumBracketSeconds: 60,
     monitorCompletedWithinDatabaseBracketInclusive: true,
     legacyUnbracketedSamplesAccepted: false,
+    transientOutboxRetryOnlyReason: "observation_unresolved_outbox",
+    transientOutboxRecheckIntervalSeconds: 5,
+    transientOutboxRecheckMaximumSeconds: 45,
+    nonTransientOutboxFailureRetried: false,
+    outboxRecheckExhaustionRollsBack: true,
+    failedCycleSamplesReusable: false,
   })) if (boundary[key] !== expected) violations.push(`continuation_boundary:${key}`);
   if (JSON.stringify(boundary.databaseSnapshotOrder) !== JSON.stringify([
     "strict_fresh_health", "database_before", "candidate_monitor", "database_after",
@@ -161,7 +186,7 @@ export async function validateCandidateValidationCycleContinuation(contract) {
   }
   for (const forbidden of [
     "deadline_reset", "deadline_extension", "minimum_compared_writes_reduction",
-    "observation_window_shortening", "candidate_business_data_delete",
+    "observation_window_shortening", "failed_sample_reuse", "candidate_business_data_delete",
     "candidate_history_delete", "parallel_active_cycle", "unresolved_outbox_continuation",
     "public_request_cycle_control", "migration_execute", "production_connection",
     "production_deployment", "redis_change", "scan_change", "analysis_change",

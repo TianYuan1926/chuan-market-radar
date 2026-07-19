@@ -7,11 +7,12 @@ import {
 
 test("current continuation preserves every threshold and production remains blocked", async () => {
   const contract = await loadCandidateValidationCycleContinuationContract();
-  assert.equal(contract.problemProof.currentProductionCycle, "candidate-episode-v1-cycle-5");
+  assert.equal(contract.problemProof.currentProductionCycle, "candidate-episode-v1-cycle-6");
   assert.equal(contract.problemProof.currentProductionAuthorityEpoch, 2);
   assert.equal(contract.continuationBoundary.nextIdentityExample,
-    "candidate-episode-v1-cycle-6");
-  assert.equal(contract.problemProof.priorActivationSamplesObserved, 57);
+    "candidate-episode-v1-cycle-7");
+  assert.equal(contract.problemProof.priorActivationSamplesObserved, 42);
+  assert.equal(contract.postDrainPrerequisite.authorityEpoch, 4);
   assert.equal(contract.continuationBoundary.databaseSnapshotMaximumBracketSeconds, 60);
   const result = await validateCandidateValidationCycleContinuation();
   assert.equal(result.status, "PASS_LOCAL_VALIDATION_CYCLE_CONTINUATION");
@@ -30,6 +31,7 @@ test("deadline reset threshold reduction and production claims fail governance",
     (contract) => { contract.continuationBoundary.newCycleMaximumHours = 96; },
     (contract) => { contract.continuationBoundary.observationWindowShortened = true; },
     (contract) => { contract.problemProof.legacySourceUnresolved = 1; },
+    (contract) => { contract.postDrainPrerequisite.legacySourceUnresolvedExact = 1; },
     (contract) => { contract.problemProof.candidateEventOrphans = 1; },
     (contract) => { contract.continuationBoundary.candidateEventLanePreserved = false; },
     (contract) => {
@@ -45,6 +47,8 @@ test("deadline reset threshold reduction and production claims fail governance",
     (contract) => {
       contract.continuationBoundary.monitorCompletedWithinDatabaseBracketInclusive = false;
     },
+    (contract) => { contract.continuationBoundary.transientOutboxRecheckMaximumSeconds = 60; },
+    (contract) => { contract.continuationBoundary.failedCycleSamplesReusable = true; },
   ]) {
     const contract = structuredClone(await loadCandidateValidationCycleContinuationContract());
     mutate(contract);

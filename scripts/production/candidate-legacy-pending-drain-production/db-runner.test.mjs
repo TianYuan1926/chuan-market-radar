@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  EXPECTED_COUNTS,
   executeDatabaseCommand,
   loadPgRuntime,
   parseArgs,
@@ -40,27 +41,27 @@ test("CLI accepts only the six bounded database commands", () => {
 test("request parser rejects a package that changes counts or skips an epoch", async () => {
   const root = await mkdtemp(join(tmpdir(), "candidate-drain-request-test-"));
   const request = {
-    schemaVersion: "candidate-legacy-pending-drain-production-request.v1",
-    packageId: "WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION",
-    migrationId: "candidate-episode-v1",
+    schemaVersion: "candidate-legacy-pending-drain-production-request.v2",
+    packageId: "WP-G0.2-CYCLE-6-LEGACY-PENDING-DRAIN-PRODUCTION",
+    migrationId: "candidate-episode-v1-cycle-6",
     currentPhase: "legacy",
     currentWriteFrozen: true,
-    sourceEpoch: 4,
-    drainEpoch: 6,
-    finalEpoch: 7,
-    releaseId: "candidate-shadow-e5eb90026d8b",
+    sourceEpoch: 2,
+    drainEpoch: 4,
+    finalEpoch: 5,
+    releaseId: "candidate-shadow-cycle-6-72ee2893",
     controlApprovalDigest: `sha256:${"a".repeat(64)}`,
-    expectedCounts: { outbox: 5_914, completed: 2_957, pending: 2_957, unresolved: 2_957 },
+    expectedCounts: { ...EXPECTED_COUNTS },
   };
   try {
     const path = join(root, "request.json");
     await writeFile(path, JSON.stringify(request));
     await assert.rejects(() => readProductionRequest(path), /request_epoch_sequence_invalid/u);
-    request.drainEpoch = 5;
-    request.finalEpoch = 6;
-    request.expectedCounts.pending = 2_956;
+    request.drainEpoch = 3;
+    request.finalEpoch = 4;
+    request.expectedCounts.legacyPending = 47;
     await writeFile(path, JSON.stringify(request));
-    await assert.rejects(() => readProductionRequest(path), /request_counts_invalid/u);
+    await assert.rejects(() => readProductionRequest(path), /request_count_invalid:legacyPending/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -69,21 +70,23 @@ test("request parser rejects a package that changes counts or skips an epoch", a
 test("rollback is idempotent when the control is already frozen legacy", async () => {
   const request = {
     controlApprovalDigest: `sha256:${"a".repeat(64)}`,
-    drainEpoch: 5,
-    migrationId: "candidate-episode-v1",
-    releaseId: "candidate-shadow-e5eb90026d8b",
+    drainEpoch: 3,
+    migrationId: "candidate-episode-v1-cycle-6",
+    releaseId: "candidate-shadow-cycle-6-72ee2893",
   };
   const values = {
     database_now: new Date("2026-07-17T10:40:00Z"), migration_count: 10,
-    migration_id: "candidate-episode-v1", phase: "legacy", epoch: 6,
+    migration_id: "candidate-episode-v1-cycle-6", phase: "legacy", epoch: 4,
     started_at: new Date("2026-07-16T01:38:00Z"), deadline_at: new Date("2026-07-19T01:38:00Z"),
     write_frozen: true, approved_release_id: request.releaseId,
     approval_digest: request.controlApprovalDigest,
-    episodes: 900, events: 5_914, checkpoints: 0, outcomes: 0,
-    outbox: 5_914, completed: 5_914, pending: 0, claimed: 0,
-    retry_wait: 0, quarantined: 0, unresolved: 0, resolutions: 0,
-    legacy_completed: 5_914, legacy_pending: 0, legacy_unresolved: 0,
-    candidate_event_pending: 0, candidate_event_unresolved: 0, other_unresolved: 0,
+    episodes: 648, events: 5_266, checkpoints: 0, outcomes: 0,
+    outbox: 10_532, completed: 5_266, pending: 5_266, claimed: 0,
+    retry_wait: 0, quarantined: 0, unresolved: 5_266, resolutions: 0,
+    legacy_completed: 5_266, legacy_pending: 0, legacy_unresolved: 0,
+    candidate_event_pending: 5_266, candidate_event_unresolved: 5_266,
+    candidate_event_non_pending: 0, candidate_event_orphans: 0,
+    candidate_event_contract_mismatches: 0, other_unresolved: 0,
   };
   const client = { query: async () => ({ rows: [values] }) };
   const result = await executeDatabaseCommand({
@@ -91,5 +94,5 @@ test("rollback is idempotent when the control is already frozen legacy", async (
     runtime: { candidateWorkerAbsent: true, scannerPaused: true, sourceWriteReachable: false },
   });
   assert.equal(result.status, "PASS_DRAIN_ALREADY_FROZEN");
-  assert.equal(result.control.epoch, 6);
+  assert.equal(result.control.epoch, 4);
 });

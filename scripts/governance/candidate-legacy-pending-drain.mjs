@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const CONTRACT_PATH = "docs/governance/wp-g0-2-legacy-pending-drain-remediation-local-superpackage.v1.json";
+export const CONTRACT_PATH = "docs/governance/wp-g0-2-legacy-pending-drain-remediation-local-superpackage.v2.json";
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -27,7 +27,7 @@ export async function validateLegacyPendingDrainContract(root) {
   };
 
   require(contract.schemaVersion
-    === "wp-g0.2-legacy-pending-drain-remediation-local-superpackage.v1", "schema_version");
+    === "wp-g0.2-legacy-pending-drain-remediation-local-superpackage.v2", "schema_version");
   require(contract.packageId
     === "WP-G0.2-LEGACY-PENDING-DRAIN-REMEDIATION-LOCAL-SUPERPACKAGE", "package_id");
   require(contract.gate === "G0" && contract.actionClass === "feature_phase_activation",
@@ -37,44 +37,52 @@ export async function validateLegacyPendingDrainContract(root) {
   require(contract.formalBacktestAllowed === false, "formal_backtest_boundary");
 
   const live = contract.liveReadOnlyFact ?? {};
-  require(live.migrationCount === 10 && live.migrationId === "candidate-episode-v1",
+  require(live.migrationCount === 10 && live.migrationId === "candidate-episode-v1-cycle-6"
+    && live.releaseId === "candidate-shadow-cycle-6-72ee2893",
     "live_migration_truth");
-  require(live.phase === "legacy" && live.epoch === 4 && live.writeFrozen === true,
+  require(live.phase === "legacy" && live.epoch === 2 && live.writeFrozen === true,
     "live_control_truth");
   require(live.candidateWorkerAbsent === true, "live_worker_truth");
-  require(live.outbox === 5914 && live.completed === 2957 && live.pending === 2957,
+  require(live.episodes === 600 && live.events === 5_218 && live.outbox === 10_484
+    && live.completed === 5_218 && live.pending === 5_266,
     "live_outbox_truth");
   require(live.claimed === 0 && live.retryWait === 0 && live.quarantined === 0
-    && live.resolutions === 0 && live.unresolved === 2957, "live_unresolved_truth");
-  require(live.legacyCompleted === 2957 && live.legacyPending === 0
-    && live.legacyUnresolved === 0 && live.candidateEventPending === 2957
-    && live.candidateEventUnresolved === 2957, "live_source_lane_truth");
+    && live.resolutions === 0 && live.unresolved === 5_266, "live_unresolved_truth");
+  require(live.legacyCompleted === 5_218 && live.legacyPending === 48
+    && live.legacyUnresolved === 48 && live.candidateEventPending === 5_218
+    && live.candidateEventNonPending === 0 && live.candidateEventUnresolved === 5_218
+    && live.candidateEventOrphans === 0 && live.candidateEventContractMismatches === 0
+    && live.otherUnresolved === 0, "live_source_lane_truth");
   require(live.secretPrinted === false && live.productionMutation === false,
     "live_readonly_truth");
 
   const entry = contract.entryBoundary ?? {};
-  require(entry.migrationCountExact === 10 && entry.controlRowsExact === 1,
+  require(entry.controlRowsExact === 1,
     "entry_schema_boundary");
   require(entry.sourcePhase === "legacy" && entry.sourceWriteFrozen === true
-    && entry.sourceEpochParity === "positive_even", "entry_control_boundary");
+    && entry.sourceEpochExact === 2 && entry.drainEpochExact === 3
+    && entry.finalEpochExact === 4 && entry.sameMigrationAndReleaseRequired === true,
+  "entry_control_boundary");
   require(entry.deadlineResetAllowed === false
     && entry.minimumDeadlineRemainingSeconds >= 1800, "entry_deadline_boundary");
-  require(entry.pendingMinimum === 1 && entry.claimedExact === 0 && entry.retryWaitExact === 0
-    && entry.quarantinedExact === 0 && entry.resolutionsExact === 0
-    && entry.unresolvedMustEqualPending === true, "entry_pending_only_boundary");
-  require(entry.legacyPendingMinimum === 1 && entry.candidateEventUnresolvedExact === 0
-    && entry.currentProductionMatchesEntry === false, "entry_source_lane_boundary");
+  require(entry.legacyPendingExact === 48 && entry.candidateEventPendingExact === 5_218
+    && entry.candidateEventNonPendingExact === 0 && entry.candidateEventOrphansExact === 0
+    && entry.candidateEventContractMismatchesExact === 0
+    && entry.claimedExact === 0 && entry.retryWaitExact === 0
+    && entry.quarantinedExact === 0 && entry.resolutionsExact === 0,
+  "entry_pending_only_boundary");
 
   const source = contract.sourceWriteFence ?? {};
   require(source.scannerMustBePausedBeforeDrainEpoch === true
-    && source.publicAndReadRoutesNoRefreshRequired === true
     && source.scanLockMustBeUnheld === true, "source_fence_precondition");
-  require(source.webSourceCallsAllowed === false && source.newOutboxRowsAllowed === false
-    && source.outboxTotalMustRemainExact === true, "source_fence_boundary");
+  require(source.webSourceCallsAllowed === false && source.candidateSourceWriterAllowed === false
+    && source.legacyRowsAddedAllowed === false
+    && source.candidateEventMirrorGrowthMustEqualDrainedLegacy === true
+    && source.outboxGrowthMustEqualDrainedLegacy === true, "source_fence_boundary");
 
   const drain = contract.drainLifecycle ?? {};
-  require(drain.openTransition === "legacy_epoch_even_to_shadow_capture_epoch_plus_1"
-    && drain.closeTransition === "shadow_capture_epoch_odd_to_legacy_frozen_epoch_plus_1",
+  require(drain.openTransition === "legacy_epoch_2_to_shadow_capture_epoch_3"
+    && drain.closeTransition === "shadow_capture_epoch_3_to_legacy_frozen_epoch_4",
   "drain_transition_boundary");
   require(drain.migrationIdChanged === false && drain.releaseIdChanged === false
     && drain.candidateConsumerOnly === true && drain.candidateSourceWriterAllowed === false,
@@ -84,15 +92,17 @@ export async function validateLegacyPendingDrainContract(root) {
   "drain_failure_boundary");
 
   const data = contract.dataBoundary ?? {};
-  require(data.candidateBusinessDataDeleteAllowed === false
+  require(data.candidateBusinessDataDeleteAllowed === false && data.outboxDeleteAllowed === false
     && data.outboxSourceIdentityMutationAllowed === false
     && data.outboxPayloadMutationAllowed === false
     && data.existingCompletedMutationAllowed === false, "data_immutability_boundary");
-  require(data.pendingToCompletedAllowed === true
-    && data.eventsIncreaseMustEqualDrainedPending === true
-    && data.episodesMayOnlyIncreaseWithinDrainedPending === true, "data_projection_boundary");
+  require(data.legacyPendingToCompletedAllowed === true
+    && data.eventsIncreaseMustEqualDrainedLegacy === true
+    && data.candidateEventPendingIncreaseMustEqualDrainedLegacy === true
+    && data.outboxIncreaseMustEqualDrainedLegacy === true
+    && data.episodesMayOnlyIncreaseWithinDrainedLegacy === true, "data_projection_boundary");
   require(data.checkpointCountMustRemain === true && data.outcomeCountMustRemain === true
-    && data.outboxTotalMustRemain === true && data.controlStartedAtMustRemain === true
+    && data.controlStartedAtMustRemain === true
     && data.controlDeadlineAtMustRemain === true, "data_preservation_boundary");
 
   const rollback = contract.rollbackBoundary ?? {};
@@ -104,11 +114,16 @@ export async function validateLegacyPendingDrainContract(root) {
     && rollback.partialDrainIsNotSuccess === true, "rollback_truth_boundary");
 
   const exit = contract.exitBoundary ?? {};
-  require(exit.completedMustEqualOutboxTotal === true && exit.pendingExact === 0
+  require(exit.legacyDrainedExact === 48 && exit.legacyCompletedExact === 5_266
+    && exit.legacyPendingExact === 0 && exit.legacyUnresolvedExact === 0
+    && exit.candidateEventPendingExact === 5_266 && exit.candidateEventNonPendingExact === 0
+    && exit.candidateEventOrphansExact === 0 && exit.candidateEventContractMismatchesExact === 0
+    && exit.outboxExact === 10_532 && exit.globalCompletedExact === 5_266
+    && exit.globalPendingExact === 5_266 && exit.globalUnresolvedExact === 5_266
     && exit.claimedExact === 0 && exit.retryWaitExact === 0 && exit.quarantinedExact === 0
-    && exit.resolutionsExact === 0 && exit.unresolvedExact === 0, "exit_data_boundary");
+    && exit.resolutionsExact === 0, "exit_data_boundary");
   require(exit.finalPhase === "legacy" && exit.finalWriteFrozen === true
-    && exit.finalEpochIncrement === 2 && exit.candidateWorkerAbsent === true,
+    && exit.finalEpochExact === 4 && exit.candidateWorkerAbsent === true,
   "exit_control_boundary");
   require(exit.scannerHealthyRequired === true && exit.scanFreshRequired === true
     && exit.postgresReadyRequired === true && exit.redisHealthyRequired === true
@@ -127,8 +142,9 @@ export async function validateLegacyPendingDrainContract(root) {
   require(truth.localPassIsProductionPass === false && truth.drainPassIsCycleContinuationPass === false
     && truth.drainPassIsLineagePass === false && truth.drainPassIsCanonicalCutover === false
     && truth.g0Complete === false, "truth_boundary");
-  require(truth.currentProductionRequiresLegacyDrain === false
-    && truth.packetSupersededBySourceLaneClassification === true,
+  require(truth.currentProductionRequiresLegacyDrain === true
+    && truth.candidateEventPendingMeansCorruption === false
+    && truth.cycle6FailureRelabeledPass === false && truth.cycle6SamplesReusable === false,
   "source_lane_supersession_truth");
   require(truth.systemStatus === "R1 / 可运行但不完整 / 不能支撑实战",
     "system_truth_boundary");

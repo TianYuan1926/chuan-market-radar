@@ -9,10 +9,10 @@ CONFIRMED="${CONFIRM_CANDIDATE_PENDING_DRAIN:-false}"
 DB_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-legacy-pending-drain-production/db-runner.mjs"
 BUNDLE_RUNNER="${SOURCE_ROOT}/scripts/production/candidate-legacy-pending-drain-production/bundle.mjs"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
-PACKAGE_ID="WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION"
-readonly PREFLIGHT_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_ONLY_DRAIN_PREFLIGHT" and .pending == 2957 and .outboxTotal == 5914 and .sourceEpoch == 4 and .drainEpoch == 5 and .finalFrozenEpoch == 6'
-readonly DRAIN_OPEN_CONTRACT_FILTER='.status == "PASS_DRAIN_EPOCH_OPEN" and .control.phase == "shadow_capture" and .control.epoch == 5 and .control.write_frozen == false'
-readonly DRAIN_VERIFY_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN" and .drained == 2957 and .completed == 5914 and .finalEpoch == 6'
+PACKAGE_ID="WP-G0.2-CYCLE-6-LEGACY-PENDING-DRAIN-PRODUCTION"
+readonly PREFLIGHT_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_WITH_EVENT_MIRROR_DRAIN_PREFLIGHT" and .pending == $legacyPending and .outboxTotal == $outbox and .sourceEpoch == $sourceEpoch and .drainEpoch == $drainEpoch and .finalFrozenEpoch == $finalEpoch and .candidateEventPendingBefore == $candidateEventPending'
+readonly DRAIN_OPEN_CONTRACT_FILTER='.status == "PASS_DRAIN_EPOCH_OPEN" and .control.phase == "shadow_capture" and .control.epoch == $drainEpoch and .control.write_frozen == false'
+readonly DRAIN_VERIFY_CONTRACT_FILTER='.status == "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN" and .drained == $legacyPending and .legacyCompleted == $finalLegacyCompleted and .candidateEventPending == $finalCandidateEventPending and .outboxTotal == $finalOutbox and .finalEpoch == $finalEpoch and .legacyUnresolved == 0'
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
 hash_file() { sha256sum "$1" | awk '{print $1}'; }
@@ -91,6 +91,18 @@ BASELINE_WEB_IMAGE="$(jq -r '.baselineWebImageId' "${REQUEST_FILE}")"
 BASELINE_SCANNER_IMAGE="$(jq -r '.baselineScannerImageId' "${REQUEST_FILE}")"
 ROLLBACK_WEB_REF="$(jq -r '.rollbackWebImageRef' "${REQUEST_FILE}")"
 ROLLBACK_SCANNER_REF="$(jq -r '.rollbackScannerImageRef' "${REQUEST_FILE}")"
+SOURCE_EPOCH="$(jq -r '.sourceEpoch' "${REQUEST_FILE}")"
+DRAIN_EPOCH="$(jq -r '.drainEpoch' "${REQUEST_FILE}")"
+FINAL_EPOCH="$(jq -r '.finalEpoch' "${REQUEST_FILE}")"
+EXPECTED_OUTBOX="$(jq -r '.expectedCounts.outbox' "${REQUEST_FILE}")"
+EXPECTED_EVENTS="$(jq -r '.expectedCounts.events' "${REQUEST_FILE}")"
+EXPECTED_LEGACY_COMPLETED="$(jq -r '.expectedCounts.legacyCompleted' "${REQUEST_FILE}")"
+EXPECTED_LEGACY_PENDING="$(jq -r '.expectedCounts.legacyPending' "${REQUEST_FILE}")"
+EXPECTED_CANDIDATE_EVENT_PENDING="$(jq -r '.expectedCounts.candidateEventPending' "${REQUEST_FILE}")"
+FINAL_LEGACY_COMPLETED=$((EXPECTED_LEGACY_COMPLETED + EXPECTED_LEGACY_PENDING))
+FINAL_EVENTS=$((EXPECTED_EVENTS + EXPECTED_LEGACY_PENDING))
+FINAL_CANDIDATE_EVENT_PENDING=$((EXPECTED_CANDIDATE_EVENT_PENDING + EXPECTED_LEGACY_PENDING))
+FINAL_OUTBOX=$((EXPECTED_OUTBOX + EXPECTED_LEGACY_PENDING))
 
 [[ -d "${ROOT_DIR}/.git" && -z "$(git -C "${ROOT_DIR}" status --porcelain)" \
   && -z "$(git -C "${ROOT_DIR}" branch --show-current)" \
@@ -141,10 +153,12 @@ render_drain_environment() {
     --tmpfs /tmp:rw,noexec,nosuid,size=16m \
     --mount "type=bind,src=${SOURCE_ROOT},dst=${SOURCE_ROOT},readonly" \
     --mount "type=bind,src=${ENV_FILE},dst=/runtime/env.production,readonly" \
+    --mount "type=bind,src=${REQUEST_FILE},dst=/request/approval-request.json,readonly" \
     --mount "type=bind,src=${OPS_ROOT},dst=${OPS_ROOT}" \
     --entrypoint node "${BASELINE_WEB_IMAGE}" \
     "${BUNDLE_RUNNER}" render-env \
-      --source /runtime/env.production --output "${TARGET_ENV}" >/dev/null
+      --source /runtime/env.production --request /request/approval-request.json \
+      --output "${TARGET_ENV}" >/dev/null
 }
 database_runner() {
   local command="$1" image="$2"; shift 2
@@ -351,7 +365,11 @@ wait_for_scan_lock_absent || fail scanner_lock_still_present_after_wait
 FAILURE_PHASE="database-preflight"
 database_runner preflight "${TARGET_WEB_IMAGE}" \
   > "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json"
-jq -e "${PREFLIGHT_CONTRACT_FILTER}" \
+jq -e --argjson legacyPending "${EXPECTED_LEGACY_PENDING}" \
+  --argjson candidateEventPending "${EXPECTED_CANDIDATE_EVENT_PENDING}" \
+  --argjson outbox "${EXPECTED_OUTBOX}" --argjson sourceEpoch "${SOURCE_EPOCH}" \
+  --argjson drainEpoch "${DRAIN_EPOCH}" --argjson finalEpoch "${FINAL_EPOCH}" \
+  "${PREFLIGHT_CONTRACT_FILTER}" \
   "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" >/dev/null \
   || fail database_preflight_contract_failed
 jq '.snapshot' "${EVIDENCE_DIRECTORY}/database-preflight-redacted.json" > "${BEFORE_SNAPSHOT}"
@@ -372,7 +390,7 @@ TEMP_WEB_CONTAINER="$("${COMPOSE[@]}" ps -q web)"
 FAILURE_PHASE="control-open"
 database_runner open "${TARGET_WEB_IMAGE}" > "${EVIDENCE_DIRECTORY}/control-open-redacted.json"
 CONTROL_OPENED=true
-jq -e "${DRAIN_OPEN_CONTRACT_FILTER}" \
+jq -e --argjson drainEpoch "${DRAIN_EPOCH}" "${DRAIN_OPEN_CONTRACT_FILTER}" \
   "${EVIDENCE_DIRECTORY}/control-open-redacted.json" >/dev/null || fail control_open_invalid
 
 FAILURE_PHASE="pending-drain"
@@ -382,24 +400,45 @@ WORKER_CONTAINER="$("${PROFILE_COMPOSE[@]}" ps -q candidate-shadow-worker)"
   && "$(${DOCKER[@]} inspect "${WORKER_CONTAINER}" --format '{{.Image}}')" == "${TARGET_WORKER_IMAGE}" ]] \
   || fail candidate_worker_start_invalid
 DEADLINE=$((SECONDS + 3600))
-PREVIOUS_COMPLETED=2957
+PREVIOUS_LEGACY_COMPLETED="${EXPECTED_LEGACY_COMPLETED}"
+PREVIOUS_CANDIDATE_EVENT_PENDING="${EXPECTED_CANDIDATE_EVENT_PENDING}"
 SAMPLE=0
 while true; do
   SAMPLE=$((SAMPLE + 1))
   SNAPSHOT_FILE="${EVIDENCE_DIRECTORY}/drain-snapshot-${SAMPLE}.json"
   database_runner snapshot "${TARGET_WEB_IMAGE}" > "${SNAPSHOT_FILE}"
   OUTBOX="$(jq -r '.counts.outbox' "${SNAPSHOT_FILE}")"
-  COMPLETED="$(jq -r '.counts.completed' "${SNAPSHOT_FILE}")"
-  PENDING="$(jq -r '.counts.pending' "${SNAPSHOT_FILE}")"
+  EVENTS="$(jq -r '.counts.events' "${SNAPSHOT_FILE}")"
+  LEGACY_COMPLETED="$(jq -r '.counts.legacyCompleted' "${SNAPSHOT_FILE}")"
+  LEGACY_PENDING="$(jq -r '.counts.legacyPending' "${SNAPSHOT_FILE}")"
+  LEGACY_UNRESOLVED="$(jq -r '.counts.legacyUnresolved' "${SNAPSHOT_FILE}")"
+  CANDIDATE_EVENT_PENDING="$(jq -r '.counts.candidateEventPending' "${SNAPSHOT_FILE}")"
+  CANDIDATE_EVENT_NON_PENDING="$(jq -r '.counts.candidateEventNonPending' "${SNAPSHOT_FILE}")"
+  CANDIDATE_EVENT_ORPHANS="$(jq -r '.counts.candidateEventOrphans' "${SNAPSHOT_FILE}")"
+  CANDIDATE_EVENT_MISMATCHES="$(jq -r '.counts.candidateEventContractMismatches' "${SNAPSHOT_FILE}")"
   CLAIMED="$(jq -r '.counts.claimed' "${SNAPSHOT_FILE}")"
   RETRY_WAIT="$(jq -r '.counts.retryWait' "${SNAPSHOT_FILE}")"
   QUARANTINED="$(jq -r '.counts.quarantined' "${SNAPSHOT_FILE}")"
   RESOLUTIONS="$(jq -r '.counts.resolutions' "${SNAPSHOT_FILE}")"
-  [[ "${OUTBOX}" == "5914" && "${RETRY_WAIT}" == "0" && "${QUARANTINED}" == "0" \
-    && "${RESOLUTIONS}" == "0" && "${COMPLETED}" -ge "${PREVIOUS_COMPLETED}" ]] \
+  [[ "${OUTBOX}" -ge "${EXPECTED_OUTBOX}" && "${OUTBOX}" -le "${FINAL_OUTBOX}" \
+    && "${EVENTS}" -ge "${EXPECTED_EVENTS}" && "${EVENTS}" -le "${FINAL_EVENTS}" \
+    && "${LEGACY_COMPLETED}" -ge "${PREVIOUS_LEGACY_COMPLETED}" \
+    && "${LEGACY_COMPLETED}" -le "${FINAL_LEGACY_COMPLETED}" \
+    && "${CANDIDATE_EVENT_PENDING}" -ge "${PREVIOUS_CANDIDATE_EVENT_PENDING}" \
+    && "${CANDIDATE_EVENT_PENDING}" -le "${FINAL_CANDIDATE_EVENT_PENDING}" \
+    && "${OUTBOX}" -eq "$((EXPECTED_OUTBOX + LEGACY_COMPLETED - EXPECTED_LEGACY_COMPLETED))" \
+    && "${EVENTS}" -eq "$((EXPECTED_EVENTS + LEGACY_COMPLETED - EXPECTED_LEGACY_COMPLETED))" \
+    && "${CANDIDATE_EVENT_PENDING}" -eq "$((EXPECTED_CANDIDATE_EVENT_PENDING + LEGACY_COMPLETED - EXPECTED_LEGACY_COMPLETED))" \
+    && "${LEGACY_UNRESOLVED}" -ge "${LEGACY_PENDING}" \
+    && "${RETRY_WAIT}" == "0" && "${QUARANTINED}" == "0" && "${RESOLUTIONS}" == "0" \
+    && "${CANDIDATE_EVENT_NON_PENDING}" == "0" && "${CANDIDATE_EVENT_ORPHANS}" == "0" \
+    && "${CANDIDATE_EVENT_MISMATCHES}" == "0" ]] \
     || fail drain_invariant_failed
-  PREVIOUS_COMPLETED="${COMPLETED}"
-  if [[ "${COMPLETED}" == "5914" && "${PENDING}" == "0" && "${CLAIMED}" == "0" ]]; then break; fi
+  PREVIOUS_LEGACY_COMPLETED="${LEGACY_COMPLETED}"
+  PREVIOUS_CANDIDATE_EVENT_PENDING="${CANDIDATE_EVENT_PENDING}"
+  if [[ "${LEGACY_COMPLETED}" == "${FINAL_LEGACY_COMPLETED}" \
+    && "${LEGACY_PENDING}" == "0" && "${LEGACY_UNRESOLVED}" == "0" \
+    && "${CLAIMED}" == "0" ]]; then break; fi
   (( SECONDS < DEADLINE )) || fail pending_drain_timeout
   sleep 5
 done
@@ -411,7 +450,11 @@ database_runner close "${TARGET_WEB_IMAGE}" > "${EVIDENCE_DIRECTORY}/control-clo
 CONTROL_OPENED=false
 database_runner verify "${TARGET_WEB_IMAGE}" --before-snapshot "${BEFORE_SNAPSHOT}" \
   > "${EVIDENCE_DIRECTORY}/database-final-redacted.json"
-jq -e "${DRAIN_VERIFY_CONTRACT_FILTER}" \
+jq -e --argjson legacyPending "${EXPECTED_LEGACY_PENDING}" \
+  --argjson finalLegacyCompleted "${FINAL_LEGACY_COMPLETED}" \
+  --argjson finalCandidateEventPending "${FINAL_CANDIDATE_EVENT_PENDING}" \
+  --argjson finalOutbox "${FINAL_OUTBOX}" --argjson finalEpoch "${FINAL_EPOCH}" \
+  "${DRAIN_VERIFY_CONTRACT_FILTER}" \
   "${EVIDENCE_DIRECTORY}/database-final-redacted.json" >/dev/null || fail database_final_contract_failed
 
 FAILURE_PHASE="baseline-restore"
@@ -423,6 +466,8 @@ SUCCEEDED=true
 trap - EXIT INT TERM HUP
 jq -n --arg completedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg baselineCommit "${BASELINE_COMMIT}" --arg targetCommit "${TARGET_COMMIT}" \
-  '{schemaVersion:"candidate-legacy-pending-drain-production-result.v1",status:"PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN",completedAt:$completedAt,drained:2957,outboxTotal:5914,finalEpoch:6,finalPhase:"legacy",finalWriteFrozen:true,candidateWorkerAbsent:true,scannerReadyFresh:true,baselineCommit:$baselineCommit,targetCommit:$targetCommit,cycle2Started:false,secretsPrinted:false}' \
+  --argjson drained "${EXPECTED_LEGACY_PENDING}" --argjson outboxTotal "${FINAL_OUTBOX}" \
+  --argjson finalEpoch "${FINAL_EPOCH}" \
+  '{schemaVersion:"candidate-legacy-pending-drain-production-result.v2",status:"PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN",completedAt:$completedAt,drained:$drained,outboxTotal:$outboxTotal,finalEpoch:$finalEpoch,finalPhase:"legacy",finalWriteFrozen:true,candidateWorkerAbsent:true,scannerReadyFresh:true,baselineCommit:$baselineCommit,targetCommit:$targetCommit,nextCycleStarted:false,secretsPrinted:false}' \
   > "${EVIDENCE_DIRECTORY}/result.json"
 printf 'PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN\n'

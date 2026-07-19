@@ -34,4 +34,4 @@ env -u DATABASE_URL -u POSTGRES_URL \
   WP_G0_2_LEGACY_PENDING_DRAIN_REHEARSAL_DATABASE_URL="${DATABASE_URL}" \
   node --test scripts/production/candidate-legacy-pending-drain/runner-postgres.integration.mjs
 
-printf '%s\n' '{"status":"pass","postgresMajor":16,"migrationCount":10,"sourceWritesAdded":0,"outboxDeleted":0,"pendingDrained":4,"finalPhase":"legacy","finalEpoch":6,"productionConnected":false}'
+printf '%s\n' '{"status":"pass","postgresMajor":16,"migrationCount":10,"sourceWritesAdded":0,"outboxDeleted":0,"legacyPendingDrained":4,"candidateEventPendingPreserved":6,"finalPhase":"legacy","finalEpoch":6,"productionConnected":false}'

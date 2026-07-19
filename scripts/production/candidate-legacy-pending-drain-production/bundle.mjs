@@ -14,14 +14,37 @@ import { promisify } from "node:util";
 import { REQUIRED_PACKAGE_APPROVAL_FIELDS } from "../../governance/autonomy-policy.mjs";
 
 const execFileAsync = promisify(execFile);
-export const PACKAGE_ID = "WP-G0.2-LEGACY-PENDING-DRAIN-PRODUCTION";
+export const PACKAGE_ID = "WP-G0.2-CYCLE-6-LEGACY-PENDING-DRAIN-PRODUCTION";
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-legacy-pending-drain-production-packet.v1.json";
+  "docs/governance/wp-g0-2-cycle-6-legacy-pending-drain-production-packet.v2.json";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
-export const BASELINE_COMMIT = "cec0b6572bb09ae91ff9e013f8bb160f73c045e2";
-export const BASELINE_TREE = "eb217a7fbaad5b464279a08d4441a8249fc266e3";
-export const BASELINE_WEB_IMAGE =
-  "sha256:cd3652c1e72c8aabea87cee11233fb662a9209187435c14107f3da6426ba9efd";
+export const BASELINE_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
+export const BASELINE_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
+export const MIGRATION_ID = "candidate-episode-v1-cycle-6";
+export const RELEASE_ID = "candidate-shadow-cycle-6-72ee2893";
+export const EXPECTED_COUNTS = Object.freeze({
+  candidateEventContractMismatches: 0,
+  candidateEventNonPending: 0,
+  candidateEventOrphans: 0,
+  candidateEventPending: 5_218,
+  candidateEventUnresolved: 5_218,
+  checkpoints: 0,
+  claimed: 0,
+  completed: 5_218,
+  episodes: 600,
+  events: 5_218,
+  legacyCompleted: 5_218,
+  legacyPending: 48,
+  legacyUnresolved: 48,
+  otherUnresolved: 0,
+  outbox: 10_484,
+  outcomes: 0,
+  pending: 5_266,
+  quarantined: 0,
+  resolutions: 0,
+  retryWait: 0,
+  unresolved: 5_266,
+});
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const GRANT_ID = "MR-G0-G8-USER-STANDING-GRANT-20260714-034826";
 const SOURCE_DATE_EPOCH = 946_684_800;
@@ -121,7 +144,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   const bytes = await readFile(resolve(root, CONTRACT_PATH));
   const contract = JSON.parse(bytes);
   const violations = [];
-  if (contract.schemaVersion !== "wp-g0.2-legacy-pending-drain-production-packet.v1"
+  if (contract.schemaVersion !== "wp-g0.2-cycle-6-legacy-pending-drain-production-packet.v2"
       || contract.packageId !== PACKAGE_ID) violations.push("contract_identity");
   if (contract.productionAuthorization !== false || contract.productionExecuted !== false
       || contract.productionPass !== false) violations.push("production_truth_overclaimed");
@@ -130,29 +153,27 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   if (contract.productionRoot !== PRODUCTION_ROOT
       || contract.productionBaseline?.commit !== BASELINE_COMMIT
       || contract.productionBaseline?.tree !== BASELINE_TREE
-      || contract.productionBaseline?.webImageId !== BASELINE_WEB_IMAGE) {
+      || contract.productionBaseline?.webImageMustBeDynamicallyBound !== true
+      || contract.productionBaseline?.scannerWorkerImageMustBeDynamicallyBound !== true) {
     violations.push("production_baseline");
   }
   const before = contract.databasePrecondition ?? {};
-  if (before.migrationCount !== 10 || before.migrationId !== "candidate-episode-v1"
-      || before.releaseId !== "candidate-shadow-e5eb90026d8b"
+  if (before.migrationCount !== 10 || before.migrationId !== MIGRATION_ID
+      || before.releaseId !== RELEASE_ID
       || before.phase !== "legacy" || before.writeFrozen !== true
-      || before.sourceEpoch !== 4 || before.drainEpoch !== 5 || before.finalEpoch !== 6
-      || before.outbox !== 5_914 || before.completed !== 2_957
-      || before.pending !== 2_957 || before.unresolved !== 2_957
-      || before.claimed !== 0 || before.retryWait !== 0 || before.quarantined !== 0
-      || before.resolutions !== 0) violations.push("database_precondition");
-  if (before.legacyCompleted !== 2_957 || before.legacyPending !== 0
-      || before.legacyUnresolved !== 0 || before.candidateEventPending !== 2_957
-      || before.candidateEventUnresolved !== 2_957) {
-    violations.push("database_source_lane_precondition");
+      || before.sourceEpoch !== 2 || before.drainEpoch !== 3 || before.finalEpoch !== 4) {
+    violations.push("database_precondition");
   }
-  const supersession = contract.supersession ?? {};
-  if (supersession.status !== "SUPERSEDED_SOURCE_LANE_CLASSIFICATION"
-      || supersession.currentProductionExecutable !== false
-      || supersession.legacySourceLaneAlreadyCompleted !== true
-      || supersession.candidateEventLaneMustRemainUnconsumedByShadowConsumer !== true) {
-    violations.push("source_lane_supersession");
+  for (const [key, value] of Object.entries(EXPECTED_COUNTS)) {
+    if (before[key] !== value) violations.push(`database_count_precondition:${key}`);
+  }
+  const sourceLane = contract.sourceLaneBoundary ?? {};
+  if (sourceLane.currentProductionExecutable !== true
+      || sourceLane.legacySourceLaneMustDrain !== true
+      || sourceLane.candidateEventLaneMustRemainPending !== true
+      || sourceLane.candidateEventLaneMustRemainUnconsumedByShadowConsumer !== true
+      || sourceLane.candidateEventMirrorIntegrityRequired !== true) {
+    violations.push("source_lane_boundary");
   }
   const execution = contract.execution ?? {};
   if (execution.runner !== "transient_systemd_unit" || execution.sessionIndependent !== true
@@ -174,14 +195,20 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || execution.candidateDrainOnly !== true || execution.candidateBatchLimit !== 100
       || execution.candidateIntervalSeconds !== 1) violations.push("execution_boundary");
   const success = contract.successBoundary ?? {};
-  if (success.outboxTotalUnchanged !== true || success.completedFinal !== 5_914
-      || success.pendingFinal !== 0 || success.claimedFinal !== 0 || success.retryWaitFinal !== 0
+  if (success.legacyDrainedExact !== 48 || success.legacyCompletedFinal !== 5_266
+      || success.legacyPendingFinal !== 0 || success.legacyUnresolvedFinal !== 0
+      || success.eventsFinal !== 5_266 || success.candidateEventPendingFinal !== 5_266
+      || success.candidateEventNonPendingFinal !== 0
+      || success.candidateEventOrphansFinal !== 0
+      || success.candidateEventContractMismatchesFinal !== 0
+      || success.outboxFinal !== 10_532 || success.globalCompletedFinal !== 5_266
+      || success.globalPendingFinal !== 5_266 || success.globalUnresolvedFinal !== 5_266
+      || success.claimedFinal !== 0 || success.retryWaitFinal !== 0
       || success.quarantinedFinal !== 0 || success.resolutionsFinal !== 0
-      || success.unresolvedFinal !== 0 || success.eventIncreaseExact !== 2_957
       || success.controlFinalPhase !== "legacy" || success.controlFinalWriteFrozen !== true
-      || success.controlFinalEpoch !== 6 || success.candidateWorkerAbsent !== true
+      || success.controlFinalEpoch !== 4 || success.candidateWorkerAbsent !== true
       || success.productionBaselineRestored !== true || success.scannerReadyFresh !== true
-      || success.cycle2Started !== false) violations.push("success_boundary");
+      || success.nextCycleStarted !== false) violations.push("success_boundary");
   const rollback = contract.rollback ?? {};
   if (rollback.automatic !== true || rollback.stopCandidateWorkerFirst !== true
       || rollback.refreezeCurrentControl !== true || rollback.preservePendingRows !== true
@@ -195,7 +222,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || rollback.productionPassAfterRollback !== false) violations.push("rollback_boundary");
   for (const forbidden of [
     "migration", "database_delete", "redis_mutation", "new_candidate_source_write",
-    "cycle_2_start", "canonical_cutover", "scan_ranking_change", "analysis_change",
+    "cycle_7_start", "canonical_cutover", "scan_ranking_change", "analysis_change",
     "strategy_change", "rr_or_risk_gate_change", "frontend_change", "future_outcome_input",
     "formal_backtest", "github_main_deploy", "non_target_service_mutation",
   ]) if (!contract.forbidden?.includes(forbidden)) violations.push(`forbidden_missing:${forbidden}`);
@@ -254,7 +281,7 @@ export async function validateLocalPreparation(root = process.cwd()) {
     "service_allowlist=web,scanner-worker,candidate-shadow-worker", "scanner_lock_still_present",
     "CANDIDATE_EPISODE_DRAIN_ONLY=true", "database_runner rollback", "ROLLBACK_PASS",
     "wait_for_scan_lock_absent", "ROLLBACK_INCOMPLETE_LEASE_RETAINED", "leaseRetained",
-    "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN", "cycle2Started:false",
+    "PASS_LEGACY_PENDING_DRAINED_AND_REFROZEN", "nextCycleStarted:false",
     "render_drain_environment", "dst=/runtime/env.production,readonly",
     "--source /runtime/env.production", "dst=${OPS_ROOT}",
   ]) if (!runner.includes(token)) violations.push(`runner_guard_missing:${token}`);
@@ -281,14 +308,19 @@ export async function validateLocalPreparation(root = process.cwd()) {
   };
 }
 
-export function renderDrainOnlyEnvironment(source) {
+export function renderDrainOnlyEnvironment(source, {
+  migrationId = MIGRATION_ID,
+  releaseId = RELEASE_ID,
+} = {}) {
   ensure(typeof source === "string" && source.length > 0, "environment_source_invalid");
+  ensure(migrationId === MIGRATION_ID && releaseId === RELEASE_ID,
+    "environment_cycle_identity_invalid");
   const overrides = new Map(Object.entries({
     CANDIDATE_EPISODE_CANONICAL_READ: "false",
     CANDIDATE_EPISODE_DRAIN_ONLY: "true",
     CANDIDATE_EPISODE_SHADOW_WRITE: "true",
-    CANDIDATE_RUNTIME_MIGRATION_ID: "candidate-episode-v1",
-    CANDIDATE_RUNTIME_RELEASE_ID: "candidate-shadow-e5eb90026d8b",
+    CANDIDATE_RUNTIME_MIGRATION_ID: migrationId,
+    CANDIDATE_RUNTIME_RELEASE_ID: releaseId,
     CANDIDATE_SHADOW_BATCH_LIMIT: "100",
     CANDIDATE_SHADOW_INTERVAL_SECONDS: "1",
     CANDIDATE_SHADOW_WORKER_EXPECTED: "true",
@@ -348,7 +380,7 @@ export async function buildTransportBundle({
     }
     const transport = await artifact(root, TRANSPORT_FILES);
     const manifest = {
-      schemaVersion: "wp-g0.2-legacy-pending-drain-production-transport.v1",
+      schemaVersion: "wp-g0.2-cycle-6-legacy-pending-drain-production-transport.v2",
       packageId: PACKAGE_ID,
       sourceCommit: identity.sourceCommit,
       sourceTree: identity.sourceTree,
@@ -409,7 +441,7 @@ function validateRuntime(runtime) {
     "baseEnvSha256", "baselineComposeSha256", "identityOverrideSha256",
     "identityWrapperSha256", "postgresAdminEnvSha256", "productionEnvSha256",
   ]) ensure(HASH.test(runtime[key] ?? ""), `runtime_hash_invalid:${key}`);
-  ensure(runtime.baselineWebImageId === BASELINE_WEB_IMAGE
+  ensure(IMAGE.test(runtime.baselineWebImageId ?? "")
       && IMAGE.test(runtime.baselineScannerImageId ?? ""), "runtime_image_invalid");
   for (const key of ["baselineScannerContainerId", "baselineWebContainerId"]) {
     ensure(/^[0-9a-f]{12,64}$/u.test(runtime[key] ?? ""), `runtime_container_invalid:${key}`);
@@ -449,7 +481,7 @@ export function createProductionExecutionRequest({
   const rollbackScannerImageRef =
     `market-radar-rollback/wp-g0-2-pending-drain:scanner-${runtime.baselineScannerImageId.slice(7, 23)}`;
   const request = {
-    schemaVersion: "candidate-legacy-pending-drain-production-request.v1",
+    schemaVersion: "candidate-legacy-pending-drain-production-request.v2",
     packageId: PACKAGE_ID,
     productionRoot: PRODUCTION_ROOT,
     baselineCommit: BASELINE_COMMIT,
@@ -476,14 +508,14 @@ export function createProductionExecutionRequest({
     approvalIssuedAt: issuedAt.toISOString(),
     approvalExpiresAt: expiresAt.toISOString(),
     productionMutation: true,
-    migrationId: "candidate-episode-v1",
-    releaseId: "candidate-shadow-e5eb90026d8b",
+    migrationId: MIGRATION_ID,
+    releaseId: RELEASE_ID,
     currentPhase: "legacy",
     currentWriteFrozen: true,
-    sourceEpoch: 4,
-    drainEpoch: 5,
-    finalEpoch: 6,
-    expectedCounts: { completed: 2_957, outbox: 5_914, pending: 2_957, unresolved: 2_957 },
+    sourceEpoch: 2,
+    drainEpoch: 3,
+    finalEpoch: 4,
+    expectedCounts: { ...EXPECTED_COUNTS },
     rollbackWebImageRef,
     rollbackScannerImageRef,
     ...runtime,
@@ -552,9 +584,11 @@ export function createProductionExecutionRequest({
     rollbackTarget: `${BASELINE_COMMIT}:web+scanner+env+git`,
     observationContractSha256: sha256(canonicalJson({
       drainTimeoutSeconds: 3_600,
-      outboxTotal: 5_914,
-      pendingBefore: 2_957,
-      unresolvedFinal: 0,
+      outboxBefore: 10_484,
+      outboxFinal: 10_532,
+      legacyPendingBefore: 48,
+      legacyUnresolvedFinal: 0,
+      candidateEventPendingFinal: 5_266,
       scannerReadyFreshAfterRestore: true,
     })),
     policySha256: manifest.policySha256,
@@ -623,9 +657,11 @@ function validateAuthorization(authorization, request, manifest) {
     })),
     observationContractSha256: sha256(canonicalJson({
       drainTimeoutSeconds: 3_600,
-      outboxTotal: 5_914,
-      pendingBefore: 2_957,
-      unresolvedFinal: 0,
+      outboxBefore: 10_484,
+      outboxFinal: 10_532,
+      legacyPendingBefore: 48,
+      legacyUnresolvedFinal: 0,
+      candidateEventPendingFinal: 5_266,
       scannerReadyFreshAfterRestore: true,
     })),
   };
@@ -683,7 +719,7 @@ function validateAuthorization(authorization, request, manifest) {
 }
 
 export async function verifyStagedTransport(root, manifest) {
-  ensure(manifest.schemaVersion === "wp-g0.2-legacy-pending-drain-production-transport.v1"
+  ensure(manifest.schemaVersion === "wp-g0.2-cycle-6-legacy-pending-drain-production-transport.v2"
       && manifest.packageId === PACKAGE_ID && manifest.baselineCommit === BASELINE_COMMIT
       && manifest.baselineTree === BASELINE_TREE
       && manifest.externalBundleSha256 === "bound_after_archive_creation"
@@ -713,10 +749,10 @@ export async function verifyStagedTransport(root, manifest) {
 
 export function validateApprovalRequest({ manifest, request, now = new Date() }) {
   ensure(exactKeys(request, REQUEST_KEYS), "request_shape_invalid");
-  ensure(request.schemaVersion === "candidate-legacy-pending-drain-production-request.v1"
+  ensure(request.schemaVersion === "candidate-legacy-pending-drain-production-request.v2"
       && request.packageId === PACKAGE_ID && request.productionRoot === PRODUCTION_ROOT
       && request.baselineCommit === BASELINE_COMMIT && request.baselineTree === BASELINE_TREE
-      && request.baselineWebImageId === BASELINE_WEB_IMAGE
+      && IMAGE.test(request.baselineWebImageId ?? "")
       && request.targetCommit === manifest.sourceCommit && request.targetTree === manifest.sourceTree
       && request.targetComposeSha256 === manifest.targetComposeSha256,
   "request_git_or_image_binding_invalid");
@@ -730,12 +766,11 @@ export function validateApprovalRequest({ manifest, request, now = new Date() })
       && request.rollbackScannerImageRef
         === `market-radar-rollback/wp-g0-2-pending-drain:scanner-${request.baselineScannerImageId.slice(7, 23)}`,
   "request_rollback_image_binding_invalid");
-  ensure(request.migrationId === "candidate-episode-v1"
-      && request.releaseId === "candidate-shadow-e5eb90026d8b"
+  ensure(request.migrationId === MIGRATION_ID
+      && request.releaseId === RELEASE_ID
       && request.currentPhase === "legacy" && request.currentWriteFrozen === true
-      && request.sourceEpoch === 4 && request.drainEpoch === 5 && request.finalEpoch === 6
-      && canonicalJson(request.expectedCounts)
-        === canonicalJson({ completed: 2_957, outbox: 5_914, pending: 2_957, unresolved: 2_957 }),
+      && request.sourceEpoch === 2 && request.drainEpoch === 3 && request.finalEpoch === 4
+      && canonicalJson(request.expectedCounts) === canonicalJson(EXPECTED_COUNTS),
   "request_database_boundary_invalid");
   ensure(/^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-pending-drain-[a-f0-9]{12}-[a-f0-9]{8}$/u
     .test(request.stagingDirectory ?? "")
@@ -793,7 +828,11 @@ async function main() {
   }
   if (command === "render-env") {
     const output = resolve(options.output);
-    await writeFile(output, renderDrainOnlyEnvironment(await readFile(resolve(options.source), "utf8")),
+    const request = JSON.parse(await readFile(resolve(options.request), "utf8"));
+    await writeFile(output, renderDrainOnlyEnvironment(
+      await readFile(resolve(options.source), "utf8"),
+      { migrationId: request.migrationId, releaseId: request.releaseId },
+    ),
       { flag: "wx", mode: 0o600 });
     process.stdout.write(`${JSON.stringify({ status: "PASS_DRAIN_ONLY_ENV_RENDERED" })}\n`);
     return;

@@ -31,7 +31,7 @@ test("rejects threshold relaxation and false production completion", async () =>
   try {
     const contract = JSON.parse(await readFile(resolve(root, CONTRACT_PATH), "utf8"));
     contract.productionExecuted = true;
-    contract.entryBoundary.pendingMinimum = 0;
+    contract.entryBoundary.legacyPendingExact = 0;
     contract.drainLifecycle.quarantineAllowed = true;
     contract.exitBoundary.nextCycleAutoAuthorized = true;
     contract.truthBoundary.g0Complete = true;
