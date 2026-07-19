@@ -8,6 +8,7 @@ forbidden_regex='^(audit-[^/]*|audit-round-[^/]*|audit-full-handoff|audit-handof
 violations="$(
   git ls-files |
     grep -E "${forbidden_regex}" |
+    grep -vE '^reports/.+\.md$' |
     grep -vE '(^|/)\.env\.example$' || true
 )"
 

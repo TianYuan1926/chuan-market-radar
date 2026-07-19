@@ -2,6 +2,52 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.3-G0.5 Security Release Incident Local Refresh
+
+### 本轮目标
+
+在 Cycle-7 生产观察期间复核 G0.3 HTTPS/private session、G0.4 release/evidence、G0.5 known incident guard 本地超级包是否仍与当前仓库一致。
+
+### 修改范围
+
+- 更新 `docs/governance/wp-g0-3-g0-5-security-release-incident-local-superpackage.v1.json` 的 artifact SHA-256 为当前源码真实值 `9888cd21d31906eee08dfd7905a5cdb70767416021b2508ba004b2549b23fa39`。
+- 最小修复 `scripts/ci/check-forbidden-files.sh`：允许 `reports/**/*.md` 脱敏交付报告，继续禁止 reports 下的压缩包、日志、jsonl、raw/evidence 和其它高风险文件。
+- 新增本轮交付报告。
+- 未连接、上传或修改生产；未修改 DB、Redis、Worker、env、Feature Flag、scan、analysis、strategy、backtest 或前端展示。
+
+### 核心链路影响
+
+强化入口安全、发布真值和事故回归地基，保护完整核心链路不被错误发布或已知事故污染；不新增候选、不改变排序、不生成交易计划。
+
+### 测试结果
+
+- 首次复核：FAIL，`artifact_checksum_mismatch`，证明旧包已过期。
+- `npm run test:g0-security-closeout-superpackage`：PASS，13/13；auth domain 9/9。
+- `npm run g0:closeout:validate`：PASS，`productionMutationAllowed=false`，`g0Completed=false`，violations=[]。
+- `npm run typecheck`：PASS。
+- `npm run lint`：PASS。
+- `npm run test:market`：PASS，1027 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4。
+- `npm run build`：PASS。
+- `npm run backtest:golden`：PASS，16/16。
+- `npm run ci:forbidden-files`：首次因旧规则阻断已追踪脱敏 Markdown 报告而 FAIL；脚本最小修复后 PASS。
+- `npm run ci:secret-patterns`：PASS。
+- `npm run security:check`：PASS。
+- production smoke：未运行，本轮不连接或修改生产。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。Cycle-7 observer 继续作为当前唯一生产观察工作流。
+
+### 风险与遗留问题
+
+- 本地 G0.3-G0.5 准备已刷新，但生产仍 BLOCKED。
+- G0 主步骤仍为 7；只有 Cycle-7 达成 24 小时/289 样本/10,000 writes 后，后续生产 Gate 才能继续减数。
+
+### 下一轮建议
+
+只监控 Cycle-7 observer，并准备 Cycle-7 PASS 后的只读 Lineage/Reconciliation 请求模板。
+
 ## 2026-07-19 / WP-G0.2 Cycle-7 Fresh Activation Production Start
 
 ### 本轮目标

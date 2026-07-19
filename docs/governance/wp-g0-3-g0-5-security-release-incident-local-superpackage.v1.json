@@ -70,7 +70,7 @@
     "PASS_G0_5_INCIDENT_REGISTRY_AND_G0_EXIT"
   ],
   "artifact": {
-    "sha256": "2fbcec43b6db0b04448a07a4131f0adbfd6edc80771c368ead27dbdf5cf0de98",
+    "sha256": "9888cd21d31906eee08dfd7905a5cdb70767416021b2508ba004b2549b23fa39",
     "files": [
       ".github/workflows/production.yml",
       "deploy/caddy/Caddyfile",
