@@ -2,6 +2,47 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Cycle-7 Fresh Activation Production Start
+
+### 本轮目标
+
+在 Cycle-6 legacy pending drain PASS 后，基于 fresh read-only preflight 启动相邻 Cycle-7，并进入后台观察。
+
+### 修改范围
+
+- 生成 fresh preflight：SHA-256=`5ba159767688c000ae207a9cf6d0be2ba225dd89a51e3409ae165f4c3acb2a6f`。
+- 上传并校验 Cycle-7 transport bundle：SHA-256=`e480a06d8a3201b96b8acc225d7705ea634563a934358d9a437a17da46462056`。
+- 生成并上传 request：approvalRef=`MR-G0-CYCLE/47741f322224/1959d0a2`，request SHA-256=`814d87d369f88eca4322f099ac9f41714702859a40134428657d18db35f3a0ad`。
+- 启动 runner unit 和 observer unit。
+- 更新 Context、Changelog 和本轮交付报告。
+- 未执行 schema、Redis、scanner-worker、strategy、backtest、UI、Canonical、Shadow Verify 或 GitHub main 发布。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化的真实生产观察入口。Cycle-7 已开始积累真实观察数据；不新增信号、不改变排序、不生成交易计划。
+
+### 测试结果
+
+- fresh preflight：PASS，生产 legacy/frozen/epoch4，events=5,266，outbox=10,532，Legacy unresolved=0，Candidate event pending=5,266，health ready/fresh。
+- request generation：PASS。
+- runner immediate：PASS，`PASS_IMMEDIATE_CYCLE_CONTINUATION_AWAITING_FRESH_ACTIVATION_AND_REAL_WRITE_ACCUMULATION`。
+- observer：STARTED，sample 1 completed=5,266，状态为 in progress。
+- formal：未运行且禁止。
+
+### 是否部署
+
+已在腾讯云生产启动 Cycle-7 runner/observer；未完成 24 小时观察，未执行后续对账/authority cutover。
+
+### 风险与遗留问题
+
+- 观察未 PASS，G0 主步骤仍为 7。
+- 观察失败仍可能自动回滚；启动成功不能冒充 G0 减数。
+- 依赖 Cycle-7 PASS 的 Lineage/Reconciliation 和 Shadow Verify 仍禁止生产执行。
+
+### 下一轮建议
+
+只监控 Cycle-7 observer，并并行准备不依赖观察 PASS 的本地 G0.3-G0.5 包。
+
 ## 2026-07-19 / WP-G0.2 Cycle-6 Legacy Pending Drain Production
 
 ### 本轮目标
