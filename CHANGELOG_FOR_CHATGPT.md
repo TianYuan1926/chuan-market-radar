@@ -2,6 +2,56 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Cycle-7 Canonical Compat Handoff Refresh
+
+### 本轮目标
+
+在 Cycle-7 观察期间并行刷新 Canonical Compat 的当前周期依赖，避免后续 Shadow Verify PASS 后还要临时修旧 Cycle-5/6 绑定。
+
+### 修改范围
+
+- 更新 Canonical Compat code-presence 合同与 runner：production/reference commit=`47741f3222247562843932b01607a1ec3abb534e`，tree=`bff1d1b3f27a0608004c379189bd1adc038477ec`，build record pattern 改为 Cycle-7 continuation redacted target image record。
+- 更新 Canonical Compat phase 合同与 bundle/test：sourceReleaseWindowsExact=7，currentMigrationId=`candidate-episode-v1-cycle-7`。
+- 更新 Canonical Compat handoff 合同、launcher、runner/test：只接受 Cycle-7 lineage/reconciliation/dual-read/code-presence 证据，R2 phase 仍保留独立授权、租约、回滚和 289 样本/24 小时观察。
+- 更新 Context 和本轮交付报告。
+- 未连接、上传或修改生产；未修改 DB、Redis、Feature Flag、scan、analysis、strategy、backtest 或前端展示。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化的 Candidate 生命周期真值交接；不新增信号、不改变排序、不生成交易计划。
+
+### 测试结果
+
+- `npm run test:candidate-canonical-compat-code-presence`：PASS，11/11。
+- `npm run candidate:canonical-compat-code-presence:validate`：PASS。
+- `npm run test:candidate-canonical-compat-phase`：PASS，21/21。
+- `npm run candidate:canonical-compat-phase:validate`：PASS。
+- `npm run test:candidate-canonical-compat-handoff`：PASS，18/18。
+- `npm run candidate:canonical-compat-handoff:validate`：PASS。
+- `npm run typecheck`：PASS。
+- `npm run lint`：PASS。
+- `npm run test:market`：PASS，1027 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4。
+- `npm run build`：PASS。
+- `npm run backtest:golden`：PASS，16/16。
+- `npm run ci:forbidden-files`：PASS。
+- `npm run ci:secret-patterns`：PASS。
+- `npm run security:check`：PASS。
+- production smoke：未运行，本轮不连接或修改生产。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。该本地包只准备 Cycle-7 后续 Canonical Compat 交接；生产仍必须等待 Cycle-7 final、Lineage/Reconciliation 和 Shadow Verify 24 小时双读 PASS。
+
+### 风险与遗留问题
+
+- 本地 PASS 不能冒充 Canonical Compat 生产启动或观察通过。
+- G0 主步骤仍为 7；只有对应生产 Gate 真实 PASS 才可减数。
+
+### 下一轮建议
+
+继续在 Cycle-7 观察期间准备 Canonical Read Cutover 的本地前置包，但不得执行 cutover。
+
 ## 2026-07-19 / WP-G0.3-G0.5 Security Release Incident Local Refresh
 
 ### 本轮目标

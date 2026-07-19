@@ -27,7 +27,7 @@ export const CONTRACT_PATH =
   "docs/governance/wp-g0-2-canonical-compat-code-presence-current-cycle.v2.json";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const BUILD_RECORD_PATH_PATTERN =
-  "^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}/target-images-redacted\\.json$";
+  "^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-[a-z0-9][a-z0-9._-]{7,80}/target-images-redacted\\.json$";
 export const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
 const HASH = /^[0-9a-f]{64}$/u;
@@ -90,7 +90,7 @@ export function validateContract(contract) {
       && contract.actionClass === "read_only_production_preflight"
       && contract.riskTier === "R0_READ_ONLY",
   "contract_identity_invalid");
-  ensure(contract.status === "local_cycle6_preparation_production_verify_only_not_executed"
+  ensure(contract.status === "local_cycle7_preparation_production_verify_only_not_executed"
       && contract.productionAuthorization === false && contract.productionExecuted === false,
   "contract_production_truth_invalid");
   const identity = contract.identity ?? {};

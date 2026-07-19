@@ -40,8 +40,8 @@ const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
   "docs/governance/wp-g0-2-canonical-compat-phase-transition-and-observation.v3.json";
-export const REQUIRED_PRODUCTION_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
-export const REQUIRED_PRODUCTION_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
+export const REQUIRED_PRODUCTION_COMMIT = "47741f3222247562843932b01607a1ec3abb534e";
+export const REQUIRED_PRODUCTION_TREE = "bff1d1b3f27a0608004c379189bd1adc038477ec";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -157,9 +157,9 @@ export function validateContract(contract) {
       && prerequisites.maximumDuplicateOutboxMappings === 0
       && prerequisites.maximumDuplicateEventMappings === 0
       && prerequisites.maximumUnresolvedOutbox === 0
-      && prerequisites.sourceReleaseWindowsExact === 6
+      && prerequisites.sourceReleaseWindowsExact === 7
       && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
-      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-6"
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-7"
       && prerequisites.lineageAuthorityEpochDeltaFromShadowVerify === -1
       && prerequisites.currentPhase === "shadow_verify"
       && prerequisites.currentWriteFrozen === false

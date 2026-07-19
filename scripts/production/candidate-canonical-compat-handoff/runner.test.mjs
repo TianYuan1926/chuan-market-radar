@@ -38,7 +38,7 @@ const commit = (character) => character.repeat(40);
 const image = (character) => `sha256:${hash(character)}`;
 const nonce = "12345678-1234-4234-8234-123456789abc";
 const issuedAt = new Date("2026-07-18T20:00:00.000Z");
-const releaseId = "candidate-shadow-release-cycle-5";
+const releaseId = "candidate-shadow-cycle-7-47741f3";
 const evidenceRoot = "/home/ubuntu/.cache/market-radar-ops/evidence/current-cycle-canonical-compat";
 
 const RUNTIME_KEYS = Object.freeze([
@@ -123,7 +123,7 @@ function runtime(overrides = {}) {
     identityWrapperSha256: hash("c"),
     lineageEvidencePath: `${evidenceRoot}/lineage-final.json`,
     lineageEvidenceSha256: hash("d"),
-    migrationId: "candidate-episode-v1-cycle-5",
+    migrationId: "candidate-episode-v1-cycle-7",
     postgresAdminEnvPath:
       "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
     productionCommit: REQUIRED_PRODUCTION_COMMIT,
@@ -140,16 +140,16 @@ function runtime(overrides = {}) {
 }
 
 function sourceReleaseWindows() {
-  return Array.from({ length: 5 }, (_, index) => {
+  return Array.from({ length: 7 }, (_, index) => {
     const startedAt = new Date(Date.UTC(2026, 6, 6 + index * 3)).toISOString();
     const deadlineAt = new Date(Date.parse(startedAt) + 72 * 60 * 60_000).toISOString();
-    const current = index === 4;
+    const current = index === 6;
     return {
       controlEpoch: current ? 3 : 2,
       deadlineAt,
       migrationId: index === 0 ? "candidate-episode-v1" : `candidate-episode-v1-cycle-${index + 1}`,
       phase: current ? "shadow_capture" : "legacy",
-      releaseId: `candidate-shadow-release-cycle-${index + 1}`,
+      releaseId: current ? releaseId : `candidate-shadow-release-cycle-${index + 1}`,
       startedAt,
       writeFrozen: !current,
     };
@@ -166,9 +166,9 @@ function lineageEvidence(overrides = {}) {
     completionAdvances: 8,
     controlSnapshotSha256: hash("1"),
     currentAuthorityEpoch: 3,
-    currentMigrationId: "candidate-episode-v1-cycle-5",
+    currentMigrationId: "candidate-episode-v1-cycle-7",
     currentReleaseId: releaseId,
-    currentCycleStartedAt: windows[4].startedAt,
+    currentCycleStartedAt: windows[6].startedAt,
     g0Completed: false,
     maximumSampleGapSeconds: 600,
     minimumActivationHours: 24,
@@ -181,7 +181,7 @@ function lineageEvidence(overrides = {}) {
     productionReconciliationExecuted: false,
     schemaVersion: LINEAGE_SCHEMA,
     shadowVerifyStarted: false,
-    sourceReleaseCount: 5,
+    sourceReleaseCount: 7,
     sourceReleaseWindows: windows,
     status: LINEAGE_PASS,
     thresholdsChanged: false,
@@ -189,7 +189,7 @@ function lineageEvidence(overrides = {}) {
     unifiedSamplesSha256: hash("3"),
     unresolvedMaximum: 0,
     unresolvedOutbox: 0,
-    validationCycle: 5,
+    validationCycle: 7,
     ...overrides,
   };
 }
@@ -225,8 +225,8 @@ function reconciliationEvidence(lineage = lineageEvidence(), overrides = {}) {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 5,
-    verificationMigrationId: "candidate-episode-v1-cycle-5",
+    sourceReleaseCount: 7,
+    verificationMigrationId: "candidate-episode-v1-cycle-7",
     evidenceHash: `sha256:${hash("4")}`,
     violations: [],
     differenceSample: [],
@@ -239,7 +239,7 @@ function dualReadEvidence(overrides = {}) {
     schemaVersion: "candidate-shadow-verify-observation-evidence.v1",
     status: "PASS_DUAL_READ_OBSERVATION",
     packageId: "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
-    migrationId: "candidate-episode-v1-cycle-5",
+    migrationId: "candidate-episode-v1-cycle-7",
     releaseId,
     authorityEpoch: 4,
     sampleCount: 289,
@@ -314,7 +314,7 @@ test("outer runtime has an exact key contract and current production identity", 
   const value = runtime();
   assert.deepEqual(Object.keys(value).sort(), [...RUNTIME_KEYS].sort());
   assert.equal(validateRuntime(value), value);
-  assert.equal(value.productionCommit, "94b6d415573f5d8b2d0190c809a4b8e128a25aa8");
+  assert.equal(value.productionCommit, "47741f3222247562843932b01607a1ec3abb534e");
   assert.equal(value.productionTree, PRODUCTION_TREE);
   assert.throws(() => validateRuntime({ ...value, untrustedExtra: true }),
     /runtime_keys_invalid/u);
@@ -349,12 +349,12 @@ test("request binds one upload to strict Code Presence then Canonical Compat ord
   }), /request_boundary_invalid/u);
 });
 
-test("accepts only five-cycle Lineage v3 and Reconciliation v3 truth", () => {
+test("accepts only seven-cycle Lineage v3 and Reconciliation v3 truth", () => {
   const lineage = lineageEvidence();
   const reconciliation = reconciliationEvidence(lineage);
-  assert.equal(validateCandidateLineageEvidence(lineage).sourceReleaseCount, 5);
-  assert.equal(validateCandidateLineageEvidence(lineage).sourceReleaseWindows.length, 5);
-  assert.equal(validateReconciliationEvidence(reconciliation).sourceReleaseCount, 5);
+  assert.equal(validateCandidateLineageEvidence(lineage).sourceReleaseCount, 7);
+  assert.equal(validateCandidateLineageEvidence(lineage).sourceReleaseWindows.length, 7);
+  assert.equal(validateReconciliationEvidence(reconciliation).sourceReleaseCount, 7);
   assert.equal(reconciliation.lineageSemanticEvidenceSha256.controlSnapshot,
     lineage.controlSnapshotSha256);
   assert.equal(reconciliation.lineageSemanticEvidenceSha256.unifiedFinal,
@@ -476,7 +476,7 @@ test("R2 runtime and request are derived only after current code-presence PASS",
   assert.equal(phaseRequest.codeReleaseEvidencePath,
     `${evidenceRoot}/code-presence-evidence.json`);
   assert.equal(phaseRequest.codeReleaseEvidenceSha256, hash("9"));
-  assert.deepEqual(phaseRequest.services, ["web"]);
+  assert.deepEqual(phaseRequest.services, ["web", "candidate-shadow-worker"]);
   assert.equal(phaseRequest.autonomyAuthorization.packageId,
     "WP-G0.2-CANONICAL-COMPAT-PHASE-TRANSITION-AND-OBSERVATION");
   assert.throws(() => buildPhaseRuntimeFromCodePresence({

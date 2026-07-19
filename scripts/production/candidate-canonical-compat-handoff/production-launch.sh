@@ -7,7 +7,7 @@ LINEAGE_EVIDENCE="${2:-}"
 RECONCILIATION_EVIDENCE="${3:-}"
 DUAL_READ_EVIDENCE="${4:-}"
 PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
-BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-94b6d415573f-98459433/target-images-record.json"
+BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json"
 POSTGRES_ADMIN_ENV="/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
 IDENTITY_WRAPPER="/usr/local/sbin/market-radar-compose"
 IDENTITY_OVERRIDE="/etc/market-radar/compose-identity.env"
@@ -48,19 +48,19 @@ for file in "${ACTUAL_LINEAGE}" "${ACTUAL_RECONCILIATION}" "${ACTUAL_DUAL_READ}"
 done
 jq -e '.schemaVersion == "candidate-multi-cycle-lineage-evidence.v3"
   and .status == "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
-  and .currentMigrationId == "candidate-episode-v1-cycle-5"
-  and .sourceReleaseCount == 5 and .completedWrites >= 10000 and .unresolvedOutbox == 0' \
+  and .currentMigrationId == "candidate-episode-v1-cycle-7"
+  and .sourceReleaseCount == 7 and .completedWrites >= 10000 and .unresolvedOutbox == 0' \
   "${ACTUAL_LINEAGE}" >/dev/null || fail lineage_not_pass
 jq -e '.schemaVersion == "candidate-multi-cycle-reconciliation-evidence.v3"
   and .status == "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
-  and .verificationMigrationId == "candidate-episode-v1-cycle-5"
-  and .sourceReleaseCount == 5 and .comparedWrites >= 10000
+  and .verificationMigrationId == "candidate-episode-v1-cycle-7"
+  and .sourceReleaseCount == 7 and .comparedWrites >= 10000
   and .comparisonDifferences == 0 and .duplicateOutboxMappings == 0
   and .duplicateEventMappings == 0 and (.violations | length) == 0' \
   "${ACTUAL_RECONCILIATION}" >/dev/null || fail reconciliation_not_pass
 jq -e '.schemaVersion == "candidate-shadow-verify-observation-evidence.v1"
   and .status == "PASS_DUAL_READ_OBSERVATION"
-  and .migrationId == "candidate-episode-v1-cycle-5"
+  and .migrationId == "candidate-episode-v1-cycle-7"
   and .sampleCount == 289 and .coverageHours >= 24 and .maximumGapSeconds <= 600
   and .allPagesComparedEverySample == true and .differenceCount == 0
   and .legacyResponseAuthority == true and .canonicalCompatStarted == false
@@ -91,7 +91,7 @@ done
   || fail production_git_not_clean_detached
 PRODUCTION_COMMIT="$(git -C "${PRODUCTION_ROOT}" rev-parse HEAD)"
 PRODUCTION_TREE="$(git -C "${PRODUCTION_ROOT}" rev-parse HEAD^{tree})"
-[[ "${PRODUCTION_COMMIT}" == "94b6d415573f5d8b2d0190c809a4b8e128a25aa8" ]] \
+[[ "${PRODUCTION_COMMIT}" == "47741f3222247562843932b01607a1ec3abb534e" ]] \
   || fail production_commit_mismatch
 
 sudo -n docker ps >/dev/null 2>&1 || fail docker_unavailable

@@ -55,7 +55,7 @@ test("contract preserves current R0 Code Presence then independent R2 Canonical 
   const entry = result.contract.entryBoundary;
   assert.equal(entry.lineageSchema, "candidate-multi-cycle-lineage-evidence.v3");
   assert.equal(entry.reconciliationSchema, "candidate-multi-cycle-reconciliation-evidence.v3");
-  assert.equal(entry.sourceReleaseWindowsExact, 5);
+  assert.equal(entry.sourceReleaseWindowsExact, 7);
   assert.equal(entry.dualReadExactSamples, 289);
   assert.equal(entry.dualReadMinimumHours, 24);
   assert.equal(entry.dualReadMaximumDifferences, 0);
@@ -77,7 +77,7 @@ test("contract preserves current R0 Code Presence then independent R2 Canonical 
   assert.ok(result.contract.forbidden.includes("phase_request_before_code_presence_pass"));
   assert.equal(result.contract.forbidden.includes("phase_request_before_readonly_pass"), false);
   assert.equal(REQUIRED_PRODUCTION_COMMIT,
-    "94b6d415573f5d8b2d0190c809a4b8e128a25aa8");
+    "47741f3222247562843932b01607a1ec3abb534e");
 });
 
 test("one transport is byte reproducible with two independently hash-bound children", async () => {
@@ -133,7 +133,7 @@ test("one transport is byte reproducible with two independently hash-bound child
     assert.equal(childManifests.canonicalCompatPhase.containsSecrets, false);
     assert.equal(childManifests.canonicalCompatPhase.schemaVersion,
       "wp-g0.2-canonical-compat-phase-transport.v1");
-    assert.deepEqual(childManifests.canonicalCompatPhase.services, ["web"]);
+    assert.deepEqual(childManifests.canonicalCompatPhase.services, ["web", "candidate-shadow-worker"]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

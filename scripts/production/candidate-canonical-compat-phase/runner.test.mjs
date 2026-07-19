@@ -21,8 +21,8 @@ import {
   buildCodePresenceEvidence,
 } from "../candidate-canonical-compat-code-presence/runner.mjs";
 
-const releaseId = "candidate-shadow-release-12345678";
-const migrationId = "candidate-episode-v1-cycle-6";
+const releaseId = "candidate-shadow-cycle-7-47741f3";
+const migrationId = "candidate-episode-v1-cycle-7";
 const reconciliationHash = `sha256:${"1".repeat(64)}`;
 const manifestHash = `sha256:${"2".repeat(64)}`;
 const productionEnvHash = "3".repeat(64);
@@ -210,7 +210,7 @@ test("accepts only a complete zero-difference reconciliation", () => {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 6,
+    sourceReleaseCount: 7,
     verificationMigrationId: migrationId,
     evidenceHash: reconciliationHash,
     violations: [],

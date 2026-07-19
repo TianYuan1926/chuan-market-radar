@@ -31,8 +31,8 @@ test("isolated execute proves existing code without mutating services", async ()
   const evidenceDirectory = join(directory, "evidence");
   const webContainer = repeated("a", 64);
   const webImage = `sha256:${repeated("b", 64)}`;
-  const migrationId = "candidate-episode-v1-cycle-6";
-  const releaseId = "candidate-shadow-cycle-6-72ee2893";
+  const migrationId = "candidate-episode-v1-cycle-7";
+  const releaseId = "candidate-shadow-cycle-7-47741f3";
   const authorityEpoch = 2;
   const manifestRaw = `${JSON.stringify({
     schemaVersion: "candidate-read-authority-manifest.v1",
@@ -65,7 +65,7 @@ test("isolated execute proves existing code without mutating services", async ()
   let worktreeAdded = false;
   try {
     await execFileAsync("git", ["worktree", "add", "--detach", worktree,
-      "3315b54dfcfcde63fcdf3a042ef92754da509feb"], { cwd: root });
+      "47741f3222247562843932b01607a1ec3abb534e"], { cwd: root });
     worktreeAdded = true;
     await writeFile(fakeDocker, `#!/usr/bin/env bash
 set -euo pipefail
@@ -114,7 +114,7 @@ exit 2
       now: new Date(),
       nonce: "12345678-1234-4123-8123-123456789abc",
       runtime: {
-        buildRecordPath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-test-12345678/target-images-redacted.json",
+        buildRecordPath: "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-12345678/target-images-redacted.json",
         buildRecordSha256: createHash("sha256").update(buildRecordBytes).digest("hex"),
         buildRecordWebImageId: webImage,
         currentWebContainerId: webContainer,

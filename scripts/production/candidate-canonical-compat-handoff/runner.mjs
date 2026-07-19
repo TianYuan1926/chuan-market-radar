@@ -20,7 +20,7 @@ export const PACKAGE_ID =
   "WP-G0.2-CURRENT-CYCLE-CANONICAL-COMPAT-DEPENDENCY-REFRESH-AND-AUTOMATIC-HANDOFF";
 export const PIPELINE_PASS = "PASS_CANONICAL_COMPAT_HANDOFF_OBSERVER_ACTIVE";
 export const REQUEST_PASS = "PASS_CANONICAL_COMPAT_HANDOFF_EXECUTION_REQUEST";
-export const REQUIRED_PRODUCTION_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
+export const REQUIRED_PRODUCTION_COMMIT = "47741f3222247562843932b01607a1ec3abb534e";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -120,7 +120,7 @@ export function validateRuntime(runtime) {
       && runtime.postgresAdminEnvPath === POSTGRES_ADMIN_ENV
       && runtime.healthLevel === "ready" && runtime.scanFreshness === "fresh",
   "runtime_production_identity_invalid");
-  ensure(runtime.migrationId === "candidate-episode-v1-cycle-5"
+  ensure(runtime.migrationId === "candidate-episode-v1-cycle-7"
       && MIGRATION.test(runtime.migrationId)
       && RELEASE.test(runtime.releaseId ?? "")
       && Number.isSafeInteger(runtime.currentAuthorityEpoch)
@@ -325,7 +325,7 @@ function validateEvidenceIdentity(runtime, lineage, reconciliation, dualRead) {
   ensure(validatedLineage.schemaVersion === LINEAGE_SCHEMA
       && validatedLineage.status === LINEAGE_PASS
       && validatedLineage.currentMigrationId === runtime.migrationId
-      && validatedLineage.sourceReleaseCount === 5
+      && validatedLineage.sourceReleaseCount === 7
       && validatedLineage.completedWrites >= 10_000
       && validatedLineage.unresolvedOutbox === 0,
   "lineage_evidence_invalid");
@@ -336,7 +336,7 @@ function validateEvidenceIdentity(runtime, lineage, reconciliation, dualRead) {
   "lineage_runtime_identity_mismatch");
   const validatedReconciliation = validateReconciliationEvidence(reconciliation);
   ensure(validatedReconciliation.verificationMigrationId === runtime.migrationId
-      && validatedReconciliation.sourceReleaseCount === 5
+      && validatedReconciliation.sourceReleaseCount === 7
       && validatedReconciliation.lineageEvidenceSha256
         === `sha256:${runtime.lineageEvidenceSha256}`,
   "reconciliation_runtime_identity_mismatch");

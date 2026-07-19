@@ -8,8 +8,8 @@
   "actionClass": "canonical_compat_activation",
   "riskTier": "R2_AUTHORITY_TRANSITION",
   "releaseBoundary": {
-    "requiredProductionCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
-    "requiredProductionTree": "cccd5776a80ded39f712bee4909c23c8133db798",
+    "requiredProductionCommit": "47741f3222247562843932b01607a1ec3abb534e",
+    "requiredProductionTree": "bff1d1b3f27a0608004c379189bd1adc038477ec",
     "acceptedCodeAvailabilityStatuses": [
       "PASS_PRODUCTION_CANONICAL_COMPAT_CODE_PRESENCE_VERIFIED"
     ],
@@ -35,9 +35,9 @@
     "maximumDuplicateOutboxMappings": 0,
     "maximumDuplicateEventMappings": 0,
     "maximumUnresolvedOutbox": 0,
-    "sourceReleaseWindowsExact": 6,
+    "sourceReleaseWindowsExact": 7,
     "sourceReleaseWindowsDerivedFromMigrationId": true,
-    "currentMigrationId": "candidate-episode-v1-cycle-6",
+    "currentMigrationId": "candidate-episode-v1-cycle-7",
     "lineageAuthorityEpochDeltaFromShadowVerify": -1,
     "currentPhase": "shadow_verify",
     "currentWriteFrozen": false,
@@ -167,7 +167,7 @@
       "scripts/production/candidate-canonical-compat-phase/runner.mjs"
     ],
     "fileCount": 8,
-    "sha256": "a9395bef6a6b73c769b951366a9f46894b6fa6555d01116b9b9b4ec252429418"
+    "sha256": "9e7c30468ad5f2be7f94eb0f5020e2e54eac5cbf479ef4a46fca6f480215516f"
   },
   "resultBoundary": {
     "passStatus": "PASS_CANONICAL_COMPAT_OBSERVATION",

@@ -9,9 +9,9 @@ export const PACKAGE_ID =
   "WP-G0.2-CANONICAL-COMPAT-PRODUCTION-CODE-PRESENCE-CURRENT-CYCLE";
 export const EVIDENCE_SCHEMA = "candidate-canonical-compat-code-presence-evidence.v1";
 export const EVIDENCE_PASS = "PASS_PRODUCTION_CANONICAL_COMPAT_CODE_PRESENCE_VERIFIED";
-export const REFERENCE_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
+export const REFERENCE_COMMIT = "47741f3222247562843932b01607a1ec3abb534e";
 export const PRODUCTION_COMMIT = REFERENCE_COMMIT;
-export const PRODUCTION_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
+export const PRODUCTION_TREE = "bff1d1b3f27a0608004c379189bd1adc038477ec";
 
 export const REFERENCE_CODE_PATHS = Object.freeze([
   Object.freeze({

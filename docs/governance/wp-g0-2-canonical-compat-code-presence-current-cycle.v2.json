@@ -4,13 +4,13 @@
   "gate": "G0",
   "actionClass": "read_only_production_preflight",
   "riskTier": "R0_READ_ONLY",
-  "status": "local_cycle6_preparation_production_verify_only_not_executed",
+  "status": "local_cycle7_preparation_production_verify_only_not_executed",
   "productionAuthorization": false,
   "productionExecuted": false,
   "identity": {
-    "referenceCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
-    "productionCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
-    "productionTree": "cccd5776a80ded39f712bee4909c23c8133db798",
+    "referenceCommit": "47741f3222247562843932b01607a1ec3abb534e",
+    "productionCommit": "47741f3222247562843932b01607a1ec3abb534e",
+    "productionTree": "bff1d1b3f27a0608004c379189bd1adc038477ec",
     "referenceCodePaths": [
       {
         "path": "src/app/api/frontend/candidate-lifecycle/route.ts",
@@ -45,7 +45,7 @@
         "blob": "4a4077ec3b8bc6d4a7bb901883aa0f2538d3a276"
       }
     ],
-    "releaseBuildRecordPathPattern": "^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}/target-images-redacted\\.json$",
+    "releaseBuildRecordPathPattern": "^/home/ubuntu/\\.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-[a-z0-9][a-z0-9._-]{7,80}/target-images-redacted\\.json$",
     "cycleBuildRecordSchema": "candidate-cycle-target-images.v1",
     "cycleBuildRecordWebImageField": "webImageId"
   },
@@ -95,7 +95,7 @@
       "scripts/production/candidate-canonical-compat-code-presence/runner.mjs"
     ],
     "fileCount": 4,
-    "sha256": "ec3746d96d2ba016c1dbe0f9e7d714f289aeea6b4420a74bc868ff624c6f0f31"
+    "sha256": "f2c486a7c18e9afd6d3cd7b18e6a24374388315c36b92e4d5a73cb4dbd5560d2"
   },
   "transport": {
     "schemaVersion": "wp-g0.2-canonical-compat-code-presence-transport.v1",

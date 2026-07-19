@@ -80,7 +80,7 @@ export async function validateContract(root = process.cwd()) {
       && contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "canonical_compat_activation"
       && contract.riskTier === "R2_AUTHORITY_TRANSITION"
-      && contract.status === "local_ready_for_gate_production_blocked_by_shadow_verify",
+      && contract.status === "local_cycle7_ready_for_gate_production_blocked_by_cycle7_final_and_shadow_verify",
   "contract_identity_invalid");
   ensure(JSON.stringify(contract.sequence)
       === '["canonical_code_presence","canonical_compat_phase"]'
@@ -100,7 +100,7 @@ export async function validateContract(root = process.cwd()) {
       && entry.reconciliationSchema === "candidate-multi-cycle-reconciliation-evidence.v3"
       && entry.reconciliationStatus
         === "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
-      && entry.sourceReleaseWindowsExact === 5 && entry.minimumComparedWrites === 10000
+      && entry.sourceReleaseWindowsExact === 7 && entry.minimumComparedWrites === 10000
       && entry.dualReadSchema === "candidate-shadow-verify-observation-evidence.v1"
       && entry.dualReadStatus === "PASS_DUAL_READ_OBSERVATION"
       && entry.dualReadExactSamples === 289 && entry.dualReadMinimumHours === 24

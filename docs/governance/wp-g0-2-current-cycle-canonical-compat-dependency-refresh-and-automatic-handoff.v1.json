@@ -2,7 +2,7 @@
   "schemaVersion": "wp-g0.2-current-cycle-canonical-compat-dependency-refresh-and-automatic-handoff.v1",
   "packageId": "WP-G0.2-CURRENT-CYCLE-CANONICAL-COMPAT-DEPENDENCY-REFRESH-AND-AUTOMATIC-HANDOFF",
   "title": "Current-cycle Shadow Verify to Canonical Compat automatic production handoff",
-  "status": "local_ready_for_gate_production_blocked_by_shadow_verify",
+  "status": "local_cycle7_ready_for_gate_production_blocked_by_cycle7_final_and_shadow_verify",
   "gate": "G0",
   "actionClass": "canonical_compat_activation",
   "riskTier": "R2_AUTHORITY_TRANSITION",
@@ -40,7 +40,7 @@
     "lineageStatus": "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
     "reconciliationSchema": "candidate-multi-cycle-reconciliation-evidence.v3",
     "reconciliationStatus": "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
-    "sourceReleaseWindowsExact": 5,
+    "sourceReleaseWindowsExact": 7,
     "minimumComparedWrites": 10000,
     "dualReadSchema": "candidate-shadow-verify-observation-evidence.v1",
     "dualReadStatus": "PASS_DUAL_READ_OBSERVATION",
@@ -123,7 +123,7 @@
       "scripts/production/candidate-canonical-compat-handoff/runner.mjs"
     ],
     "fileCount": 5,
-    "sha256": "7facb67240e08c6f6920211a004c01712a3b9935dbabba637b6ced0b6d8be588"
+    "sha256": "2eed76b938e031eedf89e94e0b578acb482338746fcd71580ec3550642369156"
   },
   "resultBoundary": {
     "immediatePass": "PASS_CANONICAL_COMPAT_HANDOFF_OBSERVER_ACTIVE",
