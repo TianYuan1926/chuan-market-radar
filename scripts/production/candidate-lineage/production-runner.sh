@@ -196,9 +196,11 @@ done
     == "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH" \
   && "$(jq -r '.schemaVersion // empty' "${LINEAGE_OUTPUT}")" \
     == "candidate-multi-cycle-lineage-evidence.v3" \
-  && "$(jq -r '.validationCycle // 0' "${LINEAGE_OUTPUT}")" -eq 5 \
-  && "$(jq -r '.sourceReleaseCount // 0' "${LINEAGE_OUTPUT}")" -eq 5 \
-  && "$(jq -r '.sourceReleaseWindows | length' "${LINEAGE_OUTPUT}")" -eq 5 \
+  && "$(jq -r '.sourceReleaseCount // 0' "${LINEAGE_OUTPUT}")" -eq 6 \
+  && "$(jq -r '.validationCycle // 0' "${LINEAGE_OUTPUT}")" -eq 6 \
+  && "$(jq -r '.currentMigrationId // empty' "${LINEAGE_OUTPUT}")" \
+    == "candidate-episode-v1-cycle-6" \
+  && "$(jq -r '.sourceReleaseWindows | length' "${LINEAGE_OUTPUT}")" -eq 6 \
   && "$(jq -r '.completedWrites // 0' "${LINEAGE_OUTPUT}")" -ge 10000 \
   && "$(jq -r '.activationSamples // 0' "${LINEAGE_OUTPUT}")" -ge 289 \
   && "$(jq -r '.activationCoverageSeconds // 0' "${LINEAGE_OUTPUT}")" -ge 86400 \

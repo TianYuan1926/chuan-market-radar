@@ -17,22 +17,34 @@ import { sha256 } from "./runner.mjs";
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-5",
-  releaseId: "candidate-shadow-capture-packet-cycle-5",
+  migrationId: "candidate-episode-v1-cycle-6",
+  releaseId: "candidate-shadow-capture-packet-cycle-6",
 };
 
 function unifiedSample(index) {
   const completedWrites = 2_957 + Math.floor(index * (10_020 - 2_957) / 288);
+  const sampledAt = new Date(Date.parse("2026-07-18T00:00:00.000Z") + index * 300_000);
+  const databaseSnapshot = (value) => ({
+    sampledAt: value.toISOString(),
+    migrationId: unifiedExpected.migrationId,
+    releaseId: unifiedExpected.releaseId,
+    phase: "shadow_capture",
+    epoch: unifiedExpected.authorityEpoch,
+    deadlineAt: "2026-07-21T00:00:00.000Z",
+    completedWrites,
+    unresolvedOutbox: 0,
+    activeCycles: 1,
+    database: { lockWaiters: 0, longTransactions: 0 },
+  });
   return {
-    schemaVersion: "candidate-validation-cycle-observation-sample.v2",
-    sampledAt: new Date(Date.parse("2026-07-15T00:00:00.000Z") + index * 300_000)
-      .toISOString(),
+    schemaVersion: "candidate-validation-cycle-observation-sample.v3",
+    sampledAt: sampledAt.toISOString(),
     commit: unifiedExpected.commit,
     migrationId: unifiedExpected.migrationId,
     releaseId: unifiedExpected.releaseId,
     phase: "shadow_capture",
     epoch: unifiedExpected.authorityEpoch,
-    deadlineAt: "2026-07-18T00:00:00.000Z",
+    deadlineAt: "2026-07-21T00:00:00.000Z",
     completedWrites,
     unresolvedOutbox: 0,
     activeCycles: 1,
@@ -74,6 +86,10 @@ function unifiedSample(index) {
       },
     },
     database: { lockWaiters: 0, longTransactions: 0 },
+    databaseWindow: {
+      before: databaseSnapshot(new Date(sampledAt.getTime() - 1_000)),
+      after: databaseSnapshot(sampledAt),
+    },
   };
 }
 
@@ -123,7 +139,7 @@ async function fixture(root) {
   };
 }
 
-test("production capture inputs are private, hash-bound, and rebuilt from raw v2 samples", async () => {
+test("production capture inputs are private, hash-bound, and rebuilt from raw v3 samples", async () => {
   const root = await mkdtemp(join(tmpdir(), "lineage-production-runner-"));
   try {
     const specification = await fixture(root);

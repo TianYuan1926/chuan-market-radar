@@ -18,9 +18,9 @@ import {
 
 const execFileAsync = promisify(execFile);
 export const EXECUTION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v3.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v4.json";
 export const LOCAL_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v3.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v4.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -136,7 +136,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
   const runnerArtifact = await artifact(root, execution.runnerArtifact?.files ?? []);
   const violations = [];
   if (execution.schemaVersion
-      !== "wp-g0.2-current-cycle-unified-lineage-capture-production-packet.v3"
+      !== "wp-g0.2-current-cycle-unified-lineage-capture-production-packet.v4"
       || execution.packageId !== PACKAGE_ID
       || execution.productionAuthorization !== false
       || execution.productionExecuted !== false) violations.push("production_truth");
@@ -155,7 +155,7 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || runnerArtifact.fileCount !== execution.runnerArtifact?.fileCount
       || runnerArtifact.sha256 !== execution.runnerArtifact?.sha256) violations.push("runner_artifact");
   if (local.schemaVersion
-      !== "wp-g0.2-current-cycle-unified-lineage-refresh-local-superpackage.v3"
+      !== "wp-g0.2-current-cycle-unified-lineage-refresh-local-superpackage.v4"
       || local.packageId
         !== "WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-REFRESH-LOCAL-SUPERPACKAGE"
       || local.outputBoundary?.rawEvidenceHashesRequired !== 3
@@ -171,12 +171,15 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || execution.prerequisites?.minimumStabilitySeconds !== 1_800
       || execution.prerequisites?.minimumCompletionAdvances !== 2
       || execution.prerequisites?.maximumSampleGapSeconds !== 600
-      || execution.prerequisites?.migrationId !== "candidate-episode-v1-cycle-5"
-      || execution.prerequisites?.controlLineageExactCount !== 5
+      || execution.prerequisites?.migrationId !== "candidate-episode-v1-cycle-6"
+      || execution.prerequisites?.controlLineageExactCount !== 6
       || execution.prerequisites?.controlLineageCountDerivedFromMigrationId !== true
       || execution.prerequisites?.allFinalEvidenceRecomputedFromRawSamples !== true
       || execution.prerequisites?.completeDatabaseControlLineageRequired !== true
-      || execution.prerequisites?.newExactRequestRequired !== true) violations.push("prerequisites");
+      || execution.prerequisites?.newExactRequestRequired !== true
+      || execution.prerequisites?.cycle5V3AcceptedAsCycle6PassEvidence !== false) {
+    violations.push("prerequisites");
+  }
   if (execution.execution?.runner !== "transient_systemd_unit"
       || execution.execution?.restart !== "no"
       || execution.execution?.runtimeMaxSeconds !== 3_600

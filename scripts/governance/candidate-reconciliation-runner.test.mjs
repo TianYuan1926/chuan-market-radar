@@ -14,7 +14,7 @@ test("current-cycle reconciliation contract is locked and production remains pro
   assert.equal(result.shadowVerifyTransitionExecuted, false);
   assert.equal(result.g0Completed, false);
   assert.equal(result.minimumComparedWrites, 10_000);
-  assert.equal(result.releaseWindowsRequired, 5);
+  assert.equal(result.releaseWindowsRequired, 6);
   assert.deepEqual(result.violations, []);
 });
 
@@ -61,14 +61,29 @@ test("legacy Lineage, historical Activation files and incomplete windows remain 
     "lineage_boundary"));
 });
 
-test("local rehearsal truth is pinned to PG16 and five-window writes", async () => {
+test("local rehearsal truth is pinned to PG16 and six-window writes", async () => {
   const contract = await loadCandidateReconciliationContract();
   const relabeled = structuredClone(contract);
-  relabeled.localRehearsal.releaseCounts = [5_000, 0, 5_000, 0, 20];
+  relabeled.localRehearsal.releaseCounts = [5_000, 0, 5_000, 0, 0, 20];
   assert.ok((await validateCandidateReconciliationPreparation(relabeled)).violations.includes(
     "local_rehearsal"));
   const productionConnected = structuredClone(contract);
   productionConnected.localRehearsal.productionConnected = true;
   assert.ok((await validateCandidateReconciliationPreparation(productionConnected)).violations.includes(
     "local_rehearsal"));
+});
+
+test("Cycle-5 v3 dependencies cannot be relabeled as Cycle-6 current evidence", async () => {
+  const contract = await loadCandidateReconciliationContract();
+  assert.equal(contract.lineageBoundary.migrationId, "candidate-episode-v1-cycle-6");
+  assert.equal(contract.lineageBoundary.sourceReleaseWindowsExact, 6);
+  assert.equal(contract.lineageBoundary.cycle5V3AcceptedAsCycle6PassEvidence, false);
+
+  const stale = structuredClone(contract);
+  stale.lineageBoundary.migrationId = "candidate-episode-v1-cycle-5";
+  stale.lineageBoundary.sourceReleaseWindowsExact = 5;
+  stale.databaseBoundary.controlLineageExactCount = 5;
+  const result = await validateCandidateReconciliationPreparation(stale);
+  assert.ok(result.violations.includes("lineage_boundary"));
+  assert.ok(result.violations.includes("database_boundary"));
 });

@@ -27,12 +27,13 @@ const releases = [
   "candidate-shadow-lineage-pg-cycle-3",
   "candidate-shadow-lineage-pg-cycle-4",
   "candidate-shadow-lineage-pg-cycle-5",
+  "candidate-shadow-lineage-pg-cycle-6",
 ];
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-5",
-  releaseId: releases[4],
+  migrationId: "candidate-episode-v1-cycle-6",
+  releaseId: releases[5],
 };
 
 function uuid(index) {
@@ -84,17 +85,29 @@ function source(index, releaseId, createdAt) {
 }
 
 function unifiedSample(index) {
-  const completedWrites = 2_957 + Math.floor(index * (10_020 - 2_957) / 288);
+  const completedWrites = 5_010 + Math.floor(index * (10_020 - 5_010) / 288);
+  const sampledAt = new Date(Date.parse("2026-07-18T00:00:00.000Z") + index * 300_000);
+  const databaseSnapshot = (value) => ({
+    sampledAt: value.toISOString(),
+    migrationId: unifiedExpected.migrationId,
+    releaseId: unifiedExpected.releaseId,
+    phase: "shadow_capture",
+    epoch: unifiedExpected.authorityEpoch,
+    deadlineAt: "2026-07-21T00:00:00.000Z",
+    completedWrites,
+    unresolvedOutbox: 0,
+    activeCycles: 1,
+    database: { lockWaiters: 0, longTransactions: 0 },
+  });
   return {
-    schemaVersion: "candidate-validation-cycle-observation-sample.v2",
-    sampledAt: new Date(Date.parse("2026-07-15T00:00:00.000Z") + index * 300_000)
-      .toISOString(),
+    schemaVersion: "candidate-validation-cycle-observation-sample.v3",
+    sampledAt: sampledAt.toISOString(),
     commit: unifiedExpected.commit,
     migrationId: unifiedExpected.migrationId,
     releaseId: unifiedExpected.releaseId,
     phase: "shadow_capture",
     epoch: unifiedExpected.authorityEpoch,
-    deadlineAt: "2026-07-18T00:00:00.000Z",
+    deadlineAt: "2026-07-21T00:00:00.000Z",
     completedWrites,
     unresolvedOutbox: 0,
     activeCycles: 1,
@@ -136,6 +149,10 @@ function unifiedSample(index) {
       },
     },
     database: { lockWaiters: 0, longTransactions: 0 },
+    databaseWindow: {
+      before: databaseSnapshot(new Date(sampledAt.getTime() - 1_000)),
+      after: databaseSnapshot(sampledAt),
+    },
   };
 }
 
@@ -184,6 +201,7 @@ try {
     new Date("2026-07-09T00:00:00.000Z"),
     new Date("2026-07-12T00:00:00.000Z"),
     new Date("2026-07-15T00:00:00.000Z"),
+    new Date("2026-07-18T00:00:00.000Z"),
   ];
   const deadlines = starts.map((startedAt) => new Date(startedAt.getTime() + 72 * 60 * 60_000));
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
@@ -193,7 +211,8 @@ try {
     ('candidate-episode-v1-cycle-2','legacy',2,$5,$6,true,$7,$8,$6),
     ('candidate-episode-v1-cycle-3','legacy',2,$9,$10,true,$11,$12,$10),
     ('candidate-episode-v1-cycle-4','legacy',2,$13,$14,true,$15,$16,$14),
-    ('candidate-episode-v1-cycle-5','shadow_capture',1,$17,$18,false,$19,$20,$17)`, [
+    ('candidate-episode-v1-cycle-5','legacy',2,$17,$18,true,$19,$20,$18),
+    ('candidate-episode-v1-cycle-6','shadow_capture',1,$21,$22,false,$23,$24,$21)`, [
     starts[0].toISOString(), deadlines[0].toISOString(), releases[0],
     `sha256:${"b".repeat(64)}`,
     starts[1].toISOString(), deadlines[1].toISOString(), releases[1],
@@ -204,6 +223,8 @@ try {
     `sha256:${"e".repeat(64)}`,
     starts[4].toISOString(), deadlines[4].toISOString(), releases[4],
     `sha256:${"f".repeat(64)}`,
+    starts[5].toISOString(), deadlines[5].toISOString(), releases[5],
+    `sha256:${"1".repeat(64)}`,
   ]);
 
   const total = 10_020;
@@ -211,9 +232,10 @@ try {
   for (let offset = 0; offset < total; offset += batchSize) {
     const batch = Array.from({ length: Math.min(batchSize, total - offset) }, (_, inner) => {
       const index = offset + inner + 1;
-      if (index <= 2_505) return source(index, releases[0], starts[0]);
-      if (index <= 5_010) return source(index, releases[2], starts[2]);
-      return source(index, releases[4], starts[4]);
+      if (index <= 1_670) return source(index, releases[0], starts[0]);
+      if (index <= 3_340) return source(index, releases[2], starts[2]);
+      if (index <= 5_010) return source(index, releases[4], starts[4]);
+      return source(index, releases[5], starts[5]);
     });
     await client.query(`INSERT INTO candidate_authority.candidate_episode_ingest_outbox (
       outbox_id, scope, source_type, source_id, source_version, payload_version,
@@ -245,13 +267,14 @@ try {
     transactionIsolation: "repeatable read",
     transactionReadOnly: true,
   });
-  assert.equal(snapshot.controls.length, 5);
+  assert.equal(snapshot.controls.length, 6);
   assert.deepEqual(snapshot.releaseCompletedWrites, [
-    { completedWrites: 2_505, releaseId: releases[0] },
+    { completedWrites: 1_670, releaseId: releases[0] },
     { completedWrites: 0, releaseId: releases[1] },
-    { completedWrites: 2_505, releaseId: releases[2] },
+    { completedWrites: 1_670, releaseId: releases[2] },
     { completedWrites: 0, releaseId: releases[3] },
-    { completedWrites: 5_010, releaseId: releases[4] },
+    { completedWrites: 1_670, releaseId: releases[4] },
+    { completedWrites: 5_010, releaseId: releases[5] },
   ]);
   assert.equal(snapshot.statusCounts.completed, total);
   assert.equal(snapshot.statusCounts.unresolvedTotal, 0);
@@ -273,12 +296,12 @@ try {
   assert.equal(captured.lineage.status,
     "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH");
   assert.equal(captured.lineage.completedWrites, 10_020);
-  assert.equal(captured.lineage.sourceReleaseWindows.length, 5);
-  assert.equal(captured.lineage.validationCycle, 5);
+  assert.equal(captured.lineage.sourceReleaseWindows.length, 6);
+  assert.equal(captured.lineage.validationCycle, 6);
   assert.equal(captured.databaseIdentity.currentRole, "candidate_audit_role");
   assert.equal(Object.values(captured.sourceEvidenceSha256).flatMap(Object.values).length, 3);
 
-  const outside = source(total + 1, "candidate-shadow-lineage-unapproved", starts[4]);
+  const outside = source(total + 1, "candidate-shadow-lineage-unapproved", starts[5]);
   await client.query(`INSERT INTO candidate_authority.candidate_episode_ingest_outbox (
     outbox_id, scope, source_type, source_id, source_version, payload_version,
     payload, payload_hash, idempotency_key, status, created_at, completed_at

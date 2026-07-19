@@ -14,7 +14,7 @@ test("production shell entrypoints remain syntactically valid", async () => {
   await execFileAsync("bash", ["-n", entrypointPath, runnerPath]);
 });
 
-test("entrypoint verifies only Lineage v3 and launches one bounded session-independent unit", async () => {
+test("entrypoint verifies only current Lineage v3 and launches one bounded session-independent unit", async () => {
   const source = await readFile(entrypointPath, "utf8");
   for (const token of [
     "validate-request", "systemd-run", "--collect", "Restart=no", "RuntimeMaxSec=3600",
@@ -36,7 +36,7 @@ test("production runner is evidence-only and cannot mutate Git, services, or pha
     "reconciliation-result.json", "comparisonDifferences", "candidate_audit_role",
     "automaticPhaseAdvance", "phaseTransitionExecuted", "shadowVerifyTransitionExecuted",
     "candidate-multi-cycle-reconciliation-evidence.v3", "release --outcome PASS",
-    "sourceReleaseCount", "candidate-episode-v1-cycle-5",
+    "sourceReleaseCount", "candidate-episode-v1-cycle-6",
     "candidate_shadow_worker_not_running", "candidate_reconciliation_runtime_not_ready",
     "CANDIDATE_RECONCILIATION_LINEAGE_EVIDENCE_FILE",
   ]) assert.match(source, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));

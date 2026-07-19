@@ -33,6 +33,10 @@ test("production shell entrypoints are syntactically valid and contain no servic
   assert.match(runner, /candidate-multi-cycle-lineage-evidence\.v3/u);
   assert.match(runner, /validationCycle/u);
   assert.match(runner, /sourceReleaseCount/u);
+  assert.match(runner, /\.sourceReleaseCount \/\/ 0.*-eq 6/su);
+  assert.match(runner, /\.validationCycle \/\/ 0.*-eq 6/su);
+  assert.match(runner, /\.sourceReleaseWindows \| length.*-eq 6/su);
+  assert.doesNotMatch(runner, /\.(?:sourceReleaseCount|validationCycle) \/\/ 0.*-eq 5/su);
   assert.match(runner, /maximumSampleGapSeconds/u);
   assert.doesNotMatch(runner, /PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION/u);
 });
@@ -54,7 +58,7 @@ test("transport is redacted and cannot carry environment, secrets, or applicatio
     assert.doesNotMatch(path, /^src\//u);
   }
   assert.ok(TRANSPORT_FILES.includes(
-    "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v3.json",
+    "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v4.json",
   ));
   assert.ok(TRANSPORT_FILES.includes(
     "scripts/production/candidate-lineage/production-runner.mjs",

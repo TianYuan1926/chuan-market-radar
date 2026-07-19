@@ -7,7 +7,7 @@ REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 RUNNER_MODE="${CANDIDATE_RECONCILIATION_MODE:-dry_run}"
 CONFIRMED="${CONFIRM_CANDIDATE_RECONCILIATION:-false}"
 RUNNER_MODULE="${SOURCE_ROOT}/scripts/production/candidate-reconciliation/runner.mjs"
-PREPARATION_CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3.json"
+PREPARATION_CONTRACT="${SOURCE_ROOT}/docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v4.json"
 LEASE_CLI="${SOURCE_ROOT}/scripts/governance/autonomy-production-lease-cli.mjs"
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
@@ -177,9 +177,9 @@ assert_private_file "${OUTPUT_FILE}"
     == "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" \
   && "$(jq -r '.schemaVersion // empty' "${OUTPUT_FILE}")" \
     == "candidate-multi-cycle-reconciliation-evidence.v3" \
-  && "$(jq -r '.sourceReleaseCount // 0' "${OUTPUT_FILE}")" -eq 5 \
+  && "$(jq -r '.sourceReleaseCount // 0' "${OUTPUT_FILE}")" -eq 6 \
   && "$(jq -r '.verificationMigrationId // empty' "${OUTPUT_FILE}")" \
-    == "candidate-episode-v1-cycle-5" \
+    == "candidate-episode-v1-cycle-6" \
   && "$(jq -r '.comparedWrites // 0' "${OUTPUT_FILE}")" -ge 10000 \
   && "$(jq -r '.comparisonDifferences // -1' "${OUTPUT_FILE}")" -eq 0 \
   && "$(jq -r '.automaticPhaseAdvance // true' "${OUTPUT_FILE}")" == "false" \

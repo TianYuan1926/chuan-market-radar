@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(ROOT,
-  "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v3.json");
+  "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v4.json");
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -32,7 +32,7 @@ export async function validateCandidateLineageCapture(contract) {
   const runner = await readFile(resolve(ROOT,
     "scripts/production/candidate-lineage/runner.mjs"), "utf8");
   if (contract.schemaVersion
-      !== "wp-g0.2-current-cycle-unified-lineage-refresh-local-superpackage.v3") {
+      !== "wp-g0.2-current-cycle-unified-lineage-refresh-local-superpackage.v4") {
     violations.push("schema_version");
   }
   if (contract.packageId
@@ -45,7 +45,7 @@ export async function validateCandidateLineageCapture(contract) {
       || runnerArtifact.sha256 !== contract.runnerArtifact?.sha256) {
     violations.push("runner_artifact");
   }
-  if (contract.unifiedObservationBoundary?.migrationId !== "candidate-episode-v1-cycle-5"
+  if (contract.unifiedObservationBoundary?.migrationId !== "candidate-episode-v1-cycle-6"
       || contract.unifiedObservationBoundary?.status
         !== "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
       || contract.unifiedObservationBoundary?.minimumActivationSamples !== 289
@@ -61,6 +61,8 @@ export async function validateCandidateLineageCapture(contract) {
     violations.push("unified_observation_boundary");
   }
   if (contract.historicalTruthBoundary?.legacyV2ContractsPreserved !== true
+      || contract.historicalTruthBoundary?.cycle5V3ContractsPreserved !== true
+      || contract.historicalTruthBoundary?.cycle5V3AcceptedAsCycle6PassEvidence !== false
       || contract.historicalTruthBoundary?.historicalObservationCanBeRelabeled !== false
       || contract.historicalTruthBoundary?.historicalControlsUsedAsCurrentPassEvidence !== false
       || contract.historicalTruthBoundary?.historicalControlsPreservedInDatabaseLineage !== true) {
@@ -71,7 +73,7 @@ export async function validateCandidateLineageCapture(contract) {
       || contract.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
       || contract.databaseBoundary?.controlLineageStartsAtCycleOne !== true
       || contract.databaseBoundary?.controlLineageEndsAtCurrentCycle !== true
-      || contract.databaseBoundary?.controlLineageExactCount !== 5
+      || contract.databaseBoundary?.controlLineageExactCount !== 6
       || contract.databaseBoundary?.controlLineageExactCountDerivedFromMigrationId !== true
       || contract.databaseBoundary?.controlLineageStrictlyAdjacent !== true
       || contract.databaseBoundary?.historicalControls !== "legacy_frozen_even_epoch"

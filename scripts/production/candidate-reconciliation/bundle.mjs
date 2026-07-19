@@ -27,9 +27,9 @@ export { PACKAGE_ID };
 
 const execFileAsync = promisify(execFile);
 export const EXECUTION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v3.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v4.json";
 export const PREPARATION_CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3.json";
+  "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v4.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
@@ -147,8 +147,8 @@ function validateLineageContract(contract, violations) {
   const boundary = contract.prerequisites;
   if (boundary?.lineageSchemaVersion !== LINEAGE_SCHEMA
       || boundary?.lineageStatus !== LINEAGE_PASS
-      || boundary?.migrationId !== "candidate-episode-v1-cycle-5"
-      || boundary?.sourceReleaseWindowsExact !== 5
+      || boundary?.migrationId !== "candidate-episode-v1-cycle-6"
+      || boundary?.sourceReleaseWindowsExact !== 6
       || boundary?.sourceReleaseWindowsDerivedFromMigrationId !== true
       || boundary?.minimumActivationSamples !== 289
       || boundary?.minimumActivationHours !== 24
@@ -160,7 +160,10 @@ function validateLineageContract(contract, violations) {
       || boundary?.lineageSemanticProvenanceHashesRequired !== 3
       || boundary?.completeDatabaseControlLineageRequired !== true
       || boundary?.newExactRequestRequired !== true
-      || boundary?.historicalActivationEvidenceAllowed !== false) violations.push("lineage_prerequisites");
+      || boundary?.historicalActivationEvidenceAllowed !== false
+      || boundary?.cycle5V3AcceptedAsCycle6PassEvidence !== false) {
+    violations.push("lineage_prerequisites");
+  }
 }
 
 export async function validateProductionExecutionContract(root = process.cwd()) {
@@ -173,7 +176,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   const runnerArtifact = await artifact(root, execution.runnerArtifact?.files ?? []);
   const violations = [];
   if (execution.schemaVersion
-      !== "wp-g0.2-current-cycle-unified-reconciliation-production-packet.v3"
+      !== "wp-g0.2-current-cycle-unified-reconciliation-production-packet.v4"
       || execution.packageId !== PACKAGE_ID
       || execution.productionAuthorization !== false
       || execution.productionExecuted !== false) violations.push("production_truth");
@@ -207,7 +210,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   if (execution.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || execution.databaseBoundary?.transactionReadOnly !== true
       || execution.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
-      || execution.databaseBoundary?.controlLineageExactCount !== 5
+      || execution.databaseBoundary?.controlLineageExactCount !== 6
       || execution.databaseBoundary?.controlLineageCountDerivedFromMigrationId !== true
       || execution.databaseBoundary?.minimumComparedWrites !== 10_000
       || execution.databaseBoundary?.maximumDifferences !== 0
@@ -238,14 +241,14 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || execution.transport?.lineageProvenanceHashesRequired !== 3
       || execution.transport?.outputEvidencePreserved !== true) violations.push("transport_boundary");
   if (preparation.schemaVersion
-        !== "wp-g0.2-current-cycle-unified-reconciliation-refresh-local-superpackage.v3"
+        !== "wp-g0.2-current-cycle-unified-reconciliation-refresh-local-superpackage.v4"
       || preparation.packageId
         !== "WP-G0.2-CURRENT-CYCLE-UNIFIED-RECONCILIATION-REFRESH-LOCAL-SUPERPACKAGE"
       || preparation.productionAuthorization !== false
       || preparation.productionExecuted !== false
       || preparation.runnerArtifact?.sha256 === undefined
       || preparation.lineageBoundary?.schemaVersion !== LINEAGE_SCHEMA
-      || preparation.lineageBoundary?.sourceReleaseWindowsExact !== 5
+      || preparation.lineageBoundary?.sourceReleaseWindowsExact !== 6
       || preparation.lineageBoundary?.sourceReleaseWindowsDerivedFromMigrationId !== true
       || preparation.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
       || preparation.comparison?.minimumComparedWrites !== 10_000

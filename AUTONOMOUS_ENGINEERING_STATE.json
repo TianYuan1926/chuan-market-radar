@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T08:07:00+08:00",
+  "updatedAt": "2026-07-19T08:47:51+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -14,20 +14,20 @@
     "runtimeIdentityPreflight": "pass_local_and_production_exact_request_consumed_successfully",
     "runtimeIdentityProduction": "pass_runtime_identity_and_permission_7_samples_1851_seconds_continuous_ready_fresh_three_noinherit_logins_three_fixed_memberships_three_candidate_urls_zero_privileged_logins_zero_feature_flags_candidate_dormant_worker_absent",
     "activationObservationPreparation": "cycle6_immediate_activation_pass_production_head_72ee289_clean_detached_web_29f4e440_worker_19a5d021_first_v3_bracket_sample_pass_observer_active_waiting_24h_289_samples_10000_writes",
-    "reconciliationPreparation": "current_cycle_v3_local_targeted_pass_postgres16_five_controls_10020_writes_2004_each_zero_difference_readonly_audit_role_production_not_connected_waiting_cycle5_observer_and_production_lineage_pass_shadow_verify_false_g0_false",
+    "reconciliationPreparation": "cycle6_v4_local_targeted_pass_postgres16_six_controls_10020_writes_distribution_1670_0_1670_0_1670_5010_zero_difference_readonly_audit_role_production_not_connected_waiting_cycle6_final_and_production_lineage_pass_shadow_verify_false_g0_false",
     "canonicalCompatPreparation": "pass_local_superpackage_committed_pushed_194ccf3_production_not_connected_canonical_authority_false",
-    "g0SecurityReleaseIncidentPreparation": "completed_local_superpackage_committed_pushed_d2ee45f_production_blocked",
-    "reconciliationProductionPacket": "pass_local_current_cycle_v3_packet_runner_artifact_fa1a3708_execution_artifact_021ec7aef_single_lineage_evidence_only_exact_five_windows_deterministic_redacted_transport_production_not_executed_waiting_cycle5_observer_and_production_lineage_pass",
+    "g0SecurityReleaseIncidentPreparation": "historical_local_superpackage_d2ee45f_current_total_contract_stale_declared_artifact_2fbcec_current_9888cd_requires_refresh_production_blocked",
+    "reconciliationProductionPacket": "pass_local_cycle6_v4_packet_runner_artifact_fa1a3708_execution_artifact_3a3c9b97_single_lineage_evidence_only_exact_six_windows_deterministic_redacted_transport_production_not_executed_waiting_cycle6_final_and_production_lineage_pass",
     "shadowVerifyRuntimeWiring": "completed_local_committed_pushed_a9f4fea_production_not_deployed_canonical_authority_false",
     "validationCycleContinuation": "cycle6_production_started_commit_72ee289_tree_bb1492d5_request_21f60032_preflight_381a2638_bundle_5d3a312b_immediate_pass_observer_active",
     "validationCycleContinuationProductionPacket": "pass_immediate_cycle6_continuation_previous_cycle5_legacy_frozen_epoch2_active_cycle6_shadow_capture_epoch1_deadline_reset_true_episodes596_events4602_outbox9204_unresolved0_observation_not_final",
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
-    "freshVerificationCycleLineageCapture": "pass_local_current_cycle_v3_refresh_postgres16_five_controls_10020_writes_release_distribution_2505_0_2505_0_5010_readonly_audit_role_production_not_connected_observer_unchanged",
-    "freshVerificationCycleLineageProductionPacket": "pass_local_current_cycle_v3_packet_local_runner_837f8c16_execution_artifact_075d8ad05_exact_five_windows_deterministic_redacted_bundle_production_not_executed_waiting_cycle5_observer_dual_gate_pass",
-    "shadowVerifyCodeAuthorization": "current_cycle_v3_dependency_refresh_local_targeted_pass_accepts_only_exact_five_window_lineage_and_zero_difference_reconciliation_production_not_connected_not_deployed_phase_not_changed",
+    "freshVerificationCycleLineageCapture": "pass_local_cycle6_v4_refresh_postgres16_six_controls_10020_writes_release_distribution_1670_0_1670_0_1670_5010_readonly_audit_role_production_not_connected_observer_unchanged",
+    "freshVerificationCycleLineageProductionPacket": "pass_local_cycle6_v4_packet_local_runner_837f8c16_execution_artifact_42f57434_exact_six_windows_deterministic_redacted_bundle_production_not_executed_waiting_cycle6_final",
+    "shadowVerifyCodeAuthorization": "stale_cycle5_v3_five_window_and_old_production_identity_dependency_requires_cycle6_v4_refresh_production_not_connected_not_deployed_phase_not_changed",
     "shadowVerifyCodeAuthorizationProductionRelease": "current_cycle_v3_dependency_refresh_committed_pushed_2c8bf776_gate21_pass_old_release_target_54837d0_to_eb48827_stale_against_production_94b6d415_exact_three_code_blobs_already_present_code_presence_identity_remediation_active",
-    "shadowVerifyPhaseTransitionAndDualReadObservation": "current_cycle_v3_dependency_refresh_local_targeted_pass_production_not_connected_phase_not_changed_observation_not_started",
-    "canonicalCompatPhaseTransitionAndObservation": "current_cycle_v2_local_implementation_and_precommit_gates_pass_code_presence_r0_then_dynamic_independent_r2_single_upload_single_outer_unit_exact_five_cycle_v3_lineage_reconciliation_and_289_sample_24h_dual_read_required_production_not_connected_phase_not_changed_observation_not_started_waiting_shadow_verify_final",
+    "shadowVerifyPhaseTransitionAndDualReadObservation": "stale_cycle5_five_window_contract_and_conflicting_old_production_identity_requires_cycle6_v5_refresh_production_not_connected_phase_not_changed_observation_not_started",
+    "canonicalCompatPhaseTransitionAndObservation": "stale_cycle5_five_window_dependency_requires_cycle6_refresh_previous_local_evidence_historical_only_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalRollbackStateMachineRemediation": "completed_local_committed_pushed_5e777e4_postcommit_autonomy_12_of_12_migration_010_sha_2ae3247a_production_not_applied_canonical_cutover_blocked",
     "canonicalRollbackSafetyProductionAddSchema": "completed_production_pass_commit_26d01d1_bundle_9b7ac0e9_request_6e5ed1b4_migration_rows_10_function_owner_candidate_migration_role_least_privilege_business_data_unchanged_git_compose_env_services_containers_unchanged_lease_token13_released_evidence_retained_temp_cleanup_complete_independent_verify_pass",
     "legacyPendingDrainRemediation": "superseded_source_lane_classification_old_local_rehearsal_did_not_model_candidate_event_outbox_production_guard_now_requires_legacy_pending_and_rejects_actual_candidate_event_only_shape",
@@ -168,11 +168,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CYCLE-6-PRODUCTION-OBSERVATION-CLOSEOUT",
-    "title": "Cycle-6 production observation and evidence closeout",
+    "id": "WP-G0.2-CYCLE-6-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH",
+    "title": "Cycle-6 six-window lineage and reconciliation dependency refresh",
     "lane": "localPreparation",
-    "status": "ready_for_gate",
-    "objective": "维护Cycle-6正式生产观察真值、机器证据和失败边界，并在不修改生产观察门槛的前提下准备后续G0本地交接。",
+    "status": "targeted_pg16_baseline_security_pass_ready_for_commit",
+    "objective": "把仍写死Cycle-5和五窗口的Current-Cycle Lineage/Reconciliation外围合同刷新为Cycle-6六窗口精确合同，同时保留旧历史证据并保持全部只读、样本和零差异门槛。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -183,7 +183,19 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "reports/wp-g0-2-cycle-6-closure-train-production-launch/**"
+      "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v4.json",
+      "scripts/governance/candidate-lineage-capture.mjs",
+      "scripts/governance/candidate-lineage-capture.test.mjs",
+      "scripts/governance/candidate-reconciliation-runner.mjs",
+      "scripts/governance/candidate-reconciliation-runner.test.mjs",
+      "scripts/production/candidate-lineage/**",
+      "scripts/production/candidate-reconciliation/**",
+      "scripts/rehearsal/candidate-lineage-postgres16.sh",
+      "scripts/rehearsal/candidate-reconciliation-postgres16.sh",
+      "reports/wp-g0-2-cycle-6-lineage-reconciliation-dependency-refresh/**"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -202,12 +214,28 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "reports/wp-g0-2-cycle-6-closure-train-production-launch/WP_G0_2_CYCLE_6_PRODUCTION_LAUNCH_REPORT.md"
+      "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v4.json",
+      "scripts/governance/candidate-lineage-capture.mjs",
+      "scripts/governance/candidate-reconciliation-runner.mjs",
+      "scripts/production/candidate-lineage/runner.mjs",
+      "scripts/production/candidate-reconciliation/runner.mjs",
+      "reports/wp-g0-2-cycle-6-lineage-reconciliation-dependency-refresh/WP_G0_2_CYCLE_6_LINEAGE_RECONCILIATION_DEPENDENCY_REFRESH_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:cycle-continuation:validate",
-        "test:candidate-cycle-continuation-production-packet",
+        "candidate:lineage-capture:validate",
+        "test:candidate-lineage-capture",
+        "candidate:lineage-production:validate",
+        "test:candidate-lineage-production-packet",
+        "candidate:lineage-capture:pg16-rehearsal",
+        "candidate:reconciliation-runner:validate",
+        "test:candidate-reconciliation-runner",
+        "candidate:reconciliation-production:validate",
+        "test:candidate-reconciliation-production-packet",
+        "candidate:reconciliation-runner:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -224,10 +252,12 @@
       ]
     },
     "completionBoundary": [
-      "Cycle-6必须从零满足24小时、289样本、10000真实写入、1800秒、7样本、2次推进和最大600秒间隔",
-      "首条v3样本和immediate PASS只证明观察正确启动，不等于Cycle-6出口PASS",
-      "数据库前后快照、Candidate monitor、health和release identity任一漂移都必须失败并保留证据",
-      "G0主步骤只能在Cycle-6最终生产出口PASS后从7减为6",
+      "Cycle-6 final必须从289个原始样本重算并同时满足24小时、10000真实写入、1800秒、7样本、2次推进和最大600秒间隔",
+      "数据库控制必须精确六条且Cycle-1至Cycle-5为连续legacy frozen偶数epoch，Cycle-6为唯一shadow_capture active奇数epoch",
+      "Lineage sourceReleaseCount和Reconciliation sourceReleaseCount必须精确等于migration推导的6",
+      "Reconciliation必须逐行比较至少10000条且difference、duplicate、outside lineage、unresolved全部为0",
+      "旧v3 Cycle-5合同和历史失败证据保留且不能作为Cycle-6 PASS输入",
+      "本地PASS不得包装为生产Lineage、Reconciliation、Shadow Verify或G0 PASS",
       "观察期间禁止修改scan、analysis、strategy、RR、Risk Gate、trade plan和backtest边界",
       "formal backtest禁止运行"
     ],
@@ -240,7 +270,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "以24小时、289样本和10000次真实写入证明Candidate生命周期捕获可持续、无未解决outbox且不污染生产排序。"
+      "measurableOutcome": "以六条连续控制窗口和至少10000条逐行零差异对账，为Cycle-6结束后的自动Shadow Verify交接提供不可伪造的只读证据。"
     }
   },
   "approvals": [
@@ -697,7 +727,14 @@
       "order": 63,
       "id": "WP-G0.2-CYCLE-6-PRODUCTION-OBSERVATION-CLOSEOUT",
       "lane": "localPreparation",
-      "status": "ready_for_gate",
+      "status": "completed_local_committed_pushed_6fe2ce5_production_observer_active",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 64,
+      "id": "WP-G0.2-CYCLE-6-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH",
+      "lane": "localPreparation",
+      "status": "targeted_pg16_baseline_security_pass_ready_for_commit",
       "requiresExplicitApproval": false
     }
   ]
