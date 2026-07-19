@@ -330,15 +330,17 @@ function buildContext({
   if (startedMs >= nowMs || deadlineMs <= startedMs || updatedMs < startedMs || updatedMs > nowMs) {
     throw new Error("candidate_read_control_time_boundary_invalid");
   }
-  if (controlPhase !== "legacy" && controlPhase !== "canonical" && nowMs > deadlineMs) {
+  const frozenCanonicalCompat = controlPhase === "canonical_compat" && row.write_frozen === true;
+  if (controlPhase !== "legacy" && controlPhase !== "canonical"
+      && nowMs > deadlineMs && !frozenCanonicalCompat) {
     throw new Error("candidate_read_control_deadline_expired");
   }
   if (generatedMs > updatedMs
       || updatedMs - generatedMs > CANDIDATE_READ_AUTHORITY_APPROVAL_MAXIMUM_AGE_MS) {
     throw new Error("candidate_read_authority_manifest_approval_window_invalid");
   }
-  if (typeof row.write_frozen !== "boolean"
-      || (controlPhase === "legacy" ? row.write_frozen !== true : row.write_frozen !== false)) {
+  const writeFrozenRequired = controlPhase === "legacy" || controlPhase === "canonical_compat";
+  if (typeof row.write_frozen !== "boolean" || row.write_frozen !== writeFrozenRequired) {
     throw new Error("candidate_read_control_freeze_boundary_invalid");
   }
   if (approvalDigest !== hash(rawManifest)) {

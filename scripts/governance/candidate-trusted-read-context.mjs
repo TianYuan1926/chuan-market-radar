@@ -90,7 +90,12 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
       || runtime.checkpointKind !== "24h"
       || runtime.cohortFromControlStartedAt !== true
       || runtime.asOfFromDatabaseClock !== true
-      || runtime.codeCanonicalReadAllowed !== true) {
+      || runtime.codeCanonicalReadAllowed !== true
+      || runtime.canonicalCompatWriteFrozenRequired !== true
+      || runtime.canonicalCompatReadAllowedAfterImmutableWriteDeadline !== true
+      || runtime.nonCanonicalDeadlineExpiryRejected !== true
+      || runtime.deadlineExtensionAllowed !== false
+      || runtime.candidateWorkerRequiredInCanonicalCompat !== false) {
     violations.push("runtime_boundary");
   }
   for (const key of [
@@ -114,6 +119,8 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
     "candidate_read_runtime_flag_phase_mismatch",
     "candidate_read_runtime_release_mismatch",
     "clock_timestamp() AS database_now",
+    'controlPhase === "canonical_compat" && row.write_frozen === true',
+    'controlPhase === "legacy" || controlPhase === "canonical_compat"',
     "const expectedFingerprint = hashObject",
     "value.authorityFingerprint !== expectedFingerprint",
   ]) if (!source.includes(token)) violations.push(`source_guard_missing:${token}`);
@@ -130,7 +137,9 @@ export async function validateCandidateTrustedReadContextPreparation(contract) {
     "manifest_digest_mismatch_allowed", "manifest_unknown_fields_allowed",
     "request_controls_authority", "runtime_release_mismatch_allowed",
     "runtime_flag_phase_mismatch_allowed", "authority_drift_result_returned",
-    "stale_control_fallback", "existing_api_route_change", "frontend_change",
+    "stale_control_fallback", "canonical_compat_unfrozen_read",
+    "noncanonical_expired_deadline_read", "deadline_extension",
+    "existing_api_route_change", "frontend_change",
     "production_connection", "database_mutation", "migration_change", "compose_change",
     "feature_flag_change", "trade_plan_creation", "production_ranking_mutation",
     "automatic_phase_advance", "formal_backtest",
