@@ -27,7 +27,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-5-read-only-verification-superwindow.v1.json";
+  "docs/governance/wp-g0-2-current-cycle-read-only-verification-superwindow.v2.json";
 const POLICY_PATH = "scripts/governance/autonomy-policy.mjs";
 const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
@@ -89,13 +89,22 @@ async function artifact(root, files) {
 export async function validateContract(root = process.cwd()) {
   const contractBytes = await readFile(resolve(root, CONTRACT_PATH));
   const contract = JSON.parse(contractBytes);
-  ensure(contract.schemaVersion === "wp-g0.2-cycle-5-read-only-verification-superwindow.v1"
+  ensure(contract.schemaVersion === "wp-g0.2-current-cycle-read-only-verification-superwindow.v2"
       && contract.packageId === PACKAGE_ID
       && contract.status === "PASS_LOCAL_CONTRACT_READY_FOR_COMMIT_BOUND_PACKET",
   "contract_identity_invalid");
   ensure(JSON.stringify(contract.sequence) === JSON.stringify([
     "shadow_verify_code_presence", "current_cycle_lineage", "current_cycle_reconciliation",
   ]), "contract_sequence_invalid");
+  const production = contract.productionIdentity;
+  ensure(production.commit === "72ee289388eea922d0aee58fd4ec7a3f18a91007"
+      && production.tree === "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
+      && production.migrationId === "candidate-episode-v1-cycle-6"
+      && production.releaseId === "candidate-shadow-cycle-6-72ee2893"
+      && production.buildRecordPath
+        === "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
+      && production.buildRecordSchema === "candidate-cycle-target-images.v1",
+  "contract_production_identity_invalid");
   const boundary = contract.executionBoundary;
   ensure(boundary.actionClass === "read_only_production_preflight"
       && boundary.riskTier === "R0_READ_ONLY"
@@ -109,12 +118,16 @@ export async function validateContract(root = process.cwd()) {
     "migrationAllowed", "canonicalAuthorityChangeAllowed", "automaticG0CompletionAllowed",
   ]) ensure(boundary[key] === false, `contract_mutation_allowed:${key}`);
   const quality = contract.qualityBoundary;
-  ensure(quality.cycle5FinalPassRequired === true
-      && quality.cycle5MinimumComparedWrites === 10_000
-      && quality.cycle5MinimumActivationSamples === 289
-      && quality.cycle5MinimumActivationHours === 24
-      && quality.cycle5MaximumSampleGapSeconds === 600
-      && quality.cycle5UnresolvedOutboxExact === 0
+  ensure(quality.currentCycleFinalPassRequired === true
+      && quality.currentCycleMigrationId === "candidate-episode-v1-cycle-6"
+      && quality.sourceReleaseWindowsExact === 6
+      && quality.sourceReleaseWindowsDerivedFromMigrationId === true
+      && quality.minimumComparedWrites === 10_000
+      && quality.minimumActivationSamples === 289
+      && quality.minimumActivationHours === 24
+      && quality.maximumSampleGapSeconds === 600
+      && quality.unresolvedOutboxExact === 0
+      && quality.cycle5EvidenceAcceptedAsCurrentPass === false
       && quality.childContractsRemainIndependent === true
       && quality.childEvidenceRemainsIndependent === true
       && quality.childAuthorizationsRemainIndependent === true
@@ -237,7 +250,7 @@ export async function buildTransportBundle({
     const runnerArtifact = await artifact(payloadRoot, RUNNER_FILES);
     const transportArtifact = await artifact(payloadRoot, TRANSPORT_FILES);
     const manifest = {
-      schemaVersion: "wp-g0.2-cycle-5-read-only-superwindow-transport.v1",
+      schemaVersion: "wp-g0.2-current-cycle-read-only-superwindow-transport.v2",
       packageId: PACKAGE_ID,
       approvalEligible,
       sourceCommit: identity.sourceCommit,
@@ -284,14 +297,14 @@ export async function buildTransportBundle({
     });
     ensure(Buffer.isBuffer(bytes), "bundle_not_binary");
     const outputPath = resolve(output ?? join(root,
-      "reports/wp-g0-2-cycle-5-read-only-verification-superwindow",
-      `cycle5-readonly-superwindow-${identity.sourceCommit.slice(0, 12)}.tar.gz`));
+      "reports/wp-g0-2-current-cycle-read-only-verification-superwindow",
+      `current-cycle-readonly-superwindow-${identity.sourceCommit.slice(0, 12)}.tar.gz`));
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, bytes, { mode: 0o600 });
     return {
       status: approvalEligible
-        ? "PASS_FINAL_CYCLE_5_READ_ONLY_SUPERWINDOW_TRANSPORT"
-        : "PASS_LOCAL_CYCLE_5_READ_ONLY_SUPERWINDOW_TEMPLATE",
+        ? "PASS_FINAL_CURRENT_CYCLE_READ_ONLY_SUPERWINDOW_TRANSPORT"
+        : "PASS_LOCAL_CURRENT_CYCLE_READ_ONLY_SUPERWINDOW_TEMPLATE",
       output: outputPath,
       sha256: hash(bytes),
       sizeBytes: bytes.length,
@@ -312,7 +325,7 @@ export async function verifyStagedTransport(root, manifest, { requireApproval = 
     "transportArtifactSha256", "transportBundleSha256", "transportMethod",
   ];
   ensure(exactKeys(manifest, expectedKeys), "transport_manifest_keys_mismatch");
-  ensure(manifest.schemaVersion === "wp-g0.2-cycle-5-read-only-superwindow-transport.v1"
+  ensure(manifest.schemaVersion === "wp-g0.2-current-cycle-read-only-superwindow-transport.v2"
       && manifest.packageId === PACKAGE_ID && (!requireApproval || manifest.approvalEligible === true),
   "transport_manifest_identity_invalid");
   ensure(manifest.containsSecrets === false && manifest.productionMutationAllowed === false

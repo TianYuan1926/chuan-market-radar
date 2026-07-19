@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T08:50:20+08:00",
+  "updatedAt": "2026-07-19T09:31:10+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -24,6 +24,8 @@
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
     "freshVerificationCycleLineageCapture": "pass_local_cycle6_v4_refresh_postgres16_six_controls_10020_writes_release_distribution_1670_0_1670_0_1670_5010_readonly_audit_role_production_not_connected_observer_unchanged",
     "freshVerificationCycleLineageProductionPacket": "pass_local_cycle6_v4_packet_local_runner_837f8c16_execution_artifact_42f57434_exact_six_windows_deterministic_redacted_bundle_production_not_executed_waiting_cycle6_final",
+    "shadowVerifyCodePresence": "pass_local_cycle6_v2_current_production_identity_exact_three_blob_and_real_build_record_bound_runner_fd3f0e8d_10_of_10_production_not_executed_waiting_cycle6_final",
+    "currentCycleReadonlySuperwindow": "pass_local_cycle6_v2_six_window_strict_serial_code_presence_lineage_reconciliation_final_summary_byte_bound_independent_authorizations_lineage_reconciliation_leases_8_of_8_production_not_executed_waiting_cycle6_final",
     "shadowVerifyCodeAuthorization": "stale_cycle5_v3_five_window_and_old_production_identity_dependency_requires_cycle6_v4_refresh_production_not_connected_not_deployed_phase_not_changed",
     "shadowVerifyCodeAuthorizationProductionRelease": "current_cycle_v3_dependency_refresh_committed_pushed_2c8bf776_gate21_pass_old_release_target_54837d0_to_eb48827_stale_against_production_94b6d415_exact_three_code_blobs_already_present_code_presence_identity_remediation_active",
     "shadowVerifyPhaseTransitionAndDualReadObservation": "stale_cycle5_five_window_contract_and_conflicting_old_production_identity_requires_cycle6_v5_refresh_production_not_connected_phase_not_changed_observation_not_started",
@@ -168,11 +170,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CYCLE-6-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH",
-    "title": "Cycle-6 six-window lineage and reconciliation dependency refresh",
+    "id": "WP-G0.2-CYCLE-6-CODE-PRESENCE-AND-READONLY-SUPERWINDOW-REFRESH",
+    "title": "Cycle-6 code presence and read-only verification superwindow refresh",
     "lane": "localPreparation",
-    "status": "completed_local_committed_pushed_f9b55684_production_not_executed",
-    "objective": "把仍写死Cycle-5和五窗口的Current-Cycle Lineage/Reconciliation外围合同刷新为Cycle-6六窗口精确合同，同时保留旧历史证据并保持全部只读、样本和零差异门槛。",
+    "status": "completed",
+    "objective": "把Code Presence和只读超级窗口从旧Cycle-5生产身份与五窗口刷新到当前生产72ee289、Cycle-6六窗口，并保持三个独立R0子包、只读边界和旧历史证据不可冒充。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -183,19 +185,11 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v4.json",
-      "scripts/governance/candidate-lineage-capture.mjs",
-      "scripts/governance/candidate-lineage-capture.test.mjs",
-      "scripts/governance/candidate-reconciliation-runner.mjs",
-      "scripts/governance/candidate-reconciliation-runner.test.mjs",
-      "scripts/production/candidate-lineage/**",
-      "scripts/production/candidate-reconciliation/**",
-      "scripts/rehearsal/candidate-lineage-postgres16.sh",
-      "scripts/rehearsal/candidate-reconciliation-postgres16.sh",
-      "reports/wp-g0-2-cycle-6-lineage-reconciliation-dependency-refresh/**"
+      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v2.json",
+      "docs/governance/wp-g0-2-current-cycle-read-only-verification-superwindow.v2.json",
+      "scripts/production/candidate-shadow-verify-code-presence/**",
+      "scripts/production/candidate-readonly-superwindow/**",
+      "reports/wp-g0-2-cycle-6-code-presence-readonly-superwindow-refresh/**"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -214,28 +208,19 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-refresh-local-superpackage.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-lineage-capture-production-packet.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-refresh-local-superpackage.v4.json",
-      "docs/governance/wp-g0-2-current-cycle-unified-reconciliation-production-packet.v4.json",
-      "scripts/governance/candidate-lineage-capture.mjs",
-      "scripts/governance/candidate-reconciliation-runner.mjs",
-      "scripts/production/candidate-lineage/runner.mjs",
-      "scripts/production/candidate-reconciliation/runner.mjs",
-      "reports/wp-g0-2-cycle-6-lineage-reconciliation-dependency-refresh/WP_G0_2_CYCLE_6_LINEAGE_RECONCILIATION_DEPENDENCY_REFRESH_REPORT.md"
+      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v2.json",
+      "docs/governance/wp-g0-2-current-cycle-read-only-verification-superwindow.v2.json",
+      "scripts/production/candidate-shadow-verify-code-presence/runner.mjs",
+      "scripts/production/candidate-readonly-superwindow/runner.mjs",
+      "scripts/production/candidate-readonly-superwindow/production-runner.sh",
+      "reports/wp-g0-2-cycle-6-code-presence-readonly-superwindow-refresh/WP_G0_2_CYCLE_6_CODE_PRESENCE_READONLY_SUPERWINDOW_REFRESH_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:lineage-capture:validate",
-        "test:candidate-lineage-capture",
-        "candidate:lineage-production:validate",
-        "test:candidate-lineage-production-packet",
-        "candidate:lineage-capture:pg16-rehearsal",
-        "candidate:reconciliation-runner:validate",
-        "test:candidate-reconciliation-runner",
-        "candidate:reconciliation-production:validate",
-        "test:candidate-reconciliation-production-packet",
-        "candidate:reconciliation-runner:pg16-rehearsal",
+        "candidate:shadow-verify-code-presence:validate",
+        "test:candidate-shadow-verify-code-presence",
+        "candidate:readonly-superwindow:validate",
+        "test:candidate-readonly-superwindow",
         "test:autonomy"
       ],
       "baseline": [
@@ -252,12 +237,12 @@
       ]
     },
     "completionBoundary": [
-      "Cycle-6 final必须从289个原始样本重算并同时满足24小时、10000真实写入、1800秒、7样本、2次推进和最大600秒间隔",
-      "数据库控制必须精确六条且Cycle-1至Cycle-5为连续legacy frozen偶数epoch，Cycle-6为唯一shadow_capture active奇数epoch",
-      "Lineage sourceReleaseCount和Reconciliation sourceReleaseCount必须精确等于migration推导的6",
-      "Reconciliation必须逐行比较至少10000条且difference、duplicate、outside lineage、unresolved全部为0",
-      "旧v3 Cycle-5合同和历史失败证据保留且不能作为Cycle-6 PASS输入",
-      "本地PASS不得包装为生产Lineage、Reconciliation、Shadow Verify或G0 PASS",
+      "Code Presence必须绑定production commit 72ee289、tree bb1492d5和实际存在的Cycle-6 target-images-redacted记录",
+      "Readonly Superwindow只接受Cycle-6 final、六窗口Lineage和六窗口零差异Reconciliation",
+      "Code Presence、Lineage和Reconciliation保持独立manifest、request、authorization和evidence；Lineage与Reconciliation另保持独立lease；三个子包严格串行",
+      "旧Cycle-5合同和历史证据保留且不能作为Cycle-6 PASS输入",
+      "三个子包与外层均为R0只读，不得修改Git、镜像、容器、DB、Redis、Worker、env、Compose、phase、manifest、migration或Feature Flag",
+      "本地PASS不得包装为生产Code Presence、Lineage、Reconciliation、Shadow Verify或G0 PASS",
       "观察期间禁止修改scan、analysis、strategy、RR、Risk Gate、trade plan和backtest边界",
       "formal backtest禁止运行"
     ],
@@ -270,7 +255,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "以六条连续控制窗口和至少10000条逐行零差异对账，为Cycle-6结束后的自动Shadow Verify交接提供不可伪造的只读证据。"
+      "measurableOutcome": "以当前生产代码身份、六窗口血缘和至少10000条零差异对账的一次只读超级窗口，消除Cycle-6结束后的人工运输和旧身份误用。"
     }
   },
   "approvals": [
@@ -735,6 +720,13 @@
       "id": "WP-G0.2-CYCLE-6-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH",
       "lane": "localPreparation",
       "status": "completed_local_committed_pushed_f9b55684_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 65,
+      "id": "WP-G0.2-CYCLE-6-CODE-PRESENCE-AND-READONLY-SUPERWINDOW-REFRESH",
+      "lane": "localPreparation",
+      "status": "completed",
       "requiresExplicitApproval": false
     }
   ]

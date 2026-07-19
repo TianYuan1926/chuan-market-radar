@@ -5,7 +5,9 @@ umask 077
 STAGING_DIRECTORY="${1:-}"
 OBSERVATION_FINAL="${2:-}"
 PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
-BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-94b6d415573f-98459433/target-images-record.json"
+EXPECTED_PRODUCTION_COMMIT="72ee289388eea922d0aee58fd4ec7a3f18a91007"
+EXPECTED_PRODUCTION_TREE="bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
+BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
 POSTGRES_ADMIN_ENV="/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
@@ -18,7 +20,7 @@ done
 [[ -n "${STAGING_DIRECTORY}" && -n "${OBSERVATION_FINAL}" ]] \
   || fail usage_production_launch_staging_and_observation_final_required
 ACTUAL_STAGING="$(realpath "${STAGING_DIRECTORY}")"
-[[ "${ACTUAL_STAGING}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle-5-read-only-superwindow-* \
+[[ "${ACTUAL_STAGING}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-current-cycle-read-only-superwindow-* \
   && "${ACTUAL_STAGING}" != "/" && "${ACTUAL_STAGING}" != "${PRODUCTION_ROOT}" \
   && "$(file_mode "${ACTUAL_STAGING}")" == "700" ]] || fail staging_boundary_invalid
 MANIFEST="${ACTUAL_STAGING}/transport-manifest.json"
@@ -46,7 +48,8 @@ done
 jq -e '
   .schemaVersion == "candidate-validation-cycle-observation.v2"
   and .status == "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
-  and .migrationId == "candidate-episode-v1-cycle-5"
+  and .migrationId == "candidate-episode-v1-cycle-6"
+  and .releaseId == "candidate-shadow-cycle-6-72ee2893"
   and (.authorityEpoch >= 1 and (.authorityEpoch % 2) == 1)
   and .samples >= 289 and .activationSamples >= 289
   and .elapsedSeconds >= 86400 and .activationCoverageSeconds >= 86400
@@ -69,7 +72,9 @@ jq -e '
   || fail production_git_not_clean_detached
 PRODUCTION_COMMIT="$(git -C "${PRODUCTION_ROOT}" rev-parse HEAD)"
 PRODUCTION_TREE="$(git -C "${PRODUCTION_ROOT}" rev-parse HEAD^{tree})"
-[[ "$(jq -r '.commit' "${ACTUAL_FINAL}")" == "${PRODUCTION_COMMIT}" ]] \
+[[ "${PRODUCTION_COMMIT}" == "${EXPECTED_PRODUCTION_COMMIT}"
+  && "${PRODUCTION_TREE}" == "${EXPECTED_PRODUCTION_TREE}"
+  && "$(jq -r '.commit' "${ACTUAL_FINAL}")" == "${PRODUCTION_COMMIT}" ]] \
   || fail observation_production_commit_mismatch
 
 sudo -n docker ps >/dev/null 2>&1 || fail docker_unavailable
@@ -85,7 +90,7 @@ jq -e '.ok == true and .health.level == "ready" and .health.scan.freshness == "f
   <<<"${HEALTH}" >/dev/null || fail production_health_not_ready_fresh
 jq -e --arg web "${WEB_IMAGE}" '
   .schemaVersion == "candidate-cycle-target-images.v1"
-  and .webTargetId == $web and .secretsPrinted == false' \
+  and .webImageId == $web and .secretsPrinted == false' \
   "${BUILD_RECORD}" >/dev/null || fail build_record_identity_invalid
 
 WORK="${ACTUAL_STAGING}/request-work"

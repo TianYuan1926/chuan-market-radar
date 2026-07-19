@@ -19,13 +19,13 @@ done
   && "$(file_mode "${REQUEST_FILE}")" == "600" ]] || fail request_invalid
 ACTUAL_ROOT="$(realpath "${SOURCE_ROOT}")"
 [[ "${ACTUAL_ROOT}" == "$(jq -r '.stagingDirectory' "${REQUEST_FILE}")"
-  && "${ACTUAL_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle-5-read-only-superwindow-* ]] \
+  && "${ACTUAL_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-current-cycle-read-only-superwindow-* ]] \
   || fail staging_boundary_invalid
 BUNDLE_SHA256="$(tr -d '\r\n' < "${MARKER}")"
 [[ "${BUNDLE_SHA256}" == "$(jq -r '.transportBundleSha256' "${REQUEST_FILE}")" ]] \
   || fail bundle_binding_invalid
 EVIDENCE_DIRECTORY="$(jq -r '.evidenceDirectory' "${REQUEST_FILE}")"
-[[ "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-5-read-only-superwindow-* \
+[[ "${EVIDENCE_DIRECTORY}" == /home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-current-cycle-read-only-superwindow-* \
   && "${EVIDENCE_DIRECTORY}" != "${ACTUAL_ROOT}" && ! -e "${EVIDENCE_DIRECTORY}" ]] \
   || fail evidence_directory_invalid
 
@@ -101,7 +101,7 @@ cleanup() {
   safe_remove_stage "${LINEAGE_STAGE}" || exit 98
   safe_remove_stage "${RECONCILIATION_STAGE}" || exit 98
   [[ "${WORK_ROOT}" == "${ACTUAL_ROOT}/.superwindow-work"
-    && "${ACTUAL_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle-5-read-only-superwindow-* ]] \
+    && "${ACTUAL_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-current-cycle-read-only-superwindow-* ]] \
     || exit 98
   rm -rf -- "${WORK_ROOT}" "${ACTUAL_ROOT}"
   exit "${exit_code}"
@@ -144,6 +144,16 @@ stage_child_packet() {
   chmod 600 "${stage}/.transport-bundle.sha256"
 }
 
+snapshot_audit_file() {
+  local source="$1"
+  local name="$2"
+  local target="${EVIDENCE_DIRECTORY}/${name}"
+  [[ -f "${source}" && ! -L "${source}" && ! -e "${target}"
+    && "${name}" =~ ^[a-z0-9][a-z0-9-]{7,80}\.(json|jsonl)$ ]] \
+    || fail "audit_snapshot_boundary_invalid:${name}"
+  install -m 0600 "${source}" "${target}"
+}
+
 # Step 1: code-presence. Its independent request and evidence remain intact.
 CODE_ARCHIVE="${ACTUAL_ROOT}/$(jq -r '.childPackets.codePresence.archivePath' "${REQUEST_FILE}")"
 CODE_SHA="$(jq -r '.childPackets.codePresence.sha256' "${REQUEST_FILE}")"
@@ -180,6 +190,10 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --entrypoint node "${WEB_IMAGE}" \
   /packet/scripts/production/candidate-shadow-verify-code-presence/runner.mjs \
     validate /evidence/code-presence-evidence.json >/dev/null
+snapshot_audit_file "${CODE_EXTRACT}/transport-manifest.json" \
+  code-presence-transport-manifest.json
+snapshot_audit_file "${WORK_ROOT}/code-request.json" code-presence-request.json
+snapshot_audit_file "${CODE_EVIDENCE}" code-presence-evidence.json
 safe_remove_stage "${CODE_STAGE}"
 CODE_STAGE=""
 
@@ -225,6 +239,13 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --entrypoint node "${WEB_IMAGE}" \
   /orchestrator/scripts/production/candidate-readonly-superwindow/request-generator.mjs validate-lineage \
     --packet-root /child-packet --evidence "${LINEAGE_EVIDENCE}" >/dev/null
+snapshot_audit_file "${LINEAGE_EXTRACT}/transport-manifest.json" lineage-transport-manifest.json
+snapshot_audit_file "${WORK_ROOT}/lineage-request.json" lineage-request.json
+snapshot_audit_file "${LINEAGE_EVIDENCE}" lineage-evidence.json
+snapshot_audit_file "${LINEAGE_EVIDENCE_DIRECTORY}/production-lease-execution.json" \
+  lineage-lease-execution.json
+snapshot_audit_file "${LINEAGE_EVIDENCE_DIRECTORY}/production-lease-events.jsonl" \
+  lineage-lease-events.jsonl
 
 # Step 3: Reconciliation request is generated only from the exact passing Lineage bytes.
 RECON_ARCHIVE="${ACTUAL_ROOT}/$(jq -r '.childPackets.reconciliation.archivePath' "${REQUEST_FILE}")"
@@ -269,7 +290,7 @@ RECONCILIATION_STAGE=""
 jq -e '
   .schemaVersion == "candidate-multi-cycle-reconciliation-evidence.v3"
   and .status == "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
-  and .sourceReleaseCount == 5 and .verificationMigrationId == "candidate-episode-v1-cycle-5"
+  and .sourceReleaseCount == 6 and .verificationMigrationId == "candidate-episode-v1-cycle-6"
   and .comparedWrites >= 10000 and .comparisonDifferences == 0
   and .automaticPhaseAdvance == false and .phaseTransitionExecuted == false
   and .shadowVerifyTransitionExecuted == false and .canonicalReadEnabled == false
@@ -279,6 +300,14 @@ jq -e '
   and .databaseIdentity.transactionReadOnly == true
   and .databaseIdentity.transactionIsolation == "repeatable read"' \
   "${RECONCILIATION_EVIDENCE}" >/dev/null || fail reconciliation_evidence_not_pass
+snapshot_audit_file "${RECON_EXTRACT}/transport-manifest.json" \
+  reconciliation-transport-manifest.json
+snapshot_audit_file "${WORK_ROOT}/reconciliation-request.json" reconciliation-request.json
+snapshot_audit_file "${RECONCILIATION_EVIDENCE}" reconciliation-evidence.json
+snapshot_audit_file "${RECONCILIATION_EVIDENCE_DIRECTORY}/production-lease-execution.json" \
+  reconciliation-lease-execution.json
+snapshot_audit_file "${RECONCILIATION_EVIDENCE_DIRECTORY}/production-lease-events.jsonl" \
+  reconciliation-lease-events.jsonl
 
 [[ "$(container_snapshot)" == "${CONTAINERS_BEFORE}"
   && -z "$(git -C "${PRODUCTION_ROOT}" status --porcelain)"
@@ -299,22 +328,82 @@ jq -e '.status == 200 and .body.ok == true and .body.health.level == "ready"
 
 SUMMARY="${EVIDENCE_DIRECTORY}/superwindow-final.json"
 jq -n \
-  --arg schemaVersion "wp-g0.2-cycle-5-read-only-verification-superwindow-evidence.v1" \
-  --arg status "PASS_CYCLE_5_READ_ONLY_VERIFICATION_SUPERWINDOW" \
-  --arg packageId "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW" \
+  --arg schemaVersion "wp-g0.2-current-cycle-read-only-verification-superwindow-evidence.v2" \
+  --arg status "PASS_CURRENT_CYCLE_READ_ONLY_VERIFICATION_SUPERWINDOW" \
+  --arg packageId "WP-G0.2-CURRENT-CYCLE-READ-ONLY-VERIFICATION-SUPERWINDOW" \
   --arg productionCommit "${PRODUCTION_COMMIT}" --arg transportBundleSha256 "${BUNDLE_SHA256}" \
+  --arg productionTree "${PRODUCTION_TREE}" --arg productionWebImageId "${WEB_IMAGE}" \
+  --arg migrationId "$(jq -r '.runtime.captureSpecification.unified.migrationId' "${REQUEST_FILE}")" \
+  --arg releaseId "$(jq -r '.runtime.captureSpecification.unified.releaseId' "${REQUEST_FILE}")" \
+  --arg buildRecordSha256 "$(jq -r '.runtime.buildRecordSha256' "${REQUEST_FILE}")" \
+  --arg packetCommit "$(jq -r '.approvedPacketCommit' "${REQUEST_FILE}")" \
+  --arg packetTree "$(jq -r '.approvedPacketTree' "${REQUEST_FILE}")" \
   --arg startedAt "${STARTED_AT}" --arg completedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --arg codePath "${CODE_EVIDENCE}" --arg codeSha "$(sha_file "${CODE_EVIDENCE}")" \
-  --arg lineagePath "${LINEAGE_EVIDENCE}" --arg lineageSha "$(sha_file "${LINEAGE_EVIDENCE}")" \
-  --arg reconciliationPath "${RECONCILIATION_EVIDENCE}" \
-  --arg reconciliationSha "$(sha_file "${RECONCILIATION_EVIDENCE}")" \
+  --arg codeSourcePath "${CODE_EVIDENCE}" --arg codeBundleSha "${CODE_SHA}" \
+  --arg codeManifestSha "$(sha_file "${EVIDENCE_DIRECTORY}/code-presence-transport-manifest.json")" \
+  --arg codeRequestSha "$(sha_file "${EVIDENCE_DIRECTORY}/code-presence-request.json")" \
+  --arg codeEvidenceSha "$(sha_file "${EVIDENCE_DIRECTORY}/code-presence-evidence.json")" \
+  --arg lineageSourcePath "${LINEAGE_EVIDENCE}" --arg lineageBundleSha "${LINEAGE_SHA}" \
+  --arg lineageManifestSha "$(sha_file "${EVIDENCE_DIRECTORY}/lineage-transport-manifest.json")" \
+  --arg lineageRequestSha "$(sha_file "${EVIDENCE_DIRECTORY}/lineage-request.json")" \
+  --arg lineageEvidenceSha "$(sha_file "${EVIDENCE_DIRECTORY}/lineage-evidence.json")" \
+  --arg lineageLeaseExecutionSha "$(sha_file "${EVIDENCE_DIRECTORY}/lineage-lease-execution.json")" \
+  --arg lineageLeaseEventsSha "$(sha_file "${EVIDENCE_DIRECTORY}/lineage-lease-events.jsonl")" \
+  --arg reconciliationSourcePath "${RECONCILIATION_EVIDENCE}" --arg reconciliationBundleSha "${RECON_SHA}" \
+  --arg reconciliationManifestSha "$(sha_file "${EVIDENCE_DIRECTORY}/reconciliation-transport-manifest.json")" \
+  --arg reconciliationRequestSha "$(sha_file "${EVIDENCE_DIRECTORY}/reconciliation-request.json")" \
+  --arg reconciliationEvidenceSha "$(sha_file "${EVIDENCE_DIRECTORY}/reconciliation-evidence.json")" \
+  --arg reconciliationLeaseExecutionSha "$(sha_file "${EVIDENCE_DIRECTORY}/reconciliation-lease-execution.json")" \
+  --arg reconciliationLeaseEventsSha "$(sha_file "${EVIDENCE_DIRECTORY}/reconciliation-lease-events.jsonl")" \
+  --slurpfile codeRequest "${EVIDENCE_DIRECTORY}/code-presence-request.json" \
+  --slurpfile lineageRequest "${EVIDENCE_DIRECTORY}/lineage-request.json" \
+  --slurpfile reconciliationRequest "${EVIDENCE_DIRECTORY}/reconciliation-request.json" \
   '{schemaVersion:$schemaVersion,status:$status,packageId:$packageId,
-    productionCommit:$productionCommit,transportBundleSha256:$transportBundleSha256,
+    packetCommit:$packetCommit,packetTree:$packetTree,productionCommit:$productionCommit,
+    productionTree:$productionTree,productionWebImageId:$productionWebImageId,
+    migrationId:$migrationId,releaseId:$releaseId,buildRecordSha256:$buildRecordSha256,
+    transportBundleSha256:$transportBundleSha256,
     sequence:["shadow_verify_code_presence","current_cycle_lineage","current_cycle_reconciliation"],
     childEvidence:[
-      {step:"shadow_verify_code_presence",status:"PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED",path:$codePath,sha256:$codeSha},
-      {step:"current_cycle_lineage",status:"PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",path:$lineagePath,sha256:$lineageSha},
-      {step:"current_cycle_reconciliation",status:"PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",path:$reconciliationPath,sha256:$reconciliationSha}],
+      {step:"shadow_verify_code_presence",status:"PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED",
+       packageId:"WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION",
+       sourceEvidencePath:$codeSourcePath,transportBundleSha256:$codeBundleSha,
+       manifestFile:"code-presence-transport-manifest.json",manifestSha256:$codeManifestSha,
+       requestFile:"code-presence-request.json",requestSha256:$codeRequestSha,
+       evidenceFile:"code-presence-evidence.json",evidenceSha256:$codeEvidenceSha,
+       authorizationMode:$codeRequest[0].authorization.mode,
+       authorizationSchemaVersion:$codeRequest[0].authorization.schemaVersion,
+       authorizationGrantId:$codeRequest[0].authorization.grantId,
+       authorizationApprovalId:$codeRequest[0].authorization.approvalId,
+       leaseRequired:false,leaseExecutionFile:null,leaseExecutionSha256:null,
+       leaseEventsFile:null,leaseEventsSha256:null,lineageEvidenceSha256:null},
+      {step:"current_cycle_lineage",status:"PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
+       packageId:"WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET",
+       sourceEvidencePath:$lineageSourcePath,transportBundleSha256:$lineageBundleSha,
+       manifestFile:"lineage-transport-manifest.json",manifestSha256:$lineageManifestSha,
+       requestFile:"lineage-request.json",requestSha256:$lineageRequestSha,
+       evidenceFile:"lineage-evidence.json",evidenceSha256:$lineageEvidenceSha,
+       authorizationMode:$lineageRequest[0].autonomyAuthorization.mode,
+       authorizationSchemaVersion:$lineageRequest[0].autonomyAuthorization.schemaVersion,
+       authorizationGrantId:$lineageRequest[0].autonomyAuthorization.grantId,
+       authorizationApprovalId:$lineageRequest[0].autonomyAuthorization.approvalId,
+       leaseRequired:true,leaseExecutionFile:"lineage-lease-execution.json",
+       leaseExecutionSha256:$lineageLeaseExecutionSha,leaseEventsFile:"lineage-lease-events.jsonl",
+       leaseEventsSha256:$lineageLeaseEventsSha,lineageEvidenceSha256:null},
+      {step:"current_cycle_reconciliation",status:"PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+       packageId:"WP-G0.2-CURRENT-CYCLE-UNIFIED-RECONCILIATION-PRODUCTION-PACKET",
+       sourceEvidencePath:$reconciliationSourcePath,transportBundleSha256:$reconciliationBundleSha,
+       manifestFile:"reconciliation-transport-manifest.json",manifestSha256:$reconciliationManifestSha,
+       requestFile:"reconciliation-request.json",requestSha256:$reconciliationRequestSha,
+       evidenceFile:"reconciliation-evidence.json",evidenceSha256:$reconciliationEvidenceSha,
+       authorizationMode:$reconciliationRequest[0].autonomyAuthorization.mode,
+       authorizationSchemaVersion:$reconciliationRequest[0].autonomyAuthorization.schemaVersion,
+       authorizationGrantId:$reconciliationRequest[0].autonomyAuthorization.grantId,
+       authorizationApprovalId:$reconciliationRequest[0].autonomyAuthorization.approvalId,
+       leaseRequired:true,leaseExecutionFile:"reconciliation-lease-execution.json",
+       leaseExecutionSha256:$reconciliationLeaseExecutionSha,
+       leaseEventsFile:"reconciliation-lease-events.jsonl",leaseEventsSha256:$reconciliationLeaseEventsSha,
+       lineageEvidenceSha256:$lineageEvidenceSha}],
     startedAt:$startedAt,completedAt:$completedAt,productionMutationAllowed:false,
     servicesMutated:[],databaseMutation:false,redisMutation:false,workerMutation:false,
     gitMutation:false,environmentMutation:false,composeMutation:false,phaseTransition:false,
@@ -328,4 +417,4 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --entrypoint node "${WEB_IMAGE}" \
   /packet/scripts/production/candidate-readonly-superwindow/runner.mjs \
     validate-summary /evidence/superwindow-final.json >/dev/null
-printf 'PASS_CYCLE_5_READ_ONLY_VERIFICATION_SUPERWINDOW\n'
+printf 'PASS_CURRENT_CYCLE_READ_ONLY_VERIFICATION_SUPERWINDOW\n'

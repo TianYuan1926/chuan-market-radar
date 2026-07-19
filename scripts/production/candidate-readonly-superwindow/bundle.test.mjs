@@ -46,7 +46,7 @@ test("single transport is byte reproducible and each child archive remains hash-
       sourceIdentity,
       approvalEligible: false,
     });
-    assert.equal(first.status, "PASS_LOCAL_CYCLE_5_READ_ONLY_SUPERWINDOW_TEMPLATE");
+    assert.equal(first.status, "PASS_LOCAL_CURRENT_CYCLE_READ_ONLY_SUPERWINDOW_TEMPLATE");
     assert.equal(first.sha256, second.sha256);
     assert.equal(first.manifest.containsSecrets, false);
     assert.equal(first.manifest.productionMutationAllowed, false);

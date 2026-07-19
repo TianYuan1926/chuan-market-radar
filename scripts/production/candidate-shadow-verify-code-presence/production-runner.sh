@@ -52,7 +52,7 @@ fi
   && "$(file_mode "${BUILD_RECORD}")" == "600" \
   && "$(hash_file "${BUILD_RECORD}")" == "$(jq -r '.buildRecordSha256' "${REQUEST_FILE}")" \
   && "$(jq -r '.schemaVersion' "${BUILD_RECORD}")" == "candidate-cycle-target-images.v1" \
-  && "$(jq -r '.webTargetId' "${BUILD_RECORD}")" == "${EXPECTED_WEB_IMAGE}" \
+  && "$(jq -r '.webImageId' "${BUILD_RECORD}")" == "${EXPECTED_WEB_IMAGE}" \
   && "$(jq -r '.secretsPrinted' "${BUILD_RECORD}")" == "false" ]] \
   || fail build_record_identity_invalid
 

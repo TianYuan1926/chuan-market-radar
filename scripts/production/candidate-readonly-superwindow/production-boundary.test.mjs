@@ -29,6 +29,15 @@ test("all production shells parse and preserve the read-only boundary", async ()
   assert.match(source, /child_archive_path_invalid/u);
   assert.match(source, /productionMutationAllowed:false/u);
   assert.match(source, /g0Completed:false/u);
+  assert.match(source, /snapshot_audit_file/u);
+  assert.match(source, /production-lease-execution\.json/u);
+  assert.match(source, /manifestSha256/u);
+  assert.match(source, /requestSha256/u);
+  assert.match(source, /evidenceSha256/u);
+  assert.match(source, /sourceReleaseCount == 6/u);
+  assert.match(source, /candidate-episode-v1-cycle-6/u);
+  assert.doesNotMatch(source, /sourceReleaseCount == 5/u);
+  assert.doesNotMatch(source, /candidate-episode-v1-cycle-5/u);
 });
 
 test("entrypoint starts one bounded unit and never starts child units", async () => {

@@ -5,11 +5,11 @@ import { lstat, readFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-export const PACKAGE_ID = "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW";
-export const CONTRACT_SCHEMA = "wp-g0.2-cycle-5-read-only-verification-superwindow.v1";
-export const REQUEST_SCHEMA = "wp-g0.2-cycle-5-read-only-verification-superwindow-request.v1";
-export const SUMMARY_SCHEMA = "wp-g0.2-cycle-5-read-only-verification-superwindow-evidence.v1";
-export const SUMMARY_PASS = "PASS_CYCLE_5_READ_ONLY_VERIFICATION_SUPERWINDOW";
+export const PACKAGE_ID = "WP-G0.2-CURRENT-CYCLE-READ-ONLY-VERIFICATION-SUPERWINDOW";
+export const CONTRACT_SCHEMA = "wp-g0.2-current-cycle-read-only-verification-superwindow.v2";
+export const REQUEST_SCHEMA = "wp-g0.2-current-cycle-read-only-verification-superwindow-request.v2";
+export const SUMMARY_SCHEMA = "wp-g0.2-current-cycle-read-only-verification-superwindow-evidence.v2";
+export const SUMMARY_PASS = "PASS_CURRENT_CYCLE_READ_ONLY_VERIFICATION_SUPERWINDOW";
 export const OBSERVATION_PASS = "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE";
 export const LINEAGE_PASS = "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH";
 export const RECONCILIATION_PASS =
@@ -24,8 +24,12 @@ export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
   "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env";
+export const PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
+export const PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
+export const PRODUCTION_MIGRATION = "candidate-episode-v1-cycle-6";
+export const PRODUCTION_RELEASE = "candidate-shadow-cycle-6-72ee2893";
 export const BUILD_RECORD_PATH =
-  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-94b6d415573f-98459433/target-images-record.json";
+  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json";
 export const GRANT_ID = "MR-G0-G8-USER-STANDING-GRANT-20260714-034826";
 
 const HASH = /^[0-9a-f]{64}$/u;
@@ -33,10 +37,10 @@ const COMMIT = /^[0-9a-f]{40}$/u;
 const IMAGE = /^sha256:[0-9a-f]{64}$/u;
 const CONTAINER = /^[0-9a-f]{12,64}$/u;
 const STAGING =
-  /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-cycle-5-read-only-superwindow-[a-z0-9][a-z0-9._-]{7,80}$/u;
+  /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-current-cycle-read-only-superwindow-[a-z0-9][a-z0-9._-]{7,80}$/u;
 const EVIDENCE =
-  /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-5-read-only-superwindow-[a-z0-9][a-z0-9._-]{7,100}$/u;
-const UNIT = /^market-radar-cycle5-readonly-superwindow-[a-z0-9][a-z0-9-]{7,48}$/u;
+  /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-current-cycle-read-only-superwindow-[a-z0-9][a-z0-9._-]{7,100}$/u;
+const UNIT = /^market-radar-current-cycle-readonly-superwindow-[a-z0-9][a-z0-9-]{7,48}$/u;
 const OBSERVATION_DIRECTORY =
   /^\/home\/ubuntu\/\.cache\/market-radar-ops\/cycle-continuation-ops\/wp-g0-2-cycle-continuation-[a-z0-9][a-z0-9._-]{7,100}\/observation$/u;
 
@@ -104,8 +108,8 @@ function validateObservationGroup(group, productionCommit) {
   ensure(Number.isSafeInteger(group.authorityEpoch) && group.authorityEpoch >= 1
       && group.authorityEpoch % 2 === 1,
   "capture_group_epoch_invalid");
-  ensure(group.migrationId === "candidate-episode-v1-cycle-5"
-      && /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u.test(group.releaseId ?? ""),
+  ensure(group.migrationId === PRODUCTION_MIGRATION
+      && group.releaseId === PRODUCTION_RELEASE,
   "capture_group_release_invalid");
   for (const key of ["closeoutSha256", "finalSha256", "samplesSha256"]) {
     ensure(HASH.test(group[key] ?? ""), `capture_group_${key}_invalid`);
@@ -129,7 +133,8 @@ export function validateCaptureSpecification(specification, productionCommit) {
 
 export function validateRuntime(runtime) {
   ensure(exactKeys(runtime, RUNTIME_KEYS), "runtime_keys_mismatch");
-  ensure(COMMIT.test(runtime.productionCommit ?? "") && COMMIT.test(runtime.productionTree ?? ""),
+  ensure(runtime.productionCommit === PRODUCTION_COMMIT
+      && runtime.productionTree === PRODUCTION_TREE,
     "runtime_git_identity_invalid");
   ensure(IMAGE.test(runtime.currentWebImageId ?? "")
       && runtime.currentWebImageId === runtime.buildRecordWebImageId
@@ -176,7 +181,7 @@ export async function verifyRuntimeEvidence(runtime) {
   "observation_closeout_invalid");
   const buildRecord = JSON.parse(await readFile(runtime.buildRecordPath, "utf8"));
   ensure(buildRecord.schemaVersion === "candidate-cycle-target-images.v1"
-      && buildRecord.webTargetId === runtime.currentWebImageId
+      && buildRecord.webImageId === runtime.currentWebImageId
       && buildRecord.secretsPrinted === false,
   "build_record_identity_invalid");
   return { final, closeout, buildRecord };
@@ -195,6 +200,8 @@ export function validateObservationFinal(final, runtime) {
   ensure(final.completedWrites >= 10_000 && final.samples >= 289
       && final.activationSamples >= 289 && final.elapsedSeconds >= 86_400
       && final.activationCoverageSeconds >= 86_400
+      && final.minimumComparedWrites === 10_000
+      && final.minimumActivationSamples === 289 && final.minimumActivationHours === 24
       && final.completionAdvances >= 2 && final.unresolvedOutbox === 0
       && final.accumulationReady === true && final.freshActivationReady === true
       && final.thresholdsChanged === false
@@ -253,9 +260,9 @@ export function createExecutionRequest({
     productionRoot: PRODUCTION_ROOT,
     stagingDirectory,
     evidenceDirectory:
-      `/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-5-read-only-superwindow-${suffix}`,
+      `/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-current-cycle-read-only-superwindow-${suffix}`,
     runnerUnitName:
-      `market-radar-cycle5-readonly-superwindow-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
+      `market-radar-current-cycle-readonly-superwindow-${manifest.sourceCommit.slice(0, 7)}-${nonce.replaceAll("-", "").slice(0, 8)}`,
     autonomyTrustRoot: TRUST_ROOT,
     childPackets: structuredClone(manifest.children),
     runtime,
@@ -263,7 +270,7 @@ export function createExecutionRequest({
     approvalExpiresAt: expiresAt.toISOString(),
     operator: "codex-primary",
     authorization: {
-      schemaVersion: "wp-g0.2-read-only-superwindow-authorization.v1",
+      schemaVersion: "wp-g0.2-current-cycle-read-only-superwindow-authorization.v2",
       mode: "g0_g8_standing_user_grant",
       approvedBy: "user_standing_grant",
       grantId: GRANT_ID,
@@ -306,7 +313,8 @@ export async function validateExecutionRequest(request, manifest, bundleSha256, 
   validateChildPackets(request.childPackets, manifest.children);
   validateRuntime(request.runtime);
   ensure(exactKeys(request.authorization, AUTHORIZATION_KEYS)
-      && request.authorization.schemaVersion === "wp-g0.2-read-only-superwindow-authorization.v1"
+      && request.authorization.schemaVersion
+        === "wp-g0.2-current-cycle-read-only-superwindow-authorization.v2"
       && request.authorization.mode === "g0_g8_standing_user_grant"
       && request.authorization.approvedBy === "user_standing_grant"
       && request.authorization.grantId === GRANT_ID
@@ -328,21 +336,143 @@ export async function validateExecutionRequest(request, manifest, bundleSha256, 
   return request;
 }
 
-export function validateFinalSummary(summary) {
+async function readBoundAuditFile(evidenceRoot, file, expectedSha256, label) {
+  ensure(typeof evidenceRoot === "string" && evidenceRoot.length > 0,
+    "summary_evidence_root_required");
+  ensure(/^[a-z0-9][a-z0-9-]{7,80}\.(?:json|jsonl)$/u.test(file ?? ""),
+    `summary_${label}_file_invalid`);
+  const path = resolve(evidenceRoot, file);
+  ensure(dirname(path) === resolve(evidenceRoot), `summary_${label}_path_escape`);
+  await privateRegularFile(path, `summary_${label}_not_private_regular`, 4 * 1024 * 1024);
+  const bytes = await readFile(path);
+  ensure(sha256(bytes) === expectedSha256, `summary_${label}_checksum_mismatch`);
+  return bytes;
+}
+
+function validateChildAuthorization(request, item, summary) {
+  const authorization = item.step === "shadow_verify_code_presence"
+    ? request.authorization
+    : request.autonomyAuthorization;
+  ensure(authorization?.schemaVersion === item.authorizationSchemaVersion
+      && authorization.mode === item.authorizationMode
+      && authorization.grantId === item.authorizationGrantId
+      && authorization.approvalId === item.authorizationApprovalId
+      && authorization.packageId === item.packageId
+      && authorization.scope === item.packageId
+      && authorization.actionClass === "read_only_production_preflight"
+      && authorization.riskTier === "R0_READ_ONLY"
+      && authorization.maxExecutions === 1,
+  `summary_child_authorization_invalid:${item.step}`);
+  ensure(request.transportBundleSha256 === item.transportBundleSha256,
+    `summary_child_transport_binding_invalid:${item.step}`);
+  if (item.step === "shadow_verify_code_presence") {
+    ensure(request.productionCommit === PRODUCTION_COMMIT
+        && request.productionTree === PRODUCTION_TREE
+        && request.currentWebImageId === summary.productionWebImageId
+        && request.buildRecordPath === BUILD_RECORD_PATH,
+    "summary_code_presence_request_identity_invalid");
+  } else if (item.step === "current_cycle_lineage") {
+    const unified = request.captureSpecification?.unified;
+    ensure(request.approvedProductionCommit === PRODUCTION_COMMIT
+        && request.webImageId === summary.productionWebImageId
+        && unified?.commit === PRODUCTION_COMMIT
+        && unified.migrationId === PRODUCTION_MIGRATION
+        && unified.releaseId === PRODUCTION_RELEASE,
+    "summary_lineage_request_identity_invalid");
+  } else {
+    const current = request.sourceReleaseWindows?.at(-1);
+    ensure(request.approvedProductionCommit === PRODUCTION_COMMIT
+        && request.webImageId === summary.productionWebImageId
+        && request.sourceReleaseWindows?.length === 6
+        && current?.migrationId === PRODUCTION_MIGRATION
+        && current.releaseId === PRODUCTION_RELEASE,
+    "summary_reconciliation_request_identity_invalid");
+  }
+  return authorization;
+}
+
+function validateChildEvidence(evidence, item, summary, lineageSha256) {
+  ensure(evidence.status === item.status,
+    `summary_child_evidence_identity_invalid:${item.step}`);
+  if (item.step === "shadow_verify_code_presence") {
+    ensure(evidence.schemaVersion === "candidate-shadow-verify-code-presence-evidence.v1"
+        && evidence.packageId === item.packageId
+        && evidence.productionCommit === PRODUCTION_COMMIT
+        && evidence.productionTree === PRODUCTION_TREE
+        && evidence.targetCommit === PRODUCTION_COMMIT
+        && evidence.targetWebImageId === summary.productionWebImageId
+        && evidence.runningWebMatchesBuildRecord === true
+        && evidence.servicesMutated?.length === 0,
+    "summary_code_presence_evidence_invalid");
+  } else if (item.step === "current_cycle_lineage") {
+    ensure(evidence.schemaVersion === "candidate-multi-cycle-lineage-evidence.v3"
+        && evidence.currentMigrationId === PRODUCTION_MIGRATION
+        && evidence.currentReleaseId === PRODUCTION_RELEASE
+        && evidence.sourceReleaseCount === 6 && evidence.validationCycle === 6
+        && evidence.sourceReleaseWindows?.length === 6
+        && evidence.completedWrites >= 10_000 && evidence.unresolvedOutbox === 0
+        && evidence.g0Completed === false,
+    "summary_lineage_evidence_invalid");
+  } else {
+    ensure(evidence.schemaVersion === "candidate-multi-cycle-reconciliation-evidence.v3"
+        && evidence.verificationMigrationId === PRODUCTION_MIGRATION
+        && evidence.sourceReleaseCount === 6 && evidence.comparedWrites >= 10_000
+        && evidence.comparisonDifferences === 0 && evidence.g0Completed === false
+        && evidence.productionRankingInputsUsed === false
+        && evidence.futureOutcomeInputsUsed === false,
+    "summary_reconciliation_evidence_invalid");
+    ensure(item.lineageEvidenceSha256 === lineageSha256,
+      "summary_reconciliation_lineage_binding_invalid");
+  }
+}
+
+async function validateLeaseEvidence(evidenceRoot, item, authorization) {
+  if (!item.leaseRequired) {
+    ensure(item.leaseExecutionFile === null && item.leaseExecutionSha256 === null
+        && item.leaseEventsFile === null && item.leaseEventsSha256 === null,
+    `summary_unexpected_child_lease:${item.step}`);
+    return;
+  }
+  const [executionBytes, eventsBytes] = await Promise.all([
+    readBoundAuditFile(evidenceRoot, item.leaseExecutionFile,
+      item.leaseExecutionSha256, `${item.step}_lease_execution`),
+    readBoundAuditFile(evidenceRoot, item.leaseEventsFile,
+      item.leaseEventsSha256, `${item.step}_lease_events`),
+  ]);
+  const execution = JSON.parse(executionBytes);
+  ensure(execution.schemaVersion === "market-radar-production-lease-execution.v1"
+      && execution.grantId === authorization.grantId
+      && execution.approvalId === authorization.approvalId
+      && execution.packageId === item.packageId
+      && execution.status === "released" && execution.outcome === "PASS",
+  `summary_child_lease_execution_invalid:${item.step}`);
+  const events = eventsBytes.toString("utf8").trim().split("\n").map(JSON.parse);
+  ensure(events.length >= 4 && events.some((event) => event.status === "consumed")
+      && events.at(-1)?.status === "released" && events.at(-1)?.outcome === "PASS"
+      && events.every((event) => event.leaseId === execution.leaseId),
+  `summary_child_lease_events_invalid:${item.step}`);
+}
+
+export async function validateFinalSummary(summary, evidenceRoot) {
   const keys = [
-    "canonicalAuthorityChanged", "childEvidence", "completedAt", "composeMutation",
-    "databaseMutation", "environmentMutation", "featureFlagMutation", "g0Completed",
-    "gitMutation", "manifestMutation", "migrationMutation", "packageId", "phaseTransition",
-    "productionCommit", "productionMutationAllowed", "redisMutation", "schemaVersion",
-    "sequence", "servicesMutated", "startedAt", "status", "transportBundleSha256",
-    "workerMutation",
+    "buildRecordSha256", "canonicalAuthorityChanged", "childEvidence", "completedAt",
+    "composeMutation", "databaseMutation", "environmentMutation", "featureFlagMutation",
+    "g0Completed", "gitMutation", "manifestMutation", "migrationId", "migrationMutation",
+    "packageId", "packetCommit", "packetTree", "phaseTransition", "productionCommit",
+    "productionMutationAllowed", "productionTree", "productionWebImageId", "redisMutation",
+    "releaseId", "schemaVersion", "sequence", "servicesMutated", "startedAt", "status",
+    "transportBundleSha256", "workerMutation",
   ];
   ensure(exactKeys(summary, keys), "summary_keys_mismatch");
   ensure(summary.schemaVersion === SUMMARY_SCHEMA && summary.status === SUMMARY_PASS
       && summary.packageId === PACKAGE_ID && summary.productionMutationAllowed === false
       && JSON.stringify(summary.sequence) === JSON.stringify(SEQUENCE)
       && Array.isArray(summary.servicesMutated) && summary.servicesMutated.length === 0
-      && COMMIT.test(summary.productionCommit ?? "")
+      && summary.productionCommit === PRODUCTION_COMMIT && summary.productionTree === PRODUCTION_TREE
+      && summary.migrationId === PRODUCTION_MIGRATION && summary.releaseId === PRODUCTION_RELEASE
+      && IMAGE.test(summary.productionWebImageId ?? "")
+      && COMMIT.test(summary.packetCommit ?? "") && COMMIT.test(summary.packetTree ?? "")
+      && HASH.test(summary.buildRecordSha256 ?? "")
       && HASH.test(summary.transportBundleSha256 ?? ""),
   "summary_identity_invalid");
   for (const key of [
@@ -351,20 +481,58 @@ export function validateFinalSummary(summary) {
     "migrationMutation", "phaseTransition", "redisMutation", "workerMutation",
   ]) ensure(summary[key] === false, `summary_mutation_boundary_failed:${key}`);
   const expected = [
-    ["shadow_verify_code_presence", CODE_PRESENCE_PASS],
-    ["current_cycle_lineage", LINEAGE_PASS],
-    ["current_cycle_reconciliation", RECONCILIATION_PASS],
+    ["shadow_verify_code_presence", CODE_PRESENCE_PASS,
+      "WP-G0.2-SHADOW-VERIFY-PRODUCTION-CODE-PRESENCE-IDENTITY-REMEDIATION"],
+    ["current_cycle_lineage", LINEAGE_PASS,
+      "WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET"],
+    ["current_cycle_reconciliation", RECONCILIATION_PASS,
+      "WP-G0.2-CURRENT-CYCLE-UNIFIED-RECONCILIATION-PRODUCTION-PACKET"],
   ];
   ensure(Array.isArray(summary.childEvidence) && summary.childEvidence.length === expected.length,
     "summary_child_evidence_count_invalid");
-  for (const [index, [step, status]] of expected.entries()) {
+  let lineageSha256 = null;
+  const approvalIds = new Set();
+  for (const [index, [step, status, packageId]] of expected.entries()) {
     const item = summary.childEvidence[index];
-    ensure(exactKeys(item, ["path", "sha256", "status", "step"])
-        && item.step === step && item.status === status && HASH.test(item.sha256 ?? "")
+    ensure(exactKeys(item, [
+      "authorizationApprovalId", "authorizationGrantId", "authorizationMode",
+      "authorizationSchemaVersion", "evidenceFile", "evidenceSha256", "leaseEventsFile",
+      "leaseEventsSha256", "leaseExecutionFile", "leaseExecutionSha256", "leaseRequired",
+      "lineageEvidenceSha256", "manifestFile", "manifestSha256", "packageId", "requestFile",
+      "requestSha256", "sourceEvidencePath", "status", "step", "transportBundleSha256",
+    ]) && item.step === step && item.status === status && item.packageId === packageId
+        && HASH.test(item.manifestSha256 ?? "") && HASH.test(item.requestSha256 ?? "")
+        && HASH.test(item.evidenceSha256 ?? "") && HASH.test(item.transportBundleSha256 ?? "")
         && /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-[a-z0-9][a-z0-9._/-]{7,180}\.json$/u
-          .test(item.path ?? ""),
+          .test(item.sourceEvidencePath ?? ""),
     `summary_child_evidence_invalid:${step}`);
+    const [manifestBytes, requestBytes, evidenceBytes] = await Promise.all([
+      readBoundAuditFile(evidenceRoot, item.manifestFile, item.manifestSha256, `${step}_manifest`),
+      readBoundAuditFile(evidenceRoot, item.requestFile, item.requestSha256, `${step}_request`),
+      readBoundAuditFile(evidenceRoot, item.evidenceFile, item.evidenceSha256, `${step}_evidence`),
+    ]);
+    const manifest = JSON.parse(manifestBytes);
+    const request = JSON.parse(requestBytes);
+    const evidence = JSON.parse(evidenceBytes);
+    const schemas = [
+      "wp-g0.2-shadow-verify-code-presence-transport.v2",
+      "wp-g0.2-lineage-capture-transport.v2",
+      "wp-g0.2-current-cycle-reconciliation-transport.v3",
+    ];
+    ensure(manifest.schemaVersion === schemas[index] && manifest.packageId === packageId
+        && manifest.sourceCommit === summary.packetCommit && manifest.sourceTree === summary.packetTree,
+    `summary_child_manifest_invalid:${step}`);
+    const authorization = validateChildAuthorization(request, item, summary);
+    approvalIds.add(authorization.approvalId);
+    validateChildEvidence(evidence, item, summary, lineageSha256);
+    if (step === "current_cycle_lineage") lineageSha256 = item.evidenceSha256;
+    if (step === "current_cycle_reconciliation") {
+      ensure(request.lineageEvidenceSha256 === lineageSha256,
+        "summary_reconciliation_request_lineage_hash_invalid");
+    }
+    await validateLeaseEvidence(evidenceRoot, item, authorization);
   }
+  ensure(approvalIds.size === expected.length, "summary_child_authorizations_not_independent");
   ensure(timestamp(summary.completedAt, "summary_completed_at_invalid")
       >= timestamp(summary.startedAt, "summary_started_at_invalid"),
   "summary_time_order_invalid");
@@ -374,7 +542,8 @@ export function validateFinalSummary(summary) {
 async function main() {
   const [command, file] = process.argv.slice(2);
   ensure(command === "validate-summary" && file, "usage: runner.mjs validate-summary FILE");
-  validateFinalSummary(JSON.parse(await readFile(resolve(file), "utf8")));
+  const summaryPath = resolve(file);
+  await validateFinalSummary(JSON.parse(await readFile(summaryPath, "utf8")), dirname(summaryPath));
   process.stdout.write(`${JSON.stringify({ status: SUMMARY_PASS })}\n`);
 }
 

@@ -14,6 +14,8 @@ import {
 const image = `sha256:${"1".repeat(64)}`;
 const container = "2".repeat(64);
 const buildRecordSha256 = "3".repeat(64);
+const cycle5ProductionCommit = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
+const cycle5ProductionTree = "3d362ceaad05f24f705efe2d871a5a46c3d8704e";
 
 function runtime(overrides = {}) {
   return {
@@ -64,4 +66,19 @@ test("rejects blob, production Git, build record, health, and mutation drift", (
     ...evidence,
     servicesMutated: ["web"],
   }), /code_presence_mutation_boundary_invalid/u);
+});
+
+test("rejects Cycle-5 production identity as current-cycle evidence", () => {
+  assert.throws(() => buildCodePresenceEvidence(runtime({
+    productionCommit: cycle5ProductionCommit,
+    productionTree: cycle5ProductionTree,
+  })), /code_presence_git_identity_invalid/u);
+
+  const current = buildCodePresenceEvidence(runtime());
+  assert.throws(() => validateCodePresenceEvidence({
+    ...current,
+    productionCommit: cycle5ProductionCommit,
+    productionTree: cycle5ProductionTree,
+    targetCommit: cycle5ProductionCommit,
+  }), /code_presence_git_identity_invalid/u);
 });

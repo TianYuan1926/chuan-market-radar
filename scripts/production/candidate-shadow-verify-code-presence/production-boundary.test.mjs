@@ -28,4 +28,6 @@ test("runner has no Git, image, container, database, environment, or phase mutat
   assert.match(source, /test ! -e \/run\/market-radar\/candidate-read-authority\.json/u);
   assert.match(source, /candidate_read_control_unavailable/u);
   assert.match(source, /candidate_read_trusted_context_invalid/u);
+  assert.match(source, /jq -r '\.webImageId'/u);
+  assert.doesNotMatch(source, /jq -r '\.webTargetId'/u);
 });

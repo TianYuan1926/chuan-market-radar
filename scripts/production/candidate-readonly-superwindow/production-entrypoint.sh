@@ -18,7 +18,7 @@ for command_name in docker jq realpath sha256sum sudo; do
 done
 ACTUAL_ROOT="$(realpath "${SOURCE_ROOT}")"
 ACTUAL_REQUEST="$(realpath "${REQUEST_FILE}")"
-[[ "${ACTUAL_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle-5-read-only-superwindow-* \
+[[ "${ACTUAL_ROOT}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-current-cycle-read-only-superwindow-* \
   && "${ACTUAL_ROOT}" != "/" && "${ACTUAL_ROOT}" != "${PRODUCTION_ROOT}"
   && "${ACTUAL_REQUEST}" == "${ACTUAL_ROOT}/approval-request.json"
   && "$(file_mode "${ACTUAL_ROOT}")" == "700" ]] || fail staging_boundary_invalid

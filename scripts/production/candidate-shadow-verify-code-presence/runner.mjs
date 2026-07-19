@@ -10,8 +10,8 @@ export const PACKAGE_ID =
 export const EVIDENCE_SCHEMA = "candidate-shadow-verify-code-presence-evidence.v1";
 export const EVIDENCE_PASS = "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED";
 export const REFERENCE_COMMIT = "eb48827b8b403452328b65dc4b415c3fc0ecf765";
-export const PRODUCTION_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
-export const PRODUCTION_TREE = "3d362ceaad05f24f705efe2d871a5a46c3d8704e";
+export const PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
+export const PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
 
 export const REFERENCE_CODE_PATHS = Object.freeze([
   Object.freeze({
