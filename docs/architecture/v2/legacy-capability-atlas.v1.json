@@ -1,0 +1,240 @@
+{
+  "schemaVersion": "market-radar-legacy-capability-atlas.v1",
+  "reviewedAt": "2026-07-20T02:53:31+08:00",
+  "status": "reviewed_capability_level_baseline",
+  "legacyDeletionAllowed": false,
+  "allowedClassifications": [
+    "EXTRACT",
+    "KEEP_AND_HARDEN",
+    "REFERENCE",
+    "REBUILD",
+    "ISOLATE",
+    "RETIRE"
+  ],
+  "coveragePrefixes": [
+    "src/app",
+    "src/components",
+    "src/data",
+    "src/scripts",
+    "src/lib/alerts",
+    "src/lib/analysis",
+    "src/lib/api",
+    "src/lib/auth",
+    "src/lib/backtest",
+    "src/lib/candidate-episode",
+    "src/lib/config",
+    "src/lib/contracts",
+    "src/lib/decision",
+    "src/lib/external-intel",
+    "src/lib/journal",
+    "src/lib/lifecycle",
+    "src/lib/market",
+    "src/lib/market-regime",
+    "src/lib/persistence",
+    "src/lib/review",
+    "src/lib/risk",
+    "src/lib/runtime",
+    "src/lib/shadow",
+    "src/lib/ui-schema"
+  ],
+  "capabilities": [
+    {
+      "id": "legacy_venue_adapters_and_public_market_access",
+      "paths": ["src/lib/market/providers", "src/lib/market/ohlcv", "deploy/workers/ws-light-scan-worker.mjs"],
+      "classification": "EXTRACT",
+      "value": "Public CEX instrument, ticker, Kline and WebSocket access plus provider failure fixtures.",
+      "defect": "Provider access is not yet confined behind one point-in-time Fact authority; capability and identity semantics differ by caller.",
+      "v2Destination": "universe_registry + market_fact_quality",
+      "deleteGate": "V2 adapters pass pagination, gap, duplicate, reconnect, 429 and schema-drift tests and all Legacy consumers are zero."
+    },
+    {
+      "id": "legacy_universe_registry_and_scan_allocation",
+      "paths": ["src/lib/market/universe-registry.ts", "src/lib/market/instrument-pool.ts", "src/lib/market/scan-batch-queue.ts", "src/lib/market/scan-quota.ts"],
+      "classification": "REBUILD",
+      "value": "Rotation, quota and priority scheduling ideas can inform resource policy.",
+      "defect": "Identity collapses venues into baseAsset+USDT and mixes eligibility, liquidity tier and scan priority.",
+      "v2Destination": "universe_registry + candidate_priority_scheduler",
+      "deleteGate": "100% observed accounting, canonical identity reconciliation and replacement scan scheduling pass Shadow."
+    },
+    {
+      "id": "legacy_scan_detection_and_state_pool",
+      "paths": ["src/lib/market/scan-runtime.ts", "src/lib/market/scan-coordinator.ts", "src/lib/market/scan-state-pool.ts", "src/lib/market/altcoin-opportunities.ts", "src/lib/market/ws-light-scan.ts"],
+      "classification": "ISOLATE",
+      "value": "Existing scheduling, freshness and candidate-pressure behavior is useful as a comparison baseline.",
+      "defect": "Discovery, ranking, state presentation and signal-shaped outputs are not fully separated.",
+      "v2Destination": "multi_opportunity_detection",
+      "deleteGate": "V2 Detector replay and real-time no-write Shadow meet approved recall, precision, lead-time and queue criteria."
+    },
+    {
+      "id": "legacy_data_capability_registry",
+      "paths": ["src/lib/market/data-source-capabilities.ts", "src/lib/market/provider-registry.ts"],
+      "classification": "REBUILD",
+      "value": "Explicit auth/rate-limit/plan failure classifications and truthful unavailable states.",
+      "defect": "Provider set is incomplete, CoinGlass plan and 30/min are hard-coded, and endpoint rights/lineage are not authoritative.",
+      "v2Destination": "source_capability_registry",
+      "deleteGate": "All enabled V2 endpoints have fresh docs review, live probe, schema fingerprint, license and fallback contract."
+    },
+    {
+      "id": "legacy_market_regime",
+      "paths": ["src/lib/market-regime", "src/lib/market/macro-snapshot.ts", "src/lib/market/macro-weather.ts"],
+      "classification": "EXTRACT",
+      "value": "Market breadth/regime concepts and deterministic tests.",
+      "defect": "No single feature/fact cutoff authority shared by every Detector and Analyzer.",
+      "v2Destination": "market_context",
+      "deleteGate": "V2 MarketContext is point-in-time replayable and all detector-specific regime copies are gone."
+    },
+    {
+      "id": "legacy_analysis_v1_v2_v3",
+      "paths": ["src/lib/analysis"],
+      "classification": "REBUILD",
+      "value": "Indicators, key-level, structure, risk and counter-evidence functions can be evaluated for extraction.",
+      "defect": "Multiple generations coexist and several paths mix analysis, score, strategy, entry, stop and target.",
+      "v2Destination": "point_in_time_feature_engine + family_analysis + strategy_construction",
+      "deleteGate": "Per-function extraction registry complete and the single family pipeline passes holdout/Shadow."
+    },
+    {
+      "id": "legacy_unified_decision",
+      "paths": ["src/lib/decision"],
+      "classification": "EXTRACT",
+      "value": "WAIT/BLOCKED/READY separation, complete-plan checks, structural RR floor and anti-false-READY tests.",
+      "defect": "It sits alongside older decision paths and is called from an over-broad frontend contract.",
+      "v2Destination": "execution_feasibility_final_decision",
+      "deleteGate": "Only one V2 writer can produce ActionState and legacy decision consumers are zero."
+    },
+    {
+      "id": "legacy_candidate_episode_authority",
+      "paths": ["src/lib/candidate-episode", "migrations/candidate-episode"],
+      "classification": "EXTRACT",
+      "value": "Serializable transactions, instrument lock, UUIDv7, idempotency, append-only events, outbox and migration safety.",
+      "defect": "Legacy maturity combines candidate, evidence, WAIT, BLOCKED and READY semantics and lacks OpportunityThesis family identity.",
+      "v2Destination": "candidate_lifecycle_opportunity_thesis",
+      "deleteGate": "V2 Episode schema and migration pass rehearsal, lineage, reconciliation, Shadow and authority cutover."
+    },
+    {
+      "id": "legacy_lifecycle",
+      "paths": ["src/lib/lifecycle"],
+      "classification": "ISOLATE",
+      "value": "Existing transition semantics are useful as test cases.",
+      "defect": "Parallel lifecycle authority overlaps Candidate Episode and signal maturity.",
+      "v2Destination": "candidate_lifecycle_opportunity_thesis",
+      "deleteGate": "Consumer scan proves no route, worker or review path reads this lifecycle."
+    },
+    {
+      "id": "legacy_persistence",
+      "paths": ["src/lib/persistence", "src/lib/journal-store.ts", "src/lib/live-store.ts"],
+      "classification": "REBUILD",
+      "value": "Postgres client, record mapping and repository tests contain reusable patterns.",
+      "defect": "DATABASE_URL absence selects memory mode for objects that V2 requires to fail closed; authority scope is broad.",
+      "v2Destination": "v2_operational_truth_repositories",
+      "deleteGate": "Per-schema roles, outbox, unavailable behavior, backup and restore tests pass and no V2 authority can fall back to memory."
+    },
+    {
+      "id": "legacy_frontend_contract_and_api_composition",
+      "paths": ["src/lib/api", "src/lib/radar-contract.ts", "src/lib/frontend-contract-server.test.ts"],
+      "classification": "REBUILD",
+      "value": "Existing API fields and client compatibility cases inform the read migration.",
+      "defect": "A roughly 5,683-line frontend contract mixes aggregation, formatting and decision calls; HTTP success can overstate business truth.",
+      "v2Destination": "decision_read_model",
+      "deleteGate": "All pages consume one DecisionSnapshot and contract/dual-read diff is approved."
+    },
+    {
+      "id": "legacy_application_routes_and_components",
+      "paths": ["src/app", "src/components", "src/data"],
+      "classification": "ISOLATE",
+      "value": "User workflow observations and component behavior are references for the future workbench.",
+      "defect": "Page/SSR paths can trigger data work, and display structures reflect multiple backend truths; mock display data exists in a dedicated data area.",
+      "v2Destination": "decision_read_model + professional_workbench",
+      "deleteGate": "V2 E2E, accessibility, visual and performance gates pass after read-authority cutover."
+    },
+    {
+      "id": "legacy_alerts",
+      "paths": ["src/lib/alerts"],
+      "classification": "EXTRACT",
+      "value": "Cooldown, dedupe and semantic alert-policy tests.",
+      "defect": "Alerts are not yet driven exclusively by immutable DecisionSnapshot state events and attention budgets.",
+      "v2Destination": "alert_delivery",
+      "deleteGate": "Duplicate/stale READY alert count is zero and delivery receipts are authoritative."
+    },
+    {
+      "id": "legacy_review_outcome_and_journal",
+      "paths": ["src/lib/review", "src/lib/journal", "src/lib/shadow"],
+      "classification": "REBUILD",
+      "value": "Outcome checkpoints, missed-opportunity concepts, user journal separation and Shadow evidence patterns.",
+      "defect": "Evaluation, calibration, weight proposals, user review and production-adjacent state are not fully separated by authority.",
+      "v2Destination": "outcome_evaluation + research_governance",
+      "deleteGate": "Frozen Outcome datasets, research registry, no-future-leak tests and promotion separation pass."
+    },
+    {
+      "id": "legacy_backtest_and_golden_defenses",
+      "paths": ["src/lib/backtest", "tools", "docs/backtest-v2"],
+      "classification": "KEEP_AND_HARDEN",
+      "value": "Golden cases, professional audit, missed denominator and future-leak defenses.",
+      "defect": "Legacy metrics and labels are not automatically comparable with the frozen V2 event-label contract.",
+      "v2Destination": "v2_replay_and_evaluation_test_harness",
+      "deleteGate": "Not planned; retain as evidence until V2 replacements exceed retention requirements."
+    },
+    {
+      "id": "legacy_auth_and_private_session",
+      "paths": ["src/lib/auth", "src/app/login", "src/app/api/auth"],
+      "classification": "KEEP_AND_HARDEN",
+      "value": "Private-session baseline and request-security tests.",
+      "defect": "API default-deny and per-role runtime authority are not complete.",
+      "v2Destination": "runtime_security_release_control",
+      "deleteGate": "ASVS matrix, default-deny API and session rotation/logout tests pass."
+    },
+    {
+      "id": "legacy_runtime_observability",
+      "paths": ["src/lib/runtime", "deploy/workers"],
+      "classification": "KEEP_AND_HARDEN",
+      "value": "Worker heartbeat, scan health and production evidence lessons.",
+      "defect": "Liveness, dependency, business readiness, freshness and release validity remain partially conflated.",
+      "v2Destination": "runtime_security_release_control",
+      "deleteGate": "Four health classes and end-to-end trace identities are the sole production contract."
+    },
+    {
+      "id": "legacy_release_migration_and_recovery_governance",
+      "paths": ["deploy", "scripts/production", "scripts/rehearsal", "scripts/verify", "scripts/governance", "scripts/deploy", ".github/workflows"],
+      "classification": "KEEP_AND_HARDEN",
+      "value": "Preflight, bounded mutation, migration rehearsal, release identity, rollback, backup and restore discipline.",
+      "defect": "Many scripts bind historical cycle identities and service-specific packets, increasing drift and audit cost.",
+      "v2Destination": "generic_release_manifest_and_runner",
+      "deleteGate": "Generic runner covers all active release types and historical packets have no runtime consumer."
+    },
+    {
+      "id": "legacy_external_intelligence",
+      "paths": ["src/lib/external-intel"],
+      "classification": "ISOLATE",
+      "value": "Potential discovery context from public intelligence sources.",
+      "defect": "Licensing, latency, manipulation resistance and incremental value are not proven.",
+      "v2Destination": "future_event_context_research_only",
+      "deleteGate": "Independent ADR either promotes a licensed context source or retires the code."
+    },
+    {
+      "id": "legacy_risk_tools",
+      "paths": ["src/lib/risk"],
+      "classification": "EXTRACT",
+      "value": "Account loss, leverage, liquidation and personal position calculations with tests.",
+      "defect": "No authoritative Portfolio Risk module and no guaranteed isolation from system ActionState.",
+      "v2Destination": "personal_risk_lens + portfolio_risk",
+      "deleteGate": "V2 risk views cannot upgrade ActionState and portfolio concentration tests pass."
+    },
+    {
+      "id": "legacy_ui_schema_and_display_adapters",
+      "paths": ["src/lib/ui-schema", "src/lib/ui-schema-guard.ts", "src/lib/frontend-display-adapters.ts", "src/lib/display-format.ts"],
+      "classification": "EXTRACT",
+      "value": "Status dictionary, display naming, formatting and anti-internal-enum tests.",
+      "defect": "Adapters are not yet limited to a single DecisionSnapshot schema.",
+      "v2Destination": "truth_only_frontend_adapter",
+      "deleteGate": "Adapters cannot create direction, score, freshness or plan fields and all pages use the V2 snapshot."
+    },
+    {
+      "id": "legacy_configuration_and_contract_helpers",
+      "paths": ["src/lib/config", "src/lib/contracts", "src/scripts"],
+      "classification": "REFERENCE",
+      "value": "Selected environment and contract patterns may inform V2 adapters.",
+      "defect": "Mixed age and ownership; no blanket inheritance is safe.",
+      "v2Destination": "review_per_consumer",
+      "deleteGate": "Each consumer is classified during its owning V2 package."
+    }
+  ]
+}

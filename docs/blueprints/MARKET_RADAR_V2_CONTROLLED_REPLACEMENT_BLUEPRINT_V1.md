@@ -1,6 +1,6 @@
-# Market Radar V2 受控替换工程与运行蓝图 v1.1
+# Market Radar V2 受控替换工程与运行蓝图 v1.2
 
-状态：`ACTIVE_DESIGN_AUTHORITY / IMPLEMENTATION_NOT_STARTED / PRODUCTION_UNCHANGED`
+状态：`ACTIVE_DESIGN_AUTHORITY / M0_IN_PROGRESS_LOCAL_ONLY / PRODUCTION_UNCHANGED`
 
 设计日期：2026-07-20
 
@@ -8,9 +8,11 @@
 
 本文回答一个问题：怎样把当前 Market Radar 从“可运行但不完整的研究平台”，建设成能够持续覆盖合格合约市场、尽可能提前发现行情、全面识别其他结构机会、形成严格交易计划并通过真实结果持续进化的专业决策系统。
 
-本文是 V2 当前唯一设计权威，但不代表代码已经实现，不代表生产已经变更，不代表系统具备盈利能力，也不构成自动下单授权。任何实现仍必须从 `V2-M0.1` 独立任务包开始并逐 Gate 验证。
+本文是 V2 当前唯一设计权威。M0 已在干净实施分支启动，但只有合同和隔离骨架获得本地证据；这不代表任何市场能力已经实现，不代表生产已经变更，不代表系统具备盈利能力，也不构成自动下单授权。
 
 v1.1 在 v1.0 基础上补齐六个专业缺口：point-in-time 特征权威、Opportunity Thesis 融合、形态质量与证据质量解耦、执行可行性终审、组合风险、Outcome 与 Research 治理分离；同时加入端到端延迟、冷启动、漂移、校准和注意力预算合同。
+
+v1.2 增加干净 Git 基线、生产只读未知状态、爆发行情与提前发现的冻结评价口径、数据许可/成本/回放基线、Legacy Capability Atlas、`src/v2` 物理隔离和可执行施工顺序。当前 M0 进展只证明本地合同边界，不提升生产发现、分析或交易能力。
 
 ---
 
@@ -1202,6 +1204,22 @@ user_execution_deviation / unknown
 
 **目标**：冻结产品语言、十八个 Module Interface、五维状态、数据词典、活跃记忆规则、Legacy atlas 和删除政策。
 
+**正确子包顺序**：
+
+```text
+M0.0 Clean Git Baseline + Production Read-only Truth
+-> M0.1 Product Constitution + Domain/Event Contracts
+-> M0.2 V2 Namespace + Import Fences + CI
+-> M0.3 Legacy Consumer Map + First M1 Vertical Slice Contract
+```
+
+当前事实：
+
+- `M0.0`：`LOCAL_PASS_WITH_PRODUCTION_UNKNOWN`。实施分支从最新 `origin/main` 直接分叉，只移植 V2 权威提交；OrcaTerm 当前无会话/连接配置，生产状态保持 UNKNOWN，生产零命令、零变更。
+- `M0.1`：`LOCAL_PASS_CONTRACT_BASELINE`。五维状态、四类不确定性、18 Module、核心对象 TypeScript 合同、唯一 READY 联合类型、RR validator 和 event-label contract 已通过定向测试。
+- `M0.2`：`LOCAL_PASS_INITIAL_FENCE`。`src/v2` 与 Legacy 双向 import fence、fixture 隔离和独立 CI 测试入口已建立。
+- `M0.3`：`IN_PROGRESS_CONTRACT_FROZEN`。Capability 级 Atlas、首条 M1 test-only fixture 和 M1 任务合同已建立；逐消费者 extraction map 与 runtime schema decoder 尚未完成。
+
 **出口**：所有核心对象有 schema；旧代码逐项标记 EXTRACT/KEEP_AND_HARDEN/REBUILD/ISOLATE/RETIRE；只有一个活跃蓝图和机器矩阵；V2 namespace、测试夹具、依赖规则和 ADR 建立；生产零变更。
 
 ### M1 - Universe, Fact, Feature, Context and Runtime Foundation
@@ -1350,31 +1368,22 @@ V2 historical replay
 
 ---
 
-## 20. 第一执行入口
+## 20. 当前执行入口
 
-本蓝图已成为当前设计权威。实现只从以下入口启动：
+`V2-M0.1` 的合同基线与 `M0.2` 初始 import fence 已获得本地定向测试证据。当前唯一下一包是：
 
 ```text
-V2-M0.1 Product Constitution + Domain Contract Freeze
+V2-M0.3 Remaining: Legacy Consumer Map + Runtime Schema Boundary
 ```
 
 该包只允许：
 
-- 建立 V2 领域词典与 schema。
-- 建立 Legacy Capability Atlas。
-- 建立十八个 Module 的 dependency tests、五维状态和架构规则。
-- 冻结 Point-in-Time Feature、Opportunity Thesis、Execution Feasibility、Portfolio Risk、Outcome 和 Research 的合同。
-- 冻结第一条纵向 slice 的输入、输出和验收 fixture。
-- 给 M1 拆出独立实施任务书。
+- 把 Capability Atlas 展开到实际消费者和 extraction candidate。
+- 为跨进程/存储/API 边界建立 runtime schema decoder 与明确错误语义。
+- 把已经冻结的 M1 纵向 slice 合同绑定到可执行的 runtime decoder 与 M0 出口 validator。
+- 补齐 M0 出口 validator 与机器追踪状态。
 
-该包不允许：
-
-- 修改生产。
-- migration。
-- 把 V2 接入现有页面。
-- 新增 Detector 阈值。
-- 删除 Legacy 运行代码。
-- 宣称系统能力提升。
+该包仍不允许修改生产、执行 migration、接入现有页面、新增 Detector 阈值、删除 Legacy 运行代码或宣称能力提升。
 
 ---
 
@@ -1391,7 +1400,7 @@ V2-M0.1 Product Constitution + Domain Contract Freeze
 
 ## 22. 批准边界
 
-批准本蓝图只表示认可 V2 目标、Module 边界、验收体系、受控替换和建设顺序。
+用户已批准 V2 本地正向实施，因此 `localV2Implementation=true`。该批准认可 V2 目标、Module 边界、验收体系、受控替换和建设顺序，不改变以下独立权限。
 
 它不自动批准：
 

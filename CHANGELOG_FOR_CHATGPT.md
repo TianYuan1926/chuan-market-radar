@@ -2,6 +2,48 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M0 Clean Foundation Start
+
+### 本轮目标
+
+把 V2 从设计授权推进到干净、可验证的工程起点：冻结正确搭建顺序、隔离 Legacy、建立首批领域合同和研究边界，并立即启动 M1 地基纵切契约。
+
+### 修改范围
+
+- 从最新 `origin/main@e5eb900` 创建 `codex/market-radar-v2-implementation`，只带入 V2 当前设计提交，未继承归档分支下的 70 个 Legacy G0 施工提交。
+- 新增 M0 基线 Manifest、干净基线 ADR、Legacy Capability Atlas、事件/提前发现定义、数据能力与回放基线、M1 地基纵切契约。
+- 新增 `src/v2` 产品宪法、18 Module 注册表、状态/不确定性/权威产物合同、Strategy READY 领域语义守卫、评估专用事件标签和显式 synthetic 测试 fixture。
+- 增加 V2 架构边界与合同测试，并接入 `ci:production`；未修改 Legacy 运行逻辑、数据库、Redis、Worker、前端或生产配置。
+
+### 核心链路影响
+
+建立全市场发现之前的身份、事实、质量、特征和上下文地基，并锁死 Candidate 不等于 Signal、未来结果不进入实时链路、只有完整且净 RR 不低于 3:1 的最终决策才能 READY。本轮不声称已具备实战发现能力。
+
+### 测试结果
+
+- `test:v2-foundation`：18/18 PASS。
+- `typecheck`、`lint`、`build`：PASS。build 首次受限网络无法读取现有 Google Fonts，开放构建网络后同一命令 PASS，未改配置规避。
+- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。首次沙箱运行只有 2 个 Worker 因本机监听 EPERM 失败，受控回环环境同一命令重跑后 PASS。
+- `backtest:golden`：16/16 PASS。
+- `ci:forbidden-files`、`ci:secret-patterns`、`security:check`：PASS。
+- `ci:production` 聚合门禁：端到端 PASS，确认 V2 foundation 测试已进入正式流水线。
+- `backtest:formal`：未运行，按规则禁止。
+- production smoke：未运行，生产零变更。
+
+### 是否部署
+
+未部署。腾讯 OrcaTerm 当时显示 0 个已连接会话且无连接配置，因此生产状态保持 `UNKNOWN / NO_ACTIVE_READ_CHANNEL / PRODUCTION_UNCHANGED`。
+
+### 风险与遗留问题
+
+- M0 尚未完成；Legacy Consumer Map、运行时 schema 边界和首条真实数据纵切仍待实现。
+- synthetic fixture 仅用于合同测试，架构测试禁止其进入生产运行时。
+- 当前无法证明腾讯云生产的 fresh health、release identity、Postgres、Redis 或 Worker 状态。
+
+### 下一轮建议
+
+只执行 `V2-M0.3 Remaining: Legacy Consumer Map + Runtime Schema Boundary`；M1 第一纵切合同已冻结，M0 出口通过后再开始真实只读实现。
+
 ## 2026-07-20 / Active Memory, Blueprint v1.1 and Workspace Cleanup
 
 ### 本轮目标
@@ -147,37 +189,3 @@
 ### 下一轮建议
 
 该建议已被后续 Cycle-7 启动执行；当前只保留历史审计价值。
-
-## 2026-07-19 / Cycle-7 Local Handoff Contract Refresh
-
-### 本轮目标
-
-在观察等待期把 Lineage/Reconciliation、Shadow Verify 和 Canonical Compat 的本地合同从旧 Cycle-5/6 身份刷新到 Cycle-7，避免未来现场被旧绑定阻断。
-
-### 修改范围
-
-- 更新 governance validator、production shell、handoff 合同和 boundary tests。
-- 基础、市场、Golden 和安全门禁在当时通过。
-- 未连接或修改生产。
-
-### 核心链路影响
-
-只准备 Candidate 生命周期后续生产 Gate，不新增信号、不改变排序、不生成计划。
-
-### 测试结果
-
-- 相关定向测试和 validator：PASS。
-- `typecheck / lint / test:market / build / backtest:golden`：PASS。
-- production smoke/formal：未运行。
-
-### 是否部署
-
-未部署。
-
-### 风险与遗留问题
-
-本地准备不能冒充生产 Gate PASS；这些 Legacy 合同现在只作历史安全参考。
-
-### 下一轮建议
-
-当前 V2 路线优先；只有明确继续 Legacy 生产关闭线时才重新验证这些包。

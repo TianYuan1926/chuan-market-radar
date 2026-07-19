@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.1",
-  "status": "active_design_authority",
-  "generatedAt": "2026-07-20T02:10:34+08:00",
-  "implementationAuthorized": false,
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.2",
+  "status": "m0_in_progress_local_only",
+  "generatedAt": "2026-07-20T02:53:31+08:00",
+  "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
     "blueprint": "docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md",
@@ -10,7 +10,14 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M0_FOUNDATION_START_DELIVERY_REPORT.md",
+    "buildSequence": "market-radar-v2-build-sequence.md",
+    "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
+    "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
+    "legacyCapabilityAtlas": "docs/architecture/v2/legacy-capability-atlas.v1.json",
+    "eventDefinition": "docs/architecture/v2/EVENT_AND_EARLY_DETECTION_DEFINITION_V1.md",
+    "dataCapabilityBaseline": "docs/architecture/v2/DATA_CAPABILITY_AND_REPLAY_BASELINE_V1.md",
+    "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -29,6 +36,9 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
+    "v2ImplementationStatus": "m0_in_progress_local_only",
+    "v2ImplementationBranch": "codex/market-radar-v2-implementation",
+    "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
     "legacyProductionRole": [
       "temporary_research_baseline",
@@ -540,7 +550,30 @@
       "order": 0,
       "id": "M0",
       "name": "constitution_active_memory_and_legacy_freeze",
-      "productionMutationAllowed": false
+      "productionMutationAllowed": false,
+      "status": "in_progress_local_only",
+      "workPackages": [
+        {
+          "id": "M0.0",
+          "name": "clean_git_baseline_and_production_read_only_truth",
+          "status": "local_pass_with_production_unknown"
+        },
+        {
+          "id": "M0.1",
+          "name": "product_constitution_domain_and_event_contracts",
+          "status": "local_pass_contract_baseline"
+        },
+        {
+          "id": "M0.2",
+          "name": "v2_namespace_import_fences_and_ci",
+          "status": "local_pass_initial_fence"
+        },
+        {
+          "id": "M0.3",
+          "name": "legacy_consumer_map_runtime_schema_and_m1_vertical_slice_contract",
+          "status": "in_progress"
+        }
+      ]
     },
     {
       "order": 1,
@@ -632,7 +665,16 @@
   "firstImplementationEntry": {
     "id": "V2-M0.1",
     "name": "product_constitution_domain_contract_and_legacy_capability_freeze",
-    "requiresUserApproval": true,
+    "status": "local_pass_contract_baseline",
+    "requiresUserApproval": false,
+    "productionMutationAllowed": false,
+    "migrationAllowed": false,
+    "legacyDeletionAllowed": false
+  },
+  "currentImplementationEntry": {
+    "id": "V2-M0.3",
+    "name": "legacy_consumer_map_and_runtime_schema_boundary_remaining",
+    "status": "in_progress_contract_frozen",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false

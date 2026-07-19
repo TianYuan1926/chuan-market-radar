@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "market-radar-v2-base-manifest.v1",
+  "capturedAt": "2026-07-20T02:53:31+08:00",
+  "status": "clean_local_implementation_baseline",
+  "implementation": {
+    "branch": "codex/market-radar-v2-implementation",
+    "baseRef": "origin/main",
+    "baseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
+    "firstV2Commit": "ef42535369d547440aa04883ac56b15733fe8216",
+    "aheadOfBaseAtCapture": 1,
+    "behindBaseAtCapture": 0
+  },
+  "designArchive": {
+    "branch": "codex/market-radar-v2-blueprint-reset",
+    "commit": "983ef76e6291e361b1677e8ec6192566b2331023",
+    "role": "design_authority_archive"
+  },
+  "excludedLegacyAncestry": {
+    "count": 70,
+    "tip": "84ccb2b8",
+    "reason": "legacy_g0_candidate_cycles_and_production_governance_are_not_v2_implementation_ancestry"
+  },
+  "workspace": {
+    "trackedWorktreeCleanAtCapture": true,
+    "otherRegisteredWorktreesWereDeleted": false,
+    "unknownLegacyFilesWereDeleted": false
+  },
+  "production": {
+    "mutationPerformed": false,
+    "finalStatus": "unknown_until_fresh_read_only_verification",
+    "readChannel": "microsoft_edge_orcaterm",
+    "readChannelStatus": "no_active_session_and_no_saved_connection",
+    "productionCommandsExecuted": 0
+  },
+  "authorizations": {
+    "localV2Implementation": true,
+    "productionMutation": false,
+    "databaseMigration": false,
+    "legacyDeletion": false,
+    "automaticTrading": false
+  }
+}

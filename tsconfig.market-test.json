@@ -25,6 +25,7 @@
     "src/lib/risk/**/*.ts",
     "src/lib/shadow/**/*.ts",
     "src/lib/runtime/**/*.ts",
+    "src/v2/**/*.ts",
     "src/scripts/**/*.ts"
   ]
 }

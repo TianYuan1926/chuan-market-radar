@@ -1,0 +1,96 @@
+{
+  "fixtureKind": "TEST_ONLY_POINT_IN_TIME",
+  "schemaVersion": "market-radar-v2-m1-foundation-slice-fixture.v1",
+  "synthetic": true,
+  "mustNeverEnterRuntime": true,
+  "sourceCutoff": "2026-01-15T00:00:00.000Z",
+  "purpose": "Freeze the first three-venue Universe -> Fact -> Feature -> Context contract slice without claiming market truth.",
+  "instruments": [
+    {
+      "canonicalInstrumentId": "fixture:BINANCE_FUTURES:BTCUSDT:LINEAR_PERPETUAL:USDT",
+      "underlyingGroupId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
+      "venue": "BINANCE_FUTURES",
+      "venueInstrumentId": "BTCUSDT",
+      "baseAsset": "BTC",
+      "quoteAsset": "USDT",
+      "settlementAsset": "USDT",
+      "contractType": "LINEAR_PERPETUAL",
+      "contractSize": "1",
+      "status": "ELIGIBLE"
+    },
+    {
+      "canonicalInstrumentId": "fixture:OKX_SWAP:BTC-USDT-SWAP:LINEAR_PERPETUAL:USDT",
+      "underlyingGroupId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
+      "venue": "OKX_SWAP",
+      "venueInstrumentId": "BTC-USDT-SWAP",
+      "baseAsset": "BTC",
+      "quoteAsset": "USDT",
+      "settlementAsset": "USDT",
+      "contractType": "LINEAR_PERPETUAL",
+      "contractSize": "0.01",
+      "status": "ELIGIBLE"
+    },
+    {
+      "canonicalInstrumentId": "fixture:BYBIT_LINEAR_PERPETUAL:BTCUSDT:LINEAR_PERPETUAL:USDT",
+      "underlyingGroupId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
+      "venue": "BYBIT_LINEAR_PERPETUAL",
+      "venueInstrumentId": "BTCUSDT",
+      "baseAsset": "BTC",
+      "quoteAsset": "USDT",
+      "settlementAsset": "USDT",
+      "contractType": "LINEAR_PERPETUAL",
+      "contractSize": "1",
+      "status": "ELIGIBLE"
+    }
+  ],
+  "facts": [
+    {
+      "venue": "BINANCE_FUTURES",
+      "factType": "LAST_PRICE",
+      "value": "42000.00",
+      "unit": "USDT",
+      "eventTime": "2026-01-15T00:00:00.000Z",
+      "receivedAt": "2026-01-15T00:00:00.120Z",
+      "persistedAt": "2026-01-15T00:00:00.180Z",
+      "qualityStatus": "FRESH"
+    },
+    {
+      "venue": "OKX_SWAP",
+      "factType": "LAST_PRICE",
+      "value": "42001.00",
+      "unit": "USDT",
+      "eventTime": "2026-01-15T00:00:00.000Z",
+      "receivedAt": "2026-01-15T00:00:00.140Z",
+      "persistedAt": "2026-01-15T00:00:00.200Z",
+      "qualityStatus": "FRESH"
+    },
+    {
+      "venue": "BYBIT_LINEAR_PERPETUAL",
+      "factType": "LAST_PRICE",
+      "value": "41999.50",
+      "unit": "USDT",
+      "eventTime": "2026-01-15T00:00:00.000Z",
+      "receivedAt": "2026-01-15T00:00:00.160Z",
+      "persistedAt": "2026-01-15T00:00:00.220Z",
+      "qualityStatus": "FRESH"
+    }
+  ],
+  "feature": {
+    "featureId": "fixture-cross-venue-mid-dispersion",
+    "featureDefinitionVersion": "cross-venue-mid-dispersion.v1",
+    "sourceVenues": [
+      "BINANCE_FUTURES",
+      "OKX_SWAP",
+      "BYBIT_LINEAR_PERPETUAL"
+    ],
+    "value": 0.0000357,
+    "unit": "ratio",
+    "qualityStatus": "FRESH"
+  },
+  "context": {
+    "regime": "RANGE",
+    "volatility": "NORMAL",
+    "liquidity": "HEALTHY",
+    "confidence": "MEDIUM"
+  }
+}
