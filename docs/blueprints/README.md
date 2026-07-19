@@ -1,174 +1,133 @@
 # Market Radar 权威蓝图目录
 
-_2026-07-10；Market Radar 架构、工程建设、生产运行和实战准入的统一文档入口。_
+更新日期：2026-07-20
 
----
+本目录只回答三件事：当前真实状态是什么、V2 应该怎样建设、哪些历史材料只能作参考。任何旧报告、旧周期身份或旧蓝图都不能绕过这里重新成为当前权威。
 
-## 1. 当前结论
+## 1. 当前唯一结论
 
 ```text
-当前等级：R1 - 生产研究平台
-工程状态：可运行但不完整
-实战状态：不能支撑实战
+当前系统等级：R1 / 可运行但不完整 / 不能支撑实战
+V2 设计状态：ACTIVE_DESIGN_AUTHORITY
+V2 实现状态：IMPLEMENTATION_NOT_STARTED
+V2 生产权限：false
 自动交易：永久禁止
+最新生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
 
-当前 runtime health 的一次 ready 点样本不能证明 HTTPS、release evidence、扫描提前性、策略有效性、Shadow outcome、恢复能力或 R4 readiness 已经通过。
+2026-07-19 最后一条已记录生产事实只证明 Cycle-7 已启动并至少运行到 sample 3，当时仍为 IN_PROGRESS；活跃记忆中没有更晚的终证据。因此不得写成 Cycle-7 PASS、G0 PASS、observer 仍在运行或当前生产已经失败。下一次涉及生产判断时必须先做新的只读核验。
 
-## 2. 三层蓝图体系
+Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 V2 的建设步骤，也不能决定 V2 源码组织。蓝图重构没有减少、完成或跳过任何真实生产门槛。
 
-```mermaid
-flowchart TD
-    accTitle: Market Radar Blueprint Authority
-    accDescr: The blueprint system separates current facts, engineering construction, production operation, and staged readiness while preserving historical documents as lower-priority evidence.
+## 2. 活跃权威
 
-    index["蓝图总索引"] --> engineering["工程搭建蓝图"]
-    index --> runtime["生产运行蓝图"]
-    index --> autonomy["全自动工程协议"]
-    index --> acceleration["不降质极速交付计划 v2"]
-    index --> roadmap["V3 实战就绪路线图"]
-    index --> traceability["机器追踪矩阵"]
+| 优先级 | 文档 | 唯一职责 |
+| ---: | --- | --- |
+| 1 | [V2 受控替换工程与运行蓝图 v1.1](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.1](./market-radar-v2-controlled-replacement-traceability.v1.json) | 18 个 Module、5 维状态、4 类不确定性、硬门槛和 M0-M7 的机器合同 |
+| 3 | [项目当前上下文](../../PROJECT_CONTEXT_FOR_CHATGPT.md) | 当前事实、风险、生产未知项和唯一下一入口 |
+| 4 | [最近变更日志](../../CHANGELOG_FOR_CHATGPT.md) | 最近最多 5 个重要变化，不保存历史流水账 |
+| 5 | [当前蓝图交付报告](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1_DELIVERY_REPORT.md) | 本轮范围、验证、失败项和部署边界 |
 
-    engineering --> code_contracts["代码与数据合同"]
-    runtime --> production_evidence["运行证据与 Runbook"]
-    roadmap --> work_packages["G0-G8 Work Packages"]
-    traceability --> audit_gate["审计与验收"]
+只有第一份蓝图和第二份机器矩阵具有 V2 设计权威。Context 不能改写长期合同，蓝图也不能覆盖更晚的生产只读事实。
 
-    current_context["PROJECT_CONTEXT 当前事实"] --> index
-    changelog["CHANGELOG 变化记录"] --> index
-    historical["旧蓝图与历史报告"] -. "只作历史证据" .-> index
+## 3. 权威解析顺序
+
+同一事实出现冲突时，按以下顺序处理：
+
+1. 与当前 release 身份对齐的新鲜生产只读证据。
+2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
+3. V2 蓝图 v1.1 与机器追踪矩阵 v1.1。
+4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
+5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
+6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。
+
+历史材料可以证明过去发生过什么，不能证明现在仍然成立。
+
+## 4. V2 核心链路
+
+```text
+Universe Registry
+-> Market Fact + Quality
+-> Point-in-Time Feature Engine
+-> Market Context
+-> Independent Opportunity Detectors
+-> Candidate Episode + Opportunity Thesis
+-> Deep Validation
+-> Family Analysis
+-> Evidence Grade + Setup Grade
+-> Strategy Draft
+-> Execution Feasibility + Final Decision
+-> Personal Risk + Portfolio Risk
+-> Decision Snapshot + Alerts
+-> Outcome Evaluation
+-> Research Governance
 ```
 
-## 3. 文档职责
+Runtime / Security / Release Control 贯穿全链。任何 Module 不得跳过前置权威产物直接生成交易计划。
 
-| 文档 | 回答的问题 | 不回答的问题 |
-| --- | --- | --- |
-| [工程搭建蓝图](./MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md) | 系统应该怎样搭建、合同和模块怎样分层、怎样测试发布 | 当前生产是否健康 |
-| [生产运行蓝图](./MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md) | 系统怎样启动、稳态运行、降级、告警、恢复和暂停能力 | 新功能具体代码怎样实现 |
-| [不降质极速交付计划 v2](./MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V2.md) | 怎样用关闭列车、发布冻结、内容寻址门禁和观察重叠缩短关键路径 | 不改变 Gate、真实窗口、样本、生产 WIP 或验收阈值 |
-| [不降质提速执行计划 v1](./MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V1.md) | 历史双车道与容量门禁设计 | 只作历史执行依据，当前调度以 v2 为准 |
-| [全自动工程协议](../governance/MARKET_RADAR_AUTONOMOUS_ENGINEERING_PROTOCOL_V1.md) | 怎样自动施工、锁范围、跑门禁、验证证据并 fail closed | 不代替生产审批，不自动降低质量或修改交易边界 |
-| [V3 路线图](../superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md) | 当前差距按什么顺序修、每个 Gate 如何验收 | 单次事故具体 runbook |
-| [机器追踪矩阵](./market-radar-blueprint-traceability.v1.json) | 核心链路如何映射到 Gate、代码和运行检查 | 人类解释和设计理由 |
-| [本轮交付报告](./MARKET_RADAR_BLUEPRINT_V1_DELIVERY_REPORT.md) | 本轮范围、验证、失败项和部署边界 | 长期架构规则 |
-| [蓝图兼容入口](../chuan-market-radar-blueprint.md) | 快速索引和历史详细事实 | 新版目标架构的最终权威解释 |
-| [项目上下文](../../PROJECT_CONTEXT_FOR_CHATGPT.md) | 当前状态、风险、最近事件和下一任务 | 长期目标合同 |
-| [变更日志](../../CHANGELOG_FOR_CHATGPT.md) | 每轮改变了什么、如何验证、是否部署 | 未来目标设计 |
+## 5. 五维状态
 
-## 4. 权威顺序
-
-同一问题出现冲突时：
-
-1. 当前生产只读事实和 release 对齐的 current evidence。
-2. 工程搭建蓝图或生产运行蓝图中对应的权威合同。
-3. V3 路线图和机器追踪矩阵。
-4. 当前项目上下文和最近变更日志。
-5. 旧蓝图、专项报告和 Git history。
-
-使用这一顺序不表示生产点样本可以改变工程红线。自动下单、future leak、前端造事实和 RR 放宽仍永久禁止。
-
-## 5. 阅读路径
-
-### 5.1 新工程任务
-
-1. 读 `PROJECT_CONTEXT_FOR_CHATGPT.md` 当前事实。
-2. 在工程搭建蓝图定位目标领域合同和模块所有权。
-3. 在提速执行计划确认 Lane、WIP、并行边界和不可压缩证据。
-4. 在 V3 找到对应 G0-G8 Work Package。
-5. 在运行蓝图确认部署、降级、SLO 和回滚影响。
-6. 查询机器追踪矩阵确定代码路径和证据。
-7. 创建独立任务书后才能实施。
-
-### 5.2 生产故障
-
-1. 读取当前 `/api/health`、release identity 和服务状态。
-2. 在运行蓝图的降级矩阵中确定允许继续和必须暂停的能力。
-3. 执行对应 RB-01 至 RB-12。
-4. 验证 runtime、freshness、capability、business gate 和 evidence。
-5. 更新 incident、known issues、context 和 changelog。
-
-### 5.3 架构审计
-
-1. 从机器追踪矩阵选择 core-chain stage 或 Gate。
-2. 比较 blueprint target、当前代码路径和生产行为。
-3. 检查是否存在越层、平行事实源、future leak 或 stale-as-live。
-4. 只以当前证据给出 PASS/PARTIAL/FAIL。
-
-### 5.4 R4 准入
-
-1. G0-G7 顺序通过。
-2. 一票否决全部 false。
-3. readiness 总分 `>=85/100` 且各项最低分达标。
-4. 60 天 Shadow、30 天 paper workflow、两个 frozen holdout 和 restore/security/SLO 证据有效。
-5. 外部审计和用户批准。
-
-## 6. 状态词典
-
-| 状态 | 用途 |
+| 维度 | 只回答什么 |
 | --- | --- |
-| `ready` | 当前合同所需条件全部满足 |
-| `partial` | 部分可用，缺失与影响已明确 |
-| `stale` | 有值但超过时效，不能声称 live |
-| `unavailable` | 当前无可用事实 |
-| `rate_limited` | 数据源限速，等待 cooldown |
-| `plan_limited` | 套餐或端点不支持 |
-| `auth_error` | 鉴权失败，与市场机会无关 |
-| `transport_error` | 网络或上游传输失败 |
-| `waiting` | 条件尚未出现，保持观察 |
-| `blocked` | 风险、结构或数据门禁阻断 |
-| `trade_plan_ready` | 后端完整策略与 Risk Gate 通过 |
+| Candidate Priority | 谁先获得稀缺深扫资源 |
+| Evidence Grade | 证据是否完整、独立、及时、可信 |
+| Setup Grade | 结构、位置、空间和反证是否优质 |
+| Action State | 当前是 OBSERVE、WAIT、BLOCKED 还是 TRADE_PLAN_READY |
+| User Fit | 计划是否适合当前个人和组合风险 |
 
-状态不得在不同页面重新发明；中文标签必须保留原状态的业务含义。
+五维不得合并为一个总分。只有 Execution Feasibility + Final Decision 可以产生 `TRADE_PLAN_READY`；Personal/Portfolio Risk 可以阻断用户执行，不能升级系统判断。
 
-## 7. 当前 P0
+## 6. 当前实施入口
 
-截至 2026-07-10 当前点样本和代码审计：
+V2 实现尚未启动。唯一允许的首包是：
 
-- 公网入口仍为明文 HTTP，浏览器标记不安全。
-- 前端存在合成 direction/freshness/age/source/score 等事实的代码路径。
-- unknown/null 存在被映射为 0/long/timeout 的风险。
-- 页面存在重复且互相冲突的 scan proof。
-- production release/evidence 与 commit/image/content 尚无单一正本闭环。
+```text
+V2-M0.1 Product Constitution + Domain Contract + Legacy Capability Freeze
+```
 
-这些问题全部属于 G0。G0 未通过时，不得把策略增强、视觉升级或新数据源当成实战进度。
+该包只冻结领域合同、Module 依赖、五维状态、Feature/Thesis/Feasibility/Risk/Outcome/Research schema 和 Legacy Capability Atlas。它不修改生产、不执行 migration、不接入页面、不删除 Legacy 运行代码、不新增交易规则。
 
-## 8. 变更控制
+## 7. Legacy 参考材料
 
-### 8.1 修改蓝图
+以下文档保留安全门槛、运行经验或历史审计价值，但状态统一为 `HISTORICAL_REFERENCE / NO_CURRENT_IMPLEMENTATION_AUTHORITY`：
 
-蓝图变化必须包含：
+| 文档 | 仍可提取什么 |
+| --- | --- |
+| [工程搭建蓝图 v1](./MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md) | 测试、发布、恢复和工程质量要求 |
+| [生产运行蓝图 v1](./MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md) | 健康、降级、备份、事故和 Runbook 要求 |
+| [实战就绪路线图 v3](../superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md) | R4/R5、Shadow、paper workflow 和不可压缩门槛 |
+| [旧 G0-G8 自动执行蓝图 v1](./MARKET_RADAR_G0_G8_AUTONOMOUS_EXECUTION_BLUEPRINT_V1.md) | Legacy 施工历史和旧生产出口 |
+| [旧机器追踪矩阵 v1](./market-radar-blueprint-traceability.v1.json) | 历史 Gate 映射，不解析当前 authority |
+| [不降质极速交付计划 v3](./MARKET_RADAR_ACCELERATED_DELIVERY_PLAN_V3.md) | 工程线/证据线分离与 Production WIP=1 |
 
-- 变化原因和用户影响。
-- 当前证据和目标证据。
-- 影响的 core-chain stage、Gate、代码路径和运行检查。
-- 是否改变安全、状态语义、RR、readiness 或数据保留。
-- ADR/RFC 和批准记录。
-- 机器追踪矩阵同步更新。
+重复的未提交模块化蓝图 v2 及其矩阵已经被 V2 v1.1 完整吸收并删除。历史内容仍可从 Git 历史和旧交付报告审计，不再占用活跃记忆。
 
-### 8.2 版本策略
+## 8. 活跃记忆卫生
 
-- 文字澄清和路径更新：同一 major 版本内更新。
-- 合同字段、层级职责或运行状态机变化：minor 版本。
-- 核心使命、自动化边界或 R4 定义变化：major 版本，必须用户批准。
-- 历史版本保留 Git history，不在当前文档堆叠施工流水账。
+- `PROJECT_CONTEXT_FOR_CHATGPT.md` 最多 400 行，只写当前事实、当前风险和当前入口。
+- `CHANGELOG_FOR_CHATGPT.md` 最多保留 5 个重要变化；详细历史从 Git 和脱敏报告读取。
+- 活跃蓝图只能有 1 份，活跃机器矩阵只能有 1 份。
+- 生产 commit、image、observer、样本和 digest 都是易变事实；未经新鲜只读验证不得续写为 current。
+- raw log、secret、真实 token、数据库业务行和临时请求身份不得进入活跃记忆。
+- `TARGET`、`LOCAL PASS`、`DEPLOYED`、`OBSERVING`、`PRODUCTION PASS` 必须分开，不能互相冒充。
+- 未证明用途的代码只允许隔离和登记，不能凭文件名批量删除。
 
-### 8.3 禁止的文档行为
+## 9. 每轮阅读路径
 
-- 用 TARGET 覆盖 CURRENT。
-- 用历史 PASS 覆盖当前 FAIL/PARTIAL。
-- 同一事实在多个文档维护不同值。
-- 创建没有代码消费者、测试或 owner 的“标准库”。
-- 把临时事故编号继续作为长期架构阶段。
-- 在文档中保存真实 secret、cookie、token、连接串或业务原始行。
+1. 读 `PROJECT_CONTEXT_FOR_CHATGPT.md`，确认当前事实和停止条件。
+2. 在 V2 蓝图定位唯一 Module、权威输出、禁止依赖和 Gate。
+3. 用机器矩阵验证状态维度、硬门槛和建设顺序。
+4. 只在需要 Legacy 安全/恢复门槛时读取历史参考。
+5. 新建小而完整的任务包，先失败基线，再实现、定向测试、基础门禁和证据报告。
+6. 涉及生产时重新获取只读事实；文档中的旧身份不能直接成为执行授权。
 
-## 9. 每轮交付入口
+## 10. 永久禁止
 
-每个后续 Work Package 必须更新：
-
-1. `PROJECT_CONTEXT_FOR_CHATGPT.md`，如果项目事实改变。
-2. `CHANGELOG_FOR_CHATGPT.md`，记录本轮目标、范围、验证和部署。
-3. `market-radar-blueprint-traceability.v1.json`，如果合同、路径、Gate 或运行检查改变。
-4. 对应工程/运行蓝图，如果权威设计发生变化。
-5. 最近一轮中文交付报告。
-
-只修改实现但不更新权威事实，会使任务最多标记为 `可运行但不完整`。
+- 自动下单或交易所账户写权限。
+- mock、fallback、旧缓存、随机数或 0 冒充真实市场事实。
+- Candidate、榜单、轻扫或外部情报冒充 Signal/READY。
+- 前端生成方向、entry、stop、target、RR 或交易计划。
+- Outcome/MFE/MAE/future label 回写生产排序。
+- 为增加信号数量降低结构 RR 3:1、数据质量或风控门槛。
+- Big Bang 切换、双生产写权威和 replacement 未稳定前删除 Legacy。

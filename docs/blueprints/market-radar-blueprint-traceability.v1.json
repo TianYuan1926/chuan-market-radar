@@ -1,6 +1,7 @@
 {
   "schemaVersion": "market-radar-blueprint-traceability.v1",
-  "status": "wp_g0_2_activation_fourth_attempt_failed_pre_mutation_strict_legacy_rearm_remediation_gates_pass_commit_pending",
+  "status": "historical_superseded_by_v2_controlled_replacement_traceability_v1_1",
+  "replacement": "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
   "generatedAt": "2026-07-16T19:10:44+08:00",
   "authority": {
     "index": "docs/blueprints/README.md",
