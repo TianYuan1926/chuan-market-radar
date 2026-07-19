@@ -206,7 +206,11 @@ function validateAtomicM1Lineage(prepared: readonly PreparedAppend[]): void {
     universe !== undefined || facts.length > 0 || factQuality !== undefined;
   if (
     hasFoundationArtifact &&
-    (universe === undefined || facts.length === 0 || factQuality === undefined)
+    (
+      universe === undefined ||
+      factQuality === undefined ||
+      (universe.eligibleCount > 0 && facts.length === 0)
+    )
   ) {
     throw new M1StoreError(
       "ARTIFACT_METADATA_MISMATCH",
@@ -230,7 +234,7 @@ function validateAtomicM1Lineage(prepared: readonly PreparedAppend[]): void {
   }
 
   if (factQuality !== undefined) {
-    if (universe === undefined || facts.length === 0) {
+    if (universe === undefined) {
       throw new M1StoreError(
         "ARTIFACT_METADATA_MISMATCH",
         "FactQualitySnapshot must be appended with its exact universe and facts",
@@ -239,7 +243,7 @@ function validateAtomicM1Lineage(prepared: readonly PreparedAppend[]): void {
     validateFactQualityLineage({ factQuality, facts });
     if (
       factQuality.universeSnapshotId !== universe.snapshotId ||
-      factQuality.sourceCutoff !== universe.sourceCutoff ||
+      Date.parse(universe.sourceCutoff) > Date.parse(factQuality.sourceCutoff) ||
       factQuality.releaseId !== universe.releaseId ||
       facts.some((fact) =>
         fact.sourceCutoff !== factQuality.sourceCutoff ||

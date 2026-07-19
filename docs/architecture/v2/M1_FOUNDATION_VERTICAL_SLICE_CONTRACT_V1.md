@@ -1,6 +1,6 @@
 # M1 Foundation 第一纵向切片合同 v1
 
-状态：`FROZEN_TASK_CONTRACT / M1.1_IDENTITY_FACT_LOCAL_PASS / M1.2_FEATURE_CONTEXT_LOCAL_PASS / M1.3_STORE_REPLAY_RUNTIME_TRUTH_LOCAL_PASS / M1.4_READY_LOCAL_ONLY / PRODUCTION_UNCHANGED`
+状态：`FROZEN_TASK_CONTRACT / M1.1-M1.4_LOCAL_PASS / M1.5_READY_FOR_LIVE_NO_AUTHORITY_GATE / PRODUCTION_UNCHANGED`
 
 ## 目标
 
@@ -88,4 +88,16 @@ Venue catalog
 - Runtime Truth 升为 v2 并固定 required-check profile；隔离演练全部技术检查通过仍为 `REHEARSAL/PARTIAL`，不能冒充生产 READY。
 - `test:v2-m1-store-replay` 12/12 PASS；隔离 PostgreSQL 16 integration 1/1 PASS。详细合同见 `M1_3_STORE_REPLAY_RUNTIME_TRUTH_CONTRACT_V1.md`。
 
-M1.3 没有建立 live ingestion、采集 Worker、全 eligible Universe、生产 migration、API、页面或生产 authority。下一步只进入 M1.4 的全 observed/eligible Universe 与 Collector Runtime 本地纵切。
+M1.3 没有建立 live ingestion、采集 Worker、全 eligible Universe、生产 migration、API、页面或生产 authority。该缺口中的本地 Collector Runtime 已由 M1.4 补齐。
+
+## M1.4 当前证据
+
+- 冻结 21 observed / 15 eligible 的三 Venue 多标的 fixture，Bybit catalog 跨两页；每条 provider 记录均进入 accounting。
+- Collector 明确区分 `providerObserved / accounted / eligible / collected / fresh`，ratio 同时携带分子和分母，0 分母返回 null。
+- 冷启动、增量 ticker、周期 reconciliation、provider quota、global/per-provider concurrency、队列深度/等待、数据库失败和 recovery 状态机已通过定向测试。
+- 完整成功 catalog 中消失的旧标的保留为不可交易 `DELISTING` tombstone；catalog/分页失败时旧分母保留为 `UNAVAILABLE`，不静默丢币。
+- Collector 只经 Adapter 调用 provider，只经 M1 Store 原子持久化；Store 失败或 acknowledgement 不完整均不推进 Universe/sequence/schedule checkpoint。
+- strict `CollectorCycleTelemetry` 拒绝被篡改的分母和虚假 READY；telemetry 不是市场或交易 authority。
+- 隔离 PostgreSQL 16 已证明启动轮 `1 Universe + 15 Fact + 1 FactQuality`、增量轮 Universe 幂等加第二组 15 Fact，以及全 catalog 故障下 21 条 accounting、0 eligible、0 Fact 的诚实 durable 记录。
+
+M1.4 仍未连接 live provider、没有连续生产 Worker、Shadow/SLO、生产 migration、API、页面或生产 authority。下一步只进入 M1.5 的 live no-authority Collector rehearsal 与 Shadow/SLO 入口，不进入 Detector。

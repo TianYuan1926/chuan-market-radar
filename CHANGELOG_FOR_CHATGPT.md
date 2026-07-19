@@ -2,6 +2,46 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M1.4 Full Eligible Universe and Collector Runtime
+
+### 本轮目标
+
+把单 BTC 三 Venue 证据切片扩大为多标的完整 accounting 与受控 Collector Runtime，建立全量/增量 reconciliation、配额、背压、恢复、四分母和 durable Store 闭环。
+
+### 修改范围
+
+- 新增 21 observed / 15 eligible 的 test-only 多标的 provider fixture，以及完整 catalog、Bybit 多页、ticker 和故障 harness。
+- 新增 Collector 状态机、strict telemetry、provider quota、global/per-provider concurrency、有限队列、冷启动、周期 reconciliation、Store failure 和 recovery。
+- 完整成功 catalog 中消失标的保留 `DELISTING` tombstone；provider/分页失败保留为 `UNAVAILABLE`，不静默缩小 accounting denominator。
+- M1 Store 允许 Universe cutoff 早于 ticker cutoff，并支持 eligible=0 的 exact empty Fact denominator；原子、幂等和 append-only 防线不变。
+- 新增隔离 PostgreSQL 16 Collector 演练和 M1.4 合同/报告；未修改 Legacy 或生产。
+
+### 核心链路影响
+
+完成 `Universe Registry -> Market Fact + Quality -> append-only M1 Store -> Collector telemetry` 的本地多标的闭环，为后续 live 全市场发现提供可信覆盖和恢复地基。本轮没有 Candidate、方向、信号或交易计划。
+
+### 测试结果
+
+- M1.4 定向 14/14 PASS；全 V2 110 pass / 0 fail / 2 explicit PG skip，两项 PG integration 均已分别真实运行 1/1 PASS。
+- 隔离 PostgreSQL 16 Collector integration：1/1 PASS；启动、增量和全 catalog 故障均真实落库。
+- M1.3 PostgreSQL 16 Store/Replay integration：1/1 PASS，回归未破坏。
+- Legacy 核心 965 pass / 0 fail / 4 skip；workers 23/23；historical 4/4；M0 10/10；build、golden 16/16、forbidden/secret/security PASS。
+- 最终单实例 `ci:production`：`exit_code=0`。
+- `backtest:formal` 与 production smoke 未运行；生产零变更。
+
+### 是否部署
+
+未部署。所有 PostgreSQL cluster 均为本机临时实例且退出后销毁；未连接腾讯云、Redis、Worker、Compose、env、secret 或 GitHub main。
+
+### 风险与遗留问题
+
+- 多标的数量来自确定性 fixture，不代表 live provider 的真实全市场规模。
+- 尚无连续 Worker、durable restart checkpoint load、Shadow/SLO、生产 migration 或 authority 证据。
+
+### 下一轮建议
+
+只执行 `V2-M1.5 Live No-Authority Collector Rehearsal and Shadow/SLO Entry`，先证明 live provider、连续 coverage/freshness、资源、恢复和成本，不进入 Detector。
+
 ## 2026-07-20 / V2 M1.3 Store, Replay Manifest and Runtime Truth Rehearsal
 
 ### 本轮目标
@@ -158,45 +198,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.1 Three-Venue Identity and Fact Slice`，先做三家 CEX 同一 BTC 线性永续的只读身份、事实与质量纵切。
-
-## 2026-07-20 / V2 M0 Clean Foundation Start
-
-### 本轮目标
-
-把 V2 从设计授权推进到干净、可验证的工程起点：冻结正确搭建顺序、隔离 Legacy、建立首批领域合同和研究边界，并立即启动 M1 地基纵切契约。
-
-### 修改范围
-
-- 从最新 `origin/main@e5eb900` 创建 `codex/market-radar-v2-implementation`，只带入 V2 当前设计提交，未继承归档分支下的 70 个 Legacy G0 施工提交。
-- 新增 M0 基线 Manifest、干净基线 ADR、Legacy Capability Atlas、事件/提前发现定义、数据能力与回放基线、M1 地基纵切契约。
-- 新增 `src/v2` 产品宪法、18 Module 注册表、状态/不确定性/权威产物合同、Strategy READY 领域语义守卫、评估专用事件标签和显式 synthetic 测试 fixture。
-- 增加 V2 架构边界与合同测试，并接入 `ci:production`；未修改 Legacy 运行逻辑、数据库、Redis、Worker、前端或生产配置。
-
-### 核心链路影响
-
-建立全市场发现之前的身份、事实、质量、特征和上下文地基，并锁死 Candidate 不等于 Signal、未来结果不进入实时链路、只有完整且净 RR 不低于 3:1 的最终决策才能 READY。本轮不声称已具备实战发现能力。
-
-### 测试结果
-
-- `test:v2-foundation`：18/18 PASS。
-- `typecheck`、`lint`、`build`：PASS。build 首次受限网络无法读取现有 Google Fonts，开放构建网络后同一命令 PASS，未改配置规避。
-- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。首次沙箱运行只有 2 个 Worker 因本机监听 EPERM 失败，受控回环环境同一命令重跑后 PASS。
-- `backtest:golden`：16/16 PASS。
-- `ci:forbidden-files`、`ci:secret-patterns`、`security:check`：PASS。
-- `ci:production` 聚合门禁：端到端 PASS，确认 V2 foundation 测试已进入正式流水线。
-- `backtest:formal`：未运行，按规则禁止。
-- production smoke：未运行，生产零变更。
-
-### 是否部署
-
-未部署。腾讯 OrcaTerm 当时显示 0 个已连接会话且无连接配置，因此生产状态保持 `UNKNOWN / NO_ACTIVE_READ_CHANNEL / PRODUCTION_UNCHANGED`。
-
-### 风险与遗留问题
-
-- 该轮结束时 M0 尚未完成；Legacy Consumer Map 和运行时 schema 边界现已由本日志最上方一轮完成，首条真实数据纵切仍待实现。
-- synthetic fixture 仅用于合同测试，架构测试禁止其进入生产运行时。
-- 当前无法证明腾讯云生产的 fresh health、release identity、Postgres、Redis 或 Worker 状态。
-
-### 下一轮建议
-
-该建议已由本日志最上方一轮执行并通过；当前下一入口以最上方记录的 `V2-M1.1` 为准。
