@@ -548,6 +548,7 @@ test("frontend data truth contract blocks active mock market facts", () => {
   const marketLeaderboardsSource = readFileSync(resolve(process.cwd(), "src/components/leaderboard/market-leaderboards.tsx"), "utf8");
   const anomalyBoardSource = readFileSync(resolve(process.cwd(), "src/components/anomaly-board.tsx"), "utf8");
   const appRepositorySource = readFileSync(resolve(process.cwd(), "src/lib/persistence/app-repository.ts"), "utf8");
+  const envExampleSource = readFileSync(resolve(process.cwd(), ".env.example"), "utf8");
   const tokenPageSource = readFileSync(resolve(process.cwd(), "src/app/token/[id]/page.tsx"), "utf8");
 
   assert.match(contractDoc, /Backend fact/);
@@ -560,9 +561,9 @@ test("frontend data truth contract blocks active mock market facts", () => {
 
   assert.match(journalStoreSource, /LEGACY_SEED_IDS/);
   assert.doesNotMatch(journalStoreSource, /symbol:\s*'DOGS'|symbol:\s*'WIF'/);
-  assert.match(appRepositorySource, /ENABLE_PREVIEW_SEED_DATA/);
-  assert.match(appRepositorySource, /previewSeedEnabled \? mockJournalEvents : \[\]/);
-  assert.doesNotMatch(appRepositorySource, /initialJournalEvents:\s*mockJournalEvents/);
+  assert.doesNotMatch(appRepositorySource, /ENABLE_PREVIEW_SEED_DATA|mockJournalEvents/);
+  assert.match(appRepositorySource, /initialJournalEvents:\s*\[\]/);
+  assert.doesNotMatch(envExampleSource, /ENABLE_PREVIEW_SEED_DATA/);
 
   assert.match(liveNumberSource, /mirrors the latest backend-provided value only/);
   assert.doesNotMatch(liveNumberSource, /Math\.random|setInterval|随机游走/);

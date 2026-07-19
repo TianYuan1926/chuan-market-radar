@@ -1,6 +1,8 @@
 # Market Radar G0-G8 全自动工程执行蓝图 v1.0
 
-状态：`ACTIVE_FAIL_CLOSED`
+状态：`HISTORICAL_SUPERSEDED_BY_V2`
+
+当前设计权威：`MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`。本文只保留为 2026-07-14 时点的 Legacy 历史执行依据，不再表示当前生产起点或 V2 实施方式。
 
 生效时间：2026-07-14
 

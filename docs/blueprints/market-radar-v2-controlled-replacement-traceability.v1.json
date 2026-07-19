@@ -1,0 +1,640 @@
+{
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.1",
+  "status": "active_design_authority",
+  "generatedAt": "2026-07-20T02:10:34+08:00",
+  "implementationAuthorized": false,
+  "productionMutationAuthorized": false,
+  "authority": {
+    "blueprint": "docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md",
+    "machineMatrix": "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
+    "index": "docs/blueprints/README.md",
+    "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
+    "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
+    "deliveryReport": "docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1_DELIVERY_REPORT.md",
+    "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
+    "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
+    "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
+  },
+  "activeMemoryPolicy": {
+    "singleActiveBlueprintRequired": true,
+    "singleActiveMachineMatrixRequired": true,
+    "contextCurrentFactsOnly": true,
+    "contextMaximumLines": 400,
+    "changelogMaximumSignificantEntries": 5,
+    "historicalDocumentsMayResolveCurrentAuthority": false,
+    "volatileProductionFactsRequireFreshReadOnlyVerification": true,
+    "rawLogsAndSecretsAllowedInActiveMemory": false
+  },
+  "mission": "Continuously cover all eligible target-CEX contracts, detect pre-move opportunities as early as honestly provable, comprehensively detect other structured long and short opportunities, produce graded evidence and strict human-execution plans, and improve through point-in-time outcomes without future leakage.",
+  "currentBoundary": {
+    "readiness": "R1",
+    "status": "runnable_but_incomplete_not_practical_ready",
+    "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
+    "legacyProductionRole": [
+      "temporary_research_baseline",
+      "migration_source",
+      "behavioral_reference",
+      "rollback_baseline"
+    ],
+    "v2ProductionAuthority": false,
+    "automaticTradingAllowed": false
+  },
+  "targetMarketScope": {
+    "initialVenues": [
+      "BINANCE_FUTURES",
+      "OKX_SWAP",
+      "BYBIT_LINEAR_PERPETUAL"
+    ],
+    "initialContractClass": "adapter_supported_linear_stablecoin_settled_perpetual",
+    "observedInstrumentAccountingPercentRequired": 100,
+    "unsupportedContractsRemainInAccounting": true,
+    "globalAllExchangeCoverageClaimAllowed": false,
+    "scopeMustBeVersionedAndUserVisible": true
+  },
+  "constitutionalInvariants": {
+    "candidateIsSignal": false,
+    "candidatePriorityMayRepresentEvidenceGrade": false,
+    "evidenceGradeMayRepresentSetupGrade": false,
+    "evidenceOrSetupGradeMayDirectlyImplyReady": false,
+    "strategyDraftMayDirectlyImplyReady": false,
+    "onlyFinalDecisionMayProduceReady": true,
+    "personalOrPortfolioRiskMayUpgradeActionState": false,
+    "frontendMayCreateTradingFacts": false,
+    "futureOutcomeMayAffectOriginalDecision": false,
+    "outcomeEvaluatorMayApproveResearchPromotion": false,
+    "automaticRulePromotionAllowed": false,
+    "automaticTradingAllowed": false,
+    "minimumStructuralRewardRisk": 3,
+    "unknownMayBecomeZero": false,
+    "staleMayBecomeLive": false,
+    "partialMayBecomeReady": false,
+    "productionWriteAuthorityPerFact": 1
+  },
+  "stateDimensions": {
+    "candidatePriority": [
+      "P0",
+      "P1",
+      "P2",
+      "P3"
+    ],
+    "evidenceGrade": [
+      "A",
+      "B",
+      "C",
+      "INSUFFICIENT"
+    ],
+    "setupGrade": [
+      "PREMIUM",
+      "QUALIFIED",
+      "MARGINAL",
+      "INVALID",
+      "UNKNOWN"
+    ],
+    "actionState": [
+      "OBSERVE",
+      "WAIT",
+      "BLOCKED",
+      "TRADE_PLAN_READY"
+    ],
+    "userFit": [
+      "SUITABLE",
+      "CONDITIONAL",
+      "UNSUITABLE",
+      "UNAVAILABLE"
+    ]
+  },
+  "uncertaintyDimensions": [
+    "data",
+    "model",
+    "market",
+    "execution"
+  ],
+  "coreModules": [
+    {
+      "order": 1,
+      "id": "universe_registry",
+      "authorityOutput": [
+        "EligibleInstrumentSnapshot"
+      ],
+      "coreContribution": "whole_market_coverage",
+      "prohibited": [
+        "silent_identity_merge",
+        "unaccounted_instrument_drop",
+        "trade_plan_generation"
+      ]
+    },
+    {
+      "order": 2,
+      "id": "market_fact_quality",
+      "authorityOutput": [
+        "PointInTimeMarketFact",
+        "FactQualitySnapshot"
+      ],
+      "coreContribution": "truthful_market_data",
+      "prohibited": [
+        "fake_zero",
+        "stale_as_live",
+        "caller_direct_provider_access"
+      ]
+    },
+    {
+      "order": 3,
+      "id": "point_in_time_feature_engine",
+      "authorityOutput": [
+        "FeatureSetSnapshot",
+        "FeatureQualitySnapshot"
+      ],
+      "coreContribution": "realtime_replay_feature_parity",
+      "prohibited": [
+        "future_window_completion",
+        "unversioned_feature_formula",
+        "stale_value_carry_forward_as_current"
+      ]
+    },
+    {
+      "order": 4,
+      "id": "market_context",
+      "authorityOutput": [
+        "MarketContextSnapshot"
+      ],
+      "coreContribution": "shared_point_in_time_regime_context",
+      "prohibited": [
+        "single_instrument_trade_direction",
+        "stale_regime_as_current",
+        "detector_specific_duplicate_regime"
+      ]
+    },
+    {
+      "order": 5,
+      "id": "multi_opportunity_detection",
+      "authorityOutput": [
+        "DiscoveryCandidate"
+      ],
+      "coreContribution": "broad_early_discovery",
+      "prohibited": [
+        "outcome_input",
+        "evidence_or_setup_grade",
+        "trade_plan_generation"
+      ]
+    },
+    {
+      "order": 6,
+      "id": "candidate_lifecycle_opportunity_thesis",
+      "authorityOutput": [
+        "CandidateEpisode",
+        "OpportunityThesis"
+      ],
+      "coreContribution": "candidate_selection_hypothesis_fusion_and_resource_scheduling",
+      "prohibited": [
+        "candidate_as_signal",
+        "hypothesis_as_direction_truth",
+        "memory_authority_fallback"
+      ]
+    },
+    {
+      "order": 7,
+      "id": "deep_validation",
+      "authorityOutput": [
+        "EvidencePackage"
+      ],
+      "coreContribution": "deep_evidence_validation",
+      "prohibited": [
+        "direction_decision",
+        "grade_generation",
+        "trade_plan_generation"
+      ]
+    },
+    {
+      "order": 8,
+      "id": "family_analysis",
+      "authorityOutput": [
+        "AnalysisSnapshot"
+      ],
+      "coreContribution": "structure_direction_bias_and_counter_evidence",
+      "prohibited": [
+        "entry",
+        "stop",
+        "target",
+        "position_size"
+      ]
+    },
+    {
+      "order": 9,
+      "id": "signal_qualification",
+      "authorityOutput": [
+        "SignalQualification",
+        "EvidenceGrade",
+        "SetupGrade"
+      ],
+      "coreContribution": "evidence_and_setup_quality_calibration",
+      "prohibited": [
+        "priority_inheritance",
+        "single_total_score",
+        "automatic_ready"
+      ]
+    },
+    {
+      "order": 10,
+      "id": "strategy_construction",
+      "authorityOutput": [
+        "StrategyDraft"
+      ],
+      "coreContribution": "family_specific_structural_plan_draft",
+      "prohibited": [
+        "ready_state",
+        "scan_ranking_mutation",
+        "rr_gate_relaxation"
+      ]
+    },
+    {
+      "order": 11,
+      "id": "execution_feasibility_final_decision",
+      "authorityOutput": [
+        "ExecutionFeasibilitySnapshot",
+        "StrategyDecision"
+      ],
+      "coreContribution": "strict_final_action_state",
+      "prohibited": [
+        "stale_execution_fact",
+        "placeholder_price",
+        "automatic_order_execution"
+      ]
+    },
+    {
+      "order": 12,
+      "id": "personal_risk_lens",
+      "authorityOutput": [
+        "PersonalRiskView"
+      ],
+      "coreContribution": "user_specific_single_plan_risk",
+      "prohibited": [
+        "signal_upgrade",
+        "action_state_upgrade",
+        "exchange_account_write"
+      ]
+    },
+    {
+      "order": 13,
+      "id": "portfolio_risk",
+      "authorityOutput": [
+        "PortfolioRiskView",
+        "UserFit"
+      ],
+      "coreContribution": "correlation_concentration_and_aggregate_risk",
+      "prohibited": [
+        "action_state_upgrade",
+        "assumed_diversification",
+        "exchange_account_write"
+      ]
+    },
+    {
+      "order": 14,
+      "id": "decision_read_model",
+      "authorityOutput": [
+        "DecisionSnapshot"
+      ],
+      "coreContribution": "single_frontend_truth",
+      "prohibited": [
+        "provider_call",
+        "decision_recompute",
+        "normal_empty_on_database_failure"
+      ]
+    },
+    {
+      "order": 15,
+      "id": "alert_delivery",
+      "authorityOutput": [
+        "AlertEvent",
+        "DeliveryReceipt"
+      ],
+      "coreContribution": "timely_low_noise_state_delivery",
+      "prohibited": [
+        "page_derived_event",
+        "stale_ready_alert",
+        "untraceable_alert"
+      ]
+    },
+    {
+      "order": 16,
+      "id": "outcome_evaluation",
+      "authorityOutput": [
+        "OutcomeRecord",
+        "MissedOpportunityRecord",
+        "EvaluationDatasetSnapshot"
+      ],
+      "coreContribution": "truthful_outcome_and_miss_evaluation",
+      "prohibited": [
+        "original_decision_mutation",
+        "production_score_write",
+        "research_promotion_approval"
+      ]
+    },
+    {
+      "order": 17,
+      "id": "research_governance",
+      "authorityOutput": [
+        "ResearchProposal",
+        "ExperimentRecord",
+        "PromotionDecisionRecord"
+      ],
+      "coreContribution": "controlled_evolution",
+      "prohibited": [
+        "hidden_failed_trials",
+        "automatic_rule_promotion",
+        "historical_decision_rewrite"
+      ]
+    },
+    {
+      "order": 18,
+      "id": "runtime_security_release_control",
+      "authorityOutput": [
+        "RuntimeTruthSnapshot",
+        "ReleaseRecord",
+        "DriftStatusSnapshot"
+      ],
+      "coreContribution": "stable_secure_observable_recoverable_operation",
+      "prohibited": [
+        "http_200_as_business_ready",
+        "shared_superuser_identity",
+        "automatic_drift_retraining_or_reweighting"
+      ]
+    }
+  ],
+  "opportunityFamilies": [
+    {
+      "id": "pre_move",
+      "priority": "primary",
+      "independentLongShort": true,
+      "minimumProof": [
+        "point_in_time_candidate",
+        "event_recall",
+        "precision",
+        "lead_time",
+        "non_event_control"
+      ]
+    },
+    {
+      "id": "breakout_retest",
+      "priority": "core",
+      "independentLongShort": true,
+      "includesUserStructuralMethod": true
+    },
+    {
+      "id": "trend_continuation",
+      "priority": "core",
+      "independentLongShort": true
+    },
+    {
+      "id": "reversal_range",
+      "priority": "core",
+      "independentLongShort": true
+    },
+    {
+      "id": "relative_strength",
+      "priority": "core",
+      "independentLongShort": true
+    },
+    {
+      "id": "derivatives_flow",
+      "priority": "core",
+      "independentLongShort": true
+    }
+  ],
+  "detectorLifecycle": [
+    "DRAFT",
+    "REPLAY_VALIDATED",
+    "SHADOW",
+    "LIMITED",
+    "ACTIVE",
+    "SUSPENDED",
+    "RETIRED"
+  ],
+  "dataAuthority": {
+    "postgres": [
+      "universe",
+      "fact_index",
+      "feature_lineage",
+      "candidate",
+      "evidence",
+      "decision",
+      "risk",
+      "alert",
+      "outcome",
+      "research",
+      "release",
+      "incident"
+    ],
+    "redis": [
+      "rolling_window",
+      "lock",
+      "quota",
+      "heartbeat",
+      "ephemeral_snapshot"
+    ],
+    "objectStorage": [
+      "raw_replay_data",
+      "encrypted_backup"
+    ],
+    "reportsAreAuthoritative": false,
+    "browserStorageIsAuthoritative": false,
+    "deliverySemantics": "at_least_once_plus_idempotency_and_transactional_outbox"
+  },
+  "researchControls": {
+    "pointInTimeFreezeRequired": true,
+    "onlineOfflineFeatureParityRequired": true,
+    "eventDenominators": [
+      "system_candidates",
+      "market_events",
+      "similar_non_events"
+    ],
+    "holdouts": [
+      "time",
+      "symbol",
+      "regime"
+    ],
+    "purgeAndEmbargoRequired": true,
+    "allExperimentTrialsRecorded": true,
+    "multiObjectiveScorecardRequired": true,
+    "outcomeEvaluationSeparatedFromResearchApproval": true,
+    "championChallengerRequired": true,
+    "humanPromotionRequired": true
+  },
+  "latencyBudgets": {
+    "streamEventToAuthoritativeFactP95SecondsMaximum": 2,
+    "factCutoffToFeatureSetP95SecondsMaximum": 2,
+    "featureSetToDiscoveryCandidateP95SecondsMaximum": 15,
+    "candidateQueueToDispatchP95SecondsMaximum": 2,
+    "tierADeepValidationP95SecondsMaximum": 300,
+    "evidenceReadyToDecisionSnapshotP95SecondsMaximum": 10,
+    "decisionStateToInAppAlertP95SecondsMaximum": 5,
+    "fullLightScanCycleP95SecondsMaximum": 120,
+    "singleTraceBreakdownRequired": true
+  },
+  "hardAcceptance": {
+    "falseFactCount": 0,
+    "mockOrFallbackPresentedAsTruthCount": 0,
+    "candidateAsSignalCount": 0,
+    "waitOrBlockedAsReadyCount": 0,
+    "frontendTradingFactCount": 0,
+    "futureLeakCount": 0,
+    "readyMissingPlanFieldCount": 0,
+    "readyWithoutExecutionFeasibilityPassCount": 0,
+    "readyBelowStructuralRewardRiskCount": 0,
+    "automaticTradingCount": 0,
+    "automaticRulePromotionCount": 0,
+    "silentInstrumentDropCount": 0,
+    "duplicateOrStaleReadyAlertCount": 0
+  },
+  "initialOperationalTargets": {
+    "observedInstrumentAccountingPercent": 100,
+    "eligibleLightScanCoveragePercentMinimum": 95,
+    "tierAMicrostructureCoveragePercentMinimum": 90,
+    "tierAMicrostructureAgeP95SecondsMaximum": 5,
+    "coreReadApiAvailability30dPercentMinimum": 99.5,
+    "contractApiP95SecondsMaximum": 2,
+    "criticalFirstViewportP95SecondsMaximum": 3,
+    "shadowDueCompletionPercentMinimum": 99,
+    "rpoHoursMaximum": 24,
+    "rtoHoursMaximum": 2
+  },
+  "initialCapabilityTargets": {
+    "preMoveEventRecallPercentMinimum": 40,
+    "actionableTopNCapturePercentMinimum": 45,
+    "top20LateOrNoisePercentMaximum": 30,
+    "promotedPreMoveMedianLeadTimeMustBePositive": true,
+    "untouchedHoldoutPassCountMinimum": 2,
+    "realTriggeredWaitOrReadyMinimum": 60,
+    "regimeCoverageMinimum": 3,
+    "netMeanRBootstrap95LowerBoundMustBePositive": true,
+    "shadowDaysMinimum": 60,
+    "evaluableEpisodesMinimum": 500,
+    "paperDecisionDaysMinimum": 30,
+    "paperDecisionWorkflowMinimum": 30,
+    "r4ReadinessScoreMinimum": 85,
+    "r4MaintenanceDaysForR5Minimum": 180
+  },
+  "driftPolicy": {
+    "dimensions": [
+      "source_coverage",
+      "feature_distribution",
+      "candidate_rate",
+      "grade_calibration",
+      "event_prior",
+      "outcome",
+      "latency",
+      "execution_cost",
+      "alert_burden"
+    ],
+    "allowedTransitions": [
+      "WARN",
+      "DEGRADE",
+      "SUSPEND",
+      "RESEARCH"
+    ],
+    "automaticRetrainingAllowed": false,
+    "automaticReweightingAllowed": false,
+    "newEvidenceRequiredForReactivation": true
+  },
+  "buildMilestones": [
+    {
+      "order": 0,
+      "id": "M0",
+      "name": "constitution_active_memory_and_legacy_freeze",
+      "productionMutationAllowed": false
+    },
+    {
+      "order": 1,
+      "id": "M1",
+      "name": "universe_fact_feature_context_runtime_foundation",
+      "dependsOn": [
+        "M0"
+      ]
+    },
+    {
+      "order": 2,
+      "id": "M2",
+      "name": "detection_candidate_thesis_deep_validation",
+      "dependsOn": [
+        "M1"
+      ]
+    },
+    {
+      "order": 3,
+      "id": "M3",
+      "name": "analysis_qualification_strategy_feasibility_risk",
+      "dependsOn": [
+        "M2"
+      ]
+    },
+    {
+      "order": 4,
+      "id": "M4",
+      "name": "read_model_alerts_workbench",
+      "dependsOn": [
+        "M3"
+      ]
+    },
+    {
+      "order": 5,
+      "id": "M5",
+      "name": "outcome_evaluation_and_research_governance",
+      "dependsOn": [
+        "M2",
+        "M3"
+      ]
+    },
+    {
+      "order": 6,
+      "id": "M6",
+      "name": "controlled_cutover_and_legacy_retirement",
+      "dependsOn": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ]
+    },
+    {
+      "order": 7,
+      "id": "M7",
+      "name": "practical_readiness",
+      "dependsOn": [
+        "M6"
+      ]
+    }
+  ],
+  "cutoverSequence": [
+    "historical_replay",
+    "realtime_no_write_shadow",
+    "isolated_write_no_read_authority",
+    "dual_read_comparison",
+    "v2_read_authority",
+    "v2_single_write_authority",
+    "rollback_retention",
+    "legacy_retirement"
+  ],
+  "legacyPolicy": {
+    "allowedClassifications": [
+      "EXTRACT",
+      "KEEP_AND_HARDEN",
+      "REFERENCE",
+      "REBUILD",
+      "ISOLATE",
+      "RETIRE"
+    ],
+    "legacyNewFeatureDevelopmentAllowed": false,
+    "legacyP0SafetyFixAllowed": true,
+    "legacyDeletionBeforeReplacementStabilityAllowed": false,
+    "unknownCodeMayBeDeletedAsPollution": false,
+    "bigBangCutoverAllowed": false
+  },
+  "firstImplementationEntry": {
+    "id": "V2-M0.1",
+    "name": "product_constitution_domain_contract_and_legacy_capability_freeze",
+    "requiresUserApproval": true,
+    "productionMutationAllowed": false,
+    "migrationAllowed": false,
+    "legacyDeletionAllowed": false
+  }
+}
