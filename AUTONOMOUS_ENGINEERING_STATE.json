@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T08:47:51+08:00",
+  "updatedAt": "2026-07-19T08:50:20+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -171,7 +171,7 @@
     "id": "WP-G0.2-CYCLE-6-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH",
     "title": "Cycle-6 six-window lineage and reconciliation dependency refresh",
     "lane": "localPreparation",
-    "status": "targeted_pg16_baseline_security_pass_ready_for_commit",
+    "status": "completed_local_committed_pushed_f9b55684_production_not_executed",
     "objective": "把仍写死Cycle-5和五窗口的Current-Cycle Lineage/Reconciliation外围合同刷新为Cycle-6六窗口精确合同，同时保留旧历史证据并保持全部只读、样本和零差异门槛。",
     "coreChainImpact": [
       "候选筛选",
@@ -734,7 +734,7 @@
       "order": 64,
       "id": "WP-G0.2-CYCLE-6-LINEAGE-RECONCILIATION-DEPENDENCY-REFRESH",
       "lane": "localPreparation",
-      "status": "targeted_pg16_baseline_security_pass_ready_for_commit",
+      "status": "completed_local_committed_pushed_f9b55684_production_not_executed",
       "requiresExplicitApproval": false
     }
   ]
