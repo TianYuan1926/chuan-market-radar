@@ -2,6 +2,9 @@ import { fetchBinanceTickers } from "../modules/market-fact/adapters/binance-tic
 import { fetchBybitTickers } from "../modules/market-fact/adapters/bybit-ticker";
 import { fetchOkxTickers } from "../modules/market-fact/adapters/okx-ticker";
 import { buildLastPriceFacts } from "../modules/market-fact/build-last-price-facts";
+import { buildCrossVenueFeatureSet } from "../modules/feature/build-feature-set";
+import { buildFeatureQualitySnapshot } from "../modules/feature/build-feature-quality";
+import { buildM1MarketContext } from "../modules/market-context/build-market-context";
 import { fetchBinanceCatalog } from "../modules/universe/adapters/binance-catalog";
 import { fetchBybitCatalog } from "../modules/universe/adapters/bybit-catalog";
 import { fetchOkxCatalog } from "../modules/universe/adapters/okx-catalog";
@@ -52,4 +55,56 @@ export async function buildFrozenM1IdentityFactSlice() {
     universe,
   });
   return { marketFacts, universe };
+}
+
+export async function buildFrozenM1FeatureContextSlice() {
+  const foundation = await buildFrozenM1IdentityFactSlice();
+  const common = {
+    computedAt: "2026-01-15T00:00:00.400Z",
+    factQuality: foundation.marketFacts.qualitySnapshot,
+    facts: foundation.marketFacts.facts,
+    generatedAt: "2026-01-15T00:00:00.500Z",
+    releaseId: "m1-test-release",
+    sourceCutoff: SOURCE_CUTOFF,
+    universe: foundation.universe,
+  } as const;
+  const onlineFeatureSet = buildCrossVenueFeatureSet({
+    ...common,
+    computationMode: "ONLINE",
+    computationRunId: "m1-fixture-online-run",
+  });
+  const replayFeatureSet = buildCrossVenueFeatureSet({
+    ...common,
+    computationMode: "REPLAY",
+    computationRunId: "m1-fixture-replay-run-1",
+  });
+  const replayRepeatFeatureSet = buildCrossVenueFeatureSet({
+    ...common,
+    computationMode: "REPLAY",
+    computationRunId: "m1-fixture-replay-run-2",
+  });
+  const featureQuality = buildFeatureQualitySnapshot({
+    generatedAt: "2026-01-15T00:00:00.600Z",
+    onlineFeatureSet,
+    releaseId: "m1-test-release",
+    replayFeatureSet,
+    replayRepeatFeatureSet,
+    sourceCutoff: SOURCE_CUTOFF,
+  });
+  const marketContext = buildM1MarketContext({
+    featureQuality,
+    featureSet: onlineFeatureSet,
+    generatedAt: "2026-01-15T00:00:00.700Z",
+    releaseId: "m1-test-release",
+    sourceCutoff: SOURCE_CUTOFF,
+    universe: foundation.universe,
+  });
+  return {
+    ...foundation,
+    onlineFeatureSet,
+    replayFeatureSet,
+    replayRepeatFeatureSet,
+    featureQuality,
+    marketContext,
+  };
 }

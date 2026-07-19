@@ -553,11 +553,27 @@ export type PromotionDecisionRecord = TraceEnvelope & {
 export type RuntimeTruthSnapshot = TraceEnvelope & {
   producerModule: "runtime_security_release_control";
   runtimeTruthId: string;
+  runtimeMode: "REHEARSAL" | "PRODUCTION";
+  runtimeProfileVersion: string;
   liveness: "READY" | "FAILED" | "UNKNOWN";
   dependencyReadiness: "READY" | "PARTIAL" | "FAILED" | "UNKNOWN";
   businessReadiness: "READY" | "PARTIAL" | "FAILED" | "UNKNOWN";
   dataFreshness: "FRESH" | "PARTIAL" | "STALE" | "UNKNOWN";
   releaseValidity: "VALID" | "INVALID" | "UNKNOWN";
+  checks: {
+    liveness: RuntimeTruthCheckEvidence;
+    dependencyReadiness: RuntimeTruthCheckEvidence;
+    businessReadiness: RuntimeTruthCheckEvidence;
+    dataFreshness: RuntimeTruthCheckEvidence;
+    releaseValidity: RuntimeTruthCheckEvidence;
+  };
+  reasonCodes: readonly string[];
+};
+
+export type RuntimeTruthCheckEvidence = {
+  checkedAt: string;
+  checkIds: readonly string[];
+  evidenceIds: readonly string[];
   reasonCodes: readonly string[];
 };
 

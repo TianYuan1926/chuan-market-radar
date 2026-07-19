@@ -32,7 +32,7 @@ export const RUNTIME_OBJECT_SCHEMA_VERSIONS = Object.freeze({
   ResearchProposal: "research-proposal.v1",
   ExperimentRecord: "experiment-record.v1",
   PromotionDecisionRecord: "promotion-decision-record.v1",
-  RuntimeTruthSnapshot: "runtime-truth.v1",
+  RuntimeTruthSnapshot: "runtime-truth.v2",
   ReleaseRecord: "release-record.v1",
   DriftStatusSnapshot: "drift-status-snapshot.v1",
 } as const satisfies Record<

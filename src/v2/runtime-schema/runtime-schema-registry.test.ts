@@ -559,11 +559,20 @@ const fixtures: RuntimeArtifactByName = {
   RuntimeTruthSnapshot: {
     ...trace("RuntimeTruthSnapshot", "runtime_security_release_control"),
     runtimeTruthId: "runtime-truth-fixture-1",
+    runtimeMode: "PRODUCTION",
+    runtimeProfileVersion: "runtime-profile-fixture.v1",
     liveness: "READY",
     dependencyReadiness: "READY",
     businessReadiness: "READY",
     dataFreshness: "FRESH",
     releaseValidity: "VALID",
+    checks: {
+      liveness: { checkedAt: GENERATED_AT, checkIds: ["process_liveness"], evidenceIds: ["process-fixture-1"], reasonCodes: [] },
+      dependencyReadiness: { checkedAt: GENERATED_AT, checkIds: ["dependency_fixture"], evidenceIds: ["dependency-fixture-1"], reasonCodes: [] },
+      businessReadiness: { checkedAt: GENERATED_AT, checkIds: ["business_fixture"], evidenceIds: ["business-fixture-1"], reasonCodes: [] },
+      dataFreshness: { checkedAt: GENERATED_AT, checkIds: ["data_fixture"], evidenceIds: ["data-fixture-1"], reasonCodes: [] },
+      releaseValidity: { checkedAt: GENERATED_AT, checkIds: ["release_fixture"], evidenceIds: ["release-fixture-1"], reasonCodes: [] },
+    },
     reasonCodes: [],
   },
   ReleaseRecord: {

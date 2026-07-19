@@ -2,6 +2,46 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M1.3 Store, Replay Manifest and Runtime Truth Rehearsal
+
+### 本轮目标
+
+把冻结 M1 authority artifact 真实写入隔离 PostgreSQL 16 append-only 账本，按 event/knowledge 双 cutoff 从账本重放，并用独立证据区分进程、依赖、业务、数据和发布真值。
+
+### 修改范围
+
+- 新增六类 M1 artifact 的原子 Store、strict STORAGE decoder、semantic hash/full payload digest、幂等冲突、retention metadata 和无 memory fallback 连接合同。
+- 新增 `v2-m1-artifact-store.v1` PostgreSQL schema、迁移 checksum guard、UPDATE/DELETE trigger 和 migration/writer/reader/replay/audit 五类 NOLOGIN capability role。
+- 新增 `v2-m1-replay-manifest.v1`，同时冻结 event cutoff 与 knowledge cutoff，从账本执行两次独立 replay 并生成 parity/determinism 证据。
+- Runtime Truth 升为 v2；固定 M1 required-check profile，Rehearsal 即使全部技术检查通过也只能 `businessReadiness=PARTIAL`。
+- 新增隔离 PG16 演练脚本和当前合同/报告；未修改 Legacy 或生产。
+
+### 核心链路影响
+
+完成 `Universe/Fact/Feature artifact -> durable store -> cutoff-safe replay -> parity evidence -> Runtime Truth` 本地闭环，为全市场 Collector 和 Detector 提供不会静默回退内存的事实地基。本轮没有增加 Candidate、信号、方向或交易计划能力。
+
+### 测试结果
+
+- `test:v2-m1-store-replay`：12/12 PASS。
+- 隔离 PostgreSQL 16 integration：1/1 PASS；8 artifact、原子写入、幂等冲突、权限、append-only、强制污染检测、双 replay 和 Runtime Truth 通过。
+- `test:v2-foundation`：96 pass / 0 fail / 1 explicit PG integration skip；独立 PG16 演练 1/1 PASS。
+- Legacy 核心 965 pass / 0 fail / 4 skip；workers 23/23；historical 4/4；M0 10/10；build、golden 16/16、forbidden/secret/security PASS。
+- 最终单实例 `ci:production`：`exit_code=0`。
+- `backtest:formal` 与 production smoke 未运行；生产零变更。
+
+### 是否部署
+
+未部署。临时 PostgreSQL 16 cluster 退出后已销毁；未连接腾讯云、生产数据库、Redis、Worker、Compose、env、secret 或 GitHub main。
+
+### 风险与遗留问题
+
+- 当前只证明冻结 BTC 三 Venue artifact，不证明 live ingestion、全 eligible Universe、连续采集、容量、备份、恢复、retention purge 或生产 SLO。
+- 生产 migration、生产 runtime identity 和 authority 切换均未发生；Runtime Truth 明确为 `REHEARSAL/PARTIAL`。
+
+### 下一轮建议
+
+只执行 `V2-M1.4 Full Eligible Universe and Collector Runtime`，先扩大覆盖与采集运行地基，不越过 M1 做 Detector。
+
 ## 2026-07-20 / V2 M1.2 Point-in-Time Feature and Context Local Slice
 
 ### 本轮目标
@@ -160,49 +200,3 @@
 ### 下一轮建议
 
 该建议已由本日志最上方一轮执行并通过；当前下一入口以最上方记录的 `V2-M1.1` 为准。
-
-## 2026-07-20 / Active Memory, Blueprint v1.1 and Workspace Cleanup
-
-### 本轮目标
-
-重构当前记忆和 V2 搭建蓝图，删除已确认的重复文档和可进入运行时的预览 mock seed，确保只有一个当前事实入口、一个活跃蓝图和一个机器矩阵。
-
-### 修改范围
-
-- V2 蓝图升级为 v1.1：18 个单一权威 Module、5 维状态、4 类不确定性。
-- 新增 Point-in-Time Feature、Opportunity Thesis、Execution Feasibility、Portfolio Risk、Outcome/Research 分离、端到端延迟、冷启动、漂移、校准和注意力预算。
-- 重写 `PROJECT_CONTEXT_FOR_CHATGPT.md`、本文件和蓝图 README，删除失效周期流水账。
-- 删除被 V2 v1.1 吸收的两份未提交重复蓝图草案。
-- 移除 `ENABLE_PREVIEW_SEED_DATA` 及 app repository 的 mock journal seed 入口；保留明确测试用 mock provider。
-- 未修改交易逻辑、数据库 schema、Redis、Worker、Compose、Feature Flag、secret 或生产。
-
-### 核心链路影响
-
-建立全市场发现到复盘进化的唯一目标链，并清除可能让 mock journal 进入运行时持久化仓库的入口。本轮不提升实际发现、分析或策略能力。
-
-### 测试结果
-
-- 文档、JSON、链接、权威唯一性和 obsolete reference：PASS。
-- 机器矩阵：18 Module / 5 state / 4 uncertainty / 6 family / 8 milestone，PASS。
-- Context 332 行、Changelog 5 条，PASS。
-- mock seed 定向回归：59/59 PASS。
-- `typecheck`、`lint`、`build`：PASS。
-- `test:market`：核心 1027 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4。沙箱首次因禁止监听本机端口导致 workers 2 个 EPERM，按同一命令在受控环境完整重跑后 PASS。
-- `backtest:golden`：16/16 PASS。
-- `ci:forbidden-files`、`ci:secret-patterns`、`security:check`：PASS。
-- `backtest:formal`：未运行，按规则禁止。
-- production smoke：未运行，本轮生产零变更。
-
-### 是否部署
-
-未部署。变更只进入独立 `codex/` 分支，不合入 GitHub main，不改变腾讯云。
-
-### 风险与遗留问题
-
-- 当前生产终态没有新鲜只读证据，保持 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
-- Legacy 代码和治理脚本只能在 Capability Atlas 与 replacement 稳定后逐项退役，不能批量删除。
-- V2 仍未实施，设计完成不等于系统能力提升。
-
-### 下一轮建议
-
-只启动 `V2-M0.1 Product Constitution + Domain Contract + Legacy Capability Freeze`。

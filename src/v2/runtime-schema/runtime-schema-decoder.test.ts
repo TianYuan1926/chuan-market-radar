@@ -169,19 +169,53 @@ test("rejects unbounded decimal strings", () => {
 
 test("does not let HTTP liveness masquerade as business readiness", () => {
   const runtimeTruth = {
-    schemaVersion: "runtime-truth.v1",
+    schemaVersion: "runtime-truth.v2",
     releaseId: "release-fixture-1",
     producerModule: "runtime_security_release_control",
     generatedAt: "2026-01-15T00:01:00.000Z",
     sourceCutoff: "2026-01-15T00:00:00.000Z",
     contentHash: "sha256:runtime-fixture",
     runtimeTruthId: "runtime-fixture-1",
+    runtimeMode: "PRODUCTION",
+    runtimeProfileVersion: "runtime-profile-fixture.v1",
     liveness: "READY",
     dependencyReadiness: "PARTIAL",
     businessReadiness: "READY",
     dataFreshness: "STALE",
     releaseValidity: "UNKNOWN",
-    reasonCodes: [],
+    checks: {
+      liveness: {
+        checkedAt: "2026-01-15T00:01:00.000Z",
+        checkIds: ["process_liveness"],
+        evidenceIds: ["http-liveness-fixture"],
+        reasonCodes: [],
+      },
+      dependencyReadiness: {
+        checkedAt: "2026-01-15T00:01:00.000Z",
+        checkIds: ["dependency_fixture"],
+        evidenceIds: ["dependency-fixture"],
+        reasonCodes: ["dependency_partial"],
+      },
+      businessReadiness: {
+        checkedAt: "2026-01-15T00:01:00.000Z",
+        checkIds: ["business_fixture"],
+        evidenceIds: ["business-fixture"],
+        reasonCodes: [],
+      },
+      dataFreshness: {
+        checkedAt: "2026-01-15T00:01:00.000Z",
+        checkIds: ["data_fixture"],
+        evidenceIds: ["data-fixture"],
+        reasonCodes: ["data_stale"],
+      },
+      releaseValidity: {
+        checkedAt: "2026-01-15T00:01:00.000Z",
+        checkIds: ["release_fixture"],
+        evidenceIds: ["release-fixture"],
+        reasonCodes: ["release_unknown"],
+      },
+    },
+    reasonCodes: ["data_stale", "dependency_partial", "release_unknown"],
   };
 
   const result = decodeRuntimeArtifact(

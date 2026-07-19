@@ -1,6 +1,6 @@
 # M1 Foundation 第一纵向切片合同 v1
 
-状态：`FROZEN_TASK_CONTRACT / M1.1_IDENTITY_FACT_LOCAL_PASS / M1.2_FEATURE_CONTEXT_LOCAL_PASS / M1.3_READY_LOCAL_ONLY / PRODUCTION_UNCHANGED`
+状态：`FROZEN_TASK_CONTRACT / M1.1_IDENTITY_FACT_LOCAL_PASS / M1.2_FEATURE_CONTEXT_LOCAL_PASS / M1.3_STORE_REPLAY_RUNTIME_TRUTH_LOCAL_PASS / M1.4_READY_LOCAL_ONLY / PRODUCTION_UNCHANGED`
 
 ## 目标
 
@@ -79,4 +79,13 @@ Venue catalog
 - Market Context 只允许从 fresh、parity PASS、replay deterministic 的分散度读取。分散度高于版本化阈值可标记 `FRAGMENTED`；低分散不能证明 `HEALTHY`，regime、volatility、breadth、correlation 和方向保持 UNKNOWN/null。
 - `test:v2-m1-feature-context` 17/17 PASS；`test:v2-foundation` 84/84 PASS。详细合同见 `M1_2_FEATURE_CONTEXT_CONTRACT_V1.md`。
 
-M1.2 没有建立真实持久化、跨进程 replay runner、采集 Worker、全 eligible Universe、live provider、API、页面或生产 authority。下一步只进入 M1.3 的本地 Store/Replay/Runtime Truth 设计与 rehearsal。
+## M1.3 当前证据
+
+- 六类 M1 artifact 通过 strict STORAGE boundary 写入 append-only PostgreSQL ledger；Universe、完整 Fact 分母和 FactQuality 必须原子追加，孤立 Fact 被拒绝。
+- semantic content hash 与 full payload storage digest 分开验证；同 ID 异内容、不同 retention 的重试冲突，UPDATE/DELETE 同时由 privilege 与 trigger 拒绝。
+- Replay Manifest 同时冻结 event cutoff 与 knowledge cutoff，并绑定每个 source artifact 的 ID、source cutoff、persisted time 和 storage digest。
+- 两次独立 durable replay 调用 M1.2 同一 Feature builder，online/offline parity PASS 且 replay deterministic。
+- Runtime Truth 升为 v2 并固定 required-check profile；隔离演练全部技术检查通过仍为 `REHEARSAL/PARTIAL`，不能冒充生产 READY。
+- `test:v2-m1-store-replay` 12/12 PASS；隔离 PostgreSQL 16 integration 1/1 PASS。详细合同见 `M1_3_STORE_REPLAY_RUNTIME_TRUTH_CONTRACT_V1.md`。
+
+M1.3 没有建立 live ingestion、采集 Worker、全 eligible Universe、生产 migration、API、页面或生产 authority。下一步只进入 M1.4 的全 observed/eligible Universe 与 Collector Runtime 本地纵切。

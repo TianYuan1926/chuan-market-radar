@@ -213,19 +213,74 @@ export const PromotionDecisionRecordSchema = z.strictObject({
   reasonCodes: ReasonCodesSchema.min(1),
 }) satisfies z.ZodType<PromotionDecisionRecord>;
 
+const RuntimeTruthCheckEvidenceSchema = z.strictObject({
+  checkedAt: IsoDateTimeSchema,
+  checkIds: z.array(NonEmptyStringSchema).min(1),
+  evidenceIds: z.array(NonEmptyStringSchema).min(1),
+  reasonCodes: ReasonCodesSchema,
+}).superRefine((evidence, context) => {
+  if (new Set(evidence.checkIds).size !== evidence.checkIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "runtime check ids must be unique within a dimension",
+      path: ["checkIds"],
+    });
+  }
+  if (new Set(evidence.evidenceIds).size !== evidence.evidenceIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "runtime evidence ids must be unique within a dimension",
+      path: ["evidenceIds"],
+    });
+  }
+});
+
 export const RuntimeTruthSnapshotSchema = z.strictObject({
   ...traceEnvelopeShape(
     "runtime_security_release_control",
     RUNTIME_OBJECT_SCHEMA_VERSIONS.RuntimeTruthSnapshot,
   ),
   runtimeTruthId: NonEmptyStringSchema,
+  runtimeMode: z.enum(["REHEARSAL", "PRODUCTION"]),
+  runtimeProfileVersion: NonEmptyStringSchema,
   liveness: z.enum(["READY", "FAILED", "UNKNOWN"]),
   dependencyReadiness: z.enum(["READY", "PARTIAL", "FAILED", "UNKNOWN"]),
   businessReadiness: z.enum(["READY", "PARTIAL", "FAILED", "UNKNOWN"]),
   dataFreshness: z.enum(["FRESH", "PARTIAL", "STALE", "UNKNOWN"]),
   releaseValidity: z.enum(["VALID", "INVALID", "UNKNOWN"]),
+  checks: z.strictObject({
+    liveness: RuntimeTruthCheckEvidenceSchema,
+    dependencyReadiness: RuntimeTruthCheckEvidenceSchema,
+    businessReadiness: RuntimeTruthCheckEvidenceSchema,
+    dataFreshness: RuntimeTruthCheckEvidenceSchema,
+    releaseValidity: RuntimeTruthCheckEvidenceSchema,
+  }),
   reasonCodes: ReasonCodesSchema,
 }).superRefine((snapshot, context) => {
+  const dimensions = [
+    ["liveness", snapshot.liveness, snapshot.checks.liveness],
+    ["dependencyReadiness", snapshot.dependencyReadiness, snapshot.checks.dependencyReadiness],
+    ["businessReadiness", snapshot.businessReadiness, snapshot.checks.businessReadiness],
+    ["dataFreshness", snapshot.dataFreshness, snapshot.checks.dataFreshness],
+    ["releaseValidity", snapshot.releaseValidity, snapshot.checks.releaseValidity],
+  ] as const;
+  for (const [name, status, evidence] of dimensions) {
+    if (Date.parse(evidence.checkedAt) > Date.parse(snapshot.generatedAt)) {
+      context.addIssue({
+        code: "custom",
+        message: "runtime evidence cannot be observed after snapshot generation",
+        path: ["checks", name, "checkedAt"],
+      });
+    }
+    const ready = status === "READY" || status === "FRESH" || status === "VALID";
+    if (!ready && evidence.reasonCodes.length === 0) {
+      context.addIssue({
+        code: "custom",
+        message: "non-ready runtime dimensions require evidence reason codes",
+        path: ["checks", name, "reasonCodes"],
+      });
+    }
+  }
   if (
     snapshot.businessReadiness === "READY" &&
     (snapshot.liveness !== "READY" ||
@@ -237,6 +292,29 @@ export const RuntimeTruthSnapshotSchema = z.strictObject({
       code: "custom",
       message: "business READY requires live, ready, fresh and valid runtime truth",
       path: ["businessReadiness"],
+    });
+  }
+  if (
+    snapshot.businessReadiness === "READY" &&
+    snapshot.runtimeMode !== "PRODUCTION"
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "a rehearsal runtime can never claim business READY",
+      path: ["runtimeMode"],
+    });
+  }
+  const expectedReasons = [...new Set(dimensions.flatMap(
+    ([, , evidence]) => evidence.reasonCodes,
+  ))].sort();
+  if (
+    snapshot.reasonCodes.length !== expectedReasons.length ||
+    snapshot.reasonCodes.some((reason, index) => reason !== expectedReasons[index])
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "runtime truth reasons must exactly equal its dimension evidence",
+      path: ["reasonCodes"],
     });
   }
   if (

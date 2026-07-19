@@ -677,17 +677,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.2",
-    "name": "point_in_time_feature_and_context_slice",
-    "status": "local_pass_replay_proven_fixture_slice_live_connectivity_unproven",
+    "id": "V2-M1.3",
+    "name": "fact_store_replay_manifest_and_runtime_truth_rehearsal",
+    "status": "local_postgres16_rehearsal_pass_live_ingestion_unproven",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M1.3",
-    "name": "fact_store_replay_manifest_and_runtime_truth_rehearsal",
-    "status": "ready_to_start_local_only_after_m1_2_local_pass",
+    "id": "V2-M1.4",
+    "name": "full_eligible_universe_and_collector_runtime",
+    "status": "ready_to_start_local_only_after_m1_3_local_pass",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
