@@ -31,6 +31,14 @@ test("production mutation is Web-only and excludes source sync, builds and migra
   assert.doesNotMatch(source, /\b(?:psql|redis-cli|prisma|migrate)\b/u);
 });
 
+test("production runner identity is bound to current Cycle-7 target", async () => {
+  const source = await file("production-runner.sh");
+  assert.match(source, /47741f3222247562843932b01607a1ec3abb534e/u);
+  assert.match(source, /bff1d1b3f27a0608004c379189bd1adc038477ec/u);
+  assert.doesNotMatch(source, /3315b54dfcfcde63fcdf3a042ef92754da509feb/u);
+  assert.doesNotMatch(source, /72ee289388eea922d0aee58fd4ec7a3f18a91007/u);
+});
+
 test("session-independent entrypoint keeps staging for the 24-hour observer", async () => {
   const source = await file("production-entrypoint.sh");
   assert.match(source, /SHADOW_VERIFY_PHASE_ENTRYPOINT_MODE=detached_worker/u);

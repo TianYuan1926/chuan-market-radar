@@ -73,8 +73,8 @@ OBSERVER_UNIT="$(jq -r '.observerUnitName' "${REQUEST_FILE}")"
 
 [[ "${PACKAGE_ID}" == "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION" \
   && "${ROOT_DIR}" == "${PRODUCTION_ROOT}" \
-  && "${PRODUCTION_COMMIT}" == "3315b54dfcfcde63fcdf3a042ef92754da509feb" \
-  && "$(jq -r '.productionTree' "${REQUEST_FILE}")" == "cccd5776a80ded39f712bee4909c23c8133db798" \
+  && "${PRODUCTION_COMMIT}" == "47741f3222247562843932b01607a1ec3abb534e" \
+  && "$(jq -r '.productionTree' "${REQUEST_FILE}")" == "bff1d1b3f27a0608004c379189bd1adc038477ec" \
   && "${TRUST_ROOT}" == "/home/ubuntu/.local/state/market-radar-autonomy" ]] \
   || fail request_identity_invalid
 case "${OPS_ROOT}/" in

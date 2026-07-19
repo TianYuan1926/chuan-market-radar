@@ -2,6 +2,54 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Cycle-7 Shadow Verify Phase Shell Identity Fix
+
+### 本轮目标
+
+修复 Shadow Verify phase 生产 shell 仍残留旧 production commit/tree 的问题，避免后续 Cycle-7 现场执行被旧身份校验误拦。
+
+### 修改范围
+
+- `scripts/production/candidate-shadow-verify-phase/production-runner.sh`：把 request identity 校验从旧 `3315b54.../cccd577...` 改为 Cycle-7 `47741f.../bff1d1...`。
+- `scripts/production/candidate-shadow-verify-phase/production-boundary.test.mjs`：新增断言，要求 shell 绑定 Cycle-7 commit/tree，并拒绝旧 `3315b54`/`72ee289` 残留。
+- `docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v6.json`：更新 phase runnerArtifact SHA-256 为当前真实文件字节。
+- 新增本轮交付报告。
+- 未连接、上传或修改生产；未修改 DB、Redis、Feature Flag、scan、analysis、strategy、backtest 或前端展示。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化的 Shadow Verify 生产执行地基；不新增信号、不改变排序、不生成交易计划。
+
+### 测试结果
+
+- `npm run test:candidate-shadow-verify-phase`：PASS，22/22。
+- `npm run candidate:shadow-verify-phase:validate`：PASS。
+- `npm run test:candidate-shadow-verify-handoff`：PASS，12/12。
+- `npm run candidate:shadow-verify-handoff:validate`：PASS。
+- `npm run typecheck`：PASS。
+- `npm run lint`：PASS。
+- `npm run test:market`：PASS，1027 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4。
+- `npm run build`：PASS。
+- `npm run backtest:golden`：PASS，16/16。
+- `npm run ci:forbidden-files`：PASS。
+- `npm run ci:secret-patterns`：PASS。
+- `npm run security:check`：PASS。
+- production smoke：未运行，本轮不连接或修改生产。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。
+
+### 风险与遗留问题
+
+- 这是本地修复，不代表 Shadow Verify phase 生产启动或 24 小时双读观察通过。
+- G0 主步骤仍为 7。
+
+### 下一轮建议
+
+继续修复/刷新 G0.2 后续执行链中的旧周期绑定，优先处理会阻断生产执行的 shell/runner 身份残留。
+
 ## 2026-07-19 / WP-G0.2 Cycle-7 Canonical Compat Handoff Refresh
 
 ### 本轮目标

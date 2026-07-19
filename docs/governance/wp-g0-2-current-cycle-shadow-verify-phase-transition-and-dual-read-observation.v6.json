@@ -150,7 +150,7 @@
       "scripts/production/candidate-shadow-verify-phase/runner.mjs"
     ],
     "fileCount": 8,
-    "sha256": "fc19b097ece916b446a11446714ff19cd47e47e0f45680849538efad2060e623"
+    "sha256": "2d87b5b1eaeb371023ca3d6570660f4902ecd84989c9c1db60a985d384ebf99e"
   },
   "resultBoundary": {
     "passStatus": "PASS_DUAL_READ_OBSERVATION",
