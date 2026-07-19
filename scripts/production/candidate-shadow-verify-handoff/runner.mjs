@@ -14,14 +14,14 @@ export const PACKAGE_ID =
   "WP-G0.2-CURRENT-CYCLE-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW";
 export const PIPELINE_PASS = "PASS_SHADOW_VERIFY_HANDOFF_OBSERVER_ACTIVE";
 export const REQUEST_PASS = "PASS_SHADOW_VERIFY_HANDOFF_EXECUTION_REQUEST";
-export const REQUIRED_PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
-export const REQUIRED_PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
+export const REQUIRED_PRODUCTION_COMMIT = "47741f3222247562843932b01607a1ec3abb534e";
+export const REQUIRED_PRODUCTION_TREE = "bff1d1b3f27a0608004c379189bd1adc038477ec";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
   "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env";
 export const BUILD_RECORD_PATH =
-  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json";
+  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json";
 
 const HASH = /^[0-9a-f]{64}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
@@ -101,8 +101,8 @@ export function validateCurrentCycleFinal(final) {
   ensure(final?.schemaVersion === "candidate-validation-cycle-observation.v2"
       && final.status === "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
       && final.commit === REQUIRED_PRODUCTION_COMMIT
-      && final.migrationId === "candidate-episode-v1-cycle-6"
-      && final.releaseId === "candidate-shadow-cycle-6-72ee2893"
+      && final.migrationId === "candidate-episode-v1-cycle-7"
+      && final.releaseId === "candidate-shadow-cycle-7-47741f3"
       && Number.isSafeInteger(final.authorityEpoch) && final.authorityEpoch >= 1
       && final.authorityEpoch % 2 === 1
       && final.samples >= 289 && final.activationSamples >= 289
@@ -502,8 +502,8 @@ export async function validatePipelineFinal(value, { productionPaths = true } = 
       && JSON.stringify(value.sequence) === JSON.stringify(SEQUENCE)
       && value.productionCommit === REQUIRED_PRODUCTION_COMMIT
       && value.productionTree === REQUIRED_PRODUCTION_TREE
-      && value.migrationId === "candidate-episode-v1-cycle-6"
-      && value.releaseId === "candidate-shadow-cycle-6-72ee2893"
+      && value.migrationId === "candidate-episode-v1-cycle-7"
+      && value.releaseId === "candidate-shadow-cycle-7-47741f3"
       && IMAGE.test(value.webImageId ?? "")
       && value.readOnlyStatus === READ_ONLY_SUMMARY_PASS
       && value.phaseImmediateStatus === "PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE"

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wp-g0.2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v4",
   "packageId": "WP-G0.2-CURRENT-CYCLE-SHADOW-VERIFY-DEPENDENCY-REFRESH-LOCAL-SUPERPACKAGE",
-  "status": "local_cycle6_dependency_refresh_production_not_executed",
+  "status": "local_cycle7_dependency_refresh_production_not_executed",
   "productionAuthorization": false,
   "productionConnected": false,
   "productionDeployed": false,
@@ -31,9 +31,9 @@
     "reconciliationEvidenceRequired": "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
     "codePresenceSchemaRequired": "candidate-shadow-verify-code-presence-evidence.v1",
     "codePresenceStatusRequired": "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED",
-    "sourceReleaseWindowsExact": 6,
+    "sourceReleaseWindowsExact": 7,
     "sourceReleaseWindowsDerivedFromMigrationId": true,
-    "currentMigrationIdRequired": "candidate-episode-v1-cycle-6",
+    "currentMigrationIdRequired": "candidate-episode-v1-cycle-7",
     "minimumComparedWrites": 10000,
     "zeroUnresolvedRequired": true,
     "dualReadFlagRequired": true,
@@ -76,7 +76,7 @@
       "src/lib/candidate-episode/canonical-read-trusted-context.ts"
     ],
     "fileCount": 7,
-    "sha256": "e7f060719643e54cfc16710cd2c5cb61596cf1a78a156ab2963943143731d297"
+    "sha256": "ba1e8e1e32cfcf0d32a62c1d9558a3e8756a4ad28c2b317e82d8ed7c4da60bf4"
   },
   "forbidden": [
     "production_connection",
@@ -103,6 +103,6 @@
     "future_outcome_input",
     "formal_backtest"
   ],
-  "currentProductionDecision": "BLOCKED_UNTIL_CYCLE6_FINAL_CODE_PRESENCE_LINEAGE_AND_RECONCILIATION_PASS_AND_SEPARATE_PHASE_AUTHORIZATION",
+  "currentProductionDecision": "BLOCKED_UNTIL_CYCLE7_FINAL_CODE_PRESENCE_LINEAGE_AND_RECONCILIATION_PASS_AND_SEPARATE_PHASE_AUTHORIZATION",
   "nextPackage": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION"
 }

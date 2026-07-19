@@ -2,7 +2,7 @@
   "schemaVersion": "wp-g0.2-current-cycle-to-shadow-verify-automatic-handoff-superwindow.v2",
   "packageId": "WP-G0.2-CURRENT-CYCLE-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW",
   "title": "Current-cycle read-only verification to Shadow Verify automatic production handoff superwindow",
-  "status": "local_cycle6_ready_for_gate_production_blocked_by_cycle6_final",
+  "status": "local_cycle7_ready_for_gate_production_blocked_by_cycle7_final",
   "gate": "G0",
   "actionClass": "shadow_verify_activation",
   "riskTier": "R2_AUTHORITY_TRANSITION",
@@ -12,11 +12,11 @@
     "复盘进化"
   ],
   "requiredProductionIdentity": {
-    "commit": "72ee289388eea922d0aee58fd4ec7a3f18a91007",
-    "tree": "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d",
-    "migrationId": "candidate-episode-v1-cycle-6",
-    "releaseId": "candidate-shadow-cycle-6-72ee2893",
-    "buildRecordPath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json",
+    "commit": "47741f3222247562843932b01607a1ec3abb534e",
+    "tree": "bff1d1b3f27a0608004c379189bd1adc038477ec",
+    "migrationId": "candidate-episode-v1-cycle-7",
+    "releaseId": "candidate-shadow-cycle-7-47741f3",
+    "buildRecordPath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json",
     "buildRecordSchema": "candidate-cycle-target-images.v1",
     "buildRecordWebImageField": "webImageId"
   },
@@ -46,7 +46,7 @@
   },
   "entryBoundary": {
     "currentCycleStatus": "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
-    "currentCycleMigrationId": "candidate-episode-v1-cycle-6",
+    "currentCycleMigrationId": "candidate-episode-v1-cycle-7",
     "minimumCompletedWrites": 10000,
     "minimumSamples": 289,
     "minimumHours": 24,
@@ -130,7 +130,7 @@
       "scripts/production/candidate-shadow-verify-handoff/runner.mjs"
     ],
     "fileCount": 7,
-    "sha256": "f6013b298e2cb4b0ad1bef6e6166eef9615b3b15ad84d9eb683108156bb3308a"
+    "sha256": "4c2447ccab54d86c9fb09fd7120fbfba4196d298e9e45d236576f2a1ef53363b"
   },
   "resultBoundary": {
     "immediatePass": "PASS_SHADOW_VERIFY_HANDOFF_OBSERVER_ACTIVE",

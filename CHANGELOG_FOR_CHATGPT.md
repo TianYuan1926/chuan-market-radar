@@ -7246,3 +7246,48 @@ commit `6e6fc9c16e40ec8ded69fa6ccd4609b8ce9f49d4` 已推送当前工程分支；
 ### 下一轮建议
 
 只核验 Cycle-7 观察终证据；满足 24 小时、289 样本、10,000 writes、零 unresolved 和零差异后，再执行本轮准备好的只读生产包。
+
+## 2026-07-19 / Cycle-7 Shadow Verify Handoff Refresh
+
+### 本轮目标
+
+在 Cycle-7 生产观察后台运行期间，提前把 Shadow Verify dependency、phase transition / dual-read observation 和 automatic handoff 从旧 Cycle-6 绑定刷新到 Cycle-7。
+
+### 修改范围
+
+- 刷新 Shadow Verify dependency 合同到 Cycle-7 七窗口口径。
+- 刷新 Shadow Verify phase 合同、bundle 和测试到 Cycle-7 production commit/tree/migration/release。
+- 刷新 Readonly Superwindow -> Shadow Verify handoff 合同、runner、launcher 和测试到 Cycle-7。
+- 同步治理校验、项目上下文和本轮中文交付报告。
+- 未修改 frontend、业务 API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、DB schema、Redis、Compose、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+服务候选筛选与复盘进化之间的 Candidate lifecycle 验证链；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- Shadow Verify code authorization：37/37 PASS。
+- Shadow Verify phase：21/21 PASS；validate PASS。
+- Shadow Verify handoff：12/12 PASS；validate PASS。
+- typecheck、lint、build：PASS。
+- test:market：market 1027 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4，PASS。
+- backtest:golden：16/16 PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- production smoke：未运行；本轮未执行生产。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或修改生产。当前仅为本地后续包刷新和门禁 PASS。
+
+### 风险与遗留问题
+
+- Cycle-7 观察仍未取得终证据，不能启动 Shadow Verify。
+- Lineage/Reconciliation 生产只读仍未执行；Shadow Verify phase 仍被前置证据阻断。
+- 本轮不能作为 G0 减数依据；G0 主步骤仍为 7。
+- 当前仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只刷新 Canonical Compat 当前周期依赖与 handoff 到 Cycle-7 / Shadow Verify 当前输出口径；仍不执行生产。

@@ -71,7 +71,7 @@ function currentCycleFinal(overrides = {}) {
     commit: PRODUCTION_COMMIT,
     migrationId: PRODUCTION_MIGRATION,
     releaseId: PRODUCTION_RELEASE,
-    authorityEpoch: 3,
+    authorityEpoch: 1,
     samples: 289,
     activationSamples: 289,
     elapsedSeconds: 86400,
@@ -91,7 +91,7 @@ function currentCycleFinal(overrides = {}) {
 }
 
 function runtime(final = currentCycleFinal()) {
-  const evidenceRoot = "/home/ubuntu/.cache/market-radar-ops/cycle-continuation-ops/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/observation";
+  const evidenceRoot = "/home/ubuntu/.cache/market-radar-ops/cycle-continuation-ops/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/observation";
   return {
     currentCycleFinal: final,
     productionCommit: final.commit,
@@ -216,9 +216,9 @@ async function createReadOnlySummaryFixture() {
     status: LINEAGE_PASS,
     currentMigrationId: PRODUCTION_MIGRATION,
     currentReleaseId: PRODUCTION_RELEASE,
-    sourceReleaseCount: 6,
-    validationCycle: 6,
-    sourceReleaseWindows: Array.from({ length: 6 }, (_, index) => ({ index })),
+    sourceReleaseCount: 7,
+    validationCycle: 7,
+    sourceReleaseWindows: Array.from({ length: 7 }, (_, index) => ({ index })),
     completedWrites: 10_000,
     unresolvedOutbox: 0,
     g0Completed: false,
@@ -229,9 +229,9 @@ async function createReadOnlySummaryFixture() {
       "wp-g0.2-current-cycle-reconciliation-transport.v3", packages.reconciliation,
     ),
   );
-  const sourceReleaseWindows = Array.from({ length: 6 }, (_, index) => ({
-    migrationId: index === 5 ? PRODUCTION_MIGRATION : `candidate-episode-v1-cycle-${index + 1}`,
-    releaseId: index === 5 ? PRODUCTION_RELEASE : `candidate-shadow-cycle-${index + 1}`,
+  const sourceReleaseWindows = Array.from({ length: 7 }, (_, index) => ({
+    migrationId: index === 6 ? PRODUCTION_MIGRATION : `candidate-episode-v1-cycle-${index + 1}`,
+    releaseId: index === 6 ? PRODUCTION_RELEASE : `candidate-shadow-cycle-${index + 1}`,
   }));
   const reconciliationRequestSha = await writeJson("reconciliation-request.json", {
     packageId: packages.reconciliation,
@@ -246,7 +246,7 @@ async function createReadOnlySummaryFixture() {
     schemaVersion: "candidate-multi-cycle-reconciliation-evidence.v3",
     status: RECONCILIATION_PASS,
     verificationMigrationId: PRODUCTION_MIGRATION,
-    sourceReleaseCount: 6,
+    sourceReleaseCount: 7,
     comparedWrites: 10_000,
     comparisonDifferences: 0,
     g0Completed: false,
@@ -510,7 +510,7 @@ test("handoff final byte-binds R0 and phase evidence without claiming G0", async
       webImageId: fixture.webImage,
       migrationId: PRODUCTION_MIGRATION,
       releaseId: PRODUCTION_RELEASE,
-      targetAuthorityEpoch: 4,
+      targetAuthorityEpoch: 2,
       observerUnit: "market-radar-shadow-verify-observer-abcdef0-12345678.service",
       candidateResponseAuthority: "legacy",
       automaticPhaseAdvance: false,

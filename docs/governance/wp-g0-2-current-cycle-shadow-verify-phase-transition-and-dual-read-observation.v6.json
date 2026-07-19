@@ -2,14 +2,14 @@
   "schemaVersion": "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v6",
   "packageId": "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
   "gate": "G0",
-  "status": "local_cycle6_implementation_and_rehearsal_production_blocked_by_prerequisites",
+  "status": "local_cycle7_implementation_and_rehearsal_production_blocked_by_prerequisites",
   "productionAuthorization": false,
   "productionExecuted": false,
   "actionClass": "shadow_verify_activation",
   "riskTier": "R2_AUTHORITY_TRANSITION",
   "releaseBoundary": {
-    "requiredProductionCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
-    "requiredProductionTree": "cccd5776a80ded39f712bee4909c23c8133db798",
+    "requiredProductionCommit": "47741f3222247562843932b01607a1ec3abb534e",
+    "requiredProductionTree": "bff1d1b3f27a0608004c379189bd1adc038477ec",
     "acceptedCodeAvailabilityStatuses": [
       "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED"
     ],
@@ -31,9 +31,9 @@
     "maximumDuplicateOutboxMappings": 0,
     "maximumDuplicateEventMappings": 0,
     "maximumUnresolvedOutbox": 0,
-    "sourceReleaseWindowsExact": 6,
+    "sourceReleaseWindowsExact": 7,
     "sourceReleaseWindowsDerivedFromMigrationId": true,
-    "currentMigrationId": "candidate-episode-v1-cycle-6",
+    "currentMigrationId": "candidate-episode-v1-cycle-7",
     "currentPhase": "shadow_capture",
     "currentWriteFrozen": false,
     "minimumDeadlineRemainingSeconds": 87000,
@@ -150,7 +150,7 @@
       "scripts/production/candidate-shadow-verify-phase/runner.mjs"
     ],
     "fileCount": 8,
-    "sha256": "e8c579de26f5d13669429cce66da6207667e7c37bb09d42cbc8f89d513bfc2d3"
+    "sha256": "fc19b097ece916b446a11446714ff19cd47e47e0f45680849538efad2060e623"
   },
   "resultBoundary": {
     "passStatus": "PASS_DUAL_READ_OBSERVATION",

@@ -83,15 +83,15 @@ export async function validateContract(root = process.cwd()) {
       && contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "shadow_verify_activation"
       && contract.riskTier === "R2_AUTHORITY_TRANSITION"
-      && contract.status === "local_cycle6_ready_for_gate_production_blocked_by_cycle6_final",
+      && contract.status === "local_cycle7_ready_for_gate_production_blocked_by_cycle7_final",
   "contract_identity_invalid");
   const identity = contract.requiredProductionIdentity ?? {};
-  ensure(identity.commit === "72ee289388eea922d0aee58fd4ec7a3f18a91007"
-      && identity.tree === "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
-      && identity.migrationId === "candidate-episode-v1-cycle-6"
-      && identity.releaseId === "candidate-shadow-cycle-6-72ee2893"
+  ensure(identity.commit === "47741f3222247562843932b01607a1ec3abb534e"
+      && identity.tree === "bff1d1b3f27a0608004c379189bd1adc038477ec"
+      && identity.migrationId === "candidate-episode-v1-cycle-7"
+      && identity.releaseId === "candidate-shadow-cycle-7-47741f3"
       && identity.buildRecordPath
-        === "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
+        === "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json"
       && identity.buildRecordSchema === "candidate-cycle-target-images.v1"
       && identity.buildRecordWebImageField === "webImageId",
   "contract_production_identity_invalid");
@@ -106,7 +106,7 @@ export async function validateContract(root = process.cwd()) {
   "contract_child_boundary_invalid");
   const entry = contract.entryBoundary ?? {};
   ensure(entry.currentCycleStatus === "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
-      && entry.currentCycleMigrationId === "candidate-episode-v1-cycle-6"
+      && entry.currentCycleMigrationId === "candidate-episode-v1-cycle-7"
       && entry.minimumCompletedWrites === 10000 && entry.minimumSamples === 289
       && entry.minimumHours === 24 && entry.minimumCompletionAdvances === 2
       && entry.maximumSampleGapSeconds === 600 && entry.unresolvedOutboxExact === 0

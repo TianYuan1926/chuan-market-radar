@@ -92,9 +92,9 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
         !== "candidate-shadow-verify-code-presence-evidence.v1"
       || shadow.codePresenceStatusRequired
         !== "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED"
-      || shadow.sourceReleaseWindowsExact !== 6
+      || shadow.sourceReleaseWindowsExact !== 7
       || shadow.sourceReleaseWindowsDerivedFromMigrationId !== true
-      || shadow.currentMigrationIdRequired !== "candidate-episode-v1-cycle-6"
+      || shadow.currentMigrationIdRequired !== "candidate-episode-v1-cycle-7"
       || shadow.minimumComparedWrites !== 10000
       || shadow.zeroUnresolvedRequired !== true
       || shadow.dualReadFlagRequired !== true
@@ -171,11 +171,13 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
     "analysis_change", "strategy_change", "backtest_change", "production_ranking_change",
     "future_outcome_input", "formal_backtest",
   ];
-  for (const token of forbiddenRequired) {
-    if (!contract.forbidden?.includes(token)) violations.push(`forbidden_missing:${token}`);
+  for (const forbiddenItem of forbiddenRequired) {
+    if (!contract.forbidden?.includes(forbiddenItem)) {
+      violations.push(`forbidden_missing:${forbiddenItem}`);
+    }
   }
   if (contract.currentProductionDecision
-        !== "BLOCKED_UNTIL_CYCLE6_FINAL_CODE_PRESENCE_LINEAGE_AND_RECONCILIATION_PASS_AND_SEPARATE_PHASE_AUTHORIZATION"
+        !== "BLOCKED_UNTIL_CYCLE7_FINAL_CODE_PRESENCE_LINEAGE_AND_RECONCILIATION_PASS_AND_SEPARATE_PHASE_AUTHORIZATION"
       || contract.nextPackage
         !== "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION") {
     violations.push("sequence_boundary");

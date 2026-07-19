@@ -60,8 +60,8 @@ function reconciliationEvidence(lineageFileSha256 = hash("5")) {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 6,
-    verificationMigrationId: "candidate-episode-v1-cycle-6",
+    sourceReleaseCount: 7,
+    verificationMigrationId: "candidate-episode-v1-cycle-7",
     evidenceHash: `sha256:${hash("a")}`,
     violations: [],
     differenceSample: [],
@@ -122,12 +122,21 @@ function lineageEvidence() {
         writeFrozen: true,
       },
       {
-        controlEpoch: 3,
+        controlEpoch: 2,
         deadlineAt: "2026-07-21T00:00:00.000Z",
         migrationId: "candidate-episode-v1-cycle-6",
+        phase: "legacy",
+        releaseId: "candidate-shadow-release-cycle-six",
+        startedAt: "2026-07-18T00:00:00.000Z",
+        writeFrozen: true,
+      },
+      {
+        controlEpoch: 1,
+        deadlineAt: "2026-07-24T00:00:00.000Z",
+        migrationId: "candidate-episode-v1-cycle-7",
         phase: "shadow_capture",
         releaseId: "candidate-shadow-release-12345678",
-        startedAt: "2026-07-18T00:00:00.000Z",
+        startedAt: "2026-07-21T00:00:00.000Z",
         writeFrozen: false,
       },
     ],
@@ -145,17 +154,17 @@ function lineageEvidence() {
     minimumActivationSamples: 289,
     minimumActivationHours: 24,
     unresolvedMaximum: 0,
-    currentCycleStartedAt: "2026-07-18T00:00:00.000Z",
-    currentMigrationId: "candidate-episode-v1-cycle-6",
+    currentCycleStartedAt: "2026-07-21T00:00:00.000Z",
+    currentMigrationId: "candidate-episode-v1-cycle-7",
     currentReleaseId: "candidate-shadow-release-12345678",
-    currentAuthorityEpoch: 3,
+    currentAuthorityEpoch: 1,
     thresholdsChanged: false,
     productionReconciliationExecuted: false,
     shadowVerifyStarted: false,
-    sourceReleaseCount: 6,
+    sourceReleaseCount: 7,
     canonicalAuthorityChanged: false,
     g0Completed: false,
-    validationCycle: 6,
+    validationCycle: 7,
   };
 }
 
@@ -182,9 +191,9 @@ function runtime(evidence = {}) {
     currentWebImageId: image("c"),
     candidateWorkerContainerId: "d".repeat(12),
     candidateWorkerImageId: image("e"),
-    migrationId: "candidate-episode-v1-cycle-6",
+    migrationId: "candidate-episode-v1-cycle-7",
     releaseId: "candidate-shadow-release-12345678",
-    currentAuthorityEpoch: 3,
+    currentAuthorityEpoch: 1,
     baseEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env",
     baseEnvSha256: hash("f"),
     productionEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env.production",
@@ -268,7 +277,7 @@ test("creates a one-use, exact 90-minute, Web-only execution request", () => {
     runtime: runtime(),
   });
   assert.equal(request.productionCommit, REQUIRED_PRODUCTION_COMMIT);
-  assert.equal(request.targetAuthorityEpoch, 4);
+  assert.equal(request.targetAuthorityEpoch, 2);
   assert.deepEqual(request.services, ["web"]);
   assert.equal(request.approvalExpiresAt, "2026-07-17T01:30:00.000Z");
   assert.equal(request.autonomyAuthorization.maxExecutions, 1);
@@ -308,7 +317,7 @@ test("phase approval accepts only exact current Lineage v3 and bound Reconciliat
   const manifest = transportManifest();
   const now = new Date("2026-07-17T00:00:00.000Z");
   const cases = [
-    { name: "cycle6-v3", transform: (value) => value, passes: true },
+    { name: "cycle7-v3", transform: (value) => value, passes: true },
     {
       name: "cycle5-v3",
       transform: (value) => ({

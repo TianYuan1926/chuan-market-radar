@@ -1456,3 +1456,19 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - production smoke 未运行，因为本轮范围禁止生产执行；formal 未运行且禁止。
 
 当前结论仍是：**G0 主步骤 7；R1 / 可运行但不完整 / 不能支撑实战。** 这些包只是后续提速准备，不能替代 Cycle-7 观察终证据，也不能把 G0 减数。
+
+## 2026-07-19 WP-G0.2 Cycle-7 Shadow Verify Handoff Refresh
+
+本轮继续利用 Cycle-7 生产观察等待期，只刷新 Shadow Verify 后续本地包；未上传、未部署、未连接或修改生产。
+
+当前事实：
+
+- Shadow Verify dependency refresh、phase transition / dual-read observation、Readonly Superwindow -> Shadow Verify automatic handoff 已从旧 Cycle-6 口径刷新到 Cycle-7。
+- 当前绑定 production commit=`47741f3222247562843932b01607a1ec3abb534e`，tree=`bff1d1b3f27a0608004c379189bd1adc038477ec`，migration=`candidate-episode-v1-cycle-7`，release=`candidate-shadow-cycle-7-47741f3`，build record path=`/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json`。
+- Shadow Verify phase 继续要求 Lineage v3、Reconciliation v3、Code Presence PASS、七个 source release windows、10,000 compared writes、0 differences、0 unresolved、Legacy response authority 和 289 samples / 24h / max 600s gap；未缩短任何观察门槛。
+- Phase required production identity 现在使用 Cycle-7 production commit/tree，并依赖 Code Presence 逐 blob PASS；没有复用历史 Web-only release，也没有跳过代码存在性验证。
+- 定向门禁：Shadow Verify code authorization 37/37 PASS；Phase 21/21 + validate PASS；Handoff 12/12 + validate PASS。
+- 基础门禁：typecheck、lint、test:market、build、backtest:golden、forbidden-files、secret-patterns、security-check 全部 PASS。
+- production smoke 未运行，因为本轮范围禁止生产执行；formal 未运行且禁止。
+
+当前结论仍是：**G0 主步骤 7；R1 / 可运行但不完整 / 不能支撑实战。** 本轮只是提前消除 Shadow Verify 后续包的旧周期绑定；Cycle-7 观察终证据、Lineage/Reconciliation 生产只读和 Shadow Verify 生产 phase 均未完成。

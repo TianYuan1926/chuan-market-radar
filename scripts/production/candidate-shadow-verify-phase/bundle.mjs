@@ -39,8 +39,8 @@ const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
   "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v6.json";
-export const REQUIRED_PRODUCTION_COMMIT = "3315b54dfcfcde63fcdf3a042ef92754da509feb";
-export const REQUIRED_PRODUCTION_TREE = "cccd5776a80ded39f712bee4909c23c8133db798";
+export const REQUIRED_PRODUCTION_COMMIT = "47741f3222247562843932b01607a1ec3abb534e";
+export const REQUIRED_PRODUCTION_TREE = "bff1d1b3f27a0608004c379189bd1adc038477ec";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -128,7 +128,7 @@ export function validateContract(contract) {
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",
   "contract_identity_invalid");
   ensure(contract.status
-      === "local_cycle6_implementation_and_rehearsal_production_blocked_by_prerequisites"
+      === "local_cycle7_implementation_and_rehearsal_production_blocked_by_prerequisites"
       && contract.productionAuthorization === false && contract.productionExecuted === false,
   "contract_production_truth_invalid");
   ensure(contract.releaseBoundary?.requiredProductionCommit === REQUIRED_PRODUCTION_COMMIT
@@ -153,9 +153,9 @@ export function validateContract(contract) {
       && prerequisites.maximumDuplicateOutboxMappings === 0
       && prerequisites.maximumDuplicateEventMappings === 0
       && prerequisites.maximumUnresolvedOutbox === 0
-      && prerequisites.sourceReleaseWindowsExact === 6
+      && prerequisites.sourceReleaseWindowsExact === 7
       && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
-      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-6"
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-7"
       && prerequisites.currentPhase === "shadow_capture"
       && prerequisites.currentWriteFrozen === false
       && prerequisites.minimumDeadlineRemainingSeconds === 87000,
@@ -258,7 +258,7 @@ function validateLineage(lineage, request) {
   const validated = validateCandidateLineageEvidence(lineage);
   ensure(validated.schemaVersion === LINEAGE_SCHEMA && validated.status === LINEAGE_PASS
       && validated.completedWrites >= 10000 && validated.unresolvedOutbox === 0
-      && validated.validationCycle === 6
+      && validated.validationCycle === 7
       && validated.sourceReleaseWindows.length === validated.validationCycle
       && validated.sourceReleaseCount === validated.validationCycle
       && validated.currentMigrationId === request.migrationId,

@@ -5,7 +5,7 @@ umask 077
 STAGING_DIRECTORY="${1:-}"
 OBSERVATION_FINAL="${2:-}"
 PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
-BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
+BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json"
 POSTGRES_ADMIN_ENV="/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
 IDENTITY_WRAPPER="/usr/local/sbin/market-radar-compose"
 IDENTITY_OVERRIDE="/etc/market-radar/compose-identity.env"
@@ -48,9 +48,9 @@ done
 jq -e '
   .schemaVersion == "candidate-validation-cycle-observation.v2"
   and .status == "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
-  and .commit == "72ee289388eea922d0aee58fd4ec7a3f18a91007"
-  and .migrationId == "candidate-episode-v1-cycle-6"
-  and .releaseId == "candidate-shadow-cycle-6-72ee2893"
+  and .commit == "47741f3222247562843932b01607a1ec3abb534e"
+  and .migrationId == "candidate-episode-v1-cycle-7"
+  and .releaseId == "candidate-shadow-cycle-7-47741f3"
   and (.authorityEpoch >= 1 and (.authorityEpoch % 2) == 1)
   and .samples >= 289 and .activationSamples >= 289
   and .elapsedSeconds >= 86400 and .activationCoverageSeconds >= 86400
@@ -64,7 +64,7 @@ jq -e '.schemaVersion == "candidate-cycle-observation-closeout.v1"
   and .outcome == "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
   and .secretsPrinted == false' "${CLOSEOUT}" >/dev/null || fail observation_closeout_not_pass
 
-CYCLE_OBSERVER_UNIT="market-radar-cycle-observer-72ee289-2b13c6e6.service"
+CYCLE_OBSERVER_UNIT="market-radar-cycle-observer-47741f3-1959d0a2.service"
 CYCLE_OBSERVER_STATE="$(sudo -n systemctl show "${CYCLE_OBSERVER_UNIT}" \
   --property=ActiveState --value 2>/dev/null || true)"
 [[ "${CYCLE_OBSERVER_STATE}" != "active" && "${CYCLE_OBSERVER_STATE}" != "activating"
