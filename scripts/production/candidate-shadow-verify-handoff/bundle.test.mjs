@@ -31,6 +31,7 @@ test("contract preserves independent R0 and R2 child boundaries", async () => {
   assert.equal(result.contract.executionBoundary.productionWipExact, 1);
   assert.equal(result.contract.handoffBoundary.automaticPhaseAdvanceWithoutIndependentRequest,
     false);
+  assert.equal(result.contract.handoffBoundary.currentCycleFinalRederivedFromRawSamples, true);
   assert.equal(result.contract.resultBoundary.dualReadObservationCompleted, false);
   assert.equal(result.contract.resultBoundary.g0Completed, false);
 });

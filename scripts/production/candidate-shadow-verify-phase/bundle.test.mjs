@@ -9,6 +9,7 @@ import { test } from "node:test";
 import {
   CONTRACT_PATH,
   REQUIRED_PRODUCTION_COMMIT,
+  REQUIRED_PRODUCTION_TREE,
   buildTransportBundle,
   createProductionExecutionRequest,
   prepareAdminUrl,
@@ -59,8 +60,8 @@ function reconciliationEvidence(lineageFileSha256 = hash("5")) {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 5,
-    verificationMigrationId: "candidate-episode-v1-cycle-5",
+    sourceReleaseCount: 6,
+    verificationMigrationId: "candidate-episode-v1-cycle-6",
     evidenceHash: `sha256:${hash("a")}`,
     violations: [],
     differenceSample: [],
@@ -112,12 +113,21 @@ function lineageEvidence() {
         writeFrozen: true,
       },
       {
-        controlEpoch: 3,
-        deadlineAt: "2026-07-20T00:00:00.000Z",
+        controlEpoch: 2,
+        deadlineAt: "2026-07-18T00:00:00.000Z",
         migrationId: "candidate-episode-v1-cycle-5",
+        phase: "legacy",
+        releaseId: "candidate-shadow-release-cycle-five",
+        startedAt: "2026-07-15T00:00:00.000Z",
+        writeFrozen: true,
+      },
+      {
+        controlEpoch: 3,
+        deadlineAt: "2026-07-21T00:00:00.000Z",
+        migrationId: "candidate-episode-v1-cycle-6",
         phase: "shadow_capture",
         releaseId: "candidate-shadow-release-12345678",
-        startedAt: "2026-07-17T00:00:00.000Z",
+        startedAt: "2026-07-18T00:00:00.000Z",
         writeFrozen: false,
       },
     ],
@@ -135,17 +145,17 @@ function lineageEvidence() {
     minimumActivationSamples: 289,
     minimumActivationHours: 24,
     unresolvedMaximum: 0,
-    currentCycleStartedAt: "2026-07-17T00:00:00.000Z",
-    currentMigrationId: "candidate-episode-v1-cycle-5",
+    currentCycleStartedAt: "2026-07-18T00:00:00.000Z",
+    currentMigrationId: "candidate-episode-v1-cycle-6",
     currentReleaseId: "candidate-shadow-release-12345678",
     currentAuthorityEpoch: 3,
     thresholdsChanged: false,
     productionReconciliationExecuted: false,
     shadowVerifyStarted: false,
-    sourceReleaseCount: 5,
+    sourceReleaseCount: 6,
     canonicalAuthorityChanged: false,
     g0Completed: false,
-    validationCycle: 5,
+    validationCycle: 6,
   };
 }
 
@@ -167,12 +177,12 @@ function transportManifest() {
 function runtime(evidence = {}) {
   return {
     productionCommit: REQUIRED_PRODUCTION_COMMIT,
-    productionTree: commit("b"),
-    productionCommitTree: commit("b"),
+    productionTree: REQUIRED_PRODUCTION_TREE,
+    productionCommitTree: REQUIRED_PRODUCTION_TREE,
     currentWebImageId: image("c"),
     candidateWorkerContainerId: "d".repeat(12),
     candidateWorkerImageId: image("e"),
-    migrationId: "candidate-episode-v1-cycle-5",
+    migrationId: "candidate-episode-v1-cycle-6",
     releaseId: "candidate-shadow-release-12345678",
     currentAuthorityEpoch: 3,
     baseEnvPath: "/home/ubuntu/apps/chuan-market-radar/.env",
@@ -298,7 +308,18 @@ test("phase approval accepts only exact current Lineage v3 and bound Reconciliat
   const manifest = transportManifest();
   const now = new Date("2026-07-17T00:00:00.000Z");
   const cases = [
-    { name: "cycle5-v3", transform: (value) => value, passes: true },
+    { name: "cycle6-v3", transform: (value) => value, passes: true },
+    {
+      name: "cycle5-v3",
+      transform: (value) => ({
+        ...value,
+        sourceReleaseWindows: value.sourceReleaseWindows.slice(0, 5),
+        currentMigrationId: "candidate-episode-v1-cycle-5",
+        sourceReleaseCount: 5,
+        validationCycle: 5,
+      }),
+      passes: false,
+    },
     {
       name: "lineage-v1",
       transform: (value) => ({
@@ -332,7 +353,7 @@ test("phase approval accepts only exact current Lineage v3 and bound Reconciliat
         assert.equal((await operation).status, "PASS_SHADOW_VERIFY_PHASE_EXECUTION_REQUEST");
       } else {
         await assert.rejects(operation,
-          /lineage_evidence_status_invalid|lineage_windows_invalid|lineage_evidence_shape_invalid|lineage_window_count_cycle_mismatch/u,
+          /lineage_evidence_status_invalid|lineage_windows_invalid|lineage_evidence_shape_invalid|lineage_window_count_cycle_mismatch|lineage_window_state_invalid|lineage_cycle_count_identity_mismatch/u,
           candidate.name);
       }
     } finally {

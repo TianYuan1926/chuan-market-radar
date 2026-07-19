@@ -84,7 +84,7 @@ cleanup() {
   local exit_code=$?
   trap - EXIT INT TERM HUP
   if [[ -n "${READONLY_STAGE}" \
-    && "${READONLY_STAGE}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-cycle-5-read-only-superwindow-* \
+    && "${READONLY_STAGE}" == /home/ubuntu/.cache/market-radar-ops/wp-g0-2-current-cycle-read-only-superwindow-* \
     && "${READONLY_STAGE}" != "${ACTUAL_ROOT}" ]]; then
     rm -rf -- "${READONLY_STAGE}"
   fi
@@ -134,7 +134,7 @@ stage_child() {
   chmod 600 "${stage}/.transport-bundle.sha256"
 }
 
-# R0 child: exact Cycle-5 code-presence, lineage, and reconciliation.
+# R0 child: exact current-cycle code-presence, lineage, and reconciliation.
 READONLY_ARCHIVE="${ACTUAL_ROOT}/$(jq -r '.childPackets.readOnlySuperwindow.archivePath' "${REQUEST_FILE}")"
 READONLY_SHA="$(jq -r '.childPackets.readOnlySuperwindow.sha256' "${REQUEST_FILE}")"
 READONLY_EXTRACT="${WORK_ROOT}/extract-readonly"
@@ -178,9 +178,9 @@ PHASE_ARCHIVE="${ACTUAL_ROOT}/$(jq -r '.childPackets.shadowVerifyPhase.archivePa
 PHASE_SHA="$(jq -r '.childPackets.shadowVerifyPhase.sha256' "${SOURCE_ROOT}/approval-request.json")"
 PHASE_EXTRACT="${WORK_ROOT}/extract-phase"
 safe_extract "${PHASE_ARCHIVE}" "${PHASE_SHA}" "${PHASE_EXTRACT}"
-CODE_EVIDENCE="$(jq -r '.childEvidence[0].path' "${READONLY_SUMMARY}")"
-LINEAGE_EVIDENCE="$(jq -r '.childEvidence[1].path' "${READONLY_SUMMARY}")"
-RECONCILIATION_EVIDENCE="$(jq -r '.childEvidence[2].path' "${READONLY_SUMMARY}")"
+CODE_EVIDENCE="${READONLY_EVIDENCE_DIRECTORY}/$(jq -r '.childEvidence[0].evidenceFile' "${READONLY_SUMMARY}")"
+LINEAGE_EVIDENCE="${READONLY_EVIDENCE_DIRECTORY}/$(jq -r '.childEvidence[1].evidenceFile' "${READONLY_SUMMARY}")"
+RECONCILIATION_EVIDENCE="${READONLY_EVIDENCE_DIRECTORY}/$(jq -r '.childEvidence[2].evidenceFile' "${READONLY_SUMMARY}")"
 for evidence in "${CODE_EVIDENCE}" "${LINEAGE_EVIDENCE}" "${RECONCILIATION_EVIDENCE}"; do
   [[ "${evidence}" == /home/ubuntu/.cache/market-radar-ops/evidence/*.json \
     && -f "${evidence}" && ! -L "${evidence}" && "$(file_mode "${evidence}")" == "600" ]] \
@@ -193,9 +193,6 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
   --mount "type=bind,src=${PHASE_EXTRACT},dst=/child-packet,readonly" \
   --mount "type=bind,src=${WORK_ROOT},dst=/work" \
   --mount "type=bind,src=${READONLY_EVIDENCE_DIRECTORY},dst=${READONLY_EVIDENCE_DIRECTORY},readonly" \
-  --mount "type=bind,src=$(dirname "${CODE_EVIDENCE}"),dst=$(dirname "${CODE_EVIDENCE}"),readonly" \
-  --mount "type=bind,src=$(dirname "${LINEAGE_EVIDENCE}"),dst=$(dirname "${LINEAGE_EVIDENCE}"),readonly" \
-  --mount "type=bind,src=$(dirname "${RECONCILIATION_EVIDENCE}"),dst=$(dirname "${RECONCILIATION_EVIDENCE}"),readonly" \
   --entrypoint node "${WEB_IMAGE}" \
   /orchestrator/scripts/production/candidate-shadow-verify-handoff/request-generator.mjs phase \
     --packet-root /child-packet --manifest /child-packet/transport-manifest.json \
@@ -211,23 +208,35 @@ bash "${PHASE_STAGE}/scripts/production/candidate-shadow-verify-phase/production
 [[ "$(sudo -n systemctl show "${PHASE_OBSERVER_UNIT}.service" --property=ActiveState --value 2>/dev/null || true)" \
   == "active" && -f "${PHASE_EVIDENCE_DIRECTORY}/immediate-summary.json" ]] \
   || fail phase_observer_not_active
-jq -e '.status == "PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE"
+jq -e --arg commit "${PRODUCTION_COMMIT}" --arg tree "${PRODUCTION_TREE}" \
+  --arg web "${WEB_IMAGE}" --arg migration "$(jq -r '.runtime.currentCycleFinal.migrationId' "${SOURCE_ROOT}/approval-request.json")" \
+  --arg release "$(jq -r '.runtime.currentCycleFinal.releaseId' "${SOURCE_ROOT}/approval-request.json")" '
+  .schemaVersion == "candidate-shadow-verify-phase-immediate.v2"
+  and .status == "PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE"
+  and .productionCommit == $commit and .productionTree == $tree and .webImageId == $web
+  and .migrationId == $migration and .releaseId == $release
   and .candidateResponseAuthority == "legacy" and .automaticPhaseAdvance == false' \
   "${PHASE_EVIDENCE_DIRECTORY}/immediate-summary.json" >/dev/null \
   || fail phase_immediate_summary_invalid
 
 FINAL="${EVIDENCE_DIRECTORY}/handoff-final.json"
 jq -n \
-  --arg schemaVersion "wp-g0.2-cycle-5-to-shadow-verify-handoff-evidence.v1" \
+  --arg schemaVersion "wp-g0.2-current-cycle-to-shadow-verify-handoff-evidence.v2" \
   --arg status "PASS_SHADOW_VERIFY_HANDOFF_OBSERVER_ACTIVE" \
-  --arg packageId "WP-G0.2-CYCLE-5-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW" \
+  --arg packageId "WP-G0.2-CURRENT-CYCLE-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW" \
+  --arg productionCommit "${PRODUCTION_COMMIT}" --arg productionTree "${PRODUCTION_TREE}" \
+  --arg migrationId "$(jq -r '.runtime.currentCycleFinal.migrationId' "${SOURCE_ROOT}/approval-request.json")" \
+  --arg releaseId "$(jq -r '.runtime.currentCycleFinal.releaseId' "${SOURCE_ROOT}/approval-request.json")" \
+  --arg webImageId "${WEB_IMAGE}" \
   --arg readOnlyEvidencePath "${READONLY_SUMMARY}" --arg readOnlyEvidenceSha256 "$(sha_file "${READONLY_SUMMARY}")" \
   --arg phaseEvidencePath "${PHASE_EVIDENCE_DIRECTORY}/immediate-summary.json" \
   --arg phaseEvidenceSha256 "$(sha_file "${PHASE_EVIDENCE_DIRECTORY}/immediate-summary.json")" \
   --arg phaseObserverUnit "${PHASE_OBSERVER_UNIT}.service" --arg phaseStagingDirectory "${PHASE_STAGE}" '
   {schemaVersion:$schemaVersion,status:$status,packageId:$packageId,
-   sequence:["cycle5_readonly_superwindow","shadow_verify_phase"],
-   readOnlyStatus:"PASS_CYCLE_5_READ_ONLY_VERIFICATION_SUPERWINDOW",
+   sequence:["current_cycle_readonly_superwindow","shadow_verify_phase"],
+   productionCommit:$productionCommit,productionTree:$productionTree,
+   migrationId:$migrationId,releaseId:$releaseId,webImageId:$webImageId,
+   readOnlyStatus:"PASS_CURRENT_CYCLE_READ_ONLY_VERIFICATION_SUPERWINDOW",
    phaseImmediateStatus:"PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE",
    observerActive:true,dualReadObservationCompleted:false,canonicalCompatStarted:false,
    canonicalCutoverExecuted:false,g0Completed:false,servicesMutated:["web"],

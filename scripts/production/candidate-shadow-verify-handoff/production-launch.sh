@@ -5,7 +5,7 @@ umask 077
 STAGING_DIRECTORY="${1:-}"
 OBSERVATION_FINAL="${2:-}"
 PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
-BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-94b6d415573f-98459433/target-images-record.json"
+BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
 POSTGRES_ADMIN_ENV="/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
 IDENTITY_WRAPPER="/usr/local/sbin/market-radar-compose"
 IDENTITY_OVERRIDE="/etc/market-radar/compose-identity.env"
@@ -48,8 +48,9 @@ done
 jq -e '
   .schemaVersion == "candidate-validation-cycle-observation.v2"
   and .status == "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
-  and .commit == "94b6d415573f5d8b2d0190c809a4b8e128a25aa8"
-  and .migrationId == "candidate-episode-v1-cycle-5"
+  and .commit == "72ee289388eea922d0aee58fd4ec7a3f18a91007"
+  and .migrationId == "candidate-episode-v1-cycle-6"
+  and .releaseId == "candidate-shadow-cycle-6-72ee2893"
   and (.authorityEpoch >= 1 and (.authorityEpoch % 2) == 1)
   and .samples >= 289 and .activationSamples >= 289
   and .elapsedSeconds >= 86400 and .activationCoverageSeconds >= 86400
@@ -63,14 +64,14 @@ jq -e '.schemaVersion == "candidate-cycle-observation-closeout.v1"
   and .outcome == "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
   and .secretsPrinted == false' "${CLOSEOUT}" >/dev/null || fail observation_closeout_not_pass
 
-CYCLE_OBSERVER_UNIT="market-radar-cycle-observer-94b6d41-98459433.service"
+CYCLE_OBSERVER_UNIT="market-radar-cycle-observer-72ee289-2b13c6e6.service"
 CYCLE_OBSERVER_STATE="$(sudo -n systemctl show "${CYCLE_OBSERVER_UNIT}" \
   --property=ActiveState --value 2>/dev/null || true)"
 [[ "${CYCLE_OBSERVER_STATE}" != "active" && "${CYCLE_OBSERVER_STATE}" != "activating"
-  && "${CYCLE_OBSERVER_STATE}" != "reloading" ]] || fail cycle5_observer_still_active
+  && "${CYCLE_OBSERVER_STATE}" != "reloading" ]] || fail current_cycle_observer_still_active
 ACTIVE_HANDOFF_UNITS="$(sudo -n systemctl list-units --type=service \
   --state=active,activating,reloading --no-legend --plain \
-  'market-radar-cycle5-readonly-superwindow-*' \
+  'market-radar-current-cycle-readonly-superwindow-*' \
   'market-radar-shadow-verify-handoff-*' \
   'market-radar-shadow-verify-phase-*' \
   'market-radar-shadow-verify-observer-*' 2>/dev/null || true)"
@@ -109,7 +110,7 @@ jq -e '.ok == true and .health.level == "ready" and .health.scan.freshness == "f
     | select(.name == "scanner-worker" and .status == "healthy")] | length == 1)' \
   <<<"${HEALTH}" >/dev/null || fail production_health_not_ready_fresh
 jq -e --arg web "${WEB_IMAGE}" '.schemaVersion == "candidate-cycle-target-images.v1"
-  and .webTargetId == $web and .secretsPrinted == false' "${BUILD_RECORD}" >/dev/null \
+  and .webImageId == $web and .secretsPrinted == false' "${BUILD_RECORD}" >/dev/null \
   || fail build_record_identity_invalid
 
 WORK="${ACTUAL_STAGING}/request-work"
@@ -150,7 +151,7 @@ ${DOCKER[@]} run --rm --network none --read-only --cap-drop ALL \
 TARGET_ENV_SHA="$(sha_file "${WORK}/target.env.production")"
 
 jq -n \
-  --argjson cycle5Final "$(cat "${ACTUAL_FINAL}")" \
+  --argjson currentCycleFinal "$(cat "${ACTUAL_FINAL}")" \
   --arg productionCommit "${PRODUCTION_COMMIT}" --arg productionTree "${PRODUCTION_TREE}" \
   --arg currentWebContainerId "${WEB_CONTAINER}" --arg currentWebImageId "${WEB_IMAGE}" \
   --arg buildRecordPath "${BUILD_RECORD}" --arg buildRecordSha256 "$(sha_file "${BUILD_RECORD}")" \
@@ -170,7 +171,7 @@ jq -n \
   --arg identityWrapperSha256 "$(sha_file "${IDENTITY_WRAPPER}")" \
   --arg identityOverridePath "${IDENTITY_OVERRIDE}" \
   --arg identityOverrideSha256 "$(sha_file "${IDENTITY_OVERRIDE}")" '
-  {cycle5Final:$cycle5Final,productionCommit:$productionCommit,productionTree:$productionTree,
+  {currentCycleFinal:$currentCycleFinal,productionCommit:$productionCommit,productionTree:$productionTree,
    currentWebContainerId:$currentWebContainerId,currentWebImageId:$currentWebImageId,
    buildRecordPath:$buildRecordPath,buildRecordSha256:$buildRecordSha256,
    buildRecordWebImageId:$currentWebImageId,composeSha256:$composeSha256,
@@ -179,9 +180,9 @@ jq -n \
    captureSpecification:{schemaVersion:"candidate-lineage-capture-specification.v3",
     packageId:"WP-G0.2-CURRENT-CYCLE-UNIFIED-LINEAGE-CAPTURE-PRODUCTION-PACKET",
     productionMutationAllowed:false,outputSchemaVersion:"candidate-multi-cycle-lineage-evidence.v3",
-    unified:{authorityEpoch:$cycle5Final.authorityEpoch,closeoutPath:$closeoutPath,
-     closeoutSha256:$closeoutSha256,commit:$cycle5Final.commit,finalPath:$finalPath,
-     finalSha256:$finalSha256,migrationId:$cycle5Final.migrationId,releaseId:$cycle5Final.releaseId,
+    unified:{authorityEpoch:$currentCycleFinal.authorityEpoch,closeoutPath:$closeoutPath,
+     closeoutSha256:$closeoutSha256,commit:$currentCycleFinal.commit,finalPath:$finalPath,
+     finalSha256:$finalSha256,migrationId:$currentCycleFinal.migrationId,releaseId:$currentCycleFinal.releaseId,
      samplesPath:$samplesPath,samplesSha256:$samplesSha256}},
    phase:{candidateWorkerContainerId:$candidateWorkerContainerId,
     candidateWorkerImageId:$candidateWorkerImageId,baseEnvPath:$baseEnvPath,

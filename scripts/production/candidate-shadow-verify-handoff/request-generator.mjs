@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { lstat, readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
@@ -76,7 +76,11 @@ async function createPhase(options) {
     json(options.runtime),
     json(options.summary),
   ]);
-  const runtime = buildPhaseRuntimeFromReadOnlySummary({ runtime: outerRuntime, summary });
+  const runtime = await buildPhaseRuntimeFromReadOnlySummary({
+    evidenceRoot: dirname(resolve(options.summary)),
+    runtime: outerRuntime,
+    summary,
+  });
   runtime.reconciliationEvidence = await json(runtime.reconciliationEvidencePath);
   const request = childApi.createProductionExecutionRequest({
     bundleSha256: options.bundle,
@@ -89,7 +93,8 @@ async function createPhase(options) {
 
 async function validateSummary(options) {
   const summary = await json(options.summary);
-  validateReadOnlySummary(summary, options.commit);
+  await validateReadOnlySummary(summary, dirname(resolve(options.summary)));
+  ensure(summary.productionCommit === options.commit, "readonly_summary_commit_mismatch");
   return { status: "PASS_CURRENT_RUN_READ_ONLY_SUMMARY", secretsPrinted: false };
 }
 

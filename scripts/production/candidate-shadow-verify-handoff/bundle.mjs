@@ -20,21 +20,23 @@ import {
 
 const execFileAsync = promisify(execFile);
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-cycle-5-to-shadow-verify-automatic-handoff-superwindow.v1.json";
+  "docs/governance/wp-g0-2-current-cycle-to-shadow-verify-automatic-handoff-superwindow.v2.json";
 export const SOURCE_DATE_EPOCH = 946684800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
 const HASH = /^[0-9a-f]{64}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
 
 export const CHILD_ARCHIVES = Object.freeze({
-  readOnlySuperwindow: "packets/cycle5-readonly-superwindow.tar.gz",
+  readOnlySuperwindow: "packets/current-cycle-readonly-superwindow.tar.gz",
   shadowVerifyPhase: "packets/shadow-verify-phase.tar.gz",
 });
 export const CHILD_PACKAGES = Object.freeze({
-  readOnlySuperwindow: "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW",
+  readOnlySuperwindow: "WP-G0.2-CURRENT-CYCLE-READ-ONLY-VERIFICATION-SUPERWINDOW",
   shadowVerifyPhase: "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
 });
 export const RUNNER_FILES = Object.freeze([
+  "scripts/production/candidate-cycle-continuation/observation-runner.mjs",
+  "scripts/production/candidate-readonly-superwindow/runner.mjs",
   "scripts/production/candidate-shadow-verify-handoff/production-entrypoint.sh",
   "scripts/production/candidate-shadow-verify-handoff/production-launch.sh",
   "scripts/production/candidate-shadow-verify-handoff/production-runner.sh",
@@ -77,14 +79,24 @@ export async function validateContract(root = process.cwd()) {
   const bytes = await readFile(resolve(root, CONTRACT_PATH));
   const contract = JSON.parse(bytes);
   ensure(contract.schemaVersion
-      === "wp-g0.2-cycle-5-to-shadow-verify-automatic-handoff-superwindow.v1"
+      === "wp-g0.2-current-cycle-to-shadow-verify-automatic-handoff-superwindow.v2"
       && contract.packageId === PACKAGE_ID && contract.gate === "G0"
       && contract.actionClass === "shadow_verify_activation"
       && contract.riskTier === "R2_AUTHORITY_TRANSITION"
-      && contract.status === "local_ready_for_gate_production_blocked_by_cycle5",
+      && contract.status === "local_cycle6_ready_for_gate_production_blocked_by_cycle6_final",
   "contract_identity_invalid");
+  const identity = contract.requiredProductionIdentity ?? {};
+  ensure(identity.commit === "72ee289388eea922d0aee58fd4ec7a3f18a91007"
+      && identity.tree === "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
+      && identity.migrationId === "candidate-episode-v1-cycle-6"
+      && identity.releaseId === "candidate-shadow-cycle-6-72ee2893"
+      && identity.buildRecordPath
+        === "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
+      && identity.buildRecordSchema === "candidate-cycle-target-images.v1"
+      && identity.buildRecordWebImageField === "webImageId",
+  "contract_production_identity_invalid");
   ensure(JSON.stringify(contract.sequence)
-      === '["cycle5_readonly_superwindow","shadow_verify_phase"]'
+      === '["current_cycle_readonly_superwindow","shadow_verify_phase"]'
       && contract.children?.readOnlySuperwindow?.actionClass
         === "read_only_production_preflight"
       && contract.children?.readOnlySuperwindow?.productionMutationAllowed === false
@@ -93,7 +105,9 @@ export async function validateContract(root = process.cwd()) {
       && contract.children?.shadowVerifyPhase?.independentLeaseRequired === true,
   "contract_child_boundary_invalid");
   const entry = contract.entryBoundary ?? {};
-  ensure(entry.minimumCompletedWrites === 10000 && entry.minimumSamples === 289
+  ensure(entry.currentCycleStatus === "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
+      && entry.currentCycleMigrationId === "candidate-episode-v1-cycle-6"
+      && entry.minimumCompletedWrites === 10000 && entry.minimumSamples === 289
       && entry.minimumHours === 24 && entry.minimumCompletionAdvances === 2
       && entry.maximumSampleGapSeconds === 600 && entry.unresolvedOutboxExact === 0
       && entry.thresholdsChanged === false && entry.shadowVerifyStarted === false
@@ -101,6 +115,8 @@ export async function validateContract(root = process.cwd()) {
   "contract_entry_boundary_invalid");
   const handoff = contract.handoffBoundary ?? {};
   ensure(handoff.readOnlyPassRequiredBeforePhaseRequest === true
+      && handoff.currentCycleFinalRederivedFromRawSamples === true
+      && handoff.readOnlySummaryBytesRevalidatedBeforePhaseRequest === true
       && handoff.phaseRequestGeneratedFromCurrentRunEvidenceOnly === true
       && handoff.codePresenceExactPathAndShaRequired === true
       && handoff.lineageExactPathAndShaRequired === true
@@ -136,8 +152,10 @@ export async function validateContract(root = process.cwd()) {
       && HASH.test(contract.runnerArtifact.sha256 ?? ""),
   "contract_runner_artifact_invalid");
   for (const forbidden of [
-    "cycle5_threshold_shortening", "shadow_verify_observation_shortening",
-    "child_authorization_merging", "phase_request_before_readonly_pass",
+    "current_cycle_threshold_shortening", "shadow_verify_observation_shortening",
+    "child_authorization_merging", "child_lease_merging",
+    "phase_request_before_readonly_pass", "readonly_summary_hash_bypass",
+    "historical_web_release_reuse",
     "candidate_response_authority", "canonical_cutover", "production_ranking_change",
     "future_outcome_input", "formal_backtest",
   ]) ensure(contract.forbidden?.includes(forbidden), `contract_forbidden_missing:${forbidden}`);
@@ -234,7 +252,7 @@ export async function buildTransportBundle({
     const policySha256 = sha256(await readFile(resolve(root,
       "scripts/governance/autonomy-policy.mjs")));
     const manifest = {
-      schemaVersion: "wp-g0.2-cycle-5-to-shadow-verify-handoff-transport.v1",
+      schemaVersion: "wp-g0.2-current-cycle-to-shadow-verify-handoff-transport.v2",
       packageId: PACKAGE_ID,
       approvalEligible,
       sourceCommit: identity.sourceCommit,
@@ -256,7 +274,7 @@ export async function buildTransportBundle({
       containsSecrets: false,
       productionMutationAllowed: true,
       services: ["web"],
-      sequence: ["cycle5_readonly_superwindow", "shadow_verify_phase"],
+      sequence: ["current_cycle_readonly_superwindow", "shadow_verify_phase"],
       children: {
         readOnlySuperwindow: childRecord(children.readOnlySuperwindow, "readOnlySuperwindow"),
         shadowVerifyPhase: childRecord(children.shadowVerifyPhase, "shadowVerifyPhase"),
@@ -276,8 +294,8 @@ export async function buildTransportBundle({
       encoding: null, maxBuffer: 128 * 1024 * 1024,
     });
     const outputPath = resolve(output ?? join(root,
-      "reports/wp-g0-2-cycle-5-to-shadow-verify-automatic-handoff-superwindow",
-      `cycle5-to-shadow-verify-handoff-${identity.sourceCommit.slice(0, 12)}.tar.gz`));
+      "reports/wp-g0-2-current-cycle-to-shadow-verify-automatic-handoff-superwindow",
+      `current-cycle-to-shadow-verify-handoff-${identity.sourceCommit.slice(0, 12)}.tar.gz`));
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, bytes, { mode: 0o600 });
     return {
@@ -296,12 +314,12 @@ export async function buildTransportBundle({
 
 export async function verifyStagedTransport(root, manifest, { requireApproval = true } = {}) {
   ensure(manifest?.schemaVersion
-      === "wp-g0.2-cycle-5-to-shadow-verify-handoff-transport.v1"
+      === "wp-g0.2-current-cycle-to-shadow-verify-handoff-transport.v2"
       && manifest.packageId === PACKAGE_ID && (!requireApproval || manifest.approvalEligible === true)
       && manifest.containsSecrets === false && manifest.productionMutationAllowed === true
       && JSON.stringify(manifest.services) === '["web"]'
       && JSON.stringify(manifest.sequence)
-        === '["cycle5_readonly_superwindow","shadow_verify_phase"]'
+        === '["current_cycle_readonly_superwindow","shadow_verify_phase"]'
       && manifest.reproducibleArchive === true && manifest.archiveFormat === "ustar+gzip-n"
       && manifest.transportMethod === "approved_orcaterm_bundle_upload"
       && manifest.bundleMarker === ".transport-bundle.sha256"

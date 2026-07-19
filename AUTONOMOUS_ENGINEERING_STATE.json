@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-19T09:31:10+08:00",
+  "updatedAt": "2026-07-19T10:09:27+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -24,11 +24,12 @@
     "reconciliationMultiCycleLineageRemediation": "completed_local_committed_pushed_55e7de1_targeted_runner_13_of_13_packet_11_of_11_postgres16_two_cycle_10000_write_zero_difference_rehearsal_baseline_security_and_postcommit_autonomy_14_of_14_pass_production_not_connected",
     "freshVerificationCycleLineageCapture": "pass_local_cycle6_v4_refresh_postgres16_six_controls_10020_writes_release_distribution_1670_0_1670_0_1670_5010_readonly_audit_role_production_not_connected_observer_unchanged",
     "freshVerificationCycleLineageProductionPacket": "pass_local_cycle6_v4_packet_local_runner_837f8c16_execution_artifact_42f57434_exact_six_windows_deterministic_redacted_bundle_production_not_executed_waiting_cycle6_final",
-    "shadowVerifyCodePresence": "pass_local_cycle6_v2_current_production_identity_exact_three_blob_and_real_build_record_bound_runner_fd3f0e8d_10_of_10_production_not_executed_waiting_cycle6_final",
-    "currentCycleReadonlySuperwindow": "pass_local_cycle6_v2_six_window_strict_serial_code_presence_lineage_reconciliation_final_summary_byte_bound_independent_authorizations_lineage_reconciliation_leases_8_of_8_production_not_executed_waiting_cycle6_final",
-    "shadowVerifyCodeAuthorization": "stale_cycle5_v3_five_window_and_old_production_identity_dependency_requires_cycle6_v4_refresh_production_not_connected_not_deployed_phase_not_changed",
-    "shadowVerifyCodeAuthorizationProductionRelease": "current_cycle_v3_dependency_refresh_committed_pushed_2c8bf776_gate21_pass_old_release_target_54837d0_to_eb48827_stale_against_production_94b6d415_exact_three_code_blobs_already_present_code_presence_identity_remediation_active",
-    "shadowVerifyPhaseTransitionAndDualReadObservation": "stale_cycle5_five_window_contract_and_conflicting_old_production_identity_requires_cycle6_v5_refresh_production_not_connected_phase_not_changed_observation_not_started",
+    "shadowVerifyCodePresence": "completed_local_committed_pushed_6e6fc9c_cycle6_v2_current_production_identity_exact_three_blob_and_real_build_record_bound_runner_fd3f0e8d_10_of_10_production_not_executed_waiting_cycle6_final",
+    "currentCycleReadonlySuperwindow": "completed_local_committed_pushed_6e6fc9c_cycle6_v2_six_window_strict_serial_code_presence_lineage_reconciliation_final_summary_byte_bound_independent_authorizations_lineage_reconciliation_leases_8_of_8_production_not_executed_waiting_cycle6_final",
+    "shadowVerifyCodeAuthorization": "pass_local_cycle6_v4_six_window_code_presence_required_historical_web_release_rejected_37_of_37_production_not_connected_phase_not_changed",
+    "shadowVerifyCodeAuthorizationProductionRelease": "historical_cycle5_web_release_packet_not_refreshed_or_authorized_cycle6_requires_zero_mutation_code_presence_production_evidence_no_web_release_authority_yet",
+    "shadowVerifyPhaseTransitionAndDualReadObservation": "pass_local_cycle6_v5_commit_72ee289_tree_bb1492d5_six_window_code_presence_only_phase_21_of_21_pg16_transition_rollback_pass_production_not_connected_phase_not_changed_observation_not_started",
+    "shadowVerifyAutomaticHandoff": "pass_local_cycle6_v2_current_readonly_to_independent_r2_phase_single_upload_raw_samples_rederived_r0_bytes_and_phase_immediate_identity_bound_12_of_12_production_not_connected",
     "canonicalCompatPhaseTransitionAndObservation": "stale_cycle5_five_window_dependency_requires_cycle6_refresh_previous_local_evidence_historical_only_production_not_connected_phase_not_changed_observation_not_started",
     "canonicalRollbackStateMachineRemediation": "completed_local_committed_pushed_5e777e4_postcommit_autonomy_12_of_12_migration_010_sha_2ae3247a_production_not_applied_canonical_cutover_blocked",
     "canonicalRollbackSafetyProductionAddSchema": "completed_production_pass_commit_26d01d1_bundle_9b7ac0e9_request_6e5ed1b4_migration_rows_10_function_owner_candidate_migration_role_least_privilege_business_data_unchanged_git_compose_env_services_containers_unchanged_lease_token13_released_evidence_retained_temp_cleanup_complete_independent_verify_pass",
@@ -170,11 +171,11 @@
     ]
   },
   "activePackage": {
-    "id": "WP-G0.2-CYCLE-6-CODE-PRESENCE-AND-READONLY-SUPERWINDOW-REFRESH",
-    "title": "Cycle-6 code presence and read-only verification superwindow refresh",
+    "id": "WP-G0.2-CYCLE-6-SHADOW-VERIFY-AUTHORIZATION-PHASE-HANDOFF-REFRESH",
+    "title": "Cycle-6 Shadow Verify authorization, phase and automatic handoff refresh",
     "lane": "localPreparation",
     "status": "completed",
-    "objective": "把Code Presence和只读超级窗口从旧Cycle-5生产身份与五窗口刷新到当前生产72ee289、Cycle-6六窗口，并保持三个独立R0子包、只读边界和旧历史证据不可冒充。",
+    "objective": "把Code Authorization、Shadow Verify phase和Automatic Handoff从旧Cycle-5五窗口与冲突生产身份一次刷新到当前72ee289、Cycle-6六窗口，同时保留R0/R2独立授权、租约、回滚和24小时289样本硬门槛。",
     "coreChainImpact": [
       "候选筛选",
       "复盘进化"
@@ -185,11 +186,14 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v2.json",
-      "docs/governance/wp-g0-2-current-cycle-read-only-verification-superwindow.v2.json",
-      "scripts/production/candidate-shadow-verify-code-presence/**",
-      "scripts/production/candidate-readonly-superwindow/**",
-      "reports/wp-g0-2-cycle-6-code-presence-readonly-superwindow-refresh/**"
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5.json",
+      "docs/governance/wp-g0-2-current-cycle-to-shadow-verify-automatic-handoff-superwindow.v2.json",
+      "scripts/governance/candidate-shadow-verify-code-authorization.mjs",
+      "scripts/governance/candidate-shadow-verify-code-authorization.test.mjs",
+      "scripts/production/candidate-shadow-verify-phase/**",
+      "scripts/production/candidate-shadow-verify-handoff/**",
+      "reports/wp-g0-2-cycle-6-shadow-verify-authorization-phase-handoff-refresh/**"
     ],
     "prohibitedPaths": [
       "migrations/**",
@@ -199,6 +203,7 @@
       "src/lib/backtest/**",
       "src/app/**",
       "src/components/**",
+      "scripts/production/candidate-shadow-verify-release/**",
       "deploy/**",
       "docker-compose.yml",
       ".env",
@@ -208,19 +213,24 @@
       "AUTONOMOUS_ENGINEERING_STATE.json",
       "PROJECT_CONTEXT_FOR_CHATGPT.md",
       "CHANGELOG_FOR_CHATGPT.md",
-      "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v2.json",
-      "docs/governance/wp-g0-2-current-cycle-read-only-verification-superwindow.v2.json",
-      "scripts/production/candidate-shadow-verify-code-presence/runner.mjs",
-      "scripts/production/candidate-readonly-superwindow/runner.mjs",
-      "scripts/production/candidate-readonly-superwindow/production-runner.sh",
-      "reports/wp-g0-2-cycle-6-code-presence-readonly-superwindow-refresh/WP_G0_2_CYCLE_6_CODE_PRESENCE_READONLY_SUPERWINDOW_REFRESH_REPORT.md"
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v4.json",
+      "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5.json",
+      "docs/governance/wp-g0-2-current-cycle-to-shadow-verify-automatic-handoff-superwindow.v2.json",
+      "scripts/governance/candidate-shadow-verify-code-authorization.mjs",
+      "scripts/production/candidate-shadow-verify-phase/runner.mjs",
+      "scripts/production/candidate-shadow-verify-handoff/runner.mjs",
+      "scripts/production/candidate-shadow-verify-handoff/production-runner.sh",
+      "reports/wp-g0-2-cycle-6-shadow-verify-authorization-phase-handoff-refresh/WP_G0_2_CYCLE_6_SHADOW_VERIFY_AUTHORIZATION_PHASE_HANDOFF_REFRESH_REPORT.md"
     ],
     "gateProfile": {
       "targeted": [
-        "candidate:shadow-verify-code-presence:validate",
-        "test:candidate-shadow-verify-code-presence",
-        "candidate:readonly-superwindow:validate",
-        "test:candidate-readonly-superwindow",
+        "candidate:shadow-verify-code-authorization:validate",
+        "test:candidate-shadow-verify-code-authorization",
+        "candidate:shadow-verify-phase:validate",
+        "test:candidate-shadow-verify-phase",
+        "candidate:shadow-verify-handoff:validate",
+        "test:candidate-shadow-verify-handoff",
+        "candidate:shadow-verify-phase:pg16-rehearsal",
         "test:autonomy"
       ],
       "baseline": [
@@ -237,17 +247,18 @@
       ]
     },
     "completionBoundary": [
-      "Code Presence必须绑定production commit 72ee289、tree bb1492d5和实际存在的Cycle-6 target-images-redacted记录",
-      "Readonly Superwindow只接受Cycle-6 final、六窗口Lineage和六窗口零差异Reconciliation",
-      "Code Presence、Lineage和Reconciliation保持独立manifest、request、authorization和evidence；Lineage与Reconciliation另保持独立lease；三个子包严格串行",
-      "旧Cycle-5合同和历史证据保留且不能作为Cycle-6 PASS输入",
-      "三个子包与外层均为R0只读，不得修改Git、镜像、容器、DB、Redis、Worker、env、Compose、phase、manifest、migration或Feature Flag",
-      "本地PASS不得包装为生产Code Presence、Lineage、Reconciliation、Shadow Verify或G0 PASS",
+      "Code Authorization必须绑定Cycle-6六窗口、当前migration与既有后端状态机；不得修改业务API或前端",
+      "Phase只接受本次生产Code Presence、Lineage和Reconciliation真实文件path与SHA并绑定production commit 72ee289和tree bb1492d5",
+      "Handoff必须按Readonly Superwindow R0 PASS后才动态生成独立R2 Phase request，禁止合并授权、租约、回滚或evidence",
+      "Shadow Verify观察仍为精确289样本、至少24小时、最大600秒间隔、零差异、Legacy响应权威",
+      "旧Cycle-5、五窗口、94b6d415和eb48827合同及证据保留为历史且不能作为Cycle-6 PASS输入",
+      "当前代码已走Code Presence路径，本轮禁止刷新或执行历史Web release，不得无价值重建Web镜像",
+      "本地PASS不得包装为生产phase transition、dual-read observation、Canonical或G0 PASS",
       "观察期间禁止修改scan、analysis、strategy、RR、Risk Gate、trade plan和backtest边界",
       "formal backtest禁止运行"
     ],
     "gate": "G0",
-    "actionClass": "read_only_production_preflight",
+    "actionClass": "shadow_verify_activation",
     "missionAlignment": {
       "mission": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
       "contributionType": "core",
@@ -255,7 +266,7 @@
         "候选筛选",
         "复盘进化"
       ],
-      "measurableOutcome": "以当前生产代码身份、六窗口血缘和至少10000条零差异对账的一次只读超级窗口，消除Cycle-6结束后的人工运输和旧身份误用。"
+      "measurableOutcome": "形成一次上传可从Cycle-6只读终证据严格交接到独立R2 Shadow Verify启动的确定性包，同时保持全部授权域、回滚和24小时观察门槛。"
     }
   },
   "approvals": [
@@ -725,6 +736,13 @@
     {
       "order": 65,
       "id": "WP-G0.2-CYCLE-6-CODE-PRESENCE-AND-READONLY-SUPERWINDOW-REFRESH",
+      "lane": "localPreparation",
+      "status": "completed_local_committed_pushed_6e6fc9c_production_not_executed",
+      "requiresExplicitApproval": false
+    },
+    {
+      "order": 66,
+      "id": "WP-G0.2-CYCLE-6-SHADOW-VERIFY-AUTHORIZATION-PHASE-HANDOFF-REFRESH",
       "lane": "localPreparation",
       "status": "completed",
       "requiresExplicitApproval": false

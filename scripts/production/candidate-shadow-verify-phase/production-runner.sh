@@ -73,7 +73,8 @@ OBSERVER_UNIT="$(jq -r '.observerUnitName' "${REQUEST_FILE}")"
 
 [[ "${PACKAGE_ID}" == "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION" \
   && "${ROOT_DIR}" == "${PRODUCTION_ROOT}" \
-  && "${PRODUCTION_COMMIT}" == "eb48827b8b403452328b65dc4b415c3fc0ecf765" \
+  && "${PRODUCTION_COMMIT}" == "72ee289388eea922d0aee58fd4ec7a3f18a91007" \
+  && "$(jq -r '.productionTree' "${REQUEST_FILE}")" == "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d" \
   && "${TRUST_ROOT}" == "/home/ubuntu/.local/state/market-radar-autonomy" ]] \
   || fail request_identity_invalid
 case "${OPS_ROOT}/" in
@@ -445,8 +446,19 @@ sudo -n systemd-run --unit="${OBSERVER_UNIT}" --collect --quiet \
   /bin/bash "${OBSERVER}"
 [[ "$(sudo -n systemctl show "${OBSERVER_UNIT}.service" --property=ActiveState --value)" == "active" ]] \
   || fail observer_unit_not_active
-printf '{"status":"PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE","observerUnit":"%s","candidateResponseAuthority":"legacy","automaticPhaseAdvance":false,"secretsPrinted":false}\n' \
-  "${OBSERVER_UNIT}.service" > "${EVIDENCE_DIRECTORY}/immediate-summary.json"
+jq -n --arg schemaVersion "candidate-shadow-verify-phase-immediate.v2" \
+  --arg packageId "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION" \
+  --arg status "PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE" \
+  --arg productionCommit "${PRODUCTION_COMMIT}" --arg productionTree "${PRODUCTION_TREE}" \
+  --arg webImageId "${WEB_IMAGE}" --arg migrationId "${MIGRATION_ID}" \
+  --arg releaseId "${RELEASE_ID}" --argjson targetAuthorityEpoch "${TARGET_EPOCH}" \
+  --arg observerUnit "${OBSERVER_UNIT}.service" '
+  {schemaVersion:$schemaVersion,packageId:$packageId,status:$status,
+   productionCommit:$productionCommit,productionTree:$productionTree,webImageId:$webImageId,
+   migrationId:$migrationId,releaseId:$releaseId,targetAuthorityEpoch:$targetAuthorityEpoch,
+   observerUnit:$observerUnit,candidateResponseAuthority:"legacy",
+   automaticPhaseAdvance:false,secretsPrinted:false}' \
+  > "${EVIDENCE_DIRECTORY}/immediate-summary.json"
 SUCCEEDED=true
 trap - ERR EXIT INT TERM HUP
 printf '%s\n' 'PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE'

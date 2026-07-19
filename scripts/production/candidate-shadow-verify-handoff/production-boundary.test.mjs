@@ -18,7 +18,7 @@ test("launcher refuses overlap and delegates one bounded outer unit", async () =
     source("production-launch.sh"),
     source("production-entrypoint.sh"),
   ]);
-  assert.match(launch, /cycle5_observer_still_active/u);
+  assert.match(launch, /current_cycle_observer_still_active/u);
   assert.match(launch, /production_wip_not_zero_before_handoff/u);
   assert.equal((launch.match(/candidate-shadow-verify-handoff\/production-entrypoint\.sh/gu) ?? [])
     .length, 1);
@@ -30,7 +30,10 @@ test("launcher refuses overlap and delegates one bounded outer unit", async () =
 });
 
 test("outer runner is sequential and owns no direct production mutation", async () => {
-  const runner = await source("production-runner.sh");
+  const [runner, validator] = await Promise.all([
+    source("production-runner.sh"),
+    source("runner.mjs"),
+  ]);
   const readOnlyStart = runner.indexOf(
     "CANDIDATE_READONLY_SUPERWINDOW_ENTRYPOINT_MODE=detached_worker");
   const readOnlyValidation = runner.indexOf("validate-readonly");
@@ -39,7 +42,10 @@ test("outer runner is sequential and owns no direct production mutation", async 
   assert.ok(readOnlyStart > 0 && readOnlyStart < readOnlyValidation);
   assert.ok(readOnlyValidation < phaseRequest && phaseRequest < phaseStart);
   assert.match(runner, /outer_authorization_expired_before_phase/u);
+  assert.match(validator, /current_cycle_final_not_rederived_from_samples/u);
   assert.match(runner, /PASS_SHADOW_VERIFY_HANDOFF_OBSERVER_ACTIVE/u);
+  assert.match(runner, /candidate-shadow-verify-phase-immediate\.v2/u);
+  assert.match(runner, /PASS_CURRENT_CYCLE_READ_ONLY_VERIFICATION_SUPERWINDOW/u);
   assert.match(runner, /dualReadObservationCompleted:false/u);
   assert.match(runner, /g0Completed:false/u);
   for (const forbidden of [

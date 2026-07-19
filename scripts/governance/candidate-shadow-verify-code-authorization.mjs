@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 const ROOT = resolve(import.meta.dirname, "../..");
 const CONTRACT_PATH = resolve(
   ROOT,
-  "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v3.json",
+  "docs/governance/wp-g0-2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v4.json",
 );
 
 function sha256(value) {
@@ -43,7 +43,7 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
   ]);
 
   if (contract.schemaVersion
-        !== "wp-g0.2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v3"
+        !== "wp-g0.2-current-cycle-shadow-verify-dependency-refresh-local-superpackage.v4"
       || contract.packageId
         !== "WP-G0.2-CURRENT-CYCLE-SHADOW-VERIFY-DEPENDENCY-REFRESH-LOCAL-SUPERPACKAGE") {
     violations.push("contract_identity");
@@ -88,9 +88,13 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
         !== "candidate-multi-cycle-reconciliation-evidence.v3"
       || shadow.reconciliationEvidenceRequired
         !== "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
-      || shadow.sourceReleaseWindowsExact !== 5
+      || shadow.codePresenceSchemaRequired
+        !== "candidate-shadow-verify-code-presence-evidence.v1"
+      || shadow.codePresenceStatusRequired
+        !== "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED"
+      || shadow.sourceReleaseWindowsExact !== 6
       || shadow.sourceReleaseWindowsDerivedFromMigrationId !== true
-      || shadow.currentMigrationIdRequired !== "candidate-episode-v1-cycle-5"
+      || shadow.currentMigrationIdRequired !== "candidate-episode-v1-cycle-6"
       || shadow.minimumComparedWrites !== 10000
       || shadow.zeroUnresolvedRequired !== true
       || shadow.dualReadFlagRequired !== true
@@ -103,7 +107,8 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
       || shadow.readTransactionRole !== "candidate_audit_role"
       || shadow.readTransactionIsolation !== "serializable_read_only_deferrable"
       || shadow.trustedManifestPath !== "/run/market-radar/candidate-read-authority.json"
-      || shadow.authorityFingerprintRecheckRequired !== true) {
+      || shadow.authorityFingerprintRecheckRequired !== true
+      || shadow.historicalWebReleaseAccepted !== false) {
     violations.push("shadow_verify_boundary");
   }
 
@@ -161,6 +166,7 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
     "schema_migration", "environment_override", "request_authority_control",
     "header_authority_control", "missing_reconciliation_evidence_bypass",
     "candidate_authority_during_shadow_verify", "parity_failure_candidate_fallback",
+    "missing_code_presence_evidence_bypass", "historical_web_release_reuse",
     "automatic_phase_advance", "canonical_cutover", "frontend_change", "scan_change",
     "analysis_change", "strategy_change", "backtest_change", "production_ranking_change",
     "future_outcome_input", "formal_backtest",
@@ -169,9 +175,9 @@ export async function validateShadowVerifyCodeAuthorization(contract) {
     if (!contract.forbidden?.includes(token)) violations.push(`forbidden_missing:${token}`);
   }
   if (contract.currentProductionDecision
-        !== "BLOCKED_UNTIL_CURRENT_CYCLE_LINEAGE_V3_AND_RECONCILIATION_V3_PASS_AND_SEPARATE_DEPLOYMENT"
+        !== "BLOCKED_UNTIL_CYCLE6_FINAL_CODE_PRESENCE_LINEAGE_AND_RECONCILIATION_PASS_AND_SEPARATE_PHASE_AUTHORIZATION"
       || contract.nextPackage
-        !== "WP-G0.2-SHADOW-VERIFY-CODE-AUTHORIZATION-PRODUCTION-RELEASE") {
+        !== "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION") {
     violations.push("sequence_boundary");
   }
 

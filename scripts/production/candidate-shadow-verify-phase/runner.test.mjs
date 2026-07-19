@@ -21,13 +21,13 @@ import {
 } from "../candidate-shadow-verify-code-presence/runner.mjs";
 
 const releaseId = "candidate-shadow-release-12345678";
-const migrationId = "candidate-episode-v1-cycle-5";
+const migrationId = "candidate-episode-v1-cycle-6";
 const reconciliationHash = `sha256:${"1".repeat(64)}`;
 const manifestHash = `sha256:${"2".repeat(64)}`;
 const productionEnvHash = "3".repeat(64);
 const webImageId = `sha256:${"4".repeat(64)}`;
 const workerImageId = `sha256:${"5".repeat(64)}`;
-const productionCommit = "6".repeat(40);
+const productionCommit = CODE_PRESENCE_PRODUCTION_COMMIT;
 
 function shadowCaptureEnvironment() {
   return [
@@ -204,7 +204,7 @@ test("accepts only a complete zero-difference reconciliation", () => {
     duplicateOutboxMappings: 0,
     duplicateEventMappings: 0,
     resolvedQuarantineExclusions: 0,
-    sourceReleaseCount: 5,
+    sourceReleaseCount: 6,
     verificationMigrationId: migrationId,
     evidenceHash: reconciliationHash,
     violations: [],
@@ -223,7 +223,7 @@ test("accepts only a complete zero-difference reconciliation", () => {
     /reconciliation_cycle_count_mismatch/u);
 });
 
-test("accepts only a Web-only code release that retained Legacy authority", () => {
+test("rejects historical Web release evidence after exact code presence is available", () => {
   const evidence = {
     status: "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
     targetCommit: productionCommit,
@@ -236,9 +236,8 @@ test("accepts only a Web-only code release that retained Legacy authority", () =
     manifestMutation: false,
     legacyResponseAuthority: true,
   };
-  assert.equal(validateCodeReleaseEvidence(evidence), evidence);
-  assert.throws(() => validateCodeReleaseEvidence({ ...evidence, databaseMutation: true }),
-    /shadow_verify_code_release_boundary_invalid/u);
+  assert.throws(() => validateCodeReleaseEvidence(evidence),
+    /shadow_verify_code_presence_required/u);
 });
 
 test("accepts exact zero-mutation production code presence instead of a no-op release", () => {

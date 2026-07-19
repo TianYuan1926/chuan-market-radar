@@ -38,8 +38,9 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const CONTRACT_PATH =
-  "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4.json";
-export const REQUIRED_PRODUCTION_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
+  "docs/governance/wp-g0-2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5.json";
+export const REQUIRED_PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
+export const REQUIRED_PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
@@ -121,26 +122,26 @@ async function artifact(root, files) {
 
 export function validateContract(contract) {
   ensure(contract?.schemaVersion
-    === "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v4"
+    === "wp-g0.2-current-cycle-shadow-verify-phase-transition-and-dual-read-observation.v5"
     && contract.packageId === PACKAGE_ID && contract.gate === "G0"
     && contract.actionClass === "shadow_verify_activation"
     && contract.riskTier === "R2_AUTHORITY_TRANSITION",
   "contract_identity_invalid");
   ensure(contract.status
-      === "local_implementation_and_rehearsal_production_blocked_by_prerequisites"
+      === "local_cycle6_implementation_and_rehearsal_production_blocked_by_prerequisites"
       && contract.productionAuthorization === false && contract.productionExecuted === false,
   "contract_production_truth_invalid");
   ensure(contract.releaseBoundary?.requiredProductionCommit === REQUIRED_PRODUCTION_COMMIT
+      && contract.releaseBoundary?.requiredProductionTree === REQUIRED_PRODUCTION_TREE
       && JSON.stringify(contract.releaseBoundary?.acceptedCodeAvailabilityStatuses)
-        === JSON.stringify([
-          "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
-          "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED",
-        ])
+        === JSON.stringify(["PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED"])
       && contract.releaseBoundary?.codePresenceMustBeZeroMutation === true
+      && contract.releaseBoundary?.historicalWebReleaseAccepted === false
       && contract.releaseBoundary?.productionWorktreeCleanDetachedRequired === true
       && contract.releaseBoundary?.sourceSyncAllowed === false
       && contract.releaseBoundary?.gitCheckoutAllowed === false
-      && contract.releaseBoundary?.imageBuildAllowed === false,
+      && contract.releaseBoundary?.imageBuildAllowed === false
+      && contract.releaseBoundary?.webImageMustMatchCodePresenceEvidence === true,
   "contract_release_boundary_invalid");
   const prerequisites = contract.prerequisites ?? {};
   ensure(prerequisites.lineageSchema === LINEAGE_SCHEMA
@@ -152,9 +153,9 @@ export function validateContract(contract) {
       && prerequisites.maximumDuplicateOutboxMappings === 0
       && prerequisites.maximumDuplicateEventMappings === 0
       && prerequisites.maximumUnresolvedOutbox === 0
-      && prerequisites.sourceReleaseWindowsExact === 5
+      && prerequisites.sourceReleaseWindowsExact === 6
       && prerequisites.sourceReleaseWindowsDerivedFromMigrationId === true
-      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-5"
+      && prerequisites.currentMigrationId === "candidate-episode-v1-cycle-6"
       && prerequisites.currentPhase === "shadow_capture"
       && prerequisites.currentWriteFrozen === false
       && prerequisites.minimumDeadlineRemainingSeconds === 87000,
@@ -257,6 +258,7 @@ function validateLineage(lineage, request) {
   const validated = validateCandidateLineageEvidence(lineage);
   ensure(validated.schemaVersion === LINEAGE_SCHEMA && validated.status === LINEAGE_PASS
       && validated.completedWrites >= 10000 && validated.unresolvedOutbox === 0
+      && validated.validationCycle === 6
       && validated.sourceReleaseWindows.length === validated.validationCycle
       && validated.sourceReleaseCount === validated.validationCycle
       && validated.currentMigrationId === request.migrationId,
@@ -388,7 +390,8 @@ export function validateAuthorization(authorization, request, manifest) {
 export async function validateApprovalRequest({ manifest, request, productionPaths = true }) {
   ensure(request?.packageId === PACKAGE_ID && request.productionRoot === PRODUCTION_ROOT
       && request.productionCommit === REQUIRED_PRODUCTION_COMMIT
-      && COMMIT.test(request.productionTree ?? "") && IMAGE.test(request.currentWebImageId ?? "")
+      && request.productionTree === REQUIRED_PRODUCTION_TREE
+      && IMAGE.test(request.currentWebImageId ?? "")
       && CONTAINER.test(request.candidateWorkerContainerId ?? "")
       && IMAGE.test(request.candidateWorkerImageId ?? "")
       && request.webImageId === request.currentWebImageId
@@ -442,13 +445,13 @@ export async function validateApprovalRequest({ manifest, request, productionPat
       && request.autonomyAuthorization.approvalId
         === `MR-G0-SHADOW-VERIFY-PHASE-${manifest.sourceCommit.slice(0, 12)}-${nonce}`,
   "request_nonce_path_binding_invalid");
-  const [lineage, reconciliation, codeRelease] = await Promise.all([
+  const [lineage, reconciliation, codePresence] = await Promise.all([
     privateEvidence(request.lineageEvidencePath, request.lineageEvidenceSha256,
       "lineage", productionPaths),
     privateEvidence(request.reconciliationEvidencePath, request.reconciliationEvidenceSha256,
       "reconciliation", productionPaths),
     privateEvidence(request.codeReleaseEvidencePath, request.codeReleaseEvidenceSha256,
-      "code_release", productionPaths),
+      "code_presence", productionPaths),
   ]);
   const validatedLineage = validateLineage(lineage, request);
   const validatedReconciliation = validateReconciliationEvidence(reconciliation);
@@ -463,10 +466,13 @@ export async function validateApprovalRequest({ manifest, request, productionPat
         === validatedLineage.unifiedSamplesSha256
       && validatedReconciliation.comparedWrites === validatedLineage.completedWrites,
   "reconciliation_lineage_binding_mismatch");
-  const validatedRelease = validateCodeReleaseEvidence(codeRelease);
-  ensure(validatedRelease.targetCommit === request.productionCommit
-      && validatedRelease.targetWebImageId === request.currentWebImageId,
-  "code_release_current_identity_mismatch");
+  const validatedCodePresence = validateCodeReleaseEvidence(codePresence);
+  ensure(validatedCodePresence.productionCommit === request.productionCommit
+      && validatedCodePresence.productionTree === request.productionTree
+      && validatedCodePresence.targetCommit === request.productionCommit
+      && validatedCodePresence.targetWebImageId === request.currentWebImageId
+      && validatedCodePresence.requiresWebRelease === false,
+  "code_presence_current_identity_mismatch");
   const rawManifest = serializeManifest(buildShadowVerifyManifest({
     currentAuthorityEpoch: request.currentAuthorityEpoch,
     generatedAt: request.manifestGeneratedAt,
@@ -498,6 +504,7 @@ export function createProductionExecutionRequest({
   ensure(COMMIT.test(manifest.sourceCommit ?? "") && COMMIT.test(manifest.sourceTree ?? ""),
     "transport_source_identity_invalid");
   ensure(runtime.productionCommit === REQUIRED_PRODUCTION_COMMIT
+      && runtime.productionTree === REQUIRED_PRODUCTION_TREE
       && runtime.productionTree === runtime.productionCommitTree
       && IMAGE.test(runtime.currentWebImageId ?? "")
       && CONTAINER.test(runtime.candidateWorkerContainerId ?? "")

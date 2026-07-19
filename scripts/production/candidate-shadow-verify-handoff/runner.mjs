@@ -1,17 +1,27 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 import { REQUIRED_PACKAGE_APPROVAL_FIELDS } from "../../governance/autonomy-policy.mjs";
+import {
+  SUMMARY_PASS as READ_ONLY_SUMMARY_PASS,
+  validateFinalSummary as validateReadOnlyFinalSummary,
+} from "../candidate-readonly-superwindow/runner.mjs";
+import { evaluateCycleObservation } from
+  "../candidate-cycle-continuation/observation-runner.mjs";
 
 export const PACKAGE_ID =
-  "WP-G0.2-CYCLE-5-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW";
+  "WP-G0.2-CURRENT-CYCLE-TO-SHADOW-VERIFY-AUTOMATIC-HANDOFF-SUPERWINDOW";
 export const PIPELINE_PASS = "PASS_SHADOW_VERIFY_HANDOFF_OBSERVER_ACTIVE";
 export const REQUEST_PASS = "PASS_SHADOW_VERIFY_HANDOFF_EXECUTION_REQUEST";
-export const REQUIRED_PRODUCTION_COMMIT = "94b6d415573f5d8b2d0190c809a4b8e128a25aa8";
+export const REQUIRED_PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
+export const REQUIRED_PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
   "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env";
+export const BUILD_RECORD_PATH =
+  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json";
 
 const HASH = /^[0-9a-f]{64}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
@@ -20,19 +30,19 @@ const CONTAINER = /^[0-9a-f]{12,64}$/u;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const EVIDENCE = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/[a-z0-9][a-z0-9._/-]{7,240}\.json$/u;
 const STAGING = /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-shadow-verify-handoff-[0-9a-f]{12}-[0-9a-f]{8}$/u;
-const SEQUENCE = Object.freeze(["cycle5_readonly_superwindow", "shadow_verify_phase"]);
+const SEQUENCE = Object.freeze(["current_cycle_readonly_superwindow", "shadow_verify_phase"]);
 const CHILD_KEYS = Object.freeze(["readOnlySuperwindow", "shadowVerifyPhase"]);
 const CHILD_PACKAGES = Object.freeze({
-  readOnlySuperwindow: "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW",
+  readOnlySuperwindow: "WP-G0.2-CURRENT-CYCLE-READ-ONLY-VERIFICATION-SUPERWINDOW",
   shadowVerifyPhase: "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION",
 });
 const CHILD_ARCHIVES = Object.freeze({
-  readOnlySuperwindow: "packets/cycle5-readonly-superwindow.tar.gz",
+  readOnlySuperwindow: "packets/current-cycle-readonly-superwindow.tar.gz",
   shadowVerifyPhase: "packets/shadow-verify-phase.tar.gz",
 });
 const RUNTIME_KEYS = Object.freeze([
   "buildRecordPath", "buildRecordSha256", "buildRecordWebImageId", "captureSpecification",
-  "composeSha256", "currentWebContainerId", "currentWebImageId", "cycle5Final", "healthLevel",
+  "composeSha256", "currentCycleFinal", "currentWebContainerId", "currentWebImageId", "healthLevel",
   "phase", "postgresAdminEnvPath", "productionCommit", "productionEnvSha256", "productionTree",
   "scanFreshness",
 ]);
@@ -87,12 +97,12 @@ function validateChildPackets(children, manifestChildren) {
   return children;
 }
 
-export function validateCycle5Final(final) {
+export function validateCurrentCycleFinal(final) {
   ensure(final?.schemaVersion === "candidate-validation-cycle-observation.v2"
       && final.status === "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
       && final.commit === REQUIRED_PRODUCTION_COMMIT
-      && final.migrationId === "candidate-episode-v1-cycle-5"
-      && /^candidate-shadow-cycle-5-[a-z0-9][a-z0-9._-]{7,80}$/u.test(final.releaseId ?? "")
+      && final.migrationId === "candidate-episode-v1-cycle-6"
+      && final.releaseId === "candidate-shadow-cycle-6-72ee2893"
       && Number.isSafeInteger(final.authorityEpoch) && final.authorityEpoch >= 1
       && final.authorityEpoch % 2 === 1
       && final.samples >= 289 && final.activationSamples >= 289
@@ -103,7 +113,7 @@ export function validateCycle5Final(final) {
       && final.productionReconciliationExecuted === false
       && final.shadowVerifyStarted === false
       && final.canonicalAuthorityChanged === false && final.g0Completed === false,
-  "cycle5_final_not_pass");
+  "current_cycle_final_not_pass");
   return final;
 }
 
@@ -138,14 +148,14 @@ function validateCapture(runtime, final) {
 
 function validateRuntime(runtime) {
   ensure(exactKeys(runtime, RUNTIME_KEYS), "runtime_keys_invalid");
-  const final = validateCycle5Final(runtime?.cycle5Final);
+  const final = validateCurrentCycleFinal(runtime?.currentCycleFinal);
   ensure(runtime.productionCommit === final.commit
       && runtime.productionCommit === REQUIRED_PRODUCTION_COMMIT
-      && COMMIT.test(runtime.productionTree ?? "")
+      && runtime.productionTree === REQUIRED_PRODUCTION_TREE
       && CONTAINER.test(runtime.currentWebContainerId ?? "")
       && IMAGE.test(runtime.currentWebImageId ?? "")
       && runtime.buildRecordWebImageId === runtime.currentWebImageId
-      && EVIDENCE.test(runtime.buildRecordPath ?? "")
+      && runtime.buildRecordPath === BUILD_RECORD_PATH
       && HASH.test(runtime.buildRecordSha256 ?? "")
       && HASH.test(runtime.composeSha256 ?? "")
       && HASH.test(runtime.productionEnvSha256 ?? "")
@@ -173,9 +183,9 @@ function validateRuntime(runtime) {
 function buildAuthorization(request, manifest, issuedAt, expiresAt, nonce) {
   const observation = {
     sequence: SEQUENCE,
-    cycle5Samples: 289,
-    cycle5Hours: 24,
-    cycle5CompletedWrites: 10000,
+    currentCycleSamples: 289,
+    currentCycleHours: 24,
+    currentCycleCompletedWrites: 10000,
     shadowVerifySamples: 289,
     shadowVerifyHours: 24,
     sampleIntervalSeconds: 300,
@@ -206,7 +216,7 @@ function buildAuthorization(request, manifest, issuedAt, expiresAt, nonce) {
     artifactSha256: manifest.transportArtifactSha256,
     imageOrMigrationSha256: sha256(canonicalJson({
       children: request.childPackets,
-      migrationId: request.runtime.cycle5Final.migrationId,
+      migrationId: request.runtime.currentCycleFinal.migrationId,
       sequence: SEQUENCE,
     })),
     composeSha256: request.runtime.composeSha256,
@@ -226,9 +236,9 @@ function buildAuthorization(request, manifest, issuedAt, expiresAt, nonce) {
       candidateWorkerImageId: request.runtime.phase.candidateWorkerImageId,
     })),
     gateEvidenceSha256: sha256(canonicalJson({
-      cycle5FinalSha256: request.runtime.captureSpecification.unified.finalSha256,
-      cycle5SamplesSha256: request.runtime.captureSpecification.unified.samplesSha256,
-      cycle5CloseoutSha256: request.runtime.captureSpecification.unified.closeoutSha256,
+      currentCycleFinalSha256: request.runtime.captureSpecification.unified.finalSha256,
+      currentCycleSamplesSha256: request.runtime.captureSpecification.unified.samplesSha256,
+      currentCycleCloseoutSha256: request.runtime.captureSpecification.unified.closeoutSha256,
       children: request.childPackets,
     })),
     preflightSha256: sha256(canonicalJson({
@@ -237,7 +247,7 @@ function buildAuthorization(request, manifest, issuedAt, expiresAt, nonce) {
       webImageId: request.runtime.currentWebImageId,
       composeSha256: request.runtime.composeSha256,
       productionEnvSha256: request.runtime.productionEnvSha256,
-      cycle5Status: request.runtime.cycle5Final.status,
+      currentCycleStatus: request.runtime.currentCycleFinal.status,
     })),
     backupRestoreEvidenceSha256: sha256(canonicalJson({
       currentWebImageId: request.runtime.currentWebImageId,
@@ -274,7 +284,7 @@ export function createExecutionRequest({
 }) {
   ensure(HASH.test(bundleSha256 ?? "") && UUID.test(nonce), "request_identity_invalid");
   ensure(manifest?.schemaVersion
-      === "wp-g0.2-cycle-5-to-shadow-verify-handoff-transport.v1"
+      === "wp-g0.2-current-cycle-to-shadow-verify-handoff-transport.v2"
       && manifest.packageId === PACKAGE_ID && manifest.approvalEligible === true
       && COMMIT.test(manifest.sourceCommit ?? "") && COMMIT.test(manifest.sourceTree ?? "")
       && HASH.test(manifest.contractSha256 ?? "")
@@ -375,59 +385,68 @@ export async function validateExecutionRequest(
     const final = await verifyEvidenceFile(
       unified.finalPath, unified.finalSha256, "/cycle-observation-final.json", 2 * 1024 * 1024,
     );
-    validateCycle5Final(final);
-    ensure(canonicalJson(final) === canonicalJson(request.runtime.cycle5Final),
-      "cycle5_final_runtime_mismatch");
+    validateCurrentCycleFinal(final);
+    ensure(canonicalJson(final) === canonicalJson(request.runtime.currentCycleFinal),
+      "current_cycle_final_runtime_mismatch");
     await verifyEvidenceFile(
       unified.closeoutPath,
       unified.closeoutSha256,
       "/cycle-observation-closeout.json",
       1024 * 1024,
     );
-    await verifyEvidenceFile(
-      unified.samplesPath,
-      unified.samplesSha256,
-      "/cycle-observation-samples.jsonl",
-      16 * 1024 * 1024,
-    );
+    ensure(unified.samplesPath.endsWith("/cycle-observation-samples.jsonl"),
+      "observation_samples_path_invalid");
+    const sampleMetadata = await lstat(unified.samplesPath);
+    ensure(sampleMetadata.isFile() && !sampleMetadata.isSymbolicLink()
+        && sampleMetadata.size > 0 && sampleMetadata.size <= 16 * 1024 * 1024
+        && (sampleMetadata.mode & 0o077) === 0,
+    "observation_samples_file_invalid");
+    const sampleBytes = await readFile(unified.samplesPath);
+    ensure(sha256(sampleBytes) === unified.samplesSha256,
+      "observation_samples_checksum_mismatch");
+    const samples = sampleBytes.toString("utf8").trim().split("\n").map(JSON.parse);
+    const rederived = evaluateCycleObservation(samples, {
+      commit: final.commit,
+      migrationId: final.migrationId,
+      releaseId: final.releaseId,
+    });
+    ensure(canonicalJson(rederived) === canonicalJson(final),
+      "current_cycle_final_not_rederived_from_samples");
   }
   return { status: REQUEST_PASS, productionExecuted: false, secretsPrinted: false };
 }
 
-export function validateReadOnlySummary(summary, productionCommit = REQUIRED_PRODUCTION_COMMIT) {
-  ensure(summary?.schemaVersion
-      === "wp-g0.2-cycle-5-read-only-verification-superwindow-evidence.v1"
-      && summary.status === "PASS_CYCLE_5_READ_ONLY_VERIFICATION_SUPERWINDOW"
-      && summary.packageId === "WP-G0.2-CYCLE-5-READ-ONLY-VERIFICATION-SUPERWINDOW"
-      && summary.productionCommit === productionCommit
-      && summary.productionMutationAllowed === false
-      && Array.isArray(summary.servicesMutated) && summary.servicesMutated.length === 0
-      && summary.databaseMutation === false && summary.environmentMutation === false
-      && summary.phaseTransition === false
-      && summary.canonicalAuthorityChanged === false && summary.g0Completed === false,
-  "readonly_summary_boundary_invalid");
-  const expected = [
-    ["shadow_verify_code_presence", "PASS_PRODUCTION_SHADOW_VERIFY_CODE_PRESENCE_VERIFIED"],
-    ["current_cycle_lineage", "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"],
-    ["current_cycle_reconciliation",
-      "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"],
-  ];
-  ensure(Array.isArray(summary.childEvidence) && summary.childEvidence.length === expected.length,
-    "readonly_summary_child_count_invalid");
-  for (let index = 0; index < expected.length; index += 1) {
-    const [step, status] = expected[index];
-    const item = summary.childEvidence[index];
-    ensure(item?.step === step && item.status === status && EVIDENCE.test(item.path ?? "")
-        && HASH.test(item.sha256 ?? ""),
-    `readonly_summary_child_invalid:${step}`);
-  }
-  return summary;
+export async function validateReadOnlySummary(
+  summary,
+  evidenceRoot,
+  { productionPaths = true } = {},
+) {
+  ensure(typeof evidenceRoot === "string" && (!productionPaths || evidenceRoot.startsWith(
+    "/home/ubuntu/.cache/market-radar-ops/evidence/")), "readonly_evidence_root_invalid");
+  const validated = await validateReadOnlyFinalSummary(summary, evidenceRoot);
+  ensure(validated.status === READ_ONLY_SUMMARY_PASS
+      && validated.productionCommit === REQUIRED_PRODUCTION_COMMIT
+      && validated.productionTree === REQUIRED_PRODUCTION_TREE,
+  "readonly_summary_current_identity_invalid");
+  return validated;
 }
 
-export function buildPhaseRuntimeFromReadOnlySummary({ runtime, summary }) {
+function childEvidencePath(evidenceRoot, item) {
+  const root = resolve(evidenceRoot);
+  const path = resolve(root, item.evidenceFile);
+  ensure(path.startsWith(`${root}/`), "readonly_child_evidence_path_invalid");
+  return path;
+}
+
+export async function buildPhaseRuntimeFromReadOnlySummary({
+  evidenceRoot,
+  productionPaths = true,
+  runtime,
+  summary,
+}) {
   validateRuntime(runtime);
-  const validated = validateReadOnlySummary(summary, runtime.productionCommit);
-  const [codeRelease, lineage, reconciliation] = validated.childEvidence;
+  const validated = await validateReadOnlySummary(summary, evidenceRoot, { productionPaths });
+  const [codePresence, lineage, reconciliation] = validated.childEvidence;
   return {
     productionCommit: runtime.productionCommit,
     productionTree: runtime.productionTree,
@@ -435,9 +454,9 @@ export function buildPhaseRuntimeFromReadOnlySummary({ runtime, summary }) {
     currentWebImageId: runtime.currentWebImageId,
     candidateWorkerContainerId: runtime.phase.candidateWorkerContainerId,
     candidateWorkerImageId: runtime.phase.candidateWorkerImageId,
-    migrationId: runtime.cycle5Final.migrationId,
-    releaseId: runtime.cycle5Final.releaseId,
-    currentAuthorityEpoch: runtime.cycle5Final.authorityEpoch,
+    migrationId: runtime.currentCycleFinal.migrationId,
+    releaseId: runtime.currentCycleFinal.releaseId,
+    currentAuthorityEpoch: runtime.currentCycleFinal.authorityEpoch,
     baseEnvPath: runtime.phase.baseEnvPath,
     baseEnvSha256: runtime.phase.baseEnvSha256,
     productionEnvPath: runtime.phase.productionEnvPath,
@@ -448,26 +467,79 @@ export function buildPhaseRuntimeFromReadOnlySummary({ runtime, summary }) {
     identityWrapperSha256: runtime.phase.identityWrapperSha256,
     identityOverridePath: runtime.phase.identityOverridePath,
     identityOverrideSha256: runtime.phase.identityOverrideSha256,
-    lineageEvidencePath: lineage.path,
-    lineageEvidenceSha256: lineage.sha256,
-    reconciliationEvidencePath: reconciliation.path,
-    reconciliationEvidenceSha256: reconciliation.sha256,
-    codeReleaseEvidencePath: codeRelease.path,
-    codeReleaseEvidenceSha256: codeRelease.sha256,
+    lineageEvidencePath: childEvidencePath(evidenceRoot, lineage),
+    lineageEvidenceSha256: lineage.evidenceSha256,
+    reconciliationEvidencePath: childEvidencePath(evidenceRoot, reconciliation),
+    reconciliationEvidenceSha256: reconciliation.evidenceSha256,
+    codeReleaseEvidencePath: childEvidencePath(evidenceRoot, codePresence),
+    codeReleaseEvidenceSha256: codePresence.evidenceSha256,
   };
 }
 
-export function validatePipelineFinal(value) {
-  ensure(value?.schemaVersion === "wp-g0.2-cycle-5-to-shadow-verify-handoff-evidence.v1"
+async function readPipelineEvidence(record, label, productionPaths) {
+  ensure(exactKeys(record, ["path", "sha256"])
+      && (!productionPaths || EVIDENCE.test(record.path ?? ""))
+      && HASH.test(record.sha256 ?? ""), `${label}_record_invalid`);
+  const metadata = await lstat(record.path);
+  ensure(metadata.isFile() && !metadata.isSymbolicLink() && metadata.nlink === 1
+      && metadata.size > 0 && metadata.size <= 8 * 1024 * 1024
+      && (metadata.mode & 0o077) === 0, `${label}_file_invalid`);
+  const bytes = await readFile(record.path);
+  ensure(sha256(bytes) === record.sha256, `${label}_checksum_mismatch`);
+  return JSON.parse(bytes);
+}
+
+export async function validatePipelineFinal(value, { productionPaths = true } = {}) {
+  ensure(exactKeys(value, [
+    "canonicalCompatStarted", "canonicalCutoverExecuted", "databasePhaseTransition",
+    "dualReadObservationCompleted", "g0Completed", "migrationId", "observerActive",
+    "packageId", "phaseEvidence", "phaseImmediateStatus", "phaseObserverUnit",
+    "phaseStagingDirectory", "productionCommit", "productionTree", "readOnlyEvidence",
+    "readOnlyStatus", "releaseId", "schemaVersion", "secretsPrinted", "sequence",
+    "servicesMutated", "status", "webImageId",
+  ]) && value.schemaVersion === "wp-g0.2-current-cycle-to-shadow-verify-handoff-evidence.v2"
       && value.status === PIPELINE_PASS && value.packageId === PACKAGE_ID
       && JSON.stringify(value.sequence) === JSON.stringify(SEQUENCE)
-      && value.readOnlyStatus === "PASS_CYCLE_5_READ_ONLY_VERIFICATION_SUPERWINDOW"
+      && value.productionCommit === REQUIRED_PRODUCTION_COMMIT
+      && value.productionTree === REQUIRED_PRODUCTION_TREE
+      && value.migrationId === "candidate-episode-v1-cycle-6"
+      && value.releaseId === "candidate-shadow-cycle-6-72ee2893"
+      && IMAGE.test(value.webImageId ?? "")
+      && value.readOnlyStatus === READ_ONLY_SUMMARY_PASS
       && value.phaseImmediateStatus === "PASS_IMMEDIATE_SHADOW_VERIFY_OBSERVATION_ACTIVE"
       && value.observerActive === true && value.dualReadObservationCompleted === false
       && value.canonicalCompatStarted === false && value.canonicalCutoverExecuted === false
       && value.g0Completed === false && JSON.stringify(value.servicesMutated) === '["web"]'
       && value.databasePhaseTransition === "shadow_capture_to_shadow_verify"
+      && /^market-radar-shadow-verify-observer-[0-9a-f]{7}-[0-9a-f]{8}\.service$/u
+        .test(value.phaseObserverUnit ?? "")
+      && /^\/home\/ubuntu\/\.cache\/market-radar-ops\/wp-g0-2-shadow-verify-phase-[0-9a-f]{12}-[0-9a-f]{8}$/u
+        .test(value.phaseStagingDirectory ?? "")
       && value.secretsPrinted === false,
   "pipeline_final_boundary_invalid");
+  const readOnly = await readPipelineEvidence(
+    value.readOnlyEvidence, "readonly_evidence", productionPaths,
+  );
+  await validateReadOnlySummary(readOnly, dirname(value.readOnlyEvidence.path), {
+    productionPaths,
+  });
+  const phase = await readPipelineEvidence(value.phaseEvidence, "phase_evidence", productionPaths);
+  ensure(exactKeys(phase, [
+    "automaticPhaseAdvance", "candidateResponseAuthority", "migrationId", "observerUnit",
+    "packageId", "productionCommit", "productionTree", "releaseId", "schemaVersion",
+    "secretsPrinted", "status", "targetAuthorityEpoch", "webImageId",
+  ]) && phase.schemaVersion === "candidate-shadow-verify-phase-immediate.v2"
+      && phase.packageId
+        === "WP-G0.2-SHADOW-VERIFY-PHASE-TRANSITION-AND-DUAL-READ-OBSERVATION"
+      && phase.status === value.phaseImmediateStatus
+      && phase.productionCommit === value.productionCommit
+      && phase.productionTree === value.productionTree
+      && phase.webImageId === value.webImageId
+      && phase.migrationId === value.migrationId && phase.releaseId === value.releaseId
+      && Number.isSafeInteger(phase.targetAuthorityEpoch) && phase.targetAuthorityEpoch >= 2
+      && phase.observerUnit === value.phaseObserverUnit
+      && phase.candidateResponseAuthority === "legacy"
+      && phase.automaticPhaseAdvance === false && phase.secretsPrinted === false,
+  "pipeline_phase_evidence_invalid");
   return value;
 }

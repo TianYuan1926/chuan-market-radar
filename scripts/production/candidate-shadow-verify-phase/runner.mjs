@@ -29,8 +29,6 @@ const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const HASH = /^[0-9a-f]{64}$/u;
 const MIGRATION = /^candidate-episode-v1(?:-cycle-([1-9][0-9]{0,5}))?$/u;
 const RELEASE = /^candidate-shadow-[a-z0-9][a-z0-9._-]{7,100}$/u;
-const COMMIT = /^[0-9a-f]{40}$/u;
-const IMAGE = /^sha256:[0-9a-f]{64}$/u;
 const RECONCILIATION_KEYS = Object.freeze([
   "automaticPhaseAdvance", "canonicalReadEnabled", "canonicalWriteEnabled",
   "comparedWrites", "comparisonDifferences", "databaseIdentity", "differenceSample",
@@ -214,20 +212,9 @@ export function validateReconciliationEvidence(evidence) {
 }
 
 export function validateCodeReleaseEvidence(evidence) {
-  if (evidence?.schemaVersion === CODE_PRESENCE_SCHEMA) {
-    return validateCodePresenceEvidence(evidence);
-  }
-  ensure(evidence?.status
-      === "PASS_PRODUCTION_SHADOW_VERIFY_CODE_AUTHORIZATION_WEB_ONLY",
-  "shadow_verify_code_release_not_pass");
-  ensure(COMMIT.test(evidence.targetCommit ?? "") && IMAGE.test(evidence.targetWebImageId ?? ""),
-    "shadow_verify_code_release_identity_invalid");
-  ensure(evidence.servicesMutated?.length === 1 && evidence.servicesMutated[0] === "web"
-      && evidence.databaseMutation === false && evidence.redisMutation === false
-      && evidence.workerMutation === false && evidence.phaseTransition === false
-      && evidence.manifestMutation === false && evidence.legacyResponseAuthority === true,
-  "shadow_verify_code_release_boundary_invalid");
-  return evidence;
+  ensure(evidence?.schemaVersion === CODE_PRESENCE_SCHEMA,
+    "shadow_verify_code_presence_required");
+  return validateCodePresenceEvidence(evidence);
 }
 
 export function buildShadowVerifyManifest({
