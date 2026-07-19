@@ -179,7 +179,7 @@ assert_private_file "${OUTPUT_FILE}"
     == "candidate-multi-cycle-reconciliation-evidence.v3" \
   && "$(jq -r '.sourceReleaseCount // 0' "${OUTPUT_FILE}")" -eq 6 \
   && "$(jq -r '.verificationMigrationId // empty' "${OUTPUT_FILE}")" \
-    == "candidate-episode-v1-cycle-6" \
+    == "candidate-episode-v1-cycle-7" \
   && "$(jq -r '.comparedWrites // 0' "${OUTPUT_FILE}")" -ge 10000 \
   && "$(jq -r '.comparisonDifferences // -1' "${OUTPUT_FILE}")" -eq 0 \
   && "$(jq -r '.automaticPhaseAdvance // true' "${OUTPUT_FILE}")" == "false" \

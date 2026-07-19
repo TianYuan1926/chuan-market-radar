@@ -24,12 +24,12 @@ export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const TRUST_ROOT = "/home/ubuntu/.local/state/market-radar-autonomy";
 export const POSTGRES_ADMIN_ENV =
   "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env";
-export const PRODUCTION_COMMIT = "72ee289388eea922d0aee58fd4ec7a3f18a91007";
-export const PRODUCTION_TREE = "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d";
-export const PRODUCTION_MIGRATION = "candidate-episode-v1-cycle-6";
-export const PRODUCTION_RELEASE = "candidate-shadow-cycle-6-72ee2893";
+export const PRODUCTION_COMMIT = "47741f3222247562843932b01607a1ec3abb534e";
+export const PRODUCTION_TREE = "bff1d1b3f27a0608004c379189bd1adc038477ec";
+export const PRODUCTION_MIGRATION = "candidate-episode-v1-cycle-7";
+export const PRODUCTION_RELEASE = "candidate-shadow-cycle-7-47741f3";
 export const BUILD_RECORD_PATH =
-  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json";
+  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json";
 export const GRANT_ID = "MR-G0-G8-USER-STANDING-GRANT-20260714-034826";
 
 const HASH = /^[0-9a-f]{64}$/u;
@@ -383,7 +383,7 @@ function validateChildAuthorization(request, item, summary) {
     const current = request.sourceReleaseWindows?.at(-1);
     ensure(request.approvedProductionCommit === PRODUCTION_COMMIT
         && request.webImageId === summary.productionWebImageId
-        && request.sourceReleaseWindows?.length === 6
+        && request.sourceReleaseWindows?.length === 7
         && current?.migrationId === PRODUCTION_MIGRATION
         && current.releaseId === PRODUCTION_RELEASE,
     "summary_reconciliation_request_identity_invalid");
@@ -408,15 +408,15 @@ function validateChildEvidence(evidence, item, summary, lineageSha256) {
     ensure(evidence.schemaVersion === "candidate-multi-cycle-lineage-evidence.v3"
         && evidence.currentMigrationId === PRODUCTION_MIGRATION
         && evidence.currentReleaseId === PRODUCTION_RELEASE
-        && evidence.sourceReleaseCount === 6 && evidence.validationCycle === 6
-        && evidence.sourceReleaseWindows?.length === 6
+        && evidence.sourceReleaseCount === 7 && evidence.validationCycle === 7
+        && evidence.sourceReleaseWindows?.length === 7
         && evidence.completedWrites >= 10_000 && evidence.unresolvedOutbox === 0
         && evidence.g0Completed === false,
     "summary_lineage_evidence_invalid");
   } else {
     ensure(evidence.schemaVersion === "candidate-multi-cycle-reconciliation-evidence.v3"
         && evidence.verificationMigrationId === PRODUCTION_MIGRATION
-        && evidence.sourceReleaseCount === 6 && evidence.comparedWrites >= 10_000
+        && evidence.sourceReleaseCount === 7 && evidence.comparedWrites >= 10_000
         && evidence.comparisonDifferences === 0 && evidence.g0Completed === false
         && evidence.productionRankingInputsUsed === false
         && evidence.futureOutcomeInputsUsed === false,

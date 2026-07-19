@@ -31,7 +31,7 @@ const commit = (character) => character.repeat(40);
 
 function runtime() {
   const directory =
-    "/home/ubuntu/.cache/market-radar-ops/cycle-continuation-ops/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/observation";
+    "/home/ubuntu/.cache/market-radar-ops/cycle-continuation-ops/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/observation";
   return {
     buildRecordPath: BUILD_RECORD_PATH,
     buildRecordSha256: hash("1"),
@@ -121,7 +121,7 @@ const manifest = {
   children,
 };
 
-test("runtime and current-cycle dual gate accept only the exact Cycle-6 production truth", () => {
+test("runtime and current-cycle dual gate accept only the exact Cycle-7 production truth", () => {
   const validRuntime = runtime();
   assert.equal(validateRuntime(validRuntime), validRuntime);
   assert.equal(validateObservationFinal(observationFinal(), validRuntime).status, OBSERVATION_PASS);
@@ -277,9 +277,9 @@ async function createFinalSummaryFixture() {
     status: LINEAGE_PASS,
     currentMigrationId: PRODUCTION_MIGRATION,
     currentReleaseId: PRODUCTION_RELEASE,
-    sourceReleaseCount: 6,
-    validationCycle: 6,
-    sourceReleaseWindows: Array.from({ length: 6 }, (_, index) => ({ index })),
+    sourceReleaseCount: 7,
+    validationCycle: 7,
+    sourceReleaseWindows: Array.from({ length: 7 }, (_, index) => ({ index })),
     completedWrites: 10_000,
     unresolvedOutbox: 0,
     g0Completed: false,
@@ -289,9 +289,9 @@ async function createFinalSummaryFixture() {
     "reconciliation-transport-manifest.json",
     manifest("wp-g0.2-current-cycle-reconciliation-transport.v3", packages.reconciliation),
   );
-  const sourceReleaseWindows = Array.from({ length: 6 }, (_, index) => ({
-    migrationId: index === 5 ? PRODUCTION_MIGRATION : `candidate-episode-v1-cycle-${index + 1}`,
-    releaseId: index === 5 ? PRODUCTION_RELEASE : `candidate-shadow-cycle-${index + 1}`,
+  const sourceReleaseWindows = Array.from({ length: 7 }, (_, index) => ({
+    migrationId: index === 6 ? PRODUCTION_MIGRATION : `candidate-episode-v1-cycle-${index + 1}`,
+    releaseId: index === 6 ? PRODUCTION_RELEASE : `candidate-shadow-cycle-${index + 1}`,
   }));
   const reconciliationRequest = {
     packageId: packages.reconciliation,
@@ -309,7 +309,7 @@ async function createFinalSummaryFixture() {
     schemaVersion: "candidate-multi-cycle-reconciliation-evidence.v3",
     status: RECONCILIATION_PASS,
     verificationMigrationId: PRODUCTION_MIGRATION,
-    sourceReleaseCount: 6,
+    sourceReleaseCount: 7,
     comparedWrites: 10_000,
     comparisonDifferences: 0,
     g0Completed: false,

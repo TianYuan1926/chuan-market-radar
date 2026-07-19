@@ -1440,3 +1440,19 @@ Cutover 使用 outbox + 单一 phase/epoch 控制，dual projection 硬上限 72
 - formal 未运行且禁止。本轮未上传、未连接或修改生产；最近有效生产快照仍是 04:29 CST 的 Cycle-5 48/289 样本、14,247 秒、4,413/10,000 writes、15 次推进、unresolved=0，双 readiness=false。
 
 当前结论仍是：**G0 主步骤 7；R1 / 可运行但不完整 / 不能支撑实战。** 本地包尚需 clean commit、提交绑定自治总门禁、确定性 Bundle 和 push；生产必须继续等待 Cycle-5 与后续 Shadow Verify 真实终证据，不能提前启动 Canonical Compat。
+
+## 2026-07-19 WP-G0.2 Cycle-7 Lineage/Reconciliation Read-only Refresh
+
+本轮只刷新 Cycle-7 PASS 后续可用的 Lineage、Reconciliation、Current-cycle Read-only Superwindow 和 Code Presence 本地生产包；未上传、未部署、未连接或修改生产。
+
+当前事实：
+
+- 当前周期治理合同已从旧 Cycle-6/Cycle-5 口径刷新到 Cycle-7：production commit `47741f3222247562843932b01607a1ec3abb534e`，tree `bff1d1b3f27a0608004c379189bd1adc038477ec`，migration `candidate-episode-v1-cycle-7`，release `candidate-shadow-cycle-7-47741f3`。
+- Lineage 与 Reconciliation 现在要求七个相邻 source/control release windows；Cycle-6 只作为历史 frozen window，Cycle-7 才是当前 shadow_capture window。
+- Current-cycle read-only superwindow 仍为三个独立只读子包，不能修改 Git、镜像、DB、Redis、Compose、env、Feature Flag 或服务。
+- Code Presence 当前周期合同保留 canonical read reference commit `3315b54dfcfcde63fcdf3a042ef92754da509feb`，并验证四个 canonical read 代码 blob 在 reference、Cycle-7 production commit 和当前 HEAD 之间一致。
+- 定向测试 47/47 PASS；基础门禁 typecheck、lint、test:market、build、backtest:golden、forbidden-files、secret-patterns、security-check 全部 PASS。
+- PostgreSQL Lineage/Reconciliation integration 未运行，因为本机没有对应集成数据库连接变量。
+- production smoke 未运行，因为本轮范围禁止生产执行；formal 未运行且禁止。
+
+当前结论仍是：**G0 主步骤 7；R1 / 可运行但不完整 / 不能支撑实战。** 这些包只是后续提速准备，不能替代 Cycle-7 观察终证据，也不能把 G0 减数。

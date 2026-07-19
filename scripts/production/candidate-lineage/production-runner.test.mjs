@@ -17,7 +17,7 @@ import { sha256 } from "./runner.mjs";
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-6",
+  migrationId: "candidate-episode-v1-cycle-7",
   releaseId: "candidate-shadow-capture-packet-cycle-6",
 };
 

@@ -5,9 +5,9 @@ umask 077
 STAGING_DIRECTORY="${1:-}"
 OBSERVATION_FINAL="${2:-}"
 PRODUCTION_ROOT="/home/ubuntu/apps/chuan-market-radar"
-EXPECTED_PRODUCTION_COMMIT="72ee289388eea922d0aee58fd4ec7a3f18a91007"
-EXPECTED_PRODUCTION_TREE="bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
-BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
+EXPECTED_PRODUCTION_COMMIT="47741f3222247562843932b01607a1ec3abb534e"
+EXPECTED_PRODUCTION_TREE="bff1d1b3f27a0608004c379189bd1adc038477ec"
+BUILD_RECORD="/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json"
 POSTGRES_ADMIN_ENV="/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env"
 
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
@@ -48,8 +48,8 @@ done
 jq -e '
   .schemaVersion == "candidate-validation-cycle-observation.v2"
   and .status == "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE"
-  and .migrationId == "candidate-episode-v1-cycle-6"
-  and .releaseId == "candidate-shadow-cycle-6-72ee2893"
+  and .migrationId == "candidate-episode-v1-cycle-7"
+  and .releaseId == "candidate-shadow-cycle-7-47741f3"
   and (.authorityEpoch >= 1 and (.authorityEpoch % 2) == 1)
   and .samples >= 289 and .activationSamples >= 289
   and .elapsedSeconds >= 86400 and .activationCoverageSeconds >= 86400

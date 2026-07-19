@@ -86,6 +86,8 @@ test("embedded code-presence request generator executes against its exact child 
     const runtimePath = join(directory, "runtime.json");
     const outputPath = join(directory, "request.json");
     await writeFile(runtimePath, JSON.stringify({
+      buildRecordPath:
+        "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json",
       buildRecordSha256: hash("a"),
       buildRecordWebImageId: `sha256:${hash("b")}`,
       currentWebContainerId: "c".repeat(12),

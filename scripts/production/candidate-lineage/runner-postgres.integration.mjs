@@ -28,12 +28,13 @@ const releases = [
   "candidate-shadow-lineage-pg-cycle-4",
   "candidate-shadow-lineage-pg-cycle-5",
   "candidate-shadow-lineage-pg-cycle-6",
+  "candidate-shadow-lineage-pg-cycle-7",
 ];
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-6",
-  releaseId: releases[5],
+  migrationId: "candidate-episode-v1-cycle-7",
+  releaseId: releases[6],
 };
 
 function uuid(index) {
@@ -202,6 +203,7 @@ try {
     new Date("2026-07-12T00:00:00.000Z"),
     new Date("2026-07-15T00:00:00.000Z"),
     new Date("2026-07-18T00:00:00.000Z"),
+    new Date("2026-07-21T00:00:00.000Z"),
   ];
   const deadlines = starts.map((startedAt) => new Date(startedAt.getTime() + 72 * 60 * 60_000));
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
@@ -212,7 +214,8 @@ try {
     ('candidate-episode-v1-cycle-3','legacy',2,$9,$10,true,$11,$12,$10),
     ('candidate-episode-v1-cycle-4','legacy',2,$13,$14,true,$15,$16,$14),
     ('candidate-episode-v1-cycle-5','legacy',2,$17,$18,true,$19,$20,$18),
-    ('candidate-episode-v1-cycle-6','shadow_capture',1,$21,$22,false,$23,$24,$21)`, [
+    ('candidate-episode-v1-cycle-6','legacy',2,$21,$22,true,$23,$24,$22),
+    ('candidate-episode-v1-cycle-7','shadow_capture',1,$25,$26,false,$27,$28,$25)`, [
     starts[0].toISOString(), deadlines[0].toISOString(), releases[0],
     `sha256:${"b".repeat(64)}`,
     starts[1].toISOString(), deadlines[1].toISOString(), releases[1],
@@ -225,6 +228,8 @@ try {
     `sha256:${"f".repeat(64)}`,
     starts[5].toISOString(), deadlines[5].toISOString(), releases[5],
     `sha256:${"1".repeat(64)}`,
+    starts[6].toISOString(), deadlines[6].toISOString(), releases[6],
+    `sha256:${"2".repeat(64)}`,
   ]);
 
   const total = 10_020;
@@ -235,7 +240,7 @@ try {
       if (index <= 1_670) return source(index, releases[0], starts[0]);
       if (index <= 3_340) return source(index, releases[2], starts[2]);
       if (index <= 5_010) return source(index, releases[4], starts[4]);
-      return source(index, releases[5], starts[5]);
+      return source(index, releases[6], starts[6]);
     });
     await client.query(`INSERT INTO candidate_authority.candidate_episode_ingest_outbox (
       outbox_id, scope, source_type, source_id, source_version, payload_version,
@@ -267,14 +272,15 @@ try {
     transactionIsolation: "repeatable read",
     transactionReadOnly: true,
   });
-  assert.equal(snapshot.controls.length, 6);
+  assert.equal(snapshot.controls.length, 7);
   assert.deepEqual(snapshot.releaseCompletedWrites, [
     { completedWrites: 1_670, releaseId: releases[0] },
     { completedWrites: 0, releaseId: releases[1] },
     { completedWrites: 1_670, releaseId: releases[2] },
     { completedWrites: 0, releaseId: releases[3] },
     { completedWrites: 1_670, releaseId: releases[4] },
-    { completedWrites: 5_010, releaseId: releases[5] },
+    { completedWrites: 0, releaseId: releases[5] },
+    { completedWrites: 5_010, releaseId: releases[6] },
   ]);
   assert.equal(snapshot.statusCounts.completed, total);
   assert.equal(snapshot.statusCounts.unresolvedTotal, 0);
@@ -296,12 +302,12 @@ try {
   assert.equal(captured.lineage.status,
     "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH");
   assert.equal(captured.lineage.completedWrites, 10_020);
-  assert.equal(captured.lineage.sourceReleaseWindows.length, 6);
-  assert.equal(captured.lineage.validationCycle, 6);
+  assert.equal(captured.lineage.sourceReleaseWindows.length, 7);
+  assert.equal(captured.lineage.validationCycle, 7);
   assert.equal(captured.databaseIdentity.currentRole, "candidate_audit_role");
   assert.equal(Object.values(captured.sourceEvidenceSha256).flatMap(Object.values).length, 3);
 
-  const outside = source(total + 1, "candidate-shadow-lineage-unapproved", starts[5]);
+  const outside = source(total + 1, "candidate-shadow-lineage-unapproved", starts[6]);
   await client.query(`INSERT INTO candidate_authority.candidate_episode_ingest_outbox (
     outbox_id, scope, source_type, source_id, source_version, payload_version,
     payload, payload_hash, idempotency_key, status, created_at, completed_at

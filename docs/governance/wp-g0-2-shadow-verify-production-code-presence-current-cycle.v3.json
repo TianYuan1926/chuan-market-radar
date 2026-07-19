@@ -9,9 +9,9 @@
   "productionExecuted": false,
   "identity": {
     "referenceCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
-    "productionCommit": "3315b54dfcfcde63fcdf3a042ef92754da509feb",
-    "productionTree": "cccd5776a80ded39f712bee4909c23c8133db798",
-    "currentCycleMigrationId": "candidate-episode-v1-cycle-6",
+    "productionCommit": "47741f3222247562843932b01607a1ec3abb534e",
+    "productionTree": "bff1d1b3f27a0608004c379189bd1adc038477ec",
+    "currentCycleMigrationId": "candidate-episode-v1-cycle-7",
     "referenceCodePaths": [
       {
         "path": "src/lib/candidate-episode/canonical-read-model.test.ts",
@@ -30,7 +30,7 @@
         "blob": "5fdeb5115a78d3bc8d89061ae80fbebbbe954fab"
       }
     ],
-    "cycleBuildRecordPathPattern": "^\\/home\\/ubuntu\\/\\.cache\\/market-radar-ops\\/evidence\\/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}\\/target-images-redacted\\.json$",
+    "cycleBuildRecordPathPattern": "^\\/home\\/ubuntu\\/\\.cache\\/market-radar-ops\\/evidence\\/wp-g0-2-cycle-continuation-[a-z0-9][a-z0-9._-]{7,80}\\/target-images-redacted\\.json$",
     "cycleBuildRecordSchema": "candidate-cycle-target-images.v1",
     "cycleBuildRecordWebImageField": "webImageId"
   },
@@ -69,8 +69,8 @@
     "requiresWebReleaseOnAnyMismatch": true,
     "localBlobComparisonIsProductionPass": false,
     "codePresencePassIsPhaseTransitionPass": false,
-    "cycle5ContractAcceptedAsCurrentPass": false,
-    "cycle5EvidenceAcceptedAsCurrentPass": false
+    "cycle6FailureContractAcceptedAsCurrentPass": false,
+    "cycle6FailureEvidenceAcceptedAsCurrentPass": false
   },
   "runnerArtifact": {
     "files": [
@@ -80,7 +80,7 @@
       "scripts/production/candidate-shadow-verify-code-presence/runner.mjs"
     ],
     "fileCount": 4,
-    "sha256": "85ff878b62706d899dd922d25de6613dcd5dcbbbfa2ab6f2f59f1e19dcccd950"
+    "sha256": "0bbc1bb170e8f12e47757d93d57393b3d43d59d48705d91dfecaf6a178094520"
   },
   "transport": {
     "schemaVersion": "wp-g0.2-shadow-verify-code-presence-transport.v3",
@@ -93,8 +93,8 @@
     "temporaryArtifactCleanupRequired": true
   },
   "forbidden": [
-    "cycle5_contract_as_current_pass",
-    "cycle5_evidence_as_current_pass",
+    "cycle6_failure_contract_as_current_pass",
+    "cycle6_failure_evidence_as_current_pass",
     "cycle6_observation_commit_relabeling",
     "ambiguous_release_build_record_selection",
     "code_presence_without_blob_identity",

@@ -14,11 +14,11 @@
     "current_cycle_reconciliation"
   ],
   "productionIdentity": {
-    "commit": "72ee289388eea922d0aee58fd4ec7a3f18a91007",
-    "tree": "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d",
-    "migrationId": "candidate-episode-v1-cycle-6",
-    "releaseId": "candidate-shadow-cycle-6-72ee2893",
-    "buildRecordPath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json",
+    "commit": "47741f3222247562843932b01607a1ec3abb534e",
+    "tree": "bff1d1b3f27a0608004c379189bd1adc038477ec",
+    "migrationId": "candidate-episode-v1-cycle-7",
+    "releaseId": "candidate-shadow-cycle-7-47741f3",
+    "buildRecordPath": "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json",
     "buildRecordSchema": "candidate-cycle-target-images.v1"
   },
   "executionBoundary": {
@@ -41,15 +41,15 @@
   },
   "qualityBoundary": {
     "currentCycleFinalPassRequired": true,
-    "currentCycleMigrationId": "candidate-episode-v1-cycle-6",
-    "sourceReleaseWindowsExact": 6,
+    "currentCycleMigrationId": "candidate-episode-v1-cycle-7",
+    "sourceReleaseWindowsExact": 7,
     "sourceReleaseWindowsDerivedFromMigrationId": true,
     "minimumComparedWrites": 10000,
     "minimumActivationSamples": 289,
     "minimumActivationHours": 24,
     "maximumSampleGapSeconds": 600,
     "unresolvedOutboxExact": 0,
-    "cycle5EvidenceAcceptedAsCurrentPass": false,
+    "cycle6FailureEvidenceAcceptedAsCurrentPass": false,
     "childContractsRemainIndependent": true,
     "childEvidenceRemainsIndependent": true,
     "childAuthorizationsRemainIndependent": true,

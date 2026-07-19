@@ -8,13 +8,13 @@
       "scripts/production/candidate-reconciliation/runner.mjs"
     ],
     "fileCount": 1,
-    "sha256": "fa1a37085b163e031d9194b39aac3ea2f5aac9fbe17d9df647e505918b33c4ee"
+    "sha256": "7e87737a9466c226a0485391624b2899c3da0cbbe00f16eaf8b80e24eef72726"
   },
   "lineageBoundary": {
     "schemaVersion": "candidate-multi-cycle-lineage-evidence.v3",
     "status": "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH",
-    "migrationId": "candidate-episode-v1-cycle-6",
-    "sourceReleaseWindowsExact": 6,
+    "migrationId": "candidate-episode-v1-cycle-7",
+    "sourceReleaseWindowsExact": 7,
     "sourceReleaseWindowsDerivedFromMigrationId": true,
     "minimumActivationSamples": 289,
     "minimumActivationHours": 24,
@@ -27,7 +27,7 @@
     "semanticProvenanceHashesRequired": 3,
     "historicalActivationFilesAllowed": false,
     "legacyLineageSchemasAllowed": false,
-    "cycle5V3AcceptedAsCycle6PassEvidence": false
+    "cycle6V3AcceptedAsCycle7PassEvidence": false
   },
   "comparison": {
     "minimumComparedWrites": 10000,
@@ -57,7 +57,7 @@
     "transactionIsolation": "repeatable_read",
     "transactionReadOnly": true,
     "forcedLocalRole": "candidate_audit_role",
-    "controlLineageExactCount": 6,
+    "controlLineageExactCount": 7,
     "controlLineageCountDerivedFromMigrationId": true,
     "historicalControls": "legacy_frozen_even_epoch",
     "currentControl": "current_cycle_single_shadow_capture_active_odd_epoch",

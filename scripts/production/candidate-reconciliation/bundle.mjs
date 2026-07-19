@@ -147,8 +147,8 @@ function validateLineageContract(contract, violations) {
   const boundary = contract.prerequisites;
   if (boundary?.lineageSchemaVersion !== LINEAGE_SCHEMA
       || boundary?.lineageStatus !== LINEAGE_PASS
-      || boundary?.migrationId !== "candidate-episode-v1-cycle-6"
-      || boundary?.sourceReleaseWindowsExact !== 6
+      || boundary?.migrationId !== "candidate-episode-v1-cycle-7"
+      || boundary?.sourceReleaseWindowsExact !== 7
       || boundary?.sourceReleaseWindowsDerivedFromMigrationId !== true
       || boundary?.minimumActivationSamples !== 289
       || boundary?.minimumActivationHours !== 24
@@ -161,7 +161,7 @@ function validateLineageContract(contract, violations) {
       || boundary?.completeDatabaseControlLineageRequired !== true
       || boundary?.newExactRequestRequired !== true
       || boundary?.historicalActivationEvidenceAllowed !== false
-      || boundary?.cycle5V3AcceptedAsCycle6PassEvidence !== false) {
+      || boundary?.cycle6V3AcceptedAsCycle7PassEvidence !== false) {
     violations.push("lineage_prerequisites");
   }
 }
@@ -210,7 +210,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
   if (execution.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || execution.databaseBoundary?.transactionReadOnly !== true
       || execution.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
-      || execution.databaseBoundary?.controlLineageExactCount !== 6
+      || execution.databaseBoundary?.controlLineageExactCount !== 7
       || execution.databaseBoundary?.controlLineageCountDerivedFromMigrationId !== true
       || execution.databaseBoundary?.minimumComparedWrites !== 10_000
       || execution.databaseBoundary?.maximumDifferences !== 0
@@ -248,7 +248,7 @@ export async function validateProductionExecutionContract(root = process.cwd()) 
       || preparation.productionExecuted !== false
       || preparation.runnerArtifact?.sha256 === undefined
       || preparation.lineageBoundary?.schemaVersion !== LINEAGE_SCHEMA
-      || preparation.lineageBoundary?.sourceReleaseWindowsExact !== 6
+      || preparation.lineageBoundary?.sourceReleaseWindowsExact !== 7
       || preparation.lineageBoundary?.sourceReleaseWindowsDerivedFromMigrationId !== true
       || preparation.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
       || preparation.comparison?.minimumComparedWrites !== 10_000

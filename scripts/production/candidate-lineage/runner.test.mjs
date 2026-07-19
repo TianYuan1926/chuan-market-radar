@@ -12,8 +12,8 @@ import {
 const unifiedExpected = {
   authorityEpoch: 1,
   commit: "b".repeat(40),
-  migrationId: "candidate-episode-v1-cycle-6",
-  releaseId: "candidate-shadow-lineage-cycle-6",
+  migrationId: "candidate-episode-v1-cycle-7",
+  releaseId: "candidate-shadow-lineage-cycle-7",
 };
 
 function completedAt(index) {
@@ -22,14 +22,14 @@ function completedAt(index) {
 
 function unifiedSample(index) {
   const completedWrites = completedAt(index);
-  const sampledAt = new Date(Date.parse("2026-07-18T00:00:00.000Z") + index * 300_000);
+  const sampledAt = new Date(Date.parse("2026-07-21T00:00:00.000Z") + index * 300_000);
   const databaseSnapshot = (value) => ({
     sampledAt: value.toISOString(),
     migrationId: unifiedExpected.migrationId,
     releaseId: unifiedExpected.releaseId,
     phase: "shadow_capture",
     epoch: unifiedExpected.authorityEpoch,
-    deadlineAt: "2026-07-21T00:00:00.000Z",
+    deadlineAt: "2026-07-24T00:00:00.000Z",
     completedWrites,
     unresolvedOutbox: 0,
     activeCycles: 1,
@@ -43,7 +43,7 @@ function unifiedSample(index) {
     releaseId: unifiedExpected.releaseId,
     phase: "shadow_capture",
     epoch: unifiedExpected.authorityEpoch,
-    deadlineAt: "2026-07-21T00:00:00.000Z",
+    deadlineAt: "2026-07-24T00:00:00.000Z",
     completedWrites,
     unresolvedOutbox: 0,
     activeCycles: 1,
@@ -148,12 +148,21 @@ function fixture() {
           writeFrozen: true,
         },
         {
-          authorityEpoch: unifiedExpected.authorityEpoch,
+          authorityEpoch: 2,
           deadlineAt: "2026-07-21T00:00:00.000Z",
+          migrationId: "candidate-episode-v1-cycle-6",
+          phase: "legacy",
+          releaseId: "candidate-shadow-lineage-cycle-6",
+          startedAt: "2026-07-18T00:00:00.000Z",
+          writeFrozen: true,
+        },
+        {
+          authorityEpoch: unifiedExpected.authorityEpoch,
+          deadlineAt: "2026-07-24T00:00:00.000Z",
           migrationId: unifiedExpected.migrationId,
           phase: "shadow_capture",
           releaseId: unifiedExpected.releaseId,
-          startedAt: "2026-07-18T00:00:00.000Z",
+          startedAt: "2026-07-21T00:00:00.000Z",
           writeFrozen: false,
         },
       ],
@@ -163,6 +172,7 @@ function fixture() {
         { completedWrites: 1_670, releaseId: "candidate-shadow-lineage-cycle-3" },
         { completedWrites: 0, releaseId: "candidate-shadow-lineage-cycle-4" },
         { completedWrites: 1_670, releaseId: "candidate-shadow-lineage-cycle-5" },
+        { completedWrites: 0, releaseId: "candidate-shadow-lineage-cycle-6" },
         { completedWrites: 5_010, releaseId: unifiedExpected.releaseId },
       ],
       statusCounts: {
@@ -188,9 +198,9 @@ test("lineage evidence is rebuilt from the current observation and all adjacent 
   assert.equal(result.maximumSampleGapSeconds, 600);
   assert.equal(result.minimumCompletionAdvances, 2);
   assert.equal(result.unresolvedMaximum, 0);
-  assert.equal(result.sourceReleaseWindows.length, 6);
-  assert.equal(result.sourceReleaseCount, 6);
-  assert.equal(result.validationCycle, 6);
+  assert.equal(result.sourceReleaseWindows.length, 7);
+  assert.equal(result.sourceReleaseCount, 7);
+  assert.equal(result.validationCycle, 7);
   assert.deepEqual(result.sourceReleaseWindows.map((window) => ({
     cycle: window.migrationId,
     epoch: window.controlEpoch,
@@ -202,7 +212,8 @@ test("lineage evidence is rebuilt from the current observation and all adjacent 
     { cycle: "candidate-episode-v1-cycle-3", epoch: 2, phase: "legacy", frozen: true },
     { cycle: "candidate-episode-v1-cycle-4", epoch: 2, phase: "legacy", frozen: true },
     { cycle: "candidate-episode-v1-cycle-5", epoch: 2, phase: "legacy", frozen: true },
-    { cycle: "candidate-episode-v1-cycle-6", epoch: 1,
+    { cycle: "candidate-episode-v1-cycle-6", epoch: 2, phase: "legacy", frozen: true },
+    { cycle: "candidate-episode-v1-cycle-7", epoch: 1,
       phase: "shadow_capture", frozen: false },
   ]);
   assert.equal(validateCandidateLineageEvidence(result), result);

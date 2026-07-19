@@ -171,13 +171,13 @@ export async function validateProductionPacketContract(root = process.cwd()) {
       || execution.prerequisites?.minimumStabilitySeconds !== 1_800
       || execution.prerequisites?.minimumCompletionAdvances !== 2
       || execution.prerequisites?.maximumSampleGapSeconds !== 600
-      || execution.prerequisites?.migrationId !== "candidate-episode-v1-cycle-6"
-      || execution.prerequisites?.controlLineageExactCount !== 6
+      || execution.prerequisites?.migrationId !== "candidate-episode-v1-cycle-7"
+      || execution.prerequisites?.controlLineageExactCount !== 7
       || execution.prerequisites?.controlLineageCountDerivedFromMigrationId !== true
       || execution.prerequisites?.allFinalEvidenceRecomputedFromRawSamples !== true
       || execution.prerequisites?.completeDatabaseControlLineageRequired !== true
       || execution.prerequisites?.newExactRequestRequired !== true
-      || execution.prerequisites?.cycle5V3AcceptedAsCycle6PassEvidence !== false) {
+      || execution.prerequisites?.cycle6V3AcceptedAsCycle7PassEvidence !== false) {
     violations.push("prerequisites");
   }
   if (execution.execution?.runner !== "transient_systemd_unit"

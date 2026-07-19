@@ -26,12 +26,12 @@
       "scripts/production/candidate-lineage/runner.mjs"
     ],
     "fileCount": 9,
-    "sha256": "42f57434e968290b60849759f87e8df4c7b50075a34a137483767c7d6fd25c93"
+    "sha256": "e46ada693e4a1b342f1e2005b999bd7c67427eb50b107c6e87c21fda320cc808"
   },
   "prerequisites": {
     "unifiedStatus": "PASS_FRESH_ACTIVATION_AND_ACCUMULATION_READY_FOR_LINEAGE",
-    "migrationId": "candidate-episode-v1-cycle-6",
-    "controlLineageExactCount": 6,
+    "migrationId": "candidate-episode-v1-cycle-7",
+    "controlLineageExactCount": 7,
     "controlLineageCountDerivedFromMigrationId": true,
     "minimumActivationSamples": 289,
     "minimumActivationHours": 24,
@@ -43,7 +43,7 @@
     "allFinalEvidenceRecomputedFromRawSamples": true,
     "completeDatabaseControlLineageRequired": true,
     "newExactRequestRequired": true,
-    "cycle5V3AcceptedAsCycle6PassEvidence": false
+    "cycle6V3AcceptedAsCycle7PassEvidence": false
   },
   "execution": {
     "runner": "transient_systemd_unit",

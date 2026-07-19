@@ -28,7 +28,7 @@ const cycle5ProductionTree = "3d362ceaad05f24f705efe2d871a5a46c3d8704e";
 const cycle5BuildRecordPath =
   "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-94b6d415573f-98459433/target-images-record.json";
 const releaseBuildRecordPath =
-  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-shadow-verify-release-3315b54d-a1b2c3d4/target-images-redacted.json";
+  "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json";
 
 test("validates exact local reference, production, and current code blobs", async () => {
   const result = await validateLocalPreparation(process.cwd());

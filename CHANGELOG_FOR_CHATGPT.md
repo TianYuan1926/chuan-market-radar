@@ -7201,3 +7201,48 @@ commit `6e6fc9c16e40ec8ded69fa6ccd4609b8ce9f49d4` 已推送当前工程分支；
 ### 下一轮建议
 
 只完成修复提交与最终生产包，然后执行 Cycle-6 精确 drain；成功后使用 fresh preflight 启动 Cycle-7。
+
+## 2026-07-19 / Cycle-7 Lineage/Reconciliation Read-only Refresh
+
+### 本轮目标
+
+在 Cycle-7 生产观察仍未终结时，提前刷新 Cycle-7 PASS 后续才可执行的 Lineage、Reconciliation、Current-cycle Read-only Superwindow 和 Code Presence 本地生产包，以提高后续衔接效率。
+
+### 修改范围
+
+- 刷新当前周期 Lineage/Reconciliation 治理合同到 Cycle-7 production commit、tree、migration、release 和七窗口口径。
+- 刷新只读 Superwindow runner/bundle/launch/test 到 Cycle-7。
+- 刷新 Code Presence 当前周期合同与测试，保留 canonical reference commit 并校验四个 canonical read 代码 blob 一致。
+- 新增本轮中文交付报告并更新项目上下文。
+- 未修改 frontend、业务 API、scan、analysis、strategy、RR、Risk Gate、trade plan、backtest、migration、DB schema、Redis、Compose、env、Feature Flag 或 secret。
+
+### 核心链路影响
+
+服务候选筛选与复盘进化之间的 Candidate lifecycle 证据链，为后续 Lineage 捕获和 Reconciliation 对账做准备；不生成信号、不改变排序、不创建交易计划。
+
+### 测试结果
+
+- 定向生产包测试：47/47 PASS。
+- typecheck：PASS。
+- lint：PASS。
+- test:market：market 1027 pass / 0 fail / 7 explicit skip；workers 23/23；historical 4/4，PASS。
+- build：PASS。
+- backtest:golden：16/16 PASS。
+- forbidden-files、secret-patterns、security-check：PASS。
+- PostgreSQL Lineage/Reconciliation integration：未运行，本机缺少对应集成数据库连接变量。
+- production smoke：未运行；本轮未执行生产。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署、未上传、未连接或修改生产。当前仅为本地包准备和门禁 PASS。
+
+### 风险与遗留问题
+
+- Cycle-7 观察仍未取得终证据，不能启动后续 Lineage/Reconciliation 生产只读包。
+- 本轮不能作为 G0 减数依据；G0 主步骤仍为 7。
+- 当前仍为 `R1 / 可运行但不完整 / 不能支撑实战`。
+
+### 下一轮建议
+
+只核验 Cycle-7 观察终证据；满足 24 小时、289 样本、10,000 writes、零 unresolved 和零差异后，再执行本轮准备好的只读生产包。

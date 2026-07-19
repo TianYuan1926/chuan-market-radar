@@ -290,7 +290,7 @@ RECONCILIATION_STAGE=""
 jq -e '
   .schemaVersion == "candidate-multi-cycle-reconciliation-evidence.v3"
   and .status == "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL"
-  and .sourceReleaseCount == 6 and .verificationMigrationId == "candidate-episode-v1-cycle-6"
+  and .sourceReleaseCount == 7 and .verificationMigrationId == "candidate-episode-v1-cycle-7"
   and .comparedWrites >= 10000 and .comparisonDifferences == 0
   and .automaticPhaseAdvance == false and .phaseTransitionExecuted == false
   and .shadowVerifyTransitionExecuted == false and .canonicalReadEnabled == false

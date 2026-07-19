@@ -34,8 +34,8 @@ test("all production shells parse and preserve the read-only boundary", async ()
   assert.match(source, /manifestSha256/u);
   assert.match(source, /requestSha256/u);
   assert.match(source, /evidenceSha256/u);
-  assert.match(source, /sourceReleaseCount == 6/u);
-  assert.match(source, /candidate-episode-v1-cycle-6/u);
+  assert.match(source, /sourceReleaseCount == 7/u);
+  assert.match(source, /candidate-episode-v1-cycle-7/u);
   assert.doesNotMatch(source, /sourceReleaseCount == 5/u);
   assert.doesNotMatch(source, /candidate-episode-v1-cycle-5/u);
 });

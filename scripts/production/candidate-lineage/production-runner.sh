@@ -199,7 +199,7 @@ done
   && "$(jq -r '.sourceReleaseCount // 0' "${LINEAGE_OUTPUT}")" -eq 6 \
   && "$(jq -r '.validationCycle // 0' "${LINEAGE_OUTPUT}")" -eq 6 \
   && "$(jq -r '.currentMigrationId // empty' "${LINEAGE_OUTPUT}")" \
-    == "candidate-episode-v1-cycle-6" \
+    == "candidate-episode-v1-cycle-7" \
   && "$(jq -r '.sourceReleaseWindows | length' "${LINEAGE_OUTPUT}")" -eq 6 \
   && "$(jq -r '.completedWrites // 0' "${LINEAGE_OUTPUT}")" -ge 10000 \
   && "$(jq -r '.activationSamples // 0' "${LINEAGE_OUTPUT}")" -ge 289 \

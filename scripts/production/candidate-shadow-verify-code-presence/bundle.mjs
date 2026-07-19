@@ -27,7 +27,7 @@ export const CONTRACT_PATH =
   "docs/governance/wp-g0-2-shadow-verify-production-code-presence-current-cycle.v3.json";
 export const PRODUCTION_ROOT = "/home/ubuntu/apps/chuan-market-radar";
 export const BUILD_RECORD_PATH_PATTERN =
-  /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-shadow-verify-release-[a-z0-9][a-z0-9._-]{7,80}\/target-images-redacted\.json$/u;
+  /^\/home\/ubuntu\/\.cache\/market-radar-ops\/evidence\/wp-g0-2-cycle-continuation-[a-z0-9][a-z0-9._-]{7,80}\/target-images-redacted\.json$/u;
 export const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
 const HASH = /^[0-9a-f]{64}$/u;
@@ -95,7 +95,7 @@ export function validateContract(contract) {
   ensure(identity.referenceCommit === REFERENCE_COMMIT
       && identity.productionCommit === PRODUCTION_COMMIT
       && identity.productionTree === PRODUCTION_TREE
-      && identity.currentCycleMigrationId === "candidate-episode-v1-cycle-6"
+      && identity.currentCycleMigrationId === "candidate-episode-v1-cycle-7"
       && identity.cycleBuildRecordPathPattern === BUILD_RECORD_PATH_PATTERN.source
       && identity.cycleBuildRecordSchema === "candidate-cycle-target-images.v1"
       && identity.cycleBuildRecordWebImageField === "webImageId"
@@ -125,8 +125,8 @@ export function validateContract(contract) {
       && pass.legacyResponseAuthority === true && pass.requiresWebReleaseOnAnyMismatch === true
       && pass.localBlobComparisonIsProductionPass === false
       && pass.codePresencePassIsPhaseTransitionPass === false
-      && pass.cycle5ContractAcceptedAsCurrentPass === false
-      && pass.cycle5EvidenceAcceptedAsCurrentPass === false,
+      && pass.cycle6FailureContractAcceptedAsCurrentPass === false
+      && pass.cycle6FailureEvidenceAcceptedAsCurrentPass === false,
   "contract_pass_boundary_invalid");
   ensure(JSON.stringify(contract.runnerArtifact?.files) === JSON.stringify(RUNNER_FILES)
       && contract.runnerArtifact?.fileCount === RUNNER_FILES.length

@@ -97,12 +97,12 @@ export async function validateContract(root = process.cwd()) {
     "shadow_verify_code_presence", "current_cycle_lineage", "current_cycle_reconciliation",
   ]), "contract_sequence_invalid");
   const production = contract.productionIdentity;
-  ensure(production.commit === "72ee289388eea922d0aee58fd4ec7a3f18a91007"
-      && production.tree === "bb1492d5a3c79a75c79dfa392dd9a7c2d185f70d"
-      && production.migrationId === "candidate-episode-v1-cycle-6"
-      && production.releaseId === "candidate-shadow-cycle-6-72ee2893"
+  ensure(production.commit === "47741f3222247562843932b01607a1ec3abb534e"
+      && production.tree === "bff1d1b3f27a0608004c379189bd1adc038477ec"
+      && production.migrationId === "candidate-episode-v1-cycle-7"
+      && production.releaseId === "candidate-shadow-cycle-7-47741f3"
       && production.buildRecordPath
-        === "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-72ee289388ee-2b13c6e6/target-images-redacted.json"
+        === "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-47741f322224-1959d0a2/target-images-redacted.json"
       && production.buildRecordSchema === "candidate-cycle-target-images.v1",
   "contract_production_identity_invalid");
   const boundary = contract.executionBoundary;
@@ -119,15 +119,15 @@ export async function validateContract(root = process.cwd()) {
   ]) ensure(boundary[key] === false, `contract_mutation_allowed:${key}`);
   const quality = contract.qualityBoundary;
   ensure(quality.currentCycleFinalPassRequired === true
-      && quality.currentCycleMigrationId === "candidate-episode-v1-cycle-6"
-      && quality.sourceReleaseWindowsExact === 6
+      && quality.currentCycleMigrationId === "candidate-episode-v1-cycle-7"
+      && quality.sourceReleaseWindowsExact === 7
       && quality.sourceReleaseWindowsDerivedFromMigrationId === true
       && quality.minimumComparedWrites === 10_000
       && quality.minimumActivationSamples === 289
       && quality.minimumActivationHours === 24
       && quality.maximumSampleGapSeconds === 600
       && quality.unresolvedOutboxExact === 0
-      && quality.cycle5EvidenceAcceptedAsCurrentPass === false
+      && quality.cycle6FailureEvidenceAcceptedAsCurrentPass === false
       && quality.childContractsRemainIndependent === true
       && quality.childEvidenceRemainsIndependent === true
       && quality.childAuthorizationsRemainIndependent === true

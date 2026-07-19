@@ -21,9 +21,10 @@ const releaseIds = [
   "candidate-shadow-reconciliation-cycle-4",
   "candidate-shadow-reconciliation-cycle-5",
   "candidate-shadow-reconciliation-cycle-6",
+  "candidate-shadow-reconciliation-cycle-7",
 ];
-const migrationId = "candidate-episode-v1-cycle-6";
-const releaseCounts = [1_670, 0, 1_670, 0, 1_670, 5_010];
+const migrationId = "candidate-episode-v1-cycle-7";
+const releaseCounts = [1_670, 0, 1_670, 0, 1_670, 0, 5_010];
 const releaseCutoffs = releaseCounts.reduce((cutoffs, count) => [
   ...cutoffs,
   (cutoffs.at(-1) ?? 0) + count,
@@ -145,14 +146,14 @@ await client.connect();
 try {
   const now = await client.query("SELECT clock_timestamp() AS now");
   const currentStartedAt = new Date(new Date(now.rows[0].now).getTime() - 60 * 60_000);
-  const cycleStarts = Array.from({ length: 6 }, (_, index) => (
-    new Date(currentStartedAt.getTime() - (5 - index) * 72 * 60 * 60_000)
+  const cycleStarts = Array.from({ length: 7 }, (_, index) => (
+    new Date(currentStartedAt.getTime() - (6 - index) * 72 * 60 * 60_000)
   ));
   const cycleDeadlines = cycleStarts.map((startedAt) => (
     new Date(startedAt.getTime() + 72 * 60 * 60_000)
   ));
-  for (let index = 0; index < 6; index += 1) {
-    const current = index === 5;
+  for (let index = 0; index < 7; index += 1) {
+    const current = index === 6;
     const controlMigrationId = index === 0
       ? "candidate-episode-v1"
       : `candidate-episode-v1-cycle-${index + 1}`;
@@ -243,7 +244,7 @@ try {
   const request = {
     authorityEpoch: 1,
     migrationId,
-    releaseId: releaseIds[5],
+    releaseId: releaseIds[6],
     lineageEvidenceSha256: `sha256:${"d".repeat(64)}`,
     sourceReleaseWindows,
   };
@@ -256,8 +257,8 @@ try {
     controlSnapshotSha256: "c".repeat(64),
     currentAuthorityEpoch: 1,
     currentMigrationId: migrationId,
-    currentReleaseId: releaseIds[5],
-    currentCycleStartedAt: cycleStarts[5].toISOString(),
+    currentReleaseId: releaseIds[6],
+    currentCycleStartedAt: cycleStarts[6].toISOString(),
     g0Completed: false,
     maximumSampleGapSeconds: 600,
     minimumActivationHours: 24,
@@ -270,7 +271,7 @@ try {
     productionReconciliationExecuted: false,
     schemaVersion: LINEAGE_SCHEMA,
     shadowVerifyStarted: false,
-    sourceReleaseCount: 6,
+    sourceReleaseCount: 7,
     sourceReleaseWindows,
     status: LINEAGE_PASS,
     thresholdsChanged: false,
@@ -278,7 +279,7 @@ try {
     unifiedSamplesSha256: "b".repeat(64),
     unresolvedMaximum: 0,
     unresolvedOutbox: 0,
-    validationCycle: 6,
+    validationCycle: 7,
   };
   const evidence = await collectReadOnlyEvidence(client, request, lineage);
   assert.equal(
@@ -298,17 +299,17 @@ try {
   await client.query(`INSERT INTO candidate_authority.candidate_migration_control (
     migration_id, phase, epoch, started_at, deadline_at, write_frozen,
     approved_release_id, approval_digest, updated_at
-  ) VALUES ('candidate-episode-v1-cycle-7','legacy',2,$1,$2,true,$3,$4,$1)`, [
-    new Date(cycleDeadlines[5].getTime() + 1_000).toISOString(),
-    new Date(cycleDeadlines[5].getTime() + 72 * 60 * 60_000 + 1_000).toISOString(),
-    "candidate-shadow-unapproved-cycle-7",
+  ) VALUES ('candidate-episode-v1-cycle-8','legacy',2,$1,$2,true,$3,$4,$1)`, [
+    new Date(cycleDeadlines[6].getTime() + 1_000).toISOString(),
+    new Date(cycleDeadlines[6].getTime() + 72 * 60 * 60_000 + 1_000).toISOString(),
+    "candidate-shadow-unapproved-cycle-8",
     `sha256:${"f".repeat(64)}`,
   ]);
   await assert.rejects(
     collectReadOnlyEvidence(client, request, lineage),
     (error) => error?.reason === "database_control_lineage_count_mismatch",
   );
-  await client.query("DELETE FROM candidate_authority.candidate_migration_control WHERE migration_id='candidate-episode-v1-cycle-7'");
+  await client.query("DELETE FROM candidate_authority.candidate_migration_control WHERE migration_id='candidate-episode-v1-cycle-8'");
   const boundary = await client.query(`SELECT phase, epoch::int, write_frozen,
     (SELECT count(*)::int FROM candidate_authority.candidate_episode_ingest_outbox
       WHERE source_type='legacy_scan_candidate') AS source_writes,

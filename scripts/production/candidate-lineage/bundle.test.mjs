@@ -33,7 +33,7 @@ function evidenceGroup({ cycle, release, sourceCommit, directory }) {
 
 function runtime() {
   const unifiedDirectory =
-    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-cycle6pack";
+    "/home/ubuntu/.cache/market-radar-ops/evidence/wp-g0-2-cycle-continuation-cycle7pack";
   return {
     approvedProductionCommit: commit("b"),
     webImageId: `sha256:${hash("c")}`,
@@ -47,7 +47,7 @@ function runtime() {
       productionMutationAllowed: false,
       outputSchemaVersion: "candidate-multi-cycle-lineage-evidence.v3",
       unified: evidenceGroup({
-        cycle: "candidate-episode-v1-cycle-6",
+        cycle: "candidate-episode-v1-cycle-7",
         release: "candidate-shadow-lineage-packet-cycle-6",
         sourceCommit: commit("b"),
         directory: unifiedDirectory,

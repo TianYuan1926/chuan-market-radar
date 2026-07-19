@@ -67,12 +67,21 @@ const sourceReleaseWindows = [
     writeFrozen: true,
   },
   {
-    controlEpoch: 1,
+    controlEpoch: 2,
     deadlineAt: "2026-07-24T00:00:00.000Z",
     migrationId: "candidate-episode-v1-cycle-6",
-    phase: "shadow_capture",
+    phase: "legacy",
     releaseId: "candidate-shadow-release-cycle-6",
     startedAt: "2026-07-21T00:00:00.000Z",
+    writeFrozen: true,
+  },
+  {
+    controlEpoch: 1,
+    deadlineAt: "2026-07-27T00:00:00.000Z",
+    migrationId: "candidate-episode-v1-cycle-7",
+    phase: "shadow_capture",
+    releaseId: "candidate-shadow-release-cycle-7",
+    startedAt: "2026-07-24T00:00:00.000Z",
     writeFrozen: false,
   },
 ];
@@ -84,9 +93,9 @@ const lineage = {
   completionAdvances: 8,
   controlSnapshotSha256: "c".repeat(64),
   currentAuthorityEpoch: 1,
-  currentMigrationId: sourceReleaseWindows[5].migrationId,
-  currentReleaseId: sourceReleaseWindows[5].releaseId,
-  currentCycleStartedAt: sourceReleaseWindows[5].startedAt,
+  currentMigrationId: sourceReleaseWindows[6].migrationId,
+  currentReleaseId: sourceReleaseWindows[6].releaseId,
+  currentCycleStartedAt: sourceReleaseWindows[6].startedAt,
   g0Completed: false,
   maximumSampleGapSeconds: 600,
   minimumActivationHours: 24,
@@ -99,7 +108,7 @@ const lineage = {
   productionReconciliationExecuted: false,
   schemaVersion: LINEAGE_SCHEMA,
   shadowVerifyStarted: false,
-  sourceReleaseCount: 6,
+  sourceReleaseCount: 7,
   sourceReleaseWindows,
   status: LINEAGE_PASS,
   thresholdsChanged: false,
@@ -107,7 +116,7 @@ const lineage = {
   unifiedSamplesSha256: "b".repeat(64),
   unresolvedMaximum: 0,
   unresolvedOutbox: 0,
-  validationCycle: 6,
+  validationCycle: 7,
 };
 const runtime = {
   approvedProductionCommit: "1".repeat(40),
@@ -119,7 +128,7 @@ const runtime = {
   postgresAdminEnvPath:
     "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/secrets/postgres-admin.env",
   productionEnvSha256: "4".repeat(64),
-  releaseId: sourceReleaseWindows[5].releaseId,
+  releaseId: sourceReleaseWindows[6].releaseId,
   sourceReleaseWindows,
   webImageId: `sha256:${"5".repeat(64)}`,
 };
@@ -156,7 +165,7 @@ test("v4 production packet is locked to nine runner files and no production muta
   assert.equal(TRANSPORT_FILES.some((file) => file.includes("candidate-activation")), false);
 });
 
-test("Lineage v3 binds exact current identity and all six source windows", () => {
+test("Lineage v3 binds exact current identity and all seven source windows", () => {
   const request = {
     authorityEpoch: runtime.authorityEpoch,
     lineageSchemaVersion: LINEAGE_SCHEMA,
@@ -194,7 +203,7 @@ test("request generator contains one Lineage input and exact read-only inner app
   assert.equal(request.packageId, PACKAGE_ID);
   assert.equal(request.lineageSchemaVersion, LINEAGE_SCHEMA);
   assert.equal(request.lineageStatus, LINEAGE_PASS);
-  assert.equal(request.reconciliationApproval.sourceReleaseWindows.length, 6);
+  assert.equal(request.reconciliationApproval.sourceReleaseWindows.length, 7);
   assert.equal(request.reconciliationApproval.shadowVerifyTransitionAllowed, false);
   assert.equal(request.services.length, 0);
   assert.equal(Object.keys(request).some((key) => key.toLowerCase().includes("activation")), false);
