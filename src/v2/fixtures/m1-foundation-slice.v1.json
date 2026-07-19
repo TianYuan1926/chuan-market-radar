@@ -82,8 +82,10 @@
     }
   ],
   "feature": {
-    "featureId": "fixture-cross-venue-mid-dispersion",
-    "featureDefinitionVersion": "cross-venue-mid-dispersion.v1",
+    "featureId": "fixture-cross-venue-last-price-dispersion",
+    "featureDefinitionVersion": "cross-venue-last-price-dispersion.v1",
+    "subjectType": "UNDERLYING_GROUP",
+    "subjectId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
     "sourceVenues": [
       "BINANCE_FUTURES",
       "OKX_SWAP",
@@ -94,9 +96,9 @@
     "qualityStatus": "FRESH"
   },
   "context": {
-    "regime": "RANGE",
-    "volatility": "NORMAL",
-    "liquidity": "HEALTHY",
-    "confidence": "MEDIUM"
+    "regime": "UNKNOWN",
+    "volatility": "UNKNOWN",
+    "liquidity": "UNKNOWN",
+    "confidence": "LOW"
   }
 }

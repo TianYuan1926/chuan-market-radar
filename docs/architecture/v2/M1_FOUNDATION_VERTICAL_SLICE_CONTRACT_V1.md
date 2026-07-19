@@ -1,6 +1,6 @@
 # M1 Foundation 第一纵向切片合同 v1
 
-状态：`FROZEN_TASK_CONTRACT / M1.1_IDENTITY_FACT_LOCAL_PASS / M1.2_FEATURE_CONTEXT_NOT_STARTED / PRODUCTION_UNCHANGED`
+状态：`FROZEN_TASK_CONTRACT / M1.1_IDENTITY_FACT_LOCAL_PASS / M1.2_FEATURE_CONTEXT_LOCAL_PASS / M1.3_READY_LOCAL_ONLY / PRODUCTION_UNCHANGED`
 
 ## 目标
 
@@ -69,3 +69,14 @@ Venue catalog
 - `test:v2-foundation` 当前 67/67 PASS；同一冻结输入的 Universe/Fact ID 与 content hash 可重复，权威产物运行时深冻结。
 - 当前环境的公开端点直连探测未成功，所以只声明本地合同/fixture PASS，不声明 live provider 或生产能力。
 - 详细来源与限制见 `M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md`。
+
+## M1.2 当前证据
+
+- `FeatureSetSnapshot` 以 `UNDERLYING_GROUP` 为 subject，避免把跨 Venue 特征错误挂到单一 instrument；schema 已升至 v2。
+- 唯一首批 Feature 为 `cross-venue-last-price-dispersion.v1`，使用十进制整数运算计算 `(max - min) / median`，不经过浮点价格计算。
+- Feature builder 要求每个 eligible instrument 恰好一个同 cutoff `LAST_PRICE` Fact，拒绝缺失、重复、晚 cutoff 和在 feature computedAt 之后才产生的 Fact。
+- ONLINE 与两次 REPLAY 使用同一纯函数，但必须带三组不同 run ID、正确计算模式和相同 engine version；FeatureQuality 保存三份语义哈希，不能用同一对象或相同 run 冒充独立回放。
+- Market Context 只允许从 fresh、parity PASS、replay deterministic 的分散度读取。分散度高于版本化阈值可标记 `FRAGMENTED`；低分散不能证明 `HEALTHY`，regime、volatility、breadth、correlation 和方向保持 UNKNOWN/null。
+- `test:v2-m1-feature-context` 17/17 PASS；`test:v2-foundation` 84/84 PASS。详细合同见 `M1_2_FEATURE_CONTEXT_CONTRACT_V1.md`。
+
+M1.2 没有建立真实持久化、跨进程 replay runner、采集 Worker、全 eligible Universe、live provider、API、页面或生产 authority。下一步只进入 M1.3 的本地 Store/Replay/Runtime Truth 设计与 rehearsal。

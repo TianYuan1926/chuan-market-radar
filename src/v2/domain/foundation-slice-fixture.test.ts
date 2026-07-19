@@ -24,6 +24,16 @@ test("freezes one explicit instrument and fresh fact per target venue", () => {
       underlyingGroupId: string;
       venue: string;
     }>;
+    feature: {
+      subjectId: string;
+      subjectType: string;
+    };
+    context: {
+      confidence: string;
+      liquidity: string;
+      regime: string;
+      volatility: string;
+    };
     sourceCutoff: string;
   };
 
@@ -60,4 +70,15 @@ test("freezes one explicit instrument and fresh fact per target venue", () => {
     ),
     true,
   );
+  assert.equal(fixture.feature.subjectType, "UNDERLYING_GROUP");
+  assert.equal(
+    fixture.feature.subjectId,
+    fixture.instruments[0]?.underlyingGroupId,
+  );
+  assert.deepEqual(fixture.context, {
+    confidence: "LOW",
+    liquidity: "UNKNOWN",
+    regime: "UNKNOWN",
+    volatility: "UNKNOWN",
+  });
 });

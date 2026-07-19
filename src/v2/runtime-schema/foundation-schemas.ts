@@ -217,7 +217,12 @@ export const PointInTimeFeatureSchema = z.strictObject({
   featureId: NonEmptyStringSchema,
   featureDefinitionVersion: NonEmptyStringSchema,
   featureSetVersion: NonEmptyStringSchema,
-  canonicalInstrumentId: NonEmptyStringSchema,
+  subjectType: z.enum([
+    "CANONICAL_INSTRUMENT",
+    "UNDERLYING_GROUP",
+    "MARKET",
+  ]),
+  subjectId: NonEmptyStringSchema,
   timeframe: NonEmptyStringSchema,
   window: NonEmptyStringSchema,
   value: z.union([NonEmptyStringSchema, FiniteNumberSchema]).nullable(),
@@ -251,6 +256,11 @@ export const FeatureSetSnapshotSchema = z.strictObject({
   snapshotId: NonEmptyStringSchema,
   universeSnapshotId: NonEmptyStringSchema,
   featureSetVersion: NonEmptyStringSchema,
+  computation: z.strictObject({
+    engineVersion: NonEmptyStringSchema,
+    mode: z.enum(["ONLINE", "REPLAY"]),
+    runId: NonEmptyStringSchema,
+  }),
   features: z.array(PointInTimeFeatureSchema),
 }).superRefine((snapshot, context) => {
   const ids = snapshot.features.map((feature) => feature.featureId);
@@ -286,10 +296,123 @@ export const FeatureQualitySnapshotSchema = z.strictObject({
   ),
   snapshotId: NonEmptyStringSchema,
   featureSetSnapshotId: NonEmptyStringSchema,
+  featureCount: NonNegativeIntegerSchema,
+  nullCount: NonNegativeIntegerSchema,
   onlineOfflineParity: z.enum(["PASS", "FAIL", "NOT_EVALUATED"]),
   replayDeterministic: z.boolean(),
   nullRate: RatioSchema,
+  parityEvidence: z.strictObject({
+    independentlyBuilt: z.boolean(),
+    onlineFeatureSetSnapshotId: NonEmptyStringSchema,
+    replayFeatureSetSnapshotId: NonEmptyStringSchema,
+    replayRepeatFeatureSetSnapshotId: NonEmptyStringSchema,
+    onlineSemanticHash: NonEmptyStringSchema,
+    replaySemanticHash: NonEmptyStringSchema,
+    replayRepeatSemanticHash: NonEmptyStringSchema,
+    featureEngineVersion: NonEmptyStringSchema,
+    onlineComputationRunId: NonEmptyStringSchema,
+    replayComputationRunId: NonEmptyStringSchema,
+    replayRepeatComputationRunId: NonEmptyStringSchema,
+  }),
   quality: QualityAssessmentSchema,
+}).superRefine((snapshot, context) => {
+  if (snapshot.featureSetSnapshotId !== snapshot.parityEvidence.onlineFeatureSetSnapshotId) {
+    context.addIssue({
+      code: "custom",
+      message: "feature quality must identify the evaluated online feature set",
+      path: ["featureSetSnapshotId"],
+    });
+  }
+  if (snapshot.nullCount > snapshot.featureCount) {
+    context.addIssue({
+      code: "custom",
+      message: "nullCount cannot exceed featureCount",
+      path: ["nullCount"],
+    });
+  }
+  const expectedNullRate = snapshot.featureCount === 0
+    ? 1
+    : snapshot.nullCount / snapshot.featureCount;
+  if (Math.abs(snapshot.nullRate - expectedNullRate) > Number.EPSILON) {
+    context.addIssue({
+      code: "custom",
+      message: "nullRate must be derived from nullCount and featureCount",
+      path: ["nullRate"],
+    });
+  }
+
+  const parityMatches =
+    snapshot.parityEvidence.onlineSemanticHash ===
+      snapshot.parityEvidence.replaySemanticHash;
+  const independentRunIds = new Set([
+    snapshot.parityEvidence.onlineComputationRunId,
+    snapshot.parityEvidence.replayComputationRunId,
+    snapshot.parityEvidence.replayRepeatComputationRunId,
+  ]).size === 3;
+  if (snapshot.parityEvidence.independentlyBuilt && !independentRunIds) {
+    context.addIssue({
+      code: "custom",
+      message: "independent parity evidence requires three distinct computation runs",
+      path: ["parityEvidence", "independentlyBuilt"],
+    });
+  }
+  if (
+    snapshot.onlineOfflineParity === "PASS" &&
+    (!snapshot.parityEvidence.independentlyBuilt || !parityMatches)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "parity PASS requires independent equal semantic artifacts",
+      path: ["onlineOfflineParity"],
+    });
+  }
+  if (
+    snapshot.onlineOfflineParity === "FAIL" &&
+    (!snapshot.parityEvidence.independentlyBuilt || parityMatches)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "parity FAIL requires independent unequal semantic artifacts",
+      path: ["onlineOfflineParity"],
+    });
+  }
+  if (
+    snapshot.onlineOfflineParity === "NOT_EVALUATED" &&
+    snapshot.parityEvidence.independentlyBuilt
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "independent evidence must produce a parity result",
+      path: ["onlineOfflineParity"],
+    });
+  }
+
+  const deterministic =
+    snapshot.parityEvidence.independentlyBuilt &&
+    snapshot.parityEvidence.replaySemanticHash ===
+      snapshot.parityEvidence.replayRepeatSemanticHash;
+  if (snapshot.replayDeterministic !== deterministic) {
+    context.addIssue({
+      code: "custom",
+      message: "replayDeterministic must match the replay evidence hashes",
+      path: ["replayDeterministic"],
+    });
+  }
+  if (
+    snapshot.quality.status === "FRESH" &&
+    (
+      snapshot.featureCount === 0 ||
+      snapshot.nullCount > 0 ||
+      snapshot.onlineOfflineParity !== "PASS" ||
+      !snapshot.replayDeterministic
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "fresh feature quality requires complete deterministic parity",
+      path: ["quality", "status"],
+    });
+  }
 }) satisfies z.ZodType<FeatureQualitySnapshot>;
 
 export const MarketContextSnapshotSchema = z.strictObject({
@@ -300,6 +423,7 @@ export const MarketContextSnapshotSchema = z.strictObject({
   snapshotId: NonEmptyStringSchema,
   universeSnapshotId: NonEmptyStringSchema,
   featureSetSnapshotId: NonEmptyStringSchema,
+  featureQualitySnapshotId: NonEmptyStringSchema,
   contextRuleVersion: NonEmptyStringSchema,
   regime: z.enum(["TREND", "RANGE", "TRANSITION", "STRESS", "UNKNOWN"]),
   volatility: z.enum(["LOW", "NORMAL", "HIGH", "EXTREME", "UNKNOWN"]),

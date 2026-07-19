@@ -2,6 +2,45 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M1.2 Point-in-Time Feature and Context Local Slice
+
+### 本轮目标
+
+只读取 M1.1 冻结 Point-in-Time Fact，用同一纯函数建立首个跨三 Venue Feature、独立 online/replay 证明、FeatureQuality 和不产生方向的最小 Market Context。
+
+### 修改范围
+
+- 把跨 Venue Feature subject 从单一 instrument 修正为 `UNDERLYING_GROUP`，并升级 FeatureSet、FeatureQuality、MarketContext strict schema。
+- 新增精确十进制 `(max-min)/median` 价格分散计算；缺失、重复、stale、future-produced 或 later-cutoff Fact 均 fail closed。
+- FeatureSet 记录 ONLINE/REPLAY mode、独立 run ID 和 engine version；FeatureQuality 记录三份 snapshot/run/semantic hash，拒绝同对象、同 run、parity mismatch 和 replay nondeterminism。
+- Market Context 只在 fresh parity evidence 下识别 `FRAGMENTED`；低分散不写 `HEALTHY`，不推断 regime、volatility、breadth、correlation 或方向。
+- 更新 M1 合同、施工顺序、蓝图、机器矩阵、Context 与交付材料；未修改 Legacy 运行逻辑或生产。
+
+### 核心链路影响
+
+完成 `Point-in-Time Fact -> FeatureSet + FeatureQuality -> minimal MarketContext` 的首个本地纵切，为后续发现层提供可回放特征地基。本轮没有 Candidate、信号等级、Analysis、Strategy、交易计划或 READY。
+
+### 测试结果
+
+- `test:v2-m1-feature-context`：17/17 PASS。
+- `test:v2-foundation`：84/84 PASS。
+- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。
+- M0 机器出口 10/10、`typecheck`、`lint`、`build`、`backtest:golden` 16/16、forbidden/secret/security：PASS。
+- 完整 `ci:production` 退出码 0；`backtest:formal` 和 production smoke 未运行。
+
+### 是否部署
+
+未部署。未修改数据库、Redis、Worker、API、页面、Compose、env、secret、GitHub main 或腾讯云；生产继续 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
+
+### 风险与遗留问题
+
+- 目前只实现一个冻结 BTC 三 Venue 价格分散 Feature，不代表全市场 Feature、Detector 或提前发现能力已经形成。
+- online/replay 当前是本地独立 run artifact 证明，尚无持久化 Store、跨进程 replay manifest、live input 或生产 SLO。
+
+### 下一轮建议
+
+只执行 `V2-M1.3 Fact Store, Replay Manifest and Runtime Truth Rehearsal`，先在隔离本地环境证明 append-only、幂等、完整性、回放和五类运行真值，不执行生产 migration。
+
 ## 2026-07-20 / V2 M1.1 Three-Venue Identity and Fact Local Slice
 
 ### 本轮目标
@@ -167,37 +206,3 @@
 ### 下一轮建议
 
 只启动 `V2-M0.1 Product Constitution + Domain Contract + Legacy Capability Freeze`。
-
-## 2026-07-20 / V2 Controlled Replacement Blueprint v1.0
-
-### 本轮目标
-
-根据用户重新确认的核心使命和全系统审计，设计提取有效地基、重建错误职责、逐 authority 切换的新 V2，而不是继续无限修补 Legacy。
-
-### 修改范围
-
-- 建立 V2 产品使命、目标市场范围、六个机会族、研究验证、运行安全和 M0-M7 路线。
-- 建立初版 14 Module 蓝图和机器追踪矩阵。
-- 未修改业务代码、数据、部署或生产。
-
-### 核心链路影响
-
-首次把“爆发前发现优先、其他结构机会全面覆盖、严格交易计划、真实持续进化”收敛为受控替换架构。
-
-### 测试结果
-
-- 初版 JSON、Markdown、链接和授权边界检查：PASS。
-- 代码门禁：未运行，初版为纯设计轮。
-- production smoke/formal：未运行。
-
-### 是否部署
-
-未部署。
-
-### 风险与遗留问题
-
-初版仍缺少统一特征权威、执行可行性、组合风险、评估/研究隔离和漂移治理，已在 v1.1 补齐。
-
-### 下一轮建议
-
-已由本日志上一轮的 v1.1 cleanup 取代。

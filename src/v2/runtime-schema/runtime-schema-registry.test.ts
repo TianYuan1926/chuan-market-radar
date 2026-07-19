@@ -36,6 +36,12 @@ const freshQuality = {
   reasonCodes: [],
 } as const;
 
+const partialQuality = {
+  status: "PARTIAL",
+  ageMs: 0,
+  reasonCodes: ["fixture_context_scope_partial"],
+} as const;
+
 function uncertainty(): UncertaintyVector {
   return {
     data: {
@@ -175,12 +181,18 @@ const fixtures: RuntimeArtifactByName = {
     snapshotId: "feature-set-fixture-1",
     universeSnapshotId: "universe-fixture-1",
     featureSetVersion: "feature-set.v1",
+    computation: {
+      engineVersion: "feature-engine-fixture.v1",
+      mode: "ONLINE",
+      runId: "online-run-fixture-1",
+    },
     features: [
       {
         featureId: "feature-fixture-1",
         featureDefinitionVersion: "dispersion.v1",
         featureSetVersion: "feature-set.v1",
-        canonicalInstrumentId: "BINANCE_FUTURES:BTCUSDT:LINEAR_PERPETUAL:USDT",
+        subjectType: "UNDERLYING_GROUP",
+        subjectId: "BTC:USDT_LINEAR_PERPETUAL",
         timeframe: "1m",
         window: "3-venue-snapshot",
         value: 0.001,
@@ -196,9 +208,24 @@ const fixtures: RuntimeArtifactByName = {
     ...trace("FeatureQualitySnapshot", "point_in_time_feature_engine"),
     snapshotId: "feature-quality-fixture-1",
     featureSetSnapshotId: "feature-set-fixture-1",
+    featureCount: 1,
+    nullCount: 0,
     onlineOfflineParity: "PASS",
     replayDeterministic: true,
     nullRate: 0,
+    parityEvidence: {
+      independentlyBuilt: true,
+      onlineFeatureSetSnapshotId: "feature-set-fixture-1",
+      replayFeatureSetSnapshotId: "feature-set-fixture-1",
+      replayRepeatFeatureSetSnapshotId: "feature-set-fixture-1",
+      onlineSemanticHash: "sha256:equal",
+      replaySemanticHash: "sha256:equal",
+      replayRepeatSemanticHash: "sha256:equal",
+      featureEngineVersion: "feature-engine-fixture.v1",
+      onlineComputationRunId: "online-run-fixture-1",
+      replayComputationRunId: "replay-run-fixture-1",
+      replayRepeatComputationRunId: "replay-run-fixture-2",
+    },
     quality: freshQuality,
   },
   MarketContextSnapshot: {
@@ -206,14 +233,15 @@ const fixtures: RuntimeArtifactByName = {
     snapshotId: "context-fixture-1",
     universeSnapshotId: "universe-fixture-1",
     featureSetSnapshotId: "feature-set-fixture-1",
+    featureQualitySnapshotId: "feature-quality-fixture-1",
     contextRuleVersion: "context.v1",
-    regime: "RANGE",
-    volatility: "NORMAL",
-    breadth: 0.5,
-    correlation: 0.25,
-    liquidity: "HEALTHY",
-    confidence: "MEDIUM",
-    quality: freshQuality,
+    regime: "UNKNOWN",
+    volatility: "UNKNOWN",
+    breadth: null,
+    correlation: null,
+    liquidity: "UNKNOWN",
+    confidence: "LOW",
+    quality: partialQuality,
     uncertainty: uncertainty(),
   },
   DiscoveryCandidate: {

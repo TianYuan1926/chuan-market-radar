@@ -29,7 +29,7 @@ export type M0ExitReport = Readonly<{
   legacySourceFiles: number;
   productionMutationPerformed: false;
   productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION";
-  nextEntry: "V2-M1.2 POINT_IN_TIME_FEATURE_AND_CONTEXT_SLICE";
+  nextEntry: "V2-M1.3 FACT_STORE_REPLAY_RUNTIME_TRUTH_REHEARSAL";
 }>;
 
 type CheckRunner = () => string;
@@ -346,7 +346,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     legacySourceFiles: currentMap.totals.sourceFiles,
     productionMutationPerformed: false,
     productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
-    nextEntry: "V2-M1.2 POINT_IN_TIME_FEATURE_AND_CONTEXT_SLICE",
+    nextEntry: "V2-M1.3 FACT_STORE_REPLAY_RUNTIME_TRUTH_REHEARSAL",
   };
 }
 

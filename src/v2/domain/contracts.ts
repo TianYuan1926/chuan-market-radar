@@ -116,7 +116,8 @@ export type PointInTimeFeature = {
   featureId: string;
   featureDefinitionVersion: string;
   featureSetVersion: string;
-  canonicalInstrumentId: string;
+  subjectType: "CANONICAL_INSTRUMENT" | "UNDERLYING_GROUP" | "MARKET";
+  subjectId: string;
   timeframe: string;
   window: string;
   value: string | number | null;
@@ -132,6 +133,11 @@ export type FeatureSetSnapshot = TraceEnvelope & {
   snapshotId: string;
   universeSnapshotId: string;
   featureSetVersion: string;
+  computation: {
+    engineVersion: string;
+    mode: "ONLINE" | "REPLAY";
+    runId: string;
+  };
   features: readonly PointInTimeFeature[];
 };
 
@@ -139,9 +145,24 @@ export type FeatureQualitySnapshot = TraceEnvelope & {
   producerModule: "point_in_time_feature_engine";
   snapshotId: string;
   featureSetSnapshotId: string;
+  featureCount: number;
+  nullCount: number;
   onlineOfflineParity: "PASS" | "FAIL" | "NOT_EVALUATED";
   replayDeterministic: boolean;
   nullRate: number;
+  parityEvidence: {
+    independentlyBuilt: boolean;
+    onlineFeatureSetSnapshotId: string;
+    replayFeatureSetSnapshotId: string;
+    replayRepeatFeatureSetSnapshotId: string;
+    onlineSemanticHash: string;
+    replaySemanticHash: string;
+    replayRepeatSemanticHash: string;
+    featureEngineVersion: string;
+    onlineComputationRunId: string;
+    replayComputationRunId: string;
+    replayRepeatComputationRunId: string;
+  };
   quality: QualityAssessment;
 };
 
@@ -150,6 +171,7 @@ export type MarketContextSnapshot = TraceEnvelope & {
   snapshotId: string;
   universeSnapshotId: string;
   featureSetSnapshotId: string;
+  featureQualitySnapshotId: string;
   contextRuleVersion: string;
   regime: "TREND" | "RANGE" | "TRANSITION" | "STRESS" | "UNKNOWN";
   volatility: "LOW" | "NORMAL" | "HIGH" | "EXTREME" | "UNKNOWN";
