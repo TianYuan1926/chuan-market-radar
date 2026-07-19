@@ -58,7 +58,8 @@ test("keeps production V2 source physically isolated from Legacy", () => {
   const productionFiles = sourceFiles(V2_ROOT).filter(
     (file) =>
       !file.endsWith(".test.ts") &&
-      !file.includes(`${sep}fixtures${sep}`),
+      !file.includes(`${sep}fixtures${sep}`) &&
+      !file.includes(`${sep}testing${sep}`),
   );
 
   for (const file of productionFiles) {
@@ -110,9 +111,12 @@ test("keeps Legacy source from importing V2 before an approved adapter ADR", () 
   }
 });
 
-test("keeps explicit synthetic fixtures out of production imports", () => {
+test("keeps explicit synthetic fixtures and test support out of production imports", () => {
   const productionFiles = sourceFiles(V2_ROOT).filter(
-    (file) => !file.endsWith(".test.ts") && !file.includes(`${sep}fixtures${sep}`),
+    (file) =>
+      !file.endsWith(".test.ts") &&
+      !file.includes(`${sep}fixtures${sep}`) &&
+      !file.includes(`${sep}testing${sep}`),
   );
 
   for (const file of productionFiles) {
@@ -120,13 +124,15 @@ test("keeps explicit synthetic fixtures out of production imports", () => {
     assert.equal(
       importSpecifiers(source).some((specifier) =>
         specifier.includes("fixtures") ||
+        specifier.includes("testing") ||
         resolvesWithin(
           file,
           specifier,
           resolve(V2_ROOT, "fixtures"),
-        )),
+        ) ||
+        resolvesWithin(file, specifier, resolve(V2_ROOT, "testing"))),
       false,
-      `${relative(REPOSITORY_ROOT, file)} cannot import test-only fixtures`,
+      `${relative(REPOSITORY_ROOT, file)} cannot import test-only support`,
     );
   }
 
@@ -143,6 +149,36 @@ test("keeps explicit synthetic fixtures out of production imports", () => {
   assert.equal(fixture.fixtureKind, "TEST_ONLY_POINT_IN_TIME");
   assert.equal(fixture.synthetic, true);
   assert.equal(fixture.mustNeverEnterRuntime, true);
+});
+
+test("keeps provider hosts and public transport behind V2 adapters", () => {
+  const productionFiles = sourceFiles(V2_ROOT).filter(
+    (file) =>
+      !file.endsWith(".test.ts") &&
+      !file.includes(`${sep}fixtures${sep}`) &&
+      !file.includes(`${sep}testing${sep}`),
+  );
+  const providerHosts = /(?:fapi\.binance\.com|www\.okx\.com|api\.bybit\.com)/u;
+
+  for (const file of productionFiles) {
+    const source = readFileSync(file, "utf8");
+    if (providerHosts.test(source)) {
+      assert.equal(
+        file.includes(`${sep}adapters${sep}`),
+        true,
+        `${relative(REPOSITORY_ROOT, file)} cannot own a provider endpoint`,
+      );
+    }
+    for (const specifier of importSpecifiers(source)) {
+      if (specifier.includes("public-json-transport")) {
+        assert.equal(
+          file.includes(`${sep}adapters${sep}`),
+          true,
+          `${relative(REPOSITORY_ROOT, file)} cannot call provider transport directly`,
+        );
+      }
+    }
+  }
 });
 
 test("covers every Legacy src capability directory in the reviewed atlas", () => {

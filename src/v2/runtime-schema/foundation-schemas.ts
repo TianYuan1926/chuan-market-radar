@@ -9,12 +9,13 @@ import type {
   PointInTimeFeature,
   PointInTimeMarketFact,
 } from "../domain/contracts";
+import { TARGET_VENUES } from "../domain/product-constitution";
 import {
   FiniteNumberSchema,
-  InstrumentIdentitySchema,
   IsoDateTimeSchema,
   NonEmptyStringSchema,
   NonNegativeIntegerSchema,
+  PositiveDecimalStringSchema,
   QualityAssessmentSchema,
   RatioSchema,
   ReasonCodesSchema,
@@ -36,7 +37,16 @@ const InstrumentAccountingStatusSchema = z.enum([
 ]);
 
 export const InstrumentAccountingRecordSchema = z.strictObject({
-  ...InstrumentIdentitySchema.shape,
+  observationId: NonEmptyStringSchema,
+  canonicalInstrumentId: NonEmptyStringSchema.nullable(),
+  underlyingGroupId: NonEmptyStringSchema.nullable(),
+  venue: z.enum(TARGET_VENUES),
+  venueInstrumentId: NonEmptyStringSchema.nullable(),
+  baseAsset: NonEmptyStringSchema.nullable(),
+  quoteAsset: NonEmptyStringSchema.nullable(),
+  settlementAsset: NonEmptyStringSchema.nullable(),
+  contractType: z.literal("LINEAR_PERPETUAL").nullable(),
+  contractSize: PositiveDecimalStringSchema.nullable(),
   status: InstrumentAccountingStatusSchema,
   statusReasons: ReasonCodesSchema,
   observedAt: IsoDateTimeSchema,
@@ -54,6 +64,25 @@ export const InstrumentAccountingRecordSchema = z.strictObject({
       code: "custom",
       message: "non-eligible instruments require an accounting reason",
       path: ["statusReasons"],
+    });
+  }
+  if (
+    record.status === "ELIGIBLE" &&
+    (
+      record.canonicalInstrumentId === null ||
+      record.underlyingGroupId === null ||
+      record.venueInstrumentId === null ||
+      record.baseAsset === null ||
+      record.quoteAsset === null ||
+      record.settlementAsset === null ||
+      record.contractType === null ||
+      record.contractSize === null
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "ELIGIBLE instruments require a complete canonical identity",
+      path: ["status"],
     });
   }
 }) satisfies z.ZodType<InstrumentAccountingRecord>;
@@ -89,9 +118,30 @@ export const EligibleInstrumentSnapshotSchema = z.strictObject({
     });
   }
 
-  const ids = snapshot.accounting.map(
-    (record) => record.canonicalInstrumentId,
+  for (const [index, record] of snapshot.accounting.entries()) {
+    if (Date.parse(record.observedAt) > Date.parse(snapshot.sourceCutoff)) {
+      context.addIssue({
+        code: "custom",
+        message: "accounting observation cannot exceed the snapshot cutoff",
+        path: ["accounting", index, "observedAt"],
+      });
+    }
+  }
+
+  const observationIds = snapshot.accounting.map(
+    (record) => record.observationId,
   );
+  if (new Set(observationIds).size !== observationIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "observationId must be unique within a snapshot",
+      path: ["accounting"],
+    });
+  }
+
+  const ids = snapshot.accounting
+    .map((record) => record.canonicalInstrumentId)
+    .filter((id): id is string => id !== null);
   if (new Set(ids).size !== ids.length) {
     context.addIssue({
       code: "custom",
@@ -123,7 +173,17 @@ export const PointInTimeMarketFactSchema = z.strictObject({
       path: ["quality", "status"],
     });
   }
-  if (Date.parse(fact.lineage.eventTime) > Date.parse(fact.sourceCutoff)) {
+  if (fact.value !== null && fact.lineage.eventTime === null) {
+    context.addIssue({
+      code: "custom",
+      message: "a valued market fact requires an exchange event time",
+      path: ["lineage", "eventTime"],
+    });
+  }
+  if (
+    fact.lineage.eventTime !== null &&
+    Date.parse(fact.lineage.eventTime) > Date.parse(fact.sourceCutoff)
+  ) {
     context.addIssue({
       code: "custom",
       message: "eventTime cannot exceed the point-in-time source cutoff",

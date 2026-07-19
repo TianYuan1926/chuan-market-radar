@@ -13,6 +13,8 @@ test("freezes one explicit instrument and fresh fact per target venue", () => {
   ) as {
     facts: Array<{
       eventTime: string;
+      normalizedAt: string;
+      persistedAt: string | null;
       qualityStatus: string;
       value: string | null;
       venue: string;
@@ -50,6 +52,8 @@ test("freezes one explicit instrument and fresh fact per target venue", () => {
     fixture.facts.every(
       (fact) =>
         fact.eventTime === fixture.sourceCutoff &&
+        Date.parse(fact.normalizedAt) >= Date.parse(fact.eventTime) &&
+        fact.persistedAt === null &&
         fact.qualityStatus === "FRESH" &&
         fact.value !== null &&
         Number(fact.value) > 0,

@@ -37,9 +37,10 @@ export type SourceLineage = {
   sourceId: string;
   sourceCapability: string;
   sourceRecordIds: readonly string[];
-  eventTime: string;
+  eventTime: string | null;
   receivedAt: string;
-  persistedAt: string;
+  normalizedAt: string;
+  persistedAt: string | null;
 };
 
 export type QualityAssessment = {
@@ -60,7 +61,17 @@ export type InstrumentIdentity = {
   contractSize: string;
 };
 
-export type InstrumentAccountingRecord = InstrumentIdentity & {
+export type InstrumentAccountingRecord = {
+  observationId: string;
+  canonicalInstrumentId: string | null;
+  underlyingGroupId: string | null;
+  venue: TargetVenue;
+  venueInstrumentId: string | null;
+  baseAsset: string | null;
+  quoteAsset: string | null;
+  settlementAsset: string | null;
+  contractType: "LINEAR_PERPETUAL" | null;
+  contractSize: string | null;
   status: InstrumentAccountingStatus;
   statusReasons: readonly string[];
   observedAt: string;

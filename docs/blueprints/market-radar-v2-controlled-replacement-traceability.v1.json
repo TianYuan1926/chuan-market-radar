@@ -21,6 +21,7 @@
     "eventDefinition": "docs/architecture/v2/EVENT_AND_EARLY_DETECTION_DEFINITION_V1.md",
     "dataCapabilityBaseline": "docs/architecture/v2/DATA_CAPABILITY_AND_REPLAY_BASELINE_V1.md",
     "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
+    "m1ProviderSourceContracts": "docs/architecture/v2/M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -674,10 +675,18 @@
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
   },
-  "currentImplementationEntry": {
+  "lastCompletedImplementationEntry": {
     "id": "V2-M1.1",
     "name": "three_venue_identity_and_fact_slice",
-    "status": "ready_to_start_local_only",
+    "status": "local_pass_frozen_provider_contract_live_connectivity_unproven",
+    "productionMutationPerformed": false,
+    "migrationPerformed": false,
+    "legacyDeletionPerformed": false
+  },
+  "currentImplementationEntry": {
+    "id": "V2-M1.2",
+    "name": "point_in_time_feature_and_context_slice",
+    "status": "ready_to_start_local_only_after_m1_1_local_pass",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false

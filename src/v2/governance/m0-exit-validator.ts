@@ -29,7 +29,7 @@ export type M0ExitReport = Readonly<{
   legacySourceFiles: number;
   productionMutationPerformed: false;
   productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION";
-  nextEntry: "V2-M1.1 THREE_VENUE_IDENTITY_AND_FACT_SLICE";
+  nextEntry: "V2-M1.2 POINT_IN_TIME_FEATURE_AND_CONTEXT_SLICE";
 }>;
 
 type CheckRunner = () => string;
@@ -81,10 +81,15 @@ function isolationViolations(repositoryRoot: string): string[] {
   for (const file of listSourceFiles(v2Root)) {
     const repositoryPath = relative(repositoryRoot, file).split(sep).join("/");
     const productionFile =
-      !file.endsWith(".test.ts") && !file.includes(`${sep}fixtures${sep}`);
+      !file.endsWith(".test.ts") &&
+      !file.includes(`${sep}fixtures${sep}`) &&
+      !file.includes(`${sep}testing${sep}`);
     for (const specifier of importSpecifiers(file)) {
-      if (productionFile && specifier.includes("fixtures")) {
-        violations.push(`${repositoryPath}:fixture:${specifier}`);
+      if (
+        productionFile &&
+        (specifier.includes("fixtures") || specifier.includes("testing"))
+      ) {
+        violations.push(`${repositoryPath}:test-support:${specifier}`);
       }
       if (!productionFile) {
         continue;
@@ -294,13 +299,18 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
 
   check("m0_gates_in_production_ci", () => {
     const ci = packageJson.scripts["ci:production"] ?? "";
+    const verifier = packageJson.scripts["v2:m0:verify"] ?? "";
     if (
       !ci.includes("test:v2-foundation") ||
-      !ci.includes("v2:m0:verify:compiled")
+      !ci.includes("v2:m0:verify") ||
+      !verifier.includes("build:market-cli") ||
+      !verifier.includes("v2:m0:verify:compiled")
     ) {
-      throw new Error("production CI does not execute both V2 tests and M0 exit verifier");
+      throw new Error(
+        "production CI does not execute V2 tests and a self-building M0 verifier",
+      );
     }
-    return "test:v2-foundation + v2:m0:verify:compiled";
+    return "test:v2-foundation + self-building v2:m0:verify";
   });
 
   check("production_and_destructive_authority_closed", () => {
@@ -336,7 +346,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     legacySourceFiles: currentMap.totals.sourceFiles,
     productionMutationPerformed: false,
     productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
-    nextEntry: "V2-M1.1 THREE_VENUE_IDENTITY_AND_FACT_SLICE",
+    nextEntry: "V2-M1.2 POINT_IN_TIME_FEATURE_AND_CONTEXT_SLICE",
   };
 }
 

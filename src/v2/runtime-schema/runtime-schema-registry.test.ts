@@ -122,6 +122,7 @@ const fixtures: RuntimeArtifactByName = {
     eligibleCount: 1,
     accounting: [
       {
+        observationId: "observation-fixture-1",
         canonicalInstrumentId: "BINANCE_FUTURES:BTCUSDT:LINEAR_PERPETUAL:USDT",
         underlyingGroupId: "BTC:USDT_LINEAR_PERPETUAL",
         venue: "BINANCE_FUTURES",
@@ -154,6 +155,7 @@ const fixtures: RuntimeArtifactByName = {
       sourceRecordIds: ["record-fixture-1"],
       eventTime: SOURCE_CUTOFF,
       receivedAt: "2026-01-15T00:00:00.100Z",
+      normalizedAt: "2026-01-15T00:00:00.150Z",
       persistedAt: "2026-01-15T00:00:00.200Z",
     },
     quality: freshQuality,
@@ -580,6 +582,35 @@ test("accepts one type-checked canonical fixture for every authority schema", ()
       `${artifactName}: ${result.success ? "" : result.error.message}`,
     );
   }
+});
+
+test("allows unavailable facts without fabricated event or persistence time", () => {
+  const unavailable = {
+    ...fixtures.PointInTimeMarketFact,
+    value: null,
+    sequence: null,
+    lineage: {
+      ...fixtures.PointInTimeMarketFact.lineage,
+      eventTime: null,
+      persistedAt: null,
+    },
+    quality: {
+      status: "TRANSPORT_ERROR",
+      ageMs: null,
+      reasonCodes: ["provider_request_failed"],
+    },
+  };
+  assert.equal(
+    RUNTIME_SCHEMA_REGISTRY.PointInTimeMarketFact.safeParse(unavailable).success,
+    true,
+  );
+  assert.equal(
+    RUNTIME_SCHEMA_REGISTRY.PointInTimeMarketFact.safeParse({
+      ...unavailable,
+      value: "100",
+    }).success,
+    false,
+  );
 });
 
 test("keeps schemas strict instead of silently stripping unknown fields", () => {

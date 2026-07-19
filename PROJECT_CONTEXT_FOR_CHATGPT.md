@@ -75,7 +75,9 @@ Runtime / Security / Release Control 贯穿全链。
 ```text
 ACTIVE_DESIGN_AUTHORITY
 M0_ENGINEERING_EXIT_LOCAL_PASS
-M1_READY_TO_START_LOCAL_ONLY
+M1.1_IDENTITY_FACT_LOCAL_PASS
+M1.2_READY_TO_START_LOCAL_ONLY
+liveProviderConnectivityProven=false
 localV2ImplementationAuthorized=true
 productionMutationAuthorized=false
 automaticTradingAllowed=false
@@ -112,7 +114,9 @@ automaticTradingAllowed=false
 - 已建立爆发行情/提前发现评价合同、数据许可/成本/回放基线、Capability 级 Legacy Atlas 和第一条 M1 test-only fixture。
 - 30 个唯一权威产物各有一个 strict Zod runtime schema；29 个 envelope 产物锁定精确 schema version，`UserFit` 为严格标量枚举。跨 API、进程、存储和回放的 decoder 对未知字段、版本漂移、错误状态、时间倒流、恶意对象、过大载荷和不完整 READY fail closed。
 - Legacy Consumer Map 已覆盖 22 个 capability、539 个源文件、273 条直接运行消费者边、118 条测试消费者边、109 个运行入口、13 个提取候选和 21 个存储对象；Legacy 删除权限仍为 false。
-- M0 十项机器出口与 `ci:production` 已通过。这些是本地工程地基，不是市场运行能力；V2 仍无真实 provider、数据库、Worker、API、页面或生产 authority。
+- M0 十项机器出口与 `ci:production` 已通过。这些是本地工程地基，不是市场运行能力。
+- M1.1 已建立独立 GET-only/HTTPS allowlist Transport、Binance/OKX/Bybit catalog 与 ticker Adapter、100% observed accounting、稳定 canonical identity、Point-in-Time `LAST_PRICE`、FactQuality 和 duplicate/out-of-order/gap/stale/recovery 门禁。V2 67/67 测试通过；权威产物运行时深冻结，内存产物明确 `persistedAt=null`，失败不补 0、不编 event time。
+- M1.1 只由官方合同形状和冻结样本证明；当前环境对公开端点的只读探测没有成功，live provider 连通、全 eligible Universe、数据库、Worker、API、页面和生产 authority 仍未证明。
 
 ## 6. Docker 服务清单
 
@@ -238,7 +242,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0 本地工程出口通过，M1.1 准备启动，真实数据运行能力尚未实施
+V2：M0 本地工程出口通过；M1.1 Identity/Fact 本地合同与冻结样本通过；live 数据运行能力尚未证明；M1.2 准备启动
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -263,6 +267,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-20 / V2 M1.1 Three-Venue Identity and Fact Local Slice
+
+- 建立三家公开 catalog/ticker Adapter、受限 GET Transport、完整 instrument accounting、不可变 Point-in-Time Fact 与 FactQuality。
+- V2 67/67 PASS，覆盖分页截断、身份冲突、缺失、429/body rate limit、transport、schema drift、重复、乱序、gap、stale、future cutoff、immutability 和 recovery；未修改 Legacy 或生产。
+- 当前本地网络没有取得公开 endpoint 响应，所以状态为本地合同/fixture PASS，不是 live provider 或生产 PASS；下一入口为 M1.2 Feature/Context。
+
 ### 2026-07-20 / V2 M0 Engineering Exit
 
 - 30 个权威产物 strict runtime schema、fail-closed decoder、Legacy Extraction Policy 和 Consumer Map 已建立。
@@ -275,12 +285,6 @@ Cycle final
 - 建立 M0.0 manifest、正确施工顺序、event/data/Legacy atlas、`src/v2` import fence、18 Module 与核心合同。
 - V2 定向合同/架构测试 18/18 PASS；`ci:production` 聚合门禁端到端 PASS，完整结果见本轮交付报告。
 - OrcaTerm 无活动会话，生产保持 UNKNOWN，生产零命令、零变更。
-
-### 2026-07-19 / Latest Recorded Production Fact
-
-- Cycle-6 legacy pending drain 曾完成并形成干净 baseline。
-- Cycle-7 随后启动，最后记录到 sample 3 且仍 in progress。
-- 没有更晚 final evidence 进入当前仓库，所以当前终态必须标 UNKNOWN。
 
 ## 15. 当前风险
 
@@ -295,7 +299,7 @@ Cycle final
 - Legacy 多套事实/决策/Candidate/Outcome 路径仍存在，单一 authority 未完成。
 - 数据库失败回退内存、前端合同过宽、health 语义和管理面权限仍有事实误导风险。
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
-- V2 M0 工程地基已本地闭环，但没有真实 Fact、Feature、Detector、Decision、API、Worker、回放、Shadow、SLO 或实战能力证据。
+- V2 M1.1 已有本地 Identity/Fact 合同与失败行为证据，但没有 live provider、全市场采集、Feature、Detector、Decision、API、Worker、持久化、Shadow、SLO 或实战能力证据。
 
 ### P2
 
@@ -331,10 +335,10 @@ Cycle final
 ## 18. 唯一下一入口
 
 ```text
-V2-M1.1 Three-Venue Identity and Fact Slice
+V2-M1.2 Point-in-Time Feature and Context Slice
 ```
 
-目标是按冻结合同先贯通 Binance Futures、OKX Swap、Bybit Linear Perpetual 同一 BTC 线性永续的只读 Instrument Identity、Point-in-Time Fact 和 Fact Quality，再接 Feature/Context/Runtime Truth。生产保持零变更；本包不得 migration、接入页面、删除 Legacy 运行代码、生成 Candidate/Signal/Plan 或切换 authority。
+目标是只读取 M1.1 冻结 Point-in-Time Fact，用同一纯函数实现三 Venue 价格离散度、FeatureQuality、在线/回放 parity 和最小非方向性 Market Context。生产保持零变更；本包不得 provider 直调、migration、接入页面、删除 Legacy、生成 Candidate/方向/Signal/Plan 或切换 authority。
 
 ## 19. 活跃记忆维护规则
 

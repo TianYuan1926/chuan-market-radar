@@ -7,6 +7,7 @@
   "purpose": "Freeze the first three-venue Universe -> Fact -> Feature -> Context contract slice without claiming market truth.",
   "instruments": [
     {
+      "observationId": "fixture:BINANCE_FUTURES:catalog:0",
       "canonicalInstrumentId": "fixture:BINANCE_FUTURES:BTCUSDT:LINEAR_PERPETUAL:USDT",
       "underlyingGroupId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
       "venue": "BINANCE_FUTURES",
@@ -19,6 +20,7 @@
       "status": "ELIGIBLE"
     },
     {
+      "observationId": "fixture:OKX_SWAP:catalog:0",
       "canonicalInstrumentId": "fixture:OKX_SWAP:BTC-USDT-SWAP:LINEAR_PERPETUAL:USDT",
       "underlyingGroupId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
       "venue": "OKX_SWAP",
@@ -31,6 +33,7 @@
       "status": "ELIGIBLE"
     },
     {
+      "observationId": "fixture:BYBIT_LINEAR_PERPETUAL:catalog:0",
       "canonicalInstrumentId": "fixture:BYBIT_LINEAR_PERPETUAL:BTCUSDT:LINEAR_PERPETUAL:USDT",
       "underlyingGroupId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
       "venue": "BYBIT_LINEAR_PERPETUAL",
@@ -51,7 +54,8 @@
       "unit": "USDT",
       "eventTime": "2026-01-15T00:00:00.000Z",
       "receivedAt": "2026-01-15T00:00:00.120Z",
-      "persistedAt": "2026-01-15T00:00:00.180Z",
+      "normalizedAt": "2026-01-15T00:00:00.180Z",
+      "persistedAt": null,
       "qualityStatus": "FRESH"
     },
     {
@@ -61,7 +65,8 @@
       "unit": "USDT",
       "eventTime": "2026-01-15T00:00:00.000Z",
       "receivedAt": "2026-01-15T00:00:00.140Z",
-      "persistedAt": "2026-01-15T00:00:00.200Z",
+      "normalizedAt": "2026-01-15T00:00:00.200Z",
+      "persistedAt": null,
       "qualityStatus": "FRESH"
     },
     {
@@ -71,7 +76,8 @@
       "unit": "USDT",
       "eventTime": "2026-01-15T00:00:00.000Z",
       "receivedAt": "2026-01-15T00:00:00.160Z",
-      "persistedAt": "2026-01-15T00:00:00.220Z",
+      "normalizedAt": "2026-01-15T00:00:00.220Z",
+      "persistedAt": null,
       "qualityStatus": "FRESH"
     }
   ],

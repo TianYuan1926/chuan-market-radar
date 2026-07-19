@@ -1,6 +1,6 @@
 # M1 Foundation 第一纵向切片合同 v1
 
-状态：`FROZEN_TASK_CONTRACT / IMPLEMENTATION_NOT_STARTED`
+状态：`FROZEN_TASK_CONTRACT / M1.1_IDENTITY_FACT_LOCAL_PASS / M1.2_FEATURE_CONTEXT_NOT_STARTED / PRODUCTION_UNCHANGED`
 
 ## 目标
 
@@ -21,7 +21,7 @@ Venue catalog
 
 - Binance USD-M、OKX SWAP、Bybit Linear 的 instrument catalog fixture。
 - 每个 instrument 的同一 cutoff `LAST_PRICE` fixture 和 quality metadata。
-- 显式 `eventTime / receivedAt / persistedAt / source id / sequence`。
+- 显式 `eventTime|null / receivedAt / normalizedAt / persistedAt|null / source id / sequence|null`。
 - `src/v2/fixtures/m1-foundation-slice.v1.json`，永久标记 test-only/synthetic。
 
 ## 实施顺序
@@ -60,3 +60,12 @@ Venue catalog
 ## 停止条件
 
 发现 identity 静默合并、未来 K 线补齐、old cache 冒充 live、memory fallback 冒充 authority、test fixture 被 runtime import，或任一 Venue 无法完整分页时立即停止，不扩大到全市场。
+
+## M1.1 当前证据
+
+- 三家公开 catalog/ticker Adapter、GET-only allowlist Transport、Identity/Fact builder 已在独立 `src/v2` 中实现。
+- observed row 100% accounting；不完整 identity 可留在分母，但不能 eligible；分页不完整会撤销该 Venue 已见记录的 eligibility。
+- Fact 对 null、lineage、未持久化、duplicate、out-of-order、gap、stale、rate limit、transport、schema drift、future cutoff 和 recovery fail closed。
+- `test:v2-foundation` 当前 67/67 PASS；同一冻结输入的 Universe/Fact ID 与 content hash 可重复，权威产物运行时深冻结。
+- 当前环境的公开端点直连探测未成功，所以只声明本地合同/fixture PASS，不声明 live provider 或生产能力。
+- 详细来源与限制见 `M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md`。

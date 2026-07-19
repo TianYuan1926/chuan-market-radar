@@ -87,26 +87,39 @@ export const SourceLineageSchema = z.strictObject({
   sourceId: NonEmptyStringSchema,
   sourceCapability: NonEmptyStringSchema,
   sourceRecordIds: z.array(NonEmptyStringSchema),
-  eventTime: IsoDateTimeSchema,
+  eventTime: IsoDateTimeSchema.nullable(),
   receivedAt: IsoDateTimeSchema,
-  persistedAt: IsoDateTimeSchema,
+  normalizedAt: IsoDateTimeSchema,
+  persistedAt: IsoDateTimeSchema.nullable(),
 }).superRefine((lineage, context) => {
-  const eventTime = Date.parse(lineage.eventTime);
+  const eventTime = lineage.eventTime === null
+    ? null
+    : Date.parse(lineage.eventTime);
   const receivedAt = Date.parse(lineage.receivedAt);
-  const persistedAt = Date.parse(lineage.persistedAt);
+  const normalizedAt = Date.parse(lineage.normalizedAt);
+  const persistedAt = lineage.persistedAt === null
+    ? null
+    : Date.parse(lineage.persistedAt);
 
-  if (eventTime > receivedAt) {
+  if (eventTime !== null && eventTime > receivedAt) {
     context.addIssue({
       code: "custom",
       message: "eventTime cannot be later than receivedAt",
       path: ["eventTime"],
     });
   }
-  if (receivedAt > persistedAt) {
+  if (receivedAt > normalizedAt) {
     context.addIssue({
       code: "custom",
-      message: "receivedAt cannot be later than persistedAt",
+      message: "receivedAt cannot be later than normalizedAt",
       path: ["receivedAt"],
+    });
+  }
+  if (persistedAt !== null && normalizedAt > persistedAt) {
+    context.addIssue({
+      code: "custom",
+      message: "normalizedAt cannot be later than persistedAt",
+      path: ["normalizedAt"],
     });
   }
 }) satisfies z.ZodType<SourceLineage>;

@@ -2,6 +2,45 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M1.1 Three-Venue Identity and Fact Local Slice
+
+### 本轮目标
+
+在不接 Legacy、不写数据库、不改生产的前提下，贯通 Binance USD-M、OKX SWAP、Bybit Linear 的公开合约身份与 `LAST_PRICE` 真值纵切，并对失败、时间和覆盖分母 fail closed。
+
+### 修改范围
+
+- 新增 HTTPS allowlist、无凭证 GET、timeout、响应体上限和固定错误分类的公开 JSON Transport。
+- 新增三家 catalog/ticker Adapter、稳定 canonical identity/underlying group/observation ID、Bybit 完整分页和 100% observed accounting。
+- 新增 EligibleInstrumentSnapshot、PointInTimeMarketFact、FactQualitySnapshot builder；未解析记录保留在分母，未持久化明确为 null，provider 失败不补 0 或 event time。
+- 新增 duplicate provider row、duplicate/out-of-order/gap/stale/future cutoff/recovery 评估，测试支持目录与 production import fence。
+- 修正 SourceLineage 和 InstrumentAccountingRecord runtime schema，使 transport failure、unresolved row 和本地未持久化事实可以诚实表达。
+
+### 核心链路影响
+
+完成 `Universe Registry -> Market Fact + Quality` 的首个本地纵向切片，为全市场发现提供可信身份和事实地基。本轮没有 Candidate、方向、评分、Signal、交易计划或 READY 能力。
+
+### 测试结果
+
+- `test:v2-foundation`：67/67 PASS，其中新增 M1.1 正常、失败、分页、时序、恢复、运行时不可变和确定性场景。
+- `test:v2-m1-identity-fact`：27/27 PASS。
+- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。
+- M0 机器出口 10/10、`typecheck`、`lint`、`build`、`backtest:golden` 16/16、forbidden/secret/security：PASS。
+- 完整 `ci:production` 最终退出码 0；`backtest:formal` 和 production smoke 未运行。
+
+### 是否部署
+
+未部署。未修改 Legacy、数据库、Redis、Worker、API、页面、Compose、secret 或腾讯云；生产继续 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
+
+### 风险与遗留问题
+
+- 当前环境对六个公开 endpoint 的只读探测均未取得响应，因此只证明官方合同形状和冻结 provider fixture，不证明 live connectivity 或真实全市场数据。
+- M1.1 不含持久化、采集 Worker、全 eligible Universe、Feature、Context 或 Runtime Truth。
+
+### 下一轮建议
+
+只执行 `V2-M1.2 Point-in-Time Feature and Context Slice`，让在线与 replay 调用同一纯函数，不接入 Candidate 或方向判断。
+
 ## 2026-07-20 / V2 M0 Runtime Boundary and Engineering Exit
 
 ### 本轮目标
@@ -162,37 +201,3 @@
 ### 下一轮建议
 
 已由本日志上一轮的 v1.1 cleanup 取代。
-
-## 2026-07-19 / Cycle-7 Production Start, Latest Recorded Fact
-
-### 本轮目标
-
-在 Cycle-6 Legacy pending drain PASS 后，以 fresh preflight 启动相邻 Cycle-7 生产观察。
-
-### 修改范围
-
-- 使用绑定身份、一次性 request、transport bundle 和 transient unit 启动 Cycle-7。
-- observer 随后进入后台采样。
-
-### 核心链路影响
-
-只验证 Candidate Episode 当前周期迁移安全，不新增信号、不改变排序、不生成计划。
-
-### 测试结果
-
-- 即时启动：`PASS_IMMEDIATE_CYCLE_CONTINUATION_AWAITING_FRESH_ACTIVATION_AND_REAL_WRITE_ACCUMULATION`。
-- 最后记录：至少 sample 3，状态仍 `IN_PROGRESS_FRESH_ACTIVATION_AND_ACCUMULATION`。
-- 24 小时、289 样本、10,000 writes final：当前仓库没有终证据。
-
-### 是否部署
-
-已在当时腾讯云生产执行 Cycle-7 启动。该事实只描述 2026-07-19 当时，不代表当前仍运行。
-
-### 风险与遗留问题
-
-- 当前终态未知；下一生产动作必须 fresh read-only verify。
-- 不得把即时 PASS 或 sample 3 冒充 Cycle final/G0 PASS。
-
-### 下一轮建议
-
-若继续 Legacy 生产线，先只读核验 Cycle-7 和当前 release，不直接复用旧身份。
