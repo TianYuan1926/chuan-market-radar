@@ -13,16 +13,16 @@ test("current-cycle lineage locks 24h, 10000 writes, and read-only boundaries", 
   assert.deepEqual(result.violations, []);
 });
 
-test("Cycle-6 requires six windows and rejects Cycle-5 v3 as current evidence", async () => {
+test("Cycle-7 requires seven windows and rejects Cycle-6 v3 as current evidence", async () => {
   const contract = await loadCandidateLineageCaptureContract();
-  assert.equal(contract.unifiedObservationBoundary.migrationId, "candidate-episode-v1-cycle-6");
-  assert.equal(contract.databaseBoundary.controlLineageExactCount, 6);
-  assert.equal(contract.historicalTruthBoundary.cycle5V3ContractsPreserved, true);
-  assert.equal(contract.historicalTruthBoundary.cycle5V3AcceptedAsCycle6PassEvidence, false);
+  assert.equal(contract.unifiedObservationBoundary.migrationId, "candidate-episode-v1-cycle-7");
+  assert.equal(contract.databaseBoundary.controlLineageExactCount, 7);
+  assert.equal(contract.historicalTruthBoundary.cycle6FailureEvidencePreserved, true);
+  assert.equal(contract.historicalTruthBoundary.cycle6V3AcceptedAsCycle7PassEvidence, false);
 
   const stale = structuredClone(contract);
-  stale.unifiedObservationBoundary.migrationId = "candidate-episode-v1-cycle-5";
-  stale.databaseBoundary.controlLineageExactCount = 5;
+  stale.unifiedObservationBoundary.migrationId = "candidate-episode-v1-cycle-6";
+  stale.databaseBoundary.controlLineageExactCount = 6;
   const result = await validateCandidateLineageCapture(stale);
   assert.equal(result.status, "FAIL");
   assert.ok(result.violations.includes("unified_observation_boundary"));

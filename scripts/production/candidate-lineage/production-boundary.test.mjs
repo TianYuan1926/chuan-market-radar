@@ -33,10 +33,11 @@ test("production shell entrypoints are syntactically valid and contain no servic
   assert.match(runner, /candidate-multi-cycle-lineage-evidence\.v3/u);
   assert.match(runner, /validationCycle/u);
   assert.match(runner, /sourceReleaseCount/u);
-  assert.match(runner, /\.sourceReleaseCount \/\/ 0.*-eq 6/su);
-  assert.match(runner, /\.validationCycle \/\/ 0.*-eq 6/su);
-  assert.match(runner, /\.sourceReleaseWindows \| length.*-eq 6/su);
-  assert.doesNotMatch(runner, /\.(?:sourceReleaseCount|validationCycle) \/\/ 0.*-eq 5/su);
+  assert.match(runner, /\.sourceReleaseCount \/\/ 0.*-eq 7/su);
+  assert.match(runner, /\.validationCycle \/\/ 0.*-eq 7/su);
+  assert.match(runner, /\.sourceReleaseWindows \| length.*-eq 7/su);
+  assert.doesNotMatch(runner, /\.sourceReleaseCount \/\/ 0'\s+"\$\{LINEAGE_OUTPUT\}"\)" -eq 6/su);
+  assert.doesNotMatch(runner, /\.validationCycle \/\/ 0'\s+"\$\{LINEAGE_OUTPUT\}"\)" -eq 6/su);
   assert.match(runner, /maximumSampleGapSeconds/u);
   assert.doesNotMatch(runner, /PASS_FRESH_VERIFICATION_CYCLE_READY_FOR_RECONCILIATION/u);
 });

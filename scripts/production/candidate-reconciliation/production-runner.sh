@@ -177,7 +177,7 @@ assert_private_file "${OUTPUT_FILE}"
     == "PASS_CURRENT_CYCLE_UNIFIED_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL" \
   && "$(jq -r '.schemaVersion // empty' "${OUTPUT_FILE}")" \
     == "candidate-multi-cycle-reconciliation-evidence.v3" \
-  && "$(jq -r '.sourceReleaseCount // 0' "${OUTPUT_FILE}")" -eq 6 \
+  && "$(jq -r '.sourceReleaseCount // 0' "${OUTPUT_FILE}")" -eq 7 \
   && "$(jq -r '.verificationMigrationId // empty' "${OUTPUT_FILE}")" \
     == "candidate-episode-v1-cycle-7" \
   && "$(jq -r '.comparedWrites // 0' "${OUTPUT_FILE}")" -ge 10000 \

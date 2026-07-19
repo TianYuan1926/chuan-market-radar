@@ -2,6 +2,60 @@
 
 用途：给外部架构审计员 / ChatGPT 快速了解最近轮次发生了什么。本文只记录事实，不包含密钥、连接串、服务器密码、cookie、token 或私钥。
 
+## 2026-07-19 / WP-G0.2 Cycle-7 Lineage Reconciliation Binding Fix
+
+### 本轮目标
+
+修复 Current-Cycle Lineage/Reconciliation 执行链中残留的 Cycle-6/6-window 检查，使其与当前 Cycle-7/7-window 合同一致。
+
+### 修改范围
+
+- `scripts/governance/candidate-lineage-capture.mjs` 与测试：当前周期改为 `candidate-episode-v1-cycle-7`，controlLineageExactCount=7，旧 Cycle-6 证据不得冒充 Cycle-7。
+- `scripts/governance/candidate-reconciliation-runner.mjs` 与测试：Lineage 边界改为 Cycle-7/7-window，本地 rehearsal 摘要改为 7-window。
+- `scripts/production/candidate-lineage/production-runner.sh` 与 boundary test：生产输出必须是 sourceReleaseCount=7、validationCycle=7、sourceReleaseWindows length=7。
+- `scripts/production/candidate-reconciliation/production-runner.sh`：生产输出必须是 sourceReleaseCount=7。
+- 四份 v4 governance/production packet 合同更新对应 runnerArtifact SHA-256 和 localRehearsal 事实。
+- 新增本轮交付报告。
+- 未连接、上传或修改生产；未修改 DB、Redis、Feature Flag、scan、analysis、strategy、backtest 或前端展示。
+
+### 核心链路影响
+
+强化候选筛选与复盘进化的当前周期只读证据前置。它只保证后续 Lineage/Reconciliation 生产执行不会被旧窗口数阻断，不新增信号、不改变排序、不生成交易计划。
+
+### 测试结果
+
+- `npm run test:candidate-lineage-capture`：PASS，7/7。
+- `npm run candidate:lineage-capture:validate`：PASS。
+- `npm run test:candidate-lineage-production-packet`：PASS，10/10。
+- `npm run candidate:lineage-production:validate`：PASS。
+- `npm run test:candidate-reconciliation-runner`：PASS，16/16。
+- `npm run candidate:reconciliation-runner:validate`：PASS。
+- `npm run test:candidate-reconciliation-production-packet`：PASS，11/11。
+- `npm run candidate:reconciliation-production:validate`：PASS。
+- `npm run typecheck`：PASS。
+- `npm run lint`：PASS。
+- `npm run test:market`：PASS，1027 pass / 0 fail / 7 explicit DB skip；workers 23/23；historical 4/4。
+- `npm run build`：PASS。
+- `npm run backtest:golden`：PASS，16/16。
+- `npm run ci:forbidden-files`：PASS。
+- `npm run ci:secret-patterns`：PASS。
+- `npm run security:check`：PASS。
+- production smoke：未运行，本轮不连接或修改生产。
+- formal：未运行且禁止。
+
+### 是否部署
+
+未部署。
+
+### 风险与遗留问题
+
+- 本地 PASS 不能冒充生产 Lineage/Reconciliation PASS。
+- G0 主步骤仍为 7。
+
+### 下一轮建议
+
+继续扫描并修复 G0.2 当前执行路径中的旧周期绑定，然后等待 Cycle-7 生产观察最终结果。
+
 ## 2026-07-19 / WP-G0.2 Cycle-7 Shadow Verify Phase Shell Identity Fix
 
 ### 本轮目标

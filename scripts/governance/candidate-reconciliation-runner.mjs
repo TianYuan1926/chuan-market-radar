@@ -48,8 +48,8 @@ export async function validateCandidateReconciliationPreparation(contract) {
   if (contract.lineageBoundary?.schemaVersion !== "candidate-multi-cycle-lineage-evidence.v3"
       || contract.lineageBoundary?.status
         !== "PASS_CURRENT_CYCLE_UNIFIED_LINEAGE_READY_FOR_RECONCILIATION_REFRESH"
-      || contract.lineageBoundary?.migrationId !== "candidate-episode-v1-cycle-6"
-      || contract.lineageBoundary?.sourceReleaseWindowsExact !== 6
+      || contract.lineageBoundary?.migrationId !== "candidate-episode-v1-cycle-7"
+      || contract.lineageBoundary?.sourceReleaseWindowsExact !== 7
       || contract.lineageBoundary?.sourceReleaseWindowsDerivedFromMigrationId !== true
       || contract.lineageBoundary?.minimumActivationSamples !== 289
       || contract.lineageBoundary?.minimumActivationHours !== 24
@@ -62,7 +62,7 @@ export async function validateCandidateReconciliationPreparation(contract) {
       || contract.lineageBoundary?.semanticProvenanceHashesRequired !== 3
       || contract.lineageBoundary?.historicalActivationFilesAllowed !== false
       || contract.lineageBoundary?.legacyLineageSchemasAllowed !== false
-      || contract.lineageBoundary?.cycle5V3AcceptedAsCycle6PassEvidence !== false) {
+      || contract.lineageBoundary?.cycle6V3AcceptedAsCycle7PassEvidence !== false) {
     violations.push("lineage_boundary");
   }
   if (contract.comparison?.minimumComparedWrites !== 10000
@@ -82,7 +82,7 @@ export async function validateCandidateReconciliationPreparation(contract) {
   if (contract.databaseBoundary?.transactionIsolation !== "repeatable_read"
       || contract.databaseBoundary?.transactionReadOnly !== true
       || contract.databaseBoundary?.forcedLocalRole !== "candidate_audit_role"
-      || contract.databaseBoundary?.controlLineageExactCount !== 6
+      || contract.databaseBoundary?.controlLineageExactCount !== 7
       || contract.databaseBoundary?.controlLineageCountDerivedFromMigrationId !== true
       || contract.databaseBoundary?.historicalControls !== "legacy_frozen_even_epoch"
       || contract.databaseBoundary?.currentControl
@@ -108,9 +108,9 @@ export async function validateCandidateReconciliationPreparation(contract) {
   }
   if (contract.localRehearsal?.postgresMajor !== 16
       || contract.localRehearsal?.minimumComparedWritesExercised !== 10020
-      || contract.localRehearsal?.validationCycle !== 6
-      || contract.localRehearsal?.releaseWindowsExercised !== 6
-      || JSON.stringify(contract.localRehearsal?.releaseCounts) !== "[1670,0,1670,0,1670,5010]"
+      || contract.localRehearsal?.validationCycle !== 7
+      || contract.localRehearsal?.releaseWindowsExercised !== 7
+      || JSON.stringify(contract.localRehearsal?.releaseCounts) !== "[1432,0,1432,0,1432,0,5724]"
       || contract.localRehearsal?.transactionReadOnlyRejectionRequired !== true
       || contract.localRehearsal?.phaseMustRemain !== "shadow_capture"
       || contract.localRehearsal?.productionConnected !== false) violations.push("local_rehearsal");

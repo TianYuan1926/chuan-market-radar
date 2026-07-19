@@ -8,7 +8,7 @@
       "scripts/production/candidate-reconciliation/runner.mjs"
     ],
     "fileCount": 1,
-    "sha256": "7e87737a9466c226a0485391624b2899c3da0cbbe00f16eaf8b80e24eef72726"
+    "sha256": "fa1a37085b163e031d9194b39aac3ea2f5aac9fbe17d9df647e505918b33c4ee"
   },
   "lineageBoundary": {
     "schemaVersion": "candidate-multi-cycle-lineage-evidence.v3",
@@ -88,9 +88,9 @@
   "localRehearsal": {
     "postgresMajor": 16,
     "minimumComparedWritesExercised": 10020,
-    "validationCycle": 6,
-    "releaseWindowsExercised": 6,
-    "releaseCounts": [1670, 0, 1670, 0, 1670, 5010],
+    "validationCycle": 7,
+    "releaseWindowsExercised": 7,
+    "releaseCounts": [1432, 0, 1432, 0, 1432, 0, 5724],
     "missingWindowRejectionRequired": true,
     "extraWindowRejectionRequired": true,
     "transactionReadOnlyRejectionRequired": true,

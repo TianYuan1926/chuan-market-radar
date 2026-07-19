@@ -8,7 +8,7 @@
       "scripts/production/candidate-lineage/runner.mjs"
     ],
     "fileCount": 1,
-    "sha256": "bf4ae22c514ea0667f3d52a799a430367d8843b1fa5782a1ec328fb907167ab6"
+    "sha256": "837f8c160e294df95c04246311242c1fa018c1d19e874d36c298645fa55ae930"
   },
   "unifiedObservationBoundary": {
     "migrationId": "candidate-episode-v1-cycle-7",
@@ -70,10 +70,10 @@
   },
   "localRehearsal": {
     "postgresMajor": 16,
-    "validationCycle": 6,
-    "releaseWindowsExercised": 6,
+    "validationCycle": 7,
+    "releaseWindowsExercised": 7,
     "completedWritesExercised": 10020,
-    "releaseCounts": [1670, 0, 1670, 0, 1670, 5010],
+    "releaseCounts": [1432, 0, 1432, 0, 1432, 0, 5724],
     "outsideLineageRejectionRequired": true,
     "missingWindowRejectionRequired": true,
     "extraWindowRejectionRequired": true,
