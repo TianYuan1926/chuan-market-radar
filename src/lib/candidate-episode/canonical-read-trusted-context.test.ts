@@ -51,7 +51,7 @@ function control(raw: string, overrides: Record<string, unknown> = {}) {
     epoch: "3",
     started_at: startedAt,
     deadline_at: "2026-07-15T00:00:00.000Z",
-    write_frozen: false,
+    write_frozen: true,
     approved_release_id: releaseId,
     approval_digest: digest(raw),
     updated_at: updatedAt,
@@ -186,21 +186,48 @@ test("approval digest release epoch and phase must match exact manifest bytes", 
   );
 });
 
-test("missing duplicate stale or frozen control fails closed", async () => {
+test("missing, unsafe deadline, or phase freeze mismatch fails closed", async () => {
   await assert.rejects(
     fixture({ row: null }).provider.read({ signal: new AbortController().signal }),
     /candidate_read_control_not_unique/,
   );
   const raw = manifest();
+  const expiredFrozen = await fixture({
+    raw,
+    row: control(raw, { database_now: "2026-07-15T00:00:01.000Z" }),
+  }).provider.read({ signal: new AbortController().signal });
+  assert.equal(expiredFrozen.phase, "canonical_compat");
   await assert.rejects(
-    fixture({ raw, row: control(raw, { database_now: "2026-07-15T00:00:01.000Z" }) }).provider
-      .read({ signal: new AbortController().signal }),
-    /candidate_read_control_deadline_expired/,
-  );
-  await assert.rejects(
-    fixture({ raw, row: control(raw, { write_frozen: true }) }).provider
+    fixture({ raw, row: control(raw, { write_frozen: false }) }).provider
       .read({ signal: new AbortController().signal }),
     /candidate_read_control_freeze_boundary_invalid/,
+  );
+  const shadowRaw = manifest({
+    phase: "shadow_verify",
+    flags: { dualRead: true, canonicalRead: false, reviewRead: false },
+    evidence: {
+      reconciliation: {
+        status: "PASS_RECONCILIATION_ELIGIBLE_FOR_SEPARATE_SHADOW_VERIFY_APPROVAL",
+        evidenceHash: `sha256:${"a".repeat(64)}`,
+      },
+      dualRead: { status: "missing", evidenceHash: null },
+      canonicalCompat: { status: "missing", evidenceHash: null },
+    },
+  });
+  await assert.rejects(
+    fixture({
+      env: {
+        CANDIDATE_EPISODE_CANONICAL_READ: "false",
+        CANDIDATE_EPISODE_REVIEW_READ: "false",
+      },
+      raw: shadowRaw,
+      row: control(shadowRaw, {
+        database_now: "2026-07-15T00:00:01.000Z",
+        phase: "shadow_verify",
+        write_frozen: false,
+      }),
+    }).provider.read({ signal: new AbortController().signal }),
+    /candidate_read_control_deadline_expired/,
   );
 });
 

@@ -49,3 +49,13 @@ test("false production claims and runtime release drift fail governance", async 
   assert.ok(result.violations.includes("runtime_boundary"));
   assert.ok(result.violations.includes("runtime_false:existingApiRouteModified"));
 });
+
+test("canonical compat freeze and immutable deadline exceptions cannot be weakened", async () => {
+  const contract = clone(await loadCandidateTrustedReadContextContract());
+  contract.runtimeBoundary.canonicalCompatWriteFrozenRequired = false;
+  contract.runtimeBoundary.nonCanonicalDeadlineExpiryRejected = false;
+  contract.runtimeBoundary.deadlineExtensionAllowed = true;
+  const result = await validateCandidateTrustedReadContextPreparation(contract);
+  assert.equal(result.status, "FAIL");
+  assert.ok(result.violations.includes("runtime_boundary"));
+});

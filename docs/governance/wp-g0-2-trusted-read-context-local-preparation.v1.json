@@ -16,7 +16,7 @@
       "src/lib/candidate-episode/canonical-read-trusted-context.ts"
     ],
     "fileCount": 8,
-    "sha256": "7cbe58de4dea1080f2df64095fd1c55bea4c77ae5780bc008cdcc6afa1ff9376"
+    "sha256": "4d1ef0245032e1baa566295689376ff17c836f250e1d8e6f7d62c5a2433ea5f5"
   },
   "authorityBoundary": {
     "singleTrustedContextProvider": true,
@@ -55,6 +55,11 @@
     "cohortFromControlStartedAt": true,
     "asOfFromDatabaseClock": true,
     "codeCanonicalReadAllowed": true,
+    "canonicalCompatWriteFrozenRequired": true,
+    "canonicalCompatReadAllowedAfterImmutableWriteDeadline": true,
+    "nonCanonicalDeadlineExpiryRejected": true,
+    "deadlineExtensionAllowed": false,
+    "candidateWorkerRequiredInCanonicalCompat": false,
     "existingApiRouteModified": false,
     "frontendModified": false,
     "productionConnected": false,
@@ -80,6 +85,9 @@
     "runtime_flag_phase_mismatch_allowed",
     "authority_drift_result_returned",
     "stale_control_fallback",
+    "canonical_compat_unfrozen_read",
+    "noncanonical_expired_deadline_read",
+    "deadline_extension",
     "existing_api_route_change",
     "frontend_change",
     "production_connection",
