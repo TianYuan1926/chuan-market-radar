@@ -8,14 +8,19 @@ import { M1PostgresArtifactStore } from "../modules/market-fact/store/postgres-a
 import { createLivePublicRestCollectorAdapterRuntime } from "../modules/market-fact/collector/adapters/live-public-rest-adapter-runtime";
 import { createM1CollectorWorker } from "../modules/market-fact/collector/collector-worker";
 import { serializeM1CollectorObservationLog } from "../modules/market-fact/collector/collector-observation-log";
+import {
+  buildM1CollectorProcessSummary,
+  M1_COLLECTOR_PROCESS_CONTRACT_VERSION,
+} from "../modules/market-fact/collector/collector-process-contract";
 import { M1PostgresCollectorCheckpointStore } from "../modules/market-fact/collector/postgres-checkpoint-store";
 import type {
   CollectorClock,
   CollectorRuntimeConfig,
 } from "../modules/market-fact/collector/contracts";
 
-export const M1_COLLECTOR_PROCESS_CONTRACT_VERSION =
-  "v2-m1-collector-process.v1" as const;
+export {
+  M1_COLLECTOR_PROCESS_CONTRACT_VERSION,
+} from "../modules/market-fact/collector/collector-process-contract";
 
 export type M1CollectorProcessConfig = Readonly<{
   cycleIntervalMs: number;
@@ -327,18 +332,10 @@ export async function runM1CollectorProcess(
       maxCycles: config.maxCycles,
       signal: abortController.signal,
     });
-    process.stdout.write(`${JSON.stringify({
-      authorityMode: report.authorityMode,
-      automaticTradingAllowed: report.automaticTradingAllowed,
-      contractVersion: M1_COLLECTOR_PROCESS_CONTRACT_VERSION,
-      cycleCount: report.cycles.length,
-      exitCode: report.exitCode,
-      releaseId: report.releaseId,
-      restore: report.restore,
+    process.stdout.write(`${JSON.stringify(buildM1CollectorProcessSummary({
+      report,
       runProfile: config.runProfile,
-      status: report.status,
-      stopReason: report.stopReason,
-    })}\n`);
+    }))}\n`);
     return report.exitCode;
   } catch (error) {
     process.stderr.write(`${JSON.stringify({

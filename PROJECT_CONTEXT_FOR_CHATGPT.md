@@ -65,8 +65,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.7。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.9。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.8。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.10。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -83,8 +83,9 @@ M1.5A_DURABLE_WORKER_CHECKPOINT_SLO_LOCAL_POSTGRES16_PASS
 M1.5B0_SHADOW_RELEASE_SAFETY_LOCAL_PASS
 M1.5B1A_REACHABLE_DOCKER_RUNNER_TECHNICAL_PASS
 M1.5B1A_BUSINESS_READINESS_AND_SLO_FAIL
-M1.5B1B0_EARLY_SHADOW_EVIDENCE_CONTRACT_CURRENT
-M1.5B1B_31_CYCLE_EARLY_SHADOW_PENDING
+M1.5B1B0_EARLY_SHADOW_EVIDENCE_CONTRACT_LOCAL_PASS
+M1.5B1B1_31_CYCLE_EMPIRICAL_CAPTURE_CURRENT
+M1.5B1B_BUSINESS_SLO_UNPROVEN
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -151,6 +152,7 @@ automaticTradingAllowed=false
 - M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - M2.2-B0.2-C/C1 已建立 release-bound 三 Venue exact raw capture、工作区外内容寻址 store、完整分母、三类 identity evidence、identity epoch、持续缺席非 delist、全链 journal 验证与 clean-HEAD CLI。冻结 release `4139cc631d3d760876c3e39404c494462541a910` 连续取得两轮三 Venue COMPLETE；Binance/OKX/Bybit 分别 841/426/746 rows，目标 654/272/642，out-of-scope 187/154/104，unresolved=0；跨度约 368.5 秒，三家均 2/2 complete、gap/conflict/blocker=0、`FORWARD_ONLY_READY`。这只通过前向捕获起点，不回填历史、不解锁 B0.2-B/B1 historical acquisition、Detector 或 Candidate。
 - M1.5-B1-A 已在腾讯宿主机隔离 no-authority Runner 以 exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建专用镜像并真实运行两周期。每周期 eligible/collected 均 1,444/1,444、三 Venue provider failure=0、checkpoint/persistence=`INSERTED`，宿主机 11 容器/4 network/5 volume 已按 digest 精确恢复；evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算通过。技术 Runner=`PASS`，业务 readiness=`FAIL`：READY 0/2，fresh 1,441 后降至 1,274，原因包括 stale、duplicate 和 missed schedule。31 周期 Shadow、语义整改、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
+- M1.5-B1-B0 已冻结单进程 31 周期、60 秒 cadence、完整 collection/freshness 分母、strict process summary、独立业务 SLO、内容寻址 domain/runner evidence 和宿主 Docker 精确恢复。中断、短包或跨进程/config 拼接全部拒绝，collection coverage 新增 100% 独立门槛；M1 专用 68/68、全 V2 274/0/5 explicit skip、ops 31/31 和完整 `ci:production` PASS。它只达到本地工程出口，B1-B1 真实 31 周期和业务 SLO 仍未证明。
 
 ## 6. Docker 服务清单
 
@@ -282,7 +284,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 对应本地或运行起点出口已通过；M1.5-B1-A 可达 Docker Runner 技术 PASS，但业务 readiness/SLO FAIL，M1 未完成；当前入口是 B1-B0 31 周期证据合同。五个历史来源仍为 RESEARCH_ONLY，bulk/cohort blocked；真实 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发
+V2：M0、M1.1-M1.6、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 对应本地或运行起点出口已通过；M1.5-B1-B0 31 周期证据合同本地 PASS，B1-B1 真实 31 周期与业务 SLO 未证明，M1 未完成。五个历史来源仍为 RESEARCH_ONLY，bulk/cohort blocked；真实 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发
 本轮生产服务、数据与 authority 变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -305,6 +307,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-21 / V2 M1.5-B1-B0 Early Shadow Evidence Contract
+
+- 固定一个不可拼接的 31 周期/60 秒原子窗口，domain evidence 从完整 process output 独立重算；技术捕获、业务 Gate 和 M1 出口三者严格分开。
+- 新增 100% collection coverage SLO、exact source/image/config、临时 PG、双网络、secret-file、非 root/read-only 和宿主精确恢复防线；中断必须清理后整轮重跑。
+- M1 专用 68/68、全 V2 274/0/5 explicit skip、ops 31/31 与完整 `ci:production` PASS；未部署，生产零变更，下一入口 B1-B1。
+
 ### 2026-07-21 / V2 M1.5-B1-A Reachable Docker Runner Preflight
 
 - exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 在腾讯隔离 no-authority Runner 完成专用 image build、两周期三 Venue live Collector、checkpoint/persistence、证据重算与宿主机精确恢复；技术结论 PASS。
@@ -316,12 +324,6 @@ Cycle final
 - 首次可达实采发现 Unicode 合约身份、out-of-scope 与 unresolved 混淆、artifact 无 exact release 三个真实缺口；修正为三类 identity evidence，并把 Raw/Snapshot/Batch/Continuity/Reference/Journal 全部绑定 clean Git release 与冻结 config。
 - 定向 34/34、全 V2 267/0/5 explicit skip、M0 10/10 与完整 `ci:production` PASS；跨 release、旧 journal 篡改、raw/artifact 篡改和 dirty worktree 均 fail closed。
 - release `4139cc631d3d760876c3e39404c494462541a910` 两轮三 Venue Batch 均 COMPLETE；每家 2/2 complete、跨度约 368.5 秒、gap/unresolved/conflict/blocker=0，均为 `FORWARD_ONLY_READY`。只通过前向捕获起点，生产零变更。
-
-### 2026-07-20 / V2 M2.2-B0.2-A Rights and Historical Instrument Evidence Gate Local Exit
-
-- 权利审查改为外部人工作源、条款内容摘要、账户/法域范围、有效期和撤销处置；Agent 或合成证据无法伪装为批准。
-- 历史 instrument capability/record/coverage 逐项核算 onboard、delist、contract、settlement、underlying、状态区间、knowledge time、symbol reuse 与完整分母；当前快照和 archive presence 禁止回填历史。
-- 定向 35/35、全 V2 237/0/5 explicit skip、M0 10/10 与完整 `ci:production` PASS；五个候选仍全部 `RESEARCH_ONLY`，权利 PENDING、合格历史来源=0、bulk/cohort blocked、生产零变更。
 
 ## 15. 当前风险
 
@@ -336,7 +338,7 @@ Cycle final
 - Legacy 多套事实/决策/Candidate/Outcome 路径仍存在，单一 authority 未完成。
 - 数据库失败回退内存、前端合同过宽、health 语义和管理面权限仍有事实误导风险。
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
-- V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；B1-A 已证明 exact Docker image、三 Venue live Collector、完整 eligible/collected 分母和宿主机恢复，但 READY 0/2、freshness 与 cadence SLO FAIL。31 周期成因证据、正确 freshness 语义、生产 migration/容量和 24h SLO PASS 仍未证明。
+- V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；B1-B0 已锁定原子 31 周期取证与 anti-inflation Runner，但真实 B1-B1 尚未执行。freshness/cadence 成因、生产 migration/容量和 24h SLO PASS 仍未证明。
 - M1.6 migration 前旧 V2 Fact 保持兼容但不自动清理；生产 preflight 必须证明旧 Fact 为零，非零时另做受控 backfill/retirement，不能进入长期 Shadow。
 - M2.0 的 19 个 test-only fixture 只证明合同和反未来泄漏，不能作为 Detector precision/recall/lead-time 或生命周期晋级证据。
 - M2.2-A/B0.1/B0.2-A 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策、伪 holdout、Agent 自批权利和当前快照倒推历史，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
@@ -352,7 +354,7 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M1.5-B1-B0/B1 是否保持 exact source/image/config、31 个一分钟完整周期、每 Venue 四分母和可重算 SLO；B1-A 的 stale/duplicate/missed-start 是否被如实保留，而不是通过放宽 freshness、把 carried-forward 标成 FRESH 或缩小分母制造 PASS。
+1. M1.5-B1-B1 是否绑定 B1-B0 exact source/image/config，形成同一进程 31 个一分钟完整周期、每 Venue 与 aggregate 分母和可重算 SLO；B1-A 的 stale/duplicate/missed-start 是否被如实保留，而不是通过拼接窗口、放宽 freshness、把 carried-forward 标成 FRESH 或缩小分母制造 PASS。
 2. C1 正式证据是否继续保持 exact release/config、两轮完整 raw、冻结 cadence、active gap=0 和无 identity conflict；前向 capture 永远不能伪装历史回填或长期 SLO。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
@@ -374,13 +376,13 @@ Cycle final
 - 不创建自动审批 Agent 代替用户或平台授权。
 - 污染清理分三类：确定无引用且已有 replacement 的删除；用途不明的隔离；仍有消费者的登记到 Legacy Capability Atlas 后受控替换。
 
-## 18. 当前本地入口与关键外部门
+## 18. 当前执行入口与关键外部门
 
 ```text
-V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT
+V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE
 ```
 
-B1-A 已证明隔离 Runner 技术可达，同时以 READY 0/2 证明当前业务质量不能过门。下一包先建立 31 周期内容寻址证据、固定一分钟 cadence、完整分母、业务 Gate 独立结论和可恢复 Runner；随后原门槛实测。若 FAIL，先区分 snapshot 接收、逐标的 market-event recency 和下游 price usability，再定点整改并用同一 Gate 复验。只有 B1-B PASS 后才进入 M1.6 production storage 分阶段启用与 M1.7 24h Shadow。关键外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk acquisition、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
+B1-B0 已把 31 周期证据、固定一分钟 cadence、完整分母、业务 Gate 独立结论和宿主精确恢复锁成合同。当前按 exact commit 在腾讯隔离 Runner 原样实测；任何中断都清理并从第 1 周期重跑。若 FAIL，先区分 snapshot 接收、逐标的 market-event recency 和下游 price usability，再定点整改并用同一 Gate 复验。只有 B1-B PASS 后才进入 M1.6 production storage 分阶段启用与 M1.7 24h Shadow。关键外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk acquisition、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
 

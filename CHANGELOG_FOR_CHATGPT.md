@@ -2,6 +2,42 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.5-B1-B0 Early Shadow Evidence Contract
+
+### 本轮目标
+
+冻结一个不可拼接、内容寻址、业务 Gate 独立且可精确恢复宿主 Docker 基线的 31 周期 no-authority Early Shadow 合同和腾讯隔离 Runner。
+
+### 修改范围
+
+- 新增 strict process summary 和原子 31 周期 evidence builder，拒绝短包、跨进程/config 拼接、非 canonical JSONL、错误 cadence 和状态夸大。
+- SLO 新增 100% collection coverage 独立门槛；eligible、collected、fresh 与 READY 不再互相替代。
+- 新增 pinned toolchain、临时 PG、storage/egress 双网络、secret-file、只读非 root Worker、内容寻址 artifact、自动清理和宿主精确恢复 Runner。
+
+### 核心链路影响
+
+加固 `全市场发现 -> Market Fact + Quality` 的 31 周期实测地基；未生成 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
+
+### 测试结果
+
+- M1 专用 68/68、全 V2 274/0/5 explicit external-dependency skip、V2 ops 31/31。
+- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、M0 11/11、build、Golden 16/16、security PASS。
+- anti-inflation 覆盖 short/stitched/noisy/cadence drift、collection/freshness 缺口、direct DB capability、report tamper、失败原因和宿主残留。
+
+### 是否部署
+
+未部署。未执行 31 周期真实捕获；生产服务、数据、DB、Redis、env、migration、Feature Flag、Candidate runtime 和 authority 零变更。
+
+### 风险与遗留问题
+
+- B1-B0 只证明合同和 Runner，本身不证明业务 SLO；当前唯一入口是 B1-B1 原始实测。
+- B1-A 已暴露 freshness/duplicate/missed-start，实测 FAIL 必须保留，不能先放宽门槛。
+- 中断不能续接；必须清理后从第 1 周期整轮重跑。
+
+### 下一轮建议
+
+只执行 `V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE`：绑定 B1-B0 exact commit，在腾讯隔离 Runner 原样运行并接受独立业务 Gate 的 PASS/FAIL。
+
 ## 2026-07-21 / V2 M1.5-B1-A Reachable Docker Runner Preflight
 
 ### 本轮目标
@@ -150,40 +186,3 @@
 ### 下一轮建议
 
 本地只执行 `V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE`；外部并行解决 `B0.2-B` 的精确权利和合格历史来源，二者都不得伪装成已解锁 B1。
-
-## 2026-07-20 / V2 M2.2-B0.1 Target-Blind Diagnostic Strength and Construction Policy Freeze
-
-### 本轮目标
-
-为五个 DRAFT Detector 建立不读取 target/future 的可解释相对规则强度和固定分母 Top20，并把历史 cohort 的标签、匹配、背景、分层、knowledge-time、split 与全部试验锁成不可漂移政策。
-
-### 修改范围
-
-- DRAFT evaluation 新增 strict diagnostic strength：组件规则边际、质量/方向乘数、veto/unavailable 不可排名、内容摘要和防篡改；明确不是概率、置信度、等级或交易结论。
-- 新增 fixed-detector-denominator Top20：同 cutoff、同 identity、稳定 SHA-256 tie-break、完整分母计数，禁止 Outcome、随机数和 symbol 顺序。
-- 冻结 TRAIN-only 六维 nearest-rank P99 与绝对底线、matched control、300 秒完整背景、pre-cutoff regime/liquidity、observed/modeled knowledge-time、24h purge/embargo 和 1 baseline + 4 sensitivity trial registry。
-- 历史 dataset/experiment/holdout 升级到 v2，绑定全部 policy/version/digest；任意阈值、策略、trial 漏项和参数漂移 fail closed。
-
-### 核心链路影响
-
-加固 `全市场发现 -> 候选筛选` 的离线 Research 评价基础，防止未来信息、病例选择和临时改规则抬高 Detector 表现。未构造真实 cohort，未生成 Candidate、Signal、等级或计划。
-
-### 测试结果
-
-- DRAFT strength/ranking：23/23 PASS；historical construction/replay：22/22 PASS；定向合计 45/45。
-- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 216/0/5 explicit skip、M0 10/10、Next build、Golden 16/16、禁文件/secret/security 全部通过。
-- `backtest:formal`、production smoke、live、Shadow、holdout 未运行；本轮不是能力或部署验收。
-
-### 是否部署
-
-未部署。未连接生产，未修改 DB、Redis、Worker、migration、env、Feature Flag、前端或 API。
-
-### 风险与遗留问题
-
-- 真实 cohort 仍为 0；本包只证明合同和防漂移，不证明 recall、precision、lead time、Top20 质量或盈利。
-- B0.2 仍缺人工 retention/replay 权利结论与 point-in-time instrument identity；B1 bulk acquisition 保持 blocked。
-- Kline 仍不能支持 L2 Liquidity Shift；五个 Detector 仍 DRAFT，Candidate emission=false，M2.2 Gate=`INSUFFICIENT`。
-
-### 下一轮建议
-
-只进入 `V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION`；该入口受外部权利与历史身份证据阻断，Agent 不得自批。

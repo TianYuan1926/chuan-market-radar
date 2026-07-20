@@ -295,9 +295,11 @@ function removeDockerResources(names, imageState) {
   for (const name of [names.egressNetwork, names.storageNetwork]) {
     docker(["network", "rm", name], { allowFailure: true });
   }
-  docker(["image", "rm", "--force", names.collectorImage], {
-    allowFailure: true,
-  });
+  if (!imageState.collectorPresentBefore) {
+    docker(["image", "rm", "--force", names.collectorImage], {
+      allowFailure: true,
+    });
+  }
   if (!imageState.nodeBasePresentBefore) {
     docker(["image", "rm", B1A_NODE_BASE_IMAGE], { allowFailure: true });
   }
@@ -927,6 +929,29 @@ async function run() {
     process.exitCode = 1;
   }
 }
+
+export {
+  BUILDX_PLUGIN_PATH,
+  BUILD_CPU_NANO,
+  BUILD_MEMORY_BYTES,
+  BUILD_MEMORY_SWAP_BYTES,
+  RunnerFailure,
+  assertExactCheckout,
+  assertNoDockerCredentialConfig,
+  buildxPresent,
+  cleanupSnapshot,
+  command,
+  containerPresent,
+  docker,
+  hostSnapshot,
+  imagePresent,
+  inspectJson,
+  parseJson,
+  proveTencentHostSafety,
+  removeDockerResources,
+  resourceSnapshot,
+  writeReport,
+};
 
 const isMain =
   process.argv[1] !== undefined &&

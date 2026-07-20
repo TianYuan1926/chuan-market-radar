@@ -17,8 +17,8 @@
 - [x] **M1.5-B0 Shadow Release Safety 本地出口**：已补齐显式 reader/writer `SET ROLE` 与会话身份核验、secret-file URL、完整 strict observation JSONL、固定 30 分钟/24 小时 SLO 档位、有限周期、专用非 root/read-only/no-Legacy-secret 镜像与 Compose 模板。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` PASS；Legacy Consumer Map 保持 539。B1-A 随后补齐真实 image build、三 Venue egress 和隔离 Docker Runner 证明。
 - [x] **M1.5-B1-A Reachable Docker Runner 技术预检**：在腾讯生产宿主机的隔离 no-authority Runner 上，以 exact source commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建并运行专用镜像。两周期均完成 1,444/1,444 eligible/collected、三 Venue 无 provider failure、checkpoint/persistence `INSERTED`、完整清理并精确恢复宿主机 11 容器/4 network/5 volume 基线。技术结论 `PASS_REACHABLE_DOCKER_RUNNER`；业务结论必须保留为 `FAIL`：READY 0/2，fresh 1,441/1,444 后降至 1,274/1,444，出现 stale/duplicate 与 60 秒调度缺口。该 PASS 只证明 Runner 可用，不证明 Market Fact SLO。
 - [ ] **M1.5-B1-B Bounded Early Shadow 业务门禁**：必须用固定 60 秒节拍和同一冻结 release/config 取得 31 个完整周期、至少 30 分钟证据。B1-A 暴露的 freshness/duplicate/schedule 问题必须进入分母，任何 `NOT_READY` 或 SLO `FAIL` 都不能被包状态遮蔽。
-- [ ] **M1.5-B1-B0 31 周期证据合同与可恢复 Runner**：先在本地实现内容寻址 observation/evidence、完整 `M1CollectorWorkerCycle` JSONL、每 Venue 四分母、资源/调度/checkpoint 指标、exact release/image/config、无生产 authority、可中断恢复、自动停止和宿主机精确恢复。状态：当前工程入口。
-- [ ] **M1.5-B1-B1 31 周期原始实测**：在隔离腾讯 Runner 执行冻结合同，不预改门槛。包只在证据完整、可重算、已清理时算“实测完成”；业务 Gate 仍按 SLO 独立给出 PASS/FAIL。
+- [x] **M1.5-B1-B0 31 周期证据合同与原子 Runner**：已实现内容寻址 observation/domain/runner evidence、完整 `M1CollectorWorkerCycle` JSONL、每 Venue 与 aggregate 分母、资源/调度/checkpoint 指标、exact release/image/config、无生产 authority、固定 31 周期与宿主机精确恢复。中断或短包必须清理后从第 1 周期重跑，严禁拼接。M1 专用 68/68、全 V2 274/0/5 explicit skip、ops 31/31 与完整 `ci:production` PASS；状态：`LOCAL_ENGINEERING_PASS / BUSINESS_SLO_UNPROVEN / PRODUCTION_UNCHANGED`。
+- [ ] **M1.5-B1-B1 31 周期原始实测**：当前唯一执行入口。在隔离腾讯 Runner 绑定 B1-B0 exact commit 执行冻结合同，不预改门槛。包只在 31 周期原子证据完整、可重算且宿主机已精确清理时算“实测完成”；业务 Gate 仍按 SLO 独立给出 PASS/FAIL。
 - [ ] **M1.5-B1-B2 Market Fact Freshness 语义整改（条件包）**：若 B1-B1 失败，先区分 provider snapshot 接收新鲜度、逐标的市场事件新鲜度和下游价格可用性，再修 Adapter/Quality/Collector；不得放宽 120 秒、不得把 duplicate 或 carried-forward 数据标成 FRESH、不得补 0。
 - [ ] **M1.5-B1-B3 固定门槛复验（条件包）**：整改后必须用相同 31 周期、60 秒节拍、SLO 与分母重跑；只有原始证据和重算同时 PASS，M1.5-B1 才减数。
 - [x] **M1.6 Partitioned Fact Storage + Retention Governance 本地出口**：已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、独立 Audit/Retention 身份、restore-verified DROP 与不可变事件。定向 5/5、隔离 PG16 1/1，真实 `pg_dump -> pg_restore` 后 replay parity PASS/deterministic true；迁移前旧 Fact 可读，2 个分区跨日读取，保留中/活跃 replay 均阻断清理，到期后原子删除 1 分区/2 Fact 且拒绝重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_MIGRATION_NOT_RUN`。
@@ -63,11 +63,11 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT
-Current local entry: V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT
+Last completed package: V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT
+Current execution entry: V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Pending bounded shadow gate: V2-M1.5-B1-B-31-CYCLE-EARLY-SHADOW
-Current status: M1.5-B1-A_TECHNICAL_RUNNER_PASS / BUSINESS_READINESS_FAIL / READY_0_OF_2 / B1-B0_B1-B1_AND_CONDITIONAL_REMEDIATION_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED / HOST_DOCKER_BASELINE_EXACTLY_RESTORED
+Current status: M1.5-B1-B0_LOCAL_ENGINEERING_PASS / B1-B1_EMPIRICAL_CAPTURE_PENDING / BUSINESS_SLO_UNPROVEN / CONDITIONAL_B1-B2_B1-B3_PENDING_RESULT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

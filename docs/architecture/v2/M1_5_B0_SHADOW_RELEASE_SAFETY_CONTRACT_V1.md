@@ -1,6 +1,6 @@
 # M1.5-B0 Shadow Release Safety 合同 v1
 
-状态：`LOCAL_ENGINEERING_PASS / B1-A_REACHABLE_DOCKER_RUNNER_TECHNICAL_PASS / BUSINESS_READINESS_FAIL / B1-B_PENDING / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
+状态：`LOCAL_ENGINEERING_PASS / B1-A_REACHABLE_DOCKER_RUNNER_TECHNICAL_PASS / B1-B0_EARLY_SHADOW_EVIDENCE_LOCAL_PASS / B1-B1_EMPIRICAL_CAPTURE_PENDING / BUSINESS_SLO_UNPROVEN / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
 
 ## 1. 目标
 
@@ -67,7 +67,7 @@ M1.5-B0 local release safety
 -> M1 exit
 ```
 
-B1-B0/B1 必须先保留 B1-A 暴露的失败真值；若 B1-B1 直接 PASS，则 B1-B2/B3 条件包跳过。M1.6 本地工程已通过，但生产分阶段启用等待 B1-B 语义 Gate；M1.7 必须等待两者都通过。M2 合同/fixture 可并行准备，但 M2 runtime 不得读取 M1 authority，直至 M1.7 出口通过。
+B1-B0 已把 B1-A 暴露的失败真值固化为原子 31 周期、不可拼接、业务 Gate 独立的证据合同；若 B1-B1 直接 PASS，则 B1-B2/B3 条件包跳过。M1.6 本地工程已通过，但生产分阶段启用等待 B1-B 语义 Gate；M1.7 必须等待两者都通过。M2 合同/fixture 可并行准备，但 M2 runtime 不得读取 M1 authority，直至 M1.7 出口通过。
 
 ## 7. 当前外部预检事实
 

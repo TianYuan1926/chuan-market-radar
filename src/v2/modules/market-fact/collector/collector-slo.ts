@@ -5,7 +5,7 @@ import {
 } from "./collector-worker-contract";
 
 export const M1_COLLECTOR_SLO_REPORT_SCHEMA_VERSION =
-  "v2-m1-collector-slo-report.v1" as const;
+  "v2-m1-collector-slo-report.v2" as const;
 
 export type CollectorSloPolicy = Readonly<{
   maxMissedScheduleStarts: number;
@@ -14,6 +14,7 @@ export type CollectorSloPolicy = Readonly<{
   maxRssBytes: number;
   maxScheduleLagMs: number;
   minCheckpointRatio: number;
+  minCollectionCoverageRatio: number;
   minCycles: number;
   minFreshCoverageRatio: number;
   minObservationMs: number;
@@ -31,6 +32,7 @@ export type M1CollectorSloReport = Readonly<{
     maxRssBytes: number | null;
     maxScheduleLagMs: number | null;
     minAccountedCount: number | null;
+    minCollectionCoverageRatio: number | null;
     minEligibleCount: number | null;
     minFreshCoverageRatio: number | null;
     missedScheduleStarts: number;
@@ -71,6 +73,7 @@ function validatePolicy(policy: CollectorSloPolicy): void {
   const ratios = [
     policy.maxProviderFailureCycleRatio,
     policy.minCheckpointRatio,
+    policy.minCollectionCoverageRatio,
     policy.minFreshCoverageRatio,
     policy.minOperationalReadyRatio,
   ];
@@ -147,6 +150,9 @@ export function evaluateM1CollectorSlo(input: {
   const freshRatios = cycles
     .map((cycle) => cycle.runtime.coverage.freshCoverage.ratio)
     .filter((value): value is number => value !== null);
+  const collectionRatios = cycles
+    .map((cycle) => cycle.runtime.coverage.collectionCoverage.ratio)
+    .filter((value): value is number => value !== null);
   const reconciledObserved = cycles
     .map((cycle) => cycle.runtime.coverage.providerObservedCount)
     .filter((value): value is number => value !== null);
@@ -158,6 +164,7 @@ export function evaluateM1CollectorSlo(input: {
     minAccountedCount: minimum(cycles.map(
       (cycle) => cycle.runtime.coverage.accountedCount,
     )),
+    minCollectionCoverageRatio: minimum(collectionRatios),
     minEligibleCount: minimum(cycles.map(
       (cycle) => cycle.runtime.coverage.eligibleCount,
     )),
@@ -202,6 +209,11 @@ export function evaluateM1CollectorSlo(input: {
     ...(metrics.checkpointRatio !== null &&
       metrics.checkpointRatio < input.policy.minCheckpointRatio
       ? ["checkpoint_ratio_below_slo"]
+      : []),
+    ...(metrics.minCollectionCoverageRatio !== null &&
+      metrics.minCollectionCoverageRatio <
+        input.policy.minCollectionCoverageRatio
+      ? ["collection_coverage_below_slo"]
       : []),
     ...(metrics.minFreshCoverageRatio !== null &&
       metrics.minFreshCoverageRatio < input.policy.minFreshCoverageRatio

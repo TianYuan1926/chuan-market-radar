@@ -200,6 +200,7 @@ test(
           maxRssBytes: 512 * 1024 * 1024,
           maxScheduleLagMs: 2_000,
           minCheckpointRatio: 1,
+          minCollectionCoverageRatio: 1,
           minCycles: 30,
           minFreshCoverageRatio: 1,
           minObservationMs: 30 * 60 * 1_000,

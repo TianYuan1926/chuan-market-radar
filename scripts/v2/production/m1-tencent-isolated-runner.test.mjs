@@ -64,6 +64,7 @@ test("Tencent runner is isolated, bounded, no-authority, and self-cleaning", asy
     "B1A_BUILDX_IMAGE",
     "HOME=${homedir()}",
     '"buildx", "rm", "--force"',
+    "if (!imageState.collectorPresentBefore)",
     '"RESTORE_EXACT_HOST_STATE"',
     "proveTencentHostSafety(hostSafetyInput)",
   ]) {

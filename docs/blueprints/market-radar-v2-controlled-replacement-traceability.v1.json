@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.9",
-  "status": "m1_5_b1a_reachable_docker_runner_technical_pass_business_readiness_fail_b1b_pending_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-21T02:12:56+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.10",
+  "status": "m1_5_b1b0_early_shadow_evidence_local_pass_b1b1_empirical_capture_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-21T03:12:04+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_5_B1_A_REACHABLE_DOCKER_RUNNER_PREFLIGHT_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_5_B1_B0_EARLY_SHADOW_EVIDENCE_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -27,6 +27,7 @@
     "m1FullUniverseCollectorRuntimeContract": "docs/architecture/v2/M1_4_FULL_UNIVERSE_COLLECTOR_RUNTIME_CONTRACT_V1.md",
     "m1LiveNoAuthorityCollectorContract": "docs/architecture/v2/M1_5_LIVE_NO_AUTHORITY_COLLECTOR_CONTRACT_V1.md",
     "m1ShadowReleaseSafetyContract": "docs/architecture/v2/M1_5_B0_SHADOW_RELEASE_SAFETY_CONTRACT_V1.md",
+    "m1EarlyShadowEvidenceContract": "docs/architecture/v2/M1_5_B1_B0_EARLY_SHADOW_EVIDENCE_CONTRACT_V1.md",
     "m1PartitionedFactStorageContract": "docs/architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md",
     "m2DiscoveryContractsAndGoldenFixtures": "docs/architecture/v2/M2_0_DISCOVERY_CONTRACTS_AND_GOLDEN_FIXTURES_V1.md",
     "m2DraftReplayKernelsContract": "docs/architecture/v2/M2_1_DRAFT_REPLAY_KERNELS_CONTRACT_V1.md",
@@ -54,7 +55,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_5_b1a_exact_docker_runner_and_three_venue_collection_technical_pass_business_readiness_and_slo_fail_b1b_pending_m2_2_c1_forward_only_ready_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m1_5_b1b0_atomic_31_cycle_evidence_and_isolated_runner_local_pass_b1b1_empirical_capture_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -692,7 +693,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "b1a_reachable_docker_runner_technical_pass_business_readiness_fail_b1b_pending_m1_not_complete",
+      "status": "b1b0_early_shadow_evidence_local_pass_b1b1_empirical_capture_pending_business_slo_unproven_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.5-B1-A",
@@ -701,13 +702,13 @@
         },
         {
           "id": "M1.5-B1-B0",
-          "name": "early_shadow_evidence_contract_and_recoverable_runner",
-          "status": "current_local_entry"
+          "name": "atomic_early_shadow_evidence_contract_and_exact_host_restoration_runner",
+          "status": "local_engineering_pass_production_unchanged"
         },
         {
           "id": "M1.5-B1-B1",
           "name": "fixed_policy_31_cycle_empirical_capture",
-          "status": "pending"
+          "status": "current_execution_entry"
         },
         {
           "id": "M1.5-B1-B2",
@@ -898,17 +899,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT",
-    "name": "exact_source_no_authority_reachable_docker_runner_preflight",
-    "status": "technical_pass_business_readiness_fail_ready_0_of_2_production_services_data_and_authority_unchanged_host_baseline_restored",
+    "id": "V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT",
+    "name": "atomic_31_cycle_content_addressed_evidence_and_exact_host_restoration_runner_contract",
+    "status": "local_engineering_pass_business_slo_unproven_production_services_data_and_authority_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT",
-    "name": "fixed_31_cycle_content_addressed_evidence_and_recoverable_runner_contract",
-    "status": "pending_local_engineering",
+    "id": "V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE",
+    "name": "fixed_policy_atomic_31_cycle_empirical_capture",
+    "status": "pending_external_execution",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
@@ -929,6 +930,23 @@
     ],
     "providerFailureCount": 0,
     "exactDockerStateRestored": true,
+    "productionMutationPerformed": false,
+    "candidateEmissionAllowed": false
+  },
+  "completedEarlyShadowEvidenceContract": {
+    "id": "V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT",
+    "runProfile": "EARLY_30_MINUTES",
+    "cycleIntervalMs": 60000,
+    "cycleCount": 31,
+    "atomicSingleProcessRequired": true,
+    "interruptedWindowMayBeStitched": false,
+    "collectionCoverageRatioRequired": 1,
+    "freshCoverageRatioRequired": 1,
+    "operationalReadyRatioRequired": 1,
+    "captureAndBusinessConclusionsSeparated": true,
+    "contentAddressedEvidenceRequired": true,
+    "exactDockerStateRestorationRequired": true,
+    "businessSloProven": false,
     "productionMutationPerformed": false,
     "candidateEmissionAllowed": false
   },
@@ -957,8 +975,10 @@
   },
   "pendingExternalGate": {
     "id": "V2-M1.5-B1-B-31-CYCLE-EARLY-SHADOW",
-    "status": "pending_b1_b0_evidence_contract_then_fixed_policy_empirical_capture",
+    "status": "pending_b1_b1_fixed_policy_atomic_empirical_capture",
     "maximumCycles": 31,
+    "minimumCycles": 31,
+    "atomicSingleProcessRequired": true,
     "authorityMode": "NO_AUTHORITY",
     "productionMutationAllowed": false
   }

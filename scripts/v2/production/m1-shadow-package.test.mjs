@@ -8,6 +8,10 @@ const workflowPath =
   ".github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml";
 const validatorPath =
   "scripts/v2/production/m1-reachable-runner-preflight.mjs";
+const earlyShadowValidatorPath =
+  "scripts/v2/production/m1-early-shadow-runner-evidence.mjs";
+const earlyShadowRunnerPath =
+  "scripts/v2/production/m1-tencent-early-shadow-runner.mjs";
 const nodeBaseImage =
   "node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3";
 const postgresImage =
@@ -129,5 +133,33 @@ test("M1 reachable-runner workflow is one-shot, pinned and no-authority", async 
     "automaticTradingAllowed: false",
   ]) {
     assert.ok(validator.includes(required), `missing evidence truth: ${required}`);
+  }
+});
+
+test("M1 early-shadow package keeps capture truth separate from business truth", async () => {
+  const [runner, validator] = await Promise.all([
+    readFile(earlyShadowRunnerPath, "utf8"),
+    readFile(earlyShadowValidatorPath, "utf8"),
+  ]);
+  for (const required of [
+    "PASS_31_CYCLE_CAPTURE",
+    "CAPTURE_COMPLETE_BUSINESS_FAIL",
+    "PASS_EARLY_SHADOW_BUSINESS_GATE",
+    "earlyShadowSloPassed",
+    "m1ExitClaimed: false",
+    "productionMutation: false",
+    "productionDependenciesUsed: false",
+    "productionSecretsUsed: false",
+  ]) {
+    assert.ok(validator.includes(required), `missing early-shadow truth: ${required}`);
+  }
+  for (const required of [
+    "EARLY_30_MINUTES",
+    "V2_M1_COLLECTOR_MAX_CYCLES=31",
+    "V2_M1_COLLECTOR_CYCLE_INTERVAL_MS=60000",
+    "m1-collector-early-shadow-report.js",
+    "writeContentAddressedObject",
+  ]) {
+    assert.ok(runner.includes(required), `missing early-shadow runner: ${required}`);
   }
 });
