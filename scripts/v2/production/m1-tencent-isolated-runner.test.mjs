@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { runnerNames } from "./m1-tencent-isolated-runner.mjs";
+import {
+  buildStageFailure,
+  runnerNames,
+} from "./m1-tencent-isolated-runner.mjs";
 
 const sourceCommit = "a".repeat(40);
 
@@ -29,6 +32,7 @@ test("Tencent runner is isolated, bounded, no-authority, and self-cleaning", asy
   for (const required of [
     "B1A_TENCENT_RUNNER_PROVIDER",
     'const SCOPE_LABEL = "b1a2-isolated-preflight"',
+    `'{{with (index .State "Health")}}{{.Status}}{{else}}none{{end}}'`,
     "BUILD_CPU_NANO = 1_500_000_000",
     "BUILD_MEMORY_BYTES = 2 * 1024 * 1024 * 1024",
     '"--read-only"',
@@ -70,4 +74,20 @@ test("Tencent runner is isolated, bounded, no-authority, and self-cleaning", asy
       `forbidden production capability: ${forbidden}`,
     );
   }
+});
+
+test("Tencent runner preserves the primary failure when restoration is unproven", () => {
+  const report = buildStageFailure({
+    code: "CONTAINER_SNAPSHOT_FAILED",
+    hostSafety: null,
+    restorationCode: "HOST_RESTORATION_NOT_PROVEN",
+    runId: "1760000000000",
+    sourceCommit,
+  });
+  assert.deepEqual(report.diagnostic, {
+    code: "CONTAINER_SNAPSHOT_FAILED",
+    restorationCode: "HOST_RESTORATION_NOT_PROVEN",
+  });
+  assert.equal(report.scope.productionMutation, "UNKNOWN");
+  assert.equal("rawError" in report.diagnostic, false);
 });

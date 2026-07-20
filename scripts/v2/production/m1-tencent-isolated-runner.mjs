@@ -33,6 +33,8 @@ const BUILD_MEMORY_BYTES = 2 * 1024 * 1024 * 1024;
 const BUILD_MEMORY_SWAP_BYTES = 3 * 1024 * 1024 * 1024;
 const COMMAND_BUFFER_BYTES = 64 * 1024 * 1024;
 const MAX_LIVE_TAP_BYTES = 5 * 1024 * 1024;
+const DOCKER_HEALTH_FORMAT =
+  '{{with (index .State "Health")}}{{.Status}}{{else}}none{{end}}';
 const BUILDX_PLUGIN_PATH = join(
   homedir(),
   ".cache",
@@ -132,7 +134,7 @@ function runningContainerSnapshot() {
     const output = docker([
       "inspect",
       "--format",
-      "{{.Id}}\\t{{.Name}}\\t{{.Config.Image}}\\t{{.RestartCount}}\\t{{.State.StartedAt}}\\t{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
+      `{{.Id}}\\t{{.Name}}\\t{{.Config.Image}}\\t{{.RestartCount}}\\t{{.State.StartedAt}}\\t${DOCKER_HEALTH_FORMAT}`,
       id,
     ], { failureCode: "CONTAINER_SNAPSHOT_FAILED" }).stdout.trim();
     const [containerId, rawName, image, restartCount, startedAt, health] =
@@ -305,9 +307,24 @@ async function writeReport(report, evidenceRoot) {
   return path;
 }
 
-function buildStageFailure({ code, hostSafety, runId, sourceCommit }) {
+export function buildStageFailure({
+  code,
+  hostSafety,
+  restorationCode,
+  runId,
+  sourceCommit,
+}) {
+  assert.match(code, /^[A-Z][A-Z0-9_]{2,95}$/u);
+  if (restorationCode !== undefined) {
+    assert.match(restorationCode, /^[A-Z][A-Z0-9_]{2,95}$/u);
+  }
   const core = {
-    diagnostic: { code },
+    diagnostic: {
+      code,
+      ...(restorationCode && restorationCode !== code
+        ? { restorationCode }
+        : {}),
+    },
     generatedAt: new Date().toISOString(),
     runner: {
       architecture: "X64",
@@ -391,6 +408,7 @@ async function run() {
   let liveTap = "";
   let liveExitCode = 0;
   let failure;
+  let restorationCode;
   const imageState = {
     collectorPresentBefore: imagePresent(names.collectorImage),
     buildxPresentBefore: imagePresent(B1A_BUILDX_IMAGE),
@@ -786,7 +804,8 @@ async function run() {
     };
     hostSafetySummary = validateTencentHostSafety(hostSafetyInput);
   } catch {
-    failure = new RunnerFailure("HOST_RESTORATION_NOT_PROVEN");
+    restorationCode = "HOST_RESTORATION_NOT_PROVEN";
+    failure ??= new RunnerFailure(restorationCode);
     hostSafetySummary = null;
   }
 
@@ -819,6 +838,7 @@ async function run() {
       report = buildStageFailure({
         code: failure.code,
         hostSafety: hostSafetySummary,
+        restorationCode,
         runId,
         sourceCommit,
       });
@@ -855,6 +875,7 @@ async function run() {
       report = buildStageFailure({
         code: failure.code,
         hostSafety: hostSafetySummary,
+        restorationCode,
         runId,
         sourceCommit,
       });
