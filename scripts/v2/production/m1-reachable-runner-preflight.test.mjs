@@ -62,16 +62,22 @@ function liveTap() {
     automaticTradingAllowed: false,
     cycles: [
       {
+        checkpointStatus: "INSERTED",
         coverage: coverage(),
+        dataQuality: "FRESH",
         operationalReadiness: "READY",
+        persistence: "INSERTED",
         providerFailures: [],
         reasons: [],
         state: "READY",
         trigger: "STARTUP_FULL",
       },
       {
+        checkpointStatus: "INSERTED",
         coverage: coverage(null),
+        dataQuality: "FRESH",
         operationalReadiness: "READY",
+        persistence: "INSERTED",
         providerFailures: [],
         reasons: [],
         state: "READY",
@@ -92,6 +98,38 @@ function liveTap() {
     "# skipped 0",
     "",
   ].join("\n");
+}
+
+function mutateLiveRuntime(input, mutate) {
+  const runtimeLine = input.liveTap
+    .split("\n")
+    .find((line) => line.startsWith("# {\"authorityMode\""));
+  assert.ok(runtimeLine);
+  const runtime = JSON.parse(runtimeLine.slice(2));
+  mutate(runtime);
+  input.liveTap = input.liveTap.replace(
+    runtimeLine,
+    `# ${JSON.stringify(runtime)}`,
+  );
+}
+
+function markCyclePartiallyFresh(cycle, reasons) {
+  cycle.coverage.freshCount = 35;
+  cycle.coverage.freshCoverage = {
+    denominator: 36,
+    numerator: 35,
+    ratio: 35 / 36,
+  };
+  cycle.coverage.venues[0].freshCount = 11;
+  cycle.coverage.venues[0].freshCoverage = {
+    denominator: 12,
+    numerator: 11,
+    ratio: 11 / 12,
+  };
+  cycle.dataQuality = "PARTIAL";
+  cycle.operationalReadiness = "NOT_READY";
+  cycle.reasons = reasons;
+  cycle.state = "DEGRADED";
 }
 
 function imageInspect({ idCharacter, labels = {}, user = "" }) {
@@ -295,7 +333,17 @@ test("builds a content-addressed, no-authority reachable-runner report", () => {
   assert.equal(report.status, "PASS_REACHABLE_DOCKER_RUNNER_PREFLIGHT");
   assert.equal(report.scope.productionMutation, false);
   assert.equal(report.scope.productionSecretsUsed, false);
+  assert.equal(report.scope.businessReadinessClaimed, false);
+  assert.equal(report.scope.operationalSloPassed, false);
   assert.equal(report.liveValidation.cycleCount, 2);
+  assert.equal(
+    report.liveValidation.technicalPreflightConclusion,
+    "PASS_REACHABLE_DOCKER_RUNNER",
+  );
+  assert.equal(
+    report.liveValidation.businessReadinessConclusion,
+    "INSUFFICIENT_EVIDENCE",
+  );
   assert.equal(report.liveValidation.cycles[0].coverage.venues.length, 3);
   assert.match(report.evidenceDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(verifyReachableRunnerEvidence(report), report);
@@ -313,15 +361,91 @@ test("evidence digest covers every report fact", () => {
 
 test("rejects a missing venue denominator", () => {
   const input = fixture();
-  const runtimeLine = input.liveTap
-    .split("\n")
-    .find((line) => line.startsWith("# {\"authorityMode\""));
-  const runtime = JSON.parse(runtimeLine.slice(2));
-  runtime.cycles[0].coverage.venues[0].providerObservedCount = 0;
-  input.liveTap = input.liveTap.replace(runtimeLine, `# ${JSON.stringify(runtime)}`);
+  mutateLiveRuntime(input, (runtime) => {
+    runtime.cycles[0].coverage.venues[0].providerObservedCount = 0;
+  });
   assert.throws(
     () => buildReachableRunnerEvidence(input),
     /providerObservedCount/u,
+  );
+});
+
+test("passes only technical reachability while preserving honest NOT_READY cycles", () => {
+  const input = fixture();
+  mutateLiveRuntime(input, (runtime) => {
+    markCyclePartiallyFresh(runtime.cycles[0], [
+      "fresh_coverage_incomplete",
+      "ticker_stale_at_cutoff",
+    ]);
+    markCyclePartiallyFresh(runtime.cycles[1], [
+      "duplicate_ticker_sequence",
+      "fresh_coverage_incomplete",
+    ]);
+    runtime.cycles[1].trigger = "RECOVERY";
+  });
+
+  const report = buildReachableRunnerEvidence(input);
+  assert.equal(report.status, "PASS_REACHABLE_DOCKER_RUNNER_PREFLIGHT");
+  assert.equal(report.liveValidation.operationalReadyCycleCount, 0);
+  assert.equal(report.liveValidation.notReadyCycleCount, 2);
+  assert.equal(
+    report.liveValidation.cycles[0].coverage.freshCoverageRatio,
+    35 / 36,
+  );
+  assert.deepEqual(report.liveValidation.cycles[1].reasons, [
+    "duplicate_ticker_sequence",
+    "fresh_coverage_incomplete",
+  ]);
+  assert.equal(
+    report.liveValidation.businessReadinessConclusion,
+    "INSUFFICIENT_EVIDENCE",
+  );
+});
+
+test("rejects inflated readiness, incomplete collection, or unexplained NOT_READY", () => {
+  const inflatedReady = fixture();
+  mutateLiveRuntime(inflatedReady, (runtime) => {
+    runtime.cycles[0].coverage.freshCount = 35;
+    runtime.cycles[0].coverage.freshCoverage = {
+      denominator: 36,
+      numerator: 35,
+      ratio: 35 / 36,
+    };
+    runtime.cycles[0].coverage.venues[0].freshCount = 11;
+    runtime.cycles[0].coverage.venues[0].freshCoverage = {
+      denominator: 12,
+      numerator: 11,
+      ratio: 11 / 12,
+    };
+  });
+  assert.throws(
+    () => buildReachableRunnerEvidence(inflatedReady),
+    /freshness truth/u,
+  );
+
+  const incompleteCollection = fixture();
+  mutateLiveRuntime(incompleteCollection, (runtime) => {
+    runtime.cycles[0].coverage.collectedCount = 35;
+    runtime.cycles[0].coverage.collectionCoverage = {
+      denominator: 36,
+      numerator: 35,
+      ratio: 35 / 36,
+    };
+  });
+  assert.throws(
+    () => buildReachableRunnerEvidence(incompleteCollection),
+    /collection must be complete/u,
+  );
+
+  const unexplainedNotReady = fixture();
+  mutateLiveRuntime(unexplainedNotReady, (runtime) => {
+    runtime.cycles[0].operationalReadiness = "NOT_READY";
+    runtime.cycles[0].state = "DEGRADED";
+    runtime.cycles[1].trigger = "RECOVERY";
+  });
+  assert.throws(
+    () => buildReachableRunnerEvidence(unexplainedNotReady),
+    /must explain NOT_READY/u,
   );
 });
 

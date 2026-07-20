@@ -43,7 +43,7 @@ function rolePool(base: string, login: string, role: string): Pool {
 }
 
 test(
-  "collects two live public no-authority cycles and keeps the short SLO window insufficient",
+  "collects two live public no-authority cycles without inflating operational readiness",
   { skip: databaseUrl === undefined || !liveEnabled, timeout: 120_000 },
   async () => {
     assert.ok(databaseUrl);
@@ -111,8 +111,11 @@ test(
         authorityMode: report.authorityMode,
         automaticTradingAllowed: report.automaticTradingAllowed,
         cycles: report.cycles.map((cycle) => ({
+          checkpointStatus: cycle.checkpoint.status,
           coverage: cycle.runtime.coverage,
+          dataQuality: cycle.dataQuality,
           operationalReadiness: cycle.operationalReadiness,
+          persistence: cycle.runtime.persistence,
           providerFailures: cycle.runtime.providerFailures,
           reasons: cycle.runtime.reasons,
           state: cycle.runtime.state,
@@ -121,9 +124,50 @@ test(
         releaseId: config.releaseId,
         status: report.status,
       }));
-      assert.ok(report.cycles.every(
-        (cycle) => cycle.operationalReadiness === "READY",
-      ));
+      assert.equal(report.authorityMode, "NO_AUTHORITY");
+      assert.equal(report.automaticTradingAllowed, false);
+      const successfulPersistence = new Set([
+        "INSERTED",
+        "IDEMPOTENT_REPLAY",
+        "MIXED_INSERT_AND_IDEMPOTENT",
+      ]);
+      for (const cycle of report.cycles) {
+        assert.deepEqual(cycle.runtime.providerFailures, []);
+        assert.ok(
+          cycle.checkpoint.status === "INSERTED" ||
+            cycle.checkpoint.status === "IDEMPOTENT_REPLAY",
+        );
+        assert.equal(successfulPersistence.has(cycle.runtime.persistence), true);
+        assert.ok(cycle.runtime.coverage.eligibleCount > 0);
+        assert.equal(
+          cycle.runtime.coverage.collectedCount,
+          cycle.runtime.coverage.eligibleCount,
+        );
+        assert.ok(cycle.runtime.coverage.freshCount > 0);
+        assert.ok(
+          cycle.runtime.coverage.freshCount <=
+            cycle.runtime.coverage.eligibleCount,
+        );
+        assert.ok(cycle.runtime.coverage.venues.every(
+          (venue) =>
+            venue.eligibleCount > 0 &&
+            venue.collectedCount === venue.eligibleCount &&
+            venue.freshCount > 0 &&
+            venue.freshCount <= venue.eligibleCount,
+        ));
+        if (cycle.operationalReadiness === "READY") {
+          assert.equal(cycle.runtime.state, "READY");
+          assert.equal(cycle.dataQuality, "FRESH");
+          assert.deepEqual(cycle.runtime.reasons, []);
+          assert.equal(
+            cycle.runtime.coverage.freshCount,
+            cycle.runtime.coverage.eligibleCount,
+          );
+        } else {
+          assert.equal(cycle.runtime.state, "DEGRADED");
+          assert.ok(cycle.runtime.reasons.length > 0);
+        }
+      }
       const startup = report.cycles[0]!;
       assert.equal(startup.runtime.trigger, "STARTUP_FULL");
       assert.ok((startup.runtime.coverage.providerObservedCount ?? 0) > 0);
@@ -134,14 +178,16 @@ test(
         startup.runtime.coverage.eligibleCount,
       );
       assert.equal(
-        startup.runtime.coverage.freshCount,
-        startup.runtime.coverage.eligibleCount,
+        startup.runtime.coverage.freshCount > 0,
+        true,
       );
       assert.ok(startup.runtime.coverage.venues.every(
         (venue) =>
           (venue.providerObservedCount ?? 0) > 0 &&
           venue.eligibleCount > 0 &&
-          venue.freshCount === venue.eligibleCount,
+          venue.collectedCount === venue.eligibleCount &&
+          venue.freshCount > 0 &&
+          venue.freshCount <= venue.eligibleCount,
       ));
 
       const slo = evaluateM1CollectorSlo({

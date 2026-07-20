@@ -20,7 +20,7 @@ export const B1A_TENCENT_RUNNER_PROVIDER =
   "TENCENT_LIGHTHOUSE_ISOLATED";
 
 const SCHEMA_VERSION =
-  "v2-m1-reachable-runner-preflight-evidence.v1";
+  "v2-m1-reachable-runner-preflight-evidence.v2";
 const MAX_INPUT_BYTES = 5 * 1024 * 1024;
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
@@ -29,6 +29,22 @@ const TARGET_VENUES = [
   "BYBIT_LINEAR_PERPETUAL",
   "OKX_SWAP",
 ];
+const DATA_QUALITY_STATES = [
+  "FRESH",
+  "PARTIAL",
+  "STALE",
+  "UNAVAILABLE",
+  "RATE_LIMITED",
+  "AUTH_ERROR",
+  "TRANSPORT_ERROR",
+  "INVALID",
+];
+const SUCCESSFUL_PERSISTENCE_STATES = [
+  "INSERTED",
+  "IDEMPOTENT_REPLAY",
+  "MIXED_INSERT_AND_IDEMPOTENT",
+];
+const SUCCESSFUL_CHECKPOINT_STATES = ["INSERTED", "IDEMPOTENT_REPLAY"];
 const TENCENT_MIN_MEMORY_AVAILABLE_BYTES = 3 * 1024 * 1024 * 1024;
 const TENCENT_MIN_DISK_AVAILABLE_BYTES = 20 * 1024 * 1024 * 1024;
 const TENCENT_BUILD_CPU_NANO = 1_500_000_000;
@@ -641,7 +657,11 @@ function normalizeCoverageCounts(coverage, label, requireObserved) {
   assertPositiveInteger(coverage.accountedCount, `${label}.accountedCount`);
   assertPositiveInteger(coverage.eligibleCount, `${label}.eligibleCount`);
   assert.equal(coverage.collectedCount, coverage.eligibleCount, `${label} collection must be complete`);
-  assert.equal(coverage.freshCount, coverage.eligibleCount, `${label} freshness must be complete`);
+  assertPositiveInteger(coverage.freshCount, `${label}.freshCount`);
+  assert.ok(
+    coverage.freshCount <= coverage.collectedCount,
+    `${label} freshness cannot exceed collection`,
+  );
   if (requireObserved) {
     assertPositiveInteger(
       coverage.providerObservedCount,
@@ -660,13 +680,18 @@ function normalizeCoverageCounts(coverage, label, requireObserved) {
   assert.equal(coverage.collectionCoverage?.ratio, 1);
   assert.equal(coverage.freshCoverage?.denominator, coverage.eligibleCount);
   assert.equal(coverage.freshCoverage?.numerator, coverage.freshCount);
-  assert.equal(coverage.freshCoverage?.ratio, 1);
+  assert.equal(
+    coverage.freshCoverage?.ratio,
+    coverage.freshCount / coverage.eligibleCount,
+  );
   return {
     accountedCount: coverage.accountedCount,
     carriedForwardCount: coverage.carriedForwardCount,
     collectedCount: coverage.collectedCount,
+    collectionCoverageRatio: coverage.collectionCoverage.ratio,
     eligibleCount: coverage.eligibleCount,
     freshCount: coverage.freshCount,
+    freshCoverageRatio: coverage.freshCoverage.ratio,
     providerObservedCount: coverage.providerObservedCount,
   };
 }
@@ -689,6 +714,34 @@ function normalizeCoverage(coverage, label, requireObserved) {
     })
     .sort((left, right) => left.venue.localeCompare(right.venue));
   assert.deepEqual(venues.map((venue) => venue.venue), TARGET_VENUES);
+  for (const field of [
+    "accountedCount",
+    "carriedForwardCount",
+    "collectedCount",
+    "eligibleCount",
+    "freshCount",
+  ]) {
+    assert.equal(
+      venues.reduce((sum, venue) => sum + venue[field], 0),
+      aggregate[field],
+      `${label}.${field} must equal the venue total`,
+    );
+  }
+  if (aggregate.providerObservedCount === null) {
+    assert.ok(
+      venues.every((venue) => venue.providerObservedCount === null),
+      `${label}.providerObservedCount nullability must match every venue`,
+    );
+  } else {
+    assert.equal(
+      venues.reduce(
+        (sum, venue) => sum + (venue.providerObservedCount ?? 0),
+        0,
+      ),
+      aggregate.providerObservedCount,
+      `${label}.providerObservedCount must equal the venue total`,
+    );
+  }
   return {
     ...aggregate,
     venues,
@@ -709,31 +762,97 @@ function validateLiveEvidence(input) {
   assert.equal(parsed.runtime.cycles.length, 2, "preflight must contain exactly two live cycles");
   const cycles = parsed.runtime.cycles.map((cycle, index) => {
     assert.ok(isRecord(cycle), `cycle ${index} must be an object`);
-    assert.equal(cycle.operationalReadiness, "READY");
-    assert.equal(cycle.state, "READY");
-    assert.deepEqual(cycle.providerFailures, []);
-    assert.equal(
-      cycle.trigger,
-      index === 0 ? "STARTUP_FULL" : "INCREMENTAL_TICKER",
+    assert.ok(
+      cycle.operationalReadiness === "READY" ||
+        cycle.operationalReadiness === "NOT_READY",
+      `cycle ${index} readiness is invalid`,
     );
+    assert.ok(
+      DATA_QUALITY_STATES.includes(cycle.dataQuality),
+      `cycle ${index} data quality is invalid`,
+    );
+    assert.ok(
+      SUCCESSFUL_PERSISTENCE_STATES.includes(cycle.persistence),
+      `cycle ${index} persistence must succeed`,
+    );
+    assert.ok(
+      SUCCESSFUL_CHECKPOINT_STATES.includes(cycle.checkpointStatus),
+      `cycle ${index} checkpoint must persist`,
+    );
+    assert.deepEqual(cycle.providerFailures, []);
+    assert.ok(Array.isArray(cycle.reasons), `cycle ${index} reasons must be an array`);
+    const reasons = cycle.reasons.map((reason) => {
+      assert.ok(
+        typeof reason === "string" && reason.length > 0,
+        `cycle ${index} contains an invalid reason`,
+      );
+      return reason;
+    });
+    assert.deepEqual(
+      reasons,
+      [...new Set(reasons)].sort(),
+      `cycle ${index} reasons must be unique and sorted`,
+    );
+    const coverage = normalizeCoverage(
+      cycle.coverage,
+      `cycle[${index}]`,
+      index === 0,
+    );
+    if (cycle.operationalReadiness === "READY") {
+      assert.equal(cycle.state, "READY");
+      assert.equal(cycle.dataQuality, "FRESH");
+      assert.deepEqual(reasons, []);
+      assert.equal(
+        coverage.freshCount,
+        coverage.eligibleCount,
+        `cycle ${index} READY cannot exceed freshness truth`,
+      );
+    } else {
+      assert.equal(cycle.state, "DEGRADED");
+      assert.ok(reasons.length > 0, `cycle ${index} must explain NOT_READY`);
+      if (coverage.freshCount < coverage.eligibleCount) {
+        assert.ok(
+          reasons.includes("fresh_coverage_incomplete"),
+          `cycle ${index} must preserve incomplete freshness truth`,
+        );
+      }
+    }
     return {
-      coverage: normalizeCoverage(cycle.coverage, `cycle[${index}]`, index === 0),
+      checkpointStatus: cycle.checkpointStatus,
+      coverage,
+      dataQuality: cycle.dataQuality,
       operationalReadiness: cycle.operationalReadiness,
       ordinal: index,
+      persistence: cycle.persistence,
       providerFailureCount: cycle.providerFailures.length,
+      reasons,
       state: cycle.state,
       trigger: cycle.trigger,
     };
   });
+  assert.equal(cycles[0].trigger, "STARTUP_FULL");
+  assert.equal(
+    cycles[1].trigger,
+    cycles[0].operationalReadiness === "READY"
+      ? "INCREMENTAL_TICKER"
+      : "RECOVERY",
+  );
   assert.equal(parsed.slo.sloConclusion, "INSUFFICIENT_EVIDENCE");
+  const operationalReadyCycleCount = cycles.filter(
+    (cycle) => cycle.operationalReadiness === "READY",
+  ).length;
   return {
     authorityMode: parsed.runtime.authorityMode,
     automaticTradingAllowed: parsed.runtime.automaticTradingAllowed,
+    businessReadinessConclusion: "INSUFFICIENT_EVIDENCE",
     cycleCount: cycles.length,
     cycles,
+    notReadyCycleCount: cycles.length - operationalReadyCycleCount,
+    operationalReadyCycleCount,
     releaseId: parsed.runtime.releaseId,
     sloConclusion: parsed.slo.sloConclusion,
     status: parsed.runtime.status,
+    technicalPreflightConclusion: "PASS_REACHABLE_DOCKER_RUNNER",
   };
 }
 
@@ -777,6 +896,21 @@ export function verifyReachableRunnerEvidence(report) {
     assert.equal("buildxImageId" in report.supplyChain, false);
   }
   assert.equal(report.scope.automaticTradingAllowed, false);
+  assert.equal(report.scope.businessReadinessClaimed, false);
+  assert.equal(report.scope.operationalSloPassed, false);
+  assert.equal(
+    report.liveValidation.technicalPreflightConclusion,
+    "PASS_REACHABLE_DOCKER_RUNNER",
+  );
+  assert.equal(
+    report.liveValidation.businessReadinessConclusion,
+    "INSUFFICIENT_EVIDENCE",
+  );
+  assert.equal(
+    report.liveValidation.operationalReadyCycleCount +
+      report.liveValidation.notReadyCycleCount,
+    report.liveValidation.cycleCount,
+  );
   assert.equal(report.liveValidation.sloConclusion, "INSUFFICIENT_EVIDENCE");
   return report;
 }
@@ -846,6 +980,7 @@ export function buildReachableRunnerEvidence(input) {
     schemaVersion: SCHEMA_VERSION,
     scope: {
       automaticTradingAllowed: false,
+      businessReadinessClaimed: false,
       candidateRuntimePresent: false,
       databaseMigrationAppliedToProduction: false,
       detectorExecuted: false,
@@ -855,6 +990,7 @@ export function buildReachableRunnerEvidence(input) {
       productionMutation: false,
       productionNetworkUsed: false,
       productionSecretsUsed: false,
+      operationalSloPassed: false,
       tradingPlanGenerated: false,
     },
     source: {
