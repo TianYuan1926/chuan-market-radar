@@ -25,6 +25,11 @@ import {
   M1_STORE_POSTGRES_MIGRATION_SQL,
   M1_STORE_POSTGRES_SCHEMA,
 } from "./postgres-schema";
+import {
+  M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL,
+  M1_PARTITIONED_FACT_TABLE,
+} from "./partitioned-fact-postgres-schema";
+import { M1_FACT_RETENTION_IDENTITY } from "./partitioned-fact-contract";
 import { buildM1ReplayManifest } from "./replay-manifest";
 import { runM1Replay } from "./replay-runner";
 
@@ -87,6 +92,16 @@ test(
     let audit: Pool | undefined;
     try {
       await admin.query(M1_STORE_POSTGRES_MIGRATION_SQL);
+      await admin.query(M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL);
+      await admin.query(`
+        SET ROLE ${M1_FACT_RETENTION_IDENTITY};
+        SELECT * FROM ${M1_STORE_POSTGRES_SCHEMA}.ensure_market_fact_partitions(
+          '2026-01-15'::date,
+          '2026-01-15'::date,
+          'm1-3-store-replay-rehearsal'
+        );
+        RESET ROLE;
+      `);
       const migration = await admin.query<{
         version: string;
         checksum: string;
@@ -291,13 +306,13 @@ test(
 
       const tamperTarget = facts[0]!;
       try {
-        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger DISABLE TRIGGER reject_artifact_ledger_mutation`);
+        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE} DISABLE TRIGGER reject_partitioned_fact_mutation`);
         await admin.query(`
-          UPDATE ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+          UPDATE ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
           SET payload = jsonb_set(payload, '{lineage,sourceId}', '"tampered-source"'::jsonb)
           WHERE artifact_name = $1 AND artifact_id = $2
         `, [tamperTarget.artifactName, tamperTarget.artifactId]);
-        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger ENABLE TRIGGER reject_artifact_ledger_mutation`);
+        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE} ENABLE TRIGGER reject_partitioned_fact_mutation`);
         await assert.rejects(
           readerStore.readArtifact(tamperTarget.artifactName, tamperTarget.artifactId),
           (error: unknown) =>
@@ -305,9 +320,9 @@ test(
             error.code === "ARTIFACT_STORAGE_DIGEST_MISMATCH",
         );
       } finally {
-        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger DISABLE TRIGGER reject_artifact_ledger_mutation`);
+        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE} DISABLE TRIGGER reject_partitioned_fact_mutation`);
         await admin.query(`
-          UPDATE ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+          UPDATE ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
           SET payload = $3::jsonb
           WHERE artifact_name = $1 AND artifact_id = $2
         `, [
@@ -315,7 +330,7 @@ test(
           tamperTarget.artifactId,
           JSON.stringify(tamperTarget.payload),
         ]);
-        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger ENABLE TRIGGER reject_artifact_ledger_mutation`);
+        await admin.query(`ALTER TABLE ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE} ENABLE TRIGGER reject_partitioned_fact_mutation`);
       }
       await readerStore.readArtifact(tamperTarget.artifactName, tamperTarget.artifactId);
 
@@ -386,8 +401,14 @@ test(
       assert.equal(runtimeTruth.businessReadiness, "PARTIAL");
 
       const auditCount = await audit.query<{ count: string }>(`
-        SELECT count(*)::text AS count
-        FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+        SELECT sum(count)::text AS count
+        FROM (
+          SELECT count(*)::bigint AS count
+          FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+          UNION ALL
+          SELECT count(*)::bigint AS count
+          FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+        ) AS ledgers
       `);
       assert.equal(Number(auditCount.rows[0]!.count), inserted.length);
       console.log(`M1_REHEARSAL_EVIDENCE=${JSON.stringify({

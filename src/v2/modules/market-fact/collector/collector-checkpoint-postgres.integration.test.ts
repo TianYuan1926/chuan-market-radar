@@ -11,6 +11,10 @@ import {
   M1_STORE_POSTGRES_MIGRATION_SQL,
   M1_STORE_POSTGRES_SCHEMA,
 } from "../store/postgres-schema";
+import { M1_FACT_RETENTION_IDENTITY } from "../store/partitioned-fact-contract";
+import {
+  M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL,
+} from "../store/partitioned-fact-postgres-schema";
 import { createPublicRestCollectorAdapterRuntime } from "./adapters/public-rest-adapter-runtime";
 import { buildM1CollectorCheckpoint } from "./checkpoint-contract";
 import {
@@ -69,6 +73,16 @@ test(
     try {
       await admin.query(M1_STORE_POSTGRES_MIGRATION_SQL);
       await admin.query(M1_COLLECTOR_CHECKPOINT_POSTGRES_MIGRATION_SQL);
+      await admin.query(M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL);
+      await admin.query(`
+        SET ROLE ${M1_FACT_RETENTION_IDENTITY};
+        SELECT * FROM ${M1_STORE_POSTGRES_SCHEMA}.ensure_market_fact_partitions(
+          '2026-01-15'::date,
+          '2026-01-16'::date,
+          'm1-5-checkpoint-rehearsal'
+        );
+        RESET ROLE;
+      `);
       await admin.query(`
         CREATE ROLE ${WRITER_LOGIN} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
         CREATE ROLE ${READER_LOGIN} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;

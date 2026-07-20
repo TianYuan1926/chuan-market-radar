@@ -23,6 +23,10 @@ import {
   validateM1ReplayManifest,
 } from "./replay-manifest";
 import { M1_STORE_POSTGRES_SCHEMA } from "./postgres-schema";
+import {
+  M1_PARTITIONED_FACT_IDENTITY_TABLE,
+  M1_PARTITIONED_FACT_TABLE,
+} from "./partitioned-fact-postgres-schema";
 
 export type M1ArtifactAppendRequest<Name extends M1ArtifactName> = Readonly<{
   artifactName: Name;
@@ -73,6 +77,15 @@ type ReplayManifestLedgerRow = Record<string, unknown> & {
   payload: unknown;
   persisted_at: string | Date;
   replay_identity: string;
+};
+
+type PartitionedFactIdentityRow = Record<string, unknown> & {
+  fact_id: string;
+  idempotency_key: string;
+  source_cutoff: string | Date;
+  storage_digest: string;
+  retention_policy_version: string;
+  retain_until: string | Date;
 };
 
 export type M1StoredReplayManifest = Readonly<{
@@ -176,6 +189,18 @@ function validateRetention(retainUntil: string, generatedAt: string): void {
       "retainUntil must be a valid instant after artifact generation",
     );
   }
+}
+
+function databaseErrorMessage(error: unknown): string | null {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return null;
 }
 
 function validateAtomicM1Lineage(prepared: readonly PreparedAppend[]): void {
@@ -352,10 +377,14 @@ const ARTIFACT_COLUMNS = `
   retention_policy_version, retain_until, payload, persisted_at, writer_identity
 `;
 
-async function appendPrepared(
+async function appendLegacyPrepared(
   client: M1SqlClient,
   item: PreparedAppend,
 ): Promise<M1AppendResult> {
+  const replay = await legacyReplayOrConflict(client, item);
+  if (replay !== null) {
+    return replay;
+  }
   const inserted = await client.query<ArtifactLedgerRow>(`
     INSERT INTO ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger (
       artifact_name, artifact_id, idempotency_key, schema_version, release_id,
@@ -424,6 +453,192 @@ async function appendPrepared(
   );
 }
 
+async function legacyReplayOrConflict(
+  client: M1SqlClient,
+  item: PreparedAppend,
+): Promise<M1AppendResult | null> {
+  const existingByKey = await client.query<ArtifactLedgerRow>(`
+    SELECT ${ARTIFACT_COLUMNS}
+    FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+    WHERE idempotency_key = $1
+  `, [item.idempotencyKey]);
+  if (existingByKey.rows[0] !== undefined) {
+    const record = asArtifactRow(item.artifactName, existingByKey.rows[0]);
+    if (
+      record.artifactId !== item.artifactId ||
+      record.storageDigest !== item.storageDigest ||
+      record.retainUntil !== item.retainUntil ||
+      record.retentionPolicyVersion !== M1_STORE_RETENTION_POLICY_VERSION
+    ) {
+      throw new M1StoreError(
+        "IDEMPOTENCY_CONFLICT",
+        "legacy idempotency key belongs to different immutable content",
+      );
+    }
+    return { status: "IDEMPOTENT_REPLAY", record };
+  }
+  const existingById = await client.query<ArtifactLedgerRow>(`
+    SELECT ${ARTIFACT_COLUMNS}
+    FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+    WHERE artifact_name = $1 AND artifact_id = $2
+  `, [item.artifactName, item.artifactId]);
+  if (existingById.rows[0] !== undefined) {
+    throw new M1StoreError(
+      "IMMUTABLE_ID_CONFLICT",
+      "legacy artifact identity belongs to a different append request",
+    );
+  }
+  return null;
+}
+
+async function appendPartitionedFact(
+  client: M1SqlClient,
+  item: PreparedAppend,
+): Promise<M1AppendResult> {
+  const legacy = await legacyReplayOrConflict(client, item);
+  if (legacy !== null) {
+    return legacy;
+  }
+
+  const registeredIdentity = await client.query<PartitionedFactIdentityRow>(`
+    SELECT *
+    FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_IDENTITY_TABLE}
+    WHERE fact_id = $1 OR idempotency_key = $2
+  `, [item.artifactId, item.idempotencyKey]);
+  if (registeredIdentity.rows[0] !== undefined) {
+    const row = registeredIdentity.rows[0];
+    const exactIdentity =
+      row.fact_id === item.artifactId &&
+      row.idempotency_key === item.idempotencyKey &&
+      sameTime(item.artifact.sourceCutoff, row.source_cutoff) &&
+      row.storage_digest === item.storageDigest &&
+      row.retention_policy_version === M1_STORE_RETENTION_POLICY_VERSION &&
+      sameTime(item.retainUntil, row.retain_until);
+    if (!exactIdentity) {
+      throw new M1StoreError(
+        row.idempotency_key === item.idempotencyKey
+          ? "IDEMPOTENCY_CONFLICT"
+          : "IMMUTABLE_ID_CONFLICT",
+        "partitioned fact identity belongs to different immutable content",
+      );
+    }
+    const retained = await client.query<ArtifactLedgerRow>(`
+      SELECT ${ARTIFACT_COLUMNS}
+      FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+      WHERE source_cutoff = $1::timestamptz AND artifact_id = $2
+    `, [row.source_cutoff, item.artifactId]);
+    if (retained.rows[0] === undefined) {
+      throw new M1StoreError(
+        "ARTIFACT_RETIRED",
+        "partitioned fact identity remains but its retained payload was removed",
+      );
+    }
+    return {
+      status: "IDEMPOTENT_REPLAY",
+      record: asArtifactRow("PointInTimeMarketFact", retained.rows[0]),
+    };
+  }
+
+  const retiredPartition = await client.query<Record<string, unknown> & {
+    retired: boolean;
+  }>(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM ${M1_STORE_POSTGRES_SCHEMA}.market_fact_partition_event_ledger
+      WHERE event_type = 'DROPPED'
+        AND lower_bound <= $1::timestamptz
+        AND $1::timestamptz < upper_bound
+    ) AS retired
+  `, [item.artifact.sourceCutoff]);
+  if (retiredPartition.rows[0]?.retired === true) {
+    throw new M1StoreError(
+      "ARTIFACT_RETIRED",
+      "the source partition was removed by an audited retention run",
+    );
+  }
+
+  const inserted = await client.query<ArtifactLedgerRow>(`
+    INSERT INTO ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE} (
+      artifact_name, artifact_id, idempotency_key, schema_version, release_id,
+      source_cutoff, generated_at, content_hash, storage_digest,
+      retention_policy_version, retain_until, payload
+    ) VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::timestamptz,
+      $8, $9, $10, $11::timestamptz, $12::jsonb)
+    ON CONFLICT DO NOTHING
+    RETURNING ${ARTIFACT_COLUMNS}
+  `, [
+    item.artifactName,
+    item.artifactId,
+    item.idempotencyKey,
+    item.artifact.schemaVersion,
+    item.artifact.releaseId,
+    item.artifact.sourceCutoff,
+    item.artifact.generatedAt,
+    item.artifact.contentHash,
+    item.storageDigest,
+    M1_STORE_RETENTION_POLICY_VERSION,
+    item.retainUntil,
+    JSON.stringify(item.artifact),
+  ]);
+  if (inserted.rows[0] !== undefined) {
+    return {
+      status: "INSERTED",
+      record: asArtifactRow("PointInTimeMarketFact", inserted.rows[0]),
+    };
+  }
+
+  const existing = await client.query<ArtifactLedgerRow>(`
+    SELECT ${ARTIFACT_COLUMNS}
+    FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+    WHERE source_cutoff = $1::timestamptz AND idempotency_key = $2
+  `, [item.artifact.sourceCutoff, item.idempotencyKey]);
+  if (existing.rows[0] !== undefined) {
+    const record = asArtifactRow("PointInTimeMarketFact", existing.rows[0]);
+    if (
+      record.artifactId !== item.artifactId ||
+      record.storageDigest !== item.storageDigest ||
+      record.retainUntil !== item.retainUntil ||
+      record.retentionPolicyVersion !== M1_STORE_RETENTION_POLICY_VERSION
+    ) {
+      throw new M1StoreError(
+        "IDEMPOTENCY_CONFLICT",
+        "partitioned fact idempotency key belongs to different immutable content",
+      );
+    }
+    return { status: "IDEMPOTENT_REPLAY", record };
+  }
+
+  const identity = await client.query<PartitionedFactIdentityRow>(`
+    SELECT *
+    FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_IDENTITY_TABLE}
+    WHERE fact_id = $1 OR idempotency_key = $2
+  `, [item.artifactId, item.idempotencyKey]);
+  if (identity.rows[0] !== undefined) {
+    const row = identity.rows[0];
+    const exactIdentity =
+      row.fact_id === item.artifactId &&
+      row.idempotency_key === item.idempotencyKey &&
+      sameTime(item.artifact.sourceCutoff, row.source_cutoff) &&
+      row.storage_digest === item.storageDigest &&
+      row.retention_policy_version === M1_STORE_RETENTION_POLICY_VERSION &&
+      sameTime(item.retainUntil, row.retain_until);
+    if (exactIdentity) {
+      throw new M1StoreError(
+        "ARTIFACT_RETIRED",
+        "partitioned fact identity remains but its retained payload was removed",
+      );
+    }
+    throw new M1StoreError(
+      "IDEMPOTENCY_CONFLICT",
+      "partitioned fact identity belongs to different immutable content",
+    );
+  }
+  throw new M1StoreError(
+    "DATABASE_OPERATION_FAILED",
+    "partitioned fact insert was rejected without an observable conflict row",
+  );
+}
+
 export class M1PostgresArtifactStore {
   readonly #pool: M1SqlPool;
 
@@ -455,7 +670,9 @@ export class M1PostgresArtifactStore {
       await client.query("BEGIN");
       const results: M1AppendResult[] = [];
       for (const item of prepared) {
-        results.push(await appendPrepared(client, item));
+        results.push(item.artifactName === "PointInTimeMarketFact"
+          ? await appendPartitionedFact(client, item)
+          : await appendLegacyPrepared(client, item));
       }
       await client.query("COMMIT");
       return deepFreezeArtifact(results);
@@ -467,6 +684,28 @@ export class M1PostgresArtifactStore {
       }
       if (error instanceof M1StoreError) {
         throw error;
+      }
+      const databaseMessage = databaseErrorMessage(error);
+      if (databaseMessage === "partitioned_fact_idempotency_conflict") {
+        throw new M1StoreError(
+          "IDEMPOTENCY_CONFLICT",
+          "partitioned fact idempotency key belongs to different immutable content",
+        );
+      }
+      if (
+        databaseMessage === "partitioned_fact_immutable_id_conflict" ||
+        databaseMessage === "partitioned_fact_identity_conflict"
+      ) {
+        throw new M1StoreError(
+          "IMMUTABLE_ID_CONFLICT",
+          "partitioned fact identity belongs to different immutable content",
+        );
+      }
+      if (databaseMessage === "partitioned_fact_identity_retired") {
+        throw new M1StoreError(
+          "ARTIFACT_RETIRED",
+          "expired partitioned fact identity cannot be rehydrated",
+        );
       }
       throw new M1StoreError(
         "DATABASE_OPERATION_FAILED",
@@ -481,6 +720,30 @@ export class M1PostgresArtifactStore {
     artifactName: Name,
     requestedArtifactId: string,
   ): Promise<M1StoredArtifactRecord<Name>> {
+    if (artifactName === "PointInTimeMarketFact") {
+      const identity = await this.#pool.query<PartitionedFactIdentityRow>(`
+        SELECT *
+        FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_IDENTITY_TABLE}
+        WHERE fact_id = $1
+      `, [requestedArtifactId]);
+      if (identity.rows[0] !== undefined) {
+        const partitioned = await this.#pool.query<ArtifactLedgerRow>(`
+          SELECT ${ARTIFACT_COLUMNS}
+          FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+          WHERE source_cutoff = $1::timestamptz AND artifact_id = $2
+        `, [identity.rows[0].source_cutoff, requestedArtifactId]);
+        if (partitioned.rows[0] === undefined) {
+          throw new M1StoreError(
+            "ARTIFACT_RETIRED",
+            "partitioned fact was removed by an audited retention run",
+          );
+        }
+        return asArtifactRow(
+          "PointInTimeMarketFact",
+          partitioned.rows[0],
+        ) as M1StoredArtifactRecord<Name>;
+      }
+    }
     const result = await this.#pool.query<ArtifactLedgerRow>(`
       SELECT ${ARTIFACT_COLUMNS}
       FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger

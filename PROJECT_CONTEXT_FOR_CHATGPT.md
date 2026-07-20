@@ -83,7 +83,8 @@ M1.5A_DURABLE_WORKER_CHECKPOINT_SLO_LOCAL_POSTGRES16_PASS
 M1.5B0_SHADOW_RELEASE_SAFETY_LOCAL_PASS
 M1.5_LIVE_EGRESS_UNAVAILABLE
 M1.5B1_EARLY_SHADOW_EXTERNAL_GATE_PENDING
-M1.6_PARTITIONED_FACT_STORAGE_READY_TO_START
+M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
+M2.0_DISCOVERY_CONTRACTS_LOCAL_READY_RUNTIME_BLOCKED
 liveIngestionProven=false
 localV2ImplementationAuthorized=true
 productionMutationAuthorized=false
@@ -128,7 +129,7 @@ automaticTradingAllowed=false
 - M1.4 已建立 21 observed / 15 eligible 的三 Venue 多标的 fixture、完整/增量 reconciliation、目录 tombstone、provider quota、global/per-provider concurrency、有限队列、冷启动、数据库失败和恢复状态机。Collector strict telemetry 分开报告 providerObserved/accounted/eligible/collected/fresh；真实 PG16 已证明启动、增量和全 catalog 故障的原子持久化，生产 import 仍只能通过 Adapter。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
 - M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；本机无 Docker CLI，真实 image build/Compose merge 未证明。
-- 审计确认高频 `PointInTimeMarketFact` 仍进入无物理 purge 的单一 append-only ledger；它适合有限 Shadow，不适合长期全市场一分钟写入。M1.6 必须建立分区、容量水位、受控保留、purge 审计和恢复证据。
+- M1.6 已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、Audit/Retention 分权、restore-verified DROP 与不可变 CREATED/DROPPED/run evidence。隔离 PG16 真实证明旧读兼容、两日跨分区、`pg_dump -> pg_restore -> replay parity`、保留/replay 阻断、原子清理与防重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS，生产 migration 和真实容量未证明。
 - 本机 live no-authority probe 已执行两轮；Binance、OKX、Bybit 三家公开 HTTPS endpoint 均连接/请求超时，结果诚实保持 0 observed / 0 eligible / `DEGRADED`。因此当前仍没有 live 全市场规模、Shadow/SLO、生产 migration、API、页面或生产 authority 证据。
 
 ## 6. Docker 服务清单
@@ -259,7 +260,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.5-A 与 M1.5-B0 本地出口通过；Shadow 运行边界已收紧，但 Docker/live 未证明，高频 Fact 分区/retention 尚未建立；当前工程入口 M1.6，外部 M1.5-B1 Gate 待可信通道
+V2：M0、M1.1-M1.6 本地出口通过；分区/retention 已在隔离 PG16 证明，但 Docker/live/生产 migration/真实容量未证明，M1.5-B1 与 M1.7 仍待外部证据；当前本地入口仅为 M2.0 合同/黄金样本，Detector runtime 禁止启动
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -284,6 +285,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-20 / V2 M1.6 Partitioned Fact Storage Local Exit
+
+- 新 Fact 只能进入无 DEFAULT 的 UTC 日分区，旧账本拒绝旁路；活动身份唯一性随 retention 原子收缩，DROPPED 事件永久封闭旧 source day。
+- 定向 5/5、全 V2 141 pass / 0 fail / 5 explicit external-dependency skips、完整 `ci:production` PASS；M1.3/M1.4/M1.5 与 M1.6 四项隔离 PG16 各 1/1 PASS。
+- M1.6 强演练真实完成两日跨分区、`pg_dump -> pg_restore -> replay parity PASS`、活跃保留/replay 阻断和 1 分区/2 Fact 原子 DROP；生产零连接、零 migration、零变更。
+
 ### 2026-07-20 / V2 M1.5-B0 Shadow Release Safety Local Exit
 
 - 修复生产入口未显式假设 capability role 的缺口，增加 session/current role 核验、secret-file URL、固定 host/database 和不同登录身份门禁。
@@ -295,12 +302,6 @@ Cycle final
 - 建立独立 checksum 的 append-only checkpoint ledger、精确 release/config/sequence/schedule 恢复、固定节拍 Worker、强制 telemetry、NO_AUTHORITY 进程入口和三态 SLO evaluator。
 - 定向 30/30、全 V2 130 pass / 0 fail / 4 explicit skip；checkpoint PG16 进程边界演练 1/1 PASS，证明 artifact 引用、最小权限、append-only、幂等和重启后 ticker-only 恢复。
 - 本机 live probe 两轮均因三家 provider endpoint 连接/请求超时而 `DEGRADED`，0 observed / 0 eligible；该项明确 FAIL/UNAVAILABLE，生产零变更。
-
-### 2026-07-20 / V2 M1.4 Full Eligible Universe and Collector Runtime
-
-- 建立多标的四分母、完整/增量 reconciliation、目录 tombstone、配额/并发/背压、冷启动、Store failure 和多阶段 recovery 状态机。
-- M1.4 定向 14/14、全 V2 110 pass / 0 fail / 2 explicit PG skip、两项隔离 PostgreSQL 16 integration 各 1/1、完整 `ci:production` 均通过；PG 中启动轮 17 artifact、增量轮追加 16 artifact，全 catalog 故障仍保存 21 accounting、0 eligible、0 Fact。
-- 未连接 live provider 或生产；下一入口为 M1.5 live no-authority Collector rehearsal 与 Shadow/SLO Gate。
 
 ## 15. 当前风险
 
@@ -315,8 +316,8 @@ Cycle final
 - Legacy 多套事实/决策/Candidate/Outcome 路径仍存在，单一 authority 未完成。
 - 数据库失败回退内存、前端合同过宽、health 语义和管理面权限仍有事实误导风险。
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
-- V2 M1.1-M1.5B0 已有本地数据、Worker、checkpoint、SLO 和 Shadow 安全边界证据；但三家 provider egress、Docker image、Compose merge、生产 migration、Shadow 与 SLO PASS 均未证明。
-- 高频 Fact 现有单表 append-only storage 没有物理 purge；在 M1.6 分区/retention 出口前禁止长期一分钟全市场写入。
+- V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；但三家 provider egress、Docker image、Compose merge、生产 migration、真实容量、Shadow 与 SLO PASS 均未证明。
+- M1.6 migration 前旧 V2 Fact 保持兼容但不自动清理；生产 preflight 必须证明旧 Fact 为零，非零时另做受控 backfill/retirement，不能进入长期 Shadow。
 
 ### P2
 
@@ -327,9 +328,9 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M1.6 是否保持 Fact 语义/lineage 不变，并用时间分区、受控 partition drop、容量水位、保留审计和恢复证据解决长期写入。
+1. M2.0 是否只冻结机会 taxonomy、Candidate/Episode/Thesis 合同和 point-in-time fixture，不绕过 M1.7 启动 Detector runtime。
 2. M1.5-B1 是否先在可达网络得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 fixture、官方文档或超时写成全市场证据。
-3. production Shadow 是否复用同一 NO_AUTHORITY entrypoint、精确 reader/writer role、secret file、完整 telemetry 和有限 profile，不创建平行实现。
+3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
 5. READY 是否由后端完整计划、执行可行性、结构 RR、净成本和运行健康共同决定。
 6. 数据缺失、CoinGlass 失败、429、stale 和数据库故障是否诚实降级。
@@ -352,10 +353,10 @@ Cycle final
 ## 18. 唯一下一入口
 
 ```text
-V2-M1.6-PARTITIONED-FACT-STORAGE Retention and Capacity Foundation
+V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES
 ```
 
-目标是为高频 `PointInTimeMarketFact` 建立可扩展时间分区、容量水位、受控物理保留、purge 审计和备份/恢复合同，不改变事实语义。外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行；二者通过后进入 M1.7 24 小时持续 SLO。不得接入页面、删除 Legacy、生成 Candidate/方向/Signal/Plan 或切换读权威。
+目标只冻结六类机会 taxonomy、Detector 输入、`DiscoveryCandidate -> CandidateEpisode -> OpportunityThesis` 生命周期、三分母和 point-in-time 黄金样本。外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行，随后进入 M1.7；在 M1 工程出口前不得启动 Detector runtime、读取 M1 authority、接入页面、生成 Signal/Plan 或使用 Outcome。
 
 ## 19. 活跃记忆维护规则
 

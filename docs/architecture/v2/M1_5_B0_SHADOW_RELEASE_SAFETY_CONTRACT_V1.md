@@ -47,9 +47,11 @@ Public GET Adapter
 
 `INSUFFICIENT_EVIDENCE` 不等于 PASS。CLI 对空行包、坏 JSON、部分 telemetry、错误 profile 和不满足时间窗口全部 fail closed。
 
-## 6. 新发现的长期存储阻断
+## 6. 当时发现的长期存储阻断与当前状态
 
-当前 `PointInTimeMarketFact` 逐标的写入单一 append-only `artifact_ledger`。它已有不可变性和 lineage，但没有按时间分区、受控 partition drop、容量水位、保留执行证据或 purge 审计。全市场一分钟长期写入会持续放大单表、索引、备份和恢复成本。
+B0 当时的 `PointInTimeMarketFact` 逐标的写入单一 append-only `artifact_ledger`。它已有不可变性和 lineage，但没有按时间分区、受控 partition drop、容量水位、保留执行证据或 purge 审计。全市场一分钟长期写入会持续放大单表、索引、备份和恢复成本。
+
+M1.6 现已完成本地分区、容量、restore-verified retention 和隔离 PG16 出口；生产 migration 与真实容量仍未证明。因此本地存储设计阻断已收口，但生产长期 Shadow 仍必须等待 M1.5-B1 与 M1.7。
 
 因此正确顺序调整为：
 

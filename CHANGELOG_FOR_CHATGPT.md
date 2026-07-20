@@ -2,6 +2,45 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M1.6 Partitioned Fact Storage Local Exit
+
+### 本轮目标
+
+把高频 `PointInTimeMarketFact` 从不可长期清理的单表写入改为可证明的 UTC 日分区、容量水位、备份恢复与最小权限 retention 地基，不改变 Fact 语义或交易逻辑。
+
+### 修改范围
+
+- 新 Fact 只写无 DEFAULT 的 UTC 日分区；旧账本只兼容迁移前 Fact 读取和精确幂等重试，数据库同时拒绝新 Fact 回写旧账本与旧身份重复写入新分区。
+- 建立有界活动身份注册表、不可变 CREATED/DROPPED 事件、backup evidence 和 retention run；清理时身份与分区原子收缩，已清理日期永久拒绝重建和重灌。
+- Audit 只登记 restore-verified backup evidence，Retention 只调用受控 ensure/inspect/drop；Writer、Reader、Replay 均不能 DROP。
+- 新增容量合同、隔离 PG16 dump/restore/replay/retention 演练及 M1.3-M1.5 数据库回归；未修改 Legacy、前端、API、Detector、Analysis、Strategy、Backtest 或生产。
+
+### 核心链路影响
+
+加固 `Universe -> Market Fact + Quality -> Runtime Truth` 的长期数据地基。本轮不提高机会发现率，不产生 Candidate、方向、等级、Signal、READY 或交易计划。
+
+### 测试结果
+
+- M1.6 定向 5/5，隔离 PostgreSQL 16 1/1 PASS；真实完成两日跨分区、17 条新 Fact、`pg_dump -> pg_restore -> replay parity PASS`、deterministic replay、保留/replay 阻断和 1 分区/2 Fact 原子 DROP。
+- M1.3 Store/Replay、M1.4 Collector、M1.5 Checkpoint 三项 PG16 回归各 1/1 PASS。
+- 全 V2 141 pass / 0 fail / 5 explicit external-dependency skips。
+- 完整 `ci:production`：`exit_code=0`；Legacy market 965/0、Worker 23/23、历史回测 4/4、M0 10/10、生产 build、golden 16/16 与安全门禁全部通过。
+- `backtest:formal`、production smoke 和 live provider 未运行；本轮不属于 formal 验收且生产零变更。
+
+### 是否部署
+
+未部署。未连接生产、未执行 production migration、分区预建、backup、retention、Compose、env、secret、Redis、Worker 或 GitHub main 变更。
+
+### 风险与遗留问题
+
+- 生产旧 V2 Fact 数量、真实写入率、WAL/磁盘、备份窗口、RTO/RPO、Docker image、live egress 和 Shadow/SLO 均未证明。
+- 迁移前旧 Fact 非零时必须另做受控 backfill/retirement，不能把兼容读取当成长期迁移完成。
+- 施工中真实发现并修复 SQL 名称歧义、冲突码丢失、过期 fixture、清理后错误泛化、永久身份墓碑膨胀和旧账本 SQL 旁路，未用跳过或降低门槛掩盖。
+
+### 下一轮建议
+
+只执行 `V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES` 本地合同包；M1.5-B1/M1.7 外部门禁未通过前，Detector runtime 继续封闭。
+
 ## 2026-07-20 / V2 M1.5-B0 Shadow Release Safety Local Exit
 
 ### 本轮目标
@@ -162,42 +201,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.4 Full Eligible Universe and Collector Runtime`，先扩大覆盖与采集运行地基，不越过 M1 做 Detector。
-
-## 2026-07-20 / V2 M1.2 Point-in-Time Feature and Context Local Slice
-
-### 本轮目标
-
-只读取 M1.1 冻结 Point-in-Time Fact，用同一纯函数建立首个跨三 Venue Feature、独立 online/replay 证明、FeatureQuality 和不产生方向的最小 Market Context。
-
-### 修改范围
-
-- 把跨 Venue Feature subject 从单一 instrument 修正为 `UNDERLYING_GROUP`，并升级 FeatureSet、FeatureQuality、MarketContext strict schema。
-- 新增精确十进制 `(max-min)/median` 价格分散计算；缺失、重复、stale、future-produced 或 later-cutoff Fact 均 fail closed。
-- FeatureSet 记录 ONLINE/REPLAY mode、独立 run ID 和 engine version；FeatureQuality 记录三份 snapshot/run/semantic hash，拒绝同对象、同 run、parity mismatch 和 replay nondeterminism。
-- Market Context 只在 fresh parity evidence 下识别 `FRAGMENTED`；低分散不写 `HEALTHY`，不推断 regime、volatility、breadth、correlation 或方向。
-- 更新 M1 合同、施工顺序、蓝图、机器矩阵、Context 与交付材料；未修改 Legacy 运行逻辑或生产。
-
-### 核心链路影响
-
-完成 `Point-in-Time Fact -> FeatureSet + FeatureQuality -> minimal MarketContext` 的首个本地纵切，为后续发现层提供可回放特征地基。本轮没有 Candidate、信号等级、Analysis、Strategy、交易计划或 READY。
-
-### 测试结果
-
-- `test:v2-m1-feature-context`：17/17 PASS。
-- `test:v2-foundation`：84/84 PASS。
-- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。
-- M0 机器出口 10/10、`typecheck`、`lint`、`build`、`backtest:golden` 16/16、forbidden/secret/security：PASS。
-- 完整 `ci:production` 退出码 0；`backtest:formal` 和 production smoke 未运行。
-
-### 是否部署
-
-未部署。未修改数据库、Redis、Worker、API、页面、Compose、env、secret、GitHub main 或腾讯云；生产继续 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
-
-### 风险与遗留问题
-
-- 目前只实现一个冻结 BTC 三 Venue 价格分散 Feature，不代表全市场 Feature、Detector 或提前发现能力已经形成。
-- online/replay 当前是本地独立 run artifact 证明，尚无持久化 Store、跨进程 replay manifest、live input 或生产 SLO。
-
-### 下一轮建议
-
-只执行 `V2-M1.3 Fact Store, Replay Manifest and Runtime Truth Rehearsal`，先在隔离本地环境证明 append-only、幂等、完整性、回放和五类运行真值，不执行生产 migration。

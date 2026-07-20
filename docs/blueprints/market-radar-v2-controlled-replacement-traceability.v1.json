@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.2",
-  "status": "m1_5_b0_shadow_release_safety_local_pass_storage_scalability_blocker_open",
-  "generatedAt": "2026-07-20T08:53:16+08:00",
+  "status": "m1_6_partitioned_fact_storage_local_pg16_pass_external_shadow_pending",
+  "generatedAt": "2026-07-20T09:56:24+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_5_B0_SHADOW_RELEASE_SAFETY_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_6_PARTITIONED_FACT_STORAGE_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -27,6 +27,7 @@
     "m1FullUniverseCollectorRuntimeContract": "docs/architecture/v2/M1_4_FULL_UNIVERSE_COLLECTOR_RUNTIME_CONTRACT_V1.md",
     "m1LiveNoAuthorityCollectorContract": "docs/architecture/v2/M1_5_LIVE_NO_AUTHORITY_COLLECTOR_CONTRACT_V1.md",
     "m1ShadowReleaseSafetyContract": "docs/architecture/v2/M1_5_B0_SHADOW_RELEASE_SAFETY_CONTRACT_V1.md",
+    "m1PartitionedFactStorageContract": "docs/architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -45,7 +46,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_5_b0_local_safety_pass_docker_and_live_unproven_storage_partitioning_required",
+    "v2ImplementationStatus": "m1_6_local_partition_retention_and_restore_pass_production_migration_live_and_slo_unproven",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -681,17 +682,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.5-B0-LOCAL",
-    "name": "shadow_release_identity_secret_observation_and_container_safety",
-    "status": "local_engineering_41_of_41_pass_docker_build_unproven_production_unchanged",
+    "id": "V2-M1.6-PARTITIONED-FACT-STORAGE-LOCAL",
+    "name": "partitioned_fact_storage_retention_capacity_and_restore_foundation",
+    "status": "local_engineering_and_postgres16_rehearsal_pass_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M1.6-PARTITIONED-FACT-STORAGE",
-    "name": "partitioned_point_in_time_fact_storage_retention_and_capacity_foundation",
-    "status": "ready_for_local_contract_and_implementation_production_gate_separate",
+    "id": "V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES",
+    "name": "opportunity_taxonomy_candidate_lifecycle_contracts_and_point_in_time_golden_fixtures",
+    "status": "local_contract_work_allowed_m2_runtime_blocked_until_m1_exit",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false

@@ -14,6 +14,11 @@ import {
   M1_STORE_POSTGRES_MIGRATION_SQL,
   M1_STORE_POSTGRES_SCHEMA,
 } from "../store/postgres-schema";
+import { M1_FACT_RETENTION_IDENTITY } from "../store/partitioned-fact-contract";
+import {
+  M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL,
+  M1_PARTITIONED_FACT_TABLE,
+} from "../store/partitioned-fact-postgres-schema";
 import { M1CollectorRuntime } from "./collector-runtime";
 import { createPublicRestCollectorAdapterRuntime } from "./adapters/public-rest-adapter-runtime";
 
@@ -39,6 +44,16 @@ test(
     let writer: Pool | undefined;
     try {
       await admin.query(M1_STORE_POSTGRES_MIGRATION_SQL);
+      await admin.query(M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL);
+      await admin.query(`
+        SET ROLE ${M1_FACT_RETENTION_IDENTITY};
+        SELECT * FROM ${M1_STORE_POSTGRES_SCHEMA}.ensure_market_fact_partitions(
+          '2026-01-15'::date,
+          '2026-01-17'::date,
+          'm1-4-collector-rehearsal'
+        );
+        RESET ROLE;
+      `);
       await admin.query(`
         CREATE ROLE ${WRITER_LOGIN} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
         GRANT ${M1_STORE_IDENTITIES.writer} TO ${WRITER_LOGIN};
@@ -82,7 +97,11 @@ test(
         count: string;
       }>(`
         SELECT artifact_name, count(*)::text AS count
-        FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+        FROM (
+          SELECT artifact_name FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+          UNION ALL
+          SELECT artifact_name FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+        ) AS all_artifacts
         GROUP BY artifact_name
         ORDER BY artifact_name
       `);
@@ -99,7 +118,11 @@ test(
         SELECT
           jsonb_array_length(payload->'accounting')::integer AS accounted,
           (payload->>'eligibleCount')::integer AS eligible
-        FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+        FROM (
+          SELECT * FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+          UNION ALL
+          SELECT * FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+        ) AS all_artifacts
         WHERE artifact_name = 'EligibleInstrumentSnapshot'
       `);
       assert.deepEqual(persistedDenominator.rows, [{
@@ -120,7 +143,11 @@ test(
         count: string;
       }>(`
         SELECT artifact_name, count(*)::text AS count
-        FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+        FROM (
+          SELECT artifact_name FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+          UNION ALL
+          SELECT artifact_name FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+        ) AS all_artifacts
         GROUP BY artifact_name
         ORDER BY artifact_name
       `);
@@ -154,7 +181,11 @@ test(
         count: string;
       }>(`
         SELECT artifact_name, count(*)::text AS count
-        FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+        FROM (
+          SELECT artifact_name FROM ${M1_STORE_POSTGRES_SCHEMA}.artifact_ledger
+          UNION ALL
+          SELECT artifact_name FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE}
+        ) AS all_artifacts
         GROUP BY artifact_name
         ORDER BY artifact_name
       `);

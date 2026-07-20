@@ -109,6 +109,8 @@
     "test:v2-m1-collector": "npm run build:market-cli && node --test .tmp/market-tests/v2/modules/market-fact/collector/request-governor.test.js .tmp/market-tests/v2/modules/market-fact/collector/collector-runtime.test.js .tmp/market-tests/v2/modules/market-fact/collector/collector-checkpoint.test.js .tmp/market-tests/v2/modules/market-fact/collector/collector-worker.test.js .tmp/market-tests/v2/modules/market-fact/collector/collector-slo.test.js .tmp/market-tests/v2/modules/market-fact/collector/collector-shadow-evidence.test.js .tmp/market-tests/v2/entrypoints/m1-collector-worker.test.js .tmp/market-tests/v2/entrypoints/m1-collector-slo-report.test.js scripts/v2/production/m1-shadow-package.test.mjs",
     "v2:m1:collector:pg16-rehearsal": "bash scripts/v2/rehearsal/m1-collector-postgres16.sh",
     "v2:m1:collector-checkpoint:pg16-rehearsal": "bash scripts/v2/rehearsal/m1-collector-checkpoint-postgres16.sh",
+    "test:v2-m1-partitioned-fact": "npm run build:market-cli && node --test .tmp/market-tests/v2/modules/market-fact/store/partitioned-fact-contract.test.js .tmp/market-tests/v2/modules/market-fact/store/partitioned-fact-postgres-schema.test.js",
+    "v2:m1:partitioned-fact:pg16-rehearsal": "bash scripts/v2/rehearsal/m1-partitioned-fact-postgres16.sh",
     "v2:m1:collector:live-no-authority-rehearsal": "bash scripts/v2/rehearsal/m1-live-no-authority-postgres16.sh",
     "v2:consumer-map:generate": "npm run build:market-cli && node scripts/v2/generate-legacy-consumer-map.mjs",
     "v2:m0:verify": "npm run build:market-cli && npm run v2:m0:verify:compiled",
