@@ -90,7 +90,7 @@ function liveTap() {
   return [
     "TAP version 13",
     `# ${JSON.stringify(runtime)}`,
-    '# {"sloConclusion":"INSUFFICIENT_EVIDENCE"}',
+    '# {"sloConclusion":"INSUFFICIENT_EVIDENCE","sloReasons":["minimum_cycle_count_not_met","minimum_observation_window_not_met"]}',
     "ok 1 - collects two live public no-authority cycles",
     "# tests 1",
     "# pass 1",
@@ -110,6 +110,17 @@ function mutateLiveRuntime(input, mutate) {
   input.liveTap = input.liveTap.replace(
     runtimeLine,
     `# ${JSON.stringify(runtime)}`,
+  );
+}
+
+function setLiveSlo(input, conclusion, reasons) {
+  const sloLine = input.liveTap
+    .split("\n")
+    .find((line) => line.startsWith("# {\"sloConclusion\""));
+  assert.ok(sloLine);
+  input.liveTap = input.liveTap.replace(
+    sloLine,
+    `# ${JSON.stringify({ sloConclusion: conclusion, sloReasons: reasons })}`,
   );
 }
 
@@ -383,6 +394,10 @@ test("passes only technical reachability while preserving honest NOT_READY cycle
     ]);
     runtime.cycles[1].trigger = "RECOVERY";
   });
+  setLiveSlo(input, "FAIL", [
+    "fresh_coverage_below_slo",
+    "operational_ready_ratio_below_slo",
+  ]);
 
   const report = buildReachableRunnerEvidence(input);
   assert.equal(report.status, "PASS_REACHABLE_DOCKER_RUNNER_PREFLIGHT");
@@ -398,8 +413,12 @@ test("passes only technical reachability while preserving honest NOT_READY cycle
   ]);
   assert.equal(
     report.liveValidation.businessReadinessConclusion,
-    "INSUFFICIENT_EVIDENCE",
+    "FAIL",
   );
+  assert.deepEqual(report.liveValidation.sloReasons, [
+    "fresh_coverage_below_slo",
+    "operational_ready_ratio_below_slo",
+  ]);
 });
 
 test("rejects inflated readiness, incomplete collection, or unexplained NOT_READY", () => {
@@ -446,6 +465,21 @@ test("rejects inflated readiness, incomplete collection, or unexplained NOT_READ
   assert.throws(
     () => buildReachableRunnerEvidence(unexplainedNotReady),
     /must explain NOT_READY/u,
+  );
+
+  const understatedSlo = fixture();
+  mutateLiveRuntime(understatedSlo, (runtime) => {
+    markCyclePartiallyFresh(runtime.cycles[0], [
+      "fresh_coverage_incomplete",
+    ]);
+    markCyclePartiallyFresh(runtime.cycles[1], [
+      "fresh_coverage_incomplete",
+    ]);
+    runtime.cycles[1].trigger = "RECOVERY";
+  });
+  assert.throws(
+    () => buildReachableRunnerEvidence(understatedSlo),
+    /SLO conclusion must preserve observed readiness truth/u,
   );
 });
 

@@ -207,9 +207,28 @@ test(
         },
         releaseId: config.releaseId,
       });
-      assert.equal(slo.conclusion, "INSUFFICIENT_EVIDENCE");
+      const allCyclesReady = report.cycles.every(
+        (cycle) => cycle.operationalReadiness === "READY",
+      );
+      assert.equal(
+        slo.conclusion,
+        allCyclesReady ? "INSUFFICIENT_EVIDENCE" : "FAIL",
+      );
+      if (!allCyclesReady) {
+        assert.ok(slo.reasons.includes("operational_ready_ratio_below_slo"));
+        if (report.cycles.some(
+          (cycle) =>
+            cycle.runtime.coverage.freshCount <
+              cycle.runtime.coverage.eligibleCount,
+        )) {
+          assert.ok(slo.reasons.includes("fresh_coverage_below_slo"));
+        }
+      }
 
-      console.log(JSON.stringify({ sloConclusion: slo.conclusion }));
+      console.log(JSON.stringify({
+        sloConclusion: slo.conclusion,
+        sloReasons: slo.reasons,
+      }));
     } finally {
       await writer?.end();
       await reader?.end();

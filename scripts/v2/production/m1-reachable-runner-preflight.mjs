@@ -837,20 +837,60 @@ function validateLiveEvidence(input) {
       ? "INCREMENTAL_TICKER"
       : "RECOVERY",
   );
-  assert.equal(parsed.slo.sloConclusion, "INSUFFICIENT_EVIDENCE");
   const operationalReadyCycleCount = cycles.filter(
     (cycle) => cycle.operationalReadiness === "READY",
   ).length;
+  const expectedSloConclusion = operationalReadyCycleCount === cycles.length
+    ? "INSUFFICIENT_EVIDENCE"
+    : "FAIL";
+  assert.equal(
+    parsed.slo.sloConclusion,
+    expectedSloConclusion,
+    "short-window SLO conclusion must preserve observed readiness truth",
+  );
+  assert.ok(Array.isArray(parsed.slo.sloReasons), "SLO reasons must be an array");
+  const sloReasons = parsed.slo.sloReasons.map((reason) => {
+    assert.ok(
+      typeof reason === "string" && reason.length > 0,
+      "SLO reason must be a non-empty string",
+    );
+    return reason;
+  });
+  assert.deepEqual(
+    sloReasons,
+    [...new Set(sloReasons)].sort(),
+    "SLO reasons must be unique and sorted",
+  );
+  if (expectedSloConclusion === "FAIL") {
+    assert.ok(
+      sloReasons.includes("operational_ready_ratio_below_slo"),
+      "SLO failure must preserve the readiness threshold violation",
+    );
+    if (cycles.some(
+      (cycle) => cycle.coverage.freshCount < cycle.coverage.eligibleCount,
+    )) {
+      assert.ok(
+        sloReasons.includes("fresh_coverage_below_slo"),
+        "SLO failure must preserve the freshness threshold violation",
+      );
+    }
+  } else {
+    assert.deepEqual(sloReasons, [
+      "minimum_cycle_count_not_met",
+      "minimum_observation_window_not_met",
+    ]);
+  }
   return {
     authorityMode: parsed.runtime.authorityMode,
     automaticTradingAllowed: parsed.runtime.automaticTradingAllowed,
-    businessReadinessConclusion: "INSUFFICIENT_EVIDENCE",
+    businessReadinessConclusion: parsed.slo.sloConclusion,
     cycleCount: cycles.length,
     cycles,
     notReadyCycleCount: cycles.length - operationalReadyCycleCount,
     operationalReadyCycleCount,
     releaseId: parsed.runtime.releaseId,
     sloConclusion: parsed.slo.sloConclusion,
+    sloReasons,
     status: parsed.runtime.status,
     technicalPreflightConclusion: "PASS_REACHABLE_DOCKER_RUNNER",
   };
@@ -904,14 +944,18 @@ export function verifyReachableRunnerEvidence(report) {
   );
   assert.equal(
     report.liveValidation.businessReadinessConclusion,
-    "INSUFFICIENT_EVIDENCE",
+    report.liveValidation.sloConclusion,
+  );
+  assert.ok(
+    report.liveValidation.sloConclusion === "FAIL" ||
+      report.liveValidation.sloConclusion === "INSUFFICIENT_EVIDENCE",
   );
   assert.equal(
     report.liveValidation.operationalReadyCycleCount +
       report.liveValidation.notReadyCycleCount,
     report.liveValidation.cycleCount,
   );
-  assert.equal(report.liveValidation.sloConclusion, "INSUFFICIENT_EVIDENCE");
+  assert.notEqual(report.liveValidation.sloConclusion, "PASS");
   return report;
 }
 
