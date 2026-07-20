@@ -719,10 +719,12 @@ export function verifyReachableRunnerEvidence(report) {
       report.hostSafety?.baselineDigest,
     );
     assert.match(report.supplyChain.runnerContractDigest, SHA256_PATTERN);
+    assert.match(report.supplyChain.runnerBinaryDigest, SHA256_PATTERN);
   } else {
     assert.equal(report.scope.productionHostUsed, false);
     assert.equal("hostSafety" in report, false);
     assert.equal("runnerContractDigest" in report.supplyChain, false);
+    assert.equal("runnerBinaryDigest" in report.supplyChain, false);
   }
   assert.equal(report.scope.automaticTradingAllowed, false);
   assert.equal(report.liveValidation.sloConclusion, "INSUFFICIENT_EVIDENCE");
@@ -769,6 +771,11 @@ export function buildReachableRunnerEvidence(input) {
         input.runnerContractBytes.length > 0,
       "Tencent runner contract bytes are required",
     );
+    assert.ok(
+      Buffer.isBuffer(input.runnerBinaryBytes) &&
+        input.runnerBinaryBytes.length > 0,
+      "Tencent runner binary bytes are required",
+    );
   }
 
   const core = {
@@ -814,7 +821,10 @@ export function buildReachableRunnerEvidence(input) {
       validatorDigest: byteDigest(input.validatorBytes),
       workflowDigest: byteDigest(input.workflowBytes),
       ...(runnerProvider === B1A_TENCENT_RUNNER_PROVIDER
-        ? { runnerContractDigest: byteDigest(input.runnerContractBytes) }
+        ? {
+          runnerBinaryDigest: byteDigest(input.runnerBinaryBytes),
+          runnerContractDigest: byteDigest(input.runnerContractBytes),
+        }
         : {}),
     },
     ...(hostSafety === null ? {} : { hostSafety }),

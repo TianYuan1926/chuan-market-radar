@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile, mkdir, mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
 import { homedir, arch, cpus, loadavg, platform } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -351,6 +352,7 @@ async function run() {
   let hostSafetyInput;
   let hostSafetySummary;
   let runtimeEvidence;
+  let runnerBinaryBytes;
   let liveTap = "";
   let liveExitCode = 0;
   let failure;
@@ -401,6 +403,28 @@ async function run() {
       failureCode: "POSTGRES_BASE_PULL_FAILED",
       timeout: 600_000,
     });
+
+    stage("PROVE_PINNED_RUNNER_BINARY");
+    runnerBinaryBytes = await readFile(process.execPath);
+    const runnerBinaryDigest = createHash("sha256")
+      .update(runnerBinaryBytes)
+      .digest("hex");
+    const pinnedBinaryDigest = docker([
+      "run",
+      "--rm",
+      "--network",
+      "none",
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--entrypoint",
+      "sha256sum",
+      B1A_NODE_BASE_IMAGE,
+      "/usr/local/bin/node",
+    ], { failureCode: "RUNNER_BINARY_PROOF_FAILED" }).stdout.trim().split(/\s+/u)[0];
+    assert.equal(runnerBinaryDigest, pinnedBinaryDigest);
 
     stage("BUILD_EXACT_LIMITED_IMAGE");
     docker(["buildx", "create", "--name", names.builder, "--driver", "docker-container"], {
@@ -734,6 +758,7 @@ async function run() {
         runAttempt: "1",
         runId,
         runnerArch: "X64",
+        runnerBinaryBytes,
         runnerContractBytes: await readFile(join(REPO_ROOT, RUNNER_PATH)),
         runnerOs: "Linux",
         runnerProvider: B1A_TENCENT_RUNNER_PROVIDER,

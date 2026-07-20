@@ -357,6 +357,7 @@ test("rejects runtime privilege, source pollution, and production-like storage",
 test("binds Tencent isolated execution to exact host restoration evidence", () => {
   const input = fixture();
   input.runnerProvider = B1A_TENCENT_RUNNER_PROVIDER;
+  input.runnerBinaryBytes = Buffer.from("pinned node binary\n");
   input.runnerContractBytes = Buffer.from("isolated runner contract\n");
   input.hostSafety = tencentHostSafety();
   input.workerContainerInspect[0].Config.Labels = {
@@ -390,6 +391,7 @@ test("binds Tencent isolated execution to exact host restoration evidence", () =
     report.hostSafety.postCleanupDigest,
   );
   assert.match(report.supplyChain.runnerContractDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(report.supplyChain.runnerBinaryDigest, /^sha256:[0-9a-f]{64}$/u);
 });
 
 test("rejects Tencent host restart, residue, and weak resource claims", () => {
