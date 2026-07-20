@@ -29,7 +29,7 @@ export type M0ExitReport = Readonly<{
   legacySourceFiles: number;
   productionMutationPerformed: false;
   productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION";
-  nextEntry: "V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS M1_RUNTIME_BLOCKED";
+  nextEntry: "V2-M2.2-HISTORICAL-REPLAY-LIFECYCLE-GATE DETECTORS_DRAFT";
 }>;
 
 type CheckRunner = () => string;
@@ -346,7 +346,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     legacySourceFiles: currentMap.totals.sourceFiles,
     productionMutationPerformed: false,
     productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
-    nextEntry: "V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS M1_RUNTIME_BLOCKED",
+    nextEntry: "V2-M2.2-HISTORICAL-REPLAY-LIFECYCLE-GATE DETECTORS_DRAFT",
   };
 }
 

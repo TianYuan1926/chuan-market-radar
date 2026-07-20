@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.2",
-  "status": "m2_0_discovery_contracts_local_pass_m1_runtime_and_external_shadow_pending",
-  "generatedAt": "2026-07-20T11:42:08+08:00",
+  "status": "m2_1_draft_replay_kernels_local_pass_detectors_draft_external_gates_pending",
+  "generatedAt": "2026-07-20T12:48:46+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M2_0_DISCOVERY_CONTRACTS_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M2_1_DRAFT_REPLAY_KERNELS_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -29,6 +29,7 @@
     "m1ShadowReleaseSafetyContract": "docs/architecture/v2/M1_5_B0_SHADOW_RELEASE_SAFETY_CONTRACT_V1.md",
     "m1PartitionedFactStorageContract": "docs/architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md",
     "m2DiscoveryContractsAndGoldenFixtures": "docs/architecture/v2/M2_0_DISCOVERY_CONTRACTS_AND_GOLDEN_FIXTURES_V1.md",
+    "m2DraftReplayKernelsContract": "docs/architecture/v2/M2_1_DRAFT_REPLAY_KERNELS_CONTRACT_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -47,7 +48,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m2_0_local_discovery_contract_pass_m1_runtime_live_and_slo_unproven",
+    "v2ImplementationStatus": "m2_1_local_draft_replay_kernel_pass_detectors_uncalibrated_candidate_emission_false_m1_runtime_live_and_slo_unproven",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -475,6 +476,22 @@
     "unavailableMayDisappearFromDenominator": false,
     "mayReplaceEarlyDetectionResearchDenominators": false
   },
+  "m2DraftReplayKernels": {
+    "lifecycle": "DRAFT",
+    "calibrationStatus": "UNCALIBRATED_DRAFT_THRESHOLDS",
+    "candidateEmissionAllowed": false,
+    "runtimeReadAllowed": false,
+    "detectors": [
+      "v2.pre-move.compression",
+      "v2.pre-move.flow-divergence",
+      "v2.pre-move.liquidity-shift",
+      "v2.breakout-retest.breakout-edge",
+      "v2.breakout-retest.role-flip-retest"
+    ],
+    "nextLifecycleGate": "historical_point_in_time_replay_with_event_candidate_and_matched_non_event_denominators",
+    "syntheticFixturesMayApproveReplayValidated": false,
+    "automaticLifecyclePromotionAllowed": false
+  },
   "dataAuthority": {
     "postgres": [
       "universe",
@@ -656,7 +673,12 @@
         {
           "id": "M2.1",
           "name": "pre_move_and_breakout_retest_replay_kernels",
-          "status": "replay_only_local_work_allowed_runtime_blocked"
+          "status": "local_draft_kernel_pass_uncalibrated_no_candidate_emission_runtime_blocked"
+        },
+        {
+          "id": "M2.2",
+          "name": "historical_replay_and_detector_lifecycle_gate",
+          "status": "local_replay_gate_work_allowed_detectors_remain_draft"
         }
       ]
     },
@@ -741,17 +763,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES",
-    "name": "opportunity_taxonomy_candidate_lifecycle_contracts_and_point_in_time_golden_fixtures",
-    "status": "local_contract_pass_m1_runtime_blocked_production_unchanged",
+    "id": "V2-M2.1-PRE-MOVE-BREAKOUT-DRAFT-REPLAY-KERNELS",
+    "name": "pre_move_and_breakout_retest_uncalibrated_draft_replay_kernels",
+    "status": "local_draft_kernel_pass_no_candidate_emission_m1_runtime_blocked_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS",
-    "name": "pre_move_and_breakout_retest_point_in_time_replay_only_detector_kernels",
-    "status": "replay_only_local_work_allowed_m2_runtime_blocked_until_m1_exit",
+    "id": "V2-M2.2-HISTORICAL-REPLAY-AND-DETECTOR-LIFECYCLE-GATE",
+    "name": "historical_point_in_time_cohorts_denominators_metrics_holdout_and_lifecycle_gate",
+    "status": "local_replay_gate_work_allowed_detectors_remain_draft_m2_runtime_blocked_until_m1_exit",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false

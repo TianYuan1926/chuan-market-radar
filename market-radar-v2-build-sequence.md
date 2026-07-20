@@ -20,7 +20,8 @@
 - [ ] **M1.7 Sustained 24h Shadow/SLO**：等待 M1.5-B1 与 M1.6 同时通过后，以同一 release/config 连续运行至少 24 小时并满足固定 SLO、重启恢复、成本与容量门槛，才允许 M1 减数并向 M2 runtime 开放读取许可。
 - [ ] **M2 发现与深验纵向切片**：先做 Pre-Move 和 Breakout/Retest，贯通 `DiscoveryCandidate -> CandidateEpisode + OpportunityThesis -> EvidencePackage`；稳定后再并行增加其余四个机会族。验证：Candidate 不带等级/计划，point-in-time replay 可复现，三分母、队列 SLA、冷启动和漂移成立。
 - [x] **M2.0 发现合同与黄金样本（可并行本地）**：已冻结六族十四模式、Detector event/knowledge 双 cutoff 输入、Candidate/Episode/Thesis v2 生命周期、UTC 去重、三层运行漏斗和 19 个 point-in-time fixture。状态：`LOCAL_CONTRACT_PASS / M1_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED`；Candidate 仍无等级/计划，fixture 无 Outcome/future material。
-- [ ] **M2.1 Pre-Move + Breakout/Retest Replay Kernels（可并行本地）**：只在冻结 fixture 和显式 point-in-time 输入上实现多空/UNKNOWN 纯函数检测内核、reason/counter-hint 和确定性重放；不得读取 M1 Store/runtime、不得写 Candidate DB、不得接 Worker/API/UI，不得生成等级、READY 或交易计划。状态目标：`REPLAY_ONLY_LOCAL_PASS / M1_RUNTIME_BLOCKED`。
+- [x] **M2.1 Pre-Move + Breakout/Retest DRAFT Replay Kernels（可并行本地）**：已建立三个 Pre-Move 与两个 Breakout/Retest 独立纯函数内核、显式多空/UNKNOWN、late/noise/fakeout veto、缺失诚实降级、确定性 digest 和注册身份防篡改。状态：`LOCAL_DRAFT_KERNEL_PASS / UNCALIBRATED / NO_CANDIDATE_EMISSION / M1_RUNTIME_BLOCKED`；合成样本不能把生命周期升级为 REPLAY_VALIDATED。
+- [ ] **M2.2 Historical Replay + Detector Lifecycle Gate（可并行本地）**：建立真实冻结 point-in-time historical cohort、数据许可/lineage、candidate/event/matched-non-event 三分母、family/direction/regime 分层 recall/precision/lead-time/late-noise、threshold sensitivity、全部失败试验和 untouched holdout。未达到门槛时必须 FAIL/INSUFFICIENT，不得调到合成样本全中后自批，不得发 Candidate 或启动 runtime。
 - [ ] **M3 唯一决策纵向切片**：完成 family-specific Analysis、Evidence/Setup 双评级、StrategyDraft、Execution Feasibility 唯一终审、Personal/Portfolio Risk。验证：只有 Final Decision 能产生 READY，false READY=0，结构与净 RR 均不低于 3，所有关键缺失 fail closed。
 - [ ] **M4 单一读模型与专业工作台**：先建立 DecisionSnapshot 和站内 Alert，再重建 Inbox、Token Workbench、Review、System。验证：页面零 provider/decision 调用，同一 snapshot 在所有视图一致，E2E、a11y、visual、performance 和注意力预算通过。
 - [ ] **M5 结果与研究治理**：从 M2 首个 Episode 起并行采集 Outcome，但只有冻结数据成熟后才评估；Research 与 Evaluation 物理分离。验证：future leak=0、Missed Movers/对照组完整、全部试验登记、Challenger 不能自批或自动晋级。
@@ -44,10 +45,10 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M2.0 Discovery Contracts and Golden Fixtures Local Exit
-Current local engineering package: V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS
+Last completed package: V2-M2.1 Pre-Move and Breakout/Retest DRAFT Replay Kernels
+Current local engineering package: V2-M2.2-HISTORICAL-REPLAY-AND-DETECTOR-LIFECYCLE-GATE
 Pending external gate: V2-M1.5-B1-EGRESS-EARLY-SHADOW-GATE
-Current status: M2.0_LOCAL_CONTRACT_PASS / M2.1_REPLAY_ONLY_ALLOWED / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
+Current status: M2.1_LOCAL_DRAFT_KERNEL_PASS / M2.2_REPLAY_GATE_ALLOWED / DETECTORS_STILL_DRAFT / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

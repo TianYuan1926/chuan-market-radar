@@ -2,6 +2,45 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M2.1 Pre-Move and Breakout/Retest DRAFT Replay Kernels
+
+### 本轮目标
+
+实现最早两类机会的五个独立 DRAFT 纯函数内核，证明双 cutoff 输入、长短非对称、UNKNOWN/冲突、veto、缺失降级、确定性和篡改防线，同时拒绝用合成样本夸大 Detector 能力。
+
+### 修改范围
+
+- 新增三个 Pre-Move 内核：Compression、Flow Divergence、Liquidity Shift；新增 Breakout Edge 与 Role-Flip Retest 两个内核。
+- 阈值版本固定标记 `UNCALIBRATED_DRAFT_THRESHOLDS`；Detector lifecycle=DRAFT、candidateEmissionAllowed=false、runtimeReadAllowed=false。
+- 输入要求 observation 唯一、FeatureSet lineage、event cutoff 和 value-quality 一致；输出重算 digest/ID，并锁定 detector/version/family/pattern 注册身份。
+- 长短规则使用独立 semantic key；late/noise/fakeout veto 优先，缺少相反方向数据不会被静默写成 NO_MATCH。
+- 未修改 Legacy、M1 runtime、Deep、Analysis、Strategy、Outcome、前端、API、DB、Redis、Worker 或生产。
+
+### 核心链路影响
+
+在 `Multi-Opportunity Detection` 内形成 Pre-Move 与 Breakout/Retest 的 DRAFT 计算地基。本轮不发 Candidate，不产生 Signal、等级、READY 或交易计划，不证明真实市场发现率。
+
+### 测试结果
+
+- M2.1 定向 10/10；M2.0 回归 16/16；`typecheck`、`lint` PASS。
+- 全 V2：172 tests / 167 pass / 0 fail / 5 explicit external-dependency skips。
+- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、历史回测 4/4、全 V2 167/0/5 skip、M0 10/10、build、golden 16/16 和安全门禁全部通过。
+- `backtest:formal`、live、Shadow、production smoke 和 migration 未运行。
+- 首次 typecheck 拒绝通用 number/boolean probe；已拆分类型安全 probe。反审计另补 evaluation digest 重算与 Detector 注册身份防篡改。
+
+### 是否部署
+
+未部署。没有读取 M1 authority、写 Candidate、升级 Detector 生命周期或改变生产。
+
+### 风险与遗留问题
+
+- 阈值尚未在真实冻结 historical cohort 上校准，禁止部署或据此交易。
+- 缺少 event/candidate/matched-non-event 三分母、regime/direction 分层指标、threshold sensitivity 和 untouched holdout。
+
+### 下一轮建议
+
+只执行 `V2-M2.2-HISTORICAL-REPLAY-AND-DETECTOR-LIFECYCLE-GATE`；真实 replay 未过线前保持 DRAFT 和 Candidate 禁发。
+
 ## 2026-07-20 / V2 M2.0 Discovery Contracts and Golden Fixtures Local Exit
 
 ### 本轮目标
@@ -161,43 +200,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.5-LIVE-SHADOW-GATE`：先在可达网络完成同一 entrypoint 的 live 四分母证明，再经独立 Gate 启动 no-authority Shadow；不进入 M2 authority。
-
-## 2026-07-20 / V2 M1.4 Full Eligible Universe and Collector Runtime
-
-### 本轮目标
-
-把单 BTC 三 Venue 证据切片扩大为多标的完整 accounting 与受控 Collector Runtime，建立全量/增量 reconciliation、配额、背压、恢复、四分母和 durable Store 闭环。
-
-### 修改范围
-
-- 新增 21 observed / 15 eligible 的 test-only 多标的 provider fixture，以及完整 catalog、Bybit 多页、ticker 和故障 harness。
-- 新增 Collector 状态机、strict telemetry、provider quota、global/per-provider concurrency、有限队列、冷启动、周期 reconciliation、Store failure 和 recovery。
-- 完整成功 catalog 中消失标的保留 `DELISTING` tombstone；provider/分页失败保留为 `UNAVAILABLE`，不静默缩小 accounting denominator。
-- M1 Store 允许 Universe cutoff 早于 ticker cutoff，并支持 eligible=0 的 exact empty Fact denominator；原子、幂等和 append-only 防线不变。
-- 新增隔离 PostgreSQL 16 Collector 演练和 M1.4 合同/报告；未修改 Legacy 或生产。
-
-### 核心链路影响
-
-完成 `Universe Registry -> Market Fact + Quality -> append-only M1 Store -> Collector telemetry` 的本地多标的闭环，为后续 live 全市场发现提供可信覆盖和恢复地基。本轮没有 Candidate、方向、信号或交易计划。
-
-### 测试结果
-
-- M1.4 定向 14/14 PASS；全 V2 110 pass / 0 fail / 2 explicit PG skip，两项 PG integration 均已分别真实运行 1/1 PASS。
-- 隔离 PostgreSQL 16 Collector integration：1/1 PASS；启动、增量和全 catalog 故障均真实落库。
-- M1.3 PostgreSQL 16 Store/Replay integration：1/1 PASS，回归未破坏。
-- Legacy 核心 965 pass / 0 fail / 4 skip；workers 23/23；historical 4/4；M0 10/10；build、golden 16/16、forbidden/secret/security PASS。
-- 最终单实例 `ci:production`：`exit_code=0`。
-- `backtest:formal` 与 production smoke 未运行；生产零变更。
-
-### 是否部署
-
-未部署。所有 PostgreSQL cluster 均为本机临时实例且退出后销毁；未连接腾讯云、Redis、Worker、Compose、env、secret 或 GitHub main。
-
-### 风险与遗留问题
-
-- 多标的数量来自确定性 fixture，不代表 live provider 的真实全市场规模。
-- 尚无连续 Worker、durable restart checkpoint load、Shadow/SLO、生产 migration 或 authority 证据。
-
-### 下一轮建议
-
-只执行 `V2-M1.5 Live No-Authority Collector Rehearsal and Shadow/SLO Entry`，先证明 live provider、连续 coverage/freshness、资源、恢复和成本，不进入 Detector。
