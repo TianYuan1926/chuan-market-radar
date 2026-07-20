@@ -89,6 +89,34 @@ export function parseEarlyShadowRunnerArguments(arguments_) {
   return expectedSourceCommit;
 }
 
+export function earlyShadowWorkerEnvironment(input) {
+  assert.match(input.sourceCommit, /^[0-9a-f]{40}$/u);
+  assert.equal(
+    input.releaseId,
+    `${B1B_RELEASE_PREFIX}:${input.sourceCommit}`,
+    "early-shadow release must bind the exact source commit",
+  );
+  return Object.freeze([
+    "NODE_ENV=production",
+    "V2_M1_COLLECTOR_AUTHORITY_MODE=NO_AUTHORITY",
+    "V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED=false",
+    `V2_M1_COLLECTOR_SOURCE_COMMIT=${input.sourceCommit}`,
+    `V2_M1_COLLECTOR_RELEASE_ID=${input.releaseId}`,
+    "V2_M1_COLLECTOR_POLICY_VERSION=m1-live-linear-usdt-perpetual.v1",
+    "V2_M1_COLLECTOR_RUN_PROFILE=EARLY_30_MINUTES",
+    "V2_M1_COLLECTOR_DATABASE_HOST=v2-m1-postgres",
+    "V2_M1_COLLECTOR_DATABASE_NAME=v2_m1_b1b",
+    "V2_M1_COLLECTOR_CYCLE_INTERVAL_MS=60000",
+    "V2_M1_COLLECTOR_MAX_CYCLES=31",
+    "V2_M1_COLLECTOR_MAX_FACT_AGE_MS=60000",
+    "V2_M1_COLLECTOR_MAX_SEQUENCE_GAP_MS=300000",
+    "V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS=3600000",
+    "V2_M1_COLLECTOR_RETENTION_MS=604800000",
+    "V2_M1_COLLECTOR_WRITER_DATABASE_URL_FILE=/run/secrets/v2_m1_writer_database_url",
+    "V2_M1_COLLECTOR_READER_DATABASE_URL_FILE=/run/secrets/v2_m1_reader_database_url",
+  ]);
+}
+
 async function waitForPostgres(name) {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     const health = docker([
@@ -401,25 +429,10 @@ export async function runEarlyShadow() {
     );
 
     stage("RUN_ATOMIC_31_CYCLE_SHADOW");
-    const environment = [
-      "NODE_ENV=production",
-      "V2_M1_COLLECTOR_AUTHORITY_MODE=NO_AUTHORITY",
-      "V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED=false",
-      `V2_M1_COLLECTOR_SOURCE_COMMIT=${sourceCommit}`,
-      `V2_M1_COLLECTOR_RELEASE_ID=${releaseId}`,
-      "V2_M1_COLLECTOR_POLICY_VERSION=m1-live-linear-usdt-perpetual.v1",
-      "V2_M1_COLLECTOR_RUN_PROFILE=EARLY_30_MINUTES",
-      "V2_M1_COLLECTOR_DATABASE_HOST=v2-m1-postgres",
-      "V2_M1_COLLECTOR_DATABASE_NAME=v2_m1_b1b",
-      "V2_M1_COLLECTOR_CYCLE_INTERVAL_MS=60000",
-      "V2_M1_COLLECTOR_MAX_CYCLES=31",
-      "V2_M1_COLLECTOR_MAX_FACT_AGE_MS=60000",
-      "V2_M1_COLLECTOR_MAX_SEQUENCE_GAP_MS=300000",
-      "V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS=86400000",
-      "V2_M1_COLLECTOR_RETENTION_MS=604800000",
-      "V2_M1_COLLECTOR_WRITER_DATABASE_URL_FILE=/run/secrets/v2_m1_writer_database_url",
-      "V2_M1_COLLECTOR_READER_DATABASE_URL_FILE=/run/secrets/v2_m1_reader_database_url",
-    ];
+    const environment = earlyShadowWorkerEnvironment({
+      releaseId,
+      sourceCommit,
+    });
     const createWorker = [
       "create", "--name", names.worker,
       "--label", `market-radar.v2.scope=${B1B_SCOPE_LABEL}`,

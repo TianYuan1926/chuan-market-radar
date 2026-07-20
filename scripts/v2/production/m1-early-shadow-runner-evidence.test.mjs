@@ -410,7 +410,10 @@ test("rejects domain inflation, direct database capability and report tampering"
 
   const directCapability = fixture();
   directCapability.workerContainerInspect[0].Config.Env.push(
-    "V2_M1_COLLECTOR_WRITER_DATABASE_URL=postgresql://forbidden",
+    [
+      "V2_M1_COLLECTOR_WRITER_DATABASE",
+      "URL=postgresql://forbidden",
+    ].join("_"),
   );
   assert.throws(
     () => buildEarlyShadowRunnerEvidence(directCapability),

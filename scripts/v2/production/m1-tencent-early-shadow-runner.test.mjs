@@ -5,6 +5,7 @@ import {
   buildEarlyShadowRunnerFailure,
 } from "./m1-early-shadow-runner-evidence.mjs";
 import {
+  earlyShadowWorkerEnvironment,
   earlyShadowRunnerNames,
   parseEarlyShadowRunnerArguments,
 } from "./m1-tencent-early-shadow-runner.mjs";
@@ -35,6 +36,40 @@ test("early-shadow runner requires one exact authorized source commit", () => {
   assert.throws(() => parseEarlyShadowRunnerArguments(["run"]));
   assert.throws(() => parseEarlyShadowRunnerArguments(["run", "main"]));
   assert.throws(() => parseEarlyShadowRunnerArguments(["verify", sourceCommit]));
+});
+
+test("early-shadow worker environment matches the bounded 31-cycle process contract", () => {
+  const releaseId = `m1-5-b1b:${sourceCommit}`;
+  const entries = earlyShadowWorkerEnvironment({ releaseId, sourceCommit });
+  const environment = Object.fromEntries(entries.map((entry) => {
+    const separator = entry.indexOf("=");
+    assert.ok(separator > 0);
+    return [entry.slice(0, separator), entry.slice(separator + 1)];
+  }));
+
+  assert.equal(Object.isFrozen(entries), true);
+  assert.equal(environment.V2_M1_COLLECTOR_SOURCE_COMMIT, sourceCommit);
+  assert.equal(environment.V2_M1_COLLECTOR_RELEASE_ID, releaseId);
+  assert.equal(environment.V2_M1_COLLECTOR_RUN_PROFILE, "EARLY_30_MINUTES");
+  assert.equal(environment.V2_M1_COLLECTOR_CYCLE_INTERVAL_MS, "60000");
+  assert.equal(environment.V2_M1_COLLECTOR_MAX_CYCLES, "31");
+  assert.equal(environment.V2_M1_COLLECTOR_MAX_FACT_AGE_MS, "60000");
+  assert.equal(
+    environment.V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS,
+    "3600000",
+  );
+  assert.equal(environment.V2_M1_COLLECTOR_RETENTION_MS, "604800000");
+  assert.equal(environment.V2_M1_COLLECTOR_AUTHORITY_MODE, "NO_AUTHORITY");
+  assert.equal(
+    environment.V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED,
+    "false",
+  );
+  assert.equal("V2_M1_COLLECTOR_WRITER_DATABASE_URL" in environment, false);
+  assert.equal("V2_M1_COLLECTOR_READER_DATABASE_URL" in environment, false);
+  assert.throws(() => earlyShadowWorkerEnvironment({
+    releaseId: "unbound-release",
+    sourceCommit,
+  }));
 });
 
 test("early-shadow runner locks the atomic observation and isolation contract", async () => {
