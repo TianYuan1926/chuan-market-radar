@@ -29,7 +29,7 @@ jobs:
       WORKER_CONTAINER: v2-m1-b1a-worker-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout exact branch commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
 
@@ -106,9 +106,12 @@ jobs:
           test "$(docker inspect --format '{{.State.Health.Status}}' "$POSTGRES_CONTAINER")" = "healthy"
 
       - name: Run two public three-venue collector cycles
+        id: live
         shell: bash
         run: |
           set -euo pipefail
+          database_scheme="postgresql"
+          database_url="${database_scheme}://postgres@v2-m1-postgres:5432/v2_m1_b1a"
           docker create \
             --name "$WORKER_CONTAINER" \
             --network "$STORAGE_NETWORK" \
@@ -122,7 +125,7 @@ jobs:
             --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0700 \
             --env V2_M1_LIVE_REHEARSAL=1 \
             --env "V2_M1_REHEARSAL_SOURCE_COMMIT=$GITHUB_SHA" \
-            --env V2_M1_REHEARSAL_DATABASE_URL=postgresql://postgres@v2-m1-postgres:5432/v2_m1_b1a \
+            --env "V2_M1_REHEARSAL_DATABASE_URL=$database_url" \
             --entrypoint node \
             "$COLLECTOR_IMAGE" \
             --test \
@@ -136,10 +139,42 @@ jobs:
           docker inspect "$WORKER_CONTAINER" > "$RUNNER_TEMP/v2-m1-b1a/worker-container-inspect.json"
           docker inspect "$POSTGRES_CONTAINER" > "$RUNNER_TEMP/v2-m1-b1a/postgres-container-inspect.json"
           docker network inspect "$STORAGE_NETWORK" "$EGRESS_NETWORK" > "$RUNNER_TEMP/v2-m1-b1a/network-inspect.json"
-          test "$worker_status" -eq 0
+          echo "status=$worker_status" >> "$GITHUB_OUTPUT"
+
+      - name: Publish sanitized failure diagnostic
+        if: steps.live.outputs.status != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          generated_at="$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')"
+          node scripts/v2/production/m1-reachable-runner-failure-diagnostic.mjs \
+            --source-commit "$GITHUB_SHA" \
+            --repository "$GITHUB_REPOSITORY" \
+            --ref "$GITHUB_REF" \
+            --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --exit-code "${{ steps.live.outputs.status }}" \
+            --live-tap "$RUNNER_TEMP/v2-m1-b1a/live.tap" \
+            --generated-at "$generated_at" \
+            --output "$RUNNER_TEMP/v2-m1-b1a/evidence/reachable-runner-failure.json"
+          compact="$(node -e 'const fs=require("node:fs");process.stdout.write(JSON.stringify(JSON.parse(fs.readFileSync(process.argv[1],"utf8"))));' "$RUNNER_TEMP/v2-m1-b1a/evidence/reachable-runner-failure.json")"
+          escaped="${compact//%/%25}"
+          escaped="${escaped//$'\r'/%0D}"
+          escaped="${escaped//$'\n'/%0A}"
+          echo "::error title=M1 B1-A Failure Evidence::$escaped"
+
+      - name: Upload sanitized failure diagnostic only
+        if: steps.live.outputs.status != '0'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: v2-m1-b1a-failure-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/v2-m1-b1a/evidence/reachable-runner-failure.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Build sanitized content-addressed evidence
         id: evidence
+        if: steps.live.outputs.status == '0'
         shell: bash
         run: |
           set -euo pipefail
@@ -180,12 +215,18 @@ jobs:
           echo "::notice title=M1 B1-A Evidence::$escaped"
 
       - name: Upload sanitized evidence only
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: steps.live.outputs.status == '0'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: v2-m1-b1a-${{ github.sha }}-${{ steps.evidence.outputs.digest_hex }}
           path: ${{ runner.temp }}/v2-m1-b1a/evidence/reachable-runner-preflight.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Fail closed after diagnostic publication
+        if: steps.live.outputs.status != '0'
+        shell: bash
+        run: exit 1
 
       - name: Destroy ephemeral runtime
         if: always()

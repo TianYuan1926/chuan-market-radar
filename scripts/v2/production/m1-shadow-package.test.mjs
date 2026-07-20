@@ -80,8 +80,8 @@ test("M1 reachable-runner workflow is one-shot, pinned and no-authority", async 
     "permissions:\n  contents: read",
     "runs-on: ubuntu-24.04",
     "timeout-minutes: 20",
-    "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
-    "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
+    "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
     nodeBaseImage,
     postgresImage,
     "--network none",
@@ -90,6 +90,11 @@ test("M1 reachable-runner workflow is one-shot, pinned and no-authority", async 
     "--security-opt no-new-privileges",
     "V2_M1_LIVE_REHEARSAL=1",
     "V2_M1_REHEARSAL_SOURCE_COMMIT=$GITHUB_SHA",
+    "m1-reachable-runner-failure-diagnostic.mjs",
+    "::error title=M1 B1-A Failure Evidence::",
+    "Fail closed after diagnostic publication",
+    "steps.live.outputs.status != '0'",
+    "steps.live.outputs.status == '0'",
     "if: always()",
   ]) {
     assert.ok(workflow.includes(required), `missing preflight boundary: ${required}`);

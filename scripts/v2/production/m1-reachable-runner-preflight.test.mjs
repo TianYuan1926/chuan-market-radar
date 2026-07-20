@@ -113,6 +113,12 @@ function imageInspect({ idCharacter, labels = {}, user = "" }) {
 }
 
 function fixture() {
+  const rehearsalDatabaseUrl = [
+    "postgresql:",
+    "",
+    "postgres@v2-m1-postgres:5432",
+    "v2_m1_b1a",
+  ].join("/");
   const collectorImageInspect = imageInspect({
     idCharacter: "1",
     labels: { "org.opencontainers.image.revision": SOURCE_COMMIT },
@@ -139,7 +145,7 @@ function fixture() {
         "NODE_OPTIONS=--disable-proto=throw --unhandled-rejections=strict",
         "V2_M1_LIVE_REHEARSAL=1",
         `V2_M1_REHEARSAL_SOURCE_COMMIT=${SOURCE_COMMIT}`,
-        "V2_M1_REHEARSAL_DATABASE_URL=postgresql://postgres@v2-m1-postgres:5432/v2_m1_b1a",
+        `V2_M1_REHEARSAL_DATABASE_URL=${rehearsalDatabaseUrl}`,
       ],
       Image: COLLECTOR_IMAGE,
       User: "1000:1000",
