@@ -13,13 +13,28 @@ import {
 
 const MAX_INPUT_BYTES = 5 * 1024 * 1024;
 const SCHEMA_VERSION =
-  "v2-m1-reachable-runner-failure-diagnostic.v1";
+  "v2-m1-reachable-runner-failure-diagnostic.v2";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const TARGET_VENUES = new Set([
   "BINANCE_FUTURES",
   "BYBIT_LINEAR_PERPETUAL",
   "OKX_SWAP",
+]);
+const RUNTIME_STATES = new Set([
+  "COLD_START",
+  "RECONCILING",
+  "COLLECTING",
+  "PERSISTING",
+  "READY",
+  "DEGRADED",
+  "BACKPRESSURED",
+]);
+const CYCLE_TRIGGERS = new Set([
+  "STARTUP_FULL",
+  "INCREMENTAL_TICKER",
+  "PERIODIC_RECONCILIATION",
+  "RECOVERY",
 ]);
 
 function isRecord(value) {
@@ -116,6 +131,127 @@ function providerFailures(tap) {
   );
 }
 
+function nonNegativeInteger(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function coverageSummary(coverage) {
+  if (!isRecord(coverage) || !Array.isArray(coverage.venues)) {
+    return null;
+  }
+  const fields = [
+    "accountedCount",
+    "collectedCount",
+    "eligibleCount",
+    "freshCount",
+    "providerObservedCount",
+  ];
+  const normalize = (record) => {
+    const normalized = Object.fromEntries(fields.map((field) => [
+      field,
+      record[field] === null && field === "providerObservedCount"
+        ? null
+        : nonNegativeInteger(record[field]),
+    ]));
+    return Object.values(normalized).some((value, index) =>
+      value === null && fields[index] !== "providerObservedCount"
+    )
+      ? null
+      : normalized;
+  };
+  const total = normalize(coverage);
+  if (total === null) {
+    return null;
+  }
+  const venues = coverage.venues.map((venue) => {
+    if (!isRecord(venue) || !TARGET_VENUES.has(venue.venue)) {
+      return null;
+    }
+    const counts = normalize(venue);
+    return counts === null ? null : { ...counts, venue: venue.venue };
+  });
+  if (
+    venues.some((venue) => venue === null) ||
+    new Set(venues.map((venue) => venue.venue)).size !== TARGET_VENUES.size
+  ) {
+    return null;
+  }
+  return {
+    ...total,
+    venues: venues.sort((left, right) => left.venue.localeCompare(right.venue)),
+  };
+}
+
+function cycleSummaries(tap) {
+  const summaries = [];
+  const seen = new Set();
+  for (const rawLine of tap.split(/\r?\n/u)) {
+    const candidate = rawLine.trim().replace(/^#\s?/u, "");
+    if (!candidate.startsWith("{") || !candidate.endsWith("}")) {
+      continue;
+    }
+    let record;
+    try {
+      record = JSON.parse(candidate);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(record.cycles) || record.cycles.length > 4) {
+      continue;
+    }
+    for (const cycle of record.cycles) {
+      const coverage = coverageSummary(cycle?.coverage);
+      const reasons = Array.isArray(cycle?.reasons)
+        ? cycle.reasons.filter((reason) =>
+          typeof reason === "string" &&
+          /^[A-Za-z0-9_.:-]{1,128}$/u.test(reason)
+        ).slice(0, 32).sort()
+        : null;
+      if (
+        coverage === null ||
+        !["READY", "NOT_READY"].includes(cycle?.operationalReadiness) ||
+        !RUNTIME_STATES.has(cycle?.state) ||
+        !CYCLE_TRIGGERS.has(cycle?.trigger) ||
+        reasons === null
+      ) {
+        continue;
+      }
+      const normalized = {
+        coverage,
+        operationalReadiness: cycle.operationalReadiness,
+        reasons,
+        state: cycle.state,
+        trigger: cycle.trigger,
+      };
+      const identity = JSON.stringify(normalized);
+      if (!seen.has(identity)) {
+        seen.add(identity);
+        summaries.push(normalized);
+      }
+    }
+  }
+  return summaries;
+}
+
+function sloConclusions(tap) {
+  const conclusions = new Set();
+  for (const rawLine of tap.split(/\r?\n/u)) {
+    const candidate = rawLine.trim().replace(/^#\s?/u, "");
+    if (!candidate.startsWith("{") || !candidate.endsWith("}")) {
+      continue;
+    }
+    try {
+      const value = JSON.parse(candidate).sloConclusion;
+      if (["PASS", "FAIL", "INSUFFICIENT_EVIDENCE"].includes(value)) {
+        conclusions.add(value);
+      }
+    } catch {
+      // Ignore non-JSON TAP diagnostics.
+    }
+  }
+  return [...conclusions].sort();
+}
+
 export function verifyFailureDiagnostic(report) {
   assert.ok(isRecord(report));
   assert.match(report.evidenceDigest, SHA256_PATTERN);
@@ -170,12 +306,14 @@ export function buildFailureDiagnostic(input) {
   const core = {
     diagnostic: {
       categories: errorCategories(input.liveTap),
+      cycleSummaries: cycleSummaries(input.liveTap),
       exitCode: input.exitCode,
       providerFailures: providerFailures(input.liveTap),
       tapByteLength: Buffer.byteLength(input.liveTap),
       tapCounts: tapCounts(input.liveTap),
       tapDigest: logDigest(input.liveTap),
       tapIdentifiers: tapIdentifiers(input.liveTap),
+      sloConclusions: sloConclusions(input.liveTap),
     },
     generatedAt: input.generatedAt,
     runner: {

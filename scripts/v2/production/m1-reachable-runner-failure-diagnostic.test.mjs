@@ -74,6 +74,73 @@ test("retains only allowlisted provider failure fields", () => {
   assert.equal(JSON.stringify(report).includes("must-not-survive"), false);
 });
 
+test("retains only bounded cycle coverage and readiness diagnostics", () => {
+  const runtime = {
+    cycles: [{
+      coverage: {
+        accountedCount: 3,
+        collectedCount: 3,
+        eligibleCount: 3,
+        freshCount: 3,
+        providerObservedCount: 3,
+        secretPayload: "must-not-survive",
+        venues: [
+          "BINANCE_FUTURES",
+          "BYBIT_LINEAR_PERPETUAL",
+          "OKX_SWAP",
+        ].map((venue) => ({
+          accountedCount: 1,
+          collectedCount: 1,
+          eligibleCount: 1,
+          freshCount: 1,
+          providerObservedCount: 1,
+          venue,
+        })),
+      },
+      operationalReadiness: "NOT_READY",
+      providerFailures: [],
+      reasons: ["ticker_sequence_gap"],
+      state: "DEGRADED",
+      trigger: "INCREMENTAL_TICKER",
+    }],
+  };
+  const report = buildFailureDiagnostic(input([
+    `# ${JSON.stringify(runtime)}`,
+    '# {"sloConclusion":"INSUFFICIENT_EVIDENCE"}',
+    "# tests 1",
+    "# pass 0",
+    "# fail 1",
+    "# skipped 0",
+  ].join("\n")));
+  assert.deepEqual(report.diagnostic.cycleSummaries, [{
+    coverage: {
+      accountedCount: 3,
+      collectedCount: 3,
+      eligibleCount: 3,
+      freshCount: 3,
+      providerObservedCount: 3,
+      venues: [
+        "BINANCE_FUTURES",
+        "BYBIT_LINEAR_PERPETUAL",
+        "OKX_SWAP",
+      ].map((venue) => ({
+        accountedCount: 1,
+        collectedCount: 1,
+        eligibleCount: 1,
+        freshCount: 1,
+        providerObservedCount: 1,
+        venue,
+      })),
+    },
+    operationalReadiness: "NOT_READY",
+    reasons: ["ticker_sequence_gap"],
+    state: "DEGRADED",
+    trigger: "INCREMENTAL_TICKER",
+  }]);
+  assert.deepEqual(report.diagnostic.sloConclusions, ["INSUFFICIENT_EVIDENCE"]);
+  assert.equal(JSON.stringify(report).includes("must-not-survive"), false);
+});
+
 test("rejects a success exit code or wrong branch binding", () => {
   assert.throws(() => buildFailureDiagnostic({ ...input("failure"), exitCode: 0 }));
   assert.throws(() => buildFailureDiagnostic({
