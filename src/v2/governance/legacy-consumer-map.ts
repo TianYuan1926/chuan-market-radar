@@ -19,6 +19,9 @@ const IMPORT_RESOLUTION_EXTENSIONS = [
   ".json",
 ] as const;
 const GRAPH_SCAN_ROOTS = ["src", "deploy", "scripts", "tools"] as const;
+const V2_OWNED_GRAPH_PREFIXES = GRAPH_SCAN_ROOTS.map(
+  (root) => `${root}/v2/`,
+);
 const IGNORED_DIRECTORIES = new Set([
   ".git",
   ".next",
@@ -135,10 +138,14 @@ function isCodeFile(path: string): boolean {
   );
 }
 
+export function isV2OwnedRepositoryPath(repositoryPath: string): boolean {
+  return V2_OWNED_GRAPH_PREFIXES.some((prefix) =>
+    repositoryPath.startsWith(prefix)
+  );
+}
+
 function isV2OwnedPath(repositoryRoot: string, path: string): boolean {
-  const repositoryPath = toRepositoryPath(repositoryRoot, path);
-  return repositoryPath.startsWith("src/v2/") ||
-    repositoryPath.startsWith("scripts/v2/");
+  return isV2OwnedRepositoryPath(toRepositoryPath(repositoryRoot, path));
 }
 
 function isTestFile(path: string): boolean {
@@ -358,7 +365,7 @@ export function buildLegacyConsumerMap(
     const sourceFiles = uniqueSorted(
       capability.paths.flatMap((path) =>
         listFiles(resolve(repositoryRoot, path)).map((file) => resolve(file)),
-      ),
+      ).filter((file) => !isV2OwnedPath(repositoryRoot, file)),
     );
     if (sourceFiles.length === 0) {
       throw new Error(`Legacy capability has no source files: ${capability.id}`);

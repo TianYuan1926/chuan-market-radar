@@ -14,7 +14,10 @@
 - [x] **M1.3 Fact Store + Replay + Runtime Truth**：已在隔离 PostgreSQL 16 演练 append-only artifact ledger、原子 Universe/Fact/Quality 分母、幂等冲突、retention metadata、双 cutoff replay manifest、五类 NOLOGIN capability role、完整 payload 篡改检测、两次 durable replay 和五维 Runtime Truth。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / PRODUCTION_UNCHANGED`；没有 production migration、live ingestion 或 authority。
 - [x] **M1.4 全 eligible Universe + Collector Runtime 本地纵切**：已从 BTC 三 Venue fixture 扩大到 21 observed / 15 eligible 的多标的版本化范围，完成启动全量、增量 ticker、周期 reconciliation、配额/并发/背压、冷启动、目录 tombstone、恢复、strict telemetry 和真实 PG16 原子落库。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / LIVE_MARKET_UNPROVEN / PRODUCTION_UNCHANGED`。
 - [x] **M1.5-A Durable Worker 本地出口**：已完成独立 additive checkpoint migration、artifact 引用约束、config/sequence/content digest、精确 release 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、NO_AUTHORITY 进程入口和三态 SLO evaluator；定向 30/30、全 V2 130 pass / 0 fail / 4 explicit skip，隔离 PG16 真实重启恢复 1/1。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_UNCHANGED`。
-- [ ] **M1.5-B Live Egress + Shadow/SLO 出口**：本机 live probe 已诚实执行，但 Binance/OKX/Bybit 三家均在 TCP/HTTPS 建连阶段超时，得到 0 observed / 0 eligible / DEGRADED，不是 PASS。下一步必须在可达网络环境先证明真实四分母，再经独立生产 Gate 启动 no-authority Shadow，证明 freshness、gap、duplicate、late、coverage、恢复、成本和资源 SLO；观察窗口可与后续无 authority 本地施工并行，但不能删减。
+- [x] **M1.5-B0 Shadow Release Safety 本地出口**：已补齐显式 reader/writer `SET ROLE` 与会话身份核验、secret-file URL、完整 strict observation JSONL、固定 30 分钟/24 小时 SLO 档位、有限周期、专用非 root/read-only/no-Legacy-secret 镜像与 Compose 模板。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` PASS；Legacy Consumer Map 保持 539。本机无 Docker CLI，真实 image build/Compose merge 仍未证明。Edge OrcaTerm 新鲜预检为 0 会话，生产零命令、零变更。
+- [ ] **M1.5-B1 Reachable Egress + Bounded Early Shadow**：在可达 Docker runner 先构建精确 source image 并证明三家真实四分母，再经独立 Gate 运行 31 个一分钟 no-authority 周期。30 分钟 SLO PASS 只允许进入长期存储/持续观察，不等于 M1 完成。
+- [ ] **M1.6 Partitioned Fact Storage + Retention Governance**：把高频 `PointInTimeMarketFact` 从无 purge 的单一 append-only ledger 收口为可验证的时间分区、容量水位、受控 partition drop、保留审计和备份/恢复合同；迁移前后 replay/lineage 必须一致。当前单表只允许有限 Shadow，不允许长期全市场写入。
+- [ ] **M1.7 Sustained 24h Shadow/SLO**：等待 M1.5-B1 与 M1.6 同时通过后，以同一 release/config 连续运行至少 24 小时并满足固定 SLO、重启恢复、成本与容量门槛，才允许 M1 减数并向 M2 runtime 开放读取许可。
 - [ ] **M2 发现与深验纵向切片**：先做 Pre-Move 和 Breakout/Retest，贯通 `DiscoveryCandidate -> CandidateEpisode + OpportunityThesis -> EvidencePackage`；稳定后再并行增加其余四个机会族。验证：Candidate 不带等级/计划，point-in-time replay 可复现，三分母、队列 SLA、冷启动和漂移成立。
 - [ ] **M3 唯一决策纵向切片**：完成 family-specific Analysis、Evidence/Setup 双评级、StrategyDraft、Execution Feasibility 唯一终审、Personal/Portfolio Risk。验证：只有 Final Decision 能产生 READY，false READY=0，结构与净 RR 均不低于 3，所有关键缺失 fail closed。
 - [ ] **M4 单一读模型与专业工作台**：先建立 DecisionSnapshot 和站内 Alert，再重建 Inbox、Token Workbench、Review、System。验证：页面零 provider/decision 调用，同一 snapshot 在所有视图一致，E2E、a11y、visual、performance 和注意力预算通过。
@@ -25,7 +28,7 @@
 
 ```text
 M0 contracts
--> M1 truthful data
+-> M1 truthful and retention-bounded data
 -> M2 Pre-Move vertical slice
 -> M3 strict final decision
 -> M4 single read model
@@ -39,9 +42,10 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Current package: V2-M1.5 Live No-Authority Collector Rehearsal and Shadow/SLO Entry
-Current package status: LOCAL_WORKER_CHECKPOINT_PG16_PASS / LIVE_EGRESS_UNAVAILABLE / SHADOW_NOT_STARTED / PRODUCTION_UNCHANGED
-Next package: V2-M1.5-LIVE-SHADOW-GATE External Egress Rehearsal and Production No-Authority Shadow Gate
+Last completed package: V2-M1.5-B0 Shadow Release Safety Local Exit
+Current engineering package: V2-M1.6-PARTITIONED-FACT-STORAGE Retention and Capacity Foundation
+Pending external gate: V2-M1.5-B1-EGRESS-EARLY-SHADOW-GATE
+Current status: LOCAL_SAFETY_41_OF_41_PASS / DOCKER_BUILD_UNPROVEN / ORCATERM_ZERO_SESSIONS / PRODUCTION_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

@@ -1,0 +1,80 @@
+services:
+  postgres:
+    networks:
+      default: {}
+      v2-m1-storage:
+        aliases:
+          - v2-m1-postgres
+
+  v2-m1-shadow-worker:
+    profiles: ["v2-m1-shadow"]
+    image: market-radar-v2-m1-collector:${V2_M1_COLLECTOR_SOURCE_COMMIT:?Set exact source commit}
+    build:
+      context: .
+      dockerfile: deploy/v2/m1-collector/Dockerfile
+      args:
+        V2_M1_COLLECTOR_SOURCE_COMMIT: ${V2_M1_COLLECTOR_SOURCE_COMMIT:?Set exact source commit}
+    init: true
+    restart: "no"
+    read_only: true
+    user: "1000:1000"
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 0.75
+    stop_grace_period: 120s
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0700
+    environment:
+      NODE_ENV: production
+      V2_M1_COLLECTOR_AUTHORITY_MODE: NO_AUTHORITY
+      V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED: "false"
+      V2_M1_COLLECTOR_SOURCE_COMMIT: ${V2_M1_COLLECTOR_SOURCE_COMMIT:?Set exact source commit}
+      V2_M1_COLLECTOR_RELEASE_ID: ${V2_M1_COLLECTOR_RELEASE_ID:?Set source-bound release ID}
+      V2_M1_COLLECTOR_POLICY_VERSION: ${V2_M1_COLLECTOR_POLICY_VERSION:?Set policy version}
+      V2_M1_COLLECTOR_RUN_PROFILE: ${V2_M1_COLLECTOR_RUN_PROFILE:?Set EARLY_30_MINUTES or SUSTAINED_24_HOURS}
+      V2_M1_COLLECTOR_DATABASE_HOST: v2-m1-postgres
+      V2_M1_COLLECTOR_DATABASE_NAME: ${POSTGRES_DB:?Set POSTGRES_DB}
+      V2_M1_COLLECTOR_CYCLE_INTERVAL_MS: ${V2_M1_COLLECTOR_CYCLE_INTERVAL_MS:?Set bounded cycle interval}
+      V2_M1_COLLECTOR_MAX_CYCLES: ${V2_M1_COLLECTOR_MAX_CYCLES:?Set bounded cycle count}
+      V2_M1_COLLECTOR_MAX_FACT_AGE_MS: ${V2_M1_COLLECTOR_MAX_FACT_AGE_MS:?Set freshness boundary}
+      V2_M1_COLLECTOR_MAX_SEQUENCE_GAP_MS: ${V2_M1_COLLECTOR_MAX_SEQUENCE_GAP_MS:?Set gap boundary}
+      V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS: ${V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS:?Set catalog reconciliation interval}
+      V2_M1_COLLECTOR_RETENTION_MS: ${V2_M1_COLLECTOR_RETENTION_MS:?Set bounded shadow retention}
+      V2_M1_COLLECTOR_WRITER_DATABASE_URL_FILE: /run/secrets/v2_m1_writer_database_url
+      V2_M1_COLLECTOR_READER_DATABASE_URL_FILE: /run/secrets/v2_m1_reader_database_url
+    secrets:
+      - source: v2_m1_writer_database_url
+        target: v2_m1_writer_database_url
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: v2_m1_reader_database_url
+        target: v2_m1_reader_database_url
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+    networks:
+      - v2-m1-storage
+      - v2-m1-egress
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+networks:
+  v2-m1-storage:
+    internal: true
+  v2-m1-egress: {}
+
+secrets:
+  v2_m1_writer_database_url:
+    file: ${V2_M1_COLLECTOR_WRITER_DATABASE_URL_SECRET_FILE:?Set writer URL secret file}
+  v2_m1_reader_database_url:
+    file: ${V2_M1_COLLECTOR_READER_DATABASE_URL_SECRET_FILE:?Set reader URL secret file}

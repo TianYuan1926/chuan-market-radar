@@ -80,8 +80,10 @@ M1.2_FEATURE_CONTEXT_LOCAL_PASS
 M1.3_STORE_REPLAY_RUNTIME_TRUTH_LOCAL_PASS
 M1.4_FULL_UNIVERSE_COLLECTOR_LOCAL_POSTGRES16_PASS
 M1.5A_DURABLE_WORKER_CHECKPOINT_SLO_LOCAL_POSTGRES16_PASS
+M1.5B0_SHADOW_RELEASE_SAFETY_LOCAL_PASS
 M1.5_LIVE_EGRESS_UNAVAILABLE
-M1.5B_NO_AUTHORITY_SHADOW_GATE_PENDING
+M1.5B1_EARLY_SHADOW_EXTERNAL_GATE_PENDING
+M1.6_PARTITIONED_FACT_STORAGE_READY_TO_START
 liveIngestionProven=false
 localV2ImplementationAuthorized=true
 productionMutationAuthorized=false
@@ -125,6 +127,8 @@ automaticTradingAllowed=false
 - M1.3 已建立无 memory fallback 的 PostgreSQL artifact store、Universe/Fact/FactQuality 原子事务、完整 payload digest、严格幂等冲突、event/knowledge 双 cutoff Manifest、五类 NOLOGIN capability role、两次 durable replay 和固定 profile 的 Runtime Truth v2。隔离 PG16 真实演练 1/1 PASS：8 artifact、权限、append-only、污染检测、parity 和 deterministic replay 均通过；结果保持 `REHEARSAL/PARTIAL`。
 - M1.4 已建立 21 observed / 15 eligible 的三 Venue 多标的 fixture、完整/增量 reconciliation、目录 tombstone、provider quota、global/per-provider concurrency、有限队列、冷启动、数据库失败和恢复状态机。Collector strict telemetry 分开报告 providerObserved/accounted/eligible/collected/fresh；真实 PG16 已证明启动、增量和全 catalog 故障的原子持久化，生产 import 仍只能通过 Adapter。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
+- M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；本机无 Docker CLI，真实 image build/Compose merge 未证明。
+- 审计确认高频 `PointInTimeMarketFact` 仍进入无物理 purge 的单一 append-only ledger；它适合有限 Shadow，不适合长期全市场一分钟写入。M1.6 必须建立分区、容量水位、受控保留、purge 审计和恢复证据。
 - 本机 live no-authority probe 已执行两轮；Binance、OKX、Bybit 三家公开 HTTPS endpoint 均连接/请求超时，结果诚实保持 0 observed / 0 eligible / `DEGRADED`。因此当前仍没有 live 全市场规模、Shadow/SLO、生产 migration、API、页面或生产 authority 证据。
 
 ## 6. Docker 服务清单
@@ -255,7 +259,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.4 和 M1.5-A 本地/PG16 出口通过；durable Worker 已具备但 live egress 不可达，真实规模和 Shadow/SLO 尚未证明；M1.5-B 待独立 Gate
+V2：M0、M1.1-M1.5-A 与 M1.5-B0 本地出口通过；Shadow 运行边界已收紧，但 Docker/live 未证明，高频 Fact 分区/retention 尚未建立；当前工程入口 M1.6，外部 M1.5-B1 Gate 待可信通道
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -280,6 +284,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-20 / V2 M1.5-B0 Shadow Release Safety Local Exit
+
+- 修复生产入口未显式假设 capability role 的缺口，增加 session/current role 核验、secret-file URL、固定 host/database 和不同登录身份门禁。
+- observation 改为完整 strict cycle envelope，并冻结 30 分钟/24 小时 SLO profile；专用容器无 Legacy secret、非 root、只读、无 capabilities/端口且有限周期。
+- 定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过。首次全 V2 门禁暴露 `deploy/v2/**` 被误纳 Legacy 图，已统一 V2 graph root 边界且基线保持 539；本机无 Docker CLI，image/Compose 仍未证明。Edge OrcaTerm 为 0 会话，生产零命令、零变更。
+
 ### 2026-07-20 / V2 M1.5-A Durable Worker, Checkpoint and SLO Local Exit
 
 - 建立独立 checksum 的 append-only checkpoint ledger、精确 release/config/sequence/schedule 恢复、固定节拍 Worker、强制 telemetry、NO_AUTHORITY 进程入口和三态 SLO evaluator。
@@ -291,12 +301,6 @@ Cycle final
 - 建立多标的四分母、完整/增量 reconciliation、目录 tombstone、配额/并发/背压、冷启动、Store failure 和多阶段 recovery 状态机。
 - M1.4 定向 14/14、全 V2 110 pass / 0 fail / 2 explicit PG skip、两项隔离 PostgreSQL 16 integration 各 1/1、完整 `ci:production` 均通过；PG 中启动轮 17 artifact、增量轮追加 16 artifact，全 catalog 故障仍保存 21 accounting、0 eligible、0 Fact。
 - 未连接 live provider 或生产；下一入口为 M1.5 live no-authority Collector rehearsal 与 Shadow/SLO Gate。
-
-### 2026-07-20 / V2 M1.3 Store, Replay Manifest and Runtime Truth Rehearsal
-
-- 建立 append-only PostgreSQL artifact ledger、双时间 Replay Manifest、五类最小权限身份、完整 payload 篡改检测和 Runtime Truth v2 固定 profile。
-- 定向 12/12、隔离 PostgreSQL 16 integration 1/1 PASS；8 artifact 原子写入、幂等重试、异内容冲突、越权拒绝、trigger 防改、强制污染发现、双 replay parity 均有证据。
-- 未连接生产；Runtime Truth 明确为 `REHEARSAL/PARTIAL`。后续 M1.4 已完成本地 Collector Runtime。
 
 ## 15. 当前风险
 
@@ -311,7 +315,8 @@ Cycle final
 - Legacy 多套事实/决策/Candidate/Outcome 路径仍存在，单一 authority 未完成。
 - 数据库失败回退内存、前端合同过宽、health 语义和管理面权限仍有事实误导风险。
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
-- V2 M1.1-M1.5A 已有本地 Identity/Fact/单一 Feature/保守 Context、持久化 replay、Runtime Truth、多标的 Collector、durable Worker/checkpoint 和 SLO evaluator 证据；但本机三家 provider egress 不可达，仍没有 live 全市场规模、生产 migration、Detector、Decision、API、Shadow、SLO PASS 或实战能力证据。
+- V2 M1.1-M1.5B0 已有本地数据、Worker、checkpoint、SLO 和 Shadow 安全边界证据；但三家 provider egress、Docker image、Compose merge、生产 migration、Shadow 与 SLO PASS 均未证明。
+- 高频 Fact 现有单表 append-only storage 没有物理 purge；在 M1.6 分区/retention 出口前禁止长期一分钟全市场写入。
 
 ### P2
 
@@ -322,9 +327,9 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M1.5-B 是否先在可达网络得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 fixture、官方文档或超时写成全市场证据。
-2. production Shadow 是否复用同一 NO_AUTHORITY entrypoint、分离 reader/writer 身份、精确 migration checksum 和强制 telemetry，不创建平行实现。
-3. checkpoint、周期和 SLO 是否保持同 release/config，数据库不可用、双实例重叠、0 eligible 或证据不足时是否 fail closed。
+1. M1.6 是否保持 Fact 语义/lineage 不变，并用时间分区、受控 partition drop、容量水位、保留审计和恢复证据解决长期写入。
+2. M1.5-B1 是否先在可达网络得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 fixture、官方文档或超时写成全市场证据。
+3. production Shadow 是否复用同一 NO_AUTHORITY entrypoint、精确 reader/writer role、secret file、完整 telemetry 和有限 profile，不创建平行实现。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
 5. READY 是否由后端完整计划、执行可行性、结构 RR、净成本和运行健康共同决定。
 6. 数据缺失、CoinGlass 失败、429、stale 和数据库故障是否诚实降级。
@@ -347,10 +352,10 @@ Cycle final
 ## 18. 唯一下一入口
 
 ```text
-V2-M1.5-LIVE-SHADOW-GATE External Egress Rehearsal and Production No-Authority Shadow Gate
+V2-M1.6-PARTITIONED-FACT-STORAGE Retention and Capacity Foundation
 ```
 
-目标是在 provider 可达环境复用已通过本地/PG16 出口的单一 V2 Collector Worker，先证明三家 live 合同和真实四分母，再绑定 commit、镜像、checkpoint migration checksum、分离身份、资源预算和回滚目标，经独立 Gate 启动无读取权威 Shadow/SLO。不得接入页面、删除 Legacy、生成 Candidate/方向/Signal/Plan 或切换读权威。
+目标是为高频 `PointInTimeMarketFact` 建立可扩展时间分区、容量水位、受控物理保留、purge 审计和备份/恢复合同，不改变事实语义。外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行；二者通过后进入 M1.7 24 小时持续 SLO。不得接入页面、删除 Legacy、生成 Candidate/方向/Signal/Plan 或切换读权威。
 
 ## 19. 活跃记忆维护规则
 

@@ -2,6 +2,48 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M1.5-B0 Shadow Release Safety Local Exit
+
+### 本轮目标
+
+在 live Shadow 前修复进程身份、secret 注入、SLO 证据和容器权限缺口，并把有限观察与长期 Fact 存储能力分开。
+
+### 修改范围
+
+- 入口显式假设并核验 `market_radar_v2_m1_writer/reader`，要求不同 session login、固定 host/database 和生产非空密码。
+- database URL 支持两个独立 secret file；日志改为完整 strict observation envelope，增加固定 SLO JSONL CLI。
+- 冻结 31 周期/30 分钟与 1441 周期/24 小时两个有限 profile，retention 最大 30 天，拒绝无限 Shadow。
+- 新增只含编译后 V2 runtime 的专用 Dockerfile 和非 root/read-only/no-capability/no-port/no-Legacy-secret Compose overlay。
+- 新鲜读取 Edge OrcaTerm；只确认 0 会话/无连接配置，未输入或保存凭据，生产零命令。
+
+### 核心链路影响
+
+加固 `Universe -> Market Fact + Quality -> Runtime Truth` 的 Shadow 运行边界，不生成 Candidate、方向、Signal、READY 或交易计划。审计发现高频 Fact 单表没有物理 purge，新增 M1.6 分区/retention 地基步骤。
+
+### 测试结果
+
+- `test:v2-m1-collector`：41/41 PASS。
+- `typecheck`、`lint`、YAML 语法与 `git diff --check`：PASS。
+- `test:v2-foundation`：136 pass / 0 fail / 4 explicit external-dependency skips；新增 V2 graph root 回归后，Legacy Consumer Map 仍为 539 个源文件。
+- 隔离 PostgreSQL 16：M1.5 checkpoint restart、M1.4 collector、M1.3 store/replay 三项各 1/1 PASS。
+- 完整 `ci:production`：`exit_code=0`；Legacy market 965/0、Worker 23/0、历史回测 4/0、build、golden 16/16 与 security 均通过。
+- 本机无 Docker CLI，真实 image build 与 Compose merge 未运行，明确为 UNPROVEN。
+- `backtest:formal` 与 production smoke 未运行；本轮不属于 formal 验收且生产零变更。
+
+### 是否部署
+
+未部署。未创建 OrcaTerm 连接、未执行 migration、身份创建、secret 写入、镜像构建、容器启动、数据库/Redis/Legacy 变更或 GitHub main 部署。
+
+### 风险与遗留问题
+
+- 本机 provider egress 不可达、OrcaTerm 0 会话且 Docker CLI 不存在；live、image 和生产事实仍未证明。
+- 当前高频 Fact 单表 append-only 且没有物理 purge，只允许有限 Shadow，禁止长期一分钟全市场写入。
+- 首次全 V2 门禁发现 `deploy/v2/**` 被误纳入 Legacy Consumer Map；已统一排除四个 V2 graph root 并增加回归，未通过重生成基线掩盖污染。
+
+### 下一轮建议
+
+只执行 `V2-M1.6-PARTITIONED-FACT-STORAGE`；外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行，二者都通过后再做 M1.7 24 小时持续 SLO。
+
 ## 2026-07-20 / V2 M1.5-A Durable Worker, Checkpoint and SLO Local Exit
 
 ### 本轮目标
@@ -159,42 +201,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.3 Fact Store, Replay Manifest and Runtime Truth Rehearsal`，先在隔离本地环境证明 append-only、幂等、完整性、回放和五类运行真值，不执行生产 migration。
-
-## 2026-07-20 / V2 M1.1 Three-Venue Identity and Fact Local Slice
-
-### 本轮目标
-
-在不接 Legacy、不写数据库、不改生产的前提下，贯通 Binance USD-M、OKX SWAP、Bybit Linear 的公开合约身份与 `LAST_PRICE` 真值纵切，并对失败、时间和覆盖分母 fail closed。
-
-### 修改范围
-
-- 新增 HTTPS allowlist、无凭证 GET、timeout、响应体上限和固定错误分类的公开 JSON Transport。
-- 新增三家 catalog/ticker Adapter、稳定 canonical identity/underlying group/observation ID、Bybit 完整分页和 100% observed accounting。
-- 新增 EligibleInstrumentSnapshot、PointInTimeMarketFact、FactQualitySnapshot builder；未解析记录保留在分母，未持久化明确为 null，provider 失败不补 0 或 event time。
-- 新增 duplicate provider row、duplicate/out-of-order/gap/stale/future cutoff/recovery 评估，测试支持目录与 production import fence。
-- 修正 SourceLineage 和 InstrumentAccountingRecord runtime schema，使 transport failure、unresolved row 和本地未持久化事实可以诚实表达。
-
-### 核心链路影响
-
-完成 `Universe Registry -> Market Fact + Quality` 的首个本地纵向切片，为全市场发现提供可信身份和事实地基。本轮没有 Candidate、方向、评分、Signal、交易计划或 READY 能力。
-
-### 测试结果
-
-- `test:v2-foundation`：67/67 PASS，其中新增 M1.1 正常、失败、分页、时序、恢复、运行时不可变和确定性场景。
-- `test:v2-m1-identity-fact`：27/27 PASS。
-- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。
-- M0 机器出口 10/10、`typecheck`、`lint`、`build`、`backtest:golden` 16/16、forbidden/secret/security：PASS。
-- 完整 `ci:production` 最终退出码 0；`backtest:formal` 和 production smoke 未运行。
-
-### 是否部署
-
-未部署。未修改 Legacy、数据库、Redis、Worker、API、页面、Compose、secret 或腾讯云；生产继续 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
-
-### 风险与遗留问题
-
-- 当前环境对六个公开 endpoint 的只读探测均未取得响应，因此只证明官方合同形状和冻结 provider fixture，不证明 live connectivity 或真实全市场数据。
-- M1.1 不含持久化、采集 Worker、全 eligible Universe、Feature、Context 或 Runtime Truth。
-
-### 下一轮建议
-
-只执行 `V2-M1.2 Point-in-Time Feature and Context Slice`，让在线与 replay 调用同一纯函数，不接入 Candidate 或方向判断。

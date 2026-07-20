@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import {
   buildLegacyConsumerMap,
+  isV2OwnedRepositoryPath,
   type LegacyCapabilityAtlas,
   type LegacyConsumerMap,
   type LegacyExtractionPolicy,
@@ -14,6 +15,26 @@ const repositoryRoot = process.cwd();
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(resolve(repositoryRoot, path), "utf8")) as T;
 }
+
+test("keeps every V2 graph root outside the Legacy consumer map", () => {
+  for (const path of [
+    "src/v2/modules/example.ts",
+    "deploy/v2/m1-collector/Dockerfile.ts",
+    "scripts/v2/production/release.mjs",
+    "tools/v2/check-contract.mjs",
+  ]) {
+    assert.equal(isV2OwnedRepositoryPath(path), true, path);
+  }
+
+  for (const path of [
+    "src/lib/market/example.ts",
+    "deploy/workers/scanner-worker.js",
+    "scripts/deploy-production.mjs",
+    "tools/check-production.mjs",
+  ]) {
+    assert.equal(isV2OwnedRepositoryPath(path), false, path);
+  }
+});
 
 test("keeps the reviewed Legacy consumer map byte-for-structure current", () => {
   const atlas = readJson<LegacyCapabilityAtlas>(

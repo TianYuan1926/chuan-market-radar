@@ -9,6 +9,11 @@ import type { PublicJsonTransport } from "../../universe/public-json-transport";
 import { createPublicRestCollectorAdapterRuntime } from "./adapters/public-rest-adapter-runtime";
 import type { M1CollectorCheckpoint } from "./checkpoint-contract";
 import {
+  parseM1CollectorObservationLog,
+  serializeM1CollectorObservationLog,
+} from "./collector-observation-log";
+import { evaluateM1CollectorShadowEvidence } from "./collector-shadow-evidence";
+import {
   createM1CollectorWorker,
   type CollectorWorkerScheduler,
   type CollectorWorkerTelemetrySink,
@@ -125,6 +130,22 @@ test("runs fixed-rate no-authority cycles and only becomes ready after checkpoin
     (cycle) => cycle.checkpoint.status === "INSERTED",
   ));
   assert.equal(checkpointRepository.appended.length, 2);
+  const observation = parseM1CollectorObservationLog(JSON.parse(
+    serializeM1CollectorObservationLog(report.cycles[0]!),
+  ));
+  assert.deepEqual(observation.cycle, report.cycles[0]);
+  assert.equal(observation.event, "M1_COLLECTOR_CYCLE");
+  const earlyEvidence = evaluateM1CollectorShadowEvidence({
+    evaluatedAt: report.completedAt,
+    jsonLines: report.cycles.map(serializeM1CollectorObservationLog).join("\n"),
+    profile: "EARLY_30_MINUTES",
+    releaseId: runtimeConfig().releaseId,
+  });
+  assert.equal(earlyEvidence.conclusion, "INSUFFICIENT_EVIDENCE");
+  assert.deepEqual(earlyEvidence.reasons, [
+    "minimum_cycle_count_not_met",
+    "minimum_observation_window_not_met",
+  ]);
   await assert.rejects(
     () => worker.run({ maxCycles: 1 }),
     /single-use/u,

@@ -29,7 +29,7 @@ export type M0ExitReport = Readonly<{
   legacySourceFiles: number;
   productionMutationPerformed: false;
   productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION";
-  nextEntry: "V2-M1.5-LIVE-SHADOW-GATE EXTERNAL_EGRESS_AND_NO_AUTHORITY_SHADOW";
+  nextEntry: "V2-M1.6-PARTITIONED-FACT-STORAGE RETENTION_AND_CAPACITY_FOUNDATION";
 }>;
 
 type CheckRunner = () => string;
@@ -346,7 +346,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     legacySourceFiles: currentMap.totals.sourceFiles,
     productionMutationPerformed: false,
     productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
-    nextEntry: "V2-M1.5-LIVE-SHADOW-GATE EXTERNAL_EGRESS_AND_NO_AUTHORITY_SHADOW",
+    nextEntry: "V2-M1.6-PARTITIONED-FACT-STORAGE RETENTION_AND_CAPACITY_FOUNDATION",
   };
 }
 
