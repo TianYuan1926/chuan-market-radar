@@ -2,6 +2,45 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M1.5-A Durable Worker, Checkpoint and SLO Local Exit
+
+### 本轮目标
+
+把 M1.4 Collector 组合成可重启、可停止、固定节拍且永久无读取/交易权威的 Worker，并建立 live rehearsal 和 Shadow/SLO 的诚实证据入口。
+
+### 修改范围
+
+- 新增独立 checksum 的 append-only collector checkpoint migration，绑定精确 Universe/FactQuality artifact、release、runtime config、sequence、schedule、cycle telemetry 和 retention；未修改 M1.3 base migration。
+- 新增 PostgreSQL checkpoint store、精确 restore、错 release/config 与篡改拒绝、最小权限 reader/writer、checkpoint 不领先 artifact 和失败即停语义。
+- 新增 single-use Worker、固定节拍 skip-missed、非重叠、优雅停止、强制 telemetry sink、资源采样、NO_AUTHORITY 进程入口和三态 SLO evaluator。
+- 新增 live public rehearsal；未修改 Legacy、前端、API、Detector、Analysis、Strategy、Backtest、生产配置或生产数据。
+
+### 核心链路影响
+
+强化 `全市场发现` 前的数据运行地基：采集进程可以从可验证断点恢复，且只有新周期 artifact 与 checkpoint 均成功后才 operational READY。本轮不产生 Candidate、方向、Signal 或交易计划。
+
+### 测试结果
+
+- M1.5 定向：30/30 PASS；全 V2：130 pass / 0 fail / 4 explicit integration skip。
+- 隔离 PostgreSQL 16：M1.5 checkpoint restart、M1.4 collector、M1.3 store/replay 三项各 1/1 PASS。
+- Legacy：核心 965 pass / 0 fail / 4 skip；workers 23/23；historical 4/4；M0 10/10；golden 16/16。
+- `typecheck`、`lint`、`build`、forbidden files、secret patterns、security 和完整 `ci:production`：PASS。
+- live rehearsal：FAIL/UNAVAILABLE。两轮中三家 provider 均连接/请求超时，0 observed / 0 eligible / `DEGRADED`；未伪造成 PASS。
+- `backtest:formal` 与 production smoke 未运行；本轮不属于 formal 能力验收且生产零变更。
+
+### 是否部署
+
+未部署。未执行 production migration、Worker/Compose 变更、读权威切换或 GitHub main 部署；生产终态仍为 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
+
+### 风险与遗留问题
+
+- 本机没有三家 provider egress，故 live 真实规模、持续 freshness/coverage 和 SLO 尚未证明。
+- checkpoint migration 与 Worker 已可发布但尚未在生产应用；任何 Shadow 必须独立绑定 release、checksum、身份、资源和回滚。
+
+### 下一轮建议
+
+只执行 `V2-M1.5-LIVE-SHADOW-GATE`：先在可达网络完成同一 entrypoint 的 live 四分母证明，再经独立 Gate 启动 no-authority Shadow；不进入 M2 authority。
+
 ## 2026-07-20 / V2 M1.4 Full Eligible Universe and Collector Runtime
 
 ### 本轮目标
@@ -159,42 +198,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.2 Point-in-Time Feature and Context Slice`，让在线与 replay 调用同一纯函数，不接入 Candidate 或方向判断。
-
-## 2026-07-20 / V2 M0 Runtime Boundary and Engineering Exit
-
-### 本轮目标
-
-完成 M0.3：把 Legacy Atlas 展开到真实消费者，为每个 V2 权威产物建立运行时输入边界，并用机器出口证明 M0 地基本地闭环。
-
-### 修改范围
-
-- 新增覆盖 22 个 Legacy capability 的 Extraction Policy 和 Consumer Map，记录 539 个源文件、273 条直接运行消费者边、118 条测试消费者边、109 个运行入口、13 个提取候选和 21 个存储对象。
-- 新增 30 个 authority output 的 strict Zod schema、29 个 envelope 的精确版本注册表、统一 Registry 与跨 API/进程/存储/回放 fail-closed decoder。
-- decoder 拒绝不完整 READY、WAIT 携带计划、RR 低于 3、结构几何错误、时间倒流、未知字段、负金额、恶意对象、循环/稀疏数组、过大载荷和错误 JSON，并避免回显原始敏感值。
-- 新增 M0 十项出口验证器并接入 `ci:production`；未修改 Legacy 运行逻辑、数据库、Redis、Worker、前端、API 或生产配置。
-
-### 核心链路影响
-
-为后续 Universe、Fact、Candidate、Evidence、Decision、Risk、Outcome 和 Runtime Truth 建立同一套不可绕过的结构边界，同时把旧能力的提取、隔离和删除条件变成可审计事实。本轮不新增真实市场发现或交易计划能力。
-
-### 测试结果
-
-- `test:v2-foundation`：38/38 PASS。
-- M0 机器出口：10/10 PASS，状态 `PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED`。
-- `test:market`：核心 965 pass / 0 fail / 4 explicit skip；workers 23/23；historical 4/4。
-- `typecheck`、`lint`、`build`、`backtest:golden` 16/16：PASS。
-- `ci:forbidden-files`、`ci:secret-patterns`、`security:check`、完整 `ci:production`：PASS。
-- `backtest:formal` 与 production smoke：未运行；本包不属于 formal 能力验收且生产零变更。
-
-### 是否部署
-
-未部署。未连接或修改腾讯云、数据库、Redis、Worker、Compose 或 GitHub main；生产终态继续为 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
-
-### 风险与遗留问题
-
-- M0 完成的是本地工程地基，不是实战能力；V2 尚无真实 provider、Fact 流、Feature、Detector、Decision、UI 或生产 authority。
-- Consumer Map 不等于允许删除 Legacy；任何删除仍要求消费者清零、replacement 稳定、absence test 和回滚证据。
-
-### 下一轮建议
-
-只执行 `V2-M1.1 Three-Venue Identity and Fact Slice`，先做三家 CEX 同一 BTC 线性永续的只读身份、事实与质量纵切。

@@ -79,7 +79,9 @@ M1.1_IDENTITY_FACT_LOCAL_PASS
 M1.2_FEATURE_CONTEXT_LOCAL_PASS
 M1.3_STORE_REPLAY_RUNTIME_TRUTH_LOCAL_PASS
 M1.4_FULL_UNIVERSE_COLLECTOR_LOCAL_POSTGRES16_PASS
-M1.5_LIVE_NO_AUTHORITY_GATE_READY
+M1.5A_DURABLE_WORKER_CHECKPOINT_SLO_LOCAL_POSTGRES16_PASS
+M1.5_LIVE_EGRESS_UNAVAILABLE
+M1.5B_NO_AUTHORITY_SHADOW_GATE_PENDING
 liveIngestionProven=false
 localV2ImplementationAuthorized=true
 productionMutationAuthorized=false
@@ -122,7 +124,8 @@ automaticTradingAllowed=false
 - M1.2 已实现 `UNDERLYING_GROUP` 级跨三 Venue `LAST_PRICE` 分散 Feature、精确十进制计算、同 cutoff/future-read 门禁、独立 ONLINE/REPLAY run 和语义哈希证据，以及最小非方向性 Market Context。定向 17/17、全 V2 84/84 PASS；低分散不会被包装成健康流动性，regime/volatility/breadth/correlation/方向不凭空生成。
 - M1.3 已建立无 memory fallback 的 PostgreSQL artifact store、Universe/Fact/FactQuality 原子事务、完整 payload digest、严格幂等冲突、event/knowledge 双 cutoff Manifest、五类 NOLOGIN capability role、两次 durable replay 和固定 profile 的 Runtime Truth v2。隔离 PG16 真实演练 1/1 PASS：8 artifact、权限、append-only、污染检测、parity 和 deterministic replay 均通过；结果保持 `REHEARSAL/PARTIAL`。
 - M1.4 已建立 21 observed / 15 eligible 的三 Venue 多标的 fixture、完整/增量 reconciliation、目录 tombstone、provider quota、global/per-provider concurrency、有限队列、冷启动、数据库失败和恢复状态机。Collector strict telemetry 分开报告 providerObserved/accounted/eligible/collected/fresh；真实 PG16 已证明启动、增量和全 catalog 故障的原子持久化，生产 import 仍只能通过 Adapter。
-- M1.1-M1.4 只由官方合同形状、确定性样本、故障矩阵和隔离本地 PostgreSQL 16 证明；当前没有 live 全市场规模、连续 Worker、Shadow/SLO、生产 migration、API、页面和生产 authority 证据。
+- M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
+- 本机 live no-authority probe 已执行两轮；Binance、OKX、Bybit 三家公开 HTTPS endpoint 均连接/请求超时，结果诚实保持 0 observed / 0 eligible / `DEGRADED`。因此当前仍没有 live 全市场规模、Shadow/SLO、生产 migration、API、页面或生产 authority 证据。
 
 ## 6. Docker 服务清单
 
@@ -214,6 +217,8 @@ npm run test:market
 npm run test:v2-foundation
 npm run test:v2-m1-store-replay
 npm run v2:m1:store-replay:pg16-rehearsal
+npm run test:v2-m1-collector
+npm run v2:m1:collector-checkpoint:pg16-rehearsal
 npm run v2:m0:verify
 npm run build
 npm run backtest:golden
@@ -250,7 +255,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0 本地工程出口通过；M1.1-M1.4 的 Identity/Fact/Feature/Context/Store/Replay/Runtime Truth/Collector 本地纵切通过；live 市场规模和连续运行尚未证明；M1.5 准备启动
+V2：M0、M1.1-M1.4 和 M1.5-A 本地/PG16 出口通过；durable Worker 已具备但 live egress 不可达，真实规模和 Shadow/SLO 尚未证明；M1.5-B 待独立 Gate
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -275,6 +280,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-20 / V2 M1.5-A Durable Worker, Checkpoint and SLO Local Exit
+
+- 建立独立 checksum 的 append-only checkpoint ledger、精确 release/config/sequence/schedule 恢复、固定节拍 Worker、强制 telemetry、NO_AUTHORITY 进程入口和三态 SLO evaluator。
+- 定向 30/30、全 V2 130 pass / 0 fail / 4 explicit skip；checkpoint PG16 进程边界演练 1/1 PASS，证明 artifact 引用、最小权限、append-only、幂等和重启后 ticker-only 恢复。
+- 本机 live probe 两轮均因三家 provider endpoint 连接/请求超时而 `DEGRADED`，0 observed / 0 eligible；该项明确 FAIL/UNAVAILABLE，生产零变更。
+
 ### 2026-07-20 / V2 M1.4 Full Eligible Universe and Collector Runtime
 
 - 建立多标的四分母、完整/增量 reconciliation、目录 tombstone、配额/并发/背压、冷启动、Store failure 和多阶段 recovery 状态机。
@@ -286,12 +297,6 @@ Cycle final
 - 建立 append-only PostgreSQL artifact ledger、双时间 Replay Manifest、五类最小权限身份、完整 payload 篡改检测和 Runtime Truth v2 固定 profile。
 - 定向 12/12、隔离 PostgreSQL 16 integration 1/1 PASS；8 artifact 原子写入、幂等重试、异内容冲突、越权拒绝、trigger 防改、强制污染发现、双 replay parity 均有证据。
 - 未连接生产；Runtime Truth 明确为 `REHEARSAL/PARTIAL`。后续 M1.4 已完成本地 Collector Runtime。
-
-### 2026-07-20 / V2 M1.2 Point-in-Time Feature and Context Local Slice
-
-- 建立跨三 Venue 精确价格分散 Feature、独立 ONLINE/REPLAY run 与三份语义哈希证据、FeatureQuality 和保守 Market Context。
-- 定向 17/17、全 V2 84/84 PASS；future cutoff、缺失/重复 Fact、stale/null、同对象/同 run 假回放、parity mismatch、replay nondeterminism、错误 Context claim 和来源错误状态折叠均 fail closed。
-- 未接 live provider、生产数据库、Worker、API、页面或生产；后续 M1.3-M1.4 已完成本地 Store/Replay/Collector rehearsal。
 
 ## 15. 当前风险
 
@@ -306,7 +311,7 @@ Cycle final
 - Legacy 多套事实/决策/Candidate/Outcome 路径仍存在，单一 authority 未完成。
 - 数据库失败回退内存、前端合同过宽、health 语义和管理面权限仍有事实误导风险。
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
-- V2 M1.1-M1.4 已有本地 Identity/Fact/单一 Feature/保守 Context、持久化 replay、Runtime Truth 和多标的 Collector 证据，但没有 live 全市场规模、连续 Worker、生产 migration、Detector、Decision、API、Shadow、SLO 或实战能力证据。
+- V2 M1.1-M1.5A 已有本地 Identity/Fact/单一 Feature/保守 Context、持久化 replay、Runtime Truth、多标的 Collector、durable Worker/checkpoint 和 SLO evaluator 证据；但本机三家 provider egress 不可达，仍没有 live 全市场规模、生产 migration、Detector、Decision、API、Shadow、SLO PASS 或实战能力证据。
 
 ### P2
 
@@ -317,9 +322,9 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M1.5 是否用 live provider 原始分母证明真实 observed/accounted/eligible/collected/fresh，而不是把 fixture 数量写成全市场。
-2. Collector Worker 是否只有 Adapter 和 M1 Store 两条依赖，数据库不可用时是否 fail closed。
-3. 重启后是否从 durable checkpoint 恢复 Universe、sequence、schedule 和 release identity，而不是从内存猜测。
+1. M1.5-B 是否先在可达网络得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 fixture、官方文档或超时写成全市场证据。
+2. production Shadow 是否复用同一 NO_AUTHORITY entrypoint、分离 reader/writer 身份、精确 migration checksum 和强制 telemetry，不创建平行实现。
+3. checkpoint、周期和 SLO 是否保持同 release/config，数据库不可用、双实例重叠、0 eligible 或证据不足时是否 fail closed。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
 5. READY 是否由后端完整计划、执行可行性、结构 RR、净成本和运行健康共同决定。
 6. 数据缺失、CoinGlass 失败、429、stale 和数据库故障是否诚实降级。
@@ -342,10 +347,10 @@ Cycle final
 ## 18. 唯一下一入口
 
 ```text
-V2-M1.5 Live No-Authority Collector Rehearsal and Shadow/SLO Entry
+V2-M1.5-LIVE-SHADOW-GATE External Egress Rehearsal and Production No-Authority Shadow Gate
 ```
 
-目标是把 M1.4 Runtime 组合为单一 V2 Collector Worker，在无读取权威模式下证明 live provider 合同、真实规模、持续 coverage/freshness、容量、限流、重连、资源、成本和 durable checkpoint 恢复。本地 rehearsal 先行；任何生产 Shadow 或 migration 必须另过独立 Gate。不得接入页面、删除 Legacy、生成 Candidate/方向/Signal/Plan 或切换读权威。
+目标是在 provider 可达环境复用已通过本地/PG16 出口的单一 V2 Collector Worker，先证明三家 live 合同和真实四分母，再绑定 commit、镜像、checkpoint migration checksum、分离身份、资源预算和回滚目标，经独立 Gate 启动无读取权威 Shadow/SLO。不得接入页面、删除 Legacy、生成 Candidate/方向/Signal/Plan 或切换读权威。
 
 ## 19. 活跃记忆维护规则
 

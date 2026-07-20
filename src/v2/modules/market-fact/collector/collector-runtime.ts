@@ -22,6 +22,7 @@ import {
   type CollectorArtifactStore,
   type CollectorClock,
   type CollectorCycleArtifacts,
+  type CollectorDurableState,
   type CollectorCycleResult,
   type CollectorCycleTelemetry,
   type CollectorCycleTrigger,
@@ -78,6 +79,58 @@ function skippedTickerBatch(venue: TargetVenue, receivedAt: string): VenueTicker
   };
 }
 
+function eligibleInstrumentIds(
+  universe: EligibleInstrumentSnapshot,
+): ReadonlySet<string> {
+  return new Set(universe.accounting
+    .filter((record) => record.eligible)
+    .map((record) => record.canonicalInstrumentId)
+    .filter((value): value is string => value !== null));
+}
+
+function pruneSequences(
+  sequences: Readonly<Record<string, string>>,
+  universe: EligibleInstrumentSnapshot,
+): Readonly<Record<string, string>> {
+  const eligible = eligibleInstrumentIds(universe);
+  return Object.freeze(Object.fromEntries(
+    Object.entries(sequences)
+      .filter(([instrumentId]) => eligible.has(instrumentId))
+      .sort(([left], [right]) => left.localeCompare(right)),
+  ));
+}
+
+function validateRestoredState(
+  state: CollectorDurableState,
+  config: CollectorRuntimeConfig,
+): void {
+  const lastCatalogMs = state.lastCatalogAt === null
+    ? null
+    : Date.parse(state.lastCatalogAt);
+  const eligible = eligibleInstrumentIds(state.universe);
+  const invalidSequence = Object.entries(state.previousSequences).some(
+    ([instrumentId, sequence]) =>
+      !eligible.has(instrumentId) || !/^\d+$/u.test(sequence),
+  );
+  if (
+    !Number.isSafeInteger(state.nextCycleOrdinal) ||
+    state.nextCycleOrdinal < 1 ||
+    state.universe.releaseId !== config.releaseId ||
+    state.universe.policyVersion !== config.policyVersion ||
+    (lastCatalogMs !== null && !Number.isFinite(lastCatalogMs)) ||
+    (lastCatalogMs !== null &&
+      lastCatalogMs !== Date.parse(state.universe.sourceCutoff)) ||
+    (state.state === "READY" && state.lastFailureReasons.length !== 0) ||
+    (state.state !== "READY" && state.lastFailureReasons.length === 0) ||
+    invalidSequence
+  ) {
+    throw new CollectorRuntimeError(
+      "RESTORED_STATE_REJECTED",
+      "collector durable state does not match the exact runtime release, policy or universe",
+    );
+  }
+}
+
 export class M1CollectorRuntime {
   readonly #adapterRuntime: CollectorAdapterRuntime;
   readonly #clock: CollectorClock;
@@ -95,6 +148,7 @@ export class M1CollectorRuntime {
     adapterRuntime: CollectorAdapterRuntime;
     clock: CollectorClock;
     config: CollectorRuntimeConfig;
+    restoredState?: CollectorDurableState | null;
     store: CollectorArtifactStore;
   }) {
     const byVenue = new Map(
@@ -132,6 +186,21 @@ export class M1CollectorRuntime {
     this.#clock = input.clock;
     this.#config = input.config;
     this.#store = input.store;
+    if (input.restoredState !== undefined && input.restoredState !== null) {
+      validateRestoredState(input.restoredState, input.config);
+      this.#cycleCounter = input.restoredState.nextCycleOrdinal;
+      this.#lastCatalogAtMs = input.restoredState.lastCatalogAt === null
+        ? null
+        : Date.parse(input.restoredState.lastCatalogAt);
+      this.#lastFailureReasons = Object.freeze([
+        ...input.restoredState.lastFailureReasons,
+      ]);
+      this.#lastUniverse = input.restoredState.universe;
+      this.#previousSequences = Object.freeze({
+        ...input.restoredState.previousSequences,
+      });
+      this.#state = input.restoredState.state;
+    }
   }
 
   get state(): CollectorRuntimeState {
@@ -309,9 +378,13 @@ export class M1CollectorRuntime {
           ? "BACKPRESSURED"
           : "DEGRADED";
 
+      const durableSequences = pruneSequences(
+        builtFacts.nextSequences,
+        universe,
+      );
       if (persistence !== "FAILED") {
         this.#lastUniverse = universe;
-        this.#previousSequences = builtFacts.nextSequences;
+        this.#previousSequences = durableSequences;
         if (trigger !== "INCREMENTAL_TICKER") {
           this.#lastCatalogAtMs = candidateCatalogAtMs;
         }
@@ -347,7 +420,19 @@ export class M1CollectorRuntime {
         trigger,
         universeSnapshotId: universe.snapshotId,
       });
-      return deepFreezeArtifact({ artifacts, telemetry });
+      const durableState: CollectorDurableState | null = persistence === "FAILED"
+        ? null
+        : {
+          lastCatalogAt: this.#lastCatalogAtMs === null
+            ? null
+            : new Date(this.#lastCatalogAtMs).toISOString(),
+          lastFailureReasons: this.#lastFailureReasons,
+          nextCycleOrdinal: this.#cycleCounter,
+          previousSequences: this.#previousSequences,
+          state: finalState,
+          universe,
+        };
+      return deepFreezeArtifact({ artifacts, durableState, telemetry });
     } catch (error) {
       this.#state = "DEGRADED";
       this.#lastFailureReasons = Object.freeze(["collector_internal_error"]);

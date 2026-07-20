@@ -30,6 +30,11 @@ export type CollectorRuntimeState =
   | "DEGRADED"
   | "BACKPRESSURED";
 
+export type CollectorDurableRuntimeState =
+  | "READY"
+  | "DEGRADED"
+  | "BACKPRESSURED";
+
 export type CollectorProviderOperation = "CATALOG" | "TICKER";
 
 export type CollectorProviderFailureEvidence = Readonly<{
@@ -135,7 +140,17 @@ export type CollectorCycleArtifacts = Readonly<{
 
 export type CollectorCycleResult = Readonly<{
   artifacts: CollectorCycleArtifacts | null;
+  durableState: CollectorDurableState | null;
   telemetry: CollectorCycleTelemetry;
+}>;
+
+export type CollectorDurableState = Readonly<{
+  lastCatalogAt: string | null;
+  lastFailureReasons: readonly string[];
+  nextCycleOrdinal: number;
+  previousSequences: Readonly<Record<string, string>>;
+  state: CollectorDurableRuntimeState;
+  universe: EligibleInstrumentSnapshot;
 }>;
 
 export type CollectorVenueAdapter = Readonly<{
@@ -192,7 +207,8 @@ export class CollectorRuntimeError extends Error {
   readonly code:
     | "CYCLE_ALREADY_RUNNING"
     | "INVALID_CONFIGURATION"
-    | "INVALID_RUNTIME_DEPENDENCY";
+    | "INVALID_RUNTIME_DEPENDENCY"
+    | "RESTORED_STATE_REJECTED";
 
   constructor(
     code: CollectorRuntimeError["code"],
