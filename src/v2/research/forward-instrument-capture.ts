@@ -12,6 +12,7 @@ import {
   deepFreezeArtifact,
   stableContentHash,
 } from "../modules/universe/stable-artifact";
+import type { InstrumentAccountingRecord } from "../domain/contracts";
 import { InstrumentAccountingRecordSchema } from "../runtime-schema/foundation-schemas";
 import {
   IsoDateTimeSchema,
@@ -19,13 +20,19 @@ import {
   NonNegativeIntegerSchema,
   ReasonCodesSchema,
 } from "../runtime-schema/primitives";
+import {
+  M2_FORWARD_INSTRUMENT_BATCH_VERSION,
+  M2_FORWARD_INSTRUMENT_RAW_EVIDENCE_VERSION,
+  M2_FORWARD_INSTRUMENT_SNAPSHOT_VERSION,
+  M2ForwardInstrumentProvenanceSchema,
+  type M2ForwardInstrumentProvenance,
+} from "./forward-instrument-provenance";
 
-export const M2_FORWARD_INSTRUMENT_RAW_EVIDENCE_VERSION =
-  "v2-m2-forward-instrument-raw-evidence.v1" as const;
-export const M2_FORWARD_INSTRUMENT_SNAPSHOT_VERSION =
-  "v2-m2-forward-instrument-snapshot.v1" as const;
-export const M2_FORWARD_INSTRUMENT_BATCH_VERSION =
-  "v2-m2-forward-instrument-batch.v1" as const;
+export {
+  M2_FORWARD_INSTRUMENT_BATCH_VERSION,
+  M2_FORWARD_INSTRUMENT_RAW_EVIDENCE_VERSION,
+  M2_FORWARD_INSTRUMENT_SNAPSHOT_VERSION,
+} from "./forward-instrument-provenance";
 
 const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const MAX_FORWARD_RAW_BYTES = 10 * 1024 * 1024;
@@ -76,6 +83,7 @@ export function forwardProviderVenueMatches(
 
 const ForwardRawEvidenceCoreSchema = z.strictObject({
   schemaVersion: z.literal(M2_FORWARD_INSTRUMENT_RAW_EVIDENCE_VERSION),
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   providerId: ForwardInstrumentProviderIdSchema,
   requestId: DigestSchema,
   requestSequence: NonNegativeIntegerSchema,
@@ -135,7 +143,9 @@ export type M2ForwardInstrumentRawEvidence = z.infer<
 
 export function buildM2ForwardInstrumentRawEvidence(
   page: CapturedCatalogPage,
+  provenance: M2ForwardInstrumentProvenance,
 ): M2ForwardInstrumentRawEvidence {
+  const parsedProvenance = M2ForwardInstrumentProvenanceSchema.parse(provenance);
   const measuredDigest = `sha256:${createHash("sha256")
     .update(page.rawBody)
     .digest("hex")}`;
@@ -148,6 +158,7 @@ export function buildM2ForwardInstrumentRawEvidence(
   const contentHex = measuredDigest.slice("sha256:".length);
   const core = ForwardRawEvidenceCoreSchema.parse({
     schemaVersion: M2_FORWARD_INSTRUMENT_RAW_EVIDENCE_VERSION,
+    ...parsedProvenance,
     providerId: page.providerId,
     requestId: page.requestId,
     requestSequence: page.requestSequence,
@@ -177,45 +188,74 @@ export function forwardProviderRecordKey(input: Readonly<{
     : `${input.providerId}:${input.venueInstrumentId}`;
 }
 
-export function forwardIdentityFingerprint(input: Readonly<{
-  baseAsset: string | null;
-  canonicalInstrumentId: string | null;
-  contractSize: string | null;
-  contractType: string | null;
-  quoteAsset: string | null;
-  settlementAsset: string | null;
-  underlyingGroupId: string | null;
-  venue: string;
-  venueInstrumentId: string | null;
-}>): string | null {
+const IdentityEvidenceClassSchema = z.enum([
+  "CANONICAL_TARGET",
+  "PROVIDER_NATIVE_OUT_OF_SCOPE",
+  "UNRESOLVED",
+]);
+
+export type ForwardIdentityEvidenceClass = z.infer<
+  typeof IdentityEvidenceClassSchema
+>;
+
+export function forwardIdentityEvidence(
+  input: InstrumentAccountingRecord,
+): Readonly<{
+  identityEvidenceClass: ForwardIdentityEvidenceClass;
+  identityFingerprint: string | null;
+}> {
   if (
-    input.baseAsset === null ||
-    input.canonicalInstrumentId === null ||
-    input.contractSize === null ||
-    input.contractType === null ||
-    input.quoteAsset === null ||
-    input.settlementAsset === null ||
-    input.underlyingGroupId === null ||
-    input.venueInstrumentId === null
+    input.baseAsset !== null &&
+    input.canonicalInstrumentId !== null &&
+    input.contractSize !== null &&
+    input.contractType !== null &&
+    input.quoteAsset !== null &&
+    input.settlementAsset !== null &&
+    input.underlyingGroupId !== null &&
+    input.venueInstrumentId !== null
   ) {
-    return null;
+    return Object.freeze({
+      identityEvidenceClass: "CANONICAL_TARGET" as const,
+      identityFingerprint: stableContentHash({
+        identityEvidenceClass: "CANONICAL_TARGET",
+        baseAsset: input.baseAsset,
+        canonicalInstrumentId: input.canonicalInstrumentId,
+        contractSize: input.contractSize,
+        contractType: input.contractType,
+        quoteAsset: input.quoteAsset,
+        settlementAsset: input.settlementAsset,
+        underlyingGroupId: input.underlyingGroupId,
+        venue: input.venue,
+        venueInstrumentId: input.venueInstrumentId,
+      }),
+    });
   }
-  return stableContentHash({
-    baseAsset: input.baseAsset,
-    canonicalInstrumentId: input.canonicalInstrumentId,
-    contractSize: input.contractSize,
-    contractType: input.contractType,
-    quoteAsset: input.quoteAsset,
-    settlementAsset: input.settlementAsset,
-    underlyingGroupId: input.underlyingGroupId,
-    venue: input.venue,
-    venueInstrumentId: input.venueInstrumentId,
+  if (input.status === "UNSUPPORTED" && input.venueInstrumentId !== null) {
+    return Object.freeze({
+      identityEvidenceClass: "PROVIDER_NATIVE_OUT_OF_SCOPE" as const,
+      identityFingerprint: stableContentHash({
+        identityEvidenceClass: "PROVIDER_NATIVE_OUT_OF_SCOPE",
+        venue: input.venue,
+        venueInstrumentId: input.venueInstrumentId,
+        baseAsset: input.baseAsset,
+        quoteAsset: input.quoteAsset,
+        settlementAsset: input.settlementAsset,
+        contractType: input.contractType,
+        contractSize: input.contractSize,
+        statusReasons: [...input.statusReasons],
+      }),
+    });
+  }
+  return Object.freeze({
+    identityEvidenceClass: "UNRESOLVED" as const,
+    identityFingerprint: null,
   });
 }
 
 export const M2ForwardInstrumentSnapshotRecordSchema = z.strictObject({
   providerId: ForwardInstrumentProviderIdSchema,
   providerRecordKey: NonEmptyStringSchema,
+  identityEvidenceClass: IdentityEvidenceClassSchema,
   identityFingerprint: DigestSchema.nullable(),
   accounting: InstrumentAccountingRecordSchema,
 }).superRefine((record, context) => {
@@ -231,8 +271,11 @@ export const M2ForwardInstrumentSnapshotRecordSchema = z.strictObject({
       path: ["providerRecordKey"],
     });
   }
-  const expectedFingerprint = forwardIdentityFingerprint(record.accounting);
-  if (record.identityFingerprint !== expectedFingerprint) {
+  const expectedEvidence = forwardIdentityEvidence(record.accounting);
+  if (
+    record.identityEvidenceClass !== expectedEvidence.identityEvidenceClass ||
+    record.identityFingerprint !== expectedEvidence.identityFingerprint
+  ) {
     context.addIssue({
       code: "custom",
       message: "forward identity fingerprint mismatch",
@@ -252,6 +295,7 @@ const SnapshotDenominatorSchema = z.strictObject({
 
 const ForwardSnapshotCoreSchema = z.strictObject({
   schemaVersion: z.literal(M2_FORWARD_INSTRUMENT_SNAPSHOT_VERSION),
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   providerId: ForwardInstrumentProviderIdSchema,
   venue: TargetVenueSchema,
   authorityMode: z.literal("NO_AUTHORITY_RESEARCH_CAPTURE"),
@@ -329,7 +373,8 @@ function derivedSnapshotLimitations(
     "current_snapshot_does_not_prove_provider_onboard_time",
     "current_snapshot_does_not_prove_provider_delist_time",
     "disappearance_does_not_prove_delisting",
-    ...(accounting.some((record) => record.identityFingerprint === null)
+    ...(accounting.some((record) =>
+      record.identityEvidenceClass === "UNRESOLVED")
       ? ["unresolved_identity_rows_retained_in_denominator"]
       : []),
   ]);
@@ -431,6 +476,9 @@ export const M2ForwardInstrumentSnapshotSchema =
         record.providerId !== snapshot.providerId ||
         record.accounting.venue !== snapshot.venue) ||
       snapshot.rawEvidence.some((item) => item.providerId !== snapshot.providerId) ||
+      snapshot.rawEvidence.some((item) =>
+        item.releaseId !== snapshot.releaseId ||
+        item.captureConfigDigest !== snapshot.captureConfigDigest) ||
       new Set(rawRequestIds).size !== rawRequestIds.length ||
       new Set(rawRequestSequences).size !== rawRequestSequences.length ||
       snapshot.evidenceStartedAt !== evidenceStartedAt
@@ -516,10 +564,13 @@ export type M2ForwardInstrumentSnapshot = z.infer<
 export function buildM2ForwardInstrumentSnapshot(input: Readonly<{
   attempt: ForwardCatalogCaptureAttempt;
   generatedAt: string;
+  provenance: M2ForwardInstrumentProvenance;
   rawEvidence: readonly M2ForwardInstrumentRawEvidence[];
 }>): M2ForwardInstrumentSnapshot {
+  const provenance = M2ForwardInstrumentProvenanceSchema.parse(input.provenance);
   const accounting = input.attempt.catalog.accounting.map((rawRecord) => {
     const record = InstrumentAccountingRecordSchema.parse(rawRecord);
+    const identityEvidence = forwardIdentityEvidence(record);
     return M2ForwardInstrumentSnapshotRecordSchema.parse({
       providerId: input.attempt.providerId,
       providerRecordKey: forwardProviderRecordKey({
@@ -527,7 +578,7 @@ export function buildM2ForwardInstrumentSnapshot(input: Readonly<{
         providerId: input.attempt.providerId,
         venueInstrumentId: record.venueInstrumentId,
       }),
-      identityFingerprint: forwardIdentityFingerprint(record),
+      ...identityEvidence,
       accounting: record,
     });
   }).sort((left, right) =>
@@ -545,7 +596,9 @@ export function buildM2ForwardInstrumentSnapshot(input: Readonly<{
     .map((evidence) => M2ForwardInstrumentRawEvidenceSchema.parse(evidence))
     .sort((left, right) => left.requestSequence - right.requestSequence);
   if (rawEvidence.some((evidence) =>
-    evidence.providerId !== input.attempt.providerId)) {
+    evidence.providerId !== input.attempt.providerId ||
+    evidence.releaseId !== provenance.releaseId ||
+    evidence.captureConfigDigest !== provenance.captureConfigDigest)) {
     throw new Error("raw evidence provider does not match catalog attempt");
   }
   const requestFailureReasonCodes = uniqueSorted(
@@ -568,6 +621,7 @@ export function buildM2ForwardInstrumentSnapshot(input: Readonly<{
       .sort((left, right) => Date.parse(left) - Date.parse(right))[0]!;
   const draft = {
     schemaVersion: M2_FORWARD_INSTRUMENT_SNAPSHOT_VERSION,
+    ...provenance,
     providerId: input.attempt.providerId,
     venue: input.attempt.venue,
     authorityMode: "NO_AUTHORITY_RESEARCH_CAPTURE" as const,
@@ -611,6 +665,7 @@ export function buildM2ForwardInstrumentSnapshot(input: Readonly<{
 }
 
 const BatchSnapshotReferenceSchema = z.strictObject({
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   providerId: ForwardInstrumentProviderIdSchema,
   venue: TargetVenueSchema,
   snapshotId: NonEmptyStringSchema,
@@ -624,6 +679,7 @@ const BatchSnapshotReferenceSchema = z.strictObject({
 
 const ForwardBatchCoreSchema = z.strictObject({
   schemaVersion: z.literal(M2_FORWARD_INSTRUMENT_BATCH_VERSION),
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   authorityMode: z.literal("NO_AUTHORITY_RESEARCH_CAPTURE"),
   captureDirection: z.literal("FORWARD_ONLY_FROM_MEASURED_CAPTURE_START"),
   historicalBackfillAllowed: z.literal(false),
@@ -678,7 +734,9 @@ export const M2ForwardInstrumentBatchSchema = ForwardBatchCoreSchema.extend({
     new Set(providers).size !== providers.length ||
     new Set(venues).size !== venues.length ||
     batch.snapshots.some((snapshot) =>
-      !forwardProviderVenueMatches(snapshot.providerId, snapshot.venue))
+      !forwardProviderVenueMatches(snapshot.providerId, snapshot.venue) ||
+      snapshot.releaseId !== batch.releaseId ||
+      snapshot.captureConfigDigest !== batch.captureConfigDigest)
   ) {
     context.addIssue({
       code: "custom",
@@ -739,11 +797,21 @@ export type M2ForwardInstrumentBatch = z.infer<
 
 export function buildM2ForwardInstrumentBatch(input: Readonly<{
   generatedAt: string;
+  provenance: M2ForwardInstrumentProvenance;
   snapshots: readonly M2ForwardInstrumentSnapshot[];
 }>): M2ForwardInstrumentBatch {
+  const provenance = M2ForwardInstrumentProvenanceSchema.parse(input.provenance);
   const snapshots = input.snapshots.map((rawSnapshot) => {
     const snapshot = M2ForwardInstrumentSnapshotSchema.parse(rawSnapshot);
+    if (
+      snapshot.releaseId !== provenance.releaseId ||
+      snapshot.captureConfigDigest !== provenance.captureConfigDigest
+    ) {
+      throw new Error("forward batch cannot mix release or capture config");
+    }
     return BatchSnapshotReferenceSchema.parse({
+      releaseId: snapshot.releaseId,
+      captureConfigDigest: snapshot.captureConfigDigest,
       providerId: snapshot.providerId,
       venue: snapshot.venue,
       snapshotId: snapshot.snapshotId,
@@ -752,9 +820,8 @@ export function buildM2ForwardInstrumentBatch(input: Readonly<{
       evidenceStartedAt: snapshot.evidenceStartedAt,
       generatedAt: snapshot.generatedAt,
       accountingCount: snapshot.accounting.length,
-      unresolvedIdentityCount: snapshot.accounting.filter(
-        (record) => record.identityFingerprint === null,
-      ).length,
+      unresolvedIdentityCount: snapshot.accounting.filter((record) =>
+        record.identityEvidenceClass === "UNRESOLVED").length,
     });
   }).sort((left, right) => left.providerId.localeCompare(right.providerId));
   const evidenceStarts = input.snapshots
@@ -764,6 +831,7 @@ export function buildM2ForwardInstrumentBatch(input: Readonly<{
   const assessment = deriveBatchAssessment(snapshots);
   const core = ForwardBatchCoreSchema.parse({
     schemaVersion: M2_FORWARD_INSTRUMENT_BATCH_VERSION,
+    ...provenance,
     authorityMode: "NO_AUTHORITY_RESEARCH_CAPTURE",
     captureDirection: "FORWARD_ONLY_FROM_MEASURED_CAPTURE_START",
     historicalBackfillAllowed: false,

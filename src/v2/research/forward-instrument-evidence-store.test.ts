@@ -14,6 +14,9 @@ import test from "node:test";
 import type { CapturedCatalogPage } from "../modules/universe/adapters/forward-catalog-capture-adapter";
 import { stableContentHash } from "../modules/universe/stable-artifact";
 import {
+  TEST_FORWARD_INSTRUMENT_PROVENANCE,
+} from "../testing/forward-instrument-harness";
+import {
   buildM2ForwardInstrumentRawEvidence,
 } from "./forward-instrument-capture";
 import {
@@ -64,7 +67,10 @@ test("stores exact raw bytes outside Git with restrictive permissions", async ()
       root: evidenceRoot,
     });
     const body = new TextEncoder().encode('{"rows":[1,2,3]}');
-    const evidence = buildM2ForwardInstrumentRawEvidence(capturedPage(body));
+    const evidence = buildM2ForwardInstrumentRawEvidence(
+      capturedPage(body),
+      TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    );
     await store.putRaw(evidence, body);
     await store.verifyRaw(evidence);
     assert.deepEqual(
@@ -86,7 +92,10 @@ test("raw and normalized artifact tampering both fail closed", async () => {
       root: join(root, "evidence"),
     });
     const body = new TextEncoder().encode('{"rows":[1]}');
-    const evidence = buildM2ForwardInstrumentRawEvidence(capturedPage(body));
+    const evidence = buildM2ForwardInstrumentRawEvidence(
+      capturedPage(body),
+      TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    );
     await store.putRaw(evidence, body);
     await writeFile(
       join(store.root, evidence.storageKey),
@@ -96,6 +105,7 @@ test("raw and normalized artifact tampering both fail closed", async () => {
 
     const artifactDigest = `sha256:${"3".repeat(64)}`;
     const artifact = {
+      ...TEST_FORWARD_INSTRUMENT_PROVENANCE,
       snapshotDigest: artifactDigest,
       kind: "test-artifact",
       value: 1,
@@ -123,7 +133,10 @@ test("content-addressed reads reject symbolic-link substitution", async () => {
       root: join(root, "evidence"),
     });
     const body = new TextEncoder().encode('{"rows":[1]}');
-    const evidence = buildM2ForwardInstrumentRawEvidence(capturedPage(body));
+    const evidence = buildM2ForwardInstrumentRawEvidence(
+      capturedPage(body),
+      TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    );
     await store.putRaw(evidence, body);
     const target = join(store.root, evidence.storageKey);
     const substitute = join(root, "substitute.json");

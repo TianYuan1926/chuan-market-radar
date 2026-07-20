@@ -1,7 +1,11 @@
+import { execFileSync } from "node:child_process";
 import { isAbsolute, resolve } from "node:path";
 import {
   runM2ForwardInstrumentCapture,
 } from "../research/forward-instrument-capture-runner";
+import {
+  M2ForwardInstrumentReleaseIdSchema,
+} from "../research/forward-instrument-provenance";
 
 function option(args: readonly string[], name: string): string {
   const index = args.indexOf(name);
@@ -12,36 +16,73 @@ function option(args: readonly string[], name: string): string {
   return value;
 }
 
+function resolveCleanRepositoryRelease(repositoryRoot: string): string {
+  const releaseId = execFileSync(
+    "git",
+    ["-C", repositoryRoot, "rev-parse", "HEAD"],
+    { encoding: "utf8" },
+  ).trim();
+  const trackedChanges = execFileSync(
+    "git",
+    ["-C", repositoryRoot, "status", "--porcelain", "--untracked-files=no"],
+    { encoding: "utf8" },
+  ).trim();
+  if (trackedChanges !== "") {
+    throw new Error("forward capture requires a clean tracked release worktree");
+  }
+  return M2ForwardInstrumentReleaseIdSchema.parse(releaseId);
+}
+
 export async function runM2ForwardInstrumentCaptureEntrypoint(input: Readonly<{
   args: readonly string[];
   fetchImplementation?: typeof fetch;
   now?: () => Date;
+  resolveRepositoryRelease?: (repositoryRoot: string) => string;
 }>): Promise<Readonly<{
   exitCode: 0 | 2;
   output: string;
 }>> {
-  const allowed = new Set(["--evidence-root", "--repository-root"]);
+  const allowed = new Set([
+    "--evidence-root",
+    "--release-id",
+    "--repository-root",
+  ]);
+  const optionNames = input.args.filter((_, index) => index % 2 === 0);
   if (
-    input.args.length !== 4 ||
-    input.args.some((value, index) => index % 2 === 0 && !allowed.has(value))
+    input.args.length !== 6 ||
+    optionNames.some((value) => !allowed.has(value)) ||
+    new Set(optionNames).size !== allowed.size
   ) {
     throw new Error(
-      "usage: m2-forward-instrument-capture --evidence-root <absolute-path> --repository-root <absolute-path>",
+      "usage: m2-forward-instrument-capture --evidence-root <absolute-path> --repository-root <absolute-path> --release-id <40-hex-commit>",
     );
   }
   const evidenceRoot = option(input.args, "--evidence-root");
   const repositoryRoot = option(input.args, "--repository-root");
+  const releaseId = M2ForwardInstrumentReleaseIdSchema.parse(
+    option(input.args, "--release-id"),
+  );
   if (!isAbsolute(evidenceRoot) || !isAbsolute(repositoryRoot)) {
     throw new Error("forward instrument capture paths must be absolute");
+  }
+  const resolvedRepositoryRoot = resolve(repositoryRoot);
+  const actualReleaseId = (
+    input.resolveRepositoryRelease ?? resolveCleanRepositoryRelease
+  )(resolvedRepositoryRoot);
+  if (actualReleaseId !== releaseId) {
+    throw new Error("forward capture release-id does not match repository HEAD");
   }
   const result = await runM2ForwardInstrumentCapture({
     evidenceRoot: resolve(evidenceRoot),
     fetchImplementation: input.fetchImplementation,
     now: input.now,
-    repositoryRoot: resolve(repositoryRoot),
+    releaseId,
+    repositoryRoot: resolvedRepositoryRoot,
   });
   const output = {
-    schemaVersion: "v2-m2-forward-instrument-capture-command-result.v1",
+    schemaVersion: "v2-m2-forward-instrument-capture-command-result.v2",
+    releaseId: result.journalEntry.releaseId,
+    captureConfigDigest: result.journalEntry.captureConfigDigest,
     authorityMode: "NO_AUTHORITY_RESEARCH_CAPTURE",
     captureDirection: "FORWARD_ONLY_FROM_MEASURED_CAPTURE_START",
     historicalBackfillAllowed: false,

@@ -7,6 +7,7 @@ import {
   MutableForwardInstrumentClock,
   syntheticForwardInstrumentFetch,
   syntheticForwardInstrumentState,
+  TEST_FORWARD_INSTRUMENT_PROVENANCE,
   type SyntheticForwardInstrumentState,
 } from "../testing/forward-instrument-harness";
 import {
@@ -34,7 +35,12 @@ async function captureBinanceSnapshot(
   return buildM2ForwardInstrumentSnapshot({
     attempt,
     generatedAt: clock.now().toISOString(),
-    rawEvidence: attempt.pages.map(buildM2ForwardInstrumentRawEvidence),
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    rawEvidence: attempt.pages.map((page) =>
+      buildM2ForwardInstrumentRawEvidence(
+        page,
+        TEST_FORWARD_INSTRUMENT_PROVENANCE,
+      )),
   });
 }
 
@@ -46,6 +52,7 @@ function checkpoint(
   return buildM2ForwardInstrumentContinuity({
     generatedAt: clock.now().toISOString(),
     previous,
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
     snapshots: [snapshot],
   });
 }
@@ -195,6 +202,37 @@ test("an incomplete identity observation cannot silently reuse the last identity
   assert.ok(second.blockerReasonCodes.includes(
     "forward_continuity_contains_unresolved_identity",
   ));
+});
+
+test("stable out-of-scope rows remain audited without blocking readiness", async () => {
+  const state = syntheticForwardInstrumentState();
+  state.binanceRows = [{
+    baseAsset: "AAA",
+    contractType: "CURRENT_QUARTER",
+    marginAsset: "USDT",
+    quoteAsset: "USDT",
+    status: "TRADING",
+    symbol: "AAAUSDT_260925",
+  }];
+  const clock = new MutableForwardInstrumentClock("2026-07-20T15:45:00.000Z");
+  const first = checkpoint(await captureBinanceSnapshot(state, clock), clock);
+  clock.advance(5 * 60 * 1_000);
+  const second = checkpoint(
+    await captureBinanceSnapshot(state, clock),
+    clock,
+    first,
+  );
+  const record = second.instruments.find(
+    (item) => item.venueInstrumentId === "AAAUSDT_260925",
+  );
+  assert.equal(record?.currentProviderStatus, "UNSUPPORTED");
+  assert.equal(
+    record?.currentIdentityEvidenceClass,
+    "PROVIDER_NATIVE_OUT_OF_SCOPE",
+  );
+  assert.equal(record?.currentState, "PRESENT");
+  assert.equal(second.continuityStatus, "FORWARD_ONLY_READY");
+  assert.equal(second.blockerReasonCodes.length, 0);
 });
 
 test("a cadence breach remains visible across compact chained checkpoints", async () => {

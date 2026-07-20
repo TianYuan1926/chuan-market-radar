@@ -1,4 +1,12 @@
 import assert from "node:assert/strict";
+import {
+  buildM2ForwardInstrumentProvenance,
+} from "../research/forward-instrument-provenance";
+
+export const TEST_FORWARD_INSTRUMENT_RELEASE_ID =
+  "0123456789abcdef0123456789abcdef01234567";
+export const TEST_FORWARD_INSTRUMENT_PROVENANCE =
+  buildM2ForwardInstrumentProvenance(TEST_FORWARD_INSTRUMENT_RELEASE_ID);
 
 export type SyntheticForwardInstrumentState = {
   binanceRows: Array<Record<string, unknown>>;

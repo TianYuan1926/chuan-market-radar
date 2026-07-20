@@ -7,6 +7,7 @@ import {
   MutableForwardInstrumentClock,
   syntheticForwardInstrumentFetch,
   syntheticForwardInstrumentState,
+  TEST_FORWARD_INSTRUMENT_RELEASE_ID,
 } from "../testing/forward-instrument-harness";
 import {
   runM2ForwardInstrumentCaptureEntrypoint,
@@ -22,11 +23,14 @@ test("entrypoint emits a bounded truth summary for a complete capture", async ()
         join(root, "evidence"),
         "--repository-root",
         process.cwd(),
+        "--release-id",
+        TEST_FORWARD_INSTRUMENT_RELEASE_ID,
       ],
       fetchImplementation: syntheticForwardInstrumentFetch(state),
       now: new MutableForwardInstrumentClock(
         "2026-07-20T21:00:00.000Z",
       ).now,
+      resolveRepositoryRelease: () => TEST_FORWARD_INSTRUMENT_RELEASE_ID,
     });
     const output = JSON.parse(result.output) as Record<string, unknown>;
     assert.equal(result.exitCode, 0);
@@ -51,11 +55,14 @@ test("entrypoint returns a nonzero truth status for partial coverage", async () 
         process.cwd(),
         "--evidence-root",
         join(root, "evidence"),
+        "--release-id",
+        TEST_FORWARD_INSTRUMENT_RELEASE_ID,
       ],
       fetchImplementation: syntheticForwardInstrumentFetch(state),
       now: new MutableForwardInstrumentClock(
         "2026-07-20T21:30:00.000Z",
       ).now,
+      resolveRepositoryRelease: () => TEST_FORWARD_INSTRUMENT_RELEASE_ID,
     });
     assert.equal(result.exitCode, 2);
     assert.equal(
@@ -70,12 +77,38 @@ test("entrypoint returns a nonzero truth status for partial coverage", async () 
 test("entrypoint rejects ambiguous or relative storage options", async () => {
   await assert.rejects(
     runM2ForwardInstrumentCaptureEntrypoint({
-      args: ["--evidence-root", "relative", "--repository-root", process.cwd()],
+      args: [
+        "--evidence-root",
+        "relative",
+        "--repository-root",
+        process.cwd(),
+        "--release-id",
+        TEST_FORWARD_INSTRUMENT_RELEASE_ID,
+      ],
+      resolveRepositoryRelease: () => TEST_FORWARD_INSTRUMENT_RELEASE_ID,
     }),
     /paths must be absolute/u,
   );
   await assert.rejects(
     runM2ForwardInstrumentCaptureEntrypoint({ args: [] }),
     /usage/u,
+  );
+});
+
+test("entrypoint rejects a release id that is not the repository HEAD", async () => {
+  await assert.rejects(
+    runM2ForwardInstrumentCaptureEntrypoint({
+      args: [
+        "--evidence-root",
+        join(tmpdir(), "forward-entrypoint-release-evidence"),
+        "--repository-root",
+        process.cwd(),
+        "--release-id",
+        TEST_FORWARD_INSTRUMENT_RELEASE_ID,
+      ],
+      resolveRepositoryRelease: () =>
+        "89abcdef0123456789abcdef0123456789abcdef",
+    }),
+    /does not match repository HEAD/u,
   );
 });

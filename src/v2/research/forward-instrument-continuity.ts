@@ -13,18 +13,20 @@ import {
 } from "../runtime-schema/primitives";
 import {
   M2ForwardInstrumentSnapshotSchema,
+  type ForwardIdentityEvidenceClass,
   type M2ForwardInstrumentSnapshot,
 } from "./forward-instrument-capture";
+import {
+  M2_FORWARD_INSTRUMENT_CONTINUITY_VERSION,
+  M2_FORWARD_INSTRUMENT_DEFAULT_CADENCE_POLICY,
+  M2ForwardInstrumentProvenanceSchema,
+  type M2ForwardInstrumentProvenance,
+} from "./forward-instrument-provenance";
 
-export const M2_FORWARD_INSTRUMENT_CONTINUITY_VERSION =
-  "v2-m2-forward-instrument-continuity.v1" as const;
-
-export const M2_FORWARD_INSTRUMENT_DEFAULT_CADENCE_POLICY = Object.freeze({
-  expectedCadenceMs: 5 * 60 * 1_000,
-  maximumGapMs: 15 * 60 * 1_000,
-  completeMissesToConfirm: 3,
-  minimumConfirmationElapsedMs: 15 * 60 * 1_000,
-});
+export {
+  M2_FORWARD_INSTRUMENT_CONTINUITY_VERSION,
+  M2_FORWARD_INSTRUMENT_DEFAULT_CADENCE_POLICY,
+} from "./forward-instrument-provenance";
 
 const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const ForwardInstrumentProviderIdSchema = z.enum([
@@ -67,6 +69,7 @@ export const M2ForwardInstrumentCadencePolicySchema = z.strictObject({
 type CadencePolicy = z.infer<typeof M2ForwardInstrumentCadencePolicySchema>;
 
 const LedgerSnapshotReferenceSchema = z.strictObject({
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   providerId: ForwardInstrumentProviderIdSchema,
   venue: TargetVenueSchema,
   snapshotId: NonEmptyStringSchema,
@@ -94,6 +97,10 @@ const IdentityEpochSchema = z.strictObject({
   identityEpochId: NonEmptyStringSchema,
   epochNumber: z.number().int().positive(),
   identityFingerprint: DigestSchema,
+  identityEvidenceClass: z.enum([
+    "CANONICAL_TARGET",
+    "PROVIDER_NATIVE_OUT_OF_SCOPE",
+  ]),
   firstObservedAt: IsoDateTimeSchema,
   lastObservedAt: IsoDateTimeSchema,
   firstSnapshotId: NonEmptyStringSchema,
@@ -110,6 +117,11 @@ const InstrumentContinuityRecordSchema = z.strictObject({
   providerRecordKey: NonEmptyStringSchema,
   venueInstrumentId: NonEmptyStringSchema.nullable(),
   currentIdentityFingerprint: DigestSchema.nullable(),
+  currentIdentityEvidenceClass: z.enum([
+    "CANONICAL_TARGET",
+    "PROVIDER_NATIVE_OUT_OF_SCOPE",
+    "UNRESOLVED",
+  ]),
   observedIdentityFingerprints: z.array(DigestSchema),
   currentState: z.enum([
     "PRESENT",
@@ -172,6 +184,7 @@ const InstrumentContinuityRecordSchema = z.strictObject({
     record.currentState === "UNRESOLVED_IDENTITY" &&
     (
       record.currentIdentityFingerprint !== null ||
+      record.currentIdentityEvidenceClass !== "UNRESOLVED" ||
       record.identityEpochs.length !== 0
     )
   ) {
@@ -185,6 +198,7 @@ const InstrumentContinuityRecordSchema = z.strictObject({
     record.currentState === "IDENTITY_EVIDENCE_GAP" &&
     (
       record.currentIdentityFingerprint === null ||
+      record.currentIdentityEvidenceClass === "UNRESOLVED" ||
       record.identityEpochs.length === 0
     )
   ) {
@@ -209,6 +223,16 @@ const InstrumentContinuityRecordSchema = z.strictObject({
     });
   }
   const fingerprints = [...new Set(record.observedIdentityFingerprints)].sort();
+  if (
+    (record.currentIdentityFingerprint === null) !==
+      (record.currentIdentityEvidenceClass === "UNRESOLVED")
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "identity evidence class and fingerprint disagree",
+      path: ["currentIdentityEvidenceClass"],
+    });
+  }
   if (JSON.stringify(record.observedIdentityFingerprints) !== JSON.stringify(fingerprints)) {
     context.addIssue({
       code: "custom",
@@ -220,6 +244,7 @@ const InstrumentContinuityRecordSchema = z.strictObject({
 
 const ContinuityCoreSchema = z.strictObject({
   schemaVersion: z.literal(M2_FORWARD_INSTRUMENT_CONTINUITY_VERSION),
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   providerId: ForwardInstrumentProviderIdSchema,
   venue: TargetVenueSchema,
   authorityMode: z.literal("NO_AUTHORITY_RESEARCH_CAPTURE"),
@@ -314,7 +339,9 @@ export const M2ForwardInstrumentContinuitySchema =
     }
     if (continuity.segmentSnapshots.some((snapshot) =>
       snapshot.providerId !== continuity.providerId ||
-      snapshot.venue !== continuity.venue)) {
+      snapshot.venue !== continuity.venue ||
+      snapshot.releaseId !== continuity.releaseId ||
+      snapshot.captureConfigDigest !== continuity.captureConfigDigest)) {
       context.addIssue({
         code: "custom",
         message: "continuity segment cannot combine providers or venues",
@@ -469,6 +496,10 @@ type MutableRecord = z.infer<typeof InstrumentContinuityRecordSchema>;
 function identityEpoch(input: Readonly<{
   epochNumber: number;
   fingerprint: string;
+  identityEvidenceClass: Exclude<
+    ForwardIdentityEvidenceClass,
+    "UNRESOLVED"
+  >;
   providerRecordKey: string;
   snapshotId: string;
   sourceCutoff: string;
@@ -482,6 +513,7 @@ function identityEpoch(input: Readonly<{
     }).slice("sha256:".length)}`,
     epochNumber: input.epochNumber,
     identityFingerprint: input.fingerprint,
+    identityEvidenceClass: input.identityEvidenceClass,
     firstObservedAt: input.sourceCutoff,
     lastObservedAt: input.sourceCutoff,
     firstSnapshotId: input.snapshotId,
@@ -499,6 +531,10 @@ function markEpochsConflicted(record: MutableRecord): void {
 
 function observeResolvedRecord(input: Readonly<{
   fingerprint: string;
+  identityEvidenceClass: Exclude<
+    ForwardIdentityEvidenceClass,
+    "UNRESOLVED"
+  >;
   providerRecordKey: string;
   providerStatus: InstrumentAccountingStatus;
   snapshotId: string;
@@ -510,6 +546,7 @@ function observeResolvedRecord(input: Readonly<{
       providerRecordKey: input.providerRecordKey,
       venueInstrumentId: input.venueInstrumentId,
       currentIdentityFingerprint: input.fingerprint,
+      currentIdentityEvidenceClass: input.identityEvidenceClass,
       observedIdentityFingerprints: [input.fingerprint],
       currentState: "PRESENT",
       currentProviderStatus: input.providerStatus,
@@ -522,6 +559,7 @@ function observeResolvedRecord(input: Readonly<{
       identityEpochs: [identityEpoch({
         epochNumber: 1,
         fingerprint: input.fingerprint,
+        identityEvidenceClass: input.identityEvidenceClass,
         providerRecordKey: input.providerRecordKey,
         snapshotId: input.snapshotId,
         sourceCutoff: input.sourceCutoff,
@@ -544,6 +582,7 @@ function observeResolvedRecord(input: Readonly<{
       existing.identityEpochs.push(identityEpoch({
         epochNumber: existing.identityEpochs.length + 1,
         fingerprint: input.fingerprint,
+        identityEvidenceClass: input.identityEvidenceClass,
         providerRecordKey: input.providerRecordKey,
         snapshotId: input.snapshotId,
         sourceCutoff: input.sourceCutoff,
@@ -551,6 +590,7 @@ function observeResolvedRecord(input: Readonly<{
     }
     markEpochsConflicted(existing);
     existing.currentIdentityFingerprint = input.fingerprint;
+    existing.currentIdentityEvidenceClass = input.identityEvidenceClass;
     existing.currentState = "IDENTITY_CONFLICT";
     existing.lastObservedAt = input.sourceCutoff;
     existing.missingSince = null;
@@ -563,6 +603,7 @@ function observeResolvedRecord(input: Readonly<{
     existing.identityEpochs.push(identityEpoch({
       epochNumber: existing.identityEpochs.length + 1,
       fingerprint: input.fingerprint,
+      identityEvidenceClass: input.identityEvidenceClass,
       providerRecordKey: input.providerRecordKey,
       snapshotId: input.snapshotId,
       sourceCutoff: input.sourceCutoff,
@@ -576,6 +617,7 @@ function observeResolvedRecord(input: Readonly<{
     }
   }
   existing.currentState = "PRESENT";
+  existing.currentIdentityEvidenceClass = input.identityEvidenceClass;
   existing.lastObservedAt = input.sourceCutoff;
   existing.missingSince = null;
   existing.consecutiveCompleteMisses = 0;
@@ -593,6 +635,7 @@ function observeUnresolvedRecord(input: Readonly<{
       providerRecordKey: input.providerRecordKey,
       venueInstrumentId: input.venueInstrumentId,
       currentIdentityFingerprint: null,
+      currentIdentityEvidenceClass: "UNRESOLVED",
       observedIdentityFingerprints: [],
       currentState: "UNRESOLVED_IDENTITY",
       currentProviderStatus: input.providerStatus,
@@ -652,6 +695,7 @@ export function buildM2ForwardInstrumentContinuity(input: Readonly<{
   generatedAt: string;
   policy?: CadencePolicy;
   previous?: M2ForwardInstrumentContinuity;
+  provenance: M2ForwardInstrumentProvenance;
   snapshots: readonly M2ForwardInstrumentSnapshot[];
 }>): M2ForwardInstrumentContinuity {
   if (input.snapshots.length === 0) {
@@ -660,14 +704,19 @@ export function buildM2ForwardInstrumentContinuity(input: Readonly<{
   const policy = M2ForwardInstrumentCadencePolicySchema.parse(
     input.policy ?? M2_FORWARD_INSTRUMENT_DEFAULT_CADENCE_POLICY,
   );
+  const provenance = M2ForwardInstrumentProvenanceSchema.parse(input.provenance);
   const previousContinuity = input.previous === undefined
     ? null
     : M2ForwardInstrumentContinuitySchema.parse(input.previous);
   if (
     previousContinuity !== null &&
-    JSON.stringify(previousContinuity.cadencePolicy) !== JSON.stringify(policy)
+    (
+      JSON.stringify(previousContinuity.cadencePolicy) !== JSON.stringify(policy) ||
+      previousContinuity.releaseId !== provenance.releaseId ||
+      previousContinuity.captureConfigDigest !== provenance.captureConfigDigest
+    )
   ) {
-    throw new Error("forward continuity cadence policy cannot change inside a chain");
+    throw new Error("forward continuity release or policy cannot change inside a chain");
   }
   const snapshots = input.snapshots
     .map((snapshot) => M2ForwardInstrumentSnapshotSchema.parse(snapshot))
@@ -676,7 +725,10 @@ export function buildM2ForwardInstrumentContinuity(input: Readonly<{
   const providerId = previousContinuity?.providerId ?? snapshots[0]!.providerId;
   const venue = previousContinuity?.venue ?? snapshots[0]!.venue;
   if (snapshots.some((snapshot) =>
-    snapshot.providerId !== providerId || snapshot.venue !== venue)) {
+    snapshot.providerId !== providerId ||
+    snapshot.venue !== venue ||
+    snapshot.releaseId !== provenance.releaseId ||
+    snapshot.captureConfigDigest !== provenance.captureConfigDigest)) {
     throw new Error("forward continuity cannot combine providers or venues");
   }
   const snapshotDigests = snapshots.map((snapshot) => snapshot.snapshotDigest);
@@ -763,6 +815,7 @@ export function buildM2ForwardInstrumentContinuity(input: Readonly<{
       presentKeys.add(item.providerRecordKey);
       const existing = records.get(item.providerRecordKey);
       const record = item.identityFingerprint === null ||
+          item.identityEvidenceClass === "UNRESOLVED" ||
           item.accounting.venueInstrumentId === null
         ? observeUnresolvedRecord({
           providerRecordKey: item.providerRecordKey,
@@ -772,6 +825,7 @@ export function buildM2ForwardInstrumentContinuity(input: Readonly<{
         }, existing)
         : observeResolvedRecord({
           fingerprint: item.identityFingerprint,
+          identityEvidenceClass: item.identityEvidenceClass,
           providerRecordKey: item.providerRecordKey,
           providerStatus: item.accounting.status,
           snapshotId: snapshot.snapshotId,
@@ -789,6 +843,7 @@ export function buildM2ForwardInstrumentContinuity(input: Readonly<{
 
   const snapshotReferences = snapshots.map((snapshot) =>
     LedgerSnapshotReferenceSchema.parse({
+      ...provenance,
       providerId: snapshot.providerId,
       venue: snapshot.venue,
       snapshotId: snapshot.snapshotId,
@@ -811,6 +866,7 @@ export function buildM2ForwardInstrumentContinuity(input: Readonly<{
       left.providerRecordKey.localeCompare(right.providerRecordKey));
   const draft = {
     schemaVersion: M2_FORWARD_INSTRUMENT_CONTINUITY_VERSION,
+    ...provenance,
     providerId: providerId as ForwardInstrumentProviderId,
     venue,
     authorityMode: "NO_AUTHORITY_RESEARCH_CAPTURE" as const,

@@ -2,12 +2,15 @@ import type { InstrumentIdentity } from "../../domain/contracts";
 import type { TargetVenue } from "../../domain/product-constitution";
 import { stableSha256 } from "./stable-artifact";
 
-const ASSET_CODE = /^[A-Z0-9]{1,32}$/u;
-const VENUE_INSTRUMENT_ID = /^[A-Z0-9_-]{2,80}$/u;
+const ASSET_CODE = /^[\p{L}\p{M}\p{N}]{1,32}$/u;
+const VENUE_INSTRUMENT_ID = /^[\p{L}\p{M}\p{N}_-]{2,80}$/u;
 const POSITIVE_DECIMAL = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 
 function normalizeCode(value: string, pattern: RegExp): string | null {
-  const normalized = value.trim().toUpperCase();
+  const normalized = value
+    .trim()
+    .normalize("NFC")
+    .replace(/[a-z]/gu, (character) => character.toUpperCase());
   return pattern.test(normalized) ? normalized : null;
 }
 

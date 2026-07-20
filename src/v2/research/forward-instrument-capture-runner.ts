@@ -31,9 +31,16 @@ import {
   M2ForwardInstrumentArtifactReferenceSchema,
   type M2ForwardInstrumentArtifactReference,
 } from "./forward-instrument-evidence-store";
+import {
+  buildM2ForwardInstrumentProvenance,
+  M2_FORWARD_INSTRUMENT_CAPTURE_JOURNAL_VERSION,
+  M2ForwardInstrumentProvenanceSchema,
+  type M2ForwardInstrumentProvenance,
+} from "./forward-instrument-provenance";
 
-export const M2_FORWARD_INSTRUMENT_CAPTURE_JOURNAL_VERSION =
-  "v2-m2-forward-instrument-capture-journal.v1" as const;
+export {
+  M2_FORWARD_INSTRUMENT_CAPTURE_JOURNAL_VERSION,
+} from "./forward-instrument-provenance";
 
 const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const ForwardInstrumentProviderIdSchema = z.enum([
@@ -65,6 +72,7 @@ const ContinuityArtifactBindingSchema = z.strictObject({
 
 const CaptureJournalCoreSchema = z.strictObject({
   schemaVersion: z.literal(M2_FORWARD_INSTRUMENT_CAPTURE_JOURNAL_VERSION),
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   entrySequence: NonNegativeIntegerSchema,
   previousEntryDigest: DigestSchema.nullable(),
   recordedAt: IsoDateTimeSchema,
@@ -125,10 +133,16 @@ export const M2ForwardInstrumentCaptureJournalEntrySchema =
     }
     if (
       entry.batchArtifact.artifactKind !== "BATCH" ||
+      entry.batchArtifact.releaseId !== entry.releaseId ||
+      entry.batchArtifact.captureConfigDigest !== entry.captureConfigDigest ||
       entry.snapshotArtifacts.some((binding) =>
-        binding.artifact.artifactKind !== "SNAPSHOT") ||
+        binding.artifact.artifactKind !== "SNAPSHOT" ||
+        binding.artifact.releaseId !== entry.releaseId ||
+        binding.artifact.captureConfigDigest !== entry.captureConfigDigest) ||
       entry.continuityArtifacts.some((binding) =>
-        binding.artifact.artifactKind !== "CONTINUITY") ||
+        binding.artifact.artifactKind !== "CONTINUITY" ||
+        binding.artifact.releaseId !== entry.releaseId ||
+        binding.artifact.captureConfigDigest !== entry.captureConfigDigest) ||
       !providerBindingsAreCanonical(entry.snapshotArtifacts) ||
       !providerBindingsAreCanonical(entry.continuityArtifacts)
     ) {
@@ -204,6 +218,7 @@ function buildJournalEntry(input: Readonly<{
   continuityArtifacts: readonly M2ForwardInstrumentArtifactReference[];
   entrySequence: number;
   previousEntryDigest: string | null;
+  provenance: M2ForwardInstrumentProvenance;
   recordedAt: string;
   snapshots: readonly M2ForwardInstrumentSnapshot[];
   snapshotArtifacts: readonly M2ForwardInstrumentArtifactReference[];
@@ -230,6 +245,7 @@ function buildJournalEntry(input: Readonly<{
   })).sort((left, right) => left.providerId.localeCompare(right.providerId));
   const core = CaptureJournalCoreSchema.parse({
     schemaVersion: M2_FORWARD_INSTRUMENT_CAPTURE_JOURNAL_VERSION,
+    ...input.provenance,
     entrySequence: input.entrySequence,
     previousEntryDigest: input.previousEntryDigest,
     recordedAt: input.recordedAt,
@@ -275,17 +291,31 @@ export async function runM2ForwardInstrumentCapture(input: Readonly<{
   evidenceRoot: string;
   fetchImplementation?: typeof fetch;
   now?: () => Date;
+  releaseId: string;
   repositoryRoot: string;
 }>): Promise<M2ForwardInstrumentCaptureRunResult> {
   const now = input.now ?? (() => new Date());
+  const provenance = buildM2ForwardInstrumentProvenance(input.releaseId);
   const store = await createM2ForwardInstrumentEvidenceStore({
     repositoryRoot: input.repositoryRoot,
     root: input.evidenceRoot,
   });
-  const rawPreviousEntry = await store.readLastJournalRecord();
-  const previousEntry = rawPreviousEntry === null
-    ? null
-    : M2ForwardInstrumentCaptureJournalEntrySchema.parse(rawPreviousEntry);
+  const journalEntries = (await store.readJournalRecords()).map((entry) =>
+    M2ForwardInstrumentCaptureJournalEntrySchema.parse(entry));
+  for (const [index, entry] of journalEntries.entries()) {
+    const prior = journalEntries[index - 1];
+    if (
+      entry.entrySequence !== index ||
+      entry.previousEntryDigest !== (prior?.journalEntryDigest ?? null) ||
+      entry.releaseId !== provenance.releaseId ||
+      entry.captureConfigDigest !== provenance.captureConfigDigest
+    ) {
+      throw new Error(
+        "forward capture journal chain, release, or config is invalid",
+      );
+    }
+  }
+  const previousEntry = journalEntries.at(-1) ?? null;
   const previousContinuities = new Map<
     ForwardInstrumentProviderId,
     M2ForwardInstrumentContinuity
@@ -328,7 +358,8 @@ export async function runM2ForwardInstrumentCapture(input: Readonly<{
   const snapshots: M2ForwardInstrumentSnapshot[] = [];
   const snapshotArtifacts: M2ForwardInstrumentArtifactReference[] = [];
   for (const attempt of attempts) {
-    const rawEvidence = attempt.pages.map(buildM2ForwardInstrumentRawEvidence);
+    const rawEvidence = attempt.pages.map((page) =>
+      buildM2ForwardInstrumentRawEvidence(page, provenance));
     for (const [index, evidence] of rawEvidence.entries()) {
       await store.putRaw(evidence, attempt.pages[index]!.rawBody);
       await store.verifyRaw(evidence);
@@ -336,6 +367,7 @@ export async function runM2ForwardInstrumentCapture(input: Readonly<{
     const snapshot = buildM2ForwardInstrumentSnapshot({
       attempt,
       generatedAt: now().toISOString(),
+      provenance,
       rawEvidence,
     });
     const reference = await store.putArtifact({
@@ -349,6 +381,7 @@ export async function runM2ForwardInstrumentCapture(input: Readonly<{
 
   const batch = buildM2ForwardInstrumentBatch({
     generatedAt: now().toISOString(),
+    provenance,
     snapshots,
   });
   const batchArtifact = await store.putArtifact({
@@ -362,6 +395,7 @@ export async function runM2ForwardInstrumentCapture(input: Readonly<{
     const continuity = buildM2ForwardInstrumentContinuity({
       generatedAt: now().toISOString(),
       previous: previousContinuities.get(snapshot.providerId),
+      provenance,
       snapshots: [snapshot],
     });
     const reference = await store.putArtifact({
@@ -380,6 +414,7 @@ export async function runM2ForwardInstrumentCapture(input: Readonly<{
     continuityArtifacts,
     entrySequence: previousEntry === null ? 0 : previousEntry.entrySequence + 1,
     previousEntryDigest: previousEntry?.journalEntryDigest ?? null,
+    provenance,
     recordedAt: now().toISOString(),
     snapshots,
     snapshotArtifacts,

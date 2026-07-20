@@ -23,9 +23,14 @@ import {
   M2ForwardInstrumentRawEvidenceSchema,
   type M2ForwardInstrumentRawEvidence,
 } from "./forward-instrument-capture";
+import {
+  M2_FORWARD_INSTRUMENT_ARTIFACT_REFERENCE_VERSION,
+  M2ForwardInstrumentProvenanceSchema,
+} from "./forward-instrument-provenance";
 
-export const M2_FORWARD_INSTRUMENT_ARTIFACT_REFERENCE_VERSION =
-  "v2-m2-forward-instrument-artifact-reference.v1" as const;
+export {
+  M2_FORWARD_INSTRUMENT_ARTIFACT_REFERENCE_VERSION,
+} from "./forward-instrument-provenance";
 
 const MAX_ARTIFACT_BYTES = 50 * 1024 * 1024;
 const MAX_JOURNAL_BYTES = 64 * 1024 * 1024;
@@ -42,6 +47,7 @@ const JournalChainRecordSchema = z.object({
 
 const ArtifactReferenceCoreSchema = z.strictObject({
   schemaVersion: z.literal(M2_FORWARD_INSTRUMENT_ARTIFACT_REFERENCE_VERSION),
+  ...M2ForwardInstrumentProvenanceSchema.shape,
   artifactKind: z.enum(["SNAPSHOT", "BATCH", "CONTINUITY"]),
   artifactDigest: DigestSchema,
   contentDigest: DigestSchema,
@@ -233,8 +239,8 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
   await ensureContainedDirectory(root, rawDirectory);
   await ensureContainedDirectory(root, artifactDirectory);
   await ensureContainedDirectory(root, journalDirectory);
-  const journalPath = join(journalDirectory, "forward-instrument-captures.v1.jsonl");
-  const lockPath = join(journalDirectory, "forward-instrument-captures.v1.lock");
+  const journalPath = join(journalDirectory, "forward-instrument-captures.v2.jsonl");
+  const lockPath = join(journalDirectory, "forward-instrument-captures.v2.lock");
 
   const storagePath = (storageKey: string): string => {
     const parsed = StorageKeySchema.parse(storageKey);
@@ -322,13 +328,18 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
       } as const;
       if (
         artifactInput.artifact === null ||
-        typeof artifactInput.artifact !== "object" ||
-        (artifactInput.artifact as Record<string, unknown>)[
-          digestField[artifactInput.artifactKind]
-        ] !== artifactDigest
+        typeof artifactInput.artifact !== "object"
       ) {
         throw new Error("forward artifact does not carry its declared digest");
       }
+      const artifactRecord = artifactInput.artifact as Record<string, unknown>;
+      if (artifactRecord[digestField[artifactInput.artifactKind]] !== artifactDigest) {
+        throw new Error("forward artifact does not carry its declared digest");
+      }
+      const provenance = M2ForwardInstrumentProvenanceSchema.parse({
+        releaseId: artifactRecord.releaseId,
+        captureConfigDigest: artifactRecord.captureConfigDigest,
+      });
       const bytes = new TextEncoder().encode(
         `${JSON.stringify(artifactInput.artifact)}\n`,
       );
@@ -338,6 +349,7 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
       const artifactHex = artifactDigest.slice("sha256:".length);
       const core = ArtifactReferenceCoreSchema.parse({
         schemaVersion: M2_FORWARD_INSTRUMENT_ARTIFACT_REFERENCE_VERSION,
+        ...provenance,
         artifactKind: artifactInput.artifactKind,
         artifactDigest,
         contentDigest: sha256(bytes),

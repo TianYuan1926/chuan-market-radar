@@ -7,6 +7,7 @@ import {
   MutableForwardInstrumentClock,
   syntheticForwardInstrumentFetch,
   syntheticForwardInstrumentState,
+  TEST_FORWARD_INSTRUMENT_PROVENANCE,
 } from "../testing/forward-instrument-harness";
 import {
   buildM2ForwardInstrumentBatch,
@@ -31,10 +32,16 @@ test("builds a complete three-venue forward-only batch from exact raw pages", as
     buildM2ForwardInstrumentSnapshot({
       attempt,
       generatedAt: clock.now().toISOString(),
-      rawEvidence: attempt.pages.map(buildM2ForwardInstrumentRawEvidence),
+      provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
+      rawEvidence: attempt.pages.map((page) =>
+        buildM2ForwardInstrumentRawEvidence(
+          page,
+          TEST_FORWARD_INSTRUMENT_PROVENANCE,
+        )),
     }));
   const batch = buildM2ForwardInstrumentBatch({
     generatedAt: clock.now().toISOString(),
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
     snapshots,
   });
 
@@ -63,7 +70,12 @@ test("retains unresolved rows in a complete denominator without inventing identi
   const snapshot = buildM2ForwardInstrumentSnapshot({
     attempt,
     generatedAt: clock.now().toISOString(),
-    rawEvidence: attempt.pages.map(buildM2ForwardInstrumentRawEvidence),
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    rawEvidence: attempt.pages.map((page) =>
+      buildM2ForwardInstrumentRawEvidence(
+        page,
+        TEST_FORWARD_INSTRUMENT_PROVENANCE,
+      )),
   });
 
   assert.equal(snapshot.captureStatus, "COMPLETE");
@@ -73,6 +85,82 @@ test("retains unresolved rows in a complete denominator without inventing identi
   assert.ok(snapshot.declaredLimitations.includes(
     "unresolved_identity_rows_retained_in_denominator",
   ));
+});
+
+test("retains provider-native out-of-scope rows without blocking identity truth", async () => {
+  const state = syntheticForwardInstrumentState();
+  state.binanceRows = [{
+    baseAsset: "AAA",
+    contractType: "CURRENT_QUARTER",
+    marginAsset: "USDT",
+    quoteAsset: "USDT",
+    status: "TRADING",
+    symbol: "AAAUSDT_260925",
+  }];
+  const clock = new MutableForwardInstrumentClock("2026-07-20T10:45:00.000Z");
+  const [attempt] = await captureThreeVenueForwardCatalogs({
+    fetchImplementation: syntheticForwardInstrumentFetch(state),
+    now: clock.now,
+  });
+  assert.ok(attempt);
+  const snapshot = buildM2ForwardInstrumentSnapshot({
+    attempt,
+    generatedAt: clock.now().toISOString(),
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    rawEvidence: attempt.pages.map((page) =>
+      buildM2ForwardInstrumentRawEvidence(
+        page,
+        TEST_FORWARD_INSTRUMENT_PROVENANCE,
+      )),
+  });
+
+  assert.equal(snapshot.denominator.providerRowCount, 1);
+  assert.equal(snapshot.accounting[0]?.accounting.status, "UNSUPPORTED");
+  assert.equal(
+    snapshot.accounting[0]?.identityEvidenceClass,
+    "PROVIDER_NATIVE_OUT_OF_SCOPE",
+  );
+  assert.notEqual(snapshot.accounting[0]?.identityFingerprint, null);
+  assert.equal(snapshot.declaredLimitations.includes(
+    "unresolved_identity_rows_retained_in_denominator",
+  ), false);
+});
+
+test("preserves a Unicode provider identity as an eligible target contract", async () => {
+  const state = syntheticForwardInstrumentState();
+  const baseAsset = "\u4e2d\u6587";
+  state.binanceRows = [{
+    baseAsset,
+    contractType: "PERPETUAL",
+    marginAsset: "USDT",
+    quoteAsset: "USDT",
+    status: "TRADING",
+    symbol: `${baseAsset}USDT`,
+  }];
+  const clock = new MutableForwardInstrumentClock("2026-07-20T10:50:00.000Z");
+  const [attempt] = await captureThreeVenueForwardCatalogs({
+    fetchImplementation: syntheticForwardInstrumentFetch(state),
+    now: clock.now,
+  });
+  assert.ok(attempt);
+  const snapshot = buildM2ForwardInstrumentSnapshot({
+    attempt,
+    generatedAt: clock.now().toISOString(),
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    rawEvidence: attempt.pages.map((page) =>
+      buildM2ForwardInstrumentRawEvidence(
+        page,
+        TEST_FORWARD_INSTRUMENT_PROVENANCE,
+      )),
+  });
+
+  assert.equal(snapshot.accounting[0]?.accounting.status, "ELIGIBLE");
+  assert.equal(
+    snapshot.accounting[0]?.identityEvidenceClass,
+    "CANONICAL_TARGET",
+  );
+  assert.equal(snapshot.accounting[0]?.accounting.baseAsset, baseAsset);
+  assert.notEqual(snapshot.accounting[0]?.identityFingerprint, null);
 });
 
 test("a failed provider request cannot become a complete snapshot or batch", async () => {
@@ -87,7 +175,12 @@ test("a failed provider request cannot become a complete snapshot or batch", asy
     buildM2ForwardInstrumentSnapshot({
       attempt,
       generatedAt: clock.now().toISOString(),
-      rawEvidence: attempt.pages.map(buildM2ForwardInstrumentRawEvidence),
+      provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
+      rawEvidence: attempt.pages.map((page) =>
+        buildM2ForwardInstrumentRawEvidence(
+          page,
+          TEST_FORWARD_INSTRUMENT_PROVENANCE,
+        )),
     }));
   const failed = snapshots.find((snapshot) => snapshot.providerId === "OKX_SWAP");
   assert.equal(failed?.captureStatus, "FAILED");
@@ -95,6 +188,7 @@ test("a failed provider request cannot become a complete snapshot or batch", asy
   assert.equal(failed?.rawEvidence.length, 0);
   const batch = buildM2ForwardInstrumentBatch({
     generatedAt: clock.now().toISOString(),
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
     snapshots,
   });
   assert.equal(batch.batchStatus, "PARTIAL");
@@ -129,7 +223,7 @@ test("captures every Bybit pagination page and rejects raw-byte substitution", a
     () => buildM2ForwardInstrumentRawEvidence({
       ...bybit.pages[0]!,
       rawBody: altered,
-    }),
+    }, TEST_FORWARD_INSTRUMENT_PROVENANCE),
     /do not match transport evidence/u,
   );
 });
@@ -140,7 +234,12 @@ test("snapshot schema rejects any attempt to claim pre-capture history", async (
   const snapshot = buildM2ForwardInstrumentSnapshot({
     attempt,
     generatedAt: clock.now().toISOString(),
-    rawEvidence: attempt.pages.map(buildM2ForwardInstrumentRawEvidence),
+    provenance: TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    rawEvidence: attempt.pages.map((page) =>
+      buildM2ForwardInstrumentRawEvidence(
+        page,
+        TEST_FORWARD_INSTRUMENT_PROVENANCE,
+      )),
   });
   assert.equal(M2ForwardInstrumentSnapshotSchema.safeParse({
     ...snapshot,
