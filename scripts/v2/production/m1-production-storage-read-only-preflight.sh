@@ -149,8 +149,20 @@ NETWORK_NAME="${COMMON_NETWORKS[0]}"
 WEB_IMAGE="$(sudo docker inspect -f '{{.Image}}' "${WEB_CONTAINER}")"
 [[ "${WEB_IMAGE}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "production Web image is not content addressed"
 
-sudo docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "${WEB_CONTAINER}" \
-  | awk 'substr($0, 1, 13) == "DATABASE_URL=" { print substr($0, 14) }' \
+sudo docker inspect "${POSTGRES_CONTAINER}" \
+  | jq -er '
+      .[0].Config.Env
+      | map(capture("^(?<key>POSTGRES_(?:USER|PASSWORD|DB))=(?<value>.*)$"))
+      | from_entries
+      | (.POSTGRES_USER // "") as $username
+      | (.POSTGRES_PASSWORD // "") as $password
+      | (.POSTGRES_DB // "") as $database
+      | if ([$username, $password, $database] | all(length > 0)) then
+          "postgresql://\($username | @uri):\($password | @uri)@postgres:5432/\($database | @uri)"
+        else
+          error("PostgreSQL bootstrap identity is incomplete")
+        end
+    ' \
   | sudo tee "${SECRET_FILE}" >/dev/null
 [[ "$(sudo wc -l < "${SECRET_FILE}" | tr -d ' ')" == "1" ]] \
   || fail "exactly one database connection must be materialized"

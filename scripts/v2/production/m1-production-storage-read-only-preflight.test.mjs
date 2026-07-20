@@ -444,7 +444,11 @@ test("production runner is a scoped, no-authority transient-container operation"
   assert.match(source, /database-facts\.json/u);
   assert.match(source, /docker-before\.json/u);
   assert.match(source, /docker-after\.json/u);
+  assert.match(source, /docker inspect "\$\{POSTGRES_CONTAINER\}"/u);
+  assert.match(source, /POSTGRES_PASSWORD/u);
+  assert.match(source, /@uri/u);
   assert.match(source, /productionDatabaseMutation: false/u);
+  assert.doesNotMatch(source, /substr\(\$0, 1, 13\) == "DATABASE_URL="/u);
   assert.doesNotMatch(source, /docker compose[^\n]*(up|down|restart)/u);
   assert.doesNotMatch(source, /\bpsql\b/u);
   assert.doesNotMatch(source, /\b(CONFIRM_MIGRATION|INSERT INTO|CREATE TABLE|DROP TABLE)\b/u);
