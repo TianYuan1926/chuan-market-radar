@@ -66,7 +66,7 @@ Runtime / Security / Release Control 贯穿全链。
 当前唯一设计权威：
 
 - `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.2。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.2。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.3。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -86,7 +86,8 @@ M1.5B1_EARLY_SHADOW_EXTERNAL_GATE_PENDING
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
-M2.2_HISTORICAL_REPLAY_GATE_LOCAL_READY
+M2.2A_HISTORICAL_REPLAY_GATE_HARNESS_LOCAL_PASS
+M2.2_REAL_COHORT_GATE_INSUFFICIENT
 detectorLifecycle=DRAFT
 candidateEmissionAllowed=false
 liveIngestionProven=false
@@ -136,6 +137,7 @@ automaticTradingAllowed=false
 - M1.6 已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、Audit/Retention 分权、restore-verified DROP 与不可变 CREATED/DROPPED/run evidence。隔离 PG16 真实证明旧读兼容、两日跨分区、`pg_dump -> pg_restore -> replay parity`、保留/replay 阻断、原子清理与防重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS，生产 migration 和真实容量未证明。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
 - M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核，包含显式长短/UNKNOWN、late/noise/fakeout veto、unavailable 降级、顺序无关 digest 和 Detector 注册身份防篡改。阈值固定标记 `UNCALIBRATED_DRAFT_THRESHOLDS`，Candidate emission=false；定向 10/10、M2.0 回归 16/16、全 V2 167 pass / 0 fail / 5 explicit skips。没有历史 cohort、真实指标或生命周期升级证据。
+- M2.2-A 已建立真实历史数据接纳、完整 Candidate 背景窗口、candidate/event/matched-non-event 三业务分母、固定 Detector 分母、purge/embargo、holdout group isolation 与独立 custody、target-blind 首次发现、Wilson CI/lead-time 秩区间和四态 lifecycle proposal Gate。独立 custody 下 research Bundle 物理禁止 inline holdout，Gate 只打开 commitment 匹配的 sealed artifact；lead time 使用数据实际可知的 knowledge cutoff。当前仓库 accepted real cohort=0，Top20 ranking、threshold sensitivity 和真实 untouched holdout 均缺失，因此 Gate=`INSUFFICIENT`；五个 Detector 保持 DRAFT、Candidate 禁发。
 - 本机 live no-authority probe 已执行两轮；Binance、OKX、Bybit 三家公开 HTTPS endpoint 均连接/请求超时，结果诚实保持 0 observed / 0 eligible / `DEGRADED`。因此当前仍没有 live 全市场规模、Shadow/SLO、生产 migration、API、页面或生产 authority 证据。
 
 ## 6. Docker 服务清单
@@ -268,7 +270,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6、M2.0 与 M2.1 本地出口通过；五个 Detector 仍为未校准 DRAFT 且 Candidate 禁发；M1 的 Docker/live/生产 migration/真实容量未证明，M1.5-B1 与 M1.7 仍待外部证据；当前只允许 M2.2 历史 replay/lifecycle Gate，Detector runtime 禁止启动
+V2：M0、M1.1-M1.6、M2.0、M2.1 与 M2.2-A 本地出口通过；真实 cohort Gate=INSUFFICIENT，五个 Detector 仍为未校准 DRAFT 且 Candidate 禁发；M1 的 Docker/live/生产 migration/真实容量未证明，M1.5-B1 与 M1.7 仍待外部证据；当前只允许 M2.2-B 真实历史 cohort 获取与冻结，Detector runtime 禁止启动
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -293,6 +295,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-20 / V2 M2.2-A Historical Replay Gate Harness Local Exit
+
+- 冻结真实来源权利、完整背景窗口、真实 split/purge/embargo、固定 Detector 分母、物理分离 holdout custody、三业务分母和 target-blind 首次发现合同；合成样本无法成为 lifecycle 证据，事件时间也不能冒充真实可知时间抬高提前量。
+- 输出 overall/family/detector/direction/regime/liquidity 的 precision、recall、control activation、unavailable、late/noise 与 lead-time 分布；实际出现的 stratum 不能省略且必须逐层过线，Gate 只可给四态结果和晋级提案，不能改 lifecycle 或发 Candidate。
+- 仓库盘点没有 accepted real cohort，Top20/sensitivity/untouched holdout 也未形成，故当前真实状态为 `INSUFFICIENT`，生产零变更。
+
 ### 2026-07-20 / V2 M2.1 DRAFT Replay Kernels Local Exit
 
 - 建立三个 Pre-Move 和两个 Breakout/Retest DRAFT 内核；长短规则独立，UNKNOWN/冲突、late/noise/fakeout veto 与 unavailable 语义明确。
@@ -304,12 +312,6 @@ Cycle final
 - 冻结六族十四模式、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、UTC Episode key、生命周期/去重和三层运行漏斗；Candidate 仍没有等级、行动状态或交易计划。
 - 19 个 test-only point-in-time fixture 覆盖每族 LONG、SHORT 和反例，并明确包含 direction unresolved、late、noise、fakeout 与 unavailable；递归 future-material 防线拒绝 Outcome/MFE/MAE 等未来数据。
 - M2.0 定向 16/16、全 V2 157 pass / 0 fail / 5 explicit skips、完整 `ci:production` PASS；M1 runtime、Deep Validation、API、页面和生产均未改变。
-
-### 2026-07-20 / V2 M1.6 Partitioned Fact Storage Local Exit
-
-- 新 Fact 只能进入无 DEFAULT 的 UTC 日分区，旧账本拒绝旁路；活动身份唯一性随 retention 原子收缩，DROPPED 事件永久封闭旧 source day。
-- 定向 5/5、全 V2 141 pass / 0 fail / 5 explicit external-dependency skips、完整 `ci:production` PASS；M1.3/M1.4/M1.5 与 M1.6 四项隔离 PG16 各 1/1 PASS。
-- M1.6 强演练真实完成两日跨分区、`pg_dump -> pg_restore -> replay parity PASS`、活跃保留/replay 阻断和 1 分区/2 Fact 原子 DROP；生产零连接、零 migration、零变更。
 
 ## 15. 当前风险
 
@@ -327,7 +329,7 @@ Cycle final
 - V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；但三家 provider egress、Docker image、Compose merge、生产 migration、真实容量、Shadow 与 SLO PASS 均未证明。
 - M1.6 migration 前旧 V2 Fact 保持兼容但不自动清理；生产 preflight 必须证明旧 Fact 为零，非零时另做受控 backfill/retirement，不能进入长期 Shadow。
 - M2.0 的 19 个 test-only fixture 只证明合同和反未来泄漏，不能作为 Detector precision/recall/lead-time 或生命周期晋级证据。
-- M2.1 的五个 kernel 仍为 DRAFT 且阈值未校准；真实 historical cohort、三分母、regime/direction 指标、threshold sensitivity 和 untouched holdout 未完成，禁止发 Candidate 或宣称 Detector 有效。
+- M2.2-A harness 已能拒绝 future leak、病例对照 precision 膨胀和伪 holdout，但 accepted real historical cohort=0；真实来源权利、完整背景窗口、Top20 ranking、threshold sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
 
 ### P2
 
@@ -338,7 +340,7 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M2.2 是否使用真实冻结 point-in-time historical cohort 和 event/candidate/matched-non-event 三分母，完整报告失败与 holdout，而不是用合成样本自批 Detector 晋级。
+1. M2.2-B 是否登记真实来源权利并冻结完整 point-in-time Candidate 背景、event、matched-non-event、purged split 和独立 holdout artifact，而不是把 Legacy 摘要或合成样本改名后送入 Gate。
 2. M1.5-B1 是否先在可达网络得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 fixture、官方文档或超时写成全市场证据。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
@@ -363,10 +365,10 @@ Cycle final
 ## 18. 唯一下一入口
 
 ```text
-V2-M2.2-HISTORICAL-REPLAY-AND-DETECTOR-LIFECYCLE-GATE
+V2-M2.2-B-REAL-HISTORICAL-COHORT-ACQUISITION-AND-FREEZE
 ```
 
-目标是建立许可/lineage 明确的真实冻结 historical cohort、candidate/event/matched-non-event 三分母、family/direction/regime 分层指标、threshold sensitivity、失败登记和 untouched holdout，只输出 PASS/FAIL/INSUFFICIENT 与人工升级提案。外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行，随后进入 M1.7；在 M1 工程出口和独立生命周期批准前不得启动 Detector runtime、读取 M1 authority、写 Candidate Store、接入页面或生成等级/Signal/Plan。
+目标是先登记允许 retention/replay 的真实来源，生成完整 point-in-time observations 与 Candidate Universe 背景窗口，冻结 Event/Matched non-event、真实 train/validation/holdout、独立 holdout custody、ranking policy 和全部 trial registry；本包不得打开 holdout、挑最佳试验或改 Detector lifecycle。外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行，随后进入 M1.7；在 M1 工程出口和独立生命周期批准前不得启动 Detector runtime、读取 M1 authority、写 Candidate Store、接入页面或生成等级/Signal/Plan。
 
 ## 19. 活跃记忆维护规则
 

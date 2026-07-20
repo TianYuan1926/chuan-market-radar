@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.2",
-  "status": "m2_1_draft_replay_kernels_local_pass_detectors_draft_external_gates_pending",
-  "generatedAt": "2026-07-20T12:48:46+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.3",
+  "status": "m2_2_a_replay_gate_harness_local_pass_real_cohort_missing_detectors_draft_external_gates_pending",
+  "generatedAt": "2026-07-20T13:46:27+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M2_1_DRAFT_REPLAY_KERNELS_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M2_2_A_HISTORICAL_REPLAY_GATE_HARNESS_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -30,6 +30,7 @@
     "m1PartitionedFactStorageContract": "docs/architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md",
     "m2DiscoveryContractsAndGoldenFixtures": "docs/architecture/v2/M2_0_DISCOVERY_CONTRACTS_AND_GOLDEN_FIXTURES_V1.md",
     "m2DraftReplayKernelsContract": "docs/architecture/v2/M2_1_DRAFT_REPLAY_KERNELS_CONTRACT_V1.md",
+    "m2HistoricalReplayGateContract": "docs/architecture/v2/M2_2_HISTORICAL_REPLAY_AND_LIFECYCLE_GATE_CONTRACT_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -48,7 +49,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m2_1_local_draft_replay_kernel_pass_detectors_uncalibrated_candidate_emission_false_m1_runtime_live_and_slo_unproven",
+    "v2ImplementationStatus": "m2_2_a_local_harness_pass_real_cohort_missing_gate_insufficient_detectors_draft_candidate_emission_false_m1_runtime_live_and_slo_unproven",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -488,9 +489,40 @@
       "v2.breakout-retest.breakout-edge",
       "v2.breakout-retest.role-flip-retest"
     ],
-    "nextLifecycleGate": "historical_point_in_time_replay_with_event_candidate_and_matched_non_event_denominators",
+    "nextLifecycleGate": "real_historical_cohort_acquisition_freeze_registered_replay_and_independent_audit",
     "syntheticFixturesMayApproveReplayValidated": false,
     "automaticLifecyclePromotionAllowed": false
+  },
+  "m2HistoricalReplayGate": {
+    "localHarnessStatus": "PASS",
+    "realDatasetAcceptedCount": 0,
+    "currentGateStatus": "INSUFFICIENT",
+    "businessDenominators": [
+      "candidate",
+      "event",
+      "matched_non_event"
+    ],
+    "candidatePrecisionBackgroundRequired": true,
+    "requiredStrataDimensions": [
+      "family",
+      "direction",
+      "regime",
+      "liquidity"
+    ],
+    "observedStrataMayBeOmitted": false,
+    "requiredStrataMustPassIndividually": true,
+    "frozenDetectorSetRequiredOnEveryRecord": true,
+    "futureLabelsPhysicallySeparatedFromDetectorInput": true,
+    "leadTimeClock": "knowledge_cutoff",
+    "purgeEmbargoValidatedFromWindows": true,
+    "holdoutGroupIsolationRequired": true,
+    "separateImmutableHoldoutCustodyRequired": true,
+    "inlineHoldoutPayloadForbiddenInResearchBundle": true,
+    "singleUseHoldoutArtifactCommitmentRequired": true,
+    "top20RankingEvidenceAvailable": false,
+    "thresholdSensitivityComplete": false,
+    "automaticLifecyclePromotionAllowed": false,
+    "candidateEmissionAllowed": false
   },
   "dataAuthority": {
     "postgres": [
@@ -663,7 +695,7 @@
       "dependsOn": [
         "M1"
       ],
-      "status": "m2_0_local_contract_pass_runtime_blocked_until_m1_exit",
+      "status": "m2_2_a_local_harness_pass_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
       "workPackages": [
         {
           "id": "M2.0",
@@ -676,9 +708,24 @@
           "status": "local_draft_kernel_pass_uncalibrated_no_candidate_emission_runtime_blocked"
         },
         {
-          "id": "M2.2",
-          "name": "historical_replay_and_detector_lifecycle_gate",
-          "status": "local_replay_gate_work_allowed_detectors_remain_draft"
+          "id": "M2.2-A",
+          "name": "historical_replay_contract_and_lifecycle_gate_harness",
+          "status": "local_harness_pass_real_cohort_missing_gate_insufficient_detectors_remain_draft"
+        },
+        {
+          "id": "M2.2-B",
+          "name": "real_historical_cohort_acquisition_and_freeze",
+          "status": "pending"
+        },
+        {
+          "id": "M2.2-C",
+          "name": "registered_replay_sensitivity_and_untouched_holdout",
+          "status": "pending"
+        },
+        {
+          "id": "M2.2-D",
+          "name": "independent_audit_and_lifecycle_proposal",
+          "status": "pending"
         }
       ]
     },
@@ -763,17 +810,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M2.1-PRE-MOVE-BREAKOUT-DRAFT-REPLAY-KERNELS",
-    "name": "pre_move_and_breakout_retest_uncalibrated_draft_replay_kernels",
-    "status": "local_draft_kernel_pass_no_candidate_emission_m1_runtime_blocked_production_unchanged",
+    "id": "V2-M2.2-A-HISTORICAL-REPLAY-CONTRACT-AND-LIFECYCLE-GATE-HARNESS",
+    "name": "historical_replay_dataset_acceptance_target_blind_metrics_and_lifecycle_proposal_gate",
+    "status": "local_harness_pass_real_cohort_missing_gate_insufficient_detectors_draft_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M2.2-HISTORICAL-REPLAY-AND-DETECTOR-LIFECYCLE-GATE",
-    "name": "historical_point_in_time_cohorts_denominators_metrics_holdout_and_lifecycle_gate",
-    "status": "local_replay_gate_work_allowed_detectors_remain_draft_m2_runtime_blocked_until_m1_exit",
+    "id": "V2-M2.2-B-REAL-HISTORICAL-COHORT-ACQUISITION-AND-FREEZE",
+    "name": "licensed_point_in_time_background_event_control_and_separate_holdout_dataset_freeze",
+    "status": "pending_real_data_acquisition_detectors_remain_draft_m2_runtime_blocked_until_m1_exit",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
