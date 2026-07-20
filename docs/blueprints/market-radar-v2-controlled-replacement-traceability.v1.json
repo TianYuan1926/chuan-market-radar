@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.7",
-  "status": "m2_2_b0_2_c_local_engineering_pass_forward_capture_start_blocked_on_egress_external_rights_and_historical_source_blocked_bulk_and_cohort_blocked_detectors_draft",
-  "generatedAt": "2026-07-20T20:42:08+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.8",
+  "status": "m2_2_b0_2_c1_operational_capture_start_pass_forward_only_ready_external_rights_and_historical_source_blocked_bulk_and_cohort_blocked_detectors_draft_collector_docker_and_shadow_unproven",
+  "generatedAt": "2026-07-20T21:42:24+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M2_2_B0_2_C_FIRST_PARTY_FORWARD_INSTRUMENT_CAPTURE_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M2_2_B0_2_C1_RELEASE_BOUND_FORWARD_CAPTURE_START_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -35,6 +35,7 @@
     "m2TargetBlindDiagnosticStrengthContract": "docs/architecture/v2/M2_2_B0_1_TARGET_BLIND_DIAGNOSTIC_STRENGTH_AND_CONSTRUCTION_POLICY_V1.md",
     "m2RightsAndHistoricalInstrumentEvidenceGate": "docs/architecture/v2/M2_2_B0_2_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_V1.md",
     "m2FirstPartyForwardInstrumentCaptureContract": "docs/architecture/v2/M2_2_B0_2_C_FIRST_PARTY_FORWARD_INSTRUMENT_CAPTURE_V1.md",
+    "m2ReleaseBoundForwardCaptureStartContract": "docs/architecture/v2/M2_2_B0_2_C1_RELEASE_BOUND_FORWARD_CAPTURE_START_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -53,7 +54,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m2_2_b0_2_a_machine_evidence_gate_local_pass_all_five_source_candidates_research_only_external_rights_and_historical_source_blocked_bulk_and_cohort_false_gate_insufficient_detectors_draft_candidate_emission_false_m1_runtime_live_and_slo_unproven",
+    "v2ImplementationStatus": "m2_2_b0_2_c1_operational_capture_start_pass_forward_only_ready_all_five_source_candidates_research_only_external_rights_and_historical_source_blocked_bulk_and_cohort_false_gate_insufficient_detectors_draft_candidate_emission_false_m1_collector_docker_and_slo_unproven",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -699,7 +700,7 @@
       "dependsOn": [
         "M1"
       ],
-      "status": "m2_2_b0_2_c_local_engineering_pass_forward_capture_start_blocked_on_egress_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
+      "status": "m2_2_b0_2_c1_operational_capture_start_pass_forward_only_ready_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
       "workPackages": [
         {
           "id": "M2.0",
@@ -719,7 +720,7 @@
         {
           "id": "M2.2-B",
           "name": "real_historical_cohort_acquisition_and_freeze",
-          "status": "in_progress_b0_b0_1_b0_2_a_and_b0_2_c_local_pass_external_resolution_bulk_and_cohort_blocked"
+          "status": "in_progress_b0_b0_1_b0_2_a_b0_2_c_local_pass_and_c1_operational_capture_start_pass_external_resolution_bulk_and_cohort_blocked"
         },
         {
           "id": "M2.2-B0",
@@ -744,12 +745,12 @@
         {
           "id": "M2.2-B0.2-C",
           "name": "first_party_forward_instrument_capture",
-          "status": "local_engineering_pass_operational_capture_start_blocked_on_egress_forward_only_production_unchanged"
+          "status": "local_engineering_pass_release_bound_forward_only_production_unchanged"
         },
         {
           "id": "M2.2-B0.2-C1",
           "name": "egress_capable_forward_capture_start",
-          "status": "pending_trusted_egress_and_two_complete_three_venue_snapshots"
+          "status": "operational_capture_start_pass_two_complete_three_venue_snapshots_release_and_config_bound_forward_only_production_unchanged"
         },
         {
           "id": "M2.2-B1",
@@ -859,17 +860,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE",
-    "name": "three_venue_forward_only_instrument_snapshot_and_transition_capture",
-    "status": "local_engineering_pass_operational_capture_start_blocked_on_egress_no_historical_backfill_production_unchanged",
+    "id": "V2-M2.2-B0.2-C1-RELEASE-BOUND-FORWARD-CAPTURE-START",
+    "name": "release_bound_three_venue_forward_only_instrument_capture_start",
+    "status": "operational_capture_start_pass_two_complete_batches_all_continuities_forward_only_ready_no_historical_backfill_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M2.2-B0.2-C1-EGRESS-CAPABLE-FORWARD-CAPTURE-START",
-    "name": "trusted_egress_forward_capture_start_with_complete_three_venue_evidence",
-    "status": "pending_egress_two_complete_snapshots_frozen_cadence_raw_integrity_and_zero_active_gap",
+    "id": "V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT",
+    "name": "branch_scoped_github_hosted_no_authority_exact_image_and_live_collector_preflight",
+    "status": "pending_exact_source_image_live_provider_four_denominators_identity_and_sanitized_artifact",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
@@ -881,9 +882,25 @@
     "cohortFreezeAllowed": false,
     "productionMutationAllowed": false
   },
+  "completedForwardCaptureStart": {
+    "id": "V2-M2.2-B0.2-C1-RELEASE-BOUND-FORWARD-CAPTURE-START",
+    "releaseId": "4139cc631d3d760876c3e39404c494462541a910",
+    "captureConfigDigest": "sha256:6cecaf486c155721b85a4f1161b7c492e69916f27c40b4bf0bd34400d90e4a9d",
+    "journalHeadDigest": "sha256:4ac46f0b8c364afb28d89fd79c1aa8019ff62f908334696f298027709021ca7b",
+    "completeBatchCount": 2,
+    "providerContinuityStatus": "FORWARD_ONLY_READY",
+    "minimumObservedSnapshotCount": 2,
+    "minimumObservationSpanMs": 368507,
+    "activeCoverageGapCount": 0,
+    "unresolvedIdentityCount": 0,
+    "identityConflictCount": 0,
+    "historicalBackfillAllowed": false,
+    "candidateEmissionAllowed": false,
+    "productionMutationPerformed": false
+  },
   "pendingExternalGate": {
-    "id": "V2-M1.5-B1-EGRESS-EARLY-SHADOW-GATE",
-    "status": "blocked_on_trusted_production_channel_and_docker_runner",
+    "id": "V2-M1.5-B1-B-31-CYCLE-EARLY-SHADOW",
+    "status": "blocked_until_reachable_docker_runner_preflight_pass",
     "maximumCycles": 31,
     "authorityMode": "NO_AUTHORITY",
     "productionMutationAllowed": false

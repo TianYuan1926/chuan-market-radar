@@ -2,6 +2,43 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M2.2-B0.2-C1 Release-Bound Forward Capture Start
+
+### 本轮目标
+
+恢复可信公开市场 egress，修正真实目录暴露出的 identity/证据绑定缺口，并用同一冻结 release/config 建立两轮三 Venue 前向合约目录捕获起点。
+
+### 修改范围
+
+- Unicode provider identity 使用 NFC 与确定性 ASCII uppercase，不再把真实目标合约误判为 unresolved。
+- identity evidence 分为 canonical target、provider-native out-of-scope 和 unresolved；范围外 row 保留全分母但不阻断目标范围连续性。
+- Raw/Snapshot/Batch/Continuity/Artifact Reference/Journal 全部绑定 exact clean Git release 与冻结 config；runner 在请求前验证完整 journal chain 和 head artifact。
+
+### 核心链路影响
+
+加固 `全市场发现 -> Universe Registry` 的实时合约范围真值。没有进入 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
+
+### 测试结果
+
+- C1 定向：34/34 PASS。
+- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 267/0/5 explicit skip、M0 10/10、build、Golden 16/16、禁文件/secret/security 全部通过。
+- release `4139cc631d3d760876c3e39404c494462541a910` 两轮 Batch 均 COMPLETE；Binance/OKX/Bybit 各 2/2 complete、跨度约 368.5 秒、gap/unresolved/conflict/blocker=0，全部 `FORWARD_ONLY_READY`。
+- 全链复核 14 个 normalized artifact、6 个 raw reference、5 个唯一 raw object，无 lock/partial 残留。
+
+### 是否部署
+
+未部署。代码已推 V2 实施分支；生产、DB、Redis、Worker、migration、env、Feature Flag、Candidate authority 和 secret 均未修改。
+
+### 风险与遗留问题
+
+- C1 只通过 forward capture start，不回填历史，不等于长期 SLO、historical source、Detector 或实战能力。
+- B0.2-B 外部人工权利与合格历史来源仍 blocked，bulk/cohort 仍关闭。
+- 本机无 Docker CLI；M1.5-B1 需在独立可达 runner 证明 exact image、Collector 四分母与有界 Shadow。
+
+### 下一轮建议
+
+只执行 `V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT`：使用 branch-scoped GitHub-hosted no-authority runner 构建 exact source image 并验证三家 live Collector 四分母；PASS 后再单独启动固定 31 周期 Shadow。
+
 ## 2026-07-20 / V2 M2.2-B0.2-C First-Party Forward Instrument Capture
 
 ### 本轮目标
@@ -151,40 +188,3 @@
 ### 下一轮建议
 
 只执行 `V2-M2.2-B0.1-TARGET-BLIND-DIAGNOSTIC-STRENGTH-AND-CONSTRUCTION-POLICY-FREEZE`；B0.2 权利和历史合约身份可并行解决，二者都通过前禁止 bulk acquisition。
-
-## 2026-07-20 / V2 M2.2-A Historical Replay Contract and Lifecycle Gate Harness
-
-### 本轮目标
-
-建立严格的真实 historical cohort 接纳、target-blind replay、统计指标和 Detector lifecycle proposal Gate，并确认当前证据能否支持晋级。
-
-### 修改范围
-
-- 新增来源 license/retention/replay rights、完整 Candidate 背景窗口、event/matched-control、真实 split/purge/embargo、固定 Detector 分母、holdout group isolation 与独立 custody 合同。
-- 独立 custody 下主 Bundle 物理拒绝 inline holdout；Gate 只接受 digest/summary/identity 全部匹配的单次 sealed artifact。提前量改用数据真正可知的 `knowledgeCutoff`，不再用更早事件时间夸大。
-- 新增每 Detector 首次发现、overall/family/detector/direction/regime/liquidity 指标、逐 stratum 门槛、Wilson CI、lead-time 秩区间、四态 Gate 和 13 项 contract-only 测试；未修改 M2.1 阈值、Legacy、M1 runtime、Frontend/API、DB/Redis/Worker、migration、secret 或生产。
-
-### 核心链路影响
-
-强化 `全市场发现 -> 候选筛选` 的能力验收，禁止用成功样本、病例对照采样比例、future label 或伪 holdout 抬高 Detector 表现。本轮仍不生成 Candidate、Signal 或 Plan。
-
-### 测试结果
-
-- M2.2-A 13/13、M2.1 10/10、M2.0 16/16 PASS。
-- 全 V2：185 total / 180 pass / 0 fail / 5 explicit external-dependency skips。
-- Legacy 965/0/4、Worker 23/23、Historical 4/4、M0 10/10、Build、Golden 16/16、安全和完整 `ci:production`：PASS。
-- formal 与 production smoke 未运行；真实 cohort 不存在且本轮未部署。
-
-### 是否部署
-
-未部署。生产零连接、零命令、零变更。
-
-### 风险与遗留问题
-
-- accepted real cohort=0；Legacy 回测摘要不能替代 V2 point-in-time dataset。
-- Top20 ranking、threshold sensitivity、真实 untouched holdout 和独立审计未完成。
-- 当前 Gate=`INSUFFICIENT`，五个 Detector 继续 DRAFT，Candidate emission=false。
-
-### 下一轮建议
-
-只执行 `V2-M2.2-B-REAL-HISTORICAL-COHORT-ACQUISITION-AND-FREEZE`；先冻结来源权利、完整背景/事件/对照、真实 split 与独立 holdout artifact，本包不得打开 holdout。
